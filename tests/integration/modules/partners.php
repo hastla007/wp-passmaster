@@ -196,7 +196,7 @@ check( 'unlinked users see no settlements', array() === $foreign_visible && fals
 $csv = Scope::csv( Settlements::csv_rows( Settlements::get( $s2 ) ) );
 check( 'CSV contains number, correction line and is formula safe', false !== strpos( $csv, $fin2->document_number ) && false !== strpos( $csv, 'Korrektur Erstattung' ) && false !== strpos( $csv, "'=Gala" ) && false === strpos( $csv, ';=Gala' ) && false !== strpos( $csv, '11.31' ) );
 $html = Settlements::render_html( Settlements::get( $s2 ) );
-check( 'print view is escaped and shows payout and corrections', false === strpos( $html, '<b>Abend</b>' ) && false !== strpos( $html, '&lt;b&gt;Abend' ) && false !== strpos( $html, 'Auszahlungsbetrag an Partner' ) && false !== strpos( $html, '11,31 EUR' ) && false !== strpos( $html, 'Korrekturen' ) );
+check( 'print view is escaped and shows payout and corrections', false === strpos( $html, '<b>Abend</b>' ) && false !== strpos( $html, '&lt;b&gt;Abend' ) && false !== strpos( $html, 'Auszahlungsbetrag an Veranstalter' ) && false !== strpos( $html, '11,31 EUR' ) && false !== strpos( $html, 'Korrekturen' ) );
 check( 'draft print view is marked as draft', false !== strpos( Settlements::render_html( Settlements::get( $p3_draft ) ), 'Entwurf' ) );
 
 echo "Partner API: keys\n";

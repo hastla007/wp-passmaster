@@ -1,11 +1,13 @@
-# Partner, Partner-API und Partner-Abrechnungen
+# Veranstalter, Partner-API und Veranstalter-Abrechnungen
+
+> **Bezeichnung:** In der Oberfläche heißen diese Organisationen **Veranstalter** (früher „Partner“), damit sie nicht mit den Affiliate-Partnern von WP Affiliate Captain verwechselt werden. Technische Bezeichner bleiben unverändert: REST-Pfade `/wp-json/wp-pass-captain/v1/partner/…`, Header `X-WPCAP-Partner-API`, Fehlercodes `wpcap_partner_*`, Tabellen, Optionen und die Rolle (Slug). Bestehende Installationen behalten den gespeicherten Rollennamen „Pass Captain Partner“; neue Installationen legen „Pass Captain Veranstalter“ an. Im Text unten steht „Partner“ für diese Veranstalter.
 
 Partner sind Organisationen (Veranstalter oder Wiederverkäufer), denen Events zugeordnet werden.
 Für sie gibt es:
 
-- **Stammdaten und Provisionsmodell**: Pass Captain → Partner (Capability `manage_options`),
+- **Stammdaten und Provisionsmodell**: Pass Captain → Veranstalter (Capability `manage_options`),
 - **Partner-API**: lesender REST-Zugriff mit eigenen, eingeschränkten API-Keys,
-- **Partner-Abrechnungen**: monatliche Abrechnungen mit Belegnummer (Pass Captain → Partner-Abrechnungen).
+- **Partner-Abrechnungen**: monatliche Abrechnungen mit Belegnummer (Pass Captain → Veranstalter-Abrechnungen).
 
 Code: `src/Modules/Partners.php`, `src/Partners/`.
 
@@ -23,7 +25,7 @@ Code: `src/Modules/Partners.php`, `src/Partners/`.
 | Abrechnung ab | Bestellungen vor diesem Datum werden nie abgerechnet (verhindert, dass Altdaten in die erste Abrechnung fallen). Standard: Monatserster beim Anlegen. |
 | Status | `inaktiv` sperrt alle API-Keys des Partners (403). |
 | Events | Ein Event gehört höchstens einem Partner. |
-| WordPress-Benutzer | IDs, Logins oder E-Mails. Diese Benutzer (typisch Rolle „Pass Captain Partner“) sehen unter *Partner-Abrechnungen* nur die **abgeschlossenen** Abrechnungen ihres Partners, ausschließlich lesend (Ansicht/Druck, CSV). |
+| WordPress-Benutzer | IDs, Logins oder E-Mails. Diese Benutzer (typisch Rolle „Pass Captain Partner“) sehen unter *Veranstalter-Abrechnungen* nur die **abgeschlossenen** Abrechnungen ihres Partners, ausschließlich lesend (Ansicht/Druck, CSV). |
 
 Alle Änderungen werden im Audit-Log protokolliert (`partner_created`, `partner_updated`,
 `partner_events_set`, `partner_users_set`).
@@ -56,7 +58,7 @@ Keys werden auf der Detailseite eines Partners erzeugt.
   `203.0.113.10`, `198.51.100.0/24`, `2001:db8::/32`. Maßgeblich ist `REMOTE_ADDR`; hinter einem
   Reverse Proxy die echte Client-Adresse über den Filter `wpcap_partner_client_ip` liefern.
 - **Ablaufdatum** (optional), **Zuletzt genutzt** (minutengenau), **Widerrufen** (sofort wirksam).
-- **Ratenlimit**: Anfragen pro Minute und Key (Standard 120, einstellbar unter Partner →
+- **Ratenlimit**: Anfragen pro Minute und Key (Standard 120, einstellbar unter Veranstalter →
   Einstellungen bzw. je Key). Überschreitung: `429`.
 - **Sperre bei Fehlversuchen**: Nach 20 fehlgeschlagenen Anmeldungen (fehlender, ungültiger,
   abgelaufener oder widerrufener Key) innerhalb von 10 Minuten wird die Client-Adresse für

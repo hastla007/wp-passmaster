@@ -39,6 +39,7 @@ final class Plugin {
 		Integrations\WooCommerce\OrderAdapter::register();
 		Invoices::register();
 		Integrations\Vouchers\Checkout::register();
+		Integrations\AffiliateCaptain\Adapter::register();
 		Notifications::register();
 		Payments\PayPalGateway::register();
 		Payments\ReturnNotice::register();
