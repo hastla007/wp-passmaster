@@ -20,6 +20,10 @@ final class PublicEvents {
 				'redirecting' => __( 'Weiterleitung zur Zahlung …', 'wp-pass-captain' ),
 				/* translators: %d: hold minutes */
 				'pending' => __( 'Bestellung angelegt; deine Tickets sind %d Minuten reserviert.', 'wp-pass-captain' ),
+				/* translators: %d: hold hours */
+				'pendingHours' => __( 'Bestellung angelegt; deine Tickets sind %d Stunden reserviert.', 'wp-pass-captain' ),
+				/* translators: %d: hold days */
+				'pendingDays' => __( 'Bestellung angelegt; deine Tickets sind %d Tage reserviert.', 'wp-pass-captain' ),
 				/* translators: %d: ticket number */
 				'attendee' => __( 'Teilnehmer:in %d', 'wp-pass-captain' ),
 				'name' => __( 'Name', 'wp-pass-captain' ),

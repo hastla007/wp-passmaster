@@ -656,7 +656,12 @@ final class Installer {
 			dbDelta( $query );
 		}
 
-		self::register_roles();
+		// Role names are translated; before init that would load the text domain too early.
+		if ( did_action( 'init' ) || ! function_exists( 'add_action' ) ) {
+			self::register_roles();
+		} else {
+			add_action( 'init', array( __CLASS__, 'register_roles' ), 1 );
+		}
 		update_option( 'wpcap_db_version', self::version() );
 		update_option( 'wpcap_version', WPCAP_VERSION );
 	}
@@ -679,7 +684,7 @@ final class Installer {
 	 * Role packages from the concept. Operational roles are additionally limited per event through
 	 * wpcap_event_staff assignments (Access::can_access_event); only finance gets global read access.
 	 */
-	private static function register_roles() {
+	public static function register_roles() {
 		$all_caps = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance' );
 		$admin = get_role( 'administrator' );
 		if ( $admin ) {

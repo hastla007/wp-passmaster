@@ -302,7 +302,7 @@ check( 'empty secret keeps the stored value, new secret is stored, clear removes
 check( 'invalid numbers are reported, prefixes normalised', 1 === count( $saved['errors'] ) && 'RE-2026X' === $all['invoice_prefix'] && ( ! isset( $all['credit_note_prefix'] ) || 'GS' === $all['credit_note_prefix'] ) );
 $defined = array();
 foreach ( SettingsPage::field_definitions() as $section ) { $defined += $section['fields']; }
-check( 'every settings key has a form field', ! array_diff( array_keys( array_filter( Settings::defaults(), static fn( $v ) => ! is_array( $v ) ) ), array_keys( $defined ) ) && isset( $defined['enabled_providers'] ) );
+check( 'every settings key has a form field', ! array_diff( array_keys( array_diff_key( array_filter( Settings::defaults(), static fn( $v ) => ! is_array( $v ) ), PassCaptain\Modules::settings_defaults() ) ), array_keys( $defined ) ) && isset( $defined['enabled_providers'] ) );
 putenv( 'WPCAP_STRIPE_SECRET_KEY=sk_env' );
 check( 'constant/environment overrides are detected', 'WPCAP_STRIPE_SECRET_KEY' === SettingsPage::override_source( 'stripe_secret_key' ) && '' === SettingsPage::override_source( 'stripe_webhook_secret' ) );
 putenv( 'WPCAP_STRIPE_SECRET_KEY' );

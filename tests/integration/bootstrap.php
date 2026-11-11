@@ -135,6 +135,8 @@ function trailingslashit( $p ) { return rtrim( $p, '/' ) . '/'; }
 function get_bloginfo( $k = '' ) { return 'Testsite'; }
 function wp_delete_file( $f ) { if ( is_file( $f ) ) { unlink( $f ); } }
 function do_action( $hook, ...$args ) { $GLOBALS['wpcap_test_actions'][] = $hook; wpcap_test_run_hooks( $hook, $args, false ); }
+function did_action( $hook ) { return in_array( $hook, $GLOBALS['wpcap_test_actions'] ?? array(), true ) || 'init' === $hook ? 1 : 0; }
+function wp_specialchars_decode( $s, $q = ENT_NOQUOTES ) { return htmlspecialchars_decode( (string) $s, $q ); }
 function apply_filters( $hook, $value, ...$args ) { if ( array_key_exists( $hook, $GLOBALS['wpcap_test_filters'] ?? array() ) ) { return $GLOBALS['wpcap_test_filters'][ $hook ]; } return wpcap_test_run_hooks( $hook, array_merge( array( $value ), $args ), true ); }
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][] = array( $callback, $accepted_args ); return true; }
 function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) { return add_action( $hook, $callback, $priority, $accepted_args ); }
@@ -160,7 +162,7 @@ function get_role( $r ) { return null; }
 function add_role() {}
 function wc_get_price_decimals() { return 2; }
 function determine_locale() { return 'de_DE'; }
-function wp_date( $f, $ts = null, $tz = null ) { return gmdate( $f, $ts ?? time() ); }
+function wp_date( $f, $ts = null, $tz = null ) { $d = new DateTime( "@" . ( $ts ?? time() ) ); $d->setTimezone( $tz instanceof DateTimeZone ? $tz : new DateTimeZone( "UTC" ) ); return $d->format( $f ); }
 function wc_add_notice( $m, $t = 'success' ) { $GLOBALS['wpcap_test_notices'][] = $m; }
 
 /* ---- WooCommerce fakes ---- */

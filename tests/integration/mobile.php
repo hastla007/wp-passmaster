@@ -30,7 +30,7 @@ function app_call( $callback, $method, $token, array $params = array() ) {
 function ticket_code_for( $order_id ) {
 	// Ticket codes are only stored hashed; tests read the last ticket mail for the order.
 	foreach ( array_reverse( $GLOBALS['wpcap_test_mails'] ) as $mail ) {
-		if ( 'Deine Tickets' === $mail['subject'] && preg_match_all( '/Ticket-Code: ([a-f0-9]{64})/', $mail['body'], $m ) && $m[1] ) {
+		if ( str_starts_with( $mail['subject'], 'Deine Tickets' ) && preg_match_all( '/Ticket-Code: ([a-f0-9]{64})/', $mail['body'], $m ) && $m[1] ) {
 			global $wpdb;
 			$hashes = array_map( static fn( $c ) => hash( 'sha256', $c ), $m[1] );
 			$found = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=" . (int) $order_id . " AND token_hash IN ('" . implode( "','", $hashes ) . "')" );

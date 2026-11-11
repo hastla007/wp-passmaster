@@ -320,6 +320,20 @@ final class OrdersPage {
 			<tr><th><?php esc_html_e( 'Käufer', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( $order->customer_email ); ?></td></tr>
 			<tr><th><?php esc_html_e( 'Angelegt', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( Forms::datetime( $order->created_at, $tz ) ); ?></td></tr>
 			<tr><th><?php esc_html_e( 'Zahlart / Referenz', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( $order->payment_provider . ( '' !== (string) $order->provider_reference ? ' / ' . $order->provider_reference : '' ) ); ?></td></tr>
+			<?php
+			global $wpdb;
+			$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,invoice_number FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d LIMIT 1", $order_id ) );
+			$credit_notes = $invoice ? $wpdb->get_col( $wpdb->prepare( "SELECT credit_note_number FROM {$wpdb->prefix}wpcap_credit_notes WHERE invoice_id=%d ORDER BY credit_note_id", $invoice->invoice_id ) ) : array();
+			$invoice_url = add_query_arg( array( 'action' => 'wpcap_print_invoice', 'order_id' => (int) $order_id ), admin_url( 'admin-post.php' ) );
+			?>
+			<tr><th><?php esc_html_e( 'Rechnung', 'wp-pass-captain' ); ?></th><td>
+				<?php if ( $invoice ) : ?>
+					<a href="<?php echo esc_url( $invoice_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( sprintf( /* translators: %s: invoice number */ __( 'Rechnung %s anzeigen', 'wp-pass-captain' ), $invoice->invoice_number ) ); ?></a>
+					<?php if ( $credit_notes ) : ?><br><?php echo esc_html( sprintf( /* translators: %s: credit note numbers */ __( 'Gutschriften (in der Rechnungsansicht): %s', 'wp-pass-captain' ), implode( ', ', $credit_notes ) ) ); ?><?php endif; ?>
+				<?php elseif ( 'paid' === $order->payment_status && current_user_can( 'wpcap_view_finance' ) ) : ?>
+					<a class="button" href="<?php echo esc_url( wp_nonce_url( $invoice_url, 'wpcap_issue_invoice_' . (int) $order_id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Rechnung erstellen', 'wp-pass-captain' ); ?></a>
+				<?php else : ?>—<?php endif; ?>
+			</td></tr>
 			<tr><th><?php esc_html_e( 'Version AGB/Verbraucherinfo', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( '' !== (string) $order->terms_version ? $order->terms_version : '—' ); ?></td></tr>
 		</tbody></table>
 

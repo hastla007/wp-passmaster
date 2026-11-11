@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class TicketPdf {
 	/**
-	 * @param array $tickets List of ['event','ticket','when','location','attendee','token'] arrays.
+	 * @param array $tickets List of ['event','ticket','when','location','seat','attendee','token'] arrays.
 	 * @param array $meta    ['title' => string, 'footer' => string].
 	 * @return string PDF bytes.
 	 */
@@ -35,6 +35,7 @@ final class TicketPdf {
 		$ops[] = $text( (string) ( $t['ticket'] ?? '' ), 14, 50, $y -= 26 );
 		$ops[] = $text( (string) ( $t['when'] ?? '' ), 12, 50, $y -= 22 );
 		if ( ! empty( $t['location'] ) ) { $ops[] = $text( (string) $t['location'], 12, 50, $y -= 18 ); }
+		if ( ! empty( $t['seat'] ) ) { $ops[] = $text( (string) $t['seat'], 14, 50, $y -= 20, true ); }
 		if ( ! empty( $t['attendee'] ) ) { $ops[] = $text( (string) $t['attendee'], 12, 50, $y -= 18 ); }
 		$matrix = self::qr_matrix( (string) ( $t['token'] ?? '' ) );
 		$top = $y - 40;

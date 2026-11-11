@@ -112,7 +112,7 @@ final class AdminPage {
 		foreach ( $events as $event_id => $name ) {
 			foreach ( Layouts::for_event( $event_id ) as $layout ) {
 				$any = true;
-				echo '<tr><td>' . esc_html( $name ) . '</td><td><a href="' . esc_url( self::url( array( 'layout_id' => (int) $layout->layout_id ) ) ) . '">' . esc_html( $layout->name ) . '</a></td><td>' . ( $layout->published_version ? (int) $layout->published_version : esc_html__( '— (nur Entwurf)', 'wp-pass-captain' ) ) . '</td><td>' . esc_html( Forms::datetime( $layout->updated_at, 'UTC' ) ) . '</td></tr>';
+				echo '<tr><td>' . esc_html( $name ) . '</td><td><a href="' . esc_url( self::url( array( 'layout_id' => (int) $layout->layout_id ) ) ) . '">' . esc_html( $layout->name ) . '</a></td><td>' . ( $layout->published_version ? (int) $layout->published_version : esc_html__( '— (nur Entwurf)', 'wp-pass-captain' ) ) . '</td><td>' . esc_html( Forms::datetime( $layout->updated_at, wp_timezone_string() ) ) . '</td></tr>';
 			}
 		}
 		if ( ! $any ) { echo '<tr><td colspan="4">' . esc_html__( 'Noch keine Saalpläne angelegt.', 'wp-pass-captain' ) . '</td></tr>'; }
@@ -180,7 +180,7 @@ final class AdminPage {
 		if ( ! $versions ) { echo '<p>' . esc_html__( 'Noch keine Version veröffentlicht.', 'wp-pass-captain' ) . '</p>'; return; }
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Version', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Plätze', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Veröffentlicht', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Von', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $versions as $version ) {
-			echo '<tr><td>' . (int) $version->version . '</td><td>' . (int) $version->seat_count . '</td><td>' . esc_html( Forms::datetime( $version->created_at, 'UTC' ) ) . '</td><td>' . esc_html( Forms::user_label( $version->created_by ) ) . '</td></tr>';
+			echo '<tr><td>' . (int) $version->version . '</td><td>' . (int) $version->seat_count . '</td><td>' . esc_html( Forms::datetime( $version->created_at, wp_timezone_string() ) ) . '</td><td>' . esc_html( Forms::user_label( $version->created_by ) ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 	}

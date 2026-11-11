@@ -17,11 +17,16 @@ final class TicketAssignments {
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_assignment_denied', __( 'Bestellzugriff ungültig oder abgelaufen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
 		if ( 'paid' !== $order->payment_status ) { return new \WP_Error( 'wpcap_assignment_unpaid', __( 'Teilnehmer können erst nach Zahlung zugewiesen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->query( 'START TRANSACTION' );
-		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.status,e.name AS event_name,tt.name AS ticket_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.public_id=%s AND t.order_id=%d FOR UPDATE", sanitize_text_field( $ticket_public_id ), $order->order_id ) );
+		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.status,t.attendee_email,e.name AS event_name,tt.name AS ticket_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.public_id=%s AND t.order_id=%d FOR UPDATE", sanitize_text_field( $ticket_public_id ), $order->order_id ) );
 		$deadline = ! $ticket ? 0 : strtotime( $ticket->starts_at . ' UTC' ) - max( 0, (int) Settings::get( 'attendee_edit_hours' ) ) * HOUR_IN_SECONDS;
 		if ( ! $ticket || 'valid' !== $ticket->status || $deadline <= time() ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_not_allowed', __( 'Dieses Ticket kann nicht mehr zugewiesen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
-		$code = bin2hex( random_bytes( 32 ) );
-		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'attendee_email' => $email, 'token_hash' => hash( 'sha256', $code ) ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'valid' ), array( '%s', '%s' ), array( '%d', '%s' ) );
+		// A new holder gets a new code (the previous holder's code stops working); correcting the
+		// name or answers for the same person keeps the code that was already mailed.
+		$holder = (string) $ticket->attendee_email !== '' ? (string) $ticket->attendee_email : (string) $order->customer_email;
+		$rotate = 0 !== strcasecmp( $holder, $email );
+		$code = $rotate ? bin2hex( random_bytes( 32 ) ) : '';
+		$update = $rotate ? array( 'attendee_email' => $email, 'token_hash' => hash( 'sha256', $code ) ) : array( 'attendee_email' => $email );
+		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', $update, array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'valid' ), array_fill( 0, count( $update ), '%s' ), array( '%d', '%s' ) );
 		if ( false === $updated ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_failed', __( 'Ticket konnte nicht zugewiesen werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		$assignment_table = $wpdb->prefix . 'wpcap_ticket_assignments';
 		$wpdb->query( $wpdb->prepare( "INSERT INTO $assignment_table (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE buyer_email=VALUES(buyer_email),attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name),status='assigned'", $ticket->ticket_id, $order->customer_email, $email, $name, current_time( 'mysql', true ) ) );
@@ -36,11 +41,18 @@ final class TicketAssignments {
 			}
 		}
 		$wpdb->query( 'COMMIT' );
-		do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $code, 'assign' );
-		$url = add_query_arg( 'wpcap_ticket', $code, home_url( '/' ) );
-		$body = sprintf( "%s — %s\n%s %s\n%s\n%s\n\n%s", $ticket->event_name, $ticket->ticket_name, mysql2date( 'd.m.Y H:i', $ticket->starts_at, true ), $ticket->timezone, $ticket->location, sprintf( __( 'Teilnehmer: %s', 'wp-pass-captain' ), $name ), esc_url_raw( $url ) ) . apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id );
-		wp_mail( $email, __( 'Dein WP Pass Captain Ticket', 'wp-pass-captain' ), $body );
+		if ( $rotate ) {
+			do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $code, 'assign' );
+			$url = add_query_arg( 'wpcap_ticket', $code, home_url( '/' ) );
+			$when = Orders::format_start( $ticket->starts_at, $ticket->timezone );
+			$body = sprintf( "%s — %s\n%s\n%s\n%s\n\n%s", $ticket->event_name, $ticket->ticket_name, $when, $ticket->location, sprintf( __( 'Teilnehmer: %s', 'wp-pass-captain' ), $name ), esc_url_raw( $url ) ) . apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id );
+			wp_mail( $email, sprintf( /* translators: %s: site name */ __( 'Dein Ticket für %s', 'wp-pass-captain' ), Orders::site_name() ), $body );
+			if ( 0 !== strcasecmp( (string) $order->customer_email, $email ) ) {
+				// Tell the buyer that the previously mailed code for this ticket is no longer valid.
+				wp_mail( $order->customer_email, sprintf( /* translators: %s: site name */ __( 'Ticket zugewiesen – %s', 'wp-pass-captain' ), Orders::site_name() ), sprintf( /* translators: 1: event and ticket, 2: date, 3: attendee name, 4: attendee email */ __( "Das Ticket %1\$s (%2\$s) wurde %3\$s (%4\$s) zugewiesen. Der neue Ticketcode wurde an diese Adresse gesendet; der bisherige Code für dieses Ticket ist nicht mehr gültig.", 'wp-pass-captain' ), $ticket->event_name . ' — ' . $ticket->ticket_name, $when, $name, $email ) );
+			}
+		}
 		Audit::record( 'ticket_assigned', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
-		return array( 'status' => 'assigned' );
+		return array( 'status' => 'assigned', 'code_rotated' => $rotate );
 	}
 }

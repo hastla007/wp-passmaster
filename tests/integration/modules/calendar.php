@@ -80,7 +80,7 @@ echo "Calendar: ticket mail attachment\n";
 $GLOBALS['wpcap_test_mails'] = array();
 $r = Orders::create( array( 'email' => 'cal-mail@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'cal-2' ) );
 $ticket_mail = null;
-foreach ( $GLOBALS['wpcap_test_mails'] as $m ) { if ( 'cal-mail@example.com' === $m['to'] && 'Deine Tickets' === $m['subject'] ) { $ticket_mail = $m; } }
+foreach ( $GLOBALS['wpcap_test_mails'] as $m ) { if ( 'cal-mail@example.com' === $m['to'] && str_starts_with( $m['subject'], 'Deine Tickets' ) ) { $ticket_mail = $m; } }
 $ics_files = array_filter( array_keys( (array) ( $ticket_mail['files'] ?? array() ) ), static fn( $f ) => 0 === strpos( $f, 'termin-' . $occ . '-' ) && '.ics' === substr( $f, -4 ) );
 check( 'one .ics per occurrence attached to the ticket mail', 1 === count( $ics_files ) );
 $attached = $ics_files ? $ticket_mail['files'][ reset( $ics_files ) ] : '';

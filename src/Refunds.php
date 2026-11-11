@@ -160,6 +160,7 @@ final class Refunds {
 		}
 		Audit::record( 'refund_completed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'amount_minor' => (int) $refund['amount_minor'], 'revoked_tickets' => $revoked, 'provider' => $order->payment_provider ) );
 		do_action( 'wpcap_refund_completed', $refund_id, (int) $refund['order_id'] );
+		self::notify_buyer( $refund_id, $order, $revoked );
 		return self::get( $refund_id );
 	}
 
@@ -221,5 +222,21 @@ final class Refunds {
 	public static function user_has_2fa( $user_id ) {
 		$has = class_exists( '\\Two_Factor_Core' ) && method_exists( '\\Two_Factor_Core', 'is_user_using_two_factor' ) && \Two_Factor_Core::is_user_using_two_factor( $user_id );
 		return (bool) apply_filters( 'wpcap_user_has_2fa', $has, $user_id );
+	}
+
+	/** Refund confirmation to the buyer (WooCommerce sends its own refund mail). */
+	private static function notify_buyer( $refund_id, $order, $revoked ) {
+		$refund = self::get( $refund_id );
+		$send = $refund && 'woocommerce' !== $order->payment_provider && is_email( (string) $order->customer_email );
+		if ( ! apply_filters( 'wpcap_send_refund_mail', $send, $refund_id, $order ) ) { return; }
+		$body = sprintf( /* translators: 1: amount, 2: order id */ __( 'Für deine Bestellung %2$s haben wir %1$s erstattet.', 'wp-pass-captain' ), number_format_i18n( (int) $refund['amount_minor'] / 100, 2 ) . ' ' . $refund['currency'], $order->public_id ) . "\n";
+		if ( $revoked ) {
+			$body .= sprintf( /* translators: %d: number of tickets */ _n( '%d Ticket ist damit ungültig.', '%d Tickets sind damit ungültig.', (int) $revoked, 'wp-pass-captain' ), (int) $revoked ) . "\n";
+		}
+		if ( ! empty( $refund['credit_note_number'] ) ) {
+			$body .= sprintf( /* translators: %s: credit note number */ __( 'Gutschrift: %s', 'wp-pass-captain' ), $refund['credit_note_number'] ) . "\n";
+		}
+		$body .= "\n" . __( 'Je nach Zahlungsart kann es einige Tage dauern, bis der Betrag gutgeschrieben ist.', 'wp-pass-captain' );
+		wp_mail( $order->customer_email, sprintf( /* translators: %s: site name */ __( 'Erstattung bestätigt – %s', 'wp-pass-captain' ), Orders::site_name() ), $body );
 	}
 }

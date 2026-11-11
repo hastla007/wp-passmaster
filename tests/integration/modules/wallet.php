@@ -33,7 +33,7 @@ $p = $wpdb->prefix;
 $wpw_apns = new Wpw_Test_Apns();
 add_filter( 'wpcap_wallet_apns_client', static function () use ( $wpw_apns ) { return $wpw_apns; } );
 
-function wpw_ticket_mail() { foreach ( array_reverse( $GLOBALS['wpcap_test_mails'] ) as $m ) { if ( 'Deine Tickets' === $m['subject'] ) { return $m; } } return array( 'body' => '', 'files' => array() ); }
+function wpw_ticket_mail() { foreach ( array_reverse( $GLOBALS['wpcap_test_mails'] ) as $m ) { if ( str_starts_with( $m['subject'], 'Deine Tickets' ) ) { return $m; } } return array( 'body' => '', 'files' => array() ); }
 
 /* ---- Test PKI: a self-signed "WWDR" CA and a pass certificate signed by it ---- */
 $wpw_dir = sys_get_temp_dir() . '/wpw-wallet-' . getmypid();

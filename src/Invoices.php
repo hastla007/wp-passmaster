@@ -202,6 +202,10 @@ final class Invoices {
 	public static function handle_admin_print() {
 		$order_id = absint( $_GET['order_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view, capability and scope checked.
 		if ( ! self::can_view_order_finance( $order_id ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		global $wpdb;
+		$exists = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d LIMIT 1", $order_id ) );
+		// Viewing is read-only; creating a new invoice number is a state change and needs a nonce.
+		if ( ! $exists ) { check_admin_referer( 'wpcap_issue_invoice_' . $order_id ); }
 		$result = self::issue_for_order( $order_id );
 		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 409 ); }
 		nocache_headers();

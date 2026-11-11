@@ -15,6 +15,7 @@ namespace PassCaptain\Admin;
 use PassCaptain\Audit;
 use PassCaptain\Payments\Registry;
 use PassCaptain\Settings;
+use PassCaptain\Modules;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -30,6 +31,14 @@ final class SettingsPage {
 				'fields' => array(
 					'hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierungsdauer im Checkout (Minuten)', 'wp-pass-captain' ), 'min' => 1, 'max' => 120 ),
 					'manual_hold_hours' => array( 'type' => 'int', 'label' => __( 'Reservierung bei manueller Zahlung (Stunden)', 'wp-pass-captain' ), 'min' => 1, 'max' => 720 ),
+					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'wp-pass-captain' ) ),
+				),
+			),
+			'scanner' => array(
+				'title' => __( 'Einlass / Scanner-Geräte', 'wp-pass-captain' ),
+				'fields' => array(
+					'scanner_show_attendee' => array( 'type' => 'bool', 'label' => __( 'Teilnehmernamen beim Scannen anzeigen', 'wp-pass-captain' ) ),
+					'device_max_hours' => array( 'type' => 'int', 'label' => __( 'Maximale Gültigkeit einer Gerätekopplung (Stunden)', 'wp-pass-captain' ), 'min' => 1, 'max' => 720 ),
 				),
 			),
 			'payments' => array(
@@ -110,12 +119,16 @@ final class SettingsPage {
 		$known = array();
 		foreach ( $sections as $section ) { $known += $section['fields']; }
 		$other = array();
+		// Module settings are edited on the module's own page; listing them here too would duplicate them.
+		$module_keys = Modules::settings_defaults();
 		foreach ( $defaults as $key => $default ) {
-			if ( isset( $known[ $key ] ) || is_array( $default ) ) { continue; }
+			if ( isset( $known[ $key ] ) || isset( $module_keys[ $key ] ) || is_array( $default ) ) { continue; }
 			if ( preg_match( '/(secret|password|token|_key$|api_key)/', $key ) ) {
 				$other[ $key ] = array( 'type' => 'secret', 'label' => $key );
-			} elseif ( is_int( $default ) || is_bool( $default ) ) {
-				$other[ $key ] = array( 'type' => 'int', 'label' => $key, 'min' => 0, 'max' => PHP_INT_MAX );
+			} elseif ( is_bool( $default ) ) {
+				$other[ $key ] = array( 'type' => 'bool', 'label' => $key );
+			} elseif ( is_int( $default ) ) {
+				$other[ $key ] = array( 'type' => 'int', 'label' => $key, 'min' => 0, 'max' => 1000000 );
 			} else {
 				$other[ $key ] = array( 'type' => 'text', 'label' => $key );
 			}

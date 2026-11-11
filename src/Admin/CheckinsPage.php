@@ -98,7 +98,7 @@ final class CheckinsPage {
 			<?php if ( ! $data['rows'] ) : ?><tr><td colspan="5"><?php esc_html_e( 'Keine Check-ins gefunden.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
 			<?php foreach ( $data['rows'] as $row ) : ?>
 				<tr>
-					<td><?php echo esc_html( Forms::datetime( $row->created_at, $row->timezone ?: $timezone ) ); ?></td>
+					<td><?php echo esc_html( Forms::datetime( $row->created_at, $timezone, false ) ); ?></td>
 					<td><?php echo esc_html( (string) $row->event_name ); ?></td>
 					<td><?php if ( $row->ticket_public_id ) : ?><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $row->ticket_public_id ) ) ); ?>"><code><?php echo esc_html( $row->ticket_public_id ); ?></code></a><br><small><?php echo esc_html( (string) $row->ticket_name ); ?></small><?php else : ?>—<?php endif; ?></td>
 					<td><?php echo esc_html( \PassCaptain\Admission\ConflictsPage::result_label( $row->result ) . ( 'web' !== $row->source && $row->source ? ' · ' . $row->source : '' ) ); ?></td>

@@ -93,7 +93,7 @@ if ( is_readable( dirname( __DIR__, 2 ) . '/vendor/autoload.php' ) ) { require_o
 $pt = make_type( 5, 10, 0 );
 $before = count( $GLOBALS['wpcap_test_mails'] );
 $po = Orders::create( array( 'email' => 'pdf@example.com', 'items' => array( array( 'ticket_type_id' => $pt, 'quantity' => 2 ) ), 'idempotency_key' => 'pdf-1' ) );
-$ticket_mail = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $before ), static fn( $m ) => 'Deine Tickets' === $m['subject'] ) )[0] ?? array();
+$ticket_mail = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $before ), static fn( $m ) => str_starts_with( $m['subject'], 'Deine Tickets' ) ) )[0] ?? array();
 $pdf = array_values( $ticket_mail['files'] ?? array() )[0] ?? '';
 // Structural checks in PHP (no poppler needed in CI): header, page count, text, xref offsets.
 preg_match( '/startxref\n(\d+)\n%%EOF$/', $pdf, $xm );

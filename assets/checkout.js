@@ -2,6 +2,12 @@
 	'use strict';
 	const config = window.WPCAP_CHECKOUT || {};
 	const t = config.i18n || {};
+	const holdText = function (minutes) {
+		minutes = parseInt(minutes, 10) || 0;
+		if (minutes >= 2880 && minutes % 1440 === 0 && t.pendingDays) { return t.pendingDays.replace('%d', minutes / 1440); }
+		if (minutes >= 120 && minutes % 60 === 0 && t.pendingHours) { return t.pendingHours.replace('%d', minutes / 60); }
+		return (t.pending || '%d').replace('%d', minutes);
+	};
 	function uuid() {
 		return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
 	}
@@ -119,7 +125,7 @@
 			if (data.status === 'complete') {
 				message.textContent = t.complete || 'Done.';
 			} else {
-				message.textContent = (t.pending || '%d').replace('%d', data.hold_minutes) + (data.payment && data.payment.instructions ? ' ' + data.payment.instructions : '');
+				message.textContent = holdText(data.hold_minutes) + (data.payment && data.payment.instructions ? ' ' + data.payment.instructions : '');
 			}
 			form.reset();
 			renderAttendees(form);
