@@ -82,6 +82,30 @@ $batch = PrintPage::batch_request( $pocc, 'badge', false );
 check( 'batch print uses the event template incl. seat label for all non-revoked tickets', ! is_wp_error( $batch ) && wpp_pdf_ok( $batch['pdf'], 3 ) && false !== strpos( $batch['pdf'], '(Hallo Ada Lovelace) Tj' ) && false !== strpos( $batch['pdf'], '(Reihe 3, Platz 7) Tj' ) );
 check( 'without new codes no QR code is printed and codes stay unchanged', ( ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( $batch['pdf'], 're f' ) < 10 ) );
 check( 'other events keep the default layout', Templates::default_body( 'badge' ) === Templates::body_for_event( $pevent + 999, 'badge' ) );
+// Regression: template editing is scoped (global templates only for administrators, event templates per event).
+$other_type = make_type( 5 );
+$other_event = Scope::occurrence_event( (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$other_type" ) );
+$foreign_tpl = Templates::save_template( 0, 'Fremd', 'badge', '*12|{event}', $other_event );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
+$wpdb->insert( "{$p}wpcap_event_staff", array( 'event_id' => $pevent, 'user_id' => 1, 'capability' => 'wpcap_manage_events' ) );
+$mgr_global = Templates::save_template( 0, 'Neu global', 'badge', 'x' );
+$mgr_own = Templates::save_template( 0, 'Eigenes', 'badge', '*12|{attendee_name}', $pevent );
+$mgr_other = Templates::save_template( 0, 'Fremdes Event', 'badge', 'x', $other_event );
+$mgr_edit_global = Templates::save_template( $tid, 'Überschrieben', 'badge', 'x' );
+$mgr_edit_foreign = Templates::save_template( $foreign_tpl, 'Überschrieben', 'badge', 'x' );
+$mgr_assign_foreign = Templates::assign( $pevent, 'badge', $foreign_tpl );
+$mgr_assign_other_event = Templates::assign( $other_event, 'badge', $tid );
+$mgr_visible = array_map( static fn( $t ) => (int) $t->template_id, Templates::all_templates( 'badge' ) );
+$wpdb->query( "DELETE FROM {$p}wpcap_event_staff WHERE event_id=$pevent AND user_id=1" );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+check( 'event managers cannot create or edit global templates', is_wp_error( $mgr_global ) && is_wp_error( $mgr_edit_global ) && 'Konferenz-Badge' === Templates::get_template( $tid )->name );
+check( 'event managers manage only templates of their events', is_int( $mgr_own ) && $mgr_own > 0 && is_wp_error( $mgr_other ) && is_wp_error( $mgr_edit_foreign ) && 'Fremd' === Templates::get_template( $foreign_tpl )->name );
+check( 'templates of another event can be neither assigned nor seen; foreign events cannot be configured', is_wp_error( $mgr_assign_foreign ) && is_wp_error( $mgr_assign_other_event ) && in_array( $tid, $mgr_visible, true ) && in_array( $mgr_own, $mgr_visible, true ) && ! in_array( $foreign_tpl, $mgr_visible, true ) );
+Templates::assign( $pevent, 'ticket', 0 );
+$assigned_tpl = Templates::save_template( 0, 'Zugeordnet', 'ticket', '*12|{event}', $pevent );
+Templates::assign( $pevent, 'ticket', $assigned_tpl );
+check( 'the layout of an assigned template cannot be changed', is_wp_error( Templates::save_template( $assigned_tpl, 'Zugeordnet', 'badge', 'x' ) ) );
+Templates::assign( $pevent, 'ticket', 0 );
 $hashes = $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_orders' );
 $no_codes = PrintPage::batch_request( $pocc, 'ticket', true );
@@ -89,9 +113,14 @@ $GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_orders', 'wpcap_manage
 $no_print = PrintPage::batch_request( $pocc, 'badge', false );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 check( 'printing needs event/order management; new codes need order management', is_wp_error( $no_codes ) && is_wp_error( $no_print ) && $hashes === $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' ) );
+$GLOBALS['wpp_rotated'] = array();
+add_action( 'wpcap_ticket_code_rotated', static function ( $ticket_id, $token, $context ) { $GLOBALS['wpp_rotated'][ $ticket_id ] = array( $token, $context ); }, 10, 3 );
 $with_codes = PrintPage::batch_request( $pocc, 'ticket', true );
 $after = $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' );
 check( 'tickets with QR: new codes for valid tickets only, checked-in tickets untouched', ! is_wp_error( $with_codes ) && wpp_pdf_ok( $with_codes['pdf'], 2 ) && $after[0] !== $hashes[0] && $after[1] !== $hashes[1] && $after[2] === $hashes[2] );
+$rot_ok = 2 === count( $GLOBALS['wpp_rotated'] ) && ! isset( $GLOBALS['wpp_rotated'][ (int) $ptickets[2]->ticket_id ] );
+foreach ( $GLOBALS['wpp_rotated'] as $rot_id => $rot ) { $rot_ok = $rot_ok && 'print' === $rot[1] && hash( 'sha256', $rot[0] ) === $wpdb->get_var( "SELECT token_hash FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $rot_id ); }
+check( 'wpcap_ticket_code_rotated fires once per new code (ticket id, new code, "print")', $rot_ok );
 
 echo "Print: attendee lists\n";
 $full = AttendeeList::rows( $pocc, 'full' );
@@ -148,6 +177,8 @@ $other = InvoicePdf::customer_pdf( $porder['public_id'], $tm[1] ?? '' );
 check( 'buyer download works only with the order access token', ! is_wp_error( $customer ) && wpp_pdf_ok( $customer['pdf'] ) && is_wp_error( $wrong ) && is_wp_error( $other ) );
 
 Settings::update( array( 'print_attach_invoice_pdf' => 1, 'auto_invoice' => 1 ) );
+$GLOBALS['wpp_attachments'] = array();
+add_filter( 'wpcap_ticket_mail', static function ( $mail ) { $GLOBALS['wpp_attachments'] = (array) $mail['attachments']; return $mail; }, 30 );
 $GLOBALS['wpcap_test_transients'] = array();
 $ao = Orders::create( array( 'email' => 'anhang@example.com', 'items' => array( array( 'ticket_type_id' => $it, 'quantity' => 1 ) ), 'idempotency_key' => 'wpp-att-' . uniqid() ) );
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
@@ -156,6 +187,10 @@ $ticket_mail = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mai
 $inv_files = array_filter( $ticket_mail['files'], static fn( $name ) => str_starts_with( $name, 'rechnung-' ), ARRAY_FILTER_USE_KEY );
 check( 'invoice PDF is attached to the ticket mail when enabled', 1 === count( $inv_files ) && wpp_pdf_ok( reset( $inv_files ), 1 ) );
 check( 'temporary invoice PDF is removed after sending', ! glob( sys_get_temp_dir() . '/rechnung-*.pdf' ) );
+$inv_path = array_values( array_filter( $GLOBALS['wpp_attachments'], static fn( $f ) => str_contains( basename( $f ), 'rechnung-' ) ) )[0] ?? '';
+check( 'invoice attachment lives in a random private directory, not directly in the temp dir', '' !== $inv_path && 1 === preg_match( '#/wpcap-[0-9a-f]{32}/rechnung-[^/]+\.pdf$#', $inv_path ) && ! is_file( $inv_path ) );
+InvoicePdf::cleanup_temp_files();
+check( 'temporary directory is removed as well', '' !== $inv_path && ! is_dir( dirname( $inv_path ) ) );
 Settings::update( array( 'print_attach_invoice_pdf' => 0, 'auto_invoice' => 0 ) );
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 $GLOBALS['wpcap_test_transients'] = array();

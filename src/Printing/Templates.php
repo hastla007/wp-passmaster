@@ -238,9 +238,12 @@ final class Templates {
 		$owner_event_id = absint( $owner_event_id );
 		if ( ! self::can_edit( $owner_event_id ) ) { return $forbidden; }
 		$data['owner_event_id'] = $owner_event_id;
-		$wpdb->insert( $wpdb->prefix . 'wpcap_print_templates', $data );
-		Audit::record( 'print_template_saved', 'print_template', (int) $wpdb->insert_id );
-		return (int) $wpdb->insert_id;
+		if ( false === $wpdb->insert( $wpdb->prefix . 'wpcap_print_templates', $data ) ) {
+			return new \WP_Error( 'wpcap_print_template_save', __( 'Die Vorlage konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+		}
+		$new_id = (int) $wpdb->insert_id;
+		Audit::record( 'print_template_saved', 'print_template', $new_id );
+		return $new_id;
 	}
 
 	/** Selects the template per event and layout (0 = built-in default). Global or the event's own templates only. */
