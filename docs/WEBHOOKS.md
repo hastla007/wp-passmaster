@@ -128,5 +128,16 @@ Den Body vor der Prüfung nicht umformatieren (JSON nicht neu kodieren). Nachric
 
 Standardmäßig werden keine personenbezogenen Daten übertragen. Das Opt-in „Personenbezogene Daten“
 pro Abonnement fügt ausschließlich `customer_email` (Bestellungen) und `attendee_email` (Tickets) hinzu
-und sollte nur mit Rechtsgrundlage und Auftragsverarbeitungsvertrag aktiviert werden. Secrets werden im
-Klartext in der Datenbank gespeichert, weil sie zum Signieren benötigt werden.
+und sollte nur mit Rechtsgrundlage und Auftragsverarbeitungsvertrag aktiviert werden.
+
+- Sobald eine Zustellung abgeschlossen ist (`succeeded` oder endgültig `failed`), werden diese Felder aus
+  dem gespeicherten Payload entfernt (`pii_purged = 1`).
+- „Erneut senden“ baut die Opt-in-Felder aus den aktuellen Daten neu auf. Gelöschte oder anonymisierte
+  Adressen werden nicht wieder übertragen; ist der Payload nicht mehr lesbar, wird die erneute Zustellung
+  abgelehnt.
+- Abgeschlossene Zustellungen werden nach 30 Tagen gelöscht (einstellbar auf der Webhook-Seite,
+  1–365 Tage; Cron `wpcap_process_jobs`). Ausstehende Zustellungen bleiben erhalten.
+- Der WordPress-Datenlöscher „WP Pass Captain Webhook-Protokoll“ entfernt eine E-Mail-Adresse aus allen
+  gespeicherten Payloads, auch aus noch ausstehenden.
+
+Secrets werden im Klartext in der Datenbank gespeichert, weil sie zum Signieren benötigt werden.
