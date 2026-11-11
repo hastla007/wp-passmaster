@@ -13,7 +13,9 @@ final class Plugin {
 	}
 
 	public function run() {
-		Installer::maybe_upgrade();
+		if ( Installer::maybe_upgrade() ) {
+			self::schedule_events();
+		}
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
 		add_action( 'admin_menu', array( $this, 'register_admin_menu' ) );
 		add_action( 'admin_post_wpcap_create_event', array( Admin::class, 'create_event' ) );
@@ -60,6 +62,11 @@ final class Plugin {
 
 	private static function activate_site() {
 		Installer::install();
+		self::schedule_events();
+	}
+
+	/** Schedules recurring jobs; also runs after plugin updates (activation hooks do not fire then). */
+	public static function schedule_events() {
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		if ( ! wp_next_scheduled( 'wpcap_cleanup_reservations' ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'wpcap_cleanup_reservations' );

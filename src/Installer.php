@@ -569,10 +569,13 @@ final class Installer {
 		update_option( 'wpcap_version', WPCAP_VERSION );
 	}
 
+	/** Runs the schema upgrade when needed; returns true if an upgrade ran. */
 	public static function maybe_upgrade() {
 		if ( self::DB_VERSION !== get_option( 'wpcap_db_version' ) ) {
 			self::install();
+			return true;
 		}
+		return false;
 	}
 
 	private static function register_roles() {

@@ -9,6 +9,17 @@
 	const queueKey = 'wpcap-offline-scans-v1';
 	let stream = null;
 	let locked = false;
+	let lastToken = '';
+	let lastTokenAt = 0;
+	function enqueue(token) {
+		const items = queue();
+		items.push(token);
+		saveQueue(items.slice(-100));
+		result.textContent = 'Offline gespeichert. Der Einlass wird erst nach der Synchronisierung serverseitig bestätigt.';
+		result.dataset.state = 'error';
+		input.value = '';
+		updateQueueButton();
+	}
 	function queue() {
 		try { const stored = JSON.parse(window.localStorage.getItem(queueKey) || '[]'); return Array.isArray(stored) ? stored : []; } catch (ignore) { return []; }
 	}
@@ -27,7 +38,8 @@
 			const response = await fetch(WPCAP_SCANNER.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ tokens: items }) });
 			const data = await response.json();
 			if (!response.ok) throw new Error(data.message || 'Synchronisierung fehlgeschlagen.');
-			saveQueue([]);
+			// Keep scans queued while this request was in flight.
+			saveQueue(queue().slice(items.length));
 			const conflicts = (data.results || []).filter(function (item) { return item.status === 'conflict'; }).length;
 			result.textContent = items.length + ' Offline-Scan(s) synchronisiert; Konflikte: ' + conflicts + '.';
 			result.dataset.state = conflicts ? 'error' : 'success';
@@ -39,26 +51,25 @@
 	updateQueueButton();
 
 	async function submitToken(token) {
+		token = String(token || '').trim();
 		if (locked || !token) return;
-		if (!navigator.onLine) {
-			const items = queue();
-			items.push(token.trim());
-			saveQueue(items.slice(-100));
-			result.textContent = 'Offline gespeichert. Der Einlass wird erst nach der Synchronisierung serverseitig bestätigt.';
-			result.dataset.state = 'error';
-			input.value = '';
-			updateQueueButton();
-			return;
-		}
+		if (!navigator.onLine) { enqueue(token); return; }
 		locked = true;
 		result.textContent = 'Ticket wird geprüft …';
 		try {
-			const response = await fetch(WPCAP_SCANNER.checkinUrl, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce },
-				body: JSON.stringify({ token: token.trim() })
-			});
-			const data = await response.json();
+			let response;
+			try {
+				response = await fetch(WPCAP_SCANNER.checkinUrl, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce },
+					body: JSON.stringify({ token: token })
+				});
+			} catch (networkError) {
+				// The browser reported "online" but the request never reached the server.
+				enqueue(token);
+				return;
+			}
+			const data = await response.json().catch(function () { return {}; });
 			if (!response.ok) throw new Error(data.message || 'Ticket nicht gültig.');
 			result.textContent = '✓ ' + data.event + ' — ' + data.ticket;
 			result.dataset.state = 'success';
@@ -77,6 +88,7 @@
 	});
 
 	root.querySelector('.wpcap-camera-start').addEventListener('click', async function (event) {
+		const button = event.currentTarget;
 		if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
 			result.textContent = 'Kamera-QR-Scan wird von diesem Browser nicht unterstützt. Nutze die manuelle Eingabe.';
 			return;
@@ -87,14 +99,20 @@
 			video.hidden = false;
 			await video.play();
 			const detector = new BarcodeDetector({ formats: ['qr_code'] });
-			event.currentTarget.disabled = true;
+			button.disabled = true;
 			const scan = async function () {
 				if (!stream) return;
 				try {
 					const codes = await detector.detect(video);
 					if (codes.length && !locked) {
 						const match = String(codes[0].rawValue || '').match(/[a-f0-9]{64}/i);
-						if (match) await submitToken(match[0]);
+						const now = Date.now();
+						// The same QR stays in view after a scan; do not re-submit it immediately.
+						if (match && (match[0] !== lastToken || now - lastTokenAt > 5000)) {
+							lastToken = match[0];
+							lastTokenAt = now;
+							await submitToken(match[0]);
+						}
 					}
 				} catch (ignore) {}
 				window.requestAnimationFrame(scan);

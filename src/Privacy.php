@@ -56,8 +56,14 @@ final class Privacy {
 	public static function erase( $email_address, $page = 1 ) {
 		global $wpdb;
 		$email = sanitize_email( $email_address );
-		$orders = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT order_id FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s OR order_id IN (SELECT DISTINCT order_id FROM {$wpdb->prefix}wpcap_tickets WHERE attendee_email=%s) ORDER BY order_id ASC LIMIT 50 OFFSET %d", $email, $email, max( 0, ( absint( $page ) - 1 ) * 50 ) ) );
+		// Rows are rewritten below, so every batch starts at OFFSET 0 (the matching set shrinks).
+		$orders = $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s ORDER BY order_id ASC LIMIT 50", $email ) );
 		$removed = 0;
+		// Attendee-only matches: remove this person's data from other buyers' tickets without
+		// touching the buyer's order or invalidating the tickets.
+		$attendee_rows = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET attendee_email='' WHERE attendee_email=%s", $email ) );
+		$assignment_rows = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_ticket_assignments SET attendee_email='',attendee_name='' WHERE attendee_email=%s", $email ) );
+		$removed += (int) $attendee_rows + (int) $assignment_rows;
 		foreach ( $orders as $order_id ) {
 			$replacement = 'deleted+' . substr( hash( 'sha256', $email . '|' . $order_id ), 0, 24 ) . '@invalid.example';
 			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'customer_email' => $replacement, 'access_token_hash' => hash( 'sha256', wp_generate_password( 64, true, true ) ), 'access_expires_at' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => absint( $order_id ) ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
