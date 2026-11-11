@@ -248,19 +248,20 @@ $posts = array_filter( http_requests( 'walletobjects' ), static fn( $q ) => 'POS
 check( 'reschedule: Google class PATCHed with new date; missing object inserted', '2027-03-08T18:00:00+01:00' === ( $class_patch['dateTime']['start'] ?? '' ) && 2 === count( $posts ) );
 
 /* ---- Code rotation (resend): new generation, old devices get a voided pass ---- */
-Orders::resend_tickets( $r2['order_id'] );
-$resent = wpw_ticket_mail();
-preg_match( '/wpcap_ticket=([a-f0-9]{64})/', $resent['body'], $nm );
-$new_code = $nm[1] ?? '';
 http_reset();
 http_push( array(), 200, 'eventTicketObject/' );
 http_push( array(), 404, 'eventTicketObject/' );
 http_push( array(), 409, 'walletobjects/v1/eventTicketClass' );
 http_push( array(), 200, 'walletobjects/v1/eventTicketObject' );
 $wpw_apns->calls = array();
-$filtered = Service::on_wp_mail( array( 'to' => $resent['to'], 'subject' => $resent['subject'], 'message' => $resent['body'], 'headers' => '', 'attachments' => array() ) );
+// Core fires wpcap_ticket_code_rotated and adds wpcap_ticket_code_mail_section to the resend mail.
+Orders::resend_tickets( $r2['order_id'] );
+$resent = wpw_ticket_mail();
+preg_match( '/wpcap_ticket=([a-f0-9]{64})/', $resent['body'], $nm );
+$new_code = $nm[1] ?? '';
+$filtered = array( 'message' => $resent['body'] );
 $state2 = Store::state( $ticket2->ticket_id );
-check( 'rotation: wp_mail bridge detects the new code and appends wallet links', 2 === (int) $state2->generation && hash( 'sha256', $new_code ) === $state2->code_hash && false !== strpos( $filtered['message'], '/wallet/apple/download/' . $ticket2->public_id ) && false !== strpos( $filtered['message'], 'pay.google.com/gp/v/save/' ) );
+check( 'rotation: core hook starts a new generation and the resend mail carries wallet links', 2 === (int) $state2->generation && hash( 'sha256', $new_code ) === $state2->code_hash && false !== strpos( $filtered['message'], '/wallet/apple/download/' . $ticket2->public_id ) && false !== strpos( $filtered['message'], 'pay.google.com/gp/v/save/' ) );
 check( 'rotation: devices of the old generation are pushed', 1 === count( $wpw_apns->calls ) );
 $old = wpw_pass_json( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $ticket2->public_id ), $auth2 ) ) );
 check( 'rotation: old auth token gets a voided pass without the new code', true === ( $old['voided'] ?? false ) && ! isset( $old['barcodes'] ) && $auth2 === $old['authenticationToken'] );
@@ -273,8 +274,7 @@ check( 'rotation: new download link serves the new code', $new_code === ( $new_p
 $google_rows = Store::passes( $ticket2->ticket_id, 'google' );
 $obj_reqs = http_requests( 'eventTicketObject/' );
 check( 'rotation: old Google object retired (INACTIVE), new generation object created', 2 === count( $google_rows ) && 'retired' === $google_rows[0]->status && str_ends_with( $google_rows[1]->serial_number, '_g2' ) && 'INACTIVE' === ( json_decode( $obj_reqs[0]['body'] ?? '{}', true )['state'] ?? '' ) );
-check( 'rotation: mails with stale or current codes are left untouched', $mail2['body'] === Service::on_wp_mail( array( 'message' => $mail2['body'] ) )['message'] && $resent['body'] === Service::on_wp_mail( array( 'message' => $resent['body'] ) )['message'] );
-check( 'rotation: proposed core hook is idempotent with the bridge', array() === Service::on_code_rotated( $ticket2->ticket_id, $new_code ) );
+check( 'rotation: repeated hook call for the same code is idempotent', array() === Service::on_code_rotated( $ticket2->ticket_id, $new_code ) );
 
 /* ---- Failed push → retried via the job queue ---- */
 http_reset();

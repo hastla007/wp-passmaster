@@ -27,7 +27,7 @@ final class Service {
 		// Proposed core hook (see docs/WALLET.md); harmless until core fires it.
 		add_action( 'wpcap_ticket_code_rotated', array( __CLASS__, 'on_code_rotated' ), 10, 2 );
 		// Bridge for code rotations until the core hook exists: resend/transfer/assignment mails carry the new code.
-		add_filter( 'wp_mail', array( __CLASS__, 'on_wp_mail' ), 20, 1 );
+		add_filter( 'wpcap_ticket_code_mail_section', array( __CLASS__, 'code_mail_section' ), 10, 2 );
 		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
 	}
 
@@ -192,26 +192,20 @@ final class Service {
 		foreach ( Store::passes( $ticket_id, 'google' ) as $old ) { Store::set_pass_status( $old->wallet_pass_id, 'retired' ); }
 		$passes = self::issue( $ticket_id, $code );
 		self::dispatch( array( (int) $ticket_id ) );
+		self::$rotated[ (int) $ticket_id ] = $passes;
 		return $passes;
 	}
 
-	/** Filter wp_mail: detects new ticket codes in outgoing mails and appends wallet links. */
-	public static function on_wp_mail( $args ) {
-		if ( ! is_array( $args ) || empty( $args['message'] ) || ! is_string( $args['message'] ) ) { return $args; }
-		if ( ! preg_match_all( '/wpcap_ticket=([a-f0-9]{64})/', $args['message'], $m ) ) { return $args; }
-		global $wpdb;
-		$p = $wpdb->prefix;
-		$text = '';
-		foreach ( array_unique( $m[1] ) as $code ) {
-			$hash = hash( 'sha256', $code );
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,tt.name AS ticket_name,e.name AS event_name FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_wallet_state s ON s.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s AND s.code_hash<>%s", $hash, $hash ) );
-			if ( ! $row ) { continue; }
-			$passes = self::on_code_rotated( (int) $row->ticket_id, $code );
-			list( $part ) = self::mail_parts( $passes, array( $row->event_name, $row->ticket_name ), false );
-			$text .= $part;
-		}
-		if ( '' !== $text ) { $args['message'] .= "\n\n" . __( 'Wallet', 'wp-pass-captain' ) . "\n" . $text; }
-		return $args;
+	/** Passes created by a code rotation in this request, keyed by ticket id. */
+	private static $rotated = array();
+
+	/** Filter wpcap_ticket_code_mail_section: wallet links for the ticket's new code. */
+	public static function code_mail_section( $text, $ticket_id ) {
+		$passes = self::$rotated[ (int) $ticket_id ] ?? array();
+		if ( ! $passes ) { return $text; }
+		$ticket = self::ticket( (int) $ticket_id );
+		list( $part ) = self::mail_parts( $passes, array( $ticket['event_name'] ?? '', $ticket['ticket_name'] ?? '' ), false );
+		return '' === $part ? $text : $text . "\n" . __( 'Wallet', 'wp-pass-captain' ) . "\n" . $part;
 	}
 
 	/* ---- change propagation ---- */

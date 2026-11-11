@@ -602,8 +602,10 @@ final class Orders {
 			return new \WP_Error( 'wpcap_transfer_failed', __( 'Die Ticketübertragung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
 		}
 		$wpdb->query( 'COMMIT' );
+		/** A ticket received a new code; the old one is invalid. $token is plaintext – never store it. */
+		do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'transfer' );
 		$ticket_url = add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) );
-		$body = sprintf( "%s — %s\n%s %s\n%s\n\n%s\n", $ticket->event_name, $ticket->ticket_name, mysql2date( 'd.m.Y H:i', $ticket->starts_at, true ), $ticket->timezone, $ticket->location, esc_url_raw( $ticket_url ) );
+		$body = sprintf( "%s — %s\n%s %s\n%s\n\n%s\n", $ticket->event_name, $ticket->ticket_name, mysql2date( 'd.m.Y H:i', $ticket->starts_at, true ), $ticket->timezone, $ticket->location, esc_url_raw( $ticket_url ) ) . apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id );
 		if ( ! wp_mail( $recipient_email, __( 'Ein Ticket wurde an dich übertragen', 'wp-pass-captain' ), $body ) ) {
 			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'wp-pass-captain' ), array( 'status' => 502 ) );
 		}
@@ -771,9 +773,10 @@ final class Orders {
 			if ( false === $updated ) {
 				return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ) );
 			}
+			do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'resend' );
 			$ticket_url = add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) );
 			$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
-			$messages[ $recipient ] = ( $messages[ $recipient ] ?? __( 'Deine Tickets für WP Pass Captain:', 'wp-pass-captain' ) . "\n\n" ) . sprintf( "%s — %s\n%s %s\n%s\n%s\n\n", $ticket->event_name, $ticket->ticket_name, mysql2date( 'd.m.Y H:i', $ticket->starts_at, true ), $ticket->timezone, $ticket->location, esc_url_raw( $ticket_url ) );
+			$messages[ $recipient ] = ( $messages[ $recipient ] ?? __( 'Deine Tickets für WP Pass Captain:', 'wp-pass-captain' ) . "\n\n" ) . sprintf( "%s — %s\n%s %s\n%s\n%s\n\n", $ticket->event_name, $ticket->ticket_name, mysql2date( 'd.m.Y H:i', $ticket->starts_at, true ), $ticket->timezone, $ticket->location, esc_url_raw( $ticket_url ) ) . apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id );
 		}
 		$sent = true;
 		foreach ( $messages as $recipient => $body ) {

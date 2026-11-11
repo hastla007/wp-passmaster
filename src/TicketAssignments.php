@@ -36,8 +36,9 @@ final class TicketAssignments {
 			}
 		}
 		$wpdb->query( 'COMMIT' );
+		do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $code, 'assign' );
 		$url = add_query_arg( 'wpcap_ticket', $code, home_url( '/' ) );
-		$body = sprintf( "%s — %s\n%s %s\n%s\n%s\n\n%s", $ticket->event_name, $ticket->ticket_name, mysql2date( 'd.m.Y H:i', $ticket->starts_at, true ), $ticket->timezone, $ticket->location, sprintf( __( 'Teilnehmer: %s', 'wp-pass-captain' ), $name ), esc_url_raw( $url ) );
+		$body = sprintf( "%s — %s\n%s %s\n%s\n%s\n\n%s", $ticket->event_name, $ticket->ticket_name, mysql2date( 'd.m.Y H:i', $ticket->starts_at, true ), $ticket->timezone, $ticket->location, sprintf( __( 'Teilnehmer: %s', 'wp-pass-captain' ), $name ), esc_url_raw( $url ) ) . apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id );
 		wp_mail( $email, __( 'Dein WP Pass Captain Ticket', 'wp-pass-captain' ), $body );
 		Audit::record( 'ticket_assigned', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
 		return array( 'status' => 'assigned' );
