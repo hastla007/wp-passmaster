@@ -37,6 +37,8 @@ final class Menu {
 			'wpcap_revoke_ticket' => array( TicketsPage::class, 'handle_revoke_ticket' ),
 			'wpcap_undo_checkin' => array( TicketsPage::class, 'handle_undo_checkin' ),
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
+			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
+			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),
 		);
 	}
 
@@ -73,6 +75,7 @@ final class Menu {
 		$pending = current_user_can( Refunds::APPROVE_CAP ) ? count( Queries::pending_refunds( Queries::event_ids_for( OrdersPage::CAP ) ) ) : 0;
 		$refund_title = __( 'Erstattungen', 'wp-pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
 		add_submenu_page( self::SLUG, __( 'Erstattungen', 'wp-pass-captain' ), $refund_title, RefundsPage::menu_cap(), RefundsPage::SLUG, array( RefundsPage::class, 'render' ) );
+		add_submenu_page( self::SLUG, __( 'Scanner-Geräte', 'wp-pass-captain' ), __( 'Scanner-Geräte', 'wp-pass-captain' ), DevicesPage::CAP, DevicesPage::SLUG, array( DevicesPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Einstellungen', 'wp-pass-captain' ), __( 'Einstellungen', 'wp-pass-captain' ), SettingsPage::CAP, SettingsPage::SLUG, array( SettingsPage::class, 'render' ) );
 	}
 }

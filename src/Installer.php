@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.2.0';
+	const DB_VERSION = '3.3.0';
 
 	public static function install() {
 		global $wpdb;
@@ -186,8 +186,13 @@ final class Installer {
 				occurrence_day_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				user_id bigint(20) unsigned NOT NULL,
 				result varchar(24) NOT NULL,
+				device_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				idempotency_key char(64) NULL,
+				source varchar(16) NOT NULL DEFAULT 'web',
+				scanned_at datetime NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (checkin_id),
+				KEY idempotency (user_id,idempotency_key),
 				KEY ticket_id (ticket_id),
 				KEY event_id (event_id),
 				KEY occurrence_day_id (occurrence_day_id),
@@ -306,6 +311,10 @@ final class Installer {
 				label varchar(190) NOT NULL DEFAULT '',
 				last_seen_at datetime NULL,
 				revoked_at datetime NULL,
+				expires_at datetime NULL,
+				event_ids longtext NULL,
+				platform varchar(32) NOT NULL DEFAULT '',
+				app_version varchar(32) NOT NULL DEFAULT '',
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (device_id),
 				UNIQUE KEY public_id (public_id),
@@ -608,6 +617,21 @@ final class Installer {
 				year smallint(5) unsigned NOT NULL,
 				next_number bigint(20) unsigned NOT NULL DEFAULT 1,
 				PRIMARY KEY  (series,year)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_device_pairings (
+				pairing_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				code_hash char(64) NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				event_ids longtext NULL,
+				label varchar(190) NOT NULL DEFAULT '',
+				device_hours smallint(5) unsigned NOT NULL DEFAULT 24,
+				expires_at datetime NOT NULL,
+				used_at datetime NULL,
+				device_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (pairing_id),
+				UNIQUE KEY code_hash (code_hash),
+				KEY user_id (user_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $jobs (
 				job_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

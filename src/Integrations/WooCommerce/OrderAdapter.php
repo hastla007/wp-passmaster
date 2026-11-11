@@ -77,6 +77,7 @@ final class OrderAdapter {
 		add_filter( 'woocommerce_order_actions', array( __CLASS__, 'order_actions' ), 10, 2 );
 		add_action( 'woocommerce_order_action_wpcap_resend_tickets', array( __CLASS__, 'action_resend_tickets' ) );
 		add_action( 'woocommerce_order_action_wpcap_retry_tickets', array( __CLASS__, 'action_retry_tickets' ) );
+		add_action( 'wpcap_occurrence_cancelled_woocommerce_order', array( __CLASS__, 'note_cancelled_occurrence' ), 10, 2 );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -531,6 +532,15 @@ final class OrderAdapter {
 		$core_id = self::core_order_id( $wc_order_id );
 		if ( $core_id ) {
 			Orders::mark_refunded( $core_id, 'woocommerce_refunded' );
+		}
+	}
+
+	/** Adds a note to the WooCommerce order when one of its occurrences was cancelled. */
+	public static function note_cancelled_occurrence( $core_order_id, $occurrence_id ) {
+		if ( ! function_exists( 'wc_get_orders' ) ) { return; }
+		$orders = wc_get_orders( array( 'limit' => 1, 'meta_key' => self::ORDER_META, 'meta_value' => absint( $core_order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+		if ( $orders ) {
+			$orders[0]->add_order_note( __( 'Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten.', 'wp-pass-captain' ) );
 		}
 	}
 

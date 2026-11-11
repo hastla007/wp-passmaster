@@ -35,6 +35,9 @@ final class Settings {
 			'credit_note_prefix'        => 'GS',
 			'auto_invoice'              => 0,
 			'delete_data_on_uninstall'  => 0,
+			'scanner_show_attendee'     => 0,
+			'device_max_hours'          => 24,
+			'auto_refund_cancelled'     => 0,
 		);
 	}
 

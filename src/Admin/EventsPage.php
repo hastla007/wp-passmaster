@@ -225,7 +225,11 @@ final class EventsPage {
 		$result = array( 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id, 'issued' => $issued );
 		if ( $issued ) {
 			/* translators: %d: number of tickets */
-			$result['warning'] = sprintf( __( 'Für diesen Termin sind noch %d gültige Tickets ausgestellt. Bitte die betroffenen Bestellungen erstatten.', 'wp-pass-captain' ), $issued );
+			$result['warning'] = \PassCaptain\Settings::get( 'auto_refund_cancelled' )
+				/* translators: %d: number of tickets */
+				? sprintf( __( '%d Tickets wurden widerrufen, die Inhaber benachrichtigt und bezahlte Bestellungen automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü.', 'wp-pass-captain' ), $issued )
+				/* translators: %d: number of tickets */
+				: sprintf( __( '%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bitte die betroffenen Bestellungen erstatten (oder die automatische Erstattung in den Einstellungen aktivieren).', 'wp-pass-captain' ), $issued );
 		}
 		return $result;
 	}

@@ -639,59 +639,13 @@ final class Controller {
 	}
 
 	public static function validate_ticket( \WP_REST_Request $request ) {
-		$result = self::ticket_for_token( $request->get_param( 'token' ) );
-		if ( is_wp_error( $result ) ) { return $result; }
-		if ( ! Access::can_access_event( $result['event_id'], 'wpcap_checkin' ) ) { return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
-		return rest_ensure_response( $result );
+		$result = \PassCaptain\Checkin::preview( $request->get_param( 'token' ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
+	/** Web scanner check-in; the logic lives in Checkin::perform() (shared with the app API). */
 	public static function check_in( \WP_REST_Request $request ) {
-		global $wpdb;
-		$found = self::ticket_for_token( $request->get_param( 'token' ) );
-		if ( is_wp_error( $found ) ) { return $found; }
-		if ( ! Access::can_access_event( $found['event_id'], 'wpcap_checkin' ) ) { return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
-		$tickets = $wpdb->prefix . 'wpcap_tickets';
-		$wpdb->query( 'START TRANSACTION' );
-		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM $tickets WHERE ticket_id=%d FOR UPDATE", $found['ticket_id'] ) );
-		if ( ! $ticket || 'valid' !== $ticket->status ) {
-			$wpdb->insert( $wpdb->prefix . 'wpcap_checkins', array( 'ticket_id' => $found['ticket_id'], 'event_id' => $found['event_id'], 'user_id' => get_current_user_id(), 'result' => $ticket ? $ticket->status : 'unknown', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%s', '%s' ) );
-			$wpdb->query( 'COMMIT' );
-			return new \WP_Error( 'wpcap_ticket_not_valid', __( 'Ticket wurde bereits verwendet oder ist widerrufen.', 'wp-pass-captain' ), array( 'status' => 409, 'ticket_status' => $ticket ? $ticket->status : 'unknown' ) );
-		}
-		$service_date = wp_date( 'Y-m-d', time(), new \DateTimeZone( $found['timezone'] ) );
-		$day_table = $wpdb->prefix . 'wpcap_occurrence_days';
-		$day = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id,admission_policy,max_entries FROM $day_table WHERE occurrence_id=%d AND service_date=%s", $found['occurrence_id'], $service_date ) );
-		$has_day_rules = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $day_table WHERE occurrence_id=%d", $found['occurrence_id'] ) );
-		$repeatable = $day && in_array( $day->admission_policy, array( 'daily', 'reentry' ), true );
-		$blocked = '';
-		if ( $has_day_rules && ! $day ) { $blocked = 'not_valid_today'; }
-		if ( $repeatable ) {
-			$entries_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_checkins WHERE ticket_id=%d AND occurrence_day_id=%d AND result='checked_in'", $ticket->ticket_id, $day->occurrence_day_id ) );
-			if ( $entries_today >= (int) $day->max_entries ) { $blocked = 'daily_limit_reached'; }
-		}
-		if ( $blocked ) {
-			$wpdb->insert( $wpdb->prefix . 'wpcap_checkins', array( 'ticket_id' => $ticket->ticket_id, 'event_id' => $found['event_id'], 'occurrence_day_id' => $day ? (int) $day->occurrence_day_id : 0, 'user_id' => get_current_user_id(), 'result' => $blocked, 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%d', '%s', '%s' ) );
-			$wpdb->query( 'COMMIT' );
-			return new \WP_Error( 'wpcap_ticket_day_rule', __( 'Ticket ist heute nicht gültig oder das Tageskontingent ist erreicht.', 'wp-pass-captain' ), array( 'status' => 409, 'ticket_status' => $blocked ) );
-		}
-		if ( ! $repeatable ) { $wpdb->update( $tickets, array( 'status' => 'checked_in' ), array( 'ticket_id' => $ticket->ticket_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) ); }
-		$wpdb->insert( $wpdb->prefix . 'wpcap_checkins', array( 'ticket_id' => $ticket->ticket_id, 'event_id' => $found['event_id'], 'occurrence_day_id' => $day ? (int) $day->occurrence_day_id : 0, 'user_id' => get_current_user_id(), 'result' => 'checked_in', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%d', '%s', '%s' ) );
-		$wpdb->query( 'COMMIT' );
-		Audit::record( 'ticket_checked_in', 'ticket', $ticket->ticket_id, array( 'event_id' => $found['event_id'] ) );
-		return rest_ensure_response( array( 'status' => 'checked_in', 'event' => $found['event_name'], 'ticket' => $found['ticket_name'] ) );
-	}
-
-	private static function ticket_for_token( $token ) {
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
-		if ( 64 !== strlen( $token ) ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
-		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.status,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
-			hash( 'sha256', $token )
-		) );
-		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
-		if ( 'cancelled' === $row->occurrence_status || 'cancelled' === $row->event_status ) { return new \WP_Error( 'wpcap_ticket_cancelled_event', __( 'Dieser Termin wurde abgesagt; das Ticket berechtigt nicht zum Einlass.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
-		if ( strtotime( $row->starts_at . ' UTC' ) < time() - DAY_IN_SECONDS || strtotime( $row->starts_at . ' UTC' ) > time() + 365 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_ticket_out_of_window', __( 'Das Ticket liegt außerhalb des Einlasszeitraums.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
-		return array( 'ticket_id' => (int) $row->ticket_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'timezone' => $row->timezone );
+		$result = \PassCaptain\Checkin::perform( $request->get_param( 'token' ), array( 'source' => sanitize_key( $request->get_param( 'source' ) ?: 'web' ), 'idempotency_key' => sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) ) ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 }
