@@ -75,6 +75,15 @@ $free = make_type( 2, 10, 0 );
 $fr = Orders::create( array( 'email' => 'free@example.com', 'items' => array( array( 'ticket_type_id' => $free, 'quantity' => 2 ) ), 'idempotency_key' => 'free-1' ) );
 check( 'free native order issues tickets immediately', ! is_wp_error( $fr ) && 2 === count( tickets( $fr['order_id'], 'valid' ) ) );
 
+echo "Security: customer input cannot use trusted adapter options\n";
+$type = make_type( 5, 10, 3000 );
+$evil = Orders::create( array( 'email' => 'evil@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'evil-1', 'unit_prices' => array( $type => 0 ), 'external' => true, 'hold_minutes' => 99999999, 'currency' => 'XXX' ) );
+check( 'injected unit_prices/external are ignored', ! is_wp_error( $evil ) && 6000 === (int) $evil['total_minor'] && 'pending' === $evil['payment_status'] && 10 === $evil['hold_minutes'] && 'EUR' === $evil['currency'] );
+check( 'no tickets issued for injected zero price', ! tickets( $evil['order_id'] ) );
+$hijack = Orders::create( array( 'email' => 'evil@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => '777-1' ) );
+$channel = Orders::create( array( 'email' => 'shop@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => '777-1' ), array( 'key_namespace' => 'woocommerce', 'external' => true ) );
+check( 'public idempotency key cannot claim a channel key', ! is_wp_error( $channel ) && empty( $channel['reused'] ) && $channel['order_id'] !== $hijack['order_id'] );
+
 echo "WooCommerce: hold, payment, idempotent issuance\n";
 $type = make_type( 3, 4 );
 $wc = make_wc_order( 1, $type, 2, '40.00', '8.00' );

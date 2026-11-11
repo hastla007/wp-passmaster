@@ -322,20 +322,24 @@ final class OrderAdapter {
 			return new \WP_Error( 'wpcap_missing_email', __( 'Für Tickets wird eine gültige E-Mail-Adresse benötigt.', 'wp-pass-captain' ) );
 		}
 		$attempt = absint( $wc_order->get_meta( self::ATTEMPT_META, true ) ) + 1;
+		$unit_prices = array_map( static function ( $line ) {
+			return $line['unit_minor'];
+		}, $lines );
 		$result  = Orders::create(
 			array(
 				'email'           => $email,
 				'items'           => array_values( array_map( static function ( $line ) {
 					return array( 'ticket_type_id' => $line['ticket_type_id'], 'quantity' => $line['quantity'] );
 				}, $lines ) ),
-				'unit_prices'     => array_map( static function ( $line ) {
-					return $line['unit_minor'];
-				}, $lines ),
-				'currency'        => $wc_order->get_currency(),
-				'idempotency_key' => 'woocommerce-' . $wc_order->get_id() . '-' . $attempt,
-				'hold_minutes'    => self::hold_minutes(),
-				'external'        => true,
-				'source'          => 'woocommerce',
+				'idempotency_key' => $wc_order->get_id() . '-' . $attempt,
+			),
+			array(
+				'external'      => true,
+				'currency'      => $wc_order->get_currency(),
+				'hold_minutes'  => self::hold_minutes(),
+				'source'        => 'woocommerce',
+				'key_namespace' => 'woocommerce',
+				'unit_prices'   => $unit_prices,
 			)
 		);
 		if ( is_wp_error( $result ) ) {

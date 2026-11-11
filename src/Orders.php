@@ -7,7 +7,16 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Orders {
 	const HOLD_MINUTES = 10;
 
-	public static function create( $payload ) {
+	/**
+	 * Creates an order with inventory holds.
+	 *
+	 * @param array $payload  Customer input: email, items, idempotency_key, campaign_codes.
+	 * @param array $internal Trusted options for adapters/staff only – never fill from a request:
+	 *                        external (bool), unit_prices (type_id => minor), currency, hold_minutes,
+	 *                        source, key_namespace (separates idempotency keys per channel),
+	 *                        skip_rate_limit (bool).
+	 */
+	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
 		$email = sanitize_email( $payload['email'] ?? '' );
 		$lines = $payload['items'] ?? array();
@@ -19,12 +28,15 @@ final class Orders {
 		if ( '' === $key ) {
 			$key = wp_generate_uuid4();
 		}
-		$key_hash = hash( 'sha256', $key );
-		// Adapter options (e.g. WooCommerce): the external system owns price and payment.
-		$external = ! empty( $payload['external'] );
-		$hold_minutes = max( 1, absint( $payload['hold_minutes'] ?? self::HOLD_MINUTES ) );
-		$unit_prices = is_array( $payload['unit_prices'] ?? null ) ? array_map( 'absint', $payload['unit_prices'] ) : array();
-		$external_currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $payload['currency'] ?? '' ) ) );
+		$namespace = sanitize_key( $internal['key_namespace'] ?? '' );
+		// Channel keys use a keyed hash so a public caller can never claim a POS/WooCommerce key.
+		$key_hash = '' === $namespace ? hash( 'sha256', $key ) : hash_hmac( 'sha256', $key, 'wpcap-channel-' . $namespace );
+		// Trusted adapter options (e.g. WooCommerce): the external system owns price and payment.
+		$external = ! empty( $internal['external'] );
+		$hold_minutes = $external ? max( 1, absint( $internal['hold_minutes'] ?? self::HOLD_MINUTES ) ) : self::HOLD_MINUTES;
+		$unit_prices = ( $external && is_array( $internal['unit_prices'] ?? null ) ) ? array_map( 'absint', $internal['unit_prices'] ) : array();
+		$external_currency = $external ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $internal['currency'] ?? '' ) ) ) : '';
+		$skip_rate_limit = $external || ! empty( $internal['skip_rate_limit'] );
 		$orders_table = $wpdb->prefix . 'wpcap_orders';
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status FROM $orders_table WHERE idempotency_key = %s", $key_hash ) );
 		if ( $existing ) {
@@ -45,7 +57,7 @@ final class Orders {
 		$ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
 		$rate_key = 'wpcap_checkout_' . hash( 'sha256', $ip . '|' . strtolower( $email ) );
 		$count = (int) get_transient( $rate_key );
-		if ( ! $external ) {
+		if ( ! $skip_rate_limit ) {
 			if ( $count >= 8 ) {
 				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
 			}
@@ -181,7 +193,7 @@ final class Orders {
 		if ( ! $external ) {
 			self::send_order_access_link( $email, $public_id, $access_token );
 		}
-		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency, 'source' => sanitize_key( $payload['source'] ?? 'native' ) ) );
+		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency, 'source' => sanitize_key( $internal['source'] ?? 'native' ) ) );
 		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
 	}
 

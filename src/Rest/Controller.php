@@ -162,7 +162,7 @@ final class Controller {
 		register_rest_route( 'wp-pass-captain/v1', '/developer/keys/(?P<key_id>\d+)/revoke', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'revoke_developer_key' ),
-			'permission_callback' => array( __CLASS__, 'pos_permission' ),
+			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
 		) );
 		register_rest_route( 'wp-pass-captain/v1', '/developer/events/(?P<event_id>\d+)', array(
 			'methods' => \WP_REST_Server::READABLE,
@@ -214,7 +214,10 @@ final class Controller {
 	}
 
 	public static function checkout( \WP_REST_Request $request ) {
-		$result = Orders::create( $request->get_json_params() ?: $request->get_params() );
+		$params = $request->get_json_params() ?: $request->get_params();
+		// Only customer fields; trusted adapter options must never come from a public request.
+		$payload = array_intersect_key( is_array( $params ) ? $params : array(), array_flip( array( 'email', 'items', 'idempotency_key', 'campaign_codes' ) ) );
+		$result = Orders::create( $payload );
 		if ( is_wp_error( $result ) ) { return $result; }
 		return new \WP_REST_Response( $result, 201 );
 	}
@@ -275,13 +278,17 @@ final class Controller {
 			$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
 			if ( ! $event_id || ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) { return new \WP_Error( 'wpcap_pos_forbidden', __( 'Für dieses Event fehlt die POS-Berechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
 		}
-		$result = Orders::create( array( 'email' => $payload['email'] ?? '', 'items' => $items, 'idempotency_key' => 'pos-' . sanitize_text_field( $payload['idempotency_key'] ) ) );
+		$result = Orders::create( array( 'email' => $payload['email'] ?? '', 'items' => $items, 'idempotency_key' => sanitize_text_field( $payload['idempotency_key'] ) ), array( 'key_namespace' => 'pos', 'skip_rate_limit' => true, 'source' => 'pos' ) );
 		if ( is_wp_error( $result ) ) { return $result; }
 		if ( 'pending' === ( $result['payment_status'] ?? '' ) ) {
 			$confirmed = Orders::confirm_manual_payment( $result['order_id'] );
 			if ( is_wp_error( $confirmed ) ) { return $confirmed; }
 		}
-		return new \WP_REST_Response( array( 'order_id' => (int) $result['order_id'], 'public_id' => $result['public_id'], 'status' => 'complete', 'payment_status' => 'paid' ), 201 );
+		$order = Orders::get( $result['order_id'] );
+		if ( ! $order || 'paid' !== $order->payment_status ) {
+			return new \WP_Error( 'wpcap_pos_not_paid', __( 'Dieser Idempotency-Key gehört zu einer nicht bezahlten Bestellung; bitte einen neuen Verkauf starten.', 'wp-pass-captain' ), array( 'status' => 409, 'status_code' => $order ? $order->status : '' ) );
+		}
+		return new \WP_REST_Response( array( 'order_id' => (int) $order->order_id, 'public_id' => $order->public_id, 'status' => $order->status, 'payment_status' => $order->payment_status ), empty( $result['reused'] ) ? 201 : 200 );
 	}
 
 	public static function offline_sync( \WP_REST_Request $request ) {
@@ -427,7 +434,7 @@ final class Controller {
 
 	public static function developer_event( \WP_REST_Request $request ) {
 		global $wpdb;
-		if ( false === DeveloperKeys::authorize( $request, 'events.read', absint( $request['event_id'] ) ) ) { return new \WP_Error( 'wpcap_api_key_invalid', __( 'API-Key ist ungültig oder nicht berechtigt.', 'wp-pass-captain' ), array( 'status' => 401 ) ); }
+		// Authorised (and rate limited) once in developer_key_permission().
 		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name,slug,description,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", absint( $request['event_id'] ) ), ARRAY_A );
 		return $event ? rest_ensure_response( $event ) : new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
 	}
@@ -435,7 +442,7 @@ final class Controller {
 	public static function get_event_translation( \WP_REST_Request $request ) {
 		global $wpdb;
 		$locale = sanitize_text_field( $request->get_param( 'locale' ) ?: determine_locale() );
-		$translation = $wpdb->get_row( $wpdb->prepare( "SELECT locale,name,description,location,updated_at FROM {$wpdb->prefix}wpcap_event_translations WHERE event_id=%d AND locale=%s", absint( $request['event_id'] ), $locale ), ARRAY_A );
+		$translation = $wpdb->get_row( $wpdb->prepare( "SELECT tr.locale,tr.name,tr.description,tr.location,tr.updated_at FROM {$wpdb->prefix}wpcap_event_translations tr INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=tr.event_id WHERE tr.event_id=%d AND tr.locale=%s AND e.status='published'", absint( $request['event_id'] ), $locale ), ARRAY_A );
 		return $translation ? rest_ensure_response( $translation ) : new \WP_Error( 'wpcap_translation_not_found', __( 'Übersetzung nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
 	}
 
@@ -481,15 +488,15 @@ final class Controller {
 		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d FOR UPDATE", $event_id ) );
 		if ( ! $event ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		$version = 1 + (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(version) FROM {$wpdb->prefix}wpcap_seat_maps WHERE event_id=%d", $event_id ) );
-		$wpdb->insert( $wpdb->prefix . 'wpcap_seat_maps', array( 'event_id' => $event_id, 'version' => $version, 'name' => $name, 'status' => 'published', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%s', '%s', '%s' ) );
-		$map_id = (int) $wpdb->insert_id;
+		$map_saved = $wpdb->insert( $wpdb->prefix . 'wpcap_seat_maps', array( 'event_id' => $event_id, 'version' => $version, 'name' => $name, 'status' => 'published', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%s', '%s', '%s' ) );
+		$map_id = false === $map_saved ? 0 : (int) $wpdb->insert_id;
 		if ( ! $map_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_map_save', __( 'Sitzplan konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		foreach ( $rows as $seat ) {
 			$key = sanitize_key( $seat['seat_key'] ?? '' );
 			$label = sanitize_text_field( $seat['seat_label'] ?? '' );
 			if ( ! $key || ! $label ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_invalid', __( 'Jeder Sitzplatz benötigt einen eindeutigen Schlüssel und eine Bezeichnung.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
-			$wpdb->insert( $wpdb->prefix . 'wpcap_seats', array( 'map_id' => $map_id, 'seat_key' => $key, 'zone' => sanitize_text_field( $seat['zone'] ?? '' ), 'row_label' => sanitize_text_field( $seat['row_label'] ?? '' ), 'seat_label' => $label, 'position_x' => (float) ( $seat['x'] ?? 0 ), 'position_y' => (float) ( $seat['y'] ?? 0 ), 'status' => 'available' ), array( '%d', '%s', '%s', '%s', '%s', '%f', '%f', '%s' ) );
-			if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_duplicate', __( 'Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+			$seat_saved = $wpdb->insert( $wpdb->prefix . 'wpcap_seats', array( 'map_id' => $map_id, 'seat_key' => $key, 'zone' => sanitize_text_field( $seat['zone'] ?? '' ), 'row_label' => sanitize_text_field( $seat['row_label'] ?? '' ), 'seat_label' => $label, 'position_x' => (float) ( $seat['x'] ?? 0 ), 'position_y' => (float) ( $seat['y'] ?? 0 ), 'status' => 'available' ), array( '%d', '%s', '%s', '%s', '%s', '%f', '%f', '%s' ) );
+			if ( false === $seat_saved ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_duplicate', __( 'Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		}
 		$wpdb->query( 'COMMIT' );
 		return new \WP_REST_Response( array( 'map_id' => $map_id, 'version' => $version, 'seat_count' => count( $rows ) ), 201 );
