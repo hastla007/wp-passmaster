@@ -13,7 +13,7 @@ final class Campaigns {
 		global $wpdb;
 		$codes = array_values( array_unique( array_filter( array_map( static function ( $code ) {
 			return strtoupper( preg_replace( '/[^A-Z0-9_-]/', '', strtoupper( sanitize_text_field( $code ) ) ) );
-		}, $codes ) ) );
+		}, $codes ) ) ) );
 		sort( $codes, SORT_STRING );
 		if ( count( $codes ) > 3 ) { return new \WP_Error( 'wpcap_campaign_limit', __( 'Es können höchstens drei Kampagnencodes verwendet werden.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		$campaigns = array();

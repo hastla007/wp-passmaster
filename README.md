@@ -13,7 +13,7 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 - WordPress-Datenschutzexport/-löschung und ein CI-/ZIP-Build sind vorbereitet.
 - Käuferlinks verfallen nach 30 Tagen; ein gültiges Ticket kann vor Veranstaltungsbeginn einmalig übertragen werden.
 - Ein versionierter Voucher-Captain-Provider-Vertrag ist vorhanden; Voucher-Reservierung und Einlösung sind noch nicht im Checkout orchestriert.
-- WooCommerce nutzt CRUD und Bestellmetadaten und bleibt optional. Woo Classic und Blocks folgen dem normalen Woo-Checkout.
+- WooCommerce bleibt optional und wird nur über CRUD-APIs angebunden (HPOS und klassischer Bestellspeicher). Ticketprodukte reservieren Kontingent bereits beim Woo-Checkout (Classic und Blocks), stellen nach Zahlung genau ein Ticket je Einheit aus und widerrufen Tickets bei Storno und (Teil-)Erstattung. Details: [docs/WOOCOMMERCE.md](docs/WOOCOMMERCE.md).
 - Veröffentliche Events können abgesagt werden; Käufer werden benachrichtigt und unbezahlte Reservierungen aufgehoben.
 - REST-Grundlagen für Sitzpläne, Service-Slots, POS-Verkäufe, Offline-Scan-Synchronisierung, Einlassregeln pro Tag und Teilnehmerzuweisung sind enthalten.
 - Transaktionale Rechnungsnummern, geplanter Mailversand und Mitgliedspässe mit Nutzungslimits sind als Basismodule verfügbar.
@@ -35,6 +35,12 @@ composer install
 bash build/release.sh
 ```
 
+Integrationstests für Bestellungen, Reservierungen und den WooCommerce-Adapter laufen gegen eine echte, wegwerfbare MySQL-/MariaDB-Datenbank (Zugang über `WPCAP_TEST_DB_HOST`, `WPCAP_TEST_DB_USER`, `WPCAP_TEST_DB_PASS`, `WPCAP_TEST_DB_NAME`; Standard `127.0.0.1`/`wp`/`wp`/`wp`). Die Tests legen die Tabellen mit dem Präfix `wptest_` neu an:
+
+```sh
+php tests/integration/run.php
+```
+
 Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaScript-Syntaxprüfung aus und erzeugt ein installierbares ZIP als Workflow-Artefakt.
 
 ## Roadmaps und Entwurfsdokumente
@@ -45,4 +51,4 @@ Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaSc
 
 ## Noch offen
 
-Viele Schritte 21–50 sind Backend-Grundlagen. Checkout-/Admin-Oberflächen, Woo-/PSP-/Voucher-Orchestrierung, Checkout-verknüpfte Sitzplatz- und Servicebuchungen, echte Wallet-Anbieter, geprüfte Steuerberechnung und PDF-Rechnungen fehlen. Wartelistenangebote reservieren keine Kapazität; Teilnehmerfelder sind noch nicht im Checkout. Entwickler-API-Schlüssel haben noch kein zusätzliches eigenes Rate-Limit; externe Connectoren müssen separat implementiert und aktiviert werden. Last-, Restore-, Sicherheits- und Barrierefreiheitsprüfungen sind noch nicht erfolgt. Es gibt noch keinen reproduzierbaren 1.0-Release-Prozess. Siehe Roadmaps und `docs/` für die Grenzen der einzelnen Grundlagen.
+Viele Schritte 21–50 sind Backend-Grundlagen. Checkout-/Admin-Oberflächen, PSP-/Voucher-Orchestrierung, Checkout-verknüpfte Sitzplatz- und Servicebuchungen, echte Wallet-Anbieter, geprüfte Steuerberechnung und PDF-Rechnungen fehlen. Wartelistenangebote reservieren keine Kapazität; Teilnehmerfelder sind noch nicht im Checkout. Entwickler-API-Schlüssel haben noch kein zusätzliches eigenes Rate-Limit; externe Connectoren müssen separat implementiert und aktiviert werden. Last-, Restore-, Sicherheits- und Barrierefreiheitsprüfungen sind noch nicht erfolgt. Es gibt noch keinen reproduzierbaren 1.0-Release-Prozess. Siehe Roadmaps und `docs/` für die Grenzen der einzelnen Grundlagen.

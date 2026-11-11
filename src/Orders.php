@@ -20,6 +20,11 @@ final class Orders {
 			$key = wp_generate_uuid4();
 		}
 		$key_hash = hash( 'sha256', $key );
+		// Adapter options (e.g. WooCommerce): the external system owns price and payment.
+		$external = ! empty( $payload['external'] );
+		$hold_minutes = max( 1, absint( $payload['hold_minutes'] ?? self::HOLD_MINUTES ) );
+		$unit_prices = is_array( $payload['unit_prices'] ?? null ) ? array_map( 'absint', $payload['unit_prices'] ) : array();
+		$external_currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $payload['currency'] ?? '' ) ) );
 		$orders_table = $wpdb->prefix . 'wpcap_orders';
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status FROM $orders_table WHERE idempotency_key = %s", $key_hash ) );
 		if ( $existing ) {
@@ -40,10 +45,12 @@ final class Orders {
 		$ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
 		$rate_key = 'wpcap_checkout_' . hash( 'sha256', $ip . '|' . strtolower( $email ) );
 		$count = (int) get_transient( $rate_key );
-		if ( $count >= 8 ) {
-			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+		if ( ! $external ) {
+			if ( $count >= 8 ) {
+				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+			}
+			set_transient( $rate_key, $count + 1, HOUR_IN_SECONDS );
 		}
-		set_transient( $rate_key, $count + 1, HOUR_IN_SECONDS );
 
 		$types_table = $wpdb->prefix . 'wpcap_ticket_types';
 		$occ_table = $wpdb->prefix . 'wpcap_occurrences';
@@ -73,30 +80,26 @@ final class Orders {
 				if ( ( $type->sales_start && $type->sales_start > $now ) || ( $type->sales_end && $type->sales_end < $now ) ) {
 					throw new \RuntimeException( 'sales_closed' );
 				}
-				if ( '' === $currency ) {
+				if ( $external && 3 === strlen( $external_currency ) ) {
+					$currency = $external_currency;
+				} elseif ( '' === $currency ) {
 					$currency = $type->currency;
 				} elseif ( $currency !== $type->currency ) {
 					throw new \RuntimeException( 'mixed_currency' );
 				}
 				$wpdb->query( $wpdb->prepare( "UPDATE $reservations_table SET status='expired' WHERE ticket_type_id=%d AND status='active' AND expires_at <= %s", $type_id, $now ) );
-				$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity),0) FROM $items_table oi INNER JOIN $orders_table ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", $type_id ) );
-				$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM $reservations_table WHERE ticket_type_id=%d AND status='active' AND expires_at > %s", $type_id, $now ) );
-				if ( (int) $type->capacity > 0 && $sold + $held + $quantity > (int) $type->capacity ) {
-					throw new \RuntimeException( 'sold_out' );
+				$capacity_error = self::capacity_error( $type, $occurrence, $quantity );
+				if ( $capacity_error ) {
+					throw new \RuntimeException( $capacity_error );
 				}
-				if ( (int) $occurrence->capacity > 0 ) {
-					$occ_sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity),0) FROM $items_table oi INNER JOIN $types_table tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN $orders_table ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", $occurrence->occurrence_id ) );
-					$occ_held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.quantity),0) FROM $reservations_table r INNER JOIN $types_table tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s", $occurrence->occurrence_id, $now ) );
-					if ( $occ_sold + $occ_held + $quantity > (int) $occurrence->capacity ) {
-						throw new \RuntimeException( 'occurrence_sold_out' );
-					}
-				}
-				$line_total = (int) $type->price_minor * $quantity;
+				$unit_price = array_key_exists( $type_id, $unit_prices ) ? (int) $unit_prices[ $type_id ] : (int) $type->price_minor;
+				$type->price_minor = $unit_price;
+				$line_total = $unit_price * $quantity;
 				$total += $line_total;
 				$selected[] = array( 'type' => $type, 'event_id' => (int) $occurrence->event_id, 'quantity' => $quantity, 'line_total' => $line_total );
 			}
 			$subtotal = $total;
-			$campaign_codes = $payload['campaign_codes'] ?? array();
+			$campaign_codes = $external ? array() : ( $payload['campaign_codes'] ?? array() );
 			if ( ! is_array( $campaign_codes ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
 			$adjustments = Campaigns::calculate( $selected, $campaign_codes, $currency );
 			if ( is_wp_error( $adjustments ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
@@ -112,8 +115,8 @@ final class Orders {
 				'customer_email' => $email,
 				'access_token_hash' => hash( 'sha256', $access_token ),
 				'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS ),
-				'status' => $total ? 'pending_payment' : 'complete',
-				'payment_status' => $total ? 'pending' : 'paid',
+				'status' => ( $total || $external ) ? 'pending_payment' : 'complete',
+				'payment_status' => ( $total || $external ) ? 'pending' : 'paid',
 				'currency' => $currency,
 				'total_minor' => $total,
 				'subtotal_minor' => $subtotal,
@@ -134,18 +137,18 @@ final class Orders {
 					'unit_price_minor' => (int) $line['type']->price_minor,
 					'line_total_minor' => (int) $line['line_total'],
 				), array( '%d', '%d', '%d', '%d', '%d' ) );
-				if ( 0 !== $wpdb->last_error ) {
+				if ( '' !== $wpdb->last_error ) {
 					throw new \RuntimeException( 'order_item_insert_failed' );
 				}
-				if ( $total ) {
+				if ( $total || $external ) {
 					$wpdb->insert( $reservations_table, array(
 						'order_id' => $order_id,
 						'ticket_type_id' => (int) $line['type']->ticket_type_id,
 						'quantity' => (int) $line['quantity'],
-						'expires_at' => gmdate( 'Y-m-d H:i:s', time() + self::HOLD_MINUTES * MINUTE_IN_SECONDS ),
+						'expires_at' => gmdate( 'Y-m-d H:i:s', time() + $hold_minutes * MINUTE_IN_SECONDS ),
 						'status' => 'active',
 					), array( '%d', '%d', '%d', '%s', '%s' ) );
-					if ( 0 !== $wpdb->last_error ) {
+					if ( '' !== $wpdb->last_error ) {
 						throw new \RuntimeException( 'reservation_insert_failed' );
 					}
 				}
@@ -170,13 +173,231 @@ final class Orders {
 			return new \WP_Error( 'wpcap_checkout_failed', $message, array( 'status' => 409 ) );
 		}
 
-		if ( 0 === $total ) {
+		$pending = $total || $external;
+		if ( ! $pending ) {
 			Campaigns::commit_for_order( $order_id );
 			self::issue_and_email( $order_id );
 		}
-		self::send_order_access_link( $email, $public_id, $access_token );
-		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency ) );
-		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $total ? 'pending_payment' : 'complete', 'payment_status' => $total ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $total ? self::HOLD_MINUTES : 0 );
+		if ( ! $external ) {
+			self::send_order_access_link( $email, $public_id, $access_token );
+		}
+		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency, 'source' => sanitize_key( $payload['source'] ?? 'native' ) ) );
+		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
+	}
+
+	/**
+	 * Returns an error code if $quantity more units of $type would exceed type or occurrence capacity.
+	 * Callers must hold row locks on the ticket type and occurrence. Capacity 0 means unlimited.
+	 */
+	private static function capacity_error( $type, $occurrence, $quantity, $exclude_order_id = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = current_time( 'mysql', true );
+		$exclude_order_id = absint( $exclude_order_id );
+		if ( (int) $type->capacity > 0 ) {
+			$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d", $type->ticket_type_id, $exclude_order_id ) );
+			$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_reservations WHERE ticket_type_id=%d AND status='active' AND expires_at > %s AND order_id <> %d", $type->ticket_type_id, $now, $exclude_order_id ) );
+			if ( $sold + $held + $quantity > (int) $type->capacity ) {
+				return 'sold_out';
+			}
+		}
+		if ( (int) $occurrence->capacity > 0 ) {
+			$occ_sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d", $occurrence->occurrence_id, $exclude_order_id ) );
+			$occ_held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.quantity),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s AND r.order_id <> %d", $occurrence->occurrence_id, $now, $exclude_order_id ) );
+			if ( $occ_sold + $occ_held + $quantity > (int) $occurrence->capacity ) {
+				return 'occurrence_sold_out';
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * Remaining sellable units for a ticket type (non-locking, for display/cart validation).
+	 *
+	 * @return int|null Null when neither the type nor the occurrence is limited.
+	 */
+	public static function availability( $ticket_type_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$type = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id=%d", absint( $ticket_type_id ) ) );
+		if ( ! $type ) { return 0; }
+		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", $type->occurrence_id ) );
+		if ( ! $occurrence ) { return 0; }
+		$limits = array();
+		$now = current_time( 'mysql', true );
+		if ( (int) $type->capacity > 0 ) {
+			$used = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", $type->ticket_type_id ) )
+				+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_reservations WHERE ticket_type_id=%d AND status='active' AND expires_at > %s", $type->ticket_type_id, $now ) );
+			$limits[] = (int) $type->capacity - $used;
+		}
+		if ( (int) $occurrence->capacity > 0 ) {
+			$used = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", $occurrence->occurrence_id ) )
+				+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.quantity),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s", $occurrence->occurrence_id, $now ) );
+			$limits[] = (int) $occurrence->capacity - $used;
+		}
+		return $limits ? max( 0, min( $limits ) ) : null;
+	}
+
+	/**
+	 * Confirms a payment reported by an external system (e.g. WooCommerce). Idempotent.
+	 *
+	 * Active holds are converted. If the hold has lapsed, capacity is re-checked under row locks
+	 * (late payment recovery). If it is no longer available, the order is flagged `needs_review`
+	 * with payment status `paid_unallocated` – no tickets are issued and nothing is overbooked.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public static function confirm_external_payment( $order_id, $reference = '' ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = absint( $order_id );
+		$now = current_time( 'mysql', true );
+		$wpdb->query( 'START TRANSACTION' );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( ! $order ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_order_missing', __( 'Bestellung nicht gefunden.', 'wp-pass-captain' ) );
+		}
+		if ( 'paid' === $order->payment_status ) {
+			$wpdb->query( 'COMMIT' );
+			self::issue_and_email( $order_id );
+			return true;
+		}
+		if ( in_array( $order->status, array( 'refunded', 'cancelled' ), true ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'wp-pass-captain' ) );
+		}
+		$active = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_reservations WHERE order_id=%d AND status='active' AND expires_at > %s", $order_id, $now ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id, SUM(quantity) AS quantity FROM {$p}wpcap_order_items WHERE order_id=%d GROUP BY ticket_type_id ORDER BY ticket_type_id", $order_id ) );
+		$recovered = false;
+		if ( ! $active ) {
+			// Late payment: lock occurrences first, then ticket types (stable order), and re-check capacity.
+			$type_ids = array_map( static function ( $line ) { return (int) $line->ticket_type_id; }, $lines );
+			$ids_sql = implode( ',', $type_ids ? $type_ids : array( 0 ) );
+			$occ_ids = $wpdb->get_col( "SELECT DISTINCT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id IN ($ids_sql) ORDER BY occurrence_id" );
+			$occurrences = array();
+			foreach ( $occ_ids as $occ_id ) {
+				$occurrences[ (int) $occ_id ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", $occ_id ) );
+			}
+			$error = '';
+			$per_occurrence = array();
+			foreach ( $lines as $line ) {
+				$type = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id=%d FOR UPDATE", $line->ticket_type_id ) );
+				$occurrence = $type ? ( $occurrences[ (int) $type->occurrence_id ] ?? null ) : null;
+				if ( ! $type || ! $occurrence ) { $error = 'ticket_type_unavailable'; break; }
+				$check_occurrence = clone $occurrence;
+				$check_occurrence->capacity = 0; // Occurrence capacity is checked below for the summed quantity.
+				$error = self::capacity_error( $type, $check_occurrence, (int) $line->quantity, $order_id );
+				if ( $error ) { break; }
+				$per_occurrence[ (int) $occurrence->occurrence_id ] = ( $per_occurrence[ (int) $occurrence->occurrence_id ] ?? 0 ) + (int) $line->quantity;
+			}
+			if ( ! $error ) {
+				foreach ( $per_occurrence as $occ_id => $quantity ) {
+					$unlimited_type = (object) array( 'ticket_type_id' => 0, 'capacity' => 0 );
+					$error = self::capacity_error( $unlimited_type, $occurrences[ $occ_id ], $quantity, $order_id );
+					if ( $error ) { break; }
+				}
+			}
+			if ( $error ) {
+				$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'needs_review', 'payment_status' => 'paid_unallocated', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='expired' WHERE order_id=%d AND status='active'", $order_id ) );
+				$wpdb->query( 'COMMIT' );
+				Audit::record( 'payment_unallocated', 'order', $order_id, array( 'reason' => $error, 'reference' => sanitize_text_field( $reference ) ) );
+				wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Bezahlte Bestellung ohne freies Kontingent', 'wp-pass-captain' ), sprintf( __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten).', 'wp-pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
+				return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden.', 'wp-pass-captain' ) );
+			}
+			$recovered = true;
+		}
+		$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'complete', 'payment_status' => 'paid', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='converted' WHERE order_id=%d AND status IN ('active','expired','released')", $order_id ) );
+		Campaigns::commit_for_order( $order_id );
+		$wpdb->query( 'COMMIT' );
+		Audit::record( 'external_payment_confirmed', 'order', $order_id, array( 'reference' => sanitize_text_field( $reference ), 'late_recovery' => $recovered ) );
+		self::issue_and_email( $order_id );
+		return true;
+	}
+
+	/** Extends active holds of a pending order (e.g. WooCommerce "on-hold" bank transfers). */
+	public static function extend_hold( $order_id, $minutes ) {
+		global $wpdb;
+		$until = gmdate( 'Y-m-d H:i:s', time() + max( 1, absint( $minutes ) ) * MINUTE_IN_SECONDS );
+		return $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_reservations SET expires_at=GREATEST(expires_at,%s) WHERE order_id=%d AND status='active' AND expires_at > %s", $until, absint( $order_id ), current_time( 'mysql', true ) ) );
+	}
+
+	/**
+	 * Cancels an order: releases holds and campaign reservations; for paid orders all still valid
+	 * tickets are revoked (checked-in tickets stay as historical record). Idempotent.
+	 */
+	public static function cancel_order( $order_id, $reason = '' ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = absint( $order_id );
+		$now = current_time( 'mysql', true );
+		$wpdb->query( 'START TRANSACTION' );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( ! $order || in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) {
+			$wpdb->query( 'COMMIT' );
+			return true;
+		}
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) );
+		$revoked = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=%d AND status='valid'", $order_id ) );
+		$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'cancelled', 'payment_status' => 'cancelled', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+		$wpdb->query( 'COMMIT' );
+		Campaigns::release_for_order( $order_id );
+		Audit::record( 'order_cancelled', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
+		return true;
+	}
+
+	/**
+	 * Revokes up to $count still valid tickets of a ticket type (newest first). Checked-in tickets
+	 * are never revoked. Returns the number of revoked tickets.
+	 */
+	public static function revoke_tickets( $order_id, $ticket_type_id, $count, $reason = '' ) {
+		global $wpdb;
+		$count = absint( $count );
+		if ( ! $count ) { return 0; }
+		$revoked = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET status='revoked' WHERE order_id=%d AND ticket_type_id=%d AND status='valid' ORDER BY ticket_id DESC LIMIT %d", absint( $order_id ), absint( $ticket_type_id ), $count ) );
+		if ( $revoked ) {
+			Audit::record( 'tickets_revoked', 'order', absint( $order_id ), array( 'ticket_type_id' => absint( $ticket_type_id ), 'count' => $revoked, 'reason' => sanitize_text_field( $reason ) ) );
+		}
+		return $revoked;
+	}
+
+	/** Marks an order as fully refunded and revokes all still valid tickets. Idempotent. */
+	public static function mark_refunded( $order_id, $reason = '' ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = absint( $order_id );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
+		if ( ! $order || 'refunded' === $order->status ) { return true; }
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) );
+		$revoked = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=%d AND status='valid'", $order_id ) );
+		$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'refunded', 'payment_status' => 'refunded', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+		Audit::record( 'order_refunded', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
+		return true;
+	}
+
+	/** Issues a new personal order access link (old link becomes invalid) and emails it. */
+	public static function rotate_access_link( $order_id ) {
+		global $wpdb;
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,customer_email FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		if ( ! $order ) { return false; }
+		$token = bin2hex( random_bytes( 32 ) );
+		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'access_token_hash' => hash( 'sha256', $token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
+		return self::send_order_access_link( $order->customer_email, $order->public_id, $token );
+	}
+
+	/** Returns tickets of an order with event context (no tokens). */
+	public static function tickets_for_order( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return $wpdb->get_results( $wpdb->prepare( "SELECT t.ticket_id,t.public_id,t.status,t.ticket_type_id,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d ORDER BY t.ticket_id", absint( $order_id ) ) );
+	}
+
+	/** Returns an order row. */
+	public static function get( $order_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
 	}
 
 	public static function send_order_access_link( $email, $public_id, $access_token ) {
@@ -301,11 +522,14 @@ final class Orders {
 		return true;
 	}
 
-	private static function issue_and_email( $order_id ) {
+	public static function issue_and_email( $order_id ) {
 		global $wpdb;
 		$orders = $wpdb->prefix . 'wpcap_orders';
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $orders WHERE order_id=%d", $order_id ) );
+		// Serialise issuance per order so concurrent payment callbacks cannot create duplicates.
+		$wpdb->query( 'START TRANSACTION' );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( ! $order || 'paid' !== $order->payment_status ) {
+			$wpdb->query( 'COMMIT' );
 			return;
 		}
 		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name AS ticket_name,o.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d", $order_id ) );
@@ -328,7 +552,9 @@ final class Orders {
 				}
 			}
 		}
+		$wpdb->query( 'COMMIT' );
 		if ( $issued ) {
+			do_action( 'wpcap_tickets_issued', (int) $order_id, count( $issued ) );
 			$body = __( 'Deine Tickets für WP Pass Captain:', 'wp-pass-captain' ) . "\n\n";
 			foreach ( $issued as $ticket ) {
 				$body .= sprintf( "%s — %s\n%s\n%s\n\n", $ticket['event'], $ticket['ticket'], mysql2date( 'd.m.Y H:i', $ticket['starts_at'], true ) . ' ' . $ticket['timezone'], $ticket['location'] );
