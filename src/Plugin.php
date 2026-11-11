@@ -42,6 +42,8 @@ final class Plugin {
 		add_action( 'wpcap_process_jobs', array( Jobs::class, 'process_due' ) );
 		add_action( 'init', array( $this, 'register_blocks' ) );
 		Integrations\WooCommerce\OrderAdapter::register();
+		Invoices::register();
+		Integrations\Vouchers\Checkout::register();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
 		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );

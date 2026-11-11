@@ -232,6 +232,7 @@ final class Orders {
 		if ( ! $pending ) {
 			Campaigns::commit_for_order( $order_id );
 			self::issue_and_email( $order_id );
+			do_action( 'wpcap_order_paid', $order_id );
 		}
 		if ( ! $external ) {
 			self::send_order_access_link( $email, $public_id, $access_token );
@@ -447,6 +448,7 @@ final class Orders {
 		Campaigns::commit_for_order( $order_id );
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'external_payment_confirmed', 'order', $order_id, array( 'reference' => sanitize_text_field( $reference ), 'late_recovery' => $recovered ) );
+		do_action( 'wpcap_order_paid', $order_id );
 		self::issue_and_email( $order_id );
 		return true;
 	}
@@ -479,6 +481,7 @@ final class Orders {
 		$wpdb->query( 'COMMIT' );
 		Campaigns::release_for_order( $order_id );
 		Audit::record( 'order_cancelled', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
+		do_action( 'wpcap_order_cancelled', $order_id );
 		return true;
 	}
 
@@ -665,7 +668,7 @@ final class Orders {
 			$now,
 			$now
 		) );
-		foreach ( $expired_ids as $expired_id ) { Campaigns::release_for_order( $expired_id ); }
+		foreach ( $expired_ids as $expired_id ) { Campaigns::release_for_order( $expired_id ); do_action( 'wpcap_order_cancelled', (int) $expired_id ); }
 		return true;
 	}
 

@@ -32,6 +32,8 @@ final class Settings {
 			'seller_address'            => '',
 			'seller_vat_id'             => '',
 			'invoice_prefix'            => 'WPC',
+			'credit_note_prefix'        => 'GS',
+			'auto_invoice'              => 0,
 			'delete_data_on_uninstall'  => 0,
 		);
 	}

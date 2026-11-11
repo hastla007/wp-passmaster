@@ -238,6 +238,19 @@ final class Controller {
 		$hold = 'manual' === $provider_id ? max( 1, (int) \PassCaptain\Settings::get( 'manual_hold_hours' ) ) * 60 : max( 30, (int) \PassCaptain\Settings::get( 'hold_minutes' ) ); // Hosted payment pages (e.g. Stripe) live at least 30 minutes.
 		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold ) );
 		if ( is_wp_error( $result ) ) { return $result; }
+		$voucher_code = sanitize_text_field( $params['voucher_code'] ?? '' );
+		if ( '' !== $voucher_code && 'pending' === ( $result['payment_status'] ?? '' ) && empty( $result['reused'] ) ) {
+			$voucher = \PassCaptain\Integrations\Vouchers\Checkout::apply( $result['order_id'], $voucher_code );
+			if ( is_wp_error( $voucher ) ) {
+				Orders::cancel_order( $result['order_id'], 'voucher_rejected' );
+				return $voucher;
+			}
+			$fresh = Orders::get( $result['order_id'] );
+			$result['total_minor'] = (int) $fresh->total_minor;
+			$result['voucher_minor'] = (int) $voucher['applied_minor'];
+			$result['status'] = $fresh->status;
+			$result['payment_status'] = $fresh->payment_status;
+		}
 		if ( 'pending' === ( $result['payment_status'] ?? '' ) ) {
 			$order = (array) Orders::get( $result['order_id'] );
 			if ( ! $gateway->is_available( $order['currency'] ) ) {

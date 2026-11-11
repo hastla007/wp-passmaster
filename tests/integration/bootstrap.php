@@ -129,7 +129,7 @@ function mysql2date( $f, $d ) { return gmdate( $f, strtotime( $d ) ); }
 function get_date_from_gmt( $d ) { return $d; }
 function wp_mail( $to, $subject, $body ) { $GLOBALS['wpcap_test_mails'][] = compact( 'to', 'subject', 'body' ); return true; }
 function do_action( $hook, ...$args ) { $GLOBALS['wpcap_test_actions'][] = $hook; }
-function apply_filters( $hook, $value, ...$args ) { return $value; }
+function apply_filters( $hook, $value, ...$args ) { return array_key_exists( $hook, $GLOBALS['wpcap_test_filters'] ?? array() ) ? $GLOBALS['wpcap_test_filters'][ $hook ] : $value; }
 function add_action() {}
 function add_filter() {}
 function current_filter() { return 'test_filter'; }
@@ -137,6 +137,7 @@ function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function get_role( $r ) { return null; }
 function add_role() {}
 function wc_get_price_decimals() { return 2; }
+function determine_locale() { return 'de_DE'; }
 function wp_date( $f, $ts = null, $tz = null ) { return gmdate( $f, $ts ?? time() ); }
 function wc_add_notice( $m, $t = 'success' ) { $GLOBALS['wpcap_test_notices'][] = $m; }
 

@@ -312,5 +312,6 @@ foreach ( $procs as $proc ) { $ok += 'OK' === trim( stream_get_contents( $proc )
 $held = (int) $wpdb->get_var( "SELECT SUM(quantity) FROM {$p}wpcap_reservations WHERE ticket_type_id=$type AND status='active'" );
 check( "exactly 5 of 20 parallel buyers get a hold (got $ok, held $held)", 5 === $ok && 5 === $held );
 
+require __DIR__ . '/finance.php';
 echo "\n$passes passed, $failures failed\n";
 exit( $failures ? 1 : 0 );

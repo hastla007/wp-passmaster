@@ -588,6 +588,27 @@ final class Installer {
 				UNIQUE KEY idempotency_key (idempotency_key),
 				KEY order_status (order_id,status)
 			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_credit_notes (
+				credit_note_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				invoice_id bigint(20) unsigned NOT NULL,
+				refund_id bigint(20) unsigned NOT NULL,
+				credit_note_number varchar(40) NOT NULL,
+				currency char(3) NOT NULL,
+				net_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				issued_at datetime NOT NULL,
+				PRIMARY KEY  (credit_note_id),
+				UNIQUE KEY refund_id (refund_id),
+				UNIQUE KEY credit_note_number (credit_note_number),
+				KEY invoice_id (invoice_id)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_document_sequences (
+				series varchar(16) NOT NULL,
+				year smallint(5) unsigned NOT NULL,
+				next_number bigint(20) unsigned NOT NULL DEFAULT 1,
+				PRIMARY KEY  (series,year)
+			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $jobs (
 				job_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				idempotency_key char(64) NOT NULL,
