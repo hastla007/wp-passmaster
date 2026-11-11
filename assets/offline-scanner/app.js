@@ -650,6 +650,7 @@
 			btn.disabled = true;
 			pair($('pair-code').value, $('pair-label').value.trim()).then(function () {
 				showView();
+				renderOccurrences();
 				showResult('ok', 'Gekoppelt', 'Jetzt im Admin unter „Offline-Scanner“ dem Event zuweisen.');
 				return refreshAll(true);
 			}).catch(function (err) {

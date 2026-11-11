@@ -159,7 +159,15 @@ function load_make_type( $capacity, $max_per_order, $price ) {
 }
 
 /** Distributes ops over workers, runs them behind a start barrier and returns [results by op index, wall seconds]. */
+function innodb_status( $name ) {
+	global $wpdb;
+	return (int) ( $wpdb->get_row( "SHOW GLOBAL STATUS LIKE '" . $name . "'", ARRAY_A )['Value'] ?? 0 );
+}
+
 function run_workers( array $per_worker ) {
+	global $last_db_stats;
+	$deadlocks = innodb_status( 'Innodb_deadlocks' );
+	$lock_waits = innodb_status( 'Innodb_row_lock_waits' );
 	$dir = sys_get_temp_dir() . '/wpcap-load-' . getmypid();
 	if ( ! is_dir( $dir ) ) { mkdir( $dir ); }
 	$start_at = microtime( true ) + 1.0 + count( $per_worker ) * 0.02;
@@ -188,6 +196,8 @@ function run_workers( array $per_worker ) {
 		$end = max( $end, microtime( true ) );
 	}
 	@rmdir( $dir );
+	// Server-wide counters: only meaningful when nothing else uses the database server meanwhile.
+	$last_db_stats = array( 'deadlocks' => innodb_status( 'Innodb_deadlocks' ) - $deadlocks, 'lock_waits' => innodb_status( 'Innodb_row_lock_waits' ) - $lock_waits );
 	return array( $results, max( 0.001, $end - $start_at ) );
 }
 
@@ -198,6 +208,7 @@ function percentile( array $sorted, $pct ) {
 }
 
 function summarize( $name, array $results, $wall, $workers ) {
+	global $last_db_stats;
 	$ms = array();
 	$outcomes = array();
 	foreach ( $results as $rows ) {
@@ -212,6 +223,7 @@ function summarize( $name, array $results, $wall, $workers ) {
 	return array(
 		'scenario' => $name, 'requests' => $n, 'workers' => $workers, 'wall_s' => round( $wall, 2 ), 'rps' => round( $n / $wall, 1 ),
 		'p50_ms' => round( percentile( $ms, 50 ), 1 ), 'p95_ms' => round( percentile( $ms, 95 ), 1 ), 'p99_ms' => round( percentile( $ms, 99 ), 1 ), 'max_ms' => round( $n ? end( $ms ) : 0, 1 ),
+		'deadlocks' => $last_db_stats['deadlocks'] ?? 0, 'lock_waits' => $last_db_stats['lock_waits'] ?? 0,
 		'errors' => $outcomes['error'] ?? 0, 'error_rate' => $n ? round( 100 * ( $outcomes['error'] ?? 0 ) / $n, 2 ) : 0, 'outcomes' => $outcomes,
 	);
 }
@@ -292,18 +304,22 @@ if ( in_array( $cfg['scenario'], array( 'all', 'checkin' ), true ) ) {
 	$per_worker = array_fill( 0, $D, array() );
 	$i = 0;
 	$ticket_of = array();
-	foreach ( $codes as $t => $code ) {
-		for ( $d = 0; $d < $D; $d++ ) {
-			$op = array( 'kind' => 'scan', 'code' => $code, 'device' => 100 + $d, 'key' => "dev$d-t$t" );
-			$ticket_of[ $i ] = $t;
-			$per_worker[ $d ][] = $op + array( 'i' => $i++ );
-		}
+	// Even devices scan the tickets in order (same-ticket races), odd devices in their own random
+	// order, so first admissions of different tickets also run concurrently (cross-ticket locking).
+	$orders_by_device = array();
+	for ( $d = 0; $d < $D; $d++ ) {
+		$seq = array_keys( $codes );
+		if ( $d % 2 ) { shuffle( $seq ); }
+		$orders_by_device[ $d ] = $seq;
 	}
-	// Each device then retries its own scans with the same idempotency key (lost response).
-	foreach ( $codes as $t => $code ) {
-		for ( $d = 0; $d < $D; $d++ ) {
-			$ticket_of[ $i ] = $t;
-			$per_worker[ $d ][] = array( 'kind' => 'scan', 'code' => $code, 'device' => 100 + $d, 'key' => "dev$d-t$t", 'i' => $i++, 'replay' => true );
+	foreach ( array( false, true ) as $replay ) {
+		// Second pass: each device retries its own scans with the same idempotency key (lost response).
+		foreach ( array_keys( $codes ) as $pos ) {
+			for ( $d = 0; $d < $D; $d++ ) {
+				$t = $orders_by_device[ $d ][ $pos ];
+				$ticket_of[ $i ] = $t;
+				$per_worker[ $d ][] = array( 'kind' => 'scan', 'code' => $codes[ $t ], 'device' => 100 + $d, 'key' => "dev$d-t$t", 'i' => $i++, 'replay' => $replay );
+			}
 		}
 	}
 	list( $results, $wall ) = run_workers( $per_worker );
@@ -315,6 +331,7 @@ if ( in_array( $cfg['scenario'], array( 'all', 'checkin' ), true ) ) {
 	invariant( 'exactly one successful scan per ticket (responses)', count( array_filter( $admitted, static fn( $n ) => 1 !== $n ) ) === 0, 'admits per ticket: ' . implode( ',', array_unique( $admitted ) ) );
 	invariant( 'exactly one admission row per ticket (database)', count( $db_admits ) === count( $codes ) && array_unique( array_map( 'intval', $db_admits ) ) === array( 1 ), count( $db_admits ) . ' tickets with admissions' );
 	invariant( 'all tickets checked in', 0 === $not_checked );
+	invariant( 'every admitted response is backed by an admission row', array_sum( $admitted ) === array_sum( array_map( 'intval', $db_admits ) ), array_sum( $admitted ) . ' admitted responses, ' . array_sum( array_map( 'intval', $db_admits ) ) . ' rows' );
 	invariant( 'no unexpected errors', 0 === $s['errors'], json_encode( error_samples( $results ) ) );
 	$report[] = $s;
 }
@@ -364,7 +381,7 @@ if ( in_array( $cfg['scenario'], array( 'all', 'webhooks' ), true ) ) {
 
 /* ---- Summary ---- */
 echo "\n";
-$cols = array( 'scenario' => 28, 'requests' => 8, 'workers' => 7, 'wall_s' => 7, 'rps' => 7, 'p50_ms' => 7, 'p95_ms' => 7, 'p99_ms' => 7, 'max_ms' => 8, 'error_rate' => 10 );
+$cols = array( 'scenario' => 28, 'requests' => 8, 'workers' => 7, 'wall_s' => 7, 'rps' => 7, 'p50_ms' => 7, 'p95_ms' => 7, 'p99_ms' => 7, 'max_ms' => 8, 'deadlocks' => 9, 'error_rate' => 10 );
 $line = '';
 foreach ( $cols as $c => $w ) { $line .= str_pad( 'error_rate' === $c ? 'errors %' : $c, $w + 2 ); }
 echo rtrim( $line ) . "\n" . str_repeat( '-', strlen( rtrim( $line ) ) ) . "\n";
