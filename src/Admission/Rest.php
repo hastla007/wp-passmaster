@@ -34,12 +34,18 @@ final class Rest {
 
 	public static function check_in( \WP_REST_Request $request ) {
 		$result = Checkin::perform( $request->get_param( 'token' ), self::context( $request ) );
-		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+		return is_wp_error( $result ) ? self::client_error( $result ) : rest_ensure_response( $result );
 	}
 
 	public static function check_out( \WP_REST_Request $request ) {
 		$result = Checkin::check_out( $request->get_param( 'token' ), self::context( $request ) );
-		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+		return is_wp_error( $result ) ? self::client_error( $result ) : rest_ensure_response( $result );
+	}
+
+	/** Error for the browser: HTTP status, stable result code and message only (no internal ids). */
+	public static function client_error( \WP_Error $error ) {
+		$data = (array) $error->get_error_data();
+		return new \WP_Error( $error->get_error_code(), $error->get_error_message(), array_filter( array( 'status' => (int) ( $data['status'] ?? 409 ), 'result' => isset( $data['result'] ) ? (string) $data['result'] : null, 'ticket_status' => isset( $data['ticket_status'] ) ? (string) $data['ticket_status'] : null, 'event' => $data['event'] ?? null, 'ticket' => $data['ticket'] ?? null ), static function ( $v ) { return null !== $v; } ) );
 	}
 
 	/**
@@ -66,7 +72,7 @@ final class Rest {
 				$data = (array) $outcome->get_error_data();
 				$results[] = array_filter( array( 'status' => 'conflict', 'result' => (string) ( $data['result'] ?? 'error' ), 'code' => $outcome->get_error_code(), 'message' => $outcome->get_error_message(), 'conflict_id' => isset( $data['conflict_id'] ) ? (int) $data['conflict_id'] : null, 'idempotency_key' => $key ), static function ( $v ) { return null !== $v; } );
 			} else {
-				$results[] = array_merge( $outcome, array( 'idempotency_key' => $key ) );
+				$results[] = array_merge( $outcome, array( 'idempotency_key' => $key ), ! empty( $outcome['conflict_id'] ) ? array( 'status' => 'conflict', 'admitted' => true ) : array() );
 			}
 		}
 		return rest_ensure_response( array( 'results' => $results, 'offline_conflicts_are_possible' => true ) );
@@ -90,6 +96,8 @@ final class Rest {
 				'modeIn' => __( 'Einlass', 'wp-pass-captain' ),
 				'modeOut' => __( 'Auslass (Check-out)', 'wp-pass-captain' ),
 				'checkedOut' => __( 'Ausgecheckt', 'wp-pass-captain' ),
+				/* translators: %d: number of discarded offline scans */
+				'expired' => __( '%d Offline-Scan(s) älter als 7 Tage wurden ohne Upload verworfen.', 'wp-pass-captain' ),
 			),
 		) );
 	}

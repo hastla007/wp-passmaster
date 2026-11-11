@@ -272,3 +272,61 @@ $listing = Conflicts::search( array( 'status' => 'open' ), null );
 check( 'conflict list contains device and ticket details', $listing['total'] >= 1 && isset( $listing['rows'][0]->ticket_public_id ) );
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
+
+echo "Admission: review fixes (scope of conflicts, public errors, backdated offline scans)\n";
+// Cross-event uploads never create conflicts in an event the device is not paired for.
+$GLOBALS['wpcap_test_transients'] = array();
+$foreign = adm_setup();
+$wpdb->update( "{$p}wpcap_occurrences", array( 'status' => 'cancelled' ), array( 'occurrence_id' => $foreign['occ'] ) );
+$foreign_ok = adm_setup();
+$before_foreign = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_admission_conflicts WHERE event_id IN (" . $foreign['event'] . ',' . $foreign_ok['event'] . ')' );
+$xsync = app_call( 'sync', 'POST', $tok, array( 'scans' => array(
+	array( 'code' => $foreign['codes'][0], 'idempotency_key' => 'adm-x1', 'scanned_at' => gmdate( 'c', time() - 60 ) ),
+	array( 'code' => $foreign_ok['codes'][0], 'idempotency_key' => 'adm-x2', 'scanned_at' => gmdate( 'c', time() - 60 ) ),
+) ) );
+check( 'device upload of another event (cancelled or not) creates no conflict', false === $xsync['results'][0]['conflict'] && false === $xsync['results'][1]['conflict'] && 'wrong_event' === $xsync['results'][1]['result'] && $before_foreign === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_admission_conflicts WHERE event_id IN (" . $foreign['event'] . ',' . $foreign_ok['event'] . ')' ) );
+$GLOBALS['wpcap_test_user_id'] = 1;
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_checkin' );
+$noacc = Checkin::perform( $foreign_ok['codes'][0], array( 'source' => 'offline', 'idempotency_key' => 'adm-x3', 'scanned_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$noacc_lookup = Checkin::perform( $foreign['codes'][0], array( 'source' => 'offline', 'idempotency_key' => 'adm-x4', 'scanned_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+check( 'uploader without check-in access creates no conflict (also for lookup errors)', is_wp_error( $noacc ) && is_wp_error( $noacc_lookup ) && 'cancelled_event' === $noacc_lookup->get_error_data()['result'] && empty( $noacc->get_error_data()['conflict_id'] ) && empty( $noacc_lookup->get_error_data()['conflict_id'] ) && $before_foreign === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_admission_conflicts WHERE event_id IN (" . $foreign['event'] . ',' . $foreign_ok['event'] . ')' ) );
+
+// Errors returned to clients carry no internal ids.
+$used_req = new WP_REST_Request( 'POST' );
+$used_req->set_param( 'token', $c_used );
+$used_req->set_param( 'area_id', $vip );
+$web_err = Rest::check_in( $used_req );
+$direct_err = Checkin::perform( $c_used, array( 'area_id' => $vip ) );
+$lookup_err = Checkin::perform( $foreign['codes'][0] );
+$internal_leak = static fn( $e ) => (bool) array_intersect( array( 'ticket_id', 'event_id', 'occurrence_id', 'checkin_id' ), array_keys( (array) $e->get_error_data() ) );
+check( 'web and service errors expose only status/result/message (no internal ids)', is_wp_error( $web_err ) && 'already_checked_in' === $web_err->get_error_data()['result'] && 409 === $web_err->get_error_data()['status'] && ! $internal_leak( $web_err ) && ! $internal_leak( $direct_err ) && ! $internal_leak( $lookup_err ) );
+
+// Backdated offline scans: device time is only honoured within offline_max_age_hours (default 12 h).
+$s = adm_setup( 'Europe/Vienna', '2027-04-01 10:00', '2027-04-05 22:00', 2 );
+Policies::save( $s['type'], array( 'policy' => 'daily' ) );
+$vie = 'Europe/Vienna';
+$now_ts = adm_ts( '2027-04-02 10:00', $vie );
+check( 'daily ticket admitted today', 'checked_in' === adm_in( $s['codes'][0], $now_ts ) );
+adm_now( $now_ts );
+$old = Checkin::perform( $s['codes'][0], array( 'source' => 'offline', 'idempotency_key' => 'adm-bd-1', 'scanned_at' => gmdate( 'Y-m-d H:i:s', adm_ts( '2027-04-01 20:00', $vie ) ) ) );
+$recent = Checkin::perform( $s['codes'][0], array( 'source' => 'offline', 'idempotency_key' => 'adm-bd-2', 'scanned_at' => gmdate( 'Y-m-d H:i:s', adm_ts( '2027-04-01 23:00', $vie ) ) ) );
+$recent_replay = Checkin::perform( $s['codes'][0], array( 'source' => 'offline', 'idempotency_key' => 'adm-bd-2', 'scanned_at' => gmdate( 'Y-m-d H:i:s', adm_ts( '2027-04-01 23:00', $vie ) ) ) );
+$web_claim = Checkin::perform( $s['codes'][1], array( 'source' => 'web', 'idempotency_key' => 'adm-bd-3', 'scanned_at' => gmdate( 'Y-m-d H:i:s', adm_ts( '2027-04-01 23:00', $vie ) ) ) );
+adm_now( null );
+$bd = $wpdb->get_row( "SELECT * FROM {$p}wpcap_admission_conflicts WHERE conflict_id=" . (int) ( $recent['conflict_id'] ?? 0 ) );
+check( 'backdating beyond 12 h is evaluated at upload time (daily_limit_reached conflict)', is_wp_error( $old ) && 'daily_limit_reached' === $old->get_error_data()['result'] && ! empty( $old->get_error_data()['conflict_id'] ) );
+check( 'backdated admission within 12 h that would be refused now is admitted but recorded for review', ! is_wp_error( $recent ) && 'checked_in' === $recent['status'] && 'backdated_admission' === ( $recent['review'] ?? '' ) && $bd && 'backdated_admission' === $bd->result && 'open' === $bd->status && ( $recent_replay['conflict_id'] ?? 0 ) === (int) $bd->conflict_id );
+check( 'non-offline scans ignore scanned_at (evaluated now)', 'checked_in' === adm_r( $web_claim ) && '2027-04-02' === $wpdb->get_var( "SELECT service_date FROM {$p}wpcap_admission_entries WHERE checkin_id=(SELECT MAX(checkin_id) FROM {$p}wpcap_checkins WHERE ticket_id=(SELECT ticket_id FROM {$p}wpcap_tickets WHERE token_hash='" . hash( 'sha256', $s['codes'][1] ) . "'))" ) );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
+$set_denied = RulesPage::save_settings( array( 'offline_max_age_hours' => '0' ) );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+RulesPage::save_settings( array( 'offline_max_age_hours' => '0' ) );
+$s = adm_setup( 'Europe/Vienna', '2027-04-01 10:00', '2027-04-05 22:00' );
+Policies::save( $s['type'], array( 'policy' => 'daily' ) );
+adm_now( $now_ts );
+Checkin::perform( $s['codes'][0], array( 'idempotency_key' => 'adm-bd-4' ) );
+$zero = Checkin::perform( $s['codes'][0], array( 'source' => 'offline', 'idempotency_key' => 'adm-bd-5', 'scanned_at' => gmdate( 'Y-m-d H:i:s', $now_ts - 1800 ) ) );
+adm_now( null );
+check( 'offline max age is configurable (manage_options); 0 disables device time', is_wp_error( $set_denied ) && 0 === Policies::offline_max_age_seconds() && is_wp_error( $zero ) && 'daily_limit_reached' === $zero->get_error_data()['result'] );
+RulesPage::save_settings( array( 'offline_max_age_hours' => '12' ) );

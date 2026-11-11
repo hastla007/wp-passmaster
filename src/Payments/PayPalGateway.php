@@ -234,6 +234,8 @@ final class PayPalGateway implements GatewayInterface {
 			'type' => 'ignored',
 			'order_public_id' => (string) ( $capture['custom_id'] ?? $fallback_public_id ),
 			'provider_reference' => (string) $capture['id'],
+			// The PayPal order id is stored on the Pass Captain order until the capture happened.
+			'related_references' => array_values( array_filter( array( (string) $capture['id'], (string) ( $capture['supplementary_data']['related_ids']['order_id'] ?? '' ) ) ) ),
 			'amount_minor' => self::parse_amount( (string) ( $capture['amount']['value'] ?? '' ), $currency ),
 			'currency' => $currency,
 		);

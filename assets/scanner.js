@@ -62,43 +62,80 @@
 		});
 		root.insertBefore(bar, form);
 	}
+	// Offline queue: every scan carries its own idempotency key; nothing is truncated. Queued items
+	// hold raw ticket codes, so they expire after QUEUE_MAX_AGE (with a visible warning) and are
+	// removed only after the server confirmed them (matched by key).
+	const QUEUE_MAX_AGE = 7 * 24 * 3600 * 1000;
+	const SYNC_CHUNK = 100;
+	let syncing = false;
+	function normalizeItem(item) {
+		if (typeof item === 'string') return { token: item, idempotency_key: uuid(), scanned_at: null, stored_at: Date.now(), area_id: 0, direction: 'in' };
+		if (!item || typeof item !== 'object' || !item.token) return null;
+		if (!item.idempotency_key) item.idempotency_key = uuid();
+		if (!item.stored_at) item.stored_at = item.scanned_at ? Date.parse(item.scanned_at) || Date.now() : Date.now();
+		return item;
+	}
 	function enqueue(token) {
 		const items = queue();
-		items.push(adm ? { token: token, idempotency_key: uuid(), scanned_at: new Date().toISOString(), area_id: areaId, direction: mode } : token);
-		saveQueue(items.slice(-100));
+		items.push({ token: token, idempotency_key: uuid(), scanned_at: new Date().toISOString(), stored_at: Date.now(), area_id: areaId, direction: mode });
+		saveQueue(items);
 		result.textContent = t.queued || 'Saved offline.';
 		result.dataset.state = 'error';
 		input.value = '';
 		updateQueueButton();
 	}
 	function queue() {
-		try { const stored = JSON.parse(window.localStorage.getItem(queueKey) || '[]'); return Array.isArray(stored) ? stored : []; } catch (ignore) { return []; }
+		let stored;
+		try { stored = JSON.parse(window.localStorage.getItem(queueKey) || '[]'); } catch (ignore) { return []; }
+		return Array.isArray(stored) ? stored.map(normalizeItem).filter(Boolean) : [];
 	}
 	function saveQueue(items) { try { window.localStorage.setItem(queueKey, JSON.stringify(items)); } catch (ignore) {} }
+	function dropExpired() {
+		const items = queue();
+		const fresh = items.filter(function (item) { return Date.now() - item.stored_at <= QUEUE_MAX_AGE; });
+		if (fresh.length !== items.length) {
+			saveQueue(fresh);
+			result.textContent = ((adm && adm.i18n && adm.i18n.expired) || t.expired || '%d offline scan(s) older than 7 days were discarded without upload.').replace('%d', items.length - fresh.length);
+			result.dataset.state = 'error';
+		}
+	}
 	const syncButton = document.createElement('button');
 	syncButton.type = 'button';
 	syncButton.textContent = t.syncButton || 'Sync offline scans';
 	syncButton.hidden = true;
 	root.appendChild(syncButton);
 	function updateQueueButton() { const count = queue().length; syncButton.hidden = !count; syncButton.textContent = (t.syncCount || '%d').replace('%d', count); }
+	function removeSent(keys) {
+		saveQueue(queue().filter(function (item) { return keys.indexOf(item.idempotency_key) === -1; }));
+	}
 	async function syncQueue() {
+		if (syncing) return;
+		dropExpired();
 		const items = queue();
 		if (!items.length || !navigator.onLine) { updateQueueButton(); return; }
+		syncing = true;
 		syncButton.disabled = true;
+		let sent = 0;
+		let conflicts = 0;
 		try {
-			const response = adm
-				? await fetch(adm.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ scans: items.map(function (item) { return typeof item === 'string' ? { token: item } : item; }) }) })
-				: await fetch(WPCAP_SCANNER.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ tokens: items.map(function (item) { return typeof item === 'string' ? item : item.token; }) }) });
-			const data = await response.json();
-			if (!response.ok) throw new Error(data.message || t.syncFailed || 'Sync failed.');
-			// Keep scans queued while this request was in flight.
-			saveQueue(queue().slice(items.length));
-			const conflicts = (data.results || []).filter(function (item) { return item.status === 'conflict'; }).length;
-			result.textContent = (t.synced || '%1$d / %2$d').replace('%1$d', items.length).replace('%2$d', conflicts);
+			for (let i = 0; i < items.length; i += SYNC_CHUNK) {
+				const chunk = items.slice(i, i + SYNC_CHUNK);
+				const response = adm
+					? await fetch(adm.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ scans: chunk.map(function (item) { return { token: item.token, idempotency_key: item.idempotency_key, scanned_at: item.scanned_at, area_id: item.area_id || 0, direction: item.direction || 'in' }; }) }) })
+					: await fetch(WPCAP_SCANNER.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ tokens: chunk.map(function (item) { return item.token; }) }) });
+				const data = await response.json().catch(function () { return {}; });
+				if (!response.ok) throw new Error(data.message || t.syncFailed || 'Sync failed.');
+				// Remove exactly the uploaded items; scans queued meanwhile stay.
+				removeSent(chunk.map(function (item) { return item.idempotency_key; }));
+				sent += chunk.length;
+				conflicts += (data.results || []).filter(function (item) { return item.status === 'conflict'; }).length;
+			}
+			result.textContent = (t.synced || '%1$d / %2$d').replace('%1$d', sent).replace('%2$d', conflicts);
 			result.dataset.state = conflicts ? 'error' : 'success';
 		} catch (error) { result.textContent = error.message; result.dataset.state = 'error'; }
-		finally { syncButton.disabled = false; updateQueueButton(); }
+		finally { syncing = false; syncButton.disabled = false; updateQueueButton(); }
 	}
+	dropExpired();
 	syncButton.addEventListener('click', syncQueue);
 	window.addEventListener('online', syncQueue);
 	updateQueueButton();

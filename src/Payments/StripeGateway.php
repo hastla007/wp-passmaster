@@ -184,6 +184,8 @@ final class StripeGateway implements GatewayInterface {
 				$base['amount_minor'] = self::from_stripe_amount( (int) ( $object['amount_total'] ?? 0 ), $base['currency'] );
 				$intent = self::id_of( $object['payment_intent'] ?? '' );
 				$base['provider_reference'] = '' !== $intent ? $intent : (string) ( $object['id'] ?? '' );
+				// Session and intent both identify this payment attempt (order may store either).
+				$base['related_references'] = array_values( array_filter( array( (string) ( $object['id'] ?? '' ), $intent ) ) );
 				if ( 'checkout.session.async_payment_failed' === $type || 'checkout.session.expired' === $type ) {
 					$base['type'] = 'failed';
 				} elseif ( 'paid' === ( $object['payment_status'] ?? '' ) ) {

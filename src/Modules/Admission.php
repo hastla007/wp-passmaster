@@ -133,6 +133,11 @@ final class Admission {
 		);
 	}
 
+	public static function settings_defaults() {
+		// Array setting: kept out of the generic settings form; edited on "Einlassregeln".
+		return array( 'admission' => array( 'offline_max_age_hours' => 12 ) );
+	}
+
 	public static function admin_pages() {
 		$open = Conflicts::open_count_for_current_user();
 		$title = __( 'Einlass-Konflikte', 'wp-pass-captain' ) . ( $open ? ' <span class="awaiting-mod">' . (int) $open . '</span>' : '' );
@@ -149,6 +154,7 @@ final class Admission {
 			'wpcap_admission_area_status' => array( RulesPage::class, 'handle_area_status' ),
 			'wpcap_admission_add_staff' => array( RulesPage::class, 'handle_add_staff' ),
 			'wpcap_admission_remove_staff' => array( RulesPage::class, 'handle_remove_staff' ),
+			'wpcap_admission_save_settings' => array( RulesPage::class, 'handle_save_settings' ),
 			'wpcap_admission_resolve_conflict' => array( ConflictsPage::class, 'handle_resolve' ),
 		);
 	}

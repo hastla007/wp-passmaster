@@ -190,8 +190,9 @@ final class Api {
 			$row['direction'] = $out ? 'out' : 'in';
 			// Offline the device already let the person in; a rejection here is an admission conflict
 			// (recorded for review under "Einlass-Konflikte").
-			$data = is_wp_error( $outcome ) ? (array) $outcome->get_error_data() : array();
-			$row['conflict'] = ! $row['ok'] && ! empty( $data['conflict_id'] );
+			$data = is_wp_error( $outcome ) ? (array) $outcome->get_error_data() : (array) $outcome;
+			// Also ok=true scans can be conflicts: backdated admissions that would be refused now.
+			$row['conflict'] = ! empty( $data['conflict_id'] );
 			$row['double_admission'] = $row['conflict'] && in_array( $row['result'], Checkin::REJECTED_ADMISSION, true );
 			if ( $row['conflict'] ) { $row['conflict_id'] = (int) $data['conflict_id']; }
 			$results[] = $row;

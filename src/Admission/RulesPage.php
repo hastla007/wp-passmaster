@@ -105,6 +105,21 @@ final class RulesPage {
 		return array( 'area_id' => (int) $area->area_id, 'event_id' => (int) $area->event_id );
 	}
 
+	/** Module settings (manage_options): max. age of offline scans evaluated at device time. */
+	public static function save_settings( array $in ) {
+		if ( ! current_user_can( 'manage_options' ) ) { return Forms::forbidden(); }
+		$hours = min( 168, Forms::int( $in, 'offline_max_age_hours', 12 ) );
+		\PassCaptain\Settings::update( array( 'admission' => array_merge( Policies::settings(), array( 'offline_max_age_hours' => $hours ) ) ) );
+		Audit::record( 'admission_settings_saved', 'settings', 0, array( 'offline_max_age_hours' => $hours ) );
+		return array( 'offline_max_age_hours' => $hours );
+	}
+
+	public static function handle_save_settings() {
+		$in = Forms::post();
+		Forms::verify( 'wpcap_admission_save_settings' );
+		Forms::finish( self::save_settings( $in ), __( 'Einstellungen gespeichert.', 'wp-pass-captain' ), Forms::page_url( self::SLUG ) );
+	}
+
 	/* ---- admin-post wrappers ---- */
 
 	private static function back( $result, array $in ) {
@@ -164,6 +179,13 @@ final class RulesPage {
 			<button class="button" type="submit"><?php esc_html_e( 'Anzeigen', 'wp-pass-captain' ); ?></button>
 		</form>
 		<?php if ( $event_id ) { self::render_event( $event_id ); } ?>
+		<?php if ( current_user_can( 'manage_options' ) ) : ?>
+			<h2><?php esc_html_e( 'Offline-Scans', 'wp-pass-captain' ); ?></h2>
+			<?php Forms::open_form( 'wpcap_admission_save_settings' ); ?>
+				<p><label><?php esc_html_e( 'Gerätezeit von Offline-Scans höchstens so viele Stunden zurück berücksichtigen (ältere werden zum Zeitpunkt des Uploads geprüft)', 'wp-pass-captain' ); ?> <input type="number" name="offline_max_age_hours" min="0" max="168" style="width:6em" value="<?php echo esc_attr( (string) Policies::settings()['offline_max_age_hours'] ); ?>"></label>
+				<button class="button"><?php esc_html_e( 'Speichern', 'wp-pass-captain' ); ?></button></p>
+			</form>
+		<?php endif; ?>
 		</div>
 		<?php
 	}

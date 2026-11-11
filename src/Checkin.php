@@ -31,14 +31,32 @@ final class Checkin {
 		return (int) apply_filters( 'wpcap_checkin_now', time() );
 	}
 
-	/** Time a scan is evaluated at: device time for offline scans (max. 7 days back), else now. */
+	/**
+	 * Time a scan is evaluated at: the device time (scanned_at) for offline uploads, but only within
+	 * the configured maximum age (Admission setting offline_max_age_hours, default 12 h); older or
+	 * missing times are evaluated at "now".
+	 */
 	private static function eval_time( array $context ) {
 		$now = self::now();
-		if ( ! empty( $context['scanned_at'] ) ) {
+		if ( 'offline' === ( $context['source'] ?? '' ) && ! empty( $context['scanned_at'] ) ) {
 			$ts = strtotime( $context['scanned_at'] . ' UTC' );
-			if ( $ts && $ts <= $now + 300 && $ts >= $now - 7 * DAY_IN_SECONDS ) { return min( $ts, $now ); }
+			if ( $ts && $ts <= $now + 300 && $ts >= $now - Policies::offline_max_age_seconds() ) { return min( $ts, $now ); }
 		}
 		return $now;
+	}
+
+	/** Internal error data that must not leave the server (ids used for conflict recording). */
+	const INTERNAL_KEYS = array( 'ticket_id', 'event_id', 'occurrence_id', 'checkin_id' );
+
+	/** Removes internal ids from an error before it is returned to clients. */
+	public static function public_error( \WP_Error $error ) {
+		$data = (array) $error->get_error_data();
+		foreach ( self::INTERNAL_KEYS as $k ) { unset( $data[ $k ] ); }
+		return new \WP_Error( $error->get_error_code(), $error->get_error_message(), $data );
+	}
+
+	private static function publish( $result ) {
+		return is_wp_error( $result ) ? self::public_error( $result ) : $result;
 	}
 
 	/**
@@ -80,9 +98,9 @@ final class Checkin {
 	public static function preview( $code, array $context = array() ) {
 		$at = self::eval_time( $context );
 		$found = self::lookup( $code, $at );
-		if ( is_wp_error( $found ) ) { return $found; }
+		if ( is_wp_error( $found ) ) { return self::public_error( $found ); }
 		$denied = self::deny( $found, $context, 'in' );
-		if ( $denied ) { return $denied; }
+		if ( $denied ) { return self::public_error( $denied ); }
 		$status = $found['status'];
 		if ( 'valid' === $status ) {
 			$policy = Policies::for_type( $found['ticket_type_id'] );
@@ -104,6 +122,10 @@ final class Checkin {
 	 * @return array|\WP_Error Array with 'status' => 'checked_in' on success.
 	 */
 	public static function perform( $code, array $context = array() ) {
+		return self::publish( self::perform_internal( $code, $context ) );
+	}
+
+	private static function perform_internal( $code, array $context ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$user_id = get_current_user_id();
@@ -114,8 +136,9 @@ final class Checkin {
 			if ( $previous ) {
 				$found = self::lookup( $code, null, false );
 				if ( ! is_wp_error( $found ) && (int) $found['ticket_id'] === (int) $previous->ticket_id ) {
+					$review_id = 'checked_in' === $previous->result && 'offline' === ( $context['source'] ?? '' ) ? Conflicts::find_by_dedupe( $user_id . '|' . $key ) : 0;
 					return 'checked_in' === $previous->result
-						? array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in', 'replayed' => true ) )
+						? array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in', 'replayed' => true ), $review_id ? array( 'conflict_id' => $review_id, 'review' => 'backdated_admission' ) : array() )
 						: self::offline_conflict( self::result_error( $previous->result, $found, (int) $previous->checkin_id ), $found, $context, $key, (int) $previous->checkin_id );
 				}
 			}
@@ -162,13 +185,25 @@ final class Checkin {
 			$wpdb->query( 'COMMIT' );
 			return self::offline_conflict( self::result_error( $blocked, $found, $id ), $found, $context, $key, $id );
 		}
+		// A backdated offline scan that would be refused if evaluated now (e.g. second admission on a
+		// daily ticket claimed for "yesterday") is admitted as uploaded but recorded for review.
+		$backdated = '';
+		$now = self::now();
+		if ( $policy && 'offline' === ( $context['source'] ?? '' ) && $at < $now - 15 * MINUTE_IN_SECONDS ) {
+			$backdated = Engine::evaluate_in( $policy, $found, $state, $now );
+		}
 		if ( ! $repeatable ) { $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'checked_in' ), array( 'ticket_id' => $ticket->ticket_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) ); }
 		$checkin_id = $log( $ticket->ticket_id, 'checked_in', $day_id );
 		Engine::record_in( $found, $checkin_id, $context, $at, $user_id );
 		$wpdb->query( 'COMMIT' );
+		$review_id = 0;
+		if ( $backdated ) {
+			$review = self::offline_conflict( new \WP_Error( 'wpcap_backdated_admission', '', array( 'result' => 'backdated_admission' ) ), $found, $context, $key, $checkin_id );
+			$review_id = (int) ( ( (array) $review->get_error_data() )['conflict_id'] ?? 0 );
+		}
 		Audit::record( 'ticket_checked_in', 'ticket', $ticket->ticket_id, array( 'event_id' => $found['event_id'], 'device_id' => absint( $context['device_id'] ?? 0 ), 'source' => sanitize_key( $context['source'] ?? 'web' ), 'area_id' => absint( $context['area_id'] ?? 0 ) ) );
 		do_action( 'wpcap_ticket_checked_in', (int) $ticket->ticket_id, $context );
-		return array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in' ) );
+		return array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in' ), $review_id ? array( 'conflict_id' => $review_id, 'review' => 'backdated_admission' ) : array() );
 	}
 
 	/**
@@ -179,6 +214,10 @@ final class Checkin {
 	 * @return array|\WP_Error Array with 'status' => 'checked_out' on success.
 	 */
 	public static function check_out( $code, array $context = array() ) {
+		return self::publish( self::check_out_internal( $code, $context ) );
+	}
+
+	private static function check_out_internal( $code, array $context ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$user_id = get_current_user_id();
@@ -246,12 +285,17 @@ final class Checkin {
 		if ( 'offline' !== ( $context['source'] ?? '' ) ) { return $error; }
 		$data = (array) $error->get_error_data();
 		$ticket_id = $found ? (int) $found['ticket_id'] : (int) ( $data['ticket_id'] ?? 0 );
-		if ( ! $ticket_id ) { return $error; }
+		$event_id = $found ? (int) $found['event_id'] : (int) ( $data['event_id'] ?? 0 );
+		// Only scans the uploader was allowed to make for this event can be conflicts; otherwise a
+		// scanner of event A could create open conflicts in event B.
+		if ( ! $ticket_id || ! $event_id || in_array( (string) ( $data['result'] ?? '' ), array( 'forbidden', 'wrong_event', 'unknown' ), true ) ) { return $error; }
+		if ( ! Access::can_access_event( $event_id, 'wpcap_checkin' ) ) { return $error; }
+		if ( isset( $context['event_ids'] ) && is_array( $context['event_ids'] ) && $context['event_ids'] && ! in_array( $event_id, array_map( 'intval', $context['event_ids'] ), true ) ) { return $error; }
 		$dedupe = $key ? get_current_user_id() . '|' . $key : 'scan|' . get_current_user_id() . '|' . $ticket_id . '|' . (string) ( $context['scanned_at'] ?? '' ) . '|' . (string) $checkin_id;
 		$conflict_id = Conflicts::record( array(
 			'dedupe' => $dedupe,
 			'ticket_id' => $ticket_id,
-			'event_id' => $found ? $found['event_id'] : ( $data['event_id'] ?? 0 ),
+			'event_id' => $event_id,
 			'occurrence_id' => $found ? $found['occurrence_id'] : ( $data['occurrence_id'] ?? 0 ),
 			'area_id' => absint( $context['area_id'] ?? 0 ),
 			'result' => (string) ( $data['result'] ?? $error->get_error_code() ),

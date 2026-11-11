@@ -117,6 +117,17 @@ final class Policies {
 		return self::for_type( $ticket_type_id );
 	}
 
+	/** Settings of the module (array setting `admission`). */
+	public static function settings() {
+		$stored = \PassCaptain\Settings::get( 'admission' );
+		return array_merge( array( 'offline_max_age_hours' => 12 ), is_array( $stored ) ? $stored : array() );
+	}
+
+	/** Maximum age of an offline scan whose device time is used for evaluation (0–168 h). */
+	public static function offline_max_age_seconds() {
+		return min( 168, max( 0, (int) self::settings()['offline_max_age_hours'] ) ) * HOUR_IN_SECONDS;
+	}
+
 	/** Removes a policy (back to the default single entry / legacy day rules). */
 	public static function delete( $ticket_type_id ) {
 		global $wpdb;
