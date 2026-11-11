@@ -1,104 +1,57 @@
 <?php
-/**
- * Main plugin bootstrap.
- *
- * @package PassCaptain
- */
-
+/** Main WordPress integration point. */
 namespace PassCaptain;
 
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
+if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-/**
- * Registers the plugin's initial WordPress integration points.
- */
 final class Plugin {
-	/**
-	 * The shared plugin instance.
-	 *
-	 * @var Plugin|null
-	 */
 	private static $instance = null;
 
-	/**
-	 * Return the shared plugin instance.
-	 *
-	 * @return Plugin
-	 */
 	public static function instance() {
-		if ( null === self::$instance ) {
-			self::$instance = new self();
-		}
-
+		if ( null === self::$instance ) { self::$instance = new self(); }
 		return self::$instance;
 	}
 
-	/**
-	 * Register runtime hooks.
-	 *
-	 * @return void
-	 */
 	public function run() {
+		Installer::maybe_upgrade();
+		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
 		add_action( 'admin_menu', array( $this, 'register_admin_menu' ) );
+		add_action( 'admin_post_wpcap_create_event', array( Admin::class, 'create_event' ) );
+		add_action( 'admin_post_wpcap_assign_staff', array( Admin::class, 'assign_staff' ) );
+		add_action( 'admin_post_wpcap_confirm_payment', array( Admin::class, 'confirm_payment' ) );
+		add_filter( 'wp_privacy_personal_data_exporters', array( Privacy::class, 'register_exporter' ) );
+		add_filter( 'wp_privacy_personal_data_erasers', array( Privacy::class, 'register_eraser' ) );
+		add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'expire_holds' ) );
+		add_action( 'init', array( $this, 'register_blocks' ) );
+		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
+		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
+		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );
 	}
 
-	/**
-	 * Handle plugin activation.
-	 *
-	 * Database migrations and capabilities will be added in the next foundation step.
-	 *
-	 * @return void
-	 */
 	public static function activate() {
-		if ( false === get_option( 'wpcap_version', false ) ) {
-			add_option( 'wpcap_version', WPCAP_VERSION );
+		Installer::install();
+		if ( ! wp_next_scheduled( 'wpcap_cleanup_reservations' ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'wpcap_cleanup_reservations' );
 		}
 	}
 
-	/**
-	 * Handle plugin deactivation.
-	 *
-	 * Deactivation intentionally keeps plugin data intact.
-	 *
-	 * @return void
-	 */
 	public static function deactivate() {
-		// No scheduled tasks or temporary state exist yet.
+		wp_clear_scheduled_hook( 'wpcap_cleanup_reservations' );
 	}
 
-	/**
-	 * Register the top-level admin page.
-	 *
-	 * @return void
-	 */
+	public function register_blocks() {
+		register_block_type( WPCAP_PATH . 'src/blocks/events' );
+	}
+
 	public function register_admin_menu() {
 		add_menu_page(
 			__( 'WP Pass Captain', 'wp-pass-captain' ),
 			__( 'Pass Captain', 'wp-pass-captain' ),
-			'manage_options',
+			'wpcap_manage_events',
 			'wp-pass-captain',
-			array( $this, 'render_admin_page' ),
+			array( Admin::class, 'render_page' ),
 			'dashicons-tickets-alt',
 			58
 		);
-	}
-
-	/**
-	 * Render the initial admin landing page.
-	 *
-	 * @return void
-	 */
-	public function render_admin_page() {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
-		?>
-		<div class="wrap">
-			<h1><?php echo esc_html__( 'WP Pass Captain', 'wp-pass-captain' ); ?></h1>
-			<p><?php echo esc_html__( 'Das Plugin-Grundgerüst ist aktiv. Die Event- und Ticketverwaltung wird in den nächsten Umsetzungsschritten ergänzt.', 'wp-pass-captain' ); ?></p>
-		</div>
-		<?php
 	}
 }

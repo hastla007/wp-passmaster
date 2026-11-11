@@ -1,77 +1,47 @@
 # WP Pass Captain – nächste 10 Umsetzungsschritte
 
-Der Plan führt vom leeren Konzept-Repository zu einem eigenständig nutzbaren MVP für Events, Tickets und Online-Einlass. WooCommerce und Voucher Captain bleiben optionale Integrationen; der Kern darf von keinem der beiden Plugins abhängen.
+Ziel ist ein eigenständig nutzbarer MVP für Events, Tickets und Online-Einlass. WooCommerce und Voucher Captain bleiben optionale Integrationen. Statusangaben beschreiben den aktuellen Branch; WordPress-Abnahme steht noch aus.
 
-## 1. Plugin-Grundgerüst — begonnen
+## 1. Plugin-Grundgerüst — umgesetzt, WP-Abnahme offen
 
-**Ergebnis:** Installierbarer Plugin-Einstieg mit Name, Textdomain, Namensraum, Versionskonstanten, Aktivierungs-/Deaktivierungshooks und eigener Admin-Navigation.
+Plugin-Einstieg, Composer-Namespace, Aktivierungs-/Deaktivierungshooks und Admin-Menü sind angelegt. Plugin-Name und Textdomain lauten **WP Pass Captain** beziehungsweise `wp-pass-captain`.
 
-**Abnahme:** WordPress kann das Plugin erkennen und aktivieren; im Admin erscheint „Pass Captain“. Noch keine Eventdaten oder Fremdplugin-Abhängigkeiten.
+## 2. Datenbankbasis und Berechtigungen — MVP angelegt
 
-## 2. Datenbankbasis und Berechtigungen
+Versioniertes Schema für Events, Termine, Tickettypen, Bestellungen, Reservierungen, Tickets, Check-ins, Eventpersonal und Auditlogs; eigene Rollen und Capabilities; Einlasszugriff wird pro Event geprüft.
 
-**Ergebnis:** Versionierte Schema-Migrationen für Kernobjekte, eigene Capabilities und Rollen, sichere Upgrade-Pfade sowie minimale Audit-Grundlage.
+## 3. Events und Termine — Grundablauf angelegt
 
-**Abnahme:** Aktivierung und Upgrade sind wiederholbar und verändern vorhandene Daten nicht unerwartet; operative Rollen erhalten nur ausdrücklich zugewiesene Eventrechte.
+Admin-Formular für Events mit Termin, Zeitzone, Ort, Kapazität und Status. Bestehende Events lassen sich in dieser Etappe noch nicht vollständig bearbeiten.
 
-## 3. Events und Termine
+## 4. Ticketkategorien und Kontingente — Grundablauf angelegt
 
-**Ergebnis:** Event- und Terminmodell mit Status, Zeitzone, Ort, Kapazität und nachvollziehbaren Änderungen.
+Eine Kategorie pro neuem Event mit Preis, Währung, Mengenlimit und Kontingent; Bestandsprüfung berücksichtigt Verkäufe und aktive Holds. Steuerklassifikation und mehrere Kategorien pro Termin folgen später.
 
-**Abnahme:** Ein Event kann mehrere unabhängige Termine haben; Zeiten werden mit der konfigurierten Zeitzone gespeichert und dargestellt.
+## 5. Öffentliche Eventseite und Auswahl — MVP angelegt
 
-## 4. Ticketkategorien und Kontingente
+Shortcode `[wp_pass_captain_events]`, dynamischer Gutenberg-Block und öffentliche REST-Eventliste.
 
-**Ergebnis:** Tickettypen mit Preis, Währung, Steuerklassifikation, Verkaufsfenster, Mengenlimit und Kontingent; zunächst ohne Sitzplan.
+## 6. Native Bestellung und Checkout — MVP angelegt
 
-**Abnahme:** Verfügbarkeit und Ausverkauft-Status berücksichtigen aktive Reservierungen und Verkäufe; Steuerwerte sind konfigurierbar statt im Code festgeschrieben.
+Öffentliche Bestellung mit E-Mail, Positionen, eigener Status und Idempotency-Key. Kostenlose Bestellungen geben Tickets aus; bezahlte Bestellungen benötigen eine externe Zahlung und manuelle Bestätigung.
 
-## 5. Öffentliche Eventseite und Auswahl
+## 7. Reservierung — MVP angelegt
 
-**Ergebnis:** Barrierearme Eventansicht mit Ticket-Auswahl, Shortcode und Gutenberg-Einbettung.
+Zehnminütige atomare Holds mit Datenbanktransaktionen und stündlicher Ablaufbereinigung. PSP-Webhooks und automatische Zahlungswiederherstellung fehlen noch.
 
-**Abnahme:** Besucher können Termine und verfügbare Kategorien mobil auswählen; Ausgabe funktioniert ohne WooCommerce.
+## 8. Zahlung und Ticketzustellung — teilweise umgesetzt
 
-## 6. Native Bestellung und Checkout
+Zahlungsadaptervertrag für manuelle Bestätigung; zufällige 256-Bit-Ticketcodes, gehashte Speicherung, E-Mail und private Druckseite mit optionalem QR-SVG. Online-PSP-Anbindung und native PDF-Datei fehlen noch.
 
-**Ergebnis:** Eigene Bestellungen und unveränderliche Positionen, Käuferdaten mit Datenminimierung sowie ein nachvollziehbarer Bestellstatus.
+## 9. Online-Check-in — Scanner-MVP angelegt
 
-**Abnahme:** Ein Checkout kann ohne Fremdshop eine Bestellung anlegen; Wiederholungen erzeugen keine doppelten Bestellungen.
+Kamera-QR-Scan und manuelle Codeeingabe, serverseitige Eventzuweisung, atomarer Einmal-Check-in und Auditprotokoll. Offlinebetrieb fehlt.
 
-## 7. Reservierungen und Bestandskonkurrenz
+## 10. Datenschutz, Qualität und Release — teilweise angelegt
 
-**Ergebnis:** Zeitlich begrenzte, standardmäßig zehnminütige Bestandsreservierungen mit atomarer Kontingentprüfung und Ablaufverarbeitung.
+WordPress-Export/-Löschung, CI-Syntaxprüfungen und ZIP-Artefakt-Workflow sind vorhanden. PHP-Lint ließ sich lokal mangels PHP-Laufzeit nicht ausführen; CI-Abnahme, Composer-Lockfile, vollständige Integrationstests und Reproduzierbarkeit stehen aus.
 
-**Abnahme:** Parallele Checkouts können Kontingente nicht überverkaufen; Abbruch und verspätete Zahlungsbestätigung folgen einem dokumentierten Wiederherstellungsablauf.
+## Danach
 
-## 8. Zahlung und Ticketzustellung
-
-**Ergebnis:** Zahlungsadapter-Vertrag, zuerst priorisierte PSP-Anbindung, signierte und idempotente Webhooks, Ticket-Ausstellung pro gekaufter Einheit, QR-Code, PDF und E-Mail.
-
-**Abnahme:** Kartendaten werden nicht im Plugin gespeichert; doppelte oder verspätete Zahlungsereignisse geben keine Tickets doppelt aus.
-
-## 9. Online-Check-in
-
-**Ergebnis:** Mobilfreundliche Scanner-PWA mit Kamera und manueller Eingabe, Eventscoping, Rollenprüfung, atomarem Check-in und Auditprotokoll.
-
-**Abnahme:** Gültig, bereits verwendet, widerrufen, falscher Termin und unbekannter Code werden unterscheidbar angezeigt; Doppel-Scans entwerten ein Ticket nicht erneut.
-
-## 10. Datenschutz, Qualität und Release
-
-**Ergebnis:** WordPress-Datenschutzexport/-löschung, konfigurierbare Aufbewahrung, Sicherheits- und Kompatibilitätsprüfungen, CI, reproduzierbarer Build und installierbares ZIP.
-
-**Abnahme:** Aktivierung, Upgrade, Deaktivierung und Release-Artefakt sind auf unterstützten WordPress-/PHP-Versionen geprüft; Kernfunktionen laufen ohne WooCommerce und Voucher Captain.
-
-## Danach: optionale Integrationen und Ausbau
-
-1. Voucher-Captain-Bridge mit Quote, Reserve, Commit, Release und Refund.
-2. WooCommerce-Adapter über CRUD-Schnittstellen und HPOS-Kompatibilität.
-3. Sitzpläne, Wallet-Pässe, Buchungszeitfenster und Offline-Check-in mit sichtbarer Konfliktbehandlung.
-
-## Namens- und Kompatibilitätsentscheidungen
-
-- Produktname: **WP Pass Captain**; sichtbarer Admin-Menüname: **Pass Captain**.
-- Textdomain und Plugin-Slug: `wp-pass-captain`.
-- PHP-Namensraum: `PassCaptain\\`; technische Konstanten: Präfix `WPCAP_`.
-- Der Repository-Name `wp-passmaster` bleibt vorerst bestehen.
-- Vor Schema-Migrationen werden bestehende Konzeptbezeichner wie `TCAP` und `wp_etp_*` systematisch an die endgültigen Implementierungsnamen angepasst.
+Die Schritte 11–30 mit Integrationen und Produkt-Ausbau stehen in [ROADMAP_11_30.md](ROADMAP_11_30.md).
