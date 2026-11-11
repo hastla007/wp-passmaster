@@ -362,6 +362,7 @@ final class Controller {
 		foreach ( $tokens as $raw_token ) {
 			$scan = new \WP_REST_Request( 'POST' );
 			$scan->set_param( 'token', sanitize_text_field( $raw_token ) );
+			$scan->set_param( 'source', 'offline' );
 			$result = self::check_in( $scan );
 			$results[] = is_wp_error( $result ) ? array( 'status' => 'conflict', 'code' => $result->get_error_code(), 'message' => $result->get_error_message() ) : $result->get_data();
 		}

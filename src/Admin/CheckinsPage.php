@@ -38,6 +38,19 @@ final class CheckinsPage {
 		return array( $from, $to );
 	}
 
+	/** Current presence (checked in minus checked out) per occurrence and entrance area. */
+	private static function render_presence( $event_id, array $occurrences ) {
+		$areas = \PassCaptain\Admission\Areas::for_event( $event_id, true );
+		?>
+		<h2><?php esc_html_e( 'Aktuell anwesend', 'wp-pass-captain' ); ?></h2>
+		<table class="widefat striped" style="margin-bottom:1em"><thead><tr><th><?php esc_html_e( 'Termin', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Anwesend', 'wp-pass-captain' ); ?></th><?php foreach ( $areas as $area ) : ?><th><?php echo esc_html( $area->name ); ?></th><?php endforeach; ?></tr></thead><tbody>
+		<?php foreach ( array_slice( $occurrences, 0, 50 ) as $occ ) : $presence = \PassCaptain\Admission\Engine::presence( (int) $occ->occurrence_id ); ?>
+			<tr><td><?php echo esc_html( Forms::datetime( $occ->starts_at, $occ->timezone ) ); ?></td><td><?php echo esc_html( (string) $presence['present'] ); ?></td><?php foreach ( $areas as $area ) : ?><td><?php echo esc_html( (string) ( $presence['by_area'][ (int) $area->area_id ] ?? 0 ) ); ?></td><?php endforeach; ?></tr>
+		<?php endforeach; ?>
+		</tbody></table>
+		<?php
+	}
+
 	public static function render() {
 		if ( ! array_filter( self::VIEW_CAPS, 'current_user_can' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		$scope = Queries::event_ids_for( self::VIEW_CAPS );
@@ -58,7 +71,7 @@ final class CheckinsPage {
 		$per_page = 50;
 		$data = Queries::checkin_log( array( 'event_id' => $event_id, 'result' => $result, 'date_from' => $from_utc, 'date_to' => $to_utc ), $scope, $page, $per_page );
 		$result_options = array( '' => __( 'Alle Ergebnisse', 'wp-pass-captain' ) );
-		foreach ( $results as $r ) { $result_options[ $r ] = Forms::status_label( $r ); }
+		foreach ( $results as $r ) { $result_options[ $r ] = \PassCaptain\Admission\ConflictsPage::result_label( $r ); }
 		$base = Forms::page_url( self::SLUG, array_filter( array( 'event_id' => $event_id, 'result' => $result, 'date_from' => $date_from, 'date_to' => $date_to ) ) );
 		?>
 		<div class="wrap wpcap-admin">
@@ -72,6 +85,7 @@ final class CheckinsPage {
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'wp-pass-captain' ); ?></button>
 			<span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Datum und Uhrzeit in %s', 'wp-pass-captain' ), $timezone ) ); ?></span>
 		</form>
+		<?php if ( $event_id && ! empty( $occurrences ) ) { self::render_presence( $event_id, $occurrences ); } ?>
 		<table class="widefat striped">
 			<thead><tr>
 				<th><?php esc_html_e( 'Zeitpunkt', 'wp-pass-captain' ); ?></th>
@@ -87,7 +101,7 @@ final class CheckinsPage {
 					<td><?php echo esc_html( Forms::datetime( $row->created_at, $row->timezone ?: $timezone ) ); ?></td>
 					<td><?php echo esc_html( (string) $row->event_name ); ?></td>
 					<td><?php if ( $row->ticket_public_id ) : ?><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $row->ticket_public_id ) ) ); ?>"><code><?php echo esc_html( $row->ticket_public_id ); ?></code></a><br><small><?php echo esc_html( (string) $row->ticket_name ); ?></small><?php else : ?>—<?php endif; ?></td>
-					<td><?php echo esc_html( Forms::status_label( $row->result ) ); ?></td>
+					<td><?php echo esc_html( \PassCaptain\Admission\ConflictsPage::result_label( $row->result ) . ( 'web' !== $row->source && $row->source ? ' · ' . $row->source : '' ) ); ?></td>
 					<td><?php echo esc_html( Forms::user_label( $row->user_id ) ); ?></td>
 				</tr>
 			<?php endforeach; ?>

@@ -401,8 +401,12 @@ final class Forms {
 			'rejected'         => __( 'Abgelehnt', 'wp-pass-captain' ),
 			'undone'           => __( 'Check-in zurückgenommen', 'wp-pass-captain' ),
 			'unknown'          => __( 'Unbekannt', 'wp-pass-captain' ),
-			'not_valid_today'  => __( 'Heute nicht gültig', 'wp-pass-captain' ),
-			'daily_limit_reached' => __( 'Tageslimit erreicht', 'wp-pass-captain' ),
+			'outside_entry_window' => __( 'Außerhalb des Einlasszeitraums', 'wp-pass-captain' ),
+			'entry_limit_reached' => __( 'Einlass-Limit erreicht', 'wp-pass-captain' ),
+			'already_inside'   => __( 'Bereits drinnen', 'wp-pass-captain' ),
+			'not_checked_in'   => __( 'Nicht eingecheckt', 'wp-pass-captain' ),
+			'wrong_area'       => __( 'Falscher Einlassbereich', 'wp-pass-captain' ),
+			'checked_out'      => __( 'Ausgecheckt', 'wp-pass-captain' ),
 		);
 		return $labels[ (string) $status ] ?? (string) $status;
 	}

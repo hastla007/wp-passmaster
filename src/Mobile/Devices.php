@@ -26,7 +26,7 @@ final class Devices {
 	 *
 	 * @return array|\WP_Error ['code', 'expires_at', 'qr_payload']
 	 */
-	public static function create_pairing( array $event_ids, $label = '', $hours = 0 ) {
+	public static function create_pairing( array $event_ids, $label = '', $hours = 0, $area_id = 0 ) {
 		global $wpdb;
 		$user_id = get_current_user_id();
 		if ( ! $user_id || ! current_user_can( 'wpcap_checkin' ) ) {
@@ -41,6 +41,9 @@ final class Devices {
 				return new \WP_Error( 'wpcap_pairing_event_forbidden', __( 'Für mindestens ein gewähltes Event fehlt die Einlassberechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) );
 			}
 		}
+		$area_id = absint( $area_id );
+		$area_error = \PassCaptain\Admission\Areas::validate_for_pairing( $area_id, $event_ids );
+		if ( $area_error ) { return $area_error; }
 		$max = max( 1, (int) Settings::get( 'device_max_hours' ) );
 		$hours = min( $max, max( 1, absint( $hours ) ?: $max ) );
 		$code = self::random_code();
@@ -54,9 +57,10 @@ final class Devices {
 			'expires_at' => $expires,
 			'created_at' => current_time( 'mysql', true ),
 		) );
-		Audit::record( 'device_pairing_created', 'user', $user_id, array( 'event_ids' => $event_ids, 'hours' => $hours ) );
+		\PassCaptain\Admission\Areas::set_pairing_area( (int) $wpdb->insert_id, $area_id );
+		Audit::record( 'device_pairing_created', 'user', $user_id, array( 'event_ids' => $event_ids, 'hours' => $hours, 'area_id' => $area_id ) );
 		$payload = wp_json_encode( array( 'type' => 'wpcap-pair', 'v' => 1, 'api' => esc_url_raw( rest_url( 'wp-pass-captain/v1/app/' ) ), 'code' => $code ) );
-		return array( 'code' => $code, 'expires_at' => $expires, 'device_hours' => $hours, 'qr_payload' => $payload );
+		return array( 'code' => $code, 'expires_at' => $expires, 'device_hours' => $hours, 'area_id' => $area_id, 'qr_payload' => $payload );
 	}
 
 	/**
@@ -94,6 +98,8 @@ final class Devices {
 		) );
 		$device_id = (int) $wpdb->insert_id;
 		$wpdb->update( "{$p}wpcap_device_pairings", array( 'used_at' => $now, 'device_id' => $device_id ), array( 'pairing_id' => (int) $pairing->pairing_id ) );
+		$area_id = \PassCaptain\Admission\Areas::pairing_area( (int) $pairing->pairing_id );
+		if ( $area_id ) { \PassCaptain\Admission\Areas::set_device_area( $device_id, $area_id ); }
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'device_paired', 'device', $device_id, array( 'user_id' => (int) $pairing->user_id, 'platform' => sanitize_key( $platform ) ) );
 		$user = get_userdata( (int) $pairing->user_id );
@@ -104,6 +110,7 @@ final class Devices {
 			'expires_at' => gmdate( 'c', strtotime( $expires . ' UTC' ) ),
 			'user' => array( 'display_name' => $user ? $user->display_name : '' ),
 			'event_ids' => array_map( 'intval', (array) json_decode( (string) $pairing->event_ids, true ) ),
+			'area' => self::area_payload( $area_id ),
 		);
 	}
 
@@ -143,6 +150,17 @@ final class Devices {
 	/** Allowed event IDs of a device. */
 	public static function event_ids( $device ) {
 		return array_map( 'intval', (array) json_decode( (string) $device->event_ids, true ) );
+	}
+
+	/** Entrance area a device is bound to (0 = none). */
+	public static function area_id( $device ) {
+		return $device ? \PassCaptain\Admission\Areas::device_area( (int) $device->device_id ) : 0;
+	}
+
+	/** Area as returned by the API ({id, name, event_id} or null). */
+	public static function area_payload( $area_id ) {
+		$area = $area_id ? \PassCaptain\Admission\Areas::get( $area_id ) : null;
+		return $area ? array( 'id' => (int) $area->area_id, 'name' => $area->name, 'event_id' => (int) $area->event_id ) : null;
 	}
 
 	/** Revokes a device; owners can revoke their own devices, admins all. */

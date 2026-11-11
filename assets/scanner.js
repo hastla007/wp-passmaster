@@ -12,9 +12,59 @@
 	let locked = false;
 	let lastToken = '';
 	let lastTokenAt = 0;
+	// Admission module: entrance area, check-in/check-out mode, idempotent offline sync.
+	const adm = window.WPCAP_ADMISSION || null;
+	const prefKey = 'wpcap-scanner-prefs-v1';
+	let prefs = {};
+	try { prefs = JSON.parse(window.localStorage.getItem(prefKey) || '{}') || {}; } catch (ignore) { prefs = {}; }
+	function savePrefs() { try { window.localStorage.setItem(prefKey, JSON.stringify(prefs)); } catch (ignore) {} }
+	let areaId = 0;
+	let mode = 'in';
+	function uuid() {
+		if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+		return 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+	}
+	if (adm) {
+		const at = (adm.i18n || {});
+		const bar = document.createElement('div');
+		bar.className = 'wpcap-scanner-options';
+		if (adm.areas && adm.areas.length) {
+			const label = document.createElement('label');
+			label.textContent = (at.area || 'Area') + ' ';
+			const select = document.createElement('select');
+			const none = document.createElement('option');
+			none.value = '0';
+			none.textContent = at.noArea || '—';
+			select.appendChild(none);
+			adm.areas.forEach(function (area) {
+				const option = document.createElement('option');
+				option.value = String(area.id);
+				option.textContent = area.label;
+				select.appendChild(option);
+			});
+			if (prefs.area && adm.areas.some(function (a) { return String(a.id) === String(prefs.area); })) select.value = String(prefs.area);
+			areaId = parseInt(select.value, 10) || 0;
+			select.addEventListener('change', function () { areaId = parseInt(select.value, 10) || 0; prefs.area = areaId; savePrefs(); });
+			label.appendChild(select);
+			bar.appendChild(label);
+		}
+		['in', 'out'].forEach(function (value) {
+			const label = document.createElement('label');
+			const radio = document.createElement('input');
+			radio.type = 'radio';
+			radio.name = 'wpcap-scan-mode';
+			radio.value = value;
+			radio.checked = value === 'in';
+			radio.addEventListener('change', function () { if (radio.checked) { mode = value; root.dataset.mode = value; } });
+			label.appendChild(radio);
+			label.appendChild(document.createTextNode(' ' + (value === 'in' ? (at.modeIn || 'In') : (at.modeOut || 'Out')) + ' '));
+			bar.appendChild(label);
+		});
+		root.insertBefore(bar, form);
+	}
 	function enqueue(token) {
 		const items = queue();
-		items.push(token);
+		items.push(adm ? { token: token, idempotency_key: uuid(), scanned_at: new Date().toISOString(), area_id: areaId, direction: mode } : token);
 		saveQueue(items.slice(-100));
 		result.textContent = t.queued || 'Saved offline.';
 		result.dataset.state = 'error';
@@ -36,7 +86,9 @@
 		if (!items.length || !navigator.onLine) { updateQueueButton(); return; }
 		syncButton.disabled = true;
 		try {
-			const response = await fetch(WPCAP_SCANNER.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ tokens: items }) });
+			const response = adm
+				? await fetch(adm.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ scans: items.map(function (item) { return typeof item === 'string' ? { token: item } : item; }) }) })
+				: await fetch(WPCAP_SCANNER.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ tokens: items.map(function (item) { return typeof item === 'string' ? item : item.token; }) }) });
 			const data = await response.json();
 			if (!response.ok) throw new Error(data.message || t.syncFailed || 'Sync failed.');
 			// Keep scans queued while this request was in flight.
@@ -60,10 +112,12 @@
 		try {
 			let response;
 			try {
-				response = await fetch(WPCAP_SCANNER.checkinUrl, {
+				const url = adm ? (mode === 'out' ? adm.checkoutUrl : adm.checkinUrl) : WPCAP_SCANNER.checkinUrl;
+				const body = adm ? { token: token, area_id: areaId, idempotency_key: uuid() } : { token: token };
+				response = await fetch(url, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce },
-					body: JSON.stringify({ token: token })
+					body: JSON.stringify(body)
 				});
 			} catch (networkError) {
 				// The browser reported "online" but the request never reached the server.
@@ -72,7 +126,7 @@
 			}
 			const data = await response.json().catch(function () { return {}; });
 			if (!response.ok) throw new Error(data.message || t.invalid || 'Invalid ticket.');
-			result.textContent = '✓ ' + data.event + ' — ' + data.ticket;
+			result.textContent = (data.status === 'checked_out' ? '↩ ' + ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '✓ ') + data.event + ' — ' + data.ticket;
 			result.dataset.state = 'success';
 			input.value = '';
 		} catch (error) {
