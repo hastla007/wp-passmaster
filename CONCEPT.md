@@ -341,7 +341,7 @@ Für WooCommerce-Bestellungen werden WooCommerce-CRUD-Objekte über den Adapter 
 ### 15.4 Zahlungsadapter und Rückerstattung
 
 - `src/Payments/Contracts/PaymentGatewayInterface.php` plus Adapter für Stripe/PayPal; konkrete Methode abhängig von Konto, Land und Währung.
-- Kartendaten werden direkt vom Zahlungsanbieter verarbeitet. Pass Captain speichert PSP-Referenzen und signierte Webhook-Ereignisse.
+- Kartendaten werden direkt vom Zahlungsanbieter verarbeitet. Ticket Captain speichert PSP-Referenzen und signierte Webhook-Ereignisse.
 - Jede Webhook-Verarbeitung besitzt einen eindeutigen Provider-Event-Key und ist idempotent.
 - Bestellstatus, Zahlung, Reservierung und Tickets bilden eine nachvollziehbare Zustandsmaschine.
 - Ein Teilrefund übergibt Betrag, Währung und betroffene Positionen. Ticketwiderruf und Gutscheinrückbuchung werden nach einer konfigurierten Refund-Regel entschieden; nicht pauschal die ganze Bestellung oder den gesamten Gutschein zurückbuchen.
