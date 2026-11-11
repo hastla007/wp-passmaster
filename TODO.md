@@ -127,3 +127,28 @@ Dieses Backlog begleitet `CONCEPT.md`. Ticket Captain und Voucher Captain bleibe
 - [ ] Weitere Zahlungsanbieter nach Zielland, Währung, Gebühren und Händlerverfügbarkeit priorisieren und über die Payment-Adapter anbinden.
 - [ ] Öffentliche Webhooks und Entwickler-Hooks für Event-, Ticket-, Bestell-, Refund- und Check-in-Änderungen versioniert dokumentieren.
 - [ ] Abnahmetests für Ticketübertragung, Absage, Mehrtages-Einlass, Wiedereinlass, Offline-Konflikte, Slot-Kollisionen, POS-Bestandsabgleich und Erstattungen ergänzen.
+
+## P0 – Rollen, Eventscoping und Zugriffsschutz
+
+- [ ] Eigene Ticket-Captain-Capabilities und Rollenpakete implementieren; WordPress-Administrator bleibt technische Vollzugriffsrolle.
+- [ ] Rollen für Ticket-Administration, Veranstaltungsleitung, Partner/Leistungserbringer, Vor-Ort-Kasse, Einlass, Finanzbuchhaltung und Support definieren.
+- [ ] Nutzerzuweisungen nach Event, Termin, Einlassbereich oder Partnerleistung speichern; keine implizite globale Berechtigung aus einer operativen Rolle ableiten.
+- [ ] Serverseitige Objektberechtigung in Admin, REST, Kundenkonto, PWA, Exporten und Integrationsdiensten durchsetzen.
+- [ ] Käuferzugriff auf eigene Bestellungen/Tickets begrenzen; sichere, ablaufende und widerrufbare Gastzugriffe implementieren.
+- [ ] Datenfelder je Rolle minimieren: Einlass und Partner erhalten keine Zahlungsdaten; Finanzrollen keine unnötigen Teilnehmerzusatzdaten; Support maskierte/fallbezogene PII.
+- [ ] Erstattungs- und Sammelaktionen nach Capability, Eventscope, Betragsschwelle und optionaler Zweitfreigabe absichern.
+- [ ] Audit-Log für Rollenänderungen, Exporte, PII-Zugriffe, Erstattungen, Teilnehmeränderungen, Ticketübertragungen und Check-in-Korrekturen ergänzen.
+- [ ] Gemeinsame Konten ausschließen; Scannerzugänge kurzlebig, eventbezogen und widerrufbar machen.
+- [ ] Mehr-Faktor-Authentifizierung für administrative und finanzielle Rollen unterstützen; zeitlich begrenzten Supportzugriff protokollieren.
+
+## P0 – EU-Zielmarkt und Plattform-Kompatibilität
+
+- [ ] EU als Zielmarkt und Länder-/Währungs-/Sprachkonfiguration in Konzept und Einstellungen festhalten.
+- [ ] Release-CI gegen WordPress 7.1.4, optional WooCommerce 11.2.2, PHP 8.4 (8.4.27 am Stichtag), MySQL 8.4 LTS und MariaDB 11.4 LTS einrichten.
+- [ ] Yoast SEO 28.8 nur als optionale Kompatibilitätskonfiguration prüfen; keine Laufzeitabhängigkeit einführen.
+- [ ] Aktuelle Test-Baseline von den separat festgelegten Mindestversionen trennen und pro Release aktualisieren.
+- [ ] Testmatrix für neuere stabile PHP-, WordPress- und WooCommerce-Versionen als Vorwärtskompatibilität pflegen.
+- [ ] EU-Steuerfälle, OSS, Leistungsort, gemischte Steuersätze, Währungen und Erstattungsbelege mit fachlicher Steuerberatung für die unterstützten Länder spezifizieren.
+- [ ] Zahlungsarten nach Verfügbarkeit pro PSP, Land, Währung und Transaktionstyp konfigurieren.
+- [ ] Verbraucherinformationen und Storno-/Erstattungsbedingungen je unterstütztem Land rechtlich prüfen lassen.
+- [ ] Übersetzbarkeit, Datenschutzfristen/Auskunft/Löschung und Barrierefreiheit als Release-Gates ergänzen.
