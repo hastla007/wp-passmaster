@@ -88,6 +88,10 @@ PassCaptain\Refunds::request( $ro['order_id'], array(), 'Test', 'zz-e2e-refund' 
 $refund_mails = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails_before ), static fn( $m ) => 'refundmail@example.com' === $m['to'] && str_starts_with( $m['subject'], 'Erstattung bestätigt' ) ) );
 check( 'buyer receives a refund confirmation', 1 === count( $refund_mails ) && false !== strpos( $refund_mails[0]['body'], '15,00' ) || false !== strpos( $refund_mails[0]['body'] ?? '', '15.00' ) );
 
+echo "Integration: transaction state per database server\n";
+$tracks = new ReflectionMethod( PassCaptain\Orders::class, 'server_tracks_transactions' );
+$tracks->setAccessible( true );
+check( 'MariaDB is asked for @@in_transaction, MySQL is not (no error-log line per order)', true === $tracks->invoke( null, '11.4.2-MariaDB-ubu2404' ) && false === $tracks->invoke( null, '8.4.13' ) && false === $tracks->invoke( null, '' ) );
 echo "Integration: server-side rollback inside the order transaction\n";
 // Simulates a deadlock victim: the server rolls the transaction back (locks released) while PHP
 // continues. Without the guards the remaining statements would autocommit an unchecked order.
