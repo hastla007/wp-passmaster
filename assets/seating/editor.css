@@ -1,0 +1,29 @@
+.wpcap-seat-editor { margin: 1em 0; }
+.wpcap-se-toolbar details { background: #fff; border: 1px solid #dcdcde; padding: .5em .75em; margin-bottom: .5em; }
+.wpcap-se-toolgrid { display: flex; flex-wrap: wrap; gap: .75em; }
+.wpcap-se-toolgrid fieldset, .wpcap-se-list { border: 1px solid #dcdcde; padding: .5em; }
+.wpcap-se-toolgrid label, .wpcap-se-panel label { display: block; margin: .25em 0; }
+.wpcap-se-toolgrid input[type=number] { width: 5em; }
+.wpcap-se-list div { display: flex; gap: .5em; align-items: center; margin: .25em 0; }
+.wpcap-se-main { display: flex; gap: 1em; align-items: flex-start; }
+.wpcap-se-canvas { flex: 1 1 auto; overflow: auto; max-height: 75vh; border: 1px solid #8c8f94; background: #fff; }
+.wpcap-se-canvas svg { display: block; width: 100%; min-width: 600px; height: auto; touch-action: none; user-select: none; }
+.wpcap-se-canvas svg:focus { outline: 2px solid #2271b1; }
+.wpcap-se-panel { flex: 0 0 260px; background: #fff; border: 1px solid #dcdcde; padding: .75em; }
+.wpcap-se-panel input[type=text], .wpcap-se-panel select { width: 100%; }
+.wpcap-se-bg { fill: #f6f7f7; }
+.wpcap-se-stage { font-size: 14px; fill: #50575e; }
+.wpcap-se-small { font-size: 10px; fill: #50575e; cursor: pointer; }
+.wpcap-se-seat { cursor: move; }
+.wpcap-se-seat circle { stroke-width: 2; }
+.wpcap-se-seat.is-selected circle { stroke: #000; stroke-width: 4; }
+.wpcap-se-seat.is-locked circle { stroke-dasharray: 2 2; opacity: .75; }
+.wpcap-se-seat.is-locked { cursor: not-allowed; }
+.wpcap-se-label { font-size: 9px; fill: #fff; pointer-events: none; }
+.wpcap-se-area { stroke-width: 2; cursor: move; }
+.wpcap-se-area.is-selected { stroke: #000; stroke-width: 4; }
+.wpcap-se-table { fill: #dcdcde; stroke: #8c8f94; cursor: pointer; }
+.wpcap-se-delete { color: #b32d2e; margin-left: 1em; }
+.wpcap-seating-link { border-top: 1px solid #dcdcde; margin-top: 1em; }
+.wpcap-seating-zone { margin-right: 1em; white-space: nowrap; }
+@media (max-width: 960px) { .wpcap-se-main { flex-direction: column; } .wpcap-se-panel { flex: none; width: 100%; } }

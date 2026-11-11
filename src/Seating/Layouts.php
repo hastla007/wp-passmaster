@@ -70,7 +70,7 @@ final class Layouts {
 				label varchar(120) NOT NULL DEFAULT '',
 				zone varchar(64) NOT NULL DEFAULT '',
 				category varchar(64) NOT NULL DEFAULT '',
-				accessible tinyint(1) unsigned NOT NULL DEFAULT 0,
+				is_accessible tinyint(1) unsigned NOT NULL DEFAULT 0,
 				pos_x decimal(9,2) NOT NULL DEFAULT 0,
 				pos_y decimal(9,2) NOT NULL DEFAULT 0,
 				sort_order int(10) unsigned NOT NULL DEFAULT 0,
@@ -385,7 +385,7 @@ final class Layouts {
 	public static function locked_seats( $layout_id ) {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			'SELECT c.seat_key,c.status,s.kind,s.group_key,s.row_label,s.seat_label,s.label,s.zone,s.category,s.accessible,s.pos_x,s.pos_y FROM ' . self::table( 'claims' ) . ' c INNER JOIN ' . self::table( 'links' ) . ' l ON l.occurrence_id=c.occurrence_id INNER JOIN ' . self::table( 'seats' ) . " s ON s.seat_id=c.seat_id WHERE l.layout_id=%d AND c.active_key IS NOT NULL ORDER BY c.claim_id",
+			'SELECT c.seat_key,c.status,s.kind,s.group_key,s.row_label,s.seat_label,s.label,s.zone,s.category,s.is_accessible,s.pos_x,s.pos_y FROM ' . self::table( 'claims' ) . ' c INNER JOIN ' . self::table( 'links' ) . ' l ON l.occurrence_id=c.occurrence_id INNER JOIN ' . self::table( 'seats' ) . " s ON s.seat_id=c.seat_id WHERE l.layout_id=%d AND c.active_key IS NOT NULL ORDER BY c.claim_id",
 			absint( $layout_id )
 		) );
 		$out = array();
@@ -505,7 +505,7 @@ final class Layouts {
 				foreach ( $chunk as $row ) {
 					$values[] = $wpdb->prepare( '(%d,%s,%s,%s,%s,%s,%s,%s,%s,%d,%f,%f,%d)', $version_id, $row['seat_key'], $row['kind'], $row['group_key'], $row['row_label'], $row['seat_label'], $row['label'], $row['zone'], $row['category'], $row['accessible'], $row['pos_x'], $row['pos_y'], $row['sort_order'] );
 				}
-				$ok = $wpdb->query( 'INSERT INTO ' . self::table( 'seats' ) . ' (version_id,seat_key,kind,group_key,row_label,seat_label,label,zone,category,accessible,pos_x,pos_y,sort_order) VALUES ' . implode( ',', $values ) );
+				$ok = $wpdb->query( 'INSERT INTO ' . self::table( 'seats' ) . ' (version_id,seat_key,kind,group_key,row_label,seat_label,label,zone,category,is_accessible,pos_x,pos_y,sort_order) VALUES ' . implode( ',', $values ) );
 				if ( false === $ok ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Sitzplätze konnten nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ) ); }
 			}
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table( 'layouts' ) . ' SET published_version=%d,updated_at=%s WHERE layout_id=%d', $version, $now, (int) $layout->layout_id ) );
@@ -562,7 +562,7 @@ final class Layouts {
 		$wpdb->query( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", (int) $occurrence->occurrence_id ) );
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'links' ) . ' WHERE occurrence_id=%d FOR UPDATE', (int) $occurrence->occurrence_id ) );
 		// Claimed seats of this occurrence must exist unchanged in the target version.
-		$claimed = $wpdb->get_results( $wpdb->prepare( 'SELECT c.seat_key,s.kind,s.group_key,s.row_label,s.seat_label,s.label,s.zone,s.category,s.accessible,s.pos_x,s.pos_y FROM ' . self::table( 'claims' ) . ' c INNER JOIN ' . self::table( 'seats' ) . ' s ON s.seat_id=c.seat_id WHERE c.occurrence_id=%d AND c.active_key IS NOT NULL', (int) $occurrence->occurrence_id ) );
+		$claimed = $wpdb->get_results( $wpdb->prepare( 'SELECT c.seat_key,s.kind,s.group_key,s.row_label,s.seat_label,s.label,s.zone,s.category,s.is_accessible,s.pos_x,s.pos_y FROM ' . self::table( 'claims' ) . ' c INNER JOIN ' . self::table( 'seats' ) . ' s ON s.seat_id=c.seat_id WHERE c.occurrence_id=%d AND c.active_key IS NOT NULL', (int) $occurrence->occurrence_id ) );
 		if ( $claimed ) {
 			$locked = array();
 			foreach ( $claimed as $row ) { $locked[ $row->seat_key ] = $row; }
