@@ -503,3 +503,59 @@ Die folgenden Funktionen erweitern den Event- und Ticketkern. Sie sind nicht all
 4. **Optionale Kanäle:** Kalender, SMS und Offline-Scanner mit explizitem Konfliktmodell.
 
 Vor Umsetzung jeder Stufe sind Zuständigkeiten, Statusübergänge, Aufbewahrung, Gebühren, Konflikte mit bereits ausgegebenen Tickets und Kompatibilität mit Voucher Captain schriftlich festzulegen.
+
+## EU-Zielmarkt und Plattform-Kompatibilität
+
+**Zielmarkt:** EU-weit. Steuer-, Zahlungs-, Sprach- und Verbraucherregeln werden je Land konfiguriert; das Produkt macht keine pauschale Rechts- oder Steuerkonformitätszusage.
+
+### Test-Baseline (Stand 11. November 2026)
+
+| Komponente | Release-Testziel |
+|---|---|
+| WordPress | 7.1.4 |
+| WooCommerce (optional) | 11.2.2 |
+| PHP | 8.4, aktueller Sicherheits-Patch (8.4.27 am Stichtag) |
+| Datenbank | MySQL 8.4 LTS oder MariaDB 11.4 LTS |
+| Yoast SEO | 28.8 als optionale Kompatibilitätsprüfung, keine Abhängigkeit |
+
+Die Tabelle ist ein zeitgebundener Teststand und keine dauerhaft festgeschriebene Mindestversion. Mindestversionen für WordPress, WooCommerce, PHP und Datenbanken werden je Release separat veröffentlicht und regelmäßig aktualisiert. PHP 8.5 und folgende WordPress-/WooCommerce-Versionen sind in der CI als Vorwärtskompatibilität aufzunehmen, sobald stabil verfügbar.
+
+### EU-Anforderungen
+
+- Steuer- und Bestellpositionen speichern Land, Währung, Brutto-/Nettobetrag, Steuersatz und Steuerbetrag nachvollziehbar und versioniert. EU-Mehrwertsteuer, OSS, Leistungsort und gemischte Steuersätze müssen je unterstütztem Szenario mit Steuerberatung spezifiziert werden.
+- Zahlungsarten nach PSP, Händlerland, Währung und Transaktionstyp verfügbar machen; keine Zahlungsmethode als überall in der EU verfügbar voraussetzen.
+- Checkout, Eventseiten, E-Mails, PDFs und Kundenkonto übersetzbar und für mehrere Währungen geeignet gestalten.
+- DSGVO-Prozesse für Auskunft, Berichtigung, Löschung, Aufbewahrungsfristen und Datenminimierung nach Datenklasse vorsehen; finanzielle Belege getrennt von Teilnehmerzusatzdaten behandeln.
+- Verbraucherinformationen, Terminänderungen, Storno- und Erstattungsbedingungen je Markt konfigurierbar halten und vor Einsatz national rechtlich prüfen lassen.
+- Barrierefreiheit in Eventauswahl, Checkout, Teilnehmerkonto, Scanner-PWA und Admin-Oberfläche als Release-Kriterium aufnehmen.
+
+
+## Rollen- und Zugriffskonzept
+
+Ticket Captain verwendet eigene Capabilities. Ein Rollenpaket allein gewährt keinen Zugriff auf alle Veranstaltungen: operative Rechte werden zusätzlich auf konkrete Events, Termine, Einlassbereiche oder Partnerleistungen begrenzt. Diese Berechtigungsgrenzen gelten identisch für Admin-UI, Kundenkonto, PWA, REST und öffentliche Integrationsdienste.
+
+### Rollenpakete und Standardumfang
+
+| Rolle | Geltungsbereich | Standardrechte |
+|---|---|---|
+| WordPress-Administrator | gesamte Website | Vollzugriff auf Website und Plugin; technische Notfallrolle |
+| Ticket-Administration | alle Ticket-Captain-Events | Events, Einstellungen, Nutzerzuweisung, Bestellungen, Erstattungen, Exporte und Check-in verwalten |
+| Veranstaltungsleitung | zugewiesene Events | Event, Kontingent und Teilnehmer verwalten; Nachrichten senden; Erstattungen innerhalb konfigurierter Grenzen ausführen oder beantragen |
+| Partner / Leistungserbringer | zugewiesene Termine/Leistungen | Terminplan und minimal nötige Teilnehmerdaten sehen; zugewiesene Leistung oder Pass prüfen/als erbracht markieren |
+| Vor-Ort-Kasse | zugewiesene Events | Verkäufe erfassen, Tickets ausgeben und erneut senden; Erstattung nur mit zusätzlicher Freigabe |
+| Einlasspersonal | zugewiesene Events/Einlassbereiche | Tickets scannen und Check-in gemäß Ticketregel erfassen; keine Finanzdaten und standardmäßig keine Käuferdetails |
+| Finanzbuchhaltung | zugewiesene oder alle Events | Bestellungen, Zahlungs-, Steuer-, Rechnungs- und Erstattungsdaten ansehen/exportieren; keine unnötigen Teilnehmerzusatzdaten |
+| Support | zugewiesene Supportfälle | Bestellung/Ticket suchen, Status prüfen, erneut senden; PII maskiert und fallbezogen; keine selbstständige Erstattung |
+| Käufer / Ticketinhaber | eigene Bestellungen und Tickets | eigene Tickets ansehen, erlaubte Angaben ändern oder Übertragung beantragen |
+| Integrationskonto | explizit konfigurierte API-Berechtigungen | nur benannte Aktionen und Zielobjekte; kein allgemeiner Adminzugriff |
+
+### Verbindliche Berechtigungsregeln
+
+- Event- und Datensatzberechtigung bei jedem Request serverseitig prüfen; UI-Ausblenden ist keine Zugriffskontrolle.
+- Käufer/Teilnehmer können nur eigene Bestellungen/Tickets abrufen. Gastlinks sind signiert, zeitlich begrenzt und widerrufbar.
+- Partner und Einlasspersonal sehen nur Daten, die für ihre Aufgabe notwendig sind. Sensible Zusatzfelder sind standardmäßig deaktiviert und benötigen einen eigenen Zweck sowie eine gesonderte Berechtigung.
+- Exporte respektieren Eventscope und Feldberechtigungen. Globale Exporte bleiben Ticket-Administration und autorisierter Finanzbuchhaltung vorbehalten.
+- Erstattungen, Ticketübertragungen, Teilnehmerdatenänderungen, Check-in-Korrekturen, Exporte und Rechteänderungen werden mit Nutzer, Objekt, Zeitpunkt und Grund protokolliert.
+- Keine gemeinsamen Benutzerkonten. Scannerzugänge sind personengebunden oder zeitlich begrenzte, eventgebundene Gerätesitzungen.
+- Mehr-Faktor-Authentifizierung für Ticket-Administration und Finanzrollen unterstützen. Hochwertige Erstattungen und Sammelaktionen können eine zweite Freigabe verlangen.
+- Supportzugriff auf personenbezogene Daten ist zeitlich begrenzt und protokolliert; keine verdeckte Admin-Impersonation.
