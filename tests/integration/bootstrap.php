@@ -31,6 +31,7 @@ class WP_Error {
 
 final class Test_WPDB {
 	public $prefix = 'wptest_';
+	public function __construct_prefix() { $this->prefix = getenv( 'WPCAP_TEST_PREFIX' ) ?: 'wptest_'; }
 	public $last_error = '';
 	public $insert_id = 0;
 	public $rows_affected = 0;
@@ -91,6 +92,7 @@ final class Test_WPDB {
 }
 
 $GLOBALS['wpdb'] = new Test_WPDB();
+$GLOBALS['wpdb']->__construct_prefix();
 $GLOBALS['wpcap_test_mails'] = array();
 $GLOBALS['wpcap_test_notices'] = array();
 $GLOBALS['wpcap_test_options'] = array( 'woocommerce_hold_stock_minutes' => 60, 'admin_email' => 'admin@example.com' );
@@ -132,10 +134,26 @@ function get_temp_dir() { return sys_get_temp_dir() . '/'; }
 function trailingslashit( $p ) { return rtrim( $p, '/' ) . '/'; }
 function get_bloginfo( $k = '' ) { return 'Testsite'; }
 function wp_delete_file( $f ) { if ( is_file( $f ) ) { unlink( $f ); } }
-function do_action( $hook, ...$args ) { $GLOBALS['wpcap_test_actions'][] = $hook; }
-function apply_filters( $hook, $value, ...$args ) { return array_key_exists( $hook, $GLOBALS['wpcap_test_filters'] ?? array() ) ? $GLOBALS['wpcap_test_filters'][ $hook ] : $value; }
-function add_action() {}
-function add_filter() {}
+function do_action( $hook, ...$args ) { $GLOBALS['wpcap_test_actions'][] = $hook; wpcap_test_run_hooks( $hook, $args, false ); }
+function apply_filters( $hook, $value, ...$args ) { if ( array_key_exists( $hook, $GLOBALS['wpcap_test_filters'] ?? array() ) ) { return $GLOBALS['wpcap_test_filters'][ $hook ]; } return wpcap_test_run_hooks( $hook, array_merge( array( $value ), $args ), true ); }
+function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][] = array( $callback, $accepted_args ); return true; }
+function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) { return add_action( $hook, $callback, $priority, $accepted_args ); }
+function remove_all_actions( $hook ) { unset( $GLOBALS['wpcap_test_hooks'][ $hook ] ); }
+/** Minimal WordPress hook runner: only callbacks registered by tests/modules are executed. */
+function wpcap_test_run_hooks( $hook, array $args, $is_filter ) {
+	$value = $args[0] ?? null;
+	$registered = $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array();
+	ksort( $registered );
+	foreach ( $registered as $callbacks ) {
+		foreach ( $callbacks as list( $callback, $accepted ) ) {
+			if ( ! is_callable( $callback ) ) { continue; }
+			$call_args = array_slice( $args, 0, max( 1, (int) $accepted ) );
+			if ( $is_filter ) { $call_args[0] = $value; $value = call_user_func_array( $callback, $call_args ); $args[0] = $value; }
+			else { call_user_func_array( $callback, $call_args ); }
+		}
+	}
+	return $value;
+}
 function current_filter() { return 'test_filter'; }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function get_role( $r ) { return null; }

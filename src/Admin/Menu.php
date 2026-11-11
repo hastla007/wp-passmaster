@@ -39,7 +39,7 @@ final class Menu {
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
 			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
 			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),
-		);
+		) + \PassCaptain\Modules::admin_handlers();
 	}
 
 	public static function register() {
@@ -76,6 +76,10 @@ final class Menu {
 		$refund_title = __( 'Erstattungen', 'wp-pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
 		add_submenu_page( self::SLUG, __( 'Erstattungen', 'wp-pass-captain' ), $refund_title, RefundsPage::menu_cap(), RefundsPage::SLUG, array( RefundsPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Scanner-Geräte', 'wp-pass-captain' ), __( 'Scanner-Geräte', 'wp-pass-captain' ), DevicesPage::CAP, DevicesPage::SLUG, array( DevicesPage::class, 'render' ) );
+		foreach ( \PassCaptain\Modules::admin_pages() as $page ) {
+			list( $slug, $title, $cap, $callback ) = $page;
+			add_submenu_page( self::SLUG, $title, $title, $cap, $slug, $callback );
+		}
 		add_submenu_page( self::SLUG, __( 'Einstellungen', 'wp-pass-captain' ), __( 'Einstellungen', 'wp-pass-captain' ), SettingsPage::CAP, SettingsPage::SLUG, array( SettingsPage::class, 'render' ) );
 	}
 }

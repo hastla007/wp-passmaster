@@ -29,6 +29,7 @@ $form_id = 'wpcap-' . (int) $event->occurrence_id;
 			<?php endforeach; ?>
 		</fieldset>
 		<div class="wpcap-attendees" aria-live="polite"></div>
+		<?php do_action( 'wpcap_checkout_form_fields', $event, $types ); ?>
 		<label><?php esc_html_e( 'E-Mail', 'wp-pass-captain' ); ?> <input name="email" type="email" autocomplete="email" required></label>
 		<label><?php esc_html_e( 'Rabattcode (optional)', 'wp-pass-captain' ); ?> <input name="campaign_code" type="text" autocomplete="off" maxlength="40"></label>
 		<?php if ( \PassCaptain\Integrations\Vouchers\Bridge::available() ) : ?>

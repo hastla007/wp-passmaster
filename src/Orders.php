@@ -201,6 +201,12 @@ final class Orders {
 					}
 				}
 			}
+			/**
+			 * Inside the order transaction (rows of ticket types/occurrences are locked). Modules may
+			 * reserve further resources here (e.g. seats). Throw a \RuntimeException with a code to abort;
+			 * map the code to a message via `wpcap_checkout_error_messages`.
+			 */
+			do_action( 'wpcap_order_creating', $order_id, $selected, $payload, $internal );
 			$redeemed = Campaigns::redeem( $adjustments, $order_id );
 			if ( is_wp_error( $redeemed ) ) { throw new \RuntimeException( 'campaign_redeem_failed' ); }
 			$wpdb->query( 'COMMIT' );
@@ -224,6 +230,7 @@ final class Orders {
 					return array( 'order_id' => (int) $existing->order_id, 'public_id' => $existing->public_id, 'status' => $existing->status, 'payment_status' => $existing->payment_status, 'reused' => true );
 				}
 			}
+			$messages = apply_filters( 'wpcap_checkout_error_messages', $messages );
 			$message = $messages[ $code ] ?? __( 'Die Bestellung konnte nicht angelegt werden.', 'wp-pass-captain' );
 			return new \WP_Error( 'wpcap_checkout_failed', $message, array( 'status' => 409 ) );
 		}
@@ -682,7 +689,7 @@ final class Orders {
 			$wpdb->query( 'COMMIT' );
 			return;
 		}
-		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name AS ticket_name,o.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d", $order_id ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name AS ticket_name,tt.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d", $order_id ) );
 		$issued = array();
 		// Attendee data collected at checkout, applied once to the issued tickets.
 		$pending_attendees = $order->attendee_data ? (array) json_decode( $order->attendee_data, true ) : array();
@@ -707,7 +714,9 @@ final class Orders {
 						self::store_attendee( $ticket_id, $order, $attendee );
 						break;
 					}
-					$issued[] = array( 'token' => $token, 'event' => $line->event_name, 'ticket' => $line->ticket_name, 'starts_at' => $line->starts_at, 'timezone' => $line->timezone, 'location' => $line->location );
+					/** Inside the issuance transaction, e.g. to assign a seat or area. Do not store $token. */
+					do_action( 'wpcap_ticket_created', $ticket_id, $order, $line, $i );
+					$issued[] = array( 'ticket_id' => $ticket_id, 'ticket_type_id' => (int) $line->ticket_type_id, 'occurrence_id' => (int) ( $line->occurrence_id ?? 0 ), 'token' => $token, 'event' => $line->event_name, 'ticket' => $line->ticket_name, 'starts_at' => $line->starts_at, 'timezone' => $line->timezone, 'location' => $line->location );
 				}
 			}
 		}
@@ -735,7 +744,9 @@ final class Orders {
 					$attachments[] = $file;
 				}
 			}
-			wp_mail( $order->customer_email, __( 'Deine Tickets', 'wp-pass-captain' ), $body, '', $attachments );
+			$mail = apply_filters( 'wpcap_ticket_mail', array( 'subject' => __( 'Deine Tickets', 'wp-pass-captain' ), 'body' => $body, 'attachments' => $attachments ), $order, $issued );
+			wp_mail( $order->customer_email, $mail['subject'], $mail['body'], '', $mail['attachments'] );
+			$attachments = array_unique( array_merge( $attachments, (array) $mail['attachments'] ) );
 			foreach ( $attachments as $file ) { wp_delete_file( $file ); }
 		}
 	}

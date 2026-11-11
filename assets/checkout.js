@@ -86,13 +86,18 @@
 		const code = form.querySelector('[name="campaign_code"]');
 		const terms = form.querySelector('[name="accept_terms"]');
 		const voucher = form.querySelector('[name="voucher_code"]');
+		const extra = {};
+		// Modules (e.g. seat selection) add fields here; they may set detail.error to block submission.
+		const hook = new CustomEvent('wpcap:checkout-payload', { detail: { form: form, items: items, payload: extra, error: '' } });
+		document.dispatchEvent(hook);
+		if (hook.detail.error) { message.textContent = hook.detail.error; return; }
 		button.disabled = true;
 		message.textContent = t.creating || '…';
 		try {
 			const response = await fetch(config.url, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
+				body: JSON.stringify(Object.assign({
 					email: form.querySelector('[name="email"]').value,
 					items: items,
 					attendees: attendees,
@@ -101,7 +106,7 @@
 					accept_terms: terms ? terms.checked : false,
 					voucher_code: voucher ? voucher.value.trim() : '',
 					idempotency_key: form.dataset.key
-				})
+				}, extra))
 			});
 			const data = await response.json();
 			if (!response.ok) throw new Error(data.message || t.failed || 'Failed.');

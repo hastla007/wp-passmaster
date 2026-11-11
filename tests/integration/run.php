@@ -316,5 +316,6 @@ require __DIR__ . '/finance.php';
 require __DIR__ . '/payments.php';
 require __DIR__ . '/admin.php';
 require __DIR__ . '/mobile.php';
+foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) { require $module_test; }
 echo "\n$passes passed, $failures failed\n";
 exit( $failures ? 1 : 0 );

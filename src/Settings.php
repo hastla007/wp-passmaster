@@ -7,8 +7,12 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Settings {
 	const OPTION = 'wpcap_settings';
 
-	/** Default values for every setting. */
+	/** Default values for every setting (core plus modules). */
 	public static function defaults() {
+		return array_merge( self::core_defaults(), Modules::settings_defaults() );
+	}
+
+	private static function core_defaults() {
 		return array(
 			'hold_minutes'              => 10,
 			'manual_hold_hours'         => 72,

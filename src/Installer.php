@@ -652,18 +652,23 @@ final class Installer {
 			) ENGINE=InnoDB $charset;",
 		);
 
-		foreach ( $queries as $query ) {
+		foreach ( array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) ) as $query ) {
 			dbDelta( $query );
 		}
 
 		self::register_roles();
-		update_option( 'wpcap_db_version', self::DB_VERSION );
+		update_option( 'wpcap_db_version', self::version() );
 		update_option( 'wpcap_version', WPCAP_VERSION );
+	}
+
+	/** Stored schema version: core version plus a hash of all module tables. */
+	public static function version() {
+		return self::DB_VERSION . '+' . Modules::schema_version();
 	}
 
 	/** Runs the schema upgrade when needed; returns true if an upgrade ran. */
 	public static function maybe_upgrade() {
-		if ( self::DB_VERSION !== get_option( 'wpcap_db_version' ) ) {
+		if ( self::version() !== get_option( 'wpcap_db_version' ) ) {
 			self::install();
 			return true;
 		}

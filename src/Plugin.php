@@ -44,6 +44,7 @@ final class Plugin {
 		Payments\ReturnNotice::register();
 		Mobile\Api::register();
 		OccurrenceCancellation::register();
+		Modules::register_all();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
 		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );
