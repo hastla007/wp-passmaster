@@ -55,8 +55,6 @@ jobs:
         run: php tests/integration/run.php
       - name: Concurrency/load smoke test (200 buyers, 8 scanners, 100 webhook deliveries; ~10 s)
         # Regression test for the check-in deadlock (false "admitted" responses, see docs/TESTING.md).
-        # Remove continue-on-error once Checkin/Admission\Engine no longer take gap locks.
-        continue-on-error: true
         env:
           WPCAP_TEST_DB_HOST: 127.0.0.1
         run: php tests/load/run.php --profile=ci

@@ -284,7 +284,7 @@ final class SettingsPage {
 			case 'providers':
 				$enabled = (array) $value;
 				foreach ( Registry::all() as $provider_id => $gateway ) {
-					echo '<label style="display:block"><input type="checkbox" name="' . esc_attr( $key ) . '[]" value="' . esc_attr( $provider_id ) . '"' . checked( in_array( $provider_id, $enabled, true ), true, false ) . '> ' . esc_html( $gateway->title() ) . ' <code>' . esc_html( $provider_id ) . '</code>';
+					echo '<label style="display:block;min-height:24px;padding:2px 0"><input type="checkbox" name="' . esc_attr( $key ) . '[]" value="' . esc_attr( $provider_id ) . '"' . checked( in_array( $provider_id, $enabled, true ), true, false ) . '> ' . esc_html( $gateway->title() ) . ' <code>' . esc_html( $provider_id ) . '</code>';
 					if ( in_array( $provider_id, $enabled, true ) && ! $gateway->is_available( 'EUR' ) ) {
 						echo ' <em>' . esc_html__( '(nicht vollständig konfiguriert)', 'wp-pass-captain' ) . '</em>';
 					}

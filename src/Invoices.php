@@ -178,7 +178,7 @@ final class Invoices {
 			$rates[ $key ] = ( $rates[ $key ] ?? 0 ) + (int) $line->tax_minor;
 		}
 		ob_start();
-		?><!doctype html><html lang="<?php echo esc_attr( determine_locale() ); ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( $invoice->invoice_number ); ?></title><style>body{font:14px/1.45 system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem;color:#1d2327}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border-bottom:1px solid #dcdcde;padding:.4rem;text-align:left}td.n,th.n{text-align:right}.seller{white-space:pre-line}@media print{button{display:none}}</style></head><body>
+		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( $invoice->invoice_number ); ?></title><style>body{font:14px/1.45 system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem;color:#1d2327}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border-bottom:1px solid #dcdcde;padding:.4rem;text-align:left}td.n,th.n{text-align:right}.seller{white-space:pre-line}@media print{button{display:none}}</style></head><body>
 		<header><div class="seller"><strong><?php echo esc_html( $seller['name'] ?? '' ); ?></strong>
 <?php echo esc_html( $seller['address'] ?? '' ); ?><?php if ( ! empty( $seller['vat_id'] ) ) : ?>
 <?php echo esc_html( __( 'USt-IdNr.:', 'wp-pass-captain' ) . ' ' . $seller['vat_id'] ); ?><?php endif; ?></div></header>

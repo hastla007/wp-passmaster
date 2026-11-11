@@ -323,9 +323,9 @@ final class Forms {
 	}
 
 	/** Timezone select. */
-	public static function timezone_select( $name, $selected, $id = '' ) {
+	public static function timezone_select( $name, $selected, $id = '', $extra = '' ) {
 		$zones = timezone_identifiers_list();
-		self::select( $name, array_combine( $zones, $zones ), $selected, $id );
+		self::select( $name, array_combine( $zones, $zones ), $selected, $id, $extra ?: 'aria-label="' . esc_attr__( 'Zeitzone', 'wp-pass-captain' ) . '"' );
 	}
 
 	/** Renders "Seite x von y" pagination links. */

@@ -119,7 +119,7 @@ node keyboard.js
   Scanner: Namen/Fokus, Ergebnis per Live-Region.
 
 Stand 11.11.2026: öffentliche Seiten 0 kritische/ernste Verstöße (1 moderater: Überschriftenebene im Event-
-Template), Tastatur-Durchlauf 25/25 bestanden, Farbkontrast der öffentlichen Seiten ohne Befund. Admin-
+Template), Tastatur-Durchlauf 23/23 Prüfungen bestanden, Farbkontrast der öffentlichen Seiten ohne Befund. Admin-
 Seiten: 9 kritische und 48 ernste Knoten (fehlende Labels an Filter-Selects, Kontrast von `<code>`-Links,
 Zielgröße der Checkboxen) – siehe offene Punkte im Changelog/Report. Nicht in CI (braucht eine WordPress-Instanz).
 Automatische Prüfungen ersetzen keine Screenreader-Tests (siehe `docs/ACCESSIBILITY.md`).

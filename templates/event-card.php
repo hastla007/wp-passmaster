@@ -8,7 +8,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 $form_id = 'wpcap-' . (int) $event->occurrence_id;
 ?>
 <article class="wpcap-event">
-	<h3><?php echo esc_html( $event->name ); ?></h3>
+	<?php $wpcap_heading = 'h' . min( 6, max( 2, (int) apply_filters( 'wpcap_event_card_heading_level', 2 ) ) ); ?>
+	<<?php echo $wpcap_heading; // phpcs:ignore WordPress.Security.EscapeOutput -- fixed tag name. ?>><?php echo esc_html( $event->name ); ?></<?php echo $wpcap_heading; // phpcs:ignore WordPress.Security.EscapeOutput -- fixed tag name. ?>>
 	<?php if ( $event->description ) : ?><div class="wpcap-description"><?php echo wp_kses_post( wpautop( $event->description ) ); ?></div><?php endif; ?>
 	<p><?php echo esc_html( wp_date( 'd.m.Y H:i', strtotime( $event->starts_at . ' UTC' ), new \DateTimeZone( $event->timezone ) ) . ' ' . $event->timezone ); ?><?php if ( $event->location ) : ?> · <?php echo esc_html( $event->location ); ?><?php endif; ?></p>
 	<form class="wpcap-checkout-form" novalidate>

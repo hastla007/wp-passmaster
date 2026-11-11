@@ -119,7 +119,7 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	f = await focused(page, scope);
 	check('invalid e-mail: focus moves to the field with a validation message', f && f.field === 'email' && f.validation, f && f.validation);
 	await page.keyboard.press('ControlOrMeta+A');
-	await page.keyboard.type('keyboard@example.com');
+	await page.keyboard.type('keyboard-' + Date.now() + '@example.com');
 	const terms = await page.evaluate((sel) => !!document.querySelector(sel + ' [name="accept_terms"]'), scope);
 	if (terms) {
 		await page.keyboard.press('Enter');

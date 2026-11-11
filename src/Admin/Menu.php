@@ -44,9 +44,17 @@ final class Menu {
 
 	public static function register() {
 		add_action( 'admin_menu', array( self::class, 'add_menus' ) );
+		add_action( 'admin_head', array( self::class, 'admin_styles' ) );
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
 		}
+	}
+
+	/** Small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */
+	public static function admin_styles() {
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects CSS.
+		if ( ! str_starts_with( $page, 'wpcap' ) && 'wp-pass-captain' !== $page ) { return; }
+		echo '<style>#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}</style>';
 	}
 
 	/** First capability of the list the current user holds (fallback: the first one). */
