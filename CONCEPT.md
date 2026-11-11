@@ -384,12 +384,14 @@ Die vorgeschlagenen Filter- und Action-Namen können als Integrations-Events gen
 - Rückrichtung: Voucher Captain ruft einen stabilen Ticket-Captain-Service wie `issue_tickets(source, idempotency_key, target, recipient)` auf, wenn ein Gutschein eingelöst wird.
 - Service-/Hook-Versionierung und Capability-Erkennung statt nur Konstantenprüfung. Konstanten können die optionale Bridge früh erkennen, beweisen aber keine API-Kompatibilität.
 
-### 15.7 Gemeinsame Oberfläche
+### 15.7 Getrennte Admin-Verwaltung mit gemeinsamer Funktion
 
-- `captain_suite_menu_active` kann die Entscheidung für ein gemeinsames Hauptmenü signalisieren. Ein Plugin besitzt den Top-Level-Menüeintrag; das zweite registriert seine Seiten als Untermenüs.
-- Beide Plugins erhalten eigene Capabilities und Nonce-/REST-Prüfungen, auch wenn das Menü zusammengeführt wird.
-- Gutschein- und Ticketansichten können auf einer Suite-Seite verlinkt werden. Gemeinsame „Mein Konto“-Navigation wird nur registriert, wenn beide Plugins samt kompatibler Schnittstellenversion aktiv sind.
-- Menu- oder Account-Integration darf den Standalone-Menüpfad nicht entfernen.
+- Voucher Captain und Ticket Captain bleiben zwei eigene Einträge unter WordPress „Plugins“. Installation, Aktivierung, Deaktivierung, Updates und Deinstallation bleiben pro Plugin getrennt steuerbar.
+- Im WP-Admin behält jedes Plugin sein eigenes Top-Level-Menü und seine eigenen Einstellungs- und Verwaltungsseiten. Kein gemeinsames Hauptmenü darf eines der Plugins verbergen oder dessen Seiten aus dem eigenen Menü entfernen.
+- Die Menüs dürfen ein abgestimmtes Erscheinungsbild und gegenseitige Links aufweisen. Eine optionale Suite-Übersicht darf Integrationsstatus und Querverweise zeigen, ersetzt aber keines der Plugin-Menüs.
+- Die funktionale Bridge bleibt direkt: Gutscheine können im Ticket-Checkout verwendet werden; eine erfolgreiche Gutscheineinlösung kann das konfigurierte Ticket ausstellen; Status und Fehler sind in beiden Plugin-Oberflächen nachvollziehbar.
+- Ein gemeinsamer Scanner darf als optionale Oberfläche von beiden Admin-Menüs aus erreichbar sein. Die eigenständigen Scanner-/Admin-Seiten bleiben im jeweiligen Plugin verfügbar. Code-Prefixe wählen den zuständigen Handler; Gutschein-Einlösung und Ticket-Check-in bleiben getrennte Aktionen.
+- Eigene Capabilities, Nonces, REST-Prüfungen und Standalone-Funktion bleiben je Plugin erhalten. Capability-Erkennung steuert die Integration, nicht das Vorhandensein eines zusammengelegten Menüs.
 
 ### 15.8 PDF-Designer, Wallet und Rechts-/Datenschutzfunktionen
 
@@ -413,7 +415,7 @@ Die vorgeschlagenen Filter- und Action-Namen können als Integrations-Events gen
 
 ## Review der übernommenen Vorschläge
 
-- **Übernommen:** `TCAP`-Konstanten/Tabellenkonvention, Composer-Build-Isolierung als zu prüfende Releaseanforderung, QR-Prefix, optionale Unified-Scanner-Oberfläche, gemeinsames Admin-Menü, eigene Ticket- und Reservierungstabellen, Ticket-Platzhalter, DACH-Anforderungen und ein konkreter Implementierungsplan.
+- **Übernommen:** `TCAP`-Konstanten/Tabellenkonvention, Composer-Build-Isolierung als zu prüfende Releaseanforderung, QR-Prefix, optionale Unified-Scanner-Oberfläche, getrennte Admin-Menüs, eigene Ticket- und Reservierungstabellen, Ticket-Platzhalter, DACH-Anforderungen und ein konkreter Implementierungsplan.
 - **Präzisiert:** Gutscheinintegration nutzt Quote/Reservierung/Finalisierung/Freigabe statt unmittelbarer Abbuchung bei Kauf; Refunds führen konkrete Voucher- und Positionszuordnungen; Payment-Methoden hängen vom PSP-Konto und Markt ab.
 - **Nicht pauschal übernommen:** Fixe Steuersätze, eine immer verpflichtende Rücktritts-Checkbox, eine automatische Löschung aller Personendaten nach fixer Tageszahl, direkte VCAP-Tabellenupdates, VCAP als notwendige PDF-Engine und Offline-Check-in als verlässliche globale Einmalprüfung.
 
