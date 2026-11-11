@@ -1,0 +1,19 @@
+{
+  "apiVersion": 3,
+  "name": "wp-pass-captain/calendar",
+  "version": "0.1.0",
+  "title": "WP Pass Captain Kalender",
+  "category": "widgets",
+  "icon": "calendar-alt",
+  "description": "Zeigt kommende Termine veröffentlichter Events als Monatsansicht oder Liste.",
+  "textdomain": "wp-pass-captain",
+  "attributes": {
+    "view": { "type": "string", "default": "month", "enum": [ "month", "list" ] },
+    "eventId": { "type": "integer", "default": 0 }
+  },
+  "supports": {
+    "html": false
+  },
+  "render": "file:./render.php",
+  "editorScript": "file:./editor.js"
+}

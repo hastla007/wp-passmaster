@@ -134,6 +134,17 @@ final class Controller {
 			'callback' => array( __CLASS__, 'create_campaign' ),
 			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/payments/(?P<provider>[a-z0-9_-]+)/webhook', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( \PassCaptain\Payments\Webhooks::class, 'handle' ),
+			// Authenticity is established by the provider signature check in verify_webhook().
+			'permission_callback' => '__return_true',
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/checkout/options', array(
+			'methods' => \WP_REST_Server::READABLE,
+			'callback' => array( __CLASS__, 'checkout_options' ),
+			'permission_callback' => '__return_true',
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/events/(?P<event_id>\d+)/waitlist', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'join_waitlist' ),
@@ -162,7 +173,7 @@ final class Controller {
 		register_rest_route( 'wp-pass-captain/v1', '/developer/keys/(?P<key_id>\d+)/revoke', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'revoke_developer_key' ),
-			'permission_callback' => array( __CLASS__, 'pos_permission' ),
+			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
 		) );
 		register_rest_route( 'wp-pass-captain/v1', '/developer/events/(?P<event_id>\d+)', array(
 			'methods' => \WP_REST_Server::READABLE,
@@ -213,28 +224,65 @@ final class Controller {
 		return rest_ensure_response( $output );
 	}
 
-	/** Fields an anonymous checkout may set; adapter options (external, unit_prices, hold_minutes, currency, source) are internal only. */
-	const PUBLIC_CHECKOUT_FIELDS = array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'partner_code' );
-
 	public static function checkout( \WP_REST_Request $request ) {
 		$params = $request->get_json_params() ?: $request->get_params();
-		$payload = array_intersect_key( is_array( $params ) ? $params : array(), array_flip( self::PUBLIC_CHECKOUT_FIELDS ) );
-		$payload['source'] = 'native';
-		$partner_code = sanitize_text_field( (string) ( $payload['partner_code'] ?? '' ) );
-		if ( '' !== $partner_code ) {
-			/**
-			 * Validates an optional partner code entered at checkout (e.g. by WP Affiliate Captain).
-			 *
-			 * @since 0.4.0
-			 * @param true|\WP_Error $valid Result.
-			 * @param string         $code  Entered code.
-			 */
-			$valid = apply_filters( 'wpcap_validate_partner_code', true, $partner_code );
-			if ( is_wp_error( $valid ) ) { return $valid; }
+		$params = is_array( $params ) ? $params : array();
+		// Only customer fields; trusted adapter options must never come from a public request.
+		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code' ) ) ) );
+		$provider_id = sanitize_key( $params['provider'] ?? 'manual' );
+		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
+		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );
+		if ( ! $gateway || ! in_array( $provider_id, $enabled, true ) ) {
+			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
-		$result = Orders::create( $payload );
+		$hold = 'manual' === $provider_id ? max( 1, (int) \PassCaptain\Settings::get( 'manual_hold_hours' ) ) * 60 : max( 30, (int) \PassCaptain\Settings::get( 'hold_minutes' ) ); // Hosted payment pages (e.g. Stripe) live at least 30 minutes.
+		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold ) );
 		if ( is_wp_error( $result ) ) { return $result; }
-		return new \WP_REST_Response( $result, 201 );
+		$voucher_code = sanitize_text_field( $params['voucher_code'] ?? '' );
+		if ( '' !== $voucher_code && 'pending' === ( $result['payment_status'] ?? '' ) && empty( $result['reused'] ) ) {
+			$voucher = \PassCaptain\Integrations\Vouchers\Checkout::apply( $result['order_id'], $voucher_code );
+			if ( is_wp_error( $voucher ) ) {
+				Orders::cancel_order( $result['order_id'], 'voucher_rejected' );
+				return $voucher;
+			}
+			$fresh = Orders::get( $result['order_id'] );
+			$result['total_minor'] = (int) $fresh->total_minor;
+			$result['voucher_minor'] = (int) $voucher['applied_minor'];
+			$result['status'] = $fresh->status;
+			$result['payment_status'] = $fresh->payment_status;
+		}
+		if ( 'pending' === ( $result['payment_status'] ?? '' ) ) {
+			$order = (array) Orders::get( $result['order_id'] );
+			if ( ! $gateway->is_available( $order['currency'] ) ) {
+				Orders::cancel_order( $result['order_id'], 'provider_unavailable_for_currency' );
+				return new \WP_Error( 'wpcap_provider_currency', __( 'Diese Zahlungsart unterstützt die Währung nicht.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			}
+			$items = array_map( static function ( $row ) { return (array) $row; }, Orders::items_for_order( $result['order_id'] ) );
+			$payment = $gateway->create_payment( $order, $items );
+			if ( is_wp_error( $payment ) ) {
+				Orders::cancel_order( $result['order_id'], 'payment_start_failed' );
+				return new \WP_Error( $payment->get_error_code(), $payment->get_error_message(), array( 'status' => 502 ) );
+			}
+			if ( ! empty( $payment['provider_reference'] ) ) {
+				Orders::set_provider_reference( $result['order_id'], $payment['provider_reference'] );
+			}
+			$result['payment'] = array_intersect_key( $payment, array_flip( array( 'provider', 'status', 'redirect_url', 'instructions' ) ) );
+		}
+		return new \WP_REST_Response( $result, empty( $result['reused'] ) ? 201 : 200 );
+	}
+
+	/** Public checkout configuration: enabled payment methods and legal texts. */
+	public static function checkout_options( \WP_REST_Request $request ) {
+		$currency = strtoupper( sanitize_text_field( $request->get_param( 'currency' ) ?: 'EUR' ) );
+		$providers = array();
+		foreach ( \PassCaptain\Payments\Registry::enabled( $currency ) as $id => $gateway ) { $providers[] = array( 'id' => $id, 'title' => $gateway->title() ); }
+		return rest_ensure_response( array(
+			'providers' => $providers,
+			'require_terms' => (bool) \PassCaptain\Settings::get( 'require_terms' ),
+			'terms_text' => wp_kses_post( (string) \PassCaptain\Settings::get( 'terms_text' ) ),
+			'consumer_info_text' => wp_kses_post( (string) \PassCaptain\Settings::get( 'consumer_info_text' ) ),
+			'terms_version' => \PassCaptain\Settings::terms_version(),
+		) );
 	}
 
 	public static function order_status( \WP_REST_Request $request ) {
@@ -261,7 +309,7 @@ final class Controller {
 	}
 
 	public static function assign_ticket( \WP_REST_Request $request ) {
-		$result = TicketAssignments::assign( $request['public_id'], $request->get_param( 'access_token' ), $request->get_param( 'ticket_public_id' ), $request->get_param( 'attendee_name' ), $request->get_param( 'attendee_email' ) );
+		$result = TicketAssignments::assign( $request['public_id'], $request->get_param( 'access_token' ), $request->get_param( 'ticket_public_id' ), $request->get_param( 'attendee_name' ), $request->get_param( 'attendee_email' ), is_array( $request->get_param( 'answers' ) ) ? $request->get_param( 'answers' ) : null );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
@@ -293,13 +341,17 @@ final class Controller {
 			$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
 			if ( ! $event_id || ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) { return new \WP_Error( 'wpcap_pos_forbidden', __( 'Für dieses Event fehlt die POS-Berechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
 		}
-		$result = Orders::create( array( 'email' => $payload['email'] ?? '', 'items' => $items, 'idempotency_key' => 'pos-' . sanitize_text_field( $payload['idempotency_key'] ), 'source' => 'pos' ) );
+		$result = Orders::create( array( 'email' => $payload['email'] ?? '', 'items' => $items, 'idempotency_key' => sanitize_text_field( $payload['idempotency_key'] ) ), array( 'key_namespace' => 'pos', 'skip_rate_limit' => true, 'source' => 'pos' ) );
 		if ( is_wp_error( $result ) ) { return $result; }
 		if ( 'pending' === ( $result['payment_status'] ?? '' ) ) {
 			$confirmed = Orders::confirm_manual_payment( $result['order_id'] );
 			if ( is_wp_error( $confirmed ) ) { return $confirmed; }
 		}
-		return new \WP_REST_Response( array( 'order_id' => (int) $result['order_id'], 'public_id' => $result['public_id'], 'status' => 'complete', 'payment_status' => 'paid' ), 201 );
+		$order = Orders::get( $result['order_id'] );
+		if ( ! $order || 'paid' !== $order->payment_status ) {
+			return new \WP_Error( 'wpcap_pos_not_paid', __( 'Dieser Idempotency-Key gehört zu einer nicht bezahlten Bestellung; bitte einen neuen Verkauf starten.', 'wp-pass-captain' ), array( 'status' => 409, 'status_code' => $order ? $order->status : '' ) );
+		}
+		return new \WP_REST_Response( array( 'order_id' => (int) $order->order_id, 'public_id' => $order->public_id, 'status' => $order->status, 'payment_status' => $order->payment_status ), empty( $result['reused'] ) ? 201 : 200 );
 	}
 
 	public static function offline_sync( \WP_REST_Request $request ) {
@@ -310,6 +362,7 @@ final class Controller {
 		foreach ( $tokens as $raw_token ) {
 			$scan = new \WP_REST_Request( 'POST' );
 			$scan->set_param( 'token', sanitize_text_field( $raw_token ) );
+			$scan->set_param( 'source', 'offline' );
 			$result = self::check_in( $scan );
 			$results[] = is_wp_error( $result ) ? array( 'status' => 'conflict', 'code' => $result->get_error_code(), 'message' => $result->get_error_message() ) : $result->get_data();
 		}
@@ -445,7 +498,7 @@ final class Controller {
 
 	public static function developer_event( \WP_REST_Request $request ) {
 		global $wpdb;
-		if ( false === DeveloperKeys::authorize( $request, 'events.read', absint( $request['event_id'] ) ) ) { return new \WP_Error( 'wpcap_api_key_invalid', __( 'API-Key ist ungültig oder nicht berechtigt.', 'wp-pass-captain' ), array( 'status' => 401 ) ); }
+		// Authorised (and rate limited) once in developer_key_permission().
 		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name,slug,description,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", absint( $request['event_id'] ) ), ARRAY_A );
 		return $event ? rest_ensure_response( $event ) : new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
 	}
@@ -453,7 +506,7 @@ final class Controller {
 	public static function get_event_translation( \WP_REST_Request $request ) {
 		global $wpdb;
 		$locale = sanitize_text_field( $request->get_param( 'locale' ) ?: determine_locale() );
-		$translation = $wpdb->get_row( $wpdb->prepare( "SELECT locale,name,description,location,updated_at FROM {$wpdb->prefix}wpcap_event_translations WHERE event_id=%d AND locale=%s", absint( $request['event_id'] ), $locale ), ARRAY_A );
+		$translation = $wpdb->get_row( $wpdb->prepare( "SELECT tr.locale,tr.name,tr.description,tr.location,tr.updated_at FROM {$wpdb->prefix}wpcap_event_translations tr INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=tr.event_id WHERE tr.event_id=%d AND tr.locale=%s AND e.status='published'", absint( $request['event_id'] ), $locale ), ARRAY_A );
 		return $translation ? rest_ensure_response( $translation ) : new \WP_Error( 'wpcap_translation_not_found', __( 'Übersetzung nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
 	}
 
@@ -499,15 +552,15 @@ final class Controller {
 		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d FOR UPDATE", $event_id ) );
 		if ( ! $event ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		$version = 1 + (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(version) FROM {$wpdb->prefix}wpcap_seat_maps WHERE event_id=%d", $event_id ) );
-		$wpdb->insert( $wpdb->prefix . 'wpcap_seat_maps', array( 'event_id' => $event_id, 'version' => $version, 'name' => $name, 'status' => 'published', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%s', '%s', '%s' ) );
-		$map_id = (int) $wpdb->insert_id;
+		$map_saved = $wpdb->insert( $wpdb->prefix . 'wpcap_seat_maps', array( 'event_id' => $event_id, 'version' => $version, 'name' => $name, 'status' => 'published', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%s', '%s', '%s' ) );
+		$map_id = false === $map_saved ? 0 : (int) $wpdb->insert_id;
 		if ( ! $map_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_map_save', __( 'Sitzplan konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		foreach ( $rows as $seat ) {
 			$key = sanitize_key( $seat['seat_key'] ?? '' );
 			$label = sanitize_text_field( $seat['seat_label'] ?? '' );
 			if ( ! $key || ! $label ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_invalid', __( 'Jeder Sitzplatz benötigt einen eindeutigen Schlüssel und eine Bezeichnung.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
-			$wpdb->insert( $wpdb->prefix . 'wpcap_seats', array( 'map_id' => $map_id, 'seat_key' => $key, 'zone' => sanitize_text_field( $seat['zone'] ?? '' ), 'row_label' => sanitize_text_field( $seat['row_label'] ?? '' ), 'seat_label' => $label, 'position_x' => (float) ( $seat['x'] ?? 0 ), 'position_y' => (float) ( $seat['y'] ?? 0 ), 'status' => 'available' ), array( '%d', '%s', '%s', '%s', '%s', '%f', '%f', '%s' ) );
-			if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_duplicate', __( 'Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+			$seat_saved = $wpdb->insert( $wpdb->prefix . 'wpcap_seats', array( 'map_id' => $map_id, 'seat_key' => $key, 'zone' => sanitize_text_field( $seat['zone'] ?? '' ), 'row_label' => sanitize_text_field( $seat['row_label'] ?? '' ), 'seat_label' => $label, 'position_x' => (float) ( $seat['x'] ?? 0 ), 'position_y' => (float) ( $seat['y'] ?? 0 ), 'status' => 'available' ), array( '%d', '%s', '%s', '%s', '%s', '%f', '%f', '%s' ) );
+			if ( false === $seat_saved ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_duplicate', __( 'Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		}
 		$wpdb->query( 'COMMIT' );
 		return new \WP_REST_Response( array( 'map_id' => $map_id, 'version' => $version, 'seat_count' => count( $rows ) ), 201 );
@@ -587,58 +640,13 @@ final class Controller {
 	}
 
 	public static function validate_ticket( \WP_REST_Request $request ) {
-		$result = self::ticket_for_token( $request->get_param( 'token' ) );
-		if ( is_wp_error( $result ) ) { return $result; }
-		if ( ! Access::can_access_event( $result['event_id'], 'wpcap_checkin' ) ) { return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
-		return rest_ensure_response( $result );
+		$result = \PassCaptain\Checkin::preview( $request->get_param( 'token' ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
+	/** Web scanner check-in; the logic lives in Checkin::perform() (shared with the app API). */
 	public static function check_in( \WP_REST_Request $request ) {
-		global $wpdb;
-		$found = self::ticket_for_token( $request->get_param( 'token' ) );
-		if ( is_wp_error( $found ) ) { return $found; }
-		if ( ! Access::can_access_event( $found['event_id'], 'wpcap_checkin' ) ) { return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
-		$tickets = $wpdb->prefix . 'wpcap_tickets';
-		$wpdb->query( 'START TRANSACTION' );
-		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM $tickets WHERE ticket_id=%d FOR UPDATE", $found['ticket_id'] ) );
-		if ( ! $ticket || 'valid' !== $ticket->status ) {
-			$wpdb->insert( $wpdb->prefix . 'wpcap_checkins', array( 'ticket_id' => $found['ticket_id'], 'event_id' => $found['event_id'], 'user_id' => get_current_user_id(), 'result' => $ticket ? $ticket->status : 'unknown', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%s', '%s' ) );
-			$wpdb->query( 'COMMIT' );
-			return new \WP_Error( 'wpcap_ticket_not_valid', __( 'Ticket wurde bereits verwendet oder ist widerrufen.', 'wp-pass-captain' ), array( 'status' => 409, 'ticket_status' => $ticket ? $ticket->status : 'unknown' ) );
-		}
-		$service_date = wp_date( 'Y-m-d', time(), new \DateTimeZone( $found['timezone'] ) );
-		$day_table = $wpdb->prefix . 'wpcap_occurrence_days';
-		$day = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id,admission_policy,max_entries FROM $day_table WHERE occurrence_id=%d AND service_date=%s", $found['occurrence_id'], $service_date ) );
-		$has_day_rules = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $day_table WHERE occurrence_id=%d", $found['occurrence_id'] ) );
-		$repeatable = $day && in_array( $day->admission_policy, array( 'daily', 'reentry' ), true );
-		$blocked = '';
-		if ( $has_day_rules && ! $day ) { $blocked = 'not_valid_today'; }
-		if ( $repeatable ) {
-			$entries_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_checkins WHERE ticket_id=%d AND occurrence_day_id=%d AND result='checked_in'", $ticket->ticket_id, $day->occurrence_day_id ) );
-			if ( $entries_today >= (int) $day->max_entries ) { $blocked = 'daily_limit_reached'; }
-		}
-		if ( $blocked ) {
-			$wpdb->insert( $wpdb->prefix . 'wpcap_checkins', array( 'ticket_id' => $ticket->ticket_id, 'event_id' => $found['event_id'], 'occurrence_day_id' => $day ? (int) $day->occurrence_day_id : 0, 'user_id' => get_current_user_id(), 'result' => $blocked, 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%d', '%s', '%s' ) );
-			$wpdb->query( 'COMMIT' );
-			return new \WP_Error( 'wpcap_ticket_day_rule', __( 'Ticket ist heute nicht gültig oder das Tageskontingent ist erreicht.', 'wp-pass-captain' ), array( 'status' => 409, 'ticket_status' => $blocked ) );
-		}
-		if ( ! $repeatable ) { $wpdb->update( $tickets, array( 'status' => 'checked_in' ), array( 'ticket_id' => $ticket->ticket_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) ); }
-		$wpdb->insert( $wpdb->prefix . 'wpcap_checkins', array( 'ticket_id' => $ticket->ticket_id, 'event_id' => $found['event_id'], 'occurrence_day_id' => $day ? (int) $day->occurrence_day_id : 0, 'user_id' => get_current_user_id(), 'result' => 'checked_in', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%d', '%s', '%s' ) );
-		$wpdb->query( 'COMMIT' );
-		Audit::record( 'ticket_checked_in', 'ticket', $ticket->ticket_id, array( 'event_id' => $found['event_id'] ) );
-		return rest_ensure_response( array( 'status' => 'checked_in', 'event' => $found['event_name'], 'ticket' => $found['ticket_name'] ) );
-	}
-
-	private static function ticket_for_token( $token ) {
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
-		if ( 64 !== strlen( $token ) ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
-		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.status,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,e.name AS event_name FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
-			hash( 'sha256', $token )
-		) );
-		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
-		if ( strtotime( $row->starts_at . ' UTC' ) < time() - DAY_IN_SECONDS || strtotime( $row->starts_at . ' UTC' ) > time() + 365 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_ticket_out_of_window', __( 'Das Ticket liegt außerhalb des Einlasszeitraums.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
-		return array( 'ticket_id' => (int) $row->ticket_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'timezone' => $row->timezone );
+		$result = \PassCaptain\Checkin::perform( $request->get_param( 'token' ), array( 'source' => sanitize_key( $request->get_param( 'source' ) ?: 'web' ), 'idempotency_key' => sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) ) ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 }
