@@ -1,20 +1,35 @@
 name: Release
 
 # Pushing a tag like v1.0.0 builds the plugin ZIP and publishes a GitHub release
-# with the matching CHANGELOG section as release notes.
+# with the matching CHANGELOG section as release notes. Alternatively start it
+# manually (workflow_dispatch) on main: the tag v<plugin version> is then created
+# by the release on the dispatched commit.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   release:
+    # Manual runs only from main, so a release always matches merged code.
+    if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Determine tag
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            echo "TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+          else
+            version="$(sed -n 's/^ \* Version: *//p' wp-pass-captain.php | head -n1)"
+            test -n "$version" || { echo "No plugin version found"; exit 1; }
+            echo "TAG=v${version}" >> "$GITHUB_ENV"
+          fi
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -25,16 +40,16 @@ jobs:
 
       - name: Check plugin version matches the tag
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          grep -q "Version: ${version}\$" wp-pass-captain.php || { echo "Plugin header version does not match tag ${GITHUB_REF_NAME}"; exit 1; }
-          grep -q "'WPCAP_VERSION', '${version}'" wp-pass-captain.php || { echo "WPCAP_VERSION does not match tag ${GITHUB_REF_NAME}"; exit 1; }
+          version="${TAG#v}"
+          grep -q "Version: ${version}\$" wp-pass-captain.php || { echo "Plugin header version does not match tag ${TAG}"; exit 1; }
+          grep -q "'WPCAP_VERSION', '${version}'" wp-pass-captain.php || { echo "WPCAP_VERSION does not match tag ${TAG}"; exit 1; }
 
       - name: Build ZIP
         run: bash build/release.sh
 
       - name: Extract release notes from CHANGELOG.md
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          version="${TAG#v}"
           awk -v v="$version" '
             $0 ~ "^## " v "( |$)" { on = 1; next }
             on && /^## / { exit }
@@ -46,7 +61,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" build/dist/wp-pass-captain.zip \
-            --title "WP Pass Captain ${GITHUB_REF_NAME}" \
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then target_args=(--verify-tag); else target_args=(--target "$GITHUB_SHA"); fi
+          gh release create "$TAG" build/dist/wp-pass-captain.zip \
+            --title "WP Pass Captain ${TAG}" \
             --notes-file release-notes.md \
-            --verify-tag
+            "${target_args[@]}"
