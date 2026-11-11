@@ -42,6 +42,11 @@ Webhook-Ereignissen).
 |---|---|---|
 | `wpcap_checkout_payload_keys` | `string[] $keys` | Zusätzliche öffentliche Checkout-Felder durchlassen (z. B. `sms_phone`, `sms_consent`, `mollie_method`). |
 | `wpcap_checkout_error_messages` | `array $messages` (Code → Text) | Meldungen zu Abbruch-Codes aus `wpcap_order_creating`. |
+| `wpcap_affiliate_partner_field` | `bool $show` (true) | Partnercode-Feld im Checkout (nur mit WP Affiliate Captain). |
+| `wpcap_affiliate_hold_until` | `int $timestamp, object $order` | Sperrfrist der Provision (Standard: Ende des letzten gebuchten Termins). |
+| `wpcap_affiliate_net_minor` | `int $net, object $line, object $order` | Provisionsbasis je Bestellzeile. |
+| `wpcap_affiliate_sale_payload` | `array $payload, object $order` | Verkaufsdaten an WP Affiliate Captain. |
+| `wpcap_affiliate_skip_channels` | `string[] $channels` (`woocommerce`) | Kanäle/Zahlungsanbieter, die nicht gemeldet werden. |
 | `wpcap_checkout_ip_limit` | `int $limit` (30) | Checkouts je IP und Stunde. |
 | `wpcap_service_booking_ip_limit` | `int $limit` (40) | Buchungsversuche je IP. |
 | `wpcap_seating_availability_limit` | `int $limit` (120) | Abrufe der Sitzplatzverfügbarkeit je Client und Minute. |
