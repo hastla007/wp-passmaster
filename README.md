@@ -72,4 +72,4 @@ php build/compile-mo.php languages/wp-pass-captain-xx_XX.po
 - Rechtliche und steuerliche Prüfung von Rechnungen, Gutschriften, Verbraucherinformationen und Steuersätzen je Land.
 - Native Scanner-Apps selbst (die Server-API ist fertig, siehe docs/MOBILE-API.md, inkl. geplanter Erweiterungen).
 - Abnahme der P2-Module gegen echte Dienste (Apple/Google Wallet, Twilio, Mollie) und im Browser (Saalplan-Editor, Platzwahl, Kasse).
-- P3 laut Konzept: echtes Offline-Prüfpaket, externe Scanner-Apps, Partnerabrechnungen; Last-, Sicherheits- und Barrierefreiheitstests.
+- P3 laut Konzept: echtes Offline-Prüfpaket, externe Scanner-Apps, Veranstalter-Abrechnungen; Last-, Sicherheits- und Barrierefreiheitstests.
