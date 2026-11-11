@@ -10,7 +10,7 @@ final class Invoices {
 		$order_id = absint( $order_id );
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", $order_id ) );
 		if ( ! $order || 'paid' !== $order->payment_status ) { return new \WP_Error( 'wpcap_invoice_order_unpaid', __( 'Eine Rechnung kann erst für bezahlte Bestellungen erstellt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,invoice_number FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d AND status='issued' ORDER BY invoice_id DESC LIMIT 1", $order_id ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,invoice_number FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d LIMIT 1", $order_id ) );
 		if ( $existing ) { return array( 'invoice_id' => (int) $existing->invoice_id, 'invoice_number' => $existing->invoice_number, 'reused' => true ); }
 		$items = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d", $order_id ) );
 		$number = self::next_number();
@@ -20,7 +20,7 @@ final class Invoices {
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,invoice_number FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d", $order_id ) );
 		if ( $existing ) { $wpdb->query( 'COMMIT' ); return array( 'invoice_id' => (int) $existing->invoice_id, 'invoice_number' => $existing->invoice_number, 'reused' => true ); }
 		if ( ! $locked_order || 'paid' !== $locked_order->payment_status ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_order_unpaid', __( 'Die Bestellung ist nicht mehr als bezahlt markiert.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
-		$wpdb->insert( $wpdb->prefix . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order->total_minor, 'tax_minor' => 0, 'total_minor' => $order->total_minor, 'buyer_snapshot' => wp_json_encode( array( 'email' => $order->customer_email, 'currency' => $order->currency, 'total_minor' => (int) $order->total_minor ) ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ), array( '%d', '%s', '%s', '%d', '%d', '%d', '%s', '%s', '%s' ) );
+		$wpdb->insert( $wpdb->prefix . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order->total_minor, 'tax_minor' => 0, 'total_minor' => $order->total_minor, 'buyer_snapshot' => wp_json_encode( array( 'email' => $order->customer_email, 'currency' => $order->currency, 'total_minor' => (int) $order->total_minor ) ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'draft' ), array( '%d', '%s', '%s', '%d', '%d', '%d', '%s', '%s', '%s' ) );
 		$invoice_id = (int) $wpdb->insert_id;
 		if ( ! $invoice_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_create', __( 'Rechnung konnte nicht erstellt werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		foreach ( $items as $item ) {
