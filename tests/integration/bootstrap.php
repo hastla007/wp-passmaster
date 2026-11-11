@@ -124,10 +124,20 @@ function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function mysql2date( $f, $d ) { return gmdate( $f, strtotime( $d ) ); }
 function get_date_from_gmt( $d ) { return $d; }
 function wp_mail( $to, $subject, $body ) { $GLOBALS['wpcap_test_mails'][] = compact( 'to', 'subject', 'body' ); return true; }
-function do_action( $hook, ...$args ) { $GLOBALS['wpcap_test_actions'][] = $hook; }
-function apply_filters( $hook, $value, ...$args ) { return $value; }
-function add_action() {}
-function add_filter() {}
+// Minimal hook registry: tests register callbacks explicitly; plugin bootstrapping is not run here.
+$GLOBALS['wpcap_test_hooks'] = array();
+function add_filter( $hook = '', $cb = null, $prio = 10, $args = 1 ) { if ( $hook && $cb ) { $GLOBALS['wpcap_test_hooks'][ $hook ][] = array( $cb, (int) $args ); } return true; }
+function add_action( $hook = '', $cb = null, $prio = 10, $args = 1 ) { return add_filter( $hook, $cb, $prio, $args ); }
+function apply_filters( $hook, $value, ...$args ) {
+	foreach ( $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array() as $h ) { $value = call_user_func_array( $h[0], array_slice( array_merge( array( $value ), $args ), 0, $h[1] ) ); }
+	return $value;
+}
+function do_action( $hook, ...$args ) {
+	$GLOBALS['wpcap_test_actions'][] = $hook;
+	foreach ( $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array() as $h ) { call_user_func_array( $h[0], array_slice( $args, 0, $h[1] ) ); }
+}
+function has_action( $hook ) { return ! empty( $GLOBALS['wpcap_test_hooks'][ $hook ] ); }
+function wp_salt( $scheme = 'auth' ) { return 'test-salt-' . $scheme; }
 function current_filter() { return 'test_filter'; }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function get_role( $r ) { return null; }

@@ -105,7 +105,17 @@ final class Orders {
 			if ( is_wp_error( $adjustments ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
 			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
 			$total = max( 0, $subtotal - $discount );
-			$price_snapshot = wp_json_encode( array( 'currency' => $currency, 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'campaigns' => array_map( static function ( $adjustment ) { return array( 'code' => $adjustment['campaign']->code, 'amount_minor' => (int) $adjustment['amount_minor'] ); }, $adjustments ) ) );
+			$snapshot = array( 'currency' => $currency, 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'campaigns' => array_map( static function ( $adjustment ) { return array( 'code' => $adjustment['campaign']->code, 'amount_minor' => (int) $adjustment['amount_minor'] ); }, $adjustments ), 'source' => sanitize_key( $payload['source'] ?? 'native' ) );
+			/**
+			 * Lets integrations add order-owned context (e.g. a partner referral) to the snapshot.
+			 * Must not add personal data beyond what the order already holds.
+			 *
+			 * @since 0.4.0
+			 * @param array $snapshot Price snapshot.
+			 * @param array $payload  Raw checkout payload.
+			 */
+			$snapshot = apply_filters( 'wpcap_order_snapshot', $snapshot, $payload );
+			$price_snapshot = wp_json_encode( is_array( $snapshot ) ? $snapshot : array() );
 
 			$public_id = bin2hex( random_bytes( 16 ) );
 			$access_token = bin2hex( random_bytes( 32 ) );
@@ -177,6 +187,7 @@ final class Orders {
 		if ( ! $pending ) {
 			Campaigns::commit_for_order( $order_id );
 			self::issue_and_email( $order_id );
+			do_action( 'wpcap_order_paid', $order_id );
 		}
 		if ( ! $external ) {
 			self::send_order_access_link( $email, $public_id, $access_token );
@@ -314,6 +325,13 @@ final class Orders {
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'external_payment_confirmed', 'order', $order_id, array( 'reference' => sanitize_text_field( $reference ), 'late_recovery' => $recovered ) );
 		self::issue_and_email( $order_id );
+		/**
+		 * An order became paid (after COMMIT). Fires once per transition to "paid".
+		 *
+		 * @since 0.4.0
+		 * @param int $order_id Order ID.
+		 */
+		do_action( 'wpcap_order_paid', $order_id );
 		return true;
 	}
 
@@ -345,6 +363,15 @@ final class Orders {
 		$wpdb->query( 'COMMIT' );
 		Campaigns::release_for_order( $order_id );
 		Audit::record( 'order_cancelled', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
+		/**
+		 * An order was cancelled (after COMMIT).
+		 *
+		 * @since 0.4.0
+		 * @param int    $order_id               Order ID.
+		 * @param string $previous_payment_status Payment status before the cancellation (e.g. "paid").
+		 * @param string $reason                  Reason.
+		 */
+		do_action( 'wpcap_order_cancelled', $order_id, (string) $order->payment_status, sanitize_text_field( $reason ) );
 		return true;
 	}
 
@@ -368,12 +395,21 @@ final class Orders {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status,payment_status FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
 		if ( ! $order || 'refunded' === $order->status ) { return true; }
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) );
 		$revoked = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=%d AND status='valid'", $order_id ) );
 		$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'refunded', 'payment_status' => 'refunded', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
 		Audit::record( 'order_refunded', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
+		/**
+		 * An order was fully refunded.
+		 *
+		 * @since 0.4.0
+		 * @param int    $order_id               Order ID.
+		 * @param string $previous_payment_status Payment status before the refund.
+		 * @param string $reason                  Reason.
+		 */
+		do_action( 'wpcap_order_refunded', $order_id, (string) $order->payment_status, sanitize_text_field( $reason ) );
 		return true;
 	}
 
@@ -471,6 +507,14 @@ final class Orders {
 			Campaigns::release_for_order( $order_id );
 		}
 		$wpdb->query( 'COMMIT' );
+		/**
+		 * An event was cancelled (after COMMIT). Paid orders stay paid; their tickets were revoked.
+		 *
+		 * @since 0.4.0
+		 * @param int   $event_id  Event ID.
+		 * @param int[] $order_ids Orders with items of this event.
+		 */
+		do_action( 'wpcap_event_cancelled', $event_id, array_map( 'absint', $order_ids ) );
 		$emails = $wpdb->get_col( $wpdb->prepare(
 			"SELECT DISTINCT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) FROM {$wpdb->prefix}wpcap_orders ord INNER JOIN {$wpdb->prefix}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$wpdb->prefix}wpcap_tickets t ON t.order_id=ord.order_id AND t.ticket_type_id=tt.ticket_type_id WHERE o.event_id=%d",
 			$event_id
@@ -503,6 +547,7 @@ final class Orders {
 		$wpdb->query( 'COMMIT' );
 		self::issue_and_email( $order_id );
 		Audit::record( 'manual_payment_confirmed', 'order', $order_id );
+		do_action( 'wpcap_order_paid', (int) $order_id );
 		return true;
 	}
 

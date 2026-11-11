@@ -214,11 +214,25 @@ final class Controller {
 	}
 
 	/** Fields an anonymous checkout may set; adapter options (external, unit_prices, hold_minutes, currency, source) are internal only. */
-	const PUBLIC_CHECKOUT_FIELDS = array( 'email', 'items', 'idempotency_key', 'campaign_codes' );
+	const PUBLIC_CHECKOUT_FIELDS = array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'partner_code' );
 
 	public static function checkout( \WP_REST_Request $request ) {
 		$params = $request->get_json_params() ?: $request->get_params();
-		$result = Orders::create( array_intersect_key( is_array( $params ) ? $params : array(), array_flip( self::PUBLIC_CHECKOUT_FIELDS ) ) );
+		$payload = array_intersect_key( is_array( $params ) ? $params : array(), array_flip( self::PUBLIC_CHECKOUT_FIELDS ) );
+		$payload['source'] = 'native';
+		$partner_code = sanitize_text_field( (string) ( $payload['partner_code'] ?? '' ) );
+		if ( '' !== $partner_code ) {
+			/**
+			 * Validates an optional partner code entered at checkout (e.g. by WP Affiliate Captain).
+			 *
+			 * @since 0.4.0
+			 * @param true|\WP_Error $valid Result.
+			 * @param string         $code  Entered code.
+			 */
+			$valid = apply_filters( 'wpcap_validate_partner_code', true, $partner_code );
+			if ( is_wp_error( $valid ) ) { return $valid; }
+		}
+		$result = Orders::create( $payload );
 		if ( is_wp_error( $result ) ) { return $result; }
 		return new \WP_REST_Response( $result, 201 );
 	}
@@ -279,7 +293,7 @@ final class Controller {
 			$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
 			if ( ! $event_id || ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) { return new \WP_Error( 'wpcap_pos_forbidden', __( 'Für dieses Event fehlt die POS-Berechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
 		}
-		$result = Orders::create( array( 'email' => $payload['email'] ?? '', 'items' => $items, 'idempotency_key' => 'pos-' . sanitize_text_field( $payload['idempotency_key'] ) ) );
+		$result = Orders::create( array( 'email' => $payload['email'] ?? '', 'items' => $items, 'idempotency_key' => 'pos-' . sanitize_text_field( $payload['idempotency_key'] ), 'source' => 'pos' ) );
 		if ( is_wp_error( $result ) ) { return $result; }
 		if ( 'pending' === ( $result['payment_status'] ?? '' ) ) {
 			$confirmed = Orders::confirm_manual_payment( $result['order_id'] );

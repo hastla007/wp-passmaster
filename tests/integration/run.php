@@ -177,5 +177,94 @@ foreach ( $procs as $proc ) { $ok += 'OK' === trim( stream_get_contents( $proc )
 $held = (int) $wpdb->get_var( "SELECT SUM(quantity) FROM {$p}wpcap_reservations WHERE ticket_type_id=$type AND status='active'" );
 check( "exactly 5 of 20 parallel buyers get a hold (got $ok, held $held)", 5 === $ok && 5 === $held );
 
+echo "WP Affiliate Captain adapter (contract v1)\n";
+$GLOBALS['wpac_test_version'] = '1.1.0';
+$GLOBALS['wpac_test_sales']   = array();
+$GLOBALS['wpac_test_refunds'] = array();
+$GLOBALS['wpac_test_touch']   = null;
+function wpac_contract_version() { return $GLOBALS['wpac_test_version']; }
+function wpac_record_sale( array $payload ) { $GLOBALS['wpac_test_sales'][] = $payload; return array( 'status' => 'created' ); }
+function wpac_record_refund( array $payload ) { $GLOBALS['wpac_test_refunds'][] = $payload; return array( 'status' => 'adjusted' ); }
+function wpac_resolve_partner_code( $code, array $context = array() ) { return 'NORD-1' === strtoupper( $code ) ? array( 'affiliate_id' => 7, 'code_id' => 3, 'code' => 'NORD-1' ) : null; }
+function wpac_current_touch() { return $GLOBALS['wpac_test_touch']; }
+use PassCaptain\Integrations\AffiliateCaptain\Adapter as AffiliateAdapter;
+AffiliateAdapter::register();
+$_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+
+check( 'adapter is available for contract 1.x', AffiliateAdapter::available() );
+$GLOBALS['wpac_test_version'] = '2.0.0';
+check( 'adapter refuses an incompatible major contract', ! AffiliateAdapter::available() );
+$GLOBALS['wpac_test_version'] = '1.1.0';
+check( 'integration is listed on the Affiliate Captain status page', isset( apply_filters( 'wpac_registered_integrations', array() )['pass-captain'] ) );
+check( 'checkout shows the partner code field', true === apply_filters( 'wpcap_checkout_partner_field', false ) );
+check( 'valid partner code passes the checkout check', true === apply_filters( 'wpcap_validate_partner_code', true, 'nord-1' ) );
+$invalid = apply_filters( 'wpcap_validate_partner_code', true, 'NOPE' );
+check( 'unknown partner code is rejected with 400', is_wp_error( $invalid ) && 'wpcap_partner_code_invalid' === $invalid->get_error_code() );
+for ( $i = 0; $i < 12; $i++ ) { $last = apply_filters( 'wpcap_validate_partner_code', true, 'NOPE' . $i ); }
+check( 'partner code guessing is rate limited', is_wp_error( $last ) && 'wpcap_rate_limited' === $last->get_error_code() );
+
+function aff_order( $type, $qty, $source, $extra = array() ) {
+	return Orders::create( array_merge( array( 'email' => 'aff' . uniqid() . '@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => 'aff-' . uniqid(), 'source' => $source ), $extra ) );
+}
+
+$type = make_type( 50, 10, 2500 );
+$GLOBALS['wpac_test_touch'] = array( 'code' => 'NORD-1', 'method' => 'cookie', 'campaign' => 'sommer', 'content_id' => 42 );
+$o = aff_order( $type, 2, 'native', array( 'partner_code' => 'nord-1' ) );
+$snap = json_decode( $wpdb->get_var( "SELECT price_snapshot FROM {$p}wpcap_orders WHERE order_id=" . (int) $o['order_id'] ), true );
+check( 'referral (code + touch) is stored with the native order', 'NORD-1' === ( $snap['affiliate_referral']['code'] ?? '' ) && 'cookie' === ( $snap['affiliate_referral']['touch']['method'] ?? '' ) && 'native' === $snap['source'] );
+check( 'no sale is reported before payment', 0 === count( $GLOBALS['wpac_test_sales'] ) );
+$GLOBALS['wpac_test_touch'] = null; // Payment is confirmed later by staff: their request has no referral.
+Orders::confirm_manual_payment( $o['order_id'] );
+$sale = $GLOBALS['wpac_test_sales'][0] ?? array();
+$occ_start = strtotime( $wpdb->get_var( "SELECT o.starts_at FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_ticket_types t ON t.occurrence_id=o.occurrence_id WHERE t.ticket_type_id=$type" ) . ' UTC' );
+check( 'paid native order is reported once as pass-captain sale', 1 === count( $GLOBALS['wpac_test_sales'] ) && 'pass-captain' === $sale['source'] && (string) $o['order_id'] === $sale['order_id'] );
+check( 'sale carries the stored code and touch', 'NORD-1' === $sale['partner_code'] && 'code' === $sale['partner_code_method'] && 'sommer' === $sale['touch']['campaign'] && 42 === $sale['touch']['content_id'] );
+check( 'sale line: net 5000, quantity 2, SKU for rules, no internal keys', 5000 === $sale['items'][0]['net_minor'] && 2 === $sale['items'][0]['quantity'] && 0 === strpos( $sale['items'][0]['sku'], 'PASS-E' ) && ! isset( $sale['items'][0]['_event_id'] ) );
+check( 'commission is held until the event date', gmdate( 'Y-m-d H:i:s', $occ_start ) === $sale['hold_until'] );
+check( 'customer e-mail is passed for the self-referral check only', is_email( $sale['customer']['email'] ) );
+
+Orders::confirm_external_payment( $o['order_id'] );
+check( 'repeated payment confirmation does not report again', 1 === count( $GLOBALS['wpac_test_sales'] ) );
+
+$now = gmdate( 'Y-m-d' );
+$wpdb->insert( "{$p}wpcap_tax_profiles", array( 'country_code' => 'DE', 'tax_class' => 'standard', 'rate_basis_points' => 1900, 'version' => 't', 'effective_from' => '2020-01-01', 'effective_until' => null, 'status' => 'active', 'created_at' => $now ) );
+$o2 = aff_order( $type, 2, 'native' );
+Orders::confirm_manual_payment( $o2['order_id'] );
+$sale2 = end( $GLOBALS['wpac_test_sales'] );
+check( 'VAT of the active tax profile is removed (5000 gross → 4202 net)', 4202 === $sale2['items'][0]['net_minor'] && ! isset( $sale2['partner_code'] ) && ! isset( $sale2['touch'] ) );
+
+$GLOBALS['wpac_test_touch'] = array( 'code' => 'STAFF', 'method' => 'cookie', 'campaign' => '', 'content_id' => 0 );
+$pos = aff_order( $type, 1, 'pos' );
+Orders::confirm_manual_payment( $pos['order_id'] );
+$sale3 = end( $GLOBALS['wpac_test_sales'] );
+check( 'POS sale is reported without the staff member\'s referral', (string) $pos['order_id'] === $sale3['order_id'] && ! isset( $sale3['touch'] ) );
+$GLOBALS['wpac_test_touch'] = null;
+
+$before = count( $GLOBALS['wpac_test_sales'] );
+$woo = Orders::create( array( 'email' => 'woo@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'woo-aff-1', 'external' => true, 'source' => 'woocommerce', 'currency' => 'EUR' ) );
+Orders::confirm_external_payment( $woo['order_id'], 'woocommerce:1' );
+check( 'WooCommerce-backed orders are not reported (Affiliate Captain records the Woo order)', $before === count( $GLOBALS['wpac_test_sales'] ) );
+
+$free_type = make_type( 10, 10, 0 );
+$free = aff_order( $free_type, 1, 'native' );
+check( 'free orders are not reported', 'complete' === $free['status'] && $before === count( $GLOBALS['wpac_test_sales'] ) );
+
+$pending = aff_order( $type, 1, 'native' );
+Orders::cancel_order( $pending['order_id'], 'test' );
+check( 'cancelling an unpaid order reverses nothing', 0 === count( $GLOBALS['wpac_test_refunds'] ) );
+Orders::cancel_order( $o2['order_id'], 'customer' );
+$ref = $GLOBALS['wpac_test_refunds'][0] ?? array();
+check( 'cancelling a paid order reverses the full commission', 'cancellation' === $ref['type'] && true === $ref['full'] && (string) $o2['order_id'] === $ref['order_id'] );
+Orders::mark_refunded( $pos['order_id'], 'refund' );
+$ref = end( $GLOBALS['wpac_test_refunds'] );
+check( 'full refund reverses the commission', 'refund' === $ref['type'] && 'refund-' . $pos['order_id'] === $ref['refund_id'] );
+Orders::mark_refunded( $pos['order_id'], 'refund' );
+check( 'repeated refund is not reported twice', 2 === count( $GLOBALS['wpac_test_refunds'] ) );
+$event_id = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_ticket_types t ON t.occurrence_id=o.occurrence_id WHERE t.ticket_type_id=$type" );
+Orders::cancel_event( $event_id );
+$ref = end( $GLOBALS['wpac_test_refunds'] );
+check( 'event cancellation reverses the event lines of paid orders', 'event-cancelled-' . $event_id === $ref['refund_id'] && (string) $o['order_id'] === $ref['order_id'] && 5000 === $ref['items'][0]['net_minor'] );
+check( 'event cancellation skips refunded and cancelled orders', 3 === count( $GLOBALS['wpac_test_refunds'] ) );
+
 echo "\n$passes passed, $failures failed\n";
 exit( $failures ? 1 : 0 );

@@ -13,6 +13,8 @@
 			message.textContent = 'Bitte wähle eine gültige Ticketanzahl.';
 			return;
 		}
+		const partnerField = form.querySelector('[name="partner_code"]');
+		const partnerCode = partnerField ? partnerField.value.trim() : '';
 		button.disabled = true;
 		message.textContent = 'Bestellung wird angelegt …';
 		try {
@@ -22,7 +24,8 @@
 				body: JSON.stringify({
 					email: form.querySelector('[name="email"]').value,
 					items: [{ ticket_type_id: Number(select.value), quantity: quantity }],
-					idempotency_key: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2)
+					idempotency_key: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2),
+					partner_code: partnerCode || undefined
 				})
 			});
 			const data = await response.json();

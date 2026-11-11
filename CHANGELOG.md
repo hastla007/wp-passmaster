@@ -1,5 +1,12 @@
 # Änderungsprotokoll
 
+## Unveröffentlicht – WP Affiliate Captain
+
+- Optionaler Adapter `src/Integrations/AffiliateCaptain/Adapter.php` für WP Affiliate Captain (Vertrag v1, nur aktiv, wenn Affiliate Captain mit kompatibler Vertragsversion läuft): bezahlte eigene Bestellungen (Web-Checkout und POS) werden als Verkauf `pass-captain` gemeldet; Vollerstattung, Storno bezahlter Bestellungen und Eventabsagen kehren die Provision um. WooCommerce-Bestellungen werden nicht gemeldet – die erfasst Affiliate Captain selbst.
+- Checkout: optionales Feld „Partnercode“ mit Prüfung (Fehlversuche je IP begrenzt); Partnerlink bzw. Referral-Cookie wird mit der Bestellung gespeichert, weil die Zahlung oft erst später bestätigt wird. POS-Verkäufe übernehmen nie das Referral der Mitarbeitenden.
+- Neue Hooks: `wpcap_order_snapshot`, `wpcap_order_paid`, `wpcap_order_cancelled`, `wpcap_order_refunded`, `wpcap_event_cancelled`, `wpcap_validate_partner_code`, `wpcap_checkout_partner_field`; Adapter-Filter `wpcap_affiliate_*` (Haltefrist, Nettobasis, Payload, Quellen).
+- Sicherheit: Der öffentliche Checkout übernimmt nur noch `email`, `items`, `idempotency_key`, `campaign_codes` und `partner_code`. Bisher konnten anonyme Aufrufe interne Adapter-Optionen (`external`, `hold_minutes`, `unit_prices`, `currency`) setzen und damit Kontingent beliebig lange blockieren und das Rate-Limit umgehen.
+
 ## Unveröffentlicht – WooCommerce-Adapter
 
 - WooCommerce-Produkte werden über eine Auswahlliste mit einer Ticketkategorie verknüpft; die Kategorie wird zusätzlich an der Bestellposition gespeichert.
