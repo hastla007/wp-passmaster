@@ -686,10 +686,11 @@ final class Controller {
 		if ( 64 !== strlen( $token ) ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.status,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,e.name AS event_name FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
+			"SELECT t.ticket_id,t.status,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
 			hash( 'sha256', $token )
 		) );
 		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( 'cancelled' === $row->occurrence_status || 'cancelled' === $row->event_status ) { return new \WP_Error( 'wpcap_ticket_cancelled_event', __( 'Dieser Termin wurde abgesagt; das Ticket berechtigt nicht zum Einlass.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		if ( strtotime( $row->starts_at . ' UTC' ) < time() - DAY_IN_SECONDS || strtotime( $row->starts_at . ' UTC' ) > time() + 365 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_ticket_out_of_window', __( 'Das Ticket liegt außerhalb des Einlasszeitraums.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		return array( 'ticket_id' => (int) $row->ticket_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'timezone' => $row->timezone );
 	}

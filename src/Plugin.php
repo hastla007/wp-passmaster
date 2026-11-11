@@ -17,12 +17,7 @@ final class Plugin {
 			self::schedule_events();
 		}
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
-		add_action( 'admin_menu', array( $this, 'register_admin_menu' ) );
-		add_action( 'admin_post_wpcap_create_event', array( Admin::class, 'create_event' ) );
-		add_action( 'admin_post_wpcap_assign_staff', array( Admin::class, 'assign_staff' ) );
-		add_action( 'admin_post_wpcap_confirm_payment', array( Admin::class, 'confirm_payment' ) );
-		add_action( 'admin_post_wpcap_resend_tickets', array( Admin::class, 'resend_tickets' ) );
-		add_action( 'admin_post_wpcap_cancel_event', array( Admin::class, 'cancel_event' ) );
+		Admin\Menu::register();
 		add_action( 'admin_post_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'admin_post_nopriv_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'template_redirect', array( Waitlists::class, 'maybe_render_offer_page' ) );
@@ -97,17 +92,5 @@ final class Plugin {
 
 	public function register_blocks() {
 		register_block_type( WPCAP_PATH . 'src/blocks/events' );
-	}
-
-	public function register_admin_menu() {
-		add_menu_page(
-			__( 'WP Pass Captain', 'wp-pass-captain' ),
-			__( 'Pass Captain', 'wp-pass-captain' ),
-			'wpcap_manage_events',
-			'wp-pass-captain',
-			array( Admin::class, 'render_page' ),
-			'dashicons-tickets-alt',
-			58
-		);
 	}
 }

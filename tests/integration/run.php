@@ -314,5 +314,6 @@ check( "exactly 5 of 20 parallel buyers get a hold (got $ok, held $held)", 5 ===
 
 require __DIR__ . '/finance.php';
 require __DIR__ . '/payments.php';
+require __DIR__ . '/admin.php';
 echo "\n$passes passed, $failures failed\n";
 exit( $failures ? 1 : 0 );
