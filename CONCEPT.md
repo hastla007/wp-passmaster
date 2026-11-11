@@ -1,6 +1,6 @@
-# Produkt- und Architekturkonzept: Pass Captain
+# Produkt- und Architekturkonzept: Ticket Captain
 
-**Projekt:** Pass Captain  
+**Projekt:** Ticket Captain  
 **Repository:** `hastla007/wp-passmaster`  
 **Stand:** 11. November 2026  
 **Status:** Überarbeitet nach Prüfung des Event-Ticketing-Umfangs  
@@ -8,9 +8,9 @@
 
 ## 1. Produktvision und Positionierung
 
-Pass Captain ist eine eigenständige Event-Ticketing- und Pass-Lösung für WordPress. Der Kern kann Events, Termine, Kontingente, Bestellungen, Zahlungen, Tickets und Einlass verwalten, ohne WooCommerce vorauszusetzen. WooCommerce und weitere Shops können über Commerce-Adapter angeschlossen werden.
+Ticket Captain ist eine eigenständige Event-Ticketing- und Pass-Lösung für WordPress. Der Kern kann Events, Termine, Kontingente, Bestellungen, Zahlungen, Tickets und Einlass verwalten, ohne WooCommerce vorauszusetzen. WooCommerce und weitere Shops können über Commerce-Adapter angeschlossen werden.
 
-Pass Captain stellt nach erfolgreichem Kauf oder einer bestätigten Gutscheineinlösung individuelle digitale Tickets mit QR-Code aus. Ein Pass kann für einen bestimmten Eventtermin gelten oder einen Anspruch auf eine Dienstleistung darstellen, etwa eine Fahrstunde oder eine Online-Navigationsstunde.
+Ticket Captain stellt nach erfolgreichem Kauf oder einer bestätigten Gutscheineinlösung individuelle digitale Tickets mit QR-Code aus. Ein Pass kann für einen bestimmten Eventtermin gelten oder einen Anspruch auf eine Dienstleistung darstellen, etwa eine Fahrstunde oder eine Online-Navigationsstunde.
 
 ### Kernziele
 
@@ -21,22 +21,22 @@ Pass Captain stellt nach erfolgreichem Kauf oder einer bestätigten Gutscheinein
 - Voucher Captain bei gemeinsamer Installation direkt integrieren.
 - Kundenspezifische Verbindungen zum Bootsschule-/Kursplugin in einem separaten Connector halten.
 
-Pass Captain stellt Konfigurationen und Nachweise bereit. Es verspricht keine pauschale Rechts- oder Steuerkonformität: Betreiber müssen die für ihr Land und ihr Angebot geltenden Einstellungen mit Rechts- und Steuerberatung festlegen.
+Ticket Captain stellt Konfigurationen und Nachweise bereit. Es verspricht keine pauschale Rechts- oder Steuerkonformität: Betreiber müssen die für ihr Land und ihr Angebot geltenden Einstellungen mit Rechts- und Steuerberatung festlegen.
 
 ## 2. Produktgrenzen und Zusammenspiel
 
 | Baustein | Aufgabe |
 |---|---|
-| Pass Captain Core | Events, Terminserien, Ticketkategorien, Kontingente, Sitzplätze, Checkout, Bestellungen, Tickets, QR, Check-in, Rückerstattungsstatus und Berichte |
+| Ticket Captain Core | Events, Terminserien, Ticketkategorien, Kontingente, Sitzplätze, Checkout, Bestellungen, Tickets, QR, Check-in, Rückerstattungsstatus und Berichte |
 | Zahlungsadapter | Anbindung eines Zahlungsdienstleisters, Zahlungsstatus, signierte Webhooks, Erstattungsanfragen |
 | Commerce-Adapter | Optionale Anbindung an WooCommerce oder andere Shop-/Buchungssysteme |
 | Voucher Captain | Gutscheine, Geschenkguthaben und Rabattcodes |
 | Native Voucher-/Pass-Integration | Ist beides installiert, kann die bestätigte Einlösung eines Gutscheins die Ticketausstellung auslösen |
 | Bootsschule-Connector | Kundenspezifische Verbindung von Shopprodukten und Tickets mit Kursprodukten und Kurszugängen |
 
-Voucher Captain und Pass Captain bleiben eigenständige Produkte. Ihre direkte Integration benötigt kein drittes Connector-Plugin. Ein gemeinsamer, versionierter PHP-Vertrag verbindet die Plugins; direkte Zugriffe auf interne Klassen oder Tabellen des jeweils anderen Plugins sind ausgeschlossen.
+Voucher Captain und Ticket Captain bleiben eigenständige Produkte. Ihre direkte Integration benötigt kein drittes Connector-Plugin. Ein gemeinsamer, versionierter PHP-Vertrag verbindet die Plugins; direkte Zugriffe auf interne Klassen oder Tabellen des jeweils anderen Plugins sind ausgeschlossen.
 
-Der Bootsschule-Connector ist dagegen kundenspezifisch. Er kann festlegen, ob ein bestimmtes Produkt nach Kauf oder Gutscheineinlösung einen Kurszugang, ein Ticket oder beides auslöst. Diese Learnboating-Regeln kommen nicht in Pass Captain Core.
+Der Bootsschule-Connector ist dagegen kundenspezifisch. Er kann festlegen, ob ein bestimmtes Produkt nach Kauf oder Gutscheineinlösung einen Kurszugang, ein Ticket oder beides auslöst. Diese Learnboating-Regeln kommen nicht in Ticket Captain Core.
 
 ## 3. Event-, Termin- und Ticketverwaltung
 
@@ -70,7 +70,7 @@ Sitzplatzdaten werden versioniert. Ein bereits verkauftes Ticket behält seinen 
 
 ## 4. Eigenständiger Checkout und Reservierungen
 
-Pass Captain stellt einen einbettbaren Checkout als Gutenberg-Block und Shortcode bereit. Der Checkout funktioniert mobil, ohne erzwungenen Seitenwechsel, und kann optionale Zusatzfelder pro Kategorie/Ticket erfassen.
+Ticket Captain stellt einen einbettbaren Checkout als Gutenberg-Block und Shortcode bereit. Der Checkout funktioniert mobil, ohne erzwungenen Seitenwechsel, und kann optionale Zusatzfelder pro Kategorie/Ticket erfassen.
 
 ### Reservierungssperre
 
@@ -85,11 +85,11 @@ Zusatzfelder werden nach Event-/Ticketkategorie konfiguriert. Allergie- oder and
 
 ## 5. Zahlung, Bestellungen, Erstattungen und Buchhaltung
 
-Pass Captain besitzt eine eigene Bestell- und Zahlungsabstraktion. Zahlungsdienstleister werden als Adapter angebunden. Für den ersten Zahlungsumfang sind Stripe und PayPal vorgesehen; die konkrete Verfügbarkeit von EPS, Klarna, SEPA, Apple Pay, Google Pay und weiteren Methoden hängt vom Anbieter, Händlerland, Währung, Konto und Transaktionsart ab. Methoden werden im Admin nur angezeigt, wenn sie für die jeweilige Integration verfügbar sind. Stripe dokumentiert diese Abhängigkeit nach Händlerkonto und Land. ([Stripe: unterstützte Währungen und Zahlungsmethoden](https://docs.stripe.com/currencies))
+Ticket Captain besitzt eine eigene Bestell- und Zahlungsabstraktion. Zahlungsdienstleister werden als Adapter angebunden. Für den ersten Zahlungsumfang sind Stripe und PayPal vorgesehen; die konkrete Verfügbarkeit von EPS, Klarna, SEPA, Apple Pay, Google Pay und weiteren Methoden hängt vom Anbieter, Händlerland, Währung, Konto und Transaktionsart ab. Methoden werden im Admin nur angezeigt, wenn sie für die jeweilige Integration verfügbar sind. Stripe dokumentiert diese Abhängigkeit nach Händlerkonto und Land. ([Stripe: unterstützte Währungen und Zahlungsmethoden](https://docs.stripe.com/currencies))
 
 ### Zahlungsanforderungen
 
-- Kartendaten werden nicht von Pass Captain gespeichert oder verarbeitet.
+- Kartendaten werden nicht von Ticket Captain gespeichert oder verarbeitet.
 - Gehostete oder tokenisierte Zahlungsoberflächen und signierte Webhooks nutzen.
 - Webhook-Signaturen prüfen und Events idempotent verarbeiten.
 - Zahlungsstatusmodell: angelegt, ausstehend, autorisiert, bezahlt, fehlgeschlagen, erstattet, teilweise erstattet und strittig.
@@ -108,7 +108,7 @@ Apple Pay und Google Pay als **Zahlungsmethoden** sind von Apple Wallet und Goog
 - Fortlaufende Rechnungsnummern müssen auch bei parallelen Bestellungen eindeutig und unveränderlich sein. Storno-/Korrekturrechnungen und Teilrückzahlungen brauchen eigene Buchungsbelege.
 - PDF-Rechnungen und Buchhaltungsexporte sind als eigenständiges Modul geplant. Rechnungsanforderungen werden vor Umsetzung mit Steuerberatung für Zielländer und Kundentypen spezifiziert.
 
-Pass Captain kann technische Steuerdaten und Belege führen. Es sollte sich nicht ohne fachliche Freigabe als „steuerkonform für DACH“ bewerben.
+Ticket Captain kann technische Steuerdaten und Belege führen. Es sollte sich nicht ohne fachliche Freigabe als „steuerkonform für DACH“ bewerben.
 
 ## 6. Tickets, QR und Wallets
 
@@ -138,7 +138,7 @@ Die PWA unter einer konfigurierbaren Route wie `/event-checkin` bietet Login fü
 
 ### Online-Modus
 
-- Echtzeitprüfung beim Pass-Captain-Server.
+- Echtzeitprüfung beim Ticket-Captain-Server.
 - Ergebnis: gültig, bereits eingecheckt, widerrufen, falscher Termin, noch nicht gültig oder unbekannt.
 - Bei erfolgreicher Einlösung erfolgt Statusänderung atomar. Ein zweiter gleichzeitiger Scan kann den Check-in nicht duplizieren.
 - Logs enthalten Mitarbeiter, Gerät/Scannerkennung, Eventtermin, Zeitpunkt und Ergebnis.
@@ -151,7 +151,7 @@ Für offlinefähige Einlässe müssen Veranstalter bewusst eine Konfliktregel, G
 
 ## 8. Datenmodell und Architektur
 
-Pass Captain verwendet eigene, versionierte und indizierte Tabellen für volumenstarke Event- und Ticketdaten. WordPress-Core-Tabellen bleiben für Benutzer, Einstellungen und Plugin-Administration zuständig.
+Ticket Captain verwendet eigene, versionierte und indizierte Tabellen für volumenstarke Event- und Ticketdaten. WordPress-Core-Tabellen bleiben für Benutzer, Einstellungen und Plugin-Administration zuständig.
 
 ### Vorgeschlagene Tabellen
 
@@ -161,7 +161,7 @@ Pass Captain verwendet eigene, versionierte und indizierte Tabellen für volumen
 | `wp_etp_occurrences` | Einzeltermine/Serieninstanzen, Ort, Start/Ende, Zeitzone |
 | `wp_etp_ticket_types` | Ticketkategorien, Preis, Steuerklassifikation, Verkauf und Kontingent |
 | `wp_etp_seatmaps` | Versionierte Saalpläne; Layout als JSON, Plätze/Belegung referenziert |
-| `wp_etp_orders` | Eigenständige Pass-Captain-Bestellungen und Status |
+| `wp_etp_orders` | Eigenständige Ticket-Captain-Bestellungen und Status |
 | `wp_etp_order_items` | Unveränderliche Warenkorb-/Orderpositionen, Steuer- und Preissnapshot |
 | `wp_etp_payments` | PSP-Referenzen, Status und Webhook-Verarbeitung; keine Kartendaten |
 | `wp_etp_reservations` | Temporäre Holds für Mengen und Sitzplätze mit Ablaufzeit |
@@ -171,7 +171,7 @@ Pass Captain verwendet eigene, versionierte und indizierte Tabellen für volumen
 | `wp_etp_audit_logs` | Admin-, Partner-, Zahlungs- und Integrationsänderungen |
 | `wp_etp_integration_jobs` | Wiederholbare Voucher-, PSP-, Mail- und Adaptervorgänge |
 
-Bei WooCommerce-Bestellungen speichert Pass Captain nur die externe Bestell-/Positionsreferenz und notwendige Snapshots. Es kopiert keine komplette WooCommerce-Bestellung und greift nicht direkt auf Bestelltabellen zu; WooCommerce-Zugriff erfolgt über CRUD-Schnittstellen, die HPOS berücksichtigen. ([WooCommerce HPOS Recipe Book](https://developer.woocommerce.com/docs/features/orders/high-performance-order-storage/recipe-book/))
+Bei WooCommerce-Bestellungen speichert Ticket Captain nur die externe Bestell-/Positionsreferenz und notwendige Snapshots. Es kopiert keine komplette WooCommerce-Bestellung und greift nicht direkt auf Bestelltabellen zu; WooCommerce-Zugriff erfolgt über CRUD-Schnittstellen, die HPOS berücksichtigen. ([WooCommerce HPOS Recipe Book](https://developer.woocommerce.com/docs/features/orders/high-performance-order-storage/recipe-book/))
 
 ### Tech-Stack und Paketwahl
 
@@ -198,7 +198,7 @@ Schnittstellen antworten mit stabilen Fehlercodes und dokumentierten Datenformat
 
 Voucher Captain ruft `issue_tickets()` nach bestätigter Gutscheineinlösung mit Voucher-ID, Redeem-ID und definiertem Ziel auf. Ticket-Ausstellung bestätigt eine Ticketreferenz. Erst nach dieser Bestätigung schließt Voucher Captain die Einlösung ab. Ein fehlgeschlagener Aufruf bleibt wiederholbar.
 
-Ereignisse wie `pass_captain_ticket_issued`, `pass_captain_ticket_checked_in`, `pass_captain_ticket_revoked` und `pass_captain_order_refunded` sind für Benachrichtigungen und Connectoren vorgesehen. Sie ersetzen keine idempotente Serviceoperation.
+Ereignisse wie `ticket_captain_ticket_issued`, `ticket_captain_ticket_checked_in`, `ticket_captain_ticket_revoked` und `ticket_captain_order_refunded` sind für Benachrichtigungen und Connectoren vorgesehen. Sie ersetzen keine idempotente Serviceoperation.
 
 ## 10. Recht, Steuern und Datenschutz (DACH)
 
@@ -208,7 +208,7 @@ Der Checkout muss Eventdatum, Veranstalter, Preis, Ticketmerkmale und die anwend
 
 ### Steuer- und Rechnungsdaten
 
-Pass Captain verwaltet Preise und Steuerdaten pro Position, fixiert den zum Bestellzeitpunkt verwendeten Steuersatz und speichert erforderliche Rechnungsbelege. Es setzt keine Steuersätze oder Kleinunternehmerregeln als universelle DACH-Defaults. Veranstalter/Steuerberatung konfigurieren Leistungskategorien, Lieferorte, Ermäßigungen und Korrekturen. OSS, grenzüberschreitende Leistungen und gemischte Steuersätze sind vor einer Produktivfreigabe fachlich zu validieren.
+Ticket Captain verwaltet Preise und Steuerdaten pro Position, fixiert den zum Bestellzeitpunkt verwendeten Steuersatz und speichert erforderliche Rechnungsbelege. Es setzt keine Steuersätze oder Kleinunternehmerregeln als universelle DACH-Defaults. Veranstalter/Steuerberatung konfigurieren Leistungskategorien, Lieferorte, Ermäßigungen und Korrekturen. OSS, grenzüberschreitende Leistungen und gemischte Steuersätze sind vor einer Produktivfreigabe fachlich zu validieren.
 
 ### Datenschutz
 
@@ -292,9 +292,130 @@ Pass Captain verwaltet Preise und Steuerdaten pro Position, fixiert den zum Best
 5. Muss der Sitzplan im ersten Verkaufsrelease enthalten sein, oder reichen zunächst Kategorien und Kontingente?
 6. Welche Teilnehmerfelder sind fachlich nötig, und welche sensiblen Felder werden ausgeschlossen?
 7. Soll Offline-Check-in irgendwann harte Einmaligkeit bieten? Das ist bei mehreren getrennten Offline-Geräten technisch nicht zuverlässig garantierbar.
-8. Terminbuchung für Fahrstunden: Bestandteil von Pass Captain, oder separater Buchungsdienst, den ein Pass lediglich freischaltet?
+8. Terminbuchung für Fahrstunden: Bestandteil von Ticket Captain, oder separater Buchungsdienst, den ein Pass lediglich freischaltet?
 
 **Empfehlung:** P0 als eigenständigen Eventverkauf mit Ticketkategorien und Kontingenten, nativer Online-Zahlung, QR-PDFs und Online-PWA planen. Seat-Map, Wallet, vollständige Rechnungs-/Steuerlogik und Offline-Check-in sind größere Module; ihren Aufwand vor Festlegung des Releaseumfangs separat schätzen.
+
+## 15. Entwickler-Spezifikation: Bridge, Build und konkrete Umsetzung
+
+Dieser Abschnitt ergänzt den priorisierten Plan mit konkreten Verträgen und Dateibereichen. Er ersetzt keine Sicherheits-, Rechts- oder Steuerprüfung.
+
+### 15.1 Plugin-Grundgerüst und Namensräume
+
+- Hauptdatei: `ticket-captain.php`; Produktname Ticket Captain, Repository/Slug `wp-passmaster), Textdomain `ticket-captain`.
+- Konstanten beim Plugin-Bootstrap definieren: `TCAP_VERSION`, `TCAP_PLUGIN_DIR`, `TCAP_PLUGIN_URL`. Voucher Captain nutzt entsprechend `VCAP_VERSION).
+- PSR-4 Composer-Autoloading mit PHP-Namespace `TicketCaptain\\...`; Tabellenpräfix `{$wpdb->prefix}tcap_*`. Voucher Captain verwendet `VoucherCaptain\\...` und `vcap_*`.
+- Bridge-Erkennung nach Laden der Plugin-Hauptdateien (zum Beispiel `plugins_loaded`, Priorität 20). Beide Plugins müssen einzeln booten, wenn das jeweils andere fehlt oder deaktiviert ist.
+- Für im Plugin-ZIP mitgelieferte Composer-Abhängigkeiten Klassenkonflikte im Release-Build prüfen. PHP-Scoper oder Mozart sind Optionen, aber vor Festlegung für alle ausgewählten Bibliotheken und WordPress-Globals in einem Build-Prototyp validieren. Releaseartefakt testen, in dem beide Plugins gleichzeitig aktiv sind. Keine Paketabhängigkeit nur deshalb in beide Plugins aufnehmen, weil sie im Konzept genannt ist.
+
+### 15.2 Eigene Datenbanktabellen
+
+Tabellennamen verwenden den WordPress-Prefix plus `tcap_`; Versionierung und Upgrade-Migrationen sind Pflicht. Geldwerte werden als Dezimal-/Minor-Unit-Daten geführt, nicht mit PHP-Float als Buchungsquelle.
+
+| Tabelle | Wichtige Felder und Zweck |
+|---|---|
+| `tcap_events` | Event, redaktionelle WP-Post-Referenz optional, Status und Kapazität |
+| `tcap_occurrences` | Eigenständige Eventtermine mit Zeitzone, Start/Ende, Ort, Kapazität, Sitzplanversion |
+| `tcap_ticket_types` | Eventtermin, Kategorie, Beschreibung, Preis/Währung, Steuerklasse, Kontingent, Verkaufsfenster, max. Menge, Zusatzfelder |
+| `tcap_seatmaps` | Versionierter Layout-JSON-Stand; Sitzplätze/Blöcke stabil identifizierbar |
+| `tcap_reservations` | Checkout-Session-Hash, Termin, Kategorie, Sitzplatz/Menge, Status, `expires_at`, Idempotency-Key |
+| `tcap_orders` / `tcap_order_items` | Eigene Bestellungen bzw. immutable Positions-Snapshots, externe Quellreferenz für Adapter, Käuferdaten getrennt von Ticketdaten |
+| `tcap_payments` | PSP, externe Payment-ID, Betrag/Währung, Status, Webhook-Deduplizierung; keine Kartendaten |
+| `tcap_tickets` | Ticket-UUID, Token-/Signaturversion, Order-/Position oder Voucher-Referenz, Termin, Kategorie, Sitz, Status und Nutzungszähler |
+| `tcap_attendees` | Teilnehmerdaten und Zusatzfelder, nur soweit erforderlich |
+| `tcap_checkin_logs` | Ticket, Event/Termin, Zeitpunkt, Gerät, Mitarbeiter, Ergebnis, Aktion und Begründung |
+| `tcap_audit_logs` | Admin-/Partneraktionen, Widerruf, Erstattung und Integrationsreferenz |
+| `tcap_integration_jobs` | Quelle, Idempotency-Key, Vorgangsstatus, Versuche, nächster Lauf, letzter Fehler |
+
+Für WooCommerce-Bestellungen werden WooCommerce-CRUD-Objekte über den Adapter genutzt; keine direkte Abfrage oder Änderung der WooCommerce-Bestelltabellen. Die interne `tcap_orders`-Tabelle darf nicht als vollständige Kopie einer WooCommerce-Bestellung dienen.
+
+### 15.3 Event-, Reservierungs- und Bestellmodule
+
+- `src/Events/`: Event-Editor und optionaler CPT `tcap_event` für Permalink/Redaktion; Laufzeitdaten und Termine bleiben in eigenen Tabellen. Eine einzige Quelle ist pro Feld festzulegen, damit CPT-Metadaten und Tabellenwerte nicht auseinanderlaufen.
+- Serientermin-Regeln erzeugen einzelne `occurrences` mit eigenen Preisen, Limits und Status.
+- `src/Seatmap/`: späterer React-Editor; Layoutrevisionen ändern keine bereits verkauften Sitzplatz-Snapshots.
+- `src/Checkout/ReservationManager.php`: atomare Bestandssperre beim Start des Checkouts, zunächst 10 Minuten konfigurierbar; Job zum Freigeben abgelaufener Holds. Verfügbarkeit = konfiguriertes Limit minus verkaufte Einheiten minus aktive Reservierungen.
+- Beim Timeout oder verspäteten Zahlungsevent greift ein festgelegter Recovery-Status statt stiller Überbuchung.
+- `src/Orders/`: eigene Checkout-/Bestellmodelle; WooCommerce bleibt ein optionaler Adapter, kein Plugin-Bootstrap-Zwang.
+
+### 15.4 Zahlungsadapter und Rückerstattung
+
+- `src/Payments/Contracts/PaymentGatewayInterface.php` plus Adapter für Stripe/PayPal; konkrete Methode abhängig von Konto, Land und Währung.
+- Kartendaten werden direkt vom Zahlungsanbieter verarbeitet. Pass Captain speichert PSP-Referenzen und signierte Webhook-Ereignisse.
+- Jede Webhook-Verarbeitung besitzt einen eindeutigen Provider-Event-Key und ist idempotent.
+- Bestellstatus, Zahlung, Reservierung und Tickets bilden eine nachvollziehbare Zustandsmaschine.
+- Ein Teilrefund übergibt Betrag, Währung und betroffene Positionen. Ticketwiderruf und Gutscheinrückbuchung werden nach einer konfigurierten Refund-Regel entschieden; nicht pauschal die ganze Bestellung oder den gesamten Gutschein zurückbuchen.
+
+### 15.5 QR-Payload und Scanner-Handler
+
+Neues Ticketformat:
+
+`TCAP:v1:<ticket_uuid>:<signature>`
+
+Die Kennung ist zufällig und nicht aus Bestell-/Personendaten abgeleitet. Die Signatur wird serverseitig mit einem geheimen Schlüssel erzeugt und validiert; Schlüsselversion und Rotation werden unterstützt. Keine „kurze“ HMAC verwenden, deren Entropie die Ticketfälschung erleichtert. Der QR enthält keine persönlichen Daten.
+
+Voucher Captain verwendet seinen eigenen Payload-/Legacy-Codepfad, etwa `VCAP:`. Ein gemeinsamer Scanner registriert Handler über `captain_scanner_handlers`. Jeder Handler definiert Parser, Berechtigungsprüfung, Vorschau und eine ausdrücklich ausgewählte Aktion. Das Scannen eines VCAP-Gutscheins darf nicht automatisch dessen Verbrauch auslösen, und ein Ticket-Check-in darf keinen Voucher einlösen. Im Solobetrieb bleiben die jeweiligen Scanner-URLs verfügbar; bei gemeinsamer Installation kann `/captain-checkin` die gemeinsame Oberfläche bereitstellen.
+
+### 15.6 Voucher-Captain-Bridge: belastbarer Ablauf
+
+Die vorgeschlagenen Filter- und Action-Namen können als Integrations-Events genutzt werden; allein reichen sie nicht für eine korrekte Guthabenbuchung. Die Voucher-Datenhoheit bleibt bei Voucher Captain. Ticket Captain schreibt nicht in VCAP-Tabellen.
+
+**Rabatt-/Guthabenauswahl im Checkout**
+
+1. Ticket Captain fragt Voucher Captain nur dann an, wenn dessen Integration aktiv und die Einlösung für Eventtickets zugelassen ist.
+2. Der Kontext enthält mindestens Betrag, Währung, Eventtermin, Ticketkategorien/Positionen, Nutzer oder Gastkennung und Regeln zum Stapeln.
+3. Voucher Captain prüft Status, Ablauf, Limits, Scope und verfügbares Guthaben. VCAP liefert ein unveränderliches Quote-/Reservation-Token mit Betrag, Währung und Ablaufzeit, ohne Rohdatenbankzugriff durch TCAP.
+4. Beim Checkout wird der Rabatt/Guthabenbetrag reserviert. Eine Reservierung verhindert gleichzeitige Verwendung in Ticket Captain und WooCommerce.
+5. Nach bestätigter Zahlung wird die VCAP-Reservierung mit einer eindeutigen Ticket-Captain-Bestellreferenz idempotent finalisiert. Bei Abbruch oder Ablauf wird sie freigegeben.
+6. Prozentcoupon, Festbetrag-Rabatt und gespeichertes Gutschein-Guthaben bleiben unterschiedliche Einlösearten; sie werden nicht alle als „Restguthaben“ behandelt.
+
+**Rückerstattung**
+
+- Ticket Captain übergibt Voucher Captain eine eindeutige Refund-ID, Währung, tatsächlich zurückerstattete Positionen und Gutscheinanteile.
+- VCAP-Regeln entscheiden, ob und welcher verbrauchte Gutscheinwert wiederhergestellt wird. Das hängt von Rabattart, Widerruf, Ticketstatus und Refund-Anteil ab.
+- Jeder Refund ist idempotent und wird in beiden Plugins über externe Referenzen nachvollziehbar protokolliert.
+- VCAP verbucht erst nach bestätigter Refund-/Stornoentscheidung; doppelte Hooks erzeugen keine doppelte Gutschrift.
+
+**Vorgesehene Kompatibilitätspunkte**
+
+- `tcap_validate_discount_code` als Anfrage/Filter nur mit strukturiertem Checkout-Kontext und Quote-Objekt; nicht nur `float $cart_total`, da Währung, Positionen, Steuerbasis und Kategorien für Validität wichtig sind.
+- `tcap_order_paid` als Benachrichtigung nach bestätigter Zahlung mit Ticket-Captain-Bestell-ID, externer Referenz, angewandten Rabattzuordnungen und Idempotency-Key. Die eigentliche Finalisierung erfolgt über den VCAP-Service.
+- `tcap_order_refunded` übergibt Refund-ID und Positions-/Voucher-Allokationen, nicht nur einen Gesamtbetrag ohne Währung.
+- Rückrichtung: Voucher Captain ruft einen stabilen Ticket-Captain-Service wie `issue_tickets(source, idempotency_key, target, recipient)` auf, wenn ein Gutschein eingelöst wird.
+- Service-/Hook-Versionierung und Capability-Erkennung statt nur Konstantenprüfung. Konstanten können die optionale Bridge früh erkennen, beweisen aber keine API-Kompatibilität.
+
+### 15.7 Gemeinsame Oberfläche
+
+- `captain_suite_menu_active` kann die Entscheidung für ein gemeinsames Hauptmenü signalisieren. Ein Plugin besitzt den Top-Level-Menüeintrag; das zweite registriert seine Seiten als Untermenüs.
+- Beide Plugins erhalten eigene Capabilities und Nonce-/REST-Prüfungen, auch wenn das Menü zusammengeführt wird.
+- Gutschein- und Ticketansichten können auf einer Suite-Seite verlinkt werden. Gemeinsame „Mein Konto“-Navigation wird nur registriert, wenn beide Plugins samt kompatibler Schnittstellenversion aktiv sind.
+- Menu- oder Account-Integration darf den Standalone-Menüpfad nicht entfernen.
+
+### 15.8 PDF-Designer, Wallet und Rechts-/Datenschutzfunktionen
+
+- Ticket Captain besitzt eine funktionsfähige eigene Ticketvorlage und PDF-Ausgabe im Solobetrieb.
+- Eine vorhandene Voucher-Captain-Template-Engine wird nur über einen stabilen Renderer-/Placeholder-Vertrag wiederverwendet. Ticket-Platzhalter wie `{event_date}`, `{seat_label}`, `{ticket_category}` injiziert Ticket Captain; VCAP muss weder Ticketdatenmodell noch Ticketlogik übernehmen.
+- Wallet-Dateien werden mit den für den jeweiligen Anbieter erforderlichen Betreiberkonten/-zertifikaten erzeugt; diese Integration folgt nach QR-PDF und PWA.
+- Checkout-Anzeigetexte, eventbezogene Fristen, Steuerklassifikationen und Aufbewahrungsjobs sind konfigurierbar und versioniert. Keine universelle Rücktritts-Checkbox, fest codierte DACH-Steuersätze oder feste Anonymisierung nach 30 Tagen.
+- Teilnehmerdaten können nach konfigurierbarer Frist pseudonymisiert/gelöscht werden. Bestell-/Rechnungsdaten, Rechtsansprüche und Auditinformationen haben getrennte Aufbewahrungsregeln.
+
+### 15.9 Empfohlene Umsetzungsreihenfolge
+
+1. Bootstrap, Namensräume, Build-ZIP, Schema-Migrationen und Serviceverträge.
+2. Events, Termine, Tickettypen, Kontingente und native Bestellungen.
+3. Reservierung, Zahlungsadapter, Webhooks und Zustandsautomat.
+4. Idempotente Ticketausstellung, QR/PDF, E-Mail und Teilnehmeransicht.
+5. Online-PWA, Partnerrollen, Check-in und Audit.
+6. Optionaler WooCommerce-Adapter und HPOS-Kompatibilitätsprüfung.
+7. Voucher-Captain-Bridge mit Quote/Reserve/Commit/Release/Refund und Fehler-/Timeout-Wiederholung.
+8. Datenschutz, Rechts-/Steuerkonfiguration, Buchhaltungsexport und Refundregeln.
+9. Sitzplan-Editor, Wallet-Pässe und danach Offline-Check-in mit sichtbarer Konfliktbehandlung.
+
+## Review der übernommenen Vorschläge
+
+- **Übernommen:** `TCAP`-Konstanten/Tabellenkonvention, Composer-Build-Isolierung als zu prüfende Releaseanforderung, QR-Prefix, optionale Unified-Scanner-Oberfläche, gemeinsames Admin-Menü, eigene Ticket- und Reservierungstabellen, Ticket-Platzhalter, DACH-Anforderungen und ein konkreter Implementierungsplan.
+- **Präzisiert:** Gutscheinintegration nutzt Quote/Reservierung/Finalisierung/Freigabe statt unmittelbarer Abbuchung bei Kauf; Refunds führen konkrete Voucher- und Positionszuordnungen; Payment-Methoden hängen vom PSP-Konto und Markt ab.
+- **Nicht pauschal übernommen:** Fixe Steuersätze, eine immer verpflichtende Rücktritts-Checkbox, eine automatische Löschung aller Personendaten nach fixer Tageszahl, direkte VCAP-Tabellenupdates, VCAP als notwendige PDF-Engine und Offline-Check-in als verlässliche globale Einmalprüfung.
 
 ## Quellen zur technischen und rechtlichen Validierung
 
