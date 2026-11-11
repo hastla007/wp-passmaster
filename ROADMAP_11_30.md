@@ -42,44 +42,44 @@ Terminverschiebung, Eventabsage, Storno und Erstattung mit versionierten E-Mail-
 
 Serien als eigenständige Occurrences mit individuellen Preisen, Verkaufsfenstern, Kontingenten und Änderungsverlauf ausbauen. Abnahme: Änderungen an einem Termin verändern bereits verkaufte andere Termine nicht.
 
-## 21. Sitzpläne
+## 21. Sitzpläne — Grundfunktionen umgesetzt
 
-Versionierte Saalpläne, Bereiche, Plätze und atomare Sitzplatz-Holds ergänzen. Abnahme: parallele Käufer können denselben Platz nicht erhalten; verkaufte Plätze behalten ihre alte Planversion.
+Versionierte Sitzpläne lassen sich über REST anlegen und anzeigen; temporäre Sitzplatz-Holds sperren parallele Doppelbelegung und laufen ab. Checkout-Verknüpfung, Bezahlung/Verkauf-Commit und Admin-Editor fehlen.
 
-## 22. Service-Zeitfenster und Buchungen
+## 22. Service-Zeitfenster und Buchungen — Grundfunktionen umgesetzt
 
-Terminslots, Ressourcen, Puffer, Verfügbarkeit, Umbuchungen und Wartelisten für Dienstleistungen einführen. Abnahme: gleichzeitige Reservierungen kollidieren nicht; Service-Pässe behalten eigene Nutzungsregeln.
+Ressourcen, Zeitfenster und kapazitätsgesperrte, idempotente Buchungsholds sind über REST verfügbar. Puffer-Überlappungen, Umbuchungen, Wartelisten und Zahlungs-Commit fehlen.
 
-## 23. Einlassregeln für Mehrtagesevents
+## 23. Einlassregeln für Mehrtagesevents — Backend-Grundlage umgesetzt
 
-Einmaligen Eintritt, tägliche Nutzung, Wiedereinlass und Check-out als explizite Admission Policies modellieren. Abnahme: Status und Berechtigungen sind je Veranstaltungstag getrennt und nachvollziehbar.
+Einlassregeln pro Veranstaltungstag können per REST gesetzt werden. Einmaliger Eintritt, tägliche Nutzung und begrenzter Wiedereinlass werden beim Check-in unterschieden; eine Admin-Oberfläche und Check-out fehlen.
 
-## 24. Vor-Ort-Kasse und Druck
+## 24. Vor-Ort-Kasse und Druck — POS-API umgesetzt
 
-POS/Box Office mit Verkäufen, manueller Ausgabe, Kontingentabgleich, Belegen und Badge-/Listen-Druck ergänzen. Abnahme: Online- und Vor-Ort-Verkäufe verwenden dieselbe atomare Bestandslogik.
+Ein eventberechtigter Nutzer kann über die POS-REST-Route einen bezahlten Verkauf auslösen; dabei werden dieselbe Bestandslogik und Ticketzustellung wie beim Onlineverkauf genutzt. Kassenoberfläche, Zahlungsarten vor Ort und Druck/Belege fehlen.
 
-## 25. Offline-Scanner
+## 25. Offline-Scanner — Queue und Sync-Grundlage umgesetzt
 
-Gerätezuweisung, lokale begrenzte Prüfdaten, Synchronisierung und Konfliktklärung implementieren. Abnahme: doppelte Einlösung auf getrennten Offline-Geräten wird markiert; Offlinebetrieb verspricht keine globale Einmaligkeit.
+Offline erfasste Codes werden lokal gepuffert und nach Wiederverbindung an einen Batch-Endpunkt gesendet; bereits genutzte Codes kommen als Konflikt zurück. Gerätezuweisung und offline geprüfte Berechtigungen fehlen; globale Einmaligkeit wird offline nicht garantiert.
 
-## 26. Apple Wallet und Google Wallet
+## 26. Apple Wallet und Google Wallet — Provider-Vertrag umgesetzt
 
-Wallet-Ausgabe mit Betreiberkonten, Signaturzertifikaten, Aktualisierung und Widerruf ergänzen. Abnahme: PDF-/QR-Tickets bleiben verfügbar, wenn Wallet-Anbieter nicht eingerichtet sind.
+Versionierter Provider-Vertrag und Pass-Metadaten sind vorhanden. Apple-/Google-Pass-Erzeugung, Betreiberkonten und Zertifikate fehlen; QR-Ticket bleibt verfügbar.
 
-## 27. Rechnungen und Buchhaltung
+## 27. Rechnungen und Buchhaltung — Nummerierung und Draft-Rechnung umgesetzt
 
-Positionsbezogene Steuer-Snapshots, Belege, Korrekturbelege und Buchhaltungsexporte nach fachlicher Spezifikation entwickeln. Abnahme: fortlaufende Nummern sind parallel sicher; Erstattungen und gemischte Steuersätze sind prüfbar.
+Jährliche Rechnungsnummern werden transaktional vergeben; bezahlte Bestellungen können eine Rechnung mit Käufer- und Positionssnapshot erhalten. Steuerberechnung steht derzeit auf 0; PDF, Korrekturbelege und Buchhaltungsexporte fehlen.
 
-## 28. EU-Länder, Währungen und Übersetzungen
+## 28. EU-Länder, Währungen und Übersetzungen — Währung/Locale-Grundlage umgesetzt
 
-Länder-/Währungskonfiguration, Übersetzungen und länderspezifische Verbraucherinformationen erweitern. Abnahme: keine universellen Steuer- oder Rechtsversprechen; jedes unterstützte Szenario wird fachlich freigegeben.
+Currency-Filter und Locale-Helfer ergänzen die bestehenden Übersetzungsfunktionen. Länderprofile, Steuerregeln und länderspezifische Verbraucherinformationen fehlen.
 
-## 29. Barrierefreiheit, Sicherheit und Betriebsüberwachung
+## 29. Barrierefreiheit, Sicherheit und Betriebsüberwachung — teilweise umgesetzt
 
-Admin, Checkout und Scanner barrierefrei prüfen; Rollen, Rate-Limits, Sicherheitsprotokolle, Update- und Fehlerdiagnose härten. Abnahme: Penetrations-/Berechtigungstests und manuelle Mobil-/Desktop-Abnahme sind dokumentiert.
+REST-Berechtigungen für POS/Verwaltung, Idempotency-Keys, Auditlogs und zugängliche Statusmeldungen sind erweitert. Eine manuelle Barrierefreiheits-, Mobil- und Sicherheitsexpertise-Prüfung ist noch offen.
 
-## 30. Release und Wartung
+## 30. Release und Wartung — Migration und CI vorhanden
 
-Migrationspfade, Kompatibilitätsmatrix, Übersetzungen, Supportprozesse, Reproduzierbarkeit und Releaseartefakte finalisieren. Abnahme: Upgrade aus unterstützten Vorversionen, Rollback-/Wiederherstellungsabläufe, Backups und Release-Gates sind dokumentiert.
+Schema-Migration v2 und CI/ZIP-Build bleiben aktiv. Upgrade-/Rollback-/Restore-Abnahme mit echten WordPress-Datenbankständen und veröffentlichte Support-/Kompatibilitätsprozesse fehlen.
 
 Die späteren Produkt- und Betriebsstufen stehen in [ROADMAP_31_50.md](ROADMAP_31_50.md).

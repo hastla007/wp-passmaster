@@ -15,10 +15,15 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 - Ein versionierter Voucher-Captain-Provider-Vertrag ist vorhanden; Voucher-Reservierung und Einlösung sind noch nicht im Checkout orchestriert.
 - WooCommerce nutzt CRUD und Bestellmetadaten und bleibt optional. Woo Classic und Blocks folgen dem normalen Woo-Checkout.
 - Veröffentliche Events können abgesagt werden; Käufer werden benachrichtigt und unbezahlte Reservierungen aufgehoben.
+- REST-Grundlagen für Sitzpläne, Service-Slots, POS-Verkäufe, Offline-Scan-Synchronisierung, Einlassregeln pro Tag und Teilnehmerzuweisung sind enthalten.
+- Transaktionale Rechnungsnummern, geplanter Mailversand und Mitgliedspässe mit Nutzungslimits sind als Basismodule verfügbar.
+- Eventkarten können über `templates/event-card.php` im Theme überschrieben werden. Währungen und Wallet-Provider sind erweiterbar.
 
 ## Entwicklung
 
 PHP 8.2+, Composer und WordPress erforderlich. `composer install` lädt die QR-Code-Abhängigkeit. Das Plugin kann ohne generierten Composer-Autoloader gestartet werden; QR-Bilder erscheinen erst mit installierten Abhängigkeiten.
+
+Plugin-Version `0.2.0` nutzt Datenbankschema `2.0.0`. Das Upgrade erfolgt über `dbDelta` beim Laden des Plugins. Für neue Integrationen stehen unter `/wp-json/wp-pass-captain/v1/` Routen für Sitzpläne, Ressourcen/Slots, POS-Verkäufe, Admission Days, Passausgabe und Offline-Synchronisierung bereit; geschützte Routen brauchen eine eingeloggte WP-Session mit REST-Nonce.
 
 ```sh
 composer install
@@ -35,4 +40,4 @@ Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaSc
 
 ## Noch offen
 
-Es gibt noch keine PSP-Anbindung, keine integrierte Gutscheinberechnung oder -einlösung, keine WooCommerce-Blocks-spezifische Ticketbestandsanzeige und keine vollständige Rückerstattungs-/Umbuchungsorchestrierung. Die WooCommerce-Status-Synchronisierung stellt keine Erstattung beim Zahlungsanbieter aus. Siehe [Schritte 11–30](ROADMAP_11_30.md) für den Status.
+Mehrere der Schritte 21–35 sind Backend-Grundlagen und benötigen noch Admin-/Checkout-Oberflächen oder externe Anbieter: Sitzplatz-/Servicebuchungen sind noch nicht in die Ticketzahlung integriert, Offline-Scans können geräteübergreifend kollidieren, Apple/Google Wallet sind nur Adapterverträge, Rechnungen enthalten keine Steuerberechnung oder PDF, und konfigurierbare Teilnehmerfelder werden noch nicht im Checkout abgefragt. PSP, Voucher-Checkout und vollständige Erstattungs-/Umbuchungsorchestrierung fehlen ebenfalls. Siehe Roadmaps für den Status je Schritt.

@@ -2,25 +2,25 @@
 
 Diese Stufen folgen auf die Kern- und Integrationsausbaustufen 1–30. Sie erweitern Anpassbarkeit, Veranstalterbetrieb und Plattformreife; sie setzen die abgeschlossenen Sicherheits- und Datenmodelle der vorherigen Stufen voraus.
 
-## 31. Event- und Ticketvorlagen
+## 31. Event- und Ticketvorlagen — Eventkarten-Vorlage umgesetzt
 
-Themefähige Templates für Eventseiten, Ticketdarstellung und E-Mails bereitstellen. Abnahme: Betreiber können Layouts anpassen, ohne Ticketstatus, QR-Daten oder Sicherheitsprüfungen zu überschreiben.
+Eventkarten lassen sich über ein Theme-Template und einen Filter überschreiben. Ticket- und E-Mail-Templates folgen noch.
 
-## 32. Teilnehmerfelder und Formulare
+## 32. Teilnehmerfelder und Formulare — Datenmodell angelegt
 
-Konfigurierbare Pflicht-/Optionsfelder pro Ticketart und Termin ergänzen. Abnahme: Einwilligung, Zweck, Feldzugriff, Export und Löschfrist sind pro Feld dokumentiert; sensible Daten bleiben standardmäßig deaktiviert.
+Tabellen für Ticketfelder und Antworten sind angelegt. Form-Editor, Checkout-Erfassung, Antwortvalidierung, Export/Löschung und Einwilligungssteuerung fehlen; sensible Felder sind nicht freigeschaltet.
 
-## 33. Geplante Kommunikation
+## 33. Geplante Kommunikation — Queue-Grundlage umgesetzt
 
-Erinnerungen, Änderungs- und Stornonachrichten mit Versandzeitpunkt, Zustellstatus und Wiederholung verwalten. Abnahme: Doppelte Queue-Jobs senden keine doppelten Nachrichten.
+Idempotente Nachrichtenqueue mit geplantem Versand, Retry-Backoff und Fehlerstatus ist vorhanden. Versandvorlagen und konkrete Reminder-/Eventänderungsjobs müssen noch ergänzt werden.
 
-## 34. Teilnehmergruppen und Sammelbestellungen
+## 34. Teilnehmergruppen und Sammelbestellungen — Einzelzuweisung umgesetzt
 
-Gruppenbuchungen, mehrere Käufer-/Teilnehmerrollen und Teamzuweisungen unterstützen. Abnahme: jeder Teilnehmer erhält nur sein Ticket; Käuferrechte und Teilnehmerrechte sind getrennt.
+Mehrere Tickets pro Bestellung bleiben möglich; Käufer können einzelne Tickets Teilnehmern zuweisen, Teilnehmer erhalten rotierte Codes. Gruppenverwaltung und Teamrollen fehlen.
 
-## 35. Mitgliedschaften und Saisonpässe
+## 35. Mitgliedschaften und Saisonpässe — Ausgabe- und Einlöse-Grundlage umgesetzt
 
-Mehrveranstaltungs-Pässe, Gültigkeitszeiträume und definierte Nutzungskontingente ergänzen. Abnahme: Passrechte werden pro Nutzung atomar verbraucht und können widerrufen werden.
+Passcodes mit Gültigkeitszeitraum, Event-/Ticketregeln, atomaren Nutzungskontingenten, Idempotency und Widerruf sind implementiert. Abozahlungen, Admin-UI und vollständige End-to-End-Abnahme fehlen.
 
 ## 36. Kampagnen und Preisregeln
 

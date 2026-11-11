@@ -24,6 +24,8 @@ final class Plugin {
 		add_filter( 'wp_privacy_personal_data_exporters', array( Privacy::class, 'register_exporter' ) );
 		add_filter( 'wp_privacy_personal_data_erasers', array( Privacy::class, 'register_eraser' ) );
 		add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'expire_holds' ) );
+		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
+		add_action( 'wpcap_process_messages', array( Communications::class, 'process_due' ) );
 		add_action( 'init', array( $this, 'register_blocks' ) );
 		Integrations\WooCommerce\OrderAdapter::register();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
@@ -33,13 +35,18 @@ final class Plugin {
 
 	public static function activate() {
 		Installer::install();
+		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		if ( ! wp_next_scheduled( 'wpcap_cleanup_reservations' ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', 'wpcap_cleanup_reservations' );
+		}
+		if ( ! wp_next_scheduled( 'wpcap_process_messages' ) ) {
+			wp_schedule_event( time() + 60, 'wpcap_five_minutes', 'wpcap_process_messages' );
 		}
 	}
 
 	public static function deactivate() {
 		wp_clear_scheduled_hook( 'wpcap_cleanup_reservations' );
+		wp_clear_scheduled_hook( 'wpcap_process_messages' );
 	}
 
 	public function register_blocks() {

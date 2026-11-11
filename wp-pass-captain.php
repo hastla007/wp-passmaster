@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WP Pass Captain
  * Description: Eigenständige Event-, Ticket- und Passverwaltung für WordPress.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Requires PHP: 8.2
  * License: GPL-2.0-or-later
  * Text Domain: wp-pass-captain
@@ -13,7 +13,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'WPCAP_VERSION', '0.1.0' );
+define( 'WPCAP_VERSION', '0.2.0' );
 define( 'WPCAP_FILE', __FILE__ );
 define( 'WPCAP_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WPCAP_URL', plugin_dir_url( __FILE__ ) );

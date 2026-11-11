@@ -31,7 +31,15 @@ final class Privacy {
 				array( 'name' => __( 'Tickets und Teilnehmerdaten', 'wp-pass-captain' ), 'value' => wp_json_encode( $tickets ) ),
 			) );
 		}
-		return array( 'data' => $data, 'done' => count( $orders ) < 50 );
+		$passes = $wpdb->get_results( $wpdb->prepare( "SELECT public_id,valid_from,valid_until,status FROM {$wpdb->prefix}wpcap_member_passes WHERE member_email=%s ORDER BY pass_id LIMIT 50 OFFSET %d", sanitize_email( $email_address ), max( 0, ( absint( $page ) - 1 ) * 50 ) ), ARRAY_A );
+		foreach ( $passes as $pass ) {
+			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'WP Pass Captain Pässe', 'wp-pass-captain' ), 'item_id' => 'pass-' . $pass['public_id'], 'data' => array(
+				array( 'name' => __( 'Passreferenz', 'wp-pass-captain' ), 'value' => $pass['public_id'] ),
+				array( 'name' => __( 'Gültig von/bis (UTC)', 'wp-pass-captain' ), 'value' => $pass['valid_from'] . ' / ' . $pass['valid_until'] ),
+				array( 'name' => __( 'Status', 'wp-pass-captain' ), 'value' => $pass['status'] ),
+			) );
+		}
+		return array( 'data' => $data, 'done' => count( $orders ) < 50 && count( $passes ) < 50 );
 	}
 
 	public static function erase( $email_address, $page = 1 ) {
@@ -43,9 +51,11 @@ final class Privacy {
 			$replacement = 'deleted+' . substr( hash( 'sha256', $email . '|' . $order_id ), 0, 24 ) . '@invalid.example';
 			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'customer_email' => $replacement, 'access_token_hash' => hash( 'sha256', wp_generate_password( 64, true, true ) ), 'access_expires_at' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => absint( $order_id ) ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
 			$wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'status' => 'revoked', 'token_hash' => hash( 'sha256', wp_generate_password( 64, true, true ) ), 'attendee_email' => '' ), array( 'order_id' => absint( $order_id ) ), array( '%s', '%s', '%s' ), array( '%d' ) );
+			$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_ticket_assignments SET buyer_email=%s,attendee_email='',attendee_name='' WHERE ticket_id IN (SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d)", $replacement, absint( $order_id ) ) );
 			Audit::record( 'privacy_erasure', 'order', absint( $order_id ) );
 			++$removed;
 		}
-		return array( 'items_removed' => $removed > 0, 'items_retained' => $removed > 0, 'messages' => array( __( 'Finanzielle Bestellpositionen bleiben für gesetzliche Aufbewahrungspflichten erhalten; Käufer-E-Mail und Ticketzugänge wurden entfernt.', 'wp-pass-captain' ) ), 'done' => count( $orders ) < 50 );
+		$passes_removed = $wpdb->update( $wpdb->prefix . 'wpcap_member_passes', array( 'member_email' => 'deleted+' . substr( hash( 'sha256', $email ), 0, 24 ) . '@invalid.example', 'token_hash' => hash( 'sha256', wp_generate_password( 64, true, true ) ), 'status' => 'revoked' ), array( 'member_email' => $email ), array( '%s', '%s', '%s' ), array( '%s' ) );
+		return array( 'items_removed' => $removed > 0 || $passes_removed > 0, 'items_retained' => $removed > 0 || $passes_removed > 0, 'messages' => array( __( 'Finanzielle Bestellpositionen bleiben für gesetzliche Aufbewahrungspflichten erhalten; Käufer-E-Mail, Teilnehmerdaten und Passzugänge wurden entfernt.', 'wp-pass-captain' ) ), 'done' => count( $orders ) < 50 );
 	}
 }

@@ -5,6 +5,11 @@ namespace PassCaptain\Rest;
 use PassCaptain\Access;
 use PassCaptain\Audit;
 use PassCaptain\Orders;
+use PassCaptain\Memberships;
+use PassCaptain\TicketAssignments;
+use PassCaptain\Seats;
+use PassCaptain\ServiceBookings;
+use PassCaptain\Invoices;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -34,6 +39,16 @@ final class Controller {
 			'callback' => array( __CLASS__, 'transfer_ticket' ),
 			'permission_callback' => '__return_true',
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/assign', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'assign_ticket' ),
+			'permission_callback' => '__return_true',
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/invoice', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'issue_invoice' ),
+			'permission_callback' => array( __CLASS__, 'pos_permission' ),
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/tickets/validate', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'validate_ticket' ),
@@ -45,6 +60,71 @@ final class Controller {
 			'callback' => array( __CLASS__, 'check_in' ),
 			'permission_callback' => array( __CLASS__, 'scanner_permission' ),
 			'args' => array( 'token' => array( 'required' => true, 'sanitize_callback' => 'sanitize_text_field' ) ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/tickets/offline-sync', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'offline_sync' ),
+			'permission_callback' => array( __CLASS__, 'scanner_permission' ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/pos/sales', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'pos_sale' ),
+			'permission_callback' => array( __CLASS__, 'pos_permission' ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/passes/redeem', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'redeem_pass' ),
+			'permission_callback' => array( __CLASS__, 'scanner_permission' ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/member-passes', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'issue_member_pass' ),
+			'permission_callback' => array( __CLASS__, 'pos_permission' ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/member-passes/(?P<pass_id>\d+)/revoke', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'revoke_member_pass' ),
+			'permission_callback' => array( __CLASS__, 'pos_permission' ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/events/(?P<event_id>\d+)/seats', array(
+			'methods' => \WP_REST_Server::READABLE,
+			'callback' => array( __CLASS__, 'seats' ),
+			'permission_callback' => '__return_true',
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/events/(?P<event_id>\d+)/seat-maps', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'create_seat_map' ),
+			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/events/(?P<event_id>\d+)/seat-holds', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'hold_seats' ),
+			'permission_callback' => '__return_true',
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/events/(?P<event_id>\d+)/service-slots', array(
+			'methods' => \WP_REST_Server::READABLE,
+			'callback' => array( __CLASS__, 'service_slots' ),
+			'permission_callback' => '__return_true',
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/events/(?P<event_id>\d+)/resources', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'create_resource' ),
+			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/resources/(?P<resource_id>\d+)/slots', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'create_service_slot' ),
+			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/service-slots/(?P<slot_id>\d+)/bookings', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'book_service_slot' ),
+			'permission_callback' => '__return_true',
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/occurrences/(?P<occurrence_id>\d+)/admission-days', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'set_admission_days' ),
+			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
 		) );
 	}
 
@@ -108,8 +188,209 @@ final class Controller {
 		return rest_ensure_response( $result );
 	}
 
+	public static function assign_ticket( \WP_REST_Request $request ) {
+		$result = TicketAssignments::assign( $request['public_id'], $request->get_param( 'access_token' ), $request->get_param( 'ticket_public_id' ), $request->get_param( 'attendee_name' ), $request->get_param( 'attendee_email' ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+	}
+
+	public static function issue_invoice( \WP_REST_Request $request ) {
+		global $wpdb;
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", sanitize_text_field( $request['public_id'] ) ) );
+		if ( ! $order ) { return new \WP_Error( 'wpcap_order_not_found', __( 'Bestellung nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		$event_ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT o.event_id FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", $order->order_id ) );
+		foreach ( $event_ids as $event_id ) { if ( ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) { return new \WP_Error( 'wpcap_invoice_forbidden', __( 'Keine Berechtigung für diese Bestellung.', 'wp-pass-captain' ), array( 'status' => 403 ) ); } }
+		$result = Invoices::issue_for_order( $order->order_id );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+	}
+
 	public static function scanner_permission() {
 		return is_user_logged_in() && current_user_can( 'wpcap_checkin' );
+	}
+
+	public static function pos_permission() {
+		return is_user_logged_in() && current_user_can( 'wpcap_manage_orders' );
+	}
+
+	public static function pos_sale( \WP_REST_Request $request ) {
+		$payload = $request->get_json_params();
+		$items = $payload['items'] ?? array();
+		if ( ! is_array( $items ) || ! $items || count( $items ) > 10 || '' === sanitize_text_field( $payload['idempotency_key'] ?? '' ) ) { return new \WP_Error( 'wpcap_pos_items', __( 'POS-Verkaufspositionen oder Idempotency-Key sind ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		global $wpdb;
+		foreach ( $items as $item ) {
+			$type_id = absint( $item['ticket_type_id'] ?? 0 );
+			$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
+			if ( ! $event_id || ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) { return new \WP_Error( 'wpcap_pos_forbidden', __( 'Für dieses Event fehlt die POS-Berechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		}
+		$result = Orders::create( array( 'email' => $payload['email'] ?? '', 'items' => $items, 'idempotency_key' => 'pos-' . sanitize_text_field( $payload['idempotency_key'] ) ) );
+		if ( is_wp_error( $result ) ) { return $result; }
+		if ( 'pending' === ( $result['payment_status'] ?? '' ) ) {
+			$confirmed = Orders::confirm_manual_payment( $result['order_id'] );
+			if ( is_wp_error( $confirmed ) ) { return $confirmed; }
+		}
+		return new \WP_REST_Response( array( 'order_id' => (int) $result['order_id'], 'public_id' => $result['public_id'], 'status' => 'complete', 'payment_status' => 'paid' ), 201 );
+	}
+
+	public static function offline_sync( \WP_REST_Request $request ) {
+		$payload = $request->get_json_params();
+		$tokens = $payload['tokens'] ?? array();
+		if ( ! is_array( $tokens ) || ! $tokens || count( $tokens ) > 100 ) { return new \WP_Error( 'wpcap_offline_batch_invalid', __( 'Der Offline-Scanbatch muss 1 bis 100 Codes enthalten.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$results = array();
+		foreach ( $tokens as $raw_token ) {
+			$scan = new \WP_REST_Request( 'POST' );
+			$scan->set_param( 'token', sanitize_text_field( $raw_token ) );
+			$result = self::check_in( $scan );
+			$results[] = is_wp_error( $result ) ? array( 'status' => 'conflict', 'code' => $result->get_error_code(), 'message' => $result->get_error_message() ) : $result->get_data();
+		}
+		return rest_ensure_response( array( 'results' => $results, 'offline_conflicts_are_possible' => true ) );
+	}
+
+	public static function redeem_pass( \WP_REST_Request $request ) {
+		$type_id = absint( $request->get_param( 'ticket_type_id' ) );
+		global $wpdb;
+		$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
+		if ( ! $event_id || ! Access::can_access_event( $event_id, 'wpcap_checkin' ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Für dieses Event fehlt die Einlassberechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		$result = Memberships::redeem( $request->get_param( 'token' ), $type_id, $request->get_param( 'idempotency_key' ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+	}
+
+	public static function issue_member_pass( \WP_REST_Request $request ) {
+		$payload = $request->get_json_params();
+		$rules = $payload['rules'] ?? array();
+		if ( ! is_array( $rules ) || ! $rules ) { return new \WP_Error( 'wpcap_pass_rules_invalid', __( 'Mindestens eine Passregel ist erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		foreach ( $rules as $rule ) {
+			$event_id = absint( $rule['event_id'] ?? 0 );
+			if ( ( $event_id && ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) || ( ! $event_id && ! current_user_can( 'manage_options' ) ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für eine Passregel.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		}
+		$result = Memberships::issue( $payload['email'] ?? '', $payload['valid_from'] ?? '', $payload['valid_until'] ?? '', $rules );
+		return is_wp_error( $result ) ? $result : new \WP_REST_Response( array( 'pass_id' => (int) $result['pass_id'], 'status' => 'issued' ), 201 );
+	}
+
+	public static function revoke_member_pass( \WP_REST_Request $request ) {
+		global $wpdb;
+		$pass_id = absint( $request['pass_id'] );
+		$events = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_pass_rules WHERE pass_id=%d", $pass_id ) );
+		if ( ! $events ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		foreach ( $events as $event_id ) {
+			if ( ( (int) $event_id && ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) || ( ! (int) $event_id && ! current_user_can( 'manage_options' ) ) ) { return new \WP_Error( 'wpcap_pass_forbidden', __( 'Keine Berechtigung für diesen Pass.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		}
+		$result = Memberships::revoke( $pass_id );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( array( 'status' => 'revoked' ) );
+	}
+
+	public static function seats( \WP_REST_Request $request ) {
+		global $wpdb;
+		$event_id = absint( $request['event_id'] );
+		$occurrence_id = absint( $request->get_param( 'occurrence_id' ) );
+		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) );
+		if ( ! $event || 'published' !== $event->status ) { return new \WP_Error( 'wpcap_seat_map_not_found', __( 'Sitzplan nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		$valid_occurrence = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d AND event_id=%d AND status='scheduled'", $occurrence_id, $event_id ) );
+		if ( ! $valid_occurrence ) { return new \WP_Error( 'wpcap_occurrence_not_found', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		$map = $wpdb->get_row( $wpdb->prepare( "SELECT map_id,version,name FROM {$wpdb->prefix}wpcap_seat_maps WHERE event_id=%d AND status='published' ORDER BY version DESC LIMIT 1", $event_id ) );
+		if ( ! $map ) { return rest_ensure_response( array( 'map' => null, 'seats' => array() ) ); }
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_seat_holds SET status='expired' WHERE status='active' AND expires_at<=%s", current_time( 'mysql', true ) ) );
+		$seats = $wpdb->get_results( $wpdb->prepare( "SELECT s.seat_id,s.seat_key,s.zone,s.row_label,s.seat_label,s.position_x,s.position_y,IF(s.status='available' AND NOT EXISTS(SELECT 1 FROM {$wpdb->prefix}wpcap_seat_holds h WHERE h.seat_id=s.seat_id AND h.occurrence_id=%d AND h.status IN ('active','sold')), 'available', 'unavailable') AS availability FROM {$wpdb->prefix}wpcap_seats s WHERE s.map_id=%d ORDER BY s.zone,s.row_label,s.seat_label", $occurrence_id, $map->map_id ), ARRAY_A );
+		return rest_ensure_response( array( 'map' => array( 'version' => (int) $map->version, 'name' => $map->name ), 'seats' => $seats ) );
+	}
+
+	public static function manage_events_permission() { return is_user_logged_in() && current_user_can( 'wpcap_manage_events' ); }
+
+	public static function create_seat_map( \WP_REST_Request $request ) {
+		global $wpdb;
+		$event_id = absint( $request['event_id'] );
+		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_seat_map_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		$payload = $request->get_json_params();
+		$rows = $payload['seats'] ?? array();
+		$name = sanitize_text_field( $payload['name'] ?? '' );
+		if ( ! $name || ! is_array( $rows ) || ! $rows || count( $rows ) > 500 ) { return new \WP_Error( 'wpcap_seat_map_invalid', __( 'Sitzplan muss einen Namen und 1 bis 500 Sitzplätze enthalten.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$wpdb->query( 'START TRANSACTION' );
+		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d FOR UPDATE", $event_id ) );
+		if ( ! $event ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		$version = 1 + (int) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(version) FROM {$wpdb->prefix}wpcap_seat_maps WHERE event_id=%d", $event_id ) );
+		$wpdb->insert( $wpdb->prefix . 'wpcap_seat_maps', array( 'event_id' => $event_id, 'version' => $version, 'name' => $name, 'status' => 'published', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%s', '%s', '%s' ) );
+		$map_id = (int) $wpdb->insert_id;
+		if ( ! $map_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_map_save', __( 'Sitzplan konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		foreach ( $rows as $seat ) {
+			$key = sanitize_key( $seat['seat_key'] ?? '' );
+			$label = sanitize_text_field( $seat['seat_label'] ?? '' );
+			if ( ! $key || ! $label ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_invalid', __( 'Jeder Sitzplatz benötigt einen eindeutigen Schlüssel und eine Bezeichnung.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+			$wpdb->insert( $wpdb->prefix . 'wpcap_seats', array( 'map_id' => $map_id, 'seat_key' => $key, 'zone' => sanitize_text_field( $seat['zone'] ?? '' ), 'row_label' => sanitize_text_field( $seat['row_label'] ?? '' ), 'seat_label' => $label, 'position_x' => (float) ( $seat['x'] ?? 0 ), 'position_y' => (float) ( $seat['y'] ?? 0 ), 'status' => 'available' ), array( '%d', '%s', '%s', '%s', '%s', '%f', '%f', '%s' ) );
+			if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_seat_duplicate', __( 'Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		}
+		$wpdb->query( 'COMMIT' );
+		return new \WP_REST_Response( array( 'map_id' => $map_id, 'version' => $version, 'seat_count' => count( $rows ) ), 201 );
+	}
+
+	public static function create_resource( \WP_REST_Request $request ) {
+		global $wpdb;
+		$event_id = absint( $request['event_id'] );
+		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_resource_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		$payload = $request->get_json_params();
+		$name = sanitize_text_field( $payload['name'] ?? '' );
+		if ( ! $name ) { return new \WP_Error( 'wpcap_resource_invalid', __( 'Ressourcenname fehlt.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$wpdb->insert( $wpdb->prefix . 'wpcap_resources', array( 'event_id' => $event_id, 'name' => $name, 'capacity' => min( 100, max( 1, absint( $payload['capacity'] ?? 1 ) ) ), 'buffer_before' => min( 1440, absint( $payload['buffer_before'] ?? 0 ) ), 'buffer_after' => min( 1440, absint( $payload['buffer_after'] ?? 0 ) ), 'status' => 'active' ), array( '%d', '%s', '%d', '%d', '%d', '%s' ) );
+		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_resource_save', __( 'Ressource konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		return new \WP_REST_Response( array( 'resource_id' => (int) $wpdb->insert_id ), 201 );
+	}
+
+	public static function create_service_slot( \WP_REST_Request $request ) {
+		global $wpdb;
+		$resource_id = absint( $request['resource_id'] );
+		$resource = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_resources WHERE resource_id=%d AND status='active'", $resource_id ) );
+		if ( ! $resource || ! Access::can_access_event( $resource->event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_resource_forbidden', __( 'Keine Berechtigung für diese Ressource.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		$payload = $request->get_json_params();
+		$start = strtotime( sanitize_text_field( $payload['starts_at'] ?? '' ) );
+		$end = strtotime( sanitize_text_field( $payload['ends_at'] ?? '' ) );
+		if ( ! $start || ! $end || $end <= $start ) { return new \WP_Error( 'wpcap_service_slot_invalid', __( 'Zeitfenster ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$wpdb->insert( $wpdb->prefix . 'wpcap_service_slots', array( 'resource_id' => $resource_id, 'starts_at' => gmdate( 'Y-m-d H:i:s', $start ), 'ends_at' => gmdate( 'Y-m-d H:i:s', $end ), 'capacity' => min( 100, max( 1, absint( $payload['capacity'] ?? $resource->capacity ) ) ), 'status' => 'open' ), array( '%d', '%s', '%s', '%d', '%s' ) );
+		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_service_slot_save', __( 'Zeitfenster konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		return new \WP_REST_Response( array( 'slot_id' => (int) $wpdb->insert_id ), 201 );
+	}
+
+	public static function set_admission_days( \WP_REST_Request $request ) {
+		global $wpdb;
+		$occurrence_id = absint( $request['occurrence_id'] );
+		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.event_id FROM {$wpdb->prefix}wpcap_occurrences o INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", $occurrence_id ) );
+		if ( ! $occurrence || ! Access::can_access_event( $occurrence->event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_admission_forbidden', __( 'Keine Berechtigung für diesen Termin.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		$payload = $request->get_json_params();
+		$days = $payload['days'] ?? array();
+		if ( ! is_array( $days ) || ! $days || count( $days ) > 31 ) { return new \WP_Error( 'wpcap_admission_days_invalid', __( 'Bitte 1 bis 31 Veranstaltungstage angeben.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$start_date = wp_date( 'Y-m-d', strtotime( $occurrence->starts_at . ' UTC' ), new \DateTimeZone( $occurrence->timezone ) );
+		$end_date = $occurrence->ends_at ? wp_date( 'Y-m-d', strtotime( $occurrence->ends_at . ' UTC' ), new \DateTimeZone( $occurrence->timezone ) ) : $start_date;
+		$wpdb->query( 'START TRANSACTION' );
+		foreach ( $days as $entry ) {
+			$date = sanitize_text_field( $entry['date'] ?? '' );
+			$policy = sanitize_key( $entry['policy'] ?? 'single_entry' );
+			$parts = array_map( 'intval', explode( '-', $date ) );
+			$valid_date = 3 === count( $parts ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) && checkdate( $parts[1], $parts[2], $parts[0] );
+			if ( ! $valid_date || $date < $start_date || $date > $end_date || ! in_array( $policy, array( 'single_entry', 'daily', 'reentry' ), true ) ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_admission_day_invalid', __( 'Ein Veranstaltungstag oder eine Einlassregel ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+			$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_occurrence_days (occurrence_id,service_date,admission_policy,max_entries) VALUES (%d,%s,%s,%d) ON DUPLICATE KEY UPDATE admission_policy=VALUES(admission_policy),max_entries=VALUES(max_entries)", $occurrence_id, $date, $policy, min( 20, max( 1, absint( $entry['max_entries'] ?? 1 ) ) ) ) );
+			if ( $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_admission_save', __( 'Einlassregeln konnten nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		}
+		$wpdb->query( 'COMMIT' );
+		return rest_ensure_response( array( 'status' => 'saved', 'day_count' => count( $days ) ) );
+	}
+
+	public static function hold_seats( \WP_REST_Request $request ) {
+		global $wpdb;
+		$event_id = absint( $request['event_id'] );
+		$occurrence_id = absint( $request->get_param( 'occurrence_id' ) );
+		$allowed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_occurrences o INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d AND o.event_id=%d AND o.status='scheduled' AND e.status='published'", $occurrence_id, $event_id ) );
+		if ( ! $allowed ) { return new \WP_Error( 'wpcap_occurrence_not_found', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		$result = Seats::hold( $occurrence_id, (array) $request->get_param( 'seat_ids' ), 0, 10, $request->get_param( 'idempotency_key' ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+	}
+
+	public static function service_slots( \WP_REST_Request $request ) {
+		global $wpdb;
+		$event_id = absint( $request['event_id'] );
+		$slots = $wpdb->get_results( $wpdb->prepare( "SELECT s.slot_id,s.starts_at,s.ends_at,s.capacity,r.name AS resource_name FROM {$wpdb->prefix}wpcap_service_slots s INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=r.event_id WHERE r.event_id=%d AND r.status='active' AND e.status='published' AND s.status='open' AND s.starts_at>%s ORDER BY s.starts_at LIMIT 100", $event_id, current_time( 'mysql', true ) ), ARRAY_A );
+		return rest_ensure_response( $slots );
+	}
+
+	public static function book_service_slot( \WP_REST_Request $request ) {
+		$payload = $request->get_json_params();
+		$result = ServiceBookings::reserve( absint( $request['slot_id'] ), $payload['email'] ?? '', absint( $payload['quantity'] ?? 1 ), 0, 10, $payload['idempotency_key'] ?? '' );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
 	public static function validate_ticket( \WP_REST_Request $request ) {
@@ -132,8 +413,24 @@ final class Controller {
 			$wpdb->query( 'COMMIT' );
 			return new \WP_Error( 'wpcap_ticket_not_valid', __( 'Ticket wurde bereits verwendet oder ist widerrufen.', 'wp-pass-captain' ), array( 'status' => 409, 'ticket_status' => $ticket ? $ticket->status : 'unknown' ) );
 		}
-		$wpdb->update( $tickets, array( 'status' => 'checked_in' ), array( 'ticket_id' => $ticket->ticket_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) );
-		$wpdb->insert( $wpdb->prefix . 'wpcap_checkins', array( 'ticket_id' => $ticket->ticket_id, 'event_id' => $found['event_id'], 'user_id' => get_current_user_id(), 'result' => 'checked_in', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%s', '%s' ) );
+		$service_date = wp_date( 'Y-m-d', time(), new \DateTimeZone( $found['timezone'] ) );
+		$day_table = $wpdb->prefix . 'wpcap_occurrence_days';
+		$day = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id,admission_policy,max_entries FROM $day_table WHERE occurrence_id=%d AND service_date=%s", $found['occurrence_id'], $service_date ) );
+		$has_day_rules = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $day_table WHERE occurrence_id=%d", $found['occurrence_id'] ) );
+		$repeatable = $day && in_array( $day->admission_policy, array( 'daily', 'reentry' ), true );
+		$blocked = '';
+		if ( $has_day_rules && ! $day ) { $blocked = 'not_valid_today'; }
+		if ( $repeatable ) {
+			$entries_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_checkins WHERE ticket_id=%d AND occurrence_day_id=%d AND result='checked_in'", $ticket->ticket_id, $day->occurrence_day_id ) );
+			if ( $entries_today >= (int) $day->max_entries ) { $blocked = 'daily_limit_reached'; }
+		}
+		if ( $blocked ) {
+			$wpdb->insert( $wpdb->prefix . 'wpcap_checkins', array( 'ticket_id' => $ticket->ticket_id, 'event_id' => $found['event_id'], 'occurrence_day_id' => $day ? (int) $day->occurrence_day_id : 0, 'user_id' => get_current_user_id(), 'result' => $blocked, 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%d', '%s', '%s' ) );
+			$wpdb->query( 'COMMIT' );
+			return new \WP_Error( 'wpcap_ticket_day_rule', __( 'Ticket ist heute nicht gültig oder das Tageskontingent ist erreicht.', 'wp-pass-captain' ), array( 'status' => 409, 'ticket_status' => $blocked ) );
+		}
+		if ( ! $repeatable ) { $wpdb->update( $tickets, array( 'status' => 'checked_in' ), array( 'ticket_id' => $ticket->ticket_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) ); }
+		$wpdb->insert( $wpdb->prefix . 'wpcap_checkins', array( 'ticket_id' => $ticket->ticket_id, 'event_id' => $found['event_id'], 'occurrence_day_id' => $day ? (int) $day->occurrence_day_id : 0, 'user_id' => get_current_user_id(), 'result' => 'checked_in', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%d', '%s', '%s' ) );
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'ticket_checked_in', 'ticket', $ticket->ticket_id, array( 'event_id' => $found['event_id'] ) );
 		return rest_ensure_response( array( 'status' => 'checked_in', 'event' => $found['event_name'], 'ticket' => $found['ticket_name'] ) );
@@ -144,11 +441,11 @@ final class Controller {
 		if ( 64 !== strlen( $token ) ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.status,tt.name AS ticket_name,o.event_id,o.starts_at,o.timezone,e.name AS event_name FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
+			"SELECT t.ticket_id,t.status,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,e.name AS event_name FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
 			hash( 'sha256', $token )
 		) );
 		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		if ( strtotime( $row->starts_at . ' UTC' ) < time() - DAY_IN_SECONDS || strtotime( $row->starts_at . ' UTC' ) > time() + 365 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_ticket_out_of_window', __( 'Das Ticket liegt außerhalb des Einlasszeitraums.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
-		return array( 'ticket_id' => (int) $row->ticket_id, 'event_id' => (int) $row->event_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'timezone' => $row->timezone );
+		return array( 'ticket_id' => (int) $row->ticket_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'timezone' => $row->timezone );
 	}
 }

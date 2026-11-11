@@ -26,7 +26,7 @@ final class Admin {
 				<tr><th><label for="wpcap-location"><?php esc_html_e( 'Ort', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-location" name="location" type="text" class="regular-text" maxlength="190"></td></tr>
 				<tr><th><label for="wpcap-event-capacity"><?php esc_html_e( 'Gesamtkontingent', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-event-capacity" name="event_capacity" type="number" min="0" value="0"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'wp-pass-captain' ); ?></span></td></tr>
 				<tr><th><label for="wpcap-type-name"><?php esc_html_e( 'Ticketkategorie', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-type-name" name="ticket_name" type="text" value="Standard" required maxlength="190"></td></tr>
-				<tr><th><label for="wpcap-price"><?php esc_html_e( 'Preis', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-price" name="price" type="number" min="0" step="0.01" value="0.00" required> <select name="currency"><option value="EUR">EUR</option><option value="USD">USD</option><option value="CHF">CHF</option></select></td></tr>
+				<tr><th><label for="wpcap-price"><?php esc_html_e( 'Preis', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-price" name="price" type="number" min="0" step="0.01" value="0.00" required> <select name="currency"><?php foreach ( Localization::currencies() as $currency_code ) : ?><option value="<?php echo esc_attr( $currency_code ); ?>"><?php echo esc_html( $currency_code ); ?></option><?php endforeach; ?></select></td></tr>
 				<tr><th><label for="wpcap-type-capacity"><?php esc_html_e( 'Ticketkontingent', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-type-capacity" name="ticket_capacity" type="number" min="0" value="0"></td></tr>
 				<tr><th><label for="wpcap-status"><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></label></th><td><select id="wpcap-status" name="status"><option value="draft"><?php esc_html_e( 'Entwurf', 'wp-pass-captain' ); ?></option><option value="published"><?php esc_html_e( 'Veröffentlicht', 'wp-pass-captain' ); ?></option></select></td></tr>
 				</tbody></table>
@@ -60,7 +60,7 @@ final class Admin {
 		$timezone = sanitize_text_field( wp_unslash( $_POST['timezone'] ?? wp_timezone_string() ) );
 		$ticket_name = sanitize_text_field( wp_unslash( $_POST['ticket_name'] ?? '' ) );
 		$currency = strtoupper( sanitize_text_field( wp_unslash( $_POST['currency'] ?? 'EUR' ) ) );
-		if ( '' === $name || '' === $starts || '' === $ticket_name || ! in_array( $currency, array( 'EUR', 'USD', 'CHF' ), true ) || ! in_array( $timezone, timezone_identifiers_list(), true ) ) {
+		if ( '' === $name || '' === $starts || '' === $ticket_name || ! in_array( $currency, Localization::currencies(), true ) || ! in_array( $timezone, timezone_identifiers_list(), true ) ) {
 			wp_die( esc_html__( 'Bitte prüfe die Eventdaten.', 'wp-pass-captain' ), 400 );
 		}
 		try {

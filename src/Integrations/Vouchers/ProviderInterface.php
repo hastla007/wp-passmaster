@@ -16,4 +16,3 @@ interface ProviderInterface {
 	/** Refund a committed redemption, optionally for a partial amount in minor units. */
 	public function refund( array $redemption, $amount_minor, $idempotency_key );
 }
-

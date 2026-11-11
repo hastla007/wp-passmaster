@@ -10,7 +10,7 @@ final class PublicEvents {
 		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', array( 'url' => esc_url_raw( rest_url( 'wp-pass-captain/v1/checkout' ) ) ) );
 		wp_register_style( 'wpcap-public', WPCAP_URL . 'assets/public.css', array(), WPCAP_VERSION );
 		wp_register_script( 'wpcap-scanner', WPCAP_URL . 'assets/scanner.js', array(), WPCAP_VERSION, true );
-		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/check-in' ) ), 'nonce' => wp_create_nonce( 'wp_rest' ) ) );
+		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/offline-sync' ) ), 'nonce' => wp_create_nonce( 'wp_rest' ) ) );
 	}
 
 	public static function render_shortcode() {
@@ -29,18 +29,14 @@ final class PublicEvents {
 				$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name,price_minor,currency,max_per_order FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id", $event->occurrence_id ) );
 				if ( ! $types ) { continue; }
 				?>
-				<article class="wpcap-event">
-					<h3><?php echo esc_html( $event->name ); ?></h3>
-					<?php if ( $event->description ) : ?><div class="wpcap-description"><?php echo wp_kses_post( wpautop( $event->description ) ); ?></div><?php endif; ?>
-					<p><?php echo esc_html( wp_date( 'd.m.Y H:i', strtotime( $event->starts_at . ' UTC' ), new \DateTimeZone( $event->timezone ) ) . ' ' . $event->timezone ); ?><?php if ( $event->location ) : ?> · <?php echo esc_html( $event->location ); ?><?php endif; ?></p>
-					<form class="wpcap-checkout-form">
-						<label><?php esc_html_e( 'Ticket', 'wp-pass-captain' ); ?> <select name="ticket_type_id" required><?php foreach ( $types as $type ) : ?><option value="<?php echo esc_attr( $type->ticket_type_id ); ?>" data-max="<?php echo esc_attr( $type->max_per_order ); ?>"><?php echo esc_html( $type->name . ' — ' . number_format_i18n( $type->price_minor / 100, 2 ) . ' ' . $type->currency ); ?></option><?php endforeach; ?></select></label>
-						<label><?php esc_html_e( 'Anzahl', 'wp-pass-captain' ); ?> <input name="quantity" type="number" min="1" max="10" value="1" required></label>
-						<label><?php esc_html_e( 'E-Mail', 'wp-pass-captain' ); ?> <input name="email" type="email" autocomplete="email" required></label>
-						<button type="submit"><?php esc_html_e( 'Ticket bestellen', 'wp-pass-captain' ); ?></button>
-						<p class="wpcap-message" role="status" aria-live="polite"></p>
-					</form>
-				</article>
+				<?php
+				$template = locate_template( 'wp-pass-captain/event-card.php' );
+				if ( ! $template ) { $template = WPCAP_PATH . 'templates/event-card.php'; }
+				ob_start();
+				include $template;
+				$card_html = ob_get_clean();
+				echo apply_filters( 'wp_pass_captain_event_card_html', $card_html, $event, $types ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
+				?>
 			<?php endforeach; ?>
 		</div>
 		<?php
