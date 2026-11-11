@@ -49,6 +49,10 @@ Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaSc
 - [Schritte 11–30](ROADMAP_11_30.md)
 - [Schritte 31–50](ROADMAP_31_50.md)
 
+## Module (P2)
+
+Unter **Pass Captain** stehen zusätzlich: Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]`. Dokumentation: [docs/WALLET.md](docs/WALLET.md), [docs/WEBHOOKS.md](docs/WEBHOOKS.md), [docs/HOOKS.md](docs/HOOKS.md), [docs/MOBILE-API.md](docs/MOBILE-API.md).
+
 ## Scanner und Mobile-App
 
 - Web-Scanner per Shortcode `[wp_pass_captain_scanner]`. Die Kamera nutzt die native BarcodeDetector-API und fällt sonst (iOS/Safari, Firefox) auf das mitgelieferte jsQR (Apache-2.0, `assets/vendor/jsqr/`) zurück.
@@ -67,4 +71,5 @@ php build/compile-mo.php languages/wp-pass-captain-xx_XX.po
 - Abnahme in einer echten WordPress-/WooCommerce-Installation sowie gegen die echten Stripe- und PayPal-Sandboxes (getestet ist gegen MariaDB mit nachgebauter WordPress-, WooCommerce- und Anbieter-API).
 - Rechtliche und steuerliche Prüfung von Rechnungen, Gutschriften, Verbraucherinformationen und Steuersätzen je Land.
 - Native Scanner-Apps selbst (die Server-API ist fertig, siehe docs/MOBILE-API.md, inkl. geplanter Erweiterungen).
-- P2/P3 laut Konzept: grafischer Sitzplan im Checkout, Wallet-Pässe, echtes Offline-Prüfpaket, POS-Oberfläche, Kalender, SMS, Badges, öffentliche Webhooks, Last-, Sicherheits- und Barrierefreiheitstests.
+- Abnahme der P2-Module gegen echte Dienste (Apple/Google Wallet, Twilio, Mollie) und im Browser (Saalplan-Editor, Platzwahl, Kasse).
+- P3 laut Konzept: echtes Offline-Prüfpaket, externe Scanner-Apps, Partnerabrechnungen; Last-, Sicherheits- und Barrierefreiheitstests.
