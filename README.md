@@ -27,6 +27,7 @@ Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaSc
 
 - [Nächste 10 Schritte](ROADMAP.md)
 - [Schritte 11–30](ROADMAP_11_30.md)
+- [Schritte 31–50](ROADMAP_31_50.md)
 - [Produkt- und Architekturkonzept](CONCEPT.md)
 - [Umsetzungs-Backlog](TODO.md)
 

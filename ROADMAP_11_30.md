@@ -81,3 +81,5 @@ Admin, Checkout und Scanner barrierefrei prüfen; Rollen, Rate-Limits, Sicherhei
 ## 30. Release und Wartung
 
 Migrationspfade, Kompatibilitätsmatrix, Übersetzungen, Supportprozesse, Reproduzierbarkeit und Releaseartefakte finalisieren. Abnahme: Upgrade aus unterstützten Vorversionen, Rollback-/Wiederherstellungsabläufe, Backups und Release-Gates sind dokumentiert.
+
+Die späteren Produkt- und Betriebsstufen stehen in [ROADMAP_31_50.md](ROADMAP_31_50.md).
