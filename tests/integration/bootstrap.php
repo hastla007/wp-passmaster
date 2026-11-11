@@ -127,7 +127,11 @@ function add_query_arg( $args, $url, $u = null ) { if ( ! is_array( $args ) ) { 
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function mysql2date( $f, $d ) { return gmdate( $f, strtotime( $d ) ); }
 function get_date_from_gmt( $d ) { return $d; }
-function wp_mail( $to, $subject, $body ) { $GLOBALS['wpcap_test_mails'][] = compact( 'to', 'subject', 'body' ); return true; }
+function wp_mail( $to, $subject, $body, $headers = '', $attachments = array() ) { $files = array(); foreach ( (array) $attachments as $f ) { $files[ basename( $f ) ] = (string) file_get_contents( $f ); } $GLOBALS['wpcap_test_mails'][] = compact( 'to', 'subject', 'body', 'files' ); return true; }
+function get_temp_dir() { return sys_get_temp_dir() . '/'; }
+function trailingslashit( $p ) { return rtrim( $p, '/' ) . '/'; }
+function get_bloginfo( $k = '' ) { return 'Testsite'; }
+function wp_delete_file( $f ) { if ( is_file( $f ) ) { unlink( $f ); } }
 function do_action( $hook, ...$args ) { $GLOBALS['wpcap_test_actions'][] = $hook; }
 function apply_filters( $hook, $value, ...$args ) { return array_key_exists( $hook, $GLOBALS['wpcap_test_filters'] ?? array() ) ? $GLOBALS['wpcap_test_filters'][ $hook ] : $value; }
 function add_action() {}

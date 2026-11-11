@@ -7,6 +7,7 @@
 	const result = root.querySelector('.wpcap-scan-result');
 	const video = root.querySelector('.wpcap-camera');
 	const queueKey = 'wpcap-offline-scans-v1';
+	const t = window.WPCAP_SCANNER.i18n || {};
 	let stream = null;
 	let locked = false;
 	let lastToken = '';
@@ -15,7 +16,7 @@
 		const items = queue();
 		items.push(token);
 		saveQueue(items.slice(-100));
-		result.textContent = 'Offline gespeichert. Der Einlass wird erst nach der Synchronisierung serverseitig bestätigt.';
+		result.textContent = t.queued || 'Saved offline.';
 		result.dataset.state = 'error';
 		input.value = '';
 		updateQueueButton();
@@ -26,10 +27,10 @@
 	function saveQueue(items) { try { window.localStorage.setItem(queueKey, JSON.stringify(items)); } catch (ignore) {} }
 	const syncButton = document.createElement('button');
 	syncButton.type = 'button';
-	syncButton.textContent = 'Offline-Scans synchronisieren';
+	syncButton.textContent = t.syncButton || 'Sync offline scans';
 	syncButton.hidden = true;
 	root.appendChild(syncButton);
-	function updateQueueButton() { const count = queue().length; syncButton.hidden = !count; syncButton.textContent = count + ' Offline-Scan(s) synchronisieren'; }
+	function updateQueueButton() { const count = queue().length; syncButton.hidden = !count; syncButton.textContent = (t.syncCount || '%d').replace('%d', count); }
 	async function syncQueue() {
 		const items = queue();
 		if (!items.length || !navigator.onLine) { updateQueueButton(); return; }
@@ -37,11 +38,11 @@
 		try {
 			const response = await fetch(WPCAP_SCANNER.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ tokens: items }) });
 			const data = await response.json();
-			if (!response.ok) throw new Error(data.message || 'Synchronisierung fehlgeschlagen.');
+			if (!response.ok) throw new Error(data.message || t.syncFailed || 'Sync failed.');
 			// Keep scans queued while this request was in flight.
 			saveQueue(queue().slice(items.length));
 			const conflicts = (data.results || []).filter(function (item) { return item.status === 'conflict'; }).length;
-			result.textContent = items.length + ' Offline-Scan(s) synchronisiert; Konflikte: ' + conflicts + '.';
+			result.textContent = (t.synced || '%1$d / %2$d').replace('%1$d', items.length).replace('%2$d', conflicts);
 			result.dataset.state = conflicts ? 'error' : 'success';
 		} catch (error) { result.textContent = error.message; result.dataset.state = 'error'; }
 		finally { syncButton.disabled = false; updateQueueButton(); }
@@ -55,7 +56,7 @@
 		if (locked || !token) return;
 		if (!navigator.onLine) { enqueue(token); return; }
 		locked = true;
-		result.textContent = 'Ticket wird geprüft …';
+		result.textContent = t.checking || '…';
 		try {
 			let response;
 			try {
@@ -70,7 +71,7 @@
 				return;
 			}
 			const data = await response.json().catch(function () { return {}; });
-			if (!response.ok) throw new Error(data.message || 'Ticket nicht gültig.');
+			if (!response.ok) throw new Error(data.message || t.invalid || 'Invalid ticket.');
 			result.textContent = '✓ ' + data.event + ' — ' + data.ticket;
 			result.dataset.state = 'success';
 			input.value = '';
@@ -90,7 +91,7 @@
 	root.querySelector('.wpcap-camera-start').addEventListener('click', async function (event) {
 		const button = event.currentTarget;
 		if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-			result.textContent = 'Kamera-QR-Scan wird von diesem Browser nicht unterstützt. Nutze die manuelle Eingabe.';
+			result.textContent = t.noCamera || 'Camera scanning is not supported.';
 			return;
 		}
 		try {
@@ -119,7 +120,7 @@
 			};
 			scan();
 		} catch (error) {
-			result.textContent = 'Kamerazugriff nicht möglich: ' + error.message;
+			result.textContent = (t.cameraError || 'Camera error:') + ' ' + error.message;
 		}
 	});
 })();

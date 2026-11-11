@@ -87,3 +87,18 @@ $before = count( $GLOBALS['wpcap_test_mails'] );
 $notified = PassCaptain\Notifications::occurrence_rescheduled( $occ_id, '2026-12-01 18:00:00', '2026-12-08 18:00:00' );
 $last = end( $GLOBALS['wpcap_test_mails'] );
 check( 'reschedule notifies ticket holders (attendee address preferred)', 1 === $notified && 'clara@example.com' === $last['to'] && false !== strpos( $last['body'], '08.12.2026' ) );
+
+echo "Ticket PDF\n";
+if ( is_readable( dirname( __DIR__, 2 ) . '/vendor/autoload.php' ) ) { require_once dirname( __DIR__, 2 ) . '/vendor/autoload.php'; }
+$pt = make_type( 5, 10, 0 );
+$before = count( $GLOBALS['wpcap_test_mails'] );
+$po = Orders::create( array( 'email' => 'pdf@example.com', 'items' => array( array( 'ticket_type_id' => $pt, 'quantity' => 2 ) ), 'idempotency_key' => 'pdf-1' ) );
+$ticket_mail = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $before ), static fn( $m ) => 'Deine Tickets' === $m['subject'] ) )[0] ?? array();
+$pdf = array_values( $ticket_mail['files'] ?? array() )[0] ?? '';
+$pdf_file = sys_get_temp_dir() . '/wpcap-test-ticket.pdf';
+file_put_contents( $pdf_file, $pdf );
+$pages = trim( (string) shell_exec( 'pdfinfo ' . escapeshellarg( $pdf_file ) . " 2>/dev/null | awk '/^Pages:/{print $2}'" ) );
+$text = (string) shell_exec( 'pdftotext ' . escapeshellarg( $pdf_file ) . ' - 2>/dev/null' );
+check( 'ticket mail has a valid PDF with one page per ticket', str_starts_with( $pdf, '%PDF-1.4' ) && '2' === $pages && false !== strpos( $text, 'Konzert' ) );
+check( 'PDF contains the QR code when the encoder is installed', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( $pdf, 're f' ) > 200 );
+check( 'temporary PDF file is removed after sending', ! glob( sys_get_temp_dir() . '/tickets-*.pdf' ) );

@@ -28,7 +28,19 @@ final class PublicEvents {
 		) );
 		wp_register_style( 'wpcap-public', WPCAP_URL . 'assets/public.css', array(), WPCAP_VERSION );
 		wp_register_script( 'wpcap-scanner', WPCAP_URL . 'assets/scanner.js', array(), WPCAP_VERSION, true );
-		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/offline-sync' ) ), 'nonce' => wp_create_nonce( 'wp_rest' ) ) );
+		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/offline-sync' ) ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
+			'syncButton' => __( 'Offline-Scans synchronisieren', 'wp-pass-captain' ),
+			/* translators: %d: number of queued scans */
+			'syncCount' => __( '%d Offline-Scan(s) synchronisieren', 'wp-pass-captain' ),
+			'syncFailed' => __( 'Synchronisierung fehlgeschlagen.', 'wp-pass-captain' ),
+			/* translators: 1: synced scans, 2: conflicts */
+			'synced' => __( '%1$d Offline-Scan(s) synchronisiert; Konflikte: %2$d.', 'wp-pass-captain' ),
+			'queued' => __( 'Offline gespeichert. Der Einlass wird erst nach der Synchronisierung serverseitig bestätigt.', 'wp-pass-captain' ),
+			'checking' => __( 'Ticket wird geprüft …', 'wp-pass-captain' ),
+			'invalid' => __( 'Ticket nicht gültig.', 'wp-pass-captain' ),
+			'noCamera' => __( 'Kamera-QR-Scan wird von diesem Browser nicht unterstützt. Nutze die manuelle Eingabe.', 'wp-pass-captain' ),
+			'cameraError' => __( 'Kamerazugriff nicht möglich:', 'wp-pass-captain' ),
+		) ) );
 	}
 
 	public static function render_shortcode() {

@@ -65,7 +65,7 @@ final class Waitlists {
 		if ( 1 !== (int) $wpdb->rows_affected ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_waitlist_offer', __( 'Das Angebot konnte nicht erstellt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->query( 'COMMIT' );
 		$accept_url = add_query_arg( array( 'wpcap_waitlist_accept' => (int) $row->waitlist_id, 'token' => $token ), home_url( '/' ) );
-		$sent = wp_mail( $row->email, __( 'Ein Platz könnte verfügbar sein', 'wp-pass-captain' ), sprintf( __( 'Dein Wartelistenangebot läuft am %s ab. Mit der Annahme wird das Ticket für dich reserviert, sofern es noch verfügbar ist: %s', 'wp-pass-captain' ), wp_date( 'd.m.Y H:i T', strtotime( $expires . ' UTC' ) ), esc_url_raw( $accept_url ) ) );
+		$sent = wp_mail( $row->email, __( 'Ein Platz könnte verfügbar sein', 'wp-pass-captain' ), sprintf( __( 'Dein Wartelistenangebot läuft am %1$s ab. Mit der Annahme wird das Ticket für dich reserviert, sofern es noch verfügbar ist: %2$s', 'wp-pass-captain' ), wp_date( 'd.m.Y H:i T', strtotime( $expires . ' UTC' ) ), esc_url_raw( $accept_url ) ) );
 		if ( ! $sent ) {
 			$wpdb->update( $table, array( 'status' => 'waiting', 'offer_token_hash' => '', 'offer_expires_at' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'waitlist_id' => (int) $row->waitlist_id, 'status' => 'offered', 'offer_token_hash' => hash( 'sha256', $token ) ), array( '%s', '%s', '%s', '%s' ), array( '%d', '%s', '%s' ) );
 			return new \WP_Error( 'wpcap_waitlist_mail', __( 'Das Angebot wurde gespeichert, aber die E-Mail konnte nicht gesendet werden.', 'wp-pass-captain' ), array( 'status' => 502 ) );

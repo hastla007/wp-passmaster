@@ -600,7 +600,7 @@ final class Orders {
 		if ( ! wp_mail( $recipient_email, __( 'Ein Ticket wurde an dich übertragen', 'wp-pass-captain' ), $body ) ) {
 			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'wp-pass-captain' ), array( 'status' => 502 ) );
 		}
-		wp_mail( $order->customer_email, __( 'Ticketübertragung abgeschlossen', 'wp-pass-captain' ), sprintf( __( 'Dein Ticket für %s wurde an %s übertragen. Der bisherige Ticketcode ist ungültig.', 'wp-pass-captain' ), $ticket->event_name, $recipient_email ) );
+		wp_mail( $order->customer_email, __( 'Ticketübertragung abgeschlossen', 'wp-pass-captain' ), sprintf( __( 'Dein Ticket für %1$s wurde an %2$s übertragen. Der bisherige Ticketcode ist ungültig.', 'wp-pass-captain' ), $ticket->event_name, $recipient_email ) );
 		Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
 		return array( 'status' => 'transferred' );
 	}
@@ -725,7 +725,18 @@ final class Orders {
 				$body .= __( 'Ticket öffnen oder drucken:', 'wp-pass-captain' ) . ' ' . esc_url_raw( $ticket_url ) . "\n";
 				$body .= __( 'Ticket-Code:', 'wp-pass-captain' ) . ' ' . $ticket['token'] . "\n\n";
 			}
-			wp_mail( $order->customer_email, __( 'Deine Tickets', 'wp-pass-captain' ), $body );
+			$attachments = array();
+			if ( apply_filters( 'wpcap_attach_ticket_pdf', true, (int) $order_id ) ) {
+				$pdf_tickets = array_map( static function ( $ticket ) {
+					return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => wp_date( 'd.m.Y H:i', strtotime( $ticket['starts_at'] . ' UTC' ), new \DateTimeZone( $ticket['timezone'] ?: 'UTC' ) ) . ' ' . $ticket['timezone'], 'location' => $ticket['location'], 'token' => $ticket['token'] );
+				}, $issued );
+				$file = trailingslashit( get_temp_dir() ) . 'tickets-' . $order->public_id . '.pdf';
+				if ( false !== file_put_contents( $file, TicketPdf::render( $pdf_tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'wp-pass-captain' ) ) ) ) ) {
+					$attachments[] = $file;
+				}
+			}
+			wp_mail( $order->customer_email, __( 'Deine Tickets', 'wp-pass-captain' ), $body, '', $attachments );
+			foreach ( $attachments as $file ) { wp_delete_file( $file ); }
 		}
 	}
 
