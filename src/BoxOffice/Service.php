@@ -191,10 +191,15 @@ final class Service {
 
 	/* ------------------------------------------------------------------ sale */
 
-	/** Ticket types of an occurrence with live availability (null = unlimited). */
+	/**
+	 * Ticket types of an occurrence with live availability (null = unlimited), the active participant
+	 * fields (same definition as the public checkout: key, label, type, required, purpose) and whether
+	 * seats come from a seat map (the box office cannot pick seats: best available ones are assigned).
+	 */
 	public static function ticket_types( $occurrence_id ) {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name,price_minor,currency,max_per_order,tax_rate_bp,status,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id", absint( $occurrence_id ) ) );
+		$seated = self::seated_types( $occurrence_id );
 		$out = array();
 		foreach ( $rows as $r ) {
 			$out[] = array(
@@ -205,7 +210,54 @@ final class Service {
 				'tax_rate_bp' => (int) $r->tax_rate_bp,
 				'max_per_order' => (int) $r->max_per_order,
 				'available' => Orders::availability( $r->ticket_type_id ),
+				'fields' => self::participant_fields( $r->ticket_type_id ),
+				'seated' => isset( $seated[ (int) $r->ticket_type_id ] ),
 			);
+		}
+		return $out;
+	}
+
+	/** Active participant fields of a ticket type in checkout order (same columns as the public checkout). */
+	public static function participant_fields( $ticket_type_id ) {
+		global $wpdb;
+		$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_key AS `key`,label,field_type AS type,required,purpose FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", absint( $ticket_type_id ) ), ARRAY_A );
+		return array_map( static function ( $f ) {
+			return array( 'key' => (string) $f['key'], 'label' => (string) $f['label'], 'type' => (string) $f['type'], 'required' => (bool) (int) $f['required'], 'purpose' => (string) ( $f['purpose'] ?? '' ) );
+		}, (array) $fields );
+	}
+
+	/** Ticket types of an occurrence that are sold with seats from a seat map (ticket_type_id => true). */
+	private static function seated_types( $occurrence_id ) {
+		if ( ! class_exists( '\\PassCaptain\\Seating\\Layouts' ) || ! in_array( 'PassCaptain\\Modules\\Seating', \PassCaptain\Modules::classes(), true ) ) { return array(); }
+		global $wpdb;
+		$table = \PassCaptain\Seating\Layouts::table( 'links' );
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) || ! \PassCaptain\Seating\Layouts::link( $occurrence_id ) ) { return array(); }
+		return array_fill_keys( array_keys( array_filter( \PassCaptain\Seating\Layouts::type_zones( $occurrence_id ) ) ), true );
+	}
+
+	/**
+	 * Attendee list for Orders::create() (format of the public checkout: ticket_type_id, name, email,
+	 * answers{field_key: value}) from the POS input. $attendees_in: {type_id: [{name, email, answers}, ...]};
+	 * $names_in (legacy): {type_id: [name, ...]} used where no attendee entry is given. Empty entries
+	 * are skipped; Orders::validate_attendees() enforces required fields for every ticket.
+	 */
+	public static function build_attendees( $type_id, $qty, $attendees_in, $names_in ) {
+		$entries = is_array( $attendees_in[ $type_id ] ?? null ) ? array_values( $attendees_in[ $type_id ] ) : array();
+		$names = $names_in[ $type_id ] ?? array();
+		$names = is_array( $names ) ? $names : preg_split( '/\r\n|\r|\n/', (string) $names );
+		$names = array_values( array_filter( array_map( static function ( $n ) { return is_scalar( $n ) ? trim( sanitize_text_field( (string) $n ) ) : ''; }, $names ), 'strlen' ) );
+		$out = array();
+		for ( $i = 0; $i < $qty; $i++ ) {
+			$entry = is_array( $entries[ $i ] ?? null ) ? $entries[ $i ] : array();
+			$name = is_scalar( $entry['name'] ?? null ) ? trim( sanitize_text_field( (string) $entry['name'] ) ) : '';
+			if ( '' === $name && ! $entries ) { $name = (string) ( $names[ $i ] ?? '' ); }
+			$email = is_scalar( $entry['email'] ?? null ) ? trim( sanitize_email( (string) $entry['email'] ) ) : '';
+			$answers = array();
+			foreach ( is_array( $entry['answers'] ?? null ) ? $entry['answers'] : array() as $key => $value ) {
+				if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) { $answers[ sanitize_key( (string) $key ) ] = (string) $value; }
+			}
+			if ( '' === $name && '' === $email && ! $answers ) { continue; }
+			$out[] = array( 'ticket_type_id' => (int) $type_id, 'name' => mb_substr( $name, 0, 190 ), 'email' => $email, 'answers' => $answers );
 		}
 		return $out;
 	}
@@ -267,6 +319,7 @@ final class Service {
 		$items = array();
 		$attendees = array();
 		$names_in = is_array( $input['names'] ?? null ) ? $input['names'] : array();
+		$attendees_in = is_array( $input['attendees'] ?? null ) ? $input['attendees'] : array();
 		foreach ( (array) ( $input['quantities'] ?? array() ) as $type_id => $qty ) {
 			$type_id = absint( $type_id );
 			$qty = absint( $qty );
@@ -274,11 +327,7 @@ final class Service {
 			if ( ! isset( $types[ $type_id ] ) ) { return self::error( 'wpcap_pos_item', __( 'Eine Ticketart gehört nicht zu diesem Termin.', 'wp-pass-captain' ) ); }
 			if ( strtoupper( $types[ $type_id ]->currency ) !== $session->currency ) { return self::error( 'wpcap_pos_currency', __( 'Die Währung der Ticketart passt nicht zur Kassensitzung.', 'wp-pass-captain' ) ); }
 			$items[] = array( 'ticket_type_id' => $type_id, 'quantity' => $qty );
-			$names = $names_in[ $type_id ] ?? array();
-			$names = is_array( $names ) ? $names : preg_split( '/\r\n|\r|\n/', (string) $names );
-			foreach ( array_slice( array_values( array_filter( array_map( static function ( $n ) { return is_scalar( $n ) ? trim( sanitize_text_field( (string) $n ) ) : ''; }, $names ) ) ), 0, $qty ) as $name ) {
-				$attendees[] = array( 'ticket_type_id' => $type_id, 'name' => mb_substr( $name, 0, 190 ) );
-			}
+			$attendees = array_merge( $attendees, self::build_attendees( $type_id, $qty, $attendees_in, $names_in ) );
 		}
 		if ( ! $items ) { return self::error( 'wpcap_pos_empty', __( 'Bitte mindestens ein Ticket wählen.', 'wp-pass-captain' ) ); }
 
@@ -289,8 +338,9 @@ final class Service {
 
 		// 1. Pending sale row: claims the form key before any order exists.
 		$tendered = isset( $input['tendered_minor'] ) && null !== $input['tendered_minor'] && 'cash' === $method ? max( 0, (int) $input['tendered_minor'] ) : null;
-		$saved = $wpdb->insert( "{$p}wpcap_boxoffice_sales", array(
+		$row = array(
 			'session_id' => (int) $session->session_id,
+			'order_id' => null,
 			'form_key_hash' => $key_hash,
 			'payment_method' => $method,
 			'currency' => $session->currency,
@@ -299,7 +349,12 @@ final class Service {
 			'cashier_id' => get_current_user_id(),
 			'status' => 'pending',
 			'created_at' => current_time( 'mysql', true ),
-		) );
+		);
+		$saved = $wpdb->insert( "{$p}wpcap_boxoffice_sales", $row );
+		if ( false === $saved && ! self::sale_by_key( $key_hash ) && \PassCaptain\Modules\BoxOffice::migrate() ) {
+			// Legacy schema (order_id NOT NULL, a stale row with order_id 0): repaired, try once more.
+			$saved = $wpdb->insert( "{$p}wpcap_boxoffice_sales", $row );
+		}
 		if ( false === $saved ) {
 			$existing = self::sale_by_key( $key_hash );
 			return $existing ? self::existing_result( $existing ) : self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 );
@@ -325,7 +380,7 @@ final class Service {
 		$order = Orders::create( array( 'email' => $buyer_email, 'items' => $items, 'attendees' => $attendees, 'idempotency_key' => $form_key ), $internal );
 		if ( is_wp_error( $order ) ) {
 			// No order was created: release the form key claim.
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d AND status='pending' AND order_id IS NULL", $sale_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d AND status='pending' AND (order_id IS NULL OR order_id=0)", $sale_id ) );
 			return $order;
 		}
 		$order_id = (int) $order['order_id'];
@@ -516,10 +571,15 @@ final class Service {
 		return $user && ! empty( $user->display_name ) ? $user->display_name : '#' . absint( $user_id );
 	}
 
-	/** Receipt data of a sale (also used for the storno receipt). */
+	/** Whether a sale was booked (has a receipt number); only booked sales have a receipt. */
+	public static function is_booked( $sale ) {
+		return $sale && '' !== (string) $sale->receipt_number && in_array( $sale->status, self::BOOKED_STATES, true );
+	}
+
+	/** Receipt data of a booked sale (also used for the storno receipt); null for unbooked sales. */
 	public static function receipt( $sale_id ) {
 		$sale = self::sale( $sale_id );
-		if ( ! $sale ) { return null; }
+		if ( ! self::is_booked( $sale ) ) { return null; }
 		$order = Orders::get( $sale->order_id );
 		$tz = Scope::site_timezone();
 		$items = array();

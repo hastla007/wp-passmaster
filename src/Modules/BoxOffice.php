@@ -17,6 +17,43 @@ final class BoxOffice {
 		add_action( 'wpcap_refund_completed', array( Service::class, 'on_refund_completed' ), 10, 2 );
 		add_action( 'wpcap_refund_rejected', array( Service::class, 'on_refund_rejected' ), 10, 2 );
 		add_filter( 'pre_wp_mail', array( Service::class, 'suppress_placeholder_mail' ), 10, 2 );
+		// Schema fixes dbDelta cannot apply: after every schema install/upgrade and once on existing installs.
+		add_action( 'add_option_wpcap_db_version', array( __CLASS__, 'migrate' ), 10, 0 );
+		add_action( 'update_option_wpcap_db_version', array( __CLASS__, 'migrate' ), 10, 0 );
+		add_action( 'init', array( __CLASS__, 'maybe_migrate' ), 5, 0 );
+	}
+
+	/** Version of the box office data migrations (option wpcap_boxoffice_migration). */
+	const MIGRATION_VERSION = 1;
+
+	/** Runs migrate() once per MIGRATION_VERSION (cheap autoloaded option check). */
+	public static function maybe_migrate() {
+		if ( (int) get_option( 'wpcap_boxoffice_migration', 0 ) >= self::MIGRATION_VERSION ) { return false; }
+		return self::migrate();
+	}
+
+	/**
+	 * Fixes for existing tables that dbDelta does not apply (it never changes NULL/NOT NULL):
+	 * wpcap_boxoffice_sales.order_id must be NULL while a sale has no order yet. Older installs had
+	 * NOT NULL, so an unfinished sale stored order_id=0 and blocked every later sale through the
+	 * unique key. Legacy 0 values become NULL; pending rows without an order (claims of failed
+	 * sales) older than the order hold are deleted. Idempotent.
+	 *
+	 * @return bool True when the table exists and is up to date.
+	 */
+	public static function migrate() {
+		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_boxoffice_sales';
+		$column = $wpdb->get_row( "SHOW COLUMNS FROM `{$table}` LIKE 'order_id'" );
+		if ( ! $column ) { return false; } // Table not installed yet.
+		$column = (array) $column;
+		if ( 'YES' !== strtoupper( (string) ( $column['Null'] ?? '' ) ) ) {
+			if ( false === $wpdb->query( "ALTER TABLE `{$table}` MODIFY order_id bigint(20) unsigned NULL" ) ) { return false; }
+		}
+		$wpdb->query( "UPDATE `{$table}` SET order_id=NULL WHERE order_id=0" );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM `{$table}` WHERE status='pending' AND order_id IS NULL AND created_at < %s", gmdate( 'Y-m-d H:i:s', time() - 30 * 60 ) ) );
+		update_option( 'wpcap_boxoffice_migration', self::MIGRATION_VERSION );
+		return true;
 	}
 
 	public static function schema( $prefix, $charset ) {

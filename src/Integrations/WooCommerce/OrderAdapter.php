@@ -11,9 +11,14 @@
  * 3. Payment confirmed (processing/completed/payment_complete): hold is converted and exactly one
  *    ticket per unit is issued (idempotent). Late payments re-check capacity; if none is left the
  *    order is flagged for review instead of overbooking.
+ *    Gateways that collect money on delivery (cash on delivery, filter
+ *    `wpcap_woocommerce_issue_on_completed_gateways`) issue only at "completed".
  * 4. on-hold (e.g. bank transfer): hold is extended.
  * 5. cancelled/failed: hold released, valid tickets revoked.
- * 6. Refunds: refunded ticket quantities revoke tickets; a full refund revokes all valid tickets.
+ * 6. Refunds: every WooCommerce refund is recorded in the Pass Captain refund ledger (refund row,
+ *    refunded amount, credit note) when the core supports external refunds; refunded ticket
+ *    quantities revoke tickets; a full refund revokes all valid tickets.
+ * 7. Participant fields: per-ticket attendee data is collected in the checkout (see Attendees).
  *
  * @package PassCaptain
  */
@@ -32,6 +37,8 @@ final class OrderAdapter {
 	const ATTEMPT_META  = '_wpcap_checkout_attempt';
 	const REFUND_META   = '_wpcap_refund_processed';
 	const ITEM_META     = '_wpcap_ticket_type_id';
+	const ATTENDEE_META = '_wpcap_attendees';
+	const DEFER_NOTE    = '_wpcap_deferred_note';
 
 	/** Declares HPOS and Cart/Checkout Blocks compatibility. */
 	public static function declare_compatibility() {
@@ -52,10 +59,16 @@ final class OrderAdapter {
 		add_action( 'woocommerce_admin_process_product_object', array( __CLASS__, 'save_product_field' ) );
 
 		// Cart and checkout validation (classic + Store API/blocks).
-		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'validate_add_to_cart' ), 10, 3 );
+		add_filter( 'woocommerce_add_to_cart_validation', array( __CLASS__, 'validate_add_to_cart' ), 10, 4 );
 		add_filter( 'woocommerce_update_cart_validation', array( __CLASS__, 'validate_cart_update' ), 10, 4 );
 		add_action( 'woocommerce_check_cart_items', array( __CLASS__, 'check_cart_items' ) );
 		add_action( 'woocommerce_store_api_cart_errors', array( __CLASS__, 'store_api_cart_errors' ), 10, 2 );
+		// Store API quantity limits (cart block quantity selector and update-item requests).
+		add_filter( 'woocommerce_store_api_product_quantity_maximum', array( __CLASS__, 'store_api_quantity_maximum' ), 10, 3 );
+		add_filter( 'woocommerce_store_api_cart_item_quantity_validation', array( __CLASS__, 'store_api_validate_quantity' ), 10, 4 );
+
+		// Per-ticket participant fields (classic and block checkout).
+		Attendees::register();
 
 		// Inventory hold before payment.
 		add_action( 'woocommerce_checkout_order_processed', array( __CLASS__, 'reserve_classic' ), 10, 3 );
@@ -150,11 +163,11 @@ final class OrderAdapter {
 	/* ------------------------------------------------------------------ */
 
 	/** Validates adding a ticket product to the cart. */
-	public static function validate_add_to_cart( $passed, $product_id, $quantity ) {
+	public static function validate_add_to_cart( $passed, $product_id, $quantity, $variation_id = 0 ) {
 		if ( ! $passed ) {
 			return $passed;
 		}
-		$variation_id = absint( $_REQUEST['variation_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification
+		$variation_id = absint( $variation_id ? $variation_id : ( $_REQUEST['variation_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		$product      = wc_get_product( $variation_id ? $variation_id : $product_id );
 		$type_id      = self::product_ticket_type_id( $product );
 		if ( ! $type_id ) {
@@ -187,6 +200,63 @@ final class OrderAdapter {
 			return false;
 		}
 		return $passed;
+	}
+
+	/**
+	 * Store API: caps the quantity selector and update-item requests at what can still be bought
+	 * (per-order maximum and remaining capacity, minus the same ticket type in other cart lines).
+	 */
+	public static function store_api_quantity_maximum( $value, $product, $cart_item = null ) {
+		$type_id = self::product_ticket_type_id( $product );
+		if ( ! $type_id ) {
+			return $value;
+		}
+		$limit = self::quantity_limit( $type_id, self::other_cart_quantity( $type_id, $cart_item ) );
+		return null === $limit ? $value : min( (int) $value > 0 ? (int) $value : PHP_INT_MAX, $limit );
+	}
+
+	/** Store API update-item (WooCommerce 11.2+): rejects quantities with the Pass Captain message. */
+	public static function store_api_validate_quantity( $valid, $quantity, $product, $cart_item = null ) {
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+		$type_id = self::product_ticket_type_id( $product );
+		if ( ! $type_id ) {
+			return $valid;
+		}
+		$error = self::quantity_error( $type_id, self::other_cart_quantity( $type_id, $cart_item ) + absint( $quantity ) );
+		return $error ? new \WP_Error( 'wpcap_ticket_quantity', $error ) : $valid;
+	}
+
+	/** Quantity of a ticket type in all cart lines except $cart_item (by key). */
+	private static function other_cart_quantity( $type_id, $cart_item = null ) {
+		$skip = is_array( $cart_item ) ? (string) ( $cart_item['key'] ?? '' ) : '';
+		if ( '' === $skip ) {
+			// Add-to-cart form (no cart line yet): everything already in the cart counts.
+			return self::cart_quantities()[ $type_id ] ?? 0;
+		}
+		return self::cart_quantities( $skip )[ $type_id ] ?? 0;
+	}
+
+	/**
+	 * Highest quantity of a ticket type a single cart line may hold, given $others already in the cart.
+	 * Null if the type is not limited beyond WooCommerce's own limits.
+	 */
+	public static function quantity_limit( $type_id, $others = 0 ) {
+		$type = self::ticket_type( $type_id );
+		if ( ! $type ) {
+			return 0;
+		}
+		$limits    = array( (int) $type->max_per_order - $others );
+		$available = Orders::availability( $type_id );
+		if ( null !== $available ) {
+			$limits[] = $available - $others;
+		}
+		$seats = self::free_seat_count( $type );
+		if ( null !== $seats ) {
+			$limits[] = $seats - $others;
+		}
+		return max( 0, min( $limits ) );
 	}
 
 	/** Classic cart/checkout validation. Store API requests use store_api_cart_errors instead. */
@@ -267,7 +337,46 @@ final class OrderAdapter {
 				/* translators: 1: available quantity, 2: event and ticket name */
 				: sprintf( __( 'Für „%2$s“ sind nur noch %1$d Tickets verfügbar.', 'wp-pass-captain' ), $available, $name );
 		}
+		$seats = self::free_seat_count( $type );
+		if ( null !== $seats && $quantity > $seats ) {
+			return 0 === $seats
+				/* translators: %s: event and ticket name */
+				? sprintf( __( 'Für „%s“ sind keine passenden Sitzplätze mehr frei.', 'wp-pass-captain' ), $name )
+				/* translators: 1: free seats, 2: event and ticket name */
+				: sprintf( __( 'Für „%2$s“ sind nur noch %1$d passende Sitzplätze frei.', 'wp-pass-captain' ), $seats, $name );
+		}
 		return '';
+	}
+
+	/**
+	 * Free seats for a ticket type that is mapped to a seat map (Seating module), or null if the type
+	 * needs no seat. WooCommerce cannot show the seat picker: the core assigns the best available
+	 * seats of the type's zones when the hold is placed, so the cart only has to check that enough
+	 * matching seats are free (non-locking, like the capacity check).
+	 */
+	private static function free_seat_count( $type ) {
+		if ( ! class_exists( '\\PassCaptain\\Seating\\Layouts' ) || ! class_exists( '\\PassCaptain\\Seating\\Reservations' ) ) {
+			return null;
+		}
+		$occurrence_id = (int) $type->occurrence_id;
+		if ( ! \PassCaptain\Seating\Layouts::link( $occurrence_id ) ) {
+			return null;
+		}
+		$zones = \PassCaptain\Seating\Layouts::type_zones( $occurrence_id )[ (int) $type->ticket_type_id ] ?? array();
+		if ( ! $zones ) {
+			return null;
+		}
+		$map = \PassCaptain\Seating\Reservations::availability( $occurrence_id );
+		if ( ! is_array( $map ) ) {
+			return 0;
+		}
+		$free = 0;
+		foreach ( (array) ( $map['seats'] ?? array() ) as $seat ) {
+			if ( 'free' === ( $seat['status'] ?? '' ) && ( in_array( (string) ( $seat['zone'] ?? '' ), $zones, true ) || in_array( (string) ( $seat['category'] ?? '' ), $zones, true ) ) ) {
+				++$free;
+			}
+		}
+		return $free;
 	}
 
 	/* ------------------------------------------------------------------ */
