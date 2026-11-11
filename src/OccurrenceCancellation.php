@@ -24,7 +24,7 @@ final class OccurrenceCancellation {
 		$summary = array( 'cancelled_orders' => 0, 'refunds' => 0, 'refund_errors' => 0, 'revoked' => 0, 'notified' => 0 );
 
 		// Recipients first, while tickets are still valid.
-		$emails = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid'", $occurrence_id ) );
+		$recipients = $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", $occurrence_id ) );
 
 		// 1. Unpaid orders touching this occurrence: cancel (releases holds, campaigns, vouchers).
 		$pending = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ord.order_id FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status='pending'", $occurrence_id ) );
@@ -62,11 +62,17 @@ final class OccurrenceCancellation {
 		// 4. Inform holders.
 		$tz = new \DateTimeZone( $occ->timezone ?: 'UTC' );
 		$when = wp_date( 'd.m.Y H:i', strtotime( $occ->starts_at . ' UTC' ), $tz );
-		$refund_note = Settings::get( 'auto_refund_cancelled' ) ? __( 'Der Ticketpreis wird automatisch erstattet.', 'wp-pass-captain' ) : __( 'Der Veranstalter informiert dich über Erstattung oder Ersatztermin.', 'wp-pass-captain' );
-		/* translators: 1: event, 2: date and time, 3: refund note */
-		$body = sprintf( __( "Der Termin „%1\$s“ am %2\$s wurde abgesagt. Dein Ticket ist dafür nicht mehr gültig.\n\n%3\$s", 'wp-pass-captain' ), $occ->event_name, $when, $refund_note );
-		foreach ( $emails as $email ) {
-			if ( is_email( $email ) && wp_mail( $email, sprintf( /* translators: %s: event */ __( 'Absage: %s', 'wp-pass-captain' ), $occ->event_name ), $body ) ) { ++$summary['notified']; }
+		$auto_refund = (bool) Settings::get( 'auto_refund_cancelled' );
+		$vars = array(
+			'event_name' => (string) $occ->event_name,
+			'event_date' => $when,
+			'event_location' => (string) $occ->location,
+			'timezone' => (string) $occ->timezone,
+			// Translated in the recipient's locale.
+			'refund_note' => static function () use ( $auto_refund ) { return $auto_refund ? __( 'Der Ticketpreis wird automatisch erstattet.', 'wp-pass-captain' ) : __( 'Der Veranstalter informiert dich über Erstattung oder Ersatztermin.', 'wp-pass-captain' ); },
+		);
+		foreach ( $recipients as $recipient ) {
+			if ( is_email( $recipient->email ) && Mail\Mailer::send( 'occurrence_cancelled', $recipient->email, $vars, array(), (string) $recipient->locale ) ) { ++$summary['notified']; }
 		}
 		Audit::record( 'occurrence_cancellation_processed', 'occurrence', $occurrence_id, $summary );
 		return $summary;

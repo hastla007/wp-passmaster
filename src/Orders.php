@@ -771,10 +771,13 @@ final class Orders {
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
 	}
 
-	public static function send_order_access_link( $email, $public_id, $access_token ) {
+	public static function send_order_access_link( $email, $public_id, $access_token, $locale = null ) {
+		global $wpdb;
 		$url = add_query_arg( array( 'wpcap_order' => $public_id, 'wpcap_access' => $access_token ), home_url( '/' ) );
-		$body = sprintf( /* translators: %s: site name */ __( 'Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:', 'wp-pass-captain' ), self::site_name() ) . "\n\n" . esc_url_raw( $url ) . "\n\n" . __( 'Bewahre diesen Link sicher auf und teile ihn nicht.', 'wp-pass-captain' );
-		return wp_mail( sanitize_email( $email ), sprintf( /* translators: %s: site name */ __( 'Deine Bestellung bei %s', 'wp-pass-captain' ), self::site_name() ), $body );
+		if ( null === $locale ) {
+			$locale = (string) $wpdb->get_var( $wpdb->prepare( "SELECT locale FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", (string) $public_id ) );
+		}
+		return Mail\Mailer::send( 'order_access', sanitize_email( $email ), array( 'order_id' => (string) $public_id, 'access_link' => Mail\Mailer::link( $url ) ), array(), (string) $locale );
 	}
 
 	public static function transfer_ticket( $public_id, $access_token, $ticket_public_id, $recipient_email ) {
@@ -820,11 +823,21 @@ final class Orders {
 		/** A ticket received a new code; the old one is invalid. $token is plaintext – never store it. */
 		do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'transfer' );
 		$ticket_url = add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) );
-		$body = sprintf( "%s — %s\n%s\n%s\n\n%s\n", $ticket->event_name, $ticket->ticket_name, self::format_start( $ticket->starts_at, $ticket->timezone ), $ticket->location, esc_url_raw( $ticket_url ) ) . apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id );
-		if ( ! wp_mail( $recipient_email, __( 'Ein Ticket wurde an dich übertragen', 'wp-pass-captain' ), $body ) ) {
+		$vars = array(
+			'order_id' => (string) $order->public_id,
+			'event_name' => (string) $ticket->event_name,
+			'ticket_name' => (string) $ticket->ticket_name,
+			'event_date' => self::format_start( $ticket->starts_at, $ticket->timezone ),
+			'event_location' => (string) $ticket->location,
+			'ticket_link' => Mail\Mailer::link( $ticket_url ),
+			'ticket_extras' => Mail\Blocks::extra( (string) apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id ) ),
+			'recipient_email' => $recipient_email,
+		);
+		// The recipient's language is unknown; the order's locale is the best available guess.
+		if ( ! Mail\Mailer::send( 'ticket_transfer_recipient', $recipient_email, $vars, array(), (string) $order->locale ) ) {
 			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'wp-pass-captain' ), array( 'status' => 502 ) );
 		}
-		wp_mail( $order->customer_email, __( 'Ticketübertragung abgeschlossen', 'wp-pass-captain' ), sprintf( __( 'Dein Ticket für %1$s wurde an %2$s übertragen. Der bisherige Ticketcode ist ungültig.', 'wp-pass-captain' ), $ticket->event_name, $recipient_email ) );
+		Mail\Mailer::send( 'ticket_transfer_sender', $order->customer_email, $vars, array(), (string) $order->locale );
 		Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
 		return array( 'status' => 'transferred' );
 	}
@@ -849,13 +862,14 @@ final class Orders {
 		}
 		$wpdb->query( 'COMMIT' );
 		// Only buyers with a paid or open order are notified, not abandoned/expired/refunded attempts.
-		$emails = ! $notify_ids ? array() : $wpdb->get_col( $wpdb->prepare(
-			"SELECT DISTINCT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) FROM {$wpdb->prefix}wpcap_orders ord INNER JOIN {$wpdb->prefix}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$wpdb->prefix}wpcap_tickets t ON t.order_id=ord.order_id AND t.ticket_type_id=tt.ticket_type_id WHERE o.event_id=%d AND ord.order_id IN (" . implode( ',', $notify_ids ) . ")",
+		$recipients = ! $notify_ids ? array() : $wpdb->get_results( $wpdb->prepare(
+			"SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM {$wpdb->prefix}wpcap_orders ord INNER JOIN {$wpdb->prefix}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$wpdb->prefix}wpcap_tickets t ON t.order_id=ord.order_id AND t.ticket_type_id=tt.ticket_type_id WHERE o.event_id=%d AND ord.order_id IN (" . implode( ',', $notify_ids ) . ") GROUP BY email",
 			$event_id
 		) );
-		$message = sprintf( __( 'Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung.', 'wp-pass-captain' ), $event->name );
-		foreach ( $emails as $email ) {
-			if ( is_email( $email ) ) { wp_mail( $email, sprintf( __( 'Eventabsage: %s', 'wp-pass-captain' ), $event->name ), $message ); }
+		$emails = array();
+		foreach ( $recipients as $recipient ) {
+			$emails[] = $recipient->email;
+			if ( is_email( $recipient->email ) ) { Mail\Mailer::send( 'event_cancelled', $recipient->email, array( 'event_name' => (string) $event->name ), array(), (string) $recipient->locale ); }
 		}
 		foreach ( $order_ids as $released_order_id ) { self::capacity_released( $released_order_id, 'event_cancelled' ); }
 		Audit::record( 'event_cancelled', 'event', $event_id, array( 'notified_count' => count( $emails ) ) );
@@ -946,13 +960,10 @@ final class Orders {
 		$wpdb->query( 'COMMIT' );
 		if ( $issued ) {
 			do_action( 'wpcap_tickets_issued', (int) $order_id, count( $issued ) );
-			$body = sprintf( /* translators: %s: site name */ __( 'Deine Tickets für %s:', 'wp-pass-captain' ), self::site_name() ) . "\n\n";
-			foreach ( $issued as $ticket ) {
-				$body .= sprintf( "%s — %s\n%s\n%s\n\n", $ticket['event'], $ticket['ticket'], self::format_start( $ticket['starts_at'], $ticket['timezone'] ), $ticket['location'] );
-				$ticket_url = add_query_arg( 'wpcap_ticket', $ticket['token'], home_url( '/' ) );
-				$body .= __( 'Ticket öffnen oder drucken:', 'wp-pass-captain' ) . ' ' . esc_url_raw( $ticket_url ) . "\n";
-				$body .= __( 'Ticket-Code:', 'wp-pass-captain' ) . ' ' . $ticket['token'] . "\n\n";
-			}
+			$entries = array_map( static function ( $ticket ) {
+				return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'url' => add_query_arg( 'wpcap_ticket', $ticket['token'], home_url( '/' ) ), 'token' => $ticket['token'] );
+			}, $issued );
+			$message = Mail\Mailer::compose( 'tickets', self::ticket_mail_vars( $order, $entries, static function () use ( $entries ) { return Mail\Blocks::issued_tickets( $entries ); } ), (string) $order->locale );
 			$attachments = array();
 			if ( apply_filters( 'wpcap_attach_ticket_pdf', true, (int) $order_id ) ) {
 				$pdf_tickets = array_map( static function ( $ticket ) {
@@ -963,11 +974,34 @@ final class Orders {
 					$attachments[] = $file;
 				}
 			}
-			$mail = apply_filters( 'wpcap_ticket_mail', array( 'subject' => sprintf( /* translators: %s: site name */ __( 'Deine Tickets für %s', 'wp-pass-captain' ), self::site_name() ), 'body' => $body, 'attachments' => $attachments ), $order, $issued );
-			wp_mail( $order->customer_email, $mail['subject'], $mail['body'], '', $mail['attachments'] );
+			// Legacy filter: receives and may change subject/body/attachments of the rendered template.
+			$mail = apply_filters( 'wpcap_ticket_mail', array( 'subject' => $message['subject'], 'body' => $message['body'], 'attachments' => $attachments ), $order, $issued );
+			$mail = is_array( $mail ) ? $mail : array( 'attachments' => $attachments );
+			Mail\Mailer::deliver( $order->customer_email, Mail\Mailer::apply_filtered( $message, $mail ) );
 			$attachments = array_unique( array_merge( $attachments, (array) $mail['attachments'] ) );
 			foreach ( $attachments as $file ) { wp_delete_file( $file ); }
 		}
+	}
+
+	/**
+	 * Placeholder values shared by the ticket and resend mails.
+	 *
+	 * @param object   $order   Order row.
+	 * @param array    $entries Ticket entries (event, ticket, when, location, url).
+	 * @param callable $list    Builds the {ticket_list} block (runs in the recipient locale).
+	 */
+	private static function ticket_mail_vars( $order, array $entries, $list ) {
+		$first = $entries[0] ?? array();
+		return array(
+			'order_id' => (string) $order->public_id,
+			'customer_email' => (string) $order->customer_email,
+			'event_name' => (string) ( $first['event'] ?? '' ),
+			'event_date' => (string) ( $first['when'] ?? '' ),
+			'event_location' => (string) ( $first['location'] ?? '' ),
+			'ticket_count' => count( $entries ),
+			'ticket_list' => $list,
+			'ticket_links' => Mail\Blocks::links( array_column( $entries, 'url' ) ),
+		);
 	}
 
 	/** Event start in the event's own timezone; starts_at is stored in UTC. */
@@ -997,7 +1031,7 @@ final class Orders {
 		if ( ! $tickets ) {
 			return new \WP_Error( 'wpcap_no_resendable_tickets', __( 'Keine gültigen Tickets für den erneuten Versand gefunden.', 'wp-pass-captain' ) );
 		}
-		$messages = array();
+		$entries = array();
 		foreach ( $tickets as $ticket ) {
 			$token = bin2hex( random_bytes( 32 ) );
 			$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'token_hash' => hash( 'sha256', $token ) ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => $ticket->status ), array( '%s' ), array( '%d', '%s' ) );
@@ -1005,13 +1039,13 @@ final class Orders {
 				return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ) );
 			}
 			do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'resend' );
-			$ticket_url = add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) );
 			$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
-			$messages[ $recipient ] = ( $messages[ $recipient ] ?? sprintf( /* translators: %s: site name */ __( 'Deine Tickets für %s:', 'wp-pass-captain' ), self::site_name() ) . "\n\n" ) . sprintf( "%s — %s\n%s\n%s\n%s\n\n", $ticket->event_name, $ticket->ticket_name, self::format_start( $ticket->starts_at, $ticket->timezone ), $ticket->location, esc_url_raw( $ticket_url ) ) . apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id );
+			$entries[ $recipient ][] = array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'extra' => (string) apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id ) );
 		}
 		$sent = true;
-		foreach ( $messages as $recipient => $body ) {
-			$sent = wp_mail( $recipient, sprintf( /* translators: %s: site name */ __( 'Deine Tickets für %s', 'wp-pass-captain' ), self::site_name() ), $body ) && $sent;
+		foreach ( $entries as $recipient => $list ) {
+			$vars = self::ticket_mail_vars( $order, $list, static function () use ( $list ) { return Mail\Blocks::code_tickets( $list ); } );
+			$sent = Mail\Mailer::send( 'tickets_resend', $recipient, $vars, array(), (string) $order->locale ) && $sent;
 		}
 		if ( ! $sent ) {
 			return new \WP_Error( 'wpcap_mail_failed', __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; bitte versuche den Versand erneut.', 'wp-pass-captain' ) );
