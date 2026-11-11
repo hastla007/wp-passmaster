@@ -1,279 +1,308 @@
-# Konzept: Pass Captain
+# Produkt- und Architekturkonzept: Pass Captain
 
 **Projekt:** Pass Captain  
 **Repository:** `hastla007/wp-passmaster`  
 **Stand:** 11. November 2026  
-**Status:** Produkt- und Architekturkonzept  
-**Zielgruppe:** WordPress-Shops mit WooCommerce, Veranstalter und Dienstleister mit Partnern
+**Status:** Überarbeitet nach Prüfung des Event-Ticketing-Umfangs  
+**Zielgruppe:** Veranstalter, Kulturbetriebe, Vereine, Kongresse, Sportevents und Dienstleister im DACH-Raum
 
-## 1. Ausgangslage
+## 1. Produktvision und Positionierung
 
-Das Repository enthält derzeit nur eine kurze README. Dieses Dokument legt daher das Produktziel, die Plugin-Grenzen, die Kernabläufe und eine priorisierte Umsetzung fest.
+Pass Captain ist eine eigenständige Event-Ticketing- und Pass-Lösung für WordPress. Der Kern kann Events, Termine, Kontingente, Bestellungen, Zahlungen, Tickets und Einlass verwalten, ohne WooCommerce vorauszusetzen. WooCommerce und weitere Shops können über Commerce-Adapter angeschlossen werden.
 
-Pass Captain ist ein eigenständiges WordPress-/WooCommerce-Plugin zur Ausstellung und Verwaltung digitaler Tickets und Leistungspässe. Es erzeugt nach einem Kauf oder nach einer bestätigten Gutscheineinlösung individuelle QR-Tickets. Ein Ticket kann für einen Eventeintritt, eine einzelne Dienstleistung oder ein begrenztes Guthaben stehen, zum Beispiel für eine Fahrstunde oder eine Online-Navigationsstunde.
+Pass Captain stellt nach erfolgreichem Kauf oder einer bestätigten Gutscheineinlösung individuelle digitale Tickets mit QR-Code aus. Ein Pass kann für einen bestimmten Eventtermin gelten oder einen Anspruch auf eine Dienstleistung darstellen, etwa eine Fahrstunde oder eine Online-Navigationsstunde.
 
-Pass Captain ist kein Terminplaner im MVP. Ein Pass kann einen Anspruch auf eine Leistung belegen. Terminwahl, Verfügbarkeiten und Umbuchungen sind ein späteres, separat planbares Modul.
+### Kernziele
 
-## 2. Ziele
+- Eigene, indizierte Tabellen für Events, Bestellungen, Tickets, Reservierungen und Check-ins verwenden.
+- Eine schnelle, mobil nutzbare Check-in-PWA ohne native App bereitstellen.
+- WooCommerce optional unterstützen und dieselben öffentlichen Ticketdienste auch für andere Shop- und Buchungssysteme anbieten.
+- Datenschutzminimierung und konfigurierbare DACH-Verkaufs-, Steuer- und Verbraucherinformationen unterstützen.
+- Voucher Captain bei gemeinsamer Installation direkt integrieren.
+- Kundenspezifische Verbindungen zum Bootsschule-/Kursplugin in einem separaten Connector halten.
 
-- Tickets nach bezahlten WooCommerce-Bestellungen ausstellen.
-- Tickets nach erfolgreicher Einlösung eines Voucher-Captain-Gutscheins ausstellen.
-- Pro gekaufter Stückzahl einzelne, eindeutige Tickets erstellen.
-- Tickets per QR-Code sicher online prüfen und einlösen.
-- Shopbetreiber können Produkte, Ticketregeln, Status und Verlauf administrieren.
-- Partner können nur die ihnen zugewiesenen Tickets prüfen und einlösen.
-- Ticket-Ausstellung und Einlösung sind bei Wiederholungen idempotent.
-- Pass Captain funktioniert eigenständig. Voucher Captain erweitert es optional bei gemeinsamer Installation.
-- Ein kundenspezifisches Connector-Plugin verbindet die ausgewählten Shopprodukte mit dem Bootsschule-/Kursplugin.
+Pass Captain stellt Konfigurationen und Nachweise bereit. Es verspricht keine pauschale Rechts- oder Steuerkonformität: Betreiber müssen die für ihr Land und ihr Angebot geltenden Einstellungen mit Rechts- und Steuerberatung festlegen.
 
-## 3. Produktgrenzen und Zusammenspiel
+## 2. Produktgrenzen und Zusammenspiel
 
-| Produkt | Zuständigkeit |
+| Baustein | Aufgabe |
 |---|---|
-| WooCommerce | Produkt, Warenkorb, Kasse, Bestellung, Zahlungs- und Erstattungsstatus |
-| Pass Captain | Passdefinition, einzelne Tickets, QR-Codes, Zustellung, Prüfung, Einlösung, Audit |
-| Voucher Captain | Geschenkgutscheine, Rabattcodes und Gutschein-Guthaben |
-| Native Integration Voucher ↔ Pass | Bei gemeinsamer Installation kann eine Gutscheineinlösung ein Pass-Captain-Ticket ausstellen |
-| Bootsschule-Connector | Kundenspezifische Zuordnung zu Kursen, Kurszugängen und Kurslaufzeiten |
+| Pass Captain Core | Events, Terminserien, Ticketkategorien, Kontingente, Sitzplätze, Checkout, Bestellungen, Tickets, QR, Check-in, Rückerstattungsstatus und Berichte |
+| Zahlungsadapter | Anbindung eines Zahlungsdienstleisters, Zahlungsstatus, signierte Webhooks, Erstattungsanfragen |
+| Commerce-Adapter | Optionale Anbindung an WooCommerce oder andere Shop-/Buchungssysteme |
+| Voucher Captain | Gutscheine, Geschenkguthaben und Rabattcodes |
+| Native Voucher-/Pass-Integration | Ist beides installiert, kann die bestätigte Einlösung eines Gutscheins die Ticketausstellung auslösen |
+| Bootsschule-Connector | Kundenspezifische Verbindung von Shopprodukten und Tickets mit Kursprodukten und Kurszugängen |
 
-Voucher Captain und Pass Captain bleiben unabhängig voneinander installierbar. Für ihre direkte Integration gibt es kein zusätzliches Connector-Plugin. Die gegenseitige Anbindung erfolgt über eine dokumentierte, versionierte PHP-Schnittstelle und Events; direkte Abhängigkeiten auf interne Klassen oder Datenbanktabellen werden vermieden.
+Voucher Captain und Pass Captain bleiben eigenständige Produkte. Ihre direkte Integration benötigt kein drittes Connector-Plugin. Ein gemeinsamer, versionierter PHP-Vertrag verbindet die Plugins; direkte Zugriffe auf interne Klassen oder Tabellen des jeweils anderen Plugins sind ausgeschlossen.
 
-Der kundenspezifische Connector liegt separat und verbindet das Bootsschule-Plugin mit den ausgewählten Produktaktionen. Er kann für ein Produkt Kurszugang, Ticket oder beides konfigurieren. Diese Kundenlogik gehört nicht in den Pass-Captain-Kern.
+Der Bootsschule-Connector ist dagegen kundenspezifisch. Er kann festlegen, ob ein bestimmtes Produkt nach Kauf oder Gutscheineinlösung einen Kurszugang, ein Ticket oder beides auslöst. Diese Learnboating-Regeln kommen nicht in Pass Captain Core.
 
-## 4. Begriffe und Tickettypen
+## 3. Event-, Termin- und Ticketverwaltung
 
-### Passdefinition
+### Events und Termine
 
-Eine Passdefinition beschreibt, was ein Produkt ausstellt: Art des Anspruchs, Menge/Verwendung, Gültigkeit, Empfängerangaben, Ticketvorlage und Einlösebedingungen.
+- Ein Event kann einen oder mehrere einzelne Termine haben.
+- Wiederkehrende Events erzeugen eigenständige Eventtermine mit eigenen Preisen, Kapazitäten, Verkaufsfenstern und Sitzplänen.
+- Ein Termin speichert mindestens Zeitzone, Start/Ende, Ort, Status, Kapazität und Veranstalter.
+- Änderungen oder Absagen eines Termins müssen Käufer benachrichtigen können und in einer Änderungshistorie sichtbar sein.
 
-### Ticketinstanz
+### Ticketkategorien
 
-Jede ausgestellte Einheit wird als eigene Ticketinstanz geführt. Bei Produktmenge 3 entstehen drei Tickets mit drei individuellen Codes und QR-Codes.
+Pro Eventtermin sind beliebig viele Kategorien möglich, beispielsweise Standard, VIP, Ermäßigt und Early Bird. Jede Kategorie hat:
 
-### Ticketarten im MVP
+- Preis und steuerliche Produkt-/Leistungsklassifikation;
+- Verkaufsstart und Verkaufsende;
+- eigenes Kontingent und maximale Menge je Bestellung;
+- einen Status wie geplant, im Verkauf, pausiert oder ausverkauft;
+- optionale Teilnehmerfelder und Ausgabevorlage;
+- optionale Zuordnung zu einem Sitzplatzbereich oder einer Passdefinition.
 
-1. **Einmalpass:** einmalige Einlösung, etwa Eventeintritt oder eine Fahrstunde.
-2. **Mehrfachpass:** begrenzte Einlösungen oder Guthaben, etwa drei Unterrichtsstunden.
-3. **Terminpass:** ein Ticket berechtigt zu einer buchbaren Leistung; die Terminbuchung selbst ist zunächst extern oder manuell.
+Ein Ausverkauft-Status berücksichtigt verkaufte und derzeit gehaltene Plätze. Abgelaufene Reservierungen geben Plätze wieder frei.
 
-MVP-Tickets werden auf konkrete WooCommerce-Produkte oder Variationen abgebildet. Eine Weitergabe/Übertragung ist pro Passdefinition konfigurierbar.
+### Kapazität und Sitzplätze
 
-### Lebenszyklus
+Gesamtkontingente und Kontingente pro Ticketkategorie werden getrennt modelliert. Ein Sitzplatzplan unterstützt Reihen, Blöcke, Tische, Stehbereiche, Bühnenansicht und Barrierefreiheitskennzeichen.
 
-- `issued`: ausgestellt und gültig
-- `partially_redeemed`: teilweise verwendet, bei Mehrfachpässen
-- `redeemed`: vollständig verwendet
-- `expired`: Gültigkeit abgelaufen
-- `revoked`: administrativ oder durch Erstattung widerrufen
+Der Drag-and-Drop-Editor, Live-Status und Sitzplatzreservierung gehören zum erweiterten Umfang. Ein Event kann bereits ohne Sitzplan mit Kontingenten je Kategorie verkauft werden.
 
-Der Verlauf bleibt auch nach Widerruf oder Ablauf nachvollziehbar.
+Sitzplatzdaten werden versioniert. Ein bereits verkauftes Ticket behält seinen belegten Platz auch dann, wenn der Saalplan später bearbeitet wird.
 
-## 5. Hauptabläufe
+## 4. Eigenständiger Checkout und Reservierungen
 
-### 5.1 Direktkauf eines Passprodukts
+Pass Captain stellt einen einbettbaren Checkout als Gutenberg-Block und Shortcode bereit. Der Checkout funktioniert mobil, ohne erzwungenen Seitenwechsel, und kann optionale Zusatzfelder pro Kategorie/Ticket erfassen.
 
-1. Betreiber aktiviert Pass Captain für ein WooCommerce-Produkt oder eine Variation.
-2. Er wählt Passdefinition, Einlöseregeln, Gültigkeit, Empfängerfelder und Zustellvorlage.
-3. WooCommerce erzeugt eine Bestellung. Pass Captain erstellt noch keine endgültigen Tickets, solange die Bestellung nicht als bezahlt gilt.
-4. Nach Bestätigung des Zahlungseingangs erstellt Pass Captain je gekaufter Einheit genau eine Ticketinstanz.
-5. Ticket und QR-Code erscheinen im WooCommerce-Kundenkonto und werden per E-Mail versendet.
-6. Bei vollständig mit einem Gutschein bezahlten 0-Euro-Bestellungen erfolgt die Ausstellung nach dem bestätigten WooCommerce-Bestellabschluss, nicht bereits beim Hinzufügen zum Warenkorb.
+### Reservierungssperre
 
-Die Ausstellung läuft über stabile Bestell- und Positionsreferenzen, beispielsweise `order_id + order_item_id + unit_index`. Wiederholte WooCommerce-Ereignisse dürfen keine Duplikate erzeugen.
+- Beim Beginn des Checkout-Vorgangs werden gewählte Menge bzw. Sitzplätze temporär reserviert.
+- Die Standarddauer beträgt zunächst 10 Minuten und wird konfigurierbar gehalten.
+- Reservierungen besitzen einen eindeutigen Schlüssel und Ablaufzeitpunkt. Abgelaufene Reservierungen werden zuverlässig freigegeben.
+- Kontingentprüfung und Reservierung sind atomar, damit parallele Käufe nicht überverkaufen.
+- Die Reservierung wird erst bei sicher bestätigter Zahlung in einen Verkauf umgewandelt.
+- Wenn eine Zahlungsbestätigung nach Ablauf des Holds eintrifft, wird der Auftrag anhand eines festgelegten Recovery-Prozesses behandelt: Platz wieder zuweisen, Erstattung auslösen oder zur manuellen Klärung markieren. Eine stille Überbuchung ist ausgeschlossen.
 
-### 5.2 Gutschein wird zu einem Ticket
+Zusatzfelder werden nach Event-/Ticketkategorie konfiguriert. Allergie- oder andere sensible Angaben sind standardmäßig nicht vorgesehen; wenn ein Betreiber sie aktiviert, braucht es einen klaren Zweck, beschränkten Zugriff und eine passende Löschfrist.
 
-1. Kunde erhält einen Voucher-Captain-Gutschein.
-2. In der Gutschein-Konfiguration ist festgelegt, dass die Einlösung ein bestimmtes Pass-Captain-Produkt oder eine Passdefinition ausstellt.
-3. Voucher Captain reserviert den Gutschein für die Einlösung und ruft die Pass-Captain-Schnittstelle mit einer eindeutigen Einlöse-ID auf.
-4. Pass Captain prüft Ziel und Daten und erstellt idempotent das Ticket.
-5. Pass Captain bestätigt die Ticket-ID. Erst dann verbucht Voucher Captain die Gutschein-Einlösung endgültig.
-6. Bei Fehlern wird der Vorgang mit derselben Einlöse-ID wiederholt. Es entstehen weder doppelte Tickets noch ein dauerhaft verbrauchter Gutschein ohne Leistung.
+## 5. Zahlung, Bestellungen, Erstattungen und Buchhaltung
 
-Die Ticket-Ausstellung muss auch dann korrekt funktionieren, wenn Voucher Captain oder Pass Captain bei der ersten Anfrage kurzzeitig nicht verfügbar ist. Es braucht einen gespeicherten, wiederholbaren Auftragsstatus und eine Admin-Ansicht für fehlgeschlagene Integrationsvorgänge.
+Pass Captain besitzt eine eigene Bestell- und Zahlungsabstraktion. Zahlungsdienstleister werden als Adapter angebunden. Für den ersten Zahlungsumfang sind Stripe und PayPal vorgesehen; die konkrete Verfügbarkeit von EPS, Klarna, SEPA, Apple Pay, Google Pay und weiteren Methoden hängt vom Anbieter, Händlerland, Währung, Konto und Transaktionsart ab. Methoden werden im Admin nur angezeigt, wenn sie für die jeweilige Integration verfügbar sind. Stripe dokumentiert diese Abhängigkeit nach Händlerkonto und Land. ([Stripe: unterstützte Währungen und Zahlungsmethoden](https://docs.stripe.com/currencies))
 
-### 5.3 QR-Code prüfen und Ticket einlösen
+### Zahlungsanforderungen
 
-1. Partner meldet sich in einer Pass-Captain-Partneransicht an.
-2. Partner scannt den QR-Code mit einem Smartphone oder gibt den Code manuell ein.
-3. Pass Captain prüft serverseitig Ticketstatus, Gültigkeitszeitraum, Partnerberechtigung und verbleibende Nutzungen.
-4. Bei erfolgreicher Prüfung wird die Einlösung atomar protokolliert und der Status bzw. Restwert aktualisiert.
-5. Die Antwort zeigt nur erforderliche Informationen, zum Beispiel Passname, Gültigkeit, Nutzungen übrig und Ergebnis.
-6. Wiederholtes Scannen eines bereits eingelösten Einmalpasses zeigt „bereits eingelöst“ und ändert den Status nicht erneut.
+- Kartendaten werden nicht von Pass Captain gespeichert oder verarbeitet.
+- Gehostete oder tokenisierte Zahlungsoberflächen und signierte Webhooks nutzen.
+- Webhook-Signaturen prüfen und Events idempotent verarbeiten.
+- Zahlungsstatusmodell: angelegt, ausstehend, autorisiert, bezahlt, fehlgeschlagen, erstattet, teilweise erstattet und strittig.
+- 3-D Secure/SCA, verzögerte Bankzahlungen und asynchrone Zahlungsbestätigungen berücksichtigen.
+- Erstattungen werden über den jeweiligen Zahlungsadapter angefordert und nachvollziehbar protokolliert.
+- Wechsel zwischen Payment- und Ticketstatus erfolgt über robuste, wiederholbare Jobs.
 
-QR-Prüfung und Einlösung erfolgen online. Offline-Scanning ist im MVP ausgeschlossen, weil parallele Offline-Einlösungen nicht zuverlässig verhindert werden können.
+Apple Pay und Google Pay als **Zahlungsmethoden** sind von Apple Wallet und Google Wallet als **Ticketablage** zu unterscheiden.
 
-### 5.4 Erstattung, Storno und Widerruf
+### Rechnungen und Steuern
 
-- Ticketverhalten bei Bestellungserstattung ist pro Passdefinition einstellbar: widerrufen, nur ungenutzte Einheiten widerrufen oder manuell prüfen.
-- Bei bereits eingelöstem Ticket bleibt der Auditverlauf erhalten; eine Rückerstattung löscht den Einlösungseintrag nicht.
-- Voucher Captain und Pass Captain protokollieren bei Gutscheineinlösungen die verknüpfte Voucher- und Pass-Referenz.
-- Statusänderungen durch Admins verlangen eine Begründung und erscheinen im Auditverlauf.
+- Eine Bestellung enthält eigene unveränderliche Positionen mit Menge, Nettobetrag, Steuerklassifikation, Steuersatz, Steuerbetrag und Gesamtbetrag.
+- Gemischte Steuerklassen (zum Beispiel Eintritt und Catering/Merchandise) werden pro Position berechnet und mit nachvollziehbarer Rundung summiert.
+- Steuersätze werden nicht fest in PHP codiert. Konfigurierbare Länder-/Region-/Leistungsklassifikationen und versionierte Steuerregeln bilden die technische Grundlage.
+- Steuerregeln für Österreich, Deutschland, Schweiz, OSS, steuerbefreite Unternehmen und Kleinunternehmer sind vor Produktivbetrieb fachlich zu prüfen.
+- Fortlaufende Rechnungsnummern müssen auch bei parallelen Bestellungen eindeutig und unveränderlich sein. Storno-/Korrekturrechnungen und Teilrückzahlungen brauchen eigene Buchungsbelege.
+- PDF-Rechnungen und Buchhaltungsexporte sind als eigenständiges Modul geplant. Rechnungsanforderungen werden vor Umsetzung mit Steuerberatung für Zielländer und Kundentypen spezifiziert.
 
-## 6. WooCommerce-Produktkonfiguration
+Pass Captain kann technische Steuerdaten und Belege führen. Es sollte sich nicht ohne fachliche Freigabe als „steuerkonform für DACH“ bewerben.
 
-Im Produkt- bzw. Variationseditor kann der Betreiber:
+## 6. Tickets, QR und Wallets
 
-- Pass Captain für dieses Produkt aktivieren.
-- Eine Passdefinition auswählen oder neu anlegen.
-- festlegen, ob je Stück ein individuelles Ticket oder ein Ticket für die gesamte Position ausgestellt wird;
-- Einmalpass oder Mehrfachpass mit erlaubter Nutzungszahl wählen;
-- eine Gültigkeitsdauer, ein fixes Enddatum oder keine Ablaufzeit setzen;
-- Übertragbarkeit und Empfängerfelder erlauben;
-- Passname, Beschreibung, E-Mail-Vorlage und QR-Ticketvorlage wählen;
-- den Auslöser für Gutscheinintegration bestimmen, wenn Voucher Captain aktiv ist;
-- Verhalten bei Erstattung/Storno festlegen;
-- bei Bedarf einen Partner oder eine Partnergruppe zuweisen.
+### PDF und Zustellung
 
-Variationsprodukte können eigene Definitionen und Regeln verwenden. Ohne Pass-Captain-Konfiguration bleibt ein gewöhnliches WooCommerce-Produkt unverändert.
+Jedes Ticket erhält eine individuelle Darstellung mit Event, Termin, Kategorie, Teilnehmer, Sitzplatz, Zugangshinweisen und QR-Code. Druck-PDFs, E-Mail-Vorlagen und Downloads in der Teilnehmeransicht nutzen dieselbe Ticketreferenz.
 
-## 7. Kernfunktionen und Oberflächen
+### Fälschungssicherheit
 
-### Shopkunde
+- Kein Ticket-Token wird aus Bestellnummer, E-Mail, Event-ID oder Teilnehmerdaten abgeleitet.
+- QR enthält ein zufälliges, nicht erratbares Token mit hoher Entropie oder ein geprüft signiertes Token; personenbezogene Daten bleiben serverseitig.
+- Serverseitig wird nur ein Token-Hash gespeichert, wenn die Ticketzustellung keine spätere Rekonstruktion des Codes benötigt. Wird Code-Rotation benötigt, wird ein neues Token ausgegeben und das alte widerrufen.
+- Das öffentlich prüfbare Ticket verwendet eine zufällige Kennung, nicht die fortlaufende interne Datenbank-ID.
+- QR-Prüfung zeigt keine persönlichen Daten ohne passende Partnerberechtigung.
 
-- Ticketliste in „Mein Konto“ mit Status, Gültigkeit und Download-/Druckansicht.
-- E-Mail-Zustellung und erneuter Versand über das Konto.
-- Empfängername und optionale Empfänger-E-Mail bei dafür konfigurierten Produkten.
-- Übertragung, falls erlaubt: sicheren Transferablauf mit Bestätigung und Audit; kein editierbares Besitzerfeld.
+Ein QR kann kopiert oder als Screenshot geteilt werden. Einmalige Einlösung, kontrollierte Übertragung und bei Bedarf ein Identitätsabgleich begrenzen diesen Missbrauch; sie verhindern ihn nicht generell.
 
-### Betreiber/Admin
+### Apple Wallet und Google Wallet
 
-- Übersicht über Tickets nach Status, Produkt, Bestellnummer, Kunde, Partner und Gültigkeit.
-- Ticketdetails, QR-Vorschau, Einlösungshistorie und verknüpfte Gutscheinreferenz.
-- Erstellen, widerrufen, korrigieren und erneut zustellen mit Begründung und Audit.
-- Wiederholbare Warteschlange für fehlgeschlagene Ticket-Ausstellungen.
-- CSV-Export für operative Listen, mit rollenbasierter Begrenzung und Datenschutz.
+Wallet-Integration ist eine spätere Ausbaustufe. Apple Wallet benötigt Pass-Type-Identifier und ein dazugehöriges Signing-Zertifikat. Google Wallet benötigt ein Issuer-Konto und Wallet-API-Integration. ([Apple Wallet Zertifikate](https://developer.apple.com/help/account/capabilities/create-wallet-identifiers-and-certificates), [Google Wallet Event Tickets](https://developers.google.com/wallet/tickets/events))
 
-### Partner
+Tickets sollen nach Widerruf oder Terminänderung aktualisierbar sein, wenn die jeweilige Plattform und Betreiberkonfiguration das erlauben. Lokale PDF-/QR-Tickets bleiben immer verfügbar, auch wenn Wallet-Anbieter nicht eingerichtet sind.
 
-- Eigene Partnerrolle oder capability-basierte Rechte, keine Administratorrolle erforderlich.
-- Partner sieht nur zugewiesene Tickets/Leistungen und deren Prüfergebnis.
-- Scan-Ansicht für Mobilgeräte sowie manuelle Codeeingabe.
-- Protokollierung des Partners, Zeitpunkts, Ergebnisses und optional der Einlösestelle.
+## 7. Check-in-PWA und Offline-Verhalten
 
-## 8. Datenmodell und Integrationsvertrag
+Die PWA unter einer konfigurierbaren Route wie `/event-checkin` bietet Login für Einlasspersonal, Kamera-QR-Scan und manuelle Codeeingabe. Rollen- und Eventzuweisungen begrenzen, welche Tickets ein Mitarbeiter prüfen oder entwerten darf.
 
-Für häufig veränderte Ticket- und Einlösedaten sind eigene, versionierte Tabellen zweckmäßig; Bestellinformationen werden über WooCommerce-CRUD-Objekte bezogen. WooCommerce empfiehlt die CRUD-API für Erweiterungen, damit Bestelldaten mit HPOS kompatibel bleiben. citeturn817217269search1turn817217269search14
+### Online-Modus
 
-### Entitäten
+- Echtzeitprüfung beim Pass-Captain-Server.
+- Ergebnis: gültig, bereits eingecheckt, widerrufen, falscher Termin, noch nicht gültig oder unbekannt.
+- Bei erfolgreicher Einlösung erfolgt Statusänderung atomar. Ein zweiter gleichzeitiger Scan kann den Check-in nicht duplizieren.
+- Logs enthalten Mitarbeiter, Gerät/Scannerkennung, Eventtermin, Zeitpunkt und Ergebnis.
 
-- **Passdefinition:** Zielprodukt/Variation, Art, Nutzungszahl, Gültigkeit, Empfänger-/Übertragungsregeln, Erstattungsregel.
-- **Ticket:** interne ID, zufällige öffentliche Kennung, Token-Hash, Passdefinition, Bestell-/Positionsreferenz oder Gutschein-Einlöse-ID, Besitzer/Empfänger, Status, Gültigkeit.
-- **Einlösung:** Ticket-ID, Nutzungseinheit, Partner, Zeitpunkt, Ergebnis, Idempotency-Key.
-- **Audit-Ereignis:** Akteur, Aktion, Ticket-/Bestell-/Voucher-Referenz, Zeitpunkt, Begründung.
-- **Integrationsjob:** Quelle, Idempotency-Key, Status, Wiederholungszähler, letzter Fehler, Ticketreferenz.
+### Offline-Modus
 
-### Öffentliche PHP-Schnittstelle
+Offline-Check-in wird als spätere, optionale Funktion behandelt. IndexedDB kann lokal Prüfdaten und Scan-Ereignisse halten; nach Wiederverbindung werden sie synchronisiert. Zwei voneinander getrennte Offline-Geräte können dasselbe Ticket jedoch beide als gültig ansehen. Deshalb kann ein Offline-Modus globale Einmaligkeit nicht garantieren.
 
-Mindestens folgende Operationen sollten stabil und dokumentiert sein:
+Für offlinefähige Einlässe müssen Veranstalter bewusst eine Konfliktregel, Gerätezuweisung, Zeitfenster und maximalen Datenumfang konfigurieren. Hochrisiko- oder streng kapazitätsbegrenzte Einlässe verwenden Online-Prüfung. Offline-Sync darf Konflikte nicht verbergen; doppelte Scans werden markiert und im Admin nachverfolgt.
 
-- `issue_pass(source, idempotency_key, target, recipient, validity)`
-- `get_pass(pass_id)`
-- `validate_pass(token, partner_id)`
-- `redeem_pass(token, partner_id, idempotency_key)`
-- `revoke_pass(pass_id, reason)`
+## 8. Datenmodell und Architektur
 
-Die konkrete Signatur wird vor Implementierung finalisiert. Schnittstellenantworten enthalten stabile Fehlercodes, keine internen Datenbankstrukturen.
+Pass Captain verwendet eigene, versionierte und indizierte Tabellen für volumenstarke Event- und Ticketdaten. WordPress-Core-Tabellen bleiben für Benutzer, Einstellungen und Plugin-Administration zuständig.
 
-### Events
+### Vorgeschlagene Tabellen
 
-- Ticket ausgestellt
-- Ticket teilweise/vollständig eingelöst
-- Ticket abgelaufen oder widerrufen
-- Ausstellung fehlgeschlagen oder wiederholbar
+| Tabelle | Zweck |
+|---|---|
+| `wp_etp_events` | Eventstammdaten und Einstellungen |
+| `wp_etp_occurrences` | Einzeltermine/Serieninstanzen, Ort, Start/Ende, Zeitzone |
+| `wp_etp_ticket_types` | Ticketkategorien, Preis, Steuerklassifikation, Verkauf und Kontingent |
+| `wp_etp_seatmaps` | Versionierte Saalpläne; Layout als JSON, Plätze/Belegung referenziert |
+| `wp_etp_orders` | Eigenständige Pass-Captain-Bestellungen und Status |
+| `wp_etp_order_items` | Unveränderliche Warenkorb-/Orderpositionen, Steuer- und Preissnapshot |
+| `wp_etp_payments` | PSP-Referenzen, Status und Webhook-Verarbeitung; keine Kartendaten |
+| `wp_etp_reservations` | Temporäre Holds für Mengen und Sitzplätze mit Ablaufzeit |
+| `wp_etp_tickets` | Öffentliche Kennung, Token-Hash, Termin, Kategorie, Sitzplatz, Status |
+| `wp_etp_attendees` | Minimale Teilnehmerdaten und Zusatzfelder, getrennt von Zahl-/Finanzdaten |
+| `wp_etp_checkin_logs` | Append-only Check-in- und Scanereignisse |
+| `wp_etp_audit_logs` | Admin-, Partner-, Zahlungs- und Integrationsänderungen |
+| `wp_etp_integration_jobs` | Wiederholbare Voucher-, PSP-, Mail- und Adaptervorgänge |
 
-Events sind Hinweise auf abgeschlossene Zustandsübergänge. Integrationen, die eine Leistung erzeugen, verwenden zusätzlich die idempotente PHP-Schnittstelle, damit Events keine doppelte Leistung auslösen.
+Bei WooCommerce-Bestellungen speichert Pass Captain nur die externe Bestell-/Positionsreferenz und notwendige Snapshots. Es kopiert keine komplette WooCommerce-Bestellung und greift nicht direkt auf Bestelltabellen zu; WooCommerce-Zugriff erfolgt über CRUD-Schnittstellen, die HPOS berücksichtigen. ([WooCommerce HPOS Recipe Book](https://developer.woocommerce.com/docs/features/orders/high-performance-order-storage/recipe-book/))
 
-## 9. QR- und Sicherheitsspezifikation
+### Tech-Stack und Paketwahl
 
-- QR enthält einen kryptografisch zufälligen, nicht erratbaren Token oder eine signierte, nicht personenbezogene Kennung.
-- Token wird serverseitig sicher gespeichert, möglichst als Hash; QR-Endpunkt gibt keine personenbezogenen Daten preis.
-- Tokenlänge und Entropie verhindern triviales Raten; Codes enthalten keine fortlaufenden Ticket-IDs.
-- Einlösen erfordert Authentifizierung und Berechtigung für den Partner/Standort.
-- Statusprüfung und Nutzungsabzug erfolgen atomar, damit zwei parallele Scans keinen doppelten Eintritt ermöglichen.
-- Fehlerhafte Codeversuche werden rate-limited; Admins können ungewöhnliche Scanmuster einsehen.
-- QR-URL und manuelle Kennung werden nicht in öffentlichen Logdateien ausgeschrieben.
-- Partnerzugänge lassen sich widerrufen und einzelne Scans sind auditierbar.
+- PHP 8.2+ als Startannahme, Composer und PSR-4; finale Mindestversion erst nach Abgleich mit WordPress- und Hostingbasis festlegen.
+- WordPress REST API unter `/wp-json/pass-captain/v1/` für PWA, Admin und Adapter.
+- React/`@wordpress/scripts` für Gutenberg-Blöcke und Admin-Oberflächen.
+- Bibliotheken für QR, PDF und Wallet erst nach Lizenz-, Wartungs-, Sicherheits- und PHP-Kompatibilitätsprüfung auswählen. `endroid/qr-code`, mPDF und PassKit-Pakete sind Kandidaten, keine Architekturvoraussetzung.
+- Secrets möglichst aus Umgebungsvariablen oder `wp-config.php` beziehen; keine Klartext-PSP-Schlüssel in öffentlich zugänglichen Logs oder Exporten.
 
-QR-Tickets verhindern nicht, dass ein Screenshot weitergegeben wird. Das Produkt muss daher Einmalnutzung, Transferregeln und nötige Identitätsprüfung passend zum Einsatzzweck konfigurieren können.
+## 9. Öffentliche Dienste und Integrationsvertrag
 
-## 10. Datenschutz und Betrieb
+Commerce- und Zahlungsadapter greifen auf stabile Services zu, keine internen Tabellen. Kernoperationen:
 
-- Empfängername und -E-Mail nur erheben, wenn sie für Zustellung oder Ticketnutzung gebraucht werden.
-- WordPress-Datenschutzauskunft und -löschung einbinden; steuer-/bestellrechtlich notwendige Referenzen getrennt von nicht erforderlichen Empfängerdaten behandeln.
-- Lösch- und Aufbewahrungsfristen konfigurierbar machen; Ticket- und Einlösungshistorie nach Möglichkeit pseudonymisieren.
-- E-Mails enthalten Ticket, QR-Code und Supporthinweise; erneuter Versand widerruft oder rotiert einen Code nicht stillschweigend.
-- Admin- und Partneraktionen im Audit protokollieren, ohne unnötige Zahlungsdaten zu speichern.
-- WP-Cron/Action Scheduler oder ein vergleichbares WooCommerce-kompatibles Verfahren für Ablauf und Wiederholungsjobs verwenden.
+- `create_order(source, items, customer, idempotency_key)`
+- `reserve_inventory(occurrence_id, ticket_type_id, quantity, seat_ids, expires_at)`
+- `confirm_payment(order_id, provider_reference, idempotency_key)`
+- `issue_tickets(order_id, idempotency_key)`
+- `validate_ticket(token, event_id, partner_id)`
+- `check_in_ticket(token, event_id, partner_id, idempotency_key)`
+- `refund_order(order_id, amount, reason)`
+- `revoke_ticket(ticket_id, reason)`
 
-## 11. Kompatibilität und Qualität
+Schnittstellen antworten mit stabilen Fehlercodes und dokumentierten Datenformaten. Idempotency-Keys und externe Quellen werden gespeichert; parallele oder wiederholte Webhooks ändern keine Zustände mehrfach.
 
-- WooCommerce mit HPOS über CRUD-APIs unterstützen.
-- Klassische Kasse und Warenkorb-/Kassen-Blöcke unterstützen. Block-Kompatibilität für zusätzliche Empfängerfelder separat implementieren; WooCommerce stellt eigene Erweiterungspunkte für Checkout-Blöcke bereit. citeturn817217269search20turn817217269search25
-- Zahlung, Teil-/Vollerstat­tung, 0-Euro-Bestellung, Gastbestellung, Mengen > 1, variable Produkte und wiederholte Statushooks abdecken.
-- Bei Änderungen der Bestellung dürfen bereits ausgestellte Tickets nicht unbemerkt dupliziert oder verändert werden.
-- Minimalversionen von WordPress/PHP/WooCommerce festlegen, sobald die technische Basis gewählt ist.
-- Übersetzbarkeit, Barrierefreiheit, E-Mail-Zustellbarkeit und Migrationen von Anfang an berücksichtigen.
+Voucher Captain ruft `issue_tickets()` nach bestätigter Gutscheineinlösung mit Voucher-ID, Redeem-ID und definiertem Ziel auf. Ticket-Ausstellung bestätigt eine Ticketreferenz. Erst nach dieser Bestätigung schließt Voucher Captain die Einlösung ab. Ein fehlgeschlagener Aufruf bleibt wiederholbar.
+
+Ereignisse wie `pass_captain_ticket_issued`, `pass_captain_ticket_checked_in`, `pass_captain_ticket_revoked` und `pass_captain_order_refunded` sind für Benachrichtigungen und Connectoren vorgesehen. Sie ersetzen keine idempotente Serviceoperation.
+
+## 10. Recht, Steuern und Datenschutz (DACH)
+
+### Verbraucherinformationen und Rücktritt
+
+Der Checkout muss Eventdatum, Veranstalter, Preis, Ticketmerkmale und die anwendbaren Verbraucherinformationen korrekt darstellen und die übermittelten Fassungen nachvollziehbar versionieren. Für bestimmte Dienstleistungen im Zusammenhang mit Freizeitbetätigungen kann bei vertraglich festgelegtem Zeitpunkt/Zeitraum eine gesetzliche Ausnahme vom Rücktrittsrecht gelten. Die Anwendbarkeit hängt von Leistung und Vertragsgestaltung ab; eine pauschale Checkbox im Checkout schafft nicht automatisch die rechtliche Ausnahme. Österreichisches FAGG § 18 Abs. 1 Z 10 und deutsches BGB § 312g Abs. 2 Nr. 9 enthalten solche Ausnahmen. Jede Text-/Checkbox-Vorlage und Regelentscheidung muss juristisch geprüft und vom Betreiber konfiguriert werden. ([RIS: FAGG § 18](https://www.ris.bka.gv.at/GeltendeFassung.wxe?Abfrage=Bundesnormen&Gesetzesnummer=20008847), [Gesetze im Internet: BGB § 312g](https://www.gesetze-im-internet.de/bgb/__312g.html))
+
+### Steuer- und Rechnungsdaten
+
+Pass Captain verwaltet Preise und Steuerdaten pro Position, fixiert den zum Bestellzeitpunkt verwendeten Steuersatz und speichert erforderliche Rechnungsbelege. Es setzt keine Steuersätze oder Kleinunternehmerregeln als universelle DACH-Defaults. Veranstalter/Steuerberatung konfigurieren Leistungskategorien, Lieferorte, Ermäßigungen und Korrekturen. OSS, grenzüberschreitende Leistungen und gemischte Steuersätze sind vor einer Produktivfreigabe fachlich zu validieren.
+
+### Datenschutz
+
+- Teilnehmerdaten und Finanz-/Rechnungsdaten werden getrennt gehalten und rollenbasiert zugänglich gemacht.
+- Nur erforderliche Felder werden erhoben. Sensible Angaben sind deaktiviert, bis Zweck und Zugriff geregelt sind.
+- WordPress-Auskunfts- und Löschfunktionen werden unterstützt.
+- Keine pauschale automatische Löschung aller Teilnehmerdaten nach einer frei gesetzten Zahl von Tagen. Betreiber legen Fristen je Datenklasse fest, berücksichtigen Rechtsgrundlagen, Aufbewahrungspflichten, Streitfälle und laufende Verträge.
+- Nach Ablauf der jeweiligen Frist werden Teilnehmerdaten gelöscht oder irreversibel anonymisiert; Finanzbelege und unveränderliche Auditnachweise können separat mit möglichst wenig Personenbezug erhalten bleiben.
+- Die DSGVO verlangt Datenminimierung und Speicherbegrenzung, zugleich ist eine dokumentierte Grundlage für Aufbewahrung/Löschung nötig. ([DSGVO Art. 5 und 17](https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/))
+- Lokale Skripte und Schriftarten sind Standard, soweit keine erforderlichen externen Dienste aktiv sind. PSP- und Wallet-Anbindungen werden transparent ausgewiesen.
+- Datenschutztexte, Einwilligungsfelder und Fristen sind Werkzeuge für Betreiber, kein pauschaler Konformitätsnachweis.
+
+## 11. Sicherheit, Performance und Kompatibilität
+
+- Nonces für browserbasierte WordPress-Sitzungen plus capability-Prüfung; API-Tokens für Partner sind widerrufbar und eng begrenzt.
+- Rate-Limiting auf Ticketprüfung, Login und Check-in-Endpunkten.
+- Eingaben validieren, Ausgaben escapen, SQL vorbereiten; PII und Tokens aus Logs entfernen.
+- Datenbanktabellen mit Indizes für Eventtermin, Ticketstatus, Kategorie, Order-Referenz und Check-in-Abfrage versehen.
+- Ticket- und Seat-Status atomar aktualisieren; Überbuchungen und parallele Doppel-Scans verhindern.
+- WooCommerce-Integration verwendet offizielle CRUD-APIs und erklärt HPOS-Kompatibilität. WooCommerce-Checkout-Blöcke und klassische Kasse sind getrennte Adapter-Integrationspunkte. ([HPOS Recipe Book](https://developer.woocommerce.com/docs/features/orders/high-performance-order-storage/recipe-book/), [Checkout Blocks Extensibility](https://developer.woocommerce.com/docs/block-development/extensible-blocks/cart-and-checkout-blocks/))
+- WooCommerce ist keine Installationsvoraussetzung für den nativen Checkout.
+- Migrationen, Backups, Datenbereinigung und Wiederherstellung großer Tabellen sind Teil des Betriebsentwurfs.
 
 ## 12. Priorisierte Umsetzung
 
-### P0 – Nutzbarer Kern
+### P0 – Eigenständiger Verkauf und Online-Einlass
 
-- Plugin-Bootstrap, Einstellungen, Datenbanktabellen und Migrationen.
-- Passkonfiguration an WooCommerce-Produkten und Variationen.
-- Idempotente Ticketausstellung bei bezahlter Bestellung, pro Position und Einheit.
-- QR-Erzeugung, E-Mail, „Mein Konto“ und Admin-Ticketdetails.
-- Online-Prüfen und Einmal-Einlösung mit Partnerberechtigung.
-- Statusmodell, Auditverlauf, Ablauf und Admin-Widerruf.
-- Erstattung/Storno-Regel und wiederholbare Fehlerbehandlung.
-- HPOS-, Block-Checkout- und klassische-Kasse-Kompatibilität.
-- Datenschutzauskunft/-löschung und grundlegende Rollenrechte.
+- Plugin-Bootstrap, Rollen/Rechte, Adminnavigation, REST-Grundlage und Schema-Migrationen.
+- Events, einzelne Termine/Occurrences, Ticketkategorien, Verkaufszeiträume und Kapazitäten.
+- Native Checkout- und Bestellobjekte; grundlegende Zahlungsadapter-Schnittstelle.
+- PSP-Webhooks, Idempotenz und robuste Statusmaschine; Kartenangaben bleiben beim PSP.
+- Reservierungssperren für Inventar, zunächst ohne grafischen Sitzplan.
+- Einzelne QR-Tickets, E-Mail/PDF-Ausgabe, Teilnehmeransicht und Adminsuche.
+- Browser-PWA für Online-Prüfung und Einmal-Check-in.
+- Rückerstattungs-/Widerrufsstatus, Check-in-Historie und Datenschutzfunktionen.
+- WooCommerce-Adapter als optionales Modul mit HPOS-Unterstützung.
 
-### P1 – Native Voucher-Captain-Integration
+### P1 – DACH-Verkauf und native Voucher-Integration
 
-- Versionierter PHP-Vertrag und Capability-Erkennung, wenn beide Plugins aktiv sind.
-- Auswahl Passdefinition/Ziel im Voucher-Captain-Gutschein.
-- Idempotente Ticket-Ausgabe bei bestätigter Gutschein-Einlösung.
-- Reservieren, bestätigen, wiederholen und bei endgültigem Fehler freigeben.
-- Voucher-ID ↔ Pass-ID im Audit und Admin sichtbar.
-- Tests für Timeout, parallele Einlösung, erneuten Request und Teilausfall beider Plugins.
+- Steuerklassifikationen pro Position, Rechnungs-/Korrekturbelegmodell und Datenexport.
+- Juristisch konfigurierbare Checkout-Informationen und Nachweis der gezeigten Version.
+- Native Integration mit Voucher Captain: Voucher-Einlösung, Ticket-Ausgabe und sichere Wiederholung.
+- Ticketklassen, Empfängerfelder, Rabatte und Konflikt-/Stapelkonditionen.
+- Partnerverwaltung, Event-/Standortzuweisung und Check-in-Berichte.
+- Stripe- und PayPal-Adapter konkretisieren; Zahlungsmethoden nach PSP-Fähigkeit ein-/ausschalten.
 
-### P1 – Partnerbetrieb
+### P2 – Sitzplan, Wallet und vertiefte Betriebsfunktionen
 
-- Partnerverwaltung und Zuordnung zu Passdefinitionen/Leistungen.
-- Mobilfreundliche Scan-/Validierungsansicht.
-- Standort-/Partnerfilter, manuelle Eingabe und Check-in-Verlauf.
-- Begrenzte Partnerrollen und Supportfunktionen.
+- Grafischer Seat-Map-Editor und Live-Sitzplatzstatus.
+- Apple Wallet und Google Wallet.
+- Mehrfach-/Servicepässe, sichere Übertragung und optionaler Terminbuchungsconnector.
+- Erweiterte Exporte, Umsatz- und Check-in-Auswertung, Erinnerungs-E-Mails.
 
-### P2 – Erweiterungen
+### P3 – Offline und Erweiterungen
 
-- Terminbuchung, Verfügbarkeitskalender, Umbuchung und Storno.
-- Mehrfachpässe mit Guthaben und Teilverbrauch.
-- Ticketübertragung und Empfängerwechsel.
-- Erinnerungen vor Termin oder Ablauf.
-- Kampagnenstatistik und Partnerabrechnungsberichte.
-- Export/API für externe Partner- oder Scanner-Apps.
+- Offline-PWA mit expliziten Konfliktregeln, Gerätezuteilung und nachgelagerter Synchronisation.
+- Offlinebetrieb wird nur für Veranstalter freigegeben, die das verbleibende Risiko doppelter Scans akzeptieren.
+- Externe Scanner-Apps, API-Zugang und Partnerabrechnungen.
+- Serien- und Wiederholungstermine mit erweiterten Preis-/Kontingentregeln.
 
-## 13. Abnahmekriterien des MVP
+## 13. MVP-Abnahmekriterien
 
-- Ein WooCommerce-Passprodukt erzeugt nach erfolgreicher Zahlung für jede gekaufte Einheit genau ein Ticket.
-- Eine Gutscheineinlösung erzeugt bei aktiver Voucher-Captain-Integration genau ein Ticket; Wiederholungen liefern dasselbe Ticket zurück.
-- Der QR-Code funktioniert auf Mobilgeräten und enthält keine sichtbaren personenbezogenen Daten.
-- Ein gültiger Partner kann ein Ticket prüfen und einlösen; ein unberechtigter Partner kann keine fremden Tickets einlösen.
-- Ein Einmalpass kann auch bei parallelen Scans nur einmal eingelöst werden.
-- Erstattungs- und Widerrufsregeln aktualisieren Ticketstatus nachvollziehbar und erhalten den Verlauf.
-- HPOS und beide Checkout-Arten funktionieren ohne direkte Abhängigkeit auf WooCommerce-Order-Posts.
-- Ist Voucher Captain nicht installiert, bleiben Kauf, Ausstellung und Einlösung von Pass Captain verfügbar.
-- Die kundenspezifische Learnboating-Verknüpfung ist im separaten Connector umgesetzt und verändert nicht den generischen Pass-Captain-Kern.
+- Betreiber kann ein Event mit mehreren Terminen, Ticketkategorien, Preisfenstern und Kontingenten ohne WooCommerce anlegen.
+- Native Bestellung und bestätigte Zahlung erzeugen je gekaufter Einheit genau ein Ticket.
+- Wiederholte oder parallele Zahlungs-Webhooks erzeugen weder doppelte Tickets noch doppelte Buchungen.
+- Holds verhindern bei parallelen Checkouts den Überverkauf; Ablauf gibt den Bestand zuverlässig frei.
+- Online-PWA prüft und entwertet Tickets atomar; ein Einmal-Ticket kann nicht doppelt eingelöst werden.
+- Teilnehmer sieht seine Tickets; Partner sieht nur ihm zugewiesene Eventdaten.
+- Erstattung und Storno ändern den Ticketstatus nach konfigurierbarer Regel und erhalten den Auditverlauf.
+- WooCommerce ist optional; falls aktiv, bleiben Bestellzugriffe mit HPOS und klassischen Bestellungen kompatibel.
+- Die Voucher-Captain-Integration erzeugt Tickets erst nach bestätigter Einlösung und bleibt bei Timeout wiederholbar.
+- Privacy-Export/-Löschung und definierte Aufbewahrungsregeln für Teilnehmerdaten sind bedienbar.
+- Offline-Scanning, Seat Maps, Wallet-Pässe und Rechnungs-PDFs sind klar als spätere Module abgegrenzt, soweit sie nicht Bestandteil des ersten Release-Vertrags sind.
 
-## 14. Offene Produktentscheidungen vor Implementierung
+## 14. Noch zu entscheidende Produktfragen
 
-1. Soll das Produkt zunächst stärker auf Eventeintritt, Dienstleistungspässe oder beide gleich ausgerichtet sein?
-2. Dürfen Tickets übertragbar sein, und wenn ja, mit welchem Bestätigungsablauf?
-3. Soll Ticket-Ausstellung nur nach Zahlung erfolgen oder für Betreiber auch manuell/als Gratispass möglich sein?
-4. Für „Fahrstunde“: genügt ein einlösbarer Anspruch, oder muss Pass Captain direkt Terminbuchung und Umbuchung verwalten?
-5. Welche Identitätsprüfung brauchen Partner beim Einlösen?
-6. Soll der Partner-Scan im ersten Release ausschließlich online arbeiten?
-7. Wie wird eine Teilrückerstattung auf mehrere Tickets einer Bestellung angewendet?
+1. Welche Länder sollen zum Start wirklich unterstützt werden: Österreich/Deutschland oder auch Schweiz?
+2. Ist der erste Marktfokus klassische Eventtickets, Vereins-/Sportveranstaltungen oder Servicepässe?
+3. Soll P0 mit einem Zahlungsdienstleister starten oder ist Checkout zunächst nur mit externem PSP/Manual-Payment möglich?
+4. Wie viel Umfang erhält die erste Rechnungsfunktion: Datenexport, einfache Rechnung oder vollständige Rechnung/Korrekturbeleg?
+5. Muss der Sitzplan im ersten Verkaufsrelease enthalten sein, oder reichen zunächst Kategorien und Kontingente?
+6. Welche Teilnehmerfelder sind fachlich nötig, und welche sensiblen Felder werden ausgeschlossen?
+7. Soll Offline-Check-in irgendwann harte Einmaligkeit bieten? Das ist bei mehreren getrennten Offline-Geräten technisch nicht zuverlässig garantierbar.
+8. Terminbuchung für Fahrstunden: Bestandteil von Pass Captain, oder separater Buchungsdienst, den ein Pass lediglich freischaltet?
 
-**Empfehlung für den ersten Release:** mit Online-Einmalpässen und QR-Entwertung starten, Gutscheinintegration als nächstes Paket direkt in den beiden Plugins ergänzen und Terminplanung erst nach einem konkreten Partnerprozess bauen.
+**Empfehlung:** P0 als eigenständigen Eventverkauf mit Ticketkategorien und Kontingenten, nativer Online-Zahlung, QR-PDFs und Online-PWA planen. Seat-Map, Wallet, vollständige Rechnungs-/Steuerlogik und Offline-Check-in sind größere Module; ihren Aufwand vor Festlegung des Releaseumfangs separat schätzen.
+
+## Quellen zur technischen und rechtlichen Validierung
+
+- [Österreichisches FAGG, § 18, RIS](https://www.ris.bka.gv.at/GeltendeFassung.wxe?Abfrage=Bundesnormen&Gesetzesnummer=20008847)
+- [Deutsches BGB, § 312g](https://www.gesetze-im-internet.de/bgb/__312g.html)
+- [DSGVO, Verordnung (EU) 2016/679](https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/)
+- [WooCommerce HPOS Extension Recipe Book](https://developer.woocommerce.com/docs/features/orders/high-performance-order-storage/recipe-book/)
+- [WooCommerce Cart and Checkout Blocks](https://developer.woocommerce.com/docs/block-development/extensible-blocks/cart-and-checkout-blocks/)
+- [Apple Wallet Certificates](https://developer.apple.com/help/account/capabilities/create-wallet-identifiers-and-certificates)
+- [Google Wallet Event Tickets](https://developers.google.com/wallet/tickets/events)
+- [Stripe Supported Currencies and Payment Methods](https://docs.stripe.com/currencies)
