@@ -94,7 +94,8 @@ final class Mollie {
 		// The cheapest paid ticket as reference amount; the final amount is checked again on payment.
 		$min = 0;
 		foreach ( $types as $type ) {
-			if ( (int) $type->price_minor > 0 && ( ! $min || (int) $type->price_minor < $min ) ) { $min = (int) $type->price_minor; }
+			$price = \PassCaptain\Orders::unit_price( $type );
+			if ( $price > 0 && ( ! $min || $price < $min ) ) { $min = $price; }
 		}
 		$methods = $min ? MollieGateway::selectable_methods( $min, $currency ) : array();
 		if ( count( $methods ) < 2 ) { return; }

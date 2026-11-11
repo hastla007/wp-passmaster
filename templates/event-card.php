@@ -17,17 +17,19 @@ $form_id = 'wpcap-' . (int) $event->occurrence_id;
 			<?php foreach ( $types as $type ) :
 				$max = null === $type->available ? (int) $type->max_per_order : min( (int) $type->max_per_order, (int) $type->available );
 				$price = number_format_i18n( $type->price_minor / 100, 2 ) . ' ' . $type->currency;
+				$base_price = isset( $type->base_price_minor ) && (int) $type->base_price_minor !== (int) $type->price_minor ? number_format_i18n( $type->base_price_minor / 100, 2 ) . ' ' . $type->currency : '';
 				?>
 				<div class="wpcap-type">
-					<label for="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>"><?php echo esc_html( $type->name ); ?> — <?php echo esc_html( $price ); ?><?php if ( (int) $type->tax_rate_bp ) : ?> <small><?php echo esc_html( sprintf( /* translators: %s: VAT rate */ __( 'inkl. %s %% USt.', 'wp-pass-captain' ), number_format_i18n( $type->tax_rate_bp / 100, 2 ) ) ); ?></small><?php endif; ?></label>
+					<label for="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>"><?php echo esc_html( $type->name ); ?> — <?php echo esc_html( $price ); ?><?php if ( ! empty( $type->price_label ) ) : ?> <span class="wpcap-price-label"><?php echo esc_html( $type->price_label ); ?></span><?php endif; ?><?php if ( '' !== $base_price ) : ?> <small class="wpcap-base-price"><?php echo esc_html( sprintf( /* translators: %s: regular price */ __( 'statt %s', 'wp-pass-captain' ), $base_price ) ); ?></small><?php endif; ?><?php if ( (int) $type->tax_rate_bp ) : ?> <small><?php echo esc_html( sprintf( /* translators: %s: VAT rate */ __( 'inkl. %s %% USt.', 'wp-pass-captain' ), number_format_i18n( $type->tax_rate_bp / 100, 2 ) ) ); ?></small><?php endif; ?></label>
 					<?php if ( $max < 1 ) : ?>
 						<span class="wpcap-soldout"><?php esc_html_e( 'Ausverkauft', 'wp-pass-captain' ); ?></span>
 					<?php else : ?>
-						<input id="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>" class="wpcap-qty" type="number" min="0" max="<?php echo esc_attr( $max ); ?>" value="0" inputmode="numeric" data-type="<?php echo esc_attr( $type->ticket_type_id ); ?>" data-name="<?php echo esc_attr( $type->name ); ?>" data-fields="<?php echo esc_attr( wp_json_encode( $type->fields ) ); ?>">
+						<input id="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>" class="wpcap-qty" type="number" min="0" max="<?php echo esc_attr( $max ); ?>" value="0" inputmode="numeric" data-type="<?php echo esc_attr( $type->ticket_type_id ); ?>" data-price="<?php echo esc_attr( (int) $type->price_minor ); ?>" data-currency="<?php echo esc_attr( $type->currency ); ?>" data-name="<?php echo esc_attr( $type->name ); ?>" data-fields="<?php echo esc_attr( wp_json_encode( $type->fields ) ); ?>">
 					<?php endif; ?>
 				</div>
 			<?php endforeach; ?>
 		</fieldset>
+		<p class="wpcap-estimate" aria-live="polite"></p>
 		<div class="wpcap-attendees" aria-live="polite"></div>
 		<?php do_action( 'wpcap_checkout_form_fields', $event, $types ); ?>
 		<label><?php esc_html_e( 'E-Mail', 'wp-pass-captain' ); ?> <input name="email" type="email" autocomplete="email" required></label>

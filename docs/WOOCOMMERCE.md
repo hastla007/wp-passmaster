@@ -25,6 +25,10 @@ Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nu
 
 Eingecheckte Tickets werden bei Storno oder Erstattung nicht verändert und bleiben als Einlasshistorie erhalten; die Bestellnotiz weist darauf hin.
 
+### Serien-Preisstufen und gemeinsame Kontingente
+
+WooCommerce behält seine eigenen Produktpreise: Der Adapter übergibt die WooCommerce-Zeilenpreise als vertrauenswürdige `unit_prices`, die Vorrang vor dem Filter `wpcap_ticket_unit_price` haben. Preisstufen des Moduls „Serientermine“ (Frühbucher, Last-Minute, Nachfrage, Wochentag/Zeitfenster) wirken daher nur im eigenen Checkout und an der Kasse; abweichende Preise in WooCommerce bitte dort pflegen (z. B. Sale-Preis mit Zeitraum). Gemeinsame Kontingente einer Serie (Pools) gelten dagegen auch für WooCommerce: Warenkorbprüfung über `Orders::availability()`, Reservierung und verspätete Zahlung über den Kern-Hook `wpcap_reserve_capacity`. Der Adapter selbst wurde dafür nicht geändert.
+
 Die Reservierungsdauer entspricht mindestens der WooCommerce-Einstellung „Lagerbestand halten (Minuten)“ (Standard 60) und lässt sich mit dem Filter `wpcap_woocommerce_hold_minutes` ändern.
 
 ## Angaben zu Teilnehmenden und Saalpläne

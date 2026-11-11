@@ -201,7 +201,7 @@ final class Controller {
 		$locale = sanitize_text_field( $request->get_param( 'locale' ) ?: determine_locale() );
 		foreach ( $rows as $row ) {
 			$translation = $wpdb->get_row( $wpdb->prepare( "SELECT name,description,location FROM {$wpdb->prefix}wpcap_event_translations WHERE event_id=%d AND locale=%s", $row->event_id, $locale ) );
-			$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name,price_minor,currency,capacity,max_per_order,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id ASC", $row->occurrence_id ), ARRAY_A );
+			$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id ASC", $row->occurrence_id ), ARRAY_A );
 			$output[] = array(
 				'event_id' => (int) $row->event_id,
 				'name' => $translation ? $translation->name : $row->name,
@@ -215,7 +215,10 @@ final class Controller {
 				'tickets' => array_map( static function ( $type ) { return array(
 					'ticket_type_id' => (int) $type['ticket_type_id'],
 					'name' => $type['name'],
-					'price_minor' => (int) $type['price_minor'],
+					// Effective (tier) price; regular_price_minor is the stored list price.
+					'price_minor' => \PassCaptain\Orders::unit_price( (object) $type ),
+					'regular_price_minor' => (int) $type['price_minor'],
+					'price_label' => \PassCaptain\Orders::price_label( (object) $type ),
 					'currency' => $type['currency'],
 					'max_per_order' => (int) $type['max_per_order'],
 				); }, $types ),
