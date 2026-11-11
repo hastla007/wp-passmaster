@@ -110,11 +110,15 @@ function is_email( $e ) { return false !== filter_var( (string) $e, FILTER_VALID
 function sanitize_text_field( $t ) { return trim( strip_tags( (string) $t ) ); }
 function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
 function wp_unslash( $v ) { return $v; }
+function sanitize_textarea_field( $t ) { return trim( strip_tags( (string) $t ) ); }
+function wp_kses_post( $t ) { return (string) $t; }
+function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d, ",", "." ); }
+function user_can( $u, $c ) { return true; }
 function wp_json_encode( $v ) { return json_encode( $v ); }
 function wp_generate_uuid4() { return sprintf( '%04x%04x-%04x-4%03x-%04x-%012x', random_int( 0, 0xffff ), random_int( 0, 0xffff ), random_int( 0, 0xffff ), random_int( 0, 0xfff ), random_int( 0x8000, 0xbfff ), random_int( 0, 0xffffffffffff ) ); }
 function current_time( $type, $gmt = 0 ) { return gmdate( 'Y-m-d H:i:s' ); }
-function get_current_user_id() { return 1; }
-function current_user_can( $cap ) { return true; }
+function current_user_can( $cap ) { return ! in_array( $cap, $GLOBALS['wpcap_test_denied_caps'] ?? array(), true ); }
+function get_current_user_id() { return $GLOBALS['wpcap_test_user_id'] ?? 1; }
 function get_option( $k, $d = false ) { return $GLOBALS['wpcap_test_options'][ $k ] ?? $d; }
 function update_option( $k, $v ) { $GLOBALS['wpcap_test_options'][ $k ] = $v; return true; }
 function get_transient( $k ) { return $GLOBALS['wpcap_test_transients'][ $k ] ?? false; }

@@ -134,6 +134,17 @@ final class Controller {
 			'callback' => array( __CLASS__, 'create_campaign' ),
 			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/payments/(?P<provider>[a-z0-9_-]+)/webhook', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( \PassCaptain\Payments\Webhooks::class, 'handle' ),
+			// Authenticity is established by the provider signature check in verify_webhook().
+			'permission_callback' => '__return_true',
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/checkout/options', array(
+			'methods' => \WP_REST_Server::READABLE,
+			'callback' => array( __CLASS__, 'checkout_options' ),
+			'permission_callback' => '__return_true',
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/events/(?P<event_id>\d+)/waitlist', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'join_waitlist' ),
@@ -215,11 +226,50 @@ final class Controller {
 
 	public static function checkout( \WP_REST_Request $request ) {
 		$params = $request->get_json_params() ?: $request->get_params();
+		$params = is_array( $params ) ? $params : array();
 		// Only customer fields; trusted adapter options must never come from a public request.
-		$payload = array_intersect_key( is_array( $params ) ? $params : array(), array_flip( array( 'email', 'items', 'idempotency_key', 'campaign_codes' ) ) );
-		$result = Orders::create( $payload );
+		$payload = array_intersect_key( $params, array_flip( array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code' ) ) );
+		$provider_id = sanitize_key( $params['provider'] ?? 'manual' );
+		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
+		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );
+		if ( ! $gateway || ! in_array( $provider_id, $enabled, true ) ) {
+			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+		}
+		$hold = 'manual' === $provider_id ? max( 1, (int) \PassCaptain\Settings::get( 'manual_hold_hours' ) ) * 60 : max( 30, (int) \PassCaptain\Settings::get( 'hold_minutes' ) ); // Hosted payment pages (e.g. Stripe) live at least 30 minutes.
+		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold ) );
 		if ( is_wp_error( $result ) ) { return $result; }
-		return new \WP_REST_Response( $result, 201 );
+		if ( 'pending' === ( $result['payment_status'] ?? '' ) ) {
+			$order = (array) Orders::get( $result['order_id'] );
+			if ( ! $gateway->is_available( $order['currency'] ) ) {
+				Orders::cancel_order( $result['order_id'], 'provider_unavailable_for_currency' );
+				return new \WP_Error( 'wpcap_provider_currency', __( 'Diese Zahlungsart unterstützt die Währung nicht.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			}
+			$items = array_map( static function ( $row ) { return (array) $row; }, Orders::items_for_order( $result['order_id'] ) );
+			$payment = $gateway->create_payment( $order, $items );
+			if ( is_wp_error( $payment ) ) {
+				Orders::cancel_order( $result['order_id'], 'payment_start_failed' );
+				return new \WP_Error( $payment->get_error_code(), $payment->get_error_message(), array( 'status' => 502 ) );
+			}
+			if ( ! empty( $payment['provider_reference'] ) ) {
+				Orders::set_provider_reference( $result['order_id'], $payment['provider_reference'] );
+			}
+			$result['payment'] = array_intersect_key( $payment, array_flip( array( 'provider', 'status', 'redirect_url', 'instructions' ) ) );
+		}
+		return new \WP_REST_Response( $result, empty( $result['reused'] ) ? 201 : 200 );
+	}
+
+	/** Public checkout configuration: enabled payment methods and legal texts. */
+	public static function checkout_options( \WP_REST_Request $request ) {
+		$currency = strtoupper( sanitize_text_field( $request->get_param( 'currency' ) ?: 'EUR' ) );
+		$providers = array();
+		foreach ( \PassCaptain\Payments\Registry::enabled( $currency ) as $id => $gateway ) { $providers[] = array( 'id' => $id, 'title' => $gateway->title() ); }
+		return rest_ensure_response( array(
+			'providers' => $providers,
+			'require_terms' => (bool) \PassCaptain\Settings::get( 'require_terms' ),
+			'terms_text' => wp_kses_post( (string) \PassCaptain\Settings::get( 'terms_text' ) ),
+			'consumer_info_text' => wp_kses_post( (string) \PassCaptain\Settings::get( 'consumer_info_text' ) ),
+			'terms_version' => \PassCaptain\Settings::terms_version(),
+		) );
 	}
 
 	public static function order_status( \WP_REST_Request $request ) {

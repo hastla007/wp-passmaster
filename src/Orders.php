@@ -10,11 +10,13 @@ final class Orders {
 	/**
 	 * Creates an order with inventory holds.
 	 *
-	 * @param array $payload  Customer input: email, items, idempotency_key, campaign_codes.
+	 * @param array $payload  Customer input: email, items, idempotency_key, campaign_codes,
+	 *                        attendees (list of {ticket_type_id, name, email, answers{field_key:value}}),
+	 *                        accept_terms (bool).
 	 * @param array $internal Trusted options for adapters/staff only – never fill from a request:
-	 *                        external (bool), unit_prices (type_id => minor), currency, hold_minutes,
-	 *                        source, key_namespace (separates idempotency keys per channel),
-	 *                        skip_rate_limit (bool).
+	 *                        external (bool), unit_prices / line_totals / line_taxes (type_id => minor),
+	 *                        currency, hold_minutes, source, payment_provider, key_namespace
+	 *                        (separates idempotency keys per channel), skip_rate_limit (bool).
 	 */
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
@@ -33,7 +35,12 @@ final class Orders {
 		$key_hash = '' === $namespace ? hash( 'sha256', $key ) : hash_hmac( 'sha256', $key, 'wpcap-channel-' . $namespace );
 		// Trusted adapter options (e.g. WooCommerce): the external system owns price and payment.
 		$external = ! empty( $internal['external'] );
-		$hold_minutes = $external ? max( 1, absint( $internal['hold_minutes'] ?? self::HOLD_MINUTES ) ) : self::HOLD_MINUTES;
+		$hold_minutes = max( 1, absint( $internal['hold_minutes'] ?? Settings::get( 'hold_minutes' ) ?? self::HOLD_MINUTES ) );
+		$line_taxes = ( $external && is_array( $internal['line_taxes'] ?? null ) ) ? array_map( 'absint', $internal['line_taxes'] ) : array();
+		$payment_provider = sanitize_key( $internal['payment_provider'] ?? ( $external ? ( $internal['source'] ?? 'external' ) : 'manual' ) );
+		if ( ! $external && Settings::get( 'require_terms' ) && empty( $payload['accept_terms'] ) ) {
+			return new \WP_Error( 'wpcap_terms_required', __( 'Bitte bestätige die Bedingungen und Verbraucherinformationen.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+		}
 		$unit_prices = ( $external && is_array( $internal['unit_prices'] ?? null ) ) ? array_map( 'absint', $internal['unit_prices'] ) : array();
 		// Exact gross line totals from the external system (unit prices may not divide evenly).
 		$line_totals = ( $external && is_array( $internal['line_totals'] ?? null ) ) ? array_map( 'absint', $internal['line_totals'] ) : array();
@@ -54,6 +61,8 @@ final class Orders {
 			}
 			$clean_lines[ $type_id ] = ( $clean_lines[ $type_id ] ?? 0 ) + $quantity;
 		}
+		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array() );
+		if ( is_wp_error( $attendees ) ) { return $attendees; }
 
 		// Keep anonymous checkout abuse bounded without retaining raw IP addresses.
 		$ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
@@ -123,6 +132,20 @@ final class Orders {
 			if ( is_wp_error( $adjustments ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
 			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
 			$total = max( 0, $subtotal - $discount );
+			// Allocate the discount proportionally to lines and compute VAT per line on the discounted gross amount.
+			$tax_total = 0;
+			$discount_left = $discount;
+			$last = count( $selected ) - 1;
+			foreach ( $selected as $index => $line ) {
+				$line_discount = $index === $last ? $discount_left : ( $subtotal > 0 ? intdiv( $discount * $line['line_total'], $subtotal ) : 0 );
+				$line_discount = min( $line['line_total'], max( 0, $line_discount ) );
+				$discount_left -= $line_discount;
+				$rate = (int) ( $line['type']->tax_rate_bp ?? 0 );
+				$type_id_for_tax = (int) $line['type']->ticket_type_id;
+				$selected[ $index ]['tax_rate_bp'] = $rate;
+				$selected[ $index ]['tax_minor'] = array_key_exists( $type_id_for_tax, $line_taxes ) ? (int) $line_taxes[ $type_id_for_tax ] : self::gross_tax( $line['line_total'] - $line_discount, $rate );
+				$tax_total += $selected[ $index ]['tax_minor'];
+			}
 			$price_snapshot = wp_json_encode( array( 'currency' => $currency, 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'campaigns' => array_map( static function ( $adjustment ) { return array( 'code' => $adjustment['campaign']->code, 'amount_minor' => (int) $adjustment['amount_minor'] ); }, $adjustments ) ) );
 
 			$public_id = bin2hex( random_bytes( 16 ) );
@@ -140,9 +163,14 @@ final class Orders {
 				'subtotal_minor' => $subtotal,
 				'discount_minor' => $discount,
 				'price_snapshot' => $price_snapshot,
+				'tax_minor' => $tax_total,
+				'payment_provider' => $payment_provider,
+				'terms_version' => $external ? '' : Settings::terms_version(),
+				'locale' => function_exists( 'determine_locale' ) ? determine_locale() : '',
+				'attendee_data' => $attendees ? wp_json_encode( $attendees ) : null,
 				'created_at' => $now,
 				'updated_at' => $now,
-			), array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s', '%s' ) );
+			) );
 			if ( ! $inserted ) {
 				throw new \RuntimeException( 'order_insert_failed' );
 			}
@@ -154,7 +182,9 @@ final class Orders {
 					'quantity' => (int) $line['quantity'],
 					'unit_price_minor' => (int) $line['type']->price_minor,
 					'line_total_minor' => (int) $line['line_total'],
-				), array( '%d', '%d', '%d', '%d', '%d' ) );
+					'tax_rate_bp' => (int) $line['tax_rate_bp'],
+					'tax_minor' => (int) $line['tax_minor'],
+				) );
 				if ( '' !== $wpdb->last_error ) {
 					throw new \RuntimeException( 'order_item_insert_failed' );
 				}
@@ -208,6 +238,85 @@ final class Orders {
 		}
 		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency, 'source' => sanitize_key( $internal['source'] ?? 'native' ) ) );
 		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
+	}
+
+	/** Stores attendee name/e-mail and custom field answers for one ticket. */
+	private static function store_attendee( $ticket_id, $order, array $attendee ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = current_time( 'mysql', true );
+		$name = sanitize_text_field( $attendee['name'] ?? '' );
+		$email = sanitize_email( $attendee['email'] ?? '' );
+		if ( $name || is_email( $email ) ) {
+			$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", $ticket_id, $order->customer_email, is_email( $email ) ? $email : '', $name, $now ) );
+			if ( is_email( $email ) ) {
+				$wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => $ticket_id ) );
+			}
+		}
+		foreach ( (array) ( $attendee['answers'] ?? array() ) as $field_id => $value ) {
+			$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE answer=VALUES(answer),updated_at=VALUES(updated_at)", $ticket_id, absint( $field_id ), (string) $value, $now, $now ) );
+		}
+	}
+
+	/** VAT contained in a gross amount, rounded half up: gross * rate / (10000 + rate). */
+	public static function gross_tax( $gross_minor, $rate_bp ) {
+		$gross_minor = max( 0, (int) $gross_minor );
+		$rate_bp = max( 0, (int) $rate_bp );
+		if ( ! $gross_minor || ! $rate_bp ) { return 0; }
+		$denominator = 10000 + $rate_bp;
+		return intdiv( 2 * $gross_minor * $rate_bp + $denominator, 2 * $denominator );
+	}
+
+	/**
+	 * Validates attendee data against the participant fields configured per ticket type.
+	 * Only configured fields are kept (data minimisation); required fields must be filled for every ticket.
+	 *
+	 * @return array|\WP_Error Normalised list [{ticket_type_id, name, email, answers{field_id:value}}].
+	 */
+	public static function validate_attendees( array $lines, $attendees ) {
+		global $wpdb;
+		$attendees = is_array( $attendees ) ? array_values( $attendees ) : array();
+		$out = array();
+		foreach ( $lines as $type_id => $quantity ) {
+			$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $type_id ) );
+			$given = array_values( array_filter( $attendees, static function ( $a ) use ( $type_id ) { return is_array( $a ) && absint( $a['ticket_type_id'] ?? 0 ) === (int) $type_id; } ) );
+			if ( count( $given ) > $quantity ) {
+				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			}
+			$needs_all = (bool) array_filter( $fields, static function ( $f ) { return (int) $f->required; } );
+			for ( $i = 0; $i < $quantity; $i++ ) {
+				$entry = $given[ $i ] ?? null;
+				if ( ! $entry && ! $needs_all ) { continue; }
+				$entry = is_array( $entry ) ? $entry : array();
+				$answers = is_array( $entry['answers'] ?? null ) ? $entry['answers'] : array();
+				$clean = array();
+				foreach ( $fields as $field ) {
+					$value = $answers[ $field->field_key ] ?? '';
+					$value = is_scalar( $value ) ? trim( (string) $value ) : '';
+					if ( 'email' === $field->field_type ) { $value = sanitize_email( $value ); }
+					elseif ( 'textarea' === $field->field_type ) { $value = sanitize_textarea_field( $value ); }
+					elseif ( 'checkbox' === $field->field_type ) { $value = $value && '0' !== $value ? '1' : ''; }
+					else { $value = sanitize_text_field( $value ); }
+					if ( (int) $field->required && '' === $value ) {
+						/* translators: %s: field label */
+						return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für jedes Ticket ausfüllen.', 'wp-pass-captain' ), $field->label ), array( 'status' => 400 ) );
+					}
+					if ( 'email' === $field->field_type && '' !== $value && ! is_email( $value ) ) {
+						/* translators: %s: field label */
+						return new \WP_Error( 'wpcap_attendee_field_invalid', sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'wp-pass-captain' ), $field->label ), array( 'status' => 400 ) );
+					}
+					if ( '' !== $value ) { $clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
+				}
+				$email = sanitize_email( $entry['email'] ?? '' );
+				$out[] = array(
+					'ticket_type_id' => (int) $type_id,
+					'name' => mb_substr( sanitize_text_field( $entry['name'] ?? '' ), 0, 190 ),
+					'email' => is_email( $email ) ? $email : '',
+					'answers' => $clean,
+				);
+			}
+		}
+		return $out;
 	}
 
 	/**
@@ -421,6 +530,19 @@ final class Orders {
 		return $wpdb->get_results( $wpdb->prepare( "SELECT t.ticket_id,t.public_id,t.status,t.ticket_type_id,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d ORDER BY t.ticket_id", absint( $order_id ) ) );
 	}
 
+	/** Order items with ticket names. */
+	public static function items_for_order( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", absint( $order_id ) ) );
+	}
+
+	/** Stores the provider's payment reference (session/order id). */
+	public static function set_provider_reference( $order_id, $reference ) {
+		global $wpdb;
+		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'provider_reference' => substr( sanitize_text_field( $reference ), 0, 191 ) ), array( 'order_id' => absint( $order_id ) ) );
+	}
+
 	/** Returns an order row. */
 	public static function get( $order_id ) {
 		global $wpdb;
@@ -559,6 +681,8 @@ final class Orders {
 		}
 		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name AS ticket_name,o.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d", $order_id ) );
 		$issued = array();
+		// Attendee data collected at checkout, applied once to the issued tickets.
+		$pending_attendees = $order->attendee_data ? (array) json_decode( $order->attendee_data, true ) : array();
 		foreach ( $lines as $line ) {
 			$existing = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND ticket_type_id=%d", $order_id, $line->ticket_type_id ) );
 			for ( $i = $existing; $i < (int) $line->quantity; $i++ ) {
@@ -573,9 +697,20 @@ final class Orders {
 					'issued_at' => current_time( 'mysql', true ),
 				), array( '%s', '%d', '%d', '%s', '%s', '%s' ) );
 				if ( $wpdb->insert_id ) {
+					$ticket_id = (int) $wpdb->insert_id;
+					foreach ( $pending_attendees as $index => $attendee ) {
+						if ( (int) ( $attendee['ticket_type_id'] ?? 0 ) !== (int) $line->ticket_type_id ) { continue; }
+						unset( $pending_attendees[ $index ] );
+						self::store_attendee( $ticket_id, $order, $attendee );
+						break;
+					}
 					$issued[] = array( 'token' => $token, 'event' => $line->event_name, 'ticket' => $line->ticket_name, 'starts_at' => $line->starts_at, 'timezone' => $line->timezone, 'location' => $line->location );
 				}
 			}
+		}
+		if ( $issued && $order->attendee_data ) {
+			// Personal data now lives with the tickets; drop the order-level copy (data minimisation).
+			$wpdb->update( $orders, array( 'attendee_data' => null ), array( 'order_id' => (int) $order_id ) );
 		}
 		$wpdb->query( 'COMMIT' );
 		if ( $issued ) {

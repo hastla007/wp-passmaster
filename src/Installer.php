@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.1.0';
+	const DB_VERSION = '3.2.0';
 
 	public static function install() {
 		global $wpdb;
@@ -93,6 +93,7 @@ final class Installer {
 				tax_class varchar(64) NOT NULL DEFAULT '',
 				capacity int(10) unsigned NOT NULL DEFAULT 0,
 				max_per_order smallint(5) unsigned NOT NULL DEFAULT 10,
+				tax_rate_bp int(10) unsigned NOT NULL DEFAULT 0,
 				sales_start datetime NULL,
 				sales_end datetime NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
@@ -114,6 +115,14 @@ final class Installer {
 				subtotal_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				discount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				price_snapshot longtext NOT NULL,
+				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				refunded_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				payment_provider varchar(32) NOT NULL DEFAULT 'manual',
+				provider_reference varchar(191) NOT NULL DEFAULT '',
+				terms_version varchar(64) NOT NULL DEFAULT '',
+				locale varchar(20) NOT NULL DEFAULT '',
+				voucher_snapshot longtext NULL,
+				attendee_data longtext NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (order_id),
@@ -132,6 +141,8 @@ final class Installer {
 				quantity smallint(5) unsigned NOT NULL,
 				unit_price_minor bigint(20) unsigned NOT NULL,
 				line_total_minor bigint(20) unsigned NOT NULL,
+				tax_rate_bp int(10) unsigned NOT NULL DEFAULT 0,
+				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				refunded_quantity smallint(5) unsigned NOT NULL DEFAULT 0,
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
@@ -157,6 +168,7 @@ final class Installer {
 				token_hash char(64) NOT NULL DEFAULT '',
 				attendee_email varchar(190) NOT NULL DEFAULT '',
 				transfer_count tinyint(3) unsigned NOT NULL DEFAULT 0,
+				refunded tinyint(1) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'valid',
 				issued_at datetime NOT NULL,
 				PRIMARY KEY  (ticket_id),
@@ -542,6 +554,40 @@ final class Installer {
 				UNIQUE KEY connector_site (connector_key,site_id),
 				KEY status (status)
 			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_payment_events (
+				payment_event_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				provider varchar(32) NOT NULL,
+				provider_event_id varchar(191) NOT NULL,
+				event_type varchar(64) NOT NULL DEFAULT '',
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				status varchar(20) NOT NULL DEFAULT 'processing',
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (payment_event_id),
+				UNIQUE KEY provider_event (provider,provider_event_id),
+				KEY order_id (order_id)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_refunds (
+				refund_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				order_id bigint(20) unsigned NOT NULL,
+				idempotency_key char(64) NOT NULL,
+				amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				currency char(3) NOT NULL,
+				ticket_ids longtext NOT NULL,
+				reason varchar(255) NOT NULL DEFAULT '',
+				status varchar(24) NOT NULL DEFAULT 'pending_approval',
+				provider_reference varchar(191) NOT NULL DEFAULT '',
+				requested_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				approved_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				error_message varchar(255) NOT NULL DEFAULT '',
+				credit_note_number varchar(40) NOT NULL DEFAULT '',
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (refund_id),
+				UNIQUE KEY idempotency_key (idempotency_key),
+				KEY order_status (order_id,status)
+			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $jobs (
 				job_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				idempotency_key char(64) NOT NULL,
@@ -585,6 +631,7 @@ final class Installer {
 			'wpcap_manage_orders'  => true,
 			'wpcap_checkin'        => true,
 			'wpcap_view_reports'   => true,
+			'wpcap_approve_refunds' => true,
 		);
 		$admin = get_role( 'administrator' );
 		if ( $admin ) {

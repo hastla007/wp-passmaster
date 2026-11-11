@@ -258,6 +258,42 @@ for ( $i = 0; $i < 35; $i++ ) {
 check( "rotating emails hits the per-IP checkout limit ($limited of 35 blocked)", 5 === $limited );
 $GLOBALS['wpcap_test_transients'] = array();
 
+echo "Native refunds, tax, attendees, terms\n";
+$type = make_type( 10, 10, 1190 );
+$wpdb->query( "UPDATE {$p}wpcap_ticket_types SET tax_rate_bp=1900 WHERE ticket_type_id=$type" );
+$wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $type, 'field_key' => 'company', 'label' => 'Firma', 'field_type' => 'text', 'required' => 1, 'status' => 'active' ) );
+$missing = Orders::create( array( 'email' => 'att@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'att-0' ) );
+check( 'required attendee field is enforced', is_wp_error( $missing ) && 'wpcap_attendee_field_required' === $missing->get_error_code() );
+$att = Orders::create( array( 'email' => 'att@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'att-1', 'attendees' => array(
+	array( 'ticket_type_id' => $type, 'name' => 'Ada', 'email' => 'ada@example.com', 'answers' => array( 'company' => 'ACME', 'unknown' => 'dropped' ) ),
+	array( 'ticket_type_id' => $type, 'name' => 'Bob', 'answers' => array( 'company' => 'Initech' ) ),
+) ) );
+check( 'VAT is calculated per line from gross prices', ! is_wp_error( $att ) && 380 === (int) Orders::get( $att['order_id'] )->tax_minor );
+Orders::confirm_manual_payment( $att['order_id'] );
+$answers = $wpdb->get_col( "SELECT a.answer FROM {$p}wpcap_participant_answers a JOIN {$p}wpcap_tickets t ON t.ticket_id=a.ticket_id WHERE t.order_id=" . (int) $att['order_id'] . " ORDER BY a.answer" );
+check( 'attendee answers stored per ticket, unknown fields dropped', array( 'ACME', 'Initech' ) === $answers && null === Orders::get( $att['order_id'] )->attendee_data );
+$all = tickets( $att['order_id'] );
+$r1 = PassCaptain\Refunds::request( $att['order_id'], array( (int) $all[0]->ticket_id ), 'Kunde krank', 'r-1' );
+$r1b = PassCaptain\Refunds::request( $att['order_id'], array( (int) $all[0]->ticket_id ), 'Kunde krank', 'r-1' );
+check( 'partial native refund completes for manual payments, idempotent', 'completed' === $r1['status'] && 1190 === (int) $r1['amount_minor'] && $r1b['refund_id'] === $r1['refund_id'] && 1 === count( tickets( $att['order_id'], 'revoked' ) ) );
+check( 'refunded ticket frees capacity', 9 === Orders::availability( $type ) );
+PassCaptain\Settings::update( array( 'refund_approval_threshold' => 500 ) );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_approve_refunds' );
+$r2 = PassCaptain\Refunds::request( $att['order_id'], array(), 'Rest', 'r-2' );
+check( 'refund above threshold waits for approval', 'pending_approval' === $r2['status'] && 1 === count( tickets( $att['order_id'], 'valid' ) ) );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+$self = PassCaptain\Refunds::approve( $r2['refund_id'] );
+check( 'requester cannot approve own refund', is_wp_error( $self ) );
+$GLOBALS['wpcap_test_user_id'] = 2;
+$r2b = PassCaptain\Refunds::approve( $r2['refund_id'] );
+$GLOBALS['wpcap_test_user_id'] = 1;
+check( 'second approver completes full refund', 'completed' === $r2b['status'] && 'refunded' === Orders::get( $att['order_id'] )->status && 2380 === (int) Orders::get( $att['order_id'] )->refunded_minor );
+PassCaptain\Settings::update( array( 'refund_approval_threshold' => 0, 'require_terms' => 1, 'terms_text' => 'AGB v1' ) );
+$noterms = Orders::create( array( 'email' => 't@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'terms-0', 'attendees' => array( array( 'ticket_type_id' => $type, 'answers' => array( 'company' => 'X' ) ) ) ) );
+$terms = Orders::create( array( 'email' => 't@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'terms-1', 'accept_terms' => true, 'attendees' => array( array( 'ticket_type_id' => $type, 'answers' => array( 'company' => 'X' ) ) ) ) );
+check( 'terms acceptance required and version stored', is_wp_error( $noterms ) && ! is_wp_error( $terms ) && PassCaptain\Settings::terms_version() === Orders::get( $terms['order_id'] )->terms_version && '' !== Orders::get( $terms['order_id'] )->terms_version );
+PassCaptain\Settings::update( array( 'require_terms' => 0, 'terms_text' => '' ) );
+
 echo "Admin-created Woo order without checkout hold\n";
 $type = make_type( 5 );
 $wc10 = make_wc_order( 10, $type, 2 );
