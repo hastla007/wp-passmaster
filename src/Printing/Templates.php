@@ -243,7 +243,7 @@ final class Templates {
 	/** Placeholder values for a ticket row (see tickets_for_occurrence / Orders::tickets_for_order). */
 	public static function values( $row, $token = '' ) {
 		$row = (object) $row;
-		$seat = (string) apply_filters( 'wpcap_print_seat_label', '', (int) ( $row->ticket_id ?? 0 ) );
+		$seat = (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) ( $row->ticket_id ?? 0 ), (array) $row );
 		return array(
 			'event'           => (string) ( $row->event_name ?? '' ),
 			'date'            => Scope::local( $row->starts_at ?? '', $row->timezone ?? 'UTC', 'd.m.Y H:i' ),
