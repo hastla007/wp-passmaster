@@ -99,7 +99,14 @@ final class Refunds {
 			return new \WP_Error( 'wpcap_refund_approver', __( 'Keine Berechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) );
 		}
 		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_refunds', array( 'status' => 'rejected', 'error_message' => substr( sanitize_text_field( $reason ), 0, 255 ), 'approved_by' => get_current_user_id(), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => absint( $refund_id ), 'status' => 'pending_approval' ) );
-		return $updated ? self::get( $refund_id ) : new \WP_Error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		if ( $updated ) {
+			$rejected = self::get( $refund_id );
+			Audit::record( 'refund_rejected', 'order', (int) $rejected['order_id'], array( 'refund_id' => absint( $refund_id ) ) );
+			/** A pending refund was rejected by an approver. */
+			do_action( 'wpcap_refund_rejected', absint( $refund_id ), (int) $rejected['order_id'] );
+			return $rejected;
+		}
+		return new \WP_Error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'wp-pass-captain' ), array( 'status' => 409 ) );
 	}
 
 	/**
