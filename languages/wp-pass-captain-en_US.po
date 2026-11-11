@@ -2881,8 +2881,8 @@ msgid "Pass Captain Einlasspersonal"
 msgstr "Pass Captain Check-in Staff"
 
 #: src/Installer.php:698
-msgid "Pass Captain Partner"
-msgstr "Pass Captain Partner"
+msgid "Pass Captain Veranstalter"
+msgstr "Pass Captain Organizer"
 
 #: src/Installer.php:699
 msgid "Pass Captain Finanzbuchhaltung"
@@ -6834,13 +6834,13 @@ msgstr "Offline scanner"
 #: src/Partners/AdminPage.php:169
 #: src/Partners/AdminPage.php:312
 #: src/Partners/AdminPage.php:328
-msgid "Partner"
-msgstr "Partner"
+msgid "Veranstalter"
+msgstr "Organizers"
 
 #: src/Modules/Partners.php:146
 #: src/Partners/AdminPage.php:304
-msgid "Partner-Abrechnungen"
-msgstr "Partner settlements"
+msgid "Veranstalter-Abrechnungen"
+msgstr "Organizer settlements"
 
 #: src/OfflineScanner/AdminPage.php:42
 msgid "Teilnehmernamen werden erst übertragen, wenn „Namen im Scanner anzeigen“ in den Einstellungen aktiviert ist."
@@ -7015,8 +7015,8 @@ msgstr "Please enter valid percentages and a valid ticket fee."
 #. translators: %s: event ids
 #: src/Partners/AdminPage.php:79
 #, php-format
-msgid "Folgende Events gehören bereits einem anderen Partner und wurden nicht verknüpft: %s"
-msgstr "The following events already belong to another partner and were not linked: %s"
+msgid "Folgende Events gehören bereits einem anderen Veranstalter und wurden nicht verknüpft: %s"
+msgstr "The following events already belong to another organizer and were not linked: %s"
 
 #: src/Partners/AdminPage.php:86
 msgid "Ungültiges Ablaufdatum."
@@ -7031,25 +7031,25 @@ msgstr "Unknown action."
 #: src/Partners/Repository.php:48
 #: src/Partners/Repository.php:113
 #: src/Partners/Settlements.php:298
-msgid "Partner nicht gefunden."
-msgstr "Partner not found."
+msgid "Veranstalter nicht gefunden."
+msgstr "Organizer not found."
 
 #: src/Partners/AdminPage.php:174
-msgid "Alle Partner"
-msgstr "All partners"
+msgid "Alle Veranstalter"
+msgstr "All organizers"
 
 #: src/Partners/AdminPage.php:180
-msgid "Partner sind Veranstalter oder Wiederverkäufer, denen Events zugeordnet werden. Sie erhalten monatliche Abrechnungen und optional API-Keys mit Lesezugriff auf ihre Events."
-msgstr "Partners are organizers or resellers to whom events are assigned. They receive monthly settlements and, optionally, API keys with read access to their events."
+msgid "Veranstalter sind Organisatoren oder Wiederverkäufer, denen Events zugeordnet werden. Sie erhalten monatliche Abrechnungen und optional API-Keys mit Lesezugriff auf ihre Events."
+msgstr "Organizers are event organizers or resellers to whom events are assigned. They receive monthly settlements and, optionally, API keys with read access to their events."
 
 #: src/Partners/AdminPage.php:180
 #: src/Partners/AdminPage.php:205
-msgid "Neuer Partner"
-msgstr "New partner"
+msgid "Neuer Veranstalter"
+msgstr "New organizer"
 
 #: src/Partners/AdminPage.php:183
-msgid "Noch keine Partner."
-msgstr "No partners yet."
+msgid "Noch keine Veranstalter."
+msgstr "No organizers yet."
 
 #: src/Partners/AdminPage.php:186
 msgid "Kontakt"
@@ -7147,24 +7147,24 @@ msgid "Events und Zugänge"
 msgstr "Events and access"
 
 #: src/Partners/AdminPage.php:237
-msgid "Events dieses Partners"
-msgstr "Events of this partner"
+msgid "Events dieses Veranstalters"
+msgstr "Events of this organizer"
 
 #: src/Partners/AdminPage.php:242
-msgid "anderer Partner"
-msgstr "another partner"
+msgid "anderer Veranstalter"
+msgstr "another organizer"
 
 #: src/Partners/AdminPage.php:246
-msgid "WordPress-Benutzer des Partners"
-msgstr "WordPress users of the partner"
+msgid "WordPress-Benutzer des Veranstalters"
+msgstr "WordPress users of the organizer"
 
 #: src/Partners/AdminPage.php:246
-msgid "Benutzer-IDs, Logins oder E-Mail-Adressen (kommagetrennt). Diese Benutzer sehen die abgeschlossenen Abrechnungen des Partners (nur lesend), z. B. mit der Rolle „Pass Captain Partner“."
-msgstr "User IDs, logins, or email addresses (comma-separated). These users can see the partner’s completed settlements (read-only), e.g. with the role “Pass Captain Partner”."
+msgid "Benutzer-IDs, Logins oder E-Mail-Adressen (kommagetrennt). Diese Benutzer sehen die abgeschlossenen Abrechnungen des Veranstalters (nur lesend), z. B. mit der Rolle „Pass Captain Veranstalter“."
+msgstr "User IDs, logins, or email addresses (comma-separated). These users can see the organizer’s completed settlements (read-only), e.g. with the role “Pass Captain Organizer”."
 
 #: src/Partners/AdminPage.php:247
-msgid "Partner speichern"
-msgstr "Save partner"
+msgid "Veranstalter speichern"
+msgstr "Save organizer"
 
 #: src/Partners/AdminPage.php:253
 msgid "API-Keys"
@@ -7175,8 +7175,8 @@ msgid "Neuer API-Key – wird nur jetzt einmal angezeigt:"
 msgstr "New API key – shown only once, now:"
 
 #: src/Partners/AdminPage.php:256
-msgid "Bitte sicher an den Partner übermitteln. Gespeichert wird nur ein Hash."
-msgstr "Please transmit it to the partner securely. Only a hash is stored."
+msgid "Bitte sicher an den Veranstalter übermitteln. Gespeichert wird nur ein Hash."
+msgstr "Please transmit it to the organizer securely. Only a hash is stored."
 
 #: src/Partners/AdminPage.php:260
 msgid "Key"
@@ -7200,8 +7200,8 @@ msgid "Events:"
 msgstr "Events:"
 
 #: src/Partners/AdminPage.php:265
-msgid "alle Partner-Events"
-msgstr "all partner events"
+msgid "alle Veranstalter-Events"
+msgstr "all organizer events"
 
 #: src/Partners/AdminPage.php:266
 msgid "IP:"
@@ -7230,8 +7230,8 @@ msgid "Auf Events beschränken"
 msgstr "Restrict to events"
 
 #: src/Partners/AdminPage.php:291
-msgid "Keine Auswahl = alle aktuellen und künftigen Events des Partners. Event-beschränkte Keys können keine Abrechnungen abrufen."
-msgstr "No selection = all current and future events of the partner. Event-restricted keys cannot retrieve settlements."
+msgid "Keine Auswahl = alle aktuellen und künftigen Events des Veranstalters. Event-beschränkte Keys können keine Abrechnungen abrufen."
+msgstr "No selection = all current and future events of the organizer. Event-restricted keys cannot retrieve settlements."
 
 #: src/Partners/AdminPage.php:292
 msgid "IP-Allowlist (optional)"
@@ -7258,8 +7258,8 @@ msgid "Entwürfe werden beim Abschließen neu berechnet. Abgeschlossene Abrechnu
 msgstr "Drafts are recalculated when finalized. Finalized settlements are immutable; later refunds or additional payments appear in the next period as a correction."
 
 #: src/Partners/AdminPage.php:319
-msgid "Bitte zuerst einen Partner anlegen."
-msgstr "Please create a partner first."
+msgid "Bitte zuerst einen Veranstalter anlegen."
+msgstr "Please create an organizer first."
 
 #: src/Partners/AdminPage.php:324
 msgid "Noch keine Abrechnungen."
@@ -7355,8 +7355,8 @@ msgid "Mindestens ein unterstützter Scope ist erforderlich."
 msgstr "At least one supported scope is required."
 
 #: src/Partners/Keys.php:54
-msgid "Ein Key kann nur auf Events dieses Partners beschränkt werden."
-msgstr "A key can only be restricted to events of this partner."
+msgid "Ein Key kann nur auf Events dieses Veranstalters beschränkt werden."
+msgstr "A key can only be restricted to events of this organizer."
 
 #: src/Partners/Keys.php:60
 msgid "Das Ablaufdatum muss in der Zukunft liegen."
@@ -7425,8 +7425,8 @@ msgid "Ungültiges Abrechnungsbeginn-Datum."
 msgstr "Invalid settlement start date."
 
 #: src/Partners/Repository.php:88
-msgid "Partner konnte nicht gespeichert werden."
-msgstr "Partner could not be saved."
+msgid "Veranstalter konnte nicht gespeichert werden."
+msgstr "Organizer could not be saved."
 
 #: src/Partners/Settlements.php:38
 msgid "Ausgezahlt"
@@ -7464,8 +7464,8 @@ msgid "Es gibt bereits eine abgeschlossene Abrechnung bis %s. Spätere Änderung
 msgstr "A finalized settlement already exists up to %s. Later changes will be settled as a correction in the next period."
 
 #: src/Partners/Settlements.php:320
-msgid "Für diesen Partner und Zeitraum gibt es bereits eine Abrechnung."
-msgstr "A settlement already exists for this partner and period."
+msgid "Für diesen Veranstalter und Zeitraum gibt es bereits eine Abrechnung."
+msgstr "A settlement already exists for this organizer and period."
 
 #: src/Partners/Settlements.php:329
 msgid "Abgeschlossene Abrechnungen können nicht mehr geändert werden. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet."
@@ -7493,8 +7493,8 @@ msgstr "Only finalized settlements can be marked as paid out."
 
 #: src/Partners/Settlements.php:470
 #: src/Partners/Settlements.php:517
-msgid "Partner-Abrechnung"
-msgstr "Partner settlement"
+msgid "Veranstalter-Abrechnung"
+msgstr "Organizer settlement"
 
 #: src/Partners/Settlements.php:472
 msgid "Datum (UTC)"
@@ -7635,12 +7635,12 @@ msgid "USt %s auf Plattformgebühr"
 msgstr "VAT %s on platform fee"
 
 #: src/Partners/Settlements.php:555
-msgid "Auszahlungsbetrag an Partner"
-msgstr "Payout amount to partner"
+msgid "Auszahlungsbetrag an Veranstalter"
+msgstr "Payout amount to organizer"
 
 #: src/Partners/Settlements.php:555
-msgid "Forderung an Partner"
-msgstr "Receivable from partner"
+msgid "Forderung an Veranstalter"
+msgstr "Receivable from organizer"
 
 #. translators: %s: amount
 #: src/Partners/Settlements.php:558

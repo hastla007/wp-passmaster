@@ -142,8 +142,8 @@ final class Partners {
 
 	public static function admin_pages() {
 		return array(
-			array( AdminPage::PAGE, __( 'Partner', 'wp-pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render_partners' ) ),
-			array( AdminPage::SETTLEMENTS_PAGE, __( 'Partner-Abrechnungen', 'wp-pass-captain' ), AdminPage::settlements_menu_cap(), array( AdminPage::class, 'render_settlements' ) ),
+			array( AdminPage::PAGE, __( 'Veranstalter', 'wp-pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render_partners' ) ),
+			array( AdminPage::SETTLEMENTS_PAGE, __( 'Veranstalter-Abrechnungen', 'wp-pass-captain' ), AdminPage::settlements_menu_cap(), array( AdminPage::class, 'render_settlements' ) ),
 		);
 	}
 

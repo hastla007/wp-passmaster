@@ -695,7 +695,7 @@ final class Installer {
 			'wpcap_event_manager'  => array( __( 'Pass Captain Veranstaltungsleitung', 'wp-pass-captain' ), array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin' ) ),
 			'wpcap_box_office'     => array( __( 'Pass Captain Vor-Ort-Kasse', 'wp-pass-captain' ), array( 'wpcap_manage_orders', 'wpcap_checkin' ) ),
 			'wpcap_checkin_staff'  => array( __( 'Pass Captain Einlasspersonal', 'wp-pass-captain' ), array( 'wpcap_checkin' ) ),
-			'wpcap_partner'        => array( __( 'Pass Captain Partner', 'wp-pass-captain' ), array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
+			'wpcap_partner'        => array( __( 'Pass Captain Veranstalter', 'wp-pass-captain' ), array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
 			'wpcap_finance'        => array( __( 'Pass Captain Finanzbuchhaltung', 'wp-pass-captain' ), array( 'wpcap_view_finance', 'wpcap_view_reports', 'wpcap_approve_refunds' ) ),
 			'wpcap_support'        => array( __( 'Pass Captain Support', 'wp-pass-captain' ), array( 'wpcap_manage_orders' ) ),
 		);

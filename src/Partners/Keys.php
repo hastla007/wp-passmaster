@@ -46,12 +46,12 @@ final class Keys {
 	public static function issue( $partner_id, array $scopes, array $args = array() ) {
 		global $wpdb;
 		$partner = Repository::get( $partner_id );
-		if ( ! $partner ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Partner nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $partner ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		$scopes = array_values( array_intersect( self::SCOPES, array_map( 'strval', $scopes ) ) );
 		if ( ! $scopes ) { return new \WP_Error( 'wpcap_partner_key_scopes', __( 'Mindestens ein unterstützter Scope ist erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		$events = array_values( array_unique( array_filter( array_map( 'absint', (array) ( $args['event_ids'] ?? array() ) ) ) ) );
 		if ( array_diff( $events, Repository::event_ids( $partner->partner_id ) ) ) {
-			return new \WP_Error( 'wpcap_partner_key_events', __( 'Ein Key kann nur auf Events dieses Partners beschränkt werden.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_partner_key_events', __( 'Ein Key kann nur auf Events dieses Veranstalters beschränkt werden.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
 		$allow = self::parse_allowlist( $args['ip_allowlist'] ?? '' );
 		if ( is_wp_error( $allow ) ) { return $allow; }
