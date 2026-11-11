@@ -459,3 +459,47 @@ Diese Gates gelten für ein Release; sie ergänzen die MVP-Abnahmekriterien und 
 - [Apple Wallet Certificates](https://developer.apple.com/help/account/capabilities/create-wallet-identifiers-and-certificates)
 - [Google Wallet Event Tickets](https://developers.google.com/wallet/tickets/events)
 - [Stripe Supported Currencies and Payment Methods](https://docs.stripe.com/currencies)
+
+## Ergänzende Funktionsausbaustufen
+
+Die folgenden Funktionen erweitern den Event- und Ticketkern. Sie sind nicht alle Voraussetzung für den ersten Release. Der MVP muss ohne sie verkaufbare Tickets und einen verlässlichen Online-Einlass ermöglichen.
+
+### Buchungen und Service-Zeitfenster
+
+- Ergänzend zu festen Events optionale buchbare Leistungen mit Zeitfenstern, Dauer, Pufferzeiten, Ressourcen/Partnern, Kapazität und Buchungsschluss anbieten.
+- Verfügbarkeiten atomar reservieren und Konflikte vermeiden, wenn mehrere Nutzer denselben Slot gleichzeitig buchen.
+- Umbuchung, Stornierung, Erstattung, No-show-Regeln und Benachrichtigungen als konfigurierbare Richtlinien abbilden.
+- Eine Warteliste für ausgebuchte Slots optional anbieten; frei werdende Plätze werden zeitlich begrenzt und nachvollziehbar vergeben.
+- Service-Pässe und Eventtickets bleiben unterschiedliche Ticketarten mit klaren Regeln für Terminbindung, Einmal-/Mehrfachnutzung und Ablauf.
+
+### Teilnehmer-Selbstbedienung und Ticketänderungen
+
+- Berechtigten Käufern ermöglichen, Tickets erneut zu senden, Teilnehmerdaten innerhalb der vom Veranstalter gesetzten Frist zu ändern und Tickets an eine andere Person zu übertragen.
+- Übertragungen protokollieren, alte QR-Tokens widerrufen und neue Tokens ausgeben; Veranstalter können Übertragung deaktivieren oder begrenzen.
+- Eventabsage, Terminverschiebung, Teil-/Vollererstattung und Erstattung nach Check-in mit klaren Statusübergängen und Benachrichtigungen behandeln.
+- Individuelle Felder pro Ticketkategorie mit Pflichtfeldregeln, Export, Zugriffskontrolle und konfigurierbarer Löschung verwalten.
+
+### Einlass, Mehrtagestickets und Vor-Ort-Verkauf
+
+- Je Ticket festlegen, ob es einmalig, pro Veranstaltungstag, mehrfach oder mit Wiedereinlass gilt. Check-in und Check-out müssen getrennt protokolliert werden, wenn der Betreiber das aktiviert.
+- Mehrtägige Events mit Tagesregeln, Gültigkeitsfenstern und getrennten Check-in-Zählern unterstützen.
+- Check-in rückgängig machen und ungültige, stornierte, bereits verwendete, falsche oder noch nicht gültige Tickets mit eindeutigen Ergebnissen anzeigen.
+- Eine optionale Vor-Ort-Kasse/POS mit Verkäufen, manueller Ausgabe, Zahlarten, Belegdaten und Synchronisierung mit Onlinekontingenten vorsehen.
+- Offline-Scanner nach Geräten/Einlassbereichen zuweisen, Datenablauf und Synchronisierung anzeigen sowie doppelte Offline-Einlösungen transparent als Konflikt behandeln. Offlinebetrieb darf keine globale Einmaligkeit versprechen.
+
+### Kommunikation, Druck und Erweiterbarkeit
+
+- Eventkalender und iCalendar-Downloads, Erinnerungen sowie Vorlagen für Kauf-, Terminänderungs-, Absage- und Erstattungsnachrichten vorsehen.
+- Optionale SMS-Zustellung über Anbieteradapter ermöglichen; Kosten, Einwilligung und Zustellstatus bleiben transparent.
+- Druckvorlagen für Tickets und optionale Badges, Namensschilder, Armbänder oder Listenexporte ergänzen.
+- Zahlungsanbieter als Adapter erweitern; Gateways und Zahlarten (z. B. Mollie, Braintree, Klarna, SEPA oder lokale Verfahren) nur nach Land-, Währungs- und Anbieterfreigabe anbieten.
+- Öffentliche APIs, Webhooks und stabile Entwickler-Hooks für Event-, Ticket-, Bestell- und Check-in-Änderungen dokumentieren.
+
+### Priorisierung
+
+1. **MVP:** Teilnehmeränderung/Nachsendung, Ticketwiderruf, Absage-/Erstattungsabläufe, klare Einlassregeln und Export.
+2. **Bootsschul-/Dienstleistungs-Ausbau:** Zeitfenster, Ressourcen, Umbuchung/Storno und Warteliste.
+3. **Veranstalter-Ausbau:** Vor-Ort-POS, mehrtägiger Einlass, Badge-Druck und weitere Zahlungsadapter.
+4. **Optionale Kanäle:** Kalender, SMS und Offline-Scanner mit explizitem Konfliktmodell.
+
+Vor Umsetzung jeder Stufe sind Zuständigkeiten, Statusübergänge, Aufbewahrung, Gebühren, Konflikte mit bereits ausgegebenen Tickets und Kompatibilität mit Voucher Captain schriftlich festzulegen.
