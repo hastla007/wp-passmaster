@@ -232,4 +232,34 @@ final class Orders {
 			wp_mail( $order->customer_email, __( 'Deine Tickets', 'wp-pass-captain' ), $body );
 		}
 	}
+
+	public static function resend_tickets( $order_id ) {
+		global $wpdb;
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		if ( ! $order || 'paid' !== $order->payment_status ) {
+			return new \WP_Error( 'wpcap_order_unpaid', __( 'Tickets können erst nach bestätigter Zahlung erneut gesendet werden.', 'wp-pass-captain' ) );
+		}
+		$tickets = $wpdb->get_results( $wpdb->prepare(
+			"SELECT t.ticket_id,t.status,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status IN ('valid','checked_in') ORDER BY t.ticket_id",
+			$order_id
+		) );
+		if ( ! $tickets ) {
+			return new \WP_Error( 'wpcap_no_resendable_tickets', __( 'Keine gültigen Tickets für den erneuten Versand gefunden.', 'wp-pass-captain' ) );
+		}
+		$body = __( 'Deine Tickets für WP Pass Captain:', 'wp-pass-captain' ) . "\n\n";
+		foreach ( $tickets as $ticket ) {
+			$token = bin2hex( random_bytes( 32 ) );
+			$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'token_hash' => hash( 'sha256', $token ) ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => $ticket->status ), array( '%s' ), array( '%d', '%s' ) );
+			if ( false === $updated ) {
+				return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ) );
+			}
+			$ticket_url = add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) );
+			$body .= sprintf( "%s — %s\n%s %s\n%s\n%s\n\n", $ticket->event_name, $ticket->ticket_name, mysql2date( 'd.m.Y H:i', $ticket->starts_at, true ), $ticket->timezone, $ticket->location, esc_url_raw( $ticket_url ) );
+		}
+		if ( ! wp_mail( $order->customer_email, __( 'Deine Tickets', 'wp-pass-captain' ), $body ) ) {
+			return new \WP_Error( 'wpcap_mail_failed', __( 'E-Mail konnte nicht zugestellt werden. Die Ticketcodes wurden erneuert; bitte versuche den Versand erneut.', 'wp-pass-captain' ) );
+		}
+		Audit::record( 'tickets_resent', 'order', $order_id, array( 'ticket_count' => count( $tickets ) ) );
+		return true;
+	}
 }

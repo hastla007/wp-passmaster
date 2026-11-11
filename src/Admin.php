@@ -44,7 +44,7 @@ final class Admin {
 			<?php if ( current_user_can( 'wpcap_manage_orders' ) ) : ?>
 			<h2><?php esc_html_e( 'Bestellungen', 'wp-pass-captain' ); ?></h2>
 			<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Bestellung', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'E-Mail', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Summe', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Aktion', 'wp-pass-captain' ); ?></th></tr></thead><tbody>
-			<?php if ( $orders ) : foreach ( $orders as $order ) : ?><tr><td><?php echo esc_html( $order->public_id ); ?></td><td><?php echo esc_html( $order->customer_email ); ?></td><td><?php echo esc_html( number_format_i18n( $order->total_minor / 100, 2 ) . ' ' . $order->currency ); ?></td><td><?php echo esc_html( $order->status . ' / ' . $order->payment_status ); ?></td><td><?php if ( 'pending' === $order->payment_status ) : ?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><input type="hidden" name="action" value="wpcap_confirm_payment"><input type="hidden" name="order_id" value="<?php echo esc_attr( $order->order_id ); ?>"><?php wp_nonce_field( 'wpcap_confirm_payment_' . $order->order_id ); ?><button class="button" type="submit"><?php esc_html_e( 'Manuell als bezahlt markieren', 'wp-pass-captain' ); ?></button></form><?php endif; ?></td></tr><?php endforeach; else : ?><tr><td colspan="5"><?php esc_html_e( 'Noch keine Bestellungen.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
+			<?php if ( $orders ) : foreach ( $orders as $order ) : ?><tr><td><?php echo esc_html( $order->public_id ); ?></td><td><?php echo esc_html( $order->customer_email ); ?></td><td><?php echo esc_html( number_format_i18n( $order->total_minor / 100, 2 ) . ' ' . $order->currency ); ?></td><td><?php echo esc_html( $order->status . ' / ' . $order->payment_status ); ?></td><td><?php if ( 'pending' === $order->payment_status ) : ?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><input type="hidden" name="action" value="wpcap_confirm_payment"><input type="hidden" name="order_id" value="<?php echo esc_attr( $order->order_id ); ?>"><?php wp_nonce_field( 'wpcap_confirm_payment_' . $order->order_id ); ?><button class="button" type="submit"><?php esc_html_e( 'Manuell als bezahlt markieren', 'wp-pass-captain' ); ?></button></form><?php elseif ( 'paid' === $order->payment_status ) : ?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><input type="hidden" name="action" value="wpcap_resend_tickets"><input type="hidden" name="order_id" value="<?php echo esc_attr( $order->order_id ); ?>"><?php wp_nonce_field( 'wpcap_resend_tickets_' . $order->order_id ); ?><button class="button" type="submit"><?php esc_html_e( 'Tickets erneut senden', 'wp-pass-captain' ); ?></button></form><?php endif; ?></td></tr><?php endforeach; else : ?><tr><td colspan="5"><?php esc_html_e( 'Noch keine Bestellungen.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
 			</tbody></table>
 			<?php endif; ?>
 		</div>
@@ -140,6 +140,16 @@ final class Admin {
 		$result = Orders::confirm_manual_payment( $order_id );
 		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 409 ); }
 		wp_safe_redirect( add_query_arg( array( 'page' => 'wp-pass-captain', 'paid' => '1' ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	public static function resend_tickets() {
+		$order_id = absint( $_POST['order_id'] ?? 0 );
+		if ( ! current_user_can( 'wpcap_manage_orders' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		check_admin_referer( 'wpcap_resend_tickets_' . $order_id );
+		$result = Orders::resend_tickets( $order_id );
+		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 409 ); }
+		wp_safe_redirect( add_query_arg( array( 'page' => 'wp-pass-captain', 'resent' => '1' ), admin_url( 'admin.php' ) ) );
 		exit;
 	}
 }
