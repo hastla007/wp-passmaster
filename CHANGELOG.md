@@ -1,6 +1,6 @@
 # Änderungsprotokoll
 
-## Unveröffentlicht – P3
+## 1.0.0 – 2026-11-11
 
 ### Serien: Preisstufen und Kontingente
 - Serientermine: Preisstufen je Serie – Frühbucherpreis (bis Datum/Uhrzeit in Ortszeit), Last-Minute-Preis (ab X Stunden vor Beginn), nachfrageabhängige Stufen (ab X % verkauft) sowie Wochentags-/Zeitfensterpreise; fester Preis oder prozentuale Änderung, optional nur für eine Ticketart, mit Prioritäten.
