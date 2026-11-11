@@ -551,6 +551,8 @@ final class Orders {
 		$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'refunded', 'payment_status' => 'refunded', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
 		Audit::record( 'order_refunded', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
 		self::fire_revoked( $revoked_ids, $reason ?: 'refunded' );
+		/** Order fully refunded (native refund, WooCommerce or provider dashboard). */
+		do_action( 'wpcap_order_refunded', $order_id, (string) $reason );
 		return true;
 	}
 

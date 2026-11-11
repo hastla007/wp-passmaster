@@ -19,6 +19,7 @@ final class Webhooks {
 		add_action( 'wpcap_order_paid', array( __CLASS__, 'order_paid' ), 50, 1 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'order_cancelled' ), 50, 1 );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'refund_completed' ), 50, 2 );
+		add_action( 'wpcap_order_refunded', array( __CLASS__, 'order_refunded' ), 50, 2 );
 		add_action( 'wpcap_tickets_issued', array( __CLASS__, 'tickets_issued' ), 50, 2 );
 		add_action( 'wpcap_ticket_checked_in', array( __CLASS__, 'ticket_checked_in' ), 50, 2 );
 		add_action( 'wpcap_ticket_revoked', array( __CLASS__, 'ticket_revoked' ), 50, 2 );
@@ -135,6 +136,18 @@ final class Webhooks {
 		$public = $ids ? $wpdb->get_col( 'SELECT public_id FROM ' . $wpdb->prefix . 'wpcap_tickets WHERE ticket_id IN (' . implode( ',', $ids ) . ')' ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list.
 		$o[0]['refund'] = array( 'id' => (int) $refund_id, 'amount_minor' => $r ? (int) $r->amount_minor : 0, 'currency' => $r ? $r->currency : $o[0]['currency'], 'ticket_ids' => array_values( $public ) );
 		return Dispatcher::emit( 'order.refunded', 'refund|' . (int) $refund_id, $o[0], $o[1] );
+	}
+
+	/**
+	 * Full refunds outside the native refund flow (WooCommerce, provider dashboard). Native refunds
+	 * already emit order.refunded per refund via wpcap_refund_completed, so they are skipped here.
+	 */
+	public static function order_refunded( $order_id, $reason = '' ) {
+		if ( 0 === strpos( (string) $reason, 'native_refund_' ) ) { return 0; }
+		$o = self::order_object( $order_id );
+		if ( ! $o ) { return 0; }
+		$o[0]['refund'] = array( 'id' => null, 'source' => sanitize_key( (string) $reason ), 'full' => true );
+		return Dispatcher::emit( 'order.refunded', 'order-full|' . (int) $order_id, $o[0], $o[1] );
 	}
 
 	public static function tickets_issued( $order_id, $count = 0 ) {
