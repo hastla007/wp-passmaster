@@ -29,6 +29,11 @@ final class Controller {
 			'callback' => array( __CLASS__, 'order_status' ),
 			'permission_callback' => '__return_true',
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/transfer', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'transfer_ticket' ),
+			'permission_callback' => '__return_true',
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/tickets/validate', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'validate_ticket' ),
@@ -83,10 +88,24 @@ final class Controller {
 	public static function order_status( \WP_REST_Request $request ) {
 		global $wpdb;
 		$public_id = sanitize_text_field( $request['public_id'] );
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT public_id,status,payment_status,currency,total_minor,created_at FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ), ARRAY_A );
+		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $request->get_param( 'access_token' ) ) );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT public_id,status,payment_status,currency,total_minor,created_at,access_token_hash,access_expires_at FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ), ARRAY_A );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_not_found', __( 'Bestellung nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $order['access_expires_at'] || $order['access_expires_at'] <= current_time( 'mysql', true ) || 64 !== strlen( $access_token ) || ! hash_equals( $order['access_token_hash'], hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		unset( $order['access_token_hash'] );
 		$order['total_minor'] = (int) $order['total_minor'];
 		return rest_ensure_response( $order );
+	}
+
+	public static function transfer_ticket( \WP_REST_Request $request ) {
+		$result = Orders::transfer_ticket(
+			$request['public_id'],
+			$request->get_param( 'access_token' ),
+			$request->get_param( 'ticket_public_id' ),
+			$request->get_param( 'recipient_email' )
+		);
+		if ( is_wp_error( $result ) ) { return $result; }
+		return rest_ensure_response( $result );
 	}
 
 	public static function scanner_permission() {

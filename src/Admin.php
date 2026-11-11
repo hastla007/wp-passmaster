@@ -22,6 +22,7 @@ final class Admin {
 				<tr><th><label for="wpcap-description"><?php esc_html_e( 'Beschreibung', 'wp-pass-captain' ); ?></label></th><td><textarea id="wpcap-description" name="description" class="large-text" rows="4"></textarea></td></tr>
 				<tr><th><label for="wpcap-start"><?php esc_html_e( 'Beginn', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-start" name="starts_at" type="datetime-local" required> <select name="timezone"><?php foreach ( timezone_identifiers_list() as $timezone ) : ?><option value="<?php echo esc_attr( $timezone ); ?>" <?php selected( $timezone, wp_timezone_string() ); ?>><?php echo esc_html( $timezone ); ?></option><?php endforeach; ?></select></td></tr>
 				<tr><th><label for="wpcap-end"><?php esc_html_e( 'Ende (optional)', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-end" name="ends_at" type="datetime-local"></td></tr>
+				<tr><th><label for="wpcap-repeat"><?php esc_html_e( 'Terminserie', 'wp-pass-captain' ); ?></label></th><td><select id="wpcap-repeat" name="repeat_frequency"><option value="none"><?php esc_html_e( 'Einmalig', 'wp-pass-captain' ); ?></option><option value="weekly"><?php esc_html_e( 'Wöchentlich', 'wp-pass-captain' ); ?></option></select> <label><?php esc_html_e( 'Anzahl Termine (max. 12)', 'wp-pass-captain' ); ?> <input type="number" name="repeat_count" min="1" max="12" value="1"></label></td></tr>
 				<tr><th><label for="wpcap-location"><?php esc_html_e( 'Ort', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-location" name="location" type="text" class="regular-text" maxlength="190"></td></tr>
 				<tr><th><label for="wpcap-event-capacity"><?php esc_html_e( 'Gesamtkontingent', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-event-capacity" name="event_capacity" type="number" min="0" value="0"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'wp-pass-captain' ); ?></span></td></tr>
 				<tr><th><label for="wpcap-type-name"><?php esc_html_e( 'Ticketkategorie', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-type-name" name="ticket_name" type="text" value="Standard" required maxlength="190"></td></tr>
@@ -33,8 +34,8 @@ final class Admin {
 			</form>
 
 			<h2><?php esc_html_e( 'Events', 'wp-pass-captain' ); ?></h2>
-			<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Event', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Termin', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Ort', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th></tr></thead><tbody>
-			<?php if ( $events ) : foreach ( $events as $event ) : ?><tr><td><?php echo esc_html( $event->name ); ?></td><td><?php echo esc_html( $event->starts_at ? $event->starts_at . ' ' . $event->timezone : '—' ); ?></td><td><?php echo esc_html( $event->location ); ?></td><td><?php echo esc_html( $event->status ); ?></td></tr><?php endforeach; else : ?><tr><td colspan="4"><?php esc_html_e( 'Noch keine Events angelegt.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
+			<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Event', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Termin', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Ort', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Aktion', 'wp-pass-captain' ); ?></th></tr></thead><tbody>
+			<?php if ( $events ) : foreach ( $events as $event ) : ?><tr><td><?php echo esc_html( $event->name ); ?></td><td><?php echo esc_html( $event->starts_at ? $event->starts_at . ' ' . $event->timezone : '—' ); ?></td><td><?php echo esc_html( $event->location ); ?></td><td><?php echo esc_html( $event->status ); ?></td><td><?php if ( 'published' === $event->status ) : ?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><input type="hidden" name="action" value="wpcap_cancel_event"><input type="hidden" name="event_id" value="<?php echo esc_attr( $event->event_id ); ?>"><?php wp_nonce_field( 'wpcap_cancel_event_' . $event->event_id ); ?><button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Event absagen und betroffene Käufer benachrichtigen?', 'wp-pass-captain' ) ); ?>')"><?php esc_html_e( 'Event absagen', 'wp-pass-captain' ); ?></button></form><?php endif; ?></td></tr><?php endforeach; else : ?><tr><td colspan="5"><?php esc_html_e( 'Noch keine Events angelegt.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
 			</tbody></table>
 			<?php if ( current_user_can( 'wpcap_manage_events' ) && $events ) : ?>
 			<h2><?php esc_html_e( 'Einlasspersonal zuweisen', 'wp-pass-captain' ); ?></h2>
@@ -67,9 +68,11 @@ final class Admin {
 			$start_utc = $start_date->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 			$ends = sanitize_text_field( wp_unslash( $_POST['ends_at'] ?? '' ) );
 			$end_utc = '';
+			$duration_seconds = 0;
 			if ( '' !== $ends ) {
 				$end_date = new \DateTimeImmutable( $ends, new \DateTimeZone( $timezone ) );
 				if ( $end_date <= $start_date ) { throw new \RuntimeException( 'invalid_end' ); }
+				$duration_seconds = $end_date->getTimestamp() - $start_date->getTimestamp();
 				$end_utc = $end_date->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 			}
 		} catch ( \Throwable $error ) {
@@ -78,6 +81,9 @@ final class Admin {
 		$price = (float) str_replace( ',', '.', sanitize_text_field( wp_unslash( $_POST['price'] ?? '0' ) ) );
 		if ( $price < 0 || $price > 99999999 ) { wp_die( esc_html__( 'Der Preis ist ungültig.', 'wp-pass-captain' ), 400 ); }
 		$now = current_time( 'mysql', true );
+		$repeat = sanitize_key( wp_unslash( $_POST['repeat_frequency'] ?? 'none' ) );
+		if ( ! in_array( $repeat, array( 'none', 'weekly' ), true ) ) { $repeat = 'none'; }
+		$repeat_count = 'weekly' === $repeat ? min( 12, max( 1, absint( $_POST['repeat_count'] ?? 1 ) ) ) : 1;
 		$slug = sanitize_title( $name ) . '-' . strtolower( wp_generate_password( 6, false, false ) );
 		global $wpdb;
 		$wpdb->query( 'START TRANSACTION' );
@@ -91,26 +97,31 @@ final class Admin {
 		), array( '%s', '%s', '%s', '%s', '%s', '%s' ) );
 		$event_id = (int) $wpdb->insert_id;
 		if ( ! $event_id ) { $wpdb->query( 'ROLLBACK' ); wp_die( esc_html__( 'Das Event konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
-		$wpdb->insert( $wpdb->prefix . 'wpcap_occurrences', array(
-			'event_id' => $event_id,
-			'starts_at' => $start_utc,
-			'ends_at' => $end_utc ? $end_utc : null,
-			'timezone' => $timezone,
-			'location' => sanitize_text_field( wp_unslash( $_POST['location'] ?? '' ) ),
-			'capacity' => absint( $_POST['event_capacity'] ?? 0 ),
-			'status' => 'scheduled',
-		), array( '%d', '%s', '%s', '%s', '%s', '%d', '%s' ) );
-		$occurrence_id = (int) $wpdb->insert_id;
-		$wpdb->insert( $wpdb->prefix . 'wpcap_ticket_types', array(
-			'occurrence_id' => $occurrence_id,
-			'name' => $ticket_name,
-			'price_minor' => (int) round( $price * 100 ),
-			'currency' => $currency,
-			'capacity' => absint( $_POST['ticket_capacity'] ?? 0 ),
-			'max_per_order' => 10,
-			'status' => 'active',
-		), array( '%d', '%s', '%d', '%s', '%d', '%d', '%s' ) );
-		if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); wp_die( esc_html__( 'Die Ticketkategorie konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		for ( $index = 0; $index < $repeat_count; $index++ ) {
+			$occurrence_start = $start_date->modify( '+' . ( 7 * $index ) . ' days' );
+			$occurrence_end = $duration_seconds ? $occurrence_start->modify( '+' . $duration_seconds . ' seconds' ) : null;
+			$wpdb->insert( $wpdb->prefix . 'wpcap_occurrences', array(
+				'event_id' => $event_id,
+				'starts_at' => $occurrence_start->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' ),
+				'ends_at' => $occurrence_end ? $occurrence_end->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' ) : null,
+				'timezone' => $timezone,
+				'location' => sanitize_text_field( wp_unslash( $_POST['location'] ?? '' ) ),
+				'capacity' => absint( $_POST['event_capacity'] ?? 0 ),
+				'status' => 'scheduled',
+			), array( '%d', '%s', '%s', '%s', '%s', '%d', '%s' ) );
+			$occurrence_id = (int) $wpdb->insert_id;
+			if ( ! $occurrence_id ) { $wpdb->query( 'ROLLBACK' ); wp_die( esc_html__( 'Ein Termin konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+			$wpdb->insert( $wpdb->prefix . 'wpcap_ticket_types', array(
+				'occurrence_id' => $occurrence_id,
+				'name' => $ticket_name,
+				'price_minor' => (int) round( $price * 100 ),
+				'currency' => $currency,
+				'capacity' => absint( $_POST['ticket_capacity'] ?? 0 ),
+				'max_per_order' => 10,
+				'status' => 'active',
+			), array( '%d', '%s', '%d', '%s', '%d', '%d', '%s' ) );
+			if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); wp_die( esc_html__( 'Die Ticketkategorie konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		}
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'event_created', 'event', $event_id, array( 'status' => sanitize_key( $_POST['status'] ?? 'draft' ) ) );
 		wp_safe_redirect( add_query_arg( array( 'page' => 'wp-pass-captain', 'created' => '1' ), admin_url( 'admin.php' ) ) );
@@ -150,6 +161,16 @@ final class Admin {
 		$result = Orders::resend_tickets( $order_id );
 		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 409 ); }
 		wp_safe_redirect( add_query_arg( array( 'page' => 'wp-pass-captain', 'resent' => '1' ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	public static function cancel_event() {
+		$event_id = absint( $_POST['event_id'] ?? 0 );
+		if ( ! current_user_can( 'wpcap_manage_events' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		check_admin_referer( 'wpcap_cancel_event_' . $event_id );
+		$result = Orders::cancel_event( $event_id );
+		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 409 ); }
+		wp_safe_redirect( add_query_arg( array( 'page' => 'wp-pass-captain', 'cancelled' => '1' ), admin_url( 'admin.php' ) ) );
 		exit;
 	}
 }

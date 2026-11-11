@@ -20,10 +20,12 @@ final class Plugin {
 		add_action( 'admin_post_wpcap_assign_staff', array( Admin::class, 'assign_staff' ) );
 		add_action( 'admin_post_wpcap_confirm_payment', array( Admin::class, 'confirm_payment' ) );
 		add_action( 'admin_post_wpcap_resend_tickets', array( Admin::class, 'resend_tickets' ) );
+		add_action( 'admin_post_wpcap_cancel_event', array( Admin::class, 'cancel_event' ) );
 		add_filter( 'wp_privacy_personal_data_exporters', array( Privacy::class, 'register_exporter' ) );
 		add_filter( 'wp_privacy_personal_data_erasers', array( Privacy::class, 'register_eraser' ) );
 		add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'expire_holds' ) );
 		add_action( 'init', array( $this, 'register_blocks' ) );
+		Integrations\WooCommerce\OrderAdapter::register();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
 		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );

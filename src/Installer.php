@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '1.0.0';
+	const DB_VERSION = '1.2.0';
 
 	public static function install() {
 		global $wpdb;
@@ -78,6 +78,8 @@ final class Installer {
 				public_id char(32) NOT NULL,
 				idempotency_key char(64) NOT NULL,
 				customer_email varchar(190) NOT NULL,
+				access_token_hash char(64) NOT NULL DEFAULT '',
+				access_expires_at datetime NULL,
 				status varchar(24) NOT NULL DEFAULT 'pending_payment',
 				payment_status varchar(24) NOT NULL DEFAULT 'pending',
 				currency char(3) NOT NULL,
@@ -88,6 +90,8 @@ final class Installer {
 				UNIQUE KEY public_id (public_id),
 				UNIQUE KEY idempotency_key (idempotency_key),
 				KEY customer_email (customer_email),
+				KEY access_token_hash (access_token_hash),
+				KEY access_expires_at (access_expires_at),
 				KEY status (status)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $items (
@@ -118,6 +122,8 @@ final class Installer {
 				order_id bigint(20) unsigned NOT NULL,
 				ticket_type_id bigint(20) unsigned NOT NULL,
 				token_hash char(64) NOT NULL DEFAULT '',
+				attendee_email varchar(190) NOT NULL DEFAULT '',
+				transfer_count tinyint(3) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'valid',
 				issued_at datetime NOT NULL,
 				PRIMARY KEY  (ticket_id),

@@ -21,9 +21,9 @@ final class Orders {
 		}
 		$key_hash = hash( 'sha256', $key );
 		$orders_table = $wpdb->prefix . 'wpcap_orders';
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status FROM $orders_table WHERE idempotency_key = %s", $key_hash ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status FROM $orders_table WHERE idempotency_key = %s", $key_hash ) );
 		if ( $existing ) {
-			return array( 'order_id' => (int) $existing->order_id, 'public_id' => $existing->public_id, 'status' => $existing->status, 'reused' => true );
+			return array( 'order_id' => (int) $existing->order_id, 'public_id' => $existing->public_id, 'status' => $existing->status, 'payment_status' => $existing->payment_status, 'reused' => true );
 		}
 
 		$clean_lines = array();
@@ -97,17 +97,20 @@ final class Orders {
 			}
 
 			$public_id = bin2hex( random_bytes( 16 ) );
+			$access_token = bin2hex( random_bytes( 32 ) );
 			$inserted = $wpdb->insert( $orders_table, array(
 				'public_id' => $public_id,
 				'idempotency_key' => $key_hash,
 				'customer_email' => $email,
+				'access_token_hash' => hash( 'sha256', $access_token ),
+				'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS ),
 				'status' => $total ? 'pending_payment' : 'complete',
 				'payment_status' => $total ? 'pending' : 'paid',
 				'currency' => $currency,
 				'total_minor' => $total,
 				'created_at' => $now,
 				'updated_at' => $now,
-			), array( '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' ) );
+			), array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' ) );
 			if ( ! $inserted ) {
 				throw new \RuntimeException( 'order_insert_failed' );
 			}
@@ -155,8 +158,91 @@ final class Orders {
 		if ( 0 === $total ) {
 			self::issue_and_email( $order_id );
 		}
+		self::send_order_access_link( $email, $public_id, $access_token );
 		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency ) );
-		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $total ? 'pending_payment' : 'complete', 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $total ? self::HOLD_MINUTES : 0 );
+		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $total ? 'pending_payment' : 'complete', 'payment_status' => $total ? 'pending' : 'paid', 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $total ? self::HOLD_MINUTES : 0 );
+	}
+
+	public static function send_order_access_link( $email, $public_id, $access_token ) {
+		$url = add_query_arg( array( 'wpcap_order' => $public_id, 'wpcap_access' => $access_token ), home_url( '/' ) );
+		$body = __( 'Über diesen persönlichen Link kannst du den Status deiner WP Pass Captain Bestellung ansehen und Tickets verwalten:', 'wp-pass-captain' ) . "\n\n" . esc_url_raw( $url ) . "\n\n" . __( 'Bewahre diesen Link sicher auf und teile ihn nicht.', 'wp-pass-captain' );
+		return wp_mail( sanitize_email( $email ), __( 'Deine Bestellung bei WP Pass Captain', 'wp-pass-captain' ), $body );
+	}
+
+	public static function transfer_ticket( $public_id, $access_token, $ticket_public_id, $recipient_email ) {
+		global $wpdb;
+		$public_id = sanitize_text_field( $public_id );
+		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
+		$recipient_email = sanitize_email( $recipient_email );
+		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! is_email( $recipient_email ) ) {
+			return new \WP_Error( 'wpcap_transfer_invalid', __( 'Die Übertragungsdaten sind ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+		}
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
+		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) {
+			return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		}
+		if ( 'paid' !== $order->payment_status ) {
+			return new \WP_Error( 'wpcap_order_not_paid', __( 'Tickets können erst nach bestätigter Zahlung übertragen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		}
+		$tickets_table = $wpdb->prefix . 'wpcap_tickets';
+		$wpdb->query( 'START TRANSACTION' );
+		$ticket = $wpdb->get_row( $wpdb->prepare(
+			"SELECT t.ticket_id,t.status,t.transfer_count,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM $tickets_table t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.public_id=%s AND t.order_id=%d FOR UPDATE",
+			sanitize_text_field( $ticket_public_id ),
+			$order->order_id
+		) );
+		if ( ! $ticket || 'valid' !== $ticket->status || (int) $ticket->transfer_count >= 1 || strtotime( $ticket->starts_at . ' UTC' ) <= time() ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_transfer_not_allowed', __( 'Dieses Ticket kann nicht mehr übertragen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		}
+		$token = bin2hex( random_bytes( 32 ) );
+		$updated = $wpdb->update( $tickets_table, array(
+			'token_hash' => hash( 'sha256', $token ),
+			'attendee_email' => $recipient_email,
+			'transfer_count' => (int) $ticket->transfer_count + 1,
+		), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'valid', 'transfer_count' => (int) $ticket->transfer_count ), array( '%s', '%s', '%d' ), array( '%d', '%s', '%d' ) );
+		if ( false === $updated ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_transfer_failed', __( 'Die Ticketübertragung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+		}
+		$wpdb->query( 'COMMIT' );
+		$ticket_url = add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) );
+		$body = sprintf( "%s — %s\n%s %s\n%s\n\n%s\n", $ticket->event_name, $ticket->ticket_name, mysql2date( 'd.m.Y H:i', $ticket->starts_at, true ), $ticket->timezone, $ticket->location, esc_url_raw( $ticket_url ) );
+		if ( ! wp_mail( $recipient_email, __( 'Ein Ticket wurde an dich übertragen', 'wp-pass-captain' ), $body ) ) {
+			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'wp-pass-captain' ), array( 'status' => 502 ) );
+		}
+		wp_mail( $order->customer_email, __( 'Ticketübertragung abgeschlossen', 'wp-pass-captain' ), sprintf( __( 'Dein Ticket für %s wurde an %s übertragen. Der bisherige Ticketcode ist ungültig.', 'wp-pass-captain' ), $ticket->event_name, $recipient_email ) );
+		Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
+		return array( 'status' => 'transferred' );
+	}
+
+	public static function cancel_event( $event_id ) {
+		global $wpdb;
+		$event_id = absint( $event_id );
+		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) );
+		if ( ! $event || 'published' !== $event->status ) {
+			return new \WP_Error( 'wpcap_event_not_cancellable', __( 'Dieses Event kann nicht abgesagt werden.', 'wp-pass-captain' ) );
+		}
+		$wpdb->query( 'START TRANSACTION' );
+		$wpdb->update( $wpdb->prefix . 'wpcap_events', array( 'status' => 'cancelled', 'updated_at' => current_time( 'mysql', true ) ), array( 'event_id' => $event_id, 'status' => 'published' ), array( '%s', '%s' ), array( '%d', '%s' ) );
+		$wpdb->update( $wpdb->prefix . 'wpcap_occurrences', array( 'status' => 'cancelled' ), array( 'event_id' => $event_id ), array( '%s' ), array( '%d' ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id SET t.status='revoked' WHERE o.event_id=%d AND t.status='valid'", $event_id ) );
+		$order_ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT oi.order_id FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d", $event_id ) );
+		foreach ( $order_ids as $order_id ) {
+			$wpdb->update( $wpdb->prefix . 'wpcap_reservations', array( 'status' => 'released' ), array( 'order_id' => absint( $order_id ), 'status' => 'active' ), array( '%s' ), array( '%d', '%s' ) );
+			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'status' => 'cancelled', 'payment_status' => 'cancelled', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => absint( $order_id ), 'payment_status' => 'pending' ), array( '%s', '%s', '%s' ), array( '%d', '%s' ) );
+		}
+		$wpdb->query( 'COMMIT' );
+		$emails = $wpdb->get_col( $wpdb->prepare(
+			"SELECT DISTINCT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) FROM {$wpdb->prefix}wpcap_orders ord INNER JOIN {$wpdb->prefix}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$wpdb->prefix}wpcap_tickets t ON t.order_id=ord.order_id AND t.ticket_type_id=tt.ticket_type_id WHERE o.event_id=%d",
+			$event_id
+		) );
+		$message = sprintf( __( 'Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung.', 'wp-pass-captain' ), $event->name );
+		foreach ( $emails as $email ) {
+			if ( is_email( $email ) ) { wp_mail( $email, sprintf( __( 'Eventabsage: %s', 'wp-pass-captain' ), $event->name ), $message ); }
+		}
+		Audit::record( 'event_cancelled', 'event', $event_id, array( 'notified_count' => count( $emails ) ) );
+		return array( 'status' => 'cancelled', 'notified_count' => count( $emails ) );
 	}
 
 	public static function confirm_manual_payment( $order_id ) {
@@ -240,13 +326,13 @@ final class Orders {
 			return new \WP_Error( 'wpcap_order_unpaid', __( 'Tickets können erst nach bestätigter Zahlung erneut gesendet werden.', 'wp-pass-captain' ) );
 		}
 		$tickets = $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.ticket_id,t.status,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status IN ('valid','checked_in') ORDER BY t.ticket_id",
+			"SELECT t.ticket_id,t.status,t.attendee_email,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status IN ('valid','checked_in') ORDER BY t.ticket_id",
 			$order_id
 		) );
 		if ( ! $tickets ) {
 			return new \WP_Error( 'wpcap_no_resendable_tickets', __( 'Keine gültigen Tickets für den erneuten Versand gefunden.', 'wp-pass-captain' ) );
 		}
-		$body = __( 'Deine Tickets für WP Pass Captain:', 'wp-pass-captain' ) . "\n\n";
+		$messages = array();
 		foreach ( $tickets as $ticket ) {
 			$token = bin2hex( random_bytes( 32 ) );
 			$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'token_hash' => hash( 'sha256', $token ) ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => $ticket->status ), array( '%s' ), array( '%d', '%s' ) );
@@ -254,10 +340,15 @@ final class Orders {
 				return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ) );
 			}
 			$ticket_url = add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) );
-			$body .= sprintf( "%s — %s\n%s %s\n%s\n%s\n\n", $ticket->event_name, $ticket->ticket_name, mysql2date( 'd.m.Y H:i', $ticket->starts_at, true ), $ticket->timezone, $ticket->location, esc_url_raw( $ticket_url ) );
+			$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
+			$messages[ $recipient ] = ( $messages[ $recipient ] ?? __( 'Deine Tickets für WP Pass Captain:', 'wp-pass-captain' ) . "\n\n" ) . sprintf( "%s — %s\n%s %s\n%s\n%s\n\n", $ticket->event_name, $ticket->ticket_name, mysql2date( 'd.m.Y H:i', $ticket->starts_at, true ), $ticket->timezone, $ticket->location, esc_url_raw( $ticket_url ) );
 		}
-		if ( ! wp_mail( $order->customer_email, __( 'Deine Tickets', 'wp-pass-captain' ), $body ) ) {
-			return new \WP_Error( 'wpcap_mail_failed', __( 'E-Mail konnte nicht zugestellt werden. Die Ticketcodes wurden erneuert; bitte versuche den Versand erneut.', 'wp-pass-captain' ) );
+		$sent = true;
+		foreach ( $messages as $recipient => $body ) {
+			$sent = wp_mail( $recipient, __( 'Deine Tickets', 'wp-pass-captain' ), $body ) && $sent;
+		}
+		if ( ! $sent ) {
+			return new \WP_Error( 'wpcap_mail_failed', __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; bitte versuche den Versand erneut.', 'wp-pass-captain' ) );
 		}
 		Audit::record( 'tickets_resent', 'order', $order_id, array( 'ticket_count' => count( $tickets ) ) );
 		return true;
