@@ -98,7 +98,7 @@ echo "Partners: settlement fixtures\n";
 $t1 = gmdate( 'Y-m-d H:i:s', strtotime( $m1 . '-15 12:00:00 UTC' ) );
 $oa = pa_order( array( array( 'ticket_type_id' => $ta, 'quantity' => 2 ), array( 'ticket_type_id' => $tk, 'quantity' => 1 ) ), 'pa-a', $t1 );
 $ref1 = pa_refund( $oa, array( pa_ticket_of_type( $oa, $ta ) ), $m1 . '-20 10:00:00' );
-check( 'fixture: refund of one 11,90 ticket with pro-rata VAT 1,55', 'completed' === $ref1['status'] && 1190 === (int) $ref1['amount_minor'] && 155 === (int) $ref1['tax_minor'] );
+check( 'fixture: refund of one 11,90 ticket with the VAT of its 19 % line (1,90)', 'completed' === $ref1['status'] && 1190 === (int) $ref1['amount_minor'] && 190 === (int) $ref1['tax_minor'] );
 $oc = pa_order( array( array( 'ticket_type_id' => $tc, 'quantity' => 2 ) ), 'pa-c', $t1 );
 $od = pa_order( array( array( 'ticket_type_id' => $ta, 'quantity' => 1 ) ), 'pa-d', $t1, false );
 $old = pa_order( array( array( 'ticket_type_id' => $ta, 'quantity' => 1 ) ), 'pa-old', gmdate( 'Y-m-d H:i:s', strtotime( $m0 . '-10 12:00:00 UTC' ) ) );
@@ -107,10 +107,10 @@ echo "Partners: settlement math (sales, refunds, VAT, fees)\n";
 $calc = Settlements::compute( $partner1, $m1 );
 $t = $calc['totals'];
 check( 'only paid orders of partner events after the settlement start are included', 3 === count( $calc['lines'] ) && ! array_filter( $calc['lines'], static fn( $l ) => in_array( $l['order_id'], array( $oc, $od, $old ), true ) ) );
-check( 'gross 34,50 − refund 11,90 = 22,60; VAT 4,50 − 1,55 = 2,95; net 19,65', 3450 === $t['sales_gross'] && 1190 === $t['refunded'] && 2260 === $t['gross'] && 295 === $t['tax'] && 1965 === $t['net'] && 3 === $t['tickets_sold'] && 1 === $t['tickets_refunded'] );
-check( 'VAT per rate with refund netted (19 %: 11,90/2,25, 7 %: 10,70/0,70)', 1190 === $t['rates'][1900]['gross'] && 225 === $t['rates'][1900]['tax'] && 965 === $t['rates'][1900]['net'] && 1070 === $t['rates'][700]['gross'] && 70 === $t['rates'][700]['tax'] );
-check( 'commission 10 % of net per line (20,00 + 10,00 − 10,35 rounded) and fees 3×0,50 − 0,50', 196 === $t['commission'] && 100 === $t['fee'] );
-check( 'platform fee 2,96 + 19 % VAT 0,56 = 3,52; payout 22,60 − 3,52 = 19,08', 296 === $t['platform_fee_net'] && 56 === $t['platform_fee_tax'] && 352 === $t['platform_fee_gross'] && 1908 === $t['payout'] );
+check( 'gross 34,50 − refund 11,90 = 22,60; VAT 4,50 − 1,90 = 2,60; net 20,00', 3450 === $t['sales_gross'] && 1190 === $t['refunded'] && 2260 === $t['gross'] && 260 === $t['tax'] && 2000 === $t['net'] && 3 === $t['tickets_sold'] && 1 === $t['tickets_refunded'] );
+check( 'VAT per rate with refund netted (19 %: 11,90/1,90, 7 %: 10,70/0,70)', 1190 === $t['rates'][1900]['gross'] && 190 === $t['rates'][1900]['tax'] && 1000 === $t['rates'][1900]['net'] && 1070 === $t['rates'][700]['gross'] && 70 === $t['rates'][700]['tax'] );
+check( 'commission 10 % of net per line (20,00 + 10,00 − 10,00) and fees 3×0,50 − 0,50', 200 === $t['commission'] && 100 === $t['fee'] );
+check( 'platform fee 3,00 + 19 % VAT 0,57 = 3,57; payout 22,60 − 3,57 = 19,03', 300 === $t['platform_fee_net'] && 57 === $t['platform_fee_tax'] && 357 === $t['platform_fee_gross'] && 1903 === $t['payout'] );
 $kinds = array_count_values( array_column( $calc['lines'], 'kind' ) );
 check( 'lines are classified as sale/refund of the period', 2 === ( $kinds['sale'] ?? 0 ) && 1 === ( $kinds['refund'] ?? 0 ) );
 
@@ -136,7 +136,7 @@ echo "Partners: finalize, number series, immutability\n";
 check( 'future periods are rejected', is_wp_error( Settlements::create_draft( $p1, gmdate( 'Y-m', strtotime( 'first day of +1 month' ) ) ) ) && is_wp_error( Settlements::create_draft( $p1, '2026-13' ) ) );
 $s1 = PartnerAdmin::admin_action( array( 'do' => 'create_settlement', 'partner_id' => $p1, 'period' => $m1 ) )['settlement_id'] ?? 0;
 $draft1 = Settlements::get( $s1 );
-check( 'draft stores the computed totals and lines', 'draft' === $draft1->status && null === $draft1->document_number && 1908 === (int) $draft1->payout_minor && 3 === count( Settlements::lines( $s1 ) ) );
+check( 'draft stores the computed totals and lines', 'draft' === $draft1->status && null === $draft1->document_number && 1903 === (int) $draft1->payout_minor && 3 === count( Settlements::lines( $s1 ) ) );
 check( 'second settlement for the same month is rejected', is_wp_error( Settlements::create_draft( $p1, $m1 ) ) );
 $current = Settlements::create_draft( $p3, gmdate( 'Y-m' ) );
 check( 'running month can be drafted but not finalized', ! is_wp_error( $current ) && is_wp_error( Settlements::finalize( $current ) ) && 'draft' === Settlements::get( $current )->status );
@@ -151,7 +151,7 @@ check( 'no settlement for periods before a finalized one', is_wp_error( Settleme
 $wpdb->query( "UPDATE {$p}wpcap_partners SET commission_bp=5000 WHERE partner_id=$p1" );
 $s1after_terms = Settlements::get( $s1 );
 $wpdb->query( "UPDATE {$p}wpcap_partners SET commission_bp=1000 WHERE partner_id=$p1" );
-check( 'changing partner terms later does not touch a finalized settlement', 196 === (int) $s1after_terms->commission_minor && 1908 === (int) $s1after_terms->payout_minor );
+check( 'changing partner terms later does not touch a finalized settlement', 200 === (int) $s1after_terms->commission_minor && 1903 === (int) $s1after_terms->payout_minor );
 
 echo "Partners: late refunds and late payments carry over as corrections\n";
 $before = array( (int) $s1row->gross_minor, (int) $s1row->payout_minor, count( Settlements::lines( $s1 ) ), $s1row->totals );
@@ -167,8 +167,8 @@ $by_kind = array();
 foreach ( $lines2 as $l ) { $by_kind[ $l->kind ][] = $l; }
 check( 'next period: sale, late sale of the previous month and refund correction', 1 === count( $by_kind['sale'] ?? array() ) && 1 === count( $by_kind['late_sale'] ?? array() ) && 1 === count( $by_kind['correction'] ?? array() ) && 3 === count( $lines2 ) );
 $corr = $by_kind['correction'][0];
-check( 'correction references the origin period and reverses 10,70 (VAT 1,40, commission, fee)', $m1 === $corr->origin_period && -1070 === (int) $corr->gross_minor && -140 === (int) $corr->tax_minor && -93 === (int) $corr->commission_minor && -50 === (int) $corr->fee_minor && -1 === (int) $corr->tickets );
-check( 'period 2 totals: gross 13,10, VAT 2,40, platform fee 1,87, payout 11,23, corrections 1,20', 1310 === (int) $s2row->gross_minor && 240 === (int) $s2row->tax_minor && 107 === (int) $s2row->commission_minor && 50 === (int) $s2row->fee_minor && 187 === (int) $s2row->platform_fee_gross_minor && 1123 === (int) $s2row->payout_minor && 120 === (int) $s2row->corrections_minor );
+check( 'correction references the origin period and reverses 10,70 (VAT 0,70, commission, fee)', $m1 === $corr->origin_period && -1070 === (int) $corr->gross_minor && -70 === (int) $corr->tax_minor && -100 === (int) $corr->commission_minor && -50 === (int) $corr->fee_minor && -1 === (int) $corr->tickets );
+check( 'period 2 totals: gross 13,10, VAT 3,10, platform fee 1,79, payout 11,31, corrections 1,20', 1310 === (int) $s2row->gross_minor && 310 === (int) $s2row->tax_minor && 100 === (int) $s2row->commission_minor && 50 === (int) $s2row->fee_minor && 179 === (int) $s2row->platform_fee_gross_minor && 1131 === (int) $s2row->payout_minor && 120 === (int) $s2row->corrections_minor );
 check( 'items of the finalized period are never settled twice', ! array_filter( $lines2, static fn( $l ) => 'sale:' === substr( $l->item_key, 0, 5 ) && $oa === (int) $l->order_id ) );
 $dup = $wpdb->insert( "{$p}wpcap_partner_settlement_lines", array( 'settlement_id' => $s2, 'partner_id' => $p1, 'kind' => 'sale', 'item_key' => 'x', 'source_key' => Settlements::lines( $s1 )[0]->source_key, 'occurred_at' => $t1 ) );
 check( 'database rejects a second finalized line for the same source', false === $dup );
@@ -194,9 +194,9 @@ sort( $visible );
 check( 'partner user sees only own finalized/paid settlements (read-only)', array( $s1, $s2 ) === $visible && $partner_cannot && 'read' === $menu_cap );
 check( 'unlinked users see no settlements', array() === $foreign_visible && false === $foreign_view );
 $csv = Scope::csv( Settlements::csv_rows( Settlements::get( $s2 ) ) );
-check( 'CSV contains number, correction line and is formula safe', false !== strpos( $csv, $fin2->document_number ) && false !== strpos( $csv, 'Korrektur Erstattung' ) && false !== strpos( $csv, "'=Gala" ) && false === strpos( $csv, ';=Gala' ) && false !== strpos( $csv, '11.23' ) );
+check( 'CSV contains number, correction line and is formula safe', false !== strpos( $csv, $fin2->document_number ) && false !== strpos( $csv, 'Korrektur Erstattung' ) && false !== strpos( $csv, "'=Gala" ) && false === strpos( $csv, ';=Gala' ) && false !== strpos( $csv, '11.31' ) );
 $html = Settlements::render_html( Settlements::get( $s2 ) );
-check( 'print view is escaped and shows payout and corrections', false === strpos( $html, '<b>Abend</b>' ) && false !== strpos( $html, '&lt;b&gt;Abend' ) && false !== strpos( $html, 'Auszahlungsbetrag an Partner' ) && false !== strpos( $html, '11,23 EUR' ) && false !== strpos( $html, 'Korrekturen' ) );
+check( 'print view is escaped and shows payout and corrections', false === strpos( $html, '<b>Abend</b>' ) && false !== strpos( $html, '&lt;b&gt;Abend' ) && false !== strpos( $html, 'Auszahlungsbetrag an Partner' ) && false !== strpos( $html, '11,31 EUR' ) && false !== strpos( $html, 'Korrekturen' ) );
 check( 'draft print view is marked as draft', false !== strpos( Settlements::render_html( Settlements::get( $p3_draft ) ), 'Entwurf' ) );
 
 echo "Partner API: keys\n";
@@ -239,7 +239,7 @@ check( 'report is scoped to partner events', ! is_wp_error( $report ) && $report
 $sts = pa_call( 'settlements', 'settlements:read', $tok1 );
 $one = pa_call( 'settlement', 'settlements:read', $tok1, array( 'settlement_id' => $s2 ) );
 $other = pa_call( 'settlement', 'settlements:read', $tok1, array( 'settlement_id' => $p3_draft ) );
-check( 'settlements endpoint lists own finalized settlements with lines', array( $s2, $s1 ) === array_column( $sts['settlements'], 'id' ) && 1123 === $one['payout_minor'] && 3 === count( $one['lines'] ) && 404 === pa_status( $other ) );
+check( 'settlements endpoint lists own finalized settlements with lines', array( $s2, $s1 ) === array_column( $sts['settlements'], 'id' ) && 1131 === $one['payout_minor'] && 3 === count( $one['lines'] ) && 404 === pa_status( $other ) );
 
 echo "Partner API: scopes, event restriction, failures\n";
 $k2 = PartnerKeys::issue( $p1, array( 'events:read', 'orders:read', 'settlements:read' ), array( 'event_ids' => array( $eb ) ) );
@@ -301,3 +301,29 @@ $routes = array_filter( array_keys( $GLOBALS['wpcap_test_routes'] ?? array() ), 
 check( 'read-only routes registered under /partner/', 9 === count( $routes ) && ! array_filter( $routes, static fn( $r ) => 'GET' !== $GLOBALS['wpcap_test_routes'][ $r ]['methods'] ) );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
+
+echo "Partners: admin screens\n";
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . ltrim( $path, '/' ); } }
+if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $echo = true ) { $r = $a == $b ? ' checked="checked"' : ''; if ( $echo ) { echo $r; } return $r; } }
+if ( ! function_exists( 'selected' ) ) { function selected( $a, $b = true, $echo = true ) { $r = $a == $b ? ' selected="selected"' : ''; if ( $echo ) { echo $r; } return $r; } }
+if ( ! function_exists( 'disabled' ) ) { function disabled( $a, $b = true, $echo = true ) { $r = $a == $b ? ' disabled="disabled"' : ''; if ( $echo ) { echo $r; } return $r; } }
+if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1 ) { echo '<input type="hidden" name="_wpnonce" value="n">'; } }
+if ( ! function_exists( 'wp_nonce_url' ) ) { function wp_nonce_url( $u, $a = -1 ) { return $u . '&_wpnonce=n'; } }
+if ( ! function_exists( 'submit_button' ) ) { function submit_button( $t = '', $type = 'primary', $name = 'submit', $wrap = true ) { echo '<button>' . esc_html( $t ) . '</button>'; } }
+if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $t, $d = null ) { return esc_attr( $t ); } }
+if ( ! function_exists( 'wp_die' ) ) { function wp_die( $m = '' ) { throw new RuntimeException( (string) $m ); } }
+$render = static function ( $cb, array $get = array() ) { $_GET = $get; ob_start(); try { call_user_func( $cb ); } catch ( Throwable $e ) { ob_end_clean(); $_GET = array(); return 'DIED:' . $e->getMessage(); } $_GET = array(); return (string) ob_get_clean(); };
+$k7 = PartnerAdmin::admin_action( array( 'do' => 'issue_key', 'id' => $p1, 'scopes' => array( 'events:read' ) ) );
+$detail = $render( array( PartnerAdmin::class, 'render_partners' ), array( 'partner_id' => (string) $p1 ) );
+$detail_again = $render( array( PartnerAdmin::class, 'render_partners' ), array( 'partner_id' => (string) $p1 ) );
+$list = $render( array( PartnerAdmin::class, 'render_partners' ) );
+check( 'partner screen shows a new key exactly once and never the secret afterwards', false !== strpos( $detail, $k7['key'] ) && false === strpos( $detail_again, $k7['key'] ) && false !== strpos( $detail_again, 'wpcap_pk_' . $k7['prefix'] ) && false !== strpos( $list, 'Veranstalter GmbH' ) );
+$admin_st = $render( array( PartnerAdmin::class, 'render_settlements' ) );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options', 'wpcap_view_finance' );
+$GLOBALS['wpcap_test_user_id'] = 77;
+$partner_st = $render( array( PartnerAdmin::class, 'render_settlements' ) );
+$partner_partners = $render( array( PartnerAdmin::class, 'render_partners' ) );
+$GLOBALS['wpcap_test_user_id'] = 1;
+$GLOBALS['wpcap_test_denied_caps'] = array();
+check( 'settlement screen: finance gets actions, partner users read-only own list', false !== strpos( $admin_st, 'Abschließen' ) && false !== strpos( $admin_st, 'Policy KG' ) && false !== strpos( $partner_st, $fin2->document_number ) && false === strpos( $partner_st, 'Policy KG' ) && false === strpos( $partner_st, 'Abschließen' ) && false === strpos( $partner_st, 'Als ausgezahlt' ) && str_starts_with( $partner_partners, 'DIED:' ) );

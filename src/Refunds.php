@@ -201,7 +201,7 @@ final class Refunds {
 			$ticket_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND order_id=%d AND refunded=0 FOR UPDATE", $order_id ) ) );
 		}
 		$amount = min( max( 0, (int) $amount_minor ), max( 0, (int) $order->total_minor - (int) $order->refunded_minor ) );
-		$tax = isset( $args['tax_minor'] ) ? min( $amount, absint( $args['tax_minor'] ) ) : ( (int) $order->total_minor > 0 ? (int) round( (int) $order->tax_minor * $amount / (int) $order->total_minor ) : 0 );
+		$tax = isset( $args['tax_minor'] ) ? min( $amount, absint( $args['tax_minor'] ) ) : self::tax_for( $order, $ticket_ids ?: null, $amount );
 		$now = current_time( 'mysql', true );
 		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
 			'order_id' => $order_id,
@@ -273,17 +273,11 @@ final class Refunds {
 		if ( count( $ticket_ids ) === count( $open_ids ) ) {
 			$amount = $remaining_total;
 		} else {
-			$items = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,quantity,line_total_minor FROM {$p}wpcap_order_items WHERE order_id=%d", (int) $order->order_id ) );
-			$unit = array();
-			foreach ( $items as $item ) { $unit[ (int) $item->ticket_type_id ] = intdiv( (int) $item->line_total_minor, max( 1, (int) $item->quantity ) ); }
-			$gross = 0;
-			foreach ( $open as $ticket ) {
-				if ( in_array( (int) $ticket->ticket_id, $ticket_ids, true ) ) { $gross += $unit[ (int) $ticket->ticket_type_id ] ?? 0; }
-			}
+			list( $gross ) = self::line_shares( $order, $ticket_ids );
 			$subtotal = max( 1, (int) $order->subtotal_minor ?: (int) $order->total_minor );
 			$amount = min( $remaining_total, (int) round( $gross * (int) $order->total_minor / $subtotal ) );
 		}
-		$tax = (int) $order->total_minor > 0 ? (int) round( (int) $order->tax_minor * $amount / (int) $order->total_minor ) : 0;
+		$tax = self::tax_for( $order, count( $ticket_ids ) === count( $open_ids ) ? null : $ticket_ids, $amount );
 		return array( 'ticket_ids' => $ticket_ids, 'amount_minor' => $amount, 'tax_minor' => $tax );
 	}
 
@@ -318,5 +312,54 @@ final class Refunds {
 		}
 		$body .= "\n" . __( 'Je nach Zahlungsart kann es einige Tage dauern, bis der Betrag gutgeschrieben ist.', 'wp-pass-captain' );
 		wp_mail( $order->customer_email, sprintf( /* translators: %s: site name */ __( 'Erstattung bestätigt – %s', 'wp-pass-captain' ), Orders::site_name() ), $body );
+	}
+
+	/**
+	 * Gross and VAT shares (minor units) of the given tickets, from the order lines they belong to.
+	 *
+	 * @return int[] [gross, tax]
+	 */
+	private static function line_shares( $order, array $ticket_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( ! $ticket_ids ) { return array( 0, 0 ); }
+		$unit = array();
+		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,quantity,line_total_minor,tax_minor FROM {$p}wpcap_order_items WHERE order_id=%d", (int) $order->order_id ) ) as $item ) {
+			$q = max( 1, (int) $item->quantity );
+			$unit[ (int) $item->ticket_type_id ] = array( (int) $item->line_total_minor / $q, (int) $item->tax_minor / $q );
+		}
+		$ids = implode( ',', array_map( 'absint', $ticket_ids ) );
+		$gross = 0.0;
+		$tax = 0.0;
+		foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_tickets WHERE order_id=%d AND ticket_id IN ($ids)", (int) $order->order_id ) ) as $type_id ) {
+			$gross += $unit[ (int) $type_id ][0] ?? 0;
+			$tax += $unit[ (int) $type_id ][1] ?? 0;
+		}
+		return array( (int) round( $gross ), (int) round( $tax ) );
+	}
+
+	/**
+	 * VAT contained in a refund. Ticket refunds use the VAT of the refunded lines (orders can mix
+	 * rates), scaled like the amount; a refund of everything left takes the remaining VAT; an
+	 * amount-only refund is pro rata over the order.
+	 *
+	 * @param int[]|null $ticket_ids Refunded tickets, null = all remaining.
+	 */
+	private static function tax_for( $order, $ticket_ids, $amount ) {
+		global $wpdb;
+		$total = (int) $order->total_minor;
+		if ( $total <= 0 || $amount <= 0 ) { return 0; }
+		$refunded_tax = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(tax_minor),0) FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND status IN ('completed','processing','approved','pending_approval')", (int) $order->order_id ) );
+		$remaining_tax = max( 0, (int) $order->tax_minor - $refunded_tax );
+		$remaining_total = max( 0, $total - (int) $order->refunded_minor );
+		if ( $amount >= $remaining_total ) {
+			return min( $amount, $remaining_tax );
+		}
+		if ( ! $ticket_ids ) {
+			return min( $remaining_tax, (int) round( (int) $order->tax_minor * $amount / $total ) );
+		}
+		list( $gross, $tax ) = self::line_shares( $order, $ticket_ids );
+		if ( $gross <= 0 ) { return min( $remaining_tax, (int) round( (int) $order->tax_minor * $amount / $total ) ); }
+		return min( $remaining_tax, $amount, (int) round( $tax * $amount / $gross ) );
 	}
 }

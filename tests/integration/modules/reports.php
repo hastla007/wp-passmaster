@@ -36,15 +36,15 @@ $unpaid = Orders::create( array( 'email' => 'unpaid-report@example.com', 'items'
 Pos::open_session( 0 );
 $pos = Pos::sell( array( 'occurrence_id' => $rocc, 'quantities' => array( $ra => 1 ), 'method' => 'cash', 'form_key' => 'wpr-pos-' . bin2hex( random_bytes( 8 ) ) ) );
 $refund = PassCaptain\Refunds::request( $o1['order_id'], array( (int) tickets( $o1['order_id'] )[0]->ticket_id ), 'Test', 'wpr-refund' );
-check( 'fixture: refund of one 11,90 ticket completed with pro-rata VAT', 'completed' === $refund['status'] && 1190 === (int) $refund['amount_minor'] && 155 === (int) $refund['tax_minor'] && ! is_wp_error( $pos ) );
+check( 'fixture: refund of one 11,90 ticket completed with the VAT of its 19 % line', 'completed' === $refund['status'] && 1190 === (int) $refund['amount_minor'] && 190 === (int) $refund['tax_minor'] && ! is_wp_error( $pos ) );
 
 $today = gmdate( 'Y-m-d' );
 $report = Data::build( array( 'from' => $today, 'to' => $today, 'event_id' => $revent ), null );
 $t = $report['total'];
-check( 'totals: 4 tickets, 46,40 gross, 6,40 VAT, 11,90 refunded, 34,50 after refunds', 4 === $t['tickets'] && 4640 === $t['gross'] && 640 === $t['tax'] && 4000 === $t['net'] && 1190 === $t['refunded'] && 1 === $t['refunded_tickets'] && 3450 === $t['revenue'] && 485 === $t['revenue_tax'] );
+check( 'totals: 4 tickets, 46,40 gross, 6,40 VAT, 11,90 refunded, 34,50 after refunds', 4 === $t['tickets'] && 4640 === $t['gross'] && 640 === $t['tax'] && 4000 === $t['net'] && 1190 === $t['refunded'] && 1 === $t['refunded_tickets'] && 3450 === $t['revenue'] && 450 === $t['revenue_tax'] );
 $r19 = $report['rates'][1900];
 $r7 = $report['rates'][700];
-check( 'VAT per rate with refund netted', 3570 === $r19['gross'] && 570 === $r19['tax'] && 3000 === $r19['net'] && 1190 === $r19['refunded'] && 155 === $r19['refunded_tax'] && 2380 === $r19['revenue'] && 1070 === $r7['gross'] && 70 === $r7['tax'] && 1070 === $r7['revenue'] );
+check( 'VAT per rate with refund netted', 3570 === $r19['gross'] && 570 === $r19['tax'] && 3000 === $r19['net'] && 1190 === $r19['refunded'] && 190 === $r19['refunded_tax'] && 2380 === $r19['revenue'] && 1070 === $r7['gross'] && 70 === $r7['tax'] && 1070 === $r7['revenue'] );
 $types = $report['dimensions']['ticket_type'];
 check( 'per ticket type', 3 === $types[ $ra ]['tickets'] && 1 === $types[ $ra ]['refunded_tickets'] && 2380 === $types[ $ra ]['revenue'] && 1 === $types[ $rb ]['tickets'] );
 $prov = $report['dimensions']['provider'];
