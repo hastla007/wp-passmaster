@@ -673,7 +673,12 @@ final class Installer {
 
 	/** Runs the schema upgrade when needed; returns true if an upgrade ran. */
 	public static function maybe_upgrade() {
-		self::rename_legacy_roles();
+		// Role names are translated: rename only once translations may load (init), never earlier.
+		if ( did_action( 'init' ) ) {
+			self::rename_legacy_roles();
+		} elseif ( function_exists( 'add_action' ) ) {
+			add_action( 'init', array( __CLASS__, 'rename_legacy_roles' ), 1 );
+		}
 		if ( self::version() !== get_option( 'wpcap_db_version' ) ) {
 			self::install();
 			return true;
