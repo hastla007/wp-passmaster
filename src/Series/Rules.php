@@ -83,6 +83,10 @@ final class Rules {
 		);
 		if ( 'dates' === $freq ) {
 			$rule['dates'] = self::parse_dates( $in['dates'] ?? array(), $invalid );
+			if ( $invalid ) {
+				/* translators: %s: invalid dates */
+				return self::error( 'wpcap_series_invalid_date', sprintf( __( 'Ungültige Datumsangaben: %s', 'wp-pass-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) ) );
+			}
 			if ( ! $rule['dates'] ) { return self::error( 'wpcap_series_dates', __( 'Bitte mindestens ein Datum angeben.', 'wp-pass-captain' ) ); }
 			if ( count( $rule['dates'] ) > self::MAX ) {
 				/* translators: %d: maximum */

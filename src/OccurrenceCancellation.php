@@ -51,7 +51,9 @@ final class OccurrenceCancellation {
 		}
 
 		// 3. Remaining valid tickets become invalid for admission.
-		$summary['revoked'] = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id SET t.status='revoked' WHERE tt.occurrence_id=%d AND t.status='valid'", $occurrence_id ) );
+		$revoked_ids = Orders::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid'", $occurrence_id ) ) );
+		$summary['revoked'] = count( $revoked_ids );
+		Orders::fire_revoked( $revoked_ids, 'occurrence_cancelled' );
 
 		// 4. Inform holders.
 		$tz = new \DateTimeZone( $occ->timezone ?: 'UTC' );

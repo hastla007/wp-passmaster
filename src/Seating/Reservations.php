@@ -32,6 +32,7 @@ final class Reservations {
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund_completed' ), 10, 2 );
 		add_action( 'wpcap_cleanup_reservations', array( __CLASS__, 'cleanup' ), 20, 0 );
 		add_filter( 'wpcap_ticket_mail', array( __CLASS__, 'ticket_mail' ), 10, 3 );
+		add_filter( 'wpcap_ticket_seat_label', array( __CLASS__, 'seat_label' ), 5, 2 );
 	}
 
 	public static function payload_keys( $keys ) {
@@ -386,6 +387,12 @@ final class Reservations {
 			$out[ (int) $row->ticket_id ] = $row->label;
 		}
 		return $out;
+	}
+
+	/** Filter wpcap_ticket_seat_label (used e.g. by wallet passes): the ticket's assigned seat. */
+	public static function seat_label( $label, $ticket_id = 0 ) {
+		if ( '' !== (string) $label || ! $ticket_id ) { return $label; }
+		return self::labels_for_tickets( array( (int) $ticket_id ) )[ (int) $ticket_id ] ?? $label;
 	}
 
 	/** wpcap_ticket_mail: appends the seat of each ticket to the mail body. */

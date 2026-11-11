@@ -266,6 +266,26 @@ final class Orders {
 		}
 	}
 
+	/**
+	 * Revokes the given tickets if still valid and returns the IDs actually changed.
+	 * Callers fire wpcap_ticket_revoked via fire_revoked() after their transaction commits.
+	 */
+	public static function revoke_ids( array $ticket_ids ) {
+		global $wpdb;
+		$changed = array();
+		foreach ( array_unique( array_map( 'absint', $ticket_ids ) ) as $id ) {
+			if ( $id && $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET status='revoked' WHERE ticket_id=%d AND status='valid'", $id ) ) ) {
+				$changed[] = $id;
+			}
+		}
+		return $changed;
+	}
+
+	/** Fires wpcap_ticket_revoked for each ticket (seats, wallet passes, webhooks react to it). */
+	public static function fire_revoked( array $ticket_ids, $reason = '' ) {
+		foreach ( $ticket_ids as $id ) { do_action( 'wpcap_ticket_revoked', (int) $id, (string) $reason ); }
+	}
+
 	/** VAT contained in a gross amount, rounded half up: gross * rate / (10000 + rate). */
 	public static function gross_tax( $gross_minor, $rate_bp ) {
 		$gross_minor = max( 0, (int) $gross_minor );
@@ -483,11 +503,13 @@ final class Orders {
 			return true;
 		}
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) );
-		$revoked = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=%d AND status='valid'", $order_id ) );
+		$revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' FOR UPDATE", $order_id ) ) );
+		$revoked = count( $revoked_ids );
 		$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'cancelled', 'payment_status' => 'cancelled', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
 		$wpdb->query( 'COMMIT' );
 		Campaigns::release_for_order( $order_id );
 		Audit::record( 'order_cancelled', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
+		self::fire_revoked( $revoked_ids, 'order_cancelled' );
 		do_action( 'wpcap_order_cancelled', $order_id );
 		return true;
 	}
@@ -500,7 +522,9 @@ final class Orders {
 		global $wpdb;
 		$count = absint( $count );
 		if ( ! $count ) { return 0; }
-		$revoked = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET status='revoked' WHERE order_id=%d AND ticket_type_id=%d AND status='valid' ORDER BY ticket_id DESC LIMIT %d", absint( $order_id ), absint( $ticket_type_id ), $count ) );
+		$revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND ticket_type_id=%d AND status='valid' ORDER BY ticket_id DESC LIMIT %d", absint( $order_id ), absint( $ticket_type_id ), $count ) ) );
+		$revoked = count( $revoked_ids );
+		self::fire_revoked( $revoked_ids, $reason );
 		if ( $revoked ) {
 			// Revoked units no longer consume capacity.
 			$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_order_items SET refunded_quantity=LEAST(quantity,refunded_quantity+%d) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1", $revoked, absint( $order_id ), absint( $ticket_type_id ) ) );
@@ -517,9 +541,11 @@ final class Orders {
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
 		if ( ! $order || 'refunded' === $order->status ) { return true; }
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) );
-		$revoked = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=%d AND status='valid'", $order_id ) );
+		$revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid'", $order_id ) ) );
+		$revoked = count( $revoked_ids );
 		$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'refunded', 'payment_status' => 'refunded', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
 		Audit::record( 'order_refunded', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
+		self::fire_revoked( $revoked_ids, $reason ?: 'refunded' );
 		return true;
 	}
 
@@ -624,7 +650,7 @@ final class Orders {
 		$wpdb->query( 'START TRANSACTION' );
 		$wpdb->update( $wpdb->prefix . 'wpcap_events', array( 'status' => 'cancelled', 'updated_at' => current_time( 'mysql', true ) ), array( 'event_id' => $event_id, 'status' => 'published' ), array( '%s', '%s' ), array( '%d', '%s' ) );
 		$wpdb->update( $wpdb->prefix . 'wpcap_occurrences', array( 'status' => 'cancelled' ), array( 'event_id' => $event_id ), array( '%s' ), array( '%d' ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id SET t.status='revoked' WHERE o.event_id=%d AND t.status='valid'", $event_id ) );
+		$event_revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND t.status='valid'", $event_id ) ) );
 		$order_ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT oi.order_id FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d", $event_id ) );
 		$notify_ids = $order_ids ? array_map( 'absint', $wpdb->get_col( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE order_id IN (" . implode( ',', array_map( 'absint', $order_ids ) ) . ") AND payment_status IN ('paid','pending','paid_unallocated')" ) ) : array();
 		foreach ( $order_ids as $order_id ) {
@@ -643,6 +669,7 @@ final class Orders {
 			if ( is_email( $email ) ) { wp_mail( $email, sprintf( __( 'Eventabsage: %s', 'wp-pass-captain' ), $event->name ), $message ); }
 		}
 		Audit::record( 'event_cancelled', 'event', $event_id, array( 'notified_count' => count( $emails ) ) );
+		self::fire_revoked( $event_revoked_ids, 'event_cancelled' );
 		return array( 'status' => 'cancelled', 'notified_count' => count( $emails ) );
 	}
 

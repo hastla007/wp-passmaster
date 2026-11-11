@@ -194,6 +194,7 @@ $tickets = tickets( $o1['order_id'], 'valid' );
 check( 'paid order: claims sold and each ticket gets one seat', 2 === count( $tickets ) && 2 === count( $assigned ) && 0 === (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . Layouts::table( 'claims' ) . " WHERE order_id=%d AND status<>'sold'", $o1['order_id'] ) ) );
 check( 'seat assignment refers to the issued tickets', (int) $assigned[0]->ticket_id === (int) $tickets[0]->ticket_id && 'Reihe A, Platz 1' === $assigned[0]->label );
 $mail = end( $GLOBALS['wpcap_test_mails'] );
+check( 'filter wpcap_ticket_seat_label returns the assigned seat', 'Reihe A, Platz 2' === apply_filters( 'wpcap_ticket_seat_label', '', (int) $tickets[1]->ticket_id, array() ) );
 check( 'ticket mail lists the seats', $mail && false !== strpos( $mail['body'], 'Deine Sitzplätze' ) && false !== strpos( $mail['body'], 'Reihe A, Platz 1' ) && false !== strpos( $mail['body'], 'Reihe A, Platz 2' ) );
 
 echo "Seating: release on revoke, refund, cancel and expiry\n";
