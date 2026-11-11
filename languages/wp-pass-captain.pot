@@ -3055,7 +3055,7 @@ msgid "Pass Captain Einlasspersonal"
 msgstr ""
 
 #: src/Installer.php:698
-msgid "Pass Captain Partner"
+msgid "Pass Captain Veranstalter"
 msgstr ""
 
 #: src/Installer.php:699
@@ -3738,12 +3738,12 @@ msgstr ""
 #: src/Partners/AdminPage.php:169
 #: src/Partners/AdminPage.php:312
 #: src/Partners/AdminPage.php:328
-msgid "Partner"
+msgid "Veranstalter"
 msgstr ""
 
 #: src/Modules/Partners.php:146
 #: src/Partners/AdminPage.php:304
-msgid "Partner-Abrechnungen"
+msgid "Veranstalter-Abrechnungen"
 msgstr ""
 
 #: src/Modules/PrintTemplates.php:47
@@ -4713,7 +4713,7 @@ msgstr ""
 #. translators: %s: event ids
 #: src/Partners/AdminPage.php:79
 #, php-format
-msgid "Folgende Events gehören bereits einem anderen Partner und wurden nicht verknüpft: %s"
+msgid "Folgende Events gehören bereits einem anderen Veranstalter und wurden nicht verknüpft: %s"
 msgstr ""
 
 #: src/Partners/AdminPage.php:86
@@ -4729,24 +4729,24 @@ msgstr ""
 #: src/Partners/Repository.php:48
 #: src/Partners/Repository.php:113
 #: src/Partners/Settlements.php:298
-msgid "Partner nicht gefunden."
+msgid "Veranstalter nicht gefunden."
 msgstr ""
 
 #: src/Partners/AdminPage.php:174
-msgid "Alle Partner"
+msgid "Alle Veranstalter"
 msgstr ""
 
 #: src/Partners/AdminPage.php:180
-msgid "Partner sind Veranstalter oder Wiederverkäufer, denen Events zugeordnet werden. Sie erhalten monatliche Abrechnungen und optional API-Keys mit Lesezugriff auf ihre Events."
+msgid "Veranstalter sind Organisatoren oder Wiederverkäufer, denen Events zugeordnet werden. Sie erhalten monatliche Abrechnungen und optional API-Keys mit Lesezugriff auf ihre Events."
 msgstr ""
 
 #: src/Partners/AdminPage.php:180
 #: src/Partners/AdminPage.php:205
-msgid "Neuer Partner"
+msgid "Neuer Veranstalter"
 msgstr ""
 
 #: src/Partners/AdminPage.php:183
-msgid "Noch keine Partner."
+msgid "Noch keine Veranstalter."
 msgstr ""
 
 #: src/Partners/AdminPage.php:186
@@ -4845,23 +4845,23 @@ msgid "Events und Zugänge"
 msgstr ""
 
 #: src/Partners/AdminPage.php:237
-msgid "Events dieses Partners"
+msgid "Events dieses Veranstalters"
 msgstr ""
 
 #: src/Partners/AdminPage.php:242
-msgid "anderer Partner"
+msgid "anderer Veranstalter"
 msgstr ""
 
 #: src/Partners/AdminPage.php:246
-msgid "WordPress-Benutzer des Partners"
+msgid "WordPress-Benutzer des Veranstalters"
 msgstr ""
 
 #: src/Partners/AdminPage.php:246
-msgid "Benutzer-IDs, Logins oder E-Mail-Adressen (kommagetrennt). Diese Benutzer sehen die abgeschlossenen Abrechnungen des Partners (nur lesend), z. B. mit der Rolle „Pass Captain Partner“."
+msgid "Benutzer-IDs, Logins oder E-Mail-Adressen (kommagetrennt). Diese Benutzer sehen die abgeschlossenen Abrechnungen des Veranstalters (nur lesend), z. B. mit der Rolle „Pass Captain Veranstalter“."
 msgstr ""
 
 #: src/Partners/AdminPage.php:247
-msgid "Partner speichern"
+msgid "Veranstalter speichern"
 msgstr ""
 
 #: src/Partners/AdminPage.php:253
@@ -4873,7 +4873,7 @@ msgid "Neuer API-Key – wird nur jetzt einmal angezeigt:"
 msgstr ""
 
 #: src/Partners/AdminPage.php:256
-msgid "Bitte sicher an den Partner übermitteln. Gespeichert wird nur ein Hash."
+msgid "Bitte sicher an den Veranstalter übermitteln. Gespeichert wird nur ein Hash."
 msgstr ""
 
 #: src/Partners/AdminPage.php:260
@@ -4898,7 +4898,7 @@ msgid "Events:"
 msgstr ""
 
 #: src/Partners/AdminPage.php:265
-msgid "alle Partner-Events"
+msgid "alle Veranstalter-Events"
 msgstr ""
 
 #: src/Partners/AdminPage.php:266
@@ -4928,7 +4928,7 @@ msgid "Auf Events beschränken"
 msgstr ""
 
 #: src/Partners/AdminPage.php:291
-msgid "Keine Auswahl = alle aktuellen und künftigen Events des Partners. Event-beschränkte Keys können keine Abrechnungen abrufen."
+msgid "Keine Auswahl = alle aktuellen und künftigen Events des Veranstalters. Event-beschränkte Keys können keine Abrechnungen abrufen."
 msgstr ""
 
 #: src/Partners/AdminPage.php:292
@@ -4962,7 +4962,7 @@ msgid "Entwürfe werden beim Abschließen neu berechnet. Abgeschlossene Abrechnu
 msgstr ""
 
 #: src/Partners/AdminPage.php:319
-msgid "Bitte zuerst einen Partner anlegen."
+msgid "Bitte zuerst einen Veranstalter anlegen."
 msgstr ""
 
 #: src/Partners/AdminPage.php:324
@@ -5071,7 +5071,7 @@ msgid "Mindestens ein unterstützter Scope ist erforderlich."
 msgstr ""
 
 #: src/Partners/Keys.php:54
-msgid "Ein Key kann nur auf Events dieses Partners beschränkt werden."
+msgid "Ein Key kann nur auf Events dieses Veranstalters beschränkt werden."
 msgstr ""
 
 #: src/Partners/Keys.php:60
@@ -5141,7 +5141,7 @@ msgid "Ungültiges Abrechnungsbeginn-Datum."
 msgstr ""
 
 #: src/Partners/Repository.php:88
-msgid "Partner konnte nicht gespeichert werden."
+msgid "Veranstalter konnte nicht gespeichert werden."
 msgstr ""
 
 #: src/Partners/Settlements.php:38
@@ -5180,7 +5180,7 @@ msgid "Es gibt bereits eine abgeschlossene Abrechnung bis %s. Spätere Änderung
 msgstr ""
 
 #: src/Partners/Settlements.php:320
-msgid "Für diesen Partner und Zeitraum gibt es bereits eine Abrechnung."
+msgid "Für diesen Veranstalter und Zeitraum gibt es bereits eine Abrechnung."
 msgstr ""
 
 #: src/Partners/Settlements.php:329
@@ -5209,7 +5209,7 @@ msgstr ""
 
 #: src/Partners/Settlements.php:470
 #: src/Partners/Settlements.php:517
-msgid "Partner-Abrechnung"
+msgid "Veranstalter-Abrechnung"
 msgstr ""
 
 #: src/Partners/Settlements.php:472
@@ -5385,11 +5385,11 @@ msgid "USt %s auf Plattformgebühr"
 msgstr ""
 
 #: src/Partners/Settlements.php:555
-msgid "Auszahlungsbetrag an Partner"
+msgid "Auszahlungsbetrag an Veranstalter"
 msgstr ""
 
 #: src/Partners/Settlements.php:555
-msgid "Forderung an Partner"
+msgid "Forderung an Veranstalter"
 msgstr ""
 
 #. translators: %s: amount
@@ -7945,4 +7945,16 @@ msgstr ""
 
 #: src/blocks/calendar/editor.js:22
 msgid "Nur Event-ID (optional)"
+msgstr ""
+
+#: src/Integrations/AffiliateCaptain/Adapter.php:67
+msgid "Dieser Partnercode ist ungültig oder nicht mehr aktiv."
+msgstr ""
+
+#: src/Integrations/AffiliateCaptain/Adapter.php:68
+msgid "Zu viele ungültige Partnercodes. Bitte warte etwas und versuche es erneut."
+msgstr ""
+
+#: src/Integrations/AffiliateCaptain/Adapter.php:74
+msgid "Partnercode (optional)"
 msgstr ""

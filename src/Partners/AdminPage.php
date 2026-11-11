@@ -76,7 +76,7 @@ final class AdminPage {
 				$result = array( 'partner_id' => $partner_id );
 				if ( ! is_wp_error( $events ) && $events['skipped'] ) {
 					/* translators: %s: event ids */
-					$result['warning'] = sprintf( __( 'Folgende Events gehören bereits einem anderen Partner und wurden nicht verknüpft: %s', 'wp-pass-captain' ), implode( ', ', $events['skipped'] ) );
+					$result['warning'] = sprintf( __( 'Folgende Events gehören bereits einem anderen Veranstalter und wurden nicht verknüpft: %s', 'wp-pass-captain' ), implode( ', ', $events['skipped'] ) );
 				}
 				return $result;
 			case 'issue_key':
@@ -166,21 +166,21 @@ final class AdminPage {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		$partner_id = absint( Forms::query_arg( 'partner_id', 0 ) );
 		$is_new = 'new' === Forms::query_arg( 'partner_id', '' );
-		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Partner', 'wp-pass-captain' ) . '</h1>';
+		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Veranstalter', 'wp-pass-captain' ) . '</h1>';
 		Forms::render_notices();
 		if ( $partner_id || $is_new ) {
 			$partner = $partner_id ? Repository::get( $partner_id ) : null;
-			if ( $partner_id && ! $partner ) { echo '<p>' . esc_html__( 'Partner nicht gefunden.', 'wp-pass-captain' ) . '</p></div>'; return; }
-			echo '<p><a href="' . esc_url( Forms::page_url( self::PAGE ) ) . '">&larr; ' . esc_html__( 'Alle Partner', 'wp-pass-captain' ) . '</a></p>';
+			if ( $partner_id && ! $partner ) { echo '<p>' . esc_html__( 'Veranstalter nicht gefunden.', 'wp-pass-captain' ) . '</p></div>'; return; }
+			echo '<p><a href="' . esc_url( Forms::page_url( self::PAGE ) ) . '">&larr; ' . esc_html__( 'Alle Veranstalter', 'wp-pass-captain' ) . '</a></p>';
 			self::render_partner_form( $partner );
 			if ( $partner ) { self::render_keys( $partner ); }
 			echo '</div>';
 			return;
 		}
-		echo '<p>' . esc_html__( 'Partner sind Veranstalter oder Wiederverkäufer, denen Events zugeordnet werden. Sie erhalten monatliche Abrechnungen und optional API-Keys mit Lesezugriff auf ihre Events.', 'wp-pass-captain' ) . ' <a class="button" href="' . esc_url( Forms::page_url( self::PAGE, array( 'partner_id' => 'new' ) ) ) . '">' . esc_html__( 'Neuer Partner', 'wp-pass-captain' ) . '</a></p>';
+		echo '<p>' . esc_html__( 'Veranstalter sind Organisatoren oder Wiederverkäufer, denen Events zugeordnet werden. Sie erhalten monatliche Abrechnungen und optional API-Keys mit Lesezugriff auf ihre Events.', 'wp-pass-captain' ) . ' <a class="button" href="' . esc_url( Forms::page_url( self::PAGE, array( 'partner_id' => 'new' ) ) ) . '">' . esc_html__( 'Neuer Veranstalter', 'wp-pass-captain' ) . '</a></p>';
 		$partners = Repository::all();
 		if ( ! $partners ) {
-			echo '<p>' . esc_html__( 'Noch keine Partner.', 'wp-pass-captain' ) . '</p>';
+			echo '<p>' . esc_html__( 'Noch keine Veranstalter.', 'wp-pass-captain' ) . '</p>';
 		} else {
 			$policies = Repository::refund_policy_labels();
 			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Name', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Kontakt', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Konditionen', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Events', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
@@ -202,7 +202,7 @@ final class AdminPage {
 
 	private static function render_partner_form( $partner ) {
 		$v = static function ( $key, $default = '' ) use ( $partner ) { return $partner ? (string) $partner->$key : $default; };
-		echo '<h2>' . esc_html( $partner ? $partner->name : __( 'Neuer Partner', 'wp-pass-captain' ) ) . '</h2>';
+		echo '<h2>' . esc_html( $partner ? $partner->name : __( 'Neuer Veranstalter', 'wp-pass-captain' ) ) . '</h2>';
 		Forms::open_form( self::ACTION );
 		Forms::hidden( 'do', 'save_partner' );
 		Forms::hidden( 'id', $partner ? (int) $partner->partner_id : 0 );
@@ -234,17 +234,17 @@ final class AdminPage {
 		$field( 'settlement_start', __( 'Abrechnung ab (Bestelldatum)', 'wp-pass-captain' ), $partner && $partner->settlement_start ? substr( $partner->settlement_start, 0, 10 ) : gmdate( 'Y-m-01' ), 'date' );
 		$area( 'notes', __( 'Interne Notizen', 'wp-pass-captain' ), $v( 'notes' ) );
 		echo '</tbody></table>';
-		echo '<h3>' . esc_html__( 'Events und Zugänge', 'wp-pass-captain' ) . '</h3><table class="form-table"><tbody><tr><th scope="row">' . esc_html__( 'Events dieses Partners', 'wp-pass-captain' ) . '</th><td><fieldset style="max-height:16rem;overflow:auto"><legend class="screen-reader-text">' . esc_html__( 'Events', 'wp-pass-captain' ) . '</legend>';
+		echo '<h3>' . esc_html__( 'Events und Zugänge', 'wp-pass-captain' ) . '</h3><table class="form-table"><tbody><tr><th scope="row">' . esc_html__( 'Events dieses Veranstalters', 'wp-pass-captain' ) . '</th><td><fieldset style="max-height:16rem;overflow:auto"><legend class="screen-reader-text">' . esc_html__( 'Events', 'wp-pass-captain' ) . '</legend>';
 		$linked = $partner ? Repository::event_ids( $partner->partner_id ) : array();
 		foreach ( Queries::event_options( null ) as $event_id => $name ) {
 			$owner = Repository::partner_of_event( $event_id );
 			$foreign = $owner && ( ! $partner || $owner !== (int) $partner->partner_id );
-			echo '<label style="display:block"><input type="checkbox" name="event_ids[]" value="' . (int) $event_id . '"' . checked( in_array( (int) $event_id, $linked, true ), true, false ) . disabled( $foreign, true, false ) . '> ' . esc_html( $name ) . ( $foreign ? ' <em>(' . esc_html__( 'anderer Partner', 'wp-pass-captain' ) . ')</em>' : '' ) . '</label>';
+			echo '<label style="display:block"><input type="checkbox" name="event_ids[]" value="' . (int) $event_id . '"' . checked( in_array( (int) $event_id, $linked, true ), true, false ) . disabled( $foreign, true, false ) . '> ' . esc_html( $name ) . ( $foreign ? ' <em>(' . esc_html__( 'anderer Veranstalter', 'wp-pass-captain' ) . ')</em>' : '' ) . '</label>';
 		}
 		echo '</fieldset></td></tr>';
 		$users = $partner ? implode( ', ', Repository::user_ids( $partner->partner_id ) ) : '';
-		echo '<tr><th scope="row"><label for="wpcap-pa-users">' . esc_html__( 'WordPress-Benutzer des Partners', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-pa-users" name="users" class="regular-text" value="' . esc_attr( $users ) . '"><p class="description">' . esc_html__( 'Benutzer-IDs, Logins oder E-Mail-Adressen (kommagetrennt). Diese Benutzer sehen die abgeschlossenen Abrechnungen des Partners (nur lesend), z. B. mit der Rolle „Pass Captain Partner“.', 'wp-pass-captain' ) . '</p></td></tr></tbody></table>';
-		submit_button( __( 'Partner speichern', 'wp-pass-captain' ) );
+		echo '<tr><th scope="row"><label for="wpcap-pa-users">' . esc_html__( 'WordPress-Benutzer des Veranstalters', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-pa-users" name="users" class="regular-text" value="' . esc_attr( $users ) . '"><p class="description">' . esc_html__( 'Benutzer-IDs, Logins oder E-Mail-Adressen (kommagetrennt). Diese Benutzer sehen die abgeschlossenen Abrechnungen des Veranstalters (nur lesend), z. B. mit der Rolle „Pass Captain Veranstalter“.', 'wp-pass-captain' ) . '</p></td></tr></tbody></table>';
+		submit_button( __( 'Veranstalter speichern', 'wp-pass-captain' ) );
 		echo '</form>';
 	}
 
@@ -253,7 +253,7 @@ final class AdminPage {
 		echo '<h2>' . esc_html__( 'API-Keys', 'wp-pass-captain' ) . '</h2>';
 		if ( $new_key ) {
 			delete_transient( self::new_key_transient() );
-			echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Neuer API-Key – wird nur jetzt einmal angezeigt:', 'wp-pass-captain' ) . '</strong><br><code style="user-select:all">' . esc_html( $new_key ) . '</code></p><p>' . esc_html__( 'Bitte sicher an den Partner übermitteln. Gespeichert wird nur ein Hash.', 'wp-pass-captain' ) . '</p></div>';
+			echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Neuer API-Key – wird nur jetzt einmal angezeigt:', 'wp-pass-captain' ) . '</strong><br><code style="user-select:all">' . esc_html( $new_key ) . '</code></p><p>' . esc_html__( 'Bitte sicher an den Veranstalter übermitteln. Gespeichert wird nur ein Hash.', 'wp-pass-captain' ) . '</p></div>';
 		}
 		$keys = Keys::for_partner( $partner->partner_id );
 		if ( $keys ) {
@@ -262,7 +262,7 @@ final class AdminPage {
 			foreach ( $keys as $k ) {
 				$events = array_map( 'absint', (array) json_decode( (string) $k->event_ids, true ) );
 				$limits = array();
-				$limits[] = $events ? __( 'Events:', 'wp-pass-captain' ) . ' ' . implode( ', ', $events ) : __( 'alle Partner-Events', 'wp-pass-captain' );
+				$limits[] = $events ? __( 'Events:', 'wp-pass-captain' ) . ' ' . implode( ', ', $events ) : __( 'alle Veranstalter-Events', 'wp-pass-captain' );
 				if ( $k->ip_allowlist ) { $limits[] = __( 'IP:', 'wp-pass-captain' ) . ' ' . str_replace( "\n", ', ', $k->ip_allowlist ); }
 				if ( $k->expires_at ) { $limits[] = __( 'gültig bis', 'wp-pass-captain' ) . ' ' . Forms::datetime( $k->expires_at, $tz, false ); }
 				if ( (int) $k->rate_limit ) { $limits[] = sprintf( /* translators: %d: limit */ __( '%d Anfragen/Min.', 'wp-pass-captain' ), (int) $k->rate_limit ); }
@@ -288,7 +288,7 @@ final class AdminPage {
 		foreach ( $names as $event_id => $name ) {
 			echo '<label style="display:block"><input type="checkbox" name="event_ids[]" value="' . (int) $event_id . '"> ' . esc_html( $name ) . '</label>';
 		}
-		echo '<p class="description">' . esc_html__( 'Keine Auswahl = alle aktuellen und künftigen Events des Partners. Event-beschränkte Keys können keine Abrechnungen abrufen.', 'wp-pass-captain' ) . '</p></fieldset></td></tr>';
+		echo '<p class="description">' . esc_html__( 'Keine Auswahl = alle aktuellen und künftigen Events des Veranstalters. Event-beschränkte Keys können keine Abrechnungen abrufen.', 'wp-pass-captain' ) . '</p></fieldset></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-pk-ip">' . esc_html__( 'IP-Allowlist (optional)', 'wp-pass-captain' ) . '</label></th><td><textarea id="wpcap-pk-ip" name="ip_allowlist" rows="2" class="regular-text" placeholder="203.0.113.10&#10;198.51.100.0/24"></textarea></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-pk-exp">' . esc_html__( 'Gültig bis (optional)', 'wp-pass-captain' ) . '</label></th><td><input type="datetime-local" id="wpcap-pk-exp" name="expires_at"></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-pk-rate">' . esc_html__( 'Ratenlimit pro Minute (0 = Standard)', 'wp-pass-captain' ) . '</label></th><td><input type="number" id="wpcap-pk-rate" name="rate_limit" min="0" max="100000" value="0"></td></tr></tbody></table>';
@@ -301,7 +301,7 @@ final class AdminPage {
 	public static function render_settlements() {
 		$manage = Settlements::can_manage();
 		if ( ! $manage && ! Repository::partners_of_user( get_current_user_id() ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
-		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Partner-Abrechnungen', 'wp-pass-captain' ) . '</h1>';
+		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Veranstalter-Abrechnungen', 'wp-pass-captain' ) . '</h1>';
 		Forms::render_notices();
 		if ( $manage ) {
 			$partners = array();
@@ -309,14 +309,14 @@ final class AdminPage {
 			if ( $partners ) {
 				Forms::open_form( self::ACTION );
 				Forms::hidden( 'do', 'create_settlement' );
-				echo '<p><label for="wpcap-st-partner">' . esc_html__( 'Partner', 'wp-pass-captain' ) . '</label> ';
+				echo '<p><label for="wpcap-st-partner">' . esc_html__( 'Veranstalter', 'wp-pass-captain' ) . '</label> ';
 				Forms::select( 'partner_id', $partners, 0, 'wpcap-st-partner' );
 				echo ' <label for="wpcap-st-period">' . esc_html__( 'Monat', 'wp-pass-captain' ) . '</label> <input type="month" id="wpcap-st-period" name="period" required value="' . esc_attr( gmdate( 'Y-m', strtotime( 'first day of last month' ) ) ) . '"> ';
 				submit_button( __( 'Entwurf erstellen', 'wp-pass-captain' ), 'secondary', 'submit', false );
 				echo '</p></form>';
 				echo '<p class="description">' . esc_html__( 'Entwürfe werden beim Abschließen neu berechnet. Abgeschlossene Abrechnungen sind unveränderlich; spätere Erstattungen oder Nachzahlungen erscheinen in der nächsten Periode als Korrektur.', 'wp-pass-captain' ) . '</p>';
 			} else {
-				echo '<p>' . esc_html__( 'Bitte zuerst einen Partner anlegen.', 'wp-pass-captain' ) . '</p>';
+				echo '<p>' . esc_html__( 'Bitte zuerst einen Veranstalter anlegen.', 'wp-pass-captain' ) . '</p>';
 			}
 		}
 		$list = Settlements::visible();
@@ -325,7 +325,7 @@ final class AdminPage {
 			return;
 		}
 		$labels = Settlements::status_labels();
-		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Nummer', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Partner', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Monat', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th><th scope="col" class="num">' . esc_html__( 'Brutto', 'wp-pass-captain' ) . '</th><th scope="col" class="num">' . esc_html__( 'Plattformgebühr', 'wp-pass-captain' ) . '</th><th scope="col" class="num">' . esc_html__( 'Auszahlung', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktionen', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Nummer', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Veranstalter', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Monat', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th><th scope="col" class="num">' . esc_html__( 'Brutto', 'wp-pass-captain' ) . '</th><th scope="col" class="num">' . esc_html__( 'Plattformgebühr', 'wp-pass-captain' ) . '</th><th scope="col" class="num">' . esc_html__( 'Auszahlung', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktionen', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $list as $s ) {
 			echo '<tr><td>' . esc_html( $s->document_number ?: '—' ) . '</td><td>' . esc_html( $s->partner_name ) . '</td><td>' . esc_html( $s->period ) . '</td><td>' . esc_html( $labels[ $s->status ] ?? $s->status ) . ( 'paid' === $s->status && '' !== $s->payment_reference ? '<br><small>' . esc_html( $s->payment_reference ) . '</small>' : '' ) . '</td>';
 			echo '<td class="num">' . esc_html( Forms::money( $s->gross_minor, $s->currency ) ) . '</td><td class="num">' . esc_html( Forms::money( $s->platform_fee_gross_minor, $s->currency ) ) . '</td><td class="num">' . esc_html( ( (int) $s->payout_minor < 0 ? '-' : '' ) . Forms::money( abs( (int) $s->payout_minor ), $s->currency ) ) . '</td><td>';

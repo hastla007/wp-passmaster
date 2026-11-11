@@ -45,7 +45,7 @@ final class Repository {
 		global $wpdb;
 		$partner_id = absint( $partner_id );
 		$existing = $partner_id ? self::get( $partner_id ) : null;
-		if ( $partner_id && ! $existing ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Partner nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( $partner_id && ! $existing ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		$name = substr( sanitize_text_field( (string) ( $data['name'] ?? '' ) ), 0, 190 );
 		if ( '' === $name ) { return new \WP_Error( 'wpcap_partner_name', __( 'Bitte einen Namen angeben.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		$email = sanitize_email( (string) ( $data['contact_email'] ?? '' ) );
@@ -85,7 +85,7 @@ final class Repository {
 			$ok = $wpdb->insert( "{$wpdb->prefix}wpcap_partners", $row );
 			$partner_id = (int) $wpdb->insert_id;
 		}
-		if ( false === $ok ) { return new \WP_Error( 'wpcap_partner_save', __( 'Partner konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( false === $ok ) { return new \WP_Error( 'wpcap_partner_save', __( 'Veranstalter konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( $existing ? 'partner_updated' : 'partner_created', 'partner', $partner_id, array( 'commission_bp' => $commission, 'fee_per_ticket_minor' => $fee, 'refund_policy' => $row['refund_policy'], 'status' => $row['status'] ) );
 		return $partner_id;
 	}
@@ -110,7 +110,7 @@ final class Repository {
 	public static function set_events( $partner_id, array $event_ids ) {
 		global $wpdb;
 		$partner_id = absint( $partner_id );
-		if ( ! self::get( $partner_id ) ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Partner nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! self::get( $partner_id ) ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		$event_ids = array_values( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ) );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_events WHERE partner_id=%d", $partner_id ) );
 		$linked = array();
