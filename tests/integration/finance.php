@@ -28,9 +28,11 @@ check( 'accounting export contains invoice lines and credit notes', ( $kinds['Re
 echo "Voucher Captain bridge\n";
 final class Test_Voucher_Provider implements PassCaptain\Integrations\Vouchers\ProviderInterface {
 	public array $calls = array();
+	public $commit_error = null;
+	public $reserve_error = null;
 	public function quote( array $context ) { $this->calls[] = array( 'quote', $context['amount_minor'] ); return 'BAD' === $context['code'] ? new WP_Error( 'invalid', 'Gutschein ungültig' ) : array( 'amount_minor' => min( 1500, $context['amount_minor'] ), 'currency' => $context['currency'], 'token' => 'q1' ); }
-	public function reserve( array $quote, $key ) { $this->calls[] = array( 'reserve', $key ); return array( 'reservation' => 'r1', 'amount_minor' => $quote['amount_minor'] ); }
-	public function commit( array $reservation, $key ) { $this->calls[] = array( 'commit', $key ); return array( 'redemption' => 'd1' ); }
+	public function reserve( array $quote, $key ) { $this->calls[] = array( 'reserve', $key ); if ( $this->reserve_error ) { return $this->reserve_error; } return array( 'reservation' => 'r1', 'amount_minor' => $quote['amount_minor'] ); }
+	public function commit( array $reservation, $key ) { $this->calls[] = array( 'commit', $key ); if ( $this->commit_error ) { return $this->commit_error; } return array( 'redemption' => 'd1' ); }
 	public function release( array $reservation, $key ) { $this->calls[] = array( 'release', $key ); return true; }
 	public function refund( array $redemption, $amount, $key ) { $this->calls[] = array( 'refund', $amount, $key ); return true; }
 }
@@ -66,6 +68,55 @@ Orders::cancel_order( $vo3['order_id'], 'test' );
 PassCaptain\Integrations\Vouchers\Checkout::release( $vo3['order_id'] );
 $releases = array_filter( $voucher_provider->calls, static fn( $c ) => 'release' === $c[0] );
 check( 'cancelled order releases its voucher reservation', 1 === count( $releases ) && false !== strpos( Orders::get( $vo3['order_id'] )->voucher_snapshot, '"released"' ) );
+
+// Late payment after the order expired and its voucher reservation was released.
+$vo4 = Orders::create( array( 'email' => 'v4@example.com', 'items' => array( array( 'ticket_type_id' => $vt, 'quantity' => 2 ) ), 'idempotency_key' => 'v-4' ) );
+PassCaptain\Integrations\Vouchers\Checkout::apply( $vo4['order_id'], 'GOOD-4444' );
+$past = gmdate( 'Y-m-d H:i:s', time() - 60 );
+$wpdb->query( "UPDATE {$p}wpcap_reservations SET status='expired', expires_at='$past' WHERE order_id=" . (int) $vo4['order_id'] );
+$wpdb->query( "UPDATE {$p}wpcap_orders SET status='expired', payment_status='expired' WHERE order_id=" . (int) $vo4['order_id'] );
+PassCaptain\Integrations\Vouchers\Checkout::release( $vo4['order_id'] );
+$late = Orders::confirm_external_payment( $vo4['order_id'], 'late-transfer' );
+PassCaptain\Integrations\Vouchers\Checkout::commit( $vo4['order_id'] );
+$vs4 = PassCaptain\Integrations\Vouchers\Checkout::voucher_state( $vo4['order_id'] );
+$late_calls = array_values( array_filter( $voucher_provider->calls, static fn( $c ) => in_array( $c[0], array( 'reserve', 'commit' ), true ) && str_contains( (string) $c[1], $vo4['public_id'] ) ) );
+check( 'late payment after a released voucher reserves it again and commits it', true === $late && 'committed' === $vs4['status'] && ! empty( $vs4['late_reservation'] ) && array( 'reserve', 'reserve', 'commit' ) === array_column( $late_calls, 0 ) && 'wpcap-order-late-' . $vo4['public_id'] === $late_calls[1][1] );
+
+// Voucher can no longer be charged: tickets stay valid, order is flagged and the admin alerted.
+$vo5 = Orders::create( array( 'email' => 'v5@example.com', 'items' => array( array( 'ticket_type_id' => $vt, 'quantity' => 1 ) ), 'idempotency_key' => 'v-5' ) );
+PassCaptain\Integrations\Vouchers\Checkout::apply( $vo5['order_id'], 'GOOD-5151' );
+Orders::confirm_manual_payment( $vo5['order_id'] );
+$voucher_provider->commit_error = new WP_Error( 'vcap_cancelled', 'Gutschein storniert', array( 'status' => 409 ) );
+$mails_before = count( $GLOBALS['wpcap_test_mails'] );
+$done5 = PassCaptain\Integrations\Vouchers\Checkout::commit( $vo5['order_id'] );
+$vs5 = PassCaptain\Integrations\Vouchers\Checkout::voucher_state( $vo5['order_id'] );
+$alert = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails_before ), static fn( $m ) => str_contains( $m['subject'], 'Gutschein konnte nicht belastet werden' ) ) );
+check( 'a voucher that cannot be charged flags the paid order and alerts the admin', true === $done5 && 'commit_failed' === $vs5['status'] && 'vcap_cancelled' === $vs5['error'] && 1 === count( $alert ) && str_contains( $alert[0]['body'], $vo5['public_id'] ) && 1 === count( tickets( $vo5['order_id'] ) ) );
+PassCaptain\Integrations\Vouchers\Checkout::commit( $vo5['order_id'] );
+check( 'a flagged voucher commit is not retried', 'commit_failed' === PassCaptain\Integrations\Vouchers\Checkout::voucher_state( $vo5['order_id'] )['status'] );
+
+// Temporary outage: retried through the Jobs queue with the same keys.
+$vo6 = Orders::create( array( 'email' => 'v6@example.com', 'items' => array( array( 'ticket_type_id' => $vt, 'quantity' => 1 ) ), 'idempotency_key' => 'v-6' ) );
+PassCaptain\Integrations\Vouchers\Checkout::apply( $vo6['order_id'], 'GOOD-6161' );
+$voucher_provider->commit_error = null;
+Orders::confirm_manual_payment( $vo6['order_id'] );
+$voucher_provider->commit_error = new WP_Error( 'vcap_temporary_failure', 'Später erneut', array( 'status' => 503 ) );
+$retry6 = PassCaptain\Integrations\Vouchers\Checkout::commit( $vo6['order_id'] );
+$job6 = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_jobs WHERE idempotency_key=%s", hash( 'sha256', 'voucher-commit-' . (int) $vo6['order_id'] ) ) );
+check( 'a temporary provider error schedules a retry job', false === $retry6 && $job6 && 'voucher_commit' === $job6->job_type && 'reserved' === PassCaptain\Integrations\Vouchers\Checkout::voucher_state( $vo6['order_id'] )['status'] );
+$voucher_provider->commit_error = null;
+$wpdb->query( "UPDATE {$p}wpcap_jobs SET attempts=1 WHERE job_id=" . (int) $job6->job_id );
+$handled6 = PassCaptain\Integrations\Vouchers\Checkout::handle_job( false, 'voucher_commit', array( 'order_id' => (int) $vo6['order_id'] ), (int) $job6->job_id );
+check( 'the retry job commits the voucher once the provider is back', true === $handled6 && 'committed' === PassCaptain\Integrations\Vouchers\Checkout::voucher_state( $vo6['order_id'] )['status'] );
+check( 'other job types are left to their handlers', 'x' === PassCaptain\Integrations\Vouchers\Checkout::handle_job( 'x', 'other_job', array() ) );
+
+$vo7 = Orders::create( array( 'email' => 'v7@example.com', 'items' => array( array( 'ticket_type_id' => $vt, 'quantity' => 1 ) ), 'idempotency_key' => 'v-7' ) );
+PassCaptain\Integrations\Vouchers\Checkout::apply( $vo7['order_id'], 'GOOD-7171' );
+Orders::confirm_manual_payment( $vo7['order_id'] );
+$voucher_provider->commit_error = new WP_Error( 'vcap_temporary_failure', 'Später erneut', array( 'status' => 503 ) );
+PassCaptain\Integrations\Vouchers\Checkout::commit( $vo7['order_id'], true );
+check( 'the last retry flags the order instead of giving up silently', 'commit_failed' === PassCaptain\Integrations\Vouchers\Checkout::voucher_state( $vo7['order_id'] )['status'] );
+$voucher_provider->commit_error = null;
 unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] );
 
 echo "Self-service and schedule changes\n";
