@@ -95,10 +95,9 @@ $before = count( $GLOBALS['wpcap_test_mails'] );
 $po = Orders::create( array( 'email' => 'pdf@example.com', 'items' => array( array( 'ticket_type_id' => $pt, 'quantity' => 2 ) ), 'idempotency_key' => 'pdf-1' ) );
 $ticket_mail = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $before ), static fn( $m ) => 'Deine Tickets' === $m['subject'] ) )[0] ?? array();
 $pdf = array_values( $ticket_mail['files'] ?? array() )[0] ?? '';
-$pdf_file = sys_get_temp_dir() . '/wpcap-test-ticket.pdf';
-file_put_contents( $pdf_file, $pdf );
-$pages = trim( (string) shell_exec( 'pdfinfo ' . escapeshellarg( $pdf_file ) . " 2>/dev/null | awk '/^Pages:/{print $2}'" ) );
-$text = (string) shell_exec( 'pdftotext ' . escapeshellarg( $pdf_file ) . ' - 2>/dev/null' );
-check( 'ticket mail has a valid PDF with one page per ticket', str_starts_with( $pdf, '%PDF-1.4' ) && '2' === $pages && false !== strpos( $text, 'Konzert' ) );
+// Structural checks in PHP (no poppler needed in CI): header, page count, text, xref offsets.
+preg_match( '/startxref\n(\d+)\n%%EOF$/', $pdf, $xm );
+$xref_ok = isset( $xm[1] ) && 0 === strpos( substr( $pdf, (int) $xm[1] ), 'xref' );
+check( 'ticket mail has a valid PDF with one page per ticket', str_starts_with( $pdf, '%PDF-1.4' ) && 2 === preg_match_all( '#/Type /Page /Parent#', $pdf ) && false !== strpos( $pdf, '(Konzert) Tj' ) && $xref_ok );
 check( 'PDF contains the QR code when the encoder is installed', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( $pdf, 're f' ) > 200 );
 check( 'temporary PDF file is removed after sending', ! glob( sys_get_temp_dir() . '/tickets-*.pdf' ) );
