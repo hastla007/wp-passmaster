@@ -243,10 +243,10 @@ final class OrdersPage {
 		<?php Forms::render_notices(); ?>
 		<form method="get" class="wpcap-filters">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
-			<?php Forms::select( 'status', $status_options, $filters['status'] ); ?>
-			<?php Forms::select( 'payment_status', $payment_options, $filters['payment_status'] ); ?>
-			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'wp-pass-captain' ) ) + $events, $filters['event_id'] ); ?>
-			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'wp-pass-captain' ); ?>">
+			<?php Forms::select( 'status', $status_options, $filters['status'], '', 'aria-label="' . esc_attr__( 'Bestellstatus', 'wp-pass-captain' ) . '"' ); ?>
+			<?php Forms::select( 'payment_status', $payment_options, $filters['payment_status'], '', 'aria-label="' . esc_attr__( 'Zahlungsstatus', 'wp-pass-captain' ) . '"' ); ?>
+			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'wp-pass-captain' ) ) + $events, $filters['event_id'], '', 'aria-label="' . esc_attr__( 'Event', 'wp-pass-captain' ) . '"' ); ?>
+			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'wp-pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'wp-pass-captain' ); ?>">
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'wp-pass-captain' ); ?></button>
 		</form>
 		<table class="widefat striped">
@@ -406,7 +406,7 @@ final class OrdersPage {
 				?>
 				<tr>
 					<?php if ( $can_refund ) : ?>
-						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>"><?php endif; ?></th>
+						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s erstatten', 'wp-pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></th>
 					<?php endif; ?>
 					<td><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $ticket->public_id ) ) ); ?>"><code><?php echo esc_html( $ticket->public_id ); ?></code></a></td>
 					<td><?php echo esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ); ?></td>

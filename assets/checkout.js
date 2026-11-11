@@ -55,9 +55,28 @@
 			}
 		});
 	}
+	function money(minor, currency) {
+		try { return new Intl.NumberFormat(document.documentElement.lang || undefined, { style: 'currency', currency: currency || 'EUR' }).format(minor / 100); }
+		catch (e) { return (minor / 100).toFixed(2) + ' ' + (currency || ''); }
+	}
+	// Display only: the server recalculates every price at checkout.
+	function renderEstimate(form) {
+		const box = form.querySelector('.wpcap-estimate');
+		if (!box) return;
+		let total = 0;
+		let currency = '';
+		form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
+			const n = Math.max(0, Number(qty.value) || 0);
+			total += n * (Number(qty.dataset.price) || 0);
+			if (n) currency = qty.dataset.currency || currency;
+		});
+		box.textContent = total > 0 ? (t.estimate || '%s').replace('%s', money(total, currency)) : '';
+	}
 	document.addEventListener('input', function (event) {
 		if (event.target.classList && event.target.classList.contains('wpcap-qty')) {
-			renderAttendees(event.target.closest('.wpcap-checkout-form'));
+			const form = event.target.closest('.wpcap-checkout-form');
+			renderAttendees(form);
+			renderEstimate(form);
 		}
 	});
 	document.addEventListener('submit', async function (event) {
@@ -97,6 +116,8 @@
 		const hook = new CustomEvent('wpcap:checkout-payload', { detail: { form: form, items: items, payload: extra, error: '' } });
 		document.dispatchEvent(hook);
 		if (hook.detail.error) { message.textContent = hook.detail.error; return; }
+		// Disabling the focused button drops keyboard focus to <body>; remember it to restore it afterwards.
+		const hadFocus = document.activeElement === button;
 		button.disabled = true;
 		message.textContent = t.creating || '…';
 		try {
@@ -122,17 +143,20 @@
 				window.location.assign(data.payment.redirect_url);
 				return;
 			}
+			const totalText = typeof data.total_minor === 'number' && data.total_minor > 0 && t.orderTotal ? ' ' + t.orderTotal.replace('%s', money(data.total_minor, data.currency)) : '';
 			if (data.status === 'complete') {
 				message.textContent = t.complete || 'Done.';
 			} else {
-				message.textContent = holdText(data.hold_minutes) + (data.payment && data.payment.instructions ? ' ' + data.payment.instructions : '');
+				message.textContent = holdText(data.hold_minutes) + totalText + (data.payment && data.payment.instructions ? ' ' + data.payment.instructions : '');
 			}
 			form.reset();
 			renderAttendees(form);
+			renderEstimate(form);
 		} catch (error) {
 			message.textContent = error.message;
 		} finally {
 			button.disabled = false;
+			if (hadFocus && (!document.activeElement || document.activeElement === document.body)) button.focus();
 		}
 	});
 })();

@@ -151,6 +151,7 @@ final class Checkin {
 
 		$wpdb->query( 'START TRANSACTION' );
 		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", $found['ticket_id'] ) );
+		if ( '' !== $wpdb->last_error ) { return self::abort(); }
 		if ( ! $ticket || 'valid' !== $ticket->status ) {
 			// Never log a rejected scan as "checked_in" – reports count that value as admissions.
 			$result = ! $ticket ? 'unknown' : ( 'checked_in' === $ticket->status ? 'already_checked_in' : $ticket->status );
@@ -192,10 +193,12 @@ final class Checkin {
 		if ( $policy && 'offline' === ( $context['source'] ?? '' ) && $at < $now - 15 * MINUTE_IN_SECONDS ) {
 			$backdated = Engine::evaluate_in( $policy, $found, $state, $now );
 		}
-		if ( ! $repeatable ) { $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'checked_in' ), array( 'ticket_id' => $ticket->ticket_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) ); }
+		// Every write is checked: after a deadlock or lock timeout MariaDB has rolled the transaction
+		// back, and continuing would autocommit a "checked_in" log for a ticket that stayed valid.
+		if ( ! $repeatable && 1 !== $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'checked_in' ), array( 'ticket_id' => $ticket->ticket_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) ) ) { return self::abort(); }
 		$checkin_id = $log( $ticket->ticket_id, 'checked_in', $day_id );
-		Engine::record_in( $found, $checkin_id, $context, $at, $user_id );
-		$wpdb->query( 'COMMIT' );
+		if ( ! $checkin_id || ! Engine::record_in( $found, $checkin_id, $context, $at, $user_id ) ) { return self::abort(); }
+		if ( false === $wpdb->query( 'COMMIT' ) ) { return self::abort(); }
 		$review_id = 0;
 		if ( $backdated ) {
 			$review = self::offline_conflict( new \WP_Error( 'wpcap_backdated_admission', '', array( 'result' => 'backdated_admission' ) ), $found, $context, $key, $checkin_id );
@@ -238,6 +241,7 @@ final class Checkin {
 		$log = self::logger( $found, $context, $key, $user_id );
 		$wpdb->query( 'START TRANSACTION' );
 		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", $found['ticket_id'] ) );
+		if ( '' !== $wpdb->last_error ) { return self::abort(); }
 		$state = Engine::state_for_update( $found['ticket_id'] );
 		if ( ! $ticket || ! Engine::is_inside( $state, $found['ticket_id'] ) ) {
 			$id = $log( $found['ticket_id'], 'not_checked_in' );
@@ -245,11 +249,18 @@ final class Checkin {
 			return self::result_error( 'not_checked_in', $found, $id );
 		}
 		$checkin_id = $log( $found['ticket_id'], 'checked_out' );
-		Engine::record_out( $found, $checkin_id, $context, $at, $user_id );
-		$wpdb->query( 'COMMIT' );
+		if ( ! $checkin_id || ! Engine::record_out( $found, $checkin_id, $context, $at, $user_id ) ) { return self::abort(); }
+		if ( false === $wpdb->query( 'COMMIT' ) ) { return self::abort(); }
 		Audit::record( 'ticket_checked_out', 'ticket', $found['ticket_id'], array( 'event_id' => $found['event_id'], 'device_id' => absint( $context['device_id'] ?? 0 ), 'source' => sanitize_key( $context['source'] ?? 'web' ), 'area_id' => absint( $context['area_id'] ?? 0 ) ) );
 		do_action( 'wpcap_ticket_checked_out', (int) $found['ticket_id'], $context );
 		return array_merge( self::public_view( $found, 'checked_out' ), array( 'status' => 'checked_out' ) );
+	}
+
+	/** Rolls back a failed check-in transaction and returns a retryable error (nothing was booked). */
+	private static function abort() {
+		global $wpdb;
+		$wpdb->query( 'ROLLBACK' );
+		return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 	}
 
 	private static function key_hash( array $context ) {
@@ -273,7 +284,7 @@ final class Checkin {
 				'scanned_at' => ! empty( $context['scanned_at'] ) ? $context['scanned_at'] : null,
 				'created_at' => current_time( 'mysql', true ),
 			) );
-			return (int) $wpdb->insert_id;
+			return '' === $wpdb->last_error ? (int) $wpdb->insert_id : 0;
 		};
 	}
 

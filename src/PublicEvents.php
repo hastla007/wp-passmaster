@@ -28,6 +28,10 @@ final class PublicEvents {
 				'attendee' => __( 'Teilnehmer:in %d', 'wp-pass-captain' ),
 				'name' => __( 'Name', 'wp-pass-captain' ),
 				'email' => __( 'E-Mail (optional)', 'wp-pass-captain' ),
+				/* translators: %s: formatted amount */
+				'estimate' => __( 'Summe: %s (vorbehaltlich Rabatt; der endgültige Preis wird bei der Bestellung berechnet)', 'wp-pass-captain' ),
+				/* translators: %s: formatted amount */
+				'orderTotal' => __( 'Gesamtbetrag: %s.', 'wp-pass-captain' ),
 			),
 		) );
 		wp_register_style( 'wpcap-public', WPCAP_URL . 'assets/public.css', array(), WPCAP_VERSION );
@@ -67,9 +71,14 @@ final class PublicEvents {
 					$event->location = $translation->location ?: $event->location;
 				}
 				$now = current_time( 'mysql', true );
-				$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name,price_minor,currency,max_per_order,tax_rate_bp FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", $event->occurrence_id, $now, $now ) );
+				$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", $event->occurrence_id, $now, $now ) );
 				if ( ! $types ) { continue; }
+				$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $event->occurrence_id ) );
 				foreach ( $types as $type ) {
+					// Effective server-side price (e.g. series price tiers); the checkout charges the same.
+					$type->base_price_minor = (int) $type->price_minor;
+					$type->price_label = Orders::price_label( $type, $occurrence, array( 'now' => $now ) );
+					$type->price_minor = Orders::unit_price( $type, $occurrence, 1, array( 'now' => $now ) );
 					$type->available = Orders::availability( $type->ticket_type_id );
 					// Only field definitions are exposed (no answers); used to render attendee inputs.
 					$type->fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_key AS `key`,label,field_type AS type,required,purpose FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $type->ticket_type_id ), ARRAY_A );

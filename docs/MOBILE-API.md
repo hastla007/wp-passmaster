@@ -1,5 +1,7 @@
 # Mobile Scanner-API (v1)
 
+> Offline-Betrieb mit signierten Prüfpaketen und installierbarer Scanner-Web-App: siehe [OFFLINE-SCANNER.md](OFFLINE-SCANNER.md).
+
 REST-Schnittstelle für native Einlass-Apps (iOS/Android) und andere Scanner-Clients. Basis-URL:
 
 ```

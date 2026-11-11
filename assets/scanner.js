@@ -133,7 +133,13 @@
 			result.textContent = (t.synced || '%1$d / %2$d').replace('%1$d', sent).replace('%2$d', conflicts);
 			result.dataset.state = conflicts ? 'error' : 'success';
 		} catch (error) { result.textContent = error.message; result.dataset.state = 'error'; }
-		finally { syncing = false; syncButton.disabled = false; updateQueueButton(); }
+		finally {
+			syncing = false;
+			syncButton.disabled = false;
+			updateQueueButton();
+			// The (now hidden) sync button may have had keyboard focus; continue at the code input.
+			if (!document.activeElement || document.activeElement === document.body) input.focus();
+		}
 	}
 	dropExpired();
 	syncButton.addEventListener('click', syncQueue);
@@ -230,7 +236,10 @@
 			video.hidden = false;
 			await video.play();
 			const detect = await makeDetector();
+			const hadFocus = document.activeElement === button;
 			button.disabled = true;
+			// A disabled button loses keyboard focus; keep the manual input as the next stop.
+			if (hadFocus) input.focus();
 			let busy = false;
 			const scan = async function () {
 				if (!stream) return;

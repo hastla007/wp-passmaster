@@ -205,7 +205,8 @@ final class Service {
 			$out[] = array(
 				'ticket_type_id' => (int) $r->ticket_type_id,
 				'name' => $r->name,
-				'price_minor' => (int) $r->price_minor,
+				// Effective server-side price (series price tiers); sales without a price override charge it.
+				'price_minor' => Orders::unit_price( (int) $r->ticket_type_id, null, 1, array( 'source' => 'pos' ) ),
 				'currency' => $r->currency,
 				'tax_rate_bp' => (int) $r->tax_rate_bp,
 				'max_per_order' => (int) $r->max_per_order,
