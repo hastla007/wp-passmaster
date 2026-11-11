@@ -311,6 +311,10 @@ final class OrdersPage {
 				<?php if ( $wc_id ) : ?> <a href="<?php echo esc_url( admin_url( 'post.php?post=' . $wc_id . '&action=edit' ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: WooCommerce order id */ __( 'WooCommerce-Bestellung #%d öffnen', 'wp-pass-captain' ), $wc_id ) ); ?></a><?php endif; ?>
 			</p></div>
 		<?php endif; ?>
+		<?php $voucher = \PassCaptain\Integrations\Vouchers\Checkout::voucher_state( $order_id ); ?>
+		<?php if ( $voucher && 'commit_failed' === ( $voucher['status'] ?? '' ) ) : ?>
+			<div class="notice notice-error inline"><p><?php echo esc_html( sprintf( /* translators: 1: amount, 2: error code */ __( 'Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten.', 'wp-pass-captain' ), Forms::money( (int) $voucher['amount_minor'], $order->currency ), (string) ( $voucher['error'] ?? '' ) ) ); ?></p></div>
+		<?php endif; ?>
 		<?php if ( 'needs_review' === $order->status ) : ?>
 			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben oder die Zahlung außerhalb des Plugins zurückerstatten.', 'wp-pass-captain' ); ?></p></div>
 		<?php endif; ?>
