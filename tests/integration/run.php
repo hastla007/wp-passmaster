@@ -168,6 +168,62 @@ Woo::sync_fully_refunded_order( 8 );
 check( 'full refund revokes remaining valid tickets, keeps check-in history', 2 === count( tickets( $core8, 'revoked' ) ) && 1 === count( tickets( $core8, 'checked_in' ) ) );
 check( 'full refund frees capacity', 'refunded' === Orders::get( $core8 )->status && 10 === Orders::availability( $type ) );
 
+echo "Review fixes\n";
+$type = make_type( 2 );
+$wc11 = make_wc_order( 11, $type, 2 );
+$core11 = Woo::reserve( $wc11 );
+Woo::sync_paid_order( 11 );
+$refund = new WC_Order( 9002 );
+$ri = new WC_Order_Item_Product( 9102, $wc11->items[0]->get_product(), -1, '-25.00' );
+$ri->update_meta_data( '_refunded_item_id', $wc11->items[0]->get_id() );
+$refund->items[] = $ri;
+Woo::sync_refund( 11, 9002 );
+check( 'partially refunded ticket frees its capacity', 1 === Orders::availability( $type ) );
+
+$type = make_type( 10 );
+$wc12 = make_wc_order( 12, $type, 3, '10.00' );
+$core12 = Woo::reserve( $wc12 );
+check( 'uneven Woo line total is stored exactly', 1000 === (int) $wpdb->get_var( "SELECT line_total_minor FROM {$p}wpcap_order_items WHERE order_id=$core12" ) && 1000 === (int) Orders::get( $core12 )->total_minor );
+$before = count( $GLOBALS['wpcap_test_mails'] );
+Woo::sync_paid_order( 12 );
+Woo::sync_paid_order( 12 );
+$new = array_slice( $GLOBALS['wpcap_test_mails'], $before );
+check( 'one ticket mail and one access link per paid order', 2 === count( $new ) );
+
+$type = make_type( 1 );
+$wc13 = make_wc_order( 13, $type, 1 );
+$core13 = Woo::reserve( $wc13 );
+expire_holds_of( $core13 );
+$wc14 = make_wc_order( 14, $type, 1 );
+Woo::reserve( $wc14 );
+$before = count( $GLOBALS['wpcap_test_mails'] );
+Woo::sync_paid_order( 13 );
+Woo::sync_paid_order( 13 );
+Woo::sync_paid_order( 13 );
+$admin = array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $before ), static fn( $m ) => 'admin@example.com' === $m['to'] );
+check( 'needs_review alert is sent once despite repeated hooks', 1 === count( $admin ) && 'needs_review' === Orders::get( $core13 )->status );
+
+$type = make_type( 5, 10, 1000 );
+$paid = Orders::create( array( 'email' => 'paid-buyer@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'inv-1' ) );
+Orders::confirm_manual_payment( $paid['order_id'] );
+$first = PassCaptain\Invoices::issue_for_order( $paid['order_id'] );
+$again = PassCaptain\Invoices::issue_for_order( $paid['order_id'] );
+$unpaid = Orders::create( array( 'email' => 'unpaid@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'inv-2' ) );
+PassCaptain\Invoices::issue_for_order( $unpaid['order_id'] );
+$paid2 = Orders::create( array( 'email' => 'paid2@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'inv-3' ) );
+Orders::confirm_manual_payment( $paid2['order_id'] );
+$second = PassCaptain\Invoices::issue_for_order( $paid2['order_id'] );
+$n1 = (int) substr( $first['invoice_number'], -6 );
+$n2 = (int) substr( $second['invoice_number'], -6 );
+check( 'invoice numbers have no gaps after reuse/failed attempts', ! empty( $again['reused'] ) && $n2 === $n1 + 1 );
+
+$event_id = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$type" );
+$wpdb->query( "UPDATE {$p}wpcap_orders SET status='expired',payment_status='expired' WHERE order_id=" . (int) $unpaid['order_id'] );
+$before = count( $GLOBALS['wpcap_test_mails'] );
+Orders::cancel_event( $event_id );
+$to = array_map( static fn( $m ) => $m['to'], array_slice( $GLOBALS['wpcap_test_mails'], $before ) );
+check( 'event cancellation mails only paid/open buyers', in_array( 'paid-buyer@example.com', $to, true ) && in_array( 'paid2@example.com', $to, true ) && ! in_array( 'unpaid@example.com', $to, true ) );
+
 echo "Admin-created Woo order without checkout hold\n";
 $type = make_type( 5 );
 $wc10 = make_wc_order( 10, $type, 2 );

@@ -325,6 +325,9 @@ final class OrderAdapter {
 		$unit_prices = array_map( static function ( $line ) {
 			return $line['unit_minor'];
 		}, $lines );
+		$line_totals = array_map( static function ( $line ) {
+			return $line['gross'];
+		}, $lines );
 		$result  = Orders::create(
 			array(
 				'email'           => $email,
@@ -340,6 +343,7 @@ final class OrderAdapter {
 				'source'        => 'woocommerce',
 				'key_namespace' => 'woocommerce',
 				'unit_prices'   => $unit_prices,
+				'line_totals'   => $line_totals,
 			)
 		);
 		if ( is_wp_error( $result ) ) {
@@ -365,8 +369,8 @@ final class OrderAdapter {
 	 * @return array<int, array{ticket_type_id:int, quantity:int, unit_minor:int}>
 	 */
 	private static function ticket_lines( \WC_Order $wc_order ) {
-		$decimals = function_exists( 'wc_get_price_decimals' ) ? wc_get_price_decimals() : 2;
-		$factor   = 10 ** $decimals;
+		// Minor units follow the currency, not the shop's display decimals setting.
+		$factor   = 10 ** self::currency_decimals( $wc_order->get_currency() );
 		$lines    = array();
 		foreach ( $wc_order->get_items( 'line_item' ) as $item ) {
 			$type_id = self::item_ticket_type_id( $item );
@@ -384,9 +388,16 @@ final class OrderAdapter {
 		}
 		foreach ( $lines as $type_id => $line ) {
 			$lines[ $type_id ]['unit_minor'] = intdiv( $line['gross'], max( 1, $line['quantity'] ) );
-			unset( $lines[ $type_id ]['gross'] );
 		}
 		return $lines;
+	}
+
+	/** ISO 4217 minor unit digits for the currencies WooCommerce commonly uses. */
+	public static function currency_decimals( $currency ) {
+		$zero  = array( 'BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' );
+		$three = array( 'BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND' );
+		$currency = strtoupper( (string) $currency );
+		return in_array( $currency, $zero, true ) ? 0 : ( in_array( $currency, $three, true ) ? 3 : 2 );
 	}
 
 	/** Ticket type of an order line; stored on the line so later product changes do not matter. */
@@ -408,7 +419,7 @@ final class OrderAdapter {
 	/* ------------------------------------------------------------------ */
 
 	/** Converts the hold and issues tickets once WooCommerce reports a paid order. */
-	public static function sync_paid_order( $wc_order_id ) {
+	public static function sync_paid_order( $wc_order_id, $force = false ) {
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
 		if ( ! $wc_order ) {
 			return;
@@ -430,6 +441,10 @@ final class OrderAdapter {
 		if ( $core && 'paid' === $core->payment_status && Orders::tickets_for_order( $core_id ) ) {
 			return;
 		}
+		if ( $core && 'needs_review' === $core->status && ! $force ) {
+			// Already flagged and reported; only the explicit "re-issue" order action retries.
+			return;
+		}
 		if ( $core && 'cancelled' === $core->status ) {
 			// A failed payment released the hold; the customer has paid on a later attempt.
 			$core_id = self::reserve( $wc_order );
@@ -440,6 +455,7 @@ final class OrderAdapter {
 				return;
 			}
 		}
+		$had_tickets = (bool) Orders::tickets_for_order( $core_id );
 		$result = Orders::confirm_external_payment( $core_id, 'woocommerce:' . $wc_order->get_id() );
 		if ( is_wp_error( $result ) ) {
 			/* translators: %s: error message */
@@ -449,7 +465,10 @@ final class OrderAdapter {
 		$count = count( Orders::tickets_for_order( $core_id ) );
 		/* translators: %d: ticket count */
 		$wc_order->add_order_note( sprintf( _n( 'Pass Captain: %d Ticket ausgestellt und per E-Mail versendet.', 'Pass Captain: %d Tickets ausgestellt und per E-Mail versendet.', $count, 'wp-pass-captain' ), $count ) );
-		Orders::rotate_access_link( $core_id );
+		if ( ! $had_tickets && $count ) {
+			// Personal link for ticket transfer/self-service, sent once with the first issuance.
+			Orders::rotate_access_link( $core_id );
+		}
 	}
 
 	/** Extends the hold while a manual payment (e.g. bank transfer) is outstanding. */
@@ -599,7 +618,7 @@ final class OrderAdapter {
 			return;
 		}
 		if ( $wc_order->is_paid() ) {
-			self::sync_paid_order( $wc_order->get_id() );
+			self::sync_paid_order( $wc_order->get_id(), true );
 		} else {
 			$wc_order->add_order_note( __( 'Pass Captain: Die Bestellung ist noch nicht bezahlt.', 'wp-pass-captain' ) );
 		}
