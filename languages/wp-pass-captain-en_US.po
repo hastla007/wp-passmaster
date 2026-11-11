@@ -8010,186 +8010,186 @@ msgstr "instead of %s"
 
 #: src/Integrations/WooCommerce/CartPricing.php:88
 msgid "Ticketpreise"
-msgstr ""
+msgstr "Ticket prices"
 
 #: src/Integrations/WooCommerce/CartPricing.php:89
 msgid "Pass-Captain-Preise (z. B. Serien-Preisstufen) im WooCommerce-Warenkorb verwenden"
-msgstr ""
+msgstr "Use Pass Captain prices (e.g. series price tiers) in the WooCommerce cart"
 
 #: src/Integrations/WooCommerce/CartPricing.php:90
 msgid "Ticketprodukte kosten dann den Preis der Pass-Captain-Ticketkategorie inklusive aktiver Preisstufe statt des WooCommerce-Produktpreises. Der Preis wird im Warenkorb und an der Kasse laufend neu berechnet."
-msgstr ""
+msgstr "Ticket products then cost the price of the Pass Captain ticket category, including the active price tier, instead of the WooCommerce product price. The price is recalculated continuously in the cart and at checkout."
 
 #. translators: 1: product name, 2: new price (with tier label), 3: previous price
 #: src/Integrations/WooCommerce/CartPricing.php:331
 #, php-format
 msgid "Der Ticketpreis für „%1$s“ hat sich geändert: jetzt %2$s statt bisher %3$s."
-msgstr ""
+msgstr "The ticket price for “%1$s” has changed: now %2$s instead of %3$s."
 
 #: src/Integrations/WooCommerce/CartPricing.php:337
 msgid "Bitte prüfe die neue Summe und sende die Bestellung erneut ab."
-msgstr ""
+msgstr "Please check the new total and submit your order again."
 
 #: src/Integrations/WooCommerce/CartPricing.php:426
 msgid "Preisstufe"
-msgstr ""
+msgstr "Price tier"
 
 #: src/Integrations/WooCommerce/OrderAdapter.php:129
 msgid "Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster, Höchstmenge und – laut WooCommerce-Einstellung – der Preis inklusive Preisstufen kommen aus Pass Captain. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen."
-msgstr ""
+msgstr "Sells tickets of the selected category with this product. Capacity, sales window, maximum quantity and, depending on the WooCommerce setting, the price including price tiers come from Pass Captain. Leave WooCommerce stock management disabled for this product."
 
 #: src/Mail/Admin.php:46
 msgid "Unbekannter E-Mail-Typ."
-msgstr ""
+msgstr "Unknown email type."
 
 #: src/Mail/Admin.php:66
 msgid "Bitte Betreff und Text angeben."
-msgstr ""
+msgstr "Please enter a subject and body."
 
 #: src/Mail/Admin.php:113
 msgid "Dein Benutzerkonto hat keine gültige E-Mail-Adresse."
-msgstr ""
+msgstr "Your user account does not have a valid email address."
 
 #: src/Mail/Admin.php:120
 msgid "Die Testmail konnte nicht gesendet werden."
-msgstr ""
+msgstr "The test email could not be sent."
 
 #: src/Mail/Admin.php:150
 msgid "Vorlage auf den Standard zurückgesetzt."
-msgstr ""
+msgstr "Template reset to the default."
 
 #. translators: %s: e-mail address
 #: src/Mail/Admin.php:158
 #, php-format
 msgid "Testmail an %s gesendet."
-msgstr ""
+msgstr "Test email sent to %s."
 
 #: src/Mail/Admin.php:163
 msgid "Layout gespeichert."
-msgstr ""
+msgstr "Layout saved."
 
 #: src/Mail/Admin.php:199
 #: src/Modules/MailTemplates.php:34
 msgid "E-Mail-Vorlagen"
-msgstr ""
+msgstr "Email templates"
 
 #: src/Mail/Admin.php:201
 msgid "Betreff und Text der E-Mails an Kund:innen anpassen – je Sprache. Ohne eigene Vorlage wird der eingebaute Text in der Sprache der Bestellung gesendet."
-msgstr ""
+msgstr "Customize the subject and body of emails to customers, per language. Without a custom template, the built-in text is sent in the language of the order."
 
 #: src/Mail/Admin.php:202
 msgid "Eigene Vorlagen"
-msgstr ""
+msgstr "Custom templates"
 
 #: src/Mail/Admin.php:208
 msgid "Erinnerung"
-msgstr ""
+msgstr "Reminder"
 
 #: src/Mail/Admin.php:208
 msgid "Wird unter „Erinnerungen“ bearbeitet."
-msgstr ""
+msgstr "Edited under “Reminders”."
 
 #: src/Mail/Admin.php:213
 msgid "HTML-Layout"
-msgstr ""
+msgstr "HTML layout"
 
 #: src/Mail/Admin.php:213
 msgid "Gilt für Vorlagen im HTML-Modus. Eine Textversion wird automatisch mitgesendet."
-msgstr ""
+msgstr "Applies to templates in HTML mode. A plain-text version is sent automatically."
 
 #: src/Mail/Admin.php:216
 msgid "Logo-URL"
-msgstr ""
+msgstr "Logo URL"
 
 #: src/Mail/Admin.php:216
 msgid "Leer: Logo des Themes bzw. Name der Website."
-msgstr ""
+msgstr "Empty: theme logo or site name."
 
 #: src/Mail/Admin.php:217
 msgid "Akzentfarbe"
-msgstr ""
+msgstr "Accent color"
 
 #: src/Mail/Admin.php:218
 msgid "Z. B. Impressum oder Kontakt. Leer: Name der Website."
-msgstr ""
+msgstr "E.g. legal notice or contact. Empty: site name."
 
 #: src/Mail/Admin.php:220
 msgid "Layout speichern"
-msgstr ""
+msgstr "Save layout"
 
 #: src/Mail/Admin.php:230
 msgid "Alle E-Mail-Vorlagen"
-msgstr ""
+msgstr "All email templates"
 
 #: src/Mail/Admin.php:234
 msgid "Sprache"
-msgstr ""
+msgstr "Language"
 
 #: src/Mail/Admin.php:241
 msgid "Eigene Vorlage für diese Sprache."
-msgstr ""
+msgstr "Custom template for this language."
 
 #. translators: %s: locale
 #: src/Mail/Admin.php:244
 #, php-format
 msgid "Keine eigene Vorlage für diese Sprache – es gilt die Vorlage der Standardsprache (%s)."
-msgstr ""
+msgstr "No custom template for this language; the template of the default language (%s) applies."
 
 #: src/Mail/Admin.php:246
 msgid "Eingebaute Standardvorlage (übersetzt in die Sprache der Empfänger:in)."
-msgstr ""
+msgstr "Built-in default template (translated into the recipient's language)."
 
 #: src/Mail/Admin.php:256
 msgid "Format"
-msgstr ""
+msgstr "Format"
 
 #: src/Mail/Admin.php:257
 msgid "Nur Text"
-msgstr ""
+msgstr "Plain text only"
 
 #: src/Mail/Admin.php:257
 msgid "HTML (mit Layout und automatischer Textversion)"
-msgstr ""
+msgstr "HTML (with layout and automatic plain-text version)"
 
 #: src/Mail/Admin.php:260
 msgid "Im HTML-Modus sind die üblichen Beitrags-Tags erlaubt (Absätze, Links, Listen, Fettdruck …); Text ohne Tags wird automatisch umbrochen. Platzhalterwerte werden immer maskiert."
-msgstr ""
+msgstr "In HTML mode, the usual post tags are allowed (paragraphs, links, lists, bold …); text without tags is wrapped automatically. Placeholder values are always escaped."
 
 #: src/Mail/Admin.php:263
 msgid "Testmail senden"
-msgstr ""
+msgstr "Send test email"
 
 #: src/Mail/Admin.php:265
 msgid "Eigene Vorlage für diese Sprache löschen?"
-msgstr ""
+msgstr "Delete the custom template for this language?"
 
 #: src/Mail/Admin.php:265
 msgid "Auf Standard zurücksetzen"
-msgstr ""
+msgstr "Reset to default"
 
 #: src/Mail/Admin.php:267
 msgid "Die Testmail nutzt den aktuellen Formularinhalt mit Beispieldaten und geht an deine eigene Adresse."
-msgstr ""
+msgstr "The test email uses the current form content with sample data and is sent to your own address."
 
 #: src/Mail/Admin.php:274
 msgid "Unbekannte Platzhalter werden durch einen leeren Text ersetzt."
-msgstr ""
+msgstr "Unknown placeholders are replaced with empty text."
 
 #: src/Mail/Admin.php:278
 msgid "Vorschau (Beispieldaten)"
-msgstr ""
+msgstr "Preview (sample data)"
 
 #: src/Mail/Admin.php:279
 msgid "Betreff:"
-msgstr ""
+msgstr "Subject:"
 
 #: src/Mail/Admin.php:280
 msgid "Vorschau der E-Mail"
-msgstr ""
+msgstr "Email preview"
 
 #: src/Mail/Types.php:43
 msgid "Adresse der Website"
-msgstr ""
+msgstr "Site address"
 
 #: src/Mail/Types.php:49
 #: src/Mail/Types.php:130
@@ -8199,237 +8199,237 @@ msgstr ""
 #: src/Mail/Types.php:187
 #: src/Mail/Types.php:199
 msgid "Bestellnummer"
-msgstr ""
+msgstr "Order number"
 
 #: src/Mail/Types.php:50
 msgid "E-Mail-Adresse der Käufer:in"
-msgstr ""
+msgstr "Buyer's email address"
 
 #: src/Mail/Types.php:51
 msgid "Event (erstes Ticket)"
-msgstr ""
+msgstr "Event (first ticket)"
 
 #: src/Mail/Types.php:52
 msgid "Beginn mit Zeitzone (erstes Ticket)"
-msgstr ""
+msgstr "Start with time zone (first ticket)"
 
 #: src/Mail/Types.php:53
 msgid "Ort (erstes Ticket)"
-msgstr ""
+msgstr "Location (first ticket)"
 
 #: src/Mail/Types.php:55
 msgid "Ticketliste mit Datum, Ort, Link (und Code bzw. Wallet-Links)"
-msgstr ""
+msgstr "Ticket list with date, location, link (and code or wallet links)"
 
 #: src/Mail/Types.php:56
 msgid "Nur die Ticket-Links, einer pro Zeile"
-msgstr ""
+msgstr "Ticket links only, one per line"
 
 #: src/Mail/Types.php:64
 msgid "Beginn mit Zeitzone"
-msgstr ""
+msgstr "Start with time zone"
 
 #: src/Mail/Types.php:107
 msgid "Ticketversand"
-msgstr ""
+msgstr "Ticket delivery"
 
 #: src/Mail/Types.php:108
 msgid "Tickets nach bestätigter Zahlung (mit PDF-Anhang)."
-msgstr ""
+msgstr "Tickets after payment is confirmed (with PDF attachment)."
 
 #: src/Mail/Types.php:118
 msgid "Erneuter Versand mit neuen Ticketcodes (je Empfänger:in)."
-msgstr ""
+msgstr "Resend with new ticket codes (per recipient)."
 
 #: src/Mail/Types.php:127
 msgid "Bestellzugang"
-msgstr ""
+msgstr "Order access"
 
 #: src/Mail/Types.php:128
 msgid "Persönlicher Link zur Bestellübersicht nach der Bestellung."
-msgstr ""
+msgstr "Personal link to the order overview after the order."
 
 #: src/Mail/Types.php:131
 msgid "Persönlicher Link zur Bestellung"
-msgstr ""
+msgstr "Personal link to the order"
 
 #: src/Mail/Types.php:142
 msgid "Ticketübertragung: Empfänger:in"
-msgstr ""
+msgstr "Ticket transfer: recipient"
 
 #: src/Mail/Types.php:143
 msgid "Neues Ticket für die Person, an die ein Ticket übertragen wurde."
-msgstr ""
+msgstr "New ticket for the person a ticket was transferred to."
 
 #: src/Mail/Types.php:145
 #: src/Mail/Types.php:171
 msgid "Link zum Ticket"
-msgstr ""
+msgstr "Link to the ticket"
 
 #: src/Mail/Types.php:146
 #: src/Mail/Types.php:172
 msgid "Zusatzinformationen zum Ticket (z. B. Wallet-Links)"
-msgstr ""
+msgstr "Additional ticket information (e.g. wallet links)"
 
 #: src/Mail/Types.php:154
 msgid "Ticketübertragung: Bestätigung"
-msgstr ""
+msgstr "Ticket transfer: confirmation"
 
 #: src/Mail/Types.php:155
 msgid "Bestätigung an die Käufer:in, dass ein Ticket übertragen wurde."
-msgstr ""
+msgstr "Confirmation to the buyer that a ticket has been transferred."
 
 #: src/Mail/Types.php:157
 msgid "E-Mail-Adresse der neuen Inhaber:in"
-msgstr ""
+msgstr "New holder's email address"
 
 #: src/Mail/Types.php:166
 msgid "Teilnehmerzuweisung: Teilnehmer:in"
-msgstr ""
+msgstr "Attendee assignment: attendee"
 
 #: src/Mail/Types.php:167
 msgid "Ticket für eine Person, der die Käufer:in ein Ticket zugewiesen hat."
-msgstr ""
+msgstr "Ticket for a person the buyer has assigned a ticket to."
 
 #: src/Mail/Types.php:169
 #: src/Mail/Types.php:185
 msgid "Name der Teilnehmer:in"
-msgstr ""
+msgstr "Attendee's name"
 
 #: src/Mail/Types.php:170
 #: src/Mail/Types.php:186
 msgid "E-Mail-Adresse der Teilnehmer:in"
-msgstr ""
+msgstr "Attendee's email address"
 
 #: src/Mail/Types.php:182
 msgid "Teilnehmerzuweisung: Käufer:in"
-msgstr ""
+msgstr "Attendee assignment: buyer"
 
 #: src/Mail/Types.php:183
 msgid "Hinweis an die Käufer:in, dass der bisherige Code eines zugewiesenen Tickets ungültig ist."
-msgstr ""
+msgstr "Notice to the buyer that the previous code of an assigned ticket is no longer valid."
 
 #: src/Mail/Types.php:196
 msgid "Erstattungsbestätigung"
-msgstr ""
+msgstr "Refund confirmation"
 
 #: src/Mail/Types.php:197
 msgid "Bestätigung einer abgeschlossenen Erstattung (nicht bei WooCommerce-Bestellungen)."
-msgstr ""
+msgstr "Confirmation of a completed refund (not for WooCommerce orders)."
 
 #: src/Mail/Types.php:200
 msgid "Erstatteter Betrag mit Währung"
-msgstr ""
+msgstr "Refunded amount with currency"
 
 #: src/Mail/Types.php:201
 msgid "Anzahl ungültig gewordener Tickets"
-msgstr ""
+msgstr "Number of invalidated tickets"
 
 #: src/Mail/Types.php:202
 msgid "Satz zu ungültig gewordenen Tickets mit Zeilenumbruch (leer, wenn keine)"
-msgstr ""
+msgstr "Sentence about invalidated tickets with line break (empty if none)"
 
 #: src/Mail/Types.php:203
 msgid "Nummer der Gutschrift"
-msgstr ""
+msgstr "Credit note number"
 
 #: src/Mail/Types.php:204
 msgid "Zeile „Gutschrift: …“ mit Zeilenumbruch (leer ohne Gutschrift)"
-msgstr ""
+msgstr "“Credit note: …” line with line break (empty without credit note)"
 
 #: src/Mail/Types.php:205
 msgid "Grund der Erstattung"
-msgstr ""
+msgstr "Reason for the refund"
 
 #: src/Mail/Types.php:218
 msgid "Eventabsage"
-msgstr ""
+msgstr "Event cancellation"
 
 #: src/Mail/Types.php:219
 msgid "Information an Käufer:innen und Ticketinhaber:innen, wenn ein ganzes Event abgesagt wird."
-msgstr ""
+msgstr "Information to buyers and ticket holders when an entire event is canceled."
 
 #: src/Mail/Types.php:226
 msgid "Terminabsage"
-msgstr ""
+msgstr "Date cancellation"
 
 #: src/Mail/Types.php:227
 msgid "Information an Ticketinhaber:innen, wenn ein einzelner Termin abgesagt wird."
-msgstr ""
+msgstr "Information to ticket holders when a single date is canceled."
 
 #: src/Mail/Types.php:230
 msgid "Datum und Uhrzeit des Termins"
-msgstr ""
+msgstr "Date and time of the date"
 
 #: src/Mail/Types.php:233
 msgid "Hinweis zur Erstattung (automatisch oder durch den Veranstalter)"
-msgstr ""
+msgstr "Refund notice (automatic or by the organizer)"
 
 #: src/Mail/Types.php:242
 msgid "Terminänderung"
-msgstr ""
+msgstr "Date change"
 
 #: src/Mail/Types.php:243
 msgid "Information an Ticketinhaber:innen, wenn ein Termin verschoben wird."
-msgstr ""
+msgstr "Information to ticket holders when a date is rescheduled."
 
 #: src/Mail/Types.php:246
 msgid "Bisheriges Datum und Uhrzeit"
-msgstr ""
+msgstr "Previous date and time"
 
 #: src/Mail/Types.php:247
 msgid "Neues Datum und Uhrzeit"
-msgstr ""
+msgstr "New date and time"
 
 #: src/Mail/Types.php:258
 msgid "Warteliste: Eintragung"
-msgstr ""
+msgstr "Waitlist: sign-up"
 
 #: src/Mail/Types.php:259
 msgid "Bestätigung der Eintragung in die Warteliste."
-msgstr ""
+msgstr "Confirmation of the waitlist sign-up."
 
 #: src/Mail/Types.php:261
 #: src/Mail/Types.php:276
 msgid "Position auf der Warteliste"
-msgstr ""
+msgstr "Waitlist position"
 
 #: src/Mail/Types.php:271
 msgid "Warteliste: Platzangebot"
-msgstr ""
+msgstr "Waitlist: spot offer"
 
 #: src/Mail/Types.php:272
 msgid "Angebot an die nächste Person auf der Warteliste (ohne Reservierung)."
-msgstr ""
+msgstr "Offer to the next person on the waitlist (without reservation)."
 
 #: src/Mail/Types.php:274
 msgid "Ablauf des Angebots"
-msgstr ""
+msgstr "Offer expiry"
 
 #: src/Mail/Types.php:275
 msgid "Link zur Annahme"
-msgstr ""
+msgstr "Link to accept"
 
 #: src/Mail/Types.php:286
 msgid "Mitgliedspass"
-msgstr ""
+msgstr "Membership pass"
 
 #: src/Mail/Types.php:287
 msgid "Passcode einer Mitgliedschaft bzw. eines Mehrfachpasses."
-msgstr ""
+msgstr "Passcode of a membership or multi-use pass."
 
 #: src/Mail/Types.php:289
 msgid "Passcode"
-msgstr ""
+msgstr "Passcode"
 
 #: src/Mail/Types.php:290
 msgid "Gültig ab"
-msgstr ""
+msgstr "Valid from"
 
 #: src/Orders.php:268
 msgid "Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut."
-msgstr ""
+msgstr "It's very busy right now. Please try again in a moment."
 
 #: src/Orders.php:411
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
-msgstr ""
+msgstr "The payment could not be recorded right now. Please try again."
