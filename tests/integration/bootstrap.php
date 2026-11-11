@@ -133,6 +133,7 @@ function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function get_role( $r ) { return null; }
 function add_role() {}
 function wc_get_price_decimals() { return 2; }
+function wp_date( $f, $ts = null, $tz = null ) { return gmdate( $f, $ts ?? time() ); }
 function wc_add_notice( $m, $t = 'success' ) { $GLOBALS['wpcap_test_notices'][] = $m; }
 
 /* ---- WooCommerce fakes ---- */

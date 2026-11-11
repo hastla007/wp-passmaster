@@ -19,7 +19,7 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 - Transaktionale Rechnungsnummern, geplanter Mailversand und Mitgliedspässe mit Nutzungslimits sind als Basismodule verfügbar.
 - Eventkarten können über `templates/event-card.php` im Theme überschrieben werden. Währungen und Wallet-Provider sind erweiterbar.
 - Kampagnencodes können Prozent- oder Festbetragsrabatte mit Event-/Ticketbereich und atomarem globalem Nutzungsmaximum anwenden; angewandte Preiswerte werden im Auftrag gespeichert.
-- Wartelisten nehmen Einträge auf und können zeitlich begrenzte Angebote senden. Ein Angebot hält noch keine Ticketkapazität.
+- Wartelisten nehmen Einträge auf (ohne zu verraten, ob eine Adresse schon eingetragen ist) und senden zeitlich begrenzte Angebote. Wer ein Angebot annimmt, bekommt direkt eine Bestellung mit Reservierung, sofern das Ticket noch verfügbar ist.
 - Rollenbeschränkte Veranstaltungsberichte zeigen bezahlte Bestellungen, verkaufte Tickets, Bruttosummen pro Währung und Einlasszahlen.
 - Eventgebundene Read-only-API-Schlüssel, übersetzte Eventkarten, site-getrennte Multisite-Migrationen und ein generischer Job-Queue-Grundbaustein sind verfügbar.
 - Länder-/Steuerprofile werden ausschließlich als Entwürfe gespeichert. Eine geprüfte Steuerberechnung ist nicht enthalten.
@@ -28,7 +28,7 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 
 PHP 8.2+, Composer und WordPress erforderlich. `composer install` lädt die QR-Code-Abhängigkeit. Das Plugin kann ohne generierten Composer-Autoloader gestartet werden; QR-Bilder erscheinen erst mit installierten Abhängigkeiten.
 
-Plugin-Version `0.3.0` nutzt Datenbankschema `3.0.0`. Das Upgrade erfolgt über `dbDelta` beim Laden des Plugins. Neue REST-Routen decken Kampagnen, Wartelisten, Eventberichte, Übersetzungen und eventgebundene Entwickler-Schlüssel ab. WordPress-Schreibzugriffe brauchen eine eingeloggte WP-Session mit REST-Nonce; Entwickler-Schlüssel sind nur für dokumentierte Read-only-Scopes vorgesehen.
+Plugin-Version `0.3.0` nutzt Datenbankschema `3.1.0`. Das Upgrade erfolgt über `dbDelta` beim Laden des Plugins. Neue REST-Routen decken Kampagnen, Wartelisten, Eventberichte, Übersetzungen und eventgebundene Entwickler-Schlüssel ab. WordPress-Schreibzugriffe brauchen eine eingeloggte WP-Session mit REST-Nonce; Entwickler-Schlüssel sind nur für dokumentierte Read-only-Scopes vorgesehen.
 
 ```sh
 composer install
@@ -51,4 +51,4 @@ Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaSc
 
 ## Noch offen
 
-Viele Schritte 21–50 sind Backend-Grundlagen. Checkout-/Admin-Oberflächen, PSP-/Voucher-Orchestrierung, Checkout-verknüpfte Sitzplatz- und Servicebuchungen, echte Wallet-Anbieter, geprüfte Steuerberechnung und PDF-Rechnungen fehlen. Wartelistenangebote reservieren keine Kapazität; Teilnehmerfelder sind noch nicht im Checkout. Entwickler-API-Schlüssel haben noch kein zusätzliches eigenes Rate-Limit; externe Connectoren müssen separat implementiert und aktiviert werden. Last-, Restore-, Sicherheits- und Barrierefreiheitsprüfungen sind noch nicht erfolgt. Es gibt noch keinen reproduzierbaren 1.0-Release-Prozess. Siehe Roadmaps und `docs/` für die Grenzen der einzelnen Grundlagen.
+Viele Schritte 21–50 sind Backend-Grundlagen. Checkout-/Admin-Oberflächen, PSP-/Voucher-Orchestrierung, Checkout-verknüpfte Sitzplatz- und Servicebuchungen, echte Wallet-Anbieter, geprüfte Steuerberechnung und PDF-Rechnungen fehlen. Teilnehmerfelder sind noch nicht im Checkout. Entwickler-API-Schlüssel haben noch kein zusätzliches eigenes Rate-Limit; externe Connectoren müssen separat implementiert und aktiviert werden. Last-, Restore-, Sicherheits- und Barrierefreiheitsprüfungen sind noch nicht erfolgt. Abhängigkeiten sind über `composer.lock` fixiert; ein abgenommener 1.0-Release-Prozess fehlt noch. Siehe Roadmaps und `docs/` für die Grenzen der einzelnen Grundlagen.

@@ -60,10 +60,14 @@ final class Orders {
 		$rate_key = 'wpcap_checkout_' . hash( 'sha256', $ip . '|' . strtolower( $email ) );
 		$count = (int) get_transient( $rate_key );
 		if ( ! $skip_rate_limit ) {
-			if ( $count >= 8 ) {
+			// Per IP+email and per IP alone, so rotating email addresses cannot bypass the limit.
+			$ip_key = 'wpcap_checkout_ip_' . hash( 'sha256', $ip );
+			$ip_count = (int) get_transient( $ip_key );
+			if ( $count >= 8 || $ip_count >= (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ) ) {
 				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
 			}
 			set_transient( $rate_key, $count + 1, HOUR_IN_SECONDS );
+			set_transient( $ip_key, $ip_count + 1, HOUR_IN_SECONDS );
 		}
 
 		$types_table = $wpdb->prefix . 'wpcap_ticket_types';
@@ -508,27 +512,23 @@ final class Orders {
 		return array( 'status' => 'cancelled', 'notified_count' => count( $emails ) );
 	}
 
+	/**
+	 * Staff confirmation of a manual payment (bank transfer, box office).
+	 *
+	 * Manual payments usually arrive after the short checkout hold has lapsed, so this uses the same
+	 * locked capacity re-check as external payments instead of rejecting expired holds: the order is
+	 * confirmed if capacity is still available, otherwise flagged `needs_review`.
+	 */
 	public static function confirm_manual_payment( $order_id ) {
-		global $wpdb;
-		$orders = $wpdb->prefix . 'wpcap_orders';
-		$wpdb->query( 'START TRANSACTION' );
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $orders WHERE order_id=%d FOR UPDATE", absint( $order_id ) ) );
-		if ( ! $order || 'paid' === $order->payment_status || 'refunded' === $order->status ) {
-			$wpdb->query( 'ROLLBACK' );
+		$order = self::get( $order_id );
+		if ( ! $order || 'paid' === $order->payment_status || in_array( $order->status, array( 'refunded', 'cancelled' ), true ) ) {
 			return new \WP_Error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'wp-pass-captain' ) );
 		}
-		$expires = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM {$wpdb->prefix}wpcap_reservations WHERE order_id=%d AND status='active'", $order_id ) );
-		if ( ! $expires || $expires <= current_time( 'mysql', true ) ) {
-			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_hold_expired', __( 'Die Reservierung ist abgelaufen; bitte erstelle eine neue Bestellung.', 'wp-pass-captain' ) );
+		$result = self::confirm_external_payment( $order_id, 'manual:user-' . get_current_user_id() );
+		if ( ! is_wp_error( $result ) ) {
+			Audit::record( 'manual_payment_confirmed', 'order', absint( $order_id ) );
 		}
-		$wpdb->update( $orders, array( 'status' => 'complete', 'payment_status' => 'paid', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
-		$wpdb->update( $wpdb->prefix . 'wpcap_reservations', array( 'status' => 'converted' ), array( 'order_id' => $order_id, 'status' => 'active' ), array( '%s' ), array( '%d', '%s' ) );
-		Campaigns::commit_for_order( $order_id );
-		$wpdb->query( 'COMMIT' );
-		self::issue_and_email( $order_id );
-		Audit::record( 'manual_payment_confirmed', 'order', $order_id );
-		return true;
+		return $result;
 	}
 
 	public static function expire_holds() {

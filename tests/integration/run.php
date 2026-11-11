@@ -224,6 +224,40 @@ Orders::cancel_event( $event_id );
 $to = array_map( static fn( $m ) => $m['to'], array_slice( $GLOBALS['wpcap_test_mails'], $before ) );
 check( 'event cancellation mails only paid/open buyers', in_array( 'paid-buyer@example.com', $to, true ) && in_array( 'paid2@example.com', $to, true ) && ! in_array( 'unpaid@example.com', $to, true ) );
 
+echo "Open points: waitlist, manual payment, rate limits\n";
+$type = make_type( 1 );
+$occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type" );
+$event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$occ" );
+$j1 = PassCaptain\Waitlists::join( $event, $occ, $type, 'wait@example.com' );
+$j2 = PassCaptain\Waitlists::join( $event, $occ, $type, 'wait@example.com' );
+check( 'waitlist join response does not reveal existing entries', $j1 === $j2 && ! isset( $j1['position'] ) && ! isset( $j1['waitlist_id'] ) );
+$before = count( $GLOBALS['wpcap_test_mails'] );
+$offer = PassCaptain\Waitlists::offer_next( $event, $type );
+$mail = end( $GLOBALS['wpcap_test_mails'] );
+preg_match( '/token=([a-f0-9]{64})/', $mail['body'], $m );
+$accepted = PassCaptain\Waitlists::accept_offer( $offer['waitlist_id'], $m[1] ?? '' );
+check( 'accepting a waitlist offer creates an order with a hold', ! is_wp_error( $accepted ) && ! empty( $accepted['order']['order_id'] ) && true === $accepted['inventory_reserved'] && 0 === Orders::availability( $type ) );
+$again = PassCaptain\Waitlists::accept_offer( $offer['waitlist_id'], $m[1] ?? '' );
+check( 'an offer can only be accepted once', is_wp_error( $again ) );
+
+$type = make_type( 3, 10, 1500 );
+$manual = Orders::create( array( 'email' => 'transfer@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'manual-late' ) );
+expire_holds_of( $manual['order_id'] );
+Orders::expire_holds();
+$ok = Orders::confirm_manual_payment( $manual['order_id'] );
+check( 'manual payment after hold expiry is confirmed when capacity is free', true === $ok && 1 === count( tickets( $manual['order_id'] ) ) );
+check( 'confirming twice is rejected', is_wp_error( Orders::confirm_manual_payment( $manual['order_id'] ) ) );
+
+$GLOBALS['wpcap_test_transients'] = array();
+$type = make_type( 1000 );
+$limited = 0;
+for ( $i = 0; $i < 35; $i++ ) {
+	$r = Orders::create( array( 'email' => "rot$i@example.com", 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => "rot-$i" ) );
+	if ( is_wp_error( $r ) && 'wpcap_rate_limited' === $r->get_error_code() ) { $limited++; }
+}
+check( "rotating emails hits the per-IP checkout limit ($limited of 35 blocked)", 5 === $limited );
+$GLOBALS['wpcap_test_transients'] = array();
+
 echo "Admin-created Woo order without checkout hold\n";
 $type = make_type( 5 );
 $wc10 = make_wc_order( 10, $type, 2 );

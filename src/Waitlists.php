@@ -33,14 +33,21 @@ final class Waitlists {
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,status,position FROM $table WHERE event_id=%d AND ticket_type_id=%d AND email_hash=%s", $event_id, $ticket_type_id, $email_hash ) );
 		if ( $existing ) {
 			$wpdb->query( 'COMMIT' );
-			return array( 'waitlist_id' => (int) $existing->waitlist_id, 'position' => (int) $existing->position, 'status' => $existing->status, 'reused' => true );
+			// Same response as a new entry so the endpoint does not reveal who is on a waitlist.
+			return self::join_response();
 		}
 		$position = 1 + (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(MAX(position),0) FROM $table WHERE event_id=%d AND ticket_type_id=%d", $event_id, $ticket_type_id ) );
 		$wpdb->insert( $table, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $ticket_type_id, 'email_hash' => $email_hash, 'email' => $email, 'position' => $position, 'status' => 'waiting', 'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s' ) );
 		if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_waitlist_join', __( 'Der Wartelistenplatz konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
-		$id = (int) $wpdb->insert_id;
 		$wpdb->query( 'COMMIT' );
-		return array( 'waitlist_id' => $id, 'position' => $position, 'status' => 'waiting' );
+		/* translators: %d: waitlist position */
+		wp_mail( $email, __( 'Du stehst auf der Warteliste', 'wp-pass-captain' ), sprintf( __( 'Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird.', 'wp-pass-captain' ), $position ) );
+		return self::join_response();
+	}
+
+	/** Uniform public response for waitlist sign-ups. */
+	private static function join_response() {
+		return array( 'status' => 'received', 'message' => __( 'Danke! Falls die Adresse noch nicht eingetragen war, bekommst du eine Bestätigung per E-Mail.', 'wp-pass-captain' ) );
 	}
 
 	/** Mark the next entry as offered. This invitation does not reserve inventory. */
@@ -58,7 +65,7 @@ final class Waitlists {
 		if ( 1 !== (int) $wpdb->rows_affected ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_waitlist_offer', __( 'Das Angebot konnte nicht erstellt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->query( 'COMMIT' );
 		$accept_url = add_query_arg( array( 'wpcap_waitlist_accept' => (int) $row->waitlist_id, 'token' => $token ), home_url( '/' ) );
-		$sent = wp_mail( $row->email, __( 'Ein Platz könnte verfügbar sein', 'wp-pass-captain' ), sprintf( __( 'Dein Wartelistenangebot läuft am %s ab. Bitte beachte, dass der Platz erst nach einer bestätigten Bestellung reserviert ist: %s', 'wp-pass-captain' ), $expires, esc_url_raw( $accept_url ) ) );
+		$sent = wp_mail( $row->email, __( 'Ein Platz könnte verfügbar sein', 'wp-pass-captain' ), sprintf( __( 'Dein Wartelistenangebot läuft am %s ab. Mit der Annahme wird das Ticket für dich reserviert, sofern es noch verfügbar ist: %s', 'wp-pass-captain' ), wp_date( 'd.m.Y H:i T', strtotime( $expires . ' UTC' ) ), esc_url_raw( $accept_url ) ) );
 		if ( ! $sent ) {
 			$wpdb->update( $table, array( 'status' => 'waiting', 'offer_token_hash' => '', 'offer_expires_at' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'waitlist_id' => (int) $row->waitlist_id, 'status' => 'offered', 'offer_token_hash' => hash( 'sha256', $token ) ), array( '%s', '%s', '%s', '%s' ), array( '%d', '%s', '%s' ) );
 			return new \WP_Error( 'wpcap_waitlist_mail', __( 'Das Angebot wurde gespeichert, aber die E-Mail konnte nicht gesendet werden.', 'wp-pass-captain' ), array( 'status' => 502 ) );
@@ -73,7 +80,7 @@ final class Waitlists {
 		nocache_headers();
 		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
 		status_header( 200 );
-		?><!doctype html><html lang="<?php echo esc_attr( determine_locale() ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php esc_html_e( 'Wartelistenangebot annehmen', 'wp-pass-captain' ); ?></title></head><body><main><h1><?php esc_html_e( 'Wartelistenangebot annehmen', 'wp-pass-captain' ); ?></h1><p><?php esc_html_e( 'Mit der Annahme wird kein Ticket reserviert. Die Verfügbarkeit wird erst beim Checkout geprüft.', 'wp-pass-captain' ); ?></p><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><?php wp_nonce_field( 'wpcap_accept_waitlist_' . $waitlist_id ); ?><input type="hidden" name="action" value="wpcap_accept_waitlist"><input type="hidden" name="waitlist_id" value="<?php echo esc_attr( $waitlist_id ); ?>"><input type="hidden" name="token" value="<?php echo esc_attr( $token ); ?>"><button type="submit"><?php esc_html_e( 'Angebot annehmen', 'wp-pass-captain' ); ?></button></form></main></body></html><?php
+		?><!doctype html><html lang="<?php echo esc_attr( determine_locale() ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php esc_html_e( 'Wartelistenangebot annehmen', 'wp-pass-captain' ); ?></title></head><body><main><h1><?php esc_html_e( 'Wartelistenangebot annehmen', 'wp-pass-captain' ); ?></h1><p><?php esc_html_e( 'Mit der Annahme wird eine Bestellung angelegt und das Ticket reserviert, sofern es noch verfügbar ist.', 'wp-pass-captain' ); ?></p><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"><?php wp_nonce_field( 'wpcap_accept_waitlist_' . $waitlist_id ); ?><input type="hidden" name="action" value="wpcap_accept_waitlist"><input type="hidden" name="waitlist_id" value="<?php echo esc_attr( $waitlist_id ); ?>"><input type="hidden" name="token" value="<?php echo esc_attr( $token ); ?>"><button type="submit"><?php esc_html_e( 'Angebot annehmen', 'wp-pass-captain' ); ?></button></form></main></body></html><?php
 		exit;
 	}
 
@@ -82,7 +89,7 @@ final class Waitlists {
 		check_admin_referer( 'wpcap_accept_waitlist_' . $waitlist_id );
 		$result = self::accept_offer( $waitlist_id, wp_unslash( $_POST['token'] ?? '' ) );
 		status_header( is_wp_error( $result ) ? 409 : 200 );
-		?><!doctype html><html lang="<?php echo esc_attr( determine_locale() ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php esc_html_e( 'WP Pass Captain Warteliste', 'wp-pass-captain' ); ?></title></head><body><main><?php if ( is_wp_error( $result ) ) : ?><h1><?php esc_html_e( 'Angebot nicht verfügbar', 'wp-pass-captain' ); ?></h1><p><?php echo esc_html( $result->get_error_message() ); ?></p><?php else : ?><h1><?php esc_html_e( 'Angebot angenommen', 'wp-pass-captain' ); ?></h1><p><?php esc_html_e( 'Das Ticket ist noch nicht reserviert. Bitte fahre im Checkout fort; dort wird die Verfügbarkeit erneut geprüft.', 'wp-pass-captain' ); ?></p><?php endif; ?></main></body></html><?php
+		?><!doctype html><html lang="<?php echo esc_attr( determine_locale() ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php esc_html_e( 'WP Pass Captain Warteliste', 'wp-pass-captain' ); ?></title></head><body><main><?php if ( is_wp_error( $result ) ) : ?><h1><?php esc_html_e( 'Angebot nicht verfügbar', 'wp-pass-captain' ); ?></h1><p><?php echo esc_html( $result->get_error_message() ); ?></p><?php else : ?><h1><?php esc_html_e( 'Angebot angenommen', 'wp-pass-captain' ); ?></h1><p><?php echo esc_html( 'complete' === ( $result['order']['status'] ?? '' ) ? __( 'Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet.', 'wp-pass-captain' ) : __( 'Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung. Den Link zu deiner Bestellung und die Zahlungsinformationen haben wir dir per E-Mail gesendet.', 'wp-pass-captain' ) ); ?></p><?php endif; ?></main></body></html><?php
 		exit;
 	}
 
@@ -97,6 +104,16 @@ final class Waitlists {
 		$updated = $wpdb->update( $table, array( 'status' => 'accepted', 'offer_token_hash' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'waitlist_id' => (int) $row->waitlist_id, 'status' => 'offered' ), array( '%s', '%s', '%s' ), array( '%d', '%s' ) );
 		if ( 1 !== $updated ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_waitlist_offer_invalid', __( 'Wartelistenangebot konnte nicht angenommen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->query( 'COMMIT' );
-		return array( 'status' => 'accepted', 'checkout' => array( 'email' => $row->email, 'items' => array( array( 'ticket_type_id' => (int) $row->ticket_type_id, 'quantity' => 1 ) ), 'idempotency_key' => 'waitlist-' . (int) $row->waitlist_id . '-' . substr( hash( 'sha256', $token ), 0, 20 ) ), 'inventory_reserved' => false );
+		// Turn the accepted offer into a real order with an inventory hold.
+		$order = Orders::create(
+			array( 'email' => $row->email, 'items' => array( array( 'ticket_type_id' => (int) $row->ticket_type_id, 'quantity' => 1 ) ), 'idempotency_key' => (string) (int) $row->waitlist_id ),
+			array( 'key_namespace' => 'waitlist', 'skip_rate_limit' => true, 'source' => 'waitlist' )
+		);
+		if ( is_wp_error( $order ) ) {
+			// Keep the offer open until it expires so the person can try again.
+			$wpdb->update( $table, array( 'status' => 'offered', 'offer_token_hash' => hash( 'sha256', $token ), 'updated_at' => current_time( 'mysql', true ) ), array( 'waitlist_id' => (int) $row->waitlist_id, 'status' => 'accepted' ), array( '%s', '%s', '%s' ), array( '%d', '%s' ) );
+			return new \WP_Error( 'wpcap_waitlist_sold_out', $order->get_error_message(), array( 'status' => 409 ) );
+		}
+		return array( 'status' => 'accepted', 'order' => $order, 'inventory_reserved' => 'pending' === ( $order['payment_status'] ?? '' ) );
 	}
 }

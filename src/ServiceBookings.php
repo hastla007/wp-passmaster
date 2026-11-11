@@ -16,6 +16,10 @@ final class ServiceBookings {
 		$rate = (int) get_transient( $rate_key );
 		if ( $rate >= 20 ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'wp-pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $rate_key, $rate + 1, HOUR_IN_SECONDS );
+		$ip_key = 'wpcap_servicebook_ip_' . hash( 'sha256', sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) ) );
+		$ip_rate = (int) get_transient( $ip_key );
+		if ( $ip_rate >= (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ) ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'wp-pass-captain' ), array( 'status' => 429 ) ); }
+		set_transient( $ip_key, $ip_rate + 1, HOUR_IN_SECONDS );
 		$idempotency_key = hash( 'sha256', $idempotency_key );
 		$wpdb->query( 'START TRANSACTION' );
 		$slots = $wpdb->prefix . 'wpcap_service_slots';

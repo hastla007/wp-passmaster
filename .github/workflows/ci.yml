@@ -25,7 +25,7 @@ jobs:
       - name: PHP syntax checks
         run: find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: JavaScript syntax checks
-        run: node --check assets/checkout.js && node --check assets/scanner.js
+        run: node --check assets/checkout.js && node --check assets/scanner.js && node --check src/blocks/events/editor.js
 
   integration:
     runs-on: ubuntu-latest
