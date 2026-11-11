@@ -6799,232 +6799,232 @@ msgstr "The content of this delivery is no longer available."
 
 #: src/Admin/OrdersPage.php:246
 msgid "Bestellstatus"
-msgstr ""
+msgstr "Order status"
 
 #: src/Admin/OrdersPage.php:247
 msgid "Zahlungsstatus"
-msgstr ""
+msgstr "Payment status"
 
 #. translators: %s: ticket id
 #: src/Admin/OrdersPage.php:409
 #, php-format
 msgid "Ticket %s erstatten"
-msgstr ""
+msgstr "Refund ticket %s"
 
 #: src/Admission/ConflictsPage.php:48
 msgid "Offline-Dauer überschritten (Offline-Scanner)"
-msgstr ""
+msgstr "Offline duration exceeded (offline scanner)"
 
 #. translators: %s: ticket type
 #: src/BoxOffice/Page.php:91
 #, php-format
 msgid "Anzahl %s"
-msgstr ""
+msgstr "Quantity %s"
 
 #: src/Checkin.php:263
 msgid "Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen."
-msgstr ""
+msgstr "The scan could not be saved right now. Please scan again."
 
 #: src/Modules/OfflineScanner.php:75
 #: src/OfflineScanner/AdminPage.php:108
 msgid "Offline-Scanner"
-msgstr ""
+msgstr "Offline scanner"
 
 #: src/Modules/Partners.php:145
 #: src/Partners/AdminPage.php:169
 #: src/Partners/AdminPage.php:312
 #: src/Partners/AdminPage.php:328
 msgid "Partner"
-msgstr ""
+msgstr "Partner"
 
 #: src/Modules/Partners.php:146
 #: src/Partners/AdminPage.php:304
 msgid "Partner-Abrechnungen"
-msgstr ""
+msgstr "Partner settlements"
 
 #: src/OfflineScanner/AdminPage.php:42
 msgid "Teilnehmernamen werden erst übertragen, wenn „Namen im Scanner anzeigen“ in den Einstellungen aktiviert ist."
-msgstr ""
+msgstr "Attendee names are only transmitted once “Show names in scanner” is enabled in the settings."
 
 #: src/OfflineScanner/AdminPage.php:76
 msgid "Offline-Regeln gespeichert."
-msgstr ""
+msgstr "Offline rules saved."
 
 #: src/OfflineScanner/AdminPage.php:83
 msgid "Gerät zugewiesen."
-msgstr ""
+msgstr "Device assigned."
 
 #: src/OfflineScanner/AdminPage.php:96
 msgid "Neuer Signaturschlüssel erzeugt. Der bisherige öffentliche Schlüssel bleibt bis zum Ablauf seiner Pakete gültig."
-msgstr ""
+msgstr "New signing key generated. The previous public key remains valid until its packages expire."
 
 #: src/OfflineScanner/AdminPage.php:110
 msgid "Der Offline-Scanner ist eine installierbare Web-App (PWA). Für freigegebene Events lädt ein gekoppeltes und zugewiesenes Gerät ein signiertes Prüfpaket (nur Hashes der Ticketcodes) und kann damit ohne Netz einlassen. Scans werden später über die Offline-Synchronisierung hochgeladen; Konflikte erscheinen unter „Einlass-Konflikte“."
-msgstr ""
+msgstr "The offline scanner is an installable web app (PWA). For approved events, a paired and assigned device downloads a signed verification package (ticket code hashes only) and can then admit guests without a network connection. Scans are uploaded later via offline sync; conflicts appear under “Admission conflicts”."
 
 #: src/OfflineScanner/AdminPage.php:111
 msgid "Offline-Scanner öffnen"
-msgstr ""
+msgstr "Open offline scanner"
 
 #: src/OfflineScanner/AdminPage.php:112
 msgid "Gerät koppeln"
-msgstr ""
+msgstr "Pair device"
 
 #: src/OfflineScanner/AdminPage.php:127
 msgid "Alle Termine"
-msgstr ""
+msgstr "All dates"
 
 #: src/OfflineScanner/AdminPage.php:133
 msgid "Freigabe und Regeln"
-msgstr ""
+msgstr "Approval and rules"
 
 #: src/OfflineScanner/AdminPage.php:136
 msgid "Offline-Scannen"
-msgstr ""
+msgstr "Offline scanning"
 
 #: src/OfflineScanner/AdminPage.php:136
 msgid "Für dieses Event erlauben (zugewiesene Geräte erhalten signierte Prüfpakete)"
-msgstr ""
+msgstr "Allow for this event (assigned devices receive signed verification packages)"
 
 #: src/OfflineScanner/AdminPage.php:137
 msgid "Maximale Offline-Dauer (Stunden)"
-msgstr ""
+msgstr "Maximum offline duration (hours)"
 
 #: src/OfflineScanner/AdminPage.php:138
 msgid "Ein Prüfpaket läuft nach dieser Zeit ab; ohne Aktualisierung lässt das Gerät dann niemanden mehr offline ein. Hochgeladene Offline-Scans, die älter sind, werden zur Prüfung markiert."
-msgstr ""
+msgstr "A verification package expires after this time; without an update, the device will no longer admit anyone offline. Uploaded offline scans that are older are flagged for review."
 
 #: src/OfflineScanner/AdminPage.php:139
 msgid "Doppelscans auf mehreren Geräten"
-msgstr ""
+msgstr "Duplicate scans on multiple devices"
 
 #: src/OfflineScanner/AdminPage.php:140
 msgid "Ticketdaten im Paket"
-msgstr ""
+msgstr "Ticket data in the package"
 
 #: src/OfflineScanner/AdminPage.php:140
 msgid "Immer: SHA-256-Hash des Ticketcodes, Status, Tickettyp, erlaubte Bereiche."
-msgstr ""
+msgstr "Always: SHA-256 hash of the ticket code, status, ticket type, permitted areas."
 
 #: src/OfflineScanner/AdminPage.php:141
 msgid "Teilnehmernamen mitsenden"
-msgstr ""
+msgstr "Include attendee names"
 
 #: src/OfflineScanner/AdminPage.php:142
 msgid "Wirkt nur, wenn „Namen im Scanner anzeigen“ in den Einstellungen aktiv ist (derzeit aus)."
-msgstr ""
+msgstr "Only takes effect if “Show names in scanner” is enabled in the settings (currently off)."
 
 #: src/OfflineScanner/AdminPage.php:147
 msgid "Geräte für den Offline-Einsatz"
-msgstr ""
+msgstr "Devices for offline use"
 
 #: src/OfflineScanner/AdminPage.php:148
 msgid "Offline-Scannen ist für dieses Event nicht freigegeben – zugewiesene Geräte erhalten keine Pakete."
-msgstr ""
+msgstr "Offline scanning is not approved for this event – assigned devices will not receive packages."
 
 #: src/OfflineScanner/AdminPage.php:149
 msgid "Letztes Paket"
-msgstr ""
+msgstr "Last package"
 
 #: src/OfflineScanner/AdminPage.php:159
 msgid "Noch keine Geräte zugewiesen."
-msgstr ""
+msgstr "No devices assigned yet."
 
 #: src/OfflineScanner/AdminPage.php:168
 msgid "Keine aktiven, für dieses Event gekoppelten Geräte. Zuerst unter „Scanner-Geräte“ einen Kopplungscode für dieses Event erstellen und im Offline-Scanner eingeben."
-msgstr ""
+msgstr "No active devices paired with this event. First create a pairing code for this event under “Scanner devices” and enter it in the offline scanner."
 
 #: src/OfflineScanner/AdminPage.php:176
 msgid "Signaturschlüssel (Ed25519)"
-msgstr ""
+msgstr "Signing key (Ed25519)"
 
 #: src/OfflineScanner/AdminPage.php:177
 msgid "Prüfpakete werden mit diesem Schlüssel signiert. Der geheime Schlüssel verlässt den Server nie. Nach einer Rotation bleibt der bisherige öffentliche Schlüssel gültig, bis alle damit signierten Pakete abgelaufen sind."
-msgstr ""
+msgstr "Verification packages are signed with this key. The secret key never leaves the server. After a rotation, the previous public key remains valid until all packages signed with it have expired."
 
 #: src/OfflineScanner/AdminPage.php:178
 msgid "Schlüssel-ID"
-msgstr ""
+msgstr "Key ID"
 
 #: src/OfflineScanner/AdminPage.php:178
 msgid "Öffentlicher Schlüssel"
-msgstr ""
+msgstr "Public key"
 
 #: src/OfflineScanner/AdminPage.php:178
 msgid "Gültig bis"
-msgstr ""
+msgstr "Valid until"
 
 #: src/OfflineScanner/AdminPage.php:180
 msgid "in Übergangsfrist"
-msgstr ""
+msgstr "in grace period"
 
 #: src/OfflineScanner/AdminPage.php:183
 msgid "Neuen Signaturschlüssel erzeugen?"
-msgstr ""
+msgstr "Generate a new signing key?"
 
 #: src/OfflineScanner/AdminPage.php:184
 msgid "Schlüssel rotieren"
-msgstr ""
+msgstr "Rotate key"
 
 #: src/OfflineScanner/Assignments.php:41
 msgid "Gerät nicht gefunden, abgelaufen oder widerrufen."
-msgstr ""
+msgstr "Device not found, expired, or revoked."
 
 #: src/OfflineScanner/Assignments.php:45
 msgid "Das Gerät ist nicht für dieses Event gekoppelt."
-msgstr ""
+msgstr "The device is not paired with this event."
 
 #: src/OfflineScanner/Assignments.php:49
 msgid "Der Termin gehört nicht zu diesem Event."
-msgstr ""
+msgstr "The date does not belong to this event."
 
 #: src/OfflineScanner/Rest.php:66
 msgid "Offline-Scannen ist für dieses Event nicht freigegeben."
-msgstr ""
+msgstr "Offline scanning is not approved for this event."
 
 #: src/OfflineScanner/Rest.php:70
 msgid "Dieses Gerät ist für diesen Termin nicht zum Offline-Scannen zugewiesen."
-msgstr ""
+msgstr "This device is not assigned to offline scanning for this date."
 
 #: src/OfflineScanner/Rules.php:28
 msgid "Zur Prüfung markieren (offener Einlass-Konflikt)"
-msgstr ""
+msgstr "Flag for review (open admission conflict)"
 
 #: src/OfflineScanner/Rules.php:29
 msgid "Erste Synchronisierung gewinnt (Doppelscan automatisch geklärt)"
-msgstr ""
+msgstr "First sync wins (duplicate scan resolved automatically)"
 
 #. translators: %d: hours
 #: src/OfflineScanner/Rules.php:74
 #, php-format
 msgid "Die maximale Offline-Dauer muss zwischen 1 und %d Stunden liegen."
-msgstr ""
+msgstr "The maximum offline duration must be between 1 and %d hours."
 
 #: src/OfflineScanner/Rules.php:78
 msgid "Unbekannte Regel für Doppelscans."
-msgstr ""
+msgstr "Unknown duplicate scan rule."
 
 #: src/OfflineScanner/Sync.php:69
 msgid "Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner)."
-msgstr ""
+msgstr "Resolved automatically: “First sync wins” rule (offline scanner)."
 
 #: src/Partners/AdminPage.php:53
 msgid "Bitte gültige Prozentwerte und eine gültige Ticketgebühr angeben."
-msgstr ""
+msgstr "Please enter valid percentages and a valid ticket fee."
 
 #. translators: %s: event ids
 #: src/Partners/AdminPage.php:79
 #, php-format
 msgid "Folgende Events gehören bereits einem anderen Partner und wurden nicht verknüpft: %s"
-msgstr ""
+msgstr "The following events already belong to another partner and were not linked: %s"
 
 #: src/Partners/AdminPage.php:86
 msgid "Ungültiges Ablaufdatum."
-msgstr ""
+msgstr "Invalid expiry date."
 
 #: src/Partners/AdminPage.php:114
 msgid "Unbekannte Aktion."
-msgstr ""
+msgstr "Unknown action."
 
 #: src/Partners/AdminPage.php:173
 #: src/Partners/Keys.php:49
@@ -7032,287 +7032,287 @@ msgstr ""
 #: src/Partners/Repository.php:113
 #: src/Partners/Settlements.php:298
 msgid "Partner nicht gefunden."
-msgstr ""
+msgstr "Partner not found."
 
 #: src/Partners/AdminPage.php:174
 msgid "Alle Partner"
-msgstr ""
+msgstr "All partners"
 
 #: src/Partners/AdminPage.php:180
 msgid "Partner sind Veranstalter oder Wiederverkäufer, denen Events zugeordnet werden. Sie erhalten monatliche Abrechnungen und optional API-Keys mit Lesezugriff auf ihre Events."
-msgstr ""
+msgstr "Partners are organizers or resellers to whom events are assigned. They receive monthly settlements and, optionally, API keys with read access to their events."
 
 #: src/Partners/AdminPage.php:180
 #: src/Partners/AdminPage.php:205
 msgid "Neuer Partner"
-msgstr ""
+msgstr "New partner"
 
 #: src/Partners/AdminPage.php:183
 msgid "Noch keine Partner."
-msgstr ""
+msgstr "No partners yet."
 
 #: src/Partners/AdminPage.php:186
 msgid "Kontakt"
-msgstr ""
+msgstr "Contact"
 
 #: src/Partners/AdminPage.php:186
 msgid "Konditionen"
-msgstr ""
+msgstr "Terms"
 
 #. translators: 1: percent, 2: fee
 #: src/Partners/AdminPage.php:188
 #, php-format
 msgid "%1$s %% Provision, %2$s je Ticket"
-msgstr ""
+msgstr "%1$s %% commission, %2$s per ticket"
 
 #. translators: 1: percent, 2: fee
 #: src/Partners/AdminPage.php:189
 msgid "inaktiv"
-msgstr ""
+msgstr "inactive"
 
 #: src/Partners/AdminPage.php:197
 msgid "Präfix der Abrechnungsnummern"
-msgstr ""
+msgstr "Settlement number prefix"
 
 #: src/Partners/AdminPage.php:197
 msgid "Fortlaufend und lückenlos je Jahr, z. B. PA-2026-000001."
-msgstr ""
+msgstr "Sequential and gapless per year, e.g. PA-2026-000001."
 
 #: src/Partners/AdminPage.php:198
 msgid "Standard-Ratenlimit (Anfragen pro Minute und Key)"
-msgstr ""
+msgstr "Default rate limit (requests per minute and key)"
 
 #: src/Partners/AdminPage.php:215
 msgid "Stammdaten"
-msgstr ""
+msgstr "Master data"
 
 #: src/Partners/AdminPage.php:216
 msgid "Name der Organisation"
-msgstr ""
+msgstr "Organization name"
 
 #: src/Partners/AdminPage.php:217
 msgid "Ansprechperson"
-msgstr ""
+msgstr "Contact person"
 
 #: src/Partners/AdminPage.php:218
 msgid "Kontakt-E-Mail"
-msgstr ""
+msgstr "Contact email"
 
 #: src/Partners/AdminPage.php:219
 msgid "Telefon"
-msgstr ""
+msgstr "Phone"
 
 #: src/Partners/AdminPage.php:220
 msgid "Rechnungsanschrift"
-msgstr ""
+msgstr "Billing address"
 
 #: src/Partners/AdminPage.php:222
 msgid "Auszahlung (z. B. IBAN, BIC, Kontoinhaber)"
-msgstr ""
+msgstr "Payout details (e.g. IBAN, BIC, account holder)"
 
 #: src/Partners/AdminPage.php:224
 msgid "inaktiv (API-Keys gesperrt)"
-msgstr ""
+msgstr "inactive (API keys blocked)"
 
 #: src/Partners/AdminPage.php:226
 msgid "Provisionsmodell"
-msgstr ""
+msgstr "Commission model"
 
 #: src/Partners/AdminPage.php:228
 msgid "Provision in % vom Netto-Ticketumsatz"
-msgstr ""
+msgstr "Commission in % of net ticket revenue"
 
 #: src/Partners/AdminPage.php:229
 msgid "Feste Gebühr pro Ticket (netto)"
-msgstr ""
+msgstr "Fixed fee per ticket (net)"
 
 #: src/Partners/AdminPage.php:230
 msgid "USt-Satz auf die Plattformgebühr in %"
-msgstr ""
+msgstr "VAT rate on the platform fee in %"
 
 #: src/Partners/AdminPage.php:231
 msgid "Bei Erstattungen"
-msgstr ""
+msgstr "On refunds"
 
 #: src/Partners/AdminPage.php:234
 msgid "Abrechnung ab (Bestelldatum)"
-msgstr ""
+msgstr "Settle from (order date)"
 
 #: src/Partners/AdminPage.php:235
 msgid "Interne Notizen"
-msgstr ""
+msgstr "Internal notes"
 
 #: src/Partners/AdminPage.php:237
 msgid "Events und Zugänge"
-msgstr ""
+msgstr "Events and access"
 
 #: src/Partners/AdminPage.php:237
 msgid "Events dieses Partners"
-msgstr ""
+msgstr "Events of this partner"
 
 #: src/Partners/AdminPage.php:242
 msgid "anderer Partner"
-msgstr ""
+msgstr "another partner"
 
 #: src/Partners/AdminPage.php:246
 msgid "WordPress-Benutzer des Partners"
-msgstr ""
+msgstr "WordPress users of the partner"
 
 #: src/Partners/AdminPage.php:246
 msgid "Benutzer-IDs, Logins oder E-Mail-Adressen (kommagetrennt). Diese Benutzer sehen die abgeschlossenen Abrechnungen des Partners (nur lesend), z. B. mit der Rolle „Pass Captain Partner“."
-msgstr ""
+msgstr "User IDs, logins, or email addresses (comma-separated). These users can see the partner’s completed settlements (read-only), e.g. with the role “Pass Captain Partner”."
 
 #: src/Partners/AdminPage.php:247
 msgid "Partner speichern"
-msgstr ""
+msgstr "Save partner"
 
 #: src/Partners/AdminPage.php:253
 msgid "API-Keys"
-msgstr ""
+msgstr "API keys"
 
 #: src/Partners/AdminPage.php:256
 msgid "Neuer API-Key – wird nur jetzt einmal angezeigt:"
-msgstr ""
+msgstr "New API key – shown only once, now:"
 
 #: src/Partners/AdminPage.php:256
 msgid "Bitte sicher an den Partner übermitteln. Gespeichert wird nur ein Hash."
-msgstr ""
+msgstr "Please transmit it to the partner securely. Only a hash is stored."
 
 #: src/Partners/AdminPage.php:260
 msgid "Key"
-msgstr ""
+msgstr "Key"
 
 #: src/Partners/AdminPage.php:260
 #: src/Partners/AdminPage.php:282
 msgid "Scopes"
-msgstr ""
+msgstr "Scopes"
 
 #: src/Partners/AdminPage.php:260
 msgid "Einschränkungen"
-msgstr ""
+msgstr "Restrictions"
 
 #: src/Partners/AdminPage.php:260
 msgid "Zuletzt genutzt"
-msgstr ""
+msgstr "Last used"
 
 #: src/Partners/AdminPage.php:265
 msgid "Events:"
-msgstr ""
+msgstr "Events:"
 
 #: src/Partners/AdminPage.php:265
 msgid "alle Partner-Events"
-msgstr ""
+msgstr "all partner events"
 
 #: src/Partners/AdminPage.php:266
 msgid "IP:"
-msgstr ""
+msgstr "IP:"
 
 #: src/Partners/AdminPage.php:267
 msgid "gültig bis"
-msgstr ""
+msgstr "valid until"
 
 #. translators: %d: limit
 #: src/Partners/AdminPage.php:268
 #, php-format
 msgid "%d Anfragen/Min."
-msgstr ""
+msgstr "%d requests/min."
 
 #: src/Partners/AdminPage.php:272
 msgid "Key sofort widerrufen?"
-msgstr ""
+msgstr "Revoke key immediately?"
 
 #: src/Partners/AdminPage.php:277
 msgid "Neuer API-Key"
-msgstr ""
+msgstr "New API key"
 
 #: src/Partners/AdminPage.php:286
 msgid "Auf Events beschränken"
-msgstr ""
+msgstr "Restrict to events"
 
 #: src/Partners/AdminPage.php:291
 msgid "Keine Auswahl = alle aktuellen und künftigen Events des Partners. Event-beschränkte Keys können keine Abrechnungen abrufen."
-msgstr ""
+msgstr "No selection = all current and future events of the partner. Event-restricted keys cannot retrieve settlements."
 
 #: src/Partners/AdminPage.php:292
 msgid "IP-Allowlist (optional)"
-msgstr ""
+msgstr "IP allowlist (optional)"
 
 #: src/Partners/AdminPage.php:293
 msgid "Gültig bis (optional)"
-msgstr ""
+msgstr "Valid until (optional)"
 
 #: src/Partners/AdminPage.php:294
 msgid "Ratenlimit pro Minute (0 = Standard)"
-msgstr ""
+msgstr "Rate limit per minute (0 = default)"
 
 #: src/Partners/AdminPage.php:295
 msgid "API-Key erzeugen"
-msgstr ""
+msgstr "Generate API key"
 
 #: src/Partners/AdminPage.php:315
 msgid "Entwurf erstellen"
-msgstr ""
+msgstr "Create draft"
 
 #: src/Partners/AdminPage.php:317
 msgid "Entwürfe werden beim Abschließen neu berechnet. Abgeschlossene Abrechnungen sind unveränderlich; spätere Erstattungen oder Nachzahlungen erscheinen in der nächsten Periode als Korrektur."
-msgstr ""
+msgstr "Drafts are recalculated when finalized. Finalized settlements are immutable; later refunds or additional payments appear in the next period as a correction."
 
 #: src/Partners/AdminPage.php:319
 msgid "Bitte zuerst einen Partner anlegen."
-msgstr ""
+msgstr "Please create a partner first."
 
 #: src/Partners/AdminPage.php:324
 msgid "Noch keine Abrechnungen."
-msgstr ""
+msgstr "No settlements yet."
 
 #: src/Partners/AdminPage.php:328
 msgid "Nummer"
-msgstr ""
+msgstr "Number"
 
 #: src/Partners/AdminPage.php:328
 msgid "Plattformgebühr"
-msgstr ""
+msgstr "Platform fee"
 
 #: src/Partners/AdminPage.php:328
 msgid "Auszahlung"
-msgstr ""
+msgstr "Payout"
 
 #: src/Partners/AdminPage.php:332
 msgid "Ansehen/Drucken"
-msgstr ""
+msgstr "View/Print"
 
 #: src/Partners/AdminPage.php:334
 msgid "Neu berechnen"
-msgstr ""
+msgstr "Recalculate"
 
 #: src/Partners/AdminPage.php:335
 msgid "Abschließen"
-msgstr ""
+msgstr "Finalize"
 
 #: src/Partners/AdminPage.php:335
 msgid "Abrechnung abschließen? Danach ist sie unveränderlich und erhält eine Belegnummer."
-msgstr ""
+msgstr "Finalize settlement? It will then be immutable and receive a document number."
 
 #: src/Partners/AdminPage.php:336
 msgid "Entwurf löschen?"
-msgstr ""
+msgstr "Delete draft?"
 
 #: src/Partners/AdminPage.php:338
 msgid "Als ausgezahlt markieren"
-msgstr ""
+msgstr "Mark as paid out"
 
 #: src/Partners/AdminPage.php:338
 msgid "Zahlungsreferenz"
-msgstr ""
+msgstr "Payment reference"
 
 #: src/Partners/Api.php:86
 #: src/Partners/Api.php:132
 msgid "Dieser API-Key hat keinen Zugriff auf dieses Event."
-msgstr ""
+msgstr "This API key has no access to this event."
 
 #: src/Partners/Api.php:300
 msgid "Abrechnungen sind nur mit API-Keys ohne Event-Einschränkung abrufbar."
-msgstr ""
+msgstr "Settlements can only be retrieved with API keys that have no event restriction."
 
 #: src/Partners/Api.php:316
 #: src/Partners/Settlements.php:335
@@ -7320,653 +7320,653 @@ msgstr ""
 #: src/Partners/Settlements.php:413
 #: src/Partners/Settlements.php:425
 msgid "Abrechnung nicht gefunden."
-msgstr ""
+msgstr "Settlement not found."
 
 #: src/Partners/Keys.php:29
 msgid "Events, Termine und Ticketarten lesen"
-msgstr ""
+msgstr "Read events, dates, and ticket types"
 
 #: src/Partners/Keys.php:30
 msgid "Bestellungen lesen (ohne E-Mail-Adressen)"
-msgstr ""
+msgstr "Read orders (without email addresses)"
 
 #: src/Partners/Keys.php:31
 msgid "Tickets lesen (ohne E-Mail-Adressen)"
-msgstr ""
+msgstr "Read tickets (without email addresses)"
 
 #: src/Partners/Keys.php:32
 msgid "Check-ins lesen"
-msgstr ""
+msgstr "Read check-ins"
 
 #: src/Partners/Keys.php:33
 msgid "Berichte (Umsatz, Auslastung) lesen"
-msgstr ""
+msgstr "Read reports (revenue, utilization)"
 
 #: src/Partners/Keys.php:34
 msgid "Abgeschlossene Abrechnungen lesen"
-msgstr ""
+msgstr "Read finalized settlements"
 
 #: src/Partners/Keys.php:35
 msgid "Personenbezogene Daten: E-Mail-Adressen von Käufer:innen und Teilnehmenden"
-msgstr ""
+msgstr "Personal data: email addresses of buyers and attendees"
 
 #: src/Partners/Keys.php:51
 msgid "Mindestens ein unterstützter Scope ist erforderlich."
-msgstr ""
+msgstr "At least one supported scope is required."
 
 #: src/Partners/Keys.php:54
 msgid "Ein Key kann nur auf Events dieses Partners beschränkt werden."
-msgstr ""
+msgstr "A key can only be restricted to events of this partner."
 
 #: src/Partners/Keys.php:60
 msgid "Das Ablaufdatum muss in der Zukunft liegen."
-msgstr ""
+msgstr "The expiry date must be in the future."
 
 #: src/Partners/Keys.php:97
 msgid "API-Key nicht gefunden."
-msgstr ""
+msgstr "API key not found."
 
 #. translators: %s: entry
 #: src/Partners/Keys.php:135
 #, php-format
 msgid "Ungültiger IP-Eintrag: %s"
-msgstr ""
+msgstr "Invalid IP entry: %s"
 
 #: src/Partners/Keys.php:192
 msgid "Zu viele fehlgeschlagene Anmeldungen. Bitte später erneut versuchen."
-msgstr ""
+msgstr "Too many failed login attempts. Please try again later."
 
 #: src/Partners/Keys.php:216
 msgid "Ratenlimit überschritten. Bitte später erneut versuchen."
-msgstr ""
+msgstr "Rate limit exceeded. Please try again later."
 
 #: src/Partners/Keys.php:236
 msgid "Ungültiger, abgelaufener oder widerrufener API-Key."
-msgstr ""
+msgstr "Invalid, expired, or revoked API key."
 
 #: src/Partners/Keys.php:237
 msgid "Dieser API-Key ist für diese Anfrage nicht berechtigt."
-msgstr ""
+msgstr "This API key is not authorized for this request."
 
 #: src/Partners/Repository.php:20
 msgid "Provision und Ticketgebühr werden bei Erstattungen storniert"
-msgstr ""
+msgstr "Commission and ticket fee are reversed on refunds"
 
 #: src/Partners/Repository.php:21
 msgid "Provision wird storniert, Ticketgebühr bleibt bestehen"
-msgstr ""
+msgstr "Commission is reversed, ticket fee remains"
 
 #: src/Partners/Repository.php:22
 msgid "Provision und Ticketgebühr bleiben bei Erstattungen bestehen"
-msgstr ""
+msgstr "Commission and ticket fee remain in place on refunds"
 
 #: src/Partners/Repository.php:50
 msgid "Bitte einen Namen angeben."
-msgstr ""
+msgstr "Please enter a name."
 
 #: src/Partners/Repository.php:52
 msgid "Die Kontakt-E-Mail-Adresse ist ungültig."
-msgstr ""
+msgstr "The contact email address is invalid."
 
 #: src/Partners/Repository.php:54
 msgid "Die Währung muss ein dreistelliger ISO-Code sein."
-msgstr ""
+msgstr "The currency must be a three-letter ISO code."
 
 #: src/Partners/Repository.php:57
 msgid "Prozentwerte müssen zwischen 0 und 100 liegen."
-msgstr ""
+msgstr "Percentages must be between 0 and 100."
 
 #: src/Partners/Repository.php:59
 msgid "Die Ticketgebühr darf nicht negativ sein."
-msgstr ""
+msgstr "The ticket fee must not be negative."
 
 #: src/Partners/Repository.php:61
 msgid "Ungültiges Abrechnungsbeginn-Datum."
-msgstr ""
+msgstr "Invalid settlement start date."
 
 #: src/Partners/Repository.php:88
 msgid "Partner konnte nicht gespeichert werden."
-msgstr ""
+msgstr "Partner could not be saved."
 
 #: src/Partners/Settlements.php:38
 msgid "Ausgezahlt"
-msgstr ""
+msgstr "Paid out"
 
 #: src/Partners/Settlements.php:43
 msgid "Verkauf"
-msgstr ""
+msgstr "Sale"
 
 #: src/Partners/Settlements.php:44
 msgid "Nachtrag Verkauf (Vorperiode)"
-msgstr ""
+msgstr "Sale adjustment (previous period)"
 
 #: src/Partners/Settlements.php:45
 #: src/Partners/Settlements.php:472
 msgid "Erstattung"
-msgstr ""
+msgstr "Refund"
 
 #: src/Partners/Settlements.php:46
 msgid "Korrektur Erstattung (Vorperiode)"
-msgstr ""
+msgstr "Refund correction (previous period)"
 
 #: src/Partners/Settlements.php:299
 msgid "Ungültiger Abrechnungszeitraum (JJJJ-MM)."
-msgstr ""
+msgstr "Invalid settlement period (YYYY-MM)."
 
 #: src/Partners/Settlements.php:301
 msgid "Für zukünftige Zeiträume kann keine Abrechnung erstellt werden."
-msgstr ""
+msgstr "A settlement cannot be created for future periods."
 
 #. translators: %s: period
 #: src/Partners/Settlements.php:305
 #, php-format
 msgid "Es gibt bereits eine abgeschlossene Abrechnung bis %s. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet."
-msgstr ""
+msgstr "A finalized settlement already exists up to %s. Later changes will be settled as a correction in the next period."
 
 #: src/Partners/Settlements.php:320
 msgid "Für diesen Partner und Zeitraum gibt es bereits eine Abrechnung."
-msgstr ""
+msgstr "A settlement already exists for this partner and period."
 
 #: src/Partners/Settlements.php:329
 msgid "Abgeschlossene Abrechnungen können nicht mehr geändert werden. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet."
-msgstr ""
+msgstr "Finalized settlements can no longer be changed. Later changes will be settled as a correction in the next period."
 
 #: src/Partners/Settlements.php:384
 msgid "Der Abrechnungszeitraum ist noch nicht beendet."
-msgstr ""
+msgstr "The settlement period has not ended yet."
 
 #: src/Partners/Settlements.php:386
 msgid "Bitte zuerst die Entwürfe früherer Zeiträume abschließen oder löschen."
-msgstr ""
+msgstr "Please finalize or delete the drafts of earlier periods first."
 
 #: src/Partners/Settlements.php:395
 msgid "Einzelne Positionen wurden bereits in einer anderen Abrechnung abgerechnet. Bitte neu berechnen."
-msgstr ""
+msgstr "Some line items have already been settled in another settlement. Please recalculate."
 
 #: src/Partners/Settlements.php:403
 msgid "Abrechnung konnte nicht abgeschlossen werden."
-msgstr ""
+msgstr "Settlement could not be finalized."
 
 #: src/Partners/Settlements.php:414
 msgid "Nur abgeschlossene Abrechnungen können als ausgezahlt markiert werden."
-msgstr ""
+msgstr "Only finalized settlements can be marked as paid out."
 
 #: src/Partners/Settlements.php:470
 #: src/Partners/Settlements.php:517
 msgid "Partner-Abrechnung"
-msgstr ""
+msgstr "Partner settlement"
 
 #: src/Partners/Settlements.php:472
 msgid "Datum (UTC)"
-msgstr ""
+msgstr "Date (UTC)"
 
 #: src/Partners/Settlements.php:472
 msgid "Ursprungsperiode"
-msgstr ""
+msgstr "Originating period"
 
 #: src/Partners/Settlements.php:472
 #: src/Partners/Settlements.php:478
 msgid "USt-Satz %"
-msgstr ""
+msgstr "VAT rate %"
 
 #: src/Partners/Settlements.php:472
 #: src/Partners/Settlements.php:534
 #: src/Partners/Settlements.php:560
 msgid "Provision"
-msgstr ""
+msgstr "Commission"
 
 #: src/Partners/Settlements.php:472
 #: src/Partners/Settlements.php:534
 msgid "Ticketgebühr"
-msgstr ""
+msgstr "Ticket fee"
 
 #: src/Partners/Settlements.php:492
 #: src/Partners/Settlements.php:546
 msgid "Erstattungen brutto"
-msgstr ""
+msgstr "Gross refunds"
 
 #: src/Partners/Settlements.php:493
 msgid "davon Korrekturen/Nachträge aus Vorperioden"
-msgstr ""
+msgstr "of which corrections/adjustments from previous periods"
 
 #: src/Partners/Settlements.php:494
 #: src/Partners/Settlements.php:547
 msgid "Ticketumsatz brutto nach Erstattungen"
-msgstr ""
+msgstr "Gross ticket revenue after refunds"
 
 #: src/Partners/Settlements.php:495
 msgid "darin USt"
-msgstr ""
+msgstr "of which VAT"
 
 #: src/Partners/Settlements.php:496
 #: src/Partners/Settlements.php:549
 msgid "Ticketumsatz netto"
-msgstr ""
+msgstr "Net ticket revenue"
 
 #: src/Partners/Settlements.php:497
 msgid "Provision (netto)"
-msgstr ""
+msgstr "Commission (net)"
 
 #: src/Partners/Settlements.php:498
 msgid "Ticketgebühren (netto)"
-msgstr ""
+msgstr "Ticket fees (net)"
 
 #: src/Partners/Settlements.php:499
 msgid "Plattformgebühr netto"
-msgstr ""
+msgstr "Net platform fee"
 
 #: src/Partners/Settlements.php:500
 msgid "USt auf Plattformgebühr"
-msgstr ""
+msgstr "VAT on platform fee"
 
 #: src/Partners/Settlements.php:501
 msgid "Plattformgebühr brutto"
-msgstr ""
+msgstr "Gross platform fee"
 
 #: src/Partners/Settlements.php:502
 msgid "Auszahlungsbetrag"
-msgstr ""
+msgstr "Payout amount"
 
 #: src/Partners/Settlements.php:517
 msgid "Abrechnungsentwurf"
-msgstr ""
+msgstr "Settlement draft"
 
 #: src/Partners/Settlements.php:522
 msgid "Entwurf – nicht abgeschlossen, Werte können sich noch ändern"
-msgstr ""
+msgstr "Draft – not finalized, values may still change"
 
 #. translators: 1: period, 2: date
 #: src/Partners/Settlements.php:523
 #, php-format
 msgid "Zeitraum: %1$s · Erstellt: %2$s"
-msgstr ""
+msgstr "Period: %1$s · Created: %2$s"
 
 #. translators: 1: date, 2: reference
 #: src/Partners/Settlements.php:524
 #, php-format
 msgid "Ausgezahlt am %1$s %2$s"
-msgstr ""
+msgstr "Paid out on %1$s %2$s"
 
 #. translators: 1: commission, 2: fee, 3: VAT
 #: src/Partners/Settlements.php:525
 #, php-format
 msgid "Konditionen: Provision %1$s vom Nettoumsatz, Ticketgebühr %2$s pro Ticket, USt auf Plattformgebühr %3$s"
-msgstr ""
+msgstr "Terms: commission %1$s of net revenue, ticket fee %2$s per ticket, VAT on platform fee %3$s"
 
 #: src/Partners/Settlements.php:527
 msgid "Übersicht nach Art"
-msgstr ""
+msgstr "Overview by type"
 
 #: src/Partners/Settlements.php:534
 msgid "Nach Event"
-msgstr ""
+msgstr "By event"
 
 #: src/Partners/Settlements.php:539
 msgid "Umsatzsteuer nach Steuersatz"
-msgstr ""
+msgstr "VAT by tax rate"
 
 #: src/Partners/Settlements.php:543
 msgid "Abrechnung"
-msgstr ""
+msgstr "Settlement"
 
 #: src/Partners/Settlements.php:545
 msgid "Ticketumsatz brutto (Verkäufe)"
-msgstr ""
+msgstr "Gross ticket revenue (sales)"
 
 #: src/Partners/Settlements.php:548
 msgid "darin enthaltene USt"
-msgstr ""
+msgstr "of which VAT"
 
 #. translators: %s: percent
 #: src/Partners/Settlements.php:550
 #, php-format
 msgid "Provision %s vom Nettoumsatz"
-msgstr ""
+msgstr "Commission %s of net revenue"
 
 #. translators: %s: percent
 #: src/Partners/Settlements.php:551
 msgid "Ticketgebühren"
-msgstr ""
+msgstr "Ticket fees"
 
 #. translators: %s: percent
 #: src/Partners/Settlements.php:552
 #, php-format
 msgid "USt %s auf Plattformgebühr"
-msgstr ""
+msgstr "VAT %s on platform fee"
 
 #: src/Partners/Settlements.php:555
 msgid "Auszahlungsbetrag an Partner"
-msgstr ""
+msgstr "Payout amount to partner"
 
 #: src/Partners/Settlements.php:555
 msgid "Forderung an Partner"
-msgstr ""
+msgstr "Receivable from partner"
 
 #. translators: %s: amount
 #: src/Partners/Settlements.php:558
 #, php-format
 msgid "Enthält Korrekturen und Nachträge aus bereits abgeschlossenen Vorperioden: %s brutto."
-msgstr ""
+msgstr "Includes corrections and adjustments from previously finalized periods: %s gross."
 
 #: src/Partners/Settlements.php:560
 msgid "Gebühr"
-msgstr ""
+msgstr "Fee"
 
 #. translators: %s: formatted amount
 #: src/PublicEvents.php:32
 #, php-format
 msgid "Summe: %s (vorbehaltlich Rabatt; der endgültige Preis wird bei der Bestellung berechnet)"
-msgstr ""
+msgstr "Total: %s (subject to discount; the final price is calculated at checkout)"
 
 #. translators: %s: formatted amount
 #: src/PublicEvents.php:34
 #, php-format
 msgid "Gesamtbetrag: %s."
-msgstr ""
+msgstr "Total amount: %s."
 
 #: src/Series/AdminPage.php:172
 msgid "Preise & Kontingente"
-msgstr ""
+msgstr "Prices & quotas"
 
 #: src/Series/AdminPage.php:177
 msgid "Preisstufen und Kontingente"
-msgstr ""
+msgstr "Price tiers and quotas"
 
 #: src/Series/AdminPage.php:197
 msgid "Preisregel gespeichert."
-msgstr ""
+msgstr "Pricing rule saved."
 
 #: src/Series/AdminPage.php:204
 msgid "Preisregel entfernt."
-msgstr ""
+msgstr "Pricing rule removed."
 
 #: src/Series/AdminPage.php:212
 msgid "Kontingent gespeichert."
-msgstr ""
+msgstr "Quota saved."
 
 #: src/Series/AdminPage.php:219
 msgid "Kontingent geändert."
-msgstr ""
+msgstr "Quota updated."
 
 #: src/Series/AdminPage.php:226
 msgid "Kontingent entfernt."
-msgstr ""
+msgstr "Quota removed."
 
 #. translators: %s: local date/time
 #: src/Series/AdminPage.php:234
 #, php-format
 msgid "Buchung vor %s"
-msgstr ""
+msgstr "Booking before %s"
 
 #. translators: %d: hours
 #: src/Series/AdminPage.php:237
 #, php-format
 msgid "ab %d Stunden vor Beginn"
-msgstr ""
+msgstr "from %d hours before start"
 
 #. translators: %d: percent
 #: src/Series/AdminPage.php:240
 #, php-format
 msgid "ab %d %% verkauft"
-msgstr ""
+msgstr "from %d %% sold"
 
 #: src/Series/AdminPage.php:246
 msgid "(Ortszeit Beginn)"
-msgstr ""
+msgstr "(local start time)"
 
 #: src/Series/AdminPage.php:263
 msgid "Alle Ticketarten"
-msgstr ""
+msgstr "All ticket types"
 
 #. translators: %s: series name or number
 #: src/Series/AdminPage.php:266
 #, php-format
 msgid "Preisstufen und Kontingente: %s"
-msgstr ""
+msgstr "Price tiers and quotas: %s"
 
 #: src/Series/AdminPage.php:267
 msgid "Preisregeln gelten serverseitig für alle Termine dieser Serie (Online-Checkout und Kasse). Von mehreren passenden Regeln gewinnt die mit der höchsten Priorität. WooCommerce verwendet weiterhin seine eigenen Produktpreise; Kontingente gelten dort trotzdem."
-msgstr ""
+msgstr "Pricing rules apply server-side to all dates in this series (online checkout and box office). If several rules match, the one with the highest priority wins. WooCommerce continues to use its own product prices; quotas still apply there."
 
 #: src/Series/AdminPage.php:269
 msgid "Preisregeln"
-msgstr ""
+msgstr "Pricing rules"
 
 #: src/Series/AdminPage.php:272
 msgid "Bedingung"
-msgstr ""
+msgstr "Condition"
 
 #: src/Series/AdminPage.php:272
 msgid "Priorität"
-msgstr ""
+msgstr "Priority"
 
 #. translators: %s: rule label or kind
 #: src/Series/AdminPage.php:279
 #, php-format
 msgid "Preisregel „%s“ entfernen"
-msgstr ""
+msgstr "Remove pricing rule “%s”"
 
 #: src/Series/AdminPage.php:283
 msgid "Noch keine Preisregeln – es gilt der Preis der Ticketart."
-msgstr ""
+msgstr "No pricing rules yet – the ticket type price applies."
 
 #: src/Series/AdminPage.php:286
 #: src/Series/AdminPage.php:317
 msgid "Preisregel hinzufügen"
-msgstr ""
+msgstr "Add pricing rule"
 
 #: src/Series/AdminPage.php:296
 msgid "Bezeichnung (öffentlich, optional)"
-msgstr ""
+msgstr "Label (public, optional)"
 
 #: src/Series/AdminPage.php:296
 msgid "Wird neben dem Preis angezeigt, z. B. „Frühbucher“."
-msgstr ""
+msgstr "Shown next to the price, e.g. “Early bird”."
 
 #. translators: %s: currency
 #: src/Series/AdminPage.php:300
 #, php-format
 msgid "Fester Preis (brutto, %s)"
-msgstr ""
+msgstr "Fixed price (gross, %s)"
 
 #. translators: %s: currency
 #: src/Series/AdminPage.php:300
 msgid "Prozentuale Änderung"
-msgstr ""
+msgstr "Percentage change"
 
 #. translators: %s: currency
 #: src/Series/AdminPage.php:301
 msgid "Betrag oder Prozent"
-msgstr ""
+msgstr "Amount or percentage"
 
 #: src/Series/AdminPage.php:302
 msgid "Fester Preis z. B. 19,90; prozentual z. B. -20 (20 % günstiger) oder 15 (15 % teurer)."
-msgstr ""
+msgstr "Fixed price e.g. 19.90; percentage e.g. -20 (20% cheaper) or 15 (15% more expensive)."
 
 #. translators: %s: timezone
 #: src/Series/AdminPage.php:304
 msgid "Frühbucher bis"
-msgstr ""
+msgstr "Early bird until"
 
 #. translators: %s: timezone
 #: src/Series/AdminPage.php:304
 #, php-format
 msgid "Nur für Frühbucher. Ortszeit %s; gilt für Buchungen vor diesem Zeitpunkt."
-msgstr ""
+msgstr "Early bird only. Local time %s; applies to bookings before this point in time."
 
 #: src/Series/AdminPage.php:305
 msgid "Last-Minute ab Stunden vor Beginn"
-msgstr ""
+msgstr "Last minute from hours before start"
 
 #: src/Series/AdminPage.php:306
 msgid "Nachfragestufe ab % verkauft"
-msgstr ""
+msgstr "Demand tier from % sold"
 
 #: src/Series/AdminPage.php:306
 msgid "Verkauft = bezahlte und aktuell reservierte Tickets der Ticketart (bzw. des Termins, wenn die Ticketart kein eigenes Kontingent hat). Mehrere Stufen sind möglich; die höchste erreichte gilt."
-msgstr ""
+msgstr "Sold = paid and currently reserved tickets of the ticket type (or of the date, if the ticket type has no quota of its own). Multiple tiers are possible; the highest one reached applies."
 
 #: src/Series/AdminPage.php:311
 msgid "Nur für Wochentags-/Zeitfensterpreise; maßgeblich ist der Beginn des Termins in Ortszeit."
-msgstr ""
+msgstr "Only for weekday/time-window prices; the start of the date in local time is what counts."
 
 #: src/Series/AdminPage.php:312
 msgid "Zeitfenster Beginn von–bis"
-msgstr ""
+msgstr "Time window start–end"
 
 #: src/Series/AdminPage.php:314
 msgid "„von“ inklusive, „bis“ exklusive. Leer = ganzer Tag."
-msgstr ""
+msgstr "“Start” inclusive, “end” exclusive. Empty = whole day."
 
 #: src/Series/AdminPage.php:315
 msgid "Priorität (optional)"
-msgstr ""
+msgstr "Priority (optional)"
 
 #: src/Series/AdminPage.php:315
 msgid "Leer = Standard (Last-Minute 40, Nachfrage 30, Frühbucher 20, Wochentag 10)."
-msgstr ""
+msgstr "Empty = default (last minute 40, demand 30, early bird 20, weekday 10)."
 
 #: src/Series/AdminPage.php:320
 msgid "Gemeinsame Kontingente"
-msgstr ""
+msgstr "Shared quotas"
 
 #: src/Series/AdminPage.php:323
 msgid "Belegt / Kontingent"
-msgstr ""
+msgstr "Used / quota"
 
 #: src/Series/AdminPage.php:323
 msgid "Kontingent ändern"
-msgstr ""
+msgstr "Change quota"
 
 #: src/Series/AdminPage.php:330
 msgid "Neues Kontingent"
-msgstr ""
+msgstr "New quota"
 
 #. translators: %s: pool name
 #: src/Series/AdminPage.php:335
 #, php-format
 msgid "Kontingent „%s“ entfernen"
-msgstr ""
+msgstr "Remove quota “%s”"
 
 #: src/Series/AdminPage.php:339
 msgid "Keine gemeinsamen Kontingente – es gelten nur die Kontingente der Termine und Ticketarten."
-msgstr ""
+msgstr "No shared quotas – only the quotas of the dates and ticket types apply."
 
 #: src/Series/AdminPage.php:341
 #: src/Series/AdminPage.php:349
 msgid "Kontingent hinzufügen"
-msgstr ""
+msgstr "Add quota"
 
 #: src/Series/AdminPage.php:346
 msgid "z. B. „Student“ für „max. 200 Studierendentickets über die ganze Serie“."
-msgstr ""
+msgstr "e.g. “Student” for “max. 200 student tickets across the whole series”."
 
 #: src/Series/AdminPage.php:347
 msgid "Kontingent (alle Termine zusammen)"
-msgstr ""
+msgstr "Quota (all dates combined)"
 
 #: src/Series/AdminPage.php:360
 msgid "Aktuelle Preise der nächsten Termine"
-msgstr ""
+msgstr "Current prices of the upcoming dates"
 
 #: src/Series/AdminPage.php:360
 msgid "Grundpreis"
-msgstr ""
+msgstr "Base price"
 
 #: src/Series/AdminPage.php:360
 msgid "Aktueller Preis"
-msgstr ""
+msgstr "Current price"
 
 #: src/Series/Pools.php:63
 #: src/Series/Pricing.php:181
 msgid "Serie nicht gefunden."
-msgstr ""
+msgstr "Series not found."
 
 #: src/Series/Pools.php:66
 #: src/Series/Pools.php:83
 msgid "Bitte ein Kontingent von mindestens 1 angeben."
-msgstr ""
+msgstr "Please enter a quota of at least 1."
 
 #: src/Series/Pools.php:70
 msgid "Serienkontingent"
-msgstr ""
+msgstr "Series quota"
 
 #: src/Series/Pools.php:71
 msgid "Das Kontingent konnte nicht gespeichert werden."
-msgstr ""
+msgstr "The quota could not be saved."
 
 #: src/Series/Pools.php:102
 msgid "Kontingent nicht gefunden."
-msgstr ""
+msgstr "Quota not found."
 
 #. translators: 1: pool name, 2: remaining units
 #: src/Series/Pools.php:186
 #, php-format
 msgid "Das gemeinsame Kontingent „%1$s“ hat nur noch %2$d Tickets frei."
-msgstr ""
+msgstr "The shared quota “%1$s” has only %2$d tickets left."
 
 #: src/Series/Pricing.php:125
 msgid "Bitte eine Art der Preisregel wählen."
-msgstr ""
+msgstr "Please choose a pricing rule type."
 
 #: src/Series/Pricing.php:130
 msgid "Bitte einen gültigen Preis angeben."
-msgstr ""
+msgstr "Please enter a valid price."
 
 #: src/Series/Pricing.php:135
 msgid "Bitte eine gültige prozentuale Änderung angeben (z. B. -20 oder 15)."
-msgstr ""
+msgstr "Please enter a valid percentage change (e.g. -20 or 15)."
 
 #: src/Series/Pricing.php:139
 msgid "Die Priorität muss eine ganze Zahl sein."
-msgstr ""
+msgstr "The priority must be a whole number."
 
 #: src/Series/Pricing.php:156
 msgid "Bitte ein gültiges Datum „Frühbucher bis“ angeben."
-msgstr ""
+msgstr "Please enter a valid “Early bird until” date."
 
 #: src/Series/Pricing.php:159
 msgid "Last-Minute: Stunden vor Beginn zwischen 1 und 1440 angeben."
-msgstr ""
+msgstr "Last minute: enter hours before start between 1 and 1440."
 
 #: src/Series/Pricing.php:162
 msgid "Nachfragestufe: Verkaufsanteil zwischen 1 und 100 % angeben."
-msgstr ""
+msgstr "Demand tier: enter a sold share between 1 and 100 %."
 
 #: src/Series/Pricing.php:168
 msgid "Zeitfenster: Beginn und Ende (HH:MM) beide angeben oder beide leer lassen."
-msgstr ""
+msgstr "Time window: enter both start and end (HH:MM) or leave both empty."
 
 #: src/Series/Pricing.php:169
 msgid "Bitte Wochentage und/oder ein Zeitfenster angeben."
-msgstr ""
+msgstr "Please enter weekdays and/or a time window."
 
 #: src/Series/Pricing.php:187
 msgid "Die Preisregel konnte nicht gespeichert werden."
-msgstr ""
+msgstr "The pricing rule could not be saved."
 
 #: src/Series/Pricing.php:198
 msgid "Preisregel nicht gefunden."
-msgstr ""
+msgstr "Pricing rule not found."
 
 #: src/Series/Pricing.php:344
 msgid "Frühbucherpreis"
-msgstr ""
+msgstr "Early bird price"
 
 #: src/Series/Pricing.php:345
 msgid "Last-Minute-Preis"
-msgstr ""
+msgstr "Last-minute price"
 
 #: src/Series/Pricing.php:346
 msgid "Nachfragepreis"
-msgstr ""
+msgstr "Demand price"
 
 #: src/Series/Pricing.php:347
 msgid "Wochentags-/Zeitfensterpreis"
-msgstr ""
+msgstr "Weekday/time-window price"
 
 #. translators: %s: regular price
 #: templates/event-card.php:24
 #, php-format
 msgid "statt %s"
-msgstr ""
+msgstr "instead of %s"
