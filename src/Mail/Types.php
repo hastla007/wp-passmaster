@@ -13,10 +13,12 @@ namespace PassCaptain\Mail;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Types {
-	private static $cache = null;
+	/** Registry per locale (labels and descriptions are translated). */
+	private static $cache = array();
 
 	public static function all() {
-		if ( null === self::$cache ) {
+		$locale = Mailer::current_locale();
+		if ( ! isset( self::$cache[ $locale ] ) ) {
 			$core = self::core();
 			$types = (array) apply_filters( 'wpcap_mail_types', $core );
 			foreach ( $types as $key => $def ) {
@@ -24,14 +26,14 @@ final class Types {
 				$types[ $key ] = array_merge( array( 'label' => $key, 'description' => '', 'placeholders' => array(), 'sample' => static function () { return array(); } ), $def );
 			}
 			// Core types are required by the plugin's own code paths; filters may change but not remove them.
-			self::$cache = $types + $core;
+			self::$cache[ $locale ] = $types + $core;
 		}
-		return self::$cache;
+		return self::$cache[ $locale ];
 	}
 
 	/** Clears the registry cache (after registering types late, tests). */
 	public static function flush() {
-		self::$cache = null;
+		self::$cache = array();
 	}
 
 	/** Placeholders available in every mail. */

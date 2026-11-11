@@ -99,7 +99,8 @@ final class Mailer {
 	/**
 	 * Applies the result of a legacy array filter (subject/body/attachments) to a composed message.
 	 * Plain text appended to an HTML body by such filters (e.g. seat list, wallet links) is
-	 * converted to HTML so it keeps its line breaks and cannot inject markup.
+	 * converted to HTML so it keeps its line breaks and cannot inject markup; appended HTML is
+	 * passed through wp_kses_post.
 	 */
 	public static function apply_filtered( array $message, $filtered ) {
 		if ( ! is_array( $filtered ) ) { return $message; }
@@ -109,9 +110,9 @@ final class Mailer {
 			$base = rtrim( $original );
 			if ( '' !== $base && str_starts_with( $body, $base ) ) {
 				$suffix = substr( $body, strlen( $base ) );
-				if ( ! self::has_tags( $suffix ) ) { $body = $base . self::text_to_html( $suffix ); }
-			} elseif ( ! self::has_tags( $body ) ) {
-				$body = self::text_to_html( $body );
+				$body = $base . ( self::has_tags( $suffix ) ? wp_kses_post( $suffix ) : self::text_to_html( $suffix ) );
+			} else {
+				$body = self::has_tags( $body ) ? wp_kses_post( $body ) : self::text_to_html( $body );
 			}
 		}
 		$message['subject'] = self::clean_subject( (string) ( $filtered['subject'] ?? $message['subject'] ) );
@@ -129,13 +130,13 @@ final class Mailer {
 		$message = apply_filters( 'wpcap_mail', $message, $to );
 		if ( ! is_array( $message ) ) { return false; }
 		$prepared = self::prepare( $to, $message );
-		do_action( 'wpcap_mail_before_send', $prepared, $message );
 		$alt = $prepared['alt_body'];
 		if ( null !== $alt ) {
 			self::$alt_body = $alt;
 			add_action( 'phpmailer_init', array( __CLASS__, 'apply_alt_body' ), 10, 1 );
 		}
 		try {
+			do_action( 'wpcap_mail_before_send', $prepared, $message );
 			$sent = wp_mail( $prepared['to'], $prepared['subject'], $prepared['body'], $prepared['headers'], $prepared['attachments'] );
 		} finally {
 			if ( null !== $alt ) {
@@ -220,9 +221,9 @@ final class Mailer {
 		return $html ? nl2br( esc_html( (string) $value ) ) : (string) $value;
 	}
 
-	/** Whether a string contains HTML tags. */
+	/** Whether a string contains common HTML markup (anything else, e.g. "<x>", counts as text). */
 	public static function has_tags( $text ) {
-		return 1 === preg_match( '#<(?:[a-z][a-z0-9]*|/[a-z][a-z0-9]*|!--)[^>]*>#i', (string) $text );
+		return 1 === preg_match( '#</?(?:a|abbr|b|blockquote|br|center|code|div|em|font|h[1-6]|hr|i|img|li|ol|p|pre|small|span|strong|sub|sup|table|tbody|td|th|thead|tr|u|ul)\b[^>]*>#i', (string) $text );
 	}
 
 	/** Subjects are single-line plain text. */

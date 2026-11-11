@@ -108,7 +108,7 @@ final class Admin {
 	public static function send_test( array $in ) {
 		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
 		$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
-		$to = $user && ! empty( $user->user_email ) ? sanitize_email( $user->user_email ) : '';
+		$to = (string) apply_filters( 'wpcap_mail_test_recipient', $user && ! empty( $user->user_email ) ? sanitize_email( $user->user_email ) : '', $user );
 		if ( ! is_email( $to ) ) {
 			return Forms::error( 'wpcap_mail_test_recipient', __( 'Dein Benutzerkonto hat keine gültige E-Mail-Adresse.', 'wp-pass-captain' ) );
 		}
