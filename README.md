@@ -51,4 +51,8 @@ Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaSc
 
 ## Noch offen
 
-Viele Schritte 21–50 sind Backend-Grundlagen. Checkout-/Admin-Oberflächen, PSP-/Voucher-Orchestrierung, Checkout-verknüpfte Sitzplatz- und Servicebuchungen, echte Wallet-Anbieter, geprüfte Steuerberechnung und PDF-Rechnungen fehlen. Teilnehmerfelder sind noch nicht im Checkout. Entwickler-API-Schlüssel haben noch kein zusätzliches eigenes Rate-Limit; externe Connectoren müssen separat implementiert und aktiviert werden. Last-, Restore-, Sicherheits- und Barrierefreiheitsprüfungen sind noch nicht erfolgt. Abhängigkeiten sind über `composer.lock` fixiert; ein abgenommener 1.0-Release-Prozess fehlt noch. Siehe Roadmaps und `docs/` für die Grenzen der einzelnen Grundlagen.
+- Abnahme in einer echten WordPress-/WooCommerce-Installation sowie gegen die echten Stripe- und PayPal-Sandboxes (getestet ist gegen MariaDB mit nachgebauter WordPress-, WooCommerce- und Anbieter-API).
+- Englische Ausgangstexte bzw. fertige Übersetzungen (die Vorlage `languages/wp-pass-captain.pot` ist vorhanden; Ausgangssprache ist Deutsch).
+- Rechtliche und steuerliche Prüfung von Rechnungen, Gutschriften, Verbraucherinformationen und Steuersätzen je Land.
+- QR-Scan mit der Kamera braucht die BarcodeDetector-API (Chrome/Android); auf iOS bleibt die manuelle Eingabe.
+- P2/P3 laut Konzept: grafischer Sitzplan im Checkout, Wallet-Pässe, Offline-Check-in, POS-Oberfläche, Kalender, SMS, Badges, öffentliche Webhooks, Last-, Sicherheits- und Barrierefreiheitstests.
