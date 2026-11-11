@@ -101,3 +101,14 @@ $xref_ok = isset( $xm[1] ) && 0 === strpos( substr( $pdf, (int) $xm[1] ), 'xref'
 check( 'ticket mail has a valid PDF with one page per ticket', str_starts_with( $pdf, '%PDF-1.4' ) && 2 === preg_match_all( '#/Type /Page /Parent#', $pdf ) && false !== strpos( $pdf, '(Konzert) Tj' ) && $xref_ok );
 check( 'PDF contains the QR code when the encoder is installed', ! class_exists( '\\BaconQrCode\\Encoder\\Encoder' ) || substr_count( $pdf, 're f' ) > 200 );
 check( 'temporary PDF file is removed after sending', ! glob( sys_get_temp_dir() . '/tickets-*.pdf' ) );
+
+echo "Door sales\n";
+$dt = make_type( 10, 10, 1500 );
+$wpdb->query( "UPDATE {$p}wpcap_occurrences o JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id SET o.starts_at='" . gmdate( 'Y-m-d H:i:s', time() - 3600 ) . "', o.ends_at=NULL WHERE tt.ticket_type_id=$dt" );
+$wpdb->query( "UPDATE {$p}wpcap_ticket_types SET sales_end='" . gmdate( 'Y-m-d H:i:s', time() - 7200 ) . "' WHERE ticket_type_id=$dt" );
+$online_late = Orders::create( array( 'email' => 'late@example.com', 'items' => array( array( 'ticket_type_id' => $dt, 'quantity' => 1 ) ), 'idempotency_key' => 'door-1' ) );
+$door = Orders::create( array( 'email' => 'door@example.com', 'items' => array( array( 'ticket_type_id' => $dt, 'quantity' => 1 ) ), 'idempotency_key' => 'door-2' ), array( 'key_namespace' => 'pos', 'skip_rate_limit' => true ) );
+check( 'box office can sell after start and online sales end; online cannot', is_wp_error( $online_late ) && ! is_wp_error( $door ) );
+$wpdb->query( "UPDATE {$p}wpcap_occurrences o JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id SET o.ends_at='" . gmdate( 'Y-m-d H:i:s', time() - 60 ) . "' WHERE tt.ticket_type_id=$dt" );
+$door_ended = Orders::create( array( 'email' => 'door@example.com', 'items' => array( array( 'ticket_type_id' => $dt, 'quantity' => 1 ) ), 'idempotency_key' => 'door-3' ), array( 'key_namespace' => 'pos', 'skip_rate_limit' => true ) );
+check( 'no box office sales after the occurrence has ended', is_wp_error( $door_ended ) );

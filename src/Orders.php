@@ -101,10 +101,15 @@ final class Orders {
 					"SELECT o.*,e.name AS event_name,e.status AS event_status FROM $occ_table o INNER JOIN $event_table e ON e.event_id=o.event_id WHERE o.occurrence_id=%d FOR UPDATE",
 					$type->occurrence_id
 				) );
-				if ( ! $occurrence || 'published' !== $occurrence->event_status || 'scheduled' !== $occurrence->status || strtotime( $occurrence->starts_at . ' UTC' ) < time() ) {
+				// Door sales (box office) may sell after the start and outside the online sales window,
+				// but never for an occurrence that has ended.
+				$door_sale = ! empty( $internal['allow_door_sales'] ) || 'pos' === $namespace;
+				$ended = $occurrence && ( $occurrence->ends_at ? $occurrence->ends_at : gmdate( 'Y-m-d H:i:s', strtotime( $occurrence->starts_at . ' UTC' ) + 6 * HOUR_IN_SECONDS ) ) < $now;
+				$started = $occurrence && strtotime( $occurrence->starts_at . ' UTC' ) < time();
+				if ( ! $occurrence || 'published' !== $occurrence->event_status || 'scheduled' !== $occurrence->status || ( $door_sale ? $ended : $started ) ) {
 					throw new \RuntimeException( 'occurrence_unavailable' );
 				}
-				if ( ( $type->sales_start && $type->sales_start > $now ) || ( $type->sales_end && $type->sales_end < $now ) ) {
+				if ( ! $door_sale && ( ( $type->sales_start && $type->sales_start > $now ) || ( $type->sales_end && $type->sales_end < $now ) ) ) {
 					throw new \RuntimeException( 'sales_closed' );
 				}
 				if ( $external && 3 === strlen( $external_currency ) ) {
