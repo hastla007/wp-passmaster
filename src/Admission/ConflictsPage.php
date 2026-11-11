@@ -45,6 +45,7 @@ final class ConflictsPage {
 			'cancelled_event' => __( 'Termin abgesagt', 'wp-pass-captain' ),
 			'out_of_window' => __( 'Außerhalb des Einlasszeitraums', 'wp-pass-captain' ),
 			'forbidden' => __( 'Kein Einlasszugriff', 'wp-pass-captain' ),
+			'offline_expired' => __( 'Offline-Dauer überschritten (Offline-Scanner)', 'wp-pass-captain' ),
 		);
 		return $labels[ (string) $result ] ?? Forms::status_label( $result );
 	}

@@ -3,3 +3,5 @@
 /.phpunit.cache/
 /.phpunit.result.cache
 tests/integration/wp/
+tests/a11y/node_modules/
+tests/a11y/report/

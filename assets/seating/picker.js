@@ -186,7 +186,7 @@
 		});
 
 		const chosen = h('div', { className: 'wpcap-seating-selection' }, this.box);
-		h('h4', {}, chosen, this.t.yourSeats || '');
+		h('h3', {}, chosen, this.t.yourSeats || '');
 		this.selectionList = h('ul', {}, chosen);
 		this.update();
 	};

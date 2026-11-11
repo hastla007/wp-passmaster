@@ -88,7 +88,7 @@ final class Page {
 				/* translators: %s: list of field labels */
 				if ( $required ) { $hints[] = sprintf( __( 'Pflichtangaben je Ticket: %s', 'wp-pass-captain' ), implode( ', ', array_map( static function ( $f ) { return $f['label']; }, $required ) ) ); }
 				echo '<tr data-type="' . (int) $t['ticket_type_id'] . '" data-price="' . (int) $t['price_minor'] . '" data-name="' . esc_attr( $t['name'] ) . '" data-fields="' . esc_attr( wp_json_encode( $t['fields'] ) ) . '"><td>' . esc_html( $t['name'] ) . ( $hints ? '<br><small class="description">' . esc_html( implode( ' · ', $hints ) ) . '</small>' : '' ) . '</td><td>' . esc_html( Scope::money( $t['price_minor'], $t['currency'] ) ) . '</td><td class="wpcap-pos-avail">' . esc_html( null === $t['available'] ? '∞' : (string) $t['available'] ) . '</td>';
-				echo '<td><input type="number" class="small-text wpcap-pos-qty" min="0" max="' . (int) max( 0, $max ) . '" name="qty[' . (int) $t['ticket_type_id'] . ']" value="0"></td></tr>';
+				echo '<td><input type="number" class="small-text wpcap-pos-qty" min="0" max="' . (int) max( 0, $max ) . '" name="qty[' . (int) $t['ticket_type_id'] . ']" value="0" aria-label="' . esc_attr( sprintf( /* translators: %s: ticket type */ __( 'Anzahl %s', 'wp-pass-captain' ), $t['name'] ) ) . '"></td></tr>';
 			}
 			echo '</tbody></table>';
 			if ( $any_seated ) {

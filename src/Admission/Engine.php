@@ -81,7 +81,10 @@ final class Engine {
 	public static function state_for_update( $ticket_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$state = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_admission_state WHERE ticket_id=%d FOR UPDATE", (int) $ticket_id ) );
+		// No FOR UPDATE: callers already hold the ticket row lock, which serialises scans of one ticket.
+		// Locking a not-yet-existing state row took gap locks that deadlocked concurrent scans of
+		// different tickets against the later INSERT … ON DUPLICATE KEY.
+		$state = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_admission_state WHERE ticket_id=%d", (int) $ticket_id ) );
 		if ( ! $state ) { return null; }
 		$undone = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n, MAX(checkin_id) AS last_id FROM {$p}wpcap_checkins WHERE ticket_id=%d AND result='undone' AND checkin_id>%d", (int) $ticket_id, (int) $state->last_checkin_id ) );
 		if ( $undone && (int) $undone->n > 0 ) {
@@ -103,12 +106,12 @@ final class Engine {
 
 	/** Records a successful entry (inside the check-in transaction). */
 	public static function record_in( array $found, $checkin_id, array $context, $at, $user_id ) {
-		self::record( $found, $checkin_id, $context, $at, $user_id, 'in' );
+		return self::record( $found, $checkin_id, $context, $at, $user_id, 'in' );
 	}
 
 	/** Records a successful check-out (inside the check-out transaction). */
 	public static function record_out( array $found, $checkin_id, array $context, $at, $user_id ) {
-		self::record( $found, $checkin_id, $context, $at, $user_id, 'out' );
+		return self::record( $found, $checkin_id, $context, $at, $user_id, 'out' );
 	}
 
 	private static function record( array $found, $checkin_id, array $context, $at, $user_id, $direction ) {
@@ -130,17 +133,19 @@ final class Engine {
 			'entered_at' => $when,
 			'created_at' => $now,
 		) );
+		if ( '' !== $wpdb->last_error ) { return false; }
 		if ( 'in' === $direction ) {
-			$wpdb->query( $wpdb->prepare(
+			$ok = $wpdb->query( $wpdb->prepare(
 				"INSERT INTO {$p}wpcap_admission_state (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_in_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,1,%d,1,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=1, area_id=VALUES(area_id), entries=entries+1, last_in_at=VALUES(last_in_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)",
 				(int) $found['ticket_id'], (int) $found['occurrence_id'], (int) $found['event_id'], $area, $when, (int) $checkin_id, $now
 			) );
 		} else {
-			$wpdb->query( $wpdb->prepare(
+			$ok = $wpdb->query( $wpdb->prepare(
 				"INSERT INTO {$p}wpcap_admission_state (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_out_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,0,%d,0,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=0, last_out_at=VALUES(last_out_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)",
 				(int) $found['ticket_id'], (int) $found['occurrence_id'], (int) $found['event_id'], $area, $when, (int) $checkin_id, $now
 			) );
 		}
+		return false !== $ok && '' === $wpdb->last_error;
 	}
 
 	/**

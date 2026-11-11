@@ -78,8 +78,8 @@ final class CheckinsPage {
 		<h1><?php esc_html_e( 'Check-ins', 'wp-pass-captain' ); ?></h1>
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
-			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'wp-pass-captain' ) ) + $events, $event_id ); ?>
-			<?php Forms::select( 'result', $result_options, $result ); ?>
+			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'wp-pass-captain' ) ) + $events, $event_id, '', 'aria-label="' . esc_attr__( 'Event', 'wp-pass-captain' ) . '"' ); ?>
+			<?php Forms::select( 'result', $result_options, $result, '', 'aria-label="' . esc_attr__( 'Ergebnis', 'wp-pass-captain' ) . '"' ); ?>
 			<label><?php esc_html_e( 'von', 'wp-pass-captain' ); ?> <input type="date" name="date_from" value="<?php echo esc_attr( $date_from ); ?>"></label>
 			<label><?php esc_html_e( 'bis', 'wp-pass-captain' ); ?> <input type="date" name="date_to" value="<?php echo esc_attr( $date_to ); ?>"></label>
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'wp-pass-captain' ); ?></button>
