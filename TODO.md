@@ -93,3 +93,37 @@ Dieses Backlog begleitet `CONCEPT.md`. Ticket Captain und Voucher Captain bleibe
 - [ ] Gemeinsame Installation aktiviert die definierte Bridge, ohne separate Plugin-Einträge oder Admin-Menüs zusammenzulegen.
 - [ ] Gutschein-zu-Ticket-Einlösung und Ticket-Rückerstattung sind idempotent und revisionsfähig.
 - [ ] Release-Gates aus Konzept sind bestanden und dokumentiert.
+
+## P1 – Ticketverwaltung nach dem Kauf
+
+- [ ] Selbstbedienungsfunktionen für berechtigte Käufer ergänzen: Ticket erneut senden, erlaubte Teilnehmerdaten ändern und Ticket übertragen.
+- [ ] Übertragung deaktivierbar/begrenzbar machen, vollständig protokollieren, altes QR-Token widerrufen und neues Ticket-Token ausgeben.
+- [ ] Statusübergänge für Eventabsage, Terminverschiebung, Widerruf, Teil-/Vollererstattung und Erstattung nach Check-in definieren und implementieren.
+- [ ] Ticketstorno, Widerruf und erneute Ausgabe idempotent gestalten; Zahlungs-, Bestell- und Ticketstatus dürfen nicht auseinanderlaufen.
+- [ ] Pflicht-/optionale Teilnehmerfelder pro Tickettyp mit Export, Zugriffsschutz, Änderungsfrist und Löschregel verwalten.
+- [ ] Käufer und betroffene Teilnehmer bei Terminänderung, Absage, Erstattung und Ticketübertragung über konfigurierbare Vorlagen informieren.
+
+## P1 – Bootsschul- und Servicebuchungen
+
+- [ ] Buchbare Leistungen mit Zeitfenstern, Dauer, Pufferzeit, Zeitzone, verfügbaren Ressourcen/Partnern und Kapazität modellieren.
+- [ ] Verfügbarkeitsprüfung und Reservierung für parallele Slot-Buchungen atomar umsetzen.
+- [ ] Buchungsschluss, Vorlaufzeiten, maximale Buchungen und Stornierungs-/Umbuchungsfristen konfigurierbar machen.
+- [ ] Umbuchung und Stornierung mit Zahlungs-/Gutscheinstatus, Kapazitätsfreigabe, Benachrichtigung und Audit-Log koordinieren.
+- [ ] No-show-Regeln und manuelle Partnerbestätigung als optionale Richtlinien abbilden.
+- [ ] Warteliste für ausgebuchte Slots mit befristetem Angebot, Annahmefrist und nachvollziehbarer Reihenfolge ergänzen.
+- [ ] Service-Pass-Regeln getrennt von Eventticket-Regeln abnehmen: terminfrei/terminpflichtig, einmalige/mehrfache Nutzung und Ablauf.
+
+## P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen
+
+- [ ] Admission-Policy je Ticket unterstützen: einmaliger Eintritt, täglicher Eintritt, mehrtägige Nutzung, Mehrfachzulassung und optionaler Wiedereinlass.
+- [ ] Mehrtagestickets mit Gültigkeitsfenstern und eigenständigem Check-in-Status pro Veranstaltungstag ergänzen.
+- [ ] Check-in rückgängig machen sowie Check-in und Check-out getrennt protokollieren; nur berechtigte Rollen dürfen Status ändern.
+- [ ] Online- und Offline-Scanner Geräten/Einlassbereichen zuweisen; Synchronisationsstatus und Konflikte sichtbar machen.
+- [ ] Doppelte Einlösungen aus unabhängig offline arbeitenden Scannern erkennen, protokollieren und einer Admin-Klärung zuführen.
+- [ ] Optionales POS/Box Office für Verkäufe vor Ort mit Zahlungsarten, manueller Ticketvergabe, Belegdaten, Druck und gemeinsamem Kontingent implementieren.
+- [ ] Ticket-, Badge-, Namensschild- und Armbandvorlagen sowie Teilnehmerlisten-Druck/Export ergänzen.
+- [ ] Eventkalender und iCalendar-Download sowie Erinnerungs- und Änderungsnachrichten bereitstellen.
+- [ ] SMS-Anbieteradapter mit Einwilligungs-/Zweckdokumentation, Kostenhinweis und Zustellstatus ergänzen.
+- [ ] Weitere Zahlungsanbieter nach Zielland, Währung, Gebühren und Händlerverfügbarkeit priorisieren und über die Payment-Adapter anbinden.
+- [ ] Öffentliche Webhooks und Entwickler-Hooks für Event-, Ticket-, Bestell-, Refund- und Check-in-Änderungen versioniert dokumentieren.
+- [ ] Abnahmetests für Ticketübertragung, Absage, Mehrtages-Einlass, Wiedereinlass, Offline-Konflikte, Slot-Kollisionen, POS-Bestandsabgleich und Erstattungen ergänzen.
