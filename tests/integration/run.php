@@ -313,5 +313,6 @@ $held = (int) $wpdb->get_var( "SELECT SUM(quantity) FROM {$p}wpcap_reservations 
 check( "exactly 5 of 20 parallel buyers get a hold (got $ok, held $held)", 5 === $ok && 5 === $held );
 
 require __DIR__ . '/finance.php';
+require __DIR__ . '/payments.php';
 echo "\n$passes passed, $failures failed\n";
 exit( $failures ? 1 : 0 );

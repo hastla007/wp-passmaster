@@ -45,6 +45,8 @@ final class Plugin {
 		Invoices::register();
 		Integrations\Vouchers\Checkout::register();
 		Notifications::register();
+		Payments\PayPalGateway::register();
+		Payments\ReturnNotice::register();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
 		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );
