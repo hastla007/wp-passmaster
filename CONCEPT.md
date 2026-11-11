@@ -304,7 +304,7 @@ Dieser Abschnitt ergänzt den priorisierten Plan mit konkreten Verträgen und Da
 
 - Hauptdatei: `ticket-captain.php`; Produktname Ticket Captain, Repository/Slug `wp-passmaster), Textdomain `ticket-captain`.
 - Konstanten beim Plugin-Bootstrap definieren: `TCAP_VERSION`, `TCAP_PLUGIN_DIR`, `TCAP_PLUGIN_URL`. Voucher Captain nutzt entsprechend `VCAP_VERSION).
-- PSR-4 Composer-Autoloading mit PHP-Namespace `TicketCaptain\\...`; Tabellenpräfix `{$wpdb->prefix}tcap_*`. Voucher Captain verwendet `VoucherCaptain\\...` und `vcap_*`.
+- PSR-4 Composer-Autoloading mit PHP-Namespace `TicketCaptain\...`; Tabellenpräfix `{$wpdb->prefix}tcap_*`. Voucher Captain verwendet `VoucherCaptain\...` und `vcap_*`.
 - Bridge-Erkennung nach Laden der Plugin-Hauptdateien (zum Beispiel `plugins_loaded`, Priorität 20). Beide Plugins müssen einzeln booten, wenn das jeweils andere fehlt oder deaktiviert ist.
 - Für im Plugin-ZIP mitgelieferte Composer-Abhängigkeiten Klassenkonflikte im Release-Build prüfen. PHP-Scoper oder Mozart sind Optionen, aber vor Festlegung für alle ausgewählten Bibliotheken und WordPress-Globals in einem Build-Prototyp validieren. Releaseartefakt testen, in dem beide Plugins gleichzeitig aktiv sind. Keine Paketabhängigkeit nur deshalb in beide Plugins aufnehmen, weil sie im Konzept genannt ist.
 
