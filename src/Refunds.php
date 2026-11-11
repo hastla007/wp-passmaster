@@ -165,6 +165,86 @@ final class Refunds {
 	}
 
 	/** Returns a refund row as array or null. */
+	/**
+	 * Records a refund that was already paid out outside Pass Captain (e.g. WooCommerce, provider
+	 * dashboard). No provider call, no approval, no capability check (system action – callers must
+	 * be trusted adapters). Same accounting as execute(): refund row (status completed), refunded
+	 * tickets flagged and – if still valid – revoked, capacity released, order refunded_minor,
+	 * order marked refunded when no ticket is left, wpcap_refund_completed (credit note, seats, webhooks).
+	 * Idempotent per $idempotency_key.
+	 *
+	 * @param int    $order_id        Core order ID.
+	 * @param int[]  $ticket_ids      Refunded tickets (may be empty for an amount-only refund). Tickets
+	 *                                of other orders or already refunded tickets are ignored.
+	 * @param int    $amount_minor    Refunded gross amount; capped at the order's remaining amount.
+	 * @param string $reason          Reason.
+	 * @param string $idempotency_key Unique key per external refund (e.g. "woocommerce-refund-123").
+	 * @param array  $args            provider_reference (string), source (string), tax_minor (int, else proportional).
+	 * @return array|\WP_Error Refund row.
+	 */
+	public static function record_external( $order_id, array $ticket_ids, $amount_minor, $reason, $idempotency_key, array $args = array() ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = absint( $order_id );
+		$key_hash = hash( 'sha256', 'external-refund|' . $order_id . '|' . sanitize_text_field( $idempotency_key ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
+		if ( $existing ) { return $existing; }
+		$wpdb->query( 'START TRANSACTION' );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( ! $order || ! in_array( $order->payment_status, array( 'paid', 'refunded' ), true ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		}
+		$ticket_ids = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
+		if ( $ticket_ids ) {
+			$ids = implode( ',', $ticket_ids );
+			$ticket_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND order_id=%d AND refunded=0 FOR UPDATE", $order_id ) ) );
+		}
+		$amount = min( max( 0, (int) $amount_minor ), max( 0, (int) $order->total_minor - (int) $order->refunded_minor ) );
+		$tax = isset( $args['tax_minor'] ) ? min( $amount, absint( $args['tax_minor'] ) ) : ( (int) $order->total_minor > 0 ? (int) round( (int) $order->tax_minor * $amount / (int) $order->total_minor ) : 0 );
+		$now = current_time( 'mysql', true );
+		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
+			'order_id' => $order_id,
+			'idempotency_key' => $key_hash,
+			'amount_minor' => $amount,
+			'tax_minor' => $tax,
+			'currency' => $order->currency,
+			'ticket_ids' => wp_json_encode( $ticket_ids ),
+			'reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
+			'status' => 'completed',
+			'provider_reference' => substr( sanitize_text_field( (string) ( $args['provider_reference'] ?? 'external' ) ), 0, 191 ),
+			'requested_by' => get_current_user_id(),
+			'approved_by' => get_current_user_id(),
+			'created_at' => $now,
+			'updated_at' => $now,
+		) );
+		if ( false === $inserted ) {
+			$wpdb->query( 'ROLLBACK' );
+			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
+			return $existing ? $existing : new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+		}
+		$refund_id = (int) $wpdb->insert_id;
+		$revoked_ids = array();
+		if ( $ticket_ids ) {
+			$ids = implode( ',', $ticket_ids );
+			foreach ( $wpdb->get_results( "SELECT ticket_type_id, COUNT(*) AS n FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND status='valid' GROUP BY ticket_type_id" ) as $row ) {
+				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET refunded_quantity=LEAST(quantity,refunded_quantity+%d) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1", (int) $row->n, $order_id, (int) $row->ticket_type_id ) );
+			}
+			$revoked_ids = Orders::revoke_ids( $ticket_ids );
+			$wpdb->query( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE ticket_id IN ($ids)" );
+		}
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=LEAST(total_minor,refunded_minor+%d),updated_at=%s WHERE order_id=%d", $amount, $now, $order_id ) );
+		$wpdb->query( 'COMMIT' );
+		Orders::fire_revoked( $revoked_ids, 'refund_' . $refund_id );
+		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0", $order_id ) );
+		if ( 0 === $remaining && $ticket_ids ) {
+			Orders::mark_refunded( $order_id, sanitize_key( $args['source'] ?? 'external' ) . '_refund_' . $refund_id );
+		}
+		Audit::record( 'refund_completed', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $amount, 'revoked_tickets' => count( $revoked_ids ), 'provider' => sanitize_key( $args['source'] ?? $order->payment_provider ), 'external' => true ) );
+		do_action( 'wpcap_refund_completed', $refund_id, $order_id );
+		return self::get( $refund_id );
+	}
+
 	public static function get( $refund_id ) {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_refunds WHERE refund_id=%d", absint( $refund_id ) ), ARRAY_A );
