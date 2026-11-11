@@ -72,28 +72,15 @@ Konsequenzen:
 | Bestellung storniert / erstattet | `wpcap_order_cancelled`, `wpcap_refund_completed` | Abgleich aller Tickets der Bestellung |
 | Ticketcode erneuert | siehe unten | neue Pass-Generation |
 
-Jede Änderung wird über einen Fingerabdruck der passrelevanten Daten erkannt (keine Pushes ohne Änderung). Bis zu 20 Tickets werden sofort verarbeitet (APNs-Push an alle registrierten Geräte, Google-`PATCH`; fehlt das Google-Objekt noch, werden Klasse und Objekt per `POST` angelegt, damit ein später benutzter Speichern-Link nicht den alten Stand anlegt). Größere Mengen und fehlgeschlagene Zustellungen laufen als Job `wallet_sync` über `PassCaptain\Jobs` (Wiederholung mit Backoff). APNs-Antwort 410 entfernt die Geräte-Registrierung.
+Jede Änderung wird über einen Fingerabdruck der passrelevanten Daten erkannt (keine Pushes ohne Änderung). Hooks wie `wpcap_ticket_revoked` feuern pro Ticket (z. B. hundertfach bei einer Terminabsage); das Modul sammelt die betroffenen Tickets und Termine deshalb nur ein und verarbeitet sie **einmal am Ende des Requests** (`shutdown`). Dabei wird immer zuerst ein Job `wallet_sync` in `PassCaptain\Jobs` angelegt (Wiederholung mit Backoff), damit ein Timeout keine Aktualisierung verliert; bis zu 20 Tickets werden danach sofort verarbeitet (APNs-Push an alle registrierten Geräte, Google-`PATCH`; fehlt das Google-Objekt noch, werden Klasse und Objekt per `POST` angelegt, damit ein später benutzter Speichern-Link nicht den alten Stand anlegt) und der Job bei Erfolg abgeschlossen. Bei verschobenen oder abgesagten Terminen wird die Google-Klasse (Datum, Ort, Hinweis „Abgesagt“) immer aktualisiert, auch wenn die Tickets schon vorher über `wpcap_ticket_revoked` abgeglichen wurden. APNs-Antwort 410 entfernt die Geräte-Registrierung.
 
-### Ticketcode-Erneuerung (erneuter Versand, Übertragung, Teilnehmerzuweisung)
+### Ticketcode-Erneuerung (erneuter Versand, Übertragung, Teilnehmerzuweisung, Neudruck)
 
-`Orders::resend_tickets`, `Orders::transfer_ticket` und `TicketAssignments::assign` erzeugen einen neuen Code, feuern aber **keinen Hook mit dem neuen Code**. Bis der Kern einen solchen Hook bekommt, nutzt das Modul den WordPress-Filter `wp_mail`: Enthält eine ausgehende Mail einen Ticketlink (`wpcap_ticket=<code>`), dessen Hash zum aktuellen Ticket, aber nicht zum gespeicherten Wallet-Code passt, wird eine neue **Pass-Generation** angelegt und die Mail um „Zu Apple Wallet hinzufügen“/„In Google Wallet speichern“-Links ergänzt.
+Der Kern feuert `wpcap_ticket_code_rotated( $ticket_id, $code, $reason )` (`resend`, `transfer`, `assign`, `print`) und ergänzt die zugehörigen Mails über den Filter `wpcap_ticket_code_mail_section( $text, $ticket_id )`. Das Modul legt dann eine neue **Pass-Generation** an und hängt „Zu Apple Wallet hinzufügen“ (Download-Link) / „In Google Wallet speichern“ an die Mail an. Der Grund spielt keine Rolle; mehrfacher Aufruf mit demselben Code ist wirkungslos.
 
-Eine neue Generation bedeutet: neues Apple-Authentifizierungstoken (die Seriennummer bleibt), neues Google-Objekt. Geräte mit dem alten Token erhalten per Push einen ungültigen (`voided`) Pass ohne Code; das alte Google-Objekt wird `INACTIVE`. So bekommt bei einer Übertragung der bisherige Inhaber nie den neuen Code – auch bei einem erneuten Versand an dieselbe Person muss der Pass aus der neuen Mail neu hinzugefügt werden (bewusst konservativ).
+Eine neue Generation bedeutet: neues Apple-Authentifizierungstoken (die Seriennummer bleibt), neues Google-Objekt. Geräte mit dem alten Token erhalten per Push einen ungültigen (`voided`) Pass ohne Code und ohne personenbezogene Felder des neuen Inhabers (Name, Platz); das alte Google-Objekt wird `INACTIVE`. So bekommt bei einer Übertragung der bisherige Inhaber nie den neuen Code oder die Daten des neuen Inhabers – auch bei einem erneuten Versand an dieselbe Person muss der Pass aus der neuen Mail neu hinzugefügt werden (bewusst konservativ).
 
 Wird ein Code erneuert, ohne dass das Modul ihn sieht, passt der gespeicherte Code nicht mehr zum Ticket-Hash; der Pass wird dann als ungültig ausgeliefert, nie mit einem falschen Code.
-
-Empfohlene Kernänderung (ersetzt den `wp_mail`-Weg; der Listener ist bereits registriert):
-
-```php
-// Orders::resend_tickets – nach erfolgreichem $wpdb->update je Ticket:
-do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'resend' );
-// Orders::transfer_ticket – nach erfolgreichem Update, vor wp_mail:
-do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'transfer' );
-// TicketAssignments::assign – nach COMMIT:
-do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $code, 'assign' );
-```
-
-Damit die Wallet-Links auch dann in diese Mails kommen, bräuchte es zusätzlich einen Mail-Filter analog `wpcap_ticket_mail` in diesen drei Funktionen.
 
 ## PassKit-Webservice
 
@@ -104,11 +91,13 @@ Basis: `https://example.com/wp-json/wp-pass-captain/v1/wallet/apple` (= `webServ
 | POST | `/v1/devices/{deviceLibraryIdentifier}/registrations/{passTypeIdentifier}/{serialNumber}` (Body `{"pushToken": "…"}`) | 201 neu, 200 vorhanden, 401 |
 | DELETE | gleicher Pfad | 200, 401 |
 | GET | `/v1/devices/{deviceLibraryIdentifier}/registrations/{passTypeIdentifier}?passesUpdatedSince=tag` | 200 `{serialNumbers, lastUpdated}`, 204, 404 (unbekanntes Gerät) |
-| GET | `/v1/passes/{passTypeIdentifier}/{serialNumber}` | 200 `.pkpass` mit `Last-Modified`, 304 bei `If-Modified-Since`, 401 |
-| POST | `/v1/log` | 200 (gekürzt, ohne Tokens im Wallet-Protokoll der Admin-Seite) |
+| GET | `/v1/passes/{passTypeIdentifier}/{serialNumber}` | 200 `.pkpass` mit `Last-Modified` und `ETag`, 304 bei passendem `If-None-Match` bzw. `If-Modified-Since`, 401 |
+| POST | `/v1/log` | 200; ohne Authentifizierung (Apple-Vorgabe), daher eigener kleiner Puffer (10 Einträge, max. 3 Zeilen je Aufruf, 5 Aufrufe/Stunde je Client, 30/Stunde gesamt), getrennt vom Server-Protokoll, Tokens entfernt |
 | GET | `/download/{serialNumber}?sig=…` | Download-Link aus der Mail |
 
 APNs: HTTP/2-POST an `https://api.push.apple.com/3/device/{pushToken}` (Sandbox einstellbar) mit dem Pass-Type-ID-Zertifikat als Client-Zertifikat, `apns-topic` = Pass Type ID, Payload `{}`. Benötigt cURL mit HTTP/2.
+
+Update-Tags (für `passesUpdatedSince`, `Last-Modified`, `ETag`) liegen bei jeder Änderung in einer späteren vollen Sekunde als der vorherige Tag; eine Änderung in derselben Sekunde wie der letzte Abruf wird daher nie per 304 verschluckt.
 
 ## Nicht enthalten / offen
 

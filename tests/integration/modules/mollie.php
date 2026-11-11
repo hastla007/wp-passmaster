@@ -91,9 +91,13 @@ echo "Mollie: webhook\n";
 http_reset();
 $bad = $mollie->verify_webhook( mollie_webhook( 'evil' ) );
 check( 'malformed id rejected without API call', is_wp_error( $bad ) && 400 === $bad->get_error_data()['status'] && ! $GLOBALS['wpcap_test_http_requests'] );
-http_push( array( 'status' => 404, 'detail' => 'No payment exists with token tr_unknown1.' ), 404, '/v2/payments/tr_unknown1' );
 $unknown = $mollie->verify_webhook( mollie_webhook( 'tr_unknown1' ) );
-check( 'unknown payment id: 404', is_wp_error( $unknown ) && 404 === $unknown->get_error_data()['status'] );
+check( 'unknown payment id: acknowledged as ignored without an API call (no amplification)', ! is_wp_error( $unknown ) && 'ignored' === $unknown['type'] && ! $GLOBALS['wpcap_test_http_requests'] );
+check( 'payment id created by create_payment is known', MollieGateway::known_payment( 'tr_Test1234' ) && ! MollieGateway::known_payment( 'tr_unknown1' ) );
+$GLOBALS['wpcap_test_filters']['wpcap_mollie_webhook_ip_limit'] = 0;
+$throttled = $mollie->verify_webhook( mollie_webhook( 'tr_Test1234' ) );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_mollie_webhook_ip_limit'] );
+check( 'webhook lookups are throttled per IP (429, no API call)', is_wp_error( $throttled ) && 429 === $throttled->get_error_data()['status'] && ! $GLOBALS['wpcap_test_http_requests'] );
 http_push( array( 'detail' => 'boom' ), 500, '/v2/payments/tr_Test1234' );
 $down = $mollie->verify_webhook( mollie_webhook( 'tr_Test1234' ) );
 check( 'API failure: 503 so Mollie retries', is_wp_error( $down ) && 503 === $down->get_error_data()['status'] && ! tickets( $order['order_id'] ) );
@@ -108,14 +112,17 @@ check( 'paid payment confirms the order and issues tickets', 'paid' === $paid &&
 http_push( mollie_payment( 'tr_Test1234', 'paid', $order ), 200, '/v2/payments/tr_Test1234' );
 check( 'repeated webhook is processed once', 'duplicate' === mollie_deliver( $mollie, 'tr_Test1234' ) && 2 === count( tickets( $order['order_id'] ) ) );
 $mm = (array) Orders::get( Orders::create( array( 'email' => 'mol-mm@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'mol-mm' ), array( 'payment_provider' => 'mollie' ) )['order_id'] );
+Orders::set_provider_reference( $mm['order_id'], 'tr_Mismatch1' );
 http_push( mollie_payment( 'tr_Mismatch1', 'paid', $mm, array( 'amount' => array( 'value' => '0.01', 'currency' => 'EUR' ) ) ), 200, '/v2/payments/tr_Mismatch1' );
 check( 'amount mismatch issues no tickets', 'amount_mismatch' === mollie_deliver( $mollie, 'tr_Mismatch1' ) && ! tickets( $mm['order_id'] ) );
 foreach ( array( 'failed', 'canceled', 'expired' ) as $i => $status ) {
 	$fo = (array) Orders::get( Orders::create( array( 'email' => "mol-f$i@example.com", 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => "mol-f$i" ), array( 'payment_provider' => 'mollie' ) )['order_id'] );
+	Orders::set_provider_reference( $fo['order_id'], 'tr_Fail' . $i . 'xx' );
 	http_push( mollie_payment( 'tr_Fail' . $i . 'xx', $status, $fo ), 200, '/v2/payments/tr_Fail' . $i );
 	check( "$status payment cancels the pending order", 'cancelled' === mollie_deliver( $mollie, 'tr_Fail' . $i . 'xx' ) && 'cancelled' === Orders::get( $fo['order_id'] )->status );
 }
 $foreign = (array) Orders::get( Orders::create( array( 'email' => 'mol-foreign@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'mol-foreign' ), array( 'payment_provider' => 'stripe' ) )['order_id'] );
+$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_mollie_payments (payment_id,order_id,created_at) VALUES ('tr_Foreign1',%d,%s)", $foreign['order_id'], gmdate( 'Y-m-d H:i:s' ) ) );
 http_push( mollie_payment( 'tr_Foreign1', 'paid', $foreign ), 200, '/v2/payments/tr_Foreign1' );
 check( 'payment for an order of another provider is ignored', 'ignored' === mollie_deliver( $mollie, 'tr_Foreign1' ) && ! tickets( $foreign['order_id'] ) );
 
@@ -145,6 +152,22 @@ http_push( mollie_payment( 'tr_Three333', 'paid', $o3 ), 200, '/v2/payments/tr_T
 mollie_deliver( $mollie, 'tr_Three333' );
 $rerr = PassCaptain\Refunds::request( $o3['order_id'], array(), 'x', 'mol-r3' );
 check( 'refund error keeps the tickets', is_wp_error( $rerr ) && false !== strpos( $rerr->get_error_message(), 'already refunded' ) && 1 === count( tickets( $o3['order_id'], 'valid' ) ) );
+
+echo "Mollie: chargebacks\n";
+$o6 = (array) Orders::get( Orders::create( array( 'email' => 'mol-6@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'mol-6' ), array( 'payment_provider' => 'mollie' ) )['order_id'] );
+Orders::set_provider_reference( $o6['order_id'], 'tr_Six66666' );
+http_reset();
+http_push( mollie_payment( 'tr_Six66666', 'paid', $o6 ), 200, '/v2/payments/tr_Six66666' );
+mollie_deliver( $mollie, 'tr_Six66666' );
+$cb_reversed = array( 'chargebacks' => array( array( 'id' => 'chb_1', 'amount' => array( 'value' => '50.00', 'currency' => 'EUR' ), 'reversedAt' => '2026-11-10T10:00:00+00:00' ) ) );
+http_push( mollie_payment( 'tr_Six66666', 'paid', $o6, array( '_embedded' => $cb_reversed ) ), 200, '/v2/payments/tr_Six66666' );
+check( 'reversed chargeback changes nothing', 'duplicate' === mollie_deliver( $mollie, 'tr_Six66666' ) && 2 === count( tickets( $o6['order_id'], 'valid' ) ) );
+$wr = http_requests( '/v2/payments/tr_Six66666' );
+check( 'webhook embeds refunds and chargebacks', false !== strpos( end( $wr )['url'], 'embed=refunds,chargebacks' ) );
+http_push( mollie_payment( 'tr_Six66666', 'paid', $o6, array( 'amountChargedBack' => array( 'value' => '50.00', 'currency' => 'EUR' ) ) ), 200, '/v2/payments/tr_Six66666' );
+$cb = $mollie->verify_webhook( mollie_webhook( 'tr_Six66666' ) );
+check( 'full chargeback normalized as refunded with a distinct event id', ! is_wp_error( $cb ) && 'refunded' === $cb['type'] && 5000 === $cb['amount_minor'] && 'mollie-tr_Six66666-chargeback-5000' === $cb['event_id'] );
+check( 'full chargeback revokes the tickets', 'refunded' === Webhooks::process( 'mollie', $cb ) && 'refunded' === Orders::get( $o6['order_id'] )->status && ! tickets( $o6['order_id'], 'valid' ) );
 
 echo "Mollie: buyer return\n";
 $o4 = (array) Orders::get( Orders::create( array( 'email' => 'mol-4@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'mol-4' ), array( 'payment_provider' => 'mollie' ) )['order_id'] );

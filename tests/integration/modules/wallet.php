@@ -190,11 +190,27 @@ check( 'web service: latest pass is a signed pkpass with Last-Modified', 200 ===
 $ims = wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $serial ), $auth );
 $ims->set_header( 'If-Modified-Since', gmdate( 'D, d M Y H:i:s', time() + 60 ) . ' GMT' );
 check( 'web service: If-Modified-Since → 304', 304 === wpw_status( WebService::latest_pass( $ims ) ) );
+$h1 = $latest->get_data()['headers'];
+Store::touch( $ticket->ticket_id, 'forced-change', Store::state( $ticket->ticket_id )->update_tag );
+$ims_same = wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $serial ), $auth );
+$ims_same->set_header( 'If-Modified-Since', $h1['Last-Modified'] );
+$etag_old = wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $serial ), $auth );
+$etag_old->set_header( 'If-None-Match', $h1['ETag'] );
+$fresh = WebService::latest_pass( $etag_old );
+$etag_new = wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $serial ), $auth );
+$etag_new->set_header( 'If-None-Match', $fresh->get_data()['headers']['ETag'] ?? '' );
+check( 'web service (regression): update in the same second is not hidden by If-Modified-Since/ETag', 200 === wpw_status( WebService::latest_pass( $ims_same ) ) && 200 === $fresh->get_status() && 304 === wpw_status( WebService::latest_pass( $etag_new ) ) );
+check( 'update tags always advance to a later second', intdiv( Store::next_tag( (int) floor( microtime( true ) * 1000 ) ), 1000 ) > intdiv( (int) floor( microtime( true ) * 1000 ), 1000 ) - 1 && intdiv( Store::next_tag( 5000999 ), 1000 ) === max( 5001, intdiv( (int) floor( microtime( true ) * 1000 ), 1000 ) ) );
+Service::sync_ticket( $ticket->ticket_id );
 check( 'web service: latest pass requires the token', 401 === wpw_status( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $serial ), str_repeat( 'a', 40 ) ) ) ) );
+$server_log_before = get_option( 'wpcap_wallet_log', array() );
 WebService::log( wpw_rest( 'POST', array(), null, array( 'logs' => array( 'Web service error for pass.test.wpcap token ' . $auth ) ) ) );
-$wlog_all = get_option( 'wpcap_wallet_log' );
+$wlog_all = get_option( Service::DEVICE_LOG_OPTION );
 $wlog = end( $wlog_all );
 check( 'web service: device log stored without tokens', 'device' === $wlog['code'] && false === strpos( $wlog['message'], $auth ) );
+for ( $i = 0; $i < 20; $i++ ) { WebService::log( wpw_rest( 'POST', array(), null, array( 'logs' => array( "spam $i a", "spam $i b", "spam $i c", "spam $i d" ) ) ) ); }
+$device_log = get_option( Service::DEVICE_LOG_OPTION );
+check( 'web service log (regression): unauthenticated posts cannot flood the server diagnostics', $server_log_before === get_option( 'wpcap_wallet_log', array() ) && count( $device_log ) <= 10 && ! in_array( 'spam 5 a', array_column( $device_log, 'message' ), true ) );
 $dl_url = Service::download_url( $serial );
 parse_str( (string) parse_url( $dl_url, PHP_URL_QUERY ), $dlq );
 check( 'download link: valid signature → pkpass, wrong → 404', 200 === wpw_status( WebService::download( wpw_rest( 'GET', array( 'serial' => $serial, 'sig' => $dlq['sig'] ?? '' ) ) ) ) && 404 === wpw_status( WebService::download( wpw_rest( 'GET', array( 'serial' => $serial, 'sig' => str_repeat( '0', 64 ) ) ) ) ) );
@@ -206,6 +222,10 @@ http_push( array( 'id' => 'x' ), 200, 'eventTicketObject/' );
 $wpw_apns->calls = array();
 $wpw_apns->statuses = array( 200, 410 );
 $rev = PassCaptain\Admin\TicketsPage::revoke_ticket( array( 'ticket_id' => $ticket->ticket_id, 'reason' => 'Test' ) );
+check( 'revoke (regression): nothing is sent while the request is still running', 0 === count( $wpw_apns->calls ) );
+Service::flush();
+$revoke_job = $wpdb->get_row( "SELECT * FROM {$p}wpcap_jobs WHERE job_type='wallet_sync' ORDER BY job_id DESC LIMIT 1" );
+check( 'revoke: dispatched once on shutdown; safety job completed after inline success', $revoke_job && 'complete' === $revoke_job->status );
 $push_urls = array_column( $wpw_apns->calls, 'url' );
 check( 'revoke: APNs push to each registered device with pass type topic', ! is_wp_error( $rev ) && 2 === count( $wpw_apns->calls ) && in_array( 'https://api.push.apple.com/3/device/aabbccddeeff0011', $push_urls, true ) && in_array( 'apns-topic: pass.test.wpcap', $wpw_apns->calls[0]['headers'], true ) && '{}' === $wpw_apns->calls[0]['body'] && $wpw_apns->calls[0]['has_cert'] );
 check( 'revoke: APNs 410 removes the stale registration', 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='" . esc_sql_wpw( $serial ) . "'" ) );
@@ -241,6 +261,7 @@ http_push( array(), 200, 'walletobjects/v1/eventTicketObject' );
 $wpw_apns->calls = array();
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET starts_at='2027-03-08 17:00:00' WHERE occurrence_id=$occ" );
 do_action( 'wpcap_occurrence_rescheduled', $occ, '2027-03-01 18:30:00', '2027-03-08 17:00:00' );
+Service::flush();
 $rj = wpw_pass_json( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $ticket2->public_id ), $auth2 ) ) );
 check( 'reschedule: devices of all passes pushed and pass shows the new local time', 2 === count( $wpw_apns->calls ) && '2027-03-08T18:00:00+01:00' === $rj['relevantDate'] && $code2 === $rj['barcodes'][0]['message'] );
 $class_patch = json_decode( http_requests( 'eventTicketClass/' )[0]['body'] ?? '{}', true );
@@ -256,6 +277,7 @@ http_push( array(), 200, 'walletobjects/v1/eventTicketObject' );
 $wpw_apns->calls = array();
 // Core fires wpcap_ticket_code_rotated and adds wpcap_ticket_code_mail_section to the resend mail.
 Orders::resend_tickets( $r2['order_id'] );
+Service::flush();
 $resent = wpw_ticket_mail();
 preg_match( '/wpcap_ticket=([a-f0-9]{64})/', $resent['body'], $nm );
 $new_code = $nm[1] ?? '';
@@ -275,6 +297,13 @@ $google_rows = Store::passes( $ticket2->ticket_id, 'google' );
 $obj_reqs = http_requests( 'eventTicketObject/' );
 check( 'rotation: old Google object retired (INACTIVE), new generation object created', 2 === count( $google_rows ) && 'retired' === $google_rows[0]->status && str_ends_with( $google_rows[1]->serial_number, '_g2' ) && 'INACTIVE' === ( json_decode( $obj_reqs[0]['body'] ?? '{}', true )['state'] ?? '' ) );
 check( 'rotation: repeated hook call for the same code is idempotent', array() === Service::on_code_rotated( $ticket2->ticket_id, $new_code ) );
+$wpdb->insert( "{$p}wpcap_ticket_assignments", array( 'ticket_id' => $ticket2->ticket_id, 'buyer_email' => 'wpw2@example.com', 'attendee_email' => 'neu@example.com', 'attendee_name' => 'Neue Inhaberin', 'status' => 'assigned', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+Store::register_device( 'devOld', 'pass.test.wpcap', $ticket2->public_id, 'dd00dd00dd00dd00', hash( 'sha256', $auth2 ) ); // a device still on the old generation
+$old_view = wpw_pass_json( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $ticket2->public_id ), $auth2 ) ) );
+$new_view = wpw_pass_json( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_type' => 'pass.test.wpcap', 'serial' => $ticket2->public_id ), $new_pass['authenticationToken'] ) ) );
+$old_aux = array_column( $old_view['eventTicket']['auxiliaryFields'] ?? array(), 'value', 'key' );
+$new_aux = array_column( $new_view['eventTicket']['auxiliaryFields'] ?? array(), 'value', 'key' );
+check( 'rotation (regression): previous holder sees neither the new attendee name nor the seat', ! isset( $old_aux['attendee'] ) && ! isset( $old_aux['seat'] ) && false === strpos( wp_json_encode( $old_view ), 'Neue Inhaberin' ) && 'Neue Inhaberin' === ( $new_aux['attendee'] ?? '' ) && 'Reihe 3, Platz 7' === ( $new_aux['seat'] ?? '' ) );
 
 /* ---- Failed push → retried via the job queue ---- */
 http_reset();
@@ -283,6 +312,7 @@ $wpw_apns->statuses = array( 503 );
 WebService::register_device( wpw_rest( 'POST', array( 'device' => 'devE', 'pass_type' => 'pass.test.wpcap', 'serial' => $ticket2->public_id ), $new_pass['authenticationToken'], array( 'pushToken' => 'e0e0e0e0e0e0e0e0' ) ) );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET location='Stadthalle' WHERE occurrence_id=$occ" );
 do_action( 'wpcap_occurrence_cancelled', $occ, 1 );
+Service::flush();
 $job = $wpdb->get_row( "SELECT * FROM {$p}wpcap_jobs WHERE job_type='wallet_sync' ORDER BY job_id DESC LIMIT 1" );
 check( 'retry: failed APNs/Google update is queued as wallet_sync job', $job && 'queued' === $job->status );
 http_reset();
@@ -293,6 +323,49 @@ http_push( array(), 200, 'eventTicketObject/' );
 $wpw_apns->statuses = array();
 $handled = Service::handle_job( false, 'wallet_sync', json_decode( $job->payload, true ) );
 check( 'retry: job handler succeeds once services answer', true === $handled && false === Service::handle_job( false, 'other_job', array() ) );
+
+/* ---- Regression: per-ticket revoke hooks from a cancellation are batched; class always updated ---- */
+http_reset();
+http_push( array(), 200, 'walletobjects' );
+$wpw_apns->calls = array();
+$wpw_apns->statuses = array();
+$type3 = make_type( 10, 10, 0 );
+$occ3 = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type3" );
+$r3 = Orders::create( array( 'email' => 'wpw3@example.com', 'items' => array( array( 'ticket_type_id' => $type3, 'quantity' => 3 ) ), 'idempotency_key' => 'wpw-3' ) );
+$mail3 = wpw_ticket_mail();
+foreach ( tickets( $r3['order_id'] ) as $i => $t3 ) {
+	$pj3 = json_decode( wpw_unzip( $mail3['files'][ 'ticket-' . substr( $t3->public_id, 0, 12 ) . '.pkpass' ] ?? '' )['pass.json'] ?? '{}', true );
+	WebService::register_device( wpw_rest( 'POST', array( 'device' => 'devF' . $i, 'pass_type' => 'pass.test.wpcap', 'serial' => $t3->public_id ), $pj3['authenticationToken'] ?? '', array( 'pushToken' => 'f0f0f0f0f0f0f00' . $i ) ) );
+}
+http_reset();
+for ( $i = 0; $i < 4; $i++ ) { http_push( array(), 200, 'walletobjects' ); }
+$jobs_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type='wallet_sync'" );
+$wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='cancelled' WHERE occurrence_id=$occ3" );
+PassCaptain\OccurrenceCancellation::handle( $occ3 );
+do_action( 'wpcap_occurrence_cancelled', $occ3, 3 );
+$calls_before_flush = count( $wpw_apns->calls );
+Service::flush();
+$jobs_after = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type='wallet_sync'" );
+$class3 = array_values( array_filter( http_requests( 'eventTicketClass/' ), static fn( $q ) => 'PATCH' === $q['method'] ) );
+$class3_body = json_decode( $class3[0]['body'] ?? '{}', true );
+check( 'cancellation (regression): 3 revoke hooks → no inline calls during the request, one dispatch at shutdown', 0 === $calls_before_flush && 3 === count( $wpw_apns->calls ) && 1 === $jobs_after - $jobs_before );
+check( 'cancellation (regression): Google class updated although tickets were already synced by the revoke hooks', 1 === count( $class3 ) && str_ends_with( $class3_body['id'] ?? '', '_o' . $occ3 ) && 'wpcap_cancelled' === ( $class3_body['messages'][0]['id'] ?? '' ) );
+$wpw_apns->calls = array();
+Service::queue( range( 900001, 900000 + Service::INLINE_LIMIT + 5 ) );
+Service::flush();
+$big = $wpdb->get_row( "SELECT * FROM {$p}wpcap_jobs WHERE job_type='wallet_sync' ORDER BY job_id DESC LIMIT 1" );
+check( 'dispatch: more than INLINE_LIMIT tickets go to the job queue only', 'queued' === $big->status && Service::INLINE_LIMIT + 5 === count( json_decode( $big->payload, true )['ticket_ids'] ) );
+$wpdb->query( "UPDATE {$p}wpcap_jobs SET status='complete' WHERE job_id=" . (int) $big->job_id );
+
+/* ---- Rotation for reason 'print' (Printing::rotate_codes) ---- */
+$print_code = bin2hex( random_bytes( 32 ) );
+$gen_before = (int) Store::state( $ticket2->ticket_id )->generation;
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET token_hash=%s WHERE ticket_id=%d", hash( 'sha256', $print_code ), $ticket2->ticket_id ) );
+http_reset();
+for ( $i = 0; $i < 6; $i++ ) { http_push( array(), 200, 'walletobjects' ); }
+do_action( 'wpcap_ticket_code_rotated', $ticket2->ticket_id, $print_code, 'print' );
+Service::flush();
+check( 'rotation: reason "print" starts a new generation too', $gen_before + 1 === (int) Store::state( $ticket2->ticket_id )->generation && hash( 'sha256', $print_code ) === Store::state( $ticket2->ticket_id )->code_hash );
 
 /* ---- Zip fallback + PNG fallback ---- */
 $fallback = wpw_unzip( Archive::stored_zip( array( 'a.txt' => 'hello', 'pass.json' => '{"x":1}' ) ) );

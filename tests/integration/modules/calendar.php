@@ -90,6 +90,12 @@ Settings::update( array( 'calendar' => array( 'checkout_url' => 'https://example
 check( 'attachment can be switched off', array( 'subject' => 's', 'body' => 'b', 'attachments' => array() ) === Calendar::attach_ics( array( 'subject' => 's', 'body' => 'b', 'attachments' => array() ), null, array( array( 'occurrence_id' => $occ ) ) ) );
 Settings::update( array( 'calendar' => array( 'checkout_url' => 'https://example.test/tickets/', 'attach_ics' => 1 ) ) );
 
+$dropped = Calendar::attach_ics( array( 'subject' => 's', 'body' => 'b', 'attachments' => array() ), null, array( array( 'occurrence_id' => $occ ) ) );
+$file = $dropped['attachments'][0] ?? '';
+check( 'temp .ics has an unguessable name', 1 === preg_match( '/termin-' . $occ . '-[0-9a-f]{16}\.ics$/', $file ) && file_exists( $file ) );
+Calendar::cleanup_temp_files();
+check( 'shutdown cleanup removes .ics files a filter dropped from the mail', '' !== $file && ! file_exists( $file ) );
+
 echo "Calendar: shortcode and block\n";
 $draft_type = make_type( 5, 10, 0 );
 $draft_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$draft_type" );

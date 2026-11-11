@@ -109,13 +109,91 @@ $wpdb->query( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=" . 
 http_reset();
 Service::process_due();
 check( 'reminder SMS for revoked tickets is skipped at send time', 'skipped' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_sms_messages WHERE order_id=" . (int) $o2['order_id'] ) && ! http_requests( 'twilio' ) );
-$wpdb->query( "UPDATE {$p}wpcap_tickets SET status='valid' WHERE order_id=" . (int) $o2['order_id'] );
-Service::enqueue( 'sms-test-fail', $o2['order_id'], $occ2, 'reschedule', 'Info' );
+check( 'consent of an order without valid tickets is retired', null !== $wpdb->get_var( "SELECT retired_at FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $o2['order_id'] ) );
+$o2b = Orders::create( array( 'email' => 'sms-2b@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-2b', 'sms_consent' => '1', 'sms_phone' => '+4915133333334' ) );
+Service::enqueue( 'sms-test-fail', $o2b['order_id'], $occ2, 'reschedule', 'Info' );
 http_reset();
 http_push( array( 'code' => 21211, 'message' => "The 'To' number is not valid." ), 400, '/Messages.json' );
 Service::process_due();
-$failed = $wpdb->get_row( "SELECT * FROM {$p}wpcap_sms_messages WHERE order_id=" . (int) $o2['order_id'] . " AND purpose='reschedule'" );
+$failed = $wpdb->get_row( "SELECT * FROM {$p}wpcap_sms_messages WHERE order_id=" . (int) $o2b['order_id'] . " AND purpose='reschedule'" );
 check( 'permanent provider error (4xx) fails without retry and logs no number', 'failed' === $failed->status && false === strpos( (string) $failed->last_error, '+49151' ) );
+
+echo "SMS: abuse protection\n";
+check( 'only mobile ranges of allowed countries', Service::number_allowed( '+4915112345678' ) && Service::number_allowed( '+436641234567' ) && Service::number_allowed( '+41791234567' ) && ! Service::number_allowed( '+4990012345678' ) && ! Service::number_allowed( '+4918012345678' ) && ! Service::number_allowed( '+49301234567' ) && ! Service::number_allowed( '+447700900123' ) && ! Service::number_allowed( '+881612345678' ) );
+$GLOBALS['wpcap_test_transients'] = array();
+$prem = Orders::create( array( 'email' => 'sms-prem@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-prem', 'sms_consent' => 1, 'sms_phone' => '+49 900 1234567' ) );
+check( 'premium-rate number is rejected at checkout', is_wp_error( $prem ) && false !== strpos( $prem->get_error_message(), 'Mobilnummern' ) );
+$intl = Orders::create( array( 'email' => 'sms-intl@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-intl', 'sms_consent' => 1, 'sms_phone' => '+1 268 555 0100' ) );
+check( 'number of a country that is not allowed is rejected', is_wp_error( $intl ) );
+$res = array();
+for ( $i = 1; $i <= 4; $i++ ) {
+	$res[] = Orders::create( array( 'email' => "sms-rl$i@example.com", 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => "sms-rl$i", 'sms_consent' => 1, 'sms_phone' => '+4915177777777' ) );
+}
+check( 'per-number limit: max 3 consents per day', ! is_wp_error( $res[2] ) && is_wp_error( $res[3] ) && false !== strpos( $res[3]->get_error_message(), 'zu viele' ) && 3 === Service::recent_consents_for_number( '+4915177777777' ) );
+$GLOBALS['wpcap_test_filters']['wpcap_sms_ip_hourly_limit'] = 0;
+$ip = Orders::create( array( 'email' => 'sms-ip@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-ip', 'sms_consent' => 1, 'sms_phone' => '+4915188888888' ) );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_sms_ip_hourly_limit'] );
+check( 'per-IP limit rejects further consents', is_wp_error( $ip ) );
+
+echo "SMS: consent ends with the order\n";
+$GLOBALS['wpcap_test_transients'] = array();
+$paid_type = make_type( 30, 10, 2500 );
+$pend = Orders::create( array( 'email' => 'sms-pend@example.com', 'items' => array( array( 'ticket_type_id' => $paid_type, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-pend', 'sms_consent' => 1, 'sms_phone' => '+4915144444444' ) );
+Orders::cancel_order( $pend['order_id'], 'test' );
+$pc = $wpdb->get_row( "SELECT * FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $pend['order_id'] );
+check( 'cancelled order: consent retired and number erased', $pc && null !== $pc->retired_at && '' === $pc->phone && false === Service::enqueue( 'x-pend', $pend['order_id'], 0, 'reminder', 'x' ) );
+$type3 = make_type( 30, 10, 0 );
+$occ3 = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type3" );
+$rv = Orders::create( array( 'email' => 'sms-rv@example.com', 'items' => array( array( 'ticket_type_id' => $type3, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-rv', 'sms_consent' => 1, 'sms_phone' => '+4915155555555' ) );
+Service::enqueue( 'rv-cancel', $rv['order_id'], $occ3, 'cancellation', 'Abgesagt' );
+Service::enqueue( 'rv-remind', $rv['order_id'], $occ3, 'reminder', 'Erinnerung' );
+$ids = array_map( static fn( $t ) => (int) $t->ticket_id, tickets( $rv['order_id'] ) );
+Orders::fire_revoked( Orders::revoke_ids( $ids ), 'occurrence_cancelled' );
+$rc = $wpdb->get_row( "SELECT * FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $rv['order_id'] );
+check( 'all tickets revoked: consent retired, reminder skipped, cancellation notice still queued', null !== $rc->retired_at && '+4915155555555' === $rc->phone && 'skipped' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_sms_messages WHERE order_id=" . (int) $rv['order_id'] . " AND purpose='reminder'" ) && 'queued' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_sms_messages WHERE order_id=" . (int) $rv['order_id'] . " AND purpose='cancellation'" ) );
+http_reset();
+http_push( array( 'sid' => 'SM' . str_repeat( 'c', 32 ) ), 201, '/Messages.json' );
+Service::process_due();
+check( 'cancellation notice sent, then the number is erased', 1 === count( http_requests( 'twilio' ) ) && '' === $wpdb->get_var( "SELECT phone FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $rv['order_id'] ) );
+$old = Orders::create( array( 'email' => 'sms-old@example.com', 'items' => array( array( 'ticket_type_id' => $type3, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-old', 'sms_consent' => 1, 'sms_phone' => '+4915166666666' ) );
+$wpdb->query( "UPDATE {$p}wpcap_tickets SET status='valid' WHERE order_id=" . (int) $old['order_id'] );
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET starts_at=%s WHERE occurrence_id=%d", gmdate( 'Y-m-d H:i:s', time() - 3 * 86400 ), $occ3 ) );
+Service::retire_finished();
+check( 'consent of a past event is retired and the number erased', '' === $wpdb->get_var( "SELECT phone FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $old['order_id'] ) );
+
+echo "SMS: inbound STOP, eraser and exporter\n";
+$GLOBALS['wpcap_test_transients'] = array();
+$st = Orders::create( array( 'email' => 'sms-stop@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-stop', 'sms_consent' => 1, 'sms_phone' => '+4915199999999' ) );
+$inbound = static function ( $params, $key ) {
+	ksort( $params );
+	$data = 'https://example.test/wp-json/wp-pass-captain/v1/sms/twilio/inbound';
+	foreach ( $params as $k => $v ) { $data .= $k . $v; }
+	$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/sms/twilio/inbound' );
+	$req->set_body( http_build_query( $params ) );
+	$req->set_header( 'X-Twilio-Signature', base64_encode( hash_hmac( 'sha1', $data, $key, true ) ) );
+	return Service::twilio_inbound( $req );
+};
+$stop = array( 'From' => '+4915199999999', 'To' => '+4915100000000', 'Body' => ' stop ', 'MessageSid' => 'SM1' );
+$forged = $inbound( $stop, 'wrong' );
+check( 'inbound SMS with invalid signature is rejected', is_wp_error( $forged ) && 403 === $forged->get_error_data()['status'] && null === $wpdb->get_var( "SELECT withdrawn_at FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $st['order_id'] ) );
+$other = $inbound( array_merge( $stop, array( 'Body' => 'Danke' ) ), $token );
+check( 'other inbound text withdraws nothing', ! is_wp_error( $other ) && null === $wpdb->get_var( "SELECT withdrawn_at FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $st['order_id'] ) );
+$ok = $inbound( $stop, $token );
+check( 'inbound STOP withdraws all consents of the number', ! is_wp_error( $ok ) && null !== $wpdb->get_var( "SELECT withdrawn_at FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $st['order_id'] ) && '' === $wpdb->get_var( "SELECT phone FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $st['order_id'] ) );
+
+$er = Orders::create( array( 'email' => 'sms-erase@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-erase', 'sms_consent' => 1, 'sms_phone' => '+4915112121212' ) );
+$exp = Sms::export( 'sms-erase@example.com' );
+check( 'exporter lists number, purpose, text version and timestamps', 1 === count( $exp['data'] ) && '+4915112121212' === $exp['data'][0]['data'][0]['value'] && 'event_updates' === $exp['data'][0]['data'][1]['value'] );
+add_filter( 'wp_privacy_personal_data_erasers', array( PassCaptain\Privacy::class, 'register_eraser' ) );
+$erasers = apply_filters( 'wp_privacy_personal_data_erasers', array() );
+$keys = array_keys( $erasers );
+check( 'SMS eraser runs before the core eraser', false !== array_search( 'wpcap-sms', $keys, true ) && array_search( 'wpcap-sms', $keys, true ) < array_search( 'wp-pass-captain-orders', $keys, true ) );
+foreach ( $erasers as $eraser ) { call_user_func( $eraser['callback'], 'sms-erase@example.com', 1 ); }
+check( 'erasure (in WordPress order) removes the number', '' === $wpdb->get_var( "SELECT phone FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $er['order_id'] ) );
+$er2 = Orders::create( array( 'email' => 'sms-erase2@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-erase2', 'sms_consent' => 1, 'sms_phone' => '+4915113131313' ) );
+PassCaptain\Privacy::erase( 'sms-erase2@example.com' );
+Sms::erase( 'sms-erase2@example.com' );
+check( 'SMS eraser also works after the core eraser anonymised the e-mail', '' === $wpdb->get_var( "SELECT phone FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $er2['order_id'] ) );
 
 echo "SMS: generic HTTP adapter\n";
 check( 'JSON body template escapes values', '{"to":"+491","text":"Er sagte \"hi\"\\nA"}' === HttpProvider::render_body( '{"to":"{to}","text":"{body}"}', 'json', array( 'to' => '+491', 'body' => "Er sagte \"hi\"\nA" ) ) );
@@ -123,11 +201,11 @@ check( 'form body template URL-encodes values', 'to=%2B491&text=a%26b%3Dc' === H
 Settings::update( array( 'sms_http_secret' => 'Bearer s3cret', 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'provider' => 'http', 'http_endpoint' => 'http://insecure.example', 'http_auth_header' => 'Authorization' ) ) ) );
 check( 'HTTP adapter requires an https endpoint', ! Service::enabled() );
 Settings::update( array( 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'http_endpoint' => 'https://sms.example/send' ) ) ) );
-Service::enqueue( 'sms-http-1', $o2['order_id'], $occ2, 'reminder', 'Hallo "Welt"' );
+Service::enqueue( 'sms-http-1', $o2b['order_id'], $occ2, 'reminder', 'Hallo "Welt"' );
 http_reset();
 http_push( array( 'id' => 'gw-1' ), 200, 'sms.example' );
 Service::process_due();
 $hr = http_requests( 'sms.example' )[0] ?? array( 'headers' => array(), 'body' => '' );
-check( 'HTTP adapter posts the template with the auth header', 'Bearer s3cret' === ( $hr['headers']['Authorization'] ?? '' ) && is_array( json_decode( $hr['body'], true ) ) && 'Hallo "Welt"' === json_decode( $hr['body'], true )['text'] && 'gw-1' === $wpdb->get_var( "SELECT provider_ref FROM {$p}wpcap_sms_messages WHERE order_id=" . (int) $o2['order_id'] . " AND purpose='reminder' AND status='sent'" ) );
+check( 'HTTP adapter posts the template with the auth header', 'Bearer s3cret' === ( $hr['headers']['Authorization'] ?? '' ) && is_array( json_decode( $hr['body'], true ) ) && 'Hallo "Welt"' === json_decode( $hr['body'], true )['text'] && 'gw-1' === $wpdb->get_var( "SELECT provider_ref FROM {$p}wpcap_sms_messages WHERE order_id=" . (int) $o2b['order_id'] . " AND purpose='reminder' AND status='sent'" ) );
 // Switch SMS off for later test files.
 Settings::update( array( 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'provider' => '' ) ) ) );
