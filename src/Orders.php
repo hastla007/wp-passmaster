@@ -634,6 +634,9 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_transfer_failed', __( 'Die Ticketübertragung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
 		}
+		// The previous holder's name and custom answers must not stay on the transferred ticket.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_ticket_assignments SET attendee_name='',attendee_email=%s WHERE ticket_id=%d", $recipient_email, (int) $ticket->ticket_id ) );
+		$wpdb->delete( $wpdb->prefix . 'wpcap_participant_answers', array( 'ticket_id' => (int) $ticket->ticket_id ) );
 		$wpdb->query( 'COMMIT' );
 		/** A ticket received a new code; the old one is invalid. $token is plaintext – never store it. */
 		do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'transfer' );

@@ -34,7 +34,11 @@ final class OccurrenceCancellation {
 		}
 
 		// 2. Paid orders: optional automatic refund of the affected tickets.
-		$paid = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.payment_provider,GROUP_CONCAT(t.ticket_id) AS ticket_ids FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_tickets t ON t.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND t.refunded=0 AND t.status IN ('valid','checked_in') GROUP BY ord.order_id,ord.payment_provider", $occurrence_id ) );
+		// Ticket ids are read per order (GROUP_CONCAT would be truncated for large orders).
+		$paid = $wpdb->get_results( $wpdb->prepare( "SELECT DISTINCT ord.order_id,ord.payment_provider FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_tickets t ON t.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND t.refunded=0 AND t.status IN ('valid','checked_in')", $occurrence_id ) );
+		foreach ( $paid as $row ) {
+			$row->ticket_ids = implode( ',', $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE t.order_id=%d AND tt.occurrence_id=%d AND t.refunded=0 AND t.status IN ('valid','checked_in')", (int) $row->order_id, $occurrence_id ) ) );
+		}
 		foreach ( $paid as $row ) {
 			if ( 'woocommerce' === $row->payment_provider ) {
 				do_action( 'wpcap_occurrence_cancelled_woocommerce_order', (int) $row->order_id, $occurrence_id );

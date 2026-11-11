@@ -19,7 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Reservations {
 	const PAYLOAD_KEY = 'seats';
-	const MAX_SEATS_PER_ORDER = 100;
+	/** Public checkouts hold at most this many seats per order (limits hold exhaustion). */
+	const MAX_SEATS_PER_ORDER = 20;
 
 	public static function register() {
 		add_filter( 'wpcap_checkout_payload_keys', array( __CLASS__, 'payload_keys' ) );

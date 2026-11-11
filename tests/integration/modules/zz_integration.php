@@ -41,3 +41,15 @@ $wpdb->insert( "{$p}wpcap_payment_events", array( 'provider' => 'stripe', 'provi
 $w3 = $mk( 'wh-3' );
 $stuck = PassCaptain\Payments\Webhooks::process( 'stripe', array( 'event_id' => 'evt_stuck', 'type' => 'paid', 'order_public_id' => $w3['public_id'], 'provider_reference' => 'pi_3', 'amount_minor' => 2000, 'currency' => 'EUR' ) );
 check( 'a claim stuck in processing is taken over after 10 minutes', 'paid' === $stuck && 'paid' === Orders::get( $w3['order_id'] )->payment_status );
+
+echo "Integration: transfer clears previous attendee data\n";
+$tt = make_type( 10, 10, 0 );
+$wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $tt, 'field_key' => 'firma', 'label' => 'Firma', 'field_type' => 'text', 'required' => 0, 'status' => 'active' ) );
+$to = Orders::create( array( 'email' => 'zz-tr@example.com', 'items' => array( array( 'ticket_type_id' => $tt, 'quantity' => 1 ) ), 'idempotency_key' => 'zz-tr-1', 'attendees' => array( array( 'ticket_type_id' => $tt, 'name' => 'Alice Original', 'email' => 'alice@example.com', 'answers' => array( 'firma' => 'Alice GmbH' ) ) ) ) );
+$tm = array_values( array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => 'zz-tr@example.com' === $m['to'] && false !== strpos( $m['body'], 'wpcap_access=' ) ) );
+preg_match( '/wpcap_access=([a-f0-9]{64})/', end( $tm )['body'], $tam );
+$tticket = tickets( $to['order_id'] )[0];
+Orders::transfer_ticket( $to['public_id'], $tam[1], $tticket->public_id, 'bob@example.com' );
+$assign = $wpdb->get_row( "SELECT attendee_name,attendee_email FROM {$p}wpcap_ticket_assignments WHERE ticket_id=" . (int) $tticket->ticket_id );
+$answers = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_participant_answers WHERE ticket_id=" . (int) $tticket->ticket_id );
+check( 'transfer removes the previous attendee name and answers', $assign && '' === $assign->attendee_name && 'bob@example.com' === $assign->attendee_email && 0 === $answers );
