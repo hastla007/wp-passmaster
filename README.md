@@ -19,7 +19,7 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 - Transaktionale Rechnungsnummern, geplanter Mailversand und Mitgliedspässe mit Nutzungslimits sind als Basismodule verfügbar.
 - Eventkarten können über `templates/event-card.php` im Theme überschrieben werden. Währungen und Wallet-Provider sind erweiterbar.
 - Kampagnencodes können Prozent- oder Festbetragsrabatte mit Event-/Ticketbereich und atomarem globalem Nutzungsmaximum anwenden; angewandte Preiswerte werden im Auftrag gespeichert.
-- Wartelisten nehmen Einträge auf und können zeitlich begrenzte Angebote senden. Ein Angebot hält noch keine Ticketkapazität.
+- Wartelisten nehmen Einträge auf (ohne zu verraten, ob eine Adresse schon eingetragen ist) und senden zeitlich begrenzte Angebote. Wer ein Angebot annimmt, bekommt direkt eine Bestellung mit Reservierung, sofern das Ticket noch verfügbar ist.
 - Rollenbeschränkte Veranstaltungsberichte zeigen bezahlte Bestellungen, verkaufte Tickets, Bruttosummen pro Währung und Einlasszahlen.
 - Eventgebundene Read-only-API-Schlüssel, übersetzte Eventkarten, site-getrennte Multisite-Migrationen und ein generischer Job-Queue-Grundbaustein sind verfügbar.
 - Länder-/Steuerprofile werden ausschließlich als Entwürfe gespeichert. Eine geprüfte Steuerberechnung ist nicht enthalten.
@@ -28,7 +28,7 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 
 PHP 8.2+, Composer und WordPress erforderlich. `composer install` lädt die QR-Code-Abhängigkeit. Das Plugin kann ohne generierten Composer-Autoloader gestartet werden; QR-Bilder erscheinen erst mit installierten Abhängigkeiten.
 
-Plugin-Version `0.3.0` nutzt Datenbankschema `3.0.0`. Das Upgrade erfolgt über `dbDelta` beim Laden des Plugins. Neue REST-Routen decken Kampagnen, Wartelisten, Eventberichte, Übersetzungen und eventgebundene Entwickler-Schlüssel ab. WordPress-Schreibzugriffe brauchen eine eingeloggte WP-Session mit REST-Nonce; Entwickler-Schlüssel sind nur für dokumentierte Read-only-Scopes vorgesehen.
+Plugin-Version `0.9.0` nutzt Datenbankschema `3.3.0` (plus Modul-Schemata). Das Upgrade erfolgt über `dbDelta` beim Laden des Plugins. Neue REST-Routen decken Kampagnen, Wartelisten, Eventberichte, Übersetzungen und eventgebundene Entwickler-Schlüssel ab. WordPress-Schreibzugriffe brauchen eine eingeloggte WP-Session mit REST-Nonce; Entwickler-Schlüssel sind nur für dokumentierte Read-only-Scopes vorgesehen.
 
 ```sh
 composer install
@@ -49,6 +49,27 @@ Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaSc
 - [Schritte 11–30](ROADMAP_11_30.md)
 - [Schritte 31–50](ROADMAP_31_50.md)
 
+## Module (P2)
+
+Unter **Pass Captain** stehen zusätzlich: Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]`. Dokumentation: [docs/WALLET.md](docs/WALLET.md), [docs/WEBHOOKS.md](docs/WEBHOOKS.md), [docs/HOOKS.md](docs/HOOKS.md), [docs/MOBILE-API.md](docs/MOBILE-API.md).
+
+## Scanner und Mobile-App
+
+- Web-Scanner per Shortcode `[wp_pass_captain_scanner]`. Die Kamera nutzt die native BarcodeDetector-API und fällt sonst (iOS/Safari, Firefox) auf das mitgelieferte jsQR (Apache-2.0, `assets/vendor/jsqr/`) zurück.
+- Native Scanner-Apps koppeln sich per QR-Code unter **Pass Captain → Scanner-Geräte** und nutzen die REST-API unter `/wp-json/wp-pass-captain/v1/app/` mit ablaufenden, eventgebundenen und widerrufbaren Gerätetokens. Spezifikation: [docs/MOBILE-API.md](docs/MOBILE-API.md).
+
+## Sprachen
+
+Ausgangssprache ist Deutsch. Eine vollständige englische Übersetzung liegt in `languages/wp-pass-captain-en_US.po/.mo`. Weitere Sprachen entstehen aus der Vorlage `languages/wp-pass-captain.pot`. Kompilieren ohne gettext-Tools:
+
+```sh
+php build/compile-mo.php languages/wp-pass-captain-xx_XX.po
+```
+
 ## Noch offen
 
-Viele Schritte 21–50 sind Backend-Grundlagen. Checkout-/Admin-Oberflächen, PSP-/Voucher-Orchestrierung, Checkout-verknüpfte Sitzplatz- und Servicebuchungen, echte Wallet-Anbieter, geprüfte Steuerberechnung und PDF-Rechnungen fehlen. Wartelistenangebote reservieren keine Kapazität; Teilnehmerfelder sind noch nicht im Checkout. Entwickler-API-Schlüssel haben noch kein zusätzliches eigenes Rate-Limit; externe Connectoren müssen separat implementiert und aktiviert werden. Last-, Restore-, Sicherheits- und Barrierefreiheitsprüfungen sind noch nicht erfolgt. Es gibt noch keinen reproduzierbaren 1.0-Release-Prozess. Siehe Roadmaps und `docs/` für die Grenzen der einzelnen Grundlagen.
+- Abnahme in einer echten WordPress-/WooCommerce-Installation sowie gegen die echten Stripe- und PayPal-Sandboxes (getestet ist gegen MariaDB mit nachgebauter WordPress-, WooCommerce- und Anbieter-API).
+- Rechtliche und steuerliche Prüfung von Rechnungen, Gutschriften, Verbraucherinformationen und Steuersätzen je Land.
+- Native Scanner-Apps selbst (die Server-API ist fertig, siehe docs/MOBILE-API.md, inkl. geplanter Erweiterungen).
+- Abnahme der P2-Module gegen echte Dienste (Apple/Google Wallet, Twilio, Mollie) und im Browser (Saalplan-Editor, Platzwahl, Kasse).
+- P3 laut Konzept: echtes Offline-Prüfpaket, externe Scanner-Apps, Partnerabrechnungen; Last-, Sicherheits- und Barrierefreiheitstests.

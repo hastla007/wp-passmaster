@@ -31,6 +31,7 @@ class WP_Error {
 
 final class Test_WPDB {
 	public $prefix = 'wptest_';
+	public function __construct_prefix() { $this->prefix = getenv( 'WPCAP_TEST_PREFIX' ) ?: 'wptest_'; }
 	public $last_error = '';
 	public $insert_id = 0;
 	public $rows_affected = 0;
@@ -91,6 +92,7 @@ final class Test_WPDB {
 }
 
 $GLOBALS['wpdb'] = new Test_WPDB();
+$GLOBALS['wpdb']->__construct_prefix();
 $GLOBALS['wpcap_test_mails'] = array();
 $GLOBALS['wpcap_test_notices'] = array();
 $GLOBALS['wpcap_test_options'] = array( 'woocommerce_hold_stock_minutes' => 60, 'admin_email' => 'admin@example.com' );
@@ -110,11 +112,15 @@ function is_email( $e ) { return false !== filter_var( (string) $e, FILTER_VALID
 function sanitize_text_field( $t ) { return trim( strip_tags( (string) $t ) ); }
 function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
 function wp_unslash( $v ) { return $v; }
+function sanitize_textarea_field( $t ) { return trim( strip_tags( (string) $t ) ); }
+function wp_kses_post( $t ) { return (string) $t; }
+function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d, ",", "." ); }
+function user_can( $u, $c ) { return true; }
 function wp_json_encode( $v ) { return json_encode( $v ); }
 function wp_generate_uuid4() { return sprintf( '%04x%04x-%04x-4%03x-%04x-%012x', random_int( 0, 0xffff ), random_int( 0, 0xffff ), random_int( 0, 0xffff ), random_int( 0, 0xfff ), random_int( 0x8000, 0xbfff ), random_int( 0, 0xffffffffffff ) ); }
 function current_time( $type, $gmt = 0 ) { return gmdate( 'Y-m-d H:i:s' ); }
-function get_current_user_id() { return 1; }
-function current_user_can( $cap ) { return true; }
+function current_user_can( $cap ) { return ! in_array( $cap, $GLOBALS['wpcap_test_denied_caps'] ?? array(), true ); }
+function get_current_user_id() { return $GLOBALS['wpcap_test_user_id'] ?? 1; }
 function get_option( $k, $d = false ) { return $GLOBALS['wpcap_test_options'][ $k ] ?? $d; }
 function update_option( $k, $v ) { $GLOBALS['wpcap_test_options'][ $k ] = $v; return true; }
 function get_transient( $k ) { return $GLOBALS['wpcap_test_transients'][ $k ] ?? false; }
@@ -123,16 +129,40 @@ function add_query_arg( $args, $url, $u = null ) { if ( ! is_array( $args ) ) { 
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function mysql2date( $f, $d ) { return gmdate( $f, strtotime( $d ) ); }
 function get_date_from_gmt( $d ) { return $d; }
-function wp_mail( $to, $subject, $body ) { $GLOBALS['wpcap_test_mails'][] = compact( 'to', 'subject', 'body' ); return true; }
-function do_action( $hook, ...$args ) { $GLOBALS['wpcap_test_actions'][] = $hook; }
-function apply_filters( $hook, $value, ...$args ) { return $value; }
-function add_action() {}
-function add_filter() {}
+function wp_mail( $to, $subject, $body, $headers = '', $attachments = array() ) { $files = array(); foreach ( (array) $attachments as $f ) { $files[ basename( $f ) ] = (string) file_get_contents( $f ); } $GLOBALS['wpcap_test_mails'][] = compact( 'to', 'subject', 'body', 'files' ); return true; }
+function get_temp_dir() { return sys_get_temp_dir() . '/'; }
+function trailingslashit( $p ) { return rtrim( $p, '/' ) . '/'; }
+function get_bloginfo( $k = '' ) { return 'Testsite'; }
+function wp_delete_file( $f ) { if ( is_file( $f ) ) { unlink( $f ); } }
+function do_action( $hook, ...$args ) { $GLOBALS['wpcap_test_actions'][] = $hook; wpcap_test_run_hooks( $hook, $args, false ); }
+function did_action( $hook ) { return in_array( $hook, $GLOBALS['wpcap_test_actions'] ?? array(), true ) || 'init' === $hook ? 1 : 0; }
+function wp_specialchars_decode( $s, $q = ENT_NOQUOTES ) { return htmlspecialchars_decode( (string) $s, $q ); }
+function apply_filters( $hook, $value, ...$args ) { if ( array_key_exists( $hook, $GLOBALS['wpcap_test_filters'] ?? array() ) ) { return $GLOBALS['wpcap_test_filters'][ $hook ]; } return wpcap_test_run_hooks( $hook, array_merge( array( $value ), $args ), true ); }
+function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][] = array( $callback, $accepted_args ); return true; }
+function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) { return add_action( $hook, $callback, $priority, $accepted_args ); }
+function remove_all_actions( $hook ) { unset( $GLOBALS['wpcap_test_hooks'][ $hook ] ); }
+/** Minimal WordPress hook runner: only callbacks registered by tests/modules are executed. */
+function wpcap_test_run_hooks( $hook, array $args, $is_filter ) {
+	$value = $args[0] ?? null;
+	$registered = $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array();
+	ksort( $registered );
+	foreach ( $registered as $callbacks ) {
+		foreach ( $callbacks as list( $callback, $accepted ) ) {
+			if ( ! is_callable( $callback ) ) { continue; }
+			$call_args = array_slice( $args, 0, max( 1, (int) $accepted ) );
+			if ( $is_filter ) { $call_args[0] = $value; $value = call_user_func_array( $callback, $call_args ); $args[0] = $value; }
+			else { call_user_func_array( $callback, $call_args ); }
+		}
+	}
+	return $value;
+}
 function current_filter() { return 'test_filter'; }
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function get_role( $r ) { return null; }
 function add_role() {}
 function wc_get_price_decimals() { return 2; }
+function determine_locale() { return 'de_DE'; }
+function wp_date( $f, $ts = null, $tz = null ) { $d = new DateTime( "@" . ( $ts ?? time() ) ); $d->setTimezone( $tz instanceof DateTimeZone ? $tz : new DateTimeZone( "UTC" ) ); return $d->format( $f ); }
 function wc_add_notice( $m, $t = 'success' ) { $GLOBALS['wpcap_test_notices'][] = $m; }
 
 /* ---- WooCommerce fakes ---- */

@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.0.0';
+	const DB_VERSION = '3.3.0';
 
 	public static function install() {
 		global $wpdb;
@@ -93,6 +93,7 @@ final class Installer {
 				tax_class varchar(64) NOT NULL DEFAULT '',
 				capacity int(10) unsigned NOT NULL DEFAULT 0,
 				max_per_order smallint(5) unsigned NOT NULL DEFAULT 10,
+				tax_rate_bp int(10) unsigned NOT NULL DEFAULT 0,
 				sales_start datetime NULL,
 				sales_end datetime NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
@@ -114,6 +115,14 @@ final class Installer {
 				subtotal_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				discount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				price_snapshot longtext NOT NULL,
+				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				refunded_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				payment_provider varchar(32) NOT NULL DEFAULT 'manual',
+				provider_reference varchar(191) NOT NULL DEFAULT '',
+				terms_version varchar(64) NOT NULL DEFAULT '',
+				locale varchar(20) NOT NULL DEFAULT '',
+				voucher_snapshot longtext NULL,
+				attendee_data longtext NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (order_id),
@@ -132,6 +141,9 @@ final class Installer {
 				quantity smallint(5) unsigned NOT NULL,
 				unit_price_minor bigint(20) unsigned NOT NULL,
 				line_total_minor bigint(20) unsigned NOT NULL,
+				tax_rate_bp int(10) unsigned NOT NULL DEFAULT 0,
+				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				refunded_quantity smallint(5) unsigned NOT NULL DEFAULT 0,
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),
@@ -156,6 +168,7 @@ final class Installer {
 				token_hash char(64) NOT NULL DEFAULT '',
 				attendee_email varchar(190) NOT NULL DEFAULT '',
 				transfer_count tinyint(3) unsigned NOT NULL DEFAULT 0,
+				refunded tinyint(1) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'valid',
 				issued_at datetime NOT NULL,
 				PRIMARY KEY  (ticket_id),
@@ -173,8 +186,13 @@ final class Installer {
 				occurrence_day_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				user_id bigint(20) unsigned NOT NULL,
 				result varchar(24) NOT NULL,
+				device_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				idempotency_key char(64) NULL,
+				source varchar(16) NOT NULL DEFAULT 'web',
+				scanned_at datetime NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (checkin_id),
+				KEY idempotency (user_id,idempotency_key),
 				KEY ticket_id (ticket_id),
 				KEY event_id (event_id),
 				KEY occurrence_day_id (occurrence_day_id),
@@ -293,6 +311,10 @@ final class Installer {
 				label varchar(190) NOT NULL DEFAULT '',
 				last_seen_at datetime NULL,
 				revoked_at datetime NULL,
+				expires_at datetime NULL,
+				event_ids longtext NULL,
+				platform varchar(32) NOT NULL DEFAULT '',
+				app_version varchar(32) NOT NULL DEFAULT '',
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (device_id),
 				UNIQUE KEY public_id (public_id),
@@ -541,6 +563,76 @@ final class Installer {
 				UNIQUE KEY connector_site (connector_key,site_id),
 				KEY status (status)
 			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_payment_events (
+				payment_event_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				provider varchar(32) NOT NULL,
+				provider_event_id varchar(191) NOT NULL,
+				event_type varchar(64) NOT NULL DEFAULT '',
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				status varchar(20) NOT NULL DEFAULT 'processing',
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (payment_event_id),
+				UNIQUE KEY provider_event (provider,provider_event_id),
+				KEY order_id (order_id)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_refunds (
+				refund_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				order_id bigint(20) unsigned NOT NULL,
+				idempotency_key char(64) NOT NULL,
+				amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				currency char(3) NOT NULL,
+				ticket_ids longtext NOT NULL,
+				reason varchar(255) NOT NULL DEFAULT '',
+				status varchar(24) NOT NULL DEFAULT 'pending_approval',
+				provider_reference varchar(191) NOT NULL DEFAULT '',
+				requested_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				approved_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				error_message varchar(255) NOT NULL DEFAULT '',
+				credit_note_number varchar(40) NOT NULL DEFAULT '',
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (refund_id),
+				UNIQUE KEY idempotency_key (idempotency_key),
+				KEY order_status (order_id,status)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_credit_notes (
+				credit_note_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				invoice_id bigint(20) unsigned NOT NULL,
+				refund_id bigint(20) unsigned NOT NULL,
+				credit_note_number varchar(40) NOT NULL,
+				currency char(3) NOT NULL,
+				net_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				issued_at datetime NOT NULL,
+				PRIMARY KEY  (credit_note_id),
+				UNIQUE KEY refund_id (refund_id),
+				UNIQUE KEY credit_note_number (credit_note_number),
+				KEY invoice_id (invoice_id)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_document_sequences (
+				series varchar(16) NOT NULL,
+				year smallint(5) unsigned NOT NULL,
+				next_number bigint(20) unsigned NOT NULL DEFAULT 1,
+				PRIMARY KEY  (series,year)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_device_pairings (
+				pairing_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				code_hash char(64) NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				event_ids longtext NULL,
+				label varchar(190) NOT NULL DEFAULT '',
+				device_hours smallint(5) unsigned NOT NULL DEFAULT 24,
+				expires_at datetime NOT NULL,
+				used_at datetime NULL,
+				device_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (pairing_id),
+				UNIQUE KEY code_hash (code_hash),
+				KEY user_id (user_id)
+			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $jobs (
 				job_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				idempotency_key char(64) NOT NULL,
@@ -560,46 +652,63 @@ final class Installer {
 			) ENGINE=InnoDB $charset;",
 		);
 
-		foreach ( $queries as $query ) {
+		foreach ( array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) ) as $query ) {
 			dbDelta( $query );
 		}
 
-		self::register_roles();
-		update_option( 'wpcap_db_version', self::DB_VERSION );
+		// Role names are translated; before init that would load the text domain too early.
+		if ( did_action( 'init' ) || ! function_exists( 'add_action' ) ) {
+			self::register_roles();
+		} else {
+			add_action( 'init', array( __CLASS__, 'register_roles' ), 1 );
+		}
+		update_option( 'wpcap_db_version', self::version() );
 		update_option( 'wpcap_version', WPCAP_VERSION );
 	}
 
-	public static function maybe_upgrade() {
-		if ( self::DB_VERSION !== get_option( 'wpcap_db_version' ) ) {
-			self::install();
-		}
+	/** Stored schema version: core version plus a hash of all module tables. */
+	public static function version() {
+		return self::DB_VERSION . '+' . Modules::schema_version();
 	}
 
-	private static function register_roles() {
-		$admin_caps = array(
-			'wpcap_manage_events'  => true,
-			'wpcap_manage_orders'  => true,
-			'wpcap_checkin'        => true,
-			'wpcap_view_reports'   => true,
-		);
+	/** Runs the schema upgrade when needed; returns true if an upgrade ran. */
+	public static function maybe_upgrade() {
+		if ( self::version() !== get_option( 'wpcap_db_version' ) ) {
+			self::install();
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Role packages from the concept. Operational roles are additionally limited per event through
+	 * wpcap_event_staff assignments (Access::can_access_event); only finance gets global read access.
+	 */
+	public static function register_roles() {
+		$all_caps = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance' );
 		$admin = get_role( 'administrator' );
 		if ( $admin ) {
-			foreach ( $admin_caps as $cap => $grant ) {
-				$admin->add_cap( $cap, $grant );
-			}
+			foreach ( $all_caps as $cap ) { $admin->add_cap( $cap, true ); }
 		}
-
-		add_role(
-			'wpcap_event_manager',
-			__( 'Pass Captain Veranstaltungsleitung', 'wp-pass-captain' ),
-			array( 'read' => true, 'wpcap_manage_events' => true, 'wpcap_manage_orders' => true, 'wpcap_view_reports' => true )
+		$roles = array(
+			'wpcap_ticket_admin'   => array( __( 'Pass Captain Ticket-Administration', 'wp-pass-captain' ), $all_caps ),
+			'wpcap_event_manager'  => array( __( 'Pass Captain Veranstaltungsleitung', 'wp-pass-captain' ), array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin' ) ),
+			'wpcap_box_office'     => array( __( 'Pass Captain Vor-Ort-Kasse', 'wp-pass-captain' ), array( 'wpcap_manage_orders', 'wpcap_checkin' ) ),
+			'wpcap_checkin_staff'  => array( __( 'Pass Captain Einlasspersonal', 'wp-pass-captain' ), array( 'wpcap_checkin' ) ),
+			'wpcap_partner'        => array( __( 'Pass Captain Partner', 'wp-pass-captain' ), array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
+			'wpcap_finance'        => array( __( 'Pass Captain Finanzbuchhaltung', 'wp-pass-captain' ), array( 'wpcap_view_finance', 'wpcap_view_reports', 'wpcap_approve_refunds' ) ),
+			'wpcap_support'        => array( __( 'Pass Captain Support', 'wp-pass-captain' ), array( 'wpcap_manage_orders' ) ),
 		);
-		$manager = get_role( 'wpcap_event_manager' );
-		if ( $manager ) { $manager->add_cap( 'wpcap_view_reports' ); }
-		add_role(
-			'wpcap_checkin_staff',
-			__( 'Pass Captain Einlasspersonal', 'wp-pass-captain' ),
-			array( 'read' => true, 'wpcap_checkin' => true )
-		);
+		foreach ( $roles as $slug => $definition ) {
+			$caps = array( 'read' => true );
+			foreach ( $definition[1] as $cap ) { $caps[ $cap ] = true; }
+			$role = get_role( $slug );
+			if ( ! $role ) {
+				add_role( $slug, $definition[0], $caps );
+				continue;
+			}
+			// Upgrade existing roles additively; never remove capabilities an operator granted.
+			foreach ( $caps as $cap => $grant ) { $role->add_cap( $cap, $grant ); }
+		}
 	}
 }

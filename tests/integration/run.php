@@ -75,6 +75,15 @@ $free = make_type( 2, 10, 0 );
 $fr = Orders::create( array( 'email' => 'free@example.com', 'items' => array( array( 'ticket_type_id' => $free, 'quantity' => 2 ) ), 'idempotency_key' => 'free-1' ) );
 check( 'free native order issues tickets immediately', ! is_wp_error( $fr ) && 2 === count( tickets( $fr['order_id'], 'valid' ) ) );
 
+echo "Security: customer input cannot use trusted adapter options\n";
+$type = make_type( 5, 10, 3000 );
+$evil = Orders::create( array( 'email' => 'evil@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'evil-1', 'unit_prices' => array( $type => 0 ), 'external' => true, 'hold_minutes' => 99999999, 'currency' => 'XXX' ) );
+check( 'injected unit_prices/external are ignored', ! is_wp_error( $evil ) && 6000 === (int) $evil['total_minor'] && 'pending' === $evil['payment_status'] && 10 === $evil['hold_minutes'] && 'EUR' === $evil['currency'] );
+check( 'no tickets issued for injected zero price', ! tickets( $evil['order_id'] ) );
+$hijack = Orders::create( array( 'email' => 'evil@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => '777-1' ) );
+$channel = Orders::create( array( 'email' => 'shop@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => '777-1' ), array( 'key_namespace' => 'woocommerce', 'external' => true ) );
+check( 'public idempotency key cannot claim a channel key', ! is_wp_error( $channel ) && empty( $channel['reused'] ) && $channel['order_id'] !== $hijack['order_id'] );
+
 echo "WooCommerce: hold, payment, idempotent issuance\n";
 $type = make_type( 3, 4 );
 $wc = make_wc_order( 1, $type, 2, '40.00', '8.00' );
@@ -159,6 +168,132 @@ Woo::sync_fully_refunded_order( 8 );
 check( 'full refund revokes remaining valid tickets, keeps check-in history', 2 === count( tickets( $core8, 'revoked' ) ) && 1 === count( tickets( $core8, 'checked_in' ) ) );
 check( 'full refund frees capacity', 'refunded' === Orders::get( $core8 )->status && 10 === Orders::availability( $type ) );
 
+echo "Review fixes\n";
+$type = make_type( 2 );
+$wc11 = make_wc_order( 11, $type, 2 );
+$core11 = Woo::reserve( $wc11 );
+Woo::sync_paid_order( 11 );
+$refund = new WC_Order( 9002 );
+$ri = new WC_Order_Item_Product( 9102, $wc11->items[0]->get_product(), -1, '-25.00' );
+$ri->update_meta_data( '_refunded_item_id', $wc11->items[0]->get_id() );
+$refund->items[] = $ri;
+Woo::sync_refund( 11, 9002 );
+check( 'partially refunded ticket frees its capacity', 1 === Orders::availability( $type ) );
+
+$type = make_type( 10 );
+$wc12 = make_wc_order( 12, $type, 3, '10.00' );
+$core12 = Woo::reserve( $wc12 );
+check( 'uneven Woo line total is stored exactly', 1000 === (int) $wpdb->get_var( "SELECT line_total_minor FROM {$p}wpcap_order_items WHERE order_id=$core12" ) && 1000 === (int) Orders::get( $core12 )->total_minor );
+$before = count( $GLOBALS['wpcap_test_mails'] );
+Woo::sync_paid_order( 12 );
+Woo::sync_paid_order( 12 );
+$new = array_slice( $GLOBALS['wpcap_test_mails'], $before );
+check( 'one ticket mail and one access link per paid order', 2 === count( $new ) );
+
+$type = make_type( 1 );
+$wc13 = make_wc_order( 13, $type, 1 );
+$core13 = Woo::reserve( $wc13 );
+expire_holds_of( $core13 );
+$wc14 = make_wc_order( 14, $type, 1 );
+Woo::reserve( $wc14 );
+$before = count( $GLOBALS['wpcap_test_mails'] );
+Woo::sync_paid_order( 13 );
+Woo::sync_paid_order( 13 );
+Woo::sync_paid_order( 13 );
+$admin = array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $before ), static fn( $m ) => 'admin@example.com' === $m['to'] );
+check( 'needs_review alert is sent once despite repeated hooks', 1 === count( $admin ) && 'needs_review' === Orders::get( $core13 )->status );
+
+$type = make_type( 5, 10, 1000 );
+$paid = Orders::create( array( 'email' => 'paid-buyer@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'inv-1' ) );
+Orders::confirm_manual_payment( $paid['order_id'] );
+$first = PassCaptain\Invoices::issue_for_order( $paid['order_id'] );
+$again = PassCaptain\Invoices::issue_for_order( $paid['order_id'] );
+$unpaid = Orders::create( array( 'email' => 'unpaid@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'inv-2' ) );
+PassCaptain\Invoices::issue_for_order( $unpaid['order_id'] );
+$paid2 = Orders::create( array( 'email' => 'paid2@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'inv-3' ) );
+Orders::confirm_manual_payment( $paid2['order_id'] );
+$second = PassCaptain\Invoices::issue_for_order( $paid2['order_id'] );
+$n1 = (int) substr( $first['invoice_number'], -6 );
+$n2 = (int) substr( $second['invoice_number'], -6 );
+check( 'invoice numbers have no gaps after reuse/failed attempts', ! empty( $again['reused'] ) && $n2 === $n1 + 1 );
+
+$event_id = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$type" );
+$wpdb->query( "UPDATE {$p}wpcap_orders SET status='expired',payment_status='expired' WHERE order_id=" . (int) $unpaid['order_id'] );
+$before = count( $GLOBALS['wpcap_test_mails'] );
+Orders::cancel_event( $event_id );
+$to = array_map( static fn( $m ) => $m['to'], array_slice( $GLOBALS['wpcap_test_mails'], $before ) );
+check( 'event cancellation mails only paid/open buyers', in_array( 'paid-buyer@example.com', $to, true ) && in_array( 'paid2@example.com', $to, true ) && ! in_array( 'unpaid@example.com', $to, true ) );
+
+echo "Open points: waitlist, manual payment, rate limits\n";
+$type = make_type( 1 );
+$occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type" );
+$event = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$occ" );
+$j1 = PassCaptain\Waitlists::join( $event, $occ, $type, 'wait@example.com' );
+$j2 = PassCaptain\Waitlists::join( $event, $occ, $type, 'wait@example.com' );
+check( 'waitlist join response does not reveal existing entries', $j1 === $j2 && ! isset( $j1['position'] ) && ! isset( $j1['waitlist_id'] ) );
+$before = count( $GLOBALS['wpcap_test_mails'] );
+$offer = PassCaptain\Waitlists::offer_next( $event, $type );
+$mail = end( $GLOBALS['wpcap_test_mails'] );
+preg_match( '/token=([a-f0-9]{64})/', $mail['body'], $m );
+$accepted = PassCaptain\Waitlists::accept_offer( $offer['waitlist_id'], $m[1] ?? '' );
+check( 'accepting a waitlist offer creates an order with a hold', ! is_wp_error( $accepted ) && ! empty( $accepted['order']['order_id'] ) && true === $accepted['inventory_reserved'] && 0 === Orders::availability( $type ) );
+$again = PassCaptain\Waitlists::accept_offer( $offer['waitlist_id'], $m[1] ?? '' );
+check( 'an offer can only be accepted once', is_wp_error( $again ) );
+
+$type = make_type( 3, 10, 1500 );
+$manual = Orders::create( array( 'email' => 'transfer@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'manual-late' ) );
+expire_holds_of( $manual['order_id'] );
+Orders::expire_holds();
+$ok = Orders::confirm_manual_payment( $manual['order_id'] );
+check( 'manual payment after hold expiry is confirmed when capacity is free', true === $ok && 1 === count( tickets( $manual['order_id'] ) ) );
+check( 'confirming twice is rejected', is_wp_error( Orders::confirm_manual_payment( $manual['order_id'] ) ) );
+
+$GLOBALS['wpcap_test_transients'] = array();
+$type = make_type( 1000 );
+$limited = 0;
+for ( $i = 0; $i < 35; $i++ ) {
+	$r = Orders::create( array( 'email' => "rot$i@example.com", 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => "rot-$i" ) );
+	if ( is_wp_error( $r ) && 'wpcap_rate_limited' === $r->get_error_code() ) { $limited++; }
+}
+check( "rotating emails hits the per-IP checkout limit ($limited of 35 blocked)", 5 === $limited );
+$GLOBALS['wpcap_test_transients'] = array();
+
+echo "Native refunds, tax, attendees, terms\n";
+$type = make_type( 10, 10, 1190 );
+$wpdb->query( "UPDATE {$p}wpcap_ticket_types SET tax_rate_bp=1900 WHERE ticket_type_id=$type" );
+$wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $type, 'field_key' => 'company', 'label' => 'Firma', 'field_type' => 'text', 'required' => 1, 'status' => 'active' ) );
+$missing = Orders::create( array( 'email' => 'att@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'att-0' ) );
+check( 'required attendee field is enforced', is_wp_error( $missing ) && 'wpcap_attendee_field_required' === $missing->get_error_code() );
+$att = Orders::create( array( 'email' => 'att@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 2 ) ), 'idempotency_key' => 'att-1', 'attendees' => array(
+	array( 'ticket_type_id' => $type, 'name' => 'Ada', 'email' => 'ada@example.com', 'answers' => array( 'company' => 'ACME', 'unknown' => 'dropped' ) ),
+	array( 'ticket_type_id' => $type, 'name' => 'Bob', 'answers' => array( 'company' => 'Initech' ) ),
+) ) );
+check( 'VAT is calculated per line from gross prices', ! is_wp_error( $att ) && 380 === (int) Orders::get( $att['order_id'] )->tax_minor );
+Orders::confirm_manual_payment( $att['order_id'] );
+$answers = $wpdb->get_col( "SELECT a.answer FROM {$p}wpcap_participant_answers a JOIN {$p}wpcap_tickets t ON t.ticket_id=a.ticket_id WHERE t.order_id=" . (int) $att['order_id'] . " ORDER BY a.answer" );
+check( 'attendee answers stored per ticket, unknown fields dropped', array( 'ACME', 'Initech' ) === $answers && null === Orders::get( $att['order_id'] )->attendee_data );
+$all = tickets( $att['order_id'] );
+$r1 = PassCaptain\Refunds::request( $att['order_id'], array( (int) $all[0]->ticket_id ), 'Kunde krank', 'r-1' );
+$r1b = PassCaptain\Refunds::request( $att['order_id'], array( (int) $all[0]->ticket_id ), 'Kunde krank', 'r-1' );
+check( 'partial native refund completes for manual payments, idempotent', 'completed' === $r1['status'] && 1190 === (int) $r1['amount_minor'] && $r1b['refund_id'] === $r1['refund_id'] && 1 === count( tickets( $att['order_id'], 'revoked' ) ) );
+check( 'refunded ticket frees capacity', 9 === Orders::availability( $type ) );
+PassCaptain\Settings::update( array( 'refund_approval_threshold' => 500 ) );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_approve_refunds' );
+$r2 = PassCaptain\Refunds::request( $att['order_id'], array(), 'Rest', 'r-2' );
+check( 'refund above threshold waits for approval', 'pending_approval' === $r2['status'] && 1 === count( tickets( $att['order_id'], 'valid' ) ) );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+$self = PassCaptain\Refunds::approve( $r2['refund_id'] );
+check( 'requester cannot approve own refund', is_wp_error( $self ) );
+$GLOBALS['wpcap_test_user_id'] = 2;
+$r2b = PassCaptain\Refunds::approve( $r2['refund_id'] );
+$GLOBALS['wpcap_test_user_id'] = 1;
+check( 'second approver completes full refund', 'completed' === $r2b['status'] && 'refunded' === Orders::get( $att['order_id'] )->status && 2380 === (int) Orders::get( $att['order_id'] )->refunded_minor );
+PassCaptain\Settings::update( array( 'refund_approval_threshold' => 0, 'require_terms' => 1, 'terms_text' => 'AGB v1' ) );
+$noterms = Orders::create( array( 'email' => 't@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'terms-0', 'attendees' => array( array( 'ticket_type_id' => $type, 'answers' => array( 'company' => 'X' ) ) ) ) );
+$terms = Orders::create( array( 'email' => 't@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => 'terms-1', 'accept_terms' => true, 'attendees' => array( array( 'ticket_type_id' => $type, 'answers' => array( 'company' => 'X' ) ) ) ) );
+check( 'terms acceptance required and version stored', is_wp_error( $noterms ) && ! is_wp_error( $terms ) && PassCaptain\Settings::terms_version() === Orders::get( $terms['order_id'] )->terms_version && '' !== Orders::get( $terms['order_id'] )->terms_version );
+PassCaptain\Settings::update( array( 'require_terms' => 0, 'terms_text' => '' ) );
+
 echo "Admin-created Woo order without checkout hold\n";
 $type = make_type( 5 );
 $wc10 = make_wc_order( 10, $type, 2 );
@@ -177,5 +312,10 @@ foreach ( $procs as $proc ) { $ok += 'OK' === trim( stream_get_contents( $proc )
 $held = (int) $wpdb->get_var( "SELECT SUM(quantity) FROM {$p}wpcap_reservations WHERE ticket_type_id=$type AND status='active'" );
 check( "exactly 5 of 20 parallel buyers get a hold (got $ok, held $held)", 5 === $ok && 5 === $held );
 
+require __DIR__ . '/finance.php';
+require __DIR__ . '/payments.php';
+require __DIR__ . '/admin.php';
+require __DIR__ . '/mobile.php';
+foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) { require $module_test; }
 echo "\n$passes passed, $failures failed\n";
 exit( $failures ? 1 : 0 );
