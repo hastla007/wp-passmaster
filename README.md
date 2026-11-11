@@ -1,15 +1,15 @@
-# Ticket Captain
+# WP Pass Captain
 
-Eigenständiges WordPress-Event-Ticketing-Plugin mit nativem Checkout, Event- und Terminverwaltung, Kontingenten, QR-Tickets und browserbasierter Check-in-PWA. WooCommerce bleibt ein optionaler Adapter.
+Eigenständiges WordPress-Plugin für Event-, Ticket- und Passverwaltung mit nativem Checkout, Kontingenten, QR-Tickets und browserbasierter Check-in-PWA. WooCommerce ist als optionaler Adapter vorgesehen.
 
-Ticket Captain übernimmt Eventtermine, Ticketkategorien, Plätze, Bestellungen und Event-Check-in. Voucher Captain verwaltet Gutscheine, Geschenkkarten und Rabatte. Bei gemeinsamer Installation verbindet eine versionierte Bridge ausgewählte Abläufe; beide Plugins bleiben separat installierbar, aktivierbar und mit eigenen WP-Admin-Menüs.
+WP Pass Captain verwaltet Events, Termine, Ticketkategorien, Bestellungen, Tickets und Event-Check-in. Voucher Captain bleibt für Gutscheine, Geschenkkarten und Rabatte zuständig. Bei gemeinsamer Installation verbindet eine versionierte Bridge ausgewählte Abläufe; beide Plugins bleiben separat installierbar und behalten eigene WP-Admin-Menüs.
 
 ## Projektstatus
 
-Dieses Repository enthält derzeit das Produkt- und Architekturkonzept sowie die Umsetzungsplanung. Der installierbare Plugin-Code ist noch nicht angelegt.
+Das Repository enthält das Produkt- und Architekturkonzept, das Umsetzungs-Backlog und den begonnenen Plugin-Bootstrap. Die nächsten zehn Umsetzungsschritte stehen in [ROADMAP.md](ROADMAP.md).
 
 ## Dokumentation
 
 - [Produkt- und Architekturkonzept](CONCEPT.md)
 - [Umsetzungs-Backlog](TODO.md)
-
+- [Nächste 10 Umsetzungsschritte](ROADMAP.md)
