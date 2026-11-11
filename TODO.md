@@ -54,7 +54,7 @@ Dieses Backlog begleitet `CONCEPT.md`. Ticket Captain und Voucher Captain bleibe
 - [ ] Gemeinsame versionierte Bridge-Schnittstelle, Capability-Erkennung und Compatibility-Matrix implementieren.
 - [ ] Voucher Captain als Checkout-Zahlungs-/Rabattquelle nur nach Quote und Regeln integrieren.
 - [ ] VCAP-Guthaben mit Quote/Reserve/Commit/Release/Refund nutzen; keine direkten Tabellenzugriffe.
-- [ ] VCAP-Gutschein nach erfolgreicher Einlösung mit definierter Ticket-/Eventzielzuordnung genau einmal in ein Ticket umwandeln.
+- [x] VCAP-Gutschein nach erfolgreicher Einlösung mit definierter Ticket-/Eventzielzuordnung genau einmal in ein Ticket umwandeln (`wp_pass_captain_ticket_service_v1`).
 - [ ] Timeout, Retry, doppelte und parallele Requests sowie Teilrefunds zwischen beiden Plugins nachvollziehbar abbilden.
 - [ ] Optionalen Scanner-Handler für `TCAP:` registrieren und gemeinsamen Scanner aus beiden Admin-Menüs verlinken.
 - [ ] Beide Plugins behalten unabhängige Menüs, Plugin-Einträge und Solo-Betrieb.

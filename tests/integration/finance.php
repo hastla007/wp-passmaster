@@ -119,6 +119,33 @@ check( 'the last retry flags the order instead of giving up silently', 'commit_f
 $voucher_provider->commit_error = null;
 unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] );
 
+echo "Voucher to ticket exchange (reverse bridge)\n";
+$ticket_service = PassCaptain\Integrations\Vouchers\TicketService::service( null, 1 );
+check( 'ticket service is offered for contract version 1 only', $ticket_service instanceof PassCaptain\Integrations\Vouchers\TicketService && null === PassCaptain\Integrations\Vouchers\TicketService::service( null, 2 ) );
+$xt = make_type( 3, 10, 4000 );
+$targets = array_column( $ticket_service->targets(), 'ticket_type_id' );
+check( 'upcoming ticket types are listed as exchange targets', in_array( $xt, $targets, true ) );
+$src = array( 'provider' => 'voucher-captain', 'voucher_id' => 77, 'redemption_key' => 'vcap-x-77', 'code_hint' => 'ABCD' );
+$mails_before = count( $GLOBALS['wpcap_test_mails'] );
+$x1 = $ticket_service->issue_tickets( $src, 'vcap-voucher-77', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift@example.com', 'name' => 'Gift' ) );
+$x1_order = is_array( $x1 ) ? Orders::get( $x1['order_id'] ) : null;
+$x1_mails = array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails_before ), static fn( $m ) => 'gift@example.com' === $m['to'] && str_starts_with( $m['subject'], 'Deine Tickets' ) );
+check( 'a voucher is exchanged for two free tickets sent to the recipient', is_array( $x1 ) && 'issued' === $x1['status'] && 2 === count( $x1['ticket_ids'] ) && 0 === (int) $x1_order->total_minor && 'paid' === $x1_order->payment_status && 'voucher' === $x1_order->payment_provider && 1 === count( $x1_mails ) );
+$x1_again = $ticket_service->issue_tickets( $src, 'vcap-voucher-77', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift@example.com' ) );
+check( 'repeating the exchange answers with the same order and tickets', is_array( $x1_again ) && $x1_again['order_id'] === $x1['order_id'] && $x1_again['ticket_ids'] === $x1['ticket_ids'] && true === $x1_again['reused'] && 2 === count( tickets( $x1['order_id'] ) ) );
+check( 'the exchange is listed in the audit log with its voucher', 1 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='voucher_tickets_issued' AND object_id=%d", $x1['order_id'] ) ) );
+$x2 = $ticket_service->issue_tickets( $src, 'vcap-voucher-78', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift2@example.com' ) );
+check( 'a sold-out ticket type is refused without creating tickets', is_wp_error( $x2 ) && empty( $x2->get_error_data()['retryable'] ) && null === $ticket_service->get( 'vcap-voucher-78' ) );
+check( 'invalid requests are refused', is_wp_error( $ticket_service->issue_tickets( $src, '', array( 'ticket_type_id' => $xt ), array( 'email' => 'x@example.com' ) ) ) && is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-79', array( 'ticket_type_id' => $xt, 'quantity' => 1 ), array( 'email' => 'nope' ) ) ) );
+$ticket_service->revoke_tickets( 'vcap-voucher-77', 'voucher voided' );
+$ticket_service->revoke_tickets( 'vcap-voucher-77', 'voucher voided' );
+$x1_state = $ticket_service->get( 'vcap-voucher-77' );
+check( 'revoking the exchange cancels its tickets (repeat is harmless)', 'revoked' === $x1_state['status'] && array() === $x1_state['ticket_ids'] && 0 === count( tickets( $x1['order_id'], 'valid' ) ) );
+check( 'a revoked exchange is not issued again', is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-77', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift@example.com' ) ) ) );
+$x3 = $ticket_service->issue_tickets( $src, 'vcap-voucher-80', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift3@example.com' ) );
+check( 'revoked tickets give their capacity back', is_array( $x3 ) && 2 === count( $x3['ticket_ids'] ) );
+check( 'a public checkout cannot claim a voucher exchange key', ! is_wp_error( $free_try = Orders::create( array( 'email' => 'pub@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 5, 10, 1000 ), 'quantity' => 1 ) ), 'idempotency_key' => 'vcap-voucher-80' ) ) ) && $free_try['order_id'] !== $x3['order_id'] );
+
 echo "Self-service and schedule changes\n";
 PassCaptain\Settings::update( array( 'attendee_edit_hours' => 24 ) );
 $st = make_type( 10, 10, 0 );
