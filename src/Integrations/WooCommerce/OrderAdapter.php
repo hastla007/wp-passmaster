@@ -10,6 +10,12 @@ final class OrderAdapter {
 	const PRODUCT_META = '_wpcap_ticket_type_id';
 	const ORDER_META = '_wpcap_core_order_id';
 
+	public static function declare_compatibility() {
+		if ( ! class_exists( '\\Automattic\\WooCommerce\\Utilities\\FeaturesUtil' ) ) { return; }
+	\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', WPCAP_FILE, true );
+	\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', WPCAP_FILE, true );
+	}
+
 	public static function register() {
 		if ( ! class_exists( '\\WooCommerce' ) || ! function_exists( 'wc_get_order' ) ) { return; }
 		add_action( 'woocommerce_product_options_general_product_data', array( __CLASS__, 'product_field' ) );

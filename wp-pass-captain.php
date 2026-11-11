@@ -32,6 +32,8 @@ if ( is_readable( $wpcap_autoload ) ) {
 	);
 }
 
+add_action( 'before_woocommerce_init', array( PassCaptain\Integrations\WooCommerce\OrderAdapter::class, 'declare_compatibility' ) );
+
 register_activation_hook( WPCAP_FILE, array( PassCaptain\Plugin::class, 'activate' ) );
 register_deactivation_hook( WPCAP_FILE, array( PassCaptain\Plugin::class, 'deactivate' ) );
 
