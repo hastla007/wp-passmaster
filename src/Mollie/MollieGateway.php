@@ -10,6 +10,11 @@
  *   Normalized event ids: "mollie-{id}-{status}" (refunds: "mollie-{id}-refunded-{amount}").
  * - Refunds: POST /v2/payments/{id}/refunds with an Idempotency-Key header and metadata.wpcap_refund,
  *   so refunds booked by the plugin are not booked again when their webhook arrives.
+ * - Chargebacks (payment stays "paid", amountChargedBack / _embedded.chargebacks) are reported as
+ *   "refunded" events with the id "mollie-{id}-chargeback-{amount}", so tickets do not stay valid
+ *   after the money was pulled back.
+ * - Only ids this site created (wpcap_mollie_payments / order provider_reference) are looked up at
+ *   the API; unknown ids are acknowledged without an API call, and lookups are throttled per IP.
  * - Methods: GET /v2/methods for amount/currency (and optional billing country), cached 1 h.
  *
  * API key: Settings::secret('mollie_api_key') (constant WPCAP_MOLLIE_API_KEY), "test_…" or "live_…".
@@ -84,6 +89,7 @@ final class MollieGateway implements GatewayInterface {
 		if ( 0 === strpos( $existing, 'tr_' ) ) {
 			$payment = self::api( 'GET', 'payments/' . rawurlencode( $existing ) );
 			if ( ! is_wp_error( $payment ) && 'open' === ( $payment['status'] ?? '' ) && ! empty( $payment['_links']['checkout']['href'] ) ) {
+				self::remember( $payment['id'] ?? '', $order );
 				return self::payment_result( $payment );
 			}
 			$key_suffix = '-' . substr( hash( 'sha256', $existing ), 0, 12 );
@@ -107,7 +113,22 @@ final class MollieGateway implements GatewayInterface {
 		if ( empty( $payment['id'] ) || empty( $payment['_links']['checkout']['href'] ) ) {
 			return new \WP_Error( 'wpcap_mollie_response', __( 'Unerwartete Antwort von Mollie.', 'wp-pass-captain' ) );
 		}
+		self::remember( $payment['id'], $order );
 		return self::payment_result( $payment );
+	}
+
+	/** Records a payment id created for an order (the webhook only looks up known ids). */
+	private static function remember( $payment_id, array $order ) {
+		global $wpdb;
+		if ( ! preg_match( '/^tr_[A-Za-z0-9]{4,64}$/', (string) $payment_id ) ) { return; }
+		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->prefix}wpcap_mollie_payments (payment_id,order_id,created_at) VALUES (%s,%d,%s)", $payment_id, (int) ( $order['order_id'] ?? 0 ), current_time( 'mysql', true ) ) );
+	}
+
+	/** Whether a payment id belongs to a Mollie order of this site. */
+	public static function known_payment( $payment_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_mollie_payments WHERE payment_id=%s UNION SELECT 1 FROM {$p}wpcap_orders WHERE payment_provider='mollie' AND provider_reference=%s LIMIT 1", $payment_id, $payment_id ) );
 	}
 
 	/**
@@ -166,7 +187,15 @@ final class MollieGateway implements GatewayInterface {
 		if ( ! preg_match( '/^tr_[A-Za-z0-9]{4,64}$/', $id ) ) {
 			return new \WP_Error( 'wpcap_mollie_id', __( 'Ungültige Mollie-Zahlungs-ID.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
-		$payment = self::api( 'GET', 'payments/' . rawurlencode( $id ) . '?embed=refunds' );
+		if ( ! self::known_payment( $id ) ) {
+			// Not created by this site: acknowledge (200) without calling the API.
+			return array( 'event_id' => 'mollie-unknown', 'type' => 'ignored', 'order_public_id' => '', 'provider_reference' => '', 'amount_minor' => 0, 'currency' => '' );
+		}
+		$client = \PassCaptain\RateLimit::client();
+		if ( ! \PassCaptain\RateLimit::allow( 'mollie_webhook|' . $client, (int) apply_filters( 'wpcap_mollie_webhook_ip_limit', 120 ), 60 ) || ! \PassCaptain\RateLimit::allow( 'mollie_webhook|all', (int) apply_filters( 'wpcap_mollie_webhook_global_limit', 1200 ), 60 ) ) {
+			return new \WP_Error( 'wpcap_mollie_throttled', 'Too many webhook calls.', array( 'status' => 429 ) );
+		}
+		$payment = self::api( 'GET', 'payments/' . rawurlencode( $id ) . '?embed=refunds,chargebacks' );
 		if ( is_wp_error( $payment ) ) {
 			$status = (int) ( ( (array) $payment->get_error_data() )['status'] ?? 0 );
 			// Unknown payment: not ours (404). Other failures: 503 so Mollie retries.
@@ -193,6 +222,14 @@ final class MollieGateway implements GatewayInterface {
 		if ( 'paid' === $status ) {
 			$order = '' !== $public_id ? $wpdb->get_row( $wpdb->prepare( "SELECT payment_status FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='mollie'", $public_id ) ) : null;
 			$external = self::external_refunded_minor( $payment, $currency );
+			$chargeback = self::charged_back_minor( $payment, $currency );
+			if ( $order && 'pending' !== $order->payment_status && $chargeback > 0 ) {
+				// Money pulled back by the bank/card issuer: same consequences as an external refund.
+				$event['event_id'] = 'mollie-' . $id . '-chargeback-' . $chargeback;
+				$event['type'] = 'refunded';
+				$event['amount_minor'] = $chargeback + $external;
+				return $event;
+			}
 			if ( $order && 'pending' !== $order->payment_status && $external > 0 ) {
 				// Refund made outside the plugin (Mollie dashboard); cumulative external amount.
 				$event['event_id'] = 'mollie-' . $id . '-refunded-' . $external;
@@ -215,6 +252,19 @@ final class MollieGateway implements GatewayInterface {
 			$sum += max( 0, self::parse_amount( $refund['amount']['value'] ?? '', $currency ) );
 		}
 		return $sum;
+	}
+
+	/** Charged-back amount (reversed chargebacks excluded). */
+	private static function charged_back_minor( array $payment, $currency ) {
+		if ( isset( $payment['_embedded']['chargebacks'] ) && is_array( $payment['_embedded']['chargebacks'] ) ) {
+			$sum = 0;
+			foreach ( $payment['_embedded']['chargebacks'] as $chargeback ) {
+				if ( ! empty( $chargeback['reversedAt'] ) ) { continue; }
+				$sum += max( 0, self::parse_amount( $chargeback['amount']['value'] ?? '', $currency ) );
+			}
+			return $sum;
+		}
+		return isset( $payment['amountChargedBack']['value'] ) ? max( 0, self::parse_amount( $payment['amountChargedBack']['value'], $currency ) ) : 0;
 	}
 
 	public function refund( array $order, $amount_minor, $idempotency_key ) {

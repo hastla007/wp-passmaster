@@ -75,16 +75,91 @@ final class Service {
 	/** Active consent of an order or null. */
 	public static function consent_for_order( $order_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_sms_consents WHERE order_id=%d AND withdrawn_at IS NULL AND phone<>''", absint( $order_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_sms_consents WHERE order_id=%d AND withdrawn_at IS NULL AND retired_at IS NULL AND phone<>''", absint( $order_id ) ) );
+	}
+
+	/** Country calling codes numbers may belong to (setting sms.allowed_prefixes, default +43,+49,+41). */
+	public static function allowed_prefixes() {
+		$settings = (array) Settings::get( 'sms' );
+		$raw = (string) ( $settings['allowed_prefixes'] ?? '+43,+49,+41' );
+		$out = array();
+		foreach ( preg_split( '/[\s,;]+/', $raw ) as $prefix ) {
+			if ( preg_match( '/^\+[1-9]\d{0,3}$/', $prefix ) ) { $out[] = $prefix; }
+		}
+		return $out;
+	}
+
+	/**
+	 * Mobile ranges for countries with known numbering plans. Premium, shared-cost, service and
+	 * landline ranges of these countries are rejected; other allowed prefixes are only checked by prefix.
+	 */
+	const MOBILE_PATTERNS = array(
+		'+49' => '/^\+491[5-7]\d{8,9}$/',
+		'+43' => '/^\+436[5-9]\d{6,10}$/',
+		'+41' => '/^\+417[5-9]\d{7}$/',
+	);
+
+	/** Whether an E.164 number may receive SMS (allowed country and, where known, a mobile range). */
+	public static function number_allowed( $e164 ) {
+		$e164 = (string) $e164;
+		foreach ( self::allowed_prefixes() as $prefix ) {
+			if ( 0 !== strpos( $e164, $prefix ) ) { continue; }
+			return isset( self::MOBILE_PATTERNS[ $prefix ] ) ? 1 === preg_match( self::MOBILE_PATTERNS[ $prefix ], $e164 ) : true;
+		}
+		return false;
+	}
+
+	/** Consents recorded for a number in the last 24 hours. */
+	public static function recent_consents_for_number( $e164 ) {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_sms_consents WHERE phone=%s AND consented_at>%s", (string) $e164, gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) );
 	}
 
 	/** Withdraws consent and erases the number; queued messages are skipped. */
 	public static function withdraw( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_consents SET phone='',withdrawn_at=%s WHERE order_id=%d AND withdrawn_at IS NULL", current_time( 'mysql', true ), absint( $order_id ) ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='consent_withdrawn' WHERE order_id=%d AND status='queued'", absint( $order_id ) ) );
-		return true;
+		$changed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_consents SET phone='',withdrawn_at=%s WHERE order_id=%d AND (withdrawn_at IS NULL OR phone<>'')", current_time( 'mysql', true ), absint( $order_id ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='consent_withdrawn' WHERE order_id=%d AND status IN ('queued','sending')", absint( $order_id ) ) );
+		return $changed > 0;
+	}
+
+	/** Withdraws every consent of a number (inbound STOP). Returns the number of consents withdrawn. */
+	public static function withdraw_phone( $e164 ) {
+		global $wpdb;
+		$orders = $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_sms_consents WHERE phone=%s", (string) $e164 ) );
+		foreach ( $orders as $order_id ) { self::withdraw( (int) $order_id ); }
+		return count( $orders );
+	}
+
+	/**
+	 * Ends a consent because the order no longer needs messages (cancelled, fully refunded, revoked,
+	 * event over). Queued messages are skipped except cancellation notices; the number is erased as
+	 * soon as nothing is queued for it any more.
+	 */
+	public static function retire( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$changed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_consents SET retired_at=%s WHERE order_id=%d AND retired_at IS NULL AND withdrawn_at IS NULL", current_time( 'mysql', true ), absint( $order_id ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='skipped',last_error='consent_retired' WHERE order_id=%d AND status='queued' AND purpose<>'cancellation'", absint( $order_id ) ) );
+		self::erase_retired_numbers();
+		return $changed > 0;
+	}
+
+	/** Data minimisation: erase numbers of retired consents without queued messages. */
+	public static function erase_retired_numbers() {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return (int) $wpdb->query( "UPDATE {$p}wpcap_sms_consents c SET c.phone='' WHERE c.retired_at IS NOT NULL AND c.phone<>'' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_sms_messages m WHERE m.consent_id=c.consent_id AND m.status IN ('queued','sending'))" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- no input.
+	}
+
+	/** Retires consents of settled orders whose events are over (one day after the last start). */
+	public static function retire_finished() {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT c.order_id FROM {$p}wpcap_sms_consents c INNER JOIN {$p}wpcap_orders ord ON ord.order_id=c.order_id WHERE c.retired_at IS NULL AND c.withdrawn_at IS NULL AND ord.payment_status<>'pending' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.order_id=c.order_id AND t.status IN ('valid','checked_in') AND o.status='scheduled' AND o.starts_at>%s) LIMIT 200", gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) );
+		foreach ( $ids as $order_id ) { self::retire( (int) $order_id ); }
+		return count( $ids );
 	}
 
 	/**
@@ -110,8 +185,9 @@ final class Service {
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='queued',locked_at=NULL WHERE status='sending' AND locked_at<%s", gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
+		self::retire_finished();
 		$provider = self::provider();
-		if ( ! $provider ) { return 0; }
+		if ( ! $provider ) { self::erase_retired_numbers(); return 0; }
 		$sent = 0;
 		for ( $i = 0; $i < $limit; $i++ ) {
 			$wpdb->query( 'START TRANSACTION' );
@@ -137,6 +213,7 @@ final class Service {
 			$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'sent', 'provider' => $provider->id(), 'provider_ref' => substr( (string) $result['provider_ref'], 0, 64 ), 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
 			++$sent;
 		}
+		self::erase_retired_numbers();
 		return $sent;
 	}
 
@@ -158,6 +235,26 @@ final class Service {
 		return rest_ensure_response( array( 'received' => true, 'updated' => $updated ) );
 	}
 
+	/** Opt-out keywords for inbound SMS. */
+	const STOP_WORDS = array( 'STOP', 'STOPP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT', 'ABMELDEN', 'ENDE' );
+
+	/** REST: POST /sms/twilio/inbound – inbound SMS; a STOP keyword withdraws all consents of the sender. */
+	public static function twilio_inbound( \WP_REST_Request $request ) {
+		$params = method_exists( $request, 'get_body_params' ) ? (array) $request->get_body_params() : array();
+		if ( ! $params ) { parse_str( (string) $request->get_body(), $params ); }
+		if ( ! TwilioProvider::signature_valid( TwilioProvider::inbound_url(), $params, (string) $request->get_header( 'x-twilio-signature' ), \PassCaptain\Settings::secret( 'twilio_auth_token' ) ) ) {
+			return new \WP_Error( 'wpcap_sms_signature', __( 'Ungültige Signatur.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		}
+		$word = strtoupper( trim( (string) ( $params['Body'] ?? '' ) ) );
+		$from = self::normalize_phone( (string) ( $params['From'] ?? '' ) );
+		$withdrawn = 0;
+		if ( '' !== $from && in_array( $word, self::STOP_WORDS, true ) ) {
+			$withdrawn = self::withdraw_phone( $from );
+			if ( $withdrawn ) { Audit::record( 'sms_consent_withdrawn', 'sms', 0, array( 'source' => 'inbound_stop', 'consents' => $withdrawn ) ); }
+		}
+		return rest_ensure_response( array( 'received' => true, 'withdrawn' => $withdrawn ) );
+	}
+
 	/** Applies a delivery status; final states are never downgraded to "sent". */
 	public static function apply_status( $provider, $provider_ref, $status, $error_code = '' ) {
 		global $wpdb;
@@ -170,8 +267,4 @@ final class Service {
 		return (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET " . implode( ',', $set ) . " WHERE provider=%s AND provider_ref=%s$guard", $provider, $provider_ref ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
-	/** Records an audit entry without PII. */
-	public static function audit( $action, $order_id, array $details = array() ) {
-		Audit::record( $action, 'order', absint( $order_id ), $details );
-	}
 }

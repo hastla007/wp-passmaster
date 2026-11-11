@@ -21,6 +21,42 @@ final class Dispatcher {
 	const BASE_DELAY = 60;
 	const MAX_DELAY = 21600;
 
+	/** Opt-in personal data fields; removed from stored payloads once a delivery is final. */
+	const PII_FIELDS = array( 'customer_email', 'attendee_email' );
+
+	/** Days final deliveries are kept in the log (setting webhooks.retention_days, default 30). */
+	public static function retention_days() {
+		$settings = (array) \PassCaptain\Settings::get( 'webhooks' );
+		return max( 1, min( 365, (int) ( $settings['retention_days'] ?? 30 ) ) );
+	}
+
+	/** Removes PII fields from a stored payload. Returns [payload, removed?]. */
+	public static function strip_pii( $payload ) {
+		$data = json_decode( (string) $payload, true );
+		if ( ! is_array( $data ) || ! isset( $data['data']['object'] ) || ! is_array( $data['data']['object'] ) ) { return array( (string) $payload, false ); }
+		$removed = false;
+		foreach ( self::PII_FIELDS as $field ) {
+			if ( array_key_exists( $field, $data['data']['object'] ) ) { unset( $data['data']['object'][ $field ] ); $removed = true; }
+		}
+		return array( $removed ? (string) wp_json_encode( $data ) : (string) $payload, $removed );
+	}
+
+	/** Current opt-in PII for a payload object (erased/anonymised addresses are left out). */
+	public static function current_pii( array $object ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$id = (string) ( $object['id'] ?? '' );
+		$pii = array();
+		if ( 'order' === ( $object['object'] ?? '' ) ) {
+			$email = (string) $wpdb->get_var( $wpdb->prepare( "SELECT customer_email FROM {$p}wpcap_orders WHERE public_id=%s", $id ) );
+			if ( is_email( $email ) && '@invalid.example' !== substr( $email, -16 ) ) { $pii['customer_email'] = $email; }
+		} elseif ( 'ticket' === ( $object['object'] ?? '' ) ) {
+			$email = (string) $wpdb->get_var( $wpdb->prepare( "SELECT attendee_email FROM {$p}wpcap_tickets WHERE public_id=%s", $id ) );
+			if ( is_email( $email ) ) { $pii['attendee_email'] = $email; }
+		}
+		return $pii;
+	}
+
 	private static function t( $name ) {
 		global $wpdb;
 		return $wpdb->prefix . 'wpcap_webhook_' . $name;
@@ -202,14 +238,18 @@ final class Dispatcher {
 		$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
 		$attempts = (int) $row->attempts + 1;
 		$now = current_time( 'mysql', true );
+		// Final deliveries keep no personal data in the log.
+		list( $stripped, $had_pii ) = self::strip_pii( $row->payload );
 		if ( $code >= 200 && $code < 300 ) {
-			$wpdb->update( $d, array( 'status' => 'succeeded', 'attempts' => $attempts, 'response_code' => $code, 'last_error' => '', 'locked_at' => null, 'delivered_at' => $now, 'updated_at' => $now ), array( 'delivery_id' => (int) $row->delivery_id ) );
+			$wpdb->update( $d, array( 'status' => 'succeeded', 'attempts' => $attempts, 'response_code' => $code, 'last_error' => '', 'locked_at' => null, 'delivered_at' => $now, 'updated_at' => $now, 'payload' => $stripped, 'pii_purged' => $had_pii ? 1 : (int) $row->pii_purged ), array( 'delivery_id' => (int) $row->delivery_id ) );
 			$wpdb->update( self::t( 'subscriptions' ), array( 'consecutive_failures' => 0, 'last_success_at' => $now ), array( 'subscription_id' => (int) $sub->subscription_id ) );
 			return;
 		}
 		$error = is_wp_error( $response ) ? mb_substr( sanitize_text_field( $response->get_error_message() ), 0, 190 ) : 'HTTP ' . $code;
 		$final = $attempts >= self::max_attempts();
-		$wpdb->update( $d, array( 'status' => $final ? 'failed' : 'pending', 'attempts' => $attempts, 'response_code' => $code, 'last_error' => $error, 'locked_at' => null, 'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + self::backoff( $attempts ) ), 'updated_at' => $now ), array( 'delivery_id' => (int) $row->delivery_id ) );
+		$update_row = array( 'status' => $final ? 'failed' : 'pending', 'attempts' => $attempts, 'response_code' => $code, 'last_error' => $error, 'locked_at' => null, 'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + self::backoff( $attempts ) ), 'updated_at' => $now );
+		if ( $final && $had_pii ) { $update_row['payload'] = $stripped; $update_row['pii_purged'] = 1; }
+		$wpdb->update( $d, $update_row, array( 'delivery_id' => (int) $row->delivery_id ) );
 		$failures = (int) $sub->consecutive_failures + 1;
 		$update = array( 'consecutive_failures' => $failures, 'updated_at' => $now );
 		if ( $failures >= self::disable_after() && 'active' === $sub->status ) {
@@ -224,15 +264,58 @@ final class Dispatcher {
 		$wpdb->update( self::t( 'subscriptions' ), $update, array( 'subscription_id' => (int) $sub->subscription_id ) );
 	}
 
-	/** Manual redelivery: the delivery is queued again with a fresh attempt budget. */
+	/**
+	 * Manual redelivery: the delivery is queued again with a fresh attempt budget. Personal data
+	 * removed from the log is rebuilt from current data (erased addresses stay out).
+	 */
 	public static function redeliver( $delivery_id ) {
 		global $wpdb;
+		$d = self::t( 'deliveries' );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $d WHERE delivery_id=%d AND status<>'delivering'", absint( $delivery_id ) ) );
+		$sub = $row ? self::subscription( $row->subscription_id ) : null;
+		if ( ! $row || ! $sub ) { return new \WP_Error( 'wpcap_webhook_redeliver', __( 'Zustellung nicht gefunden oder gerade in Bearbeitung.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		$payload = $row->payload;
+		$data = json_decode( (string) $payload, true );
+		if ( ! is_array( $data ) || ! isset( $data['data']['object'] ) ) {
+			return new \WP_Error( 'wpcap_webhook_redeliver_purged', __( 'Der Inhalt dieser Zustellung ist nicht mehr vorhanden.', 'wp-pass-captain' ), array( 'status' => 410 ) );
+		}
+		list( $payload ) = self::strip_pii( $payload );
+		if ( (int) $sub->include_pii ) {
+			$data = json_decode( $payload, true );
+			$data['data']['object'] = array_merge( $data['data']['object'], self::current_pii( $data['data']['object'] ) );
+			$payload = (string) wp_json_encode( $data );
+		}
 		$now = current_time( 'mysql', true );
-		$updated = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'deliveries' ) . " SET status='pending',attempts=0,next_attempt_at=%s,locked_at=NULL,updated_at=%s WHERE delivery_id=%d AND status<>'delivering'", $now, $now, absint( $delivery_id ) ) );
-		if ( ! $updated ) { return new \WP_Error( 'wpcap_webhook_redeliver', __( 'Zustellung nicht gefunden oder gerade in Bearbeitung.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		$wpdb->update( $d, array( 'status' => 'pending', 'attempts' => 0, 'next_attempt_at' => $now, 'locked_at' => null, 'updated_at' => $now, 'payload' => $payload, 'pii_purged' => 0 ), array( 'delivery_id' => (int) $row->delivery_id ) );
 		Audit::record( 'webhook_redelivery', 'webhook', absint( $delivery_id ), array() );
 		self::schedule_soon();
 		return true;
+	}
+
+	/** Deletes final deliveries older than the retention period (cron). Returns deleted rows. */
+	public static function purge_old() {
+		global $wpdb;
+		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'deliveries' ) . " WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s", gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS ) ) );
+	}
+
+	/** Privacy eraser: removes the e-mail address from all logged and pending payloads. */
+	public static function erase_email( $email ) {
+		global $wpdb;
+		$d = self::t( 'deliveries' );
+		$email = sanitize_email( $email );
+		if ( '' === $email ) { return 0; }
+		$needle = substr( (string) wp_json_encode( $email ), 1, -1 );
+		$like = '%' . ( method_exists( $wpdb, 'esc_like' ) ? $wpdb->esc_like( $needle ) : addcslashes( $needle, '_%\\' ) ) . '%';
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT delivery_id,payload FROM $d WHERE payload LIKE %s AND status<>'delivering'", $like ) );
+		$count = 0;
+		foreach ( $rows as $row ) {
+			list( $payload, $removed ) = self::strip_pii( $row->payload );
+			if ( $removed ) {
+				$wpdb->update( $d, array( 'payload' => $payload, 'pii_purged' => 1 ), array( 'delivery_id' => (int) $row->delivery_id ) );
+				++$count;
+			}
+		}
+		return $count;
 	}
 
 	public static function deliveries( $subscription_id = 0, $limit = 50 ) {

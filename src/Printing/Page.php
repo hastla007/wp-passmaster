@@ -54,6 +54,7 @@ final class Page {
 		$print_occ = self::occurrence_options( array( 'wpcap_manage_events', 'wpcap_manage_orders' ) );
 		$labels = Templates::kind_labels();
 		$edit = Templates::get_template( absint( $_GET['template_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $edit && ! Templates::can_edit( (int) $edit->owner_event_id, (int) $edit->template_id ) ) { $edit = null; }
 		?>
 		<div class="wrap wpcap-admin">
 		<h1><?php esc_html_e( 'Druck: Tickets, Badges, Listen', 'wp-pass-captain' ); ?></h1>
@@ -80,15 +81,16 @@ final class Page {
 
 		<?php if ( current_user_can( 'wpcap_manage_events' ) ) : ?>
 		<h2><?php esc_html_e( 'Vorlagen', 'wp-pass-captain' ); ?></h2>
-		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Name', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Layout', 'wp-pass-captain' ); ?></th><th></th></tr></thead><tbody>
+		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Name', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Layout', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Gilt für', 'wp-pass-captain' ); ?></th><th></th></tr></thead><tbody>
 		<?php foreach ( Templates::all_templates() as $t ) : ?>
-			<tr><td><?php echo esc_html( $t->name ); ?></td><td><?php echo esc_html( $labels[ $t->kind ] ?? $t->kind ); ?></td><td><a href="<?php echo esc_url( Forms::page_url( self::SLUG, array( 'template_id' => (int) $t->template_id ) ) ); ?>"><?php esc_html_e( 'Bearbeiten', 'wp-pass-captain' ); ?></a></td></tr>
+			<tr><td><?php echo esc_html( $t->name ); ?></td><td><?php echo esc_html( $labels[ $t->kind ] ?? $t->kind ); ?></td><td><?php echo esc_html( (int) $t->owner_event_id ? ( Queries::event( (int) $t->owner_event_id )->name ?? '#' . (int) $t->owner_event_id ) : __( 'Global', 'wp-pass-captain' ) ); ?></td><td><?php if ( Templates::can_edit( (int) $t->owner_event_id, (int) $t->template_id ) ) : ?><a href="<?php echo esc_url( Forms::page_url( self::SLUG, array( 'template_id' => (int) $t->template_id ) ) ); ?>"><?php esc_html_e( 'Bearbeiten', 'wp-pass-captain' ); ?></a><?php endif; ?></td></tr>
 		<?php endforeach; ?>
 		</tbody></table>
 		<h3><?php echo esc_html( $edit ? __( 'Vorlage bearbeiten', 'wp-pass-captain' ) : __( 'Neue Vorlage', 'wp-pass-captain' ) ); ?></h3>
 		<?php Forms::open_form( 'wpcap_print_save_template' ); Forms::hidden( 'template_id', $edit ? (int) $edit->template_id : 0 ); ?>
 		<p><label><?php esc_html_e( 'Name', 'wp-pass-captain' ); ?> <input type="text" name="name" required value="<?php echo esc_attr( $edit ? $edit->name : '' ); ?>"></label>
-		<label><?php esc_html_e( 'Layout', 'wp-pass-captain' ); ?> <?php Forms::select( 'kind', $labels, $edit ? $edit->kind : 'badge' ); ?></label></p>
+		<label><?php esc_html_e( 'Layout', 'wp-pass-captain' ); ?> <?php Forms::select( 'kind', $labels, $edit ? $edit->kind : 'badge' ); ?></label>
+		<?php if ( ! $edit ) : ?><label><?php esc_html_e( 'Gilt für', 'wp-pass-captain' ); ?> <?php Forms::select( 'owner_event_id', ( current_user_can( 'manage_options' ) ? array( 0 => __( 'Alle Events (global)', 'wp-pass-captain' ) ) : array() ) + Queries::event_options( Scope::event_ids( 'wpcap_manage_events' ) ), '' ); ?></label><?php endif; ?></p>
 		<p><textarea name="body" rows="8" cols="70" class="code"><?php echo esc_html( $edit ? $edit->body : Templates::default_body( 'badge' ) ); ?></textarea></p>
 		<p class="description"><?php echo esc_html( __( 'Eine Zeile pro Element: „Größe|Text“, fett mit „*Größe|Text“, „{qr}“ allein für den QR-Code. Platzhalter:', 'wp-pass-captain' ) . ' ' . implode( ' ', Templates::PLACEHOLDERS ) ); ?></p>
 		<p><button class="button button-primary"><?php esc_html_e( 'Vorlage speichern', 'wp-pass-captain' ); ?></button></p></form>
@@ -120,7 +122,7 @@ final class Page {
 		if ( ! current_user_can( 'wpcap_manage_events' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		Forms::verify( 'wpcap_print_save_template' );
 		$in = Forms::post();
-		$result = Templates::save_template( Forms::int( $in, 'template_id' ), Forms::text( $in, 'name' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), is_scalar( $in['body'] ?? '' ) ? (string) $in['body'] : '' );
+		$result = Templates::save_template( Forms::int( $in, 'template_id' ), Forms::text( $in, 'name' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), is_scalar( $in['body'] ?? '' ) ? (string) $in['body'] : '', Forms::int( $in, 'owner_event_id' ) );
 		Forms::finish( $result, __( 'Vorlage gespeichert.', 'wp-pass-captain' ), Forms::page_url( self::SLUG ) );
 	}
 
@@ -128,9 +130,7 @@ final class Page {
 		Forms::verify( 'wpcap_print_assign' );
 		$in = Forms::post();
 		$event_id = Forms::int( $in, 'event_id' );
-		$result = Scope::can_event( $event_id, array( 'wpcap_manage_events' ) )
-			? Templates::assign( $event_id, Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), Forms::int( $in, 'template_id' ) )
-			: Forms::forbidden();
+		$result = Templates::assign( $event_id, Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), Forms::int( $in, 'template_id' ) );
 		Forms::finish( $result, __( 'Vorlage zugeordnet.', 'wp-pass-captain' ), Forms::page_url( self::SLUG ) );
 	}
 

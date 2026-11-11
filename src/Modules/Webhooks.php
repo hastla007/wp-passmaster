@@ -27,6 +27,21 @@ final class Webhooks {
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'occurrence_cancelled' ), 50, 2 );
 		add_action( 'wpcap_process_jobs', array( Dispatcher::class, 'process' ), 20, 0 );
 		add_action( 'wpcap_webhooks_dispatch', array( Dispatcher::class, 'process' ), 10, 0 );
+		add_action( 'wpcap_process_jobs', array( Dispatcher::class, 'purge_old' ), 25, 0 );
+		add_filter( 'wp_privacy_personal_data_erasers', array( __CLASS__, 'register_eraser' ), 5 );
+	}
+
+	public static function settings_defaults() {
+		return array( 'webhooks' => array( 'retention_days' => 30 ) );
+	}
+
+	public static function register_eraser( $erasers ) {
+		return array_merge( array( 'wpcap-webhooks' => array( 'eraser_friendly_name' => __( 'WP Pass Captain Webhook-Protokoll', 'wp-pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) ) ), (array) $erasers );
+	}
+
+	public static function erase( $email, $page = 1 ) {
+		$count = Dispatcher::erase_email( $email );
+		return array( 'items_removed' => $count > 0, 'items_retained' => false, 'messages' => array(), 'done' => true );
 	}
 
 	public static function schema( $prefix, $charset ) {
@@ -60,6 +75,7 @@ final class Webhooks {
 				next_attempt_at datetime NOT NULL,
 				locked_at datetime NULL,
 				delivered_at datetime NULL,
+				pii_purged tinyint(1) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (delivery_id),
@@ -217,6 +233,10 @@ final class Webhooks {
 				if ( ! Dispatcher::subscription( $id ) ) { break; }
 				Dispatcher::delete_subscription( $id );
 				return array( 'deleted' => $id );
+			case 'settings':
+				$days = max( 1, min( 365, absint( $in['retention_days'] ?? 30 ) ) );
+				\PassCaptain\Settings::update( array( 'webhooks' => array( 'retention_days' => $days ) ) );
+				return array( 'retention_days' => $days );
 			case 'redeliver':
 				$r = Dispatcher::redeliver( $id );
 				return is_wp_error( $r ) ? $r : array( 'delivery_id' => $id );
@@ -269,6 +289,12 @@ final class Webhooks {
 		echo '</fieldset></td></tr><tr><th scope="row">' . esc_html__( 'Personenbezogene Daten', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="include_pii" value="1"> ' . esc_html__( 'E-Mail-Adressen (Käufer:in, Teilnehmer:in) mitsenden – nur mit Rechtsgrundlage und Auftragsverarbeitungsvertrag', 'wp-pass-captain' ) . '</label></td></tr></tbody></table>';
 		submit_button( __( 'Webhook anlegen', 'wp-pass-captain' ) );
 		echo '</form>';
+		echo '<h2>' . esc_html__( 'Aufbewahrung', 'wp-pass-captain' ) . '</h2>';
+		Forms::open_form( 'wpcap_webhook_action' );
+		Forms::hidden( 'do', 'settings' );
+		echo '<p><label for="wpcap-wh-retention">' . esc_html__( 'Abgeschlossene Zustellungen löschen nach (Tagen)', 'wp-pass-captain' ) . '</label> <input type="number" id="wpcap-wh-retention" name="retention_days" min="1" max="365" value="' . (int) Dispatcher::retention_days() . '"> ';
+		submit_button( __( 'Speichern', 'wp-pass-captain' ), 'secondary', 'submit', false );
+		echo '</p><p class="description">' . esc_html__( 'Personenbezogene Daten (opt-in) werden nach der letzten Zustellung aus dem Protokoll entfernt; „Erneut senden“ verwendet dann die aktuellen Daten.', 'wp-pass-captain' ) . '</p></form>';
 		$deliveries = Dispatcher::deliveries( 0, 50 );
 		echo '<h2>' . esc_html__( 'Zustellprotokoll (letzte 50)', 'wp-pass-captain' ) . '</h2>';
 		if ( ! $deliveries ) {

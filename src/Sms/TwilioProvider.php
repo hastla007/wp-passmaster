@@ -36,6 +36,11 @@ final class TwilioProvider implements ProviderInterface {
 		return rest_url( 'wp-pass-captain/v1/sms/twilio/status' );
 	}
 
+	/** URL configured as "A message comes in" webhook of the Twilio number (opt-out via STOP). */
+	public static function inbound_url() {
+		return rest_url( 'wp-pass-captain/v1/sms/twilio/inbound' );
+	}
+
 	public function send( $to, $body, $reference ) {
 		if ( ! $this->is_configured() ) {
 			return new \WP_Error( 'wpcap_sms_config', __( 'Twilio ist nicht konfiguriert.', 'wp-pass-captain' ) );

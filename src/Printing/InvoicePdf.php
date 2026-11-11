@@ -224,10 +224,35 @@ final class InvoicePdf {
 		if ( ! is_array( $mail ) || ! $order || ! Settings::get( 'print_attach_invoice_pdf' ) ) { return $mail; }
 		$invoice_id = self::invoice_for_order( (int) $order->order_id, (bool) Settings::get( 'auto_invoice' ) );
 		if ( ! $invoice_id || is_wp_error( $invoice_id ) ) { return $mail; }
-		$file = trailingslashit( get_temp_dir() ) . self::filename( $invoice_id, 0 );
+		// Unguessable private directory per mail (the attachment keeps its readable file name). The core
+		// deletes the attachment after wp_mail(); the directory (and the file, should sending abort) is
+		// removed at shutdown at the latest.
+		$dir = trailingslashit( get_temp_dir() ) . 'wpcap-' . bin2hex( random_bytes( 16 ) );
+		if ( ! @mkdir( $dir, 0700 ) ) { return $mail; } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
+		$file = $dir . '/' . self::filename( $invoice_id, 0 );
+		self::$temp_files[] = array( $file, $dir );
+		if ( 1 === count( self::$temp_files ) ) { register_shutdown_function( array( __CLASS__, 'cleanup_temp_files' ) ); }
 		if ( false !== file_put_contents( $file, self::render( $invoice_id ) ) ) {
+			@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 			$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), array( $file ) );
+		} else {
+			self::cleanup_temp_files();
 		}
 		return $mail;
 	}
+
+	/** @var array<int,array{0:string,1:string}> Temporary attachment files and their directories. */
+	private static $temp_files = array();
+
+	/** Removes temporary invoice attachments and their directories (idempotent). */
+	public static function cleanup_temp_files() {
+		foreach ( self::$temp_files as $entry ) {
+			list( $file, $dir ) = $entry;
+			if ( is_file( $file ) ) { @unlink( $file ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
+			if ( is_dir( $dir ) ) { @rmdir( $dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
+		}
+		self::$temp_files = array();
+	}
+
+
 }

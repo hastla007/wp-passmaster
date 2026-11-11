@@ -39,8 +39,16 @@ final class Store {
 
 	private static function t( $name ) { global $wpdb; return $wpdb->prefix . 'wpcap_' . $name; }
 
-	/** Monotonic update tag (milliseconds) used for Apple's passesUpdatedSince. */
-	public static function next_tag( $previous = 0 ) { return max( (int) $previous + 1, (int) floor( microtime( true ) * 1000 ) ); }
+	/**
+	 * Monotonic update tag (milliseconds) used for passesUpdatedSince, Last-Modified and ETag.
+	 * Every new tag lies in a later whole second than the previous one, so a second-resolution
+	 * If-Modified-Since from a fetch can never hide an update made in the same second.
+	 */
+	public static function next_tag( $previous = 0 ) {
+		$previous = (int) $previous;
+		$floor = $previous > 0 ? ( intdiv( $previous, 1000 ) + 1 ) * 1000 : 0;
+		return max( $floor, (int) floor( microtime( true ) * 1000 ) );
+	}
 
 	public static function state( $ticket_id ) {
 		global $wpdb;

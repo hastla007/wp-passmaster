@@ -22,11 +22,13 @@ final class PrintTemplates {
 				template_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				name varchar(190) NOT NULL,
 				kind varchar(20) NOT NULL,
+				owner_event_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				body text NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (template_id),
-				KEY kind_status (kind,status)
+				KEY kind_status (kind,status),
+				KEY owner_event_id (owner_event_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$prefix}wpcap_print_event_templates (
 				event_id bigint(20) unsigned NOT NULL,

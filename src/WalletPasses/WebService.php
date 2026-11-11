@@ -94,16 +94,26 @@ final class WebService {
 	}
 
 	private static function pkpass_response( array $built ) {
-		$modified = gmdate( 'D, d M Y H:i:s', (int) floor( $built['tag'] / 1000 ) ) . ' GMT';
-		return new \WP_REST_Response( array( '__wpcap_raw' => $built['bundle'], 'headers' => array( 'Content-Type' => 'application/vnd.apple.pkpass', 'Last-Modified' => $modified, 'Cache-Control' => 'no-store' ) ), 200 );
+		$modified = gmdate( 'D, d M Y H:i:s', intdiv( (int) $built['tag'], 1000 ) ) . ' GMT';
+		return new \WP_REST_Response( array( '__wpcap_raw' => $built['bundle'], 'headers' => array( 'Content-Type' => 'application/vnd.apple.pkpass', 'Last-Modified' => $modified, 'ETag' => '"' . (int) $built['tag'] . '"', 'Cache-Control' => 'no-store' ) ), 200 );
+	}
+
+	/**
+	 * Conditional GET. An ETag (exact update tag) wins over If-Modified-Since. Update tags always
+	 * move to a later second (Store::next_tag), so "tag second <= If-Modified-Since" is exact.
+	 */
+	private static function not_modified( \WP_REST_Request $request, $tag ) {
+		$etag = trim( (string) $request->get_header( 'if_none_match' ) );
+		if ( '' !== $etag ) { return trim( $etag, '"W/' ) === (string) $tag; }
+		$since = strtotime( (string) $request->get_header( 'if_modified_since' ) );
+		return $since && intdiv( $tag, 1000 ) <= $since;
 	}
 
 	public static function latest_pass( \WP_REST_Request $request ) {
 		$auth = self::authorize( $request, true );
 		if ( is_wp_error( $auth ) ) { return $auth; }
 		$state = Store::state( $auth['pass']->ticket_id );
-		$since = strtotime( (string) $request->get_header( 'if_modified_since' ) );
-		if ( $since && $auth['current'] && $state && (int) floor( $state->update_tag / 1000 ) <= $since ) { return new \WP_REST_Response( null, 304 ); }
+		if ( $auth['current'] && $state && self::not_modified( $request, (int) $state->update_tag ) ) { return new \WP_REST_Response( null, 304 ); }
 		try {
 			$built = Service::apple_bundle( $auth['pass']->serial_number, self::token( $request ) );
 		} catch ( \Throwable $e ) {
@@ -134,12 +144,13 @@ final class WebService {
 		return new \WP_REST_Response( $data, 200 );
 	}
 
-	/** Device error log; kept (truncated, without identifiers) for the admin status page. */
+	/** Device error log; kept (truncated, without identifiers, separate from server diagnostics) for the admin page. */
 	public static function log( \WP_REST_Request $request ) {
-		if ( ! RateLimit::allow( 'wallet_log_' . RateLimit::client(), 30, HOUR_IN_SECONDS ) ) { return new \WP_REST_Response( null, 200 ); }
+		// Unauthenticated by Apple's design: own small buffer, tight per-client and global limits.
+		if ( ! Service::provider( 'apple' ) || ! RateLimit::allow( 'wallet_log_' . RateLimit::client(), 5, HOUR_IN_SECONDS ) || ! RateLimit::allow( 'wallet_log_global', 30, HOUR_IN_SECONDS ) ) { return new \WP_REST_Response( null, 200 ); }
 		$logs = $request->get_param( 'logs' );
-		foreach ( array_slice( is_array( $logs ) ? $logs : array(), 0, 10 ) as $line ) {
-			if ( is_string( $line ) ) { Service::log( 'device', preg_replace( '/[A-Za-z0-9]{20,}/', '…', $line ) ); }
+		foreach ( array_slice( is_array( $logs ) ? $logs : array(), 0, 3 ) as $line ) {
+			if ( is_string( $line ) ) { Service::log( 'device', preg_replace( '/[A-Za-z0-9]{20,}/', '…', $line ), Service::DEVICE_LOG_OPTION, 10 ); }
 		}
 		return new \WP_REST_Response( null, 200 );
 	}

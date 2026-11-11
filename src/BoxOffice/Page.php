@@ -112,13 +112,23 @@ final class Page {
 		}
 		echo '</tbody></table><p>' . esc_html( sprintf( __( 'Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s', 'wp-pass-captain' ), Scope::money( $session->opening_float_minor, $cur ), Scope::money( $totals['expected_cash'], $cur ) ) ) . '</p>';
 
-		$sales = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE session_id=%d ORDER BY sale_id DESC LIMIT 50", $session->session_id ) );
+		$sales = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE session_id=%d AND status <> 'failed' ORDER BY sale_id DESC LIMIT 50", $session->session_id ) );
 		if ( $sales ) {
 			echo '<h3>' . esc_html__( 'Verkäufe dieser Sitzung', 'wp-pass-captain' ) . '</h3><table class="widefat striped"><tbody>';
 			foreach ( $sales as $s ) {
 				$url = add_query_arg( array( 'action' => 'wpcap_pos_receipt', 'sale_id' => (int) $s->sale_id ), admin_url( 'admin-post.php' ) );
-				echo '<tr><td>' . esc_html( $s->receipt_number ) . '</td><td>' . esc_html( Scope::local( $s->created_at, Scope::site_timezone(), 'H:i' ) ) . '</td><td>' . esc_html( Service::method_label( $s->payment_method ) ) . '</td><td>' . esc_html( Scope::money( $s->total_minor, $s->currency ) ) . '</td><td>' . esc_html( Forms::status_label( $s->status ) ) . '</td><td><a target="_blank" href="' . esc_url( $url ) . '">' . esc_html__( 'Beleg', 'wp-pass-captain' ) . '</a>';
-				if ( 'voided' === $s->status ) {
+				echo '<tr><td>' . esc_html( $s->receipt_number ?: __( '(nicht gebucht)', 'wp-pass-captain' ) ) . '</td><td>' . esc_html( Scope::local( $s->created_at, Scope::site_timezone(), 'H:i' ) ) . '</td><td>' . esc_html( Service::method_label( $s->payment_method ) ) . '</td><td>' . esc_html( Scope::money( $s->total_minor, $s->currency ) ) . '</td><td>' . esc_html( Forms::status_label( $s->status ) ) . '</td><td><a target="_blank" href="' . esc_url( $url ) . '">' . esc_html__( 'Beleg', 'wp-pass-captain' ) . '</a>';
+				if ( 'pending' === $s->status ) {
+					echo ' ';
+					Forms::open_form( 'wpcap_pos_finalize', 'wpcap_pos_finalize_' . (int) $s->sale_id, 'style="display:inline"' );
+					Forms::hidden( 'sale_id', (int) $s->sale_id );
+					echo '<button class="button button-small">' . esc_html__( 'Nachbuchen', 'wp-pass-captain' ) . '</button></form>';
+				} elseif ( 'storno_pending' === $s->status && current_user_can( \PassCaptain\Refunds::APPROVE_CAP ) ) {
+					echo ' ';
+					Forms::open_form( 'wpcap_pos_storno_reject', 'wpcap_pos_storno_reject_' . (int) $s->sale_id, 'style="display:inline"' );
+					Forms::hidden( 'sale_id', (int) $s->sale_id );
+					echo '<button class="button button-small">' . esc_html__( 'Storno ablehnen', 'wp-pass-captain' ) . '</button></form>';
+				} elseif ( 'voided' === $s->status ) {
 					echo ' · <a target="_blank" href="' . esc_url( add_query_arg( 'storno', 1, $url ) ) . '">' . esc_html__( 'Stornobeleg', 'wp-pass-captain' ) . '</a>';
 				} elseif ( 'completed' === $s->status ) {
 					echo ' ';
@@ -195,6 +205,27 @@ final class Page {
 		$result = Service::storno( $sale_id, Forms::text( $in, 'reason' ) );
 		$message = ! is_wp_error( $result ) && 'storno_pending' === $result->status ? __( 'Storno angelegt; es wartet auf Freigabe.', 'wp-pass-captain' ) : __( 'Verkauf storniert. Bitte Betrag auszahlen bzw. am Kartenterminal gutschreiben.', 'wp-pass-captain' );
 		Forms::finish( $result, $message, self::back() );
+	}
+
+	/** Whether the current user may act on a sale of the given session (cashier or administrator). */
+	private static function own_or_admin( $sale ) {
+		if ( ! $sale ) { return false; }
+		$session = Service::session( $sale->session_id );
+		return $session && ( (int) $session->user_id === get_current_user_id() || current_user_can( 'manage_options' ) ) && Scope::can_order( $sale->order_id, Service::CAP );
+	}
+
+	public static function handle_finalize() {
+		$sale_id = Forms::int( Forms::post(), 'sale_id' );
+		Forms::verify( 'wpcap_pos_finalize_' . $sale_id );
+		$sale = Service::sale( $sale_id );
+		$result = self::own_or_admin( $sale ) ? Service::finalize( $sale_id ) : Forms::forbidden();
+		Forms::finish( $result, __( 'Verkauf gebucht.', 'wp-pass-captain' ), self::back( is_wp_error( $result ) ? array() : array( 'sale' => $sale_id ) ) );
+	}
+
+	public static function handle_storno_reject() {
+		$sale_id = Forms::int( Forms::post(), 'sale_id' );
+		Forms::verify( 'wpcap_pos_storno_reject_' . $sale_id );
+		Forms::finish( Service::reject_storno( $sale_id ), __( 'Storno abgelehnt; der Verkauf bleibt bestehen.', 'wp-pass-captain' ), self::back() );
 	}
 
 	public static function handle_close() {

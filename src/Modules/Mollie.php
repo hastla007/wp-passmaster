@@ -37,6 +37,13 @@ final class Mollie {
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (order_id)
 			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$prefix}wpcap_mollie_payments (
+				payment_id varchar(64) NOT NULL,
+				order_id bigint(20) unsigned NOT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (payment_id),
+				KEY order_id (order_id)
+			) ENGINE=InnoDB $charset;",
 		);
 	}
 

@@ -168,13 +168,19 @@ final class Templates {
 
 	/* ------------------------------------------------------------------ storage */
 
+	/**
+	 * Templates visible to the current user: global ones (owner_event_id 0) and those of events the user
+	 * manages. Global templates can be used by every event manager but only edited by administrators.
+	 */
 	public static function all_templates( $kind = '' ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		$scope = Scope::event_ids( 'wpcap_manage_events' );
+		$owner_sql = null === $scope ? '' : ' AND owner_event_id IN (' . implode( ',', array_merge( array( 0 ), array_map( 'absint', (array) $scope ) ) ) . ')';
 		if ( '' !== $kind ) {
-			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_print_templates WHERE kind=%s AND status='active' ORDER BY name", $kind ) );
+			return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_print_templates WHERE kind=%s AND status='active'$owner_sql ORDER BY name", $kind ) );
 		}
-		return $wpdb->get_results( "SELECT * FROM {$p}wpcap_print_templates WHERE status='active' ORDER BY kind,name" );
+		return $wpdb->get_results( "SELECT * FROM {$p}wpcap_print_templates WHERE status='active'$owner_sql ORDER BY kind,name" );
 	}
 
 	public static function get_template( $template_id ) {
@@ -182,8 +188,34 @@ final class Templates {
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_print_templates WHERE template_id=%d", absint( $template_id ) ) );
 	}
 
-	/** Creates or updates a template. @return int|\WP_Error template id. */
-	public static function save_template( $template_id, $name, $kind, $body ) {
+	/** Events a template is selected for. */
+	public static function assigned_events( $template_id ) {
+		global $wpdb;
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_print_event_templates WHERE template_id=%d", absint( $template_id ) ) ) );
+	}
+
+	/**
+	 * Whether the current user may create/edit a template of this owner. Global templates (owner 0):
+	 * administrators only. Event templates: event managers of that event, and of every event the
+	 * template is assigned to.
+	 */
+	public static function can_edit( $owner_event_id, $template_id = 0 ) {
+		if ( ! $owner_event_id ) { return current_user_can( 'manage_options' ); }
+		if ( ! Scope::can_event( $owner_event_id, 'wpcap_manage_events' ) ) { return false; }
+		foreach ( $template_id ? self::assigned_events( $template_id ) : array() as $event_id ) {
+			if ( ! Scope::can_event( $event_id, 'wpcap_manage_events' ) ) { return false; }
+		}
+		return true;
+	}
+
+	/**
+	 * Creates or updates a template (permission checked for the current user).
+	 *
+	 * @param int $owner_event_id 0 = global template (administrators), otherwise the event it belongs to.
+	 *                            Ignored on update: the owner of a template never changes.
+	 * @return int|\WP_Error template id.
+	 */
+	public static function save_template( $template_id, $name, $kind, $body, $owner_event_id = 0 ) {
 		global $wpdb;
 		$name = mb_substr( sanitize_text_field( (string) $name ), 0, 190 );
 		$body = self::sanitize_body( $body );
@@ -191,23 +223,39 @@ final class Templates {
 			return new \WP_Error( 'wpcap_print_template_invalid', __( 'Bitte Name, Layout und Inhalt angeben.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
 		$data = array( 'name' => $name, 'kind' => $kind, 'body' => $body, 'status' => 'active', 'updated_at' => current_time( 'mysql', true ) );
+		$forbidden = new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung für diese Vorlage.', 'wp-pass-captain' ), array( 'status' => 403 ) );
 		if ( $template_id ) {
+			$template = self::get_template( $template_id );
+			if ( ! $template ) { return new \WP_Error( 'wpcap_print_template_missing', __( 'Vorlage nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+			if ( ! self::can_edit( (int) $template->owner_event_id, (int) $template->template_id ) ) { return $forbidden; }
+			if ( $template->kind !== $kind && self::assigned_events( $template_id ) ) {
+				return new \WP_Error( 'wpcap_print_template_kind', __( 'Das Layout einer zugeordneten Vorlage kann nicht geändert werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			}
 			$wpdb->update( $wpdb->prefix . 'wpcap_print_templates', $data, array( 'template_id' => absint( $template_id ) ) );
+			Audit::record( 'print_template_saved', 'print_template', absint( $template_id ) );
 			return absint( $template_id );
 		}
+		$owner_event_id = absint( $owner_event_id );
+		if ( ! self::can_edit( $owner_event_id ) ) { return $forbidden; }
+		$data['owner_event_id'] = $owner_event_id;
 		$wpdb->insert( $wpdb->prefix . 'wpcap_print_templates', $data );
+		Audit::record( 'print_template_saved', 'print_template', (int) $wpdb->insert_id );
 		return (int) $wpdb->insert_id;
 	}
 
-	/** Selects the template per event and layout (0 = built-in default). */
+	/** Selects the template per event and layout (0 = built-in default). Global or the event's own templates only. */
 	public static function assign( $event_id, $kind, $template_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		if ( ! in_array( $kind, self::KINDS, true ) ) { return new \WP_Error( 'wpcap_print_kind', __( 'Unbekanntes Layout.', 'wp-pass-captain' ) ); }
+		if ( ! Scope::can_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
 		$template_id = absint( $template_id );
 		if ( $template_id ) {
 			$template = self::get_template( $template_id );
 			if ( ! $template || $template->kind !== $kind ) { return new \WP_Error( 'wpcap_print_template_kind', __( 'Die Vorlage passt nicht zum Layout.', 'wp-pass-captain' ) ); }
+			if ( (int) $template->owner_event_id && (int) $template->owner_event_id !== absint( $event_id ) ) {
+				return new \WP_Error( 'wpcap_print_template_owner', __( 'Diese Vorlage gehört zu einem anderen Event.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			}
 		}
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_print_event_templates WHERE event_id=%d AND kind=%s", absint( $event_id ), $kind ) );
 		if ( $template_id ) {
@@ -269,7 +317,11 @@ final class Templates {
 		foreach ( array_unique( array_map( 'absint', $ticket_ids ) ) as $ticket_id ) {
 			$token = bin2hex( random_bytes( 32 ) );
 			$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET token_hash=%s WHERE ticket_id=%d AND status='valid'", hash( 'sha256', $token ), $ticket_id ) );
-			if ( $updated ) { $out[ $ticket_id ] = $token; }
+			if ( $updated ) {
+				$out[ $ticket_id ] = $token;
+				/** The ticket got a new code (old one invalid), e.g. so wallet passes can be refreshed. */
+				do_action( 'wpcap_ticket_code_rotated', (int) $ticket_id, $token, 'print' );
+			}
 		}
 		if ( $out ) {
 			Audit::record( 'ticket_codes_rotated', 'ticket', (int) array_key_first( $out ), array( 'count' => count( $out ), 'reason' => sanitize_key( $reason ) ) );

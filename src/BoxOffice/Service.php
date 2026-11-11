@@ -99,6 +99,9 @@ final class Service {
 		return $session ? $session : self::error( 'wpcap_pos_session', __( 'Die Kassensitzung konnte nicht geöffnet werden.', 'wp-pass-captain' ), 500 );
 	}
 
+	/** Sale states that count in session totals (pending/failed rows have no receipt yet). */
+	const BOOKED_STATES = array( 'completed', 'voided', 'storno_pending' );
+
 	/**
 	 * Totals of a session.
 	 *
@@ -107,7 +110,7 @@ final class Service {
 	public static function session_totals( $session_id ) {
 		global $wpdb;
 		$session = self::session( $session_id );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT payment_method,status,COUNT(*) AS n,COALESCE(SUM(total_minor),0) AS amount FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE session_id=%d GROUP BY payment_method,status", absint( $session_id ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT payment_method,status,COUNT(*) AS n,COALESCE(SUM(total_minor),0) AS amount FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE session_id=%d AND status IN ('completed','voided','storno_pending') GROUP BY payment_method,status", absint( $session_id ) ) );
 		$methods = array();
 		foreach ( array_keys( self::methods() ) as $m ) { $methods[ $m ] = array( 'count' => 0, 'gross' => 0, 'voided_count' => 0, 'voided' => 0, 'net' => 0 ); }
 		$sales = 0;
@@ -139,7 +142,12 @@ final class Service {
 		);
 	}
 
-	/** Closes a session with the counted cash. Only the cashier (or an administrator). */
+	/**
+	 * Closes a session with the counted cash. Only the cashier (or an administrator).
+	 *
+	 * Refused while a storno waits for approval or a paid sale is not yet booked (see finalize()).
+	 * Unpaid unfinished sales of the session are marked failed.
+	 */
 	public static function close_session( $session_id, $counted_minor, $note = '' ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
@@ -147,11 +155,22 @@ final class Service {
 		if ( ! $session ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'wp-pass-captain' ), 404 ); }
 		if ( (int) $session->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) { return self::error( 'wpcap_forbidden', __( 'Nur die eigene Kassensitzung kann geschlossen werden.', 'wp-pass-captain' ), 403 ); }
 		if ( 'open' !== $session->status ) { return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'wp-pass-captain' ), 409 ); }
+		self::reset_rejected_stornos( $session->session_id );
 		$pending = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_sales WHERE session_id=%d AND status='storno_pending'", $session->session_id ) );
-		if ( $pending ) { return self::error( 'wpcap_pos_storno_pending', __( 'Ein Storno wartet noch auf Freigabe. Bitte vor dem Kassenabschluss klären.', 'wp-pass-captain' ), 409 ); }
+		if ( $pending ) { return self::error( 'wpcap_pos_storno_pending', __( 'Ein Storno wartet noch auf Freigabe. Bitte freigeben oder ablehnen lassen, dann die Kasse abschließen.', 'wp-pass-captain' ), 409 ); }
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", $session->session_id ) );
 		if ( ! $locked || 'open' !== $locked->status ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'wp-pass-captain' ), 409 ); }
+		$unfinished = $wpdb->get_results( $wpdb->prepare( "SELECT s.sale_id,ord.payment_status FROM {$p}wpcap_boxoffice_sales s LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=s.order_id WHERE s.session_id=%d AND s.status='pending' FOR UPDATE", $session->session_id ) );
+		foreach ( $unfinished as $row ) {
+			if ( 'paid' === $row->payment_status ) {
+				$wpdb->query( 'ROLLBACK' );
+				return self::error( 'wpcap_pos_unbooked', __( 'Ein bezahlter Verkauf ist noch nicht gebucht. Bitte zuerst „Nachbuchen“ ausführen.', 'wp-pass-captain' ), 409 );
+			}
+		}
+		foreach ( $unfinished as $row ) {
+			$wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'status' => 'failed' ), array( 'sale_id' => (int) $row->sale_id, 'status' => 'pending' ) );
+		}
 		$totals = self::session_totals( $session->session_id );
 		$counted = max( 0, (int) $counted_minor );
 		$wpdb->update( "{$p}wpcap_boxoffice_sessions", array(
@@ -166,7 +185,7 @@ final class Service {
 			'closed_by' => get_current_user_id(),
 		), array( 'session_id' => (int) $session->session_id ) );
 		$wpdb->query( 'COMMIT' );
-		Audit::record( 'pos_session_closed', 'pos_session', (int) $session->session_id, array( 'expected_cash_minor' => $totals['expected_cash'], 'counted_minor' => $counted ) );
+		Audit::record( 'pos_session_closed', 'pos_session', (int) $session->session_id, array( 'expected_cash_minor' => $totals['expected_cash'], 'counted_minor' => $counted, 'failed_unfinished' => count( $unfinished ) ) );
 		return self::session( $session->session_id );
 	}
 
@@ -201,8 +220,24 @@ final class Service {
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE form_key_hash=%s", $key_hash ) );
 	}
 
+	/** Result for a form key that already has a sale row (replay, resume or failure). */
+	private static function existing_result( $existing ) {
+		if ( (int) $existing->cashier_id !== get_current_user_id() ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'wp-pass-captain' ) ); }
+		if ( 'pending' === $existing->status ) {
+			if ( ! $existing->order_id ) { return self::error( 'wpcap_pos_in_progress', __( 'Dieser Verkauf wird gerade verarbeitet.', 'wp-pass-captain' ), 409 ); }
+			return self::finalize( $existing->sale_id );
+		}
+		if ( 'failed' === $existing->status ) { return self::error( 'wpcap_pos_sale_failed', __( 'Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen.', 'wp-pass-captain' ), 409 ); }
+		return array( 'sale' => $existing, 'reused' => true );
+	}
+
 	/**
 	 * Sells tickets at the box office.
+	 *
+	 * Flow: a "pending" sale row is stored first (unique form key), then the order is created and
+	 * confirmed, then finalize() books it (receipt number) under a lock on the session row. If anything
+	 * fails after the order exists, the pending row keeps the link to the order; resubmitting the same
+	 * form key or "Nachbuchen" resumes it, and closing the session is refused while it is paid but unbooked.
 	 *
 	 * @param array $input occurrence_id, quantities {type_id: qty}, names {type_id: [name, ...]}, email,
 	 *                     method (cash|card|free|invoice), tendered_minor, reference, form_key.
@@ -216,12 +251,9 @@ final class Service {
 		if ( ! preg_match( '/^[A-Za-z0-9-]{16,64}$/', $form_key ) ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'wp-pass-captain' ) ); }
 		$key_hash = hash( 'sha256', 'pos-sale|' . $form_key );
 		$existing = self::sale_by_key( $key_hash );
-		if ( $existing ) {
-			if ( (int) $existing->cashier_id !== get_current_user_id() ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'wp-pass-captain' ) ); }
-			return array( 'sale' => $existing, 'reused' => true );
-		}
+		if ( $existing ) { return self::existing_result( $existing ); }
 		$session = self::open_session_for( get_current_user_id() );
-		if ( ! $session ) { return self::error( 'wpcap_pos_no_session', __( 'Bitte zuerst eine Kassensitzung öffnen.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $session || 'open' !== $session->status ) { return self::error( 'wpcap_pos_no_session', __( 'Bitte zuerst eine Kassensitzung öffnen.', 'wp-pass-captain' ), 409 ); }
 
 		$occurrence_id = absint( $input['occurrence_id'] ?? 0 );
 		$event_id = Scope::occurrence_event( $occurrence_id );
@@ -255,6 +287,26 @@ final class Service {
 		if ( 'invoice' === $method && '' === $email ) { return self::error( 'wpcap_pos_email', __( 'Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich.', 'wp-pass-captain' ) ); }
 		$buyer_email = '' !== $email ? $email : 'boxoffice+' . substr( $key_hash, 0, 16 ) . self::PLACEHOLDER_DOMAIN;
 
+		// 1. Pending sale row: claims the form key before any order exists.
+		$tendered = isset( $input['tendered_minor'] ) && null !== $input['tendered_minor'] && 'cash' === $method ? max( 0, (int) $input['tendered_minor'] ) : null;
+		$saved = $wpdb->insert( "{$p}wpcap_boxoffice_sales", array(
+			'session_id' => (int) $session->session_id,
+			'form_key_hash' => $key_hash,
+			'payment_method' => $method,
+			'currency' => $session->currency,
+			'tendered_minor' => $tendered,
+			'occurrence_id' => $occurrence_id,
+			'cashier_id' => get_current_user_id(),
+			'status' => 'pending',
+			'created_at' => current_time( 'mysql', true ),
+		) );
+		if ( false === $saved ) {
+			$existing = self::sale_by_key( $key_hash );
+			return $existing ? self::existing_result( $existing ) : self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 );
+		}
+		$sale_id = (int) $wpdb->insert_id;
+
+		// 2. Order through the shared checkout path (same capacity locks as online).
 		$internal = array(
 			'external' => true,
 			'payment_provider' => $methods[ $method ]['provider'],
@@ -271,78 +323,172 @@ final class Service {
 			}
 		}
 		$order = Orders::create( array( 'email' => $buyer_email, 'items' => $items, 'attendees' => $attendees, 'idempotency_key' => $form_key ), $internal );
-		if ( is_wp_error( $order ) ) { return $order; }
+		if ( is_wp_error( $order ) ) {
+			// No order was created: release the form key claim.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d AND status='pending' AND order_id IS NULL", $sale_id ) );
+			return $order;
+		}
 		$order_id = (int) $order['order_id'];
+		$wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'order_id' => $order_id ), array( 'sale_id' => $sale_id ) );
+
+		// 3. Payment confirmation and issuance, then booking.
 		$reference = mb_substr( sanitize_text_field( (string) ( $input['reference'] ?? '' ) ), 0, 100 );
 		$confirmed = Orders::confirm_external_payment( $order_id, 'pos:' . $method . ( '' !== $reference ? ':' . $reference : '' ) );
 		if ( is_wp_error( $confirmed ) ) { return $confirmed; }
 		if ( '' !== $reference ) { Orders::set_provider_reference( $order_id, $reference ); }
-		$row = Orders::get( $order_id );
+		return self::finalize( $sale_id );
+	}
 
-		// Store the sale and reserve the receipt number in one transaction (gapless numbering).
+	/** Paid order with all tickets issued? Re-issues missing tickets once (idempotent core issuance). */
+	private static function order_ready( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order = Orders::get( $order_id );
+		if ( ! $order || 'paid' !== $order->payment_status || 'complete' !== $order->status ) { return false; }
+		$expected = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_order_items WHERE order_id=%d", $order_id ) );
+		$count = static function () use ( $wpdb, $p, $order_id ) { return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) ); };
+		if ( $count() < $expected ) { Orders::issue_and_email( $order_id ); }
+		return $expected > 0 && $count() >= $expected;
+	}
+
+	/**
+	 * Books a pending sale: verifies the order is paid with all tickets, then reserves the receipt
+	 * number under a lock on the session row (the session must still be open). Idempotent.
+	 * If the session was closed meanwhile, the order is cancelled and the sale marked failed.
+	 *
+	 * @return array|\WP_Error ['sale' => row, 'reused' => bool]
+	 */
+	public static function finalize( $sale_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$sale = self::sale( $sale_id );
+		if ( ! $sale ) { return self::error( 'wpcap_pos_sale', __( 'Verkauf nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( 'pending' !== $sale->status ) { return 'failed' === $sale->status ? self::error( 'wpcap_pos_sale_failed', __( 'Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen.', 'wp-pass-captain' ), 409 ) : array( 'sale' => $sale, 'reused' => true ); }
+		$order = $sale->order_id ? Orders::get( $sale->order_id ) : null;
+		if ( ! $order ) { return self::error( 'wpcap_pos_in_progress', __( 'Dieser Verkauf wird gerade verarbeitet.', 'wp-pass-captain' ), 409 ); }
+		if ( 'pending' === $order->payment_status ) {
+			$confirmed = Orders::confirm_external_payment( $order->order_id, 'pos:' . $sale->payment_method );
+			if ( is_wp_error( $confirmed ) ) { return $confirmed; }
+		}
+		if ( ! self::order_ready( $order->order_id ) ) {
+			Audit::record( 'pos_sale_unbooked', 'order', (int) $order->order_id, array( 'sale_id' => (int) $sale->sale_id ) );
+			return self::error( 'wpcap_pos_not_ready', __( 'Die Bestellung ist nicht bezahlt oder es wurden nicht alle Tickets ausgestellt. Der Verkauf wurde nicht gebucht; bitte die Bestellung prüfen.', 'wp-pass-captain' ), 409 );
+		}
+		$order = Orders::get( $order->order_id );
+
 		$wpdb->query( 'START TRANSACTION' );
-		$wpdb->get_row( $wpdb->prepare( "SELECT session_id FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", $session->session_id ) );
-		$existing = self::sale_by_key( $key_hash );
-		if ( $existing ) { $wpdb->query( 'COMMIT' ); return array( 'sale' => $existing, 'reused' => true ); }
+		$session = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", $sale->session_id ) );
+		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d FOR UPDATE", $sale->sale_id ) );
+		if ( ! $locked || 'pending' !== $locked->status ) {
+			$wpdb->query( 'COMMIT' );
+			return self::finalize( $sale->sale_id ); // Booked or failed by a concurrent request.
+		}
+		if ( ! $session || 'open' !== $session->status ) {
+			$wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'status' => 'failed' ), array( 'sale_id' => (int) $sale->sale_id ) );
+			$wpdb->query( 'COMMIT' );
+			Orders::cancel_order( $order->order_id, 'pos_session_closed' );
+			Audit::record( 'pos_sale_failed', 'order', (int) $order->order_id, array( 'sale_id' => (int) $sale->sale_id, 'reason' => 'session_closed' ) );
+			return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung wurde inzwischen geschlossen. Der Verkauf wurde nicht gebucht und die Tickets wurden storniert.', 'wp-pass-captain' ), 409 );
+		}
 		$number = Invoices::next_document_number( 'receipt', self::receipt_prefix(), true );
 		if ( is_wp_error( $number ) ) { $wpdb->query( 'ROLLBACK' ); return $number; }
-		$tendered = isset( $input['tendered_minor'] ) && null !== $input['tendered_minor'] && 'cash' === $method ? max( 0, (int) $input['tendered_minor'] ) : null;
-		$saved = $wpdb->insert( "{$p}wpcap_boxoffice_sales", array(
-			'session_id' => (int) $session->session_id,
-			'order_id' => $order_id,
-			'form_key_hash' => $key_hash,
+		$updated = $wpdb->update( "{$p}wpcap_boxoffice_sales", array(
 			'receipt_number' => $number,
-			'payment_method' => $method,
-			'currency' => $row->currency,
-			'total_minor' => (int) $row->total_minor,
-			'tax_minor' => (int) $row->tax_minor,
-			'tendered_minor' => $tendered,
-			'occurrence_id' => $occurrence_id,
-			'cashier_id' => get_current_user_id(),
+			'currency' => $order->currency,
+			'total_minor' => (int) $order->total_minor,
+			'tax_minor' => (int) $order->tax_minor,
 			'status' => 'completed',
-			'created_at' => current_time( 'mysql', true ),
-		) );
-		if ( false === $saved ) {
-			$wpdb->query( 'ROLLBACK' );
-			$existing = self::sale_by_key( $key_hash );
-			return $existing ? array( 'sale' => $existing, 'reused' => true ) : self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 );
-		}
-		$sale_id = (int) $wpdb->insert_id;
+		), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'pending' ) );
+		if ( ! $updated ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
 		$wpdb->query( 'COMMIT' );
-		if ( 'invoice' === $method ) { Invoices::issue_for_order( $order_id ); }
-		if ( '' !== $email ) { Orders::rotate_access_link( $order_id ); }
-		Audit::record( 'pos_sale', 'order', $order_id, array( 'sale_id' => $sale_id, 'receipt' => $number, 'method' => $method, 'total_minor' => (int) $row->total_minor ) );
-		return array( 'sale' => self::sale( $sale_id ), 'reused' => false );
+		if ( 'invoice' === $sale->payment_method ) { Invoices::issue_for_order( $order->order_id ); }
+		if ( ! self::is_placeholder_email( $order->customer_email ) ) { Orders::rotate_access_link( $order->order_id ); }
+		Audit::record( 'pos_sale', 'order', (int) $order->order_id, array( 'sale_id' => (int) $sale->sale_id, 'receipt' => $number, 'method' => $sale->payment_method, 'total_minor' => (int) $order->total_minor ) );
+		return array( 'sale' => self::sale( $sale->sale_id ), 'reused' => false );
+	}
+
+	/** Unfinished sales of a session (order exists but no receipt yet). */
+	public static function unfinished_sales( $session_id ) {
+		global $wpdb;
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE session_id=%d AND status='pending' ORDER BY sale_id", absint( $session_id ) ) );
 	}
 
 	/* ------------------------------------------------------------------ storno */
 
-	public static function storno_key( $sale_id ) {
-		return 'pos-storno-' . absint( $sale_id );
+	/** Refund idempotency key of a storno attempt (a new attempt after a rejected one gets a new key). */
+	public static function storno_key( $sale_id, $attempt = 0 ) {
+		return 'pos-storno-' . absint( $sale_id ) . ( $attempt ? '-' . absint( $attempt ) : '' );
 	}
 
 	/**
 	 * Voids a sale of an open session through Refunds (full refund via the pos_* gateway).
 	 * Requires the refund capability (Refunds enforces it, incl. 2FA and the approval threshold).
+	 * After a rejected storno the sale is "completed" again and a new storno can be requested.
 	 */
 	public static function storno( $sale_id, $reason = '' ) {
 		$sale = self::sale( $sale_id );
-		if ( ! $sale ) { return self::error( 'wpcap_pos_sale', __( 'Verkauf nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $sale || ! $sale->order_id || in_array( $sale->status, array( 'pending', 'failed' ), true ) ) { return self::error( 'wpcap_pos_sale', __( 'Verkauf nicht gefunden.', 'wp-pass-captain' ), 404 ); }
 		$session = self::session( $sale->session_id );
 		if ( ! $session ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'wp-pass-captain' ), 404 ); }
 		if ( ! Scope::can_order( $sale->order_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		if ( (int) $session->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) && ! current_user_can( Refunds::APPROVE_CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Nur Verkäufe der eigenen Kassensitzung können storniert werden.', 'wp-pass-captain' ), 403 ); }
 		if ( 'voided' === $sale->status ) { return $sale; }
+		if ( 'storno_pending' === $sale->status ) {
+			self::reset_rejected_stornos( $sale->session_id );
+			$sale = self::sale( $sale->sale_id );
+			if ( 'storno_pending' === $sale->status ) { return $sale; }
+		}
 		if ( 'open' !== $session->status ) { return self::error( 'wpcap_pos_session_closed', __( 'Storno ist nur bis zum Kassenabschluss möglich. Danach bitte eine Erstattung über die Bestellung anlegen.', 'wp-pass-captain' ), 409 ); }
-		$refund = Refunds::request( (int) $sale->order_id, array(), 'POS-Storno ' . $sale->receipt_number . ( '' !== (string) $reason ? ': ' . $reason : '' ), self::storno_key( $sale->sale_id ) );
+		$refund = Refunds::request( (int) $sale->order_id, array(), 'POS-Storno ' . $sale->receipt_number . ( '' !== (string) $reason ? ': ' . $reason : '' ), self::storno_key( $sale->sale_id, (int) $sale->storno_attempt ) );
 		if ( is_wp_error( $refund ) ) { return $refund; }
 		global $wpdb;
-		if ( 'completed' !== $refund['status'] ) {
+		if ( 'completed' === $refund['status'] ) {
+			self::on_refund_completed( (int) $refund['refund_id'], (int) $sale->order_id );
+		} elseif ( 'pending_approval' === $refund['status'] ) {
 			$wpdb->update( "{$wpdb->prefix}wpcap_boxoffice_sales", array( 'status' => 'storno_pending', 'storno_refund_id' => (int) $refund['refund_id'] ), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'completed' ) );
 		} else {
-			self::on_refund_completed( (int) $refund['refund_id'], (int) $sale->order_id );
+			// Rejected/failed refund for this key: allow a fresh attempt next time.
+			$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_boxoffice_sales SET storno_attempt=storno_attempt+1,storno_refund_id=0 WHERE sale_id=%d AND status='completed'", $sale->sale_id ) );
+			return self::error( 'wpcap_pos_storno_failed', __( 'Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen.', 'wp-pass-captain' ), 409 );
 		}
 		return self::sale( $sale->sale_id );
+	}
+
+	/** Puts sales whose storno refund was rejected back to "completed" (new attempt key). */
+	public static function reset_rejected_stornos( $session_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.sale_id FROM {$p}wpcap_boxoffice_sales s INNER JOIN {$p}wpcap_refunds r ON r.refund_id=s.storno_refund_id WHERE s.session_id=%d AND s.status='storno_pending' AND r.status IN ('rejected','failed')", absint( $session_id ) ) );
+		foreach ( $rows as $row ) { self::reset_storno( (int) $row->sale_id ); }
+		return count( $rows );
+	}
+
+	private static function reset_storno( $sale_id ) {
+		global $wpdb;
+		$done = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_boxoffice_sales SET status='completed',storno_refund_id=0,storno_attempt=storno_attempt+1 WHERE sale_id=%d AND status='storno_pending'", absint( $sale_id ) ) );
+		if ( $done ) { Audit::record( 'pos_storno_rejected', 'pos_sale', absint( $sale_id ) ); }
+	}
+
+	/** wpcap_refund_rejected: a rejected storno refund puts the sale back to "completed". */
+	public static function on_refund_rejected( $refund_id, $order_id = 0 ) {
+		global $wpdb;
+		$sale_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT sale_id FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE storno_refund_id=%d AND status='storno_pending'", absint( $refund_id ) ) );
+		if ( $sale_id ) { self::reset_storno( $sale_id ); }
+	}
+
+	/** Approver rejects a pending storno (e.g. to close the session). */
+	public static function reject_storno( $sale_id, $reason = '' ) {
+		$sale = self::sale( $sale_id );
+		if ( ! $sale || 'storno_pending' !== $sale->status ) { return self::error( 'wpcap_pos_sale', __( 'Für diesen Verkauf wartet kein Storno.', 'wp-pass-captain' ), 409 ); }
+		if ( ! Scope::can_order( $sale->order_id, self::CAP ) && ! current_user_can( 'manage_options' ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		$result = Refunds::reject( (int) $sale->storno_refund_id, '' !== (string) $reason ? $reason : 'POS-Storno verworfen' );
+		if ( is_wp_error( $result ) ) {
+			// Already decided elsewhere: resync with the refund state.
+			self::reset_rejected_stornos( $sale->session_id );
+			return $result;
+		}
+		self::on_refund_rejected( (int) $sale->storno_refund_id );
+		return self::sale( $sale_id );
 	}
 
 	/** wpcap_refund_completed: marks the sale voided and allocates the storno receipt number (idempotent). */
@@ -351,11 +497,11 @@ final class Service {
 		$p = $wpdb->prefix;
 		$refund = Refunds::get( $refund_id );
 		if ( ! $refund ) { return; }
-		$sale = $wpdb->get_row( $wpdb->prepare( "SELECT sale_id FROM {$p}wpcap_boxoffice_sales WHERE order_id=%d", (int) $refund['order_id'] ) );
-		if ( ! $sale || ! hash_equals( hash( 'sha256', 'refund|' . (int) $refund['order_id'] . '|' . self::storno_key( $sale->sale_id ) ), (string) $refund['idempotency_key'] ) ) { return; }
+		$sale = $wpdb->get_row( $wpdb->prepare( "SELECT sale_id,storno_attempt FROM {$p}wpcap_boxoffice_sales WHERE order_id=%d", (int) $refund['order_id'] ) );
+		if ( ! $sale || ! hash_equals( hash( 'sha256', 'refund|' . (int) $refund['order_id'] . '|' . self::storno_key( $sale->sale_id, (int) $sale->storno_attempt ) ), (string) $refund['idempotency_key'] ) ) { return; }
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d FOR UPDATE", $sale->sale_id ) );
-		if ( ! $locked || 'voided' === $locked->status ) { $wpdb->query( 'COMMIT' ); return; }
+		if ( ! $locked || ! in_array( $locked->status, array( 'completed', 'storno_pending' ), true ) ) { $wpdb->query( 'COMMIT' ); return; }
 		$number = Invoices::next_document_number( 'receipt', self::receipt_prefix(), true );
 		if ( is_wp_error( $number ) ) { $wpdb->query( 'ROLLBACK' ); return; }
 		$wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'status' => 'voided', 'storno_refund_id' => (int) $refund_id, 'storno_receipt_number' => $number, 'voided_at' => current_time( 'mysql', true ), 'voided_by' => get_current_user_id() ), array( 'sale_id' => (int) $sale->sale_id ) );

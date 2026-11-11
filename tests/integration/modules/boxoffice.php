@@ -154,6 +154,37 @@ $GLOBALS['wpcap_test_user_id'] = 1;
 check( 'approved storno voids the sale', 'voided' === Pos::sale( $sp->sale_id )->status && '' !== (string) Pos::sale( $sp->sale_id )->storno_receipt_number );
 Settings::update( array( 'refund_approval_threshold' => 0 ) );
 
+echo "Box office: rejected stornos (regression)\n";
+Settings::update( array( 'refund_approval_threshold' => 100 ) );
+$sr = Pos::sell( array( 'occurrence_id' => $occ_e, 'quantities' => array( $type_e => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) )['sale'];
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_approve_refunds' );
+Pos::storno( $sr->sale_id, 'Groß' );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+$GLOBALS['wpcap_test_user_id'] = 2;
+PassCaptain\Refunds::reject( (int) Pos::sale( $sr->sale_id )->storno_refund_id, 'Nein' );
+$GLOBALS['wpcap_test_user_id'] = 1;
+$after_reject = Pos::sale( $sr->sale_id );
+check( 'rejected storno (wpcap_refund_rejected) puts the sale back to completed with a new attempt', 'completed' === $after_reject->status && 1 === (int) $after_reject->storno_attempt && 0 === (int) $after_reject->storno_refund_id );
+Settings::update( array( 'refund_approval_threshold' => 0 ) );
+$retry = Pos::storno( $sr->sale_id, 'Zweiter Versuch' );
+check( 'a new storno after a rejection is possible (new refund key)', ! is_wp_error( $retry ) && 'voided' === $retry->status && 2 === count( PassCaptain\Refunds::for_order( $sr->order_id ) ) );
+Settings::update( array( 'refund_approval_threshold' => 100 ) );
+$sl = Pos::sell( array( 'occurrence_id' => $occ_e, 'quantities' => array( $type_e => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) )['sale'];
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_approve_refunds' );
+Pos::storno( $sl->sale_id );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+$wpdb->query( "UPDATE {$p}wpcap_refunds SET status='rejected' WHERE refund_id=" . (int) Pos::sale( $sl->sale_id )->storno_refund_id ); // decided without the hook
+check( 'refund rejected without hook is detected lazily (storno/close)', 1 === Pos::reset_rejected_stornos( $session->session_id ) && 'completed' === Pos::sale( $sl->sale_id )->status );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_approve_refunds' );
+Pos::storno( $sl->sale_id );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+$rej = Pos::reject_storno( $sl->sale_id, 'Kassenabschluss' );
+check( 'approvers can reject a pending storno from the box office screen', ! is_wp_error( $rej ) && 'completed' === $rej->status && 'rejected' === PassCaptain\Refunds::get( (int) $wpdb->get_var( "SELECT MAX(refund_id) FROM {$p}wpcap_refunds WHERE order_id=" . (int) $sl->order_id ) )['status'] );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_approve_refunds' );
+check( 'rejecting needs the approval capability', is_wp_error( Pos::reject_storno( $sl->sale_id ) ) || 'completed' === Pos::sale( $sl->sale_id )->status );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+Settings::update( array( 'refund_approval_threshold' => 0 ) );
+
 $GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_orders' );
 $nocap = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_b => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
@@ -179,7 +210,7 @@ check( 'no ticket print for voided sales', is_wp_error( PosPage::tickets_pdf( $s
 
 $numbers = array();
 foreach ( $wpdb->get_results( "SELECT receipt_number,storno_receipt_number FROM {$p}wpcap_boxoffice_sales" ) as $r ) {
-	$numbers[] = wpb_seq( $r->receipt_number );
+	if ( $r->receipt_number ) { $numbers[] = wpb_seq( $r->receipt_number ); }
 	if ( $r->storno_receipt_number ) { $numbers[] = wpb_seq( $r->storno_receipt_number ); }
 }
 sort( $numbers );
@@ -198,4 +229,45 @@ check( 'only the cashier closes the session; difference to the count is stored',
 check( 'after closing: no storno, no sale, closing twice fails', is_wp_error( Pos::storno( $s1->sale_id ) ) && is_wp_error( Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_b => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) ) ) && is_wp_error( Pos::close_session( $session->session_id, 0 ) ) );
 $next = Pos::open_session( 0 );
 check( 'a new session can be opened after closing', ! is_wp_error( $next ) && (int) $next->session_id !== (int) $session->session_id );
-Pos::close_session( $next->session_id, 0 );
+
+echo "Box office: consistency of sale and order (regression)\n";
+// Paid order without a booked sale (e.g. crash after payment): resubmitting the form key books it once.
+$rkey = wpb_key();
+$rorder = Orders::create( array( 'email' => 'boxoffice+recover@invalid.example', 'items' => array( array( 'ticket_type_id' => $type_b, 'quantity' => 1 ) ), 'idempotency_key' => $rkey ), array( 'external' => true, 'payment_provider' => 'pos_cash', 'key_namespace' => 'pos', 'source' => 'pos', 'skip_rate_limit' => true ) );
+Orders::confirm_external_payment( $rorder['order_id'], 'pos:cash' );
+$wpdb->insert( "{$p}wpcap_boxoffice_sales", array( 'session_id' => (int) $next->session_id, 'order_id' => (int) $rorder['order_id'], 'form_key_hash' => hash( 'sha256', 'pos-sale|' . $rkey ), 'payment_method' => 'cash', 'currency' => 'EUR', 'occurrence_id' => $occ, 'cashier_id' => 1, 'status' => 'pending', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$pending_id = (int) $wpdb->insert_id;
+$blocked = Pos::close_session( $next->session_id, 0 );
+check( 'closing is refused while a paid sale is not booked', is_wp_error( $blocked ) && 'wpcap_pos_unbooked' === $blocked->get_error_code() && 'open' === Pos::session( $next->session_id )->status );
+$wpdb->query( "DELETE FROM {$p}wpcap_tickets WHERE order_id=" . (int) $rorder['order_id'] ); // tickets lost: must be re-issued
+$resumed = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_b => 1 ), 'method' => 'cash', 'form_key' => $rkey ) );
+$resumed2 = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_b => 1 ), 'method' => 'cash', 'form_key' => $rkey ) );
+check( 'resubmitting the form key books the pending sale once, with all tickets issued', ! is_wp_error( $resumed ) && $pending_id === (int) $resumed['sale']->sale_id && 'completed' === $resumed['sale']->status && '' !== (string) $resumed['sale']->receipt_number && $resumed2['reused'] && 1 === count( tickets( $rorder['order_id'], 'valid' ) ) && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_sales WHERE order_id=" . (int) $rorder['order_id'] ) );
+
+// Order not really paid (paid_unallocated / needs review): never booked, marked failed at closing.
+$ukey = wpb_key();
+$uorder = Orders::create( array( 'email' => 'boxoffice+unalloc@invalid.example', 'items' => array( array( 'ticket_type_id' => $type_b, 'quantity' => 1 ) ), 'idempotency_key' => $ukey ), array( 'external' => true, 'payment_provider' => 'pos_cash', 'key_namespace' => 'pos', 'source' => 'pos', 'skip_rate_limit' => true ) );
+$wpdb->query( "UPDATE {$p}wpcap_orders SET status='needs_review',payment_status='paid_unallocated' WHERE order_id=" . (int) $uorder['order_id'] );
+$wpdb->insert( "{$p}wpcap_boxoffice_sales", array( 'session_id' => (int) $next->session_id, 'order_id' => (int) $uorder['order_id'], 'form_key_hash' => hash( 'sha256', 'pos-sale|' . $ukey ), 'payment_method' => 'cash', 'currency' => 'EUR', 'occurrence_id' => $occ, 'cashier_id' => 1, 'status' => 'pending', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$unalloc_id = (int) $wpdb->insert_id;
+$not_ready = Pos::finalize( $unalloc_id );
+check( 'a sale whose order is not paid with tickets is not booked', is_wp_error( $not_ready ) && 'wpcap_pos_not_ready' === $not_ready->get_error_code() && null === Pos::sale( $unalloc_id )->receipt_number );
+$totals_before = Pos::session_totals( $next->session_id );
+check( 'unbooked sales do not count in the session totals', 1 === $totals_before['sales'] && 2140 === $totals_before['methods']['cash']['net'] );
+
+// Session closed in another tab while the sale was being processed.
+$GLOBALS['wpb_close_during_sale'] = (int) $next->session_id;
+add_action( 'wpcap_order_paid', static function () {
+	global $wpdb;
+	if ( empty( $GLOBALS['wpb_close_during_sale'] ) ) { return; }
+	$wpdb->query( "UPDATE {$wpdb->prefix}wpcap_boxoffice_sessions SET status='closed',open_key=NULL WHERE session_id=" . (int) $GLOBALS['wpb_close_during_sale'] );
+	$GLOBALS['wpb_close_during_sale'] = 0;
+} );
+$numbers_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_sales WHERE receipt_number IS NOT NULL" );
+$late = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_b => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
+$late_row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_boxoffice_sales ORDER BY sale_id DESC LIMIT 1" );
+check( 'no sale is booked into a session closed meanwhile; its order is cancelled', is_wp_error( $late ) && 'wpcap_pos_session_closed' === $late->get_error_code() && 'failed' === $late_row->status && null === $late_row->receipt_number && 'cancelled' === Orders::get( $late_row->order_id )->status && ! tickets( $late_row->order_id, 'valid' ) && $numbers_before === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_sales WHERE receipt_number IS NOT NULL" ) );
+check( 'selling into a closed session is refused before any order is created', is_wp_error( Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_b => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) ) ) );
+$wpdb->query( "UPDATE {$p}wpcap_boxoffice_sessions SET status='open',open_key=1 WHERE session_id=" . (int) $next->session_id );
+$closed_next = Pos::close_session( $next->session_id, 2140 );
+check( 'closing marks unpaid unfinished sales failed', ! is_wp_error( $closed_next ) && 'failed' === Pos::sale( $unalloc_id )->status && 0 === (int) $closed_next->difference_minor );

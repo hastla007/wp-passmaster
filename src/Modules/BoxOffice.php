@@ -15,6 +15,7 @@ final class BoxOffice {
 	public static function register() {
 		add_filter( 'wpcap_payment_gateways', array( PosGateway::class, 'register_gateways' ) );
 		add_action( 'wpcap_refund_completed', array( Service::class, 'on_refund_completed' ), 10, 2 );
+		add_action( 'wpcap_refund_rejected', array( Service::class, 'on_refund_rejected' ), 10, 2 );
 		add_filter( 'pre_wp_mail', array( Service::class, 'suppress_placeholder_mail' ), 10, 2 );
 	}
 
@@ -43,9 +44,9 @@ final class BoxOffice {
 			"CREATE TABLE {$prefix}wpcap_boxoffice_sales (
 				sale_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				session_id bigint(20) unsigned NOT NULL,
-				order_id bigint(20) unsigned NOT NULL,
+				order_id bigint(20) unsigned NULL,
 				form_key_hash char(64) NOT NULL,
-				receipt_number varchar(40) NOT NULL,
+				receipt_number varchar(40) NULL,
 				payment_method varchar(20) NOT NULL,
 				currency char(3) NOT NULL,
 				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -56,6 +57,7 @@ final class BoxOffice {
 				status varchar(20) NOT NULL DEFAULT 'completed',
 				storno_refund_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				storno_receipt_number varchar(40) NULL,
+				storno_attempt smallint(5) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				voided_at datetime NULL,
 				voided_by bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -86,6 +88,8 @@ final class BoxOffice {
 			'wpcap_pos_open'         => array( Page::class, 'handle_open' ),
 			'wpcap_pos_sell'         => array( Page::class, 'handle_sell' ),
 			'wpcap_pos_storno'       => array( Page::class, 'handle_storno' ),
+			'wpcap_pos_storno_reject' => array( Page::class, 'handle_storno_reject' ),
+			'wpcap_pos_finalize'     => array( Page::class, 'handle_finalize' ),
 			'wpcap_pos_close'        => array( Page::class, 'handle_close' ),
 			'wpcap_pos_receipt'      => array( Page::class, 'handle_receipt' ),
 			'wpcap_pos_tickets'      => array( Page::class, 'handle_tickets' ),

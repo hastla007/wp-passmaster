@@ -24,11 +24,12 @@ final class Service {
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'on_occurrence_changed' ), 20, 1 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'on_order_changed' ), 20, 1 );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund_completed' ), 20, 2 );
-		// Proposed core hook (see docs/WALLET.md); harmless until core fires it.
+		// Fired by core on resend, transfer, participant assignment and reprint (any reason).
 		add_action( 'wpcap_ticket_code_rotated', array( __CLASS__, 'on_code_rotated' ), 10, 2 );
-		// Bridge for code rotations until the core hook exists: resend/transfer/assignment mails carry the new code.
+		// Wallet links for the new code in the resend/transfer/assignment mails.
 		add_filter( 'wpcap_ticket_code_mail_section', array( __CLASS__, 'code_mail_section' ), 10, 2 );
 		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
+		add_action( 'shutdown', array( __CLASS__, 'flush' ), 5 );
 	}
 
 	public static function default_provider( $provider, $key ) {
@@ -191,7 +192,7 @@ final class Service {
 		if ( ! hash_equals( $current, hash( 'sha256', $code ) ) ) { return array(); }
 		foreach ( Store::passes( $ticket_id, 'google' ) as $old ) { Store::set_pass_status( $old->wallet_pass_id, 'retired' ); }
 		$passes = self::issue( $ticket_id, $code );
-		self::dispatch( array( (int) $ticket_id ) );
+		self::queue( array( (int) $ticket_id ) );
 		self::$rotated[ (int) $ticket_id ] = $passes;
 		return $passes;
 	}
@@ -225,23 +226,26 @@ final class Service {
 		return true;
 	}
 
+	/** wpcap_ticket_revoked fires once per ticket (e.g. for a whole cancelled occurrence): only collect here. */
 	public static function on_ticket_changed( $ticket_id ) {
-		if ( self::sync_ticket( (int) $ticket_id ) ) { self::dispatch( array( (int) $ticket_id ) ); }
+		if ( self::sync_ticket( (int) $ticket_id ) ) { self::queue( array( (int) $ticket_id ) ); }
 	}
 
-	private static function sync_many( array $ticket_ids, $occurrence_id = 0 ) {
+	private static function sync_many( array $ticket_ids ) {
 		$changed = array();
 		foreach ( $ticket_ids as $id ) {
 			if ( self::sync_ticket( (int) $id ) ) { $changed[] = (int) $id; }
 		}
-		if ( $changed ) { self::dispatch( $changed, $occurrence_id ); }
+		self::queue( $changed );
 	}
 
 	public static function on_occurrence_changed( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT s.ticket_id FROM {$p}wpcap_wallet_state s INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=s.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d", absint( $occurrence_id ) ) );
-		self::sync_many( $ids, (int) $occurrence_id );
+		self::sync_many( $ids );
+		// Tickets may already have been synced through wpcap_ticket_revoked; the Google class still needs the new date/status.
+		if ( $ids ) { self::$pending_occurrences[ (int) $occurrence_id ] = true; }
 	}
 
 	public static function on_order_changed( $order_id ) {
@@ -252,29 +256,82 @@ final class Service {
 
 	public static function on_refund_completed( $refund_id, $order_id = 0 ) { self::on_order_changed( $order_id ); }
 
-	/** Pushes now for small sets (falling back to a retried job), queues large sets in chunks. */
+	/** Tickets / occurrences changed in this request; dispatched once on shutdown. */
+	private static $pending_tickets = array();
+	private static $pending_occurrences = array();
+
+	/** Collects changed tickets (and occurrences whose Google class must be updated) for flush(). */
+	public static function queue( array $ticket_ids, $occurrence_id = 0 ) {
+		foreach ( $ticket_ids as $id ) { self::$pending_tickets[ (int) $id ] = true; }
+		if ( $occurrence_id ) { self::$pending_occurrences[ (int) $occurrence_id ] = true; }
+	}
+
+	/** Kept for callers of the first version: queue + immediate flush. */
 	public static function dispatch( array $ticket_ids, $occurrence_id = 0 ) {
-		$ticket_ids = array_values( array_unique( array_map( 'intval', $ticket_ids ) ) );
-		if ( ! $ticket_ids ) { return; }
-		if ( count( $ticket_ids ) <= self::INLINE_LIMIT && self::process( $ticket_ids, $occurrence_id ) ) { return; }
-		foreach ( array_chunk( $ticket_ids, 200 ) as $i => $chunk ) {
-			$payload = array( 'ticket_ids' => $chunk, 'occurrence_id' => 0 === $i ? (int) $occurrence_id : 0 );
-			Jobs::enqueue( 'wallet-sync-' . md5( wp_json_encode( $payload ) . microtime( true ) . $i ), self::JOB, $payload );
+		self::queue( $ticket_ids, $occurrence_id );
+		self::flush();
+	}
+
+	/**
+	 * Dispatches everything collected in this request (runs on shutdown). Work is always written to
+	 * the job queue first, so a timeout or fatal during the inline attempt cannot lose an update;
+	 * the first INLINE_LIMIT tickets are processed right away and their job is completed on success.
+	 */
+	public static function flush() {
+		$ticket_ids = array_keys( self::$pending_tickets );
+		$occurrences = array_keys( self::$pending_occurrences );
+		self::$pending_tickets = array();
+		self::$pending_occurrences = array();
+		if ( ! $ticket_ids && ! $occurrences ) { return; }
+		$chunks = array_chunk( $ticket_ids, 200 ) ?: array( array() );
+		foreach ( $chunks as $i => $chunk ) {
+			$payload = array( 'ticket_ids' => $chunk, 'occurrence_ids' => 0 === $i ? $occurrences : array() );
+			$key = 'wallet-sync-' . md5( wp_json_encode( $payload ) . microtime( true ) . $i . random_int( 0, PHP_INT_MAX ) );
+			$queued = true === Jobs::enqueue( $key, self::JOB, $payload );
+			if ( ! $queued ) { self::log( 'queue_failed', 'wallet_sync' ); }
+			if ( 0 === $i && count( $chunk ) <= self::INLINE_LIMIT && self::process( $chunk, $payload['occurrence_ids'] ) && $queued ) {
+				self::complete_job( $key );
+			}
 		}
+	}
+
+	private static function complete_job( $key ) {
+		global $wpdb;
+		$wpdb->update( $wpdb->prefix . 'wpcap_jobs', array( 'status' => 'complete', 'updated_at' => current_time( 'mysql', true ) ), array( 'idempotency_key' => hash( 'sha256', $key ), 'status' => 'queued' ) );
 	}
 
 	/** Filter wp_pass_captain_process_job_v1. */
 	public static function handle_job( $handled, $type, $payload = array() ) {
 		if ( self::JOB !== $type ) { return $handled; }
-		return self::process( (array) ( $payload['ticket_ids'] ?? array() ), (int) ( $payload['occurrence_id'] ?? 0 ) );
+		$occurrences = (array) ( $payload['occurrence_ids'] ?? array() );
+		if ( ! empty( $payload['occurrence_id'] ) ) { $occurrences[] = (int) $payload['occurrence_id']; }
+		return self::process( (array) ( $payload['ticket_ids'] ?? array() ), $occurrences );
+	}
+
+	/** Any ticket of an occurrence that has a Google pass (class data source), or null. */
+	private static function class_ticket( $occurrence_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$id = $wpdb->get_var( $wpdb->prepare( "SELECT w.ticket_id FROM {$p}wpcap_wallet_passes w INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=w.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE w.provider='google' AND tt.occurrence_id=%d LIMIT 1", absint( $occurrence_id ) ) );
+		return $id ? self::ticket( (int) $id ) : null;
 	}
 
 	/** Sends Apple pushes and Google updates. Idempotent; false = retry later. */
-	public static function process( array $ticket_ids, $occurrence_id = 0 ) {
+	public static function process( array $ticket_ids, $occurrence_ids = array() ) {
 		$apple = self::provider( 'apple' );
 		$google = self::provider( 'google' );
 		$ok = true;
-		$class_done = ! $occurrence_id;
+		if ( $google && method_exists( $google, 'update_class' ) ) {
+			foreach ( array_unique( array_map( 'intval', (array) $occurrence_ids ) ) as $occurrence_id ) {
+				$ticket = $occurrence_id ? self::class_ticket( $occurrence_id ) : null;
+				try {
+					if ( $ticket ) { $ok = $google->update_class( $ticket ) && $ok; }
+				} catch ( \Throwable $e ) {
+					self::log( 'push_failed', 'google_class:' . $e->getMessage() );
+					$ok = false;
+				}
+			}
+		}
 		foreach ( $ticket_ids as $ticket_id ) {
 			$ticket = null;
 			foreach ( Store::passes( $ticket_id ) as $pass ) {
@@ -284,7 +341,6 @@ final class Service {
 						$ok = ( method_exists( $apple, 'notify' ) ? $apple->notify( $pass->serial_number ) : $apple->revoke_pass( $row ) ) && $ok;
 					} elseif ( 'google' === $pass->provider && $google ) {
 						$ticket = $ticket ?: self::ticket( $ticket_id );
-						if ( ! $class_done && $ticket && method_exists( $google, 'update_class' ) ) { $class_done = $google->update_class( $ticket ); $ok = $class_done && $ok; }
 						$ok = ( 'retired' === $pass->status ? $google->revoke_pass( $row ) : ( $ticket && $google->update_pass( $ticket, $row ) ) ) && $ok;
 					}
 				} catch ( \Throwable $e ) {
@@ -316,19 +372,26 @@ final class Service {
 			if ( ! hash_equals( (string) $state->auth_token_hash, $hash ) ) {
 				if ( ! Store::registration_by_auth( $serial, $hash ) ) { return null; }
 				// Device holds an older generation (code was rotated): serve it voided.
+				// It must not learn anything about the new holder either.
 				$ticket['voided'] = true;
 				$ticket['code'] = null;
 				$ticket['auth_token'] = (string) $presented_token;
+				$ticket['attendee_name'] = '';
+				$ticket['seat'] = '';
 			}
 		}
 		return array( 'bundle' => $apple->update_pass( $ticket, (array) $pass )['bundle'], 'tag' => (int) $state->update_tag );
 	}
 
+	const LOG_OPTION = 'wpcap_wallet_log';
+	/** Separate, smaller buffer for the unauthenticated device log endpoint so it cannot flush server diagnostics. */
+	const DEVICE_LOG_OPTION = 'wpcap_wallet_device_log';
+
 	/** Small ring buffer of non-personal diagnostics shown on the Wallet admin page. */
-	public static function log( $code, $message ) {
-		$log = get_option( 'wpcap_wallet_log', array() );
+	public static function log( $code, $message, $option = self::LOG_OPTION, $keep = 30 ) {
+		$log = get_option( $option, array() );
 		$log = is_array( $log ) ? $log : array();
 		$log[] = array( 'time' => time(), 'code' => sanitize_key( $code ), 'message' => substr( sanitize_text_field( (string) $message ), 0, 300 ) );
-		update_option( 'wpcap_wallet_log', array_slice( $log, -30 ), false );
+		update_option( $option, array_slice( $log, -$keep ), false );
 	}
 }

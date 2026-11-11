@@ -204,9 +204,14 @@ final class AdminPage {
 		echo '</tbody></table>';
 		submit_button( __( 'Speichern', 'wp-pass-captain' ) );
 		echo '</form>';
-		$log = get_option( 'wpcap_wallet_log', array() );
-		if ( is_array( $log ) && $log ) {
-			echo '<h2>' . esc_html__( 'Protokoll', 'wp-pass-captain' ) . '</h2><table class="widefat striped" style="max-width:900px"><tbody>';
+		$logs = array(
+			Service::LOG_OPTION => __( 'Protokoll', 'wp-pass-captain' ),
+			Service::DEVICE_LOG_OPTION => __( 'Meldungen von Geräten (ungeprüft)', 'wp-pass-captain' ),
+		);
+		foreach ( $logs as $option => $title ) {
+			$log = get_option( $option, array() );
+			if ( ! is_array( $log ) || ! $log ) { continue; }
+			echo '<h2>' . esc_html( $title ) . '</h2><table class="widefat striped" style="max-width:900px"><tbody>';
 			foreach ( array_reverse( $log ) as $entry ) {
 				echo '<tr><td>' . esc_html( gmdate( 'd.m.Y H:i', (int) $entry['time'] ) ) . ' UTC</td><td>' . esc_html( $entry['code'] ) . '</td><td>' . esc_html( $entry['message'] ) . '</td></tr>';
 			}

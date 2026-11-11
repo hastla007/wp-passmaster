@@ -31,7 +31,13 @@ final class Sms {
 		add_action( 'wpcap_process_messages', array( Service::class, 'process_due' ), 20, 0 );
 		add_filter( 'wpcap_sms_skip_reason', array( __CLASS__, 'skip_reason' ), 10, 2 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
-		add_filter( 'wp_privacy_personal_data_erasers', array( __CLASS__, 'register_eraser' ) );
+		// Priority 5 + prepended: runs before the core eraser anonymises the buyer e-mail.
+		add_filter( 'wp_privacy_personal_data_erasers', array( __CLASS__, 'register_eraser' ), 5 );
+		add_filter( 'wp_privacy_personal_data_exporters', array( __CLASS__, 'register_exporter' ), 5 );
+		// Consent ends with the order: no further messages after cancellation, refund or revocation.
+		add_action( 'wpcap_order_cancelled', array( Service::class, 'retire' ), 20, 1 );
+		add_action( 'wpcap_ticket_revoked', array( __CLASS__, 'ticket_revoked' ), 20, 2 );
+		add_filter( 'rest_pre_serve_request', array( __CLASS__, 'serve_twiml' ), 10, 4 );
 	}
 
 	public static function schema( $prefix, $charset ) {
@@ -44,8 +50,10 @@ final class Sms {
 				text_version char(16) NOT NULL,
 				consented_at datetime NOT NULL,
 				withdrawn_at datetime NULL,
+				retired_at datetime NULL,
 				PRIMARY KEY  (consent_id),
-				UNIQUE KEY order_purpose (order_id,purpose)
+				UNIQUE KEY order_purpose (order_id,purpose),
+				KEY phone (phone,consented_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$prefix}wpcap_sms_messages (
 				message_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -79,6 +87,8 @@ final class Sms {
 				'provider' => '',
 				'consent_text' => __( 'Ja, ich möchte Erinnerungen und Informationen zu Terminänderungen und Absagen dieser Bestellung per SMS erhalten. Die Einwilligung kann jederzeit widerrufen werden.', 'wp-pass-captain' ),
 				'default_country_code' => '+49',
+				// Only numbers of these countries (and, for AT/DE/CH, only mobile ranges) are accepted.
+				'allowed_prefixes' => '+43,+49,+41',
 				'twilio_from' => '',
 				'http_endpoint' => '',
 				'http_auth_header' => 'Authorization',
@@ -109,6 +119,31 @@ final class Sms {
 			// Authenticity: X-Twilio-Signature is validated in the callback.
 			'permission_callback' => '__return_true',
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/sms/twilio/inbound', array(
+			'methods' => 'POST',
+			'callback' => array( Service::class, 'twilio_inbound' ),
+			// Authenticity: X-Twilio-Signature is validated in the callback.
+			'permission_callback' => '__return_true',
+		) );
+	}
+
+	/** Twilio expects TwiML from the inbound webhook: answer with an empty <Response/> (no auto-reply). */
+	public static function serve_twiml( $served, $result = null, $request = null, $server = null ) {
+		if ( $served || ! is_object( $request ) || ! method_exists( $request, 'get_route' ) || '/wp-pass-captain/v1/sms/twilio/inbound' !== $request->get_route() ) { return $served; }
+		if ( is_object( $result ) && method_exists( $result, 'get_status' ) && $result->get_status() >= 400 ) { return $served; }
+		if ( ! headers_sent() ) { header( 'Content-Type: text/xml; charset=utf-8' ); }
+		echo '<?xml version="1.0" encoding="UTF-8"?><Response></Response>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- constant TwiML.
+		return true;
+	}
+
+	/** Retires the consent when an order has no valid tickets left (refund, revocation, cancellation). */
+	public static function ticket_revoked( $ticket_id, $reason = '' ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
+		if ( ! $order_id || ! $wpdb->get_var( $wpdb->prepare( "SELECT consent_id FROM {$p}wpcap_sms_consents WHERE order_id=%d AND retired_at IS NULL AND withdrawn_at IS NULL", $order_id ) ) ) { return false; }
+		$left = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND status IN ('valid','checked_in')", $order_id ) );
+		return $left ? false : Service::retire( $order_id );
 	}
 
 	/* ------------------------------------------------------------------ Checkout */
@@ -118,6 +153,8 @@ final class Sms {
 	}
 
 	public static function error_messages( $messages ) {
+		$messages['sms_phone_not_allowed'] = __( 'SMS-Benachrichtigungen sind nur für Mobilnummern aus den unterstützten Ländern möglich. Bitte deaktiviere die SMS-Benachrichtigung oder nutze eine andere Nummer.', 'wp-pass-captain' );
+		$messages['sms_rate_limited'] = __( 'Für diese Mobilnummer wurden zu viele SMS-Anmeldungen erstellt. Bitte versuche es später erneut oder bestelle ohne SMS-Benachrichtigung.', 'wp-pass-captain' );
 		$messages['sms_phone_invalid'] = __( 'Bitte gib eine gültige Mobilnummer an (z. B. +49 151 23456789) oder deaktiviere die SMS-Benachrichtigung.', 'wp-pass-captain' );
 		return $messages;
 	}
@@ -142,6 +179,10 @@ final class Sms {
 		if ( empty( $payload['sms_consent'] ) || ! empty( $internal['external'] ) || ! Service::enabled() ) { return; }
 		$phone = Service::normalize_phone( is_scalar( $payload['sms_phone'] ?? null ) ? $payload['sms_phone'] : '' );
 		if ( '' === $phone ) { throw new \RuntimeException( 'sms_phone_invalid' ); }
+		if ( ! Service::number_allowed( $phone ) ) { throw new \RuntimeException( 'sms_phone_not_allowed' ); }
+		// Abuse protection: third-party numbers and cost pumping (no OTP verification, see docs).
+		if ( Service::recent_consents_for_number( $phone ) >= (int) apply_filters( 'wpcap_sms_number_daily_limit', 3 ) ) { throw new \RuntimeException( 'sms_rate_limited' ); }
+		if ( ! \PassCaptain\RateLimit::allow( 'sms_consent|' . \PassCaptain\RateLimit::client(), (int) apply_filters( 'wpcap_sms_ip_hourly_limit', 10 ), HOUR_IN_SECONDS ) ) { throw new \RuntimeException( 'sms_rate_limited' ); }
 		Service::record_consent( $order_id, $phone );
 	}
 
@@ -199,16 +240,49 @@ final class Sms {
 
 	/* ------------------------------------------------------------------ Privacy */
 
+	/** Listed first (WordPress runs erasers in array order), so it sees the original buyer e-mail. */
 	public static function register_eraser( $erasers ) {
-		$erasers['wpcap-sms'] = array( 'eraser_friendly_name' => __( 'WP Pass Captain SMS-Einwilligungen', 'wp-pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) );
-		return $erasers;
+		return array_merge( array( 'wpcap-sms' => array( 'eraser_friendly_name' => __( 'WP Pass Captain SMS-Einwilligungen', 'wp-pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) ) ), (array) $erasers );
+	}
+
+	public static function register_exporter( $exporters ) {
+		$exporters['wpcap-sms'] = array( 'exporter_friendly_name' => __( 'WP Pass Captain SMS-Einwilligungen', 'wp-pass-captain' ), 'callback' => array( __CLASS__, 'export' ) );
+		return $exporters;
+	}
+
+	/**
+	 * Consents of orders bought with this e-mail. Also matches orders the core eraser already
+	 * anonymised (deterministic replacement deleted+{sha256(email|order_id)[0..24]}@invalid.example),
+	 * so the result does not depend on the eraser order.
+	 */
+	private static function consents_for_email( $email ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$email = sanitize_email( $email );
+		if ( '' === $email ) { return array(); }
+		return $wpdb->get_results( $wpdb->prepare( "SELECT c.* FROM {$p}wpcap_sms_consents c INNER JOIN {$p}wpcap_orders o ON o.order_id=c.order_id WHERE o.customer_email=%s OR o.customer_email=CONCAT('deleted+',LEFT(SHA2(CONCAT(%s,'|',o.order_id),256),24),'@invalid.example') ORDER BY c.consent_id", $email, $email ) );
 	}
 
 	public static function erase( $email, $page = 1 ) {
-		global $wpdb;
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT c.order_id FROM {$wpdb->prefix}wpcap_sms_consents c INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=c.order_id WHERE o.customer_email=%s AND c.withdrawn_at IS NULL", sanitize_email( $email ) ) );
-		foreach ( $ids as $order_id ) { Service::withdraw( (int) $order_id ); }
-		return array( 'items_removed' => count( $ids ) > 0, 'items_retained' => false, 'messages' => array(), 'done' => true );
+		$removed = 0;
+		foreach ( self::consents_for_email( $email ) as $consent ) {
+			if ( Service::withdraw( (int) $consent->order_id ) ) { ++$removed; }
+		}
+		return array( 'items_removed' => $removed > 0, 'items_retained' => false, 'messages' => array(), 'done' => true );
+	}
+
+	public static function export( $email, $page = 1 ) {
+		$data = array();
+		foreach ( self::consents_for_email( $email ) as $c ) {
+			$data[] = array( 'group_id' => 'wpcap-sms', 'group_label' => __( 'WP Pass Captain SMS-Einwilligungen', 'wp-pass-captain' ), 'item_id' => 'sms-consent-' . (int) $c->consent_id, 'data' => array(
+				array( 'name' => __( 'Mobilnummer', 'wp-pass-captain' ), 'value' => '' !== $c->phone ? $c->phone : __( '(gelöscht)', 'wp-pass-captain' ) ),
+				array( 'name' => __( 'Zweck', 'wp-pass-captain' ), 'value' => $c->purpose ),
+				array( 'name' => __( 'Version des Einwilligungstexts', 'wp-pass-captain' ), 'value' => $c->text_version ),
+				array( 'name' => __( 'Eingewilligt (UTC)', 'wp-pass-captain' ), 'value' => $c->consented_at ),
+				array( 'name' => __( 'Widerrufen / beendet (UTC)', 'wp-pass-captain' ), 'value' => (string) ( $c->withdrawn_at ?? '' ) . ' / ' . (string) ( $c->retired_at ?? '' ) ),
+			) );
+		}
+		return array( 'data' => $data, 'done' => true );
 	}
 
 	/* ------------------------------------------------------------------ Admin */
@@ -224,6 +298,7 @@ final class Sms {
 			'provider' => Forms::choice( $in, 'provider', array_merge( array( '' ), array_keys( Service::providers() ) ), '' ),
 			'consent_text' => Forms::textarea( $in, 'consent_text', 1000 ),
 			'default_country_code' => preg_match( '/^\+[1-9]\d{0,3}$/', $prefix ) ? $prefix : '',
+			'allowed_prefixes' => implode( ',', array_filter( preg_split( '/[\s,;]+/', (string) ( $in['allowed_prefixes'] ?? '' ) ), static function ( $v ) { return 1 === preg_match( '/^\+[1-9]\d{0,3}$/', $v ); } ) ),
 			'twilio_from' => preg_replace( '/[^A-Za-z0-9+ ]/', '', Forms::text( $in, 'twilio_from', 34 ) ),
 			'http_endpoint' => esc_url_raw( $endpoint ),
 			'http_auth_header' => preg_replace( '/[^A-Za-z0-9\-]/', '', Forms::text( $in, 'http_auth_header', 64 ) ),
@@ -274,12 +349,14 @@ final class Sms {
 		ob_start(); Forms::select( 'provider', $providers, (string) ( $s['provider'] ?? '' ) ); $row( __( 'Anbieter', 'wp-pass-captain' ), ob_get_clean() );
 		$row( __( 'Einwilligungstext im Checkout', 'wp-pass-captain' ), $area( 'consent_text', $s['consent_text'] ?? '' ), sprintf( /* translators: %s: version */ __( 'Aktuelle Textversion: %s – Änderungen erzeugen eine neue Version.', 'wp-pass-captain' ), Service::consent_version() ) );
 		$row( __( 'Standard-Ländervorwahl', 'wp-pass-captain' ), $text( 'default_country_code', $s['default_country_code'] ?? '' ), __( 'Für Nummern mit führender 0, z. B. +49.', 'wp-pass-captain' ) );
+		$row( __( 'Erlaubte Ländervorwahlen', 'wp-pass-captain' ), $text( 'allowed_prefixes', $s['allowed_prefixes'] ?? '+43,+49,+41' ), __( 'Kommagetrennt. Für +43, +49 und +41 werden nur Mobilfunkbereiche akzeptiert (keine Premium-/Sonderrufnummern). Je Nummer höchstens 3 Einwilligungen pro Tag, je IP 10 pro Stunde. Eine Bestätigung per SMS-Code (OTP) ist nicht implementiert.', 'wp-pass-captain' ) );
 		$row( __( 'Text bei Absage', 'wp-pass-captain' ), $area( 'cancel_body', $s['cancel_body'] ?? '' ) );
 		$row( __( 'Text bei Verschiebung', 'wp-pass-captain' ), $area( 'reschedule_body', $s['reschedule_body'] ?? '' ), __( 'Platzhalter: ', 'wp-pass-captain' ) . implode( ' ', array_keys( Placeholders::available() ) ) );
 		echo '</tbody></table><h2>Twilio</h2><table class="form-table"><tbody>';
 		$row( __( 'Account SID', 'wp-pass-captain' ), $text( 'twilio_account_sid', Settings::get( 'twilio_account_sid' ) ), __( 'Alternativ Konstante WPCAP_TWILIO_ACCOUNT_SID.', 'wp-pass-captain' ) );
 		$row( __( 'Auth Token', 'wp-pass-captain' ), $secret( 'twilio_auth_token' ) );
 		$row( __( 'Absender (Nummer, Name oder Messaging Service SID)', 'wp-pass-captain' ), $text( 'twilio_from', $s['twilio_from'] ?? '' ) );
+		$row( __( 'Eingehende SMS (Abmeldung mit STOP)', 'wp-pass-captain' ), '<code>' . esc_html( TwilioProvider::inbound_url() ) . '</code>', __( 'Bei der Twilio-Nummer als Webhook für „A message comes in“ eintragen; STOP, STOPP oder ABMELDEN widerruft alle Einwilligungen der Nummer.', 'wp-pass-captain' ) );
 		$row( __( 'Status-Callback', 'wp-pass-captain' ), '<code>' . esc_html( TwilioProvider::status_callback_url() ) . '</code>', __( 'Wird automatisch pro Nachricht übergeben; Signatur (X-Twilio-Signature) wird geprüft.', 'wp-pass-captain' ) );
 		echo '</tbody></table><h2>' . esc_html__( 'Generischer HTTP-Anbieter', 'wp-pass-captain' ) . '</h2><table class="form-table"><tbody>';
 		$row( __( 'Endpunkt (HTTPS)', 'wp-pass-captain' ), $text( 'http_endpoint', $s['http_endpoint'] ?? '', 'url' ) );

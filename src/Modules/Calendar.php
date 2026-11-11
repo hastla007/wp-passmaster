@@ -87,12 +87,31 @@ final class Calendar {
 			$seen[ $occ ] = true;
 			$ics = Ics::occurrence_calendar( $occ );
 			if ( null === $ics ) { continue; }
-			$file = trailingslashit( get_temp_dir() ) . 'termin-' . $occ . '-' . bin2hex( random_bytes( 4 ) ) . '.ics';
+			$file = trailingslashit( get_temp_dir() ) . 'termin-' . $occ . '-' . bin2hex( random_bytes( 8 ) ) . '.ics';
 			if ( false !== file_put_contents( $file, $ics ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+				// Core (Orders::issue_and_email) deletes every file in $mail['attachments'] after wp_mail();
+				// the shutdown cleanup covers a later filter dropping the file from the list.
 				$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), array( $file ) );
+				self::track_temp_file( $file );
 			}
 		}
 		return $mail;
+	}
+
+	/** Temporary files created during this request. */
+	private static $temp_files = array();
+
+	private static function track_temp_file( $file ) {
+		if ( ! self::$temp_files ) { add_action( 'shutdown', array( __CLASS__, 'cleanup_temp_files' ) ); }
+		self::$temp_files[] = $file;
+	}
+
+	/** Removes .ics files of this request that still exist. */
+	public static function cleanup_temp_files() {
+		foreach ( self::$temp_files as $file ) {
+			if ( file_exists( $file ) ) { wp_delete_file( $file ); }
+		}
+		self::$temp_files = array();
 	}
 
 	/** Gives each event card an anchor (#wpcap-occ-{id}) the calendar can link to. */
