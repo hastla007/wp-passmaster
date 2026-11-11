@@ -18,7 +18,7 @@ msgstr ""
 
 #. Plugin Name of the plugin
 #: wp-pass-captain.php
-#: src/Admin/Menu.php:61
+#: src/Admin/Menu.php:63
 msgid "WP Pass Captain"
 msgstr "WP Pass Captain"
 
@@ -28,7 +28,8 @@ msgid "Eigenständige Event-, Ticket- und Passverwaltung für WordPress."
 msgstr "Standalone event, ticket, and pass management for WordPress."
 
 #: src/Admin/CheckinsPage.php:42
-#: src/Admin/EventsPage.php:503
+#: src/Admin/DevicesPage.php:49
+#: src/Admin/EventsPage.php:507
 #: src/Admin/Forms.php:229
 #: src/Admin/OrdersPage.php:213
 #: src/Admin/RefundsPage.php:24
@@ -45,7 +46,7 @@ msgid "Alle Ergebnisse"
 msgstr "All results"
 
 #: src/Admin/CheckinsPage.php:65
-#: src/Admin/Menu.php:72
+#: src/Admin/Menu.php:74
 msgid "Check-ins"
 msgstr "Check-ins"
 
@@ -79,10 +80,10 @@ msgid "Zeitpunkt"
 msgstr "Time"
 
 #: src/Admin/CheckinsPage.php:78
-#: src/Admin/EventsPage.php:538
+#: src/Admin/EventsPage.php:542
 #: src/Admin/OrdersPage.php:257
 #: src/Admin/OrdersPage.php:470
-#: src/Integrations/WooCommerce/OrderAdapter.php:634
+#: src/Integrations/WooCommerce/OrderAdapter.php:644
 #: src/Privacy.php:47
 msgid "Event"
 msgstr "Event"
@@ -90,7 +91,7 @@ msgstr "Event"
 #: src/Admin/CheckinsPage.php:79
 #: src/Admin/OrdersPage.php:382
 #: src/Admin/TicketsPage.php:149
-#: src/Integrations/WooCommerce/OrderAdapter.php:634
+#: src/Integrations/WooCommerce/OrderAdapter.php:644
 #: src/TicketPage.php:29
 msgid "Ticket"
 msgstr "Ticket"
@@ -106,6 +107,141 @@ msgstr "Staff"
 #: src/Admin/CheckinsPage.php:84
 msgid "Keine Check-ins gefunden."
 msgstr "No check-ins found."
+
+#: src/Admin/DevicesPage.php:39
+msgid "Kopplungscode erstellt. Jetzt mit der App scannen."
+msgstr "Pairing code created. Scan it with the app now."
+
+#: src/Admin/DevicesPage.php:45
+msgid "Gerät widerrufen."
+msgstr "Device revoked."
+
+#: src/Admin/DevicesPage.php:60
+#: src/Admin/Menu.php:78
+msgid "Scanner-Geräte"
+msgstr "Scanner devices"
+
+#: src/Admin/DevicesPage.php:62
+msgid "Koppelt eine Scanner-App mit deinem Konto. Das Gerät erhält einen persönlichen, ablaufenden Zugang nur für die gewählten Events und kann jederzeit widerrufen werden."
+msgstr "Pairs a scanner app with your account. The device receives personal, expiring access only for the selected events and can be revoked at any time."
+
+#: src/Admin/DevicesPage.php:64
+msgid "Kopplungscode (nur einmal gültig):"
+msgstr "Pairing code (valid once only):"
+
+#. translators: %s: time
+#: src/Admin/DevicesPage.php:64
+#, php-format
+msgid "Gültig bis %s (UTC)."
+msgstr "Valid until %s (UTC)."
+
+#. translators: %s: time
+#: src/Admin/DevicesPage.php:65
+msgid "Kopplungs-QR-Code"
+msgstr "Pairing QR code"
+
+#. translators: %s: time
+#: src/Admin/DevicesPage.php:65
+msgid "QR-Bibliothek nicht installiert – den Code in der App manuell eingeben."
+msgstr "QR library not installed – enter the code manually in the app."
+
+#: src/Admin/DevicesPage.php:68
+msgid "Neues Gerät koppeln"
+msgstr "Pair new device"
+
+#: src/Admin/DevicesPage.php:71
+#: src/Admin/DevicesPage.php:80
+#: src/Admin/EventsPage.php:537
+#: src/Admin/Menu.php:71
+msgid "Events"
+msgstr "Events"
+
+#: src/Admin/DevicesPage.php:73
+msgid "Keine veröffentlichten Events mit Einlassberechtigung."
+msgstr "No published events with check-in permission."
+
+#: src/Admin/DevicesPage.php:75
+msgid "Gerätename"
+msgstr "Device name"
+
+#: src/Admin/DevicesPage.php:75
+msgid "z. B. Einlass Nord"
+msgstr "e.g. North entrance"
+
+#: src/Admin/DevicesPage.php:76
+msgid "Gültig (Stunden)"
+msgstr "Valid (hours)"
+
+#: src/Admin/DevicesPage.php:77
+msgid "Kopplungs-QR erstellen"
+msgstr "Create pairing QR code"
+
+#: src/Admin/DevicesPage.php:79
+msgid "Gekoppelte Geräte"
+msgstr "Paired devices"
+
+#: src/Admin/DevicesPage.php:80
+msgid "Gerät"
+msgstr "Device"
+
+#: src/Admin/DevicesPage.php:80
+msgid "Person"
+msgstr "Person"
+
+#: src/Admin/DevicesPage.php:80
+msgid "Zuletzt aktiv"
+msgstr "Last active"
+
+#: src/Admin/DevicesPage.php:80
+#: src/Admin/EventsPage.php:546
+#: src/Admin/EventsPage.php:603
+#: src/Admin/EventsPage.php:627
+#: src/Admin/EventsPage.php:642
+#: src/Admin/EventsPage.php:688
+#: src/Admin/EventsPage.php:756
+#: src/Admin/EventsPage.php:794
+#: src/Admin/EventsPage.php:830
+#: src/Admin/OrdersPage.php:259
+#: src/Admin/OrdersPage.php:319
+#: src/Admin/OrdersPage.php:384
+#: src/Admin/OrdersPage.php:474
+#: src/Admin/TicketsPage.php:153
+#: src/Integrations/WooCommerce/OrderAdapter.php:644
+#: src/Privacy.php:27
+#: src/Privacy.php:41
+msgid "Status"
+msgstr "Status"
+
+#: src/Admin/DevicesPage.php:85
+msgid "Ohne Namen"
+msgstr "Unnamed"
+
+#: src/Admin/DevicesPage.php:85
+#: src/Integrations/WooCommerce/OrderAdapter.php:642
+msgid "widerrufen"
+msgstr "revoked"
+
+#: src/Admin/DevicesPage.php:85
+msgid "aktiv bis"
+msgstr "active until"
+
+#: src/Admin/DevicesPage.php:85
+msgid "abgelaufen"
+msgstr "expired"
+
+#: src/Admin/DevicesPage.php:85
+#: src/Admin/Forms.php:395
+#: src/Admin/TicketsPage.php:180
+msgid "Widerrufen"
+msgstr "Revoked"
+
+#: src/Admin/DevicesPage.php:87
+msgid "Noch keine Geräte gekoppelt."
+msgstr "No devices paired yet."
+
+#: src/Admin/DevicesPage.php:89
+msgid "API-Basis für Apps:"
+msgstr "API base for apps:"
 
 #: src/Admin/EventsPage.php:39
 #: src/Admin/EventsPage.php:134
@@ -134,7 +270,7 @@ msgid "Ein Termin konnte nicht gespeichert werden."
 msgstr "A date could not be saved."
 
 #: src/Admin/EventsPage.php:111
-#: src/Admin/EventsPage.php:294
+#: src/Admin/EventsPage.php:298
 msgid "Die Ticketkategorie konnte nicht gespeichert werden."
 msgstr "The ticket type could not be saved."
 
@@ -148,12 +284,12 @@ msgstr "Event not found."
 #: src/Admin/EventsPage.php:127
 #: src/Admin/EventsPage.php:157
 #: src/Admin/EventsPage.php:216
-#: src/Admin/EventsPage.php:240
-#: src/Admin/EventsPage.php:307
-#: src/Admin/EventsPage.php:347
-#: src/Admin/EventsPage.php:373
-#: src/Admin/EventsPage.php:392
-#: src/Admin/EventsPage.php:402
+#: src/Admin/EventsPage.php:244
+#: src/Admin/EventsPage.php:311
+#: src/Admin/EventsPage.php:351
+#: src/Admin/EventsPage.php:377
+#: src/Admin/EventsPage.php:396
+#: src/Admin/EventsPage.php:406
 #: src/Admin/TicketsPage.php:39
 #: src/Rest/Controller.php:423
 #: src/Rest/Controller.php:483
@@ -170,7 +306,7 @@ msgstr "Canceled events can no longer be edited."
 
 #: src/Admin/EventsPage.php:154
 #: src/Admin/EventsPage.php:215
-#: src/Admin/EventsPage.php:239
+#: src/Admin/EventsPage.php:243
 #: src/Rest/Controller.php:411
 #: src/Rest/Controller.php:623
 msgid "Termin nicht gefunden."
@@ -190,7 +326,7 @@ msgstr "The end must be after the start."
 
 #. translators: %d: sold tickets
 #: src/Admin/EventsPage.php:176
-#: src/Admin/EventsPage.php:269
+#: src/Admin/EventsPage.php:273
 #, php-format
 msgid "Das Kontingent darf nicht unter die bereits verkauften %d Tickets sinken."
 msgstr "The capacity cannot be lower than the %d tickets already sold."
@@ -200,618 +336,600 @@ msgid "Der Termin konnte nicht gespeichert werden."
 msgstr "The date could not be saved."
 
 #. translators: %d: number of tickets
-#: src/Admin/EventsPage.php:228
+#: src/Admin/EventsPage.php:230
 #, php-format
-msgid "Für diesen Termin sind noch %d gültige Tickets ausgestellt. Bitte die betroffenen Bestellungen erstatten."
-msgstr "There are still %d valid tickets issued for this date. Please refund the affected orders."
+msgid "%d Tickets wurden widerrufen, die Inhaber benachrichtigt und bezahlte Bestellungen automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü."
+msgstr "%d tickets have been revoked, their holders notified, and paid orders refunded automatically. Please refund WooCommerce orders in WooCommerce; errors are listed in the Refunds menu."
 
-#: src/Admin/EventsPage.php:237
-#: src/Admin/EventsPage.php:306
+#. translators: %d: number of tickets
+#: src/Admin/EventsPage.php:232
+#, php-format
+msgid "%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bitte die betroffenen Bestellungen erstatten (oder die automatische Erstattung in den Einstellungen aktivieren)."
+msgstr "%d tickets have been revoked and their holders notified. Please refund the affected orders (or enable automatic refunds in the settings)."
+
+#: src/Admin/EventsPage.php:241
+#: src/Admin/EventsPage.php:310
 msgid "Ticketart nicht gefunden."
 msgstr "Ticket type not found."
 
-#: src/Admin/EventsPage.php:242
+#: src/Admin/EventsPage.php:246
 msgid "Bitte einen Namen für die Ticketart angeben."
 msgstr "Please enter a name for the ticket type."
 
-#: src/Admin/EventsPage.php:244
+#: src/Admin/EventsPage.php:248
 msgid "Die Währung ist ungültig."
 msgstr "The currency is invalid."
 
-#: src/Admin/EventsPage.php:246
+#: src/Admin/EventsPage.php:250
 msgid "Der Preis ist ungültig. Beispiel: 12,50"
 msgstr "The price is invalid. Example: 12.50"
 
-#: src/Admin/EventsPage.php:248
+#: src/Admin/EventsPage.php:252
 msgid "Der Steuersatz ist ungültig. Beispiel: 19 oder 7,7"
 msgstr "The tax rate is invalid. Example: 19 or 7.7"
 
-#: src/Admin/EventsPage.php:250
+#: src/Admin/EventsPage.php:254
 msgid "Die maximale Anzahl pro Bestellung muss zwischen 1 und 100 liegen."
 msgstr "The maximum quantity per order must be between 1 and 100."
 
-#: src/Admin/EventsPage.php:255
+#: src/Admin/EventsPage.php:259
 msgid "Der Verkaufszeitraum ist ungültig."
 msgstr "The sales period is invalid."
 
-#: src/Admin/EventsPage.php:258
+#: src/Admin/EventsPage.php:262
 msgid "Das Verkaufsende muss nach dem Verkaufsstart liegen."
 msgstr "The sales end must be after the sales start."
 
-#: src/Admin/EventsPage.php:264
+#: src/Admin/EventsPage.php:268
 msgid "Die Währung kann nach den ersten Bestellungen nicht mehr geändert werden."
 msgstr "The currency can no longer be changed once orders have been placed."
 
-#: src/Admin/EventsPage.php:304
-#: src/Admin/EventsPage.php:346
+#: src/Admin/EventsPage.php:308
+#: src/Admin/EventsPage.php:350
 msgid "Feld nicht gefunden."
 msgstr "Field not found."
 
-#: src/Admin/EventsPage.php:310
+#: src/Admin/EventsPage.php:314
 msgid "Bitte Bezeichnung und Feldtyp angeben."
 msgstr "Please enter a label and field type."
 
-#: src/Admin/EventsPage.php:312
+#: src/Admin/EventsPage.php:316
 msgid "Die Aufbewahrungsdauer darf höchstens 3650 Tage betragen."
 msgstr "The retention period may not exceed 3650 days."
 
-#: src/Admin/EventsPage.php:329
+#: src/Admin/EventsPage.php:333
 msgid "Bitte einen technischen Schlüssel angeben (a-z, 0-9, _)."
 msgstr "Please enter a technical key (a-z, 0-9, _)."
 
-#: src/Admin/EventsPage.php:331
+#: src/Admin/EventsPage.php:335
 msgid "Dieser Schlüssel ist für die Ticketart bereits vergeben."
 msgstr "This key is already in use for this ticket type."
 
-#: src/Admin/EventsPage.php:337
+#: src/Admin/EventsPage.php:341
 msgid "Das Feld konnte nicht gespeichert werden."
 msgstr "The field could not be saved."
 
-#: src/Admin/EventsPage.php:371
-#: src/Admin/EventsPage.php:391
+#: src/Admin/EventsPage.php:375
+#: src/Admin/EventsPage.php:395
 msgid "Zuweisung ungültig."
 msgstr "Invalid assignment."
 
-#: src/Admin/EventsPage.php:378
+#: src/Admin/EventsPage.php:382
 msgid "Der Benutzer hat dieses Recht nicht über seine Rolle (z. B. Pass Captain Veranstaltungsleitung). Bitte zuerst die Rolle zuweisen."
 msgstr "The user does not have this capability through their role (e.g. Pass Captain Event Manager). Please assign the role first."
 
-#: src/Admin/EventsPage.php:422
+#: src/Admin/EventsPage.php:426
 msgid "Event gespeichert."
 msgstr "Event saved."
 
-#: src/Admin/EventsPage.php:428
+#: src/Admin/EventsPage.php:432
 msgid "Event aktualisiert."
 msgstr "Event updated."
 
-#: src/Admin/EventsPage.php:435
+#: src/Admin/EventsPage.php:439
 msgid "Termin gespeichert."
 msgstr "Date saved."
 
-#: src/Admin/EventsPage.php:437
+#: src/Admin/EventsPage.php:441
 msgid "Der Termin hat verkaufte Tickets; die Verschiebung wurde gemeldet."
 msgstr "This date has tickets sold; the reschedule has been announced."
 
-#: src/Admin/EventsPage.php:447
+#: src/Admin/EventsPage.php:451
 msgid "Termin abgesagt."
 msgstr "Date canceled."
 
-#: src/Admin/EventsPage.php:455
+#: src/Admin/EventsPage.php:459
 msgid "Ticketart gespeichert."
 msgstr "Ticket type saved."
 
-#: src/Admin/EventsPage.php:463
+#: src/Admin/EventsPage.php:467
 msgid "Teilnehmerfeld gespeichert."
 msgstr "Attendee field saved."
 
-#: src/Admin/EventsPage.php:471
+#: src/Admin/EventsPage.php:475
 msgid "Teilnehmerfeld aktualisiert."
 msgstr "Attendee field updated."
 
-#: src/Admin/EventsPage.php:478
+#: src/Admin/EventsPage.php:482
 msgid "Zugriff zugewiesen."
 msgstr "Access assigned."
 
-#: src/Admin/EventsPage.php:484
+#: src/Admin/EventsPage.php:488
 msgid "Zugriff entfernt."
 msgstr "Access removed."
 
 #. translators: %d: notified buyers
-#: src/Admin/EventsPage.php:493
+#: src/Admin/EventsPage.php:497
 #, php-format
 msgid "Event abgesagt. %d Käufer wurden benachrichtigt."
 msgstr "Event canceled. %d buyers have been notified."
 
-#: src/Admin/EventsPage.php:520
+#: src/Admin/EventsPage.php:524
 msgid "Nicht gefunden oder keine Berechtigung für dieses Event."
 msgstr "Not found, or you do not have permission for this event."
 
-#: src/Admin/EventsPage.php:521
-#: src/Admin/EventsPage.php:613
+#: src/Admin/EventsPage.php:525
+#: src/Admin/EventsPage.php:617
 msgid "← Zur Eventliste"
 msgstr "← Back to events"
 
-#: src/Admin/EventsPage.php:525
+#: src/Admin/EventsPage.php:529
 #: src/Admin/Forms.php:375
 msgid "Entwurf"
 msgstr "Draft"
 
-#: src/Admin/EventsPage.php:525
+#: src/Admin/EventsPage.php:529
 #: src/Admin/Forms.php:376
 msgid "Veröffentlicht"
 msgstr "Published"
 
-#: src/Admin/EventsPage.php:533
-#: src/Admin/Menu.php:69
-msgid "Events"
-msgstr "Events"
-
-#: src/Admin/EventsPage.php:539
+#: src/Admin/EventsPage.php:543
 msgid "Nächster Termin"
 msgstr "Next date"
 
-#: src/Admin/EventsPage.php:540
-#: src/Admin/EventsPage.php:593
-#: src/Admin/EventsPage.php:636
-#: src/Admin/EventsPage.php:682
+#: src/Admin/EventsPage.php:544
+#: src/Admin/EventsPage.php:597
+#: src/Admin/EventsPage.php:640
+#: src/Admin/EventsPage.php:686
 msgid "Ort"
 msgstr "Venue"
 
-#: src/Admin/EventsPage.php:541
-#: src/Admin/EventsPage.php:631
+#: src/Admin/EventsPage.php:545
+#: src/Admin/EventsPage.php:635
 msgid "Termine"
 msgstr "Dates"
 
-#: src/Admin/EventsPage.php:542
-#: src/Admin/EventsPage.php:599
-#: src/Admin/EventsPage.php:623
-#: src/Admin/EventsPage.php:638
-#: src/Admin/EventsPage.php:684
-#: src/Admin/EventsPage.php:752
-#: src/Admin/EventsPage.php:790
-#: src/Admin/EventsPage.php:826
-#: src/Admin/OrdersPage.php:259
-#: src/Admin/OrdersPage.php:319
-#: src/Admin/OrdersPage.php:384
-#: src/Admin/OrdersPage.php:474
-#: src/Admin/TicketsPage.php:153
-#: src/Integrations/WooCommerce/OrderAdapter.php:634
-#: src/Privacy.php:27
-#: src/Privacy.php:41
-msgid "Status"
-msgstr "Status"
-
-#: src/Admin/EventsPage.php:543
-#: src/Admin/EventsPage.php:639
-#: src/Admin/EventsPage.php:705
-#: src/Admin/EventsPage.php:827
+#: src/Admin/EventsPage.php:547
+#: src/Admin/EventsPage.php:643
+#: src/Admin/EventsPage.php:709
+#: src/Admin/EventsPage.php:831
 #: src/Admin/OrdersPage.php:476
 #: src/Admin/TicketsPage.php:154
 msgid "Aktion"
 msgstr "Action"
 
-#: src/Admin/EventsPage.php:547
+#: src/Admin/EventsPage.php:551
 msgid "Noch keine Events angelegt."
 msgstr "No events created yet."
 
 #. translators: %s: date
-#: src/Admin/EventsPage.php:561
+#: src/Admin/EventsPage.php:565
 #, php-format
 msgid "Kein kommender Termin (zuletzt %s)"
 msgstr "No upcoming date (last: %s)"
 
-#: src/Admin/EventsPage.php:571
-#: src/Admin/EventsPage.php:842
+#: src/Admin/EventsPage.php:575
+#: src/Admin/EventsPage.php:846
 msgid "Bearbeiten"
 msgstr "Edit"
 
-#: src/Admin/EventsPage.php:574
+#: src/Admin/EventsPage.php:578
 msgid "Event absagen und betroffene Käufer benachrichtigen?"
 msgstr "Cancel the event and notify affected buyers?"
 
-#: src/Admin/EventsPage.php:574
+#: src/Admin/EventsPage.php:578
 msgid "Event absagen"
 msgstr "Cancel event"
 
-#: src/Admin/EventsPage.php:584
+#: src/Admin/EventsPage.php:588
 msgid "Event anlegen"
 msgstr "Create event"
 
-#: src/Admin/EventsPage.php:585
+#: src/Admin/EventsPage.php:589
 msgid "Neue Events starten als Entwurf. Zeiten werden in der gewählten Zeitzone eingegeben."
 msgstr "New events start as drafts. Times are entered in the selected time zone."
 
-#: src/Admin/EventsPage.php:588
-#: src/Admin/EventsPage.php:621
+#: src/Admin/EventsPage.php:592
+#: src/Admin/EventsPage.php:625
 msgid "Eventname"
 msgstr "Event name"
 
-#: src/Admin/EventsPage.php:589
-#: src/Admin/EventsPage.php:622
+#: src/Admin/EventsPage.php:593
+#: src/Admin/EventsPage.php:626
 msgid "Beschreibung"
 msgstr "Description"
 
-#: src/Admin/EventsPage.php:590
-#: src/Admin/EventsPage.php:634
+#: src/Admin/EventsPage.php:594
+#: src/Admin/EventsPage.php:638
 msgid "Beginn"
 msgstr "Start"
 
-#: src/Admin/EventsPage.php:591
-#: src/Admin/EventsPage.php:680
+#: src/Admin/EventsPage.php:595
+#: src/Admin/EventsPage.php:684
 msgid "Ende (optional)"
 msgstr "End (optional)"
 
-#: src/Admin/EventsPage.php:592
+#: src/Admin/EventsPage.php:596
 msgid "Terminserie"
 msgstr "Recurring dates"
 
-#: src/Admin/EventsPage.php:592
+#: src/Admin/EventsPage.php:596
 msgid "Einmalig"
 msgstr "One-time"
 
-#: src/Admin/EventsPage.php:592
+#: src/Admin/EventsPage.php:596
 msgid "Wöchentlich"
 msgstr "Weekly"
 
-#: src/Admin/EventsPage.php:592
+#: src/Admin/EventsPage.php:596
 msgid "Anzahl Termine (max. 12)"
 msgstr "Number of dates (max. 12)"
 
-#: src/Admin/EventsPage.php:594
+#: src/Admin/EventsPage.php:598
 msgid "Kontingent pro Termin"
 msgstr "Capacity per date"
 
-#: src/Admin/EventsPage.php:594
-#: src/Admin/EventsPage.php:683
-#: src/Admin/EventsPage.php:786
+#: src/Admin/EventsPage.php:598
+#: src/Admin/EventsPage.php:687
+#: src/Admin/EventsPage.php:790
 msgid "0 bedeutet unbegrenzt."
 msgstr "0 means unlimited."
 
-#: src/Admin/EventsPage.php:595
+#: src/Admin/EventsPage.php:599
 msgid "Ticketkategorie"
 msgstr "Ticket type"
 
-#: src/Admin/EventsPage.php:596
-#: src/Admin/EventsPage.php:784
+#: src/Admin/EventsPage.php:600
+#: src/Admin/EventsPage.php:788
 msgid "Preis (brutto)"
 msgstr "Price (gross)"
 
-#: src/Admin/EventsPage.php:597
-#: src/Admin/EventsPage.php:785
+#: src/Admin/EventsPage.php:601
+#: src/Admin/EventsPage.php:789
 msgid "Steuersatz in %"
 msgstr "Tax rate in %"
 
-#: src/Admin/EventsPage.php:597
+#: src/Admin/EventsPage.php:601
 msgid "z. B. 19 oder 7,7"
 msgstr "e.g. 19 or 7.7"
 
-#: src/Admin/EventsPage.php:598
+#: src/Admin/EventsPage.php:602
 msgid "Ticketkontingent"
 msgstr "Ticket capacity"
 
-#: src/Admin/EventsPage.php:601
+#: src/Admin/EventsPage.php:605
 msgid "Event speichern"
 msgstr "Save event"
 
-#: src/Admin/EventsPage.php:617
+#: src/Admin/EventsPage.php:621
 msgid "Eventdaten"
 msgstr "Event details"
 
-#: src/Admin/EventsPage.php:625
+#: src/Admin/EventsPage.php:629
 msgid "Event aktualisieren"
 msgstr "Update event"
 
-#: src/Admin/EventsPage.php:628
+#: src/Admin/EventsPage.php:632
 msgid "Dieses Event wurde abgesagt und kann nicht mehr bearbeitet werden."
 msgstr "This event has been canceled and can no longer be edited."
 
-#: src/Admin/EventsPage.php:635
+#: src/Admin/EventsPage.php:639
 msgid "Ende"
 msgstr "End"
 
-#: src/Admin/EventsPage.php:637
-#: src/Admin/EventsPage.php:749
+#: src/Admin/EventsPage.php:641
+#: src/Admin/EventsPage.php:753
 msgid "Verkauft / Kontingent"
 msgstr "Sold / Capacity"
 
-#: src/Admin/EventsPage.php:642
+#: src/Admin/EventsPage.php:646
 msgid "Keine Termine."
 msgstr "No dates."
 
-#: src/Admin/EventsPage.php:651
+#: src/Admin/EventsPage.php:655
 msgid "Bearbeiten & Ticketarten"
 msgstr "Edit & ticket types"
 
-#: src/Admin/EventsPage.php:654
+#: src/Admin/EventsPage.php:658
 msgid "Diesen Termin absagen?"
 msgstr "Cancel this date?"
 
-#: src/Admin/EventsPage.php:654
+#: src/Admin/EventsPage.php:658
 msgid "Absagen"
 msgstr "Cancel"
 
-#: src/Admin/EventsPage.php:664
-#: src/Admin/EventsPage.php:689
+#: src/Admin/EventsPage.php:668
+#: src/Admin/EventsPage.php:693
 msgid "Termin hinzufügen"
 msgstr "Add date"
 
-#: src/Admin/EventsPage.php:679
+#: src/Admin/EventsPage.php:683
 msgid "Beginn (Ortszeit)"
 msgstr "Start (local time)"
 
-#: src/Admin/EventsPage.php:681
+#: src/Admin/EventsPage.php:685
 msgid "Zeitzone"
 msgstr "Time zone"
 
-#: src/Admin/EventsPage.php:683
-#: src/Admin/EventsPage.php:786
+#: src/Admin/EventsPage.php:687
+#: src/Admin/EventsPage.php:790
 msgid "Kontingent"
 msgstr "Capacity"
 
-#: src/Admin/EventsPage.php:684
+#: src/Admin/EventsPage.php:688
 #: src/Admin/Forms.php:378
 msgid "Geplant"
 msgstr "Scheduled"
 
-#: src/Admin/EventsPage.php:684
+#: src/Admin/EventsPage.php:688
 msgid "Abgesagt"
 msgstr "Canceled"
 
-#: src/Admin/EventsPage.php:687
+#: src/Admin/EventsPage.php:691
 msgid "Für diesen Termin sind bereits Tickets ausgestellt. Eine Änderung des Beginns wird als Terminverschiebung gemeldet."
 msgstr "Tickets have already been issued for this date. Changing the start will be announced as a reschedule."
 
-#: src/Admin/EventsPage.php:689
+#: src/Admin/EventsPage.php:693
 msgid "Termin speichern"
 msgstr "Save date"
 
-#: src/Admin/EventsPage.php:697
+#: src/Admin/EventsPage.php:701
 msgid "Einlass/Scanner"
 msgstr "Admission/Scanner"
 
-#: src/Admin/EventsPage.php:698
+#: src/Admin/EventsPage.php:702
 msgid "Event verwalten"
 msgstr "Manage event"
 
-#: src/Admin/EventsPage.php:699
+#: src/Admin/EventsPage.php:703
 msgid "Bestellungen/Kasse"
 msgstr "Orders/Box office"
 
-#: src/Admin/EventsPage.php:700
+#: src/Admin/EventsPage.php:704
 msgid "Berichte"
 msgstr "Reports"
 
-#: src/Admin/EventsPage.php:703
+#: src/Admin/EventsPage.php:707
 msgid "Personal und Zugriff"
 msgstr "Staff and access"
 
-#: src/Admin/EventsPage.php:705
+#: src/Admin/EventsPage.php:709
 msgid "Benutzer"
 msgstr "User"
 
-#: src/Admin/EventsPage.php:705
-#: src/Admin/EventsPage.php:724
+#: src/Admin/EventsPage.php:709
+#: src/Admin/EventsPage.php:728
 msgid "Recht"
 msgstr "Capability"
 
-#: src/Admin/EventsPage.php:707
+#: src/Admin/EventsPage.php:711
 msgid "Noch kein Personal zugewiesen."
 msgstr "No staff assigned yet."
 
-#: src/Admin/EventsPage.php:714
+#: src/Admin/EventsPage.php:718
 msgid "Entfernen"
 msgstr "Remove"
 
-#: src/Admin/EventsPage.php:721
 #: src/Admin/EventsPage.php:725
+#: src/Admin/EventsPage.php:729
 msgid "Zugriff zuweisen"
 msgstr "Assign access"
 
-#: src/Admin/EventsPage.php:723
+#: src/Admin/EventsPage.php:727
 msgid "Benutzer (ID, Login oder E-Mail)"
 msgstr "User (ID, login, or email)"
 
-#: src/Admin/EventsPage.php:726
+#: src/Admin/EventsPage.php:730
 msgid "Einlassrechte werden direkt vergeben. Für alle anderen Rechte braucht der Benutzer eine passende Rolle (z. B. Pass Captain Veranstaltungsleitung)."
 msgstr "Check-in permissions are granted directly. For all other capabilities, the user needs a matching role (e.g. Pass Captain Event Manager)."
 
 #. translators: %s: date
-#: src/Admin/EventsPage.php:739
+#: src/Admin/EventsPage.php:743
 #, php-format
 msgid "Termin %s"
 msgstr "Date %s"
 
-#: src/Admin/EventsPage.php:743
+#: src/Admin/EventsPage.php:747
 msgid "Ticketarten"
 msgstr "Ticket types"
 
-#: src/Admin/EventsPage.php:746
-#: src/Admin/EventsPage.php:783
+#: src/Admin/EventsPage.php:750
+#: src/Admin/EventsPage.php:787
 #: src/PublicEvents.php:25
 msgid "Name"
 msgstr "Name"
 
-#: src/Admin/EventsPage.php:747
+#: src/Admin/EventsPage.php:751
 msgid "Preis"
 msgstr "Price"
 
-#: src/Admin/EventsPage.php:748
+#: src/Admin/EventsPage.php:752
 msgid "Steuer"
 msgstr "Tax"
 
-#: src/Admin/EventsPage.php:750
-#: src/Admin/EventsPage.php:787
+#: src/Admin/EventsPage.php:754
+#: src/Admin/EventsPage.php:791
 msgid "Max. pro Bestellung"
 msgstr "Max. per order"
 
-#: src/Admin/EventsPage.php:751
+#: src/Admin/EventsPage.php:755
 msgid "Verkaufszeitraum"
 msgstr "Sales period"
 
-#: src/Admin/EventsPage.php:755
+#: src/Admin/EventsPage.php:759
 msgid "Noch keine Ticketarten."
 msgstr "No ticket types yet."
 
-#: src/Admin/EventsPage.php:770
-#: src/Admin/EventsPage.php:792
+#: src/Admin/EventsPage.php:774
+#: src/Admin/EventsPage.php:796
 msgid "Ticketart hinzufügen"
 msgstr "Add ticket type"
 
-#: src/Admin/EventsPage.php:784
+#: src/Admin/EventsPage.php:788
 msgid "z. B. 12,50"
 msgstr "e.g. 12.50"
 
-#: src/Admin/EventsPage.php:785
+#: src/Admin/EventsPage.php:789
 msgid "Im Preis enthaltene Umsatzsteuer, z. B. 19 oder 7,7"
 msgstr "VAT included in the price, e.g. 19 or 7.7"
 
-#: src/Admin/EventsPage.php:788
+#: src/Admin/EventsPage.php:792
 msgid "Verkaufsstart"
 msgstr "Sales start"
 
 #. translators: %s: timezone
-#: src/Admin/EventsPage.php:788
+#: src/Admin/EventsPage.php:792
 #, php-format
 msgid "Ortszeit %s; leer = sofort"
 msgstr "Local time %s; empty = immediately"
 
 #. translators: %s: timezone
-#: src/Admin/EventsPage.php:789
+#: src/Admin/EventsPage.php:793
 msgid "Verkaufsende"
 msgstr "Sales end"
 
 #. translators: %s: timezone
-#: src/Admin/EventsPage.php:789
+#: src/Admin/EventsPage.php:793
 msgid "leer = bis Terminbeginn"
 msgstr "empty = until the date starts"
 
-#: src/Admin/EventsPage.php:790
+#: src/Admin/EventsPage.php:794
 #: src/Admin/Forms.php:379
 #: src/Admin/SettingsPage.php:266
 msgid "Aktiv"
 msgstr "Active"
 
-#: src/Admin/EventsPage.php:790
+#: src/Admin/EventsPage.php:794
 #: src/Admin/Forms.php:380
 msgid "Pausiert"
 msgstr "Paused"
 
-#: src/Admin/EventsPage.php:792
+#: src/Admin/EventsPage.php:796
 msgid "Ticketart speichern"
 msgstr "Save ticket type"
 
-#: src/Admin/EventsPage.php:808
+#: src/Admin/EventsPage.php:812
 msgid "Text"
 msgstr "Text"
 
-#: src/Admin/EventsPage.php:808
+#: src/Admin/EventsPage.php:812
 #: src/Admin/OrdersPage.php:256
 #: templates/event-card.php:32
 msgid "E-Mail"
 msgstr "Email"
 
-#: src/Admin/EventsPage.php:808
+#: src/Admin/EventsPage.php:812
 msgid "Mehrzeiliger Text"
 msgstr "Multi-line text"
 
-#: src/Admin/EventsPage.php:808
+#: src/Admin/EventsPage.php:812
 msgid "Checkbox"
 msgstr "Checkbox"
 
 #. translators: %s: ticket type name
-#: src/Admin/EventsPage.php:812
+#: src/Admin/EventsPage.php:816
 #, php-format
 msgid "Ticketart: %s"
 msgstr "Ticket type: %s"
 
-#: src/Admin/EventsPage.php:816
+#: src/Admin/EventsPage.php:820
 msgid "Teilnehmerfelder"
 msgstr "Attendee fields"
 
-#: src/Admin/EventsPage.php:817
+#: src/Admin/EventsPage.php:821
 msgid "Nur Daten abfragen, die für die Veranstaltung erforderlich sind. Zweck und Aufbewahrungsdauer werden Käufern angezeigt."
 msgstr "Only collect data that is required for the event. The purpose and retention period are shown to buyers."
 
-#: src/Admin/EventsPage.php:820
-#: src/Admin/EventsPage.php:856
+#: src/Admin/EventsPage.php:824
+#: src/Admin/EventsPage.php:860
 msgid "Schlüssel"
 msgstr "Key"
 
-#: src/Admin/EventsPage.php:821
-#: src/Admin/EventsPage.php:860
+#: src/Admin/EventsPage.php:825
+#: src/Admin/EventsPage.php:864
 msgid "Bezeichnung"
 msgstr "Label"
 
-#: src/Admin/EventsPage.php:822
-#: src/Admin/EventsPage.php:861
+#: src/Admin/EventsPage.php:826
+#: src/Admin/EventsPage.php:865
 msgid "Typ"
 msgstr "Type"
 
-#: src/Admin/EventsPage.php:823
+#: src/Admin/EventsPage.php:827
 msgid "Pflicht"
 msgstr "Required"
 
-#: src/Admin/EventsPage.php:824
-#: src/Admin/EventsPage.php:863
+#: src/Admin/EventsPage.php:828
+#: src/Admin/EventsPage.php:867
 msgid "Zweck"
 msgstr "Purpose"
 
-#: src/Admin/EventsPage.php:825
-#: src/Admin/EventsPage.php:864
+#: src/Admin/EventsPage.php:829
+#: src/Admin/EventsPage.php:868
 msgid "Aufbewahrung (Tage)"
 msgstr "Retention (days)"
 
-#: src/Admin/EventsPage.php:830
+#: src/Admin/EventsPage.php:834
 msgid "Keine Teilnehmerfelder."
 msgstr "No attendee fields."
 
-#: src/Admin/EventsPage.php:836
+#: src/Admin/EventsPage.php:840
 #: src/Admin/Queries.php:262
 msgid "Ja"
 msgstr "Yes"
 
-#: src/Admin/EventsPage.php:836
+#: src/Admin/EventsPage.php:840
 #: src/Admin/Queries.php:262
 msgid "Nein"
 msgstr "No"
 
-#: src/Admin/EventsPage.php:844
+#: src/Admin/EventsPage.php:848
 msgid "Deaktivieren"
 msgstr "Deactivate"
 
-#: src/Admin/EventsPage.php:844
+#: src/Admin/EventsPage.php:848
 msgid "Aktivieren"
 msgstr "Activate"
 
-#: src/Admin/EventsPage.php:853
+#: src/Admin/EventsPage.php:857
 msgid "Teilnehmerfeld bearbeiten"
 msgstr "Edit attendee field"
 
-#: src/Admin/EventsPage.php:853
+#: src/Admin/EventsPage.php:857
 msgid "Teilnehmerfeld hinzufügen"
 msgstr "Add attendee field"
 
-#: src/Admin/EventsPage.php:857
+#: src/Admin/EventsPage.php:861
 msgid "Der Schlüssel kann nicht geändert werden."
 msgstr "The key cannot be changed."
 
-#: src/Admin/EventsPage.php:858
+#: src/Admin/EventsPage.php:862
 msgid "Technischer Name, z. B. company (a-z, 0-9, _)"
 msgstr "Technical name, e.g. company (a-z, 0-9, _)"
 
-#: src/Admin/EventsPage.php:862
+#: src/Admin/EventsPage.php:866
 msgid "Pflichtfeld"
 msgstr "Required field"
 
-#: src/Admin/EventsPage.php:862
+#: src/Admin/EventsPage.php:866
 msgid "Für jedes Ticket erforderlich"
 msgstr "Required for every ticket"
 
-#: src/Admin/EventsPage.php:865
+#: src/Admin/EventsPage.php:869
 msgid "Reihenfolge"
 msgstr "Sort order"
 
-#: src/Admin/EventsPage.php:867
+#: src/Admin/EventsPage.php:871
 msgid "Feld speichern"
 msgstr "Save field"
 
@@ -879,61 +997,62 @@ msgid "Eingecheckt"
 msgstr "Checked in"
 
 #: src/Admin/Forms.php:392
-#: src/Admin/TicketsPage.php:180
-msgid "Widerrufen"
-msgstr "Revoked"
+msgid "Bereits eingecheckt (abgelehnt)"
+msgstr "Already checked in (rejected)"
 
 #: src/Admin/Forms.php:393
+#: src/Admin/Forms.php:404
+msgid "Heute nicht gültig"
+msgstr "Not valid today"
+
+#: src/Admin/Forms.php:394
+#: src/Admin/Forms.php:405
+msgid "Tageslimit erreicht"
+msgstr "Daily limit reached"
+
+#: src/Admin/Forms.php:396
 #: src/Admin/OrdersPage.php:498
 msgid "Wartet auf Freigabe"
 msgstr "Awaiting approval"
 
-#: src/Admin/Forms.php:394
+#: src/Admin/Forms.php:397
 msgid "Freigegeben"
 msgstr "Approved"
 
-#: src/Admin/Forms.php:395
+#: src/Admin/Forms.php:398
 msgid "In Bearbeitung"
 msgstr "Processing"
 
-#: src/Admin/Forms.php:396
+#: src/Admin/Forms.php:399
 msgid "Durchgeführt"
 msgstr "Completed"
 
-#: src/Admin/Forms.php:397
+#: src/Admin/Forms.php:400
 msgid "Fehlgeschlagen"
 msgstr "Failed"
 
-#: src/Admin/Forms.php:398
+#: src/Admin/Forms.php:401
 msgid "Abgelehnt"
 msgstr "Rejected"
 
-#: src/Admin/Forms.php:399
+#: src/Admin/Forms.php:402
 msgid "Check-in zurückgenommen"
 msgstr "Check-in reversed"
 
-#: src/Admin/Forms.php:400
+#: src/Admin/Forms.php:403
 msgid "Unbekannt"
 msgstr "Unknown"
 
-#: src/Admin/Forms.php:401
-msgid "Heute nicht gültig"
-msgstr "Not valid today"
-
-#: src/Admin/Forms.php:402
-msgid "Tageslimit erreicht"
-msgstr "Daily limit reached"
-
-#: src/Admin/Menu.php:62
+#: src/Admin/Menu.php:64
 msgid "Pass Captain"
 msgstr "Pass Captain"
 
-#: src/Admin/Menu.php:70
+#: src/Admin/Menu.php:72
 #: src/Admin/OrdersPage.php:242
 msgid "Bestellungen"
 msgstr "Orders"
 
-#: src/Admin/Menu.php:71
+#: src/Admin/Menu.php:73
 #: src/Admin/OrdersPage.php:363
 #: src/Admin/OrdersPage.php:472
 #: src/Admin/TicketsPage.php:135
@@ -944,14 +1063,14 @@ msgstr "Orders"
 msgid "Tickets"
 msgstr "Tickets"
 
-#: src/Admin/Menu.php:74
-#: src/Admin/Menu.php:75
+#: src/Admin/Menu.php:76
+#: src/Admin/Menu.php:77
 #: src/Admin/OrdersPage.php:426
 #: src/Admin/SettingsPage.php:70
 msgid "Erstattungen"
 msgstr "Refunds"
 
-#: src/Admin/Menu.php:76
+#: src/Admin/Menu.php:79
 msgid "Einstellungen"
 msgstr "Settings"
 
@@ -1572,8 +1691,8 @@ msgstr "Recommended: define as constant %s in wp-config.php."
 
 #: src/Admin/TicketsPage.php:38
 #: src/Admin/TicketsPage.php:66
-#: src/Rest/Controller.php:686
-#: src/Rest/Controller.php:692
+#: src/Checkin.php:24
+#: src/Checkin.php:31
 msgid "Ticket nicht gefunden."
 msgstr "Ticket not found."
 
@@ -1586,8 +1705,8 @@ msgid "Nur gültige (nicht eingecheckte) Tickets können widerrufen werden."
 msgstr "Only valid (not checked-in) tickets can be revoked."
 
 #: src/Admin/TicketsPage.php:67
-#: src/Rest/Controller.php:644
-#: src/Rest/Controller.php:652
+#: src/Checkin.php:130
+#: src/Mobile/Api.php:87
 msgid "Für dieses Event ist kein Einlasszugriff zugewiesen."
 msgstr "No check-in access has been assigned for this event."
 
@@ -1667,6 +1786,43 @@ msgstr "Campaign code, currency, or discount value is invalid."
 msgid "Kampagne konnte nicht angelegt werden."
 msgstr "Campaign could not be created."
 
+#: src/Checkin.php:32
+msgid "Dieser Termin wurde abgesagt; das Ticket berechtigt nicht zum Einlass."
+msgstr "This date has been canceled; the ticket does not grant admission."
+
+#: src/Checkin.php:33
+msgid "Das Ticket liegt außerhalb des Einlasszeitraums."
+msgstr "The ticket is outside the admission period."
+
+#: src/Checkin.php:133
+#: src/Mobile/Api.php:121
+msgid "Dieses Gerät ist für ein anderes Event freigegeben."
+msgstr "This device is authorized for a different event."
+
+#: src/Checkin.php:136
+msgid "Das Ticket gilt für einen anderen Termin."
+msgstr "The ticket is for a different date."
+
+#: src/Checkin.php:144
+msgid "Ticket wurde bereits verwendet."
+msgstr "Ticket has already been used."
+
+#: src/Checkin.php:145
+msgid "Ticket ist widerrufen."
+msgstr "Ticket has been revoked."
+
+#: src/Checkin.php:146
+msgid "Ticket ist heute nicht gültig."
+msgstr "Ticket is not valid today."
+
+#: src/Checkin.php:147
+msgid "Das Tageskontingent für dieses Ticket ist erreicht."
+msgstr "The daily quota for this ticket has been reached."
+
+#: src/Checkin.php:150
+msgid "Ticket wurde bereits verwendet oder ist widerrufen."
+msgstr "Ticket has already been used or has been revoked."
+
 #: src/Communications.php:9
 msgid "Alle fünf Minuten (WP Pass Captain)"
 msgstr "Every five minutes (WP Pass Captain)"
@@ -1695,31 +1851,31 @@ msgstr "API key could not be created."
 msgid "API-Key nicht gefunden oder keine Berechtigung."
 msgstr "API key not found, or you do not have permission."
 
-#: src/Installer.php:660
+#: src/Installer.php:684
 msgid "Pass Captain Ticket-Administration"
 msgstr "Pass Captain Ticket Administrator"
 
-#: src/Installer.php:661
+#: src/Installer.php:685
 msgid "Pass Captain Veranstaltungsleitung"
 msgstr "Pass Captain Event Manager"
 
-#: src/Installer.php:662
+#: src/Installer.php:686
 msgid "Pass Captain Vor-Ort-Kasse"
 msgstr "Pass Captain Box Office"
 
-#: src/Installer.php:663
+#: src/Installer.php:687
 msgid "Pass Captain Einlasspersonal"
 msgstr "Pass Captain Check-in Staff"
 
-#: src/Installer.php:664
+#: src/Installer.php:688
 msgid "Pass Captain Partner"
 msgstr "Pass Captain Partner"
 
-#: src/Installer.php:665
+#: src/Installer.php:689
 msgid "Pass Captain Finanzbuchhaltung"
 msgstr "Pass Captain Accounting"
 
-#: src/Installer.php:666
+#: src/Installer.php:690
 msgid "Pass Captain Support"
 msgstr "Pass Captain Support"
 
@@ -1744,92 +1900,92 @@ msgstr "The voucher does not match this order."
 msgid "Der Gutschein konnte nicht eingelöst werden."
 msgstr "The voucher could not be redeemed."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:92
+#: src/Integrations/WooCommerce/OrderAdapter.php:93
 msgid "— Kein Ticketprodukt —"
 msgstr "— No ticket product —"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:96
+#: src/Integrations/WooCommerce/OrderAdapter.php:97
 msgid "nicht im Verkauf"
 msgstr "not on sale"
 
 #. translators: %d: ticket type ID
-#: src/Integrations/WooCommerce/OrderAdapter.php:102
+#: src/Integrations/WooCommerce/OrderAdapter.php:103
 #, php-format
 msgid "Unbekannte Ticketkategorie #%d"
 msgstr "Unknown ticket type #%d"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:108
+#: src/Integrations/WooCommerce/OrderAdapter.php:109
 msgid "Pass Captain Ticketkategorie"
 msgstr "Pass Captain ticket type"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:109
+#: src/Integrations/WooCommerce/OrderAdapter.php:110
 msgid "Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster und Höchstmenge kommen aus Pass Captain; der Preis kommt aus WooCommerce. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen."
 msgstr "This product sells tickets of the selected type. Capacity, sales window, and maximum quantity come from Pass Captain; the price comes from WooCommerce. Keep WooCommerce stock management disabled for this product."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:245
+#: src/Integrations/WooCommerce/OrderAdapter.php:246
 msgid "Diese Ticketkategorie existiert nicht mehr."
 msgstr "This ticket type no longer exists."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:251
+#: src/Integrations/WooCommerce/OrderAdapter.php:252
 #, php-format
 msgid "„%s“ ist nicht mehr buchbar."
 msgstr "“%s” can no longer be booked."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:255
+#: src/Integrations/WooCommerce/OrderAdapter.php:256
 #, php-format
 msgid "Der Verkauf für „%s“ ist derzeit geschlossen."
 msgstr "Sales for “%s” are currently closed."
 
 #. translators: 1: max quantity, 2: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:259
+#: src/Integrations/WooCommerce/OrderAdapter.php:260
 #, php-format
 msgid "Pro Bestellung sind höchstens %1$d Tickets für „%2$s“ möglich."
 msgstr "A maximum of %1$d tickets for “%2$s” is allowed per order."
 
 #. translators: %s: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:265
+#: src/Integrations/WooCommerce/OrderAdapter.php:266
 #, php-format
 msgid "„%s“ ist ausverkauft."
 msgstr "“%s” is sold out."
 
 #. translators: 1: available quantity, 2: event and ticket name
-#: src/Integrations/WooCommerce/OrderAdapter.php:267
+#: src/Integrations/WooCommerce/OrderAdapter.php:268
 #, php-format
 msgid "Für „%2$s“ sind nur noch %1$d Tickets verfügbar."
 msgstr "Only %1$d tickets are left for “%2$s”."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:322
+#: src/Integrations/WooCommerce/OrderAdapter.php:323
 msgid "Für Tickets wird eine gültige E-Mail-Adresse benötigt."
 msgstr "A valid email address is required for tickets."
 
 #. translators: %d: hold minutes
-#: src/Integrations/WooCommerce/OrderAdapter.php:356
+#: src/Integrations/WooCommerce/OrderAdapter.php:357
 #, php-format
 msgid "Pass Captain: Tickets für %d Minuten reserviert."
 msgstr "Pass Captain: Tickets held for %d minutes."
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:433
+#: src/Integrations/WooCommerce/OrderAdapter.php:434
 #, php-format
 msgid "Pass Captain: Tickets konnten nicht reserviert werden: %s"
 msgstr "Pass Captain: Tickets could not be held: %s"
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:454
+#: src/Integrations/WooCommerce/OrderAdapter.php:455
 #, php-format
 msgid "Pass Captain: Zahlung eingegangen, aber Tickets konnten nicht erneut reserviert werden – bitte manuell klären. %s"
 msgstr "Pass Captain: Payment received, but tickets could not be held again – please resolve manually. %s"
 
 #. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:462
+#: src/Integrations/WooCommerce/OrderAdapter.php:463
 #, php-format
 msgid "Pass Captain: Keine Tickets ausgestellt – %s"
 msgstr "Pass Captain: No tickets issued – %s"
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:467
+#: src/Integrations/WooCommerce/OrderAdapter.php:468
 #, php-format
 msgid "Pass Captain: %d Ticket ausgestellt und per E-Mail versendet."
 msgid_plural "Pass Captain: %d Tickets ausgestellt und per E-Mail versendet."
@@ -1837,83 +1993,83 @@ msgstr[0] "Pass Captain: %d ticket issued and sent by email."
 msgstr[1] "Pass Captain: %d tickets issued and sent by email."
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:520
+#: src/Integrations/WooCommerce/OrderAdapter.php:521
 #, php-format
 msgid "Pass Captain: %d Ticket(s) wegen Erstattung widerrufen."
 msgstr "Pass Captain: %d ticket(s) revoked due to refund."
 
 #. translators: %d: ticket count
-#: src/Integrations/WooCommerce/OrderAdapter.php:523
+#: src/Integrations/WooCommerce/OrderAdapter.php:524
 #, php-format
 msgid "%d erstattete(s) Ticket(s) waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert."
 msgstr "%d refunded ticket(s) were already checked in or no longer valid and were not changed."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:554
+#: src/Integrations/WooCommerce/OrderAdapter.php:543
+msgid "Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten."
+msgstr "Pass Captain: A date in this order has been canceled; the tickets have been revoked. Please refund the order in WooCommerce."
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:564
 #: src/Orders.php:738
 #: src/Orders.php:769
 msgid "Deine Tickets"
 msgstr "Your tickets"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:556
+#: src/Integrations/WooCommerce/OrderAdapter.php:566
 msgid "Deine Tickets werden nach bestätigter Zahlung per E-Mail zugestellt."
 msgstr "Your tickets will be emailed to you once payment is confirmed."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:559
+#: src/Integrations/WooCommerce/OrderAdapter.php:569
 msgid "Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet."
 msgstr "We have emailed you the ticket links with QR codes."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:571
+#: src/Integrations/WooCommerce/OrderAdapter.php:581
 msgid "Pass Captain Tickets"
 msgstr "Pass Captain Tickets"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:580
+#: src/Integrations/WooCommerce/OrderAdapter.php:590
 msgid "Keine Tickets in dieser Bestellung."
 msgstr "No tickets in this order."
 
 #. translators: 1: order ID, 2: status, 3: payment status
-#: src/Integrations/WooCommerce/OrderAdapter.php:586
+#: src/Integrations/WooCommerce/OrderAdapter.php:596
 #, php-format
 msgid "Pass Captain Bestellung #%1$d: %2$s / %3$s"
 msgstr "Pass Captain order #%1$d: %2$s / %3$s"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:588
+#: src/Integrations/WooCommerce/OrderAdapter.php:598
 msgid "Zahlung eingegangen, aber kein Kontingent mehr frei. Bitte Platz freigeben und „Tickets erneut ausstellen“ wählen oder erstatten."
 msgstr "Payment received, but no capacity left. Please free up a spot and choose “Reissue tickets”, or refund."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:600
+#: src/Integrations/WooCommerce/OrderAdapter.php:610
 msgid "Pass Captain: Tickets erneut senden (neue Codes)"
 msgstr "Pass Captain: Resend tickets (new codes)"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:601
+#: src/Integrations/WooCommerce/OrderAdapter.php:611
 msgid "Pass Captain: Tickets erneut ausstellen"
 msgstr "Pass Captain: Reissue tickets"
 
 #. translators: %s: error
-#: src/Integrations/WooCommerce/OrderAdapter.php:612
+#: src/Integrations/WooCommerce/OrderAdapter.php:622
 #, php-format
 msgid "Pass Captain: Erneuter Versand fehlgeschlagen – %s"
 msgstr "Pass Captain: Resend failed – %s"
 
 #. translators: %s: error
-#: src/Integrations/WooCommerce/OrderAdapter.php:612
+#: src/Integrations/WooCommerce/OrderAdapter.php:622
 msgid "Pass Captain: Tickets mit neuen Codes erneut gesendet."
 msgstr "Pass Captain: Tickets resent with new codes."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:623
+#: src/Integrations/WooCommerce/OrderAdapter.php:633
 msgid "Pass Captain: Die Bestellung ist noch nicht bezahlt."
 msgstr "Pass Captain: The order has not been paid yet."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:630
+#: src/Integrations/WooCommerce/OrderAdapter.php:640
 msgid "gültig"
 msgstr "valid"
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:631
+#: src/Integrations/WooCommerce/OrderAdapter.php:641
 msgid "eingecheckt"
 msgstr "checked in"
-
-#: src/Integrations/WooCommerce/OrderAdapter.php:632
-msgid "widerrufen"
-msgstr "revoked"
 
 #: src/Invoices.php:36
 msgid "Eine Rechnung kann erst für bezahlte Bestellungen erstellt werden."
@@ -2063,6 +2219,59 @@ msgstr "The usage quota of this pass has been used up."
 msgid "Pass konnte nicht eingelöst werden."
 msgstr "Pass could not be redeemed."
 
+#: src/Mobile/Api.php:47
+msgid "Zu viele Kopplungsversuche. Bitte später erneut versuchen."
+msgstr "Too many pairing attempts. Please try again later."
+
+#: src/Mobile/Api.php:109
+msgid "idempotency_key ist erforderlich."
+msgstr "idempotency_key is required."
+
+#: src/Mobile/Api.php:135
+msgid "Es müssen 1 bis 200 Scans übertragen werden."
+msgstr "Between 1 and 200 scans must be submitted."
+
+#: src/Mobile/Devices.php:33
+msgid "Für die Gerätekopplung ist eine Einlassberechtigung erforderlich."
+msgstr "Device pairing requires check-in permission."
+
+#: src/Mobile/Devices.php:37
+msgid "Bitte mindestens ein Event für das Gerät auswählen."
+msgstr "Please select at least one event for the device."
+
+#: src/Mobile/Devices.php:41
+msgid "Für mindestens ein gewähltes Event fehlt die Einlassberechtigung."
+msgstr "Check-in permission is missing for at least one selected event."
+
+#: src/Mobile/Devices.php:72
+#: src/Mobile/Devices.php:79
+msgid "Kopplungscode ungültig oder abgelaufen."
+msgstr "Invalid or expired pairing code."
+
+#: src/Mobile/Devices.php:119
+msgid "Gerätetoken fehlt oder ist ungültig."
+msgstr "Device token is missing or invalid."
+
+#: src/Mobile/Devices.php:124
+msgid "Gerätetoken ist ungültig, abgelaufen oder widerrufen."
+msgstr "Device token is invalid, expired, or revoked."
+
+#: src/Mobile/Devices.php:127
+msgid "Die Person hinter diesem Gerät hat keine Einlassberechtigung mehr."
+msgstr "The person using this device no longer has check-in permission."
+
+#: src/Mobile/Devices.php:130
+msgid "Zu viele Anfragen von diesem Gerät."
+msgstr "Too many requests from this device."
+
+#: src/Mobile/Devices.php:152
+msgid "Gerät nicht gefunden."
+msgstr "Device not found."
+
+#: src/Mobile/Devices.php:154
+msgid "Keine Berechtigung für dieses Gerät."
+msgstr "You do not have permission for this device."
+
 #. translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location
 #: src/Notifications.php:28
 #, php-format
@@ -2081,6 +2290,33 @@ msgstr "The date for “%1$s” has been rescheduled.\n\nPrevious: %2$s\nNew: %3
 #, php-format
 msgid "Terminänderung: %s"
 msgstr "Date change: %s"
+
+#: src/OccurrenceCancellation.php:44
+msgid "Termin abgesagt"
+msgstr "Date canceled"
+
+#: src/OccurrenceCancellation.php:59
+msgid "Der Ticketpreis wird automatisch erstattet."
+msgstr "The ticket price will be refunded automatically."
+
+#: src/OccurrenceCancellation.php:59
+msgid "Der Veranstalter informiert dich über Erstattung oder Ersatztermin."
+msgstr "The organizer will inform you about a refund or a replacement date."
+
+#. translators: 1: event, 2: date and time, 3: refund note
+#: src/OccurrenceCancellation.php:61
+#, php-format
+msgid ""
+"Der Termin „%1$s“ am %2$s wurde abgesagt. Dein Ticket ist dafür nicht mehr gültig.\n"
+"\n"
+"%3$s"
+msgstr "The date “%1$s” on %2$s has been canceled. Your ticket is no longer valid for it.\n\n%3$s"
+
+#. translators: %s: event
+#: src/OccurrenceCancellation.php:63
+#, php-format
+msgid "Absage: %s"
+msgstr "Canceled: %s"
 
 #: src/OrderPortal.php:40
 msgid "Deine Bestellung"
@@ -2805,22 +3041,6 @@ msgstr "An event day or admission rule is invalid."
 #: src/Rest/Controller.php:612
 msgid "Einlassregeln konnten nicht gespeichert werden."
 msgstr "Admission rules could not be saved."
-
-#: src/Rest/Controller.php:659
-msgid "Ticket wurde bereits verwendet oder ist widerrufen."
-msgstr "Ticket has already been used or has been revoked."
-
-#: src/Rest/Controller.php:675
-msgid "Ticket ist heute nicht gültig oder das Tageskontingent ist erreicht."
-msgstr "Ticket is not valid today or the daily quota has been reached."
-
-#: src/Rest/Controller.php:693
-msgid "Dieser Termin wurde abgesagt; das Ticket berechtigt nicht zum Einlass."
-msgstr "This date has been canceled; the ticket does not grant admission."
-
-#: src/Rest/Controller.php:694
-msgid "Das Ticket liegt außerhalb des Einlasszeitraums."
-msgstr "The ticket is outside the admission period."
 
 #: src/Seats.php:13
 msgid "Sitzplatzauswahl oder Idempotency-Key ungültig."

@@ -49,10 +49,22 @@ Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaSc
 - [Schritte 11–30](ROADMAP_11_30.md)
 - [Schritte 31–50](ROADMAP_31_50.md)
 
+## Scanner und Mobile-App
+
+- Web-Scanner per Shortcode `[wp_pass_captain_scanner]`. Die Kamera nutzt die native BarcodeDetector-API und fällt sonst (iOS/Safari, Firefox) auf das mitgelieferte jsQR (Apache-2.0, `assets/vendor/jsqr/`) zurück.
+- Native Scanner-Apps koppeln sich per QR-Code unter **Pass Captain → Scanner-Geräte** und nutzen die REST-API unter `/wp-json/wp-pass-captain/v1/app/` mit ablaufenden, eventgebundenen und widerrufbaren Gerätetokens. Spezifikation: [docs/MOBILE-API.md](docs/MOBILE-API.md).
+
+## Sprachen
+
+Ausgangssprache ist Deutsch. Eine vollständige englische Übersetzung liegt in `languages/wp-pass-captain-en_US.po/.mo`. Weitere Sprachen entstehen aus der Vorlage `languages/wp-pass-captain.pot`. Kompilieren ohne gettext-Tools:
+
+```sh
+php build/compile-mo.php languages/wp-pass-captain-xx_XX.po
+```
+
 ## Noch offen
 
 - Abnahme in einer echten WordPress-/WooCommerce-Installation sowie gegen die echten Stripe- und PayPal-Sandboxes (getestet ist gegen MariaDB mit nachgebauter WordPress-, WooCommerce- und Anbieter-API).
-- Englische Ausgangstexte bzw. fertige Übersetzungen (die Vorlage `languages/wp-pass-captain.pot` ist vorhanden; Ausgangssprache ist Deutsch).
 - Rechtliche und steuerliche Prüfung von Rechnungen, Gutschriften, Verbraucherinformationen und Steuersätzen je Land.
-- QR-Scan mit der Kamera braucht die BarcodeDetector-API (Chrome/Android); auf iOS bleibt die manuelle Eingabe.
-- P2/P3 laut Konzept: grafischer Sitzplan im Checkout, Wallet-Pässe, Offline-Check-in, POS-Oberfläche, Kalender, SMS, Badges, öffentliche Webhooks, Last-, Sicherheits- und Barrierefreiheitstests.
+- Native Scanner-Apps selbst (die Server-API ist fertig, siehe docs/MOBILE-API.md, inkl. geplanter Erweiterungen).
+- P2/P3 laut Konzept: grafischer Sitzplan im Checkout, Wallet-Pässe, echtes Offline-Prüfpaket, POS-Oberfläche, Kalender, SMS, Badges, öffentliche Webhooks, Last-, Sicherheits- und Barrierefreiheitstests.
