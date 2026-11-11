@@ -41,7 +41,10 @@ final class TicketService {
 	 * @param array  $source          Where the tickets come from, stored for the audit trail: provider (e.g.
 	 *                                "voucher-captain"), voucher_id, redemption_key, code_hint (last characters).
 	 * @param string $idempotency_key Stable key of this exchange (e.g. "vcap-voucher-123"); max. 191 characters.
-	 * @param array  $target          ticket_type_id (int) and quantity (1–10).
+	 * @param array  $target          ticket_type_id (int) and quantity (1–10). For a voucher valid for any date of
+	 *                                an event also event_id (int) and optionally ticket_name (string): the chosen
+	 *                                ticket type must then belong to an upcoming date of that event (and carry that
+	 *                                name); see options().
 	 * @param array  $recipient       email (required), name, attendees (list as in the public checkout, for
 	 *                                ticket types with required attendee fields).
 	 * @return array|\WP_Error order_id, order_public_id, ticket_ids (public ids), status "issued", reused (bool).
@@ -57,6 +60,12 @@ final class TicketService {
 		$existing = self::order_for_key( $key );
 		if ( $existing ) {
 			return self::complete( $existing, $source, true );
+		}
+		if ( ! empty( $target['event_id'] ) ) {
+			$allowed = array_column( $this->targets( array( 'event_id' => $target['event_id'], 'ticket_name' => $target['ticket_name'] ?? '' ) ), 'ticket_type_id' );
+			if ( ! in_array( $type_id, $allowed, true ) ) {
+				return self::error( 'wpcap_ticket_choice_invalid', __( 'Dieser Termin kann für den Gutschein nicht gewählt werden.', 'wp-pass-captain' ), 400 );
+			}
 		}
 		$order = Orders::create(
 			array(
@@ -101,18 +110,34 @@ final class TicketService {
 	/**
 	 * Ticket types that can be issued for vouchers (upcoming occurrences, active types), for admin selects.
 	 *
-	 * @return array<int, array{ticket_type_id:int,label:string,event:string,starts_at:string,currency:string,price_minor:int}>
+	 * @param array $filter Optional event_id (int) and ticket_name (string, exact name of the ticket type).
+	 * @return array<int, array{ticket_type_id:int,event_id:int,occurrence_id:int,label:string,date_label:string,name:string,event:string,starts_at:string,currency:string,price_minor:int}>
 	 */
-	public function targets() {
+	public function targets( array $filter = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.name,tt.currency,tt.price_minor,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE tt.status='active' AND o.status<>'cancelled' AND o.starts_at>=%s ORDER BY o.starts_at,e.name,tt.ticket_type_id LIMIT 500", current_time( 'mysql', true ) ) );
+		$where = '';
+		$args = array( current_time( 'mysql', true ) );
+		if ( ! empty( $filter['event_id'] ) ) {
+			$where .= ' AND e.event_id=%d';
+			$args[] = absint( $filter['event_id'] );
+		}
+		if ( '' !== (string) ( $filter['ticket_name'] ?? '' ) ) {
+			$where .= ' AND tt.name=%s';
+			$args[] = sanitize_text_field( (string) $filter['ticket_name'] );
+		}
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.name,tt.currency,tt.price_minor,e.event_id,e.name AS event_name,o.occurrence_id,o.starts_at,o.timezone FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE tt.status='active' AND o.status<>'cancelled' AND o.starts_at>=%s{$where} ORDER BY o.starts_at,e.name,tt.ticket_type_id LIMIT 500", $args ) );
 		$out = array();
 		foreach ( (array) $rows as $row ) {
 			try { $tz = new \DateTimeZone( $row->timezone ?: 'UTC' ); } catch ( \Exception $e ) { $tz = new \DateTimeZone( 'UTC' ); }
 			$local = ( new \DateTimeImmutable( $row->starts_at, new \DateTimeZone( 'UTC' ) ) )->setTimezone( $tz );
 			$out[] = array(
 				'ticket_type_id' => (int) $row->ticket_type_id,
+				'event_id' => (int) $row->event_id,
+				'occurrence_id' => (int) $row->occurrence_id,
+				/* translators: 1: date, 2: ticket type */
+				'date_label' => sprintf( __( '%1$s – %2$s', 'wp-pass-captain' ), $local->format( 'd.m.Y H:i' ), $row->name ),
+				'name' => (string) $row->name,
 				/* translators: 1: event, 2: date, 3: ticket type */
 				'label' => sprintf( __( '%1$s – %2$s – %3$s', 'wp-pass-captain' ), $row->event_name, $local->format( 'd.m.Y H:i' ), $row->name ),
 				'event' => (string) $row->event_name,
@@ -122,6 +147,37 @@ final class TicketService {
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * The dates a customer may choose for a voucher valid for any date of an event (target event_id and optional
+	 * ticket_name), soonest first: ticket_type_id, occurrence_id, date_label (date and ticket type), starts_at.
+	 */
+	public function options( array $target ) {
+		if ( empty( $target['event_id'] ) ) { return array(); }
+		return $this->targets( array( 'event_id' => $target['event_id'], 'ticket_name' => $target['ticket_name'] ?? '' ) );
+	}
+
+	/**
+	 * Events with at least one upcoming date, for "customer chooses the date" vouchers in admin selects.
+	 *
+	 * @return array<int, array{event_id:int,label:string,dates:int,ticket_names:string[]}>
+	 */
+	public function events() {
+		$events = array();
+		foreach ( $this->targets() as $t ) {
+			$id = $t['event_id'];
+			if ( ! isset( $events[ $id ] ) ) {
+				$events[ $id ] = array( 'event_id' => $id, 'label' => $t['event'], 'dates' => array(), 'ticket_names' => array() );
+			}
+			$events[ $id ]['dates'][ $t['occurrence_id'] ] = true;
+			$events[ $id ]['ticket_names'][ $t['name'] ] = true;
+		}
+		return array_values( array_map( static function ( $e ) {
+			$e['dates'] = count( $e['dates'] );
+			$e['ticket_names'] = array_keys( $e['ticket_names'] );
+			return $e;
+		}, $events ) );
 	}
 
 	/** Confirms the free order (issues and mails the tickets) and answers with the order data. */

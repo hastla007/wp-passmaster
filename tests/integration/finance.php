@@ -146,6 +146,23 @@ $x3 = $ticket_service->issue_tickets( $src, 'vcap-voucher-80', array( 'ticket_ty
 check( 'revoked tickets give their capacity back', is_array( $x3 ) && 2 === count( $x3['ticket_ids'] ) );
 check( 'a public checkout cannot claim a voucher exchange key', ! is_wp_error( $free_try = Orders::create( array( 'email' => 'pub@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 5, 10, 1000 ), 'quantity' => 1 ) ), 'idempotency_key' => 'vcap-voucher-80' ) ) ) && $free_try['order_id'] !== $x3['order_id'] );
 
+// Voucher valid for any date of an event: the customer chooses date and ticket type.
+$ev_type = make_type( 10, 10, 3000 );
+$ev = $wpdb->get_row( "SELECT o.event_id,o.occurrence_id FROM {$p}wpcap_ticket_types tt JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$ev_type" );
+$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $ev->event_id, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * 86400 ), 'timezone' => 'Europe/Vienna', 'location' => 'Wien', 'capacity' => 0, 'status' => 'scheduled' ) );
+$ev_occ2 = (int) $wpdb->insert_id;
+$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $ev_occ2, 'name' => 'Standard', 'price_minor' => 3000, 'currency' => 'EUR', 'capacity' => 10, 'max_per_order' => 10, 'status' => 'active' ) );
+$ev_type2 = (int) $wpdb->insert_id;
+$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $ev_occ2, 'name' => 'VIP', 'price_minor' => 9000, 'currency' => 'EUR', 'capacity' => 10, 'max_per_order' => 10, 'status' => 'active' ) );
+$ev_vip = (int) $wpdb->insert_id;
+$ev_target = array( 'event_id' => (int) $ev->event_id, 'ticket_name' => 'Standard' );
+$choices = array_column( $ticket_service->options( $ev_target ), 'ticket_type_id' );
+$listed = array_values( array_filter( $ticket_service->events(), static fn( $e ) => (int) $e['event_id'] === (int) $ev->event_id ) );
+check( 'an event voucher offers every upcoming date of the event with its ticket name', array( $ev_type, $ev_type2 ) === $choices && 1 === count( $listed ) && 2 === $listed[0]['dates'] && in_array( 'VIP', $listed[0]['ticket_names'], true ) );
+$ev_x = $ticket_service->issue_tickets( $src, 'vcap-voucher-90', $ev_target + array( 'ticket_type_id' => $ev_type2, 'quantity' => 1 ), array( 'email' => 'ev@example.com' ) );
+check( 'the customer gets a ticket for the chosen date', is_array( $ev_x ) && 1 === count( $ev_x['ticket_ids'] ) && $ev_type2 === (int) tickets( $ev_x['order_id'] )[0]->ticket_type_id );
+check( 'a ticket type of another ticket name or event cannot be chosen', is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-91', $ev_target + array( 'ticket_type_id' => $ev_vip, 'quantity' => 1 ), array( 'email' => 'ev@example.com' ) ) ) && is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-92', $ev_target + array( 'ticket_type_id' => $xt, 'quantity' => 1 ), array( 'email' => 'ev@example.com' ) ) ) );
+
 echo "Self-service and schedule changes\n";
 PassCaptain\Settings::update( array( 'attendee_edit_hours' => 24 ) );
 $st = make_type( 10, 10, 0 );
