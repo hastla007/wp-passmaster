@@ -134,7 +134,7 @@ http_reset();
 Dispatcher::process();
 check( 'no deliveries to a disabled subscription', ! http_requests( 'c.hooks' ) );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_webhooks_disable_after'] );
-check( 'events for disabled subscriptions are not queued', 0 === Webhooks::occurrence_cancelled( $occ, 0 ) || 0 === Dispatcher::emit( 'occurrence.cancelled', 'x-new', array( 'id' => 1 ) ) );
+check( 'events for disabled subscriptions are not queued', 0 === Dispatcher::emit( 'occurrence.cancelled', 'x-new', array( 'id' => 1 ) ) );
 Dispatcher::set_status( $c['subscription_id'], true );
 wh_due_now();
 http_reset();

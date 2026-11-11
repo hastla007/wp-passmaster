@@ -52,7 +52,7 @@ final class Dispatcher {
 	/** Only absolute https URLs to public hosts. */
 	public static function valid_url( $url ) {
 		$url = trim( (string) $url );
-		if ( ! preg_match( '#^https://[^\s/?#]+#i', $url ) || false !== strpos( $url, '@' ) ) { return false; }
+		if ( ! preg_match( '~^https://[^\s/?#]+~i', $url ) || false !== strpos( $url, '@' ) ) { return false; }
 		$host = strtolower( (string) parse_url( $url, PHP_URL_HOST ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
 		if ( '' === $host || 'localhost' === $host || preg_match( '/\.(local|localhost|internal)$/', $host ) ) { return false; }
 		if ( filter_var( trim( $host, '[]' ), FILTER_VALIDATE_IP ) && ! filter_var( trim( $host, '[]' ), FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) { return false; }
