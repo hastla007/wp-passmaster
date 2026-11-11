@@ -88,25 +88,66 @@
 		submitToken(input.value);
 	});
 
+	// Native BarcodeDetector where available (Chrome/Android); otherwise jsQR on canvas frames (Safari/iOS, Firefox).
+	function loadJsQr() {
+		if (window.jsQR) return Promise.resolve();
+		return new Promise(function (resolve, reject) {
+			const script = document.createElement('script');
+			script.src = window.WPCAP_SCANNER.jsqrUrl;
+			script.onload = function () { resolve(); };
+			script.onerror = function () { reject(new Error('jsQR')); };
+			document.head.appendChild(script);
+		});
+	}
+	async function makeDetector() {
+		if ('BarcodeDetector' in window) {
+			try {
+				const formats = await window.BarcodeDetector.getSupportedFormats();
+				if (formats.indexOf('qr_code') !== -1) {
+					const native = new window.BarcodeDetector({ formats: ['qr_code'] });
+					return async function () { const codes = await native.detect(video); return codes.length ? String(codes[0].rawValue || '') : ''; };
+				}
+			} catch (ignore) {}
+		}
+		await loadJsQr();
+		const canvas = document.createElement('canvas');
+		const context = canvas.getContext('2d', { willReadFrequently: true });
+		return async function () {
+			if (!video.videoWidth) return '';
+			// Downscale large frames: faster on phones and still enough for ticket QR codes.
+			const scale = Math.min(1, 640 / Math.max(video.videoWidth, video.videoHeight));
+			canvas.width = Math.round(video.videoWidth * scale);
+			canvas.height = Math.round(video.videoHeight * scale);
+			context.drawImage(video, 0, 0, canvas.width, canvas.height);
+			const image = context.getImageData(0, 0, canvas.width, canvas.height);
+			const code = window.jsQR(image.data, image.width, image.height, { inversionAttempts: 'dontInvert' });
+			return code ? String(code.data || '') : '';
+		};
+	}
+
 	root.querySelector('.wpcap-camera-start').addEventListener('click', async function (event) {
 		const button = event.currentTarget;
-		if (!('BarcodeDetector' in window) || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+		if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
 			result.textContent = t.noCamera || 'Camera scanning is not supported.';
 			return;
 		}
 		try {
-			stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+			stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
 			video.srcObject = stream;
+			video.setAttribute('playsinline', '');
+			video.muted = true;
 			video.hidden = false;
 			await video.play();
-			const detector = new BarcodeDetector({ formats: ['qr_code'] });
+			const detect = await makeDetector();
 			button.disabled = true;
+			let busy = false;
 			const scan = async function () {
 				if (!stream) return;
-				try {
-					const codes = await detector.detect(video);
-					if (codes.length && !locked) {
-						const match = String(codes[0].rawValue || '').match(/[a-f0-9]{64}/i);
+				if (!busy && !locked) {
+					busy = true;
+					try {
+						const raw = await detect();
+						const match = raw.match(/[a-f0-9]{64}/i);
 						const now = Date.now();
 						// The same QR stays in view after a scan; do not re-submit it immediately.
 						if (match && (match[0] !== lastToken || now - lastTokenAt > 5000)) {
@@ -114,8 +155,9 @@
 							lastTokenAt = now;
 							await submitToken(match[0]);
 						}
-					}
-				} catch (ignore) {}
+					} catch (ignore) {}
+					busy = false;
+				}
 				window.requestAnimationFrame(scan);
 			};
 			scan();
