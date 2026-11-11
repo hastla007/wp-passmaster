@@ -3,6 +3,7 @@
 namespace PassCaptain\Integrations\WooCommerce;
 
 use PassCaptain\Orders;
+use PassCaptain\Campaigns;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -77,6 +78,7 @@ final class OrderAdapter {
 		$orders = $wpdb->prefix . 'wpcap_orders';
 		$wpdb->update( $orders, array( 'status' => $state, 'payment_status' => $state, 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $core_order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
 		$wpdb->update( $wpdb->prefix . 'wpcap_reservations', array( 'status' => 'released' ), array( 'order_id' => $core_order_id, 'status' => 'active' ), array( '%s' ), array( '%d', '%s' ) );
+		if ( 'cancelled' === $state ) { Campaigns::release_for_order( $core_order_id ); }
 		if ( 'refunded' === $state ) {
 			$wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'status' => 'revoked' ), array( 'order_id' => $core_order_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) );
 		}

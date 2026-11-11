@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '2.0.0';
+	const DB_VERSION = '3.0.0';
 
 	public static function install() {
 		global $wpdb;
@@ -48,6 +48,14 @@ final class Installer {
 		$member_passes = $wpdb->prefix . 'wpcap_member_passes';
 		$pass_rules = $wpdb->prefix . 'wpcap_pass_rules';
 		$pass_uses = $wpdb->prefix . 'wpcap_pass_uses';
+		$campaigns = $wpdb->prefix . 'wpcap_campaigns';
+		$campaign_uses = $wpdb->prefix . 'wpcap_campaign_uses';
+		$waitlist = $wpdb->prefix . 'wpcap_waitlist';
+		$api_keys = $wpdb->prefix . 'wpcap_api_keys';
+		$event_translations = $wpdb->prefix . 'wpcap_event_translations';
+		$tax_profiles = $wpdb->prefix . 'wpcap_tax_profiles';
+		$connector_settings = $wpdb->prefix . 'wpcap_connector_settings';
+		$jobs = $wpdb->prefix . 'wpcap_jobs';
 
 		$queries = array(
 			"CREATE TABLE $events (
@@ -103,6 +111,9 @@ final class Installer {
 				payment_status varchar(24) NOT NULL DEFAULT 'pending',
 				currency char(3) NOT NULL,
 				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				subtotal_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				discount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				price_snapshot longtext NOT NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (order_id),
@@ -111,7 +122,8 @@ final class Installer {
 				KEY customer_email (customer_email),
 				KEY access_token_hash (access_token_hash),
 				KEY access_expires_at (access_expires_at),
-				KEY status (status)
+				KEY status (status),
+				KEY paid_created (payment_status,created_at,status)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $items (
 				item_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -122,7 +134,8 @@ final class Installer {
 				line_total_minor bigint(20) unsigned NOT NULL,
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
-				KEY ticket_type_id (ticket_type_id)
+				KEY ticket_type_id (ticket_type_id),
+				KEY type_order (ticket_type_id,order_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $reservations (
 				reservation_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -150,7 +163,8 @@ final class Installer {
 				UNIQUE KEY token_hash (token_hash),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),
-				KEY status (status)
+				KEY status (status),
+				KEY order_type_status (order_id,ticket_type_id,status)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $checkins (
 				checkin_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -164,7 +178,8 @@ final class Installer {
 				KEY ticket_id (ticket_id),
 				KEY event_id (event_id),
 				KEY occurrence_day_id (occurrence_day_id),
-				KEY user_id (user_id)
+				KEY user_id (user_id),
+				KEY event_result_created (event_id,result,created_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $staff (
 				event_id bigint(20) unsigned NOT NULL,
@@ -317,6 +332,7 @@ final class Installer {
 				description varchar(190) NOT NULL,
 				quantity smallint(5) unsigned NOT NULL DEFAULT 1,
 				unit_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				discount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				tax_rate decimal(7,4) NOT NULL DEFAULT 0,
 				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -418,6 +434,130 @@ final class Installer {
 				UNIQUE KEY idempotency_key (idempotency_key),
 				KEY pass_day (pass_id,service_date)
 			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE $campaigns (
+				campaign_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				event_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				ticket_type_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				code varchar(32) NOT NULL,
+				name varchar(190) NOT NULL,
+				kind varchar(16) NOT NULL,
+				discount_value bigint(20) unsigned NOT NULL,
+				currency char(3) NOT NULL DEFAULT 'EUR',
+				usage_limit int(10) unsigned NOT NULL DEFAULT 0,
+				used_count int(10) unsigned NOT NULL DEFAULT 0,
+				priority smallint(5) unsigned NOT NULL DEFAULT 100,
+				starts_at datetime NULL,
+				ends_at datetime NULL,
+				status varchar(20) NOT NULL DEFAULT 'active',
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (campaign_id),
+				UNIQUE KEY code (code),
+				KEY scope_status (event_id,ticket_type_id,status),
+				KEY active_window (status,starts_at,ends_at)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE $campaign_uses (
+				campaign_use_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				campaign_id bigint(20) unsigned NOT NULL,
+				order_id bigint(20) unsigned NOT NULL,
+				code varchar(32) NOT NULL,
+				discount_minor bigint(20) unsigned NOT NULL,
+				status varchar(20) NOT NULL DEFAULT 'reserved',
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (campaign_use_id),
+				UNIQUE KEY campaign_order (campaign_id,order_id),
+				KEY order_status (order_id,status)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE $waitlist (
+				waitlist_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				event_id bigint(20) unsigned NOT NULL,
+				occurrence_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				ticket_type_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				email_hash char(64) NOT NULL,
+				email varchar(190) NOT NULL,
+				position bigint(20) unsigned NOT NULL,
+				status varchar(20) NOT NULL DEFAULT 'waiting',
+				offer_token_hash char(64) NOT NULL DEFAULT '',
+				offer_expires_at datetime NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (waitlist_id),
+				UNIQUE KEY event_type_email (event_id,ticket_type_id,email_hash),
+				KEY queue_order (event_id,ticket_type_id,status,position),
+				KEY offer_expiry (status,offer_expires_at)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE $api_keys (
+				api_key_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				user_id bigint(20) unsigned NOT NULL,
+				public_prefix char(12) NOT NULL,
+				secret_hash char(64) NOT NULL,
+				event_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				scopes varchar(255) NOT NULL,
+				label varchar(190) NOT NULL DEFAULT '',
+				last_used_at datetime NULL,
+				expires_at datetime NULL,
+				revoked_at datetime NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (api_key_id),
+				UNIQUE KEY secret_hash (secret_hash),
+				UNIQUE KEY public_prefix (public_prefix),
+				KEY user_scope (user_id,event_id),
+				KEY revoked_at (revoked_at)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE $event_translations (
+				translation_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				event_id bigint(20) unsigned NOT NULL,
+				locale varchar(20) NOT NULL,
+				name varchar(190) NOT NULL,
+				description longtext NOT NULL,
+				location varchar(190) NOT NULL DEFAULT '',
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (translation_id),
+				UNIQUE KEY event_locale (event_id,locale),
+				KEY locale (locale)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE $tax_profiles (
+				tax_profile_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				country_code char(2) NOT NULL,
+				tax_class varchar(64) NOT NULL DEFAULT 'standard',
+				rate_basis_points int(10) unsigned NOT NULL,
+				version varchar(32) NOT NULL,
+				effective_from date NOT NULL,
+				effective_until date NULL,
+				status varchar(20) NOT NULL DEFAULT 'draft',
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (tax_profile_id),
+				KEY country_effective (country_code,tax_class,effective_from,effective_until),
+				KEY status (status)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE $connector_settings (
+				connector_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				connector_key varchar(64) NOT NULL,
+				site_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				status varchar(20) NOT NULL DEFAULT 'disabled',
+				mapping longtext NOT NULL,
+				secret_ref varchar(190) NOT NULL DEFAULT '',
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (connector_id),
+				UNIQUE KEY connector_site (connector_key,site_id),
+				KEY status (status)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE $jobs (
+				job_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				idempotency_key char(64) NOT NULL,
+				job_type varchar(64) NOT NULL,
+				payload longtext NOT NULL,
+				run_after datetime NOT NULL,
+				status varchar(20) NOT NULL DEFAULT 'queued',
+				attempts smallint(5) unsigned NOT NULL DEFAULT 0,
+				locked_at datetime NULL,
+				last_error text NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (job_id),
+				UNIQUE KEY idempotency_key (idempotency_key),
+				KEY due_jobs (status,run_after),
+				KEY job_type (job_type,status)
+			) ENGINE=InnoDB $charset;",
 		);
 
 		foreach ( $queries as $query ) {
@@ -452,8 +592,10 @@ final class Installer {
 		add_role(
 			'wpcap_event_manager',
 			__( 'Pass Captain Veranstaltungsleitung', 'wp-pass-captain' ),
-			array( 'read' => true, 'wpcap_manage_events' => true, 'wpcap_manage_orders' => true )
+			array( 'read' => true, 'wpcap_manage_events' => true, 'wpcap_manage_orders' => true, 'wpcap_view_reports' => true )
 		);
+		$manager = get_role( 'wpcap_event_manager' );
+		if ( $manager ) { $manager->add_cap( 'wpcap_view_reports' ); }
 		add_role(
 			'wpcap_checkin_staff',
 			__( 'Pass Captain Einlasspersonal', 'wp-pass-captain' ),

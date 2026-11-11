@@ -80,6 +80,6 @@ REST-Berechtigungen für POS/Verwaltung, Idempotency-Keys, Auditlogs und zugäng
 
 ## 30. Release und Wartung — Migration und CI vorhanden
 
-Schema-Migration v2 und CI/ZIP-Build bleiben aktiv. Upgrade-/Rollback-/Restore-Abnahme mit echten WordPress-Datenbankständen und veröffentlichte Support-/Kompatibilitätsprozesse fehlen.
+Schema-Migration v3 und CI/ZIP-Build bleiben aktiv. Upgrade-/Rollback-/Restore-Abnahme mit echten WordPress-Datenbankständen und veröffentlichte Support-/Kompatibilitätsprozesse fehlen.
 
 Die späteren Produkt- und Betriebsstufen stehen in [ROADMAP_31_50.md](ROADMAP_31_50.md).

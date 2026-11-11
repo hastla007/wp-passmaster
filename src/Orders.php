@@ -93,8 +93,16 @@ final class Orders {
 				}
 				$line_total = (int) $type->price_minor * $quantity;
 				$total += $line_total;
-				$selected[] = array( 'type' => $type, 'quantity' => $quantity, 'line_total' => $line_total );
+				$selected[] = array( 'type' => $type, 'event_id' => (int) $occurrence->event_id, 'quantity' => $quantity, 'line_total' => $line_total );
 			}
+			$subtotal = $total;
+			$campaign_codes = $payload['campaign_codes'] ?? array();
+			if ( ! is_array( $campaign_codes ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
+			$adjustments = Campaigns::calculate( $selected, $campaign_codes, $currency );
+			if ( is_wp_error( $adjustments ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
+			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
+			$total = max( 0, $subtotal - $discount );
+			$price_snapshot = wp_json_encode( array( 'currency' => $currency, 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'campaigns' => array_map( static function ( $adjustment ) { return array( 'code' => $adjustment['campaign']->code, 'amount_minor' => (int) $adjustment['amount_minor'] ); }, $adjustments ) ) );
 
 			$public_id = bin2hex( random_bytes( 16 ) );
 			$access_token = bin2hex( random_bytes( 32 ) );
@@ -108,9 +116,12 @@ final class Orders {
 				'payment_status' => $total ? 'pending' : 'paid',
 				'currency' => $currency,
 				'total_minor' => $total,
+				'subtotal_minor' => $subtotal,
+				'discount_minor' => $discount,
+				'price_snapshot' => $price_snapshot,
 				'created_at' => $now,
 				'updated_at' => $now,
-			), array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' ) );
+			), array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s', '%s' ) );
 			if ( ! $inserted ) {
 				throw new \RuntimeException( 'order_insert_failed' );
 			}
@@ -139,6 +150,8 @@ final class Orders {
 					}
 				}
 			}
+			$redeemed = Campaigns::redeem( $adjustments, $order_id );
+			if ( is_wp_error( $redeemed ) ) { throw new \RuntimeException( 'campaign_redeem_failed' ); }
 			$wpdb->query( 'COMMIT' );
 		} catch ( \Throwable $error ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -149,6 +162,8 @@ final class Orders {
 				'mixed_currency' => __( 'Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden.', 'wp-pass-captain' ),
 				'sold_out' => __( 'Für diese Ticketart sind nicht mehr genügend Tickets verfügbar.', 'wp-pass-captain' ),
 				'occurrence_sold_out' => __( 'Für diesen Termin sind nicht mehr genügend Plätze verfügbar.', 'wp-pass-captain' ),
+				'campaign_invalid' => __( 'Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung.', 'wp-pass-captain' ),
+				'campaign_redeem_failed' => __( 'Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden.', 'wp-pass-captain' ),
 			);
 			$code = $error->getMessage();
 			$message = $messages[ $code ] ?? __( 'Die Bestellung konnte nicht angelegt werden.', 'wp-pass-captain' );
@@ -156,11 +171,12 @@ final class Orders {
 		}
 
 		if ( 0 === $total ) {
+			Campaigns::commit_for_order( $order_id );
 			self::issue_and_email( $order_id );
 		}
 		self::send_order_access_link( $email, $public_id, $access_token );
 		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency ) );
-		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $total ? 'pending_payment' : 'complete', 'payment_status' => $total ? 'pending' : 'paid', 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $total ? self::HOLD_MINUTES : 0 );
+		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $total ? 'pending_payment' : 'complete', 'payment_status' => $total ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $total ? self::HOLD_MINUTES : 0 );
 	}
 
 	public static function send_order_access_link( $email, $public_id, $access_token ) {
@@ -231,6 +247,7 @@ final class Orders {
 		foreach ( $order_ids as $order_id ) {
 			$wpdb->update( $wpdb->prefix . 'wpcap_reservations', array( 'status' => 'released' ), array( 'order_id' => absint( $order_id ), 'status' => 'active' ), array( '%s' ), array( '%d', '%s' ) );
 			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'status' => 'cancelled', 'payment_status' => 'cancelled', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => absint( $order_id ), 'payment_status' => 'pending' ), array( '%s', '%s', '%s' ), array( '%d', '%s' ) );
+			Campaigns::release_for_order( $order_id );
 		}
 		$wpdb->query( 'COMMIT' );
 		$emails = $wpdb->get_col( $wpdb->prepare(
@@ -261,6 +278,7 @@ final class Orders {
 		}
 		$wpdb->update( $orders, array( 'status' => 'complete', 'payment_status' => 'paid', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
 		$wpdb->update( $wpdb->prefix . 'wpcap_reservations', array( 'status' => 'converted' ), array( 'order_id' => $order_id, 'status' => 'active' ), array( '%s' ), array( '%d', '%s' ) );
+		Campaigns::commit_for_order( $order_id );
 		$wpdb->query( 'COMMIT' );
 		self::issue_and_email( $order_id );
 		Audit::record( 'manual_payment_confirmed', 'order', $order_id );
@@ -272,12 +290,15 @@ final class Orders {
 		$now = current_time( 'mysql', true );
 		$reservations = $wpdb->prefix . 'wpcap_reservations';
 		$orders = $wpdb->prefix . 'wpcap_orders';
+		$expired_ids = $wpdb->get_col( $wpdb->prepare( "SELECT ord.order_id FROM $orders ord WHERE ord.payment_status='pending' AND NOT EXISTS (SELECT 1 FROM $reservations r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>%s)", $now ) );
 		$wpdb->query( $wpdb->prepare( "UPDATE $reservations SET status='expired' WHERE status='active' AND expires_at <= %s", $now ) );
 		$wpdb->query( $wpdb->prepare(
 			"UPDATE $orders SET status='expired',payment_status='expired',updated_at=%s WHERE payment_status='pending' AND NOT EXISTS (SELECT 1 FROM $reservations r WHERE r.order_id=$orders.order_id AND r.status='active' AND r.expires_at > %s)",
 			$now,
 			$now
 		) );
+		foreach ( $expired_ids as $expired_id ) { Campaigns::release_for_order( $expired_id ); }
+		return true;
 	}
 
 	private static function issue_and_email( $order_id ) {

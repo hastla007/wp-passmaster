@@ -22,62 +22,62 @@ Mehrere Tickets pro Bestellung bleiben möglich; Käufer können einzelne Ticket
 
 Passcodes mit Gültigkeitszeitraum, Event-/Ticketregeln, atomaren Nutzungskontingenten, Idempotency und Widerruf sind implementiert. Abozahlungen, Admin-UI und vollständige End-to-End-Abnahme fehlen.
 
-## 36. Kampagnen und Preisregeln
+## 36. Kampagnen und Preisregeln — teilweise umgesetzt
 
-Rabattaktionen, Gutscheincodes, Early-Bird- und Kontingentregeln mit klarer Priorität bereitstellen. Abnahme: Preisberechnung ist reproduzierbar, im Auftrag gespeichert und kann bei parallelen Checkouts nicht über ein Limit laufen.
+REST-Kampagnencodes unterstützen Prozent-/Festbetragsrabatte, Event-/Ticket-Scope, Priorität und ein unter Transaktion gesperrtes globales Limit; der Auftrag speichert Preis-Snapshot. Early-Bird-Autoregeln, per-Käufer-Grenzen, Stapelkonfiguration, Voucher-Bridges und Checkout-UI fehlen.
 
-## 37. Wartelisten und Platzangebote
+## 37. Wartelisten und Platzangebote — Queue und Angebot umgesetzt
 
-Wartelisten für Events und buchbare Termine mit befristetem Angebot einführen. Abnahme: Reihenfolge, Annahmefrist, Kapazitätsfreigabe und Ablehnung sind protokolliert.
+Event-/Ticketwarteliste, geordnete Einträge, befristetes Angebot und Tokenannahme sind verfügbar. Das Angebot reserviert keine Kapazität; automatische Auslösung bei Freigabe, Ablehnung/Abmeldung und garantierte Ticketzuteilung fehlen.
 
-## 38. Veranstalterberichte
+## 38. Veranstalterberichte — Basisbericht umgesetzt
 
-Umsatz-, Bestands-, Einlass-, Erstattungs- und Kampagnenberichte mit rollenbasierten Exporten ausbauen. Abnahme: Berichte verwenden dieselben abgegrenzten Finanz- und Teilnehmerdaten wie die Quellsysteme.
+Eventbezogener Bericht liefert bezahlte Bestellungen, verkaufte Tickets, Bruttosummen pro Währung und Einlasszahlen mit Rollenprüfung und kurzer Cachezeit. CSV-Export, Bestand, Refunds, Kampagnen, Teilnehmerdaten und granularere Zeitraumvergleiche fehlen.
 
-## 39. Öffentliche Entwickler-API
+## 39. Öffentliche Entwickler-API — Read-only-Grundlage umgesetzt
 
-Stabile API-Schlüssel, Scopes, Rotation, Rate-Limits und versionierte Entwicklerdokumentation anbieten. Abnahme: Integrationen haben keinen Zugriff außerhalb freigegebener Aktionen und Eventbereiche.
+Einmalig angezeigte, gehashte API-Schlüssel sind auf ein Event und `events.read`/`reports.read` begrenzt; Ablauf und Widerruf sind vorgesehen. Der erste Endpunkt liefert nur Eventdaten. Rate-Limits, Schlüsselverwaltung-UI, breite API-Abdeckung und dokumentierter Partner-Support fehlen.
 
-## 40. WordPress-Multisite
+## 40. WordPress-Multisite — getrennte Tabellen-Grundlage umgesetzt
 
-Netzwerkaktivierung, getrennte Site-Daten und zentrale Administratorsteuerung spezifizieren. Abnahme: Bestellungen, Tickets, Optionen und Schlüssel eines Sites sind für andere Sites nicht abrufbar.
+Netzwerkaktivierung und neu erstellte Sites erhalten site-präfixierte Tabellen und Cron-Ereignisse. Zentrale Netzwerkverwaltung, Cross-Site-Abnahmetests und Netzwerkweite Berichte fehlen.
 
-## 41. CRM-, Kalender- und Buchhaltungsintegrationen
+## 41. CRM-, Kalender- und Buchhaltungsintegrationen — Adaptervertrag umgesetzt
 
-Opt-in-Connectoren mit Datenminimierung, Mapping, Synchronisationsprotokoll und Wiederholung ergänzen. Abnahme: externe Systeme werden nur über dokumentierte Adapter angesprochen.
+Versionierter Connector-Vertrag und site-lokale Opt-in-Registry sind vorhanden. Es gibt keine CRM-, Kalender- oder Buchhaltungsadapter, Einstellungsoberfläche, Mapping-UI oder Live-Synchronisierung.
 
-## 42. Übersetzte Eventinhalte
+## 42. Übersetzte Eventinhalte — Eventkarten-Grundlage umgesetzt
 
-Mehrsprachige Eventseiten, E-Mails, Ticketvorlagen und Teilnehmerhinweise ermöglichen. Abnahme: Ticketdaten behalten eine kanonische Zeitzone und Währung; Käufer erhalten die gewählte Sprache.
+Lokalisierte Eventnamen, Beschreibungen und Orte können gespeichert und auf Eventlisten/-karten anhand des WordPress-Locales ausgegeben werden. E-Mails, Ticketvorlagen, Käufer-Sprachauswahl und Übersetzungs-UI fehlen.
 
-## 43. Länderpakete und Steuerregeln
+## 43. Länderpakete und Steuerregeln — Entwurfsdatenmodell umgesetzt
 
-Versionierte, fachlich geprüfte Länder-/Steuerprofile konfigurieren. Abnahme: Änderungen gelten nur für neue Bestellungen; historische Bestell-Snapshots bleiben unverändert.
+Länder-/Steuerprofile lassen sich als Entwürfe versioniert speichern. Keine Profile werden aktiviert oder für Bestellungen/Rechnungen berechnet; fachliche Prüfung, Länderpakete und historische Steuer-Snapshots fehlen.
 
-## 44. Hochlast- und Kapazitätsoptimierung
+## 44. Hochlast- und Kapazitätsoptimierung — Indizes und Berichtscache ergänzt
 
-Indizes, Caching, Abfragepläne und Lasttests für große Kontingente und hohe Scanraten optimieren. Abnahme: Reservierungen und Einlass bleiben atomar, auch bei Spitzenlast.
+Zusätzliche Reporting-Indizes und ein kurzer Cache für Eventberichte sind ergänzt. Abfragepläne, Cache-Invalidierung, Benchmarking, Lasttests und Spitzenlast-Abnahme fehlen.
 
-## 45. Hintergrundverarbeitung und Wiederholung
+## 45. Hintergrundverarbeitung und Wiederholung — generische Queue-Grundlage umgesetzt
 
-Zuverlässige Jobverarbeitung für Zahlung, Mail, Exporte und Integrationen mit Backoff und Dead-Letter-Ansicht ergänzen. Abnahme: Ausfälle sind sichtbar und können idempotent erneut verarbeitet werden.
+Generische Jobtabelle mit Idempotenz, Claiming, exponentiellem Retry und `dead_letter`-Status ergänzt. Jobhandler und Admin-Ansicht für Wiederholung fehlen; WordPress-Cron ist abhängig von Traffic/externem Cron.
 
-## 46. Backup und Notfallwiederherstellung
+## 46. Backup und Notfallwiederherstellung — Runbook dokumentiert
 
-Schema-/Datenbackup, Restore-Anleitung und Wiederanlaufübungen dokumentieren. Abnahme: Tickets, Zahlungsverweise und Auditdaten lassen sich konsistent wiederherstellen.
+Backup-/Restore-Runbook in `docs/OPERATIONS.md`; Wiederherstellungs- und Wiederanlaufübungen mit realen Daten fehlen.
 
-## 47. Unabhängige Sicherheitsprüfung
+## 47. Unabhängige Sicherheitsprüfung — Bedrohungsgrenzen dokumentiert
 
-Bedrohungsmodell, externe Codeprüfung, Penetrationstest und verantwortliche Meldestelle etablieren. Abnahme: kritische Befunde sind behoben und die Releasefreigabe dokumentiert.
+Schutzgrenzen und Meldungshinweise in `docs/SECURITY.md`; externe Prüfung, Penetrationstest und formeller Incident-Prozess fehlen.
 
-## 48. Barrierefreiheitsprüfung
+## 48. Barrierefreiheitsprüfung — Basisverbesserungen, Audit offen
 
-Checkout, Admin, E-Mails und Scanner mit automatisierten und manuellen Tests für Tastatur, Screenreader und Kontrast prüfen. Abnahme: bekannte Barrieren sind priorisiert, dokumentiert und freigegeben.
+Sichtbare Fokusse, Mindestzielhöhen und Reduced-Motion-Regel ergänzt; Statusmeldungen hatten bereits `aria-live`. Manuelle Tastatur-/Screenreader-Prüfung und Kontrast-/Zoom-Audit stehen aus.
 
-## 49. Erweiterungs- und Lizenzmodell
+## 49. Erweiterungs- und Lizenzmodell — Richtlinie dokumentiert
 
-Falls kommerzielle Erweiterungen geplant sind, Update-, Lizenz-, Datenschutz- und Offline-Verhalten spezifizieren. Abnahme: Kernfunktionen bleiben ohne externen Lizenzserver nutzbar und Lizenzfehler beeinträchtigen keine bereits ausgegebenen Tickets.
+`docs/EXTENSIONS.md` hält GPL-Kern, opt-in Connector-Vertrag und Lizenzserver-unabhängiges Ticketverhalten fest. Kommerzielles Lizenz-/Update-System wird nicht angeboten.
 
-## 50. Stabiler 1.0-Release und Wartungsbetrieb
+## 50. Stabiler 1.0-Release und Wartungsbetrieb — Vorbereitung dokumentiert
 
-Kompatibilitätsversprechen, Upgradefenster, Sicherheitsupdates, Supportkanäle und Deprecation-Regeln veröffentlichen. Abnahme: reproduzierbarer Build, Release-Gates, Wiederherstellungsplan und öffentliche Änderungsnotizen sind vollständig.
+Version `0.3.0`, `CHANGELOG.md` und Release-Gates im Betriebs-Runbook ergänzt. Build ist noch nicht reproduzierbar; Kompatibilitätsmatrix, Supportprozess, Sicherheitswartung und 1.0-Freigabe fehlen.
