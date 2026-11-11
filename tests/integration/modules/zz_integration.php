@@ -87,3 +87,16 @@ $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 PassCaptain\Refunds::request( $ro['order_id'], array(), 'Test', 'zz-e2e-refund' );
 $refund_mails = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails_before ), static fn( $m ) => 'refundmail@example.com' === $m['to'] && str_starts_with( $m['subject'], 'Erstattung bestätigt' ) ) );
 check( 'buyer receives a refund confirmation', 1 === count( $refund_mails ) && false !== strpos( $refund_mails[0]['body'], '15,00' ) || false !== strpos( $refund_mails[0]['body'] ?? '', '15.00' ) );
+
+echo "Integration: server-side rollback inside the order transaction\n";
+// Simulates a deadlock victim: the server rolls the transaction back (locks released) while PHP
+// continues. Without the guards the remaining statements would autocommit an unchecked order.
+$rb_type = make_type( 1, 10, 1000 );
+$rb_hook = static function ( $result ) { global $wpdb; $wpdb->query( 'ROLLBACK' ); return $result; };
+add_filter( 'wpcap_reserve_capacity', $rb_hook, 10, 3 );
+$rb = Orders::create( array( 'email' => 'rb@example.com', 'items' => array( array( 'ticket_type_id' => $rb_type, 'quantity' => 1 ) ), 'idempotency_key' => 'zz-rb-1' ) );
+remove_filter( 'wpcap_reserve_capacity', $rb_hook, 10 );
+$rb_orders = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_order_items WHERE ticket_type_id=%d", $rb_type ) );
+check( 'lost transaction aborts the order with a retryable error and writes nothing', is_wp_error( $rb ) && 503 === ( $rb->get_error_data()['status'] ?? 0 ) && 0 === $rb_orders );
+$rb_ok = Orders::create( array( 'email' => 'rb@example.com', 'items' => array( array( 'ticket_type_id' => $rb_type, 'quantity' => 1 ) ), 'idempotency_key' => 'zz-rb-2' ) );
+check( 'the retry succeeds and the capacity is still available', ! is_wp_error( $rb_ok ) && 0 === Orders::availability( $rb_type ) );
