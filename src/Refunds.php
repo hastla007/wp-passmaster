@@ -15,6 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Refunds {
 	const APPROVE_CAP = 'wpcap_approve_refunds';
+	const REFUND_CAP = 'wpcap_refund';
 
 	/**
 	 * Requests a refund. Executes it immediately unless a second approval is required.
@@ -198,7 +199,7 @@ final class Refunds {
 
 	/** Optional enforcement of two-factor authentication for refund actions. */
 	private static function check_actor() {
-		if ( ! current_user_can( 'wpcap_manage_orders' ) && ! current_user_can( self::APPROVE_CAP ) ) {
+		if ( ! current_user_can( self::REFUND_CAP ) && ! current_user_can( self::APPROVE_CAP ) ) {
 			return new \WP_Error( 'wpcap_refund_forbidden', __( 'Keine Berechtigung für Erstattungen.', 'wp-pass-captain' ), array( 'status' => 403 ) );
 		}
 		if ( Settings::get( 'require_2fa_for_refunds' ) && ! self::user_has_2fa( get_current_user_id() ) ) {

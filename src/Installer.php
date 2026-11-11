@@ -646,32 +646,35 @@ final class Installer {
 		return false;
 	}
 
+	/**
+	 * Role packages from the concept. Operational roles are additionally limited per event through
+	 * wpcap_event_staff assignments (Access::can_access_event); only finance gets global read access.
+	 */
 	private static function register_roles() {
-		$admin_caps = array(
-			'wpcap_manage_events'  => true,
-			'wpcap_manage_orders'  => true,
-			'wpcap_checkin'        => true,
-			'wpcap_view_reports'   => true,
-			'wpcap_approve_refunds' => true,
-		);
+		$all_caps = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance' );
 		$admin = get_role( 'administrator' );
 		if ( $admin ) {
-			foreach ( $admin_caps as $cap => $grant ) {
-				$admin->add_cap( $cap, $grant );
-			}
+			foreach ( $all_caps as $cap ) { $admin->add_cap( $cap, true ); }
 		}
-
-		add_role(
-			'wpcap_event_manager',
-			__( 'Pass Captain Veranstaltungsleitung', 'wp-pass-captain' ),
-			array( 'read' => true, 'wpcap_manage_events' => true, 'wpcap_manage_orders' => true, 'wpcap_view_reports' => true )
+		$roles = array(
+			'wpcap_ticket_admin'   => array( __( 'Pass Captain Ticket-Administration', 'wp-pass-captain' ), $all_caps ),
+			'wpcap_event_manager'  => array( __( 'Pass Captain Veranstaltungsleitung', 'wp-pass-captain' ), array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin' ) ),
+			'wpcap_box_office'     => array( __( 'Pass Captain Vor-Ort-Kasse', 'wp-pass-captain' ), array( 'wpcap_manage_orders', 'wpcap_checkin' ) ),
+			'wpcap_checkin_staff'  => array( __( 'Pass Captain Einlasspersonal', 'wp-pass-captain' ), array( 'wpcap_checkin' ) ),
+			'wpcap_partner'        => array( __( 'Pass Captain Partner', 'wp-pass-captain' ), array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
+			'wpcap_finance'        => array( __( 'Pass Captain Finanzbuchhaltung', 'wp-pass-captain' ), array( 'wpcap_view_finance', 'wpcap_view_reports', 'wpcap_approve_refunds' ) ),
+			'wpcap_support'        => array( __( 'Pass Captain Support', 'wp-pass-captain' ), array( 'wpcap_manage_orders' ) ),
 		);
-		$manager = get_role( 'wpcap_event_manager' );
-		if ( $manager ) { $manager->add_cap( 'wpcap_view_reports' ); }
-		add_role(
-			'wpcap_checkin_staff',
-			__( 'Pass Captain Einlasspersonal', 'wp-pass-captain' ),
-			array( 'read' => true, 'wpcap_checkin' => true )
-		);
+		foreach ( $roles as $slug => $definition ) {
+			$caps = array( 'read' => true );
+			foreach ( $definition[1] as $cap ) { $caps[ $cap ] = true; }
+			$role = get_role( $slug );
+			if ( ! $role ) {
+				add_role( $slug, $definition[0], $caps );
+				continue;
+			}
+			// Upgrade existing roles additively; never remove capabilities an operator granted.
+			foreach ( $caps as $cap => $grant ) { $role->add_cap( $cap, $grant ); }
+		}
 	}
 }

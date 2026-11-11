@@ -309,7 +309,7 @@ final class Controller {
 	}
 
 	public static function assign_ticket( \WP_REST_Request $request ) {
-		$result = TicketAssignments::assign( $request['public_id'], $request->get_param( 'access_token' ), $request->get_param( 'ticket_public_id' ), $request->get_param( 'attendee_name' ), $request->get_param( 'attendee_email' ) );
+		$result = TicketAssignments::assign( $request['public_id'], $request->get_param( 'access_token' ), $request->get_param( 'ticket_public_id' ), $request->get_param( 'attendee_name' ), $request->get_param( 'attendee_email' ), is_array( $request->get_param( 'answers' ) ) ? $request->get_param( 'answers' ) : null );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
