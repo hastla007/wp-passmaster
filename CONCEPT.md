@@ -38,6 +38,11 @@ Voucher Captain und Ticket Captain bleiben eigenständige Produkte. Ihre direkte
 
 Der Bootsschule-Connector ist dagegen kundenspezifisch. Er kann festlegen, ob ein bestimmtes Produkt nach Kauf oder Gutscheineinlösung einen Kurszugang, ein Ticket oder beides auslöst. Diese Learnboating-Regeln kommen nicht in Ticket Captain Core.
 
+### Zuständigkeitsgrenze zu Voucher Captain
+
+Ticket Captain führt das maßgebliche Event- und Ticketmodell. Es verwaltet Termine, Kategorien, Kontingente, Sitzplätze, Eventbestellungen, admission tickets und Check-ins. Voucher Captain bleibt für Gutscheine, Rabatte, Geschenkkarten, Guthaben und Gutschein-Zustellung zuständig. Voucher Captain darf weiter voucherartige Servicepässe und seinen eigenen Gutschein-Scanner verwalten; ein Event-Einlass verändert jedoch nur den Ticketstatus in Ticket Captain. Bei gemeinsamer Installation vermittelt die versionierte Bridge zwischen den Zuständigkeiten, ohne Plugin-, Menü- oder Datenbankverwaltung zusammenzulegen. Der Bootsschule-Connector bleibt kundenspezifisch.
+
+
 ## 3. Event-, Termin- und Ticketverwaltung
 
 ### Events und Termine
@@ -418,6 +423,31 @@ Die vorgeschlagenen Filter- und Action-Namen können als Integrations-Events gen
 - **Übernommen:** `TCAP`-Konstanten/Tabellenkonvention, Composer-Build-Isolierung als zu prüfende Releaseanforderung, QR-Prefix, optionale Unified-Scanner-Oberfläche, getrennte Admin-Menüs, eigene Ticket- und Reservierungstabellen, Ticket-Platzhalter, DACH-Anforderungen und ein konkreter Implementierungsplan.
 - **Präzisiert:** Gutscheinintegration nutzt Quote/Reservierung/Finalisierung/Freigabe statt unmittelbarer Abbuchung bei Kauf; Refunds führen konkrete Voucher- und Positionszuordnungen; Payment-Methoden hängen vom PSP-Konto und Markt ab.
 - **Nicht pauschal übernommen:** Fixe Steuersätze, eine immer verpflichtende Rücktritts-Checkbox, eine automatische Löschung aller Personendaten nach fixer Tageszahl, direkte VCAP-Tabellenupdates, VCAP als notwendige PDF-Engine und Offline-Check-in als verlässliche globale Einmalprüfung.
+
+
+
+## 16. Test- und Release-Gates
+
+Diese Gates gelten für ein Release; sie ergänzen die MVP-Abnahmekriterien und sind noch von einem konkreten CI-System umzusetzen.
+
+### Testebenen
+
+- [ ] Unit-Tests für Ticket-/Eventstatus, Steuerberechnung, Reservierung, Token-Validierung, Ticketmengen und Idempotency-Keys.
+- [ ] Datenbank-Integrationstests für parallele Reservierungen, Sitzplatz- und Kategorie-Limits, Schema-Migration und Wiederherstellung abgelaufener Holds.
+- [ ] Zahlungsadapter-Tests für signierte, doppelte, verspätete, fehlgeschlagene und in anderer Reihenfolge eintreffende Webhooks sowie Teil-/Vollrefund.
+- [ ] PWA-/REST-Berechtigungstests für Veranstalter, Partner, Scanner, Kundenkonto und unauthentifizierte Requests.
+- [ ] Bridge-Tests: VCAP fehlt; VCAP aktiv; Gutscheinquote; Reserve/Commit/Release/Refund; Timeout/Wiederholung; doppelte und parallele Anfragen; getrennte Admin-Menüs.
+- [ ] WooCommerce-Adaptertests mit HPOS und klassischer Order-Storage, Classic Checkout und Blocks, falls der Adapter im Release enthalten ist.
+- [ ] Datenschutztests für Export, Löschanfrage, Anonymisierung nach konfigurierter Frist und Finanzbeleg-Aufbewahrung.
+
+### Release-Gate
+
+- [ ] Automatisierte Tests und statische Prüfungen sind erfolgreich; das Release-ZIP wird reproduzierbar gebaut.
+- [ ] Aktivierung, Deaktivierung, Upgrade von vorheriger DB-Version, erneute Aktivierung und Deinstallation wurden in sauberer WordPress-Installation geprüft.
+- [ ] Ticket Captain läuft eigenständig ohne WooCommerce und ohne Voucher Captain.
+- [ ] Ist VCAP installiert, bleiben beide als separate Plugin-Einträge und Admin-Menüs erhalten; Bridge-Ausfall beeinträchtigt den Solo-Betrieb nicht.
+- [ ] Kritische Abläufe wurden manuell auf Mobilgerät und Desktop geprüft: Checkout, Ticketzustellung, QR-Scan, Doppel-Scan, Erstattung und Supportansicht.
+- [ ] Rechtstexte, Steuerkonfiguration, Zahlungsmethoden und Aufbewahrungsregeln wurden für den konkreten Betreiberkontext fachlich freigegeben.
 
 ## Quellen zur technischen und rechtlichen Validierung
 
