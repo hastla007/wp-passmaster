@@ -289,7 +289,7 @@ final class OrderAdapter {
 	}
 
 	/** Sums ticket quantities per ticket type in the current cart. */
-	private static function cart_quantities( $skip_key = '' ) {
+	public static function cart_quantities( $skip_key = '' ) {
 		$quantities = array();
 		if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
 			return $quantities;
@@ -445,6 +445,7 @@ final class OrderAdapter {
 					return array( 'ticket_type_id' => $line['ticket_type_id'], 'quantity' => $line['quantity'] );
 				}, $lines ) ),
 				'idempotency_key' => $wc_order->get_id() . '-' . $attempt,
+				'attendees'       => Attendees::for_order( $wc_order ),
 			),
 			array(
 				'external'      => true,
@@ -510,6 +511,19 @@ final class OrderAdapter {
 		return in_array( $currency, $zero, true ) ? 0 : ( in_array( $currency, $three, true ) ? 3 : 2 );
 	}
 
+	/** Ticket quantities per ticket type of a WooCommerce order. */
+	public static function order_quantities( $wc_order ) {
+		$quantities = array();
+		foreach ( $wc_order->get_items( 'line_item' ) as $item ) {
+			$type_id = self::item_ticket_type_id( $item );
+			$qty     = absint( $item->get_quantity() );
+			if ( $type_id && $qty ) {
+				$quantities[ $type_id ] = ( $quantities[ $type_id ] ?? 0 ) + $qty;
+			}
+		}
+		return $quantities;
+	}
+
 	/** Ticket type of an order line; stored on the line so later product changes do not matter. */
 	private static function item_ticket_type_id( $item ) {
 		$type_id = absint( $item->get_meta( self::ITEM_META, true ) );
@@ -551,6 +565,16 @@ final class OrderAdapter {
 		if ( $core && 'paid' === $core->payment_status && Orders::tickets_for_order( $core_id ) ) {
 			return;
 		}
+		if ( self::defers_issuance( $wc_order ) ) {
+			// Cash on delivery & co.: "processing" means "to be delivered", not "paid". Keep the hold.
+			Orders::extend_hold( $core_id, (int) apply_filters( 'wpcap_woocommerce_deferred_hold_minutes', 14 * DAY_IN_SECONDS / MINUTE_IN_SECONDS, $wc_order ) );
+			if ( ! $wc_order->get_meta( self::DEFER_NOTE, true ) ) {
+				$wc_order->update_meta_data( self::DEFER_NOTE, 1 );
+				$wc_order->save();
+				$wc_order->add_order_note( __( 'Pass Captain: Zahlung bei Lieferung/Abholung – die Tickets bleiben reserviert und werden ausgestellt, sobald die Bestellung auf „Abgeschlossen“ gesetzt wird.', 'wp-pass-captain' ) );
+			}
+			return;
+		}
 		if ( $core && 'needs_review' === $core->status && ! $force ) {
 			// Already flagged and reported; only the explicit "re-issue" order action retries.
 			return;
@@ -579,6 +603,34 @@ final class OrderAdapter {
 			// Personal link for ticket transfer/self-service, sent once with the first issuance.
 			Orders::rotate_access_link( $core_id );
 		}
+		if ( $count && $wc_order->get_meta( self::ATTENDEE_META, true ) ) {
+			// Participant data now lives on the tickets; do not keep a second copy on the WooCommerce order.
+			$wc_order->delete_meta_data( self::ATTENDEE_META );
+			$wc_order->save();
+		}
+	}
+
+	/**
+	 * Whether tickets must wait for "completed" because the gateway confirms an order before the
+	 * money is collected (cash on delivery by default).
+	 */
+	public static function defers_issuance( $wc_order ) {
+		$method = is_callable( array( $wc_order, 'get_payment_method' ) ) ? (string) $wc_order->get_payment_method() : '';
+		if ( '' === $method ) {
+			return false;
+		}
+		/**
+		 * Payment gateway IDs whose orders get tickets only when the order is completed.
+		 *
+		 * @param string[]  $gateways Gateway IDs. Default array( 'cod' ).
+		 * @param \WC_Order $wc_order WooCommerce order.
+		 */
+		$gateways = (array) apply_filters( 'wpcap_woocommerce_issue_on_completed_gateways', array( 'cod' ), $wc_order );
+		if ( ! in_array( $method, $gateways, true ) ) {
+			return false;
+		}
+		$status = is_callable( array( $wc_order, 'get_status' ) ) ? (string) $wc_order->get_status() : '';
+		return 'completed' !== $status;
 	}
 
 	/** Extends the hold while a manual payment (e.g. bank transfer) is outstanding. */
@@ -598,50 +650,198 @@ final class OrderAdapter {
 		}
 	}
 
-	/** Revokes tickets for refunded ticket quantities (partial or full refunds). Idempotent per refund. */
+	/**
+	 * Mirrors a WooCommerce refund into Pass Captain. Idempotent per refund.
+	 *
+	 * With core support (Refunds::record_external) the refund goes through the core refund ledger:
+	 * wpcap_refunds row, order refunded amount, refunded/revoked tickets, released capacity, credit
+	 * note and the wpcap_refund_completed hook. Without it only the refunded tickets are revoked.
+	 */
 	public static function sync_refund( $wc_order_id, $refund_id ) {
 		$core_id = self::core_order_id( $wc_order_id );
 		$refund  = wc_get_order( absint( $refund_id ) );
 		if ( ! $core_id || ! $refund || $refund->get_meta( self::REFUND_META, true ) ) {
 			return;
 		}
+		$wc_order = wc_get_order( absint( $wc_order_id ) );
+		if ( $wc_order && self::can_record_refunds() ) {
+			self::record_refund( $wc_order, $refund, $core_id );
+			return;
+		}
 		$revoked = 0;
 		$kept    = 0;
-		foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
-			$qty = abs( (int) $refund_item->get_quantity() );
-			if ( ! $qty ) {
-				continue;
-			}
-			$original_id = absint( $refund_item->get_meta( '_refunded_item_id', true ) );
-			$original    = $original_id ? \WC_Order_Factory::get_order_item( $original_id ) : null;
-			$type_id     = $original ? self::item_ticket_type_id( $original ) : self::product_ticket_type_id( $refund_item->get_product() );
-			if ( ! $type_id ) {
-				continue;
-			}
+		foreach ( self::refund_type_quantities( $refund ) as $type_id => $qty ) {
 			$done     = Orders::revoke_tickets( $core_id, $type_id, $qty, 'woocommerce_refund_' . $refund->get_id() );
 			$revoked += $done;
 			$kept    += $qty - $done;
 		}
 		$refund->update_meta_data( self::REFUND_META, 1 );
 		$refund->save();
-		$wc_order = wc_get_order( absint( $wc_order_id ) );
-		if ( $wc_order && ( $revoked || $kept ) ) {
-			/* translators: %d: ticket count */
-			$note = sprintf( __( 'Pass Captain: %d Ticket(s) wegen Erstattung widerrufen.', 'wp-pass-captain' ), $revoked );
-			if ( $kept ) {
-				/* translators: %d: ticket count */
-				$note .= ' ' . sprintf( __( '%d erstattete(s) Ticket(s) waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert.', 'wp-pass-captain' ), $kept );
-			}
-			$wc_order->add_order_note( $note );
-		}
+		self::note_refund( $wc_order, $revoked, $kept );
 	}
 
-	/** Full refund: mark the core order refunded and revoke all remaining valid tickets. */
+	/** Records a WooCommerce refund through the core refund ledger. */
+	private static function record_refund( $wc_order, $refund, $core_id ) {
+		global $wpdb;
+		$plan = self::refund_plan( $wc_order, $refund, $core_id );
+		if ( $plan['ticket_ids'] || $plan['amount_minor'] > 0 ) {
+			$ids   = implode( ',', array_map( 'absint', $plan['ticket_ids'] ) );
+			$valid = $ids ? (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id IN ($ids) AND status='valid'" ) : 0; // phpcs:ignore WordPress.DB
+			$reason = is_callable( array( $refund, 'get_reason' ) ) ? (string) $refund->get_reason() : '';
+			$result = call_user_func(
+				array( '\\PassCaptain\\Refunds', 'record_external' ),
+				$core_id,
+				$plan['ticket_ids'],
+				$plan['amount_minor'],
+				'' !== $reason ? $reason : __( 'Erstattung in WooCommerce', 'wp-pass-captain' ),
+				'woocommerce-refund-' . $refund->get_id(),
+				array(
+					'source'             => 'woocommerce',
+					'provider_reference' => 'woocommerce:' . $refund->get_id(),
+				)
+			);
+			if ( is_wp_error( $result ) ) {
+				if ( $wc_order ) {
+					/* translators: %s: error message */
+					$wc_order->add_order_note( sprintf( __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s', 'wp-pass-captain' ), $result->get_error_message() ) );
+				}
+				return;
+			}
+			$requested = $plan['final'] ? count( $plan['ticket_ids'] ) : array_sum( $plan['quantities'] );
+			self::note_refund( $wc_order, $valid, max( 0, $requested - $valid ) );
+		}
+		$refund->update_meta_data( self::REFUND_META, 1 );
+		$refund->save();
+	}
+
+	/** Whether the core can record refunds executed outside Pass Captain. */
+	public static function can_record_refunds() {
+		return method_exists( '\\PassCaptain\\Refunds', 'record_external' );
+	}
+
+	/**
+	 * Works out what a WooCommerce refund means for the Pass Captain order.
+	 *
+	 * - Refunded ticket quantities select that many not yet refunded tickets of the type (valid
+	 *   tickets first, newest first; checked-in tickets are refunded but stay checked in).
+	 * - The amount is the refunded gross of the ticket lines. A refund without any line (amount
+	 *   only) is attributed to tickets in proportion of the ticket share of the WooCommerce order.
+	 * - The refund that leaves the WooCommerce order fully refunded covers all remaining tickets and
+	 *   the remaining amount, so the core order ends up exactly refunded.
+	 *
+	 * @return array{ticket_ids:int[], amount_minor:int, quantities:array<int,int>, final:bool}
+	 */
+	public static function refund_plan( $wc_order, $refund, $core_id ) {
+		global $wpdb;
+		$p          = $wpdb->prefix;
+		$core       = Orders::get( $core_id );
+		$plan       = array( 'ticket_ids' => array(), 'amount_minor' => 0, 'quantities' => array(), 'final' => false );
+		if ( ! $core ) {
+			return $plan;
+		}
+		$factor     = 10 ** self::currency_decimals( $wc_order->get_currency() );
+		$remaining  = max( 0, (int) $core->total_minor - (int) $core->refunded_minor );
+		$quantities = self::refund_type_quantities( $refund );
+		$amount     = 0;
+		$has_lines  = false;
+		foreach ( $refund->get_items( array( 'line_item', 'fee', 'shipping' ) ) as $refund_item ) {
+			$has_lines = true;
+			if ( ! is_callable( array( $refund_item, 'get_total' ) ) || ! self::refund_item_type_id( $refund_item ) ) {
+				continue;
+			}
+			$amount += (int) round( abs( (float) $refund_item->get_total() + (float) $refund_item->get_total_tax() ) * $factor );
+		}
+		if ( self::is_final_refund( $wc_order, $refund ) ) {
+			$plan['final']        = true;
+			$plan['ticket_ids']   = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0 AND status IN ('valid','checked_in') ORDER BY ticket_id", $core_id ) ) ); // phpcs:ignore WordPress.DB
+			$plan['amount_minor'] = $remaining;
+			$plan['quantities']   = $quantities;
+			return $plan;
+		}
+		if ( ! $has_lines ) {
+			$refunded = is_callable( array( $refund, 'get_amount' ) ) ? (int) round( abs( (float) $refund->get_amount() ) * $factor ) : 0;
+			$wc_total = is_callable( array( $wc_order, 'get_total' ) ) ? (int) round( (float) $wc_order->get_total() * $factor ) : 0;
+			$amount   = $wc_total > 0 ? (int) round( $refunded * min( 1, (int) $core->total_minor / $wc_total ) ) : 0;
+		}
+		foreach ( $quantities as $type_id => $qty ) {
+			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND ticket_type_id=%d AND refunded=0 AND status IN ('valid','checked_in') ORDER BY (status='valid') DESC, ticket_id DESC LIMIT %d", $core_id, $type_id, $qty ) ); // phpcs:ignore WordPress.DB
+			$plan['ticket_ids'] = array_merge( $plan['ticket_ids'], array_map( 'intval', $ids ) );
+		}
+		$plan['quantities']   = $quantities;
+		$plan['amount_minor'] = min( $remaining, $amount );
+		return $plan;
+	}
+
+	/** Refunded ticket quantities per ticket type of a WooCommerce refund. */
+	private static function refund_type_quantities( $refund ) {
+		$quantities = array();
+		foreach ( $refund->get_items( 'line_item' ) as $refund_item ) {
+			$qty     = abs( (int) $refund_item->get_quantity() );
+			$type_id = $qty ? self::refund_item_type_id( $refund_item ) : 0;
+			if ( $type_id ) {
+				$quantities[ $type_id ] = ( $quantities[ $type_id ] ?? 0 ) + $qty;
+			}
+		}
+		return $quantities;
+	}
+
+	/** Ticket type of a refund line (from the refunded original line, else from the product). */
+	private static function refund_item_type_id( $refund_item ) {
+		if ( ! is_callable( array( $refund_item, 'get_product' ) ) ) {
+			return 0;
+		}
+		$original_id = absint( $refund_item->get_meta( '_refunded_item_id', true ) );
+		$original    = $original_id ? \WC_Order_Factory::get_order_item( $original_id ) : null;
+		return $original ? self::item_ticket_type_id( $original ) : self::product_ticket_type_id( $refund_item->get_product() );
+	}
+
+	/** True if $refund is the latest refund and leaves nothing of the WooCommerce order to refund. */
+	private static function is_final_refund( $wc_order, $refund ) {
+		if ( ! is_callable( array( $wc_order, 'get_total' ) ) || ! is_callable( array( $wc_order, 'get_total_refunded' ) ) ) {
+			return false;
+		}
+		$total = (float) $wc_order->get_total();
+		if ( $total <= 0 || $total - (float) $wc_order->get_total_refunded() > 0.0001 ) {
+			return false;
+		}
+		if ( is_callable( array( $wc_order, 'get_refunds' ) ) ) {
+			$refunds = $wc_order->get_refunds();
+			$latest  = $refunds ? reset( $refunds ) : null;
+			return ! $latest || (int) $latest->get_id() === (int) $refund->get_id();
+		}
+		return true;
+	}
+
+	/** Order note about revoked/kept tickets of a refund. */
+	private static function note_refund( $wc_order, $revoked, $kept ) {
+		if ( ! $wc_order || ( ! $revoked && ! $kept ) ) {
+			return;
+		}
+		/* translators: %d: ticket count */
+		$note = sprintf( __( 'Pass Captain: %d Ticket(s) wegen Erstattung widerrufen.', 'wp-pass-captain' ), $revoked );
+		if ( $kept ) {
+			/* translators: %d: ticket count */
+			$note .= ' ' . sprintf( __( '%d erstattete(s) Ticket(s) waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert.', 'wp-pass-captain' ), $kept );
+		}
+		$wc_order->add_order_note( $note );
+	}
+
+	/**
+	 * Full refund: record outstanding WooCommerce refunds (status "refunded" fires before
+	 * woocommerce_order_refunded), then mark the core order refunded and revoke remaining tickets.
+	 */
 	public static function sync_fully_refunded_order( $wc_order_id ) {
 		$core_id = self::core_order_id( $wc_order_id );
-		if ( $core_id ) {
-			Orders::mark_refunded( $core_id, 'woocommerce_refunded' );
+		if ( ! $core_id ) {
+			return;
 		}
+		$wc_order = wc_get_order( absint( $wc_order_id ) );
+		if ( $wc_order && self::can_record_refunds() && is_callable( array( $wc_order, 'get_refunds' ) ) ) {
+			foreach ( array_reverse( (array) $wc_order->get_refunds() ) as $refund ) {
+				self::sync_refund( $wc_order_id, $refund->get_id() );
+			}
+		}
+		Orders::mark_refunded( $core_id, 'woocommerce_refunded' );
 	}
 
 	/** Adds a note to the WooCommerce order when one of its occurrences was cancelled. */
@@ -736,7 +936,9 @@ final class OrderAdapter {
 		if ( ! current_user_can( 'wpcap_manage_orders' ) ) {
 			return;
 		}
-		if ( $wc_order->is_paid() ) {
+		if ( self::defers_issuance( $wc_order ) ) {
+			$wc_order->add_order_note( __( 'Pass Captain: Bei dieser Zahlungsart werden die Tickets erst mit dem Status „Abgeschlossen“ ausgestellt.', 'wp-pass-captain' ) );
+		} elseif ( $wc_order->is_paid() ) {
 			self::sync_paid_order( $wc_order->get_id(), true );
 		} else {
 			$wc_order->add_order_note( __( 'Pass Captain: Die Bestellung ist noch nicht bezahlt.', 'wp-pass-captain' ) );
@@ -759,7 +961,7 @@ final class OrderAdapter {
 	}
 
 	/** Loads a ticket type with event/occurrence context. */
-	private static function ticket_type( $type_id ) {
+	public static function ticket_type( $type_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		return $wpdb->get_row( $wpdb->prepare( "SELECT tt.*,o.starts_at,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d", absint( $type_id ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
