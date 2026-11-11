@@ -213,8 +213,12 @@ final class Controller {
 		return rest_ensure_response( $output );
 	}
 
+	/** Fields an anonymous checkout may set; adapter options (external, unit_prices, hold_minutes, currency, source) are internal only. */
+	const PUBLIC_CHECKOUT_FIELDS = array( 'email', 'items', 'idempotency_key', 'campaign_codes' );
+
 	public static function checkout( \WP_REST_Request $request ) {
-		$result = Orders::create( $request->get_json_params() ?: $request->get_params() );
+		$params = $request->get_json_params() ?: $request->get_params();
+		$result = Orders::create( array_intersect_key( is_array( $params ) ? $params : array(), array_flip( self::PUBLIC_CHECKOUT_FIELDS ) ) );
 		if ( is_wp_error( $result ) ) { return $result; }
 		return new \WP_REST_Response( $result, 201 );
 	}
