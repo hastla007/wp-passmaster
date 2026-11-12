@@ -29,7 +29,7 @@ final class Memberships {
 			if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_pass_rule_failed', __( 'Passregeln konnten nicht gespeichert werden.', 'wp-pass-captain' ) ); }
 		}
 		$wpdb->query( 'COMMIT' );
-		wp_mail( $email, sprintf( /* translators: %s: site name */ __( 'Dein Pass für %s', 'wp-pass-captain' ), Orders::site_name() ), __( 'Dein Passcode:', 'wp-pass-captain' ) . ' ' . $token . "\n" . __( 'Gültig bis:', 'wp-pass-captain' ) . ' ' . $valid_until );
+		Mail\Mailer::send( 'member_pass', $email, array( 'pass_code' => $token, 'valid_from' => (string) $valid_from, 'valid_until' => (string) $valid_until ) );
 		Audit::record( 'member_pass_issued', 'member_pass', $pass_id, array( 'rule_count' => count( $rules ) ) );
 		return array( 'pass_id' => $pass_id, 'token' => $token );
 	}
