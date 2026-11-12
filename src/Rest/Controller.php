@@ -339,7 +339,7 @@ final class Controller {
 		$items = $payload['items'] ?? array();
 		if ( ! is_array( $items ) || ! $items || count( $items ) > 10 || '' === sanitize_text_field( $payload['idempotency_key'] ?? '' ) ) { return new \WP_Error( 'wpcap_pos_items', __( 'POS-Verkaufspositionen oder Idempotency-Key sind ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		$payment_method = sanitize_key( $payload['payment_method'] ?? 'cash' );
-		if ( ! in_array( $payment_method, array( 'cash', 'card', 'voucher', 'other' ), true ) ) { return new \\WP_Error( 'wpcap_pos_payment_method', __( 'Zahlungsart ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! in_array( $payment_method, array( 'cash', 'card', 'voucher', 'other' ), true ) ) { return new \WP_Error( 'wpcap_pos_payment_method', __( 'Zahlungsart ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		global $wpdb;
 		foreach ( $items as $item ) {
 			$type_id = absint( $item['ticket_type_id'] ?? 0 );
