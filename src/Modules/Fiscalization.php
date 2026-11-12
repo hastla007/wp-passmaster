@@ -151,10 +151,10 @@ final class Fiscalization {
 			$groups[ $seller_id ]['gross_minor'] += $gross;
 			$groups[ $seller_id ]['tax_minor'] += $tax;
 		}
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT currency FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT currency,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
 		foreach ( $groups as $seller_id => $group ) {
 			$key = hash( 'sha256', 'wpcap-fiscal-v1:' . absint( $order_id ) . ':' . $seller_id );
-			$snapshot = array( 'schema_version' => 1, 'order_id' => absint( $order_id ), 'seller' => $group['seller'], 'seller_mode' => $group['items'][0]['seller_mode'], 'currency' => $order->currency ?? 'EUR', 'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'items' => $group['items'] );
+			$snapshot = array( 'schema_version' => 1, 'order_id' => absint( $order_id ), 'seller' => $group['seller'], 'seller_mode' => $group['items'][0]['seller_mode'], 'currency' => $order->currency ?? 'EUR', 'payment_method' => sanitize_key( $order->payment_provider ?? '' ), 'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'items' => $group['items'] );
 			$wpdb->insert( "{$p}wpcap_fiscal_documents", array(
 				'order_id' => absint( $order_id ), 'seller_id' => (int) $seller_id, 'document_key' => $key,
 				'country_code' => $group['seller']['country_code'], 'provider_id' => $group['provider_id'],
