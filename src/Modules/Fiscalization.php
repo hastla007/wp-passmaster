@@ -354,7 +354,7 @@ final class Fiscalization {
 					self::fail( $doc, 'status_unknown:' . sanitize_key( $lookup->get_error_code() ) );
 					continue;
 				}
-				if ( is_array( $lookup ) && 'submitted' === ( $lookup['status'] ?? '' ) && ! empty( $lookup['reference'] ) ) {
+				if ( is_array( $lookup ) && 'submitted' === ( $lookup['status'] ?? '' ) && ! empty( $lookup['reference'] ) && is_scalar( $lookup['reference'] ) ) {
 					$result = $lookup;
 					self::record_event( $doc, 'status_query', 'submitted', array( 'reference' => sanitize_text_field( $lookup['reference'] ) ) );
 				} elseif ( ! is_array( $lookup ) || 'not_found' !== ( $lookup['status'] ?? '' ) ) {
@@ -369,7 +369,7 @@ final class Fiscalization {
 				self::record_event( $doc, 'submission', 'started', array( 'attempt' => (int) $doc->attempts + 1 ) );
 				$result = $adapter->submit( $document, (array) $seller, $configuration );
 			}
-			if ( is_wp_error( $result ) || ! is_array( $result ) || empty( $result['reference'] ) ) {
+			if ( is_wp_error( $result ) || ! is_array( $result ) || empty( $result['reference'] ) || ! is_scalar( $result['reference'] ) ) {
 				$error_code = is_wp_error( $result ) ? sanitize_key( $result->get_error_code() ) : 'invalid_result';
 				self::record_event( $doc, 'submission', 'failed', array( 'error_code' => $error_code ) );
 				self::fail( $doc, 'provider_error:' . $error_code );
@@ -384,12 +384,32 @@ final class Fiscalization {
 				}
 			}
 			$wpdb->update( "{$p}wpcap_fiscal_documents", array(
-				'status' => 'submitted', 'provider_result' => wp_json_encode( $result ), 'last_error' => '',
+				'status' => 'submitted', 'provider_result' => wp_json_encode( self::normalize_provider_result( $result ) ), 'last_error' => '',
 				'attempts' => (int) $doc->attempts + 1, 'updated_at' => current_time( 'mysql', true ),
 			), array( 'document_id' => (int) $doc->document_id ) );
 			self::record_event( $doc, 'submission', 'submitted', array( 'reference' => sanitize_text_field( $result['reference'] ) ) );
 			Audit::record( 'fiscal_document_submitted', 'order', (int) $order_id, array( 'document_id' => (int) $doc->document_id, 'seller_id' => (int) $doc->seller_id, 'provider_id' => $doc->provider_id ) );
 		}
+	}
+
+	/** Persist only normalized, printable receipt fields from an adapter response. */
+	private static function normalize_provider_result( array $result ) {
+		$reference = is_scalar( $result['reference'] ?? null ) ? substr( sanitize_text_field( (string) $result['reference'] ), 0, 191 ) : '';
+		$normalized = array( 'reference' => $reference );
+		$receipt = is_array( $result['receipt'] ?? null ) ? $result['receipt'] : array();
+		$out = array();
+		if ( is_string( $receipt['qr_payload'] ?? null ) && strlen( $receipt['qr_payload'] ) <= 4096 ) {
+			$out['qr_payload'] = $receipt['qr_payload'];
+		}
+		$fields = is_array( $receipt['fields'] ?? null ) ? array_slice( $receipt['fields'], 0, 32, true ) : array();
+		foreach ( $fields as $label => $value ) {
+			if ( ! is_scalar( $value ) ) { continue; }
+			$label = substr( sanitize_text_field( (string) $label ), 0, 64 );
+			if ( '' === $label ) { continue; }
+			$out['fields'][ $label ] = substr( sanitize_text_field( (string) $value ), 0, 512 );
+		}
+		if ( $out ) { $normalized['receipt'] = $out; }
+		return $normalized;
 	}
 
 	/** Append-only operation event; caller passes metadata with no credentials or raw provider body. */
@@ -435,8 +455,8 @@ final class Fiscalization {
 			self::record_event( $doc, 'manual_reconcile', 'unknown', array( 'error_code' => sanitize_key( $result->get_error_code() ) ) );
 			return new \WP_Error( 'wpcap_fiscal_status_unknown', __( 'Der Anbieterstatus ist weiterhin unklar; es wurde keine neue Beleganlage ausgelöst.', 'wp-pass-captain' ), array( 'status' => 503 ) );
 		}
-		if ( is_array( $result ) && 'submitted' === ( $result['status'] ?? '' ) && ! empty( $result['reference'] ) ) {
-			$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array( 'status' => 'submitted', 'provider_result' => wp_json_encode( $result ), 'last_error' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'document_id' => (int) $doc->document_id ) );
+		if ( is_array( $result ) && 'submitted' === ( $result['status'] ?? '' ) && ! empty( $result['reference'] ) && is_scalar( $result['reference'] ) ) {
+			$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array( 'status' => 'submitted', 'provider_result' => wp_json_encode( self::normalize_provider_result( $result ) ), 'last_error' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'document_id' => (int) $doc->document_id ) );
 			self::record_event( $doc, 'manual_reconcile', 'submitted', array( 'reference' => sanitize_text_field( $result['reference'] ) ) );
 		} elseif ( is_array( $result ) && 'not_found' === ( $result['status'] ?? '' ) ) {
 			$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array( 'status' => 'retry', 'last_error' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'document_id' => (int) $doc->document_id ) );
