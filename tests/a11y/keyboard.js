@@ -89,11 +89,11 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	await page.keyboard.press('Enter');
 	await page.waitForTimeout(200);
 	const live = await page.evaluate((sel) => {
-		const m = document.querySelector(sel + ' .wpcap-message');
-		return { text: m.textContent.trim(), role: m.getAttribute('role'), live: m.getAttribute('aria-live') };
+		const m = document.querySelector(sel + ' .wpcap-error-summary');
+		return m ? { text: m.textContent.trim(), role: m.getAttribute('role'), focused: document.activeElement === m, links: m.querySelectorAll('a[href^="#"]').length } : { text: '', role: '', focused: false, links: 0 };
 	}, scope);
-	check('error text is shown', live.text.length > 0, live.text);
-	check('error text is in a polite live region (role=status)', live.role === 'status' && live.live === 'polite');
+	check('error summary is shown with links to the fields', live.text.length > 0 && live.links > 0, live.text);
+	check('error summary is an alert and receives focus', live.role === 'alert' && live.focused);
 
 	console.log('Checkout: dynamic attendee fields and native validation');
 	await page.goto(fx.events_url, { waitUntil: 'load' });
@@ -106,18 +106,21 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	check('ArrowUp on the quantity adds an attendee fieldset', attendees === 1, String(attendees));
 	await page.keyboard.press('Tab');
 	f = await focused(page, scope);
-	check('next Tab moves into the new attendee fields', f && f.field === '__name', f && `${f.tag}:${f.field}`);
+	check('next Tab reaches the buyer e-mail (placed before the attendee fields)', f && f.field === 'email' && /E-Mail/.test(f.name), f && `${f.tag}:${f.field} ${f.name}`);
+	await page.keyboard.type('keine-adresse');
+	await page.keyboard.press('Tab');
+	f = await focused(page, scope);
+	check('then Tab moves into the new attendee fields', f && f.field === '__name', f && `${f.tag}:${f.field}`);
 	check('attendee name field is labelled', f && /Name/.test(f.name), f && f.name);
 	const group = await page.evaluate((sel) => { const fs = document.querySelector(sel + ' .wpcap-attendee'); return fs && fs.querySelector('legend') ? fs.querySelector('legend').textContent : ''; }, scope);
 	check('attendee fieldset has a legend', !!group, group);
 	await page.keyboard.type('Alex Muster');
-	f = await tabUntil(page, scope, (s) => s.field === 'email', 20);
-	check('order e-mail field is reachable and labelled', f && /E-Mail/.test(f.name), f && f.name);
-	await page.keyboard.type('keine-adresse');
 	await page.keyboard.press('Enter');
 	await page.waitForTimeout(200);
 	f = await focused(page, scope);
-	check('invalid e-mail: focus moves to the field with a validation message', f && f.field === 'email' && f.validation, f && f.validation);
+	const emailError = await page.evaluate((sel) => { const i = document.querySelector(sel + ' [name="email"]'); const d = i && document.getElementById(i.getAttribute('aria-describedby') || ''); return { invalid: i && i.getAttribute('aria-invalid'), described: d ? d.textContent : '', summary: document.activeElement && document.activeElement.classList.contains('wpcap-error-summary') }; }, scope);
+	check('invalid e-mail: summary focused, field has aria-invalid and a described error', emailError.summary && emailError.invalid === 'true' && /E-Mail/.test(emailError.described), emailError.described);
+	await page.evaluate((sel) => document.querySelector(sel + ' [name="email"]').focus(), scope);
 	await page.keyboard.press('ControlOrMeta+A');
 	await page.keyboard.type('keyboard-' + Date.now() + '@example.com');
 	const terms = await page.evaluate((sel) => !!document.querySelector(sel + ' [name="accept_terms"]'), scope);
@@ -132,11 +135,10 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	const button = await tabUntil(page, scope, (s) => s.tag.startsWith('button'), 20);
 	check('Tab reaches the submit button after the form fields', !!button);
 	await page.keyboard.press('Enter');
-	await page.waitForFunction((sel) => { const m = document.querySelector(sel + ' .wpcap-message'); return m && m.textContent && !/…/.test(m.textContent); }, scope, { timeout: 15000 }).catch(() => {});
-	const done = await page.evaluate((sel) => document.querySelector(sel + ' .wpcap-message').textContent.trim(), scope);
-	check('successful order is announced in the live region', /abgeschlossen|reserviert/.test(done), done);
-	f = await focused(page, scope);
-	check('focus is not lost after submit (stays in the form)', f && f.inside, f ? f.tag : 'body');
+	await page.waitForFunction(() => !!document.querySelector('.wpcap-confirmation, .wpcap-error-summary'), null, { timeout: 15000 }).catch(() => {});
+	const done = await page.evaluate(() => { const p = document.querySelector('.wpcap-confirmation'); return { text: p ? p.textContent.trim() : '', focused: !!p && document.activeElement === p }; });
+	check('successful order shows the confirmation panel with the order number', /Bestellnummer/.test(done.text), done.text.slice(0, 80));
+	check('focus moves to the confirmation panel', done.focused);
 
 	console.log('Scanner: keyboard and announcements');
 	await login(ctx);
