@@ -578,6 +578,7 @@ final class OrderAdapter {
 		$factor = 10 ** self::currency_decimals( $currency );
 		$gross = (int) round( ( (float) $item->get_total() + (float) $item->get_total_tax() ) * $factor );
 		$tax = (int) round( (float) $item->get_total_tax() * $factor );
+		if ( $gross < 0 ) { return new \\WP_Error( 'wpcap_fiscal_negative_extra_line', __( 'Negative fees müssen als zugeordnete Rabattposition statt als negative Gebühr eingerichtet werden.', 'wp-pass-captain' ) ); }
 		$taxes = is_callable( array( $item, 'get_taxes' ) ) ? (array) $item->get_taxes() : array();
 		$rate_ids = array_keys( array_filter( (array) ( $taxes['total'] ?? array() ), static function ( $amount ) { return abs( (float) $amount ) > 0.000001; } ) );
 		$rate_bp = 0;
@@ -588,10 +589,12 @@ final class OrderAdapter {
 		} elseif ( $tax > 0 ) {
 			return new \WP_Error( 'wpcap_fiscal_tax_rate_unavailable', __( 'Der WooCommerce-Steuersatz für eine zusätzliche Position konnte nicht eindeutig bestimmt werden.', 'wp-pass-captain' ) );
 		}
-		$quantity = max( 1, absint( $item->get_quantity() ) );
+		$quantity = max( 1, absint( is_callable( array( $item, 'get_quantity' ) ) ? $item->get_quantity() : 1 ) );
+		$product = is_callable( array( $item, 'get_product' ) ) ? $item->get_product() : null;
+		$product_id = $product && is_callable( array( $product, 'get_id' ) ) ? absint( $product->get_id() ) : 0;
 		return array(
 			'line_key' => sanitize_key( 'woo_' . sanitize_key( get_class( $item ) ) . '_' . absint( $item_id ) ),
-			'product_id' => $product_id = ( $item->get_product() && is_callable( array( $item->get_product(), 'get_id' ) ) ) ? absint( $item->get_product()->get_id() ) : 0,
+			'product_id' => $product_id,
 			'seller_id' => absint( $assignment['seller_id'] ),
 			'seller_mode' => sanitize_key( $assignment['seller_mode'] ),
 			'description' => sanitize_text_field( (string) $item->get_name() ),

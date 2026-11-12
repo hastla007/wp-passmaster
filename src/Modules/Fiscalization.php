@@ -335,6 +335,56 @@ final class Fiscalization {
 			$groups[ $seller_id ]['gross_minor'] += $gross;
 			$groups[ $seller_id ]['tax_minor'] += $tax;
 		}
+		foreach ( (array) ( $internal['fiscal_extra_items'] ?? array() ) as $extra ) {
+			$seller_id = absint( $extra['seller_id'] ?? 0 );
+			$seller_mode = sanitize_key( $extra['seller_mode'] ?? '' );
+			if ( ! $seller_id || ! in_array( $seller_mode, array( 'organizer_seller', 'platform_seller' ), true ) ) { throw new \RuntimeException( 'fiscal_extra_seller_invalid' ); }
+			$mapping = $wpdb->get_row( $wpdb->prepare(
+				"SELECT s.seller_id,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM {$p}wpcap_legal_sellers s LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id LEFT JOIN {$p}wpcap_fiscal_profiles fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE s.seller_id=%d",
+				$channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $seller_id
+			) );
+			if ( ! $mapping || 'active' !== $mapping->seller_status || ! $mapping->profile_id || ! in_array( $mapping->profile_status, array( 'active', 'not_required' ), true ) ) { throw new \RuntimeException( 'fiscal_extra_seller_profile_unavailable' ); }
+			$has_mapping = true;
+			if ( 'not_required' === $mapping->profile_status ) { continue; }
+			$adapter = Registry::get( $mapping->provider_id );
+			if ( ! (int) $mapping->enabled || ! $adapter || ! in_array( strtoupper( $mapping->country_code ), array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) { throw new \RuntimeException( 'fiscal_extra_provider_unavailable' ); }
+			$profile_data = $mapping->profile_data ? (array) json_decode( $mapping->profile_data, true ) : array();
+			if ( CountryPolicy::missing_capabilities( $adapter, $profile_data ) ) { throw new \RuntimeException( 'fiscal_adapter_capability_missing' ); }
+			$seller_snapshot = array(
+				'seller_id' => $seller_id, 'legal_name' => $mapping->legal_name, 'country_code' => strtoupper( $mapping->country_code ),
+				'tax_number' => $mapping->tax_number, 'vat_id' => $mapping->vat_id,
+				'business_address' => $mapping->business_address ? (array) json_decode( $mapping->business_address, true ) : array(),
+				'contact_email' => $mapping->contact_email,
+			);
+			$profile_snapshot = array(
+				'profile_id' => (int) $mapping->profile_id, 'version' => (int) $mapping->profile_version,
+				'ruleset_key' => $mapping->ruleset_key, 'ruleset_version' => $mapping->ruleset_version,
+				'legal_reference' => $mapping->legal_reference, 'location_id' => (int) $scope['location_id'], 'register_id' => $scope['register_id'],
+			);
+			if ( ! isset( $groups[$seller_id] ) ) {
+				$groups[$seller_id] = array(
+					'seller' => $seller_snapshot,
+					'profile' => array_merge( $profile_snapshot, array( 'data' => $profile_data ) ),
+					'provider_id' => sanitize_key( $mapping->provider_id ),
+					'configuration' => $mapping->configuration ? (array) json_decode( $mapping->configuration, true ) : array(),
+					'items' => array(), 'gross_minor' => 0, 'tax_minor' => 0,
+				);
+			}
+			$gross = max( 0, (int) ( $extra['gross_minor'] ?? 0 ) );
+			$tax = min( $gross, max( 0, (int) ( $extra['tax_minor'] ?? 0 ) ) );
+			$groups[$seller_id]['items'][] = array(
+				'line_key' => sanitize_key( $extra['line_key'] ?? '' ),
+				'product_id' => absint( $extra['product_id'] ?? 0 ),
+				'description' => sanitize_text_field( (string) ( $extra['description'] ?? __( 'WooCommerce-Position', 'wp-pass-captain' ) ) ),
+				'seller_mode' => $seller_mode,
+				'quantity' => max( 1, absint( $extra['quantity'] ?? 1 ) ),
+				'gross_minor' => $gross,
+				'tax_rate_bp' => absint( $extra['tax_rate_bp'] ?? 0 ),
+				'tax_minor' => $tax,
+			);
+			$groups[$seller_id]['gross_minor'] += $gross;
+			$groups[$seller_id]['tax_minor'] += $tax;
+		}
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT currency,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
 		if ( $has_mapping ) { $wpdb->replace( "{$p}wpcap_fiscal_order_state", array( 'order_id' => absint( $order_id ), 'fiscal_status' => $groups ? 'pending' : 'not_required', 'fulfillment_status' => $groups ? 'blocked' : 'awaiting_payment', 'updated_at' => $now ), array( '%d', '%s', '%s', '%s' ) ); }
 		foreach ( $groups as $seller_id => $group ) {
@@ -351,6 +401,7 @@ final class Fiscalization {
 			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
 			$document_id = (int) $wpdb->insert_id;
 			foreach ( $group['items'] as $item ) {
+				if ( empty( $item['ticket_type_id'] ) ) { continue; }
 				$wpdb->insert( "{$p}wpcap_fiscal_document_items", array_merge( array( 'document_id' => $document_id ), $item ) );
 				if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
 			}
