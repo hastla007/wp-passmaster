@@ -690,6 +690,17 @@ final class Fiscalization {
 			}
 			echo '</tbody></table>';
 		}
+		echo '<hr><h2>' . esc_html__( 'Fiskal-Ereignisprotokoll', 'wp-pass-captain' ) . '</h2>';
+		$events = $wpdb->get_results( "SELECT event_id,document_id,order_id,provider_id,event_type,event_status,metadata,created_at FROM {$p}wpcap_fiscal_events ORDER BY event_id DESC LIMIT 200" );
+		if ( ! $events ) { echo '<p>' . esc_html__( 'Noch keine Fiskalereignisse protokolliert.', 'wp-pass-captain' ) . '</p>'; }
+		else {
+			echo '<table class="widefat striped"><thead><tr><th>Ereignis</th><th>Dokument/Bestellung</th><th>Anbieter</th><th>Status</th><th>Details</th><th>Zeitpunkt</th></tr></thead><tbody>';
+			foreach ( $events as $event ) {
+				$metadata = json_decode( $event->metadata, true );
+				echo '<tr><td>' . esc_html( $event->event_type ) . '</td><td>' . (int) $event->document_id . ' / ' . (int) $event->order_id . '</td><td>' . esc_html( $event->provider_id ) . '</td><td>' . esc_html( $event->event_status ) . '</td><td><code>' . esc_html( wp_json_encode( is_array( $metadata ) ? $metadata : array() ) ) . '</code></td><td>' . esc_html( $event->created_at ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
 		echo '</div>';
 	}
 
