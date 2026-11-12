@@ -100,7 +100,7 @@ function load_event( $name, array $types ) {
 	$wpdb->insert( "{$p}wpcap_events", array( 'name' => $name, 'slug' => 'load-' . uniqid(), 'description' => '', 'status' => 'published', 'created_at' => $now, 'updated_at' => $now ) );
 	$event = (int) $wpdb->insert_id;
 	$created_events[] = $event;
-	$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $event, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 7 * DAY_IN_SECONDS ), 'timezone' => 'Europe/Vienna', 'location' => 'Halle', 'capacity' => 0, 'status' => 'scheduled' ) );
+	$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $event, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + HOUR_IN_SECONDS ), 'timezone' => 'Europe/Vienna', 'location' => 'Halle', 'capacity' => 0, 'status' => 'scheduled' ) );
 	$occ = (int) $wpdb->insert_id;
 	$ids = array();
 	foreach ( $types as list( $price, $cap ) ) {

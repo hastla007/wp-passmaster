@@ -265,39 +265,36 @@ final class Privacy {
 		}
 
 		// 2) Orders bought with this address.
-		$orders = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE customer_email=%s ORDER BY order_id ASC LIMIT %d", $email, self::BATCH ) ) );
+		// Orders already deferred (tickets for upcoming dates) are skipped, so every batch makes progress.
+		$skip = self::deferred() ? ' AND order_id NOT IN (' . self::in_list( array_map( 'absint', array_keys( self::deferred() ) ) ) . ')' : '';
+		$orders = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE customer_email=%s{$skip} ORDER BY order_id ASC LIMIT %d", $email, self::BATCH ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		$invoices = 0;
 		$upcoming = 0;
 		$billing_erased = 0;
+		$deferred = 0;
 		foreach ( $orders as $order_id ) {
 			$replacement = self::replacement_email( $email, $order_id );
 			$ticket_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) ) );
+			// Art. 17(3)(b) GDPR: tickets for upcoming dates are still to be performed. The order is anonymised
+			// automatically after its last date (hourly run) instead of revoking tickets people will show at the door.
+			if ( self::upcoming_count( $ticket_ids ) && apply_filters( 'wpcap_privacy_defer_upcoming', true, $order_id ) ) {
+				self::defer( $order_id, $replacement );
+				++$deferred;
+				continue;
+			}
 			$upcoming += self::upcoming_count( $ticket_ids );
-			// Valid tickets are revoked through the core service so wallet passes, seats, offline
-			// packages (status in the next snapshot) and webhooks learn about it.
-			$revoked = Orders::revoke_ids( $ticket_ids );
-			foreach ( $ticket_ids as $ticket_id ) {
-				// token_hash is UNIQUE: one random value per ticket.
-				$wpdb->update( $p . 'wpcap_tickets', array( 'token_hash' => self::random_hash(), 'attendee_email' => '' ), array( 'ticket_id' => $ticket_id ), array( '%s', '%s' ), array( '%d' ) );
-			}
-			if ( $ticket_ids ) {
-				$in = self::in_list( $ticket_ids );
-				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_ticket_assignments SET buyer_email=%s,attendee_email='',attendee_name='' WHERE ticket_id IN ($in)", $replacement ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$details = self::erase_ticket_details( $ticket_ids, false );
-			} else {
-				$details = 0;
-			}
-			$wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => $replacement, 'access_token_hash' => self::random_hash(), 'access_expires_at' => null, 'attendee_data' => null, 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
-			// Billing data (name, company, address, VAT ID) of the order; issued invoices keep their own
-			// snapshot (retention duty, Art. 17 Abs. 3 lit. b DSGVO). Separate statement: the column may be
-			// missing while a deferred schema upgrade is pending.
-			$billing_erased += (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET billing=NULL WHERE order_id=%d AND billing IS NOT NULL", $order_id ) );
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_service_bookings SET customer_email=%s WHERE order_id=%d AND customer_email=%s", $replacement, $order_id, $email ) );
-			$invoices += (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_invoices WHERE order_id=%d", $order_id ) );
-			// Fired after anonymisation, so listeners (webhooks with personal data) see no address.
-			Orders::fire_revoked( $revoked, 'privacy_erasure' );
-			Audit::record( 'privacy_erasure', 'order', $order_id, array( 'tickets' => count( $ticket_ids ), 'revoked' => count( $revoked ), 'details' => $details ) );
+			$result = self::anonymize_order( $order_id, $replacement, $email );
+			$invoices += $result['invoices'];
+			$billing_erased += $result['billing'];
 			++$removed;
+		}
+		if ( $deferred ) {
+			wp_mail(
+				get_option( 'admin_email' ),
+				__( 'WP Pass Captain: Löschanfrage zurückgestellt', 'wp-pass-captain' ),
+				/* translators: %d: number of orders */
+				sprintf( __( 'Eine Löschanfrage betrifft %d Bestellung(en) mit Tickets für kommende Termine. Die Tickets bleiben bis nach dem letzten Termin gültig; danach werden die Bestellungen automatisch anonymisiert.', 'wp-pass-captain' ), $deferred )
+			);
 		}
 
 		// 3) Records keyed by the address only.
@@ -309,6 +306,10 @@ final class Privacy {
 		$removed += $bookings + $messages_removed + (int) $passes_removed + (int) $waitlist_removed;
 
 		$retained = (bool) $orders;
+		if ( $deferred ) {
+			/* translators: %d: number of orders */
+			$messages[] = sprintf( __( '%d Bestellung(en) mit Tickets für bevorstehende Termine werden zur Vertragserfüllung (Art. 17 Abs. 3 DSGVO) bis nach dem letzten Termin aufbewahrt und danach automatisch anonymisiert; die Tickets bleiben gültig.', 'wp-pass-captain' ), $deferred );
+		}
 		if ( $orders ) {
 			$messages[] = __( 'Bestellbeträge, Positionen, Steuern, Zahlungs- und Erstattungsreferenzen bleiben wegen gesetzlicher Aufbewahrungspflichten (Art. 17 Abs. 3 lit. b DSGVO) erhalten. Entfernt bzw. anonymisiert wurden: Käufer-E-Mail in Bestellungen, Ticketzugänge, Teilnehmernamen, -E-Mails und -angaben, Offline-Scannerdaten, Wallet-Registrierungen, Terminbuchungen, Wartelisteneinträge, Passzugänge und geplante Nachrichten.', 'wp-pass-captain' );
 		} elseif ( $removed ) {
@@ -331,6 +332,78 @@ final class Privacy {
 			'messages' => $messages,
 			'done' => count( $orders ) < self::BATCH && count( $attendee_ids ) < 200,
 		);
+	}
+
+	/**
+	 * Anonymises one order: buyer email, access link, tickets (revoked through the core service), attendee
+	 * data, participant answers and billing data. Invoices keep their own snapshot (retention duty).
+	 *
+	 * @return int[] ['invoices' => n, 'billing' => n]
+	 */
+	private static function anonymize_order( $order_id, $replacement, $email ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = current_time( 'mysql', true );
+		$invoices = 0;
+		$billing_erased = 0;
+		$ticket_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) ) );
+		// Valid tickets are revoked through the core service so wallet passes, seats, offline
+		// packages (status in the next snapshot) and webhooks learn about it.
+		$revoked = Orders::revoke_ids( $ticket_ids );
+		foreach ( $ticket_ids as $ticket_id ) {
+			// token_hash is UNIQUE: one random value per ticket.
+			$wpdb->update( $p . 'wpcap_tickets', array( 'token_hash' => self::random_hash(), 'attendee_email' => '' ), array( 'ticket_id' => $ticket_id ), array( '%s', '%s' ), array( '%d' ) );
+		}
+		if ( $ticket_ids ) {
+			$in = self::in_list( $ticket_ids );
+			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_ticket_assignments SET buyer_email=%s,attendee_email='',attendee_name='' WHERE ticket_id IN ($in)", $replacement ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$details = self::erase_ticket_details( $ticket_ids, false );
+		} else {
+			$details = 0;
+		}
+		$wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => $replacement, 'access_token_hash' => self::random_hash(), 'access_expires_at' => null, 'attendee_data' => null, 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
+		// Billing data (name, company, address, VAT ID) of the order; issued invoices keep their own
+		// snapshot (retention duty, Art. 17 Abs. 3 lit. b DSGVO). Separate statement: the column may be
+		// missing while a deferred schema upgrade is pending.
+		$billing_erased += (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET billing=NULL WHERE order_id=%d AND billing IS NOT NULL", $order_id ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_service_bookings SET customer_email=%s WHERE order_id=%d AND customer_email=%s", $replacement, $order_id, $email ) );
+		$invoices += (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_invoices WHERE order_id=%d", $order_id ) );
+		// Fired after anonymisation, so listeners (webhooks with personal data) see no address.
+		Orders::fire_revoked( $revoked, 'privacy_erasure' );
+		Audit::record( 'privacy_erasure', 'order', $order_id, array( 'tickets' => count( $ticket_ids ), 'revoked' => count( $revoked ), 'details' => $details ) );
+		return array( 'invoices' => $invoices, 'billing' => $billing_erased );
+	}
+
+	const DEFERRED_OPTION = 'wpcap_deferred_erasures';
+
+	/** Deferred erasures: order id => replacement email. */
+	public static function deferred() {
+		$list = get_option( self::DEFERRED_OPTION, array() );
+		return is_array( $list ) ? $list : array();
+	}
+
+	private static function defer( $order_id, $replacement ) {
+		$list = self::deferred();
+		if ( isset( $list[ $order_id ] ) ) { return; }
+		$list[ $order_id ] = $replacement;
+		update_option( self::DEFERRED_OPTION, $list, false );
+		Audit::record( 'privacy_erasure_deferred', 'order', $order_id );
+	}
+
+	/** Hourly: anonymises deferred orders whose dates have passed (or whose tickets are no longer valid). */
+	public static function process_deferred() {
+		global $wpdb;
+		$list = self::deferred();
+		$changed = false;
+		foreach ( $list as $order_id => $replacement ) {
+			$order = $wpdb->get_row( $wpdb->prepare( "SELECT customer_email FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", (int) $order_id ) );
+			$ticket_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d", (int) $order_id ) ) );
+			if ( $order && self::upcoming_count( $ticket_ids ) ) { continue; }
+			if ( $order ) { self::anonymize_order( (int) $order_id, (string) $replacement, (string) $order->customer_email ); }
+			unset( $list[ $order_id ] );
+			$changed = true;
+		}
+		if ( $changed ) { update_option( self::DEFERRED_OPTION, $list, false ); }
 	}
 
 	/** Valid tickets whose occurrence has not ended yet. */

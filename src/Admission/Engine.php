@@ -72,6 +72,25 @@ final class Engine {
 	}
 
 	/**
+	 * Default entry window for ticket types without their own admission policy (settings
+	 * `default_entry_window`, `entry_opens_before_minutes`, `entry_closes_after_minutes`): from N minutes
+	 * before the start until the end of the occurrence (without an end: the end of its local start day)
+	 * plus M minutes. '' when inside, otherwise 'outside_entry_window'.
+	 */
+	public static function default_window_block( array $found, $at ) {
+		if ( ! \PassCaptain\Settings::get( 'default_entry_window' ) ) { return ''; }
+		$start = strtotime( $found['starts_at'] . ' UTC' );
+		if ( ! empty( $found['ends_at'] ) ) {
+			$end = max( $start, strtotime( $found['ends_at'] . ' UTC' ) );
+		} else {
+			$end = ( new \DateTimeImmutable( '@' . $start ) )->setTimezone( self::timezone( $found['timezone'] ) )->setTime( 23, 59, 59 )->getTimestamp();
+		}
+		$opens = max( 0, (int) \PassCaptain\Settings::get( 'entry_opens_before_minutes' ) );
+		$closes = max( 0, (int) \PassCaptain\Settings::get( 'entry_closes_after_minutes' ) );
+		return ( $at < $start - $opens * 60 || $at > $end + $closes * 60 ) ? 'outside_entry_window' : '';
+	}
+
+	/**
 	 * Evaluates a check-in against the policy. Must run under the ticket row lock.
 	 *
 	 * @return string '' when admitted, otherwise a block code.

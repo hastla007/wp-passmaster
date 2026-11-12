@@ -371,6 +371,9 @@
 			let data = {};
 			try { data = await response.json(); } catch (e) { data = {}; }
 			if (!response.ok) {
+				// The server answered: this attempt is finished, so the next submit starts a new one
+				// (only network errors keep the key, so a retry can never create a second order).
+				delete form.dataset.key;
 				message.textContent = '';
 				showErrors(form, [{ input: serverErrorField(form, data), message: data.message || t.failed || 'Failed.' }]);
 				return;
