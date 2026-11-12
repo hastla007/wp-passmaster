@@ -65,7 +65,10 @@ final class Credentials {
 			'tag' => base64_encode( $tag ),
 			'ciphertext' => base64_encode( $cipher ),
 		);
-		update_option( self::OPTION, $vault, false );
+		$saved = update_option( self::OPTION, $vault, false );
+		if ( ! $saved && get_option( self::OPTION, array() ) !== $vault ) {
+			return new \\WP_Error( 'wpcap_fiscal_credentials_save', __( 'Verschlüsselte Zugangsdaten konnten nicht gespeichert werden.', 'wp-pass-captain' ) );
+		}
 		return true;
 	}
 
