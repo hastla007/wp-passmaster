@@ -245,7 +245,7 @@ final class Invoices {
 		header( 'Content-Disposition: attachment; filename="wp-pass-captain-buchhaltung-' . $from . '-' . $to . '.csv"' );
 		$out = fopen( 'php://output', 'w' );
 		fwrite( $out, "\xEF\xBB\xBF" );
-		foreach ( $rows as $row ) { fputcsv( $out, $row, ';' ); }
+		foreach ( $rows as $row ) { fputcsv( $out, $row, ';', '"', '' ); } // Explicit escape (PHP 8.4 deprecates the default); '' = RFC 4180 quoting only.
 		fclose( $out );
 		exit;
 	}

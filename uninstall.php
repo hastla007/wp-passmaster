@@ -4,22 +4,25 @@
  *
  * Data is kept by default (orders and invoices are subject to retention duties). Only when
  * "Daten beim Löschen entfernen" (delete_data_on_uninstall) is enabled, all plugin tables, options,
- * transients, roles and capabilities are removed – on every site of a multisite network.
+ * transients, roles and capabilities are removed. On a multisite network this is decided per site:
+ * each site's tables, options and per-site user options ({site prefix}wpcap_*) are removed only for
+ * sites that opted in. Network-wide user meta (wpcap_*) is shared by all sites and is therefore
+ * only deleted when every site opted in.
  *
  * @package PassCaptain
  */
 
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) { exit; }
 
-/** Removes the plugin data of the current site if the operator opted in. */
+/** Removes the plugin data of the current site if the operator opted in; returns whether it did. */
 function wpcap_uninstall_site() {
 	global $wpdb;
-	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch' ) as $hook ) {
-		wp_clear_scheduled_hook( $hook );
+	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_run_upgrade' ) as $hook ) {
+		wp_unschedule_hook( $hook ); // All events of the hook, including continuation runs with arguments.
 	}
 	$settings = get_option( 'wpcap_settings', array() );
 	if ( empty( $settings['delete_data_on_uninstall'] ) ) {
-		return;
+		return false;
 	}
 	$like = $wpdb->esc_like( $wpdb->prefix . 'wpcap_' ) . '%';
 	foreach ( (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) ) as $table ) {
@@ -36,15 +39,28 @@ function wpcap_uninstall_site() {
 	foreach ( get_users( array( 'fields' => 'all', 'capability__in' => $caps ) ) as $user ) {
 		foreach ( $caps as $cap ) { $user->remove_cap( $cap ); }
 	}
+	// Per-site user options (update_user_option) carry the site prefix, so this only hits this site.
+	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE %s", $wpdb->esc_like( $wpdb->get_blog_prefix() . 'wpcap_' ) . '%' ) );
+	return true;
+}
+
+/** Deletes network-wide (unprefixed) user meta wpcap_*. */
+function wpcap_uninstall_global_usermeta() {
+	global $wpdb;
 	$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->usermeta} WHERE meta_key LIKE %s", $wpdb->esc_like( 'wpcap_' ) . '%' ) );
 }
 
 if ( is_multisite() ) {
+	$wpcap_all_opted_in = true;
 	foreach ( get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) as $site_id ) {
 		switch_to_blog( (int) $site_id );
-		wpcap_uninstall_site();
+		$wpcap_all_opted_in = wpcap_uninstall_site() && $wpcap_all_opted_in;
 		restore_current_blog();
 	}
-} else {
-	wpcap_uninstall_site();
+	// User meta is shared by the whole network: keep it while any site still keeps its data.
+	if ( $wpcap_all_opted_in ) {
+		wpcap_uninstall_global_usermeta();
+	}
+} elseif ( wpcap_uninstall_site() ) {
+	wpcap_uninstall_global_usermeta();
 }

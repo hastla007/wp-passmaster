@@ -198,16 +198,23 @@ final class Dispatcher {
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 20;
 		$wpdb->query( $wpdb->prepare( "UPDATE $d SET status='pending',locked_at=NULL WHERE status='delivering' AND locked_at<%s", gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
 		$done = 0;
+		// Shared cron time budget: checked before each claim, so a claimed delivery is always attempted.
+		$deadline = \PassCaptain\Jobs\TimeBudget::deadline();
+		$drained = false;
 		for ( $i = 0; $i < $limit; $i++ ) {
+			if ( \PassCaptain\Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
 			$now = current_time( 'mysql', true );
 			$wpdb->query( 'START TRANSACTION' );
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT d.* FROM $d d INNER JOIN $s s ON s.subscription_id=d.subscription_id WHERE d.status='pending' AND s.status='active' AND d.next_attempt_at<=%s ORDER BY d.next_attempt_at,d.delivery_id LIMIT 1 FOR UPDATE", $now ) );
-			if ( ! $row ) { $wpdb->query( 'COMMIT' ); break; }
+			if ( ! $row ) { $wpdb->query( 'COMMIT' ); $drained = true; break; }
 			$wpdb->update( $d, array( 'status' => 'delivering', 'locked_at' => $now, 'updated_at' => $now ), array( 'delivery_id' => (int) $row->delivery_id ) );
 			$wpdb->query( 'COMMIT' );
+			\PassCaptain\Jobs\TimeBudget::claimed( $d, 'delivery_id', (int) $row->delivery_id, 'delivering', 'pending' );
 			self::attempt( $row );
+			\PassCaptain\Jobs\TimeBudget::finished( $d, (int) $row->delivery_id );
 			++$done;
 		}
+		if ( ! $drained && $done > 0 ) { self::schedule_soon(); } // Backlog left (budget or limit): continue soon.
 		return $done;
 	}
 

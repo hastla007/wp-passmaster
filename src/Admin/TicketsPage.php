@@ -1,6 +1,6 @@
 <?php
 /**
- * Tickets admin: search, revoke a valid ticket, undo a check-in.
+ * Tickets admin: search, revoke or reissue a valid ticket, undo a check-in.
  *
  * @package PassCaptain
  */
@@ -58,6 +58,22 @@ final class TicketsPage {
 	}
 
 	/**
+	 * Reissues one valid ticket (new code, old QR code invalid) and mails it to the holder.
+	 * Requires wpcap_manage_orders for the ticket's event.
+	 */
+	public static function reissue_ticket( array $in ) {
+		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
+		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
+		$result = \PassCaptain\Orders::reissue_ticket( (int) $ticket->ticket_id, array( 'reason' => Forms::text( $in, 'reason', 255 ) ) );
+		if ( is_wp_error( $result ) ) {
+			$data = $result->get_error_data();
+			return Forms::error( $result->get_error_code(), $result->get_error_message(), (int) ( $data['status'] ?? 409 ) );
+		}
+		return $result + array( 'public_id' => $ticket->public_id );
+	}
+
+	/**
 	 * Undoes a check-in: checked_in → valid, logged as a check-in row with result "undone".
 	 * Requires wpcap_checkin for the ticket's event.
 	 */
@@ -102,6 +118,16 @@ final class TicketsPage {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_revoke_ticket_' . Forms::int( $in, 'ticket_id' ) );
 		Forms::finish( self::revoke_ticket( $in ), __( 'Ticket widerrufen.', 'wp-pass-captain' ), self::back_url( $in ) );
+	}
+
+	public static function handle_reissue_ticket() {
+		$in = Forms::post();
+		Forms::verify( 'wpcap_reissue_ticket_' . Forms::int( $in, 'ticket_id' ) );
+		$result = self::reissue_ticket( $in );
+		$message = ! is_wp_error( $result ) && empty( $result['mailed'] )
+			? __( 'Ticket neu ausgestellt. Die E-Mail an den Inhaber konnte nicht zugestellt werden; bitte erneut versuchen.', 'wp-pass-captain' )
+			: __( 'Ticket neu ausgestellt und an den Inhaber gesendet. Der bisherige Code ist ungültig.', 'wp-pass-captain' );
+		Forms::finish( $result, $message, self::back_url( $in ) );
 	}
 
 	public static function handle_undo_checkin() {
@@ -178,6 +204,9 @@ final class TicketsPage {
 								<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund', 'wp-pass-captain' ); ?>">
 								<label><input type="checkbox" name="release_capacity" value="1"> <?php esc_html_e( 'Platz freigeben', 'wp-pass-captain' ); ?></label>
 								<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ticket widerrufen? Es kann danach nicht mehr eingelöst werden. Eine Erstattung erfolgt nicht automatisch.', 'wp-pass-captain' ) ); ?>')"><?php esc_html_e( 'Widerrufen', 'wp-pass-captain' ); ?></button>
+								</form>
+								<?php Forms::open_form( 'wpcap_reissue_ticket', 'wpcap_reissue_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
+								<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink.', 'wp-pass-captain' ) ); ?>')"><?php esc_html_e( 'Neu ausstellen', 'wp-pass-captain' ); ?></button>
 								</form>
 							<?php elseif ( 'checked_in' === $ticket->status && $can_checkin ) : ?>
 								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>

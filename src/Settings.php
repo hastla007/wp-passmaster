@@ -7,9 +7,37 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Settings {
 	const OPTION = 'wpcap_settings';
 
-	/** Default values for every setting (core plus modules). */
+	/** Per-request cache of defaults() (module defaults contain translated texts). */
+	private static $defaults = null;
+
+	/** Per-request cache of all(): [stored option value, merged result]. */
+	private static $all = null;
+
+	/** Default values for every setting (core plus modules); built once per request. */
 	public static function defaults() {
-		return array_merge( self::core_defaults(), Modules::settings_defaults() );
+		if ( null === self::$defaults ) {
+			self::$defaults = array_merge( self::core_defaults(), Modules::settings_defaults() );
+		}
+		return self::$defaults;
+	}
+
+	/** Drops the memoized defaults/values (locale switch, text domain loaded, settings updated). */
+	public static function flush() {
+		self::$defaults = null;
+		self::$all = null;
+	}
+
+	/** Invalidates the per-request cache when translations change. */
+	public static function register() {
+		add_action( 'change_locale', array( __CLASS__, 'flush' ), 0, 0 );
+		add_action(
+			'load_textdomain',
+			static function ( $domain ) {
+				if ( 'wp-pass-captain' === $domain ) { self::flush(); }
+			},
+			0,
+			1
+		);
 	}
 
 	private static function core_defaults() {
@@ -18,6 +46,9 @@ final class Settings {
 			'manual_hold_hours'         => 72,
 			'enabled_providers'         => array( 'manual' ),
 			'manual_instructions'       => '',
+			'bank_recipient'            => '',
+			'bank_iban'                 => '',
+			'bank_bic'                  => '',
 			'stripe_mode'               => 'test',
 			'stripe_secret_key'         => '',
 			'stripe_webhook_secret'     => '',
@@ -41,6 +72,7 @@ final class Settings {
 			'delete_data_on_uninstall'  => 0,
 			'scanner_show_attendee'     => 0,
 			'device_max_hours'          => 24,
+			'admission_day_cutoff_hour' => 0,
 			'auto_refund_cancelled'     => 0,
 		);
 	}
@@ -48,7 +80,12 @@ final class Settings {
 	/** All settings merged with defaults. */
 	public static function all() {
 		$stored = get_option( self::OPTION, array() );
-		return array_merge( self::defaults(), is_array( $stored ) ? $stored : array() );
+		$stored = is_array( $stored ) ? $stored : array();
+		// The option is re-read every time (another site, direct update_option), the merge is reused.
+		if ( null === self::$all || self::$all[0] !== $stored ) {
+			self::$all = array( $stored, array_merge( self::defaults(), $stored ) );
+		}
+		return self::$all[1];
 	}
 
 	/** One setting. */
@@ -61,6 +98,7 @@ final class Settings {
 	public static function update( array $values ) {
 		$values = array_intersect_key( $values, self::defaults() );
 		update_option( self::OPTION, array_merge( self::all(), $values ), false );
+		self::$all = null;
 	}
 
 	/**

@@ -97,7 +97,9 @@ final class Adapter {
 			$referral['code'] = substr( $code, 0, 64 );
 		}
 		$visitor_request = empty( $internal['external'] ) && ! in_array( $channel, self::STAFF_CHANNELS, true );
-		$touch = $visitor_request && function_exists( 'wpac_current_touch' ) ? wpac_current_touch() : null;
+		// The tracked link/cookie is only read with consent; a manually entered code (above) is the
+		// buyer's own declaration and needs none.
+		$touch = $visitor_request && function_exists( 'wpac_current_touch' ) && self::tracking_allowed() ? wpac_current_touch() : null;
 		if ( is_array( $touch ) && ! empty( $touch['code'] ) ) {
 			$referral['touch'] = array(
 				'code'       => substr( sanitize_text_field( (string) $touch['code'] ), 0, 64 ),
@@ -107,6 +109,20 @@ final class Adapter {
 			);
 		}
 		self::update_snapshot( $order_id, array( 'affiliate_referral' => $referral ) );
+	}
+
+	/**
+	 * Whether the visitor's referral cookie/link may be read for this order.
+	 *
+	 * With the WP Consent API (plugin "WP Consent API" plus a compatible cookie banner) the
+	 * "marketing" category decides – no consent, no read. Without a consent API the default is
+	 * true: the site operator is then responsible for gating Affiliate Captain's own tracking
+	 * cookie in the cookie banner. Filter `wpcap_affiliate_tracking_allowed` (bool, order context
+	 * not yet available) overrides both, e.g. for a different consent manager.
+	 */
+	public static function tracking_allowed() {
+		$allowed = function_exists( 'wp_has_consent' ) ? (bool) wp_has_consent( 'marketing' ) : true;
+		return (bool) apply_filters( 'wpcap_affiliate_tracking_allowed', $allowed );
 	}
 
 	/** Rejects unknown codes; at most 10 wrong codes per hour and client (code guessing). */

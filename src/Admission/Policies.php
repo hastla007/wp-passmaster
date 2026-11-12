@@ -184,12 +184,12 @@ final class Policies {
 		global $wpdb;
 		$days = $wpdb->get_col( $wpdb->prepare( "SELECT service_date FROM {$wpdb->prefix}wpcap_occurrence_days WHERE occurrence_id=%d ORDER BY service_date", (int) $found['occurrence_id'] ) );
 		if ( $days ) { return array_map( 'strval', $days ); }
-		$tz = Engine::timezone( $found['timezone'] );
-		$start = ( new \DateTimeImmutable( $found['starts_at'], new \DateTimeZone( 'UTC' ) ) )->setTimezone( $tz );
-		$end = ( new \DateTimeImmutable( $found['ends_at'] ?: $found['starts_at'], new \DateTimeZone( 'UTC' ) ) )->setTimezone( $tz );
+		// Service days (respecting the day cutoff), so a night that ends after midnight adds no extra day.
+		$start = strtotime( $found['starts_at'] . ' UTC' );
+		$end = strtotime( ( $found['ends_at'] ?: $found['starts_at'] ) . ' UTC' );
 		$out = array();
-		$day = new \DateTimeImmutable( $start->format( 'Y-m-d' ), new \DateTimeZone( 'UTC' ) );
-		$last = $end->format( 'Y-m-d' );
+		$day = new \DateTimeImmutable( Engine::service_date( $start, $found['timezone'], $found ), new \DateTimeZone( 'UTC' ) );
+		$last = Engine::service_date( max( $start, $end ), $found['timezone'], $found );
 		while ( $day->format( 'Y-m-d' ) <= $last && count( $out ) <= self::MAX_DATES ) {
 			$out[] = $day->format( 'Y-m-d' );
 			$day = $day->modify( '+1 day' );

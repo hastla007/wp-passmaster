@@ -165,6 +165,10 @@ final class InvoicePdf {
 	public static function handle_admin_download() {
 		$order_id = absint( $_GET['order_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only download, capability and scope checked.
 		$credit_note_id = absint( $_GET['credit_note_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! $order_id || ! self::can_view_order_finance( $order_id ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		// Downloading an existing invoice is read-only; issuing a new invoice number is a state change
+		// and needs a nonce (same as Invoices::handle_admin_print). Link: wp_nonce_url( …, 'wpcap_issue_invoice_' . $order_id ).
+		if ( ! $credit_note_id && ! self::invoice_for_order( $order_id, false ) ) { check_admin_referer( 'wpcap_issue_invoice_' . $order_id ); }
 		$result = self::admin_pdf( $order_id, $credit_note_id );
 		if ( is_wp_error( $result ) ) {
 			wp_die( esc_html( $result->get_error_message() ), (int) ( $result->get_error_data()['status'] ?? 400 ) );

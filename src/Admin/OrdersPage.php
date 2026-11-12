@@ -435,7 +435,7 @@ final class OrdersPage {
 				<p class="description"><?php esc_html_e( 'Manuelle Zahlungen: Der Betrag muss außerhalb des Plugins zurücküberwiesen werden. Die Tickets werden widerrufen.', 'wp-pass-captain' ); ?></p>
 			<?php endif; ?>
 			<?php if ( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ) > 0 && ! current_user_can( Refunds::APPROVE_CAP ) ) : ?>
-				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'Erstattungen über %s benötigen eine zweite Freigabe.', 'wp-pass-captain' ), Forms::money( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ), $currency ) ) ); ?></p>
+				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig.', 'wp-pass-captain' ), Forms::money( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ), $currency ) ) ); ?></p>
 			<?php endif; ?>
 			<button class="button button-primary" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ausgewählte Tickets wirklich erstatten?', 'wp-pass-captain' ) ); ?>')"><?php esc_html_e( 'Erstattung auslösen', 'wp-pass-captain' ); ?></button>
 			</form>

@@ -15,15 +15,21 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Modules {
-	/** Module classes in load order. */
+	/** Bundled module classes, discovered once per request. */
+	private static $bundled = null;
+
+	/** Module classes in load order (the directory is scanned once per request; the filter runs on every call). */
 	public static function classes() {
-		$classes = array();
-		foreach ( (array) glob( __DIR__ . '/Modules/*.php' ) as $file ) {
-			$class = __NAMESPACE__ . '\\Modules\\' . basename( $file, '.php' );
-			if ( class_exists( $class ) ) { $classes[] = $class; }
+		if ( null === self::$bundled ) {
+			$classes = array();
+			foreach ( (array) glob( __DIR__ . '/Modules/*.php' ) as $file ) {
+				$class = __NAMESPACE__ . '\\Modules\\' . basename( $file, '.php' );
+				if ( class_exists( $class ) ) { $classes[] = $class; }
+			}
+			sort( $classes );
+			self::$bundled = $classes;
 		}
-		sort( $classes );
-		return apply_filters( 'wpcap_modules', $classes );
+		return apply_filters( 'wpcap_modules', self::$bundled );
 	}
 
 	private static function collect( $method, ...$args ) {

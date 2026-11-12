@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.3.0';
+	const DB_VERSION = '3.4.0';
 
 	public static function install() {
 		global $wpdb;
@@ -132,7 +132,8 @@ final class Installer {
 				KEY access_token_hash (access_token_hash),
 				KEY access_expires_at (access_expires_at),
 				KEY status (status),
-				KEY paid_created (payment_status,created_at,status)
+				KEY paid_created (payment_status,created_at,status),
+				KEY created (created_at,order_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $items (
 				item_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -147,7 +148,7 @@ final class Installer {
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),
-				KEY type_order (ticket_type_id,order_id)
+				KEY capacity_sum (ticket_type_id,order_id,quantity,refunded_quantity)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $reservations (
 				reservation_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -177,7 +178,8 @@ final class Installer {
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),
 				KEY status (status),
-				KEY order_type_status (order_id,ticket_type_id,status)
+				KEY order_type_status (order_id,ticket_type_id,status),
+				KEY attendee_email (attendee_email)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $checkins (
 				checkin_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -664,20 +666,122 @@ final class Installer {
 		}
 		update_option( 'wpcap_db_version', self::version() );
 		update_option( 'wpcap_version', WPCAP_VERSION );
+		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );
 	}
 
-	/** Stored schema version: core version plus a hash of all module tables. */
+	/** Cron hook that performs a deferred upgrade (scheduled by frontend requests). */
+	const UPGRADE_HOOK = 'wpcap_run_upgrade';
+
+	/** A deferred upgrade still not done after this many seconds is run by a frontend request (behind the lock). */
+	const OVERDUE_AFTER = 300;
+
+	/** Per-request cache of version(), keyed by table prefix (multisite switches sites). */
+	private static $versions = array();
+
+	/** Stored schema version: core version plus a hash of all module tables (cached per request). */
 	public static function version() {
-		return self::DB_VERSION . '+' . Modules::schema_version();
+		global $wpdb;
+		$key = (string) $wpdb->prefix;
+		if ( ! isset( self::$versions[ $key ] ) ) {
+			self::$versions[ $key ] = self::DB_VERSION . '+' . Modules::schema_version();
+		}
+		return self::$versions[ $key ];
 	}
 
-	/** Runs the schema upgrade when needed; returns true if an upgrade ran. */
-	public static function maybe_upgrade() {
-		if ( self::version() !== get_option( 'wpcap_db_version' ) ) {
-			self::install();
-			return true;
+	/** Forgets the cached schema version (tests, or after module classes changed at runtime). */
+	public static function flush_version_cache() { self::$versions = array(); }
+
+	/**
+	 * Cheap upgrade indicator that needs no schema building: core schema version, plugin version and
+	 * the list of module classes. Frontend requests only compare this; admin, cron and WP-CLI
+	 * requests additionally compare the full module schema hash (version()).
+	 */
+	public static function fingerprint() {
+		return substr( md5( self::DB_VERSION . '|' . WPCAP_VERSION . '|' . implode( ',', Modules::classes() ) ), 0, 12 );
+	}
+
+	/** Request context for upgrades: cli, cron, admin or frontend (REST and admin-ajax count as frontend). */
+	public static function context() {
+		if ( defined( 'WP_CLI' ) && WP_CLI ) { return 'cli'; }
+		if ( function_exists( 'wp_doing_cron' ) && wp_doing_cron() ) { return 'cron'; }
+		$ajax = function_exists( 'wp_doing_ajax' ) && wp_doing_ajax();
+		if ( function_exists( 'is_admin' ) && is_admin() && ! $ajax ) { return 'admin'; }
+		return 'frontend';
+	}
+
+	/**
+	 * Runs the schema upgrade when needed; returns true if an upgrade ran in this request.
+	 *
+	 * - frontend: only the cheap fingerprint is compared. On a mismatch a single cron event is
+	 *   scheduled and the request continues with the current schema (dbDelta only adds tables,
+	 *   columns and indexes, so old code paths keep working). Only when that event is overdue
+	 *   (WP-Cron not running) does one frontend request upgrade, behind the lock.
+	 * - admin, cron, cli: the full schema version is compared and the upgrade runs behind a
+	 *   database lock, so concurrent requests after a plugin update never run dbDelta in parallel;
+	 *   requests that do not get the lock simply skip.
+	 *
+	 * @param string|null $context Overrides context() (tests, WP-CLI commands).
+	 */
+	public static function maybe_upgrade( $context = null ) {
+		$context = $context ?? self::context();
+		$fingerprint_ok = get_option( 'wpcap_schema_fingerprint' ) === self::fingerprint();
+		if ( 'frontend' === $context ) {
+			if ( $fingerprint_ok ) { return false; }
+			$next = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( self::UPGRADE_HOOK ) : false;
+			if ( ! $next && function_exists( 'wp_schedule_single_event' ) ) {
+				wp_schedule_single_event( time(), self::UPGRADE_HOOK );
+				return false;
+			}
+			if ( $next && (int) $next > time() - self::OVERDUE_AFTER ) { return false; }
 		}
-		return false;
+		if ( self::version() === get_option( 'wpcap_db_version' ) ) {
+			// Schema is current; only the fingerprint was missing or outdated (e.g. installs before 1.2).
+			if ( ! $fingerprint_ok ) { update_option( 'wpcap_schema_fingerprint', self::fingerprint() ); }
+			return false;
+		}
+		$ran = false;
+		self::run_locked(
+			static function () use ( &$ran ) {
+				// Another request may have finished the upgrade while we waited for the lock.
+				if ( self::version() === self::stored_db_version() ) { return; }
+				self::install();
+				$ran = true;
+			}
+		);
+		return $ran;
+	}
+
+	/** wpcap_db_version straight from the database when possible (the options cache may be stale). */
+	private static function stored_db_version() {
+		global $wpdb;
+		if ( ! empty( $wpdb->options ) ) {
+			$value = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name=%s", 'wpcap_db_version' ) );
+			return null === $value ? false : (string) $value;
+		}
+		return get_option( 'wpcap_db_version' );
+	}
+
+	/** Name of the per-site upgrade lock (MySQL lock names are limited to 64 characters). */
+	public static function lock_name() {
+		global $wpdb;
+		return 'wpcap_upgrade_' . substr( md5( (string) $wpdb->prefix . '|' . ( defined( 'DB_NAME' ) ? DB_NAME : '' ) ), 0, 16 );
+	}
+
+	/**
+	 * Runs $callback while holding the upgrade lock (MySQL GET_LOCK, released automatically if the
+	 * process dies). Does not wait: returns false without running $callback when another request
+	 * holds the lock.
+	 */
+	public static function run_locked( callable $callback ) {
+		global $wpdb;
+		$name = self::lock_name();
+		if ( '1' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,0)', $name ) ) ) { return false; }
+		try {
+			call_user_func( $callback );
+		} finally {
+			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $name ) );
+		}
+		return true;
 	}
 
 	/**

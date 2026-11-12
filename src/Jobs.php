@@ -15,20 +15,33 @@ final class Jobs {
 		return true;
 	}
 
-	public static function process_due() {
+	/**
+	 * Runs due jobs until the shared cron time budget (Jobs\TimeBudget) or $limit is used up; the budget
+	 * is checked before each claim, so no job is claimed that this request does not process. A
+	 * remaining backlog triggers an immediate follow-up run. Returns the number of jobs processed.
+	 */
+	public static function process_due( $limit = 20 ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_jobs';
 		$now = current_time( 'mysql', true );
 		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='queued',locked_at=NULL WHERE status='running' AND locked_at<%s", $stale ) );
-		for ( $i = 0; $i < 20; $i++ ) {
+		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 20;
+		$deadline = Jobs\TimeBudget::deadline();
+		$processed = 0;
+		$drained = false;
+		for ( $i = 0; $i < $limit; $i++ ) {
+			if ( Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
 			$wpdb->query( 'START TRANSACTION' );
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND run_after<=%s ORDER BY run_after,job_id LIMIT 1 FOR UPDATE", $now ) );
-			if ( ! $row ) { $wpdb->query( 'COMMIT' ); break; }
+			if ( ! $row ) { $wpdb->query( 'COMMIT' ); $drained = true; break; }
 			$wpdb->update( $table, array( 'status' => 'running', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'job_id' => (int) $row->job_id, 'status' => 'queued' ), array( '%s', '%d', '%s', '%s' ), array( '%d', '%s' ) );
 			$wpdb->query( 'COMMIT' );
+			Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued' );
+			++$processed;
 			$payload = json_decode( $row->payload, true );
 			$handled = apply_filters( 'wp_pass_captain_process_job_v1', false, $row->job_type, is_array( $payload ) ? $payload : array(), (int) $row->job_id );
+			Jobs\TimeBudget::finished( $table, (int) $row->job_id );
 			if ( true === $handled ) {
 				$wpdb->update( $table, array( 'status' => 'complete', 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
 				continue;
@@ -37,5 +50,9 @@ final class Jobs {
 			$status = $attempts >= 8 ? 'dead_letter' : 'queued';
 			$wpdb->update( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
 		}
+		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s LIMIT 1", $now ) ) ) {
+			Jobs\TimeBudget::continue_later( 'wpcap_process_jobs' );
+		}
+		return $processed;
 	}
 }
