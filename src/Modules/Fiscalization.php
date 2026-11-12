@@ -1107,12 +1107,31 @@ final class Fiscalization {
 		echo '</form>';
 		echo '<hr><h2>' . esc_html__( 'Fiskal-Ereignisprotokoll', 'wp-pass-captain' ) . '</h2>';
 		$events = $wpdb->get_results( "SELECT event_id,document_id,order_id,provider_id,event_type,event_status,metadata,created_at FROM {$p}wpcap_fiscal_events ORDER BY event_id DESC LIMIT 200" );
+		$resolved_events = array();
+		$resolutions = $wpdb->get_results( "SELECT metadata FROM {$p}wpcap_fiscal_events WHERE event_type='manual_correction_recorded' ORDER BY event_id DESC LIMIT 5000" );
+		foreach ( $resolutions as $resolution_row ) {
+			$resolution_data = json_decode( $resolution_row->metadata, true );
+			if ( is_array( $resolution_data ) && ! empty( $resolution_data['resolves_event_id'] ) ) {
+				$resolved_events[ absint( $resolution_data['resolves_event_id'] ) ] = sanitize_text_field( $resolution_data['provider_reference'] ?? '' );
+			}
+		}
 		if ( ! $events ) { echo '<p>' . esc_html__( 'Noch keine Fiskalereignisse protokolliert.', 'wp-pass-captain' ) . '</p>'; }
 		else {
-			echo '<table class="widefat striped"><thead><tr><th>Ereignis</th><th>Dokument/Bestellung</th><th>Anbieter</th><th>Status</th><th>Details</th><th>Zeitpunkt</th></tr></thead><tbody>';
+			echo '<table class="widefat striped"><thead><tr><th>Ereignis</th><th>Dokument/Bestellung</th><th>Anbieter</th><th>Status</th><th>Details</th><th>Bearbeitung</th><th>Zeitpunkt</th></tr></thead><tbody>';
 			foreach ( $events as $event ) {
 				$metadata = json_decode( $event->metadata, true );
-				echo '<tr><td>' . esc_html( $event->event_type ) . '</td><td>' . (int) $event->document_id . ' / ' . (int) $event->order_id . '</td><td>' . esc_html( $event->provider_id ) . '</td><td>' . esc_html( $event->event_status ) . '</td><td><code>' . esc_html( wp_json_encode( is_array( $metadata ) ? $metadata : array() ) ) . '</code></td><td>' . esc_html( $event->created_at ) . '</td></tr>';
+				$event_id = (int) $event->event_id;
+				echo '<tr><td>' . esc_html( $event->event_type ) . '</td><td>' . (int) $event->document_id . ' / ' . (int) $event->order_id . '</td><td>' . esc_html( $event->provider_id ) . '</td><td>' . esc_html( $event->event_status ) . '</td><td><code>' . esc_html( wp_json_encode( is_array( $metadata ) ? $metadata : array() ) ) . '</code></td><td>';
+				if ( isset( $resolved_events[ $event_id ] ) ) {
+					echo esc_html( sprintf( __( 'Extern erledigt · Referenz %s', 'wp-pass-captain' ), $resolved_events[ $event_id ] ) );
+				} elseif ( 'manual_required' === $event->event_status && in_array( $event->event_type, array( 'refund_adjustment', 'order_cancellation', 'event_cancellation' ), true ) ) {
+					echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="wpcap_fiscal_manual_resolution"><input type="hidden" name="event_id" value="' . $event_id . '">';
+					wp_nonce_field( 'wpcap_fiscal_manual_resolution_' . $event_id );
+					echo '<select name="resolution"><option value="refund">' . esc_html__( 'Erstattung', 'wp-pass-captain' ) . '</option><option value="credit_note">' . esc_html__( 'Gutschrift', 'wp-pass-captain' ) . '</option><option value="void">' . esc_html__( 'Storno', 'wp-pass-captain' ) . '</option><option value="correction">' . esc_html__( 'Korrektur', 'wp-pass-captain' ) . '</option></select><input name="provider_reference" type="text" maxlength="191" required placeholder="' . esc_attr__( 'Beleg-/Anbieterreferenz', 'wp-pass-captain' ) . '">';
+					submit_button( __( 'Extern erledigt dokumentieren', 'wp-pass-captain' ), 'secondary', 'submit', false );
+					echo '</form><small>' . esc_html__( 'Zuerst im Anbieterportal durchführen; dies dokumentiert nur die Referenz.', 'wp-pass-captain' ) . '</small>';
+				}
+				echo '</td><td>' . esc_html( $event->created_at ) . '</td></tr>';
 			}
 			echo '</tbody></table>';
 		}
