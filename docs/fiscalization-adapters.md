@@ -6,9 +6,9 @@ This document describes the first implementation layer for seller-aware fiscaliz
 
 - A legal seller is separate from an organizer/partner account.
 - A ticket type maps to exactly one legal seller and one seller-of-record mode: `organizer_seller` or `platform_seller`.
-- A mixed cart may contain ticket types belonging to different sellers. During the existing `wpcap_order_creating` transaction, the module freezes one fiscal document and its line snapshots per seller.
+- A mixed cart may contain ticket types belonging to different sellers. During the existing `wpcap_order_creating` transaction, the module stores an immutable seller/profile snapshot per mapped ticket type and freezes one fiscal document with its lines per seller where fiscalization applies.
 - Each document gets a stable SHA-256 idempotency key based on the Pass Captain order and seller. Gross, tax, currency, seller identity, seller mode, and the payment channel/method are snapshotted; later profile edits do not change an existing document.
-- Ticket issue is gated by `wpcap_order_fiscal_ready`. Mapped orders do not issue tickets until every seller document has status `submitted`. Without a mapping, existing sales keep their previous behavior.
+- Ticket issue is gated by `wpcap_order_fiscal_ready`. Mapped orders do not issue tickets until every seller document has status `submitted`. An explicit reviewed `not_required` profile is supported; without any seller mapping, existing sales keep their previous behavior. A missing or unsupported active profile blocks the mapped order before payment.
 - Failed calls retry with exponential delays, capped at eight automatic attempts. The admin-only retry endpoint can restart terminal failures.
 
 ## Provider adapter contract
@@ -29,13 +29,13 @@ No vendor is selected by the core. fiskaly, efsta, a local certified device conn
 All endpoints require an authenticated user with `manage_options`:
 
 - `GET /wp-json/wp-pass-captain/v1/fiscal/sellers`
-- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers` with `legal_name`, `country_code` (`AT`, `DE`, or `HU`), optional `tax_number`
+- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers` with `legal_name`, `country_code` (`AT`, `DE`, or `HU`), and seller tax/address details
 - `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/profiles` with the seller/channel scope, environment, status, reviewed rule-set/version, and legal reference
 - `PUT /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/provider` with `provider_id`, `enabled`, and non-secret `configuration`
 - `PUT /wp-json/wp-pass-captain/v1/fiscal/ticket-types/{ticket_type_id}/seller` with `seller_id` and `seller_mode`
 - `POST /wp-json/wp-pass-captain/v1/fiscal/orders/{order_id}/retry` to retry terminal failures
 
-Example seller modes are `organizer_seller` (organizer is seller and invoice issuer) and `platform_seller` (central operating company is seller and issuer). The selected entity must be a legally correct seller for the transaction.
+Example seller modes are `organizer_seller` (organizer is seller and invoice issuer) and `platform_seller` (central operating company is seller and issuer). The selected entity must be a legally correct seller for the transaction. Profile activation records the reviewer, reference, and profile version. `not_required` must be an explicit reviewed decision; the system does not infer an exemption from the country alone.
 
 ## Operational behavior
 
