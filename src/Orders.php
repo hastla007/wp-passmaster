@@ -924,6 +924,8 @@ final class Orders {
 	}
 
 	public static function issue_and_email( $order_id ) {
+		// Fiscal modules submit every seller-specific receipt before tickets can be issued.
+		if ( ! apply_filters( 'wpcap_order_fiscal_ready', true, absint( $order_id ) ) ) { return; }
 		global $wpdb;
 		$orders = $wpdb->prefix . 'wpcap_orders';
 		// Serialise issuance per order so concurrent payment callbacks cannot create duplicates.
