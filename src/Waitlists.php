@@ -40,9 +40,15 @@ final class Waitlists {
 		$wpdb->insert( $table, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $ticket_type_id, 'email_hash' => $email_hash, 'email' => $email, 'position' => $position, 'status' => 'waiting', 'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s' ) );
 		if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_waitlist_join', __( 'Der Wartelistenplatz konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		$wpdb->query( 'COMMIT' );
-		/* translators: %d: waitlist position */
-		wp_mail( $email, __( 'Du stehst auf der Warteliste', 'wp-pass-captain' ), sprintf( __( 'Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird.', 'wp-pass-captain' ), $position ) );
+		Mail\Mailer::send( 'waitlist_joined', $email, array_merge( self::mail_names( $event_id, $ticket_type_id ), array( 'position' => (int) $position ) ) );
 		return self::join_response();
+	}
+
+	/** Event and ticket names for waitlist mail placeholders. */
+	private static function mail_names( $event_id, $ticket_type_id ) {
+		global $wpdb;
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT e.name AS event_name,tt.name AS ticket_name FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d AND e.event_id=%d", absint( $ticket_type_id ), absint( $event_id ) ) );
+		return array( 'event_name' => (string) ( $row->event_name ?? '' ), 'ticket_name' => (string) ( $row->ticket_name ?? '' ) );
 	}
 
 	/** Uniform public response for waitlist sign-ups. */
@@ -65,7 +71,7 @@ final class Waitlists {
 		if ( 1 !== (int) $wpdb->rows_affected ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_waitlist_offer', __( 'Das Angebot konnte nicht erstellt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->query( 'COMMIT' );
 		$accept_url = add_query_arg( array( 'wpcap_waitlist_accept' => (int) $row->waitlist_id, 'token' => $token ), home_url( '/' ) );
-		$sent = wp_mail( $row->email, __( 'Ein Platz könnte verfügbar sein', 'wp-pass-captain' ), sprintf( __( 'Dein Wartelistenangebot läuft am %1$s ab. Mit der Annahme wird das Ticket für dich reserviert, sofern es noch verfügbar ist: %2$s', 'wp-pass-captain' ), wp_date( 'd.m.Y H:i T', strtotime( $expires . ' UTC' ) ), esc_url_raw( $accept_url ) ) );
+		$sent = Mail\Mailer::send( 'waitlist_offer', $row->email, array_merge( self::mail_names( $event_id, $ticket_type_id ), array( 'offer_expires' => wp_date( 'd.m.Y H:i T', strtotime( $expires . ' UTC' ) ), 'accept_link' => Mail\Mailer::link( $accept_url ), 'position' => (int) $row->position ) ) );
 		if ( ! $sent ) {
 			$wpdb->update( $table, array( 'status' => 'waiting', 'offer_token_hash' => '', 'offer_expires_at' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'waitlist_id' => (int) $row->waitlist_id, 'status' => 'offered', 'offer_token_hash' => hash( 'sha256', $token ) ), array( '%s', '%s', '%s', '%s' ), array( '%d', '%s', '%s' ) );
 			return new \WP_Error( 'wpcap_waitlist_mail', __( 'Das Angebot wurde gespeichert, aber die E-Mail konnte nicht gesendet werden.', 'wp-pass-captain' ), array( 'status' => 502 ) );

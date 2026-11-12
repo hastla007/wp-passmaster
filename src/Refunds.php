@@ -303,15 +303,20 @@ final class Refunds {
 		$refund = self::get( $refund_id );
 		$send = $refund && 'woocommerce' !== $order->payment_provider && is_email( (string) $order->customer_email );
 		if ( ! apply_filters( 'wpcap_send_refund_mail', $send, $refund_id, $order ) ) { return; }
-		$body = sprintf( /* translators: 1: amount, 2: order id */ __( 'Für deine Bestellung %2$s haben wir %1$s erstattet.', 'wp-pass-captain' ), number_format_i18n( (int) $refund['amount_minor'] / 100, 2 ) . ' ' . $refund['currency'], $order->public_id ) . "\n";
-		if ( $revoked ) {
-			$body .= sprintf( /* translators: %d: number of tickets */ _n( '%d Ticket ist damit ungültig.', '%d Tickets sind damit ungültig.', (int) $revoked, 'wp-pass-captain' ), (int) $revoked ) . "\n";
-		}
-		if ( ! empty( $refund['credit_note_number'] ) ) {
-			$body .= sprintf( /* translators: %s: credit note number */ __( 'Gutschrift: %s', 'wp-pass-captain' ), $refund['credit_note_number'] ) . "\n";
-		}
-		$body .= "\n" . __( 'Je nach Zahlungsart kann es einige Tage dauern, bis der Betrag gutgeschrieben ist.', 'wp-pass-captain' );
-		wp_mail( $order->customer_email, sprintf( /* translators: %s: site name */ __( 'Erstattung bestätigt – %s', 'wp-pass-captain' ), Orders::site_name() ), $body );
+		$credit_note = (string) ( $refund['credit_note_number'] ?? '' );
+		$amount_minor = (int) $refund['amount_minor'];
+		$currency = (string) $refund['currency'];
+		$vars = array(
+			'order_id' => (string) $order->public_id,
+			// Callables run in the recipient's locale (number format, translated notes).
+			'refund_amount' => static function () use ( $amount_minor, $currency ) { return number_format_i18n( $amount_minor / 100, 2 ) . ' ' . $currency; },
+			'revoked_count' => (int) $revoked,
+			'revoked_note' => static function () use ( $revoked ) { return Mail\Types::revoked_note( (int) $revoked ); },
+			'credit_note_number' => $credit_note,
+			'credit_note' => static function () use ( $credit_note ) { return Mail\Types::credit_note( $credit_note ); },
+			'reason' => (string) ( $refund['reason'] ?? '' ),
+		);
+		Mail\Mailer::send( 'refund_confirmation', $order->customer_email, $vars, array(), (string) ( $order->locale ?? '' ) );
 	}
 
 	/**
