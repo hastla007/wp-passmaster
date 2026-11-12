@@ -147,10 +147,10 @@ final class Fiscalization {
 		if ( ! $seller || 'active' !== $seller->status || ! in_array( $channel, array( 'pos', 'woocommerce', 'native' ), true ) || ! in_array( $environment, array( 'test', 'production' ), true ) || ! in_array( $status, array( 'draft', 'test', 'active', 'suspended' ), true ) || self::contains_secret_key( $data ) ) {
 			return new \WP_Error( 'wpcap_fiscal_profile_invalid', __( 'Fiskalprofil, Verkäufer oder nicht geheime Konfiguration ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
-		if ( 'active' === $status && ( empty( $input['review_attested'] ) || '' === $ruleset || '' === $ruleset_version || '' === $legal_reference ) ) {
+		if ( 'active' === $status && ( 'production' !== $environment || empty( $input['review_attested'] ) || '' === $ruleset || '' === $ruleset_version || '' === $legal_reference ) ) {
 			return new \WP_Error( 'wpcap_fiscal_profile_review_required', __( 'Produktivfreigabe erfordert dokumentierte Länderprüfung, Regelwerksversion und ausdrückliche Bestätigung.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT profile_id,profile_version FROM {$p}wpcap_fiscal_profiles WHERE seller_id=%d AND country_code=%s AND channel=%s AND location_id=%d AND register_id=%s AND environment=%s", $seller_id, $seller->country_code, $channel, $location_id, $register_id, $environment ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT profile_id,profile_version,created_at FROM {$p}wpcap_fiscal_profiles WHERE seller_id=%d AND country_code=%s AND channel=%s AND location_id=%d AND register_id=%s AND environment=%s", $seller_id, $seller->country_code, $channel, $location_id, $register_id, $environment ) );
 		$now = current_time( 'mysql', true );
 		$profile_version = $existing ? (int) $existing->profile_version + 1 : 1;
 		$row = array(
@@ -162,7 +162,7 @@ final class Fiscalization {
 			'reviewed_at' => 'active' === $status ? $now : null,
 			'effective_from' => ! empty( $input['effective_from'] ) ? sanitize_text_field( $input['effective_from'] ) : null,
 			'effective_until' => ! empty( $input['effective_until'] ) ? sanitize_text_field( $input['effective_until'] ) : null,
-			'created_at' => $existing ? $now : $now, 'updated_at' => $now,
+			'created_at' => $existing ? $existing->created_at : $now, 'updated_at' => $now,
 		);
 		if ( $existing ) { $row['profile_id'] = (int) $existing->profile_id; }
 		$result = $wpdb->replace( "{$p}wpcap_fiscal_profiles", $row );
