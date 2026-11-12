@@ -144,7 +144,7 @@ final class Fiscalization {
 		$location_id = absint( $input['location_id'] ?? 0 );
 		$register_id = sanitize_text_field( $input['register_id'] ?? '' );
 		$data = is_array( $input['profile_data'] ?? null ) ? $input['profile_data'] : array();
-		if ( ! $seller || 'active' !== $seller->status || ! in_array( $channel, array( 'pos', 'woocommerce' ), true ) || ! in_array( $environment, array( 'test', 'production' ), true ) || ! in_array( $status, array( 'draft', 'test', 'active', 'suspended' ), true ) || self::contains_secret_key( $data ) ) {
+		if ( ! $seller || 'active' !== $seller->status || ! in_array( $channel, array( 'pos', 'woocommerce', 'native' ), true ) || ! in_array( $environment, array( 'test', 'production' ), true ) || ! in_array( $status, array( 'draft', 'test', 'active', 'suspended' ), true ) || self::contains_secret_key( $data ) ) {
 			return new \\WP_Error( 'wpcap_fiscal_profile_invalid', __( 'Fiskalprofil, Verkäufer oder nicht geheime Konfiguration ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
 		if ( 'active' === $status && ( empty( $input['review_attested'] ) || '' === $ruleset || '' === $ruleset_version || '' === $legal_reference ) ) {
@@ -203,18 +203,26 @@ final class Fiscalization {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$groups = array();
+		$source = sanitize_key( $internal['source'] ?? 'native' );
+		$channel = 'woocommerce' === $source ? 'woocommerce' : ( 'pos' === $source ? 'pos' : 'native' );
+		$now = current_time( 'mysql', true );
 		foreach ( (array) $selected as $line ) {
 			$type_id = absint( $line['type']->ticket_type_id ?? 0 );
-			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.status AS seller_status,c.provider_id,c.configuration,c.enabled FROM {$p}wpcap_ticket_sellers ts INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=ts.seller_id LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id WHERE ts.ticket_type_id=%d", $type_id ) );
+			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM {$p}wpcap_ticket_sellers ts INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=ts.seller_id LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id LEFT JOIN {$p}wpcap_fiscal_profiles fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=0 AND fp.register_id='' AND fp.environment='production' AND fp.status='active' AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id=%d", $channel, $now, $now, $type_id ) );
 			if ( ! $mapping ) { continue; }
-			if ( 'active' !== $mapping->seller_status || ! in_array( $mapping->seller_mode, array( 'organizer_seller', 'platform_seller' ), true ) ) {
-				throw new \RuntimeException( 'fiscal_seller_invalid' );
+			$adapter = Registry::get( $mapping->provider_id );
+			if ( 'active' !== $mapping->seller_status || ! $mapping->profile_id || ! (int) $mapping->enabled || ! $adapter || ! in_array( strtoupper( $mapping->country_code ), array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) {
+				throw new \\RuntimeException( 'fiscal_profile_unavailable' );
+			}
+			if ( ! in_array( $mapping->seller_mode, array( 'organizer_seller', 'platform_seller' ), true ) ) {
+				throw new \\RuntimeException( 'fiscal_seller_invalid' );
 			}
 			$seller_id = (int) $mapping->seller_id;
 			if ( ! isset( $groups[ $seller_id ] ) ) {
 				$groups[ $seller_id ] = array(
-					'seller' => array( 'seller_id' => $seller_id, 'legal_name' => $mapping->legal_name, 'country_code' => strtoupper( $mapping->country_code ), 'tax_number' => $mapping->tax_number ),
-					'provider_id' => (int) $mapping->enabled ? sanitize_key( $mapping->provider_id ) : '',
+					'seller' => array( 'seller_id' => $seller_id, 'legal_name' => $mapping->legal_name, 'country_code' => strtoupper( $mapping->country_code ), 'tax_number' => $mapping->tax_number, 'vat_id' => $mapping->vat_id, 'business_address' => $mapping->business_address ? (array) json_decode( $mapping->business_address, true ) : array(), 'contact_email' => $mapping->contact_email ),
+					'profile' => array( 'profile_id' => (int) $mapping->profile_id, 'version' => (int) $mapping->profile_version, 'ruleset_key' => $mapping->ruleset_key, 'ruleset_version' => $mapping->ruleset_version, 'legal_reference' => $mapping->legal_reference, 'data' => $mapping->profile_data ? (array) json_decode( $mapping->profile_data, true ) : array() ),
+					'provider_id' => sanitize_key( $mapping->provider_id ),
 					'configuration' => $mapping->configuration ? (array) json_decode( $mapping->configuration, true ) : array(),
 					'items' => array(), 'gross_minor' => 0, 'tax_minor' => 0,
 				);
@@ -233,9 +241,10 @@ final class Fiscalization {
 			$groups[ $seller_id ]['tax_minor'] += $tax;
 		}
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT currency,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		if ( $groups ) { $wpdb->replace( "{$p}wpcap_fiscal_order_state", array( 'order_id' => absint( $order_id ), 'fiscal_status' => 'pending', 'fulfillment_status' => 'blocked', 'updated_at' => $now ), array( '%d', '%s', '%s', '%s' ) ); }
 		foreach ( $groups as $seller_id => $group ) {
 			$key = hash( 'sha256', 'wpcap-fiscal-v1:' . absint( $order_id ) . ':' . $seller_id );
-			$snapshot = array( 'schema_version' => 1, 'order_id' => absint( $order_id ), 'seller' => $group['seller'], 'seller_mode' => $group['items'][0]['seller_mode'], 'currency' => $order->currency ?? 'EUR', 'payment_method' => sanitize_key( $order->payment_provider ?? '' ), 'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'items' => $group['items'] );
+			$snapshot = array( 'schema_version' => 1, 'order_id' => absint( $order_id ), 'seller' => $group['seller'], 'seller_mode' => $group['items'][0]['seller_mode'], 'profile' => $group['profile'], 'currency' => $order->currency ?? 'EUR', 'payment_method' => sanitize_key( $order->payment_provider ?? '' ), 'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'items' => $group['items'] );
 			$wpdb->insert( "{$p}wpcap_fiscal_documents", array(
 				'order_id' => absint( $order_id ), 'seller_id' => (int) $seller_id, 'document_key' => $key,
 				'country_code' => $group['seller']['country_code'], 'provider_id' => $group['provider_id'],
