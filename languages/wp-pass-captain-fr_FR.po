@@ -10044,8 +10044,4 @@ msgstr "WP Pass Captain : échec du recrédit du bon"
 #: src/Integrations/Vouchers/Checkout.php:336
 #, php-format
 msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
-msgstr "Pour la commande %1$s, la part bon d'un remboursement (%2$d en plus petite unité) n'a pas pu être recréditée sur le bon :
-
-%3$s
-
-Veuillez corriger le bon manuellement dans le plugin de bons."
+msgstr "Pour la commande %1$s, la part bon d'un remboursement (%2$d en plus petite unité) n'a pas pu être recréditée sur le bon :\n\n%3$s\n\nVeuillez corriger le bon manuellement dans le plugin de bons."

@@ -10044,8 +10044,4 @@ msgstr "WP Pass Captain: error al devolver el importe al vale"
 #: src/Integrations/Vouchers/Checkout.php:336
 #, php-format
 msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
-msgstr "En el pedido %1$s no se pudo devolver al vale la parte de un reembolso pagada con vale (%2$d en la unidad mínima):
-
-%3$s
-
-Corrige el vale manualmente en el plugin de vales."
+msgstr "En el pedido %1$s no se pudo devolver al vale la parte de un reembolso pagada con vale (%2$d en la unidad mínima):\n\n%3$s\n\nCorrige el vale manualmente en el plugin de vales."

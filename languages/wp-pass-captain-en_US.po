@@ -10045,8 +10045,4 @@ msgstr "WP Pass Captain: voucher refund failed"
 #: src/Integrations/Vouchers/Checkout.php:336
 #, php-format
 msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
-msgstr "For order %1$s the voucher share of a refund (%2$d in minor units) could not be credited back to the voucher:
-
-%3$s
-
-Please correct the voucher manually in the voucher plugin."
+msgstr "For order %1$s the voucher share of a refund (%2$d in minor units) could not be credited back to the voucher:\n\n%3$s\n\nPlease correct the voucher manually in the voucher plugin."
