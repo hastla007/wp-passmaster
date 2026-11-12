@@ -349,7 +349,8 @@ final class Holds {
 		$occurrence_id = absint( $data['occurrence_id'] ?? 0 );
 		$type_id = absint( $data['ticket_type_id'] ?? 0 );
 		$name = mb_substr( sanitize_text_field( (string) ( $data['name'] ?? '' ) ), 0, 100 );
-		$kind = in_array( $data['kind'] ?? 'hold', self::KINDS, true ) ? $data['kind'] : 'hold';
+		$kind = (string) ( $data['kind'] ?? 'hold' );
+		$kind = in_array( $kind, self::KINDS, true ) ? $kind : 'hold';
 		$quantity = absint( $data['quantity'] ?? 0 );
 		$hours = isset( $data['release_hours'] ) && '' !== $data['release_hours'] ? absint( $data['release_hours'] ) : absint( Module::config()['auto_release_hours'] );
 		if ( 'kill' === $kind ) { $hours = 0; }

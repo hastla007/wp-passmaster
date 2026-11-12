@@ -414,6 +414,36 @@ final class ZReport {
 		);
 	}
 
+	/**
+	 * 80 mm payout receipt (Storno-/Auszahlungsbeleg) of a refund/storno movement: own receipt
+	 * number, reference to the sale receipt, refunded tickets, VAT per rate, method, register/shift.
+	 */
+	public static function payout_receipt_html( $mv ) {
+		global $wpdb;
+		$sale = Service::sale( $mv->sale_id );
+		$cur = $mv->currency;
+		$m = static function ( $minor ) use ( $cur ) { return number_format_i18n( $minor / 100, 2 ) . ' ' . $cur; };
+		$items = array();
+		$ids = array_filter( array_map( 'absint', (array) json_decode( (string) $mv->ticket_ids, true ) ) );
+		if ( $ids ) {
+			$items = $wpdb->get_results( "SELECT tt.name,COUNT(*) AS n FROM {$wpdb->prefix}wpcap_tickets t LEFT JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE t.ticket_id IN (" . implode( ',', $ids ) . ') GROUP BY tt.name ORDER BY tt.name' );
+		}
+		$h = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( (string) $mv->receipt_number ) . '</title>'
+			. '<style>@page{size:80mm auto;margin:0}body{width:80mm;margin:0;padding:3mm 4mm;font:12px/1.3 "DejaVu Sans Mono",monospace;color:#000}h1{font-size:15px;margin:0 0 2mm;text-align:center}p{margin:0 0 1.5mm}.c{text-align:center}table{width:100%;border-collapse:collapse}td.n{text-align:right;white-space:nowrap}.sep{border-top:1px dashed #000;margin:2mm 0}.big td{font-size:15px;font-weight:bold}.small{font-size:10px}@media print{.noprint{display:none}}</style></head><body onload="window.print()">';
+		$h .= '<p class="c"><strong>' . esc_html( (string) Settings::get( 'seller_name' ) ) . '</strong><br>' . nl2br( esc_html( (string) Settings::get( 'seller_address' ) ) ) . '</p>';
+		$h .= '<h1>' . esc_html( 'storno' === $mv->kind ? __( 'STORNOBELEG', 'wp-pass-captain' ) : __( 'AUSZAHLUNGSBELEG', 'wp-pass-captain' ) ) . '</h1>';
+		$h .= '<p>' . esc_html( __( 'Beleg-Nr.:', 'wp-pass-captain' ) . ' ' . $mv->receipt_number ) . '<br>' . ( $sale ? esc_html( __( 'zu Beleg', 'wp-pass-captain' ) . ' ' . $sale->receipt_number ) . '<br>' : '' );
+		$h .= esc_html( __( 'Datum:', 'wp-pass-captain' ) . ' ' . Scope::local( $mv->created_at, Scope::site_timezone(), 'd.m.Y H:i' ) ) . '<br>' . esc_html( __( 'Kasse/Schicht/Bediener:', 'wp-pass-captain' ) . ' ' . Service::register_label( $mv->shift_id ) . ' / ' . (int) $mv->shift_id . ' / ' . Service::user_name( $mv->created_by ) ) . '</p><div class="sep"></div><table>';
+		foreach ( $items as $i ) { $h .= '<tr><td>' . esc_html( (int) $i->n . ' x ' . $i->name ) . '</td></tr>'; }
+		$h .= '</table><table class="big"><tr><td>' . esc_html__( 'AUSZAHLUNG', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $m( (int) $mv->amount_minor ) ) . '</td></tr></table><table class="small">';
+		foreach ( (array) json_decode( (string) $mv->vat, true ) as $rate => $v ) {
+			$h .= '<tr><td>' . esc_html( sprintf( /* translators: 1: rate, 2: net */ __( 'USt %1$s %%: Netto %2$s', 'wp-pass-captain' ), number_format_i18n( (int) $rate / 100, 2 ), $m( (int) $v['net'] ) ) ) . '</td><td class="n">' . esc_html( $m( (int) $v['tax'] ) ) . '</td></tr>';
+		}
+		$h .= '</table><div class="sep"></div><p>' . esc_html( __( 'Zahlart:', 'wp-pass-captain' ) . ' ' . Service::method_label( $mv->method ) ) . '<br>' . esc_html( $mv->reason ) . '</p>';
+		$h .= '<p class="noprint c"><button onclick="window.print()">' . esc_html__( 'Drucken', 'wp-pass-captain' ) . '</button></p></body></html>';
+		return $h;
+	}
+
 	/** CSV (semicolon, UTF-8 BOM) of a Z report. */
 	public static function csv( $z ) {
 		return Scope::csv( array_merge( array( array( __( 'Abschnitt', 'wp-pass-captain' ), __( 'Bezeichnung', 'wp-pass-captain' ), __( 'Wert', 'wp-pass-captain' ) ) ), self::rows( $z ) ) );

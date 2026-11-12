@@ -290,7 +290,7 @@ final class Service {
 	public static function quote( $ticket_id, $target_type_id, array $args = array() ) {
 		$ticket = self::ticket( $ticket_id );
 		$target = self::target( $target_type_id );
-		$channel = in_array( $args['channel'] ?? 'admin', self::CHANNELS, true ) ? $args['channel'] : 'admin';
+		$channel = in_array( (string) ( $args['channel'] ?? '' ), self::CHANNELS, true ) ? (string) $args['channel'] : 'admin';
 		$policy = $ticket ? Policy::for_event( (int) $ticket->event_id ) : Policy::global_policy();
 		$valid = self::validate( $ticket, $target, $channel, $policy );
 		if ( is_wp_error( $valid ) ) { return $valid; }
@@ -367,7 +367,7 @@ final class Service {
 	public static function request( $ticket_id, $target_type_id, array $args = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$channel = in_array( $args['channel'] ?? 'admin', self::CHANNELS, true ) ? $args['channel'] : 'admin';
+		$channel = in_array( (string) ( $args['channel'] ?? '' ), self::CHANNELS, true ) ? (string) $args['channel'] : 'admin';
 		if ( 'portal' === $channel ) {
 			// Goodwill and policy overrides are staff decisions.
 			unset( $args['waive'], $args['refund_policy'] );
@@ -390,7 +390,8 @@ final class Service {
 		}
 		$seat_id = absint( $args['seat_id'] ?? 0 );
 		$now = current_time( 'mysql', true );
-		$old_rate = (int) $ticket->tax_rate_bp;
+		// Read before the lock phase (the transaction may only use locking reads until all locks are held).
+		$value = self::ticket_value( $ticket );
 
 		$wpdb->query( 'START TRANSACTION' );
 		$error = null;
@@ -443,7 +444,7 @@ final class Service {
 			if ( false === Orders::transaction_alive() ) { throw new \RuntimeException( 'db_busy' ); }
 
 			$price = Orders::unit_price( $target_type, $target_occ, 1, array( 'now' => $now, 'source' => $channel, 'phase' => 'exchange' ) );
-			$money = self::calculate( self::ticket_value( $ticket ), $price, $policy, $args );
+			$money = self::calculate( $value, $price, $policy, $args );
 			/** Changes the money of an exchange (difference, fee, refund) before it is stored. */
 			$money = (array) apply_filters( 'wpcap_exchange_money', $money, $ticket, $target_type, $args );
 			$row = array(

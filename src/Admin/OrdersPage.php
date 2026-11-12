@@ -462,6 +462,7 @@ final class OrdersPage {
 			</form>
 		<?php endif; ?>
 
+		<?php /** Extra sections on the order detail page (e.g. ticket exchange). */ do_action( 'wpcap_admin_order_detail', $order, $tickets ); ?>
 		<h2><?php esc_html_e( 'Erstattungen', 'wp-pass-captain' ); ?></h2>
 		<?php self::render_refund_table( $refunds, $currency, false ); ?>
 		<?php
