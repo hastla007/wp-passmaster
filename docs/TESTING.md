@@ -123,3 +123,48 @@ Template), Tastatur-Durchlauf 23/23 Prüfungen bestanden, Farbkontrast der öffe
 Seiten: 9 kritische und 48 ernste Knoten (fehlende Labels an Filter-Selects, Kontrast von `<code>`-Links,
 Zielgröße der Checkboxen) – siehe offene Punkte im Changelog/Report. Nicht in CI (braucht eine WordPress-Instanz).
 Automatische Prüfungen ersetzen keine Screenreader-Tests (siehe `docs/ACCESSIBILITY.md`).
+
+## Große Vorverkäufe: Kontingentzähler (Profil `big`, 12.11.2026)
+
+```bash
+php tests/load/run.php --profile=big            # 20.000 bereits verkaufte Tickets, 1000 Käufer, 100 Verbindungen
+php tests/load/run.php --profile=big --sold=50000 --buyers=800 --pay-rate=0.5
+WPCAP_LOAD_COUNTERS=0 php tests/load/run.php --profile=big   # SUM-Rückfallpfad (Zustand „verifying“ nach Upgrade)
+```
+
+Szenario `onsale`: ein Termin mit 20.000 per Multi-Row-INSERT angelegten bezahlten Tickets (≈ 0,5 s, danach
+`CapacityCounters::rebuild_all()` wie bei einem Upgrade), Ticketart- und Terminkontingent binden beide, eine
+zweite Ticketart teilt sich den Termin. 1000 Käufer (70 % 1 Ticket, sonst 2–4; 15 % Doppel-Submit) lesen zuerst
+`Orders::availability()` (wie die Warenkorbprüfung), legen dann über `Orders::create()` an; 30 % bezahlen sofort
+(`confirm_external_payment()`). Invarianten: kein Überverkauf (Ticketart und Termin), Kontingent ausgeschöpft,
+eine Bestellung je Key, keine unerwarteten Fehler, Zähler = Summen der Quelltabellen (`CapacityCounters::drift()`).
+
+Gleiche Maschine wie oben (4 vCPU, 15 GB, MariaDB 10.11, PHP 8.3), je zwei Läufe, Werte des ersten Laufs:
+
+| Stand | req/s | Wall s | p50 ms | p95 ms | p99 ms | max ms | availability() p50 / p95 ms | Zahlung p50 / p95 ms | Fehler |
+|---|---|---|---|---|---|---|---|---|---|
+| vorher (SUM unter Sperre) | 37,7 | 30,6 | 2881 | 3098 | 4299 | 4571 | 51,5 / 1847 | 4,7 / 8,3 | 0 % |
+| nachher (Zähler) | 483,8 | 2,4 | 189 | 400 | 453 | 595 | 0,83 / 69,5 | 194 / 221 | 0 % |
+| nachher, 2. Lauf | 485,2 | 2,4 | 188 | 415 | 494 | 605 | 0,82 / 66,9 | 195 / 235 | 0 % |
+| SUM-Rückfall („verifying“) | 34,6 | 33,3 | 2611 | 5397 | 6091 | 6518 | 46,1 / 1192 | 2619 / 3077 | 0 % |
+
+- Vorher kostete jede Kapazitätsprüfung vier SUM-Abfragen über alle verkauften Zeilen, während die Zeilen von
+  Ticketart und Termin gesperrt waren: alle Käufer eines Termins warteten hintereinander (≈ 25 ms je Bestellung).
+  Mit Zählern sind es zwei Primärschlüssel-Zeilen plus eine Indexabfrage über bereits abgelaufene, noch nicht
+  aufgeräumte Reservierungen – die Sperrdauer hängt nicht mehr von der Zahl verkaufter Tickets ab.
+- Die Zahlungsbestätigung sperrt jetzt ebenfalls Ticketart und Termin (die Einheiten wechseln im selben
+  Commit von „reserviert“ nach „verkauft“) und reiht sich daher hinter laufende Bestellungen ein: p50 194 ms statt
+  5 ms im Lastspitzen-Szenario. Im SUM-Rückfall direkt nach einem Upgrade wartet sie hinter langsamen
+  Bestellungen (p95 ≈ 5 s) – Upgrades daher nicht während eines laufenden Vorverkaufs einspielen.
+- Profil `ci` mit Zählern: checkout 861 req/s, p50 13,8 ms, p95 47,8 ms (vorher 575 req/s, 28,6/49,9 ms);
+  check-in und webhook unverändert, alle Invarianten grün.
+
+Integrationstests: `tests/integration/run.php` prüft nach jeder Testdatei, dass `sold_qty`/`held_qty` aller
+Ticketarten und Termine den SUM-Abfragen entsprechen (bei Abweichung FAIL und Reparatur per `reconcile()`, damit
+die nächste Datei für sich bewertet wird). `modules/p3_performance.php` prüft Zähler = SUM nach Anlage,
+Gratisbestellung, abgelehnter Bestellung, Zahlung, Ablauf, verspäteter Zahlung (mit und ohne freies Kontingent),
+Storno (offen/bezahlt), Teil- und Vollerstattung, Widerruf, Umtausch (gleichpreisig, mit Aufpreis-Reservierung
+und Abschluss nach Zahlung); Reconcile repariert verpasste Writer und manipulierte Zähler (mit Alarm);
+Upgrade-Pfad (Neuaufbau, „verifying“ → „ready“); Memo-/Objekt-Cache-Invalidierung; Event-Liste mit konstanter
+Abfragezahl (3 und 12 Termine: je 8 Abfragen ohne Modulfilter) und REST-`/events` (4 Abfragen).
+Der Test-`$wpdb` zählt dafür `num_queries` und ruft wie WordPress den Filter `query` auf.

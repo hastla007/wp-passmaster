@@ -219,9 +219,27 @@ final class Controller {
 		) );
 		$output = array();
 		$locale = sanitize_text_field( $request->get_param( 'locale' ) ?: determine_locale() );
+		// Translations, ticket types and occurrences of all listed dates in three queries (no N+1).
+		$translations = array();
+		$types_of = array();
+		$occurrences = array();
+		if ( $rows ) {
+			$event_in = implode( ',', array_unique( array_map( static function ( $row ) { return (int) $row->event_id; }, $rows ) ) );
+			$occ_in = implode( ',', array_unique( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, $rows ) ) );
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT event_id,name,description,location FROM {$wpdb->prefix}wpcap_event_translations WHERE event_id IN ($event_in) AND locale=%s", $locale ) ) as $translation ) {
+				$translations[ (int) $translation->event_id ] = $translation;
+			}
+			foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id IN ($occ_in) AND status='active' ORDER BY ticket_type_id ASC", ARRAY_A ) as $type ) {
+				$types_of[ (int) $type['occurrence_id'] ][] = $type;
+			}
+			foreach ( (array) $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id IN ($occ_in)" ) as $occurrence ) {
+				$occurrences[ (int) $occurrence->occurrence_id ] = $occurrence;
+			}
+		}
 		foreach ( $rows as $row ) {
-			$translation = $wpdb->get_row( $wpdb->prepare( "SELECT name,description,location FROM {$wpdb->prefix}wpcap_event_translations WHERE event_id=%d AND locale=%s", $row->event_id, $locale ) );
-			$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id ASC", $row->occurrence_id ), ARRAY_A );
+			$translation = $translations[ (int) $row->event_id ] ?? null;
+			$types = $types_of[ (int) $row->occurrence_id ] ?? array();
+			$occurrence = $occurrences[ (int) $row->occurrence_id ] ?? null;
 			$output[] = array(
 				'event_id' => (int) $row->event_id,
 				'name' => $translation ? $translation->name : $row->name,
@@ -232,13 +250,13 @@ final class Controller {
 				'ends_at' => $row->ends_at,
 				'timezone' => $row->timezone,
 				'location' => $translation && $translation->location ? $translation->location : $row->location,
-				'tickets' => array_map( static function ( $type ) { return array(
+				'tickets' => array_map( static function ( $type ) use ( $occurrence ) { return array(
 					'ticket_type_id' => (int) $type['ticket_type_id'],
 					'name' => $type['name'],
 					// Effective (tier) price; regular_price_minor is the stored list price.
-					'price_minor' => \PassCaptain\Orders::unit_price( (object) $type ),
+					'price_minor' => \PassCaptain\Orders::unit_price( (object) $type, $occurrence ),
 					'regular_price_minor' => (int) $type['price_minor'],
-					'price_label' => \PassCaptain\Orders::price_label( (object) $type ),
+					'price_label' => \PassCaptain\Orders::price_label( (object) $type, $occurrence ),
 					'currency' => $type['currency'],
 					'max_per_order' => (int) $type['max_per_order'],
 				); }, $types ),

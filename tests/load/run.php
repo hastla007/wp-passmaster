@@ -53,6 +53,11 @@ function load_settings() {
 	Registry::reset();
 	// All workers share one (empty) REMOTE_ADDR; the per-IP checkout limit is not what we measure here.
 	$GLOBALS['wpcap_test_filters']['wpcap_checkout_ip_limit'] = PHP_INT_MAX;
+	// Options live in process memory here; WordPress keeps the counter state in wp_options.
+	// WPCAP_LOAD_COUNTERS=0 measures the SUM fallback (state "verifying") instead.
+	if ( class_exists( 'PassCaptain\\CapacityCounters' ) ) {
+		update_option( PassCaptain\CapacityCounters::OPTION, array( 'state' => '0' === getenv( 'WPCAP_LOAD_COUNTERS' ) ? 'verifying' : 'ready', 'since' => time() ) );
+	}
 }
 
 /* ====================================================================== */

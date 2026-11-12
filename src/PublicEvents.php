@@ -92,6 +92,7 @@ final class PublicEvents {
 			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC LIMIT 50",
 			current_time( 'mysql', true )
 		) );
+		$listing = self::listing_data( $rows );
 		wp_enqueue_script( 'wpcap-checkout' );
 		wp_enqueue_style( 'wpcap-public' );
 		ob_start();
@@ -99,25 +100,8 @@ final class PublicEvents {
 		<div class="wpcap-events">
 			<?php if ( ! $rows ) : ?><p><?php esc_html_e( 'Aktuell sind keine Veranstaltungen verfügbar.', 'wp-pass-captain' ); ?></p><?php endif; ?>
 			<?php foreach ( $rows as $event ) :
-				$translation = $wpdb->get_row( $wpdb->prepare( "SELECT name,description,location FROM {$wpdb->prefix}wpcap_event_translations WHERE event_id=%d AND locale=%s", $event->event_id, determine_locale() ) );
-				if ( $translation ) {
-					$event->name = $translation->name;
-					$event->description = $translation->description;
-					$event->location = $translation->location ?: $event->location;
-				}
-				$now = current_time( 'mysql', true );
-				$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", $event->occurrence_id, $now, $now ) );
+				$types = $listing[ (int) $event->occurrence_id ] ?? array();
 				if ( ! $types ) { continue; }
-				$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $event->occurrence_id ) );
-				foreach ( $types as $type ) {
-					// Effective server-side price (e.g. series price tiers); the checkout charges the same.
-					$type->base_price_minor = (int) $type->price_minor;
-					$type->price_label = Orders::price_label( $type, $occurrence, array( 'now' => $now ) );
-					$type->price_minor = Orders::unit_price( $type, $occurrence, 1, array( 'now' => $now ) );
-					$type->available = Orders::availability( $type->ticket_type_id );
-					// Only field definitions are exposed (no answers); used to render attendee inputs.
-					$type->fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_key AS `key`,label,field_type AS type,required,purpose FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $type->ticket_type_id ), ARRAY_A );
-				}
 				$providers = Payments\Registry::enabled( $types[0]->currency );
 				$legal = array(
 					'require_terms' => (bool) Settings::get( 'require_terms' ),
@@ -137,6 +121,69 @@ final class PublicEvents {
 		</div>
 		<?php
 		return ob_get_clean();
+	}
+
+	/**
+	 * Loads everything the event cards need for the listed occurrences with a constant number of
+	 * queries (translations, ticket types, occurrences, participant fields, availability), applies
+	 * translations to $rows and returns occurrence_id => ticket types prepared for the card
+	 * (price_minor = effective price, base_price_minor, price_label, available, fields).
+	 *
+	 * @param object[] $rows Listing rows (event_id, name, description, occurrence_id, location, …); changed in place.
+	 * @return array occurrence_id => object[] ticket types.
+	 */
+	public static function listing_data( array $rows ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( ! $rows ) { return array(); }
+		$now = current_time( 'mysql', true );
+		$event_ids = array_values( array_unique( array_map( static function ( $row ) { return (int) $row->event_id; }, $rows ) ) );
+		$occ_ids = array_values( array_unique( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, $rows ) ) );
+		$translations = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT event_id,name,description,location FROM {$p}wpcap_event_translations WHERE event_id IN (" . implode( ',', $event_ids ) . ') AND locale=%s', determine_locale() ) ) as $translation ) {
+			$translations[ (int) $translation->event_id ] = $translation;
+		}
+		foreach ( $rows as $event ) {
+			$translation = $translations[ (int) $event->event_id ] ?? null;
+			if ( $translation ) {
+				$event->name = $translation->name;
+				$event->description = $translation->description;
+				$event->location = $translation->location ?: $event->location;
+			}
+		}
+		$occ_in = implode( ',', $occ_ids );
+		$by_occurrence = array();
+		$all_types = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp FROM {$p}wpcap_ticket_types WHERE occurrence_id IN ($occ_in) AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", $now, $now ) ) as $type ) {
+			$by_occurrence[ (int) $type->occurrence_id ][] = $type;
+			$all_types[ (int) $type->ticket_type_id ] = $type;
+		}
+		if ( ! $all_types ) { return array(); }
+		$occurrences = array();
+		foreach ( (array) $wpdb->get_results( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id IN ($occ_in)" ) as $occurrence ) {
+			$occurrences[ (int) $occurrence->occurrence_id ] = $occurrence;
+		}
+		$type_in = implode( ',', array_keys( $all_types ) );
+		$fields = array();
+		// Only field definitions are exposed (no answers); used to render attendee inputs.
+		foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,field_key AS `key`,label,field_type AS type,required,purpose FROM {$p}wpcap_participant_fields WHERE ticket_type_id IN ($type_in) AND status='active' ORDER BY position,field_id", ARRAY_A ) as $field ) {
+			$type_id = (int) $field['ticket_type_id'];
+			unset( $field['ticket_type_id'] );
+			$fields[ $type_id ][] = $field;
+		}
+		$available = Orders::availability_many( array_keys( $all_types ), array( 'occurrences' => $occurrences ) );
+		foreach ( $by_occurrence as $occ_id => $types ) {
+			$occurrence = $occurrences[ $occ_id ] ?? null;
+			foreach ( $types as $type ) {
+				// Effective server-side price (e.g. series price tiers); the checkout charges the same.
+				$type->base_price_minor = (int) $type->price_minor;
+				$type->price_label = Orders::price_label( $type, $occurrence, array( 'now' => $now ) );
+				$type->price_minor = Orders::unit_price( $type, $occurrence, 1, array( 'now' => $now ) );
+				$type->available = array_key_exists( (int) $type->ticket_type_id, $available ) ? $available[ (int) $type->ticket_type_id ] : 0;
+				$type->fields = $fields[ (int) $type->ticket_type_id ] ?? array();
+			}
+		}
+		return $by_occurrence;
 	}
 
 	public static function render_scanner_shortcode() {
