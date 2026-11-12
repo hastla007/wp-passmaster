@@ -9,6 +9,7 @@
 namespace PassCaptain\Modules;
 
 use PassCaptain\Audit;
+use PassCaptain\Fiscalization\ArchiveExporter;
 use PassCaptain\Fiscalization\CountryPolicy;
 use PassCaptain\Fiscalization\Credentials;
 use PassCaptain\Fiscalization\Registry;
@@ -502,6 +503,7 @@ final class Fiscalization {
 			'wpcap_fiscal_retry_order' => array( __CLASS__, 'handle_admin_retry_order' ),
 			'wpcap_fiscal_health_check' => array( __CLASS__, 'handle_admin_health_check' ),
 			'wpcap_fiscal_reconcile' => array( __CLASS__, 'handle_admin_reconcile' ),
+			'wpcap_fiscal_export' => array( ArchiveExporter::class, 'handle_admin_export' ),
 		);
 	}
 
@@ -693,6 +695,13 @@ final class Fiscalization {
 			}
 			echo '</tbody></table>';
 		}
+		$export_until = gmdate( 'Y-m-d' );
+		$export_from = gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS );
+		echo '<hr><h2>' . esc_html__( 'Fiskaldaten exportieren', 'wp-pass-captain' ) . '</h2><p>' . esc_html__( 'Normalisierter CSV-Export für Archiv- und Betriebszwecke; kein länderspezifisches Behördenformat. Zeitraum in UTC, maximal 50.000 Dokumente.', 'wp-pass-captain' ) . '</p><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'wpcap_fiscal_export' );
+		echo '<input type="hidden" name="action" value="wpcap_fiscal_export"><label>' . esc_html__( 'Von (UTC)', 'wp-pass-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $export_from ) . '" required></label> <label>' . esc_html__( 'Bis (UTC)', 'wp-pass-captain' ) . ' <input type="date" name="until" value="' . esc_attr( $export_until ) . '" required></label>';
+		submit_button( __( 'CSV herunterladen', 'wp-pass-captain' ), 'secondary', 'submit', false );
+		echo '</form>';
 		echo '<hr><h2>' . esc_html__( 'Fiskal-Ereignisprotokoll', 'wp-pass-captain' ) . '</h2>';
 		$events = $wpdb->get_results( "SELECT event_id,document_id,order_id,provider_id,event_type,event_status,metadata,created_at FROM {$p}wpcap_fiscal_events ORDER BY event_id DESC LIMIT 200" );
 		if ( ! $events ) { echo '<p>' . esc_html__( 'Noch keine Fiskalereignisse protokolliert.', 'wp-pass-captain' ) . '</p>'; }
