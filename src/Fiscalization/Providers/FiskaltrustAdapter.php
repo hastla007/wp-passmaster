@@ -95,7 +95,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 
 	private function case_value( $value ) {
 		if ( ! is_scalar( $value ) || '' === (string) $value || ! preg_match( '/^\d+$/', (string) $value ) ) { return null; }
-		return (string) $value;
+		return (int) $value;
 	}
 	private function headers( array $configuration, $operation_id ) {
 		$credentials = (array) ( $configuration['credentials'] ?? array() );
