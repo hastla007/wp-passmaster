@@ -641,14 +641,14 @@ final class Fiscalization {
 	public static function admin_record_manual_resolution() {
 		$event_id = absint( $_POST['event_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		check_admin_referer( 'wpcap_fiscal_manual_resolution_' . $event_id );
-		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Nicht berechtigt.', 'wp-pass-captain' ), 403 ); }
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Nicht berechtigt.', 'wp-pass-captain' ), '', array( 'response' => 403 ) ); }
 		$result = self::record_manual_resolution(
 			$event_id,
 			sanitize_key( wp_unslash( $_POST['resolution'] ?? '' ) ), // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			sanitize_text_field( wp_unslash( $_POST['provider_reference'] ?? '' ) ), // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			sanitize_textarea_field( wp_unslash( $_POST['note'] ?? '' ) ) // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		);
-		$redirect = add_query_arg( 'wpcap_fiscal_resolution', is_wp_error( $result ) ? 'error' : 'recorded', admin_url( 'admin.php?page=wp-pass-captain-fiscal' ) );
+		$redirect = add_query_arg( 'wpcap_fiscal_resolution', is_wp_error( $result ) ? 'error' : 'recorded', admin_url( 'admin.php?page=wpcap-fiscalization' ) );
 		wp_safe_redirect( $redirect );
 		exit;
 	}
