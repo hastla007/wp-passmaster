@@ -22,11 +22,47 @@ final class Fiscalization {
 				legal_name varchar(190) NOT NULL,
 				country_code char(2) NOT NULL,
 				tax_number varchar(64) NOT NULL DEFAULT '',
+				vat_id varchar(64) NOT NULL DEFAULT '',
+				business_address longtext NULL,
+				contact_email varchar(190) NOT NULL DEFAULT '',
 				status varchar(20) NOT NULL DEFAULT 'active',
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (seller_id),
 				KEY country_status (country_code,status)
+			) ENGINE=InnoDB {$charset};",
+			"CREATE TABLE {$prefix}wpcap_fiscal_profiles (
+				profile_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				seller_id bigint(20) unsigned NOT NULL,
+				country_code char(2) NOT NULL,
+				channel varchar(24) NOT NULL,
+				location_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				register_id varchar(64) NOT NULL DEFAULT '',
+				environment varchar(16) NOT NULL DEFAULT 'test',
+				status varchar(16) NOT NULL DEFAULT 'draft',
+				profile_version int(10) unsigned NOT NULL DEFAULT 1,
+				ruleset_key varchar(64) NOT NULL DEFAULT '',
+				ruleset_version varchar(64) NOT NULL DEFAULT '',
+				legal_reference varchar(191) NOT NULL DEFAULT '',
+				profile_data longtext NULL,
+				reviewed_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				reviewed_at datetime NULL,
+				effective_from datetime NULL,
+				effective_until datetime NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (profile_id),
+				UNIQUE KEY profile_scope (seller_id,country_code,channel,location_id,register_id,environment),
+				KEY status_country (status,country_code)
+			) ENGINE=InnoDB {$charset};",
+			"CREATE TABLE {$prefix}wpcap_fiscal_order_state (
+				order_id bigint(20) unsigned NOT NULL,
+				fiscal_status varchar(24) NOT NULL DEFAULT 'pending',
+				fulfillment_status varchar(24) NOT NULL DEFAULT 'blocked',
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (order_id),
+				KEY fiscal_status (fiscal_status,updated_at),
+				KEY fulfillment_status (fulfillment_status,updated_at)
 			) ENGINE=InnoDB {$charset};",
 			"CREATE TABLE {$prefix}wpcap_fiscal_configs (
 				seller_id bigint(20) unsigned NOT NULL,
@@ -87,6 +123,7 @@ final class Fiscalization {
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'snapshot_order' ), 20, 4 );
 		add_action( 'wpcap_process_fiscal_order', array( __CLASS__, 'process_scheduled_order' ) );
 		add_filter( 'wpcap_order_fiscal_ready', array( __CLASS__, 'fiscal_ready' ), 10, 2 );
+		add_action( 'wpcap_tickets_issued', array( __CLASS__, 'mark_fulfilled' ), 10, 2 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
 	}
 
