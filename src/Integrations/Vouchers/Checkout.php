@@ -337,7 +337,7 @@ final class Checkout {
 				// The VAT booked on the refunded tickets' lines (already on the discounted amount).
 				$tax = $value > 0 ? (int) round( $line_tax ) : (int) $refund['tax_minor'];
 			}
-			$plan['tax_minor'] = min( $gross, max( (int) $refund['tax_minor'], $tax ) );
+			$plan['tax_minor'] = max( 0, min( $gross, $tax ) );
 		}
 		$plans[ (string) absint( $refund_id ) ] = $plan;
 		$snapshot['refund_plans'] = $plans;

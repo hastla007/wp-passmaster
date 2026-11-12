@@ -91,7 +91,6 @@ VoucherCheckout::refund( $m_r2['refund_id'], $m['order_id'] );
 $m_credit2 = Invoices::credit_note_for_refund( $m_r2['refund_id'] );
 $m_rc = $vp_refund_calls();
 $m_final = VoucherCheckout::voucher_state( $m['order_id'] );
-echo 'DBGVP ', json_encode( array( $m_r2['amount_minor'], count( $m_rc ), $m_rc[1] ?? null, $m_credit2['total_minor'] ?? null, $m_credit2['tax_minor'] ?? null, $m_final['refunded_minor'], $m_final['refunded_tickets'] ) ), "\n";
 check( 'last refund: remainder of the voucher, credit notes add up to the invoice', 1000 === (int) $m_r2['amount_minor'] && 2 === count( $m_rc ) && 1000 === $m_rc[1][1] && 2000 === (int) $m_credit2['total_minor'] && 333 === (int) $m_credit2['tax_minor'] && 1500 === (int) $m_final['refunded_minor'] && 3 === (int) $m_final['refunded_tickets'] );
 VoucherCheckout::refund( $m_r2['refund_id'], $m['order_id'] );
 check( 'repeated refund hook does not refund the voucher twice', 2 === count( $vp_refund_calls() ) );
