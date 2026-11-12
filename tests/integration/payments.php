@@ -204,6 +204,9 @@ $charge['data']['object']['refunded'] = true;
 unset( $charge['data']['object']['refunds'] );
 $full = stripe_deliver( $stripe, $charge );
 check( 'full refund in Stripe dashboard marks the order refunded', 'refunded' === $full && 'refunded' === Orders::get( $so['order_id'] )->status && ! tickets( $so['order_id'], 'valid' ) );
+$so_refunds = $wpdb->get_results( $wpdb->prepare( "SELECT amount_minor,reason FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d ORDER BY refund_id", $so['order_id'] ) );
+check( 'the dashboard refund is booked as a refund row for the rest (credit note, voucher share and settlement follow)', 2 === count( $so_refunds ) && 2250 === (int) $so_refunds[1]->amount_minor && 'stripe_dashboard_refund' === $so_refunds[1]->reason && 4500 === (int) Orders::get( $so['order_id'] )->refunded_minor );
+check( 'a repeated dashboard refund event books nothing twice', 'duplicate' === stripe_deliver( $stripe, $charge ) || 2 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d", $so['order_id'] ) ) );
 
 http_reset();
 $co = provider_order( 'stripe', $type, 1, 'stripe-cs-ref' );

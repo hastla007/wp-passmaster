@@ -10036,3 +10036,17 @@ msgstr "System error – the ticket was not checked. Please scan again."
 #: src/PublicEvents.php:95
 msgid "Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen."
 msgstr "Session expired – please reload the page and scan again."
+
+#. translators: 1: order, 2: amount in minor units, 3: error
+#: src/Integrations/Vouchers/Checkout.php:336
+msgid "WP Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
+msgstr "WP Pass Captain: voucher refund failed"
+
+#: src/Integrations/Vouchers/Checkout.php:336
+#, php-format
+msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
+msgstr "For order %1$s the voucher share of a refund (%2$d in minor units) could not be credited back to the voucher:
+
+%3$s
+
+Please correct the voucher manually in the voucher plugin."

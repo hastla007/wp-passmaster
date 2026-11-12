@@ -128,13 +128,14 @@ echo "Integration: voucher ledger edge cases (expert review)\n";
 final class ZZ_Voucher_Provider implements PassCaptain\Integrations\Vouchers\ProviderInterface {
 	public array $calls = array();
 	public array $commit_errors = array();
+	public array $refund_errors = array();
 	public $treatment = null;
 	public $max = 1500;
 	public function quote( array $context ) { $this->calls[] = array( 'quote', $context['order_reference'] ); return array_filter( array( 'amount_minor' => min( $this->max, $context['amount_minor'] ), 'currency' => $context['currency'], 'treatment' => $this->treatment ) ); }
 	public function reserve( array $quote, $key ) { $this->calls[] = array( 'reserve', $key ); return array( 'reservation' => $key, 'applied_minor' => $quote['amount_minor'] ); }
 	public function commit( array $reservation, $key ) { $this->calls[] = array( 'commit', $key ); return $this->commit_errors ? array_shift( $this->commit_errors ) : array( 'redemption' => $key ); }
 	public function release( array $reservation, $key ) { $this->calls[] = array( 'release', $key ); return true; }
-	public function refund( array $redemption, $amount, $key ) { $this->calls[] = array( 'refund', $amount, $key ); return true; }
+	public function refund( array $redemption, $amount, $key ) { if ( $this->refund_errors ) { return array_shift( $this->refund_errors ); } $this->calls[] = array( 'refund', $amount, $key ); return true; }
 	public function for_order( $public_id, $kind ) { return array_values( array_filter( $this->calls, static fn( $c ) => $kind === $c[0] && str_contains( (string) end( $c ), $public_id ) ) ); }
 }
 $zv = new ZZ_Voucher_Provider();
@@ -155,6 +156,21 @@ $zr = PassCaptain\Refunds::request( $zvo['order_id'], array( (int) $zb_ticket->t
 $VC::refund( $zr['refund_id'], $zvo['order_id'] );
 $zref = $zv->for_order( 'wpcap-refund-' . $zr['refund_id'], 'refund' );
 check( 'the voucher share of a ticket refund follows the ticket value', 1 === count( $zref ) && 300 === (int) $zref[0][1] );
+
+// The voucher system is briefly unavailable during a refund: the share is retried by a job with the same key.
+$zfail = make_type( 10, 10, 1000 );
+$zfo = Orders::create( array( 'email' => 'zzf@example.com', 'items' => array( array( 'ticket_type_id' => $zfail, 'quantity' => 2 ) ), 'idempotency_key' => 'zzv-fail' ) );
+$VC::apply( $zfo['order_id'], 'ZZ-REFUND-RETRY' );
+Orders::confirm_manual_payment( $zfo['order_id'] );
+$VC::commit( $zfo['order_id'] );
+$zv->refund_errors = array( $temporary() );
+$zfr = PassCaptain\Refunds::request( $zfo['order_id'], array( (int) tickets( $zfo['order_id'] )[0]->ticket_id ), 'Storno', 'zzv-rf' );
+$zf_first = $VC::refund( $zfr['refund_id'], $zfo['order_id'] );
+$zf_job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_jobs WHERE idempotency_key=%s", hash( 'sha256', 'voucher-refund-' . $zfr['refund_id'] ) ) );
+check( 'a temporarily failed voucher refund is kept and queued for a retry', false === $zf_first && $zf_job && 'voucher_refund' === $zf_job->job_type && in_array( (int) $zfr['refund_id'], $VC::voucher_state( $zfo['order_id'] )['failed_refund_ids'], true ) );
+$zf_retry = $VC::handle_job( false, 'voucher_refund', json_decode( $zf_job->payload, true ), (int) $zf_job->job_id );
+$zf_calls = $zv->for_order( 'wpcap-refund-' . $zfr['refund_id'], 'refund' );
+check( 'the retry refunds the voucher share exactly once and clears the marker', true === $zf_retry && 1 === count( $zf_calls ) && 750 === (int) $zf_calls[0][1] && ! $VC::voucher_state( $zfo['order_id'] )['failed_refund_ids'] && true === $VC::refund( $zfr['refund_id'], $zfo['order_id'] ) && 1 === count( $zv->for_order( 'wpcap-refund-' . $zfr['refund_id'], 'refund' ) ) );
 
 // Refund while the commit is still pending (retry job): the share follows right after the commit.
 $zt2 = make_type( 10, 10, 1000 );

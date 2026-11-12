@@ -10035,3 +10035,17 @@ msgstr "Erreur système – le billet n'a pas été vérifié. Veuillez scanner 
 #: src/PublicEvents.php:95
 msgid "Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen."
 msgstr "Session expirée – veuillez recharger la page et scanner à nouveau."
+
+#. translators: 1: order, 2: amount in minor units, 3: error
+#: src/Integrations/Vouchers/Checkout.php:336
+msgid "WP Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
+msgstr "WP Pass Captain : échec du recrédit du bon"
+
+#: src/Integrations/Vouchers/Checkout.php:336
+#, php-format
+msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
+msgstr "Pour la commande %1$s, la part bon d'un remboursement (%2$d en plus petite unité) n'a pas pu être recréditée sur le bon :
+
+%3$s
+
+Veuillez corriger le bon manuellement dans le plugin de bons."

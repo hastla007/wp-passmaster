@@ -10012,3 +10012,13 @@ msgstr ""
 #: src/PublicEvents.php:95
 msgid "Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen."
 msgstr ""
+
+#. translators: 1: order, 2: amount in minor units, 3: error
+#: src/Integrations/Vouchers/Checkout.php:336
+msgid "WP Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
+msgstr ""
+
+#: src/Integrations/Vouchers/Checkout.php:336
+#, php-format
+msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
+msgstr ""

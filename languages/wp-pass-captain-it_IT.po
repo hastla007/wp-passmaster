@@ -10035,3 +10035,17 @@ msgstr "Errore di sistema – il biglietto non è stato verificato. Scansiona di
 #: src/PublicEvents.php:95
 msgid "Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen."
 msgstr "Sessione scaduta – ricarica la pagina e scansiona di nuovo."
+
+#. translators: 1: order, 2: amount in minor units, 3: error
+#: src/Integrations/Vouchers/Checkout.php:336
+msgid "WP Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
+msgstr "WP Pass Captain: riaccredito del buono non riuscito"
+
+#: src/Integrations/Vouchers/Checkout.php:336
+#, php-format
+msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
+msgstr "Per l'ordine %1$s la quota buono di un rimborso (%2$d nell'unità minima) non è stata riaccreditata sul buono:
+
+%3$s
+
+Correggi manualmente il buono nel plugin dei buoni."

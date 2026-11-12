@@ -10035,3 +10035,17 @@ msgstr "Error del sistema: la entrada no se ha comprobado. Vuelve a escanear."
 #: src/PublicEvents.php:95
 msgid "Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen."
 msgstr "Sesión caducada: recarga la página y vuelve a escanear."
+
+#. translators: 1: order, 2: amount in minor units, 3: error
+#: src/Integrations/Vouchers/Checkout.php:336
+msgid "WP Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
+msgstr "WP Pass Captain: error al devolver el importe al vale"
+
+#: src/Integrations/Vouchers/Checkout.php:336
+#, php-format
+msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
+msgstr "En el pedido %1$s no se pudo devolver al vale la parte de un reembolso pagada con vale (%2$d en la unidad mínima):
+
+%3$s
+
+Corrige el vale manualmente en el plugin de vales."
