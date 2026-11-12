@@ -459,6 +459,7 @@ final class OrderAdapter {
 				'currency'      => $wc_order->get_currency(),
 				'hold_minutes'  => self::hold_minutes(),
 				'source'        => 'woocommerce',
+				'payment_provider' => 'woocommerce-' . sanitize_key( $wc_order->get_payment_method() ?: 'unknown' ),
 				'key_namespace' => 'woocommerce',
 				'unit_prices'   => $unit_prices,
 				'line_totals'   => $line_totals,
