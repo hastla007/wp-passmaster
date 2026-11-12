@@ -239,8 +239,8 @@ final class Fiscalization {
 	 * POS or deployment integrations may map their configured terminal to a reviewed profile.
 	 * Customer checkout data is not used as a profile selector.
 	 */
-	public static function profile_scope( $channel, array $internal, $order_id, array $payload = array() ) {
-		$scope = apply_filters( 'wpcap_fiscal_profile_scope', array( 'location_id' => 0, 'register_id' => '' ), sanitize_key( $channel ), $internal, absint( $order_id ), $payload );
+	public static function profile_scope( $channel, array $internal, $order_id ) {
+		$scope = apply_filters( 'wpcap_fiscal_profile_scope', array( 'location_id' => 0, 'register_id' => '' ), sanitize_key( $channel ), $internal, absint( $order_id ) );
 		if ( ! is_array( $scope ) ) { return new \WP_Error( 'wpcap_fiscal_profile_scope_invalid', __( 'Kassenstellen-Zuordnung ist ungültig.', 'wp-pass-captain' ) ); }
 		$register_id = (string) ( $scope['register_id'] ?? '' );
 		if ( strlen( $register_id ) > 64 || ! preg_match( '/^[A-Za-z0-9_.:-]*$/', $register_id ) ) {
@@ -257,13 +257,15 @@ final class Fiscalization {
 		$has_mapping = false;
 		$source = sanitize_key( $internal['source'] ?? 'native' );
 		$channel = 'woocommerce' === $source ? 'woocommerce' : ( 'pos' === $source ? 'pos' : 'native' );
-		$scope = self::profile_scope( $channel, (array) $internal, $order_id, (array) $payload );
-		if ( is_wp_error( $scope ) ) { throw new \RuntimeException( 'fiscal_profile_scope_invalid' ); }
+		$scope = self::profile_scope( $channel, (array) $internal, $order_id );
+		$scope_error = is_wp_error( $scope ) ? $scope : null;
+		if ( $scope_error ) { $scope = array( 'location_id' => 0, 'register_id' => '' ); }
 		$now = current_time( 'mysql', true );
 		foreach ( (array) $selected as $line ) {
 			$type_id = absint( $line['type']->ticket_type_id ?? 0 );
 			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM {$p}wpcap_ticket_sellers ts INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=ts.seller_id LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id LEFT JOIN {$p}wpcap_fiscal_profiles fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id=%d", $channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $type_id ) );
 			if ( ! $mapping ) { continue; }
+			if ( $scope_error ) { throw new \RuntimeException( 'fiscal_profile_scope_invalid' ); }
 			$has_mapping = true;
 			if ( 'active' !== $mapping->seller_status || ! $mapping->profile_id || ! in_array( $mapping->profile_status, array( 'active', 'not_required' ), true ) ) {
 				throw new \RuntimeException( 'fiscal_profile_unavailable' );
