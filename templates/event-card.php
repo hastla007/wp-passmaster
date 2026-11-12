@@ -41,6 +41,56 @@ $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
 		</div>
 		<div class="wpcap-attendees" aria-live="polite"></div>
 		<?php do_action( 'wpcap_checkout_form_fields', $event, $types ); ?>
+		<?php if ( apply_filters( 'wpcap_checkout_billing_enabled', true, $event ) ) :
+			$wpcap_billing_id = $form_id . '-billing';
+			$wpcap_billing_labels = \PassCaptain\Billing::labels();
+			$wpcap_billing_country = \PassCaptain\Billing::default_country();
+			$wpcap_billing_threshold = \PassCaptain\Billing::required_threshold( $types ? $types[0]->currency : 'EUR' );
+			$wpcap_billing_text = array(
+				'company' => array( 'organization', false ),
+				'first_name' => array( 'given-name', true ),
+				'last_name' => array( 'family-name', true ),
+				'street' => array( 'street-address', true ),
+				'postcode' => array( 'postal-code', true ),
+				'city' => array( 'address-level2', true ),
+			);
+			?>
+			<fieldset class="wpcap-billing">
+				<legend><?php esc_html_e( 'Rechnung mit Firmen-/Adressdaten', 'wp-pass-captain' ); ?></legend>
+				<div class="wpcap-field wpcap-billing-toggle">
+					<input id="<?php echo esc_attr( $wpcap_billing_id . '-enabled' ); ?>" type="checkbox" name="billing_enabled" value="1" aria-controls="<?php echo esc_attr( $wpcap_billing_id . '-fields' ); ?>"<?php echo $wpcap_billing_threshold ? ' aria-describedby="' . esc_attr( $wpcap_billing_id . '-hint' ) . '"' : ''; ?>>
+					<label for="<?php echo esc_attr( $wpcap_billing_id . '-enabled' ); ?>"><?php echo esc_html( $wpcap_billing_labels['enabled'] ); ?></label>
+				</div>
+				<?php if ( $wpcap_billing_threshold ) : ?>
+					<p class="wpcap-billing-hint" id="<?php echo esc_attr( $wpcap_billing_id . '-hint' ); ?>"><small><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'Ab einem Bestellbetrag über %s brauchen wir für die Rechnung Name und Anschrift.', 'wp-pass-captain' ), \PassCaptain\Frontend\Format::money( $wpcap_billing_threshold, $types ? $types[0]->currency : 'EUR' ) ) ); ?></small></p>
+				<?php endif; ?>
+				<div class="wpcap-billing-fields" id="<?php echo esc_attr( $wpcap_billing_id . '-fields' ); ?>" hidden>
+					<?php foreach ( $wpcap_billing_text as $wpcap_key => $wpcap_def ) : ?>
+						<div class="wpcap-field">
+							<label for="<?php echo esc_attr( $wpcap_billing_id . '-' . $wpcap_key ); ?>"><?php echo esc_html( $wpcap_billing_labels[ $wpcap_key ] . ( $wpcap_def[1] ? ' *' : ' ' . __( '(optional)', 'wp-pass-captain' ) ) ); ?></label>
+							<input id="<?php echo esc_attr( $wpcap_billing_id . '-' . $wpcap_key ); ?>" name="<?php echo esc_attr( 'billing_' . $wpcap_key ); ?>" type="text" autocomplete="<?php echo esc_attr( $wpcap_def[0] ); ?>" maxlength="<?php echo esc_attr( \PassCaptain\Billing::MAX[ $wpcap_key ] ); ?>"<?php echo $wpcap_def[1] ? ' required' : ''; ?>>
+						</div>
+					<?php endforeach; ?>
+					<div class="wpcap-field">
+						<label for="<?php echo esc_attr( $wpcap_billing_id . '-country' ); ?>"><?php echo esc_html( $wpcap_billing_labels['country'] ); ?> *</label>
+						<select id="<?php echo esc_attr( $wpcap_billing_id . '-country' ); ?>" name="billing_country" autocomplete="country" required>
+							<?php foreach ( \PassCaptain\Billing::countries() as $wpcap_code => $wpcap_name ) : ?>
+								<option value="<?php echo esc_attr( $wpcap_code ); ?>"<?php echo $wpcap_code === $wpcap_billing_country ? ' selected' : ''; ?>><?php echo esc_html( $wpcap_name ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</div>
+					<div class="wpcap-field">
+						<label for="<?php echo esc_attr( $wpcap_billing_id . '-vat_id' ); ?>"><?php echo esc_html( $wpcap_billing_labels['vat_id'] . ' ' . __( '(optional)', 'wp-pass-captain' ) ); ?></label>
+						<input id="<?php echo esc_attr( $wpcap_billing_id . '-vat_id' ); ?>" name="billing_vat_id" type="text" autocomplete="off" spellcheck="false" maxlength="24" aria-describedby="<?php echo esc_attr( $wpcap_billing_id . '-vat_id-hint' ); ?>">
+						<small id="<?php echo esc_attr( $wpcap_billing_id . '-vat_id-hint' ); ?>"><?php esc_html_e( 'Mit Länderkennzeichen, z. B. ATU12345678 oder DE123456789.', 'wp-pass-captain' ); ?></small>
+					</div>
+					<div class="wpcap-field">
+						<label for="<?php echo esc_attr( $wpcap_billing_id . '-po_number' ); ?>"><?php echo esc_html( $wpcap_billing_labels['po_number'] . ' ' . __( '(optional)', 'wp-pass-captain' ) ); ?></label>
+						<input id="<?php echo esc_attr( $wpcap_billing_id . '-po_number' ); ?>" name="billing_po_number" type="text" autocomplete="off" maxlength="<?php echo esc_attr( \PassCaptain\Billing::MAX['po_number'] ); ?>">
+					</div>
+				</div>
+			</fieldset>
+		<?php endif; ?>
 		<div class="wpcap-field">
 			<label for="<?php echo esc_attr( $form_id . '-campaign' ); ?>"><?php esc_html_e( 'Rabattcode (optional)', 'wp-pass-captain' ); ?></label>
 			<input id="<?php echo esc_attr( $form_id . '-campaign' ); ?>" name="campaign_code" type="text" autocomplete="off" maxlength="40">

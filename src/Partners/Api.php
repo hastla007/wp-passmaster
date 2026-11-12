@@ -265,6 +265,9 @@ final class Api {
 		$out = array(
 			'id' => (int) $s->settlement_id,
 			'number' => $s->document_number,
+			'document_type' => Settlements::document_type( $s ),
+			'sales_model' => (string) ( $s->sales_model ?? '' ),
+			'self_billing_number' => $s->self_billing_number ?? null,
 			'period' => $s->period,
 			'status' => $s->status,
 			'currency' => $s->currency,

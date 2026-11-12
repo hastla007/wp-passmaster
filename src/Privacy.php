@@ -121,7 +121,7 @@ final class Privacy {
 
 		// Orders bought with this address. Attendee-only matches export just their own tickets (below),
 		// never the buyer's order.
-		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status,currency,total_minor,subtotal_minor,discount_minor,price_snapshot,attendee_data,created_at FROM {$p}wpcap_orders WHERE customer_email=%s ORDER BY order_id ASC LIMIT 50 OFFSET %d", $email, $offset ), ARRAY_A );
+		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status,currency,total_minor,subtotal_minor,discount_minor,price_snapshot,attendee_data,billing,created_at FROM {$p}wpcap_orders WHERE customer_email=%s ORDER BY order_id ASC LIMIT 50 OFFSET %d", $email, $offset ), ARRAY_A );
 		foreach ( $orders as $order ) {
 			$items = $wpdb->get_results( $wpdb->prepare( "SELECT tt.name,oi.quantity,oi.unit_price_minor,oi.line_total_minor FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d", $order['order_id'] ), ARRAY_A );
 			$tickets = $wpdb->get_results( $wpdb->prepare( "SELECT t.public_id,t.attendee_email,ta.attendee_name,ta.attendee_email AS assigned_email,t.status,t.transfer_count FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.order_id=%d ORDER BY t.ticket_id", $order['order_id'] ), ARRAY_A );
@@ -137,6 +137,10 @@ final class Privacy {
 			);
 			if ( ! empty( $order['attendee_data'] ) ) {
 				$rows[] = array( 'name' => __( 'Noch nicht zugeordnete Teilnehmerangaben', 'wp-pass-captain' ), 'value' => $order['attendee_data'] );
+			}
+			$billing = Billing::for_order( (object) $order );
+			if ( $billing ) {
+				$rows[] = array( 'name' => __( 'Rechnungsdaten (Firma, Name, Anschrift, UID, Referenz)', 'wp-pass-captain' ), 'value' => wp_json_encode( $billing ) );
 			}
 			$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_number,issued_at,status,buyer_snapshot FROM {$p}wpcap_invoices WHERE order_id=%d", $order['order_id'] ), ARRAY_A );
 			if ( $invoice ) {
@@ -264,6 +268,7 @@ final class Privacy {
 		$orders = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE customer_email=%s ORDER BY order_id ASC LIMIT %d", $email, self::BATCH ) ) );
 		$invoices = 0;
 		$upcoming = 0;
+		$billing_erased = 0;
 		foreach ( $orders as $order_id ) {
 			$replacement = self::replacement_email( $email, $order_id );
 			$ticket_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) ) );
@@ -283,6 +288,10 @@ final class Privacy {
 				$details = 0;
 			}
 			$wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => $replacement, 'access_token_hash' => self::random_hash(), 'access_expires_at' => null, 'attendee_data' => null, 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
+			// Billing data (name, company, address, VAT ID) of the order; issued invoices keep their own
+			// snapshot (retention duty, Art. 17 Abs. 3 lit. b DSGVO). Separate statement: the column may be
+			// missing while a deferred schema upgrade is pending.
+			$billing_erased += (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET billing=NULL WHERE order_id=%d AND billing IS NOT NULL", $order_id ) );
 			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_service_bookings SET customer_email=%s WHERE order_id=%d AND customer_email=%s", $replacement, $order_id, $email ) );
 			$invoices += (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_invoices WHERE order_id=%d", $order_id ) );
 			// Fired after anonymisation, so listeners (webhooks with personal data) see no address.
@@ -308,6 +317,9 @@ final class Privacy {
 		if ( $invoices ) {
 			/* translators: %d: number of invoices */
 			$messages[] = sprintf( __( '%d Rechnung(en) bleiben unverändert gespeichert, einschließlich der darauf angegebenen Käuferangaben (E-Mail-Adresse): Rechnungen unterliegen der gesetzlichen Aufbewahrungspflicht (7 Jahre nach § 132 BAO, 10 Jahre nach § 147 AO/§ 257 HGB; Art. 17 Abs. 3 lit. b DSGVO). Die Käuferangaben auf Rechnungen wurden nicht entfernt.', 'wp-pass-captain' ), $invoices );
+		}
+		if ( $billing_erased ) {
+			$messages[] = __( 'Die Rechnungsdaten der Bestellungen (Firma, Name, Anschrift, UID, Referenz) wurden entfernt. Bereits ausgestellte Rechnungen behalten die darauf angegebenen Empfängerangaben (gesetzliche Aufbewahrungspflicht, Art. 17 Abs. 3 lit. b DSGVO).', 'wp-pass-captain' );
 		}
 		if ( $upcoming ) {
 			/* translators: %d: number of tickets */

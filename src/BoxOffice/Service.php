@@ -293,7 +293,9 @@ final class Service {
 	 * form key or "Nachbuchen" resumes it, and closing the session is refused while it is paid but unbooked.
 	 *
 	 * @param array $input occurrence_id, quantities {type_id: qty}, names {type_id: [name, ...]}, email,
-	 *                     method (cash|card|free|invoice), tendered_minor, reference, form_key.
+	 *                     method (cash|card|free|invoice), tendered_minor, reference, form_key,
+	 *                     billing (optional: company, first_name, last_name, street, postcode, city,
+	 *                     country, vat_id, po_number; see Billing::validate()).
 	 * @return array|\WP_Error ['sale' => row, 'reused' => bool]
 	 */
 	public static function sell( array $input ) {
@@ -336,6 +338,9 @@ final class Service {
 		if ( '' !== $email && ( ! is_email( $email ) || self::is_placeholder_email( $email ) ) ) { return self::error( 'wpcap_pos_email', __( 'Die E-Mail-Adresse ist ungültig.', 'wp-pass-captain' ) ); }
 		if ( 'invoice' === $method && '' === $email ) { return self::error( 'wpcap_pos_email', __( 'Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich.', 'wp-pass-captain' ) ); }
 		$buyer_email = '' !== $email ? $email : 'boxoffice+' . substr( $key_hash, 0, 16 ) . self::PLACEHOLDER_DOMAIN;
+		// Optional "Rechnung auf Firma": company, name, address, VAT ID for the invoice.
+		$billing = \PassCaptain\Billing::validate( $input['billing'] ?? null );
+		if ( is_wp_error( $billing ) ) { return $billing; }
 
 		// 1. Pending sale row: claims the form key before any order exists.
 		$tendered = isset( $input['tendered_minor'] ) && null !== $input['tendered_minor'] && 'cash' === $method ? max( 0, (int) $input['tendered_minor'] ) : null;
@@ -378,7 +383,7 @@ final class Service {
 				$internal['line_taxes'][ $item['ticket_type_id'] ] = 0;
 			}
 		}
-		$order = Orders::create( array( 'email' => $buyer_email, 'items' => $items, 'attendees' => $attendees, 'idempotency_key' => $form_key ), $internal );
+		$order = Orders::create( array( 'email' => $buyer_email, 'items' => $items, 'attendees' => $attendees, 'idempotency_key' => $form_key, 'billing' => $billing ? array( 'enabled' => true ) + $billing : null ), $internal );
 		if ( is_wp_error( $order ) ) {
 			// No order was created: release the form key claim.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d AND status='pending' AND (order_id IS NULL OR order_id=0)", $sale_id ) );

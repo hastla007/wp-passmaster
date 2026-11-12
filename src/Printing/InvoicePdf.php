@@ -7,6 +7,7 @@
 namespace PassCaptain\Printing;
 
 use PassCaptain\Access;
+use PassCaptain\Billing;
 use PassCaptain\Invoices;
 use PassCaptain\Settings;
 
@@ -36,17 +37,42 @@ final class InvoicePdf {
 	/** Header block with seller data; returns the y position below it. */
 	private static function header( PdfWriter $pdf, array $seller ) {
 		$y = 790;
-		$pdf->text( 50, $y, 12, (string) ( $seller['name'] ?? '' ), true );
-		foreach ( preg_split( '/\r\n|\r|\n/', (string) ( $seller['address'] ?? '' ) ) as $line ) {
-			if ( '' === trim( $line ) ) { continue; }
+		// Seller = platform (own_name) or organizer (agent model), see Invoices::seller_lines().
+		$lines = Invoices::seller_lines( $seller );
+		$pdf->text( 50, $y, 12, (string) array_shift( $lines ), true );
+		foreach ( $lines as $line ) {
 			$y -= 13;
-			$pdf->text( 50, $y, 9, trim( $line ) );
-		}
-		if ( ! empty( $seller['vat_id'] ) ) {
-			$y -= 13;
-			$pdf->text( 50, $y, 9, __( 'USt-IdNr.:', 'wp-pass-captain' ) . ' ' . $seller['vat_id'] );
+			$pdf->text( 50, $y, 9, $line );
 		}
 		return $y - 36;
+	}
+
+	/** Seller-side notes (agent "Vermittelt durch …", small business); returns the y position below them. */
+	private static function seller_notes( PdfWriter $pdf, $y, array $snapshot ) {
+		foreach ( Invoices::seller_notes( $snapshot ) as $note ) {
+			foreach ( PdfWriter::wrap( $note, 9, 495 ) as $part ) {
+				$pdf->text( 50, max( 60, $y ), 9, $part );
+				$y -= 12;
+			}
+		}
+		return $y;
+	}
+
+	/**
+	 * Recipient block from the buyer snapshot (company, name, address, VAT ID, buyer reference,
+	 * optionally the e-mail address); returns the y position of the last line.
+	 */
+	private static function recipient( PdfWriter $pdf, $y, array $snapshot, $with_email ) {
+		$pdf->text( 50, $y, 10, __( 'Rechnungsempfänger:', 'wp-pass-captain' ), true );
+		$lines = array_merge( Billing::address_lines( $snapshot ), Billing::detail_lines( $snapshot ) );
+		if ( $with_email && '' !== (string) ( $snapshot['email'] ?? '' ) ) { $lines[] = (string) $snapshot['email']; }
+		foreach ( $lines as $line ) {
+			foreach ( PdfWriter::wrap( $line, 10, 300 ) as $part ) {
+				$y -= 13;
+				$pdf->text( 50, $y, 10, $part );
+			}
+		}
+		return $y;
 	}
 
 	/**
@@ -65,7 +91,7 @@ final class InvoicePdf {
 			: $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE invoice_id=%d ORDER BY credit_note_id", $invoice->invoice_id ) );
 		if ( $credit_note_id && ! $credits ) { return ''; }
 		$snapshot = (array) json_decode( (string) $invoice->buyer_snapshot, true );
-		$seller = (array) ( $snapshot['seller'] ?? array( 'name' => Settings::get( 'seller_name' ), 'address' => Settings::get( 'seller_address' ), 'vat_id' => Settings::get( 'seller_vat_id' ) ) );
+		$seller = (array) ( $snapshot['seller'] ?? Invoices::seller() );
 		$cur = $invoice->currency;
 		$pdf = new PdfWriter();
 		$footer = static function ( PdfWriter $pdf, $page_label ) {
@@ -80,7 +106,11 @@ final class InvoicePdf {
 			$y -= 22;
 			$pdf->text( 50, $y, 10, __( 'Rechnungsdatum:', 'wp-pass-captain' ) . ' ' . self::date( $invoice->issued_at ) );
 			$y -= 14;
-			$pdf->text( 50, $y, 10, __( 'Rechnungsempfänger:', 'wp-pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) );
+			if ( Billing::address_lines( $snapshot ) ) {
+				$y = self::recipient( $pdf, $y - 6, $snapshot, true );
+			} else {
+				$pdf->text( 50, $y, 10, __( 'Rechnungsempfänger:', 'wp-pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) );
+			}
 			$y -= 28;
 			$cols = array( array( 50, 'left', __( 'Leistung', 'wp-pass-captain' ) ), array( 330, 'right', __( 'Menge', 'wp-pass-captain' ) ), array( 400, 'right', __( 'Einzelpreis', 'wp-pass-captain' ) ), array( 455, 'right', __( 'Rabatt', 'wp-pass-captain' ) ), array( 490, 'right', __( 'USt.', 'wp-pass-captain' ) ), array( 545, 'right', __( 'Gesamt', 'wp-pass-captain' ) ) );
 			$table_header = static function ( $y ) use ( $pdf, $cols ) {
@@ -137,6 +167,13 @@ final class InvoicePdf {
 			$y -= 18;
 			$pdf->text( 300, $y, 11, __( 'Rechnungsbetrag', 'wp-pass-captain' ), true );
 			$pdf->text( 545, $y, 11, self::money( $invoice->total_minor, $cur ), true, 'right' );
+			$y = self::payments( $pdf, $y, $invoice, $snapshot, $page, $footer );
+			if ( Invoices::seller_notes( $snapshot ) && $y - 30 - 24 * count( Invoices::seller_notes( $snapshot ) ) < 60 ) {
+				$footer( $pdf, sprintf( __( 'Seite %d', 'wp-pass-captain' ), $page++ ) );
+				$pdf->add_page( 595.28, 841.89 );
+				$y = 820;
+			}
+			$y = self::seller_notes( $pdf, $y - 30, $snapshot );
 			$footer( $pdf, sprintf( __( 'Seite %d', 'wp-pass-captain' ), $page ) );
 		}
 
@@ -148,6 +185,7 @@ final class InvoicePdf {
 			$pdf->text( 50, $y, 10, sprintf( __( 'Korrektur zu Rechnung %1$s vom %2$s', 'wp-pass-captain' ), $invoice->invoice_number, self::date( $invoice->issued_at ) ) );
 			$y -= 14;
 			$pdf->text( 50, $y, 10, __( 'Datum:', 'wp-pass-captain' ) . ' ' . self::date( $credit->issued_at ) . ' · ' . __( 'Empfänger:', 'wp-pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) );
+			if ( Billing::address_lines( $snapshot ) ) { $y = self::recipient( $pdf, $y - 20, $snapshot, false ); }
 			$y -= 36;
 			$rows = array(
 				array( __( 'Nettobetrag', 'wp-pass-captain' ), '-' . self::money( $credit->net_minor, $credit->currency ), false ),
@@ -271,4 +309,34 @@ final class InvoicePdf {
 	}
 
 
+
+	/**
+	 * Section "Zahlungen" (vouchers as payment, remaining amount paid, notes) below the invoice totals; see
+	 * Invoices::payment_summary(). Breaks the page when needed and returns the y position below it.
+	 */
+	private static function payments( PdfWriter $pdf, $y, $invoice, array $snapshot, &$page, callable $footer ) {
+		$summary = Invoices::payment_summary( $invoice, $snapshot );
+		if ( ! $summary['rows'] && ! $summary['notes'] ) { return $y; }
+		$notes = array();
+		foreach ( $summary['notes'] as $note ) { $notes = array_merge( $notes, PdfWriter::wrap( $note, 9, 495 ) ); }
+		if ( $y - 40 - 15 * count( $summary['rows'] ) - 12 * count( $notes ) < 70 ) {
+			$footer( $pdf, sprintf( /* translators: %d: page number */ __( 'Seite %d', 'wp-pass-captain' ), $page++ ) );
+			$pdf->add_page( 595.28, 841.89 );
+			$y = 820;
+		}
+		$y -= 28;
+		$pdf->text( 50, $y, 10, __( 'Zahlungen', 'wp-pass-captain' ), true );
+		$pdf->line( 50, $y - 5, 545, $y - 5 );
+		$y -= 18;
+		foreach ( $summary['rows'] as $row ) {
+			$pdf->text( 50, $y, 10, $row[0], $row[2] );
+			$pdf->text( 545, $y, 10, ( $row[1] < 0 ? '-' : '' ) . self::money( abs( (int) $row[1] ), $invoice->currency ), $row[2], 'right' );
+			$y -= 15;
+		}
+		foreach ( $notes as $part ) {
+			$pdf->text( 50, $y, 9, $part );
+			$y -= 12;
+		}
+		return $y;
+	}
 }

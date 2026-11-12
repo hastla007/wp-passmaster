@@ -203,7 +203,30 @@
 			}
 			return inputs[0] || null;
 		}
+		if (field.indexOf('billing_') === 0 && field !== 'billing_enabled') {
+			const toggle = form.querySelector('[name="billing_enabled"]');
+			if (toggle && !toggle.checked) { toggle.checked = true; syncBilling(form); }
+		}
 		return form.querySelector('[name="' + field.replace(/[^a-z0-9_]/g, '') + '"]');
+	}
+
+	/* ---------------------------------------------------------------- Billing data (B2B invoice) */
+
+	// Shows the billing fields while "Ich brauche eine Rechnung auf Firma/Adresse" is checked.
+	function syncBilling(form) {
+		const toggle = form.querySelector('[name="billing_enabled"]');
+		if (!toggle) return;
+		const box = document.getElementById(toggle.getAttribute('aria-controls'));
+		if (box) box.hidden = !toggle.checked;
+	}
+	function billingPayload(form) {
+		const toggle = form.querySelector('[name="billing_enabled"]');
+		if (!toggle || !toggle.checked) return null;
+		const billing = { enabled: true };
+		form.querySelectorAll('[name^="billing_"]').forEach(function (input) {
+			if (input !== toggle) billing[input.name.slice(8)] = input.value.trim();
+		});
+		return billing;
 	}
 
 	/* ---------------------------------------------------------------- Confirmation panel */
@@ -256,6 +279,7 @@
 			form.reset();
 			form.querySelector('[name="email"]').value = keepEmail;
 			clearErrors(form);
+			syncBilling(form);
 			renderAttendees(form);
 			renderEstimate(form);
 			form.hidden = false;
@@ -276,6 +300,11 @@
 			renderEstimate(form);
 		}
 	});
+	document.addEventListener('change', function (event) {
+		const form = event.target.name === 'billing_enabled' ? event.target.closest('.wpcap-checkout-form') : null;
+		if (form) syncBilling(form);
+	});
+	document.querySelectorAll('.wpcap-checkout-form').forEach(syncBilling);
 	document.addEventListener('submit', async function (event) {
 		const form = event.target.closest('.wpcap-checkout-form');
 		if (!form) return;
@@ -308,6 +337,8 @@
 		const voucher = form.querySelector('[name="voucher_code"]');
 		const email = form.querySelector('[name="email"]').value.trim();
 		const extra = {};
+		const billing = billingPayload(form);
+		if (billing) extra.billing = billing;
 		// Modules (e.g. seat selection) add fields here; they may set detail.error (and detail.field) to block submission.
 		const hook = new CustomEvent('wpcap:checkout-payload', { detail: { form: form, items: items, payload: extra, error: '', field: null } });
 		document.dispatchEvent(hook);

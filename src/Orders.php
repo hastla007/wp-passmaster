@@ -12,11 +12,13 @@ final class Orders {
 	 *
 	 * @param array $payload  Customer input: email, items, idempotency_key, campaign_codes,
 	 *                        attendees (list of {ticket_type_id, name, email, answers{field_key:value}}),
-	 *                        accept_terms (bool).
+	 *                        accept_terms (bool), billing ({enabled, company, first_name, last_name,
+	 *                        street, postcode, city, country, vat_id, po_number}; see Billing::validate()).
 	 * @param array $internal Trusted options for adapters/staff only – never fill from a request:
 	 *                        external (bool), unit_prices / line_totals / line_taxes (type_id => minor),
 	 *                        currency, hold_minutes, source, payment_provider, key_namespace
-	 *                        (separates idempotency keys per channel), skip_rate_limit (bool).
+	 *                        (separates idempotency keys per channel), skip_rate_limit (bool),
+	 *                        billing (external only: billing data already validated by the adapter).
 	 */
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
@@ -69,6 +71,11 @@ final class Orders {
 		}
 		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array() );
 		if ( is_wp_error( $attendees ) ) { return $attendees; }
+		// Buyer billing data (company/address/VAT ID). Trusted adapters (e.g. WooCommerce) pass data that
+		// their own checkout already validated as $internal['billing']; customer input is validated here.
+		$billing = ( $external && is_array( $internal['billing'] ?? null ) ) ? Billing::sanitize( $internal['billing'] ) : Billing::validate( $payload['billing'] ?? null );
+		if ( is_wp_error( $billing ) ) { return $billing; }
+		$billing = $billing && ! Billing::is_empty( $billing ) ? $billing : array();
 
 		// Keep anonymous checkout abuse bounded without retaining raw IP addresses.
 		$ip = self::client_ip();
@@ -185,6 +192,7 @@ final class Orders {
 			if ( is_wp_error( $adjustments ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
 			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
 			$total = max( 0, $subtotal - $discount );
+			if ( ! $external && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
 			// Allocate the discount proportionally to lines and compute VAT per line on the discounted gross amount.
 			$tax_total = 0;
 			$discount_left = $discount;
@@ -209,7 +217,7 @@ final class Orders {
 			if ( false === self::in_transaction() ) { throw new \RuntimeException( 'db_busy' ); }
 			$public_id = bin2hex( random_bytes( 16 ) );
 			$access_token = bin2hex( random_bytes( 32 ) );
-			$inserted = $wpdb->insert( $orders_table, array(
+			$order_row = array(
 				'public_id' => $public_id,
 				'idempotency_key' => $key_hash,
 				'customer_email' => $email,
@@ -229,7 +237,10 @@ final class Orders {
 				'attendee_data' => $attendees ? wp_json_encode( $attendees ) : null,
 				'created_at' => $now,
 				'updated_at' => $now,
-			) );
+			);
+			// Only written when given, so checkouts keep working while a deferred schema upgrade is pending.
+			if ( $billing ) { $order_row['billing'] = wp_json_encode( $billing ); }
+			$inserted = $wpdb->insert( $orders_table, $order_row );
 			if ( ! $inserted ) {
 				throw new \RuntimeException( 'order_insert_failed' );
 			}
@@ -291,6 +302,9 @@ final class Orders {
 				if ( $existing ) {
 					return array( 'order_id' => (int) $existing->order_id, 'public_id' => $existing->public_id, 'status' => $existing->status, 'payment_status' => $existing->payment_status, 'reused' => true );
 				}
+			}
+			if ( 'billing_required' === $code ) {
+				return new \WP_Error( 'wpcap_billing_required', __( 'Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus.', 'wp-pass-captain' ), array( 'status' => 400, 'field' => 'billing_enabled' ) );
 			}
 			$messages = apply_filters( 'wpcap_checkout_error_messages', $messages );
 			$fallback = $custom_error instanceof \WP_Error && '' !== $custom_error->get_error_message() ? $custom_error->get_error_message() : __( 'Die Bestellung konnte nicht angelegt werden.', 'wp-pass-captain' );
@@ -813,6 +827,14 @@ final class Orders {
 	public static function set_provider_reference( $order_id, $reference ) {
 		global $wpdb;
 		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'provider_reference' => substr( sanitize_text_field( $reference ), 0, 191 ) ), array( 'order_id' => absint( $order_id ) ) );
+	}
+
+	/**
+	 * Buyer billing data of an order (row or id): company, first_name, last_name, street, postcode,
+	 * city, country, vat_id, po_number. Empty array when the buyer gave none.
+	 */
+	public static function billing( $order ) {
+		return Billing::for_order( $order );
 	}
 
 	/** Returns an order row. */
