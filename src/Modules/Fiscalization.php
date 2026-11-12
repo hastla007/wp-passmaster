@@ -175,6 +175,7 @@ final class Fiscalization {
 		$legal_reference = sanitize_text_field( $input['legal_reference'] ?? '' );
 		$location_id = absint( $input['location_id'] ?? 0 );
 		$register_id = sanitize_text_field( $input['register_id'] ?? '' );
+		if ( strlen( $register_id ) > 64 || ! preg_match( '/^[A-Za-z0-9_.:-]*$/', $register_id ) ) { return new \WP_Error( 'wpcap_fiscal_profile_invalid', __( 'Kassen-ID ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		$data = is_array( $input['profile_data'] ?? null ) ? $input['profile_data'] : array();
 		$required = is_array( $input['required_capabilities'] ?? null ) ? $input['required_capabilities'] : preg_split( '/[,\\s]+/', (string) ( $input['required_capabilities'] ?? '' ), -1, PREG_SPLIT_NO_EMPTY );
 		$data['required_capabilities'] = array_values( array_unique( array_filter( array_map( 'sanitize_key', (array) $required ) ) ) );
@@ -232,6 +233,22 @@ final class Fiscalization {
 		return false === $ok ? new \WP_Error( 'wpcap_fiscal_mapping_save', __( 'Verkäuferzuordnung konnte nicht gespeichert werden.', 'wp-pass-captain' ) ) : true;
 	}
 
+	/**
+	 * Resolve a trusted physical location/register scope for this order.
+	 *
+	 * POS or deployment integrations may map their configured terminal to a reviewed profile.
+	 * Customer checkout data is not used as a profile selector.
+	 */
+	public static function profile_scope( $channel, array $internal, $order_id, array $payload = array() ) {
+		$scope = apply_filters( 'wpcap_fiscal_profile_scope', array( 'location_id' => 0, 'register_id' => '' ), sanitize_key( $channel ), $internal, absint( $order_id ), $payload );
+		if ( ! is_array( $scope ) ) { return new \WP_Error( 'wpcap_fiscal_profile_scope_invalid', __( 'Kassenstellen-Zuordnung ist ungültig.', 'wp-pass-captain' ) ); }
+		$register_id = (string) ( $scope['register_id'] ?? '' );
+		if ( strlen( $register_id ) > 64 || ! preg_match( '/^[A-Za-z0-9_.:-]*$/', $register_id ) ) {
+			return new \WP_Error( 'wpcap_fiscal_profile_scope_invalid', __( 'Kassen-ID darf nur Buchstaben, Ziffern sowie . _ : - enthalten und maximal 64 Zeichen lang sein.', 'wp-pass-captain' ) );
+		}
+		return array( 'location_id' => absint( $scope['location_id'] ?? 0 ), 'register_id' => $register_id );
+	}
+
 	/** Create immutable seller-specific fiscal documents in the order transaction. */
 	public static function snapshot_order( $order_id, $selected, $payload, $internal ) {
 		global $wpdb;
@@ -240,10 +257,12 @@ final class Fiscalization {
 		$has_mapping = false;
 		$source = sanitize_key( $internal['source'] ?? 'native' );
 		$channel = 'woocommerce' === $source ? 'woocommerce' : ( 'pos' === $source ? 'pos' : 'native' );
+		$scope = self::profile_scope( $channel, (array) $internal, $order_id, (array) $payload );
+		if ( is_wp_error( $scope ) ) { throw new \RuntimeException( 'fiscal_profile_scope_invalid' ); }
 		$now = current_time( 'mysql', true );
 		foreach ( (array) $selected as $line ) {
 			$type_id = absint( $line['type']->ticket_type_id ?? 0 );
-			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM {$p}wpcap_ticket_sellers ts INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=ts.seller_id LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id LEFT JOIN {$p}wpcap_fiscal_profiles fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=0 AND fp.register_id='' AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id=%d", $channel, $now, $now, $type_id ) );
+			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM {$p}wpcap_ticket_sellers ts INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=ts.seller_id LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id LEFT JOIN {$p}wpcap_fiscal_profiles fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=%d AND fp.register_id=%s AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id=%d", $channel, (int) $scope['location_id'], $scope['register_id'], $now, $now, $type_id ) );
 			if ( ! $mapping ) { continue; }
 			$has_mapping = true;
 			if ( 'active' !== $mapping->seller_status || ! $mapping->profile_id || ! in_array( $mapping->profile_status, array( 'active', 'not_required' ), true ) ) {
@@ -263,6 +282,7 @@ final class Fiscalization {
 				'profile_id' => (int) $mapping->profile_id, 'version' => (int) $mapping->profile_version,
 				'ruleset_key' => $mapping->ruleset_key, 'ruleset_version' => $mapping->ruleset_version,
 				'legal_reference' => $mapping->legal_reference,
+				'location_id' => (int) $scope['location_id'], 'register_id' => $scope['register_id'],
 			);
 			$wpdb->insert( "{$p}wpcap_order_seller_snapshots", array(
 				'order_id' => absint( $order_id ), 'ticket_type_id' => $type_id, 'seller_id' => $seller_id,
@@ -567,6 +587,8 @@ final class Fiscalization {
 			'ruleset_version' => sanitize_text_field( wp_unslash( $_POST['ruleset_version'] ?? '' ) ),
 			'legal_reference' => sanitize_text_field( wp_unslash( $_POST['legal_reference'] ?? '' ) ),
 			'required_capabilities' => sanitize_text_field( wp_unslash( $_POST['required_capabilities'] ?? '' ) ),
+			'location_id' => absint( $_POST['location_id'] ?? 0 ),
+			'register_id' => sanitize_text_field( wp_unslash( $_POST['register_id'] ?? '' ) ),
 			'review_attested' => ! empty( $_POST['review_attested'] ),
 		);
 		$result = self::save_profile( $seller_id, $input );
@@ -661,7 +683,7 @@ final class Fiscalization {
 			wp_nonce_field( 'wpcap_fiscal_save_profile' );
 			echo '<input type="hidden" name="action" value="wpcap_fiscal_save_profile"><label>' . esc_html__( 'Verkäufer', 'wp-pass-captain' ) . ' <select name="seller_id">';
 			foreach ( $sellers as $seller ) { echo '<option value="' . (int) $seller->seller_id . '">' . esc_html( $seller->legal_name . ' (' . $seller->country_code . ')' ) . '</option>'; }
-			echo '</select></label> <label>' . esc_html__( 'Kanal', 'wp-pass-captain' ) . ' <select name="channel"><option value="pos">POS/Abendkasse</option><option value="woocommerce">WooCommerce</option><option value="native">Native Kasse</option></select></label> <label>' . esc_html__( 'Umgebung', 'wp-pass-captain' ) . ' <select name="environment"><option value="test">Test</option><option value="production">Produktion</option></select></label> <label>' . esc_html__( 'Status', 'wp-pass-captain' ) . ' <select name="status"><option value="draft">Entwurf</option><option value="test">Test</option><option value="active">Produktiv mit Adapter</option><option value="not_required">Geprüft: nicht erforderlich</option><option value="suspended">Gesperrt</option></select></label><p><label>' . esc_html__( 'Regelwerk/Profil', 'wp-pass-captain' ) . ' <input name="ruleset_key" class="regular-text" placeholder="AT_RKSV / DE_KASSENSICHV / HU_NAV"></label> <label>' . esc_html__( 'Regelwerkversion', 'wp-pass-captain' ) . ' <input name="ruleset_version"></label></p><p><label>' . esc_html__( 'Rechts-/Prüfreferenz', 'wp-pass-captain' ) . ' <input name="legal_reference" class="large-text"></label></p><label><input type="checkbox" name="review_attested" value="1"> ' . esc_html__( 'Ich bestätige die fachliche Prüfung und Freigabe dieses Profils.', 'wp-pass-captain' ) . '</label>';
+			echo '</select></label> <label>' . esc_html__( 'Standort-ID (0 = Standard)', 'wp-pass-captain' ) . ' <input type="number" min="0" name="location_id" value="0"></label> <label>' . esc_html__( 'Kassen-ID (leer = Standard)', 'wp-pass-captain' ) . ' <input name="register_id" maxlength="64" pattern="[A-Za-z0-9_.:-]*" placeholder="KASSE-01"></label> <label>' . esc_html__( 'Kanal', 'wp-pass-captain' ) . ' <select name="channel"><option value="pos">POS/Abendkasse</option><option value="woocommerce">WooCommerce</option><option value="native">Native Kasse</option></select></label> <label>' . esc_html__( 'Umgebung', 'wp-pass-captain' ) . ' <select name="environment"><option value="test">Test</option><option value="production">Produktion</option></select></label> <label>' . esc_html__( 'Status', 'wp-pass-captain' ) . ' <select name="status"><option value="draft">Entwurf</option><option value="test">Test</option><option value="active">Produktiv mit Adapter</option><option value="not_required">Geprüft: nicht erforderlich</option><option value="suspended">Gesperrt</option></select></label><p><label>' . esc_html__( 'Regelwerk/Profil', 'wp-pass-captain' ) . ' <input name="ruleset_key" class="regular-text" placeholder="AT_RKSV / DE_KASSENSICHV / HU_NAV"></label> <label>' . esc_html__( 'Regelwerkversion', 'wp-pass-captain' ) . ' <input name="ruleset_version"></label></p><p><label>' . esc_html__( 'Rechts-/Prüfreferenz', 'wp-pass-captain' ) . ' <input name="legal_reference" class="large-text"></label></p><label><input type="checkbox" name="review_attested" value="1"> ' . esc_html__( 'Ich bestätige die fachliche Prüfung und Freigabe dieses Profils.', 'wp-pass-captain' ) . '</label>';
 			echo '<p><label>' . esc_html__( 'Zusätzliche Adapterfähigkeiten (Komma-getrennt)', 'wp-pass-captain' ) . ' <input name="required_capabilities" class="large-text" placeholder="receipt_qr_payload, transaction_begin, transaction_finish, daily_report"></label></p>';
 			submit_button( __( 'Profil speichern', 'wp-pass-captain' ) );
 			echo '</form>';
@@ -669,8 +691,8 @@ final class Fiscalization {
 		echo '<h3>' . esc_html__( 'Gespeicherte Profile', 'wp-pass-captain' ) . '</h3>';
 		if ( ! $profiles ) { echo '<p>' . esc_html__( 'Keine Länderprofile gespeichert.', 'wp-pass-captain' ) . '</p>'; }
 		else {
-			echo '<table class="widefat striped"><thead><tr><th>Verkäufer</th><th>Land/Kanal</th><th>Umgebung</th><th>Status</th><th>Regelwerk</th><th>Version</th></tr></thead><tbody>';
-			foreach ( $profiles as $profile ) { echo '<tr><td>' . esc_html( $profile->legal_name ) . '</td><td>' . esc_html( $profile->country_code . ' / ' . $profile->channel ) . '</td><td>' . esc_html( $profile->environment ) . '</td><td>' . esc_html( $profile->status ) . '</td><td>' . esc_html( $profile->ruleset_key . ' ' . $profile->ruleset_version ) . '</td><td>' . (int) $profile->profile_version . '</td></tr>'; }
+			echo '<table class="widefat striped"><thead><tr><th>Verkäufer</th><th>Land/Kanal/Kasse</th><th>Umgebung</th><th>Status</th><th>Regelwerk</th><th>Version</th></tr></thead><tbody>';
+			foreach ( $profiles as $profile ) { echo '<tr><td>' . esc_html( $profile->legal_name ) . '</td><td>' . esc_html( $profile->country_code . ' / ' . $profile->channel . ' / ' . (int) $profile->location_id . ':' . $profile->register_id ) . '</td><td>' . esc_html( $profile->environment ) . '</td><td>' . esc_html( $profile->status ) . '</td><td>' . esc_html( $profile->ruleset_key . ' ' . $profile->ruleset_version ) . '</td><td>' . (int) $profile->profile_version . '</td></tr>'; }
 			echo '</tbody></table>';
 		}
 		echo '<hr><h2>' . esc_html__( 'Anbieter konfigurieren', 'wp-pass-captain' ) . '</h2>';
