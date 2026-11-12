@@ -13,7 +13,7 @@ This document describes the first implementation layer for seller-aware fiscaliz
 
 ## Provider adapter contract
 
-Implement `PassCaptain\\Fiscalization\\AdapterInterface` and register the implementation with the `wpcap_fiscal_adapters` filter. The adapter must:
+Implement `PassCaptain\\Fiscalization\\AdapterInterface` (contract version 2) and register it with the `wpcap_fiscal_adapters` filter. Adapters report capabilities and implement a non-mutating health check and idempotency-key status lookup. The adapter must:
 
 1. Return a stable lowercase provider ID from `id()`.
 2. Declare the supported country codes from `countries()`.
@@ -43,11 +43,11 @@ The POS accepts an optional `payment_method` (`cash`, `card`, `voucher`, or `oth
 
 ## Remaining implementation before production
 
-- Build country-specific adapters and secure provider credential setup; the registry has no built-in provider.
+- Build country-specific adapters and secure provider credential setup; the versioned registry has no built-in provider. The admin can run a non-mutating adapter health check and reconcile ambiguous submissions by idempotency key.
 - Improve the initial admin screen with seller editing/deactivation, provider credential setup through protected secret storage, and richer order-level fiscal diagnostics. Current configuration supports seller creation, provider selection/configuration, ticket-type mapping, and retrying terminal failures.
-- Add provider-aware QR/signature data to ticket/receipt templates and the required archive/export flows.
+- Complete provider-aware QR/signature output for all receipt paths and the required archive/export flows. The first renderer now shows normalized receipt fields and a separate fiscal QR on POS receipts and WooCommerce order details; QR is omitted from the existing POS storno receipt until a fiscal correction exists.
 - Implement partial refunds, credit notes, cancellation/void protocols, operator/day-end exports, and HU NAV reporting; a full-order refund is not yet translated into a provider credit note.
 - Define and validate accounting allocations for mixed ticket/non-ticket WooCommerce carts, discounts, fees, and centrally collected organizer proceeds.
-- Run the repository's PHP, integration, concurrency, security, and country acceptance checks before deploying or enabling a live adapter.
+- Add a concrete provider sandbox adapter and run the repository's PHP, integration, concurrency, security, and country acceptance checks before deploying or enabling a live adapter.
 
 The national legal requirements and provider certification must be validated for each exact seller, sales channel, payment method, and deployment. This adapter layer does not make those determinations.
