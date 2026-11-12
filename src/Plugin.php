@@ -32,6 +32,7 @@ final class Plugin {
 			}, 200 );
 		}
 		add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'expire_holds' ) );
+		add_action( 'wpcap_cleanup_reservations', array( Privacy::class, 'process_deferred' ), 30, 0 );
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		add_action( 'wpcap_process_messages', array( Communications::class, 'process_due' ) );
 		add_action( 'wpcap_process_jobs', array( Jobs::class, 'process_due' ) );
