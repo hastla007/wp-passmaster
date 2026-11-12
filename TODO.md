@@ -1,53 +1,65 @@
-# TODO – Ticket Captain
+# TODO – WP Pass Captain
 
-Dieses Backlog begleitet `CONCEPT.md`. Ticket Captain und Voucher Captain bleiben getrennte WordPress-Plugins mit eigenen Plugin-Einträgen, Updates, Admin-Menüs und Daten. Die Bridge verbindet Funktionen, nicht die Pluginverwaltung.
+Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugin 1.4.0). Häkchen bedeuten: Der beschriebene Umfang ist im Code und/oder in den automatisierten Prüfungen vorhanden. Teilumsetzungen bleiben offen und nennen den Restumfang. Voucher Captain bleibt eine optionale, separat installierbare Integration.
 
 ## P0 – Repository und Plugin-Grundlage
 
-- [ ] Produkt- und Repo-Namen festlegen: Ticket Captain, Slug `wp-passmaster`, Textdomain, Namespace, Datenbankpräfix und Konstanten.
-- [ ] Architekturentscheidungen für Mindestversionen, Event-CPT-Redaktionsfelder vs. Custom Tables, Zahlungsstatus und Adapterschnittstellen festhalten.
-- [ ] Plugin-Bootstrap, PSR-4-Autoloading, Aktivierung/Deaktivierung, capabilities, REST-Grundlage und Adminnavigation erstellen.
-- [ ] Composer-Abhängigkeiten, Lizenzinventar, reproduzierbaren Build und installierbares Release-ZIP einrichten.
-- [ ] Schema mit Versionsmigrationen und Upgrade-/Rollback-Verhalten erstellen.
-- [ ] Plugin muss ohne WooCommerce und ohne Voucher Captain aktivierbar und funktionsfähig sein.
+- [x] Produkt- und Repo-Namen festlegen: **WP Pass Captain**, Slug `wp-passmaster`, Textdomain `wp-pass-captain`, Namespace und Plugin-Konstanten sind festgelegt.
+- [x] Architekturentscheidungen für Mindestversionen, Custom Tables, Zahlungsstatus und Adapter festhalten (PHP 8.2+, WordPress 6.4+, WooCommerce optional; Details in README, `docs/` und Schema).
+- [x] Plugin-Bootstrap, Composer-Autoloading, Aktivierungs-/Deaktivierungshooks, Capabilities, REST-Grundlage und Adminnavigation erstellen.
+- [x] Composer-Abhängigkeiten, Lizenzdokumentation und installierbares Release-ZIP einrichten (CI-Build vorhanden).
+- [ ] Reproduzierbaren Release-Build mit dokumentiertem Abgleich der Artefakte absichern.
+- [x] Versioniertes Schema und Upgrade-Migrationen erstellen; Migration läuft kontrolliert im Admin, per Cron oder WP-CLI.
+- [ ] Rollback-/Restore-Verhalten mit echten Datenbankständen erproben und dokumentieren.
+- [x] Plugin muss ohne WooCommerce und ohne Voucher Captain aktivierbar und funktionsfähig sein; beide Integrationen bleiben optional.
 
 ## P0 – Event- und Verkaufsgrundlage
 
-- [ ] Events, einzelne Termine/Occurrences, Zeitzonen, Veranstaltungsorte, Status und Wiederholungstermine modellieren.
-- [ ] Ticketkategorien mit Preis, Währung, Steuerklasse, Verkaufsfenster, Kontingent und Mengenlimit implementieren.
-- [ ] Öffentliche Eventseite mit Gutenberg-Block/Shortcode und barrierearmer Ticket-Auswahl bereitstellen.
-- [ ] Native Bestellung, Käuferdaten, Positionen und nachvollziehbare Statusmaschine erstellen.
-- [ ] Checkout-Felder pro Event/Ticketkategorie mit Datenminimierung und klarer Löschregel unterstützen.
-- [ ] Promo-Codes für Events/Tickettypen mit Limit, Ablauf und Stapelregeln spezifizieren und implementieren.
+- [x] Events und Occurrences mit Zeitzonen, Veranstaltungsorten und Status modellieren.
+- [ ] Terminserien vollständig mit individueller Kapazität, Preisfenstern und getrennten Änderungsverläufen ausbauen.
+- [x] Tickettypen mit Preis, Währung, Kontingent und Mengenlimits implementieren.
+- [ ] Steuerklassen und geprüfte länderspezifische Verkaufs-/Steuerregeln an Bestellungen anbinden.
+- [x] Öffentliche Eventseite als Gutenberg-Block und Shortcode mit Ticket-Auswahl bereitstellen; öffentliche Tastatur-/A11y-Prüfungen sind vorhanden.
+- [x] Native Bestellungen mit Käuferdaten, Positionen, Statusübergängen und Idempotenz erstellen.
+- [ ] Teilnehmerfelder sind als Datenmodell angelegt; Formular-Editor, Checkout-Erfassung, Feldvalidierung, Export/Löschung und Einwilligungssteuerung fehlen noch.
+- [x] Kampagnencodes mit Prozent-/Festbetragsrabatt, Event-/Ticket-Scope, Priorität, globalem Nutzungslimit und Preis-Snapshot implementieren.
+- [ ] Checkout-Oberfläche, Ablaufregeln, Käuferlimits und konfigurierbare Stapelregeln vervollständigen.
 
 ## P0 – Reservierung, Zahlung und Ausgabe
 
-- [ ] Atomare zeitlich begrenzte Reservierungen für Mengen implementieren; Standard 10 Minuten konfigurierbar.
-- [ ] Bestand aus verkauften Einheiten und aktiven Holds berechnen; parallele Überverkäufe verhindern.
-- [ ] Timeout-, Checkout-Abbruch- und verspätete Zahlungsbestätigung behandeln, ohne stilles Überbuchen.
-- [ ] Payment-Gateway-Vertrag und zuerst ausgewählte PSP-Adapter (Stripe/PayPal nach priorisiertem Umfang) erstellen.
-- [ ] Signaturen und Idempotenz für Payment-Webhooks implementieren; Kartendaten nicht selbst speichern.
-- [ ] Bestellpositionen, Steuer-/Preis-Snapshots und Teil-/Vollrefund-Regeln speichern.
-- [ ] Pro gekaufter Einheit idempotent ein eigenes Ticket erzeugen; Bestellung, Position und Quelle verknüpfen.
+- [x] Atomare, zeitlich begrenzte Reservierungen für Mengen implementieren; die Standard-Haltezeit beträgt zehn Minuten.
+- [x] Bestand aus Verkäufen und aktiven Holds berechnen; Nebenläufigkeits-/Lasttests belegen, dass Checkout-Käufe das Kontingent nicht überverkaufen.
+- [x] Abgelaufene Holds und Checkout-Abbrüche geben Bestand frei; Zahlungsereignisse werden idempotent verarbeitet.
+- [ ] Anbieter-Sandbox- und Wiederherstellungstests für verspätete/mehrdeutige Live-Zahlungsereignisse abschließen.
+- [x] Payment-Gateway-Vertrag sowie Adapter für manuelle Bestätigung, Stripe und PayPal implementieren.
+- [x] Signaturprüfung und Idempotenz für Zahlungs-Webhooks implementieren; Kartendaten werden nicht selbst gespeichert.
+- [x] Preis-/Positions-Snapshots und Refund-Status im Bestellablauf speichern.
+- [ ] Steuerberechnung, rechtlich geprüfte Gutschriften und alle Teil-/Vollrefund-Sonderfälle je Land vervollständigen.
+- [x] Pro gekaufter Einheit idempotent ein Ticket erzeugen und mit Bestellung/Position verknüpfen.
 
 ## P0 – QR-Ticket und Online-Check-in
 
-- [ ] Zufällige Ticketkennung und signierte Version des QR-Payloads nach Konzept umsetzen; keine PII oder fortlaufenden internen IDs in den QR schreiben.
-- [ ] Ticketvorlage, QR-PDF, E-Mail-Zustellung und Teilnehmeransicht in „Mein Konto“ bereitstellen.
-- [ ] Partnerrollen, Event-/Standortzuweisung und minimale Berechtigungen implementieren.
-- [ ] Mobilfreundliche Online-Scanner-PWA mit Kamerascan und manueller Codeeingabe bauen.
-- [ ] Ticketprüfung und Check-in atomar ausführen; Doppel-Scan mit Status und Zeitstempel ablehnen.
-- [ ] Check-in-, Refund-, Widerrufs- und Admin-Auditprotokoll umsetzen.
-- [ ] Admin-Suche, Nachsendung, Widerruf und Fehler-/Retry-Ansicht bereitstellen.
+- [ ] Tickets verwenden zufällige 256-Bit-Codes; gespeichert wird nur deren Hash, und der QR enthält keine PII oder fortlaufende Datenbank-ID. Ein separates signiertes QR-Payload ist nicht umgesetzt; Sicherheits- und Interoperabilitätsentscheidung dafür dokumentieren.
+- [ ] Ticketlink/QR, E-Mail-Zustellung, private Druckansicht und Bestell-/Ticketportal sind vorhanden; native PDF-Erzeugung und vollständige Teilnehmer-Selbstbedienung fehlen.
+- [ ] Rollen und eventbezogene Zuweisungen sind vorhanden; granulare Scopes für Standorte/Partner, Finanzrollen, PII-Minimierung und vollständige Admin-/REST-Abdeckung ergänzen.
+- [x] Mobilfreundlichen Online-Scanner mit Kamera-QR-Scan und manueller Codeeingabe bereitstellen.
+- [ ] Vollständige installierbare PWA-Abnahme für Browser/Endgeräte dokumentieren.
+- [ ] Online-Check-in sperrt Ticketzeilen und protokolliert Status/Zeitstempel. Noch offen: reproduzierbarer Nebenläufigkeitsfehler bei gleichzeitigen Erst-Scans verschiedener Tickets beheben; aktuell wird der CI-Lastschritt deshalb nicht als Release-Gate erzwungen.
+- [x] Auditprotokolle für Check-ins, Bestellungen, Zahlungs-/Refund- und Adminaktionen sind implementiert.
+- [ ] Audit-Abdeckung für alle PII-Zugriffe, Exporte, Rollenänderungen und Korrekturen vervollständigen.
+- [x] Admin-Bestell-/Ticketansichten, Ticketnachsendung, Widerruf und Fehler-/Retry-Abläufe bereitstellen; Restfälle im echten WordPress-Betrieb abnehmen.
 
 ## P0 – Datenschutz und Releasefähigkeit
 
-- [ ] WordPress-Datenschutzexport und Löschschnittstellen einbinden.
-- [ ] Aufbewahrungsfristen je Datenart konfigurieren; Teilnehmerdaten getrennt von Finanzbelegen behandeln.
-- [ ] Nonces, capabilities, Rate-Limits, REST-Validierung, Escaping und Logbereinigung umsetzen.
-- [ ] Unit-, Datenbank-, REST-, Checkout-, Zahlungs-, Refund- und PWA-Tests gemäß Konzept einrichten.
-- [ ] Sauberen Build, Aktivierung, Upgrade-Migration, Deaktivierung und Deinstallation prüfen.
-- [ ] Release-Gates aus `CONCEPT.md` automatisieren und manuelle Mobile-/Desktop-Abnahme dokumentieren.
+- [x] WordPress-Datenschutzexport und Löschschnittstellen einbinden.
+- [ ] Datenschutzexport/-löschung ist vorhanden; konfigurierbare Fristen je Datenart und getrennte Behandlung von Teilnehmerdaten/Finanzbelegen fehlen.
+- [x] Nonces, Capabilities, REST-Validierung, Escaping, Rate-Limits und Bereinigung sensibler Logdaten sind im Code abgedeckt.
+- [ ] Unabhängigen Sicherheitsreview/Penetrationstest durchführen.
+- [x] Datenbank-/Integrationstests für Checkout, Zahlungs-Webhooks, Refunds, WooCommerce, REST und Scanner-Grundabläufe sowie Last- und A11y-Testwerkzeuge einrichten.
+- [ ] PWA-/Endgeräte-, reale PSP-Sandbox- und vollständige Refund-End-to-End-Abnahmen in CI/Release-Gates ergänzen.
+- [x] CI baut und prüft ein installierbares ZIP; Aktivierungs-/Deaktivierungshooks und Migrationen sind vorhanden.
+- [ ] Aktivierung, Update, Restore und Deinstallation in realen WordPress-Versionen durchtesten.
+- [ ] Automatisierte Integration-, Syntax-, Last- und A11y-Prüfungen existieren; verbindliche Release-Gates sowie manuelle Mobile-/Desktop-Abnahme sind noch nicht vollständig dokumentiert.
 
 ## P1 – Voucher-Captain-Integration
 
@@ -61,34 +73,34 @@ Dieses Backlog begleitet `CONCEPT.md`. Ticket Captain und Voucher Captain bleibe
 
 ## P1 – Optionaler WooCommerce-Adapter
 
-- [ ] WooCommerce als optionale Abhängigkeit über Adapter statt Core-Abhängigkeit anschließen.
-- [ ] HPOS und Order-CRUD verwenden; direkte Bestelltabellenzugriffe ausschließen.
-- [ ] Classic Checkout und Checkout Blocks unterstützen, sofern für die erste WooCommerce-Adapterversion zugesagt.
-- [ ] Bestellstatus, 0-Euro-Bestellung, Wiederholungsereignisse, Erstattung und Kurs-/Ticketprodukte integrieren.
-- [ ] Adaptertests mit WooCommerce-Versionen und HPOS-Modi in die CI aufnehmen.
+- [x] WooCommerce als optionale Integration über einen Adapter anschließen; der Plugin-Kern bleibt ohne WooCommerce aktivierbar.
+- [x] WooCommerce CRUD-APIs und HPOS-kompatible Bestellzugriffe verwenden.
+- [x] Classic Checkout und WooCommerce Checkout Blocks unterstützen.
+- [x] Ticketprodukte, Bestellstatus, kostenlose Bestellungen, wiederholte Hooks und Refund-/Stornoereignisse integrieren; Mehrfachverkäufer-Aufteilung für Warenkorbpositionen ist in Arbeit/PR #14 und noch nicht in `main`.
+- [ ] WooCommerce-Integrations- und HPOS-Verhalten wird in der Test-Suite geprüft; echte Version-/HPOS-Matrix gegen eine installierte WooCommerce-Umgebung fehlt.
 
 ## P2 – Erweiterte Eventfunktionen
 
-- [ ] Sitzpläne und grafischen Seat-Map-Editor mit versionierten Layouts und atomaren Platzreservierungen ergänzen.
-- [ ] Serientermine mit eigener Kapazität, Preisfenstern und Sitzplanverknüpfung ausbauen.
-- [ ] Apple Wallet und Google Wallet über Betreiberkonten und signierte Passes ergänzen.
-- [ ] Steuer-/Rechnungsmodul anhand juristischer und steuerlicher Spezifikation umsetzen.
-- [ ] Buchhaltungsexport, Korrekturbelege und Umsatz-/Check-in-Berichte ergänzen.
-- [ ] Offline-Check-in nur mit expliziter Konfliktlogik und sichtbarem Doppel-Scan-Risiko freigeben.
+- [ ] Sitzplan-REST-Grundlage, versionierte Layouts und temporäre atomare Platz-Holds sind vorhanden; Admin-Editor, Checkout-Verknüpfung und Verkaufs-Commit fehlen.
+- [ ] Wöchentliche Terminserien werden erstellt; individuelle Kapazitäten/Preisfenster, Editierbarkeit und Sitzplanverknüpfung fehlen.
+- [ ] Wallet-Providervertrag/Pass-Metadaten sind vorhanden; Apple-/Google-Pass-Erzeugung, Betreiberkonten, Zertifikate und Live-Abnahme fehlen.
+- [ ] Rechnungsnummern und Draft-Rechnungen mit Käufer-/Positionssnapshot sind vorhanden; Steuerberechnung steht noch nicht bereit und rechtliche/steuerliche Freigabe je Land fehlt.
+- [ ] Basisberichte für Verkäufe und Check-ins sind vorhanden; Buchhaltungsexporte und Korrekturbelege fehlen, Berichte brauchen Erweiterung/Abnahme.
+- [ ] Offline-Queue und Batch-Synchronisierung mit Konfliktantworten sind vorhanden; Gerätezuweisung, lokale Berechtigungsprüfung und garantierte globale Einmaligkeit fehlen. Nicht als konfliktfreien Offlinebetrieb freigeben.
 
 ## P2 – Entscheidungen vor Produktivstart
 
 - [ ] Startländer festlegen (AT/DE/CH) und Rechts-/Steuerprüfungen je Land beauftragen.
-- [ ] Erste PSPs und Zahlungsmethoden verbindlich priorisieren.
+- [x] Erste Online-PSPs sind Stripe und PayPal; weitere Anbieter/Länder-Zahlungsarten bleiben separat zu priorisieren.
 - [ ] MVP-Entscheidung treffen: native Rechnungs-PDFs oder zunächst Buchhaltungsexport.
 - [ ] Festlegen, ob Seat Map im ersten marktfähigen Release enthalten ist.
-- [ ] Regeln für Übertragung, Rückerstattung nach Check-in und abgesagte Events festlegen.
+- [ ] Einmalige Ticketübertragung und Eventabsage sind teilweise umgesetzt; vollständige Regeln für Refund nach Check-in, Terminverschiebung, Wiederzulassung und alle Statusfolgen festlegen.
 
 ## Abnahmekriterien
 
-- [ ] Eigenständiger Ticketkauf funktioniert ohne WooCommerce und erzeugt genau ein Ticket je Einheit.
-- [ ] Reservierung verhindert Überverkauf auch bei parallelen Checkouts.
-- [ ] Online-Check-in lehnt einen bereits verwendeten Einmalpass atomar ab.
+- [x] Native Bestellungen funktionieren ohne WooCommerce; je gekaufter Einheit wird idempotent ein Ticket erzeugt.
+- [x] Nebenläufigkeitstests belegen, dass parallele Checkouts das Kontingent nicht überverkaufen.
+- [ ] Einmal-Check-in ist im normalen Ablauf atomar; der offene gleichzeitige Erstscan-Deadlock muss behoben und als striktes CI-Gate abgenommen werden.
 - [x] Ticket Captain funktioniert ohne Voucher Captain; Voucher Captain funktioniert ohne Ticket Captain. *(CI beider Plugins läuft ohne das andere)*
 - [x] Gemeinsame Installation aktiviert die definierte Bridge, ohne separate Plugin-Einträge oder Admin-Menüs zusammenzulegen.
 - [x] Gutschein-zu-Ticket-Einlösung und Ticket-Rückerstattung sind idempotent und revisionsfähig.
@@ -96,37 +108,37 @@ Dieses Backlog begleitet `CONCEPT.md`. Ticket Captain und Voucher Captain bleibe
 
 ## P1 – Ticketverwaltung nach dem Kauf
 
-- [ ] Selbstbedienungsfunktionen für berechtigte Käufer ergänzen: Ticket erneut senden, erlaubte Teilnehmerdaten ändern und Ticket übertragen.
-- [ ] Übertragung deaktivierbar/begrenzbar machen, vollständig protokollieren, altes QR-Token widerrufen und neues Ticket-Token ausgeben.
-- [ ] Statusübergänge für Eventabsage, Terminverschiebung, Widerruf, Teil-/Vollererstattung und Erstattung nach Check-in definieren und implementieren.
-- [ ] Ticketstorno, Widerruf und erneute Ausgabe idempotent gestalten; Zahlungs-, Bestell- und Ticketstatus dürfen nicht auseinanderlaufen.
-- [ ] Pflicht-/optionale Teilnehmerfelder pro Tickettyp mit Export, Zugriffsschutz, Änderungsfrist und Löschregel verwalten.
-- [ ] Käufer und betroffene Teilnehmer bei Terminänderung, Absage, Erstattung und Ticketübertragung über konfigurierbare Vorlagen informieren.
+- [ ] Käuferportal/Gastlinks und einmalige Ticketübertragung sind vorhanden; vollständige Selbstbedienung für Nachsendung und Teilnehmerdaten fehlt.
+- [x] Einmalige Ticketübertragung vor Veranstaltungsbeginn mit Tokenrotation und Widerruf des alten Codes ist umgesetzt; ausbauen für konfigurierbare Fristen/Regeln.
+- [ ] Eventabsage, Refunds und Widerruf haben Grundabläufe; Terminverschiebung und vollständige Status-/Sonderfallregeln, insbesondere Refund nach Check-in, sind offen.
+- [ ] Idempotenz ist in vielen Bestell-/Zahlungspfaden vorhanden; vollständige End-to-End-Abnahme für Storno, Widerruf, Neuausgabe und alle Refundkombinationen fehlt.
+- [ ] Teilnehmerfeld-Datenschema ist angelegt; Formular-Editor, Checkout-Erfassung, Export, Zugriffsschutz, Änderungsfristen und Löschregeln fehlen.
+- [ ] E-Mail-Vorlagen und Eventabsage-Benachrichtigung sind vorhanden; Vorlagen/Benachrichtigungen für Verschiebung, Refund und Übertragung vervollständigen.
 
 ## P1 – Bootsschul- und Servicebuchungen
 
-- [ ] Buchbare Leistungen mit Zeitfenstern, Dauer, Pufferzeit, Zeitzone, verfügbaren Ressourcen/Partnern und Kapazität modellieren.
-- [ ] Verfügbarkeitsprüfung und Reservierung für parallele Slot-Buchungen atomar umsetzen.
-- [ ] Buchungsschluss, Vorlaufzeiten, maximale Buchungen und Stornierungs-/Umbuchungsfristen konfigurierbar machen.
-- [ ] Umbuchung und Stornierung mit Zahlungs-/Gutscheinstatus, Kapazitätsfreigabe, Benachrichtigung und Audit-Log koordinieren.
+- [ ] Ressourcen-, Zeitfenster- und Buchungshold-Grundlagen mit Zeitzone/Kapazität sind vorhanden; Dauer/Puffer und Partnerverwaltung fehlen.
+- [x] Kapazitätsgesperrte, idempotente Buchungsholds für Service-Zeitfenster sind als REST-Grundlage vorhanden.
+- [ ] Buchungsschluss, Vorlauf, Maximalbuchungen und Umbuchungs-/Stornierungsfristen fehlen.
+- [ ] Umbuchungs-/Stornierungs-End-to-End-Abläufe mit Zahlung, Gutschein, Bestand, Benachrichtigung und Audit-Log fehlen.
 - [ ] No-show-Regeln und manuelle Partnerbestätigung als optionale Richtlinien abbilden.
 - [ ] Warteliste für ausgebuchte Slots mit befristetem Angebot, Annahmefrist und nachvollziehbarer Reihenfolge ergänzen.
 - [ ] Service-Pass-Regeln getrennt von Eventticket-Regeln abnehmen: terminfrei/terminpflichtig, einmalige/mehrfache Nutzung und Ablauf.
 
 ## P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen
 
-- [ ] Admission-Policy je Ticket unterstützen: einmaliger Eintritt, täglicher Eintritt, mehrtägige Nutzung, Mehrfachzulassung und optionaler Wiedereinlass.
-- [ ] Mehrtagestickets mit Gültigkeitsfenstern und eigenständigem Check-in-Status pro Veranstaltungstag ergänzen.
-- [ ] Check-in rückgängig machen sowie Check-in und Check-out getrennt protokollieren; nur berechtigte Rollen dürfen Status ändern.
-- [ ] Online- und Offline-Scanner Geräten/Einlassbereichen zuweisen; Synchronisationsstatus und Konflikte sichtbar machen.
+- [x] Admission-Policies für einmaligen, täglichen und mehrtägigen Eintritt sowie begrenzte Mehrfachzulassung/Wiedereinlass im Backend umgesetzt.
+- [x] Einlassregeln und Status pro Veranstaltungstag sind im Backend vorhanden; Admin-Oberfläche und echte Mehrtagesticket-Abnahme fehlen.
+- [ ] Check-in-Korrekturen sind grundlegend protokollierbar; getrennte Check-out-Bedienung und vollständige Rollenprüfung/Abnahme ergänzen.
+- [ ] Geräte-Token und Offline-Synchronisierung sind vorhanden; Zuweisung nach Einlassbereich und vollständige Admin-Konfliktansicht fehlen.
 - [ ] Doppelte Einlösungen aus unabhängig offline arbeitenden Scannern erkennen, protokollieren und einer Admin-Klärung zuführen.
-- [ ] Optionales POS/Box Office für Verkäufe vor Ort mit Zahlungsarten, manueller Ticketvergabe, Belegdaten, Druck und gemeinsamem Kontingent implementieren.
+- [ ] POS-REST-API kann Verkäufe über gemeinsames Kontingent anlegen; Bedienoberfläche, Zahlungsarten, fiskalische Belege und Druckworkflow fehlen.
 - [ ] Ticket-, Badge-, Namensschild- und Armbandvorlagen sowie Teilnehmerlisten-Druck/Export ergänzen.
-- [ ] Eventkalender und iCalendar-Download sowie Erinnerungs- und Änderungsnachrichten bereitstellen.
-- [ ] SMS-Anbieteradapter mit Einwilligungs-/Zweckdokumentation, Kostenhinweis und Zustellstatus ergänzen.
+- [ ] Kalender, E-Mail-Erinnerungen und Nachrichtengrundlagen sind vorhanden; vollständiger iCalendar-Download und Änderungsbenachrichtigungen pro Ereignis abnehmen.
+- [ ] SMS-Einstellungen/Queue-Grundlage sind vorhanden; Anbieteradapter und vollständige Einwilligungs-, Kosten- und Zustellstatusabläufe fehlen.
 - [ ] Weitere Zahlungsanbieter nach Zielland, Währung, Gebühren und Händlerverfügbarkeit priorisieren und über die Payment-Adapter anbinden.
-- [ ] Öffentliche Webhooks und Entwickler-Hooks für Event-, Ticket-, Bestell-, Refund- und Check-in-Änderungen versioniert dokumentieren.
-- [ ] Abnahmetests für Ticketübertragung, Absage, Mehrtages-Einlass, Wiedereinlass, Offline-Konflikte, Slot-Kollisionen, POS-Bestandsabgleich und Erstattungen ergänzen.
+- [x] Webhook- und Entwickler-Hook-Verträge sind versioniert dokumentiert; aktuelle Abdeckung ist in `docs/WEBHOOKS.md` und `docs/HOOKS.md` aufgeführt.
+- [ ] Einzelne Integrations-/Lasttests für diese Flows existieren; vollständige End-to-End-Abnahmesuite einschließlich Offlinekonflikten, Slot-Kollisionen und realem POS fehlt.
 
 ## P0 – Rollen, Eventscoping und Zugriffsschutz
 
@@ -143,12 +155,35 @@ Dieses Backlog begleitet `CONCEPT.md`. Ticket Captain und Voucher Captain bleibe
 
 ## P0 – EU-Zielmarkt und Plattform-Kompatibilität
 
-- [ ] EU als Zielmarkt und Länder-/Währungs-/Sprachkonfiguration in Konzept und Einstellungen festhalten.
-- [ ] Release-CI gegen WordPress 7.1.4, optional WooCommerce 11.2.2, PHP 8.4 (8.4.27 am Stichtag), MySQL 8.4 LTS und MariaDB 11.4 LTS einrichten.
-- [ ] Yoast SEO 28.8 nur als optionale Kompatibilitätskonfiguration prüfen; keine Laufzeitabhängigkeit einführen.
-- [ ] Aktuelle Test-Baseline von den separat festgelegten Mindestversionen trennen und pro Release aktualisieren.
-- [ ] Testmatrix für neuere stabile PHP-, WordPress- und WooCommerce-Versionen als Vorwärtskompatibilität pflegen.
+- [x] EU ist als Zielmarkt festgehalten; Währungs-/Locale-Grundlagen und Übersetzungen sind vorhanden.
+- [ ] Länderbezogene Steuer-/Rechtsprofile fachlich prüfen und aktivieren.
+- [x] CI prüft PHP 8.2/8.4, Syntax, Composer, Integrationstests und ZIP-Build; Integration läuft mit MariaDB.
+- [ ] Reale CI-Matrix für WordPress/WooCommerce/MySQL-Versionen ergänzen; aktuelle Mock-/MariaDB-Tests sind keine echte Plattformmatrix.
+- [x] Keine Yoast-Laufzeitabhängigkeit; optionale Kompatibilität kann separat geprüft werden.
+- [ ] Kompatibilitäts- und Test-Baseline pro Release dokumentieren und aktuell halten.
+- [ ] PHP-Matrix in CI ist vorhanden; echte WordPress-/WooCommerce-Versionsmatrix fehlt.
 - [ ] EU-Steuerfälle, OSS, Leistungsort, gemischte Steuersätze, Währungen und Erstattungsbelege mit fachlicher Steuerberatung für die unterstützten Länder spezifizieren.
-- [ ] Zahlungsarten nach Verfügbarkeit pro PSP, Land, Währung und Transaktionstyp konfigurieren.
+- [ ] Zahlungsanbieter und Währungen sind konfigurierbar; verfügbare Zahlungsmethoden pro Land/PSP/Transaktionstyp sowie Live-Akzeptanz fehlen.
 - [ ] Verbraucherinformationen und Storno-/Erstattungsbedingungen je unterstütztem Land rechtlich prüfen lassen.
-- [ ] Übersetzbarkeit, Datenschutzfristen/Auskunft/Löschung und Barrierefreiheit als Release-Gates ergänzen.
+- [ ] Übersetzungen, Datenschutzexport/-löschung und A11y-Prüfwerkzeuge sind vorhanden; Datenschutzfristen, vollständige Admin-A11y und manuelle Screenreader-Abnahme als Release-Gates ergänzen.
+
+
+## Fiskalisierung und Multi-Seller — nicht in `main`
+
+Der seller-aware Fiskalisierungskern liegt derzeit in [Draft-PR #14](https://github.com/hastla007/wp-passmaster/pull/14); der Branch ist nicht in `main` integriert. Die dortigen Häkchen gelten deshalb nicht als erledigte Funktion der aktuellen Hauptversion.
+
+- [ ] PR #14 mit dem aktuellen `main` abgleichen, Konflikte lösen und nach bestandener CI integrieren.
+- [ ] Im Draft vorhandene Multi-Seller-Profile, WooCommerce-Korbaufteilung sowie Anbieterwahl fiskaly/efsta/fiskaltrust in `main` übernehmen und auf realen POS-/WooCommerce-Installationen abnehmen.
+- [ ] Länder-/Anbieter-/Kanal-Konfiguration für AT, DE und HU mit echten Anbieter-Sandboxen testen und rechtlich/fachlich freigeben.
+- [ ] Refunds, Teilrefunds, Eventabsagen und gebrauchte Tickets providerseitig ausführen; im Draft werden die meisten Fälle noch manuell abgeglichen. Der efsta-AT/DE-Einmal-Vollstorno-Pfad ist eng begrenzt und braucht Sandbox-Abnahme.
+- [ ] Gesetzliche Länderanforderungen wie Signatur/TSE, Belegausgabe, vorgeschriebene Exporte und Hardwaretopologie fachlich prüfen. Adapter-Routing ist keine Zertifizierung oder Rechtsfreigabe.
+
+## Kommerzielle Lizenzierung und Updates — offene PRs
+
+Diese Änderungen liegen ebenfalls in offenen PRs und sind noch nicht Teil von `main`.
+
+- [ ] WP License Captain Aktivierung für WP Pass Captain integrieren (PR #20).
+- [ ] Premium-Updates mit Prüfsummenprüfung integrieren (PR #21).
+- [ ] Fail-closed Entitlement-Prüfung integrieren (PR #22).
+- [ ] Signierten Offline-Entitlement-Cache integrieren (PR #23).
+- [ ] PRs gegen den aktuellen `main`-Stand zusammenführen, End-to-End testen und erst danach als Lizenz-/Updatefunktion ausweisen.
