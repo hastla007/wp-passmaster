@@ -87,5 +87,11 @@ $applied = PassCaptain\Integrations\Vouchers\Checkout::apply( $vo['order_id'], '
 Orders::confirm_manual_payment( $vo['order_id'] );
 $fresh = Orders::get( $vo['order_id'] );
 $sale = $aff_last_sale();
-check( 'a redeemed voucher reduces the commission base (paid gross minus its VAT)', ! is_wp_error( $applied ) && (string) $vo['order_id'] === $sale['order_id'] && (int) $fresh->total_minor - (int) $fresh->tax_minor === $sale['items'][0]['net_minor'] && $sale['items'][0]['net_minor'] < 10000 );
+$vsnap    = json_decode( (string) $fresh->voucher_snapshot, true );
+$by_means = ! empty( $vsnap['amount_paid_by_voucher'] );
+// Multi-purpose voucher: VAT stays on the full price → only the paid share of it is removed;
+// single-purpose voucher: price and VAT were reduced → paid gross minus the remaining VAT.
+$expected = $by_means ? (int) $fresh->total_minor - (int) round( (int) $fresh->tax_minor * (int) $fresh->total_minor / ( (int) $fresh->total_minor + (int) $vsnap['amount_paid_by_voucher'] ) ) : (int) $fresh->total_minor - (int) $fresh->tax_minor;
+check( 'a redeemed voucher reduces the commission base to the net of what was paid', ! is_wp_error( $applied ) && (string) $vo['order_id'] === $sale['order_id'] && $expected === $sale['items'][0]['net_minor'] && $sale['items'][0]['net_minor'] < 10000 );
+echo '  (voucher ' . ( $by_means ? 'multi-purpose' : 'single-purpose' ) . ': paid ' . (int) $fresh->total_minor . ', base ' . (int) $sale['items'][0]['net_minor'] . ")\n";
 unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] );
