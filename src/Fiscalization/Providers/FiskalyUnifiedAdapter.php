@@ -11,7 +11,7 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 	public function id() { return 'fiskaly_sign_unified'; }
 	public function interface_version() { return AdapterInterface::VERSION; }
 	public function countries() { return array( 'FR', 'IT', 'PT', 'SE' ); }
-	public function capabilities() { return array( 'receipt_submit', 'operation_status', 'receipt_qr_payload', 'record_intention', 'daily_report' ); }
+	public function capabilities() { return array( 'receipt_submit', 'operation_status', 'receipt_qr_payload', 'record_intention' ); }
 
 	public function health_check( array $seller, array $configuration ) {
 		$system = $this->required( $configuration, 'system_id' );
@@ -25,7 +25,7 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 	public function query_status( array $document, array $seller, array $configuration ) {
 		// The Unified API's idempotency retention is time-limited. Never replay creation
 		// requests once the original snapshot is too old to guarantee deduplication.
-		$created = strtotime( (string) ( $document['created_at'] ?? '' ) );
+		$created = strtotime( (string) ( $document['created_at'] ?? '' ) . ' UTC' );
 		if ( ! $created || $created < time() - ( 20 * HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'fiskaly_unified_reconciliation_required', __( 'Der fiskaly Unified-Vorgang ist älter als das sichere Wiederholungsfenster. Bitte im fiskaly Dashboard abgleichen, bevor erneut signiert wird.', 'wp-pass-captain' ) );
 		}
