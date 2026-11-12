@@ -123,6 +123,7 @@ final class BoxOffice {
 		return array(
 			'boxoffice_receipt_prefix' => 'BON',
 			'boxoffice_receipt_footer' => '',
+			'boxoffice_terminals' => '',
 		);
 	}
 
