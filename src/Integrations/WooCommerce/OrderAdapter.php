@@ -601,7 +601,7 @@ final class OrderAdapter {
 		$product = is_callable( array( $item, 'get_product' ) ) ? $item->get_product() : null;
 		$product_id = $product && is_callable( array( $product, 'get_id' ) ) ? absint( $product->get_id() ) : 0;
 		return array(
-			'line_key' => sanitize_key( 'woo_' . sanitize_key( get_class( $item ) ) . '_' . absint( $item_id ) ),
+			'line_key' => self::fiscal_line_key( $item_id, $item ),
 			'product_id' => $product_id,
 			'seller_id' => absint( $assignment['seller_id'] ),
 			'seller_mode' => sanitize_key( $assignment['seller_mode'] ),
@@ -804,6 +804,7 @@ final class OrderAdapter {
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
 		if ( $wc_order && self::can_record_refunds() ) {
 			self::record_refund( $wc_order, $refund, $core_id );
+			if ( $refund->get_meta( self::REFUND_META, true ) ) { self::record_fiscal_extra_refund( $wc_order, $refund, $core_id ); }
 			return;
 		}
 		$revoked = 0;
@@ -815,6 +816,7 @@ final class OrderAdapter {
 		}
 		$refund->update_meta_data( self::REFUND_META, 1 );
 		$refund->save();
+		self::record_fiscal_extra_refund( $wc_order, $refund, $core_id );
 		self::note_refund( $wc_order, $revoked, $kept );
 	}
 
@@ -908,6 +910,38 @@ final class OrderAdapter {
 		$plan['quantities']   = $quantities;
 		$plan['amount_minor'] = min( $remaining, $amount );
 		return $plan;
+	}
+
+	/** Append fiscal correction details for refunded non-ticket WooCommerce lines. */
+	private static function record_fiscal_extra_refund( $wc_order, $refund, $core_id ) {
+		if ( $refund->get_meta( '_wpcap_fiscal_extra_refund_processed', true ) ) { return; }
+		$factor = 10 ** self::currency_decimals( $wc_order->get_currency() );
+		$lines = array();
+		foreach ( $refund->get_items( array( 'line_item', 'fee', 'shipping' ) ) as $refund_item ) {
+			if ( self::refund_item_type_id( $refund_item ) ) { continue; }
+			$original_id = absint( $refund_item->get_meta( '_refunded_item_id', true ) );
+			$original = $original_id && class_exists( '\\WC_Order_Factory' ) ? \\WC_Order_Factory::get_order_item( $original_id ) : null;
+			$line_key = $original ? self::fiscal_line_key( $original_id, $original ) : '';
+			$total = is_callable( array( $refund_item, 'get_total' ) ) ? abs( (float) $refund_item->get_total() ) : 0;
+			$tax = is_callable( array( $refund_item, 'get_total_tax' ) ) ? abs( (float) $refund_item->get_total_tax() ) : 0;
+			$quantity = is_callable( array( $refund_item, 'get_quantity' ) ) ? abs( (int) $refund_item->get_quantity() ) : 1;
+			$lines[] = array(
+				'line_key' => $line_key,
+				'quantity' => max( 1, $quantity ),
+				'amount_minor' => (int) round( ( $total + $tax ) * $factor ),
+				'tax_minor' => (int) round( $tax * $factor ),
+			);
+		}
+		$refund->update_meta_data( '_wpcap_fiscal_extra_refund_processed', 1 );
+		$refund->save();
+		if ( $lines ) {
+			do_action( 'wpcap_woocommerce_non_ticket_refund', absint( $core_id ), absint( $refund->get_id() ), sanitize_text_field( $wc_order->get_currency() ), $lines );
+		}
+	}
+
+	/** Stable key shared by the sale snapshot and its WooCommerce refund line. */
+	private static function fiscal_line_key( $item_id, $item ) {
+		return sanitize_key( 'woo_' . sanitize_key( get_class( $item ) ) . '_' . absint( $item_id ) );
 	}
 
 	/** Refunded ticket quantities per ticket type of a WooCommerce refund. */
