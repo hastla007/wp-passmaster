@@ -456,6 +456,13 @@ final class Fiscalization {
 			return new \WP_Error( 'wpcap_fiscal_status_unknown', __( 'Der Anbieterstatus ist weiterhin unklar; es wurde keine neue Beleganlage ausgelöst.', 'wp-pass-captain' ), array( 'status' => 503 ) );
 		}
 		if ( is_array( $result ) && 'submitted' === ( $result['status'] ?? '' ) && ! empty( $result['reference'] ) && is_scalar( $result['reference'] ) ) {
+			$snapshot = json_decode( $doc->snapshot, true );
+			$profile_data = is_array( $snapshot['profile']['data'] ?? null ) ? $snapshot['profile']['data'] : array();
+			$receipt = is_array( $result['receipt'] ?? null ) ? $result['receipt'] : array();
+			if ( in_array( 'receipt_qr_payload', CountryPolicy::required_capabilities( $profile_data ), true ) && ( ! is_string( $receipt['qr_payload'] ?? null ) || '' === $receipt['qr_payload'] || strlen( $receipt['qr_payload'] ) > 4096 ) ) {
+				self::record_event( $doc, 'manual_reconcile', 'invalid_result', array( 'error_code' => 'qr_payload_missing' ) );
+				return new \WP_Error( 'wpcap_fiscal_receipt_incomplete', __( 'Der Anbieter meldet den Beleg als erstellt, aber die erforderlichen QR-Daten fehlen. Es wurde kein zweiter Beleg erstellt.', 'wp-pass-captain' ), array( 'status' => 502 ) );
+			}
 			$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array( 'status' => 'submitted', 'provider_result' => wp_json_encode( self::normalize_provider_result( $result ) ), 'last_error' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'document_id' => (int) $doc->document_id ) );
 			self::record_event( $doc, 'manual_reconcile', 'submitted', array( 'reference' => sanitize_text_field( $result['reference'] ) ) );
 		} elseif ( is_array( $result ) && 'not_found' === ( $result['status'] ?? '' ) ) {
