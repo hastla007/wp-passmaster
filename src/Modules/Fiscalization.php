@@ -255,6 +255,7 @@ final class Fiscalization {
 			'wpcap_fiscal_save_seller' => array( __CLASS__, 'handle_admin_save_seller' ),
 			'wpcap_fiscal_save_provider' => array( __CLASS__, 'handle_admin_save_provider' ),
 			'wpcap_fiscal_assign_seller' => array( __CLASS__, 'handle_admin_assign_seller' ),
+			'wpcap_fiscal_retry_order' => array( __CLASS__, 'handle_admin_retry_order' ),
 		);
 	}
 
@@ -292,6 +293,16 @@ final class Fiscalization {
 		) );
 		$result = self::rest_save_provider( $request );
 		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'saved' );
+	}
+
+	public static function handle_admin_retry_order() {
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
+		$order_id = absint( $_POST['order_id'] ?? 0 );
+		check_admin_referer( 'wpcap_fiscal_retry_order_' . $order_id );
+		$request = new \\WP_REST_Request( 'POST' );
+		$request->set_param( 'order_id', $order_id );
+		$result = self::rest_retry_order( $request );
+		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'retried' );
 	}
 
 	public static function handle_admin_assign_seller() {
@@ -347,6 +358,23 @@ final class Fiscalization {
 			echo '</select><select name="seller_mode"><option value="organizer_seller" ' . selected( $type->seller_mode, 'organizer_seller', false ) . '>' . esc_html__( 'Veranstalter ist Verkäufer', 'wp-pass-captain' ) . '</option><option value="platform_seller" ' . selected( $type->seller_mode, 'platform_seller', false ) . '>' . esc_html__( 'Betreibergesellschaft ist Verkäufer', 'wp-pass-captain' ) . '</option></select>';
 			submit_button( __( 'Zuordnung speichern', 'wp-pass-captain' ), 'secondary', 'submit', false );
 			echo '</form>';
+		}
+		echo '<hr><h2>' . esc_html__( 'Offene Fiskalvorgänge', 'wp-pass-captain' ) . '</h2>';
+		$pending = $wpdb->get_results( "SELECT d.order_id,d.status,d.last_error,d.attempts,d.updated_at,s.legal_name FROM {$p}wpcap_fiscal_documents d INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=d.seller_id WHERE d.status <> 'submitted' ORDER BY d.updated_at DESC LIMIT 100" );
+		if ( ! $pending ) { echo '<p>' . esc_html__( 'Keine offenen Fiskalvorgänge.', 'wp-pass-captain' ) . '</p>'; }
+		else {
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Bestellung', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufer', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Versuche / letzter Fehler', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Aktion', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+			foreach ( $pending as $doc ) {
+				echo '<tr><td>' . (int) $doc->order_id . '</td><td>' . esc_html( $doc->legal_name ) . '</td><td>' . esc_html( $doc->status ) . '</td><td>' . (int) $doc->attempts . ' / ' . esc_html( $doc->last_error ) . '</td><td>';
+				if ( 'failed' === $doc->status ) {
+					echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="wpcap_fiscal_retry_order"><input type="hidden" name="order_id" value="' . (int) $doc->order_id . '">';
+					wp_nonce_field( 'wpcap_fiscal_retry_order_' . (int) $doc->order_id );
+					submit_button( __( 'Erneut versuchen', 'wp-pass-captain' ), 'secondary', 'submit', false );
+					echo '</form>';
+				}
+				echo '</td></tr>';
+			}
+			echo '</tbody></table>';
 		}
 		echo '</div>';
 	}
