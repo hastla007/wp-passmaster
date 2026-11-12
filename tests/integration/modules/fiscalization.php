@@ -96,3 +96,31 @@ check( 'invalid POS register identifiers fail closed', is_wp_error( $invalid_sco
 $session_scope = FiscalizationModule::profile_scope( 'pos', array( 'fiscal_location_id' => 23, 'fiscal_register_id' => 'BOX-OFFICE-2' ), 99 );
 check( 'POS fiscal profile scope inherits the locked session assignment', ! is_wp_error( $session_scope ) && 23 === $session_scope['location_id'] && 'BOX-OFFICE-2' === $session_scope['register_id'] );
 
+
+
+echo "Fiscalization: WooCommerce refund allocation for seller snapshots\\n";
+$refund_test_doc_key = hash( 'sha256', 'wpcap-non-ticket-refund-test' );
+$refund_test_item_key = 'woo_wc_order_item_product_12345';
+$wpdb->insert( $p . 'wpcap_fiscal_documents', array(
+	'order_id' => 99001,
+	'seller_id' => 71,
+	'document_key' => $refund_test_doc_key,
+	'country_code' => 'AT',
+	'provider_id' => 'test_fiscal_adapter',
+	'status' => 'submitted',
+	'currency' => 'EUR',
+	'gross_minor' => 1200,
+	'tax_minor' => 200,
+	'snapshot' => wp_json_encode( array( 'items' => array(
+		array( 'line_key' => $refund_test_item_key, 'product_id' => 123, 'description' => 'Programmbuch', 'seller_id' => 71, 'gross_minor' => 1200, 'tax_minor' => 200 ),
+	) ) ),
+	'created_at' => current_time( 'mysql', true ),
+	'updated_at' => current_time( 'mysql', true ),
+) );
+FiscalizationModule::record_non_ticket_refund( 99001, 88001, 'EUR', array(
+	array( 'line_key' => $refund_test_item_key, 'quantity' => 1, 'amount_minor' => 1200, 'tax_minor' => 200 ),
+) );
+$refund_event = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_events WHERE order_id=%d ORDER BY event_id DESC LIMIT 1", 99001 ), ARRAY_A );
+$refund_event_data = $refund_event ? json_decode( $refund_event['metadata'], true ) : array();
+check( 'refund of an assigned non-ticket line follows the original seller snapshot and amount', $refund_event && 'refund_adjustment' === $refund_event['event_type'] && 71 === (int) $refund_event_data['seller_id'] ? false : ( $refund_event && 1200 === (int) $refund_event_data['allocated_items'][0]['amount_minor'] && ! $refund_event_data['seller_allocation_required'] ) );
+
