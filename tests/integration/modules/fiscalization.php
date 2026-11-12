@@ -128,5 +128,12 @@ $resolution_event = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fis
 $resolution_data = $resolution_event ? json_decode( $resolution_event['metadata'], true ) : array();
 check( 'manual provider correction is appended with reference and source event', ! is_wp_error( $manual_resolution ) && (int) $resolution_data['resolves_event_id'] === (int) $refund_event['event_id'] && 'AT-2026-0001' === $resolution_data['provider_reference'] && 'recorded_externally' === $resolution_event['event_status'] );
 check( 'the same fiscal event cannot be marked externally resolved twice', is_wp_error( FiscalizationModule::record_manual_resolution( (int) $refund_event['event_id'], 'credit_note', 'AT-2026-0002' ) ) );
+FiscalizationModule::record_non_ticket_refund( 99001, 88002, 'EUR', array(
+	array( 'line_key' => '', 'quantity' => 0, 'amount_minor' => 900, 'tax_minor' => 0 ),
+) );
+$unmatched_refund_event = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_events WHERE order_id=%d ORDER BY event_id DESC LIMIT 1", 99001 ), ARRAY_A );
+$unmatched_refund_data = $unmatched_refund_event ? json_decode( $unmatched_refund_event['metadata'], true ) : array();
+check( 'amount-only non-ticket refund is logged as requiring manual seller allocation', $unmatched_refund_event && ! empty( $unmatched_refund_data['seller_allocation_required'] ) && 900 === (int) $unmatched_refund_data['unmatched_items'][0]['amount_minor'] );
+
 
 
