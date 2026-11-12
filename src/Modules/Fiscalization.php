@@ -11,6 +11,7 @@ namespace PassCaptain\Modules;
 use PassCaptain\Audit;
 use PassCaptain\Fiscalization\ArchiveExporter;
 use PassCaptain\Fiscalization\CountryPolicy;
+use PassCaptain\Fiscalization\Providers\ProviderAdapters;
 use PassCaptain\Fiscalization\Credentials;
 use PassCaptain\Fiscalization\Registry;
 use PassCaptain\Orders;
