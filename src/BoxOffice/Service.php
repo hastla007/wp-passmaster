@@ -86,6 +86,7 @@ final class Service {
 		$location_id = absint( $location_id );
 		$register_id = (string) $register_id;
 		if ( strlen( $register_id ) > 64 || ! preg_match( '/^[A-Za-z0-9_.:-]*$/', $register_id ) ) { return self::error( 'wpcap_pos_register_invalid', __( 'Kassen-ID ist ungültig.', 'wp-pass-captain' ) ); }
+		if ( ! TerminalRegistry::allows( $location_id, $register_id ) ) { return self::error( 'wpcap_pos_terminal', __( 'Standort und Kasse sind nicht als Register freigegeben.', 'wp-pass-captain' ), 403 ); }
 		$wpdb->insert( $wpdb->prefix . 'wpcap_boxoffice_sessions', array(
 			'user_id' => $user_id,
 			'open_key' => $user_id,
