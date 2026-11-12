@@ -41,8 +41,9 @@ final class ReceiptRenderer {
 			}
 			$payload = is_string( $receipt['qr_payload'] ?? null ) ? $receipt['qr_payload'] : '';
 			if ( '' !== $payload && strlen( $payload ) <= 4096 ) {
-				$html .= '<div class="wpcap-fiscal-qr" aria-label="' . esc_attr__( 'Fiskal-QR-Code', 'wp-pass-captain' ) . '">' . self::qr_svg( $payload ) . '</div>';
-				if ( '' === self::qr_svg( $payload ) ) { $html .= '<code>' . esc_html( $payload ) . '</code>'; }
+				$svg = self::qr_svg( $payload );
+				if ( '' !== $svg ) { $html .= '<div class="wpcap-fiscal-qr" aria-label="' . esc_attr__( 'Fiskal-QR-Code', 'wp-pass-captain' ) . '">' . $svg . '</div>'; }
+				else { $html .= '<code>' . esc_html( $payload ) . '</code>'; }
 			}
 			$html .= '</div>';
 		}
