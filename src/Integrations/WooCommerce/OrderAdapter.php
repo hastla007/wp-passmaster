@@ -453,6 +453,7 @@ final class OrderAdapter {
 		$line_totals = array_map( static function ( $line ) {
 			return $line['gross'];
 		}, $lines );
+		$payment_method = method_exists( $wc_order, 'get_payment_method' ) ? (string) $wc_order->get_payment_method() : '';
 		$result  = Orders::create(
 			array(
 				'email'           => $email,
@@ -467,7 +468,7 @@ final class OrderAdapter {
 				'currency'      => $wc_order->get_currency(),
 				'hold_minutes'  => self::hold_minutes(),
 				'source'        => 'woocommerce',
-				'payment_provider' => 'woocommerce-' . sanitize_key( $wc_order->get_payment_method() ?: 'unknown' ),
+				'payment_provider' => 'woocommerce-' . sanitize_key( $payment_method ?: 'unknown' ),
 				'key_namespace' => 'woocommerce',
 				'unit_prices'   => $unit_prices,
 				'line_totals'   => $line_totals,
