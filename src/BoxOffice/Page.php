@@ -126,6 +126,7 @@ final class Page {
 		$totals = Service::session_totals( $session->session_id );
 		$cur = $session->currency;
 		echo '<h2>' . esc_html( sprintf( __( 'Kassensitzung #%1$d (seit %2$s)', 'wp-pass-captain' ), $session->session_id, Scope::local( $session->opened_at, Scope::site_timezone() ) ) ) . '</h2>';
+		echo '<p>' . esc_html( sprintf( __( 'Standort %1$d · Kasse %2$s', 'wp-pass-captain' ), (int) $session->location_id, '' !== (string) $session->register_id ? (string) $session->register_id : __( 'Standard', 'wp-pass-captain' ) ) ) . '</p>';
 		echo '<table class="widefat" style="max-width:40rem"><thead><tr><th>' . esc_html__( 'Zahlart', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufe', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Storniert', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Netto-Umsatz', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $totals['methods'] as $m => $t ) {
 			echo '<tr><td>' . esc_html( Service::method_label( $m ) ) . '</td><td>' . (int) $t['count'] . '</td><td>' . (int) $t['voided_count'] . '</td><td>' . esc_html( Scope::money( $t['net'], $cur ) ) . '</td></tr>';
