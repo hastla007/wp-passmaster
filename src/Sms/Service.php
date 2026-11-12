@@ -189,12 +189,22 @@ final class Service {
 		$provider = self::provider();
 		if ( ! $provider ) { self::erase_retired_numbers(); return 0; }
 		$sent = 0;
+		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 25;
+		// Shared cron time budget: checked before each claim, so a claimed message is always processed.
+		$deadline = \PassCaptain\Jobs\TimeBudget::deadline();
+		$table = "{$p}wpcap_sms_messages";
+		$claimed = 0;
+		$budget_hit = false;
 		for ( $i = 0; $i < $limit; $i++ ) {
+			if ( \PassCaptain\Jobs\TimeBudget::exhausted( $deadline ) ) { $budget_hit = true; break; }
+			if ( $claimed ) { \PassCaptain\Jobs\TimeBudget::finished( $table, $claimed ); }
 			$wpdb->query( 'START TRANSACTION' );
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_sms_messages WHERE status='queued' AND send_at<=%s ORDER BY send_at,message_id LIMIT 1 FOR UPDATE", $now ) );
 			if ( ! $row ) { $wpdb->query( 'COMMIT' ); break; }
 			$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'sending', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'message_id' => (int) $row->message_id ) );
 			$wpdb->query( 'COMMIT' );
+			$claimed = (int) $row->message_id;
+			\PassCaptain\Jobs\TimeBudget::claimed( $table, 'message_id', $claimed, 'sending', 'queued' );
 			// Consent is re-checked at send time (it may have been withdrawn meanwhile).
 			$consent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_sms_consents WHERE consent_id=%d AND withdrawn_at IS NULL AND phone<>''", (int) $row->consent_id ) );
 			$skip = ! $consent ? 'no_consent' : (string) apply_filters( 'wpcap_sms_skip_reason', '', $row );
@@ -213,6 +223,8 @@ final class Service {
 			$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'sent', 'provider' => $provider->id(), 'provider_ref' => substr( (string) $result['provider_ref'], 0, 64 ), 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
 			++$sent;
 		}
+		if ( $claimed ) { \PassCaptain\Jobs\TimeBudget::finished( $table, $claimed ); }
+		if ( $budget_hit ) { \PassCaptain\Jobs\TimeBudget::continue_later( 'wpcap_process_messages' ); }
 		self::erase_retired_numbers();
 		return $sent;
 	}

@@ -10,6 +10,15 @@
  * retried. Only after issue_tickets() confirmed the tickets does the voucher system commit the redemption.
  *
  * Errors are WP_Error with data `retryable` (true for temporary failures such as a busy database).
+ *
+ * VAT treatment by voucher purpose (Checkout::purpose(): source data, filter `wpcap_voucher_purpose`,
+ * setting `voucher_default_purpose`):
+ * - multi-purpose: the tickets carry their full price (or the redeemed voucher amount `amount_minor` from
+ *   the source, as consideration) and full VAT; the voucher is recorded as payment (voucher snapshot
+ *   `amount_paid_by_voucher`), the amount due is 0. Reports, settlements and invoices show the revenue.
+ * - single-purpose: VAT was due when the voucher was sold, so the tickets are issued at price 0 / VAT 0;
+ *   the voucher value (source `amount_minor`/`value_minor`, else the catalogue price) is kept in the
+ *   voucher snapshot as `face_value_minor` for organizer settlements (see settlement_value_minor()).
  */
 namespace PassCaptain\Integrations\Vouchers;
 
@@ -79,6 +88,8 @@ final class TicketService {
 	 *
 	 * @param array  $source          Where the tickets come from, stored for the audit trail: provider (e.g.
 	 *                                "voucher-captain"), voucher_id, redemption_key, code_hint (last characters).
+	 *                                Optional: purpose ('single'|'multi', see Checkout::purpose_from_data()) and
+	 *                                amount_minor (voucher value redeemed for these tickets, minor units).
 	 * @param string $idempotency_key Stable key of this exchange (e.g. "vcap-voucher-123"); max. 191 characters.
 	 * @param array  $target          ticket_type_id (int) and quantity (1–10). For a voucher valid for any date of
 	 *                                an event also event_id (int) and optionally ticket_name (string): the chosen
@@ -106,6 +117,27 @@ final class TicketService {
 				return self::error( 'wpcap_ticket_choice_invalid', __( 'Dieser Termin kann für den Gutschein nicht gewählt werden.', 'wp-pass-captain' ), 400 );
 			}
 		}
+		$purpose = Checkout::purpose( $source, array( 'source' => 'ticket_service', 'ticket_type_id' => $type_id, 'quantity' => $quantity ) );
+		$value = self::voucher_value( $source );
+		$internal = array(
+			'external' => true,
+			'payment_provider' => self::PROVIDER,
+			'key_namespace' => self::NAMESPACE_KEY,
+			'source' => 'voucher',
+			'skip_rate_limit' => true,
+		);
+		if ( Checkout::PURPOSE_MULTI === $purpose ) {
+			// Means of payment: full consideration and VAT; the redeemed voucher amount wins over the list price.
+			if ( null !== $value ) {
+				$internal['unit_prices'] = array( $type_id => intdiv( $value, $quantity ) );
+				$internal['line_totals'] = array( $type_id => $value );
+			}
+		} else {
+			// Single-purpose: VAT was paid when the voucher was sold, the redemption is not taxed again.
+			$internal['unit_prices'] = array( $type_id => 0 );
+			$internal['line_totals'] = array( $type_id => 0 );
+			$internal['line_taxes'] = array( $type_id => 0 );
+		}
 		$order = Orders::create(
 			array(
 				'email' => $email,
@@ -113,18 +145,10 @@ final class TicketService {
 				'attendees' => is_array( $recipient['attendees'] ?? null ) ? $recipient['attendees'] : array(),
 				'idempotency_key' => $key,
 			),
-			array(
-				'external' => true,
-				'payment_provider' => self::PROVIDER,
-				'key_namespace' => self::NAMESPACE_KEY,
-				'source' => 'voucher',
-				'skip_rate_limit' => true,
-				'unit_prices' => array( $type_id => 0 ),
-				'line_totals' => array( $type_id => 0 ),
-				'line_taxes' => array( $type_id => 0 ),
-			)
+			$internal
 		);
 		if ( is_wp_error( $order ) ) { return $order; }
+		self::record_voucher( (int) $order['order_id'], $purpose, $value, $source, $type_id, $quantity );
 		$row = Orders::get( (int) $order['order_id'] );
 		return $row ? self::complete( $row, $source, ! empty( $order['reused'] ) ) : self::error( 'wpcap_ticket_issue_failed', __( 'Die Tickets konnten nicht ausgestellt werden.', 'wp-pass-captain' ), 503, true );
 	}
@@ -276,6 +300,62 @@ final class TicketService {
 			Orders::issue_and_email( (int) $order->order_id );
 		}
 		return self::data( $order, $reused );
+	}
+
+	/** Voucher value redeemed for the tickets from the source data (minor units), null when not given. */
+	private static function voucher_value( array $source ) {
+		foreach ( array( 'amount_minor', 'value_minor', 'face_value_minor' ) as $key ) {
+			if ( isset( $source[ $key ] ) && is_numeric( $source[ $key ] ) && (int) $source[ $key ] > 0 ) { return (int) $source[ $key ]; }
+		}
+		return null;
+	}
+
+	/**
+	 * Stores the voucher snapshot of an exchange order (once, before it is confirmed). Multi-purpose: the
+	 * whole order total is paid by the voucher, so the amount due (total_minor) becomes 0. Single-purpose:
+	 * the voucher value is kept for settlements. Status `external`: Voucher Captain commits the
+	 * redemption itself (Checkout::commit()/release()/refund() leave it alone).
+	 */
+	private static function record_voucher( $order_id, $purpose, $value, array $source, $type_id, $quantity ) {
+		global $wpdb;
+		$order = Orders::get( $order_id );
+		if ( ! $order || ! empty( $order->voucher_snapshot ) || 'pending' !== $order->payment_status ) { return; }
+		$snapshot = array(
+			'code_hint' => mb_substr( sanitize_text_field( (string) ( $source['code_hint'] ?? '' ) ), -4 ),
+			'purpose' => $purpose,
+			'status' => 'external',
+			'source' => array(
+				'provider' => sanitize_key( (string) ( $source['provider'] ?? '' ) ),
+				'voucher_id' => absint( $source['voucher_id'] ?? 0 ),
+				'redemption_key' => sanitize_text_field( (string) ( $source['redemption_key'] ?? '' ) ),
+			),
+			'refunded_minor' => 0,
+			'refunded_tickets' => 0,
+		);
+		$row = array();
+		if ( Checkout::PURPOSE_MULTI === $purpose ) {
+			$gross = (int) $order->total_minor;
+			$snapshot += array( 'amount_minor' => $gross, 'amount_paid_by_voucher' => $gross, 'gross_minor' => $gross, 'gross_tax_minor' => (int) $order->tax_minor, 'amount_due_minor' => 0 );
+			$row['total_minor'] = 0;
+		} else {
+			$list = (int) $wpdb->get_var( $wpdb->prepare( "SELECT price_minor FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d", absint( $type_id ) ) ) * max( 1, (int) $quantity );
+			$face = null !== $value ? (int) $value : $list;
+			$snapshot += array( 'amount_minor' => $face, 'amount_paid_by_voucher' => 0, 'face_value_minor' => $face, 'face_value_source' => null !== $value ? 'voucher' : 'list_price' );
+		}
+		$row['voucher_snapshot'] = wp_json_encode( $snapshot );
+		$wpdb->update( $wpdb->prefix . 'wpcap_orders', $row, array( 'order_id' => absint( $order_id ), 'payment_status' => 'pending' ) );
+	}
+
+	/**
+	 * Value of an exchange order for organizer settlements: the full gross amount for multi-purpose vouchers
+	 * (also on the order lines), the stored voucher value for single-purpose vouchers (lines are 0).
+	 */
+	public static function settlement_value_minor( $order_id ) {
+		$order = Orders::get( absint( $order_id ) );
+		if ( ! $order || empty( $order->voucher_snapshot ) ) { return 0; }
+		$snapshot = (array) json_decode( (string) $order->voucher_snapshot, true );
+		if ( Checkout::PURPOSE_MULTI === Checkout::snapshot_purpose( $snapshot ) ) { return Checkout::gross_minor( $order ); }
+		return (int) ( $snapshot['face_value_minor'] ?? 0 );
 	}
 
 	private static function data( $order, $reused ) {

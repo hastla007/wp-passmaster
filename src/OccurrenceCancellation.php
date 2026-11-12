@@ -4,14 +4,38 @@
  * open orders are cancelled and their holds released, valid tickets are revoked, ticket holders
  * are informed, and – when `auto_refund_cancelled` is enabled – paid native orders are refunded
  * for the affected tickets. WooCommerce orders get an order note; the refund happens in WooCommerce.
+ * Without automatic refund, paid tickets are revoked but stay refundable natively
+ * (Orders::refundable_tickets(): revoked + not refunded + occurrence cancelled).
+ * Whole-event cancellations (Orders::cancel_event) run this per occurrence inside an "event batch",
+ * where the per-occurrence mail is replaced by one event cancellation mail.
  */
 namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class OccurrenceCancellation {
+	/** Nesting depth of an event cancellation in progress (suppresses per-occurrence mails). */
+	private static $event_batch = 0;
+
+	/** Summary of the last handle() run per occurrence id (request scope). */
+	private static $summaries = array();
+
 	public static function register() {
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'handle' ), 10, 1 );
+	}
+
+	/** Marks the start of a whole-event cancellation: holders get the event mail instead. */
+	public static function begin_event_batch() {
+		++self::$event_batch;
+	}
+
+	public static function end_event_batch() {
+		self::$event_batch = max( 0, self::$event_batch - 1 );
+	}
+
+	/** Summary counters of the last cancellation handled for an occurrence in this request. */
+	public static function last_summary( $occurrence_id ) {
+		return self::$summaries[ absint( $occurrence_id ) ] ?? array();
 	}
 
 	/** @return array Summary counters. */
@@ -55,10 +79,11 @@ final class OccurrenceCancellation {
 			// Translated in the recipient's locale.
 			'refund_note' => static function () use ( $auto_refund ) { return $auto_refund ? __( 'Der Ticketpreis wird automatisch erstattet.', 'wp-pass-captain' ) : __( 'Der Veranstalter informiert dich über Erstattung oder Ersatztermin.', 'wp-pass-captain' ); },
 		);
-		foreach ( $recipients as $recipient ) {
+		foreach ( self::$event_batch ? array() : $recipients as $recipient ) {
 			if ( is_email( $recipient->email ) && Mail\Mailer::send( 'occurrence_cancelled', $recipient->email, $vars, array(), (string) $recipient->locale ) ) { ++$summary['notified']; }
 		}
 		Audit::record( 'occurrence_cancellation_processed', 'occurrence', $occurrence_id, $summary );
+		self::$summaries[ $occurrence_id ] = $summary;
 		return $summary;
 	}
 

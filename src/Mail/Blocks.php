@@ -49,6 +49,37 @@ final class Blocks {
 		return Mailer::block( implode( "\n", $urls ), implode( '<br>', array_map( static function ( $url ) { return Mailer::link( $url )['html']; }, $urls ) ) );
 	}
 
+	/**
+	 * Payment details of a pending manual payment (bank transfer) for {payment_instructions}.
+	 * Ends with a blank line so the placeholder can sit in front of the next paragraph; '' when no
+	 * details apply (the mail then reads exactly as without the placeholder).
+	 *
+	 * @param array|null $details Payments\BankTransfer::details() or null.
+	 */
+	public static function payment_instructions( $details ) {
+		if ( ! is_array( $details ) || ! $details ) { return Mailer::block( '', '' ); }
+		$title = __( 'Zahlungsinformationen', 'wp-pass-captain' );
+		$rows = \PassCaptain\Payments\BankTransfer::rows( $details );
+		$instructions = trim( (string) ( $details['instructions'] ?? '' ) );
+		$text = $title . "\n";
+		$html = '<p style="margin:0 0 8px"><strong>' . esc_html( $title ) . '</strong></p><table role="presentation" style="border-collapse:collapse;margin:0 0 16px">';
+		foreach ( $rows as $label => $value ) {
+			$text .= $label . ': ' . $value . "\n";
+			$html .= '<tr><td style="padding:2px 16px 2px 0;vertical-align:top">' . esc_html( $label ) . '</td><td style="padding:2px 0"><strong>' . esc_html( $value ) . '</strong></td></tr>';
+		}
+		$html .= '</table>';
+		if ( '' !== $instructions ) {
+			$text .= "\n" . $instructions . "\n";
+			$html .= '<p style="margin:0 0 16px">' . Mailer::text_to_html( $instructions ) . '</p>';
+		}
+		if ( ! empty( $details['due_date'] ) ) {
+			$note = __( 'Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung.', 'wp-pass-captain' );
+			$text .= $note . "\n";
+			$html .= '<p style="margin:0 0 16px">' . esc_html( $note ) . '</p>';
+		}
+		return Mailer::block( $text . "\n", $html );
+	}
+
 	/** Extra text from filters such as wpcap_ticket_code_mail_section (wallet links). */
 	public static function extra( $text ) {
 		$text = (string) $text;

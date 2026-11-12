@@ -42,9 +42,19 @@ final class Controller {
 			'callback' => array( __CLASS__, 'transfer_ticket' ),
 			'permission_callback' => '__return_true',
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/resend', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'resend_tickets' ),
+			'permission_callback' => '__return_true',
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/assign', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'assign_ticket' ),
+			'permission_callback' => '__return_true',
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/billing', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'update_billing' ),
 			'permission_callback' => '__return_true',
 		) );
 		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/invoice', array(
@@ -231,7 +241,7 @@ final class Controller {
 		$params = $request->get_json_params() ?: $request->get_params();
 		$params = is_array( $params ) ? $params : array();
 		// Only customer fields; trusted adapter options must never come from a public request.
-		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code', 'billing_name', 'billing_address' ) ) ) );
+		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code', 'billing' ) ) ) );
 		$provider_id = sanitize_key( $params['provider'] ?? 'manual' );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
 		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );
@@ -239,8 +249,16 @@ final class Controller {
 			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
 		$hold = 'manual' === $provider_id ? max( 1, (int) \PassCaptain\Settings::get( 'manual_hold_hours' ) ) * 60 : max( 30, (int) \PassCaptain\Settings::get( 'hold_minutes' ) ); // Hosted payment pages (e.g. Stripe) live at least 30 minutes.
+		// Same wording as the form field ("Rabattcode"); the field is derived from the message below.
+		$campaign_messages = static function ( $messages ) {
+			$messages['campaign_invalid'] = __( 'Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets.', 'wp-pass-captain' );
+			$messages['campaign_redeem_failed'] = __( 'Der Rabattcode konnte nicht sicher auf die Bestellung angewendet werden. Bitte versuche es erneut.', 'wp-pass-captain' );
+			return $messages;
+		};
+		add_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
 		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold ) );
-		if ( is_wp_error( $result ) ) { return $result; }
+		remove_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
+		if ( is_wp_error( $result ) ) { return self::with_error_field( $result, $campaign_messages( array() ) ); }
 		// A retry of an attempt that was cancelled (voucher rejected, payment start failed) or expired must not look like a new order.
 		if ( ! empty( $result['reused'] ) && in_array( $result['payment_status'] ?? '', array( 'cancelled', 'expired' ), true ) ) {
 			return new \WP_Error( 'wpcap_checkout_closed', __( 'Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab.', 'wp-pass-captain' ), array( 'status' => 409 ) );
@@ -252,7 +270,7 @@ final class Controller {
 			$voucher = \PassCaptain\Integrations\Vouchers\Checkout::apply( $result['order_id'], $voucher_code );
 			if ( is_wp_error( $voucher ) ) {
 				Orders::cancel_order( $result['order_id'], 'voucher_rejected' );
-				return $voucher;
+				return self::with_error_field( $voucher );
 			}
 			$fresh = Orders::get( $result['order_id'] );
 			$result['total_minor'] = (int) $fresh->total_minor;
@@ -276,8 +294,49 @@ final class Controller {
 				Orders::set_provider_reference( $result['order_id'], $payment['provider_reference'] );
 			}
 			$result['payment'] = array_intersect_key( $payment, array_flip( array( 'provider', 'status', 'redirect_url', 'instructions' ) ) );
+			if ( \PassCaptain\Payments\BankTransfer::applies( $order ) ) {
+				// Bank details for the confirmation panel (same data as the access-link mail).
+				$result['payment']['bank_transfer'] = \PassCaptain\Payments\BankTransfer::details( $order );
+			}
 		}
+		$fresh = Orders::get( $result['order_id'] );
+		if ( $fresh ) {
+			$result['total_minor'] = (int) $fresh->total_minor;
+			$result['currency'] = $fresh->currency;
+			$result['total_formatted'] = \PassCaptain\Frontend\Format::money( (int) $fresh->total_minor, $fresh->currency );
+		}
+		// Short human-readable order number; the full id and the access link only travel by e-mail.
+		$result['reference'] = \PassCaptain\Frontend\Format::order_reference( $result['public_id'] ?? '' );
 		return new \WP_REST_Response( $result, empty( $result['reused'] ) ? 201 : 200 );
+	}
+
+	/**
+	 * Adds data.field (the checkout form field the error belongs to) so the form can mark the field.
+	 *
+	 * @param string[] $campaign_messages Messages that belong to the discount code field.
+	 */
+	public static function with_error_field( \WP_Error $error, array $campaign_messages = array() ) {
+		$code = $error->get_error_code();
+		$map = array(
+			'wpcap_invalid_checkout' => 'email',
+			'wpcap_terms_required' => 'accept_terms',
+			'wpcap_attendees_invalid' => 'attendees',
+			'wpcap_attendee_field_required' => 'attendees',
+			'wpcap_attendee_field_invalid' => 'attendees',
+			'wpcap_invalid_item' => 'items',
+			'wpcap_provider_unavailable' => 'provider',
+			'wpcap_provider_currency' => 'provider',
+		);
+		$field = $map[ $code ] ?? '';
+		if ( '' === $field && 0 === strpos( $code, 'wpcap_campaign_' ) ) { $field = 'campaign_code'; }
+		if ( '' === $field && 0 === strpos( $code, 'wpcap_voucher_' ) ) { $field = 'voucher_code'; }
+		if ( '' === $field && 'wpcap_checkout_failed' === $code && in_array( $error->get_error_message(), $campaign_messages, true ) ) { $field = 'campaign_code'; }
+		$field = (string) apply_filters( 'wpcap_checkout_error_field', $field, $error );
+		if ( '' === $field ) { return $error; }
+		$data = $error->get_error_data();
+		$data = is_array( $data ) ? $data : array( 'status' => 400 );
+		$data['field'] = sanitize_key( $field );
+		return new \WP_Error( $code, $error->get_error_message(), $data );
 	}
 
 	/** Public checkout configuration: enabled payment methods and legal texts. */
@@ -315,6 +374,49 @@ final class Controller {
 		);
 		if ( is_wp_error( $result ) ) { return $result; }
 		return rest_ensure_response( $result );
+	}
+
+	/** Order row when the public id and the access token match (null otherwise). */
+	private static function order_with_access( $public_id, $access_token ) {
+		global $wpdb;
+		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
+		if ( 64 !== strlen( $access_token ) ) { return null; }
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", sanitize_text_field( (string) $public_id ) ) );
+		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return null; }
+		return $order;
+	}
+
+	/** Order portal: send the tickets again (new codes). At most 3 per order and hour. */
+	public static function resend_tickets( \WP_REST_Request $request ) {
+		$public_id = sanitize_text_field( (string) $request['public_id'] );
+		if ( ! \PassCaptain\RateLimit::allow( 'portal-resend-client|' . \PassCaptain\RateLimit::client(), 20, HOUR_IN_SECONDS ) ) {
+			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+		}
+		$order = self::order_with_access( $public_id, $request->get_param( 'access_token' ) );
+		if ( ! $order ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		$limit = max( 1, (int) apply_filters( 'wpcap_portal_resend_limit', 3 ) );
+		if ( ! \PassCaptain\RateLimit::allow( 'portal-resend|' . $order->public_id, $limit, HOUR_IN_SECONDS ) ) {
+			/* translators: %d: allowed resends per hour */
+			return new \WP_Error( 'wpcap_resend_rate_limited', sprintf( _n( 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', $limit, 'wp-pass-captain' ), $limit ), array( 'status' => 429 ) );
+		}
+		$result = Orders::resend_tickets( (int) $order->order_id );
+		if ( is_wp_error( $result ) ) {
+			$status = in_array( $result->get_error_code(), array( 'wpcap_mail_failed', 'wpcap_ticket_rotation_failed' ), true ) ? 502 : 409;
+			return new \WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => $status ) );
+		}
+		return rest_ensure_response( array( 'status' => 'sent', 'email' => \PassCaptain\Frontend\Format::mask_email( $order->customer_email ) ) );
+	}
+
+	/** Order portal: buyer corrects the billing data (company/address/VAT ID) until the invoice is issued. */
+	public static function update_billing( \WP_REST_Request $request ) {
+		if ( ! \PassCaptain\RateLimit::allow( 'portal-billing|' . \PassCaptain\RateLimit::client(), 30, HOUR_IN_SECONDS ) ) {
+			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+		}
+		$order = self::order_with_access( sanitize_text_field( (string) $request['public_id'] ), $request->get_param( 'access_token' ) );
+		if ( ! $order ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		$input = $request->get_param( 'billing' );
+		$result = \PassCaptain\Billing::update_for_order( $order, is_array( $input ) ? $input : array( 'enabled' => false ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
 	public static function assign_ticket( \WP_REST_Request $request ) {

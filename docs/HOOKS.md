@@ -46,6 +46,7 @@ Webhook-Ereignissen).
 | `wpcap_checkout_payload_keys` | `string[] $keys` | Zusätzliche öffentliche Checkout-Felder durchlassen (z. B. `sms_phone`, `sms_consent`, `mollie_method`). |
 | `wpcap_checkout_error_messages` | `array $messages` (Code → Text) | Meldungen zu Abbruch-Codes aus `wpcap_order_creating`. |
 | `wpcap_affiliate_partner_field` | `bool $show` (true) | Partnercode-Feld im Checkout (nur mit WP Affiliate Captain). |
+| `wpcap_affiliate_tracking_allowed` | `bool $allowed` | Ob der Empfehlungs-Cookie/-Link (`wpac_current_touch()`) gelesen werden darf. Standard: mit WP Consent API `wp_has_consent( 'marketing' )`, ohne Consent-API `true`. Ein eingegebener Partnercode ist immer erlaubt. |
 | `wpcap_affiliate_hold_until` | `int $timestamp, object $order` | Sperrfrist der Provision (Standard: Ende des letzten gebuchten Termins). |
 | `wpcap_affiliate_net_minor` | `int $net, object $line, object $order` | Provisionsbasis je Bestellzeile. |
 | `wpcap_affiliate_sale_payload` | `array $payload, object $order` | Verkaufsdaten an WP Affiliate Captain. |
@@ -60,6 +61,7 @@ Webhook-Ereignissen).
 | `wpcap_seating_availability_limit` | `int $limit` (120) | Abrufe der Sitzplatzverfügbarkeit je Client und Minute. |
 | `wpcap_checkin_now` | `int $timestamp` | Zeitpunkt für Einlassentscheidungen (Tests/Simulation). |
 | `wpcap_user_has_2fa` | `bool $has, int $user_id` | Zwei-Faktor-Status für Erstattungen. |
+| `wpcap_voucher_purpose` | `string|null $purpose, array $voucher, array $context` | Art eines Gutscheins: `single` (Einzweckgutschein, USt beim Gutscheinverkauf; Einlösung = Preisnachlass) oder `multi` (Mehrzweckgutschein, Einlösung = Zahlungsmittel, USt auf den vollen Preis). `$purpose` ist die Angabe aus den WP-Voucher-Captain-Daten (oder `null`); `$voucher`: Anbieterdaten (Checkout: `quote`, `reservation`; Ticketdienst: `$source`); `$context`: `source` (`checkout`/`ticket_service`), `order_id`, `code_hint`, `ticket_type_id`, `quantity`. Rückgabe `null`/unbekannt → Einstellung `voucher_default_purpose` (Standard `multi`). Siehe docs/VOUCHERS.md. |
 | `wpcap_woocommerce_hold_minutes` | `int $minutes` | Reservierung bei WooCommerce-Checkout. |
 | `wpcap_woocommerce_on_hold_minutes` | `int $minutes` (3 Tage) | Reservierung für WooCommerce-Bestellungen „in Wartestellung“. |
 
@@ -104,6 +106,17 @@ Webhook-Ereignissen).
 | `wpcap_webhook_payload_object` | `array $object, string $type` | `data.object` eines ausgehenden Webhooks (keine PII ergänzen). |
 | `wpcap_webhooks_max_attempts` | `int $attempts` (8) | Zustellversuche je Webhook-Ereignis. |
 | `wpcap_webhooks_disable_after` | `int $failures` (20) | Fehlversuche in Folge, nach denen ein Abonnement deaktiviert wird. |
+
+### Datenschutz
+
+| Filter | Wert, Argumente | Zweck |
+|---|---|---|
+| `wpcap_privacy_retention_days` | `int $days, string $step` | Fristen des täglichen Löschlaufs (`0` = Schritt aus): `unpaid_attendee_data` (1), `unpaid_customer_email` (90), `message_content` (30), `message_rows` (365), `checkin_staff` (365), `audit_logs` (730). |
+| `wpcap_attendee_default_retention_days` | `int $days` (365) | Frist für Teilnehmername/-E-Mail nach Terminende, wenn die Einstellung „Teilnehmerdaten löschen nach“ 0 ist (Antworten folgen dann der Frist des Felds). |
+| `wpcap_privacy_retention_budget` | `float $seconds` (20) | Zeitbudget eines Löschlaufs; der nächste Lauf setzt fort. |
+| `wpcap_privacy_policy_recipients` | `array $recipients` | Welche Empfänger der Datenschutztext-Vorschlag nennt (`stripe`, `paypal`, `mollie`, `twilio`, `sms_http`, `apple`, `google`, `partners`, `webhooks`, `affiliate`, `woocommerce` → bool). |
+| `wpcap_privacy_policy_content` | `string $html, array $recipients` | HTML des Datenschutztext-Vorschlags. |
+| `wpcap_scanner_queue_max_hours` | `int $hours` (24, 1–168) | Wie lange der Web-Scanner Offline-Scans im Browser aufbewahrt. |
 
 ### Wallet
 

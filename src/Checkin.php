@@ -169,7 +169,7 @@ final class Checkin {
 			$repeatable = 'single' !== $policy['policy'];
 		} else {
 			// Legacy per-occurrence day rules.
-			$service_date = Engine::service_date( $at, $found['timezone'] );
+			$service_date = Engine::service_date( $at, $found['timezone'], $found );
 			$day_table = "{$p}wpcap_occurrence_days";
 			$day = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id,admission_policy,max_entries FROM $day_table WHERE occurrence_id=%d AND service_date=%s", $found['occurrence_id'], $service_date ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$has_day_rules = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $day_table WHERE occurrence_id=%d", $found['occurrence_id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

@@ -48,6 +48,7 @@ final class Page {
 		if ( ! current_user_can( Service::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		$session = Service::open_session_for( get_current_user_id() );
 		echo '<div class="wrap wpcap-admin wpcap-pos"><h1>' . esc_html__( 'Kasse', 'wp-pass-captain' ) . '</h1>';
+		self::render_fiscal_notice();
 		Forms::render_notices();
 		$last = absint( $_GET['sale'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$last_sale = $last ? Service::sale( $last ) : null;
@@ -103,6 +104,7 @@ final class Page {
 			echo '</p><p><label>' . esc_html__( 'Gegeben (bar)', 'wp-pass-captain' ) . ' <input type="text" inputmode="decimal" name="tendered" size="8"></label> <span id="wpcap-pos-change"></span> ';
 			echo '<label>' . esc_html__( 'Terminal-Referenz', 'wp-pass-captain' ) . ' <input type="text" name="reference" size="14" maxlength="100"></label> ';
 			echo '<label>' . esc_html__( 'E-Mail Käufer (optional, Pflicht bei Rechnung)', 'wp-pass-captain' ) . ' <input type="email" name="email" size="28"></label></p>';
+			self::render_billing_fields();
 			echo '<p><button class="button button-primary button-hero">' . esc_html__( 'Verkauf buchen', 'wp-pass-captain' ) . '</button></p></form>';
 			$availability_url = add_query_arg( array( 'action' => 'wpcap_pos_availability', 'occurrence_id' => $occurrence_id, '_wpnonce' => wp_create_nonce( 'wpcap_pos' ) ), admin_url( 'admin-post.php' ) );
 			echo '<script>window.wpcapPos=' . wp_json_encode( array(
@@ -171,6 +173,30 @@ final class Page {
 		}
 	}
 
+	const FISCAL_NOTICE_META = 'wpcap_pos_fiscal_notice_dismissed';
+
+	/** Where the fiscal-law notice links to (filter `wpcap_boxoffice_fiscal_docs_url`). */
+	public static function fiscal_docs_url() {
+		return (string) apply_filters( 'wpcap_boxoffice_fiscal_docs_url', 'https://github.com/hastla007/wp-passmaster/blob/main/docs/OPERATIONS.md#kasse-keine-registrierkasse' );
+	}
+
+	/**
+	 * Prominent notice: the box office is not a certified cash register (RKSV / KassenSichV). It can
+	 * be dismissed per user (?wpcap_dismiss_fiscal_notice=1 with nonce; stored as user meta).
+	 */
+	public static function render_fiscal_notice() {
+		$user_id = get_current_user_id();
+		if ( isset( $_GET['wpcap_dismiss_fiscal_notice'] ) && $user_id && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) ), self::FISCAL_NOTICE_META ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified here.
+			update_user_meta( $user_id, self::FISCAL_NOTICE_META, 1 );
+		}
+		if ( $user_id && get_user_meta( $user_id, self::FISCAL_NOTICE_META, true ) ) { return; }
+		$dismiss = wp_nonce_url( add_query_arg( 'wpcap_dismiss_fiscal_notice', '1', self::back() ), self::FISCAL_NOTICE_META );
+		echo '<div class="notice notice-warning wpcap-fiscal-notice" role="note" style="border-left-width:6px;padding:12px 16px"><p style="font-size:1.05em"><strong>' . esc_html__( 'Wichtiger Hinweis:', 'wp-pass-captain' ) . '</strong> '
+			. esc_html__( 'Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig.', 'wp-pass-captain' ) . '</p><p>'
+			. '<a href="' . esc_url( self::fiscal_docs_url() ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Mehr dazu in der Dokumentation', 'wp-pass-captain' ) . '<span class="screen-reader-text"> ' . esc_html__( '(öffnet in neuem Tab)', 'wp-pass-captain' ) . '</span></a>'
+			. ' · <a href="' . esc_url( $dismiss ) . '">' . esc_html__( 'Hinweis für mich ausblenden', 'wp-pass-captain' ) . '</a></p></div>';
+	}
+
 	/* ------------------------------------------------------------------ handlers */
 
 	private static function back( array $args = array() ) {
@@ -183,6 +209,31 @@ final class Page {
 		$float = Forms::parse_money( $in['float'] ?? '0' );
 		$result = null === $float ? Forms::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'wp-pass-captain' ) ) : Service::open_session( $float, Forms::text( $in, 'currency', 3 ) );
 		Forms::finish( $result, __( 'Kasse geöffnet.', 'wp-pass-captain' ), self::back() );
+	}
+
+	/** Optional "Rechnung auf Firma" fields (collapsed); empty fields mean no billing data. */
+	private static function render_billing_fields() {
+		$labels = \PassCaptain\Billing::labels();
+		$default = \PassCaptain\Billing::default_country();
+		echo '<details class="wpcap-pos-billing"><summary>' . esc_html__( 'Rechnung auf Firma/Adresse (optional)', 'wp-pass-captain' ) . '</summary>';
+		echo '<p class="description">' . esc_html__( 'Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht.', 'wp-pass-captain' ) . '</p><table class="form-table" role="presentation"><tbody>';
+		$autocomplete = array( 'company' => 'organization', 'first_name' => 'given-name', 'last_name' => 'family-name', 'street' => 'street-address', 'postcode' => 'postal-code', 'city' => 'address-level2', 'country' => 'country', 'vat_id' => 'off', 'po_number' => 'off' );
+		foreach ( \PassCaptain\Billing::FIELDS as $field ) {
+			$id = 'wpcap-pos-billing-' . $field;
+			$label = $labels[ $field ] . ( in_array( $field, \PassCaptain\Billing::REQUIRED, true ) ? '' : ' ' . __( '(optional)', 'wp-pass-captain' ) );
+			echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
+			if ( 'country' === $field ) {
+				echo '<select id="' . esc_attr( $id ) . '" name="billing[country]" autocomplete="country">';
+				foreach ( \PassCaptain\Billing::countries() as $code => $name ) {
+					echo '<option value="' . esc_attr( $code ) . '"' . selected( $code, $default, false ) . '>' . esc_html( $name ) . '</option>';
+				}
+				echo '</select>';
+			} else {
+				echo '<input type="text" class="regular-text" id="' . esc_attr( $id ) . '" name="billing[' . esc_attr( $field ) . ']" maxlength="' . (int) \PassCaptain\Billing::MAX[ $field ] . '" autocomplete="' . esc_attr( $autocomplete[ $field ] ) . '">';
+			}
+			echo '</td></tr>';
+		}
+		echo '</tbody></table></details>';
 	}
 
 	/** Maps the POS form to Service::sell() input. */
@@ -224,7 +275,16 @@ final class Page {
 			'tendered_minor' => $tendered,
 			'reference' => Forms::text( $in, 'reference', 100 ),
 			'form_key' => Forms::text( $in, 'form_key', 64 ),
+			'billing' => self::billing_input( $in ),
 		);
+	}
+
+	/** Billing fields of the POS form; null when only the preselected country is set. */
+	private static function billing_input( array $in ) {
+		$raw = is_array( $in['billing'] ?? null ) ? $in['billing'] : array();
+		$billing = \PassCaptain\Billing::sanitize( $raw );
+		$filled = array_filter( array_diff_key( $billing, array( 'country' => true ) ), 'strlen' );
+		return $filled ? array( 'enabled' => true ) + $billing : null;
 	}
 
 	public static function handle_sell() {

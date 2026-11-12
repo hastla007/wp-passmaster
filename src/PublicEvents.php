@@ -11,6 +11,7 @@ final class PublicEvents {
 		foreach ( Payments\Registry::enabled( 'EUR' ) as $id => $gateway ) { $providers[] = array( 'id' => $id, 'title' => $gateway->title() ); }
 		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', array(
 			'url' => esc_url_raw( rest_url( 'wp-pass-captain/v1/checkout' ) ),
+			'money' => Frontend\Format::js_config(),
 			'i18n' => array(
 				'selectTickets' => __( 'Bitte wähle mindestens ein Ticket.', 'wp-pass-captain' ),
 				'tooMany' => __( 'Für eine Ticketart wurde die Höchstmenge überschritten.', 'wp-pass-captain' ),
@@ -27,11 +28,45 @@ final class PublicEvents {
 				/* translators: %d: ticket number */
 				'attendee' => __( 'Teilnehmer:in %d', 'wp-pass-captain' ),
 				'name' => __( 'Name', 'wp-pass-captain' ),
-				'email' => __( 'E-Mail (optional)', 'wp-pass-captain' ),
+				'email' => __( 'E-Mail der Teilnehmer:in (optional, für ein eigenes Ticket)', 'wp-pass-captain' ),
 				/* translators: %s: formatted amount */
 				'estimate' => __( 'Summe: %s (vorbehaltlich Rabatt; der endgültige Preis wird bei der Bestellung berechnet)', 'wp-pass-captain' ),
 				/* translators: %s: formatted amount */
 				'orderTotal' => __( 'Gesamtbetrag: %s.', 'wp-pass-captain' ),
+				// Error summary and inline field errors.
+				'errorSummary' => __( 'Bitte prüfe deine Angaben', 'wp-pass-captain' ),
+				/* translators: %d: number of problems */
+				'errorCount' => __( 'Es gibt %d Problem(e). Wähle einen Eintrag, um zum Feld zu springen.', 'wp-pass-captain' ),
+				/* translators: %s: field label */
+				'errRequired' => __( 'Bitte fülle „%s“ aus.', 'wp-pass-captain' ),
+				/* translators: %s: field label */
+				'errEmail' => __( '„%s“: Bitte gib eine gültige E-Mail-Adresse ein, z. B. name@example.com.', 'wp-pass-captain' ),
+				/* translators: %s: field label */
+				'errInvalid' => __( '„%s“ ist ungültig.', 'wp-pass-captain' ),
+				'errTerms' => __( 'Bitte bestätige die Bedingungen, um zu bestellen.', 'wp-pass-captain' ),
+				/* translators: 1: ticket type, 2: maximum quantity */
+				'errTooMany' => __( '„%1$s“: Es sind höchstens %2$d Tickets möglich.', 'wp-pass-captain' ),
+				// Confirmation panel.
+				'thanks' => __( 'Vielen Dank für deine Bestellung!', 'wp-pass-captain' ),
+				'thanksComplete' => __( 'Bestellung abgeschlossen', 'wp-pass-captain' ),
+				/* translators: %s: short order number */
+				'orderNumber' => __( 'Bestellnummer: %s', 'wp-pass-captain' ),
+				/* translators: %s: e-mail address */
+				'sentTo' => __( 'Wir haben die Bestätigung mit deinem persönlichen Bestelllink an %s gesendet.', 'wp-pass-captain' ),
+				/* translators: %s: e-mail address */
+				'ticketsSentTo' => __( 'Die Tickets und die Bestätigung haben wir an %s gesendet.', 'wp-pass-captain' ),
+				'spamHint' => __( 'Keine E-Mail erhalten? Sieh bitte auch im Spam-Ordner nach.', 'wp-pass-captain' ),
+				'payNow' => __( 'Bitte überweise den Betrag mit diesen Angaben:', 'wp-pass-captain' ),
+				/* translators: %s: date and time */
+				'payUntil' => __( 'Deine Tickets sind bis %s reserviert. Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung.', 'wp-pass-captain' ),
+				'afterPayment' => __( 'Nach Zahlungseingang erhältst du deine Tickets per E-Mail.', 'wp-pass-captain' ),
+				'amount' => __( 'Betrag', 'wp-pass-captain' ),
+				'recipient' => __( 'Empfänger', 'wp-pass-captain' ),
+				'iban' => __( 'IBAN', 'wp-pass-captain' ),
+				'bic' => __( 'BIC', 'wp-pass-captain' ),
+				'remittance' => __( 'Verwendungszweck', 'wp-pass-captain' ),
+				'dueDate' => __( 'Zahlbar bis', 'wp-pass-captain' ),
+				'orderAgain' => __( 'Weitere Tickets bestellen', 'wp-pass-captain' ),
 			),
 		) );
 		wp_register_style( 'wpcap-public', WPCAP_URL . 'assets/public.css', array(), WPCAP_VERSION );

@@ -186,7 +186,7 @@ final class Api {
 		$out = array();
 		foreach ( $orders as $o ) {
 			$row = array( 'id' => $o->public_id, 'status' => $o->status, 'payment_status' => $o->payment_status, 'currency' => $o->currency, 'payment_provider' => $o->payment_provider, 'created_at' => self::iso( $o->created_at ), 'updated_at' => self::iso( $o->updated_at ), 'lines' => $lines[ (int) $o->order_id ] ?? array() );
-			if ( $pii ) { $row['customer_email'] = $o->customer_email; }
+			if ( $pii ) { $row['customer_email'] = \PassCaptain\Privacy::public_email( $o->customer_email ); }
 			$out[] = $row;
 		}
 		return self::respond( array( 'orders' => $out, 'page' => $page, 'per_page' => $per_page, 'total' => $total ) );
@@ -213,7 +213,7 @@ final class Api {
 		$out = array();
 		foreach ( $rows as $t ) {
 			$row = array( 'id' => $t->public_id, 'order_id' => $t->order_public_id, 'event_id' => (int) $t->event_id, 'occurrence_id' => (int) $t->occurrence_id, 'ticket_type_id' => (int) $t->ticket_type_id, 'ticket_type' => $t->ticket_type, 'status' => $t->status, 'refunded' => (bool) $t->refunded, 'issued_at' => self::iso( $t->issued_at ) );
-			if ( $pii ) { $row['attendee_email'] = $t->attendee_email; }
+			if ( $pii ) { $row['attendee_email'] = \PassCaptain\Privacy::public_email( $t->attendee_email ); }
 			$out[] = $row;
 		}
 		return self::respond( array( 'tickets' => $out, 'page' => $page, 'per_page' => $per_page, 'total' => $total ) );
@@ -265,6 +265,9 @@ final class Api {
 		$out = array(
 			'id' => (int) $s->settlement_id,
 			'number' => $s->document_number,
+			'document_type' => Settlements::document_type( $s ),
+			'sales_model' => (string) ( $s->sales_model ?? '' ),
+			'self_billing_number' => $s->self_billing_number ?? null,
 			'period' => $s->period,
 			'status' => $s->status,
 			'currency' => $s->currency,

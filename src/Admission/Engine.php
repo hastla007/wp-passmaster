@@ -25,9 +25,37 @@ final class Engine {
 		}
 	}
 
-	/** Local date (Y-m-d) of a UTC timestamp in a timezone. */
-	public static function service_date( $ts, $tz ) {
-		return ( new \DateTimeImmutable( '@' . (int) $ts ) )->setTimezone( self::timezone( $tz ) )->format( 'Y-m-d' );
+	/**
+	 * Service day (Y-m-d) of a UTC timestamp in a timezone.
+	 *
+	 * The day starts at the configured cutoff hour (setting `admission_day_cutoff_hour`, 0–12,
+	 * default 0 = local midnight), so a festival scan at 02:00 with cutoff 6 still counts to the
+	 * previous day. Per occurrence/event the hour can be changed with the filter
+	 * `wpcap_admission_day_cutoff_hour` ( $hour, $context ) – $context holds occurrence_id and
+	 * event_id when known.
+	 *
+	 * @param int          $ts      UTC timestamp.
+	 * @param string       $tz      Timezone of the occurrence.
+	 * @param array|object $context Optional ticket/occurrence context (occurrence_id, event_id).
+	 */
+	public static function service_date( $ts, $tz, $context = array() ) {
+		$hour = self::day_cutoff_hour( $context );
+		$local = ( new \DateTimeImmutable( '@' . (int) $ts ) )->setTimezone( self::timezone( $tz ) );
+		if ( $hour > 0 && (int) $local->format( 'G' ) < $hour ) {
+			$local = $local->modify( '-1 day' );
+		}
+		return $local->format( 'Y-m-d' );
+	}
+
+	/** Day cutoff hour (0–12) for a ticket/occurrence context. */
+	public static function day_cutoff_hour( $context = array() ) {
+		$context = (array) $context;
+		$context = array(
+			'occurrence_id' => absint( $context['occurrence_id'] ?? 0 ),
+			'event_id' => absint( $context['event_id'] ?? 0 ),
+		);
+		$hour = (int) apply_filters( 'wpcap_admission_day_cutoff_hour', (int) \PassCaptain\Settings::get( 'admission_day_cutoff_hour' ), $context );
+		return max( 0, min( 12, $hour ) );
 	}
 
 	/** '' when inside the entry window, otherwise 'outside_entry_window'. */
@@ -76,7 +104,7 @@ final class Engine {
 		switch ( $policy['policy'] ) {
 			case 'daily':
 			case 'multi_day':
-				$date = self::service_date( $at, $found['timezone'] );
+				$date = self::service_date( $at, $found['timezone'], $found );
 				$days = Policies::valid_days( $policy, $found );
 				if ( null !== $days && ! in_array( $date, $days, true ) ) { return 'not_valid_today'; }
 				$today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $entries WHERE ticket_id=%d AND service_date=%s AND direction='in' AND undone=0", $ticket_id, $date ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -143,7 +171,7 @@ final class Engine {
 			'ticket_id' => (int) $found['ticket_id'],
 			'occurrence_id' => (int) $found['occurrence_id'],
 			'area_id' => $area,
-			'service_date' => self::service_date( $at, $found['timezone'] ),
+			'service_date' => self::service_date( $at, $found['timezone'], $found ),
 			'direction' => $direction,
 			'checkin_id' => (int) $checkin_id,
 			'device_id' => absint( $context['device_id'] ?? 0 ),

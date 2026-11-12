@@ -1,0 +1,52 @@
+# Files and directories left out of the installable plugin ZIP (build/release.sh).
+# rsync --exclude-from syntax: a leading "/" anchors to the plugin root, a trailing "/" matches
+# directories only, patterns without "/" match at any depth.
+
+# Version control and CI metadata, at any depth (Composer may install packages from source)
+.git
+.github/
+.gitignore
+.gitattributes
+.distignore
+
+# Development and CI
+/.editorconfig
+/.codex/
+/.claude/
+/.phpunit.cache/
+/build/
+/tests/
+/docs/
+/node_modules/
+/phpcs.xml
+/phpcs.xml.dist
+/phpunit.xml
+/phpunit.xml.dist
+/phpstan.neon
+/phpstan.neon.dist
+/composer.json
+/composer.lock
+package.json
+package-lock.json
+CLAUDE.md
+AGENTS.md
+
+# Documentation: Markdown is not shipped (readme.txt is the WordPress.org readme)
+*.md
+
+# Translation sources: .mo (runtime) and the .pot template are shipped, .po sources are not
+/languages/*.po
+
+# Composer dependencies: tests, CI configuration and tooling of third-party packages
+/vendor/*/*/test/
+/vendor/*/*/tests/
+/vendor/*/*/phpunit.xml*
+/vendor/*/*/phpcs.xml*
+/vendor/*/*/phpstan.neon*
+/vendor/*/*/composer.lock
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+*.swp
+*~

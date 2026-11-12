@@ -229,7 +229,7 @@ final class EventsPage {
 				/* translators: %d: number of tickets */
 				? sprintf( __( '%d Tickets wurden widerrufen, die Inhaber benachrichtigt und bezahlte Bestellungen automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü.', 'wp-pass-captain' ), $issued )
 				/* translators: %d: number of tickets */
-				: sprintf( __( '%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bitte die betroffenen Bestellungen erstatten (oder die automatische Erstattung in den Einstellungen aktivieren).', 'wp-pass-captain' ), $issued );
+				: sprintf( __( '%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren).', 'wp-pass-captain' ), $issued );
 		}
 		return $result;
 	}
@@ -387,6 +387,24 @@ final class EventsPage {
 		return array( 'event_id' => $event_id, 'user_id' => (int) $user->ID );
 	}
 
+	/**
+	 * assign_staff() grants wpcap_checkin as a user capability; take it back once the user has no
+	 * check-in assignment left. A capability granted by one of the user's roles is left alone.
+	 */
+	private static function maybe_revoke_checkin_cap( $user_id ) {
+		global $wpdb;
+		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_event_staff WHERE user_id=%d AND capability='wpcap_checkin'", $user_id ) );
+		if ( $remaining ) { return; }
+		$user = get_user_by( 'id', $user_id );
+		if ( ! $user || ! method_exists( $user, 'remove_cap' ) ) { return; }
+		foreach ( (array) ( $user->roles ?? array() ) as $role_name ) {
+			$role = get_role( $role_name );
+			if ( $role && $role->has_cap( 'wpcap_checkin' ) ) { return; }
+		}
+		if ( empty( $user->caps['wpcap_checkin'] ) ) { return; }
+		$user->remove_cap( 'wpcap_checkin' );
+	}
+
 	/** Removes an event-scoped access entry. */
 	public static function remove_staff( array $in ) {
 		$event_id = Forms::int( $in, 'event_id' );
@@ -396,6 +414,7 @@ final class EventsPage {
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
 		global $wpdb;
 		$wpdb->delete( $wpdb->prefix . 'wpcap_event_staff', array( 'event_id' => $event_id, 'user_id' => $user_id, 'capability' => $capability ), array( '%d', '%d', '%s' ) );
+		if ( 'wpcap_checkin' === $capability ) { self::maybe_revoke_checkin_cap( $user_id ); }
 		Audit::record( 'staff_removed', 'event', $event_id, array( 'user_id' => $user_id, 'capability' => $capability ) );
 		return array( 'event_id' => $event_id );
 	}
@@ -495,6 +514,12 @@ final class EventsPage {
 		$result = self::cancel_event( $in );
 		/* translators: %d: notified buyers */
 		$message = is_wp_error( $result ) ? '' : sprintf( __( 'Event abgesagt. %d Käufer wurden benachrichtigt.', 'wp-pass-captain' ), (int) ( $result['notified_count'] ?? 0 ) );
+		if ( ! is_wp_error( $result ) && ! empty( $result['revoked'] ) ) {
+			$message .= ' ' . ( ! empty( $result['auto_refund'] )
+				/* translators: 1: automatic refunds, 2: failed refunds */
+				? sprintf( __( '%1$d Bestellungen wurden automatisch erstattet, %2$d Erstattungen sind offen (siehe Erstattungen). WooCommerce-Bestellungen bitte in WooCommerce erstatten.', 'wp-pass-captain' ), (int) $result['refunds'], (int) $result['refund_errors'] )
+				: __( 'Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten.', 'wp-pass-captain' ) );
+		}
 		Forms::finish( $result, $message, self::url() );
 	}
 

@@ -2,27 +2,46 @@ name: Release
 
 # Publishes a GitHub release with the plugin ZIP and the matching CHANGELOG section:
 # - on a pushed tag like v1.0.0,
-# - on every push to main (and manual runs there) for v<plugin version>, unless that
-#   release exists already; the tag is then created on that commit.
+# - after the CI workflow ("WordPress plugin checks") succeeded for a push to main, for
+#   v<plugin version>, unless that release exists already; the tag is then created on exactly
+#   the commit CI tested (workflow_run head_sha),
+# - on manual runs from main (workflow_dispatch).
 on:
   push:
     tags:
       - 'v*'
-    # Every push to main publishes the release for the plugin version if it does not exist yet.
-    branches:
-      - main
+  workflow_run:
+    workflows: ['WordPress plugin checks']
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
+# Never publish two releases at the same time (e.g. tag push and CI completion overlapping).
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
-    # Manual runs only from main, so a release always matches merged code.
-    if: github.ref_type == 'tag' || github.ref == 'refs/heads/main'
+    # Tags and manual runs from main; for CI runs only successful pushes to main (not PRs).
+    if: >-
+      github.ref_type == 'tag' ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
+    env:
+      # The commit to release: the one CI tested for workflow_run, else the triggering commit.
+      RELEASE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_SHA }}
 
       - name: Determine tag
         run: |
@@ -74,7 +93,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then target_args=(--verify-tag); else target_args=(--target "$GITHUB_SHA"); fi
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then target_args=(--verify-tag); else target_args=(--target "$RELEASE_SHA"); fi
           gh release create "$TAG" build/dist/wp-pass-captain.zip \
             --title "WP Pass Captain ${TAG}" \
             --notes-file release-notes.md \

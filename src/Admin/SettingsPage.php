@@ -39,6 +39,7 @@ final class SettingsPage {
 				'fields' => array(
 					'scanner_show_attendee' => array( 'type' => 'bool', 'label' => __( 'Teilnehmernamen beim Scannen anzeigen', 'wp-pass-captain' ) ),
 					'device_max_hours' => array( 'type' => 'int', 'label' => __( 'Maximale Gültigkeit einer Gerätekopplung (Stunden)', 'wp-pass-captain' ), 'min' => 1, 'max' => 720 ),
+					'admission_day_cutoff_hour' => array( 'type' => 'int', 'label' => __( 'Einlass-Tageswechsel (Uhrzeit, volle Stunde)', 'wp-pass-captain' ), 'min' => 0, 'max' => 12, 'description' => __( '0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits.', 'wp-pass-captain' ) ),
 					'default_entry_window' => array( 'type' => 'bool', 'label' => __( 'Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel', 'wp-pass-captain' ) ),
 					'entry_opens_before_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass ab (Minuten vor Beginn)', 'wp-pass-captain' ), 'min' => 0, 'max' => 10080 ),
 					'entry_closes_after_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)', 'wp-pass-captain' ), 'min' => 0, 'max' => 10080 ),
@@ -49,6 +50,9 @@ final class SettingsPage {
 				'fields' => array(
 					'enabled_providers' => array( 'type' => 'providers', 'label' => __( 'Aktive Zahlungsarten', 'wp-pass-captain' ) ),
 					'manual_instructions' => array( 'type' => 'textarea', 'label' => __( 'Hinweis für manuelle Zahlung (z. B. Bankverbindung)', 'wp-pass-captain' ) ),
+					'bank_recipient' => array( 'type' => 'text', 'label' => __( 'Überweisung: Empfänger (Kontoinhaber)', 'wp-pass-captain' ), 'description' => __( 'Leer = Name / Firma des Rechnungsstellers.', 'wp-pass-captain' ) ),
+					'bank_iban' => array( 'type' => 'text', 'label' => __( 'Überweisung: IBAN', 'wp-pass-captain' ), 'description' => __( 'Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt.', 'wp-pass-captain' ) ),
+					'bank_bic' => array( 'type' => 'text', 'label' => __( 'Überweisung: BIC', 'wp-pass-captain' ) ),
 				),
 			),
 			'stripe' => array(
@@ -85,6 +89,20 @@ final class SettingsPage {
 					'require_2fa_for_refunds' => array( 'type' => 'bool', 'label' => __( 'Zwei-Faktor-Anmeldung für Erstattungen verlangen', 'wp-pass-captain' ) ),
 				),
 			),
+			'vouchers' => array(
+				'title' => __( 'Gutscheine', 'wp-pass-captain' ),
+				'fields' => array(
+					'voucher_default_purpose' => array(
+						'type' => 'choice',
+						'label' => __( 'Gutscheine standardmäßig als Mehrzweckgutschein behandeln', 'wp-pass-captain' ),
+						'options' => array(
+							'multi' => __( 'Ja – Mehrzweckgutschein (Zahlungsmittel, USt bei Einlösung)', 'wp-pass-captain' ),
+							'single' => __( 'Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)', 'wp-pass-captain' ),
+						),
+						'description' => __( 'Gilt nur, wenn WP Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md).', 'wp-pass-captain' ),
+					),
+				),
+			),
 			'privacy' => array(
 				'title' => __( 'Datenschutz', 'wp-pass-captain' ),
 				'fields' => array(
@@ -98,10 +116,11 @@ final class SettingsPage {
 					'seller_name' => array( 'type' => 'text', 'label' => __( 'Name / Firma', 'wp-pass-captain' ) ),
 					'seller_address' => array( 'type' => 'textarea', 'label' => __( 'Anschrift', 'wp-pass-captain' ) ),
 					'seller_vat_id' => array( 'type' => 'text', 'label' => __( 'USt-IdNr.', 'wp-pass-captain' ) ),
-					'seller_tax_number' => array( 'type' => 'text', 'label' => __( 'Steuernummer (wenn keine USt-IdNr. angegeben wird)', 'wp-pass-captain' ) ),
-					'seller_small_business' => array( 'type' => 'choice', 'label' => __( 'Kleinunternehmerregelung', 'wp-pass-captain' ), 'options' => array( '' => __( 'Nein', 'wp-pass-captain' ), 'de' => __( 'Ja, Deutschland (§ 19 UStG)', 'wp-pass-captain' ), 'at' => __( 'Ja, Österreich (§ 6 Abs. 1 Z 27 UStG)', 'wp-pass-captain' ) ) ),
+					'seller_tax_number' => array( 'type' => 'text', 'label' => __( 'Steuernummer', 'wp-pass-captain' ), 'description' => __( 'Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist.', 'wp-pass-captain' ) ),
+					'seller_country' => array( 'type' => 'text', 'label' => __( 'Land (ISO-Code, z. B. DE oder AT)', 'wp-pass-captain' ), 'description' => __( 'Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet (siehe docs/SALES-MODELS.md).', 'wp-pass-captain' ) ),
 					'invoice_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungsnummer', 'wp-pass-captain' ) ),
-					'credit_note_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Gutschriftnummer', 'wp-pass-captain' ) ),
+					'billing_required_threshold_minor' => array( 'type' => 'money', 'label' => __( 'Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)', 'wp-pass-captain' ) ),
+					'credit_note_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)', 'wp-pass-captain' ) ),
 					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'wp-pass-captain' ) ),
 				),
 			),

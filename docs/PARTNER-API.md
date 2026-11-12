@@ -135,7 +135,7 @@ Beispiel `/partner/orders`:
 ```
 
 Positionen anderer Veranstalter bzw. nicht freigegebener Events werden aus Bestellungen herausgefiltert.
-`customer_email` erscheint nur mit `attendees:read`.
+`customer_email` erscheint nur mit `attendees:read`. Gelöschte oder anonymisierte Adressen (Platzhalter `…@invalid.example` nach einer Datenschutzlöschung, Kassenverkäufe ohne E-Mail) und leere Teilnehmeradressen werden als `null` ausgegeben.
 
 ## Abrechnungen
 
@@ -170,6 +170,16 @@ Auszahlungsbetrag                      = Ticketumsatz brutto − Plattformgebüh
 
 Ein negativer Auszahlungsbetrag wird als „Forderung an Veranstalter“ ausgewiesen. Die USt des
 Ticketumsatzes wird je Steuersatz ausgewiesen.
+
+**Verkaufsmodell** (je Veranstalter, siehe [SALES-MODELS.md](SALES-MODELS.md)): Beim Modell
+*Vermittler* ist die Abrechnung eine **Provisionsrechnung** (Nummer `PA-…`) mit informativer Aufstellung
+der vereinnahmten Ticketerlöse; bei Reverse Charge (Veranstalter im EU-Ausland mit USt-IdNr.) entfällt die
+USt auf die Plattformgebühr. Beim Modell *Eigenhändler* (Standard) entsteht ein Beleg mit **Teil A
+Gutschrift** (eigene Serie `credit-self`, z. B. `GU-2026-000001`), **Teil B Rechnung über
+Plattformgebühren** (`PA-…`) und **Teil C Verrechnung**; dann gilt
+`Auszahlungsbetrag = Gutschrift brutto − Plattformgebühr brutto` (Gutschrift = Netto-Ticketumsatz + USt je
+Satz; ohne USt bei Kleinunternehmern oder Reverse Charge). Die API liefert zusätzlich `document_type`
+(`commission_invoice` | `self_billing` | leer für Altbelege), `sales_model` und `self_billing_number`.
 
 ### Status
 

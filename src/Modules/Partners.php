@@ -3,21 +3,27 @@
  * Module: partners ("Partner") – organisers/resellers linked to events, scoped partner API keys
  * (REST under wp-pass-captain/v1/partner/…, Bearer wpcap_pk_…) and monthly partner settlements
  * ("Abrechnungen") with a gapless number series. Code lives in src/Partners/. API: docs/PARTNER-API.md.
+ * Sales model per organizer (own_name / agent) decides who issues customer invoices and whether the
+ * settlement is a self-billing "Gutschrift" plus fee invoice or a "Provisionsrechnung": docs/SALES-MODELS.md.
  */
 namespace PassCaptain\Modules;
 
 use PassCaptain\Partners\AdminPage;
 use PassCaptain\Partners\Api;
+use PassCaptain\Partners\SalesModel;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Partners {
 	public static function register() {
 		add_action( 'rest_api_init', array( Api::class, 'register_routes' ) );
+		// Sales models (docs/SALES-MODELS.md): one order = one seller.
+		add_action( 'wpcap_order_creating', array( SalesModel::class, 'guard_checkout' ), 10, 1 );
+		add_filter( 'wpcap_checkout_error_messages', array( SalesModel::class, 'checkout_messages' ) );
 	}
 
 	public static function settings_defaults() {
-		return array( 'partners' => array( 'settlement_prefix' => 'PA', 'rate_limit' => 120 ) );
+		return array( 'partners' => array( 'settlement_prefix' => 'PA', 'self_billing_prefix' => 'GU', 'rate_limit' => 120 ) );
 	}
 
 	public static function schema( $prefix, $charset ) {
@@ -36,6 +42,14 @@ final class Partners {
 				fee_per_ticket_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				fee_tax_rate_bp int(10) unsigned NOT NULL DEFAULT 0,
 				refund_policy varchar(20) NOT NULL DEFAULT 'reverse_all',
+				sales_model varchar(16) NOT NULL DEFAULT 'own_name',
+				legal_name varchar(190) NOT NULL DEFAULT '',
+				country char(2) NOT NULL DEFAULT '',
+				tax_number varchar(64) NOT NULL DEFAULT '',
+				vat_id_checked_at date NULL,
+				invoice_prefix varchar(10) NOT NULL DEFAULT '',
+				small_business tinyint(1) NOT NULL DEFAULT 0,
+				small_business_note varchar(255) NOT NULL DEFAULT '',
 				settlement_start date NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
 				notes longtext NOT NULL,
@@ -83,7 +97,10 @@ final class Partners {
 				period_start datetime NOT NULL,
 				period_end datetime NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'draft',
+				document_type varchar(24) NOT NULL DEFAULT '',
+				sales_model varchar(16) NOT NULL DEFAULT '',
 				document_number varchar(40) NULL,
+				self_billing_number varchar(40) NULL,
 				currency char(3) NOT NULL DEFAULT 'EUR',
 				tickets_sold int(11) NOT NULL DEFAULT 0,
 				tickets_refunded int(11) NOT NULL DEFAULT 0,
@@ -110,6 +127,7 @@ final class Partners {
 				PRIMARY KEY  (settlement_id),
 				UNIQUE KEY partner_period (partner_id,period),
 				UNIQUE KEY document_number (document_number),
+				UNIQUE KEY self_billing_number (self_billing_number),
 				KEY status (status)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$prefix}wpcap_partner_settlement_lines (
