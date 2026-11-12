@@ -598,6 +598,7 @@ final class Service {
 		ksort( $vat );
 		$discount = $order ? (int) $order->discount_minor : 0;
 		return array(
+			'order_id' => (int) $sale->order_id,
 			'sale_id' => (int) $sale->sale_id,
 			'number' => $sale->receipt_number,
 			'storno_number' => (string) $sale->storno_receipt_number,
@@ -649,6 +650,7 @@ final class Service {
 			$h .= '<table><tr><td>' . esc_html__( 'Gegeben', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['tendered_minor'] ) ) . '</td></tr><tr><td>' . esc_html__( 'Rückgeld', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['change_minor'] ) ) . '</td></tr></table>';
 		}
 		$h .= '<p class="small">' . esc_html( __( 'Bestellung:', 'wp-pass-captain' ) . ' ' . substr( $r['order'], 0, 12 ) ) . '</p>';
+		$h .= \PassCaptain\Fiscalization\ReceiptRenderer::render( (int) $r['order_id'] );
 		if ( '' !== $r['footer'] ) { $h .= '<p class="c small">' . nl2br( esc_html( $r['footer'] ) ) . '</p>'; }
 		$h .= '<p class="noprint c"><button onclick="window.print()">' . esc_html__( 'Drucken', 'wp-pass-captain' ) . '</button></p></body></html>';
 		return $h;
