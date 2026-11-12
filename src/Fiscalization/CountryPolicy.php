@@ -5,7 +5,7 @@
  * Country policy is recorded in reviewed profile data. This class enforces the mandatory
  * core capabilities and normalizes the additional requirements; it does not decide legal scope.
  */
-namespace PassCaptain\\Fiscalization;
+namespace PassCaptain\Fiscalization;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
