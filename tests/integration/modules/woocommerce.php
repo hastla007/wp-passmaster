@@ -141,6 +141,10 @@ check( 'update-item within capacity is accepted', true === Woo::store_api_valida
 $small = make_type( 100, 4 );
 check( 'per-order maximum caps the Store API quantity', 4 === Woo::quantity_limit( $small ) && 1 === Woo::quantity_limit( $small, 3 ) );
 
+check( 'fiscal ticket-only WooCommerce carts pass allocation guard', null === Woo::mixed_fiscal_allocation_error( true, false, false, false ) );
+check( 'mixed seller WooCommerce carts fail closed until seller allocation is configured', is_wp_error( Woo::mixed_fiscal_allocation_error( true, true, false, false ) ) && is_wp_error( Woo::mixed_fiscal_allocation_error( true, false, true, false ) ) && is_wp_error( Woo::mixed_fiscal_allocation_error( true, false, false, true ) ) );
+check( 'unmapped ticket carts retain existing WooCommerce behavior', null === Woo::mixed_fiscal_allocation_error( false, true, true, true ) );
+
 echo "WooCommerce: refunds\n";
 $type = make_type( 10, 10, 2500 );
 $wc = woo_t_order( 7301, array( array( $type, 2, '50.00' ) ) );

@@ -158,6 +158,9 @@ final class Fiscalization {
 		add_action( 'wpcap_process_fiscal_order', array( __CLASS__, 'process_scheduled_order' ) );
 		add_filter( 'wpcap_order_fiscal_ready', array( __CLASS__, 'fiscal_ready' ), 10, 2 );
 		add_action( 'wpcap_tickets_issued', array( __CLASS__, 'mark_fulfilled' ), 10, 2 );
+		add_action( 'wpcap_refund_completed', array( __CLASS__, 'record_refund_adjustment' ), 10, 2 );
+		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'record_order_cancellation' ), 10, 3 );
+		add_action( 'wpcap_event_cancelled', array( __CLASS__, 'record_event_cancellation' ), 10, 1 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
 	}
 
@@ -179,8 +182,13 @@ final class Fiscalization {
 		$register_id = sanitize_text_field( $input['register_id'] ?? '' );
 		if ( strlen( $register_id ) > 64 || ! preg_match( '/^[A-Za-z0-9_.:-]*$/', $register_id ) ) { return new \WP_Error( 'wpcap_fiscal_profile_invalid', __( 'Kassen-ID ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		$data = is_array( $input['profile_data'] ?? null ) ? $input['profile_data'] : array();
+		$offline_policy = self::normalize_offline_policy( $input['offline_policy'] ?? ( $data['offline_policy'] ?? 'stop_sale' ) );
+		if ( is_wp_error( $offline_policy ) ) { return $offline_policy; }
+		$data['offline_policy'] = $offline_policy;
 		$required = is_array( $input['required_capabilities'] ?? null ) ? $input['required_capabilities'] : preg_split( '/[,\\s]+/', (string) ( $input['required_capabilities'] ?? '' ), -1, PREG_SPLIT_NO_EMPTY );
-		$data['required_capabilities'] = array_values( array_unique( array_filter( array_map( 'sanitize_key', (array) $required ) ) ) );
+		$required = array_map( 'sanitize_key', (array) $required );
+		if ( 'provider_buffered' === $offline_policy ) { $required[] = 'offline_issue_queue'; }
+		$data['required_capabilities'] = array_values( array_unique( array_filter( $required ) ) );
 		if ( ! $seller || 'active' !== $seller->status || ! in_array( $channel, array( 'pos', 'woocommerce', 'native' ), true ) || ! in_array( $environment, array( 'test', 'production' ), true ) || ! in_array( $status, array( 'draft', 'test', 'active', 'not_required', 'suspended' ), true ) || self::contains_secret_key( $data ) ) {
 			return new \WP_Error( 'wpcap_fiscal_profile_invalid', __( 'Fiskalprofil, Verkäufer oder nicht geheime Konfiguration ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
@@ -440,6 +448,99 @@ final class Fiscalization {
 	}
 
 	/** Append-only operation event; caller passes metadata with no credentials or raw provider body. */
+	/** Offline behavior is conservative unless a provider explicitly advertises buffered issuance. */
+	public static function normalize_offline_policy( $policy ) {
+		$policy = sanitize_key( $policy );
+		return in_array( $policy, array( 'stop_sale', 'provider_buffered' ), true )
+			? $policy
+			: new \WP_Error( 'wpcap_fiscal_offline_policy_invalid', __( 'Unbekannte Fiskal-Ausfallregel.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+	}
+
+	/** Record a completed refund as a seller/provider correction task; no adapter currently executes credit notes. */
+	public static function record_refund_adjustment( $refund_id, $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$refund = $wpdb->get_row( $wpdb->prepare( "SELECT refund_id,amount_minor,currency,ticket_ids FROM {$p}wpcap_refunds WHERE refund_id=%d AND order_id=%d", absint( $refund_id ), absint( $order_id ) ) );
+		if ( ! $refund ) { return; }
+		$ticket_ids = array_values( array_filter( array_map( 'absint', (array) json_decode( $refund->ticket_ids, true ) ) ) );
+		$ticket_types = array();
+		$used_by_type = array();
+		if ( $ticket_ids ) {
+			$ids = implode( ',', $ticket_ids );
+			foreach ( $wpdb->get_results( "SELECT ticket_type_id,status FROM {$p}wpcap_tickets WHERE order_id=" . absint( $order_id ) . " AND ticket_id IN ({$ids})" ) as $ticket ) { // phpcs:ignore WordPress.DB
+				$type_id = absint( $ticket->ticket_type_id );
+				$ticket_types[] = $type_id;
+				if ( 'checked_in' === $ticket->status ) { $used_by_type[$type_id] = ( $used_by_type[$type_id] ?? 0 ) + 1; }
+			}
+		}
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT total_minor,refunded_minor FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		$metadata = array(
+			'refund_id' => absint( $refund_id ),
+			'adjustment_kind' => 'refund_credit_note_or_correction',
+			'refund_amount_minor' => absint( $refund->amount_minor ),
+			'currency' => sanitize_text_field( $refund->currency ),
+			'ticket_ids' => $ticket_ids,
+			'used_ticket_count' => array_sum( $used_by_type ),
+			'used_ticket_count_by_type' => $used_by_type,
+			'order_fully_refunded' => $order && (int) $order->total_minor > 0 && (int) $order->refunded_minor >= (int) $order->total_minor,
+			'seller_allocation_required' => empty( $ticket_types ),
+			'provider_action' => 'manual_review_required',
+		);
+		self::record_adjustment_events( absint( $order_id ), 'refund_adjustment', $metadata, array_values( array_unique( $ticket_types ) ) );
+	}
+
+	/** Record the required provider action when a completed fiscal document's order is cancelled. */
+	public static function record_order_cancellation( $order_id, $reason = '', $previous_payment_status = '' ) {
+		$kind = in_array( sanitize_key( $previous_payment_status ), array( 'paid', 'paid_unallocated', 'refunded' ), true ) ? 'refund_or_correction' : 'void';
+		self::record_adjustment_events( absint( $order_id ), 'order_cancellation', array(
+			'adjustment_kind' => $kind,
+			'reason' => sanitize_text_field( $reason ),
+			'previous_payment_status' => sanitize_key( $previous_payment_status ),
+			'provider_action' => 'manual_review_required',
+		) );
+	}
+
+	/** Record event-cancellation corrections for any already submitted seller receipt containing that event. */
+	public static function record_event_cancellation( $event_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$event_id = absint( $event_id );
+		if ( ! $event_id ) { return; }
+		$docs = $wpdb->get_results( $wpdb->prepare(
+			"SELECT DISTINCT d.* FROM {$p}wpcap_fiscal_documents d INNER JOIN {$p}wpcap_fiscal_document_items i ON i.document_id=d.document_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=i.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND d.status='submitted'",
+			$event_id
+		) );
+		foreach ( $docs as $doc ) {
+			self::record_event( $doc, 'event_cancellation', 'manual_required', array(
+				'adjustment_kind' => 'refund_or_correction',
+				'event_id' => $event_id,
+				'provider_action' => 'manual_review_required',
+				'reason' => 'event_cancelled',
+			) );
+		}
+	}
+
+	/** Append a correction task to each affected seller receipt; leave originals immutable. */
+	private static function record_adjustment_events( $order_id, $event_type, array $metadata, array $ticket_types = array() ) {
+		global $wpdb;
+		$docs = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d AND status='submitted' ORDER BY seller_id", absint( $order_id ) ) );
+		$matching = array();
+		foreach ( $docs as $doc ) {
+			$snapshot = json_decode( $doc->snapshot, true );
+			$doc_types = array_values( array_unique( array_map( 'absint', array_column( (array) ( $snapshot['items'] ?? array() ), 'ticket_type_id' ) ) ) );
+			$intersection = $ticket_types ? array_values( array_intersect( $ticket_types, $doc_types ) ) : array();
+			if ( $ticket_types && ! $intersection ) { continue; }
+			$matching[] = array( 'doc' => $doc, 'ticket_types' => $intersection );
+		}
+		$shared = $metadata;
+		$shared['seller_allocation_required'] = ! $ticket_types || count( $matching ) > 1;
+		foreach ( $matching as $entry ) {
+			$per_seller = $shared;
+			$per_seller['ticket_types'] = $entry['ticket_types'];
+			self::record_event( $entry['doc'], $event_type, 'manual_required', $per_seller );
+		}
+	}
+
 	private static function record_event( $doc, $type, $status, array $metadata = array() ) {
 		global $wpdb;
 		$wpdb->insert( $wpdb->prefix . 'wpcap_fiscal_events', array(
@@ -633,6 +734,7 @@ final class Fiscalization {
 			'ruleset_version' => sanitize_text_field( wp_unslash( $_POST['ruleset_version'] ?? '' ) ),
 			'legal_reference' => sanitize_text_field( wp_unslash( $_POST['legal_reference'] ?? '' ) ),
 			'required_capabilities' => sanitize_text_field( wp_unslash( $_POST['required_capabilities'] ?? '' ) ),
+			'offline_policy' => sanitize_key( wp_unslash( $_POST['offline_policy'] ?? 'stop_sale' ) ),
 			'location_id' => absint( $_POST['location_id'] ?? 0 ),
 			'register_id' => sanitize_text_field( wp_unslash( $_POST['register_id'] ?? '' ) ),
 			'review_attested' => ! empty( $_POST['review_attested'] ),
@@ -754,6 +856,7 @@ final class Fiscalization {
 			echo '<input type="hidden" name="action" value="wpcap_fiscal_save_profile"><label>' . esc_html__( 'Verkäufer', 'wp-pass-captain' ) . ' <select name="seller_id">';
 			foreach ( $sellers as $seller ) { echo '<option value="' . (int) $seller->seller_id . '">' . esc_html( $seller->legal_name . ' (' . $seller->country_code . ')' ) . '</option>'; }
 			echo '</select></label> <label>' . esc_html__( 'Standort-ID (0 = Standard)', 'wp-pass-captain' ) . ' <input type="number" min="0" name="location_id" value="0"></label> <label>' . esc_html__( 'Kassen-ID (leer = Standard)', 'wp-pass-captain' ) . ' <input name="register_id" maxlength="64" pattern="[A-Za-z0-9_.:-]*" placeholder="KASSE-01"></label> <label>' . esc_html__( 'Kanal', 'wp-pass-captain' ) . ' <select name="channel"><option value="pos">POS/Abendkasse</option><option value="woocommerce">WooCommerce</option><option value="native">Native Kasse</option></select></label> <label>' . esc_html__( 'Umgebung', 'wp-pass-captain' ) . ' <select name="environment"><option value="test">Test</option><option value="production">Produktion</option></select></label> <label>' . esc_html__( 'Status', 'wp-pass-captain' ) . ' <select name="status"><option value="draft">Entwurf</option><option value="test">Test</option><option value="active">Produktiv mit Adapter</option><option value="not_required">Geprüft: nicht erforderlich</option><option value="suspended">Gesperrt</option></select></label><p><label>' . esc_html__( 'Regelwerk/Profil', 'wp-pass-captain' ) . ' <input name="ruleset_key" class="regular-text" placeholder="AT_RKSV / DE_KASSENSICHV / HU_NAV"></label> <label>' . esc_html__( 'Regelwerkversion', 'wp-pass-captain' ) . ' <input name="ruleset_version"></label></p><p><label>' . esc_html__( 'Rechts-/Prüfreferenz', 'wp-pass-captain' ) . ' <input name="legal_reference" class="large-text"></label></p><label><input type="checkbox" name="review_attested" value="1"> ' . esc_html__( 'Ich bestätige die fachliche Prüfung und Freigabe dieses Profils.', 'wp-pass-captain' ) . '</label>';
+			echo '<p><label>' . esc_html__( 'Ausfallverhalten', 'wp-pass-captain' ) . ' <select name="offline_policy"><option value="stop_sale">' . esc_html__( 'Verkauf stoppen, bis Anbieter wieder verfügbar ist', 'wp-pass-captain' ) . '</option><option value="provider_buffered">' . esc_html__( 'Anbieter-gepufferter Notbetrieb (Adapterfähigkeit erforderlich)', 'wp-pass-captain' ) . '</option></select></label></p>';
 			echo '<p><label>' . esc_html__( 'Zusätzliche Adapterfähigkeiten (Komma-getrennt)', 'wp-pass-captain' ) . ' <input name="required_capabilities" class="large-text" placeholder="receipt_qr_payload, transaction_begin, transaction_finish, daily_report"></label></p>';
 			submit_button( __( 'Profil speichern', 'wp-pass-captain' ) );
 			echo '</form>';

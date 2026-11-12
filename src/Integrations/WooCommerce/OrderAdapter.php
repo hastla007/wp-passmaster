@@ -434,6 +434,8 @@ final class OrderAdapter {
 		if ( ! $lines ) {
 			return null;
 		}
+		$allocation_error = self::fiscal_mixed_order_allocation_error( $wc_order, $lines );
+		if ( is_wp_error( $allocation_error ) ) { return $allocation_error; }
 		$existing = absint( $wc_order->get_meta( self::ORDER_META, true ) );
 		if ( $existing ) {
 			$core = Orders::get( $existing );
@@ -496,6 +498,30 @@ final class OrderAdapter {
 	 *
 	 * @return array<int, array{ticket_type_id:int, quantity:int, unit_minor:int}>
 	 */
+	/** Reject a mixed WooCommerce basket when a ticket seller is mapped but other charges have no seller allocation. */
+	private static function fiscal_mixed_order_allocation_error( \WC_Order $wc_order, array $ticket_lines ) {
+		global $wpdb;
+		$type_ids = array_values( array_map( 'absint', array_keys( $ticket_lines ) ) );
+		if ( ! $type_ids ) { return null; }
+		$ids = implode( ',', $type_ids );
+		$mapped = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_ticket_sellers WHERE ticket_type_id IN ({$ids})" ); // phpcs:ignore WordPress.DB
+		$has_non_ticket_line = false;
+		foreach ( $wc_order->get_items( 'line_item' ) as $item ) {
+			if ( ! self::item_ticket_type_id( $item ) ) { $has_non_ticket_line = true; break; }
+		}
+		$has_fees = (bool) $wc_order->get_items( 'fee' );
+		$has_shipping = (bool) $wc_order->get_items( 'shipping' );
+		return self::mixed_fiscal_allocation_error( $mapped > 0, $has_non_ticket_line, $has_fees, $has_shipping );
+	}
+
+	/** Pure allocation guard shared with tests and integrations. */
+	public static function mixed_fiscal_allocation_error( $has_fiscal_ticket, $has_non_ticket_line, $has_fees, $has_shipping ) {
+		if ( $has_fiscal_ticket && ( $has_non_ticket_line || $has_fees || $has_shipping ) ) {
+			return new \WP_Error( 'wpcap_fiscal_mixed_allocation_required', __( 'Diese Bestellung enthält fiskal zugeordnete Tickets und zusätzliche Waren, Gebühren oder Versand. Verkäuferzuordnung und Betragsaufteilung müssen eingerichtet sein, bevor der Checkout fortgesetzt werden kann.', 'wp-pass-captain' ) );
+		}
+		return null;
+	}
+
 	private static function ticket_lines( \WC_Order $wc_order ) {
 		// Minor units follow the currency, not the shop's display decimals setting.
 		$factor   = 10 ** self::currency_decimals( $wc_order->get_currency() );

@@ -38,6 +38,7 @@ $built_in_adapters = Registry::all();
 check( 'built-in vendor adapters are registered for fiskaly, efsta, and fiskaltrust', isset( $built_in_adapters['fiskaly_sign_at'], $built_in_adapters['fiskaly_sign_de'], $built_in_adapters['fiskaly_sign_unified'], $built_in_adapters['efsta_efr'], $built_in_adapters['fiskaltrust_pos'] ) );
 check( 'efsta supports Hungary while fiskaltrust does not claim unsupported Hungarian coverage', in_array( 'HU', $built_in_adapters['efsta_efr']->countries(), true ) && ! in_array( 'HU', $built_in_adapters['fiskaltrust_pos']->countries(), true ) );
 check( 'built-in provider countries stay explicit and adapter-specific', in_array( 'AT', $built_in_adapters['fiskaly_sign_at']->countries(), true ) && ! in_array( 'ES', $built_in_adapters['fiskaly_sign_at']->countries(), true ) && in_array( 'FR', $built_in_adapters['fiskaly_sign_unified']->countries(), true ) && ! in_array( 'HU', $built_in_adapters['fiskaltrust_pos']->countries(), true ) );
+check( 'offline profile policy defaults to stop-sale and rejects unknown modes', 'stop_sale' === FiscalizationModule::normalize_offline_policy( 'stop_sale' ) && is_wp_error( FiscalizationModule::normalize_offline_policy( 'unverified_queue' ) ) );
 
 $GLOBALS['wpcap_test_filters']['wpcap_fiscal_credentials'] = array( 'api_secret' => 'secret-value', 'bad key!' => array( 'nested' ) );
 $runtime_config = Credentials::with_credentials( array( 'region' => 'eu' ), 17, 'test_fiscal_adapter' );

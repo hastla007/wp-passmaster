@@ -703,7 +703,7 @@ final class Orders {
 		self::capacity_released( $order_id, 'cancelled', array( 'reason' => (string) $reason ) );
 		Audit::record( 'order_cancelled', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
 		self::fire_revoked( $revoked_ids, 'order_cancelled' );
-		do_action( 'wpcap_order_cancelled', $order_id );
+		do_action( 'wpcap_order_cancelled', $order_id, (string) $reason, (string) $order->payment_status );
 		return true;
 	}
 
@@ -885,6 +885,7 @@ final class Orders {
 		foreach ( $order_ids as $released_order_id ) { self::capacity_released( $released_order_id, 'event_cancelled' ); }
 		Audit::record( 'event_cancelled', 'event', $event_id, array( 'notified_count' => count( $emails ) ) );
 		self::fire_revoked( $event_revoked_ids, 'event_cancelled' );
+		do_action( 'wpcap_event_cancelled', $event_id );
 		return array( 'status' => 'cancelled', 'notified_count' => count( $emails ) );
 	}
 
