@@ -1,6 +1,6 @@
 <?php
 /** Versioned fiscal provider registry. */
-namespace PassCaptain\\Fiscalization;
+namespace PassCaptain\Fiscalization;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
