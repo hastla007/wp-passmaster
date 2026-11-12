@@ -152,6 +152,7 @@ final class Fiscalization {
 	}
 
 	public static function register() {
+		add_filter( 'wpcap_fiscal_adapters', array( ProviderAdapters::class, 'register' ), 5, 1 );
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'snapshot_order' ), 20, 4 );
 		add_action( 'wpcap_process_fiscal_order', array( __CLASS__, 'process_scheduled_order' ) );
 		add_filter( 'wpcap_order_fiscal_ready', array( __CLASS__, 'fiscal_ready' ), 10, 2 );
@@ -896,8 +897,8 @@ final class Fiscalization {
 		$body = (array) $request->get_json_params();
 		$name = sanitize_text_field( $body['legal_name'] ?? '' );
 		$country = strtoupper( sanitize_text_field( $body['country_code'] ?? '' ) );
-		if ( '' === $name || ! in_array( $country, array( 'AT', 'DE', 'HU' ), true ) ) {
-			return new \WP_Error( 'wpcap_fiscal_seller_invalid', __( 'Name und eines der unterstützten Länder AT, DE oder HU sind erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+		if ( '' === $name || ! in_array( $country, array( 'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK' ), true ) ) {
+			return new \WP_Error( 'wpcap_fiscal_seller_invalid', __( 'Name und eines der unterstützten Länder AT, DE, HU oder ein weiteres EU-Land sind erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
 		$now = current_time( 'mysql', true );
 		$address_in = is_array( $body['business_address'] ?? null ) ? $body['business_address'] : array();
