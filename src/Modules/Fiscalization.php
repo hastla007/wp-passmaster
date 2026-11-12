@@ -145,10 +145,10 @@ final class Fiscalization {
 		$register_id = sanitize_text_field( $input['register_id'] ?? '' );
 		$data = is_array( $input['profile_data'] ?? null ) ? $input['profile_data'] : array();
 		if ( ! $seller || 'active' !== $seller->status || ! in_array( $channel, array( 'pos', 'woocommerce', 'native' ), true ) || ! in_array( $environment, array( 'test', 'production' ), true ) || ! in_array( $status, array( 'draft', 'test', 'active', 'suspended' ), true ) || self::contains_secret_key( $data ) ) {
-			return new \\WP_Error( 'wpcap_fiscal_profile_invalid', __( 'Fiskalprofil, Verkäufer oder nicht geheime Konfiguration ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_fiscal_profile_invalid', __( 'Fiskalprofil, Verkäufer oder nicht geheime Konfiguration ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
 		if ( 'active' === $status && ( empty( $input['review_attested'] ) || '' === $ruleset || '' === $ruleset_version || '' === $legal_reference ) ) {
-			return new \\WP_Error( 'wpcap_fiscal_profile_review_required', __( 'Produktivfreigabe erfordert dokumentierte Länderprüfung, Regelwerksversion und ausdrückliche Bestätigung.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_fiscal_profile_review_required', __( 'Produktivfreigabe erfordert dokumentierte Länderprüfung, Regelwerksversion und ausdrückliche Bestätigung.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT profile_id,profile_version FROM {$p}wpcap_fiscal_profiles WHERE seller_id=%d AND country_code=%s AND channel=%s AND location_id=%d AND register_id=%s AND environment=%s", $seller_id, $seller->country_code, $channel, $location_id, $register_id, $environment ) );
 		$now = current_time( 'mysql', true );
@@ -166,7 +166,7 @@ final class Fiscalization {
 		);
 		if ( $existing ) { $row['profile_id'] = (int) $existing->profile_id; }
 		$result = $wpdb->replace( "{$p}wpcap_fiscal_profiles", $row );
-		if ( false === $result ) { return new \\WP_Error( 'wpcap_fiscal_profile_save', __( 'Fiskalprofil konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( false === $result ) { return new \WP_Error( 'wpcap_fiscal_profile_save', __( 'Fiskalprofil konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( 'fiscal_profile_saved', 'seller', $seller_id, array( 'country_code' => $seller->country_code, 'channel' => $channel, 'environment' => $environment, 'status' => $status, 'profile_version' => $profile_version ) );
 		return array( 'profile_id' => $existing ? (int) $existing->profile_id : (int) $wpdb->insert_id, 'profile_version' => $profile_version, 'status' => $status );
 	}
@@ -212,10 +212,10 @@ final class Fiscalization {
 			if ( ! $mapping ) { continue; }
 			$adapter = Registry::get( $mapping->provider_id );
 			if ( 'active' !== $mapping->seller_status || ! $mapping->profile_id || ! (int) $mapping->enabled || ! $adapter || ! in_array( strtoupper( $mapping->country_code ), array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) {
-				throw new \\RuntimeException( 'fiscal_profile_unavailable' );
+				throw new \RuntimeException( 'fiscal_profile_unavailable' );
 			}
 			if ( ! in_array( $mapping->seller_mode, array( 'organizer_seller', 'platform_seller' ), true ) ) {
-				throw new \\RuntimeException( 'fiscal_seller_invalid' );
+				throw new \RuntimeException( 'fiscal_seller_invalid' );
 			}
 			$seller_id = (int) $mapping->seller_id;
 			if ( ! isset( $groups[ $seller_id ] ) ) {
@@ -532,7 +532,7 @@ final class Fiscalization {
 		}
 		$now = current_time( 'mysql', true );
 		$config = isset( $body['configuration'] ) && is_array( $body['configuration'] ) ? $body['configuration'] : array();
-		if ( self::contains_secret_key( $config ) ) { return new \\WP_Error( 'wpcap_fiscal_secret_rejected', __( 'API-Schlüssel und Zugangsdaten dürfen nicht in der allgemeinen Anbieter-Konfiguration gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( self::contains_secret_key( $config ) ) { return new \WP_Error( 'wpcap_fiscal_secret_rejected', __( 'API-Schlüssel und Zugangsdaten dürfen nicht in der allgemeinen Anbieter-Konfiguration gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		$result = $wpdb->replace( $wpdb->prefix . 'wpcap_fiscal_configs', array( 'seller_id' => $seller_id, 'country_code' => $seller->country_code, 'provider_id' => $provider_id, 'configuration' => wp_json_encode( $config ), 'enabled' => $enabled, 'created_at' => $now, 'updated_at' => $now ), array( '%d', '%s', '%s', '%s', '%d', '%s', '%s' ) );
 		return false === $result ? new \WP_Error( 'wpcap_fiscal_provider_save', __( 'Anbieter-Konfiguration konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ) : rest_ensure_response( array( 'seller_id' => $seller_id, 'provider_id' => $provider_id, 'enabled' => (bool) $enabled ) );
 	}
