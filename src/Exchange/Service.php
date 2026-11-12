@@ -53,6 +53,7 @@ final class Service {
 		add_action( 'wpcap_order_refunded', array( __CLASS__, 'on_order_cancelled' ), 30, 1 );
 		add_action( 'wpcap_ticket_revoked', array( __CLASS__, 'on_ticket_revoked' ), 30, 2 );
 		add_action( 'wpcap_ticket_checked_in', array( __CLASS__, 'on_ticket_checked_in' ), 30, 1 );
+		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund_completed' ), 30, 2 );
 	}
 
 	public static function table() {
@@ -173,6 +174,10 @@ final class Service {
 			}
 		}
 		if ( 'portal' === $channel ) {
+			$now = current_time( 'mysql', true );
+			if ( ( $target->sales_start && $target->sales_start > $now ) || ( $target->sales_end && $target->sales_end < $now ) ) {
+				return self::error( 'wpcap_exchange_sales_closed', __( 'Der Verkauf für diese Ticketart ist geschlossen.', 'wp-pass-captain' ) );
+			}
 			if ( empty( $policy['portal_enabled'] ) ) { return self::error( 'wpcap_exchange_portal_disabled', __( 'Ein Umtausch ist hier nicht möglich. Bitte wende dich an den Veranstalter.', 'wp-pass-captain' ), 403 ); }
 			$limit = time() + max( 0, (int) $policy['portal_hours'] ) * HOUR_IN_SECONDS;
 			if ( strtotime( $ticket->starts_at . ' UTC' ) <= $limit || strtotime( $target->starts_at . ' UTC' ) <= $limit ) {
@@ -1029,6 +1034,35 @@ final class Service {
 		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT supplementary_order_id FROM ' . self::table() . ' WHERE old_ticket_id=%d AND status=%s', absint( $ticket_id ), self::PENDING ) ) as $pending ) {
 			$supp = Orders::get( (int) $pending->supplementary_order_id );
 			if ( $supp && 'pending' === $supp->payment_status ) { Orders::cancel_order( (int) $pending->supplementary_order_id, 'exchange_' . $reason ); }
+		}
+	}
+
+	/**
+	 * wpcap_refund_completed: when a ticket that came from an exchange is refunded, the supplements
+	 * paid for it (whole exchange chain) are refunded too (amount-only refunds of the supplementary
+	 * orders; approval rules apply). The exchange fee is part of the supplement and refunded with it
+	 * only when `wpcap_exchange_refund_fee` returns true.
+	 */
+	public static function on_refund_completed( $refund_id, $order_id = 0 ) {
+		global $wpdb;
+		$refund = Refunds::get( $refund_id );
+		if ( ! $refund || self::is_supplement( (int) $refund['order_id'] ) ) { return; }
+		foreach ( array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) ) as $ticket_id ) {
+			$guard = 0;
+			while ( $ticket_id && $guard++ < 50 ) {
+				$exchange = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . " WHERE new_ticket_id=%d AND status='completed' LIMIT 1", $ticket_id ), ARRAY_A );
+				if ( ! $exchange ) { break; }
+				$supp = (int) $exchange['supplementary_order_id'] ? Orders::get( (int) $exchange['supplementary_order_id'] ) : null;
+				if ( $supp && 'paid' === $supp->payment_status ) {
+					$fee = apply_filters( 'wpcap_exchange_refund_fee', false, $exchange ) ? 0 : (int) $exchange['fee_minor'];
+					$amount = min( (int) $supp->total_minor - (int) $supp->refunded_minor, max( 0, (int) $exchange['due_minor'] - $fee ) );
+					if ( $amount > 0 ) {
+						$result = Refunds::request_amount( (int) $supp->order_id, $amount, __( 'Erstattung Aufpreis (Umtausch)', 'wp-pass-captain' ), 'exchange-supplement-' . (int) $exchange['exchange_id'], array( 'system' => true, 'tax_minor' => Orders::gross_tax( $amount, (int) $wpdb->get_var( $wpdb->prepare( "SELECT tax_rate_bp FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d ORDER BY item_id LIMIT 1", (int) $supp->order_id ) ) ) ) );
+						Audit::record( 'ticket_exchange_supplement_refund', 'order', (int) $supp->order_id, array( 'exchange_id' => (int) $exchange['exchange_id'], 'refund_id' => absint( $refund_id ), 'result' => is_wp_error( $result ) ? $result->get_error_code() : (string) $result['status'] ) );
+					}
+				}
+				$ticket_id = (int) $exchange['old_ticket_id'];
+			}
 		}
 	}
 

@@ -221,13 +221,16 @@ final class ZReport {
 
 	/**
 	 * Inserts the Z report of a shift. Must run inside the closing transaction with the register row
-	 * locked (FOR UPDATE), which serialises the numbering per register.
+	 * locked (FOR UPDATE) before any plain read of the transaction, which serialises the numbering
+	 * per register; UNIQUE (register_id, z_number) and UNIQUE shift_id guard it in addition.
 	 *
 	 * @return int|\WP_Error Z id.
 	 */
 	public static function insert( $shift, array $totals, $reason, $closed_at, $source = 'close' ) {
 		global $wpdb;
-		$last = $wpdb->get_row( $wpdb->prepare( 'SELECT z_number,grand_total_minor,hash FROM ' . self::t( 'zreports' ) . ' WHERE register_id=%d ORDER BY z_number DESC LIMIT 1 FOR UPDATE', (int) $shift->register_id ) );
+		// The register row lock serialises this per register; a plain read (snapshot taken after the
+		// lock) avoids gap locks that could deadlock closes of other registers.
+		$last = $wpdb->get_row( $wpdb->prepare( 'SELECT z_number,grand_total_minor,hash FROM ' . self::t( 'zreports' ) . ' WHERE register_id=%d ORDER BY z_number DESC LIMIT 1', (int) $shift->register_id ) );
 		$net = (int) ( $totals['net_total'] ?? 0 );
 		$row = array(
 			'register_id' => (int) $shift->register_id,

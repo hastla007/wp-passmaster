@@ -187,11 +187,12 @@ final class Shifts {
 
 		$wpdb->query( 'START TRANSACTION' );
 		$wpdb->get_row( $wpdb->prepare( 'SELECT register_id FROM ' . Registers::table() . ' WHERE register_id=%d FOR UPDATE', $register->register_id ) );
-		if ( $wpdb->get_row( $wpdb->prepare( "SELECT session_id FROM {$p}sessions WHERE open_register=%d FOR UPDATE", $register->register_id ) ) ) {
+		// Plain reads after the register lock (no gap locks: they could deadlock opens of other registers).
+		if ( $wpdb->get_row( $wpdb->prepare( "SELECT session_id FROM {$p}sessions WHERE open_register=%d", $register->register_id ) ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return self::error( 'wpcap_pos_register_busy', __( 'Auf dieser Kasse ist bereits eine Schicht offen.', 'wp-pass-captain' ), 409 );
 		}
-		$pending = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}handovers WHERE register_id=%d AND status='pending' ORDER BY handover_id DESC LIMIT 1 FOR UPDATE", $register->register_id ) );
+		$pending = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}handovers WHERE register_id=%d AND status='pending' ORDER BY handover_id DESC LIMIT 1", $register->register_id ) );
 		if ( $pending && (int) $pending->handover_id !== $handover_id ) {
 			$wpdb->query( 'ROLLBACK' );
 			return self::error( 'wpcap_pos_handover_pending', __( 'Für diese Kasse wartet eine Übergabe. Die nächste Schicht wird durch Annahme der Übergabe geöffnet.', 'wp-pass-captain' ), 409 );
@@ -541,7 +542,7 @@ final class Shifts {
 			return self::error( 'wpcap_pos_session_closed', __( 'Buchungen sind nur in einer offenen Schicht möglich (nicht während der Zählung).', 'wp-pass-captain' ), 409 );
 		}
 		if ( ! empty( $data['refund_id'] ) ) {
-			$dup = $wpdb->get_row( $wpdb->prepare( "SELECT movement_id FROM {$p}movements WHERE refund_id=%d FOR UPDATE", (int) $data['refund_id'] ) );
+			$dup = $wpdb->get_row( $wpdb->prepare( "SELECT movement_id FROM {$p}movements WHERE refund_id=%d", (int) $data['refund_id'] ) );
 			if ( $dup ) { $wpdb->query( 'COMMIT' ); return self::movement( $dup->movement_id ); }
 		}
 		if ( $with_receipt ) {
@@ -558,6 +559,11 @@ final class Shifts {
 		), $data );
 		if ( false === $wpdb->insert( "{$p}movements", $row ) ) {
 			$wpdb->query( 'ROLLBACK' );
+			if ( ! empty( $data['refund_id'] ) ) {
+				// Booked concurrently (UNIQUE refund_id): return that booking.
+				$dup = $wpdb->get_row( $wpdb->prepare( "SELECT movement_id FROM {$p}movements WHERE refund_id=%d", (int) $data['refund_id'] ) );
+				if ( $dup ) { return self::movement( $dup->movement_id ); }
+			}
 			return self::error( 'wpcap_pos_movement', __( 'Die Buchung konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 );
 		}
 		$movement_id = (int) $wpdb->insert_id;

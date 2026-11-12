@@ -153,6 +153,8 @@ check( 'normal invoice for the supplementary order', 1 === count( $lines ) && 15
 $GLOBALS['wpcap_test_mails'] = array();
 Orders::confirm_external_payment( $supp, 'test-payment' );
 check( 'repeated payment callback changes nothing', 0 === count( ex_mails( 'umgetauscht' ) ) && 2 === count( tickets( $order2 ) ) );
+$ref2 = PassCaptain\Refunds::request( $order2, array( (int) $done['new_ticket_id'] ), 'Absage', 'up-ref' );
+check( 'refunding the upgraded ticket also refunds the paid supplement', ! is_wp_error( $ref2 ) && 2500 === (int) $ref2['amount_minor'] && 1500 === (int) Orders::get( $supp )->refunded_minor && 1 === Orders::availability( $vip_b ) );
 
 $wpdb->update( "{$p}wpcap_ticket_types", array( 'capacity' => 0 ), array( 'ticket_type_id' => $std_a ) ); // Source type of the following scenarios.
 echo "Exchange: hold expiry releases the target\n";

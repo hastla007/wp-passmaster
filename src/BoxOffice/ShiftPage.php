@@ -66,6 +66,11 @@ final class ShiftPage {
 		return array( '' !== $raw && null === $amount ? false : $amount, $denoms );
 	}
 
+	public static function status_label( $status ) {
+		$labels = array( 'open' => __( 'offen', 'wp-pass-captain' ), 'counting' => __( 'wird gezählt', 'wp-pass-captain' ), 'closed' => __( 'abgeschlossen', 'wp-pass-captain' ) );
+		return $labels[ $status ] ?? Forms::status_label( $status );
+	}
+
 	private static function money( $minor, $currency ) {
 		return null === $minor ? '–' : Scope::money( (int) $minor, $currency );
 	}
@@ -295,7 +300,7 @@ final class ShiftPage {
 		if ( $open ) {
 			echo '<h2>' . esc_html__( 'Offene Schichten', 'wp-pass-captain' ) . '</h2><ul>';
 			foreach ( $open as $s ) {
-				echo '<li><a href="' . esc_url( self::url( 'shift', array( 'shift_id' => (int) $s->session_id ) ) ) . '">' . esc_html( sprintf( /* translators: 1: register, 2: shift, 3: cashier */ __( '%1$s · Schicht #%2$d · %3$s', 'wp-pass-captain' ), $names[ (int) $s->register_id ] ?? '–', $s->session_id, Service::user_name( $s->user_id ) ) ) . '</a> (' . esc_html( Forms::status_label( $s->status ) ) . ')</li>';
+				echo '<li><a href="' . esc_url( self::url( 'shift', array( 'shift_id' => (int) $s->session_id ) ) ) . '">' . esc_html( sprintf( /* translators: 1: register, 2: shift, 3: cashier */ __( '%1$s · Schicht #%2$d · %3$s', 'wp-pass-captain' ), $names[ (int) $s->register_id ] ?? '–', $s->session_id, Service::user_name( $s->user_id ) ) ) . '</a> (' . esc_html( self::status_label( $s->status ) ) . ')</li>';
 			}
 			echo '</ul>';
 		}
