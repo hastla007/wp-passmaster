@@ -19,6 +19,9 @@ final class Plugin {
 		add_action( $upgrade_hook, array( __CLASS__, 'maybe_upgrade' ), 0, 0 );
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
 		Settings::register();
+		if ( is_admin() ) {
+			( new Licensing\AdminPage() )->register();
+		}
 		Jobs\TimeBudget::register();
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_site_tables' ), 10, 2 );
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
