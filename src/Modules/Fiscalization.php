@@ -246,6 +246,111 @@ final class Fiscalization {
 	}
 
 
+	public static function admin_pages() {
+		return array( array( 'wpcap-fiscalization', __( 'Fiskalisierung', 'wp-pass-captain' ), 'manage_options', array( __CLASS__, 'render_admin' ) ) );
+	}
+
+	public static function admin_handlers() {
+		return array(
+			'wpcap_fiscal_save_seller' => array( __CLASS__, 'handle_admin_save_seller' ),
+			'wpcap_fiscal_save_provider' => array( __CLASS__, 'handle_admin_save_provider' ),
+			'wpcap_fiscal_assign_seller' => array( __CLASS__, 'handle_admin_assign_seller' ),
+		);
+	}
+
+	private static function admin_redirect( $result = 'saved' ) {
+		wp_safe_redirect( add_query_arg( array( 'page' => 'wpcap-fiscalization', 'fiscal_result' => sanitize_key( $result ) ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	public static function handle_admin_save_seller() {
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
+		check_admin_referer( 'wpcap_fiscal_save_seller' );
+		$request = new \\WP_REST_Request( 'POST' );
+		$request->set_json_params( array(
+			'legal_name' => sanitize_text_field( wp_unslash( $_POST['legal_name'] ?? '' ) ),
+			'country_code' => strtoupper( sanitize_text_field( wp_unslash( $_POST['country_code'] ?? '' ) ) ),
+			'tax_number' => sanitize_text_field( wp_unslash( $_POST['tax_number'] ?? '' ) ),
+		) );
+		$result = self::rest_save_seller( $request );
+		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'saved' );
+	}
+
+	public static function handle_admin_save_provider() {
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
+		$seller_id = absint( $_POST['seller_id'] ?? 0 );
+		check_admin_referer( 'wpcap_fiscal_save_provider_' . $seller_id );
+		$raw = wp_unslash( $_POST['configuration'] ?? '{}' );
+		$config = json_decode( $raw, true );
+		if ( ! is_array( $config ) ) { self::admin_redirect( 'invalid_json' ); }
+		$request = new \\WP_REST_Request( 'PUT' );
+		$request->set_param( 'seller_id', $seller_id );
+		$request->set_json_params( array(
+			'provider_id' => sanitize_key( wp_unslash( $_POST['provider_id'] ?? '' ) ),
+			'enabled' => ! empty( $_POST['enabled'] ),
+			'configuration' => $config,
+		) );
+		$result = self::rest_save_provider( $request );
+		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'saved' );
+	}
+
+	public static function handle_admin_assign_seller() {
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
+		$type_id = absint( $_POST['ticket_type_id'] ?? 0 );
+		check_admin_referer( 'wpcap_fiscal_assign_seller_' . $type_id );
+		$seller_id = absint( $_POST['seller_id'] ?? 0 );
+		if ( ! $seller_id ) {
+			global $wpdb;
+			$wpdb->delete( $wpdb->prefix . 'wpcap_ticket_sellers', array( 'ticket_type_id' => $type_id ), array( '%d' ) );
+			self::admin_redirect( 'saved' );
+		}
+		$result = self::assign_ticket_type( $type_id, $seller_id, sanitize_key( wp_unslash( $_POST['seller_mode'] ?? '' ) ) );
+		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'saved' );
+	}
+
+	public static function render_admin() {
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$sellers = $wpdb->get_results( "SELECT s.*,c.provider_id,c.configuration,c.enabled FROM {$p}wpcap_legal_sellers s LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id ORDER BY s.legal_name" );
+		$types = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.name AS ticket_name,e.name AS event_name,ts.seller_id,ts.seller_mode FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_sellers ts ON ts.ticket_type_id=tt.ticket_type_id ORDER BY e.name,tt.name" );
+		$adapters = Registry::all();
+		$result = sanitize_key( $_GET['fiscal_result'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only status.
+		echo '<div class="wrap"><h1>' . esc_html__( 'Fiskalisierung', 'wp-pass-captain' ) . '</h1>';
+		if ( 'saved' === $result ) { echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Änderung gespeichert.', 'wp-pass-captain' ) . '</p></div>'; }
+		if ( 'error' === $result || 'invalid_json' === $result ) { echo '<div class="notice notice-error"><p>' . esc_html__( 'Änderung fehlgeschlagen. Eingaben, Adapter und Länderunterstützung prüfen.', 'wp-pass-captain' ) . '</p></div>'; }
+		echo '<p>' . esc_html__( 'Fiskalbelege werden je Rechtsträger erstellt. Ein zugeordnetes Ticket wird erst ausgegeben, wenn der konfigurierte Adapter den Beleg bestätigt.', 'wp-pass-captain' ) . '</p>';
+		echo '<h2>' . esc_html__( 'Rechtsträger anlegen', 'wp-pass-captain' ) . '</h2><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		wp_nonce_field( 'wpcap_fiscal_save_seller' );
+		echo '<input type="hidden" name="action" value="wpcap_fiscal_save_seller"><table class="form-table"><tr><th><label for="fiscal-legal-name">' . esc_html__( 'Rechtlicher Name', 'wp-pass-captain' ) . '</label></th><td><input required id="fiscal-legal-name" name="legal_name" class="regular-text"></td></tr><tr><th><label for="fiscal-country">' . esc_html__( 'Land', 'wp-pass-captain' ) . '</label></th><td><select id="fiscal-country" name="country_code"><option value="AT">AT</option><option value="DE">DE</option><option value="HU">HU</option></select></td></tr><tr><th><label for="fiscal-tax">' . esc_html__( 'Steuernummer / VAT-ID', 'wp-pass-captain' ) . '</label></th><td><input id="fiscal-tax" name="tax_number" class="regular-text"></td></tr></table>';
+		submit_button( __( 'Rechtsträger speichern', 'wp-pass-captain' ) );
+		echo '</form><hr><h2>' . esc_html__( 'Anbieter konfigurieren', 'wp-pass-captain' ) . '</h2>';
+		if ( ! $adapters ) { echo '<p>' . esc_html__( 'Noch kein Fiskaladapter installiert. Anbieter bleiben deaktiviert, bis ein Adapter registriert wurde.', 'wp-pass-captain' ) . '</p>'; }
+		foreach ( $sellers as $seller ) {
+			$config = $seller->configuration ? (array) json_decode( $seller->configuration, true ) : array();
+			$available = array_filter( $adapters, static function ( $adapter ) use ( $seller ) { return in_array( strtoupper( $seller->country_code ), array_map( 'strtoupper', (array) $adapter->countries() ), true ); } );
+			echo '<h3>' . esc_html( $seller->legal_name . ' (' . $seller->country_code . ')' ) . '</h3><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			wp_nonce_field( 'wpcap_fiscal_save_provider_' . (int) $seller->seller_id );
+			echo '<input type="hidden" name="action" value="wpcap_fiscal_save_provider"><input type="hidden" name="seller_id" value="' . (int) $seller->seller_id . '"><label>' . esc_html__( 'Anbieter', 'wp-pass-captain' ) . ' <select name="provider_id"><option value="">' . esc_html__( 'Keiner', 'wp-pass-captain' ) . '</option>';
+			foreach ( $available as $adapter ) { echo '<option value="' . esc_attr( $adapter->id() ) . '" ' . selected( $seller->provider_id, $adapter->id(), false ) . '>' . esc_html( $adapter->id() ) . '</option>'; }
+			echo '</select></label> <label><input type="checkbox" name="enabled" value="1" ' . checked( (int) $seller->enabled, 1, false ) . '> ' . esc_html__( 'Aktiv', 'wp-pass-captain' ) . '</label><p><label>' . esc_html__( 'Nicht geheime Adapter-Konfiguration (JSON)', 'wp-pass-captain' ) . '<br><textarea name="configuration" rows="4" class="large-text code">' . esc_textarea( wp_json_encode( $config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) ) . '</textarea></label></p>';
+			submit_button( __( 'Anbieter speichern', 'wp-pass-captain' ), 'secondary' );
+			echo '</form>';
+		}
+		echo '<hr><h2>' . esc_html__( 'Verkäufer je Ticketart', 'wp-pass-captain' ) . '</h2>';
+		if ( ! $sellers ) { echo '<p>' . esc_html__( 'Lege zuerst mindestens einen Rechtsträger an.', 'wp-pass-captain' ) . '</p>'; }
+		foreach ( $types as $type ) {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:flex;gap:8px;align-items:center;margin:8px 0">';
+			wp_nonce_field( 'wpcap_fiscal_assign_seller_' . (int) $type->ticket_type_id );
+			echo '<input type="hidden" name="action" value="wpcap_fiscal_assign_seller"><input type="hidden" name="ticket_type_id" value="' . (int) $type->ticket_type_id . '"><strong>' . esc_html( $type->event_name . ' — ' . $type->ticket_name ) . '</strong><select name="seller_id"><option value="0">' . esc_html__( 'Nicht fiskal zuordnen', 'wp-pass-captain' ) . '</option>';
+			foreach ( $sellers as $seller ) { echo '<option value="' . (int) $seller->seller_id . '" ' . selected( (int) $type->seller_id, (int) $seller->seller_id, false ) . '>' . esc_html( $seller->legal_name . ' (' . $seller->country_code . ')' ) . '</option>'; }
+			echo '</select><select name="seller_mode"><option value="organizer_seller" ' . selected( $type->seller_mode, 'organizer_seller', false ) . '>' . esc_html__( 'Veranstalter ist Verkäufer', 'wp-pass-captain' ) . '</option><option value="platform_seller" ' . selected( $type->seller_mode, 'platform_seller', false ) . '>' . esc_html__( 'Betreibergesellschaft ist Verkäufer', 'wp-pass-captain' ) . '</option></select>';
+			submit_button( __( 'Zuordnung speichern', 'wp-pass-captain' ), 'secondary', 'submit', false );
+			echo '</form>';
+		}
+		echo '</div>';
+	}
+
 	/** Admin-only REST endpoints for managing seller records, provider selection, and ticket mapping. */
 	public static function register_routes() {
 		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers', array(
