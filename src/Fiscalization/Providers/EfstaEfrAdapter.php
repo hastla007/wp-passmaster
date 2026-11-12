@@ -158,7 +158,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 	}
 
 	private function endpoint( array $configuration, $path ) {
-		$base = untrailingslashit( (string) ( $configuration['endpoint_url'] ?? '' ) );
+		$base = rtrim( (string) ( $configuration['endpoint_url'] ?? '' ), '/' );
 		if ( '' === $base ) { return new \WP_Error( 'efsta_endpoint_missing', __( 'Die efsta EFR-Endpunktadresse muss konfiguriert werden.', 'wp-pass-captain' ) ); }
 		return $base . '/' . ltrim( $path, '/' );
 	}
