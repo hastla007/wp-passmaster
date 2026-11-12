@@ -97,9 +97,13 @@ final class Adapter {
 			$referral['code'] = substr( $code, 0, 64 );
 		}
 		$visitor_request = empty( $internal['external'] ) && ! in_array( $channel, self::STAFF_CHANNELS, true );
-		// The tracked link/cookie is only read with consent; a manually entered code (above) is the
-		// buyer's own declaration and needs none.
-		$touch = $visitor_request && function_exists( 'wpac_current_touch' ) && self::tracking_allowed() ? wpac_current_touch() : null;
+		// The referral cookie is only used with consent. The partner link of the current shop session
+		// (method "link") sets no marketing cookie and needs none – Affiliate Captain itself treats it
+		// the same way. A manually entered code (above) is the buyer's own declaration.
+		$touch = $visitor_request && function_exists( 'wpac_current_touch' ) ? wpac_current_touch() : null;
+		if ( is_array( $touch ) && ! self::tracking_allowed( (string) ( $touch['method'] ?? 'link' ) ) ) {
+			$touch = null;
+		}
 		if ( is_array( $touch ) && ! empty( $touch['code'] ) ) {
 			$referral['touch'] = array(
 				'code'       => substr( sanitize_text_field( (string) $touch['code'] ), 0, 64 ),
@@ -117,17 +121,20 @@ final class Adapter {
 	}
 
 	/**
-	 * Whether the visitor's referral cookie/link may be read for this order.
+	 * Whether the visitor's referral may be used for this order.
 	 *
-	 * With the WP Consent API (plugin "WP Consent API" plus a compatible cookie banner) the
-	 * "marketing" category decides – no consent, no read. Without a consent API the default is
-	 * true: the site operator is then responsible for gating Affiliate Captain's own tracking
-	 * cookie in the cookie banner. Filter `wpcap_affiliate_tracking_allowed` (bool, order context
-	 * not yet available) overrides both, e.g. for a different consent manager.
+	 * Cookie referrals (method "cookie"): with the WP Consent API (plugin "WP Consent API" plus a
+	 * compatible cookie banner) the "marketing" category decides – no consent, no use. Without a
+	 * consent API the default is true: the site operator then gates Affiliate Captain's cookie in
+	 * the cookie banner. Link referrals of the current shop session (method "link"/"app") use no
+	 * marketing cookie and are allowed by default. Filter `wpcap_affiliate_tracking_allowed`
+	 * (bool $allowed, string $method) overrides both, e.g. for a different consent manager.
+	 *
+	 * @param string $method Touch method (cookie, link, app).
 	 */
-	public static function tracking_allowed() {
-		$allowed = function_exists( 'wp_has_consent' ) ? (bool) wp_has_consent( 'marketing' ) : true;
-		return (bool) apply_filters( 'wpcap_affiliate_tracking_allowed', $allowed );
+	public static function tracking_allowed( $method = 'cookie' ) {
+		$allowed = 'cookie' !== $method ? true : ( function_exists( 'wp_has_consent' ) ? (bool) wp_has_consent( 'marketing' ) : true );
+		return (bool) apply_filters( 'wpcap_affiliate_tracking_allowed', $allowed, $method );
 	}
 
 	/** Rejects unknown codes; at most 10 wrong codes per hour and client (code guessing). */
@@ -273,7 +280,7 @@ final class Adapter {
 	private static function reportable_order( $order_id ) {
 		if ( ! self::available() ) { return null; }
 		global $wpdb;
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,customer_email,payment_status,status,currency,total_minor,price_snapshot,payment_provider,updated_at FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,customer_email,payment_status,status,currency,total_minor,price_snapshot,voucher_snapshot,payment_provider,updated_at FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
 		if ( ! $order ) { return null; }
 		$channel = (string) ( self::snapshot_of( $order )['affiliate_referral']['channel'] ?? '' );
 		/**
@@ -316,6 +323,10 @@ final class Adapter {
 		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.item_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_minor,tt.name AS type_name,o.event_id,o.starts_at,o.ends_at,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", $order->order_id ) );
 		$subtotal = 0;
 		foreach ( $lines as $line ) { $subtotal += (int) $line->line_total_minor; }
+		// Multi-purpose voucher (means of payment): the order keeps the full price and VAT, only the amount
+		// due shrinks. The VAT share of what was actually paid is then proportional, not the full line VAT.
+		$voucher       = ! empty( $order->voucher_snapshot ) ? json_decode( (string) $order->voucher_snapshot, true ) : null;
+		$paid_by_means = is_array( $voucher ) && ! empty( $voucher['amount_paid_by_voucher'] );
 		$paid  = min( (int) $order->total_minor, $subtotal );
 		$left  = $paid;
 		$last  = count( $lines ) - 1;
@@ -325,7 +336,8 @@ final class Adapter {
 			$gross = max( 0, min( $gross, $left ) );
 			$left -= $gross;
 			$end   = $line->ends_at ? $line->ends_at : $line->starts_at;
-			$net   = max( 0, $gross - (int) $line->tax_minor );
+			$tax   = $paid_by_means && (int) $line->line_total_minor > 0 ? (int) round( (int) $line->tax_minor * $gross / (int) $line->line_total_minor ) : (int) $line->tax_minor;
+			$net   = max( 0, $gross - $tax );
 			$items[] = array(
 				'item_id'      => (string) (int) $line->item_id,
 				'product_id'   => 0,

@@ -287,8 +287,14 @@ final class Controller {
 		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold ) );
 		remove_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
 		if ( is_wp_error( $result ) ) { return self::with_error_field( $result, $campaign_messages( array() ) ); }
+		// A retry of an attempt that was cancelled (voucher rejected, payment start failed) or expired must not look like a new order.
+		if ( ! empty( $result['reused'] ) && in_array( $result['payment_status'] ?? '', array( 'cancelled', 'expired' ), true ) ) {
+			return new \WP_Error( 'wpcap_checkout_closed', __( 'Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		}
 		$voucher_code = sanitize_text_field( $params['voucher_code'] ?? '' );
-		if ( '' !== $voucher_code && 'pending' === ( $result['payment_status'] ?? '' ) && empty( $result['reused'] ) ) {
+		// Also on a retry whose first attempt stopped before the voucher was stored (the reservation key is the same).
+		$needs_voucher = empty( $result['reused'] ) || ! Orders::get( $result['order_id'] )->voucher_snapshot;
+		if ( '' !== $voucher_code && 'pending' === ( $result['payment_status'] ?? '' ) && $needs_voucher ) {
 			$voucher = \PassCaptain\Integrations\Vouchers\Checkout::apply( $result['order_id'], $voucher_code );
 			if ( is_wp_error( $voucher ) ) {
 				Orders::cancel_order( $result['order_id'], 'voucher_rejected' );

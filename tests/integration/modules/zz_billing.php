@@ -180,7 +180,9 @@ $erase_order = bb_order( $bt, 'erase-b2b@example.com', bb_billing() );
 Orders::confirm_manual_payment( $erase_order['order_id'] );
 $erase_inv = Invoices::issue_for_order( $erase_order['order_id'] );
 $erase_pending = bb_order( $bt, 'erase-b2b@example.com', bb_billing( array( 'company' => 'Zweite GmbH' ) ) );
+$GLOBALS['wpcap_test_filters']['wpcap_privacy_defer_upcoming'] = false; // Immediate anonymisation path.
 $erased = Privacy::erase( 'erase-b2b@example.com' );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_privacy_defer_upcoming'] );
 $erase_snap = json_decode( (string) $wpdb->get_var( "SELECT buyer_snapshot FROM {$p}wpcap_invoices WHERE invoice_id=" . (int) $erase_inv['invoice_id'] ), true );
 check( 'erasure removes the billing data from the orders', array() === Orders::billing( $erase_order['order_id'] ) && array() === Orders::billing( $erase_pending['order_id'] ) && null === Orders::get( $erase_order['order_id'] )->billing );
 check( 'issued invoice keeps its recipient snapshot (Art. 17 Abs. 3 lit. b)', 'Muster GmbH' === ( $erase_snap['company'] ?? '' ) && 'Erika Muster' === ( $erase_snap['name'] ?? '' ) && false !== strpos( Invoices::render_html( $erase_inv['invoice_id'] ), 'Muster GmbH' ) );
