@@ -7,7 +7,7 @@ This document describes the first implementation layer for seller-aware fiscaliz
 - A legal seller is separate from an organizer/partner account.
 - A ticket type maps to exactly one legal seller and one seller-of-record mode: `organizer_seller` or `platform_seller`.
 - A mixed cart may contain ticket types belonging to different sellers. During the existing `wpcap_order_creating` transaction, the module freezes one fiscal document and its line snapshots per seller.
-- Each document gets a stable SHA-256 idempotency key based on the Pass Captain order and seller. Gross, tax, currency, seller identity, and seller mode are snapshotted; later profile edits do not change an existing document.
+- Each document gets a stable SHA-256 idempotency key based on the Pass Captain order and seller. Gross, tax, currency, seller identity, seller mode, and the payment channel/method are snapshotted; later profile edits do not change an existing document.
 - Ticket issue is gated by `wpcap_order_fiscal_ready`. Mapped orders do not issue tickets until every seller document has status `submitted`. Without a mapping, existing sales keep their previous behavior.
 - Failed calls retry with exponential delays, capped at eight automatic attempts. The admin-only retry endpoint can restart terminal failures.
 
@@ -38,7 +38,7 @@ Example seller modes are `organizer_seller` (organizer is seller and invoice iss
 
 ## Operational behavior
 
-The POS response adds `tickets_issued` and `ticket_issuance_pending`. WooCommerce receives an order note when payment is accepted but the fiscal adapter has not yet completed and tickets are still withheld. Operators must monitor these orders and resolve terminal failures with the retry endpoint after confirming the provider's status.
+The POS accepts an optional `payment_method` (`cash`, `card`, `voucher`, or `other`) and snapshots it for adapters. WooCommerce snapshots its configured payment gateway ID. The POS response adds `tickets_issued` and `ticket_issuance_pending`. WooCommerce receives an order note when payment is accepted but the fiscal adapter has not yet completed and tickets are still withheld. Operators must monitor these orders and resolve terminal failures with the retry endpoint after confirming the provider's status.
 
 ## Remaining implementation before production
 
