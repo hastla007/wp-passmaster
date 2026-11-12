@@ -324,6 +324,12 @@ final class Refunds {
 	 *
 	 * @return int[] [gross, tax]
 	 */
+	/** Gross value (minor units, before order-level discounts) of the given tickets, from their order lines. */
+	public static function gross_for_tickets( $order, array $ticket_ids ) {
+		list( $gross ) = self::line_shares( $order, $ticket_ids );
+		return $gross;
+	}
+
 	private static function line_shares( $order, array $ticket_ids ) {
 		global $wpdb;
 		$p = $wpdb->prefix;

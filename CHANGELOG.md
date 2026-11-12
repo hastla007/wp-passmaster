@@ -6,6 +6,16 @@
 - Gemeinsamer Scanner: neuer Dienst `wp_pass_captain_checkin_service_v1` (`Integrations\Vouchers\CheckinService`) – `recognizes()`, `preview()`, `check_in()` mit denselben Regeln, Sperren und Audit wie der eigene Web-Scanner; Recht `wpcap_checkin` wird im Dienst geprüft. Der Voucher-Captain-Scanner erkennt damit auch Pass-Captain-Tickets; Gutschein-Einlösung und Ticket-Check-in bleiben getrennte Aktionen.
 - Einstellungen zeigen den Status der Integration (Voucher Captain aktiv/Version, Gutscheine im Checkout, Gutschein → Ticket, gemeinsamer Scanner) mit Links; im Menü stehen „Gemeinsamer Scanner ↗“ und „WP Voucher Captain ↗“, wenn Voucher Captain aktiv ist. Beide Plugins behalten ihre eigenen Menüs.
 
+### Korrekturen aus dem Experten-Review (Gutscheine, Bestellungen, Datenschutz)
+- Gutschein-Anteil bei Ticket-Erstattungen wird nach Ticketwert berechnet (wie der Barbetrag), nicht mehr nach Ticketanzahl; der letzte Erstattungsschritt erhält den Rest.
+- Erstattung, während die Gutschein-Belastung noch wiederholt wird: Der Gutschein-Anteil wird vorgemerkt und direkt nach der erfolgreichen Belastung erstattet. Ist die Bestellung bis dahin vollständig erstattet oder storniert, wird der Gutschein freigegeben statt belastet.
+- Hat Voucher Captain eine Reservierung bereits freigegeben (z. B. abgelaufen während einer Überweisung), wird der Gutschein mit dem gespeicherten Angebot neu reserviert und belastet, statt die Bestellung als „nicht belastbar“ zu melden. Die Betragsprüfung bei der Neureservierung greift jetzt (`applied_minor`).
+- Gutschein anwenden ist atomar: Bestellung und Positionssteuern werden in einer Transaktion und nur bei unveränderter, offener Bestellung geschrieben; andernfalls wird die Reservierung freigegeben. Ein Wiederholungsversuch mit demselben Schlüssel wendet einen noch nicht gespeicherten Gutschein nach.
+- Abgelaufene Reservierungen: Storno-Folgen (Kontingent, Kampagnen, `wpcap_order_cancelled`) laufen nur noch für Bestellungen, die dieser Lauf tatsächlich abgelaufen hat – nie für zwischenzeitlich bezahlte.
+- Event-Absage: offene Bestellungen lösen `wpcap_order_cancelled` aus (Gutschein-Reservierungen werden freigegeben); bezahlte Tickets werden bei aktivierter automatischer Erstattung vor dem Entwerten erstattet (wie bei der Absage eines Termins, `OccurrenceCancellation::refund_paid()`).
+- Checkout: Nach einer Ablehnung (Gutschein, Zahlungsstart) beginnt das erneute Absenden einen neuen Bestellversuch; ein abgebrochener Versuch wird nicht mehr als „Bestellung angelegt“ gemeldet (409 `wpcap_checkout_closed`).
+- Datenschutz: Export enthält Teilnehmernamen und Teilnehmerangaben mit Feldbezeichnung (Teilnehmer sehen nur ihre eigenen Tickets); die Löschung entfernt Teilnehmerangaben.
+
 ## 1.2.0 – 2026-11-12
 
 ### Gutschein in Ticket umwandeln (Voucher Captain)

@@ -860,18 +860,27 @@ final class Orders {
 		if ( ! $event || 'published' !== $event->status ) {
 			return new \WP_Error( 'wpcap_event_not_cancellable', __( 'Dieses Event kann nicht abgesagt werden.', 'wp-pass-captain' ) );
 		}
+		// Refund paid tickets first (when auto refunds are enabled): revoked tickets can no longer be refunded.
+		foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d AND status<>'cancelled'", $event_id ) ) as $occurrence_id ) {
+			OccurrenceCancellation::refund_paid( (int) $occurrence_id, 'event-cancelled-' . $event_id . '-' . (int) $occurrence_id );
+		}
 		$wpdb->query( 'START TRANSACTION' );
 		$wpdb->update( $wpdb->prefix . 'wpcap_events', array( 'status' => 'cancelled', 'updated_at' => current_time( 'mysql', true ) ), array( 'event_id' => $event_id, 'status' => 'published' ), array( '%s', '%s' ), array( '%d', '%s' ) );
 		$wpdb->update( $wpdb->prefix . 'wpcap_occurrences', array( 'status' => 'cancelled' ), array( 'event_id' => $event_id ), array( '%s' ), array( '%d' ) );
 		$event_revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND t.status='valid'", $event_id ) ) );
 		$order_ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT oi.order_id FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d", $event_id ) );
 		$notify_ids = $order_ids ? array_map( 'absint', $wpdb->get_col( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE order_id IN (" . implode( ',', array_map( 'absint', $order_ids ) ) . ") AND payment_status IN ('paid','pending','paid_unallocated')" ) ) : array();
+		$cancelled_pending = array();
 		foreach ( $order_ids as $order_id ) {
 			$wpdb->update( $wpdb->prefix . 'wpcap_reservations', array( 'status' => 'released' ), array( 'order_id' => absint( $order_id ), 'status' => 'active' ), array( '%s' ), array( '%d', '%s' ) );
-			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'status' => 'cancelled', 'payment_status' => 'cancelled', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => absint( $order_id ), 'payment_status' => 'pending' ), array( '%s', '%s', '%s' ), array( '%d', '%s' ) );
+			if ( 1 === (int) $wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'status' => 'cancelled', 'payment_status' => 'cancelled', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => absint( $order_id ), 'payment_status' => 'pending' ), array( '%s', '%s', '%s' ), array( '%d', '%s' ) ) ) {
+				$cancelled_pending[] = absint( $order_id );
+			}
 			Campaigns::release_for_order( $order_id );
 		}
 		$wpdb->query( 'COMMIT' );
+		// Same signal as cancel_order() for the open orders cancelled here (e.g. releases voucher reservations).
+		foreach ( $cancelled_pending as $cancelled_id ) { do_action( 'wpcap_order_cancelled', $cancelled_id ); }
 		// Only buyers with a paid or open order are notified, not abandoned/expired/refunded attempts.
 		$recipients = ! $notify_ids ? array() : $wpdb->get_results( $wpdb->prepare(
 			"SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM {$wpdb->prefix}wpcap_orders ord INNER JOIN {$wpdb->prefix}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$wpdb->prefix}wpcap_tickets t ON t.order_id=ord.order_id AND t.ticket_type_id=tt.ticket_type_id WHERE o.event_id=%d AND ord.order_id IN (" . implode( ',', $notify_ids ) . ") GROUP BY email",
@@ -914,12 +923,21 @@ final class Orders {
 		$orders = $wpdb->prefix . 'wpcap_orders';
 		$expired_ids = $wpdb->get_col( $wpdb->prepare( "SELECT ord.order_id FROM $orders ord WHERE ord.payment_status='pending' AND NOT EXISTS (SELECT 1 FROM $reservations r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>%s)", $now ) );
 		$wpdb->query( $wpdb->prepare( "UPDATE $reservations SET status='expired' WHERE status='active' AND expires_at <= %s", $now ) );
-		$wpdb->query( $wpdb->prepare(
-			"UPDATE $orders SET status='expired',payment_status='expired',updated_at=%s WHERE payment_status='pending' AND NOT EXISTS (SELECT 1 FROM $reservations r WHERE r.order_id=$orders.order_id AND r.status='active' AND r.expires_at > %s)",
-			$now,
-			$now
-		) );
-		foreach ( $expired_ids as $expired_id ) { Campaigns::release_for_order( $expired_id ); self::capacity_released( $expired_id, 'expired' ); do_action( 'wpcap_order_cancelled', (int) $expired_id ); }
+		foreach ( $expired_ids as $expired_id ) {
+			// Per order and conditional: an order paid (or extended) between the SELECT and here is left alone,
+			// and side effects only run for orders this run actually expired.
+			$changed = $wpdb->query( $wpdb->prepare(
+				"UPDATE $orders SET status='expired',payment_status='expired',updated_at=%s WHERE order_id=%d AND payment_status='pending' AND NOT EXISTS (SELECT 1 FROM $reservations r WHERE r.order_id=%d AND r.status='active' AND r.expires_at > %s)",
+				$now,
+				(int) $expired_id,
+				(int) $expired_id,
+				$now
+			) );
+			if ( 1 !== (int) $changed ) { continue; }
+			Campaigns::release_for_order( $expired_id );
+			self::capacity_released( $expired_id, 'expired' );
+			do_action( 'wpcap_order_cancelled', (int) $expired_id );
+		}
 		return true;
 	}
 

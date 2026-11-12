@@ -135,8 +135,10 @@
 					idempotency_key: form.dataset.key
 				}, extra))
 			});
-			const data = await response.json();
-			if (!response.ok) throw new Error(data.message || t.failed || 'Failed.');
+			const data = await response.json().catch(() => ({}));
+			// The server answered: the attempt is finished either way, so the next submit starts a new one.
+			// (Only network errors keep the key, so a retry cannot create a second order.)
+			if (!response.ok) { delete form.dataset.key; throw new Error(data.message || t.failed || 'Failed.'); }
 			delete form.dataset.key;
 			if (data.payment && data.payment.redirect_url) {
 				message.textContent = t.redirecting || '…';

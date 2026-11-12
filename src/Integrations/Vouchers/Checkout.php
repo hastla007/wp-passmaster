@@ -69,20 +69,44 @@ final class Checkout {
 		$reservation = Bridge::reserve( $quote, $key );
 		if ( is_wp_error( $reservation ) ) { return self::user_error( $reservation ); }
 
+		$order_ref = $order->public_id;
 		$old_total = (int) $order->total_minor;
 		$new_total = $old_total - $amount;
 		$new_tax = $old_total > 0 ? (int) round( (int) $order->tax_minor * $new_total / $old_total ) : 0;
 		// Keep line VAT consistent with the reduced total (proportional, remainder on the last line).
 		$tax_left = $new_tax;
 		$last = count( $items ) - 1;
-		foreach ( $items as $index => $item ) {
+		$snapshot = array( 'code_hint' => substr( $code, -4 ), 'amount_minor' => $amount, 'quote' => $quote, 'reservation' => $reservation, 'status' => 'reserved', 'refunded_minor' => 0, 'refunded_tickets' => 0 );
+		// One transaction, every write checked; the order row only changes while it is still pending,
+		// unchanged and without a voucher (a concurrent retry or an expiry in between wins).
+		$wpdb->query( 'START TRANSACTION' );
+		$ok = false !== $wpdb->query( $wpdb->prepare(
+			"UPDATE {$p}wpcap_orders SET total_minor=%d,discount_minor=discount_minor+%d,tax_minor=%d,voucher_snapshot=%s,updated_at=%s WHERE order_id=%d AND payment_status='pending' AND total_minor=%d AND (voucher_snapshot IS NULL OR voucher_snapshot='')",
+			$new_total,
+			$amount,
+			$new_tax,
+			wp_json_encode( $snapshot ),
+			current_time( 'mysql', true ),
+			(int) $order_id,
+			$old_total
+		) ) && 1 === (int) $wpdb->rows_affected;
+		foreach ( $ok ? $items : array() as $index => $item ) {
 			$line_tax = $index === $last ? $tax_left : ( (int) $order->tax_minor > 0 ? (int) round( (int) $item->tax_minor * $new_tax / (int) $order->tax_minor ) : 0 );
 			$line_tax = max( 0, min( $line_tax, $tax_left ) );
 			$tax_left -= $line_tax;
-			$wpdb->update( "{$p}wpcap_order_items", array( 'tax_minor' => $line_tax ), array( 'item_id' => (int) $item->item_id ) );
+			$ok = false !== $wpdb->update( "{$p}wpcap_order_items", array( 'tax_minor' => $line_tax ), array( 'item_id' => (int) $item->item_id ) );
+			if ( ! $ok ) { break; }
 		}
-		$snapshot = array( 'code_hint' => substr( $code, -4 ), 'amount_minor' => $amount, 'quote' => $quote, 'reservation' => $reservation, 'status' => 'reserved', 'refunded_minor' => 0, 'refunded_tickets' => 0 );
-		$wpdb->update( "{$p}wpcap_orders", array( 'total_minor' => $new_total, 'discount_minor' => (int) $order->discount_minor + $amount, 'tax_minor' => $new_tax, 'voucher_snapshot' => wp_json_encode( $snapshot ), 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => (int) $order_id ) );
+		if ( ! $ok ) {
+			$wpdb->query( 'ROLLBACK' );
+			$current = Orders::get( $order_id );
+			// The same reservation key is shared with a concurrent request that applied it: keep it.
+			if ( ! $current || ! $current->voucher_snapshot ) {
+				Bridge::release( (array) $reservation, 'wpcap-release-' . $order_ref );
+			}
+			return new \WP_Error( 'wpcap_voucher_state', __( 'Der Gutschein kann auf diese Bestellung nicht angewendet werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		}
+		$wpdb->query( 'COMMIT' );
 		Audit::record( 'voucher_reserved', 'order', (int) $order_id, array( 'amount_minor' => $amount ) );
 		if ( 0 === $new_total ) {
 			// Fully paid by voucher: confirm like a free order (commit follows via wpcap_order_paid).
@@ -108,28 +132,64 @@ final class Checkout {
 		$snapshot = self::snapshot( $order_id );
 		if ( ! $snapshot || ! in_array( $snapshot['status'] ?? '', array( 'reserved', 'released' ), true ) ) { return true; }
 		$order = Orders::get( $order_id );
+		// Refunded or cancelled before the (retried) commit: the voucher is not charged at all.
+		if ( 'reserved' === $snapshot['status'] && $order && ( in_array( $order->status, array( 'refunded', 'cancelled' ), true ) || in_array( $order->payment_status, array( 'refunded', 'cancelled' ), true ) ) ) {
+			$released = Bridge::release( (array) $snapshot['reservation'], 'wpcap-release-' . $order->public_id );
+			if ( is_wp_error( $released ) ) {
+				Audit::record( 'voucher_release_failed', 'order', $order_id, array( 'error' => $released->get_error_code() ) );
+				return true;
+			}
+			$snapshot['status'] = 'released';
+			unset( $snapshot['pending_refund_ids'] );
+			self::save( $order_id, $snapshot );
+			Audit::record( 'voucher_released', 'order', $order_id, array( 'reason' => $order->status ) );
+			return true;
+		}
 		if ( 'released' === $snapshot['status'] ) {
 			if ( ! $order || 'paid' !== $order->payment_status ) { return true; }
-			$again = Bridge::reserve( (array) ( $snapshot['quote'] ?? array() ), 'wpcap-order-late-' . $order->public_id );
-			if ( is_wp_error( $again ) ) { return self::commit_error( $order_id, $snapshot, $again, $final ); }
-			if ( isset( $again['amount_minor'] ) && (int) $again['amount_minor'] !== (int) $snapshot['amount_minor'] ) {
-				Bridge::release( (array) $again, 'wpcap-release-late-' . $order->public_id );
-				return self::needs_review( $order_id, $snapshot, new \WP_Error( 'wpcap_voucher_amount_changed', __( 'Der Gutschein deckt den ursprünglichen Betrag nicht mehr.', 'wp-pass-captain' ) ) );
-			}
-			$snapshot['reservation'] = $again;
-			$snapshot['status'] = 'reserved';
-			$snapshot['late_reservation'] = true;
-			self::save( $order_id, $snapshot );
-			Audit::record( 'voucher_reserved_again', 'order', $order_id, array( 'amount_minor' => (int) $snapshot['amount_minor'] ) );
+			$again = self::reserve_again( $order_id, $order, $snapshot );
+			if ( is_wp_error( $again ) ) { return self::reserve_again_error( $order_id, $snapshot, $again, $final ); }
+			$snapshot = $again;
 		}
 		$result = Bridge::commit( (array) $snapshot['reservation'], 'wpcap-commit-' . ( $order ? $order->public_id : $order_id ) );
+		// Released on the voucher side (reservation TTL, cron, API) while the order waited for payment.
+		if ( is_wp_error( $result ) && 'vcap_reservation_missing' === $result->get_error_code() && empty( $snapshot['late_reservation'] ) && $order && 'paid' === $order->payment_status ) {
+			$again = self::reserve_again( $order_id, $order, $snapshot );
+			if ( is_wp_error( $again ) ) { return self::reserve_again_error( $order_id, $snapshot, $again, $final ); }
+			$snapshot = $again;
+			$result = Bridge::commit( (array) $snapshot['reservation'], 'wpcap-commit-late-' . $order->public_id );
+		}
 		if ( is_wp_error( $result ) ) { return self::commit_error( $order_id, $snapshot, $result, $final ); }
+		$pending = array_map( 'absint', (array) ( $snapshot['pending_refund_ids'] ?? array() ) );
 		$snapshot['status'] = 'committed';
 		$snapshot['redemption'] = $result;
-		unset( $snapshot['error'] );
+		unset( $snapshot['error'], $snapshot['pending_refund_ids'] );
 		self::save( $order_id, $snapshot );
 		Audit::record( 'voucher_committed', 'order', $order_id, array( 'amount_minor' => (int) $snapshot['amount_minor'] ) );
+		// Ticket refunds made while the commit was still pending receive their voucher share now.
+		foreach ( $pending as $refund_id ) { self::refund( $refund_id, $order_id ); }
 		return true;
+	}
+
+	/**
+	 * Reserves the voucher again with the stored quote (late payment after a release on either side).
+	 *
+	 * @return array|\WP_Error Updated snapshot.
+	 */
+	private static function reserve_again( $order_id, $order, array $snapshot ) {
+		$again = Bridge::reserve( (array) ( $snapshot['quote'] ?? array() ), 'wpcap-order-late-' . $order->public_id );
+		if ( is_wp_error( $again ) ) { return $again; }
+		$amount = $again['applied_minor'] ?? ( $again['amount_minor'] ?? null );
+		if ( null !== $amount && (int) $amount !== (int) $snapshot['amount_minor'] ) {
+			Bridge::release( (array) $again, 'wpcap-release-late-' . $order->public_id );
+			return new \WP_Error( 'wpcap_voucher_amount_changed', __( 'Der Gutschein deckt den ursprünglichen Betrag nicht mehr.', 'wp-pass-captain' ) );
+		}
+		$snapshot['reservation'] = $again;
+		$snapshot['status'] = 'reserved';
+		$snapshot['late_reservation'] = true;
+		self::save( $order_id, $snapshot );
+		Audit::record( 'voucher_reserved_again', 'order', $order_id, array( 'amount_minor' => (int) $snapshot['amount_minor'] ) );
+		return $snapshot;
 	}
 
 	/** Filter wp_pass_captain_process_job_v1: retries a voucher commit. */
@@ -145,6 +205,10 @@ final class Checkout {
 		$data = $error->get_error_data();
 		$status = is_array( $data ) ? (int) ( $data['status'] ?? 0 ) : 0;
 		return $status >= 500 || in_array( $error->get_error_code(), array( 'vcap_temporary_failure', 'wpcap_voucher_unavailable' ), true );
+	}
+
+	private static function reserve_again_error( $order_id, array $snapshot, \WP_Error $error, $final ) {
+		return 'wpcap_voucher_amount_changed' === $error->get_error_code() ? self::needs_review( $order_id, $snapshot, $error ) : self::commit_error( $order_id, $snapshot, $error, $final );
 	}
 
 	private static function commit_error( $order_id, array $snapshot, \WP_Error $error, $final ) {
@@ -205,16 +269,32 @@ final class Checkout {
 	public static function refund( $refund_id, $order_id ) {
 		global $wpdb;
 		$snapshot = self::snapshot( $order_id );
-		if ( ! $snapshot || 'committed' !== $snapshot['status'] ) { return; }
+		if ( ! $snapshot ) { return; }
 		$done_ids = array_map( 'absint', (array) ( $snapshot['refund_ids'] ?? array() ) );
 		if ( in_array( absint( $refund_id ), $done_ids, true ) ) { return; }
+		if ( 'reserved' === $snapshot['status'] ) {
+			// Commit still pending (retry job): the share is refunded right after the commit.
+			$pending = array_map( 'absint', (array) ( $snapshot['pending_refund_ids'] ?? array() ) );
+			if ( ! in_array( absint( $refund_id ), $pending, true ) ) {
+				$snapshot['pending_refund_ids'] = array_merge( $pending, array( absint( $refund_id ) ) );
+				self::save( $order_id, $snapshot );
+			}
+			return;
+		}
+		if ( 'committed' !== $snapshot['status'] ) { return; }
 		$refund = \PassCaptain\Refunds::get( $refund_id );
-		$refunded_now = count( (array) json_decode( (string) $refund['ticket_ids'], true ) );
+		$order = Orders::get( $order_id );
+		if ( ! $refund || ! $order ) { return; }
+		$refunded_ids = array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) );
+		$refunded_now = count( $refunded_ids );
 		$total_tickets = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d", (int) $order_id ) );
 		$done_tickets = (int) $snapshot['refunded_tickets'] + $refunded_now;
+		// By value, like the cash share: voucher amount × gross of the refunded tickets / order subtotal.
+		$subtotal = max( 1, (int) $order->subtotal_minor ?: ( (int) $order->total_minor + (int) $order->discount_minor ) );
+		$left = (int) $snapshot['amount_minor'] - (int) $snapshot['refunded_minor'];
 		$share = $done_tickets >= $total_tickets
-			? (int) $snapshot['amount_minor'] - (int) $snapshot['refunded_minor']
-			: (int) floor( (int) $snapshot['amount_minor'] * $refunded_now / max( 1, $total_tickets ) );
+			? $left
+			: min( $left, (int) floor( (int) $snapshot['amount_minor'] * \PassCaptain\Refunds::gross_for_tickets( $order, $refunded_ids ) / $subtotal ) );
 		if ( $share < 1 ) { return; }
 		$result = Bridge::refund( (array) ( $snapshot['redemption'] ?? array() ), $share, 'wpcap-refund-' . absint( $refund_id ) );
 		if ( is_wp_error( $result ) ) {

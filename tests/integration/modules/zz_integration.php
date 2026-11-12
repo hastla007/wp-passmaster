@@ -123,3 +123,119 @@ $rb_orders = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpc
 check( 'lost transaction aborts the order with a retryable error and writes nothing', is_wp_error( $rb ) && 503 === ( $rb->get_error_data()['status'] ?? 0 ) && 0 === $rb_orders );
 $rb_ok = Orders::create( array( 'email' => 'rb@example.com', 'items' => array( array( 'ticket_type_id' => $rb_type, 'quantity' => 1 ) ), 'idempotency_key' => 'zz-rb-2' ) );
 check( 'the retry succeeds and the capacity is still available', ! is_wp_error( $rb_ok ) && 0 === Orders::availability( $rb_type ) );
+
+echo "Integration: voucher ledger edge cases (expert review)\n";
+final class ZZ_Voucher_Provider implements PassCaptain\Integrations\Vouchers\ProviderInterface {
+	public array $calls = array();
+	public array $commit_errors = array();
+	public function quote( array $context ) { $this->calls[] = array( 'quote', $context['order_reference'] ); return array( 'amount_minor' => min( 1500, $context['amount_minor'] ), 'currency' => $context['currency'] ); }
+	public function reserve( array $quote, $key ) { $this->calls[] = array( 'reserve', $key ); return array( 'reservation' => $key, 'applied_minor' => $quote['amount_minor'] ); }
+	public function commit( array $reservation, $key ) { $this->calls[] = array( 'commit', $key ); return $this->commit_errors ? array_shift( $this->commit_errors ) : array( 'redemption' => $key ); }
+	public function release( array $reservation, $key ) { $this->calls[] = array( 'release', $key ); return true; }
+	public function refund( array $redemption, $amount, $key ) { $this->calls[] = array( 'refund', $amount, $key ); return true; }
+	public function for_order( $public_id, $kind ) { return array_values( array_filter( $this->calls, static fn( $c ) => $kind === $c[0] && str_contains( (string) end( $c ), $public_id ) ) ); }
+}
+$zv = new ZZ_Voucher_Provider();
+$GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] = $zv;
+$VC = PassCaptain\Integrations\Vouchers\Checkout::class;
+$temporary = static fn() => new WP_Error( 'vcap_temporary_failure', 'Später', array( 'status' => 503 ) );
+PassCaptain\Settings::update( array( 'refund_approval_threshold' => 0 ) );
+
+// Refund share by value: ticket A 80.00, ticket B 20.00, voucher 15.00 → refunding B returns 3.00 of the voucher (not half).
+$za = make_type( 10, 10, 8000 );
+$zb = make_type( 10, 10, 2000 );
+$zvo = Orders::create( array( 'email' => 'zzv@example.com', 'items' => array( array( 'ticket_type_id' => $za, 'quantity' => 1 ), array( 'ticket_type_id' => $zb, 'quantity' => 1 ) ), 'idempotency_key' => 'zzv-1' ) );
+$VC::apply( $zvo['order_id'], 'ZZ-VALUE' );
+Orders::confirm_manual_payment( $zvo['order_id'] );
+$VC::commit( $zvo['order_id'] );
+$zb_ticket = array_values( array_filter( tickets( $zvo['order_id'] ), static fn( $t ) => (int) $t->ticket_type_id === $zb ) )[0];
+$zr = PassCaptain\Refunds::request( $zvo['order_id'], array( (int) $zb_ticket->ticket_id ), 'Storno', 'zzv-r1' );
+$VC::refund( $zr['refund_id'], $zvo['order_id'] );
+$zref = $zv->for_order( 'wpcap-refund-' . $zr['refund_id'], 'refund' );
+check( 'the voucher share of a ticket refund follows the ticket value', 1 === count( $zref ) && 300 === (int) $zref[0][1] );
+
+// Refund while the commit is still pending (retry job): the share follows right after the commit.
+$zt2 = make_type( 10, 10, 1000 );
+$zp = Orders::create( array( 'email' => 'zzp@example.com', 'items' => array( array( 'ticket_type_id' => $zt2, 'quantity' => 2 ) ), 'idempotency_key' => 'zzv-2' ) );
+$VC::apply( $zp['order_id'], 'ZZ-PENDING' );
+$zv->commit_errors = array( $temporary(), $temporary() );
+Orders::confirm_manual_payment( $zp['order_id'] );
+$VC::commit( $zp['order_id'] );
+$zv->commit_errors = array();
+$zpr = PassCaptain\Refunds::request( $zp['order_id'], array( (int) tickets( $zp['order_id'] )[0]->ticket_id ), 'Storno', 'zzv-r2' );
+$VC::refund( $zpr['refund_id'], $zp['order_id'] );
+$queued = $VC::voucher_state( $zp['order_id'] );
+check( 'a refund during a pending commit is queued, not dropped', 'reserved' === $queued['status'] && array( (int) $zpr['refund_id'] ) === $queued['pending_refund_ids'] && ! $zv->for_order( 'wpcap-refund-' . $zpr['refund_id'], 'refund' ) );
+$VC::commit( $zp['order_id'] );
+$zpref = $zv->for_order( 'wpcap-refund-' . $zpr['refund_id'], 'refund' );
+check( 'the queued voucher share is refunded once the commit succeeds', 'committed' === $VC::voucher_state( $zp['order_id'] )['status'] && 1 === count( $zpref ) && 750 === (int) $zpref[0][1] );
+
+// Fully refunded before the retried commit: the voucher is released, never charged.
+$zf = Orders::create( array( 'email' => 'zzf@example.com', 'items' => array( array( 'ticket_type_id' => $zt2, 'quantity' => 1 ) ), 'idempotency_key' => 'zzv-3' ) );
+$VC::apply( $zf['order_id'], 'ZZ-REFUNDED' );
+$zv->commit_errors = array( $temporary(), $temporary() );
+Orders::confirm_manual_payment( $zf['order_id'] );
+$VC::commit( $zf['order_id'] );
+$zv->commit_errors = array();
+Orders::mark_refunded( $zf['order_id'], 'test' );
+$zf_commits = count( $zv->for_order( $zf['public_id'], 'commit' ) );
+$VC::commit( $zf['order_id'] );
+check( 'a commit retry after a full refund releases the voucher instead of charging it', 'released' === $VC::voucher_state( $zf['order_id'] )['status'] && $zf_commits === count( $zv->for_order( $zf['public_id'], 'commit' ) ) && 1 === count( $zv->for_order( $zf['public_id'], 'release' ) ) );
+
+// Reservation released on the voucher side (TTL) while the order waited for a bank transfer.
+$zm = Orders::create( array( 'email' => 'zzm@example.com', 'items' => array( array( 'ticket_type_id' => $zt2, 'quantity' => 1 ) ), 'idempotency_key' => 'zzv-4' ) );
+$VC::apply( $zm['order_id'], 'ZZ-MISSING' );
+$zv->commit_errors = array( new WP_Error( 'vcap_reservation_missing', 'abgelaufen', array( 'status' => 409 ) ) );
+Orders::confirm_manual_payment( $zm['order_id'] );
+$VC::commit( $zm['order_id'] );
+$zms = $VC::voucher_state( $zm['order_id'] );
+check( 'a reservation released by the voucher plugin is reserved again and committed (no false alarm)', 'committed' === $zms['status'] && ! empty( $zms['late_reservation'] ) && 2 === count( $zv->for_order( $zm['public_id'], 'reserve' ) ) );
+
+// Event cancellation signals cancelled open orders (their voucher reservations are released).
+$zc_type = make_type( 10, 10, 2000 );
+$zc = Orders::create( array( 'email' => 'zzc@example.com', 'items' => array( array( 'ticket_type_id' => $zc_type, 'quantity' => 1 ) ), 'idempotency_key' => 'zzv-5' ) );
+$VC::apply( $zc['order_id'], 'ZZ-EVENT' );
+$zc_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $zc_type ) );
+$zc_signals = array();
+add_action( 'wpcap_order_cancelled', static function ( $id ) use ( &$zc_signals ) { $zc_signals[] = (int) $id; } );
+Orders::cancel_event( $zc_event );
+$VC::release( $zc['order_id'] );
+check( 'cancelling an event signals its open orders as cancelled and releases their vouchers', in_array( (int) $zc['order_id'], $zc_signals, true ) && 'released' === $VC::voucher_state( $zc['order_id'] )['status'] );
+
+// Expired holds: each order is expired (and signalled) exactly once.
+$ze = Orders::create( array( 'email' => 'zze@example.com', 'items' => array( array( 'ticket_type_id' => $zt2, 'quantity' => 1 ) ), 'idempotency_key' => 'zzv-6' ) );
+expire_holds_of( $ze['order_id'] );
+$zc_signals = array();
+Orders::expire_holds();
+Orders::expire_holds();
+check( 'expired holds signal each order exactly once', 1 === count( array_keys( $zc_signals, (int) $ze['order_id'], true ) ) && 'expired' === Orders::get( $ze['order_id'] )->payment_status );
+
+// Checked writes in apply(): an order that changed meanwhile is not discounted and the reservation is released.
+$zw = Orders::create( array( 'email' => 'zzw@example.com', 'items' => array( array( 'ticket_type_id' => $zt2, 'quantity' => 1 ) ), 'idempotency_key' => 'zzv-7' ) );
+$zw_hook = static function ( $result ) use ( $zw ) { global $wpdb; $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET payment_status='expired' WHERE order_id=%d", $zw['order_id'] ) ); return $result; };
+$zv2 = new class( $zv, $zw_hook ) implements PassCaptain\Integrations\Vouchers\ProviderInterface {
+	public function __construct( private $inner, private $hook ) {}
+	public function quote( array $c ) { return $this->inner->quote( $c ); }
+	public function reserve( array $q, $k ) { return ( $this->hook )( $this->inner->reserve( $q, $k ) ); }
+	public function commit( array $r, $k ) { return $this->inner->commit( $r, $k ); }
+	public function release( array $r, $k ) { return $this->inner->release( $r, $k ); }
+	public function refund( array $r, $a, $k ) { return $this->inner->refund( $r, $a, $k ); }
+};
+$GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] = $zv2;
+$zw_res = $VC::apply( $zw['order_id'], 'ZZ-RACE' );
+$GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] = $zv;
+check( 'apply() does not discount an order that is no longer pending and releases the reservation', is_wp_error( $zw_res ) && ! Orders::get( $zw['order_id'] )->voucher_snapshot && 1000 === (int) Orders::get( $zw['order_id'] )->total_minor && 1 === count( $zv->for_order( $zw['public_id'], 'release' ) ) );
+unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] );
+
+echo "Integration: privacy covers participant answers\n";
+$zq_type = make_type( 10, 10, 1000 );
+$wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $zq_type, 'field_key' => 'diet', 'label' => 'Ernährung' ) );
+$zq_field = (int) $wpdb->insert_id;
+$zq = Orders::create( array( 'email' => 'zzq@example.com', 'items' => array( array( 'ticket_type_id' => $zq_type, 'quantity' => 1 ) ), 'idempotency_key' => 'zzq-1' ) );
+Orders::confirm_manual_payment( $zq['order_id'] );
+$zq_ticket = (int) tickets( $zq['order_id'] )[0]->ticket_id;
+$wpdb->insert( "{$p}wpcap_participant_answers", array( 'ticket_id' => $zq_ticket, 'field_id' => $zq_field, 'answer' => 'glutenfrei', 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$zq_export = json_encode( PassCaptain\Privacy::export( 'zzq@example.com' ), JSON_UNESCAPED_UNICODE );
+check( 'the personal data export contains participant answers with their labels', str_contains( $zq_export, 'Ernährung' ) && str_contains( $zq_export, 'glutenfrei' ) );
+PassCaptain\Privacy::erase( 'zzq@example.com' );
+check( 'erasure deletes participant answers', 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_participant_answers WHERE ticket_id=%d", $zq_ticket ) ) );
