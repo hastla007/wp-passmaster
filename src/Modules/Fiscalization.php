@@ -414,6 +414,38 @@ final class Fiscalization {
 		Orders::issue_and_email( absint( $order_id ) );
 	}
 
+	public static function rest_reconcile_document( \\WP_REST_Request $request ) {
+		global $wpdb;
+		$doc = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE document_id=%d", absint( $request['document_id'] ) ) );
+		if ( ! $doc ) { return new \\WP_Error( 'wpcap_fiscal_document_missing', __( 'Fiskalvorgang wurde nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		$adapter = Registry::get( $doc->provider_id );
+		$seller = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
+		$config = $wpdb->get_row( $wpdb->prepare( "SELECT configuration FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
+		if ( ! $adapter || ! $seller || ! $config ) { return new \\WP_Error( 'wpcap_fiscal_reconcile_unavailable', __( 'Anbieter oder Verkäuferdaten fehlen.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		$configuration = $config['configuration'] ? (array) json_decode( $config['configuration'], true ) : array();
+		$document = (array) json_decode( $doc->snapshot, true );
+		$document['document_id'] = (int) $doc->document_id;
+		$document['idempotency_key'] = $doc->document_key;
+		$result = $adapter->query_status( $document, $seller, $configuration );
+		if ( is_wp_error( $result ) ) {
+			self::record_event( $doc, 'manual_reconcile', 'unknown', array( 'error_code' => sanitize_key( $result->get_error_code() ) ) );
+			return new \\WP_Error( 'wpcap_fiscal_status_unknown', __( 'Der Anbieterstatus ist weiterhin unklar; es wurde keine neue Beleganlage ausgelöst.', 'wp-pass-captain' ), array( 'status' => 503 ) );
+		}
+		if ( is_array( $result ) && 'submitted' === ( $result['status'] ?? '' ) && ! empty( $result['reference'] ) ) {
+			$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array( 'status' => 'submitted', 'provider_result' => wp_json_encode( $result ), 'last_error' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'document_id' => (int) $doc->document_id ) );
+			self::record_event( $doc, 'manual_reconcile', 'submitted', array( 'reference' => sanitize_text_field( $result['reference'] ) ) );
+		} elseif ( is_array( $result ) && 'not_found' === ( $result['status'] ?? '' ) ) {
+			$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array( 'status' => 'retry', 'last_error' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'document_id' => (int) $doc->document_id ) );
+			self::record_event( $doc, 'manual_reconcile', 'not_found', array() );
+			self::process_order( (int) $doc->order_id );
+		} else {
+			self::record_event( $doc, 'manual_reconcile', 'unknown', array( 'error_code' => 'invalid_status_result' ) );
+			return new \\WP_Error( 'wpcap_fiscal_status_unknown', __( 'Der Anbieter hat keinen verwertbaren Status geliefert.', 'wp-pass-captain' ), array( 'status' => 502 ) );
+		}
+		Orders::issue_and_email( (int) $doc->order_id );
+		return rest_ensure_response( array( 'document_id' => (int) $doc->document_id, 'status' => $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE document_id=%d", $doc->document_id ) ) ) );
+	}
+
 	public static function rest_retry_order( \WP_REST_Request $request ) {
 		global $wpdb;
 		$order_id = absint( $request['order_id'] );
@@ -465,6 +497,8 @@ final class Fiscalization {
 			'wpcap_fiscal_save_profile' => array( __CLASS__, 'handle_admin_save_profile' ),
 			'wpcap_fiscal_assign_seller' => array( __CLASS__, 'handle_admin_assign_seller' ),
 			'wpcap_fiscal_retry_order' => array( __CLASS__, 'handle_admin_retry_order' ),
+			'wpcap_fiscal_health_check' => array( __CLASS__, 'handle_admin_health_check' ),
+			'wpcap_fiscal_reconcile' => array( __CLASS__, 'handle_admin_reconcile' ),
 		);
 	}
 
@@ -640,8 +674,14 @@ final class Fiscalization {
 		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\\d+)/profiles', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_save_profile' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\\d+)/health-check', array(
+			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_health_check' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\d+)/provider', array(
 			'methods' => 'PUT', 'callback' => array( __CLASS__, 'rest_save_provider' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/fiscal/documents/(?P<document_id>\\d+)/reconcile', array(
+			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_reconcile_document' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
 		register_rest_route( 'wp-pass-captain/v1', '/fiscal/orders/(?P<order_id>\\d+)/retry', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_retry_order' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
@@ -691,6 +731,26 @@ final class Fiscalization {
 	public static function rest_save_profile( \WP_REST_Request $request ) {
 		$result = self::save_profile( absint( $request['seller_id'] ), (array) $request->get_json_params() );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+	}
+
+	public static function rest_health_check( \\WP_REST_Request $request ) {
+		global $wpdb;
+		$seller_id = absint( $request['seller_id'] );
+		$seller = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_legal_sellers WHERE seller_id=%d AND status='active'", $seller_id ), ARRAY_A );
+		$config = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d AND enabled=1", $seller_id ), ARRAY_A );
+		$adapter = $config ? Registry::get( $config['provider_id'] ) : null;
+		if ( ! $seller || ! $config || ! $adapter || ! in_array( strtoupper( $seller['country_code'] ), array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) {
+			return new \\WP_Error( 'wpcap_fiscal_health_unavailable', __( 'Aktiver Anbieter oder Länderunterstützung fehlt.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		}
+		$configuration = $config['configuration'] ? (array) json_decode( $config['configuration'], true ) : array();
+		$result = $adapter->health_check( $seller, $configuration );
+		if ( is_wp_error( $result ) || ( true !== $result && ( ! is_array( $result ) || empty( $result['ok'] ) ) ) ) {
+			$code = is_wp_error( $result ) ? sanitize_key( $result->get_error_code() ) : 'health_check_failed';
+			Audit::record( 'fiscal_provider_health_failed', 'seller', $seller_id, array( 'provider_id' => $config['provider_id'], 'error_code' => $code ) );
+			return new \\WP_Error( 'wpcap_fiscal_health_failed', __( 'Der Anbieter-Verbindungstest ist fehlgeschlagen.', 'wp-pass-captain' ), array( 'status' => 502, 'provider_error_code' => $code ) );
+		}
+		Audit::record( 'fiscal_provider_health_ok', 'seller', $seller_id, array( 'provider_id' => $config['provider_id'] ) );
+		return rest_ensure_response( array( 'ok' => true, 'provider_id' => $config['provider_id'], 'checked_at' => current_time( 'mysql', true ) ) );
 	}
 
 	public static function rest_save_provider( \WP_REST_Request $request ) {
