@@ -17,13 +17,28 @@ final class TicketAssignments {
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_assignment_denied', __( 'Bestellzugriff ungültig oder abgelaufen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
 		if ( 'paid' !== $order->payment_status ) { return new \WP_Error( 'wpcap_assignment_unpaid', __( 'Teilnehmer können erst nach Zahlung zugewiesen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->query( 'START TRANSACTION' );
-		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.status,t.attendee_email,e.name AS event_name,tt.name AS ticket_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.public_id=%s AND t.order_id=%d FOR UPDATE", sanitize_text_field( $ticket_public_id ), $order->order_id ) );
+		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.status,t.attendee_email,t.transfer_count,e.name AS event_name,tt.name AS ticket_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.public_id=%s AND t.order_id=%d FOR UPDATE", sanitize_text_field( $ticket_public_id ), $order->order_id ) );
 		$deadline = ! $ticket ? 0 : strtotime( $ticket->starts_at . ' UTC' ) - max( 0, (int) Settings::get( 'attendee_edit_hours' ) ) * HOUR_IN_SECONDS;
 		if ( ! $ticket || 'valid' !== $ticket->status || $deadline <= time() ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_not_allowed', __( 'Dieses Ticket kann nicht mehr zugewiesen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		// A new holder gets a new code (the previous holder's code stops working); correcting the
 		// name or answers for the same person keeps the code that was already mailed.
 		$holder = (string) $ticket->attendee_email !== '' ? (string) $ticket->attendee_email : (string) $order->customer_email;
 		$rotate = 0 !== strcasecmp( $holder, $email );
+		// After a transfer the ticket belongs to the recipient: the buyer's order link must not be able
+		// to re-target it (that would rotate the code back and silently invalidate the recipient's ticket).
+		if ( (int) $ticket->transfer_count > 0 ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_assignment_transferred', __( 'Dieses Ticket wurde bereits an eine andere Person übertragen und kann über die Bestellung nicht mehr geändert werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		}
+		// Every holder change rotates the code; limit them so assign cannot be used for repeated resale
+		// (the transfer itself is limited to one). Name/answer corrections for the same holder stay free.
+		if ( $rotate ) {
+			$max_changes = max( 0, (int) apply_filters( 'wpcap_max_holder_changes', 1, (int) $ticket->ticket_id ) );
+			if ( self::holder_changes( (int) $ticket->ticket_id ) >= $max_changes ) {
+				$wpdb->query( 'ROLLBACK' );
+				return new \WP_Error( 'wpcap_assignment_limit', __( 'Für dieses Ticket wurde der Teilnehmer bereits geändert. Ein weiterer Wechsel der Person ist nicht möglich; Namen und Angaben können weiterhin korrigiert werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			}
+		}
 		$code = $rotate ? bin2hex( random_bytes( 32 ) ) : '';
 		$update = $rotate ? array( 'attendee_email' => $email, 'token_hash' => hash( 'sha256', $code ) ) : array( 'attendee_email' => $email );
 		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', $update, array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'valid' ), array_fill( 0, count( $update ), '%s' ), array( '%d', '%s' ) );
@@ -39,6 +54,10 @@ final class TicketAssignments {
 			foreach ( (array) ( $valid[0]['answers'] ?? array() ) as $field_id => $value ) {
 				$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE answer=VALUES(answer),updated_at=VALUES(updated_at)", $ticket->ticket_id, absint( $field_id ), (string) $value, $now, $now ) );
 			}
+		}
+		if ( $rotate ) {
+			// Counted inside the transaction (row lock on the ticket), see holder_changes().
+			Audit::record( 'ticket_holder_changed', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id, 'source' => 'assign' ) );
 		}
 		$wpdb->query( 'COMMIT' );
 		if ( $rotate ) {
@@ -64,5 +83,11 @@ final class TicketAssignments {
 		}
 		Audit::record( 'ticket_assigned', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
 		return array( 'status' => 'assigned', 'code_rotated' => $rotate );
+	}
+
+	/** Number of holder changes (code rotations) a ticket already had through assign(). */
+	public static function holder_changes( $ticket_id ) {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_audit_logs WHERE object_type='ticket' AND object_id=%d AND action='ticket_holder_changed'", absint( $ticket_id ) ) );
 	}
 }

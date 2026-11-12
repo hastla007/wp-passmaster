@@ -36,6 +36,7 @@ final class Menu {
 			'wpcap_reject_refund' => array( OrdersPage::class, 'handle_reject_refund' ),
 			'wpcap_revoke_ticket' => array( TicketsPage::class, 'handle_revoke_ticket' ),
 			'wpcap_undo_checkin' => array( TicketsPage::class, 'handle_undo_checkin' ),
+			'wpcap_reissue_ticket' => array( TicketsPage::class, 'handle_reissue_ticket' ),
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
 			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
 			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),

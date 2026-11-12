@@ -89,7 +89,7 @@ final class InvoicePdf {
 				return $y - 18;
 			};
 			$y = $table_header( $y );
-			$rates = array();
+			$rates = Invoices::rate_summary( $lines );
 			$page = 1;
 			foreach ( $lines as $line ) {
 				$desc = PdfWriter::wrap( $line->description, 9, 250 );
@@ -105,22 +105,34 @@ final class InvoicePdf {
 				$pdf->text( 545, $y, 9, self::money( $line->total_minor, $cur ), false, 'right' );
 				foreach ( $desc as $d ) { $pdf->text( 50, $y, 9, $d ); $y -= 12; }
 				$y -= 4;
-				$key = (string) (float) $line->tax_rate;
-				$rates[ $key ] = ( $rates[ $key ] ?? 0 ) + (int) $line->tax_minor;
 			}
-			if ( $y < 160 ) {
+			// Totals block: VAT breakdown (net/tax/gross per rate) plus the sums.
+			if ( $y < 130 + 28 * count( $rates ) ) {
 				$footer( $pdf, sprintf( __( 'Seite %d', 'wp-pass-captain' ), $page++ ) );
 				$pdf->add_page( 595.28, 841.89 );
 				$y = 790;
 			}
-			$pdf->line( 300, $y + 6, 545, $y + 6 );
+			$pdf->line( 50, $y + 6, 545, $y + 6 );
 			$y -= 10;
+			$pdf->text( 50, $y, 9, __( 'Aufstellung nach Steuersätzen', 'wp-pass-captain' ), true );
+			$pdf->text( 330, $y, 9, __( 'Netto', 'wp-pass-captain' ), true, 'right' );
+			$pdf->text( 440, $y, 9, __( 'USt.', 'wp-pass-captain' ), true, 'right' );
+			$pdf->text( 545, $y, 9, __( 'Brutto', 'wp-pass-captain' ), true, 'right' );
+			foreach ( $rates as $rate => $sum ) {
+				$y -= 13;
+				$pdf->text( 50, $y, 9, __( 'USt-Satz', 'wp-pass-captain' ) . ' ' . number_format_i18n( (float) $rate, 2 ) . ' %' );
+				$pdf->text( 330, $y, 9, self::money( $sum['net'], $cur ), false, 'right' );
+				$pdf->text( 440, $y, 9, self::money( $sum['tax'], $cur ), false, 'right' );
+				$pdf->text( 545, $y, 9, self::money( $sum['gross'], $cur ), false, 'right' );
+			}
+			$y -= 22;
+			$pdf->line( 300, $y + 10, 545, $y + 10 );
 			$pdf->text( 300, $y, 10, __( 'Nettobetrag', 'wp-pass-captain' ) );
 			$pdf->text( 545, $y, 10, self::money( (int) $invoice->total_minor - (int) $invoice->tax_minor, $cur ), false, 'right' );
-			foreach ( $rates as $rate => $tax ) {
+			foreach ( $rates as $rate => $sum ) {
 				$y -= 14;
 				$pdf->text( 300, $y, 10, sprintf( __( 'Umsatzsteuer %s %%', 'wp-pass-captain' ), number_format_i18n( (float) $rate, 2 ) ) );
-				$pdf->text( 545, $y, 10, self::money( $tax, $cur ), false, 'right' );
+				$pdf->text( 545, $y, 10, self::money( $sum['tax'], $cur ), false, 'right' );
 			}
 			$y -= 18;
 			$pdf->text( 300, $y, 11, __( 'Rechnungsbetrag', 'wp-pass-captain' ), true );
@@ -131,7 +143,7 @@ final class InvoicePdf {
 		foreach ( $credits as $credit ) {
 			$pdf->add_page( 595.28, 841.89 );
 			$y = self::header( $pdf, $seller );
-			$pdf->text( 50, $y, 18, __( 'Gutschrift', 'wp-pass-captain' ) . ' ' . $credit->credit_note_number, true );
+			$pdf->text( 50, $y, 18, __( 'Rechnungskorrektur', 'wp-pass-captain' ) . ' ' . $credit->credit_note_number, true );
 			$y -= 22;
 			$pdf->text( 50, $y, 10, sprintf( __( 'Korrektur zu Rechnung %1$s vom %2$s', 'wp-pass-captain' ), $invoice->invoice_number, self::date( $invoice->issued_at ) ) );
 			$y -= 14;
@@ -140,7 +152,7 @@ final class InvoicePdf {
 			$rows = array(
 				array( __( 'Nettobetrag', 'wp-pass-captain' ), '-' . self::money( $credit->net_minor, $credit->currency ), false ),
 				array( __( 'Umsatzsteuer', 'wp-pass-captain' ), '-' . self::money( $credit->tax_minor, $credit->currency ), false ),
-				array( __( 'Gutschriftsbetrag', 'wp-pass-captain' ), '-' . self::money( $credit->total_minor, $credit->currency ), true ),
+				array( __( 'Korrekturbetrag', 'wp-pass-captain' ), '-' . self::money( $credit->total_minor, $credit->currency ), true ),
 			);
 			foreach ( $rows as $r ) {
 				$pdf->text( 300, $y, 10, $r[0], $r[2] );
@@ -165,6 +177,10 @@ final class InvoicePdf {
 	public static function handle_admin_download() {
 		$order_id = absint( $_GET['order_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only download, capability and scope checked.
 		$credit_note_id = absint( $_GET['credit_note_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( ! $order_id || ! self::can_view_order_finance( $order_id ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		// Downloading an existing invoice is read-only; issuing a new invoice number is a state change
+		// and needs a nonce (same as Invoices::handle_admin_print). Link: wp_nonce_url( …, 'wpcap_issue_invoice_' . $order_id ).
+		if ( ! $credit_note_id && ! self::invoice_for_order( $order_id, false ) ) { check_admin_referer( 'wpcap_issue_invoice_' . $order_id ); }
 		$result = self::admin_pdf( $order_id, $credit_note_id );
 		if ( is_wp_error( $result ) ) {
 			wp_die( esc_html( $result->get_error_message() ), (int) ( $result->get_error_data()['status'] ?? 400 ) );
@@ -189,7 +205,7 @@ final class InvoicePdf {
 		$number = $credit_note_id
 			? $wpdb->get_var( $wpdb->prepare( "SELECT credit_note_number FROM {$wpdb->prefix}wpcap_credit_notes WHERE credit_note_id=%d", $credit_note_id ) )
 			: $wpdb->get_var( $wpdb->prepare( "SELECT invoice_number FROM {$wpdb->prefix}wpcap_invoices WHERE invoice_id=%d", $invoice_id ) );
-		return ( $credit_note_id ? 'gutschrift-' : 'rechnung-' ) . preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $number ) . '.pdf';
+		return ( $credit_note_id ? 'rechnungskorrektur-' : 'rechnung-' ) . preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $number ) . '.pdf';
 	}
 
 	/**

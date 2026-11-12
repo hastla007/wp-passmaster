@@ -1,6 +1,6 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: WP Pass Captain 1.1.0\n"
+"Project-Id-Version: WP Pass Captain 1.3.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
 "Last-Translator: \n"
 "Language-Team: French (France)\n"
@@ -15,7 +15,7 @@ msgstr ""
 
 #. Plugin Name of the plugin
 #: wp-pass-captain.php
-#: src/Admin/Menu.php:71
+#: src/Admin/Menu.php:72
 #: src/Integrations/WooCommerce/CartPricing.php:83
 msgid "WP Pass Captain"
 msgstr "WP Pass Captain"
@@ -31,7 +31,7 @@ msgstr "Actuellement présents"
 
 #: src/Admin/CheckinsPage.php:46
 #: src/Admin/OrdersPage.php:348
-#: src/BoxOffice/Page.php:72
+#: src/BoxOffice/Page.php:73
 #: src/OfflineScanner/AdminPage.php:149
 #: src/OfflineScanner/AdminPage.php:164
 #: src/Printing/Page.php:66
@@ -49,23 +49,23 @@ msgstr "Présent"
 
 #: src/Admin/CheckinsPage.php:55
 #: src/Admin/DevicesPage.php:50
-#: src/Admin/EventsPage.php:507
+#: src/Admin/EventsPage.php:532
 #: src/Admin/Forms.php:229
 #: src/Admin/OrdersPage.php:213
 #: src/Admin/RefundsPage.php:24
-#: src/Admin/SettingsPage.php:244
-#: src/Admin/TicketsPage.php:120
+#: src/Admin/SettingsPage.php:248
+#: src/Admin/TicketsPage.php:146
 #: src/Admission/ConflictsPage.php:54
 #: src/Admission/RulesPage.php:168
 #: src/BoxOffice/Page.php:48
-#: src/BoxOffice/Page.php:281
 #: src/BoxOffice/Page.php:306
+#: src/BoxOffice/Page.php:331
 #: src/BoxOffice/Service.php:81
 #: src/BoxOffice/Service.php:302
 #: src/BoxOffice/Service.php:489
 #: src/BoxOffice/Service.php:539
-#: src/Invoices.php:204
-#: src/Invoices.php:237
+#: src/Invoices.php:227
+#: src/Invoices.php:260
 #: src/Mail/Admin.php:187
 #: src/Modules/Calendar.php:263
 #: src/Modules/Mollie.php:172
@@ -76,13 +76,14 @@ msgstr "Présent"
 #: src/Partners/AdminPage.php:138
 #: src/Partners/AdminPage.php:166
 #: src/Partners/AdminPage.php:303
-#: src/Printing/InvoicePdf.php:178
+#: src/Printing/InvoicePdf.php:180
+#: src/Printing/InvoicePdf.php:194
 #: src/Printing/Page.php:52
 #: src/Printing/Page.php:122
 #: src/Printing/Page.php:149
 #: src/Printing/Page.php:161
 #: src/Printing/Templates.php:254
-#: src/Refunds.php:99
+#: src/Refunds.php:121
 #: src/Reports/Page.php:59
 #: src/Reports/Page.php:129
 #: src/Seating/AdminPage.php:91
@@ -96,13 +97,13 @@ msgid "Alle Ergebnisse"
 msgstr "Tous les résultats"
 
 #: src/Admin/CheckinsPage.php:78
-#: src/Admin/Menu.php:82
+#: src/Admin/Menu.php:83
 msgid "Check-ins"
 msgstr "Check-ins"
 
 #: src/Admin/CheckinsPage.php:81
 #: src/Admin/OrdersPage.php:248
-#: src/Admin/TicketsPage.php:140
+#: src/Admin/TicketsPage.php:166
 #: src/Admission/ConflictsPage.php:71
 #: src/Reports/Page.php:69
 msgid "Alle Events"
@@ -110,21 +111,21 @@ msgstr "Tous les événements"
 
 #: src/Admin/CheckinsPage.php:81
 #: src/Admin/CheckinsPage.php:92
-#: src/Admin/EventsPage.php:542
+#: src/Admin/EventsPage.php:567
 #: src/Admin/OrdersPage.php:248
 #: src/Admin/OrdersPage.php:257
 #: src/Admin/OrdersPage.php:488
 #: src/Integrations/WooCommerce/OrderAdapter.php:962
-#: src/Mail/Types.php:62
-#: src/Mail/Types.php:220
-#: src/Mail/Types.php:229
-#: src/Mail/Types.php:245
-#: src/Mail/Types.php:262
-#: src/Mail/Types.php:277
+#: src/Mail/Types.php:63
+#: src/Mail/Types.php:248
+#: src/Mail/Types.php:257
+#: src/Mail/Types.php:273
+#: src/Mail/Types.php:290
+#: src/Mail/Types.php:305
 #: src/Partners/Settlements.php:472
 #: src/Partners/Settlements.php:534
 #: src/Partners/Settlements.php:560
-#: src/Privacy.php:47
+#: src/Privacy.php:171
 #: src/Reports/Data.php:303
 #: src/Reports/Page.php:96
 #: src/Seating/AdminPage.php:110
@@ -167,7 +168,7 @@ msgstr "Horodatage"
 
 #: src/Admin/CheckinsPage.php:93
 #: src/Admin/OrdersPage.php:400
-#: src/Admin/TicketsPage.php:149
+#: src/Admin/TicketsPage.php:175
 #: src/Admission/ConflictsPage.php:76
 #: src/Integrations/WooCommerce/OrderAdapter.php:962
 #: src/Printing/AttendeeList.php:48
@@ -194,7 +195,7 @@ msgid "Gerät widerrufen."
 msgstr "Appareil révoqué."
 
 #: src/Admin/DevicesPage.php:63
-#: src/Admin/Menu.php:86
+#: src/Admin/Menu.php:87
 msgid "Scanner-Geräte"
 msgstr "Appareils de scan"
 
@@ -228,8 +229,8 @@ msgstr "Appairer un nouvel appareil"
 
 #: src/Admin/DevicesPage.php:74
 #: src/Admin/DevicesPage.php:84
-#: src/Admin/EventsPage.php:537
-#: src/Admin/Menu.php:79
+#: src/Admin/EventsPage.php:562
+#: src/Admin/Menu.php:80
 #: src/Partners/AdminPage.php:186
 #: src/Partners/AdminPage.php:237
 #: src/Partners/AdminPage.php:286
@@ -299,19 +300,19 @@ msgid "Offene Konflikte"
 msgstr "Conflits ouverts"
 
 #: src/Admin/DevicesPage.php:84
-#: src/Admin/EventsPage.php:546
-#: src/Admin/EventsPage.php:603
-#: src/Admin/EventsPage.php:627
-#: src/Admin/EventsPage.php:642
-#: src/Admin/EventsPage.php:688
-#: src/Admin/EventsPage.php:756
-#: src/Admin/EventsPage.php:794
-#: src/Admin/EventsPage.php:830
+#: src/Admin/EventsPage.php:571
+#: src/Admin/EventsPage.php:628
+#: src/Admin/EventsPage.php:652
+#: src/Admin/EventsPage.php:667
+#: src/Admin/EventsPage.php:713
+#: src/Admin/EventsPage.php:781
+#: src/Admin/EventsPage.php:819
+#: src/Admin/EventsPage.php:855
 #: src/Admin/OrdersPage.php:259
 #: src/Admin/OrdersPage.php:323
 #: src/Admin/OrdersPage.php:402
 #: src/Admin/OrdersPage.php:492
-#: src/Admin/TicketsPage.php:153
+#: src/Admin/TicketsPage.php:179
 #: src/Admission/ConflictsPage.php:80
 #: src/Admission/RulesPage.php:200
 #: src/Integrations/WooCommerce/OrderAdapter.php:962
@@ -325,8 +326,9 @@ msgstr "Conflits ouverts"
 #: src/Partners/AdminPage.php:328
 #: src/Printing/AttendeeList.php:34
 #: src/Printing/AttendeeList.php:48
-#: src/Privacy.php:27
-#: src/Privacy.php:41
+#: src/Privacy.php:130
+#: src/Privacy.php:165
+#: src/Privacy.php:198
 #: src/Series/AdminPage.php:150
 #: src/WalletPasses/AdminPage.php:167
 #: src/WalletPasses/AppleProvider.php:76
@@ -372,7 +374,7 @@ msgstr "expiré"
 #. translators: %d: number of scans
 #: src/Admin/DevicesPage.php:90
 #: src/Admin/Forms.php:395
-#: src/Admin/TicketsPage.php:180
+#: src/Admin/TicketsPage.php:206
 #: src/Partners/AdminPage.php:272
 msgid "Widerrufen"
 msgstr "Révoqué"
@@ -422,8 +424,8 @@ msgstr "Le type de ticket n’a pas pu être enregistré."
 #: src/OfflineScanner/AdminPage.php:31
 #: src/OfflineScanner/AdminPage.php:49
 #: src/Partners/Api.php:135
-#: src/Rest/Controller.php:506
-#: src/Rest/Controller.php:556
+#: src/Rest/Controller.php:591
+#: src/Rest/Controller.php:641
 #: src/Seating/Layouts.php:431
 #: src/Series/Generator.php:66
 msgid "Event nicht gefunden."
@@ -436,9 +438,10 @@ msgstr "Événement introuvable."
 #: src/Admin/EventsPage.php:311
 #: src/Admin/EventsPage.php:351
 #: src/Admin/EventsPage.php:377
-#: src/Admin/EventsPage.php:396
-#: src/Admin/EventsPage.php:406
+#: src/Admin/EventsPage.php:414
+#: src/Admin/EventsPage.php:425
 #: src/Admin/TicketsPage.php:39
+#: src/Admin/TicketsPage.php:67
 #: src/Admission/RulesPage.php:37
 #: src/Admission/RulesPage.php:63
 #: src/Admission/RulesPage.php:73
@@ -448,11 +451,11 @@ msgstr "Événement introuvable."
 #: src/OfflineScanner/AdminPage.php:32
 #: src/OfflineScanner/AdminPage.php:50
 #: src/OfflineScanner/AdminPage.php:56
-#: src/Rest/Controller.php:427
-#: src/Rest/Controller.php:487
-#: src/Rest/Controller.php:519
-#: src/Rest/Controller.php:549
-#: src/Rest/Controller.php:575
+#: src/Rest/Controller.php:512
+#: src/Rest/Controller.php:572
+#: src/Rest/Controller.php:604
+#: src/Rest/Controller.php:634
+#: src/Rest/Controller.php:660
 #: src/Seating/Layouts.php:449
 #: src/Series/Generator.php:67
 #: src/Series/Pools.php:64
@@ -472,8 +475,8 @@ msgstr "Les événements annulés ne peuvent plus être modifiés."
 #: src/Admin/EventsPage.php:215
 #: src/Admin/EventsPage.php:243
 #: src/OfflineScanner/Rest.php:62
-#: src/Rest/Controller.php:415
-#: src/Rest/Controller.php:627
+#: src/Rest/Controller.php:500
+#: src/Rest/Controller.php:712
 #: src/Seating/Layouts.php:594
 msgid "Termin nicht gefunden."
 msgstr "Date introuvable."
@@ -507,12 +510,6 @@ msgstr "La date n’a pas pu être enregistrée."
 #, php-format
 msgid "%d Tickets wurden widerrufen, die Inhaber benachrichtigt und bezahlte Bestellungen automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü."
 msgstr "%d tickets ont été révoqués, les titulaires ont été informés et les commandes payées ont été remboursées automatiquement. Veuillez rembourser les commandes WooCommerce dans WooCommerce ; les erreurs figurent dans le menu Remboursements."
-
-#. translators: %d: number of tickets
-#: src/Admin/EventsPage.php:232
-#, php-format
-msgid "%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bitte die betroffenen Bestellungen erstatten (oder die automatische Erstattung in den Einstellungen aktivieren)."
-msgstr "%d tickets ont été révoqués et les titulaires ont été informés. Veuillez rembourser les commandes concernées (ou activer le remboursement automatique dans les réglages)."
 
 #: src/Admin/EventsPage.php:241
 #: src/Admin/EventsPage.php:310
@@ -578,7 +575,7 @@ msgid "Das Feld konnte nicht gespeichert werden."
 msgstr "Le champ n’a pas pu être enregistré."
 
 #: src/Admin/EventsPage.php:375
-#: src/Admin/EventsPage.php:395
+#: src/Admin/EventsPage.php:413
 msgid "Zuweisung ungültig."
 msgstr "Attribution non valide."
 
@@ -586,336 +583,336 @@ msgstr "Attribution non valide."
 msgid "Der Benutzer hat dieses Recht nicht über seine Rolle (z. B. Pass Captain Veranstaltungsleitung). Bitte zuerst die Rolle zuweisen."
 msgstr "L’utilisateur ne dispose pas de ce droit via son rôle (p. ex. Pass Captain Direction d’événement). Veuillez d’abord attribuer le rôle."
 
-#: src/Admin/EventsPage.php:426
+#: src/Admin/EventsPage.php:445
 msgid "Event gespeichert."
 msgstr "Événement enregistré."
 
-#: src/Admin/EventsPage.php:432
+#: src/Admin/EventsPage.php:451
 msgid "Event aktualisiert."
 msgstr "Événement mis à jour."
 
-#: src/Admin/EventsPage.php:439
+#: src/Admin/EventsPage.php:458
 msgid "Termin gespeichert."
 msgstr "Date enregistrée."
 
-#: src/Admin/EventsPage.php:441
+#: src/Admin/EventsPage.php:460
 msgid "Der Termin hat verkaufte Tickets; die Verschiebung wurde gemeldet."
 msgstr "La date comporte des tickets vendus ; le report a été annoncé."
 
-#: src/Admin/EventsPage.php:451
+#: src/Admin/EventsPage.php:470
 msgid "Termin abgesagt."
 msgstr "Date annulée."
 
-#: src/Admin/EventsPage.php:459
+#: src/Admin/EventsPage.php:478
 msgid "Ticketart gespeichert."
 msgstr "Type de ticket enregistré."
 
-#: src/Admin/EventsPage.php:467
+#: src/Admin/EventsPage.php:486
 msgid "Teilnehmerfeld gespeichert."
 msgstr "Champ participant enregistré."
 
-#: src/Admin/EventsPage.php:475
+#: src/Admin/EventsPage.php:494
 msgid "Teilnehmerfeld aktualisiert."
 msgstr "Champ participant mis à jour."
 
-#: src/Admin/EventsPage.php:482
+#: src/Admin/EventsPage.php:501
 msgid "Zugriff zugewiesen."
 msgstr "Accès attribué."
 
-#: src/Admin/EventsPage.php:488
+#: src/Admin/EventsPage.php:507
 msgid "Zugriff entfernt."
 msgstr "Accès retiré."
 
 #. translators: %d: notified buyers
-#: src/Admin/EventsPage.php:497
+#: src/Admin/EventsPage.php:516
 #, php-format
 msgid "Event abgesagt. %d Käufer wurden benachrichtigt."
 msgstr "Événement annulé. %d acheteurs ont été informés."
 
-#: src/Admin/EventsPage.php:524
+#: src/Admin/EventsPage.php:549
 #: src/Seating/AdminPage.php:132
 msgid "Nicht gefunden oder keine Berechtigung für dieses Event."
 msgstr "Introuvable ou aucune autorisation pour cet événement."
 
-#: src/Admin/EventsPage.php:525
-#: src/Admin/EventsPage.php:617
+#: src/Admin/EventsPage.php:550
+#: src/Admin/EventsPage.php:642
 msgid "← Zur Eventliste"
 msgstr "← Retour à la liste des événements"
 
-#: src/Admin/EventsPage.php:529
+#: src/Admin/EventsPage.php:554
 #: src/Admin/Forms.php:375
 #: src/Partners/Settlements.php:38
 msgid "Entwurf"
 msgstr "Brouillon"
 
-#: src/Admin/EventsPage.php:529
+#: src/Admin/EventsPage.php:554
 #: src/Admin/Forms.php:376
 #: src/Seating/AdminPage.php:181
 msgid "Veröffentlicht"
 msgstr "Publié"
 
-#: src/Admin/EventsPage.php:543
+#: src/Admin/EventsPage.php:568
 msgid "Nächster Termin"
 msgstr "Prochaine date"
 
-#: src/Admin/EventsPage.php:544
-#: src/Admin/EventsPage.php:597
-#: src/Admin/EventsPage.php:640
-#: src/Admin/EventsPage.php:686
-#: src/Mail/Types.php:65
-#: src/Mail/Types.php:231
-#: src/Mail/Types.php:249
+#: src/Admin/EventsPage.php:569
+#: src/Admin/EventsPage.php:622
+#: src/Admin/EventsPage.php:665
+#: src/Admin/EventsPage.php:711
+#: src/Mail/Types.php:66
+#: src/Mail/Types.php:259
+#: src/Mail/Types.php:277
 #: src/Reminders/Placeholders.php:15
 #: src/WalletPasses/AppleProvider.php:66
 msgid "Ort"
 msgstr "Lieu"
 
-#: src/Admin/EventsPage.php:545
-#: src/Admin/EventsPage.php:635
+#: src/Admin/EventsPage.php:570
+#: src/Admin/EventsPage.php:660
 #: src/Series/AdminPage.php:172
 msgid "Termine"
 msgstr "Dates"
 
-#: src/Admin/EventsPage.php:547
-#: src/Admin/EventsPage.php:643
-#: src/Admin/EventsPage.php:709
-#: src/Admin/EventsPage.php:831
+#: src/Admin/EventsPage.php:572
+#: src/Admin/EventsPage.php:668
+#: src/Admin/EventsPage.php:734
+#: src/Admin/EventsPage.php:856
 #: src/Admin/OrdersPage.php:494
-#: src/Admin/TicketsPage.php:154
+#: src/Admin/TicketsPage.php:180
 msgid "Aktion"
 msgstr "Action"
 
-#: src/Admin/EventsPage.php:551
+#: src/Admin/EventsPage.php:576
 msgid "Noch keine Events angelegt."
 msgstr "Aucun événement créé pour le moment."
 
 #. translators: %s: date
-#: src/Admin/EventsPage.php:565
+#: src/Admin/EventsPage.php:590
 #, php-format
 msgid "Kein kommender Termin (zuletzt %s)"
 msgstr "Aucune date à venir (dernière : %s)"
 
-#: src/Admin/EventsPage.php:575
-#: src/Admin/EventsPage.php:846
+#: src/Admin/EventsPage.php:600
+#: src/Admin/EventsPage.php:871
 #: src/Printing/Page.php:86
 msgid "Bearbeiten"
 msgstr "Modifier"
 
-#: src/Admin/EventsPage.php:578
+#: src/Admin/EventsPage.php:603
 msgid "Event absagen und betroffene Käufer benachrichtigen?"
 msgstr "Annuler l’événement et informer les acheteurs concernés ?"
 
-#: src/Admin/EventsPage.php:578
+#: src/Admin/EventsPage.php:603
 msgid "Event absagen"
 msgstr "Annuler l’événement"
 
-#: src/Admin/EventsPage.php:588
+#: src/Admin/EventsPage.php:613
 msgid "Event anlegen"
 msgstr "Créer un événement"
 
-#: src/Admin/EventsPage.php:589
+#: src/Admin/EventsPage.php:614
 msgid "Neue Events starten als Entwurf. Zeiten werden in der gewählten Zeitzone eingegeben."
 msgstr "Les nouveaux événements démarrent en brouillon. Les heures sont saisies dans le fuseau horaire choisi."
 
-#: src/Admin/EventsPage.php:592
-#: src/Admin/EventsPage.php:625
+#: src/Admin/EventsPage.php:617
+#: src/Admin/EventsPage.php:650
 msgid "Eventname"
 msgstr "Nom de l’événement"
 
-#: src/Admin/EventsPage.php:593
-#: src/Admin/EventsPage.php:626
+#: src/Admin/EventsPage.php:618
+#: src/Admin/EventsPage.php:651
 #: src/Mail/Admin.php:202
 #: src/Modules/Webhooks.php:286
 msgid "Beschreibung"
 msgstr "Description"
 
-#: src/Admin/EventsPage.php:594
-#: src/Admin/EventsPage.php:638
+#: src/Admin/EventsPage.php:619
+#: src/Admin/EventsPage.php:663
 msgid "Beginn"
 msgstr "Début"
 
-#: src/Admin/EventsPage.php:595
-#: src/Admin/EventsPage.php:684
+#: src/Admin/EventsPage.php:620
+#: src/Admin/EventsPage.php:709
 msgid "Ende (optional)"
 msgstr "Fin (facultatif)"
 
-#: src/Admin/EventsPage.php:596
+#: src/Admin/EventsPage.php:621
 msgid "Terminserie"
 msgstr "Série de dates"
 
-#: src/Admin/EventsPage.php:596
+#: src/Admin/EventsPage.php:621
 msgid "Einmalig"
 msgstr "Unique"
 
-#: src/Admin/EventsPage.php:596
+#: src/Admin/EventsPage.php:621
 msgid "Wöchentlich"
 msgstr "Hebdomadaire"
 
-#: src/Admin/EventsPage.php:596
+#: src/Admin/EventsPage.php:621
 msgid "Anzahl Termine (max. 12)"
 msgstr "Nombre de dates (max. 12)"
 
-#: src/Admin/EventsPage.php:598
+#: src/Admin/EventsPage.php:623
 msgid "Kontingent pro Termin"
 msgstr "Contingent par date"
 
-#: src/Admin/EventsPage.php:598
-#: src/Admin/EventsPage.php:687
-#: src/Admin/EventsPage.php:790
+#: src/Admin/EventsPage.php:623
+#: src/Admin/EventsPage.php:712
+#: src/Admin/EventsPage.php:815
 msgid "0 bedeutet unbegrenzt."
 msgstr "0 signifie illimité."
 
-#: src/Admin/EventsPage.php:599
+#: src/Admin/EventsPage.php:624
 msgid "Ticketkategorie"
 msgstr "Type de ticket"
 
-#: src/Admin/EventsPage.php:600
-#: src/Admin/EventsPage.php:788
+#: src/Admin/EventsPage.php:625
+#: src/Admin/EventsPage.php:813
 msgid "Preis (brutto)"
 msgstr "Prix (TTC)"
 
-#: src/Admin/EventsPage.php:600
-#: src/BoxOffice/Page.php:65
+#: src/Admin/EventsPage.php:625
+#: src/BoxOffice/Page.php:66
 #: src/Partners/AdminPage.php:227
 msgid "Währung"
 msgstr "Devise"
 
-#: src/Admin/EventsPage.php:601
-#: src/Admin/EventsPage.php:789
+#: src/Admin/EventsPage.php:626
+#: src/Admin/EventsPage.php:814
 msgid "Steuersatz in %"
 msgstr "Taux de TVA en %"
 
-#: src/Admin/EventsPage.php:601
+#: src/Admin/EventsPage.php:626
 msgid "z. B. 19 oder 7,7"
 msgstr "p. ex. 19 ou 7,7"
 
-#: src/Admin/EventsPage.php:602
+#: src/Admin/EventsPage.php:627
 msgid "Ticketkontingent"
 msgstr "Contingent de tickets"
 
-#: src/Admin/EventsPage.php:605
+#: src/Admin/EventsPage.php:630
 msgid "Event speichern"
 msgstr "Enregistrer l’événement"
 
-#: src/Admin/EventsPage.php:621
+#: src/Admin/EventsPage.php:646
 msgid "Eventdaten"
 msgstr "Données de l’événement"
 
-#: src/Admin/EventsPage.php:629
+#: src/Admin/EventsPage.php:654
 msgid "Event aktualisieren"
 msgstr "Mettre à jour l’événement"
 
-#: src/Admin/EventsPage.php:632
+#: src/Admin/EventsPage.php:657
 msgid "Dieses Event wurde abgesagt und kann nicht mehr bearbeitet werden."
 msgstr "Cet événement a été annulé et ne peut plus être modifié."
 
-#: src/Admin/EventsPage.php:639
+#: src/Admin/EventsPage.php:664
 msgid "Ende"
 msgstr "Fin"
 
-#: src/Admin/EventsPage.php:641
-#: src/Admin/EventsPage.php:753
+#: src/Admin/EventsPage.php:666
+#: src/Admin/EventsPage.php:778
 msgid "Verkauft / Kontingent"
 msgstr "Vendus / Contingent"
 
-#: src/Admin/EventsPage.php:646
+#: src/Admin/EventsPage.php:671
 msgid "Keine Termine."
 msgstr "Aucune date."
 
-#: src/Admin/EventsPage.php:655
+#: src/Admin/EventsPage.php:680
 msgid "Bearbeiten & Ticketarten"
 msgstr "Modifier et types de ticket"
 
-#: src/Admin/EventsPage.php:658
+#: src/Admin/EventsPage.php:683
 msgid "Diesen Termin absagen?"
 msgstr "Annuler cette date ?"
 
-#: src/Admin/EventsPage.php:658
+#: src/Admin/EventsPage.php:683
 msgid "Absagen"
 msgstr "Annuler"
 
-#: src/Admin/EventsPage.php:668
 #: src/Admin/EventsPage.php:693
+#: src/Admin/EventsPage.php:718
 msgid "Termin hinzufügen"
 msgstr "Ajouter une date"
 
-#: src/Admin/EventsPage.php:683
+#: src/Admin/EventsPage.php:708
 #: src/Series/AdminPage.php:129
 #: src/Series/AdminPage.php:150
 msgid "Beginn (Ortszeit)"
 msgstr "Début (heure locale)"
 
-#: src/Admin/EventsPage.php:685
+#: src/Admin/EventsPage.php:710
 #: src/Admin/Forms.php:328
-#: src/Mail/Types.php:232
-#: src/Mail/Types.php:248
+#: src/Mail/Types.php:260
+#: src/Mail/Types.php:276
 #: src/Reminders/Placeholders.php:14
 #: src/Series/AdminPage.php:131
 #: src/WalletPasses/AppleProvider.php:72
 msgid "Zeitzone"
 msgstr "Fuseau horaire"
 
-#: src/Admin/EventsPage.php:687
-#: src/Admin/EventsPage.php:790
+#: src/Admin/EventsPage.php:712
+#: src/Admin/EventsPage.php:815
 msgid "Kontingent"
 msgstr "Contingent"
 
-#: src/Admin/EventsPage.php:688
+#: src/Admin/EventsPage.php:713
 #: src/Admin/Forms.php:378
 msgid "Geplant"
 msgstr "Planifié"
 
-#: src/Admin/EventsPage.php:688
+#: src/Admin/EventsPage.php:713
 #: src/WalletPasses/GoogleProvider.php:53
 msgid "Abgesagt"
 msgstr "Annulé"
 
-#: src/Admin/EventsPage.php:691
+#: src/Admin/EventsPage.php:716
 msgid "Für diesen Termin sind bereits Tickets ausgestellt. Eine Änderung des Beginns wird als Terminverschiebung gemeldet."
 msgstr "Des tickets ont déjà été émis pour cette date. Une modification du début sera annoncée comme un report de date."
 
-#: src/Admin/EventsPage.php:693
+#: src/Admin/EventsPage.php:718
 msgid "Termin speichern"
 msgstr "Enregistrer la date"
 
-#: src/Admin/EventsPage.php:701
+#: src/Admin/EventsPage.php:726
 msgid "Einlass/Scanner"
 msgstr "Entrée/Scanner"
 
-#: src/Admin/EventsPage.php:702
+#: src/Admin/EventsPage.php:727
 msgid "Event verwalten"
 msgstr "Gérer l’événement"
 
-#: src/Admin/EventsPage.php:703
+#: src/Admin/EventsPage.php:728
 msgid "Bestellungen/Kasse"
 msgstr "Commandes/Caisse"
 
-#: src/Admin/EventsPage.php:704
+#: src/Admin/EventsPage.php:729
 #: src/Modules/Reports.php:14
 #: src/Reports/Page.php:65
 msgid "Berichte"
 msgstr "Rapports"
 
-#: src/Admin/EventsPage.php:707
+#: src/Admin/EventsPage.php:732
 msgid "Personal und Zugriff"
 msgstr "Personnel et accès"
 
-#: src/Admin/EventsPage.php:709
+#: src/Admin/EventsPage.php:734
 msgid "Benutzer"
 msgstr "Utilisateur"
 
-#: src/Admin/EventsPage.php:709
-#: src/Admin/EventsPage.php:728
+#: src/Admin/EventsPage.php:734
+#: src/Admin/EventsPage.php:753
 msgid "Recht"
 msgstr "Droit"
 
-#: src/Admin/EventsPage.php:711
+#: src/Admin/EventsPage.php:736
 msgid "Noch kein Personal zugewiesen."
 msgstr "Aucun personnel attribué pour le moment."
 
 #. translators: %s: rule label or kind
 #. translators: %s: pool name
-#: src/Admin/EventsPage.php:718
+#: src/Admin/EventsPage.php:743
 #: src/Modules/Mollie.php:182
 #: src/Modules/Sms.php:339
 #: src/OfflineScanner/AdminPage.php:157
@@ -925,33 +922,33 @@ msgstr "Aucun personnel attribué pour le moment."
 msgid "Entfernen"
 msgstr "Retirer"
 
-#: src/Admin/EventsPage.php:725
-#: src/Admin/EventsPage.php:729
+#: src/Admin/EventsPage.php:750
+#: src/Admin/EventsPage.php:754
 msgid "Zugriff zuweisen"
 msgstr "Attribuer un accès"
 
-#: src/Admin/EventsPage.php:727
+#: src/Admin/EventsPage.php:752
 msgid "Benutzer (ID, Login oder E-Mail)"
 msgstr "Utilisateur (ID, identifiant ou e-mail)"
 
-#: src/Admin/EventsPage.php:730
+#: src/Admin/EventsPage.php:755
 msgid "Einlassrechte werden direkt vergeben. Für alle anderen Rechte braucht der Benutzer eine passende Rolle (z. B. Pass Captain Veranstaltungsleitung)."
 msgstr "Les droits d’entrée sont attribués directement. Pour tous les autres droits, l’utilisateur doit disposer d’un rôle adapté (p. ex. Pass Captain Direction d’événement)."
 
 #. translators: %s: date
-#: src/Admin/EventsPage.php:743
+#: src/Admin/EventsPage.php:768
 #, php-format
 msgid "Termin %s"
 msgstr "Date %s"
 
-#: src/Admin/EventsPage.php:747
+#: src/Admin/EventsPage.php:772
 msgid "Ticketarten"
 msgstr "Types de ticket"
 
 #. translators: 1: ticket number, 2: event and ticket name
-#: src/Admin/EventsPage.php:750
-#: src/Admin/EventsPage.php:787
-#: src/BoxOffice/Page.php:113
+#: src/Admin/EventsPage.php:775
+#: src/Admin/EventsPage.php:812
+#: src/BoxOffice/Page.php:114
 #: src/Integrations/WooCommerce/Attendees.php:193
 #: src/Integrations/WooCommerce/Attendees.php:328
 #: src/Partners/AdminPage.php:186
@@ -959,7 +956,7 @@ msgstr "Types de ticket"
 #: src/Printing/AttendeeList.php:48
 #: src/Printing/Page.php:84
 #: src/Printing/Page.php:91
-#: src/PublicEvents.php:29
+#: src/PublicEvents.php:30
 #: src/Seating/AdminPage.php:124
 #: src/Seating/AdminPage.php:165
 #: src/Series/AdminPage.php:323
@@ -968,204 +965,203 @@ msgstr "Types de ticket"
 msgid "Name"
 msgstr "Nom"
 
-#: src/Admin/EventsPage.php:751
-#: src/BoxOffice/Page.php:80
+#: src/Admin/EventsPage.php:776
+#: src/BoxOffice/Page.php:81
 #: src/Series/AdminPage.php:272
 #: src/Series/AdminPage.php:299
 msgid "Preis"
 msgstr "Prix"
 
-#: src/Admin/EventsPage.php:752
+#: src/Admin/EventsPage.php:777
 msgid "Steuer"
 msgstr "Taxe"
 
-#: src/Admin/EventsPage.php:754
-#: src/Admin/EventsPage.php:791
+#: src/Admin/EventsPage.php:779
+#: src/Admin/EventsPage.php:816
 msgid "Max. pro Bestellung"
 msgstr "Max. par commande"
 
-#: src/Admin/EventsPage.php:755
+#: src/Admin/EventsPage.php:780
 msgid "Verkaufszeitraum"
 msgstr "Période de vente"
 
-#: src/Admin/EventsPage.php:759
+#: src/Admin/EventsPage.php:784
 msgid "Noch keine Ticketarten."
 msgstr "Aucun type de ticket pour le moment."
 
-#: src/Admin/EventsPage.php:774
-#: src/Admin/EventsPage.php:796
+#: src/Admin/EventsPage.php:799
+#: src/Admin/EventsPage.php:821
 msgid "Ticketart hinzufügen"
 msgstr "Ajouter un type de ticket"
 
-#: src/Admin/EventsPage.php:788
+#: src/Admin/EventsPage.php:813
 msgid "z. B. 12,50"
 msgstr "p. ex. 12,50"
 
-#: src/Admin/EventsPage.php:789
+#: src/Admin/EventsPage.php:814
 msgid "Im Preis enthaltene Umsatzsteuer, z. B. 19 oder 7,7"
 msgstr "TVA incluse dans le prix, p. ex. 19 ou 7,7"
 
-#: src/Admin/EventsPage.php:792
+#: src/Admin/EventsPage.php:817
 msgid "Verkaufsstart"
 msgstr "Début des ventes"
 
 #. translators: %s: timezone
-#: src/Admin/EventsPage.php:792
+#: src/Admin/EventsPage.php:817
 #, php-format
 msgid "Ortszeit %s; leer = sofort"
 msgstr "Heure locale %s ; vide = immédiatement"
 
 #. translators: %s: timezone
-#: src/Admin/EventsPage.php:793
+#: src/Admin/EventsPage.php:818
 msgid "Verkaufsende"
 msgstr "Fin des ventes"
 
 #. translators: %s: timezone
-#: src/Admin/EventsPage.php:793
+#: src/Admin/EventsPage.php:818
 msgid "leer = bis Terminbeginn"
 msgstr "vide = jusqu’au début de la date"
 
-#: src/Admin/EventsPage.php:794
+#: src/Admin/EventsPage.php:819
 #: src/Admin/Forms.php:379
-#: src/Admin/SettingsPage.php:279
+#: src/Admin/SettingsPage.php:283
 #: src/Modules/Reminders.php:185
 #: src/WalletPasses/AdminPage.php:186
 #: src/WalletPasses/AdminPage.php:201
 msgid "Aktiv"
 msgstr "Actif"
 
-#: src/Admin/EventsPage.php:794
+#: src/Admin/EventsPage.php:819
 #: src/Admin/Forms.php:380
 msgid "Pausiert"
 msgstr "En pause"
 
-#: src/Admin/EventsPage.php:796
+#: src/Admin/EventsPage.php:821
 msgid "Ticketart speichern"
 msgstr "Enregistrer le type de ticket"
 
-#: src/Admin/EventsPage.php:812
+#: src/Admin/EventsPage.php:837
 #: src/Mail/Admin.php:259
 #: src/Modules/Reminders.php:188
 msgid "Text"
 msgstr "Texte"
 
-#: src/Admin/EventsPage.php:812
+#: src/Admin/EventsPage.php:837
 #: src/Admin/OrdersPage.php:256
 #: src/Integrations/WooCommerce/Attendees.php:194
 #: src/Integrations/WooCommerce/Attendees.php:329
 #: src/Mail/Admin.php:202
-#: templates/event-card.php:36
 msgid "E-Mail"
 msgstr "E-mail"
 
-#: src/Admin/EventsPage.php:812
+#: src/Admin/EventsPage.php:837
 msgid "Mehrzeiliger Text"
 msgstr "Texte multiligne"
 
-#: src/Admin/EventsPage.php:812
+#: src/Admin/EventsPage.php:837
 msgid "Checkbox"
 msgstr "Case à cocher"
 
 #. translators: %s: ticket type name
-#: src/Admin/EventsPage.php:816
+#: src/Admin/EventsPage.php:841
 #, php-format
 msgid "Ticketart: %s"
 msgstr "Type de ticket : %s"
 
-#: src/Admin/EventsPage.php:820
+#: src/Admin/EventsPage.php:845
 msgid "Teilnehmerfelder"
 msgstr "Champs participant"
 
-#: src/Admin/EventsPage.php:821
+#: src/Admin/EventsPage.php:846
 msgid "Nur Daten abfragen, die für die Veranstaltung erforderlich sind. Zweck und Aufbewahrungsdauer werden Käufern angezeigt."
 msgstr "Ne demandez que les données nécessaires à l’événement. La finalité et la durée de conservation sont affichées aux acheteurs."
 
-#: src/Admin/EventsPage.php:824
-#: src/Admin/EventsPage.php:860
+#: src/Admin/EventsPage.php:849
+#: src/Admin/EventsPage.php:885
 msgid "Schlüssel"
 msgstr "Clé"
 
-#: src/Admin/EventsPage.php:825
-#: src/Admin/EventsPage.php:864
+#: src/Admin/EventsPage.php:850
+#: src/Admin/EventsPage.php:889
 #: src/Partners/AdminPage.php:281
 #: src/Series/AdminPage.php:172
 #: src/Series/AdminPage.php:272
 msgid "Bezeichnung"
 msgstr "Libellé"
 
-#: src/Admin/EventsPage.php:826
-#: src/Admin/EventsPage.php:865
+#: src/Admin/EventsPage.php:851
+#: src/Admin/EventsPage.php:890
 msgid "Typ"
 msgstr "Type"
 
-#: src/Admin/EventsPage.php:827
+#: src/Admin/EventsPage.php:852
 msgid "Pflicht"
 msgstr "Obligatoire"
 
-#: src/Admin/EventsPage.php:828
-#: src/Admin/EventsPage.php:867
+#: src/Admin/EventsPage.php:853
+#: src/Admin/EventsPage.php:892
 #: src/Modules/Sms.php:279
 msgid "Zweck"
 msgstr "Finalité"
 
-#: src/Admin/EventsPage.php:829
-#: src/Admin/EventsPage.php:868
+#: src/Admin/EventsPage.php:854
+#: src/Admin/EventsPage.php:893
 msgid "Aufbewahrung (Tage)"
 msgstr "Conservation (jours)"
 
-#: src/Admin/EventsPage.php:834
+#: src/Admin/EventsPage.php:859
 msgid "Keine Teilnehmerfelder."
 msgstr "Aucun champ participant."
 
-#: src/Admin/EventsPage.php:840
-#: src/Admin/Queries.php:262
+#: src/Admin/EventsPage.php:865
+#: src/Admin/Queries.php:264
 msgid "Ja"
 msgstr "Oui"
 
-#: src/Admin/EventsPage.php:840
-#: src/Admin/Queries.php:262
+#: src/Admin/EventsPage.php:865
+#: src/Admin/Queries.php:264
 msgid "Nein"
 msgstr "Non"
 
-#: src/Admin/EventsPage.php:848
+#: src/Admin/EventsPage.php:873
 #: src/Modules/Webhooks.php:275
 msgid "Deaktivieren"
 msgstr "Désactiver"
 
-#: src/Admin/EventsPage.php:848
+#: src/Admin/EventsPage.php:873
 #: src/Modules/Webhooks.php:275
 msgid "Aktivieren"
 msgstr "Activer"
 
-#: src/Admin/EventsPage.php:857
+#: src/Admin/EventsPage.php:882
 msgid "Teilnehmerfeld bearbeiten"
 msgstr "Modifier le champ participant"
 
-#: src/Admin/EventsPage.php:857
+#: src/Admin/EventsPage.php:882
 msgid "Teilnehmerfeld hinzufügen"
 msgstr "Ajouter un champ participant"
 
-#: src/Admin/EventsPage.php:861
+#: src/Admin/EventsPage.php:886
 msgid "Der Schlüssel kann nicht geändert werden."
 msgstr "La clé ne peut pas être modifiée."
 
-#: src/Admin/EventsPage.php:862
+#: src/Admin/EventsPage.php:887
 msgid "Technischer Name, z. B. company (a-z, 0-9, _)"
 msgstr "Nom technique, p. ex. company (a-z, 0-9, _)"
 
-#: src/Admin/EventsPage.php:866
+#: src/Admin/EventsPage.php:891
 msgid "Pflichtfeld"
 msgstr "Champ obligatoire"
 
-#: src/Admin/EventsPage.php:866
+#: src/Admin/EventsPage.php:891
 msgid "Für jedes Ticket erforderlich"
 msgstr "Requis pour chaque ticket"
 
-#: src/Admin/EventsPage.php:869
+#: src/Admin/EventsPage.php:894
 msgid "Reihenfolge"
 msgstr "Ordre"
 
-#: src/Admin/EventsPage.php:871
+#: src/Admin/EventsPage.php:896
 msgid "Feld speichern"
 msgstr "Enregistrer le champ"
 
@@ -1312,20 +1308,20 @@ msgstr "Mauvaise zone d’entrée"
 msgid "Ausgecheckt"
 msgstr "Check-out effectué"
 
-#: src/Admin/Menu.php:72
+#: src/Admin/Menu.php:73
 msgid "Pass Captain"
 msgstr "Pass Captain"
 
-#: src/Admin/Menu.php:80
+#: src/Admin/Menu.php:81
 #: src/Admin/OrdersPage.php:242
 msgid "Bestellungen"
 msgstr "Commandes"
 
-#: src/Admin/Menu.php:81
+#: src/Admin/Menu.php:82
 #: src/Admin/OrdersPage.php:381
 #: src/Admin/OrdersPage.php:490
-#: src/Admin/TicketsPage.php:135
-#: src/OrderPortal.php:40
+#: src/Admin/TicketsPage.php:161
+#: src/OrderPortal.php:76
 #: src/Partners/Settlements.php:472
 #: src/Partners/Settlements.php:527
 #: src/Partners/Settlements.php:534
@@ -1335,34 +1331,34 @@ msgstr "Commandes"
 #: src/Reports/Data.php:300
 #: src/Reports/Page.php:78
 #: src/Reports/Page.php:119
-#: templates/event-card.php:17
+#: templates/event-card.php:21
 msgid "Tickets"
 msgstr "Tickets"
 
-#: src/Admin/Menu.php:84
 #: src/Admin/Menu.php:85
+#: src/Admin/Menu.php:86
 #: src/Admin/OrdersPage.php:444
-#: src/Admin/SettingsPage.php:79
+#: src/Admin/SettingsPage.php:83
 #: src/Reports/Page.php:78
 msgid "Erstattungen"
 msgstr "Remboursements"
 
-#: src/Admin/Menu.php:91
+#: src/Admin/Menu.php:92
 #: src/Partners/AdminPage.php:194
 msgid "Einstellungen"
 msgstr "Réglages"
 
 #: src/Admin/OrdersPage.php:35
-#: src/Orders.php:597
+#: src/Orders.php:636
 #: src/Payments/PayPalGateway.php:130
-#: src/Rest/Controller.php:296
-#: src/Rest/Controller.php:322
+#: src/Rest/Controller.php:350
+#: src/Rest/Controller.php:407
 msgid "Bestellung nicht gefunden."
 msgstr "Commande introuvable."
 
 #: src/Admin/OrdersPage.php:36
 #: src/Admin/OrdersPage.php:114
-#: src/Rest/Controller.php:324
+#: src/Rest/Controller.php:409
 msgid "Keine Berechtigung für diese Bestellung."
 msgstr "Vous n’avez pas l’autorisation pour cette commande."
 
@@ -1379,7 +1375,7 @@ msgid "Nur unbezahlte, offene Bestellungen können storniert werden. Bezahlte Be
 msgstr "Seules les commandes ouvertes et non payées peuvent être annulées. Veuillez rembourser les commandes payées."
 
 #: src/Admin/OrdersPage.php:86
-#: src/Refunds.php:287
+#: src/Refunds.php:376
 msgid "Keine Berechtigung für Erstattungen."
 msgstr "Vous n’avez pas l’autorisation d’effectuer des remboursements."
 
@@ -1405,18 +1401,18 @@ msgid "Keine Berechtigung für Erstattungsfreigaben."
 msgstr "Vous n’avez pas l’autorisation de valider des remboursements."
 
 #: src/Admin/OrdersPage.php:113
-#: src/Refunds.php:124
+#: src/Refunds.php:146
 msgid "Erstattung nicht gefunden."
 msgstr "Remboursement introuvable."
 
 #: src/Admin/OrdersPage.php:116
-#: src/Refunds.php:82
-#: src/Refunds.php:109
+#: src/Refunds.php:104
+#: src/Refunds.php:131
 msgid "Diese Erstattung wartet nicht auf Freigabe."
 msgstr "Ce remboursement n’est pas en attente de validation."
 
 #: src/Admin/OrdersPage.php:126
-#: src/Refunds.php:85
+#: src/Refunds.php:107
 msgid "Die Freigabe muss durch eine andere berechtigte Person erfolgen."
 msgstr "La validation doit être effectuée par une autre personne autorisée."
 
@@ -1496,7 +1492,7 @@ msgid "Summe"
 msgstr "Total"
 
 #: src/Admin/OrdersPage.php:260
-#: src/BoxOffice/Page.php:128
+#: src/BoxOffice/Page.php:129
 msgid "Zahlart"
 msgstr "Mode de paiement"
 
@@ -1520,9 +1516,14 @@ msgid "← Zur Bestellliste"
 msgstr "← Retour à la liste des commandes"
 
 #. translators: %s: order id
+#. translators: %s: short order number
 #. translators: %s: order number
 #: src/Admin/OrdersPage.php:304
+#: src/Mail/Types.php:165
 #: src/Mollie/MollieGateway.php:101
+#: src/OrderPortal.php:69
+#: src/OrderPortal.php:71
+#: src/Payments/BankTransfer.php:46
 #: src/Payments/StripeGateway.php:79
 #, php-format
 msgid "Bestellung %s"
@@ -1543,7 +1544,8 @@ msgid "Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein 
 msgstr "Le paiement est arrivé après l’expiration de la réservation et il ne restait plus de contingent. Veuillez libérer une place ou rembourser le paiement en dehors du plugin."
 
 #: src/Admin/OrdersPage.php:324
-#: src/Admin/TicketsPage.php:151
+#: src/Admin/TicketsPage.php:177
+#: src/Privacy.php:199
 msgid "Käufer"
 msgstr "Acheteur"
 
@@ -1557,7 +1559,7 @@ msgstr "Mode de paiement / Référence"
 
 #: src/Admin/OrdersPage.php:333
 #: src/BoxOffice/Service.php:35
-#: src/Invoices.php:185
+#: src/Invoices.php:205
 #: src/Printing/InvoicePdf.php:79
 msgid "Rechnung"
 msgstr "Facture"
@@ -1584,18 +1586,18 @@ msgstr "Version CGV/informations consommateur"
 
 #: src/Admin/OrdersPage.php:344
 #: src/Partners/Settlements.php:560
-#: src/Privacy.php:32
+#: src/Privacy.php:135
 msgid "Positionen"
 msgstr "Lignes"
 
 #: src/Admin/OrdersPage.php:347
-#: src/BoxOffice/Page.php:80
-#: src/Mail/Types.php:63
-#: src/Mail/Types.php:263
-#: src/Mail/Types.php:278
+#: src/BoxOffice/Page.php:81
+#: src/Mail/Types.php:64
+#: src/Mail/Types.php:291
+#: src/Mail/Types.php:306
 #: src/Printing/AttendeeList.php:34
 #: src/Printing/AttendeeList.php:48
-#: src/Privacy.php:48
+#: src/Privacy.php:172
 #: src/Reports/Data.php:303
 #: src/Reports/Page.php:96
 #: src/Seating/AdminPage.php:214
@@ -1609,13 +1611,13 @@ msgid "Ticketart"
 msgstr "Type de ticket"
 
 #: src/Admin/OrdersPage.php:349
-#: src/Invoices.php:187
+#: src/Invoices.php:207
 #: src/Printing/InvoicePdf.php:85
 msgid "Menge"
 msgstr "Quantité"
 
 #: src/Admin/OrdersPage.php:350
-#: src/Invoices.php:187
+#: src/Invoices.php:207
 #: src/Printing/InvoicePdf.php:85
 msgid "Einzelpreis"
 msgstr "Prix unitaire"
@@ -1638,13 +1640,13 @@ msgstr "Sous-total"
 
 #: src/Admin/OrdersPage.php:372
 #: src/BoxOffice/Service.php:642
-#: src/Invoices.php:187
+#: src/Invoices.php:207
 #: src/Printing/InvoicePdf.php:85
 msgid "Rabatt"
 msgstr "Remise"
 
 #: src/Admin/OrdersPage.php:373
-#: src/Invoices.php:187
+#: src/Invoices.php:207
 msgid "Gesamt (brutto)"
 msgstr "Total (TTC)"
 
@@ -1662,7 +1664,8 @@ msgid "Art"
 msgstr "Type"
 
 #: src/Admin/OrdersPage.php:403
-#: src/Admin/TicketsPage.php:152
+#: src/Admin/TicketsPage.php:178
+#: src/Privacy.php:199
 msgid "Teilnehmer"
 msgstr "Participant"
 
@@ -1681,7 +1684,7 @@ msgid "Ticket %s erstatten"
 msgstr "Rembourser le ticket %s"
 
 #: src/Admin/OrdersPage.php:417
-#: src/Admin/TicketsPage.php:172
+#: src/Admin/TicketsPage.php:198
 msgid "erstattet"
 msgstr "remboursé"
 
@@ -1699,20 +1702,14 @@ msgstr "Rembourser tous les tickets ouverts (solde restant de la commande)"
 
 #: src/Admin/OrdersPage.php:432
 #: src/Admin/OrdersPage.php:491
-#: src/Admin/TicketsPage.php:178
-#: src/BoxOffice/Page.php:157
+#: src/Admin/TicketsPage.php:204
+#: src/BoxOffice/Page.php:158
 msgid "Grund"
 msgstr "Motif"
 
 #: src/Admin/OrdersPage.php:435
 msgid "Manuelle Zahlungen: Der Betrag muss außerhalb des Plugins zurücküberwiesen werden. Die Tickets werden widerrufen."
 msgstr "Paiements manuels : le montant doit être restitué en dehors du plugin. Les tickets seront révoqués."
-
-#. translators: %s: amount
-#: src/Admin/OrdersPage.php:438
-#, php-format
-msgid "Erstattungen über %s benötigen eine zweite Freigabe."
-msgstr "Les remboursements supérieurs à %s nécessitent une seconde validation."
 
 #: src/Admin/OrdersPage.php:440
 msgid "Ausgewählte Tickets wirklich erstatten?"
@@ -1739,7 +1736,7 @@ msgid "Als bezahlt markieren"
 msgstr "Marquer comme payée"
 
 #: src/Admin/OrdersPage.php:463
-#: src/Admin/TicketsPage.php:184
+#: src/Admin/TicketsPage.php:213
 msgid "Grund (optional)"
 msgstr "Motif (facultatif)"
 
@@ -1748,7 +1745,7 @@ msgid "Unbezahlte Bestellung stornieren und Reservierung freigeben?"
 msgstr "Annuler la commande non payée et libérer la réservation ?"
 
 #: src/Admin/OrdersPage.php:464
-#: src/BoxOffice/Page.php:157
+#: src/BoxOffice/Page.php:158
 msgid "Stornieren"
 msgstr "Annuler la commande"
 
@@ -1757,11 +1754,13 @@ msgid "Tickets erneut senden? Die bisherigen Ticketcodes werden dabei ungültig.
 msgstr "Renvoyer les tickets ? Les codes de ticket actuels deviendront invalides."
 
 #: src/Admin/OrdersPage.php:469
-#: src/Mail/Types.php:117
+#: src/Mail/Types.php:133
 msgid "Tickets erneut senden"
 msgstr "Renvoyer les tickets"
 
 #: src/Admin/OrdersPage.php:489
+#: src/Payments/BankTransfer.php:64
+#: src/PublicEvents.php:63
 msgid "Betrag"
 msgstr "Montant"
 
@@ -1839,171 +1838,167 @@ msgstr "Afficher les noms des participants lors du scan"
 msgid "Maximale Gültigkeit einer Gerätekopplung (Stunden)"
 msgstr "Validité maximale d’un appairage d’appareil (heures)"
 
-#: src/Admin/SettingsPage.php:45
+#: src/Admin/SettingsPage.php:46
 msgid "Zahlungsarten"
 msgstr "Modes de paiement"
 
-#: src/Admin/SettingsPage.php:47
+#: src/Admin/SettingsPage.php:48
 msgid "Aktive Zahlungsarten"
 msgstr "Modes de paiement actifs"
 
-#: src/Admin/SettingsPage.php:48
+#: src/Admin/SettingsPage.php:49
 msgid "Hinweis für manuelle Zahlung (z. B. Bankverbindung)"
 msgstr "Instructions pour le paiement manuel (p. ex. coordonnées bancaires)"
 
-#: src/Admin/SettingsPage.php:52
+#: src/Admin/SettingsPage.php:56
 msgid "Stripe"
 msgstr "Stripe"
 
-#: src/Admin/SettingsPage.php:55
-#: src/Admin/SettingsPage.php:64
+#: src/Admin/SettingsPage.php:59
+#: src/Admin/SettingsPage.php:68
 msgid "Modus"
 msgstr "Mode"
 
-#: src/Admin/SettingsPage.php:55
+#: src/Admin/SettingsPage.php:59
 #: src/Mail/Admin.php:118
 msgid "Test"
 msgstr "Test"
 
-#: src/Admin/SettingsPage.php:55
-#: src/Admin/SettingsPage.php:64
+#: src/Admin/SettingsPage.php:59
+#: src/Admin/SettingsPage.php:68
 msgid "Live"
 msgstr "Live"
 
-#: src/Admin/SettingsPage.php:56
+#: src/Admin/SettingsPage.php:60
 msgid "Secret Key"
 msgstr "Clé secrète"
 
-#: src/Admin/SettingsPage.php:57
+#: src/Admin/SettingsPage.php:61
 msgid "Webhook-Signing-Secret"
 msgstr "Secret de signature du webhook"
 
-#: src/Admin/SettingsPage.php:61
+#: src/Admin/SettingsPage.php:65
 #: src/Payments/PayPalGateway.php:35
 msgid "PayPal"
 msgstr "PayPal"
 
-#: src/Admin/SettingsPage.php:64
+#: src/Admin/SettingsPage.php:68
 #: src/WalletPasses/AdminPage.php:192
 msgid "Sandbox"
 msgstr "Sandbox"
 
-#: src/Admin/SettingsPage.php:65
+#: src/Admin/SettingsPage.php:69
 msgid "Client-ID"
 msgstr "ID client"
 
-#: src/Admin/SettingsPage.php:66
+#: src/Admin/SettingsPage.php:70
 msgid "Client-Secret"
 msgstr "Secret client"
 
-#: src/Admin/SettingsPage.php:67
+#: src/Admin/SettingsPage.php:71
 msgid "Webhook-ID"
 msgstr "ID du webhook"
 
-#: src/Admin/SettingsPage.php:71
+#: src/Admin/SettingsPage.php:75
 msgid "Rechtstexte"
 msgstr "Mentions légales"
 
-#: src/Admin/SettingsPage.php:73
+#: src/Admin/SettingsPage.php:77
 msgid "AGB / Teilnahmebedingungen"
 msgstr "CGV / Conditions de participation"
 
-#: src/Admin/SettingsPage.php:74
+#: src/Admin/SettingsPage.php:78
 msgid "Verbraucherinformationen (z. B. Widerrufshinweis)"
 msgstr "Informations consommateur (p. ex. information sur le droit de rétractation)"
 
-#: src/Admin/SettingsPage.php:75
+#: src/Admin/SettingsPage.php:79
 msgid "Zustimmung im Checkout verlangen"
 msgstr "Exiger l’acceptation lors du paiement"
 
-#: src/Admin/SettingsPage.php:81
+#: src/Admin/SettingsPage.php:85
 msgid "Zweite Freigabe ab Betrag"
 msgstr "Seconde validation à partir du montant"
 
-#: src/Admin/SettingsPage.php:81
+#: src/Admin/SettingsPage.php:85
 msgid "0 = keine zweite Freigabe. Betrag in der Bestellwährung, z. B. 100,00."
 msgstr "0 = pas de seconde validation. Montant dans la devise de la commande, p. ex. 100,00."
 
-#: src/Admin/SettingsPage.php:82
+#: src/Admin/SettingsPage.php:86
 msgid "Zwei-Faktor-Anmeldung für Erstattungen verlangen"
 msgstr "Exiger l’authentification à deux facteurs pour les remboursements"
 
-#: src/Admin/SettingsPage.php:86
+#: src/Admin/SettingsPage.php:90
 msgid "Datenschutz"
 msgstr "Confidentialité"
 
-#: src/Admin/SettingsPage.php:88
+#: src/Admin/SettingsPage.php:92
 msgid "Teilnehmerdaten nach dem Event löschen nach (Tagen)"
 msgstr "Supprimer les données des participants après l’événement au bout de (jours)"
 
-#: src/Admin/SettingsPage.php:88
+#: src/Admin/SettingsPage.php:92
 msgid "0 = Feldeinstellung verwenden."
 msgstr "0 = utiliser le réglage du champ."
 
-#: src/Admin/SettingsPage.php:89
+#: src/Admin/SettingsPage.php:93
 msgid "Teilnehmerdaten änderbar bis (Stunden vor Beginn)"
 msgstr "Données des participants modifiables jusqu’à (heures avant le début)"
 
-#: src/Admin/SettingsPage.php:93
+#: src/Admin/SettingsPage.php:97
 msgid "Rechnungssteller"
 msgstr "Émetteur de la facture"
 
-#: src/Admin/SettingsPage.php:95
+#: src/Admin/SettingsPage.php:99
 msgid "Name / Firma"
 msgstr "Nom / Société"
 
-#: src/Admin/SettingsPage.php:96
+#: src/Admin/SettingsPage.php:100
 msgid "Anschrift"
 msgstr "Adresse"
 
-#: src/Admin/SettingsPage.php:97
+#: src/Admin/SettingsPage.php:101
 #: src/Partners/AdminPage.php:221
 msgid "USt-IdNr."
 msgstr "N° de TVA"
 
-#: src/Admin/SettingsPage.php:98
+#: src/Admin/SettingsPage.php:102
 msgid "Präfix Rechnungsnummer"
 msgstr "Préfixe du numéro de facture"
 
-#: src/Admin/SettingsPage.php:99
-msgid "Präfix Gutschriftnummer"
-msgstr "Préfixe du numéro d’avoir"
-
-#: src/Admin/SettingsPage.php:100
+#: src/Admin/SettingsPage.php:104
 msgid "Rechnung nach Zahlung automatisch erstellen"
 msgstr "Créer automatiquement la facture après le paiement"
 
-#: src/Admin/SettingsPage.php:104
+#: src/Admin/SettingsPage.php:108
 msgid "Deinstallation"
 msgstr "Désinstallation"
 
-#: src/Admin/SettingsPage.php:106
+#: src/Admin/SettingsPage.php:110
 msgid "Beim Löschen des Plugins alle Daten entfernen"
 msgstr "Supprimer toutes les données lors de la suppression du plugin"
 
-#: src/Admin/SettingsPage.php:106
+#: src/Admin/SettingsPage.php:110
 msgid "Achtung: Events, Bestellungen, Tickets und Rechnungen werden unwiderruflich gelöscht. Gesetzliche Aufbewahrungspflichten beachten."
 msgstr "Attention : les événements, commandes, tickets et factures seront supprimés définitivement. Respectez les obligations légales de conservation."
 
-#: src/Admin/SettingsPage.php:137
+#: src/Admin/SettingsPage.php:141
 msgid "Weitere Einstellungen"
 msgstr "Autres réglages"
 
 #. translators: %s: field label
-#: src/Admin/SettingsPage.php:172
+#: src/Admin/SettingsPage.php:176
 #, php-format
 msgid "„%s“ muss eine ganze Zahl sein."
 msgstr "« %s » doit être un nombre entier."
 
 #. translators: %s: field label
-#: src/Admin/SettingsPage.php:197
+#: src/Admin/SettingsPage.php:201
 #, php-format
 msgid "„%s“ ist kein gültiger Betrag."
 msgstr "« %s » n’est pas un montant valide."
 
-#: src/Admin/SettingsPage.php:236
+#: src/Admin/SettingsPage.php:240
 #: src/Admission/RulesPage.php:120
-#: src/BoxOffice/Page.php:313
+#: src/BoxOffice/Page.php:338
 #: src/Modules/Calendar.php:259
 #: src/Modules/Mollie.php:168
 #: src/Modules/Reminders.php:175
@@ -2012,68 +2007,70 @@ msgstr "« %s » n’est pas un montant valide."
 msgid "Einstellungen gespeichert."
 msgstr "Réglages enregistrés."
 
-#: src/Admin/SettingsPage.php:248
+#: src/Admin/SettingsPage.php:252
 msgid "Pass Captain Einstellungen"
 msgstr "Réglages de Pass Captain"
 
-#: src/Admin/SettingsPage.php:254
+#: src/Admin/SettingsPage.php:258
 msgid "Webhook-URL:"
 msgstr "URL du webhook :"
 
-#: src/Admin/SettingsPage.php:265
+#: src/Admin/SettingsPage.php:269
 #: src/Partners/AdminPage.php:199
 msgid "Einstellungen speichern"
 msgstr "Enregistrer les réglages"
 
-#: src/Admin/SettingsPage.php:289
+#: src/Admin/SettingsPage.php:293
 msgid "(nicht vollständig konfiguriert)"
 msgstr "(configuration incomplète)"
 
 #. translators: %s: version hash
-#: src/Admin/SettingsPage.php:300
+#: src/Admin/SettingsPage.php:304
 #, php-format
 msgid "Aktuelle Version: %s (wird mit jeder Bestellung gespeichert)"
 msgstr "Version actuelle : %s (enregistrée avec chaque commande)"
 
-#: src/Admin/SettingsPage.php:311
+#: src/Admin/SettingsPage.php:315
 #: src/Modules/Mollie.php:181
 #: src/Modules/Sms.php:339
 msgid "Gespeichert – leer lassen, um beizubehalten"
 msgstr "Enregistré – laissez vide pour conserver"
 
-#: src/Admin/SettingsPage.php:311
+#: src/Admin/SettingsPage.php:315
 #: src/Modules/Sms.php:339
 msgid "Nicht gesetzt"
 msgstr "Non défini"
 
-#: src/Admin/SettingsPage.php:312
+#: src/Admin/SettingsPage.php:316
 msgid "Wert gespeichert"
 msgstr "Valeur enregistrée"
 
-#: src/Admin/SettingsPage.php:312
+#: src/Admin/SettingsPage.php:316
 msgid "Kein Wert gespeichert"
 msgstr "Aucune valeur enregistrée"
 
-#: src/Admin/SettingsPage.php:314
+#: src/Admin/SettingsPage.php:318
 msgid "Gespeicherten Wert entfernen"
 msgstr "Supprimer la valeur enregistrée"
 
 #. translators: %s: constant name
-#: src/Admin/SettingsPage.php:322
+#: src/Admin/SettingsPage.php:326
 #, php-format
 msgid "Wird durch %s (wp-config.php oder Umgebungsvariable) überschrieben; der hier gespeicherte Wert wird nicht verwendet."
 msgstr "Remplacé par %s (wp-config.php ou variable d’environnement) ; la valeur enregistrée ici n’est pas utilisée."
 
 #. translators: %s: constant name
-#: src/Admin/SettingsPage.php:325
+#: src/Admin/SettingsPage.php:329
 #, php-format
 msgid "Empfohlen: als Konstante %s in wp-config.php definieren."
 msgstr "Recommandé : définir comme constante %s dans wp-config.php."
 
 #: src/Admin/TicketsPage.php:38
 #: src/Admin/TicketsPage.php:66
+#: src/Admin/TicketsPage.php:82
 #: src/Checkin.php:72
 #: src/Checkin.php:79
+#: src/Orders.php:1248
 msgid "Ticket nicht gefunden."
 msgstr "Ticket introuvable."
 
@@ -2085,60 +2082,60 @@ msgstr "Veuillez indiquer un motif de révocation."
 msgid "Nur gültige (nicht eingecheckte) Tickets können widerrufen werden."
 msgstr "Seuls les tickets valides (non enregistrés) peuvent être révoqués."
 
-#: src/Admin/TicketsPage.php:67
+#: src/Admin/TicketsPage.php:83
 #: src/Checkin.php:327
 #: src/Mobile/Api.php:96
 #: src/Mobile/Api.php:154
 msgid "Für dieses Event ist kein Einlasszugriff zugewiesen."
 msgstr "Aucun accès d’entrée n’est attribué pour cet événement."
 
-#: src/Admin/TicketsPage.php:75
-#: src/Admission/Engine.php:165
+#: src/Admin/TicketsPage.php:91
+#: src/Admission/Engine.php:193
 #: src/Checkin.php:351
 msgid "Das Ticket ist nicht eingecheckt."
 msgstr "Le ticket n’est pas enregistré."
 
-#: src/Admin/TicketsPage.php:104
+#: src/Admin/TicketsPage.php:120
 msgid "Ticket widerrufen."
 msgstr "Ticket révoqué."
 
-#: src/Admin/TicketsPage.php:110
+#: src/Admin/TicketsPage.php:136
 msgid "Check-in zurückgenommen; das Ticket ist wieder gültig."
 msgstr "Check-in annulé ; le ticket est de nouveau valide."
 
-#: src/Admin/TicketsPage.php:131
+#: src/Admin/TicketsPage.php:157
 msgid "Alle Status"
 msgstr "Tous les statuts"
 
-#: src/Admin/TicketsPage.php:139
+#: src/Admin/TicketsPage.php:165
 msgid "Ticket-ID, Bestellnummer, E-Mail oder Name"
 msgstr "ID du ticket, numéro de commande, e-mail ou nom"
 
-#: src/Admin/TicketsPage.php:142
+#: src/Admin/TicketsPage.php:168
 msgid "Suchen"
 msgstr "Rechercher"
 
-#: src/Admin/TicketsPage.php:145
+#: src/Admin/TicketsPage.php:171
 msgid "Bitte nach Ticket, Käufer oder Teilnehmer suchen oder ein Event wählen."
 msgstr "Veuillez rechercher par ticket, acheteur ou participant, ou sélectionner un événement."
 
-#: src/Admin/TicketsPage.php:150
+#: src/Admin/TicketsPage.php:176
 msgid "Event / Termin"
 msgstr "Événement / Date"
 
-#: src/Admin/TicketsPage.php:157
+#: src/Admin/TicketsPage.php:183
 msgid "Keine Tickets gefunden."
 msgstr "Aucun ticket trouvé."
 
-#: src/Admin/TicketsPage.php:179
+#: src/Admin/TicketsPage.php:205
 msgid "Platz freigeben"
 msgstr "Libérer la place"
 
-#: src/Admin/TicketsPage.php:180
+#: src/Admin/TicketsPage.php:206
 msgid "Ticket widerrufen? Es kann danach nicht mehr eingelöst werden. Eine Erstattung erfolgt nicht automatisch."
 msgstr "Révoquer le ticket ? Il ne pourra plus être utilisé ensuite. Aucun remboursement n’est effectué automatiquement."
 
-#: src/Admin/TicketsPage.php:185
+#: src/Admin/TicketsPage.php:214
 msgid "Check-in zurücknehmen"
 msgstr "Annuler le check-in"
 
@@ -2222,7 +2219,7 @@ msgid "Falscher Termin"
 msgstr "Mauvaise date"
 
 #: src/Admission/ConflictsPage.php:45
-#: src/OccurrenceCancellation.php:48
+#: src/OccurrenceCancellation.php:72
 msgid "Termin abgesagt"
 msgstr "Date annulée"
 
@@ -2279,7 +2276,7 @@ msgid "Klärung …"
 msgstr "Résolution …"
 
 #: src/Admission/ConflictsPage.php:93
-#: src/BoxOffice/Page.php:166
+#: src/BoxOffice/Page.php:167
 msgid "Notiz"
 msgstr "Note"
 
@@ -2350,7 +2347,7 @@ msgid "Zu viele Tage (höchstens 366)."
 msgstr "Trop de jours (366 au maximum)."
 
 #: src/Admission/Rest.php:58
-#: src/Rest/Controller.php:363
+#: src/Rest/Controller.php:448
 msgid "Der Offline-Scanbatch muss 1 bis 100 Codes enthalten."
 msgstr "Le lot de scans hors ligne doit contenir de 1 à 100 codes."
 
@@ -2429,7 +2426,7 @@ msgstr "Ne prendre en compte l’heure de l’appareil des scans hors ligne que 
 
 #: src/Admission/RulesPage.php:186
 #: src/Admission/RulesPage.php:241
-#: src/BoxOffice/Page.php:170
+#: src/BoxOffice/Page.php:171
 #: src/Mail/Admin.php:262
 #: src/Modules/Calendar.php:273
 #: src/Modules/Mollie.php:191
@@ -2549,217 +2546,216 @@ msgstr "Aucun ticket n’est imprimé pour les ventes annulées."
 msgid "Kasse"
 msgstr "Caisse"
 
-#: src/BoxOffice/Page.php:56
+#: src/BoxOffice/Page.php:57
 #, php-format
 msgid "Verkauf gebucht: Beleg %1$s über %2$s."
 msgstr "Vente enregistrée : reçu %1$s pour %2$s."
 
-#: src/BoxOffice/Page.php:56
+#: src/BoxOffice/Page.php:57
 msgid "Beleg drucken"
 msgstr "Imprimer le reçu"
 
-#: src/BoxOffice/Page.php:59
+#: src/BoxOffice/Page.php:60
 msgid "Tickets drucken (PDF)"
 msgstr "Imprimer les tickets (PDF)"
 
-#: src/BoxOffice/Page.php:62
+#: src/BoxOffice/Page.php:63
 msgid "Kassensitzung öffnen"
 msgstr "Ouvrir une session de caisse"
 
-#: src/BoxOffice/Page.php:64
+#: src/BoxOffice/Page.php:65
 msgid "Wechselgeld (Anfangsbestand)"
 msgstr "Fonds de caisse (solde initial)"
 
-#: src/BoxOffice/Page.php:66
+#: src/BoxOffice/Page.php:67
 msgid "Kasse öffnen"
 msgstr "Ouvrir la caisse"
 
-#: src/BoxOffice/Page.php:80
+#: src/BoxOffice/Page.php:81
 #: src/Series/AdminPage.php:360
 msgid "Verfügbar"
 msgstr "Disponible"
 
-#: src/BoxOffice/Page.php:80
+#: src/BoxOffice/Page.php:81
 msgid "Anzahl"
 msgstr "Quantité"
 
-#: src/BoxOffice/Page.php:87
+#: src/BoxOffice/Page.php:88
 msgid "Saalplan: Sitzplätze werden automatisch zugewiesen (beste freie Plätze)."
 msgstr "Plan de salle : les places sont attribuées automatiquement (meilleures places libres)."
 
 #. translators: %s: list of field labels
-#: src/BoxOffice/Page.php:89
+#: src/BoxOffice/Page.php:90
 #, php-format
 msgid "Pflichtangaben je Ticket: %s"
 msgstr "Informations obligatoires par ticket : %s"
 
 #. translators: %s: ticket type
-#: src/BoxOffice/Page.php:91
+#: src/BoxOffice/Page.php:92
 #, php-format
 msgid "Anzahl %s"
 msgstr "Quantité %s"
 
-#: src/BoxOffice/Page.php:95
+#: src/BoxOffice/Page.php:96
 msgid "An der Kasse kann kein Platz im Saalplan gewählt werden: Für Ticketarten mit Saalplan werden die besten freien Plätze automatisch vergeben und auf den Tickets angegeben. Für Wunschplätze bitte die Online-Buchung nutzen."
 msgstr "À la caisse, il n’est pas possible de choisir une place sur le plan de salle : pour les types de ticket avec plan de salle, les meilleures places libres sont attribuées automatiquement et indiquées sur les tickets. Pour choisir vos places, veuillez utiliser la réservation en ligne."
 
-#: src/BoxOffice/Page.php:98
+#: src/BoxOffice/Page.php:99
 msgid "Für Teilnehmerangaben wird JavaScript benötigt."
 msgstr "JavaScript est nécessaire pour les informations des participants."
 
-#: src/BoxOffice/Page.php:99
+#: src/BoxOffice/Page.php:100
 msgid "Summe:"
 msgstr "Total :"
 
-#: src/BoxOffice/Page.php:103
+#: src/BoxOffice/Page.php:104
 msgid "Gegeben (bar)"
 msgstr "Remis (espèces)"
 
-#: src/BoxOffice/Page.php:104
+#: src/BoxOffice/Page.php:105
 msgid "Terminal-Referenz"
 msgstr "Référence du terminal"
 
-#: src/BoxOffice/Page.php:105
+#: src/BoxOffice/Page.php:106
 msgid "E-Mail Käufer (optional, Pflicht bei Rechnung)"
 msgstr "E-mail de l’acheteur (facultatif, obligatoire pour une facture)"
 
-#: src/BoxOffice/Page.php:106
+#: src/BoxOffice/Page.php:107
 msgid "Verkauf buchen"
 msgstr "Enregistrer la vente"
 
-#: src/BoxOffice/Page.php:110
+#: src/BoxOffice/Page.php:111
 msgid "Rückgeld:"
 msgstr "Monnaie à rendre :"
 
 #. translators: 1: running ticket number, 2: ticket type
 #. translators: 1: ticket number, 2: event and ticket name
-#: src/BoxOffice/Page.php:112
+#: src/BoxOffice/Page.php:113
 #: src/Integrations/WooCommerce/Attendees.php:192
 #: src/Integrations/WooCommerce/Attendees.php:327
 #, php-format
 msgid "Ticket %1$d · %2$s"
 msgstr "Ticket %1$d · %2$s"
 
-#: src/BoxOffice/Page.php:114
-#: src/PublicEvents.php:30
+#: src/BoxOffice/Page.php:115
 msgid "E-Mail (optional)"
 msgstr "E-mail (facultatif)"
 
-#: src/BoxOffice/Page.php:115
+#: src/BoxOffice/Page.php:116
 msgid "Teilnehmerangaben"
 msgstr "Informations du participant"
 
-#: src/BoxOffice/Page.php:127
+#: src/BoxOffice/Page.php:128
 #, php-format
 msgid "Kassensitzung #%1$d (seit %2$s)"
 msgstr "Session de caisse n° %1$d (depuis %2$s)"
 
-#: src/BoxOffice/Page.php:128
+#: src/BoxOffice/Page.php:129
 msgid "Verkäufe"
 msgstr "Ventes"
 
-#: src/BoxOffice/Page.php:128
+#: src/BoxOffice/Page.php:129
 msgid "Storniert"
 msgstr "Annulée"
 
-#: src/BoxOffice/Page.php:128
+#: src/BoxOffice/Page.php:129
 msgid "Netto-Umsatz"
 msgstr "Chiffre d’affaires net"
 
-#: src/BoxOffice/Page.php:132
+#: src/BoxOffice/Page.php:133
 #, php-format
 msgid "Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s"
 msgstr "Solde initial %1$s · solde de caisse attendu (espèces) %2$s"
 
-#: src/BoxOffice/Page.php:136
+#: src/BoxOffice/Page.php:137
 msgid "Verkäufe dieser Sitzung"
 msgstr "Ventes de cette session"
 
-#: src/BoxOffice/Page.php:140
+#: src/BoxOffice/Page.php:141
 msgid "(nicht gebucht)"
 msgstr "(non enregistrée)"
 
-#: src/BoxOffice/Page.php:140
+#: src/BoxOffice/Page.php:141
 #: src/BoxOffice/Service.php:635
 msgid "Beleg"
 msgstr "Reçu"
 
-#: src/BoxOffice/Page.php:145
+#: src/BoxOffice/Page.php:146
 msgid "Nachbuchen"
 msgstr "Enregistrer a posteriori"
 
-#: src/BoxOffice/Page.php:150
+#: src/BoxOffice/Page.php:151
 msgid "Storno ablehnen"
 msgstr "Refuser l’annulation"
 
-#: src/BoxOffice/Page.php:152
+#: src/BoxOffice/Page.php:153
 msgid "Stornobeleg"
 msgstr "Reçu d’annulation"
 
-#: src/BoxOffice/Page.php:155
+#: src/BoxOffice/Page.php:156
 msgid "Verkauf wirklich stornieren?"
 msgstr "Annuler vraiment cette vente ?"
 
-#: src/BoxOffice/Page.php:163
+#: src/BoxOffice/Page.php:164
 msgid "Kassenabschluss"
 msgstr "Clôture de caisse"
 
-#: src/BoxOffice/Page.php:164
+#: src/BoxOffice/Page.php:165
 msgid "Kasse jetzt abschließen?"
 msgstr "Clôturer la caisse maintenant ?"
 
-#: src/BoxOffice/Page.php:166
+#: src/BoxOffice/Page.php:167
 msgid "Gezählter Bargeldbestand"
 msgstr "Espèces comptées"
 
-#: src/BoxOffice/Page.php:166
+#: src/BoxOffice/Page.php:167
 msgid "Kasse abschließen"
 msgstr "Clôturer la caisse"
 
-#: src/BoxOffice/Page.php:168
+#: src/BoxOffice/Page.php:169
 msgid "Belegeinstellungen"
 msgstr "Réglages des reçus"
 
-#: src/BoxOffice/Page.php:170
+#: src/BoxOffice/Page.php:171
 msgid "Präfix Belegnummer"
 msgstr "Préfixe du numéro de reçu"
 
-#: src/BoxOffice/Page.php:170
+#: src/BoxOffice/Page.php:171
 #: src/Mail/Admin.php:218
 msgid "Fußzeile"
 msgstr "Pied de page"
 
-#: src/BoxOffice/Page.php:184
-#: src/BoxOffice/Page.php:274
+#: src/BoxOffice/Page.php:209
+#: src/BoxOffice/Page.php:299
 msgid "Ungültiger Betrag."
 msgstr "Montant non valide."
 
-#: src/BoxOffice/Page.php:185
+#: src/BoxOffice/Page.php:210
 msgid "Kasse geöffnet."
 msgstr "Caisse ouverte."
 
-#: src/BoxOffice/Page.php:245
+#: src/BoxOffice/Page.php:270
 msgid "Storno angelegt; es wartet auf Freigabe."
 msgstr "Annulation créée ; elle est en attente de validation."
 
-#: src/BoxOffice/Page.php:245
+#: src/BoxOffice/Page.php:270
 msgid "Verkauf storniert. Bitte Betrag auszahlen bzw. am Kartenterminal gutschreiben."
 msgstr "Vente annulée. Veuillez verser le montant ou le créditer sur le terminal de paiement."
 
-#: src/BoxOffice/Page.php:261
+#: src/BoxOffice/Page.php:286
 msgid "Verkauf gebucht."
 msgstr "Vente enregistrée."
 
-#: src/BoxOffice/Page.php:267
+#: src/BoxOffice/Page.php:292
 msgid "Storno abgelehnt; der Verkauf bleibt bestehen."
 msgstr "Annulation refusée ; la vente est maintenue."
 
-#: src/BoxOffice/Page.php:275
+#: src/BoxOffice/Page.php:300
 #, php-format
 msgid "Kasse abgeschlossen. Erwartet %1$s, gezählt %2$s, Differenz %3$s."
 msgstr "Caisse clôturée. Attendu %1$s, compté %2$s, écart %3$s."
 
-#: src/BoxOffice/Page.php:282
+#: src/BoxOffice/Page.php:307
 msgid "Für diesen Verkauf gibt es keinen Beleg, weil er nicht gebucht wurde."
 msgstr "Il n’existe pas de reçu pour cette vente, car elle n’a pas été enregistrée."
 
@@ -2888,7 +2884,7 @@ msgid "Für diesen Verkauf wartet kein Storno."
 msgstr "Aucune annulation n’est en attente pour cette vente."
 
 #: src/BoxOffice/Service.php:634
-#: src/Invoices.php:184
+#: src/Invoices.php:204
 #: src/Partners/Settlements.php:520
 #: src/Partners/Settlements.php:521
 #: src/Printing/InvoicePdf.php:47
@@ -2908,7 +2904,7 @@ msgid "Storno zu Beleg"
 msgstr "Annulation du reçu"
 
 #: src/BoxOffice/Service.php:638
-#: src/Printing/InvoicePdf.php:138
+#: src/Printing/InvoicePdf.php:150
 msgid "Datum:"
 msgstr "Date :"
 
@@ -3043,7 +3039,7 @@ msgstr "Données du message non valides."
 msgid "Nachricht konnte nicht eingeplant werden."
 msgstr "Le message n’a pas pu être planifié."
 
-#: src/Communications.php:47
+#: src/Communications.php:61
 msgid "Template fehlt oder wp_mail ist fehlgeschlagen."
 msgstr "Modèle manquant ou échec de wp_mail."
 
@@ -3060,27 +3056,27 @@ msgstr "La clé API n’a pas pu être créée."
 msgid "API-Key nicht gefunden oder keine Berechtigung."
 msgstr "Clé API introuvable ou autorisation insuffisante."
 
-#: src/Installer.php:694
+#: src/Installer.php:832
 msgid "Pass Captain Ticket-Administration"
 msgstr "Pass Captain Administration des tickets"
 
-#: src/Installer.php:695
+#: src/Installer.php:833
 msgid "Pass Captain Veranstaltungsleitung"
 msgstr "Pass Captain Direction d’événement"
 
-#: src/Installer.php:696
+#: src/Installer.php:834
 msgid "Pass Captain Vor-Ort-Kasse"
 msgstr "Pass Captain Caisse sur place"
 
-#: src/Installer.php:697
+#: src/Installer.php:835
 msgid "Pass Captain Einlasspersonal"
 msgstr "Pass Captain Personnel d’entrée"
 
-#: src/Installer.php:699
+#: src/Installer.php:837
 msgid "Pass Captain Finanzbuchhaltung"
 msgstr "Pass Captain Comptabilité"
 
-#: src/Installer.php:700
+#: src/Installer.php:838
 msgid "Pass Captain Support"
 msgstr "Pass Captain Support"
 
@@ -3165,7 +3161,7 @@ msgstr "Palier de prix"
 #. translators: %s: regular price HTML
 #. translators: %s: regular price
 #: src/Integrations/WooCommerce/CartPricing.php:454
-#: templates/event-card.php:24
+#: templates/event-card.php:28
 #, php-format
 msgid "statt %s"
 msgstr "au lieu de %s"
@@ -3389,82 +3385,73 @@ msgstr "La facture n’a pas pu être créée."
 msgid "Rechnungsposition konnte nicht gespeichert werden."
 msgstr "La ligne de facture n’a pas pu être enregistrée."
 
-#: src/Invoices.php:139
-#: src/Invoices.php:142
+#: src/Invoices.php:140
+#: src/Invoices.php:143
 msgid "Rechnungsnummer konnte nicht reserviert werden."
 msgstr "Le numéro de facture n’a pas pu être réservé."
 
-#: src/Invoices.php:157
+#: src/Invoices.php:181
 msgid "Belegnummer konnte nicht reserviert werden."
 msgstr "Le numéro de document n’a pas pu être réservé."
 
-#: src/Invoices.php:186
+#: src/Invoices.php:206
 #: src/Printing/InvoicePdf.php:81
 msgid "Rechnungsdatum:"
 msgstr "Date de la facture :"
 
-#: src/Invoices.php:186
+#: src/Invoices.php:206
 #: src/Printing/InvoicePdf.php:83
 msgid "Rechnungsempfänger:"
 msgstr "Destinataire de la facture :"
 
-#: src/Invoices.php:187
+#: src/Invoices.php:207
 #: src/Printing/InvoicePdf.php:85
 msgid "Leistung"
 msgstr "Prestation"
 
-#: src/Invoices.php:187
+#: src/Invoices.php:207
+#: src/Invoices.php:210
 #: src/Printing/InvoicePdf.php:85
+#: src/Printing/InvoicePdf.php:119
 msgid "USt."
 msgstr "TVA"
 
 #. translators: 1: invoice number, 2: date
-#: src/Invoices.php:191
-#: src/Invoices.php:195
-#: src/Printing/InvoicePdf.php:118
-#: src/Printing/InvoicePdf.php:141
+#: src/Invoices.php:214
+#: src/Invoices.php:218
+#: src/Printing/InvoicePdf.php:130
+#: src/Printing/InvoicePdf.php:153
 msgid "Nettobetrag"
 msgstr "Montant net"
 
 #. translators: %s: rate
-#: src/Invoices.php:192
-#: src/Printing/InvoicePdf.php:122
+#: src/Invoices.php:215
+#: src/Printing/InvoicePdf.php:134
 #, php-format
 msgid "Umsatzsteuer %s %%"
 msgstr "TVA %s %%"
 
 #. translators: %s: rate
-#: src/Invoices.php:193
-#: src/Printing/InvoicePdf.php:126
+#: src/Invoices.php:216
+#: src/Printing/InvoicePdf.php:138
 msgid "Rechnungsbetrag"
 msgstr "Montant de la facture"
 
-#: src/Invoices.php:195
-#: src/Printing/InvoicePdf.php:134
-msgid "Gutschrift"
-msgstr "Avoir"
-
 #. translators: 1: invoice number, 2: date
-#: src/Invoices.php:195
-#: src/Printing/InvoicePdf.php:136
+#: src/Invoices.php:218
+#: src/Printing/InvoicePdf.php:148
 #, php-format
 msgid "Korrektur zu Rechnung %1$s vom %2$s"
 msgstr "Correction de la facture %1$s du %2$s"
 
 #. translators: 1: invoice number, 2: date
-#: src/Invoices.php:195
-#: src/Printing/InvoicePdf.php:142
+#: src/Invoices.php:218
+#: src/Printing/InvoicePdf.php:154
 msgid "Umsatzsteuer"
 msgstr "TVA"
 
 #. translators: 1: invoice number, 2: date
-#: src/Invoices.php:195
-#: src/Printing/InvoicePdf.php:143
-msgid "Gutschriftsbetrag"
-msgstr "Montant de l’avoir"
-
-#. translators: 1: invoice number, 2: date
-#: src/Invoices.php:196
+#: src/Invoices.php:219
 #: src/Partners/Settlements.php:565
 #: src/TicketPage.php:30
 msgid "Drucken oder als PDF speichern"
@@ -3658,298 +3645,298 @@ msgstr "Ouvrir ou imprimer le ticket :"
 msgid "Ticket-Code:"
 msgstr "Code du ticket :"
 
-#: src/Mail/Types.php:42
+#: src/Mail/Types.php:43
 #: src/Reminders/Placeholders.php:20
 msgid "Name der Website"
 msgstr "Nom du site"
 
-#: src/Mail/Types.php:43
+#: src/Mail/Types.php:44
 msgid "Adresse der Website"
 msgstr "Adresse du site"
 
-#: src/Mail/Types.php:49
-#: src/Mail/Types.php:130
-#: src/Mail/Types.php:147
-#: src/Mail/Types.php:158
-#: src/Mail/Types.php:173
-#: src/Mail/Types.php:187
-#: src/Mail/Types.php:199
+#: src/Mail/Types.php:50
+#: src/Mail/Types.php:146
+#: src/Mail/Types.php:175
+#: src/Mail/Types.php:186
+#: src/Mail/Types.php:201
+#: src/Mail/Types.php:215
+#: src/Mail/Types.php:227
 msgid "Bestellnummer"
 msgstr "Numéro de commande"
 
-#: src/Mail/Types.php:50
+#: src/Mail/Types.php:51
 msgid "E-Mail-Adresse der Käufer:in"
 msgstr "Adresse e-mail de l’acheteur"
 
-#: src/Mail/Types.php:51
+#: src/Mail/Types.php:52
 msgid "Event (erstes Ticket)"
 msgstr "Événement (premier ticket)"
 
-#: src/Mail/Types.php:52
+#: src/Mail/Types.php:53
 msgid "Beginn mit Zeitzone (erstes Ticket)"
 msgstr "Début avec fuseau horaire (premier ticket)"
 
-#: src/Mail/Types.php:53
+#: src/Mail/Types.php:54
 msgid "Ort (erstes Ticket)"
 msgstr "Lieu (premier ticket)"
 
-#: src/Mail/Types.php:54
+#: src/Mail/Types.php:55
 #: src/Reminders/Placeholders.php:17
 msgid "Anzahl Tickets"
 msgstr "Nombre de tickets"
 
-#: src/Mail/Types.php:55
+#: src/Mail/Types.php:56
 msgid "Ticketliste mit Datum, Ort, Link (und Code bzw. Wallet-Links)"
 msgstr "Liste des tickets avec date, lieu, lien (et code ou liens wallet)"
 
-#: src/Mail/Types.php:56
+#: src/Mail/Types.php:57
 msgid "Nur die Ticket-Links, einer pro Zeile"
 msgstr "Uniquement les liens des tickets, un par ligne"
 
-#: src/Mail/Types.php:64
+#: src/Mail/Types.php:65
 msgid "Beginn mit Zeitzone"
 msgstr "Début avec fuseau horaire"
 
-#: src/Mail/Types.php:107
+#: src/Mail/Types.php:123
 msgid "Ticketversand"
 msgstr "Envoi des tickets"
 
-#: src/Mail/Types.php:108
+#: src/Mail/Types.php:124
 msgid "Tickets nach bestätigter Zahlung (mit PDF-Anhang)."
 msgstr "Tickets après confirmation du paiement (avec PDF en pièce jointe)."
 
 #. translators: %s: site name
-#: src/Mail/Types.php:111
-#: src/Mail/Types.php:121
+#: src/Mail/Types.php:127
+#: src/Mail/Types.php:137
 #, php-format
 msgid "Deine Tickets für %s"
 msgstr "Vos tickets pour %s"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:113
-#: src/Mail/Types.php:123
+#: src/Mail/Types.php:129
+#: src/Mail/Types.php:139
 #, php-format
 msgid "Deine Tickets für %s:"
 msgstr "Vos tickets pour %s :"
 
-#: src/Mail/Types.php:118
+#: src/Mail/Types.php:134
 msgid "Erneuter Versand mit neuen Ticketcodes (je Empfänger:in)."
 msgstr "Nouvel envoi avec de nouveaux codes de ticket (par destinataire)."
 
-#: src/Mail/Types.php:127
+#: src/Mail/Types.php:143
 msgid "Bestellzugang"
 msgstr "Accès à la commande"
 
-#: src/Mail/Types.php:128
+#: src/Mail/Types.php:144
 msgid "Persönlicher Link zur Bestellübersicht nach der Bestellung."
 msgstr "Lien personnel vers le récapitulatif de la commande après la commande."
 
-#: src/Mail/Types.php:131
+#: src/Mail/Types.php:148
 msgid "Persönlicher Link zur Bestellung"
 msgstr "Lien personnel vers la commande"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:134
+#: src/Mail/Types.php:152
 #, php-format
 msgid "Deine Bestellung bei %s"
 msgstr "Votre commande chez %s"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:137
+#: src/Mail/Types.php:156
 #, php-format
 msgid "Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:"
 msgstr "Ce lien personnel vous permet de consulter le statut de votre commande chez %s et de gérer vos tickets :"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:137
+#: src/Mail/Types.php:156
 msgid "Bewahre diesen Link sicher auf und teile ihn nicht."
 msgstr "Conservez ce lien en lieu sûr et ne le partagez pas."
 
-#: src/Mail/Types.php:142
+#: src/Mail/Types.php:170
 msgid "Ticketübertragung: Empfänger:in"
 msgstr "Transfert de ticket : destinataire"
 
-#: src/Mail/Types.php:143
+#: src/Mail/Types.php:171
 msgid "Neues Ticket für die Person, an die ein Ticket übertragen wurde."
 msgstr "Nouveau ticket pour la personne à qui un ticket a été transféré."
 
-#: src/Mail/Types.php:145
-#: src/Mail/Types.php:171
+#: src/Mail/Types.php:173
+#: src/Mail/Types.php:199
 msgid "Link zum Ticket"
 msgstr "Lien vers le ticket"
 
-#: src/Mail/Types.php:146
-#: src/Mail/Types.php:172
+#: src/Mail/Types.php:174
+#: src/Mail/Types.php:200
 msgid "Zusatzinformationen zum Ticket (z. B. Wallet-Links)"
 msgstr "Informations supplémentaires sur le ticket (p. ex. liens wallet)"
 
-#: src/Mail/Types.php:149
+#: src/Mail/Types.php:177
 msgid "Ein Ticket wurde an dich übertragen"
 msgstr "Un ticket vous a été transféré"
 
-#: src/Mail/Types.php:154
+#: src/Mail/Types.php:182
 msgid "Ticketübertragung: Bestätigung"
 msgstr "Transfert de ticket : confirmation"
 
-#: src/Mail/Types.php:155
+#: src/Mail/Types.php:183
 msgid "Bestätigung an die Käufer:in, dass ein Ticket übertragen wurde."
 msgstr "Confirmation à l’acheteur qu’un ticket a été transféré."
 
-#: src/Mail/Types.php:157
+#: src/Mail/Types.php:185
 msgid "E-Mail-Adresse der neuen Inhaber:in"
 msgstr "Adresse e-mail du nouveau titulaire"
 
-#: src/Mail/Types.php:160
+#: src/Mail/Types.php:188
 msgid "Ticketübertragung abgeschlossen"
 msgstr "Transfert de ticket terminé"
 
 #. translators: 1: event, 2: recipient e-mail
-#: src/Mail/Types.php:162
+#: src/Mail/Types.php:190
 #, php-format
 msgid "Dein Ticket für %1$s wurde an %2$s übertragen. Der bisherige Ticketcode ist ungültig."
 msgstr "Votre ticket pour %1$s a été transféré à %2$s. L’ancien code du ticket n’est plus valide."
 
-#: src/Mail/Types.php:166
+#: src/Mail/Types.php:194
 msgid "Teilnehmerzuweisung: Teilnehmer:in"
 msgstr "Attribution à un participant : participant"
 
-#: src/Mail/Types.php:167
+#: src/Mail/Types.php:195
 msgid "Ticket für eine Person, der die Käufer:in ein Ticket zugewiesen hat."
 msgstr "Ticket pour une personne à qui l’acheteur a attribué un ticket."
 
-#: src/Mail/Types.php:169
-#: src/Mail/Types.php:185
+#: src/Mail/Types.php:197
+#: src/Mail/Types.php:213
 msgid "Name der Teilnehmer:in"
 msgstr "Nom du participant"
 
-#: src/Mail/Types.php:170
-#: src/Mail/Types.php:186
+#: src/Mail/Types.php:198
+#: src/Mail/Types.php:214
 msgid "E-Mail-Adresse der Teilnehmer:in"
 msgstr "Adresse e-mail du participant"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:176
+#: src/Mail/Types.php:204
 #, php-format
 msgid "Dein Ticket für %s"
 msgstr "Votre ticket pour %s"
 
 #. translators: %s: attendee name
-#: src/Mail/Types.php:178
+#: src/Mail/Types.php:206
 #, php-format
 msgid "Teilnehmer: %s"
 msgstr "Participant : %s"
 
-#: src/Mail/Types.php:182
+#: src/Mail/Types.php:210
 msgid "Teilnehmerzuweisung: Käufer:in"
 msgstr "Attribution à un participant : acheteur"
 
-#: src/Mail/Types.php:183
+#: src/Mail/Types.php:211
 msgid "Hinweis an die Käufer:in, dass der bisherige Code eines zugewiesenen Tickets ungültig ist."
 msgstr "Information à l’acheteur que l’ancien code d’un ticket attribué n’est plus valide."
 
 #. translators: %s: site name
-#: src/Mail/Types.php:190
+#: src/Mail/Types.php:218
 #, php-format
 msgid "Ticket zugewiesen – %s"
 msgstr "Ticket attribué – %s"
 
 #. translators: 1: event and ticket, 2: date, 3: attendee name, 4: attendee email
-#: src/Mail/Types.php:192
+#: src/Mail/Types.php:220
 #, php-format
 msgid "Das Ticket %1$s (%2$s) wurde %3$s (%4$s) zugewiesen. Der neue Ticketcode wurde an diese Adresse gesendet; der bisherige Code für dieses Ticket ist nicht mehr gültig."
 msgstr "Le ticket %1$s (%2$s) a été attribué à %3$s (%4$s). Le nouveau code du ticket a été envoyé à cette adresse ; l’ancien code de ce ticket n’est plus valide."
 
-#: src/Mail/Types.php:196
+#: src/Mail/Types.php:224
 msgid "Erstattungsbestätigung"
 msgstr "Confirmation de remboursement"
 
-#: src/Mail/Types.php:197
+#: src/Mail/Types.php:225
 msgid "Bestätigung einer abgeschlossenen Erstattung (nicht bei WooCommerce-Bestellungen)."
 msgstr "Confirmation d’un remboursement effectué (pas pour les commandes WooCommerce)."
 
-#: src/Mail/Types.php:200
+#: src/Mail/Types.php:228
 msgid "Erstatteter Betrag mit Währung"
 msgstr "Montant remboursé avec devise"
 
-#: src/Mail/Types.php:201
+#: src/Mail/Types.php:229
 msgid "Anzahl ungültig gewordener Tickets"
 msgstr "Nombre de tickets devenus invalides"
 
-#: src/Mail/Types.php:202
+#: src/Mail/Types.php:230
 msgid "Satz zu ungültig gewordenen Tickets mit Zeilenumbruch (leer, wenn keine)"
 msgstr "Phrase sur les tickets devenus invalides avec saut de ligne (vide s’il n’y en a pas)"
 
-#: src/Mail/Types.php:203
+#: src/Mail/Types.php:231
 msgid "Nummer der Gutschrift"
 msgstr "Numéro de l’avoir"
 
-#: src/Mail/Types.php:204
+#: src/Mail/Types.php:232
 msgid "Zeile „Gutschrift: …“ mit Zeilenumbruch (leer ohne Gutschrift)"
 msgstr "Ligne « Avoir : … » avec saut de ligne (vide sans avoir)"
 
-#: src/Mail/Types.php:205
+#: src/Mail/Types.php:233
 msgid "Grund der Erstattung"
 msgstr "Motif du remboursement"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:208
+#: src/Mail/Types.php:236
 #, php-format
 msgid "Erstattung bestätigt – %s"
 msgstr "Remboursement confirmé – %s"
 
 #. translators: 1: amount, 2: order id
-#: src/Mail/Types.php:211
+#: src/Mail/Types.php:239
 #, php-format
 msgid "Für deine Bestellung %2$s haben wir %1$s erstattet."
 msgstr "Nous avons remboursé %1$s pour votre commande %2$s."
 
 #. translators: 1: amount, 2: order id
-#: src/Mail/Types.php:211
+#: src/Mail/Types.php:239
 msgid "Je nach Zahlungsart kann es einige Tage dauern, bis der Betrag gutgeschrieben ist."
 msgstr "Selon le mode de paiement, il peut s’écouler quelques jours avant que le montant ne soit crédité."
 
-#: src/Mail/Types.php:218
+#: src/Mail/Types.php:246
 msgid "Eventabsage"
 msgstr "Annulation d’événement"
 
-#: src/Mail/Types.php:219
+#: src/Mail/Types.php:247
 msgid "Information an Käufer:innen und Ticketinhaber:innen, wenn ein ganzes Event abgesagt wird."
 msgstr "Information aux acheteurs et aux titulaires de tickets lorsqu’un événement entier est annulé."
 
-#: src/Mail/Types.php:221
+#: src/Mail/Types.php:249
 #, php-format
 msgid "Eventabsage: %s"
 msgstr "Événement annulé : %s"
 
-#: src/Mail/Types.php:222
+#: src/Mail/Types.php:250
 #, php-format
 msgid "Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung."
 msgstr "L’événement « %s » a été annulé. Veuillez contacter l’organisateur pour obtenir des informations sur les prochaines étapes. Ce message ne constitue pas une confirmation de remboursement."
 
-#: src/Mail/Types.php:226
+#: src/Mail/Types.php:254
 msgid "Terminabsage"
 msgstr "Annulation de date"
 
-#: src/Mail/Types.php:227
+#: src/Mail/Types.php:255
 msgid "Information an Ticketinhaber:innen, wenn ein einzelner Termin abgesagt wird."
 msgstr "Information aux titulaires de tickets lorsqu’une date isolée est annulée."
 
-#: src/Mail/Types.php:230
+#: src/Mail/Types.php:258
 msgid "Datum und Uhrzeit des Termins"
 msgstr "Date et heure de la date"
 
-#: src/Mail/Types.php:233
+#: src/Mail/Types.php:261
 msgid "Hinweis zur Erstattung (automatisch oder durch den Veranstalter)"
 msgstr "Information sur le remboursement (automatique ou par l’organisateur)"
 
 #. translators: %s: event
-#: src/Mail/Types.php:236
+#: src/Mail/Types.php:264
 #, php-format
 msgid "Absage: %s"
 msgstr "Annulation : %s"
 
 #. translators: 1: event, 2: date and time, 3: refund note
-#: src/Mail/Types.php:238
+#: src/Mail/Types.php:266
 #, php-format
 msgid ""
 "Der Termin „%1$s“ am %2$s wurde abgesagt. Dein Ticket ist dafür nicht mehr gültig.\n"
@@ -3960,35 +3947,35 @@ msgstr ""
 "\n"
 "%3$s"
 
-#: src/Mail/Types.php:239
-#: src/OccurrenceCancellation.php:72
+#: src/Mail/Types.php:267
+#: src/OccurrenceCancellation.php:96
 msgid "Der Ticketpreis wird automatisch erstattet."
 msgstr "Le prix du ticket sera remboursé automatiquement."
 
-#: src/Mail/Types.php:242
+#: src/Mail/Types.php:270
 msgid "Terminänderung"
 msgstr "Modification de date"
 
-#: src/Mail/Types.php:243
+#: src/Mail/Types.php:271
 msgid "Information an Ticketinhaber:innen, wenn ein Termin verschoben wird."
 msgstr "Information aux titulaires de tickets lorsqu’une date est reportée."
 
-#: src/Mail/Types.php:246
+#: src/Mail/Types.php:274
 msgid "Bisheriges Datum und Uhrzeit"
 msgstr "Ancienne date et heure"
 
-#: src/Mail/Types.php:247
+#: src/Mail/Types.php:275
 msgid "Neues Datum und Uhrzeit"
 msgstr "Nouvelle date et heure"
 
 #. translators: %s: event
-#: src/Mail/Types.php:252
+#: src/Mail/Types.php:280
 #, php-format
 msgid "Terminänderung: %s"
 msgstr "Modification de date : %s"
 
 #. translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location
-#: src/Mail/Types.php:254
+#: src/Mail/Types.php:282
 #, php-format
 msgid ""
 "Der Termin für „%1$s“ wurde verschoben.\n"
@@ -4007,92 +3994,92 @@ msgstr ""
 "\n"
 "Votre ticket reste valide. Pour toute question concernant la restitution ou le remboursement, veuillez vous adresser à l’organisateur."
 
-#: src/Mail/Types.php:258
+#: src/Mail/Types.php:286
 msgid "Warteliste: Eintragung"
 msgstr "Liste d’attente : inscription"
 
-#: src/Mail/Types.php:259
+#: src/Mail/Types.php:287
 msgid "Bestätigung der Eintragung in die Warteliste."
 msgstr "Confirmation de l’inscription sur la liste d’attente."
 
-#: src/Mail/Types.php:261
-#: src/Mail/Types.php:276
+#: src/Mail/Types.php:289
+#: src/Mail/Types.php:304
 msgid "Position auf der Warteliste"
 msgstr "Position sur la liste d’attente"
 
-#: src/Mail/Types.php:265
+#: src/Mail/Types.php:293
 msgid "Du stehst auf der Warteliste"
 msgstr "Vous êtes sur la liste d’attente"
 
 #. translators: %d: waitlist position
-#: src/Mail/Types.php:267
+#: src/Mail/Types.php:295
 #, php-format
 msgid "Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird."
 msgstr "Vous êtes inscrit(e) sur la liste d’attente (position %d). Nous vous écrirons dès qu’une place se libérera."
 
-#: src/Mail/Types.php:271
+#: src/Mail/Types.php:299
 msgid "Warteliste: Platzangebot"
 msgstr "Liste d’attente : proposition de place"
 
-#: src/Mail/Types.php:272
+#: src/Mail/Types.php:300
 msgid "Angebot an die nächste Person auf der Warteliste (ohne Reservierung)."
 msgstr "Proposition à la personne suivante sur la liste d’attente (sans réservation)."
 
-#: src/Mail/Types.php:274
+#: src/Mail/Types.php:302
 msgid "Ablauf des Angebots"
 msgstr "Expiration de la proposition"
 
-#: src/Mail/Types.php:275
+#: src/Mail/Types.php:303
 msgid "Link zur Annahme"
 msgstr "Lien d’acceptation"
 
-#: src/Mail/Types.php:280
+#: src/Mail/Types.php:308
 msgid "Ein Platz könnte verfügbar sein"
 msgstr "Une place est peut-être disponible"
 
 #. translators: 1: expiry date, 2: accept link
-#: src/Mail/Types.php:282
+#: src/Mail/Types.php:310
 #, php-format
 msgid "Dein Wartelistenangebot läuft am %1$s ab. Mit der Annahme wird das Ticket für dich reserviert, sofern es noch verfügbar ist: %2$s"
 msgstr "Votre proposition de la liste d’attente expire le %1$s. En l’acceptant, le ticket sera réservé pour vous, s’il est encore disponible : %2$s"
 
-#: src/Mail/Types.php:286
+#: src/Mail/Types.php:314
 msgid "Mitgliedspass"
 msgstr "Carte de membre"
 
-#: src/Mail/Types.php:287
+#: src/Mail/Types.php:315
 msgid "Passcode einer Mitgliedschaft bzw. eines Mehrfachpasses."
 msgstr "Code de la carte d’un abonnement ou d’un pass multi-entrées."
 
-#: src/Mail/Types.php:289
+#: src/Mail/Types.php:317
 msgid "Passcode"
 msgstr "Code de la carte"
 
-#: src/Mail/Types.php:290
+#: src/Mail/Types.php:318
 msgid "Gültig ab"
 msgstr "Valable à partir du"
 
-#: src/Mail/Types.php:291
+#: src/Mail/Types.php:319
 #: src/OfflineScanner/AdminPage.php:178
 msgid "Gültig bis"
 msgstr "Valable jusqu’au"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:294
+#: src/Mail/Types.php:322
 #, php-format
 msgid "Dein Pass für %s"
 msgstr "Votre pass pour %s"
 
-#: src/Mail/Types.php:295
+#: src/Mail/Types.php:323
 msgid "Dein Passcode:"
 msgstr "Votre code de pass :"
 
-#: src/Mail/Types.php:295
+#: src/Mail/Types.php:323
 msgid "Gültig bis:"
 msgstr "Valable jusqu’au :"
 
 #. translators: %d: number of tickets
-#: src/Mail/Types.php:305
+#: src/Mail/Types.php:333
 #, php-format
 msgid "%d Ticket ist damit ungültig."
 msgid_plural "%d Tickets sind damit ungültig."
@@ -4100,7 +4087,7 @@ msgstr[0] "%d ticket est de ce fait invalide."
 msgstr[1] "%d tickets sont de ce fait invalides."
 
 #. translators: %s: credit note number
-#: src/Mail/Types.php:311
+#: src/Mail/Types.php:339
 #, php-format
 msgid "Gutschrift: %s"
 msgstr "Avoir : %s"
@@ -4685,8 +4672,8 @@ msgstr "Statut d’envoi"
 
 #: src/Modules/Wallet.php:77
 #: src/WalletPasses/AdminPage.php:165
-#: src/WalletPasses/Service.php:175
-#: src/WalletPasses/Service.php:209
+#: src/WalletPasses/Service.php:196
+#: src/WalletPasses/Service.php:230
 msgid "Wallet"
 msgstr "Wallet"
 
@@ -4876,7 +4863,7 @@ msgstr "Mollie est injoignable : %s"
 msgid "Mollie-Fehler: %s"
 msgstr "Erreur Mollie : %s"
 
-#: src/OccurrenceCancellation.php:72
+#: src/OccurrenceCancellation.php:96
 msgid "Der Veranstalter informiert dich über Erstattung oder Ersatztermin."
 msgstr "L’organisateur vous informera du remboursement ou de la date de remplacement."
 
@@ -5042,84 +5029,74 @@ msgstr "Règle de double scan inconnue."
 msgid "Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner)."
 msgstr "Résolu automatiquement : règle « La première synchronisation l’emporte » (scanner hors ligne)."
 
-#: src/OrderPortal.php:40
-msgid "Deine Bestellung"
-msgstr "Votre commande"
-
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:76
 msgid "Die Ticketlinks und QR-Codes findest du in der Ticket-E-Mail (aus Sicherheitsgründen werden Ticketcodes nicht gespeichert und hier nicht angezeigt)."
 msgstr "Vous trouverez les liens des tickets et les QR codes dans l’e-mail des tickets (pour des raisons de sécurité, les codes des tickets ne sont pas enregistrés et ne sont pas affichés ici)."
 
-#: src/OrderPortal.php:40
+#. translators: %s: masked e-mail address
+#: src/OrderPortal.php:78
 #: src/TicketPage.php:30
 msgid "Status:"
 msgstr "Statut :"
 
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:79
 msgid "Teilnehmername"
 msgstr "Nom du participant"
 
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:79
 msgid "Teilnehmer-E-Mail"
 msgstr "E-mail du participant"
 
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:79
 msgid "Wenn du eine andere E-Mail-Adresse einträgst, erhält diese Person einen neuen Ticketcode und der bisherige Code wird ungültig. Namens- und Angabenkorrekturen behalten den Code."
 msgstr "Si vous saisissez une autre adresse e-mail, cette personne recevra un nouveau code de ticket et l’ancien code deviendra invalide. Les corrections de nom et d’informations conservent le code."
 
 #. translators: %d: hours
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:79
 #, php-format
 msgid "Änderungen sind bis %d Stunden vor Beginn möglich."
 msgstr "Les modifications sont possibles jusqu’à %d heures avant le début."
 
 #. translators: %d: hours
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:79
 msgid "Teilnehmer zuweisen"
 msgstr "Attribuer un participant"
 
 #. translators: %d: hours
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:80
 msgid "An E-Mail übertragen"
 msgstr "Transférer à une adresse e-mail"
 
 #. translators: %d: hours
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:80
 msgid "Ticket einmalig übertragen"
 msgstr "Transférer le ticket (une seule fois)"
 
-#. translators: %d: hours
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:81
 msgid "Rechnung anzeigen"
 msgstr "Afficher la facture"
 
-#. translators: %d: hours
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:82
 msgid "Diesen persönlichen Link sicher aufbewahren und nicht teilen."
 msgstr "Conservez ce lien personnel en lieu sûr et ne le partagez pas."
 
-#. translators: %d: hours
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:53
 msgid "Übertragung fehlgeschlagen."
 msgstr "Échec du transfert."
 
-#. translators: %d: hours
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:54
 msgid "Ticket wurde übertragen. Der neue Code wurde per E-Mail versendet."
 msgstr "Le ticket a été transféré. Le nouveau code a été envoyé par e-mail."
 
-#. translators: %d: hours
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:58
 msgid "Zuweisung fehlgeschlagen."
 msgstr "Échec de l’attribution."
 
-#. translators: %d: hours
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:59
 msgid "Teilnehmer wurde zugewiesen. Ein neuer Ticketcode wurde an die Teilnehmer-E-Mail gesendet; der bisherige Code ist ungültig."
 msgstr "Le participant a été attribué. Un nouveau code de ticket a été envoyé à l’adresse e-mail du participant ; l’ancien code n’est plus valide."
 
-#. translators: %d: hours
-#: src/OrderPortal.php:40
+#: src/OrderPortal.php:60
 msgid "Teilnehmerdaten gespeichert. Der Ticketcode bleibt unverändert."
 msgstr "Données du participant enregistrées. Le code du ticket reste inchangé."
 
@@ -5131,140 +5108,144 @@ msgstr "Veuillez indiquer une adresse e-mail valide et sélectionner des tickets
 msgid "Bitte bestätige die Bedingungen und Verbraucherinformationen."
 msgstr "Veuillez accepter les conditions et les informations consommateur."
 
-#: src/Orders.php:60
+#: src/Orders.php:63
+#: src/Orders.php:67
 msgid "Eine Ticketposition ist ungültig."
 msgstr "Une ligne de ticket n’est pas valide."
 
-#: src/Orders.php:76
+#: src/Orders.php:82
+#: src/Rest/Controller.php:382
 #: src/Seating/Rest.php:22
 msgid "Bitte warte kurz und versuche es erneut."
 msgstr "Veuillez patienter un instant et réessayer."
 
-#: src/Orders.php:267
+#: src/Orders.php:276
 #: src/Waitlists.php:27
 msgid "Diese Ticketart ist nicht verfügbar."
 msgstr "Ce type de ticket n’est pas disponible."
 
-#: src/Orders.php:268
+#: src/Orders.php:278
 msgid "Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut."
 msgstr "Il y a beaucoup d’affluence en ce moment. Veuillez réessayer dans un instant."
 
-#: src/Orders.php:269
+#: src/Orders.php:279
 msgid "Dieser Termin ist nicht mehr verfügbar."
 msgstr "Cette date n’est plus disponible."
 
-#: src/Orders.php:270
+#: src/Orders.php:280
 msgid "Der Verkauf für diese Ticketart ist geschlossen."
 msgstr "Les ventes pour ce type de ticket sont fermées."
 
-#: src/Orders.php:271
+#: src/Orders.php:281
 msgid "Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden."
 msgstr "Des tickets de devises différentes ne peuvent pas être commandés ensemble."
 
-#: src/Orders.php:272
+#: src/Orders.php:282
 msgid "Für diese Ticketart sind nicht mehr genügend Tickets verfügbar."
 msgstr "Il ne reste plus assez de tickets disponibles pour ce type de ticket."
 
-#: src/Orders.php:273
+#: src/Orders.php:283
 msgid "Für diesen Termin sind nicht mehr genügend Plätze verfügbar."
 msgstr "Il ne reste plus assez de places disponibles pour cette date."
 
-#: src/Orders.php:274
+#: src/Orders.php:284
 msgid "Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung."
 msgstr "Un code de campagne n’est pas valide ou ne correspond pas à la commande."
 
-#: src/Orders.php:275
+#: src/Orders.php:285
 msgid "Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden."
 msgstr "La remise n’a pas pu être appliquée à la commande de manière fiable."
 
-#: src/Orders.php:286
+#: src/Orders.php:296
 msgid "Die Bestellung konnte nicht angelegt werden."
 msgstr "La commande n’a pas pu être créée."
 
-#: src/Orders.php:365
+#: src/Orders.php:404
 msgid "Es wurden mehr Teilnehmende angegeben als Tickets bestellt."
 msgstr "Plus de participants ont été indiqués que de tickets commandés."
 
 #. translators: %s: field label
-#: src/Orders.php:383
+#: src/Orders.php:422
 #, php-format
 msgid "Bitte „%s“ für jedes Ticket ausfüllen."
 msgstr "Veuillez renseigner « %s » pour chaque ticket."
 
 #. translators: %s: field label
-#: src/Orders.php:387
+#: src/Orders.php:426
 #, php-format
 msgid "„%s“ ist keine gültige E-Mail-Adresse."
 msgstr "« %s » n’est pas une adresse e-mail valide."
 
-#: src/Orders.php:411
+#: src/Orders.php:450
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr "Le paiement n’a pas pu être enregistré pour le moment. Veuillez réessayer."
 
-#: src/Orders.php:606
-#: src/Orders.php:901
+#: src/Orders.php:645
+#: src/Orders.php:1007
 msgid "Der Bestellstatus erlaubt diese Aktion nicht."
 msgstr "Le statut de la commande n’autorise pas cette action."
 
-#: src/Orders.php:658
+#: src/Orders.php:697
 msgid "WP Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
 msgstr "WP Pass Captain : commande payée sans contingent disponible"
 
-#: src/Orders.php:658
+#: src/Orders.php:697
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten)."
 msgstr "Le paiement de la commande %1$s (%2$s) est arrivé après l’expiration de la réservation et il ne reste plus de contingent. Aucun ticket n’a été émis. Veuillez régler manuellement (libérer une place ou rembourser)."
 
-#: src/Orders.php:659
+#: src/Orders.php:698
 msgid "Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden."
 msgstr "La réservation avait expiré et il ne reste plus de contingent. La commande doit être réglée manuellement."
 
-#: src/Orders.php:800
+#: src/Orders.php:839
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr "Les données de transfert ne sont pas valides."
 
-#: src/Orders.php:804
+#: src/Orders.php:843
 msgid "Der Bestellzugriff ist ungültig."
 msgstr "L’accès à la commande n’est pas valide."
 
-#: src/Orders.php:807
+#: src/Orders.php:846
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr "Les tickets ne peuvent être transférés qu’après confirmation du paiement."
 
-#: src/Orders.php:818
+#: src/Orders.php:857
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr "Ce ticket ne peut plus être transféré."
 
-#: src/Orders.php:828
+#: src/Orders.php:872
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr "Le transfert du ticket n’a pas pu être enregistré."
 
-#: src/Orders.php:849
+#: src/Orders.php:893
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr "Le transfert du ticket a été enregistré, mais l’e-mail n’a pas pu être remis. Veuillez contacter l’organisateur pour un nouvel envoi."
 
-#: src/Orders.php:861
+#: src/Orders.php:916
+#: src/Orders.php:933
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr "Cet événement ne peut pas être annulé."
 
-#: src/Orders.php:984
+#: src/Orders.php:1119
 #: src/WalletPasses/AppleProvider.php:73
 msgid "Dieses Ticket ist nur einmal gültig. Code nicht weitergeben."
 msgstr "Ce ticket n’est valable qu’une seule fois. Ne communiquez pas le code."
 
-#: src/Orders.php:1036
+#: src/Orders.php:1194
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr "Les tickets ne peuvent être renvoyés qu’après confirmation du paiement."
 
-#: src/Orders.php:1043
+#: src/Orders.php:1203
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr "Aucun ticket valide trouvé pour le renvoi."
 
-#: src/Orders.php:1050
+#: src/Orders.php:1210
+#: src/Orders.php:1258
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr "Le code du ticket n’a pas pu être renouvelé."
 
-#: src/Orders.php:1062
+#: src/Orders.php:1222
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; bitte versuche den Versand erneut."
 msgstr "Au moins un e-mail n’a pas pu être remis. Les codes des tickets ont été renouvelés ; veuillez réessayer l’envoi."
 
@@ -5468,6 +5449,7 @@ msgstr "Aucun décompte pour le moment."
 msgid "Nummer"
 msgstr "Numéro"
 
+#: src/Invoices.php:210
 #: src/Partners/AdminPage.php:328
 #: src/Partners/Settlements.php:472
 #: src/Partners/Settlements.php:478
@@ -5475,6 +5457,7 @@ msgstr "Numéro"
 #: src/Partners/Settlements.php:534
 #: src/Partners/Settlements.php:539
 #: src/Partners/Settlements.php:560
+#: src/Printing/InvoicePdf.php:120
 #: src/Reports/Data.php:300
 #: src/Reports/Page.php:119
 msgid "Brutto"
@@ -5712,10 +5695,12 @@ msgstr "Taux de TVA %"
 msgid "USt"
 msgstr "TVA"
 
+#: src/Invoices.php:210
 #: src/Partners/Settlements.php:472
 #: src/Partners/Settlements.php:478
 #: src/Partners/Settlements.php:534
 #: src/Partners/Settlements.php:539
+#: src/Printing/InvoicePdf.php:118
 #: src/Reports/Data.php:300
 #: src/Reports/Page.php:119
 msgid "Netto"
@@ -5827,8 +5812,10 @@ msgstr "Par événement"
 msgid "Umsatzsteuer nach Steuersatz"
 msgstr "TVA par taux"
 
+#: src/Invoices.php:210
 #: src/Partners/Settlements.php:539
 #: src/Partners/Settlements.php:560
+#: src/Printing/InvoicePdf.php:123
 #: src/Reports/Data.php:310
 msgid "USt-Satz"
 msgstr "Taux de TVA"
@@ -5876,6 +5863,7 @@ msgstr "Frais"
 msgid "Überweisung / Zahlung vor Ort"
 msgstr "Virement / Paiement sur place"
 
+#: src/Payments/BankTransfer.php:55
 #: src/Payments/ManualGateway.php:22
 msgid "Die Zahlung wird vom Veranstalter bestätigt. Danach erhältst du deine Tickets per E-Mail."
 msgstr "Le paiement sera confirmé par l’organisateur. Vous recevrez ensuite vos tickets par e-mail."
@@ -6068,21 +6056,21 @@ msgid "Gesamt"
 msgstr "Total"
 
 #: src/Printing/InvoicePdf.php:97
-#: src/Printing/InvoicePdf.php:112
-#: src/Printing/InvoicePdf.php:128
+#: src/Printing/InvoicePdf.php:111
+#: src/Printing/InvoicePdf.php:140
 #, php-format
 msgid "Seite %d"
 msgstr "Page %d"
 
-#: src/Printing/InvoicePdf.php:138
+#: src/Printing/InvoicePdf.php:150
 msgid "Empfänger:"
 msgstr "Destinataire :"
 
-#: src/Printing/InvoicePdf.php:183
+#: src/Printing/InvoicePdf.php:199
 msgid "Beleg nicht gefunden."
 msgstr "Reçu introuvable."
 
-#: src/Printing/InvoicePdf.php:204
+#: src/Printing/InvoicePdf.php:220
 msgid "Nicht gefunden."
 msgstr "Introuvable."
 
@@ -6239,220 +6227,218 @@ msgstr "Le modèle ne correspond pas à la mise en page."
 msgid "Diese Vorlage gehört zu einem anderen Event."
 msgstr "Ce modèle appartient à un autre événement."
 
-#: src/Privacy.php:9
-#: src/Privacy.php:14
+#: src/Privacy.php:35
+#: src/Privacy.php:40
 msgid "WP Pass Captain Bestellungen und Tickets"
 msgstr "Commandes et tickets WP Pass Captain"
 
-#: src/Privacy.php:25
+#: src/Privacy.php:146
 msgid "WP Pass Captain Bestellungen"
 msgstr "Commandes WP Pass Captain"
 
-#: src/Privacy.php:26
+#: src/Privacy.php:129
 msgid "Bestellreferenz"
 msgstr "Référence de commande"
 
-#: src/Privacy.php:28
+#: src/Privacy.php:131
 msgid "Gesamtbetrag in kleinster Währungseinheit"
 msgstr "Montant total dans la plus petite unité monétaire"
 
-#: src/Privacy.php:29
+#: src/Privacy.php:132
 msgid "Zwischensumme und Rabatt in kleinster Währungseinheit"
 msgstr "Sous-total et remise dans la plus petite unité monétaire"
 
-#: src/Privacy.php:30
+#: src/Privacy.php:133
 msgid "Preis-Snapshot"
 msgstr "Instantané du prix"
 
-#: src/Privacy.php:31
+#: src/Privacy.php:134
+#: src/Privacy.php:183
 msgid "Erstellt (UTC)"
 msgstr "Créé (UTC)"
 
-#: src/Privacy.php:33
+#: src/Privacy.php:136
 msgid "Tickets und Teilnehmerdaten"
 msgstr "Tickets et données des participants"
 
-#: src/Privacy.php:38
+#: src/Privacy.php:162
 msgid "WP Pass Captain Pässe"
 msgstr "Passes WP Pass Captain"
 
-#: src/Privacy.php:39
+#: src/Privacy.php:163
 msgid "Passreferenz"
 msgstr "Référence du pass"
 
-#: src/Privacy.php:40
+#: src/Privacy.php:164
 msgid "Gültig von/bis (UTC)"
 msgstr "Valable du/au (UTC)"
 
-#: src/Privacy.php:46
+#: src/Privacy.php:170
 msgid "WP Pass Captain Warteliste"
 msgstr "Liste d’attente WP Pass Captain"
 
-#: src/Privacy.php:49
+#: src/Privacy.php:173
 msgid "Position und Status"
 msgstr "Position et statut"
 
-#: src/Privacy.php:50
+#: src/Privacy.php:174
 msgid "Erstellt / Angebotsablauf"
 msgstr "Créé / Expiration de la proposition"
 
-#: src/Privacy.php:77
-msgid "Finanzielle Bestellpositionen bleiben für gesetzliche Aufbewahrungspflichten erhalten; Käufer-E-Mail, Teilnehmerdaten, Wartelisteneinträge und Passzugänge wurden entfernt."
-msgstr "Les lignes de commande financières sont conservées pour satisfaire aux obligations légales de conservation ; l’e-mail de l’acheteur, les données des participants, les inscriptions sur liste d’attente et les accès aux passes ont été supprimés."
-
-#: src/PublicEvents.php:15
+#: src/PublicEvents.php:16
 msgid "Bitte wähle mindestens ein Ticket."
 msgstr "Veuillez choisir au moins un ticket."
 
-#: src/PublicEvents.php:16
+#: src/PublicEvents.php:17
 msgid "Für eine Ticketart wurde die Höchstmenge überschritten."
 msgstr "La quantité maximale a été dépassée pour un type de ticket."
 
-#: src/PublicEvents.php:17
+#: src/PublicEvents.php:18
 msgid "Bestellung wird angelegt …"
 msgstr "Création de la commande …"
 
-#: src/PublicEvents.php:18
+#: src/PublicEvents.php:19
 msgid "Bestellung fehlgeschlagen."
 msgstr "Échec de la commande."
 
-#: src/PublicEvents.php:19
+#: src/PublicEvents.php:20
 msgid "Bestellung abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet."
 msgstr "Commande terminée. Les tickets ont été envoyés à votre adresse e-mail."
 
-#: src/PublicEvents.php:20
+#: src/PublicEvents.php:21
 msgid "Weiterleitung zur Zahlung …"
 msgstr "Redirection vers le paiement …"
 
 #. translators: %d: hold minutes
-#: src/PublicEvents.php:22
+#: src/PublicEvents.php:23
 #, php-format
 msgid "Bestellung angelegt; deine Tickets sind %d Minuten reserviert."
 msgstr "Commande créée ; vos tickets sont réservés pendant %d minutes."
 
 #. translators: %d: hold hours
-#: src/PublicEvents.php:24
+#: src/PublicEvents.php:25
 #, php-format
 msgid "Bestellung angelegt; deine Tickets sind %d Stunden reserviert."
 msgstr "Commande créée ; vos tickets sont réservés pendant %d heures."
 
 #. translators: %d: hold days
-#: src/PublicEvents.php:26
+#: src/PublicEvents.php:27
 #, php-format
 msgid "Bestellung angelegt; deine Tickets sind %d Tage reserviert."
 msgstr "Commande créée ; vos tickets sont réservés pendant %d jours."
 
 #. translators: %d: ticket number
-#: src/PublicEvents.php:28
+#: src/PublicEvents.php:29
 #, php-format
 msgid "Teilnehmer:in %d"
 msgstr "Participant %d"
 
 #. translators: %s: formatted amount
-#: src/PublicEvents.php:32
+#: src/PublicEvents.php:33
 #, php-format
 msgid "Summe: %s (vorbehaltlich Rabatt; der endgültige Preis wird bei der Bestellung berechnet)"
 msgstr "Total : %s (sous réserve de remise ; le prix définitif est calculé lors de la commande)"
 
 #. translators: %s: formatted amount
-#: src/PublicEvents.php:34
+#: src/PublicEvents.php:35
 #, php-format
 msgid "Gesamtbetrag: %s."
 msgstr "Montant total : %s."
 
-#: src/PublicEvents.php:40
+#: src/PublicEvents.php:75
 msgid "Offline-Scans synchronisieren"
 msgstr "Synchroniser les scans hors ligne"
 
 #. translators: %d: number of queued scans
-#: src/PublicEvents.php:42
+#: src/PublicEvents.php:77
 #, php-format
 msgid "%d Offline-Scan(s) synchronisieren"
 msgstr "Synchroniser %d scan(s) hors ligne"
 
-#: src/PublicEvents.php:43
+#: src/PublicEvents.php:78
 msgid "Synchronisierung fehlgeschlagen."
 msgstr "Échec de la synchronisation."
 
 #. translators: 1: synced scans, 2: conflicts
-#: src/PublicEvents.php:45
+#: src/PublicEvents.php:80
 #, php-format
 msgid "%1$d Offline-Scan(s) synchronisiert; Konflikte: %2$d."
 msgstr "%1$d scan(s) hors ligne synchronisé(s) ; conflits : %2$d."
 
-#: src/PublicEvents.php:46
+#: src/PublicEvents.php:81
 msgid "Offline gespeichert. Der Einlass wird erst nach der Synchronisierung serverseitig bestätigt."
 msgstr "Enregistré hors ligne. L’admission ne sera confirmée côté serveur qu’après la synchronisation."
 
-#: src/PublicEvents.php:47
+#: src/PublicEvents.php:82
 msgid "Ticket wird geprüft …"
 msgstr "Vérification du ticket …"
 
-#: src/PublicEvents.php:48
+#: src/PublicEvents.php:83
 msgid "Ticket nicht gültig."
 msgstr "Ticket non valide."
 
-#: src/PublicEvents.php:49
+#: src/PublicEvents.php:84
 msgid "Kamera-QR-Scan wird von diesem Browser nicht unterstützt. Nutze die manuelle Eingabe."
 msgstr "Le scan de QR code par la caméra n’est pas pris en charge par ce navigateur. Utilisez la saisie manuelle."
 
-#: src/PublicEvents.php:50
+#: src/PublicEvents.php:85
 msgid "Kamerazugriff nicht möglich:"
 msgstr "Accès à la caméra impossible :"
 
-#: src/PublicEvents.php:65
+#: src/PublicEvents.php:100
 msgid "Aktuell sind keine Veranstaltungen verfügbar."
 msgstr "Aucun événement n’est disponible actuellement."
 
-#: src/PublicEvents.php:109
+#: src/PublicEvents.php:144
 msgid "Für den Scanner ist eine Anmeldung mit Einlassberechtigung erforderlich."
 msgstr "Le scanner nécessite une connexion avec autorisation d’entrée."
 
-#: src/PublicEvents.php:113
+#: src/PublicEvents.php:148
 msgid "Pass Captain Check-in"
 msgstr "Check-in Pass Captain"
 
-#: src/PublicEvents.php:113
+#: src/PublicEvents.php:148
 msgid "Scanne den Ticketcode oder gib ihn manuell ein."
 msgstr "Scannez le code du ticket ou saisissez-le manuellement."
 
-#: src/PublicEvents.php:113
+#: src/PublicEvents.php:148
 msgid "Kamera starten"
 msgstr "Démarrer la caméra"
 
-#: src/PublicEvents.php:113
+#: src/PublicEvents.php:148
 msgid "Ticket-Code"
 msgstr "Code du ticket"
 
-#: src/PublicEvents.php:113
+#: src/PublicEvents.php:148
 msgid "Ticket prüfen und einchecken"
 msgstr "Vérifier le ticket et enregistrer le check-in"
 
 #: src/Refunds.php:41
-#: src/Refunds.php:196
+#: src/Refunds.php:52
+#: src/Refunds.php:228
 msgid "Nur bezahlte Bestellungen können erstattet werden."
 msgstr "Seules les commandes payées peuvent être remboursées."
 
-#: src/Refunds.php:67
-#: src/Refunds.php:224
+#: src/Refunds.php:88
+#: src/Refunds.php:261
 msgid "Die Erstattung konnte nicht gespeichert werden."
 msgstr "Le remboursement n’a pas pu être enregistré."
 
-#: src/Refunds.php:72
+#: src/Refunds.php:94
 msgid "WP Pass Captain: Erstattung wartet auf Freigabe"
 msgstr "WP Pass Captain : remboursement en attente de validation"
 
 #. translators: 1: order id, 2: amount
-#: src/Refunds.php:72
+#: src/Refunds.php:94
 #, php-format
 msgid "Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt."
 msgstr "Un remboursement de %2$s a été demandé pour la commande %1$s ; il nécessite une seconde validation."
 
-#: src/Refunds.php:270
+#: src/Refunds.php:359
 msgid "Die gewählten Tickets gehören nicht zur Bestellung oder wurden bereits erstattet."
 msgstr "Les tickets sélectionnés n’appartiennent pas à la commande ou ont déjà été remboursés."
 
-#: src/Refunds.php:290
+#: src/Refunds.php:379
 msgid "Für Erstattungen ist eine aktivierte Zwei-Faktor-Anmeldung erforderlich."
 msgstr "L’authentification à deux facteurs doit être activée pour les remboursements."
 
@@ -6626,135 +6612,136 @@ msgstr "Admissions par heure"
 msgid "Keine Daten im Zeitraum."
 msgstr "Aucune donnée sur la période."
 
-#: src/Rest/Controller.php:239
+#: src/Rest/Controller.php:244
 msgid "Diese Zahlungsart ist nicht verfügbar."
 msgstr "Ce mode de paiement n’est pas disponible."
 
-#: src/Rest/Controller.php:261
+#: src/Rest/Controller.php:274
 msgid "Diese Zahlungsart unterstützt die Währung nicht."
 msgstr "Ce mode de paiement ne prend pas en charge la devise."
 
-#: src/Rest/Controller.php:297
+#: src/Rest/Controller.php:351
+#: src/Rest/Controller.php:385
 msgid "Der Bestellzugriff ist ungültig oder abgelaufen."
 msgstr "L’accès à la commande n’est pas valide ou a expiré."
 
-#: src/Rest/Controller.php:340
+#: src/Rest/Controller.php:425
 msgid "POS-Verkaufspositionen oder Idempotency-Key sind ungültig."
 msgstr "Les lignes de vente POS ou la clé d’idempotence ne sont pas valides."
 
-#: src/Rest/Controller.php:345
+#: src/Rest/Controller.php:430
 msgid "Für dieses Event fehlt die POS-Berechtigung."
 msgstr "L’autorisation POS manque pour cet événement."
 
-#: src/Rest/Controller.php:355
+#: src/Rest/Controller.php:440
 msgid "Dieser Idempotency-Key gehört zu einer nicht bezahlten Bestellung; bitte einen neuen Verkauf starten."
 msgstr "Cette clé d’idempotence appartient à une commande non payée ; veuillez démarrer une nouvelle vente."
 
-#: src/Rest/Controller.php:379
+#: src/Rest/Controller.php:464
 msgid "Für dieses Event fehlt die Einlassberechtigung."
 msgstr "L’autorisation d’entrée manque pour cet événement."
 
-#: src/Rest/Controller.php:387
+#: src/Rest/Controller.php:472
 msgid "Mindestens eine Passregel ist erforderlich."
 msgstr "Au moins une règle de pass est requise."
 
-#: src/Rest/Controller.php:390
+#: src/Rest/Controller.php:475
 msgid "Keine Berechtigung für eine Passregel."
 msgstr "Vous n’avez pas l’autorisation pour une règle de pass."
 
-#: src/Rest/Controller.php:400
+#: src/Rest/Controller.php:485
 msgid "Pass nicht gefunden."
 msgstr "Pass introuvable."
 
-#: src/Rest/Controller.php:402
+#: src/Rest/Controller.php:487
 msgid "Keine Berechtigung für diesen Pass."
 msgstr "Vous n’avez pas l’autorisation pour ce pass."
 
-#: src/Rest/Controller.php:413
+#: src/Rest/Controller.php:498
 msgid "Sitzplan nicht gefunden."
 msgstr "Plan de salle introuvable."
 
-#: src/Rest/Controller.php:433
+#: src/Rest/Controller.php:518
 msgid "Die Ticketart gehört nicht zu diesem Event."
 msgstr "Le type de ticket n’appartient pas à cet événement."
 
-#: src/Rest/Controller.php:448
+#: src/Rest/Controller.php:533
 msgid "Keine Berechtigung für diese Ticketart."
 msgstr "Vous n’avez pas l’autorisation pour ce type de ticket."
 
-#: src/Rest/Controller.php:471
+#: src/Rest/Controller.php:556
 msgid "Berichtszeitraum muss gültig und höchstens 90 Tage lang sein."
 msgstr "La période du rapport doit être valide et ne pas dépasser 90 jours."
 
-#: src/Rest/Controller.php:488
+#: src/Rest/Controller.php:573
 msgid "Ablaufdatum muss in der Zukunft liegen."
 msgstr "La date d’expiration doit être dans le futur."
 
-#: src/Rest/Controller.php:513
+#: src/Rest/Controller.php:598
 msgid "Übersetzung nicht gefunden."
 msgstr "Traduction introuvable."
 
-#: src/Rest/Controller.php:523
+#: src/Rest/Controller.php:608
 msgid "Locale oder übersetzter Titel ist ungültig."
 msgstr "Locale ou titre traduit non valide."
 
-#: src/Rest/Controller.php:541
+#: src/Rest/Controller.php:626
 msgid "Steuerprofil ist ungültig."
 msgstr "Profil fiscal non valide."
 
-#: src/Rest/Controller.php:543
+#: src/Rest/Controller.php:628
 msgid "Steuerprofil konnte nicht gespeichert werden."
 msgstr "Le profil fiscal n’a pas pu être enregistré."
 
-#: src/Rest/Controller.php:553
+#: src/Rest/Controller.php:638
 msgid "Sitzplan muss einen Namen und 1 bis 500 Sitzplätze enthalten."
 msgstr "Un plan de salle doit comporter un nom et de 1 à 500 places."
 
-#: src/Rest/Controller.php:560
+#: src/Rest/Controller.php:645
 msgid "Sitzplan konnte nicht gespeichert werden."
 msgstr "Le plan de salle n’a pas pu être enregistré."
 
-#: src/Rest/Controller.php:564
+#: src/Rest/Controller.php:649
 msgid "Jeder Sitzplatz benötigt einen eindeutigen Schlüssel und eine Bezeichnung."
 msgstr "Chaque place nécessite une clé unique et un libellé."
 
-#: src/Rest/Controller.php:566
+#: src/Rest/Controller.php:651
 msgid "Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel."
 msgstr "Les places n’ont pas toutes pu être enregistrées ; vérifiez les clés en double."
 
-#: src/Rest/Controller.php:578
+#: src/Rest/Controller.php:663
 msgid "Ressourcenname fehlt."
 msgstr "Nom de la ressource manquant."
 
-#: src/Rest/Controller.php:580
+#: src/Rest/Controller.php:665
 msgid "Ressource konnte nicht gespeichert werden."
 msgstr "La ressource n’a pas pu être enregistrée."
 
-#: src/Rest/Controller.php:588
+#: src/Rest/Controller.php:673
 msgid "Keine Berechtigung für diese Ressource."
 msgstr "Vous n’avez pas l’autorisation pour cette ressource."
 
-#: src/Rest/Controller.php:592
+#: src/Rest/Controller.php:677
 msgid "Zeitfenster ist ungültig."
 msgstr "Créneau non valide."
 
-#: src/Rest/Controller.php:594
+#: src/Rest/Controller.php:679
 msgid "Zeitfenster konnte nicht gespeichert werden."
 msgstr "Le créneau n’a pas pu être enregistré."
 
-#: src/Rest/Controller.php:602
+#: src/Rest/Controller.php:687
 msgid "Keine Berechtigung für diesen Termin."
 msgstr "Vous n’avez pas l’autorisation pour cette date."
 
-#: src/Rest/Controller.php:605
+#: src/Rest/Controller.php:690
 msgid "Bitte 1 bis 31 Veranstaltungstage angeben."
 msgstr "Veuillez indiquer de 1 à 31 jours d’événement."
 
-#: src/Rest/Controller.php:614
+#: src/Rest/Controller.php:699
 msgid "Ein Veranstaltungstag oder eine Einlassregel ist ungültig."
 msgstr "Un jour d’événement ou une règle d’admission n’est pas valide."
 
-#: src/Rest/Controller.php:616
+#: src/Rest/Controller.php:701
 msgid "Einlassregeln konnten nicht gespeichert werden."
 msgstr "Les règles d’admission n’ont pas pu être enregistrées."
 
@@ -7830,8 +7817,8 @@ msgstr "Le créneau n’a pas pu être réservé."
 msgid "Der HTTP-SMS-Anbieter ist nicht konfiguriert (HTTPS-Endpunkt erforderlich)."
 msgstr "Le fournisseur SMS HTTP n’est pas configuré (point de terminaison HTTPS requis)."
 
-#: src/Sms/Service.php:226
-#: src/Sms/Service.php:246
+#: src/Sms/Service.php:238
+#: src/Sms/Service.php:258
 msgid "Ungültige Signatur."
 msgstr "Signature non valide."
 
@@ -7855,11 +7842,11 @@ msgstr "Les participants ne peuvent être attribués qu’après le paiement."
 msgid "Dieses Ticket kann nicht mehr zugewiesen werden."
 msgstr "Ce ticket ne peut plus être attribué."
 
-#: src/TicketAssignments.php:30
+#: src/TicketAssignments.php:45
 msgid "Ticket konnte nicht zugewiesen werden."
 msgstr "Le ticket n’a pas pu être attribué."
 
-#: src/TicketAssignments.php:33
+#: src/TicketAssignments.php:48
 msgid "Teilnehmerdaten konnten nicht gespeichert werden."
 msgstr "Les données du participant n’ont pas pu être enregistrées."
 
@@ -8210,16 +8197,16 @@ msgid "Der private Schlüssel des Google-Servicekontos ist ungültig."
 msgstr "La clé privée du compte de service Google n’est pas valide."
 
 #. translators: %s: file name
-#: src/WalletPasses/Service.php:143
+#: src/WalletPasses/Service.php:151
 #, php-format
 msgid "Zu Apple Wallet hinzufügen: Anhang %s öffnen"
 msgstr "Ajouter à Apple Wallet : ouvrez la pièce jointe %s"
 
-#: src/WalletPasses/Service.php:149
+#: src/WalletPasses/Service.php:157
 msgid "Zu Apple Wallet hinzufügen:"
 msgstr "Ajouter à Apple Wallet :"
 
-#: src/WalletPasses/Service.php:153
+#: src/WalletPasses/Service.php:161
 msgid "In Google Wallet speichern:"
 msgstr "Enregistrer dans Google Wallet :"
 
@@ -8253,59 +8240,59 @@ msgid "Der Webhook konnte nicht gespeichert werden."
 msgstr "Le webhook n’a pas pu être enregistré."
 
 #. translators: 1: webhook id, 2: failure count
-#: src/Webhooks/Dispatcher.php:261
+#: src/Webhooks/Dispatcher.php:268
 msgid "WP Pass Captain: Webhook deaktiviert"
 msgstr "WP Pass Captain : webhook désactivé"
 
 #. translators: 1: webhook id, 2: failure count
-#: src/Webhooks/Dispatcher.php:261
+#: src/Webhooks/Dispatcher.php:268
 #, php-format
 msgid "Der Webhook #%1$d wurde nach %2$d fehlgeschlagenen Zustellversuchen in Folge deaktiviert. Ausstehende Zustellungen werden nach der Reaktivierung fortgesetzt."
 msgstr "Le webhook n° %1$d a été désactivé après %2$d tentatives de livraison échouées consécutives. Les livraisons en attente reprendront après sa réactivation."
 
-#: src/Webhooks/Dispatcher.php:276
+#: src/Webhooks/Dispatcher.php:283
 msgid "Zustellung nicht gefunden oder gerade in Bearbeitung."
 msgstr "Livraison introuvable ou en cours de traitement."
 
-#: src/Webhooks/Dispatcher.php:280
+#: src/Webhooks/Dispatcher.php:287
 msgid "Der Inhalt dieser Zustellung ist nicht mehr vorhanden."
 msgstr "Le contenu de cette livraison n’existe plus."
 
 #. translators: %s: VAT rate
-#: templates/event-card.php:24
+#: templates/event-card.php:28
 #, php-format
 msgid "inkl. %s %% USt."
 msgstr "dont %s %% de TVA"
 
-#: templates/event-card.php:26
+#: templates/event-card.php:30
 msgid "Ausverkauft"
 msgstr "Complet"
 
-#: templates/event-card.php:37
+#: templates/event-card.php:45
 msgid "Rabattcode (optional)"
 msgstr "Code de réduction (facultatif)"
 
-#: templates/event-card.php:39
+#: templates/event-card.php:50
 msgid "Gutscheincode (optional)"
 msgstr "Code de bon (facultatif)"
 
-#: templates/event-card.php:42
+#: templates/event-card.php:55
 msgid "Zahlungsart"
 msgstr "Mode de paiement"
 
-#: templates/event-card.php:51
+#: templates/event-card.php:64
 msgid "Verbraucherinformationen"
 msgstr "Informations consommateur"
 
-#: templates/event-card.php:54
+#: templates/event-card.php:67
 msgid "Bedingungen"
 msgstr "Conditions"
 
-#: templates/event-card.php:55
+#: templates/event-card.php:70
 msgid "Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen."
 msgstr "J’accepte les conditions et j’ai lu les informations consommateur."
 
-#: templates/event-card.php:57
+#: templates/event-card.php:73
 msgid "Zahlungspflichtig bestellen"
 msgstr "Commander avec obligation de paiement"
 
@@ -8331,7 +8318,8 @@ msgstr "ID de l’événement uniquement (facultatif)"
 msgid "Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten."
 msgstr "Payé, mais le bon d’un montant de %1$s n’a pas pu être débité (erreur : %2$s). Les tickets sont valides. Veuillez réclamer le montant ou débiter manuellement le bon dans WP Voucher Captain."
 
-#: src/Installer.php:698
+#: src/Installer.php:806
+#: src/Installer.php:836
 msgid "Pass Captain Veranstalter"
 msgstr "Organisateur Pass Captain"
 
@@ -8464,3 +8452,625 @@ msgstr "Montant à verser à l’organisateur"
 #: src/Partners/Settlements.php:555
 msgid "Forderung an Veranstalter"
 msgstr "Créance envers l’organisateur"
+
+#. Plugin URI of the plugin
+#: wp-pass-captain.php
+msgid "https://github.com/hastla007/wp-passmaster"
+msgstr "https://github.com/hastla007/wp-passmaster"
+
+#. Author of the plugin
+#: wp-pass-captain.php
+msgid "hastla007"
+msgstr "hastla007"
+
+#. Author URI of the plugin
+#: wp-pass-captain.php
+msgid "https://github.com/hastla007"
+msgstr "https://github.com/hastla007"
+
+#. translators: %d: number of tickets
+#: src/Admin/EventsPage.php:232
+#, php-format
+msgid "%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren)."
+msgstr "%d tickets ont été révoqués et les titulaires ont été informés. Les tickets payés restent remboursables : veuillez les rembourser via Commande → Rembourser (ou activer le remboursement automatique dans les réglages)."
+
+#. translators: 1: automatic refunds, 2: failed refunds
+#: src/Admin/EventsPage.php:520
+#, php-format
+msgid "%1$d Bestellungen wurden automatisch erstattet, %2$d Erstattungen sind offen (siehe Erstattungen). WooCommerce-Bestellungen bitte in WooCommerce erstatten."
+msgstr "%1$d commandes ont été remboursées automatiquement, %2$d remboursements sont en attente (voir Remboursements). Veuillez rembourser les commandes WooCommerce dans WooCommerce."
+
+#: src/Admin/EventsPage.php:521
+msgid "Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten."
+msgstr "Les tickets payés restent remboursables : veuillez les rembourser via Commande → Rembourser."
+
+#. translators: %s: amount
+#: src/Admin/OrdersPage.php:438
+#, php-format
+msgid "Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig."
+msgstr "Si le total de tous les remboursements de cette commande (y compris ceux en cours et en attente) dépasse %s, une seconde validation est nécessaire."
+
+#: src/Admin/SettingsPage.php:42
+msgid "Einlass-Tageswechsel (Uhrzeit, volle Stunde)"
+msgstr "Changement de jour d’admission (heure, heure pleine)"
+
+#: src/Admin/SettingsPage.php:42
+msgid "0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits."
+msgstr "0 = minuit. Exemple 6 : les scans jusqu’à 05:59 comptent encore pour la veille (festivals, événements nocturnes). S’applique aux tickets journaliers et aux limites quotidiennes."
+
+#: src/Admin/SettingsPage.php:50
+msgid "Überweisung: Empfänger (Kontoinhaber)"
+msgstr "Virement : bénéficiaire (titulaire du compte)"
+
+#: src/Admin/SettingsPage.php:50
+msgid "Leer = Name / Firma des Rechnungsstellers."
+msgstr "Vide = nom / société de l’émetteur de la facture."
+
+#: src/Admin/SettingsPage.php:51
+msgid "Überweisung: IBAN"
+msgstr "Virement : IBAN"
+
+#: src/Admin/SettingsPage.php:51
+msgid "Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt."
+msgstr "Affiché après la commande et dans l’e-mail de commande avec le montant, la référence de paiement et le délai de paiement."
+
+#: src/Admin/SettingsPage.php:52
+msgid "Überweisung: BIC"
+msgstr "Virement : BIC"
+
+#: src/Admin/SettingsPage.php:103
+msgid "Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)"
+msgstr "Préfixe de correction de facture (document d’annulation / de correction)"
+
+#: src/Admin/TicketsPage.php:128
+msgid "Ticket neu ausgestellt. Die E-Mail an den Inhaber konnte nicht zugestellt werden; bitte erneut versuchen."
+msgstr "Ticket réémis. L’e-mail au titulaire n’a pas pu être remis ; veuillez réessayer."
+
+#: src/Admin/TicketsPage.php:129
+msgid "Ticket neu ausgestellt und an den Inhaber gesendet. Der bisherige Code ist ungültig."
+msgstr "Ticket réémis et envoyé au titulaire. L’ancien code n’est plus valide."
+
+#: src/Admin/TicketsPage.php:209
+msgid "Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink."
+msgstr "Réémettre le ticket ? L’ancien code deviendra invalide et le titulaire recevra un nouveau lien de ticket."
+
+#: src/Admin/TicketsPage.php:209
+msgid "Neu ausstellen"
+msgstr "Réémettre"
+
+#: src/BoxOffice/Page.php:193
+msgid "Wichtiger Hinweis:"
+msgstr "Remarque importante :"
+
+#: src/BoxOffice/Page.php:194
+msgid "Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig."
+msgstr "La caisse n’est pas une caisse enregistreuse au sens de la RKSV (AT) ou de la KassenSichV/TSE (DE). Une unité de signature certifiée est nécessaire pour les paiements en espèces et par carte sur place."
+
+#: src/BoxOffice/Page.php:195
+msgid "Mehr dazu in der Dokumentation"
+msgstr "Plus d’informations dans la documentation"
+
+#: src/BoxOffice/Page.php:195
+msgid "(öffnet in neuem Tab)"
+msgstr "(s’ouvre dans un nouvel onglet)"
+
+#: src/BoxOffice/Page.php:196
+msgid "Hinweis für mich ausblenden"
+msgstr "Masquer l’avis pour moi"
+
+#: src/Integrations/Vouchers/TicketService.php:58
+msgid "Ticketart, Anzahl, Schlüssel und eine gültige E-Mail-Adresse sind erforderlich."
+msgstr "Le type de ticket, la quantité, la clé et une adresse e-mail valide sont obligatoires."
+
+#: src/Integrations/Vouchers/TicketService.php:67
+msgid "Dieser Termin kann für den Gutschein nicht gewählt werden."
+msgstr "Cette date ne peut pas être choisie pour le bon."
+
+#: src/Integrations/Vouchers/TicketService.php:90
+msgid "Die Tickets konnten nicht ausgestellt werden."
+msgstr "Les tickets n’ont pas pu être émis."
+
+#. translators: 1: date, 2: ticket type
+#: src/Integrations/Vouchers/TicketService.php:140
+#, php-format
+msgid "%1$s – %2$s"
+msgstr "%1$s – %2$s"
+
+#. translators: 1: event, 2: date, 3: ticket type
+#: src/Integrations/Vouchers/TicketService.php:143
+#, php-format
+msgid "%1$s – %2$s – %3$s"
+msgstr "%1$s – %2$s – %3$s"
+
+#: src/Integrations/Vouchers/TicketService.php:207
+msgid "Die Tickets dieser Einlösung wurden bereits widerrufen."
+msgstr "Les tickets de cette utilisation ont déjà été révoqués."
+
+#: src/Invoices.php:210
+#: src/Printing/InvoicePdf.php:117
+msgid "Aufstellung nach Steuersätzen"
+msgstr "Récapitulatif par taux de TVA"
+
+#: src/Invoices.php:218
+#: src/Printing/InvoicePdf.php:146
+msgid "Rechnungskorrektur"
+msgstr "Facture rectificative"
+
+#. translators: 1: invoice number, 2: date
+#: src/Invoices.php:218
+#: src/Printing/InvoicePdf.php:155
+msgid "Korrekturbetrag"
+msgstr "Montant de la correction"
+
+#. translators: %s: formatted amount
+#: src/Mail/Blocks.php:61
+#: src/OrderPortal.php:75
+msgid "Zahlungsinformationen"
+msgstr "Informations de paiement"
+
+#: src/Mail/Blocks.php:76
+msgid "Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung."
+msgstr "Si le paiement n’est pas reçu d’ici là, la réservation expire."
+
+#: src/Mail/Types.php:147
+msgid "Kurze Bestellnummer (z. B. 3F2A-9C1E, auch Verwendungszweck)"
+msgstr "Numéro de commande court (p. ex. 3F2A-9C1E, aussi référence de paiement)"
+
+#: src/Mail/Types.php:149
+msgid "Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer"
+msgstr "Informations de paiement pour un virement en attente / paiement manuel (montant, IBAN, BIC, bénéficiaire, référence de paiement, délai) ; sinon vide"
+
+#: src/OrderPortal.php:52
+msgid "Abbrechen"
+msgstr "Annuler"
+
+#. translators: %s: recipient e-mail address
+#: src/OrderPortal.php:56
+#, php-format
+msgid "Ticket wirklich an %s übertragen? Das ist endgültig und nur einmal möglich: Der bisherige Ticketcode wird sofort ungültig und die neue Person erhält einen neuen Code per E-Mail."
+msgstr "Transférer vraiment le ticket à %s ? Cette action est définitive et possible une seule fois : l’ancien code du ticket devient immédiatement invalide et la nouvelle personne reçoit un nouveau code par e-mail."
+
+#: src/OrderPortal.php:57
+msgid "Ja, endgültig übertragen"
+msgstr "Oui, transférer définitivement"
+
+#: src/OrderPortal.php:61
+msgid "Tickets jetzt erneut senden? Dabei werden neue Ticketcodes erstellt; die bisher gesendeten Codes und Ausdrucke werden ungültig."
+msgstr "Renvoyer les tickets maintenant ? De nouveaux codes de ticket seront créés ; les codes et impressions envoyés jusqu’ici deviendront invalides."
+
+#: src/OrderPortal.php:62
+msgid "Ja, erneut senden"
+msgstr "Oui, renvoyer"
+
+#: src/OrderPortal.php:63
+msgid "Erneuter Versand fehlgeschlagen."
+msgstr "Échec du renvoi."
+
+#. translators: %s: masked e-mail address
+#: src/OrderPortal.php:65
+#, php-format
+msgid "Die Tickets wurden erneut an %s gesendet. Bitte verwende nur noch die neuen Codes."
+msgstr "Les tickets ont été renvoyés à %s. Veuillez n’utiliser désormais que les nouveaux codes."
+
+#: src/OrderPortal.php:66
+msgid "Wird gesendet …"
+msgstr "Envoi en cours …"
+
+#. translators: %s: order date
+#: src/OrderPortal.php:72
+#, php-format
+msgid "Bestellt am %s"
+msgstr "Commandé le %s"
+
+#. translators: %s: formatted amount
+#: src/OrderPortal.php:74
+#, php-format
+msgid "Gesamtbetrag: %s"
+msgstr "Montant total : %s"
+
+#. translators: %s: masked e-mail address
+#: src/OrderPortal.php:77
+#, php-format
+msgid "Tickets erneut an %s senden"
+msgstr "Renvoyer les tickets à %s"
+
+#. translators: %s: masked e-mail address
+#: src/OrderPortal.php:77
+msgid "Dabei werden neue Ticketcodes erstellt; bisher gesendete Codes werden ungültig. Tickets mit eigener Teilnehmer-E-Mail gehen an diese Adresse. Höchstens dreimal pro Stunde."
+msgstr "De nouveaux codes de ticket sont créés ; les codes envoyés précédemment deviennent invalides. Les tickets avec leur propre adresse e-mail de participant sont envoyés à cette adresse. Trois fois par heure au maximum."
+
+#. translators: %s: full order id
+#: src/OrderPortal.php:83
+#, php-format
+msgid "Vollständige Bestell-ID: %s"
+msgstr "ID complet de la commande : %s"
+
+#: src/Orders.php:277
+msgid "Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich."
+msgstr "Cette quantité de tickets par commande n’est pas possible pour ce type de ticket."
+
+#: src/Orders.php:862
+msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
+msgstr "Le titulaire de ce ticket a déjà été modifié ; un nouveau transfert n’est pas possible."
+
+#: src/Orders.php:1252
+msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
+msgstr "Seuls les tickets valides et non encore enregistrés de commandes payées peuvent être réémis."
+
+#: src/Payments/BankTransfer.php:65
+#: src/Privacy/PolicyText.php:89
+#: src/PublicEvents.php:64
+msgid "Empfänger"
+msgstr "Bénéficiaire"
+
+#: src/Payments/BankTransfer.php:66
+#: src/PublicEvents.php:65
+msgid "IBAN"
+msgstr "IBAN"
+
+#: src/Payments/BankTransfer.php:67
+#: src/PublicEvents.php:66
+msgid "BIC"
+msgstr "BIC"
+
+#: src/Payments/BankTransfer.php:68
+#: src/PublicEvents.php:67
+msgid "Verwendungszweck"
+msgstr "Référence de paiement"
+
+#: src/Payments/BankTransfer.php:69
+#: src/PublicEvents.php:68
+msgid "Zahlbar bis"
+msgstr "À payer avant le"
+
+#. translators: %d: number of discarded scans
+#: src/Privacy.php:97
+#, php-format
+msgid "%%d Offline-Scan(s) älter als %d Stunden wurden ohne Upload verworfen."
+msgstr "%%d scan(s) hors ligne de plus de %d heures ont été supprimés sans envoi."
+
+#: src/Privacy.php:139
+msgid "Noch nicht zugeordnete Teilnehmerangaben"
+msgstr "Données de participants pas encore attribuées"
+
+#: src/Privacy.php:143
+msgid "Rechnung (Nummer, Datum UTC, Status)"
+msgstr "Facture (numéro, date UTC, statut)"
+
+#: src/Privacy.php:144
+msgid "Käuferangaben auf der Rechnung"
+msgstr "Données de l’acheteur sur la facture"
+
+#: src/Privacy.php:179
+msgid "WP Pass Captain Terminbuchungen"
+msgstr "Réservations de rendez-vous WP Pass Captain"
+
+#: src/Privacy.php:180
+msgid "Ressource"
+msgstr "Ressource"
+
+#: src/Privacy.php:181
+msgid "Termin von/bis (UTC)"
+msgstr "Rendez-vous de/à (UTC)"
+
+#: src/Privacy.php:182
+msgid "Anzahl und Status"
+msgstr "Quantité et statut"
+
+#: src/Privacy.php:196
+msgid "Ticketreferenz"
+msgstr "Référence du ticket"
+
+#: src/Privacy.php:197
+msgid "Event und Beginn (UTC)"
+msgstr "Événement et début (UTC)"
+
+#: src/Privacy.php:199
+msgid "Rolle"
+msgstr "Rôle"
+
+#: src/Privacy.php:202
+msgid "Name des Teilnehmers"
+msgstr "Nom du participant"
+
+#: src/Privacy.php:203
+msgid "E-Mail des Teilnehmers"
+msgstr "E-mail du participant"
+
+#: src/Privacy.php:205
+msgid "Teilnehmerangabe"
+msgstr "Données du participant"
+
+#: src/Privacy.php:221
+msgid "Einlassprotokoll (Zeit UTC, Bereich)"
+msgstr "Journal d’admission (heure UTC, zone)"
+
+#: src/Privacy.php:229
+msgid "Wallet-Pässe"
+msgstr "Passes wallet"
+
+#: src/Privacy.php:231
+msgid "WP Pass Captain Tickets"
+msgstr "Tickets WP Pass Captain"
+
+#. translators: %d: number of tickets
+#: src/Privacy.php:259
+#, php-format
+msgid "Hinweis: %d Ticket(s) anderer Käufer für bevorstehende Termine bleiben gültig; nur Name, E-Mail und Angaben der Person als Teilnehmer wurden entfernt."
+msgstr "Remarque : %d ticket(s) d’autres acheteurs pour des dates à venir restent valides ; seuls le nom, l’e-mail et les données de cette personne en tant que participant ont été supprimés."
+
+#: src/Privacy.php:304
+msgid "Bestellbeträge, Positionen, Steuern, Zahlungs- und Erstattungsreferenzen bleiben wegen gesetzlicher Aufbewahrungspflichten (Art. 17 Abs. 3 lit. b DSGVO) erhalten. Entfernt bzw. anonymisiert wurden: Käufer-E-Mail in Bestellungen, Ticketzugänge, Teilnehmernamen, -E-Mails und -angaben, Offline-Scannerdaten, Wallet-Registrierungen, Terminbuchungen, Wartelisteneinträge, Passzugänge und geplante Nachrichten."
+msgstr "Les montants des commandes, les lignes, les taxes ainsi que les références de paiement et de remboursement sont conservés en raison d’obligations légales de conservation (art. 17, par. 3, point b, RGPD). Ont été supprimés ou anonymisés : l’e-mail de l’acheteur dans les commandes, les accès aux tickets, les noms, e-mails et données des participants, les données du scanner hors ligne, les enregistrements wallet, les réservations de rendez-vous, les inscriptions sur liste d’attente, les accès aux passes et les messages programmés."
+
+#: src/Privacy.php:306
+msgid "Teilnehmerdaten, Wartelisteneinträge, Passzugänge, Terminbuchungen bzw. geplante Nachrichten dieser Person wurden entfernt oder anonymisiert."
+msgstr "Les données de participant, les inscriptions sur liste d’attente, les accès aux passes, les réservations de rendez-vous et les messages programmés de cette personne ont été supprimés ou anonymisés."
+
+#. translators: %d: number of invoices
+#: src/Privacy.php:310
+#, php-format
+msgid "%d Rechnung(en) bleiben unverändert gespeichert, einschließlich der darauf angegebenen Käuferangaben (E-Mail-Adresse): Rechnungen unterliegen der gesetzlichen Aufbewahrungspflicht (7 Jahre nach § 132 BAO, 10 Jahre nach § 147 AO/§ 257 HGB; Art. 17 Abs. 3 lit. b DSGVO). Die Käuferangaben auf Rechnungen wurden nicht entfernt."
+msgstr "%d facture(s) restent conservées sans modification, y compris les données de l’acheteur qui y figurent (adresse e-mail) : les factures sont soumises à une obligation légale de conservation (7 ans selon le § 132 BAO, 10 ans selon le § 147 AO/§ 257 HGB ; art. 17, par. 3, point b, RGPD). Les données de l’acheteur sur les factures n’ont pas été supprimées."
+
+#. translators: %d: number of tickets
+#: src/Privacy.php:314
+#, php-format
+msgid "Achtung: %d Ticket(s) für bevorstehende Termine wurden durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst."
+msgstr "Attention : %d ticket(s) pour des dates à venir sont devenus invalides à cause de la suppression. Veuillez convenir d’un remboursement ou d’une annulation avec la personne ; cela n’est pas déclenché automatiquement."
+
+#. translators: %d: days
+#: src/Privacy/PolicyText.php:63
+#, php-format
+msgid "%d Tage nach dem Ende der Veranstaltung"
+msgstr "%d jours après la fin de l’événement"
+
+#. translators: %d: days
+#: src/Privacy/PolicyText.php:65
+#, php-format
+msgid "nach der je Feld angegebenen Frist (Name und E-Mail der Teilnehmenden: %d Tage) nach dem Ende der Veranstaltung"
+msgstr "après le délai indiqué pour chaque champ (nom et e-mail des participants : %d jours) suivant la fin de l’événement"
+
+#: src/Privacy/PolicyText.php:67
+msgid "Vorschlag von WP Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind."
+msgstr "Proposition de WP Pass Captain. Veuillez la vérifier et l’adapter à votre entreprise, à vos contrats et à vos processus réels ; ce texte ne remplace pas un conseil juridique. Les sections relatives aux prestataires n’apparaissent que s’ils sont activés dans les réglages."
+
+#: src/Privacy/PolicyText.php:69
+msgid "Ticketkauf, Tickets und Einlass"
+msgstr "Achat de tickets, tickets et admission"
+
+#: src/Privacy/PolicyText.php:70
+msgid "Für Bestellungen verarbeiten wir Ihre E-Mail-Adresse, die gekauften Tickets, Preise, Zahlungsstatus und die Version der akzeptierten Bedingungen, um den Vertrag zu erfüllen, Tickets und Bestellzugänge per E-Mail zuzustellen und Sie über Änderungen oder Absagen zu informieren (Art. 6 Abs. 1 lit. b DSGVO)."
+msgstr "Pour les commandes, nous traitons votre adresse e-mail, les tickets achetés, les prix, le statut de paiement et la version des conditions acceptées afin d’exécuter le contrat, de vous envoyer les tickets et les accès à la commande par e-mail et de vous informer des modifications ou annulations (art. 6, par. 1, point b, RGPD)."
+
+#: src/Privacy/PolicyText.php:71
+msgid "Angaben zu Teilnehmenden (Name, E-Mail, weitere vom Veranstalter abgefragte Felder mit dem jeweils angegebenen Zweck) verarbeiten wir zur Durchführung der Veranstaltung (Art. 6 Abs. 1 lit. b DSGVO) bzw. aufgrund unseres berechtigten Interesses an einer geordneten Einlasskontrolle (Art. 6 Abs. 1 lit. f DSGVO). Beim Einlass protokollieren wir Zeitpunkt, Ergebnis und gegebenenfalls den Einlassbereich des Tickets, um Mehrfachnutzung zu verhindern (Art. 6 Abs. 1 lit. f DSGVO)."
+msgstr "Nous traitons les données des participants (nom, e-mail, autres champs demandés par l’organisateur avec la finalité indiquée à chaque fois) pour la réalisation de l’événement (art. 6, par. 1, point b, RGPD) ou sur la base de notre intérêt légitime à un contrôle d’accès ordonné (art. 6, par. 1, point f, RGPD). Lors de l’admission, nous enregistrons l’heure, le résultat et, le cas échéant, la zone d’admission du ticket afin d’éviter les utilisations multiples (art. 6, par. 1, point f, RGPD)."
+
+#: src/Privacy/PolicyText.php:72
+msgid "Wartelisteneinträge, Mitgliedspässe und Terminbuchungen verarbeiten wir, um Ihnen den gewünschten Platz anzubieten bzw. die Leistung zu erbringen (Art. 6 Abs. 1 lit. b DSGVO). Zum Schutz vor Missbrauch (z. B. automatisierte Bestellversuche) verarbeiten wir die IP-Adresse nur als mit einem geheimen Schlüssel gebildeten Hashwert in kurzlebigen Zählern (Art. 6 Abs. 1 lit. f DSGVO)."
+msgstr "Nous traitons les inscriptions sur liste d’attente, les cartes de membre et les réservations de rendez-vous afin de vous proposer la place souhaitée ou de fournir la prestation (art. 6, par. 1, point b, RGPD). Pour nous protéger contre les abus (p. ex. tentatives de commande automatisées), nous traitons l’adresse IP uniquement sous forme de valeur de hachage calculée avec une clé secrète dans des compteurs de courte durée (art. 6, par. 1, point f, RGPD)."
+
+#: src/Privacy/PolicyText.php:73
+msgid "Rechnungen und Buchungsbelege bewahren wir aufgrund gesetzlicher Pflichten auf (Art. 6 Abs. 1 lit. c DSGVO)."
+msgstr "Nous conservons les factures et les justificatifs de réservation en raison d’obligations légales (art. 6, par. 1, point c, RGPD)."
+
+#: src/Privacy/PolicyText.php:77
+msgid "WooCommerce (auf diesem Server): Bestellungen über den Shop werden zusätzlich in WooCommerce gespeichert; dort gelten die Datenschutzhinweise und Löschfristen des Shops."
+msgstr "WooCommerce (sur ce serveur) : les commandes passées via la boutique sont également enregistrées dans WooCommerce ; les informations de confidentialité et les délais de suppression de la boutique s’y appliquent."
+
+#: src/Privacy/PolicyText.php:78
+msgid "Stripe Payments Europe Ltd. (Irland) für Kartenzahlungen und weitere Zahlarten: Bestellreferenz, Betrag, E-Mail-Adresse; Stripe verarbeitet Zahlungsdaten auch in den USA."
+msgstr "Stripe Payments Europe Ltd. (Irlande) pour les paiements par carte et d’autres moyens de paiement : référence de commande, montant, adresse e-mail ; Stripe traite également les données de paiement aux États-Unis."
+
+#: src/Privacy/PolicyText.php:79
+msgid "PayPal (Europe) S.à r.l. et Cie, S.C.A. (Luxemburg) für PayPal-Zahlungen: Bestellreferenz und Betrag; PayPal kann Daten auch in den USA verarbeiten."
+msgstr "PayPal (Europe) S.à r.l. et Cie, S.C.A. (Luxembourg) pour les paiements PayPal : référence de commande et montant ; PayPal peut également traiter des données aux États-Unis."
+
+#: src/Privacy/PolicyText.php:80
+msgid "Mollie B.V. (Niederlande) für die Zahlungsabwicklung: Bestellreferenz, Betrag und gegebenenfalls das Rechnungsland; Zahlungsdaten geben Sie direkt bei Mollie ein."
+msgstr "Mollie B.V. (Pays-Bas) pour le traitement des paiements : référence de commande, montant et, le cas échéant, le pays de facturation ; vous saisissez vos données de paiement directement chez Mollie."
+
+#: src/Privacy/PolicyText.php:81
+msgid "Twilio Ireland Ltd. (Irland) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar; Twilio verarbeitet Daten auch in den USA."
+msgstr "Twilio Ireland Ltd. (Irlande) pour l’envoi de SMS : numéro de mobile et texte du message, uniquement avec votre consentement (art. 6, par. 1, point a, RGPD), révocable à tout moment ; Twilio traite également des données aux États-Unis."
+
+#: src/Privacy/PolicyText.php:82
+msgid "Unser SMS-Dienstleister (Auftragsverarbeiter) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar."
+msgstr "Notre prestataire SMS (sous-traitant) pour l’envoi de SMS : numéro de mobile et texte du message, uniquement avec votre consentement (art. 6, par. 1, point a, RGPD), révocable à tout moment."
+
+#: src/Privacy/PolicyText.php:83
+msgid "Apple Inc. (USA), wenn Sie ein Ticket zu Apple Wallet hinzufügen: Ihr Gerät meldet sich für Aktualisierungen an; wir speichern dafür eine Gerätekennung und ein Push-Token und senden Aktualisierungshinweise über den Apple Push Notification Service."
+msgstr "Apple Inc. (États-Unis), lorsque vous ajoutez un ticket à Apple Wallet : votre appareil s’inscrit aux mises à jour ; nous enregistrons pour cela un identifiant d’appareil et un jeton push, et envoyons des notifications de mise à jour via l’Apple Push Notification Service."
+
+#: src/Privacy/PolicyText.php:84
+msgid "Google Ireland Ltd. / Google LLC (USA), wenn Sie ein Ticket zu Google Wallet hinzufügen: Ticketangaben (Veranstaltung, Termin, Ticketcode, gegebenenfalls Name) werden an Google übermittelt."
+msgstr "Google Ireland Ltd. / Google LLC (États-Unis), lorsque vous ajoutez un ticket à Google Wallet : les données du ticket (événement, date, code du ticket, le cas échéant nom) sont transmises à Google."
+
+#: src/Privacy/PolicyText.php:85
+msgid "Vertriebs- und Veranstaltungspartner: Partner erhalten für ihre Veranstaltungen Bestell- und Einlassdaten, personenbezogene Daten (E-Mail-Adressen) nur, soweit dies vertraglich vereinbart ist (Art. 6 Abs. 1 lit. b bzw. f DSGVO, gegebenenfalls Auftragsverarbeitung)."
+msgstr "Partenaires de vente et d’événements : les partenaires reçoivent les données de commande et d’admission pour leurs événements, et des données personnelles (adresses e-mail) uniquement dans la mesure prévue par contrat (art. 6, par. 1, point b ou f, RGPD, le cas échéant sous-traitance)."
+
+#: src/Privacy/PolicyText.php:86
+msgid "Angebundene Systeme (Webhooks), z. B. Buchhaltung, CRM oder Newsletter-Dienst: Bestell- und Ticketereignisse, E-Mail-Adressen nur, wenn dies für das jeweilige System ausdrücklich aktiviert ist."
+msgstr "Systèmes connectés (webhooks), p. ex. comptabilité, CRM ou service de newsletter : événements de commande et de ticket ; adresses e-mail uniquement si cela est explicitement activé pour le système concerné."
+
+#: src/Privacy/PolicyText.php:87
+msgid "Affiliate-Programm (WP Affiliate Captain, auf diesem Server): Wenn Sie über einen Partnerlink kommen oder einen Partnercode eingeben, ordnen wir die Bestellung dem Partner zu, um dessen Provision abzurechnen. Den Empfehlungs-Cookie werten wir nur mit Ihrer Einwilligung aus (Art. 6 Abs. 1 lit. a DSGVO, § 165 Abs. 3 TKG 2021 bzw. § 25 TDDDG); bei einem selbst eingegebenen Code auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Ihre E-Mail-Adresse wird nur zur Prüfung von Eigenempfehlungen verwendet und dort nicht gespeichert."
+msgstr "Programme d’affiliation (WP Affiliate Captain, sur ce serveur) : si vous arrivez via un lien partenaire ou saisissez un code partenaire, nous attribuons la commande au partenaire afin de décompter sa commission. Nous n’exploitons le cookie de recommandation qu’avec votre consentement (art. 6, par. 1, point a, RGPD, § 165 al. 3 TKG 2021 ou § 25 TDDDG) ; pour un code saisi par vos soins, sur la base de l’art. 6, par. 1, point f, RGPD. Votre adresse e-mail n’est utilisée que pour vérifier les auto-recommandations et n’y est pas enregistrée."
+
+#: src/Privacy/PolicyText.php:88
+msgid "Unser Hosting- und E-Mail-Dienstleister als Auftragsverarbeiter."
+msgstr "Notre prestataire d’hébergement et d’e-mail en tant que sous-traitant."
+
+#: src/Privacy/PolicyText.php:92
+msgid "Übermittlung in Drittländer"
+msgstr "Transferts vers des pays tiers"
+
+#: src/Privacy/PolicyText.php:93
+msgid "Einige der genannten Dienstleister verarbeiten Daten auch in den USA. Die Übermittlung erfolgt auf Grundlage des EU-U.S. Data Privacy Framework (Angemessenheitsbeschluss, Art. 45 DSGVO), soweit der Empfänger zertifiziert ist, im Übrigen auf Grundlage der EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO)."
+msgstr "Certains des prestataires cités traitent également des données aux États-Unis. Le transfert repose sur le EU-U.S. Data Privacy Framework (décision d’adéquation, art. 45 RGPD) lorsque le destinataire est certifié, et sinon sur les clauses contractuelles types de l’UE (art. 46, par. 2, point c, RGPD)."
+
+#: src/Privacy/PolicyText.php:97
+msgid "Speicherdauer"
+msgstr "Durée de conservation"
+
+#. translators: %s: retention description
+#: src/Privacy/PolicyText.php:99
+#, php-format
+msgid "Teilnehmerangaben (Name, E-Mail, Zusatzfelder) löschen wir automatisch %s. Einlassprotokolle bleiben ohne Teilnehmerangaben für Auswertungen erhalten; die Zuordnung zu Mitarbeitenden und Geräten entfernen wir nach einem Jahr."
+msgstr "Nous supprimons automatiquement les données des participants (nom, e-mail, champs supplémentaires) %s. Les journaux d’admission sont conservés sans données de participants à des fins d’analyse ; nous supprimons le lien avec les collaborateurs et les appareils au bout d’un an."
+
+#: src/Privacy/PolicyText.php:100
+msgid "Nicht bezahlte Bestellungen anonymisieren wir nach 90 Tagen. Versandte Benachrichtigungen löschen wir inhaltlich nach 30 Tagen. Protokolle über Verwaltungsvorgänge bewahren wir zwei Jahre auf."
+msgstr "Nous anonymisons les commandes non payées après 90 jours. Nous supprimons le contenu des notifications envoyées après 30 jours. Nous conservons les journaux des opérations d’administration pendant deux ans."
+
+#: src/Privacy/PolicyText.php:101
+msgid "Bestell-, Zahlungs- und Rechnungsdaten bewahren wir für die gesetzlichen Fristen auf: in Österreich sieben Jahre (§ 132 BAO), in Deutschland bis zu zehn Jahre (§ 147 AO, § 257 HGB). Während dieser Zeit sind diese Daten für andere Zwecke gesperrt."
+msgstr "Nous conservons les données de commande, de paiement et de facturation pendant les délais légaux : en Autriche sept ans (§ 132 BAO), en Allemagne jusqu’à dix ans (§ 147 AO, § 257 HGB). Pendant ce temps, ces données sont bloquées pour d’autres finalités."
+
+#: src/Privacy/PolicyText.php:104
+msgid "Ihre Rechte"
+msgstr "Vos droits"
+
+#: src/Privacy/PolicyText.php:105
+msgid "Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie auf Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft. Bei einer Löschung bleiben Rechnungen und Buchungsdaten bis zum Ablauf der gesetzlichen Aufbewahrungsfrist gespeichert (Art. 17 Abs. 3 lit. b DSGVO); Tickets für künftige Termine werden mit der Löschung ungültig. Sie können sich bei einer Datenschutzaufsichtsbehörde beschweren."
+msgstr "Vous disposez d’un droit d’accès, de rectification, d’effacement, de limitation du traitement, de portabilité des données et d’opposition, ainsi que du droit de retirer vos consentements avec effet pour l’avenir. En cas d’effacement, les factures et les données de réservation restent conservées jusqu’à l’expiration du délai légal de conservation (art. 17, par. 3, point b, RGPD) ; les tickets pour des dates futures deviennent invalides lors de l’effacement. Vous pouvez introduire une réclamation auprès d’une autorité de contrôle de la protection des données."
+
+#: src/PublicEvents.php:31
+msgid "E-Mail der Teilnehmer:in (optional, für ein eigenes Ticket)"
+msgstr "E-mail du participant (facultatif, pour un ticket distinct)"
+
+#: src/PublicEvents.php:37
+msgid "Bitte prüfe deine Angaben"
+msgstr "Veuillez vérifier vos informations"
+
+#. translators: %d: number of problems
+#: src/PublicEvents.php:39
+#, php-format
+msgid "Es gibt %d Problem(e). Wähle einen Eintrag, um zum Feld zu springen."
+msgstr "Il y a %d problème(s). Sélectionnez une entrée pour accéder au champ."
+
+#. translators: %s: field label
+#: src/PublicEvents.php:41
+#, php-format
+msgid "Bitte fülle „%s“ aus."
+msgstr "Veuillez renseigner « %s »."
+
+#. translators: %s: field label
+#: src/PublicEvents.php:43
+#, php-format
+msgid "„%s“: Bitte gib eine gültige E-Mail-Adresse ein, z. B. name@example.com."
+msgstr "« %s » : veuillez saisir une adresse e-mail valide, p. ex. nom@example.com."
+
+#. translators: %s: field label
+#: src/PublicEvents.php:45
+#, php-format
+msgid "„%s“ ist ungültig."
+msgstr "« %s » n’est pas valide."
+
+#: src/PublicEvents.php:46
+msgid "Bitte bestätige die Bedingungen, um zu bestellen."
+msgstr "Veuillez accepter les conditions pour passer commande."
+
+#. translators: 1: ticket type, 2: maximum quantity
+#: src/PublicEvents.php:48
+#, php-format
+msgid "„%1$s“: Es sind höchstens %2$d Tickets möglich."
+msgstr "« %1$s » : %2$d tickets au maximum sont possibles."
+
+#: src/PublicEvents.php:50
+msgid "Vielen Dank für deine Bestellung!"
+msgstr "Merci pour votre commande !"
+
+#: src/PublicEvents.php:51
+msgid "Bestellung abgeschlossen"
+msgstr "Commande terminée"
+
+#. translators: %s: short order number
+#: src/PublicEvents.php:53
+#, php-format
+msgid "Bestellnummer: %s"
+msgstr "Numéro de commande : %s"
+
+#. translators: %s: e-mail address
+#: src/PublicEvents.php:55
+#, php-format
+msgid "Wir haben die Bestätigung mit deinem persönlichen Bestelllink an %s gesendet."
+msgstr "Nous avons envoyé la confirmation avec votre lien de commande personnel à %s."
+
+#. translators: %s: e-mail address
+#: src/PublicEvents.php:57
+#, php-format
+msgid "Die Tickets und die Bestätigung haben wir an %s gesendet."
+msgstr "Nous avons envoyé les tickets et la confirmation à %s."
+
+#: src/PublicEvents.php:58
+msgid "Keine E-Mail erhalten? Sieh bitte auch im Spam-Ordner nach."
+msgstr "Aucun e-mail reçu ? Veuillez aussi vérifier votre dossier de courrier indésirable."
+
+#: src/PublicEvents.php:59
+msgid "Bitte überweise den Betrag mit diesen Angaben:"
+msgstr "Veuillez virer le montant avec ces informations :"
+
+#. translators: %s: date and time
+#: src/PublicEvents.php:61
+#, php-format
+msgid "Deine Tickets sind bis %s reserviert. Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung."
+msgstr "Vos tickets sont réservés jusqu’au %s. Si le paiement n’est pas reçu d’ici là, la réservation expire."
+
+#: src/PublicEvents.php:62
+msgid "Nach Zahlungseingang erhältst du deine Tickets per E-Mail."
+msgstr "Une fois le paiement reçu, vous recevrez vos tickets par e-mail."
+
+#: src/PublicEvents.php:69
+msgid "Weitere Tickets bestellen"
+msgstr "Commander d’autres tickets"
+
+#: src/Refunds.php:60
+msgid "Für mindestens eines der gewählten Tickets läuft bereits eine Erstattung oder sie wartet auf Freigabe."
+msgstr "Un remboursement est déjà en cours ou en attente de validation pour au moins un des tickets sélectionnés."
+
+#: src/Refunds.php:313
+msgid "Die Bestellung kann nicht mehr erstattet werden."
+msgstr "La commande ne peut plus être remboursée."
+
+#: src/Refunds.php:321
+msgid "Mindestens eines der Tickets wurde bereits erstattet; die Erstattung wurde nicht ausgeführt."
+msgstr "Au moins un des tickets a déjà été remboursé ; le remboursement n’a pas été effectué."
+
+#: src/Refunds.php:328
+msgid "Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag; die Erstattung wurde nicht ausgeführt."
+msgstr "Le montant du remboursement dépasse le montant de commande encore ouvert ; le remboursement n’a pas été effectué."
+
+#: src/Rest/Controller.php:249
+msgid "Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets."
+msgstr "Le code de réduction n’est pas valide ou ne correspond pas aux tickets sélectionnés."
+
+#: src/Rest/Controller.php:250
+msgid "Der Rabattcode konnte nicht sicher auf die Bestellung angewendet werden. Bitte versuche es erneut."
+msgstr "Le code de réduction n’a pas pu être appliqué de manière fiable à la commande. Veuillez réessayer."
+
+#. translators: %d: allowed resends per hour
+#: src/Rest/Controller.php:389
+#, php-format
+msgid "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
+msgid_plural "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
+msgstr[0] "Les tickets ne peuvent être renvoyés que %d fois par heure au maximum. Veuillez réessayer plus tard."
+msgstr[1] "Les tickets ne peuvent être renvoyés que %d fois par heure au maximum. Veuillez réessayer plus tard."
+
+#: src/TicketAssignments.php:31
+msgid "Dieses Ticket wurde bereits an eine andere Person übertragen und kann über die Bestellung nicht mehr geändert werden."
+msgstr "Ce ticket a déjà été transféré à une autre personne et ne peut plus être modifié via la commande."
+
+#: src/TicketAssignments.php:39
+msgid "Für dieses Ticket wurde der Teilnehmer bereits geändert. Ein weiterer Wechsel der Person ist nicht möglich; Namen und Angaben können weiterhin korrigiert werden."
+msgstr "Le participant de ce ticket a déjà été modifié. Un nouveau changement de personne n’est pas possible ; les noms et informations peuvent toujours être corrigés."
+
+#: templates/event-card.php:39
+msgid "Deine E-Mail-Adresse (für Tickets und Bestätigung)"
+msgstr "Votre adresse e-mail (pour les tickets et la confirmation)"
+
+#: templates/event-card.php:70
+msgid "Ich akzeptiere die Bedingungen."
+msgstr "J’accepte les conditions."

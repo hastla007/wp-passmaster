@@ -80,7 +80,10 @@ final class Mailer {
 	 */
 	public static function render_template( $type, array $template, array $vars, $locale = '' ) {
 		$html = 'html' === ( $template['format'] ?? 'text' );
-		$vars = self::resolve_vars( array_merge( self::global_vars(), $vars ) );
+		$def = self::type( $type );
+		// Optional per-type derived values (e.g. payment details of an order); passed values win.
+		$derived = $def && isset( $def['vars'] ) && is_callable( $def['vars'] ) ? (array) call_user_func( $def['vars'], $vars ) : array();
+		$vars = self::resolve_vars( array_merge( self::global_vars(), $derived, $vars ) );
 		$body = (string) ( $template['body'] ?? '' );
 		if ( $html && ! self::has_tags( $body ) ) {
 			// Plain text in HTML mode (e.g. a built-in default): treat it as text.

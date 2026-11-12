@@ -222,7 +222,9 @@ final class Queries {
 		if ( isset( $filters['search'] ) && '' !== trim( (string) $filters['search'] ) ) {
 			$search = trim( (string) $filters['search'] );
 			$where .= ' AND (ord.public_id LIKE %s OR ord.customer_email LIKE %s)';
-			$args[] = self::like( strtolower( $search ) ) . '%';
+			// Short order numbers / payment references ("Bestellung 3F2A-9C1E") are public id prefixes.
+			$id_prefix = preg_match( '/^(?:bestellung\s+)?([a-f0-9]{4})[\s-]?([a-f0-9]{4})$/i', $search, $m ) ? $m[1] . $m[2] : $search;
+			$args[] = self::like( strtolower( $id_prefix ) ) . '%';
 			$args[] = '%' . self::like( $search ) . '%';
 		}
 		$items_join = "SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=ord.order_id";

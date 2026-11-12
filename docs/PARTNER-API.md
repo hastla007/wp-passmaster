@@ -135,7 +135,7 @@ Beispiel `/partner/orders`:
 ```
 
 Positionen anderer Veranstalter bzw. nicht freigegebener Events werden aus Bestellungen herausgefiltert.
-`customer_email` erscheint nur mit `attendees:read`.
+`customer_email` erscheint nur mit `attendees:read`. Gelöschte oder anonymisierte Adressen (Platzhalter `…@invalid.example` nach einer Datenschutzlöschung, Kassenverkäufe ohne E-Mail) und leere Teilnehmeradressen werden als `null` ausgegeben.
 
 ## Abrechnungen
 

@@ -163,7 +163,7 @@ $refund = PassCaptain\Refunds::request( $io['order_id'], array( (int) tickets( $
 $cn = PassCaptain\Invoices::credit_note_for_refund( $refund['refund_id'] );
 $with_cn = InvoicePdf::render( (int) $wpdb->get_var( "SELECT invoice_id FROM {$p}wpcap_invoices WHERE order_id=" . (int) $io['order_id'] ) );
 $only_cn = InvoicePdf::admin_pdf( $io['order_id'], (int) $cn['credit_note_id'] );
-check( 'credit notes get their own page; single credit note download', wpp_pdf_ok( $with_cn, 2 ) && false !== strpos( $with_cn, '(Gutschrift ' . $cn['credit_note_number'] . ') Tj' ) && ! is_wp_error( $only_cn ) && wpp_pdf_ok( $only_cn['pdf'], 1 ) && false !== strpos( $only_cn['pdf'], '(-11,90 EUR) Tj' ) && str_starts_with( $only_cn['filename'], 'gutschrift-' ) );
+check( 'credit notes get their own page; single credit note download', wpp_pdf_ok( $with_cn, 2 ) && false !== strpos( $with_cn, '(Rechnungskorrektur ' . $cn['credit_note_number'] . ') Tj' ) && ! is_wp_error( $only_cn ) && wpp_pdf_ok( $only_cn['pdf'], 1 ) && false !== strpos( $only_cn['pdf'], '(-11,90 EUR) Tj' ) && str_starts_with( $only_cn['filename'], 'rechnungskorrektur-' ) );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options', 'wpcap_view_finance', 'wpcap_manage_orders' );
 $forbidden = InvoicePdf::admin_pdf( $io['order_id'] );
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options', 'wpcap_view_finance' );

@@ -131,7 +131,8 @@ final class Invoices {
 	 */
 	public static function next_number( $year = 0, $in_transaction = false ) {
 		global $wpdb;
-		$year = $year ? absint( $year ) : (int) gmdate( 'Y' );
+		// Year of the invoice date in the site timezone (an invoice issued on 1 January 00:30 local time belongs to the new year).
+		$year = $year ? absint( $year ) : self::local_year();
 		$table = $wpdb->prefix . 'wpcap_invoice_sequences';
 		if ( ! $in_transaction ) { $wpdb->query( 'START TRANSACTION' ); }
 		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (year,next_number) VALUES (%d,1)", $year ) );
@@ -145,12 +146,35 @@ final class Invoices {
 		return sprintf( '%s-%d-%06d', $prefix, $year, $number );
 	}
 
+	/** Current year in the site timezone. */
+	public static function local_year( $timestamp = null ) {
+		return (int) wp_date( 'Y', null === $timestamp ? time() : (int) $timestamp, Frontend\Format::site_timezone() );
+	}
+
+	/**
+	 * Net, tax and gross per VAT rate (rate as float string => array{net,tax,gross} in minor units).
+	 *
+	 * @param object[] $lines Invoice lines (tax_rate, tax_minor, total_minor = gross after discount).
+	 */
+	public static function rate_summary( array $lines ) {
+		$rates = array();
+		foreach ( $lines as $line ) {
+			$key = (string) (float) $line->tax_rate;
+			$rates[ $key ] = $rates[ $key ] ?? array( 'net' => 0, 'tax' => 0, 'gross' => 0 );
+			$rates[ $key ]['tax'] += (int) $line->tax_minor;
+			$rates[ $key ]['gross'] += (int) $line->total_minor;
+			$rates[ $key ]['net'] = $rates[ $key ]['gross'] - $rates[ $key ]['tax'];
+		}
+		ksort( $rates, SORT_NUMERIC );
+		return $rates;
+	}
+
 	/** Gapless numbers for further document series (e.g. credit notes); caller may own the transaction. */
 	public static function next_document_number( $series, $prefix, $in_transaction = false ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_document_sequences';
 		$series = sanitize_key( $series );
-		$year = (int) gmdate( 'Y' );
+		$year = self::local_year();
 		if ( ! $in_transaction ) { $wpdb->query( 'START TRANSACTION' ); }
 		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (series,year,next_number) VALUES (%s,%d,1)", $series, $year ) );
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT next_number FROM $table WHERE series=%s AND year=%d FOR UPDATE", $series, $year ) );
@@ -172,13 +196,9 @@ final class Invoices {
 		$snapshot = (array) json_decode( (string) $invoice->buyer_snapshot, true );
 		$seller = (array) ( $snapshot['seller'] ?? self::seller() );
 		$money = static function ( $minor ) use ( $invoice ) { return number_format_i18n( $minor / 100, 2 ) . ' ' . $invoice->currency; };
-		$rates = array();
-		foreach ( $lines as $line ) {
-			$key = (string) (float) $line->tax_rate;
-			$rates[ $key ] = ( $rates[ $key ] ?? 0 ) + (int) $line->tax_minor;
-		}
+		$rates = self::rate_summary( $lines );
 		ob_start();
-		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( $invoice->invoice_number ); ?></title><style>body{font:14px/1.45 system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem;color:#1d2327}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border-bottom:1px solid #dcdcde;padding:.4rem;text-align:left}td.n,th.n{text-align:right}.seller{white-space:pre-line}@media print{button{display:none}}</style></head><body>
+		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( $invoice->invoice_number ); ?></title><style>body{font:14px/1.45 system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem;color:#1d2327}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border-bottom:1px solid #dcdcde;padding:.4rem;text-align:left}td.n,th.n{text-align:right}caption{text-align:left;font-weight:600;padding:.25rem 0}.seller{white-space:pre-line}@media print{button{display:none}}</style></head><body>
 		<header><div class="seller"><strong><?php echo esc_html( $seller['name'] ?? '' ); ?></strong>
 <?php echo esc_html( $seller['address'] ?? '' ); ?><?php if ( ! empty( $seller['vat_id'] ) ) : ?>
 <?php echo esc_html( __( 'USt-IdNr.:', 'wp-pass-captain' ) . ' ' . $seller['vat_id'] ); ?><?php endif; ?></div></header>
@@ -187,12 +207,15 @@ final class Invoices {
 		<table><thead><tr><th><?php esc_html_e( 'Leistung', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Menge', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Einzelpreis', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Rabatt', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'USt.', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Gesamt (brutto)', 'wp-pass-captain' ); ?></th></tr></thead><tbody>
 		<?php foreach ( $lines as $line ) : ?><tr><td><?php echo esc_html( $line->description ); ?></td><td class="n"><?php echo esc_html( $line->quantity ); ?></td><td class="n"><?php echo esc_html( $money( (int) $line->unit_minor ) ); ?></td><td class="n"><?php echo esc_html( $money( (int) $line->discount_minor ) ); ?></td><td class="n"><?php echo esc_html( number_format_i18n( (float) $line->tax_rate, 2 ) . ' %' ); ?></td><td class="n"><?php echo esc_html( $money( (int) $line->total_minor ) ); ?></td></tr><?php endforeach; ?>
 		</tbody></table>
+		<table class="wpcap-vat-summary"><caption><?php esc_html_e( 'Aufstellung nach Steuersätzen', 'wp-pass-captain' ); ?></caption><thead><tr><th><?php esc_html_e( 'USt-Satz', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Netto', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'USt.', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Brutto', 'wp-pass-captain' ); ?></th></tr></thead><tbody>
+		<?php foreach ( $rates as $rate => $sum ) : ?><tr><td><?php echo esc_html( number_format_i18n( (float) $rate, 2 ) . ' %' ); ?></td><td class="n"><?php echo esc_html( $money( $sum['net'] ) ); ?></td><td class="n"><?php echo esc_html( $money( $sum['tax'] ) ); ?></td><td class="n"><?php echo esc_html( $money( $sum['gross'] ) ); ?></td></tr><?php endforeach; ?>
+		</tbody></table>
 		<table><tbody>
 		<tr><td><?php esc_html_e( 'Nettobetrag', 'wp-pass-captain' ); ?></td><td class="n"><?php echo esc_html( $money( (int) $invoice->total_minor - (int) $invoice->tax_minor ) ); ?></td></tr>
-		<?php foreach ( $rates as $rate => $tax ) : ?><tr><td><?php echo esc_html( sprintf( /* translators: %s: rate */ __( 'Umsatzsteuer %s %%', 'wp-pass-captain' ), number_format_i18n( (float) $rate, 2 ) ) ); ?></td><td class="n"><?php echo esc_html( $money( $tax ) ); ?></td></tr><?php endforeach; ?>
+		<?php foreach ( $rates as $rate => $sum ) : ?><tr><td><?php echo esc_html( sprintf( /* translators: %s: rate */ __( 'Umsatzsteuer %s %%', 'wp-pass-captain' ), number_format_i18n( (float) $rate, 2 ) ) ); ?></td><td class="n"><?php echo esc_html( $money( $sum['tax'] ) ); ?></td></tr><?php endforeach; ?>
 		<tr><th><?php esc_html_e( 'Rechnungsbetrag', 'wp-pass-captain' ); ?></th><th class="n"><?php echo esc_html( $money( (int) $invoice->total_minor ) ); ?></th></tr>
 		</tbody></table>
-		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Gutschrift', 'wp-pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'wp-pass-captain' ), $invoice->invoice_number, wp_date( 'd.m.Y', strtotime( $credit->issued_at . ' UTC' ) ) ) ); ?></p><table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'wp-pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr><tr><td><?php esc_html_e( 'Umsatzsteuer', 'wp-pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->tax_minor ) ); ?></td></tr><tr><th><?php esc_html_e( 'Gutschriftsbetrag', 'wp-pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
+		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Rechnungskorrektur', 'wp-pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'wp-pass-captain' ), $invoice->invoice_number, wp_date( 'd.m.Y', strtotime( $credit->issued_at . ' UTC' ) ) ) ); ?></p><table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'wp-pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr><tr><td><?php esc_html_e( 'Umsatzsteuer', 'wp-pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->tax_minor ) ); ?></td></tr><tr><th><?php esc_html_e( 'Korrekturbetrag', 'wp-pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
 		<button onclick="window.print()"><?php esc_html_e( 'Drucken oder als PDF speichern', 'wp-pass-captain' ); ?></button>
 		</body></html><?php
 		return (string) ob_get_clean();
@@ -245,7 +268,7 @@ final class Invoices {
 		header( 'Content-Disposition: attachment; filename="wp-pass-captain-buchhaltung-' . $from . '-' . $to . '.csv"' );
 		$out = fopen( 'php://output', 'w' );
 		fwrite( $out, "\xEF\xBB\xBF" );
-		foreach ( $rows as $row ) { fputcsv( $out, $row, ';' ); }
+		foreach ( $rows as $row ) { fputcsv( $out, $row, ';', '"', '' ); } // Explicit escape (PHP 8.4 deprecates the default); '' = RFC 4180 quoting only.
 		fclose( $out );
 		exit;
 	}

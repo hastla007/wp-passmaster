@@ -136,8 +136,16 @@ final class Service {
 		if ( isset( $passes['apple'] ) ) {
 			$use_file = $allow_attachment && 'link' !== Settings::get( 'wallet_apple_delivery' ) && ! empty( $passes['apple']['bundle'] );
 			if ( $use_file ) {
-				$file = trailingslashit( get_temp_dir() ) . 'ticket-' . substr( $passes['apple']['serial_number'], 0, 12 ) . '.pkpass';
-				if ( false !== file_put_contents( $file, $passes['apple']['bundle'] ) ) {
+				// Unguessable private directory per attachment (the pass is a valid ticket); removed at
+				// shutdown at the latest, like InvoicePdf::attach_to_ticket_mail().
+				$dir = trailingslashit( get_temp_dir() ) . 'wpcap-' . bin2hex( random_bytes( 16 ) );
+				$file = $dir . '/ticket-' . preg_replace( '/[^A-Za-z0-9_-]/', '', substr( (string) $passes['apple']['serial_number'], 0, 12 ) ) . '.pkpass';
+				if ( @mkdir( $dir, 0700 ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
+					self::$temp_files[] = array( $file, $dir );
+					if ( 1 === count( self::$temp_files ) ) { register_shutdown_function( array( __CLASS__, 'cleanup_temp_files' ) ); }
+				}
+				if ( is_dir( $dir ) && false !== file_put_contents( $file, $passes['apple']['bundle'] ) ) {
+					@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 					$files[] = $file;
 					/* translators: %s: file name */
 					$text .= sprintf( __( 'Zu Apple Wallet hinzufügen: Anhang %s öffnen', 'wp-pass-captain' ), basename( $file ) ) . "\n";
@@ -154,6 +162,19 @@ final class Service {
 		}
 		if ( '' !== $text ) { $text = implode( ' — ', array_filter( $ticket_label ) ) . "\n" . $text . "\n"; }
 		return array( $text, $files );
+	}
+
+	/** @var array<int,array{0:string,1:string}> Temporary .pkpass attachments and their directories. */
+	private static $temp_files = array();
+
+	/** Removes temporary .pkpass attachments and their directories (idempotent). */
+	public static function cleanup_temp_files() {
+		foreach ( self::$temp_files as $entry ) {
+			list( $file, $dir ) = $entry;
+			if ( is_file( $file ) ) { @unlink( $file ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
+			if ( is_dir( $dir ) ) { @rmdir( $dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
+		}
+		self::$temp_files = array();
 	}
 
 	/** Filter wpcap_ticket_mail: create passes while the plaintext codes are available. */

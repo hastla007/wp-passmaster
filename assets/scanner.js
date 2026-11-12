@@ -6,7 +6,32 @@
 	const input = form.querySelector('[name="token"]');
 	const result = root.querySelector('.wpcap-scan-result');
 	const video = root.querySelector('.wpcap-camera');
-	const queueKey = 'wpcap-offline-scans-v1';
+	// Offline queue per WordPress user (keyed hash from the server, never the raw ID): a shared
+	// device must not hand one user's queued ticket codes to the next. Queues of other users and
+	// the old shared v1 queue are removed as soon as a different user opens the scanner (the
+	// browser cannot be cleared on logout itself).
+	const privacy = window.WPCAP_SCANNER_PRIVACY || {};
+	const owner = String(privacy.owner || 'anonymous').replace(/[^A-Za-z0-9_-]/g, '');
+	const queuePrefix = 'wpcap-offline-scans-v2-';
+	const queueKey = queuePrefix + owner;
+	const ownerKey = 'wpcap-scanner-owner';
+	(function isolateQueue() {
+		try {
+			const ls = window.localStorage;
+			const legacy = ls.getItem('wpcap-offline-scans-v1');
+			const previousOwner = ls.getItem(ownerKey);
+			// Legacy queue (before per-user keys): adopted once by the first user on this browser,
+			// expired items are dropped by the age check below.
+			if (legacy && !previousOwner && !ls.getItem(queueKey)) ls.setItem(queueKey, legacy);
+			const foreign = [];
+			for (let i = 0; i < ls.length; i++) {
+				const key = ls.key(i);
+				if (key && (key === 'wpcap-offline-scans-v1' || (key.indexOf(queuePrefix) === 0 && key !== queueKey))) foreign.push(key);
+			}
+			foreign.forEach(function (key) { ls.removeItem(key); });
+			ls.setItem(ownerKey, owner);
+		} catch (ignore) {}
+	}());
 	const t = window.WPCAP_SCANNER.i18n || {};
 	let stream = null;
 	let locked = false;
@@ -63,9 +88,9 @@
 		root.insertBefore(bar, form);
 	}
 	// Offline queue: every scan carries its own idempotency key; nothing is truncated. Queued items
-	// hold raw ticket codes, so they expire after QUEUE_MAX_AGE (with a visible warning) and are
-	// removed only after the server confirmed them (matched by key).
-	const QUEUE_MAX_AGE = 7 * 24 * 3600 * 1000;
+	// hold raw ticket codes, so they expire after QUEUE_MAX_AGE (default 24 h, with a visible
+	// warning) and are removed only after the server confirmed them (matched by key).
+	const QUEUE_MAX_AGE = Math.max(1, parseInt(privacy.maxAgeHours, 10) || 24) * 3600 * 1000;
 	const SYNC_CHUNK = 100;
 	let syncing = false;
 	function normalizeItem(item) {
@@ -95,7 +120,7 @@
 		const fresh = items.filter(function (item) { return Date.now() - item.stored_at <= QUEUE_MAX_AGE; });
 		if (fresh.length !== items.length) {
 			saveQueue(fresh);
-			result.textContent = ((adm && adm.i18n && adm.i18n.expired) || t.expired || '%d offline scan(s) older than 7 days were discarded without upload.').replace('%d', items.length - fresh.length);
+			result.textContent = ((privacy.i18n && privacy.i18n.expired) || (adm && adm.i18n && adm.i18n.expired) || t.expired || '%d offline scan(s) older than 24 hours were discarded without upload.').replace('%d', items.length - fresh.length);
 			result.dataset.state = 'error';
 		}
 	}

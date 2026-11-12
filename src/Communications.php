@@ -22,18 +22,32 @@ final class Communications {
 		return true;
 	}
 
+	/** Maximum messages per run (filter: wpcap_message_batch_size); the time budget usually ends a run first. */
+	const BATCH_SIZE = 500;
+
+	/**
+	 * Sends due messages until the time budget (Jobs\TimeBudget, ~20 s) or the batch size is used up.
+	 * When due messages remain, an immediate follow-up run is scheduled instead of waiting for the
+	 * next five-minute tick. Returns the number of messages processed.
+	 */
 	public static function process_due() {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_message_queue';
 		$now = current_time( 'mysql', true );
 		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='queued',locked_at=NULL WHERE status='sending' AND locked_at<%s", $stale ) );
-		for ( $i = 0; $i < 25; $i++ ) {
+		$limit = max( 1, (int) apply_filters( 'wpcap_message_batch_size', self::BATCH_SIZE ) );
+		$deadline = Jobs\TimeBudget::deadline();
+		$processed = 0;
+		$drained = false;
+		for ( $i = 0; $i < $limit; $i++ ) {
+			if ( Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
 			$wpdb->query( 'START TRANSACTION' );
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND send_at<=%s ORDER BY send_at,message_id LIMIT 1 FOR UPDATE", $now ) );
-			if ( ! $row ) { $wpdb->query( 'COMMIT' ); break; }
+			if ( ! $row ) { $wpdb->query( 'COMMIT' ); $drained = true; break; }
 			$wpdb->update( $table, array( 'status' => 'sending', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now ), array( 'message_id' => (int) $row->message_id, 'status' => 'queued' ), array( '%s', '%d', '%s' ), array( '%d', '%s' ) );
 			$wpdb->query( 'COMMIT' );
+			Jobs\TimeBudget::claimed( $table, 'message_id', (int) $row->message_id, 'sending', 'queued' );
 			$payload = json_decode( $row->payload, true );
 			$template = apply_filters( 'wp_pass_captain_email_template_v1', null, $row->template_key, is_array( $payload ) ? $payload : array() );
 			$template = is_array( $template ) ? $template : ( is_array( $payload ) ? $payload : array() );
@@ -46,6 +60,12 @@ final class Communications {
 				$tries = (int) $row->attempts + 1;
 				$wpdb->update( $table, array( 'status' => $tries >= 5 ? 'failed' : 'queued', 'send_at' => gmdate( 'Y-m-d H:i:s', time() + min( 3600, 60 * ( 2 ** $tries ) ) ), 'locked_at' => null, 'last_error' => __( 'Template fehlt oder wp_mail ist fehlgeschlagen.', 'wp-pass-captain' ) ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
 			}
+			Jobs\TimeBudget::finished( $table, (int) $row->message_id );
+			++$processed;
 		}
+		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT message_id FROM $table WHERE status='queued' AND send_at<=%s LIMIT 1", $now ) ) ) {
+			Jobs\TimeBudget::continue_later( 'wpcap_process_messages' );
+		}
+		return $processed;
 	}
 }
