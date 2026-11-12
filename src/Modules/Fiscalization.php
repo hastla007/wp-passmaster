@@ -465,10 +465,10 @@ final class Fiscalization {
 		if ( ! $doc ) { return new \WP_Error( 'wpcap_fiscal_document_missing', __( 'Fiskalvorgang wurde nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		$adapter = Registry::get( $doc->provider_id );
 		$seller = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
-		$config = $wpdb->get_row( $wpdb->prepare( "SELECT configuration FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
+		$config = $wpdb->get_row( $wpdb->prepare( "SELECT provider_id,configuration FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 		if ( ! $adapter || ! $seller || ! $config ) { return new \WP_Error( 'wpcap_fiscal_reconcile_unavailable', __( 'Anbieter oder Verkäuferdaten fehlen.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$configuration = $config['configuration'] ? (array) json_decode( $config['configuration'], true ) : array();
-		$configuration = Credentials::with_credentials( $configuration, $seller_id, $config['provider_id'] );
+		$configuration = Credentials::with_credentials( $configuration, (int) $doc->seller_id, $doc->provider_id );
 		$document = (array) json_decode( $doc->snapshot, true );
 		$document['document_id'] = (int) $doc->document_id;
 		$document['idempotency_key'] = $doc->document_key;
@@ -583,6 +583,7 @@ final class Fiscalization {
 		return array(
 			'wpcap_fiscal_save_seller' => array( __CLASS__, 'handle_admin_save_seller' ),
 			'wpcap_fiscal_save_provider' => array( __CLASS__, 'handle_admin_save_provider' ),
+			'wpcap_fiscal_save_credentials' => array( __CLASS__, 'handle_admin_save_credentials' ),
 			'wpcap_fiscal_save_profile' => array( __CLASS__, 'handle_admin_save_profile' ),
 			'wpcap_fiscal_assign_seller' => array( __CLASS__, 'handle_admin_assign_seller' ),
 			'wpcap_fiscal_retry_order' => array( __CLASS__, 'handle_admin_retry_order' ),
@@ -649,6 +650,30 @@ final class Fiscalization {
 		) );
 		$result = self::rest_save_provider( $request );
 		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'saved' );
+	}
+
+	public static function handle_admin_save_credentials() {
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
+		$seller_id = absint( $_POST['seller_id'] ?? 0 );
+		check_admin_referer( 'wpcap_fiscal_save_credentials_' . $seller_id );
+		$provider_id = sanitize_key( wp_unslash( $_POST['provider_id'] ?? '' ) );
+		global $wpdb;
+		$config = $wpdb->get_row( $wpdb->prepare( "SELECT provider_id FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $seller_id ), ARRAY_A );
+		if ( ! $config || $provider_id !== $config['provider_id'] || ! Registry::get( $provider_id ) ) { self::admin_redirect( 'credentials_error' ); }
+		$names = is_array( $_POST['credential_name'] ?? null ) ? wp_unslash( $_POST['credential_name'] ) : array();
+		$values = is_array( $_POST['credential_value'] ?? null ) ? wp_unslash( $_POST['credential_value'] ) : array();
+		$credentials = array();
+		for ( $i = 0; $i < min( 4, max( count( $names ), count( $values ) ) ); $i++ ) {
+			$name = sanitize_key( is_scalar( $names[ $i ] ?? null ) ? (string) $names[ $i ] : '' );
+			$value = is_scalar( $values[ $i ] ?? null ) ? (string) $values[ $i ] : '';
+			if ( '' === $name && '' === $value ) { continue; }
+			if ( '' === $name || '' === $value || isset( $credentials[ $name ] ) ) { self::admin_redirect( 'credentials_error' ); }
+			$credentials[ $name ] = $value;
+		}
+		$remove = is_array( $_POST['remove_credentials'] ?? null ) ? array_map( 'sanitize_key', wp_unslash( $_POST['remove_credentials'] ) ) : array();
+		$result = Credentials::save( $seller_id, $provider_id, $credentials, $remove );
+		if ( ! is_wp_error( $result ) ) { Audit::record( 'fiscal_credentials_updated', 'seller', $seller_id, array( 'provider_id' => $provider_id, 'credential_names' => array_values( array_unique( array_merge( array_keys( $credentials ), $remove ) ) ) ) ); }
+		self::admin_redirect( is_wp_error( $result ) ? 'credentials_error' : 'credentials_saved' );
 	}
 
 	public static function handle_admin_health_check() {
@@ -748,6 +773,23 @@ final class Fiscalization {
 			echo '<input type="hidden" name="action" value="wpcap_fiscal_health_check"><input type="hidden" name="seller_id" value="' . (int) $seller->seller_id . '">';
 			wp_nonce_field( 'wpcap_fiscal_health_check_' . (int) $seller->seller_id );
 			submit_button( __( 'Verbindung prüfen (keinen Beleg erstellen)', 'wp-pass-captain' ), 'secondary' );
+			echo '</form>';
+			$credential_names = Credentials::stored_names( (int) $seller->seller_id, $seller->provider_id );
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" class="wpcap-fiscal-credentials">';
+			wp_nonce_field( 'wpcap_fiscal_save_credentials_' . (int) $seller->seller_id );
+			echo '<input type="hidden" name="action" value="wpcap_fiscal_save_credentials"><input type="hidden" name="seller_id" value="' . (int) $seller->seller_id . '"><label>' . esc_html__( 'Zugangsdaten für Anbieter', 'wp-pass-captain' ) . ' <select name="provider_id" required>';
+			foreach ( $available as $adapter ) { echo '<option value="' . esc_attr( $adapter->id() ) . '" ' . selected( $seller->provider_id, $adapter->id(), false ) . '>' . esc_html( $adapter->id() ) . '</option>'; }
+			echo '</select></label>';
+			if ( $credential_names ) {
+				echo '<p>' . esc_html__( 'Gespeicherte Zugangsdaten (Werte werden nicht angezeigt):', 'wp-pass-captain' ) . ' <code>' . esc_html( implode( ', ', $credential_names ) ) . '</code></p><p>';
+				foreach ( $credential_names as $credential_name ) { echo '<label><input type="checkbox" name="remove_credentials[]" value="' . esc_attr( $credential_name ) . '"> ' . esc_html( sprintf( __( '%s löschen', 'wp-pass-captain' ), $credential_name ) ) . '</label> '; }
+				echo '</p>';
+			}
+			for ( $credential_row = 0; $credential_row < 4; $credential_row++ ) {
+				echo '<p><label>' . esc_html__( 'Feldname', 'wp-pass-captain' ) . ' <input name="credential_name[]" maxlength="64" pattern="[A-Za-z0-9_]+" autocomplete="off"></label> <label>' . esc_html__( 'Geheimer Wert', 'wp-pass-captain' ) . ' <input type="password" name="credential_value[]" maxlength="8192" autocomplete="new-password"></label></p>';
+			}
+			echo '<p class="description">' . esc_html__( 'Neue Werte werden verschlüsselt gespeichert. Vorhandene Werte bleiben erhalten, wenn Sie nur einzelne Felder ergänzen oder ersetzen. Die Verschlüsselung verwendet die WordPress-Salts aus wp-config.php; nach einer Salt-Rotation Zugangsdaten erneut eintragen.', 'wp-pass-captain' ) . '</p>';
+			submit_button( __( 'Zugangsdaten speichern', 'wp-pass-captain' ), 'secondary' );
 			echo '</form>';
 		}
 		echo '<hr><h2>' . esc_html__( 'Verkäufer je Ticketart', 'wp-pass-captain' ) . '</h2>';
