@@ -547,7 +547,7 @@ final class Fiscalization {
 		return rest_ensure_response( array( 'seller_id' => (int) $wpdb->insert_id ) );
 	}
 
-	public static function rest_save_profile( \\WP_REST_Request $request ) {
+	public static function rest_save_profile( \WP_REST_Request $request ) {
 		$result = self::save_profile( absint( $request['seller_id'] ), (array) $request->get_json_params() );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
