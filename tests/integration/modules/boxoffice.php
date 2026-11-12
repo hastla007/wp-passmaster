@@ -48,9 +48,10 @@ $type_b = wpb_add_type( $occ, 'Ermäßigt', 2140, 700, 0 );
 
 $no_session = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_a => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
 check( 'sale without open cash session is rejected', is_wp_error( $no_session ) && 'wpcap_pos_no_session' === $no_session->get_error_code() );
-$session = Pos::open_session( 10000 );
+$session = Pos::open_session( 10000, 'EUR', '', 23, 'BOX-OFFICE-2' );
 $again = Pos::open_session( 5000 );
 check( 'one open session per cashier (opening twice returns it)', ! is_wp_error( $session ) && (int) $session->session_id === (int) $again->session_id && 10000 === (int) $again->opening_float_minor );
+check( 'POS session retains its location and register assignment', 23 === (int) $again->location_id && 'BOX-OFFICE-2' === $again->register_id );
 
 $key = wpb_key();
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
