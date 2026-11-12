@@ -43,7 +43,7 @@ The POS response adds `tickets_issued` and `ticket_issuance_pending`. WooCommerc
 ## Remaining implementation before production
 
 - Build country-specific adapters and secure provider credential setup; the registry has no built-in provider.
-- Add an admin UI for sellers, mappings, and provider configuration; current endpoints are the initial configuration surface.
+- Improve the initial admin screen with seller editing/deactivation, provider credential setup through protected secret storage, and richer order-level fiscal diagnostics. Current configuration supports seller creation, provider selection/configuration, ticket-type mapping, and retrying terminal failures.
 - Add provider-aware QR/signature data to ticket/receipt templates and the required archive/export flows.
 - Implement partial refunds, credit notes, cancellation/void protocols, operator/day-end exports, and HU NAV reporting; a full-order refund is not yet translated into a provider credit note.
 - Define and validate accounting allocations for mixed ticket/non-ticket WooCommerce carts, discounts, fees, and centrally collected organizer proceeds.
