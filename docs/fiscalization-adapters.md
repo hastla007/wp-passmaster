@@ -41,7 +41,9 @@ The efsta and fiskaltrust adapters call an endpoint configured by the site opera
 
 fiskaly has multiple API families, not one interchangeable endpoint: SIGN AT and SIGN DE are separate adapters; FR/IT/PT/SE use the Unified API adapter. For Unified API ambiguous retries, the adapter only repeats creation calls within a conservative 20-hour window; older operations require manual provider-dashboard reconciliation to avoid duplicate fiscal records.
 
-Each adapter currently supports receipt submission and status recovery to the extent declared in its capabilities. Country-specific correction/void and refund credit-note workflows, authority exports, provider certification, customer sandbox acceptance, and hardware commissioning remain separate production work. Run only the exact provider/country/seller/channel/payment combinations that have passed those checks.
+The efsta adapter additionally exposes a narrowly scoped, one-time full-void action for eligible AT and DE order cancellations that were cancelled before payment. It uses the frozen original seller/document snapshot and EFR's `/register/void` endpoint. A durable one-shot lock prevents automatic resubmission after any attempt; an ambiguous or failed result requires checking EFR and recording the provider reference manually. This is not a refund, partial return, event cancellation, or Hungary workflow. HU corrections remain manual because the stored transaction does not yet capture all country-required correction data. fiskaly and fiskaltrust correction/refund operations remain manual.
+
+Other country-specific correction/void and refund credit-note workflows, authority exports, provider certification, customer sandbox acceptance, and hardware commissioning remain separate production work. Run only the exact provider/country/seller/channel/payment combinations that have passed those checks.
 
 ## Admin REST endpoints
 
