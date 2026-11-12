@@ -33,6 +33,10 @@ unset( $GLOBALS['wpcap_test_filters']['wpcap_fiscal_credentials'] );
 check( 'runtime credentials are added without changing public adapter settings', 'eu' === $runtime_config['region'] && 'secret-value' === $runtime_config['credentials']['api_secret'] );
 check( 'runtime credentials reject nested values and sanitize credential names', ! isset( $runtime_config['credentials']['badkey'] ) );
 
+$permanent_failure = new ReflectionMethod( FiscalizationModule::class, 'failure_is_permanent' );
+$permanent_failure->setAccessible( true );
+check( 'invalid provider and country configuration stops retrying immediately', true === $permanent_failure->invoke( null, 'country_unsupported' ) && true === $permanent_failure->invoke( null, 'capability_missing:daily_report' ) );
+check( 'transient provider errors retain automatic retry behavior', false === $permanent_failure->invoke( null, 'provider_error:timeout' ) );
 $normalizer = new ReflectionMethod( FiscalizationModule::class, 'normalize_provider_result' );
 $normalizer->setAccessible( true );
 $normalized = $normalizer->invoke( null, array(
