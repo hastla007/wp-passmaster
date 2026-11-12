@@ -299,7 +299,7 @@ final class Fiscalization {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
 		$order_id = absint( $_POST['order_id'] ?? 0 );
 		check_admin_referer( 'wpcap_fiscal_retry_order_' . $order_id );
-		$request = new \\WP_REST_Request( 'POST' );
+		$request = new \WP_REST_Request( 'POST' );
 		$request->set_param( 'order_id', $order_id );
 		$result = self::rest_retry_order( $request );
 		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'retried' );
@@ -328,7 +328,7 @@ final class Fiscalization {
 		$adapters = Registry::all();
 		$result = sanitize_key( $_GET['fiscal_result'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only status.
 		echo '<div class="wrap"><h1>' . esc_html__( 'Fiskalisierung', 'wp-pass-captain' ) . '</h1>';
-		if ( 'saved' === $result ) { echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Änderung gespeichert.', 'wp-pass-captain' ) . '</p></div>'; }
+		if ( in_array( $result, array( 'saved', 'retried' ), true ) ) { echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Änderung gespeichert.', 'wp-pass-captain' ) . '</p></div>'; }
 		if ( 'error' === $result || 'invalid_json' === $result ) { echo '<div class="notice notice-error"><p>' . esc_html__( 'Änderung fehlgeschlagen. Eingaben, Adapter und Länderunterstützung prüfen.', 'wp-pass-captain' ) . '</p></div>'; }
 		echo '<p>' . esc_html__( 'Fiskalbelege werden je Rechtsträger erstellt. Ein zugeordnetes Ticket wird erst ausgegeben, wenn der konfigurierte Adapter den Beleg bestätigt.', 'wp-pass-captain' ) . '</p>';
 		echo '<h2>' . esc_html__( 'Rechtsträger anlegen', 'wp-pass-captain' ) . '</h2><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
