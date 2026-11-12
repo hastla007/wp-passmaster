@@ -51,6 +51,13 @@ final class OrderAdapter {
 		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', WPCAP_FILE, true );
 	}
 
+	/** Displays submitted seller-specific fiscal receipts on the customer order-details page. */
+	public static function render_fiscal_receipts( $wc_order ) {
+		if ( ! is_object( $wc_order ) || ! is_callable( array( $wc_order, 'get_meta' ) ) ) { return; }
+		$core_id = absint( $wc_order->get_meta( self::ORDER_META, true ) );
+		if ( $core_id ) { echo \PassCaptain\Fiscalization\ReceiptRenderer::render( $core_id ); } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- renderer escapes all provider-controlled values.
+	}
+
 	/** Registers hooks when WooCommerce is active. */
 	public static function register() {
 		if ( ! class_exists( '\\WooCommerce' ) ) {
@@ -91,6 +98,7 @@ final class OrderAdapter {
 
 		// Display and admin tools.
 		add_action( 'woocommerce_order_details_after_order_table', array( __CLASS__, 'render_customer_tickets' ) );
+		add_action( 'woocommerce_order_details_after_order_table', array( __CLASS__, 'render_fiscal_receipts' ), 20 );
 		add_action( 'add_meta_boxes', array( __CLASS__, 'add_meta_box' ) );
 		add_filter( 'woocommerce_order_actions', array( __CLASS__, 'order_actions' ), 10, 2 );
 		add_action( 'woocommerce_order_action_wpcap_resend_tickets', array( __CLASS__, 'action_resend_tickets' ) );
