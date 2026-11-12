@@ -104,7 +104,12 @@ final class Adapter {
 				'method'     => in_array( $touch['method'] ?? '', array( 'link', 'cookie', 'app' ), true ) ? $touch['method'] : 'link',
 				'campaign'   => substr( sanitize_text_field( (string) ( $touch['campaign'] ?? '' ) ), 0, 100 ),
 				'content_id' => absint( $touch['content_id'] ?? 0 ),
+				'ts'         => absint( $touch['ts'] ?? 0 ),
 			);
+		}
+		// Only a logged-in buyer is a verified customer identity (a typed guest e-mail is not).
+		if ( $visitor_request && function_exists( 'get_current_user_id' ) && get_current_user_id() ) {
+			$referral['customer_user_id'] = (int) get_current_user_id();
 		}
 		self::update_snapshot( $order_id, array( 'affiliate_referral' => $referral ) );
 	}
@@ -141,7 +146,7 @@ final class Adapter {
 			'currency'     => (string) $order->currency,
 			'paid_at'      => (string) $order->updated_at,
 			'coupon_codes' => array_values( array_filter( array_map( static function ( $campaign ) { return is_array( $campaign ) ? (string) ( $campaign['code'] ?? '' ) : ''; }, (array) ( $snapshot['campaigns'] ?? array() ) ) ) ),
-			'customer'     => array( 'user_id' => self::user_id_for( $order->customer_email ), 'email' => (string) $order->customer_email ),
+			'customer'     => array( 'user_id' => absint( $referral['customer_user_id'] ?? 0 ), 'email' => (string) $order->customer_email ),
 			'items'        => array_map( array( __CLASS__, 'public_item' ), $items ),
 		);
 		if ( ! empty( $referral['code'] ) ) {
@@ -325,12 +330,6 @@ final class Adapter {
 	private static function public_item( $item ) {
 		unset( $item['_type_id'], $item['_event_end'] );
 		return $item;
-	}
-
-	private static function user_id_for( $email ) {
-		if ( ! function_exists( 'get_user_by' ) ) { return 0; }
-		$user = get_user_by( 'email', (string) $email );
-		return $user ? (int) $user->ID : 0;
 	}
 
 	/** Calls the contract function; failures never break the Pass Captain flow but are audited. */
