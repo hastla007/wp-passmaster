@@ -435,6 +435,7 @@ final class Fiscalization {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$sellers = $wpdb->get_results( "SELECT s.*,c.provider_id,c.configuration,c.enabled FROM {$p}wpcap_legal_sellers s LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id ORDER BY s.legal_name" );
+		$profiles = $wpdb->get_results( "SELECT fp.*,s.legal_name FROM {$p}wpcap_fiscal_profiles fp INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=fp.seller_id ORDER BY fp.updated_at DESC" );
 		$types = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.name AS ticket_name,e.name AS event_name,ts.seller_id,ts.seller_mode FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_sellers ts ON ts.ticket_type_id=tt.ticket_type_id ORDER BY e.name,tt.name" );
 		$adapters = Registry::all();
 		$result = sanitize_key( $_GET['fiscal_result'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only status.
@@ -445,8 +446,27 @@ final class Fiscalization {
 		echo '<h2>' . esc_html__( 'Rechtsträger anlegen', 'wp-pass-captain' ) . '</h2><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'wpcap_fiscal_save_seller' );
 		echo '<input type="hidden" name="action" value="wpcap_fiscal_save_seller"><table class="form-table"><tr><th><label for="fiscal-legal-name">' . esc_html__( 'Rechtlicher Name', 'wp-pass-captain' ) . '</label></th><td><input required id="fiscal-legal-name" name="legal_name" class="regular-text"></td></tr><tr><th><label for="fiscal-country">' . esc_html__( 'Land', 'wp-pass-captain' ) . '</label></th><td><select id="fiscal-country" name="country_code"><option value="AT">AT</option><option value="DE">DE</option><option value="HU">HU</option></select></td></tr><tr><th><label for="fiscal-tax">' . esc_html__( 'Steuernummer / VAT-ID', 'wp-pass-captain' ) . '</label></th><td><input id="fiscal-tax" name="tax_number" class="regular-text"></td></tr></table>';
+		echo '<p><label>' . esc_html__( 'VAT-ID', 'wp-pass-captain' ) . ' <input name="vat_id" class="regular-text"></label> <label>' . esc_html__( 'Kontakt-E-Mail', 'wp-pass-captain' ) . ' <input name="contact_email" type="email"></label></p>';
+		echo '<p><label>' . esc_html__( 'Geschäftsadresse', 'wp-pass-captain' ) . ' <input name="address_street" placeholder="Straße" class="regular-text"></label> <input name="address_postal_code" placeholder="PLZ"> <input name="address_city" placeholder="Ort"> <input name="address_region" placeholder="Region"> <input name="address_country" placeholder="Land"></p>';
 		submit_button( __( 'Rechtsträger speichern', 'wp-pass-captain' ) );
-		echo '</form><hr><h2>' . esc_html__( 'Anbieter konfigurieren', 'wp-pass-captain' ) . '</h2>';
+		echo '</form><hr><h2>' . esc_html__( 'Länder- und Verkaufskanalprofil', 'wp-pass-captain' ) . '</h2>';
+		echo '<p>' . esc_html__( 'Ein Produktivprofil erfordert dokumentierte fachliche Prüfung. Die Plugin-Freigabe ersetzt keine rechtliche oder steuerliche Prüfung.', 'wp-pass-captain' ) . '</p>';
+		if ( $sellers ) {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			echo '<input type="hidden" name="action" value="wpcap_fiscal_save_profile"><label>' . esc_html__( 'Verkäufer', 'wp-pass-captain' ) . ' <select name="seller_id">';
+			foreach ( $sellers as $seller ) { echo '<option value="' . (int) $seller->seller_id . '">' . esc_html( $seller->legal_name . ' (' . $seller->country_code . ')' ) . '</option>'; }
+			echo '</select></label> <label>' . esc_html__( 'Kanal', 'wp-pass-captain' ) . ' <select name="channel"><option value="pos">POS/Abendkasse</option><option value="woocommerce">WooCommerce</option><option value="native">Native Kasse</option></select></label> <label>' . esc_html__( 'Umgebung', 'wp-pass-captain' ) . ' <select name="environment"><option value="test">Test</option><option value="production">Produktion</option></select></label> <label>' . esc_html__( 'Status', 'wp-pass-captain' ) . ' <select name="status"><option value="draft">Entwurf</option><option value="test">Test</option><option value="active">Produktiv</option><option value="suspended">Gesperrt</option></select></label><p><label>' . esc_html__( 'Regelwerk/Profil', 'wp-pass-captain' ) . ' <input name="ruleset_key" class="regular-text" placeholder="AT_RKSV / DE_KASSENSICHV / HU_NAV"></label> <label>' . esc_html__( 'Regelwerkversion', 'wp-pass-captain' ) . ' <input name="ruleset_version"></label></p><p><label>' . esc_html__( 'Rechts-/Prüfreferenz', 'wp-pass-captain' ) . ' <input name="legal_reference" class="large-text"></label></p><label><input type="checkbox" name="review_attested" value="1"> ' . esc_html__( 'Ich bestätige die fachliche Prüfung und Freigabe dieses Profils.', 'wp-pass-captain' ) . '</label>';
+			submit_button( __( 'Profil speichern', 'wp-pass-captain' ) );
+			echo '</form>';
+		}
+		echo '<h3>' . esc_html__( 'Gespeicherte Profile', 'wp-pass-captain' ) . '</h3>';
+		if ( ! $profiles ) { echo '<p>' . esc_html__( 'Keine Länderprofile gespeichert.', 'wp-pass-captain' ) . '</p>'; }
+		else {
+			echo '<table class="widefat striped"><thead><tr><th>Verkäufer</th><th>Land/Kanal</th><th>Umgebung</th><th>Status</th><th>Regelwerk</th><th>Version</th></tr></thead><tbody>';
+			foreach ( $profiles as $profile ) { echo '<tr><td>' . esc_html( $profile->legal_name ) . '</td><td>' . esc_html( $profile->country_code . ' / ' . $profile->channel ) . '</td><td>' . esc_html( $profile->environment ) . '</td><td>' . esc_html( $profile->status ) . '</td><td>' . esc_html( $profile->ruleset_key . ' ' . $profile->ruleset_version ) . '</td><td>' . (int) $profile->profile_version . '</td></tr>'; }
+			echo '</tbody></table>';
+		}
+		echo '<hr><h2>' . esc_html__( 'Anbieter konfigurieren', 'wp-pass-captain' ) . '</h2>';
 		if ( ! $adapters ) { echo '<p>' . esc_html__( 'Noch kein Fiskaladapter installiert. Anbieter bleiben deaktiviert, bis ein Adapter registriert wurde.', 'wp-pass-captain' ) . '</p>'; }
 		foreach ( $sellers as $seller ) {
 			$config = $seller->configuration ? (array) json_decode( $seller->configuration, true ) : array();
