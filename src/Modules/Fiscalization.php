@@ -159,6 +159,7 @@ final class Fiscalization {
 		add_filter( 'wpcap_order_fiscal_ready', array( __CLASS__, 'fiscal_ready' ), 10, 2 );
 		add_action( 'wpcap_tickets_issued', array( __CLASS__, 'mark_fulfilled' ), 10, 2 );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'record_refund_adjustment' ), 10, 2 );
+		add_action( 'wpcap_woocommerce_non_ticket_refund', array( __CLASS__, 'record_non_ticket_refund' ), 10, 4 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'record_order_cancellation' ), 10, 3 );
 		add_action( 'wpcap_event_cancelled', array( __CLASS__, 'record_event_cancellation' ), 10, 1 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
@@ -538,6 +539,56 @@ final class Fiscalization {
 			'provider_action' => 'manual_review_required',
 		);
 		self::record_adjustment_events( absint( $order_id ), 'refund_adjustment', $metadata, array_values( array_unique( $ticket_types ) ) );
+	}
+
+	/** Record refunded non-ticket WooCommerce lines against the seller snapshots used at sale time. */
+	public static function record_non_ticket_refund( $order_id, $refund_id, $currency, array $lines ) {
+		global $wpdb;
+		$order_id = absint( $order_id );
+		if ( ! $order_id || ! $lines ) { return; }
+		$docs = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d AND status='submitted' ORDER BY seller_id",
+			$order_id
+		) );
+		foreach ( $docs as $doc ) {
+			$snapshot = json_decode( $doc->snapshot, true );
+			$snapshot_items = is_array( $snapshot['items'] ?? null ) ? $snapshot['items'] : array();
+			$by_key = array();
+			foreach ( $snapshot_items as $snapshot_item ) {
+				$key = sanitize_key( $snapshot_item['line_key'] ?? '' );
+				if ( '' !== $key ) { $by_key[ $key ] = $snapshot_item; }
+			}
+			$allocated = array();
+			$unmatched = array();
+			foreach ( $lines as $line ) {
+				$key = sanitize_key( $line['line_key'] ?? '' );
+				if ( '' === $key || ! isset( $by_key[ $key ] ) ) {
+					$unmatched[] = array(
+						'line_key' => $key,
+						'amount_minor' => absint( $line['amount_minor'] ?? 0 ),
+					);
+					continue;
+				}
+				$allocated[] = array(
+					'line_key' => $key,
+					'product_id' => absint( $by_key[ $key ]['product_id'] ?? 0 ),
+					'description' => sanitize_text_field( $by_key[ $key ]['description'] ?? '' ),
+					'quantity' => absint( $line['quantity'] ?? 0 ),
+					'amount_minor' => absint( $line['amount_minor'] ?? 0 ),
+					'tax_minor' => absint( $line['tax_minor'] ?? 0 ),
+				);
+			}
+			if ( ! $allocated && ! $unmatched ) { continue; }
+			self::record_event( $doc, 'refund_adjustment', 'manual_required', array(
+				'adjustment_kind' => 'refund_credit_note_or_correction',
+				'refund_id' => absint( $refund_id ),
+				'currency' => sanitize_text_field( $currency ),
+				'allocated_items' => $allocated,
+				'unmatched_items' => $unmatched,
+				'seller_allocation_required' => (bool) $unmatched,
+				'provider_action' => 'manual_review_required',
+			) );
+		}
 	}
 
 	/** Record the required provider action when a completed fiscal document's order is cancelled. */
