@@ -10004,3 +10004,11 @@ msgstr ""
 #: templates/event-card.php:97
 msgid "Gutschein- oder Rabattcode (optional)"
 msgstr ""
+
+#: src/PublicEvents.php:94
+msgid "Systemfehler – das Ticket wurde nicht geprüft. Bitte erneut scannen."
+msgstr ""
+
+#: src/PublicEvents.php:95
+msgid "Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen."
+msgstr ""

@@ -91,6 +91,8 @@ final class PublicEvents {
 			/* translators: %s: scanner mode, e.g. "Einlass" */
 			'modeBanner' => __( 'Modus: %s', 'wp-pass-captain' ),
 			'modeIn' => __( 'Einlass', 'wp-pass-captain' ),
+			'systemError' => __( 'Systemfehler – das Ticket wurde nicht geprüft. Bitte erneut scannen.', 'wp-pass-captain' ),
+			'sessionExpired' => __( 'Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen.', 'wp-pass-captain' ),
 		) ) );
 	}
 

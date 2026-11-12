@@ -10027,3 +10027,11 @@ msgstr "Deze bestelpoging is afgebroken. Verstuur het formulier opnieuw."
 #: templates/event-card.php:97
 msgid "Gutschein- oder Rabattcode (optional)"
 msgstr "Voucher- of kortingscode (optioneel)"
+
+#: src/PublicEvents.php:94
+msgid "Systemfehler – das Ticket wurde nicht geprüft. Bitte erneut scannen."
+msgstr "Systeemfout – het ticket is niet gecontroleerd. Scan opnieuw."
+
+#: src/PublicEvents.php:95
+msgid "Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen."
+msgstr "Sessie verlopen – laad de pagina opnieuw en scan opnieuw."

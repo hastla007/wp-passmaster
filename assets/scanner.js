@@ -271,6 +271,12 @@
 				return;
 			}
 			const data = await response.json().catch(function () { return {}; });
+			// Server fault, busy database or expired session: not a verdict on the ticket – never show "no entry".
+			const code = String(data.code || '');
+			if (response.status >= 500 || code === 'rest_cookie_invalid_nonce' || /retry|busy/.test(code)) {
+				show('warning', (code === 'rest_cookie_invalid_nonce' ? (t.sessionExpired || 'Session expired – reload the page.') : (t.systemError || 'System error – scan again.')) + (data.message && response.status < 500 ? ' (' + data.message + ')' : ''));
+				return;
+			}
 			if (!response.ok) throw new Error(data.message || t.invalid || 'Invalid ticket.');
 			show('success', (data.status === 'checked_out' ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + data.event + ' — ' + data.ticket);
 			input.value = '';

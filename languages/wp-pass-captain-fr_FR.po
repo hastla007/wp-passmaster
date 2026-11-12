@@ -10027,3 +10027,11 @@ msgstr "Cette tentative de commande a été annulée. Veuillez renvoyer le formu
 #: templates/event-card.php:97
 msgid "Gutschein- oder Rabattcode (optional)"
 msgstr "Code de bon ou de réduction (facultatif)"
+
+#: src/PublicEvents.php:94
+msgid "Systemfehler – das Ticket wurde nicht geprüft. Bitte erneut scannen."
+msgstr "Erreur système – le billet n'a pas été vérifié. Veuillez scanner à nouveau."
+
+#: src/PublicEvents.php:95
+msgid "Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen."
+msgstr "Session expirée – veuillez recharger la page et scanner à nouveau."

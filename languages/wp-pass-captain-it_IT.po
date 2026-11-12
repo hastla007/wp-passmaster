@@ -10027,3 +10027,11 @@ msgstr "Questo tentativo di ordine è stato annullato. Invia di nuovo il modulo.
 #: templates/event-card.php:97
 msgid "Gutschein- oder Rabattcode (optional)"
 msgstr "Codice buono o sconto (facoltativo)"
+
+#: src/PublicEvents.php:94
+msgid "Systemfehler – das Ticket wurde nicht geprüft. Bitte erneut scannen."
+msgstr "Errore di sistema – il biglietto non è stato verificato. Scansiona di nuovo."
+
+#: src/PublicEvents.php:95
+msgid "Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen."
+msgstr "Sessione scaduta – ricarica la pagina e scansiona di nuovo."

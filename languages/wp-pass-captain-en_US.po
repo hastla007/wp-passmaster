@@ -10028,3 +10028,11 @@ msgstr "This order attempt was cancelled. Please submit the form again."
 #: templates/event-card.php:97
 msgid "Gutschein- oder Rabattcode (optional)"
 msgstr "Voucher or discount code (optional)"
+
+#: src/PublicEvents.php:94
+msgid "Systemfehler – das Ticket wurde nicht geprüft. Bitte erneut scannen."
+msgstr "System error – the ticket was not checked. Please scan again."
+
+#: src/PublicEvents.php:95
+msgid "Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen."
+msgstr "Session expired – please reload the page and scan again."
