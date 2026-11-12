@@ -11,7 +11,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 	public function id() { return 'fiskaltrust_pos'; }
 	public function interface_version() { return AdapterInterface::VERSION; }
 	public function countries() { return array( 'AT', 'BE', 'DE', 'ES', 'FR', 'GR', 'IT', 'PT' ); }
-	public function capabilities() { return array( 'receipt_submit', 'operation_status', 'receipt_qr_payload', 'daily_report', 'journal_export', 'receipt_correction' ); }
+	public function capabilities() { return array( 'receipt_submit', 'operation_status', 'receipt_qr_payload', 'daily_report', 'journal_export' ); }
 
 	public function health_check( array $seller, array $configuration ) {
 		$auth = $this->headers( $configuration, ProviderHttp::uuid_from_key( 'health|' . (int) ( $seller['seller_id'] ?? 0 ) ) );
