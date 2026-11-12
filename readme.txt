@@ -4,7 +4,7 @@ Tags: events, tickets, check-in, booking, woocommerce
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.2
-Stable tag: 1.1.0
+Stable tag: 1.3.0
 WC requires at least: 8.2
 WC tested up to: 11.3
 License: GPLv2 or later
