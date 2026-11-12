@@ -6,11 +6,11 @@ Diese Ausbaustufen folgen auf den eigenständigen Event-, Verkaufs- und Einlassk
 
 Versionierten Servicevertrag mit Capability-Erkennung, Quote, Reservierung, Commit und Release veröffentlichen. Abnahme: Beide Plugins laufen weiterhin allein; unbekannte Bridge-Versionen werden sicher abgewiesen.
 
-## 12. Voucher im Checkout — offen
+## 12. Voucher im Checkout — umgesetzt
 
 Gutschein- und Guthabenprüfung mit Warenkorbkontext, Währung, Termin, Ticketarten und Stapelregeln einbinden. Abnahme: Keine direkten Tabellenzugriffe, parallele Nutzung wird beim Voucher-System reserviert.
 
-## 13. Einlösung und Erstattung über die Bridge — Vertrag vorhanden, Orchestrierung offen
+## 13. Einlösung und Erstattung über die Bridge — umgesetzt (Checkout-Commit mit Wiederholung, Gutschein → Ticket, anteilige Erstattung)
 
 Ticket-Ausgabe nach bestätigter Voucher-Einlösung und Rückabwicklung mit Positionszuordnung implementieren. Abnahme: Commit, Release, Refund und Wiederholung sind idempotent und revisionsfähig.
 
