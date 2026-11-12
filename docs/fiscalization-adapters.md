@@ -9,16 +9,16 @@ This document describes the first implementation layer for seller-aware fiscaliz
 - A mixed cart may contain ticket types belonging to different sellers. During the existing `wpcap_order_creating` transaction, the module stores an immutable seller/profile snapshot per mapped ticket type and freezes one fiscal document with its lines per seller where fiscalization applies.
 - Each document gets a stable SHA-256 idempotency key based on the Pass Captain order and seller. Gross, tax, currency, seller identity, seller mode, and the payment channel/method are snapshotted; later profile edits do not change an existing document.
 - Ticket issue is gated by `wpcap_order_fiscal_ready`. Mapped orders do not issue tickets until every seller document has status `submitted`. An explicit reviewed `not_required` profile is supported; without any seller mapping, existing sales keep their previous behavior. A missing or unsupported active profile blocks the mapped order before payment.
-- Failed calls retry with exponential delays, capped at eight automatic attempts. The admin-only retry endpoint can restart terminal failures.
+- Failed calls retry with exponential delays, capped at eight automatic attempts. An append-only event table records submission, status lookup, and reconciliation checkpoints without storing raw provider response bodies. The admin screen can reconcile ambiguous operations and restart terminal failures.
 
 ## Provider adapter contract
 
-Implement `PassCaptain\\Fiscalization\\AdapterInterface` (contract version 2) and register it with the `wpcap_fiscal_adapters` filter. Adapters report capabilities and implement a non-mutating health check and idempotency-key status lookup. The adapter must:
+Implement `PassCaptain\\Fiscalization\\AdapterInterface` (contract version 2) and register it with the `wpcap_fiscal_adapters` filter. An adapter reports country codes and machine-readable capabilities, implements a non-mutating health check and an idempotency-key status lookup, and submits normalized receipts. Every adapter must declare the core capabilities `receipt_submit` and `operation_status`; profiles may require more. The adapter must:
 
 1. Return a stable lowercase provider ID from `id()`.
 2. Declare the supported country codes from `countries()`.
 3. Implement `submit($document, $seller, $configuration)`.
-4. Use `$document['idempotency_key']` for every remote submission and reconcile ambiguous timeouts with the provider before attempting another create.
+4. Use `$document['idempotency_key']` for every remote submission. On retries the core calls `query_status()` first; only an explicit `not_found` permits another submit. An unknown status blocks ticket issuance and submission.
 5. Return an array with a non-empty stable `reference` on success, or a `WP_Error` on failure. Printable QR/signature/receipt fields belong in that result and should be rendered only by a later provider-aware ticket/receipt view.
 6. Keep API secrets out of the general configuration table. Load credentials from adapter-owned secret storage, constants, environment, or another protected credential store.
 
@@ -30,9 +30,11 @@ All endpoints require an authenticated user with `manage_options`:
 
 - `GET /wp-json/wp-pass-captain/v1/fiscal/sellers`
 - `POST /wp-json/wp-pass-captain/v1/fiscal/sellers` with `legal_name`, `country_code` (`AT`, `DE`, or `HU`), and seller tax/address details
-- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/profiles` with the seller/channel scope, environment, status, reviewed rule-set/version, and legal reference
+- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/profiles` with the seller/channel scope, environment, status, reviewed rule-set/version, legal reference, and additional required capability keys
 - `PUT /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/provider` with `provider_id`, `enabled`, and non-secret `configuration`
+- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/health-check` runs a provider health check without creating a receipt
 - `PUT /wp-json/wp-pass-captain/v1/fiscal/ticket-types/{ticket_type_id}/seller` with `seller_id` and `seller_mode`
+- `POST /wp-json/wp-pass-captain/v1/fiscal/documents/{document_id}/reconcile` queries an ambiguous provider result
 - `POST /wp-json/wp-pass-captain/v1/fiscal/orders/{order_id}/retry` to retry terminal failures
 
 Example seller modes are `organizer_seller` (organizer is seller and invoice issuer) and `platform_seller` (central operating company is seller and issuer). The selected entity must be a legally correct seller for the transaction. Profile activation records the reviewer, reference, and profile version. `not_required` must be an explicit reviewed decision; the system does not infer an exemption from the country alone.
