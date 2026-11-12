@@ -121,6 +121,19 @@ final class Fiscalization {
 				KEY seller_orders (seller_id,order_id),
 				KEY profile_id (profile_id)
 			) ENGINE=InnoDB {$charset};",
+			"CREATE TABLE {$prefix}wpcap_fiscal_events (
+				event_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				document_id bigint(20) unsigned NOT NULL,
+				order_id bigint(20) unsigned NOT NULL,
+				provider_id varchar(64) NOT NULL DEFAULT '',
+				event_type varchar(32) NOT NULL,
+				event_status varchar(24) NOT NULL,
+				metadata longtext NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (event_id),
+				KEY document_events (document_id,event_id),
+				KEY order_events (order_id,event_id)
+			) ENGINE=InnoDB {$charset};",
 			"CREATE TABLE {$prefix}wpcap_fiscal_document_items (
 				document_id bigint(20) unsigned NOT NULL,
 				ticket_type_id bigint(20) unsigned NOT NULL,
@@ -160,6 +173,8 @@ final class Fiscalization {
 		$location_id = absint( $input['location_id'] ?? 0 );
 		$register_id = sanitize_text_field( $input['register_id'] ?? '' );
 		$data = is_array( $input['profile_data'] ?? null ) ? $input['profile_data'] : array();
+		$required = is_array( $input['required_capabilities'] ?? null ) ? $input['required_capabilities'] : preg_split( '/[,\\s]+/', (string) ( $input['required_capabilities'] ?? '' ), -1, PREG_SPLIT_NO_EMPTY );
+		$data['required_capabilities'] = array_values( array_unique( array_filter( array_map( 'sanitize_key', (array) $required ) ) ) );
 		if ( ! $seller || 'active' !== $seller->status || ! in_array( $channel, array( 'pos', 'woocommerce', 'native' ), true ) || ! in_array( $environment, array( 'test', 'production' ), true ) || ! in_array( $status, array( 'draft', 'test', 'active', 'not_required', 'suspended' ), true ) || self::contains_secret_key( $data ) ) {
 			return new \WP_Error( 'wpcap_fiscal_profile_invalid', __( 'Fiskalprofil, Verkäufer oder nicht geheime Konfiguration ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
@@ -438,6 +453,7 @@ final class Fiscalization {
 			'ruleset_key' => sanitize_key( wp_unslash( $_POST['ruleset_key'] ?? '' ) ),
 			'ruleset_version' => sanitize_text_field( wp_unslash( $_POST['ruleset_version'] ?? '' ) ),
 			'legal_reference' => sanitize_text_field( wp_unslash( $_POST['legal_reference'] ?? '' ) ),
+			'required_capabilities' => sanitize_text_field( wp_unslash( $_POST['required_capabilities'] ?? '' ) ),
 			'review_attested' => ! empty( $_POST['review_attested'] ),
 		);
 		$result = self::save_profile( $seller_id, $input );
@@ -516,6 +532,7 @@ final class Fiscalization {
 			submit_button( __( 'Profil speichern', 'wp-pass-captain' ) );
 			echo '</form>';
 		}
+					echo '<p><label>' . esc_html__( 'Zusätzliche Adapterfähigkeiten (Komma-getrennt)', 'wp-pass-captain' ) . ' <input name="required_capabilities" class="large-text" placeholder="receipt_qr_payload, transaction_begin, transaction_finish, daily_report"></label></p>';
 		echo '<h3>' . esc_html__( 'Gespeicherte Profile', 'wp-pass-captain' ) . '</h3>';
 		if ( ! $profiles ) { echo '<p>' . esc_html__( 'Keine Länderprofile gespeichert.', 'wp-pass-captain' ) . '</p>'; }
 		else {
