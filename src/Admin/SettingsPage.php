@@ -247,6 +247,7 @@ final class SettingsPage {
 		<div class="wrap wpcap-admin">
 		<h1><?php esc_html_e( 'Pass Captain Einstellungen', 'wp-pass-captain' ); ?></h1>
 		<?php Forms::render_notices(); ?>
+		<?php \PassCaptain\Integrations\Vouchers\IntegrationStatus::render(); ?>
 		<?php Forms::open_form( 'wpcap_save_settings' ); ?>
 		<?php foreach ( self::field_definitions() as $id => $section ) : ?>
 			<h2 id="wpcap-settings-<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $section['title'] ); ?></h2>

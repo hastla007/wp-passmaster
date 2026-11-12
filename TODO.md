@@ -56,7 +56,7 @@ Dieses Backlog begleitet `CONCEPT.md`. Ticket Captain und Voucher Captain bleibe
 - [x] VCAP-Guthaben mit Quote/Reserve/Commit/Release/Refund nutzen; keine direkten Tabellenzugriffe.
 - [x] VCAP-Gutschein nach erfolgreicher Einlösung mit definierter Ticket-/Eventzielzuordnung genau einmal in ein Ticket umwandeln (`wp_pass_captain_ticket_service_v1`).
 - [x] Timeout, Retry, doppelte und parallele Requests sowie Teilrefunds zwischen beiden Plugins nachvollziehbar abbilden. *(Idempotenz-Schlüssel, Job `voucher_commit`, anteilige Rückgabe bei Ticket-Erstattung, Audit-Log)*
-- [ ] Optionalen Scanner-Handler für `TCAP:` registrieren und gemeinsamen Scanner aus beiden Admin-Menüs verlinken.
+- [x] Optionalen Scanner-Handler registrieren und gemeinsamen Scanner aus beiden Admin-Menüs verlinken. *(`wp_pass_captain_checkin_service_v1`; Pass-Captain-Tickets am 64-stelligen Code erkannt)*
 - [x] Beide Plugins behalten unabhängige Menüs, Plugin-Einträge und Solo-Betrieb.
 
 ## P1 – Optionaler WooCommerce-Adapter

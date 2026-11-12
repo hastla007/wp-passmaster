@@ -88,6 +88,25 @@ PassCaptain\Refunds::request( $ro['order_id'], array(), 'Test', 'zz-e2e-refund' 
 $refund_mails = array_values( array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails_before ), static fn( $m ) => 'refundmail@example.com' === $m['to'] && str_starts_with( $m['subject'], 'Erstattung bestätigt' ) ) );
 check( 'buyer receives a refund confirmation', 1 === count( $refund_mails ) && false !== strpos( $refund_mails[0]['body'], '15,00' ) || false !== strpos( $refund_mails[0]['body'] ?? '', '15.00' ) );
 
+echo "Integration: shared scanner (check-in service)\n";
+// Shared scanner: another plugin's scanner hands Pass Captain tickets to the check-in service.
+$checkin_service = PassCaptain\Integrations\Vouchers\CheckinService::service( null, 1 );
+$scan_order = Orders::create( array( 'email' => 'scan@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 5, 10, 0 ), 'quantity' => 1 ) ), 'idempotency_key' => 'scan-1' ) );
+$scan_token = is_wp_error( $scan_order ) ? '' : (string) ( ticket_code_for( $scan_order['order_id'] )[0] ?? '' );
+check( 'the check-in service recognises ticket codes and URLs, not voucher codes', $checkin_service->recognizes( str_repeat( 'a', 64 ) ) && $checkin_service->recognizes( 'https://example.com/?wpcap_ticket=' . str_repeat( 'b', 64 ) ) && ! $checkin_service->recognizes( 'GIFT-ABCD-1234' ) && ! $checkin_service->recognizes( str_repeat( 'c', 48 ) ) );
+check( 'a ticket code for the shared scanner test exists', '' !== $scan_token );
+if ( '' !== $scan_token ) {
+	$pv = $checkin_service->preview( $scan_token );
+	$ci = $checkin_service->check_in( $scan_token, 'shared-scan-1' );
+	$ci_again = $checkin_service->check_in( $scan_token, 'shared-scan-1' );
+	$ci_other = $checkin_service->check_in( $scan_token, 'shared-scan-2' );
+	check( 'the shared scanner previews and checks a ticket in exactly once', is_array( $pv ) && 'valid' === $pv['status'] && is_array( $ci ) && 'checked_in' === $ci['status'] && is_array( $ci_again ) && ! empty( $ci_again['replayed'] ) && ( is_wp_error( $ci_other ) || 'already_checked_in' === ( $ci_other['status'] ?? '' ) ) );
+}
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_checkin' );
+check( 'the check-in service refuses users without the check-in capability', is_wp_error( $checkin_service->check_in( str_repeat( 'a', 64 ) ) ) && 'wpcap_checkin_forbidden' === $checkin_service->preview( str_repeat( 'a', 64 ) )->get_error_code() );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+$status_rows = PassCaptain\Integrations\Vouchers\IntegrationStatus::rows();
+check( 'without Voucher Captain the status says so and nothing else is offered', 1 === count( $status_rows ) && false === array_values( $status_rows )[0][0] );
 echo "Integration: transaction state per database server\n";
 $tracks = new ReflectionMethod( PassCaptain\Orders::class, 'server_tracks_transactions' );
 $tracks->setAccessible( true );

@@ -40,6 +40,7 @@ final class Plugin {
 		Invoices::register();
 		Integrations\Vouchers\Checkout::register();
 		Integrations\Vouchers\TicketService::register();
+		Integrations\Vouchers\CheckinService::register();
 		Integrations\AffiliateCaptain\Adapter::register();
 		Notifications::register();
 		Payments\PayPalGateway::register();

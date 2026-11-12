@@ -89,5 +89,10 @@ final class Menu {
 			add_submenu_page( self::SLUG, $title, $title, $cap, $slug, $callback );
 		}
 		add_submenu_page( self::SLUG, __( 'Einstellungen', 'wp-pass-captain' ), __( 'Einstellungen', 'wp-pass-captain' ), SettingsPage::CAP, SettingsPage::SLUG, array( SettingsPage::class, 'render' ) );
+		if ( \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) {
+			// Links into Voucher Captain's own menu (both plugins keep their menus, CONCEPT 15.7).
+			add_submenu_page( self::SLUG, __( 'Gemeinsamer Scanner', 'wp-pass-captain' ), __( 'Gemeinsamer Scanner ↗', 'wp-pass-captain' ), 'wpcap_checkin', 'admin.php?page=vcap-scanner' );
+			add_submenu_page( self::SLUG, __( 'WP Voucher Captain', 'wp-pass-captain' ), __( 'WP Voucher Captain ↗', 'wp-pass-captain' ), 'manage_woocommerce', 'admin.php?page=vcap-vouchers' );
+		}
 	}
 }
