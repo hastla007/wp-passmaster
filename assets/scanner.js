@@ -105,9 +105,28 @@
 		items.push({ token: token, idempotency_key: uuid(), scanned_at: new Date().toISOString(), stored_at: Date.now(), area_id: areaId, direction: mode });
 		saveQueue(items);
 		result.textContent = t.queued || 'Saved offline.';
-		result.dataset.state = 'error';
+		result.dataset.state = 'warning';
 		input.value = '';
 		updateQueueButton();
+	}
+	// Offline the code cannot be checked: never shown as admitted. Only codes that look like a ticket are
+	// offered, and only after an explicit staff decision ("admit after a visual check") are they queued
+	// for the later server check. Reliable offline admission: the offline scanner app with a ticket package.
+	function offline(token) {
+		if (!/(^|[^a-f0-9])[a-f0-9]{64}($|[^a-f0-9])/i.test(token)) {
+			result.textContent = t.invalid || 'Invalid ticket.';
+			result.dataset.state = 'error';
+			return;
+		}
+		result.textContent = t.unchecked || 'NOT CHECKED (offline).';
+		result.dataset.state = 'warning';
+		const admit = document.createElement('button');
+		admit.type = 'button';
+		admit.className = 'button wpcap-admit-unchecked';
+		admit.textContent = t.admitUnchecked || 'Admit after visual check';
+		admit.addEventListener('click', function () { enqueue(token); input.focus(); });
+		result.appendChild(document.createTextNode(' '));
+		result.appendChild(admit);
 	}
 	function queue() {
 		let stored;
@@ -174,7 +193,7 @@
 	async function submitToken(token) {
 		token = String(token || '').trim();
 		if (locked || !token) return;
-		if (!navigator.onLine) { enqueue(token); return; }
+		if (!navigator.onLine) { offline(token); return; }
 		locked = true;
 		result.textContent = t.checking || '…';
 		try {
@@ -189,7 +208,7 @@
 				});
 			} catch (networkError) {
 				// The browser reported "online" but the request never reached the server.
-				enqueue(token);
+				offline(token);
 				return;
 			}
 			const data = await response.json().catch(function () { return {}; });

@@ -149,6 +149,7 @@ $x3 = $ticket_service->issue_tickets( $src, 'vcap-voucher-80', array( 'ticket_ty
 check( 'revoked tickets give their capacity back', is_array( $x3 ) && 2 === count( $x3['ticket_ids'] ) );
 check( 'a public checkout cannot claim a voucher exchange key', ! is_wp_error( $free_try = Orders::create( array( 'email' => 'pub@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 5, 10, 1000 ), 'quantity' => 1 ) ), 'idempotency_key' => 'vcap-voucher-80' ) ) ) && $free_try['order_id'] !== $x3['order_id'] );
 
+
 // Voucher valid for any date of an event: the customer chooses date and ticket type.
 $ev_type = make_type( 10, 10, 3000 );
 $ev = $wpdb->get_row( "SELECT o.event_id,o.occurrence_id FROM {$p}wpcap_ticket_types tt JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$ev_type" );

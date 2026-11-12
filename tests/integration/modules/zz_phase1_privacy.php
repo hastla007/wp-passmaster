@@ -197,6 +197,8 @@ echo "Privacy: eraser\n";
 // Attendee-only erasure: buyer's tickets stay valid.
 $revoked_seen = array();
 add_action( 'wpcap_ticket_revoked', static function ( $id, $reason = '' ) use ( &$revoked_seen ) { $revoked_seen[] = array( (int) $id, $reason ); }, 99, 2 );
+// These checks cover immediate anonymisation; deferral for upcoming dates is tested in zz_integration.
+$GLOBALS['wpcap_test_filters']['wpcap_privacy_defer_upcoming'] = false;
 $res_a = Privacy::erase( 'p1p-ada@example.com' );
 check( 'erase attendee: name, e-mail, answers removed; ticket stays valid', '' === $wpdb->get_var( "SELECT attendee_name FROM {$p}wpcap_ticket_assignments WHERE ticket_id=$ada" ) && '' === $wpdb->get_var( "SELECT attendee_email FROM {$p}wpcap_tickets WHERE ticket_id=$ada" ) && array() === $answers( $ada ) && 'valid' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=$ada" ) && array( 'Initech' ) === $answers( $bob ) );
 check( 'erase attendee: wallet device registration removed, no revocation', 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number='p1p-ada-serial'" ) && ! $revoked_seen && $res_a['items_removed'] && ! $res_a['items_retained'] );
@@ -234,6 +236,7 @@ p1p_to_past( $pt, 5 );
 $ptid = p1p_tickets( $po['order_id'] )[0];
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET status='checked_in' WHERE ticket_id=$ptid" );
 $res_p = Privacy::erase( 'p1p-past@example.com' );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_privacy_defer_upcoming'] );
 check( 'erase: checked-in history kept, no upcoming warning for past events', 'checked_in' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=$ptid" ) && ! preg_grep( '/bevorstehende/', $res_p['messages'] ) );
 
 echo "Privacy: policy text\n";

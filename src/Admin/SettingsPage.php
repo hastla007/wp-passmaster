@@ -40,6 +40,9 @@ final class SettingsPage {
 					'scanner_show_attendee' => array( 'type' => 'bool', 'label' => __( 'Teilnehmernamen beim Scannen anzeigen', 'wp-pass-captain' ) ),
 					'device_max_hours' => array( 'type' => 'int', 'label' => __( 'Maximale Gültigkeit einer Gerätekopplung (Stunden)', 'wp-pass-captain' ), 'min' => 1, 'max' => 720 ),
 					'admission_day_cutoff_hour' => array( 'type' => 'int', 'label' => __( 'Einlass-Tageswechsel (Uhrzeit, volle Stunde)', 'wp-pass-captain' ), 'min' => 0, 'max' => 12, 'description' => __( '0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits.', 'wp-pass-captain' ) ),
+					'default_entry_window' => array( 'type' => 'bool', 'label' => __( 'Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel', 'wp-pass-captain' ) ),
+					'entry_opens_before_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass ab (Minuten vor Beginn)', 'wp-pass-captain' ), 'min' => 0, 'max' => 10080 ),
+					'entry_closes_after_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)', 'wp-pass-captain' ), 'min' => 0, 'max' => 10080 ),
 				),
 			),
 			'payments' => array(
@@ -268,6 +271,7 @@ final class SettingsPage {
 		<div class="wrap wpcap-admin">
 		<h1><?php esc_html_e( 'Pass Captain Einstellungen', 'wp-pass-captain' ); ?></h1>
 		<?php Forms::render_notices(); ?>
+		<?php \PassCaptain\Integrations\Vouchers\IntegrationStatus::render(); ?>
 		<?php Forms::open_form( 'wpcap_save_settings' ); ?>
 		<?php foreach ( self::field_definitions() as $id => $section ) : ?>
 			<h2 id="wpcap-settings-<?php echo esc_attr( $id ); ?>"><?php echo esc_html( $section['title'] ); ?></h2>

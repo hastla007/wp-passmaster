@@ -158,6 +158,8 @@ function adm_parallel( $code, $n ) {
 	return $out;
 }
 $s = adm_setup( 'Europe/Vienna', null, null, 2 );
+// Inside the default entry window (starts in one hour).
+$wpdb->update( "{$p}wpcap_occurrences", array( 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 3600 ) ), array( 'occurrence_id' => $s['occ'] ) );
 $par = adm_parallel( $s['codes'][0], 6 );
 check( 'single entry: exactly one of 6 concurrent scans admits (' . implode( ',', $par ) . ')', 1 === count( array_keys( $par, 'OK', true ) ) && 5 === count( array_keys( $par, 'ERR:already_checked_in', true ) ) );
 $s2 = adm_setup( 'UTC' );
@@ -330,3 +332,20 @@ $zero = Checkin::perform( $s['codes'][0], array( 'source' => 'offline', 'idempot
 adm_now( null );
 check( 'offline max age is configurable (manage_options); 0 disables device time', is_wp_error( $set_denied ) && 0 === Policies::offline_max_age_seconds() && is_wp_error( $zero ) && 'daily_limit_reached' === $zero->get_error_data()['result'] );
 RulesPage::save_settings( array( 'offline_max_age_hours' => '12' ) );
+
+echo "Admission: default entry window (types without their own rule)\n";
+$dw_before = PassCaptain\Settings::get( 'default_entry_window' );
+PassCaptain\Settings::update( array( 'default_entry_window' => 1, 'entry_opens_before_minutes' => 120, 'entry_closes_after_minutes' => 0 ) );
+$dw = adm_setup( 'Europe/Vienna', null, null, 3 );
+$dw_start = time() + 3 * 3600;
+$wpdb->update( "{$p}wpcap_occurrences", array( 'starts_at' => gmdate( 'Y-m-d H:i:s', $dw_start ), 'ends_at' => gmdate( 'Y-m-d H:i:s', $dw_start + 2 * 3600 ) ), array( 'occurrence_id' => $dw['occ'] ) );
+$dw_early = Checkin::preview( $dw['codes'][0] );
+adm_now( $dw_start - 90 * 60 );
+$dw_ok = Checkin::perform( $dw['codes'][0], array( 'idempotency_key' => 'dw-1' ) );
+adm_now( $dw_start + 2 * 3600 + 60 );
+$dw_late = Checkin::perform( $dw['codes'][1], array( 'idempotency_key' => 'dw-2' ) );
+check( 'default entry window: closed 3 h before, open 90 min before the start, closed after the end', 'outside_entry_window' === ( $dw_early['status'] ?? '' ) && 'checked_in' === adm_r( $dw_ok ) && 'outside_entry_window' === adm_r( $dw_late ) );
+PassCaptain\Settings::update( array( 'default_entry_window' => 0 ) );
+check( 'the default entry window can be switched off', 'checked_in' === adm_r( Checkin::perform( $dw['codes'][2], array( 'idempotency_key' => 'dw-3' ) ) ) );
+PassCaptain\Settings::update( array( 'default_entry_window' => $dw_before ) );
+adm_now( null );

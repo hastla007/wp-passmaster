@@ -170,6 +170,8 @@ check( 'e-mail removed from the payload after the final delivery', 0 === $pii_lo
 Dispatcher::set_status( $b['subscription_id'], true );
 check( 'redelivery rebuilds opt-in data from current records', true === Dispatcher::redeliver( $bd->delivery_id ) && 'wh-buyer@example.com' === ( json_decode( wh_deliveries( $b['subscription_id'] )[0]->payload, true )['data']['object']['customer_email'] ?? '' ) );
 check( 'privacy eraser removes the e-mail from pending payloads', 1 === Dispatcher::erase_email( 'wh-buyer@example.com' ) && false === strpos( wh_deliveries( $b['subscription_id'] )[0]->payload, 'wh-buyer@example.com' ) );
+// The buyer's event is over (erasure is not deferred for upcoming dates).
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id INNER JOIN {$p}wpcap_tickets t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id SET o.starts_at=%s,o.ends_at=NULL WHERE ord.customer_email=%s", gmdate( 'Y-m-d H:i:s', time() - 3 * DAY_IN_SECONDS ), 'wh-buyer@example.com' ) );
 PassCaptain\Privacy::erase( 'wh-buyer@example.com' );
 Dispatcher::redeliver( $bd->delivery_id );
 check( 'redelivery after erasure sends no (anonymised) address', ! isset( json_decode( wh_deliveries( $b['subscription_id'] )[0]->payload, true )['data']['object']['customer_email'] ) );
