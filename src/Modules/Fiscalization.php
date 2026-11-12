@@ -328,7 +328,8 @@ final class Fiscalization {
 		if ( $has_mapping ) { $wpdb->replace( "{$p}wpcap_fiscal_order_state", array( 'order_id' => absint( $order_id ), 'fiscal_status' => $groups ? 'pending' : 'not_required', 'fulfillment_status' => $groups ? 'blocked' : 'awaiting_payment', 'updated_at' => $now ), array( '%d', '%s', '%s', '%s' ) ); }
 		foreach ( $groups as $seller_id => $group ) {
 			$key = hash( 'sha256', 'wpcap-fiscal-v1:' . absint( $order_id ) . ':' . $seller_id );
-			$snapshot = array( 'schema_version' => 1, 'order_id' => absint( $order_id ), 'seller' => $group['seller'], 'seller_mode' => $group['items'][0]['seller_mode'], 'profile' => $group['profile'], 'currency' => $order->currency ?? 'EUR', 'payment_method' => sanitize_key( $order->payment_provider ?? '' ), 'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'items' => $group['items'] );
+			if ( self::contains_secret_key( $group['configuration'] ) ) { throw new \\RuntimeException( 'fiscal_configuration_contains_secret' ); }
+			$snapshot = array( 'schema_version' => 1, 'order_id' => absint( $order_id ), 'seller' => $group['seller'], 'seller_mode' => $group['items'][0]['seller_mode'], 'profile' => $group['profile'], 'provider_id' => $group['provider_id'], 'provider_configuration' => $group['configuration'], 'currency' => $order->currency ?? 'EUR', 'payment_method' => sanitize_key( $order->payment_provider ?? '' ), 'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'items' => $group['items'] );
 			$wpdb->insert( "{$p}wpcap_fiscal_documents", array(
 				'order_id' => absint( $order_id ), 'seller_id' => (int) $seller_id, 'document_key' => $key,
 				'country_code' => $group['seller']['country_code'], 'provider_id' => $group['provider_id'],
@@ -355,10 +356,10 @@ final class Fiscalization {
 			if ( ! $adapter ) { self::fail( $doc, 'adapter_unavailable' ); continue; }
 			$seller = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 			$config_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
-			$configuration = $config_row && $config_row['configuration'] ? (array) json_decode( $config_row['configuration'], true ) : array();
-			$configuration = Credentials::with_credentials( $configuration, (int) $doc->seller_id, $doc->provider_id );
 			$document = json_decode( $doc->snapshot, true );
 			if ( ! is_array( $document ) ) { self::fail( $doc, 'snapshot_invalid' ); continue; }
+			$configuration = is_array( $document['provider_configuration'] ?? null ) ? $document['provider_configuration'] : ( $config_row && $config_row['configuration'] ? (array) json_decode( $config_row['configuration'], true ) : array() );
+			$configuration = Credentials::with_credentials( $configuration, (int) $doc->seller_id, $doc->provider_id );
 			$document['document_id'] = (int) $doc->document_id;
 			$document['idempotency_key'] = $doc->document_key;
 			$document['attempt'] = (int) $doc->attempts + 1;
@@ -465,11 +466,12 @@ final class Fiscalization {
 		if ( ! $doc ) { return new \WP_Error( 'wpcap_fiscal_document_missing', __( 'Fiskalvorgang wurde nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		$adapter = Registry::get( $doc->provider_id );
 		$seller = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
-		$config = $wpdb->get_row( $wpdb->prepare( "SELECT provider_id,configuration FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
-		if ( ! $adapter || ! $seller || ! $config ) { return new \WP_Error( 'wpcap_fiscal_reconcile_unavailable', __( 'Anbieter oder Verkäuferdaten fehlen.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
-		$configuration = $config['configuration'] ? (array) json_decode( $config['configuration'], true ) : array();
-		$configuration = Credentials::with_credentials( $configuration, (int) $doc->seller_id, $doc->provider_id );
+		$config = $wpdb->get_row( $wpdb->prepare( "SELECT configuration FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 		$document = (array) json_decode( $doc->snapshot, true );
+		$has_snapshot_config = is_array( $document['provider_configuration'] ?? null );
+		if ( ! $adapter || ! $seller || ( ! $config && ! $has_snapshot_config ) ) { return new \\WP_Error( 'wpcap_fiscal_reconcile_unavailable', __( 'Anbieter oder Verkäuferdaten fehlen.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		$configuration = $has_snapshot_config ? $document['provider_configuration'] : ( $config && $config['configuration'] ? (array) json_decode( $config['configuration'], true ) : array() );
+		$configuration = Credentials::with_credentials( $configuration, (int) $doc->seller_id, $doc->provider_id );
 		$document['document_id'] = (int) $doc->document_id;
 		$document['idempotency_key'] = $doc->document_key;
 		$result = $adapter->query_status( $document, $seller, $configuration );
@@ -730,8 +732,8 @@ final class Fiscalization {
 		$adapters = Registry::all();
 		$result = sanitize_key( $_GET['fiscal_result'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only status.
 		echo '<div class="wrap"><h1>' . esc_html__( 'Fiskalisierung', 'wp-pass-captain' ) . '</h1>';
-		if ( in_array( $result, array( 'saved', 'retried', 'health_ok', 'reconciled' ), true ) ) { echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Änderung gespeichert.', 'wp-pass-captain' ) . '</p></div>'; }
-		if ( in_array( $result, array( 'error', 'invalid_json', 'health_error', 'reconcile_error' ), true ) ) { echo '<div class="notice notice-error"><p>' . esc_html__( 'Änderung fehlgeschlagen. Eingaben, Adapter und Länderunterstützung prüfen.', 'wp-pass-captain' ) . '</p></div>'; }
+		if ( in_array( $result, array( 'saved', 'retried', 'health_ok', 'reconciled', 'credentials_saved' ), true ) ) { echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Änderung gespeichert.', 'wp-pass-captain' ) . '</p></div>'; }
+		if ( in_array( $result, array( 'error', 'invalid_json', 'health_error', 'reconcile_error', 'credentials_error' ), true ) ) { echo '<div class="notice notice-error"><p>' . esc_html__( 'Änderung fehlgeschlagen. Eingaben, Adapter und Länderunterstützung prüfen.', 'wp-pass-captain' ) . '</p></div>'; }
 		echo '<p>' . esc_html__( 'Fiskalbelege werden je Rechtsträger erstellt. Ein zugeordnetes Ticket wird erst ausgegeben, wenn der konfigurierte Adapter den Beleg bestätigt.', 'wp-pass-captain' ) . '</p>';
 		echo '<h2>' . esc_html__( 'Rechtsträger anlegen', 'wp-pass-captain' ) . '</h2><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'wpcap_fiscal_save_seller' );
