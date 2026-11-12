@@ -298,6 +298,14 @@ final class Fiscalization {
 	}
 
 	/** Scheduled retry callback; adapters receive a stable idempotency key for every retry. */
+	/** Records ticket fulfillment separately from payment and fiscal submission status. */
+	public static function mark_fulfilled( $order_id, $count ) {
+		global $wpdb;
+		$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_order_state', array(
+			'fulfillment_status' => 'tickets_issued', 'updated_at' => current_time( 'mysql', true ),
+		), array( 'order_id' => absint( $order_id ) ), array( '%s', '%s' ), array( '%d' ) );
+	}
+
 	public static function process_scheduled_order( $order_id ) {
 		// issue_and_email runs the fiscal readiness filter before issuing any ticket.
 		Orders::issue_and_email( absint( $order_id ) );
@@ -332,6 +340,12 @@ final class Fiscalization {
 		global $wpdb;
 		self::process_order( $order_id );
 		$blocked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d AND status <> 'submitted'", absint( $order_id ) ) );
+		$failed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d AND status='failed'", absint( $order_id ) ) );
+		$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_order_state', array(
+			'fiscal_status' => $failed ? 'failed' : ( $blocked ? 'pending' : 'submitted' ),
+			'fulfillment_status' => $blocked ? 'blocked' : 'ready',
+			'updated_at' => current_time( 'mysql', true ),
+		), array( 'order_id' => absint( $order_id ) ), array( '%s', '%s', '%s' ), array( '%d' ) );
 		return $blocked ? false : $ready;
 	}
 
@@ -374,7 +388,7 @@ final class Fiscalization {
 	public static function handle_admin_save_profile() {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
 		$seller_id = absint( $_POST['seller_id'] ?? 0 );
-		check_admin_referer( 'wpcap_fiscal_save_profile_' . $seller_id );
+		check_admin_referer( 'wpcap_fiscal_save_profile' );
 		$input = array(
 			'channel' => sanitize_key( wp_unslash( $_POST['channel'] ?? '' ) ),
 			'environment' => sanitize_key( wp_unslash( $_POST['environment'] ?? 'test' ) ),
@@ -453,6 +467,7 @@ final class Fiscalization {
 		echo '<p>' . esc_html__( 'Ein Produktivprofil erfordert dokumentierte fachliche Prüfung. Die Plugin-Freigabe ersetzt keine rechtliche oder steuerliche Prüfung.', 'wp-pass-captain' ) . '</p>';
 		if ( $sellers ) {
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			wp_nonce_field( 'wpcap_fiscal_save_profile' );
 			echo '<input type="hidden" name="action" value="wpcap_fiscal_save_profile"><label>' . esc_html__( 'Verkäufer', 'wp-pass-captain' ) . ' <select name="seller_id">';
 			foreach ( $sellers as $seller ) { echo '<option value="' . (int) $seller->seller_id . '">' . esc_html( $seller->legal_name . ' (' . $seller->country_code . ')' ) . '</option>'; }
 			echo '</select></label> <label>' . esc_html__( 'Kanal', 'wp-pass-captain' ) . ' <select name="channel"><option value="pos">POS/Abendkasse</option><option value="woocommerce">WooCommerce</option><option value="native">Native Kasse</option></select></label> <label>' . esc_html__( 'Umgebung', 'wp-pass-captain' ) . ' <select name="environment"><option value="test">Test</option><option value="production">Produktion</option></select></label> <label>' . esc_html__( 'Status', 'wp-pass-captain' ) . ' <select name="status"><option value="draft">Entwurf</option><option value="test">Test</option><option value="active">Produktiv</option><option value="suspended">Gesperrt</option></select></label><p><label>' . esc_html__( 'Regelwerk/Profil', 'wp-pass-captain' ) . ' <input name="ruleset_key" class="regular-text" placeholder="AT_RKSV / DE_KASSENSICHV / HU_NAV"></label> <label>' . esc_html__( 'Regelwerkversion', 'wp-pass-captain' ) . ' <input name="ruleset_version"></label></p><p><label>' . esc_html__( 'Rechts-/Prüfreferenz', 'wp-pass-captain' ) . ' <input name="legal_reference" class="large-text"></label></p><label><input type="checkbox" name="review_attested" value="1"> ' . esc_html__( 'Ich bestätige die fachliche Prüfung und Freigabe dieses Profils.', 'wp-pass-captain' ) . '</label>';
