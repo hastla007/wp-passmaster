@@ -10,6 +10,7 @@ namespace PassCaptain\Modules;
 
 use PassCaptain\Audit;
 use PassCaptain\Fiscalization\CountryPolicy;
+use PassCaptain\Fiscalization\Credentials;
 use PassCaptain\Fiscalization\Registry;
 use PassCaptain\Orders;
 
@@ -425,7 +426,6 @@ final class Fiscalization {
 		if ( ! $adapter || ! $seller || ! $config ) { return new \WP_Error( 'wpcap_fiscal_reconcile_unavailable', __( 'Anbieter oder Verkäuferdaten fehlen.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$configuration = $config['configuration'] ? (array) json_decode( $config['configuration'], true ) : array();
 		$configuration = Credentials::with_credentials( $configuration, $seller_id, $config['provider_id'] );
-		$configuration = Credentials::with_credentials( $configuration, $seller_id, $config['provider_id'] );
 		$document = (array) json_decode( $doc->snapshot, true );
 		$document['document_id'] = (int) $doc->document_id;
 		$document['idempotency_key'] = $doc->document_key;
@@ -785,6 +785,7 @@ final class Fiscalization {
 			return new \WP_Error( 'wpcap_fiscal_health_unavailable', __( 'Aktiver Anbieter oder Länderunterstützung fehlt.', 'wp-pass-captain' ), array( 'status' => 409 ) );
 		}
 		$configuration = $config['configuration'] ? (array) json_decode( $config['configuration'], true ) : array();
+		$configuration = Credentials::with_credentials( $configuration, $seller_id, $config['provider_id'] );
 		$result = $adapter->health_check( $seller, $configuration );
 		if ( is_wp_error( $result ) || ( true !== $result && ( ! is_array( $result ) || empty( $result['ok'] ) ) ) ) {
 			$code = is_wp_error( $result ) ? sanitize_key( $result->get_error_code() ) : 'health_check_failed';
