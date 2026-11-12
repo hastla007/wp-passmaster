@@ -142,8 +142,8 @@ $small = make_type( 100, 4 );
 check( 'per-order maximum caps the Store API quantity', 4 === Woo::quantity_limit( $small ) && 1 === Woo::quantity_limit( $small, 3 ) );
 
 check( 'fiscal ticket-only WooCommerce carts pass allocation guard', null === Woo::mixed_fiscal_allocation_error( true, false, false, false ) );
-check( 'mixed seller WooCommerce carts fail closed until seller allocation is configured', is_wp_error( Woo::mixed_fiscal_allocation_error( true, true, false, false ) ) && is_wp_error( Woo::mixed_fiscal_allocation_error( true, false, true, false ) ) && is_wp_error( Woo::mixed_fiscal_allocation_error( true, false, false, true ) ) );
-check( 'unmapped ticket carts retain existing WooCommerce behavior', null === Woo::mixed_fiscal_allocation_error( false, true, true, true ) );
+check( 'mixed fiscal WooCommerce carts reject unassigned products, fees and shipping', is_wp_error( Woo::mixed_fiscal_allocation_error( true, true, false, false ) ) && is_wp_error( Woo::mixed_fiscal_allocation_error( true, false, true, false ) ) && is_wp_error( Woo::mixed_fiscal_allocation_error( true, false, false, true ) ) );
+check( 'assigned mixed carts and carts without mapped fiscal tickets are not blocked by the allocation guard', null === Woo::mixed_fiscal_allocation_error( true, false, false, false ) && null === Woo::mixed_fiscal_allocation_error( false, true, true, true ) );
 
 echo "WooCommerce: refunds\n";
 $type = make_type( 10, 10, 2500 );

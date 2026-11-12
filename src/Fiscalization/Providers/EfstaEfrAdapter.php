@@ -83,7 +83,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 			$gross = max( 0, (int) ( $item['gross_minor'] ?? 0 ) );
 			$tax = min( $gross, max( 0, (int) ( $item['tax_minor'] ?? 0 ) ) );
 			$qty = max( 1, (int) ( $item['quantity'] ?? 1 ) );
-			$items[] = array( '_' => 'Pos', 'PN' => (string) ( $index + 1 ), 'IN' => (string) (int) ( $item['ticket_type_id'] ?? 0 ), 'Dsc' => sanitize_text_field( (string) ( $item['description'] ?? ( 'Ticket ' . (int) ( $item['ticket_type_id'] ?? 0 ) ) ) ), 'Qty' => (string) $qty, 'TaxG' => $group, 'Amt' => ProviderHttp::decimal( $gross ) );
+			$items[] = array( '_' => 'Pos', 'PN' => (string) ( $index + 1 ), 'IN' => (string) (int) ( $item['ticket_type_id'] ?? $item['product_id'] ?? 0 ), 'Dsc' => sanitize_text_field( (string) ( $item['description'] ?? ( 'Ticket ' . (int) ( $item['ticket_type_id'] ?? 0 ) ) ) ), 'Qty' => (string) $qty, 'TaxG' => $group, 'Amt' => ProviderHttp::decimal( $gross ) );
 			$taxes[$group] = ( $taxes[$group] ?? 0 ) + $gross;
 			$tax_rates[$group] = $rate;
 			$tax_total += $tax;

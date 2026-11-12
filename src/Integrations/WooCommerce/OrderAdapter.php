@@ -550,9 +550,17 @@ final class OrderAdapter {
 			}
 		}
 		if ( $unallocated ) {
-			return new \WP_Error( 'wpcap_fiscal_mixed_allocation_required', __( 'Jede zusätzliche Ware, Gebühr und Versandposition in einer Bestellung mit fiskalischen Tickets muss einem aktiven rechtlichen Verkäufer zugeordnet sein.', 'wp-pass-captain' ) );
+			return self::mixed_fiscal_allocation_error( true, true, false, false );
 		}
 		return $items;
+	}
+
+	/** Pure guard shared with tests and integrations: every non-ticket line and surcharge needs an owner. */
+	public static function mixed_fiscal_allocation_error( $has_fiscal_ticket, $has_unallocated_line, $has_unallocated_fee, $has_unallocated_shipping ) {
+		if ( $has_fiscal_ticket && ( $has_unallocated_line || $has_unallocated_fee || $has_unallocated_shipping ) ) {
+			return new \WP_Error( 'wpcap_fiscal_mixed_allocation_required', __( 'Jede zusätzliche Ware, Gebühr und Versandposition in einer Bestellung mit fiskalischen Tickets muss einem rechtlichen Verkäufer zugeordnet sein.', 'wp-pass-captain' ) );
+		}
+		return null;
 	}
 
 	/** Resolve seller assignment from order-line metadata/product configuration or a trusted integration. */
@@ -578,7 +586,7 @@ final class OrderAdapter {
 		$factor = 10 ** self::currency_decimals( $currency );
 		$gross = (int) round( ( (float) $item->get_total() + (float) $item->get_total_tax() ) * $factor );
 		$tax = (int) round( (float) $item->get_total_tax() * $factor );
-		if ( $gross < 0 ) { return new \\WP_Error( 'wpcap_fiscal_negative_extra_line', __( 'Negative fees müssen als zugeordnete Rabattposition statt als negative Gebühr eingerichtet werden.', 'wp-pass-captain' ) ); }
+		if ( $gross < 0 ) { return new \WP_Error( 'wpcap_fiscal_negative_extra_line', __( 'Negative fees müssen als zugeordnete Rabattposition statt als negative Gebühr eingerichtet werden.', 'wp-pass-captain' ) ); }
 		$taxes = is_callable( array( $item, 'get_taxes' ) ) ? (array) $item->get_taxes() : array();
 		$rate_ids = array_keys( array_filter( (array) ( $taxes['total'] ?? array() ), static function ( $amount ) { return abs( (float) $amount ) > 0.000001; } ) );
 		$rate_bp = 0;
