@@ -164,6 +164,7 @@ final class Fiscalization {
 		add_action( 'wpcap_event_cancelled', array( __CLASS__, 'record_event_cancellation' ), 10, 1 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
 		add_action( 'admin_post_wpcap_fiscal_manual_resolution', array( __CLASS__, 'admin_record_manual_resolution' ) );
+		add_action( 'admin_post_wpcap_fiscal_submit_efsta_void', array( __CLASS__, 'admin_submit_efsta_void' ) );
 	}
 
 	/**
@@ -590,6 +591,69 @@ final class Fiscalization {
 				'provider_action' => 'manual_review_required',
 			) );
 		}
+	}
+
+	/** Submit a one-time efsta full void only when a queued order was cancelled before payment. */
+	public static function submit_efsta_void( $event_id ) {
+		global $wpdb;
+		$event_id = absint( $event_id );
+		$source = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_events WHERE event_id=%d AND event_status='manual_required'", $event_id ) );
+		if ( ! $source || 'order_cancellation' !== $source->event_type || 'efsta_efr' !== $source->provider_id ) {
+			return new \WP_Error( 'wpcap_fiscal_void_unavailable', __( 'Für diesen Vorgang ist kein automatisches efsta-Storno verfügbar.', 'wp-pass-captain' ) );
+		}
+		$metadata = json_decode( $source->metadata, true );
+		if ( ! is_array( $metadata ) || 'void' !== sanitize_key( $metadata['adjustment_kind'] ?? '' ) ) {
+			return new \WP_Error( 'wpcap_fiscal_void_payment_exchanged', __( 'Ein bereits bezahlter Vorgang darf nicht als Storno automatisiert werden.', 'wp-pass-captain' ) );
+		}
+		$doc = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE document_id=%d", absint( $source->document_id ) ) );
+		$document = $doc ? json_decode( $doc->snapshot, true ) : null;
+		if ( ! $doc || ! is_array( $document ) || 'efsta_efr' !== $doc->provider_id || empty( $document['seller']['seller_id'] ) || ! is_array( $document['provider_configuration'] ?? null ) ) {
+			return new \WP_Error( 'wpcap_fiscal_void_snapshot_missing', __( 'Der unveränderbare Originalbeleg oder seine Anbieterkonfiguration fehlt.', 'wp-pass-captain' ) );
+		}
+		$adapter = Registry::get( 'efsta_efr' );
+		if ( ! $adapter || ! is_callable( array( $adapter, 'supports_correction' ) ) || ! $adapter->supports_correction( $doc->country_code, 'void' ) || ! is_callable( array( $adapter, 'prepare_void' ) ) || ! is_callable( array( $adapter, 'submit_void' ) ) ) {
+			return new \WP_Error( 'wpcap_fiscal_void_country_unsupported', __( 'Automatisches efsta-Storno ist für dieses Land nicht freigeschaltet.', 'wp-pass-captain' ) );
+		}
+		$seller = (array) $document['seller'];
+		$configuration = Credentials::with_credentials( (array) $document['provider_configuration'], absint( $seller['seller_id'] ), 'efsta_efr' );
+		$prepared = $adapter->prepare_void( $document, $seller, $configuration, $event_id );
+		if ( is_wp_error( $prepared ) ) { return $prepared; }
+		$lock = 'wpcap_fiscal_void_attempt_' . $event_id;
+		if ( ! add_option( $lock, current_time( 'mysql', true ), '', false ) ) {
+			return new \WP_Error( 'wpcap_fiscal_void_already_attempted', __( 'Für dieses Storno gab es bereits einen Sendeversuch. Anbieterstatus prüfen und nicht erneut senden.', 'wp-pass-captain' ) );
+		}
+		self::record_event( $source, 'provider_void_attempted', 'submitting', array(
+			'source_event_id' => $event_id,
+			'adjustment_kind' => 'void',
+			'idempotency_key' => hash( 'sha256', $doc->document_key . ':void:' . $event_id ),
+			'provider_action' => 'one_time_submission',
+		) );
+		$result = $adapter->submit_void( $document, $seller, $configuration, $event_id, $prepared );
+		if ( is_wp_error( $result ) ) {
+			$code = sanitize_key( $result->get_error_code() );
+			self::record_event( $source, 'provider_void_failed', 'manual_required', array( 'source_event_id' => $event_id, 'error_code' => $code, 'provider_action' => 'status_reconciliation_required' ) );
+			Audit::record( 'fiscal_provider_void_failed', 'fiscal_event', $event_id, array( 'provider_id' => 'efsta_efr', 'error_code' => $code ) );
+			return new \WP_Error( 'wpcap_fiscal_void_failed', __( 'efsta-Storno konnte nicht bestätigt werden. Anbieterstatus prüfen und keine automatische Wiederholung auslösen.', 'wp-pass-captain' ), array( 'status' => 409, 'provider_error_code' => $code ) );
+		}
+		$reference = sanitize_text_field( $result['reference'] ?? '' );
+		self::record_event( $source, 'manual_correction_recorded', 'submitted_by_adapter', array(
+			'resolves_event_id' => $event_id,
+			'resolution' => 'void',
+			'provider_reference' => $reference,
+			'provider_action' => 'submitted_by_adapter',
+			'recorded_by' => get_current_user_id(),
+		) );
+		Audit::record( 'fiscal_provider_void_submitted', 'fiscal_event', $event_id, array( 'provider_id' => 'efsta_efr', 'reference' => $reference ) );
+		return array( 'event_id' => $event_id, 'status' => 'submitted', 'provider_reference' => $reference );
+	}
+
+	public static function admin_submit_efsta_void() {
+		$event_id = absint( $_POST['event_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		check_admin_referer( 'wpcap_fiscal_submit_efsta_void_' . $event_id );
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Nicht berechtigt.', 'wp-pass-captain' ), '', array( 'response' => 403 ) ); }
+		self::submit_efsta_void( $event_id );
+		wp_safe_redirect( add_query_arg( 'page', 'wpcap-fiscalization', admin_url( 'admin.php' ) ) );
+		exit;
 	}
 
 	/** Append an operator-confirmed record that a correction was completed in the provider's own system. */
