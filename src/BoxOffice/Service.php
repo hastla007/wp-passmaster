@@ -76,17 +76,22 @@ final class Service {
 	}
 
 	/** Opens the cash session of the current user (one open session per cashier). */
-	public static function open_session( $float_minor, $currency = 'EUR', $note = '' ) {
+	public static function open_session( $float_minor, $currency = 'EUR', $note = '', $location_id = 0, $register_id = '' ) {
 		global $wpdb;
 		if ( ! current_user_can( self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		$user_id = get_current_user_id();
 		$existing = self::open_session_for( $user_id );
 		if ( $existing ) { return $existing; }
 		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $currency ) );
+		$location_id = absint( $location_id );
+		$register_id = (string) $register_id;
+		if ( strlen( $register_id ) > 64 || ! preg_match( '/^[A-Za-z0-9_.:-]*$/', $register_id ) ) { return self::error( 'wpcap_pos_register_invalid', __( 'Kassen-ID ist ungültig.', 'wp-pass-captain' ) ); }
 		$wpdb->insert( $wpdb->prefix . 'wpcap_boxoffice_sessions', array(
 			'user_id' => $user_id,
 			'open_key' => $user_id,
 			'currency' => 3 === strlen( $currency ) ? $currency : 'EUR',
+			'location_id' => $location_id,
+			'register_id' => $register_id,
 			'opening_float_minor' => max( 0, (int) $float_minor ),
 			'note' => mb_substr( sanitize_text_field( (string) $note ), 0, 255 ),
 			'status' => 'open',
@@ -94,7 +99,7 @@ final class Service {
 		) );
 		$session = self::open_session_for( $user_id );
 		if ( $session ) {
-			Audit::record( 'pos_session_opened', 'pos_session', (int) $session->session_id, array( 'float_minor' => (int) $session->opening_float_minor ) );
+			Audit::record( 'pos_session_opened', 'pos_session', (int) $session->session_id, array( 'float_minor' => (int) $session->opening_float_minor, 'location_id' => (int) $session->location_id, 'register_id' => (string) $session->register_id ) );
 		}
 		return $session ? $session : self::error( 'wpcap_pos_session', __( 'Die Kassensitzung konnte nicht geöffnet werden.', 'wp-pass-captain' ), 500 );
 	}
@@ -368,6 +373,8 @@ final class Service {
 			'payment_provider' => $methods[ $method ]['provider'],
 			'key_namespace' => 'pos',
 			'source' => 'pos',
+			'fiscal_location_id' => (int) $session->location_id,
+			'fiscal_register_id' => (string) $session->register_id,
 			'hold_minutes' => 15,
 			'skip_rate_limit' => true,
 		);
