@@ -328,34 +328,77 @@ final class Fiscalization {
 		$docs = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_documents WHERE order_id=%d AND status IN ('pending','retry') ORDER BY seller_id", absint( $order_id ) ) );
 		foreach ( $docs as $doc ) {
 			$adapter = Registry::get( $doc->provider_id );
-			if ( ! $adapter ) {
-				self::fail( $doc, __( 'Kein Adapter für den konfigurierten Anbieter registriert.', 'wp-pass-captain' ) );
-				continue;
-			}
+			if ( ! $adapter ) { self::fail( $doc, 'adapter_unavailable' ); continue; }
 			$seller = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 			$config_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 			$configuration = $config_row && $config_row['configuration'] ? (array) json_decode( $config_row['configuration'], true ) : array();
 			$document = json_decode( $doc->snapshot, true );
+			if ( ! is_array( $document ) ) { self::fail( $doc, 'snapshot_invalid' ); continue; }
 			$document['document_id'] = (int) $doc->document_id;
 			$document['idempotency_key'] = $doc->document_key;
 			$document['attempt'] = (int) $doc->attempts + 1;
-			$countries = array_map( 'strtoupper', (array) $adapter->countries() );
-			if ( ! in_array( strtoupper( $doc->country_code ), $countries, true ) ) {
-				self::fail( $doc, __( 'Der ausgewählte Fiskaladapter unterstützt das Land dieses Verkäufers nicht.', 'wp-pass-captain' ) );
+			$country_codes = array_map( 'strtoupper', (array) $adapter->countries() );
+			if ( ! in_array( strtoupper( $doc->country_code ), $country_codes, true ) ) { self::fail( $doc, 'country_unsupported' ); continue; }
+			$profile_data = (array) ( $document['profile']['data'] ?? array() );
+			$missing = CountryPolicy::missing_capabilities( $adapter, $profile_data );
+			if ( $missing ) { self::fail( $doc, 'capability_missing:' . implode( ',', $missing ) ); continue; }
+			$result = null;
+			if ( (int) $doc->attempts > 0 ) {
+				self::record_event( $doc, 'status_query', 'started', array( 'attempt' => (int) $doc->attempts + 1 ) );
+				$lookup = $adapter->query_status( $document, (array) $seller, $configuration );
+				if ( is_wp_error( $lookup ) ) {
+					self::record_event( $doc, 'status_query', 'unknown', array( 'error_code' => sanitize_key( $lookup->get_error_code() ) ) );
+					self::fail( $doc, 'status_unknown:' . sanitize_key( $lookup->get_error_code() ) );
+					continue;
+				}
+				if ( is_array( $lookup ) && 'submitted' === ( $lookup['status'] ?? '' ) && ! empty( $lookup['reference'] ) ) {
+					$result = $lookup;
+					self::record_event( $doc, 'status_query', 'submitted', array( 'reference' => sanitize_text_field( $lookup['reference'] ) ) );
+				} elseif ( ! is_array( $lookup ) || 'not_found' !== ( $lookup['status'] ?? '' ) ) {
+					self::record_event( $doc, 'status_query', 'unknown', array( 'error_code' => 'invalid_status_result' ) );
+					self::fail( $doc, 'status_unknown:invalid_status_result' );
+					continue;
+				} else {
+					self::record_event( $doc, 'status_query', 'not_found', array( 'attempt' => (int) $doc->attempts + 1 ) );
+				}
+			}
+			if ( null === $result ) {
+				self::record_event( $doc, 'submission', 'started', array( 'attempt' => (int) $doc->attempts + 1 ) );
+				$result = $adapter->submit( $document, (array) $seller, $configuration );
+			}
+			if ( is_wp_error( $result ) || ! is_array( $result ) || empty( $result['reference'] ) ) {
+				$error_code = is_wp_error( $result ) ? sanitize_key( $result->get_error_code() ) : 'invalid_result';
+				self::record_event( $doc, 'submission', 'failed', array( 'error_code' => $error_code ) );
+				self::fail( $doc, 'provider_error:' . $error_code );
 				continue;
 			}
-			$result = $adapter->submit( $document, (array) $seller, $configuration );
-			if ( is_wp_error( $result ) || ! is_array( $result ) || empty( $result['reference'] ) ) {
-				self::fail( $doc, is_wp_error( $result ) ? $result->get_error_message() : __( 'Der Fiskaladapter lieferte kein gültiges Ergebnis.', 'wp-pass-captain' ) );
-				continue;
+			$receipt = is_array( $result['receipt'] ?? null ) ? $result['receipt'] : array();
+			if ( in_array( 'receipt_qr_payload', $missing, true ) || in_array( 'receipt_qr_payload', CountryPolicy::required_capabilities( $profile_data ), true ) ) {
+				if ( empty( $receipt['qr_payload'] ) || ! is_string( $receipt['qr_payload'] ) || strlen( $receipt['qr_payload'] ) > 4096 ) {
+					self::record_event( $doc, 'submission', 'invalid_result', array( 'error_code' => 'qr_payload_missing' ) );
+					self::fail( $doc, 'provider_result_missing_qr_payload' );
+					continue;
+				}
 			}
 			$wpdb->update( "{$p}wpcap_fiscal_documents", array(
 				'status' => 'submitted', 'provider_result' => wp_json_encode( $result ), 'last_error' => '',
 				'attempts' => (int) $doc->attempts + 1, 'updated_at' => current_time( 'mysql', true ),
 			), array( 'document_id' => (int) $doc->document_id ) );
+			self::record_event( $doc, 'submission', 'submitted', array( 'reference' => sanitize_text_field( $result['reference'] ) ) );
 			Audit::record( 'fiscal_document_submitted', 'order', (int) $order_id, array( 'document_id' => (int) $doc->document_id, 'seller_id' => (int) $doc->seller_id, 'provider_id' => $doc->provider_id ) );
 		}
 	}
+
+	/** Append-only operation event; caller passes metadata with no credentials or raw provider body. */
+	private static function record_event( $doc, $type, $status, array $metadata = array() ) {
+		global $wpdb;
+		$wpdb->insert( $wpdb->prefix . 'wpcap_fiscal_events', array(
+			'document_id' => (int) $doc->document_id, 'order_id' => (int) $doc->order_id, 'provider_id' => sanitize_key( $doc->provider_id ),
+			'event_type' => sanitize_key( $type ), 'event_status' => sanitize_key( $status ),
+			'metadata' => wp_json_encode( $metadata ), 'created_at' => current_time( 'mysql', true ),
+		), array( '%d', '%d', '%s', '%s', '%s', '%s', '%s' ) );
+	}
+
 
 	/** Scheduled retry callback; adapters receive a stable idempotency key for every retry. */
 	/** Records ticket fulfillment separately from payment and fiscal submission status. */
