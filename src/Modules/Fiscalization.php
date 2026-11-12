@@ -9,6 +9,7 @@
 namespace PassCaptain\Modules;
 
 use PassCaptain\Audit;
+use PassCaptain\Fiscalization\CountryPolicy;
 use PassCaptain\Fiscalization\Registry;
 use PassCaptain\Orders;
 
@@ -274,10 +275,13 @@ final class Fiscalization {
 			if ( ! (int) $mapping->enabled || ! $adapter || ! in_array( strtoupper( $mapping->country_code ), array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) {
 				throw new \RuntimeException( 'fiscal_profile_unavailable' );
 			}
+			$profile_data = $mapping->profile_data ? (array) json_decode( $mapping->profile_data, true ) : array();
+			$missing_capabilities = CountryPolicy::missing_capabilities( $adapter, $profile_data );
+			if ( $missing_capabilities ) { throw new \RuntimeException( 'fiscal_adapter_capability_missing' ); }
 			if ( ! isset( $groups[ $seller_id ] ) ) {
 				$groups[ $seller_id ] = array(
 					'seller' => $seller_snapshot,
-					'profile' => array_merge( $profile_snapshot, array( 'data' => $mapping->profile_data ? (array) json_decode( $mapping->profile_data, true ) : array() ) ),
+					'profile' => array_merge( $profile_snapshot, array( 'data' => $profile_data ) ),
 					'provider_id' => sanitize_key( $mapping->provider_id ),
 					'configuration' => $mapping->configuration ? (array) json_decode( $mapping->configuration, true ) : array(),
 					'items' => array(), 'gross_minor' => 0, 'tax_minor' => 0,
