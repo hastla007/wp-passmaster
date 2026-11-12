@@ -48,6 +48,7 @@ final class Page {
 		if ( ! current_user_can( Service::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		$session = Service::open_session_for( get_current_user_id() );
 		echo '<div class="wrap wpcap-admin wpcap-pos"><h1>' . esc_html__( 'Kasse', 'wp-pass-captain' ) . '</h1>';
+		self::render_fiscal_notice();
 		Forms::render_notices();
 		$last = absint( $_GET['sale'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$last_sale = $last ? Service::sale( $last ) : null;
@@ -169,6 +170,30 @@ final class Page {
 			Forms::open_form( 'wpcap_pos_settings' );
 			echo '<p><label>' . esc_html__( 'Präfix Belegnummer', 'wp-pass-captain' ) . ' <input type="text" name="boxoffice_receipt_prefix" size="6" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_prefix' ) ) . '"></label> <label>' . esc_html__( 'Fußzeile', 'wp-pass-captain' ) . ' <input type="text" name="boxoffice_receipt_footer" size="50" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_footer' ) ) . '"></label> <button class="button">' . esc_html__( 'Speichern', 'wp-pass-captain' ) . '</button></p></form>';
 		}
+	}
+
+	const FISCAL_NOTICE_META = 'wpcap_pos_fiscal_notice_dismissed';
+
+	/** Where the fiscal-law notice links to (filter `wpcap_boxoffice_fiscal_docs_url`). */
+	public static function fiscal_docs_url() {
+		return (string) apply_filters( 'wpcap_boxoffice_fiscal_docs_url', 'https://github.com/hastla007/wp-passmaster/blob/main/docs/OPERATIONS.md#kasse-keine-registrierkasse' );
+	}
+
+	/**
+	 * Prominent notice: the box office is not a certified cash register (RKSV / KassenSichV). It can
+	 * be dismissed per user (?wpcap_dismiss_fiscal_notice=1 with nonce; stored as user meta).
+	 */
+	public static function render_fiscal_notice() {
+		$user_id = get_current_user_id();
+		if ( isset( $_GET['wpcap_dismiss_fiscal_notice'] ) && $user_id && wp_verify_nonce( sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) ), self::FISCAL_NOTICE_META ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified here.
+			update_user_meta( $user_id, self::FISCAL_NOTICE_META, 1 );
+		}
+		if ( $user_id && get_user_meta( $user_id, self::FISCAL_NOTICE_META, true ) ) { return; }
+		$dismiss = wp_nonce_url( add_query_arg( 'wpcap_dismiss_fiscal_notice', '1', self::back() ), self::FISCAL_NOTICE_META );
+		echo '<div class="notice notice-warning wpcap-fiscal-notice" role="note" style="border-left-width:6px;padding:12px 16px"><p style="font-size:1.05em"><strong>' . esc_html__( 'Wichtiger Hinweis:', 'wp-pass-captain' ) . '</strong> '
+			. esc_html__( 'Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig.', 'wp-pass-captain' ) . '</p><p>'
+			. '<a href="' . esc_url( self::fiscal_docs_url() ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Mehr dazu in der Dokumentation', 'wp-pass-captain' ) . '<span class="screen-reader-text"> ' . esc_html__( '(öffnet in neuem Tab)', 'wp-pass-captain' ) . '</span></a>'
+			. ' · <a href="' . esc_url( $dismiss ) . '">' . esc_html__( 'Hinweis für mich ausblenden', 'wp-pass-captain' ) . '</a></p></div>';
 	}
 
 	/* ------------------------------------------------------------------ handlers */

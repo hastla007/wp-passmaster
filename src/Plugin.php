@@ -82,7 +82,7 @@ final class Plugin {
 		$prefix = $site_id && method_exists( $wpdb, 'get_blog_prefix' ) ? $wpdb->get_blog_prefix( (int) $site_id ) : $wpdb->prefix;
 		// The main site shares the base prefix with every other site's tables: never touch it here.
 		if ( '' === (string) $prefix || ( is_multisite() && function_exists( 'is_main_site' ) && is_main_site( (int) $site_id ) ) ) { return $tables; }
-		$like = $wpdb->esc_like( $prefix . 'wpcap_' ) . '%';
+		$like = addcslashes( $prefix . 'wpcap_', '_%\\' ) . '%'; // Same as $wpdb->esc_like().
 		foreach ( (array) $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $like ) ) as $table ) {
 			if ( ! in_array( $table, $tables, true ) ) { $tables[] = $table; }
 		}

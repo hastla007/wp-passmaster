@@ -235,4 +235,20 @@ remove_filter( 'wpcap_client_ip', $p1f_proxy, 10 );
 if ( null === $p1f_remote ) { unset( $_SERVER['REMOTE_ADDR'] ); } else { $_SERVER['REMOTE_ADDR'] = $p1f_remote; }
 $GLOBALS['wpcap_test_transients'] = array();
 
+echo "Phase 1: transfer counts holder changes by assignment\n";
+$tt = make_type( 10, 10, 1000 );
+$to_id = admin_paid_order( $tt, 2, 'p1f-tr@example.com' );
+$to_public = Orders::get( $to_id )->public_id;
+$to_token = bin2hex( random_bytes( 32 ) );
+$wpdb->update( "{$p}wpcap_orders", array( 'access_token_hash' => hash( 'sha256', $to_token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 86400 ) ), array( 'order_id' => $to_id ) );
+$to_tickets = Orders::tickets_for_order( $to_id );
+PassCaptain\Audit::record( 'ticket_holder_changed', 'ticket', (int) $to_tickets[0]->ticket_id, array() );
+$tr_blocked = Orders::transfer_ticket( $to_public, $to_token, $to_tickets[0]->public_id, 'p1f-new@example.com' );
+check( 'ticket with a holder change by assignment cannot be transferred (409)', is_wp_error( $tr_blocked ) && 'wpcap_transfer_holder_changed' === $tr_blocked->get_error_code() && 409 === $tr_blocked->get_error_data()['status'] && 0 === (int) $wpdb->get_var( "SELECT transfer_count FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $to_tickets[0]->ticket_id ) );
+$tr_other = Orders::transfer_ticket( $to_public, $to_token, $to_tickets[1]->public_id, 'p1f-new@example.com' );
+$GLOBALS['wpcap_test_filters']['wpcap_max_holder_changes'] = 2;
+$tr_allowed = Orders::transfer_ticket( $to_public, $to_token, $to_tickets[0]->public_id, 'p1f-new@example.com' );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_max_holder_changes'] );
+check( 'tickets without holder change transfer; wpcap_max_holder_changes raises the limit', ! is_wp_error( $tr_other ) && ! is_wp_error( $tr_allowed ) );
+
 remove_action( 'wpcap_occurrence_cancelled', array( OccurrenceCancellation::class, 'handle' ), 10 );

@@ -43,7 +43,7 @@ final class TimeBudget {
 		$seconds = (float) apply_filters( 'wpcap_cron_time_budget', self::DEFAULT_SECONDS );
 		$max     = (int) ini_get( 'max_execution_time' );
 		if ( $max > 0 ) { $seconds = min( $seconds, $max - 15 ); }
-		return max( 1.0, $seconds );
+		return (float) max( 1.0, $seconds );
 	}
 
 	public static function arm() { self::$deadline = microtime( true ) + self::seconds(); }
