@@ -455,9 +455,24 @@ final class Holds {
 		$seats = SeatHolds::sync( $hold, $now );
 		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_save', __( 'Das Kontingent konnte nicht freigegeben werden.', 'wp-pass-captain' ), 500 ); }
 		Audit::record( 'allocation_released', 'allocation', (int) $hold->hold_id, array( 'units' => $release, 'seats' => $seats, 'reason' => sanitize_key( $reason ), 'closed' => isset( $fields['status'] ) ) );
-		/** A hold released units back to public sale (e.g. to notify waitlists). */
+		/** A hold released units back to public sale. */
 		do_action( 'wpcap_allocation_released', (int) $hold->hold_id, $release, (string) $reason );
+		if ( $release > 0 ) { self::notify_capacity_increased( $hold ); }
 		return array( 'released' => $release, 'seats' => $seats, 'hold' => self::get( $hold->hold_id ) );
+	}
+
+	/**
+	 * Fires `wpcap_capacity_increased( $ticket_type_id, $occurrence_id )` (waitlist offers) for the
+	 * hold's ticket type, or for every active ticket type of the occurrence for occurrence-wide holds.
+	 * Call after the commit.
+	 */
+	public static function notify_capacity_increased( $hold ) {
+		global $wpdb;
+		$occurrence_id = (int) $hold->occurrence_id;
+		$type_ids = (int) $hold->ticket_type_id ? array( (int) $hold->ticket_type_id ) : array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id", $occurrence_id ) ) );
+		foreach ( $type_ids as $type_id ) {
+			do_action( 'wpcap_capacity_increased', $type_id, $occurrence_id );
+		}
 	}
 
 	/**

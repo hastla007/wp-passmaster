@@ -271,7 +271,7 @@ final class Shifts {
 	}
 
 	/** Checks that block counting/closing: pending stornos, paid but unbooked sales. */
-	private static function close_blockers( $shift ) {
+	public static function close_blockers( $shift ) {
 		global $wpdb;
 		Service::reset_rejected_stornos( $shift->session_id );
 		if ( self::pending_stornos( $shift->session_id ) ) {

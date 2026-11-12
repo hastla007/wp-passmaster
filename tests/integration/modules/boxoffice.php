@@ -213,11 +213,15 @@ foreach ( $wpdb->get_results( "SELECT receipt_number,storno_receipt_number FROM 
 	if ( $r->receipt_number ) { $numbers[] = wpb_seq( $r->receipt_number ); }
 	if ( $r->storno_receipt_number ) { $numbers[] = wpb_seq( $r->storno_receipt_number ); }
 }
+// Payout receipts of refunds/stornos (movements) share the receipt series; a full storno's payout number is the sale's storno number.
+foreach ( $wpdb->get_col( "SELECT receipt_number FROM {$p}wpcap_boxoffice_movements WHERE receipt_number IS NOT NULL" ) as $r ) { $numbers[] = wpb_seq( $r ); }
+$numbers = array_values( array_unique( $numbers ) );
 sort( $numbers );
 check( 'receipt numbers (sales and stornos, incl. parallel sales) are gapless and unique (' . count( $numbers ) . ')', $numbers && range( $numbers[0], $numbers[0] + count( $numbers ) - 1 ) === $numbers );
 
 $totals = Pos::session_totals( $session->session_id );
-$expected_cash = (int) $wpdb->get_var( "SELECT COALESCE(SUM(total_minor),0) FROM {$p}wpcap_boxoffice_sales WHERE session_id=" . (int) $session->session_id . " AND payment_method='cash' AND status<>'voided'" );
+// Cash payouts of refunds of this shift's sales (here: the partial "Kulanz" refund) are booked into the open shift.
+$expected_cash = (int) $wpdb->get_var( "SELECT COALESCE(SUM(total_minor),0) FROM {$p}wpcap_boxoffice_sales WHERE session_id=" . (int) $session->session_id . " AND payment_method='cash' AND status<>'voided'" ) - (int) $refund_other['amount_minor'];
 check( 'session totals per payment method net out stornos', 1 === $totals['methods']['card']['voided_count'] && 2140 === $totals['methods']['card']['net'] && 0 === $totals['methods']['free']['net'] && 2140 === $totals['methods']['invoice']['net'] && 10000 + $expected_cash === $totals['expected_cash'] && $expected_cash === $totals['methods']['cash']['net'] );
 $GLOBALS['wpcap_test_user_id'] = 2;
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );

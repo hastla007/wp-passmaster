@@ -163,6 +163,7 @@ final class SeatHolds {
 		}
 		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_alloc_save', __( 'Die Sitzplätze konnten nicht freigegeben werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( 'allocation_seats_released', 'allocation', (int) $hold->hold_id, array( 'seats' => $count ) );
+		if ( $count ) { Holds::notify_capacity_increased( $hold ); }
 		return array( 'released' => $count );
 	}
 

@@ -110,6 +110,15 @@ final class Service {
 	 * reason for a cash difference. Only cashiers of the shift (or an administrator).
 	 */
 	public static function close_session( $session_id, $counted_minor, $note = '' ) {
+		$shift = Shifts::get( $session_id );
+		if ( $shift && 'open' === $shift->status && Shifts::can_operate( $shift ) ) {
+			$blocked = Shifts::close_blockers( $shift );
+			if ( is_wp_error( $blocked ) ) { return $blocked; }
+		}
+		if ( $shift && 'open' === $shift->status && '' === trim( (string) $note ) && Shifts::can_operate( $shift ) && max( 0, (int) $counted_minor ) !== ZReport::compute( $session_id )['cash']['expected'] ) {
+			// Refuse before counting, so the shift stays open for sales.
+			return self::error( 'wpcap_pos_difference_reason', __( 'Es gibt eine Kassendifferenz. Bitte einen Grund angeben.', 'wp-pass-captain' ) );
+		}
 		$count = Shifts::submit_count( $session_id, array( 'cash_minor' => max( 0, (int) $counted_minor ) ) );
 		if ( is_wp_error( $count ) ) { return $count; }
 		return Shifts::close( $session_id, array( 'reason' => $note, 'note' => $note ) );
@@ -239,6 +248,8 @@ final class Service {
 		$occurrence_id = absint( $input['occurrence_id'] ?? 0 );
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		if ( ! $event_id || ! Scope::can_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
+		$register = Registers::get( $session->register_id );
+		if ( $register && (int) $register->event_id && (int) $register->event_id !== $event_id ) { return self::error( 'wpcap_pos_register_event', __( 'Diese Kasse verkauft nur Tickets für ein anderes Event.', 'wp-pass-captain' ), 409 ); }
 		$methods = self::methods();
 		$method = (string) ( $input['method'] ?? '' );
 		if ( ! isset( $methods[ $method ] ) ) { return self::error( 'wpcap_pos_method', __( 'Bitte eine Zahlart wählen.', 'wp-pass-captain' ) ); }
@@ -407,32 +418,80 @@ final class Service {
 		return 'pos-storno-' . absint( $sale_id ) . ( $attempt ? '-' . absint( $attempt ) : '' );
 	}
 
+	/** Whether the current user may storno checked-in tickets (with a reason). */
+	public static function can_override_checkin() {
+		return current_user_can( Shifts::OVERRIDE_CAP ) || current_user_can( 'manage_options' );
+	}
+
 	/**
-	 * Voids a sale of an open session through Refunds (full refund via the pos_* gateway).
+	 * Storno of a booked sale (whole sale or single tickets) through Refunds via the pos_* gateway.
 	 * Requires the refund capability (Refunds enforces it, incl. 2FA and the approval threshold).
-	 * After a rejected storno the sale is "completed" again and a new storno can be requested.
+	 *
+	 * The payout is booked as a negative movement with its own storno receipt number into the
+	 * sale's shift while it is open, otherwise into the currently open shift (of the user or of the
+	 * sale's register). Cash and card stornos need such an open shift. Checked-in tickets are only
+	 * refunded with the override capability and a reason. After a rejected storno the sale is
+	 * "completed" again and a new storno can be requested.
+	 *
+	 * @param int[]  $ticket_ids      Tickets to storno; empty = all tickets not yet refunded.
+	 * @param string $override_reason Reason for refunding checked-in tickets (override capability).
+	 * @return object|\WP_Error Sale row.
 	 */
-	public static function storno( $sale_id, $reason = '' ) {
+	public static function storno( $sale_id, $reason = '', array $ticket_ids = array(), $override_reason = '' ) {
+		global $wpdb;
 		$sale = self::sale( $sale_id );
 		if ( ! $sale || ! $sale->order_id || in_array( $sale->status, array( 'pending', 'failed' ), true ) ) { return self::error( 'wpcap_pos_sale', __( 'Verkauf nicht gefunden.', 'wp-pass-captain' ), 404 ); }
 		$session = self::session( $sale->session_id );
 		if ( ! $session ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'wp-pass-captain' ), 404 ); }
 		if ( ! Scope::can_order( $sale->order_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
-		if ( (int) $session->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) && ! current_user_can( Refunds::APPROVE_CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Nur Verkäufe der eigenen Kassensitzung können storniert werden.', 'wp-pass-captain' ), 403 ); }
+		$target = Shifts::target_shift_for_sale( $sale );
+		$user_id = get_current_user_id();
+		$allowed = Shifts::is_cashier( $session, $user_id ) || current_user_can( 'manage_options' ) || current_user_can( Refunds::APPROVE_CAP )
+			|| ( $target && (int) $target->register_id === (int) $session->register_id && Shifts::is_cashier( $target, $user_id ) );
+		if ( ! $allowed ) { return self::error( 'wpcap_forbidden', __( 'Nur Verkäufe der eigenen Kassensitzung können storniert werden.', 'wp-pass-captain' ), 403 ); }
 		if ( 'voided' === $sale->status ) { return $sale; }
 		if ( 'storno_pending' === $sale->status ) {
 			self::reset_rejected_stornos( $sale->session_id );
 			$sale = self::sale( $sale->sale_id );
 			if ( 'storno_pending' === $sale->status ) { return $sale; }
 		}
-		if ( 'open' !== $session->status ) { return self::error( 'wpcap_pos_session_closed', __( 'Storno ist nur bis zum Kassenabschluss möglich. Danach bitte eine Erstattung über die Bestellung anlegen.', 'wp-pass-captain' ), 409 ); }
-		$refund = Refunds::request( (int) $sale->order_id, array(), 'POS-Storno ' . $sale->receipt_number . ( '' !== (string) $reason ? ': ' . $reason : '' ), self::storno_key( $sale->sale_id, (int) $sale->storno_attempt ) );
-		if ( is_wp_error( $refund ) ) { return $refund; }
-		global $wpdb;
-		if ( 'completed' === $refund['status'] ) {
+		// Tickets: the requested ones must be open (not refunded) tickets of the order.
+		$open = array();
+		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,status FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND refunded=0 ORDER BY ticket_id", (int) $sale->order_id ) ) as $t ) { $open[ (int) $t->ticket_id ] = $t->status; }
+		$refundable = array_map( static function ( $t ) { return (int) $t->ticket_id; }, Orders::refundable_tickets( (int) $sale->order_id ) );
+		$requested = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
+		$targets = $requested ? $requested : $refundable;
+		if ( ! $targets || array_diff( $targets, $refundable ) ) { return self::error( 'wpcap_pos_storno_tickets', __( 'Die gewählten Tickets gehören nicht zu diesem Verkauf oder wurden bereits storniert.', 'wp-pass-captain' ), 409 ); }
+		$checked_in = array_values( array_filter( $targets, static function ( $id ) use ( $open ) { return 'checked_in' === ( $open[ $id ] ?? '' ); } ) );
+		$override_reason = trim( sanitize_text_field( (string) $override_reason ) );
+		if ( $checked_in && ( ! self::can_override_checkin() || '' === $override_reason ) ) {
+			return self::error( 'wpcap_pos_checked_in', self::can_override_checkin()
+				? __( 'Mindestens ein Ticket wurde bereits eingecheckt. Für den Storno bitte einen Grund für die Ausnahme angeben.', 'wp-pass-captain' )
+				: __( 'Mindestens ein Ticket wurde bereits eingecheckt und kann an der Kasse nicht storniert werden.', 'wp-pass-captain' ), 409 );
+		}
+		if ( ! $target && Shifts::needs_shift( $sale->payment_method ) ) {
+			return self::error( 'wpcap_pos_no_shift', __( 'Für die Auszahlung muss eine Kassenschicht geöffnet sein. Bitte zuerst eine Schicht öffnen.', 'wp-pass-captain' ), 409 );
+		}
+		$partial = count( $targets ) < count( $refundable );
+		sort( $targets );
+		$key = $partial ? 'pos-storno-' . (int) $sale->sale_id . '-t' . substr( md5( implode( ',', $targets ) ), 0, 12 ) . '-' . (int) $sale->storno_attempt : self::storno_key( $sale->sale_id, (int) $sale->storno_attempt );
+		$text = 'POS-Storno ' . $sale->receipt_number . ( '' !== (string) $reason ? ': ' . $reason : '' ) . ( $checked_in ? ' [' . __( 'eingecheckt, Ausnahme:', 'wp-pass-captain' ) . ' ' . $override_reason . ']' : '' );
+		Shifts::$storno_override = $checked_in ? $override_reason : '';
+		$refund = Refunds::request( (int) $sale->order_id, $partial ? $targets : array(), $text, $key );
+		if ( ! is_wp_error( $refund ) && 'completed' === $refund['status'] ) {
 			self::on_refund_completed( (int) $refund['refund_id'], (int) $sale->order_id );
+		}
+		Shifts::$storno_override = '';
+		if ( is_wp_error( $refund ) ) { return $refund; }
+		if ( $checked_in ) {
+			Audit::record( 'pos_storno_override', 'order', (int) $sale->order_id, array( 'sale_id' => (int) $sale->sale_id, 'ticket_ids' => $checked_in, 'reason' => $override_reason, 'refund_id' => (int) $refund['refund_id'] ) );
+		}
+		if ( 'completed' === $refund['status'] ) {
+			// Booked above.
 		} elseif ( 'pending_approval' === $refund['status'] ) {
-			$wpdb->update( "{$wpdb->prefix}wpcap_boxoffice_sales", array( 'status' => 'storno_pending', 'storno_refund_id' => (int) $refund['refund_id'] ), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'completed' ) );
+			if ( ! $partial ) {
+				$wpdb->update( "{$wpdb->prefix}wpcap_boxoffice_sales", array( 'status' => 'storno_pending', 'storno_refund_id' => (int) $refund['refund_id'] ), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'completed' ) );
+			}
 		} else {
 			// Rejected/failed refund for this key: allow a fresh attempt next time.
 			$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_boxoffice_sales SET storno_attempt=storno_attempt+1,storno_refund_id=0 WHERE sale_id=%d AND status='completed'", $sale->sale_id ) );
@@ -478,22 +537,31 @@ final class Service {
 		return self::sale( $sale_id );
 	}
 
-	/** wpcap_refund_completed: marks the sale voided and allocates the storno receipt number (idempotent). */
+	/**
+	 * wpcap_refund_completed for box office orders (any refund, also from the order screen):
+	 * makes sure the payout is booked into a shift (Shifts::book_refund(); cash/card payouts were
+	 * already booked by the gateway) and marks the sale voided once no ticket is left, with the
+	 * storno receipt number of the payout (or a new one if no shift was open). Idempotent.
+	 */
 	public static function on_refund_completed( $refund_id, $order_id = 0 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$refund = Refunds::get( $refund_id );
 		if ( ! $refund ) { return; }
-		$sale = $wpdb->get_row( $wpdb->prepare( "SELECT sale_id,storno_attempt FROM {$p}wpcap_boxoffice_sales WHERE order_id=%d", (int) $refund['order_id'] ) );
-		if ( ! $sale || ! hash_equals( hash( 'sha256', 'refund|' . (int) $refund['order_id'] . '|' . self::storno_key( $sale->sale_id, (int) $sale->storno_attempt ) ), (string) $refund['idempotency_key'] ) ) { return; }
+		$sale = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_boxoffice_sales WHERE order_id=%d", (int) $refund['order_id'] ) );
+		if ( ! $sale || ! self::is_booked( $sale ) ) { return; }
+		$movement = Shifts::book_refund( (int) $refund['refund_id'], false );
+		$movement = is_wp_error( $movement ) ? null : $movement;
+		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0", (int) $refund['order_id'] ) );
+		if ( $remaining > 0 ) { return; }
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d FOR UPDATE", $sale->sale_id ) );
 		if ( ! $locked || ! in_array( $locked->status, array( 'completed', 'storno_pending' ), true ) ) { $wpdb->query( 'COMMIT' ); return; }
-		$number = Invoices::next_document_number( 'receipt', self::receipt_prefix(), true );
+		$number = $movement && $movement->receipt_number ? $movement->receipt_number : Invoices::next_document_number( 'receipt', self::receipt_prefix(), true );
 		if ( is_wp_error( $number ) ) { $wpdb->query( 'ROLLBACK' ); return; }
 		$wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'status' => 'voided', 'storno_refund_id' => (int) $refund_id, 'storno_receipt_number' => $number, 'voided_at' => current_time( 'mysql', true ), 'voided_by' => get_current_user_id() ), array( 'sale_id' => (int) $sale->sale_id ) );
 		$wpdb->query( 'COMMIT' );
-		Audit::record( 'pos_storno', 'order', (int) $refund['order_id'], array( 'sale_id' => (int) $sale->sale_id, 'refund_id' => (int) $refund_id, 'receipt' => $number ) );
+		Audit::record( 'pos_storno', 'order', (int) $refund['order_id'], array( 'sale_id' => (int) $sale->sale_id, 'refund_id' => (int) $refund_id, 'receipt' => $number, 'movement_id' => $movement ? (int) $movement->movement_id : 0 ) );
 	}
 
 	/* ------------------------------------------------------------------ receipt */
@@ -501,6 +569,13 @@ final class Service {
 	public static function user_name( $user_id ) {
 		$user = function_exists( 'get_userdata' ) ? get_userdata( absint( $user_id ) ) : null;
 		return $user && ! empty( $user->display_name ) ? $user->display_name : '#' . absint( $user_id );
+	}
+
+	/** Register name of a shift (for receipts). */
+	public static function register_label( $session_id ) {
+		$shift = Shifts::get( $session_id );
+		$register = $shift ? Registers::get( $shift->register_id ) : null;
+		return $register ? $register->name : '–';
 	}
 
 	/** Whether a sale was booked (has a receipt number); only booked sales have a receipt. */
@@ -548,6 +623,7 @@ final class Service {
 			'change_minor' => null === $sale->tendered_minor ? null : max( 0, (int) $sale->tendered_minor - (int) $sale->total_minor ),
 			'cashier' => self::user_name( $sale->cashier_id ),
 			'session_id' => (int) $sale->session_id,
+			'register' => self::register_label( $sale->session_id ),
 			'order' => $order ? $order->public_id : '',
 			'footer' => (string) Settings::get( 'boxoffice_receipt_footer' ),
 		);
@@ -566,7 +642,7 @@ final class Service {
 		$h .= '<h1>' . esc_html( $storno ? __( 'STORNOBELEG', 'wp-pass-captain' ) : __( 'Beleg', 'wp-pass-captain' ) ) . '</h1>';
 		$h .= '<p>' . esc_html( __( 'Beleg-Nr.:', 'wp-pass-captain' ) . ' ' . ( $storno ? $r['storno_number'] : $r['number'] ) ) . '<br>';
 		if ( $storno ) { $h .= esc_html( __( 'Storno zu Beleg', 'wp-pass-captain' ) . ' ' . $r['number'] ) . '<br>'; }
-		$h .= esc_html( __( 'Datum:', 'wp-pass-captain' ) . ' ' . ( $storno ? $r['voided_date'] : $r['date'] ) ) . '<br>' . esc_html( __( 'Kasse/Bediener:', 'wp-pass-captain' ) . ' ' . $r['session_id'] . ' / ' . $r['cashier'] ) . '</p><div class="sep"></div><table>';
+		$h .= esc_html( __( 'Datum:', 'wp-pass-captain' ) . ' ' . ( $storno ? $r['voided_date'] : $r['date'] ) ) . '<br>' . esc_html( __( 'Kasse/Schicht/Bediener:', 'wp-pass-captain' ) . ' ' . $r['register'] . ' / ' . $r['session_id'] . ' / ' . $r['cashier'] ) . '</p><div class="sep"></div><table>';
 		foreach ( $r['items'] as $i ) {
 			$h .= '<tr><td colspan="2">' . esc_html( $i['event'] ) . '<br>' . esc_html( $i['name'] ) . '</td></tr><tr><td>' . esc_html( $i['quantity'] . ' x ' . $m( $i['unit_minor'] ) . ' (' . number_format_i18n( $i['tax_rate_bp'] / 100, 2 ) . ' %)' ) . '</td><td class="n">' . esc_html( $sign . $m( $i['total_minor'] ) ) . '</td></tr>';
 		}
