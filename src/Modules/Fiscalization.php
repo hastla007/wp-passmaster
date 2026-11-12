@@ -128,6 +128,50 @@ final class Fiscalization {
 	}
 
 	/**
+	 * Persist a seller/country/channel profile. Production activation requires an explicit recorded review.
+	 */
+	public static function save_profile( $seller_id, array $input ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$seller_id = absint( $seller_id );
+		$seller = $wpdb->get_row( $wpdb->prepare( "SELECT country_code,status FROM {$p}wpcap_legal_sellers WHERE seller_id=%d", $seller_id ) );
+		$channel = sanitize_key( $input['channel'] ?? '' );
+		$environment = sanitize_key( $input['environment'] ?? 'test' );
+		$status = sanitize_key( $input['status'] ?? 'draft' );
+		$ruleset = sanitize_key( $input['ruleset_key'] ?? '' );
+		$ruleset_version = sanitize_text_field( $input['ruleset_version'] ?? '' );
+		$legal_reference = sanitize_text_field( $input['legal_reference'] ?? '' );
+		$location_id = absint( $input['location_id'] ?? 0 );
+		$register_id = sanitize_text_field( $input['register_id'] ?? '' );
+		$data = is_array( $input['profile_data'] ?? null ) ? $input['profile_data'] : array();
+		if ( ! $seller || 'active' !== $seller->status || ! in_array( $channel, array( 'pos', 'woocommerce' ), true ) || ! in_array( $environment, array( 'test', 'production' ), true ) || ! in_array( $status, array( 'draft', 'test', 'active', 'suspended' ), true ) || self::contains_secret_key( $data ) ) {
+			return new \\WP_Error( 'wpcap_fiscal_profile_invalid', __( 'Fiskalprofil, Verkäufer oder nicht geheime Konfiguration ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+		}
+		if ( 'active' === $status && ( empty( $input['review_attested'] ) || '' === $ruleset || '' === $ruleset_version || '' === $legal_reference ) ) {
+			return new \\WP_Error( 'wpcap_fiscal_profile_review_required', __( 'Produktivfreigabe erfordert dokumentierte Länderprüfung, Regelwerksversion und ausdrückliche Bestätigung.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+		}
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT profile_id,profile_version FROM {$p}wpcap_fiscal_profiles WHERE seller_id=%d AND country_code=%s AND channel=%s AND location_id=%d AND register_id=%s AND environment=%s", $seller_id, $seller->country_code, $channel, $location_id, $register_id, $environment ) );
+		$now = current_time( 'mysql', true );
+		$profile_version = $existing ? (int) $existing->profile_version + 1 : 1;
+		$row = array(
+			'seller_id' => $seller_id, 'country_code' => $seller->country_code, 'channel' => $channel,
+			'location_id' => $location_id, 'register_id' => $register_id, 'environment' => $environment,
+			'status' => $status, 'profile_version' => $profile_version, 'ruleset_key' => $ruleset,
+			'ruleset_version' => $ruleset_version, 'legal_reference' => $legal_reference,
+			'profile_data' => wp_json_encode( $data ), 'reviewed_by' => 'active' === $status ? get_current_user_id() : 0,
+			'reviewed_at' => 'active' === $status ? $now : null,
+			'effective_from' => ! empty( $input['effective_from'] ) ? sanitize_text_field( $input['effective_from'] ) : null,
+			'effective_until' => ! empty( $input['effective_until'] ) ? sanitize_text_field( $input['effective_until'] ) : null,
+			'created_at' => $existing ? $now : $now, 'updated_at' => $now,
+		);
+		if ( $existing ) { $row['profile_id'] = (int) $existing->profile_id; }
+		$result = $wpdb->replace( "{$p}wpcap_fiscal_profiles", $row );
+		if ( false === $result ) { return new \\WP_Error( 'wpcap_fiscal_profile_save', __( 'Fiskalprofil konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		Audit::record( 'fiscal_profile_saved', 'seller', $seller_id, array( 'country_code' => $seller->country_code, 'channel' => $channel, 'environment' => $environment, 'status' => $status, 'profile_version' => $profile_version ) );
+		return array( 'profile_id' => $existing ? (int) $existing->profile_id : (int) $wpdb->insert_id, 'profile_version' => $profile_version, 'status' => $status );
+	}
+
+	/**
 	 * Trusted configuration API for the admin UI or an integration plugin.
 	 * $mode is organizer_seller or platform_seller; it is snapshotted with each receipt line.
 	 */
@@ -421,6 +465,9 @@ final class Fiscalization {
 		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers', array(
 			array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'rest_sellers' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ) ),
 			array( 'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_save_seller' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ) ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\\d+)/profiles', array(
+			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_save_profile' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
 		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\d+)/provider', array(
 			'methods' => 'PUT', 'callback' => array( __CLASS__, 'rest_save_provider' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
