@@ -3,6 +3,8 @@
  * Module: partners ("Partner") – organisers/resellers linked to events, scoped partner API keys
  * (REST under wp-pass-captain/v1/partner/…, Bearer wpcap_pk_…) and monthly partner settlements
  * ("Abrechnungen") with a gapless number series. Code lives in src/Partners/. API: docs/PARTNER-API.md.
+ * Organizers and resellers can sell through the API (scopes orders:write, orders:cancel, tickets:issue;
+ * src/Partners/Sales.php, SalesApi.php, Statement.php): price list, contingents, holds, cancellation window.
  * Sales model per organizer (own_name / agent) decides who issues customer invoices and whether the
  * settlement is a self-billing "Gutschrift" plus fee invoice or a "Provisionsrechnung": docs/SALES-MODELS.md.
  */
@@ -10,6 +12,7 @@ namespace PassCaptain\Modules;
 
 use PassCaptain\Partners\AdminPage;
 use PassCaptain\Partners\Api;
+use PassCaptain\Partners\Sales;
 use PassCaptain\Partners\SalesModel;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -17,13 +20,15 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Partners {
 	public static function register() {
 		add_action( 'rest_api_init', array( Api::class, 'register_routes' ) );
+		// Selling via the partner API (orders:write): order hook, code capture, placeholder mails.
+		Sales::register();
 		// Sales models (docs/SALES-MODELS.md): one order = one seller.
 		add_action( 'wpcap_order_creating', array( SalesModel::class, 'guard_checkout' ), 10, 1 );
 		add_filter( 'wpcap_checkout_error_messages', array( SalesModel::class, 'checkout_messages' ) );
 	}
 
 	public static function settings_defaults() {
-		return array( 'partners' => array( 'settlement_prefix' => 'PA', 'self_billing_prefix' => 'GU', 'rate_limit' => 120 ) );
+		return array( 'partners' => array( 'settlement_prefix' => 'PA', 'self_billing_prefix' => 'GU', 'rate_limit' => 120, 'write_rate_limit' => 30 ) );
 	}
 
 	public static function schema( $prefix, $charset ) {
@@ -51,6 +56,13 @@ final class Partners {
 				small_business tinyint(1) NOT NULL DEFAULT 0,
 				small_business_note varchar(255) NOT NULL DEFAULT '',
 				settlement_start date NULL,
+				role varchar(16) NOT NULL DEFAULT 'organizer',
+				sales_channel varchar(64) NOT NULL DEFAULT '',
+				hold_minutes int(10) unsigned NOT NULL DEFAULT 15,
+				cancel_window_hours int(10) unsigned NOT NULL DEFAULT 0,
+				anonymous_buyer tinyint(1) NOT NULL DEFAULT 0,
+				reseller_commission_bp int(10) unsigned NOT NULL DEFAULT 0,
+				reseller_fee_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'active',
 				notes longtext NOT NULL,
 				created_at datetime NOT NULL,
@@ -78,8 +90,10 @@ final class Partners {
 				secret_hash char(64) NOT NULL,
 				scopes varchar(255) NOT NULL,
 				event_ids longtext NULL,
+				ticket_type_ids longtext NULL,
 				ip_allowlist longtext NULL,
 				rate_limit int(10) unsigned NOT NULL DEFAULT 0,
+				write_rate_limit int(10) unsigned NOT NULL DEFAULT 0,
 				expires_at datetime NULL,
 				last_used_at datetime NULL,
 				revoked_at datetime NULL,
@@ -154,6 +168,66 @@ final class Partners {
 				PRIMARY KEY  (line_id),
 				UNIQUE KEY partner_source (partner_id,source_key),
 				KEY settlement_id (settlement_id)
+			) ENGINE=InnoDB $charset;",
+			// Selling via the partner API (src/Partners/Sales.php): price list / assortment per ticket type.
+			"CREATE TABLE {$prefix}wpcap_partner_prices (
+				partner_id bigint(20) unsigned NOT NULL,
+				ticket_type_id bigint(20) unsigned NOT NULL,
+				price_minor bigint(20) NULL,
+				price_is_net tinyint(1) NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (partner_id,ticket_type_id),
+				KEY ticket_type_id (ticket_type_id)
+			) ENGINE=InnoDB $charset;",
+			// Partner contingents: max. units this partner may sell per occurrence (optionally per type),
+			// optionally drawn from an Allocations hold. The row is the lock for race-free counting.
+			"CREATE TABLE {$prefix}wpcap_partner_contingents (
+				contingent_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				partner_id bigint(20) unsigned NOT NULL,
+				occurrence_id bigint(20) unsigned NOT NULL,
+				ticket_type_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				quantity int(10) unsigned NOT NULL DEFAULT 0,
+				allocation_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (contingent_id),
+				UNIQUE KEY partner_scope (partner_id,occurrence_id,ticket_type_id),
+				KEY occurrence_id (occurrence_id)
+			) ENGINE=InnoDB $charset;",
+			// Orders created through the partner API (seller of record = partner).
+			"CREATE TABLE {$prefix}wpcap_partner_orders (
+				order_id bigint(20) unsigned NOT NULL,
+				partner_id bigint(20) unsigned NOT NULL,
+				key_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				mode varchar(10) NOT NULL DEFAULT 'reserve',
+				channel varchar(64) NOT NULL DEFAULT '',
+				external_reference varchar(100) NOT NULL DEFAULT '',
+				anonymous tinyint(1) NOT NULL DEFAULT 0,
+				request_hash char(64) NOT NULL DEFAULT '',
+				confirmed_at datetime NULL,
+				cancelled_at datetime NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (order_id),
+				KEY partner_created (partner_id,created_at),
+				KEY external_reference (partner_id,external_reference)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$prefix}wpcap_partner_contingent_usage (
+				order_id bigint(20) unsigned NOT NULL,
+				contingent_id bigint(20) unsigned NOT NULL,
+				quantity int(10) unsigned NOT NULL DEFAULT 0,
+				PRIMARY KEY  (order_id,contingent_id),
+				KEY contingent_id (contingent_id)
+			) ENGINE=InnoDB $charset;",
+			// Ticket codes of partner orders, encrypted (secretbox) for re-download by the holder of record.
+			"CREATE TABLE {$prefix}wpcap_partner_ticket_codes (
+				ticket_id bigint(20) unsigned NOT NULL,
+				order_id bigint(20) unsigned NOT NULL,
+				partner_id bigint(20) unsigned NOT NULL,
+				code_box varchar(255) NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (ticket_id),
+				KEY order_id (order_id)
 			) ENGINE=InnoDB $charset;",
 		);
 	}

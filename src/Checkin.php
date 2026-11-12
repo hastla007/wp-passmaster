@@ -63,11 +63,12 @@ final class Checkin {
 	 * Looks a ticket up by code and checks admission preconditions (not the ticket status).
 	 *
 	 * @param string   $code
-	 * @param int|null $at     Evaluation time (UTC timestamp); default now.
-	 * @param bool     $strict false skips the cancellation/plausibility checks (used for check-out).
+	 * @param int|null $at      Evaluation time (UTC timestamp); default now.
+	 * @param bool     $strict  false skips the cancellation/plausibility checks (used for check-out).
+	 * @param array    $context Scan context (event_ids, occurrence_id, area_id) for `wpcap_ticket_valid_for_occurrence`.
 	 * @return array|\WP_Error
 	 */
-	public static function lookup( $code, $at = null, $strict = true ) {
+	public static function lookup( $code, $at = null, $strict = true, array $context = array() ) {
 		$code = self::normalize_code( $code );
 		if ( '' === $code ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
 		global $wpdb;
@@ -78,11 +79,23 @@ final class Checkin {
 		) );
 		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
 		$found = array( 'ticket_id' => (int) $row->ticket_id, 'public_id' => $row->public_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'ends_at' => $row->ends_at, 'timezone' => $row->timezone, 'attendee_name' => (string) $row->attendee_name );
+		// [Passes] Extension point: a ticket may be valid for another occurrence than the one of its
+		// ticket type (multi-date/festival passes). Modules return $found bound to that occurrence
+		// (occurrence_id, event_id, event_name, starts_at, ends_at, timezone and the statuses below);
+		// other keys are ignored. Default: unchanged.
+		$bound = apply_filters( 'wpcap_ticket_valid_for_occurrence', $found + array( 'occurrence_status' => $row->occurrence_status, 'event_status' => $row->event_status ), $context, null === $at ? self::now() : (int) $at );
+		if ( is_array( $bound ) ) {
+			foreach ( array( 'occurrence_id', 'event_id', 'event_name', 'starts_at', 'ends_at', 'timezone' ) as $k ) {
+				if ( array_key_exists( $k, $bound ) ) { $found[ $k ] = in_array( $k, array( 'occurrence_id', 'event_id' ), true ) ? (int) $bound[ $k ] : $bound[ $k ]; }
+			}
+			$row->occurrence_status = (string) ( $bound['occurrence_status'] ?? $row->occurrence_status );
+			$row->event_status = (string) ( $bound['event_status'] ?? $row->event_status );
+		}
 		if ( ! $strict ) { return $found; }
 		$internal = array( 'event_id' => (int) $row->event_id, 'ticket_id' => (int) $row->ticket_id, 'occurrence_id' => (int) $row->occurrence_id );
 		if ( 'cancelled' === $row->occurrence_status || 'cancelled' === $row->event_status ) { return new \WP_Error( 'wpcap_ticket_cancelled_event', __( 'Dieser Termin wurde abgesagt; das Ticket berechtigt nicht zum Einlass.', 'wp-pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'cancelled_event' ), $internal ) ); }
 		$at = null === $at ? self::now() : (int) $at;
-		$start = strtotime( $row->starts_at . ' UTC' );
+		$start = strtotime( $found['starts_at'] . ' UTC' );
 		$last = Policies::last_valid_ts( (int) $row->ticket_type_id, $found );
 		if ( $last < $at - DAY_IN_SECONDS || $start > $at + 365 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_ticket_out_of_window', __( 'Das Ticket liegt außerhalb des Einlasszeitraums.', 'wp-pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'out_of_window' ), $internal ) ); }
 		return $found;
@@ -97,7 +110,7 @@ final class Checkin {
 	 */
 	public static function preview( $code, array $context = array() ) {
 		$at = self::eval_time( $context );
-		$found = self::lookup( $code, $at );
+		$found = self::lookup( $code, $at, true, $context );
 		if ( is_wp_error( $found ) ) { return self::public_error( $found ); }
 		$denied = self::deny( $found, $context, 'in' );
 		if ( $denied ) { return self::public_error( $denied ); }
@@ -143,7 +156,7 @@ final class Checkin {
 				}
 			}
 		}
-		$found = self::lookup( $code, $at );
+		$found = self::lookup( $code, $at, true, $context );
 		if ( is_wp_error( $found ) ) { return self::offline_conflict( $found, null, $context, $key ); }
 		$denied = self::deny( $found, $context, 'in' );
 		if ( $denied ) { return self::offline_conflict( $denied, $found, $context, $key ); }
@@ -226,7 +239,7 @@ final class Checkin {
 		$user_id = get_current_user_id();
 		$key = self::key_hash( $context );
 		$at = self::eval_time( $context );
-		$found = self::lookup( $code, $at, false );
+		$found = self::lookup( $code, $at, false, $context );
 		if ( is_wp_error( $found ) ) { return $found; }
 		if ( $key ) {
 			$previous = $wpdb->get_row( $wpdb->prepare( "SELECT c.checkin_id,c.result,c.ticket_id FROM {$p}wpcap_checkins c WHERE c.user_id=%d AND c.idempotency_key=%s ORDER BY c.checkin_id DESC LIMIT 1", $user_id, $key ) );

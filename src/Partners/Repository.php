@@ -14,6 +14,25 @@ final class Repository {
 	/** Refund handling of platform fees: reverse commission and per-ticket fee, keep the fixed fee, keep both. */
 	const REFUND_POLICIES = array( 'reverse_all', 'keep_fixed_fee', 'keep_all' );
 	const STATUSES = array( 'active', 'inactive' );
+	/** organizer: owns events (settlements); reseller: sells other organizers' events via the API. */
+	const ROLE_ORGANIZER = 'organizer';
+	const ROLE_RESELLER = 'reseller';
+	const ROLES = array( self::ROLE_ORGANIZER, self::ROLE_RESELLER );
+	/** Upper bound of the hold time of API reservations (minutes). */
+	const MAX_HOLD_MINUTES = 60;
+
+	public static function role_labels() {
+		return array(
+			self::ROLE_ORGANIZER => __( 'Veranstalter (eigene Events)', 'wp-pass-captain' ),
+			self::ROLE_RESELLER => __( 'Wiederverkäufer (verkauft Events anderer Veranstalter)', 'wp-pass-captain' ),
+		);
+	}
+
+	/** Role of a partner row (unknown/missing = organizer). */
+	public static function role_of( $partner ) {
+		$role = is_object( $partner ) ? (string) ( $partner->role ?? '' ) : '';
+		return in_array( $role, self::ROLES, true ) ? $role : self::ROLE_ORGANIZER;
+	}
 
 	public static function refund_policy_labels() {
 		return array(
@@ -40,7 +59,9 @@ final class Repository {
 	 *                    currency, commission_bp, fee_per_ticket_minor, fee_tax_rate_bp, refund_policy,
 	 *                    settlement_start (Y-m-d|''), status, notes; sales model and seller data (missing keys keep
 	 *                    the stored value on update): sales_model, legal_name, country, tax_number, vat_id_checked_at,
-	 *                    invoice_prefix, small_business, small_business_note.
+	 *                    invoice_prefix, small_business, small_business_note; API sales (missing keys keep the
+	 *                    stored value): role, sales_channel, hold_minutes (1–60), cancel_window_hours,
+	 *                    anonymous_buyer, reseller_commission_bp, reseller_fee_minor.
 	 * @return int|\WP_Error Partner id.
 	 */
 	public static function save( array $data, $partner_id = 0 ) {
@@ -63,6 +84,8 @@ final class Repository {
 		if ( '' !== $start && ! \PassCaptain\Reports\Data::valid_date( $start ) ) { return new \WP_Error( 'wpcap_partner_start', __( 'Ungültiges Abrechnungsbeginn-Datum.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		$seller = self::seller_fields( $data, $existing, $partner_id );
 		if ( is_wp_error( $seller ) ) { return $seller; }
+		$sales = self::sales_fields( $data, $existing );
+		if ( is_wp_error( $sales ) ) { return $sales; }
 		$now = current_time( 'mysql', true );
 		$row = array(
 			'name' => $name,
@@ -81,7 +104,7 @@ final class Repository {
 			'status' => in_array( $data['status'] ?? '', self::STATUSES, true ) ? $data['status'] : 'active',
 			'notes' => substr( sanitize_textarea_field( (string) ( $data['notes'] ?? '' ) ), 0, 5000 ),
 			'updated_at' => $now,
-		) + $seller;
+		) + $seller + $sales;
 		if ( $existing ) {
 			$ok = $wpdb->update( "{$wpdb->prefix}wpcap_partners", $row, array( 'partner_id' => $partner_id ) );
 		} else {
@@ -90,7 +113,7 @@ final class Repository {
 			$partner_id = (int) $wpdb->insert_id;
 		}
 		if ( false === $ok ) { return new \WP_Error( 'wpcap_partner_save', __( 'Veranstalter konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
-		Audit::record( $existing ? 'partner_updated' : 'partner_created', 'partner', $partner_id, array( 'commission_bp' => $commission, 'fee_per_ticket_minor' => $fee, 'refund_policy' => $row['refund_policy'], 'status' => $row['status'], 'sales_model' => $row['sales_model'], 'sales_model_changed' => $existing && SalesModel::model_of( $existing ) !== $row['sales_model'] ) );
+		Audit::record( $existing ? 'partner_updated' : 'partner_created', 'partner', $partner_id, array( 'commission_bp' => $commission, 'fee_per_ticket_minor' => $fee, 'refund_policy' => $row['refund_policy'], 'status' => $row['status'], 'sales_model' => $row['sales_model'], 'sales_model_changed' => $existing && SalesModel::model_of( $existing ) !== $row['sales_model'], 'role' => $row['role'], 'hold_minutes' => $row['hold_minutes'], 'cancel_window_hours' => $row['cancel_window_hours'], 'anonymous_buyer' => $row['anonymous_buyer'], 'reseller_commission_bp' => $row['reseller_commission_bp'], 'reseller_fee_minor' => $row['reseller_fee_minor'] ) );
 		return $partner_id;
 	}
 
@@ -132,6 +155,40 @@ final class Repository {
 			'invoice_prefix' => $prefix,
 			'small_business' => (int) (bool) $pick( 'small_business', 0 ),
 			'small_business_note' => substr( sanitize_text_field( (string) $pick( 'small_business_note', '' ) ), 0, 255 ),
+		);
+	}
+
+	/**
+	 * Partner API sales settings (validated). Keys missing in $data keep the stored value.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private static function sales_fields( array $data, $existing ) {
+		$pick = static function ( $key, $default ) use ( $data, $existing ) {
+			if ( array_key_exists( $key, $data ) ) { return $data[ $key ]; }
+			return $existing && isset( $existing->$key ) ? $existing->$key : $default;
+		};
+		$role = (string) $pick( 'role', self::ROLE_ORGANIZER );
+		if ( ! in_array( $role, self::ROLES, true ) ) { return new \WP_Error( 'wpcap_partner_role', __( 'Unbekannte Rolle.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$hold = (int) $pick( 'hold_minutes', 15 );
+		if ( $hold < 1 || $hold > self::MAX_HOLD_MINUTES ) {
+			/* translators: %d: maximum minutes */
+			return new \WP_Error( 'wpcap_partner_hold', sprintf( __( 'Die Reservierungsdauer muss zwischen 1 und %d Minuten liegen.', 'wp-pass-captain' ), self::MAX_HOLD_MINUTES ), array( 'status' => 400 ) );
+		}
+		$window = (int) $pick( 'cancel_window_hours', 0 );
+		if ( $window < 0 || $window > 8760 ) { return new \WP_Error( 'wpcap_partner_cancel_window', __( 'Das Stornofenster muss zwischen 0 und 8760 Stunden liegen.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$commission = (int) $pick( 'reseller_commission_bp', 0 );
+		if ( $commission < 0 || $commission > 10000 ) { return new \WP_Error( 'wpcap_partner_percent', __( 'Prozentwerte müssen zwischen 0 und 100 liegen.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$fee = (int) $pick( 'reseller_fee_minor', 0 );
+		if ( $fee < 0 ) { return new \WP_Error( 'wpcap_partner_fee', __( 'Die Ticketgebühr darf nicht negativ sein.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		return array(
+			'role' => $role,
+			'sales_channel' => substr( sanitize_text_field( (string) $pick( 'sales_channel', '' ) ), 0, 64 ),
+			'hold_minutes' => $hold,
+			'cancel_window_hours' => $window,
+			'anonymous_buyer' => (int) (bool) $pick( 'anonymous_buyer', 0 ),
+			'reseller_commission_bp' => $commission,
+			'reseller_fee_minor' => $fee,
 		);
 	}
 

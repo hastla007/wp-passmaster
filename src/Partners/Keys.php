@@ -3,8 +3,10 @@
  * Scoped partner API keys.
  *
  * Format: "wpcap_pk_{12 hex prefix}_{64 hex secret}". Only the public prefix and the SHA-256 hash of
- * the 256-bit random secret are stored; the full key is returned once on creation. Keys carry scopes,
- * an optional event restriction (subset of the partner's events), an optional IP allowlist
+ * the 256-bit random secret are stored; the full key is returned once on creation. Keys carry scopes
+ * (read scopes plus the write scopes orders:write, orders:cancel, tickets:issue), an optional event
+ * restriction (subset of the partner's events or, for selling, of its assortment), an optional ticket
+ * type restriction (selling only), a separate rate limit for write calls, an optional IP allowlist
  * (addresses or CIDR ranges, IPv4/IPv6), an optional expiry and a per-key rate limit. Failed
  * authentications are audited and lock the client address out after repeated failures.
  */
@@ -19,7 +21,9 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Keys {
 	const TOKEN_PREFIX = 'wpcap_pk_';
 	/** Read scopes. attendees:read additionally unlocks buyer and attendee e-mail addresses. */
-	const SCOPES = array( 'events:read', 'orders:read', 'tickets:read', 'checkins:read', 'reports:read', 'settlements:read', 'attendees:read' );
+	const SCOPES = array( 'events:read', 'orders:read', 'tickets:read', 'checkins:read', 'reports:read', 'settlements:read', 'attendees:read', 'orders:write', 'orders:cancel', 'tickets:issue' );
+	/** Write scopes (selling through the API, see Sales). tickets:issue requires orders:write. */
+	const WRITE_SCOPES = array( 'orders:write', 'orders:cancel', 'tickets:issue' );
 	/** Failed authentications per client address and window before the address is locked out. */
 	const FAIL_LIMIT = 20;
 	const FAIL_WINDOW = 600;
@@ -33,14 +37,19 @@ final class Keys {
 			'reports:read' => __( 'Berichte (Umsatz, Auslastung) lesen', 'wp-pass-captain' ),
 			'settlements:read' => __( 'Abgeschlossene Abrechnungen lesen', 'wp-pass-captain' ),
 			'attendees:read' => __( 'Personenbezogene Daten: E-Mail-Adressen von Käufer:innen und Teilnehmenden', 'wp-pass-captain' ),
+			'orders:write' => __( 'Verkaufen: Bestellungen/Reservierungen anlegen und bestätigen (Zahlung durch den Veranstalter/Wiederverkäufer)', 'wp-pass-captain' ),
+			'orders:cancel' => __( 'Eigene API-Bestellungen stornieren (Reservierungen freigeben, bezahlte im Stornofenster erstatten)', 'wp-pass-captain' ),
+			'tickets:issue' => __( 'Ticket-Codes eigener API-Bestellungen abrufen (nur zusammen mit orders:write)', 'wp-pass-captain' ),
 		);
 	}
 
 	/**
 	 * Issues a key.
 	 *
-	 * @param array $args label, event_ids (int[], empty = all partner events), ip_allowlist (string|array),
-	 *                    expires_at (UTC "Y-m-d H:i:s" or ''), rate_limit (requests/minute, 0 = default).
+	 * @param array $args label, event_ids (int[], empty = all partner events), ticket_type_ids (int[], selling
+	 *                    only; empty = all sellable types), ip_allowlist (string|array), expires_at (UTC
+	 *                    "Y-m-d H:i:s" or ''), rate_limit (requests/minute, 0 = default), write_rate_limit
+	 *                    (write calls/minute, 0 = default).
 	 * @return array|\WP_Error key_id, key (shown once), prefix, scopes.
 	 */
 	public static function issue( $partner_id, array $scopes, array $args = array() ) {
@@ -49,9 +58,18 @@ final class Keys {
 		if ( ! $partner ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		$scopes = array_values( array_intersect( self::SCOPES, array_map( 'strval', $scopes ) ) );
 		if ( ! $scopes ) { return new \WP_Error( 'wpcap_partner_key_scopes', __( 'Mindestens ein unterstützter Scope ist erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( in_array( 'tickets:issue', $scopes, true ) && ! in_array( 'orders:write', $scopes, true ) ) {
+			return new \WP_Error( 'wpcap_partner_key_scopes', __( 'Der Scope tickets:issue ist nur zusammen mit orders:write möglich.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+		}
 		$events = array_values( array_unique( array_filter( array_map( 'absint', (array) ( $args['event_ids'] ?? array() ) ) ) ) );
-		if ( array_diff( $events, Repository::event_ids( $partner->partner_id ) ) ) {
+		// Resellers may restrict keys to the events of their assortment (price list), organizers to their own events.
+		$allowed_events = array_unique( array_merge( Repository::event_ids( $partner->partner_id ), Sales::assortment_event_ids( $partner ) ) );
+		if ( array_diff( $events, $allowed_events ) ) {
 			return new \WP_Error( 'wpcap_partner_key_events', __( 'Ein Key kann nur auf Events dieses Veranstalters beschränkt werden.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+		}
+		$types = array_values( array_unique( array_filter( array_map( 'absint', (array) ( $args['ticket_type_ids'] ?? array() ) ) ) ) );
+		if ( $types && array_diff( $types, array_keys( Sales::sellable_types( $partner ) ) ) ) {
+			return new \WP_Error( 'wpcap_partner_key_types', __( 'Ein Key kann nur auf Ticketarten beschränkt werden, die der Veranstalter verkaufen darf.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
 		$allow = self::parse_allowlist( $args['ip_allowlist'] ?? '' );
 		if ( is_wp_error( $allow ) ) { return $allow; }
@@ -68,15 +86,17 @@ final class Keys {
 			'secret_hash' => hash( 'sha256', $secret ),
 			'scopes' => implode( ',', $scopes ),
 			'event_ids' => $events ? wp_json_encode( $events ) : null,
+			'ticket_type_ids' => $types ? wp_json_encode( $types ) : null,
 			'ip_allowlist' => $allow ? implode( "\n", $allow ) : null,
 			'rate_limit' => min( 100000, absint( $args['rate_limit'] ?? 0 ) ),
+			'write_rate_limit' => min( 100000, absint( $args['write_rate_limit'] ?? 0 ) ),
 			'expires_at' => '' !== $expires ? $expires : null,
 			'created_by' => get_current_user_id(),
 			'created_at' => current_time( 'mysql', true ),
 		) );
 		if ( false === $saved ) { return new \WP_Error( 'wpcap_partner_key_save', __( 'API-Key konnte nicht angelegt werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		$key_id = (int) $wpdb->insert_id;
-		Audit::record( 'partner_key_created', 'partner_key', $key_id, array( 'partner_id' => (int) $partner->partner_id, 'scopes' => $scopes, 'event_ids' => $events, 'ip_allowlist' => (bool) $allow, 'expires_at' => $expires ) );
+		Audit::record( 'partner_key_created', 'partner_key', $key_id, array( 'partner_id' => (int) $partner->partner_id, 'scopes' => $scopes, 'event_ids' => $events, 'ticket_type_ids' => $types, 'ip_allowlist' => (bool) $allow, 'expires_at' => $expires ) );
 		return array( 'key_id' => $key_id, 'key' => self::TOKEN_PREFIX . $prefix . '_' . $secret, 'prefix' => $prefix, 'scopes' => $scopes, 'shown_once' => true );
 	}
 
@@ -88,7 +108,7 @@ final class Keys {
 	/** Keys of a partner (newest first; secret hashes stripped). */
 	public static function for_partner( $partner_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT key_id,partner_id,label,public_prefix,scopes,event_ids,ip_allowlist,rate_limit,expires_at,last_used_at,revoked_at,created_at FROM {$wpdb->prefix}wpcap_partner_keys WHERE partner_id=%d ORDER BY key_id DESC", absint( $partner_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT key_id,partner_id,label,public_prefix,scopes,event_ids,ticket_type_ids,ip_allowlist,rate_limit,write_rate_limit,expires_at,last_used_at,revoked_at,created_at FROM {$wpdb->prefix}wpcap_partner_keys WHERE partner_id=%d ORDER BY key_id DESC", absint( $partner_id ) ) );
 	}
 
 	public static function revoke( $key_id ) {
@@ -114,6 +134,33 @@ final class Keys {
 		$partner_events = Repository::event_ids( $key->partner_id );
 		$restricted = array_map( 'absint', (array) json_decode( (string) $key->event_ids, true ) );
 		return array_values( $restricted ? array_intersect( $partner_events, $restricted ) : $partner_events );
+	}
+
+	/** Event restriction of a key as stored (empty = none). */
+	public static function restricted_events( $key ) {
+		return array_values( array_filter( array_map( 'absint', (array) json_decode( (string) ( $key->event_ids ?? '' ), true ) ) ) );
+	}
+
+	/** Ticket type restriction of a key (selling only; empty = none). */
+	public static function restricted_types( $key ) {
+		return array_values( array_filter( array_map( 'absint', (array) json_decode( (string) ( $key->ticket_type_ids ?? '' ), true ) ) ) );
+	}
+
+	/**
+	 * Separate per-key limit for write calls (Settings partners.write_rate_limit, default 30/min).
+	 * Checked after authentication, so reads cannot exhaust the write budget and vice versa.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public static function allow_write( $key, $route = '' ) {
+		$limit = (int) ( $key->write_rate_limit ?? 0 ) ?: max( 1, (int) ( Settings::get( 'partners' )['write_rate_limit'] ?? 30 ) );
+		if ( RateLimit::allow( 'partner_key_write_' . (int) $key->key_id, $limit, 60 ) ) { return true; }
+		$flag = 'wpcap_partner_wrl_logged_' . (int) $key->key_id;
+		if ( ! get_transient( $flag ) ) {
+			set_transient( $flag, 1, MINUTE_IN_SECONDS );
+			self::audit_failure( 'write_rate_limited', $key, self::client_ip(), $route );
+		}
+		return new \WP_Error( 'wpcap_partner_rate_limited', __( 'Ratenlimit für schreibende Anfragen überschritten. Bitte später erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 429 ) );
 	}
 
 	/**
