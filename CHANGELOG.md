@@ -1,5 +1,10 @@
 # Änderungsprotokoll
 
+## Unveröffentlicht
+
+### WP Affiliate Captain
+- Ohne Marketing-Einwilligung bleibt der Partnerlink der laufenden Shop-Sitzung erhalten (er setzt kein Marketing-Cookie); nur der Empfehlungs-Cookie braucht die Einwilligung „marketing“. Bisher ging bei abgelehntem Marketing auch die cookie-freie Zuordnung verloren. Der Filter `wpcap_affiliate_tracking_allowed` erhält als zweites Argument die Methode (`cookie`, `link`, `app`).
+
 ## 1.4.0 – 2026-11-12
 
 ### Verkaufsmodelle: Eigenhändler oder Vermittler
