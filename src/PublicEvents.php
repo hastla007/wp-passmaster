@@ -44,6 +44,8 @@ final class PublicEvents {
 			/* translators: 1: synced scans, 2: conflicts */
 			'synced' => __( '%1$d Offline-Scan(s) synchronisiert; Konflikte: %2$d.', 'wp-pass-captain' ),
 			'queued' => __( 'Offline gespeichert. Der Einlass wird erst nach der Synchronisierung serverseitig bestätigt.', 'wp-pass-captain' ),
+			'unchecked' => __( 'NICHT GEPRÜFT (offline): Das Ticket kann ohne Verbindung nicht geprüft werden. Nur nach Sichtprüfung einlassen; für geprüften Offline-Einlass die Offline-Scanner-App verwenden.', 'wp-pass-captain' ),
+			'admitUnchecked' => __( 'Nach Sichtprüfung einlassen (wird später geprüft)', 'wp-pass-captain' ),
 			'checking' => __( 'Ticket wird geprüft …', 'wp-pass-captain' ),
 			'invalid' => __( 'Ticket nicht gültig.', 'wp-pass-captain' ),
 			'noCamera' => __( 'Kamera-QR-Scan wird von diesem Browser nicht unterstützt. Nutze die manuelle Eingabe.', 'wp-pass-captain' ),

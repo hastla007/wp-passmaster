@@ -39,6 +39,9 @@ final class SettingsPage {
 				'fields' => array(
 					'scanner_show_attendee' => array( 'type' => 'bool', 'label' => __( 'Teilnehmernamen beim Scannen anzeigen', 'wp-pass-captain' ) ),
 					'device_max_hours' => array( 'type' => 'int', 'label' => __( 'Maximale Gültigkeit einer Gerätekopplung (Stunden)', 'wp-pass-captain' ), 'min' => 1, 'max' => 720 ),
+					'default_entry_window' => array( 'type' => 'bool', 'label' => __( 'Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel', 'wp-pass-captain' ) ),
+					'entry_opens_before_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass ab (Minuten vor Beginn)', 'wp-pass-captain' ), 'min' => 0, 'max' => 10080 ),
+					'entry_closes_after_minutes' => array( 'type' => 'int', 'label' => __( 'Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)', 'wp-pass-captain' ), 'min' => 0, 'max' => 10080 ),
 				),
 			),
 			'payments' => array(

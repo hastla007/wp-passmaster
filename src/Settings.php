@@ -42,6 +42,10 @@ final class Settings {
 			'scanner_show_attendee'     => 0,
 			'device_max_hours'          => 24,
 			'auto_refund_cancelled'     => 0,
+			// Entry window for ticket types without their own admission rule: 2 h before start until the end.
+			'default_entry_window'      => 1,
+			'entry_opens_before_minutes' => 120,
+			'entry_closes_after_minutes' => 0,
 		);
 	}
 

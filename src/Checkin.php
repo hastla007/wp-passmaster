@@ -109,6 +109,8 @@ final class Checkin {
 				$state = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_admission_state WHERE ticket_id=%d", $found['ticket_id'] ) );
 				$blocked = Engine::evaluate_in( $policy, $found, $state, $at );
 				if ( $blocked ) { $status = $blocked; }
+			} else {
+				$status = Engine::default_window_block( $found, $at ) ?: $status;
 			}
 		}
 		return self::public_view( $found, $status );
@@ -173,9 +175,9 @@ final class Checkin {
 			$has_day_rules = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $day_table WHERE occurrence_id=%d", $found['occurrence_id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$repeatable = $day && in_array( $day->admission_policy, array( 'daily', 'reentry' ), true );
 			$day_id = $day ? (int) $day->occurrence_day_id : 0;
-			$blocked = '';
-			if ( $has_day_rules && ! $day ) { $blocked = 'not_valid_today'; }
-			if ( $repeatable ) {
+			$blocked = Engine::default_window_block( $found, $at );
+			if ( ! $blocked && $has_day_rules && ! $day ) { $blocked = 'not_valid_today'; }
+			if ( ! $blocked && $repeatable ) {
 				$entries_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE ticket_id=%d AND occurrence_day_id=%d AND result='checked_in'", $ticket->ticket_id, $day->occurrence_day_id ) );
 				$undone_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE ticket_id=%d AND occurrence_day_id=%d AND result='undone'", $ticket->ticket_id, $day->occurrence_day_id ) );
 				if ( $entries_today - $undone_today >= (int) $day->max_entries ) { $blocked = 'daily_limit_reached'; }
