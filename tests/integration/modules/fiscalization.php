@@ -10,6 +10,7 @@
 use PassCaptain\Fiscalization\AdapterInterface;
 use PassCaptain\Fiscalization\CountryPolicy;
 use PassCaptain\Fiscalization\Credentials;
+use PassCaptain\Fiscalization\Registry;
 use PassCaptain\Modules\Fiscalization as FiscalizationModule;
 
 if ( ! function_exists( 'wp_salt' ) ) {
