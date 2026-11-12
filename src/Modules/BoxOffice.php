@@ -24,7 +24,7 @@ final class BoxOffice {
 	}
 
 	/** Version of the box office data migrations (option wpcap_boxoffice_migration). */
-	const MIGRATION_VERSION = 1;
+	const MIGRATION_VERSION = 2;
 
 	/** Runs migrate() once per MIGRATION_VERSION (cheap autoloaded option check). */
 	public static function maybe_migrate() {
@@ -51,6 +51,14 @@ final class BoxOffice {
 			if ( false === $wpdb->query( "ALTER TABLE `{$table}` MODIFY order_id bigint(20) unsigned NULL" ) ) { return false; }
 		}
 		$wpdb->query( "UPDATE `{$table}` SET order_id=NULL WHERE order_id=0" );
+		$session_table = $wpdb->prefix . 'wpcap_boxoffice_sessions';
+		foreach ( array(
+			'location_id' => "bigint(20) unsigned NOT NULL DEFAULT 0 AFTER currency",
+			'register_id' => "varchar(64) NOT NULL DEFAULT '' AFTER location_id",
+		) as $name => $definition ) {
+			if ( ! $wpdb->get_row( "SHOW COLUMNS FROM `{$session_table}` LIKE '{$name}'" ) && false === $wpdb->query( "ALTER TABLE `{$session_table}` ADD COLUMN {$name} {$definition}" ) ) { return false; }
+		}
+		
 		$wpdb->query( $wpdb->prepare( "DELETE FROM `{$table}` WHERE status='pending' AND order_id IS NULL AND created_at < %s", gmdate( 'Y-m-d H:i:s', time() - 30 * 60 ) ) );
 		update_option( 'wpcap_boxoffice_migration', self::MIGRATION_VERSION );
 		return true;
@@ -63,6 +71,8 @@ final class BoxOffice {
 				user_id bigint(20) unsigned NOT NULL,
 				open_key bigint(20) unsigned NULL,
 				currency char(3) NOT NULL DEFAULT 'EUR',
+				location_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				register_id varchar(64) NOT NULL DEFAULT '',
 				opening_float_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				closing_count_minor bigint(20) unsigned NULL,
 				expected_cash_minor bigint(20) NULL,
