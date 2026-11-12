@@ -39,6 +39,8 @@ final class OrderAdapter {
 	const ATTEMPT_META  = '_wpcap_checkout_attempt';
 	const REFUND_META   = '_wpcap_refund_processed';
 	const ITEM_META     = '_wpcap_ticket_type_id';
+	const FISCAL_SELLER_META = '_wpcap_fiscal_seller_id';
+	const FISCAL_MODE_META = '_wpcap_fiscal_seller_mode';
 	const ATTENDEE_META = '_wpcap_attendees';
 	const DEFER_NOTE    = '_wpcap_deferred_note';
 
@@ -114,6 +116,8 @@ final class OrderAdapter {
 	public static function product_field() {
 		global $wpdb, $product_object;
 		$current = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? absint( $product_object->get_meta( self::PRODUCT_META, true ) ) : 0;
+		$fiscal_seller = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? absint( $product_object->get_meta( self::FISCAL_SELLER_META, true ) ) : 0;
+		$fiscal_mode = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? sanitize_key( $product_object->get_meta( self::FISCAL_MODE_META, true ) ) : 'platform_seller';
 		$p       = $wpdb->prefix;
 		$rows    = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.name,tt.status,tt.capacity,o.starts_at,o.timezone,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id ORDER BY o.starts_at DESC, tt.ticket_type_id ASC LIMIT 500" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$options = array( '' => __( '— Kein Ticketprodukt —', 'wp-pass-captain' ) );
@@ -141,10 +145,15 @@ final class OrderAdapter {
 				'value'       => $current ? (string) $current : '',
 			)
 		);
+		$sellers = $wpdb->get_results( "SELECT seller_id,legal_name,country_code FROM {$p}wpcap_legal_sellers WHERE status='active' ORDER BY legal_name" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$seller_options = array( '' => __( '— Verkäufer für normales Produkt wählen —', 'wp-pass-captain' ) );
+		foreach ( $sellers as $seller ) { $seller_options[(string) $seller->seller_id] = $seller->legal_name . ' (' . $seller->country_code . ')'; }
+		woocommerce_wp_select( array( 'id' => self::FISCAL_SELLER_META, 'label' => __( 'Fiskalischer Verkäufer (normales WooCommerce-Produkt)', 'wp-pass-captain' ), 'description' => __( 'Für gemischte Warenkörbe. Ticketprodukte verwenden weiterhin die Verkäuferzuordnung der Pass-Captain-Ticketart.', 'wp-pass-captain' ), 'desc_tip' => true, 'options' => $seller_options, 'value' => $fiscal_seller ? (string) $fiscal_seller : '' ) );
+		woocommerce_wp_select( array( 'id' => self::FISCAL_MODE_META, 'label' => __( 'Verkäuferrolle', 'wp-pass-captain' ), 'options' => array( 'platform_seller' => __( 'Betreibergesellschaft ist Verkäufer', 'wp-pass-captain' ), 'organizer_seller' => __( 'Veranstalter ist Verkäufer', 'wp-pass-captain' ) ), 'value' => in_array( $fiscal_mode, array( 'platform_seller', 'organizer_seller' ), true ) ? $fiscal_mode : 'platform_seller' ) );
 		echo '</div>';
 	}
 
-	/** Saves the ticket category selection. */
+	/** Saves the ticket category selection and seller assignment for ordinary WooCommerce products. */
 	public static function save_product_field( $product ) {
 		if ( ! is_object( $product ) || ! method_exists( $product, 'update_meta_data' ) ) {
 			return;
@@ -157,6 +166,20 @@ final class OrderAdapter {
 			$product->set_virtual( true );
 		} else {
 			$product->delete_meta_data( self::PRODUCT_META );
+		}
+		if ( $type_id ) {
+			$product->delete_meta_data( self::FISCAL_SELLER_META );
+			$product->delete_meta_data( self::FISCAL_MODE_META );
+		} else {
+			$seller_id = absint( wp_unslash( $_POST[ self::FISCAL_SELLER_META ] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$seller_mode = sanitize_key( wp_unslash( $_POST[ self::FISCAL_MODE_META ] ?? 'platform_seller' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if ( $seller_id && in_array( $seller_mode, array( 'organizer_seller', 'platform_seller' ), true ) ) {
+				$product->update_meta_data( self::FISCAL_SELLER_META, $seller_id );
+				$product->update_meta_data( self::FISCAL_MODE_META, $seller_mode );
+			} else {
+				$product->delete_meta_data( self::FISCAL_SELLER_META );
+				$product->delete_meta_data( self::FISCAL_MODE_META );
+			}
 		}
 	}
 
@@ -434,8 +457,8 @@ final class OrderAdapter {
 		if ( ! $lines ) {
 			return null;
 		}
-		$allocation_error = self::fiscal_mixed_order_allocation_error( $wc_order, $lines );
-		if ( is_wp_error( $allocation_error ) ) { return $allocation_error; }
+		$fiscal_extra_items = self::fiscal_additional_items( $wc_order, $lines );
+		if ( is_wp_error( $fiscal_extra_items ) ) { return $fiscal_extra_items; }
 		$existing = absint( $wc_order->get_meta( self::ORDER_META, true ) );
 		if ( $existing ) {
 			$core = Orders::get( $existing );
@@ -474,6 +497,7 @@ final class OrderAdapter {
 				'key_namespace' => 'woocommerce',
 				'unit_prices'   => $unit_prices,
 				'line_totals'   => $line_totals,
+				'fiscal_extra_items' => $fiscal_extra_items,
 			)
 		);
 		if ( is_wp_error( $result ) ) {
@@ -498,28 +522,84 @@ final class OrderAdapter {
 	 *
 	 * @return array<int, array{ticket_type_id:int, quantity:int, unit_minor:int}>
 	 */
-	/** Reject a mixed WooCommerce basket when a ticket seller is mapped but other charges have no seller allocation. */
-	private static function fiscal_mixed_order_allocation_error( \WC_Order $wc_order, array $ticket_lines ) {
+	/** Collect mapped WooCommerce goods, fees and shipping for seller-specific fiscal documents. */
+	private static function fiscal_additional_items( \WC_Order $wc_order, array $ticket_lines ) {
 		global $wpdb;
 		$type_ids = array_values( array_map( 'absint', array_keys( $ticket_lines ) ) );
-		if ( ! $type_ids ) { return null; }
+		if ( ! $type_ids ) { return array(); }
 		$ids = implode( ',', $type_ids );
-		$mapped = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_ticket_sellers WHERE ticket_type_id IN ({$ids})" ); // phpcs:ignore WordPress.DB
-		$has_non_ticket_line = false;
-		foreach ( $wc_order->get_items( 'line_item' ) as $item ) {
-			if ( ! self::item_ticket_type_id( $item ) ) { $has_non_ticket_line = true; break; }
+		$has_fiscal_tickets = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_ticket_sellers WHERE ticket_type_id IN ({$ids})" ); // phpcs:ignore WordPress.DB
+		if ( ! $has_fiscal_tickets ) { return array(); }
+		$items = array();
+		$unallocated = false;
+		foreach ( $wc_order->get_items( 'line_item' ) as $item_id => $item ) {
+			if ( self::item_ticket_type_id( $item ) ) { continue; }
+			$assignment = self::fiscal_item_assignment( $item, 'product', $wc_order );
+			if ( is_wp_error( $assignment ) ) { $unallocated = true; continue; }
+			$line = self::fiscal_item_snapshot( $item, $assignment, $item_id, $wc_order );
+			if ( is_wp_error( $line ) ) { return $line; }
+			$items[] = $line;
 		}
-		$has_fees = (bool) $wc_order->get_items( 'fee' );
-		$has_shipping = (bool) $wc_order->get_items( 'shipping' );
-		return self::mixed_fiscal_allocation_error( $mapped > 0, $has_non_ticket_line, $has_fees, $has_shipping );
+		foreach ( array( 'fee' => $wc_order->get_items( 'fee' ), 'shipping' => $wc_order->get_items( 'shipping' ) ) as $kind => $order_items ) {
+			foreach ( $order_items as $item_id => $item ) {
+				$assignment = self::fiscal_item_assignment( $item, $kind, $wc_order );
+				if ( is_wp_error( $assignment ) ) { $unallocated = true; continue; }
+				$line = self::fiscal_item_snapshot( $item, $assignment, $item_id, $wc_order );
+				if ( is_wp_error( $line ) ) { return $line; }
+				$items[] = $line;
+			}
+		}
+		if ( $unallocated ) {
+			return new \WP_Error( 'wpcap_fiscal_mixed_allocation_required', __( 'Jede zusätzliche Ware, Gebühr und Versandposition in einer Bestellung mit fiskalischen Tickets muss einem aktiven rechtlichen Verkäufer zugeordnet sein.', 'wp-pass-captain' ) );
+		}
+		return $items;
 	}
 
-	/** Pure allocation guard shared with tests and integrations. */
-	public static function mixed_fiscal_allocation_error( $has_fiscal_ticket, $has_non_ticket_line, $has_fees, $has_shipping ) {
-		if ( $has_fiscal_ticket && ( $has_non_ticket_line || $has_fees || $has_shipping ) ) {
-			return new \WP_Error( 'wpcap_fiscal_mixed_allocation_required', __( 'Diese Bestellung enthält fiskal zugeordnete Tickets und zusätzliche Waren, Gebühren oder Versand. Verkäuferzuordnung und Betragsaufteilung müssen eingerichtet sein, bevor der Checkout fortgesetzt werden kann.', 'wp-pass-captain' ) );
+	/** Resolve seller assignment from order-line metadata/product configuration or a trusted integration. */
+	private static function fiscal_item_assignment( $item, $kind, \WC_Order $wc_order ) {
+		$product = is_callable( array( $item, 'get_product' ) ) ? $item->get_product() : null;
+		$seller_id = absint( $item->get_meta( self::FISCAL_SELLER_META, true ) );
+		$seller_mode = sanitize_key( (string) $item->get_meta( self::FISCAL_MODE_META, true ) );
+		if ( ! $seller_id && $product ) {
+			$seller_id = absint( $product->get_meta( self::FISCAL_SELLER_META, true ) );
+			$seller_mode = sanitize_key( (string) $product->get_meta( self::FISCAL_MODE_META, true ) );
 		}
-		return null;
+		$assignment = apply_filters( 'wpcap_woocommerce_fiscal_item_seller', array( 'seller_id' => $seller_id, 'seller_mode' => $seller_mode ), $item, sanitize_key( $kind ), $product, $wc_order );
+		if ( ! is_array( $assignment ) ) { return new \WP_Error( 'wpcap_fiscal_item_seller_missing' ); }
+		$seller_id = absint( $assignment['seller_id'] ?? 0 );
+		$seller_mode = sanitize_key( $assignment['seller_mode'] ?? '' );
+		if ( ! $seller_id || ! in_array( $seller_mode, array( 'organizer_seller', 'platform_seller' ), true ) ) { return new \WP_Error( 'wpcap_fiscal_item_seller_missing' ); }
+		return array( 'seller_id' => $seller_id, 'seller_mode' => $seller_mode );
+	}
+
+	/** Snapshot a WooCommerce order line after discounts, in the order currency's minor units. */
+	private static function fiscal_item_snapshot( $item, array $assignment, $item_id, \WC_Order $wc_order ) {
+		$currency = $wc_order->get_currency();
+		$factor = 10 ** self::currency_decimals( $currency );
+		$gross = (int) round( ( (float) $item->get_total() + (float) $item->get_total_tax() ) * $factor );
+		$tax = (int) round( (float) $item->get_total_tax() * $factor );
+		$taxes = is_callable( array( $item, 'get_taxes' ) ) ? (array) $item->get_taxes() : array();
+		$rate_ids = array_keys( array_filter( (array) ( $taxes['total'] ?? array() ), static function ( $amount ) { return abs( (float) $amount ) > 0.000001; } ) );
+		$rate_bp = 0;
+		if ( count( $rate_ids ) > 1 ) { return new \WP_Error( 'wpcap_fiscal_multiple_tax_rates', __( 'Eine zusätzliche Warenkorbposition enthält mehrere Steuersätze und kann nicht sicher einem Fiskalbeleg zugeordnet werden.', 'wp-pass-captain' ) ); }
+		if ( $rate_ids && class_exists( '\WC_Tax' ) && is_callable( array( '\WC_Tax', 'get_rate_percent' ) ) ) {
+			$percent = (float) str_replace( '%', '', (string) \WC_Tax::get_rate_percent( absint( reset( $rate_ids ) ) ) );
+			$rate_bp = (int) round( $percent * 100 );
+		} elseif ( $tax > 0 ) {
+			return new \WP_Error( 'wpcap_fiscal_tax_rate_unavailable', __( 'Der WooCommerce-Steuersatz für eine zusätzliche Position konnte nicht eindeutig bestimmt werden.', 'wp-pass-captain' ) );
+		}
+		$quantity = max( 1, absint( $item->get_quantity() ) );
+		return array(
+			'line_key' => sanitize_key( 'woo_' . sanitize_key( get_class( $item ) ) . '_' . absint( $item_id ) ),
+			'product_id' => $product_id = ( $item->get_product() && is_callable( array( $item->get_product(), 'get_id' ) ) ) ? absint( $item->get_product()->get_id() ) : 0,
+			'seller_id' => absint( $assignment['seller_id'] ),
+			'seller_mode' => sanitize_key( $assignment['seller_mode'] ),
+			'description' => sanitize_text_field( (string) $item->get_name() ),
+			'quantity' => $quantity,
+			'gross_minor' => max( 0, $gross ),
+			'tax_rate_bp' => $rate_bp,
+			'tax_minor' => min( max( 0, $gross ), max( 0, $tax ) ),
+		);
 	}
 
 	private static function ticket_lines( \WC_Order $wc_order ) {
