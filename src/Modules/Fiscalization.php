@@ -600,11 +600,11 @@ final class Fiscalization {
 		$provider_reference = sanitize_text_field( $provider_reference );
 		$note = sanitize_textarea_field( $note );
 		if ( ! $event_id || ! in_array( $resolution, array( 'void', 'refund', 'credit_note', 'correction' ), true ) || '' === $provider_reference || strlen( $provider_reference ) > 191 ) {
-			return new \\WP_Error( 'wpcap_fiscal_resolution_invalid', __( 'Korrekturart und Anbieter-Referenz sind erforderlich.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_fiscal_resolution_invalid', __( 'Korrekturart und Anbieter-Referenz sind erforderlich.', 'wp-pass-captain' ) );
 		}
 		$source = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_events WHERE event_id=%d AND event_status='manual_required'", $event_id ) );
 		if ( ! $source || ! in_array( $source->event_type, array( 'refund_adjustment', 'order_cancellation', 'event_cancellation' ), true ) ) {
-			return new \\WP_Error( 'wpcap_fiscal_resolution_source', __( 'Offener Fiskalkorrekturvorgang wurde nicht gefunden.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_fiscal_resolution_source', __( 'Offener Fiskalkorrekturvorgang wurde nicht gefunden.', 'wp-pass-captain' ) );
 		}
 		$existing = $wpdb->get_results( $wpdb->prepare(
 			"SELECT metadata FROM {$wpdb->prefix}wpcap_fiscal_events WHERE document_id=%d AND event_type='manual_correction_recorded'",
@@ -613,7 +613,7 @@ final class Fiscalization {
 		foreach ( $existing as $row ) {
 			$metadata = json_decode( $row->metadata, true );
 			if ( is_array( $metadata ) && (int) ( $metadata['resolves_event_id'] ?? 0 ) === $event_id ) {
-				return new \\WP_Error( 'wpcap_fiscal_resolution_exists', __( 'Für diesen Vorgang wurde bereits eine Anbieter-Referenz dokumentiert.', 'wp-pass-captain' ) );
+				return new \WP_Error( 'wpcap_fiscal_resolution_exists', __( 'Für diesen Vorgang wurde bereits eine Anbieter-Referenz dokumentiert.', 'wp-pass-captain' ) );
 			}
 		}
 		self::record_event( $source, 'manual_correction_recorded', 'recorded_externally', array(
@@ -628,14 +628,14 @@ final class Fiscalization {
 		return array( 'event_id' => $event_id, 'status' => 'recorded_externally', 'provider_reference' => $provider_reference );
 	}
 
-	public static function rest_record_manual_resolution( \\WP_REST_Request $request ) {
+	public static function rest_record_manual_resolution( \WP_REST_Request $request ) {
 		$result = self::record_manual_resolution(
 			absint( $request['event_id'] ),
 			sanitize_key( $request->get_param( 'resolution' ) ),
 			sanitize_text_field( $request->get_param( 'provider_reference' ) ),
 			sanitize_textarea_field( $request->get_param( 'note' ) )
 		);
-		return is_wp_error( $result ) ? new \\WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => 409 ) ) : rest_ensure_response( $result );
+		return is_wp_error( $result ) ? new \WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => 409 ) ) : rest_ensure_response( $result );
 	}
 
 	public static function admin_record_manual_resolution() {
