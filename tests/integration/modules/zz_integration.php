@@ -276,3 +276,19 @@ check( 'nothing is anonymised while the date is still upcoming', 'zzq@example.co
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET starts_at=%s,ends_at=NULL WHERE occurrence_id=(SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=%d)", gmdate( 'Y-m-d H:i:s', time() - 3 * DAY_IN_SECONDS ), $zq_type ) );
 PassCaptain\Privacy::process_deferred();
 check( 'after the event the deferred order is anonymised and its participant answers are deleted', str_starts_with( Orders::get( $zq['order_id'] )->customer_email, 'deleted+' ) && 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_participant_answers WHERE ticket_id=%d", $zq_ticket ) ) && ! isset( PassCaptain\Privacy::deferred()[ (int) $zq['order_id'] ] ) );
+
+echo "Integration: revoked exchange tickets are reported to the voucher system\n";
+PassCaptain\Integrations\Vouchers\TicketService::register();
+$zr_seen = array();
+add_action( PassCaptain\Integrations\Vouchers\TicketService::REVOKED_ACTION, static function ( $info ) use ( &$zr_seen ) { $zr_seen[] = $info; } );
+$zr_service = PassCaptain\Integrations\Vouchers\TicketService::service( null, 1 );
+$zr_type = make_type( 10, 10, 2500 );
+$zr = $zr_service->issue_tickets( array( 'provider' => 'voucher-captain', 'voucher_id' => 901, 'redemption_key' => 'passcaptain:ticket:901', 'code_hint' => 'ZR01' ), 'vcap-voucher-901', array( 'ticket_type_id' => $zr_type, 'quantity' => 2 ), array( 'email' => 'zr@example.com' ) );
+check( 'a voucher exchange issues tickets without reporting anything', is_array( $zr ) && 'issued' === $zr['status'] && ! $zr_seen );
+Orders::cancel_order( (int) $zr['order_id'], 'admin' );
+$zr_last = end( $zr_seen );
+check( 'cancelling the exchange order in Pass Captain reports it with the redemption key', $zr_seen && 'passcaptain:ticket:901' === $zr_last['redemption_key'] && 0 === $zr_last['remaining'] && 2 === $zr_last['revoked'] );
+$zr_seen = array();
+$zr2 = $zr_service->issue_tickets( array( 'provider' => 'voucher-captain', 'voucher_id' => 902, 'redemption_key' => 'passcaptain:ticket:902' ), 'vcap-voucher-902', array( 'ticket_type_id' => $zr_type, 'quantity' => 1 ), array( 'email' => 'zr2@example.com' ) );
+$zr_service->revoke_tickets( 'vcap-voucher-902', 'voucher_refunded' );
+check( 'a revocation requested by the voucher system is not reported back', is_array( $zr2 ) && ! $zr_seen && 'revoked' === $zr_service->get( 'vcap-voucher-902' )['status'] );

@@ -24,9 +24,48 @@ final class TicketService {
 	/** Key namespace of voucher orders (keyed hash, so a public checkout can never claim such a key). */
 	const NAMESPACE_KEY = 'voucher';
 	const PROVIDER = 'voucher';
+	/** Fired when tickets of an exchange are revoked or refunded in Pass Captain (not by the voucher system). */
+	const REVOKED_ACTION = 'wp_pass_captain_voucher_tickets_revoked_v1';
+
+	/** True while the voucher system itself revokes an exchange (no notification back). */
+	private static $revoking = false;
 
 	public static function register() {
 		add_filter( self::FILTER, array( __CLASS__, 'service' ), 10, 2 );
+		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'order_closed' ), 30, 1 );
+		add_action( 'wpcap_order_refunded', array( __CLASS__, 'order_closed' ), 30, 1 );
+		add_action( 'wpcap_ticket_revoked', array( __CLASS__, 'ticket_revoked' ), 30, 1 );
+	}
+
+	public static function ticket_revoked( $ticket_id ) {
+		global $wpdb;
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
+		if ( $order_id ) { self::order_closed( $order_id ); }
+	}
+
+	/**
+	 * Tells the voucher system that tickets of an exchange were revoked in Pass Captain (order cancelled or
+	 * refunded, date or event cancelled), so it can give the voucher back. Fires on every change; `remaining`
+	 * counts tickets that are still valid or were used (checked in). Listeners must be idempotent.
+	 *
+	 * Action `wp_pass_captain_voucher_tickets_revoked_v1` with array: redemption_key, order_public_id,
+	 * remaining (int), revoked (int), reason.
+	 */
+	public static function order_closed( $order_id ) {
+		if ( self::$revoking ) { return; }
+		global $wpdb;
+		$order = Orders::get( absint( $order_id ) );
+		if ( ! $order || self::PROVIDER !== $order->payment_provider || 0 !== strpos( (string) $order->provider_reference, 'voucher:' ) ) { return; }
+		$counts = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(status IN ('valid','checked_in') AND refunded=0) AS remaining,SUM(status NOT IN ('valid','checked_in') OR refunded=1) AS revoked FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d", (int) $order->order_id ) );
+		$revoked = (int) ( $counts->revoked ?? 0 );
+		if ( $revoked < 1 && ! in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) { return; }
+		do_action( self::REVOKED_ACTION, array(
+			'redemption_key' => substr( (string) $order->provider_reference, strlen( 'voucher:' ) ),
+			'order_public_id' => (string) $order->public_id,
+			'remaining' => (int) ( $counts->remaining ?? 0 ),
+			'revoked' => $revoked,
+			'reason' => (string) $order->status,
+		) );
 	}
 
 	/** Filter callback: the service for contract version 1 (another implementation registered earlier wins). */
@@ -103,7 +142,12 @@ final class TicketService {
 	public function revoke_tickets( $idempotency_key, $reason = '' ) {
 		$order = self::order_for_key( sanitize_text_field( (string) $idempotency_key ) );
 		if ( ! $order ) { return true; }
-		Orders::cancel_order( (int) $order->order_id, '' !== (string) $reason ? (string) $reason : 'voucher_revoked' );
+		self::$revoking = true;
+		try {
+			Orders::cancel_order( (int) $order->order_id, '' !== (string) $reason ? (string) $reason : 'voucher_revoked' );
+		} finally {
+			self::$revoking = false;
+		}
 		return true;
 	}
 
