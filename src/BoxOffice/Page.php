@@ -63,6 +63,7 @@ final class Page {
 			Forms::open_form( 'wpcap_pos_open' );
 			echo '<p><label>' . esc_html__( 'Wechselgeld (Anfangsbestand)', 'wp-pass-captain' ) . ' <input type="text" inputmode="decimal" name="float" value="0,00" size="10"></label> ';
 			echo '<label>' . esc_html__( 'Währung', 'wp-pass-captain' ) . ' <input type="text" name="currency" value="EUR" size="4" maxlength="3"></label></p>';
+			echo '<p><label>' . esc_html__( 'Standort-ID (0 = Standard)', 'wp-pass-captain' ) . ' <input type="number" min="0" name="location_id" value="0"></label> ' . esc_html__( 'Kassen-ID', 'wp-pass-captain' ) . ' <input name="register_id" maxlength="64" pattern="[A-Za-z0-9_.:-]*" placeholder="KASSE-01"></p>';
 			echo '<p><button class="button button-primary">' . esc_html__( 'Kasse öffnen', 'wp-pass-captain' ) . '</button></p></form></div>';
 			return;
 		}
@@ -181,7 +182,7 @@ final class Page {
 		Forms::verify( 'wpcap_pos_open' );
 		$in = Forms::post();
 		$float = Forms::parse_money( $in['float'] ?? '0' );
-		$result = null === $float ? Forms::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'wp-pass-captain' ) ) : Service::open_session( $float, Forms::text( $in, 'currency', 3 ) );
+		$result = null === $float ? Forms::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'wp-pass-captain' ) ) : Service::open_session( $float, Forms::text( $in, 'currency', 3 ), '', Forms::int( $in, 'location_id' ), Forms::text( $in, 'register_id', 64 ) );
 		Forms::finish( $result, __( 'Kasse geöffnet.', 'wp-pass-captain' ), self::back() );
 	}
 
