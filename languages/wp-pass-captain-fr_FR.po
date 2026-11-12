@@ -1,12 +1,13 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: WP Pass Captain 1.0.0\n"
+"Project-Id-Version: WP Pass Captain 1.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
 "Last-Translator: \n"
 "Language-Team: French (France)\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-11-12T05:21:58+00:00\n"
 "PO-Revision-Date: 2026-11-11 22:00+0000\n"
 "Language: fr_FR\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
@@ -29,7 +30,7 @@ msgid "Aktuell anwesend"
 msgstr "Actuellement présents"
 
 #: src/Admin/CheckinsPage.php:46
-#: src/Admin/OrdersPage.php:344
+#: src/Admin/OrdersPage.php:348
 #: src/BoxOffice/Page.php:72
 #: src/OfflineScanner/AdminPage.php:149
 #: src/OfflineScanner/AdminPage.php:164
@@ -112,7 +113,7 @@ msgstr "Tous les événements"
 #: src/Admin/EventsPage.php:542
 #: src/Admin/OrdersPage.php:248
 #: src/Admin/OrdersPage.php:257
-#: src/Admin/OrdersPage.php:484
+#: src/Admin/OrdersPage.php:488
 #: src/Integrations/WooCommerce/OrderAdapter.php:962
 #: src/Mail/Types.php:62
 #: src/Mail/Types.php:220
@@ -165,7 +166,7 @@ msgid "Zeitpunkt"
 msgstr "Horodatage"
 
 #: src/Admin/CheckinsPage.php:93
-#: src/Admin/OrdersPage.php:396
+#: src/Admin/OrdersPage.php:400
 #: src/Admin/TicketsPage.php:149
 #: src/Admission/ConflictsPage.php:76
 #: src/Integrations/WooCommerce/OrderAdapter.php:962
@@ -307,9 +308,9 @@ msgstr "Conflits ouverts"
 #: src/Admin/EventsPage.php:794
 #: src/Admin/EventsPage.php:830
 #: src/Admin/OrdersPage.php:259
-#: src/Admin/OrdersPage.php:319
-#: src/Admin/OrdersPage.php:398
-#: src/Admin/OrdersPage.php:488
+#: src/Admin/OrdersPage.php:323
+#: src/Admin/OrdersPage.php:402
+#: src/Admin/OrdersPage.php:492
 #: src/Admin/TicketsPage.php:153
 #: src/Admission/ConflictsPage.php:80
 #: src/Admission/RulesPage.php:200
@@ -679,7 +680,7 @@ msgstr "Dates"
 #: src/Admin/EventsPage.php:643
 #: src/Admin/EventsPage.php:709
 #: src/Admin/EventsPage.php:831
-#: src/Admin/OrdersPage.php:490
+#: src/Admin/OrdersPage.php:494
 #: src/Admin/TicketsPage.php:154
 msgid "Aktion"
 msgstr "Action"
@@ -1201,7 +1202,7 @@ msgid "Abgeschlossen"
 msgstr "Terminé"
 
 #: src/Admin/Forms.php:384
-#: src/Admin/OrdersPage.php:371
+#: src/Admin/OrdersPage.php:375
 #: src/Reports/Page.php:119
 msgid "Erstattet"
 msgstr "Remboursé"
@@ -1250,7 +1251,7 @@ msgid "Tageslimit erreicht"
 msgstr "Limite quotidienne atteinte"
 
 #: src/Admin/Forms.php:396
-#: src/Admin/OrdersPage.php:512
+#: src/Admin/OrdersPage.php:516
 msgid "Wartet auf Freigabe"
 msgstr "En attente de validation"
 
@@ -1321,8 +1322,8 @@ msgid "Bestellungen"
 msgstr "Commandes"
 
 #: src/Admin/Menu.php:81
-#: src/Admin/OrdersPage.php:377
-#: src/Admin/OrdersPage.php:486
+#: src/Admin/OrdersPage.php:381
+#: src/Admin/OrdersPage.php:490
 #: src/Admin/TicketsPage.php:135
 #: src/OrderPortal.php:40
 #: src/Partners/Settlements.php:472
@@ -1340,7 +1341,7 @@ msgstr "Tickets"
 
 #: src/Admin/Menu.php:84
 #: src/Admin/Menu.php:85
-#: src/Admin/OrdersPage.php:440
+#: src/Admin/OrdersPage.php:444
 #: src/Admin/SettingsPage.php:79
 #: src/Reports/Page.php:78
 msgid "Erstattungen"
@@ -1352,7 +1353,7 @@ msgid "Einstellungen"
 msgstr "Réglages"
 
 #: src/Admin/OrdersPage.php:35
-#: src/Orders.php:586
+#: src/Orders.php:597
 #: src/Payments/PayPalGateway.php:130
 #: src/Rest/Controller.php:296
 #: src/Rest/Controller.php:322
@@ -1474,7 +1475,7 @@ msgid "Bestellnummer oder E-Mail"
 msgstr "Numéro de commande ou e-mail"
 
 #: src/Admin/OrdersPage.php:254
-#: src/Admin/OrdersPage.php:484
+#: src/Admin/OrdersPage.php:488
 #: src/Partners/Settlements.php:472
 #: src/Partners/Settlements.php:560
 #: src/Printing/AttendeeList.php:48
@@ -1482,7 +1483,7 @@ msgid "Bestellung"
 msgstr "Commande"
 
 #: src/Admin/OrdersPage.php:255
-#: src/Admin/OrdersPage.php:483
+#: src/Admin/OrdersPage.php:487
 #: src/Partners/Settlements.php:560
 #: src/Series/AdminPage.php:150
 #: src/WalletPasses/AppleProvider.php:65
@@ -1490,7 +1491,7 @@ msgid "Datum"
 msgstr "Date"
 
 #: src/Admin/OrdersPage.php:258
-#: src/Admin/OrdersPage.php:349
+#: src/Admin/OrdersPage.php:353
 msgid "Summe"
 msgstr "Total"
 
@@ -1537,24 +1538,24 @@ msgstr "Cette commande a été traitée via WooCommerce et n’est consultable q
 msgid "WooCommerce-Bestellung #%d öffnen"
 msgstr "Ouvrir la commande WooCommerce n° %d"
 
-#: src/Admin/OrdersPage.php:315
+#: src/Admin/OrdersPage.php:319
 msgid "Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben oder die Zahlung außerhalb des Plugins zurückerstatten."
 msgstr "Le paiement est arrivé après l’expiration de la réservation et il ne restait plus de contingent. Veuillez libérer une place ou rembourser le paiement en dehors du plugin."
 
-#: src/Admin/OrdersPage.php:320
+#: src/Admin/OrdersPage.php:324
 #: src/Admin/TicketsPage.php:151
 msgid "Käufer"
 msgstr "Acheteur"
 
-#: src/Admin/OrdersPage.php:321
+#: src/Admin/OrdersPage.php:325
 msgid "Angelegt"
 msgstr "Créée le"
 
-#: src/Admin/OrdersPage.php:322
+#: src/Admin/OrdersPage.php:326
 msgid "Zahlart / Referenz"
 msgstr "Mode de paiement / Référence"
 
-#: src/Admin/OrdersPage.php:329
+#: src/Admin/OrdersPage.php:333
 #: src/BoxOffice/Service.php:35
 #: src/Invoices.php:185
 #: src/Printing/InvoicePdf.php:79
@@ -1562,32 +1563,32 @@ msgid "Rechnung"
 msgstr "Facture"
 
 #. translators: %s: invoice number
-#: src/Admin/OrdersPage.php:331
+#: src/Admin/OrdersPage.php:335
 #, php-format
 msgid "Rechnung %s anzeigen"
 msgstr "Afficher la facture %s"
 
 #. translators: %s: credit note numbers
-#: src/Admin/OrdersPage.php:332
+#: src/Admin/OrdersPage.php:336
 #, php-format
 msgid "Gutschriften (in der Rechnungsansicht): %s"
 msgstr "Avoirs (dans la vue de la facture) : %s"
 
-#: src/Admin/OrdersPage.php:334
+#: src/Admin/OrdersPage.php:338
 msgid "Rechnung erstellen"
 msgstr "Créer une facture"
 
-#: src/Admin/OrdersPage.php:337
+#: src/Admin/OrdersPage.php:341
 msgid "Version AGB/Verbraucherinfo"
 msgstr "Version CGV/informations consommateur"
 
-#: src/Admin/OrdersPage.php:340
+#: src/Admin/OrdersPage.php:344
 #: src/Partners/Settlements.php:560
 #: src/Privacy.php:32
 msgid "Positionen"
 msgstr "Lignes"
 
-#: src/Admin/OrdersPage.php:343
+#: src/Admin/OrdersPage.php:347
 #: src/BoxOffice/Page.php:80
 #: src/Mail/Types.php:63
 #: src/Mail/Types.php:263
@@ -1607,51 +1608,51 @@ msgstr "Lignes"
 msgid "Ticketart"
 msgstr "Type de ticket"
 
-#: src/Admin/OrdersPage.php:345
+#: src/Admin/OrdersPage.php:349
 #: src/Invoices.php:187
 #: src/Printing/InvoicePdf.php:85
 msgid "Menge"
 msgstr "Quantité"
 
-#: src/Admin/OrdersPage.php:346
+#: src/Admin/OrdersPage.php:350
 #: src/Invoices.php:187
 #: src/Printing/InvoicePdf.php:85
 msgid "Einzelpreis"
 msgstr "Prix unitaire"
 
-#: src/Admin/OrdersPage.php:347
+#: src/Admin/OrdersPage.php:351
 msgid "Steuersatz"
 msgstr "Taux de TVA"
 
-#: src/Admin/OrdersPage.php:348
+#: src/Admin/OrdersPage.php:352
 msgid "enth. Steuer"
 msgstr "dont taxe"
 
-#: src/Admin/OrdersPage.php:350
+#: src/Admin/OrdersPage.php:354
 msgid "Erstattet (Stk.)"
 msgstr "Remboursé (qté)"
 
-#: src/Admin/OrdersPage.php:367
+#: src/Admin/OrdersPage.php:371
 msgid "Zwischensumme"
 msgstr "Sous-total"
 
-#: src/Admin/OrdersPage.php:368
+#: src/Admin/OrdersPage.php:372
 #: src/BoxOffice/Service.php:642
 #: src/Invoices.php:187
 #: src/Printing/InvoicePdf.php:85
 msgid "Rabatt"
 msgstr "Remise"
 
-#: src/Admin/OrdersPage.php:369
+#: src/Admin/OrdersPage.php:373
 #: src/Invoices.php:187
 msgid "Gesamt (brutto)"
 msgstr "Total (TTC)"
 
-#: src/Admin/OrdersPage.php:370
+#: src/Admin/OrdersPage.php:374
 msgid "darin enthaltene Steuer"
 msgstr "dont taxe incluse"
 
-#: src/Admin/OrdersPage.php:397
+#: src/Admin/OrdersPage.php:401
 #: src/Partners/Settlements.php:472
 #: src/Partners/Settlements.php:527
 #: src/Partners/Settlements.php:560
@@ -1660,68 +1661,68 @@ msgstr "dont taxe incluse"
 msgid "Art"
 msgstr "Type"
 
-#: src/Admin/OrdersPage.php:399
+#: src/Admin/OrdersPage.php:403
 #: src/Admin/TicketsPage.php:152
 msgid "Teilnehmer"
 msgstr "Participant"
 
-#: src/Admin/OrdersPage.php:400
+#: src/Admin/OrdersPage.php:404
 msgid "Angaben"
 msgstr "Informations"
 
-#: src/Admin/OrdersPage.php:403
+#: src/Admin/OrdersPage.php:407
 msgid "Noch keine Tickets ausgestellt."
 msgstr "Aucun ticket émis pour le moment."
 
 #. translators: %s: ticket id
-#: src/Admin/OrdersPage.php:409
+#: src/Admin/OrdersPage.php:413
 #, php-format
 msgid "Ticket %s erstatten"
 msgstr "Rembourser le ticket %s"
 
-#: src/Admin/OrdersPage.php:413
+#: src/Admin/OrdersPage.php:417
 #: src/Admin/TicketsPage.php:172
 msgid "erstattet"
 msgstr "remboursé"
 
-#: src/Admin/OrdersPage.php:413
+#: src/Admin/OrdersPage.php:417
 msgid "Erstattung läuft"
 msgstr "Remboursement en cours"
 
-#: src/Admin/OrdersPage.php:425
+#: src/Admin/OrdersPage.php:429
 msgid "Erstatten"
 msgstr "Rembourser"
 
-#: src/Admin/OrdersPage.php:427
+#: src/Admin/OrdersPage.php:431
 msgid "Alle offenen Tickets erstatten (Restbetrag der Bestellung)"
 msgstr "Rembourser tous les tickets ouverts (solde restant de la commande)"
 
-#: src/Admin/OrdersPage.php:428
-#: src/Admin/OrdersPage.php:487
+#: src/Admin/OrdersPage.php:432
+#: src/Admin/OrdersPage.php:491
 #: src/Admin/TicketsPage.php:178
 #: src/BoxOffice/Page.php:157
 msgid "Grund"
 msgstr "Motif"
 
-#: src/Admin/OrdersPage.php:431
+#: src/Admin/OrdersPage.php:435
 msgid "Manuelle Zahlungen: Der Betrag muss außerhalb des Plugins zurücküberwiesen werden. Die Tickets werden widerrufen."
 msgstr "Paiements manuels : le montant doit être restitué en dehors du plugin. Les tickets seront révoqués."
 
 #. translators: %s: amount
-#: src/Admin/OrdersPage.php:434
+#: src/Admin/OrdersPage.php:438
 #, php-format
 msgid "Erstattungen über %s benötigen eine zweite Freigabe."
 msgstr "Les remboursements supérieurs à %s nécessitent une seconde validation."
 
-#: src/Admin/OrdersPage.php:436
+#: src/Admin/OrdersPage.php:440
 msgid "Ausgewählte Tickets wirklich erstatten?"
 msgstr "Rembourser vraiment les tickets sélectionnés ?"
 
-#: src/Admin/OrdersPage.php:436
+#: src/Admin/OrdersPage.php:440
 msgid "Erstattung auslösen"
 msgstr "Déclencher le remboursement"
 
-#: src/Admin/OrdersPage.php:450
+#: src/Admin/OrdersPage.php:454
 #: src/Modules/Webhooks.php:270
 #: src/Partners/AdminPage.php:328
 #: src/Series/AdminPage.php:272
@@ -1729,72 +1730,72 @@ msgstr "Déclencher le remboursement"
 msgid "Aktionen"
 msgstr "Actions"
 
-#: src/Admin/OrdersPage.php:454
+#: src/Admin/OrdersPage.php:458
 msgid "Zahlungseingang bestätigen und Tickets ausstellen?"
 msgstr "Confirmer la réception du paiement et émettre les tickets ?"
 
-#: src/Admin/OrdersPage.php:454
+#: src/Admin/OrdersPage.php:458
 msgid "Als bezahlt markieren"
 msgstr "Marquer comme payée"
 
-#: src/Admin/OrdersPage.php:459
+#: src/Admin/OrdersPage.php:463
 #: src/Admin/TicketsPage.php:184
 msgid "Grund (optional)"
 msgstr "Motif (facultatif)"
 
-#: src/Admin/OrdersPage.php:460
+#: src/Admin/OrdersPage.php:464
 msgid "Unbezahlte Bestellung stornieren und Reservierung freigeben?"
 msgstr "Annuler la commande non payée et libérer la réservation ?"
 
-#: src/Admin/OrdersPage.php:460
+#: src/Admin/OrdersPage.php:464
 #: src/BoxOffice/Page.php:157
 msgid "Stornieren"
 msgstr "Annuler la commande"
 
-#: src/Admin/OrdersPage.php:465
+#: src/Admin/OrdersPage.php:469
 msgid "Tickets erneut senden? Die bisherigen Ticketcodes werden dabei ungültig."
 msgstr "Renvoyer les tickets ? Les codes de ticket actuels deviendront invalides."
 
-#: src/Admin/OrdersPage.php:465
+#: src/Admin/OrdersPage.php:469
 #: src/Mail/Types.php:117
 msgid "Tickets erneut senden"
 msgstr "Renvoyer les tickets"
 
-#: src/Admin/OrdersPage.php:485
+#: src/Admin/OrdersPage.php:489
 msgid "Betrag"
 msgstr "Montant"
 
-#: src/Admin/OrdersPage.php:489
+#: src/Admin/OrdersPage.php:493
 msgid "Angefordert / freigegeben von"
 msgstr "Demandé / validé par"
 
-#: src/Admin/OrdersPage.php:493
+#: src/Admin/OrdersPage.php:497
 msgid "Keine Erstattungen."
 msgstr "Aucun remboursement."
 
 #. translators: %s: tax amount
-#: src/Admin/OrdersPage.php:504
+#: src/Admin/OrdersPage.php:508
 #, php-format
 msgid "davon Steuer %s"
 msgstr "dont taxe %s"
 
-#: src/Admin/OrdersPage.php:514
+#: src/Admin/OrdersPage.php:518
 msgid "Freigabe durch eine andere Person erforderlich"
 msgstr "Validation par une autre personne requise"
 
-#: src/Admin/OrdersPage.php:517
+#: src/Admin/OrdersPage.php:521
 msgid "Erstattung freigeben und auszahlen?"
 msgstr "Valider et verser le remboursement ?"
 
-#: src/Admin/OrdersPage.php:517
+#: src/Admin/OrdersPage.php:521
 msgid "Freigeben"
 msgstr "Valider"
 
-#: src/Admin/OrdersPage.php:520
+#: src/Admin/OrdersPage.php:524
 msgid "Grund der Ablehnung"
 msgstr "Motif du refus"
 
-#: src/Admin/OrdersPage.php:521
+#: src/Admin/OrdersPage.php:525
 msgid "Ablehnen"
 msgstr "Refuser"
 
@@ -3075,10 +3076,6 @@ msgstr "Pass Captain Caisse sur place"
 msgid "Pass Captain Einlasspersonal"
 msgstr "Pass Captain Personnel d’entrée"
 
-#: src/Installer.php:698
-msgid "Pass Captain Partner"
-msgstr "Pass Captain Partenaire"
-
 #: src/Installer.php:699
 msgid "Pass Captain Finanzbuchhaltung"
 msgstr "Pass Captain Comptabilité"
@@ -3092,19 +3089,19 @@ msgstr "Pass Captain Support"
 msgid "Es ist kein kompatibler WP Voucher Captain Anbieter aktiv."
 msgstr "Aucun fournisseur WP Voucher Captain compatible n’est actif."
 
-#: src/Integrations/Vouchers/Checkout.php:37
+#: src/Integrations/Vouchers/Checkout.php:44
 msgid "Gutscheine können derzeit nicht eingelöst werden."
 msgstr "Les bons ne peuvent pas être utilisés pour le moment."
 
-#: src/Integrations/Vouchers/Checkout.php:41
+#: src/Integrations/Vouchers/Checkout.php:48
 msgid "Der Gutschein kann auf diese Bestellung nicht angewendet werden."
 msgstr "Le bon ne peut pas être appliqué à cette commande."
 
-#: src/Integrations/Vouchers/Checkout.php:59
+#: src/Integrations/Vouchers/Checkout.php:66
 msgid "Der Gutschein passt nicht zu dieser Bestellung."
 msgstr "Le bon ne correspond pas à cette commande."
 
-#: src/Integrations/Vouchers/Checkout.php:159
+#: src/Integrations/Vouchers/Checkout.php:243
 msgid "Der Gutschein konnte nicht eingelöst werden."
 msgstr "Le bon n’a pas pu être utilisé."
 
@@ -3954,8 +3951,14 @@ msgstr "Annulation : %s"
 #. translators: 1: event, 2: date and time, 3: refund note
 #: src/Mail/Types.php:238
 #, php-format
-msgid "Der Termin „%1$s“ am %2$s wurde abgesagt. Dein Ticket ist dafür nicht mehr gültig.\n\n%3$s"
-msgstr "La date « %1$s » du %2$s a été annulée. Votre ticket n’est plus valide pour celle-ci.\n\n%3$s"
+msgid ""
+"Der Termin „%1$s“ am %2$s wurde abgesagt. Dein Ticket ist dafür nicht mehr gültig.\n"
+"\n"
+"%3$s"
+msgstr ""
+"La date « %1$s » du %2$s a été annulée. Votre ticket n’est plus valide pour celle-ci.\n"
+"\n"
+"%3$s"
 
 #: src/Mail/Types.php:239
 #: src/OccurrenceCancellation.php:72
@@ -3987,8 +3990,22 @@ msgstr "Modification de date : %s"
 #. translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location
 #: src/Mail/Types.php:254
 #, php-format
-msgid "Der Termin für „%1$s“ wurde verschoben.\n\nBisher: %2$s\nNeu: %3$s (%4$s)\nOrt: %5$s\n\nDein Ticket bleibt gültig. Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter."
-msgstr "La date de « %1$s » a été reportée.\n\nAncienne date : %2$s\nNouvelle date : %3$s (%4$s)\nLieu : %5$s\n\nVotre ticket reste valide. Pour toute question concernant la restitution ou le remboursement, veuillez vous adresser à l’organisateur."
+msgid ""
+"Der Termin für „%1$s“ wurde verschoben.\n"
+"\n"
+"Bisher: %2$s\n"
+"Neu: %3$s (%4$s)\n"
+"Ort: %5$s\n"
+"\n"
+"Dein Ticket bleibt gültig. Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter."
+msgstr ""
+"La date de « %1$s » a été reportée.\n"
+"\n"
+"Ancienne date : %2$s\n"
+"Nouvelle date : %3$s (%4$s)\n"
+"Lieu : %5$s\n"
+"\n"
+"Votre ticket reste valide. Pour toute question concernant la restitution ou le remboursement, veuillez vous adresser à l’organisateur."
 
 #: src/Mail/Types.php:258
 msgid "Warteliste: Eintragung"
@@ -4384,18 +4401,6 @@ msgstr "Code ISO, p. ex. FR, NL, BE (facultatif)."
 msgid "Offline-Scanner"
 msgstr "Scanner hors ligne"
 
-#: src/Modules/Partners.php:145
-#: src/Partners/AdminPage.php:169
-#: src/Partners/AdminPage.php:312
-#: src/Partners/AdminPage.php:328
-msgid "Partner"
-msgstr "Partenaire"
-
-#: src/Modules/Partners.php:146
-#: src/Partners/AdminPage.php:304
-msgid "Partner-Abrechnungen"
-msgstr "Décomptes des partenaires"
-
 #: src/Modules/PrintTemplates.php:47
 msgid "Druck & Listen"
 msgstr "Impression et listes"
@@ -4405,8 +4410,30 @@ msgid "Erinnerung: {event} am {date}"
 msgstr "Rappel : {event} le {date}"
 
 #: src/Modules/Reminders.php:43
-msgid "Hallo,\n\nin {hours} Stunden geht es los: „{event}“ am {date} um {time} Uhr ({timezone}).\nOrt: {location}\nTickets: {tickets}\n\nTermin in den Kalender übernehmen: {ics_url}\n\nBitte bring dein Ticket (ausgedruckt oder auf dem Smartphone) mit.\n\n{site}"
-msgstr "Bonjour,\n\nC’est dans {hours} heures : « {event} » le {date} à {time} ({timezone}).\nLieu : {location}\nTickets : {tickets}\n\nAjouter la date à votre calendrier : {ics_url}\n\nVeuillez apporter votre ticket (imprimé ou sur smartphone).\n\n{site}"
+msgid ""
+"Hallo,\n"
+"\n"
+"in {hours} Stunden geht es los: „{event}“ am {date} um {time} Uhr ({timezone}).\n"
+"Ort: {location}\n"
+"Tickets: {tickets}\n"
+"\n"
+"Termin in den Kalender übernehmen: {ics_url}\n"
+"\n"
+"Bitte bring dein Ticket (ausgedruckt oder auf dem Smartphone) mit.\n"
+"\n"
+"{site}"
+msgstr ""
+"Bonjour,\n"
+"\n"
+"C’est dans {hours} heures : « {event} » le {date} à {time} ({timezone}).\n"
+"Lieu : {location}\n"
+"Tickets : {tickets}\n"
+"\n"
+"Ajouter la date à votre calendrier : {ics_url}\n"
+"\n"
+"Veuillez apporter votre ticket (imprimé ou sur smartphone).\n"
+"\n"
+"{site}"
 
 #: src/Modules/Reminders.php:45
 msgid "Erinnerung: {event} am {date} um {time}, {location}."
@@ -5174,82 +5201,76 @@ msgstr "« %s » n’est pas une adresse e-mail valide."
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr "Le paiement n’a pas pu être enregistré pour le moment. Veuillez réessayer."
 
-#: src/Orders.php:595
-#: src/Orders.php:890
+#: src/Orders.php:606
+#: src/Orders.php:901
 msgid "Der Bestellstatus erlaubt diese Aktion nicht."
 msgstr "Le statut de la commande n’autorise pas cette action."
 
-#: src/Orders.php:647
+#: src/Orders.php:658
 msgid "WP Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
 msgstr "WP Pass Captain : commande payée sans contingent disponible"
 
-#: src/Orders.php:647
+#: src/Orders.php:658
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten)."
 msgstr "Le paiement de la commande %1$s (%2$s) est arrivé après l’expiration de la réservation et il ne reste plus de contingent. Aucun ticket n’a été émis. Veuillez régler manuellement (libérer une place ou rembourser)."
 
-#: src/Orders.php:648
+#: src/Orders.php:659
 msgid "Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden."
 msgstr "La réservation avait expiré et il ne reste plus de contingent. La commande doit être réglée manuellement."
 
-#: src/Orders.php:789
+#: src/Orders.php:800
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr "Les données de transfert ne sont pas valides."
 
-#: src/Orders.php:793
+#: src/Orders.php:804
 msgid "Der Bestellzugriff ist ungültig."
 msgstr "L’accès à la commande n’est pas valide."
 
-#: src/Orders.php:796
+#: src/Orders.php:807
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr "Les tickets ne peuvent être transférés qu’après confirmation du paiement."
 
-#: src/Orders.php:807
+#: src/Orders.php:818
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr "Ce ticket ne peut plus être transféré."
 
-#: src/Orders.php:817
+#: src/Orders.php:828
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr "Le transfert du ticket n’a pas pu être enregistré."
 
-#: src/Orders.php:838
+#: src/Orders.php:849
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr "Le transfert du ticket a été enregistré, mais l’e-mail n’a pas pu être remis. Veuillez contacter l’organisateur pour un nouvel envoi."
 
-#: src/Orders.php:850
+#: src/Orders.php:861
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr "Cet événement ne peut pas être annulé."
 
-#: src/Orders.php:973
+#: src/Orders.php:984
 #: src/WalletPasses/AppleProvider.php:73
 msgid "Dieses Ticket ist nur einmal gültig. Code nicht weitergeben."
 msgstr "Ce ticket n’est valable qu’une seule fois. Ne communiquez pas le code."
 
-#: src/Orders.php:1025
+#: src/Orders.php:1036
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr "Les tickets ne peuvent être renvoyés qu’après confirmation du paiement."
 
-#: src/Orders.php:1032
+#: src/Orders.php:1043
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr "Aucun ticket valide trouvé pour le renvoi."
 
-#: src/Orders.php:1039
+#: src/Orders.php:1050
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr "Le code du ticket n’a pas pu être renouvelé."
 
-#: src/Orders.php:1051
+#: src/Orders.php:1062
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; bitte versuche den Versand erneut."
 msgstr "Au moins un e-mail n’a pas pu être remis. Les codes des tickets ont été renouvelés ; veuillez réessayer l’envoi."
 
 #: src/Partners/AdminPage.php:53
 msgid "Bitte gültige Prozentwerte und eine gültige Ticketgebühr angeben."
 msgstr "Veuillez indiquer des pourcentages valides et des frais de ticket valides."
-
-#. translators: %s: event ids
-#: src/Partners/AdminPage.php:79
-#, php-format
-msgid "Folgende Events gehören bereits einem anderen Partner und wurden nicht verknüpft: %s"
-msgstr "Les événements suivants appartiennent déjà à un autre partenaire et n’ont pas été associés : %s"
 
 #: src/Partners/AdminPage.php:86
 msgid "Ungültiges Ablaufdatum."
@@ -5258,31 +5279,6 @@ msgstr "Date d’expiration non valide."
 #: src/Partners/AdminPage.php:114
 msgid "Unbekannte Aktion."
 msgstr "Action inconnue."
-
-#: src/Partners/AdminPage.php:173
-#: src/Partners/Keys.php:49
-#: src/Partners/Repository.php:48
-#: src/Partners/Repository.php:113
-#: src/Partners/Settlements.php:298
-msgid "Partner nicht gefunden."
-msgstr "Partenaire introuvable."
-
-#: src/Partners/AdminPage.php:174
-msgid "Alle Partner"
-msgstr "Tous les partenaires"
-
-#: src/Partners/AdminPage.php:180
-msgid "Partner sind Veranstalter oder Wiederverkäufer, denen Events zugeordnet werden. Sie erhalten monatliche Abrechnungen und optional API-Keys mit Lesezugriff auf ihre Events."
-msgstr "Les partenaires sont des organisateurs ou des revendeurs auxquels des événements sont attribués. Ils reçoivent des décomptes mensuels et, en option, des clés API en lecture seule sur leurs événements."
-
-#: src/Partners/AdminPage.php:180
-#: src/Partners/AdminPage.php:205
-msgid "Neuer Partner"
-msgstr "Nouveau partenaire"
-
-#: src/Partners/AdminPage.php:183
-msgid "Noch keine Partner."
-msgstr "Aucun partenaire pour le moment."
 
 #: src/Partners/AdminPage.php:186
 msgid "Kontakt"
@@ -5379,26 +5375,6 @@ msgstr "Notes internes"
 msgid "Events und Zugänge"
 msgstr "Événements et accès"
 
-#: src/Partners/AdminPage.php:237
-msgid "Events dieses Partners"
-msgstr "Événements de ce partenaire"
-
-#: src/Partners/AdminPage.php:242
-msgid "anderer Partner"
-msgstr "autre partenaire"
-
-#: src/Partners/AdminPage.php:246
-msgid "WordPress-Benutzer des Partners"
-msgstr "Utilisateurs WordPress du partenaire"
-
-#: src/Partners/AdminPage.php:246
-msgid "Benutzer-IDs, Logins oder E-Mail-Adressen (kommagetrennt). Diese Benutzer sehen die abgeschlossenen Abrechnungen des Partners (nur lesend), z. B. mit der Rolle „Pass Captain Partner“."
-msgstr "ID d’utilisateur, identifiants ou adresses e-mail (séparés par des virgules). Ces utilisateurs voient les décomptes clôturés du partenaire (lecture seule), p. ex. avec le rôle « Pass Captain Partenaire »."
-
-#: src/Partners/AdminPage.php:247
-msgid "Partner speichern"
-msgstr "Enregistrer le partenaire"
-
 #: src/Partners/AdminPage.php:253
 msgid "API-Keys"
 msgstr "Clés API"
@@ -5406,10 +5382,6 @@ msgstr "Clés API"
 #: src/Partners/AdminPage.php:256
 msgid "Neuer API-Key – wird nur jetzt einmal angezeigt:"
 msgstr "Nouvelle clé API – affichée une seule fois, maintenant :"
-
-#: src/Partners/AdminPage.php:256
-msgid "Bitte sicher an den Partner übermitteln. Gespeichert wird nur ein Hash."
-msgstr "Veuillez la transmettre au partenaire de manière sécurisée. Seul un hachage est enregistré."
 
 #: src/Partners/AdminPage.php:260
 msgid "Key"
@@ -5431,10 +5403,6 @@ msgstr "Dernière utilisation"
 #: src/Partners/AdminPage.php:265
 msgid "Events:"
 msgstr "Événements :"
-
-#: src/Partners/AdminPage.php:265
-msgid "alle Partner-Events"
-msgstr "tous les événements du partenaire"
 
 #: src/Partners/AdminPage.php:266
 msgid "IP:"
@@ -5461,10 +5429,6 @@ msgstr "Nouvelle clé API"
 #: src/Partners/AdminPage.php:286
 msgid "Auf Events beschränken"
 msgstr "Limiter à des événements"
-
-#: src/Partners/AdminPage.php:291
-msgid "Keine Auswahl = alle aktuellen und künftigen Events des Partners. Event-beschränkte Keys können keine Abrechnungen abrufen."
-msgstr "Aucune sélection = tous les événements actuels et futurs du partenaire. Les clés limitées à des événements ne peuvent pas récupérer de décomptes."
 
 #: src/Partners/AdminPage.php:292
 msgid "IP-Allowlist (optional)"
@@ -5495,10 +5459,6 @@ msgstr "Créer un brouillon"
 #: src/Partners/AdminPage.php:317
 msgid "Entwürfe werden beim Abschließen neu berechnet. Abgeschlossene Abrechnungen sind unveränderlich; spätere Erstattungen oder Nachzahlungen erscheinen in der nächsten Periode als Korrektur."
 msgstr "Les brouillons sont recalculés lors de la clôture. Les décomptes clôturés sont immuables ; les remboursements ou paiements complémentaires ultérieurs apparaissent dans la période suivante sous forme de correction."
-
-#: src/Partners/AdminPage.php:319
-msgid "Bitte zuerst einen Partner anlegen."
-msgstr "Veuillez d’abord créer un partenaire."
 
 #: src/Partners/AdminPage.php:324
 msgid "Noch keine Abrechnungen."
@@ -5605,10 +5565,6 @@ msgstr "Données personnelles : adresses e-mail des acheteurs et des participant
 msgid "Mindestens ein unterstützter Scope ist erforderlich."
 msgstr "Au moins un scope pris en charge est requis."
 
-#: src/Partners/Keys.php:54
-msgid "Ein Key kann nur auf Events dieses Partners beschränkt werden."
-msgstr "Une clé ne peut être limitée qu’aux événements de ce partenaire."
-
 #: src/Partners/Keys.php:60
 msgid "Das Ablaufdatum muss in der Zukunft liegen."
 msgstr "La date d’expiration doit être dans le futur."
@@ -5675,10 +5631,6 @@ msgstr "Les frais de ticket ne peuvent pas être négatifs."
 msgid "Ungültiges Abrechnungsbeginn-Datum."
 msgstr "Date de début de décompte non valide."
 
-#: src/Partners/Repository.php:88
-msgid "Partner konnte nicht gespeichert werden."
-msgstr "Le partenaire n’a pas pu être enregistré."
-
 #: src/Partners/Settlements.php:38
 msgid "Ausgezahlt"
 msgstr "Versé"
@@ -5714,10 +5666,6 @@ msgstr "Aucun décompte ne peut être créé pour des périodes futures."
 msgid "Es gibt bereits eine abgeschlossene Abrechnung bis %s. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet."
 msgstr "Un décompte clôturé existe déjà jusqu’au %s. Les modifications ultérieures seront décomptées dans la période suivante sous forme de correction."
 
-#: src/Partners/Settlements.php:320
-msgid "Für diesen Partner und Zeitraum gibt es bereits eine Abrechnung."
-msgstr "Un décompte existe déjà pour ce partenaire et cette période."
-
 #: src/Partners/Settlements.php:329
 msgid "Abgeschlossene Abrechnungen können nicht mehr geändert werden. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet."
 msgstr "Les décomptes clôturés ne peuvent plus être modifiés. Les modifications ultérieures seront décomptées dans la période suivante sous forme de correction."
@@ -5741,11 +5689,6 @@ msgstr "Le décompte n’a pas pu être clôturé."
 #: src/Partners/Settlements.php:414
 msgid "Nur abgeschlossene Abrechnungen können als ausgezahlt markiert werden."
 msgstr "Seuls les décomptes clôturés peuvent être marqués comme versés."
-
-#: src/Partners/Settlements.php:470
-#: src/Partners/Settlements.php:517
-msgid "Partner-Abrechnung"
-msgstr "Décompte partenaire"
 
 #: src/Partners/Settlements.php:472
 msgid "Datum (UTC)"
@@ -5919,14 +5862,6 @@ msgstr "Frais de ticket"
 msgid "USt %s auf Plattformgebühr"
 msgstr "TVA de %s sur les frais de plateforme"
 
-#: src/Partners/Settlements.php:555
-msgid "Auszahlungsbetrag an Partner"
-msgstr "Montant du versement au partenaire"
-
-#: src/Partners/Settlements.php:555
-msgid "Forderung an Partner"
-msgstr "Créance sur le partenaire"
-
 #. translators: %s: amount
 #: src/Partners/Settlements.php:558
 #, php-format
@@ -6098,8 +6033,14 @@ msgstr "WP Pass Captain : vérifier le paiement"
 #. translators: 1: order id, 2: provider, 3: reference, 4: message
 #: src/Payments/Webhooks.php:155
 #, php-format
-msgid "Bestellung %1$s (%2$s, Referenz %3$s):\n\n%4$s"
-msgstr "Commande %1$s (%2$s, référence %3$s) :\n\n%4$s"
+msgid ""
+"Bestellung %1$s (%2$s, Referenz %3$s):\n"
+"\n"
+"%4$s"
+msgstr ""
+"Commande %1$s (%2$s, référence %3$s) :\n"
+"\n"
+"%4$s"
 
 #: src/Printing/AttendeeList.php:48
 msgid "E-Mail Teilnehmer"
@@ -8383,3 +8324,143 @@ msgstr "Liste"
 #: src/blocks/calendar/editor.js:22
 msgid "Nur Event-ID (optional)"
 msgstr "ID de l’événement uniquement (facultatif)"
+
+#. translators: 1: amount, 2: error code
+#: src/Admin/OrdersPage.php:316
+#, php-format
+msgid "Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten."
+msgstr "Payé, mais le bon d’un montant de %1$s n’a pas pu être débité (erreur : %2$s). Les tickets sont valides. Veuillez réclamer le montant ou débiter manuellement le bon dans WP Voucher Captain."
+
+#: src/Installer.php:698
+msgid "Pass Captain Veranstalter"
+msgstr "Organisateur Pass Captain"
+
+#: src/Integrations/AffiliateCaptain/Adapter.php:67
+msgid "Dieser Partnercode ist ungültig oder nicht mehr aktiv."
+msgstr "Ce code partenaire n’est pas valide ou n’est plus actif."
+
+#: src/Integrations/AffiliateCaptain/Adapter.php:68
+msgid "Zu viele ungültige Partnercodes. Bitte warte etwas und versuche es erneut."
+msgstr "Trop de codes partenaire invalides. Veuillez patienter un instant et réessayer."
+
+#: src/Integrations/AffiliateCaptain/Adapter.php:74
+msgid "Partnercode (optional)"
+msgstr "Code partenaire (facultatif)"
+
+#: src/Integrations/Vouchers/Checkout.php:117
+msgid "Der Gutschein deckt den ursprünglichen Betrag nicht mehr."
+msgstr "Le bon ne couvre plus le montant initial."
+
+#: src/Integrations/Vouchers/Checkout.php:168
+msgid "WP Pass Captain: Gutschein konnte nicht belastet werden"
+msgstr "WP Pass Captain : le bon n’a pas pu être débité"
+
+#. translators: 1: order id, 2: amount with currency, 3: last code characters, 4: error code
+#: src/Integrations/Vouchers/Checkout.php:171
+#, php-format
+msgid "Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in WP Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten."
+msgstr "La commande %1$s est payée et les tickets ont été émis, mais le bon (…%3$s, %2$s) n’a pas pu être débité dans WP Voucher Captain (erreur : %4$s). Veuillez réclamer le montant au client ou débiter manuellement le bon."
+
+#: src/Modules/Partners.php:145
+#: src/Partners/AdminPage.php:169
+#: src/Partners/AdminPage.php:312
+#: src/Partners/AdminPage.php:328
+msgid "Veranstalter"
+msgstr "Organisateur"
+
+#: src/Modules/Partners.php:146
+#: src/Partners/AdminPage.php:304
+msgid "Veranstalter-Abrechnungen"
+msgstr "Décomptes des organisateurs"
+
+#. translators: %s: event ids
+#: src/Partners/AdminPage.php:79
+#, php-format
+msgid "Folgende Events gehören bereits einem anderen Veranstalter und wurden nicht verknüpft: %s"
+msgstr "Les événements suivants appartiennent déjà à un autre organisateur et n’ont pas été associés : %s"
+
+#: src/Partners/AdminPage.php:173
+#: src/Partners/Keys.php:49
+#: src/Partners/Repository.php:48
+#: src/Partners/Repository.php:113
+#: src/Partners/Settlements.php:298
+msgid "Veranstalter nicht gefunden."
+msgstr "Organisateur introuvable."
+
+#: src/Partners/AdminPage.php:174
+msgid "Alle Veranstalter"
+msgstr "Tous les organisateurs"
+
+#: src/Partners/AdminPage.php:180
+msgid "Veranstalter sind Organisatoren oder Wiederverkäufer, denen Events zugeordnet werden. Sie erhalten monatliche Abrechnungen und optional API-Keys mit Lesezugriff auf ihre Events."
+msgstr "Les organisateurs sont des producteurs ou des revendeurs auxquels des événements sont attribués. Ils reçoivent des décomptes mensuels et, en option, des clés API avec accès en lecture à leurs événements."
+
+#: src/Partners/AdminPage.php:180
+#: src/Partners/AdminPage.php:205
+msgid "Neuer Veranstalter"
+msgstr "Nouvel organisateur"
+
+#: src/Partners/AdminPage.php:183
+msgid "Noch keine Veranstalter."
+msgstr "Aucun organisateur pour le moment."
+
+#: src/Partners/AdminPage.php:237
+msgid "Events dieses Veranstalters"
+msgstr "Événements de cet organisateur"
+
+#: src/Partners/AdminPage.php:242
+msgid "anderer Veranstalter"
+msgstr "autre organisateur"
+
+#: src/Partners/AdminPage.php:246
+msgid "WordPress-Benutzer des Veranstalters"
+msgstr "Utilisateurs WordPress de l’organisateur"
+
+#: src/Partners/AdminPage.php:246
+msgid "Benutzer-IDs, Logins oder E-Mail-Adressen (kommagetrennt). Diese Benutzer sehen die abgeschlossenen Abrechnungen des Veranstalters (nur lesend), z. B. mit der Rolle „Pass Captain Veranstalter“."
+msgstr "ID d’utilisateur, identifiants ou adresses e-mail (séparés par des virgules). Ces utilisateurs voient les décomptes clôturés de l’organisateur (en lecture seule), par ex. avec le rôle « Pass Captain Organisateur »."
+
+#: src/Partners/AdminPage.php:247
+msgid "Veranstalter speichern"
+msgstr "Enregistrer l’organisateur"
+
+#: src/Partners/AdminPage.php:256
+msgid "Bitte sicher an den Veranstalter übermitteln. Gespeichert wird nur ein Hash."
+msgstr "Veuillez transmettre ceci à l’organisateur de manière sécurisée. Seul un hash est enregistré."
+
+#: src/Partners/AdminPage.php:265
+msgid "alle Veranstalter-Events"
+msgstr "tous les événements de l’organisateur"
+
+#: src/Partners/AdminPage.php:291
+msgid "Keine Auswahl = alle aktuellen und künftigen Events des Veranstalters. Event-beschränkte Keys können keine Abrechnungen abrufen."
+msgstr "Aucune sélection = tous les événements actuels et futurs de l’organisateur. Les clés limitées à des événements ne peuvent pas récupérer de décomptes."
+
+#: src/Partners/AdminPage.php:319
+msgid "Bitte zuerst einen Veranstalter anlegen."
+msgstr "Veuillez d’abord créer un organisateur."
+
+#: src/Partners/Keys.php:54
+msgid "Ein Key kann nur auf Events dieses Veranstalters beschränkt werden."
+msgstr "Une clé ne peut être limitée qu’aux événements de cet organisateur."
+
+#: src/Partners/Repository.php:88
+msgid "Veranstalter konnte nicht gespeichert werden."
+msgstr "L’organisateur n’a pas pu être enregistré."
+
+#: src/Partners/Settlements.php:320
+msgid "Für diesen Veranstalter und Zeitraum gibt es bereits eine Abrechnung."
+msgstr "Un décompte existe déjà pour cet organisateur et cette période."
+
+#: src/Partners/Settlements.php:470
+#: src/Partners/Settlements.php:517
+msgid "Veranstalter-Abrechnung"
+msgstr "Décompte de l’organisateur"
+
+#: src/Partners/Settlements.php:555
+msgid "Auszahlungsbetrag an Veranstalter"
+msgstr "Montant à verser à l’organisateur"
+
+#: src/Partners/Settlements.php:555
+msgid "Forderung an Veranstalter"
+msgstr "Créance envers l’organisateur"

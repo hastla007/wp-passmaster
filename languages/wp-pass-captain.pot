@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: WP Pass Captain 1.0.0\n"
+"Project-Id-Version: WP Pass Captain 1.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-11T23:23:39+00:00\n"
+"POT-Creation-Date: 2026-11-12T05:21:58+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-pass-captain\n"
@@ -31,7 +31,7 @@ msgid "Aktuell anwesend"
 msgstr ""
 
 #: src/Admin/CheckinsPage.php:46
-#: src/Admin/OrdersPage.php:344
+#: src/Admin/OrdersPage.php:348
 #: src/BoxOffice/Page.php:72
 #: src/OfflineScanner/AdminPage.php:149
 #: src/OfflineScanner/AdminPage.php:164
@@ -114,7 +114,7 @@ msgstr ""
 #: src/Admin/EventsPage.php:542
 #: src/Admin/OrdersPage.php:248
 #: src/Admin/OrdersPage.php:257
-#: src/Admin/OrdersPage.php:484
+#: src/Admin/OrdersPage.php:488
 #: src/Integrations/WooCommerce/OrderAdapter.php:962
 #: src/Mail/Types.php:62
 #: src/Mail/Types.php:220
@@ -167,7 +167,7 @@ msgid "Zeitpunkt"
 msgstr ""
 
 #: src/Admin/CheckinsPage.php:93
-#: src/Admin/OrdersPage.php:396
+#: src/Admin/OrdersPage.php:400
 #: src/Admin/TicketsPage.php:149
 #: src/Admission/ConflictsPage.php:76
 #: src/Integrations/WooCommerce/OrderAdapter.php:962
@@ -309,9 +309,9 @@ msgstr ""
 #: src/Admin/EventsPage.php:794
 #: src/Admin/EventsPage.php:830
 #: src/Admin/OrdersPage.php:259
-#: src/Admin/OrdersPage.php:319
-#: src/Admin/OrdersPage.php:398
-#: src/Admin/OrdersPage.php:488
+#: src/Admin/OrdersPage.php:323
+#: src/Admin/OrdersPage.php:402
+#: src/Admin/OrdersPage.php:492
 #: src/Admin/TicketsPage.php:153
 #: src/Admission/ConflictsPage.php:80
 #: src/Admission/RulesPage.php:200
@@ -681,7 +681,7 @@ msgstr ""
 #: src/Admin/EventsPage.php:643
 #: src/Admin/EventsPage.php:709
 #: src/Admin/EventsPage.php:831
-#: src/Admin/OrdersPage.php:490
+#: src/Admin/OrdersPage.php:494
 #: src/Admin/TicketsPage.php:154
 msgid "Aktion"
 msgstr ""
@@ -1203,7 +1203,7 @@ msgid "Abgeschlossen"
 msgstr ""
 
 #: src/Admin/Forms.php:384
-#: src/Admin/OrdersPage.php:371
+#: src/Admin/OrdersPage.php:375
 #: src/Reports/Page.php:119
 msgid "Erstattet"
 msgstr ""
@@ -1252,7 +1252,7 @@ msgid "Tageslimit erreicht"
 msgstr ""
 
 #: src/Admin/Forms.php:396
-#: src/Admin/OrdersPage.php:512
+#: src/Admin/OrdersPage.php:516
 msgid "Wartet auf Freigabe"
 msgstr ""
 
@@ -1323,8 +1323,8 @@ msgid "Bestellungen"
 msgstr ""
 
 #: src/Admin/Menu.php:81
-#: src/Admin/OrdersPage.php:377
-#: src/Admin/OrdersPage.php:486
+#: src/Admin/OrdersPage.php:381
+#: src/Admin/OrdersPage.php:490
 #: src/Admin/TicketsPage.php:135
 #: src/OrderPortal.php:40
 #: src/Partners/Settlements.php:472
@@ -1342,7 +1342,7 @@ msgstr ""
 
 #: src/Admin/Menu.php:84
 #: src/Admin/Menu.php:85
-#: src/Admin/OrdersPage.php:440
+#: src/Admin/OrdersPage.php:444
 #: src/Admin/SettingsPage.php:79
 #: src/Reports/Page.php:78
 msgid "Erstattungen"
@@ -1354,7 +1354,7 @@ msgid "Einstellungen"
 msgstr ""
 
 #: src/Admin/OrdersPage.php:35
-#: src/Orders.php:586
+#: src/Orders.php:597
 #: src/Payments/PayPalGateway.php:130
 #: src/Rest/Controller.php:296
 #: src/Rest/Controller.php:322
@@ -1476,7 +1476,7 @@ msgid "Bestellnummer oder E-Mail"
 msgstr ""
 
 #: src/Admin/OrdersPage.php:254
-#: src/Admin/OrdersPage.php:484
+#: src/Admin/OrdersPage.php:488
 #: src/Partners/Settlements.php:472
 #: src/Partners/Settlements.php:560
 #: src/Printing/AttendeeList.php:48
@@ -1484,7 +1484,7 @@ msgid "Bestellung"
 msgstr ""
 
 #: src/Admin/OrdersPage.php:255
-#: src/Admin/OrdersPage.php:483
+#: src/Admin/OrdersPage.php:487
 #: src/Partners/Settlements.php:560
 #: src/Series/AdminPage.php:150
 #: src/WalletPasses/AppleProvider.php:65
@@ -1492,7 +1492,7 @@ msgid "Datum"
 msgstr ""
 
 #: src/Admin/OrdersPage.php:258
-#: src/Admin/OrdersPage.php:349
+#: src/Admin/OrdersPage.php:353
 msgid "Summe"
 msgstr ""
 
@@ -1539,24 +1539,30 @@ msgstr ""
 msgid "WooCommerce-Bestellung #%d öffnen"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:315
+#. translators: 1: amount, 2: error code
+#: src/Admin/OrdersPage.php:316
+#, php-format
+msgid "Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten."
+msgstr ""
+
+#: src/Admin/OrdersPage.php:319
 msgid "Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben oder die Zahlung außerhalb des Plugins zurückerstatten."
 msgstr ""
 
-#: src/Admin/OrdersPage.php:320
+#: src/Admin/OrdersPage.php:324
 #: src/Admin/TicketsPage.php:151
 msgid "Käufer"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:321
+#: src/Admin/OrdersPage.php:325
 msgid "Angelegt"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:322
+#: src/Admin/OrdersPage.php:326
 msgid "Zahlart / Referenz"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:329
+#: src/Admin/OrdersPage.php:333
 #: src/BoxOffice/Service.php:35
 #: src/Invoices.php:185
 #: src/Printing/InvoicePdf.php:79
@@ -1564,32 +1570,32 @@ msgid "Rechnung"
 msgstr ""
 
 #. translators: %s: invoice number
-#: src/Admin/OrdersPage.php:331
+#: src/Admin/OrdersPage.php:335
 #, php-format
 msgid "Rechnung %s anzeigen"
 msgstr ""
 
 #. translators: %s: credit note numbers
-#: src/Admin/OrdersPage.php:332
+#: src/Admin/OrdersPage.php:336
 #, php-format
 msgid "Gutschriften (in der Rechnungsansicht): %s"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:334
+#: src/Admin/OrdersPage.php:338
 msgid "Rechnung erstellen"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:337
+#: src/Admin/OrdersPage.php:341
 msgid "Version AGB/Verbraucherinfo"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:340
+#: src/Admin/OrdersPage.php:344
 #: src/Partners/Settlements.php:560
 #: src/Privacy.php:32
 msgid "Positionen"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:343
+#: src/Admin/OrdersPage.php:347
 #: src/BoxOffice/Page.php:80
 #: src/Mail/Types.php:63
 #: src/Mail/Types.php:263
@@ -1609,51 +1615,51 @@ msgstr ""
 msgid "Ticketart"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:345
+#: src/Admin/OrdersPage.php:349
 #: src/Invoices.php:187
 #: src/Printing/InvoicePdf.php:85
 msgid "Menge"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:346
+#: src/Admin/OrdersPage.php:350
 #: src/Invoices.php:187
 #: src/Printing/InvoicePdf.php:85
 msgid "Einzelpreis"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:347
+#: src/Admin/OrdersPage.php:351
 msgid "Steuersatz"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:348
+#: src/Admin/OrdersPage.php:352
 msgid "enth. Steuer"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:350
+#: src/Admin/OrdersPage.php:354
 msgid "Erstattet (Stk.)"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:367
+#: src/Admin/OrdersPage.php:371
 msgid "Zwischensumme"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:368
+#: src/Admin/OrdersPage.php:372
 #: src/BoxOffice/Service.php:642
 #: src/Invoices.php:187
 #: src/Printing/InvoicePdf.php:85
 msgid "Rabatt"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:369
+#: src/Admin/OrdersPage.php:373
 #: src/Invoices.php:187
 msgid "Gesamt (brutto)"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:370
+#: src/Admin/OrdersPage.php:374
 msgid "darin enthaltene Steuer"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:397
+#: src/Admin/OrdersPage.php:401
 #: src/Partners/Settlements.php:472
 #: src/Partners/Settlements.php:527
 #: src/Partners/Settlements.php:560
@@ -1662,68 +1668,68 @@ msgstr ""
 msgid "Art"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:399
+#: src/Admin/OrdersPage.php:403
 #: src/Admin/TicketsPage.php:152
 msgid "Teilnehmer"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:400
+#: src/Admin/OrdersPage.php:404
 msgid "Angaben"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:403
+#: src/Admin/OrdersPage.php:407
 msgid "Noch keine Tickets ausgestellt."
 msgstr ""
 
 #. translators: %s: ticket id
-#: src/Admin/OrdersPage.php:409
+#: src/Admin/OrdersPage.php:413
 #, php-format
 msgid "Ticket %s erstatten"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:413
+#: src/Admin/OrdersPage.php:417
 #: src/Admin/TicketsPage.php:172
 msgid "erstattet"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:413
+#: src/Admin/OrdersPage.php:417
 msgid "Erstattung läuft"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:425
+#: src/Admin/OrdersPage.php:429
 msgid "Erstatten"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:427
+#: src/Admin/OrdersPage.php:431
 msgid "Alle offenen Tickets erstatten (Restbetrag der Bestellung)"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:428
-#: src/Admin/OrdersPage.php:487
+#: src/Admin/OrdersPage.php:432
+#: src/Admin/OrdersPage.php:491
 #: src/Admin/TicketsPage.php:178
 #: src/BoxOffice/Page.php:157
 msgid "Grund"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:431
+#: src/Admin/OrdersPage.php:435
 msgid "Manuelle Zahlungen: Der Betrag muss außerhalb des Plugins zurücküberwiesen werden. Die Tickets werden widerrufen."
 msgstr ""
 
 #. translators: %s: amount
-#: src/Admin/OrdersPage.php:434
+#: src/Admin/OrdersPage.php:438
 #, php-format
 msgid "Erstattungen über %s benötigen eine zweite Freigabe."
 msgstr ""
 
-#: src/Admin/OrdersPage.php:436
+#: src/Admin/OrdersPage.php:440
 msgid "Ausgewählte Tickets wirklich erstatten?"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:436
+#: src/Admin/OrdersPage.php:440
 msgid "Erstattung auslösen"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:450
+#: src/Admin/OrdersPage.php:454
 #: src/Modules/Webhooks.php:270
 #: src/Partners/AdminPage.php:328
 #: src/Series/AdminPage.php:272
@@ -1731,72 +1737,72 @@ msgstr ""
 msgid "Aktionen"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:454
+#: src/Admin/OrdersPage.php:458
 msgid "Zahlungseingang bestätigen und Tickets ausstellen?"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:454
+#: src/Admin/OrdersPage.php:458
 msgid "Als bezahlt markieren"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:459
+#: src/Admin/OrdersPage.php:463
 #: src/Admin/TicketsPage.php:184
 msgid "Grund (optional)"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:460
+#: src/Admin/OrdersPage.php:464
 msgid "Unbezahlte Bestellung stornieren und Reservierung freigeben?"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:460
+#: src/Admin/OrdersPage.php:464
 #: src/BoxOffice/Page.php:157
 msgid "Stornieren"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:465
+#: src/Admin/OrdersPage.php:469
 msgid "Tickets erneut senden? Die bisherigen Ticketcodes werden dabei ungültig."
 msgstr ""
 
-#: src/Admin/OrdersPage.php:465
+#: src/Admin/OrdersPage.php:469
 #: src/Mail/Types.php:117
 msgid "Tickets erneut senden"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:485
+#: src/Admin/OrdersPage.php:489
 msgid "Betrag"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:489
+#: src/Admin/OrdersPage.php:493
 msgid "Angefordert / freigegeben von"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:493
+#: src/Admin/OrdersPage.php:497
 msgid "Keine Erstattungen."
 msgstr ""
 
 #. translators: %s: tax amount
-#: src/Admin/OrdersPage.php:504
+#: src/Admin/OrdersPage.php:508
 #, php-format
 msgid "davon Steuer %s"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:514
+#: src/Admin/OrdersPage.php:518
 msgid "Freigabe durch eine andere Person erforderlich"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:517
+#: src/Admin/OrdersPage.php:521
 msgid "Erstattung freigeben und auszahlen?"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:517
+#: src/Admin/OrdersPage.php:521
 msgid "Freigeben"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:520
+#: src/Admin/OrdersPage.php:524
 msgid "Grund der Ablehnung"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:521
+#: src/Admin/OrdersPage.php:525
 msgid "Ablehnen"
 msgstr ""
 
@@ -3089,24 +3095,50 @@ msgstr ""
 msgid "Pass Captain Support"
 msgstr ""
 
+#: src/Integrations/AffiliateCaptain/Adapter.php:67
+msgid "Dieser Partnercode ist ungültig oder nicht mehr aktiv."
+msgstr ""
+
+#: src/Integrations/AffiliateCaptain/Adapter.php:68
+msgid "Zu viele ungültige Partnercodes. Bitte warte etwas und versuche es erneut."
+msgstr ""
+
+#: src/Integrations/AffiliateCaptain/Adapter.php:74
+msgid "Partnercode (optional)"
+msgstr ""
+
 #: src/Integrations/Vouchers/Bridge.php:21
 #: src/Integrations/Vouchers/Bridge.php:31
 msgid "Es ist kein kompatibler WP Voucher Captain Anbieter aktiv."
 msgstr ""
 
-#: src/Integrations/Vouchers/Checkout.php:37
+#: src/Integrations/Vouchers/Checkout.php:44
 msgid "Gutscheine können derzeit nicht eingelöst werden."
 msgstr ""
 
-#: src/Integrations/Vouchers/Checkout.php:41
+#: src/Integrations/Vouchers/Checkout.php:48
 msgid "Der Gutschein kann auf diese Bestellung nicht angewendet werden."
 msgstr ""
 
-#: src/Integrations/Vouchers/Checkout.php:59
+#: src/Integrations/Vouchers/Checkout.php:66
 msgid "Der Gutschein passt nicht zu dieser Bestellung."
 msgstr ""
 
-#: src/Integrations/Vouchers/Checkout.php:159
+#: src/Integrations/Vouchers/Checkout.php:117
+msgid "Der Gutschein deckt den ursprünglichen Betrag nicht mehr."
+msgstr ""
+
+#: src/Integrations/Vouchers/Checkout.php:168
+msgid "WP Pass Captain: Gutschein konnte nicht belastet werden"
+msgstr ""
+
+#. translators: 1: order id, 2: amount with currency, 3: last code characters, 4: error code
+#: src/Integrations/Vouchers/Checkout.php:171
+#, php-format
+msgid "Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in WP Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten."
+msgstr ""
+
+#: src/Integrations/Vouchers/Checkout.php:243
 msgid "Der Gutschein konnte nicht eingelöst werden."
 msgstr ""
 
@@ -5197,70 +5229,70 @@ msgstr ""
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr ""
 
-#: src/Orders.php:595
-#: src/Orders.php:890
+#: src/Orders.php:606
+#: src/Orders.php:901
 msgid "Der Bestellstatus erlaubt diese Aktion nicht."
 msgstr ""
 
-#: src/Orders.php:647
+#: src/Orders.php:658
 msgid "WP Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
 msgstr ""
 
-#: src/Orders.php:647
+#: src/Orders.php:658
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten)."
 msgstr ""
 
-#: src/Orders.php:648
+#: src/Orders.php:659
 msgid "Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden."
 msgstr ""
 
-#: src/Orders.php:789
+#: src/Orders.php:800
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr ""
 
-#: src/Orders.php:793
+#: src/Orders.php:804
 msgid "Der Bestellzugriff ist ungültig."
 msgstr ""
 
-#: src/Orders.php:796
+#: src/Orders.php:807
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr ""
 
-#: src/Orders.php:807
+#: src/Orders.php:818
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr ""
 
-#: src/Orders.php:817
+#: src/Orders.php:828
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr ""
 
-#: src/Orders.php:838
+#: src/Orders.php:849
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr ""
 
-#: src/Orders.php:850
+#: src/Orders.php:861
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr ""
 
-#: src/Orders.php:973
+#: src/Orders.php:984
 #: src/WalletPasses/AppleProvider.php:73
 msgid "Dieses Ticket ist nur einmal gültig. Code nicht weitergeben."
 msgstr ""
 
-#: src/Orders.php:1025
+#: src/Orders.php:1036
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr ""
 
-#: src/Orders.php:1032
+#: src/Orders.php:1043
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr ""
 
-#: src/Orders.php:1039
+#: src/Orders.php:1050
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr ""
 
-#: src/Orders.php:1051
+#: src/Orders.php:1062
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; bitte versuche den Versand erneut."
 msgstr ""
 
@@ -8408,16 +8440,4 @@ msgstr ""
 
 #: src/blocks/calendar/editor.js:22
 msgid "Nur Event-ID (optional)"
-msgstr ""
-
-#: src/Integrations/AffiliateCaptain/Adapter.php:67
-msgid "Dieser Partnercode ist ungültig oder nicht mehr aktiv."
-msgstr ""
-
-#: src/Integrations/AffiliateCaptain/Adapter.php:68
-msgid "Zu viele ungültige Partnercodes. Bitte warte etwas und versuche es erneut."
-msgstr ""
-
-#: src/Integrations/AffiliateCaptain/Adapter.php:74
-msgid "Partnercode (optional)"
 msgstr ""
