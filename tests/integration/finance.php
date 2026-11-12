@@ -119,6 +119,59 @@ check( 'the last retry flags the order instead of giving up silently', 'commit_f
 $voucher_provider->commit_error = null;
 unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] );
 
+echo "Voucher to ticket exchange (reverse bridge)\n";
+$ticket_service = PassCaptain\Integrations\Vouchers\TicketService::service( null, 1 );
+check( 'ticket service is offered for contract version 1 only', $ticket_service instanceof PassCaptain\Integrations\Vouchers\TicketService && null === PassCaptain\Integrations\Vouchers\TicketService::service( null, 2 ) );
+$xt = make_type( 3, 10, 4000 );
+$targets = array_column( $ticket_service->targets(), 'ticket_type_id' );
+check( 'upcoming ticket types are listed as exchange targets', in_array( $xt, $targets, true ) );
+$src = array( 'provider' => 'voucher-captain', 'voucher_id' => 77, 'redemption_key' => 'vcap-x-77', 'code_hint' => 'ABCD' );
+$mails_before = count( $GLOBALS['wpcap_test_mails'] );
+$x1 = $ticket_service->issue_tickets( $src, 'vcap-voucher-77', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift@example.com', 'name' => 'Gift' ) );
+$x1_order = is_array( $x1 ) ? Orders::get( $x1['order_id'] ) : null;
+$x1_mails = array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $mails_before ), static fn( $m ) => 'gift@example.com' === $m['to'] && str_starts_with( $m['subject'], 'Deine Tickets' ) );
+check( 'a voucher is exchanged for two free tickets sent to the recipient', is_array( $x1 ) && 'issued' === $x1['status'] && 2 === count( $x1['ticket_ids'] ) && 0 === (int) $x1_order->total_minor && 'paid' === $x1_order->payment_status && 'voucher' === $x1_order->payment_provider && 1 === count( $x1_mails ) );
+$x1_again = $ticket_service->issue_tickets( $src, 'vcap-voucher-77', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift@example.com' ) );
+check( 'repeating the exchange answers with the same order and tickets', is_array( $x1_again ) && $x1_again['order_id'] === $x1['order_id'] && $x1_again['ticket_ids'] === $x1['ticket_ids'] && true === $x1_again['reused'] && 2 === count( tickets( $x1['order_id'] ) ) );
+check( 'the exchange is listed in the audit log with its voucher', 1 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='voucher_tickets_issued' AND object_id=%d", $x1['order_id'] ) ) );
+$x2 = $ticket_service->issue_tickets( $src, 'vcap-voucher-78', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift2@example.com' ) );
+check( 'a sold-out ticket type is refused without creating tickets', is_wp_error( $x2 ) && empty( $x2->get_error_data()['retryable'] ) && null === $ticket_service->get( 'vcap-voucher-78' ) );
+check( 'invalid requests are refused', is_wp_error( $ticket_service->issue_tickets( $src, '', array( 'ticket_type_id' => $xt ), array( 'email' => 'x@example.com' ) ) ) && is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-79', array( 'ticket_type_id' => $xt, 'quantity' => 1 ), array( 'email' => 'nope' ) ) ) );
+$ticket_service->revoke_tickets( 'vcap-voucher-77', 'voucher voided' );
+$ticket_service->revoke_tickets( 'vcap-voucher-77', 'voucher voided' );
+$x1_state = $ticket_service->get( 'vcap-voucher-77' );
+check( 'revoking the exchange cancels its tickets (repeat is harmless)', 'revoked' === $x1_state['status'] && array() === $x1_state['ticket_ids'] && 0 === count( tickets( $x1['order_id'], 'valid' ) ) );
+check( 'a revoked exchange is not issued again', is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-77', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift@example.com' ) ) ) );
+$x3 = $ticket_service->issue_tickets( $src, 'vcap-voucher-80', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift3@example.com' ) );
+check( 'revoked tickets give their capacity back', is_array( $x3 ) && 2 === count( $x3['ticket_ids'] ) );
+check( 'a public checkout cannot claim a voucher exchange key', ! is_wp_error( $free_try = Orders::create( array( 'email' => 'pub@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 5, 10, 1000 ), 'quantity' => 1 ) ), 'idempotency_key' => 'vcap-voucher-80' ) ) ) && $free_try['order_id'] !== $x3['order_id'] );
+
+// Voucher valid for any date of an event: the customer chooses date and ticket type.
+$ev_type = make_type( 10, 10, 3000 );
+$ev = $wpdb->get_row( "SELECT o.event_id,o.occurrence_id FROM {$p}wpcap_ticket_types tt JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$ev_type" );
+$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $ev->event_id, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 14 * 86400 ), 'timezone' => 'Europe/Vienna', 'location' => 'Wien', 'capacity' => 0, 'status' => 'scheduled' ) );
+$ev_occ2 = (int) $wpdb->insert_id;
+$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $ev_occ2, 'name' => 'Standard', 'price_minor' => 3000, 'currency' => 'EUR', 'capacity' => 10, 'max_per_order' => 10, 'status' => 'active' ) );
+$ev_type2 = (int) $wpdb->insert_id;
+$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $ev_occ2, 'name' => 'VIP', 'price_minor' => 9000, 'currency' => 'EUR', 'capacity' => 10, 'max_per_order' => 10, 'status' => 'active' ) );
+$ev_vip = (int) $wpdb->insert_id;
+$ev_target = array( 'event_id' => (int) $ev->event_id, 'ticket_name' => 'Standard' );
+$choices = array_column( $ticket_service->options( $ev_target ), 'ticket_type_id' );
+$listed = array_values( array_filter( $ticket_service->events(), static fn( $e ) => (int) $e['event_id'] === (int) $ev->event_id ) );
+check( 'an event voucher offers every upcoming date of the event with its ticket name', array( $ev_type, $ev_type2 ) === $choices && 1 === count( $listed ) && 2 === $listed[0]['dates'] && in_array( 'VIP', $listed[0]['ticket_names'], true ) );
+$ev_x = $ticket_service->issue_tickets( $src, 'vcap-voucher-90', $ev_target + array( 'ticket_type_id' => $ev_type2, 'quantity' => 1 ), array( 'email' => 'ev@example.com' ) );
+check( 'the customer gets a ticket for the chosen date', is_array( $ev_x ) && 1 === count( $ev_x['ticket_ids'] ) && $ev_type2 === (int) tickets( $ev_x['order_id'] )[0]->ticket_type_id );
+check( 'a ticket type of another ticket name or event cannot be chosen', is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-91', $ev_target + array( 'ticket_type_id' => $ev_vip, 'quantity' => 1 ), array( 'email' => 'ev@example.com' ) ) ) && is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-92', $ev_target + array( 'ticket_type_id' => $xt, 'quantity' => 1 ), array( 'email' => 'ev@example.com' ) ) ) );
+
+$wpdb->update( "{$p}wpcap_ticket_types", array( 'capacity' => 1 ), array( 'ticket_type_id' => $ev_type2 ) );
+check( 'sold-out dates are not offered for the voucher quantity', array( $ev_type ) === array_column( $ticket_service->options( $ev_target + array( 'quantity' => 1 ) ), 'ticket_type_id' ) && array_key_exists( 'available', $ticket_service->targets()[0] ) );
+$wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $ev_type, 'field_key' => 'name', 'label' => 'Name', 'field_type' => 'text', 'required' => 1, 'status' => 'active' ) );
+$ev_fields = $ticket_service->fields( $ev_type );
+check( 'attendee fields of a ticket type are listed for the exchange form', 1 === count( $ev_fields ) && 'name' === $ev_fields[0]['key'] && true === $ev_fields[0]['required'] );
+check( 'missing required attendee answers refuse the exchange', is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-93', $ev_target + array( 'ticket_type_id' => $ev_type, 'quantity' => 1 ), array( 'email' => 'ev@example.com' ) ) ) );
+$ev_y = $ticket_service->issue_tickets( $src, 'vcap-voucher-94', $ev_target + array( 'ticket_type_id' => $ev_type, 'quantity' => 1 ), array( 'email' => 'ev@example.com', 'attendees' => array( array( 'ticket_type_id' => $ev_type, 'answers' => array( 'name' => 'Erika' ) ) ) ) );
+check( 'attendee answers are stored with the exchanged ticket', is_array( $ev_y ) && 'Erika' === $wpdb->get_var( $wpdb->prepare( "SELECT a.answer FROM {$p}wpcap_participant_answers a JOIN {$p}wpcap_tickets t ON t.ticket_id=a.ticket_id WHERE t.order_id=%d", $ev_y['order_id'] ) ) );
+
 echo "Self-service and schedule changes\n";
 PassCaptain\Settings::update( array( 'attendee_edit_hours' => 24 ) );
 $st = make_type( 10, 10, 0 );
