@@ -49,6 +49,7 @@ final class Page {
 		$session = Service::open_session_for( get_current_user_id() );
 		echo '<div class="wrap wpcap-admin wpcap-pos"><h1>' . esc_html__( 'Kasse', 'wp-pass-captain' ) . '</h1>';
 		Forms::render_notices();
+		if ( current_user_can( 'manage_options' ) ) { self::render_admin_settings(); }
 		$last = absint( $_GET['sale'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$last_sale = $last ? Service::sale( $last ) : null;
 		if ( $last_sale && Service::is_booked( $last_sale ) && self::can_view_sale( $last_sale ) ) {
@@ -63,7 +64,18 @@ final class Page {
 			Forms::open_form( 'wpcap_pos_open' );
 			echo '<p><label>' . esc_html__( 'Wechselgeld (Anfangsbestand)', 'wp-pass-captain' ) . ' <input type="text" inputmode="decimal" name="float" value="0,00" size="10"></label> ';
 			echo '<label>' . esc_html__( 'Währung', 'wp-pass-captain' ) . ' <input type="text" name="currency" value="EUR" size="4" maxlength="3"></label></p>';
-			echo '<p><label>' . esc_html__( 'Standort-ID (0 = Standard)', 'wp-pass-captain' ) . ' <input type="number" min="0" name="location_id" value="0"></label> ' . esc_html__( 'Kassen-ID', 'wp-pass-captain' ) . ' <input name="register_id" maxlength="64" pattern="[A-Za-z0-9_.:-]*" placeholder="KASSE-01"></p>';
+			$terminals = TerminalRegistry::entries();
+			if ( $terminals ) {
+				echo '<p><label>' . esc_html__( 'Kassenregister', 'wp-pass-captain' ) . ' ';
+				echo '<select name="terminal_key" required><option value="">— ' . esc_html__( 'Bitte wählen', 'wp-pass-captain' ) . ' —</option>';
+				foreach ( $terminals as $key => $terminal ) {
+					$label = sprintf( __( '%1$s (Standort %2$d · %3$s)', 'wp-pass-captain' ), $terminal['label'], $terminal['location_id'], $terminal['register_id'] );
+					echo '<option value="' . esc_attr( $key ) . '">' . esc_html( $label ) . '</option>';
+				}
+				echo '</select></label></p>';
+			} else {
+				echo '<p><label>' . esc_html__( 'Standort-ID (0 = Standard)', 'wp-pass-captain' ) . ' <input type="number" min="0" name="location_id" value="0"></label> ' . esc_html__( 'Kassen-ID', 'wp-pass-captain' ) . ' <input name="register_id" maxlength="64" pattern="[A-Za-z0-9_.:-]*" placeholder="KASSE-01"></p>';
+			}
 			echo '<p><button class="button button-primary">' . esc_html__( 'Kasse öffnen', 'wp-pass-captain' ) . '</button></p></form></div>';
 			return;
 		}
@@ -121,6 +133,14 @@ final class Page {
 		echo '</div>';
 	}
 
+	private static function render_admin_settings() {
+		echo '<details class="wpcap-boxoffice-admin-settings"><summary>' . esc_html__( 'Kassen- und Belegeinstellungen', 'wp-pass-captain' ) . '</summary>';
+		Forms::open_form( 'wpcap_pos_settings' );
+		echo '<p><label>' . esc_html__( 'Präfix Belegnummer', 'wp-pass-captain' ) . ' <input type="text" name="boxoffice_receipt_prefix" size="6" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_prefix' ) ) . '"></label> <label>' . esc_html__( 'Fußzeile', 'wp-pass-captain' ) . ' <input type="text" name="boxoffice_receipt_footer" size="50" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_footer' ) ) . '"></label></p>';
+		echo '<p><label>' . esc_html__( 'Zugelassene Kassenregister (eine Zeile je Register)', 'wp-pass-captain' ) . '<br><textarea name="boxoffice_terminals" rows="5" cols="70" maxlength="10000">' . esc_textarea( TerminalRegistry::raw() ) . '</textarea></label><br><span class="description">' . esc_html__( 'Format: Standort-ID|Kassen-ID|Anzeigename. Beispiel: 23|BOX-01|Abendkassa Haupteingang. Sobald Einträge gespeichert sind, können Kassierer nur noch ein freigegebenes Register wählen.', 'wp-pass-captain' ) . '</span></p>';
+		echo '<p><button class="button">' . esc_html__( 'Kassen- und Belegeinstellungen speichern', 'wp-pass-captain' ) . '</button></p></form></details>';
+	}
+
 	private static function render_session( $session ) {
 		global $wpdb;
 		$totals = Service::session_totals( $session->session_id );
@@ -166,11 +186,6 @@ final class Page {
 		Forms::open_form( 'wpcap_pos_close', null, 'onsubmit="return confirm(\'' . esc_js( __( 'Kasse jetzt abschließen?', 'wp-pass-captain' ) ) . '\')"' );
 		Forms::hidden( 'session_id', (int) $session->session_id );
 		echo '<p><label>' . esc_html__( 'Gezählter Bargeldbestand', 'wp-pass-captain' ) . ' <input type="text" inputmode="decimal" name="counted" required size="10"></label> <label>' . esc_html__( 'Notiz', 'wp-pass-captain' ) . ' <input type="text" name="note" size="30"></label> <button class="button">' . esc_html__( 'Kasse abschließen', 'wp-pass-captain' ) . '</button></p></form>';
-		if ( current_user_can( 'manage_options' ) ) {
-			echo '<h3>' . esc_html__( 'Belegeinstellungen', 'wp-pass-captain' ) . '</h3>';
-			Forms::open_form( 'wpcap_pos_settings' );
-			echo '<p><label>' . esc_html__( 'Präfix Belegnummer', 'wp-pass-captain' ) . ' <input type="text" name="boxoffice_receipt_prefix" size="6" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_prefix' ) ) . '"></label> <label>' . esc_html__( 'Fußzeile', 'wp-pass-captain' ) . ' <input type="text" name="boxoffice_receipt_footer" size="50" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_footer' ) ) . '"></label> <button class="button">' . esc_html__( 'Speichern', 'wp-pass-captain' ) . '</button></p></form>';
-		}
 	}
 
 	/* ------------------------------------------------------------------ handlers */
@@ -183,7 +198,16 @@ final class Page {
 		Forms::verify( 'wpcap_pos_open' );
 		$in = Forms::post();
 		$float = Forms::parse_money( $in['float'] ?? '0' );
-		$result = null === $float ? Forms::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'wp-pass-captain' ) ) : Service::open_session( $float, Forms::text( $in, 'currency', 3 ), '', Forms::int( $in, 'location_id' ), Forms::text( $in, 'register_id', 64 ) );
+		$location_id = Forms::int( $in, 'location_id' );
+		$register_id = Forms::text( $in, 'register_id', 64 );
+		if ( TerminalRegistry::is_configured() ) {
+			$terminal = TerminalRegistry::find( Forms::text( $in, 'terminal_key', 100 ) );
+			if ( ! $terminal ) { $result = Forms::error( 'wpcap_pos_terminal', __( 'Bitte ein freigegebenes Kassenregister auswählen.', 'wp-pass-captain' ) ); }
+			else { $location_id = $terminal['location_id']; $register_id = $terminal['register_id']; }
+		}
+		if ( ! isset( $result ) ) {
+			$result = null === $float ? Forms::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'wp-pass-captain' ) ) : Service::open_session( $float, Forms::text( $in, 'currency', 3 ), '', $location_id, $register_id );
+		}
 		Forms::finish( $result, __( 'Kasse geöffnet.', 'wp-pass-captain' ), self::back() );
 	}
 
@@ -308,9 +332,13 @@ final class Page {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		Forms::verify( 'wpcap_pos_settings' );
 		$in = Forms::post();
+		$terminal_raw = Forms::textarea( $in, 'boxoffice_terminals', 10000 );
+		$valid_terminals = TerminalRegistry::validate( $terminal_raw );
+		if ( is_wp_error( $valid_terminals ) ) { Forms::finish( $valid_terminals, '', self::back() ); }
 		Settings::update( array(
 			'boxoffice_receipt_prefix' => preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'boxoffice_receipt_prefix', 10 ) ) ?: 'BON',
 			'boxoffice_receipt_footer' => Forms::text( $in, 'boxoffice_receipt_footer', 300 ),
+			'boxoffice_terminals' => $terminal_raw,
 		) );
 		Forms::finish( true, __( 'Einstellungen gespeichert.', 'wp-pass-captain' ), self::back() );
 	}
