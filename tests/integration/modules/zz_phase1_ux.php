@@ -124,16 +124,19 @@ echo "Phase 1 UX: order portal page\n";
 $html = OrderPortal::render_page( $paid, $token );
 check( 'heading shows the short order number instead of the 32-hex id', false !== strpos( $html, '<h1>Bestellung ' . Format::order_reference( $paid->public_id ) . '</h1>' ) && ! preg_match( '#<h1>[^<]*[a-f0-9]{32}#', $html ) );
 check( 'resend button names the masked buyer address and the code rotation', false !== strpos( $html, 'Tickets erneut an r***@example.com senden' ) && false !== strpos( $html, '/resend' ) && false !== strpos( $html, 'bisher gesendete Codes werden ungültig' ) );
-check( 'transfer asks for confirmation and names the consequence', false !== strpos( $html, 'id="wpcap-confirm"' ) && false !== strpos( $html, 'endgültig' ) && false !== strpos( $html, 'bisherige Ticketcode wird sofort ungültig' ) && false !== strpos( $html, 'Ticket einmalig übertragen' ) );
+check( 'transfer asks for confirmation and names the consequence', false !== strpos( $html, 'id="wpcap-confirm"' ) && false !== strpos( $html, substr( wp_json_encode( 'endgültig und nur einmal möglich' ), 1, -1 ) ) && false !== strpos( $html, substr( wp_json_encode( 'bisherige Ticketcode wird sofort ungültig' ), 1, -1 ) ) && false !== strpos( $html, 'Ticket einmalig übertragen' ) );
 check( 'portal amount uses the currency symbol', false !== strpos( $html, 'Gesamtbetrag: 25,00 €' ) || false !== strpos( $html, 'Gesamtbetrag: 50,00 €' ) );
 Settings::update( array( 'bank_iban' => 'AT611904300234573201' ) );
 $pending_order = Orders::get( $pending['order_id'] );
 $pending_html = OrderPortal::render_page( $pending_order, p1u_access_token( $pending['public_id'] ) );
-check( 'unpaid manual order: portal shows the payment details, no resend button', false !== strpos( $pending_html, 'Zahlungsinformationen' ) && false !== strpos( $pending_html, 'AT61 1904 3002 3457 3201' ) && false === strpos( $pending_html, 'wpcap-resend-form' ) );
+check( 'unpaid manual order: portal shows the payment details, no resend button', false !== strpos( $pending_html, 'Zahlungsinformationen' ) && false !== strpos( $pending_html, 'AT61 1904 3002 3457 3201' ) && false === strpos( $pending_html, '<form class="wpcap-resend-form' ) );
 
 echo "Phase 1 UX: event card\n";
 Settings::update( array( 'require_terms' => 1, 'terms_text' => 'AGB', 'consumer_info_text' => '' ) );
 $card_type = make_type( 30, 5, 1990 );
+// Only this occurrence is listed (the shortcode shows the next 50 dates).
+$card_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$card_type" );
+$wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='p1u_hidden' WHERE status='scheduled' AND occurrence_id<>$card_occ" );
 $card = PassCaptain\PublicEvents::render_shortcode();
 $card_pos = strpos( $card, 'data-type="' . $card_type . '"' );
 $article = false !== $card_pos ? substr( $card, strrpos( substr( $card, 0, $card_pos ), '<article' ), 6000 ) : '';
@@ -146,6 +149,7 @@ Settings::update( array( 'consumer_info_text' => 'Widerrufsbelehrung …' ) );
 $card2 = PassCaptain\PublicEvents::render_shortcode();
 check( 'with consumer information the consent names it', false !== strpos( $card2, 'Ich akzeptiere die Bedingungen und habe die Verbraucherinformationen gelesen.' ) );
 Settings::update( array( 'require_terms' => 0, 'terms_text' => '', 'consumer_info_text' => '' ) );
+$wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='scheduled' WHERE status='p1u_hidden'" );
 check( 'event start without timezone suffix in the site timezone', false === strpos( $article, 'Europe/Vienna' ) );
 
 echo "Phase 1 tax: VAT breakdown, Rechnungskorrektur, local year\n";
