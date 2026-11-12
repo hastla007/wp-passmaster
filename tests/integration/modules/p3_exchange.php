@@ -31,6 +31,8 @@ if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return '
 if ( ! function_exists( 'register_rest_route' ) ) { function register_rest_route( $ns, $route, $args ) { $GLOBALS['wpcap_test_routes'][ $ns . $route ] = $args; return true; } }
 if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ...$a ) {} }
 if ( ! function_exists( 'wp_enqueue_style' ) ) { function wp_enqueue_style( ...$a ) {} }
+if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return (string) $u; } }
+if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } }
 if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/wp-pass-captain/' ); }
 
 ExchangeModule::register();
@@ -152,6 +154,7 @@ $GLOBALS['wpcap_test_mails'] = array();
 Orders::confirm_external_payment( $supp, 'test-payment' );
 check( 'repeated payment callback changes nothing', 0 === count( ex_mails( 'umgetauscht' ) ) && 2 === count( tickets( $order2 ) ) );
 
+$wpdb->update( "{$p}wpcap_ticket_types", array( 'capacity' => 0 ), array( 'ticket_type_id' => $std_a ) ); // Source type of the following scenarios.
 echo "Exchange: hold expiry releases the target\n";
 $vip_c = ex_type( $occ_b, 'Loge', 6000, 1 );
 list( $order3, $ids3 ) = ex_buy( $std_a, 1, 'late@example.com' );
@@ -161,6 +164,14 @@ expire_holds_of( (int) $pend['supplementary_order_id'] );
 Orders::expire_holds();
 check( 'expired hold frees the target and ends the exchange', 1 === Orders::availability( $vip_c ) && 'expired' === Exchange::get( (int) $pend['exchange_id'] )['status'] && 'expired' === Orders::get( (int) $pend['supplementary_order_id'] )->status );
 check( 'old ticket still valid after expiry', 'valid' === ex_ticket( $ids3[0] )->status && 1 === count( tickets( $order3 ) ) );
+list( $order3b, $ids3b ) = ex_buy( $std_a, 1, 'late2@example.com' );
+$latex = Exchange::request( $ids3b[0], $vip_c, array( 'channel' => 'admin' ) );
+expire_holds_of( (int) $latex['supplementary_order_id'] );
+Orders::expire_holds();
+Orders::confirm_external_payment( (int) $latex['supplementary_order_id'], 'late-pay' );
+check( 'late payment after expiry still completes when the unit is free', 'completed' === Exchange::get( (int) $latex['exchange_id'] )['status'] && 0 === Orders::availability( $vip_c ) );
+$back3 = Exchange::request( (int) Exchange::get( (int) $latex['exchange_id'] )['new_ticket_id'], $std_a, array( 'channel' => 'admin', 'refund_policy' => 'none' ) );
+check( 'exchanging back frees the unit again', ! is_wp_error( $back3 ) && 1 === Orders::availability( $vip_c ) );
 $retry = Exchange::request( $ids3[0], $vip_c, array( 'channel' => 'admin', 'waive' => true ) );
 check( 'goodwill (Kulanz) exchanges without supplement', ! is_wp_error( $retry ) && 'completed' === $retry['status'] && 1 === (int) $retry['waived'] && 0 === (int) $retry['due_minor'] && 0 === Orders::availability( $vip_c ) );
 
@@ -173,7 +184,8 @@ $down = Exchange::request( $ids4[0], $cheap_b, array( 'channel' => 'admin' ) );
 $refund = ! is_wp_error( $down ) ? PassCaptain\Refunds::get( (int) $down['refund_id'] ) : null;
 check( 'cheaper target refunds the difference', ! is_wp_error( $down ) && 'completed' === $down['status'] && 1000 === (int) $down['refund_minor'] && $refund && 'completed' === $refund['status'] && 1000 === (int) $refund['amount_minor'] );
 check( 'partial refund keeps tickets, order refunded_minor updated', 1000 === (int) Orders::get( $order4 )->refunded_minor && 'complete' === Orders::get( $order4 )->status && 2 === count( tickets( $order4, 'valid' ) ) );
-check( 'Rechnungskorrektur for the refunded difference', ! is_wp_error( $inv4 ) && 1000 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT total_minor FROM {$p}wpcap_credit_notes WHERE refund_id=%d", (int) $down['refund_id'] ) ) );
+$cn4 = PassCaptain\Invoices::credit_note_for_refund( (int) $down['refund_id'] ); // Hooked to wpcap_refund_completed in production.
+check( 'Rechnungskorrektur for the refunded difference', ! is_wp_error( $inv4 ) && is_array( $cn4 ) && 1000 === (int) $cn4['total_minor'] && 91 === (int) $cn4['tax_minor'] );
 check( 'value of the new ticket is the cheaper price', 1500 === (int) $down['new_value_minor'] && 1500 === (int) ex_item( $order4, $cheap_b )->line_total );
 $full = PassCaptain\Refunds::request( $order4, array(), 'Rest', 'down-rest' );
 check( 'later full refund pays out only the rest', ! is_wp_error( $full ) && 4000 === (int) $full['amount_minor'] && 5000 === (int) Orders::get( $order4 )->refunded_minor );
@@ -285,8 +297,19 @@ check( 'a taken seat is refused', is_wp_error( $taken ) && 'valid' === ex_ticket
 check( 'free seats reflect the exchanges', array( $seat_ids[1] ) === array_keys( Exchange::free_seats( $seat_occ, $parkett ) ) );
 $back = Exchange::request( (int) $auto['new_ticket_id'], $stand, array( 'channel' => 'admin' ) );
 check( 'exchanging away from a seat frees it', ! is_wp_error( $back ) && in_array( $seat_ids[0], array_keys( Exchange::free_seats( $seat_occ, $parkett ) ), true ) );
+$cheap_seat = ex_type( $seat_occ, 'Hörplatz', 1000 );
+list( $order13b, $ids13b ) = ex_buy( $cheap_seat, 1, 'seatup@example.com' );
+$sup = Exchange::request( $ids13b[0], $parkett, array( 'channel' => 'admin' ) );
+check( 'seated upgrade holds a seat for the supplementary order', ! is_wp_error( $sup ) && 'pending_payment' === $sup['status'] && ! in_array( $seat_ids[0], array_keys( Exchange::free_seats( $seat_occ, $parkett ) ), true ) );
+Orders::confirm_external_payment( (int) $sup['supplementary_order_id'], 'seat-pay' );
+$sup_done = Exchange::get( (int) $sup['exchange_id'] );
+check( 'after payment the held seat belongs to the new ticket', 'completed' === $sup_done['status'] && 'Reihe A, Platz 1' === PassCaptain\Seating\Reservations::seat_label( '', (int) $sup_done['new_ticket_id'] ) && $order13b === (int) $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM ' . Layouts::table( 'ticket_seats' ) . " WHERE ticket_id=%d AND status='assigned'", (int) $sup_done['new_ticket_id'] ) ) );
 $wrong = Exchange::request( $ids13[2], $stand, array( 'channel' => 'admin', 'seat_id' => $seat_ids[1] ) );
 check( 'same type is refused', is_wp_error( $wrong ) );
+
+// The seating test (runs later) counts all seat claims of the database: leave none behind.
+$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Layouts::table( 'claims' ) . ' WHERE occurrence_id=%d', $seat_occ ) );
+$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Layouts::table( 'ticket_seats' ) . ' WHERE occurrence_id=%d', $seat_occ ) );
 
 echo "Exchange: order portal self-service\n";
 $portal_event = ex_event( 'Portal' );
@@ -321,8 +344,6 @@ $staff = Exchange::request( (int) $new14->ticket_id, $pt_a, array( 'channel' => 
 check( 'staff can still exchange beyond the portal limit', ! is_wp_error( $staff ) && 'completed' === $staff['status'] );
 $cross = Exchange::request( (int) $staff['new_ticket_id'], $std_b, array( 'channel' => 'portal' ) );
 check( 'portal only within the same event', is_wp_error( $cross ) );
-$waive = Exchange::request( (int) $staff['new_ticket_id'], ex_type( $po_b, 'VIP', 9000, 5 ), array( 'channel' => 'portal', 'waive' => true ) );
-check( 'portal cannot waive the supplement', ! is_wp_error( $waive ) || 'wpcap_exchange_limit' === $waive->get_error_code() );
 ex_policy( array( 'portal_enabled' => 1, 'portal_hours' => 24, 'portal_max_per_ticket' => 5 ) );
 list( $order15, $ids15 ) = ex_buy( $pt_a, 1, 'portal2@example.com' );
 $vip15 = ex_type( $po_b, 'VIP Portal', 4000, 5 );
@@ -330,8 +351,30 @@ $up15 = Exchange::request( $ids15[0], $vip15, array( 'channel' => 'portal', 'wai
 check( 'portal upgrade always needs payment (waive ignored)', ! is_wp_error( $up15 ) && 'pending_payment' === $up15['status'] && 1500 === (int) $up15['due_minor'] && ! empty( $up15['payment'] ) );
 ex_policy( array() );
 
+echo "Exchange: paid supplement but old ticket gone\n";
+list( $order17, $ids17 ) = ex_buy( $std_a, 1, 'review@example.com' );
+$rev = Exchange::request( $ids17[0], ex_type( $occ_b, 'Empore', 3000, 5 ), array( 'channel' => 'admin' ) );
+$wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'checked_in' ), array( 'ticket_id' => $ids17[0] ) );
+$GLOBALS['wpcap_test_mails'] = array();
+Orders::confirm_external_payment( (int) $rev['supplementary_order_id'], 'review-pay' );
+check( 'exchange is flagged for review and the operator notified', 'needs_review' === Exchange::get( (int) $rev['exchange_id'] )['status'] && 1 === count( array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => 'admin@example.com' === $m['to'] ) ) && 1 === count( tickets( $order17 ) ) );
+
+echo "Exchange: admin action\n";
+list( $order18, $ids18 ) = ex_buy( $std_a, 1, 'admin@example.org' );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_orders' );
+$denied = PassCaptain\Exchange\AdminPage::exchange( array( 'ticket_id' => $ids18[0], 'ticket_type_id' => $std_b ) );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+check( 'admin exchange needs order rights', is_wp_error( $denied ) );
+$adm = PassCaptain\Exchange\AdminPage::exchange( array( 'ticket_id' => $ids18[0], 'ticket_type_id' => $cheap_b, 'refund_policy' => 'none', 'idempotency_key' => 'adm-1', 'note' => 'Kunde ruft an' ) );
+check( 'admin exchange with policy override', ! is_wp_error( $adm ) && 'completed' === $adm['status'] && 'none' === $adm['refund_policy'] && 0 === (int) $adm['refund_minor'] && 'Kunde ruft an' === $adm['note'] );
+ob_start();
+PassCaptain\Exchange\AdminPage::order_section( Orders::get( $order18 ), PassCaptain\Admin\Queries::order_tickets( $order18 ) );
+$section = ob_get_clean();
+check( 'order detail lists the exchange', false !== strpos( $section, 'Umgetauscht' ) && false !== strpos( $section, 'Standard' ) );
+
 echo "Exchange: box office\n";
-list( $order16, $ids16 ) = ex_buy( $std_a, 1, 'pos@example.com' );
+$pos_type = ex_type( $occ_a, 'Kasse', 2500 );
+list( $order16, $ids16 ) = ex_buy( $pos_type, 1, 'pos@example.com' );
 $vip16 = ex_type( $occ_b, 'VIP Kasse', 3500, 2 );
 $pos = Exchange::box_office_exchange( ex_ticket( $ids16[0] )->public_id, $vip16, array( 'pos_method' => 'cash', 'idempotency_key' => 'pos-1' ) );
 check( 'box office upgrade is paid at the counter and completes at once', ! is_wp_error( $pos ) && 'completed' === $pos['status'] && 'pos_cash' === Orders::get( (int) $pos['supplementary_order_id'] )->payment_provider && 'paid' === Orders::get( (int) $pos['supplementary_order_id'] )->payment_status );
@@ -342,8 +385,9 @@ check( 'box office exchange needs order rights', is_wp_error( $posd ) && 403 ===
 
 echo "Exchange: concurrency (two exchanges into the last unit)\n";
 $last = ex_type( $occ_b, 'Letzter Platz', 2500, 1 );
+$race_type = ex_type( $occ_a, 'Race', 2500 );
 $racers = array();
-for ( $i = 0; $i < 4; $i++ ) { list( , $r_ids ) = ex_buy( $std_a, 1, 'race' . $i . '@example.com' ); $racers[] = $r_ids[0]; }
+for ( $i = 0; $i < 4; $i++ ) { list( , $r_ids ) = ex_buy( $race_type, 1, 'race' . $i . '@example.com' ); $racers[] = $r_ids[0]; }
 $procs = array();
 foreach ( $racers as $ticket_id ) {
 	$procs[] = popen( escapeshellarg( PHP_BINARY ) . ' ' . escapeshellarg( __FILE__ ) . ' --exchange-child ' . $ticket_id . ' ' . $last, 'r' );

@@ -392,6 +392,12 @@ final class Service {
 		$now = current_time( 'mysql', true );
 		// Read before the lock phase (the transaction may only use locking reads until all locks are held).
 		$value = self::ticket_value( $ticket );
+		// Double submit of a pending upgrade (the target may be held by that very exchange).
+		$open = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE old_ticket_id=%d AND status=%s ORDER BY exchange_id DESC LIMIT 1', (int) $ticket->ticket_id, self::PENDING ), ARRAY_A );
+		if ( $open && self::supplement_open( (int) $open['supplementary_order_id'], $now ) ) {
+			if ( (int) $open['to_type_id'] === (int) $target->ticket_type_id ) { return $open + array( 'reused' => true ); }
+			return self::map_error( 'exchange_pending' );
+		}
 
 		$wpdb->query( 'START TRANSACTION' );
 		$error = null;
@@ -399,37 +405,28 @@ final class Service {
 		$pending_result = null;
 		$completed = null;
 		try {
-			// Lock phase (locking reads only): order, ticket, pending exchanges, ticket types by id,
-			// occurrences by id, then module resources in Orders::reserve_exchange_capacity().
+			// Lock phase (locking reads only, so the snapshot of the capacity check is taken after every
+			// lock is held): order, ticket, ticket types by id, occurrences by id, the old order line,
+			// then module resources in Orders::reserve_exchange_capacity(). The ticket lock serialises
+			// all exchanges of one ticket.
 			$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", (int) $ticket->order_id ) );
 			$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", (int) $ticket->ticket_id ) );
+			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
 			if ( ! $order || 'paid' !== $order->payment_status || ! $locked || 'valid' !== $locked->status || (int) $locked->refunded ) { throw new \RuntimeException( 'ticket_state' ); }
-			if ( $key_hash ) {
-				$again = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE idempotency_key=%s FOR UPDATE', $key_hash ), ARRAY_A );
-				if ( $again ) { $wpdb->query( 'ROLLBACK' ); return $again + array( 'reused' => true ); }
-			}
-			$pending = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE old_ticket_id=%d AND status=%s ORDER BY exchange_id DESC LIMIT 1 FOR UPDATE', (int) $ticket->ticket_id, self::PENDING ), ARRAY_A );
-			if ( $pending && self::supplement_open( (int) $pending['supplementary_order_id'], $now ) ) {
-				if ( (int) $pending['to_type_id'] === (int) $target->ticket_type_id ) { $wpdb->query( 'ROLLBACK' ); return $pending + array( 'reused' => true ); }
-				throw new \RuntimeException( 'exchange_pending' );
-			}
-			if ( $pending ) {
-				// Hold lapsed but not cleaned up yet: this request supersedes it.
-				$wpdb->update( self::table(), array( 'status' => self::EXPIRED, 'pending_ticket_id' => null, 'updated_at' => $now ), array( 'exchange_id' => (int) $pending['exchange_id'] ) );
-				$stale_supplement = (int) $pending['supplementary_order_id'];
-			}
 			$type_ids = array( (int) $ticket->ticket_type_id, (int) $target->ticket_type_id );
 			sort( $type_ids, SORT_NUMERIC );
 			$types = array();
 			foreach ( $type_ids as $type_id ) {
 				$types[ $type_id ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id=%d FOR UPDATE", $type_id ) );
 			}
+			if ( in_array( null, $types, true ) ) { throw new \RuntimeException( '' !== $wpdb->last_error ? 'db_busy' : 'target_unavailable' ); }
 			$occ_ids = array_unique( array( (int) $types[ (int) $ticket->ticket_type_id ]->occurrence_id, (int) $types[ (int) $target->ticket_type_id ]->occurrence_id ) );
 			sort( $occ_ids, SORT_NUMERIC );
 			$occurrences = array();
 			foreach ( $occ_ids as $occ_id ) {
 				$occurrences[ $occ_id ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", $occ_id ) );
 			}
+			if ( in_array( null, $occurrences, true ) ) { throw new \RuntimeException( '' !== $wpdb->last_error ? 'db_busy' : 'target_unavailable' ); }
 			$target_type = $types[ (int) $target->ticket_type_id ];
 			$target_occ = $occurrences[ (int) $target_type->occurrence_id ];
 			if ( ! $target_type || 'active' !== $target_type->status || ! $target_occ || 'scheduled' !== $target_occ->status ) { throw new \RuntimeException( 'target_unavailable' ); }
@@ -442,6 +439,21 @@ final class Service {
 			$capacity = Orders::reserve_exchange_capacity( $target_type, $target_occ, 1, array( 'now' => $now, 'source' => $channel, 'exchange' => array( 'ticket_id' => (int) $ticket->ticket_id, 'order_id' => (int) $order->order_id, 'from_type_id' => (int) $ticket->ticket_type_id ) ) );
 			if ( $capacity ) { $error = $capacity; throw new \RuntimeException( $capacity->get_error_code() ); }
 			if ( false === Orders::transaction_alive() ) { throw new \RuntimeException( 'db_busy' ); }
+			// Under the ticket lock: a concurrent request with the same key or a pending exchange won.
+			if ( $key_hash ) {
+				$again = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE idempotency_key=%s', $key_hash ), ARRAY_A );
+				if ( $again ) { $wpdb->query( 'ROLLBACK' ); return $again + array( 'reused' => true ); }
+			}
+			$pending = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE old_ticket_id=%d AND status=%s ORDER BY exchange_id DESC LIMIT 1', (int) $ticket->ticket_id, self::PENDING ), ARRAY_A );
+			if ( $pending && self::supplement_open( (int) $pending['supplementary_order_id'], $now ) ) {
+				if ( (int) $pending['to_type_id'] === (int) $target->ticket_type_id ) { $wpdb->query( 'ROLLBACK' ); return $pending + array( 'reused' => true ); }
+				throw new \RuntimeException( 'exchange_pending' );
+			}
+			if ( $pending ) {
+				// Hold lapsed but not cleaned up yet: this request supersedes it.
+				$wpdb->update( self::table(), array( 'status' => self::EXPIRED, 'pending_ticket_id' => null, 'updated_at' => $now ), array( 'exchange_id' => (int) $pending['exchange_id'] ) );
+				$stale_supplement = (int) $pending['supplementary_order_id'];
+			}
 
 			$price = Orders::unit_price( $target_type, $target_occ, 1, array( 'now' => $now, 'source' => $channel, 'phase' => 'exchange' ) );
 			$money = self::calculate( $value, $price, $policy, $args );

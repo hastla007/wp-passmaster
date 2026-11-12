@@ -177,7 +177,8 @@ final class Shifts {
 		if ( (int) $register->event_id && ! \PassCaptain\Reports\Scope::can_event( (int) $register->event_id, Service::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für diese Kasse.', 'wp-pass-captain' ), 403 ); }
 		$user_id = get_current_user_id();
 		if ( self::current_for_user( $user_id ) ) { return self::error( 'wpcap_pos_shift_active', __( 'Sie arbeiten bereits in einer offenen Schicht. Bitte diese zuerst abschließen.', 'wp-pass-captain' ), 409 ); }
-		$resolved = Cash::resolve( $args['float_minor'] ?? null, $args['denominations'] ?? null, $register->currency );
+		$float_in = $args['float_minor'] ?? ( empty( $args['denominations'] ) ? 0 : null );
+		$resolved = Cash::resolve( $float_in, $args['denominations'] ?? null, $register->currency );
 		if ( is_wp_error( $resolved ) ) { return $resolved; }
 		list( $float, $denoms ) = $resolved;
 		$handover_id = absint( $args['handover_id'] ?? 0 );
