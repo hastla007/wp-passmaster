@@ -25,6 +25,7 @@
 namespace PassCaptain\Exchange;
 
 use PassCaptain\Audit;
+use PassCaptain\CapacityCounters;
 use PassCaptain\Mail;
 use PassCaptain\Modules;
 use PassCaptain\Orders;
@@ -497,6 +498,9 @@ final class Service {
 			} else {
 				$completed = self::complete_locked( $order, $ticket, $target_type, $target_occ, $old_item, $share, $money, $row, $seat_id, false );
 			}
+			// Capacity counters follow the moved/held units in this transaction (types and occurrences are locked).
+			if ( false === CapacityCounters::sync_order( (int) $order->order_id, array( (int) $ticket->ticket_type_id, (int) $target_type->ticket_type_id ) ) ) { throw new \RuntimeException( 'db_busy' ); }
+			if ( $pending_result && false === CapacityCounters::sync_order( (int) $pending_result['order_id'] ) ) { throw new \RuntimeException( 'db_busy' ); }
 			if ( false === Orders::transaction_alive() ) { throw new \RuntimeException( 'db_busy' ); }
 			if ( false === $wpdb->query( 'COMMIT' ) ) { throw new \RuntimeException( 'db_busy' ); }
 		} catch ( \Throwable $e ) {
@@ -967,7 +971,14 @@ final class Service {
 					$types[ $type_id ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id=%d FOR UPDATE", $type_id ) );
 				}
 				$target_type = $types[ (int) $exchange['to_type_id'] ];
-				$target_occ = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", (int) $target_type->occurrence_id ) );
+				// Both occurrences by id (the old unit leaves the source occurrence's counters).
+				$occ_ids = array_unique( array_filter( array( (int) ( $types[ (int) $exchange['from_type_id'] ]->occurrence_id ?? 0 ), (int) $target_type->occurrence_id ) ) );
+				sort( $occ_ids, SORT_NUMERIC );
+				$locked_occ = array();
+				foreach ( $occ_ids as $occ_id ) {
+					$locked_occ[ $occ_id ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", $occ_id ) );
+				}
+				$target_occ = $locked_occ[ (int) $target_type->occurrence_id ] ?? null;
 				$share = self::unit_share( $old_item );
 				// Net zero for capacity: the paid supplement counts the target until its unit moves here.
 				self::release_unit( $old_item, $share );
@@ -979,6 +990,7 @@ final class Service {
 					'new_price_minor' => (int) $row['new_price_minor'],
 				);
 				$done = self::complete_locked( $order, $ticket, $target_type, $target_occ, $old_item, $share, $money, $row, (int) $row['seat_id'], true );
+				if ( false === CapacityCounters::sync_order( (int) $order->order_id, array( (int) $exchange['from_type_id'], (int) $exchange['to_type_id'] ) ) || false === CapacityCounters::sync_order( (int) $exchange['supplementary_order_id'] ) ) { throw new \RuntimeException( 'db_busy' ); }
 				if ( false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) { throw new \RuntimeException( 'db_busy' ); }
 			}
 		} catch ( \Throwable $e ) {

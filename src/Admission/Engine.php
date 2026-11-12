@@ -79,6 +79,13 @@ final class Engine {
 	public static function evaluate_in( array $policy, array $found, $state, $at ) {
 		$window = self::window_block( $policy, $found, $at );
 		if ( $window ) { return $window; }
+		/**
+		 * [Passes] Extension point for custom policies (see `wpcap_admission_policy`): return a block
+		 * code (one of self::CODES) or '' to admit; null leaves the decision to the built-in policies.
+		 * Runs under the ticket row lock.
+		 */
+		$custom = apply_filters( 'wpcap_admission_evaluate', null, $policy, $found, $state, $at );
+		if ( null !== $custom ) { return (string) $custom; }
 		global $wpdb;
 		$entries = "{$wpdb->prefix}wpcap_admission_entries";
 		$ticket_id = (int) $found['ticket_id'];
@@ -162,14 +169,16 @@ final class Engine {
 			'created_at' => $now,
 		) );
 		if ( '' !== $wpdb->last_error ) { return false; }
+		// [Passes] occurrence_id/event_id follow the latest movement, so presence counts a multi-date
+		// pass at the occurrence it was last scanned at (unchanged for single-occurrence tickets).
 		if ( 'in' === $direction ) {
 			$ok = $wpdb->query( $wpdb->prepare(
-				"INSERT INTO {$p}wpcap_admission_state (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_in_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,1,%d,1,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=1, area_id=VALUES(area_id), entries=entries+1, last_in_at=VALUES(last_in_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)",
+				"INSERT INTO {$p}wpcap_admission_state (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_in_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,1,%d,1,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=1, occurrence_id=VALUES(occurrence_id), event_id=VALUES(event_id), area_id=VALUES(area_id), entries=entries+1, last_in_at=VALUES(last_in_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)",
 				(int) $found['ticket_id'], (int) $found['occurrence_id'], (int) $found['event_id'], $area, $when, (int) $checkin_id, $now
 			) );
 		} else {
 			$ok = $wpdb->query( $wpdb->prepare(
-				"INSERT INTO {$p}wpcap_admission_state (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_out_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,0,%d,0,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=0, last_out_at=VALUES(last_out_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)",
+				"INSERT INTO {$p}wpcap_admission_state (ticket_id,occurrence_id,event_id,inside,area_id,entries,last_out_at,last_checkin_id,updated_at) VALUES (%d,%d,%d,0,%d,0,%s,%d,%s) ON DUPLICATE KEY UPDATE inside=0, occurrence_id=VALUES(occurrence_id), event_id=VALUES(event_id), last_out_at=VALUES(last_out_at), last_checkin_id=VALUES(last_checkin_id), updated_at=VALUES(updated_at)",
 				(int) $found['ticket_id'], (int) $found['occurrence_id'], (int) $found['event_id'], $area, $when, (int) $checkin_id, $now
 			) );
 		}

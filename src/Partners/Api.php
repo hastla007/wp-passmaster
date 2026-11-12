@@ -1,8 +1,9 @@
 <?php
 /**
- * Partner REST API (read-only) under wp-pass-captain/v1/partner/…, authenticated with
- * "Authorization: Bearer wpcap_pk_…" (see Keys). Every response is limited to the key's effective
- * events; e-mail addresses are only included with the attendees:read scope. Reference:
+ * Partner REST API under wp-pass-captain/v1/partner/…, authenticated with
+ * "Authorization: Bearer wpcap_pk_…" (see Keys). Read endpoints (this class) are limited to the key's
+ * effective events; e-mail addresses are only included with the attendees:read scope. Write endpoints
+ * for selling (orders:write, orders:cancel, tickets:issue) live in SalesApi. Reference:
  * docs/PARTNER-API.md.
  */
 namespace PassCaptain\Partners;
@@ -31,12 +32,26 @@ final class Api {
 			'/partner/settlements' => array( 'settlements', 'settlements:read' ),
 			'/partner/settlements/(?P<settlement_id>\d+)' => array( 'settlement', 'settlements:read' ),
 		);
+		$endpoints = array();
 		foreach ( $routes as $route => $def ) {
-			register_rest_route( self::NS, $route, array(
+			$endpoints[ $route ][] = array(
 				'methods' => 'GET',
 				'callback' => array( __CLASS__, $def[0] ),
 				'permission_callback' => self::permission( $def[1] ),
-			) );
+			);
+		}
+		// Selling (write scopes): see SalesApi.
+		foreach ( SalesApi::routes() as $route => $defs ) {
+			foreach ( $defs as $def ) {
+				$endpoints[ $route ][] = array(
+					'methods' => $def[0],
+					'callback' => array( SalesApi::class, $def[1] ),
+					'permission_callback' => $def[3] ? SalesApi::write_permission( $def[2] ) : self::permission( $def[2] ),
+				);
+			}
+		}
+		foreach ( $endpoints as $route => $list ) {
+			register_rest_route( self::NS, $route, 1 === count( $list ) ? $list[0] : $list );
 		}
 	}
 
@@ -113,9 +128,10 @@ final class Api {
 		$ctx = self::$context;
 		return self::respond( array(
 			'api_version' => self::VERSION,
-			'partner' => array( 'id' => (int) $ctx['partner']->partner_id, 'name' => $ctx['partner']->name, 'currency' => $ctx['partner']->currency ),
+			'partner' => array( 'id' => (int) $ctx['partner']->partner_id, 'name' => $ctx['partner']->name, 'currency' => $ctx['partner']->currency, 'role' => Repository::role_of( $ctx['partner'] ), 'sales_channel' => (string) ( $ctx['partner']->sales_channel ?? '' ) ),
 			'key' => array( 'prefix' => $ctx['key']->public_prefix, 'label' => $ctx['key']->label, 'scopes' => $ctx['scopes'], 'expires_at' => self::iso( $ctx['key']->expires_at ) ),
 			'event_ids' => $ctx['event_ids'],
+			'ticket_type_ids' => Keys::restricted_types( $ctx['key'] ),
 		) );
 	}
 

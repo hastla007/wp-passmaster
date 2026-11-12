@@ -13,11 +13,19 @@
  *   webhooks  – E paid Stripe events, each delivered R times concurrently (signed, full
  *               verify_webhook() + Webhooks::process() path).
  *               Invariant: every event applied exactly once, tickets issued exactly once.
+ *   onsale    – large on-sale (profile "big"): one occurrence with S already sold tickets
+ *               (bulk-seeded paid orders), then B buyers race for the rest; a share pays right
+ *               away (Orders::confirm_external_payment) and every buyer also reads
+ *               Orders::availability() like a cart validation.
+ *               Invariants: no overselling (type and occurrence), one order per key, sold/held
+ *               counters equal the sums of the source tables afterwards.
  *
- * Usage:  php tests/load/run.php [--profile=ci|default|heavy] [--buyers=N] [--capacity=N]
+ * Usage:  php tests/load/run.php [--profile=ci|default|heavy|big] [--buyers=N] [--capacity=N]
  *                                [--workers=N] [--devices=N] [--tickets=N] [--events=N]
- *                                [--dupes=N] [--retry-rate=0.15] [--scenario=all|checkout|checkin|webhooks]
+ *                                [--dupes=N] [--retry-rate=0.15] [--sold=N] [--pay-rate=0.3]
+ *                                [--scenario=all|checkout|checkin|webhooks|onsale]
  *                                [--json=/path/result.json]
+ *         The "big" profile runs only the onsale scenario (20,000 pre-sold tickets, 1000 buyers).
  *
  * DB connection as for the integration tests (WPCAP_TEST_DB_HOST/_USER/_PASS/_NAME); tables use
  * the prefix WPCAP_TEST_PREFIX (default "wpload_") and are dropped/recreated on every run.
@@ -74,6 +82,32 @@ if ( isset( $argv[1] ) && '--worker' === $argv[1] ) {
 					$res = array( 'outcome' => empty( $r['reused'] ) ? 'created' : 'reused', 'order_id' => (int) $r['order_id'] );
 				}
 				break;
+			case 'onsale':
+				$GLOBALS['wpcap_test_transients'] = array();
+				$a0 = hrtime( true );
+				Orders::availability( $op['type'] );
+				$avail_ms = ( hrtime( true ) - $a0 ) / 1e6;
+				$r = Orders::create(
+					array( 'email' => $op['email'], 'items' => array( array( 'ticket_type_id' => $op['type'], 'quantity' => $op['qty'] ) ), 'idempotency_key' => $op['key'] ),
+					array( 'payment_provider' => 'manual', 'hold_minutes' => 60 )
+				);
+				$pay_ms = null;
+				if ( is_wp_error( $r ) ) {
+					$sold_out = false !== strpos( $r->get_error_message(), 'nicht mehr genügend' );
+					$res = array( 'outcome' => $sold_out ? 'sold_out' : 'error', 'detail' => $r->get_error_code() . ': ' . $r->get_error_message() );
+				} else {
+					$res = array( 'outcome' => empty( $r['reused'] ) ? 'created' : 'reused', 'order_id' => (int) $r['order_id'] );
+					if ( ! empty( $op['pay'] ) && empty( $r['reused'] ) ) {
+						$p0 = hrtime( true );
+						$paid = Orders::confirm_external_payment( (int) $r['order_id'], 'load:' . $op['key'] );
+						$pay_ms = ( hrtime( true ) - $p0 ) / 1e6;
+						if ( is_wp_error( $paid ) ) { $res = array( 'outcome' => 'error', 'detail' => 'pay: ' . $paid->get_error_code() . ': ' . $paid->get_error_message() ); }
+						else { $res['outcome'] = 'paid'; }
+					}
+				}
+				$res['avail_ms'] = $avail_ms;
+				$res['pay_ms'] = $pay_ms;
+				break;
 			case 'scan':
 				$GLOBALS['wpcap_test_user_id'] = $op['device'];
 				$r = Checkin::perform( $op['code'], array( 'source' => 'web', 'idempotency_key' => $op['key'] ) );
@@ -115,14 +149,18 @@ $profiles = array(
 	'ci'      => array( 'buyers' => 200, 'capacity' => 60, 'workers' => 20, 'devices' => 8, 'tickets' => 10, 'events' => 20, 'dupes' => 5 ),
 	'default' => array( 'buyers' => 500, 'capacity' => 150, 'workers' => 50, 'devices' => 20, 'tickets' => 25, 'events' => 60, 'dupes' => 8 ),
 	'heavy'   => array( 'buyers' => 1000, 'capacity' => 300, 'workers' => 100, 'devices' => 40, 'tickets' => 50, 'events' => 120, 'dupes' => 10 ),
+	// Large on-sale: 20,000 tickets already sold for the occurrence, 1000 buyers race for 1000 more.
+	'big'     => array( 'buyers' => 1000, 'capacity' => 1000, 'workers' => 100, 'devices' => 8, 'tickets' => 10, 'events' => 20, 'dupes' => 5, 'sold' => 20000, 'scenario' => 'onsale' ),
 );
-$opts = getopt( '', array( 'profile:', 'buyers:', 'capacity:', 'workers:', 'devices:', 'tickets:', 'events:', 'dupes:', 'retry-rate:', 'scenario:', 'json:', 'seed:' ) );
+$opts = getopt( '', array( 'profile:', 'buyers:', 'capacity:', 'workers:', 'devices:', 'tickets:', 'events:', 'dupes:', 'retry-rate:', 'scenario:', 'json:', 'seed:', 'sold:', 'pay-rate:' ) );
 $cfg = $profiles[ $opts['profile'] ?? 'default' ] ?? $profiles['default'];
-foreach ( array( 'buyers', 'capacity', 'workers', 'devices', 'tickets', 'events', 'dupes' ) as $k ) {
+foreach ( array( 'buyers', 'capacity', 'workers', 'devices', 'tickets', 'events', 'dupes', 'sold' ) as $k ) {
 	if ( isset( $opts[ $k ] ) ) { $cfg[ $k ] = max( 1, (int) $opts[ $k ] ); }
 }
+$cfg['sold'] = (int) ( $cfg['sold'] ?? 20000 );
 $cfg['retry_rate'] = isset( $opts['retry-rate'] ) ? (float) $opts['retry-rate'] : 0.15;
-$cfg['scenario'] = $opts['scenario'] ?? 'all';
+$cfg['pay_rate'] = isset( $opts['pay-rate'] ) ? (float) $opts['pay-rate'] : 0.3;
+$cfg['scenario'] = $opts['scenario'] ?? ( $cfg['scenario'] ?? 'all' );
 mt_srand( (int) ( $opts['seed'] ?? 20261111 ) );
 
 global $wpdb;
@@ -156,6 +194,38 @@ function load_make_type( $capacity, $max_per_order, $price ) {
 	$occ = $wpdb->insert_id;
 	$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $occ, 'name' => 'Standard', 'price_minor' => $price, 'currency' => 'EUR', 'capacity' => $capacity, 'max_per_order' => $max_per_order, 'status' => 'active' ) );
 	return (int) $wpdb->insert_id;
+}
+
+/**
+ * Bulk-seeds $sold paid tickets of a type (orders of 1–4 tickets with converted holds; multi-row
+ * INSERTs, ~1 s for 20,000 tickets). Tickets rows are not needed for capacity. Afterwards the
+ * capacity counters are rebuilt from the source tables, like a schema upgrade does.
+ */
+function load_seed_sold( $type, $sold ) {
+	global $wpdb;
+	$p = $wpdb->prefix;
+	$now = gmdate( 'Y-m-d H:i:s' );
+	$base = (int) $wpdb->get_var( "SELECT COALESCE(MAX(order_id),0) FROM {$p}wpcap_orders" ) + 1000;
+	$left = $sold;
+	$n = 0;
+	while ( $left > 0 ) {
+		$orders = $items = $holds = array();
+		for ( $k = 0; $k < 1000 && $left > 0; $k++ ) {
+			$qty = min( $left, 1 + ( $n % 4 ) );
+			$left -= $qty;
+			$id = $base + $n;
+			$pub = bin2hex( random_bytes( 16 ) );
+			$orders[] = "($id,'$pub','" . hash( 'sha256', "seed-$id" ) . "','seed$id@example.com','complete','paid','EUR'," . ( 2500 * $qty ) . "," . ( 2500 * $qty ) . ",'{}','manual','$now','$now')";
+			$items[] = "($id,$type,$qty,2500," . ( 2500 * $qty ) . ')';
+			$holds[] = "($id,$type,$qty,'$now','converted')";
+			$n++;
+		}
+		$wpdb->query( "INSERT INTO {$p}wpcap_orders (order_id,public_id,idempotency_key,customer_email,status,payment_status,currency,total_minor,subtotal_minor,price_snapshot,payment_provider,created_at,updated_at) VALUES " . implode( ',', $orders ) );
+		$wpdb->query( "INSERT INTO {$p}wpcap_order_items (order_id,ticket_type_id,quantity,unit_price_minor,line_total_minor) VALUES " . implode( ',', $items ) );
+		$wpdb->query( "INSERT INTO {$p}wpcap_reservations (order_id,ticket_type_id,quantity,expires_at,status) VALUES " . implode( ',', $holds ) );
+		if ( '' !== $wpdb->last_error ) { fwrite( STDERR, 'seed failed: ' . $wpdb->last_error . "\n" ); exit( 2 ); }
+	}
+	if ( class_exists( 'PassCaptain\\CapacityCounters' ) ) { PassCaptain\CapacityCounters::rebuild_all(); }
 }
 
 /** Distributes ops over workers, runs them behind a start barrier and returns [results by op index, wall seconds]. */
@@ -376,6 +446,72 @@ if ( in_array( $cfg['scenario'], array( 'all', 'webhooks' ), true ) ) {
 	invariant( 'tickets issued exactly once (2 per order)', count( $tickets ) === $E && array_unique( array_map( 'intval', $tickets ) ) === array( 2 ), count( $tickets ) . ' orders with tickets' );
 	invariant( 'one processed event row per event', $events === $E, "$events rows" );
 	invariant( 'no unexpected errors', 0 === $s['errors'], json_encode( error_samples( $results ) ) );
+	$report[] = $s;
+}
+
+/* ---- Scenario 4: large on-sale on an occurrence with many sold tickets ---- */
+if ( 'onsale' === $cfg['scenario'] ) {
+	$S = $cfg['sold'];
+	$C = $cfg['capacity'];
+	echo "\nScenario onsale: {$S} tickets already sold, {$cfg['buyers']} buyers race for {$C} more, {$W} parallel connections\n";
+	// Type and occurrence capacity both bind (exercises both checks); a second type shares the occurrence.
+	$type = load_make_type( $S + $C, 4, 2500 );
+	$occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$type" );
+	$wpdb->query( "UPDATE {$p}wpcap_occurrences SET capacity=" . ( $S + $C + 200 ) . " WHERE occurrence_id=$occ" );
+	$wpdb->insert( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $occ, 'name' => 'Ermäßigt', 'price_minor' => 1500, 'currency' => 'EUR', 'capacity' => 200, 'max_per_order' => 4, 'status' => 'active' ) );
+	$t_seed = microtime( true );
+	load_seed_sold( $type, $S );
+	$seed_s = microtime( true ) - $t_seed;
+	printf( "  seeded %d paid tickets in %.1f s\n", $S, $seed_s );
+	$per_worker = array_fill( 0, $W, array() );
+	$buyers = array();
+	$i = 0;
+	for ( $b = 0; $b < $cfg['buyers']; $b++ ) {
+		$qty = mt_rand( 1, 100 ) <= 70 ? 1 : mt_rand( 2, 4 );
+		$key = 'onsale-' . $b . '-' . bin2hex( random_bytes( 4 ) );
+		$buyers[ $key ] = $qty;
+		$op = array( 'kind' => 'onsale', 'type' => $type, 'qty' => $qty, 'key' => $key, 'email' => "fan$b@example.com", 'pay' => mt_rand() / mt_getrandmax() < $cfg['pay_rate'] );
+		$w = $b % $W;
+		$per_worker[ $w ][] = $op + array( 'i' => $i++ );
+		if ( mt_rand() / mt_getrandmax() < $cfg['retry_rate'] ) {
+			$per_worker[ ( $w + 1 ) % $W ][] = array_merge( $op, array( 'pay' => false ) ) + array( 'i' => $i++ );
+		}
+	}
+	list( $results, $wall ) = run_workers( $per_worker );
+	$by_key = array();
+	foreach ( $per_worker as $ops ) { foreach ( $ops as $op ) { foreach ( $results[ $op['i'] ] ?? array() as $row ) { $by_key[ $op['key'] ][] = $row; } } }
+	$split_keys = 0;
+	foreach ( $by_key as $rows ) {
+		$ids = array_unique( array_filter( array_map( static fn( $r ) => $r['order_id'] ?? null, $rows ) ) );
+		if ( count( $ids ) > 1 ) { $split_keys++; }
+	}
+	$now = gmdate( 'Y-m-d H:i:s' );
+	$sold_now = (int) $wpdb->get_var( "SELECT COALESCE(SUM(oi.quantity-oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi JOIN {$p}wpcap_orders o ON o.order_id=oi.order_id WHERE oi.ticket_type_id=$type AND o.payment_status='paid' AND o.status<>'refunded'" );
+	$held_now = (int) $wpdb->get_var( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_reservations WHERE ticket_type_id=$type AND status='active' AND expires_at>'$now'" );
+	$occ_used = (int) $wpdb->get_var( "SELECT COALESCE(SUM(oi.quantity-oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi JOIN {$p}wpcap_orders o ON o.order_id=oi.order_id JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE tt.occurrence_id=$occ AND o.payment_status='paid' AND o.status<>'refunded'" )
+		+ (int) $wpdb->get_var( "SELECT COALESCE(SUM(r.quantity),0) FROM {$p}wpcap_reservations r JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=$occ AND r.status='active' AND r.expires_at>'$now'" );
+	$dup_keys = (int) $wpdb->get_var( "SELECT COUNT(*) FROM (SELECT idempotency_key FROM {$p}wpcap_orders GROUP BY idempotency_key HAVING COUNT(*)>1) d" );
+	$s = summarize( 'onsale (create + pay)', $results, $wall, $W );
+	$avail = array();
+	$pay = array();
+	foreach ( $results as $rows ) { foreach ( $rows as $row ) { $avail[] = $row['avail_ms'] ?? 0; if ( null !== ( $row['pay_ms'] ?? null ) ) { $pay[] = $row['pay_ms']; } } }
+	sort( $avail );
+	sort( $pay );
+	invariant( 'no overselling: sold + held <= type capacity', $sold_now + $held_now <= $S + $C, "sold $sold_now, held $held_now, capacity " . ( $S + $C ) );
+	invariant( 'no overselling: occurrence', $occ_used <= $S + $C + 200, "used $occ_used" );
+	invariant( 'capacity is used up', $S + $C - $sold_now - $held_now < 4, 'left ' . ( $S + $C - $sold_now - $held_now ) );
+	invariant( 'one order per idempotency key', 0 === $split_keys && 0 === $dup_keys, "$split_keys split keys, $dup_keys duplicate keys" );
+	invariant( 'no unexpected errors', 0 === $s['errors'], json_encode( error_samples( $results ) ) );
+	if ( class_exists( 'PassCaptain\\CapacityCounters' ) ) {
+		$drift = PassCaptain\CapacityCounters::drift();
+		invariant( 'sold/held counters equal the source tables', ! $drift, json_encode( array_slice( $drift, 0, 3 ) ) );
+	}
+	$s['seed_s'] = round( $seed_s, 1 );
+	$s['availability_p50_ms'] = round( percentile( $avail, 50 ), 2 );
+	$s['availability_p95_ms'] = round( percentile( $avail, 95 ), 2 );
+	$s['pay_p50_ms'] = round( percentile( $pay, 50 ), 1 );
+	$s['pay_p95_ms'] = round( percentile( $pay, 95 ), 1 );
+	printf( "  availability() p50 %.2f ms, p95 %.2f ms; confirm payment p50 %.1f ms, p95 %.1f ms (%d payments)\n", $s['availability_p50_ms'], $s['availability_p95_ms'], $s['pay_p50_ms'], $s['pay_p95_ms'], count( $pay ) );
 	$report[] = $s;
 }
 

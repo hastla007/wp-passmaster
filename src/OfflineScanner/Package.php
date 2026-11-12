@@ -65,6 +65,12 @@ final class Package {
 			"SELECT t.ticket_id,t.token_hash,t.status,t.ticket_type_id,ta.attendee_name,o.status AS occurrence_status,e.status AS event_status FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE tt.occurrence_id=%d AND t.token_hash<>''",
 			$occurrence_id
 		) );
+		/**
+		 * [Passes] Live ticket rows of the occurrence's snapshot (ticket_id, token_hash, status,
+		 * ticket_type_id, attendee_name, occurrence_status, event_status). Modules may add tickets
+		 * valid here whose ticket type belongs to another occurrence (multi-date passes) or drop rows.
+		 */
+		$live = (array) apply_filters( 'wpcap_offline_live_tickets', $live, $occurrence_id );
 		$known = array();
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT token_hash,fingerprint,status FROM {$p}wpcap_offline_entries WHERE occurrence_id=%d", $occurrence_id ) ) as $row ) {
 			$known[ $row->token_hash ] = $row;
@@ -137,6 +143,9 @@ final class Package {
 			$policy = Policies::for_type( (int) $type->ticket_type_id );
 			$types[] = array( 'id' => (int) $type->ticket_type_id, 'name' => (string) $type->name, 'areas' => Areas::type_area_ids( (int) $type->ticket_type_id ), 'policy' => $policy ? $policy['policy'] : 'single', 'multi' => $policy && 'single' !== $policy['policy'] );
 		}
+		// [Passes] Ticket type descriptors of the package (id, name, areas, policy, multi); modules add
+		// types of tickets they ship via `wpcap_offline_live_tickets`.
+		$types = array_values( (array) apply_filters( 'wpcap_offline_package_types', $types, $occurrence ) );
 		$areas = array_map( static function ( $a ) { return array( 'id' => (int) $a->area_id, 'name' => (string) $a->name ); }, Areas::for_event( $event_id ) );
 		$area_id = \PassCaptain\Mobile\Devices::area_id( $device );
 		$issued = time();

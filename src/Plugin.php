@@ -36,6 +36,7 @@ final class Plugin {
 			}, 200 );
 		}
 		add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'expire_holds' ) );
+		CapacityCounters::register();
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		add_action( 'wpcap_process_messages', array( Communications::class, 'process_due' ) );
 		add_action( 'wpcap_process_jobs', array( Jobs::class, 'process_due' ) );
@@ -120,6 +121,7 @@ final class Plugin {
 			wp_schedule_event( time() + 90, 'wpcap_five_minutes', 'wpcap_process_jobs' );
 		}
 		Privacy\Retention::schedule();
+		CapacityCounters::schedule();
 	}
 
 	public static function deactivate( $network_wide = false ) {
@@ -127,7 +129,7 @@ final class Plugin {
 		foreach ( $site_ids as $site_id ) {
 			if ( is_multisite() && $network_wide ) { switch_to_blog( (int) $site_id ); }
 			// wp_unschedule_hook also removes continuation runs scheduled with arguments.
-			foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK ) as $hook ) {
+			foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', CapacityCounters::HOOK, Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK ) as $hook ) {
 				wp_unschedule_hook( $hook );
 			}
 			if ( function_exists( 'as_unschedule_all_actions' ) ) { as_unschedule_all_actions( '', array(), 'wp-pass-captain' ); }

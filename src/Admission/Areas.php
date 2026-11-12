@@ -102,7 +102,9 @@ final class Areas {
 			if ( $mine && ! in_array( $area_id, $mine, true ) ) { return 'wrong_area'; }
 		}
 		if ( 'in' === $direction ) {
-			$allowed = self::type_area_ids( $found['ticket_type_id'] );
+			// [Passes] Filterable so a ticket valid for several events (multi-date pass) can name the
+			// allowed areas of the event it is scanned for. Empty = all areas.
+			$allowed = array_map( 'intval', (array) apply_filters( 'wpcap_ticket_allowed_areas', self::type_area_ids( $found['ticket_type_id'] ), $found ) );
 			if ( $allowed && ! in_array( $area_id, $allowed, true ) ) { return 'wrong_area'; }
 		}
 		return '';

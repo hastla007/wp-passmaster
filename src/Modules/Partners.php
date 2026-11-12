@@ -243,6 +243,7 @@ final class Partners {
 		return array(
 			'wpcap_partner_action' => array( AdminPage::class, 'handle_action' ),
 			'wpcap_partner_settlement_doc' => array( AdminPage::class, 'handle_document' ),
+			'wpcap_partner_statement' => array( AdminPage::class, 'handle_statement' ),
 		);
 	}
 }

@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.6.0';
+	const DB_VERSION = '3.7.0';
 
 	public static function install() {
 		global $wpdb;
@@ -78,6 +78,8 @@ final class Installer {
 				timezone varchar(64) NOT NULL,
 				location varchar(190) NOT NULL DEFAULT '',
 				capacity int(10) unsigned NOT NULL DEFAULT 0,
+				sold_qty int(11) NOT NULL DEFAULT 0,
+				held_qty int(11) NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'scheduled',
 				PRIMARY KEY  (occurrence_id),
 				KEY event_id (event_id),
@@ -97,6 +99,8 @@ final class Installer {
 				sales_start datetime NULL,
 				sales_end datetime NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				sold_qty int(11) NOT NULL DEFAULT 0,
+				held_qty int(11) NOT NULL DEFAULT 0,
 				PRIMARY KEY  (ticket_type_id),
 				KEY occurrence_id (occurrence_id),
 				KEY status (status)
@@ -146,6 +150,7 @@ final class Installer {
 				tax_rate_bp int(10) unsigned NOT NULL DEFAULT 0,
 				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				refunded_quantity smallint(5) unsigned NOT NULL DEFAULT 0,
+				counted_qty smallint(5) unsigned NOT NULL DEFAULT 0,
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),
@@ -158,9 +163,11 @@ final class Installer {
 				quantity smallint(5) unsigned NOT NULL,
 				expires_at datetime NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				counted_qty smallint(5) unsigned NOT NULL DEFAULT 0,
 				PRIMARY KEY  (reservation_id),
 				KEY order_id (order_id),
-				KEY inventory (ticket_type_id,status,expires_at)
+				KEY inventory (ticket_type_id,status,expires_at),
+				KEY expiry (status,expires_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $tickets (
 				ticket_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -664,6 +671,10 @@ final class Installer {
 		foreach ( array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) ) as $query ) {
 			dbDelta( $query );
 		}
+
+		// Capacity counters (schema 3.7.0): fresh installs use them right away, upgrades rebuild them
+		// from the source tables and verify them before capacity decisions rely on them.
+		CapacityCounters::after_install();
 
 		// Role names are translated; before init that would load the text domain too early.
 		if ( did_action( 'init' ) || ! function_exists( 'add_action' ) ) {

@@ -41,7 +41,15 @@ final class Policies {
 	public static function for_type( $ticket_type_id ) {
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE ticket_type_id=%d', absint( $ticket_type_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
-		return $row ? self::normalize( $row ) : null;
+		$policy = $row ? self::normalize( $row ) : null;
+		/**
+		 * [Passes] Extension point: effective admission policy of a ticket type (null = legacy single
+		 * entry). Modules may return a policy with a custom `policy` value (e.g. 'pass') and evaluate
+		 * it via `wpcap_admission_evaluate`; it must carry all keys of normalize(). Any value other
+		 * than 'single' keeps the ticket status valid after an entry (repeatable).
+		 */
+		$filtered = apply_filters( 'wpcap_admission_policy', $policy, absint( $ticket_type_id ) );
+		return is_array( $filtered ) && isset( $filtered['policy'] ) ? $filtered : $policy;
 	}
 
 	private static function normalize( $row ) {

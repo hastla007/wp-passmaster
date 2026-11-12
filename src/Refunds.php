@@ -265,6 +265,8 @@ final class Refunds {
 				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET refunded_quantity=LEAST(quantity,refunded_quantity+%d) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1", (int) $row->n, (int) $refund['order_id'], (int) $row->ticket_type_id ) );
 			}
 			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE ticket_id IN ($ids) AND order_id=%d", (int) $refund['order_id'] ) );
+			// Refunded units leave the sold counters (CapacityCounters).
+			CapacityCounters::sync_order_now( (int) $refund['order_id'] );
 		}
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=LEAST(total_minor,refunded_minor+%d),updated_at=%s WHERE order_id=%d", (int) $refund['amount_minor'], current_time( 'mysql', true ), (int) $refund['order_id'] ) );
 		$wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'completed', 'provider_reference' => substr( $provider_reference, 0, 191 ), 'error_message' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id ) );
@@ -354,6 +356,7 @@ final class Refunds {
 		}
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=LEAST(total_minor,refunded_minor+%d),updated_at=%s WHERE order_id=%d", $amount, $now, $order_id ) );
 		$wpdb->query( 'COMMIT' );
+		if ( $ticket_ids ) { CapacityCounters::sync_order_now( $order_id ); }
 		Orders::fire_revoked( $revoked_ids, 'refund_' . $refund_id );
 		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0", $order_id ) );
 		if ( 0 === $remaining && $ticket_ids ) {

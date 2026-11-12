@@ -56,7 +56,11 @@ final class Test_WPDB {
 			return $this->esc( $v );
 		}, $query );
 	}
+	public $num_queries = 0;
 	public function query( $sql ) {
+		// Like WordPress' wpdb: the `query` filter sees every statement, num_queries counts them.
+		$sql = apply_filters( 'query', $sql );
+		++$this->num_queries;
 		$this->last_error = '';
 		$res = $this->db->query( $sql );
 		if ( false === $res ) { $this->last_error = $this->db->error; return false; }

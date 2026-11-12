@@ -52,6 +52,7 @@ final class TicketsPage {
 			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET refunded_quantity=LEAST(quantity,refunded_quantity+1) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1", (int) $ticket->order_id, (int) $ticket->ticket_type_id ) );
 		}
 		$wpdb->query( 'COMMIT' );
+		if ( $release ) { \PassCaptain\CapacityCounters::sync_order_now( (int) $ticket->order_id ); }
 		Audit::record( 'ticket_revoked', 'ticket', (int) $ticket->ticket_id, array( 'order_id' => (int) $ticket->order_id, 'event_id' => (int) $ticket->event_id, 'reason' => $reason, 'capacity_released' => $release ) );
 		do_action( 'wpcap_ticket_revoked', (int) $ticket->ticket_id, $reason );
 		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id );
