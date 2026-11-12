@@ -604,6 +604,10 @@ final class OrderAdapter {
 			return;
 		}
 		$count = count( Orders::tickets_for_order( $core_id ) );
+		if ( ! $count ) {
+			$wc_order->add_order_note( __( 'Pass Captain: Zahlung übernommen, Tickets warten noch auf die Fiskalisierung. Fiskalstatus prüfen oder den Fiskal-Retry auslösen.', 'wp-pass-captain' ) );
+			return;
+		}
 		/* translators: %d: ticket count */
 		$wc_order->add_order_note( sprintf( _n( 'Pass Captain: %d Ticket ausgestellt und per E-Mail versendet.', 'Pass Captain: %d Tickets ausgestellt und per E-Mail versendet.', $count, 'wp-pass-captain' ), $count ) );
 		if ( ! $had_tickets && $count ) {
