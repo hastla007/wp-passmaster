@@ -920,7 +920,7 @@ final class OrderAdapter {
 		foreach ( $refund->get_items( array( 'line_item', 'fee', 'shipping' ) ) as $refund_item ) {
 			if ( self::refund_item_type_id( $refund_item ) ) { continue; }
 			$original_id = absint( $refund_item->get_meta( '_refunded_item_id', true ) );
-			$original = $original_id && class_exists( '\\WC_Order_Factory' ) ? \\WC_Order_Factory::get_order_item( $original_id ) : null;
+			$original = $original_id && class_exists( 'WC_Order_Factory' ) ? \WC_Order_Factory::get_order_item( $original_id ) : null;
 			$line_key = $original ? self::fiscal_line_key( $original_id, $original ) : '';
 			$total = is_callable( array( $refund_item, 'get_total' ) ) ? abs( (float) $refund_item->get_total() ) : 0;
 			$tax = is_callable( array( $refund_item, 'get_total_tax' ) ) ? abs( (float) $refund_item->get_total_tax() ) : 0;
