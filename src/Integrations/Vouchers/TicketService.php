@@ -110,7 +110,8 @@ final class TicketService {
 	/**
 	 * Ticket types that can be issued for vouchers (upcoming occurrences, active types), for admin selects.
 	 *
-	 * @param array $filter Optional event_id (int) and ticket_name (string, exact name of the ticket type).
+	 * @param array $filter Optional event_id (int), ticket_name (string, exact name of the ticket type) and
+	 *                      quantity (int: leave out ticket types with fewer free places).
 	 * @return array<int, array{ticket_type_id:int,event_id:int,occurrence_id:int,label:string,date_label:string,name:string,event:string,starts_at:string,currency:string,price_minor:int}>
 	 */
 	public function targets( array $filter = array() ) {
@@ -144,7 +145,13 @@ final class TicketService {
 				'starts_at' => (string) $row->starts_at,
 				'currency' => (string) $row->currency,
 				'price_minor' => (int) $row->price_minor,
+				// Free places right now (null = unlimited); a hint, the order itself re-checks under lock.
+				'available' => Orders::availability( (int) $row->ticket_type_id ),
 			);
+		}
+		$need = absint( $filter['quantity'] ?? 0 );
+		if ( $need ) {
+			$out = array_values( array_filter( $out, static function ( $t ) use ( $need ) { return null === $t['available'] || $t['available'] >= $need; } ) );
 		}
 		return $out;
 	}
@@ -155,7 +162,21 @@ final class TicketService {
 	 */
 	public function options( array $target ) {
 		if ( empty( $target['event_id'] ) ) { return array(); }
-		return $this->targets( array( 'event_id' => $target['event_id'], 'ticket_name' => $target['ticket_name'] ?? '' ) );
+		return $this->targets( array( 'event_id' => $target['event_id'], 'ticket_name' => $target['ticket_name'] ?? '', 'quantity' => max( 1, absint( $target['quantity'] ?? 1 ) ) ) );
+	}
+
+	/**
+	 * Attendee fields of a ticket type (as in the public checkout). Pass the answers per ticket to
+	 * issue_tickets() as recipient attendees: [ [ 'ticket_type_id' => …, 'answers' => [ key => value ] ], … ].
+	 *
+	 * @return array<int, array{key:string,label:string,type:string,required:bool}>
+	 */
+	public function fields( $ticket_type_id ) {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", absint( $ticket_type_id ) ) );
+		return array_map( static function ( $f ) {
+			return array( 'key' => (string) $f->field_key, 'label' => (string) $f->label, 'type' => (string) $f->field_type, 'required' => (bool) (int) $f->required );
+		}, (array) $rows );
 	}
 
 	/**

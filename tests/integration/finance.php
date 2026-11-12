@@ -163,6 +163,15 @@ $ev_x = $ticket_service->issue_tickets( $src, 'vcap-voucher-90', $ev_target + ar
 check( 'the customer gets a ticket for the chosen date', is_array( $ev_x ) && 1 === count( $ev_x['ticket_ids'] ) && $ev_type2 === (int) tickets( $ev_x['order_id'] )[0]->ticket_type_id );
 check( 'a ticket type of another ticket name or event cannot be chosen', is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-91', $ev_target + array( 'ticket_type_id' => $ev_vip, 'quantity' => 1 ), array( 'email' => 'ev@example.com' ) ) ) && is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-92', $ev_target + array( 'ticket_type_id' => $xt, 'quantity' => 1 ), array( 'email' => 'ev@example.com' ) ) ) );
 
+$wpdb->update( "{$p}wpcap_ticket_types", array( 'capacity' => 1 ), array( 'ticket_type_id' => $ev_type2 ) );
+check( 'sold-out dates are not offered for the voucher quantity', array( $ev_type ) === array_column( $ticket_service->options( $ev_target + array( 'quantity' => 1 ) ), 'ticket_type_id' ) && array_key_exists( 'available', $ticket_service->targets()[0] ) );
+$wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $ev_type, 'field_key' => 'name', 'label' => 'Name', 'field_type' => 'text', 'required' => 1, 'status' => 'active' ) );
+$ev_fields = $ticket_service->fields( $ev_type );
+check( 'attendee fields of a ticket type are listed for the exchange form', 1 === count( $ev_fields ) && 'name' === $ev_fields[0]['key'] && true === $ev_fields[0]['required'] );
+check( 'missing required attendee answers refuse the exchange', is_wp_error( $ticket_service->issue_tickets( $src, 'vcap-voucher-93', $ev_target + array( 'ticket_type_id' => $ev_type, 'quantity' => 1 ), array( 'email' => 'ev@example.com' ) ) ) );
+$ev_y = $ticket_service->issue_tickets( $src, 'vcap-voucher-94', $ev_target + array( 'ticket_type_id' => $ev_type, 'quantity' => 1 ), array( 'email' => 'ev@example.com', 'attendees' => array( array( 'ticket_type_id' => $ev_type, 'answers' => array( 'name' => 'Erika' ) ) ) ) );
+check( 'attendee answers are stored with the exchanged ticket', is_array( $ev_y ) && 'Erika' === $wpdb->get_var( $wpdb->prepare( "SELECT a.answer FROM {$p}wpcap_participant_answers a JOIN {$p}wpcap_tickets t ON t.ticket_id=a.ticket_id WHERE t.order_id=%d", $ev_y['order_id'] ) ) );
+
 echo "Self-service and schedule changes\n";
 PassCaptain\Settings::update( array( 'attendee_edit_hours' => 24 ) );
 $st = make_type( 10, 10, 0 );
