@@ -11,6 +11,7 @@ use PassCaptain\Fiscalization\AdapterInterface;
 use PassCaptain\Fiscalization\CountryPolicy;
 use PassCaptain\Fiscalization\Credentials;
 use PassCaptain\Fiscalization\Registry;
+use PassCaptain\Fiscalization\Providers\EfstaEfrAdapter;
 use PassCaptain\Modules\Fiscalization as FiscalizationModule;
 
 if ( ! function_exists( 'wp_salt' ) ) {
@@ -37,6 +38,19 @@ FiscalizationModule::register();
 $built_in_adapters = Registry::all();
 check( 'built-in vendor adapters are registered for fiskaly, efsta, and fiskaltrust', isset( $built_in_adapters['fiskaly_sign_at'], $built_in_adapters['fiskaly_sign_de'], $built_in_adapters['fiskaly_sign_unified'], $built_in_adapters['efsta_efr'], $built_in_adapters['fiskaltrust_pos'] ) );
 check( 'efsta supports Hungary while fiskaltrust does not claim unsupported Hungarian coverage', in_array( 'HU', $built_in_adapters['efsta_efr']->countries(), true ) && ! in_array( 'HU', $built_in_adapters['fiskaltrust_pos']->countries(), true ) );
+$efsta_adapter = new EfstaEfrAdapter();
+check( 'efsta one-time full void is limited to AT and DE, not refunds or Hungary', $efsta_adapter->supports_correction( 'AT', 'void' ) && $efsta_adapter->supports_correction( 'DE', 'void' ) && ! $efsta_adapter->supports_correction( 'HU', 'void' ) && ! $efsta_adapter->supports_correction( 'AT', 'refund' ) );
+$efsta_void_doc = array(
+	'country_code' => 'AT', 'order_id' => 501, 'gross_minor' => 1200, 'created_at' => '2026-01-01T12:00:00Z',
+	'payment_method' => 'cash', 'items' => array( array( 'ticket_type_id' => 22, 'description' => 'Abendticket', 'quantity' => 1, 'gross_minor' => 1200, 'tax_rate_bp' => 1000, 'tax_minor' => 109 ) ),
+);
+$efsta_void_seller = array( 'country_code' => 'AT', 'tax_number' => 'ATU12345678' );
+$efsta_void_config = array( 'endpoint_url' => 'https://efr.example.test', 'register_number' => 'box-1', 'terminal_id' => 'pc-1', 'tax_groups' => array( '1000' => 'A' ), 'payment_groups' => array( 'cash' => 'CASH' ) );
+$efsta_prepared_void = $efsta_adapter->prepare_void( $efsta_void_doc, $efsta_void_seller, $efsta_void_config, 991 );
+check( 'efsta void preflight builds one register/void request referencing original EFR identity', ! is_wp_error( $efsta_prepared_void ) && false !== strpos( $efsta_prepared_void['url'], '/register/void?rn=box-1' ) && '501' === $efsta_prepared_void['payload']['Tra']['ESR']['TN'] && 'pc-1' === $efsta_prepared_void['payload']['Tra']['ESR']['TL'] && 'PC991' === $efsta_prepared_void['payload']['Tra']['SESR']['TN'] );
+$efsta_hu_doc = $efsta_void_doc;
+$efsta_hu_doc['country_code'] = 'HU';
+check( 'efsta void preflight refuses Hungary before any provider call', is_wp_error( $efsta_adapter->prepare_void( $efsta_hu_doc, array( 'country_code' => 'HU' ), $efsta_void_config, 992 ) ) );
 check( 'built-in provider countries stay explicit and adapter-specific', in_array( 'AT', $built_in_adapters['fiskaly_sign_at']->countries(), true ) && ! in_array( 'ES', $built_in_adapters['fiskaly_sign_at']->countries(), true ) && in_array( 'FR', $built_in_adapters['fiskaly_sign_unified']->countries(), true ) && ! in_array( 'HU', $built_in_adapters['fiskaltrust_pos']->countries(), true ) );
 check( 'offline profile policy defaults to stop-sale and rejects unknown modes', 'stop_sale' === FiscalizationModule::normalize_offline_policy( 'stop_sale' ) && is_wp_error( FiscalizationModule::normalize_offline_policy( 'unverified_queue' ) ) );
 
