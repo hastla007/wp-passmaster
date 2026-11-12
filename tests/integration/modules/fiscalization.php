@@ -122,5 +122,5 @@ FiscalizationModule::record_non_ticket_refund( 99001, 88001, 'EUR', array(
 ) );
 $refund_event = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_events WHERE order_id=%d ORDER BY event_id DESC LIMIT 1", 99001 ), ARRAY_A );
 $refund_event_data = $refund_event ? json_decode( $refund_event['metadata'], true ) : array();
-check( 'refund of an assigned non-ticket line follows the original seller snapshot and amount', $refund_event && 'refund_adjustment' === $refund_event['event_type'] && 71 === (int) $refund_event_data['seller_id'] ? false : ( $refund_event && 1200 === (int) $refund_event_data['allocated_items'][0]['amount_minor'] && ! $refund_event_data['seller_allocation_required'] ) );
+check( 'refund of an assigned non-ticket line follows the original seller snapshot and amount', $refund_event && 'refund_adjustment' === $refund_event['event_type'] && 88001 === (int) $refund_event_data['refund_id'] && 1200 === (int) $refund_event_data['allocated_items'][0]['amount_minor'] && 200 === (int) $refund_event_data['allocated_items'][0]['tax_minor'] && empty( $refund_event_data['seller_allocation_required'] ) );
 
