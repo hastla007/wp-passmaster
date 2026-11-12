@@ -56,4 +56,6 @@ $GLOBALS['wpcap_test_filters']['wpcap_fiscal_profile_scope'] = array( 'location_
 $invalid_scope = FiscalizationModule::profile_scope( 'pos', array( 'source' => 'pos' ), 99 );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_fiscal_profile_scope'] );
 check( 'invalid POS register identifiers fail closed', is_wp_error( $invalid_scope ) );
+$session_scope = FiscalizationModule::profile_scope( 'pos', array( 'fiscal_location_id' => 23, 'fiscal_register_id' => 'BOX-OFFICE-2' ), 99 );
+check( 'POS fiscal profile scope inherits the locked session assignment', ! is_wp_error( $session_scope ) && 23 === $session_scope['location_id'] && 'BOX-OFFICE-2' === $session_scope['register_id'] );
 
