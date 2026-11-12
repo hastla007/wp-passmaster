@@ -9767,3 +9767,263 @@ msgstr "À partir d’un montant de commande supérieur à %s, nous avons besoin
 #: templates/event-card.php:85
 msgid "Mit Länderkennzeichen, z. B. ATU12345678 oder DE123456789."
 msgstr "Avec le préfixe du pays, p. ex. ATU12345678 ou DE123456789."
+
+#: src/Admin/Menu.php:95 src/Integrations/Vouchers/IntegrationStatus.php:33 src/Integrations/Vouchers/IntegrationStatus.php:44
+msgid "Gemeinsamer Scanner"
+msgstr "Scanner partagé"
+
+#: src/Admin/Menu.php:95
+msgid "Gemeinsamer Scanner ↗"
+msgstr "Scanner partagé ↗"
+
+#: src/Admin/Menu.php:96 src/Integrations/Vouchers/IntegrationStatus.php:22 src/Integrations/Vouchers/IntegrationStatus.php:30
+msgid "WP Voucher Captain"
+msgstr "WP Voucher Captain"
+
+#: src/Admin/Menu.php:96
+msgid "WP Voucher Captain ↗"
+msgstr "WP Voucher Captain ↗"
+
+#: src/Admin/SettingsPage.php:43
+msgid "Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel"
+msgstr "Fenêtre d'entrée par défaut pour les types de billets sans règle d'admission propre"
+
+#: src/Admin/SettingsPage.php:44
+msgid "Einlass ab (Minuten vor Beginn)"
+msgstr "Entrée à partir de (minutes avant le début)"
+
+#: src/Admin/SettingsPage.php:45
+msgid "Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)"
+msgstr "Entrée jusqu'à (minutes après la fin ; sans fin : jusqu'à la fin du jour de l'événement)"
+
+#: src/Admin/SettingsPage.php:121
+msgid "Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)"
+msgstr "Petite entreprise (pas de TVA sur les propres factures)"
+
+#: src/Admin/SettingsPage.php:121
+msgid "Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen)."
+msgstr "Les factures de la plateforme portent alors la mention petite entreprise et sont refusées tant que des types de billets contiennent de la TVA (créer les types de billets à 0 %)."
+
+#: src/Admin/SettingsPage.php:122
+msgid "Kleinunternehmer-Hinweis (leer = Standardtext für das Land)"
+msgstr "Mention petite entreprise (vide = texte par défaut du pays)"
+
+#: src/Admin/SettingsPage.php:122
+msgid "DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“"
+msgstr "DE : « Gemäß § 19 UStG wird keine Umsatzsteuer berechnet. » – AT : « Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG. »"
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:23
+msgid "efsta EFR-Verbindungstest wurde abgelehnt."
+msgstr "Le test de connexion efsta EFR a été refusé."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:39
+msgid "efsta-Journalstatus konnte nicht sicher abgefragt werden."
+msgstr "Le statut du journal efsta n'a pas pu être consulté de manière fiable."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:60
+msgid "Ein Steuersatz ist keiner efsta-Steuergruppe zugeordnet."
+msgstr "Un taux de TVA n'est associé à aucun groupe fiscal efsta."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:79
+msgid "Der Fiskalbeleg enthält keine Positionen."
+msgstr "Le reçu fiscal ne contient aucune ligne."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:84
+msgid "Zahlungsart ist keiner efsta-Zahlungsgruppe zugeordnet."
+msgstr "Le mode de paiement n'est associé à aucun groupe de paiement efsta."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:106
+msgid "efsta hat den Beleg nicht bestätigt."
+msgstr "efsta n'a pas confirmé le reçu."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:110
+msgid "efsta hat die Transaktion abgelehnt oder zur Wiederholung markiert."
+msgstr "efsta a refusé la transaction ou l'a marquée pour une nouvelle tentative."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:120
+msgid "efsta Cloud API-Key und Secret fehlen."
+msgstr "La clé API et le secret efsta Cloud sont manquants."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:122
+msgid "Für efsta Cloud ist die Verkäufer-Steuernummer erforderlich."
+msgstr "efsta Cloud nécessite le numéro fiscal du vendeur."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:128
+msgid "efsta Cloud-Zugang konnte nicht authentifiziert werden."
+msgstr "L'accès efsta Cloud n'a pas pu être authentifié."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:24
+msgid "fiskaltrust-Verbindungstest wurde abgelehnt."
+msgstr "Le test de connexion fiskaltrust a été refusé."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:37
+msgid "fiskaltrust-Status konnte nicht sicher abgefragt werden."
+msgstr "Le statut fiskaltrust n'a pas pu être consulté de manière fiable."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:40
+msgid "fiskaltrust verarbeitet den Vorgang noch."
+msgstr "fiskaltrust traite encore l'opération."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:44
+msgid "fiskaltrust meldet keinen erfolgreich abgeschlossenen Beleg."
+msgstr "fiskaltrust ne signale aucun reçu finalisé avec succès."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:58
+msgid "Steuer- oder Belegfall-Zuordnung für fiskaltrust fehlt."
+msgstr "L'association des taux ou des cas de reçu pour fiskaltrust est manquante."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:69
+msgid "Zahlungsart ist in fiskaltrust nicht zugeordnet."
+msgstr "Le mode de paiement n'est pas associé dans fiskaltrust."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:81
+msgid "fiskaltrust hat den Beleg nicht bestätigt."
+msgstr "fiskaltrust n'a pas confirmé le reçu."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:88
+msgid "Die von fiskaltrust für das Land freigegebenen Geschäftsfall-Codes fehlen."
+msgstr "Les codes de cas d'opération validés par fiskaltrust pour le pays sont manquants."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:93
+msgid "Ein Steuersatz ist nicht auf einen fiskaltrust-Belegfall abgebildet."
+msgstr "Un taux de TVA n'est associé à aucun cas de reçu fiskaltrust."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:114
+msgid "fiskaltrust CashBox-Zugang und POS-System-ID fehlen."
+msgstr "L'accès CashBox fiskaltrust et l'ID du système de caisse sont manquants."
+
+#: src/Fiscalization/Providers/HttpClient.php:17
+msgid "Der Fiskal-Anbieter-Endpunkt ist ungültig."
+msgstr "Le point de terminaison du fournisseur fiscal n'est pas valide."
+
+#: src/Fiscalization/Providers/HttpClient.php:31
+msgid "Der Fiskal-Anbieter ist nicht erreichbar."
+msgstr "Le fournisseur fiscal est injoignable."
+
+#: src/Fiscalization/Providers/HttpClient.php:36
+msgid "Die Antwort des Fiskal-Anbieters ist zu groß."
+msgstr "La réponse du fournisseur fiscal est trop volumineuse."
+
+#: src/Fiscalization/Providers/HttpClient.php:40
+msgid "Die Antwort des Fiskal-Anbieters ist kein gültiges JSON."
+msgstr "La réponse du fournisseur fiscal n'est pas un JSON valide."
+
+#: src/Integrations/Vouchers/CheckinService.php:68
+msgid "Du darfst keine Pass-Captain-Tickets einchecken."
+msgstr "Vous n'êtes pas autorisé à enregistrer des billets Pass Captain."
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:22
+msgid "nicht aktiv – Gutscheine im Ticket-Checkout und Gutschein → Ticket sind ausgeschaltet. Pass Captain funktioniert ohne Einschränkung."
+msgstr "non actif – les bons dans le paiement des billets et bon → billet sont désactivés. Pass Captain fonctionne sans restriction."
+
+#. translators: %s: version
+#: src/Integrations/Vouchers/IntegrationStatus.php:30
+#, php-format
+msgid "aktiv (Version %s)"
+msgstr "actif (version %s)"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:31
+msgid "Gutscheine im Ticket-Checkout"
+msgstr "Bons dans le paiement des billets"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:31
+msgid "aktiv (Anbieter-Vertrag v1)"
+msgstr "actif (contrat fournisseur v1)"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:31
+msgid "kein kompatibler Gutschein-Anbieter – Voucher Captain aktualisieren"
+msgstr "aucun fournisseur de bons compatible – mettre à jour Voucher Captain"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:32
+msgid "Gutschein → Ticket"
+msgstr "Bon → billet"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:32
+msgid "verfügbar – Ticketart am Voucher-Captain-Produkt wählen"
+msgstr "disponible – choisir le type de billet sur le produit Voucher Captain"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:32 src/Integrations/Vouchers/IntegrationStatus.php:33
+msgid "nicht verfügbar – Voucher Captain aktualisieren"
+msgstr "non disponible – mettre à jour Voucher Captain"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:33
+msgid "Der Voucher-Captain-Scanner erkennt auch Pass-Captain-Tickets (Recht „wpcap_checkin“ nötig)."
+msgstr "Le scanner Voucher Captain reconnaît aussi les billets Pass Captain (droit « wpcap_checkin » requis)."
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:38
+msgid "Integration WP Voucher Captain"
+msgstr "Intégration WP Voucher Captain"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:44
+msgid "Zu WP Voucher Captain"
+msgstr "Vers WP Voucher Captain"
+
+#: src/Integrations/Vouchers/TicketService.php:432
+msgid "Zu diesem Gutschein wurden keine Tickets gefunden."
+msgstr "Aucun billet n'a été trouvé pour ce bon."
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:629
+msgid "Pass Captain: Die Tickets bleiben reserviert und werden nach der Prüfung der Bestellung ausgestellt."
+msgstr "Pass Captain : les billets restent réservés et seront émis après la vérification de la commande."
+
+#: src/Partners/SalesModel.php:53
+msgid "Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG."
+msgstr "Exonéré de TVA au titre du régime des petites entreprises conformément au § 6 al. 1 n° 27 UStG (Autriche)."
+
+#: src/Partners/SalesModel.php:209
+msgid "Die Plattform ist als Kleinunternehmer eingestellt, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 % anlegen oder die Einstellung „Kleinunternehmer“ prüfen."
+msgstr "La plateforme est configurée comme petite entreprise, mais la commande contient de la TVA. Une mention de TVA serait irrégulière (§ 14c UStG). Veuillez créer les types de billets à 0 % ou vérifier le réglage « Petite entreprise »."
+
+#: src/Privacy.php:294
+msgid "WP Pass Captain: Löschanfrage zurückgestellt"
+msgstr "WP Pass Captain : demande d'effacement reportée"
+
+#. translators: %d: number of orders
+#: src/Privacy.php:296
+#, php-format
+msgid "Eine Löschanfrage betrifft %d Bestellung(en) mit Tickets für kommende Termine. Die Tickets bleiben bis nach dem letzten Termin gültig; danach werden die Bestellungen automatisch anonymisiert."
+msgstr "Une demande d'effacement concerne %d commande(s) avec des billets pour des dates à venir. Les billets restent valables jusqu'après la dernière date ; ensuite, les commandes sont anonymisées automatiquement."
+
+#. translators: %d: number of orders
+#: src/Privacy.php:311
+#, php-format
+msgid "%d Bestellung(en) mit Tickets für bevorstehende Termine werden zur Vertragserfüllung (Art. 17 Abs. 3 DSGVO) bis nach dem letzten Termin aufbewahrt und danach automatisch anonymisiert; die Tickets bleiben gültig."
+msgstr "%d commande(s) avec des billets pour des dates à venir sont conservées pour l'exécution du contrat (art. 17, par. 3 RGPD) jusqu'après la dernière date, puis anonymisées automatiquement ; les billets restent valables."
+
+#: src/PublicEvents.php:82
+msgid "NICHT GEPRÜFT (offline): Das Ticket kann ohne Verbindung nicht geprüft werden. Nur nach Sichtprüfung einlassen; für geprüften Offline-Einlass die Offline-Scanner-App verwenden."
+msgstr "NON VÉRIFIÉ (hors ligne) : le billet ne peut pas être vérifié sans connexion. N'admettre qu'après un contrôle visuel ; pour une entrée hors ligne vérifiée, utilisez l'application de scan hors ligne."
+
+#: src/PublicEvents.php:83
+msgid "Nach Sichtprüfung einlassen (wird später geprüft)"
+msgstr "Admettre après contrôle visuel (vérifié plus tard)"
+
+#: src/PublicEvents.php:89
+msgid "Kein Einlass"
+msgstr "Entrée refusée"
+
+#: src/PublicEvents.php:90
+msgid "Achtung"
+msgstr "Attention"
+
+#. translators: %s: scanner mode, e.g. "Einlass"
+#: src/PublicEvents.php:92
+#, php-format
+msgid "Modus: %s"
+msgstr "Mode : %s"
+
+#: src/PublicEvents.php:156
+msgid "Kamera stoppen"
+msgstr "Arrêter la caméra"
+
+#: src/PublicEvents.php:156
+msgid "Licht"
+msgstr "Lumière"
+
+#: src/Rest/Controller.php:274
+msgid "Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab."
+msgstr "Cette tentative de commande a été annulée. Veuillez renvoyer le formulaire."
+
+#: templates/event-card.php:97
+msgid "Gutschein- oder Rabattcode (optional)"
+msgstr "Code de bon ou de réduction (facultatif)"
