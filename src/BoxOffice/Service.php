@@ -313,6 +313,7 @@ final class Service {
 		if ( $existing ) { return self::existing_result( $existing ); }
 		$session = self::open_session_for( get_current_user_id() );
 		if ( ! $session || 'open' !== $session->status ) { return self::error( 'wpcap_pos_no_session', __( 'Bitte zuerst eine Kassensitzung öffnen.', 'wp-pass-captain' ), 409 ); }
+		if ( ! TerminalRegistry::allows( $session->location_id, $session->register_id ) ) { return self::error( 'wpcap_pos_terminal', __( 'Dieses Kassenregister ist nicht mehr freigegeben. Bitte Sitzung schließen und ein freigegebenes Register öffnen.', 'wp-pass-captain' ), 409 ); }
 
 		$occurrence_id = absint( $input['occurrence_id'] ?? 0 );
 		$event_id = Scope::occurrence_event( $occurrence_id );
