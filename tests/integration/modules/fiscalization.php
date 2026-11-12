@@ -47,3 +47,13 @@ $normalized = $normalizer->invoke( null, array(
 $normalized_json = wp_json_encode( $normalized );
 check( 'provider result persistence keeps only normalized receipt data', 'ref-123' === $normalized['reference'] && 'fiscal-qr-payload' === $normalized['receipt']['qr_payload'] && 'AB-123' === $normalized['receipt']['fields']['Belegnummer'] );
 check( 'provider tokens and nested response objects are excluded from stored results', false === strpos( $normalized_json, 'must-not-persist' ) && ! isset( $normalized['access_token'] ) );
+
+$GLOBALS['wpcap_test_filters']['wpcap_fiscal_profile_scope'] = array( 'location_id' => 23, 'register_id' => 'BOX-OFFICE-2' );
+$scope = FiscalizationModule::profile_scope( 'pos', array( 'source' => 'pos' ), 99 );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_fiscal_profile_scope'] );
+check( 'fiscal profile scope resolves a trusted POS register', ! is_wp_error( $scope ) && 23 === $scope['location_id'] && 'BOX-OFFICE-2' === $scope['register_id'] );
+$GLOBALS['wpcap_test_filters']['wpcap_fiscal_profile_scope'] = array( 'location_id' => 23, 'register_id' => '<script>' );
+$invalid_scope = FiscalizationModule::profile_scope( 'pos', array( 'source' => 'pos' ), 99 );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_fiscal_profile_scope'] );
+check( 'invalid POS register identifiers fail closed', is_wp_error( $invalid_scope ) );
+
