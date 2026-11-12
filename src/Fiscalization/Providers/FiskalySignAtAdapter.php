@@ -77,7 +77,7 @@ final class FiskalySignAtAdapter implements AdapterInterface {
 	private function request( $method, $path, $body, array $seller, array $configuration ) {
 		$credentials = (array) ( $configuration['credentials'] ?? array() );
 		if ( empty( $credentials['api_key'] ) || empty( $credentials['api_secret'] ) ) { return new \WP_Error( 'fiskaly_credentials_missing', __( 'fiskaly API-Key und API-Secret fehlen.', 'wp-pass-captain' ) ); }
-		$key = 'wpcap_fiskaly_at_token_' . absint( $seller['seller_id'] ?? 0 );
+		$key = 'wpcap_fiskaly_at_token_' . absint( $seller['seller_id'] ?? 0 ) . '_' . substr( hash( 'sha256', (string) $credentials['api_key'] . "\0" . (string) $credentials['api_secret'] ), 0, 16 );
 		$token = get_transient( $key );
 		if ( ! is_string( $token ) || '' === $token ) {
 			$auth = ProviderHttp::request( self::BASE_URL . '/auth', 'POST', array(), array( 'api_key' => $credentials['api_key'], 'api_secret' => $credentials['api_secret'] ) );
