@@ -212,7 +212,7 @@ final class SalesModel {
 				if ( (int) $item->tax_minor > 0 ) {
 					return new \WP_Error( 'wpcap_invoice_small_business_vat', sprintf(
 						/* translators: %s: organizer */
-						__( 'Der Veranstalter „%s“ ist Kleinunternehmer, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 % anlegen.', 'wp-pass-captain' ),
+						__( 'Der Veranstalter „%s“ ist Kleinunternehmer, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 %% anlegen.', 'wp-pass-captain' ),
 						$context['seller']['name']
 					), array( 'status' => 409 ) );
 				}

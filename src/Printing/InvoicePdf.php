@@ -167,6 +167,7 @@ final class InvoicePdf {
 			$y -= 18;
 			$pdf->text( 300, $y, 11, __( 'Rechnungsbetrag', 'wp-pass-captain' ), true );
 			$pdf->text( 545, $y, 11, self::money( $invoice->total_minor, $cur ), true, 'right' );
+			$y = self::payments( $pdf, $y, $invoice, $snapshot, $page, $footer );
 			if ( Invoices::seller_notes( $snapshot ) && $y - 30 - 24 * count( Invoices::seller_notes( $snapshot ) ) < 60 ) {
 				$footer( $pdf, sprintf( __( 'Seite %d', 'wp-pass-captain' ), $page++ ) );
 				$pdf->add_page( 595.28, 841.89 );
@@ -308,4 +309,34 @@ final class InvoicePdf {
 	}
 
 
+
+	/**
+	 * Section "Zahlungen" (vouchers as payment, remaining amount paid, notes) below the invoice totals; see
+	 * Invoices::payment_summary(). Breaks the page when needed and returns the y position below it.
+	 */
+	private static function payments( PdfWriter $pdf, $y, $invoice, array $snapshot, &$page, callable $footer ) {
+		$summary = Invoices::payment_summary( $invoice, $snapshot );
+		if ( ! $summary['rows'] && ! $summary['notes'] ) { return $y; }
+		$notes = array();
+		foreach ( $summary['notes'] as $note ) { $notes = array_merge( $notes, PdfWriter::wrap( $note, 9, 495 ) ); }
+		if ( $y - 40 - 15 * count( $summary['rows'] ) - 12 * count( $notes ) < 70 ) {
+			$footer( $pdf, sprintf( /* translators: %d: page number */ __( 'Seite %d', 'wp-pass-captain' ), $page++ ) );
+			$pdf->add_page( 595.28, 841.89 );
+			$y = 820;
+		}
+		$y -= 28;
+		$pdf->text( 50, $y, 10, __( 'Zahlungen', 'wp-pass-captain' ), true );
+		$pdf->line( 50, $y - 5, 545, $y - 5 );
+		$y -= 18;
+		foreach ( $summary['rows'] as $row ) {
+			$pdf->text( 50, $y, 10, $row[0], $row[2] );
+			$pdf->text( 545, $y, 10, ( $row[1] < 0 ? '-' : '' ) . self::money( abs( (int) $row[1] ), $invoice->currency ), $row[2], 'right' );
+			$y -= 15;
+		}
+		foreach ( $notes as $part ) {
+			$pdf->text( 50, $y, 9, $part );
+			$y -= 12;
+		}
+		return $y;
+	}
 }

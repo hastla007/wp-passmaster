@@ -49,19 +49,23 @@ final class Invoices {
 		// Reserve the number in the same transaction so a rollback never leaves a gap.
 		$number = self::next_invoice_number( $seller_context );
 		if ( is_wp_error( $number ) ) { $wpdb->query( 'ROLLBACK' ); return $number; }
+		// Payments/vouchers: a multi-purpose voucher pays part of the full gross amount (docs/VOUCHERS.md).
+		$invoice_total = Integrations\Vouchers\Checkout::gross_minor( $order );
 		$snapshot = array(
 			'email' => $order->customer_email,
 			'currency' => $order->currency,
 			'subtotal_minor' => $order_subtotal,
 			'discount_minor' => (int) $order->discount_minor,
-			'total_minor' => (int) $order->total_minor,
+			'total_minor' => $invoice_total,
 			'terms_version' => $order->terms_version,
 			'seller' => self::seller(),
 		);
 		$snapshot = self::with_seller_context( $snapshot, $seller_context );
 		// Buyer billing data (company, name, address, VAT ID, buyer reference) frozen with the invoice.
 		$snapshot = array_merge( $snapshot, Billing::snapshot( $order ) );
-		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => (int) $order->total_minor, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ) );
+		$payments = Integrations\Vouchers\Checkout::invoice_payments( $order );
+		if ( $payments ) { $snapshot['payments'] = $payments; }
+		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => $invoice_total, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ) );
 		$invoice_id = (int) $wpdb->insert_id;
 		if ( false === $saved || ! $invoice_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_create', __( 'Rechnung konnte nicht erstellt werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		$discount_left = (int) $order->discount_minor;
@@ -103,14 +107,16 @@ final class Invoices {
 		list( $credit_series, $credit_prefix ) = self::credit_series_for( (array) json_decode( (string) $invoice->buyer_snapshot, true ) );
 		$number = self::next_document_number( $credit_series, $credit_prefix, true );
 		if ( is_wp_error( $number ) ) { $wpdb->query( 'ROLLBACK' ); return $number; }
+		// Payments/vouchers: with a multi-purpose voucher the correction covers cash + voucher part.
+		$credit_amounts = Integrations\Vouchers\Checkout::credit_note_amounts( $refund_id ) ?? array( 'total_minor' => (int) $refund['amount_minor'], 'tax_minor' => (int) $refund['tax_minor'] );
 		$saved = $wpdb->insert( "{$p}wpcap_credit_notes", array(
 			'invoice_id' => (int) $invoice->invoice_id,
 			'refund_id' => absint( $refund_id ),
 			'credit_note_number' => $number,
 			'currency' => $refund['currency'],
-			'net_minor' => (int) $refund['amount_minor'] - (int) $refund['tax_minor'],
-			'tax_minor' => (int) $refund['tax_minor'],
-			'total_minor' => (int) $refund['amount_minor'],
+			'net_minor' => (int) $credit_amounts['total_minor'] - (int) $credit_amounts['tax_minor'],
+			'tax_minor' => (int) $credit_amounts['tax_minor'],
+			'total_minor' => (int) $credit_amounts['total_minor'],
 			'issued_at' => current_time( 'mysql', true ),
 		) );
 		if ( false === $saved ) {
@@ -311,6 +317,7 @@ final class Invoices {
 		<?php foreach ( $rates as $rate => $sum ) : ?><tr><td><?php echo esc_html( sprintf( /* translators: %s: rate */ __( 'Umsatzsteuer %s %%', 'wp-pass-captain' ), number_format_i18n( (float) $rate, 2 ) ) ); ?></td><td class="n"><?php echo esc_html( $money( $sum['tax'] ) ); ?></td></tr><?php endforeach; ?>
 		<tr><th><?php esc_html_e( 'Rechnungsbetrag', 'wp-pass-captain' ); ?></th><th class="n"><?php echo esc_html( $money( (int) $invoice->total_minor ) ); ?></th></tr>
 		</tbody></table>
+		<?php echo self::payments_html( $invoice, $snapshot, $money ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in payments_html(). ?>
 		<?php foreach ( self::seller_notes( $snapshot ) as $note ) : ?><p class="wpcap-seller-note"><?php echo esc_html( $note ); ?></p><?php endforeach; ?>
 		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Rechnungskorrektur', 'wp-pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'wp-pass-captain' ), $invoice->invoice_number, wp_date( 'd.m.Y', strtotime( $credit->issued_at . ' UTC' ) ) ) ); ?></p><table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'wp-pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr><tr><td><?php esc_html_e( 'Umsatzsteuer', 'wp-pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->tax_minor ) ); ?></td></tr><tr><th><?php esc_html_e( 'Korrekturbetrag', 'wp-pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
 		<button onclick="window.print()"><?php esc_html_e( 'Drucken oder als PDF speichern', 'wp-pass-captain' ); ?></button>
@@ -406,5 +413,55 @@ final class Invoices {
 			if ( ! Access::can_access_event( (int) $event_id, 'wpcap_manage_orders' ) ) { return false; }
 		}
 		return true;
+	}
+
+	/* ------------------------------------------------------------------ Payments / vouchers (docs/VOUCHERS.md) */
+
+	/**
+	 * Section "Zahlungen" of an invoice with a voucher: multi-purpose vouchers are listed as payments (code
+	 * masked) followed by the remaining amount paid; the VAT breakdown above stays on the full amounts.
+	 * Single-purpose vouchers were a price reduction and only get a note. Empty for invoices without voucher.
+	 *
+	 * @return array{rows: array<int, array{0:string,1:int,2:bool}>, notes: string[]} Rows: label, amount (minor), bold.
+	 */
+	public static function payment_summary( $invoice, array $snapshot ) {
+		$out = array( 'rows' => array(), 'notes' => array() );
+		$payments = isset( $snapshot['payments'] ) ? (array) $snapshot['payments'] : Integrations\Vouchers\Checkout::invoice_payments( (int) $invoice->order_id );
+		if ( ! $payments || empty( $payments['vouchers'] ) ) { return $out; }
+		$voucher_total = 0;
+		foreach ( (array) $payments['vouchers'] as $voucher ) {
+			$code = Integrations\Vouchers\Checkout::masked_code( $voucher['code_hint'] ?? '' );
+			if ( Integrations\Vouchers\Checkout::PURPOSE_MULTI === ( $voucher['purpose'] ?? '' ) ) {
+				$amount = (int) ( $voucher['amount_minor'] ?? 0 );
+				$voucher_total += $amount;
+				/* translators: %s: masked voucher code */
+				$out['rows'][] = array( sprintf( __( 'Bezahlt mit Gutschein %s (Mehrzweckgutschein)', 'wp-pass-captain' ), $code ), -$amount, false );
+			} else {
+				/* translators: %s: masked voucher code */
+				$out['notes'][] = sprintf( __( 'Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt.', 'wp-pass-captain' ), $code );
+			}
+		}
+		if ( $out['rows'] ) {
+			$out['rows'][] = array( __( 'Restbetrag (bezahlt)', 'wp-pass-captain' ), max( 0, (int) $invoice->total_minor - $voucher_total ), true );
+			$out['notes'][] = __( 'Der Gutschein ist ein Zahlungsmittel (Mehrzweckgutschein); die Umsatzsteuer ist auf den vollen Rechnungsbetrag ausgewiesen.', 'wp-pass-captain' );
+		}
+		return $out;
+	}
+
+	/** HTML of the "Zahlungen" section for render_html() (empty string without voucher). */
+	private static function payments_html( $invoice, array $snapshot, callable $money ) {
+		$summary = self::payment_summary( $invoice, $snapshot );
+		if ( ! $summary['rows'] && ! $summary['notes'] ) { return ''; }
+		$html = '<section class="wpcap-payments"><h2>' . esc_html__( 'Zahlungen', 'wp-pass-captain' ) . '</h2>';
+		if ( $summary['rows'] ) {
+			$html .= '<table><tbody>';
+			foreach ( $summary['rows'] as $row ) {
+				$cell = $row[2] ? 'th' : 'td';
+				$html .= '<tr><' . $cell . '>' . esc_html( $row[0] ) . '</' . $cell . '><' . $cell . ' class="n">' . esc_html( ( $row[1] < 0 ? '-' : '' ) . $money( abs( (int) $row[1] ) ) ) . '</' . $cell . '></tr>';
+			}
+			$html .= '</tbody></table>';
+		}
+		foreach ( $summary['notes'] as $note ) { $html .= '<p class="wpcap-payment-note">' . esc_html( $note ) . '</p>'; }
+		return $html . '</section>';
 	}
 }

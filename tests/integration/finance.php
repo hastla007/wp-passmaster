@@ -38,6 +38,8 @@ final class Test_Voucher_Provider implements PassCaptain\Integrations\Vouchers\P
 }
 $voucher_provider = new Test_Voucher_Provider();
 $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] = $voucher_provider;
+// These checks cover the single-purpose (discount) path; multi-purpose: modules/zz_voucher_purpose.php.
+PassCaptain\Settings::update( array( 'voucher_default_purpose' => 'single' ) );
 $vt = make_type( 10, 10, 1000 );
 $wpdb->query( "UPDATE {$p}wpcap_ticket_types SET tax_rate_bp=2000 WHERE ticket_type_id=$vt" );
 $vo = Orders::create( array( 'email' => 'v@example.com', 'items' => array( array( 'ticket_type_id' => $vt, 'quantity' => 3 ) ), 'idempotency_key' => 'v-1' ) );
@@ -119,6 +121,7 @@ check( 'the last retry flags the order instead of giving up silently', 'commit_f
 $voucher_provider->commit_error = null;
 unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] );
 
+PassCaptain\Settings::update( array( 'voucher_default_purpose' => 'multi' ) );
 echo "Voucher to ticket exchange (reverse bridge)\n";
 $ticket_service = PassCaptain\Integrations\Vouchers\TicketService::service( null, 1 );
 check( 'ticket service is offered for contract version 1 only', $ticket_service instanceof PassCaptain\Integrations\Vouchers\TicketService && null === PassCaptain\Integrations\Vouchers\TicketService::service( null, 2 ) );
