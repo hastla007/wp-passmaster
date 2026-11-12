@@ -95,6 +95,16 @@ check( 'last refund: remainder of the voucher, credit notes add up to the invoic
 VoucherCheckout::refund( $m_r2['refund_id'], $m['order_id'] );
 check( 'repeated refund hook does not refund the voucher twice', 2 === count( $vp_refund_calls() ) );
 
+// Partner settlement of that fully refunded order: the sale counts the full 30,00 (voucher included), so the
+// refunds must count cash and voucher share as well – nothing is left to pay out.
+$vp_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $vp_type ) );
+$vp_partner = PassCaptain\Partners\Repository::save( array( 'name' => 'VP Veranstalter', 'billing_address' => "Weg 1\n10115 Berlin", 'vat_id' => 'DE555555555', 'sales_model' => 'agent', 'invoice_prefix' => 'VPV', 'commission_bp' => 0, 'fee_per_ticket_minor' => 0, 'fee_tax_rate_bp' => 1900, 'settlement_start' => gmdate( 'Y-m' ) . '-01' ) );
+PassCaptain\Partners\Repository::set_events( $vp_partner, array( $vp_event ) );
+$vp_draft = PassCaptain\Partners\Settlements::create_draft( $vp_partner, gmdate( 'Y-m' ) );
+$vp_tot = is_wp_error( $vp_draft ) ? array() : PassCaptain\Partners\Settlements::decoded_totals( PassCaptain\Partners\Settlements::get( $vp_draft ) );
+check( 'partner settlement: refunds of a voucher-paid order count the voucher share (payout 0, not +15,00)', ! is_wp_error( $vp_draft ) && 0 === (int) ( $vp_tot['gross'] ?? -1 ) && 0 === (int) ( $vp_tot['payout'] ?? -1 ) );
+PassCaptain\Partners\Repository::set_events( $vp_partner, array() );
+
 // Multi-purpose voucher covering everything: nothing due, invoice still shows the full VAT.
 $f = Orders::create( array( 'email' => 'mpv-full@example.com', 'items' => array( array( 'ticket_type_id' => $vp_type, 'quantity' => 1 ) ), 'idempotency_key' => 'vp-f1' ) );
 VoucherCheckout::apply( $f['order_id'], 'MPV-FULL-5678' );

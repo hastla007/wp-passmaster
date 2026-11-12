@@ -415,8 +415,8 @@ final class Refunds {
 	 */
 	/** VAT contained in $amount for the given tickets (their line VAT scaled to the amount). */
 	public static function tax_for_tickets( $order, array $ticket_ids, $amount ) {
-		list( $gross, $tax ) = self::line_shares( $order, $ticket_ids );
-		return $gross > 0 ? min( (int) $amount, (int) round( $tax * (int) $amount / $gross ) ) : 0;
+		list( , $tax, $base ) = self::line_shares( $order, $ticket_ids );
+		return $base > 0 ? min( (int) $amount, (int) round( $tax * (int) $amount / $base ) ) : 0;
 	}
 
 	/** Gross value (minor units, before order-level discounts) of the given tickets, from their order lines. */
@@ -430,18 +430,26 @@ final class Refunds {
 		$p = $wpdb->prefix;
 		if ( ! $ticket_ids ) { return array( 0, 0 ); }
 		$unit = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,quantity,line_total_minor,tax_minor FROM {$p}wpcap_order_items WHERE order_id=%d", (int) $order->order_id ) ) as $item ) {
+		$items = (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,quantity,line_total_minor,tax_minor FROM {$p}wpcap_order_items WHERE order_id=%d ORDER BY item_id", (int) $order->order_id ) );
+		// Line totals are stored before the order discount, the line VAT after it: the gross that carries this VAT
+		// is the discounted line total (same allocation as in reports and settlements).
+		$discount = isset( $order->discount_minor ) ? (int) $order->discount_minor : (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$p}wpcap_orders WHERE order_id=%d", (int) $order->order_id ) );
+		$discounted = \PassCaptain\Reports\Data::allocate_discount( $items, $discount );
+		foreach ( array_values( $items ) as $i => $item ) {
 			$q = max( 1, (int) $item->quantity );
-			$unit[ (int) $item->ticket_type_id ] = array( (int) $item->line_total_minor / $q, (int) $item->tax_minor / $q );
+			$unit[ (int) $item->ticket_type_id ] = array( (int) $item->line_total_minor / $q, (int) $item->tax_minor / $q, (int) $discounted[ $i ] / $q );
 		}
 		$ids = implode( ',', array_map( 'absint', $ticket_ids ) );
 		$gross = 0.0;
 		$tax = 0.0;
+		$net_of_discount = 0.0;
 		foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_tickets WHERE order_id=%d AND ticket_id IN ($ids)", (int) $order->order_id ) ) as $type_id ) {
 			$gross += $unit[ (int) $type_id ][0] ?? 0;
 			$tax += $unit[ (int) $type_id ][1] ?? 0;
+			$net_of_discount += $unit[ (int) $type_id ][2] ?? 0;
 		}
-		return array( (int) round( $gross ), (int) round( $tax ) );
+		// [gross before discount, VAT, gross after discount (the base of that VAT)].
+		return array( (int) round( $gross ), (int) round( $tax ), (int) round( $net_of_discount ) );
 	}
 
 	/**
@@ -465,8 +473,8 @@ final class Refunds {
 		if ( ! $ticket_ids ) {
 			return min( $remaining_tax, (int) round( (int) $order->tax_minor * $amount / $total ) );
 		}
-		list( $gross, $tax ) = self::line_shares( $order, $ticket_ids );
-		if ( $gross <= 0 ) { return min( $remaining_tax, (int) round( (int) $order->tax_minor * $amount / $total ) ); }
-		return min( $remaining_tax, $amount, (int) round( $tax * $amount / $gross ) );
+		list( , $tax, $base ) = self::line_shares( $order, $ticket_ids );
+		if ( $base <= 0 ) { return min( $remaining_tax, (int) round( (int) $order->tax_minor * $amount / $total ) ); }
+		return min( $remaining_tax, $amount, (int) round( $tax * $amount / $base ) );
 	}
 }

@@ -121,6 +121,15 @@ final class Settlements {
 			$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.created_at AS order_created_at FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND ord.currency=%s AND r.updated_at < %s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY r.refund_id", $partner->currency, $end, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
 			foreach ( $refunds as $refund ) {
+				// A multi-purpose voucher paid part of the order: the sale counts the full ticket value, so the refund
+				// must count cash and the voucher share given back (same numbers as the credit note).
+				if ( class_exists( '\\PassCaptain\\Integrations\\Vouchers\\Checkout' ) ) {
+					$with_voucher = \PassCaptain\Integrations\Vouchers\Checkout::credit_note_amounts( (int) $refund->refund_id );
+					if ( is_array( $with_voucher ) ) {
+						$refund->amount_minor = (int) $with_voucher['total_minor'];
+						$refund->tax_minor = (int) $with_voucher['tax_minor'];
+					}
+				}
 				$order_lines = $refund_lines[ (int) $refund->order_id ] ?? array();
 				foreach ( self::allocate_refund( $refund, $order_lines ) as $i => $share ) {
 					$line = $order_lines[ $i ];
@@ -267,7 +276,10 @@ final class Settlements {
 		$partner_country = SalesModel::partner_country( $partner );
 		$t['sales_model'] = $model;
 		$t['fee_reverse_charge'] = SalesModel::reverse_charge( $platform['country'], $partner_country, (string) $partner->vat_id );
-		$t['platform_fee_tax'] = $t['fee_reverse_charge'] ? 0 : self::pct( $t['platform_fee_net'], (int) $partner->fee_tax_rate_bp );
+		// A small-business platform shows no VAT on its commission/fee invoice (§ 19 UStG / § 6 Abs. 1 Z 27 UStG).
+		$t['fee_small_business'] = ! empty( $platform['small_business'] );
+		$t['fee_small_business_note'] = $t['fee_small_business'] ? (string) $platform['small_business_note'] : '';
+		$t['platform_fee_tax'] = ( $t['fee_reverse_charge'] || $t['fee_small_business'] ) ? 0 : self::pct( $t['platform_fee_net'], (int) $partner->fee_tax_rate_bp );
 		$t['platform_fee_gross'] = $t['platform_fee_net'] + $t['platform_fee_tax'];
 		if ( SalesModel::OWN_NAME === $model ) {
 			$t['self_billing'] = self::self_billing_totals( $t['rates'], $partner, $partner_country, $platform );
@@ -746,11 +758,16 @@ final class Settlements {
 		$h .= '<tr><td>' . esc_html( sprintf( /* translators: 1: percent, 2: net revenue */ __( 'Provision %1$s auf Netto-Ticketumsatz %2$s', 'wp-pass-captain' ), $pct( $terms['commission_bp'] ?? 0 ), $money( (int) $s->net_minor ) ) ) . '</td><td class="n">' . esc_html( $money( (int) $s->commission_minor ) ) . '</td></tr>';
 		$h .= '<tr><td>' . esc_html( sprintf( /* translators: %s: fee per ticket */ __( 'Ticketgebühren (%s je Ticket)', 'wp-pass-captain' ), $money( $terms['fee_per_ticket_minor'] ?? 0 ) ) ) . '</td><td class="n">' . esc_html( $money( (int) $s->fee_minor ) ) . '</td></tr>';
 		$h .= '<tr><td>' . esc_html__( 'Nettobetrag', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $money( (int) $s->platform_fee_net_minor ) ) . '</td></tr>';
+		$small = ! $rc && ! empty( $t['fee_small_business'] );
 		$tax_label = $rc ? __( 'Umsatzsteuer (Reverse Charge)', 'wp-pass-captain' ) : sprintf( /* translators: %s: percent */ __( 'Umsatzsteuer %s', 'wp-pass-captain' ), $pct( $terms['fee_tax_rate_bp'] ?? 0 ) );
-		$h .= '<tr><td>' . esc_html( $tax_label ) . '</td><td class="n">' . esc_html( $money( (int) $s->platform_fee_tax_minor ) ) . '</td></tr>';
+		if ( ! $small ) {
+			$h .= '<tr><td>' . esc_html( $tax_label ) . '</td><td class="n">' . esc_html( $money( (int) $s->platform_fee_tax_minor ) ) . '</td></tr>';
+		}
 		$h .= '<tr><th>' . esc_html__( 'Rechnungsbetrag', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html( $money( (int) $s->platform_fee_gross_minor ) ) . '</th></tr></tbody></table>';
 		if ( $rc ) {
 			$h .= '<p class="note">' . esc_html( SalesModel::reverse_charge_note() ) . '</p><p><small>' . esc_html__( 'Die Steuer schuldet der Leistungsempfänger (§ 13b UStG / Art. 196 MwStSystRL / § 19 Abs. 1 öUStG).', 'wp-pass-captain' ) . '</small></p>';
+		} elseif ( $small ) {
+			$h .= '<p class="note">' . esc_html( (string) ( $t['fee_small_business_note'] ?? '' ) ) . '</p>';
 		}
 		return $h . '</section>';
 	}

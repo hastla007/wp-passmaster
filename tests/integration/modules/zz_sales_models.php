@@ -169,6 +169,14 @@ $sm_p0_r = Invoices::issue_for_order( sm_order( array( $sm_p0 => 1 ), 'sm-plat-s
 check( 'small-business platform: 0 % invoice carries the § 19 UStG note (DE default)', ! is_wp_error( $sm_p0_r ) && false !== strpos( Invoices::render_html( $sm_p0_r['invoice_id'] ), '§ 19 UStG' ) );
 PassCaptain\Settings::update( array( 'seller_country' => 'AT' ) );
 check( 'Austrian platform: default note cites § 6 Abs. 1 Z 27 UStG; an own text wins', str_contains( Invoices::seller()['small_business_note'], '§ 6 Abs. 1 Z 27' ) && ( function () { PassCaptain\Settings::update( array( 'seller_small_business_note' => 'Eigener Hinweis' ) ); return 'Eigener Hinweis' === Invoices::seller()['small_business_note']; } )() );
+PassCaptain\Settings::update( array( 'seller_small_business_note' => '', 'seller_country' => 'DE' ) );
+$sm_kp = SmPartners::save( array( 'name' => 'Kunde der Kleinplattform', 'billing_address' => "Ring 1\n10115 Berlin", 'vat_id' => 'DE444444444', 'sales_model' => 'agent', 'invoice_prefix' => 'KPL', 'commission_bp' => 1000, 'fee_per_ticket_minor' => 50, 'fee_tax_rate_bp' => 1900, 'settlement_start' => $sm_m1 . '-01' ) );
+$sm_kpt = sm_type( 1190, 1900 );
+SmPartners::set_events( $sm_kp, array( sm_event( $sm_kpt ) ) );
+sm_order( array( $sm_kpt => 2 ), 'sm-kp-1', $sm_t1 );
+$sm_kpd = SmSettlements::get( SmSettlements::create_draft( $sm_kp, $sm_m1 ) );
+$sm_kph = SmSettlements::render_html( $sm_kpd );
+check( 'small-business platform: commission invoice without VAT and with the small-business note', 0 === (int) $sm_kpd->platform_fee_tax_minor && (int) $sm_kpd->platform_fee_gross_minor === (int) $sm_kpd->platform_fee_net_minor && str_contains( $sm_kph, '§ 19 UStG' ) );
 PassCaptain\Settings::update( array( 'seller_small_business' => 0, 'seller_small_business_note' => '', 'seller_country' => 'DE' ) );
 check( 'without the setting the platform has no small-business note', '' === Invoices::seller()['small_business_note'] );
 

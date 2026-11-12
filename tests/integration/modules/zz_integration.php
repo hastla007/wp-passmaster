@@ -157,6 +157,17 @@ $VC::refund( $zr['refund_id'], $zvo['order_id'] );
 $zref = $zv->for_order( 'wpcap-refund-' . $zr['refund_id'], 'refund' );
 check( 'the voucher share of a ticket refund follows the ticket value', 1 === count( $zref ) && 300 === (int) $zref[0][1] );
 
+// VAT of a partial refund on a discounted order: line totals are stored before the discount, line VAT after
+// it. 2 × 50,00 at 19 %, 50 % discount → paid 50,00 with 7,98 VAT; one ticket back = 25,00 with 3,99 VAT.
+$zd_type = make_type( 10, 10, 5000 );
+$wpdb->query( "UPDATE {$wpdb->prefix}wpcap_ticket_types SET tax_rate_bp=1900 WHERE ticket_type_id=" . (int) $zd_type );
+$zd = Orders::create( array( 'email' => 'zzd@example.com', 'items' => array( array( 'ticket_type_id' => $zd_type, 'quantity' => 2 ) ), 'idempotency_key' => 'zz-disc-vat' ) );
+$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET discount_minor=5000,total_minor=5000,tax_minor=798 WHERE order_id=%d", $zd['order_id'] ) );
+$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_order_items SET tax_minor=798 WHERE order_id=%d", $zd['order_id'] ) );
+Orders::confirm_manual_payment( $zd['order_id'] );
+$zd_calc = PassCaptain\Refunds::calculate( Orders::get( $zd['order_id'] ), array( (int) tickets( $zd['order_id'] )[0]->ticket_id ) );
+check( 'a partial refund of a discounted order carries the VAT of the discounted ticket (3,99, not 2,00)', ! is_wp_error( $zd_calc ) && 2500 === (int) $zd_calc['amount_minor'] && 399 === (int) $zd_calc['tax_minor'] );
+
 // The voucher system is briefly unavailable during a refund: the share is retried by a job with the same key.
 $zfail = make_type( 10, 10, 1000 );
 $zfo = Orders::create( array( 'email' => 'zzf@example.com', 'items' => array( array( 'ticket_type_id' => $zfail, 'quantity' => 2 ) ), 'idempotency_key' => 'zzv-fail' ) );
