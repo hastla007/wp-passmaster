@@ -36,10 +36,6 @@ final class Retention {
 		}
 	}
 
-	public static function unschedule() {
-		if ( function_exists( 'wp_clear_scheduled_hook' ) ) { wp_clear_scheduled_hook( self::HOOK ); }
-	}
-
 	/** Days of one step, filterable (wpcap_privacy_retention_days, $days, $step); 0 = off. */
 	public static function days( $step ) {
 		$defaults = array(
@@ -72,7 +68,7 @@ final class Retention {
 	public static function run( $now = null, $budget = null ) {
 		$now = null === $now || '' === $now ? time() : (int) $now;
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_privacy_retention_budget', 20.0 ) : (float) $budget;
-		$deadline = microtime( true ) + max( 0.1, $budget );
+		$deadline = microtime( true ) + max( 0.0, $budget );
 		$counts = array();
 		foreach ( array( 'answers', 'attendees', 'unpaid_attendee_data', 'unpaid_customer_email', 'messages', 'checkin_staff', 'audit_logs' ) as $step ) {
 			$counts[ $step ] = microtime( true ) < $deadline ? (int) call_user_func( array( __CLASS__, 'step_' . $step ), $now, $deadline ) : 0;

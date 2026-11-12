@@ -139,7 +139,7 @@ if ( ! function_exists( 'checked' ) ) { function checked( $a, $b = true, $echo =
 try {
 	$html = PassCaptain\PublicEvents::render_shortcode();
 	$pos_card = strpos( $html, 'id="wpcap-' . $occ3 . '-' . $s3['types'][ $occ3 ]['Student'] . '"' );
-	check( 'event page shows the effective price, label, regular price and data-price', false !== $pos_card && false !== strpos( $html, 'Student — 9,00 EUR' ) && false !== strpos( $html, 'statt 15,00 EUR' ) && false !== strpos( $html, 'data-price="900"' ) );
+	check( 'event page shows the effective price, label, regular price and data-price', false !== $pos_card && false !== strpos( $html, 'Student — 9,00 €' ) && false !== strpos( $html, 'statt 15,00 €' ) && false !== strpos( $html, 'data-price="900"' ) );
 } catch ( \Throwable $e ) {
 	check( 'event page renders (' . $e->getMessage() . ')', false );
 }

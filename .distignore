@@ -2,12 +2,14 @@
 # rsync --exclude-from syntax: a leading "/" anchors to the plugin root, a trailing "/" matches
 # directories only, patterns without "/" match at any depth.
 
+# Version control and CI metadata, at any depth (Composer may install packages from source)
+.git
+.github/
+.gitignore
+.gitattributes
+.distignore
+
 # Development and CI
-/.git
-/.github/
-/.gitignore
-/.gitattributes
-/.distignore
 /.editorconfig
 /.codex/
 /.claude/
@@ -38,9 +40,6 @@ AGENTS.md
 # Composer dependencies: tests, CI configuration and tooling of third-party packages
 /vendor/*/*/test/
 /vendor/*/*/tests/
-/vendor/*/*/.github/
-/vendor/*/*/.gitattributes
-/vendor/*/*/.gitignore
 /vendor/*/*/phpunit.xml*
 /vendor/*/*/phpcs.xml*
 /vendor/*/*/phpstan.neon*
