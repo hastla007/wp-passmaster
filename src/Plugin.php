@@ -26,8 +26,7 @@ final class Plugin {
 		add_action( 'admin_post_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'admin_post_nopriv_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'template_redirect', array( Waitlists::class, 'maybe_render_offer_page' ) );
-		add_filter( 'wp_privacy_personal_data_exporters', array( Privacy::class, 'register_exporter' ) );
-		add_filter( 'wp_privacy_personal_data_erasers', array( Privacy::class, 'register_eraser' ) );
+		Privacy::register();
 		$network_plugins = is_multisite() ? get_site_option( 'active_sitewide_plugins', array() ) : array();
 		if ( is_multisite() && isset( $network_plugins[ plugin_basename( WPCAP_FILE ) ] ) ) {
 			add_action( 'wp_initialize_site', static function ( $site ) {
@@ -120,6 +119,7 @@ final class Plugin {
 		if ( ! wp_next_scheduled( 'wpcap_process_jobs' ) ) {
 			wp_schedule_event( time() + 90, 'wpcap_five_minutes', 'wpcap_process_jobs' );
 		}
+		Privacy\Retention::schedule();
 	}
 
 	public static function deactivate( $network_wide = false ) {
@@ -127,7 +127,7 @@ final class Plugin {
 		foreach ( $site_ids as $site_id ) {
 			if ( is_multisite() && $network_wide ) { switch_to_blog( (int) $site_id ); }
 			// wp_unschedule_hook also removes continuation runs scheduled with arguments.
-			foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', Installer::UPGRADE_HOOK ) as $hook ) {
+			foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK ) as $hook ) {
 				wp_unschedule_hook( $hook );
 			}
 			if ( function_exists( 'as_unschedule_all_actions' ) ) { as_unschedule_all_actions( '', array(), 'wp-pass-captain' ); }

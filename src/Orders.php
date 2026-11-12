@@ -856,6 +856,11 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_transfer_not_allowed', __( 'Dieses Ticket kann nicht mehr übertragen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
 		}
+		// A holder change by assignment counts against the same limit as a transfer.
+		if ( method_exists( TicketAssignments::class, 'holder_changes' ) && TicketAssignments::holder_changes( (int) $ticket->ticket_id ) >= (int) apply_filters( 'wpcap_max_holder_changes', 1, (int) $ticket->ticket_id ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_transfer_holder_changed', __( 'Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		}
 		$token = bin2hex( random_bytes( 32 ) );
 		$updated = $wpdb->update( $tickets_table, array(
 			'token_hash' => hash( 'sha256', $token ),

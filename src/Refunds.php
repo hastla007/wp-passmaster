@@ -348,7 +348,10 @@ final class Refunds {
 	public static function calculate( $order, array $ticket_ids, array $reserved_ids = array(), $reserved_minor = 0 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$open = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,ticket_type_id FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0 AND status IN ('valid','checked_in') ORDER BY ticket_id", (int) $order->order_id ) );
+		// Orders::refundable_tickets() also covers tickets revoked by an occurrence/event cancellation.
+		$open = method_exists( Orders::class, 'refundable_tickets' )
+			? Orders::refundable_tickets( (int) $order->order_id )
+			: $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,ticket_type_id FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0 AND status IN ('valid','checked_in') ORDER BY ticket_id", (int) $order->order_id ) );
 		// Tickets of pending/running refunds ($reserved_ids, worth $reserved_minor) are not open any more.
 		$open_ids = array_values( array_diff( array_map( static function ( $t ) { return (int) $t->ticket_id; }, $open ), array_map( 'intval', $reserved_ids ) ) );
 		$ticket_ids = $ticket_ids ? array_values( array_unique( array_map( 'absint', $ticket_ids ) ) ) : $open_ids;

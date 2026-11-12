@@ -17,7 +17,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) { exit; }
 /** Removes the plugin data of the current site if the operator opted in; returns whether it did. */
 function wpcap_uninstall_site() {
 	global $wpdb;
-	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_run_upgrade' ) as $hook ) {
+	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_run_upgrade', 'wpcap_privacy_retention', 'wpcap_privacy_purge_wallet_registrations' ) as $hook ) {
 		wp_unschedule_hook( $hook ); // All events of the hook, including continuation runs with arguments.
 	}
 	$settings = get_option( 'wpcap_settings', array() );
