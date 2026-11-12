@@ -20,7 +20,7 @@ final class Plugin {
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
 		Settings::register();
 		if ( is_admin() ) {
-			( new Licensing\\AdminPage() )->register();
+			( new Licensing\AdminPage() )->register();
 		}
 		Jobs\TimeBudget::register();
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_site_tables' ), 10, 2 );
