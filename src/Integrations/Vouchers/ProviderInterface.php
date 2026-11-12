@@ -5,7 +5,11 @@ namespace PassCaptain\Integrations\Vouchers;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 interface ProviderInterface {
-	/** Return an immutable quote or WP_Error for the supplied cart context. */
+	/**
+	 * Return an immutable quote or WP_Error for the supplied cart context. Keys: `amount_minor`, `currency`
+	 * and optionally `treatment` – "payment" (multi-purpose voucher: VAT unchanged, shown as a payment),
+	 * "single" (single-purpose voucher: VAT already charged at sale) or "discount" (default: price reduction).
+	 */
 	public function quote( array $context );
 	/** Reserve a quoted voucher application for an idempotency key. */
 	public function reserve( array $quote, $idempotency_key );

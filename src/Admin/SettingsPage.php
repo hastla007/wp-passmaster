@@ -98,6 +98,8 @@ final class SettingsPage {
 					'seller_name' => array( 'type' => 'text', 'label' => __( 'Name / Firma', 'wp-pass-captain' ) ),
 					'seller_address' => array( 'type' => 'textarea', 'label' => __( 'Anschrift', 'wp-pass-captain' ) ),
 					'seller_vat_id' => array( 'type' => 'text', 'label' => __( 'USt-IdNr.', 'wp-pass-captain' ) ),
+					'seller_tax_number' => array( 'type' => 'text', 'label' => __( 'Steuernummer (wenn keine USt-IdNr. angegeben wird)', 'wp-pass-captain' ) ),
+					'seller_small_business' => array( 'type' => 'choice', 'label' => __( 'Kleinunternehmerregelung', 'wp-pass-captain' ), 'options' => array( '' => __( 'Nein', 'wp-pass-captain' ), 'de' => __( 'Ja, Deutschland (§ 19 UStG)', 'wp-pass-captain' ), 'at' => __( 'Ja, Österreich (§ 6 Abs. 1 Z 27 UStG)', 'wp-pass-captain' ) ) ),
 					'invoice_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungsnummer', 'wp-pass-captain' ) ),
 					'credit_note_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Gutschriftnummer', 'wp-pass-captain' ) ),
 					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'wp-pass-captain' ) ),

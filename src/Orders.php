@@ -204,6 +204,9 @@ final class Orders {
 				'public_id' => $public_id,
 				'idempotency_key' => $key_hash,
 				'customer_email' => $email,
+				// Optional invoice recipient (required on invoices above the small-amount limit and for businesses).
+				'billing_name' => mb_substr( sanitize_text_field( (string) ( $payload['billing_name'] ?? '' ) ), 0, 190 ),
+				'billing_address' => mb_substr( sanitize_textarea_field( (string) ( $payload['billing_address'] ?? '' ) ), 0, 500 ),
 				'access_token_hash' => hash( 'sha256', $access_token ),
 				'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS ),
 				'status' => ( $total || $external ) ? 'pending_payment' : 'complete',

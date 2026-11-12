@@ -34,6 +34,10 @@ $form_id = 'wpcap-' . (int) $event->occurrence_id;
 		<div class="wpcap-attendees" aria-live="polite"></div>
 		<?php do_action( 'wpcap_checkout_form_fields', $event, $types ); ?>
 		<label><?php esc_html_e( 'E-Mail', 'wp-pass-captain' ); ?> <input name="email" type="email" autocomplete="email" required></label>
+		<details class="wpcap-billing"><summary><?php esc_html_e( 'Rechnungsadresse (optional, z. B. für Firmenrechnungen)', 'wp-pass-captain' ); ?></summary>
+			<label><?php esc_html_e( 'Name / Firma', 'wp-pass-captain' ); ?> <input name="billing_name" type="text" autocomplete="name" maxlength="190"></label>
+			<label><?php esc_html_e( 'Anschrift', 'wp-pass-captain' ); ?> <textarea name="billing_address" rows="3" maxlength="500" autocomplete="street-address"></textarea></label>
+		</details>
 		<label><?php esc_html_e( 'Rabattcode (optional)', 'wp-pass-captain' ); ?> <input name="campaign_code" type="text" autocomplete="off" maxlength="40"></label>
 		<?php if ( \PassCaptain\Integrations\Vouchers\Bridge::available() ) : ?>
 			<label><?php esc_html_e( 'Gutscheincode (optional)', 'wp-pass-captain' ); ?> <input name="voucher_code" type="text" autocomplete="off" maxlength="64"></label>

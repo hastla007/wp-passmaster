@@ -35,6 +35,9 @@ final class Settings {
 			'seller_name'               => '',
 			'seller_address'            => '',
 			'seller_vat_id'             => '',
+			'seller_tax_number'         => '',
+			// Small business: '' (no), 'de' (§ 19 UStG), 'at' (§ 6 Abs. 1 Z 27 UStG).
+			'seller_small_business'     => '',
 			'invoice_prefix'            => 'WPC',
 			'credit_note_prefix'        => 'GS',
 			'auto_invoice'              => 0,

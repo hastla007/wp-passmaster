@@ -72,25 +72,30 @@ final class Checkout {
 		$order_ref = $order->public_id;
 		$old_total = (int) $order->total_minor;
 		$new_total = $old_total - $amount;
-		$new_tax = $old_total > 0 ? (int) round( (int) $order->tax_minor * $new_total / $old_total ) : 0;
+		// VAT treatment from the provider: a multi-purpose voucher ("payment") is a means of payment – the full
+		// VAT stays due and the voucher appears as a payment on the invoice. Single-purpose vouchers (VAT
+		// charged at sale) and promotions ("discount", also when a provider sends nothing) reduce the VAT.
+		$treatment = in_array( $quote['treatment'] ?? '', array( 'payment', 'single', 'discount' ), true ) ? $quote['treatment'] : 'discount';
+		$payment = 'payment' === $treatment;
+		$new_tax = $payment ? (int) $order->tax_minor : ( $old_total > 0 ? (int) round( (int) $order->tax_minor * $new_total / $old_total ) : 0 );
 		// Keep line VAT consistent with the reduced total (proportional, remainder on the last line).
 		$tax_left = $new_tax;
 		$last = count( $items ) - 1;
-		$snapshot = array( 'code_hint' => substr( $code, -4 ), 'amount_minor' => $amount, 'quote' => $quote, 'reservation' => $reservation, 'status' => 'reserved', 'refunded_minor' => 0, 'refunded_tickets' => 0 );
+		$snapshot = array( 'code_hint' => substr( $code, -4 ), 'amount_minor' => $amount, 'treatment' => $treatment, 'quote' => $quote, 'reservation' => $reservation, 'status' => 'reserved', 'refunded_minor' => 0, 'refunded_tickets' => 0 );
 		// One transaction, every write checked; the order row only changes while it is still pending,
 		// unchanged and without a voucher (a concurrent retry or an expiry in between wins).
 		$wpdb->query( 'START TRANSACTION' );
 		$ok = false !== $wpdb->query( $wpdb->prepare(
 			"UPDATE {$p}wpcap_orders SET total_minor=%d,discount_minor=discount_minor+%d,tax_minor=%d,voucher_snapshot=%s,updated_at=%s WHERE order_id=%d AND payment_status='pending' AND total_minor=%d AND (voucher_snapshot IS NULL OR voucher_snapshot='')",
 			$new_total,
-			$amount,
+			$payment ? 0 : $amount,
 			$new_tax,
 			wp_json_encode( $snapshot ),
 			current_time( 'mysql', true ),
 			(int) $order_id,
 			$old_total
 		) ) && 1 === (int) $wpdb->rows_affected;
-		foreach ( $ok ? $items : array() as $index => $item ) {
+		foreach ( $ok && ! $payment ? $items : array() as $index => $item ) {
 			$line_tax = $index === $last ? $tax_left : ( (int) $order->tax_minor > 0 ? (int) round( (int) $item->tax_minor * $new_tax / (int) $order->tax_minor ) : 0 );
 			$line_tax = max( 0, min( $line_tax, $tax_left ) );
 			$tax_left -= $line_tax;
@@ -282,19 +287,7 @@ final class Checkout {
 			return;
 		}
 		if ( 'committed' !== $snapshot['status'] ) { return; }
-		$refund = \PassCaptain\Refunds::get( $refund_id );
-		$order = Orders::get( $order_id );
-		if ( ! $refund || ! $order ) { return; }
-		$refunded_ids = array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) );
-		$refunded_now = count( $refunded_ids );
-		$total_tickets = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d", (int) $order_id ) );
-		$done_tickets = (int) $snapshot['refunded_tickets'] + $refunded_now;
-		// By value, like the cash share: voucher amount × gross of the refunded tickets / order subtotal.
-		$subtotal = max( 1, (int) $order->subtotal_minor ?: ( (int) $order->total_minor + (int) $order->discount_minor ) );
-		$left = (int) $snapshot['amount_minor'] - (int) $snapshot['refunded_minor'];
-		$share = $done_tickets >= $total_tickets
-			? $left
-			: min( $left, (int) floor( (int) $snapshot['amount_minor'] * \PassCaptain\Refunds::gross_for_tickets( $order, $refunded_ids ) / $subtotal ) );
+		list( $share, $done_tickets ) = self::share_for_refund( $refund_id, $order_id, $snapshot );
 		if ( $share < 1 ) { return; }
 		$result = Bridge::refund( (array) ( $snapshot['redemption'] ?? array() ), $share, 'wpcap-refund-' . absint( $refund_id ) );
 		if ( is_wp_error( $result ) ) {
@@ -303,9 +296,43 @@ final class Checkout {
 		}
 		$snapshot['refunded_minor'] = (int) $snapshot['refunded_minor'] + $share;
 		$snapshot['refunded_tickets'] = $done_tickets;
+		$snapshot['refund_shares'][ absint( $refund_id ) ] = $share;
 		$snapshot['refund_ids'] = array_merge( $done_ids, array( absint( $refund_id ) ) );
 		self::save( $order_id, $snapshot );
 		Audit::record( 'voucher_refunded', 'order', (int) $order_id, array( 'refund_id' => absint( $refund_id ), 'amount_minor' => $share ) );
+	}
+
+	/**
+	 * Voucher share of a ticket refund, by value like the cash share (voucher amount × gross of the refunded
+	 * tickets / order subtotal; the last refund receives the remainder). Also used for credit notes, which
+	 * may be written before the share is booked.
+	 *
+	 * @return int[] [share in minor units, refunded tickets incl. this refund]
+	 */
+	public static function share_for_refund( $refund_id, $order_id, $snapshot = null ) {
+		global $wpdb;
+		$snapshot = null === $snapshot ? self::snapshot( $order_id ) : $snapshot;
+		if ( ! $snapshot ) { return array( 0, 0 ); }
+		if ( isset( $snapshot['refund_shares'][ absint( $refund_id ) ] ) ) { return array( (int) $snapshot['refund_shares'][ absint( $refund_id ) ], (int) $snapshot['refunded_tickets'] ); }
+		$refund = \PassCaptain\Refunds::get( $refund_id );
+		$order = Orders::get( $order_id );
+		if ( ! $refund || ! $order ) { return array( 0, 0 ); }
+		$refunded_ids = array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) );
+		$total_tickets = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d", (int) $order_id ) );
+		$done_tickets = (int) $snapshot['refunded_tickets'] + count( $refunded_ids );
+		$subtotal = max( 1, (int) $order->subtotal_minor ?: ( (int) $order->total_minor + (int) $order->discount_minor ) );
+		$left = (int) $snapshot['amount_minor'] - (int) $snapshot['refunded_minor'];
+		if ( ! $refunded_ids ) { return array( 0, $done_tickets ); }
+		$share = $done_tickets >= $total_tickets
+			? $left
+			: min( $left, (int) floor( (int) $snapshot['amount_minor'] * \PassCaptain\Refunds::gross_for_tickets( $order, $refunded_ids ) / $subtotal ) );
+		return array( max( 0, $share ), $done_tickets );
+	}
+
+	/** Whether the order was paid (partly) with a multi-purpose voucher: VAT unchanged, voucher = payment. */
+	public static function paid_with_voucher( $order_id ) {
+		$snapshot = self::snapshot( $order_id );
+		return $snapshot && 'payment' === ( $snapshot['treatment'] ?? '' ) && in_array( $snapshot['status'] ?? '', array( 'reserved', 'committed', 'commit_failed' ), true ) ? $snapshot : null;
 	}
 
 	private static function snapshot( $order_id ) {

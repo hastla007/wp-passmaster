@@ -111,6 +111,8 @@
 		const code = form.querySelector('[name="campaign_code"]');
 		const terms = form.querySelector('[name="accept_terms"]');
 		const voucher = form.querySelector('[name="voucher_code"]');
+		const billingName = form.querySelector('[name="billing_name"]');
+		const billingAddress = form.querySelector('[name="billing_address"]');
 		const extra = {};
 		// Modules (e.g. seat selection) add fields here; they may set detail.error to block submission.
 		const hook = new CustomEvent('wpcap:checkout-payload', { detail: { form: form, items: items, payload: extra, error: '' } });
@@ -132,6 +134,8 @@
 					provider: provider ? provider.value : 'manual',
 					accept_terms: terms ? terms.checked : false,
 					voucher_code: voucher ? voucher.value.trim() : '',
+					billing_name: billingName ? billingName.value.trim() : '',
+					billing_address: billingAddress ? billingAddress.value.trim() : '',
 					idempotency_key: form.dataset.key
 				}, extra))
 			});

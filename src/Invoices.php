@@ -46,8 +46,18 @@ final class Invoices {
 		// Reserve the number in the same transaction so a rollback never leaves a gap.
 		$number = self::next_number( 0, true );
 		if ( is_wp_error( $number ) ) { $wpdb->query( 'ROLLBACK' ); return $number; }
+		// Multi-purpose voucher = payment: the invoice shows the full price (and VAT) and the voucher as a payment.
+		$voucher = Integrations\Vouchers\Checkout::paid_with_voucher( $order_id );
+		$voucher_paid = $voucher ? (int) $voucher['amount_minor'] : 0;
+		$single = Integrations\Vouchers\Checkout::voucher_state( $order_id );
+		$single_paid = $single && 'single' === ( $single['treatment'] ?? '' ) && in_array( $single['status'] ?? '', array( 'reserved', 'committed', 'commit_failed' ), true ) ? (int) $single['amount_minor'] : 0;
 		$snapshot = array(
 			'email' => $order->customer_email,
+			'billing_name' => (string) ( $order->billing_name ?? '' ),
+			'billing_address' => (string) ( $order->billing_address ?? '' ),
+			'voucher_payment_minor' => $voucher_paid,
+			'voucher_single_minor' => $single_paid,
+			'voucher_code_hint' => (string) ( ( $voucher ?: $single ?: array() )['code_hint'] ?? '' ),
 			'currency' => $order->currency,
 			'subtotal_minor' => $order_subtotal,
 			'discount_minor' => (int) $order->discount_minor,
@@ -55,7 +65,7 @@ final class Invoices {
 			'terms_version' => $order->terms_version,
 			'seller' => self::seller(),
 		);
-		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => (int) $order->total_minor, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ) );
+		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => (int) $order->total_minor + $voucher_paid, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ) );
 		$invoice_id = (int) $wpdb->insert_id;
 		if ( false === $saved || ! $invoice_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_create', __( 'Rechnung konnte nicht erstellt werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		$discount_left = (int) $order->discount_minor;
@@ -92,6 +102,25 @@ final class Invoices {
 		if ( ! $invoice ) { return null; }
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE refund_id=%d", absint( $refund_id ) ), ARRAY_A );
 		if ( $existing ) { return $existing; }
+		$amount = (int) $refund['amount_minor'];
+		$tax = (int) $refund['tax_minor'];
+		$order = Orders::get( (int) $refund['order_id'] );
+		if ( $order && Integrations\Vouchers\Checkout::paid_with_voucher( (int) $refund['order_id'] ) ) {
+			// The refunded service includes the part paid with the voucher (its value goes back to the voucher):
+			// the credit note corrects the full price and its VAT.
+			list( $share ) = Integrations\Vouchers\Checkout::share_for_refund( absint( $refund_id ), (int) $refund['order_id'] );
+			$ticket_ids = array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) );
+			$amount += (int) $share;
+			$open = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0 AND status IN ('valid','checked_in')", (int) $refund['order_id'] ) );
+			$credited = $wpdb->get_row( $wpdb->prepare( "SELECT COALESCE(SUM(total_minor),0) AS total,COALESCE(SUM(tax_minor),0) AS tax FROM {$p}wpcap_credit_notes WHERE invoice_id=%d", (int) $invoice->invoice_id ) );
+			$inv = $wpdb->get_row( $wpdb->prepare( "SELECT total_minor,tax_minor FROM {$p}wpcap_invoices WHERE invoice_id=%d", (int) $invoice->invoice_id ) );
+			if ( 0 === $open && $ticket_ids ) {
+				$amount = max( 0, (int) $inv->total_minor - (int) $credited->total );
+				$tax = max( 0, (int) $inv->tax_minor - (int) $credited->tax );
+			} elseif ( $ticket_ids ) {
+				$tax = Refunds::tax_for_tickets( $order, $ticket_ids, $amount );
+			}
+		}
 		$wpdb->query( 'START TRANSACTION' );
 		$number = self::next_document_number( 'credit', (string) Settings::get( 'credit_note_prefix' ) ?: 'GS', true );
 		if ( is_wp_error( $number ) ) { $wpdb->query( 'ROLLBACK' ); return $number; }
@@ -100,9 +129,9 @@ final class Invoices {
 			'refund_id' => absint( $refund_id ),
 			'credit_note_number' => $number,
 			'currency' => $refund['currency'],
-			'net_minor' => (int) $refund['amount_minor'] - (int) $refund['tax_minor'],
-			'tax_minor' => (int) $refund['tax_minor'],
-			'total_minor' => (int) $refund['amount_minor'],
+			'net_minor' => $amount - $tax,
+			'tax_minor' => $tax,
+			'total_minor' => $amount,
 			'issued_at' => current_time( 'mysql', true ),
 		) );
 		if ( false === $saved ) {
@@ -122,7 +151,41 @@ final class Invoices {
 			'name' => (string) Settings::get( 'seller_name' ),
 			'address' => (string) Settings::get( 'seller_address' ),
 			'vat_id' => (string) Settings::get( 'seller_vat_id' ),
+			'tax_number' => (string) Settings::get( 'seller_tax_number' ),
+			'small_business' => (string) Settings::get( 'seller_small_business' ),
 		);
+	}
+
+	/**
+	 * Document details shared by the HTML and PDF invoice: recipient, extra seller lines, payments
+	 * (multi-purpose voucher) and legal notes.
+	 *
+	 * @return array{recipient: string[], seller: string[], payments: array, due: int|null, notes: string[]}
+	 */
+	public static function details( $invoice, array $snapshot ) {
+		$seller = (array) ( $snapshot['seller'] ?? self::seller() );
+		$recipient = array_values( array_filter( array_merge( array( (string) ( $snapshot['billing_name'] ?? '' ) ), preg_split( '/\r\n|\r|\n/', (string) ( $snapshot['billing_address'] ?? '' ) ), array( (string) ( $snapshot['email'] ?? '' ) ) ), static function ( $line ) { return '' !== trim( $line ); } ) );
+		$extra = array();
+		if ( '' !== (string) ( $seller['tax_number'] ?? '' ) ) { $extra[] = __( 'Steuernummer:', 'wp-pass-captain' ) . ' ' . $seller['tax_number']; }
+		$payments = array();
+		$due = null;
+		$hint = (string) ( $snapshot['voucher_code_hint'] ?? '' );
+		if ( ! empty( $snapshot['voucher_payment_minor'] ) ) {
+			/* translators: %s: last characters of the voucher code */
+			$payments[] = array( sprintf( __( 'Bezahlt mit Gutschein …%s', 'wp-pass-captain' ), $hint ), (int) $snapshot['voucher_payment_minor'] );
+			$due = (int) $invoice->total_minor - (int) $snapshot['voucher_payment_minor'];
+		}
+		$notes = array( __( 'Leistungsdatum: Veranstaltungstermin der jeweiligen Position.', 'wp-pass-captain' ) );
+		if ( ! empty( $snapshot['voucher_single_minor'] ) ) {
+			/* translators: 1: last characters of the voucher code */
+			$notes[] = sprintf( __( 'Der Rabatt enthält einen Einzweck-Gutschein (…%1$s); die Umsatzsteuer darauf wurde bereits bei dessen Verkauf abgeführt.', 'wp-pass-captain' ), $hint );
+		}
+		if ( 'de' === ( $seller['small_business'] ?? '' ) ) {
+			$notes[] = __( 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.', 'wp-pass-captain' );
+		} elseif ( 'at' === ( $seller['small_business'] ?? '' ) ) {
+			$notes[] = __( 'Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.', 'wp-pass-captain' );
+		}
+		return array( 'recipient' => $recipient, 'seller' => $extra, 'payments' => $payments, 'due' => $due, 'notes' => $notes );
 	}
 
 	/**
@@ -172,6 +235,7 @@ final class Invoices {
 		$snapshot = (array) json_decode( (string) $invoice->buyer_snapshot, true );
 		$seller = (array) ( $snapshot['seller'] ?? self::seller() );
 		$money = static function ( $minor ) use ( $invoice ) { return number_format_i18n( $minor / 100, 2 ) . ' ' . $invoice->currency; };
+		$details = self::details( $invoice, $snapshot );
 		$rates = array();
 		foreach ( $lines as $line ) {
 			$key = (string) (float) $line->tax_rate;
@@ -181,9 +245,10 @@ final class Invoices {
 		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( $invoice->invoice_number ); ?></title><style>body{font:14px/1.45 system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem;color:#1d2327}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border-bottom:1px solid #dcdcde;padding:.4rem;text-align:left}td.n,th.n{text-align:right}.seller{white-space:pre-line}@media print{button{display:none}}</style></head><body>
 		<header><div class="seller"><strong><?php echo esc_html( $seller['name'] ?? '' ); ?></strong>
 <?php echo esc_html( $seller['address'] ?? '' ); ?><?php if ( ! empty( $seller['vat_id'] ) ) : ?>
-<?php echo esc_html( __( 'USt-IdNr.:', 'wp-pass-captain' ) . ' ' . $seller['vat_id'] ); ?><?php endif; ?></div></header>
+<?php echo esc_html( __( 'USt-IdNr.:', 'wp-pass-captain' ) . ' ' . $seller['vat_id'] ); ?><?php endif; ?><?php foreach ( $details['seller'] as $seller_line ) : ?>
+<?php echo esc_html( $seller_line ); ?><?php endforeach; ?></div></header>
 		<h1><?php echo esc_html( __( 'Rechnung', 'wp-pass-captain' ) . ' ' . $invoice->invoice_number ); ?></h1>
-		<p><?php echo esc_html( __( 'Rechnungsdatum:', 'wp-pass-captain' ) . ' ' . wp_date( 'd.m.Y', strtotime( $invoice->issued_at . ' UTC' ) ) ); ?><br><?php echo esc_html( __( 'Rechnungsempfänger:', 'wp-pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) ); ?></p>
+		<p><?php echo esc_html( __( 'Rechnungsdatum:', 'wp-pass-captain' ) . ' ' . wp_date( 'd.m.Y', strtotime( $invoice->issued_at . ' UTC' ) ) ); ?><br><?php echo esc_html__( 'Rechnungsempfänger:', 'wp-pass-captain' ); ?> <?php echo implode( ', ', array_map( 'esc_html', $details['recipient'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped per line. ?></p>
 		<table><thead><tr><th><?php esc_html_e( 'Leistung', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Menge', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Einzelpreis', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Rabatt', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'USt.', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Gesamt (brutto)', 'wp-pass-captain' ); ?></th></tr></thead><tbody>
 		<?php foreach ( $lines as $line ) : ?><tr><td><?php echo esc_html( $line->description ); ?></td><td class="n"><?php echo esc_html( $line->quantity ); ?></td><td class="n"><?php echo esc_html( $money( (int) $line->unit_minor ) ); ?></td><td class="n"><?php echo esc_html( $money( (int) $line->discount_minor ) ); ?></td><td class="n"><?php echo esc_html( number_format_i18n( (float) $line->tax_rate, 2 ) . ' %' ); ?></td><td class="n"><?php echo esc_html( $money( (int) $line->total_minor ) ); ?></td></tr><?php endforeach; ?>
 		</tbody></table>
@@ -191,7 +256,10 @@ final class Invoices {
 		<tr><td><?php esc_html_e( 'Nettobetrag', 'wp-pass-captain' ); ?></td><td class="n"><?php echo esc_html( $money( (int) $invoice->total_minor - (int) $invoice->tax_minor ) ); ?></td></tr>
 		<?php foreach ( $rates as $rate => $tax ) : ?><tr><td><?php echo esc_html( sprintf( /* translators: %s: rate */ __( 'Umsatzsteuer %s %%', 'wp-pass-captain' ), number_format_i18n( (float) $rate, 2 ) ) ); ?></td><td class="n"><?php echo esc_html( $money( $tax ) ); ?></td></tr><?php endforeach; ?>
 		<tr><th><?php esc_html_e( 'Rechnungsbetrag', 'wp-pass-captain' ); ?></th><th class="n"><?php echo esc_html( $money( (int) $invoice->total_minor ) ); ?></th></tr>
+		<?php foreach ( $details['payments'] as $payment_row ) : ?><tr><td><?php echo esc_html( $payment_row[0] ); ?></td><td class="n">-<?php echo esc_html( $money( $payment_row[1] ) ); ?></td></tr><?php endforeach; ?>
+		<?php if ( null !== $details['due'] ) : ?><tr><th><?php esc_html_e( 'Zahlbetrag', 'wp-pass-captain' ); ?></th><th class="n"><?php echo esc_html( $money( $details['due'] ) ); ?></th></tr><?php endif; ?>
 		</tbody></table>
+		<?php foreach ( $details['notes'] as $note ) : ?><p><?php echo esc_html( $note ); ?></p><?php endforeach; ?>
 		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Gutschrift', 'wp-pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'wp-pass-captain' ), $invoice->invoice_number, wp_date( 'd.m.Y', strtotime( $credit->issued_at . ' UTC' ) ) ) ); ?></p><table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'wp-pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr><tr><td><?php esc_html_e( 'Umsatzsteuer', 'wp-pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->tax_minor ) ); ?></td></tr><tr><th><?php esc_html_e( 'Gutschriftsbetrag', 'wp-pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
 		<button onclick="window.print()"><?php esc_html_e( 'Drucken oder als PDF speichern', 'wp-pass-captain' ); ?></button>
 		</body></html><?php

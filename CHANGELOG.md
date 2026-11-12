@@ -6,6 +6,10 @@
 - Gemeinsamer Scanner: neuer Dienst `wp_pass_captain_checkin_service_v1` (`Integrations\Vouchers\CheckinService`) – `recognizes()`, `preview()`, `check_in()` mit denselben Regeln, Sperren und Audit wie der eigene Web-Scanner; Recht `wpcap_checkin` wird im Dienst geprüft. Der Voucher-Captain-Scanner erkennt damit auch Pass-Captain-Tickets; Gutschein-Einlösung und Ticket-Check-in bleiben getrennte Aktionen.
 - Einstellungen zeigen den Status der Integration (Voucher Captain aktiv/Version, Gutscheine im Checkout, Gutschein → Ticket, gemeinsamer Scanner) mit Links; im Menü stehen „Gemeinsamer Scanner ↗“ und „WP Voucher Captain ↗“, wenn Voucher Captain aktiv ist. Beide Plugins behalten ihre eigenen Menüs.
 
+### Gutscheine, Umsatzsteuer und Rechnungen
+- USt-Behandlung von Gutscheinen im Ticket-Checkout: Liefert der Gutschein-Anbieter `treatment: payment` (Mehrzweckgutschein, z. B. Wertgutschein/Geschenkkarte aus WP Voucher Captain), bleibt die Umsatzsteuer unverändert und der Gutschein ist ein Zahlungsmittel: Die Rechnung zeigt den vollen Preis, „Bezahlt mit Gutschein …1234“ und den Zahlbetrag; Gutschriften umfassen bei Erstattungen auch den Gutscheinanteil samt USt. Einzweckgutscheine (`single`) und Aktionen (`discount`, Standard) mindern die USt wie bisher; bei Einzweckgutscheinen weist die Rechnung darauf hin, dass die USt bereits beim Verkauf abgeführt wurde.
+- Rechnungspflichtangaben: optionale Rechnungsadresse (Name/Firma, Anschrift) im Checkout, auf Rechnung und PDF; Steuernummer und Kleinunternehmerregelung (DE § 19 UStG, AT § 6 Abs. 1 Z 27 UStG) in den Einstellungen; Hinweis auf das Leistungsdatum (Veranstaltungstermin je Position). Neue Spalten `billing_name`/`billing_address` (DB 3.4.0).
+
 ### Datenschutz
 - Löschanfragen für Bestellungen mit gültigen Tickets für kommende Termine werden zurückgestellt (Art. 17 Abs. 3 DSGVO, Vertragserfüllung): Die Tickets bleiben gültig, der Admin wird per E-Mail informiert, und nach dem letzten Termin wird die Bestellung automatisch anonymisiert (stündlicher Lauf, Option `wpcap_deferred_erasures`). Bisher wurden solche Tickets sofort entwertet und Besucher am Einlass abgewiesen.
 

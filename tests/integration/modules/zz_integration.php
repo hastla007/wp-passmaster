@@ -128,7 +128,9 @@ echo "Integration: voucher ledger edge cases (expert review)\n";
 final class ZZ_Voucher_Provider implements PassCaptain\Integrations\Vouchers\ProviderInterface {
 	public array $calls = array();
 	public array $commit_errors = array();
-	public function quote( array $context ) { $this->calls[] = array( 'quote', $context['order_reference'] ); return array( 'amount_minor' => min( 1500, $context['amount_minor'] ), 'currency' => $context['currency'] ); }
+	public $treatment = null;
+	public $max = 1500;
+	public function quote( array $context ) { $this->calls[] = array( 'quote', $context['order_reference'] ); return array_filter( array( 'amount_minor' => min( $this->max, $context['amount_minor'] ), 'currency' => $context['currency'], 'treatment' => $this->treatment ) ); }
 	public function reserve( array $quote, $key ) { $this->calls[] = array( 'reserve', $key ); return array( 'reservation' => $key, 'applied_minor' => $quote['amount_minor'] ); }
 	public function commit( array $reservation, $key ) { $this->calls[] = array( 'commit', $key ); return $this->commit_errors ? array_shift( $this->commit_errors ) : array( 'redemption' => $key ); }
 	public function release( array $reservation, $key ) { $this->calls[] = array( 'release', $key ); return true; }
@@ -225,6 +227,34 @@ $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER
 $zw_res = $VC::apply( $zw['order_id'], 'ZZ-RACE' );
 $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] = $zv;
 check( 'apply() does not discount an order that is no longer pending and releases the reservation', is_wp_error( $zw_res ) && ! Orders::get( $zw['order_id'] )->voucher_snapshot && 1000 === (int) Orders::get( $zw['order_id'] )->total_minor && 1 === count( $zv->for_order( $zw['public_id'], 'release' ) ) );
+// Multi-purpose voucher (means of payment): VAT unchanged, invoice shows the full price and the voucher as payment.
+$zv->treatment = 'payment';
+$zv->max = 500;
+$zx_type = make_type( 10, 10, 1200 );
+$wpdb->query( "UPDATE {$p}wpcap_ticket_types SET tax_rate_bp=2000 WHERE ticket_type_id=$zx_type" );
+$zx = Orders::create( array( 'email' => 'zzx@example.com', 'billing_name' => 'Muster GmbH', 'billing_address' => "Hauptstraße 1\n1010 Wien", 'items' => array( array( 'ticket_type_id' => $zx_type, 'quantity' => 2 ) ), 'idempotency_key' => 'zzv-8' ) );
+$zx_before = Orders::get( $zx['order_id'] );
+$VC::apply( $zx['order_id'], 'ZZ-PAYMENT' );
+$zx_after = Orders::get( $zx['order_id'] );
+check( 'a multi-purpose voucher reduces the amount due but not the VAT', 1900 === (int) $zx_after->total_minor && (int) $zx_before->tax_minor === (int) $zx_after->tax_minor && (int) $zx_before->discount_minor === (int) $zx_after->discount_minor && 'payment' === $VC::voucher_state( $zx['order_id'] )['treatment'] );
+Orders::confirm_manual_payment( $zx['order_id'] );
+$VC::commit( $zx['order_id'] );
+PassCaptain\Settings::update( array( 'seller_small_business' => 'at', 'seller_tax_number' => '12 345/6789' ) );
+$zx_inv = PassCaptain\Invoices::issue_for_order( $zx['order_id'] );
+$zx_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_invoices WHERE invoice_id=%d", $zx_inv['invoice_id'] ) );
+$zx_html = PassCaptain\Invoices::render_html( $zx_inv['invoice_id'] );
+check( 'the invoice shows the full price and VAT, the voucher as a payment and the amount due', 2400 === (int) $zx_row->total_minor && (int) $zx_before->tax_minor === (int) $zx_row->tax_minor && str_contains( $zx_html, 'Bezahlt mit Gutschein' ) && str_contains( $zx_html, 'Zahlbetrag' ) );
+check( 'the invoice names the recipient with address, the tax number and the small-business note', str_contains( $zx_html, 'Muster GmbH' ) && str_contains( $zx_html, '1010 Wien' ) && str_contains( $zx_html, '12 345/6789' ) && str_contains( $zx_html, '§ 6 Abs. 1 Z 27' ) && str_contains( $zx_html, 'Leistungsdatum' ) );
+check( 'the PDF invoice renders with the new details', str_starts_with( (string) PassCaptain\Printing\InvoicePdf::render( $zx_inv['invoice_id'] ), '%PDF' ) );
+PassCaptain\Settings::update( array( 'seller_small_business' => '', 'seller_tax_number' => '' ) );
+$zx_ticket = (int) tickets( $zx['order_id'] )[0]->ticket_id;
+$zx_refund = PassCaptain\Refunds::request( $zx['order_id'], array( $zx_ticket ), 'Storno', 'zzv-r8' );
+$zx_credit = PassCaptain\Invoices::credit_note_for_refund( $zx_refund['refund_id'] );
+$VC::refund( $zx_refund['refund_id'], $zx['order_id'] );
+$zx_share = $zv->for_order( 'wpcap-refund-' . $zx_refund['refund_id'], 'refund' );
+check( 'the credit note corrects the full ticket price (cash + voucher share) and its VAT', 950 === (int) $zx_refund['amount_minor'] && 1200 === (int) $zx_credit['total_minor'] && 200 === (int) $zx_credit['tax_minor'] && 250 === (int) ( $zx_share[0][1] ?? 0 ) );
+$zv->treatment = null;
+$zv->max = 1500;
 unset( $GLOBALS['wpcap_test_filters'][ PassCaptain\Integrations\Vouchers\Bridge::FILTER ] );
 
 echo "Integration: privacy covers participant answers\n";

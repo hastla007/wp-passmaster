@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.3.0';
+	const DB_VERSION = '3.4.0';
 
 	public static function install() {
 		global $wpdb;
@@ -106,6 +106,8 @@ final class Installer {
 				public_id char(32) NOT NULL,
 				idempotency_key char(64) NOT NULL,
 				customer_email varchar(190) NOT NULL,
+				billing_name varchar(190) NOT NULL DEFAULT '',
+				billing_address text NULL,
 				access_token_hash char(64) NOT NULL DEFAULT '',
 				access_expires_at datetime NULL,
 				status varchar(24) NOT NULL DEFAULT 'pending_payment',

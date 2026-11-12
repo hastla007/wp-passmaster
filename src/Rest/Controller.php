@@ -231,7 +231,7 @@ final class Controller {
 		$params = $request->get_json_params() ?: $request->get_params();
 		$params = is_array( $params ) ? $params : array();
 		// Only customer fields; trusted adapter options must never come from a public request.
-		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code' ) ) ) );
+		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code', 'billing_name', 'billing_address' ) ) ) );
 		$provider_id = sanitize_key( $params['provider'] ?? 'manual' );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
 		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );

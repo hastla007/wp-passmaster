@@ -34,7 +34,7 @@ final class InvoicePdf {
 	}
 
 	/** Header block with seller data; returns the y position below it. */
-	private static function header( PdfWriter $pdf, array $seller ) {
+	private static function header( PdfWriter $pdf, array $seller, array $extra = array() ) {
 		$y = 790;
 		$pdf->text( 50, $y, 12, (string) ( $seller['name'] ?? '' ), true );
 		foreach ( preg_split( '/\r\n|\r|\n/', (string) ( $seller['address'] ?? '' ) ) as $line ) {
@@ -45,6 +45,10 @@ final class InvoicePdf {
 		if ( ! empty( $seller['vat_id'] ) ) {
 			$y -= 13;
 			$pdf->text( 50, $y, 9, __( 'USt-IdNr.:', 'wp-pass-captain' ) . ' ' . $seller['vat_id'] );
+		}
+		foreach ( $extra as $line ) {
+			$y -= 13;
+			$pdf->text( 50, $y, 9, $line );
 		}
 		return $y - 36;
 	}
@@ -74,13 +78,18 @@ final class InvoicePdf {
 		};
 
 		if ( ! $credit_note_id ) {
+			$details = \PassCaptain\Invoices::details( $invoice, $snapshot );
 			$pdf->add_page( 595.28, 841.89 );
-			$y = self::header( $pdf, $seller );
+			$y = self::header( $pdf, $seller, $details['seller'] );
 			$pdf->text( 50, $y, 18, __( 'Rechnung', 'wp-pass-captain' ) . ' ' . $invoice->invoice_number, true );
 			$y -= 22;
 			$pdf->text( 50, $y, 10, __( 'Rechnungsdatum:', 'wp-pass-captain' ) . ' ' . self::date( $invoice->issued_at ) );
 			$y -= 14;
-			$pdf->text( 50, $y, 10, __( 'Rechnungsempfänger:', 'wp-pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) );
+			$pdf->text( 50, $y, 10, __( 'Rechnungsempfänger:', 'wp-pass-captain' ) . ' ' . ( $details['recipient'][0] ?? '' ) );
+			foreach ( array_slice( $details['recipient'], 1 ) as $recipient_line ) {
+				$y -= 12;
+				$pdf->text( 50 + 105, $y, 10, $recipient_line );
+			}
 			$y -= 28;
 			$cols = array( array( 50, 'left', __( 'Leistung', 'wp-pass-captain' ) ), array( 330, 'right', __( 'Menge', 'wp-pass-captain' ) ), array( 400, 'right', __( 'Einzelpreis', 'wp-pass-captain' ) ), array( 455, 'right', __( 'Rabatt', 'wp-pass-captain' ) ), array( 490, 'right', __( 'USt.', 'wp-pass-captain' ) ), array( 545, 'right', __( 'Gesamt', 'wp-pass-captain' ) ) );
 			$table_header = static function ( $y ) use ( $pdf, $cols ) {
@@ -125,6 +134,24 @@ final class InvoicePdf {
 			$y -= 18;
 			$pdf->text( 300, $y, 11, __( 'Rechnungsbetrag', 'wp-pass-captain' ), true );
 			$pdf->text( 545, $y, 11, self::money( $invoice->total_minor, $cur ), true, 'right' );
+			foreach ( $details['payments'] as $payment_row ) {
+				$y -= 14;
+				$pdf->text( 300, $y, 10, $payment_row[0] );
+				$pdf->text( 545, $y, 10, '-' . self::money( $payment_row[1], $cur ), false, 'right' );
+			}
+			if ( null !== $details['due'] ) {
+				$y -= 16;
+				$pdf->text( 300, $y, 11, __( 'Zahlbetrag', 'wp-pass-captain' ), true );
+				$pdf->text( 545, $y, 11, self::money( $details['due'], $cur ), true, 'right' );
+			}
+			$y -= 10;
+			foreach ( $details['notes'] as $note ) {
+				foreach ( PdfWriter::wrap( $note, 8, 495 ) as $note_line ) {
+					$y -= 11;
+					if ( $y < 60 ) { break 2; }
+					$pdf->text( 50, $y, 8, $note_line );
+				}
+			}
 			$footer( $pdf, sprintf( __( 'Seite %d', 'wp-pass-captain' ), $page ) );
 		}
 

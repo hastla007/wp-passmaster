@@ -324,6 +324,12 @@ final class Refunds {
 	 *
 	 * @return int[] [gross, tax]
 	 */
+	/** VAT contained in $amount for the given tickets (their line VAT scaled to the amount). */
+	public static function tax_for_tickets( $order, array $ticket_ids, $amount ) {
+		list( $gross, $tax ) = self::line_shares( $order, $ticket_ids );
+		return $gross > 0 ? min( (int) $amount, (int) round( $tax * (int) $amount / $gross ) ) : 0;
+	}
+
 	/** Gross value (minor units, before order-level discounts) of the given tickets, from their order lines. */
 	public static function gross_for_tickets( $order, array $ticket_ids ) {
 		list( $gross ) = self::line_shares( $order, $ticket_ids );
