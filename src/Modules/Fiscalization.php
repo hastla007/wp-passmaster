@@ -86,6 +86,7 @@ final class Fiscalization {
 	public static function register() {
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'snapshot_order' ), 20, 4 );
 		add_action( 'wpcap_order_paid', array( __CLASS__, 'process_order' ), 1 );
+		add_action( 'wpcap_process_fiscal_order', array( __CLASS__, 'process_scheduled_order' ) );
 		add_filter( 'wpcap_order_fiscal_ready', array( __CLASS__, 'fiscal_ready' ), 10, 2 );
 		add_action( 'wpcap_order_refunded', array( __CLASS__, 'mark_refunded' ), 10, 2 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
@@ -208,12 +209,34 @@ final class Fiscalization {
 		}
 	}
 
+	/** Scheduled retry callback; adapters receive a stable idempotency key for every retry. */
+	public static function process_scheduled_order( $order_id ) {
+		self::process_order( absint( $order_id ) );
+		Orders::issue_and_email( absint( $order_id ) );
+	}
+
+	public static function rest_retry_order( \\WP_REST_Request $request ) {
+		global $wpdb;
+		$order_id = absint( $request['order_id'] );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_fiscal_documents SET status='retry',last_error='',updated_at=%s WHERE order_id=%d AND status='failed'", current_time( 'mysql', true ), $order_id ) );
+		self::process_order( $order_id );
+		Orders::issue_and_email( $order_id );
+		$blocked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d AND status <> 'submitted'", $order_id ) );
+		return rest_ensure_response( array( 'order_id' => $order_id, 'tickets_issued' => ! $blocked && (bool) Orders::tickets_for_order( $order_id ), 'fiscal_pending' => (bool) $blocked ) );
+	}
+
 	private static function fail( $doc, $message ) {
 		global $wpdb;
+		$attempts = (int) $doc->attempts + 1;
+		$terminal = $attempts >= 8;
 		$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array(
-			'status' => 'retry', 'last_error' => sanitize_text_field( $message ),
-			'attempts' => (int) $doc->attempts + 1, 'updated_at' => current_time( 'mysql', true ),
+			'status' => $terminal ? 'failed' : 'retry', 'last_error' => sanitize_text_field( $message ),
+			'attempts' => $attempts, 'updated_at' => current_time( 'mysql', true ),
 		), array( 'document_id' => (int) $doc->document_id ) );
+		if ( ! $terminal && ! wp_next_scheduled( 'wpcap_process_fiscal_order', array( (int) $doc->order_id ) ) ) {
+			$delay = min( HOUR_IN_SECONDS, 60 * ( 2 ** min( 10, $attempts ) ) );
+			wp_schedule_single_event( time() + $delay, 'wpcap_process_fiscal_order', array( (int) $doc->order_id ) );
+		}
 	}
 
 	/** Runs submission again on payment callback retries; ticket issuance is blocked until success. */
@@ -237,6 +260,9 @@ final class Fiscalization {
 		) );
 		register_rest_route( 'wp-pass-captain/v1', '/fiscal/sellers/(?P<seller_id>\d+)/provider', array(
 			'methods' => 'PUT', 'callback' => array( __CLASS__, 'rest_save_provider' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/fiscal/orders/(?P<order_id>\\d+)/retry', array(
+			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_retry_order' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
 		register_rest_route( 'wp-pass-captain/v1', '/fiscal/ticket-types/(?P<ticket_type_id>\d+)/seller', array(
 			'methods' => 'PUT', 'callback' => array( __CLASS__, 'rest_assign_seller' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
