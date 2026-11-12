@@ -1170,13 +1170,24 @@ final class Fiscalization {
 		submit_button( __( 'CSV herunterladen', 'wp-pass-captain' ), 'secondary', 'submit', false );
 		echo '</form>';
 		echo '<hr><h2>' . esc_html__( 'Fiskal-Ereignisprotokoll', 'wp-pass-captain' ) . '</h2>';
-		$events = $wpdb->get_results( "SELECT event_id,document_id,order_id,provider_id,event_type,event_status,metadata,created_at FROM {$p}wpcap_fiscal_events ORDER BY event_id DESC LIMIT 200" );
+		$events = $wpdb->get_results( "SELECT e.event_id,e.document_id,e.order_id,e.provider_id,e.event_type,e.event_status,e.metadata,e.created_at,d.country_code FROM {$p}wpcap_fiscal_events e LEFT JOIN {$p}wpcap_fiscal_documents d ON d.document_id=e.document_id ORDER BY e.event_id DESC LIMIT 200" );
 		$resolved_events = array();
 		$resolutions = $wpdb->get_results( "SELECT metadata FROM {$p}wpcap_fiscal_events WHERE event_type='manual_correction_recorded' ORDER BY event_id DESC LIMIT 5000" );
 		foreach ( $resolutions as $resolution_row ) {
 			$resolution_data = json_decode( $resolution_row->metadata, true );
 			if ( is_array( $resolution_data ) && ! empty( $resolution_data['resolves_event_id'] ) ) {
-				$resolved_events[ absint( $resolution_data['resolves_event_id'] ) ] = sanitize_text_field( $resolution_data['provider_reference'] ?? '' );
+				$resolved_events[ absint( $resolution_data['resolves_event_id'] ) ] = array(
+					'reference' => sanitize_text_field( $resolution_data['provider_reference'] ?? '' ),
+					'action' => sanitize_key( $resolution_data['provider_action'] ?? '' ),
+				);
+			}
+		}
+		$void_attempted_events = array();
+		$void_attempts = $wpdb->get_results( "SELECT metadata FROM {$p}wpcap_fiscal_events WHERE event_type IN ('provider_void_attempted','provider_void_failed') ORDER BY event_id DESC LIMIT 5000" );
+		foreach ( $void_attempts as $void_attempt ) {
+			$attempt_data = json_decode( $void_attempt->metadata, true );
+			if ( is_array( $attempt_data ) && ! empty( $attempt_data['source_event_id'] ) ) {
+				$void_attempted_events[ absint( $attempt_data['source_event_id'] ) ] = true;
 			}
 		}
 		if ( ! $events ) { echo '<p>' . esc_html__( 'Noch keine Fiskalereignisse protokolliert.', 'wp-pass-captain' ) . '</p>'; }
@@ -1187,13 +1198,25 @@ final class Fiscalization {
 				$event_id = (int) $event->event_id;
 				echo '<tr><td>' . esc_html( $event->event_type ) . '</td><td>' . (int) $event->document_id . ' / ' . (int) $event->order_id . '</td><td>' . esc_html( $event->provider_id ) . '</td><td>' . esc_html( $event->event_status ) . '</td><td><code>' . esc_html( wp_json_encode( is_array( $metadata ) ? $metadata : array() ) ) . '</code></td><td>';
 				if ( isset( $resolved_events[ $event_id ] ) ) {
-					echo esc_html( sprintf( __( 'Extern erledigt · Referenz %s', 'wp-pass-captain' ), $resolved_events[ $event_id ] ) );
+					$resolution = $resolved_events[ $event_id ];
+					$label = 'submitted_by_adapter' === $resolution['action'] ? __( 'Über Anbieteradapter erledigt', 'wp-pass-captain' ) : __( 'Extern erledigt', 'wp-pass-captain' );
+					echo esc_html( sprintf( __( '%1$s · Referenz %2$s', 'wp-pass-captain' ), $label, $resolution['reference'] ) );
 				} elseif ( 'manual_required' === $event->event_status && in_array( $event->event_type, array( 'refund_adjustment', 'order_cancellation', 'event_cancellation' ), true ) ) {
+					$event_metadata = is_array( $metadata ) ? $metadata : array();
+					$eligible_efsta_void = 'order_cancellation' === $event->event_type && 'efsta_efr' === $event->provider_id && in_array( strtoupper( (string) $event->country_code ), array( 'AT', 'DE' ), true ) && 'void' === sanitize_key( $event_metadata['adjustment_kind'] ?? '' );
+					if ( $eligible_efsta_void && empty( $void_attempted_events[ $event_id ] ) ) {
+						echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="wpcap_fiscal_submit_efsta_void"><input type="hidden" name="event_id" value="' . $event_id . '">';
+						wp_nonce_field( 'wpcap_fiscal_submit_efsta_void_' . $event_id );
+						submit_button( __( 'efsta-Vollstorno senden', 'wp-pass-captain' ), 'delete', 'submit', false );
+						echo '</form><small>' . esc_html__( 'Einmaliger Sendeversuch. Bei unklarem Ergebnis Anbieterstatus prüfen; keine Wiederholung auslösen.', 'wp-pass-captain' ) . '</small>';
+					} elseif ( $eligible_efsta_void ) {
+						echo '<small>' . esc_html__( 'Sendeversuch erfolgt. Anbieterstatus prüfen; nicht erneut senden.', 'wp-pass-captain' ) . '</small><br>';
+					}
 					echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="wpcap_fiscal_manual_resolution"><input type="hidden" name="event_id" value="' . $event_id . '">';
 					wp_nonce_field( 'wpcap_fiscal_manual_resolution_' . $event_id );
 					echo '<select name="resolution"><option value="refund">' . esc_html__( 'Erstattung', 'wp-pass-captain' ) . '</option><option value="credit_note">' . esc_html__( 'Gutschrift', 'wp-pass-captain' ) . '</option><option value="void">' . esc_html__( 'Storno', 'wp-pass-captain' ) . '</option><option value="correction">' . esc_html__( 'Korrektur', 'wp-pass-captain' ) . '</option></select><input name="provider_reference" type="text" maxlength="191" required placeholder="' . esc_attr__( 'Beleg-/Anbieterreferenz', 'wp-pass-captain' ) . '">';
 					submit_button( __( 'Extern erledigt dokumentieren', 'wp-pass-captain' ), 'secondary', 'submit', false );
-					echo '</form><small>' . esc_html__( 'Zuerst im Anbieterportal durchführen; dies dokumentiert nur die Referenz.', 'wp-pass-captain' ) . '</small>';
+					echo '</form><small>' . esc_html__( 'Nur nach Durchführung im Anbieterportal verwenden.', 'wp-pass-captain' ) . '</small>';
 				}
 				echo '</td><td>' . esc_html( $event->created_at ) . '</td></tr>';
 			}
