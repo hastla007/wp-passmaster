@@ -12,6 +12,11 @@ use PassCaptain\Fiscalization\CountryPolicy;
 use PassCaptain\Fiscalization\Credentials;
 use PassCaptain\Modules\Fiscalization as FiscalizationModule;
 
+if ( ! function_exists( 'wp_salt' ) ) {
+	function wp_salt( $scheme = 'auth' ) { return 'fiscalization-test-' . $scheme . '-' . ( $GLOBALS['wpcap_test_salt_epoch'] ?? 'one' ); }
+}
+
+
 $fiscal_adapter = new class implements AdapterInterface {
 	public function id() { return 'test_fiscal_adapter'; }
 	public function interface_version() { return AdapterInterface::VERSION; }
@@ -32,6 +37,21 @@ $runtime_config = Credentials::with_credentials( array( 'region' => 'eu' ), 17, 
 unset( $GLOBALS['wpcap_test_filters']['wpcap_fiscal_credentials'] );
 check( 'runtime credentials are added without changing public adapter settings', 'eu' === $runtime_config['region'] && 'secret-value' === $runtime_config['credentials']['api_secret'] );
 check( 'runtime credentials reject nested values and sanitize credential names', ! isset( $runtime_config['credentials']['badkey'] ) );
+
+$GLOBALS['wpcap_test_salt_epoch'] = 'one';
+$vault_save = Credentials::save( 73, 'test_fiscal_adapter', array( 'api_key' => 'vault-key-value', 'api_secret' => 'vault-secret-value' ) );
+$vault_config = Credentials::with_credentials( array( 'region' => 'eu' ), 73, 'test_fiscal_adapter' );
+$vault_raw = wp_json_encode( get_option( Credentials::OPTION, array() ) );
+check( 'credential vault encrypts values and exposes them only at adapter-call time', true === $vault_save && 'vault-key-value' === $vault_config['credentials']['api_key'] && false === strpos( $vault_raw, 'vault-secret-value' ) );
+check( 'credential admin metadata exposes names but never values', array( 'api_key', 'api_secret' ) === Credentials::stored_names( 73, 'test_fiscal_adapter' ) );
+$vault_update = Credentials::save( 73, 'test_fiscal_adapter', array( 'api_key' => 'rotated-key' ), array( 'api_secret' ) );
+$updated_config = Credentials::with_credentials( array(), 73, 'test_fiscal_adapter' );
+check( 'credential vault supports safe rotation and per-field deletion', true === $vault_update && 'rotated-key' === $updated_config['credentials']['api_key'] && ! isset( $updated_config['credentials']['api_secret'] ) );
+$GLOBALS['wpcap_test_salt_epoch'] = 'rotated';
+$rotated_salt_config = Credentials::with_credentials( array(), 73, 'test_fiscal_adapter' );
+$GLOBALS['wpcap_test_salt_epoch'] = 'one';
+check( 'credential vault fails closed after WordPress salts change', empty( $rotated_salt_config['credentials'] ) );
+Credentials::delete( 73, 'test_fiscal_adapter' );
 
 $permanent_failure = new ReflectionMethod( FiscalizationModule::class, 'failure_is_permanent' );
 $permanent_failure->setAccessible( true );
