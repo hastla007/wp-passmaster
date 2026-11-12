@@ -19,6 +19,8 @@
  *    refunded amount, credit note) when the core supports external refunds; refunded ticket
  *    quantities revoke tickets; a full refund revokes all valid tickets.
  * 7. Participant fields: per-ticket attendee data is collected in the checkout (see Attendees).
+ * 8. Optional (setting, default off): cart prices from Orders::unit_price(), e.g. series price
+ *    tiers (see CartPricing). The hold still uses the WooCommerce line totals as trusted override.
  *
  * @package PassCaptain
  */
@@ -70,6 +72,9 @@ final class OrderAdapter {
 		// Per-ticket participant fields (classic and block checkout).
 		Attendees::register();
 
+		// Optional: Pass Captain prices (e.g. series price tiers) in the cart.
+		CartPricing::register();
+
 		// Inventory hold before payment.
 		add_action( 'woocommerce_checkout_order_processed', array( __CLASS__, 'reserve_classic' ), 10, 3 );
 		add_action( 'woocommerce_store_api_checkout_order_processed', array( __CLASS__, 'reserve_store_api' ) );
@@ -120,7 +125,9 @@ final class OrderAdapter {
 			array(
 				'id'          => self::PRODUCT_META,
 				'label'       => __( 'Pass Captain Ticketkategorie', 'wp-pass-captain' ),
-				'description' => __( 'Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster und Höchstmenge kommen aus Pass Captain; der Preis kommt aus WooCommerce. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen.', 'wp-pass-captain' ),
+				'description' => CartPricing::enabled()
+					? __( 'Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster, Höchstmenge und – laut WooCommerce-Einstellung – der Preis inklusive Preisstufen kommen aus Pass Captain. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen.', 'wp-pass-captain' )
+					: __( 'Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster und Höchstmenge kommen aus Pass Captain; der Preis kommt aus WooCommerce. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen.', 'wp-pass-captain' ),
 				'desc_tip'    => true,
 				'options'     => $options,
 				'value'       => $current ? (string) $current : '',

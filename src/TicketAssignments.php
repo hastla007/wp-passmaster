@@ -45,11 +45,21 @@ final class TicketAssignments {
 			do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $code, 'assign' );
 			$url = add_query_arg( 'wpcap_ticket', $code, home_url( '/' ) );
 			$when = Orders::format_start( $ticket->starts_at, $ticket->timezone );
-			$body = sprintf( "%s — %s\n%s\n%s\n%s\n\n%s", $ticket->event_name, $ticket->ticket_name, $when, $ticket->location, sprintf( __( 'Teilnehmer: %s', 'wp-pass-captain' ), $name ), esc_url_raw( $url ) ) . apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id );
-			wp_mail( $email, sprintf( /* translators: %s: site name */ __( 'Dein Ticket für %s', 'wp-pass-captain' ), Orders::site_name() ), $body );
+			$vars = array(
+				'order_id' => (string) $order->public_id,
+				'event_name' => (string) $ticket->event_name,
+				'ticket_name' => (string) $ticket->ticket_name,
+				'event_date' => $when,
+				'event_location' => (string) $ticket->location,
+				'attendee_name' => $name,
+				'attendee_email' => $email,
+				'ticket_link' => Mail\Mailer::link( $url ),
+				'ticket_extras' => Mail\Blocks::extra( (string) apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id ) ),
+			);
+			Mail\Mailer::send( 'ticket_assigned_attendee', $email, $vars, array(), (string) $order->locale );
 			if ( 0 !== strcasecmp( (string) $order->customer_email, $email ) ) {
 				// Tell the buyer that the previously mailed code for this ticket is no longer valid.
-				wp_mail( $order->customer_email, sprintf( /* translators: %s: site name */ __( 'Ticket zugewiesen – %s', 'wp-pass-captain' ), Orders::site_name() ), sprintf( /* translators: 1: event and ticket, 2: date, 3: attendee name, 4: attendee email */ __( "Das Ticket %1\$s (%2\$s) wurde %3\$s (%4\$s) zugewiesen. Der neue Ticketcode wurde an diese Adresse gesendet; der bisherige Code für dieses Ticket ist nicht mehr gültig.", 'wp-pass-captain' ), $ticket->event_name . ' — ' . $ticket->ticket_name, $when, $name, $email ) );
+				Mail\Mailer::send( 'ticket_assigned_buyer', $order->customer_email, $vars, array(), (string) $order->locale );
 			}
 		}
 		Audit::record( 'ticket_assigned', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );

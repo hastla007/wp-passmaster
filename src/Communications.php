@@ -39,7 +39,8 @@ final class Communications {
 			$template = is_array( $template ) ? $template : ( is_array( $payload ) ? $payload : array() );
 			$subject = sanitize_text_field( $template['subject'] ?? '' );
 			$body = (string) ( $template['body'] ?? '' );
-			$sent = '' !== $subject && '' !== $body && wp_mail( $row->recipient, $subject, $body );
+			// Through the central mailer (layout for HTML bodies, `wpcap_mail` filter); reminders keep their own editor.
+			$sent = '' !== $subject && '' !== $body && Mail\Mailer::deliver( $row->recipient, array( 'type' => 'queue_' . $row->template_key, 'subject' => $subject, 'body' => $body, 'format' => 'html' === ( $template['format'] ?? 'text' ) ? 'html' : 'text', 'attachments' => array(), 'locale' => (string) ( $template['locale'] ?? '' ) ) );
 			if ( $sent ) { $wpdb->update( $table, array( 'status' => 'sent', 'locked_at' => null, 'last_error' => null ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s' ), array( '%d' ) ); }
 			else {
 				$tries = (int) $row->attempts + 1;
