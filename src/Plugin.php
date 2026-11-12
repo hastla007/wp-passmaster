@@ -19,6 +19,7 @@ final class Plugin {
 		add_action( $upgrade_hook, array( __CLASS__, 'maybe_upgrade' ), 0, 0 );
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
 		Settings::register();
+		( new Licensing\\PremiumUpdater() )->register_hooks();
 		if ( is_admin() ) {
 			( new Licensing\AdminPage() )->register();
 		}
