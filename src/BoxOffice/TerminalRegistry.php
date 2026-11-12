@@ -1,8 +1,8 @@
 <?php
 /** Admin-managed POS locations and registers. */
-namespace PassCaptain\\BoxOffice;
+namespace PassCaptain\BoxOffice;
 
-use PassCaptain\\Settings;
+use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -70,7 +70,7 @@ final class TerminalRegistry {
 	public static function validate( $raw ) {
 		$parsed = self::parse( $raw );
 		if ( $parsed['errors'] ) {
-			return new \\WP_Error( 'wpcap_pos_terminals_invalid', sprintf( __( 'Ungültige Kassenliste in Zeile(n): %s. Erwartet wird Standort-ID|Kassen-ID|Anzeigename.', 'wp-pass-captain' ), implode( ', ', $parsed['errors'] ) ) );
+			return new \WP_Error( 'wpcap_pos_terminals_invalid', sprintf( __( 'Ungültige Kassenliste in Zeile(n): %s. Erwartet wird Standort-ID|Kassen-ID|Anzeigename.', 'wp-pass-captain' ), implode( ', ', $parsed['errors'] ) ) );
 		}
 		return $parsed;
 	}
