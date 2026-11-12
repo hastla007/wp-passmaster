@@ -19,8 +19,8 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 | `event_cancelled` | Ganzes Event abgesagt | `{event_name}` |
 | `occurrence_cancelled` | Einzelner Termin abgesagt | `{event_name}`, `{event_date}`, `{event_location}`, `{timezone}`, `{refund_note}` |
 | `occurrence_rescheduled` | Termin verschoben | `{event_name}`, `{old_date}`, `{event_date}`, `{timezone}`, `{event_location}` |
-| `waitlist_joined` | Eintragung in die Warteliste | `{position}`, `{event_name}`, `{ticket_name}` |
-| `waitlist_offer` | Platzangebot aus der Warteliste | `{offer_expires}`, `{accept_link}`, `{position}`, `{event_name}`, `{ticket_name}` |
+| `waitlist_joined` | Eintragung in die Warteliste | `{position}`, `{quantity}`, `{event_name}`, `{ticket_name}` |
+| `waitlist_offer` | Platzangebot aus der Warteliste (Tickets bis zum Ablauf reserviert) | `{offer_expires}`, `{accept_link}`, `{quantity}`, `{position}`, `{event_name}`, `{ticket_name}` |
 | `member_pass` | Mitgliedspass ausgestellt | `{pass_code}`, `{valid_from}`, `{valid_until}` |
 
 In allen Mails stehen außerdem `{site_name}` (Filter `wpcap_sender_name`) und `{site_url}` zur Verfügung. Die vollständige Liste mit Beschreibung zeigt der Editor je Typ.

@@ -79,6 +79,8 @@ final class Page {
 			__( 'Umsatz nach Erstattungen', 'wp-pass-captain' ) => $money( $t['revenue'] ),
 			__( 'davon USt', 'wp-pass-captain' ) => $money( $t['revenue_tax'] ),
 			__( 'Gutschriften (Belege)', 'wp-pass-captain' ) => (int) $report['credit_notes']['count'] . ' / ' . $money( $report['credit_notes']['total'] ),
+			// Guest list comps (GuestLists module): shown separately, not part of sales/revenue.
+			__( 'Freikarten (nicht im Umsatz)', 'wp-pass-captain' ) => (string) (int) ( $report['comps']['tickets'] ?? 0 ),
 		);
 		foreach ( $summary as $k => $v ) { echo '<tr><th>' . esc_html( $k ) . '</th><td>' . esc_html( $v ) . '</td></tr>'; }
 		echo '</tbody></table>';
@@ -104,7 +106,7 @@ final class Page {
 		echo '<h2>' . esc_html__( 'Auslastung und Check-in', 'wp-pass-captain' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Termin', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Verkauft / Kapazität', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Eingecheckt / gültig', 'wp-pass-captain' ) . '</th><th></th></tr></thead><tbody>';
 		foreach ( $report['occurrences'] as $o ) {
 			$link = Forms::page_url( self::SLUG, array_merge( $filters, array( 'occurrence_id' => $o['occurrence_id'] ) ) );
-			echo '<tr><td>' . esc_html( $o['label'] ) . '</td><td>' . esc_html( $o['sold'] . ' / ' . ( $o['capacity'] ?: '∞' ) . ( null !== $o['utilisation'] ? ' (' . number_format_i18n( $o['utilisation'], 1 ) . ' %)' : '' ) ) . '</td><td>' . esc_html( $o['checked_in'] . ' / ' . $o['issued'] . ( null !== $o['checkin_rate'] ? ' (' . number_format_i18n( $o['checkin_rate'], 1 ) . ' %)' : '' ) ) . '</td><td><a href="' . esc_url( $link ) . '">' . esc_html__( 'Einlass pro Stunde', 'wp-pass-captain' ) . '</a></td></tr>';
+			echo '<tr><td>' . esc_html( $o['label'] ) . '</td><td>' . esc_html( $o['sold'] . ( ! empty( $o['comps'] ) ? ' + ' . (int) $o['comps'] . ' ' . __( 'Freikarten', 'wp-pass-captain' ) : '' ) . ' / ' . ( $o['capacity'] ?: '∞' ) . ( null !== $o['utilisation'] ? ' (' . number_format_i18n( $o['utilisation'], 1 ) . ' %)' : '' ) ) . '</td><td>' . esc_html( $o['checked_in'] . ' / ' . $o['issued'] . ( null !== $o['checkin_rate'] ? ' (' . number_format_i18n( $o['checkin_rate'], 1 ) . ' %)' : '' ) ) . '</td><td><a href="' . esc_url( $link ) . '">' . esc_html__( 'Einlass pro Stunde', 'wp-pass-captain' ) . '</a></td></tr>';
 		}
 		echo '</tbody></table>';
 		if ( $report['histogram'] ) {

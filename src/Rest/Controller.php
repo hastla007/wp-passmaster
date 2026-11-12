@@ -170,6 +170,16 @@ final class Controller {
 			'callback' => array( __CLASS__, 'accept_waitlist_offer' ),
 			'permission_callback' => '__return_true',
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/waitlist/(?P<waitlist_id>\d+)/decline', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'decline_waitlist_offer' ),
+			'permission_callback' => '__return_true',
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/events/(?P<event_id>\d+)/waitlist/entries', array(
+			'methods' => \WP_REST_Server::READABLE,
+			'callback' => array( __CLASS__, 'list_waitlist' ),
+			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/events/(?P<event_id>\d+)/reports/summary', array(
 			'methods' => \WP_REST_Server::READABLE,
 			'callback' => array( __CLASS__, 'event_report' ),
@@ -539,7 +549,8 @@ final class Controller {
 	}
 
 	public static function join_waitlist( \WP_REST_Request $request ) {
-		return rest_ensure_response( Waitlists::join( $request['event_id'], $request->get_param( 'occurrence_id' ), $request->get_param( 'ticket_type_id' ), $request->get_param( 'email' ) ) );
+		$result = Waitlists::join( $request['event_id'], $request->get_param( 'occurrence_id' ), $request->get_param( 'ticket_type_id' ), $request->get_param( 'email' ), $request->get_param( 'quantity' ) ?? 1 );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
 	public static function offer_waitlist( \WP_REST_Request $request ) {
@@ -553,8 +564,22 @@ final class Controller {
 	}
 
 	public static function accept_waitlist_offer( \WP_REST_Request $request ) {
-		$result = Waitlists::accept_offer( $request['waitlist_id'], $request->get_param( 'token' ) );
+		$result = Waitlists::accept_offer( $request['waitlist_id'], $request->get_param( 'token' ), array( 'provider' => sanitize_key( (string) $request->get_param( 'provider' ) ), 'accept_terms' => ! empty( $request->get_param( 'accept_terms' ) ) ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+	}
+
+	public static function decline_waitlist_offer( \WP_REST_Request $request ) {
+		$result = Waitlists::decline_offer( $request['waitlist_id'], $request->get_param( 'token' ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+	}
+
+	public static function list_waitlist( \WP_REST_Request $request ) {
+		$event_id = absint( $request['event_id'] );
+		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) { return new \WP_Error( 'wpcap_waitlist_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		$rows = array_map( static function ( $row ) {
+			return array( 'waitlist_id' => (int) $row->waitlist_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'occurrence_id' => (int) $row->occurrence_id, 'email' => (string) $row->email, 'position' => (int) $row->position, 'queue_rank' => (int) $row->queue_rank, 'quantity' => (int) $row->quantity, 'priority' => (int) $row->priority, 'status' => (string) $row->status, 'offer_expires_at' => $row->offer_expires_at, 'order_id' => $row->order_public_id ? (string) $row->order_public_id : null );
+		}, Waitlists::entries( $event_id ) );
+		return rest_ensure_response( $rows );
 	}
 
 	public static function report_permission( \WP_REST_Request $request ) {

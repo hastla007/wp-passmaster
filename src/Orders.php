@@ -586,6 +586,50 @@ final class Orders {
 	}
 
 	/**
+	 * Capacity check for a ticket exchange (see Exchange\Service). Call inside the caller's
+	 * transaction after the target ticket type and occurrence rows are locked FOR UPDATE, with only
+	 * locking reads before (like Orders::create()). Runs `wpcap_reserve_capacity` with phase
+	 * 'exchange' (series pools, allocations, …) and then the core type/occurrence capacity check for
+	 * $quantity more units of $type. Units the caller already released in the same transaction
+	 * (e.g. the exchanged ticket's line) are not counted.
+	 *
+	 * @param object $type       Locked target ticket type row.
+	 * @param object $occurrence Locked target occurrence row.
+	 * @param int    $quantity   Units needed (default 1).
+	 * @param array  $context    Extra context for the filter (exchange, source, now); phase is always 'exchange'.
+	 * @return \WP_Error|null
+	 */
+	public static function reserve_exchange_capacity( $type, $occurrence, $quantity = 1, array $context = array() ) {
+		$quantity = max( 1, absint( $quantity ) );
+		$context = array_merge(
+			array(
+				'order_id' => 0,
+				'types' => array( (int) $type->ticket_type_id => $type ),
+				'occurrences' => array( (int) $occurrence->occurrence_id => $occurrence ),
+				'now' => current_time( 'mysql', true ),
+				'source' => 'exchange',
+			),
+			$context,
+			array( 'phase' => 'exchange' )
+		);
+		$error = self::reserve_capacity( array( (int) $type->ticket_type_id => $quantity ), $context );
+		if ( $error ) { return $error; }
+		$code = self::capacity_error( $type, $occurrence, $quantity );
+		if ( '' === $code ) { return null; }
+		$messages = apply_filters( 'wpcap_checkout_error_messages', array(
+			'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'wp-pass-captain' ),
+			'sold_out' => __( 'Für diese Ticketart sind nicht mehr genügend Tickets verfügbar.', 'wp-pass-captain' ),
+			'occurrence_sold_out' => __( 'Für diesen Termin sind nicht mehr genügend Plätze verfügbar.', 'wp-pass-captain' ),
+		) );
+		return new \WP_Error( $code, (string) ( $messages[ $code ] ?? $code ), array( 'status' => 'db_busy' === $code ? 503 : 409, 'retryable' => 'db_busy' === $code ) );
+	}
+
+	/** Whether the connection is still inside a transaction (false after a server-side rollback, null if unknown). */
+	public static function transaction_alive() {
+		return self::in_transaction();
+	}
+
+	/**
 	 * Fires `wpcap_capacity_released` after inventory of an order stopped counting (hold expired,
 	 * order cancelled/refunded, tickets revoked, payment unallocated). Core capacity and pools are
 	 * derived from orders and holds, so this is informational for modules with own counters/caches.
@@ -1087,6 +1131,14 @@ final class Orders {
 			return;
 		}
 		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name AS ticket_name,tt.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d", $order_id ) );
+		/**
+		 * Order lines that receive tickets. Modules may drop lines that are no admission of their own,
+		 * e.g. the supplementary payment order of a ticket exchange (Exchange\Service issues that ticket).
+		 *
+		 * @param object[] $lines Order item rows with ticket/occurrence/event columns.
+		 * @param object   $order Locked order row.
+		 */
+		$lines = (array) apply_filters( 'wpcap_issue_order_lines', $lines, $order );
 		$issued = array();
 		// Attendee data collected at checkout, applied once to the issued tickets.
 		$pending_attendees = $order->attendee_data ? (array) json_decode( $order->attendee_data, true ) : array();

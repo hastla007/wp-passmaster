@@ -70,6 +70,8 @@ foreach ( $mails as $mail ) {
 
 // Waitlist: join the sold-out type and offer the place.
 Waitlists::join( $event, $occ, $by_name['Ausverkauft'], 'a11y-wait-' . bin2hex( random_bytes( 3 ) ) . '@example.com' );
+// Offers hold inventory: free one unit for the offer (the type stays sold out while it is held).
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_ticket_types SET capacity=capacity+1 WHERE ticket_type_id=%d", $by_name['Ausverkauft'] ) );
 $offer = Waitlists::offer_next( $event, $by_name['Ausverkauft'] );
 $waitlist_url = '';
 foreach ( $mails as $mail ) {

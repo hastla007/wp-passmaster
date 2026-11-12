@@ -1,13 +1,21 @@
 <?php
 /**
- * Module: box office ("Kasse") with cash sessions, fast sales, receipts and storno.
- * Code lives in src/BoxOffice/.
+ * Module: box office ("Kasse") with registers, shifts (cash sessions), handover, Z reports, fast
+ * sales, receipts and storno. Code lives in src/BoxOffice/.
+ *
+ * Tables: wpcap_boxoffice_registers (Kassen/Schubladen), wpcap_boxoffice_sessions (shifts; the
+ * historic table name is kept), wpcap_boxoffice_shift_cashiers, wpcap_boxoffice_counts (insert-only
+ * cash counts with denominations), wpcap_boxoffice_movements (insert-only cash in/out, refund
+ * payouts, corrections), wpcap_boxoffice_handovers and wpcap_boxoffice_zreports (insert-only,
+ * hash-chained Z reports with a gapless number per register).
  */
 namespace PassCaptain\Modules;
 
 use PassCaptain\BoxOffice\Page;
 use PassCaptain\BoxOffice\PosGateway;
+use PassCaptain\BoxOffice\Registers;
 use PassCaptain\BoxOffice\Service;
+use PassCaptain\BoxOffice\ShiftPage;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -24,7 +32,7 @@ final class BoxOffice {
 	}
 
 	/** Version of the box office data migrations (option wpcap_boxoffice_migration). */
-	const MIGRATION_VERSION = 1;
+	const MIGRATION_VERSION = 2;
 
 	/** Runs migrate() once per MIGRATION_VERSION (cheap autoloaded option check). */
 	public static function maybe_migrate() {
@@ -37,7 +45,12 @@ final class BoxOffice {
 	 * wpcap_boxoffice_sales.order_id must be NULL while a sale has no order yet. Older installs had
 	 * NOT NULL, so an unfinished sale stored order_id=0 and blocked every later sale through the
 	 * unique key. Legacy 0 values become NULL; pending rows without an order (claims of failed
-	 * sales) older than the order hold are deleted. Idempotent.
+	 * sales) older than the order hold are deleted.
+	 *
+	 * Version 2: cash sessions from before registers existed (register_id 0) are mapped to a default
+	 * register; closed ones get Z reports (source "migration", numbered in closing order), open ones
+	 * keep running as the open shift of a register (see Registers::migrate_legacy_sessions()).
+	 * Idempotent.
 	 *
 	 * @return bool True when the table exists and is up to date.
 	 */
@@ -52,21 +65,43 @@ final class BoxOffice {
 		}
 		$wpdb->query( "UPDATE `{$table}` SET order_id=NULL WHERE order_id=0" );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM `{$table}` WHERE status='pending' AND order_id IS NULL AND created_at < %s", gmdate( 'Y-m-d H:i:s', time() - 30 * 60 ) ) );
+		if ( ! Registers::migrate_legacy_sessions() ) { return false; }
 		update_option( 'wpcap_boxoffice_migration', self::MIGRATION_VERSION );
 		return true;
 	}
 
 	public static function schema( $prefix, $charset ) {
 		return array(
+			"CREATE TABLE {$prefix}wpcap_boxoffice_registers (
+				register_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				name varchar(100) NOT NULL,
+				location varchar(190) NOT NULL DEFAULT '',
+				event_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				currency char(3) NOT NULL DEFAULT 'EUR',
+				blind_count tinyint(1) unsigned NOT NULL DEFAULT 1,
+				status varchar(20) NOT NULL DEFAULT 'active',
+				created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (register_id),
+				KEY status (status)
+			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$prefix}wpcap_boxoffice_sessions (
 				session_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				register_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				user_id bigint(20) unsigned NOT NULL,
 				open_key bigint(20) unsigned NULL,
+				open_register bigint(20) unsigned NULL,
 				currency char(3) NOT NULL DEFAULT 'EUR',
 				opening_float_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				blind_count tinyint(1) unsigned NOT NULL DEFAULT 0,
+				handover_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				closing_count_minor bigint(20) unsigned NULL,
 				expected_cash_minor bigint(20) NULL,
 				difference_minor bigint(20) NULL,
+				counted_card_minor bigint(20) NULL,
+				expected_card_minor bigint(20) NULL,
+				card_difference_minor bigint(20) NULL,
 				totals longtext NULL,
 				note varchar(255) NOT NULL DEFAULT '',
 				closing_note varchar(255) NOT NULL DEFAULT '',
@@ -76,7 +111,108 @@ final class BoxOffice {
 				closed_by bigint(20) unsigned NOT NULL DEFAULT 0,
 				PRIMARY KEY  (session_id),
 				UNIQUE KEY open_key (open_key),
-				KEY user_status (user_id,status)
+				UNIQUE KEY open_register (open_register),
+				KEY user_status (user_id,status),
+				KEY register_status (register_id,status)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$prefix}wpcap_boxoffice_shift_cashiers (
+				shift_id bigint(20) unsigned NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				role varchar(20) NOT NULL DEFAULT 'cashier',
+				added_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				added_at datetime NOT NULL,
+				PRIMARY KEY  (shift_id,user_id),
+				KEY user_id (user_id)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$prefix}wpcap_boxoffice_counts (
+				count_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				shift_id bigint(20) unsigned NOT NULL,
+				register_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				kind varchar(20) NOT NULL,
+				cash_minor bigint(20) NOT NULL DEFAULT 0,
+				denominations text NULL,
+				card_minor bigint(20) NULL,
+				expected_cash_minor bigint(20) NULL,
+				expected_card_minor bigint(20) NULL,
+				counted_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (count_id),
+				KEY shift_kind (shift_id,kind)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$prefix}wpcap_boxoffice_movements (
+				movement_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				shift_id bigint(20) unsigned NOT NULL,
+				register_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				kind varchar(20) NOT NULL,
+				method varchar(20) NOT NULL DEFAULT 'cash',
+				currency char(3) NOT NULL DEFAULT 'EUR',
+				amount_minor bigint(20) NOT NULL DEFAULT 0,
+				tax_minor bigint(20) NOT NULL DEFAULT 0,
+				vat text NULL,
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				sale_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				refund_id bigint(20) unsigned NULL,
+				z_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				receipt_number varchar(40) NULL,
+				ticket_ids text NULL,
+				reason varchar(255) NOT NULL DEFAULT '',
+				override_reason varchar(255) NOT NULL DEFAULT '',
+				created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (movement_id),
+				UNIQUE KEY refund_id (refund_id),
+				UNIQUE KEY receipt_number (receipt_number),
+				KEY shift_kind (shift_id,kind),
+				KEY sale_id (sale_id)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$prefix}wpcap_boxoffice_handovers (
+				handover_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				register_id bigint(20) unsigned NOT NULL,
+				from_shift_id bigint(20) unsigned NOT NULL,
+				from_user bigint(20) unsigned NOT NULL,
+				to_user bigint(20) unsigned NOT NULL,
+				amount_minor bigint(20) NOT NULL DEFAULT 0,
+				denominations text NULL,
+				status varchar(20) NOT NULL DEFAULT 'pending',
+				to_shift_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				received_minor bigint(20) NULL,
+				difference_minor bigint(20) NULL,
+				reason varchar(255) NOT NULL DEFAULT '',
+				created_at datetime NOT NULL,
+				decided_at datetime NULL,
+				decided_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				PRIMARY KEY  (handover_id),
+				UNIQUE KEY from_shift_id (from_shift_id),
+				KEY register_status (register_id,status),
+				KEY to_user_status (to_user,status)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$prefix}wpcap_boxoffice_zreports (
+				z_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				register_id bigint(20) unsigned NOT NULL,
+				z_number bigint(20) unsigned NOT NULL,
+				shift_id bigint(20) unsigned NOT NULL,
+				source varchar(20) NOT NULL DEFAULT 'close',
+				currency char(3) NOT NULL DEFAULT 'EUR',
+				opened_at datetime NOT NULL,
+				closed_at datetime NOT NULL,
+				opened_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				closed_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				net_total_minor bigint(20) NOT NULL DEFAULT 0,
+				grand_total_minor bigint(20) NOT NULL DEFAULT 0,
+				counted_cash_minor bigint(20) NULL,
+				expected_cash_minor bigint(20) NULL,
+				cash_difference_minor bigint(20) NULL,
+				counted_card_minor bigint(20) NULL,
+				expected_card_minor bigint(20) NULL,
+				card_difference_minor bigint(20) NULL,
+				difference_reason varchar(255) NOT NULL DEFAULT '',
+				totals longtext NOT NULL,
+				prev_hash char(64) NOT NULL DEFAULT '',
+				hash char(64) NOT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (z_id),
+				UNIQUE KEY register_number (register_id,z_number),
+				UNIQUE KEY shift_id (shift_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$prefix}wpcap_boxoffice_sales (
 				sale_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -122,12 +258,22 @@ final class BoxOffice {
 
 	public static function admin_handlers() {
 		return array(
-			'wpcap_pos_open'         => array( Page::class, 'handle_open' ),
+			'wpcap_pos_open'         => array( ShiftPage::class, 'handle_open' ),
 			'wpcap_pos_sell'         => array( Page::class, 'handle_sell' ),
 			'wpcap_pos_storno'       => array( Page::class, 'handle_storno' ),
 			'wpcap_pos_storno_reject' => array( Page::class, 'handle_storno_reject' ),
 			'wpcap_pos_finalize'     => array( Page::class, 'handle_finalize' ),
-			'wpcap_pos_close'        => array( Page::class, 'handle_close' ),
+			'wpcap_pos_close'        => array( ShiftPage::class, 'handle_close' ),
+			'wpcap_pos_count'        => array( ShiftPage::class, 'handle_count' ),
+			'wpcap_pos_movement'     => array( ShiftPage::class, 'handle_movement' ),
+			'wpcap_pos_cashier'      => array( ShiftPage::class, 'handle_cashier' ),
+			'wpcap_pos_handover'     => array( ShiftPage::class, 'handle_handover' ),
+			'wpcap_pos_handover_cancel' => array( ShiftPage::class, 'handle_handover_cancel' ),
+			'wpcap_pos_register'     => array( ShiftPage::class, 'handle_register' ),
+			'wpcap_pos_correction'   => array( ShiftPage::class, 'handle_correction' ),
+			'wpcap_pos_zreport'      => array( ShiftPage::class, 'handle_zreport' ),
+			'wpcap_pos_zreport_csv'  => array( ShiftPage::class, 'handle_zreport_csv' ),
+			'wpcap_pos_payout_receipt' => array( ShiftPage::class, 'handle_payout_receipt' ),
 			'wpcap_pos_receipt'      => array( Page::class, 'handle_receipt' ),
 			'wpcap_pos_tickets'      => array( Page::class, 'handle_tickets' ),
 			'wpcap_pos_availability' => array( Page::class, 'handle_availability' ),

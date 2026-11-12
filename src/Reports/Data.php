@@ -7,6 +7,7 @@
  * Sales are counted on the order creation day (paid or later refunded orders), refunds on their
  * completion day (wpcap_refunds.updated_at). Credit notes mirror refunds and are listed for reference
  * only (not subtracted twice). Discounts are allocated to lines like Orders::create().
+ * Complimentary orders (guest lists, comp_providers()) are not sales: reported as `comps` only.
  */
 namespace PassCaptain\Reports;
 
@@ -44,6 +45,23 @@ final class Data {
 		return array( $start, $end );
 	}
 
+	/**
+	 * Payment providers of complimentary orders (guest lists, payment_provider "comp"). Their tickets
+	 * are not sales: they are excluded from revenue/tickets and reported separately as "comps".
+	 * Filter `wpcap_comp_payment_providers` (guest list comps; added for the GuestLists module).
+	 *
+	 * @return string[]
+	 */
+	public static function comp_providers() {
+		return array_values( array_filter( array_map( 'sanitize_key', (array) apply_filters( 'wpcap_comp_payment_providers', array( 'comp' ) ) ) ) );
+	}
+
+	/** SQL list of comp providers for IN (...) (sanitize_key values only). */
+	private static function comp_sql() {
+		$providers = self::comp_providers();
+		return $providers ? "'" . implode( "','", $providers ) . "'" : "''";
+	}
+
 	private static function empty_bucket( $label ) {
 		return array( 'label' => $label, 'tickets' => 0, 'gross' => 0, 'tax' => 0, 'net' => 0, 'refunded_tickets' => 0, 'refunded' => 0, 'refunded_tax' => 0, 'revenue' => 0, 'revenue_tax' => 0 );
 	}
@@ -71,6 +89,9 @@ final class Data {
 		$channels = array( 'pos' => self::empty_bucket( __( 'Kasse', 'wp-pass-captain' ) ), 'online' => self::empty_bucket( __( 'Online/sonstige', 'wp-pass-captain' ) ) );
 		$total = self::empty_bucket( __( 'Gesamt', 'wp-pass-captain' ) );
 		$currencies = array();
+		// Guest list comps (GuestLists module): counted separately, never as sales.
+		$comp_providers = self::comp_providers();
+		$comps = array( 'orders' => 0, 'tickets' => 0 );
 
 		$add = static function ( array $keys, $field_values ) use ( &$dims, &$rates, &$channels, &$total ) {
 			foreach ( $keys['dims'] as $dim => $kl ) {
@@ -108,6 +129,16 @@ final class Data {
 		$lines_by_order = self::lines_by_order( array_keys( $order_map ), $line_sql );
 		foreach ( $order_map as $order_id => $order ) {
 			$lines = $lines_by_order[ $order_id ] ?? array();
+			if ( in_array( (string) $order->payment_provider, $comp_providers, true ) ) {
+				$in_scope = false;
+				foreach ( $lines as $line ) {
+					if ( ! self::in_scope( $line->event_id, $scope ) ) { continue; }
+					$comps['tickets'] += (int) $line->quantity;
+					$in_scope = true;
+				}
+				if ( $in_scope ) { ++$comps['orders']; }
+				continue;
+			}
 			$gross_lines = self::allocate_discount( $lines, (int) $order->discount_minor );
 			$day = Scope::local( $order->created_at, $tz, 'Y-m-d' );
 			foreach ( $lines as $i => $line ) {
@@ -187,6 +218,7 @@ final class Data {
 			'rates' => $rates,
 			'channels' => $channels,
 			'credit_notes' => $credit,
+			'comps' => $comps,
 			'occurrences' => $occurrences,
 			'histogram_occurrence' => $histogram_occ,
 			'histogram' => $histogram_occ ? self::checkin_histogram( $histogram_occ ) : array(),
@@ -232,7 +264,8 @@ final class Data {
 		$in = implode( ',', $ids );
 		$out = array();
 		$occ_rows = $wpdb->get_results( "SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.capacity,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id IN ($in) ORDER BY o.starts_at" );
-		$types = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.name,tt.capacity,COALESCE((SELECT SUM(oi.quantity-oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=tt.ticket_type_id AND ord.payment_status='paid' AND ord.status <> 'refunded'),0) AS sold FROM {$p}wpcap_ticket_types tt WHERE tt.occurrence_id IN ($in) ORDER BY tt.ticket_type_id" );
+		$comp_in = self::comp_sql();
+		$types = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.name,tt.capacity,COALESCE((SELECT SUM(oi.quantity-oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=tt.ticket_type_id AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.payment_provider NOT IN ($comp_in)),0) AS sold,COALESCE((SELECT SUM(oi.quantity-oi.refunded_quantity) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=tt.ticket_type_id AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.payment_provider IN ($comp_in)),0) AS comps FROM {$p}wpcap_ticket_types tt WHERE tt.occurrence_id IN ($in) ORDER BY tt.ticket_type_id" );
 		$issued = array();
 		foreach ( $wpdb->get_results( "SELECT tt.occurrence_id,COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN ($in) AND t.status IN ('valid','checked_in') GROUP BY tt.occurrence_id" ) as $r ) { $issued[ (int) $r->occurrence_id ] = (int) $r->n; }
 		$checked = array();
@@ -242,12 +275,14 @@ final class Data {
 			$id = (int) $o->occurrence_id;
 			$type_rows = array();
 			$sold = 0;
+			$comp_count = 0;
 			$type_capacity = 0;
 			$unlimited_type = false;
 			foreach ( $types as $t ) {
 				if ( (int) $t->occurrence_id !== $id ) { continue; }
-				$type_rows[] = array( 'ticket_type_id' => (int) $t->ticket_type_id, 'name' => $t->name, 'capacity' => (int) $t->capacity, 'sold' => (int) $t->sold );
+				$type_rows[] = array( 'ticket_type_id' => (int) $t->ticket_type_id, 'name' => $t->name, 'capacity' => (int) $t->capacity, 'sold' => (int) $t->sold, 'comps' => (int) $t->comps );
 				$sold += (int) $t->sold;
+				$comp_count += (int) $t->comps;
 				$type_capacity += (int) $t->capacity;
 				$unlimited_type = $unlimited_type || 0 === (int) $t->capacity;
 			}
@@ -257,7 +292,9 @@ final class Data {
 				'label' => $o->name . ' – ' . Scope::local( $o->starts_at, $o->timezone ),
 				'capacity' => $capacity,
 				'sold' => $sold,
-				'utilisation' => $capacity > 0 ? round( 100 * $sold / $capacity, 1 ) : null,
+				'comps' => $comp_count,
+				// Utilisation = capacity in use, comps included (they consume capacity like sales).
+				'utilisation' => $capacity > 0 ? round( 100 * ( $sold + $comp_count ) / $capacity, 1 ) : null,
 				'issued' => $issued[ $id ] ?? 0,
 				'checked_in' => $checked[ $id ] ?? 0,
 				'checkin_rate' => ! empty( $issued[ $id ] ) ? round( 100 * ( $checked[ $id ] ?? 0 ) / $issued[ $id ], 1 ) : null,
@@ -320,6 +357,9 @@ final class Data {
 		}
 		$rows[] = array();
 		$rows[] = array( __( 'Gutschriften', 'wp-pass-captain' ), $report['credit_notes']['count'], $m( $report['credit_notes']['total'] ), $m( $report['credit_notes']['tax'] ) );
+		if ( ! empty( $report['comps']['tickets'] ) ) {
+			$rows[] = array( __( 'Freikarten (nicht im Umsatz)', 'wp-pass-captain' ), (int) $report['comps']['tickets'], (int) $report['comps']['orders'] );
+		}
 		if ( $report['histogram'] ) {
 			$rows[] = array();
 			$rows[] = array( __( 'Check-ins pro Stunde', 'wp-pass-captain' ), $report['occurrences'][ $report['histogram_occurrence'] ]['label'] ?? '' );

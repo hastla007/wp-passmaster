@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.5.0';
+	const DB_VERSION = '3.6.0';
 
 	public static function install() {
 		global $wpdb;
@@ -500,15 +500,21 @@ final class Installer {
 				email_hash char(64) NOT NULL,
 				email varchar(190) NOT NULL,
 				position bigint(20) unsigned NOT NULL,
+				quantity smallint(5) unsigned NOT NULL DEFAULT 1,
+				priority int(11) NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'waiting',
 				offer_token_hash char(64) NOT NULL DEFAULT '',
 				offer_expires_at datetime NULL,
+				offered_at datetime NULL,
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (waitlist_id),
 				UNIQUE KEY event_type_email (event_id,ticket_type_id,email_hash),
 				KEY queue_order (event_id,ticket_type_id,status,position),
-				KEY offer_expiry (status,offer_expires_at)
+				KEY type_queue (ticket_type_id,status,priority,position),
+				KEY offer_expiry (status,offer_expires_at),
+				KEY order_id (order_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $api_keys (
 				api_key_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

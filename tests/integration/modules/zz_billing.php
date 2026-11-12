@@ -270,7 +270,7 @@ $js = file_get_contents( WPCAP_PATH . 'assets/checkout.js' );
 check( 'checkout.js sends billing only when checked and opens the section for server errors', false !== strpos( $js, 'function billingPayload' ) && false !== strpos( $js, 'extra.billing = billing' ) && false !== strpos( $js, "field.indexOf('billing_') === 0" ) );
 $admin_src = file_get_contents( WPCAP_PATH . 'src/Admin/OrdersPage.php' );
 check( 'admin order detail shows the billing data', false !== strpos( $admin_src, "esc_html_e( 'Rechnungsdaten'" ) && false !== strpos( $admin_src, 'Billing::for_order( $order )' ) );
-check( 'schema: billing column on wpcap_orders, DB version 3.5.0', '3.5.0' === PassCaptain\Installer::DB_VERSION && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_orders LIKE 'billing'" ) );
+check( 'schema: billing column on wpcap_orders, DB version >= 3.5.0', version_compare( PassCaptain\Installer::DB_VERSION, '3.5.0', '>=' ) && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_orders LIKE 'billing'" ) );
 
 echo "Billing: default threshold\n";
 // Earlier admin tests save the settings form, so read the default from defaults() and set it explicitly.

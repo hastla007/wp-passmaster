@@ -97,6 +97,88 @@ final class Refunds {
 		return self::execute( $refund_id );
 	}
 
+	/**
+	 * Requests an amount-only refund (no ticket is revoked), e.g. the price difference of a ticket
+	 * exchange to a cheaper ticket. Same rules as request(): idempotent per key, serialised per
+	 * order, capped at the order's remaining amount, second approval above the threshold (system
+	 * requests – e.g. a customer self-service – never count as approver). Executes immediately
+	 * unless an approval is required.
+	 *
+	 * @param int    $order_id        Order ID.
+	 * @param int    $amount_minor    Gross amount to refund (> 0).
+	 * @param string $reason          Reason.
+	 * @param string $idempotency_key Unique key for this request.
+	 * @param array  $args            system (bool: skip the actor check, never self-approve), tax_minor (int, else pro rata).
+	 * @return array|\WP_Error Refund row.
+	 */
+	public static function request_amount( $order_id, $amount_minor, $reason, $idempotency_key, array $args = array() ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = absint( $order_id );
+		$amount_minor = absint( $amount_minor );
+		$system = ! empty( $args['system'] );
+		$key_hash = hash( 'sha256', 'refund-amount|' . $order_id . '|' . sanitize_text_field( $idempotency_key ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
+		if ( $existing ) { return $existing; }
+		if ( ! $system ) {
+			$check = self::check_actor();
+			if ( is_wp_error( $check ) ) { return $check; }
+		}
+		if ( $amount_minor < 1 ) {
+			return new \WP_Error( 'wpcap_refund_amount', __( 'Der Erstattungsbetrag muss größer als 0 sein.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+		}
+		$wpdb->query( 'START TRANSACTION' );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( ! $order || 'paid' !== $order->payment_status ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		}
+		if ( 'woocommerce' === $order->payment_provider ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_refund_woocommerce', __( 'WooCommerce-Bestellungen bitte in WooCommerce erstatten; die Tickets werden automatisch widerrufen.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		}
+		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
+		if ( $existing ) { $wpdb->query( 'ROLLBACK' ); return $existing; }
+		$open = self::open_refunds( $order_id );
+		$remaining = (int) $order->total_minor - (int) $order->refunded_minor - $open['amount_minor'];
+		if ( $amount_minor > $remaining ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_refund_amount', __( 'Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		}
+		$tax = isset( $args['tax_minor'] ) ? min( $amount_minor, absint( $args['tax_minor'] ) ) : self::tax_for( $order, null, $amount_minor );
+		$threshold = (int) Settings::get( 'refund_approval_threshold' );
+		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $amount_minor;
+		$needs_approval = $threshold > 0 && $cumulative > $threshold && ( $system || ! current_user_can( self::APPROVE_CAP ) );
+		$now = current_time( 'mysql', true );
+		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
+			'order_id' => $order_id,
+			'idempotency_key' => $key_hash,
+			'amount_minor' => $amount_minor,
+			'tax_minor' => $tax,
+			'currency' => $order->currency,
+			'ticket_ids' => wp_json_encode( array() ),
+			'reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
+			'status' => $needs_approval ? 'pending_approval' : 'approved',
+			'requested_by' => get_current_user_id(),
+			'approved_by' => $needs_approval ? 0 : get_current_user_id(),
+			'created_at' => $now,
+			'updated_at' => $now,
+		) );
+		if ( false === $inserted ) {
+			$wpdb->query( 'ROLLBACK' );
+			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
+			return $existing ? $existing : new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+		}
+		$refund_id = (int) $wpdb->insert_id;
+		$wpdb->query( 'COMMIT' );
+		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $amount_minor, 'needs_approval' => $needs_approval, 'amount_only' => true ) );
+		if ( $needs_approval ) {
+			wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Erstattung wartet auf Freigabe', 'wp-pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'wp-pass-captain' ), $order->public_id, number_format_i18n( $amount_minor / 100, 2 ) . ' ' . $order->currency ) );
+			return self::get( $refund_id );
+		}
+		return self::execute( $refund_id );
+	}
+
 	/** Second approval by a different user with the approval capability. */
 	public static function approve( $refund_id ) {
 		$refund = self::get( $refund_id );

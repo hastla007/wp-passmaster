@@ -8,6 +8,8 @@
  *  - late_sale   order line of an order created before P that was not settled yet (e.g. paid late),
  *  - refund      completed refund of an order created in P,
  *  - correction  completed refund of an order created before P (e.g. after that period was finalized).
+ * Complimentary orders (guest lists, Data::comp_providers()) are never settled; their tickets are only
+ * counted in totals.comp_tickets.
  * Amounts are gross incl. VAT from the order line snapshots (discount allocated like checkout);
  * refunds are allocated to lines like the reports module. Commission = commission % of the net amount
  * per line, fixed fee = fee per ticket; on refunds both are reversed according to the partner's refund
@@ -93,6 +95,7 @@ final class Settlements {
 		}
 		$events = Repository::event_ids( $partner->partner_id );
 		$lines = array();
+		$comp_tickets = 0;
 		if ( $events ) {
 			$in = implode( ',', array_map( 'absint', $events ) );
 			$settled = array_flip( $wpdb->get_col( $wpdb->prepare( "SELECT source_key FROM {$p}wpcap_partner_settlement_lines WHERE partner_id=%d AND source_key IS NOT NULL", (int) $partner->partner_id ) ) );
@@ -101,10 +104,21 @@ final class Settlements {
 			$lower_sql = '' !== $lower ? $wpdb->prepare( ' AND ord.created_at >= %s', $lower ) : '';
 
 			// Sales.
-			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.created_at,ord.discount_minor FROM {$p}wpcap_orders ord WHERE ord.payment_status IN ('paid','refunded') AND ord.currency=%s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY ord.order_id", $partner->currency, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list / prepared fragment.
+			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.created_at,ord.discount_minor,ord.payment_provider FROM {$p}wpcap_orders ord WHERE ord.payment_status IN ('paid','refunded') AND ord.currency=%s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY ord.order_id", $partner->currency, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list / prepared fragment.
 			$by_order = self::lines_by_order( array_map( static function ( $o ) { return (int) $o->order_id; }, $orders ), $line_sql );
+			$comp_providers = Data::comp_providers();
 			foreach ( $orders as $order ) {
 				$order_lines = $by_order[ (int) $order->order_id ] ?? array();
+				if ( in_array( (string) $order->payment_provider, $comp_providers, true ) ) {
+					// Guest list comps (GuestLists module): no sale, no commission/fee; counted for information
+					// only (orders created in the period).
+					if ( $order->created_at >= $start ) {
+						foreach ( $order_lines as $line ) {
+							if ( in_array( (int) $line->event_id, $events, true ) ) { $comp_tickets += (int) $line->quantity; }
+						}
+					}
+					continue;
+				}
 				$gross_lines = Data::allocate_discount( $order_lines, (int) $order->discount_minor );
 				foreach ( $order_lines as $i => $line ) {
 					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
@@ -133,7 +147,9 @@ final class Settlements {
 			}
 		}
 		usort( $lines, static function ( $a, $b ) { return array( $a['occurred_at'], $a['item_key'] ) <=> array( $b['occurred_at'], $b['item_key'] ); } );
-		return array( 'lines' => $lines, 'totals' => self::totals( $lines, $partner ) );
+		$totals = self::totals( $lines, $partner );
+		$totals['comp_tickets'] = $comp_tickets;
+		return array( 'lines' => $lines, 'totals' => $totals );
 	}
 
 	private static function line( $kind, $key, $line, $order_id, $refund_id, $occurred_at, $order_created_at, $tickets, $gross, $tax, $partner, $tz ) {
@@ -573,6 +589,7 @@ final class Settlements {
 		$rows[] = array();
 		$rows[] = array( __( 'Verkaufte Tickets', 'wp-pass-captain' ), (int) $s->tickets_sold );
 		$rows[] = array( __( 'Erstattete Tickets', 'wp-pass-captain' ), (int) $s->tickets_refunded );
+		if ( ! empty( $t['comp_tickets'] ) ) { $rows[] = array( __( 'Freikarten (nicht abgerechnet)', 'wp-pass-captain' ), (int) $t['comp_tickets'] ); }
 		foreach ( self::summary( $s ) as $label => $minor ) { $rows[] = array( $label, self::m( $minor ) ); }
 		return $rows;
 	}
