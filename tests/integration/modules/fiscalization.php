@@ -32,6 +32,11 @@ check( 'adapter capability policy accepts a complete profile', array() === Count
 $missing_profile = array( 'required_capabilities' => array( 'daily_report' ) );
 check( 'adapter capability policy reports missing country workflows', array( 'daily_report' ) === CountryPolicy::missing_capabilities( $fiscal_adapter, $missing_profile ) );
 
+FiscalizationModule::register();
+$built_in_adapters = Registry::all();
+check( 'built-in vendor adapters are registered for fiskaly, efsta, and fiskaltrust', isset( $built_in_adapters['fiskaly_sign_at'], $built_in_adapters['fiskaly_sign_de'], $built_in_adapters['efsta_efr'], $built_in_adapters['fiskaltrust_pos'] ) );
+check( 'efsta supports Hungary while fiskaltrust does not claim unsupported Hungarian coverage', in_array( 'HU', $built_in_adapters['efsta_efr']->countries(), true ) && ! in_array( 'HU', $built_in_adapters['fiskaltrust_pos']->countries(), true ) );
+
 $GLOBALS['wpcap_test_filters']['wpcap_fiscal_credentials'] = array( 'api_secret' => 'secret-value', 'bad key!' => array( 'nested' ) );
 $runtime_config = Credentials::with_credentials( array( 'region' => 'eu' ), 17, 'test_fiscal_adapter' );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_fiscal_credentials'] );
