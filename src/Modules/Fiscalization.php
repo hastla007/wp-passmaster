@@ -344,6 +344,7 @@ final class Fiscalization {
 		return array(
 			'wpcap_fiscal_save_seller' => array( __CLASS__, 'handle_admin_save_seller' ),
 			'wpcap_fiscal_save_provider' => array( __CLASS__, 'handle_admin_save_provider' ),
+			'wpcap_fiscal_save_profile' => array( __CLASS__, 'handle_admin_save_profile' ),
 			'wpcap_fiscal_assign_seller' => array( __CLASS__, 'handle_admin_assign_seller' ),
 			'wpcap_fiscal_retry_order' => array( __CLASS__, 'handle_admin_retry_order' ),
 		);
@@ -362,8 +363,28 @@ final class Fiscalization {
 			'legal_name' => sanitize_text_field( wp_unslash( $_POST['legal_name'] ?? '' ) ),
 			'country_code' => strtoupper( sanitize_text_field( wp_unslash( $_POST['country_code'] ?? '' ) ) ),
 			'tax_number' => sanitize_text_field( wp_unslash( $_POST['tax_number'] ?? '' ) ),
+			'vat_id' => sanitize_text_field( wp_unslash( $_POST['vat_id'] ?? '' ) ),
+			'contact_email' => sanitize_email( wp_unslash( $_POST['contact_email'] ?? '' ) ),
+			'business_address' => array( 'street' => sanitize_text_field( wp_unslash( $_POST['address_street'] ?? '' ) ), 'postal_code' => sanitize_text_field( wp_unslash( $_POST['address_postal_code'] ?? '' ) ), 'city' => sanitize_text_field( wp_unslash( $_POST['address_city'] ?? '' ) ), 'region' => sanitize_text_field( wp_unslash( $_POST['address_region'] ?? '' ) ), 'country' => sanitize_text_field( wp_unslash( $_POST['address_country'] ?? '' ) ) ),
 		) );
 		$result = self::rest_save_seller( $request );
+		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'saved' );
+	}
+
+	public static function handle_admin_save_profile() {
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
+		$seller_id = absint( $_POST['seller_id'] ?? 0 );
+		check_admin_referer( 'wpcap_fiscal_save_profile_' . $seller_id );
+		$input = array(
+			'channel' => sanitize_key( wp_unslash( $_POST['channel'] ?? '' ) ),
+			'environment' => sanitize_key( wp_unslash( $_POST['environment'] ?? 'test' ) ),
+			'status' => sanitize_key( wp_unslash( $_POST['status'] ?? 'draft' ) ),
+			'ruleset_key' => sanitize_key( wp_unslash( $_POST['ruleset_key'] ?? '' ) ),
+			'ruleset_version' => sanitize_text_field( wp_unslash( $_POST['ruleset_version'] ?? '' ) ),
+			'legal_reference' => sanitize_text_field( wp_unslash( $_POST['legal_reference'] ?? '' ) ),
+			'review_attested' => ! empty( $_POST['review_attested'] ),
+		);
+		$result = self::save_profile( $seller_id, $input );
 		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'saved' );
 	}
 
@@ -514,9 +535,21 @@ final class Fiscalization {
 			return new \WP_Error( 'wpcap_fiscal_seller_invalid', __( 'Name und eines der unterstützten Länder AT, DE oder HU sind erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
 		$now = current_time( 'mysql', true );
-		$wpdb->insert( $wpdb->prefix . 'wpcap_legal_sellers', array( 'legal_name' => $name, 'country_code' => $country, 'tax_number' => sanitize_text_field( $body['tax_number'] ?? '' ), 'created_at' => $now, 'updated_at' => $now ), array( '%s', '%s', '%s', '%s', '%s' ) );
+		$address_in = is_array( $body['business_address'] ?? null ) ? $body['business_address'] : array();
+		$address = array();
+		foreach ( array( 'street', 'postal_code', 'city', 'region', 'country' ) as $field ) { $address[ $field ] = sanitize_text_field( $address_in[ $field ] ?? '' ); }
+		$wpdb->insert( $wpdb->prefix . 'wpcap_legal_sellers', array(
+			'legal_name' => $name, 'country_code' => $country, 'tax_number' => sanitize_text_field( $body['tax_number'] ?? '' ),
+			'vat_id' => sanitize_text_field( $body['vat_id'] ?? '' ), 'business_address' => wp_json_encode( $address ),
+			'contact_email' => sanitize_email( $body['contact_email'] ?? '' ), 'created_at' => $now, 'updated_at' => $now,
+		), array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ) );
 		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_fiscal_seller_save', __( 'Rechtsträger konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		return rest_ensure_response( array( 'seller_id' => (int) $wpdb->insert_id ) );
+	}
+
+	public static function rest_save_profile( \\WP_REST_Request $request ) {
+		$result = self::save_profile( absint( $request['seller_id'] ), (array) $request->get_json_params() );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
 	public static function rest_save_provider( \WP_REST_Request $request ) {
