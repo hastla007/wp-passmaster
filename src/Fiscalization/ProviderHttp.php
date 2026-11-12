@@ -38,6 +38,12 @@ final class ProviderHttp {
 		return array( 'status' => $status, 'data' => $data, 'headers' => wp_remote_retrieve_headers( $response ) );
 	}
 
+	public static function status( $error ) {
+		if ( ! is_wp_error( $error ) ) { return 0; }
+		$data = $error->get_error_data();
+		return is_array( $data ) ? absint( $data['status'] ?? 0 ) : 0;
+	}
+
 	public static function uuid_from_key( $key ) {
 		$hex = substr( hash( 'sha256', (string) $key ), 0, 32 );
 		$hex[12] = '4';
