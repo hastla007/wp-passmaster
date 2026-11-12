@@ -99,6 +99,8 @@ final class SettingsPage {
 					'seller_name' => array( 'type' => 'text', 'label' => __( 'Name / Firma', 'wp-pass-captain' ) ),
 					'seller_address' => array( 'type' => 'textarea', 'label' => __( 'Anschrift', 'wp-pass-captain' ) ),
 					'seller_vat_id' => array( 'type' => 'text', 'label' => __( 'USt-IdNr.', 'wp-pass-captain' ) ),
+					'seller_tax_number' => array( 'type' => 'text', 'label' => __( 'Steuernummer', 'wp-pass-captain' ), 'description' => __( 'Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist.', 'wp-pass-captain' ) ),
+					'seller_country' => array( 'type' => 'text', 'label' => __( 'Land (ISO-Code, z. B. DE oder AT)', 'wp-pass-captain' ), 'description' => __( 'Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet (siehe docs/SALES-MODELS.md).', 'wp-pass-captain' ) ),
 					'invoice_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungsnummer', 'wp-pass-captain' ) ),
 					'credit_note_prefix' => array( 'type' => 'prefix', 'label' => __( 'Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)', 'wp-pass-captain' ) ),
 					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'wp-pass-captain' ) ),

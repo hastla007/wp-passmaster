@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.4.0';
+	const DB_VERSION = '3.5.0';
 
 	public static function install() {
 		global $wpdb;
@@ -123,6 +123,7 @@ final class Installer {
 				locale varchar(20) NOT NULL DEFAULT '',
 				voucher_snapshot longtext NULL,
 				attendee_data longtext NULL,
+				billing longtext NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (order_id),
@@ -615,7 +616,7 @@ final class Installer {
 				KEY invoice_id (invoice_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$wpdb->prefix}wpcap_document_sequences (
-				series varchar(16) NOT NULL,
+				series varchar(40) NOT NULL,
 				year smallint(5) unsigned NOT NULL,
 				next_number bigint(20) unsigned NOT NULL DEFAULT 1,
 				PRIMARY KEY  (series,year)

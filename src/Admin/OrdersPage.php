@@ -322,6 +322,8 @@ final class OrdersPage {
 		<table class="form-table"><tbody>
 			<tr><th><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td></tr>
 			<tr><th><?php esc_html_e( 'Käufer', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( $order->customer_email ); ?></td></tr>
+			<?php $billing = \PassCaptain\Billing::for_order( $order ); ?>
+			<tr><th><?php esc_html_e( 'Rechnungsdaten', 'wp-pass-captain' ); ?></th><td class="wpcap-order-billing"><?php echo $billing ? implode( '<br>', array_map( 'esc_html', array_merge( \PassCaptain\Billing::address_lines( $billing ), \PassCaptain\Billing::detail_lines( $billing ) ) ) ) : esc_html__( 'Keine (Rechnung nur mit E-Mail-Adresse)', 'wp-pass-captain' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each line escaped. ?></td></tr>
 			<tr><th><?php esc_html_e( 'Angelegt', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( Forms::datetime( $order->created_at, $tz ) ); ?></td></tr>
 			<tr><th><?php esc_html_e( 'Zahlart / Referenz', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( $order->payment_provider . ( '' !== (string) $order->provider_reference ? ' / ' . $order->provider_reference : '' ) ); ?></td></tr>
 			<?php

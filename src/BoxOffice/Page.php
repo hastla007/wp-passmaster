@@ -104,6 +104,7 @@ final class Page {
 			echo '</p><p><label>' . esc_html__( 'Gegeben (bar)', 'wp-pass-captain' ) . ' <input type="text" inputmode="decimal" name="tendered" size="8"></label> <span id="wpcap-pos-change"></span> ';
 			echo '<label>' . esc_html__( 'Terminal-Referenz', 'wp-pass-captain' ) . ' <input type="text" name="reference" size="14" maxlength="100"></label> ';
 			echo '<label>' . esc_html__( 'E-Mail Käufer (optional, Pflicht bei Rechnung)', 'wp-pass-captain' ) . ' <input type="email" name="email" size="28"></label></p>';
+			self::render_billing_fields();
 			echo '<p><button class="button button-primary button-hero">' . esc_html__( 'Verkauf buchen', 'wp-pass-captain' ) . '</button></p></form>';
 			$availability_url = add_query_arg( array( 'action' => 'wpcap_pos_availability', 'occurrence_id' => $occurrence_id, '_wpnonce' => wp_create_nonce( 'wpcap_pos' ) ), admin_url( 'admin-post.php' ) );
 			echo '<script>window.wpcapPos=' . wp_json_encode( array(
@@ -210,6 +211,31 @@ final class Page {
 		Forms::finish( $result, __( 'Kasse geöffnet.', 'wp-pass-captain' ), self::back() );
 	}
 
+	/** Optional "Rechnung auf Firma" fields (collapsed); empty fields mean no billing data. */
+	private static function render_billing_fields() {
+		$labels = \PassCaptain\Billing::labels();
+		$default = \PassCaptain\Billing::default_country();
+		echo '<details class="wpcap-pos-billing"><summary>' . esc_html__( 'Rechnung auf Firma/Adresse (optional)', 'wp-pass-captain' ) . '</summary>';
+		echo '<p class="description">' . esc_html__( 'Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht.', 'wp-pass-captain' ) . '</p><table class="form-table" role="presentation"><tbody>';
+		$autocomplete = array( 'company' => 'organization', 'first_name' => 'given-name', 'last_name' => 'family-name', 'street' => 'street-address', 'postcode' => 'postal-code', 'city' => 'address-level2', 'country' => 'country', 'vat_id' => 'off', 'po_number' => 'off' );
+		foreach ( \PassCaptain\Billing::FIELDS as $field ) {
+			$id = 'wpcap-pos-billing-' . $field;
+			$label = $labels[ $field ] . ( in_array( $field, \PassCaptain\Billing::REQUIRED, true ) ? '' : ' ' . __( '(optional)', 'wp-pass-captain' ) );
+			echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
+			if ( 'country' === $field ) {
+				echo '<select id="' . esc_attr( $id ) . '" name="billing[country]" autocomplete="country">';
+				foreach ( \PassCaptain\Billing::countries() as $code => $name ) {
+					echo '<option value="' . esc_attr( $code ) . '"' . selected( $code, $default, false ) . '>' . esc_html( $name ) . '</option>';
+				}
+				echo '</select>';
+			} else {
+				echo '<input type="text" class="regular-text" id="' . esc_attr( $id ) . '" name="billing[' . esc_attr( $field ) . ']" maxlength="' . (int) \PassCaptain\Billing::MAX[ $field ] . '" autocomplete="' . esc_attr( $autocomplete[ $field ] ) . '">';
+			}
+			echo '</td></tr>';
+		}
+		echo '</tbody></table></details>';
+	}
+
 	/** Maps the POS form to Service::sell() input. */
 	public static function sale_input( array $in ) {
 		$tendered = '' !== trim( (string) ( $in['tendered'] ?? '' ) ) ? Forms::parse_money( $in['tendered'] ) : null;
@@ -249,7 +275,16 @@ final class Page {
 			'tendered_minor' => $tendered,
 			'reference' => Forms::text( $in, 'reference', 100 ),
 			'form_key' => Forms::text( $in, 'form_key', 64 ),
+			'billing' => self::billing_input( $in ),
 		);
+	}
+
+	/** Billing fields of the POS form; null when only the preselected country is set. */
+	private static function billing_input( array $in ) {
+		$raw = is_array( $in['billing'] ?? null ) ? $in['billing'] : array();
+		$billing = \PassCaptain\Billing::sanitize( $raw );
+		$filled = array_filter( array_diff_key( $billing, array( 'country' => true ) ), 'strlen' );
+		return $filled ? array( 'enabled' => true ) + $billing : null;
 	}
 
 	public static function handle_sell() {

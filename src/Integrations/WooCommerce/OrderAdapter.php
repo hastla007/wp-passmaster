@@ -27,6 +27,7 @@
 
 namespace PassCaptain\Integrations\WooCommerce;
 
+use PassCaptain\Billing;
 use PassCaptain\Orders;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -462,6 +463,7 @@ final class OrderAdapter {
 				'key_namespace' => 'woocommerce',
 				'unit_prices'   => $unit_prices,
 				'line_totals'   => $line_totals,
+				'billing'       => self::billing_from_order( $wc_order ),
 			)
 		);
 		if ( is_wp_error( $result ) ) {
@@ -473,6 +475,48 @@ final class OrderAdapter {
 		/* translators: %d: hold minutes */
 		$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets für %d Minuten reserviert.', 'wp-pass-captain' ), (int) $result['hold_minutes'] ) );
 		return absint( $result['order_id'] );
+	}
+
+	/**
+	 * Billing data of a WooCommerce order for the core order, so invoices issued by Pass Captain
+	 * carry company, name, address and VAT ID. The VAT ID is read from common meta keys of VAT
+	 * plugins (filter `wpcap_woocommerce_vat_meta_keys`); the result can be changed with the filter
+	 * `wpcap_woocommerce_billing`. Empty when the order has neither a name nor a company.
+	 *
+	 * @return array Billing::FIELDS => string, or an empty array.
+	 */
+	public static function billing_from_order( $wc_order ) {
+		if ( ! is_object( $wc_order ) ) {
+			return array();
+		}
+		$get = static function ( $method ) use ( $wc_order ) {
+			return is_callable( array( $wc_order, $method ) ) ? (string) call_user_func( array( $wc_order, $method ) ) : '';
+		};
+		$vat_id = '';
+		$keys   = (array) apply_filters( 'wpcap_woocommerce_vat_meta_keys', array( '_billing_vat', '_vat_number', 'billing_eu_vat_number', '_billing_eu_vat_number', '_billing_vat_number', 'vat_number', '_billing_vat_id' ), $wc_order );
+		foreach ( $keys as $key ) {
+			$value = is_callable( array( $wc_order, 'get_meta' ) ) ? $wc_order->get_meta( (string) $key, true ) : '';
+			if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
+				$vat_id = (string) $value;
+				break;
+			}
+		}
+		$billing = array(
+			'company'    => $get( 'get_billing_company' ),
+			'first_name' => $get( 'get_billing_first_name' ),
+			'last_name'  => $get( 'get_billing_last_name' ),
+			'street'     => implode( ', ', array_filter( array( trim( $get( 'get_billing_address_1' ) ), trim( $get( 'get_billing_address_2' ) ) ), 'strlen' ) ),
+			'postcode'   => $get( 'get_billing_postcode' ),
+			'city'       => $get( 'get_billing_city' ),
+			'country'    => $get( 'get_billing_country' ),
+			'vat_id'     => $vat_id,
+			'po_number'  => '',
+		);
+		$billing = Billing::sanitize( apply_filters( 'wpcap_woocommerce_billing', $billing, $wc_order ) );
+		if ( '' === $billing['company'] && '' === $billing['first_name'] && '' === $billing['last_name'] ) {
+			return array();
+		}
+		return $billing;
 	}
 
 	/** Hold duration for WooCommerce orders (at least the WooCommerce "hold stock" setting). */
@@ -597,6 +641,10 @@ final class OrderAdapter {
 			}
 		}
 		$had_tickets = (bool) Orders::tickets_for_order( $core_id );
+		// The buyer may have changed the billing address after the hold; invoices use the paid state.
+		if ( ! Billing::invoice_issued( $core_id ) ) {
+			Billing::save( $core_id, self::billing_from_order( $wc_order ) );
+		}
 		$result = Orders::confirm_external_payment( $core_id, 'woocommerce:' . $wc_order->get_id() );
 		if ( is_wp_error( $result ) ) {
 			/* translators: %s: error message */

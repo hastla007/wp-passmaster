@@ -66,6 +66,8 @@ final class Settings {
 			'seller_name'               => '',
 			'seller_address'            => '',
 			'seller_vat_id'             => '',
+			'seller_tax_number'         => '',
+			'seller_country'            => 'DE',
 			'invoice_prefix'            => 'WPC',
 			'credit_note_prefix'        => 'GS',
 			'auto_invoice'              => 0,
