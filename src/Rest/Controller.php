@@ -241,6 +241,16 @@ final class Controller {
 		$params = $request->get_json_params() ?: $request->get_params();
 		$params = is_array( $params ) ? $params : array();
 		// Only customer fields; trusted adapter options must never come from a public request.
+		// One code field ("Gutschein- oder Rabattcode"): a known campaign code is a discount, anything else is
+		// tried as a voucher (when a voucher plugin is connected).
+		$single_code = sanitize_text_field( (string) ( $params['code'] ?? '' ) );
+		if ( '' !== $single_code ) {
+			if ( \PassCaptain\Campaigns::is_code( $single_code ) || ! \PassCaptain\Integrations\Vouchers\Bridge::available() ) {
+				$params['campaign_codes'] = array_merge( (array) ( $params['campaign_codes'] ?? array() ), array( $single_code ) );
+			} elseif ( '' === (string) ( $params['voucher_code'] ?? '' ) ) {
+				$params['voucher_code'] = $single_code;
+			}
+		}
 		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code', 'billing' ) ) ) );
 		$provider_id = sanitize_key( $params['provider'] ?? 'manual' );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );

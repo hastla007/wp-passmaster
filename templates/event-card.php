@@ -91,14 +91,16 @@ $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
 				</div>
 			</fieldset>
 		<?php endif; ?>
-		<div class="wpcap-field">
-			<label for="<?php echo esc_attr( $form_id . '-campaign' ); ?>"><?php esc_html_e( 'Rabattcode (optional)', 'wp-pass-captain' ); ?></label>
-			<input id="<?php echo esc_attr( $form_id . '-campaign' ); ?>" name="campaign_code" type="text" autocomplete="off" maxlength="40">
-		</div>
 		<?php if ( \PassCaptain\Integrations\Vouchers\Bridge::available() ) : ?>
+			<?php /* One field for both: the server tells discount codes and vouchers apart. */ ?>
 			<div class="wpcap-field">
-				<label for="<?php echo esc_attr( $form_id . '-voucher' ); ?>"><?php esc_html_e( 'Gutscheincode (optional)', 'wp-pass-captain' ); ?></label>
-				<input id="<?php echo esc_attr( $form_id . '-voucher' ); ?>" name="voucher_code" type="text" autocomplete="off" maxlength="64">
+				<label for="<?php echo esc_attr( $form_id . '-code' ); ?>"><?php esc_html_e( 'Gutschein- oder Rabattcode (optional)', 'wp-pass-captain' ); ?></label>
+				<input id="<?php echo esc_attr( $form_id . '-code' ); ?>" name="code" type="text" autocomplete="off" maxlength="64">
+			</div>
+		<?php else : ?>
+			<div class="wpcap-field">
+				<label for="<?php echo esc_attr( $form_id . '-campaign' ); ?>"><?php esc_html_e( 'Rabattcode (optional)', 'wp-pass-captain' ); ?></label>
+				<input id="<?php echo esc_attr( $form_id . '-campaign' ); ?>" name="campaign_code" type="text" autocomplete="off" maxlength="40">
 			</div>
 		<?php endif; ?>
 		<?php if ( count( $providers ) > 1 ) : ?>

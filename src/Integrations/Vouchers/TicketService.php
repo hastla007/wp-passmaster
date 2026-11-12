@@ -77,6 +77,41 @@ final class TicketService {
 		) );
 	}
 
+	const ALIASES_OPTION = 'wpcap_ticket_name_aliases';
+
+	/**
+	 * Remembers that a ticket type of an event was renamed, so vouchers sold for the old name ("customer
+	 * chooses the date" with a ticket name) still find the dates under the new name.
+	 */
+	public static function remember_rename( $event_id, $old_name, $new_name ) {
+		$event_id = absint( $event_id );
+		$old_name = trim( (string) $old_name );
+		$new_name = trim( (string) $new_name );
+		if ( ! $event_id || '' === $old_name || '' === $new_name || 0 === strcasecmp( $old_name, $new_name ) ) { return; }
+		$aliases = get_option( self::ALIASES_OPTION, array() );
+		$aliases = is_array( $aliases ) ? $aliases : array();
+		$aliases[ $event_id ][ self::name_key( $old_name ) ][] = $new_name;
+		$aliases[ $event_id ][ self::name_key( $old_name ) ] = array_values( array_unique( $aliases[ $event_id ][ self::name_key( $old_name ) ] ) );
+		update_option( self::ALIASES_OPTION, $aliases, false );
+	}
+
+	/** The name and every later name of it (renames can chain: A → B → C). */
+	public static function names_for( $event_id, $name ) {
+		$aliases = get_option( self::ALIASES_OPTION, array() );
+		$map = is_array( $aliases ) && $event_id && isset( $aliases[ $event_id ] ) ? (array) $aliases[ $event_id ] : array();
+		$names = array( $name );
+		for ( $i = 0; $i < count( $names ) && $i < 50; $i++ ) {
+			foreach ( (array) ( $map[ self::name_key( $names[ $i ] ) ] ?? array() ) as $next ) {
+				if ( ! in_array( $next, $names, true ) ) { $names[] = (string) $next; }
+			}
+		}
+		return $names;
+	}
+
+	private static function name_key( $name ) {
+		return function_exists( 'mb_strtolower' ) ? mb_strtolower( trim( (string) $name ) ) : strtolower( trim( (string) $name ) );
+	}
+
 	/** Filter callback: the service for contract version 1 (another implementation registered earlier wins). */
 	public static function service( $service = null, $version = self::VERSION ) {
 		if ( null !== $service || self::VERSION !== (int) $version ) { return $service; }
@@ -178,7 +213,8 @@ final class TicketService {
 	/**
 	 * Ticket types that can be issued for vouchers (upcoming occurrences, active types), for admin selects.
 	 *
-	 * @param array $filter Optional event_id (int), ticket_name (string, exact name of the ticket type) and
+	 * @param array $filter Optional event_id (int), ticket_name (string, name of the ticket type; with event_id
+	 *                      also its later names after a rename) and
 	 *                      quantity (int: leave out ticket types with fewer free places).
 	 * @return array<int, array{ticket_type_id:int,event_id:int,occurrence_id:int,label:string,date_label:string,name:string,event:string,starts_at:string,currency:string,price_minor:int}>
 	 */
@@ -192,8 +228,10 @@ final class TicketService {
 			$args[] = absint( $filter['event_id'] );
 		}
 		if ( '' !== (string) ( $filter['ticket_name'] ?? '' ) ) {
-			$where .= ' AND tt.name=%s';
-			$args[] = sanitize_text_field( (string) $filter['ticket_name'] );
+			// Vouchers sold for "Stehplatz" keep working after the ticket type was renamed (see remember_rename()).
+			$names = self::names_for( absint( $filter['event_id'] ?? 0 ), sanitize_text_field( (string) $filter['ticket_name'] ) );
+			$where .= ' AND tt.name IN (' . implode( ',', array_fill( 0, count( $names ), '%s' ) ) . ')';
+			$args = array_merge( $args, $names );
 		}
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.name,tt.currency,tt.price_minor,e.event_id,e.name AS event_name,o.occurrence_id,o.starts_at,o.timezone FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE tt.status='active' AND o.status<>'cancelled' AND o.starts_at>=%s{$where} ORDER BY o.starts_at,e.name,tt.ticket_type_id LIMIT 500", $args ) );
 		$out = array();

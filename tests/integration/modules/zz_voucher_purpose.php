@@ -137,6 +137,22 @@ $fl = Orders::create( array( 'email' => 'flt@example.com', 'items' => array( arr
 $fl_applied = VoucherCheckout::apply( $fl['order_id'], 'ANY-9999' );
 check( 'filter result is applied at checkout', 'single' === $fl_applied['purpose'] && 'single' === VoucherCheckout::voucher_state( $fl['order_id'] )['purpose'] );
 remove_filter( 'wpcap_voucher_purpose', $vp_filter, 10 );
+
+// One code field: campaign codes are discounts, everything else goes to the voucher plugin.
+$wpdb->insert( "{$p}wpcap_campaigns", array( 'code' => 'ONEFIELD10', 'name' => 'One field', 'kind' => 'fixed', 'discount_value' => 100, 'currency' => 'EUR', 'status' => 'active', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+check( 'campaign codes are recognised in any spelling', PassCaptain\Campaigns::is_code( ' onefield10 ' ) && ! PassCaptain\Campaigns::is_code( 'MPV-ABCD-1234' ) );
+$one_req = static function ( $code, $key ) use ( $vp_type ) {
+	$r = new WP_REST_Request( 'POST' );
+	$r->set_body( wp_json_encode( array( 'email' => 'one@example.com', 'items' => array( array( 'ticket_type_id' => $vp_type, 'quantity' => 1 ) ), 'provider' => 'manual', 'code' => $code, 'idempotency_key' => $key ) ) );
+	return PassCaptain\Rest\Controller::checkout( $r );
+};
+$one_calls = count( $vp_provider->calls );
+$one_c = $one_req( 'onefield10', 'vp-one-c' );
+$one_c = $one_c instanceof WP_REST_Response ? $one_c->get_data() : $one_c;
+check( 'a discount code in the single code field is applied as a discount', is_array( $one_c ) && 100 === (int) Orders::get( $one_c['order_id'] )->discount_minor && count( $vp_provider->calls ) === $one_calls );
+$one_v = $one_req( 'GIFT-ONE-0001', 'vp-one-v' );
+$one_v = $one_v instanceof WP_REST_Response ? $one_v->get_data() : $one_v;
+check( 'a voucher code in the single code field is redeemed through the voucher plugin', is_array( $one_v ) && in_array( array( 'quote', 'GIFT-ONE-0001' ), $vp_provider->calls, true ) && (int) $one_v['voucher_minor'] > 0 );
 unset( $GLOBALS['wpcap_test_filters'][ Bridge::FILTER ] );
 
 // --- Ticket service (voucher → tickets) -----------------------------------------------------------

@@ -3,6 +3,14 @@
 ## Unveröffentlicht
 
 ### Zusammenspiel mit WP Voucher Captain
+- Ticketdienst: `get()` liefert zusätzlich Event, Ticketart, Beginn (Ortszeit) und Empfänger einer Umwandlung (für „2 Tickets für … am …, gesendet an …“ im Kundenkonto); neues `resend_tickets()` sendet die Tickets einer Umwandlung erneut (neue Codes, höchstens 3-mal pro Stunde wie im Bestellportal).
+- Wird eine Ticketart umbenannt, merkt sich Pass Captain den alten Namen je Event: Gutscheine „Kunde wählt den Termin“, die für „Stehplatz“ verkauft wurden, finden die Termine auch nach der Umbenennung.
+- Ein Codefeld im Checkout: „Gutschein- oder Rabattcode“ statt zwei Feldern. Bekannte Kampagnencodes werden als Rabatt angewendet, alles andere als Gutschein (nur wenn ein Gutschein-Plugin verbunden ist; sonst bleibt das Feld „Rabattcode“). Die API nimmt weiterhin `campaign_codes` und `voucher_code` an.
+
+### Web-Scanner
+- Großes Ergebnisbanner mit Symbol und Text (Farbe ist nicht das einzige Signal), Töne und Vibration für Einlass/kein Einlass/Achtung, eigene kurze Live-Region für Screenreader.
+- Kamera stoppen, Licht (wo die Kamera es kann), Bildschirm bleibt beim Scannen an; Modusleiste „Modus: Einlass/Auslass“ (Auslass andersfarbig); Schaltflächen mindestens 48 px.
+- Ein QR-Code, der im Bild bleibt, wird erst wieder gesendet, nachdem er 3 s aus dem Bild war – „bereits verwendet“ überschreibt das grüne Ergebnis nicht mehr.
 - Gemeinsamer Scanner: neuer Dienst `wp_pass_captain_checkin_service_v1` (`Integrations\Vouchers\CheckinService`) – `recognizes()`, `preview()`, `check_in()` mit denselben Regeln, Sperren und Audit wie der eigene Web-Scanner; Recht `wpcap_checkin` wird im Dienst geprüft. Der Voucher-Captain-Scanner erkennt damit auch Pass-Captain-Tickets; Gutschein-Einlösung und Ticket-Check-in bleiben getrennte Aktionen.
 - Einstellungen zeigen den Status der Integration (Voucher Captain aktiv/Version, Gutscheine im Checkout, Gutschein → Ticket, gemeinsamer Scanner) mit Links; im Menü stehen „Gemeinsamer Scanner ↗“ und „WP Voucher Captain ↗“, wenn Voucher Captain aktiv ist.
 - Werden Tickets einer Gutschein-Umwandlung in Pass Captain storniert oder erstattet (Bestellung storniert/erstattet, Termin oder Event abgesagt), meldet Pass Captain das über die neue Action `wp_pass_captain_voucher_tickets_revoked_v1` (Einlöse-Schlüssel, verbleibende Tickets). WP Voucher Captain stellt den Gutschein damit wieder her. Ein Widerruf durch das Gutscheinsystem selbst wird nicht zurückgemeldet.

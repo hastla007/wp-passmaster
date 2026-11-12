@@ -290,6 +290,9 @@ final class EventsPage {
 		if ( $old ) {
 			$wpdb->update( $table, $data, array( 'ticket_type_id' => (int) $old->ticket_type_id ), $formats, array( '%d' ) );
 			$type_id = (int) $old->ticket_type_id;
+			if ( isset( $old->name ) && (string) $old->name !== (string) $data['name'] ) {
+				\PassCaptain\Integrations\Vouchers\TicketService::remember_rename( (int) $occ->event_id, (string) $old->name, (string) $data['name'] );
+			}
 		} else {
 			$data['occurrence_id'] = (int) $occ->occurrence_id;
 			$formats[] = '%d';
