@@ -21,6 +21,7 @@ Implement `PassCaptain\\Fiscalization\\AdapterInterface` (contract version 2) an
 4. Use `$document['idempotency_key']` for every remote submission. On retries the core calls `query_status()` first; only an explicit `not_found` permits another submit. An unknown status blocks ticket issuance and submission.
 5. Return an array with a non-empty stable `reference` on success, or a `WP_Error` on failure. Printable QR/signature/receipt fields belong in that result and should be rendered only by a later provider-aware ticket/receipt view.
 6. Keep API secrets out of the general configuration table. Load credentials from adapter-owned secret storage, constants, environment, or another protected credential store.
+7. The core resolves external credentials at call time through `wpcap_fiscal_credentials` and adds the result as `$configuration['credentials']`. The filter receives `( $credentials, $seller_id, $provider_id )`; return only the requested seller/provider's secrets. Values are never stored or returned by the core. Adapters must not log them.
 
 No vendor is selected by the core. fiskaly, efsta, a local certified device connector, or a customer-specific adapter can be added independently, subject to that provider's country support and legal approval.
 
@@ -45,7 +46,7 @@ The POS accepts an optional `payment_method` (`cash`, `card`, `voucher`, or `oth
 
 ## Remaining implementation before production
 
-- Build country-specific adapters and secure provider credential setup; the versioned registry has no built-in provider. The admin can run a non-mutating adapter health check and reconcile ambiguous submissions by idempotency key.
+- Build country-specific adapters. The versioned registry has no built-in provider; credentials can be resolved by a trusted site integration through `wpcap_fiscal_credentials` (for example, from environment variables or a hosting secret manager). The admin can run a non-mutating adapter health check and reconcile ambiguous submissions by idempotency key.
 - Improve the initial admin screen with seller editing/deactivation, provider credential setup through protected secret storage, and richer order-level fiscal diagnostics. Current configuration supports seller creation, provider selection/configuration, ticket-type mapping, and retrying terminal failures.
 - Complete provider-aware QR/signature output for all receipt paths and the required archive/export flows. The first renderer now shows normalized receipt fields and a separate fiscal QR on POS receipts and WooCommerce order details; QR is omitted from the existing POS storno receipt until a fiscal correction exists.
 - Implement partial refunds, credit notes, cancellation/void protocols, operator/day-end exports, and HU NAV reporting; a full-order refund is not yet translated into a provider credit note.
