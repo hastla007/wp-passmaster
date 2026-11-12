@@ -38,7 +38,7 @@ final class FiskalySignDeAdapter implements AdapterInterface {
 			if ( 'FINISHED' === strtoupper( (string) ( $existing['state'] ?? '' ) ) ) { return $this->normalize( $existing, $tx ); }
 			if ( 'ACTIVE' === strtoupper( (string) ( $existing['state'] ?? '' ) ) ) { return $this->finish( $document, $seller, $configuration, $tx, max( 2, (int) ( $existing['latest_revision'] ?? 1 ) + 1 ) ); }
 		}
-		elseif ( 404 !== (int) $existing->get_error_data()['status'] ) { return $existing; }
+		elseif ( 404 !== (int) ( (array) $existing->get_error_data() )['status'] ?? 0 ) { return $existing; }
 		$started = $this->request( 'PUT', $this->transaction_path( $document, $configuration, $tx, 1 ), array( 'state' => 'ACTIVE', 'client_id' => $configuration['client_id'], 'schema' => array() ), $seller, $configuration );
 		if ( is_wp_error( $started ) ) { return $started; }
 		return $this->finish( $document, $seller, $configuration, $tx, 2 );
