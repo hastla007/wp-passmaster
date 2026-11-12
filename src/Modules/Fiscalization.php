@@ -163,6 +163,7 @@ final class Fiscalization {
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'record_order_cancellation' ), 10, 3 );
 		add_action( 'wpcap_event_cancelled', array( __CLASS__, 'record_event_cancellation' ), 10, 1 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
+		add_action( 'admin_post_wpcap_fiscal_manual_resolution', array( __CLASS__, 'admin_record_manual_resolution' ) );
 	}
 
 	/**
@@ -589,6 +590,67 @@ final class Fiscalization {
 				'provider_action' => 'manual_review_required',
 			) );
 		}
+	}
+
+	/** Append an operator-confirmed record that a correction was completed in the provider's own system. */
+	public static function record_manual_resolution( $event_id, $resolution, $provider_reference, $note = '' ) {
+		global $wpdb;
+		$event_id = absint( $event_id );
+		$resolution = sanitize_key( $resolution );
+		$provider_reference = sanitize_text_field( $provider_reference );
+		$note = sanitize_textarea_field( $note );
+		if ( ! $event_id || ! in_array( $resolution, array( 'void', 'refund', 'credit_note', 'correction' ), true ) || '' === $provider_reference || strlen( $provider_reference ) > 191 ) {
+			return new \\WP_Error( 'wpcap_fiscal_resolution_invalid', __( 'Korrekturart und Anbieter-Referenz sind erforderlich.', 'wp-pass-captain' ) );
+		}
+		$source = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_events WHERE event_id=%d AND event_status='manual_required'", $event_id ) );
+		if ( ! $source || ! in_array( $source->event_type, array( 'refund_adjustment', 'order_cancellation', 'event_cancellation' ), true ) ) {
+			return new \\WP_Error( 'wpcap_fiscal_resolution_source', __( 'Offener Fiskalkorrekturvorgang wurde nicht gefunden.', 'wp-pass-captain' ) );
+		}
+		$existing = $wpdb->get_results( $wpdb->prepare(
+			"SELECT metadata FROM {$wpdb->prefix}wpcap_fiscal_events WHERE document_id=%d AND event_type='manual_correction_recorded'",
+			(int) $source->document_id
+		) );
+		foreach ( $existing as $row ) {
+			$metadata = json_decode( $row->metadata, true );
+			if ( is_array( $metadata ) && (int) ( $metadata['resolves_event_id'] ?? 0 ) === $event_id ) {
+				return new \\WP_Error( 'wpcap_fiscal_resolution_exists', __( 'Für diesen Vorgang wurde bereits eine Anbieter-Referenz dokumentiert.', 'wp-pass-captain' ) );
+			}
+		}
+		self::record_event( $source, 'manual_correction_recorded', 'recorded_externally', array(
+			'resolves_event_id' => $event_id,
+			'resolution' => $resolution,
+			'provider_reference' => $provider_reference,
+			'note' => $note,
+			'recorded_by' => get_current_user_id(),
+			'provider_action' => 'completed_outside_plugin',
+		) );
+		Audit::record( 'fiscal_manual_correction_recorded', 'fiscal_event', $event_id, array( 'provider_id' => sanitize_key( $source->provider_id ), 'resolution' => $resolution ) );
+		return array( 'event_id' => $event_id, 'status' => 'recorded_externally', 'provider_reference' => $provider_reference );
+	}
+
+	public static function rest_record_manual_resolution( \\WP_REST_Request $request ) {
+		$result = self::record_manual_resolution(
+			absint( $request['event_id'] ),
+			sanitize_key( $request->get_param( 'resolution' ) ),
+			sanitize_text_field( $request->get_param( 'provider_reference' ) ),
+			sanitize_textarea_field( $request->get_param( 'note' ) )
+		);
+		return is_wp_error( $result ) ? new \\WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => 409 ) ) : rest_ensure_response( $result );
+	}
+
+	public static function admin_record_manual_resolution() {
+		$event_id = absint( $_POST['event_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		check_admin_referer( 'wpcap_fiscal_manual_resolution_' . $event_id );
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Nicht berechtigt.', 'wp-pass-captain' ), 403 ); }
+		$result = self::record_manual_resolution(
+			$event_id,
+			sanitize_key( wp_unslash( $_POST['resolution'] ?? '' ) ), // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			sanitize_text_field( wp_unslash( $_POST['provider_reference'] ?? '' ) ), // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			sanitize_textarea_field( wp_unslash( $_POST['note'] ?? '' ) ) // phpcs:ignore WordPress.Security.NonceVerification.Missing
+		);
+		$redirect = add_query_arg( 'wpcap_fiscal_resolution', is_wp_error( $result ) ? 'error' : 'recorded', admin_url( 'admin.php?page=wp-pass-captain-fiscal' ) );
+		wp_safe_redirect( $redirect );
+		exit;
 	}
 
 	/** Record the required provider action when a completed fiscal document's order is cancelled. */
@@ -1074,6 +1136,9 @@ final class Fiscalization {
 		) );
 		register_rest_route( 'wp-pass-captain/v1', '/fiscal/documents/(?P<document_id>\\d+)/reconcile', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_reconcile_document' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
+		) );
+		register_rest_route( 'wp-pass-captain/v1', '/fiscal/events/(?P<event_id>\\d+)/manual-resolution', array(
+			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_record_manual_resolution' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
 		) );
 		register_rest_route( 'wp-pass-captain/v1', '/fiscal/orders/(?P<order_id>\\d+)/retry', array(
 			'methods' => 'POST', 'callback' => array( __CLASS__, 'rest_retry_order' ), 'permission_callback' => array( __CLASS__, 'rest_permission' ),
