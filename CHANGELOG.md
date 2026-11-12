@@ -7,6 +7,9 @@
 - Wird eine Ticketart umbenannt, merkt sich Pass Captain den alten Namen je Event: Gutscheine „Kunde wählt den Termin“, die für „Stehplatz“ verkauft wurden, finden die Termine auch nach der Umbenennung.
 - Ein Codefeld im Checkout: „Gutschein- oder Rabattcode“ statt zwei Feldern. Bekannte Kampagnencodes werden als Rabatt angewendet, alles andere als Gutschein (nur wenn ein Gutschein-Plugin verbunden ist; sonst bleibt das Feld „Rabattcode“). Die API nimmt weiterhin `campaign_codes` und `voucher_code` an.
 
+### Rechnungen
+- Plattformbetreiber als Kleinunternehmer: neue Einstellungen „Kleinunternehmer“ und „Kleinunternehmer-Hinweis“ (Rechnungssteller). Rechnungen der Plattform tragen den Hinweis (Standard nach Land: DE § 19 UStG, AT § 6 Abs. 1 Z 27 UStG) in HTML und PDF; Rechnungen mit Umsatzsteuer werden dann verweigert (§ 14c UStG). Der Standardtext für Veranstalter-Kleinunternehmer richtet sich jetzt ebenfalls nach dem Land.
+
 ### Web-Scanner
 - Großes Ergebnisbanner mit Symbol und Text (Farbe ist nicht das einzige Signal), Töne und Vibration für Einlass/kein Einlass/Achtung, eigene kurze Live-Region für Screenreader.
 - Kamera stoppen, Licht (wo die Kamera es kann), Bildschirm bleibt beim Scannen an; Modusleiste „Modus: Einlass/Auslass“ (Auslass andersfarbig); Schaltflächen mindestens 48 px.

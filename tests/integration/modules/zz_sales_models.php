@@ -159,6 +159,19 @@ check( 'small-business organizer: invoice with VAT is refused (§ 14c)', is_wp_e
 $sm_zero = Invoices::issue_for_order( sm_order( array( $sm_tz => 2 ), 'sm-small-0' ) );
 check( 'small-business organizer: 0 % invoice carries the small-business note', ! is_wp_error( $sm_zero ) && false !== strpos( Invoices::render_html( $sm_zero['invoice_id'] ), 'Kleinunternehmer gem. § 6 Abs. 1 Z 27 UStG' ) );
 
+echo "Sales models: platform operator as small business\n";
+PassCaptain\Settings::update( array( 'seller_small_business' => 1, 'seller_small_business_note' => '' ) );
+$sm_pv = sm_type( 1190, 1900 );
+$sm_pv_r = Invoices::issue_for_order( sm_order( array( $sm_pv => 1 ), 'sm-plat-small-vat' ) );
+check( 'small-business platform: invoice with VAT is refused (§ 14c)', is_wp_error( $sm_pv_r ) && 'wpcap_invoice_small_business_vat' === $sm_pv_r->get_error_code() );
+$sm_p0 = sm_type( 1000, 0 );
+$sm_p0_r = Invoices::issue_for_order( sm_order( array( $sm_p0 => 1 ), 'sm-plat-small-0' ) );
+check( 'small-business platform: 0 % invoice carries the § 19 UStG note (DE default)', ! is_wp_error( $sm_p0_r ) && false !== strpos( Invoices::render_html( $sm_p0_r['invoice_id'] ), '§ 19 UStG' ) );
+PassCaptain\Settings::update( array( 'seller_country' => 'AT' ) );
+check( 'Austrian platform: default note cites § 6 Abs. 1 Z 27 UStG; an own text wins', str_contains( Invoices::seller()['small_business_note'], '§ 6 Abs. 1 Z 27' ) && ( function () { PassCaptain\Settings::update( array( 'seller_small_business_note' => 'Eigener Hinweis' ) ); return 'Eigener Hinweis' === Invoices::seller()['small_business_note']; } )() );
+PassCaptain\Settings::update( array( 'seller_small_business' => 0, 'seller_small_business_note' => '', 'seller_country' => 'DE' ) );
+check( 'without the setting the platform has no small-business note', '' === Invoices::seller()['small_business_note'] );
+
 echo "Sales models: settlements – agent (Provisionsrechnung)\n";
 $sm_ta_m1 = SmPartners::save( array( 'name' => 'Vermittelt GmbH', 'billing_address' => "Allee 5\n50667 Köln", 'vat_id' => 'DE333333333', 'sales_model' => 'agent', 'invoice_prefix' => 'VMG', 'commission_bp' => 1000, 'fee_per_ticket_minor' => 50, 'fee_tax_rate_bp' => 1900, 'settlement_start' => $sm_m1 . '-01' ) );
 $sm_tx = sm_type( 1190, 1900 );

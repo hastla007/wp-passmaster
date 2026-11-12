@@ -47,8 +47,11 @@ final class SalesModel {
 		return in_array( $model, self::MODELS, true ) ? $model : self::OWN_NAME;
 	}
 
-	/** Default note for small businesses (DE § 19 UStG); organizers may enter their own text (e.g. AT § 6 Abs. 1 Z 27 UStG). */
-	public static function default_small_business_note() {
+	/** Default note for small businesses by country (DE § 19 UStG, AT § 6 Abs. 1 Z 27 UStG); an own text always wins. */
+	public static function default_small_business_note( $country = 'DE' ) {
+		if ( 'AT' === self::country( $country ) ) {
+			return __( 'Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.', 'wp-pass-captain' );
+		}
 		return __( 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).', 'wp-pass-captain' );
 	}
 
@@ -117,7 +120,7 @@ final class SalesModel {
 			'tax_number' => (string) ( $partner->tax_number ?? '' ),
 			'country' => self::partner_country( $partner ),
 			'small_business' => $small,
-			'small_business_note' => $small ? ( '' !== $note ? $note : self::default_small_business_note() ) : '',
+			'small_business_note' => $small ? ( '' !== $note ? $note : self::default_small_business_note( self::partner_country( $partner ) ) ) : '',
 			'partner_id' => (int) $partner->partner_id,
 		);
 	}
@@ -198,7 +201,17 @@ final class SalesModel {
 	 * @return true|\WP_Error
 	 */
 	public static function validate_agent_invoice( array $context, array $items ) {
-		if ( self::AGENT !== $context['model'] ) { return true; }
+		if ( self::AGENT !== $context['model'] ) {
+			// The platform itself as a small business: no VAT may be shown on its invoices either.
+			if ( ! empty( $context['seller']['small_business'] ) ) {
+				foreach ( $items as $item ) {
+					if ( (int) $item->tax_minor > 0 ) {
+						return new \WP_Error( 'wpcap_invoice_small_business_vat', __( 'Die Plattform ist als Kleinunternehmer eingestellt, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 % anlegen oder die Einstellung „Kleinunternehmer“ prüfen.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+					}
+				}
+			}
+			return true;
+		}
 		$missing = self::missing_supplier_fields( $context['partner'] );
 		if ( $missing ) {
 			return new \WP_Error( 'wpcap_invoice_organizer_incomplete', sprintf(

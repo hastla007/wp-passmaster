@@ -69,10 +69,13 @@ Bestellansicht zeigt das Verkaufsmodell bzw. den Rechnungssteller der Bestellung
 | Steuernummer | Pflichtangabe, wenn keine USt-IdNr. vorhanden ist |
 | USt-IdNr. qualifiziert bestätigt am | Dokumentation der Prüfung (BZSt/VIES); ohne Datum warnt die Admin-Ansicht |
 | Präfix Rechnungsnummern | nur Buchstaben/Ziffern, eindeutig, nicht gleich den Plattform-Präfixen; leer = `V{ID}` |
-| Kleinunternehmer + Hinweistext | keine USt auf Veranstalter-Belegen; Standardtext § 19 UStG, für AT z. B. „Umsatzsteuerbefreit – Kleinunternehmer gem. § 6 Abs. 1 Z 27 UStG“ |
+| Kleinunternehmer + Hinweistext | keine USt auf Veranstalter-Belegen; Standardtext nach Land: DE § 19 UStG, AT § 6 Abs. 1 Z 27 UStG; eigener Text hat Vorrang |
 
 Plattformdaten (Einstellungen → Rechnungssteller): Name, Anschrift, USt-IdNr., **Steuernummer**,
-**Land** (Standard DE).
+**Land** (Standard DE) und **Kleinunternehmer** mit optionalem Hinweistext. Ist die Plattform selbst
+Kleinunternehmer, tragen ihre Rechnungen (Eigenhändler-Modell und Plattform-Events) den Hinweis
+(leer = Standardtext für das Land), und eine Rechnung wird verweigert, solange die Bestellung
+Umsatzsteuer enthält (`wpcap_invoice_small_business_vat`, § 14c UStG) – Ticketarten dann mit 0 % anlegen.
 
 ### Kundenrechnungen
 
