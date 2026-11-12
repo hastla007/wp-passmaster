@@ -23,7 +23,7 @@ interface AdapterInterface {
 	/** ISO-3166 alpha-2 countries supported by this adapter. */
 	public function countries();
 
-	/** Machine-readable capabilities, e.g. receipt.submit, transaction.finish, reports.daily. */
+	/** Machine-readable capabilities, e.g. receipt_submit, transaction_finish, daily_report. */
 	public function capabilities();
 
 	/** Provider status check; must not create a receipt. */
