@@ -12,13 +12,13 @@ final class ArchiveExporter {
 	/** Download normalized fiscal document data for a bounded UTC date interval. */
 	public static function handle_admin_export() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 );
+			wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), '', array( 'response' => 403 ) );
 		}
 		check_admin_referer( 'wpcap_fiscal_export' );
 		$from = sanitize_text_field( wp_unslash( $_POST['from'] ?? '' ) );
 		$until = sanitize_text_field( wp_unslash( $_POST['until'] ?? '' ) );
 		if ( ! self::valid_date( $from ) || ! self::valid_date( $until ) || $from > $until ) {
-			wp_die( esc_html__( 'Bitte einen gültigen UTC-Zeitraum wählen.', 'wp-pass-captain' ), 400 );
+			wp_die( esc_html__( 'Bitte einen gültigen UTC-Zeitraum wählen.', 'wp-pass-captain' ), '', array( 'response' => 400 ) );
 		}
 		$end_exclusive = ( new \DateTimeImmutable( $until . ' 00:00:00', new \DateTimeZone( 'UTC' ) ) )->modify( '+1 day' )->format( 'Y-m-d H:i:s' );
 		global $wpdb;
@@ -34,9 +34,9 @@ final class ArchiveExporter {
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename=wp-pass-captain-fiscal-' . $from . '-to-' . $until . '.csv' );
 		$output = fopen( 'php://output', 'w' );
-		if ( ! $output ) { wp_die( esc_html__( 'Export konnte nicht gestartet werden.', 'wp-pass-captain' ), 500 ); }
+		if ( ! $output ) { wp_die( esc_html__( 'Export konnte nicht gestartet werden.', 'wp-pass-captain' ), '', array( 'response' => 500 ) ); }
 		fwrite( $output, "\xEF\xBB\xBF" );
-		fputcsv( $output, array( 'document_id', 'order_id', 'seller_id', 'seller_name', 'country', 'provider', 'status', 'document_key', 'currency', 'gross_minor', 'tax_minor', 'provider_reference', 'qr_payload', 'receipt_fields_json', 'snapshot_json', 'last_error', 'attempts', 'created_at_utc', 'updated_at_utc' ) );
+		fputcsv( $output, array( 'document_id', 'order_id', 'seller_id', 'seller_name', 'country', 'provider', 'status', 'document_key', 'currency', 'gross_minor', 'tax_minor', 'provider_reference', 'qr_payload_base64', 'receipt_fields_json', 'snapshot_json', 'last_error', 'attempts', 'created_at_utc', 'updated_at_utc' ) );
 		foreach ( (array) $rows as $row ) {
 			$snapshot = json_decode( $row->snapshot, true );
 			$result = json_decode( $row->provider_result, true );
@@ -55,7 +55,7 @@ final class ArchiveExporter {
 				(int) $row->gross_minor,
 				(int) $row->tax_minor,
 				is_scalar( $result['reference'] ?? null ) ? (string) $result['reference'] : '',
-				is_string( $receipt['qr_payload'] ?? null ) ? $receipt['qr_payload'] : '',
+				is_string( $receipt['qr_payload'] ?? null ) ? base64_encode( $receipt['qr_payload'] ) : '',
 				wp_json_encode( $fields ),
 				wp_json_encode( is_array( $snapshot ) ? $snapshot : array() ),
 				(string) $row->last_error,
