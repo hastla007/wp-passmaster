@@ -29,6 +29,20 @@ Authorities: [KassenSichV, § 1 (official federal law)](https://ao.bundesfinanzm
 
 Authorities: [NAV — Receipt-data reporting](https://nav.gov.hu/ado/enyugta/nyugtaadat-szolgaltatas), [NAV — E-cash-register use and reporting](https://nav.gov.hu/ado/enyugta/kerdesek-es-valaszok/e-penztargep-hasznalat-adatszolgaltatas), [NTAK — Attractions](https://info.ntak.hu/attrakcio), [NTAK — FAQ](https://info.ntak.hu/gyik).
 
+## Adapter capability vocabulary
+
+Every adapter must provide the core capabilities `receipt_submit` and `operation_status`. The profile can add requirements. These example keys are implementation vocabulary for selecting an adapter; they are not a legal determination that every seller/channel must use them.
+
+| Profile to review | Example additional adapter capabilities |
+|---|---|
+| AT RKSV in-scope POS | `receipt_qr_payload`, `signature_chain`, `journal_export` |
+| DE in-scope TSE POS | `transaction_start`, `transaction_finish`, `transaction_cancel`, `receipt_qr_payload`, `tse_export` |
+| HU receipt-data reporting | `daily_report_submit`, `daily_report_correct`, `report_status`, `receipt_series_range`, `currency_breakdown` |
+| HU seller requiring an approved register path | `e_register_bridge` or a provider-specific approved register capability |
+| HU eligible NTAK attraction | `ntak_ticket_sales`; keep the NTAK profile and adapter separate from NAV |
+
+Before activation, the reviewed profile lists its required capability keys. Adapter activation fails closed when one is missing. The operator must match the exact seller, channel, location/register, business activity, and provider's approval scope.
+
 ## Profile activation rules
 
 The profile table supports seller, country, channel, location/register, environment, status, version, legal reference, review actor, and effective dates. Production activation requires the administrator to provide the reviewed rule-set reference/version and record an explicit review attestation. This records operator review; it does not certify the plugin.
