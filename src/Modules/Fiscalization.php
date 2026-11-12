@@ -332,6 +332,7 @@ final class Fiscalization {
 			$seller = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 			$config_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 			$configuration = $config_row && $config_row['configuration'] ? (array) json_decode( $config_row['configuration'], true ) : array();
+			$configuration = Credentials::with_credentials( $configuration, (int) $doc->seller_id, $doc->provider_id );
 			$document = json_decode( $doc->snapshot, true );
 			if ( ! is_array( $document ) ) { self::fail( $doc, 'snapshot_invalid' ); continue; }
 			$document['document_id'] = (int) $doc->document_id;
@@ -423,6 +424,8 @@ final class Fiscalization {
 		$config = $wpdb->get_row( $wpdb->prepare( "SELECT configuration FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 		if ( ! $adapter || ! $seller || ! $config ) { return new \WP_Error( 'wpcap_fiscal_reconcile_unavailable', __( 'Anbieter oder Verkäuferdaten fehlen.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$configuration = $config['configuration'] ? (array) json_decode( $config['configuration'], true ) : array();
+		$configuration = Credentials::with_credentials( $configuration, $seller_id, $config['provider_id'] );
+		$configuration = Credentials::with_credentials( $configuration, $seller_id, $config['provider_id'] );
 		$document = (array) json_decode( $doc->snapshot, true );
 		$document['document_id'] = (int) $doc->document_id;
 		$document['idempotency_key'] = $doc->document_key;
