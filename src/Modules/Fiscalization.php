@@ -213,7 +213,7 @@ final class Fiscalization {
 		Orders::issue_and_email( absint( $order_id ) );
 	}
 
-	public static function rest_retry_order( \\WP_REST_Request $request ) {
+	public static function rest_retry_order( \WP_REST_Request $request ) {
 		global $wpdb;
 		$order_id = absint( $request['order_id'] );
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_fiscal_documents SET status='retry',last_error='',updated_at=%s WHERE order_id=%d AND status='failed'", current_time( 'mysql', true ), $order_id ) );
@@ -266,7 +266,7 @@ final class Fiscalization {
 	public static function handle_admin_save_seller() {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
 		check_admin_referer( 'wpcap_fiscal_save_seller' );
-		$request = new \\WP_REST_Request( 'POST' );
+		$request = new \WP_REST_Request( 'POST' );
 		$request->set_json_params( array(
 			'legal_name' => sanitize_text_field( wp_unslash( $_POST['legal_name'] ?? '' ) ),
 			'country_code' => strtoupper( sanitize_text_field( wp_unslash( $_POST['country_code'] ?? '' ) ) ),
@@ -283,7 +283,7 @@ final class Fiscalization {
 		$raw = wp_unslash( $_POST['configuration'] ?? '{}' );
 		$config = json_decode( $raw, true );
 		if ( ! is_array( $config ) ) { self::admin_redirect( 'invalid_json' ); }
-		$request = new \\WP_REST_Request( 'PUT' );
+		$request = new \WP_REST_Request( 'PUT' );
 		$request->set_param( 'seller_id', $seller_id );
 		$request->set_json_params( array(
 			'provider_id' => sanitize_key( wp_unslash( $_POST['provider_id'] ?? '' ) ),
