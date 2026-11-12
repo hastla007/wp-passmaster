@@ -354,10 +354,11 @@ final class Fiscalization {
 		foreach ( $docs as $doc ) {
 			$adapter = Registry::get( $doc->provider_id );
 			if ( ! $adapter ) { self::fail( $doc, 'adapter_unavailable' ); continue; }
-			$seller = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 			$config_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 			$document = json_decode( $doc->snapshot, true );
 			if ( ! is_array( $document ) ) { self::fail( $doc, 'snapshot_invalid' ); continue; }
+			$seller = is_array( $document['seller'] ?? null ) ? $document['seller'] : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
+			if ( ! is_array( $seller ) || empty( $seller['seller_id'] ) ) { self::fail( $doc, 'seller_snapshot_invalid' ); continue; }
 			$configuration = is_array( $document['provider_configuration'] ?? null ) ? $document['provider_configuration'] : ( $config_row && $config_row['configuration'] ? (array) json_decode( $config_row['configuration'], true ) : array() );
 			$configuration = Credentials::with_credentials( $configuration, (int) $doc->seller_id, $doc->provider_id );
 			$document['document_id'] = (int) $doc->document_id;
@@ -465,11 +466,12 @@ final class Fiscalization {
 		$doc = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE document_id=%d", absint( $request['document_id'] ) ) );
 		if ( ! $doc ) { return new \WP_Error( 'wpcap_fiscal_document_missing', __( 'Fiskalvorgang wurde nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		$adapter = Registry::get( $doc->provider_id );
-		$seller = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 		$config = $wpdb->get_row( $wpdb->prepare( "SELECT configuration FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
-		$document = (array) json_decode( $doc->snapshot, true );
+		$decoded = json_decode( $doc->snapshot, true );
+		$document = is_array( $decoded ) ? $decoded : array();
+		$seller = is_array( $document['seller'] ?? null ) ? $document['seller'] : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_legal_sellers WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 		$has_snapshot_config = is_array( $document['provider_configuration'] ?? null );
-		if ( ! $adapter || ! $seller || ( ! $config && ! $has_snapshot_config ) ) { return new \WP_Error( 'wpcap_fiscal_reconcile_unavailable', __( 'Anbieter oder Verkäuferdaten fehlen.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( ! $adapter || ! is_array( $seller ) || empty( $seller['seller_id'] ) || ( ! $config && ! $has_snapshot_config ) ) { return new \WP_Error( 'wpcap_fiscal_reconcile_unavailable', __( 'Anbieter oder Verkäuferdaten fehlen.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$configuration = $has_snapshot_config ? $document['provider_configuration'] : ( $config && $config['configuration'] ? (array) json_decode( $config['configuration'], true ) : array() );
 		$configuration = Credentials::with_credentials( $configuration, (int) $doc->seller_id, $doc->provider_id );
 		$document['document_id'] = (int) $doc->document_id;
