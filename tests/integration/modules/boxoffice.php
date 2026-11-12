@@ -61,6 +61,8 @@ Settings::update( array( 'boxoffice_terminals' => "24|BOX-OFFICE-3|Abendkassa 3"
 $disabled_session_sale = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_a => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
 check( 'removing a register blocks further sales from its still-open session', is_wp_error( $disabled_session_sale ) && 'wpcap_pos_terminal' === $disabled_session_sale->get_error_code() );
 Settings::update( array( 'boxoffice_terminals' => "23|BOX-OFFICE-2|Abendkassa 2\n24|BOX-OFFICE-3|Abendkassa 3" ) );
+// The remaining legacy session cases intentionally run without an enabled managed directory.
+Settings::update( array( 'boxoffice_terminals' => '' ) );
 
 $key = wpb_key();
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
