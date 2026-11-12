@@ -509,10 +509,18 @@ final class Fiscalization {
 		return rest_ensure_response( array( 'order_id' => $order_id, 'tickets_issued' => ! $blocked && (bool) Orders::tickets_for_order( $order_id ), 'fiscal_pending' => (bool) $blocked ) );
 	}
 
+	private static function failure_is_permanent( $message ) {
+		$permanent = array( 'adapter_unavailable', 'snapshot_invalid', 'country_unsupported', 'fiscal_profile_scope_invalid' );
+		foreach ( $permanent as $code ) {
+			if ( 0 === strpos( (string) $message, $code ) ) { return true; }
+		}
+		return 0 === strpos( (string) $message, 'capability_missing:' );
+	}
+
 	private static function fail( $doc, $message ) {
 		global $wpdb;
 		$attempts = (int) $doc->attempts + 1;
-		$terminal = $attempts >= 8;
+		$terminal = self::failure_is_permanent( $message ) || $attempts >= 8;
 		$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array(
 			'status' => $terminal ? 'failed' : 'retry', 'last_error' => sanitize_text_field( $message ),
 			'attempts' => $attempts, 'updated_at' => current_time( 'mysql', true ),
@@ -520,6 +528,34 @@ final class Fiscalization {
 		if ( ! $terminal && ! wp_next_scheduled( 'wpcap_process_fiscal_order', array( (int) $doc->order_id ) ) ) {
 			$delay = min( HOUR_IN_SECONDS, 60 * ( 2 ** min( 10, $attempts ) ) );
 			wp_schedule_single_event( time() + $delay, 'wpcap_process_fiscal_order', array( (int) $doc->order_id ) );
+			return;
+		}
+		if ( $terminal ) {
+			$seller_name = (string) $wpdb->get_var( $wpdb->prepare( "SELECT legal_name FROM {$wpdb->prefix}wpcap_legal_sellers WHERE seller_id=%d", (int) $doc->seller_id ) );
+			$details = array(
+				'document_id' => (int) $doc->document_id,
+				'order_id' => (int) $doc->order_id,
+				'seller_id' => (int) $doc->seller_id,
+				'provider_id' => sanitize_key( $doc->provider_id ),
+				'error_code' => sanitize_key( $message ),
+				'permanent' => self::failure_is_permanent( $message ),
+			);
+			Audit::record( 'fiscal_document_terminal_failure', 'order', (int) $doc->order_id, $details );
+			do_action( 'wpcap_fiscal_terminal_failure', $details );
+			$recipient = get_option( 'admin_email', '' );
+			if ( is_email( $recipient ) ) {
+				$subject = __( 'WP Pass Captain: Fiskalvorgang erfordert Eingriff', 'wp-pass-captain' );
+				$body = sprintf(
+					/* translators: 1: document ID, 2: order ID, 3: seller, 4: provider ID, 5: error code */
+					__( 'Der Fiskalvorgang %1$d für Bestellung %2$d ist fehlgeschlagen. Verkäufer: %3$s. Anbieter: %4$s. Fehlercode: %5$s. Ticket-Ausgabe bleibt gesperrt, bis der Vorgang geprüft und behoben wurde.', 'wp-pass-captain' ),
+					(int) $doc->document_id,
+					(int) $doc->order_id,
+					$seller_name,
+					sanitize_key( $doc->provider_id ),
+					sanitize_text_field( $message )
+				);
+				wp_mail( $recipient, $subject, $body );
+			}
 		}
 	}
 
