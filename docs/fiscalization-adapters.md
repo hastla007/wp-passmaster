@@ -30,6 +30,7 @@ All endpoints require an authenticated user with `manage_options`:
 
 - `GET /wp-json/wp-pass-captain/v1/fiscal/sellers`
 - `POST /wp-json/wp-pass-captain/v1/fiscal/sellers` with `legal_name`, `country_code` (`AT`, `DE`, or `HU`), optional `tax_number`
+- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/profiles` with the seller/channel scope, environment, status, reviewed rule-set/version, and legal reference
 - `PUT /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/provider` with `provider_id`, `enabled`, and non-secret `configuration`
 - `PUT /wp-json/wp-pass-captain/v1/fiscal/ticket-types/{ticket_type_id}/seller` with `seller_id` and `seller_mode`
 - `POST /wp-json/wp-pass-captain/v1/fiscal/orders/{order_id}/retry` to retry terminal failures
