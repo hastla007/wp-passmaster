@@ -932,6 +932,18 @@ final class OrderAdapter {
 				'tax_minor' => (int) round( $tax * $factor ),
 			);
 		}
+		if ( ! $lines && is_callable( array( $refund, 'get_amount' ) ) ) {
+			$refund_minor = (int) round( abs( (float) $refund->get_amount() ) * $factor );
+			$core_order = Orders::get( absint( $core_id ) );
+			$wc_total_minor = (int) round( abs( (float) $wc_order->get_total() ) * $factor );
+			$core_total_minor = $core_order ? absint( $core_order->total_minor ) : 0;
+			$ticket_share = $wc_total_minor > 0 ? min( 1, $core_total_minor / $wc_total_minor ) : 0;
+			$extra_refund_minor = max( 0, $refund_minor - (int) round( $refund_minor * $ticket_share ) );
+			if ( $extra_refund_minor > 0 ) {
+				// Amount-only WooCommerce refunds lack a source line; flag the seller split for manual allocation.
+				$lines[] = array( 'line_key' => '', 'quantity' => 0, 'amount_minor' => $extra_refund_minor, 'tax_minor' => 0 );
+			}
+		}
 		$refund->update_meta_data( '_wpcap_fiscal_extra_refund_processed', 1 );
 		$refund->save();
 		if ( $lines ) {
