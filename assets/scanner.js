@@ -5,6 +5,8 @@
 	const form = root.querySelector('.wpcap-scan-form');
 	const input = form.querySelector('[name="token"]');
 	const result = root.querySelector('.wpcap-scan-result');
+	const live = root.querySelector('.wpcap-scan-live');
+	const modeBanner = root.querySelector('.wpcap-scan-mode');
 	const video = root.querySelector('.wpcap-camera');
 	// Offline queue per WordPress user (keyed hash from the server, never the raw ID): a shared
 	// device must not hand one user's queued ticket codes to the next. Queues of other users and
@@ -33,6 +35,57 @@
 		} catch (ignore) {}
 	}());
 	const t = window.WPCAP_SCANNER.i18n || {};
+	// Result banner: icon + large text, colour is never the only signal. Screen readers get a short
+	// separate announcement (the banner itself holds buttons and is not a live region), staff without
+	// sight of the screen a tone and a vibration.
+	const ICONS = { success: '✓', error: '✕', warning: '!', busy: '…' };
+	let audio = null;
+	function unlockAudio() {
+		// One AudioContext, created in a user gesture (camera start / submit): iOS keeps it silent otherwise.
+		if (audio || !(window.AudioContext || window.webkitAudioContext)) return;
+		try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (ignore) { audio = null; }
+	}
+	function tone(frequencies) {
+		if (!audio) return;
+		try {
+			if (audio.state === 'suspended') audio.resume();
+			let at = audio.currentTime;
+			frequencies.forEach(function (frequency) {
+				const osc = audio.createOscillator();
+				const gain = audio.createGain();
+				osc.frequency.value = frequency;
+				gain.gain.setValueAtTime(0.2, at);
+				gain.gain.exponentialRampToValueAtTime(0.001, at + 0.18);
+				osc.connect(gain).connect(audio.destination);
+				osc.start(at);
+				osc.stop(at + 0.2);
+				at += 0.22;
+			});
+		} catch (ignore) {}
+	}
+	function feedback(state) {
+		if (state === 'success') { tone([880]); if (navigator.vibrate) navigator.vibrate(80); }
+		else if (state === 'error') { tone([220, 180]); if (navigator.vibrate) navigator.vibrate([200, 100, 200]); }
+		else if (state === 'warning') { tone([440, 440]); if (navigator.vibrate) navigator.vibrate([120, 80, 120]); }
+	}
+	function show(state, text) {
+		result.textContent = '';
+		result.dataset.state = state;
+		const icon = document.createElement('span');
+		icon.className = 'wpcap-scan-icon';
+		icon.setAttribute('aria-hidden', 'true');
+		icon.textContent = ICONS[state] || '';
+		const message = document.createElement('span');
+		message.className = 'wpcap-scan-text';
+		message.textContent = text;
+		result.appendChild(icon);
+		result.appendChild(message);
+		if (state !== 'busy') {
+			const prefix = state === 'success' ? (t.ok || 'OK') : (state === 'error' ? (t.refused || 'Refused') : (t.attention || 'Attention'));
+			if (live) live.textContent = prefix + ': ' + text;
+			feedback(state);
+		}
+	}
 	let stream = null;
 	let locked = false;
 	let lastToken = '';
@@ -80,13 +133,23 @@
 			radio.name = 'wpcap-scan-mode';
 			radio.value = value;
 			radio.checked = value === 'in';
-			radio.addEventListener('change', function () { if (radio.checked) { mode = value; root.dataset.mode = value; } });
+			radio.addEventListener('change', function () { if (radio.checked) { mode = value; root.dataset.mode = value; updateModeBanner(); } });
 			label.appendChild(radio);
 			label.appendChild(document.createTextNode(' ' + (value === 'in' ? (at.modeIn || 'In') : (at.modeOut || 'Out')) + ' '));
 			bar.appendChild(label);
 		});
 		root.insertBefore(bar, form);
 	}
+	// Always visible which way staff are scanning (check-out looks different, so it is never used by mistake).
+	function updateModeBanner() {
+		if (!modeBanner || !adm) return;
+		const at = adm.i18n || {};
+		modeBanner.hidden = false;
+		modeBanner.dataset.mode = mode;
+		modeBanner.textContent = (t.modeBanner || '%s').replace('%s', mode === 'out' ? (at.modeOut || 'Out') : (at.modeIn || t.modeIn || 'In'));
+	}
+	root.dataset.mode = mode;
+	updateModeBanner();
 	// Offline queue: every scan carries its own idempotency key; nothing is truncated. Queued items
 	// hold raw ticket codes, so they expire after QUEUE_MAX_AGE (default 24 h, with a visible
 	// warning) and are removed only after the server confirmed them (matched by key).
@@ -104,8 +167,7 @@
 		const items = queue();
 		items.push({ token: token, idempotency_key: uuid(), scanned_at: new Date().toISOString(), stored_at: Date.now(), area_id: areaId, direction: mode });
 		saveQueue(items);
-		result.textContent = t.queued || 'Saved offline.';
-		result.dataset.state = 'warning';
+		show('warning', t.queued || 'Saved offline.');
 		input.value = '';
 		updateQueueButton();
 	}
@@ -114,12 +176,10 @@
 	// for the later server check. Reliable offline admission: the offline scanner app with a ticket package.
 	function offline(token) {
 		if (!/(^|[^a-f0-9])[a-f0-9]{64}($|[^a-f0-9])/i.test(token)) {
-			result.textContent = t.invalid || 'Invalid ticket.';
-			result.dataset.state = 'error';
+			show('error', t.invalid || 'Invalid ticket.');
 			return;
 		}
-		result.textContent = t.unchecked || 'NOT CHECKED (offline).';
-		result.dataset.state = 'warning';
+		show('warning', t.unchecked || 'NOT CHECKED (offline).');
 		const admit = document.createElement('button');
 		admit.type = 'button';
 		admit.className = 'button wpcap-admit-unchecked';
@@ -139,8 +199,7 @@
 		const fresh = items.filter(function (item) { return Date.now() - item.stored_at <= QUEUE_MAX_AGE; });
 		if (fresh.length !== items.length) {
 			saveQueue(fresh);
-			result.textContent = ((privacy.i18n && privacy.i18n.expired) || (adm && adm.i18n && adm.i18n.expired) || t.expired || '%d offline scan(s) older than 24 hours were discarded without upload.').replace('%d', items.length - fresh.length);
-			result.dataset.state = 'error';
+			show('error', ((privacy.i18n && privacy.i18n.expired) || (adm && adm.i18n && adm.i18n.expired) || t.expired || '%d offline scan(s) older than 24 hours were discarded without upload.').replace('%d', items.length - fresh.length));
 		}
 	}
 	const syncButton = document.createElement('button');
@@ -174,9 +233,8 @@
 				sent += chunk.length;
 				conflicts += (data.results || []).filter(function (item) { return item.status === 'conflict'; }).length;
 			}
-			result.textContent = (t.synced || '%1$d / %2$d').replace('%1$d', sent).replace('%2$d', conflicts);
-			result.dataset.state = conflicts ? 'error' : 'success';
-		} catch (error) { result.textContent = error.message; result.dataset.state = 'error'; }
+			show(conflicts ? 'error' : 'success', (t.synced || '%1$d / %2$d').replace('%1$d', sent).replace('%2$d', conflicts));
+		} catch (error) { show('error', error.message); }
 		finally {
 			syncing = false;
 			syncButton.disabled = false;
@@ -193,9 +251,10 @@
 	async function submitToken(token) {
 		token = String(token || '').trim();
 		if (locked || !token) return;
+		unlockAudio();
 		if (!navigator.onLine) { offline(token); return; }
 		locked = true;
-		result.textContent = t.checking || '…';
+		show('busy', t.checking || '…');
 		try {
 			let response;
 			try {
@@ -213,12 +272,10 @@
 			}
 			const data = await response.json().catch(function () { return {}; });
 			if (!response.ok) throw new Error(data.message || t.invalid || 'Invalid ticket.');
-			result.textContent = (data.status === 'checked_out' ? '↩ ' + ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '✓ ') + data.event + ' — ' + data.ticket;
-			result.dataset.state = 'success';
+			show('success', (data.status === 'checked_out' ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + data.event + ' — ' + data.ticket);
 			input.value = '';
 		} catch (error) {
-			result.textContent = error.message;
-			result.dataset.state = 'error';
+			show('error', error.message);
 		} finally {
 			window.setTimeout(function () { locked = false; }, 1400);
 		}
@@ -266,10 +323,39 @@
 		};
 	}
 
-	root.querySelector('.wpcap-camera-start').addEventListener('click', async function (event) {
+	const startButton = root.querySelector('.wpcap-camera-start');
+	const stopButton = root.querySelector('.wpcap-camera-stop');
+	const torchButton = root.querySelector('.wpcap-camera-torch');
+	let wakeLock = null;
+	async function keepAwake() {
+		try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', function () { wakeLock = null; }); } } catch (ignore) {}
+	}
+	document.addEventListener('visibilitychange', function () { if (stream && document.visibilityState === 'visible') keepAwake(); });
+	function stopCamera() {
+		if (stream) stream.getTracks().forEach(function (track) { track.stop(); });
+		stream = null;
+		video.hidden = true;
+		video.srcObject = null;
+		startButton.disabled = false;
+		stopButton.hidden = true;
+		torchButton.hidden = true;
+		torchButton.setAttribute('aria-pressed', 'false');
+		if (wakeLock) { wakeLock.release().catch(function () {}); wakeLock = null; }
+		startButton.focus();
+	}
+	stopButton.addEventListener('click', stopCamera);
+	torchButton.addEventListener('click', async function () {
+		const track = stream && stream.getVideoTracks()[0];
+		if (!track) return;
+		const on = torchButton.getAttribute('aria-pressed') !== 'true';
+		try { await track.applyConstraints({ advanced: [{ torch: on }] }); torchButton.setAttribute('aria-pressed', on ? 'true' : 'false'); } catch (ignore) { torchButton.hidden = true; }
+	});
+
+	startButton.addEventListener('click', async function (event) {
 		const button = event.currentTarget;
+		unlockAudio();
 		if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-			result.textContent = t.noCamera || 'Camera scanning is not supported.';
+			show('error', t.noCamera || 'Camera scanning is not supported.');
 			return;
 		}
 		try {
@@ -282,6 +368,11 @@
 			const detect = await makeDetector();
 			const hadFocus = document.activeElement === button;
 			button.disabled = true;
+			stopButton.hidden = false;
+			const track = stream.getVideoTracks()[0];
+			const caps = track && track.getCapabilities ? track.getCapabilities() : {};
+			torchButton.hidden = !caps.torch;
+			keepAwake();
 			// A disabled button loses keyboard focus; keep the manual input as the next stop.
 			if (hadFocus) input.focus();
 			let busy = false;
@@ -293,8 +384,11 @@
 						const raw = await detect();
 						const match = raw.match(/[a-f0-9]{64}/i);
 						const now = Date.now();
-						// The same QR stays in view after a scan; do not re-submit it immediately.
-						if (match && (match[0] !== lastToken || now - lastTokenAt > 5000)) {
+						// The same QR often stays in view after a scan: it is submitted again only after it was
+						// out of view for 3 s (sliding window), so "already used" never overwrites the green result.
+						if (match && match[0] === lastToken && now - lastTokenAt < 3000) {
+							lastTokenAt = now;
+						} else if (match) {
 							lastToken = match[0];
 							lastTokenAt = now;
 							await submitToken(match[0]);
@@ -306,7 +400,8 @@
 			};
 			scan();
 		} catch (error) {
-			result.textContent = (t.cameraError || 'Camera error:') + ' ' + error.message;
+			show('error', (t.cameraError || 'Camera error:') + ' ' + error.message);
+			if (stream) stopCamera();
 		}
 	});
 })();
