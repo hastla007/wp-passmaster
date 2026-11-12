@@ -7,7 +7,7 @@
  *
  * @package PassCaptain
  */
-namespace PassCaptain\\Fiscalization;
+namespace PassCaptain\Fiscalization;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
