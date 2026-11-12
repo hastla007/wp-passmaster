@@ -616,6 +616,19 @@ final class OrderAdapter {
 		if ( $core && 'paid' === $core->payment_status && Orders::tickets_for_order( $core_id ) ) {
 			return;
 		}
+		/**
+		 * Lets another plugin hold the ticket issuance of a paid order, e.g. Voucher Captain while a gift card
+		 * could not be charged (shortfall). The hold is kept; tickets follow when the order is set to processing
+		 * or completed again after the review.
+		 *
+		 * @param bool      $hold     Whether to hold the issuance.
+		 * @param \WC_Order $wc_order WooCommerce order.
+		 */
+		if ( apply_filters( 'wpcap_woocommerce_hold_fulfilment', false, $wc_order ) ) {
+			Orders::extend_hold( $core_id, (int) apply_filters( 'wpcap_woocommerce_deferred_hold_minutes', 14 * DAY_IN_SECONDS / MINUTE_IN_SECONDS, $wc_order ) );
+			$wc_order->add_order_note( __( 'Pass Captain: Die Tickets bleiben reserviert und werden nach der Prüfung der Bestellung ausgestellt.', 'wp-pass-captain' ) );
+			return;
+		}
 		if ( self::defers_issuance( $wc_order ) ) {
 			// Cash on delivery & co.: "processing" means "to be delivered", not "paid". Keep the hold.
 			Orders::extend_hold( $core_id, (int) apply_filters( 'wpcap_woocommerce_deferred_hold_minutes', 14 * DAY_IN_SECONDS / MINUTE_IN_SECONDS, $wc_order ) );
