@@ -1,0 +1,20 @@
+{
+  "name": "hastla007/wp-pass-captain",
+  "description": "Eigenständige Event-, Ticket- und Passverwaltung für WordPress",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "php": ">=8.2",
+    "endroid/qr-code": "^6.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "PassCaptain\\": "src/"
+    }
+  },
+  "config": {
+    "platform": {
+      "php": "8.2.0"
+    }
+  }
+}

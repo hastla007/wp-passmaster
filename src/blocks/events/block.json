@@ -1,0 +1,16 @@
+{
+  "apiVersion": 3,
+  "name": "wp-pass-captain/events",
+  "version": "0.1.0",
+  "title": "WP Pass Captain Events",
+  "category": "widgets",
+  "icon": "tickets-alt",
+  "description": "Zeigt veröffentlichte Events und die Ticketauswahl an.",
+  "textdomain": "wp-pass-captain",
+  "usesContext": [],
+  "supports": {
+    "html": false
+  },
+  "render": "file:./render.php",
+  "editorScript": "file:./editor.js"
+}
