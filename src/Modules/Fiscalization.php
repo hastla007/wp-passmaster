@@ -105,6 +105,22 @@ final class Fiscalization {
 				KEY order_seller (order_id,seller_id),
 				KEY status_updated (status,updated_at)
 			) ENGINE=InnoDB {$charset};",
+			"CREATE TABLE {$prefix}wpcap_order_seller_snapshots (
+				order_id bigint(20) unsigned NOT NULL,
+				ticket_type_id bigint(20) unsigned NOT NULL,
+				seller_id bigint(20) unsigned NOT NULL,
+				seller_mode varchar(24) NOT NULL,
+				channel varchar(24) NOT NULL,
+				country_code char(2) NOT NULL,
+				profile_id bigint(20) unsigned NOT NULL,
+				profile_version int(10) unsigned NOT NULL,
+				fiscal_applicability varchar(24) NOT NULL,
+				seller_snapshot longtext NOT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (order_id,ticket_type_id),
+				KEY seller_orders (seller_id,order_id),
+				KEY profile_id (profile_id)
+			) ENGINE=InnoDB {$charset};",
 			"CREATE TABLE {$prefix}wpcap_fiscal_document_items (
 				document_id bigint(20) unsigned NOT NULL,
 				ticket_type_id bigint(20) unsigned NOT NULL,
@@ -212,19 +228,41 @@ final class Fiscalization {
 			$mapping = $wpdb->get_row( $wpdb->prepare( "SELECT ts.seller_id,ts.seller_mode,s.legal_name,s.country_code,s.tax_number,s.vat_id,s.business_address,s.contact_email,s.status AS seller_status,c.provider_id,c.configuration,c.enabled,fp.profile_id,fp.profile_version,fp.status AS profile_status,fp.ruleset_key,fp.ruleset_version,fp.legal_reference,fp.profile_data FROM {$p}wpcap_ticket_sellers ts INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=ts.seller_id LEFT JOIN {$p}wpcap_fiscal_configs c ON c.seller_id=s.seller_id LEFT JOIN {$p}wpcap_fiscal_profiles fp ON fp.seller_id=s.seller_id AND fp.country_code=s.country_code AND fp.channel=%s AND fp.location_id=0 AND fp.register_id='' AND fp.environment='production' AND fp.status IN ('active','not_required') AND (fp.effective_from IS NULL OR fp.effective_from<=%s) AND (fp.effective_until IS NULL OR fp.effective_until>=%s) WHERE ts.ticket_type_id=%d", $channel, $now, $now, $type_id ) );
 			if ( ! $mapping ) { continue; }
 			$has_mapping = true;
-			if ( 'not_required' === $mapping->profile_status ) { continue; }
-			$adapter = Registry::get( $mapping->provider_id );
-			if ( 'active' !== $mapping->seller_status || 'active' !== $mapping->profile_status || ! $mapping->profile_id || ! (int) $mapping->enabled || ! $adapter || ! in_array( strtoupper( $mapping->country_code ), array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) {
-				throw new \RuntimeException( 'fiscal_profile_unavailable' );
+			if ( 'active' !== $mapping->seller_status || ! $mapping->profile_id || ! in_array( $mapping->profile_status, array( 'active', 'not_required' ), true ) ) {
+				throw new \\RuntimeException( 'fiscal_profile_unavailable' );
 			}
 			if ( ! in_array( $mapping->seller_mode, array( 'organizer_seller', 'platform_seller' ), true ) ) {
-				throw new \RuntimeException( 'fiscal_seller_invalid' );
+				throw new \\RuntimeException( 'fiscal_seller_invalid' );
 			}
 			$seller_id = (int) $mapping->seller_id;
+			$seller_snapshot = array(
+				'seller_id' => $seller_id, 'legal_name' => $mapping->legal_name, 'country_code' => strtoupper( $mapping->country_code ),
+				'tax_number' => $mapping->tax_number, 'vat_id' => $mapping->vat_id,
+				'business_address' => $mapping->business_address ? (array) json_decode( $mapping->business_address, true ) : array(),
+				'contact_email' => $mapping->contact_email,
+			);
+			$profile_snapshot = array(
+				'profile_id' => (int) $mapping->profile_id, 'version' => (int) $mapping->profile_version,
+				'ruleset_key' => $mapping->ruleset_key, 'ruleset_version' => $mapping->ruleset_version,
+				'legal_reference' => $mapping->legal_reference,
+			);
+			$wpdb->insert( "{$p}wpcap_order_seller_snapshots", array(
+				'order_id' => absint( $order_id ), 'ticket_type_id' => $type_id, 'seller_id' => $seller_id,
+				'seller_mode' => $mapping->seller_mode, 'channel' => $channel, 'country_code' => strtoupper( $mapping->country_code ),
+				'profile_id' => (int) $mapping->profile_id, 'profile_version' => (int) $mapping->profile_version,
+				'fiscal_applicability' => $mapping->profile_status, 'seller_snapshot' => wp_json_encode( $seller_snapshot ),
+				'created_at' => $now,
+			) );
+			if ( '' !== $wpdb->last_error ) { throw new \\RuntimeException( 'fiscal_snapshot_failed' ); }
+			if ( 'not_required' === $mapping->profile_status ) { continue; }
+			$adapter = Registry::get( $mapping->provider_id );
+			if ( ! (int) $mapping->enabled || ! $adapter || ! in_array( strtoupper( $mapping->country_code ), array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) {
+				throw new \\RuntimeException( 'fiscal_profile_unavailable' );
+			}
 			if ( ! isset( $groups[ $seller_id ] ) ) {
 				$groups[ $seller_id ] = array(
-					'seller' => array( 'seller_id' => $seller_id, 'legal_name' => $mapping->legal_name, 'country_code' => strtoupper( $mapping->country_code ), 'tax_number' => $mapping->tax_number, 'vat_id' => $mapping->vat_id, 'business_address' => $mapping->business_address ? (array) json_decode( $mapping->business_address, true ) : array(), 'contact_email' => $mapping->contact_email ),
-					'profile' => array( 'profile_id' => (int) $mapping->profile_id, 'version' => (int) $mapping->profile_version, 'ruleset_key' => $mapping->ruleset_key, 'ruleset_version' => $mapping->ruleset_version, 'legal_reference' => $mapping->legal_reference, 'data' => $mapping->profile_data ? (array) json_decode( $mapping->profile_data, true ) : array() ),
+					'seller' => $seller_snapshot,
+					'profile' => array_merge( $profile_snapshot, array( 'data' => $mapping->profile_data ? (array) json_decode( $mapping->profile_data, true ) : array() ) ),
 					'provider_id' => sanitize_key( $mapping->provider_id ),
 					'configuration' => $mapping->configuration ? (array) json_decode( $mapping->configuration, true ) : array(),
 					'items' => array(), 'gross_minor' => 0, 'tax_minor' => 0,
