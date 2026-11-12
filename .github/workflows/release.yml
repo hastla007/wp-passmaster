@@ -1,13 +1,16 @@
 name: Release
 
-# Pushing a tag like v1.0.0 builds the plugin ZIP and publishes a GitHub release
-# with the matching CHANGELOG section as release notes. Alternatively start it
-# manually (workflow_dispatch) on main: the tag v<plugin version> is then created
-# by the release on the dispatched commit.
+# Publishes a GitHub release with the plugin ZIP and the matching CHANGELOG section:
+# - on a pushed tag like v1.0.0,
+# - on every push to main (and manual runs there) for v<plugin version>, unless that
+#   release exists already; the tag is then created on that commit.
 on:
   push:
     tags:
       - 'v*'
+    # Every push to main publishes the release for the plugin version if it does not exist yet.
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -25,13 +28,19 @@ jobs:
         run: |
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
             echo "TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+            echo "SKIP=" >> "$GITHUB_ENV"
           else
             version="$(sed -n 's/^ \* Version: *//p' wp-pass-captain.php | head -n1)"
             test -n "$version" || { echo "No plugin version found"; exit 1; }
             echo "TAG=v${version}" >> "$GITHUB_ENV"
+            # Already released (e.g. a later push without version bump): nothing to do.
+            if gh release view "v${version}" >/dev/null 2>&1; then echo "SKIP=1" >> "$GITHUB_ENV"; echo "Release v${version} exists"; else echo "SKIP=" >> "$GITHUB_ENV"; fi
           fi
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - uses: shivammathur/setup-php@v2
+        if: env.SKIP == ''
         with:
           php-version: '8.2'
           tools: composer:v2
@@ -39,15 +48,18 @@ jobs:
           coverage: none
 
       - name: Check plugin version matches the tag
+        if: env.SKIP == ''
         run: |
           version="${TAG#v}"
           grep -q "Version: ${version}\$" wp-pass-captain.php || { echo "Plugin header version does not match tag ${TAG}"; exit 1; }
           grep -q "'WPCAP_VERSION', '${version}'" wp-pass-captain.php || { echo "WPCAP_VERSION does not match tag ${TAG}"; exit 1; }
 
       - name: Build ZIP
+        if: env.SKIP == ''
         run: bash build/release.sh
 
       - name: Extract release notes from CHANGELOG.md
+        if: env.SKIP == ''
         run: |
           version="${TAG#v}"
           awk -v v="$version" '
@@ -58,6 +70,7 @@ jobs:
           test -s release-notes.md || echo "Siehe CHANGELOG.md" > release-notes.md
 
       - name: Publish release
+        if: env.SKIP == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
