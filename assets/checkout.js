@@ -224,7 +224,7 @@
 			panel.appendChild(p);
 		}
 		const total = data.total_formatted || (typeof data.total_minor === 'number' ? money(data.total_minor, data.currency) : '');
-		if (total && Number(data.total_minor) > 0 && t.orderTotal) panel.appendChild(el('p', {}, t.orderTotal.replace('%s', total)));
+		if (total && Number(data.total_minor) > 0 && t.orderTotal && !(data.payment && data.payment.bank_transfer)) panel.appendChild(el('p', {}, t.orderTotal.replace('%s', total)));
 		if (complete) {
 			panel.appendChild(el('p', {}, fill(t.ticketsSentTo || t.complete || '%s', [email])));
 		} else {
