@@ -85,10 +85,8 @@ final class Fiscalization {
 
 	public static function register() {
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'snapshot_order' ), 20, 4 );
-		add_action( 'wpcap_order_paid', array( __CLASS__, 'process_order' ), 1 );
 		add_action( 'wpcap_process_fiscal_order', array( __CLASS__, 'process_scheduled_order' ) );
 		add_filter( 'wpcap_order_fiscal_ready', array( __CLASS__, 'fiscal_ready' ), 10, 2 );
-		add_action( 'wpcap_order_refunded', array( __CLASS__, 'mark_refunded' ), 10, 2 );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
 	}
 
@@ -211,7 +209,7 @@ final class Fiscalization {
 
 	/** Scheduled retry callback; adapters receive a stable idempotency key for every retry. */
 	public static function process_scheduled_order( $order_id ) {
-		self::process_order( absint( $order_id ) );
+		// issue_and_email runs the fiscal readiness filter before issuing any ticket.
 		Orders::issue_and_email( absint( $order_id ) );
 	}
 
@@ -247,10 +245,6 @@ final class Fiscalization {
 		return $blocked ? false : $ready;
 	}
 
-	public static function mark_refunded( $order_id, $reason ) {
-		global $wpdb;
-		$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_documents', array( 'status' => 'refund_pending', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => absint( $order_id ) ), array( '%s', '%s' ), array( '%d' ) );
-	}
 
 	/** Admin-only REST endpoints for managing seller records, provider selection, and ticket mapping. */
 	public static function register_routes() {
@@ -270,6 +264,15 @@ final class Fiscalization {
 	}
 
 	public static function rest_permission() { return current_user_can( 'manage_options' ); }
+
+	/** Prevent adapter credentials from being written to the general configuration table. */
+	private static function contains_secret_key( $values ) {
+		foreach ( (array) $values as $key => $value ) {
+			if ( preg_match( '/(secret|password|token|credential|private|api[_-]?key|certificate)/i', (string) $key ) ) { return true; }
+			if ( is_array( $value ) && self::contains_secret_key( $value ) ) { return true; }
+		}
+		return false;
+	}
 
 	public static function rest_sellers() {
 		global $wpdb;
@@ -303,6 +306,7 @@ final class Fiscalization {
 		}
 		$now = current_time( 'mysql', true );
 		$config = isset( $body['configuration'] ) && is_array( $body['configuration'] ) ? $body['configuration'] : array();
+		if ( self::contains_secret_key( $config ) ) { return new \\WP_Error( 'wpcap_fiscal_secret_rejected', __( 'API-Schlüssel und Zugangsdaten dürfen nicht in der allgemeinen Anbieter-Konfiguration gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		$result = $wpdb->replace( $wpdb->prefix . 'wpcap_fiscal_configs', array( 'seller_id' => $seller_id, 'country_code' => $seller->country_code, 'provider_id' => $provider_id, 'configuration' => wp_json_encode( $config ), 'enabled' => $enabled, 'created_at' => $now, 'updated_at' => $now ), array( '%d', '%s', '%s', '%s', '%d', '%s', '%s' ) );
 		return false === $result ? new \WP_Error( 'wpcap_fiscal_provider_save', __( 'Anbieter-Konfiguration konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ) : rest_ensure_response( array( 'seller_id' => $seller_id, 'provider_id' => $provider_id, 'enabled' => (bool) $enabled ) );
 	}
