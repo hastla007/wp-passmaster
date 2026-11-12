@@ -3,7 +3,7 @@
  * Plugin Name: WP Pass Captain
  * Plugin URI: https://github.com/hastla007/wp-passmaster
  * Description: Eigenständige Event-, Ticket- und Passverwaltung für WordPress.
- * Version: 1.3.0
+ * Version: 1.4.0
  * Requires at least: 6.4
  * Requires PHP: 8.2
  * Author: hastla007
@@ -20,7 +20,7 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-define( 'WPCAP_VERSION', '1.3.0' );
+define( 'WPCAP_VERSION', '1.4.0' );
 define( 'WPCAP_FILE', __FILE__ );
 define( 'WPCAP_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WPCAP_URL', plugin_dir_url( __FILE__ ) );

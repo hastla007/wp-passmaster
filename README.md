@@ -28,7 +28,7 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 
 PHP 8.2+, Composer und WordPress erforderlich. `composer install` lädt die QR-Code-Abhängigkeit. Das Plugin kann ohne generierten Composer-Autoloader gestartet werden; QR-Bilder erscheinen erst mit installierten Abhängigkeiten.
 
-Das aktuelle Datenbankschema ist `3.4.0` (plus Modul-Schemata; Plugin-Version `1.3.0` nutzt `3.4.0`). Das Upgrade erfolgt über `dbDelta` im Admin-Bereich, per WP-Cron oder WP-CLI hinter einer Datenbanksperre, nicht bei jedem Frontend-Aufruf (Details und System-Cron-Empfehlung: [docs/OPERATIONS.md](docs/OPERATIONS.md)). Neue REST-Routen decken Kampagnen, Wartelisten, Eventberichte, Übersetzungen und eventgebundene Entwickler-Schlüssel ab. WordPress-Schreibzugriffe brauchen eine eingeloggte WP-Session mit REST-Nonce; Entwickler-Schlüssel sind nur für dokumentierte Read-only-Scopes vorgesehen.
+Das aktuelle Datenbankschema ist `3.5.0` (plus Modul-Schemata; Plugin-Version `1.4.0` nutzt `3.5.0`). Das Upgrade erfolgt über `dbDelta` im Admin-Bereich, per WP-Cron oder WP-CLI hinter einer Datenbanksperre, nicht bei jedem Frontend-Aufruf (Details und System-Cron-Empfehlung: [docs/OPERATIONS.md](docs/OPERATIONS.md)). Neue REST-Routen decken Kampagnen, Wartelisten, Eventberichte, Übersetzungen und eventgebundene Entwickler-Schlüssel ab. WordPress-Schreibzugriffe brauchen eine eingeloggte WP-Session mit REST-Nonce; Entwickler-Schlüssel sind nur für dokumentierte Read-only-Scopes vorgesehen.
 
 ```sh
 composer install

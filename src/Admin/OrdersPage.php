@@ -386,7 +386,12 @@ final class OrdersPage {
 			<tfoot>
 				<tr><th colspan="6"><?php esc_html_e( 'Zwischensumme', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->subtotal_minor, $currency ) ); ?></td></tr>
 				<?php if ( (int) $order->discount_minor ) : ?><tr><th colspan="6"><?php esc_html_e( 'Rabatt', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( '− ' . Forms::money( $order->discount_minor, $currency ) ); ?></td></tr><?php endif; ?>
-				<tr><th colspan="6"><?php esc_html_e( 'Gesamt (brutto)', 'wp-pass-captain' ); ?></th><td colspan="2"><strong><?php echo esc_html( Forms::money( $order->total_minor, $currency ) ); ?></strong></td></tr>
+				<?php $voucher_paid = class_exists( '\\PassCaptain\\Integrations\\Vouchers\\Checkout' ) ? \PassCaptain\Integrations\Vouchers\Checkout::voucher_payment_minor( $order ) : 0; ?>
+				<tr><th colspan="6"><?php esc_html_e( 'Gesamt (brutto)', 'wp-pass-captain' ); ?></th><td colspan="2"><strong><?php echo esc_html( Forms::money( (int) $order->total_minor + $voucher_paid, $currency ) ); ?></strong></td></tr>
+				<?php if ( $voucher_paid ) : ?>
+					<tr><th colspan="6"><?php esc_html_e( 'davon bezahlt mit Mehrzweckgutschein', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $voucher_paid, $currency ) ); ?></td></tr>
+					<tr><th colspan="6"><?php esc_html_e( 'Zahlbetrag', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->total_minor, $currency ) ); ?></td></tr>
+				<?php endif; ?>
 				<tr><th colspan="6"><?php esc_html_e( 'darin enthaltene Steuer', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->tax_minor, $currency ) ); ?></td></tr>
 				<tr><th colspan="6"><?php esc_html_e( 'Erstattet', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->refunded_minor, $currency ) ); ?></td></tr>
 			</tfoot>
