@@ -47,10 +47,15 @@ check( 'credential admin metadata exposes names but never values', array( 'api_k
 $vault_update = Credentials::save( 73, 'test_fiscal_adapter', array( 'api_key' => 'rotated-key' ), array( 'api_secret' ) );
 $updated_config = Credentials::with_credentials( array(), 73, 'test_fiscal_adapter' );
 check( 'credential vault supports safe rotation and per-field deletion', true === $vault_update && 'rotated-key' === $updated_config['credentials']['api_key'] && ! isset( $updated_config['credentials']['api_secret'] ) );
-$GLOBALS['wpcap_test_salt_epoch'] = 'rotated';
-$rotated_salt_config = Credentials::with_credentials( array(), 73, 'test_fiscal_adapter' );
-$GLOBALS['wpcap_test_salt_epoch'] = 'one';
-check( 'credential vault fails closed after WordPress salts change', empty( $rotated_salt_config['credentials'] ) );
+$vault_before_tamper = get_option( Credentials::OPTION, array() );
+$tampered_vault = $vault_before_tamper;
+$ciphertext = base64_decode( $tampered_vault[73]['test_fiscal_adapter']['ciphertext'], true );
+$ciphertext[0] = chr( ord( $ciphertext[0] ) ^ 1 );
+$tampered_vault[73]['test_fiscal_adapter']['ciphertext'] = base64_encode( $ciphertext );
+update_option( Credentials::OPTION, $tampered_vault, false );
+$tampered_config = Credentials::with_credentials( array(), 73, 'test_fiscal_adapter' );
+check( 'credential vault fails closed when authenticated ciphertext is tampered with', empty( $tampered_config['credentials'] ) );
+update_option( Credentials::OPTION, $vault_before_tamper, false );
 Credentials::delete( 73, 'test_fiscal_adapter' );
 
 $permanent_failure = new ReflectionMethod( FiscalizationModule::class, 'failure_is_permanent' );
