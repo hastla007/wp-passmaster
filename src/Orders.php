@@ -414,12 +414,23 @@ final class Orders {
 	/**
 	 * Whether the connection is still inside a transaction (MariaDB @@in_transaction). False after
 	 * the server rolled the transaction back (deadlock, lock wait timeout); null if unknown (MySQL).
+	 *
+	 * MySQL has no such variable: querying it there only writes "Unknown system variable" to the
+	 * error log on every order, so the server type is checked once per request instead.
 	 */
 	private static function in_transaction() {
 		global $wpdb;
+		static $tracked = null;
+		if ( null === $tracked ) { $tracked = self::server_tracks_transactions( (string) $wpdb->get_var( 'SELECT VERSION()' ) ); }
+		if ( ! $tracked ) { return null; }
 		$value = $wpdb->get_var( 'SELECT @@in_transaction' );
 		if ( '' !== $wpdb->last_error || null === $value ) { return null; }
 		return 1 === (int) $value;
+	}
+
+	/** MariaDB reports its transaction state in @@in_transaction; MySQL does not. */
+	private static function server_tracks_transactions( $version ) {
+		return false !== stripos( (string) $version, 'mariadb' );
 	}
 
 	private static function capacity_error( $type, $occurrence, $quantity, $exclude_order_id = 0 ) {

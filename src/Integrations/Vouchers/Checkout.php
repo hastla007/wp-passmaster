@@ -12,13 +12,20 @@
 namespace PassCaptain\Integrations\Vouchers;
 
 use PassCaptain\Audit;
+use PassCaptain\Jobs;
 use PassCaptain\Orders;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Checkout {
+	/** Job type for commit retries (Jobs queue). */
+	const JOB = 'voucher_commit';
+	/** The Jobs queue moves a job to dead_letter after this many attempts; the last one flags the order. */
+	const FINAL_ATTEMPT = 8;
+
 	public static function register() {
 		add_action( 'wpcap_order_paid', array( __CLASS__, 'commit' ) );
+		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 4 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'release' ) );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'refund' ), 20, 2 );
 	}
@@ -84,19 +91,96 @@ final class Checkout {
 		return array( 'applied_minor' => $amount, 'total_minor' => $new_total );
 	}
 
-	/** Commits the reservation after payment. Failures are kept retryable via the jobs queue/audit. */
-	public static function commit( $order_id ) {
+	/**
+	 * Commits the voucher after payment (wpcap_order_paid).
+	 *
+	 * - Reservation released before the payment arrived (order expired, late payment recovered):
+	 *   the voucher is reserved again with the stored quote and then committed.
+	 * - Temporary provider errors: retried through the Jobs queue (same idempotency keys).
+	 * - Anything else (voucher used up, voided, provider gone for good): the order keeps its tickets
+	 *   but the voucher snapshot is marked `commit_failed`, audited and the admin is emailed –
+	 *   never a silent discount without a voucher charge.
+	 *
+	 * @return bool True when nothing is left to do, false when a retry is scheduled.
+	 */
+	public static function commit( $order_id, $final = false ) {
+		$order_id = absint( $order_id );
 		$snapshot = self::snapshot( $order_id );
-		if ( ! $snapshot || 'reserved' !== $snapshot['status'] ) { return; }
-		$result = Bridge::commit( (array) $snapshot['reservation'], 'wpcap-commit-' . Orders::get( $order_id )->public_id );
-		if ( is_wp_error( $result ) ) {
-			Audit::record( 'voucher_commit_failed', 'order', (int) $order_id, array( 'error' => $result->get_error_code() ) );
-			return;
+		if ( ! $snapshot || ! in_array( $snapshot['status'] ?? '', array( 'reserved', 'released' ), true ) ) { return true; }
+		$order = Orders::get( $order_id );
+		if ( 'released' === $snapshot['status'] ) {
+			if ( ! $order || 'paid' !== $order->payment_status ) { return true; }
+			$again = Bridge::reserve( (array) ( $snapshot['quote'] ?? array() ), 'wpcap-order-late-' . $order->public_id );
+			if ( is_wp_error( $again ) ) { return self::commit_error( $order_id, $snapshot, $again, $final ); }
+			if ( isset( $again['amount_minor'] ) && (int) $again['amount_minor'] !== (int) $snapshot['amount_minor'] ) {
+				Bridge::release( (array) $again, 'wpcap-release-late-' . $order->public_id );
+				return self::needs_review( $order_id, $snapshot, new \WP_Error( 'wpcap_voucher_amount_changed', __( 'Der Gutschein deckt den ursprünglichen Betrag nicht mehr.', 'wp-pass-captain' ) ) );
+			}
+			$snapshot['reservation'] = $again;
+			$snapshot['status'] = 'reserved';
+			$snapshot['late_reservation'] = true;
+			self::save( $order_id, $snapshot );
+			Audit::record( 'voucher_reserved_again', 'order', $order_id, array( 'amount_minor' => (int) $snapshot['amount_minor'] ) );
 		}
+		$result = Bridge::commit( (array) $snapshot['reservation'], 'wpcap-commit-' . ( $order ? $order->public_id : $order_id ) );
+		if ( is_wp_error( $result ) ) { return self::commit_error( $order_id, $snapshot, $result, $final ); }
 		$snapshot['status'] = 'committed';
 		$snapshot['redemption'] = $result;
+		unset( $snapshot['error'] );
 		self::save( $order_id, $snapshot );
-		Audit::record( 'voucher_committed', 'order', (int) $order_id, array( 'amount_minor' => (int) $snapshot['amount_minor'] ) );
+		Audit::record( 'voucher_committed', 'order', $order_id, array( 'amount_minor' => (int) $snapshot['amount_minor'] ) );
+		return true;
+	}
+
+	/** Filter wp_pass_captain_process_job_v1: retries a voucher commit. */
+	public static function handle_job( $handled, $type, $payload = array(), $job_id = 0 ) {
+		if ( self::JOB !== $type ) { return $handled; }
+		global $wpdb;
+		$attempts = (int) $wpdb->get_var( $wpdb->prepare( "SELECT attempts FROM {$wpdb->prefix}wpcap_jobs WHERE job_id=%d", absint( $job_id ) ) );
+		return self::commit( absint( $payload['order_id'] ?? 0 ), $attempts >= self::FINAL_ATTEMPT );
+	}
+
+	/** Whether a provider error may go away by itself (outage, plugin update, lock timeout). */
+	public static function is_temporary( \WP_Error $error ) {
+		$data = $error->get_error_data();
+		$status = is_array( $data ) ? (int) ( $data['status'] ?? 0 ) : 0;
+		return $status >= 500 || in_array( $error->get_error_code(), array( 'vcap_temporary_failure', 'wpcap_voucher_unavailable' ), true );
+	}
+
+	private static function commit_error( $order_id, array $snapshot, \WP_Error $error, $final ) {
+		if ( ! $final && self::is_temporary( $error ) ) {
+			Audit::record( 'voucher_commit_failed', 'order', (int) $order_id, array( 'error' => $error->get_error_code(), 'retry' => true ) );
+			Jobs::enqueue( 'voucher-commit-' . (int) $order_id, self::JOB, array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+			return false;
+		}
+		return self::needs_review( $order_id, $snapshot, $error );
+	}
+
+	/** Paid, tickets issued, but the voucher could not be charged: flag, audit and alert. */
+	private static function needs_review( $order_id, array $snapshot, \WP_Error $error ) {
+		$snapshot['status'] = 'commit_failed';
+		$snapshot['error'] = $error->get_error_code();
+		self::save( $order_id, $snapshot );
+		Audit::record( 'voucher_commit_failed', 'order', (int) $order_id, array( 'error' => $error->get_error_code(), 'retry' => false ) );
+		$order = Orders::get( $order_id );
+		wp_mail(
+			get_option( 'admin_email' ),
+			__( 'WP Pass Captain: Gutschein konnte nicht belastet werden', 'wp-pass-captain' ),
+			sprintf(
+				/* translators: 1: order id, 2: amount with currency, 3: last code characters, 4: error code */
+				__( 'Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in WP Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten.', 'wp-pass-captain' ),
+				$order ? $order->public_id : (int) $order_id,
+				\PassCaptain\Admin\Forms::money( (int) $snapshot['amount_minor'], $order ? $order->currency : 'EUR' ),
+				(string) ( $snapshot['code_hint'] ?? '' ),
+				$error->get_error_code()
+			)
+		);
+		return true;
+	}
+
+	/** Voucher snapshot of an order for display (null when no voucher was used). */
+	public static function voucher_state( $order_id ) {
+		return self::snapshot( $order_id );
 	}
 
 	/** Releases an unused reservation when an unpaid order is cancelled or expires. */
