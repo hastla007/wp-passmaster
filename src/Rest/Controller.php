@@ -354,7 +354,8 @@ final class Controller {
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			return new \WP_Error( 'wpcap_pos_not_paid', __( 'Dieser Idempotency-Key gehört zu einer nicht bezahlten Bestellung; bitte einen neuen Verkauf starten.', 'wp-pass-captain' ), array( 'status' => 409, 'status_code' => $order ? $order->status : '' ) );
 		}
-		return new \WP_REST_Response( array( 'order_id' => (int) $order->order_id, 'public_id' => $order->public_id, 'status' => $order->status, 'payment_status' => $order->payment_status ), empty( $result['reused'] ) ? 201 : 200 );
+		$tickets = Orders::tickets_for_order( $order->order_id );
+		return new \WP_REST_Response( array( 'order_id' => (int) $order->order_id, 'public_id' => $order->public_id, 'status' => $order->status, 'payment_status' => $order->payment_status, 'tickets_issued' => (bool) $tickets, 'ticket_issuance_pending' => 'paid' === $order->payment_status && ! $tickets ), empty( $result['reused'] ) ? 201 : 200 );
 	}
 
 	public static function offline_sync( \WP_REST_Request $request ) {
