@@ -283,6 +283,49 @@ final class CapacityCounters {
 	}
 
 	/**
+	 * Moves a ticket type to another occurrence (e.g. a festival pass re-anchored when its anchor
+	 * date is cancelled) and moves its sold/held units between the occurrence counters in the same
+	 * transaction. Locks the type, then both occurrences by id. Use this instead of updating
+	 * ticket_types.occurrence_id directly.
+	 *
+	 * @return bool True when the type was moved.
+	 */
+	public static function move_type( $type_id, $from_occurrence_id, $to_occurrence_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$type_id = absint( $type_id );
+		$from = absint( $from_occurrence_id );
+		$to = absint( $to_occurrence_id );
+		$nested = true === Orders::transaction_alive();
+		if ( ! $nested ) { $wpdb->query( 'START TRANSACTION' ); }
+		$type = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id=%d FOR UPDATE", $type_id ) );
+		$occ_ids = array( $from, $to );
+		sort( $occ_ids, SORT_NUMERIC );
+		foreach ( array_unique( $occ_ids ) as $occ_id ) {
+			$wpdb->get_var( $wpdb->prepare( "SELECT occurrence_id FROM {$p}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", $occ_id ) );
+		}
+		$ok = $type && (int) $type->occurrence_id === $from && $from !== $to && '' === $wpdb->last_error;
+		if ( $ok ) {
+			$ok = 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_ticket_types SET occurrence_id=%d WHERE ticket_type_id=%d AND occurrence_id=%d", $to, $type_id, $from ) );
+		}
+		if ( $ok && self::maintained() ) {
+			$sold = (int) ( $type->sold_qty ?? 0 );
+			$held = (int) ( $type->held_qty ?? 0 );
+			$ok = false !== $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET sold_qty=sold_qty-%d,held_qty=held_qty-%d WHERE occurrence_id=%d", $sold, $held, $from ) )
+				&& false !== $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET sold_qty=sold_qty+%d,held_qty=held_qty+%d WHERE occurrence_id=%d", $sold, $held, $to ) );
+		}
+		if ( $nested ) {
+			return $ok;
+		}
+		if ( ! $ok || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return false;
+		}
+		Orders::flush_availability_cache();
+		return true;
+	}
+
+	/**
 	 * Locks ticket types and then their occurrences FOR UPDATE, both by id.
 	 *
 	 * @return array|false ticket_type_id => occurrence_id.

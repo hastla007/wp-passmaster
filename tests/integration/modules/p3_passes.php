@@ -172,6 +172,8 @@ for ( $round = 0; $round < 3; $round++ ) {
 	// Reset: remove previous sales of the race occurrences.
 	$wpdb->query( "DELETE r FROM {$p}wpcap_reservations r WHERE r.ticket_type_id IN ($tc2,$pass_c,$pass_c2)" );
 	$wpdb->query( "DELETE oi FROM {$p}wpcap_order_items oi WHERE oi.ticket_type_id IN ($tc2,$pass_c,$pass_c2)" );
+	// Raw deletes bypass the capacity counters: rebuild them like the reconcile job would.
+	foreach ( array_unique( array_map( 'intval', $wpdb->get_col( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id IN ($tc2,$pass_c,$pass_c2)" ) ) ) as $fp_occ ) { PassCaptain\CapacityCounters::rebuild_occurrence( $fp_occ ); }
 	$results = fp_race( array( $pass_c, $tc2, $pass_c2, $tc2, $pass_c ) );
 	$ok = count( array_filter( $results, static fn( $r ) => 'OK' === $r ) );
 	$busy += count( array_filter( $results, static fn( $r ) => false !== strpos( $r, 'viel los' ) ) );

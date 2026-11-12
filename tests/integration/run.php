@@ -319,6 +319,13 @@ check( "exactly 5 of 20 parallel buyers get a hold (got $ok, held $held)", 5 ===
 function assert_capacity_counters( $after ) {
 	$drift = PassCaptain\CapacityCounters::drift();
 	check( "capacity counters equal the source sums after $after" . ( $drift ? ' ' . json_encode( array_slice( $drift, 0, 4 ) ) : '' ), ! $drift );
+	if ( $drift ) {
+		// Repair, so the next file is judged on its own drift only.
+		$mails = $GLOBALS['wpcap_test_mails'];
+		PassCaptain\CapacityCounters::reconcile();
+		$GLOBALS['wpcap_test_mails'] = $mails;
+		$GLOBALS['wpcap_test_transients'] = array();
+	}
 }
 assert_capacity_counters( 'run.php core' );
 foreach ( array( 'finance', 'payments', 'admin', 'mobile', 'affiliate' ) as $core_test ) {

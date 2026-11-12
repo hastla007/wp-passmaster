@@ -57,7 +57,8 @@ final class Cancellation {
 				}
 			}
 			if ( ! $next ) { continue; }
-			$wpdb->update( "{$p}wpcap_ticket_types", array( 'occurrence_id' => $next ), array( 'ticket_type_id' => $type_id, 'occurrence_id' => $occurrence_id ) );
+			// Core API: moves the type's sold/held units between the occurrence counters as well.
+			\PassCaptain\CapacityCounters::move_type( $type_id, $occurrence_id, $next );
 			Audit::record( 'pass_reanchored', 'occurrence', $occurrence_id, array( 'ticket_type_id' => $type_id, 'new_occurrence_id' => $next ) );
 		}
 		Definitions::flush();

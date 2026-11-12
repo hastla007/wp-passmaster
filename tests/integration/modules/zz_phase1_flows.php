@@ -178,7 +178,10 @@ $cancelled_seen = array();
 $p1f_pay = static function ( $order_id ) use ( &$cancelled_seen, $e1, $e2, $wpdb, $p ) {
 	$cancelled_seen[] = (int) $order_id;
 	// The buyer pays order 2 while the cron is busy with order 1.
-	if ( (int) $order_id === (int) $e1['order_id'] ) { $wpdb->query( "UPDATE {$p}wpcap_orders SET payment_status='paid',status='confirmed' WHERE order_id=" . (int) $e2['order_id'] ); }
+	if ( (int) $order_id === (int) $e1['order_id'] ) {
+		$wpdb->query( "UPDATE {$p}wpcap_orders SET payment_status='paid',status='confirmed' WHERE order_id=" . (int) $e2['order_id'] );
+		PassCaptain\CapacityCounters::sync_order_now( $e2['order_id'] ); // Raw payment: keep the capacity counters in line.
+	}
 };
 add_action( 'wpcap_order_cancelled', $p1f_pay, 1, 1 );
 $expired = Orders::expire_holds();

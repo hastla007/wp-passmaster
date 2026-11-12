@@ -41,6 +41,7 @@ $d = Orders::create( array( 'email' => 'rem-d@example.com', 'items' => array( ar
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=" . (int) $b['order_id'] );
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE order_id=" . (int) $c['order_id'] );
 $wpdb->query( "UPDATE {$p}wpcap_orders SET payment_status='pending' WHERE order_id=" . (int) $d['order_id'] );
+PassCaptain\CapacityCounters::sync_order_now( $d['order_id'] ); // Raw state change: keep the capacity counters in line.
 // Attendee with own e-mail on one of A's tickets: separate holder.
 $a_tickets = tickets( $a['order_id'] );
 $wpdb->query( "UPDATE {$p}wpcap_tickets SET attendee_email='rem-guest@example.com' WHERE ticket_id=" . (int) $a_tickets[1]->ticket_id );
