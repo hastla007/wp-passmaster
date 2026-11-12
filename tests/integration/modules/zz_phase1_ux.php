@@ -139,7 +139,7 @@ $card_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_ty
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='p1u_hidden' WHERE status='scheduled' AND occurrence_id<>$card_occ" );
 $card = PassCaptain\PublicEvents::render_shortcode();
 $card_pos = strpos( $card, 'data-type="' . $card_type . '"' );
-$article = false !== $card_pos ? substr( $card, strrpos( substr( $card, 0, $card_pos ), '<article' ), 6000 ) : '';
+$article = false !== $card_pos ? substr( $card, strrpos( substr( $card, 0, $card_pos ), '<article' ), 12000 ) : '';
 check( 'buyer e-mail comes before the attendee box with the clear label', false !== strpos( $article, 'Deine E-Mail-Adresse (für Tickets und Bestätigung)' ) && strpos( $article, 'name="email"' ) < strpos( $article, 'wpcap-attendees' ) );
 check( 'CTA uses the theme button class', false !== strpos( $article, 'class="wp-element-button wpcap-submit"' ) );
 check( 'consent mentions consumer information only when configured', false !== strpos( $article, 'Ich akzeptiere die Bedingungen.</label>' ) && false === strpos( $article, 'Verbraucherinformationen gelesen' ) );

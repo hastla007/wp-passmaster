@@ -340,6 +340,20 @@ final class OrdersPage {
 					<a class="button" href="<?php echo esc_url( wp_nonce_url( $invoice_url, 'wpcap_issue_invoice_' . (int) $order_id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Rechnung erstellen', 'wp-pass-captain' ); ?></a>
 				<?php else : ?>—<?php endif; ?>
 			</td></tr>
+			<?php
+			// Sales model / seller of the customer invoice (docs/SALES-MODELS.md).
+			if ( $invoice ) {
+				$sales_label = \PassCaptain\Invoices::seller_label( (array) json_decode( (string) $wpdb->get_var( $wpdb->prepare( "SELECT buyer_snapshot FROM {$wpdb->prefix}wpcap_invoices WHERE invoice_id=%d", $invoice->invoice_id ) ), true ) );
+			} else {
+				$sales_context = \PassCaptain\Partners\SalesModel::order_context( $order_id );
+				$sales_label = is_wp_error( $sales_context ) ? '' : \PassCaptain\Invoices::seller_label( array( 'sales_model' => $sales_context['model'], 'seller' => $sales_context['seller'] ) );
+			}
+			?>
+			<tr><th><?php esc_html_e( 'Verkaufsmodell', 'wp-pass-captain' ); ?></th><td>
+				<?php if ( ! $invoice && isset( $sales_context ) && is_wp_error( $sales_context ) ) : ?>
+					<div class="notice notice-error inline"><p><?php echo esc_html( $sales_context->get_error_message() ); ?></p></div>
+				<?php else : ?><?php echo esc_html( $sales_label ); ?><?php endif; ?>
+			</td></tr>
 			<tr><th><?php esc_html_e( 'Version AGB/Verbraucherinfo', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( '' !== (string) $order->terms_version ? $order->terms_version : '—' ); ?></td></tr>
 		</tbody></table>
 

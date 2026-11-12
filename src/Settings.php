@@ -71,6 +71,8 @@ final class Settings {
 			'invoice_prefix'            => 'WPC',
 			'credit_note_prefix'        => 'GS',
 			'auto_invoice'              => 0,
+			// Voucher Captain redemptions without purpose data: 'multi' (payment, VAT at redemption) or 'single'.
+			'voucher_default_purpose'   => 'multi',
 			'delete_data_on_uninstall'  => 0,
 			'scanner_show_attendee'     => 0,
 			'device_max_hours'          => 24,

@@ -86,6 +86,20 @@ final class SettingsPage {
 					'require_2fa_for_refunds' => array( 'type' => 'bool', 'label' => __( 'Zwei-Faktor-Anmeldung für Erstattungen verlangen', 'wp-pass-captain' ) ),
 				),
 			),
+			'vouchers' => array(
+				'title' => __( 'Gutscheine', 'wp-pass-captain' ),
+				'fields' => array(
+					'voucher_default_purpose' => array(
+						'type' => 'choice',
+						'label' => __( 'Gutscheine standardmäßig als Mehrzweckgutschein behandeln', 'wp-pass-captain' ),
+						'options' => array(
+							'multi' => __( 'Ja – Mehrzweckgutschein (Zahlungsmittel, USt bei Einlösung)', 'wp-pass-captain' ),
+							'single' => __( 'Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)', 'wp-pass-captain' ),
+						),
+						'description' => __( 'Gilt nur, wenn WP Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md).', 'wp-pass-captain' ),
+					),
+				),
+			),
 			'privacy' => array(
 				'title' => __( 'Datenschutz', 'wp-pass-captain' ),
 				'fields' => array(

@@ -68,16 +68,26 @@ final class AdminPage {
 					'settlement_start' => Forms::text( $in, 'settlement_start', 10 ),
 					'status' => Forms::choice( $in, 'status', Repository::STATUSES, 'active' ),
 					'notes' => Forms::textarea( $in, 'notes' ),
+					'sales_model' => Forms::choice( $in, 'sales_model', SalesModel::MODELS, SalesModel::OWN_NAME ),
+					'legal_name' => Forms::text( $in, 'legal_name' ),
+					'country' => Forms::text( $in, 'country', 2 ),
+					'tax_number' => Forms::text( $in, 'tax_number', 64 ),
+					'vat_id_checked_at' => Forms::text( $in, 'vat_id_checked_at', 10 ),
+					'invoice_prefix' => Forms::text( $in, 'invoice_prefix', 10 ),
+					'small_business' => Forms::flag( $in, 'small_business' ) ? 1 : 0,
+					'small_business_note' => Forms::text( $in, 'small_business_note', 255 ),
 				);
 				$partner_id = Repository::save( $data, $id );
 				if ( is_wp_error( $partner_id ) ) { return $partner_id; }
 				$events = Repository::set_events( $partner_id, Forms::ids( $in, 'event_ids' ) );
 				Repository::set_users( $partner_id, Repository::resolve_users( $in['users'] ?? '' ) );
 				$result = array( 'partner_id' => $partner_id );
+				$warnings = self::seller_warnings( Repository::get( $partner_id ) );
 				if ( ! is_wp_error( $events ) && $events['skipped'] ) {
 					/* translators: %s: event ids */
-					$result['warning'] = sprintf( __( 'Folgende Events gehören bereits einem anderen Veranstalter und wurden nicht verknüpft: %s', 'wp-pass-captain' ), implode( ', ', $events['skipped'] ) );
+					$warnings[] = sprintf( __( 'Folgende Events gehören bereits einem anderen Veranstalter und wurden nicht verknüpft: %s', 'wp-pass-captain' ), implode( ', ', $events['skipped'] ) );
 				}
+				if ( $warnings ) { $result['warning'] = implode( ' ', $warnings ); }
 				return $result;
 			case 'issue_key':
 				$expires = '';
@@ -93,7 +103,8 @@ final class AdminPage {
 				return Keys::revoke( $id );
 			case 'settings':
 				$prefix = preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'settlement_prefix', 10 ) );
-				$values = array( 'settlement_prefix' => '' !== $prefix ? $prefix : 'PA', 'rate_limit' => max( 1, min( 100000, Forms::int( $in, 'rate_limit', 120 ) ) ) );
+				$self_billing = preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'self_billing_prefix', 10 ) );
+				$values = array( 'settlement_prefix' => '' !== $prefix ? $prefix : 'PA', 'self_billing_prefix' => '' !== $self_billing ? $self_billing : 'GU', 'rate_limit' => max( 1, min( 100000, Forms::int( $in, 'rate_limit', 120 ) ) ) );
 				Settings::update( array( 'partners' => $values ) );
 				return $values;
 			case 'create_settlement':
@@ -183,10 +194,10 @@ final class AdminPage {
 			echo '<p>' . esc_html__( 'Noch keine Veranstalter.', 'wp-pass-captain' ) . '</p>';
 		} else {
 			$policies = Repository::refund_policy_labels();
-			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Name', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Kontakt', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Konditionen', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Events', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Name', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Kontakt', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Konditionen', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Verkaufsmodell', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Events', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $partners as $pa ) {
 				$terms = sprintf( /* translators: 1: percent, 2: fee */ __( '%1$s %% Provision, %2$s je Ticket', 'wp-pass-captain' ), Forms::percent_input( $pa->commission_bp ), Forms::money( $pa->fee_per_ticket_minor, $pa->currency ) );
-				echo '<tr><td><a href="' . esc_url( Forms::page_url( self::PAGE, array( 'partner_id' => (int) $pa->partner_id ) ) ) . '"><strong>' . esc_html( $pa->name ) . '</strong></a></td><td>' . esc_html( trim( $pa->contact_name . ' ' . $pa->contact_email ) ) . '</td><td>' . esc_html( $terms ) . '<br><small>' . esc_html( $policies[ $pa->refund_policy ] ?? $pa->refund_policy ) . '</small></td><td>' . count( Repository::event_ids( $pa->partner_id ) ) . '</td><td>' . esc_html( 'active' === $pa->status ? __( 'aktiv', 'wp-pass-captain' ) : __( 'inaktiv', 'wp-pass-captain' ) ) . '</td></tr>';
+				echo '<tr><td><a href="' . esc_url( Forms::page_url( self::PAGE, array( 'partner_id' => (int) $pa->partner_id ) ) ) . '"><strong>' . esc_html( $pa->name ) . '</strong></a></td><td>' . esc_html( trim( $pa->contact_name . ' ' . $pa->contact_email ) ) . '</td><td>' . esc_html( $terms ) . '<br><small>' . esc_html( $policies[ $pa->refund_policy ] ?? $pa->refund_policy ) . '</small></td><td>' . esc_html( SalesModel::short_labels()[ SalesModel::model_of( $pa ) ] ) . ( self::seller_warnings( $pa ) ? '<br><small class="wpcap-warning">' . esc_html__( 'Rechnungsangaben unvollständig', 'wp-pass-captain' ) . '</small>' : '' ) . '</td><td>' . count( Repository::event_ids( $pa->partner_id ) ) . '</td><td>' . esc_html( 'active' === $pa->status ? __( 'aktiv', 'wp-pass-captain' ) : __( 'inaktiv', 'wp-pass-captain' ) ) . '</td></tr>';
 			}
 			echo '</tbody></table>';
 		}
@@ -194,7 +205,8 @@ final class AdminPage {
 		echo '<h2>' . esc_html__( 'Einstellungen', 'wp-pass-captain' ) . '</h2>';
 		Forms::open_form( self::ACTION );
 		Forms::hidden( 'do', 'settings' );
-		echo '<table class="form-table"><tbody><tr><th scope="row"><label for="wpcap-pa-prefix">' . esc_html__( 'Präfix der Abrechnungsnummern', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-pa-prefix" name="settlement_prefix" maxlength="10" value="' . esc_attr( (string) ( $settings['settlement_prefix'] ?? 'PA' ) ) . '"><p class="description">' . esc_html__( 'Fortlaufend und lückenlos je Jahr, z. B. PA-2026-000001.', 'wp-pass-captain' ) . '</p></td></tr>';
+		echo '<table class="form-table"><tbody><tr><th scope="row"><label for="wpcap-pa-prefix">' . esc_html__( 'Präfix der Abrechnungsnummern', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-pa-prefix" name="settlement_prefix" maxlength="10" value="' . esc_attr( (string) ( $settings['settlement_prefix'] ?? 'PA' ) ) . '"><p class="description">' . esc_html__( 'Fortlaufend und lückenlos je Jahr, z. B. PA-2026-000001. Gilt für Provisionsrechnungen (Vermittler) und Rechnungen über Plattformgebühren (Eigenhändler).', 'wp-pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-pa-sb-prefix">' . esc_html__( 'Präfix der Gutschriftsnummern (Eigenhändler)', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-pa-sb-prefix" name="self_billing_prefix" maxlength="10" value="' . esc_attr( (string) ( $settings['self_billing_prefix'] ?? 'GU' ) ) . '"><p class="description">' . esc_html__( 'Eigener lückenloser Nummernkreis für Gutschriften im Sinne von § 14 Abs. 2 Satz 2 UStG, z. B. GU-2026-000001.', 'wp-pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-pa-rate">' . esc_html__( 'Standard-Ratenlimit (Anfragen pro Minute und Key)', 'wp-pass-captain' ) . '</label></th><td><input type="number" id="wpcap-pa-rate" name="rate_limit" min="1" max="100000" value="' . (int) ( $settings['rate_limit'] ?? 120 ) . '"></td></tr></tbody></table>';
 		submit_button( __( 'Einstellungen speichern', 'wp-pass-captain' ), 'secondary' );
 		echo '</form></div>';
@@ -223,6 +235,7 @@ final class AdminPage {
 		echo '<tr><th scope="row"><label for="wpcap-pa-status">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</label></th><td>';
 		Forms::select( 'status', array( 'active' => __( 'aktiv', 'wp-pass-captain' ), 'inactive' => __( 'inaktiv (API-Keys gesperrt)', 'wp-pass-captain' ) ), $v( 'status', 'active' ), 'wpcap-pa-status' );
 		echo '</td></tr></tbody></table>';
+		self::render_sales_model_fields( $partner, $field );
 		echo '<h3>' . esc_html__( 'Provisionsmodell', 'wp-pass-captain' ) . '</h3><table class="form-table"><tbody>';
 		$field( 'currency', __( 'Währung', 'wp-pass-captain' ), $v( 'currency', 'EUR' ), 'text', 'maxlength="3" pattern="[A-Za-z]{3}" style="width:5em"' );
 		$field( 'commission', __( 'Provision in % vom Netto-Ticketumsatz', 'wp-pass-captain' ), $partner ? Forms::percent_input( $partner->commission_bp ) : '0', 'text', 'inputmode="decimal" style="width:7em"' );
@@ -246,6 +259,43 @@ final class AdminPage {
 		echo '<tr><th scope="row"><label for="wpcap-pa-users">' . esc_html__( 'WordPress-Benutzer des Veranstalters', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-pa-users" name="users" class="regular-text" value="' . esc_attr( $users ) . '"><p class="description">' . esc_html__( 'Benutzer-IDs, Logins oder E-Mail-Adressen (kommagetrennt). Diese Benutzer sehen die abgeschlossenen Abrechnungen des Veranstalters (nur lesend), z. B. mit der Rolle „Pass Captain Veranstalter“.', 'wp-pass-captain' ) . '</p></td></tr></tbody></table>';
 		submit_button( __( 'Veranstalter speichern', 'wp-pass-captain' ) );
 		echo '</form>';
+	}
+
+	/** Admin warnings for incomplete seller data (agent invoices / Gutschriften need them). */
+	public static function seller_warnings( $partner ) {
+		if ( ! $partner ) { return array(); }
+		$warnings = array();
+		$missing = SalesModel::missing_supplier_fields( $partner );
+		if ( $missing ) {
+			/* translators: %s: missing fields */
+			$warnings[] = sprintf( __( 'Für Rechnungen im Namen des Veranstalters (Vermittler) bzw. Gutschriften (Eigenhändler) fehlen: %s.', 'wp-pass-captain' ), implode( ', ', $missing ) );
+		}
+		if ( '' !== trim( (string) $partner->vat_id ) && SalesModel::partner_country( $partner ) !== SalesModel::platform_seller()['country'] ) {
+			if ( ! SalesModel::vat_id_plausible( $partner->vat_id, SalesModel::partner_country( $partner ) ) ) {
+				$warnings[] = __( 'Die USt-IdNr. passt formal nicht zum Land des Veranstalters – Reverse Charge wird nicht angewendet.', 'wp-pass-captain' );
+			} elseif ( empty( $partner->vat_id_checked_at ) ) {
+				$warnings[] = __( 'Reverse Charge setzt eine gültige USt-IdNr. voraus: bitte qualifiziert (BZSt/VIES) bestätigen und das Prüfdatum eintragen.', 'wp-pass-captain' );
+			}
+		}
+		return $warnings;
+	}
+
+	/** Form section "Verkaufsmodell und Rechnungsangaben". */
+	private static function render_sales_model_fields( $partner, $field ) {
+		$v = static function ( $key, $default = '' ) use ( $partner ) { return $partner && isset( $partner->$key ) ? (string) $partner->$key : $default; };
+		echo '<h3>' . esc_html__( 'Verkaufsmodell und Rechnungsangaben', 'wp-pass-captain' ) . '</h3>';
+		foreach ( self::seller_warnings( $partner ) as $warning ) { echo '<div class="notice notice-warning inline"><p>' . esc_html( $warning ) . '</p></div>'; }
+		echo '<table class="form-table"><tbody><tr><th scope="row"><label for="wpcap-pa-sales-model">' . esc_html__( 'Verkaufsmodell', 'wp-pass-captain' ) . '</label></th><td>';
+		Forms::select( 'sales_model', SalesModel::labels(), $v( 'sales_model', SalesModel::OWN_NAME ), 'wpcap-pa-sales-model' );
+		echo '<p class="description">' . esc_html__( 'Eigenhändler: Die Plattform verkauft im eigenen Namen und stellt die Kundenrechnungen aus; der Veranstalter erhält monatlich eine Gutschrift und eine Rechnung über die Plattformgebühren. Vermittler: Kundenrechnungen werden im Namen und Nummernkreis des Veranstalters erstellt; die Plattform stellt nur ihre Provision in Rechnung. Ein Wechsel gilt für künftige Rechnungen und noch nicht abgeschlossene Abrechnungen. Siehe docs/SALES-MODELS.md.', 'wp-pass-captain' ) . '</p></td></tr>';
+		$field( 'legal_name', __( 'Rechtlicher Name (Firma laut Register)', 'wp-pass-captain' ), $v( 'legal_name' ), 'text', 'maxlength="190"' );
+		$field( 'country', __( 'Land (ISO-Code, z. B. DE, AT)', 'wp-pass-captain' ), $v( 'country' ), 'text', 'maxlength="2" pattern="[A-Za-z]{2}" style="width:4em"' );
+		$field( 'tax_number', __( 'Steuernummer', 'wp-pass-captain' ), $v( 'tax_number' ), 'text', 'maxlength="64"' );
+		$field( 'vat_id_checked_at', __( 'USt-IdNr. qualifiziert bestätigt am', 'wp-pass-captain' ), $v( 'vat_id_checked_at' ), 'date' );
+		$field( 'invoice_prefix', __( 'Präfix für Rechnungsnummern des Veranstalters', 'wp-pass-captain' ), $v( 'invoice_prefix' ), 'text', 'maxlength="10" pattern="[A-Za-z0-9]{0,10}" style="width:8em"' );
+		echo '<tr><th scope="row">' . esc_html__( 'Kleinunternehmer', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="small_business" value="1"' . checked( '1' === $v( 'small_business', '0' ), true, false ) . '> ' . esc_html__( 'Veranstalter ist Kleinunternehmer (keine Umsatzsteuer)', 'wp-pass-captain' ) . '</label></td></tr>';
+		$field( 'small_business_note', __( 'Hinweistext Kleinunternehmer', 'wp-pass-captain' ), $v( 'small_business_note' ), 'text', 'maxlength="255" placeholder="' . esc_attr( SalesModel::default_small_business_note() ) . '"' );
+		echo '</tbody></table><p class="description">' . esc_html__( 'Anschrift und USt-IdNr. werden aus den Stammdaten übernommen. Ohne eigenes Präfix wird V{ID} verwendet (z. B. V7-2026-000001); jeder Veranstalter hat einen eigenen lückenlosen Nummernkreis.', 'wp-pass-captain' ) . '</p>';
 	}
 
 	private static function render_keys( $partner ) {
@@ -327,7 +377,7 @@ final class AdminPage {
 		$labels = Settlements::status_labels();
 		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Nummer', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Veranstalter', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Monat', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th><th scope="col" class="num">' . esc_html__( 'Brutto', 'wp-pass-captain' ) . '</th><th scope="col" class="num">' . esc_html__( 'Plattformgebühr', 'wp-pass-captain' ) . '</th><th scope="col" class="num">' . esc_html__( 'Auszahlung', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktionen', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $list as $s ) {
-			echo '<tr><td>' . esc_html( $s->document_number ?: '—' ) . '</td><td>' . esc_html( $s->partner_name ) . '</td><td>' . esc_html( $s->period ) . '</td><td>' . esc_html( $labels[ $s->status ] ?? $s->status ) . ( 'paid' === $s->status && '' !== $s->payment_reference ? '<br><small>' . esc_html( $s->payment_reference ) . '</small>' : '' ) . '</td>';
+			echo '<tr><td>' . esc_html( $s->document_number ?: '—' ) . ( ! empty( $s->self_billing_number ) ? '<br><small>' . esc_html( $s->self_billing_number ) . '</small>' : '' ) . '<br><small>' . esc_html( Settlements::document_label( $s ) ) . '</small></td><td>' . esc_html( $s->partner_name ) . '</td><td>' . esc_html( $s->period ) . '</td><td>' . esc_html( $labels[ $s->status ] ?? $s->status ) . ( 'paid' === $s->status && '' !== $s->payment_reference ? '<br><small>' . esc_html( $s->payment_reference ) . '</small>' : '' ) . '</td>';
 			echo '<td class="num">' . esc_html( Forms::money( $s->gross_minor, $s->currency ) ) . '</td><td class="num">' . esc_html( Forms::money( $s->platform_fee_gross_minor, $s->currency ) ) . '</td><td class="num">' . esc_html( ( (int) $s->payout_minor < 0 ? '-' : '' ) . Forms::money( abs( (int) $s->payout_minor ), $s->currency ) ) . '</td><td>';
 			echo '<a class="button button-small" target="_blank" rel="noopener" href="' . esc_url( self::document_url( $s->settlement_id, 'html' ) ) . '">' . esc_html__( 'Ansehen/Drucken', 'wp-pass-captain' ) . '</a> <a class="button button-small" href="' . esc_url( self::document_url( $s->settlement_id, 'csv' ) ) . '">CSV</a> ';
 			if ( $manage && 'draft' === $s->status ) {
