@@ -27,7 +27,7 @@ final class FiskalySignAtAdapter implements AdapterInterface {
 		if ( is_wp_error( $cash ) ) { return $cash; }
 		$id = ProviderHttp::uuid_from_key( $document['idempotency_key'] ?? '' );
 		$result = $this->request( 'GET', '/cash-register/' . rawurlencode( $cash ) . '/receipt/' . rawurlencode( $id ), null, $seller, $configuration );
-		if ( is_wp_error( $result ) && 404 === (int) $result->get_error_data()['status'] ) { return array( 'status' => 'not_found' ); }
+		if ( is_wp_error( $result ) && 404 === ProviderHttp::status( $result ) ) { return array( 'status' => 'not_found' ); }
 		if ( is_wp_error( $result ) ) { return $result; }
 		return $this->normalize( $result, $id );
 	}
@@ -87,7 +87,7 @@ final class FiskalySignAtAdapter implements AdapterInterface {
 			set_transient( $key, $token, 20 * HOUR_IN_SECONDS );
 		}
 		$result = ProviderHttp::request( self::BASE_URL . $path, $method, array( 'Authorization' => 'Bearer ' . $token ), $body, 8 );
-		if ( is_wp_error( $result ) && 401 === (int) $result->get_error_data()['status'] ) {
+		if ( is_wp_error( $result ) && 401 === ProviderHttp::status( $result ) ) {
 			delete_transient( $key );
 			return new \WP_Error( 'fiskaly_auth_expired', __( 'fiskaly-Zugriffstoken abgelaufen; Vorgang wird sicher wiederholt.', 'wp-pass-captain' ) );
 		}
