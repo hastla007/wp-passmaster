@@ -240,7 +240,7 @@ final class Fiscalization {
 	 * Customer checkout data is not used as a profile selector.
 	 */
 	public static function profile_scope( $channel, array $internal, $order_id ) {
-		$scope = apply_filters( 'wpcap_fiscal_profile_scope', array( 'location_id' => 0, 'register_id' => '' ), sanitize_key( $channel ), $internal, absint( $order_id ) );
+		$scope = apply_filters( 'wpcap_fiscal_profile_scope', array( 'location_id' => absint( $internal['fiscal_location_id'] ?? 0 ), 'register_id' => (string) ( $internal['fiscal_register_id'] ?? '' ) ), sanitize_key( $channel ), $internal, absint( $order_id ) );
 		if ( ! is_array( $scope ) ) { return new \WP_Error( 'wpcap_fiscal_profile_scope_invalid', __( 'Kassenstellen-Zuordnung ist ungültig.', 'wp-pass-captain' ) ); }
 		$register_id = (string) ( $scope['register_id'] ?? '' );
 		if ( strlen( $register_id ) > 64 || ! preg_match( '/^[A-Za-z0-9_.:-]*$/', $register_id ) ) {
