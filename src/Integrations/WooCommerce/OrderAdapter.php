@@ -52,6 +52,13 @@ final class OrderAdapter {
 		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', WPCAP_FILE, true );
 	}
 
+	/** Displays submitted seller-specific fiscal receipts on the customer order-details page. */
+	public static function render_fiscal_receipts( $wc_order ) {
+		if ( ! is_object( $wc_order ) || ! is_callable( array( $wc_order, 'get_meta' ) ) ) { return; }
+		$core_id = absint( $wc_order->get_meta( self::ORDER_META, true ) );
+		if ( $core_id ) { echo \PassCaptain\Fiscalization\ReceiptRenderer::render( $core_id ); } // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- renderer escapes all provider-controlled values.
+	}
+
 	/** Registers hooks when WooCommerce is active. */
 	public static function register() {
 		if ( ! class_exists( '\\WooCommerce' ) ) {
@@ -92,6 +99,7 @@ final class OrderAdapter {
 
 		// Display and admin tools.
 		add_action( 'woocommerce_order_details_after_order_table', array( __CLASS__, 'render_customer_tickets' ) );
+		add_action( 'woocommerce_order_details_after_order_table', array( __CLASS__, 'render_fiscal_receipts' ), 20 );
 		add_action( 'add_meta_boxes', array( __CLASS__, 'add_meta_box' ) );
 		add_filter( 'woocommerce_order_actions', array( __CLASS__, 'order_actions' ), 10, 2 );
 		add_action( 'woocommerce_order_action_wpcap_resend_tickets', array( __CLASS__, 'action_resend_tickets' ) );
@@ -446,6 +454,7 @@ final class OrderAdapter {
 		$line_totals = array_map( static function ( $line ) {
 			return $line['gross'];
 		}, $lines );
+		$payment_method = method_exists( $wc_order, 'get_payment_method' ) ? (string) $wc_order->get_payment_method() : '';
 		$result  = Orders::create(
 			array(
 				'email'           => $email,
@@ -460,6 +469,7 @@ final class OrderAdapter {
 				'currency'      => $wc_order->get_currency(),
 				'hold_minutes'  => self::hold_minutes(),
 				'source'        => 'woocommerce',
+				'payment_provider' => 'woocommerce-' . sanitize_key( $payment_method ?: 'unknown' ),
 				'key_namespace' => 'woocommerce',
 				'unit_prices'   => $unit_prices,
 				'line_totals'   => $line_totals,
@@ -652,6 +662,10 @@ final class OrderAdapter {
 			return;
 		}
 		$count = count( Orders::tickets_for_order( $core_id ) );
+		if ( ! $count ) {
+			$wc_order->add_order_note( __( 'Pass Captain: Zahlung übernommen, Tickets warten noch auf die Fiskalisierung. Fiskalstatus prüfen oder den Fiskal-Retry auslösen.', 'wp-pass-captain' ) );
+			return;
+		}
 		/* translators: %d: ticket count */
 		$wc_order->add_order_note( sprintf( _n( 'Pass Captain: %d Ticket ausgestellt und per E-Mail versendet.', 'Pass Captain: %d Tickets ausgestellt und per E-Mail versendet.', $count, 'wp-pass-captain' ), $count ) );
 		if ( ! $had_tickets && $count ) {

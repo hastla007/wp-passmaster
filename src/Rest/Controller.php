@@ -440,13 +440,15 @@ final class Controller {
 		$payload = (array) $request->get_json_params();
 		$items = $payload['items'] ?? array();
 		if ( ! is_array( $items ) || ! $items || count( $items ) > 10 || '' === sanitize_text_field( $payload['idempotency_key'] ?? '' ) ) { return new \WP_Error( 'wpcap_pos_items', __( 'POS-Verkaufspositionen oder Idempotency-Key sind ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$payment_method = sanitize_key( $payload['payment_method'] ?? 'cash' );
+		if ( ! in_array( $payment_method, array( 'cash', 'card', 'voucher', 'other' ), true ) ) { return new \WP_Error( 'wpcap_pos_payment_method', __( 'Zahlungsart ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		global $wpdb;
 		foreach ( $items as $item ) {
 			$type_id = absint( $item['ticket_type_id'] ?? 0 );
 			$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
 			if ( ! $event_id || ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) { return new \WP_Error( 'wpcap_pos_forbidden', __( 'Für dieses Event fehlt die POS-Berechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
 		}
-		$result = Orders::create( array( 'email' => $payload['email'] ?? '', 'items' => $items, 'idempotency_key' => sanitize_text_field( $payload['idempotency_key'] ) ), array( 'key_namespace' => 'pos', 'skip_rate_limit' => true, 'source' => 'pos' ) );
+		$result = Orders::create( array( 'email' => $payload['email'] ?? '', 'items' => $items, 'idempotency_key' => sanitize_text_field( $payload['idempotency_key'] ) ), array( 'key_namespace' => 'pos', 'skip_rate_limit' => true, 'source' => 'pos', 'payment_provider' => 'pos-' . $payment_method ) );
 		if ( is_wp_error( $result ) ) { return $result; }
 		if ( 'pending' === ( $result['payment_status'] ?? '' ) ) {
 			$confirmed = Orders::confirm_manual_payment( $result['order_id'] );
@@ -456,7 +458,8 @@ final class Controller {
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			return new \WP_Error( 'wpcap_pos_not_paid', __( 'Dieser Idempotency-Key gehört zu einer nicht bezahlten Bestellung; bitte einen neuen Verkauf starten.', 'wp-pass-captain' ), array( 'status' => 409, 'status_code' => $order ? $order->status : '' ) );
 		}
-		return new \WP_REST_Response( array( 'order_id' => (int) $order->order_id, 'public_id' => $order->public_id, 'status' => $order->status, 'payment_status' => $order->payment_status ), empty( $result['reused'] ) ? 201 : 200 );
+		$tickets = Orders::tickets_for_order( $order->order_id );
+		return new \WP_REST_Response( array( 'order_id' => (int) $order->order_id, 'public_id' => $order->public_id, 'status' => $order->status, 'payment_status' => $order->payment_status, 'tickets_issued' => (bool) $tickets, 'ticket_issuance_pending' => 'paid' === $order->payment_status && ! $tickets ), empty( $result['reused'] ) ? 201 : 200 );
 	}
 
 	public static function offline_sync( \WP_REST_Request $request ) {

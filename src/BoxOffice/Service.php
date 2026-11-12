@@ -76,17 +76,23 @@ final class Service {
 	}
 
 	/** Opens the cash session of the current user (one open session per cashier). */
-	public static function open_session( $float_minor, $currency = 'EUR', $note = '' ) {
+	public static function open_session( $float_minor, $currency = 'EUR', $note = '', $location_id = 0, $register_id = '' ) {
 		global $wpdb;
 		if ( ! current_user_can( self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		$user_id = get_current_user_id();
 		$existing = self::open_session_for( $user_id );
 		if ( $existing ) { return $existing; }
 		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) $currency ) );
+		$location_id = absint( $location_id );
+		$register_id = (string) $register_id;
+		if ( strlen( $register_id ) > 64 || ! preg_match( '/^[A-Za-z0-9_.:-]*$/', $register_id ) ) { return self::error( 'wpcap_pos_register_invalid', __( 'Kassen-ID ist ungültig.', 'wp-pass-captain' ) ); }
+		if ( ! TerminalRegistry::allows( $location_id, $register_id ) ) { return self::error( 'wpcap_pos_terminal', __( 'Standort und Kasse sind nicht als Register freigegeben.', 'wp-pass-captain' ), 403 ); }
 		$wpdb->insert( $wpdb->prefix . 'wpcap_boxoffice_sessions', array(
 			'user_id' => $user_id,
 			'open_key' => $user_id,
 			'currency' => 3 === strlen( $currency ) ? $currency : 'EUR',
+			'location_id' => $location_id,
+			'register_id' => $register_id,
 			'opening_float_minor' => max( 0, (int) $float_minor ),
 			'note' => mb_substr( sanitize_text_field( (string) $note ), 0, 255 ),
 			'status' => 'open',
@@ -94,7 +100,7 @@ final class Service {
 		) );
 		$session = self::open_session_for( $user_id );
 		if ( $session ) {
-			Audit::record( 'pos_session_opened', 'pos_session', (int) $session->session_id, array( 'float_minor' => (int) $session->opening_float_minor ) );
+			Audit::record( 'pos_session_opened', 'pos_session', (int) $session->session_id, array( 'float_minor' => (int) $session->opening_float_minor, 'location_id' => (int) $session->location_id, 'register_id' => (string) $session->register_id ) );
 		}
 		return $session ? $session : self::error( 'wpcap_pos_session', __( 'Die Kassensitzung konnte nicht geöffnet werden.', 'wp-pass-captain' ), 500 );
 	}
@@ -309,6 +315,7 @@ final class Service {
 		if ( $existing ) { return self::existing_result( $existing ); }
 		$session = self::open_session_for( get_current_user_id() );
 		if ( ! $session || 'open' !== $session->status ) { return self::error( 'wpcap_pos_no_session', __( 'Bitte zuerst eine Kassensitzung öffnen.', 'wp-pass-captain' ), 409 ); }
+		if ( ! TerminalRegistry::allows( $session->location_id, $session->register_id ) ) { return self::error( 'wpcap_pos_terminal', __( 'Dieses Kassenregister ist nicht mehr freigegeben. Bitte Sitzung schließen und ein freigegebenes Register öffnen.', 'wp-pass-captain' ), 409 ); }
 
 		$occurrence_id = absint( $input['occurrence_id'] ?? 0 );
 		$event_id = Scope::occurrence_event( $occurrence_id );
@@ -373,6 +380,8 @@ final class Service {
 			'payment_provider' => $methods[ $method ]['provider'],
 			'key_namespace' => 'pos',
 			'source' => 'pos',
+			'fiscal_location_id' => (int) $session->location_id,
+			'fiscal_register_id' => (string) $session->register_id,
 			'hold_minutes' => 15,
 			'skip_rate_limit' => true,
 		);
@@ -603,6 +612,7 @@ final class Service {
 		ksort( $vat );
 		$discount = $order ? (int) $order->discount_minor : 0;
 		return array(
+			'order_id' => (int) $sale->order_id,
 			'sale_id' => (int) $sale->sale_id,
 			'number' => $sale->receipt_number,
 			'storno_number' => (string) $sale->storno_receipt_number,
@@ -654,6 +664,7 @@ final class Service {
 			$h .= '<table><tr><td>' . esc_html__( 'Gegeben', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['tendered_minor'] ) ) . '</td></tr><tr><td>' . esc_html__( 'Rückgeld', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['change_minor'] ) ) . '</td></tr></table>';
 		}
 		$h .= '<p class="small">' . esc_html( __( 'Bestellung:', 'wp-pass-captain' ) . ' ' . substr( $r['order'], 0, 12 ) ) . '</p>';
+		$h .= ( ! $storno ) ? \PassCaptain\Fiscalization\ReceiptRenderer::render( (int) $r['order_id'] ) : '';
 		if ( '' !== $r['footer'] ) { $h .= '<p class="c small">' . nl2br( esc_html( $r['footer'] ) ) . '</p>'; }
 		$h .= '<p class="noprint c"><button onclick="window.print()">' . esc_html__( 'Drucken', 'wp-pass-captain' ) . '</button></p></body></html>';
 		return $h;
