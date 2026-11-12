@@ -69,6 +69,7 @@ final class Settings {
 			'seller_tax_number'         => '',
 			'seller_country'            => 'DE',
 			'invoice_prefix'            => 'WPC',
+			'billing_required_threshold_minor' => 25000,
 			'credit_note_prefix'        => 'GS',
 			'auto_invoice'              => 0,
 			// Voucher Captain redemptions without purpose data: 'multi' (payment, VAT at redemption) or 'single'.

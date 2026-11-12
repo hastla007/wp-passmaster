@@ -239,10 +239,13 @@ final class Billing {
 
 	/**
 	 * Minimum order total (minor units) above which billing data is required in the public checkout.
-	 * Off by default (0). Example for Austria: add_filter( 'wpcap_billing_required_threshold', fn() => 40000 );
+	 * Setting `billing_required_threshold_minor` (default 25000 = 250.00: DE Kleinbetragsrechnung
+	 * limit, which also covers the AT limit of 400.00); 0 switches it off. Filter
+	 * `wpcap_billing_required_threshold` can override it per currency.
 	 */
 	public static function required_threshold( $currency = 'EUR' ) {
-		return max( 0, (int) apply_filters( 'wpcap_billing_required_threshold', 0, (string) $currency ) );
+		$default = class_exists( Settings::class ) ? (int) Settings::get( 'billing_required_threshold_minor' ) : 0;
+		return max( 0, (int) apply_filters( 'wpcap_billing_required_threshold', $default, (string) $currency ) );
 	}
 
 	/** Whether an order total requires billing data. */

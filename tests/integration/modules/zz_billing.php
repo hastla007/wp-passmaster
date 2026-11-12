@@ -271,3 +271,11 @@ check( 'checkout.js sends billing only when checked and opens the section for se
 $admin_src = file_get_contents( WPCAP_PATH . 'src/Admin/OrdersPage.php' );
 check( 'admin order detail shows the billing data', false !== strpos( $admin_src, "esc_html_e( 'Rechnungsdaten'" ) && false !== strpos( $admin_src, 'Billing::for_order( $order )' ) );
 check( 'schema: billing column on wpcap_orders, DB version 3.5.0', '3.5.0' === PassCaptain\Installer::DB_VERSION && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_orders LIKE 'billing'" ) );
+
+echo "Billing: default threshold\n";
+// Earlier admin tests save the settings form, so read the default from defaults() and set it explicitly.
+$bb_defaults = PassCaptain\Settings::defaults();
+PassCaptain\Settings::update( array( 'billing_required_threshold_minor' => 25000 ) );
+check( 'name and address are required above 250 € by default (setting, 0 switches it off)', 25000 === $bb_defaults['billing_required_threshold_minor'] && 25000 === PassCaptain\Billing::required_threshold( 'EUR' ) && PassCaptain\Billing::required_for( 25001, 'EUR' ) && ! PassCaptain\Billing::required_for( 25000, 'EUR' ) );
+PassCaptain\Settings::update( array( 'billing_required_threshold_minor' => 0 ) );
+check( 'threshold 0 switches the requirement off', ! PassCaptain\Billing::required_for( 99999999, 'EUR' ) );
