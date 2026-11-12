@@ -229,10 +229,10 @@ final class Fiscalization {
 			if ( ! $mapping ) { continue; }
 			$has_mapping = true;
 			if ( 'active' !== $mapping->seller_status || ! $mapping->profile_id || ! in_array( $mapping->profile_status, array( 'active', 'not_required' ), true ) ) {
-				throw new \\RuntimeException( 'fiscal_profile_unavailable' );
+				throw new \RuntimeException( 'fiscal_profile_unavailable' );
 			}
 			if ( ! in_array( $mapping->seller_mode, array( 'organizer_seller', 'platform_seller' ), true ) ) {
-				throw new \\RuntimeException( 'fiscal_seller_invalid' );
+				throw new \RuntimeException( 'fiscal_seller_invalid' );
 			}
 			$seller_id = (int) $mapping->seller_id;
 			$seller_snapshot = array(
@@ -253,11 +253,11 @@ final class Fiscalization {
 				'fiscal_applicability' => $mapping->profile_status, 'seller_snapshot' => wp_json_encode( $seller_snapshot ),
 				'created_at' => $now,
 			) );
-			if ( '' !== $wpdb->last_error ) { throw new \\RuntimeException( 'fiscal_snapshot_failed' ); }
+			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
 			if ( 'not_required' === $mapping->profile_status ) { continue; }
 			$adapter = Registry::get( $mapping->provider_id );
 			if ( ! (int) $mapping->enabled || ! $adapter || ! in_array( strtoupper( $mapping->country_code ), array_map( 'strtoupper', (array) $adapter->countries() ), true ) ) {
-				throw new \\RuntimeException( 'fiscal_profile_unavailable' );
+				throw new \RuntimeException( 'fiscal_profile_unavailable' );
 			}
 			if ( ! isset( $groups[ $seller_id ] ) ) {
 				$groups[ $seller_id ] = array(
@@ -382,8 +382,9 @@ final class Fiscalization {
 		self::process_order( $order_id );
 		$blocked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d AND status <> 'submitted'", absint( $order_id ) ) );
 		$failed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d AND status='failed'", absint( $order_id ) ) );
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_fiscal_documents WHERE order_id=%d", absint( $order_id ) ) );
 		$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_order_state', array(
-			'fiscal_status' => $failed ? 'failed' : ( $blocked ? 'pending' : 'submitted' ),
+			'fiscal_status' => ! $total ? 'not_required' : ( $failed ? 'failed' : ( $blocked ? 'pending' : 'submitted' ) ),
 			'fulfillment_status' => $blocked ? 'blocked' : 'ready',
 			'updated_at' => current_time( 'mysql', true ),
 		), array( 'order_id' => absint( $order_id ) ), array( '%s', '%s', '%s' ), array( '%d' ) );
