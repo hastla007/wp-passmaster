@@ -499,6 +499,7 @@ final class Fiscalization {
 			'wpcap_fiscal_retry_order' => array( __CLASS__, 'handle_admin_retry_order' ),
 			'wpcap_fiscal_health_check' => array( __CLASS__, 'handle_admin_health_check' ),
 			'wpcap_fiscal_reconcile' => array( __CLASS__, 'handle_admin_reconcile' ),
+			'wpcap_fiscal_reconcile' => array( __CLASS__, 'handle_admin_reconcile' ),
 		);
 	}
 
@@ -559,6 +560,26 @@ final class Fiscalization {
 		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'saved' );
 	}
 
+	public static function handle_admin_health_check() {
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
+		$seller_id = absint( $_POST['seller_id'] ?? 0 );
+		check_admin_referer( 'wpcap_fiscal_health_check_' . $seller_id );
+		$request = new \\WP_REST_Request( 'POST' );
+		$request->set_param( 'seller_id', $seller_id );
+		$result = self::rest_health_check( $request );
+		self::admin_redirect( is_wp_error( $result ) ? 'health_error' : 'health_ok' );
+	}
+
+	public static function handle_admin_reconcile() {
+		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
+		$document_id = absint( $_POST['document_id'] ?? 0 );
+		check_admin_referer( 'wpcap_fiscal_reconcile_' . $document_id );
+		$request = new \\WP_REST_Request( 'POST' );
+		$request->set_param( 'document_id', $document_id );
+		$result = self::rest_reconcile_document( $request );
+		self::admin_redirect( is_wp_error( $result ) ? 'reconcile_error' : 'reconciled' );
+	}
+
 	public static function handle_admin_retry_order() {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
 		$order_id = absint( $_POST['order_id'] ?? 0 );
@@ -593,8 +614,8 @@ final class Fiscalization {
 		$adapters = Registry::all();
 		$result = sanitize_key( $_GET['fiscal_result'] ?? '' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only status.
 		echo '<div class="wrap"><h1>' . esc_html__( 'Fiskalisierung', 'wp-pass-captain' ) . '</h1>';
-		if ( in_array( $result, array( 'saved', 'retried' ), true ) ) { echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Änderung gespeichert.', 'wp-pass-captain' ) . '</p></div>'; }
-		if ( 'error' === $result || 'invalid_json' === $result ) { echo '<div class="notice notice-error"><p>' . esc_html__( 'Änderung fehlgeschlagen. Eingaben, Adapter und Länderunterstützung prüfen.', 'wp-pass-captain' ) . '</p></div>'; }
+		if ( in_array( $result, array( 'saved', 'retried', 'health_ok', 'reconciled' ), true ) ) { echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Änderung gespeichert.', 'wp-pass-captain' ) . '</p></div>'; }
+		if ( in_array( $result, array( 'error', 'invalid_json', 'health_error', 'reconcile_error' ), true ) { echo '<div class="notice notice-error"><p>' . esc_html__( 'Änderung fehlgeschlagen. Eingaben, Adapter und Länderunterstützung prüfen.', 'wp-pass-captain' ) . '</p></div>'; }
 		echo '<p>' . esc_html__( 'Fiskalbelege werden je Rechtsträger erstellt. Ein zugeordnetes Ticket wird erst ausgegeben, wenn der konfigurierte Adapter den Beleg bestätigt.', 'wp-pass-captain' ) . '</p>';
 		echo '<h2>' . esc_html__( 'Rechtsträger anlegen', 'wp-pass-captain' ) . '</h2><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'wpcap_fiscal_save_seller' );
@@ -632,6 +653,10 @@ final class Fiscalization {
 			foreach ( $available as $adapter ) { echo '<option value="' . esc_attr( $adapter->id() ) . '" ' . selected( $seller->provider_id, $adapter->id(), false ) . '>' . esc_html( $adapter->id() ) . '</option>'; }
 			echo '</select></label> <label><input type="checkbox" name="enabled" value="1" ' . checked( (int) $seller->enabled, 1, false ) . '> ' . esc_html__( 'Aktiv', 'wp-pass-captain' ) . '</label><p><label>' . esc_html__( 'Nicht geheime Adapter-Konfiguration (JSON)', 'wp-pass-captain' ) . '<br><textarea name="configuration" rows="4" class="large-text code">' . esc_textarea( wp_json_encode( $config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) ) . '</textarea></label></p>';
 			submit_button( __( 'Anbieter speichern', 'wp-pass-captain' ), 'secondary' );
+			echo '</form><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+			echo '<input type="hidden" name="action" value="wpcap_fiscal_health_check"><input type="hidden" name="seller_id" value="' . (int) $seller->seller_id . '">';
+			wp_nonce_field( 'wpcap_fiscal_health_check_' . (int) $seller->seller_id );
+			submit_button( __( 'Verbindung prüfen (keinen Beleg erstellen)', 'wp-pass-captain' ), 'secondary' );
 			echo '</form>';
 		}
 		echo '<hr><h2>' . esc_html__( 'Verkäufer je Ticketart', 'wp-pass-captain' ) . '</h2>';
@@ -646,12 +671,16 @@ final class Fiscalization {
 			echo '</form>';
 		}
 		echo '<hr><h2>' . esc_html__( 'Offene Fiskalvorgänge', 'wp-pass-captain' ) . '</h2>';
-		$pending = $wpdb->get_results( "SELECT d.order_id,d.status,d.last_error,d.attempts,d.updated_at,s.legal_name FROM {$p}wpcap_fiscal_documents d INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=d.seller_id WHERE d.status <> 'submitted' ORDER BY d.updated_at DESC LIMIT 100" );
+		$pending = $wpdb->get_results( "SELECT d.document_id,d.order_id,d.status,d.last_error,d.attempts,d.updated_at,s.legal_name FROM {$p}wpcap_fiscal_documents d INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=d.seller_id WHERE d.status <> 'submitted' ORDER BY d.updated_at DESC LIMIT 100" );
 		if ( ! $pending ) { echo '<p>' . esc_html__( 'Keine offenen Fiskalvorgänge.', 'wp-pass-captain' ) . '</p>'; }
 		else {
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Bestellung', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufer', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Versuche / letzter Fehler', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Aktion', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $pending as $doc ) {
-				echo '<tr><td>' . (int) $doc->order_id . '</td><td>' . esc_html( $doc->legal_name ) . '</td><td>' . esc_html( $doc->status ) . '</td><td>' . (int) $doc->attempts . ' / ' . esc_html( $doc->last_error ) . '</td><td>';
+				echo '<tr><td>' . (int) $doc->document_id . '</td><td>' . (int) $doc->order_id . '</td><td>' . esc_html( $doc->legal_name ) . '</td><td>' . esc_html( $doc->status ) . '</td><td>' . (int) $doc->attempts . ' / ' . esc_html( $doc->last_error ) . '</td><td>';
+				echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="wpcap_fiscal_reconcile"><input type="hidden" name="document_id" value="' . (int) $doc->document_id . '">';
+				wp_nonce_field( 'wpcap_fiscal_reconcile_' . (int) $doc->document_id );
+				submit_button( __( 'Status beim Anbieter abgleichen', 'wp-pass-captain' ), 'secondary', 'submit', false );
+				echo '</form>';
 				if ( 'failed' === $doc->status ) {
 					echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="wpcap_fiscal_retry_order"><input type="hidden" name="order_id" value="' . (int) $doc->order_id . '">';
 					wp_nonce_field( 'wpcap_fiscal_retry_order_' . (int) $doc->order_id );
