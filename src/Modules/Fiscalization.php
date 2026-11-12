@@ -328,7 +328,7 @@ final class Fiscalization {
 		if ( $has_mapping ) { $wpdb->replace( "{$p}wpcap_fiscal_order_state", array( 'order_id' => absint( $order_id ), 'fiscal_status' => $groups ? 'pending' : 'not_required', 'fulfillment_status' => $groups ? 'blocked' : 'awaiting_payment', 'updated_at' => $now ), array( '%d', '%s', '%s', '%s' ) ); }
 		foreach ( $groups as $seller_id => $group ) {
 			$key = hash( 'sha256', 'wpcap-fiscal-v1:' . absint( $order_id ) . ':' . $seller_id );
-			if ( self::contains_secret_key( $group['configuration'] ) ) { throw new \\RuntimeException( 'fiscal_configuration_contains_secret' ); }
+			if ( self::contains_secret_key( $group['configuration'] ) ) { throw new \RuntimeException( 'fiscal_configuration_contains_secret' ); }
 			$snapshot = array( 'schema_version' => 1, 'order_id' => absint( $order_id ), 'seller' => $group['seller'], 'seller_mode' => $group['items'][0]['seller_mode'], 'profile' => $group['profile'], 'provider_id' => $group['provider_id'], 'provider_configuration' => $group['configuration'], 'currency' => $order->currency ?? 'EUR', 'payment_method' => sanitize_key( $order->payment_provider ?? '' ), 'gross_minor' => $group['gross_minor'], 'tax_minor' => $group['tax_minor'], 'items' => $group['items'] );
 			$wpdb->insert( "{$p}wpcap_fiscal_documents", array(
 				'order_id' => absint( $order_id ), 'seller_id' => (int) $seller_id, 'document_key' => $key,
@@ -469,7 +469,7 @@ final class Fiscalization {
 		$config = $wpdb->get_row( $wpdb->prepare( "SELECT configuration FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $doc->seller_id ), ARRAY_A );
 		$document = (array) json_decode( $doc->snapshot, true );
 		$has_snapshot_config = is_array( $document['provider_configuration'] ?? null );
-		if ( ! $adapter || ! $seller || ( ! $config && ! $has_snapshot_config ) ) { return new \\WP_Error( 'wpcap_fiscal_reconcile_unavailable', __( 'Anbieter oder Verkäuferdaten fehlen.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( ! $adapter || ! $seller || ( ! $config && ! $has_snapshot_config ) ) { return new \WP_Error( 'wpcap_fiscal_reconcile_unavailable', __( 'Anbieter oder Verkäuferdaten fehlen.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$configuration = $has_snapshot_config ? $document['provider_configuration'] : ( $config && $config['configuration'] ? (array) json_decode( $config['configuration'], true ) : array() );
 		$configuration = Credentials::with_credentials( $configuration, (int) $doc->seller_id, $doc->provider_id );
 		$document['document_id'] = (int) $doc->document_id;
