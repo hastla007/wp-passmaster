@@ -9101,669 +9101,669 @@ msgstr "Accetto le condizioni."
 #: src/Admin/OrdersPage.php:326
 #: src/OrderPortal.php:106
 msgid "Rechnungsdaten"
-msgstr ""
+msgstr "Dati di fatturazione"
 
 #: src/Admin/OrdersPage.php:326
 msgid "Keine (Rechnung nur mit E-Mail-Adresse)"
-msgstr ""
+msgstr "Nessuna (fattura solo con indirizzo e-mail)"
 
 #: src/Admin/OrdersPage.php:352
 #: src/Partners/AdminPage.php:197
 #: src/Partners/AdminPage.php:288
 msgid "Verkaufsmodell"
-msgstr ""
+msgstr "Modello di vendita"
 
 #: src/Admin/OrdersPage.php:392
 msgid "davon bezahlt mit Mehrzweckgutschein"
-msgstr ""
+msgstr "di cui pagato con buono multiuso"
 
 #: src/Admin/OrdersPage.php:393
 msgid "Zahlbetrag"
-msgstr ""
+msgstr "Importo da pagare"
 
 #: src/Admin/SettingsPage.php:90
 msgid "Gutscheine"
-msgstr ""
+msgstr "Buoni"
 
 #: src/Admin/SettingsPage.php:94
 msgid "Gutscheine standardmäßig als Mehrzweckgutschein behandeln"
-msgstr ""
+msgstr "Tratta i buoni come buoni multiuso per impostazione predefinita"
 
 #: src/Admin/SettingsPage.php:96
 msgid "Ja – Mehrzweckgutschein (Zahlungsmittel, USt bei Einlösung)"
-msgstr ""
+msgstr "Sì – buono multiuso (mezzo di pagamento, IVA al momento del riscatto)"
 
 #: src/Admin/SettingsPage.php:97
 msgid "Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)"
-msgstr ""
+msgstr "No – buono monouso (IVA già dovuta al momento della vendita del buono)"
 
 #: src/Admin/SettingsPage.php:99
 msgid "Gilt nur, wenn WP Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md)."
-msgstr ""
+msgstr "Vale solo se WP Voucher Captain non comunica alcun tipo per il buono. Buono multiuso: i biglietti mantengono il prezzo e l’IVA per intero e il buono compare in fattura come pagamento. Buono monouso (luogo della prestazione e aliquota erano noti al momento della vendita, ad es. buono per un determinato evento nazionale): l’IVA è già stata versata con la vendita del buono e il riscatto riduce il prezzo. In caso di dubbio chiarisci con il tuo consulente fiscale (vedi docs/VOUCHERS.md)."
 
 #: src/Admin/SettingsPage.php:116
 #: src/Partners/AdminPage.php:293
 msgid "Steuernummer"
-msgstr ""
+msgstr "Codice fiscale"
 
 #: src/Admin/SettingsPage.php:116
 msgid "Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist."
-msgstr ""
+msgstr "Indicazione obbligatoria in fattura se non è indicata la partita IVA."
 
 #: src/Admin/SettingsPage.php:117
 msgid "Land (ISO-Code, z. B. DE oder AT)"
-msgstr ""
+msgstr "Paese (codice ISO, ad es. DE o AT)"
 
 #: src/Admin/SettingsPage.php:117
 msgid "Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet (siehe docs/SALES-MODELS.md)."
-msgstr ""
+msgstr "Viene usato per la verifica dell’inversione contabile per gli organizzatori di altri paesi UE (vedi docs/SALES-MODELS.md)."
 
 #: src/Admin/SettingsPage.php:119
 msgid "Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)"
-msgstr ""
+msgstr "Richiedi nome e indirizzo al checkout a partire da un importo d’ordine di (0 = mai; DE: 250 €, AT: 400 €)"
 
 #: src/Billing.php:67
 msgid "Österreich"
-msgstr ""
+msgstr "Austria"
 
 #: src/Billing.php:68
 msgid "Deutschland"
-msgstr ""
+msgstr "Germania"
 
 #: src/Billing.php:69
 msgid "Schweiz"
-msgstr ""
+msgstr "Svizzera"
 
 #: src/Billing.php:70
 msgid "Liechtenstein"
-msgstr ""
+msgstr "Liechtenstein"
 
 #: src/Billing.php:71
 msgid "Belgien"
-msgstr ""
+msgstr "Belgio"
 
 #: src/Billing.php:72
 msgid "Bulgarien"
-msgstr ""
+msgstr "Bulgaria"
 
 #: src/Billing.php:73
 msgid "Dänemark"
-msgstr ""
+msgstr "Danimarca"
 
 #: src/Billing.php:74
 msgid "Estland"
-msgstr ""
+msgstr "Estonia"
 
 #: src/Billing.php:75
 msgid "Finnland"
-msgstr ""
+msgstr "Finlandia"
 
 #: src/Billing.php:76
 msgid "Frankreich"
-msgstr ""
+msgstr "Francia"
 
 #: src/Billing.php:77
 msgid "Griechenland"
-msgstr ""
+msgstr "Grecia"
 
 #: src/Billing.php:78
 msgid "Irland"
-msgstr ""
+msgstr "Irlanda"
 
 #: src/Billing.php:79
 msgid "Italien"
-msgstr ""
+msgstr "Italia"
 
 #: src/Billing.php:80
 msgid "Kroatien"
-msgstr ""
+msgstr "Croazia"
 
 #: src/Billing.php:81
 msgid "Lettland"
-msgstr ""
+msgstr "Lettonia"
 
 #: src/Billing.php:82
 msgid "Litauen"
-msgstr ""
+msgstr "Lituania"
 
 #: src/Billing.php:83
 msgid "Luxemburg"
-msgstr ""
+msgstr "Lussemburgo"
 
 #: src/Billing.php:84
 msgid "Malta"
-msgstr ""
+msgstr "Malta"
 
 #: src/Billing.php:85
 msgid "Niederlande"
-msgstr ""
+msgstr "Paesi Bassi"
 
 #: src/Billing.php:86
 msgid "Norwegen"
-msgstr ""
+msgstr "Norvegia"
 
 #: src/Billing.php:87
 msgid "Polen"
-msgstr ""
+msgstr "Polonia"
 
 #: src/Billing.php:88
 msgid "Portugal"
-msgstr ""
+msgstr "Portogallo"
 
 #: src/Billing.php:89
 msgid "Rumänien"
-msgstr ""
+msgstr "Romania"
 
 #: src/Billing.php:90
 msgid "Schweden"
-msgstr ""
+msgstr "Svezia"
 
 #: src/Billing.php:91
 msgid "Slowakei"
-msgstr ""
+msgstr "Slovacchia"
 
 #: src/Billing.php:92
 msgid "Slowenien"
-msgstr ""
+msgstr "Slovenia"
 
 #: src/Billing.php:93
 msgid "Spanien"
-msgstr ""
+msgstr "Spagna"
 
 #: src/Billing.php:94
 msgid "Tschechien"
-msgstr ""
+msgstr "Repubblica Ceca"
 
 #: src/Billing.php:95
 msgid "Ungarn"
-msgstr ""
+msgstr "Ungheria"
 
 #: src/Billing.php:96
 msgid "Vereinigtes Königreich"
-msgstr ""
+msgstr "Regno Unito"
 
 #: src/Billing.php:97
 msgid "Zypern"
-msgstr ""
+msgstr "Cipro"
 
 #: src/Billing.php:127
 msgid "Ich brauche eine Rechnung auf Firma/Adresse"
-msgstr ""
+msgstr "Ho bisogno di una fattura intestata a un’azienda/indirizzo"
 
 #: src/Billing.php:128
 msgid "Firma"
-msgstr ""
+msgstr "Azienda"
 
 #: src/Billing.php:129
 msgid "Vorname"
-msgstr ""
+msgstr "Nome"
 
 #: src/Billing.php:130
 msgid "Nachname"
-msgstr ""
+msgstr "Cognome"
 
 #: src/Billing.php:131
 msgid "Straße und Hausnummer"
-msgstr ""
+msgstr "Via e numero civico"
 
 #: src/Billing.php:132
 msgid "PLZ"
-msgstr ""
+msgstr "CAP"
 
 #: src/Billing.php:134
 msgid "Land"
-msgstr ""
+msgstr "Paese"
 
 #: src/Billing.php:135
 msgid "UID-Nummer"
-msgstr ""
+msgstr "Partita IVA"
 
 #: src/Billing.php:136
 msgid "Bestell- oder Referenznummer"
-msgstr ""
+msgstr "Numero d’ordine o di riferimento"
 
 #: src/Billing.php:205
 msgid "Bitte wähle ein Land aus der Liste."
-msgstr ""
+msgstr "Scegli un paese dall’elenco."
 
 #: src/Billing.php:213
 msgid "Die UID-Nummer hat kein gültiges Format. Bitte mit Länderkennzeichen angeben, z. B. ATU12345678 oder DE123456789."
-msgstr ""
+msgstr "La partita IVA non ha un formato valido. Indicala con il prefisso del paese, ad es. ATU12345678 o DE123456789."
 
 #: src/Billing.php:225
 msgid "Die UID-Nummer konnte nicht bestätigt werden. Bitte prüfe die Eingabe."
-msgstr ""
+msgstr "Non è stato possibile confermare la partita IVA. Controlla quanto inserito."
 
 #: src/Billing.php:293
 #: src/OrderPortal.php:110
 msgid "Die Rechnung wurde bereits ausgestellt. Für eine Korrektur wende dich bitte an den Veranstalter."
-msgstr ""
+msgstr "La fattura è già stata emessa. Per una rettifica rivolgiti all’organizzatore."
 
 #: src/Billing.php:298
 #: src/OrderPortal.php:69
 msgid "Die Rechnungsdaten konnten nicht gespeichert werden."
-msgstr ""
+msgstr "Non è stato possibile salvare i dati di fatturazione."
 
 #: src/Billing.php:327
 msgid "UID des Leistungsempfängers:"
-msgstr ""
+msgstr "Partita IVA del destinatario della prestazione:"
 
 #: src/Billing.php:328
 msgid "Ihre Bestell-/Referenznummer:"
-msgstr ""
+msgstr "Il tuo numero d’ordine/di riferimento:"
 
 #: src/BoxOffice/Page.php:218
 msgid "Rechnung auf Firma/Adresse (optional)"
-msgstr ""
+msgstr "Fattura intestata ad azienda/indirizzo (facoltativo)"
 
 #: src/BoxOffice/Page.php:219
 msgid "Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht."
-msgstr ""
+msgstr "Compila solo se l’acquirente ha bisogno di una fattura con nome e indirizzo. Se un campo è compilato, nome, cognome, via, CAP, città e paese sono obbligatori."
 
 #: src/Invoices.php:198
 msgid "Steuernummer:"
-msgstr ""
+msgstr "Codice fiscale:"
 
 #. translators: %s: platform name
 #: src/Invoices.php:211
 #, php-format
 msgid "Vermittelt durch %s"
-msgstr ""
+msgstr "Intermediato da %s"
 
 #. translators: %s: organizer name
 #: src/Invoices.php:213
 #, php-format
 msgid "Die Leistung wird von %s erbracht. Die Plattform handelt im Namen und für Rechnung des Veranstalters."
-msgstr ""
+msgstr "La prestazione è erogata da %s. La piattaforma agisce in nome e per conto dell’organizzatore."
 
 #. translators: %s: organizer
 #: src/Invoices.php:223
 #, php-format
 msgid "Vermittler – Rechnungssteller: %s"
-msgstr ""
+msgstr "Intermediario – emittente della fattura: %s"
 
 #: src/Invoices.php:225
 msgid "Eigenhändler – Rechnungssteller: Plattform"
-msgstr ""
+msgstr "Venditore in proprio – emittente della fattura: piattaforma"
 
 #. translators: %s: masked voucher code
 #: src/Invoices.php:438
 #, php-format
 msgid "Bezahlt mit Gutschein %s (Mehrzweckgutschein)"
-msgstr ""
+msgstr "Pagato con il buono %s (buono multiuso)"
 
 #. translators: %s: masked voucher code
 #: src/Invoices.php:441
 #, php-format
 msgid "Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt."
-msgstr ""
+msgstr "Buono monouso %s riscattato: l’IVA è già stata liquidata al momento della vendita del buono; il valore del buono è considerato come riduzione di prezzo."
 
 #: src/Invoices.php:445
 msgid "Restbetrag (bezahlt)"
-msgstr ""
+msgstr "Importo residuo (pagato)"
 
 #: src/Invoices.php:446
 msgid "Der Gutschein ist ein Zahlungsmittel (Mehrzweckgutschein); die Umsatzsteuer ist auf den vollen Rechnungsbetrag ausgewiesen."
-msgstr ""
+msgstr "Il buono è un mezzo di pagamento (buono multiuso); l’IVA è esposta sull’intero importo della fattura."
 
 #: src/Invoices.php:455
 #: src/Printing/InvoicePdf.php:328
 msgid "Zahlungen"
-msgstr ""
+msgstr "Pagamenti"
 
 #: src/OrderPortal.php:67
 msgid "Rechnungsdaten gespeichert. Sie werden auf der Rechnung verwendet."
-msgstr ""
+msgstr "Dati di fatturazione salvati. Verranno utilizzati nella fattura."
 
 #: src/OrderPortal.php:68
 msgid "Rechnungsdaten entfernt."
-msgstr ""
+msgstr "Dati di fatturazione rimossi."
 
 #. translators: 1: voucher amount, 2: amount to pay
 #: src/OrderPortal.php:79
 #, php-format
 msgid "davon mit Gutschein bezahlt: %1$s · Zahlbetrag: %2$s"
-msgstr ""
+msgstr "di cui pagato con buono: %1$s · Importo da pagare: %2$s"
 
 #: src/OrderPortal.php:113
 msgid "Bis zur Ausstellung der Rechnung kannst du hier Firma, Name, Anschrift und UID-Nummer für die Rechnung angeben oder korrigieren."
-msgstr ""
+msgstr "Fino all’emissione della fattura puoi indicare o correggere qui azienda, nome, indirizzo e partita IVA per la fattura."
 
 #: src/OrderPortal.php:130
 msgid "Rechnungsdaten speichern"
-msgstr ""
+msgstr "Salva dati di fatturazione"
 
 #: src/Orders.php:307
 msgid "Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus."
-msgstr ""
+msgstr "Per questo importo d’ordine ci servono il tuo nome e il tuo indirizzo per la fattura. Attiva «Ho bisogno di una fattura intestata a un’azienda/indirizzo» e compila i campi."
 
 #. translators: 1: percent, 2: fee
 #: src/Partners/AdminPage.php:200
 msgid "Rechnungsangaben unvollständig"
-msgstr ""
+msgstr "Dati di fatturazione incompleti"
 
 #: src/Partners/AdminPage.php:208
 msgid "Fortlaufend und lückenlos je Jahr, z. B. PA-2026-000001. Gilt für Provisionsrechnungen (Vermittler) und Rechnungen über Plattformgebühren (Eigenhändler)."
-msgstr ""
+msgstr "Progressivo e senza interruzioni per anno, ad es. PA-2026-000001. Vale per le fatture di provvigione (intermediario) e per le fatture sulle commissioni di piattaforma (venditore in proprio)."
 
 #: src/Partners/AdminPage.php:209
 msgid "Präfix der Gutschriftsnummern (Eigenhändler)"
-msgstr ""
+msgstr "Prefisso dei numeri di autofattura (venditore in proprio)"
 
 #: src/Partners/AdminPage.php:209
 msgid "Eigener lückenloser Nummernkreis für Gutschriften im Sinne von § 14 Abs. 2 Satz 2 UStG, z. B. GU-2026-000001."
-msgstr ""
+msgstr "Serie di numerazione propria e senza interruzioni per le autofatture ai sensi del § 14 Abs. 2 Satz 2 UStG, ad es. GU-2026-000001."
 
 #. translators: %s: missing fields
 #: src/Partners/AdminPage.php:271
 #, php-format
 msgid "Für Rechnungen im Namen des Veranstalters (Vermittler) bzw. Gutschriften (Eigenhändler) fehlen: %s."
-msgstr ""
+msgstr "Per le fatture in nome dell’organizzatore (intermediario) o le autofatture (venditore in proprio) mancano: %s."
 
 #: src/Partners/AdminPage.php:275
 msgid "Die USt-IdNr. passt formal nicht zum Land des Veranstalters – Reverse Charge wird nicht angewendet."
-msgstr ""
+msgstr "La partita IVA non corrisponde formalmente al paese dell’organizzatore – l’inversione contabile non viene applicata."
 
 #: src/Partners/AdminPage.php:277
 msgid "Reverse Charge setzt eine gültige USt-IdNr. voraus: bitte qualifiziert (BZSt/VIES) bestätigen und das Prüfdatum eintragen."
-msgstr ""
+msgstr "L’inversione contabile richiede una partita IVA valida: confermala con una verifica qualificata (BZSt/VIES) e inserisci la data di verifica."
 
 #: src/Partners/AdminPage.php:286
 msgid "Verkaufsmodell und Rechnungsangaben"
-msgstr ""
+msgstr "Modello di vendita e dati di fatturazione"
 
 #: src/Partners/AdminPage.php:290
 msgid "Eigenhändler: Die Plattform verkauft im eigenen Namen und stellt die Kundenrechnungen aus; der Veranstalter erhält monatlich eine Gutschrift und eine Rechnung über die Plattformgebühren. Vermittler: Kundenrechnungen werden im Namen und Nummernkreis des Veranstalters erstellt; die Plattform stellt nur ihre Provision in Rechnung. Ein Wechsel gilt für künftige Rechnungen und noch nicht abgeschlossene Abrechnungen. Siehe docs/SALES-MODELS.md."
-msgstr ""
+msgstr "Venditore in proprio: la piattaforma vende in nome proprio ed emette le fatture ai clienti; l’organizzatore riceve ogni mese un’autofattura e una fattura per le commissioni di piattaforma. Intermediario: le fatture ai clienti sono emesse in nome e nella serie di numerazione dell’organizzatore; la piattaforma fattura solo la propria provvigione. Una modifica vale per le fatture future e per i rendiconti non ancora chiusi. Vedi docs/SALES-MODELS.md."
 
 #: src/Partners/AdminPage.php:291
 msgid "Rechtlicher Name (Firma laut Register)"
-msgstr ""
+msgstr "Ragione sociale (azienda come da registro)"
 
 #: src/Partners/AdminPage.php:292
 msgid "Land (ISO-Code, z. B. DE, AT)"
-msgstr ""
+msgstr "Paese (codice ISO, ad es. DE, AT)"
 
 #: src/Partners/AdminPage.php:294
 msgid "USt-IdNr. qualifiziert bestätigt am"
-msgstr ""
+msgstr "Partita IVA confermata (verifica qualificata) il"
 
 #: src/Partners/AdminPage.php:295
 msgid "Präfix für Rechnungsnummern des Veranstalters"
-msgstr ""
+msgstr "Prefisso per i numeri di fattura dell’organizzatore"
 
 #: src/Partners/AdminPage.php:296
 msgid "Kleinunternehmer"
-msgstr ""
+msgstr "Piccolo imprenditore"
 
 #: src/Partners/AdminPage.php:296
 msgid "Veranstalter ist Kleinunternehmer (keine Umsatzsteuer)"
-msgstr ""
+msgstr "L’organizzatore è un piccolo imprenditore (senza IVA)"
 
 #: src/Partners/AdminPage.php:297
 msgid "Hinweistext Kleinunternehmer"
-msgstr ""
+msgstr "Testo di avviso per piccolo imprenditore"
 
 #: src/Partners/AdminPage.php:298
 msgid "Anschrift und USt-IdNr. werden aus den Stammdaten übernommen. Ohne eigenes Präfix wird V{ID} verwendet (z. B. V7-2026-000001); jeder Veranstalter hat einen eigenen lückenlosen Nummernkreis."
-msgstr ""
+msgstr "Indirizzo e partita IVA vengono ripresi dall’anagrafica. Senza prefisso personalizzato viene usato V{ID} (ad es. V7-2026-000001); ogni organizzatore ha una propria serie di numerazione senza interruzioni."
 
 #: src/Partners/Repository.php:108
 msgid "Unbekanntes Verkaufsmodell."
-msgstr ""
+msgstr "Modello di vendita sconosciuto."
 
 #: src/Partners/Repository.php:111
 msgid "Das Land muss als zweistelliger ISO-Code angegeben werden (z. B. DE, AT)."
-msgstr ""
+msgstr "Il paese deve essere indicato come codice ISO di due lettere (ad es. DE, AT)."
 
 #: src/Partners/Repository.php:114
 msgid "Das Rechnungsnummern-Präfix darf nur Buchstaben und Ziffern enthalten (höchstens 10 Zeichen)."
-msgstr ""
+msgstr "Il prefisso del numero di fattura può contenere solo lettere e cifre (massimo 10 caratteri)."
 
 #: src/Partners/Repository.php:120
 msgid "Dieses Rechnungsnummern-Präfix wird bereits verwendet (Plattform oder anderer Veranstalter). Jeder Veranstalter braucht einen eigenen Nummernkreis."
-msgstr ""
+msgstr "Questo prefisso del numero di fattura è già in uso (piattaforma o altro organizzatore). Ogni organizzatore ha bisogno di una propria serie di numerazione."
 
 #: src/Partners/Repository.php:125
 msgid "Ungültiges Datum der USt-IdNr.-Prüfung."
-msgstr ""
+msgstr "Data della verifica della partita IVA non valida."
 
 #: src/Partners/SalesModel.php:35
 msgid "Eigenhändler (Verkauf im eigenen Namen, Gutschrift an Veranstalter)"
-msgstr ""
+msgstr "Venditore in proprio (vendita in nome proprio, autofattura all’organizzatore)"
 
 #: src/Partners/SalesModel.php:36
 msgid "Vermittler (Verkauf im Namen des Veranstalters, Provisionsrechnung)"
-msgstr ""
+msgstr "Intermediario (vendita in nome dell’organizzatore, fattura di provvigione)"
 
 #: src/Partners/SalesModel.php:41
 msgid "Eigenhändler"
-msgstr ""
+msgstr "Venditore in proprio"
 
 #: src/Partners/SalesModel.php:41
 msgid "Vermittler"
-msgstr ""
+msgstr "Intermediario"
 
 #: src/Partners/SalesModel.php:52
 msgid "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung)."
-msgstr ""
+msgstr "Ai sensi del § 19 UStG non viene addebitata l’IVA (regime del piccolo imprenditore)."
 
 #: src/Partners/SalesModel.php:56
 msgid "Steuerschuldnerschaft des Leistungsempfängers / Reverse Charge"
-msgstr ""
+msgstr "Debitore d’imposta è il destinatario della prestazione / Inversione contabile"
 
 #: src/Partners/SalesModel.php:129
 msgid "USt-IdNr. oder Steuernummer"
-msgstr ""
+msgstr "Partita IVA o codice fiscale"
 
 #. translators: %s: organizer names
 #: src/Partners/SalesModel.php:171
 #, php-format
 msgid "Diese Bestellung enthält Tickets verschiedener Rechnungssteller (Vermittler-Veranstalter: %s, dazu weitere Veranstalter oder Plattform-Events). Eine gemeinsame Rechnung ist nicht zulässig; bitte die Rechnungen außerhalb des Plugins je Veranstalter erstellen oder die Bestellung stornieren und getrennt neu anlegen."
-msgstr ""
+msgstr "Questo ordine contiene biglietti di emittenti di fattura diversi (organizzatore-intermediario: %s, più altri organizzatori o eventi della piattaforma). Una fattura cumulativa non è ammessa; crea le fatture per organizzatore al di fuori del plugin oppure annulla l’ordine e ricrealo separatamente."
 
 #. translators: 1: organizer, 2: missing fields
 #: src/Partners/SalesModel.php:206
 #, php-format
 msgid "Rechnung im Namen des Veranstalters „%1$s“ nicht möglich – es fehlen: %2$s. Bitte unter Veranstalter ergänzen."
-msgstr ""
+msgstr "Fattura in nome dell’organizzatore «%1$s» non possibile – mancano: %2$s. Completa i dati in Organizzatori."
 
 #. translators: %s: organizer
 #: src/Partners/SalesModel.php:215
 #, php-format
 msgid "Der Veranstalter „%s“ ist Kleinunternehmer, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 %% anlegen."
-msgstr ""
+msgstr "L’organizzatore «%s» è un piccolo imprenditore, ma l’ordine contiene IVA. L’esposizione dell’imposta non sarebbe ammessa (§ 14c UStG). Crea i tipi di biglietto con 0 %%."
 
 #: src/Partners/SalesModel.php:236
 msgid "Tickets dieser Veranstalter können nicht in einer gemeinsamen Bestellung gekauft werden. Bitte für jeden Veranstalter separat bestellen."
-msgstr ""
+msgstr "I biglietti di questi organizzatori non possono essere acquistati in un unico ordine. Ordina separatamente per ogni organizzatore."
 
 #. translators: %s: missing fields
 #: src/Partners/Settlements.php:438
 #, php-format
 msgid "Gutschrift nicht möglich – beim Veranstalter fehlen: %s."
-msgstr ""
+msgstr "Autofattura non possibile – mancano presso l’organizzatore: %s."
 
 #: src/Partners/Settlements.php:533
 msgid "Entwurf Provisionsrechnung"
-msgstr ""
+msgstr "Bozza di fattura di provvigione"
 
 #: src/Partners/Settlements.php:533
 msgid "Provisionsrechnung"
-msgstr ""
+msgstr "Fattura di provvigione"
 
 #. translators: 1: Gutschrift number, 2: invoice number
 #: src/Partners/Settlements.php:537
 msgid "Entwurf Gutschrift und Rechnung über Plattformgebühren"
-msgstr ""
+msgstr "Bozza di autofattura e fattura sulle commissioni di piattaforma"
 
 #. translators: 1: Gutschrift number, 2: invoice number
 #: src/Partners/Settlements.php:537
 #, php-format
 msgid "Gutschrift %1$s und Rechnung %2$s"
-msgstr ""
+msgstr "Autofattura %1$s e fattura %2$s"
 
 #: src/Partners/Settlements.php:545
 msgid "Provisionsrechnung (Vermittler)"
-msgstr ""
+msgstr "Fattura di provvigione (intermediario)"
 
 #: src/Partners/Settlements.php:546
 msgid "Gutschrift + Gebührenrechnung (Eigenhändler)"
-msgstr ""
+msgstr "Autofattura + fattura commissioni (venditore in proprio)"
 
 #: src/Partners/Settlements.php:586
 msgid "Gutschrift netto"
-msgstr ""
+msgstr "Autofattura netto"
 
 #: src/Partners/Settlements.php:587
 msgid "Gutschrift USt"
-msgstr ""
+msgstr "Autofattura IVA"
 
 #: src/Partners/Settlements.php:588
 msgid "Gutschrift brutto"
-msgstr ""
+msgstr "Autofattura lordo"
 
 #: src/Partners/Settlements.php:632
 msgid "Aussteller"
-msgstr ""
+msgstr "Emittente"
 
 #: src/Partners/Settlements.php:641
 msgid "Teil B – Rechnung über Plattformgebühren"
-msgstr ""
+msgstr "Parte B – Fattura sulle commissioni di piattaforma"
 
 #: src/Partners/Settlements.php:642
 msgid "Teil C – Verrechnung"
-msgstr ""
+msgstr "Parte C – Compensazione"
 
 #: src/Partners/Settlements.php:643
 msgid "Gutschriftsbetrag (Teil A)"
-msgstr ""
+msgstr "Importo dell’autofattura (parte A)"
 
 #: src/Partners/Settlements.php:644
 msgid "abzüglich Rechnungsbetrag Plattformgebühren (Teil B)"
-msgstr ""
+msgstr "meno importo della fattura sulle commissioni di piattaforma (parte B)"
 
 #: src/Partners/Settlements.php:648
 msgid "Informative Aufstellung: vereinnahmte Ticketerlöse (keine Rechnung)"
-msgstr ""
+msgstr "Prospetto informativo: ricavi dei biglietti incassati (non è una fattura)"
 
 #: src/Partners/Settlements.php:648
 msgid "Die Ticketerlöse wurden im Namen und für Rechnung des Veranstalters vereinnahmt. Die Kundenrechnungen wurden im Namen des Veranstalters ausgestellt; die Umsatzsteuer auf die Ticketumsätze schuldet der Veranstalter."
-msgstr ""
+msgstr "I ricavi dei biglietti sono stati incassati in nome e per conto dell’organizzatore. Le fatture ai clienti sono state emesse in nome dell’organizzatore; l’IVA sulle vendite dei biglietti è a carico dell’organizzatore."
 
 #: src/Partners/Settlements.php:652
 msgid "Vereinnahmte Ticketerlöse nach Erstattungen"
-msgstr ""
+msgstr "Ricavi dei biglietti incassati al netto dei rimborsi"
 
 #: src/Partners/Settlements.php:653
 msgid "darin enthaltene USt (Schuldner: Veranstalter)"
-msgstr ""
+msgstr "di cui IVA (debitore: organizzatore)"
 
 #: src/Partners/Settlements.php:654
 msgid "abzüglich Provisionsrechnung (brutto)"
-msgstr ""
+msgstr "meno fattura di provvigione (lordo)"
 
 #: src/Partners/Settlements.php:677
 msgid "Anlage: Einzelaufstellung"
-msgstr ""
+msgstr "Allegato: prospetto dettagliato"
 
 #: src/Partners/Settlements.php:690
 msgid "Ticketumsatz nach Steuersatz (Kundenverkauf)"
-msgstr ""
+msgstr "Vendite di biglietti per aliquota (vendita ai clienti)"
 
 #: src/Partners/Settlements.php:712
 #: src/Partners/Settlements.php:738
 msgid "(Nummer wird beim Abschließen vergeben)"
-msgstr ""
+msgstr "(il numero viene assegnato alla chiusura)"
 
 #. translators: %s: number
 #: src/Partners/Settlements.php:713
 #, php-format
 msgid "Teil A – Gutschrift %s"
-msgstr ""
+msgstr "Parte A – Autofattura %s"
 
 #. translators: %s: number
 #: src/Partners/Settlements.php:714
 msgid "Abrechnung im Gutschriftsverfahren: Der Leistungsempfänger rechnet über die Leistung des Veranstalters ab (§ 14 Abs. 2 Satz 2 UStG; Österreich: § 11 Abs. 7 UStG). Der Veranstalter kann der Gutschrift widersprechen; sie verliert damit ihre Wirkung als Rechnung."
-msgstr ""
+msgstr "Fatturazione tramite autofattura: il destinatario della prestazione fattura la prestazione dell’organizzatore (§ 14 Abs. 2 Satz 2 UStG; Austria: § 11 Abs. 7 UStG). L’organizzatore può opporsi all’autofattura; essa perde così la sua efficacia come fattura."
 
 #: src/Partners/Settlements.php:715
 msgid "Leistender Unternehmer (Gutschriftsempfänger)"
-msgstr ""
+msgstr "Prestatore (destinatario dell’autofattura)"
 
 #: src/Partners/Settlements.php:716
 msgid "Leistungsempfänger (Gutschriftsaussteller)"
-msgstr ""
+msgstr "Destinatario della prestazione (emittente dell’autofattura)"
 
 #. translators: 1: period, 2: date
 #: src/Partners/Settlements.php:717
 #, php-format
 msgid "Leistung: Durchführung der Veranstaltungen und Einräumung der Eintrittsberechtigungen laut Anlage (Leistungskommission, Verkauf durch die Plattform im eigenen Namen für Rechnung des Veranstalters). Leistungszeitraum: %1$s. Gutschriftsdatum: %2$s."
-msgstr ""
+msgstr "Prestazione: realizzazione degli eventi e concessione dei diritti di ingresso come da allegato (contratto di commissione, vendita da parte della piattaforma in nome proprio per conto dell’organizzatore). Periodo della prestazione: %1$s. Data dell’autofattura: %2$s."
 
 #: src/Partners/Settlements.php:723
 msgid "Gutschriftsbetrag"
-msgstr ""
+msgstr "Importo dell’autofattura"
 
 #: src/Partners/Settlements.php:727
 #: src/Partners/Settlements.php:753
 msgid "Die Steuer schuldet der Leistungsempfänger (§ 13b UStG / Art. 196 MwStSystRL / § 19 Abs. 1 öUStG)."
-msgstr ""
+msgstr "L’imposta è dovuta dal destinatario della prestazione (§ 13b UStG / art. 196 direttiva IVA / § 19 Abs. 1 öUStG)."
 
 #: src/Partners/Settlements.php:741
 msgid "Rechnungsempfänger"
-msgstr ""
+msgstr "Destinatario della fattura"
 
 #: src/Partners/Settlements.php:743
 msgid "Rechnung über Vermittlungsleistungen"
-msgstr ""
+msgstr "Fattura per servizi di intermediazione"
 
 #. translators: %s: period
 #: src/Partners/Settlements.php:745
 #, php-format
 msgid "Leistung: Vermittlung und Abwicklung des Ticketverkaufs für die Veranstaltungen laut Anlage. Leistungszeitraum: %s."
-msgstr ""
+msgstr "Prestazione: intermediazione e gestione della vendita dei biglietti per gli eventi come da allegato. Periodo della prestazione: %s."
 
 #. translators: 1: percent, 2: net revenue
 #: src/Partners/Settlements.php:746
 #, php-format
 msgid "Provision %1$s auf Netto-Ticketumsatz %2$s"
-msgstr ""
+msgstr "Provvigione %1$s sui ricavi netti dei biglietti %2$s"
 
 #. translators: %s: fee per ticket
 #: src/Partners/Settlements.php:747
 #, php-format
 msgid "Ticketgebühren (%s je Ticket)"
-msgstr ""
+msgstr "Commissioni sui biglietti (%s per biglietto)"
 
 #: src/Partners/Settlements.php:749
 msgid "Umsatzsteuer (Reverse Charge)"
-msgstr ""
+msgstr "IVA (inversione contabile)"
 
 #. translators: %s: percent
 #: src/Partners/Settlements.php:749
 #, php-format
 msgid "Umsatzsteuer %s"
-msgstr ""
+msgstr "IVA %s"
 
 #: src/Privacy.php:143
 msgid "Rechnungsdaten (Firma, Name, Anschrift, UID, Referenz)"
-msgstr ""
+msgstr "Dati di fatturazione (azienda, nome, indirizzo, partita IVA, riferimento)"
 
 #: src/Privacy.php:322
 msgid "Die Rechnungsdaten der Bestellungen (Firma, Name, Anschrift, UID, Referenz) wurden entfernt. Bereits ausgestellte Rechnungen behalten die darauf angegebenen Empfängerangaben (gesetzliche Aufbewahrungspflicht, Art. 17 Abs. 3 lit. b DSGVO)."
-msgstr ""
+msgstr "I dati di fatturazione degli ordini (azienda, nome, indirizzo, partita IVA, riferimento) sono stati rimossi. Le fatture già emesse conservano i dati del destinatario ivi indicati (obbligo di conservazione di legge, art. 17, par. 3, lett. b), GDPR)."
 
 #: templates/event-card.php:59
 msgid "Rechnung mit Firmen-/Adressdaten"
-msgstr ""
+msgstr "Fattura con dati di azienda/indirizzo"
 
 #. translators: %s: amount
 #: templates/event-card.php:65
 #, php-format
 msgid "Ab einem Bestellbetrag über %s brauchen wir für die Rechnung Name und Anschrift."
-msgstr ""
+msgstr "Per ordini di importo superiore a %s ci servono nome e indirizzo per la fattura."
 
 #: templates/event-card.php:85
 msgid "Mit Länderkennzeichen, z. B. ATU12345678 oder DE123456789."
-msgstr ""
+msgstr "Con il prefisso del paese, ad es. ATU12345678 o DE123456789."

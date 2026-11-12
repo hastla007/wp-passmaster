@@ -9102,669 +9102,669 @@ msgstr "I accept the terms."
 #: src/Admin/OrdersPage.php:326
 #: src/OrderPortal.php:106
 msgid "Rechnungsdaten"
-msgstr ""
+msgstr "Invoice details"
 
 #: src/Admin/OrdersPage.php:326
 msgid "Keine (Rechnung nur mit E-Mail-Adresse)"
-msgstr ""
+msgstr "None (invoice with email address only)"
 
 #: src/Admin/OrdersPage.php:352
 #: src/Partners/AdminPage.php:197
 #: src/Partners/AdminPage.php:288
 msgid "Verkaufsmodell"
-msgstr ""
+msgstr "Sales model"
 
 #: src/Admin/OrdersPage.php:392
 msgid "davon bezahlt mit Mehrzweckgutschein"
-msgstr ""
+msgstr "of which paid with multi-purpose voucher"
 
 #: src/Admin/OrdersPage.php:393
 msgid "Zahlbetrag"
-msgstr ""
+msgstr "Amount payable"
 
 #: src/Admin/SettingsPage.php:90
 msgid "Gutscheine"
-msgstr ""
+msgstr "Vouchers"
 
 #: src/Admin/SettingsPage.php:94
 msgid "Gutscheine standardmäßig als Mehrzweckgutschein behandeln"
-msgstr ""
+msgstr "Treat vouchers as multi-purpose vouchers by default"
 
 #: src/Admin/SettingsPage.php:96
 msgid "Ja – Mehrzweckgutschein (Zahlungsmittel, USt bei Einlösung)"
-msgstr ""
+msgstr "Yes – multi-purpose voucher (means of payment, VAT due on redemption)"
 
 #: src/Admin/SettingsPage.php:97
 msgid "Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)"
-msgstr ""
+msgstr "No – single-purpose voucher (VAT already due when the voucher is sold)"
 
 #: src/Admin/SettingsPage.php:99
 msgid "Gilt nur, wenn WP Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md)."
-msgstr ""
+msgstr "Applies only if WP Voucher Captain does not report a type for the voucher. Multi-purpose voucher: tickets keep their full price and full VAT, and the voucher appears on the invoice as a payment. Single-purpose voucher (place of supply and tax rate were known at the time of sale, e.g. a voucher for a specific domestic event): VAT was already remitted when the voucher was sold, and redemption reduces the price. If in doubt, consult your tax advisor (see docs/VOUCHERS.md)."
 
 #: src/Admin/SettingsPage.php:116
 #: src/Partners/AdminPage.php:293
 msgid "Steuernummer"
-msgstr ""
+msgstr "Tax number"
 
 #: src/Admin/SettingsPage.php:116
 msgid "Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist."
-msgstr ""
+msgstr "Mandatory information on invoices if no VAT ID is provided."
 
 #: src/Admin/SettingsPage.php:117
 msgid "Land (ISO-Code, z. B. DE oder AT)"
-msgstr ""
+msgstr "Country (ISO code, e.g. DE or AT)"
 
 #: src/Admin/SettingsPage.php:117
 msgid "Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet (siehe docs/SALES-MODELS.md)."
-msgstr ""
+msgstr "Used for the reverse charge check for organizers in other EU countries (see docs/SALES-MODELS.md)."
 
 #: src/Admin/SettingsPage.php:119
 msgid "Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)"
-msgstr ""
+msgstr "Require name and address at checkout from an order amount of (0 = never; DE: €250, AT: €400)"
 
 #: src/Billing.php:67
 msgid "Österreich"
-msgstr ""
+msgstr "Austria"
 
 #: src/Billing.php:68
 msgid "Deutschland"
-msgstr ""
+msgstr "Germany"
 
 #: src/Billing.php:69
 msgid "Schweiz"
-msgstr ""
+msgstr "Switzerland"
 
 #: src/Billing.php:70
 msgid "Liechtenstein"
-msgstr ""
+msgstr "Liechtenstein"
 
 #: src/Billing.php:71
 msgid "Belgien"
-msgstr ""
+msgstr "Belgium"
 
 #: src/Billing.php:72
 msgid "Bulgarien"
-msgstr ""
+msgstr "Bulgaria"
 
 #: src/Billing.php:73
 msgid "Dänemark"
-msgstr ""
+msgstr "Denmark"
 
 #: src/Billing.php:74
 msgid "Estland"
-msgstr ""
+msgstr "Estonia"
 
 #: src/Billing.php:75
 msgid "Finnland"
-msgstr ""
+msgstr "Finland"
 
 #: src/Billing.php:76
 msgid "Frankreich"
-msgstr ""
+msgstr "France"
 
 #: src/Billing.php:77
 msgid "Griechenland"
-msgstr ""
+msgstr "Greece"
 
 #: src/Billing.php:78
 msgid "Irland"
-msgstr ""
+msgstr "Ireland"
 
 #: src/Billing.php:79
 msgid "Italien"
-msgstr ""
+msgstr "Italy"
 
 #: src/Billing.php:80
 msgid "Kroatien"
-msgstr ""
+msgstr "Croatia"
 
 #: src/Billing.php:81
 msgid "Lettland"
-msgstr ""
+msgstr "Latvia"
 
 #: src/Billing.php:82
 msgid "Litauen"
-msgstr ""
+msgstr "Lithuania"
 
 #: src/Billing.php:83
 msgid "Luxemburg"
-msgstr ""
+msgstr "Luxembourg"
 
 #: src/Billing.php:84
 msgid "Malta"
-msgstr ""
+msgstr "Malta"
 
 #: src/Billing.php:85
 msgid "Niederlande"
-msgstr ""
+msgstr "Netherlands"
 
 #: src/Billing.php:86
 msgid "Norwegen"
-msgstr ""
+msgstr "Norway"
 
 #: src/Billing.php:87
 msgid "Polen"
-msgstr ""
+msgstr "Poland"
 
 #: src/Billing.php:88
 msgid "Portugal"
-msgstr ""
+msgstr "Portugal"
 
 #: src/Billing.php:89
 msgid "Rumänien"
-msgstr ""
+msgstr "Romania"
 
 #: src/Billing.php:90
 msgid "Schweden"
-msgstr ""
+msgstr "Sweden"
 
 #: src/Billing.php:91
 msgid "Slowakei"
-msgstr ""
+msgstr "Slovakia"
 
 #: src/Billing.php:92
 msgid "Slowenien"
-msgstr ""
+msgstr "Slovenia"
 
 #: src/Billing.php:93
 msgid "Spanien"
-msgstr ""
+msgstr "Spain"
 
 #: src/Billing.php:94
 msgid "Tschechien"
-msgstr ""
+msgstr "Czech Republic"
 
 #: src/Billing.php:95
 msgid "Ungarn"
-msgstr ""
+msgstr "Hungary"
 
 #: src/Billing.php:96
 msgid "Vereinigtes Königreich"
-msgstr ""
+msgstr "United Kingdom"
 
 #: src/Billing.php:97
 msgid "Zypern"
-msgstr ""
+msgstr "Cyprus"
 
 #: src/Billing.php:127
 msgid "Ich brauche eine Rechnung auf Firma/Adresse"
-msgstr ""
+msgstr "I need an invoice made out to a company/address"
 
 #: src/Billing.php:128
 msgid "Firma"
-msgstr ""
+msgstr "Company"
 
 #: src/Billing.php:129
 msgid "Vorname"
-msgstr ""
+msgstr "First name"
 
 #: src/Billing.php:130
 msgid "Nachname"
-msgstr ""
+msgstr "Last name"
 
 #: src/Billing.php:131
 msgid "Straße und Hausnummer"
-msgstr ""
+msgstr "Street and house number"
 
 #: src/Billing.php:132
 msgid "PLZ"
-msgstr ""
+msgstr "Postal code"
 
 #: src/Billing.php:134
 msgid "Land"
-msgstr ""
+msgstr "Country"
 
 #: src/Billing.php:135
 msgid "UID-Nummer"
-msgstr ""
+msgstr "VAT ID"
 
 #: src/Billing.php:136
 msgid "Bestell- oder Referenznummer"
-msgstr ""
+msgstr "Order or reference number"
 
 #: src/Billing.php:205
 msgid "Bitte wähle ein Land aus der Liste."
-msgstr ""
+msgstr "Please select a country from the list."
 
 #: src/Billing.php:213
 msgid "Die UID-Nummer hat kein gültiges Format. Bitte mit Länderkennzeichen angeben, z. B. ATU12345678 oder DE123456789."
-msgstr ""
+msgstr "The VAT ID has an invalid format. Please enter it with the country prefix, e.g. ATU12345678 or DE123456789."
 
 #: src/Billing.php:225
 msgid "Die UID-Nummer konnte nicht bestätigt werden. Bitte prüfe die Eingabe."
-msgstr ""
+msgstr "The VAT ID could not be verified. Please check your entry."
 
 #: src/Billing.php:293
 #: src/OrderPortal.php:110
 msgid "Die Rechnung wurde bereits ausgestellt. Für eine Korrektur wende dich bitte an den Veranstalter."
-msgstr ""
+msgstr "The invoice has already been issued. To request a correction, please contact the organizer."
 
 #: src/Billing.php:298
 #: src/OrderPortal.php:69
 msgid "Die Rechnungsdaten konnten nicht gespeichert werden."
-msgstr ""
+msgstr "The invoice details could not be saved."
 
 #: src/Billing.php:327
 msgid "UID des Leistungsempfängers:"
-msgstr ""
+msgstr "VAT ID of the recipient of the service:"
 
 #: src/Billing.php:328
 msgid "Ihre Bestell-/Referenznummer:"
-msgstr ""
+msgstr "Your order/reference number:"
 
 #: src/BoxOffice/Page.php:218
 msgid "Rechnung auf Firma/Adresse (optional)"
-msgstr ""
+msgstr "Invoice to company/address (optional)"
 
 #: src/BoxOffice/Page.php:219
 msgid "Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht."
-msgstr ""
+msgstr "Fill in only if the buyer needs an invoice with name and address. If any field is filled in, first name, last name, street, postal code, city and country are required."
 
 #: src/Invoices.php:198
 msgid "Steuernummer:"
-msgstr ""
+msgstr "Tax number:"
 
 #. translators: %s: platform name
 #: src/Invoices.php:211
 #, php-format
 msgid "Vermittelt durch %s"
-msgstr ""
+msgstr "Arranged by %s"
 
 #. translators: %s: organizer name
 #: src/Invoices.php:213
 #, php-format
 msgid "Die Leistung wird von %s erbracht. Die Plattform handelt im Namen und für Rechnung des Veranstalters."
-msgstr ""
+msgstr "The service is provided by %s. The platform acts in the name and on behalf of the organizer."
 
 #. translators: %s: organizer
 #: src/Invoices.php:223
 #, php-format
 msgid "Vermittler – Rechnungssteller: %s"
-msgstr ""
+msgstr "Agent – invoice issuer: %s"
 
 #: src/Invoices.php:225
 msgid "Eigenhändler – Rechnungssteller: Plattform"
-msgstr ""
+msgstr "Own-name seller – invoice issuer: platform"
 
 #. translators: %s: masked voucher code
 #: src/Invoices.php:438
 #, php-format
 msgid "Bezahlt mit Gutschein %s (Mehrzweckgutschein)"
-msgstr ""
+msgstr "Paid with voucher %s (multi-purpose voucher)"
 
 #. translators: %s: masked voucher code
 #: src/Invoices.php:441
 #, php-format
 msgid "Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt."
-msgstr ""
+msgstr "Redeemed single-purpose voucher %s: VAT was already accounted for when the voucher was sold; the voucher value is taken into account as a price reduction."
 
 #: src/Invoices.php:445
 msgid "Restbetrag (bezahlt)"
-msgstr ""
+msgstr "Remaining amount (paid)"
 
 #: src/Invoices.php:446
 msgid "Der Gutschein ist ein Zahlungsmittel (Mehrzweckgutschein); die Umsatzsteuer ist auf den vollen Rechnungsbetrag ausgewiesen."
-msgstr ""
+msgstr "The voucher is a means of payment (multi-purpose voucher); VAT is shown on the full invoice amount."
 
 #: src/Invoices.php:455
 #: src/Printing/InvoicePdf.php:328
 msgid "Zahlungen"
-msgstr ""
+msgstr "Payments"
 
 #: src/OrderPortal.php:67
 msgid "Rechnungsdaten gespeichert. Sie werden auf der Rechnung verwendet."
-msgstr ""
+msgstr "Invoice details saved. They will be used on the invoice."
 
 #: src/OrderPortal.php:68
 msgid "Rechnungsdaten entfernt."
-msgstr ""
+msgstr "Invoice details removed."
 
 #. translators: 1: voucher amount, 2: amount to pay
 #: src/OrderPortal.php:79
 #, php-format
 msgid "davon mit Gutschein bezahlt: %1$s · Zahlbetrag: %2$s"
-msgstr ""
+msgstr "of which paid with voucher: %1$s · Amount payable: %2$s"
 
 #: src/OrderPortal.php:113
 msgid "Bis zur Ausstellung der Rechnung kannst du hier Firma, Name, Anschrift und UID-Nummer für die Rechnung angeben oder korrigieren."
-msgstr ""
+msgstr "Until the invoice is issued, you can enter or correct the company, name, address and VAT ID for the invoice here."
 
 #: src/OrderPortal.php:130
 msgid "Rechnungsdaten speichern"
-msgstr ""
+msgstr "Save invoice details"
 
 #: src/Orders.php:307
 msgid "Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus."
-msgstr ""
+msgstr "For this order amount we need your name and address for the invoice. Please enable “I need an invoice made out to a company/address” and fill in the fields."
 
 #. translators: 1: percent, 2: fee
 #: src/Partners/AdminPage.php:200
 msgid "Rechnungsangaben unvollständig"
-msgstr ""
+msgstr "Invoice details incomplete"
 
 #: src/Partners/AdminPage.php:208
 msgid "Fortlaufend und lückenlos je Jahr, z. B. PA-2026-000001. Gilt für Provisionsrechnungen (Vermittler) und Rechnungen über Plattformgebühren (Eigenhändler)."
-msgstr ""
+msgstr "Consecutive and gapless per year, e.g. PA-2026-000001. Applies to commission invoices (agent) and invoices for platform fees (own-name seller)."
 
 #: src/Partners/AdminPage.php:209
 msgid "Präfix der Gutschriftsnummern (Eigenhändler)"
-msgstr ""
+msgstr "Prefix for self-billing invoice numbers (own-name seller)"
 
 #: src/Partners/AdminPage.php:209
 msgid "Eigener lückenloser Nummernkreis für Gutschriften im Sinne von § 14 Abs. 2 Satz 2 UStG, z. B. GU-2026-000001."
-msgstr ""
+msgstr "Separate gapless number range for self-billing invoices within the meaning of § 14 Abs. 2 Satz 2 UStG, e.g. GU-2026-000001."
 
 #. translators: %s: missing fields
 #: src/Partners/AdminPage.php:271
 #, php-format
 msgid "Für Rechnungen im Namen des Veranstalters (Vermittler) bzw. Gutschriften (Eigenhändler) fehlen: %s."
-msgstr ""
+msgstr "The following are missing for invoices in the name of the organizer (agent) or self-billing invoices (own-name seller): %s."
 
 #: src/Partners/AdminPage.php:275
 msgid "Die USt-IdNr. passt formal nicht zum Land des Veranstalters – Reverse Charge wird nicht angewendet."
-msgstr ""
+msgstr "The VAT ID does not formally match the organizer’s country – reverse charge will not be applied."
 
 #: src/Partners/AdminPage.php:277
 msgid "Reverse Charge setzt eine gültige USt-IdNr. voraus: bitte qualifiziert (BZSt/VIES) bestätigen und das Prüfdatum eintragen."
-msgstr ""
+msgstr "Reverse charge requires a valid VAT ID: please confirm it with a qualified check (BZSt/VIES) and enter the verification date."
 
 #: src/Partners/AdminPage.php:286
 msgid "Verkaufsmodell und Rechnungsangaben"
-msgstr ""
+msgstr "Sales model and invoice details"
 
 #: src/Partners/AdminPage.php:290
 msgid "Eigenhändler: Die Plattform verkauft im eigenen Namen und stellt die Kundenrechnungen aus; der Veranstalter erhält monatlich eine Gutschrift und eine Rechnung über die Plattformgebühren. Vermittler: Kundenrechnungen werden im Namen und Nummernkreis des Veranstalters erstellt; die Plattform stellt nur ihre Provision in Rechnung. Ein Wechsel gilt für künftige Rechnungen und noch nicht abgeschlossene Abrechnungen. Siehe docs/SALES-MODELS.md."
-msgstr ""
+msgstr "Own-name seller: the platform sells in its own name and issues the customer invoices; the organizer receives a monthly self-billing invoice and an invoice for the platform fees. Agent: customer invoices are created in the name and number range of the organizer; the platform only invoices its commission. A change applies to future invoices and settlements not yet completed. See docs/SALES-MODELS.md."
 
 #: src/Partners/AdminPage.php:291
 msgid "Rechtlicher Name (Firma laut Register)"
-msgstr ""
+msgstr "Legal name (company as registered)"
 
 #: src/Partners/AdminPage.php:292
 msgid "Land (ISO-Code, z. B. DE, AT)"
-msgstr ""
+msgstr "Country (ISO code, e.g. DE, AT)"
 
 #: src/Partners/AdminPage.php:294
 msgid "USt-IdNr. qualifiziert bestätigt am"
-msgstr ""
+msgstr "VAT ID confirmed (qualified) on"
 
 #: src/Partners/AdminPage.php:295
 msgid "Präfix für Rechnungsnummern des Veranstalters"
-msgstr ""
+msgstr "Prefix for the organizer’s invoice numbers"
 
 #: src/Partners/AdminPage.php:296
 msgid "Kleinunternehmer"
-msgstr ""
+msgstr "Small business"
 
 #: src/Partners/AdminPage.php:296
 msgid "Veranstalter ist Kleinunternehmer (keine Umsatzsteuer)"
-msgstr ""
+msgstr "Organizer is a small business (no VAT)"
 
 #: src/Partners/AdminPage.php:297
 msgid "Hinweistext Kleinunternehmer"
-msgstr ""
+msgstr "Note text for small business"
 
 #: src/Partners/AdminPage.php:298
 msgid "Anschrift und USt-IdNr. werden aus den Stammdaten übernommen. Ohne eigenes Präfix wird V{ID} verwendet (z. B. V7-2026-000001); jeder Veranstalter hat einen eigenen lückenlosen Nummernkreis."
-msgstr ""
+msgstr "Address and VAT ID are taken from the master data. Without a custom prefix, V{ID} is used (e.g. V7-2026-000001); each organizer has their own gapless number range."
 
 #: src/Partners/Repository.php:108
 msgid "Unbekanntes Verkaufsmodell."
-msgstr ""
+msgstr "Unknown sales model."
 
 #: src/Partners/Repository.php:111
 msgid "Das Land muss als zweistelliger ISO-Code angegeben werden (z. B. DE, AT)."
-msgstr ""
+msgstr "The country must be given as a two-letter ISO code (e.g. DE, AT)."
 
 #: src/Partners/Repository.php:114
 msgid "Das Rechnungsnummern-Präfix darf nur Buchstaben und Ziffern enthalten (höchstens 10 Zeichen)."
-msgstr ""
+msgstr "The invoice number prefix may only contain letters and digits (maximum 10 characters)."
 
 #: src/Partners/Repository.php:120
 msgid "Dieses Rechnungsnummern-Präfix wird bereits verwendet (Plattform oder anderer Veranstalter). Jeder Veranstalter braucht einen eigenen Nummernkreis."
-msgstr ""
+msgstr "This invoice number prefix is already in use (platform or another organizer). Each organizer needs their own number range."
 
 #: src/Partners/Repository.php:125
 msgid "Ungültiges Datum der USt-IdNr.-Prüfung."
-msgstr ""
+msgstr "Invalid date of the VAT ID verification."
 
 #: src/Partners/SalesModel.php:35
 msgid "Eigenhändler (Verkauf im eigenen Namen, Gutschrift an Veranstalter)"
-msgstr ""
+msgstr "Own-name seller (sells in its own name, self-billing invoice to the organizer)"
 
 #: src/Partners/SalesModel.php:36
 msgid "Vermittler (Verkauf im Namen des Veranstalters, Provisionsrechnung)"
-msgstr ""
+msgstr "Agent (sells in the name of the organizer, commission invoice)"
 
 #: src/Partners/SalesModel.php:41
 msgid "Eigenhändler"
-msgstr ""
+msgstr "Own-name seller"
 
 #: src/Partners/SalesModel.php:41
 msgid "Vermittler"
-msgstr ""
+msgstr "Agent"
 
 #: src/Partners/SalesModel.php:52
 msgid "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung)."
-msgstr ""
+msgstr "No VAT is charged pursuant to § 19 UStG (small business exemption)."
 
 #: src/Partners/SalesModel.php:56
 msgid "Steuerschuldnerschaft des Leistungsempfängers / Reverse Charge"
-msgstr ""
+msgstr "Tax liability of the recipient of the service / Reverse charge"
 
 #: src/Partners/SalesModel.php:129
 msgid "USt-IdNr. oder Steuernummer"
-msgstr ""
+msgstr "VAT ID or tax number"
 
 #. translators: %s: organizer names
 #: src/Partners/SalesModel.php:171
 #, php-format
 msgid "Diese Bestellung enthält Tickets verschiedener Rechnungssteller (Vermittler-Veranstalter: %s, dazu weitere Veranstalter oder Plattform-Events). Eine gemeinsame Rechnung ist nicht zulässig; bitte die Rechnungen außerhalb des Plugins je Veranstalter erstellen oder die Bestellung stornieren und getrennt neu anlegen."
-msgstr ""
+msgstr "This order contains tickets from different invoice issuers (agent organizer: %s, plus other organizers or platform events). A combined invoice is not permitted; please create the invoices outside the plugin per organizer, or cancel the order and recreate it separately."
 
 #. translators: 1: organizer, 2: missing fields
 #: src/Partners/SalesModel.php:206
 #, php-format
 msgid "Rechnung im Namen des Veranstalters „%1$s“ nicht möglich – es fehlen: %2$s. Bitte unter Veranstalter ergänzen."
-msgstr ""
+msgstr "Invoice in the name of the organizer “%1$s” not possible – missing: %2$s. Please complete the details under Organizers."
 
 #. translators: %s: organizer
 #: src/Partners/SalesModel.php:215
 #, php-format
 msgid "Der Veranstalter „%s“ ist Kleinunternehmer, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 %% anlegen."
-msgstr ""
+msgstr "The organizer “%s” is a small business, but the order includes VAT. Showing tax would be impermissible (§ 14c UStG). Please set up the ticket types with 0 %%."
 
 #: src/Partners/SalesModel.php:236
 msgid "Tickets dieser Veranstalter können nicht in einer gemeinsamen Bestellung gekauft werden. Bitte für jeden Veranstalter separat bestellen."
-msgstr ""
+msgstr "Tickets from these organizers cannot be purchased in a single order. Please order separately for each organizer."
 
 #. translators: %s: missing fields
 #: src/Partners/Settlements.php:438
 #, php-format
 msgid "Gutschrift nicht möglich – beim Veranstalter fehlen: %s."
-msgstr ""
+msgstr "Self-billing invoice not possible – the organizer is missing: %s."
 
 #: src/Partners/Settlements.php:533
 msgid "Entwurf Provisionsrechnung"
-msgstr ""
+msgstr "Commission invoice draft"
 
 #: src/Partners/Settlements.php:533
 msgid "Provisionsrechnung"
-msgstr ""
+msgstr "Commission invoice"
 
 #. translators: 1: Gutschrift number, 2: invoice number
 #: src/Partners/Settlements.php:537
 msgid "Entwurf Gutschrift und Rechnung über Plattformgebühren"
-msgstr ""
+msgstr "Draft self-billing invoice and invoice for platform fees"
 
 #. translators: 1: Gutschrift number, 2: invoice number
 #: src/Partners/Settlements.php:537
 #, php-format
 msgid "Gutschrift %1$s und Rechnung %2$s"
-msgstr ""
+msgstr "Self-billing invoice %1$s and invoice %2$s"
 
 #: src/Partners/Settlements.php:545
 msgid "Provisionsrechnung (Vermittler)"
-msgstr ""
+msgstr "Commission invoice (agent)"
 
 #: src/Partners/Settlements.php:546
 msgid "Gutschrift + Gebührenrechnung (Eigenhändler)"
-msgstr ""
+msgstr "Self-billing invoice + fee invoice (own-name seller)"
 
 #: src/Partners/Settlements.php:586
 msgid "Gutschrift netto"
-msgstr ""
+msgstr "Self-billing invoice net"
 
 #: src/Partners/Settlements.php:587
 msgid "Gutschrift USt"
-msgstr ""
+msgstr "Self-billing invoice VAT"
 
 #: src/Partners/Settlements.php:588
 msgid "Gutschrift brutto"
-msgstr ""
+msgstr "Self-billing invoice gross"
 
 #: src/Partners/Settlements.php:632
 msgid "Aussteller"
-msgstr ""
+msgstr "Issuer"
 
 #: src/Partners/Settlements.php:641
 msgid "Teil B – Rechnung über Plattformgebühren"
-msgstr ""
+msgstr "Part B – Invoice for platform fees"
 
 #: src/Partners/Settlements.php:642
 msgid "Teil C – Verrechnung"
-msgstr ""
+msgstr "Part C – Offsetting"
 
 #: src/Partners/Settlements.php:643
 msgid "Gutschriftsbetrag (Teil A)"
-msgstr ""
+msgstr "Self-billing invoice amount (Part A)"
 
 #: src/Partners/Settlements.php:644
 msgid "abzüglich Rechnungsbetrag Plattformgebühren (Teil B)"
-msgstr ""
+msgstr "less invoice amount for platform fees (Part B)"
 
 #: src/Partners/Settlements.php:648
 msgid "Informative Aufstellung: vereinnahmte Ticketerlöse (keine Rechnung)"
-msgstr ""
+msgstr "Informational statement: ticket revenue collected (not an invoice)"
 
 #: src/Partners/Settlements.php:648
 msgid "Die Ticketerlöse wurden im Namen und für Rechnung des Veranstalters vereinnahmt. Die Kundenrechnungen wurden im Namen des Veranstalters ausgestellt; die Umsatzsteuer auf die Ticketumsätze schuldet der Veranstalter."
-msgstr ""
+msgstr "The ticket revenue was collected in the name and on behalf of the organizer. The customer invoices were issued in the name of the organizer; the organizer owes the VAT on the ticket sales."
 
 #: src/Partners/Settlements.php:652
 msgid "Vereinnahmte Ticketerlöse nach Erstattungen"
-msgstr ""
+msgstr "Ticket revenue collected after refunds"
 
 #: src/Partners/Settlements.php:653
 msgid "darin enthaltene USt (Schuldner: Veranstalter)"
-msgstr ""
+msgstr "of which VAT (owed by: organizer)"
 
 #: src/Partners/Settlements.php:654
 msgid "abzüglich Provisionsrechnung (brutto)"
-msgstr ""
+msgstr "less commission invoice (gross)"
 
 #: src/Partners/Settlements.php:677
 msgid "Anlage: Einzelaufstellung"
-msgstr ""
+msgstr "Annex: itemized statement"
 
 #: src/Partners/Settlements.php:690
 msgid "Ticketumsatz nach Steuersatz (Kundenverkauf)"
-msgstr ""
+msgstr "Ticket sales by tax rate (customer sales)"
 
 #: src/Partners/Settlements.php:712
 #: src/Partners/Settlements.php:738
 msgid "(Nummer wird beim Abschließen vergeben)"
-msgstr ""
+msgstr "(number is assigned on completion)"
 
 #. translators: %s: number
 #: src/Partners/Settlements.php:713
 #, php-format
 msgid "Teil A – Gutschrift %s"
-msgstr ""
+msgstr "Part A – Self-billing invoice %s"
 
 #. translators: %s: number
 #: src/Partners/Settlements.php:714
 msgid "Abrechnung im Gutschriftsverfahren: Der Leistungsempfänger rechnet über die Leistung des Veranstalters ab (§ 14 Abs. 2 Satz 2 UStG; Österreich: § 11 Abs. 7 UStG). Der Veranstalter kann der Gutschrift widersprechen; sie verliert damit ihre Wirkung als Rechnung."
-msgstr ""
+msgstr "Settlement by self-billing: the recipient of the service invoices the organizer’s service (§ 14 Abs. 2 Satz 2 UStG; Austria: § 11 Abs. 7 UStG). The organizer may object to the self-billing invoice; it then loses its effect as an invoice."
 
 #: src/Partners/Settlements.php:715
 msgid "Leistender Unternehmer (Gutschriftsempfänger)"
-msgstr ""
+msgstr "Supplier (recipient of the self-billing invoice)"
 
 #: src/Partners/Settlements.php:716
 msgid "Leistungsempfänger (Gutschriftsaussteller)"
-msgstr ""
+msgstr "Customer (issuer of the self-billing invoice)"
 
 #. translators: 1: period, 2: date
 #: src/Partners/Settlements.php:717
 #, php-format
 msgid "Leistung: Durchführung der Veranstaltungen und Einräumung der Eintrittsberechtigungen laut Anlage (Leistungskommission, Verkauf durch die Plattform im eigenen Namen für Rechnung des Veranstalters). Leistungszeitraum: %1$s. Gutschriftsdatum: %2$s."
-msgstr ""
+msgstr "Service: staging of the events and granting of admission rights as per annex (commission agreement, sale by the platform in its own name on behalf of the organizer). Service period: %1$s. Self-billing invoice date: %2$s."
 
 #: src/Partners/Settlements.php:723
 msgid "Gutschriftsbetrag"
-msgstr ""
+msgstr "Self-billing invoice amount"
 
 #: src/Partners/Settlements.php:727
 #: src/Partners/Settlements.php:753
 msgid "Die Steuer schuldet der Leistungsempfänger (§ 13b UStG / Art. 196 MwStSystRL / § 19 Abs. 1 öUStG)."
-msgstr ""
+msgstr "The recipient of the service owes the tax (§ 13b UStG / Art. 196 VAT Directive / § 19 Abs. 1 öUStG)."
 
 #: src/Partners/Settlements.php:741
 msgid "Rechnungsempfänger"
-msgstr ""
+msgstr "Invoice recipient"
 
 #: src/Partners/Settlements.php:743
 msgid "Rechnung über Vermittlungsleistungen"
-msgstr ""
+msgstr "Invoice for intermediary services"
 
 #. translators: %s: period
 #: src/Partners/Settlements.php:745
 #, php-format
 msgid "Leistung: Vermittlung und Abwicklung des Ticketverkaufs für die Veranstaltungen laut Anlage. Leistungszeitraum: %s."
-msgstr ""
+msgstr "Service: intermediation and processing of ticket sales for the events as per annex. Service period: %s."
 
 #. translators: 1: percent, 2: net revenue
 #: src/Partners/Settlements.php:746
 #, php-format
 msgid "Provision %1$s auf Netto-Ticketumsatz %2$s"
-msgstr ""
+msgstr "Commission %1$s on net ticket revenue %2$s"
 
 #. translators: %s: fee per ticket
 #: src/Partners/Settlements.php:747
 #, php-format
 msgid "Ticketgebühren (%s je Ticket)"
-msgstr ""
+msgstr "Ticket fees (%s per ticket)"
 
 #: src/Partners/Settlements.php:749
 msgid "Umsatzsteuer (Reverse Charge)"
-msgstr ""
+msgstr "VAT (reverse charge)"
 
 #. translators: %s: percent
 #: src/Partners/Settlements.php:749
 #, php-format
 msgid "Umsatzsteuer %s"
-msgstr ""
+msgstr "VAT %s"
 
 #: src/Privacy.php:143
 msgid "Rechnungsdaten (Firma, Name, Anschrift, UID, Referenz)"
-msgstr ""
+msgstr "Invoice details (company, name, address, VAT ID, reference)"
 
 #: src/Privacy.php:322
 msgid "Die Rechnungsdaten der Bestellungen (Firma, Name, Anschrift, UID, Referenz) wurden entfernt. Bereits ausgestellte Rechnungen behalten die darauf angegebenen Empfängerangaben (gesetzliche Aufbewahrungspflicht, Art. 17 Abs. 3 lit. b DSGVO)."
-msgstr ""
+msgstr "The invoice details of the orders (company, name, address, VAT ID, reference) have been removed. Invoices already issued retain the recipient details stated on them (statutory retention obligation, Art. 17(3)(b) GDPR)."
 
 #: templates/event-card.php:59
 msgid "Rechnung mit Firmen-/Adressdaten"
-msgstr ""
+msgstr "Invoice with company/address details"
 
 #. translators: %s: amount
 #: templates/event-card.php:65
 #, php-format
 msgid "Ab einem Bestellbetrag über %s brauchen wir für die Rechnung Name und Anschrift."
-msgstr ""
+msgstr "For orders over %s we need a name and address for the invoice."
 
 #: templates/event-card.php:85
 msgid "Mit Länderkennzeichen, z. B. ATU12345678 oder DE123456789."
-msgstr ""
+msgstr "With country prefix, e.g. ATU12345678 or DE123456789."

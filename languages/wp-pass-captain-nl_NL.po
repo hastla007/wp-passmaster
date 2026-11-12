@@ -9101,669 +9101,669 @@ msgstr "Ik accepteer de voorwaarden."
 #: src/Admin/OrdersPage.php:326
 #: src/OrderPortal.php:106
 msgid "Rechnungsdaten"
-msgstr ""
+msgstr "Factuurgegevens"
 
 #: src/Admin/OrdersPage.php:326
 msgid "Keine (Rechnung nur mit E-Mail-Adresse)"
-msgstr ""
+msgstr "Geen (factuur alleen met e-mailadres)"
 
 #: src/Admin/OrdersPage.php:352
 #: src/Partners/AdminPage.php:197
 #: src/Partners/AdminPage.php:288
 msgid "Verkaufsmodell"
-msgstr ""
+msgstr "Verkoopmodel"
 
 #: src/Admin/OrdersPage.php:392
 msgid "davon bezahlt mit Mehrzweckgutschein"
-msgstr ""
+msgstr "waarvan betaald met voucher voor meervoudig gebruik"
 
 #: src/Admin/OrdersPage.php:393
 msgid "Zahlbetrag"
-msgstr ""
+msgstr "Te betalen bedrag"
 
 #: src/Admin/SettingsPage.php:90
 msgid "Gutscheine"
-msgstr ""
+msgstr "Cadeaubonnen"
 
 #: src/Admin/SettingsPage.php:94
 msgid "Gutscheine standardmäßig als Mehrzweckgutschein behandeln"
-msgstr ""
+msgstr "Cadeaubonnen standaard behandelen als voucher voor meervoudig gebruik"
 
 #: src/Admin/SettingsPage.php:96
 msgid "Ja – Mehrzweckgutschein (Zahlungsmittel, USt bei Einlösung)"
-msgstr ""
+msgstr "Ja – voucher voor meervoudig gebruik (betaalmiddel, btw bij verzilvering)"
 
 #: src/Admin/SettingsPage.php:97
 msgid "Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)"
-msgstr ""
+msgstr "Nee – voucher voor enkelvoudig gebruik (btw al verschuldigd bij verkoop van de voucher)"
 
 #: src/Admin/SettingsPage.php:99
 msgid "Gilt nur, wenn WP Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md)."
-msgstr ""
+msgstr "Geldt alleen als WP Voucher Captain voor de bon geen type doorgeeft. Voucher voor meervoudig gebruik: tickets behouden de volledige prijs en de volledige btw, en de voucher verschijnt op de factuur als betaling. Voucher voor enkelvoudig gebruik (plaats van de dienst en btw-tarief stonden bij de verkoop vast, bijv. een voucher voor een bepaald evenement in het binnenland): de btw is al afgedragen bij de verkoop van de voucher en verzilvering verlaagt de prijs. Overleg bij twijfel met je belastingadviseur (zie docs/VOUCHERS.md)."
 
 #: src/Admin/SettingsPage.php:116
 #: src/Partners/AdminPage.php:293
 msgid "Steuernummer"
-msgstr ""
+msgstr "Belastingnummer"
 
 #: src/Admin/SettingsPage.php:116
 msgid "Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist."
-msgstr ""
+msgstr "Verplichte vermelding op facturen als er geen btw-nummer is opgegeven."
 
 #: src/Admin/SettingsPage.php:117
 msgid "Land (ISO-Code, z. B. DE oder AT)"
-msgstr ""
+msgstr "Land (ISO-code, bijv. DE of AT)"
 
 #: src/Admin/SettingsPage.php:117
 msgid "Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet (siehe docs/SALES-MODELS.md)."
-msgstr ""
+msgstr "Wordt gebruikt voor de controle op btw verlegd bij organisatoren in het buitenland binnen de EU (zie docs/SALES-MODELS.md)."
 
 #: src/Admin/SettingsPage.php:119
 msgid "Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)"
-msgstr ""
+msgstr "Naam en adres vragen bij het afrekenen vanaf een bestelbedrag van (0 = nooit; DE: € 250, AT: € 400)"
 
 #: src/Billing.php:67
 msgid "Österreich"
-msgstr ""
+msgstr "Oostenrijk"
 
 #: src/Billing.php:68
 msgid "Deutschland"
-msgstr ""
+msgstr "Duitsland"
 
 #: src/Billing.php:69
 msgid "Schweiz"
-msgstr ""
+msgstr "Zwitserland"
 
 #: src/Billing.php:70
 msgid "Liechtenstein"
-msgstr ""
+msgstr "Liechtenstein"
 
 #: src/Billing.php:71
 msgid "Belgien"
-msgstr ""
+msgstr "België"
 
 #: src/Billing.php:72
 msgid "Bulgarien"
-msgstr ""
+msgstr "Bulgarije"
 
 #: src/Billing.php:73
 msgid "Dänemark"
-msgstr ""
+msgstr "Denemarken"
 
 #: src/Billing.php:74
 msgid "Estland"
-msgstr ""
+msgstr "Estland"
 
 #: src/Billing.php:75
 msgid "Finnland"
-msgstr ""
+msgstr "Finland"
 
 #: src/Billing.php:76
 msgid "Frankreich"
-msgstr ""
+msgstr "Frankrijk"
 
 #: src/Billing.php:77
 msgid "Griechenland"
-msgstr ""
+msgstr "Griekenland"
 
 #: src/Billing.php:78
 msgid "Irland"
-msgstr ""
+msgstr "Ierland"
 
 #: src/Billing.php:79
 msgid "Italien"
-msgstr ""
+msgstr "Italië"
 
 #: src/Billing.php:80
 msgid "Kroatien"
-msgstr ""
+msgstr "Kroatië"
 
 #: src/Billing.php:81
 msgid "Lettland"
-msgstr ""
+msgstr "Letland"
 
 #: src/Billing.php:82
 msgid "Litauen"
-msgstr ""
+msgstr "Litouwen"
 
 #: src/Billing.php:83
 msgid "Luxemburg"
-msgstr ""
+msgstr "Luxemburg"
 
 #: src/Billing.php:84
 msgid "Malta"
-msgstr ""
+msgstr "Malta"
 
 #: src/Billing.php:85
 msgid "Niederlande"
-msgstr ""
+msgstr "Nederland"
 
 #: src/Billing.php:86
 msgid "Norwegen"
-msgstr ""
+msgstr "Noorwegen"
 
 #: src/Billing.php:87
 msgid "Polen"
-msgstr ""
+msgstr "Polen"
 
 #: src/Billing.php:88
 msgid "Portugal"
-msgstr ""
+msgstr "Portugal"
 
 #: src/Billing.php:89
 msgid "Rumänien"
-msgstr ""
+msgstr "Roemenië"
 
 #: src/Billing.php:90
 msgid "Schweden"
-msgstr ""
+msgstr "Zweden"
 
 #: src/Billing.php:91
 msgid "Slowakei"
-msgstr ""
+msgstr "Slowakije"
 
 #: src/Billing.php:92
 msgid "Slowenien"
-msgstr ""
+msgstr "Slovenië"
 
 #: src/Billing.php:93
 msgid "Spanien"
-msgstr ""
+msgstr "Spanje"
 
 #: src/Billing.php:94
 msgid "Tschechien"
-msgstr ""
+msgstr "Tsjechië"
 
 #: src/Billing.php:95
 msgid "Ungarn"
-msgstr ""
+msgstr "Hongarije"
 
 #: src/Billing.php:96
 msgid "Vereinigtes Königreich"
-msgstr ""
+msgstr "Verenigd Koninkrijk"
 
 #: src/Billing.php:97
 msgid "Zypern"
-msgstr ""
+msgstr "Cyprus"
 
 #: src/Billing.php:127
 msgid "Ich brauche eine Rechnung auf Firma/Adresse"
-msgstr ""
+msgstr "Ik heb een factuur op naam van een bedrijf/adres nodig"
 
 #: src/Billing.php:128
 msgid "Firma"
-msgstr ""
+msgstr "Bedrijf"
 
 #: src/Billing.php:129
 msgid "Vorname"
-msgstr ""
+msgstr "Voornaam"
 
 #: src/Billing.php:130
 msgid "Nachname"
-msgstr ""
+msgstr "Achternaam"
 
 #: src/Billing.php:131
 msgid "Straße und Hausnummer"
-msgstr ""
+msgstr "Straat en huisnummer"
 
 #: src/Billing.php:132
 msgid "PLZ"
-msgstr ""
+msgstr "Postcode"
 
 #: src/Billing.php:134
 msgid "Land"
-msgstr ""
+msgstr "Land"
 
 #: src/Billing.php:135
 msgid "UID-Nummer"
-msgstr ""
+msgstr "Btw-nummer"
 
 #: src/Billing.php:136
 msgid "Bestell- oder Referenznummer"
-msgstr ""
+msgstr "Bestel- of referentienummer"
 
 #: src/Billing.php:205
 msgid "Bitte wähle ein Land aus der Liste."
-msgstr ""
+msgstr "Kies een land uit de lijst."
 
 #: src/Billing.php:213
 msgid "Die UID-Nummer hat kein gültiges Format. Bitte mit Länderkennzeichen angeben, z. B. ATU12345678 oder DE123456789."
-msgstr ""
+msgstr "Het btw-nummer heeft geen geldig formaat. Geef het op met landcode, bijv. ATU12345678 of DE123456789."
 
 #: src/Billing.php:225
 msgid "Die UID-Nummer konnte nicht bestätigt werden. Bitte prüfe die Eingabe."
-msgstr ""
+msgstr "Het btw-nummer kon niet worden bevestigd. Controleer je invoer."
 
 #: src/Billing.php:293
 #: src/OrderPortal.php:110
 msgid "Die Rechnung wurde bereits ausgestellt. Für eine Korrektur wende dich bitte an den Veranstalter."
-msgstr ""
+msgstr "De factuur is al uitgegeven. Neem voor een correctie contact op met de organisator."
 
 #: src/Billing.php:298
 #: src/OrderPortal.php:69
 msgid "Die Rechnungsdaten konnten nicht gespeichert werden."
-msgstr ""
+msgstr "De factuurgegevens konden niet worden opgeslagen."
 
 #: src/Billing.php:327
 msgid "UID des Leistungsempfängers:"
-msgstr ""
+msgstr "Btw-nummer van de afnemer van de dienst:"
 
 #: src/Billing.php:328
 msgid "Ihre Bestell-/Referenznummer:"
-msgstr ""
+msgstr "Je bestel-/referentienummer:"
 
 #: src/BoxOffice/Page.php:218
 msgid "Rechnung auf Firma/Adresse (optional)"
-msgstr ""
+msgstr "Factuur op naam van bedrijf/adres (optioneel)"
 
 #: src/BoxOffice/Page.php:219
 msgid "Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht."
-msgstr ""
+msgstr "Alleen invullen als de koper een factuur met naam en adres nodig heeft. Als een veld is ingevuld, zijn voornaam, achternaam, straat, postcode, plaats en land verplicht."
 
 #: src/Invoices.php:198
 msgid "Steuernummer:"
-msgstr ""
+msgstr "Belastingnummer:"
 
 #. translators: %s: platform name
 #: src/Invoices.php:211
 #, php-format
 msgid "Vermittelt durch %s"
-msgstr ""
+msgstr "Bemiddeld door %s"
 
 #. translators: %s: organizer name
 #: src/Invoices.php:213
 #, php-format
 msgid "Die Leistung wird von %s erbracht. Die Plattform handelt im Namen und für Rechnung des Veranstalters."
-msgstr ""
+msgstr "De dienst wordt verricht door %s. Het platform handelt in naam en voor rekening van de organisator."
 
 #. translators: %s: organizer
 #: src/Invoices.php:223
 #, php-format
 msgid "Vermittler – Rechnungssteller: %s"
-msgstr ""
+msgstr "Bemiddelaar – factuurafzender: %s"
 
 #: src/Invoices.php:225
 msgid "Eigenhändler – Rechnungssteller: Plattform"
-msgstr ""
+msgstr "Verkoper in eigen naam – factuurafzender: platform"
 
 #. translators: %s: masked voucher code
 #: src/Invoices.php:438
 #, php-format
 msgid "Bezahlt mit Gutschein %s (Mehrzweckgutschein)"
-msgstr ""
+msgstr "Betaald met voucher %s (voucher voor meervoudig gebruik)"
 
 #. translators: %s: masked voucher code
 #: src/Invoices.php:441
 #, php-format
 msgid "Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt."
-msgstr ""
+msgstr "Verzilverde voucher voor enkelvoudig gebruik %s: de btw is al verrekend bij de verkoop van de voucher; de waarde van de voucher is verwerkt als prijskorting."
 
 #: src/Invoices.php:445
 msgid "Restbetrag (bezahlt)"
-msgstr ""
+msgstr "Restbedrag (betaald)"
 
 #: src/Invoices.php:446
 msgid "Der Gutschein ist ein Zahlungsmittel (Mehrzweckgutschein); die Umsatzsteuer ist auf den vollen Rechnungsbetrag ausgewiesen."
-msgstr ""
+msgstr "De voucher is een betaalmiddel (voucher voor meervoudig gebruik); de btw wordt weergegeven over het volledige factuurbedrag."
 
 #: src/Invoices.php:455
 #: src/Printing/InvoicePdf.php:328
 msgid "Zahlungen"
-msgstr ""
+msgstr "Betalingen"
 
 #: src/OrderPortal.php:67
 msgid "Rechnungsdaten gespeichert. Sie werden auf der Rechnung verwendet."
-msgstr ""
+msgstr "Factuurgegevens opgeslagen. Ze worden op de factuur gebruikt."
 
 #: src/OrderPortal.php:68
 msgid "Rechnungsdaten entfernt."
-msgstr ""
+msgstr "Factuurgegevens verwijderd."
 
 #. translators: 1: voucher amount, 2: amount to pay
 #: src/OrderPortal.php:79
 #, php-format
 msgid "davon mit Gutschein bezahlt: %1$s · Zahlbetrag: %2$s"
-msgstr ""
+msgstr "waarvan met voucher betaald: %1$s · Te betalen bedrag: %2$s"
 
 #: src/OrderPortal.php:113
 msgid "Bis zur Ausstellung der Rechnung kannst du hier Firma, Name, Anschrift und UID-Nummer für die Rechnung angeben oder korrigieren."
-msgstr ""
+msgstr "Tot de factuur is uitgegeven, kun je hier bedrijf, naam, adres en btw-nummer voor de factuur invullen of corrigeren."
 
 #: src/OrderPortal.php:130
 msgid "Rechnungsdaten speichern"
-msgstr ""
+msgstr "Factuurgegevens opslaan"
 
 #: src/Orders.php:307
 msgid "Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus."
-msgstr ""
+msgstr "Voor dit bestelbedrag hebben we je naam en adres nodig voor de factuur. Schakel „Ik heb een factuur op naam van een bedrijf/adres nodig” in en vul de velden in."
 
 #. translators: 1: percent, 2: fee
 #: src/Partners/AdminPage.php:200
 msgid "Rechnungsangaben unvollständig"
-msgstr ""
+msgstr "Factuurgegevens onvolledig"
 
 #: src/Partners/AdminPage.php:208
 msgid "Fortlaufend und lückenlos je Jahr, z. B. PA-2026-000001. Gilt für Provisionsrechnungen (Vermittler) und Rechnungen über Plattformgebühren (Eigenhändler)."
-msgstr ""
+msgstr "Doorlopend en zonder hiaten per jaar, bijv. PA-2026-000001. Geldt voor commissiefacturen (bemiddelaar) en facturen voor platformvergoedingen (verkoper in eigen naam)."
 
 #: src/Partners/AdminPage.php:209
 msgid "Präfix der Gutschriftsnummern (Eigenhändler)"
-msgstr ""
+msgstr "Prefix van de nummers van self-billing facturen (verkoper in eigen naam)"
 
 #: src/Partners/AdminPage.php:209
 msgid "Eigener lückenloser Nummernkreis für Gutschriften im Sinne von § 14 Abs. 2 Satz 2 UStG, z. B. GU-2026-000001."
-msgstr ""
+msgstr "Eigen nummerreeks zonder hiaten voor self-billing facturen in de zin van § 14 Abs. 2 Satz 2 UStG, bijv. GU-2026-000001."
 
 #. translators: %s: missing fields
 #: src/Partners/AdminPage.php:271
 #, php-format
 msgid "Für Rechnungen im Namen des Veranstalters (Vermittler) bzw. Gutschriften (Eigenhändler) fehlen: %s."
-msgstr ""
+msgstr "Voor facturen namens de organisator (bemiddelaar) of self-billing facturen (verkoper in eigen naam) ontbreken: %s."
 
 #: src/Partners/AdminPage.php:275
 msgid "Die USt-IdNr. passt formal nicht zum Land des Veranstalters – Reverse Charge wird nicht angewendet."
-msgstr ""
+msgstr "Het btw-nummer past formeel niet bij het land van de organisator – btw verlegd wordt niet toegepast."
 
 #: src/Partners/AdminPage.php:277
 msgid "Reverse Charge setzt eine gültige USt-IdNr. voraus: bitte qualifiziert (BZSt/VIES) bestätigen und das Prüfdatum eintragen."
-msgstr ""
+msgstr "Btw verlegd vereist een geldig btw-nummer: bevestig het via een gekwalificeerde controle (BZSt/VIES) en vul de controledatum in."
 
 #: src/Partners/AdminPage.php:286
 msgid "Verkaufsmodell und Rechnungsangaben"
-msgstr ""
+msgstr "Verkoopmodel en factuurgegevens"
 
 #: src/Partners/AdminPage.php:290
 msgid "Eigenhändler: Die Plattform verkauft im eigenen Namen und stellt die Kundenrechnungen aus; der Veranstalter erhält monatlich eine Gutschrift und eine Rechnung über die Plattformgebühren. Vermittler: Kundenrechnungen werden im Namen und Nummernkreis des Veranstalters erstellt; die Plattform stellt nur ihre Provision in Rechnung. Ein Wechsel gilt für künftige Rechnungen und noch nicht abgeschlossene Abrechnungen. Siehe docs/SALES-MODELS.md."
-msgstr ""
+msgstr "Verkoper in eigen naam: het platform verkoopt in eigen naam en geeft de klantfacturen uit; de organisator ontvangt maandelijks een self-billing factuur en een factuur voor de platformvergoedingen. Bemiddelaar: klantfacturen worden opgemaakt in naam en nummerreeks van de organisator; het platform factureert alleen zijn commissie. Een wijziging geldt voor toekomstige facturen en nog niet afgesloten afrekeningen. Zie docs/SALES-MODELS.md."
 
 #: src/Partners/AdminPage.php:291
 msgid "Rechtlicher Name (Firma laut Register)"
-msgstr ""
+msgstr "Juridische naam (bedrijf volgens register)"
 
 #: src/Partners/AdminPage.php:292
 msgid "Land (ISO-Code, z. B. DE, AT)"
-msgstr ""
+msgstr "Land (ISO-code, bijv. DE, AT)"
 
 #: src/Partners/AdminPage.php:294
 msgid "USt-IdNr. qualifiziert bestätigt am"
-msgstr ""
+msgstr "Btw-nummer gekwalificeerd bevestigd op"
 
 #: src/Partners/AdminPage.php:295
 msgid "Präfix für Rechnungsnummern des Veranstalters"
-msgstr ""
+msgstr "Prefix voor factuurnummers van de organisator"
 
 #: src/Partners/AdminPage.php:296
 msgid "Kleinunternehmer"
-msgstr ""
+msgstr "Kleine ondernemer"
 
 #: src/Partners/AdminPage.php:296
 msgid "Veranstalter ist Kleinunternehmer (keine Umsatzsteuer)"
-msgstr ""
+msgstr "Organisator is een kleine ondernemer (geen btw)"
 
 #: src/Partners/AdminPage.php:297
 msgid "Hinweistext Kleinunternehmer"
-msgstr ""
+msgstr "Vermeldingstekst kleine ondernemer"
 
 #: src/Partners/AdminPage.php:298
 msgid "Anschrift und USt-IdNr. werden aus den Stammdaten übernommen. Ohne eigenes Präfix wird V{ID} verwendet (z. B. V7-2026-000001); jeder Veranstalter hat einen eigenen lückenlosen Nummernkreis."
-msgstr ""
+msgstr "Adres en btw-nummer worden overgenomen uit de basisgegevens. Zonder eigen prefix wordt V{ID} gebruikt (bijv. V7-2026-000001); elke organisator heeft een eigen nummerreeks zonder hiaten."
 
 #: src/Partners/Repository.php:108
 msgid "Unbekanntes Verkaufsmodell."
-msgstr ""
+msgstr "Onbekend verkoopmodel."
 
 #: src/Partners/Repository.php:111
 msgid "Das Land muss als zweistelliger ISO-Code angegeben werden (z. B. DE, AT)."
-msgstr ""
+msgstr "Het land moet worden opgegeven als ISO-code van twee letters (bijv. DE, AT)."
 
 #: src/Partners/Repository.php:114
 msgid "Das Rechnungsnummern-Präfix darf nur Buchstaben und Ziffern enthalten (höchstens 10 Zeichen)."
-msgstr ""
+msgstr "Het factuurnummerprefix mag alleen letters en cijfers bevatten (maximaal 10 tekens)."
 
 #: src/Partners/Repository.php:120
 msgid "Dieses Rechnungsnummern-Präfix wird bereits verwendet (Plattform oder anderer Veranstalter). Jeder Veranstalter braucht einen eigenen Nummernkreis."
-msgstr ""
+msgstr "Dit factuurnummerprefix wordt al gebruikt (platform of andere organisator). Elke organisator heeft een eigen nummerreeks nodig."
 
 #: src/Partners/Repository.php:125
 msgid "Ungültiges Datum der USt-IdNr.-Prüfung."
-msgstr ""
+msgstr "Ongeldige datum van de controle van het btw-nummer."
 
 #: src/Partners/SalesModel.php:35
 msgid "Eigenhändler (Verkauf im eigenen Namen, Gutschrift an Veranstalter)"
-msgstr ""
+msgstr "Verkoper in eigen naam (verkoop in eigen naam, self-billing factuur aan organisator)"
 
 #: src/Partners/SalesModel.php:36
 msgid "Vermittler (Verkauf im Namen des Veranstalters, Provisionsrechnung)"
-msgstr ""
+msgstr "Bemiddelaar (verkoop namens de organisator, commissiefactuur)"
 
 #: src/Partners/SalesModel.php:41
 msgid "Eigenhändler"
-msgstr ""
+msgstr "Verkoper in eigen naam"
 
 #: src/Partners/SalesModel.php:41
 msgid "Vermittler"
-msgstr ""
+msgstr "Bemiddelaar"
 
 #: src/Partners/SalesModel.php:52
 msgid "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung)."
-msgstr ""
+msgstr "Conform § 19 UStG wordt geen btw in rekening gebracht (kleineondernemersregeling)."
 
 #: src/Partners/SalesModel.php:56
 msgid "Steuerschuldnerschaft des Leistungsempfängers / Reverse Charge"
-msgstr ""
+msgstr "De belasting is verschuldigd door de afnemer van de dienst / Btw verlegd"
 
 #: src/Partners/SalesModel.php:129
 msgid "USt-IdNr. oder Steuernummer"
-msgstr ""
+msgstr "Btw-nummer of belastingnummer"
 
 #. translators: %s: organizer names
 #: src/Partners/SalesModel.php:171
 #, php-format
 msgid "Diese Bestellung enthält Tickets verschiedener Rechnungssteller (Vermittler-Veranstalter: %s, dazu weitere Veranstalter oder Plattform-Events). Eine gemeinsame Rechnung ist nicht zulässig; bitte die Rechnungen außerhalb des Plugins je Veranstalter erstellen oder die Bestellung stornieren und getrennt neu anlegen."
-msgstr ""
+msgstr "Deze bestelling bevat tickets van verschillende factuurafzenders (organisator-bemiddelaar: %s, plus andere organisatoren of platformevenementen). Een gezamenlijke factuur is niet toegestaan; maak de facturen buiten de plug-in per organisator aan of annuleer de bestelling en maak die apart opnieuw aan."
 
 #. translators: 1: organizer, 2: missing fields
 #: src/Partners/SalesModel.php:206
 #, php-format
 msgid "Rechnung im Namen des Veranstalters „%1$s“ nicht möglich – es fehlen: %2$s. Bitte unter Veranstalter ergänzen."
-msgstr ""
+msgstr "Factuur namens de organisator „%1$s” niet mogelijk – ontbrekend: %2$s. Vul de gegevens aan onder Organisatoren."
 
 #. translators: %s: organizer
 #: src/Partners/SalesModel.php:215
 #, php-format
 msgid "Der Veranstalter „%s“ ist Kleinunternehmer, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 %% anlegen."
-msgstr ""
+msgstr "De organisator „%s” is een kleine ondernemer, maar de bestelling bevat btw. Het vermelden van belasting zou niet toegestaan zijn (§ 14c UStG). Maak de tickettypen aan met 0 %%."
 
 #: src/Partners/SalesModel.php:236
 msgid "Tickets dieser Veranstalter können nicht in einer gemeinsamen Bestellung gekauft werden. Bitte für jeden Veranstalter separat bestellen."
-msgstr ""
+msgstr "Tickets van deze organisatoren kunnen niet in één bestelling worden gekocht. Bestel apart voor elke organisator."
 
 #. translators: %s: missing fields
 #: src/Partners/Settlements.php:438
 #, php-format
 msgid "Gutschrift nicht möglich – beim Veranstalter fehlen: %s."
-msgstr ""
+msgstr "Self-billing factuur niet mogelijk – bij de organisator ontbreken: %s."
 
 #: src/Partners/Settlements.php:533
 msgid "Entwurf Provisionsrechnung"
-msgstr ""
+msgstr "Concept commissiefactuur"
 
 #: src/Partners/Settlements.php:533
 msgid "Provisionsrechnung"
-msgstr ""
+msgstr "Commissiefactuur"
 
 #. translators: 1: Gutschrift number, 2: invoice number
 #: src/Partners/Settlements.php:537
 msgid "Entwurf Gutschrift und Rechnung über Plattformgebühren"
-msgstr ""
+msgstr "Concept self-billing factuur en factuur voor platformvergoedingen"
 
 #. translators: 1: Gutschrift number, 2: invoice number
 #: src/Partners/Settlements.php:537
 #, php-format
 msgid "Gutschrift %1$s und Rechnung %2$s"
-msgstr ""
+msgstr "Self-billing factuur %1$s en factuur %2$s"
 
 #: src/Partners/Settlements.php:545
 msgid "Provisionsrechnung (Vermittler)"
-msgstr ""
+msgstr "Commissiefactuur (bemiddelaar)"
 
 #: src/Partners/Settlements.php:546
 msgid "Gutschrift + Gebührenrechnung (Eigenhändler)"
-msgstr ""
+msgstr "Self-billing factuur + vergoedingenfactuur (verkoper in eigen naam)"
 
 #: src/Partners/Settlements.php:586
 msgid "Gutschrift netto"
-msgstr ""
+msgstr "Self-billing factuur netto"
 
 #: src/Partners/Settlements.php:587
 msgid "Gutschrift USt"
-msgstr ""
+msgstr "Btw self-billing factuur"
 
 #: src/Partners/Settlements.php:588
 msgid "Gutschrift brutto"
-msgstr ""
+msgstr "Self-billing factuur bruto"
 
 #: src/Partners/Settlements.php:632
 msgid "Aussteller"
-msgstr ""
+msgstr "Afzender"
 
 #: src/Partners/Settlements.php:641
 msgid "Teil B – Rechnung über Plattformgebühren"
-msgstr ""
+msgstr "Deel B – Factuur voor platformvergoedingen"
 
 #: src/Partners/Settlements.php:642
 msgid "Teil C – Verrechnung"
-msgstr ""
+msgstr "Deel C – Verrekening"
 
 #: src/Partners/Settlements.php:643
 msgid "Gutschriftsbetrag (Teil A)"
-msgstr ""
+msgstr "Bedrag self-billing factuur (deel A)"
 
 #: src/Partners/Settlements.php:644
 msgid "abzüglich Rechnungsbetrag Plattformgebühren (Teil B)"
-msgstr ""
+msgstr "min factuurbedrag platformvergoedingen (deel B)"
 
 #: src/Partners/Settlements.php:648
 msgid "Informative Aufstellung: vereinnahmte Ticketerlöse (keine Rechnung)"
-msgstr ""
+msgstr "Informatief overzicht: geïnde ticketopbrengsten (geen factuur)"
 
 #: src/Partners/Settlements.php:648
 msgid "Die Ticketerlöse wurden im Namen und für Rechnung des Veranstalters vereinnahmt. Die Kundenrechnungen wurden im Namen des Veranstalters ausgestellt; die Umsatzsteuer auf die Ticketumsätze schuldet der Veranstalter."
-msgstr ""
+msgstr "De ticketopbrengsten zijn geïnd in naam en voor rekening van de organisator. De klantfacturen zijn uitgegeven in naam van de organisator; de btw over de ticketverkopen is verschuldigd door de organisator."
 
 #: src/Partners/Settlements.php:652
 msgid "Vereinnahmte Ticketerlöse nach Erstattungen"
-msgstr ""
+msgstr "Geïnde ticketopbrengsten na terugbetalingen"
 
 #: src/Partners/Settlements.php:653
 msgid "darin enthaltene USt (Schuldner: Veranstalter)"
-msgstr ""
+msgstr "waarvan btw (schuldenaar: organisator)"
 
 #: src/Partners/Settlements.php:654
 msgid "abzüglich Provisionsrechnung (brutto)"
-msgstr ""
+msgstr "min commissiefactuur (bruto)"
 
 #: src/Partners/Settlements.php:677
 msgid "Anlage: Einzelaufstellung"
-msgstr ""
+msgstr "Bijlage: gespecificeerd overzicht"
 
 #: src/Partners/Settlements.php:690
 msgid "Ticketumsatz nach Steuersatz (Kundenverkauf)"
-msgstr ""
+msgstr "Ticketomzet per btw-tarief (klantverkoop)"
 
 #: src/Partners/Settlements.php:712
 #: src/Partners/Settlements.php:738
 msgid "(Nummer wird beim Abschließen vergeben)"
-msgstr ""
+msgstr "(nummer wordt toegekend bij afsluiten)"
 
 #. translators: %s: number
 #: src/Partners/Settlements.php:713
 #, php-format
 msgid "Teil A – Gutschrift %s"
-msgstr ""
+msgstr "Deel A – Self-billing factuur %s"
 
 #. translators: %s: number
 #: src/Partners/Settlements.php:714
 msgid "Abrechnung im Gutschriftsverfahren: Der Leistungsempfänger rechnet über die Leistung des Veranstalters ab (§ 14 Abs. 2 Satz 2 UStG; Österreich: § 11 Abs. 7 UStG). Der Veranstalter kann der Gutschrift widersprechen; sie verliert damit ihre Wirkung als Rechnung."
-msgstr ""
+msgstr "Facturering via self-billing: de afnemer van de dienst factureert de dienst van de organisator (§ 14 Abs. 2 Satz 2 UStG; Oostenrijk: § 11 Abs. 7 UStG). De organisator kan bezwaar maken tegen de self-billing factuur; deze verliest dan zijn werking als factuur."
 
 #: src/Partners/Settlements.php:715
 msgid "Leistender Unternehmer (Gutschriftsempfänger)"
-msgstr ""
+msgstr "Leverancier (ontvanger van de self-billing factuur)"
 
 #: src/Partners/Settlements.php:716
 msgid "Leistungsempfänger (Gutschriftsaussteller)"
-msgstr ""
+msgstr "Afnemer van de dienst (uitgever van de self-billing factuur)"
 
 #. translators: 1: period, 2: date
 #: src/Partners/Settlements.php:717
 #, php-format
 msgid "Leistung: Durchführung der Veranstaltungen und Einräumung der Eintrittsberechtigungen laut Anlage (Leistungskommission, Verkauf durch die Plattform im eigenen Namen für Rechnung des Veranstalters). Leistungszeitraum: %1$s. Gutschriftsdatum: %2$s."
-msgstr ""
+msgstr "Dienst: uitvoering van de evenementen en verlening van toegangsrechten volgens bijlage (commissieovereenkomst, verkoop door het platform in eigen naam voor rekening van de organisator). Periode van de dienst: %1$s. Datum van de self-billing factuur: %2$s."
 
 #: src/Partners/Settlements.php:723
 msgid "Gutschriftsbetrag"
-msgstr ""
+msgstr "Bedrag self-billing factuur"
 
 #: src/Partners/Settlements.php:727
 #: src/Partners/Settlements.php:753
 msgid "Die Steuer schuldet der Leistungsempfänger (§ 13b UStG / Art. 196 MwStSystRL / § 19 Abs. 1 öUStG)."
-msgstr ""
+msgstr "De belasting is verschuldigd door de afnemer van de dienst (§ 13b UStG / art. 196 btw-richtlijn / § 19 Abs. 1 öUStG)."
 
 #: src/Partners/Settlements.php:741
 msgid "Rechnungsempfänger"
-msgstr ""
+msgstr "Factuurontvanger"
 
 #: src/Partners/Settlements.php:743
 msgid "Rechnung über Vermittlungsleistungen"
-msgstr ""
+msgstr "Factuur voor bemiddelingsdiensten"
 
 #. translators: %s: period
 #: src/Partners/Settlements.php:745
 #, php-format
 msgid "Leistung: Vermittlung und Abwicklung des Ticketverkaufs für die Veranstaltungen laut Anlage. Leistungszeitraum: %s."
-msgstr ""
+msgstr "Dienst: bemiddeling en afhandeling van de ticketverkoop voor de evenementen volgens bijlage. Periode van de dienst: %s."
 
 #. translators: 1: percent, 2: net revenue
 #: src/Partners/Settlements.php:746
 #, php-format
 msgid "Provision %1$s auf Netto-Ticketumsatz %2$s"
-msgstr ""
+msgstr "Commissie %1$s over netto ticketomzet %2$s"
 
 #. translators: %s: fee per ticket
 #: src/Partners/Settlements.php:747
 #, php-format
 msgid "Ticketgebühren (%s je Ticket)"
-msgstr ""
+msgstr "Ticketvergoedingen (%s per ticket)"
 
 #: src/Partners/Settlements.php:749
 msgid "Umsatzsteuer (Reverse Charge)"
-msgstr ""
+msgstr "Btw (btw verlegd)"
 
 #. translators: %s: percent
 #: src/Partners/Settlements.php:749
 #, php-format
 msgid "Umsatzsteuer %s"
-msgstr ""
+msgstr "Btw %s"
 
 #: src/Privacy.php:143
 msgid "Rechnungsdaten (Firma, Name, Anschrift, UID, Referenz)"
-msgstr ""
+msgstr "Factuurgegevens (bedrijf, naam, adres, btw-nummer, referentie)"
 
 #: src/Privacy.php:322
 msgid "Die Rechnungsdaten der Bestellungen (Firma, Name, Anschrift, UID, Referenz) wurden entfernt. Bereits ausgestellte Rechnungen behalten die darauf angegebenen Empfängerangaben (gesetzliche Aufbewahrungspflicht, Art. 17 Abs. 3 lit. b DSGVO)."
-msgstr ""
+msgstr "De factuurgegevens van de bestellingen (bedrijf, naam, adres, btw-nummer, referentie) zijn verwijderd. Reeds uitgegeven facturen behouden de daarop vermelde gegevens van de ontvanger (wettelijke bewaarplicht, art. 17, lid 3, onder b), AVG)."
 
 #: templates/event-card.php:59
 msgid "Rechnung mit Firmen-/Adressdaten"
-msgstr ""
+msgstr "Factuur met bedrijfs-/adresgegevens"
 
 #. translators: %s: amount
 #: templates/event-card.php:65
 #, php-format
 msgid "Ab einem Bestellbetrag über %s brauchen wir für die Rechnung Name und Anschrift."
-msgstr ""
+msgstr "Vanaf een bestelbedrag boven %s hebben we naam en adres nodig voor de factuur."
 
 #: templates/event-card.php:85
 msgid "Mit Länderkennzeichen, z. B. ATU12345678 oder DE123456789."
-msgstr ""
+msgstr "Met landcode, bijv. ATU12345678 of DE123456789."
