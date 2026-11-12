@@ -1,6 +1,6 @@
 # Fiscalization adapters
 
-This document describes the first implementation layer for seller-aware fiscalization in WP Pass Captain. It is infrastructure for AT, DE, and HU; it is not a certified fiscal product and does not include a production provider adapter.
+This document describes the seller-aware fiscalization layer and the built-in selectable provider adapters. It is not a certified fiscal product. Provider credentials, seller account setup, country mappings, deployment topology, sandbox acceptance, and legal approval are still required before production.
 
 ## Model
 
@@ -23,14 +23,32 @@ Implement `PassCaptain\\Fiscalization\\AdapterInterface` (contract version 2) an
 6. Keep API secrets out of the general configuration table. The core supports an admin-managed encrypted credential vault per seller/provider. It uses AES-256-GCM and derives its encryption key from the WordPress `auth` and `secure_auth` salts. Credential values are never redisplayed, returned through REST, or written to the audit log. Salt rotation makes existing entries undecryptable; administrators must enter the credentials again. Back up and protect `wp-config.php` accordingly.
 7. The core also resolves optional external credentials at call time through `wpcap_fiscal_credentials` and adds them as `$configuration['credentials']`. The filter receives `( $credentials, $seller_id, $provider_id )`; return only the requested seller/provider's secrets. Filter-provided values override the same vault keys. Adapters must not log credentials or include them in provider error messages.
 
-No vendor is selected by the core. fiskaly, efsta, a local certified device connector, or a customer-specific adapter can be added independently, subject to that provider's country support and legal approval.
+The core never selects a vendor automatically. Each legal seller can select its own provider and non-secret configuration; credentials are held separately in the encrypted vault.
+
+## Built-in provider adapters
+
+| Adapter ID | Countries declared by this adapter | Required setup |
+| --- | --- | --- |
+| `fiskaly_sign_at` | AT | SIGN AT account credentials, cash register ID, reviewed receipt schema |
+| `fiskaly_sign_de` | DE | SIGN DE credentials, TSS/client IDs, VAT-rate and payment-type mappings |
+| `fiskaly_sign_unified` | FR, IT, PT, SE | Unified API credentials, system/scope IDs, country VAT and payment mappings |
+| `efsta_efr` | AT, BE, CZ, DE, DK, ES, FR, HR, HU, IT, LT, NO, PL, PT, SE, SI, SK | Reachable EFR endpoint, register/terminal IDs, tax-group and payment-group mappings |
+| `fiskaltrust_pos` | AT, BE, DE, ES, FR, GR, IT, PT | Cashbox ID/access token, POS system ID, receipt case, charge-item and payment mappings |
+
+These country lists describe adapter routing declarations only. They do not mean every deployment, sales channel, ticket format, refund path, or legal regime is supported or certified. In particular, this implementation does not claim fiskaltrust coverage for HU, nor fiskaly SIGN ES. The customer chooses among adapters that declare the seller's country; unsupported combinations remain blocked.
+
+The efsta and fiskaltrust adapters call an endpoint configured by the site operator. That endpoint must be reachable from the WordPress host and use HTTPS; plain HTTP is permitted only for localhost/loopback. A local EFR/FT service therefore needs a secure reachable endpoint or a local loopback arrangement supported by the hosting topology. No local daemon is installed by this plugin.
+
+fiskaly has multiple API families, not one interchangeable endpoint: SIGN AT and SIGN DE are separate adapters; FR/IT/PT/SE use the Unified API adapter. For Unified API ambiguous retries, the adapter only repeats creation calls within a conservative 20-hour window; older operations require manual provider-dashboard reconciliation to avoid duplicate fiscal records.
+
+Each adapter currently supports receipt submission and status recovery to the extent declared in its capabilities. Country-specific correction/void and refund credit-note workflows, authority exports, provider certification, customer sandbox acceptance, and hardware commissioning remain separate production work. Run only the exact provider/country/seller/channel/payment combinations that have passed those checks.
 
 ## Admin REST endpoints
 
 All endpoints require an authenticated user with `manage_options`:
 
 - `GET /wp-json/wp-pass-captain/v1/fiscal/sellers`
-- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers` with `legal_name`, `country_code` (`AT`, `DE`, or `HU`), and seller tax/address details
+- `POST /wp-json/wp-pass-captain/v1/fiscal/sellers` with `legal_name`, `country_code` (supported ISO country code), and seller tax/address details
 - `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/profiles` with the seller/channel scope, optional `location_id` and `register_id`, environment, status, reviewed rule-set/version, legal reference, and additional required capability keys
 - `PUT /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/provider` with `provider_id`, `enabled`, and non-secret `configuration`
 - `POST /wp-json/wp-pass-captain/v1/fiscal/sellers/{seller_id}/health-check` runs a provider health check without creating a receipt
@@ -48,11 +66,11 @@ The POS accepts an optional `payment_method` (`cash`, `card`, `voucher`, or `oth
 
 ## Remaining implementation before production
 
-- Build country-specific adapters selected by each customer. The versioned registry has no built-in provider. The admin can store credentials in the encrypted per-seller/provider vault or a trusted site integration can resolve them through `wpcap_fiscal_credentials`. The admin can run a non-mutating adapter health check and reconcile ambiguous submissions by idempotency key.
+- Complete provider sandbox acceptance and country/profile qualification for each customer-selected built-in adapter. The admin can store credentials in the encrypted per-seller/provider vault or a trusted site integration can resolve them through `wpcap_fiscal_credentials`.
 - Improve the initial admin screen with seller editing/deactivation, clear credential-availability status, richer order-level fiscal diagnostics, and credential vault backup/rotation procedures.
 - Complete provider-aware QR/signature output for all receipt paths and country-required archive/export flows. The first renderer shows normalized receipt fields and a separate fiscal QR on POS receipts and WooCommerce order details; a bounded normalized CSV export is available for operations, but it is not an AT, DE, or HU authority format. QR is omitted from the existing POS storno receipt until a fiscal correction exists.
 - Implement and validate seller-specific fiscal adjustments for partial/full refunds, credit notes, cancellation/void protocols, operator/day-end exports, and HU NAV reporting. WooCommerce/native refund accounting and ticket revocation are implemented, but they do not yet submit a fiscal credit note. Do not enable production profiles that require correction support until the selected adapter reports and passes the required correction capability.
 - Define and validate accounting allocations for mixed ticket/non-ticket WooCommerce carts, discounts, fees, and centrally collected organizer proceeds.
-- Add a concrete provider sandbox adapter and run the repository's PHP, integration, concurrency, security, and country acceptance checks before deploying or enabling a live adapter.
+- Run the repository's PHP, integration, concurrency, security, vendor sandbox, and country acceptance checks before deploying or enabling a live adapter. The implementation does not make provider or tax-authority calls until the seller enables a reviewed profile.
 
 The national legal requirements and provider certification must be validated for each exact seller, sales channel, payment method, and deployment. This adapter layer does not make those determinations.

@@ -23,8 +23,12 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 	}
 
 	public function query_status( array $document, array $seller, array $configuration ) {
-		// Both record creations use stable Idempotency-Key UUIDs; repeating this flow replays
-		// the prior intention/transaction response instead of creating another fiscal record.
+		// The Unified API's idempotency retention is time-limited. Never replay creation
+		// requests once the original snapshot is too old to guarantee deduplication.
+		$created = strtotime( (string) ( $document['created_at'] ?? '' ) );
+		if ( ! $created || $created < time() - ( 20 * HOUR_IN_SECONDS ) ) {
+			return new \\WP_Error( 'fiskaly_unified_reconciliation_required', __( 'Der fiskaly Unified-Vorgang ist älter als das sichere Wiederholungsfenster. Bitte im fiskaly Dashboard abgleichen, bevor erneut signiert wird.', 'wp-pass-captain' ) );
+		}
 		return $this->submit( $document, $seller, $configuration );
 	}
 
