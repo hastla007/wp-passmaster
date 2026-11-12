@@ -123,4 +123,10 @@ FiscalizationModule::record_non_ticket_refund( 99001, 88001, 'EUR', array(
 $refund_event = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_events WHERE order_id=%d ORDER BY event_id DESC LIMIT 1", 99001 ), ARRAY_A );
 $refund_event_data = $refund_event ? json_decode( $refund_event['metadata'], true ) : array();
 check( 'refund of an assigned non-ticket line follows the original seller snapshot and amount', $refund_event && 'refund_adjustment' === $refund_event['event_type'] && 88001 === (int) $refund_event_data['refund_id'] && 1200 === (int) $refund_event_data['allocated_items'][0]['amount_minor'] && 200 === (int) $refund_event_data['allocated_items'][0]['tax_minor'] && empty( $refund_event_data['seller_allocation_required'] ) );
+$manual_resolution = FiscalizationModule::record_manual_resolution( (int) $refund_event['event_id'], 'credit_note', 'AT-2026-0001', 'Manuell im Anbieterportal erstellt' );
+$resolution_event = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_fiscal_events WHERE document_id=%d AND event_type='manual_correction_recorded' ORDER BY event_id DESC LIMIT 1", (int) $refund_event['document_id'] ), ARRAY_A );
+$resolution_data = $resolution_event ? json_decode( $resolution_event['metadata'], true ) : array();
+check( 'manual provider correction is appended with reference and source event', ! is_wp_error( $manual_resolution ) && (int) $resolution_data['resolves_event_id'] === (int) $refund_event['event_id'] && 'AT-2026-0001' === $resolution_data['provider_reference'] && 'recorded_externally' === $resolution_event['event_status'] );
+check( 'the same fiscal event cannot be marked externally resolved twice', is_wp_error( FiscalizationModule::record_manual_resolution( (int) $refund_event['event_id'], 'credit_note', 'AT-2026-0002' ) ) );
+
 
