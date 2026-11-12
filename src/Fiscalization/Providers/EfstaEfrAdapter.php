@@ -61,8 +61,10 @@ final class EfstaEfrAdapter implements AdapterInterface {
 	}
 
 	/** Submit one full reversal through EFR's documented /register/void endpoint. */
-	public function submit_void( array $document, array $seller, array $configuration, $event_id ) {
-		$prepared = $this->prepare_void( $document, $seller, $configuration, $event_id );
+	public function submit_void( array $document, array $seller, array $configuration, $event_id, array $prepared = array() ) {
+		if ( ! isset( $prepared['url'], $prepared['payload'] ) ) {
+			$prepared = $this->prepare_void( $document, $seller, $configuration, $event_id );
+		}
 		if ( is_wp_error( $prepared ) ) { return $prepared; }
 		$result = ProviderHttp::request( $prepared['url'], 'POST', $this->headers( $configuration ), $prepared['payload'], 12 );
 		if ( is_wp_error( $result ) ) { return $result; }
