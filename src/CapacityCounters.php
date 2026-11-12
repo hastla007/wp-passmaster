@@ -89,7 +89,23 @@ final class CapacityCounters {
 	/** '' (columns missing / not initialised), 'building', 'verifying' or 'ready'. */
 	public static function state() {
 		$option = get_option( self::OPTION );
-		return is_array( $option ) ? (string) ( $option['state'] ?? '' ) : '';
+		if ( is_array( $option ) ) {
+			return (string) ( $option['state'] ?? '' );
+		}
+		// No state stored (e.g. an install interrupted after dbDelta) but the columns exist: keep
+		// the counters maintained, decide with the SUM queries; reconcile repairs and promotes.
+		return self::columns_exist() ? 'verifying' : '';
+	}
+
+	/** Whether the counter columns exist (checked once per process and table prefix). */
+	private static function columns_exist() {
+		global $wpdb;
+		static $known = array();
+		$key = (string) $wpdb->prefix;
+		if ( ! isset( $known[ $key ] ) ) {
+			$known[ $key ] = (bool) $wpdb->get_var( "SHOW COLUMNS FROM {$wpdb->prefix}wpcap_ticket_types LIKE 'sold_qty'" );
+		}
+		return $known[ $key ];
 	}
 
 	/** Whether writers keep the counters up to date (columns exist and were initialised). */

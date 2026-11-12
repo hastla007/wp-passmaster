@@ -312,11 +312,22 @@ foreach ( $procs as $proc ) { $ok += 'OK' === trim( stream_get_contents( $proc )
 $held = (int) $wpdb->get_var( "SELECT SUM(quantity) FROM {$p}wpcap_reservations WHERE ticket_type_id=$type AND status='active'" );
 check( "exactly 5 of 20 parallel buyers get a hold (got $ok, held $held)", 5 === $ok && 5 === $held );
 
-require __DIR__ . '/finance.php';
-require __DIR__ . '/payments.php';
-require __DIR__ . '/admin.php';
-require __DIR__ . '/mobile.php';
-require __DIR__ . '/affiliate.php';
-foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) { require $module_test; }
+/**
+ * Capacity counters (sold_qty/held_qty of ticket types and occurrences) must equal the sums of
+ * the order lines and holds after every test file (see PassCaptain\CapacityCounters).
+ */
+function assert_capacity_counters( $after ) {
+	$drift = PassCaptain\CapacityCounters::drift();
+	check( "capacity counters equal the source sums after $after" . ( $drift ? ' ' . json_encode( array_slice( $drift, 0, 4 ) ) : '' ), ! $drift );
+}
+assert_capacity_counters( 'run.php core' );
+foreach ( array( 'finance', 'payments', 'admin', 'mobile', 'affiliate' ) as $core_test ) {
+	require __DIR__ . "/$core_test.php";
+	assert_capacity_counters( "$core_test.php" );
+}
+foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) {
+	require $module_test;
+	assert_capacity_counters( 'modules/' . basename( $module_test ) );
+}
 echo "\n$passes passed, $failures failed\n";
 exit( $failures ? 1 : 0 );
