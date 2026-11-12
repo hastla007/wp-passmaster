@@ -499,7 +499,6 @@ final class Fiscalization {
 			'wpcap_fiscal_retry_order' => array( __CLASS__, 'handle_admin_retry_order' ),
 			'wpcap_fiscal_health_check' => array( __CLASS__, 'handle_admin_health_check' ),
 			'wpcap_fiscal_reconcile' => array( __CLASS__, 'handle_admin_reconcile' ),
-			'wpcap_fiscal_reconcile' => array( __CLASS__, 'handle_admin_reconcile' ),
 		);
 	}
 
@@ -564,7 +563,7 @@ final class Fiscalization {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
 		$seller_id = absint( $_POST['seller_id'] ?? 0 );
 		check_admin_referer( 'wpcap_fiscal_health_check_' . $seller_id );
-		$request = new \\WP_REST_Request( 'POST' );
+		$request = new \WP_REST_Request( 'POST' );
 		$request->set_param( 'seller_id', $seller_id );
 		$result = self::rest_health_check( $request );
 		self::admin_redirect( is_wp_error( $result ) ? 'health_error' : 'health_ok' );
@@ -574,7 +573,7 @@ final class Fiscalization {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) ); }
 		$document_id = absint( $_POST['document_id'] ?? 0 );
 		check_admin_referer( 'wpcap_fiscal_reconcile_' . $document_id );
-		$request = new \\WP_REST_Request( 'POST' );
+		$request = new \WP_REST_Request( 'POST' );
 		$request->set_param( 'document_id', $document_id );
 		$result = self::rest_reconcile_document( $request );
 		self::admin_redirect( is_wp_error( $result ) ? 'reconcile_error' : 'reconciled' );
@@ -674,7 +673,7 @@ final class Fiscalization {
 		$pending = $wpdb->get_results( "SELECT d.document_id,d.order_id,d.status,d.last_error,d.attempts,d.updated_at,s.legal_name FROM {$p}wpcap_fiscal_documents d INNER JOIN {$p}wpcap_legal_sellers s ON s.seller_id=d.seller_id WHERE d.status <> 'submitted' ORDER BY d.updated_at DESC LIMIT 100" );
 		if ( ! $pending ) { echo '<p>' . esc_html__( 'Keine offenen Fiskalvorgänge.', 'wp-pass-captain' ) . '</p>'; }
 		else {
-			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Bestellung', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufer', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Versuche / letzter Fehler', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Aktion', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Dokument', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Bestellung', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufer', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Versuche / letzter Fehler', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Aktion', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $pending as $doc ) {
 				echo '<tr><td>' . (int) $doc->document_id . '</td><td>' . (int) $doc->order_id . '</td><td>' . esc_html( $doc->legal_name ) . '</td><td>' . esc_html( $doc->status ) . '</td><td>' . (int) $doc->attempts . ' / ' . esc_html( $doc->last_error ) . '</td><td>';
 				echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="wpcap_fiscal_reconcile"><input type="hidden" name="document_id" value="' . (int) $doc->document_id . '">';
