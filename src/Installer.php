@@ -673,11 +673,45 @@ final class Installer {
 
 	/** Runs the schema upgrade when needed; returns true if an upgrade ran. */
 	public static function maybe_upgrade() {
+		// Role names are translated: rename only once translations may load (init), never earlier.
+		if ( did_action( 'init' ) ) {
+			self::rename_legacy_roles();
+		} elseif ( function_exists( 'add_action' ) ) {
+			add_action( 'init', array( __CLASS__, 'rename_legacy_roles' ), 1 );
+		}
 		if ( self::version() !== get_option( 'wpcap_db_version' ) ) {
 			self::install();
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Former default role names that were renamed (slug => old names). The organizer role was called
+	 * "Pass Captain Partner" until it was renamed to avoid confusion with affiliate partners.
+	 */
+	const LEGACY_ROLE_NAMES = array( 'wpcap_partner' => array( 'Pass Captain Partner' ) );
+
+	/**
+	 * Renames roles that still carry a former default name. A name the operator changed is kept.
+	 * Cheap: reads the already loaded roles and writes only when a rename is due.
+	 */
+	public static function rename_legacy_roles() {
+		if ( ! function_exists( 'wp_roles' ) ) { return; }
+		$wp_roles = wp_roles();
+		$targets  = array( 'wpcap_partner' => __( 'Pass Captain Veranstalter', 'wp-pass-captain' ) );
+		$changed  = false;
+		foreach ( self::LEGACY_ROLE_NAMES as $slug => $old_names ) {
+			$current = $wp_roles->roles[ $slug ]['name'] ?? null;
+			if ( null !== $current && in_array( $current, $old_names, true ) && isset( $targets[ $slug ] ) ) {
+				$wp_roles->roles[ $slug ]['name'] = $targets[ $slug ];
+				$wp_roles->role_names[ $slug ]    = $targets[ $slug ];
+				$changed = true;
+			}
+		}
+		if ( $changed && $wp_roles->use_db ) {
+			update_option( $wp_roles->role_key, $wp_roles->roles );
+		}
 	}
 
 	/**
