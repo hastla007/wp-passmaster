@@ -8456,621 +8456,621 @@ msgstr "Vordering op organisator"
 #. Plugin URI of the plugin
 #: wp-pass-captain.php
 msgid "https://github.com/hastla007/wp-passmaster"
-msgstr ""
+msgstr "https://github.com/hastla007/wp-passmaster"
 
 #. Author of the plugin
 #: wp-pass-captain.php
 msgid "hastla007"
-msgstr ""
+msgstr "hastla007"
 
 #. Author URI of the plugin
 #: wp-pass-captain.php
 msgid "https://github.com/hastla007"
-msgstr ""
+msgstr "https://github.com/hastla007"
 
 #. translators: %d: number of tickets
 #: src/Admin/EventsPage.php:232
 #, php-format
 msgid "%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren)."
-msgstr ""
+msgstr "%d tickets zijn ingetrokken en de houders zijn op de hoogte gebracht. Betaalde tickets blijven terugbetaalbaar: betaal ze terug via Bestelling → Terugbetalen (of schakel de automatische terugbetaling in bij de instellingen)."
 
 #. translators: 1: automatic refunds, 2: failed refunds
 #: src/Admin/EventsPage.php:520
 #, php-format
 msgid "%1$d Bestellungen wurden automatisch erstattet, %2$d Erstattungen sind offen (siehe Erstattungen). WooCommerce-Bestellungen bitte in WooCommerce erstatten."
-msgstr ""
+msgstr "%1$d bestellingen zijn automatisch terugbetaald, %2$d terugbetalingen staan nog open (zie Terugbetalingen). Betaal WooCommerce-bestellingen terug in WooCommerce."
 
 #: src/Admin/EventsPage.php:521
 msgid "Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten."
-msgstr ""
+msgstr "Betaalde tickets blijven terugbetaalbaar: betaal ze terug via Bestelling → Terugbetalen."
 
 #. translators: %s: amount
 #: src/Admin/OrdersPage.php:438
 #, php-format
 msgid "Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig."
-msgstr ""
+msgstr "Als het totaal van alle terugbetalingen van deze bestelling (inclusief lopende en wachtende) hoger is dan %s, is een tweede goedkeuring nodig."
 
 #: src/Admin/SettingsPage.php:42
 msgid "Einlass-Tageswechsel (Uhrzeit, volle Stunde)"
-msgstr ""
+msgstr "Dagwisseling toegang (tijdstip, hele uren)"
 
 #: src/Admin/SettingsPage.php:42
 msgid "0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits."
-msgstr ""
+msgstr "0 = middernacht. Voorbeeld 6: scans tot 05:59 uur tellen nog mee voor de vorige dag (festivals, nachtevenementen). Geldt voor dagtickets en daglimieten."
 
 #: src/Admin/SettingsPage.php:50
 msgid "Überweisung: Empfänger (Kontoinhaber)"
-msgstr ""
+msgstr "Overschrijving: begunstigde (rekeninghouder)"
 
 #: src/Admin/SettingsPage.php:50
 msgid "Leer = Name / Firma des Rechnungsstellers."
-msgstr ""
+msgstr "Leeg = naam / bedrijf van de factuuruitgever."
 
 #: src/Admin/SettingsPage.php:51
 msgid "Überweisung: IBAN"
-msgstr ""
+msgstr "Overschrijving: IBAN"
 
 #: src/Admin/SettingsPage.php:51
 msgid "Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt."
-msgstr ""
+msgstr "Wordt na de bestelling en in de bestelmail getoond, samen met het bedrag, de betalingsreferentie en de betaaltermijn."
 
 #: src/Admin/SettingsPage.php:52
 msgid "Überweisung: BIC"
-msgstr ""
+msgstr "Overschrijving: BIC"
 
 #: src/Admin/SettingsPage.php:103
 msgid "Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)"
-msgstr ""
+msgstr "Voorvoegsel factuurcorrectie (annulerings-/correctiedocument)"
 
 #: src/Admin/TicketsPage.php:128
 msgid "Ticket neu ausgestellt. Die E-Mail an den Inhaber konnte nicht zugestellt werden; bitte erneut versuchen."
-msgstr ""
+msgstr "Ticket opnieuw uitgegeven. De e-mail aan de houder kon niet worden bezorgd; probeer het opnieuw."
 
 #: src/Admin/TicketsPage.php:129
 msgid "Ticket neu ausgestellt und an den Inhaber gesendet. Der bisherige Code ist ungültig."
-msgstr ""
+msgstr "Ticket opnieuw uitgegeven en naar de houder gestuurd. De vorige code is niet meer geldig."
 
 #: src/Admin/TicketsPage.php:209
 msgid "Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink."
-msgstr ""
+msgstr "Ticket opnieuw uitgeven? De vorige code wordt ongeldig en de houder ontvangt een nieuwe ticketlink."
 
 #: src/Admin/TicketsPage.php:209
 msgid "Neu ausstellen"
-msgstr ""
+msgstr "Opnieuw uitgeven"
 
 #: src/BoxOffice/Page.php:193
 msgid "Wichtiger Hinweis:"
-msgstr ""
+msgstr "Belangrijke opmerking:"
 
 #: src/BoxOffice/Page.php:194
 msgid "Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig."
-msgstr ""
+msgstr "De kassa is geen kasregistratiesysteem in de zin van de RKSV (AT) of de KassenSichV/TSE (DE). Voor contante en kaartbetalingen ter plaatse is een gecertificeerde handtekeningeenheid vereist."
 
 #: src/BoxOffice/Page.php:195
 msgid "Mehr dazu in der Dokumentation"
-msgstr ""
+msgstr "Meer informatie in de documentatie"
 
 #: src/BoxOffice/Page.php:195
 msgid "(öffnet in neuem Tab)"
-msgstr ""
+msgstr "(opent in een nieuw tabblad)"
 
 #: src/BoxOffice/Page.php:196
 msgid "Hinweis für mich ausblenden"
-msgstr ""
+msgstr "Melding voor mij verbergen"
 
 #: src/Integrations/Vouchers/TicketService.php:58
 msgid "Ticketart, Anzahl, Schlüssel und eine gültige E-Mail-Adresse sind erforderlich."
-msgstr ""
+msgstr "Tickettype, aantal, sleutel en een geldig e-mailadres zijn verplicht."
 
 #: src/Integrations/Vouchers/TicketService.php:67
 msgid "Dieser Termin kann für den Gutschein nicht gewählt werden."
-msgstr ""
+msgstr "Deze datum kan niet worden gekozen voor de cadeaubon."
 
 #: src/Integrations/Vouchers/TicketService.php:90
 msgid "Die Tickets konnten nicht ausgestellt werden."
-msgstr ""
+msgstr "De tickets konden niet worden uitgegeven."
 
 #. translators: 1: date, 2: ticket type
 #: src/Integrations/Vouchers/TicketService.php:140
 #, php-format
 msgid "%1$s – %2$s"
-msgstr ""
+msgstr "%1$s – %2$s"
 
 #. translators: 1: event, 2: date, 3: ticket type
 #: src/Integrations/Vouchers/TicketService.php:143
 #, php-format
 msgid "%1$s – %2$s – %3$s"
-msgstr ""
+msgstr "%1$s – %2$s – %3$s"
 
 #: src/Integrations/Vouchers/TicketService.php:207
 msgid "Die Tickets dieser Einlösung wurden bereits widerrufen."
-msgstr ""
+msgstr "De tickets van deze verzilvering zijn al ingetrokken."
 
 #: src/Invoices.php:210
 #: src/Printing/InvoicePdf.php:117
 msgid "Aufstellung nach Steuersätzen"
-msgstr ""
+msgstr "Specificatie per btw-tarief"
 
 #: src/Invoices.php:218
 #: src/Printing/InvoicePdf.php:146
 msgid "Rechnungskorrektur"
-msgstr ""
+msgstr "Factuurcorrectie"
 
 #. translators: 1: invoice number, 2: date
 #: src/Invoices.php:218
 #: src/Printing/InvoicePdf.php:155
 msgid "Korrekturbetrag"
-msgstr ""
+msgstr "Correctiebedrag"
 
 #. translators: %s: formatted amount
 #: src/Mail/Blocks.php:61
 #: src/OrderPortal.php:75
 msgid "Zahlungsinformationen"
-msgstr ""
+msgstr "Betaalgegevens"
 
 #: src/Mail/Blocks.php:76
 msgid "Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung."
-msgstr ""
+msgstr "Als de betaling tegen die tijd niet is ontvangen, vervalt de reservering."
 
 #: src/Mail/Types.php:147
 msgid "Kurze Bestellnummer (z. B. 3F2A-9C1E, auch Verwendungszweck)"
-msgstr ""
+msgstr "Kort bestelnummer (bijv. 3F2A-9C1E, ook betalingsreferentie)"
 
 #: src/Mail/Types.php:149
 msgid "Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer"
-msgstr ""
+msgstr "Betaalgegevens bij een openstaande overschrijving / handmatige betaling (bedrag, IBAN, BIC, begunstigde, betalingsreferentie, termijn); anders leeg"
 
 #: src/OrderPortal.php:52
 msgid "Abbrechen"
-msgstr ""
+msgstr "Annuleren"
 
 #. translators: %s: recipient e-mail address
 #: src/OrderPortal.php:56
 #, php-format
 msgid "Ticket wirklich an %s übertragen? Das ist endgültig und nur einmal möglich: Der bisherige Ticketcode wird sofort ungültig und die neue Person erhält einen neuen Code per E-Mail."
-msgstr ""
+msgstr "Het ticket echt overdragen aan %s? Dit is definitief en kan maar één keer: de vorige ticketcode wordt direct ongeldig en de nieuwe persoon ontvangt een nieuwe code per e-mail."
 
 #: src/OrderPortal.php:57
 msgid "Ja, endgültig übertragen"
-msgstr ""
+msgstr "Ja, definitief overdragen"
 
 #: src/OrderPortal.php:61
 msgid "Tickets jetzt erneut senden? Dabei werden neue Ticketcodes erstellt; die bisher gesendeten Codes und Ausdrucke werden ungültig."
-msgstr ""
+msgstr "Tickets nu opnieuw verzenden? Er worden nieuwe ticketcodes aangemaakt; de tot nu toe verzonden codes en afdrukken worden ongeldig."
 
 #: src/OrderPortal.php:62
 msgid "Ja, erneut senden"
-msgstr ""
+msgstr "Ja, opnieuw verzenden"
 
 #: src/OrderPortal.php:63
 msgid "Erneuter Versand fehlgeschlagen."
-msgstr ""
+msgstr "Opnieuw verzenden mislukt."
 
 #. translators: %s: masked e-mail address
 #: src/OrderPortal.php:65
 #, php-format
 msgid "Die Tickets wurden erneut an %s gesendet. Bitte verwende nur noch die neuen Codes."
-msgstr ""
+msgstr "De tickets zijn opnieuw verzonden naar %s. Gebruik vanaf nu alleen de nieuwe codes."
 
 #: src/OrderPortal.php:66
 msgid "Wird gesendet …"
-msgstr ""
+msgstr "Bezig met verzenden …"
 
 #. translators: %s: order date
 #: src/OrderPortal.php:72
 #, php-format
 msgid "Bestellt am %s"
-msgstr ""
+msgstr "Besteld op %s"
 
 #. translators: %s: formatted amount
 #: src/OrderPortal.php:74
 #, php-format
 msgid "Gesamtbetrag: %s"
-msgstr ""
+msgstr "Totaalbedrag: %s"
 
 #. translators: %s: masked e-mail address
 #: src/OrderPortal.php:77
 #, php-format
 msgid "Tickets erneut an %s senden"
-msgstr ""
+msgstr "Tickets opnieuw verzenden naar %s"
 
 #. translators: %s: masked e-mail address
 #: src/OrderPortal.php:77
 msgid "Dabei werden neue Ticketcodes erstellt; bisher gesendete Codes werden ungültig. Tickets mit eigener Teilnehmer-E-Mail gehen an diese Adresse. Höchstens dreimal pro Stunde."
-msgstr ""
+msgstr "Hierbij worden nieuwe ticketcodes aangemaakt; eerder verzonden codes worden ongeldig. Tickets met een eigen e-mailadres van de deelnemer gaan naar dat adres. Maximaal drie keer per uur."
 
 #. translators: %s: full order id
 #: src/OrderPortal.php:83
 #, php-format
 msgid "Vollständige Bestell-ID: %s"
-msgstr ""
+msgstr "Volledig bestel-ID: %s"
 
 #: src/Orders.php:277
 msgid "Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich."
-msgstr ""
+msgstr "Zoveel tickets per bestelling zijn voor dit tickettype niet mogelijk."
 
 #: src/Orders.php:862
 msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
-msgstr ""
+msgstr "De houder van dit ticket is al gewijzigd; een nieuwe overdracht is niet mogelijk."
 
 #: src/Orders.php:1252
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
-msgstr ""
+msgstr "Alleen geldige, nog niet ingecheckte tickets van betaalde bestellingen kunnen opnieuw worden uitgegeven."
 
 #: src/Payments/BankTransfer.php:65
 #: src/Privacy/PolicyText.php:89
 #: src/PublicEvents.php:64
 msgid "Empfänger"
-msgstr ""
+msgstr "Begunstigde"
 
 #: src/Payments/BankTransfer.php:66
 #: src/PublicEvents.php:65
 msgid "IBAN"
-msgstr ""
+msgstr "IBAN"
 
 #: src/Payments/BankTransfer.php:67
 #: src/PublicEvents.php:66
 msgid "BIC"
-msgstr ""
+msgstr "BIC"
 
 #: src/Payments/BankTransfer.php:68
 #: src/PublicEvents.php:67
 msgid "Verwendungszweck"
-msgstr ""
+msgstr "Betalingsreferentie"
 
 #: src/Payments/BankTransfer.php:69
 #: src/PublicEvents.php:68
 msgid "Zahlbar bis"
-msgstr ""
+msgstr "Betalen vóór"
 
 #. translators: %d: number of discarded scans
 #: src/Privacy.php:97
 #, php-format
 msgid "%%d Offline-Scan(s) älter als %d Stunden wurden ohne Upload verworfen."
-msgstr ""
+msgstr "%%d offline scan(s) ouder dan %d uur zijn zonder upload verwijderd."
 
 #: src/Privacy.php:139
 msgid "Noch nicht zugeordnete Teilnehmerangaben"
-msgstr ""
+msgstr "Nog niet toegewezen deelnemersgegevens"
 
 #: src/Privacy.php:143
 msgid "Rechnung (Nummer, Datum UTC, Status)"
-msgstr ""
+msgstr "Factuur (nummer, datum UTC, status)"
 
 #: src/Privacy.php:144
 msgid "Käuferangaben auf der Rechnung"
-msgstr ""
+msgstr "Kopergegevens op de factuur"
 
 #: src/Privacy.php:179
 msgid "WP Pass Captain Terminbuchungen"
-msgstr ""
+msgstr "WP Pass Captain afspraakboekingen"
 
 #: src/Privacy.php:180
 msgid "Ressource"
-msgstr ""
+msgstr "Resource"
 
 #: src/Privacy.php:181
 msgid "Termin von/bis (UTC)"
-msgstr ""
+msgstr "Afspraak van/tot (UTC)"
 
 #: src/Privacy.php:182
 msgid "Anzahl und Status"
-msgstr ""
+msgstr "Aantal en status"
 
 #: src/Privacy.php:196
 msgid "Ticketreferenz"
-msgstr ""
+msgstr "Ticketreferentie"
 
 #: src/Privacy.php:197
 msgid "Event und Beginn (UTC)"
-msgstr ""
+msgstr "Evenement en start (UTC)"
 
 #: src/Privacy.php:199
 msgid "Rolle"
-msgstr ""
+msgstr "Rol"
 
 #: src/Privacy.php:202
 msgid "Name des Teilnehmers"
-msgstr ""
+msgstr "Naam van de deelnemer"
 
 #: src/Privacy.php:203
 msgid "E-Mail des Teilnehmers"
-msgstr ""
+msgstr "E-mailadres van de deelnemer"
 
 #: src/Privacy.php:205
 msgid "Teilnehmerangabe"
-msgstr ""
+msgstr "Deelnemersgegevens"
 
 #: src/Privacy.php:221
 msgid "Einlassprotokoll (Zeit UTC, Bereich)"
-msgstr ""
+msgstr "Toegangslogboek (tijd UTC, zone)"
 
 #: src/Privacy.php:229
 msgid "Wallet-Pässe"
-msgstr ""
+msgstr "Wallet-passen"
 
 #: src/Privacy.php:231
 msgid "WP Pass Captain Tickets"
-msgstr ""
+msgstr "WP Pass Captain-tickets"
 
 #. translators: %d: number of tickets
 #: src/Privacy.php:259
 #, php-format
 msgid "Hinweis: %d Ticket(s) anderer Käufer für bevorstehende Termine bleiben gültig; nur Name, E-Mail und Angaben der Person als Teilnehmer wurden entfernt."
-msgstr ""
+msgstr "Let op: %d ticket(s) van andere kopers voor komende data blijven geldig; alleen de naam, het e-mailadres en de gegevens van deze persoon als deelnemer zijn verwijderd."
 
 #: src/Privacy.php:304
 msgid "Bestellbeträge, Positionen, Steuern, Zahlungs- und Erstattungsreferenzen bleiben wegen gesetzlicher Aufbewahrungspflichten (Art. 17 Abs. 3 lit. b DSGVO) erhalten. Entfernt bzw. anonymisiert wurden: Käufer-E-Mail in Bestellungen, Ticketzugänge, Teilnehmernamen, -E-Mails und -angaben, Offline-Scannerdaten, Wallet-Registrierungen, Terminbuchungen, Wartelisteneinträge, Passzugänge und geplante Nachrichten."
-msgstr ""
+msgstr "Bestelbedragen, regels, belastingen en betalings- en terugbetalingsreferenties blijven bewaard vanwege wettelijke bewaarplichten (art. 17 lid 3 sub b AVG). Verwijderd of geanonimiseerd zijn: e-mailadres van de koper in bestellingen, tickettoegang, namen, e-mailadressen en gegevens van deelnemers, offline scannergegevens, wallet-registraties, afspraakboekingen, wachtlijstinschrijvingen, pastoegang en geplande berichten."
 
 #: src/Privacy.php:306
 msgid "Teilnehmerdaten, Wartelisteneinträge, Passzugänge, Terminbuchungen bzw. geplante Nachrichten dieser Person wurden entfernt oder anonymisiert."
-msgstr ""
+msgstr "Deelnemersgegevens, wachtlijstinschrijvingen, pastoegang, afspraakboekingen en geplande berichten van deze persoon zijn verwijderd of geanonimiseerd."
 
 #. translators: %d: number of invoices
 #: src/Privacy.php:310
 #, php-format
 msgid "%d Rechnung(en) bleiben unverändert gespeichert, einschließlich der darauf angegebenen Käuferangaben (E-Mail-Adresse): Rechnungen unterliegen der gesetzlichen Aufbewahrungspflicht (7 Jahre nach § 132 BAO, 10 Jahre nach § 147 AO/§ 257 HGB; Art. 17 Abs. 3 lit. b DSGVO). Die Käuferangaben auf Rechnungen wurden nicht entfernt."
-msgstr ""
+msgstr "%d factuur/facturen blijven ongewijzigd bewaard, inclusief de daarop vermelde kopergegevens (e-mailadres): facturen vallen onder de wettelijke bewaarplicht (7 jaar volgens § 132 BAO, 10 jaar volgens § 147 AO/§ 257 HGB; art. 17 lid 3 sub b AVG). De kopergegevens op facturen zijn niet verwijderd."
 
 #. translators: %d: number of tickets
 #: src/Privacy.php:314
 #, php-format
 msgid "Achtung: %d Ticket(s) für bevorstehende Termine wurden durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst."
-msgstr ""
+msgstr "Let op: %d ticket(s) voor komende data zijn door de verwijdering ongeldig geworden. Regel met de persoon een terugbetaling of annulering; dit wordt niet automatisch gestart."
 
 #. translators: %d: days
 #: src/Privacy/PolicyText.php:63
 #, php-format
 msgid "%d Tage nach dem Ende der Veranstaltung"
-msgstr ""
+msgstr "%d dagen na afloop van het evenement"
 
 #. translators: %d: days
 #: src/Privacy/PolicyText.php:65
 #, php-format
 msgid "nach der je Feld angegebenen Frist (Name und E-Mail der Teilnehmenden: %d Tage) nach dem Ende der Veranstaltung"
-msgstr ""
+msgstr "na de per veld opgegeven termijn (naam en e-mailadres van deelnemers: %d dagen) na afloop van het evenement"
 
 #: src/Privacy/PolicyText.php:67
 msgid "Vorschlag von WP Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind."
-msgstr ""
+msgstr "Voorstel van WP Pass Captain. Controleer het en pas het aan op je bedrijf, je contracten en je werkelijke werkwijze; de tekst vervangt geen juridisch advies. Secties over dienstverleners verschijnen alleen als die in de instellingen zijn ingeschakeld."
 
 #: src/Privacy/PolicyText.php:69
 msgid "Ticketkauf, Tickets und Einlass"
-msgstr ""
+msgstr "Ticketkoop, tickets en toegang"
 
 #: src/Privacy/PolicyText.php:70
 msgid "Für Bestellungen verarbeiten wir Ihre E-Mail-Adresse, die gekauften Tickets, Preise, Zahlungsstatus und die Version der akzeptierten Bedingungen, um den Vertrag zu erfüllen, Tickets und Bestellzugänge per E-Mail zuzustellen und Sie über Änderungen oder Absagen zu informieren (Art. 6 Abs. 1 lit. b DSGVO)."
-msgstr ""
+msgstr "Voor bestellingen verwerken wij je e-mailadres, de gekochte tickets, prijzen, betaalstatus en de versie van de geaccepteerde voorwaarden om de overeenkomst uit te voeren, tickets en bestelling-toegang per e-mail te bezorgen en je te informeren over wijzigingen of annuleringen (art. 6 lid 1 sub b AVG)."
 
 #: src/Privacy/PolicyText.php:71
 msgid "Angaben zu Teilnehmenden (Name, E-Mail, weitere vom Veranstalter abgefragte Felder mit dem jeweils angegebenen Zweck) verarbeiten wir zur Durchführung der Veranstaltung (Art. 6 Abs. 1 lit. b DSGVO) bzw. aufgrund unseres berechtigten Interesses an einer geordneten Einlasskontrolle (Art. 6 Abs. 1 lit. f DSGVO). Beim Einlass protokollieren wir Zeitpunkt, Ergebnis und gegebenenfalls den Einlassbereich des Tickets, um Mehrfachnutzung zu verhindern (Art. 6 Abs. 1 lit. f DSGVO)."
-msgstr ""
+msgstr "Gegevens van deelnemers (naam, e-mailadres, overige door de organisator opgevraagde velden met het telkens vermelde doel) verwerken wij voor de uitvoering van het evenement (art. 6 lid 1 sub b AVG) of op basis van ons gerechtvaardigd belang bij een ordelijke toegangscontrole (art. 6 lid 1 sub f AVG). Bij de toegang registreren wij tijdstip, resultaat en eventueel de toegangszone van het ticket om meervoudig gebruik te voorkomen (art. 6 lid 1 sub f AVG)."
 
 #: src/Privacy/PolicyText.php:72
 msgid "Wartelisteneinträge, Mitgliedspässe und Terminbuchungen verarbeiten wir, um Ihnen den gewünschten Platz anzubieten bzw. die Leistung zu erbringen (Art. 6 Abs. 1 lit. b DSGVO). Zum Schutz vor Missbrauch (z. B. automatisierte Bestellversuche) verarbeiten wir die IP-Adresse nur als mit einem geheimen Schlüssel gebildeten Hashwert in kurzlebigen Zählern (Art. 6 Abs. 1 lit. f DSGVO)."
-msgstr ""
+msgstr "Wachtlijstinschrijvingen, lidmaatschapspassen en afspraakboekingen verwerken wij om je de gewenste plek aan te bieden of de dienst te verlenen (art. 6 lid 1 sub b AVG). Ter bescherming tegen misbruik (bijv. geautomatiseerde bestelpogingen) verwerken wij het IP-adres alleen als hashwaarde, gevormd met een geheime sleutel, in kortlevende tellers (art. 6 lid 1 sub f AVG)."
 
 #: src/Privacy/PolicyText.php:73
 msgid "Rechnungen und Buchungsbelege bewahren wir aufgrund gesetzlicher Pflichten auf (Art. 6 Abs. 1 lit. c DSGVO)."
-msgstr ""
+msgstr "Facturen en boekingsbescheiden bewaren wij op grond van wettelijke verplichtingen (art. 6 lid 1 sub c AVG)."
 
 #: src/Privacy/PolicyText.php:77
 msgid "WooCommerce (auf diesem Server): Bestellungen über den Shop werden zusätzlich in WooCommerce gespeichert; dort gelten die Datenschutzhinweise und Löschfristen des Shops."
-msgstr ""
+msgstr "WooCommerce (op deze server): bestellingen via de winkel worden daarnaast opgeslagen in WooCommerce; daar gelden de privacyverklaring en bewaartermijnen van de winkel."
 
 #: src/Privacy/PolicyText.php:78
 msgid "Stripe Payments Europe Ltd. (Irland) für Kartenzahlungen und weitere Zahlarten: Bestellreferenz, Betrag, E-Mail-Adresse; Stripe verarbeitet Zahlungsdaten auch in den USA."
-msgstr ""
+msgstr "Stripe Payments Europe Ltd. (Ierland) voor kaartbetalingen en andere betaalmethoden: bestelreferentie, bedrag, e-mailadres; Stripe verwerkt betaalgegevens ook in de VS."
 
 #: src/Privacy/PolicyText.php:79
 msgid "PayPal (Europe) S.à r.l. et Cie, S.C.A. (Luxemburg) für PayPal-Zahlungen: Bestellreferenz und Betrag; PayPal kann Daten auch in den USA verarbeiten."
-msgstr ""
+msgstr "PayPal (Europe) S.à r.l. et Cie, S.C.A. (Luxemburg) voor PayPal-betalingen: bestelreferentie en bedrag; PayPal kan gegevens ook in de VS verwerken."
 
 #: src/Privacy/PolicyText.php:80
 msgid "Mollie B.V. (Niederlande) für die Zahlungsabwicklung: Bestellreferenz, Betrag und gegebenenfalls das Rechnungsland; Zahlungsdaten geben Sie direkt bei Mollie ein."
-msgstr ""
+msgstr "Mollie B.V. (Nederland) voor de betalingsverwerking: bestelreferentie, bedrag en eventueel het factuurland; betaalgegevens voer je rechtstreeks in bij Mollie."
 
 #: src/Privacy/PolicyText.php:81
 msgid "Twilio Ireland Ltd. (Irland) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar; Twilio verarbeitet Daten auch in den USA."
-msgstr ""
+msgstr "Twilio Ireland Ltd. (Ierland) voor het versturen van sms: mobiel nummer en berichttekst, alleen met je toestemming (art. 6 lid 1 sub a AVG), die je op elk moment kunt intrekken; Twilio verwerkt gegevens ook in de VS."
 
 #: src/Privacy/PolicyText.php:82
 msgid "Unser SMS-Dienstleister (Auftragsverarbeiter) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar."
-msgstr ""
+msgstr "Onze sms-dienstverlener (verwerker) voor het versturen van sms: mobiel nummer en berichttekst, alleen met je toestemming (art. 6 lid 1 sub a AVG), die je op elk moment kunt intrekken."
 
 #: src/Privacy/PolicyText.php:83
 msgid "Apple Inc. (USA), wenn Sie ein Ticket zu Apple Wallet hinzufügen: Ihr Gerät meldet sich für Aktualisierungen an; wir speichern dafür eine Gerätekennung und ein Push-Token und senden Aktualisierungshinweise über den Apple Push Notification Service."
-msgstr ""
+msgstr "Apple Inc. (VS), wanneer je een ticket aan Apple Wallet toevoegt: je apparaat meldt zich aan voor updates; hiervoor slaan wij een apparaat-ID en een pushtoken op en sturen wij updatemeldingen via de Apple Push Notification Service."
 
 #: src/Privacy/PolicyText.php:84
 msgid "Google Ireland Ltd. / Google LLC (USA), wenn Sie ein Ticket zu Google Wallet hinzufügen: Ticketangaben (Veranstaltung, Termin, Ticketcode, gegebenenfalls Name) werden an Google übermittelt."
-msgstr ""
+msgstr "Google Ireland Ltd. / Google LLC (VS), wanneer je een ticket aan Google Wallet toevoegt: ticketgegevens (evenement, datum, ticketcode, eventueel naam) worden aan Google doorgegeven."
 
 #: src/Privacy/PolicyText.php:85
 msgid "Vertriebs- und Veranstaltungspartner: Partner erhalten für ihre Veranstaltungen Bestell- und Einlassdaten, personenbezogene Daten (E-Mail-Adressen) nur, soweit dies vertraglich vereinbart ist (Art. 6 Abs. 1 lit. b bzw. f DSGVO, gegebenenfalls Auftragsverarbeitung)."
-msgstr ""
+msgstr "Verkoop- en evenementpartners: partners ontvangen voor hun evenementen bestel- en toegangsgegevens, en persoonsgegevens (e-mailadressen) alleen voor zover contractueel overeengekomen (art. 6 lid 1 sub b of f AVG, eventueel verwerking in opdracht)."
 
 #: src/Privacy/PolicyText.php:86
 msgid "Angebundene Systeme (Webhooks), z. B. Buchhaltung, CRM oder Newsletter-Dienst: Bestell- und Ticketereignisse, E-Mail-Adressen nur, wenn dies für das jeweilige System ausdrücklich aktiviert ist."
-msgstr ""
+msgstr "Gekoppelde systemen (webhooks), bijv. boekhouding, CRM of nieuwsbriefdienst: bestel- en ticketgebeurtenissen; e-mailadressen alleen als dit voor het betreffende systeem uitdrukkelijk is ingeschakeld."
 
 #: src/Privacy/PolicyText.php:87
 msgid "Affiliate-Programm (WP Affiliate Captain, auf diesem Server): Wenn Sie über einen Partnerlink kommen oder einen Partnercode eingeben, ordnen wir die Bestellung dem Partner zu, um dessen Provision abzurechnen. Den Empfehlungs-Cookie werten wir nur mit Ihrer Einwilligung aus (Art. 6 Abs. 1 lit. a DSGVO, § 165 Abs. 3 TKG 2021 bzw. § 25 TDDDG); bei einem selbst eingegebenen Code auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Ihre E-Mail-Adresse wird nur zur Prüfung von Eigenempfehlungen verwendet und dort nicht gespeichert."
-msgstr ""
+msgstr "Affiliateprogramma (WP Affiliate Captain, op deze server): als je via een partnerlink komt of een partnercode invoert, wijzen wij de bestelling toe aan de partner om diens commissie af te rekenen. De verwijzingscookie evalueren wij alleen met je toestemming (art. 6 lid 1 sub a AVG, § 165 lid 3 TKG 2021 of § 25 TDDDG); bij een zelf ingevoerde code op basis van art. 6 lid 1 sub f AVG. Je e-mailadres wordt alleen gebruikt om zelfverwijzingen te controleren en wordt daar niet opgeslagen."
 
 #: src/Privacy/PolicyText.php:88
 msgid "Unser Hosting- und E-Mail-Dienstleister als Auftragsverarbeiter."
-msgstr ""
+msgstr "Onze hosting- en e-mailprovider als verwerker."
 
 #: src/Privacy/PolicyText.php:92
 msgid "Übermittlung in Drittländer"
-msgstr ""
+msgstr "Doorgifte aan derde landen"
 
 #: src/Privacy/PolicyText.php:93
 msgid "Einige der genannten Dienstleister verarbeiten Daten auch in den USA. Die Übermittlung erfolgt auf Grundlage des EU-U.S. Data Privacy Framework (Angemessenheitsbeschluss, Art. 45 DSGVO), soweit der Empfänger zertifiziert ist, im Übrigen auf Grundlage der EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO)."
-msgstr ""
+msgstr "Sommige van de genoemde dienstverleners verwerken gegevens ook in de VS. De doorgifte vindt plaats op basis van het EU-U.S. Data Privacy Framework (adequaatheidsbesluit, art. 45 AVG) voor zover de ontvanger is gecertificeerd, en anders op basis van de EU-modelcontractbepalingen (art. 46 lid 2 sub c AVG)."
 
 #: src/Privacy/PolicyText.php:97
 msgid "Speicherdauer"
-msgstr ""
+msgstr "Bewaartermijn"
 
 #. translators: %s: retention description
 #: src/Privacy/PolicyText.php:99
 #, php-format
 msgid "Teilnehmerangaben (Name, E-Mail, Zusatzfelder) löschen wir automatisch %s. Einlassprotokolle bleiben ohne Teilnehmerangaben für Auswertungen erhalten; die Zuordnung zu Mitarbeitenden und Geräten entfernen wir nach einem Jahr."
-msgstr ""
+msgstr "Deelnemersgegevens (naam, e-mailadres, extra velden) verwijderen wij automatisch %s. Toegangslogboeken blijven zonder deelnemersgegevens bewaard voor analyses; de koppeling aan medewerkers en apparaten verwijderen wij na een jaar."
 
 #: src/Privacy/PolicyText.php:100
 msgid "Nicht bezahlte Bestellungen anonymisieren wir nach 90 Tagen. Versandte Benachrichtigungen löschen wir inhaltlich nach 30 Tagen. Protokolle über Verwaltungsvorgänge bewahren wir zwei Jahre auf."
-msgstr ""
+msgstr "Onbetaalde bestellingen anonimiseren wij na 90 dagen. De inhoud van verzonden meldingen verwijderen wij na 30 dagen. Logboeken van beheerhandelingen bewaren wij twee jaar."
 
 #: src/Privacy/PolicyText.php:101
 msgid "Bestell-, Zahlungs- und Rechnungsdaten bewahren wir für die gesetzlichen Fristen auf: in Österreich sieben Jahre (§ 132 BAO), in Deutschland bis zu zehn Jahre (§ 147 AO, § 257 HGB). Während dieser Zeit sind diese Daten für andere Zwecke gesperrt."
-msgstr ""
+msgstr "Bestel-, betalings- en factuurgegevens bewaren wij gedurende de wettelijke termijnen: in Oostenrijk zeven jaar (§ 132 BAO), in Duitsland tot tien jaar (§ 147 AO, § 257 HGB). In die periode zijn deze gegevens voor andere doeleinden geblokkeerd."
 
 #: src/Privacy/PolicyText.php:104
 msgid "Ihre Rechte"
-msgstr ""
+msgstr "Je rechten"
 
 #: src/Privacy/PolicyText.php:105
 msgid "Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie auf Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft. Bei einer Löschung bleiben Rechnungen und Buchungsdaten bis zum Ablauf der gesetzlichen Aufbewahrungsfrist gespeichert (Art. 17 Abs. 3 lit. b DSGVO); Tickets für künftige Termine werden mit der Löschung ungültig. Sie können sich bei einer Datenschutzaufsichtsbehörde beschweren."
-msgstr ""
+msgstr "Je hebt het recht op inzage, rectificatie, wissing, beperking van de verwerking, gegevensoverdraagbaarheid en bezwaar, en het recht om verleende toestemming met werking voor de toekomst in te trekken. Bij wissing blijven facturen en boekingsgegevens bewaard tot het einde van de wettelijke bewaartermijn (art. 17 lid 3 sub b AVG); tickets voor toekomstige data worden bij wissing ongeldig. Je kunt een klacht indienen bij een toezichthoudende autoriteit voor gegevensbescherming."
 
 #: src/PublicEvents.php:31
 msgid "E-Mail der Teilnehmer:in (optional, für ein eigenes Ticket)"
-msgstr ""
+msgstr "E-mailadres van de deelnemer (optioneel, voor een eigen ticket)"
 
 #: src/PublicEvents.php:37
 msgid "Bitte prüfe deine Angaben"
-msgstr ""
+msgstr "Controleer je gegevens"
 
 #. translators: %d: number of problems
 #: src/PublicEvents.php:39
 #, php-format
 msgid "Es gibt %d Problem(e). Wähle einen Eintrag, um zum Feld zu springen."
-msgstr ""
+msgstr "Er zijn %d probleem/problemen. Kies een item om naar het veld te gaan."
 
 #. translators: %s: field label
 #: src/PublicEvents.php:41
 #, php-format
 msgid "Bitte fülle „%s“ aus."
-msgstr ""
+msgstr "Vul “%s” in."
 
 #. translators: %s: field label
 #: src/PublicEvents.php:43
 #, php-format
 msgid "„%s“: Bitte gib eine gültige E-Mail-Adresse ein, z. B. name@example.com."
-msgstr ""
+msgstr "“%s”: voer een geldig e-mailadres in, bijv. naam@example.com."
 
 #. translators: %s: field label
 #: src/PublicEvents.php:45
 #, php-format
 msgid "„%s“ ist ungültig."
-msgstr ""
+msgstr "“%s” is ongeldig."
 
 #: src/PublicEvents.php:46
 msgid "Bitte bestätige die Bedingungen, um zu bestellen."
-msgstr ""
+msgstr "Accepteer de voorwaarden om te bestellen."
 
 #. translators: 1: ticket type, 2: maximum quantity
 #: src/PublicEvents.php:48
 #, php-format
 msgid "„%1$s“: Es sind höchstens %2$d Tickets möglich."
-msgstr ""
+msgstr "“%1$s”: er zijn maximaal %2$d tickets mogelijk."
 
 #: src/PublicEvents.php:50
 msgid "Vielen Dank für deine Bestellung!"
-msgstr ""
+msgstr "Bedankt voor je bestelling!"
 
 #: src/PublicEvents.php:51
 msgid "Bestellung abgeschlossen"
-msgstr ""
+msgstr "Bestelling voltooid"
 
 #. translators: %s: short order number
 #: src/PublicEvents.php:53
 #, php-format
 msgid "Bestellnummer: %s"
-msgstr ""
+msgstr "Bestelnummer: %s"
 
 #. translators: %s: e-mail address
 #: src/PublicEvents.php:55
 #, php-format
 msgid "Wir haben die Bestätigung mit deinem persönlichen Bestelllink an %s gesendet."
-msgstr ""
+msgstr "We hebben de bevestiging met je persoonlijke bestellink naar %s gestuurd."
 
 #. translators: %s: e-mail address
 #: src/PublicEvents.php:57
 #, php-format
 msgid "Die Tickets und die Bestätigung haben wir an %s gesendet."
-msgstr ""
+msgstr "We hebben de tickets en de bevestiging naar %s gestuurd."
 
 #: src/PublicEvents.php:58
 msgid "Keine E-Mail erhalten? Sieh bitte auch im Spam-Ordner nach."
-msgstr ""
+msgstr "Geen e-mail ontvangen? Kijk ook in je spammap."
 
 #: src/PublicEvents.php:59
 msgid "Bitte überweise den Betrag mit diesen Angaben:"
-msgstr ""
+msgstr "Maak het bedrag over met deze gegevens:"
 
 #. translators: %s: date and time
 #: src/PublicEvents.php:61
 #, php-format
 msgid "Deine Tickets sind bis %s reserviert. Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung."
-msgstr ""
+msgstr "Je tickets zijn gereserveerd tot %s. Als de betaling tegen die tijd niet is ontvangen, vervalt de reservering."
 
 #: src/PublicEvents.php:62
 msgid "Nach Zahlungseingang erhältst du deine Tickets per E-Mail."
-msgstr ""
+msgstr "Zodra de betaling is ontvangen, krijg je je tickets per e-mail."
 
 #: src/PublicEvents.php:69
 msgid "Weitere Tickets bestellen"
-msgstr ""
+msgstr "Meer tickets bestellen"
 
 #: src/Refunds.php:60
 msgid "Für mindestens eines der gewählten Tickets läuft bereits eine Erstattung oder sie wartet auf Freigabe."
-msgstr ""
+msgstr "Voor ten minste één van de geselecteerde tickets loopt al een terugbetaling of die wacht op goedkeuring."
 
 #: src/Refunds.php:313
 msgid "Die Bestellung kann nicht mehr erstattet werden."
-msgstr ""
+msgstr "De bestelling kan niet meer worden terugbetaald."
 
 #: src/Refunds.php:321
 msgid "Mindestens eines der Tickets wurde bereits erstattet; die Erstattung wurde nicht ausgeführt."
-msgstr ""
+msgstr "Ten minste één van de tickets is al terugbetaald; de terugbetaling is niet uitgevoerd."
 
 #: src/Refunds.php:328
 msgid "Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag; die Erstattung wurde nicht ausgeführt."
-msgstr ""
+msgstr "Het terugbetalingsbedrag is hoger dan het nog openstaande bestelbedrag; de terugbetaling is niet uitgevoerd."
 
 #: src/Rest/Controller.php:249
 msgid "Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets."
-msgstr ""
+msgstr "De kortingscode is ongeldig of past niet bij de geselecteerde tickets."
 
 #: src/Rest/Controller.php:250
 msgid "Der Rabattcode konnte nicht sicher auf die Bestellung angewendet werden. Bitte versuche es erneut."
-msgstr ""
+msgstr "De kortingscode kon niet betrouwbaar op de bestelling worden toegepast. Probeer het opnieuw."
 
 #. translators: %d: allowed resends per hour
 #: src/Rest/Controller.php:389
 #, php-format
 msgid "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
 msgid_plural "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "De tickets kunnen maximaal %d keer per uur opnieuw worden verzonden. Probeer het later opnieuw."
+msgstr[1] "De tickets kunnen maximaal %d keer per uur opnieuw worden verzonden. Probeer het later opnieuw."
 
 #: src/TicketAssignments.php:31
 msgid "Dieses Ticket wurde bereits an eine andere Person übertragen und kann über die Bestellung nicht mehr geändert werden."
-msgstr ""
+msgstr "Dit ticket is al aan een andere persoon overgedragen en kan via de bestelling niet meer worden gewijzigd."
 
 #: src/TicketAssignments.php:39
 msgid "Für dieses Ticket wurde der Teilnehmer bereits geändert. Ein weiterer Wechsel der Person ist nicht möglich; Namen und Angaben können weiterhin korrigiert werden."
-msgstr ""
+msgstr "De deelnemer van dit ticket is al gewijzigd. Nog een wijziging van persoon is niet mogelijk; namen en gegevens kunnen nog wel worden gecorrigeerd."
 
 #: templates/event-card.php:39
 msgid "Deine E-Mail-Adresse (für Tickets und Bestätigung)"
-msgstr ""
+msgstr "Je e-mailadres (voor tickets en bevestiging)"
 
 #: templates/event-card.php:70
 msgid "Ich akzeptiere die Bedingungen."
-msgstr ""
+msgstr "Ik accepteer de voorwaarden."

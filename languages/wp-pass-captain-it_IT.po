@@ -8456,621 +8456,621 @@ msgstr "Credito verso l’organizzatore"
 #. Plugin URI of the plugin
 #: wp-pass-captain.php
 msgid "https://github.com/hastla007/wp-passmaster"
-msgstr ""
+msgstr "https://github.com/hastla007/wp-passmaster"
 
 #. Author of the plugin
 #: wp-pass-captain.php
 msgid "hastla007"
-msgstr ""
+msgstr "hastla007"
 
 #. Author URI of the plugin
 #: wp-pass-captain.php
 msgid "https://github.com/hastla007"
-msgstr ""
+msgstr "https://github.com/hastla007"
 
 #. translators: %d: number of tickets
 #: src/Admin/EventsPage.php:232
 #, php-format
 msgid "%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren)."
-msgstr ""
+msgstr "%d biglietti sono stati revocati e i titolari sono stati avvisati. I biglietti pagati restano rimborsabili: effettua il rimborso da Ordine → Rimborsa (oppure attiva il rimborso automatico nelle impostazioni)."
 
 #. translators: 1: automatic refunds, 2: failed refunds
 #: src/Admin/EventsPage.php:520
 #, php-format
 msgid "%1$d Bestellungen wurden automatisch erstattet, %2$d Erstattungen sind offen (siehe Erstattungen). WooCommerce-Bestellungen bitte in WooCommerce erstatten."
-msgstr ""
+msgstr "%1$d ordini sono stati rimborsati automaticamente, %2$d rimborsi sono ancora aperti (vedi Rimborsi). Rimborsa gli ordini WooCommerce direttamente in WooCommerce."
 
 #: src/Admin/EventsPage.php:521
 msgid "Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten."
-msgstr ""
+msgstr "I biglietti pagati restano rimborsabili: effettua il rimborso da Ordine → Rimborsa."
 
 #. translators: %s: amount
 #: src/Admin/OrdersPage.php:438
 #, php-format
 msgid "Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig."
-msgstr ""
+msgstr "Se la somma di tutti i rimborsi di questo ordine (inclusi quelli in corso e in attesa) supera %s, è necessaria una seconda approvazione."
 
 #: src/Admin/SettingsPage.php:42
 msgid "Einlass-Tageswechsel (Uhrzeit, volle Stunde)"
-msgstr ""
+msgstr "Cambio giorno d'ingresso (orario, ora intera)"
 
 #: src/Admin/SettingsPage.php:42
 msgid "0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits."
-msgstr ""
+msgstr "0 = mezzanotte. Esempio 6: le scansioni fino alle 05:59 contano ancora per il giorno precedente (festival, eventi notturni). Vale per i biglietti giornalieri e i limiti giornalieri."
 
 #: src/Admin/SettingsPage.php:50
 msgid "Überweisung: Empfänger (Kontoinhaber)"
-msgstr ""
+msgstr "Bonifico: destinatario (intestatario del conto)"
 
 #: src/Admin/SettingsPage.php:50
 msgid "Leer = Name / Firma des Rechnungsstellers."
-msgstr ""
+msgstr "Vuoto = nome / azienda dell'emittente della fattura."
 
 #: src/Admin/SettingsPage.php:51
 msgid "Überweisung: IBAN"
-msgstr ""
+msgstr "Bonifico: IBAN"
 
 #: src/Admin/SettingsPage.php:51
 msgid "Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt."
-msgstr ""
+msgstr "Viene mostrato dopo l'ordine e nell'e-mail dell'ordine con importo, causale e termine di pagamento."
 
 #: src/Admin/SettingsPage.php:52
 msgid "Überweisung: BIC"
-msgstr ""
+msgstr "Bonifico: BIC"
 
 #: src/Admin/SettingsPage.php:103
 msgid "Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)"
-msgstr ""
+msgstr "Prefisso rettifica fattura (documento di storno / rettifica)"
 
 #: src/Admin/TicketsPage.php:128
 msgid "Ticket neu ausgestellt. Die E-Mail an den Inhaber konnte nicht zugestellt werden; bitte erneut versuchen."
-msgstr ""
+msgstr "Biglietto riemesso. Non è stato possibile recapitare l'e-mail al titolare; riprova."
 
 #: src/Admin/TicketsPage.php:129
 msgid "Ticket neu ausgestellt und an den Inhaber gesendet. Der bisherige Code ist ungültig."
-msgstr ""
+msgstr "Biglietto riemesso e inviato al titolare. Il codice precedente non è più valido."
 
 #: src/Admin/TicketsPage.php:209
 msgid "Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink."
-msgstr ""
+msgstr "Riemettere il biglietto? Il codice precedente diventerà non valido e il titolare riceverà un nuovo link del biglietto."
 
 #: src/Admin/TicketsPage.php:209
 msgid "Neu ausstellen"
-msgstr ""
+msgstr "Riemetti"
 
 #: src/BoxOffice/Page.php:193
 msgid "Wichtiger Hinweis:"
-msgstr ""
+msgstr "Avviso importante:"
 
 #: src/BoxOffice/Page.php:194
 msgid "Die Kasse ist keine Registrierkasse im Sinne von RKSV (AT) bzw. KassenSichV/TSE (DE). Für Bar- und Kartenzahlungen vor Ort ist eine zertifizierte Signatureinheit nötig."
-msgstr ""
+msgstr "La cassa non è un registratore di cassa ai sensi della RKSV (AT) o della KassenSichV/TSE (DE). Per i pagamenti in contanti e con carta in loco è necessaria un'unità di firma certificata."
 
 #: src/BoxOffice/Page.php:195
 msgid "Mehr dazu in der Dokumentation"
-msgstr ""
+msgstr "Maggiori informazioni nella documentazione"
 
 #: src/BoxOffice/Page.php:195
 msgid "(öffnet in neuem Tab)"
-msgstr ""
+msgstr "(si apre in una nuova scheda)"
 
 #: src/BoxOffice/Page.php:196
 msgid "Hinweis für mich ausblenden"
-msgstr ""
+msgstr "Nascondi l'avviso per me"
 
 #: src/Integrations/Vouchers/TicketService.php:58
 msgid "Ticketart, Anzahl, Schlüssel und eine gültige E-Mail-Adresse sind erforderlich."
-msgstr ""
+msgstr "Tipo di biglietto, quantità, chiave e un indirizzo e-mail valido sono obbligatori."
 
 #: src/Integrations/Vouchers/TicketService.php:67
 msgid "Dieser Termin kann für den Gutschein nicht gewählt werden."
-msgstr ""
+msgstr "Questa data non può essere selezionata per il buono."
 
 #: src/Integrations/Vouchers/TicketService.php:90
 msgid "Die Tickets konnten nicht ausgestellt werden."
-msgstr ""
+msgstr "Non è stato possibile emettere i biglietti."
 
 #. translators: 1: date, 2: ticket type
 #: src/Integrations/Vouchers/TicketService.php:140
 #, php-format
 msgid "%1$s – %2$s"
-msgstr ""
+msgstr "%1$s – %2$s"
 
 #. translators: 1: event, 2: date, 3: ticket type
 #: src/Integrations/Vouchers/TicketService.php:143
 #, php-format
 msgid "%1$s – %2$s – %3$s"
-msgstr ""
+msgstr "%1$s – %2$s – %3$s"
 
 #: src/Integrations/Vouchers/TicketService.php:207
 msgid "Die Tickets dieser Einlösung wurden bereits widerrufen."
-msgstr ""
+msgstr "I biglietti di questo riscatto sono già stati revocati."
 
 #: src/Invoices.php:210
 #: src/Printing/InvoicePdf.php:117
 msgid "Aufstellung nach Steuersätzen"
-msgstr ""
+msgstr "Riepilogo per aliquota"
 
 #: src/Invoices.php:218
 #: src/Printing/InvoicePdf.php:146
 msgid "Rechnungskorrektur"
-msgstr ""
+msgstr "Rettifica fattura"
 
 #. translators: 1: invoice number, 2: date
 #: src/Invoices.php:218
 #: src/Printing/InvoicePdf.php:155
 msgid "Korrekturbetrag"
-msgstr ""
+msgstr "Importo della rettifica"
 
 #. translators: %s: formatted amount
 #: src/Mail/Blocks.php:61
 #: src/OrderPortal.php:75
 msgid "Zahlungsinformationen"
-msgstr ""
+msgstr "Informazioni di pagamento"
 
 #: src/Mail/Blocks.php:76
 msgid "Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung."
-msgstr ""
+msgstr "Se il pagamento non arriva entro tale termine, la prenotazione scade."
 
 #: src/Mail/Types.php:147
 msgid "Kurze Bestellnummer (z. B. 3F2A-9C1E, auch Verwendungszweck)"
-msgstr ""
+msgstr "Numero d'ordine breve (es. 3F2A-9C1E, anche causale del pagamento)"
 
 #: src/Mail/Types.php:149
 msgid "Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer"
-msgstr ""
+msgstr "Informazioni di pagamento per un bonifico aperto / pagamento manuale (importo, IBAN, BIC, destinatario, causale, termine); altrimenti vuoto"
 
 #: src/OrderPortal.php:52
 msgid "Abbrechen"
-msgstr ""
+msgstr "Annulla"
 
 #. translators: %s: recipient e-mail address
 #: src/OrderPortal.php:56
 #, php-format
 msgid "Ticket wirklich an %s übertragen? Das ist endgültig und nur einmal möglich: Der bisherige Ticketcode wird sofort ungültig und die neue Person erhält einen neuen Code per E-Mail."
-msgstr ""
+msgstr "Trasferire davvero il biglietto a %s? L'operazione è definitiva e possibile una sola volta: il codice precedente diventa subito non valido e la nuova persona riceve un nuovo codice via e-mail."
 
 #: src/OrderPortal.php:57
 msgid "Ja, endgültig übertragen"
-msgstr ""
+msgstr "Sì, trasferisci definitivamente"
 
 #: src/OrderPortal.php:61
 msgid "Tickets jetzt erneut senden? Dabei werden neue Ticketcodes erstellt; die bisher gesendeten Codes und Ausdrucke werden ungültig."
-msgstr ""
+msgstr "Inviare di nuovo i biglietti adesso? Verranno creati nuovi codici; i codici e le stampe inviati finora diventeranno non validi."
 
 #: src/OrderPortal.php:62
 msgid "Ja, erneut senden"
-msgstr ""
+msgstr "Sì, invia di nuovo"
 
 #: src/OrderPortal.php:63
 msgid "Erneuter Versand fehlgeschlagen."
-msgstr ""
+msgstr "Invio non riuscito."
 
 #. translators: %s: masked e-mail address
 #: src/OrderPortal.php:65
 #, php-format
 msgid "Die Tickets wurden erneut an %s gesendet. Bitte verwende nur noch die neuen Codes."
-msgstr ""
+msgstr "I biglietti sono stati inviati di nuovo a %s. Da ora usa solo i nuovi codici."
 
 #: src/OrderPortal.php:66
 msgid "Wird gesendet …"
-msgstr ""
+msgstr "Invio in corso …"
 
 #. translators: %s: order date
 #: src/OrderPortal.php:72
 #, php-format
 msgid "Bestellt am %s"
-msgstr ""
+msgstr "Ordinato il %s"
 
 #. translators: %s: formatted amount
 #: src/OrderPortal.php:74
 #, php-format
 msgid "Gesamtbetrag: %s"
-msgstr ""
+msgstr "Importo totale: %s"
 
 #. translators: %s: masked e-mail address
 #: src/OrderPortal.php:77
 #, php-format
 msgid "Tickets erneut an %s senden"
-msgstr ""
+msgstr "Invia di nuovo i biglietti a %s"
 
 #. translators: %s: masked e-mail address
 #: src/OrderPortal.php:77
 msgid "Dabei werden neue Ticketcodes erstellt; bisher gesendete Codes werden ungültig. Tickets mit eigener Teilnehmer-E-Mail gehen an diese Adresse. Höchstens dreimal pro Stunde."
-msgstr ""
+msgstr "Verranno creati nuovi codici dei biglietti; i codici inviati in precedenza diventeranno non validi. I biglietti con un'e-mail del partecipante propria vengono inviati a quell'indirizzo. Al massimo tre volte all'ora."
 
 #. translators: %s: full order id
 #: src/OrderPortal.php:83
 #, php-format
 msgid "Vollständige Bestell-ID: %s"
-msgstr ""
+msgstr "ID completo dell'ordine: %s"
 
 #: src/Orders.php:277
 msgid "Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich."
-msgstr ""
+msgstr "Per questo tipo di biglietto non è possibile acquistare così tanti biglietti per ordine."
 
 #: src/Orders.php:862
 msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
-msgstr ""
+msgstr "Il titolare di questo biglietto è già stato modificato; un ulteriore trasferimento non è possibile."
 
 #: src/Orders.php:1252
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
-msgstr ""
+msgstr "Possono essere riemessi solo i biglietti validi e non ancora registrati di ordini pagati."
 
 #: src/Payments/BankTransfer.php:65
 #: src/Privacy/PolicyText.php:89
 #: src/PublicEvents.php:64
 msgid "Empfänger"
-msgstr ""
+msgstr "Destinatario"
 
 #: src/Payments/BankTransfer.php:66
 #: src/PublicEvents.php:65
 msgid "IBAN"
-msgstr ""
+msgstr "IBAN"
 
 #: src/Payments/BankTransfer.php:67
 #: src/PublicEvents.php:66
 msgid "BIC"
-msgstr ""
+msgstr "BIC"
 
 #: src/Payments/BankTransfer.php:68
 #: src/PublicEvents.php:67
 msgid "Verwendungszweck"
-msgstr ""
+msgstr "Causale"
 
 #: src/Payments/BankTransfer.php:69
 #: src/PublicEvents.php:68
 msgid "Zahlbar bis"
-msgstr ""
+msgstr "Da pagare entro"
 
 #. translators: %d: number of discarded scans
 #: src/Privacy.php:97
 #, php-format
 msgid "%%d Offline-Scan(s) älter als %d Stunden wurden ohne Upload verworfen."
-msgstr ""
+msgstr "%%d scansione/i offline più vecchie di %d ore sono state scartate senza essere caricate."
 
 #: src/Privacy.php:139
 msgid "Noch nicht zugeordnete Teilnehmerangaben"
-msgstr ""
+msgstr "Dati dei partecipanti non ancora assegnati"
 
 #: src/Privacy.php:143
 msgid "Rechnung (Nummer, Datum UTC, Status)"
-msgstr ""
+msgstr "Fattura (numero, data UTC, stato)"
 
 #: src/Privacy.php:144
 msgid "Käuferangaben auf der Rechnung"
-msgstr ""
+msgstr "Dati dell'acquirente in fattura"
 
 #: src/Privacy.php:179
 msgid "WP Pass Captain Terminbuchungen"
-msgstr ""
+msgstr "Prenotazioni di appuntamenti WP Pass Captain"
 
 #: src/Privacy.php:180
 msgid "Ressource"
-msgstr ""
+msgstr "Risorsa"
 
 #: src/Privacy.php:181
 msgid "Termin von/bis (UTC)"
-msgstr ""
+msgstr "Appuntamento dal/al (UTC)"
 
 #: src/Privacy.php:182
 msgid "Anzahl und Status"
-msgstr ""
+msgstr "Quantità e stato"
 
 #: src/Privacy.php:196
 msgid "Ticketreferenz"
-msgstr ""
+msgstr "Riferimento del biglietto"
 
 #: src/Privacy.php:197
 msgid "Event und Beginn (UTC)"
-msgstr ""
+msgstr "Evento e inizio (UTC)"
 
 #: src/Privacy.php:199
 msgid "Rolle"
-msgstr ""
+msgstr "Ruolo"
 
 #: src/Privacy.php:202
 msgid "Name des Teilnehmers"
-msgstr ""
+msgstr "Nome del partecipante"
 
 #: src/Privacy.php:203
 msgid "E-Mail des Teilnehmers"
-msgstr ""
+msgstr "E-mail del partecipante"
 
 #: src/Privacy.php:205
 msgid "Teilnehmerangabe"
-msgstr ""
+msgstr "Dati del partecipante"
 
 #: src/Privacy.php:221
 msgid "Einlassprotokoll (Zeit UTC, Bereich)"
-msgstr ""
+msgstr "Registro degli ingressi (ora UTC, area)"
 
 #: src/Privacy.php:229
 msgid "Wallet-Pässe"
-msgstr ""
+msgstr "Pass wallet"
 
 #: src/Privacy.php:231
 msgid "WP Pass Captain Tickets"
-msgstr ""
+msgstr "Biglietti WP Pass Captain"
 
 #. translators: %d: number of tickets
 #: src/Privacy.php:259
 #, php-format
 msgid "Hinweis: %d Ticket(s) anderer Käufer für bevorstehende Termine bleiben gültig; nur Name, E-Mail und Angaben der Person als Teilnehmer wurden entfernt."
-msgstr ""
+msgstr "Nota: %d biglietto/i di altri acquirenti per date future restano validi; sono stati rimossi solo nome, e-mail e dati di questa persona come partecipante."
 
 #: src/Privacy.php:304
 msgid "Bestellbeträge, Positionen, Steuern, Zahlungs- und Erstattungsreferenzen bleiben wegen gesetzlicher Aufbewahrungspflichten (Art. 17 Abs. 3 lit. b DSGVO) erhalten. Entfernt bzw. anonymisiert wurden: Käufer-E-Mail in Bestellungen, Ticketzugänge, Teilnehmernamen, -E-Mails und -angaben, Offline-Scannerdaten, Wallet-Registrierungen, Terminbuchungen, Wartelisteneinträge, Passzugänge und geplante Nachrichten."
-msgstr ""
+msgstr "Importi degli ordini, voci, imposte e riferimenti di pagamento e rimborso vengono conservati a causa di obblighi legali di conservazione (art. 17, par. 3, lett. b GDPR). Sono stati rimossi o anonimizzati: e-mail dell'acquirente negli ordini, accessi ai biglietti, nomi, e-mail e dati dei partecipanti, dati dello scanner offline, registrazioni wallet, prenotazioni di appuntamenti, voci della lista d'attesa, accessi ai pass e messaggi programmati."
 
 #: src/Privacy.php:306
 msgid "Teilnehmerdaten, Wartelisteneinträge, Passzugänge, Terminbuchungen bzw. geplante Nachrichten dieser Person wurden entfernt oder anonymisiert."
-msgstr ""
+msgstr "I dati del partecipante, le voci della lista d'attesa, gli accessi ai pass, le prenotazioni di appuntamenti e i messaggi programmati di questa persona sono stati rimossi o anonimizzati."
 
 #. translators: %d: number of invoices
 #: src/Privacy.php:310
 #, php-format
 msgid "%d Rechnung(en) bleiben unverändert gespeichert, einschließlich der darauf angegebenen Käuferangaben (E-Mail-Adresse): Rechnungen unterliegen der gesetzlichen Aufbewahrungspflicht (7 Jahre nach § 132 BAO, 10 Jahre nach § 147 AO/§ 257 HGB; Art. 17 Abs. 3 lit. b DSGVO). Die Käuferangaben auf Rechnungen wurden nicht entfernt."
-msgstr ""
+msgstr "%d fattura/e restano conservate invariate, compresi i dati dell'acquirente indicati (indirizzo e-mail): le fatture sono soggette all'obbligo legale di conservazione (7 anni secondo il § 132 BAO, 10 anni secondo il § 147 AO/§ 257 HGB; art. 17, par. 3, lett. b GDPR). I dati dell'acquirente sulle fatture non sono stati rimossi."
 
 #. translators: %d: number of tickets
 #: src/Privacy.php:314
 #, php-format
 msgid "Achtung: %d Ticket(s) für bevorstehende Termine wurden durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst."
-msgstr ""
+msgstr "Attenzione: %d biglietto/i per date future sono diventati non validi a causa dell'eliminazione. Concorda con la persona un rimborso o uno storno; non viene avviato automaticamente."
 
 #. translators: %d: days
 #: src/Privacy/PolicyText.php:63
 #, php-format
 msgid "%d Tage nach dem Ende der Veranstaltung"
-msgstr ""
+msgstr "%d giorni dopo la fine dell'evento"
 
 #. translators: %d: days
 #: src/Privacy/PolicyText.php:65
 #, php-format
 msgid "nach der je Feld angegebenen Frist (Name und E-Mail der Teilnehmenden: %d Tage) nach dem Ende der Veranstaltung"
-msgstr ""
+msgstr "dopo il termine indicato per ciascun campo (nome ed e-mail dei partecipanti: %d giorni) dalla fine dell'evento"
 
 #: src/Privacy/PolicyText.php:67
 msgid "Vorschlag von WP Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind."
-msgstr ""
+msgstr "Proposta di WP Pass Captain. Controllala e adattala alla tua azienda, ai tuoi contratti e ai tuoi processi effettivi; il testo non sostituisce una consulenza legale. Le sezioni sui fornitori di servizi compaiono solo se sono attivati nelle impostazioni."
 
 #: src/Privacy/PolicyText.php:69
 msgid "Ticketkauf, Tickets und Einlass"
-msgstr ""
+msgstr "Acquisto dei biglietti, biglietti e ingresso"
 
 #: src/Privacy/PolicyText.php:70
 msgid "Für Bestellungen verarbeiten wir Ihre E-Mail-Adresse, die gekauften Tickets, Preise, Zahlungsstatus und die Version der akzeptierten Bedingungen, um den Vertrag zu erfüllen, Tickets und Bestellzugänge per E-Mail zuzustellen und Sie über Änderungen oder Absagen zu informieren (Art. 6 Abs. 1 lit. b DSGVO)."
-msgstr ""
+msgstr "Per gli ordini trattiamo il tuo indirizzo e-mail, i biglietti acquistati, i prezzi, lo stato del pagamento e la versione delle condizioni accettate per eseguire il contratto, inviarti per e-mail i biglietti e gli accessi all'ordine e informarti di modifiche o annullamenti (art. 6, par. 1, lett. b GDPR)."
 
 #: src/Privacy/PolicyText.php:71
 msgid "Angaben zu Teilnehmenden (Name, E-Mail, weitere vom Veranstalter abgefragte Felder mit dem jeweils angegebenen Zweck) verarbeiten wir zur Durchführung der Veranstaltung (Art. 6 Abs. 1 lit. b DSGVO) bzw. aufgrund unseres berechtigten Interesses an einer geordneten Einlasskontrolle (Art. 6 Abs. 1 lit. f DSGVO). Beim Einlass protokollieren wir Zeitpunkt, Ergebnis und gegebenenfalls den Einlassbereich des Tickets, um Mehrfachnutzung zu verhindern (Art. 6 Abs. 1 lit. f DSGVO)."
-msgstr ""
+msgstr "Trattiamo i dati dei partecipanti (nome, e-mail, altri campi richiesti dall'organizzatore con la finalità indicata di volta in volta) per lo svolgimento dell'evento (art. 6, par. 1, lett. b GDPR) oppure sulla base del nostro legittimo interesse a un controllo ordinato degli accessi (art. 6, par. 1, lett. f GDPR). All'ingresso registriamo orario, esito e, se del caso, l'area di ingresso del biglietto per evitare usi multipli (art. 6, par. 1, lett. f GDPR)."
 
 #: src/Privacy/PolicyText.php:72
 msgid "Wartelisteneinträge, Mitgliedspässe und Terminbuchungen verarbeiten wir, um Ihnen den gewünschten Platz anzubieten bzw. die Leistung zu erbringen (Art. 6 Abs. 1 lit. b DSGVO). Zum Schutz vor Missbrauch (z. B. automatisierte Bestellversuche) verarbeiten wir die IP-Adresse nur als mit einem geheimen Schlüssel gebildeten Hashwert in kurzlebigen Zählern (Art. 6 Abs. 1 lit. f DSGVO)."
-msgstr ""
+msgstr "Trattiamo le voci della lista d'attesa, i pass associativi e le prenotazioni di appuntamenti per offrirti il posto desiderato o per erogare il servizio (art. 6, par. 1, lett. b GDPR). Per proteggerci da abusi (ad es. tentativi di ordine automatizzati) trattiamo l'indirizzo IP solo come valore di hash generato con una chiave segreta in contatori di breve durata (art. 6, par. 1, lett. f GDPR)."
 
 #: src/Privacy/PolicyText.php:73
 msgid "Rechnungen und Buchungsbelege bewahren wir aufgrund gesetzlicher Pflichten auf (Art. 6 Abs. 1 lit. c DSGVO)."
-msgstr ""
+msgstr "Conserviamo le fatture e i documenti di prenotazione in base a obblighi di legge (art. 6, par. 1, lett. c GDPR)."
 
 #: src/Privacy/PolicyText.php:77
 msgid "WooCommerce (auf diesem Server): Bestellungen über den Shop werden zusätzlich in WooCommerce gespeichert; dort gelten die Datenschutzhinweise und Löschfristen des Shops."
-msgstr ""
+msgstr "WooCommerce (su questo server): gli ordini effettuati tramite il negozio vengono salvati anche in WooCommerce; lì valgono l'informativa sulla privacy e i termini di cancellazione del negozio."
 
 #: src/Privacy/PolicyText.php:78
 msgid "Stripe Payments Europe Ltd. (Irland) für Kartenzahlungen und weitere Zahlarten: Bestellreferenz, Betrag, E-Mail-Adresse; Stripe verarbeitet Zahlungsdaten auch in den USA."
-msgstr ""
+msgstr "Stripe Payments Europe Ltd. (Irlanda) per i pagamenti con carta e altri metodi di pagamento: riferimento dell'ordine, importo, indirizzo e-mail; Stripe tratta i dati di pagamento anche negli Stati Uniti."
 
 #: src/Privacy/PolicyText.php:79
 msgid "PayPal (Europe) S.à r.l. et Cie, S.C.A. (Luxemburg) für PayPal-Zahlungen: Bestellreferenz und Betrag; PayPal kann Daten auch in den USA verarbeiten."
-msgstr ""
+msgstr "PayPal (Europe) S.à r.l. et Cie, S.C.A. (Lussemburgo) per i pagamenti PayPal: riferimento dell'ordine e importo; PayPal può trattare dati anche negli Stati Uniti."
 
 #: src/Privacy/PolicyText.php:80
 msgid "Mollie B.V. (Niederlande) für die Zahlungsabwicklung: Bestellreferenz, Betrag und gegebenenfalls das Rechnungsland; Zahlungsdaten geben Sie direkt bei Mollie ein."
-msgstr ""
+msgstr "Mollie B.V. (Paesi Bassi) per l'elaborazione dei pagamenti: riferimento dell'ordine, importo e, se del caso, il paese di fatturazione; i dati di pagamento li inserisci direttamente su Mollie."
 
 #: src/Privacy/PolicyText.php:81
 msgid "Twilio Ireland Ltd. (Irland) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar; Twilio verarbeitet Daten auch in den USA."
-msgstr ""
+msgstr "Twilio Ireland Ltd. (Irlanda) per l'invio di SMS: numero di cellulare e testo del messaggio, solo con il tuo consenso (art. 6, par. 1, lett. a GDPR), revocabile in qualsiasi momento; Twilio tratta dati anche negli Stati Uniti."
 
 #: src/Privacy/PolicyText.php:82
 msgid "Unser SMS-Dienstleister (Auftragsverarbeiter) für den SMS-Versand: Mobilnummer und Nachrichtentext, nur mit Ihrer Einwilligung (Art. 6 Abs. 1 lit. a DSGVO), jederzeit widerrufbar."
-msgstr ""
+msgstr "Il nostro fornitore del servizio SMS (responsabile del trattamento) per l'invio di SMS: numero di cellulare e testo del messaggio, solo con il tuo consenso (art. 6, par. 1, lett. a GDPR), revocabile in qualsiasi momento."
 
 #: src/Privacy/PolicyText.php:83
 msgid "Apple Inc. (USA), wenn Sie ein Ticket zu Apple Wallet hinzufügen: Ihr Gerät meldet sich für Aktualisierungen an; wir speichern dafür eine Gerätekennung und ein Push-Token und senden Aktualisierungshinweise über den Apple Push Notification Service."
-msgstr ""
+msgstr "Apple Inc. (USA), quando aggiungi un biglietto ad Apple Wallet: il tuo dispositivo si registra per gli aggiornamenti; per questo salviamo un identificativo del dispositivo e un token push e inviamo le notifiche di aggiornamento tramite l'Apple Push Notification Service."
 
 #: src/Privacy/PolicyText.php:84
 msgid "Google Ireland Ltd. / Google LLC (USA), wenn Sie ein Ticket zu Google Wallet hinzufügen: Ticketangaben (Veranstaltung, Termin, Ticketcode, gegebenenfalls Name) werden an Google übermittelt."
-msgstr ""
+msgstr "Google Ireland Ltd. / Google LLC (USA), quando aggiungi un biglietto a Google Wallet: i dati del biglietto (evento, data, codice del biglietto, eventualmente nome) vengono trasmessi a Google."
 
 #: src/Privacy/PolicyText.php:85
 msgid "Vertriebs- und Veranstaltungspartner: Partner erhalten für ihre Veranstaltungen Bestell- und Einlassdaten, personenbezogene Daten (E-Mail-Adressen) nur, soweit dies vertraglich vereinbart ist (Art. 6 Abs. 1 lit. b bzw. f DSGVO, gegebenenfalls Auftragsverarbeitung)."
-msgstr ""
+msgstr "Partner di vendita e di eventi: i partner ricevono i dati degli ordini e degli ingressi per i loro eventi, e dati personali (indirizzi e-mail) solo nella misura concordata contrattualmente (art. 6, par. 1, lett. b o f GDPR, se del caso trattamento per conto del titolare)."
 
 #: src/Privacy/PolicyText.php:86
 msgid "Angebundene Systeme (Webhooks), z. B. Buchhaltung, CRM oder Newsletter-Dienst: Bestell- und Ticketereignisse, E-Mail-Adressen nur, wenn dies für das jeweilige System ausdrücklich aktiviert ist."
-msgstr ""
+msgstr "Sistemi collegati (webhook), ad es. contabilità, CRM o servizio newsletter: eventi di ordini e biglietti; indirizzi e-mail solo se ciò è espressamente attivato per il sistema in questione."
 
 #: src/Privacy/PolicyText.php:87
 msgid "Affiliate-Programm (WP Affiliate Captain, auf diesem Server): Wenn Sie über einen Partnerlink kommen oder einen Partnercode eingeben, ordnen wir die Bestellung dem Partner zu, um dessen Provision abzurechnen. Den Empfehlungs-Cookie werten wir nur mit Ihrer Einwilligung aus (Art. 6 Abs. 1 lit. a DSGVO, § 165 Abs. 3 TKG 2021 bzw. § 25 TDDDG); bei einem selbst eingegebenen Code auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Ihre E-Mail-Adresse wird nur zur Prüfung von Eigenempfehlungen verwendet und dort nicht gespeichert."
-msgstr ""
+msgstr "Programma di affiliazione (WP Affiliate Captain, su questo server): se arrivi tramite un link partner o inserisci un codice partner, assegniamo l'ordine al partner per calcolare la sua commissione. Valutiamo il cookie di segnalazione solo con il tuo consenso (art. 6, par. 1, lett. a GDPR, § 165 comma 3 TKG 2021 o § 25 TDDDG); per un codice inserito da te, sulla base dell'art. 6, par. 1, lett. f GDPR. Il tuo indirizzo e-mail viene usato solo per verificare le auto-segnalazioni e non viene salvato lì."
 
 #: src/Privacy/PolicyText.php:88
 msgid "Unser Hosting- und E-Mail-Dienstleister als Auftragsverarbeiter."
-msgstr ""
+msgstr "Il nostro fornitore di hosting e servizi e-mail in qualità di responsabile del trattamento."
 
 #: src/Privacy/PolicyText.php:92
 msgid "Übermittlung in Drittländer"
-msgstr ""
+msgstr "Trasferimenti verso paesi terzi"
 
 #: src/Privacy/PolicyText.php:93
 msgid "Einige der genannten Dienstleister verarbeiten Daten auch in den USA. Die Übermittlung erfolgt auf Grundlage des EU-U.S. Data Privacy Framework (Angemessenheitsbeschluss, Art. 45 DSGVO), soweit der Empfänger zertifiziert ist, im Übrigen auf Grundlage der EU-Standardvertragsklauseln (Art. 46 Abs. 2 lit. c DSGVO)."
-msgstr ""
+msgstr "Alcuni dei fornitori di servizi indicati trattano dati anche negli Stati Uniti. Il trasferimento avviene sulla base dell'EU-U.S. Data Privacy Framework (decisione di adeguatezza, art. 45 GDPR) se il destinatario è certificato, altrimenti sulla base delle clausole contrattuali standard dell'UE (art. 46, par. 2, lett. c GDPR)."
 
 #: src/Privacy/PolicyText.php:97
 msgid "Speicherdauer"
-msgstr ""
+msgstr "Periodo di conservazione"
 
 #. translators: %s: retention description
 #: src/Privacy/PolicyText.php:99
 #, php-format
 msgid "Teilnehmerangaben (Name, E-Mail, Zusatzfelder) löschen wir automatisch %s. Einlassprotokolle bleiben ohne Teilnehmerangaben für Auswertungen erhalten; die Zuordnung zu Mitarbeitenden und Geräten entfernen wir nach einem Jahr."
-msgstr ""
+msgstr "Cancelliamo automaticamente i dati dei partecipanti (nome, e-mail, campi aggiuntivi) %s. I registri degli ingressi vengono conservati senza dati dei partecipanti a fini di analisi; il collegamento con collaboratori e dispositivi viene rimosso dopo un anno."
 
 #: src/Privacy/PolicyText.php:100
 msgid "Nicht bezahlte Bestellungen anonymisieren wir nach 90 Tagen. Versandte Benachrichtigungen löschen wir inhaltlich nach 30 Tagen. Protokolle über Verwaltungsvorgänge bewahren wir zwei Jahre auf."
-msgstr ""
+msgstr "Anonimizziamo gli ordini non pagati dopo 90 giorni. Cancelliamo il contenuto delle notifiche inviate dopo 30 giorni. Conserviamo i registri delle operazioni amministrative per due anni."
 
 #: src/Privacy/PolicyText.php:101
 msgid "Bestell-, Zahlungs- und Rechnungsdaten bewahren wir für die gesetzlichen Fristen auf: in Österreich sieben Jahre (§ 132 BAO), in Deutschland bis zu zehn Jahre (§ 147 AO, § 257 HGB). Während dieser Zeit sind diese Daten für andere Zwecke gesperrt."
-msgstr ""
+msgstr "Conserviamo i dati di ordini, pagamenti e fatture per i termini di legge: in Austria sette anni (§ 132 BAO), in Germania fino a dieci anni (§ 147 AO, § 257 HGB). Durante questo periodo i dati sono bloccati per altre finalità."
 
 #: src/Privacy/PolicyText.php:104
 msgid "Ihre Rechte"
-msgstr ""
+msgstr "I tuoi diritti"
 
 #: src/Privacy/PolicyText.php:105
 msgid "Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie auf Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft. Bei einer Löschung bleiben Rechnungen und Buchungsdaten bis zum Ablauf der gesetzlichen Aufbewahrungsfrist gespeichert (Art. 17 Abs. 3 lit. b DSGVO); Tickets für künftige Termine werden mit der Löschung ungültig. Sie können sich bei einer Datenschutzaufsichtsbehörde beschweren."
-msgstr ""
+msgstr "Hai il diritto di accesso, rettifica, cancellazione, limitazione del trattamento, portabilità dei dati e opposizione, nonché il diritto di revocare i consensi prestati con effetto per il futuro. In caso di cancellazione, le fatture e i dati di prenotazione restano conservati fino alla scadenza del termine legale di conservazione (art. 17, par. 3, lett. b GDPR); i biglietti per date future diventano non validi con la cancellazione. Puoi presentare reclamo a un'autorità di controllo per la protezione dei dati."
 
 #: src/PublicEvents.php:31
 msgid "E-Mail der Teilnehmer:in (optional, für ein eigenes Ticket)"
-msgstr ""
+msgstr "E-mail del partecipante (facoltativa, per un biglietto separato)"
 
 #: src/PublicEvents.php:37
 msgid "Bitte prüfe deine Angaben"
-msgstr ""
+msgstr "Controlla i tuoi dati"
 
 #. translators: %d: number of problems
 #: src/PublicEvents.php:39
 #, php-format
 msgid "Es gibt %d Problem(e). Wähle einen Eintrag, um zum Feld zu springen."
-msgstr ""
+msgstr "Ci sono %d problema/i. Seleziona una voce per passare al campo."
 
 #. translators: %s: field label
 #: src/PublicEvents.php:41
 #, php-format
 msgid "Bitte fülle „%s“ aus."
-msgstr ""
+msgstr "Compila “%s”."
 
 #. translators: %s: field label
 #: src/PublicEvents.php:43
 #, php-format
 msgid "„%s“: Bitte gib eine gültige E-Mail-Adresse ein, z. B. name@example.com."
-msgstr ""
+msgstr "“%s”: inserisci un indirizzo e-mail valido, ad es. nome@example.com."
 
 #. translators: %s: field label
 #: src/PublicEvents.php:45
 #, php-format
 msgid "„%s“ ist ungültig."
-msgstr ""
+msgstr "“%s” non è valido."
 
 #: src/PublicEvents.php:46
 msgid "Bitte bestätige die Bedingungen, um zu bestellen."
-msgstr ""
+msgstr "Accetta le condizioni per effettuare l'ordine."
 
 #. translators: 1: ticket type, 2: maximum quantity
 #: src/PublicEvents.php:48
 #, php-format
 msgid "„%1$s“: Es sind höchstens %2$d Tickets möglich."
-msgstr ""
+msgstr "“%1$s”: sono possibili al massimo %2$d biglietti."
 
 #: src/PublicEvents.php:50
 msgid "Vielen Dank für deine Bestellung!"
-msgstr ""
+msgstr "Grazie per il tuo ordine!"
 
 #: src/PublicEvents.php:51
 msgid "Bestellung abgeschlossen"
-msgstr ""
+msgstr "Ordine completato"
 
 #. translators: %s: short order number
 #: src/PublicEvents.php:53
 #, php-format
 msgid "Bestellnummer: %s"
-msgstr ""
+msgstr "Numero d'ordine: %s"
 
 #. translators: %s: e-mail address
 #: src/PublicEvents.php:55
 #, php-format
 msgid "Wir haben die Bestätigung mit deinem persönlichen Bestelllink an %s gesendet."
-msgstr ""
+msgstr "Abbiamo inviato a %s la conferma con il tuo link personale all'ordine."
 
 #. translators: %s: e-mail address
 #: src/PublicEvents.php:57
 #, php-format
 msgid "Die Tickets und die Bestätigung haben wir an %s gesendet."
-msgstr ""
+msgstr "Abbiamo inviato i biglietti e la conferma a %s."
 
 #: src/PublicEvents.php:58
 msgid "Keine E-Mail erhalten? Sieh bitte auch im Spam-Ordner nach."
-msgstr ""
+msgstr "Non hai ricevuto l'e-mail? Controlla anche la cartella dello spam."
 
 #: src/PublicEvents.php:59
 msgid "Bitte überweise den Betrag mit diesen Angaben:"
-msgstr ""
+msgstr "Effettua il bonifico dell'importo con questi dati:"
 
 #. translators: %s: date and time
 #: src/PublicEvents.php:61
 #, php-format
 msgid "Deine Tickets sind bis %s reserviert. Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung."
-msgstr ""
+msgstr "I tuoi biglietti sono prenotati fino al %s. Se il pagamento non arriva entro tale termine, la prenotazione scade."
 
 #: src/PublicEvents.php:62
 msgid "Nach Zahlungseingang erhältst du deine Tickets per E-Mail."
-msgstr ""
+msgstr "Dopo la ricezione del pagamento riceverai i biglietti via e-mail."
 
 #: src/PublicEvents.php:69
 msgid "Weitere Tickets bestellen"
-msgstr ""
+msgstr "Ordina altri biglietti"
 
 #: src/Refunds.php:60
 msgid "Für mindestens eines der gewählten Tickets läuft bereits eine Erstattung oder sie wartet auf Freigabe."
-msgstr ""
+msgstr "Per almeno uno dei biglietti selezionati è già in corso un rimborso oppure è in attesa di approvazione."
 
 #: src/Refunds.php:313
 msgid "Die Bestellung kann nicht mehr erstattet werden."
-msgstr ""
+msgstr "L'ordine non può più essere rimborsato."
 
 #: src/Refunds.php:321
 msgid "Mindestens eines der Tickets wurde bereits erstattet; die Erstattung wurde nicht ausgeführt."
-msgstr ""
+msgstr "Almeno uno dei biglietti è già stato rimborsato; il rimborso non è stato eseguito."
 
 #: src/Refunds.php:328
 msgid "Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag; die Erstattung wurde nicht ausgeführt."
-msgstr ""
+msgstr "L'importo del rimborso supera l'importo ancora aperto dell'ordine; il rimborso non è stato eseguito."
 
 #: src/Rest/Controller.php:249
 msgid "Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets."
-msgstr ""
+msgstr "Il codice sconto non è valido o non corrisponde ai biglietti selezionati."
 
 #: src/Rest/Controller.php:250
 msgid "Der Rabattcode konnte nicht sicher auf die Bestellung angewendet werden. Bitte versuche es erneut."
-msgstr ""
+msgstr "Non è stato possibile applicare in modo affidabile il codice sconto all'ordine. Riprova."
 
 #. translators: %d: allowed resends per hour
 #: src/Rest/Controller.php:389
 #, php-format
 msgid "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
 msgid_plural "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "I biglietti possono essere inviati di nuovo al massimo %d volta all'ora. Riprova più tardi."
+msgstr[1] "I biglietti possono essere inviati di nuovo al massimo %d volte all'ora. Riprova più tardi."
 
 #: src/TicketAssignments.php:31
 msgid "Dieses Ticket wurde bereits an eine andere Person übertragen und kann über die Bestellung nicht mehr geändert werden."
-msgstr ""
+msgstr "Questo biglietto è già stato trasferito a un'altra persona e non può più essere modificato tramite l'ordine."
 
 #: src/TicketAssignments.php:39
 msgid "Für dieses Ticket wurde der Teilnehmer bereits geändert. Ein weiterer Wechsel der Person ist nicht möglich; Namen und Angaben können weiterhin korrigiert werden."
-msgstr ""
+msgstr "Il partecipante di questo biglietto è già stato modificato. Un ulteriore cambio di persona non è possibile; nomi e dati possono comunque essere corretti."
 
 #: templates/event-card.php:39
 msgid "Deine E-Mail-Adresse (für Tickets und Bestätigung)"
-msgstr ""
+msgstr "Il tuo indirizzo e-mail (per biglietti e conferma)"
 
 #: templates/event-card.php:70
 msgid "Ich akzeptiere die Bedingungen."
-msgstr ""
+msgstr "Accetto le condizioni."
