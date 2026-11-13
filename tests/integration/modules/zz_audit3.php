@@ -1008,3 +1008,22 @@ foreach ( $a106_lits[0] as $a106_l ) {
 }
 check( 'A106: every editor text key is in the PHP catalog' . ( $a106_missing ? ' – missing ' . implode( ', ', $a106_missing ) : '' ), ! $a106_missing );
 check( 'A106: no hard-coded German text in the editor' . ( $a106_bare ? ' – ' . implode( ' | ', array_slice( $a106_bare, 0, 5 ) ) : '' ), ! $a106_bare );
+
+echo "Audit 3: index columns fit 767 bytes (utf8mb4, older MySQL/MariaDB) (A105)\n";
+$a105_bad = array();
+foreach ( array_merge( array( dirname( __DIR__, 3 ) . '/src/Installer.php' ), glob( dirname( __DIR__, 3 ) . '/src/Modules/*.php' ) ) as $a105_f ) {
+	$a105_src = file_get_contents( $a105_f );
+	if ( ! preg_match_all( '/CREATE TABLE \S+ \((.*?)\)\s*(?:ENGINE|\$)/s', $a105_src, $a105_tables ) ) { continue; }
+	foreach ( $a105_tables[1] as $a105_body ) {
+		preg_match_all( '/^\s*([a-z_0-9]+) (?:var)?char\((\d+)\)/m', $a105_body, $a105_cols, PREG_SET_ORDER );
+		$a105_len = array();
+		foreach ( $a105_cols as $a105_c ) { $a105_len[ $a105_c[1] ] = (int) $a105_c[2]; }
+		preg_match_all( '/KEY\s*\w*\s*\(([^)]*\)?)\)/', $a105_body, $a105_keys );
+		foreach ( $a105_keys[1] as $a105_k ) {
+			foreach ( array_map( 'trim', explode( ',', $a105_k ) ) as $a105_part ) {
+				if ( preg_match( '/^([a-z_0-9]+)$/', $a105_part, $a105_m ) && ( $a105_len[ $a105_m[1] ] ?? 0 ) > 191 ) { $a105_bad[] = basename( $a105_f ) . ':' . $a105_m[1]; }
+			}
+		}
+	}
+}
+check( 'A105: no indexed (var)char column above 191 characters without prefix length' . ( $a105_bad ? ' – ' . implode( ', ', $a105_bad ) : '' ), ! $a105_bad );

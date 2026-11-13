@@ -91,6 +91,7 @@
 - Veranstalter-Abrechnung: selbst vereinnahmte Erlöse aus eigenen API-Verkäufen werden automatisch von der Auszahlung abgezogen (Gebühren fallen weiter an); negativer Saldo wird nie ausgezahlt, sondern in die nächste Abrechnung vorgetragen (oder per Einstellung sofort als Forderung ausgewiesen). Abrechnungsbeleg zeigt Zwischensumme, Abzug, Saldovortrag; die Wiederverkäufer-Aufstellung markiert diese Beträge als „wird verrechnet“.
 - Hook `wpcap_reserve_capacity` erhält zusätzlich Käufer-E-Mail, Benutzer-ID und die Kanaloptionen (`internal`) im Kontext.
 - Saalplan-Editor: alle Texte (Werkzeuge, Hilfe, Bühne, Kapazität, Farbe, Löschen …) übersetzbar; ein Test verhindert fest codierte Texte.
+- Datenbank: Index auf `wallet_registrations.push_token` als Präfixindex (passt in 767 Byte für ältere MySQL/MariaDB); Anforderungen in `docs/OPERATIONS.md` dokumentiert, Test prüft alle Schemata.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

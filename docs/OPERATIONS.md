@@ -7,6 +7,10 @@
 3. Sicherungszeitpunkt, Plugin-Version und Schema-Version notieren. Die Migration v3 nutzt `dbDelta` und ergänzt Tabellen und Spalten; sie löscht keine Plugin-Tabellen.
 4. Nach dem Upgrade Datenbankverbindung, öffentliche Events, Checkout, Ticketmail, Check-in und geplante Jobs in der Staging-Site prüfen.
 
+## Datenbank-Anforderungen
+
+InnoDB mit `utf8mb4`. Jede Indexspalte bleibt unter 767 Byte (höchstens 191 Zeichen, sonst Präfixindex), zusammengesetzte Indizes unter 3072 Byte – damit läuft das Schema auch auf älteren MySQL-/MariaDB-Versionen ohne `innodb_large_prefix` (MySQL ab 5.6, MariaDB ab 10.1; empfohlen MySQL 8 / MariaDB 10.6+). Ein Test prüft das für alle Tabellen.
+
 ## Schema-Upgrade nach einem Update
 
 Das Datenbank-Upgrade (`dbDelta` für alle Kern- und Modultabellen) läuft nicht mehr bei jedem Seitenaufruf:

@@ -45,7 +45,7 @@ final class Wallet {
 				PRIMARY KEY  (registration_id),
 				UNIQUE KEY device_serial (device_library_id,serial_number),
 				KEY serial_number (serial_number),
-				KEY push_token (push_token)
+				KEY push_token (push_token(191))
 			) ENGINE=InnoDB $charset;",
 		);
 	}

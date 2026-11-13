@@ -231,7 +231,8 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - composer.json ohne Strauss/Scoper; TicketPdf.php:67-69 nutzt \BaconQrCode unpräfixiert
 - [ ] **A104** Hook-Präfixe vereinheitlichen, öffentliche Hook-Liste — _OFFEN_ (TODO L382; Architektur und Wartbarkeit (noch offen))
   - src/Jobs.php:42 wp_pass_captain_process_job_v1, Communications.php:51 wp_pass_captain_email_template_v1 neben wpcap_*
-- [ ] **A105** Index-Längen > 767 Bytes kürzen oder dokumentieren — _OFFEN_ (TODO L383; Architektur und Wartbarkeit (noch offen))
+- [x] **A105** Index-Längen > 767 Bytes kürzen oder dokumentieren — _OFFEN_ (TODO L383; Architektur und Wartbarkeit (noch offen))
+  - Geprüft 13.11.: einzige Indexspalte über 767 Byte war wallet_registrations.push_token (varchar 200) → Präfixindex (191); zusammengesetzte Indizes bleiben unter 3072 Byte. Test A105 prüft alle Schemata.
   - Installer.php:445,592; Modules/Wallet.php:46 unverändert; keine Doku der Mindestanforderung gefunden
 - [x] **A106** Saalplan-Editor-JS-Texte übersetzbar machen — _TEILWEISE_ (TODO L384; Architektur und Wartbarkeit (noch offen))
   - editor.js nutzt teils t.* (Zeile 108-123), aber fest codiert: 103, 124, 187, 339; Englisch-Umstieg nicht geprüft
