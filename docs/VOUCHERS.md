@@ -76,6 +76,8 @@ Beispiel oben, ein Ticket wird erstattet: 5,00 € an den Zahlungsanbieter, 5,00
 
 Reine Betragserstattungen (ohne Tickets) werden nur aus dem Barteil gezahlt.
 
+Berichte, Veranstalter-Abrechnungen und Wiederverkäufer-Abrechnungen lesen die Erstattungsbeträge aus dem gespeicherten Plan (`refund_plans`, `Checkout::refund_amounts()`), nicht aus der reinen Barerstattung: Beim Mehrzweckgutschein zählt die Erstattung Bar- und Gutscheinteil mit der vollen USt (dieselben Zahlen wie die Rechnungskorrektur); im Beispiel sinkt der Umsatz um 10,00 € (1,67 € USt), nicht nur um 5,00 €. Beim Einzweckgutschein bucht die Veranstalter-Abrechnung den zurückgegebenen Gutscheinteil als eigene Zeile „Einzweckgutschein zurückgegeben (Erstattung)“ gegen die Forderung gegen den Gutscheinverkäufer.
+
 ## Ticketdienst (Gutschein → Tickets)
 
 - **Mehrzweckgutschein**: Die Bestellung enthält die Tickets zum Listenpreis – oder, wenn WP Voucher Captain `amount_minor` (eingelöster Gutscheinwert) übergibt, zu diesem Betrag als Entgelt – mit voller USt. Der offene Betrag ist 0, `amount_paid_by_voucher` = Bruttobetrag. Rechnungen zeigen den Gutschein als Zahlung; Berichte und Abrechnungen den Umsatz.
@@ -88,7 +90,7 @@ Reine Betragserstattungen (ohne Tickets) werden nur aus dem Barteil gezahlt.
 - **Gutscheinverkauf buchen**: Einzweckgutscheine sind beim Verkauf umsatzsteuerpflichtig (Rechnung über den Gutschein mit USt); Mehrzweckgutscheine nicht (Beleg ohne USt-Ausweis, z. B. als Zahlungsmittel/Anzahlung).
 - **Einlösung buchen**: Mehrzweckgutscheine erst bei der Einlösung als Umsatz versteuern (Rechnung von Pass Captain); den Gutscheinbetrag gegen das Gutschein-Verbindlichkeitskonto verbuchen. Einzweckgutscheine: keine erneute Umsatzsteuer.
 - **Verfallene Gutscheine**: Nicht eingelöste Mehrzweckgutscheine sind in der Regel kein steuerbarer Umsatz; Einzweckgutscheine wurden bereits versteuert. Die Behandlung klärt der Betreiber mit der Steuerberatung.
-- **Abrechnung mit Veranstaltern**: Bei Einzweckgutscheinen, die über den Ticketdienst eingelöst werden, enthalten die Bestellzeilen 0 €; den Erlös des Veranstalters (Gutscheinwert, `face_value_minor`) zwischen Gutscheinverkäufer und Veranstalter gesondert abrechnen.
+- **Abrechnung mit Veranstaltern**: Bei Einzweckgutscheinen, die über den Ticketdienst eingelöst werden, enthalten die Bestellzeilen 0 €; die Veranstalter-Abrechnung führt den gespeicherten Gutscheinwert (`face_value_minor`) als Zeile „Einzweckgutschein (Forderung gegen den Gutscheinverkäufer)“ ohne USt und kehrt ihn bei Erstattungen anteilig (nach Ticketanzahl) wieder um. Die Forderung zwischen Gutscheinverkäufer und Plattform ist gesondert auszugleichen.
 - **Bestehende Bestellungen** werden nicht umgebucht.
 
 ## Technische Felder (Voucher-Snapshot `orders.voucher_snapshot`)

@@ -51,9 +51,14 @@ final class Statement {
 			}
 		}
 		// Refunds completed in the period.
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.public_id,po.external_reference FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_partner_orders po ON po.order_id=r.order_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE po.partner_id=%d AND r.status='completed' AND ord.currency=%s AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", (int) $partner->partner_id, $partner->currency, $start, $end ) );
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.public_id,po.external_reference,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_partner_orders po ON po.order_id=r.order_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE po.partner_id=%d AND r.status='completed' AND ord.currency=%s AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", (int) $partner->partner_id, $partner->currency, $start, $end ) );
 		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
 		foreach ( $refunds as $refund ) {
+			// Sales count the full ticket value (multi-purpose voucher included), so refunds count cash +
+			// voucher share and the full VAT from the stored refund plan.
+			$amounts = \PassCaptain\Integrations\Vouchers\Checkout::refund_amounts( $refund );
+			$refund->amount_minor = $amounts['amount_minor'];
+			$refund->tax_minor = $amounts['tax_minor'];
 			$order_lines = $refund_lines[ (int) $refund->order_id ] ?? array();
 			foreach ( Settlements::allocate_refund( $refund, $order_lines ) as $i => $share ) {
 				$lines[] = self::line( 'refund', $refund, $order_lines[ $i ], (int) $refund->refund_id, $refund->updated_at, -$share['tickets'], -$share['amount'], -$share['tax'], $partner );

@@ -406,7 +406,8 @@ final class Checkout {
 		} elseif ( $final ) {
 			$share = $voucher - $planned;
 		} else {
-			$share = $all_value > 0 ? (int) floor( $voucher * $value / $all_value ) : 0;
+			// Free tickets (single-purpose voucher from the ticket service, lines at 0): share by ticket count.
+			$share = $all_value > 0 ? (int) floor( $voucher * $value / $all_value ) : ( $all_tickets > 0 ? (int) floor( $voucher * $tickets / $all_tickets ) : 0 );
 		}
 		$share = max( 0, min( $share, $voucher - $planned ) );
 		$purpose = self::snapshot_purpose( $snapshot );
@@ -448,6 +449,35 @@ final class Checkout {
 			'tax_minor' => (int) $plan['tax_minor'],
 			'voucher_minor' => (int) $plan['voucher_minor'],
 		);
+	}
+
+	/**
+	 * Amounts of a completed refund for reports, organizer settlements and reseller statements, read from
+	 * the stored refund plan (`refund_plans`, see refund_plan()) instead of the cash-only refund row:
+	 * - multi-purpose voucher: amount = cash part + voucher share, tax = full VAT of the refunded tickets
+	 *   (the same numbers as the credit note, credit_note_amounts()),
+	 * - single-purpose voucher: amount/tax of the refund row; voucher_minor is the voucher value given back
+	 *   (reverses the organizer's claim against the voucher seller),
+	 * - no voucher: the refund row unchanged.
+	 *
+	 * @param object|array $refund Refund row with refund_id, order_id, amount_minor, tax_minor; an optional
+	 *                             `has_voucher` (0/1) skips the lookup for orders without voucher.
+	 * @return array{amount_minor:int,tax_minor:int,voucher_minor:int,purpose:string|null}
+	 */
+	public static function refund_amounts( $refund ) {
+		$refund = (object) $refund;
+		$out = array( 'amount_minor' => (int) ( $refund->amount_minor ?? 0 ), 'tax_minor' => (int) ( $refund->tax_minor ?? 0 ), 'voucher_minor' => 0, 'purpose' => null );
+		if ( isset( $refund->has_voucher ) && ! (int) $refund->has_voucher ) { return $out; }
+		$refund_id = absint( $refund->refund_id ?? 0 );
+		$plan = $refund_id ? self::refund_plan( $refund_id ) : null;
+		if ( ! $plan ) { return $out; }
+		$out['purpose'] = (string) ( $plan['purpose'] ?? '' );
+		$out['voucher_minor'] = max( 0, (int) ( $plan['voucher_minor'] ?? 0 ) );
+		if ( self::PURPOSE_MULTI === $out['purpose'] && $out['voucher_minor'] > 0 ) {
+			$out['amount_minor'] = (int) $plan['cash_minor'] + $out['voucher_minor'];
+			$out['tax_minor'] = (int) ( $plan['tax_minor'] ?? $out['tax_minor'] );
+		}
+		return $out;
 	}
 
 	/* ------------------------------------------------------------------ Voucher purpose (VAT treatment) */
@@ -532,14 +562,15 @@ final class Checkout {
 
 	/**
 	 * Value of a single-purpose voucher redeemed on a paid order (booked as a discount on the order,
-	 * VAT was due when the voucher was sold). 0 otherwise.
+	 * VAT was due when the voucher was sold). For ticket service exchanges (free tickets) the stored voucher
+	 * value `face_value_minor` (TicketService::record_voucher()). 0 otherwise.
 	 */
 	public static function single_purpose_minor( $order ) {
 		$order = is_object( $order ) ? $order : Orders::get( absint( $order ) );
 		if ( ! $order || empty( $order->voucher_snapshot ) ) { return 0; }
 		$snapshot = (array) json_decode( (string) $order->voucher_snapshot, true );
 		if ( self::PURPOSE_SINGLE !== self::snapshot_purpose( $snapshot ) || 'released' === ( $snapshot['status'] ?? '' ) ) { return 0; }
-		return max( 0, (int) ( $snapshot['applied_minor'] ?? $snapshot['amount_minor'] ?? 0 ) );
+		return max( 0, (int) ( $snapshot['face_value_minor'] ?? $snapshot['applied_minor'] ?? $snapshot['amount_minor'] ?? 0 ) );
 	}
 
 	/** Full gross consideration of an order (amount due + multi-purpose voucher payment). */

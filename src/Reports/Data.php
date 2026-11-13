@@ -5,7 +5,8 @@
  * box office vs online share.
  *
  * Sales are counted on the order creation day (paid or later refunded orders), refunds on their
- * completion day (wpcap_refunds.updated_at). Credit notes mirror refunds and are listed for reference
+ * completion day (wpcap_refunds.updated_at); refunds of multi-purpose voucher orders count cash + voucher
+ * share with the full VAT from the stored refund plans (Vouchers\Checkout::refund_amounts()). Credit notes mirror refunds and are listed for reference
  * only (not subtracted twice). Discounts are allocated to lines like Orders::create().
  * Complimentary orders (guest lists, comp_providers()) are not sales: reported as `comps` only.
  */
@@ -178,11 +179,16 @@ final class Data {
 		}
 
 		// Completed refunds (netted on their completion day).
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $start, $end ) );
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $start, $end ) );
 		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
 		foreach ( $refunds as $refund ) {
 			$lines = $refund_lines[ (int) $refund->order_id ] ?? array();
 			if ( ! $lines ) { continue; }
+			// Multi-purpose voucher orders: the sale counts the full consideration, so the refund counts cash +
+			// voucher share and the full VAT from the stored refund plan (same numbers as the credit note).
+			$amounts = \PassCaptain\Integrations\Vouchers\Checkout::refund_amounts( $refund );
+			$refund->amount_minor = $amounts['amount_minor'];
+			$refund->tax_minor = $amounts['tax_minor'];
 			$by_type = array();
 			foreach ( $lines as $i => $line ) { $by_type[ (int) $line->ticket_type_id ] = $i; }
 			$ids = array_filter( array_map( 'absint', (array) json_decode( (string) $refund->ticket_ids, true ) ) );

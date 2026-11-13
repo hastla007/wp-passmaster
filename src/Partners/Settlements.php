@@ -58,6 +58,7 @@ final class Settlements {
 			'refund' => __( 'Erstattung', 'wp-pass-captain' ),
 			'correction' => __( 'Korrektur Erstattung (Vorperiode)', 'wp-pass-captain' ),
 			'voucher' => __( 'Einzweckgutschein (Forderung gegen den Gutscheinverkäufer)', 'wp-pass-captain' ),
+			'voucher_refund' => __( 'Einzweckgutschein zurückgegeben (Erstattung)', 'wp-pass-captain' ),
 		);
 	}
 
@@ -144,16 +145,10 @@ final class Settlements {
 				// A single-purpose voucher was booked as a discount (VAT was due when it was sold): the
 				// organizer still earns the full ticket price, the voucher value is a claim against the
 				// voucher seller. Shown as its own line for the partner's share of the order.
-				$single = class_exists( '\\PassCaptain\\Integrations\\Vouchers\\Checkout' ) ? \PassCaptain\Integrations\Vouchers\Checkout::single_purpose_minor( (int) $order->order_id ) : 0;
+				// Ticket service exchanges (free tickets) use the stored voucher value (face_value_minor).
+				$single = \PassCaptain\Integrations\Vouchers\Checkout::single_purpose_minor( (int) $order->order_id );
 				if ( $single > 0 && ! isset( $settled[ 'voucher:' . (int) $order->order_id ] ) ) {
-					$all = 0;
-					$own = 0;
-					$first = null;
-					foreach ( $order_lines as $line ) {
-						$all += (int) $line->line_total_minor;
-						if ( in_array( (int) $line->event_id, $events, true ) ) { $own += (int) $line->line_total_minor; $first = $first ? $first : $line; }
-					}
-					$share = $all > 0 ? (int) round( $single * $own / $all ) : 0;
+					list( $first, $share ) = self::voucher_share( $single, $order_lines, $events );
 					if ( $first && $share > 0 ) {
 						$lines[] = self::line( 'voucher', 'voucher:' . (int) $order->order_id, $first, (int) $order->order_id, 0, $order->created_at, $order->created_at, 0, $share, 0, $partner, $tz );
 					}
@@ -161,19 +156,25 @@ final class Settlements {
 			}
 
 			// Completed refunds.
-			$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.created_at AS order_created_at FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND ord.currency=%s AND r.updated_at < %s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY r.refund_id", $partner->currency, $end, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.created_at AS order_created_at,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND ord.currency=%s AND r.updated_at < %s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY r.refund_id", $partner->currency, $end, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
 			foreach ( $refunds as $refund ) {
 				// A multi-purpose voucher paid part of the order: the sale counts the full ticket value, so the refund
 				// must count cash and the voucher share given back (same numbers as the credit note).
-				if ( class_exists( '\\PassCaptain\\Integrations\\Vouchers\\Checkout' ) ) {
-					$with_voucher = \PassCaptain\Integrations\Vouchers\Checkout::credit_note_amounts( (int) $refund->refund_id );
-					if ( is_array( $with_voucher ) ) {
-						$refund->amount_minor = (int) $with_voucher['total_minor'];
-						$refund->tax_minor = (int) $with_voucher['tax_minor'];
+				// Read from the stored refund plan (Vouchers\Checkout::refund_amounts()).
+				$amounts = \PassCaptain\Integrations\Vouchers\Checkout::refund_amounts( $refund );
+				$refund->amount_minor = $amounts['amount_minor'];
+				$refund->tax_minor = $amounts['tax_minor'];
+				$order_lines = $refund_lines[ (int) $refund->order_id ] ?? array();
+				// A single-purpose voucher share given back to the voucher ends the organizer's claim against the
+				// voucher seller for the refunded tickets: reverse it (own line, no VAT).
+				$back_key = 'voucher_refund:' . (int) $refund->refund_id;
+				if ( \PassCaptain\Integrations\Vouchers\Checkout::PURPOSE_SINGLE === $amounts['purpose'] && $amounts['voucher_minor'] > 0 && ! isset( $settled[ $back_key ] ) ) {
+					list( $first, $back ) = self::voucher_share( $amounts['voucher_minor'], $order_lines, $events );
+					if ( $first && $back > 0 ) {
+						$lines[] = self::line( 'voucher_refund', $back_key, $first, (int) $refund->order_id, (int) $refund->refund_id, $refund->updated_at, $refund->order_created_at, 0, -$back, 0, $partner, $tz );
 					}
 				}
-				$order_lines = $refund_lines[ (int) $refund->order_id ] ?? array();
 				foreach ( self::allocate_refund( $refund, $order_lines ) as $i => $share ) {
 					$line = $order_lines[ $i ];
 					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
@@ -262,6 +263,36 @@ final class Settlements {
 			$out[ $i ] = array( 'tickets' => (int) $weights[ $i ][0], 'amount' => $amount, 'tax' => $tax );
 		}
 		return $out;
+	}
+
+	/**
+	 * Partner's share of a single-purpose voucher amount on an order: by line value, or by ticket count when
+	 * the lines are free (ticket service exchanges). The share is booked on the partner's first line.
+	 *
+	 * @return array{0:object|null,1:int} [first own line, share]
+	 */
+	private static function voucher_share( $amount, array $order_lines, array $events ) {
+		$all = 0;
+		$own = 0;
+		$all_tickets = 0;
+		$own_tickets = 0;
+		$first = null;
+		foreach ( $order_lines as $line ) {
+			if ( \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; }
+			$all += (int) $line->line_total_minor;
+			$all_tickets += (int) $line->quantity;
+			if ( in_array( (int) $line->event_id, $events, true ) ) {
+				$own += (int) $line->line_total_minor;
+				$own_tickets += (int) $line->quantity;
+				$first = $first ? $first : $line;
+			}
+		}
+		if ( $all > 0 ) {
+			$share = (int) round( (int) $amount * $own / $all );
+		} else {
+			$share = $all_tickets > 0 ? (int) round( (int) $amount * $own_tickets / $all_tickets ) : 0;
+		}
+		return array( $first, $share );
 	}
 
 	private static function lines_by_order( array $order_ids, $line_sql ) {
