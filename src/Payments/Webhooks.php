@@ -56,6 +56,12 @@ final class Webhooks {
 			return \PassCaptain\Errors::busy( __( 'Das Ereignis konnte gerade nicht gespeichert werden. Bitte erneut zustellen.', 'pass-captain' ) );
 		}
 		if ( 0 === (int) $claimed ) {
+			// Still claimed by another (or a failed) delivery: not done yet, so no 2xx – the provider
+			// keeps redelivering until the claim is processed or taken over after 10 minutes (A183).
+			$state = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$p}wpcap_payment_events WHERE provider=%s AND provider_event_id=%s", $provider, $event_id ) );
+			if ( '' !== $wpdb->last_error || 'processing' === $state ) {
+				return \PassCaptain\Errors::busy( __( 'Das Ereignis wird gerade verarbeitet. Bitte später erneut zustellen.', 'pass-captain' ), 'wpcap_webhook_in_progress' );
+			}
 			return 'duplicate';
 		}
 		$release = static function () use ( $wpdb, $p, $provider, $event_id ) {
@@ -66,18 +72,23 @@ final class Webhooks {
 			$public_id = sanitize_text_field( (string) ( $event['order_public_id'] ?? '' ) );
 			if ( '' !== $public_id ) {
 				$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE public_id=%s AND payment_provider=%s", $public_id, $provider ) );
+				// A failed lookup is no unknown order: "ignored" would drop the payment (A183).
+				if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'lookup' ); }
 			}
 			$result = self::apply( $provider, $event_id, $order_id, $event );
 		} catch ( \Throwable $error ) {
 			$release();
-			return new \WP_Error( 'wpcap_webhook_exception', 'Processing failed; retry later.' );
+			return \PassCaptain\Errors::busy( 'Processing failed; retry later.', 'wpcap_webhook_exception' );
 		}
 		if ( is_wp_error( $result ) ) {
 			// Transient failure (e.g. lock wait timeout): release the claim so the provider retries.
+			// If the release fails too, the claim is taken over after 10 minutes.
 			$release();
 			return $result;
 		}
 		// processing → processed (StateMachine 'payment_event'); a processed event is never reopened.
+		// Everything above is idempotent: if this update fails, a redelivery after the takeover
+		// finds the work done ("already_paid" etc.).
 		$wpdb->update( "{$p}wpcap_payment_events", array( 'status' => 'processed', 'order_id' => $order_id, 'updated_at' => current_time( 'mysql', true ) ), array( 'provider' => $provider, 'provider_event_id' => $event_id, 'status' => 'processing' ) );
 		return $result;
 	}
@@ -101,6 +112,9 @@ final class Webhooks {
 		$p = $wpdb->prefix;
 		$type = (string) ( $event['type'] ?? '' );
 		$order = $order_id ? Orders::get( $order_id ) : null;
+		if ( ! $order && '' !== $wpdb->last_error ) {
+			return \PassCaptain\Errors::busy();
+		}
 		if ( ! $order ) {
 			return 'ignored';
 		}
@@ -118,8 +132,9 @@ final class Webhooks {
 					self::alert( $order, __( 'Für eine bereits bezahlte Bestellung ist eine zweite Zahlung eingegangen. Bitte die doppelte Zahlung beim Zahlungsanbieter erstatten.', 'pass-captain' ), $provider, $event );
 					return 'double_payment';
 				}
-				Orders::issue_and_email( $order_id );
-				return 'already_paid';
+				// Redelivery after an error: completes counters and tickets (Orders::confirm_external_payment()).
+				$completed = Orders::confirm_external_payment( $order_id, $provider . ':' . $event_id );
+				return is_wp_error( $completed ) ? $completed : 'already_paid';
 			}
 			if ( 'paid_unallocated' === $order->payment_status ) {
 				// Paid but flagged for review (no capacity left): a repeated confirmation must not complete

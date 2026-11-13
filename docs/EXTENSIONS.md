@@ -4,7 +4,7 @@ Pass Captain bleibt unter GPL-2.0-or-later nutzbar und seine Kernfunktionen hän
 
 Derzeit gibt es keinen Lizenzserver, Update-Service, kommerziellen Feature-Schalter oder Marketplace. Erweiterungen dürfen bestehende Tickets und Einlass nicht sperren, wenn ein externer Dienst ausfällt. Vor einem kommerziellen Modell müssen Datenschutz, Verlängerung, Offline-Verhalten, Kündigung, Schlüsselrotation und GPL-Kompatibilität festgelegt werden.
 
-Hintergrundadapter können idempotente Jobs über `PassCaptain\Jobs::enqueue()` einplanen. Ein Handler registriert einen Filter auf `wpcap_process_job` und gibt `true` zurück, wenn der Job erfolgreich und wiederholbar verarbeitet wurde; andernfalls wird er mit Backoff erneut versucht und nach acht Versuchen als `dead_letter` markiert.
+Hintergrundadapter können idempotente Jobs über `PassCaptain\Jobs::enqueue()` einplanen. Ein Handler registriert einen Filter auf `wpcap_process_job` und gibt `true` zurück, wenn der Job erfolgreich und wiederholbar verarbeitet wurde; andernfalls (auch bei einer Exception) wird er mit Backoff erneut versucht und nach acht Läufen als `dead_letter` markiert. Jobs laufen mindestens einmal – Handler müssen idempotent sein (siehe [OPERATIONS.md](OPERATIONS.md#garantien-bei-worker-fehlern-und-neustarts-a188)).
 
 ## Affiliate Captain
 

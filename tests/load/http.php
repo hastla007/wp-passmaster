@@ -250,7 +250,8 @@ foreach ( $orders as $e => $o ) {
 	}
 }
 list( $rows, $wall ) = fire( $reqs, $cfg['concurrency'] );
-$s = stats( 'webhook (REST)', $rows, $wall, static fn( $r ) => 200 === $r['code'] ? (string) ( $r['body']['result'] ?? 'ok' ) : 'error' );
+// 503 wpcap_webhook_in_progress: the same event is still being processed by a parallel delivery (A183).
+$s = stats( 'webhook (REST)', $rows, $wall, static fn( $r ) => 200 === $r['code'] ? (string) ( $r['body']['result'] ?? 'ok' ) : ( 'wpcap_webhook_in_progress' === ( $r['body']['code'] ?? '' ) ? 'in_flight' : 'error' ) );
 $ids = implode( ',', array_map( static fn( $o ) => (int) $o['order_id'], $orders ) );
 $paid = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders WHERE order_id IN ($ids) AND payment_status='paid'" );
 $tickets = $wpdb->get_col( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id IN ($ids) GROUP BY order_id" );

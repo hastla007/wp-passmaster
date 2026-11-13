@@ -39,6 +39,42 @@ Das Datenbank-Upgrade (`dbDelta` für alle Kern- und Modultabellen) läuft nicht
 - `dbDelta` ergänzt nur. Was es nicht kann, erledigt das Upgrade selbst (Schema 3.10.4, `Installer::upgrade_indexes()`): Ein Index, dessen Spalten, Präfixlänge oder Eindeutigkeit sich geändert hat, wird in einem einzigen `ALTER TABLE` gelöscht und neu angelegt (schlägt das fehl, z. B. weil ein neuer eindeutiger Index an doppelten Daten scheitert, bleibt der alte Index unverändert); entfernte Indizes (`Installer::OBSOLETE_INDEXES`, bisher `wpcap_order_items.type_order`, abgelöst durch `capacity_sum`) werden gelöscht. Von Betreibern selbst angelegte Indizes bleiben unberührt. Änderungen von NULL/NOT NULL übernehmen die Datenmigrationen der Module (z. B. Kasse).
 - Bricht ein Upgrade ab (Fehler, Zeitüberschreitung, Prozessende), bleibt `wpcap_db_version` auf der alten Version und die Sperre wird freigegeben; der nächste Admin-/Cron-Aufruf setzt es fort. Alle Schritte sind wiederholbar, einmalige Datenmigrationen laufen trotzdem nur einmal (geprüft in `tests/upgrade/run.php`, siehe TESTING.md).
 
+## Datenbankfehler: Deadlock, Lock-Timeout, Verbindungsabbruch (A183)
+
+Checkout, Zahlungsbestätigung (Webhook, manuelle Zahlung, Warteliste), Ticketausgabe, Check-in und
+Erstattung prüfen jedes Statement ihrer Transaktion. Scheitert eines (Deadlock 1213, Lock-Wartezeit 1205,
+Verbindungsabbruch 2006/2013, gescheitertes COMMIT), wird zurückgerollt und der Aufrufer erhält einen
+wiederholbaren Fehler (HTTP 503, `retryable: true`; Zahlungsanbieter erhalten 5xx und stellen erneut zu) –
+nie „ausverkauft“, „nicht gefunden“ oder „Ticket bereits verwendet“. Wiederholungen sind idempotent
+(Idempotenzschlüssel, erneute Zustellung). Trifft eine Zustellung eines Zahlungsereignisses ein, während
+dasselbe Ereignis noch verarbeitet wird (oder eine abgebrochene Verarbeitung es noch hält), antwortet das
+Plugin mit 503 `wpcap_webhook_in_progress` statt vorzeitig mit „duplicate“; die spätere Zustellung findet
+es erledigt bzw. übernimmt es nach 10 Minuten.
+
+Sonderfall Verbindungsabbruch mit Wiederverbindung: WordPress' `wpdb` verbindet bei „MySQL server has
+gone away“ still neu und wiederholt das Statement – ab dann laufen die Statements ohne Transaktion
+(Autocommit), die vorherigen sind zurückgerollt. Die Pfade erkennen das am ersten Schreibzugriff ihrer
+Transaktion (Bestellzeile, Zahlungsstatus, Ticketstatus bzw. Check-in-Zeile, erstes Ticket, Erstattung):
+existiert er nach dem COMMIT-Versuch, ist alles ab dort geschrieben und der Vorgang vollständig; sonst
+werden die ohne Transaktion geschriebenen Zeilen entfernt (Checkout: Bestellung, Positionen,
+Reservierungen – Hook `wpcap_capacity_released` mit `checkout_aborted`; Ticketausgabe: Tickets,
+Teilnehmerdaten – Hook `wpcap_tickets_discarded`; Check-in: Protokollzeile und Anwesenheit) und die
+Kontingentzähler der betroffenen Termine aus den Quelltabellen neu berechnet. Ein COMMIT, das `wpdb` auf
+der neuen Sitzung wiederholt, meldet Erfolg, ohne etwas zu schreiben – deshalb wird nach jedem COMMIT
+einmal per Primärschlüssel nachgesehen. Erstattungen verbuchen Tickets einzeln idempotent
+(Ticket-Kennzeichen und erstattete Positionsmenge in einem Statement) und setzen Status „abgeschlossen“
+und erstatteten Betrag gemeinsam erst, wenn alle Tickets verbucht sind; eine abgebrochene Verbuchung
+bleibt „processing“ und wird von `repair_stuck()` (Cron) ohne zweite Auszahlung fertig gebucht.
+
+Bekannte Zwischenzustände (werden automatisch aufgelöst): Eine bezahlte Bestellung, deren Ticketausgabe
+scheiterte, bekommt ihre Tickets beim nächsten Versuch – erneute Webhook-Zustellung, gleicher
+Checkout-Schlüssel, erneute Bestätigung – und spätestens über den Job `ticket_issue_retry` (nach einer
+Minute, mit Backoff bis zum Dead-Letter). Lief nach einer Wiederverbindung nur die Umwandlung der
+Reservierung, ist die Bestellung wie eine mit abgelaufener Reservierung: die erneut zugestellte Zahlung
+wird als verspätete Zahlung mit Kontingentprüfung verbucht, ein Wartelistenangebot läuft ab und geht an
+den nächsten Eintrag. Kontingentzähler sind nie niedriger als die Summen aus Bestellungen und
+Reservierungen (kein Überverkauf); eine Abweichung nach oben korrigiert spätestens der Abgleich im Cron.
+
 ## Hintergrundverarbeitung (WP-Cron)
 
 E-Mail-Warteschlange (`wpcap_process_messages`, zusammen mit SMS), Jobs und Webhooks (`wpcap_process_jobs`, `wpcap_webhooks_dispatch`) laufen alle fünf Minuten. Jeder Lauf arbeitet mit einem gemeinsamen **Zeitbudget von 20 Sekunden** (höchstens `max_execution_time` − 15 s; Filter `wpcap_cron_time_budget`) und bis zu 500 E-Mails (Filter `wpcap_message_batch_size`). Das Budget wird vor jeder Entnahme geprüft, sodass kein Eintrag reserviert und dann liegen gelassen wird; bricht PHP während eines Eintrags ab, wird die Reservierung beim Beenden freigegeben. Bleibt ein Rückstand, plant der Lauf sofort einen Folgelauf ein – über Action Scheduler (`as_enqueue_async_action`, Gruppe `pass-captain`), wenn vorhanden (z. B. mit WooCommerce), sonst als einzelnes WP-Cron-Ereignis.
@@ -60,6 +96,19 @@ define( 'DISABLE_WP_CRON', true );
 Auf Multisite-Netzwerken muss der Cronjob jede Site auslösen, z. B. `wp site list --field=url | xargs -I{} wp cron event run --due-now --url={}`.
 
 Prüfen, ob der externe Cronjob greift: Unter **Werkzeuge → Website-Zustand** meldet die Prüfung „geplante Aufgaben“ den letzten Lauf der Warteschlangen; mit `wp cron event list --fields=hook,next_run_relative | grep wpcap_` sind überfällige Ereignisse sofort zu sehen.
+
+### Garantien bei Worker-Fehlern und Neustarts (A188)
+
+| Fall | Verhalten |
+|---|---|
+| Zwei Worker gleichzeitig (überlappende Cron-Läufe, Action Scheduler, System-Cron) | Ein Job wird per Zeilensperre und bedingtem Statuswechsel genau einem Worker zugeteilt; der Handler läuft erst, wenn diese Zuteilung committet ist. Ist das Ergebnis des COMMIT unklar, läuft er nicht (die Zuteilung wird nach 15 Minuten zurückgeholt). Getestet mit vier parallelen Prozessen. |
+| Handler scheitert (`WP_Error`, `false`, Exception) | Erneut eingeplant nach 2, 4, 8 … Minuten (`Jobs::backoff_seconds()`: 60 s · 2^Läufe, höchstens 1 Tag); letzter Fehler in `last_error` (eine Zeile, E-Mail-Adressen maskiert). |
+| Endgültig gescheitert | Nach 8 Läufen (`Jobs::MAX_ATTEMPTS`) Status `dead_letter`: Audit `job_dead_letter`, Hook `wpcap_job_dead_letter`, Liste unter **Betrieb** (erneut versuchen/verwerfen) und Warnung im Website-Zustand. Ein Dead Letter läuft nie von selbst wieder. |
+| Worker stirbt während eines Jobs (Fatal Error, Zeitlimit) | Die Zuteilung wird beim Beenden des PHP-Prozesses zurückgegeben – mit Backoff und dem Vermerk „Worker … beendet“ –, nicht sofort erneut gestartet. |
+| Worker wird hart beendet (kill, Server-Neustart) | Nach 15 Minuten holt der nächste Lauf die Zuteilung zurück (Backoff, Vermerk „zurückgeholt“). Ein Job, dessen letzter erlaubter Lauf so endete, wird beim nächsten Lauf zum Dead Letter statt endlos neu zu starten. |
+| Worker stirbt nach der Wirkung, vor „erledigt“ | Der Job läuft erneut: Ausführung ist **mindestens einmal**. Die eingebauten Jobs sind idempotent: `ticket_mail_retry` erkennt eine seit dem Einplanen erfolgreich versendete Ticket-Mail (Audit `tickets_resent`) und sendet nicht noch einmal (die versendeten Codes bleiben gültig); `ticket_issue_retry`, `order_cancel_retry`, `order_refund_mark_retry`, `voucher_commit` und `wallet_sync` prüfen den aktuellen Zustand. Eigene Handler (Hook `wpcap_process_job`) müssen ebenso idempotent sein; `$job_id` hilft, eine Wiederholung zu erkennen. Geht nur die Datenbankverbindung beim Abschluss verloren, wird der Abschluss einmal auf der neuen Verbindung wiederholt. |
+| E-Mail-Warteschlange | Ebenfalls mindestens einmal: stirbt der Worker zwischen `wp_mail()` und dem Vermerk „gesendet“, wird die Mail erneut versendet (inhaltsgleich). |
+| Webhook-Zustellungen | Mindestens einmal; Empfänger erkennen Wiederholungen an `X-WPCAP-Event-Id` bzw. `X-WPCAP-Delivery` (siehe [WEBHOOKS.md](WEBHOOKS.md)). |
 
 ## Betriebsüberwachung (Website-Zustand)
 

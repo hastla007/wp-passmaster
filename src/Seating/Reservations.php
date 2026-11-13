@@ -28,6 +28,7 @@ final class Reservations {
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'on_order_creating' ), 10, 4 );
 		add_action( 'wpcap_order_paid', array( __CLASS__, 'on_order_paid' ), 5, 1 );
 		add_action( 'wpcap_ticket_created', array( __CLASS__, 'on_ticket_created' ), 10, 4 );
+		add_action( 'wpcap_tickets_discarded', array( __CLASS__, 'on_tickets_discarded' ), 10, 2 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'sync_order' ), 10, 1 );
 		add_action( 'wpcap_ticket_revoked', array( __CLASS__, 'on_ticket_revoked' ), 10, 1 );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund_completed' ), 10, 2 );
@@ -326,6 +327,22 @@ final class Reservations {
 			'status' => 'assigned',
 			'assigned_at' => $now,
 		) );
+	}
+
+	/**
+	 * Tickets of a failed issuance were removed again (Orders, A183): their seats go back to the
+	 * order's claims without a ticket, so the next issuance assigns them again.
+	 *
+	 * @param int[] $ticket_ids Removed tickets.
+	 * @param int   $order_id   Order.
+	 */
+	public static function on_tickets_discarded( $ticket_ids, $order_id ) {
+		global $wpdb;
+		$ids = array_filter( array_map( 'absint', (array) $ticket_ids ) );
+		if ( ! $ids ) { return; }
+		$list = implode( ',', $ids );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'ticket_seats' ) . " WHERE order_id=%d AND ticket_id IN ($list)", absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table, integer list.
+		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'claims' ) . " SET ticket_id=0,updated_at=%s WHERE order_id=%d AND ticket_id IN ($list)", current_time( 'mysql', true ), absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table, integer list.
 	}
 
 	/**

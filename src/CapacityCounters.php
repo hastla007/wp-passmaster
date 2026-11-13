@@ -205,7 +205,12 @@ final class CapacityCounters {
 		};
 		// The set of lines/holds of an order only grows inside create/exchange transactions, which
 		// hold the order and type locks, so a plain read finds every row.
+		// Every read is checked on its own: last_error only reports the latest statement, and a
+		// failed read would count as "no rows" (A183).
 		$items = array_filter( (array) $wpdb->get_results( $wpdb->prepare( "SELECT item_id,ticket_type_id FROM {$p}wpcap_order_items WHERE order_id=%d", $order_id ) ), $keep );
+		if ( '' !== $wpdb->last_error ) {
+			return false;
+		}
 		$holds = array_filter( (array) $wpdb->get_results( $wpdb->prepare( "SELECT reservation_id,ticket_type_id FROM {$p}wpcap_reservations WHERE order_id=%d", $order_id ) ), $keep );
 		if ( '' !== $wpdb->last_error ) {
 			return false;
@@ -220,10 +225,16 @@ final class CapacityCounters {
 			return false;
 		}
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT payment_status,status FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) {
+			return false; // Without the order state every line would count as unsold.
+		}
 		$deltas = array();
 		$changed = 0;
 		if ( $items ) {
 			$rows = $wpdb->get_results( "SELECT item_id,ticket_type_id,quantity,refunded_quantity,counted_qty FROM {$p}wpcap_order_items WHERE item_id IN (" . self::ids( $items, 'item_id' ) . ') ORDER BY item_id FOR UPDATE' );
+			if ( '' !== $wpdb->last_error ) {
+				return false;
+			}
 			foreach ( (array) $rows as $row ) {
 				$want = self::line_units( $order, $row );
 				if ( $want === (int) $row->counted_qty ) { continue; }
@@ -234,6 +245,9 @@ final class CapacityCounters {
 		}
 		if ( $holds ) {
 			$rows = $wpdb->get_results( "SELECT reservation_id,ticket_type_id,quantity,status,counted_qty FROM {$p}wpcap_reservations WHERE reservation_id IN (" . self::ids( $holds, 'reservation_id' ) . ') ORDER BY reservation_id FOR UPDATE' );
+			if ( '' !== $wpdb->last_error ) {
+				return false;
+			}
 			foreach ( (array) $rows as $row ) {
 				$want = self::hold_units( $row );
 				if ( $want === (int) $row->counted_qty ) { continue; }
@@ -262,17 +276,40 @@ final class CapacityCounters {
 			return 0;
 		}
 		$nested = true === Orders::transaction_alive();
-		if ( ! $nested ) { $wpdb->query( 'START TRANSACTION' ); }
+		if ( ! $nested && false === $wpdb->query( 'START TRANSACTION' ) ) { return false; }
 		$wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		$result = '' === $wpdb->last_error ? self::sync_order( $order_id ) : false;
 		if ( $nested ) {
 			return $result;
 		}
-		if ( false === $result || false === Orders::transaction_alive() ) {
+		if ( false === $result || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
+			// Partly applied outside the transaction (lost connection): rebuilt from the source rows.
+			self::repair_order( $order_id );
 			return false;
 		}
-		return false === $wpdb->query( 'COMMIT' ) ? false : $result;
+		return $result;
+	}
+
+	/**
+	 * Rebuilds the counters of every occurrence an order has lines or holds in (rebuild_occurrence()).
+	 * For writers whose transaction was lost mid-way (A183): after wpdb reconnected, part of a
+	 * counter change may have been committed without the rows it belongs to. Idempotent; when it
+	 * fails too, the reconcile cron repairs the counters.
+	 *
+	 * @return bool
+	 */
+	public static function repair_order( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( ! self::maintained() ) { return true; }
+		$occurrence_ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tt.occurrence_id FROM {$p}wpcap_ticket_types tt WHERE tt.ticket_type_id IN (SELECT ticket_type_id FROM {$p}wpcap_order_items WHERE order_id=%d UNION SELECT ticket_type_id FROM {$p}wpcap_reservations WHERE order_id=%d) ORDER BY tt.occurrence_id", absint( $order_id ), absint( $order_id ) ) );
+		if ( '' !== $wpdb->last_error ) { return false; }
+		$ok = true;
+		foreach ( (array) $occurrence_ids as $occurrence_id ) {
+			$ok = false !== self::rebuild_occurrence( (int) $occurrence_id ) && $ok;
+		}
+		return $ok;
 	}
 
 	/**
@@ -589,10 +626,11 @@ final class CapacityCounters {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$occurrence_id = absint( $occurrence_id );
-		$wpdb->query( 'START TRANSACTION' );
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return false; }
 		$type_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d ORDER BY ticket_type_id FOR UPDATE", $occurrence_id ) ) );
+		$failed = '' !== $wpdb->last_error;
 		$wpdb->get_var( $wpdb->prepare( "SELECT occurrence_id FROM {$p}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", $occurrence_id ) );
-		if ( '' !== $wpdb->last_error ) {
+		if ( $failed || '' !== $wpdb->last_error ) {
 			$wpdb->query( 'ROLLBACK' );
 			return false;
 		}
@@ -608,13 +646,15 @@ final class CapacityCounters {
 			}
 			$changed = count( (array) $lines ) + count( (array) $holds );
 			foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,SUM(counted_qty) AS v FROM {$p}wpcap_order_items WHERE ticket_type_id IN ($in) GROUP BY ticket_type_id" ) as $row ) { $sold[ (int) $row->ticket_type_id ] = (int) $row->v; }
+			$failed = '' !== $wpdb->last_error;
 			foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,SUM(counted_qty) AS v FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) GROUP BY ticket_type_id" ) as $row ) { $held[ (int) $row->ticket_type_id ] = (int) $row->v; }
+			$failed = $failed || '' !== $wpdb->last_error;
 			foreach ( $type_ids as $type_id ) {
-				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_ticket_types SET sold_qty=%d,held_qty=%d WHERE ticket_type_id=%d", $sold[ $type_id ] ?? 0, $held[ $type_id ] ?? 0, $type_id ) );
+				$failed = $failed || false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_ticket_types SET sold_qty=%d,held_qty=%d WHERE ticket_type_id=%d", $sold[ $type_id ] ?? 0, $held[ $type_id ] ?? 0, $type_id ) );
 			}
 		}
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET sold_qty=%d,held_qty=%d WHERE occurrence_id=%d", array_sum( $sold ), array_sum( $held ), $occurrence_id ) );
-		if ( '' !== $wpdb->last_error || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) {
+		$failed = $failed || false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET sold_qty=%d,held_qty=%d WHERE occurrence_id=%d", array_sum( $sold ), array_sum( $held ), $occurrence_id ) );
+		if ( $failed || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return false;
 		}

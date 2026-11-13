@@ -18,6 +18,44 @@ PHP-Prozesse (`modules/a186/ratelimit_child.php` mit `WPCAP_TEST_RATE_BACKEND=db
 Limit genau eingehalten wird. Außerdem prüft er die Auswertung der Proxy-Header. `modules/zz_a184.php`
 spielt doppelte und in falscher Reihenfolge eintreffende Zahlungsereignisse für alle Zahlungsadapter
 durch (siehe `docs/STATE-MACHINES.md`).
+### Fault-Injection: Deadlock, Lock-Timeout, Verbindungsabbruch, COMMIT-Fehler (A183)
+
+Das `$wpdb` der Integrationstests (`tests/integration/bootstrap.php`, `Test_WPDB`) kann einzelne
+Statements gezielt scheitern lassen, je Test umschaltbar:
+
+```php
+wpcap_test_fault( '/^INSERT INTO \S+wpcap_tickets/', 'deadlock', array( 'skip' => 1 ) ); // zweites Ticket-INSERT
+$result = PassCaptain\Orders::create( … );
+$fired  = wpcap_test_faults_clear(); // Statements, die gescheitert sind
+```
+
+| Art | Verhalten wie der Server |
+|---|---|
+| `deadlock` (1213) | Statement scheitert, die ganze Transaktion wird zurückgerollt. |
+| `lock_timeout` (1205) | Nur das Statement scheitert, die Transaktion läuft weiter (`innodb_rollback_on_timeout=OFF`); mit `rollback => true` wie `ON`. |
+| `lost` (2013) | Verbindung bricht während des Statements ab: Transaktion zurückgerollt, Sperren frei, Statement scheitert; das nächste läuft auf einer neuen Sitzung (Autocommit). Mit `executed => true` lief das Statement noch (z. B. ein COMMIT, dessen Antwort verloren ging). |
+| `gone_away` (2006) | Wie WordPress' `wpdb`: neu verbinden und das Statement auf der neuen Sitzung wiederholen – es gelingt, aber außerhalb der verlorenen Transaktion. |
+
+`tests/integration/modules/zz_a183.php` fährt damit die kritischen Pfade systematisch ab: Checkout
+(bezahlt mit Reservierung, kostenlos mit Ticketausgabe), Zahlungs-Webhook (aktive und abgelaufene
+Reservierung), Check-in, Erstattung, Wartelisten-Annahme und Job-Entnahme. Je Fehlerart läuft der Pfad
+einmal pro Statement, das er ausführt, und genau dieses Statement scheitert (Sperrfehler nur bei
+schreibenden und sperrenden Statements und COMMIT, Verbindungsabbruch bei jedem). Danach muss gelten:
+keine offene Transaktion, nichts halb geschrieben (Bestellung mit allen Positionen und Reservierungen,
+Tickets vollständig oder gar nicht, Erstattung ganz oder gar nicht verbucht), kein Kontingentzähler
+unter seinen Quellsummen (sonst Überverkauf), ein Fehler an den Aufrufer ist wiederholbar (503,
+`retryable`) statt „ausverkauft“/„nicht gefunden“; eine Wiederholung ohne Fehler (gleicher
+Idempotenzschlüssel, erneute Webhook-Zustellung, Folgelauf der Jobs) erreicht denselben Endzustand wie ein
+ungestörter Lauf, genau einmal. Zusätzlich je Pfad: jeder COMMIT geht durch, aber seine Antwort geht
+verloren. Laufzeit des Moduls etwa 40 Sekunden; `A183_VERBOSE=1` listet jede Verletzung einzeln.
+
+### Worker-Fehler und Neustarts (A188)
+
+`tests/integration/modules/zz_a188.php` prüft Backoff-Zeiten, Dead Letter nach dem letzten Lauf
+(Audit, Hook, Betriebsseite), abstürzende Handler, vier parallele Worker auf denselben Jobs, einen Worker,
+der nach der Wirkung und vor dem Abschluss stirbt, und den Neustart nach einem Absturz (Zuteilungen
+älter als 15 Minuten). Die parallelen bzw. sterbenden Worker sind eigene PHP-Prozesse
+(`tests/integration/job_worker.php race|die`).
 
 ## Upgrade-Tests je Vorgängerversion (`tests/upgrade/`, A181)
 

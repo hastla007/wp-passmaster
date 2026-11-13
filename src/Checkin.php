@@ -88,6 +88,8 @@ final class Checkin {
 			"SELECT t.ticket_id,t.public_id,t.status,t.ticket_type_id,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE " . ( $help_ticket ? 't.ticket_id=%d' : 't.token_hash=%s' ) . ' LIMIT 1',
 			$help_ticket ? $help_ticket : hash( 'sha256', $code )
 		) );
+		// A failed lookup is no unknown ticket (A183): the scanner must retry, not refuse the guest.
+		if ( ! $row && '' !== $wpdb->last_error ) { return self::retry_error(); }
 		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
 		$found = array( 'ticket_id' => (int) $row->ticket_id, 'public_id' => $row->public_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'ends_at' => $row->ends_at, 'timezone' => $row->timezone, 'attendee_name' => (string) $row->attendee_name );
 		if ( $help_ticket ) { $found['help_code'] = true; }
@@ -163,6 +165,8 @@ final class Checkin {
 		$at = self::eval_time( $context );
 		if ( $key ) {
 			$previous = $wpdb->get_row( $wpdb->prepare( "SELECT c.checkin_id,c.result,c.ticket_id FROM {$p}wpcap_checkins c WHERE c.user_id=%d AND c.idempotency_key=%s ORDER BY c.checkin_id DESC LIMIT 1", $user_id, $key ) );
+			// Unknown whether this scan was already booked: a fresh attempt could answer "already used".
+			if ( '' !== $wpdb->last_error ) { return self::retry_error(); }
 			if ( $previous ) {
 				$found = self::lookup( $code, null, false );
 				if ( ! is_wp_error( $found ) && (int) $found['ticket_id'] === (int) $previous->ticket_id ) {
@@ -174,12 +178,15 @@ final class Checkin {
 			}
 		}
 		$found = self::lookup( $code, $at, true, $context );
-		if ( is_wp_error( $found ) ) { return self::offline_conflict( $found, null, $context, $key ); }
+		if ( is_wp_error( $found ) ) { return Errors::is_busy( $found ) ? $found : self::offline_conflict( $found, null, $context, $key ); }
 		$denied = self::deny( $found, $context, 'in' );
+		// A refusal that rests on a failed read (scope, areas) is no refusal (A183).
+		if ( $denied && '' !== $wpdb->last_error ) { return self::retry_error(); }
 		if ( $denied ) { return self::offline_conflict( $denied, $found, $context, $key ); }
 		$log = self::logger( $found, $context, $key, $user_id );
 
-		$wpdb->query( 'START TRANSACTION' );
+		// Without a transaction every statement below would autocommit on its own.
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::abort(); }
 		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", $found['ticket_id'] ) );
 		if ( '' !== $wpdb->last_error ) { return self::abort(); }
 		if ( ! $ticket || 'valid' !== $ticket->status ) {
@@ -190,6 +197,7 @@ final class Checkin {
 			return self::offline_conflict( self::result_error( $result, $found, $id ), $found, $context, $key, $id );
 		}
 		$state = Engine::state_for_update( $ticket->ticket_id );
+		if ( '' !== $wpdb->last_error ) { return self::abort(); }
 		$policy = Policies::for_type( $found['ticket_type_id'] );
 		$day_id = 0;
 		if ( $policy ) {
@@ -233,7 +241,7 @@ final class Checkin {
 		if ( ! $repeatable && 1 !== $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'checked_in' ), array( 'ticket_id' => $ticket->ticket_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) ) ) { return self::abort(); }
 		$checkin_id = $log( $ticket->ticket_id, 'checked_in', $day_id );
 		if ( ! $checkin_id || ! Engine::record_in( $found, $checkin_id, $context, $at, $user_id ) ) { return self::abort(); }
-		if ( false === $wpdb->query( 'COMMIT' ) ) { return self::abort(); }
+		if ( ! self::commit_scan( (int) $ticket->ticket_id, $checkin_id, $repeatable ) ) { return self::abort(); }
 		$review_id = 0;
 		if ( $backdated ) {
 			$review = self::offline_conflict( new \WP_Error( 'wpcap_backdated_admission', '', array( 'result' => 'backdated_admission' ) ), $found, $context, $key, $checkin_id );
@@ -295,7 +303,40 @@ final class Checkin {
 	private static function abort() {
 		global $wpdb;
 		$wpdb->query( 'ROLLBACK' );
+		return self::retry_error();
+	}
+
+	private static function retry_error() {
 		return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+	}
+
+	/**
+	 * Commits an admission and tells whether it is durable (A183). Its first write – the ticket
+	 * status, or for repeatable admissions the log row – decides: after a lost connection wpdb
+	 * reconnects and runs the rest with autocommit while the earlier statements were rolled back, and
+	 * a COMMIT that wpdb re-ran on the new session commits nothing. If the first write is missing,
+	 * rows written after the loss (log row, admission entry, presence) are removed and the scan is
+	 * reported as "retry".
+	 */
+	private static function commit_scan( $ticket_id, $checkin_id, $repeatable ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+		}
+		$probe = $repeatable
+			? $wpdb->prepare( "SELECT checkin_id FROM {$p}wpcap_checkins WHERE checkin_id=%d", $checkin_id )
+			: $wpdb->prepare( "SELECT status FROM {$p}wpcap_tickets WHERE ticket_id=%d", $ticket_id );
+		$value = $wpdb->get_var( $probe );
+		if ( '' !== $wpdb->last_error ) { $value = $wpdb->get_var( $probe ); } // Once more on the reconnected session.
+		$durable = $repeatable ? null !== $value : 'checked_in' === $value;
+		if ( $durable && '' === $wpdb->last_error ) { return true; }
+		if ( '' === $wpdb->last_error ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_checkins WHERE checkin_id=%d AND ticket_id=%d", $checkin_id, $ticket_id ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_admission_entries WHERE checkin_id=%d AND ticket_id=%d", $checkin_id, $ticket_id ) );
+			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_state SET inside=0,entries=GREATEST(CAST(entries AS SIGNED)-1,0) WHERE ticket_id=%d AND last_checkin_id=%d", $ticket_id, $checkin_id ) );
+		}
+		return false;
 	}
 
 	private static function key_hash( array $context ) {

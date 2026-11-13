@@ -148,8 +148,10 @@ if ( isset( $argv[1] ) && '--worker' === $argv[1] ) {
 				$req['provider'] = 'stripe';
 				$event = $stripe->verify_webhook( $req );
 				$r = is_wp_error( $event ) ? $event : Webhooks::process( 'stripe', $event );
+				// A delivery that arrives while the same event is still being processed gets a retryable
+				// 503 (the provider redelivers later, then answered "duplicate"), never a premature 2xx (A183).
 				$res = is_wp_error( $r )
-					? array( 'outcome' => 'error', 'detail' => $r->get_error_code() . ': ' . $r->get_error_message() )
+					? array( 'outcome' => 'wpcap_webhook_in_progress' === $r->get_error_code() ? 'in_flight' : 'error', 'detail' => $r->get_error_code() . ': ' . $r->get_error_message() )
 					: array( 'outcome' => (string) $r );
 				break;
 			case 'wl_accept':

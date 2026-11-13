@@ -41,6 +41,11 @@ final class Test_WPDB {
 
 	public function __construct() {
 		mysqli_report( MYSQLI_REPORT_OFF );
+		$this->connect();
+	}
+	/** Opens a (new) session; a replaced session is closed, so the server rolls its transaction back and frees its locks. */
+	private function connect() {
+		if ( isset( $this->db ) ) { @$this->db->close(); }
 		$this->db = new mysqli( getenv( 'WPCAP_TEST_DB_HOST' ) ?: '127.0.0.1', getenv( 'WPCAP_TEST_DB_USER' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_PASS' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_NAME' ) ?: 'wp' );
 		if ( $this->db->connect_error ) { fwrite( STDERR, 'DB connect failed: ' . $this->db->connect_error . "\n" ); exit( 2 ); }
 		$this->db->set_charset( 'utf8mb4' );
@@ -53,6 +58,48 @@ final class Test_WPDB {
 	public function db_server_info() { return (string) $this->db->server_info; }
 	public function db_version() { return preg_replace( '/[^0-9.].*/', '', $this->db_server_info() ); }
 	public function tables( $scope = 'all', $prefix = true, $blog_id = 0 ) { return array(); }
+	/**
+	 * Fault injection (A183): the first rule of $GLOBALS['wpcap_test_faults'] that matches the
+	 * statement (regex `match`, after `skip` matches, while `times` > 0) makes it fail like the server
+	 * would. Returns false when the statement fails, null when it runs normally.
+	 *   deadlock      1213: the server rolls the whole transaction back.
+	 *   lock_timeout  1205: only the statement fails (innodb_rollback_on_timeout=OFF); with
+	 *                 `rollback` => true the transaction is rolled back too (=ON).
+	 *   lost          2013: the connection drops during the statement (transaction rolled back, locks
+	 *                 freed); the statement fails, the next one runs on a new session (autocommit). With
+	 *                 `executed` => true the statement ran before the reply was lost (e.g. a COMMIT
+	 *                 that went through).
+	 *   gone_away     2006 as handled by WordPress' wpdb: reconnect and run the statement again on the
+	 *                 new session, so it succeeds outside the lost transaction.
+	 */
+	private function inject_fault( $sql ) {
+		if ( empty( $GLOBALS['wpcap_test_faults'] ) ) { return null; }
+		foreach ( $GLOBALS['wpcap_test_faults'] as $i => $rule ) {
+			if ( $rule['times'] <= 0 || ! preg_match( $rule['match'], $sql ) ) { continue; }
+			if ( $rule['skip'] > 0 ) { --$GLOBALS['wpcap_test_faults'][ $i ]['skip']; continue; }
+			--$GLOBALS['wpcap_test_faults'][ $i ]['times'];
+			$GLOBALS['wpcap_test_faults'][ $i ]['fired'][] = $sql;
+			switch ( $rule['kind'] ) {
+				case 'deadlock':
+					$this->db->query( 'ROLLBACK' );
+					$this->last_error = 'Deadlock found when trying to get lock; try restarting transaction';
+					return false;
+				case 'lock_timeout':
+					if ( ! empty( $rule['rollback'] ) ) { $this->db->query( 'ROLLBACK' ); }
+					$this->last_error = 'Lock wait timeout exceeded; try restarting transaction';
+					return false;
+				case 'lost':
+					if ( ! empty( $rule['executed'] ) ) { $this->db->query( $sql ); }
+					$this->connect();
+					$this->last_error = 'Lost connection to MySQL server during query';
+					return false;
+				case 'gone_away':
+					$this->connect();
+					return null; // Runs normally on the new session.
+			}
+		}
+		return null;
+	}
 	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'; }
 	private function esc( $v ) { return null === $v ? 'NULL' : "'" . $this->db->real_escape_string( (string) $v ) . "'"; }
 	public function prepare( $query, ...$args ) {
@@ -72,6 +119,8 @@ final class Test_WPDB {
 		$sql = apply_filters( 'query', $sql );
 		++$this->num_queries;
 		$this->last_error = '';
+		if ( isset( $GLOBALS['wpcap_test_query_log'] ) && is_array( $GLOBALS['wpcap_test_query_log'] ) ) { $GLOBALS['wpcap_test_query_log'][] = $sql; }
+		if ( false === $this->inject_fault( $sql ) ) { $this->insert_id = 0; $this->rows_affected = 0; return false; }
 		$res = $this->db->query( $sql );
 		if ( false === $res ) { $this->last_error = $this->db->error; return false; }
 		$this->insert_id = (int) $this->db->insert_id;
@@ -103,6 +152,21 @@ final class Test_WPDB {
 		$w = array(); foreach ( $where as $k => $v ) { $w[] = "$k=" . $this->esc( $v ); }
 		return $this->query( "DELETE FROM $table WHERE " . implode( ' AND ', $w ) );
 	}
+}
+
+/**
+ * Fault injection for the next statement(s) matching $match (see Test_WPDB::inject_fault()).
+ * Options: skip (matches to let pass first), times (default 1), rollback, executed.
+ */
+function wpcap_test_fault( $match, $kind, array $options = array() ) {
+	$GLOBALS['wpcap_test_faults'][] = array_merge( array( 'match' => $match, 'kind' => $kind, 'skip' => 0, 'times' => 1, 'fired' => array() ), $options );
+}
+/** Removes all fault rules; returns the statements they made fail. */
+function wpcap_test_faults_clear() {
+	$fired = array();
+	foreach ( $GLOBALS['wpcap_test_faults'] ?? array() as $rule ) { $fired = array_merge( $fired, $rule['fired'] ); }
+	$GLOBALS['wpcap_test_faults'] = array();
+	return $fired;
 }
 
 $GLOBALS['wpdb'] = new Test_WPDB();

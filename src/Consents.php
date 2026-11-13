@@ -172,6 +172,11 @@ final class Consents {
 		}
 	}
 
+	/** Forgets queued grants of an issuance that was rolled back (their log rows do not exist). */
+	public static function discard_pending() {
+		self::$pending = array();
+	}
+
 	/** Fires the hooks of checkout grants of an order once its issuance is committed. */
 	public static function flush_pending( $order_id ) {
 		global $wpdb;

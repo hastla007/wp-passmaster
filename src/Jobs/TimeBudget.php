@@ -25,7 +25,7 @@ final class TimeBudget {
 	/** Shared deadline (microtime) while a cron hook runs; null otherwise. */
 	private static $deadline = null;
 
-	/** Claims in flight: key => [table, id column, id, claimed status, release status]. */
+	/** Claims in flight: key => [table, id column, id, claimed status, release status, extra columns]. */
 	private static $claims = array();
 
 	private static $shutdown_registered = false;
@@ -78,9 +78,14 @@ final class TimeBudget {
 		return false;
 	}
 
-	/** Remembers an item claimed by this request until it is finished. */
-	public static function claimed( $table, $id_column, $id, $claimed_status, $release_status ) {
-		self::$claims[ $table . '#' . (int) $id ] = array( $table, $id_column, (int) $id, $claimed_status, $release_status );
+	/**
+	 * Remembers an item claimed by this request until it is finished.
+	 *
+	 * @param array $release_set Extra columns set when the claim is released on shutdown (e.g. the
+	 *                           next run time and an error note of a job whose worker died).
+	 */
+	public static function claimed( $table, $id_column, $id, $claimed_status, $release_status, array $release_set = array() ) {
+		self::$claims[ $table . '#' . (int) $id ] = array( $table, $id_column, (int) $id, $claimed_status, $release_status, $release_set );
 		if ( ! self::$shutdown_registered ) {
 			self::$shutdown_registered = true;
 			register_shutdown_function( array( __CLASS__, 'release_claims' ) );
@@ -93,8 +98,11 @@ final class TimeBudget {
 	/** Returns claims of items this request could not finish to the queue. */
 	public static function release_claims() {
 		global $wpdb;
-		foreach ( self::$claims as $key => list( $table, $column, $id, $claimed, $release ) ) {
-			$wpdb->query( $wpdb->prepare( "UPDATE $table SET status=%s,locked_at=NULL WHERE $column=%d AND status=%s", $release, $id, $claimed ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table/column names.
+		foreach ( self::$claims as $key => $claim ) {
+			list( $table, $column, $id, $claimed, $release ) = $claim;
+			$set = array( 'status' => $release, 'locked_at' => null );
+			foreach ( (array) ( $claim[5] ?? array() ) as $name => $value ) { $set[ sanitize_key( $name ) ] = $value; }
+			$wpdb->update( $table, $set, array( $column => $id, 'status' => $claimed ) );
 			unset( self::$claims[ $key ] );
 		}
 	}

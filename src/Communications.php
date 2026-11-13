@@ -61,7 +61,13 @@ final class Communications {
 			$body = (string) ( $template['body'] ?? '' );
 			// Through the central mailer (layout for HTML bodies, `wpcap_mail` filter); reminders keep their own editor.
 			$sent = '' !== $subject && '' !== $body && Mail\Mailer::deliver( $row->recipient, array( 'type' => 'queue_' . $row->template_key, 'subject' => $subject, 'body' => $body, 'format' => 'html' === ( $template['format'] ?? 'text' ) ? 'html' : 'text', 'attachments' => array(), 'locale' => (string) ( $template['locale'] ?? '' ) ) );
-			if ( $sent ) { $wpdb->update( $table, array( 'status' => 'sent', 'locked_at' => null, 'last_error' => null ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s' ), array( '%d' ) ); }
+			if ( $sent ) {
+				$done = array( 'status' => 'sent', 'locked_at' => null, 'last_error' => null );
+				// Once more after a lost connection: an unmarked mail would be sent again (at-least-once).
+				if ( false === $wpdb->update( $table, $done, array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) {
+					$wpdb->update( $table, $done, array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+				}
+			}
 			else {
 				$tries = (int) $row->attempts + 1;
 				$wpdb->update( $table, array( 'status' => $tries >= 5 ? 'failed' : 'queued', 'send_at' => gmdate( 'Y-m-d H:i:s', time() + min( 3600, 60 * ( 2 ** $tries ) ) ), 'locked_at' => null, 'last_error' => __( 'Template fehlt oder wp_mail ist fehlgeschlagen.', 'pass-captain' ) ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );

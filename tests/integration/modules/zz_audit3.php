@@ -482,7 +482,7 @@ check( 'A039: the retry sends the tickets (new codes)', true === $a39_ok && 1 ==
 
 echo "Audit 3: refund bookkeeping is checked and repaired after the payout (A040)\n";
 list( $a40_o, $a40_t ) = ex_buy( $a4_std, 2, 'a40@example.com' );
-$a40_fail = static function ( $sql ) { return false !== stripos( $sql, 'SET refunded_minor=LEAST' ) ? 'UPDATE wpcap_table_that_does_not_exist SET x=1' : $sql; };
+$a40_fail = static function ( $sql ) { return false !== stripos( $sql, 'refunded_minor=LEAST' ) ? 'UPDATE wpcap_table_that_does_not_exist SET x=1' : $sql; };
 add_filter( 'query', $a40_fail );
 $a40 = PassCaptain\Refunds::request( $a40_o, array( $a40_t[0] ), 'Test', 'a40-' . uniqid() );
 remove_filter( 'query', $a40_fail );

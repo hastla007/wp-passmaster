@@ -36,7 +36,7 @@ final class Refunds {
 		$order_id = absint( $order_id );
 		$system = ! empty( $args['system'] );
 		$existing = self::find_by_key( $order_id, $idempotency_key );
-		if ( $existing ) { return $existing; }
+		if ( $existing ) { return self::resume( $existing ); }
 		$key_hash = self::key_hash( $order_id, $idempotency_key );
 
 		if ( ! $system ) {
@@ -44,6 +44,7 @@ final class Refunds {
 			if ( is_wp_error( $check ) ) { return $check; }
 		}
 		$order = Orders::get( $order_id );
+		if ( ! $order && '' !== $wpdb->last_error ) { return self::busy(); }
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
@@ -52,14 +53,16 @@ final class Refunds {
 		}
 		// Serialise refund requests per order: overlap and approval checks below must see every
 		// refund that is already pending or running for this order.
-		$wpdb->query( 'START TRANSACTION' );
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return self::busy(); }
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
-		if ( $existing ) { $wpdb->query( 'ROLLBACK' ); return $existing; }
+		if ( '' !== $wpdb->last_error ) { return self::busy(); }
+		if ( $existing ) { $wpdb->query( 'ROLLBACK' ); return self::resume( $existing ); }
 		$open = self::open_refunds( $order_id );
 		$requested = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
 		if ( $requested && array_intersect( $requested, $open['ticket_ids'] ) ) {
@@ -67,6 +70,9 @@ final class Refunds {
 			return new \WP_Error( 'wpcap_refund_overlap', __( 'Für mindestens eines der gewählten Tickets läuft bereits eine Erstattung oder sie wartet auf Freigabe.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$calc = self::calculate( $order, $requested, $open['ticket_ids'], $open['amount_minor'] );
+		// The reads above are plain reads: one that failed lost the connection (and the transaction),
+		// so its empty result proves nothing (A183).
+		if ( false === Orders::transaction_alive() ) { return self::busy(); }
 		if ( is_wp_error( $calc ) ) { $wpdb->query( 'ROLLBACK' ); return $calc; }
 
 		// A131: tickets already used for admission are only refunded with an explicit exception (reason,
@@ -115,17 +121,21 @@ final class Refunds {
 		);
 		$source = sanitize_key( (string) ( $args['source'] ?? '' ) );
 		if ( '' !== $source && self::source_ready() ) { $row['source'] = substr( $source, 0, 20 ); }
+		if ( false === Orders::transaction_alive() ) { return self::busy(); }
 		$inserted = $wpdb->insert( "{$p}wpcap_refunds", $row );
 		if ( false === $inserted ) {
 			$wpdb->query( 'ROLLBACK' );
 			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
-			return $existing ? $existing : new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
+			return $existing ? self::resume( $existing ) : self::busy();
 		}
 		$refund_id = (int) $wpdb->insert_id;
-		if ( false === $wpdb->query( 'COMMIT' ) ) {
+		if ( false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		}
+		// Durable? The reply of a failed COMMIT may be lost although it went through, and a COMMIT
+		// that wpdb re-ran after a reconnect committed nothing (A183).
+		$saved = $wpdb->get_var( $wpdb->prepare( "SELECT refund_id FROM {$p}wpcap_refunds WHERE refund_id=%d AND idempotency_key=%s", $refund_id, $key_hash ) );
+		if ( (int) $saved !== $refund_id ) { return self::busy(); }
 		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval, 'source' => '' !== $source ? $source : 'admin' ) );
 		if ( $needs_approval && 'portal' === $source ) {
 			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Stornierungsanfrage wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal eine Stornierung mit Erstattung über %2$s angefragt. Bitte unter „Erstattungen zur Freigabe“ freigeben oder ablehnen.', 'pass-captain' ), $order->public_id, number_format_i18n( $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
@@ -269,8 +279,10 @@ final class Refunds {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$refund_id = absint( $refund_id );
-		$wpdb->query( 'START TRANSACTION' );
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$refund = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE refund_id=%d FOR UPDATE", $refund_id ), ARRAY_A );
+		// A failed lock is no missing refund (A183).
+		if ( '' !== $wpdb->last_error ) { return self::busy(); }
 		// A refund left in "processing" after the provider paid out (provider_reference stored) is
 		// finished locally without a second payout (see repair_stuck()).
 		$resume = $refund && 'processing' === $refund['status'] && '' !== (string) $refund['provider_reference'];
@@ -285,21 +297,34 @@ final class Refunds {
 		// Re-validate under the order lock right before money moves: an approved refund may have been
 		// overtaken by another refund of the same tickets (or the order total may be used up).
 		$locked_order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", (int) $refund['order_id'] ) );
+		if ( '' !== $wpdb->last_error ) { return self::busy(); }
 		$invalid = self::execution_conflict( $refund, $locked_order );
+		// A conflict found by reads that failed is no conflict: the refund stays approved (A183).
+		if ( self::CONFLICT_UNKNOWN === $invalid || false === Orders::transaction_alive() ) { return self::busy(); }
 		if ( '' !== $invalid ) {
-			StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => substr( $invalid, 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ) );
-			$wpdb->query( 'COMMIT' );
+			if ( false === StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => substr( $invalid, 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ) ) || false === $wpdb->query( 'COMMIT' ) ) {
+				return self::busy();
+			}
 			Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => 'wpcap_refund_conflict' ) );
 			return new \WP_Error( 'wpcap_refund_conflict', $invalid, array( 'status' => 409 ) );
 		}
 		$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'processing', array( 'updated_at' => current_time( 'mysql', true ) ) );
-		if ( 1 !== $moved || false === $wpdb->query( 'COMMIT' ) ) {
-			// Nothing paid out yet: safe to retry.
+		if ( 1 !== $moved || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return Errors::busy( __( 'Die Erstattung konnte gerade nicht gestartet werden. Bitte erneut versuchen.', 'pass-captain' ) );
+			// Nothing paid out yet. Only a durable "processing" (e.g. the COMMIT went through but its
+			// reply was lost) is this request's claim to pay out; otherwise it is safe to retry.
+			if ( 'processing' !== $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$p}wpcap_refunds WHERE refund_id=%d AND provider_reference=''", $refund_id ) ) ) {
+				return Errors::busy( __( 'Die Erstattung konnte gerade nicht gestartet werden. Bitte erneut versuchen.', 'pass-captain' ) );
+			}
 		}
 
 		$order = Orders::get( (int) $refund['order_id'] );
+		if ( ! $order ) {
+			// Read failed after the claim: nothing was paid out. processing → failed (StateMachine) with
+			// a note that lets a repeated request run it again (resume()).
+			StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => self::RETRY_NOTE, 'updated_at' => current_time( 'mysql', true ) ), array( 'provider_reference' => '' ) );
+			return Errors::busy( __( 'Die Erstattung konnte gerade nicht gestartet werden. Bitte erneut versuchen.', 'pass-captain' ) );
+		}
 		$gateway = Registry::get( $order->payment_provider ?: 'manual' );
 		$provider_reference = 'manual';
 		if ( $gateway && $gateway->supports_refunds() && (int) $refund['amount_minor'] > 0 ) {
@@ -324,41 +349,82 @@ final class Refunds {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$refund_id = (int) $refund['refund_id'];
-		$order = Orders::get( (int) $refund['order_id'] );
-		$wpdb->query( 'START TRANSACTION' );
+		$order_id = (int) $refund['order_id'];
+		$order = Orders::get( $order_id );
+		// Stays "processing" with its provider reference: repair_stuck() finishes it later. After a
+		// lost connection part of the steps below may have been committed on their own; every step
+		// is idempotent, so the repeat completes exactly what is missing (A183).
+		$failed = static function () use ( $wpdb, $order_id, $refund_id ) {
+			$lost = false === Orders::transaction_alive();
+			$wpdb->query( 'ROLLBACK' );
+			if ( $lost ) { CapacityCounters::repair_order( $order_id ); }
+			Audit::record( 'refund_bookkeeping_failed', 'order', $order_id, array( 'refund_id' => $refund_id ) );
+			return Errors::busy( __( 'Die Erstattung wurde ausgezahlt, konnte aber noch nicht verbucht werden; sie wird automatisch nachgebucht.', 'pass-captain' ) );
+		};
+		if ( ! $order || false === $wpdb->query( 'START TRANSACTION' ) ) { return $failed(); }
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_refunds WHERE refund_id=%d FOR UPDATE", $refund_id ) );
+		if ( '' !== $wpdb->last_error ) { return $failed(); }
 		if ( ! $locked || 'processing' !== $locked->status ) {
-			$wpdb->query( 'COMMIT' );
+			$wpdb->query( 'ROLLBACK' );
 			return self::get( $refund_id );
 		}
-		$ticket_ids = array_map( 'absint', (array) json_decode( $refund['ticket_ids'], true ) );
-		$revoked = 0;
+		$ticket_ids = array_values( array_filter( array_map( 'absint', (array) json_decode( $refund['ticket_ids'], true ) ) ) );
 		$revoked_ids = array();
+		$ids = implode( ',', $ticket_ids );
 		if ( $ticket_ids ) {
-			$ids = implode( ',', $ticket_ids );
-			$per_type = $wpdb->get_results( "SELECT ticket_type_id, COUNT(*) AS n FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND refunded=0 AND status IN ('valid','checked_in','revoked') GROUP BY ticket_type_id" );
-			$revoked_ids = Orders::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND order_id=%d AND status='valid'", (int) $refund['order_id'] ) ) );
-			$revoked = count( $revoked_ids );
-			foreach ( $per_type as $row ) {
-				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET refunded_quantity=LEAST(quantity,refunded_quantity+%d) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1", (int) $row->n, (int) $refund['order_id'], (int) $row->ticket_type_id ) );
+			$tickets = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,ticket_type_id,status,refunded FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND order_id=%d ORDER BY ticket_id FOR UPDATE", $order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			if ( '' !== $wpdb->last_error ) { return $failed(); }
+			$first_item = array();
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,MIN(item_id) AS item_id FROM {$p}wpcap_order_items WHERE order_id=%d GROUP BY ticket_type_id", $order_id ) ) as $row ) {
+				$first_item[ (int) $row->ticket_type_id ] = (int) $row->item_id;
 			}
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE ticket_id IN ($ids) AND order_id=%d", (int) $refund['order_id'] ) );
+			if ( '' !== $wpdb->last_error ) { return $failed(); }
+			foreach ( (array) $tickets as $ticket ) {
+				if ( 'valid' === $ticket->status ) {
+					$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE ticket_id=%d AND status='valid'", (int) $ticket->ticket_id ) );
+					if ( false === $changed ) { return $failed(); }
+					if ( 1 === (int) $changed ) { $revoked_ids[] = (int) $ticket->ticket_id; }
+				}
+				if ( ! (int) $ticket->refunded && in_array( $ticket->status, array( 'valid', 'checked_in', 'revoked' ), true ) && isset( $first_item[ (int) $ticket->ticket_type_id ] ) ) {
+					// Flag and refunded line unit in one statement: a repeat never counts a ticket twice.
+					$flagged = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets t INNER JOIN {$p}wpcap_order_items oi ON oi.item_id=%d SET t.refunded=1,oi.refunded_quantity=LEAST(oi.quantity,oi.refunded_quantity+1) WHERE t.ticket_id=%d AND t.refunded=0", $first_item[ (int) $ticket->ticket_type_id ], (int) $ticket->ticket_id ) );
+				} elseif ( ! (int) $ticket->refunded ) {
+					$flagged = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE ticket_id=%d AND refunded=0", (int) $ticket->ticket_id ) );
+				} else {
+					$flagged = 0;
+				}
+				if ( false === $flagged ) { return $failed(); }
+			}
 			// Refunded units leave the sold counters (CapacityCounters).
-			CapacityCounters::sync_order_now( (int) $refund['order_id'] );
+			if ( false === CapacityCounters::sync_order_now( $order_id ) ) { return $failed(); }
 		}
-		$total_ok = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=LEAST(total_minor,refunded_minor+%d),updated_at=%s WHERE order_id=%d", (int) $refund['amount_minor'], current_time( 'mysql', true ), (int) $refund['order_id'] ) );
-		$done_ok = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'completed', array( 'provider_reference' => substr( '' !== (string) $provider_reference ? (string) $provider_reference : 'manual', 0, 191 ), 'error_message' => '', 'updated_at' => current_time( 'mysql', true ) ) );
-		if ( false === $total_ok || 1 !== $done_ok || false === $wpdb->query( 'COMMIT' ) ) {
-			// Stays "processing" with its provider reference: repair_stuck() finishes it later.
+		// Status and refunded total change in one statement, and only once every ticket of the refund
+		// is flagged: a statement that ran on its own after a lost connection never completes a half
+		// booking, and the total is never added twice. The refund transition is guarded like every
+		// other one (StateMachine 'refund': only processing → completed).
+		$done = $wpdb->query( $wpdb->prepare(
+			"UPDATE {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id SET r.status='completed',r.provider_reference=%s,r.error_message='',r.updated_at=%s,o.refunded_minor=LEAST(o.total_minor,o.refunded_minor+r.amount_minor),o.updated_at=%s WHERE r.refund_id=%d AND " . StateMachine::source_sql( 'refund', 'completed', 'r.status' )
+			. ( $ticket_ids ? " AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_tickets t WHERE t.ticket_id IN ($ids) AND t.order_id=r.order_id AND (t.refunded=0 OR t.status='valid'))" : '' ),
+			substr( '' !== (string) $provider_reference ? (string) $provider_reference : 'manual', 0, 191 ),
+			current_time( 'mysql', true ),
+			current_time( 'mysql', true ),
+			$refund_id
+		) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQL.NotPrepared -- integer list and fixed state list.
+		if ( ! $done ) { return $failed(); }
+		if ( false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			Audit::record( 'refund_bookkeeping_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id ) );
-			return Errors::busy( __( 'Die Erstattung wurde ausgezahlt, konnte aber noch nicht verbucht werden; sie wird automatisch nachgebucht.', 'pass-captain' ) );
+			// Durable when the reply of the COMMIT was lost after it went through.
+			if ( 'completed' !== $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$p}wpcap_refunds WHERE refund_id=%d", $refund_id ) ) ) { return $failed(); }
 		}
+		$revoked = count( $revoked_ids );
 		if ( ! empty( $revoked_ids ) ) {
 			Orders::fire_revoked( $revoked_ids, 'refund_' . $refund_id );
 		}
-		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0", (int) $refund['order_id'] ) );
-		if ( 0 === $remaining ) {
+		$remaining_sql = $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0", (int) $refund['order_id'] );
+		$remaining = $wpdb->get_var( $remaining_sql );
+		if ( '' !== $wpdb->last_error ) { $remaining = $wpdb->get_var( $remaining_sql ); }
+		// A failed count is no "nothing left": that would refund the whole order (A183).
+		if ( '' === $wpdb->last_error && null !== $remaining && 0 === (int) $remaining ) {
 			Orders::mark_refunded( (int) $refund['order_id'], 'native_refund_' . $refund_id );
 		}
 		Audit::record( 'refund_completed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'amount_minor' => (int) $refund['amount_minor'], 'revoked_tickets' => $revoked, 'provider' => $order->payment_provider ) );
@@ -504,10 +570,34 @@ final class Refunds {
 		return array( 'ticket_ids' => array_values( array_unique( array_filter( $ids ) ) ), 'amount_minor' => $amount );
 	}
 
+	/** execution_conflict(): a read failed, so it is unknown whether the refund may be paid out. */
+	const CONFLICT_UNKNOWN = "\0db_busy";
+
+	/** error_message of a refund that failed before any payout because of a database error (resumable). */
+	const RETRY_NOTE = 'db_busy_before_payout';
+
+	/** Rolls back and returns the retryable "busy" error (deadlock, lock wait timeout, lost connection). */
+	private static function busy() {
+		global $wpdb;
+		$wpdb->query( 'ROLLBACK' );
+		return Errors::busy( __( 'Die Erstattung konnte gerade nicht gespeichert werden. Bitte erneut versuchen.', 'pass-captain' ) );
+	}
+
+	/**
+	 * Result of a request repeated with its idempotency key: an approved refund that never started
+	 * (the first call failed after saving it) and a payout without bookkeeping are continued.
+	 */
+	private static function resume( array $refund ) {
+		if ( 'approved' === $refund['status'] || ( 'failed' === $refund['status'] && self::RETRY_NOTE === (string) $refund['error_message'] ) || ( 'processing' === $refund['status'] && '' !== (string) $refund['provider_reference'] ) ) {
+			return self::execute( (int) $refund['refund_id'] );
+		}
+		return $refund;
+	}
+
 	/**
 	 * Checks (under the order lock) whether a refund may still be paid out.
 	 *
-	 * @return string Empty when fine, otherwise the reason it must fail.
+	 * @return string Empty when fine, CONFLICT_UNKNOWN when a read failed, otherwise the reason it must fail.
 	 */
 	private static function execution_conflict( array $refund, $order ) {
 		global $wpdb;
@@ -519,6 +609,7 @@ final class Refunds {
 		if ( $ticket_ids ) {
 			$ids = implode( ',', $ticket_ids );
 			$open = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND order_id=%d AND refunded=0 FOR UPDATE", (int) $refund['order_id'] ) );
+			if ( '' !== $wpdb->last_error ) { return self::CONFLICT_UNKNOWN; }
 			$running = self::open_refunds( (int) $refund['order_id'], array( 'processing' ), (int) $refund['refund_id'] );
 			if ( $open !== count( $ticket_ids ) || array_intersect( $ticket_ids, $running['ticket_ids'] ) ) {
 				return __( 'Mindestens eines der Tickets wurde bereits erstattet; die Erstattung wurde nicht ausgeführt.', 'pass-captain' );

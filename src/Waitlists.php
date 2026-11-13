@@ -459,9 +459,12 @@ final class Waitlists {
 		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
 		if ( 64 !== strlen( $token ) ) { return null; }
 		$row = self::get( $waitlist_id );
+		// A failed read is no invalid offer (A183): the buyer may try again.
+		if ( '' !== $wpdb->last_error ) { return Errors::busy(); }
 		$now = current_time( 'mysql', true );
 		if ( ! $row || 'offered' !== $row->status || ! $row->order_id || (string) $row->offer_expires_at <= $now || ! hash_equals( (string) $row->offer_token_hash, hash( 'sha256', $token ) ) ) { return null; }
 		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_reservations WHERE order_id=%d AND status='active' AND expires_at > %s", (int) $row->order_id, $now ) );
+		if ( '' !== $wpdb->last_error ) { return Errors::busy(); }
 		return $held ? $row : null;
 	}
 
@@ -479,8 +482,10 @@ final class Waitlists {
 	public static function accept_offer( $waitlist_id, $token, array $args = array() ) {
 		global $wpdb;
 		$row = self::open_offer( $waitlist_id, $token );
+		if ( is_wp_error( $row ) ) { return $row; }
 		if ( ! $row ) { return self::invalid_offer(); }
 		$order = Orders::get( (int) $row->order_id );
+		if ( ! $order && '' !== $wpdb->last_error ) { return Errors::busy(); }
 		if ( ! $order || 'pending' !== $order->payment_status ) { return self::invalid_offer(); }
 		$paid = (int) $order->total_minor > 0;
 		if ( $paid && Settings::get( 'require_terms' ) && empty( $args['accept_terms'] ) ) {
@@ -517,11 +522,18 @@ final class Waitlists {
 		$payment = null;
 		if ( ! $paid ) {
 			$confirmed = Orders::confirm_external_payment( $order_id, 'waitlist:' . (int) $row->waitlist_id );
-			if ( is_wp_error( $confirmed ) ) {
+			$booked = Orders::get( $order_id );
+			if ( is_wp_error( $confirmed ) && ( ! $booked || 'paid' !== $booked->payment_status ) ) {
+				// Not booked: the offer is open again. A transient database error is reported as such
+				// (the buyer retries the link), never as "sold out" (A183).
 				self::reopen( $row );
-				return new \WP_Error( 'wpcap_waitlist_sold_out', $confirmed->get_error_message(), array( 'status' => 409 ) );
+				return Errors::is_busy( $confirmed ) ? $confirmed : new \WP_Error( 'wpcap_waitlist_sold_out', $confirmed->get_error_message(), array( 'status' => 409 ) );
 			}
 			self::on_order_paid( $order_id );
+			if ( is_wp_error( $confirmed ) ) {
+				// Booked, only the tickets are missing: the issuance is repeated by the next confirmation.
+				return $confirmed;
+			}
 		} else {
 			$fresh = (array) Orders::get( $order_id );
 			$items = array_map( static function ( $item ) { return (array) $item; }, Orders::items_for_order( $order_id ) );
@@ -540,7 +552,7 @@ final class Waitlists {
 			if ( Payments\BankTransfer::applies( $fresh ) ) { $payment['bank_transfer'] = Payments\BankTransfer::details( $fresh ); }
 		}
 		Audit::record( 'waitlist_accepted', 'waitlist', (int) $row->waitlist_id, array( 'order_id' => $order_id, 'provider' => $gateway ? $gateway->id() : 'free' ) );
-		$order = Orders::get( $order_id );
+		$order = Orders::get( $order_id ) ?: ( Orders::get( $order_id ) ?: $order ); // Once more after a failed read.
 		$result = array(
 			'status' => $paid ? 'accepted' : 'paid',
 			'order' => array( 'order_id' => $order_id, 'public_id' => $order->public_id, 'status' => $order->status, 'payment_status' => $order->payment_status, 'total_minor' => (int) $order->total_minor, 'currency' => $order->currency ),
@@ -573,8 +585,11 @@ final class Waitlists {
 			return Errors::busy( __( 'Das Angebot konnte gerade nicht angenommen werden. Bitte versuche es gleich noch einmal.', 'pass-captain' ) );
 		};
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
+		// Each lock is checked on its own: last_error only reports the latest statement (A183).
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,payment_status,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return $busy(); }
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_waitlist WHERE waitlist_id=%d FOR UPDATE", (int) $row->waitlist_id ) );
+		if ( '' !== $wpdb->last_error ) { return $busy(); }
 		// Only this order's holds: on small tables the optimizer would otherwise scan the expiry index
 		// and lock the holds of other orders too (deadlocks with their cancellations).
 		$held = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT reservation_id FROM {$p}wpcap_reservations FORCE INDEX (order_id) WHERE order_id=%d AND status='active' AND expires_at > %s ORDER BY reservation_id FOR UPDATE", $order_id, $now ) ) );
@@ -596,7 +611,15 @@ final class Waitlists {
 			$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : '';
 			$assigned = $wpdb->update( $p . 'wpcap_orders', array( 'payment_provider' => (string) $provider, 'terms_version' => Settings::terms_version( $locale ), 'locale' => $locale, 'updated_at' => $now ), array( 'order_id' => $order_id ) );
 		}
-		if ( 1 !== (int) $claimed || false === $extended || false === $assigned || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
+		if ( 1 !== (int) $claimed || false === $extended || false === $assigned || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			// The claim is the first write: if it is durable (COMMIT reply lost, or everything from
+			// the claim on ran after a reconnect), the offer is this request's (A183).
+			$state = $wpdb->get_row( $wpdb->prepare( "SELECT status,offer_token_hash FROM {$p}wpcap_waitlist WHERE waitlist_id=%d", (int) $row->waitlist_id ) );
+			if ( ! $state || 'accepted' !== $state->status || '' !== (string) $state->offer_token_hash || '' !== $wpdb->last_error || 1 !== (int) $claimed || false === $extended || false === $assigned ) {
+				return $busy();
+			}
+		}
 		return true;
 	}
 
@@ -617,13 +640,18 @@ final class Waitlists {
 	/** Restores an open offer after a failed accept (the hold is untouched). */
 	private static function reopen( $row ) {
 		global $wpdb;
-		$wpdb->update( $wpdb->prefix . 'wpcap_waitlist', array( 'status' => 'offered', 'offer_token_hash' => (string) $row->offer_token_hash, 'updated_at' => current_time( 'mysql', true ) ), array( 'waitlist_id' => (int) $row->waitlist_id, 'status' => 'accepted' ) );
+		$reopen = static function () use ( $wpdb, $row ) {
+			return $wpdb->update( $wpdb->prefix . 'wpcap_waitlist', array( 'status' => 'offered', 'offer_token_hash' => (string) $row->offer_token_hash, 'updated_at' => current_time( 'mysql', true ) ), array( 'waitlist_id' => (int) $row->waitlist_id, 'status' => 'accepted' ) );
+		};
+		// Once more after a transient error; otherwise the entry follows its order (expiry sync).
+		if ( false === $reopen() ) { $reopen(); }
 	}
 
 	/** Declines an open offer: the hold is released and the units go to the next entry. */
 	public static function decline_offer( $waitlist_id, $token ) {
 		global $wpdb;
 		$row = self::open_offer( $waitlist_id, $token );
+		if ( is_wp_error( $row ) ) { return $row; }
 		if ( ! $row ) { return self::invalid_offer(); }
 		$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_waitlist SET status='declined',offer_token_hash='',updated_at=%s WHERE waitlist_id=%d AND status='offered' AND offer_token_hash=%s", current_time( 'mysql', true ), (int) $row->waitlist_id, (string) $row->offer_token_hash ) );
 		if ( 1 !== (int) $changed ) { return self::invalid_offer(); }
@@ -1025,7 +1053,9 @@ final class Waitlists {
 		nocache_headers();
 		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
 		$row = self::open_offer( $waitlist_id, $token );
-		status_header( $row ? 200 : 410 );
+		$busy = is_wp_error( $row );
+		$row = $busy ? null : $row;
+		status_header( $row ? 200 : ( $busy ? 503 : 410 ) );
 		$order = $row ? Orders::get( (int) $row->order_id ) : null;
 		$names = $row ? self::mail_names( $row->event_id, $row->ticket_type_id ) : array();
 		$gateways = $order && (int) $order->total_minor > 0 ? Payments\Registry::enabled( $order->currency ) : array();

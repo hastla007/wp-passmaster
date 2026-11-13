@@ -54,8 +54,12 @@ final class Orders {
 		$skip_rate_limit = $external || ! empty( $internal['skip_rate_limit'] );
 		$orders_table = $wpdb->prefix . 'wpcap_orders';
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status FROM $orders_table WHERE idempotency_key = %s", $key_hash ) );
+		if ( '' !== $wpdb->last_error ) {
+			// Unknown whether an order with this key exists: never create a second one.
+			return Errors::busy();
+		}
 		if ( $existing ) {
-			return array( 'order_id' => (int) $existing->order_id, 'public_id' => $existing->public_id, 'status' => $existing->status, 'payment_status' => $existing->payment_status, 'reused' => true );
+			return self::reused_order( $existing );
 		}
 		// The form names the version it showed: accepting texts that changed meanwhile is no valid consent.
 		$shown_version = is_string( $payload['terms_version'] ?? null ) ? $payload['terms_version'] : '';
@@ -107,6 +111,7 @@ final class Orders {
 		$now = current_time( 'mysql', true );
 		$door_sale = ! empty( $internal['allow_door_sales'] ) || 'pos' === $namespace;
 		$custom_error = null;
+		$commit_unknown = false;
 		$wpdb->query( 'START TRANSACTION' );
 		try {
 			ksort( $clean_lines, SORT_NUMERIC );
@@ -116,6 +121,8 @@ final class Orders {
 			$types = array();
 			foreach ( $clean_lines as $type_id => $quantity ) {
 				$type = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $types_table WHERE ticket_type_id = %d FOR UPDATE", $type_id ) );
+				// A failed lock (deadlock, lock wait timeout, lost connection) is no "unavailable".
+				if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
 				if ( ! $type || 'active' !== $type->status ) {
 					throw new \RuntimeException( 'ticket_type_unavailable' );
 				}
@@ -132,6 +139,7 @@ final class Orders {
 					"SELECT o.*,e.name AS event_name,e.status AS event_status FROM $occ_table o INNER JOIN $event_table e ON e.event_id=o.event_id WHERE o.occurrence_id=%d FOR UPDATE",
 					$occurrence_id
 				) );
+				if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
 			}
 			$currency = '';
 			foreach ( $types as $type_id => $type ) {
@@ -258,7 +266,8 @@ final class Orders {
 			if ( $billing ) { $order_row['billing'] = wp_json_encode( $billing ); }
 			$inserted = $wpdb->insert( $orders_table, $order_row );
 			if ( ! $inserted ) {
-				throw new \RuntimeException( 'order_insert_failed' );
+				// Only a duplicate idempotency key is a lost race; anything else is a transient error.
+				throw new \RuntimeException( false !== stripos( (string) $wpdb->last_error, 'duplicate' ) ? 'order_insert_failed' : 'db_busy' );
 			}
 			$order_id = (int) $wpdb->insert_id;
 			// Capacity counters (see CapacityCounters): the new lines/holds are inserted with their
@@ -283,7 +292,7 @@ final class Orders {
 				$item += Tax\Profiles::line_columns( $line['tax_info'] );
 				$wpdb->insert( $items_table, $item );
 				if ( '' !== $wpdb->last_error ) {
-					throw new \RuntimeException( 'order_item_insert_failed' );
+					throw new \RuntimeException( 'db_busy' );
 				}
 				if ( $pending_order ) {
 					$hold = array(
@@ -296,7 +305,7 @@ final class Orders {
 					if ( $counted ) { $hold['counted_qty'] = (int) $line['quantity']; }
 					$wpdb->insert( $reservations_table, $hold );
 					if ( '' !== $wpdb->last_error ) {
-						throw new \RuntimeException( 'reservation_insert_failed' );
+						throw new \RuntimeException( 'db_busy' );
 					}
 				}
 				$unit = $pending_order ? 'held' : 'sold';
@@ -313,53 +322,44 @@ final class Orders {
 			 */
 			do_action( 'wpcap_order_creating', $order_id, $selected, $payload, $internal );
 			$redeemed = Campaigns::redeem( $adjustments, $order_id );
-			if ( is_wp_error( $redeemed ) ) { throw new \RuntimeException( 'campaign_redeem_failed' ); }
-			if ( false === self::in_transaction() ) { throw new \RuntimeException( 'db_busy' ); }
-			if ( false === $wpdb->query( 'COMMIT' ) ) { throw new \RuntimeException( 'db_busy' ); }
+			if ( is_wp_error( $redeemed ) ) { throw new \RuntimeException( 'wpcap_campaign_use_failed' === $redeemed->get_error_code() ? 'db_busy' : 'campaign_redeem_failed' ); }
+			// A failure from here on may hide a commit (reply lost, reconnect): checked below. A
+			// "successful" COMMIT that wpdb re-ran on a new session after a reconnect committed
+			// nothing, so the order row is looked up once (primary key).
+			if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) || ! self::order_committed( $order_id, $key_hash ) ) {
+				$commit_unknown = true;
+				throw new \RuntimeException( 'db_busy' );
+			}
 		} catch ( \Throwable $error ) {
+			// After a lost connection wpdb reconnects and runs the remaining statements outside the
+			// transaction (autocommit) while the earlier ones were rolled back (A183). If the order row
+			// exists, the connection was lost before its insert, so every later write (each one checked)
+			// was committed: the order is complete. Otherwise the rows written after the loss are removed.
+			$lost = ! empty( $order_id ) && false === self::in_transaction();
 			$wpdb->query( 'ROLLBACK' );
-			$messages = array(
-				'ticket_type_unavailable' => __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ),
-				'quantity_limit' => __( 'Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich.', 'pass-captain' ),
-				'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ),
-				'occurrence_unavailable' => __( 'Dieser Termin ist nicht mehr verfügbar.', 'pass-captain' ),
-				'sales_closed' => __( 'Der Verkauf für diese Ticketart ist geschlossen.', 'pass-captain' ),
-				'mixed_currency' => __( 'Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden.', 'pass-captain' ),
-				'sold_out' => __( 'Für diese Ticketart sind nicht mehr genügend Tickets verfügbar.', 'pass-captain' ),
-				'occurrence_sold_out' => __( 'Für diesen Termin sind nicht mehr genügend Plätze verfügbar.', 'pass-captain' ),
-				'campaign_invalid' => __( 'Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung.', 'pass-captain' ),
-				'campaign_redeem_failed' => __( 'Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden.', 'pass-captain' ),
-			);
-			$code = $error->getMessage();
-			if ( 'order_insert_failed' === $code ) {
-				// A concurrent request with the same idempotency key won the unique index.
-				$existing = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status FROM $orders_table WHERE idempotency_key = %s", $key_hash ) );
-				if ( $existing ) {
-					return array( 'order_id' => (int) $existing->order_id, 'public_id' => $existing->public_id, 'status' => $existing->status, 'payment_status' => $existing->payment_status, 'reused' => true );
-				}
+			if ( ! ( $lost && $commit_unknown && self::order_committed( $order_id, $key_hash ) ) ) {
+				if ( $lost ) { self::discard_lost_order( $order_id, $key_hash, $occurrence_ids ?? array() ); }
+				return self::checkout_error( $error->getMessage(), $custom_error, $key_hash );
 			}
-			if ( 'billing_required' === $code ) {
-				return new \WP_Error( 'wpcap_billing_required', __( 'Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus.', 'pass-captain' ), array( 'status' => 400, 'field' => 'billing_enabled' ) );
-			}
-			$messages = apply_filters( 'wpcap_checkout_error_messages', $messages );
-			$fallback = $custom_error instanceof \WP_Error && '' !== $custom_error->get_error_message() ? $custom_error->get_error_message() : __( 'Die Bestellung konnte nicht angelegt werden.', 'pass-captain' );
-			$message = $messages[ $code ] ?? $fallback;
-			// `reason`: machine-readable cause (sold_out, occurrence_sold_out, sales_closed, …) – the message is translated.
-			return new \WP_Error( 'wpcap_checkout_failed', $message, array( 'status' => 'db_busy' === $code ? 503 : 409, 'retryable' => 'db_busy' === $code, 'reason' => isset( $messages[ $code ] ) ? $code : 'checkout_failed' ) );
 		}
 
 		$pending = $total || $external;
+		$issued = null;
 		if ( ! $pending ) {
 			Campaigns::commit_for_order( $order_id );
 			// Same order as for paid orders (confirm_external_payment): wpcap_order_paid before the
 			// issuance (e.g. seat recovery), wpcap_tickets_issued after it.
 			do_action( 'wpcap_order_paid', $order_id );
-			self::issue_and_email( $order_id );
+			$issued = self::issue_and_email( $order_id );
 		}
 		if ( ! $external ) {
 			self::send_order_access_link( $email, $public_id, $access_token );
 		}
 		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency, 'source' => sanitize_key( $internal['source'] ?? 'native' ) ) );
+		if ( is_wp_error( $issued ) ) {
+			// The free order exists, its tickets do not yet: a retry with the same key issues them.
+			return $issued;
+		}
 		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
 	}
 
@@ -371,15 +371,16 @@ final class Orders {
 		$name = sanitize_text_field( $attendee['name'] ?? '' );
 		$email = sanitize_email( $attendee['email'] ?? '' );
 		if ( $name || is_email( $email ) ) {
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", $ticket_id, $order->customer_email, is_email( $email ) ? $email : '', $name, $now ) );
-			if ( is_email( $email ) ) {
-				$wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => $ticket_id ) );
+			if ( false === $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", $ticket_id, $order->customer_email, is_email( $email ) ? $email : '', $name, $now ) ) ) { return false; }
+			if ( is_email( $email ) && false === $wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => $ticket_id ) ) ) {
+				return false;
 			}
 		}
 		foreach ( (array) ( $attendee['answers'] ?? array() ) as $field_id => $value ) {
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE answer=VALUES(answer),updated_at=VALUES(updated_at)", $ticket_id, absint( $field_id ), (string) $value, $now, $now ) );
+			if ( false === $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE answer=VALUES(answer),updated_at=VALUES(updated_at)", $ticket_id, absint( $field_id ), (string) $value, $now, $now ) ) ) { return false; }
 		}
 		Consents::record_checkout( $ticket_id, $order, $attendee );
+		return '' === $wpdb->last_error;
 	}
 
 	/**
@@ -519,6 +520,88 @@ final class Orders {
 	}
 
 	/**
+	 * Result of a checkout retried with a known idempotency key. A paid order whose issuance failed
+	 * earlier (database error after the payment was booked) gets its missing tickets now.
+	 */
+	private static function reused_order( $existing ) {
+		if ( 'paid' === $existing->payment_status ) {
+			$issued = self::issue_and_email( (int) $existing->order_id );
+			if ( is_wp_error( $issued ) ) { return $issued; }
+		}
+		return array( 'order_id' => (int) $existing->order_id, 'public_id' => $existing->public_id, 'status' => $existing->status, 'payment_status' => $existing->payment_status, 'reused' => true );
+	}
+
+	/** Error of a checkout that was rolled back; db_busy is retryable (503). */
+	private static function checkout_error( $code, $custom_error, $key_hash ) {
+		global $wpdb;
+		$messages = array(
+			'ticket_type_unavailable' => __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ),
+			'quantity_limit' => __( 'Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich.', 'pass-captain' ),
+			'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ),
+			'occurrence_unavailable' => __( 'Dieser Termin ist nicht mehr verfügbar.', 'pass-captain' ),
+			'sales_closed' => __( 'Der Verkauf für diese Ticketart ist geschlossen.', 'pass-captain' ),
+			'mixed_currency' => __( 'Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden.', 'pass-captain' ),
+			'sold_out' => __( 'Für diese Ticketart sind nicht mehr genügend Tickets verfügbar.', 'pass-captain' ),
+			'occurrence_sold_out' => __( 'Für diesen Termin sind nicht mehr genügend Plätze verfügbar.', 'pass-captain' ),
+			'campaign_invalid' => __( 'Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung.', 'pass-captain' ),
+			'campaign_redeem_failed' => __( 'Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden.', 'pass-captain' ),
+		);
+		if ( 'order_insert_failed' === $code ) {
+			// A concurrent request with the same idempotency key won the unique index.
+			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status FROM {$wpdb->prefix}wpcap_orders WHERE idempotency_key = %s", $key_hash ) );
+			if ( $existing ) {
+				return self::reused_order( $existing );
+			}
+			$code = 'db_busy';
+		}
+		if ( 'billing_required' === $code ) {
+			return new \WP_Error( 'wpcap_billing_required', __( 'Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus.', 'pass-captain' ), array( 'status' => 400, 'field' => 'billing_enabled' ) );
+		}
+		$messages = apply_filters( 'wpcap_checkout_error_messages', $messages );
+		$fallback = $custom_error instanceof \WP_Error && '' !== $custom_error->get_error_message() ? $custom_error->get_error_message() : __( 'Die Bestellung konnte nicht angelegt werden.', 'pass-captain' );
+		$message = $messages[ $code ] ?? $fallback;
+		// `reason`: machine-readable cause (sold_out, occurrence_sold_out, sales_closed, …) – the message is translated.
+		return new \WP_Error( 'wpcap_checkout_failed', $message, array( 'status' => 'db_busy' === $code ? 503 : 409, 'retryable' => 'db_busy' === $code, 'reason' => isset( $messages[ $code ] ) ? $code : 'checkout_failed' ) );
+	}
+
+	/** Whether the order row of a checkout whose COMMIT result is unknown exists (with this checkout's key). */
+	private static function order_committed( $order_id, $key_hash ) {
+		global $wpdb;
+		$sql = $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d AND idempotency_key=%s", absint( $order_id ), $key_hash );
+		$found = $wpdb->get_var( $sql );
+		if ( '' !== $wpdb->last_error ) { $found = $wpdb->get_var( $sql ); } // Once more on the reconnected session.
+		return null !== $found;
+	}
+
+	/**
+	 * Removes what a checkout wrote after its transaction was lost (A183): the connection dropped
+	 * and wpdb reconnected, so the statements from then on ran with autocommit while the earlier
+	 * ones were rolled back. Order, lines and holds of $order_id (only an order that carries this
+	 * checkout's key) are deleted, reserved campaign uses released, modules informed through
+	 * `wpcap_capacity_released` (reason checkout_aborted) and the capacity counters of the
+	 * occurrences rebuilt from the source tables. If this fails too, the holds lapse on their own
+	 * and the counter reconciliation repairs the counters.
+	 */
+	private static function discard_lost_order( $order_id, $key_hash, array $occurrence_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = absint( $order_id );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,idempotency_key FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
+		if ( '' !== $wpdb->last_error || ( $order && ! hash_equals( (string) $order->idempotency_key, (string) $key_hash ) ) ) { return false; }
+		Campaigns::release_for_order( $order_id );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_reservations WHERE order_id=%d", $order_id ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_order_items WHERE order_id=%d", $order_id ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
+		self::capacity_released( $order_id, 'checkout_aborted' );
+		if ( CapacityCounters::maintained() ) {
+			foreach ( $occurrence_ids as $occurrence_id ) { CapacityCounters::rebuild_occurrence( (int) $occurrence_id ); }
+		}
+		self::flush_availability_cache();
+		Audit::record( 'checkout_aborted', 'order', $order_id, array( 'reason' => 'transaction_lost' ) );
+		return true;
+	}
+
+	/**
 	 * Whether a module error is transient (deadlock, lock wait timeout): code db_busy/wpcap_db_busy,
 	 * `retryable` in its data, or HTTP status 503.
 	 */
@@ -527,9 +610,12 @@ final class Orders {
 	}
 
 	/** Rolls back a payment confirmation that hit a deadlock/lock timeout; callers retry (webhooks get a 5xx). */
-	private static function payment_busy() {
+	private static function payment_busy( $order_id = 0 ) {
 		global $wpdb;
+		$lost = false === self::in_transaction();
 		$wpdb->query( 'ROLLBACK' );
+		// Statements after a lost connection may have changed counters without their rows (A183).
+		if ( $lost && $order_id ) { CapacityCounters::repair_order( $order_id ); }
 		return Errors::busy( __( 'Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen.', 'pass-captain' ) );
 	}
 
@@ -993,16 +1079,22 @@ final class Orders {
 		// Ticket types of a pending order never change, so they can be read before the transaction;
 		// they are locked right after the order row (order → types → occurrences, by id).
 		$type_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ticket_type_id FROM {$p}wpcap_order_items WHERE order_id=%d ORDER BY ticket_type_id", $order_id ) ) );
-		$wpdb->query( 'START TRANSACTION' );
+		// A failed read would look like an order without lines (and end in needs_review); a failed
+		// START TRANSACTION would let every statement below autocommit (A183).
+		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'START TRANSACTION' ) ) { return self::payment_busy( $order_id ); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return self::payment_busy( $order_id ); }
 		if ( ! $order ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_order_missing', __( 'Bestellung nicht gefunden.', 'pass-captain' ) );
 		}
 		if ( 'paid' === $order->payment_status ) {
-			$wpdb->query( 'COMMIT' );
-			self::issue_and_email( $order_id );
-			return true;
+			$wpdb->query( 'ROLLBACK' ); // Nothing written; the issuance locks the order itself.
+			// A repeated confirmation (webhook redelivery after an error) completes what is missing:
+			// counters of an order whose booking ran partly outside its transaction, and tickets.
+			CapacityCounters::sync_order_now( $order_id );
+			$issued = self::issue_and_email( $order_id );
+			return is_wp_error( $issued ) ? $issued : true;
 		}
 		if ( in_array( $order->status, array( 'refunded', 'cancelled' ), true ) ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -1012,21 +1104,27 @@ final class Orders {
 		// late payment re-checks capacity): ticket types, then occurrences (same order as
 		// Orders::create()). Locking reads only until every capacity lock is held (fresh snapshot
 		// for the re-check below).
+		// Each lock is checked on its own (last_error only reports the latest statement).
+		$lock_failed = false;
 		$locked_types = array();
 		foreach ( $type_ids as $type_id ) {
 			$locked_types[ $type_id ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id=%d FOR UPDATE", $type_id ) );
+			$lock_failed = $lock_failed || '' !== $wpdb->last_error;
 		}
 		$occ_ids = array_unique( array_map( static function ( $type ) { return $type ? (int) $type->occurrence_id : 0; }, $locked_types ) );
 		sort( $occ_ids, SORT_NUMERIC );
 		$occurrences = array();
 		foreach ( $occ_ids as $occ_id ) {
-			if ( $occ_id ) { $occurrences[ $occ_id ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", $occ_id ) ); }
+			if ( $occ_id ) {
+				$occurrences[ $occ_id ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", $occ_id ) );
+				$lock_failed = $lock_failed || '' !== $wpdb->last_error;
+			}
 		}
-		if ( '' !== $wpdb->last_error ) { return self::payment_busy(); }
+		if ( $lock_failed || '' !== $wpdb->last_error ) { return self::payment_busy( $order_id ); }
 		$active = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_reservations WHERE order_id=%d AND status='active' AND expires_at > %s LOCK IN SHARE MODE", $order_id, $now ) );
 		$active_error = $wpdb->last_error;
 		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id, SUM(quantity) AS quantity FROM {$p}wpcap_order_items WHERE order_id=%d GROUP BY ticket_type_id ORDER BY ticket_type_id LOCK IN SHARE MODE", $order_id ) );
-		if ( '' !== $active_error || '' !== $wpdb->last_error ) { return self::payment_busy(); }
+		if ( '' !== $active_error || '' !== $wpdb->last_error ) { return self::payment_busy( $order_id ); }
 		$recovered = false;
 		if ( ! $active ) {
 			// Late payment: module resources (`wpcap_reserve_capacity`), then re-check capacity.
@@ -1052,7 +1150,7 @@ final class Orders {
 			}
 			// A transient lock problem (deadlock, lock wait timeout) is no "sold out": roll back so the
 			// payment provider redelivers the webhook (5xx) instead of flagging a paid order for review.
-			if ( 'db_busy' === $error || ( $reserve_error && self::is_retryable_error( $reserve_error ) ) ) { return self::payment_busy(); }
+			if ( 'db_busy' === $error || ( $reserve_error && self::is_retryable_error( $reserve_error ) ) ) { return self::payment_busy( $order_id ); }
 			if ( ! $error && $reserve_error ) {
 				$error = $reserve_error->get_error_code();
 			}
@@ -1063,13 +1161,16 @@ final class Orders {
 					if ( $error ) { break; }
 				}
 			}
-			if ( 'db_busy' === $error ) { return self::payment_busy(); }
+			if ( 'db_busy' === $error ) { return self::payment_busy( $order_id ); }
 			if ( $error ) {
-				// Guarded like every order transition (StateMachine); a repeated flag of a needs_review order changes nothing.
-				if ( false === StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'needs_review', array( 'payment_status' => 'paid_unallocated', 'updated_at' => $now ) ) ) { return self::payment_busy(); }
-				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='expired' WHERE order_id=%d AND status='active'", $order_id ) );
-				CapacityCounters::sync_order( $order_id );
-				$wpdb->query( 'COMMIT' );
+				// Guarded like every order transition (StateMachine); a repeated flag of a needs_review order
+				// changes nothing. Flagged only when every step is durable; otherwise the provider redelivers (A183).
+				if ( false === StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'needs_review', array( 'payment_status' => 'paid_unallocated', 'updated_at' => $now ) )
+					|| false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='expired' WHERE order_id=%d AND status='active'", $order_id ) )
+					|| false === CapacityCounters::sync_order( $order_id ) ) {
+					return self::payment_busy( $order_id );
+				}
+				if ( ! self::commit_probe( $order_id, 'paid_unallocated' ) ) { return self::payment_busy( $order_id ); }
 				self::flush_availability_cache();
 				self::capacity_released( $order_id, 'payment_unallocated' );
 				Audit::record( 'payment_unallocated', 'order', $order_id, array( 'reason' => $error, 'reference' => sanitize_text_field( $reference ) ) );
@@ -1080,16 +1181,37 @@ final class Orders {
 		}
 		// Checked like Orders::create(): after a server-side rollback the remaining statements would
 		// autocommit without the capacity re-check's locks.
-		if ( 1 !== StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'complete', array( 'payment_status' => 'paid', 'updated_at' => $now ) ) ) { return self::payment_busy(); }
-		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='converted' WHERE order_id=%d AND status IN ('active','expired','released')", $order_id ) ) ) { return self::payment_busy(); }
+		if ( 1 !== StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'complete', array( 'payment_status' => 'paid', 'updated_at' => $now ) ) ) { return self::payment_busy( $order_id ); }
+		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='converted' WHERE order_id=%d AND status IN ('active','expired','released')", $order_id ) ) ) { return self::payment_busy( $order_id ); }
 		// Holds leave held_qty, the paid lines enter sold_qty – atomically with the status change.
-		if ( false === CapacityCounters::sync_order( $order_id ) ) { return self::payment_busy(); }
-		Campaigns::commit_for_order( $order_id );
-		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) { return self::payment_busy(); }
+		if ( false === CapacityCounters::sync_order( $order_id ) ) { return self::payment_busy( $order_id ); }
+		if ( false === Campaigns::commit_for_order( $order_id ) ) { return self::payment_busy( $order_id ); }
+		if ( ! self::commit_probe( $order_id, 'paid' ) ) { return self::payment_busy( $order_id ); }
 		Audit::record( 'external_payment_confirmed', 'order', $order_id, array( 'reference' => sanitize_text_field( $reference ), 'late_recovery' => $recovered ) );
 		do_action( 'wpcap_order_paid', $order_id );
-		self::issue_and_email( $order_id );
-		return true;
+		// Paid but not yet issued (database error): the caller retries (webhooks get a 5xx and are
+		// redelivered), and the repeated confirmation issues the tickets.
+		$issued = self::issue_and_email( $order_id );
+		return is_wp_error( $issued ) ? $issued : true;
+	}
+
+	/**
+	 * Commits a payment booking and tells whether it is durable (A183). The order update is the
+	 * booking's first write: when the connection was lost and wpdb reconnected, every statement from
+	 * the lost one on ran with autocommit and the earlier ones were rolled back. So the order's
+	 * payment status after the commit attempt decides: $status means everything was committed;
+	 * anything else means the order update was rolled back (a COMMIT that wpdb re-ran on a new
+	 * session commits nothing) – then payment_busy() repairs the counters.
+	 */
+	private static function commit_probe( $order_id, $status ) {
+		global $wpdb;
+		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+		}
+		$sql = $wpdb->prepare( "SELECT payment_status FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) );
+		$now = $wpdb->get_var( $sql );
+		if ( '' !== $wpdb->last_error ) { $now = $wpdb->get_var( $sql ); } // Once more on the reconnected session.
+		return '' === $wpdb->last_error && $status === $now;
 	}
 
 	/**
@@ -1510,6 +1632,11 @@ final class Orders {
 	 */
 	public static function confirm_manual_payment( $order_id ) {
 		$order = self::get( $order_id );
+		if ( $order && 'paid' === $order->payment_status ) {
+			// Booked earlier, but its issuance may have failed (database error): complete it.
+			CapacityCounters::sync_order_now( (int) $order_id );
+			self::issue_and_email( (int) $order_id );
+		}
 		if ( ! $order || 'paid' === $order->payment_status || in_array( $order->status, array( 'refunded', 'cancelled' ), true ) ) {
 			return new \WP_Error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'pass-captain' ) );
 		}
@@ -1577,10 +1704,14 @@ final class Orders {
 			return self::issue_failed( $order_id, 'lock' );
 		}
 		if ( ! $order || 'paid' !== $order->payment_status ) {
-			$wpdb->query( 'COMMIT' );
+			$wpdb->query( 'ROLLBACK' ); // Nothing written.
 			return;
 		}
 		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name AS ticket_name,tt.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d", $order_id ) );
+		if ( '' !== $wpdb->last_error ) {
+			$wpdb->query( 'ROLLBACK' );
+			return self::issue_failed( $order_id, 'lines' );
+		}
 		/**
 		 * Order lines that receive tickets. Modules may drop lines that are no admission of their own,
 		 * e.g. the supplementary payment order of a ticket exchange (Exchange\Service issues that ticket).
@@ -1594,6 +1725,8 @@ final class Orders {
 		$pending_attendees = $order->attendee_data ? (array) json_decode( $order->attendee_data, true ) : array();
 		foreach ( $lines as $line ) {
 			$existing = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND ticket_type_id=%d", $order_id, $line->ticket_type_id ) );
+			// An unknown count would issue the tickets a second time.
+			if ( '' !== $wpdb->last_error ) { return self::issue_aborted( $order, $issued, 'count' ); }
 			for ( $i = $existing; $i < (int) $line->quantity; $i++ ) {
 				$token = bin2hex( random_bytes( 32 ) );
 				$public_id = bin2hex( random_bytes( 16 ) );
@@ -1607,34 +1740,41 @@ final class Orders {
 				), array( '%s', '%d', '%d', '%s', '%s', '%s' ) );
 				if ( '' !== $wpdb->last_error || ! $wpdb->insert_id ) {
 					// Nothing of this issuance is kept (the attendee data stays on the order for a retry).
-					$wpdb->query( 'ROLLBACK' );
-					return self::issue_failed( $order_id, 'insert' );
+					return self::issue_aborted( $order, $issued, 'insert' );
 				}
-				if ( $wpdb->insert_id ) {
-					$ticket_id = (int) $wpdb->insert_id;
-					foreach ( $pending_attendees as $index => $attendee ) {
-						if ( (int) ( $attendee['ticket_type_id'] ?? 0 ) !== (int) $line->ticket_type_id ) { continue; }
-						unset( $pending_attendees[ $index ] );
-						self::store_attendee( $ticket_id, $order, $attendee );
-						break;
-					}
-					/** Inside the issuance transaction, e.g. to assign a seat or area. Do not store $token. */
-					do_action( 'wpcap_ticket_created', $ticket_id, $order, $line, $i );
-					$issued[] = array( 'ticket_id' => $ticket_id, 'ticket_type_id' => (int) $line->ticket_type_id, 'occurrence_id' => (int) ( $line->occurrence_id ?? 0 ), 'token' => $token, 'event' => $line->event_name, 'ticket' => $line->ticket_name, 'starts_at' => $line->starts_at, 'timezone' => $line->timezone, 'location' => $line->location );
+				$ticket_id = (int) $wpdb->insert_id;
+				$issued[] = array( 'ticket_id' => $ticket_id, 'ticket_type_id' => (int) $line->ticket_type_id, 'occurrence_id' => (int) ( $line->occurrence_id ?? 0 ), 'token' => $token, 'event' => $line->event_name, 'ticket' => $line->ticket_name, 'starts_at' => $line->starts_at, 'timezone' => $line->timezone, 'location' => $line->location );
+				foreach ( $pending_attendees as $index => $attendee ) {
+					if ( (int) ( $attendee['ticket_type_id'] ?? 0 ) !== (int) $line->ticket_type_id ) { continue; }
+					unset( $pending_attendees[ $index ] );
+					if ( ! self::store_attendee( $ticket_id, $order, $attendee ) ) { return self::issue_aborted( $order, $issued, 'attendee' ); }
+					break;
 				}
+				/** Inside the issuance transaction, e.g. to assign a seat or area. Do not store $token. */
+				do_action( 'wpcap_ticket_created', $ticket_id, $order, $line, $i );
 			}
 		}
 		if ( $issued && $order->attendee_data ) {
 			// Personal data now lives with the tickets; drop the order-level copy (data minimisation).
 			if ( false === $wpdb->update( $orders, array( 'attendee_data' => null ), array( 'order_id' => (int) $order_id ) ) ) {
-				$wpdb->query( 'ROLLBACK' );
-				return self::issue_failed( $order_id, 'attendee_data' );
+				return self::issue_aborted( $order, $issued, 'attendee_data' );
 			}
 		}
-		// A failed COMMIT (or a transaction the server rolled back) must not send tickets that do not exist.
-		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) {
-			$wpdb->query( 'ROLLBACK' );
-			return self::issue_failed( $order_id, 'commit' );
+		// A failed COMMIT (or a transaction the server rolled back) must not send tickets that do not
+		// exist. The first ticket of this run tells whether the issuance is durable (A183): after a
+		// lost connection wpdb reconnects and runs the rest with autocommit – if that ticket exists,
+		// everything from its insert on was committed; if not, nothing before the loss was, and a
+		// COMMIT that wpdb re-ran on the new session committed nothing.
+		$commit_ok = false !== self::in_transaction() && false !== $wpdb->query( 'COMMIT' );
+		if ( ! $commit_ok ) { $wpdb->query( 'ROLLBACK' ); }
+		if ( $issued ) {
+			$probe = $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", $issued[0]['ticket_id'] );
+			$first = $wpdb->get_var( $probe );
+			if ( '' !== $wpdb->last_error ) { $first = $wpdb->get_var( $probe ); } // Once more on the reconnected session.
+			$commit_ok = null !== $first && '' === $wpdb->last_error;
+		}
+		if ( ! $commit_ok ) {
+			return self::issue_aborted( $order, $issued, 'commit' );
 		}
 		// Consent grants recorded with the tickets: hooks only now that they are committed.
 		Consents::flush_pending( (int) $order_id );
@@ -1683,8 +1823,12 @@ final class Orders {
 		}
 	}
 
-	/** Job handler (wpcap_process_job): retry of a failed ticket mail (new codes). */
-	public static function handle_job( $handled, $type, $payload = array() ) {
+	/**
+	 * Job handler (wpcap_process_job): repairs (refund mark, cancellation, issuance) and the retry of a
+	 * failed ticket mail (new codes). All are idempotent: a repeated run after a worker died between
+	 * the side effect and the "complete" mark (at-least-once, see Jobs) changes nothing more.
+	 */
+	public static function handle_job( $handled, $type, $payload = array(), $job_id = 0 ) {
 		if ( 'order_refund_mark_retry' === $type ) {
 			$marked = self::mark_refunded( absint( $payload['order_id'] ?? 0 ), (string) ( $payload['reason'] ?? '' ) );
 			// A refused transition is final (never paid): acknowledge instead of retrying into the dead letter.
@@ -1696,13 +1840,71 @@ final class Orders {
 			if ( ! $order || (string) $order->payment_status !== (string) ( $payload['payment_status'] ?? '' ) ) { return true; }
 			return true === self::cancel_order( (int) $order->order_id, (string) ( $payload['reason'] ?? '' ) );
 		}
+		if ( 'ticket_issue_retry' === $type ) {
+			$order = self::get( absint( $payload['order_id'] ?? 0 ) );
+			if ( ! $order || 'paid' !== $order->payment_status ) { return true; } // Nothing (more) to issue.
+			return ! is_wp_error( self::issue_and_email( (int) $order->order_id ) );
+		}
 		if ( 'ticket_mail_retry' !== $type ) { return $handled; }
 		$order_id = absint( $payload['order_id'] ?? 0 );
 		$order = self::get( $order_id );
 		if ( ! $order || 'paid' !== $order->payment_status ) { return true; } // Nothing (more) to send.
+		if ( $job_id && self::tickets_resent_since_job( $order_id, (int) $job_id ) ) {
+			// The tickets went out with working codes after this job was queued (an earlier run of it
+			// whose worker died before the "complete" mark, or a manual resend): no second mail.
+			return true;
+		}
 		$result = self::resend_tickets( $order_id, array( 'from_job' => true ) );
 		if ( is_wp_error( $result ) && 'wpcap_no_resendable_tickets' === $result->get_error_code() ) { return true; }
 		return true === $result;
+	}
+
+	/**
+	 * Rolls back a failed issuance. If the connection was lost on the way (wpdb reconnected, later
+	 * statements autocommitted), the tickets of this run that were written anyway are removed again
+	 * with their attendee rows and consent records (their codes were never mailed), the order's
+	 * attendee data is restored and `wpcap_tickets_discarded` lets modules undo their rows (e.g. seat
+	 * assignments). A retry then issues the full set once.
+	 *
+	 * @param object $order  Order row read under the lock (attendee_data as before the run).
+	 * @param array  $issued Tickets inserted in this run ({ticket_id, …}).
+	 * @param string $step   Failed step (audit).
+	 */
+	private static function issue_aborted( $order, array $issued, $step ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$lost = $issued && false === self::in_transaction();
+		$wpdb->query( 'ROLLBACK' );
+		Consents::discard_pending();
+		$ids = array_map( static function ( $ticket ) { return (int) $ticket['ticket_id']; }, $issued );
+		if ( $lost ) {
+			$list = implode( ',', $ids );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_ticket_assignments WHERE ticket_id IN ($list) AND buyer_email=%s", (string) $order->customer_email ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$wpdb->query( "DELETE FROM {$p}wpcap_participant_answers WHERE ticket_id IN ($list)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_consent_log WHERE ticket_id IN ($list) AND order_id=%d", (int) $order->order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_tickets WHERE ticket_id IN ($list) AND order_id=%d", (int) $order->order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			if ( $order->attendee_data ) {
+				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET attendee_data=%s WHERE order_id=%d AND attendee_data IS NULL", (string) $order->attendee_data, (int) $order->order_id ) );
+			}
+			/**
+			 * Tickets of a failed issuance were removed again (the connection was lost mid-way and the
+			 * rest of the issuance ran outside its transaction). Undo rows written in wpcap_ticket_created.
+			 *
+			 * @param int[] $ticket_ids Removed ticket IDs.
+			 * @param int   $order_id   Order.
+			 */
+			do_action( 'wpcap_tickets_discarded', $ids, (int) $order->order_id );
+		}
+		return self::issue_failed( (int) $order->order_id, $step );
+	}
+
+	/** Whether a resend of the order's tickets succeeded since the job was queued (audit `tickets_resent`). */
+	private static function tickets_resent_since_job( $order_id, $job_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$queued = $wpdb->get_var( $wpdb->prepare( "SELECT created_at FROM {$p}wpcap_jobs WHERE job_id=%d", absint( $job_id ) ) );
+		if ( ! $queued ) { return false; }
+		return null !== $wpdb->get_var( $wpdb->prepare( "SELECT audit_id FROM {$p}wpcap_audit_logs WHERE action='tickets_resent' AND object_type='order' AND object_id=%d AND created_at>=%s LIMIT 1", absint( $order_id ), $queued ) );
 	}
 
 	/**
@@ -1711,6 +1913,9 @@ final class Orders {
 	 */
 	private static function issue_failed( $order_id, $step ) {
 		Audit::record( 'ticket_issue_failed', 'order', absint( $order_id ), array( 'step' => (string) $step ) );
+		// Safety net for callers without a redelivery (free orders, waitlist, box office): a job
+		// repeats the issuance with backoff (idempotent: only missing tickets are issued).
+		Jobs::enqueue( 'ticket-issue-retry|' . absint( $order_id ) . '|' . time(), 'ticket_issue_retry', array( 'order_id' => absint( $order_id ) ), gmdate( 'Y-m-d H:i:s', time() + MINUTE_IN_SECONDS ) );
 		return Errors::busy( __( 'Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen.', 'pass-captain' ) );
 	}
 
