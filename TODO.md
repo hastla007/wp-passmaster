@@ -10,7 +10,7 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 - [x] Composer-Abhängigkeiten, Lizenzdokumentation und installierbares Release-ZIP einrichten (CI-Build vorhanden).
 - [x] Reproduzierbaren Release-Build mit dokumentiertem Abgleich der Artefakte absichern.
 - [x] Versioniertes Schema und Upgrade-Migrationen erstellen; Migration läuft kontrolliert im Admin, per Cron oder WP-CLI.
-- [ ] Rollback-/Restore-Verhalten mit echten Datenbankständen erproben und dokumentieren.
+- [x] Rollback-/Restore-Verhalten mit echten Datenbankständen erproben und dokumentieren.
 - [x] Plugin muss ohne WooCommerce und ohne Voucher Captain aktivierbar und funktionsfähig sein; beide Integrationen bleiben optional.
 
 ## P0 – Event- und Verkaufsgrundlage

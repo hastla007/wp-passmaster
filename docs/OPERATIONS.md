@@ -50,6 +50,33 @@ Dateien und Datenbank als zusammengehörigen Stand wiederherstellen. Ein Datenba
 
 Auftrags- und Ticketdaten nicht selektiv aus mehreren Sicherungszeitpunkten zusammenführen. Zahlungsanbieter und optionale Integrationen müssen separat auf denselben externen Transaktionsstand abgeglichen werden.
 
+### Rollback und Restore – erprobt (A113)
+
+Am 13.11.2026 gegen WordPress 7.1.4 mit WooCommerce 11.3 und MariaDB geprüft (`tests/restore/drill.sh`, Release 1.4.0 = Schema 3.5.0 ↔ aktueller Stand = Schema 3.8.5, 84 → 107 Tabellen):
+
+| Schritt | Ergebnis |
+|---|---|
+| 1.4.0 installieren, Bestellungen/Tickets/Check-in anlegen, Sicherung (`mariadb-dump`) | – |
+| Code auf neue Version, Upgrade | Daten unverändert (Prüfsumme über Events, Termine, Ticketarten, Bestellungen, Tickets, Check-ins), neues Schema vollständig, Verkauf funktioniert |
+| **Code-Rollback** auf 1.4.0 bei neuem Schema | keine Tabellen/Spalten entfernt, Daten unverändert, 1.4.0 verkauft weiter (neue Spalten haben Standardwerte) |
+| wieder auf neue Version | Daten unverändert, Schema aktuell |
+| **Restore** der 1.4.0-Sicherung unter neuer Version | exakt die gesicherten Daten, beim nächsten Admin-/Cron-Aufruf auf das volle Schema gebracht, Verkauf funktioniert |
+| Neuinstallation neue Version → Rollback → wieder neue Version | Einstellungen unverändert |
+
+Gefundener und behobener Fehler: Nach einem Rollback schreibt der ältere Code seine (niedrigere) Schemaversion zurück. Beim erneuten Upgrade liefen dadurch einmalige Datenmigrationen noch einmal, z. B. wurde bei einer Neuinstallation (Präfix „RK“) das alte Rechnungskorrektur-Präfix „GS“ festgeschrieben. Jetzt merkt sich `wpcap_db_version_max` die höchste je gelaufene Schemaversion; einmalige Migrationen vergleichen dagegen (`Installer::migration_baseline()`).
+
+Regeln für den Betrieb:
+
+- **Rollback nur des Codes** (Plugin-ZIP der Vorversion einspielen) ist innerhalb der getesteten Spanne möglich: Schemaänderungen sind rein additiv, der ältere Code ignoriert neue Tabellen/Spalten. Daten, die nur die neue Version kennt (z. B. neue Felder), bleiben erhalten, werden vom alten Code aber nicht gepflegt. Danach möglichst bald wieder vorwärts aktualisieren.
+- **Restore** immer als Paar aus Datenbank- und Plugin-Stand. Eine ältere Sicherung unter neuerem Code ist unkritisch (Upgrade läuft automatisch); eine neuere Sicherung unter älterem Code entspricht einem Code-Rollback (s. o.).
+- Den Drill vor einem Release selbst wiederholen:
+
+```bash
+bash tests/restore/drill.sh /pfad/zu/wordpress /pfad/alt/wp-pass-captain /pfad/neu/wp-pass-captain /tmp/drill
+```
+
+Das Skript sichert die Datenbank vorher, arbeitet mit WP-CLI und `mariadb-dump` und stellt Datenbank und Plugin-Link am Ende wieder her – **nur auf einer Test-Installation ausführen**, es löscht während des Laufs alle Plugin-Tabellen.
+
 ## Release-Kandidat
 
 Vor einer stabilen Version müssen Upgrade und Restore mit realistischen Datenbankständen, Eventänderungen, doppelten Webhooks, E-Mail-Ausfällen, hoher Scanrate und Multisite geprüft werden. Der ZIP-Build (`bash build/release.sh`) exportiert den committeten Stand per `git archive` (Standard `HEAD`, anders mit `WPCAP_BUILD_REF=<ref>`), installiert dort die Composer-Abhängigkeiten ohne Dev-Pakete und lässt alles weg, was in `.distignore` steht (Tests, Doku, Markdown außer `readme.txt`, `.po`-Quellen, Test-/CI-Dateien der Abhängigkeiten). Nicht committete Änderungen landen also nie im Paket. Der Build ist reproduzierbar: Dateizeiten werden auf die Commit-Zeit gesetzt (`SOURCE_DATE_EPOCH`), Rechte vereinheitlicht (644/755), Einträge sortiert und ohne Zusatzattribute gepackt, der Autoloader-Suffix ist fest. Neben dem ZIP entstehen `wp-pass-captain.zip.sha256` und `build-info.txt` (Commit, Zeitstempel, Prüfsumme, Prüfsumme der `composer.lock`); beide hängen auch am GitHub-Release. CI prüft mit `tests/reproducible-build.sh`, dass zwei Builds identisch sind.

@@ -17,7 +17,7 @@ final class Installer {
 	public static function install() {
 		global $wpdb;
 		// Schema version before this run ('' on a fresh install), for one-off data migrations below.
-		$previous_version = (string) get_option( 'wpcap_db_version', '' );
+		$previous_version = self::migration_baseline( (string) get_option( 'wpcap_db_version', '' ), (string) get_option( 'wpcap_db_version_max', '' ) );
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		$charset = $wpdb->get_charset_collate();
@@ -706,9 +706,40 @@ final class Installer {
 			add_action( 'init', array( __CLASS__, 'register_roles' ), 1 );
 		}
 		update_option( 'wpcap_db_version', self::version() );
+		self::remember_max_version( (string) get_option( 'wpcap_db_version_max', '' ) );
 		OrderLines::flush();
 		update_option( 'wpcap_version', WPCAP_VERSION );
 		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );
+	}
+
+	/**
+	 * Schema version that one-off data migrations compare against (A113).
+	 *
+	 * After a plugin rollback the older code rewrites `wpcap_db_version` to its own, lower version.
+	 * Rolling forward again must not treat the site as if it came from that old version (that would
+	 * rerun one-off migrations, e.g. pin the legacy credit-note prefix on a site that already issued
+	 * documents with the new one). `wpcap_db_version_max` remembers the highest schema this site ever
+	 * ran; older code does not know the option and leaves it alone.
+	 *
+	 * @param string $stored  wpcap_db_version as stored ('' = fresh install).
+	 * @param string $highest wpcap_db_version_max as stored ('' = unknown).
+	 * @return string The higher of both.
+	 */
+	public static function migration_baseline( $stored, $highest ) {
+		$a = (string) strtok( (string) $stored, '+' );
+		$b = (string) strtok( (string) $highest, '+' );
+		if ( '' === $b || ! preg_match( '/^\d+\.\d+/', $b ) ) { return (string) $stored; }
+		if ( '' === $a || ! preg_match( '/^\d+\.\d+/', $a ) ) { return (string) $highest; }
+		return version_compare( $b, $a, '>' ) ? (string) $highest : (string) $stored;
+	}
+
+	/** Stores the highest schema version this site ran (never lowers it). */
+	private static function remember_max_version( $highest ) {
+		$current = (string) strtok( self::version(), '+' );
+		$known   = (string) strtok( (string) $highest, '+' );
+		if ( '' === $known || ! preg_match( '/^\d+\.\d+/', $known ) || version_compare( $current, $known, '>' ) ) {
+			update_option( 'wpcap_db_version_max', $current );
+		}
 	}
 
 	/**
