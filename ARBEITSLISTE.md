@@ -114,7 +114,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/BoxOffice/Service.php:277` — Maßnahme: Versand an Platzhalter unterdrücken.
 - [x] **A048** [P3] Ticket für anderen Tag: „zu dieser Uhrzeit nicht möglich“ ohne Gültigkeit; Web-Scanner ohne Terminauswahl. — _OFFEN_ (TODO L423; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Checkin.php:364` — Maßnahme: Gültigkeit nennen, Terminauswahl.
-- [ ] **A049** [P3] `src/PublicEvents.php:91–96` u. a. — Shortcode/Block ohne Event-/Termin-Attribut; „bis 1 Stunden“; gleichnamige Events ohne Datum in Dropdowns; Kassen-/Partnerformulare verlangen r… — _OFFEN_ (TODO L424; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [x] **A049** [P3] `src/PublicEvents.php:91–96` u. a. — Shortcode/Block ohne Event-/Termin-Attribut; „bis 1 Stunden“; gleichnamige Events ohne Datum in Dropdowns; Kassen-/Partnerformulare verlangen r… — _OFFEN_ (TODO L424; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - Maßnahme: Attribute `event`/`occurrence`, Auswahllisten, Texte korrigieren.
 - [x] **A050** [P3] Unterschiedliche Rabatt-Rundung (floor kumulativ vs. intdiv + Rest). — _OFFEN_ (TODO L446; Steuer und Finanzen (Prüfung 3))
   - `src/Invoices.php:73–83` vs. `src/Orders.php:203–206`, `src/Reports/Data.php:241–252` — Maßnahme: Gemeinsamer Allokator bzw. gespeicherter Zeilenrabatt.

@@ -93,7 +93,8 @@ final class AdminPage {
 				$events = Repository::set_events( $partner_id, Forms::ids( $in, 'event_ids' ) );
 				Repository::set_users( $partner_id, Repository::resolve_users( $in['users'] ?? '' ) );
 				$result = array( 'partner_id' => $partner_id );
-				$warnings = self::seller_warnings( Repository::get( $partner_id ) );
+				// Missing seller data is shown inline on the form (render_sales_model_fields), not a second time here.
+				$warnings = array();
 				if ( ! is_wp_error( $events ) && $events['skipped'] ) {
 					/* translators: %s: event ids */
 					$warnings[] = sprintf( __( 'Folgende Events gehören bereits einem anderen Veranstalter und wurden nicht verknüpft: %s', 'wp-pass-captain' ), implode( ', ', $events['skipped'] ) );

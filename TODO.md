@@ -421,7 +421,7 @@ Verdachtsfälle (nicht end-to-end bestätigt):
 - [x] [P2][BESTÄTIGT] `src/Admin/EventsPage.php`; `src/OccurrenceCancellation.php:85` — Terminabsage nur mit `confirm()`, ohne Grund, Folgenvorschau und Zusammenfassung; Auslastung zählt Pässe nicht. **Maßnahme:** Bestätigungsseite mit Folgen, Summary-Notice.
 - [x] [P3][BESTÄTIGT] `src/BoxOffice/Service.php:277` — Kassenverkäufe ohne E-Mail senden Ticketmail an `boxoffice+…@invalid.example`. **Maßnahme:** Versand an Platzhalter unterdrücken.
 - [x] [P3][BESTÄTIGT] `src/Checkin.php:364` — Ticket für anderen Tag: „zu dieser Uhrzeit nicht möglich“ ohne Gültigkeit; Web-Scanner ohne Terminauswahl. **Maßnahme:** Gültigkeit nennen, Terminauswahl.
-- [ ] [P3][BESTÄTIGT] `src/PublicEvents.php:91–96` u. a. — Shortcode/Block ohne Event-/Termin-Attribut; „bis 1 Stunden“; gleichnamige Events ohne Datum in Dropdowns; Kassen-/Partnerformulare verlangen rohe IDs; Partner-Rechnungshinweis doppelt. **Maßnahme:** Attribute `event`/`occurrence`, Auswahllisten, Texte korrigieren.
+- [x] [P3][BESTÄTIGT] `src/PublicEvents.php:91–96` u. a. — Shortcode/Block ohne Event-/Termin-Attribut; „bis 1 Stunden“; gleichnamige Events ohne Datum in Dropdowns; Kassen-/Partnerformulare verlangen rohe IDs; Partner-Rechnungshinweis doppelt. **Maßnahme:** Attribute `event`/`occurrence`, Auswahllisten, Texte korrigieren.
 
 Verdachtsfälle:
 - [ ] [VERDACHT] Pass mit zwei Terminen am selben Tag: Web-Scanner bindet an Betriebstag, zweiter Scan „Tageskontingent erreicht“ – Abendshow vermutlich nicht betretbar.
