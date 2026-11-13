@@ -187,3 +187,38 @@ Ship changed shell files by bumping `CACHE` in `sw.js`. Assets are also refreshe
 - A Playwright check against a real WordPress install drove the end-to-end flow: pairing, admin
   opt-in and assignment, online and offline scans, an offline reload through the service worker,
   rejection of a tampered package, sync with a cross-device conflict, and key rotation.
+
+## Installation and device acceptance (A120)
+
+**Automated (CI job `pwa`, `node tests/pwa/installability.js`):** in Chromium desktop and an Android phone
+emulation (Pixel 7 profile) the test checks the manifest (standalone, start URL/scope, 192/512/maskable
+icons), Chrome's installability report, that the service worker controls the page and caches the whole
+shell, the offline start from the cache and the removal of outdated caches. Result 13.11.2026: all 16
+checks passed.
+
+**Manual acceptance matrix.** Automation cannot press "Install", grant the camera or test real
+hardware. Before a release, one person runs these steps on each device and records the result in the
+release notes (date, device, OS/browser version, tester):
+
+1. Open the app from the admin button (HTTPS), pair the device.
+2. Install: Chrome/Edge/Samsung Internet „App installieren“; iOS/iPadOS Safari „Teilen → Zum Home-Bildschirm“.
+3. Start from the home screen icon: opens without browser UI, correct icon and name.
+4. Allow the camera, scan a valid QR code, then the same code again (duplicate warning), then a help code online.
+5. Airplane mode: close and reopen the app from the icon, scan a valid code (admitted offline), then go online and check that the sync uploads it.
+6. Lock the screen during a scan session and resume: the camera restarts, no data lost.
+7. Update: after a plugin update the app shows the new version after the next start (new cache).
+
+| Platform | Browser | Installation | Automated | Manual status |
+|---|---|---|---|---|
+| Android 13+ | Chrome | install prompt / menu | yes (emulation) | pending |
+| Android 13+ | Samsung Internet | menu „Seite hinzufügen → Startbildschirm“ | – | pending |
+| Android 13+ | Firefox | menu „Installieren“ | – | pending |
+| iOS/iPadOS 17+ | Safari | „Zum Home-Bildschirm“ (camera via jsQR fallback, no BarcodeDetector) | – | pending |
+| iOS/iPadOS 17+ | Chrome/Firefox (WebKit) | only via Safari | – | not supported for installation |
+| Windows/macOS/Linux | Chrome, Edge | address bar install icon | yes | pending |
+| macOS 14+ | Safari | „Ablage → Zum Dock hinzufügen“ | – | pending |
+| any | Firefox desktop | no PWA installation; works as a website | – | runs in the browser tab only |
+
+Known platform limits: iOS evicts service worker storage after weeks without use, so an offline device
+must be opened online before an event to refresh the package. Background sync is not available on iOS,
+so scans upload when the app is open and online.

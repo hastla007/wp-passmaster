@@ -267,7 +267,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - PDF vorhanden (TicketPdf.php:18, Anhang Orders.php:1429); Portal (OrderPortal.php:92) ohne PDF-Download und Storno-/Erstattungsanfrage
 - [ ] **A119** Granulare Scopes, Finanzrollen, PII-Minimierung, Admin/REST-Abdeckung — _TEILWEISE_ (TODO L44; P0 – QR-Ticket und Online-Check-in)
   - Finanz-/Partnerrolle Installer.php:854-855, Eventscope Access.php:8; keine Standort-/Partner-Scopes, keine PII-Minimierung je Rolle
-- [ ] **A120** Installierbare PWA-Abnahme für Browser/Endgeräte dokumentieren — _OFFEN_ (TODO L46; P0 – QR-Ticket und Online-Check-in)
+- [x] **A120** Installierbare PWA-Abnahme für Browser/Endgeräte dokumentieren — _OFFEN_ (TODO L46; P0 – QR-Ticket und Online-Check-in)
   - Manifest/SW vorhanden (docs/OFFLINE-SCANNER.md:125-126), aber keine Geräte-/Browser-Abnahmematrix dokumentiert
 - [x] **A121** Default-/Heavy-/REST-Lasttests regelmäßig auf MySQL/MariaDB — _TEILWEISE_ (TODO L48; P0 – QR-Ticket und Online-Check-in)
   - Profile tests/load/run.php:155-156, tests/load/http.php; CI führt nur --profile=ci aus (ci.yml), kein Zeitplan, keine Regressionsdoku

@@ -65,9 +65,26 @@ jobs:
           WPCAP_TEST_DB_HOST: 127.0.0.1
         run: php tests/load/run.php --profile=ci
 
+  pwa:
+    # A120: automated part of the PWA acceptance (installability, service worker, offline start).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright (Chromium)
+        run: npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - name: PWA installability and offline start (Chromium desktop + Android emulation)
+        run: node tests/pwa/installability.js
+
   package:
     runs-on: ubuntu-latest
-    needs: [php, integration]
+    needs: [php, integration, pwa]
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
