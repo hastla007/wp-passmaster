@@ -88,5 +88,62 @@ $wpdb->delete( "{$p}wpcap_event_staff", array( 'event_id' => $a97_event, 'user_i
 $GLOBALS['wpcap_test_denied_caps'] = array();
 check( 'A097: handler is registered for admin-post', isset( PassCaptain\Modules\Reports::admin_handlers()[ Settlement::ACTION ] ) );
 
+echo "A098: accounting export – local day boundaries, sales without invoice\n";
+$a98_occ = ex_occ( ex_event( 'A098 Export' ) );
+$a98_std = ex_type( $a98_occ, 'Normal', 2380, 0, 1900 );
+$a98_red = ex_type( $a98_occ, 'Ermäßigt', 1070, 0, 700 );
+$a98_set = static function ( $table, array $data, array $where ) use ( $wpdb, $p ) { $wpdb->update( "{$p}{$table}", $data, $where ); };
+$a98_pub = static fn( $order_id ) => Orders::get( $order_id )->public_id;
+// A: invoiced online sale at 2025-01-15 23:30 UTC = 2025-01-16 00:30 in Vienna.
+list( $a98_a ) = ex_buy( $a98_std, 1, 'a98-a@example.com' );
+$a98_inv = PassCaptain\Invoices::issue_for_order( $a98_a );
+$a98_set( 'wpcap_orders', array( 'created_at' => '2025-01-15 23:30:00' ), array( 'order_id' => $a98_a ) );
+$a98_set( 'wpcap_invoices', array( 'issued_at' => '2025-01-15 23:30:00' ), array( 'order_id' => $a98_a ) );
+// B: box office cash sale without invoice (2 × 10,70 at 7 %), one ticket refunded the same day.
+list( $a98_b, $a98_b_t ) = ex_buy( $a98_red, 2, 'a98-b@example.com' );
+$a98_b_refund = Refunds::request( $a98_b, array( $a98_b_t[0] ), 'Storno', 'a98-b-refund' );
+$a97_provider( $a98_b, 'pos_cash' );
+$a98_set( 'wpcap_orders', array( 'created_at' => '2025-01-16 10:00:00' ), array( 'order_id' => $a98_b ) );
+$a98_set( 'wpcap_refunds', array( 'updated_at' => '2025-01-16 12:00:00' ), array( 'order_id' => $a98_b ) );
+// C: partner API sale at 23:59 local time (still 2025-01-16), D: 00:30 local on the next day, E: comp.
+list( $a98_c ) = ex_buy( $a98_std, 1, 'a98-c@example.com' );
+$a97_provider( $a98_c, 'partner' );
+$a98_set( 'wpcap_orders', array( 'created_at' => '2025-01-16 22:59:00' ), array( 'order_id' => $a98_c ) );
+list( $a98_d ) = ex_buy( $a98_std, 1, 'a98-d@example.com' );
+$a98_set( 'wpcap_orders', array( 'created_at' => '2025-01-16 23:30:00' ), array( 'order_id' => $a98_d ) );
+list( $a98_e ) = ex_buy( $a98_std, 1, 'a98-e@example.com' );
+$a97_provider( $a98_e, 'comp' );
+$a98_set( 'wpcap_orders', array( 'created_at' => '2025-01-16 11:00:00' ), array( 'order_id' => $a98_e ) );
+
+$a98_by_order = static function ( array $rows ) {
+	$out = array();
+	foreach ( array_slice( $rows, 1 ) as $r ) { $out[ $r[3] ][] = $r; }
+	return $out;
+};
+$GLOBALS['wpcap_test_options']['timezone_string'] = 'Europe/Vienna';
+$a98_rows = PassCaptain\Invoices::export_rows( '2025-01-16', '2025-01-16' );
+$a98_map = $a98_by_order( $a98_rows );
+$a98_a_rows = $a98_map[ $a98_pub( $a98_a ) ] ?? array();
+$a98_b_rows = $a98_map[ $a98_pub( $a98_b ) ] ?? array();
+$a98_c_rows = $a98_map[ $a98_pub( $a98_c ) ] ?? array();
+check( 'A098: header unchanged (15 columns, Rechnungssteller last)', 15 === count( $a98_rows[0] ) && 'Belegart' === $a98_rows[0][0] && 'Rechnungssteller' === end( $a98_rows[0] ) );
+check( 'A098: invoice issued 23:30 UTC belongs to the next local day (Belegdatum 2025-01-16)', 1 === count( $a98_a_rows ) && 'Rechnung' === $a98_a_rows[0][0] && $a98_inv['invoice_number'] === $a98_a_rows[0][1] && '2025-01-16' === $a98_a_rows[0][2] && '23.80' === $a98_a_rows[0][10] );
+$a98_b_sale = array_values( array_filter( $a98_b_rows, static fn( $r ) => 'Verkauf ohne Rechnung' === $r[0] ) );
+$a98_b_ref = array_values( array_filter( $a98_b_rows, static fn( $r ) => 'Erstattung ohne Rechnung' === $r[0] ) );
+check( 'A098: box office sale without invoice is listed per VAT rate (2 × 10,70 at 7 %)', 1 === count( $a98_b_sale ) && '' === $a98_b_sale[0][1] && '2025-01-16' === $a98_b_sale[0][2] && 2 === $a98_b_sale[0][6] && '20.00' === $a98_b_sale[0][7] && '7.00' === $a98_b_sale[0][8] && '1.40' === $a98_b_sale[0][9] && '21.40' === $a98_b_sale[0][10] && 'pos_cash' === $a98_b_sale[0][12] && false !== strpos( $a98_b_sale[0][5], 'Kasse' ) && 'Eigenhaendler' === $a98_b_sale[0][13] );
+check( 'A098: refund of an order without invoice is listed negative on its completion day', ! is_wp_error( $a98_b_refund ) && 1 === count( $a98_b_ref ) && '-10.70' === $a98_b_ref[0][10] && '-0.70' === $a98_b_ref[0][9] && '-10.00' === $a98_b_ref[0][7] && '7.00' === $a98_b_ref[0][8] );
+check( 'A098: partner API sale at 23:59 local time is included', 1 === count( $a98_c_rows ) && 'Verkauf ohne Rechnung' === $a98_c_rows[0][0] && 'partner' === $a98_c_rows[0][12] && '23.80' === $a98_c_rows[0][10] );
+check( 'A098: sale at 00:30 local of the next day and comps are not included', ! isset( $a98_map[ $a98_pub( $a98_d ) ] ) && ! isset( $a98_map[ $a98_pub( $a98_e ) ] ) && isset( $a98_by_order( PassCaptain\Invoices::export_rows( '2025-01-17', '2025-01-17' ) )[ $a98_pub( $a98_d ) ] ) );
+$a98_sum = array_sum( array_map( static fn( $r ) => (int) round( (float) $r[10] * 100 ), array_slice( $a98_rows, 1 ) ) );
+$a98_tax = array_sum( array_map( static fn( $r ) => (int) round( (float) $r[9] * 100 ), array_slice( $a98_rows, 1 ) ) );
+$a98_report = PassCaptain\Reports\Data::build( array( 'from' => '2025-01-16', 'to' => '2025-01-16' ), null );
+check( 'A098: export reconciles with the sales report of the day (58,30 gross, VAT)', 5830 === $a98_sum && $a98_report['total']['revenue'] === $a98_sum && $a98_report['total']['revenue_tax'] === $a98_tax );
+unset( $GLOBALS['wpcap_test_options']['timezone_string'] );
+$a98_utc = $a98_by_order( PassCaptain\Invoices::export_rows( '2025-01-16', '2025-01-16' ) );
+check( 'A098: without a site timezone the days are UTC days', ! isset( $a98_utc[ $a98_pub( $a98_a ) ] ) && isset( $a98_utc[ $a98_pub( $a98_d ) ] ) );
+PassCaptain\Invoices::issue_for_order( $a98_c );
+$a98_after = $a98_by_order( PassCaptain\Invoices::export_rows( gmdate( 'Y-m-d', time() - DAY_IN_SECONDS ), gmdate( 'Y-m-d', time() + DAY_IN_SECONDS ) ) );
+check( 'A098: once invoiced, the order is only listed with its invoice', 'Rechnung' === ( $a98_after[ $a98_pub( $a98_c ) ][0][0] ?? '' ) && 1 === count( $a98_after[ $a98_pub( $a98_c ) ] ) && ! isset( $a98_by_order( PassCaptain\Invoices::export_rows( '2025-01-16', '2025-01-16' ) )[ $a98_pub( $a98_c ) ] ) );
+
 update_option( Settings::OPTION, $a97_saved_settings );
 Settings::flush();

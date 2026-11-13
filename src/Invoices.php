@@ -546,14 +546,18 @@ final class Invoices {
 	}
 
 	/**
-	 * Accounting export (CSV, one row per invoice line and credit note) for a date range.
+	 * Accounting export (CSV) for a date range in the site timezone: one row per invoice line, one row per
+	 * VAT rate of each correction document, plus sales and refunds of orders without invoice (columns and
+	 * reconciliation with the sales report: docs/OPERATIONS.md "Buchhaltungsexport").
 	 * admin-post.php?action=wpcap_export_accounting&from=YYYY-MM-DD&to=YYYY-MM-DD&_wpnonce=…
 	 */
 	public static function handle_export() {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( self::FINANCE_CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		check_admin_referer( 'wpcap_export_accounting' );
-		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) ( $_REQUEST['from'] ?? '' ) ) ? sanitize_text_field( wp_unslash( $_REQUEST['from'] ) ) : gmdate( 'Y-m-01' );
-		$to = preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) ( $_REQUEST['to'] ?? '' ) ) ? sanitize_text_field( wp_unslash( $_REQUEST['to'] ) ) : gmdate( 'Y-m-d' );
+		// Defaults: current month up to today, both in the site timezone.
+		$today = Reports\Scope::local( gmdate( 'Y-m-d H:i:s' ), Reports\Scope::site_timezone(), 'Y-m-d' );
+		$from = Reports\Data::valid_date( $_REQUEST['from'] ?? '' ) ? sanitize_text_field( wp_unslash( $_REQUEST['from'] ) ) : substr( $today, 0, 8 ) . '01';
+		$to = Reports\Data::valid_date( $_REQUEST['to'] ?? '' ) ? sanitize_text_field( wp_unslash( $_REQUEST['to'] ) ) : $today;
 		$rows = self::export_rows( $from, $to );
 		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => count( $rows ) ) );
 		nocache_headers();
@@ -566,30 +570,103 @@ final class Invoices {
 		exit;
 	}
 
-	/** Builds export rows (first row = header). Amounts are decimal strings; text cells are CSV-injection safe. */
+	/** Document types of the accounting export (column Belegart). */
+	const EXPORT_KIND_INVOICE = 'Rechnung';
+	const EXPORT_KIND_CREDIT = 'Rechnungskorrektur';
+	const EXPORT_KIND_SALE_UNINVOICED = 'Verkauf ohne Rechnung';
+	const EXPORT_KIND_REFUND_UNINVOICED = 'Erstattung ohne Rechnung';
+
+	/**
+	 * Builds export rows (first row = header). Amounts are decimal strings; text cells are CSV-injection safe.
+	 *
+	 * $from/$to are local dates of the site timezone (Reports\Scope::site_timezone()); a day runs from local
+	 * midnight to midnight and Belegdatum is the local date. Besides invoices and correction documents the
+	 * export lists sales of paid orders without invoice (auto_invoice off, box office receipts, partner API,
+	 * WooCommerce) per order and VAT rate on the order day, and completed refunds of such orders per VAT rate
+	 * on the completion day, so the totals reconcile with the sales report (Reports\Data::build()).
+	 * Complimentary orders (Reports\Data::comp_providers()) are not sales and never listed.
+	 */
 	public static function export_rows( $from, $to ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$from_utc = $from . ' 00:00:00';
-		$to_utc = gmdate( 'Y-m-d H:i:s', strtotime( $to . ' 00:00:00 UTC' ) + DAY_IN_SECONDS );
+		$tz = Reports\Scope::site_timezone();
+		list( $from_utc, $to_utc ) = Reports\Data::bounds( $from, $to, $tz );
+		$local_day = static function ( $utc ) use ( $tz ) { return Reports\Scope::local( $utc, $tz, 'Y-m-d' ); };
 		$rows = array( array( 'Belegart', 'Belegnummer', 'Belegdatum', 'Bestellung', 'Bezug', 'Beschreibung', 'Menge', 'Netto', 'USt-Satz', 'USt', 'Brutto', 'Waehrung', 'Zahlungsart', 'Verkaufsmodell', 'Rechnungssteller' ) );
+		$money = static function ( $minor ) { return number_format( $minor / 100, 2, '.', '' ); };
+		$safe = static function ( $text ) { $text = (string) $text; return preg_match( '/^[=+\-@\t\r]/', $text ) ? "'" . $text : $text; };
 		// Seller columns: agent-model documents are issued in the organizer's name (not platform revenue).
-		$seller_cols = static function ( $snapshot_json ) use ( &$safe ) {
+		$seller_cols = static function ( $snapshot_json ) use ( $safe ) {
 			$snapshot = (array) json_decode( (string) $snapshot_json, true );
 			$agent = Partners\SalesModel::AGENT === ( $snapshot['sales_model'] ?? '' );
 			return array( $agent ? 'Vermittler' : 'Eigenhaendler', $safe( (string) ( $snapshot['seller']['name'] ?? '' ) ) );
 		};
-		$money = static function ( $minor ) { return number_format( $minor / 100, 2, '.', '' ); };
-		$safe = static function ( $text ) { $text = (string) $text; return preg_match( '/^[=+\-@\t\r]/', $text ) ? "'" . $text : $text; };
 		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT i.invoice_number,i.issued_at,i.currency,i.buyer_snapshot,o.public_id,o.payment_provider,l.description,l.quantity,l.tax_rate,l.tax_minor,l.total_minor FROM {$p}wpcap_invoices i INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id INNER JOIN {$p}wpcap_invoice_lines l ON l.invoice_id=i.invoice_id WHERE i.issued_at >= %s AND i.issued_at < %s ORDER BY i.invoice_id,l.invoice_line_id", $from_utc, $to_utc ) );
 		foreach ( $lines as $l ) {
-			$rows[] = array( 'Rechnung', $l->invoice_number, substr( $l->issued_at, 0, 10 ), $l->public_id, '', $safe( $l->description ), (int) $l->quantity, $money( (int) $l->total_minor - (int) $l->tax_minor ), number_format( (float) $l->tax_rate, 2, '.', '' ), $money( (int) $l->tax_minor ), $money( (int) $l->total_minor ), $l->currency, $safe( $l->payment_provider ), ...$seller_cols( $l->buyer_snapshot ) );
+			$rows[] = array( self::EXPORT_KIND_INVOICE, $l->invoice_number, $local_day( $l->issued_at ), $l->public_id, '', $safe( $l->description ), (int) $l->quantity, $money( (int) $l->total_minor - (int) $l->tax_minor ), number_format( (float) $l->tax_rate, 2, '.', '' ), $money( (int) $l->tax_minor ), $money( (int) $l->total_minor ), $l->currency, $safe( $l->payment_provider ), ...$seller_cols( $l->buyer_snapshot ) );
 		}
 		$credits = $wpdb->get_results( $wpdb->prepare( "SELECT c.*,i.invoice_number,i.buyer_snapshot,o.public_id,o.payment_provider FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id WHERE c.issued_at >= %s AND c.issued_at < %s ORDER BY c.credit_note_id", $from_utc, $to_utc ) );
 		// Corrections ("Rechnungskorrektur", not "Gutschrift": that term means self-billing): one row per VAT rate.
 		foreach ( $credits as $c ) {
 			foreach ( self::credit_rates( $c ) as $r ) {
-				$rows[] = array( 'Rechnungskorrektur', $c->credit_note_number, substr( $c->issued_at, 0, 10 ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( $r['net'] ), number_format( $r['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $r['tax'] ), '-' . $money( $r['gross'] ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
+				$rows[] = array( self::EXPORT_KIND_CREDIT, $c->credit_note_number, $local_day( $c->issued_at ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( $r['net'] ), number_format( $r['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $r['tax'] ), '-' . $money( $r['gross'] ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
+			}
+		}
+		return array_merge( $rows, self::uninvoiced_rows( $from_utc, $to_utc, $local_day, $money, $safe ) );
+	}
+
+	/**
+	 * Export rows for sales and refunds of orders without invoice (see export_rows()).
+	 *
+	 * @param string   $from_utc  UTC start (inclusive).
+	 * @param string   $to_utc    UTC end (exclusive).
+	 * @param callable $local_day UTC datetime => local Y-m-d.
+	 */
+	private static function uninvoiced_rows( $from_utc, $to_utc, callable $local_day, callable $money, callable $safe ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$comp = Reports\Data::comp_providers();
+		$channels = Reports\Data::channel_labels();
+		$sellers = array();
+		// Seller side of an order without invoice (the seller an invoice would have; empty for mixed sellers).
+		$seller_cols = static function ( $order_id ) use ( &$sellers, $safe ) {
+			if ( ! isset( $sellers[ $order_id ] ) ) {
+				$context = Partners\SalesModel::order_context( $order_id );
+				$sellers[ $order_id ] = is_wp_error( $context ) ? array( '', '' ) : array( Partners\SalesModel::AGENT === $context['model'] ? 'Vermittler' : 'Eigenhaendler', $safe( (string) ( $context['seller']['name'] ?? '' ) ) );
+			}
+			return $sellers[ $order_id ];
+		};
+		$rows = array();
+		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT o.order_id,o.public_id,o.created_at,o.currency,o.payment_provider,o.discount_minor FROM {$p}wpcap_orders o WHERE o.payment_status IN ('paid','refunded') AND o.created_at >= %s AND o.created_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=o.order_id) ORDER BY o.order_id", $from_utc, $to_utc ) );
+		$orders = array_values( array_filter( $orders, static function ( $o ) use ( $comp ) { return ! in_array( (string) $o->payment_provider, $comp, true ); } ) );
+		$lines_by_order = Reports\Data::lines_by_order( array_map( static function ( $o ) { return (int) $o->order_id; }, $orders ) );
+		foreach ( $orders as $o ) {
+			$lines = $lines_by_order[ (int) $o->order_id ] ?? array();
+			$gross_lines = Reports\Data::allocate_discount( $lines, (int) $o->discount_minor );
+			$supplement = Exchange\Service::is_supplement( (int) $o->order_id );
+			$by_rate = array();
+			foreach ( $lines as $i => $line ) {
+				if ( OrderLines::is_moved_in( $line ) ) { continue; }
+				$rate = (int) $line->tax_rate_bp;
+				$by_rate[ $rate ] = $by_rate[ $rate ] ?? array( 'quantity' => 0, 'gross' => 0, 'tax' => 0 );
+				$by_rate[ $rate ]['quantity'] += $supplement ? 0 : (int) $line->quantity;
+				$by_rate[ $rate ]['gross'] += (int) $gross_lines[ $i ];
+				$by_rate[ $rate ]['tax'] += (int) $line->tax_minor;
+			}
+			ksort( $by_rate, SORT_NUMERIC );
+			$description = 'Tickets ohne Rechnung (' . $channels[ Reports\Data::channel_of( $o->payment_provider ) ] . ')';
+			foreach ( $by_rate as $rate => $r ) {
+				$rows[] = array( self::EXPORT_KIND_SALE_UNINVOICED, '', $local_day( $o->created_at ), $o->public_id, '', $safe( $description ), $r['quantity'], $money( $r['gross'] - $r['tax'] ), number_format( $rate / 100, 2, '.', '' ), $money( $r['tax'] ), $money( $r['gross'] ), $o->currency, $safe( $o->payment_provider ), ...$seller_cols( (int) $o->order_id ) );
+			}
+		}
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,o.currency,o.public_id,o.payment_provider,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) );
+		foreach ( $refunds as $r ) {
+			if ( in_array( (string) $r->payment_provider, $comp, true ) ) { continue; }
+			// Same amounts as the sales report (multi-purpose vouchers: cash + voucher share, full VAT).
+			$amounts = Integrations\Vouchers\Checkout::refund_amounts( $r );
+			$description = 'Erstattung ohne Rechnung (' . $channels[ Reports\Data::channel_of( $r->payment_provider ) ] . ')';
+			foreach ( self::credit_note_rates( array( 'order_id' => (int) $r->order_id, 'ticket_ids' => $r->ticket_ids ), (int) $amounts['amount_minor'], (int) $amounts['tax_minor'] ) as $rate ) {
+				$rows[] = array( self::EXPORT_KIND_REFUND_UNINVOICED, '', $local_day( $r->updated_at ), $r->public_id, '', $safe( $description ), '', '-' . $money( $rate['net'] ), number_format( $rate['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $rate['tax'] ), '-' . $money( $rate['gross'] ), $r->currency, $safe( $r->payment_provider ), ...$seller_cols( (int) $r->order_id ) );
 			}
 		}
 		return $rows;

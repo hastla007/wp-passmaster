@@ -175,6 +175,55 @@ Umtausch, Mehrzweckgutscheine, Erstattungen):
   Künstler/Veranstalter den Anteil (kaufmännisch gerundet), der Rest verbleibt beim Haus. Beispiel: Netto
   60,00 €, Fixbetrag 10,00 €, Anteil 70 % → Bemessungsgrundlage 50,00 €, Künstler 35,00 €, Haus 25,00 €.
 
+## Buchhaltungsexport
+
+Pass Captain → Berichte → „Buchhaltungsexport“ (nur `manage_options` und `wpcap_view_finance`; Zeitraum des
+Berichts) bzw. `admin-post.php?action=wpcap_export_accounting&from=YYYY-MM-DD&to=YYYY-MM-DD&_wpnonce=…`.
+CSV mit Semikolon, UTF-8 mit BOM, Beträge mit Punkt als Dezimaltrennzeichen. Jeder Export wird
+protokolliert (`accounting_exported`).
+
+**Tagesgrenzen**: `from`/`to` sind Kalendertage in der **Zeitzone der Website** (Einstellungen → Allgemein,
+`timezone_string`; ohne Angabe UTC), jeweils von 00:00 bis 24:00 Ortszeit. Auch `Belegdatum` ist das
+Datum in Ortszeit. Eine Rechnung von 00:30 Uhr am 1. eines Monats (MEZ) gehört damit in den neuen Monat,
+wie Rechnungsnummernjahr und Umsatzbericht. Ohne Parameter: aktueller Monat bis heute (Ortszeit).
+
+**Zeilen** (Spalte `Belegart`):
+
+| Belegart | Inhalt | Datum |
+|---|---|---|
+| `Rechnung` | eine Zeile je Rechnungsposition | Ausstellung |
+| `Rechnungskorrektur` | eine Zeile je Steuersatz einer Rechnungskorrektur (negativ) | Ausstellung |
+| `Verkauf ohne Rechnung` | bezahlte Bestellungen ohne Rechnung (automatische Rechnungen aus, Kassenbelege, Partner-API, WooCommerce): eine Zeile je Bestellung und Steuersatz, Beträge nach Rabatt | Bestelldatum |
+| `Erstattung ohne Rechnung` | abgeschlossene Erstattungen solcher Bestellungen, eine Zeile je Steuersatz (negativ; Mehrzweckgutscheine mit Gutscheinanteil und voller USt wie im Bericht) | Abschluss der Erstattung |
+
+Freikarten (Zahlungsanbieter aus `wpcap_comp_payment_providers`, z. B. `comp`, `pos_free`) sind keine
+Verkäufe und erscheinen nicht. Eine Bestellung gilt als „ohne Rechnung“, solange für sie keine Rechnung
+existiert; wird sie später fakturiert, erscheint sie ab dann nur noch mit ihrer Rechnung (am Tag der
+Ausstellung). Bereits übergebene Exporte eines Zeitraums daher nicht nach nachträglicher Fakturierung erneut
+buchen.
+
+**Spalten**:
+
+| Spalte | Inhalt |
+|---|---|
+| `Belegart` | siehe oben |
+| `Belegnummer` | Rechnungs- bzw. Korrekturnummer; leer bei Verkäufen/Erstattungen ohne Rechnung (Bestellnummer in `Bestellung`) |
+| `Belegdatum` | Datum in Ortszeit (YYYY-MM-DD) |
+| `Bestellung` | öffentliche Bestellnummer |
+| `Bezug` | bei Rechnungskorrekturen die korrigierte Rechnungsnummer |
+| `Beschreibung` | Positionstext; bei Zeilen ohne Rechnung „Tickets ohne Rechnung (Kanal)“ bzw. „Erstattung ohne Rechnung (Kanal)“ mit dem Verkaufskanal des Berichts (Kasse, Veranstalter/Wiederverkäufer (API), WooCommerce-Shop, Online/sonstige) |
+| `Menge` | Anzahl (Rechnungsposition bzw. Tickets je Steuersatz; leer bei Korrekturen/Erstattungen) |
+| `Netto`, `USt-Satz`, `USt`, `Brutto` | Beträge der Zeile; Satz in Prozent (z. B. `19.00`); Korrekturen und Erstattungen negativ |
+| `Waehrung` | ISO-Währung |
+| `Zahlungsart` | Zahlungsanbieter der Bestellung (z. B. `stripe`, `pos_cash`, `pos_card`, `partner`, `woocommerce`) |
+| `Verkaufsmodell` | `Eigenhaendler` oder `Vermittler` (siehe [SALES-MODELS.md](SALES-MODELS.md)); bei Zeilen ohne Rechnung der Rechnungssteller, den eine Rechnung hätte (leer bei Bestellungen mit mehreren Rechnungsstellern) |
+| `Rechnungssteller` | Name des Rechnungsstellers |
+
+**Abstimmung mit dem Umsatzbericht**: Die Summe `Brutto` (bzw. `USt`) aller Zeilen eines Zeitraums entspricht
+„Umsatz nach Erstattungen“ (bzw. „davon USt“) des Berichts für denselben Zeitraum, sofern Rechnungen am Tag
+der Bestellung und Rechnungskorrekturen am Tag der Erstattung ausgestellt wurden (automatische Rechnungen).
+Abweichungen entstehen nur durch später ausgestellte Belege (Rechnung/Korrektur an einem anderen Tag).
+
 ## Kontingentzähler (große Vorverkäufe)
 
 Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht erstattete Einheiten) und

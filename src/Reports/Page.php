@@ -115,6 +115,12 @@ final class Page {
 			echo '<h2>' . esc_html__( 'Check-ins pro Stunde', 'wp-pass-captain' ) . '</h2>' . self::bar_chart( $hist, $report['occurrences'][ $report['histogram_occurrence'] ]['label'] ?? '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 		self::settlement_form( $filters['occurrence_id'] );
+		if ( current_user_can( 'manage_options' ) || current_user_can( 'wpcap_view_finance' ) ) {
+			// Accounting export (Invoices::handle_export()) for the same local date range.
+			$export_url = add_query_arg( array( 'action' => 'wpcap_export_accounting', 'from' => $report['from'], 'to' => $report['to'], '_wpnonce' => wp_create_nonce( 'wpcap_export_accounting' ) ), admin_url( 'admin-post.php' ) );
+			echo '<h2>' . esc_html__( 'Buchhaltungsexport', 'wp-pass-captain' ) . '</h2><p><a class="button" href="' . esc_url( $export_url ) . '">' . esc_html( sprintf( /* translators: 1: from, 2: to */ __( 'Buchhaltungsexport %1$s bis %2$s (CSV)', 'wp-pass-captain' ), $report['from'], $report['to'] ) ) . '</a></p>';
+			echo '<p class="description">' . esc_html__( 'Rechnungen, Rechnungskorrekturen sowie Verkäufe und Erstattungen ohne Rechnung (z. B. Kasse, Partner-API, automatische Rechnungen aus). Tagesgrenzen in der Zeitzone der Website.', 'wp-pass-captain' ) . '</p>';
+		}
 		echo '</div>';
 	}
 

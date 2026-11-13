@@ -106,7 +106,7 @@ Umsatzsteuer enthält (`wpcap_invoice_small_business_vat`, § 14c UStG) – Tick
   nach größtem Rest) und mit dem Beleg gespeichert (`wpcap_credit_notes.rates`). Belege von vor
   Schema 3.8.3 werden bei der Anzeige identisch berechnet. Der Buchhaltungsexport enthält je
   Rechnungskorrektur eine Zeile je Steuersatz (Belegart `Rechnungskorrektur`).
-- Der Buchhaltungsexport enthält die Spalten `Verkaufsmodell` und `Rechnungssteller`. Belege im Modell
+- Der Buchhaltungsexport (Spalten und Zeilenarten: [OPERATIONS.md](OPERATIONS.md#buchhaltungsexport)) enthält die Spalten `Verkaufsmodell` und `Rechnungssteller`. Belege im Modell
   Vermittler sind **keine Umsätze der Plattform** und in der Buchhaltung der Plattform als
   fremde Belege (Durchlaufposten/Verrechnungskonto Veranstalter) zu behandeln.
 - Ausgestellte Rechnungen sind unveränderlich; spätere Änderungen am Veranstalter wirken nur auf neue
