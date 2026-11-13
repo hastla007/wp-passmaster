@@ -70,6 +70,19 @@ final class Api {
 		return self::$context;
 	}
 
+	/**
+	 * SQL restriction for resellers: only the orders they sold themselves (wpcap_partner_orders).
+	 * Organizers see all orders of their events. '' when not restricted.
+	 *
+	 * @param string $order_column Column holding the order id (e.g. ord.order_id, t.order_id).
+	 */
+	private static function own_orders_sql( $order_column ) {
+		global $wpdb;
+		$partner = self::$context['partner'] ?? null;
+		if ( ! $partner || Repository::ROLE_ORGANIZER === Repository::role_of( $partner ) ) { return ''; }
+		return $wpdb->prepare( " AND $order_column IN (SELECT po.order_id FROM {$wpdb->prefix}wpcap_partner_orders po WHERE po.partner_id=%d)", (int) $partner->partner_id ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- column name literal.
+	}
+
 	private static function has_scope( $scope ) {
 		return self::$context && in_array( $scope, self::$context['scopes'], true );
 	}
@@ -189,6 +202,7 @@ final class Api {
 		if ( '' !== $since ) { $where .= $wpdb->prepare( ' AND ord.updated_at >= %s', $since ); }
 		$status = sanitize_key( (string) $request->get_param( 'payment_status' ) );
 		if ( '' !== $status ) { $where .= $wpdb->prepare( ' AND ord.payment_status = %s', $status ); }
+		$where .= self::own_orders_sql( 'ord.order_id' ); // Resellers: own sales only.
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders ord WHERE $where" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- built from prepared fragments.
 		$orders = $wpdb->get_results( "SELECT ord.order_id,ord.public_id,ord.customer_email,ord.status,ord.payment_status,ord.currency,ord.payment_provider,ord.created_at,ord.updated_at FROM {$p}wpcap_orders ord WHERE $where ORDER BY ord.order_id LIMIT " . (int) $offset . ',' . (int) $per_page ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$lines = array();
@@ -222,6 +236,7 @@ final class Api {
 		if ( '' !== $status ) { $where .= $wpdb->prepare( ' AND t.status = %s', $status ); }
 		$since = self::since( $request );
 		if ( '' !== $since ) { $where .= $wpdb->prepare( ' AND t.issued_at >= %s', $since ); }
+		$where .= self::own_orders_sql( 't.order_id' ); // Resellers: tickets of their own sales only.
 		$from = "{$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id";
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $from WHERE $where" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results( "SELECT t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.ticket_type_id,tt.name AS ticket_type,tt.occurrence_id,o.event_id,ord.public_id AS order_public_id FROM $from WHERE $where ORDER BY t.ticket_id LIMIT " . (int) $offset . ',' . (int) $per_page ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -247,6 +262,7 @@ final class Api {
 		if ( $occurrence ) { $where .= $wpdb->prepare( ' AND tt.occurrence_id = %d', $occurrence ); }
 		$since = self::since( $request );
 		if ( '' !== $since ) { $where .= $wpdb->prepare( ' AND c.created_at >= %s', $since ); }
+		$where .= self::own_orders_sql( 't.order_id' ); // Resellers: check-ins of their own tickets only.
 		$from = "{$p}wpcap_checkins c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id";
 		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $from WHERE $where" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results( "SELECT c.checkin_id,c.event_id,c.result,c.source,c.scanned_at,c.created_at,t.public_id AS ticket_public_id,tt.occurrence_id FROM $from WHERE $where ORDER BY c.checkin_id LIMIT " . (int) $offset . ',' . (int) $per_page ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

@@ -326,6 +326,26 @@ PassCaptain\Settings::update( array( 'seller_country' => 'DE', 'seller_vat_id' =
 $t_rc = Statement::compute( Partners::get( $r1 ), $period )['totals'];
 check( 'A023: reseller in another EU state: reverse charge, no VAT', 0 === $t_rc['remuneration_tax'] && true === $t_rc['remuneration_reverse_charge'] && false !== strpos( $t_rc['remuneration_note'], 'Reverse Charge' ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partners SET country='' WHERE partner_id=%d", $r1 ) );
+// Audit 3 (A029): a reseller reads only the orders it sold, not all buyers of its linked events.
+$a29_type = make_type( 20, 10, 1500 );
+$a29_event = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$a29_type" );
+PassCaptain\Partners\Repository::set_events( $r1, array( $a29_event ) );
+$GLOBALS['wpcap_test_transients'] = array();
+$a29_online = Orders::create( array( 'email' => 'online-buyer@example.com', 'items' => array( array( 'ticket_type_id' => $a29_type, 'quantity' => 1 ) ), 'idempotency_key' => 'a29-' . uniqid() ) );
+Orders::confirm_external_payment( $a29_online['order_id'], 'test' );
+$tok_res_read = PartnerKeys::issue( $r1, array( 'orders:read', 'tickets:read', 'attendees:read' ) )['key'];
+$res_orders = ps_req( 'GET', '/partner/orders', $tok_res_read );
+$res_ids = array_column( (array) ( $res_orders['orders'] ?? array() ), 'id' );
+check( 'A029: reseller does not see online orders (and their e-mails) of its linked event', 200 === ps_status( $res_orders ) && ! in_array( Orders::get( $a29_online['order_id'] )->public_id, $res_ids, true ) && false === strpos( wp_json_encode( $res_orders ), 'online-buyer' ) );
+$res_tickets = ps_req( 'GET', '/partner/tickets', $tok_res_read );
+check( 'A029: reseller tickets exclude foreign sales', 200 === ps_status( $res_tickets ) && ! in_array( Orders::get( $a29_online['order_id'] )->public_id, array_column( (array) ( $res_tickets['tickets'] ?? array() ), 'order_id' ), true ) );
+$o1_before = PassCaptain\Partners\Repository::event_ids( $o1 );
+PassCaptain\Partners\Repository::set_events( $r1, array() );
+PassCaptain\Partners\Repository::set_events( $o1, array_merge( $o1_before, array( $a29_event ) ) );
+$tok_org_read = PartnerKeys::issue( $o1, array( 'orders:read' ) )['key'];
+$org_orders = ps_req( 'GET', '/partner/orders', $tok_org_read );
+check( 'A029: an organizer still sees all orders of its events', in_array( Orders::get( $a29_online['order_id'] )->public_id, array_column( (array) ( $org_orders['orders'] ?? array() ), 'id' ), true ) );
+PassCaptain\Partners\Repository::set_events( $o1, $o1_before );
 
 echo "Partner sales: write rate limit and audit\n";
 $GLOBALS['wpcap_test_transients'] = array();

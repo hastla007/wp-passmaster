@@ -55,7 +55,7 @@ Keys werden auf der Detailseite eines Veranstalters erzeugt.
 | `checkins:read` | Check-ins (ohne Mitarbeiter-IDs) |
 | `reports:read` | Umsatz-/USt-/Auslastungsbericht (wie Modul „Berichte“) |
 | `settlements:read` | abgeschlossene und ausgezahlte Abrechnungen |
-| `attendees:read` | **Personenbezogene Daten**: ergänzt `customer_email` (Bestellungen) und `attendee_email` (Tickets) sowie `buyer_email` bei eigenen API-Bestellungen. Nur vergeben, wenn eine Rechtsgrundlage und ggf. ein AV-Vertrag besteht. |
+| `attendees:read` | **Personenbezogene Daten**: ergänzt `customer_email` (Bestellungen) und `attendee_email` (Tickets) sowie `buyer_email` bei eigenen API-Bestellungen. Nur vergeben, wenn eine Rechtsgrundlage und ggf. ein AV-Vertrag besteht. Wiederverkäufer lesen über `/partner/orders`, `/partner/tickets` und `/partner/checkins` nur ihre eigenen Verkäufe (`wpcap_partner_orders`), nie Online-, Kassen- oder fremde Partnerkäufe der verknüpften Events. |
 | `orders:write` | **schreibend**: Katalog lesen, Reservierungen/Verkäufe anlegen und bestätigen, eigene API-Bestellungen lesen |
 | `orders:cancel` | **schreibend**: eigene API-Bestellungen stornieren (Reservierung freigeben, bezahlte im Stornofenster erstatten) |
 | `tickets:issue` | **schreibend**: Ticket-Codes eigener API-Bestellungen erhalten und erneut abrufen – nur zusammen mit `orders:write` |

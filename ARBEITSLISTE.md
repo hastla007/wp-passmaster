@@ -67,7 +67,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Modules/GuestLists.php:73–94`; `src/Privacy/Retention.php:72` — Maßnahme: Retention-Schritt nach Terminende + `attendee_retention_days` (personenbezogene Felder leeren, Zählwerte behalten); Hinweis im Notizfeld.
 - [x] **A028** [P2] Wartelisteneinträge werden nach dem Event nie gelöscht/anonymisiert; keine Frist in PolicyText/OPERATIONS. — _OFFEN_ (TODO L464; Datenschutz (Prüfung 4))
   - `src/Waitlists.php:58–105`; `src/Privacy/Retention.php:72` — Maßnahme: Pseudonymisieren/löschen X Tage nach Termin-/Eventende; Frist dokumentieren.
-- [ ] **A029** [P2] Lesende Partner-Endpunkte filtern nur nach verknüpften Events, nicht nach Rolle/eigenem Kanal: ein Wiederverkäufer mit `attendees:read` sieht E-Mails aller Käufer des Events (onlin… — _OFFEN_ (TODO L465; Datenschutz (Prüfung 4))
+- [x] **A029** [P2] Lesende Partner-Endpunkte filtern nur nach verknüpften Events, nicht nach Rolle/eigenem Kanal: ein Wiederverkäufer mit `attendees:read` sieht E-Mails aller Käufer des Events (onlin… — _OFFEN_ (TODO L465; Datenschutz (Prüfung 4))
   - `src/Partners/Api.php:176–232`; `src/Partners/Keys.php:133–137` — Maßnahme: Für `role=reseller` auf eigene `wpcap_partner_orders` beschränken oder `attendees:read` sperren; Admin-Warnung; Test.
 - [ ] **A030** [P2] Texte beschreiben sofortige Ungültigkeit künftiger Tickets bei Löschung, tatsächlich wird zurückgestellt (`wpcap_privacy_defer_upcoming`, `src/Privacy.php:278–284`); Abschnitte zu … — _OFFEN_ (TODO L466; Datenschutz (Prüfung 4))
   - `src/Privacy/PolicyText.php:105`; `docs/OPERATIONS.md:78` — Maßnahme: Text korrigieren, Abschnitte modulabhängig ergänzen, Rolle der Partner benennen.
