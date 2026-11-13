@@ -241,10 +241,10 @@ final class Controller {
 
 	public static function events( \WP_REST_Request $request ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT e.event_id,e.name,e.slug,e.description,o.occurrence_id,o.starts_at,o.ends_at,o.timezone,o.location,o.capacity FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC LIMIT 100",
-			current_time( 'mysql', true )
-		) );
+		// Upcoming occurrences plus running ones with a ticket type still on sale online (A535).
+		$rows = $wpdb->get_results(
+			"SELECT e.event_id,e.name,e.slug,e.description,o.occurrence_id,o.starts_at,o.ends_at,o.timezone,o.location,o.capacity FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND " . \PassCaptain\Occurrence::listable_sql( 'o' ) . ' ORDER BY o.starts_at ASC LIMIT 100' // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
+		);
 		$output = array();
 		$locale = sanitize_text_field( $request->get_param( 'locale' ) ?: determine_locale() );
 		// Translations, ticket types and occurrences of all listed dates in three queries (no N+1).

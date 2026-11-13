@@ -115,6 +115,8 @@ final class Settings {
 			'default_entry_window'      => 1,
 			'entry_opens_before_minutes' => 120,
 			'entry_closes_after_minutes' => 0,
+			// A535: occurrences without an end time count as over after this many hours (Occurrence).
+			'occurrence_default_duration_hours' => 6,
 		);
 	}
 

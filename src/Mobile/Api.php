@@ -68,13 +68,13 @@ final class Api {
 		) );
 	}
 
-	/** Occurrences of the device's events from yesterday on (max. 100). */
+	/** Occurrences of the device's events that are running, upcoming or ended less than a day ago (max. 100, A535). */
 	public static function occurrences( \WP_REST_Request $request ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$ids = Devices::event_ids( Devices::current() );
 		if ( ! $ids ) { return rest_ensure_response( array( 'occurrences' => array() ) ); }
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.ends_at,o.timezone,o.location,o.status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.event_id IN (" . implode( ',', array_map( 'absint', $ids ) ) . ") AND o.starts_at >= %s ORDER BY o.starts_at LIMIT 100", gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.ends_at,o.timezone,o.location,o.status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.event_id IN (" . implode( ',', array_map( 'absint', $ids ) ) . ') AND ' . \PassCaptain\Occurrence::end_sql( 'o' ) . ' >= %s ORDER BY o.starts_at LIMIT 100', \PassCaptain\Clock::mysql( -DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list, static expression.
 		$out = array();
 		$areas = array();
 		foreach ( $rows as $row ) {

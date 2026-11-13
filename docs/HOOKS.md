@@ -186,6 +186,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | Filter | Wert, Argumente | Zweck |
 |---|---|---|
 | `wpcap_calendar_checkout_url` | `string $url, int $occurrence_id` | Link eines Kalendereintrags (Standard: Einstellung „Seite mit dem Ticket-Shortcode“ + `#wpcap-occ-{id}`). |
+| `wpcap_occurrence_default_duration` | `int $seconds` (Einstellung `occurrence_default_duration_hours`, Vorgabe 6 h) | Dauer eines Termins ohne Ende: ab wann er als vorbei gilt (Online- und Abendkassenverkauf, Eventliste, Terminlisten von Scanner und App; `PassCaptain\Occurrence`, A535). Gilt global (auch in SQL), ohne Terminbezug. |
 | `wpcap_calendar_default_duration` | `int $seconds` (7200), `object $occurrence` | Dauer für `DTEND`, wenn der Termin kein Ende hat. |
 | `wpcap_calendar_organizer` | `string $email` (Standard `''`) | E-Mail-Adresse für `ORGANIZER` in .ics-Dateien (A140). Mit Adresse wird die Datei eines einzelnen abgesagten Termins als `METHOD:CANCEL` ausgeliefert (RFC 5546 verlangt dafür einen Organizer), sonst `METHOD:PUBLISH` mit `STATUS:CANCELLED`. |
 | `wpcap_sms_providers` | `ProviderInterface[] $providers` | Weitere SMS-Adapter (`PassCaptain\Sms\ProviderInterface`). |

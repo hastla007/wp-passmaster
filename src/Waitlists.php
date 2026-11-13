@@ -229,7 +229,7 @@ final class Waitlists {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		self::close_ended();
-		$types = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT w.ticket_type_id FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE w.status='waiting' AND o.status='scheduled' AND o.starts_at > %s LIMIT 500", Clock::mysql() ) );
+		$types = $wpdb->get_col( "SELECT DISTINCT w.ticket_type_id FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE w.status='waiting' AND o.status='scheduled' AND " . Occurrence::type_sale_sql( 'tt', 'o' ) . ' LIMIT 500' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
 		if ( $types ) { self::queue( $types, Clock::now() ); }
 		return self::run_due();
 	}
@@ -253,7 +253,7 @@ final class Waitlists {
 		if ( '1' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s,0)', $lock ) ) ) { return 0; }
 		$made = 0;
 		try {
-			$type = $wpdb->get_row( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.max_per_order FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d AND tt.status='active' AND o.status='scheduled' AND e.status='published' AND o.starts_at > %s", $ticket_type_id, Clock::mysql() ) );
+			$type = $wpdb->get_row( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.max_per_order FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d AND tt.status='active' AND o.status='scheduled' AND e.status='published' AND " . Occurrence::type_sale_sql( 'tt', 'o' ), $ticket_type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prepared fragment.
 			if ( ! $type ) { return 0; }
 			$available = Orders::availability( $ticket_type_id );
 			$available = null === $available ? PHP_INT_MAX : (int) $available;
@@ -314,8 +314,9 @@ final class Waitlists {
 		$c = self::config();
 		$now_ts = Clock::now();
 		$expires_ts = $now_ts + $c['offer_hours'] * HOUR_IN_SECONDS;
-		$starts = (string) $wpdb->get_var( $wpdb->prepare( "SELECT o.starts_at FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", (int) $row->ticket_type_id ) );
-		if ( '' !== $starts ) { $expires_ts = min( $expires_ts, (int) strtotime( $starts . ' UTC' ) ); }
+		// Never beyond the end of online sales: the start, or a sales_end after it (A535).
+		$phase = $wpdb->get_row( $wpdb->prepare( "SELECT o.starts_at,o.ends_at,tt.sales_end FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", (int) $row->ticket_type_id ) );
+		if ( $phase ) { $expires_ts = min( $expires_ts, Occurrence::online_sales_until( $phase, $phase ) ); }
 		if ( $expires_ts - $now_ts < 15 * MINUTE_IN_SECONDS ) {
 			return new \WP_Error( 'wpcap_waitlist_too_late', __( 'Für diesen Termin ist kein Wartelistenangebot mehr möglich.', 'pass-captain' ), array( 'status' => 409 ) );
 		}

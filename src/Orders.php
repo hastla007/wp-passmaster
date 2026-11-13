@@ -167,10 +167,11 @@ final class Orders {
 			foreach ( $types as $type_id => $type ) {
 				$occurrence = $occurrences[ (int) $type->occurrence_id ];
 				// Door sales (box office) may sell after the start and outside the online sales window,
-				// but never for an occurrence that has ended.
-				$ended = $occurrence && self::occurrence_end( $occurrence ) < $now;
-				$started = $occurrence && strtotime( $occurrence->starts_at . ' UTC' ) < Clock::now();
-				if ( ! $occurrence || 'published' !== $occurrence->event_status || 'scheduled' !== $occurrence->status || ( $door_sale ? $ended : $started ) ) {
+				// but never for an occurrence that has ended. Online sales end at the start, or – with a
+				// sales_end after the start (multi-day occurrences) – at that sales_end, never after the
+				// effective end (Occurrence, A535).
+				$closed = $occurrence && ( $door_sale ? Occurrence::is_over( $occurrence ) : Occurrence::online_sales_over( $occurrence, $type ) );
+				if ( ! $occurrence || 'published' !== $occurrence->event_status || 'scheduled' !== $occurrence->status || $closed ) {
 					throw new \RuntimeException( 'occurrence_unavailable' );
 				}
 				if ( ! $door_sale && ( ( $type->sales_start && $type->sales_start > $now ) || ( $type->sales_end && $type->sales_end < $now ) ) ) {

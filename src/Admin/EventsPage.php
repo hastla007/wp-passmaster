@@ -257,6 +257,11 @@ final class EventsPage {
 			if ( ! $occurrence_id ) { return Forms::error( 'wpcap_occurrence_save', __( 'Der Termin konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 			Audit::record( 'occurrence_created', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'starts_at' => $starts ) );
 		}
+		if ( $old ) {
+			// A535: ticket types whose sales end now lies after the occurrence's (effective) end.
+			$late = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(sales_end) FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' AND sales_end IS NOT NULL", $occurrence_id ) );
+			$dst_notes[] = \PassCaptain\Occurrence::sales_end_warning( $data, (string) $late );
+		}
 		\PassCaptain\PageCache::event_changed( (int) $event->event_id, 'occurrence', $occurrence_id ); // A446.
 		return array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled ) + Forms::dst_warning( $dst_notes );
 	}
@@ -433,7 +438,9 @@ final class EventsPage {
 		Audit::record( $old ? 'ticket_type_updated' : 'ticket_type_created', 'ticket_type', $type_id, $details );
 		// A446: price, sales window, status or capacity changed what the listing shows.
 		\PassCaptain\PageCache::event_changed( (int) $occ->event_id, 'ticket_type', (int) $occ->occurrence_id );
-		return array( 'ticket_type_id' => $type_id, 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id );
+		// A535: a sales end after the occurrence's (effective) end is saved, but online sales stop at the end.
+		$warning = \PassCaptain\Occurrence::sales_end_warning( $occ, (string) $sales['sales_end'] );
+		return array( 'ticket_type_id' => $type_id, 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id ) + ( '' !== $warning ? array( 'warning' => $warning ) : array() );
 	}
 
 	/** Creates or updates a participant field. The key is fixed after creation. */
@@ -1195,7 +1202,7 @@ final class EventsPage {
 			<tr><th><label for="wpcap-tt-cap"><?php esc_html_e( 'Kontingent', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( $type ? (int) $type->capacity : 0 ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-max"><?php esc_html_e( 'Max. pro Bestellung', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-max" name="max_per_order" type="number" min="1" max="100" value="<?php echo esc_attr( $type ? (int) $type->max_per_order : 10 ); ?>"></td></tr>
 			<tr><th><label for="wpcap-tt-ss"><?php esc_html_e( 'Verkaufsstart', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-ss" name="sales_start" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_start, $occ->timezone ) : '' ); ?>"> <span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = sofort', 'pass-captain' ), $occ->timezone ) ); ?></span></td></tr>
-			<tr><th><label for="wpcap-tt-se"><?php esc_html_e( 'Verkaufsende', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-se" name="sales_end" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_end, $occ->timezone ) : '' ); ?>"> <span class="description"><?php esc_html_e( 'leer = bis Terminbeginn', 'pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-se"><?php esc_html_e( 'Verkaufsende', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-se" name="sales_end" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_end, $occ->timezone ) : '' ); ?>"> <span class="description"><?php esc_html_e( 'leer = bis Terminbeginn; ein Verkaufsende nach Beginn (mehrtägige Termine) gilt online höchstens bis Terminende', 'pass-captain' ); ?></span></td></tr>
 			<?php $checks = \PassCaptain\AdmissionChecks::for_type( $type ? $type : 0 ); ?>
 			<tr><th><?php esc_html_e( 'Einlasskontrolle', 'pass-captain' ); ?></th><td>
 				<label><input type="checkbox" name="id_check" value="1" <?php echo $checks['id_check'] ? 'checked' : ''; ?>> <?php esc_html_e( 'Ausweis prüfen', 'pass-captain' ); ?></label><br>

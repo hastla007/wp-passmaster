@@ -948,7 +948,7 @@ austauschbar. Regeln bei der Zeitumstellung:
 
 - **Fristen sind echte Dauern.** Reservierungen (Halten), Wartelistenangebote (`offer_hours`), Erinnerungen
   („48 h vor Beginn“), Buchungsschluss/Vorausbuchung/Umbuchungs- und Stornofrist von Servicebuchungen
-  und das Ende des Abendkassenverkaufs (Ende des Termins, ohne Ende 6 h nach Beginn) zählen Sekunden,
+  und das Ende des Abendkassenverkaufs (Ende des Termins, ohne Ende nach der Standarddauer, siehe unten) zählen Sekunden,
   nicht Uhrzeiten. „24 h vor Sonntag 10:00 MESZ“ ist Samstag 09:00 MEZ; ein Halt von 10 Minuten ab
   02:55 MESZ endet um 02:05 MEZ.
 - **Erinnerungen** werden je Termin, Startzeit, Stufe und Empfänger:in genau einmal eingeplant
@@ -967,6 +967,26 @@ austauschbar. Regeln bei der Zeitumstellung:
 
 Die Tests dazu (`tests/integration/modules/zz_a199.php`) stellen die Uhr über `wpcap_now` auf die
 Umstellungen in Europe/Vienna und America/New_York, statt zu warten.
+
+### Laufende und beendete Termine, mehrtägige Termine (A535)
+
+Wann ein Termin begonnen hat, läuft oder vorbei ist, entscheidet zentral `PassCaptain\Occurrence`:
+Das **effektive Ende** ist `ends_at`, ohne Ende Beginn + Standarddauer (Einstellung „Standarddauer von
+Terminen ohne Ende“, `occurrence_default_duration_hours`, Vorgabe 6 h; Filter
+`wpcap_occurrence_default_duration`). PHP (`Occurrence::effective_end()`, `is_running()`, `is_over()`)
+und SQL (`Occurrence::end_sql()`) rechnen gleich. Es gilt für:
+
+- **Online-Verkauf** (Checkout, WooCommerce, Wartelistenangebote): Ohne Verkaufsende endet er beim
+  Beginn. Ein Verkaufsende **nach** dem Beginn verlängert ihn bis zu diesem Verkaufsende, höchstens bis
+  zum effektiven Ende – so bleiben z. B. Tagestickets für Tag 2 und 3 eines Festivals verkäuflich.
+  Liegt das Verkaufsende nach dem Terminende, warnt die Verwaltung beim Speichern von Ticketart oder
+  Termin (gespeichert wird trotzdem; online verkauft wird nur bis zum Ende).
+- **Abendkasse**: bis zum effektiven Ende.
+- **Öffentliche Eventliste** (Shortcode/Block, REST `/events`): kommende Termine und laufende Termine,
+  von denen noch eine Ticketart online verkauft wird (nur diese Ticketarten erscheinen).
+- **Terminauswahl von Web-Scanner und App** (`/app/occurrences`): laufende Termine (mehrtägige bis zu
+  ihrem Ende), kommende (Web-Scanner: eine Woche voraus) und solche, die vor weniger als 24 h endeten.
+  Einlass an Tag 2/3 ist damit weiter mit Terminprüfung möglich.
 
 ## Geldbeträge, Rundung und Währungen (A200)
 

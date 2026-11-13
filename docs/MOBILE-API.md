@@ -61,7 +61,7 @@ Authorization: Bearer wpcapd_<device>_<secret>
 |---|---|---|
 | POST | `/app/pair` | Kopplung (ohne Token) |
 | GET | `/app/me` | Person, Gerät, Ablauf, freigegebene Events, Gerätebereich (`area`), Feature-Flags (`check_out`, `areas`), Serverzeit |
-| GET | `/app/occurrences` | Termine der freigegebenen Events ab gestern (max. 100), je Termin mit `areas` (aktive Einlassbereiche des Events) und `doors_open_at` (Einlassbeginn, ISO 8601, oder `null`) |
+| GET | `/app/occurrences` | Termine der freigegebenen Events, die laufen, noch kommen oder vor weniger als 24 h endeten (effektives Ende: `ends_at`, sonst Beginn + Standarddauer; max. 100), je Termin mit `areas` (aktive Einlassbereiche des Events) und `doors_open_at` (Einlassbeginn, ISO 8601, oder `null`) |
 | GET | `/app/occurrences/{id}/stats` | Tickets gesamt, eingecheckt, offen, von diesem Gerät eingecheckt, aktuell anwesend, Einlässe/Auslässe, Werte pro Bereich |
 | POST | `/app/scan/validate` | Vorschau ohne Einlass |
 | POST | `/app/scan/check-in` | Einlass (benötigt `idempotency_key`) |

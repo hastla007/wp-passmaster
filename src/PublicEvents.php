@@ -154,13 +154,14 @@ final class PublicEvents {
 	public static function render_shortcode( $atts = array() ) {
 		global $wpdb;
 		$atts = shortcode_atts( array( 'event' => 0, 'occurrence' => 0, 'limit' => 50 ), is_array( $atts ) ? $atts : array(), 'wp_pass_captain_events' );
-		$where = '';
-		$args = array( current_time( 'mysql', true ) );
+		// Upcoming occurrences, plus running ones (multi-day) with a ticket type still on sale (A535).
+		$where = ' AND ' . Occurrence::listable_sql( 'o', Clock::mysql() );
+		$args = array();
 		if ( absint( $atts['event'] ) ) { $where .= ' AND e.event_id=%d'; $args[] = absint( $atts['event'] ); }
 		if ( absint( $atts['occurrence'] ) ) { $where .= ' AND o.occurrence_id=%d'; $args[] = absint( $atts['occurrence'] ); }
 		$args[] = max( 1, min( 200, absint( $atts['limit'] ) ?: 50 ) );
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s{$where} ORDER BY o.starts_at ASC LIMIT %d",
+			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled'{$where} ORDER BY o.starts_at ASC LIMIT %d",
 			...$args
 		) );
 		$meta = array();
@@ -248,7 +249,8 @@ final class PublicEvents {
 		$occ_in = implode( ',', $occ_ids );
 		$by_occurrence = array();
 		$all_types = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp" . ( AdmissionChecks::ready() ? ',id_check,min_age' : '' ) . " FROM {$p}wpcap_ticket_types WHERE occurrence_id IN ($occ_in) AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", $now, $now ) ) as $type ) {
+		// Once an occurrence has started only ticket types with a sales_end ahead stay on sale (A535).
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.name,tt.price_minor,tt.currency,tt.capacity,tt.max_per_order,tt.tax_rate_bp" . ( AdmissionChecks::ready() ? ',tt.id_check,tt.min_age' : '' ) . " FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.occurrence_id IN ($occ_in) AND tt.status='active' AND (tt.sales_start IS NULL OR tt.sales_start <= %s) AND (tt.sales_end IS NULL OR tt.sales_end >= %s) AND " . Occurrence::type_sale_sql( 'tt', 'o', $now ) . ' ORDER BY tt.ticket_type_id', $now, $now ) ) as $type ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list and prepared fragment.
 			$by_occurrence[ (int) $type->occurrence_id ][] = $type;
 			$all_types[ (int) $type->ticket_type_id ] = $type;
 		}
@@ -357,8 +359,9 @@ final class PublicEvents {
 	}
 
 	/**
-	 * Occurrences the current user may admit to, from yesterday to a week ahead (web scanner date
-	 * selection: a ticket for another date is refused with its own date instead of a time error).
+	 * Occurrences the current user may admit to: running ones (multi-day occurrences until their
+	 * end, A535), those that ended less than a day ago and those starting within a week (web scanner
+	 * date selection: a ticket for another date is refused with its own date instead of a time error).
 	 *
 	 * @return array[] {id, label}
 	 */
@@ -366,9 +369,9 @@ final class PublicEvents {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.status<>'cancelled' AND o.starts_at BETWEEN %s AND %s ORDER BY o.starts_at,o.occurrence_id LIMIT 100",
-			gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ),
-			gmdate( 'Y-m-d H:i:s', time() + 7 * DAY_IN_SECONDS )
+			"SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.status<>'cancelled' AND " . Occurrence::end_sql( 'o' ) . ' >= %s AND o.starts_at <= %s ORDER BY o.starts_at,o.occurrence_id LIMIT 100', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static expression.
+			Clock::mysql( -DAY_IN_SECONDS ),
+			Clock::mysql( 7 * DAY_IN_SECONDS )
 		) );
 		$allowed = array();
 		$items = array();

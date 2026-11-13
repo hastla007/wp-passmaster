@@ -335,7 +335,7 @@ final class OrderAdapter {
 		}
 		$name = sprintf( '%s – %s', $type->event_name, $type->name );
 		$now  = \PassCaptain\Clock::mysql();
-		if ( 'published' !== $type->event_status || 'active' !== $type->status || 'scheduled' !== $type->occurrence_status || $type->starts_at <= $now ) {
+		if ( 'published' !== $type->event_status || 'active' !== $type->status || 'scheduled' !== $type->occurrence_status || \PassCaptain\Occurrence::online_sales_over( $type, $type ) ) {
 			/* translators: %s: event and ticket name */
 			return sprintf( __( '„%s“ ist nicht mehr buchbar.', 'pass-captain' ), $name );
 		}
@@ -1074,7 +1074,7 @@ final class OrderAdapter {
 	public static function ticket_type( $type_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT tt.*,o.starts_at,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d", absint( $type_id ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		return $wpdb->get_row( $wpdb->prepare( "SELECT tt.*,o.starts_at,o.ends_at,o.status AS occurrence_status,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE tt.ticket_type_id=%d", absint( $type_id ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 	}
 
 	/** Detects Store API (blocks) requests. */
