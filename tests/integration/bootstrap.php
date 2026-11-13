@@ -42,6 +42,8 @@ final class Test_WPDB {
 		$this->db = new mysqli( getenv( 'WPCAP_TEST_DB_HOST' ) ?: '127.0.0.1', getenv( 'WPCAP_TEST_DB_USER' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_PASS' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_NAME' ) ?: 'wp' );
 		if ( $this->db->connect_error ) { fwrite( STDERR, 'DB connect failed: ' . $this->db->connect_error . "\n" ); exit( 2 ); }
 		$this->db->set_charset( 'utf8mb4' );
+		// WPCAP_TEST_SQL_MODE=<modes> runs the suite under a given sql_mode (e.g. MySQL 8's strict default).
+		if ( false !== getenv( 'WPCAP_TEST_SQL_MODE' ) ) { $this->db->query( "SET SESSION sql_mode='" . $this->db->real_escape_string( (string) getenv( 'WPCAP_TEST_SQL_MODE' ) ) . "'" ); }
 	}
 	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'; }
 	private function esc( $v ) { return null === $v ? 'NULL' : "'" . $this->db->real_escape_string( (string) $v ) . "'"; }

@@ -110,7 +110,14 @@ check( 'without Voucher Captain the status says so and nothing else is offered',
 echo "Integration: transaction state per database server\n";
 $tracks = new ReflectionMethod( PassCaptain\Orders::class, 'server_tracks_transactions' );
 $tracks->setAccessible( true );
-check( 'MariaDB is asked for @@in_transaction, MySQL is not (no error-log line per order)', true === $tracks->invoke( null, '11.4.2-MariaDB-ubu2404' ) && false === $tracks->invoke( null, '8.4.13' ) && false === $tracks->invoke( null, '' ) );
+check( 'MariaDB is asked for @@in_transaction, MySQL uses the savepoint probe instead (no error-log line per order)', true === $tracks->invoke( null, '11.4.2-MariaDB-ubu2404' ) && false === $tracks->invoke( null, '8.4.13' ) && false === $tracks->invoke( null, '' ) );
+$probe = new ReflectionMethod( PassCaptain\Orders::class, 'savepoint_probe' );
+$probe->setAccessible( true );
+$wpdb->query( 'START TRANSACTION' );
+$probe_inside = $probe->invoke( null );
+$wpdb->query( 'ROLLBACK' );
+$probe_after = $probe->invoke( null );
+check( 'savepoint probe (used on MySQL): true inside a transaction, false after the server rolled it back', true === $probe_inside && false === $probe_after );
 echo "Integration: server-side rollback inside the order transaction\n";
 // Simulates a deadlock victim: the server rolls the transaction back (locks released) while PHP
 // continues. Without the guards the remaining statements would autocommit an unchecked order.

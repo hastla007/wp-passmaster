@@ -540,20 +540,36 @@ final class Orders {
 	}
 
 	/**
-	 * Whether the connection is still inside a transaction (MariaDB @@in_transaction). False after
-	 * the server rolled the transaction back (deadlock, lock wait timeout); null if unknown (MySQL).
+	 * Whether the connection is still inside a transaction. False after the server rolled the
+	 * transaction back (deadlock victim, lock wait timeout with innodb_rollback_on_timeout); null if
+	 * the state cannot be determined.
 	 *
-	 * MySQL has no such variable: querying it there only writes "Unknown system variable" to the
-	 * error log on every order, so the server type is checked once per request instead.
+	 * MariaDB reports it in @@in_transaction. MySQL has no such variable (querying it would only write
+	 * "Unknown system variable" to the error log), so there a savepoint probe is used: a savepoint is
+	 * only kept inside a transaction, so SAVEPOINT + RELEASE SAVEPOINT succeeds inside one and RELEASE
+	 * fails ("SAVEPOINT does not exist") once the server has ended the transaction. The probe changes
+	 * no data and errors are suppressed (no error-log line per order).
 	 */
 	private static function in_transaction() {
 		global $wpdb;
 		static $tracked = null;
 		if ( null === $tracked ) { $tracked = self::server_tracks_transactions( (string) $wpdb->get_var( 'SELECT VERSION()' ) ); }
-		if ( ! $tracked ) { return null; }
-		$value = $wpdb->get_var( 'SELECT @@in_transaction' );
-		if ( '' !== $wpdb->last_error || null === $value ) { return null; }
-		return 1 === (int) $value;
+		if ( $tracked ) {
+			$value = $wpdb->get_var( 'SELECT @@in_transaction' );
+			if ( '' === $wpdb->last_error && null !== $value ) { return 1 === (int) $value; }
+		}
+		return self::savepoint_probe();
+	}
+
+	/** Savepoint probe (see in_transaction()): true inside a transaction, false outside, null if unknown. */
+	private static function savepoint_probe() {
+		global $wpdb;
+		$suppress = method_exists( $wpdb, 'suppress_errors' ) ? $wpdb->suppress_errors( true ) : null;
+		$set = $wpdb->query( 'SAVEPOINT wpcap_tx_probe' );
+		$released = false !== $set ? $wpdb->query( 'RELEASE SAVEPOINT wpcap_tx_probe' ) : false;
+		if ( null !== $suppress ) { $wpdb->suppress_errors( $suppress ); }
+		if ( false === $set ) { return null; }
+		return false !== $released;
 	}
 
 	/** MariaDB reports its transaction state in @@in_transaction; MySQL does not. */
