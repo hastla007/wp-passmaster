@@ -55,6 +55,7 @@ final class Plugin {
 		Payments\PayPalGateway::register();
 		Payments\ReturnNotice::register();
 		Mobile\Api::register();
+		HelpCode::register();
 		OccurrenceCancellation::register();
 		Modules::register_all();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );

@@ -826,6 +826,8 @@ final class Service {
 		$recipient = is_email( (string) $old->attendee_email ) ? (string) $old->attendee_email : (string) $order->customer_email;
 		if ( ! is_email( $recipient ) ) { return false; }
 		$seat = self::seat_label( $new_id );
+		// Help code of the new ticket (also listed by the wpcap_ticket_code_mail_section filter below).
+		\PassCaptain\HelpCode::for_ticket( $new_id, (string) $done['token'] );
 		$kind = $price_note[0];
 		$amount = $price_note[1];
 		$vars = array(

@@ -154,6 +154,11 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
     status or the local log), in the wrong area (the type's area restriction against the device's or
     the selected area), or when the package is missing or expired.
   - Multi-entry types are admitted offline. The server checks their limits at sync.
+  - **Help code** (8 characters, e.g. `K7QM-4XWA`, printed below the QR code): typed into the manual
+    field when the QR code cannot be read. It is checked **online only** (the package holds no help
+    codes, see docs/SECURITY.md); offline the app asks for the QR code or the long code instead.
+  - Result: large coloured box, distinct tones (WebAudio, “Sound on/off” per device) and vibration
+    patterns; online results show “first admission” or “already admitted at …” from the server.
 - **Log and sync:** every scan is logged locally with its idempotency key. Offline admissions are
   uploaded through `POST /app/scan/sync` (batches of 200) when the device is online, on reconnect and
   every 30 s. The ticket code is kept only until the upload succeeded. Server conflicts, including

@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class TicketPdf {
 	/**
-	 * @param array $tickets List of ['event','ticket','when','location','seat','attendee','token'] arrays.
+	 * @param array $tickets List of ['event','ticket','when','location','seat','attendee','token','help_code'] arrays.
 	 * @param array $meta    ['title' => string, 'footer' => string].
 	 * @return string PDF bytes.
 	 */
@@ -58,6 +58,10 @@ final class TicketPdf {
 		$ops[] = $text( 'Code:', 9, 50, $top );
 		$ops[] = $text( substr( (string) ( $t['token'] ?? '' ), 0, 32 ), 9, 80, $top );
 		$ops[] = $text( substr( (string) ( $t['token'] ?? '' ), 32 ), 9, 80, $top - 12 );
+		if ( ! empty( $t['help_code'] ) ) {
+			$ops[] = $text( HelpCode::caption(), 10, 50, $top - 36 );
+			$ops[] = $text( (string) $t['help_code'], 18, 50, $top - 58, true );
+		}
 		if ( ! empty( $meta['footer'] ) ) { $ops[] = $text( (string) $meta['footer'], 9, 50, 40 ); }
 		return implode( "\n", $ops );
 	}

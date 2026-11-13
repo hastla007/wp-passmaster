@@ -59,7 +59,9 @@ preg_match_all( '/Ticket-Code: ([a-f0-9]{64})/', $ticket_mail['body'], $codes );
 $expected = "Deine Tickets für Testsite:\n\n";
 foreach ( Orders::tickets_for_order( $o['order_id'] ) as $i => $t ) {
 	$code = $codes[1][ $i ] ?? '';
-	$expected .= sprintf( "%s — %s\n%s\n%s\n\n", $t->event_name, $t->ticket_name, Orders::format_start( $t->starts_at, $t->timezone ), $t->location ) . 'Ticket öffnen oder drucken: https://example.test/?wpcap_ticket=' . $code . "\nTicket-Code: " . $code . "\n\n";
+	$expected .= sprintf( "%s — %s\n%s\n%s\n\n", $t->event_name, $t->ticket_name, Orders::format_start( $t->starts_at, $t->timezone ), $t->location ) . 'Ticket öffnen oder drucken: https://example.test/?wpcap_ticket=' . $code . "\nTicket-Code: " . $code . "\n"
+		// A089: help code line below the ticket code.
+		. 'Hilfscode für den Einlass, falls der QR-Code nicht lesbar ist: ' . PassCaptain\HelpCode::for_ticket( (int) $t->ticket_id, $code ) . "\n\n";
 }
 check( 'ticket mail: subject and body identical to the previous plain text', 'Deine Tickets für Testsite' === $ticket_mail['subject'] && 2 === count( $codes[1] ) && $expected === $ticket_mail['body'] );
 $access = array_values( array_filter( $mails, static fn( $m ) => str_starts_with( $m['subject'], 'Deine Bestellung' ) ) )[0] ?? array( 'subject' => '', 'body' => '' );

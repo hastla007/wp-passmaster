@@ -4,7 +4,7 @@
  *
  * A template body is one instruction per line: "[*]size|text" ("*" = bold) or "{qr}" for the QR code.
  * Placeholders: {event} {date} {time} {location} {ticket_category} {attendee_name} {seat_label} {order}
- * and {qr}. Lines that are empty after replacement are skipped.
+ * {help_code} (short code for staff when the QR code cannot be read; only with printed codes) and {qr}. Lines that are empty after replacement are skipped.
  */
 namespace PassCaptain\Printing;
 
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Templates {
 	const KINDS = array( 'ticket', 'badge', 'nametag', 'wristband' );
-	const PLACEHOLDERS = array( '{event}', '{date}', '{time}', '{location}', '{ticket_category}', '{attendee_name}', '{seat_label}', '{order}', '{qr}' );
+	const PLACEHOLDERS = array( '{event}', '{date}', '{time}', '{location}', '{ticket_category}', '{attendee_name}', '{seat_label}', '{order}', '{help_code}', '{qr}' );
 
 	public static function kind_labels() {
 		return array(
@@ -28,7 +28,7 @@ final class Templates {
 
 	public static function default_body( $kind ) {
 		$bodies = array(
-			'ticket'    => "*22|{event}\n14|{ticket_category}\n12|{date}\n12|{location}\n12|{attendee_name}\n12|{seat_label}\n{qr}",
+			'ticket'    => "*22|{event}\n14|{ticket_category}\n12|{date}\n12|{location}\n12|{attendee_name}\n12|{seat_label}\n{qr}\n*14|{help_code}",
 			'badge'     => "*20|{attendee_name}\n12|{ticket_category}\n11|{event}\n10|{date}\n{qr}",
 			'nametag'   => "*16|{attendee_name}\n9|{ticket_category}\n8|{event}\n{qr}",
 			'wristband' => "*11|{event}\n8|{date} · {ticket_category}\n8|{attendee_name} {seat_label}\n{qr}",
@@ -304,6 +304,7 @@ final class Templates {
 			'attendee_name'   => (string) ( $row->attendee_name ?? '' ),
 			'seat_label'      => $seat,
 			'order'           => substr( (string) ( $row->order_public_id ?? '' ), 0, 8 ),
+			'help_code'       => '' !== (string) $token ? \PassCaptain\HelpCode::for_ticket( (int) ( $row->ticket_id ?? 0 ), (string) $token ) : '',
 			'qr'              => (string) $token,
 		);
 	}

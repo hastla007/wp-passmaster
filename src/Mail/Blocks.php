@@ -11,7 +11,7 @@ final class Blocks {
 	/**
 	 * Ticket list of the issue mail: event, date, location, link and code per ticket.
 	 *
-	 * @param array $tickets Items with event, ticket, when, location, url, token.
+	 * @param array $tickets Items with event, ticket, when, location, url, token, help_code (optional).
 	 */
 	public static function issued_tickets( array $tickets ) {
 		$text = '';
@@ -19,10 +19,14 @@ final class Blocks {
 		foreach ( $tickets as $t ) {
 			$text .= sprintf( "%s — %s\n%s\n%s\n\n", $t['event'], $t['ticket'], $t['when'], $t['location'] );
 			$text .= __( 'Ticket öffnen oder drucken:', 'wp-pass-captain' ) . ' ' . esc_url_raw( $t['url'] ) . "\n";
-			$text .= __( 'Ticket-Code:', 'wp-pass-captain' ) . ' ' . $t['token'] . "\n\n";
+			$text .= __( 'Ticket-Code:', 'wp-pass-captain' ) . ' ' . $t['token'] . "\n";
+			$help = (string) ( $t['help_code'] ?? '' );
+			if ( '' !== $help ) { $text .= \PassCaptain\HelpCode::label( $help ) . "\n"; }
+			$text .= "\n";
 			$html .= '<p style="margin:0 0 16px"><strong>' . esc_html( $t['event'] . ' — ' . $t['ticket'] ) . '</strong><br>' . esc_html( $t['when'] ) . '<br>' . esc_html( $t['location'] ) . '<br>'
 				. esc_html__( 'Ticket öffnen oder drucken:', 'wp-pass-captain' ) . ' ' . Mailer::link( $t['url'] )['html'] . '<br>'
-				. esc_html__( 'Ticket-Code:', 'wp-pass-captain' ) . ' <code>' . esc_html( $t['token'] ) . '</code></p>';
+				. esc_html__( 'Ticket-Code:', 'wp-pass-captain' ) . ' <code>' . esc_html( $t['token'] ) . '</code>'
+				. ( '' !== $help ? '<br>' . esc_html( \PassCaptain\HelpCode::caption() ) . ' <strong style="font-family:monospace;letter-spacing:.1em">' . esc_html( $help ) . '</strong>' : '' ) . '</p>';
 		}
 		return Mailer::block( $text, $html );
 	}

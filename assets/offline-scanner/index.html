@@ -54,10 +54,11 @@
 		<div class="card">
 			<div class="row">
 				<button type="button" id="camera" class="primary" data-i18n>Kamera starten</button>
+				<button type="button" id="sound" aria-pressed="true" data-i18n>Ton an</button>
 			</div>
 			<video id="video" playsinline muted hidden></video>
 			<form id="manual" autocomplete="off">
-				<label><span data-i18n>Ticketcode manuell</span><input id="manual-code" spellcheck="false" inputmode="text" data-i18n-placeholder placeholder="64-stelliger Code oder Ticket-Link"></label>
+				<label><span data-i18n>Ticketcode manuell</span><input id="manual-code" spellcheck="false" inputmode="text" autocapitalize="characters" data-i18n-placeholder placeholder="Ticket-Code, Ticket-Link oder Hilfscode (z. B. K7QM-4XWA)"></label>
 				<button type="submit" data-i18n>Prüfen</button>
 			</form>
 		</div>

@@ -90,6 +90,11 @@
 		var m = String(value || '').match(/[a-f0-9]{64}/i);
 		return m ? m[0].toLowerCase() : '';
 	}
+	/** Same rule as PassCaptain\HelpCode::normalize(): 8 characters without 0/O/1/I, '' otherwise. */
+	function normalizeHelpCode(value) {
+		var v = String(value || '').toUpperCase().replace(/[\s\-_.]+/g, '');
+		return /^[2-9A-HJ-NP-Z]{8}$/.test(v) ? v : '';
+	}
 	function uuid() {
 		if (crypto.randomUUID) { return crypto.randomUUID(); }
 		var b = crypto.getRandomValues(new Uint8Array(16));
@@ -112,16 +117,70 @@
 		cancelled_event: 'Termin abgesagt', out_of_window: 'Außerhalb des Einlasszeitraums', not_valid_today: 'Heute nicht gültig',
 		daily_limit_reached: 'Tageskontingent erreicht', entry_limit_reached: 'Einlasslimit erreicht', outside_entry_window: 'Außerhalb des Einlassfensters',
 		already_inside: 'Bereits drinnen', area_full: 'Bereich voll', forbidden: 'Kein Einlasszugriff', package_expired: 'Prüfpaket abgelaufen', no_package: 'Kein gültiges Prüfpaket',
-		invalid_code: 'Kein Ticketcode erkannt'
+		invalid_code: 'Kein Ticketcode erkannt', rate_limited: 'Zu viele Hilfscode-Eingaben'
 	};
 	function resultText(code) { return RESULT_TEXT[code] ? t(RESULT_TEXT[code]) : code; }
+
+	/* Sound (WebAudio, can be switched off per device) and vibration, like the web scanner. */
+	var sound = { on: true, ctx: null };
+	try { sound.on = localStorage.getItem('wpcap_scanner_sound') !== 'off'; } catch (e) { sound.on = true; }
+	function unlockAudio() {
+		var Ctx = window.AudioContext || window.webkitAudioContext;
+		if (!sound.on || sound.ctx || !Ctx) { return; }
+		try { sound.ctx = new Ctx(); } catch (e) { sound.ctx = null; }
+	}
+	function tone(frequencies, length, type) {
+		if (!sound.on || !sound.ctx) { return; }
+		try {
+			if ('suspended' === sound.ctx.state) { sound.ctx.resume(); }
+			var at = sound.ctx.currentTime;
+			frequencies.forEach(function (f) {
+				var osc = sound.ctx.createOscillator();
+				var gain = sound.ctx.createGain();
+				osc.type = type || 'sine';
+				osc.frequency.value = f;
+				gain.gain.setValueAtTime(0.2, at);
+				gain.gain.exponentialRampToValueAtTime(0.001, at + length);
+				osc.connect(gain).connect(sound.ctx.destination);
+				osc.start(at);
+				osc.stop(at + length + 0.02);
+				at += length + 0.04;
+			});
+		} catch (e) { /* no sound */ }
+	}
+	function renderSound() {
+		var btn = $('sound');
+		if (!btn) { return; }
+		btn.setAttribute('aria-pressed', sound.on ? 'true' : 'false');
+		btn.textContent = sound.on ? t('Ton an') : t('Ton aus');
+	}
+	function toggleSound() {
+		sound.on = !sound.on;
+		try { localStorage.setItem('wpcap_scanner_sound', sound.on ? 'on' : 'off'); } catch (e) { /* only for this visit */ }
+		if (sound.on) { unlockAudio(); tone([660], 0.1); }
+		renderSound();
+	}
 
 	function showResult(kind, title, detail) {
 		var box = $('result');
 		box.className = 'result ' + kind;
 		$('result-title').textContent = title;
 		$('result-detail').textContent = detail || '';
-		if (navigator.vibrate) { navigator.vibrate('ok' === kind ? 80 : [60, 60, 60]); }
+		if ('ok' === kind) { tone([660, 990], 0.12); } else if ('bad' === kind) { tone([196, 147], 0.32, 'square'); } else if ('warn' === kind) { tone([440, 440], 0.15, 'triangle'); }
+		try { if (navigator.vibrate) { navigator.vibrate('ok' === kind ? 80 : ('warn' === kind ? [120, 80, 120] : [250, 100, 250, 100, 250])); } } catch (e) { /* no vibration */ }
+	}
+	/** "Erstmals eingelassen" / "Bereits eingelassen um 19:42" from the server's admission history. */
+	function historyText(res) {
+		if (!res) { return ''; }
+		if (res.ok) {
+			if (res.first_admission) { return t('Erstmals eingelassen'); }
+			return res.admissions > 1 && res.first_checked_in_at ? t('Einlass Nr. %1 – zuerst eingelassen um %2', res.admissions, fmtTime(res.first_checked_in_at)) : '';
+		}
+		if (!res.first_checked_in_at) { return ''; }
+		return t('Bereits eingelassen um %1', fmtTime(res.first_checked_in_at)) + (res.last_checked_in_area ? ' · ' + res.last_checked_in_area : '');
+	}
+	function onlineDetail(res) {
+		return [res.ticket, res.attendee_name, historyText(res), res.staff_hint ? '⚠ ' + res.staff_hint : '', res.help_code ? '⚠ ' + t('Per Hilfscode geprüft') : '', 'online'].filter(Boolean).join(' · ');
 	}
 
 	/* ---------------- API ---------------- */
@@ -380,10 +439,40 @@
 		state.admitted[occurrenceId].add(hash);
 	}
 
+	/**
+	 * Typed help code ("K7QM-4XWA") when the QR code cannot be read. Only the server can resolve it
+	 * (the package holds no help codes), so it is checked online only and never decided offline.
+	 */
+	function handleHelpCode(help) {
+		var occurrenceId = state.selected;
+		var entry = state.packages[occurrenceId];
+		var offlineMsg = function () { showResult('warn', t('Hilfscode nur online'), t('Hilfscodes können nur online geprüft werden. Bitte QR-Code scannen oder den langen Ticket-Code eingeben.')); };
+		if (navigator.onLine === false) { offlineMsg(); return Promise.resolve(); }
+		var key = uuid();
+		var scannedAt = new Date(now()).toISOString();
+		var area = (entry && entry.meta && entry.meta.device_area_id) || state.areaId || 0;
+		return api('POST', 'scan/check-in', { code: help, idempotency_key: key, occurrence_id: occurrenceId, area_id: area }, null, 5000).then(function (res) {
+			showResult(res.ok ? 'ok' : 'bad', resultText(res.result), onlineDetail(res));
+			return sha256Hex('help:' + help).then(function (hash) {
+				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'online', decision: res.result, ok: !!res.ok, synced: 1 });
+			});
+		}, function (err) {
+			if (err && (err.network || err.status >= 500)) { offlineMsg(); return; }
+			if (handleAuthError(err)) { return; }
+			showResult(err && 429 === err.status ? 'warn' : 'bad', err && 429 === err.status ? resultText('rate_limited') : t('Fehler'), err && err.message);
+		}).then(renderLog);
+	}
+
 	var lastScan = { code: '', at: 0 };
 	function handleScan(raw) {
+		unlockAudio();
 		var code = normalizeCode(raw);
-		if (!code) { showResult('bad', resultText('invalid_code')); return Promise.resolve(); }
+		if (!code) {
+			var help = normalizeHelpCode(raw);
+			if (help && state.selected) { return handleHelpCode(help); }
+			showResult('bad', help ? t('Kein Termin gewählt') : resultText('invalid_code'));
+			return Promise.resolve();
+		}
 		if (code === lastScan.code && Date.now() - lastScan.at < 3000) { return Promise.resolve(); }
 		lastScan = { code: code, at: Date.now() };
 		var occurrenceId = state.selected;
@@ -400,7 +489,7 @@
 			return attempt.then(function (res) {
 				var ok = !!res.ok;
 				if (ok) { markAdmitted(occurrenceId, hash); }
-				showResult(ok ? 'ok' : 'bad', resultText(res.result), [res.ticket, res.attendee_name, res.staff_hint ? '⚠ ' + res.staff_hint : '', 'online'].filter(Boolean).join(' · '));
+				showResult(ok ? 'ok' : 'bad', resultText(res.result), onlineDetail(res));
 				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'online', decision: res.result, ok: ok, synced: 1 });
 			}, function (err) {
 				// Network errors, timeouts and server outages fall back to the offline decision.
@@ -532,6 +621,7 @@
 		});
 	}
 	function startCamera() {
+		unlockAudio();
 		if (camera.stream) { stopCamera(); return; }
 		var video = $('video');
 		navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(function (stream) {
@@ -671,6 +761,8 @@
 		$('sync').addEventListener('click', function () { syncNow(); });
 		$('camera').addEventListener('click', startCamera);
 		$('unpair').addEventListener('click', unpair);
+		$('sound').addEventListener('click', toggleSound);
+		renderSound();
 		$('manual').addEventListener('submit', function (ev) {
 			ev.preventDefault();
 			lastScan = { code: '', at: 0 };

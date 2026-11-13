@@ -37,38 +37,132 @@
 	const t = window.WPCAP_SCANNER.i18n || {};
 	// Result banner: icon + large text, colour is never the only signal. Screen readers get a short
 	// separate announcement (the banner itself holds buttons and is not a live region), staff without
-	// sight of the screen a tone and a vibration.
+	// sight of the screen a tone and a vibration. A full-screen overlay (like the offline app) repeats
+	// the verdict in large type for the door; it never takes focus, so keyboard wedge scanners keep
+	// typing into the code field.
 	const ICONS = { success: '✓', error: '✕', warning: '!', busy: '…' };
+	const overlay = root.querySelector('.wpcap-scan-overlay');
+	const soundButton = root.querySelector('.wpcap-sound-toggle');
+	const soundKey = 'wpcap-scanner-sound-v1';
+	let soundOn = true;
+	try { soundOn = window.localStorage.getItem(soundKey) !== 'off'; } catch (ignore) { soundOn = true; }
 	let audio = null;
 	function unlockAudio() {
 		// One AudioContext, created in a user gesture (camera start / submit): iOS keeps it silent otherwise.
-		if (audio || !(window.AudioContext || window.webkitAudioContext)) return;
+		if (!soundOn || audio || !(window.AudioContext || window.webkitAudioContext)) return;
 		try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (ignore) { audio = null; }
 	}
-	function tone(frequencies) {
-		if (!audio) return;
+	// Distinct patterns: success = short rising two-tone, error = long low buzz, warning = two equal beeps.
+	function tone(frequencies, length, type) {
+		if (!audio || !soundOn) return;
+		const duration = length || 0.18;
 		try {
 			if (audio.state === 'suspended') audio.resume();
 			let at = audio.currentTime;
 			frequencies.forEach(function (frequency) {
 				const osc = audio.createOscillator();
 				const gain = audio.createGain();
+				osc.type = type || 'sine';
 				osc.frequency.value = frequency;
 				gain.gain.setValueAtTime(0.2, at);
-				gain.gain.exponentialRampToValueAtTime(0.001, at + 0.18);
+				gain.gain.exponentialRampToValueAtTime(0.001, at + duration);
 				osc.connect(gain).connect(audio.destination);
 				osc.start(at);
-				osc.stop(at + 0.2);
-				at += 0.22;
+				osc.stop(at + duration + 0.02);
+				at += duration + 0.04;
 			});
 		} catch (ignore) {}
 	}
-	function feedback(state) {
-		if (state === 'success') { tone([880]); if (navigator.vibrate) navigator.vibrate(80); }
-		else if (state === 'error') { tone([220, 180]); if (navigator.vibrate) navigator.vibrate([200, 100, 200]); }
-		else if (state === 'warning') { tone([440, 440]); if (navigator.vibrate) navigator.vibrate([120, 80, 120]); }
+	function vibrate(pattern) {
+		try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (ignore) {}
 	}
-	function show(state, text) {
+	function feedback(state) {
+		if (state === 'success') { tone([660, 990], 0.12); vibrate(80); }
+		else if (state === 'error') { tone([196, 147], 0.32, 'square'); vibrate([250, 100, 250, 100, 250]); }
+		else if (state === 'warning') { tone([440, 440], 0.15, 'triangle'); vibrate([120, 80, 120]); }
+	}
+	// Sound on/off per browser (vibration stays on: it is silent).
+	function renderSound() {
+		if (!soundButton) return;
+		soundButton.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
+		soundButton.textContent = soundOn ? (t.soundOn || 'Sound on') : (t.soundOff || 'Sound off');
+	}
+	if (soundButton) {
+		soundButton.addEventListener('click', function () {
+			soundOn = !soundOn;
+			try { window.localStorage.setItem(soundKey, soundOn ? 'on' : 'off'); } catch (ignore) {}
+			if (soundOn) { unlockAudio(); tone([660], 0.1); }
+			renderSound();
+		});
+		renderSound();
+	}
+	// Local date/time of a server timestamp: time only for today, else date and time.
+	const locale = document.documentElement.lang || undefined;
+	function when(iso) {
+		const date = new Date(iso);
+		if (!iso || isNaN(date.getTime())) return '';
+		try {
+			return date.toDateString() === new Date().toDateString()
+				? date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+				: date.toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' });
+		} catch (ignore) { return date.toLocaleString(); }
+	}
+	// Lines about earlier admissions ("Erstmals eingelassen", "Bereits eingelassen um 19:42 · Bereich: Nord").
+	function historyLines(data, admitted) {
+		const lines = [];
+		if (!data) return lines;
+		if (admitted) {
+			if (data.first_admission) lines.push(t.firstAdmission || 'First admission');
+			else if (data.admissions > 1 && data.first_checked_in_at) lines.push((t.reentry || '%1$s %2$s').replace('%1$s', String(data.admissions)).replace('%2$s', when(data.first_checked_in_at)));
+		} else if (data.first_checked_in_at) {
+			let line = (t.alreadyAt || '%s').replace('%s', when(data.first_checked_in_at));
+			if (data.last_checked_in_at && data.admissions > 1) line += ', ' + (t.lastAt || '%s').replace('%s', when(data.last_checked_in_at));
+			if (data.last_checked_in_area) line += ' · ' + (t.atArea || '%s').replace('%s', data.last_checked_in_area);
+			lines.push(line);
+		}
+		return lines;
+	}
+	let overlayTimer = 0;
+	function hideOverlay() {
+		if (!overlay) return;
+		overlay.hidden = true;
+		window.clearTimeout(overlayTimer);
+	}
+	function showOverlay(state, title, lines) {
+		if (!overlay) return;
+		overlay.textContent = '';
+		overlay.dataset.state = state;
+		const icon = document.createElement('div');
+		icon.className = 'wpcap-overlay-icon';
+		icon.textContent = ICONS[state] || '';
+		const heading = document.createElement('div');
+		heading.className = 'wpcap-overlay-title';
+		heading.textContent = title;
+		overlay.appendChild(icon);
+		overlay.appendChild(heading);
+		lines.filter(Boolean).forEach(function (line) {
+			const row = document.createElement('div');
+			row.className = 'wpcap-overlay-line' + (line.indexOf('⚠') === 0 ? ' wpcap-overlay-hint' : '');
+			row.textContent = line;
+			overlay.appendChild(row);
+		});
+		if (t.dismiss) {
+			const close = document.createElement('div');
+			close.className = 'wpcap-overlay-close';
+			close.textContent = t.dismiss;
+			overlay.appendChild(close);
+		}
+		overlay.hidden = false;
+		window.clearTimeout(overlayTimer);
+		// Admissions clear quickly for the next guest; refusals stay until tapped (max. 8 s).
+		overlayTimer = window.setTimeout(hideOverlay, state === 'success' ? 1800 : (state === 'warning' ? 4000 : 8000));
+	}
+	if (overlay) {
+		overlay.addEventListener('click', function () { hideOverlay(); input.focus(); });
+		document.addEventListener('keydown', function () { if (!overlay.hidden) hideOverlay(); });
+	}
+	// show(state, text[, details]): details = { title, lines } for the full-screen overlay.
+	function show(state, text, details) {
 		result.textContent = '';
 		result.dataset.state = state;
 		const icon = document.createElement('span');
@@ -80,11 +174,16 @@
 		message.textContent = text;
 		result.appendChild(icon);
 		result.appendChild(message);
-		if (state !== 'busy') {
-			const prefix = state === 'success' ? (t.ok || 'OK') : (state === 'error' ? (t.refused || 'Refused') : (t.attention || 'Attention'));
-			if (live) live.textContent = prefix + ': ' + text;
-			feedback(state);
-		}
+		if (state === 'busy') { hideOverlay(); return; }
+		const prefix = state === 'success' ? (t.ok || 'OK') : (state === 'error' ? (t.refused || 'Refused') : (t.attention || 'Attention'));
+		if (live) live.textContent = prefix + ': ' + text;
+		feedback(state);
+		const title = (details && details.title) || (state === 'success' ? (t.admitted || t.ok || 'OK') : (state === 'error' ? (t.notAdmitted || t.refused || 'Refused') : (t.attention || 'Attention')));
+		showOverlay(state, title, (details && details.lines) || [text]);
+	}
+	// Short help code ("K7QM-4XWA"): 8 characters without 0/O/1/I; only checkable online.
+	function looksLikeHelpCode(value) {
+		return /^[2-9A-HJ-NP-Z]{8}$/.test(String(value || '').toUpperCase().replace(/[\s\-_.]+/g, ''));
 	}
 	let stream = null;
 	let locked = false;
@@ -200,6 +299,10 @@
 	// offered, and only after an explicit staff decision ("admit after a visual check") are they queued
 	// for the later server check. Reliable offline admission: the offline scanner app with a ticket package.
 	function offline(token) {
+		if (looksLikeHelpCode(token)) {
+			show('warning', t.helpOffline || 'Help codes can only be checked online.');
+			return;
+		}
 		if (!/(^|[^a-f0-9])[a-f0-9]{64}($|[^a-f0-9])/i.test(token)) {
 			show('error', t.invalid || 'Invalid ticket.');
 			return;
@@ -302,9 +405,24 @@
 				show('warning', (code === 'rest_cookie_invalid_nonce' ? (t.sessionExpired || 'Session expired – reload the page.') : (t.systemError || 'System error – scan again.')) + (data.message && response.status < 500 ? ' (' + data.message + ')' : ''));
 				return;
 			}
-			if (!response.ok) throw new Error(data.message || t.invalid || 'Invalid ticket.');
+			// Too many help-code entries: not a verdict on the ticket either.
+			if (response.status === 429) {
+				show('warning', data.message || t.rateLimited || 'Too many attempts.');
+				return;
+			}
+			if (!response.ok) {
+				// Refusal of a known ticket: name the ticket and when it was first used.
+				const info = data.data || {};
+				const message = data.message || t.invalid || 'Invalid ticket.';
+				const refusal = [message].concat(info.event ? [info.event + (info.ticket ? ' — ' + info.ticket : '')] : [], historyLines(info, false), info.staff_hint ? ['⚠ ' + info.staff_hint] : []);
+				show('error', refusal.join(' — '), { lines: refusal });
+				return;
+			}
+			const out = data.status === 'checked_out';
 			// ID/age check of the ticket type ("Ausweis prüfen · Mindestalter 18") for the staff.
-			show('success', (data.status === 'checked_out' ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + data.event + ' — ' + data.ticket + (data.staff_hint && data.status !== 'checked_out' ? ' — ⚠ ' + data.staff_hint : ''));
+			const hint = data.staff_hint && !out ? '⚠ ' + data.staff_hint : '';
+			const lines = [data.event + ' — ' + data.ticket, data.attendee_name || ''].concat(out ? [] : historyLines(data, true), hint ? [hint] : [], data.help_code && !out ? ['⚠ ' + (t.viaHelpCode || 'Help code')] : []).filter(Boolean);
+			show('success', (out ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + lines.join(' — '), { title: out ? (t.checkedOutTitle || 'OUT') : (t.admitted || 'OK'), lines: lines });
 			input.value = '';
 		} catch (error) {
 			show('error', error.message);

@@ -223,7 +223,7 @@ final class Api {
 	private static function scan_payload( $outcome ) {
 		if ( is_wp_error( $outcome ) ) {
 			$data = (array) $outcome->get_error_data();
-			return array_filter( array( 'ok' => false, 'result' => (string) ( $data['result'] ?? $data['ticket_status'] ?? 'error' ), 'code' => $outcome->get_error_code(), 'message' => $outcome->get_error_message(), 'event' => $data['event'] ?? null, 'ticket' => $data['ticket'] ?? null ), static function ( $v ) { return null !== $v; } );
+			return array_filter( array( 'ok' => false, 'result' => (string) ( $data['result'] ?? $data['ticket_status'] ?? 'error' ), 'code' => $outcome->get_error_code(), 'message' => $outcome->get_error_message(), 'event' => $data['event'] ?? null, 'ticket' => $data['ticket'] ?? null ) + array_intersect_key( $data, array_flip( Checkin::CLIENT_ERROR_KEYS ) ), static function ( $v ) { return null !== $v; } );
 		}
 		return array_merge( array( 'ok' => true, 'result' => (string) $outcome['status'] ), $outcome );
 	}

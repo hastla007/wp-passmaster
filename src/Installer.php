@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.8.5';
+	const DB_VERSION = '3.8.6';
 
 	public static function install() {
 		global $wpdb;
@@ -186,6 +186,8 @@ final class Installer {
 				order_id bigint(20) unsigned NOT NULL,
 				ticket_type_id bigint(20) unsigned NOT NULL,
 				token_hash char(64) NOT NULL DEFAULT '',
+				help_hash char(64) NULL DEFAULT NULL,
+				help_n tinyint(3) unsigned NOT NULL DEFAULT 0,
 				attendee_email varchar(190) NOT NULL DEFAULT '',
 				transfer_count tinyint(3) unsigned NOT NULL DEFAULT 0,
 				refunded tinyint(1) unsigned NOT NULL DEFAULT 0,
@@ -194,6 +196,7 @@ final class Installer {
 				PRIMARY KEY  (ticket_id),
 				UNIQUE KEY public_id (public_id),
 				UNIQUE KEY token_hash (token_hash),
+				UNIQUE KEY help_hash (help_hash),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),
 				KEY status (status),

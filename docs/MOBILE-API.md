@@ -72,7 +72,7 @@ Authorization: Bearer wpcapd_<device>_<secret>
 
 ### Scan-Anfragen
 
-`code` ist der gescannte QR-Inhalt. Akzeptiert werden der reine Code (64 Hex-Zeichen) und der Ticket-Link, der ihn enthält. Mit `occurrence_id` prüft der Server zusätzlich, ob das Ticket zum gewählten Termin gehört.
+`code` ist der gescannte QR-Inhalt. Akzeptiert werden der reine Code (64 Hex-Zeichen) und der Ticket-Link, der ihn enthält. Für die manuelle Eingabe, wenn der QR-Code nicht lesbar ist, nimmt `code` auch den 8-stelligen **Hilfscode** des Tickets an (z. B. `K7QM-4XWA`; Groß-/Kleinschreibung, Leerzeichen und Bindestrich egal). Hilfscode-Eingaben sind gedrosselt; darüber antwortet die API mit HTTP 429 (`code: wpcap_help_code_rate_limited`). Ergebnisse per Hilfscode tragen `help_code: true` (siehe [SECURITY.md](SECURITY.md#hilfscode-für-den-einlass)). Mit `occurrence_id` prüft der Server zusätzlich, ob das Ticket zum gewählten Termin gehört.
 
 ```http
 POST /app/scan/check-in
@@ -135,6 +135,8 @@ Ein Scan-Ergebnis ist kein Transportfehler. Es kommt als HTTP 200 mit `ok: false
 HTTP-Fehler gibt es nur bei Authentifizierung (401), Berechtigung oder Rate-Limit (403/429) und ungültigen Anfragen (400).
 
 Hat die Ticketart eine Einlasskontrolle (Ausweispflicht, Mindestalter, Hinweis fürs Personal), enthält das Ergebnis zusätzlich `id_check` (bool), `min_age` (Jahre, 0 = keines) und `staff_hint` (fertiger Anzeigetext, z. B. „Ausweis prüfen · Mindestalter 18“). Die App muss `staff_hint` deutlich anzeigen; der Scan wird dadurch nicht abgelehnt.
+
+**Erstnutzung:** Ein erfolgreicher Einlass enthält `admissions` (Anzahl Einlässe ohne rückgängig gemachte), `first_admission` (`true` beim ersten Einlass) und `first_checked_in_at`/`last_checked_in_at` (UTC, ISO 8601). Bei `already_checked_in`, `daily_limit_reached`, `entry_limit_reached` und `already_inside` liefert die Antwort dieselben Felder plus `last_checked_in_area` (Name des Einlassbereichs), damit die App „Bereits eingelassen um 19:42 · Nordeingang“ anzeigen kann. Der Web-Scanner zeigt sie so an.
 
 `attendee_name` wird nur mitgeliefert, wenn die Einstellung „Teilnehmername im Scanner anzeigen“ (`scanner_show_attendee`) aktiv ist. E-Mail- und Zahlungsdaten liefert die API nie aus.
 

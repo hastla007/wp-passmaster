@@ -29,7 +29,7 @@
 			'Kamera starten': 'Start camera',
 			'Kamera stoppen': 'Stop camera',
 			'Ticketcode manuell': 'Ticket code (manual)',
-			'64-stelliger Code oder Ticket-Link': '64-character code or ticket link',
+			'Ticket-Code, Ticket-Link oder Hilfscode (z. B. K7QM-4XWA)': 'Ticket code, ticket link or help code (e.g. K7QM-4XWA)',
 			'Prüfen': 'Check',
 			'Konflikte nach Synchronisierung': 'Conflicts after sync',
 			'Letzte Scans': 'Recent scans',
@@ -96,7 +96,16 @@
 			'Benötigt HTTPS, WebCrypto und IndexedDB.': 'Requires HTTPS, WebCrypto and IndexedDB.',
 			'Gekoppelt': 'Paired',
 			'Jetzt im Admin unter „Offline-Scanner“ dem Event zuweisen.': 'Now assign it to the event in the admin under “Offline scanner”.',
-			'Kopplung fehlgeschlagen': 'Pairing failed'
+			'Kopplung fehlgeschlagen': 'Pairing failed',
+			'Ton an': 'Sound on',
+			'Ton aus': 'Sound off',
+			'Erstmals eingelassen': 'First admission',
+			'Einlass Nr. %1 – zuerst eingelassen um %2': 'Admission no. %1 – first admitted at %2',
+			'Bereits eingelassen um %1': 'Already admitted at %1',
+			'Per Hilfscode geprüft': 'Checked by help code',
+			'Hilfscode nur online': 'Help code only online',
+			'Hilfscodes können nur online geprüft werden. Bitte QR-Code scannen oder den langen Ticket-Code eingeben.': 'Help codes can only be checked online. Please scan the QR code or enter the long ticket code.',
+			'Zu viele Hilfscode-Eingaben': 'Too many help code entries'
 		}
 	};
 	var SUPPORTED = ['de'].concat(Object.keys(CATALOGS));

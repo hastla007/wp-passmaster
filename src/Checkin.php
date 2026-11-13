@@ -69,16 +69,28 @@ final class Checkin {
 	 * @return array|\WP_Error
 	 */
 	public static function lookup( $code, $at = null, $strict = true, array $context = array() ) {
+		$input = $code;
 		$code = self::normalize_code( $code );
-		if ( '' === $code ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
+		$help_ticket = 0;
+		if ( '' === $code ) {
+			// Staff-only fallback: the short help code printed next to the QR code (rate-limited).
+			$help_ticket = HelpCode::resolve( $input );
+			if ( is_wp_error( $help_ticket ) ) { return $help_ticket; }
+			if ( ! $help_ticket ) {
+				return HelpCode::looks_like( $input )
+					? new \WP_Error( 'wpcap_ticket_not_found', __( 'Hilfscode nicht gefunden. Bitte Zeichen prüfen (ohne 0, O, 1, I).', 'wp-pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) )
+					: new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) );
+			}
+		}
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.public_id,t.status,t.ticket_type_id,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
-			hash( 'sha256', $code )
+			"SELECT t.ticket_id,t.public_id,t.status,t.ticket_type_id,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE " . ( $help_ticket ? 't.ticket_id=%d' : 't.token_hash=%s' ) . ' LIMIT 1',
+			$help_ticket ? $help_ticket : hash( 'sha256', $code )
 		) );
 		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
 		$found = array( 'ticket_id' => (int) $row->ticket_id, 'public_id' => $row->public_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'ends_at' => $row->ends_at, 'timezone' => $row->timezone, 'attendee_name' => (string) $row->attendee_name );
+		if ( $help_ticket ) { $found['help_code'] = true; }
 		// [Passes] Extension point: a ticket may be valid for another occurrence than the one of its
 		// ticket type (multi-date/festival passes). Modules return $found bound to that occurrence
 		// (occurrence_id, event_id, event_name, starts_at, ends_at, timezone and the statuses below);
@@ -227,9 +239,9 @@ final class Checkin {
 			$review = self::offline_conflict( new \WP_Error( 'wpcap_backdated_admission', '', array( 'result' => 'backdated_admission' ) ), $found, $context, $key, $checkin_id );
 			$review_id = (int) ( ( (array) $review->get_error_data() )['conflict_id'] ?? 0 );
 		}
-		Audit::record( 'ticket_checked_in', 'ticket', $ticket->ticket_id, array( 'event_id' => $found['event_id'], 'device_id' => absint( $context['device_id'] ?? 0 ), 'source' => sanitize_key( $context['source'] ?? 'web' ), 'area_id' => absint( $context['area_id'] ?? 0 ) ) );
+		Audit::record( 'ticket_checked_in', 'ticket', $ticket->ticket_id, array_filter( array( 'event_id' => $found['event_id'], 'device_id' => absint( $context['device_id'] ?? 0 ), 'source' => sanitize_key( $context['source'] ?? 'web' ), 'area_id' => absint( $context['area_id'] ?? 0 ), 'via' => empty( $found['help_code'] ) ? null : 'help_code' ), static function ( $v ) { return null !== $v; } ) );
 		do_action( 'wpcap_ticket_checked_in', (int) $ticket->ticket_id, $context );
-		return array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in' ), $review_id ? array( 'conflict_id' => $review_id, 'review' => 'backdated_admission' ) : array() );
+		return array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in' ), self::history( (int) $ticket->ticket_id ), $review_id ? array( 'conflict_id' => $review_id, 'review' => 'backdated_admission' ) : array() );
 	}
 
 	/**
@@ -396,7 +408,40 @@ final class Checkin {
 		}
 		$doors = 'outside_entry_window' === $result ? DoorsOpen::label( DoorsOpen::for_occurrence( (int) $found['occurrence_id'] ), (string) ( $found['timezone'] ?? '' ), (string) ( $found['starts_at'] ?? '' ) ) : '';
 		if ( '' !== $doors ) { $message .= ' ' . $doors . '.'; }
-		return new \WP_Error( $codes[ $result ] ?? 'wpcap_ticket_not_valid', $message, array( 'status' => 409, 'ticket_status' => $result, 'result' => $result, 'event' => $found['event_name'], 'ticket' => $found['ticket_name'], 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'], 'checkin_id' => (int) $checkin_id ) );
+		$data = array( 'status' => 409, 'ticket_status' => $result, 'result' => $result, 'event' => $found['event_name'], 'ticket' => $found['ticket_name'], 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'], 'checkin_id' => (int) $checkin_id );
+		// "Already admitted at 19:42 (Nordeingang)": staff can tell a double scan from a copied ticket.
+		if ( in_array( $result, self::REJECTED_ADMISSION, true ) ) { $data += self::history( (int) $found['ticket_id'] ); }
+		$data += AdmissionChecks::scan_fields( (int) ( $found['ticket_type_id'] ?? 0 ) );
+		if ( ! empty( $found['help_code'] ) ) { $data['help_code'] = true; }
+		return new \WP_Error( $codes[ $result ] ?? 'wpcap_ticket_not_valid', $message, $data );
+	}
+
+	/** Scanner fields passed on to clients with a refused scan (besides result, message, event, ticket). */
+	const CLIENT_ERROR_KEYS = array( 'first_checked_in_at', 'last_checked_in_at', 'last_checked_in_area', 'admissions', 'first_admission', 'id_check', 'min_age', 'staff_hint', 'help_code' );
+
+	/**
+	 * Admission history of a ticket for the scanner result: first and latest admission (UTC, ISO
+	 * 8601), the entrance area of the latest one and the number of admissions (undone ones excluded).
+	 * `first_admission` is true when exactly one admission exists (e.g. the scan that just succeeded).
+	 */
+	public static function history( $ticket_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ticket_id = absint( $ticket_id );
+		$stats = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n,MIN(entered_at) AS first_at,MAX(entry_id) AS last_id FROM {$p}wpcap_admission_entries WHERE ticket_id=%d AND direction='in' AND undone=0", $ticket_id ) );
+		$last = $stats && (int) $stats->n ? $wpdb->get_row( $wpdb->prepare( "SELECT e.entered_at,a.name AS area_name FROM {$p}wpcap_admission_entries e LEFT JOIN {$p}wpcap_admission_areas a ON a.area_id=e.area_id WHERE e.entry_id=%d", (int) $stats->last_id ) ) : null;
+		if ( ! $stats || ! (int) $stats->n ) {
+			// Admissions from before the admission log: the check-in log.
+			$legacy = $wpdb->get_row( $wpdb->prepare( "SELECT SUM(result='checked_in')-SUM(result='undone') AS n,MIN(CASE WHEN result='checked_in' THEN created_at END) AS first_at,MAX(CASE WHEN result='checked_in' THEN created_at END) AS last_at FROM {$p}wpcap_checkins WHERE ticket_id=%d", $ticket_id ) );
+			if ( ! $legacy || (int) $legacy->n <= 0 || ! $legacy->first_at ) { return array(); }
+			return array( 'admissions' => (int) $legacy->n, 'first_admission' => 1 === (int) $legacy->n, 'first_checked_in_at' => gmdate( 'c', strtotime( $legacy->first_at . ' UTC' ) ), 'last_checked_in_at' => gmdate( 'c', strtotime( $legacy->last_at . ' UTC' ) ) );
+		}
+		$out = array( 'admissions' => (int) $stats->n, 'first_admission' => 1 === (int) $stats->n, 'first_checked_in_at' => gmdate( 'c', strtotime( $stats->first_at . ' UTC' ) ) );
+		if ( $last ) {
+			$out['last_checked_in_at'] = gmdate( 'c', strtotime( $last->entered_at . ' UTC' ) );
+			if ( '' !== (string) $last->area_name ) { $out['last_checked_in_area'] = (string) $last->area_name; }
+		}
+		return $out;
 	}
 
 	/** Data shown to scanning staff (no buyer e-mail, no payment data). */
@@ -415,6 +460,7 @@ final class Checkin {
 		if ( null !== $doors ) { $view['doors_open_at'] = gmdate( 'c', strtotime( $doors . ' UTC' ) ); }
 		// ID/age check of the ticket type: shown to staff with every result of a known ticket.
 		$view += AdmissionChecks::scan_fields( (int) ( $found['ticket_type_id'] ?? 0 ) );
+		if ( ! empty( $found['help_code'] ) ) { $view['help_code'] = true; }
 		if ( Settings::get( 'scanner_show_attendee' ) && '' !== $found['attendee_name'] ) {
 			$view['attendee_name'] = $found['attendee_name'];
 		}

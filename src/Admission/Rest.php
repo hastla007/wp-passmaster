@@ -45,7 +45,7 @@ final class Rest {
 	/** Error for the browser: HTTP status, stable result code and message only (no internal ids). */
 	public static function client_error( \WP_Error $error ) {
 		$data = (array) $error->get_error_data();
-		return new \WP_Error( $error->get_error_code(), $error->get_error_message(), array_filter( array( 'status' => (int) ( $data['status'] ?? 409 ), 'result' => isset( $data['result'] ) ? (string) $data['result'] : null, 'ticket_status' => isset( $data['ticket_status'] ) ? (string) $data['ticket_status'] : null, 'event' => $data['event'] ?? null, 'ticket' => $data['ticket'] ?? null ), static function ( $v ) { return null !== $v; } ) );
+		return new \WP_Error( $error->get_error_code(), $error->get_error_message(), array_filter( array( 'status' => (int) ( $data['status'] ?? 409 ), 'result' => isset( $data['result'] ) ? (string) $data['result'] : null, 'ticket_status' => isset( $data['ticket_status'] ) ? (string) $data['ticket_status'] : null, 'event' => $data['event'] ?? null, 'ticket' => $data['ticket'] ?? null ) + array_intersect_key( $data, array_flip( Checkin::CLIENT_ERROR_KEYS ) ), static function ( $v ) { return null !== $v; } ) );
 	}
 
 	/**
