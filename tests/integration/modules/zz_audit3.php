@@ -395,3 +395,14 @@ echo "Audit 3: voucher provider treatment field (A031)\n";
 $C = PassCaptain\Integrations\Vouchers\Checkout::class;
 check( 'A031: treatment payment → multi-purpose, single/discount → single-purpose (reduction)', 'multi' === $C::purpose_from_data( array( 'treatment' => 'payment' ) ) && 'single' === $C::purpose_from_data( array( 'treatment' => 'single' ) ) && 'single' === $C::purpose_from_data( array( 'treatment' => 'discount' ) ) );
 check( 'A031: explicit purpose fields still work without treatment', 'multi' === $C::purpose_from_data( array( 'voucher_type' => 'MPV' ) ) && null === $C::purpose_from_data( array( 'amount_minor' => 100 ) ) );
+
+echo "Audit 3: wpcap_order_paid fires before issuance for paid and free orders (A032)\n";
+$a32_seen = array();
+$a32_cb = static function ( $order_id ) use ( &$a32_seen ) { $a32_seen[ $order_id ] = count( tickets( $order_id ) ); };
+add_action( 'wpcap_order_paid', $a32_cb, 99, 1 );
+$a32_free_type = ex_type( $a4_occ, 'Gratis A32', 0 );
+$GLOBALS['wpcap_test_transients'] = array();
+$a32_free = Orders::create( array( 'email' => 'a32f@example.com', 'items' => array( array( 'ticket_type_id' => $a32_free_type, 'quantity' => 2 ) ), 'idempotency_key' => 'a32f-' . uniqid() ) );
+list( $a32_paid ) = ex_buy( $a4_std, 2, 'a32p@example.com' );
+remove_action( 'wpcap_order_paid', $a32_cb, 99 );
+check( 'A032: listeners see the same state (no tickets yet) for free and paid orders', 0 === ( $a32_seen[ $a32_free['order_id'] ] ?? -1 ) && 0 === ( $a32_seen[ $a32_paid ] ?? -1 ) && 2 === count( tickets( $a32_free['order_id'] ) ) );

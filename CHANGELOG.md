@@ -34,6 +34,7 @@
 - Partner-API: Wiederverkäufer lesen Bestellungen, Tickets und Check-ins nur ihrer eigenen Verkäufe (keine E-Mails anderer Käufer der verknüpften Events).
 - Datenschutztext-Vorschlag: beschreibt die zurückgestellte Löschung bei kommenden Terminen richtig und enthält – sobald genutzt – Abschnitte zu Gästelisten (Art. 14), Wartelisten-Angeboten, Höchstmenge pro Person, Abendkasse/Rechnung auf Firma, Ticketumtausch (inkl. Bankverbindung) und Partnerverkauf; OPERATIONS.md entsprechend korrigiert.
 - Gutschein-Schnittstelle: Das dokumentierte Feld `treatment` (`payment`/`single`/`discount`) wird ausgewertet; Doku der Standardregel korrigiert.
+- Hooks: `wpcap_order_paid` feuert auch bei kostenlosen Bestellungen vor der Ticketausgabe (danach `wpcap_tickets_issued`); das Webhook-Ereignis `order.paid` meldet als `ticket_count` mindestens die bestellte Menge.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

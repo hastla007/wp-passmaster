@@ -335,8 +335,10 @@ final class Orders {
 		$pending = $total || $external;
 		if ( ! $pending ) {
 			Campaigns::commit_for_order( $order_id );
-			self::issue_and_email( $order_id );
+			// Same order as for paid orders (confirm_external_payment): wpcap_order_paid before the
+			// issuance (e.g. seat recovery), wpcap_tickets_issued after it.
 			do_action( 'wpcap_order_paid', $order_id );
+			self::issue_and_email( $order_id );
 		}
 		if ( ! $external ) {
 			self::send_order_access_link( $email, $public_id, $access_token );

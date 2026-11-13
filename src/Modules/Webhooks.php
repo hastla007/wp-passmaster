@@ -101,7 +101,12 @@ final class Webhooks {
 		$p = $wpdb->prefix;
 		$o = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,customer_email,status,payment_status,currency,total_minor,refunded_minor,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
 		if ( ! $o ) { return null; }
-		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d", (int) $o->order_id ) );
+		// Tickets of the order: issued ones, at least the ordered quantity (order.paid fires before the
+		// issuance, see docs/HOOKS.md).
+		$count = max(
+			(int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d", (int) $o->order_id ) ),
+			(int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(' . \PassCaptain\OrderLines::paid( 'quantity', '' ) . "),0) FROM {$p}wpcap_order_items WHERE order_id=%d", (int) $o->order_id ) )
+		);
 		return array(
 			array( 'object' => 'order', 'id' => $o->public_id, 'status' => $o->status, 'payment_status' => $o->payment_status, 'currency' => $o->currency, 'total_minor' => (int) $o->total_minor, 'refunded_minor' => (int) $o->refunded_minor, 'payment_provider' => $o->payment_provider, 'ticket_count' => $count ),
 			array( 'customer_email' => $o->customer_email ),
