@@ -345,7 +345,8 @@ final class ZReport {
 
 	/** Rows [section, label, value] of a Z report (also the CSV export). */
 	public static function rows( $z ) {
-		$t = $z->totals_data;
+		if ( ! is_object( $z ) || ! isset( $z->totals_data ) ) { return array(); } // Unknown or not loaded via get().
+		$t = (array) $z->totals_data;
 		$cur = $z->currency;
 		$tz = Scope::site_timezone();
 		$register = Registers::get( $z->register_id );
@@ -459,6 +460,7 @@ final class ZReport {
 
 	/** Printable HTML (A4; "Drucken" or "Als PDF speichern" in the browser). */
 	public static function html( $z ) {
+		if ( ! is_object( $z ) ) { return ''; }
 		$seller = (string) Settings::get( 'seller_name' );
 		/* translators: 1: Z number, 2: register */
 		$title = sprintf( __( 'Z-Bericht Nr. %1$d – %2$s', 'wp-pass-captain' ), (int) $z->z_number, ( $r = Registers::get( $z->register_id ) ) ? $r->name : '#' . (int) $z->register_id );

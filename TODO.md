@@ -426,7 +426,7 @@ Verdachtsfälle (nicht end-to-end bestätigt):
 Verdachtsfälle:
 - [x] [VERDACHT] Pass mit zwei Terminen am selben Tag: Web-Scanner bindet an Betriebstag, zweiter Scan „Tageskontingent erreicht“ – Abendshow vermutlich nicht betretbar.
 - [x] [VERDACHT] Blindzählung wirkt nur für Kassierer ohne Manager-/Finanzrecht; UI erklärt das nicht.
-- [ ] [VERDACHT] `src/BoxOffice/ZReport.php` `rows()` ohne Null-Prüfung (Warnings bei ungültiger ID).
+- [x] [VERDACHT] `src/BoxOffice/ZReport.php` `rows()` ohne Null-Prüfung (Warnings bei ungültiger ID).
 
 Fehlende Abläufe: Wartelisten-Eintrag für Käufer:innen; Rabattcode-Verwaltung; Ticketarten je Termin kopieren/Vorlagen; Erstattung per Überweisung mit IBAN und Status „ausgezahlt“; Gutschrift/Rechnungskorrektur in Admin und Portal verlinken; Ticketmail mit Portal-Link, Bestellnummer und Teilnehmernamen, Umtauschmail mit PDF; Verkaufsschluss für Überweisung; Absage-Vorschau; Terminauswahl im Web-Scanner. Nicht geprüft: Offline-PWA, Wartelisten-Fristablauf, Woo-Classic-Checkout, Serien-Preisstufe und Rabatt in Woo.
 

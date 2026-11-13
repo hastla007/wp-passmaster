@@ -842,3 +842,11 @@ $a68 = Orders::resend_tickets( $a68_o, array( 'skip_transferred' => true ) );
 check( 'A068: self-service resend renews own tickets only; the transferred ticket keeps its code and gets no mail', true === $a68 && $a68_before[0] !== $a68_hash( $a68_t[0] ) && $a68_before[1] === $a68_hash( $a68_t[1] ) && ! array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => 'friend.a68@example.com' === $m['to'] ) );
 $a68_src = file_get_contents( dirname( __DIR__, 3 ) . '/src/Rest/Controller.php' );
 check( 'A068: the order portal resend uses skip_transferred', false !== strpos( $a68_src, "Orders::resend_tickets( (int) \$order->order_id, array( 'skip_transferred' => true ) )" ) );
+
+echo "Audit 3: Z report output tolerates an unknown report (A072)\n";
+$a72_warn = array();
+set_error_handler( static function ( $no, $msg ) use ( &$a72_warn ) { $a72_warn[] = $msg; return true; } );
+$a72_rows = PassCaptain\BoxOffice\ZReport::rows( PassCaptain\BoxOffice\ZReport::get( 987654321 ) );
+$a72_html = PassCaptain\BoxOffice\ZReport::html( null );
+restore_error_handler();
+check( 'A072: rows()/html() of an unknown Z report return empty without PHP warnings', array() === $a72_rows && '' === $a72_html && ! $a72_warn );
