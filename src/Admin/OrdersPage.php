@@ -53,6 +53,23 @@ final class OrdersPage {
 		return array( 'order_id' => (int) $order->order_id );
 	}
 
+	/**
+	 * Retries the ticket allocation of a paid order flagged `needs_review` (late payment without
+	 * free capacity at that moment), e.g. after capacity was freed or a transient error. Any
+	 * provider except WooCommerce (handled by its own order action).
+	 */
+	public static function retry_allocation( array $in ) {
+		$order = self::order_for_action( $in );
+		if ( is_wp_error( $order ) ) { return $order; }
+		if ( 'needs_review' !== $order->status || 'paid_unallocated' !== $order->payment_status || 'woocommerce' === $order->payment_provider ) {
+			return Forms::error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'wp-pass-captain' ), 409 );
+		}
+		$result = Orders::confirm_external_payment( $order->order_id, 'retry:user-' . get_current_user_id() );
+		if ( is_wp_error( $result ) ) { return Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ); }
+		\PassCaptain\Audit::record( 'allocation_retried', 'order', (int) $order->order_id );
+		return array( 'order_id' => (int) $order->order_id );
+	}
+
 	/** Cancels an unpaid order. */
 	public static function cancel_order( array $in ) {
 		$order = self::order_for_action( $in );
@@ -160,6 +177,13 @@ final class OrdersPage {
 		$order_id = Forms::int( $in, 'order_id' );
 		Forms::verify( 'wpcap_confirm_payment_' . $order_id );
 		Forms::finish( self::confirm_payment( $in ), __( 'Zahlung bestätigt; Tickets wurden ausgestellt.', 'wp-pass-captain' ), self::order_url( $order_id ) );
+	}
+
+	public static function handle_retry_allocation() {
+		$in = Forms::post();
+		$order_id = Forms::int( $in, 'order_id' );
+		Forms::verify( 'wpcap_retry_allocation_' . $order_id );
+		Forms::finish( self::retry_allocation( $in ), __( 'Kontingent zugeteilt; Tickets wurden ausgestellt.', 'wp-pass-captain' ), self::order_url( $order_id ) );
 	}
 
 	public static function handle_cancel_order() {
@@ -316,7 +340,8 @@ final class OrdersPage {
 			<div class="notice notice-error inline"><p><?php echo esc_html( sprintf( /* translators: 1: amount, 2: error code */ __( 'Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten.', 'wp-pass-captain' ), Forms::money( (int) $voucher['amount_minor'], $order->currency ), (string) ( $voucher['error'] ?? '' ) ) ); ?></p></div>
 		<?php endif; ?>
 		<?php if ( 'needs_review' === $order->status ) : ?>
-			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben oder die Zahlung außerhalb des Plugins zurückerstatten.', 'wp-pass-captain' ); ?></p></div>
+			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung außerhalb des Plugins zurückerstatten.', 'wp-pass-captain' ); ?></p>
+			<?php if ( 'paid_unallocated' === $order->payment_status && ! $is_woo ) : ?><p><?php Forms::open_form( 'wpcap_retry_allocation', 'wpcap_retry_allocation_' . $order_id, 'style="display:inline"' ); Forms::hidden( 'order_id', $order_id ); ?><button class="button" type="submit"><?php esc_html_e( 'Zuteilung erneut versuchen', 'wp-pass-captain' ); ?></button></form></p><?php endif; ?></div>
 		<?php endif; ?>
 
 		<table class="form-table"><tbody>

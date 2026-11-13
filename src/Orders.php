@@ -473,6 +473,15 @@ final class Orders {
 		return $out;
 	}
 
+	/**
+	 * Whether a module error is transient (deadlock, lock wait timeout): code db_busy/wpcap_db_busy,
+	 * `retryable` in its data, or HTTP status 503.
+	 */
+	public static function is_retryable_error( \WP_Error $error ) {
+		$data = (array) $error->get_error_data();
+		return in_array( $error->get_error_code(), array( 'db_busy', 'wpcap_db_busy' ), true ) || ! empty( $data['retryable'] ) || 503 === (int) ( $data['status'] ?? 0 );
+	}
+
 	/** Rolls back a payment confirmation that hit a deadlock/lock timeout; callers retry (webhooks get a 5xx). */
 	private static function payment_busy() {
 		global $wpdb;
@@ -961,6 +970,9 @@ final class Orders {
 				if ( $error ) { break; }
 				$per_occurrence[ (int) $occurrence->occurrence_id ] = ( $per_occurrence[ (int) $occurrence->occurrence_id ] ?? 0 ) + (int) $line->quantity;
 			}
+			// A transient lock problem (deadlock, lock wait timeout) is no "sold out": roll back so the
+			// payment provider redelivers the webhook (5xx) instead of flagging a paid order for review.
+			if ( 'db_busy' === $error || ( $reserve_error && self::is_retryable_error( $reserve_error ) ) ) { return self::payment_busy(); }
 			if ( ! $error && $reserve_error ) {
 				$error = $reserve_error->get_error_code();
 			}
@@ -971,6 +983,7 @@ final class Orders {
 					if ( $error ) { break; }
 				}
 			}
+			if ( 'db_busy' === $error ) { return self::payment_busy(); }
 			if ( $error ) {
 				$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'needs_review', 'payment_status' => 'paid_unallocated', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
 				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='expired' WHERE order_id=%d AND status='active'", $order_id ) );

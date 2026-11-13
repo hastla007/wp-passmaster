@@ -29,6 +29,7 @@ final class Menu {
 			'wpcap_assign_staff' => array( EventsPage::class, 'handle_assign_staff' ),
 			'wpcap_remove_staff' => array( EventsPage::class, 'handle_remove_staff' ),
 			'wpcap_confirm_payment' => array( OrdersPage::class, 'handle_confirm_payment' ),
+			'wpcap_retry_allocation' => array( OrdersPage::class, 'handle_retry_allocation' ),
 			'wpcap_cancel_order' => array( OrdersPage::class, 'handle_cancel_order' ),
 			'wpcap_resend_tickets' => array( OrdersPage::class, 'handle_resend_tickets' ),
 			'wpcap_refund_order' => array( OrdersPage::class, 'handle_refund' ),
