@@ -166,9 +166,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Exchange/Service.php:949–993` — 
 - [x] **A074** [VERDACHT] `capacity_error_counted` zieht nur `active`-Holds ab; bereits `expired`, aber nicht synchronisierte Holds blockieren im Grenzfall die eigene späte Zahlung. — _OFFEN_ (TODO L489; Architektur und QA (Prüfung 5))
   - `src/Orders.php:524–557` — 
-- [ ] **A075** [VERDACHT] zwei Abrechnungswege mit eigener Zuordnung; Verrechnung bei selbst verkaufenden Veranstaltern nur manuell. — _OFFEN_ (TODO L490; Architektur und QA (Prüfung 5))
+- [x] **A075** [VERDACHT] zwei Abrechnungswege mit eigener Zuordnung; Verrechnung bei selbst verkaufenden Veranstaltern nur manuell. — _OFFEN_ (TODO L490; Architektur und QA (Prüfung 5))
   - `src/Partners/Statement.php` vs. `src/Partners/Settlements.php` — 
-  - Geprüft 13.11.: hängt an der offenen Entscheidung „selbst vereinnahmte API-Verkäufe automatisch von der Auszahlung abziehen?“ – die Abrechnung weist sie bereits informativ aus (Teil „vereinnahmte Ticketerlöse“). Umsetzung erst nach Entscheidung.
+  - Geprüft 13.11.: hängt an der offenen Entscheidung „selbst vereinnahmte API-Verkäufe automatisch von der Auszahlung abziehen?“ – die Abrechnung weist sie bereits informativ aus (Teil „vereinnahmte Ticketerlöse“). Entscheidung 13.11.: ja, automatisch verrechnen, negativer Saldo standardmäßig vortragen – umgesetzt.
 - [x] **A076** [VERDACHT] Datenschutz-Löschung widerruft Tickets ohne Kontingentfreigabe (anders als `Orders::revoke_tickets`). — _OFFEN_ (TODO L491; Architektur und QA (Prüfung 5))
 - [x] **A077** [VERDACHT] Module nicht einzeln abschaltbar; Filterlast auch ohne Nutzung. — _OFFEN_ (TODO L492; Architektur und QA (Prüfung 5))
   - `Modules::register_all` — 

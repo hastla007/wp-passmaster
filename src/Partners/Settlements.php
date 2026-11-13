@@ -97,6 +97,8 @@ final class Settlements {
 		$events = Repository::event_ids( $partner->partner_id );
 		$lines = array();
 		$comp_tickets = 0;
+		$collected_self = 0;
+		$self_orders = array();
 		if ( $events ) {
 			$in = implode( ',', array_map( 'absint', $events ) );
 			$settled = array_flip( $wpdb->get_col( $wpdb->prepare( "SELECT source_key FROM {$p}wpcap_partner_settlement_lines WHERE partner_id=%d AND source_key IS NOT NULL", (int) $partner->partner_id ) ) );
@@ -107,6 +109,9 @@ final class Settlements {
 			// Sales.
 			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.created_at,ord.discount_minor,ord.payment_provider FROM {$p}wpcap_orders ord WHERE ord.payment_status IN ('paid','refunded') AND ord.currency=%s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY ord.order_id", $partner->currency, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list / prepared fragment.
 			$by_order = self::lines_by_order( array_map( static function ( $o ) { return (int) $o->order_id; }, $orders ), $line_sql );
+			// API sales this organizer sold and collected itself (seller of record = this partner): the money
+			// is already with the organizer, so it is netted against the payout (fees still apply).
+			$self_orders = self::self_collected_orders( $partner );
 			$comp_providers = Data::comp_providers();
 			foreach ( $orders as $order ) {
 				$order_lines = $by_order[ (int) $order->order_id ] ?? array();
@@ -134,6 +139,7 @@ final class Settlements {
 					// An exchange supplement pays for a ticket already counted (and charged) on its original order.
 					$tickets = $supplement ? 0 : (int) $line->quantity;
 					$lines[] = self::line( $order->created_at >= $start ? 'sale' : 'late_sale', $key, $line, (int) $order->order_id, 0, $order->created_at, $order->created_at, $tickets, $gross, $tax, $partner, $tz );
+					if ( isset( $self_orders[ (int) $order->order_id ] ) ) { $collected_self += $gross; }
 				}
 				// A single-purpose voucher was booked as a discount (VAT was due when it was sold): the
 				// organizer still earns the full ticket price, the voucher value is a claim against the
@@ -175,11 +181,13 @@ final class Settlements {
 					if ( isset( $settled[ $key ] ) ) { continue; }
 					$kind = $refund->order_created_at >= $start ? 'refund' : 'correction';
 					$lines[] = self::line( $kind, $key, $line, (int) $refund->order_id, (int) $refund->refund_id, $refund->updated_at, $refund->order_created_at, -$share['tickets'], -$share['amount'], -$share['tax'], $partner, $tz );
+					// The organizer refunded its own API sale from the money it collected.
+					if ( isset( $self_orders[ (int) $refund->order_id ] ) ) { $collected_self -= (int) $share['amount']; }
 				}
 			}
 		}
 		usort( $lines, static function ( $a, $b ) { return array( $a['occurred_at'], $a['item_key'] ) <=> array( $b['occurred_at'], $b['item_key'] ); } );
-		$totals = self::totals( $lines, $partner );
+		$totals = self::totals( $lines, $partner, array( 'collected_self' => $collected_self, 'carry_in' => self::carry_in( $partner, $period ) ) );
 		$totals['comp_tickets'] = $comp_tickets;
 		return array( 'lines' => $lines, 'totals' => $totals );
 	}
@@ -267,8 +275,33 @@ final class Settlements {
 		return $out;
 	}
 
+	/** Order ids (as keys) the partner sold through the API and collected itself. */
+	private static function self_collected_orders( $partner ) {
+		global $wpdb;
+		if ( ! \PassCaptain\Privacy::has_table( 'wpcap_partner_orders' ) ) { return array(); }
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT po.order_id FROM {$wpdb->prefix}wpcap_partner_orders po INNER JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=po.order_id WHERE po.partner_id=%d AND o.payment_provider=%s", (int) $partner->partner_id, Sales::PROVIDER ) );
+		return array_flip( array_map( 'intval', (array) $ids ) );
+	}
+
+	/**
+	 * Negative balance carried in from the partner's previous finalized settlement (≤ 0): a period in
+	 * which the organizer owed more than it was due (self-collected sales, fees) is netted here.
+	 */
+	public static function carry_in( $partner, $period ) {
+		global $wpdb;
+		$prev = $wpdb->get_var( $wpdb->prepare( "SELECT totals FROM {$wpdb->prefix}wpcap_partner_settlements WHERE partner_id=%d AND status='finalized' AND period < %s ORDER BY period DESC, settlement_id DESC LIMIT 1", (int) $partner->partner_id, (string) $period ) );
+		$t = $prev ? (array) json_decode( (string) $prev, true ) : array();
+		return min( 0, (int) ( $t['carry_out'] ?? 0 ) );
+	}
+
+	/** How a negative balance is settled: 'carry' (default, next statement) or 'invoice' (amount due now). */
+	public static function negative_balance_mode() {
+		$mode = (string) \PassCaptain\Settings::get( 'partner_negative_balance' );
+		return 'invoice' === $mode ? 'invoice' : 'carry';
+	}
+
 	/** Totals of a line set under the partner's terms. */
-	public static function totals( array $lines, $partner ) {
+	public static function totals( array $lines, $partner, array $netting = array() ) {
 		$t = array( 'tickets_sold' => 0, 'tickets_refunded' => 0, 'sales_gross' => 0, 'sales_tax' => 0, 'refunded' => 0, 'refunded_tax' => 0, 'gross' => 0, 'tax' => 0, 'net' => 0, 'corrections' => 0, 'commission' => 0, 'fee' => 0, 'rates' => array(), 'events' => array(), 'kinds' => array() );
 		foreach ( $lines as $l ) {
 			if ( 0 === $l['refund_id'] ) {
@@ -322,10 +355,20 @@ final class Settlements {
 		$t['platform_fee_gross'] = $t['platform_fee_net'] + $t['platform_fee_tax'];
 		if ( SalesModel::OWN_NAME === $model ) {
 			$t['self_billing'] = self::self_billing_totals( $t['rates'], $partner, $partner_country, $platform );
-			$t['payout'] = $t['self_billing']['gross'] - $t['platform_fee_gross'];
+			$t['payout_before_netting'] = $t['self_billing']['gross'] - $t['platform_fee_gross'];
 		} else {
-			$t['payout'] = $t['gross'] - $t['platform_fee_gross'];
+			$t['payout_before_netting'] = $t['gross'] - $t['platform_fee_gross'];
 		}
+		// Netting: money the organizer collected itself (own API sales) is not paid out again; a negative
+		// balance of the previous statement is carried in. A negative result is never paid out: it is
+		// carried to the next statement (default) or due from the organizer now (setting).
+		$t['collected_self'] = (int) ( $netting['collected_self'] ?? 0 );
+		$t['carry_in'] = min( 0, (int) ( $netting['carry_in'] ?? 0 ) );
+		$t['balance'] = $t['payout_before_netting'] - $t['collected_self'] + $t['carry_in'];
+		$t['negative_balance_mode'] = self::negative_balance_mode();
+		$t['payout'] = max( 0, $t['balance'] );
+		$t['carry_out'] = ( $t['balance'] < 0 && 'carry' === $t['negative_balance_mode'] ) ? $t['balance'] : 0;
+		$t['due_from_partner'] = ( $t['balance'] < 0 && 'invoice' === $t['negative_balance_mode'] ) ? -$t['balance'] : 0;
 		$t['terms'] = array( 'commission_bp' => (int) $partner->commission_bp, 'fee_per_ticket_minor' => (int) $partner->fee_per_ticket_minor, 'fee_tax_rate_bp' => (int) $partner->fee_tax_rate_bp, 'refund_policy' => (string) $partner->refund_policy, 'currency' => (string) $partner->currency );
 		return $t;
 	}
@@ -754,6 +797,21 @@ final class Settlements {
 	}
 
 	private static function payout_row( $s, $money ) {
+		$t = (array) json_decode( (string) ( $s->totals ?? '' ), true );
+		$h = '';
+		if ( isset( $t['balance'] ) ) {
+			// Netting (statements from this version on): self-collected API sales and the carried balance.
+			$row = static function ( $label, $minor ) use ( $money ) { return '<tr><td>' . esc_html( $label ) . '</td><td class="n">' . esc_html( $money( (int) $minor ) ) . '</td></tr>'; };
+			if ( (int) $t['collected_self'] || (int) $t['carry_in'] ) {
+				$h .= $row( __( 'Zwischensumme vor Verrechnung', 'wp-pass-captain' ), (int) $t['payout_before_netting'] );
+				if ( (int) $t['collected_self'] ) { $h .= $row( __( 'abzüglich von Ihnen selbst vereinnahmte Ticketerlöse (eigene API-Verkäufe, nach Erstattungen)', 'wp-pass-captain' ), -(int) $t['collected_self'] ); }
+				if ( (int) $t['carry_in'] ) { $h .= $row( __( 'Saldovortrag aus der vorigen Abrechnung', 'wp-pass-captain' ), (int) $t['carry_in'] ); }
+			}
+			$h .= '<tr><th>' . esc_html__( 'Auszahlungsbetrag an Veranstalter', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html( $money( (int) $t['payout'] ) ) . '</th></tr>';
+			if ( (int) $t['carry_out'] < 0 ) { $h .= $row( __( 'Offener Saldo, wird mit der nächsten Abrechnung verrechnet', 'wp-pass-captain' ), (int) $t['carry_out'] ); }
+			if ( (int) $t['due_from_partner'] > 0 ) { $h .= '<tr><th>' . esc_html__( 'Forderung an Veranstalter (bitte überweisen)', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html( $money( (int) $t['due_from_partner'] ) ) . '</th></tr>'; }
+			return $h;
+		}
 		$payout_label = (int) $s->payout_minor >= 0 ? __( 'Auszahlungsbetrag an Veranstalter', 'wp-pass-captain' ) : __( 'Forderung an Veranstalter', 'wp-pass-captain' );
 		return '<tr><th>' . esc_html( $payout_label ) . '</th><th class="n">' . esc_html( $money( abs( (int) $s->payout_minor ) ) ) . '</th></tr>';
 	}

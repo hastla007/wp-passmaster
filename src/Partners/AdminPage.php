@@ -118,7 +118,7 @@ final class AdminPage {
 				$prefix = preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'settlement_prefix', 10 ) );
 				$self_billing = preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'self_billing_prefix', 10 ) );
 				$values = array( 'settlement_prefix' => '' !== $prefix ? $prefix : 'PA', 'self_billing_prefix' => '' !== $self_billing ? $self_billing : 'GU', 'rate_limit' => max( 1, min( 100000, Forms::int( $in, 'rate_limit', 120 ) ) ), 'write_rate_limit' => max( 1, min( 100000, Forms::int( $in, 'write_rate_limit', 30 ) ) ) );
-				Settings::update( array( 'partners' => $values ) );
+				Settings::update( array( 'partners' => $values, 'partner_negative_balance' => Forms::choice( $in, 'partner_negative_balance', array( 'carry', 'invoice' ), 'carry' ) ) );
 				return $values;
 			case 'save_price':
 				$raw = trim( (string) ( is_scalar( $in['price'] ?? '' ) ? $in['price'] : '' ) );
@@ -253,7 +253,11 @@ final class AdminPage {
 		echo '<table class="form-table"><tbody><tr><th scope="row"><label for="wpcap-pa-prefix">' . esc_html__( 'Präfix der Abrechnungsnummern', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-pa-prefix" name="settlement_prefix" maxlength="10" value="' . esc_attr( (string) ( $settings['settlement_prefix'] ?? 'PA' ) ) . '"><p class="description">' . esc_html__( 'Fortlaufend und lückenlos je Jahr, z. B. PA-2026-000001. Gilt für Provisionsrechnungen (Vermittler) und Rechnungen über Plattformgebühren (Eigenhändler).', 'wp-pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-pa-sb-prefix">' . esc_html__( 'Präfix der Gutschriftsnummern (Eigenhändler)', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-pa-sb-prefix" name="self_billing_prefix" maxlength="10" value="' . esc_attr( (string) ( $settings['self_billing_prefix'] ?? 'GU' ) ) . '"><p class="description">' . esc_html__( 'Eigener lückenloser Nummernkreis für Gutschriften im Sinne von § 14 Abs. 2 Satz 2 UStG, z. B. GU-2026-000001.', 'wp-pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-pa-rate">' . esc_html__( 'Standard-Ratenlimit (Anfragen pro Minute und Key)', 'wp-pass-captain' ) . '</label></th><td><input type="number" id="wpcap-pa-rate" name="rate_limit" min="1" max="100000" value="' . (int) ( $settings['rate_limit'] ?? 120 ) . '"></td></tr>';
-		echo '<tr><th scope="row"><label for="wpcap-pa-wrate">' . esc_html__( 'Standard-Ratenlimit für Verkäufe (schreibende Anfragen pro Minute und Key)', 'wp-pass-captain' ) . '</label></th><td><input type="number" id="wpcap-pa-wrate" name="write_rate_limit" min="1" max="100000" value="' . (int) ( $settings['write_rate_limit'] ?? 30 ) . '"></td></tr></tbody></table>';
+		echo '<tr><th scope="row"><label for="wpcap-pa-wrate">' . esc_html__( 'Standard-Ratenlimit für Verkäufe (schreibende Anfragen pro Minute und Key)', 'wp-pass-captain' ) . '</label></th><td><input type="number" id="wpcap-pa-wrate" name="write_rate_limit" min="1" max="100000" value="' . (int) ( $settings['write_rate_limit'] ?? 30 ) . '"></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-pa-negative">' . esc_html__( 'Negativer Saldo in der Veranstalter-Abrechnung', 'wp-pass-captain' ) . '</label></th><td>';
+		Forms::select( 'partner_negative_balance', array( 'carry' => __( 'in die nächste Abrechnung vortragen (Standard)', 'wp-pass-captain' ), 'invoice' => __( 'sofort als Forderung an den Veranstalter ausweisen', 'wp-pass-captain' ) ), Settlements::negative_balance_mode(), 'wpcap-pa-negative' );
+		echo '<p class="description">' . esc_html__( 'Selbst vereinnahmte Erlöse aus eigenen API-Verkäufen werden automatisch von der Auszahlung abgezogen (die Gebühren fallen trotzdem an). Ergibt sich ein negativer Betrag, wird nichts ausgezahlt.', 'wp-pass-captain' ) . '</p></td></tr>';
+		echo '</tbody></table>';
 		submit_button( __( 'Einstellungen speichern', 'wp-pass-captain' ), 'secondary' );
 		echo '</form></div>';
 	}
@@ -422,7 +426,7 @@ final class AdminPage {
 			__( 'Verkaufte / erstattete Tickets', 'wp-pass-captain' ) => $t['tickets_sold'] . ' / ' . $t['tickets_refunded'],
 			__( 'Vereinnahmt brutto nach Erstattungen', 'wp-pass-captain' ) => Forms::money( $t['gross'], $partner->currency ),
 			__( 'Vergütung (Provision + Gebühren) inkl. USt', 'wp-pass-captain' ) => Forms::money( $t['remuneration_gross'], $partner->currency ),
-			__( 'An die Plattform abzuführen', 'wp-pass-captain' ) => ( $t['due_to_platform'] < 0 ? '-' : '' ) . Forms::money( abs( $t['due_to_platform'] ), $partner->currency ),
+			( ! empty( $t['netted_in_settlement'] ) ? __( 'Wird mit der Veranstalter-Abrechnung verrechnet', 'wp-pass-captain' ) : __( 'An die Plattform abzuführen', 'wp-pass-captain' ) ) => ( $t['due_to_platform'] < 0 ? '-' : '' ) . Forms::money( abs( $t['due_to_platform'] ), $partner->currency ),
 		);
 		echo '<table class="widefat striped" style="max-width:40rem"><tbody>';
 		foreach ( $rows as $label => $value ) { echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td class="num">' . esc_html( $value ) . '</td></tr>'; }

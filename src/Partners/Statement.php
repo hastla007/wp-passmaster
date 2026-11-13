@@ -130,6 +130,9 @@ final class Statement {
 		$t['remuneration_document'] = (string) apply_filters( 'wpcap_reseller_statement_document', 'reseller_invoice', $partner );
 		$t['remuneration_gross'] = $t['remuneration_net'] + $t['remuneration_tax'];
 		$t['due_to_platform'] = $t['gross'] - $t['remuneration_gross'];
+		// An organizer selling its own events: the money it collected is netted automatically against its
+		// organizer settlement payout (Settlements, "collected_self") – nothing is transferred separately.
+		$t['netted_in_settlement'] = Repository::ROLE_ORGANIZER === Repository::role_of( $partner );
 		$t['terms'] = array( 'role' => Repository::role_of( $partner ), 'commission_bp' => (int) ( $partner->reseller_commission_bp ?? 0 ), 'fee_per_ticket_minor' => (int) ( $partner->reseller_fee_minor ?? 0 ), 'fee_tax_rate_bp' => (int) $partner->fee_tax_rate_bp );
 		return $t;
 	}
@@ -146,7 +149,7 @@ final class Statement {
 			'totals' => array(
 				'tickets_sold' => $t['tickets_sold'], 'tickets_refunded' => $t['tickets_refunded'], 'sales_gross_minor' => $t['sales_gross'], 'refunded_minor' => $t['refunded'],
 				'gross_minor' => $t['gross'], 'tax_minor' => $t['tax'], 'net_minor' => $t['net'], 'commission_minor' => $t['commission'], 'fee_minor' => $t['fee'],
-				'remuneration_net_minor' => $t['remuneration_net'], 'remuneration_tax_minor' => $t['remuneration_tax'], 'remuneration_gross_minor' => $t['remuneration_gross'], 'due_to_platform_minor' => $t['due_to_platform'],
+				'remuneration_net_minor' => $t['remuneration_net'], 'remuneration_tax_minor' => $t['remuneration_tax'], 'remuneration_gross_minor' => $t['remuneration_gross'], 'due_to_platform_minor' => $t['due_to_platform'], 'netted_in_settlement' => (bool) $t['netted_in_settlement'],
 				'remuneration_reverse_charge' => $t['remuneration_reverse_charge'], 'remuneration_small_business' => $t['remuneration_small_business'], 'remuneration_note' => $t['remuneration_note'], 'remuneration_document' => $t['remuneration_document'],
 			),
 			'lines' => array_map( static function ( $l ) use ( $iso ) {
@@ -172,7 +175,7 @@ final class Statement {
 		$rows[] = array( __( 'USt auf Vergütung', 'wp-pass-captain' ), $money( $t['remuneration_tax'] ) );
 		if ( '' !== $t['remuneration_note'] ) { $rows[] = array( __( 'Hinweis Vergütung', 'wp-pass-captain' ), $t['remuneration_note'] ); }
 		$rows[] = array( __( 'Beleg der Vergütung', 'wp-pass-captain' ), 'self_billing' === $t['remuneration_document'] ? __( 'Gutschrift der Plattform', 'wp-pass-captain' ) : __( 'Rechnung des Wiederverkäufers (eigene Rechnungsnummer)', 'wp-pass-captain' ) );
-		$rows[] = array( __( 'An die Plattform abzuführen', 'wp-pass-captain' ), $money( $t['due_to_platform'] ) );
+		$rows[] = array( $t['netted_in_settlement'] ? __( 'Wird mit der Veranstalter-Abrechnung verrechnet', 'wp-pass-captain' ) : __( 'An die Plattform abzuführen', 'wp-pass-captain' ), $money( $t['due_to_platform'] ) );
 		return $rows;
 	}
 }

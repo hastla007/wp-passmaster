@@ -341,8 +341,17 @@ curl -X POST https://example.com/wp-json/wp-pass-captain/v1/partner/orders/6f1c0
   Erstattungen (nach Abschluss), mit Vergütung = Provision % vom Netto + Gebühr je Ticket (bei
   Erstattungen storniert) zzgl. USt; *An die Plattform abzuführen* = vereinnahmt brutto nach
   Erstattungen − Vergütung brutto. Bei Veranstaltern, die selbst verkaufen, ist die Vergütung
-  normalerweise 0 – der Betrag zeigt dann, was der Veranstalter selbst kassiert hat und mit seiner
-  Auszahlung zu verrechnen ist. Die Aufstellung wird bei jedem Aufruf berechnet (keine Belegnummer).
+  normalerweise 0 – der Betrag zeigt dann, was der Veranstalter selbst kassiert hat; er wird
+  automatisch mit der Veranstalter-Abrechnung verrechnet (`netted_in_settlement: true`). Die Aufstellung
+  wird bei jedem Aufruf berechnet (keine Belegnummer).
+- **Automatische Verrechnung**: Eigene API-Verkäufe eines Veranstalters (Zahlungsanbieter `partner`,
+  Verkäufer = derselbe Veranstalter) zählen in der Veranstalter-Abrechnung für Provision und Gebühren,
+  werden aber als *von Ihnen selbst vereinnahmte Ticketerlöse* (nach Erstattungen) von der Auszahlung
+  abgezogen. Ergibt sich ein negativer Saldo, wird nichts ausgezahlt: Standard ist der Vortrag in die
+  nächste Abrechnung (*Saldovortrag aus der vorigen Abrechnung*), alternativ (Einstellungen →
+  „Negativer Saldo …“) eine sofortige *Forderung an Veranstalter*. Felder in `totals`:
+  `payout_before_netting`, `collected_self`, `carry_in`, `balance`, `payout`, `carry_out`,
+  `due_from_partner`, `negative_balance_mode`.
 
 ## Abrechnungen
 

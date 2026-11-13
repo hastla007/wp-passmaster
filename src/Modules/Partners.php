@@ -44,7 +44,9 @@ final class Partners {
 	}
 
 	public static function settings_defaults() {
-		return array( 'partners' => array( 'settlement_prefix' => 'PA', 'self_billing_prefix' => 'GU', 'rate_limit' => 120, 'write_rate_limit' => 30 ) );
+		// partner_negative_balance: negative statement balance (self-collected API sales, fees) is carried
+		// to the next statement ('carry', default) or due from the organizer at once ('invoice').
+		return array( 'partners' => array( 'settlement_prefix' => 'PA', 'self_billing_prefix' => 'GU', 'rate_limit' => 120, 'write_rate_limit' => 30 ), 'partner_negative_balance' => 'carry' );
 	}
 
 	public static function schema( $prefix, $charset ) {

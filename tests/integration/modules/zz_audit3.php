@@ -944,3 +944,40 @@ $a81c_x = Exchange::request( $a81c_ids[0], $a81c_cheap, array( 'channel' => 'adm
 remove_action( 'wpcap_exchange_refund_external', $a81c_hook, 5 );
 $a81c_row = is_wp_error( $a81c_x ) ? array() : Exchange::get( (int) $a81c_x['exchange_id'] );
 check( 'A081c: no plugin refund; status "woocommerce"; external refund hook with the difference', ! is_wp_error( $a81c_x ) && 'woocommerce' === ( $a81c_row['refund_status'] ?? '' ) && array( array( $a81c_o, 3000 ) ) === $a81c_ext && 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_refunds WHERE order_id=%d", $a81c_o ) ) );
+
+echo "Audit 3: self-collected API sales are netted against the organizer payout (A075)\n";
+$a75_event = ex_event( 'A75 Eigenvertrieb' );
+$a75_type = ex_type( ex_occ( $a75_event, 10 ), 'A75 Ticket', 10000, 10 );
+$a75_pid = PassCaptain\Partners\Repository::save( array( 'name' => 'A75 Veranstalter', 'currency' => 'EUR', 'commission_bp' => 1000, 'fee_per_ticket_minor' => 0, 'fee_tax_rate_bp' => 0, 'refund_policy' => 'reverse_all', 'status' => 'active', 'sales_model' => 'agent' ) );
+PassCaptain\Partners\Repository::set_events( $a75_pid, array( $a75_event ) );
+$a75_partner = PassCaptain\Partners\Repository::get( $a75_pid );
+$a75_period = gmdate( 'Y-m', strtotime( current_time( 'mysql', true ) . ' UTC' ) );
+list( $a75_platform_o ) = ex_buy( $a75_type, 1, 'a75a@example.com' ); // Collected by the platform: 100 €.
+list( $a75_self_o ) = ex_buy( $a75_type, 1, 'a75b@example.com' );     // Sold by the organizer itself via the API: 100 €.
+$wpdb->update( "{$p}wpcap_orders", array( 'payment_provider' => 'partner' ), array( 'order_id' => $a75_self_o ) );
+$wpdb->insert( "{$p}wpcap_partner_orders", array( 'order_id' => $a75_self_o, 'partner_id' => $a75_pid, 'key_id' => 0, 'mode' => 'sell', 'channel' => '', 'external_reference' => '', 'anonymous' => 0, 'request_hash' => str_repeat( 'b', 64 ), 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$a75 = PassCaptain\Partners\Settlements::compute( $a75_partner, $a75_period )['totals'];
+// 200 € gross, commission 10 % of net – both tickets pay the fee; only the platform's 100 € is paid out.
+check( 'A075: fees on all sales, self-collected 100 € deducted from the payout', 20000 === (int) $a75['gross'] && 10000 === (int) $a75['collected_self'] && (int) $a75['payout_before_netting'] - 10000 === (int) $a75['payout'] && (int) $a75['commission'] > 0 && 0 === (int) $a75['carry_out'] );
+// Only self-collected sales: the fee is owed, nothing is paid out, the balance is carried forward.
+$wpdb->update( "{$p}wpcap_orders", array( 'payment_provider' => 'partner' ), array( 'order_id' => $a75_platform_o ) );
+$wpdb->insert( "{$p}wpcap_partner_orders", array( 'order_id' => $a75_platform_o, 'partner_id' => $a75_pid, 'key_id' => 0, 'mode' => 'sell', 'channel' => '', 'external_reference' => '', 'anonymous' => 0, 'request_hash' => str_repeat( 'c', 64 ), 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$a75_neg = PassCaptain\Partners\Settlements::compute( $a75_partner, $a75_period )['totals'];
+check( 'A075: a negative balance is never paid out but carried to the next statement (default)', 0 === (int) $a75_neg['payout'] && (int) $a75_neg['carry_out'] === -(int) $a75_neg['platform_fee_gross'] && 'carry' === $a75_neg['negative_balance_mode'] );
+PassCaptain\Settings::update( array( 'partner_negative_balance' => 'invoice' ) );
+$a75_inv = PassCaptain\Partners\Settlements::compute( $a75_partner, $a75_period )['totals'];
+PassCaptain\Settings::update( array( 'partner_negative_balance' => 'carry' ) );
+check( 'A075: with "invoice" the amount is due from the organizer at once (no carry)', 0 === (int) $a75_inv['payout'] && 0 === (int) $a75_inv['carry_out'] && (int) $a75_inv['due_from_partner'] === (int) $a75_neg['platform_fee_gross'] );
+// Carry-forward: the last finalized statement's open balance is netted in the next period.
+$wpdb->insert( "{$p}wpcap_partner_settlements", array( 'partner_id' => $a75_pid, 'period' => '2000-01', 'period_start' => '2000-01-01 00:00:00', 'period_end' => '2000-02-01 00:00:00', 'status' => 'finalized', 'currency' => 'EUR', 'totals' => wp_json_encode( array( 'carry_out' => -1500 ) ), 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_partner_orders WHERE order_id IN (%d,%d)", $a75_self_o, $a75_platform_o ) );
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET payment_provider='manual' WHERE order_id IN (%d,%d)", $a75_self_o, $a75_platform_o ) );
+$a75_carry = PassCaptain\Partners\Settlements::compute( $a75_partner, $a75_period )['totals'];
+check( 'A075: the carried balance of the previous statement reduces this payout', -1500 === (int) $a75_carry['carry_in'] && (int) $a75_carry['payout_before_netting'] - 1500 === (int) $a75_carry['payout'] );
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET payment_provider='partner' WHERE order_id=%d", $a75_self_o ) );
+$wpdb->insert( "{$p}wpcap_partner_orders", array( 'order_id' => $a75_self_o, 'partner_id' => $a75_pid, 'key_id' => 0, 'mode' => 'sell', 'channel' => '', 'external_reference' => '', 'anonymous' => 0, 'request_hash' => str_repeat( 'd', 64 ), 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$a75_draft = PassCaptain\Partners\Settlements::create_draft( $a75_pid, $a75_period );
+$a75_html = is_wp_error( $a75_draft ) ? '' : PassCaptain\Partners\Settlements::render_html( PassCaptain\Partners\Settlements::get( is_object( $a75_draft ) ? $a75_draft->settlement_id : ( $a75_draft['settlement_id'] ?? $a75_draft ) ) );
+check( 'A075: the statement document shows the netting lines (self-collected, carried balance)', false !== strpos( $a75_html, 'selbst vereinnahmte Ticketerlöse' ) && false !== strpos( $a75_html, 'Saldovortrag aus der vorigen Abrechnung' ) );
+$a75_stmt = PassCaptain\Partners\Statement::compute( $a75_partner, $a75_period )['totals'];
+check( 'A075: the organizer\'s own sales statement says "netted", not "to transfer"', true === $a75_stmt['netted_in_settlement'] );
