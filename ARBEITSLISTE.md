@@ -943,9 +943,9 @@ Gesamt: 262 Aufgaben.
 
 - [ ] **A446** [KRITISCH] Vorverkaufsstart und Eventänderungen werden nie aus dem Seitencache entfernt (kein Purge) — _R3 Caching_ (TODO L758; Audit Runde 4)
   - src/PublicEvents.php:154, :244, Modules/Calendar.php:153/219: Aktion wpcap_purge_page_cache bei allen Event-/Termin-/Ticketart-Änderungen mit Adaptern (WP Rocket, LiteSpeed, W3TC, Cloudflare, Varnish), Cron-Purge zu sales_start/sales_end, Doku
-- [ ] **A447** [KRITISCH] Speichern eines Veranstalters löst still alle Event-Verknüpfungen jenseits der ersten 500 Events — _R3 Multisite/i18n/Skalierung_ (TODO L759; Audit Runde 4)
+- [x] **A447** [KRITISCH] Speichern eines Veranstalters löst still alle Event-Verknüpfungen jenseits der ersten 500 Events — _R3 Multisite/i18n/Skalierung_ (TODO L759; Audit Runde 4)
   - src/Partners/AdminPage.php:313–317, Admin/Queries.php:288–292 (LIMIT 500), Partners/Repository.php:263–276 (set_events): Falsches Verkaufsmodell/Rechnungssteller, Aussperrung, fehlende Abrechnung; N+1. AJAX-Suche/Paginierung, set_events als Diff; alle Filter-Dropdowns mit 500er-Grenze prüfen
-- [ ] **A448** [KRITISCH] Event-Umhängen zwischen Veranstaltern führt zur doppelten Auszahlung — _R3 Eigen (Deep Dive 2)_ (TODO L760; Audit Runde 4)
+- [x] **A448** [KRITISCH] Event-Umhängen zwischen Veranstaltern führt zur doppelten Auszahlung — _R3 Eigen (Deep Dive 2)_ (TODO L760; Audit Runde 4)
   - src/Partners/Settlements.php:105 (compute), Partners/Repository.php:263 (set_events): Abgerechnet-Schlüssel nur je Partner; keine Zuordnungshistorie. Global prüfen, Zuordnung mit Gültigkeitszeitraum, offene Posten beim alten Veranstalter (belegt t2)
 - [ ] **A449** [WICHTIG] Block-Unterstützungen fehlen auf der Website (keine get_block_wrapper_attributes) — _R3 Editor_ (TODO L761; Audit Runde 4)
   - src/blocks/events/render.php:4, calendar/render.php:6, block.json: Eigene CSS-Klasse/Block-Klasse nur im Editor, theme.json-Blockstile greifen nie. Ausgabe in Wrapper mit get_block_wrapper_attributes(), supports bewusst setzen

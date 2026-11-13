@@ -756,8 +756,8 @@ Einzelaufgaben mit Nummern in ARBEITSLISTE.md (Phase 10). Sortiert nach Kritikal
 ## Audit Runde 5 – Lifecycle, Editor, Multisite/i18n, Caching/CDN, QA, Eigen-Audit (13.11.2026, Snapshot ccf2530)
 
 - [ ] [KRITISCH] Vorverkaufsstart und Eventänderungen werden nie aus dem Seitencache entfernt (kein Purge) — src/PublicEvents.php:154, :244, Modules/Calendar.php:153/219 (A446, R3 Caching)
-- [ ] [KRITISCH] Speichern eines Veranstalters löst still alle Event-Verknüpfungen jenseits der ersten 500 Events — src/Partners/AdminPage.php:313–317, Admin/Queries.php:288–292 (LIMIT 500), Partners/Repository.php:263–276 (set_events) (A447, R3 Multisite/i18n/Skalierung)
-- [ ] [KRITISCH] Event-Umhängen zwischen Veranstaltern führt zur doppelten Auszahlung — src/Partners/Settlements.php:105 (compute), Partners/Repository.php:263 (set_events) (A448, R3 Eigen (Deep Dive 2))
+- [x] [KRITISCH] Speichern eines Veranstalters löst still alle Event-Verknüpfungen jenseits der ersten 500 Events — src/Partners/AdminPage.php:313–317, Admin/Queries.php:288–292 (LIMIT 500), Partners/Repository.php:263–276 (set_events) (A447, R3 Multisite/i18n/Skalierung)
+- [x] [KRITISCH] Event-Umhängen zwischen Veranstaltern führt zur doppelten Auszahlung — src/Partners/Settlements.php:105 (compute), Partners/Repository.php:263 (set_events) (A448, R3 Eigen (Deep Dive 2))
 - [ ] [WICHTIG] Block-Unterstützungen fehlen auf der Website (keine get_block_wrapper_attributes) — src/blocks/events/render.php:4, calendar/render.php:6, block.json (A449, R3 Editor)
 - [ ] [WICHTIG] Bestell-/Wartelistenformular ohne method/action: ohne JS personenbezogene Daten per GET in der URL — templates/event-card.php:51, :174, assets/checkout.js:450/548 (A450, R3 Editor)
 - [ ] [WICHTIG] ServerSideRender-Vorschau interaktiv statt in Disabled — src/blocks/events/editor.js:20, calendar/editor.js:29 (A451, R3 Editor)
