@@ -103,7 +103,7 @@ foreach ( glob( $root . '/languages/wp-pass-captain-*.po' ) as $po ) {
 		echo "FAIL $locale: " . count( $problems ) . " problem(s)\n";
 		foreach ( array_slice( $problems, 0, 25 ) as $p ) { echo "     - $p\n"; }
 	} else {
-		echo "ok   $locale: complete, placeholders and tags consistent, .mo up to date\n";
+		echo "ok   $locale: " . ( $fuzzy || $untranslated ? "$untranslated untranslated, $fuzzy fuzzy (allowed)" : 'complete' ) . ", placeholders and tags consistent, .mo up to date\n";
 	}
 }
 exit( $fail );
