@@ -49,9 +49,17 @@ final class Menu {
 	public static function register() {
 		add_action( 'admin_menu', array( self::class, 'add_menus' ) );
 		add_action( 'admin_head', array( self::class, 'admin_styles' ) );
+		add_action( 'admin_notices', array( self::class, 'schema_error_notice' ) );
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
 		}
+	}
+
+	/** Failed schema upgrade (Installer::missing_schema()): administrators see what is missing. */
+	public static function schema_error_notice() {
+		$error = get_option( 'wpcap_schema_error' );
+		if ( ! is_array( $error ) || ! current_user_can( 'manage_options' ) ) { return; }
+		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'WP Pass Captain: Das Datenbank-Update ist unvollständig.', 'wp-pass-captain' ) . '</strong> ' . esc_html__( 'Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren.', 'wp-pass-captain' ) . '</p><p><code>' . esc_html( implode( ', ', array_slice( (array) ( $error['missing'] ?? array() ), 0, 10 ) ) ) . '</code>' . ( ! empty( $error['db_error'] ) ? ' – ' . esc_html( (string) $error['db_error'] ) : '' ) . '</p></div>';
 	}
 
 	/** Small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */

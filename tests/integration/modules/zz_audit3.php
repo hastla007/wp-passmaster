@@ -437,3 +437,9 @@ $a34_kept = (int) $wpdb->get_var( "SELECT sold_qty FROM {$p}wpcap_occurrences WH
 $a34_all = PassCaptain\CapacityCounters::reconcile( true );
 $a34_fixed = (int) $wpdb->get_var( "SELECT sold_qty FROM {$p}wpcap_occurrences WHERE occurrence_id=$a34_occ_old" );
 check( 'A034: cron run skips past dates, --all repairs them', ! in_array( $a34_occ_old, $a34_cron['occurrences'], true ) && 7 === $a34_kept && in_array( $a34_occ_old, $a34_all['occurrences'], true ) && 2 === $a34_fixed );
+
+echo "Audit 3: schema verification after dbDelta (A036)\n";
+$a36_ok = PassCaptain\Installer::missing_schema( array( "CREATE TABLE {$p}wpcap_orders (\n order_id bigint(20) NOT NULL,\n public_id char(32) NOT NULL,\n PRIMARY KEY  (order_id)\n) ENGINE=InnoDB;" ) );
+$a36_bad = PassCaptain\Installer::missing_schema( array( "CREATE TABLE {$p}wpcap_orders (\n order_id bigint(20) NOT NULL,\n gibt_es_nicht varchar(10) NOT NULL,\n KEY x (order_id)\n) ENGINE=InnoDB;", "CREATE TABLE {$p}wpcap_fehlt (\n id int NOT NULL\n) ENGINE=InnoDB;" ) );
+check( 'A036: missing columns and tables are detected', array() === $a36_ok && in_array( $p . 'wpcap_orders.gibt_es_nicht', $a36_bad, true ) && in_array( $p . 'wpcap_fehlt', $a36_bad, true ) );
+check( 'A036: the full plugin schema is complete after install', false === get_option( 'wpcap_schema_error' ) );

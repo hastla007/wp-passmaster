@@ -39,6 +39,7 @@
 - Leistung im Checkout: Pässe und Serienpools prüfen die Kapazität über die gepflegten Zähler (`CapacityCounters::used_for_types()`) statt über Summen aller Bestellungen; Partnerkontingente entfernen Nutzungszeilen beendeter Bestellungen.
 - Zähler-Abgleich: Sperre gegen parallele Läufe, Zeitbudget, nur kürzlich geänderte Bestellungen und laufende/künftige Termine, Bestätigungsprüfung vor dem Alarm; `--all` für den vollständigen Abgleich.
 - Release: Tag-Pushes und manuelle Läufe veröffentlichen nur Commits, die auf `main` liegen und deren CI-Lauf erfolgreich war (`build/release-guard.sh`, getestet in CI).
+- Installation/Update: Nach `dbDelta` wird geprüft, ob alle Tabellen und Spalten existieren; sonst bleiben Versionsstand und Fingerprint unverändert, der Fehler wird protokolliert und Administratoren sehen einen Hinweis.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

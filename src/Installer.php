@@ -673,9 +673,19 @@ final class Installer {
 			) ENGINE=InnoDB $charset;",
 		);
 
-		foreach ( array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) ) as $query ) {
+		$all_queries = array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) );
+		foreach ( $all_queries as $query ) {
 			dbDelta( $query );
 		}
+		// dbDelta reports no errors: verify every table/column exists before the version is stored,
+		// otherwise the next request would rely on a schema that is not there.
+		$missing = self::missing_schema( $all_queries );
+		if ( $missing ) {
+			update_option( 'wpcap_schema_error', array( 'missing' => array_slice( $missing, 0, 50 ), 'at' => time(), 'db_error' => (string) $wpdb->last_error ) );
+			Audit::record( 'schema_upgrade_failed', 'system', 0, array( 'missing' => array_slice( $missing, 0, 50 ) ) );
+			return false;
+		}
+		if ( function_exists( 'delete_option' ) ) { delete_option( 'wpcap_schema_error' ); }
 
 		// Capacity counters (schema 3.7.0): fresh installs use them right away, upgrades rebuild them
 		// from the source tables and verify them before capacity decisions rely on them.
@@ -691,6 +701,32 @@ final class Installer {
 		OrderLines::flush();
 		update_option( 'wpcap_version', WPCAP_VERSION );
 		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );
+	}
+
+	/**
+	 * Tables and columns of the CREATE TABLE statements that do not exist in the database
+	 * ("table" or "table.column").
+	 *
+	 * @param string[] $queries CREATE TABLE statements (dbDelta format).
+	 * @return string[]
+	 */
+	public static function missing_schema( array $queries ) {
+		global $wpdb;
+		$missing = array();
+		foreach ( $queries as $query ) {
+			if ( ! preg_match( '/CREATE TABLE\s+`?([A-Za-z0-9_]+)`?\s*\((.*)\)[^)]*$/s', (string) $query, $m ) ) { continue; }
+			$table = $m[1];
+			$columns = array();
+			foreach ( preg_split( '/\R/', $m[2] ) as $line ) {
+				$line = trim( $line );
+				if ( '' === $line || preg_match( '/^(PRIMARY|UNIQUE|KEY|INDEX|FULLTEXT|SPATIAL|CONSTRAINT|FOREIGN)\b/i', $line ) ) { continue; }
+				if ( preg_match( '/^`?([A-Za-z0-9_]+)`?\s+[a-z]/i', $line, $c ) ) { $columns[] = strtolower( $c[1] ); }
+			}
+			$existing = array_map( 'strtolower', (array) $wpdb->get_col( "SHOW COLUMNS FROM `$table`" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from our own schema.
+			if ( ! $existing ) { $missing[] = $table; continue; }
+			foreach ( array_diff( $columns, $existing ) as $column ) { $missing[] = $table . '.' . $column; }
+		}
+		return $missing;
 	}
 
 	/** Cron hook that performs a deferred upgrade (scheduled by frontend requests). */
