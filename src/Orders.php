@@ -196,14 +196,13 @@ final class Orders {
 			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
 			$total = max( 0, $subtotal - $discount );
 			if ( ! $external && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
-			// Allocate the discount proportionally to lines and compute VAT per line on the discounted gross amount.
+			// Each campaign discount sits on the lines it applies to (Campaigns::calculate()); VAT per
+			// line on the discounted gross amount. The line discount is stored with the line.
 			$tax_total = 0;
-			$discount_left = $discount;
-			$last = count( $selected ) - 1;
+			$line_discounts = Campaigns::line_discounts( $adjustments, count( $selected ) );
 			foreach ( $selected as $index => $line ) {
-				$line_discount = $index === $last ? $discount_left : ( $subtotal > 0 ? intdiv( $discount * $line['line_total'], $subtotal ) : 0 );
-				$line_discount = min( $line['line_total'], max( 0, $line_discount ) );
-				$discount_left -= $line_discount;
+				$line_discount = min( (int) $line['line_total'], max( 0, (int) ( $line_discounts[ $index ] ?? 0 ) ) );
+				$selected[ $index ]['discount_minor'] = $line_discount;
 				$rate = (int) ( $line['type']->tax_rate_bp ?? 0 );
 				$type_id_for_tax = (int) $line['type']->ticket_type_id;
 				$selected[ $index ]['tax_rate_bp'] = $rate;
@@ -266,6 +265,7 @@ final class Orders {
 					'tax_minor' => (int) $line['tax_minor'],
 				);
 				if ( $counted ) { $item['counted_qty'] = $pending_order ? 0 : (int) $line['quantity']; }
+				if ( OrderLines::ready() ) { $item['discount_minor'] = (int) ( $line['discount_minor'] ?? 0 ); }
 				$wpdb->insert( $items_table, $item );
 				if ( '' !== $wpdb->last_error ) {
 					throw new \RuntimeException( 'order_item_insert_failed' );

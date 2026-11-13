@@ -239,19 +239,9 @@ final class Data {
 		return $out;
 	}
 
-	/** Gross per line after the order discount (same allocation as Orders::create). */
+	/** Gross per line after the order discount (stored line discounts, see OrderLines::after_discount()). */
 	public static function allocate_discount( array $lines, $discount ) {
-		$subtotal = array_sum( array_map( static function ( $l ) { return (int) $l->line_total_minor; }, $lines ) );
-		$left = (int) $discount;
-		$out = array();
-		$last = count( $lines ) - 1;
-		foreach ( array_values( $lines ) as $i => $line ) {
-			$share = $i === $last ? $left : ( $subtotal > 0 ? intdiv( (int) $discount * (int) $line->line_total_minor, $subtotal ) : 0 );
-			$share = min( (int) $line->line_total_minor, max( 0, $share ) );
-			$left -= $share;
-			$out[ $i ] = (int) $line->line_total_minor - $share;
-		}
-		return $out;
+		return \PassCaptain\OrderLines::after_discount( $lines, $discount );
 	}
 
 	/**

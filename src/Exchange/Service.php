@@ -608,7 +608,7 @@ final class Service {
 			if ( ! \PassCaptain\OrderLines::freeze( (int) $item->item_id ) ) { throw new \RuntimeException( 'db_busy' ); }
 			$ok = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET quantity=quantity+1,line_total_minor=line_total_minor+%d,tax_minor=tax_minor+%d WHERE item_id=%d", (int) $carried_gross, $tax, (int) $item->item_id ) );
 		} else {
-			$ok = $wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => (int) $order_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 1, 'unit_price_minor' => (int) $price, 'line_total_minor' => (int) $carried_gross, 'tax_rate_bp' => $rate, 'tax_minor' => $tax, 'refunded_quantity' => 0, 'orig_quantity' => 0, 'orig_line_total_minor' => 0, 'orig_tax_minor' => 0 ) );
+			$ok = $wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => (int) $order_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 1, 'unit_price_minor' => (int) $price, 'line_total_minor' => (int) $carried_gross, 'tax_rate_bp' => $rate, 'tax_minor' => $tax, 'refunded_quantity' => 0 ) + ( \PassCaptain\OrderLines::ready() ? array( 'orig_quantity' => 0, 'orig_line_total_minor' => 0, 'orig_tax_minor' => 0 ) : array() ) );
 		}
 		if ( ! $ok ) { throw new \RuntimeException( 'db_busy' ); }
 	}

@@ -8,6 +8,8 @@ final class Campaigns {
 	/**
 	 * Validate and calculate up to three explicit campaign codes.
 	 * The caller must already be inside the order transaction.
+	 *
+	 * @return array|\WP_Error Adjustments: campaign, amount_minor, lines (index of $selected => discount).
 	 */
 	public static function calculate( array $selected, array $codes, $currency ) {
 		global $wpdb;
@@ -38,19 +40,51 @@ final class Campaigns {
 			}
 			$discount = 'percent' === $campaign->kind ? (int) floor( $eligible * min( 10000, (int) $campaign->value ) / 10000 ) : min( $eligible, (int) $campaign->value );
 			if ( $discount < 1 ) { return new \WP_Error( 'wpcap_campaign_no_match', __( 'Ein Kampagnencode passt nicht zu den ausgewählten Tickets.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
-			$left = $discount;
+			// Only the eligible lines carry the discount (VAT per rate and per organizer stay right),
+			// proportionally to what is left of them; the last eligible line takes the remainder.
+			$targets = array();
 			foreach ( $selected as $index => $line ) {
 				$type_match = ! (int) $campaign->ticket_type_id || (int) $campaign->ticket_type_id === (int) $line['type']->ticket_type_id;
 				$event_match = ! (int) $campaign->event_id || (int) $campaign->event_id === (int) $line['event_id'];
-				if ( ! $type_match || ! $event_match ) { continue; }
-				$part = min( $remaining[ $index ], $left );
-				$remaining[ $index ] -= $part;
-				$left -= $part;
-				if ( $left < 1 ) { break; }
+				if ( $type_match && $event_match && $remaining[ $index ] > 0 ) { $targets[] = $index; }
 			}
-			$adjustments[] = array( 'campaign' => $campaign, 'amount_minor' => $discount );
+			$left = $discount;
+			$parts = array();
+			foreach ( $targets as $n => $index ) {
+				$part = $n === count( $targets ) - 1 ? $left : intdiv( $discount * $remaining[ $index ], max( 1, $eligible ) );
+				$part = min( $remaining[ $index ], max( 0, $part ) );
+				$parts[ $index ] = $part;
+				$left -= $part;
+			}
+			// Rounding remainder that the last line could not take (capped): first lines with room.
+			foreach ( $targets as $index ) {
+				if ( $left < 1 ) { break; }
+				$room = $remaining[ $index ] - $parts[ $index ];
+				$extra = min( $room, $left );
+				$parts[ $index ] += $extra;
+				$left -= $extra;
+			}
+			foreach ( $parts as $index => $part ) { $remaining[ $index ] -= $part; }
+			$adjustments[] = array( 'campaign' => $campaign, 'amount_minor' => $discount, 'lines' => $parts );
 		}
 		return $adjustments;
+	}
+
+	/**
+	 * Discount per selected line (index => minor units) of calculate() adjustments.
+	 *
+	 * @param array $adjustments Result of calculate().
+	 * @param int   $count       Number of selected lines.
+	 * @return int[]
+	 */
+	public static function line_discounts( array $adjustments, $count ) {
+		$out = array_fill( 0, max( 0, (int) $count ), 0 );
+		foreach ( $adjustments as $adjustment ) {
+			foreach ( (array) ( $adjustment['lines'] ?? array() ) as $index => $amount ) {
+				$out[ (int) $index ] = ( $out[ (int) $index ] ?? 0 ) + (int) $amount;
+			}
+		}
+		return $out;
 	}
 
 	/** Persist applied codes and atomically consume their limits in the caller transaction. */

@@ -72,17 +72,12 @@ final class Invoices {
 		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => $invoice_total, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ) );
 		$invoice_id = (int) $wpdb->insert_id;
 		if ( false === $saved || ! $invoice_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_create', __( 'Rechnung konnte nicht erstellt werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
-		$discount_left = (int) $order->discount_minor;
-		$subtotal = max( 1, $order_subtotal );
-		$gross_before = 0;
-		$discount_allocated = 0;
+		// Same allocation as orders, reports and settlements (stored line discounts, OrderLines).
+		$items = array_values( $items );
+		$after = OrderLines::after_discount( $items, (int) $order->discount_minor );
 		foreach ( $items as $index => $item ) {
-			$gross_before += (int) $item->line_total_minor;
-			$should_be_allocated = (int) floor( (int) $order->discount_minor * $gross_before / $subtotal );
-			$line_discount = $index === count( $items ) - 1 ? min( (int) $item->line_total_minor, max( 0, $discount_left ) ) : max( 0, min( (int) $item->line_total_minor, $should_be_allocated - $discount_allocated ) );
-			$discount_allocated += $line_discount;
-			$discount_left -= $line_discount;
-			$line_total = max( 0, (int) $item->line_total_minor - $line_discount );
+			$line_total = (int) $after[ $index ];
+			$line_discount = max( 0, (int) $item->line_total_minor - $line_total );
 			$description = $item->event_name . ' – ' . $item->name . ' (' . wp_date( 'd.m.Y H:i', strtotime( $item->starts_at . ' UTC' ), new \DateTimeZone( $item->timezone ) ) . ')';
 			$line_saved = $wpdb->insert( $p . 'wpcap_invoice_lines', array( 'invoice_id' => $invoice_id, 'description' => mb_substr( $description, 0, 190 ), 'quantity' => $item->quantity, 'unit_minor' => $item->unit_price_minor, 'discount_minor' => $line_discount, 'tax_rate' => (int) $item->tax_rate_bp / 100, 'tax_minor' => (int) $item->tax_minor, 'total_minor' => $line_total ) );
 			if ( false === $line_saved ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_line', __( 'Rechnungsposition konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }

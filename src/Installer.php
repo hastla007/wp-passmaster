@@ -154,6 +154,7 @@ final class Installer {
 				orig_quantity smallint(5) unsigned DEFAULT NULL,
 				orig_line_total_minor bigint(20) unsigned DEFAULT NULL,
 				orig_tax_minor bigint(20) unsigned DEFAULT NULL,
+				discount_minor bigint(20) unsigned DEFAULT NULL,
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),
@@ -686,6 +687,7 @@ final class Installer {
 			add_action( 'init', array( __CLASS__, 'register_roles' ), 1 );
 		}
 		update_option( 'wpcap_db_version', self::version() );
+		OrderLines::flush();
 		update_option( 'wpcap_version', WPCAP_VERSION );
 		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );
 	}

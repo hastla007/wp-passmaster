@@ -327,12 +327,18 @@ final class Adapter {
 		// due shrinks. The VAT share of what was actually paid is then proportional, not the full line VAT.
 		$voucher       = ! empty( $order->voucher_snapshot ) ? json_decode( (string) $order->voucher_snapshot, true ) : null;
 		$paid_by_means = is_array( $voucher ) && ! empty( $voucher['amount_paid_by_voucher'] );
+		// Weights: line gross after its own campaign discount (OrderLines::after_discount), so a
+		// discount for one event/type does not reduce the commission base of other lines.
+		$lines  = array_values( $lines );
+		$discount = isset( $order->discount_minor ) ? (int) $order->discount_minor : (int) ( \PassCaptain\Orders::get( (int) ( $order->order_id ?? 0 ) )->discount_minor ?? 0 );
+		$after  = \PassCaptain\OrderLines::after_discount( $lines, $discount );
+		$weight = array_sum( $after );
 		$paid  = min( (int) $order->total_minor, $subtotal );
 		$left  = $paid;
 		$last  = count( $lines ) - 1;
 		$items = array();
 		foreach ( $lines as $index => $line ) {
-			$gross = $index === $last ? $left : ( $subtotal > 0 ? intdiv( $paid * (int) $line->line_total_minor, $subtotal ) : 0 );
+			$gross = $index === $last ? $left : ( $weight > 0 ? intdiv( $paid * (int) $after[ $index ], $weight ) : 0 );
 			$gross = max( 0, min( $gross, $left ) );
 			$left -= $gross;
 			$end   = $line->ends_at ? $line->ends_at : $line->starts_at;

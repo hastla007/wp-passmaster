@@ -20,7 +20,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Exchange/Service.php:242–253` — Maßnahme: Wert aus `Checkout::gross_minor()`/Positionsbrutto nach Rabatt; Gutscheinanteil über `refund_plan`.
 - [x] **A006** [P1] Umtausch in Ticketart mit anderem Steuersatz schreibt Positions-USt um, `orders.tax_minor` und Rechnung bleiben; später ausgestellte Rechnung ist widersprüchlich (Kopf 909 vs. Zeil… — _OFFEN_ (TODO L437; Steuer und Finanzen (Prüfung 3))
   - `src/Exchange/Service.php:580–591`; `src/Invoices.php:70,318` — Maßnahme: Steuersatzwechsel nur mit Rechnungskorrektur + neuem Beleg oder sperren; `tax_minor` konsistent; Rechnungskopf aus Zeilen.
-- [ ] **A007** [P1] Zielgerichtete Kampagnenrabatte (Ticketart/Event) werden anteilig auf alle Positionen verteilt (Beispiel: USt 1.932 statt 1.742 Cent, fremde Position um 25 € gekürzt). — _OFFEN_ (TODO L438; Steuer und Finanzen (Prüfung 3))
+- [x] **A007** [P1] Zielgerichtete Kampagnenrabatte (Ticketart/Event) werden anteilig auf alle Positionen verteilt (Beispiel: USt 1.932 statt 1.742 Cent, fremde Position um 25 € gekürzt). — _OFFEN_ (TODO L438; Steuer und Finanzen (Prüfung 3))
   - `src/Orders.php:196–212` vs. `src/Campaigns.php:31–51` — Maßnahme: Zeilenverteilung aus `Campaigns::calculate()` übernehmen und je Position (`discount_minor`) speichern.
 - [ ] **A008** [P1] Kassen-Umtausch bestätigt Zusatzbestellung ohne Kassenverkauf, Beleg und Schichtbuchung; spätere Erstattungen werden nicht gebucht. — _OFFEN_ (TODO L439; Steuer und Finanzen (Prüfung 3))
   - `src/Exchange/Service.php:879–890`; `src/BoxOffice/Shifts.php:611–620` — Maßnahme: Aufpreis/Gebühr als Kassenverkauf mit Belegnummer in offene Schicht buchen; Erstattungen ebenso.
@@ -115,7 +115,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Checkin.php:364` — Maßnahme: Gültigkeit nennen, Terminauswahl.
 - [ ] **A049** [P3] `src/PublicEvents.php:91–96` u. a. — Shortcode/Block ohne Event-/Termin-Attribut; „bis 1 Stunden“; gleichnamige Events ohne Datum in Dropdowns; Kassen-/Partnerformulare verlangen r… — _OFFEN_ (TODO L424; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - Maßnahme: Attribute `event`/`occurrence`, Auswahllisten, Texte korrigieren.
-- [ ] **A050** [P3] Unterschiedliche Rabatt-Rundung (floor kumulativ vs. intdiv + Rest). — _OFFEN_ (TODO L446; Steuer und Finanzen (Prüfung 3))
+- [x] **A050** [P3] Unterschiedliche Rabatt-Rundung (floor kumulativ vs. intdiv + Rest). — _OFFEN_ (TODO L446; Steuer und Finanzen (Prüfung 3))
   - `src/Invoices.php:73–83` vs. `src/Orders.php:203–206`, `src/Reports/Data.php:241–252` — Maßnahme: Gemeinsamer Allokator bzw. gespeicherter Zeilenrabatt.
 - [ ] **A051** [P3] Pass-Tageserstattungen mit Durchschnitts-USt der Bestellung statt Pass-Satz. — _OFFEN_ (TODO L447; Steuer und Finanzen (Prüfung 3))
   - `src/Passes/Cancellation.php:93–96`; `src/Refunds.php:550–551` — Maßnahme: `tax_minor` mit Pass-Satz übergeben.
