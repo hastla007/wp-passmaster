@@ -73,6 +73,7 @@
 - Partner-API-Storno: „Veranstaltung hat begonnen“ berücksichtigt bei Pässen alle verknüpften Termine (nicht nur den Anker-Termin); neuer Filter `wpcap_order_started`.
 - Umtausch im Bestellportal: Herabstufungen mit Erstattung werden bei Partner-, Kassen-, WooCommerce- und Freikarten-Bestellungen abgelehnt (Geld liegt nicht bei der Plattform) und an die Verkaufsstelle verwiesen; Filter `wpcap_exchange_platform_collected`.
 - Hook-Referenz `docs/HOOKS.md` vollständig: 85 fehlende Hooks ergänzt (neue Abschnitte u. a. Kasse, Kontingente, Kapazitätszähler, Rechnungsdaten, WooCommerce, Umtausch, Einlass), Tabelle aller Cron-Hooks; ein Test gleicht Dokumentation und Code in beide Richtungen ab.
+- Alte REST-Route `POST /pos/sales` (veraltet) bucht über das Kassenmodul: offene Schicht, lückenlose Belegnummer, Journal und Z-Bericht sowie die Regeln für Bar/Karte gelten auch dort.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

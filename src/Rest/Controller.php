@@ -534,27 +534,40 @@ final class Controller {
 		return is_user_logged_in() && current_user_can( 'wpcap_manage_orders' );
 	}
 
+	/**
+	 * Deprecated route POST /pos/sales: kept for old clients but booked through the box office
+	 * (BoxOffice\Service::sell()) – open shift, gapless receipt number, journal and Z report, same
+	 * fiscal-method rules. Without the box office module the route is gone (410).
+	 */
 	public static function pos_sale( \WP_REST_Request $request ) {
 		$payload = (array) $request->get_json_params();
 		$items = $payload['items'] ?? array();
-		if ( ! is_array( $items ) || ! $items || count( $items ) > 10 || '' === sanitize_text_field( $payload['idempotency_key'] ?? '' ) ) { return new \WP_Error( 'wpcap_pos_items', __( 'POS-Verkaufspositionen oder Idempotency-Key sind ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$key = sanitize_text_field( (string) ( $payload['idempotency_key'] ?? '' ) );
+		if ( ! is_array( $items ) || ! $items || count( $items ) > 10 || '' === $key ) { return new \WP_Error( 'wpcap_pos_items', __( 'POS-Verkaufspositionen oder Idempotency-Key sind ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! in_array( \PassCaptain\Modules\BoxOffice::class, \PassCaptain\Modules::classes(), true ) ) {
+			return new \WP_Error( 'wpcap_pos_route_gone', __( 'Kassenverkäufe laufen über das Kassenmodul (Schicht, Belegnummer, Z-Bericht).', 'wp-pass-captain' ), array( 'status' => 410 ) );
+		}
 		global $wpdb;
+		$quantities = array();
+		$occurrence_id = 0;
 		foreach ( $items as $item ) {
 			$type_id = absint( $item['ticket_type_id'] ?? 0 );
-			$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
-			if ( ! $event_id || ! Access::can_access_event( $event_id, 'wpcap_manage_orders' ) ) { return new \WP_Error( 'wpcap_pos_forbidden', __( 'Für dieses Event fehlt die POS-Berechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+			$occ = (int) $wpdb->get_var( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d", $type_id ) );
+			if ( ! $occ || ( $occurrence_id && $occ !== $occurrence_id ) ) { return new \WP_Error( 'wpcap_pos_items', __( 'Alle Positionen eines Kassenverkaufs müssen zum selben Termin gehören.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+			$occurrence_id = $occ;
+			$quantities[ $type_id ] = ( $quantities[ $type_id ] ?? 0 ) + max( 0, (int) ( $item['quantity'] ?? 0 ) );
 		}
-		$result = Orders::create( array( 'email' => $payload['email'] ?? '', 'items' => $items, 'idempotency_key' => sanitize_text_field( $payload['idempotency_key'] ) ), array( 'key_namespace' => 'pos', 'skip_rate_limit' => true, 'source' => 'pos' ) );
+		$result = \PassCaptain\BoxOffice\Service::sell( array(
+			'occurrence_id' => $occurrence_id,
+			'quantities' => $quantities,
+			'email' => (string) ( $payload['email'] ?? '' ),
+			'method' => sanitize_key( (string) ( $payload['method'] ?? 'cash' ) ),
+			'form_key' => 'rest-' . $key,
+		) );
 		if ( is_wp_error( $result ) ) { return $result; }
-		if ( 'pending' === ( $result['payment_status'] ?? '' ) ) {
-			$confirmed = Orders::confirm_manual_payment( $result['order_id'] );
-			if ( is_wp_error( $confirmed ) ) { return $confirmed; }
-		}
-		$order = Orders::get( $result['order_id'] );
-		if ( ! $order || 'paid' !== $order->payment_status ) {
-			return new \WP_Error( 'wpcap_pos_not_paid', __( 'Dieser Idempotency-Key gehört zu einer nicht bezahlten Bestellung; bitte einen neuen Verkauf starten.', 'wp-pass-captain' ), array( 'status' => 409, 'status_code' => $order ? $order->status : '' ) );
-		}
-		return new \WP_REST_Response( array( 'order_id' => (int) $order->order_id, 'public_id' => $order->public_id, 'status' => $order->status, 'payment_status' => $order->payment_status ), empty( $result['reused'] ) ? 201 : 200 );
+		$sale = $result['sale'];
+		$order = Orders::get( (int) $sale->order_id );
+		return new \WP_REST_Response( array( 'order_id' => (int) $sale->order_id, 'public_id' => $order ? $order->public_id : '', 'status' => $order ? $order->status : '', 'payment_status' => $order ? $order->payment_status : '', 'receipt_number' => (string) $sale->receipt_number, 'deprecated' => true ), empty( $result['reused'] ) ? 201 : 200 );
 	}
 
 	public static function offline_sync( \WP_REST_Request $request ) {

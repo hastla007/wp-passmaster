@@ -823,3 +823,11 @@ $a64_missing = array_diff( $a64_code, $a64_doc );
 check( 'A064: every hook fired in src/ is documented in docs/HOOKS.md' . ( $a64_missing ? ' – missing: ' . implode( ', ', $a64_missing ) : '' ), ! $a64_missing );
 $a64_unknown = array_filter( $a64_doc, static fn( $h ) => ! in_array( $h, $a64_code, true ) && ! in_array( $h, PassCaptain\Plugin::cron_hooks(), true ) && false === strpos( $a64_src, "'" . $h . "'" ) );
 check( 'A064: docs/HOOKS.md documents no hook that does not exist' . ( $a64_unknown ? ' – unknown: ' . implode( ', ', $a64_unknown ) : '' ), ! $a64_unknown );
+
+echo "Audit 3: the old /pos/sales route books through the box office (A067)\n";
+$a67_type = make_type( 10, 5, 1000 );
+$a67_orders = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders" );
+$GLOBALS['wpcap_test_user_id'] = 4242; // Admin without an open shift.
+$a67 = PassCaptain\Rest\Controller::pos_sale( a3_request( array( 'items' => array( array( 'ticket_type_id' => $a67_type, 'quantity' => 1 ) ), 'idempotency_key' => 'a67-' . uniqid(), 'method' => 'free' ) ) );
+$GLOBALS['wpcap_test_user_id'] = 1;
+check( 'A067: without an open shift no order is created (no sale beside shift, receipt and Z report)', is_wp_error( $a67 ) && 'wpcap_pos_no_session' === $a67->get_error_code() && $a67_orders === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders" ) );
