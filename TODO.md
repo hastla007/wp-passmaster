@@ -326,7 +326,7 @@ Fünf parallele Prüfungen (Sicherheit, Geld/Buchungen, Steuer/Recht/Datenschutz
 
 ### Sicherheit
 
-- [ ] Sicherheit: Inventar-Blockade durch anonyme Bestellungen mit manueller Zahlung (72 h Hold, 30 Bestellungen/h je IP) verhindern: kurzer Erst-Hold bis E-Mail-Bestätigung bzw. Zahlungsstart, Obergrenze offener Holds je Event, Bot-Schutz, Admin-Massenfreigabe.
+- [ ] Sicherheit: Inventar-Blockade durch anonyme Bestellungen mit manueller Zahlung (72 h Hold, 30 Bestellungen/h je IP) verhindern: kurzer Erst-Hold bis E-Mail-Bestätigung bzw. Zahlungsstart, Obergrenze offener Holds je Event, Bot-Schutz, Admin-Massenfreigabe. — *teilweise erledigt (4afd2cd): max. 2 offene manuelle Bestellungen je E-Mail, 5 je Besucher in der Haltezeit; offen: kurzer Erst-Hold bis E-Mail-Bestätigung, Obergrenze je Event, Bot-Schutz, Massenfreigabe.*
 - [ ] Warteliste: Eintrag erst nach Double-Opt-in aktiv (`Waitlists::join`), Missbrauchsgrenze je E-Mail.
 - [ ] Portal-Nachsendung (`Orders::resend_tickets`) darf übertragene Tickets (`transfer_count > 0`) nicht rotieren.
 - [ ] `rest_pre_serve_request`-Rohausgabe (WalletPasses/WebService.php) auf die eigenen Wallet-Routen beschränken.
@@ -334,10 +334,10 @@ Fünf parallele Prüfungen (Sicherheit, Geld/Buchungen, Steuer/Recht/Datenschutz
 
 ### Geld, Buchungen und Nebenläufigkeit
 
-- [ ] Geld (hoch): Provider-Refunds aus dem Stripe-/PayPal-Dashboard (Webhooks.php `refunded`) buchen nur `mark_refunded()` – keine Refund-Zeile, keine Rechnungskorrektur, kein Gutschein-Rückfluss, Partner wird voll ausbezahlt. Über `Refunds::record_external()` buchen (Schlüssel je Provider-Refund-ID, Teilbeträge); Test: Dashboard-Refund erzeugt genau eine Refund-Zeile.
-- [ ] Geld (hoch): Partnerabrechnung bei Mehrzweckgutschein – Refund-Zeilen enthalten nur den Baranteil; mit `Checkout::credit_note_amounts()` (Bar + Gutschein) abrechnen. Test 2×50, Gutschein 60, Vollerstattung → Auszahlung 0.
-- [ ] Geld: `Refunds::tax_for()` wendet Rabatt doppelt an (Zeilenbrutto vor, Steuer nach Rabatt); rabattierten Zeilenbrutto als Basis nehmen. Test 50-%-Kampagne, 1 von 2 Tickets → USt 3,99 statt 2,00.
-- [ ] Geld (hoch): Fehlgeschlagene Gutschein-Rückbuchung (`Checkout::refund`) geht verloren – als Job mit gleichem Schlüssel wiederholen, offen markieren, Admin benachrichtigen.
+- [x] Geld (hoch): Provider-Refunds aus dem Stripe-/PayPal-Dashboard (Webhooks.php `refunded`) buchen nur `mark_refunded()` – keine Refund-Zeile, keine Rechnungskorrektur, kein Gutschein-Rückfluss, Partner wird voll ausbezahlt. Über `Refunds::record_external()` buchen (Schlüssel je Provider-Refund-ID, Teilbeträge); Test: Dashboard-Refund erzeugt genau eine Refund-Zeile. — *erledigt (36a8192): Buchung über `Refunds::record_external()`, Test in payments.php.*
+- [x] Geld (hoch): Partnerabrechnung bei Mehrzweckgutschein – Refund-Zeilen enthalten nur den Baranteil; mit `Checkout::credit_note_amounts()` (Bar + Gutschein) abrechnen. Test 2×50, Gutschein 60, Vollerstattung → Auszahlung 0. — *erledigt (a868a40), Test zz_voucher_purpose.php.*
+- [x] Geld: `Refunds::tax_for()` wendet Rabatt doppelt an (Zeilenbrutto vor, Steuer nach Rabatt); rabattierten Zeilenbrutto als Basis nehmen. Test 50-%-Kampagne, 1 von 2 Tickets → USt 3,99 statt 2,00. — *erledigt (a868a40), Test zz_integration.php.*
+- [x] Geld (hoch): Fehlgeschlagene Gutschein-Rückbuchung (`Checkout::refund`) geht verloren – als Job mit gleichem Schlüssel wiederholen, offen markieren, Admin benachrichtigen. — *erledigt (36a8192): Job `voucher_refund`, Admin-Mail bei endgültigem Fehler.*
 - [ ] `voucher_snapshot` nur unter Zeilensperre bzw. mit Versionsprüfung ändern (commit/release/refund/refund_plan); Race „Ablauf vs. Spätzahlung“ testen.
 - [ ] Kampagnennutzung bei Spätzahlung nach Hold-Ablauf erneut zählen bzw. bei erschöpftem Limit `needs_review`.
 - [ ] Erstattungs-/Freigabe-Mails ohne fest codiertes `/100` (Währungen ohne Nachkommastellen).
@@ -345,8 +345,8 @@ Fünf parallele Prüfungen (Sicherheit, Geld/Buchungen, Steuer/Recht/Datenschutz
 
 ### Steuer, Recht und Datenschutz (DE/AT)
 
-- [ ] Kasse: Bar/Karte für DE/AT sperren, solange kein Fiskalanbieter (TSE/RKSV) aktiv ist; die Fiskal-Adapter implementieren ein nicht vorhandenes `Fiscalization\AdapterInterface` (toter Code). Beleg im Vermittlermodell mit Veranstalter als Aussteller und Kleinunternehmer-Hinweis.
-- [ ] Provisionsrechnung (Settlements.php:273): Plattform-Kleinunternehmer berücksichtigen (0 % USt + Hinweis, kein § 14c).
+- [ ] Kasse: Bar/Karte für DE/AT sperren, solange kein Fiskalanbieter (TSE/RKSV) aktiv ist; die Fiskal-Adapter implementieren ein nicht vorhandenes `Fiscalization\AdapterInterface` (toter Code). Beleg im Vermittlermodell mit Veranstalter als Aussteller und Kleinunternehmer-Hinweis. — *teilweise erledigt (e44b8ac): Bar/Karte in DE/AT gesperrt, Admin-Bestätigung für eigene zertifizierte Kasse; offen: Fiskal-Kern/Adapter-Interface, Beleg im Vermittlermodell mit Veranstalter als Aussteller.*
+- [x] Provisionsrechnung (Settlements.php:273): Plattform-Kleinunternehmer berücksichtigen (0 % USt + Hinweis, kein § 14c). — *erledigt (a868a40).*
 - [ ] Gutschrift: Reverse Charge nach Veranstaltungsort statt Sitz des Veranstalters ermitteln; Veranstaltungsland am Event speichern. [Entscheidung]
 - [ ] Kleinunternehmer (Plattform/Veranstalter): 0 % schon beim Speichern der Ticketart bzw. im Checkout erzwingen, nicht erst bei der Rechnung (sonst bezahlte Bestellung ohne Rechnung).
 - [ ] Rechnungskorrekturen je Steuersatz aufschlüsseln (Datenmodell, PDF, CSV) und Hinweise (Kleinunternehmer, Vermittler) wie auf der Rechnung zeigen.
