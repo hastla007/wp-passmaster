@@ -898,6 +898,47 @@ Gesamt: 262 Aufgaben.
 - [ ] **A426** [OPTIMIERUNG] Fehlend: Event/Termin duplizieren — _R2 Eigen_ (TODO L732; Audit Runde 4)
   - src/Admin/Menu.php:14–60: „Event duplizieren (als Entwurf)“ mit Ticketarten, Feldern, Regeln
 
+### Audit Runde 4 – Nachtrag Datenbank & Performance (13.11.2026)
+
+- [ ] **A427** [KRITISCH] Massen-PDF „mit neuen Codes“ entwertet Tickets bei Timeout/Speichermangel — _R2 DB/Performance_ (TODO L736; Audit Runde 4)
+  - src/Printing/Templates.php:318–348, PdfWriter.php:119, Printing/Page.php:143: Codes werden vor dem Rendern ohne Transaktion rotiert, neue Codes nie gespeichert; ab ~2.500 Tickets Abbruch → alle ungültig. Erst rendern, dann rotieren; Hintergrundjob in Blöcken, Datei streamen, Obergrenze
+- [ ] **A428** [KRITISCH] Termin-/Eventabsage und Verschiebung synchron im Admin-Request, nicht wiederaufnehmbar — _R2 DB/Performance_ (TODO L737; Audit Runde 4)
+  - src/OccurrenceCancellation.php:42–134, Admin/EventsPage.php:283–298, Passes/Cancellation.php:105–150, Notifications.php:72–82/190–205: Refunds per HTTP und Mails je Bestellung im Request; Abbruch lässt Rest gültig/unbenachrichtigt, erneuter Klick endet sofort. Statuswechsel + Widerruf batchen, Refunds/Mails als idempotente Jobs mit Fortschritt (ersetzt den älteren TODO-Punkt „Absage als Hintergrundjob“)
+- [ ] **A429** [KRITISCH] Checkout-Kapazitätsprüfung scannt alle historischen Reservierungen unter Kapazitäts-Locks — _R2 DB/Performance_ (TODO L738; Audit Runde 4)
+  - src/Orders.php:600, :613 (capacity_error_counted), CapacityCounters.php:132: type=ALL; 524k Reservierungen → 0,7 s je Prüfung, Checkouts serialisiert. Index (ticket_type_id, counted_qty)/indexfähige Bedingung, alte Reservierungen löschen
+- [ ] **A430** [WICHTIG] Kapazitäts-Reconcile-Cron alle 5 min über gesamte Reservierungshistorie — _R2 DB/Performance_ (TODO L739; Audit Runde 4)
+  - src/CapacityCounters.php:486–516: Full Scan + doppelte korrelierte SUMs (~2 s/Lauf). Aufräumen, indexieren, nur counted_qty>0
+- [ ] **A431** [WICHTIG] Mollie-Webhook macht vor dem Rate-Limit einen Full Scan auf wpcap_orders — _R2 DB/Performance_ (TODO L740; Audit Runde 4)
+  - src/Mollie/MollieGateway.php:128–131, :190–194: Erst RateLimit, nur wpcap_mollie_payments per PK; oder Index (payment_provider, provider_reference)
+- [ ] **A432** [WICHTIG] Admin-Ticketliste wertet last_checkin_at für alle Tickets aus — _R2 DB/Performance_ (TODO L741; Audit Runde 4)
+  - src/Admin/Queries.php:434 (search_tickets): 1,4 s bei 200k Tickets. Letzte Check-ins in zweiter Query nur für die Seite
+- [ ] **A433** [WICHTIG] Check-in-Protokoll ohne passende Indizes — _R2 DB/Performance_ (TODO L742; Audit Runde 4)
+  - src/Admin/Queries.php:447–470: KEY (created_at, checkin_id), COUNT ohne Joins, Ergebnis-Werte als Konstante
+- [ ] **A434** [WICHTIG] Umsatzbericht, Buchhaltungs-/DATEV-Export, Abrechnungen mit N+1 und alles im Speicher — _R2 DB/Performance_ (TODO L743; Audit Runde 4)
+  - src/Reports/Data.php:163–181, Invoices.php:700–716, Reports/Settlement.php:158, Partners/Statement.php:46: 24k Bestellungen: 24k Queries, 163 MB. Vorladen per IN/JOIN, blockweise, per php://output streamen
+- [ ] **A435** [WICHTIG] Partner-Abrechnung verarbeitet jedes Mal die gesamte Historie — _R2 DB/Performance_ (TODO L744; Audit Runde 4)
+  - src/Partners/Settlements.php:105–130: Auf unabgerechnete Quellen/Wasserstand in SQL begrenzen, blockweise
+- [ ] **A436** [WICHTIG] GROUP_CONCAT-Abschneidung bei der Pass-Absage — _R2 DB/Performance_ (TODO L745; Audit Runde 4)
+  - src/Passes/Cancellation.php:119, :165: Ticket-IDs je Bestellung separat lesen (wie OccurrenceCancellation)
+- [ ] **A437** [WICHTIG] Webhook-Aufräumjob alle 5 min Full Scan, DELETE ohne LIMIT — _R2 DB/Performance_ (TODO L746; Audit Runde 4)
+  - src/Webhooks/Dispatcher.php:302–305, Modules/Webhooks.php:31: KEY (status, updated_at), DELETE … LIMIT 1000 mit Zeitbudget, höchstens stündlich
+- [ ] **A438** [WICHTIG] Lasttests ohne Historie und ohne Admin-/Massenoperationen — _R2 DB/Performance_ (TODO L747; Audit Runde 4)
+  - tests/load: Profile mit Jahren an Reservierungen/Check-ins/Zustellungen; Absagen, Batch-PDF, Berichte, Exporte bei 10k–100k
+- [ ] **A439** [OPTIMIERUNG] Retention-Schritt checkin_staff ohne Index — _R2 DB/Performance_ (TODO L748; Audit Runde 4)
+  - src/Privacy/Retention.php:345: Index (created_at, checkin_id)
+- [ ] **A440** [OPTIMIERUNG] Statistik-Endpunkt der Scanner-App zählt bei jedem Aufruf alles — _R2 DB/Performance_ (TODO L749; Audit Runde 4)
+  - src/Mobile/Api.php:100–105: KEY (device_id, event_id, result), Zähler/Cache
+- [ ] **A441** [OPTIMIERUNG] Ticketsuche mit sechs LIKE %x% über 6-Tabellen-Join — _R2 DB/Performance_ (TODO L750; Audit Runde 4)
+  - src/Admin/Queries.php:416–433: Präfix-/exakte Suche auf indexierten Spalten, E-Mail exakt
+- [ ] **A442** [OPTIMIERUNG] Bestellportal: eine Antworten-Query pro Ticket — _R2 DB/Performance_ (TODO L751; Audit Runde 4)
+  - src/OrderPortal.php:76–83: Eine IN()-Query
+- [ ] **A443** [OPTIMIERUNG] Offline-Paket: Throttle-Prüfung vor dem Lock — _R2 DB/Performance_ (TODO L752; Audit Runde 4)
+  - src/OfflineScanner/Package.php:57–100: refreshed_at nach dem Lock erneut prüfen
+- [ ] **A444** [OPTIMIERUNG] Tabellen ohne Aufräumung (reservations, jobs, seat_holds, payment_events) — _R2 DB/Performance_ (TODO L753; Audit Runde 4)
+  - src/Privacy/Retention.php: Abgeschlossene Zeilen nach N Tagen batchweise löschen
+- [ ] **A445** [OPTIMIERUNG] WooCommerce-Absagenotiz sucht je Bestellung per meta_value (PLAUSIBEL O(n²)) — _R2 DB/Performance_ (TODO L754; Audit Runde 4)
+  - src/Integrations/WooCommerce/OrderAdapter.php:948–953: WC-Order-ID an der Kernbestellung speichern
+
 ## Bereits erledigt (vor bzw. beim Anlegen der Liste)
 
 - [x] Portal-Umtausch übertragener Tickets gesperrt (Sicherheit P1) — Commit 4c7e7bc
