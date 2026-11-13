@@ -32,11 +32,15 @@ final class Jobs {
 		$drained = false;
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
-			$wpdb->query( 'START TRANSACTION' );
+			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; } // No row lock without a transaction.
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND run_after<=%s ORDER BY run_after,job_id LIMIT 1 FOR UPDATE", $now ) );
 			if ( ! $row ) { $wpdb->query( 'COMMIT' ); $drained = true; break; }
-			$wpdb->update( $table, array( 'status' => 'running', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'job_id' => (int) $row->job_id, 'status' => 'queued' ), array( '%s', '%d', '%s', '%s' ), array( '%d', '%s' ) );
-			$wpdb->query( 'COMMIT' );
+			$claimed = $wpdb->update( $table, array( 'status' => 'running', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'job_id' => (int) $row->job_id, 'status' => 'queued' ), array( '%s', '%d', '%s', '%s' ), array( '%d', '%s' ) );
+			if ( 1 !== (int) $claimed || false === $wpdb->query( 'COMMIT' ) ) {
+				// Claim not durable (database error or lost race): never run the handler unclaimed.
+				$wpdb->query( 'ROLLBACK' );
+				break;
+			}
 			Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued' );
 			++$processed;
 			$payload = json_decode( $row->payload, true );
