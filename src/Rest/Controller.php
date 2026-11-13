@@ -707,7 +707,9 @@ final class Controller {
 	public static function report_permission( \WP_REST_Request $request ) {
 		$event_id = absint( $request['event_id'] );
 		// The summary covers all occurrences of the event: location-scoped users need all of them in scope (A119).
-		return ( Access::can_access_event( $event_id, 'wpcap_view_reports' ) && Access::event_fully_in_scope( $event_id ) ) || false !== DeveloperKeys::authorize( $request, 'reports.read', $event_id );
+		if ( Access::can_access_event( $event_id, 'wpcap_view_reports' ) && Access::event_fully_in_scope( $event_id ) ) { return true; }
+		// true, false or a 429 WP_Error (never collapse it with || – an object is truthy).
+		return DeveloperKeys::permission( $request, 'reports.read', $event_id );
 	}
 
 	public static function event_report( \WP_REST_Request $request ) {
@@ -746,7 +748,7 @@ final class Controller {
 	}
 
 	public static function developer_key_permission( \WP_REST_Request $request ) {
-		return DeveloperKeys::authorize( $request, 'events.read', absint( $request['event_id'] ) ) !== false;
+		return DeveloperKeys::permission( $request, 'events.read', absint( $request['event_id'] ) );
 	}
 
 	public static function developer_event( \WP_REST_Request $request ) {
@@ -758,7 +760,7 @@ final class Controller {
 
 	/** GET /developer/events/{id}/service-slots: scope slots.read (DeveloperKeys::ROUTES). */
 	public static function developer_slots_permission( \WP_REST_Request $request ) {
-		return DeveloperKeys::authorize( $request, 'slots.read', absint( $request['event_id'] ) ) !== false;
+		return DeveloperKeys::permission( $request, 'slots.read', absint( $request['event_id'] ) );
 	}
 
 	/** All service slots of the event with capacity and booked places; no customer data. */

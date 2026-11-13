@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-13T21:33:57+00:00\n"
+"POT-Creation-Date: 2026-11-13T21:38:14+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-pass-captain\n"
@@ -253,9 +253,9 @@ msgstr ""
 #: src/Passes/Definitions.php:320
 #: src/Rest/Controller.php:661
 #: src/Rest/Controller.php:700
-#: src/Rest/Controller.php:737
-#: src/Rest/Controller.php:783
-#: src/Rest/Controller.php:804
+#: src/Rest/Controller.php:739
+#: src/Rest/Controller.php:785
+#: src/Rest/Controller.php:806
 #: src/Seating/Layouts.php:461
 #: src/Series/Generator.php:69
 #: src/Series/Pools.php:64
@@ -1305,7 +1305,7 @@ msgstr ""
 #. translators: %d: number of scans
 #: src/Admin/DeveloperKeysPage.php:90
 #: src/Admin/DeveloperKeysPage.php:142
-#: src/Admin/DeveloperKeysPage.php:172
+#: src/Admin/DeveloperKeysPage.php:175
 #: src/Admin/DevicesPage.php:90
 #: src/Admin/Forms.php:505
 #: src/Admin/TicketsPage.php:262
@@ -1366,7 +1366,7 @@ msgid "Leer = unbefristet. Zeitzone: %s"
 msgstr ""
 
 #: src/Admin/DeveloperKeysPage.php:132
-#: src/Admin/DeveloperKeysPage.php:167
+#: src/Admin/DeveloperKeysPage.php:170
 msgid "Läuft ab am"
 msgstr ""
 
@@ -1444,28 +1444,27 @@ msgstr ""
 msgid "%d/min"
 msgstr ""
 
-#. translators: %d: requests per minute
-#: src/Admin/DeveloperKeysPage.php:158
+#: src/Admin/DeveloperKeysPage.php:160
 msgid "(Standard)"
 msgstr ""
 
-#: src/Admin/DeveloperKeysPage.php:162
+#: src/Admin/DeveloperKeysPage.php:165
 msgid "unbefristet"
 msgstr ""
 
-#: src/Admin/DeveloperKeysPage.php:164
+#: src/Admin/DeveloperKeysPage.php:167
 msgid "Ablauf und Ratenlimit ändern"
 msgstr ""
 
-#: src/Admin/DeveloperKeysPage.php:167
+#: src/Admin/DeveloperKeysPage.php:170
 msgid "Leer = unbefristet."
 msgstr ""
 
-#: src/Admin/DeveloperKeysPage.php:168
+#: src/Admin/DeveloperKeysPage.php:171
 msgid "Ratenlimit (Anfragen pro Minute)"
 msgstr ""
 
-#: src/Admin/DeveloperKeysPage.php:169
+#: src/Admin/DeveloperKeysPage.php:172
 #: src/Admin/ServiceSlotsPage.php:153
 #: src/Admin/ServiceSlotsPage.php:187
 #: src/Admission/RulesPage.php:192
@@ -1492,30 +1491,30 @@ msgstr ""
 msgid "Speichern"
 msgstr ""
 
-#: src/Admin/DeveloperKeysPage.php:170
+#: src/Admin/DeveloperKeysPage.php:173
 msgid "API-Key wirklich widerrufen? Das lässt sich nicht rückgängig machen."
 msgstr ""
 
-#: src/Admin/DeveloperKeysPage.php:178
+#: src/Admin/DeveloperKeysPage.php:181
 msgid "Keine API-Keys vorhanden."
 msgstr ""
 
-#: src/Admin/DeveloperKeysPage.php:181
+#: src/Admin/DeveloperKeysPage.php:184
 msgid "Endpunkte und Scopes"
 msgstr ""
 
-#: src/Admin/DeveloperKeysPage.php:182
+#: src/Admin/DeveloperKeysPage.php:185
 msgid "Endpunkt"
 msgstr ""
 
-#: src/Admin/DeveloperKeysPage.php:182
+#: src/Admin/DeveloperKeysPage.php:185
 msgid "Scope"
 msgstr ""
 
 #. translators: %d: default requests per minute
-#: src/Admin/DeveloperKeysPage.php:188
+#: src/Admin/DeveloperKeysPage.php:191
 #, php-format
-msgid "Standard-Ratenlimit: %d Anfragen pro Minute und Schlüssel (Filter wpcap_developer_key_rate_limit). Über dem Limit antwortet die API mit 401/403."
+msgid "Standard-Ratenlimit: %d Anfragen pro Minute und Schlüssel (Filter wpcap_developer_key_rate_limit). Über dem Limit antwortet die API mit 429 und Retry-After."
 msgstr ""
 
 #: src/Admin/DevicesPage.php:40
@@ -1711,8 +1710,8 @@ msgstr ""
 #: src/OfflineScanner/AdminPage.php:35
 #: src/OfflineScanner/AdminPage.php:53
 #: src/Partners/Api.php:164
-#: src/Rest/Controller.php:756
-#: src/Rest/Controller.php:811
+#: src/Rest/Controller.php:758
+#: src/Rest/Controller.php:813
 #: src/Seating/Layouts.php:443
 #: src/Series/Generator.php:68
 #: src/ServiceBookings.php:92
@@ -1737,7 +1736,7 @@ msgstr ""
 #: src/Passes/Definitions.php:319
 #: src/Reports/Settlement.php:361
 #: src/Rest/Controller.php:639
-#: src/Rest/Controller.php:866
+#: src/Rest/Controller.php:868
 #: src/Seating/Layouts.php:606
 msgid "Termin nicht gefunden."
 msgstr ""
@@ -7495,12 +7494,16 @@ msgstr ""
 msgid "API-Key konnte nicht angelegt werden."
 msgstr ""
 
-#: src/DeveloperKeys.php:156
-#: src/DeveloperKeys.php:174
+#: src/DeveloperKeys.php:134
+msgid "Ratenlimit des API-Keys erreicht. Bitte warte bis zur nächsten Minute."
+msgstr ""
+
+#: src/DeveloperKeys.php:189
+#: src/DeveloperKeys.php:207
 msgid "API-Key nicht gefunden oder keine Berechtigung."
 msgstr ""
 
-#: src/DeveloperKeys.php:175
+#: src/DeveloperKeys.php:208
 msgid "Ein widerrufener API-Key kann nicht mehr geändert werden. Lege einen neuen an."
 msgstr ""
 
@@ -11337,13 +11340,13 @@ msgstr ""
 msgid "Website-Zustand"
 msgstr ""
 
-#. translators: %s: cron hook name
+#. translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time
 #: src/Operations/SiteHealth.php:368
 #, php-format
 msgid "Letzter Lauf %s"
 msgstr ""
 
-#. translators: %s: cron hook name
+#. translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time
 #: src/Operations/SiteHealth.php:377
 #, php-format
 msgid "Nächster Lauf %s"
@@ -15453,47 +15456,47 @@ msgstr ""
 msgid "Keine Berechtigung für diese Ticketart."
 msgstr ""
 
-#: src/Rest/Controller.php:721
+#: src/Rest/Controller.php:723
 msgid "Berichtszeitraum muss gültig und höchstens 90 Tage lang sein."
 msgstr ""
 
-#: src/Rest/Controller.php:777
+#: src/Rest/Controller.php:779
 msgid "Übersetzung nicht gefunden."
 msgstr ""
 
-#: src/Rest/Controller.php:787
+#: src/Rest/Controller.php:789
 msgid "Locale oder übersetzter Titel ist ungültig."
 msgstr ""
 
-#: src/Rest/Controller.php:808
+#: src/Rest/Controller.php:810
 msgid "Sitzplan muss einen Namen und 1 bis 500 Sitzplätze enthalten."
 msgstr ""
 
-#: src/Rest/Controller.php:815
+#: src/Rest/Controller.php:817
 msgid "Sitzplan konnte nicht gespeichert werden."
 msgstr ""
 
-#: src/Rest/Controller.php:819
+#: src/Rest/Controller.php:821
 msgid "Jeder Sitzplatz benötigt einen eindeutigen Schlüssel und eine Bezeichnung."
 msgstr ""
 
-#: src/Rest/Controller.php:821
+#: src/Rest/Controller.php:823
 msgid "Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel."
 msgstr ""
 
-#: src/Rest/Controller.php:841
+#: src/Rest/Controller.php:843
 msgid "Keine Berechtigung für diesen Termin."
 msgstr ""
 
-#: src/Rest/Controller.php:844
+#: src/Rest/Controller.php:846
 msgid "Bitte 1 bis 31 Veranstaltungstage angeben."
 msgstr ""
 
-#: src/Rest/Controller.php:853
+#: src/Rest/Controller.php:855
 msgid "Ein Veranstaltungstag oder eine Einlassregel ist ungültig."
 msgstr ""
 
-#: src/Rest/Controller.php:855
+#: src/Rest/Controller.php:857
 msgid "Einlassregeln konnten nicht gespeichert werden."
 msgstr ""
 

@@ -61,7 +61,8 @@ nicht abgelaufen; Event der Anfrage = Event des Schlüssels; die Person, die den
 Administrator oder im Event-Team (`wpcap_manage_events`/`wpcap_view_reports`) und hat alle Termine des Events
 in ihrem Standort-/Partnerbereich (A119); der Scope der Route ist im Schlüssel enthalten; das Ratenlimit des
 Schlüssels (Standard 600 Anfragen/Minute, je Schlüssel 1–10000, Filter `wpcap_developer_key_rate_limit`) ist
-nicht überschritten. Sonst lehnt WordPress die Anfrage ab (401/403).
+nicht überschritten. Sonst lehnt WordPress die Anfrage ab (401/403); ist nur das Ratenlimit erreicht, antwortet
+die API mit 429 `wpcap_rate_limited` und `Retry-After` (Sekunden bis zur nächsten Minute).
 
 | Route (Namensraum `wp-pass-captain/v1`) | Scope | Inhalt |
 |---|---|---|

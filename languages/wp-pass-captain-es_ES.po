@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP Pass Captain 1.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
-"POT-Creation-Date: 2026-11-13T21:33:57+00:00\n"
+"POT-Creation-Date: 2026-11-13T21:38:14+00:00\n"
 "PO-Revision-Date: 2026-11-11 22:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: Spanish (Spain)\n"
@@ -184,8 +184,8 @@ msgstr "Sistema"
 #: src/Passes/Definitions.php:189 src/Passes/Definitions.php:226
 #: src/Passes/Definitions.php:305 src/Passes/Definitions.php:320
 #: src/Rest/Controller.php:661 src/Rest/Controller.php:700
-#: src/Rest/Controller.php:737 src/Rest/Controller.php:783
-#: src/Rest/Controller.php:804 src/Seating/Layouts.php:461
+#: src/Rest/Controller.php:739 src/Rest/Controller.php:785
+#: src/Rest/Controller.php:806 src/Seating/Layouts.php:461
 #: src/Series/Generator.php:69 src/Series/Pools.php:64 src/Series/Pools.php:104
 #: src/Series/Pricing.php:182 src/Series/Pricing.php:210
 #: src/Series/Pricing.php:232 src/ServiceBookings.php:66
@@ -491,7 +491,7 @@ msgstr "Fecha aplazada"
 
 #: src/Admin/ChangeHistory.php:64
 msgid "Ticketinhaber:innen über Änderung informiert"
-msgstr ""
+msgstr "Titulares de las entradas informados del cambio"
 
 #: src/Admin/ChangeHistory.php:65
 msgid "Termin entfernt (nicht mehr in der Serienregel)"
@@ -988,15 +988,15 @@ msgstr "La fecha de caducidad debe estar en el futuro."
 
 #: src/Admin/DeveloperKeysPage.php:71
 msgid "API-Key angelegt. Kopiere ihn jetzt – er wird nur dieses eine Mal angezeigt."
-msgstr ""
+msgstr "Clave de API creada. Cópiala ahora: solo se muestra esta vez."
 
 #: src/Admin/DeveloperKeysPage.php:77
 msgid "API-Key widerrufen. Anfragen damit werden ab sofort abgelehnt."
-msgstr ""
+msgstr "Clave de API revocada. Las solicitudes con ella se rechazan a partir de ahora."
 
 #: src/Admin/DeveloperKeysPage.php:83
 msgid "Ablauf und Ratenlimit gespeichert."
-msgstr ""
+msgstr "Vencimiento y límite de frecuencia guardados."
 
 #: src/Admin/DeveloperKeysPage.php:88 src/Admin/DeveloperKeysPage.php:142
 #: src/Admin/EventsPage.php:1030 src/Admin/Forms.php:489
@@ -1015,7 +1015,7 @@ msgstr "Caducado"
 
 #. translators: %d: number of scans
 #: src/Admin/DeveloperKeysPage.php:90 src/Admin/DeveloperKeysPage.php:142
-#: src/Admin/DeveloperKeysPage.php:172 src/Admin/DevicesPage.php:90
+#: src/Admin/DeveloperKeysPage.php:175 src/Admin/DevicesPage.php:90
 #: src/Admin/Forms.php:505 src/Admin/TicketsPage.php:262 src/Consents.php:530
 #: src/Partners/AdminPage.php:510
 msgid "Widerrufen"
@@ -1023,15 +1023,15 @@ msgstr "Revocado"
 
 #: src/Admin/DeveloperKeysPage.php:103 src/Admin/Menu.php:213
 msgid "Entwickler-API"
-msgstr ""
+msgstr "API para desarrolladores"
 
 #: src/Admin/DeveloperKeysPage.php:105
 msgid "Entwickler-API-Schlüssel geben externen Systemen lesenden Zugriff auf genau ein Event. Jede Anfrage sendet den Schlüssel im Header X-WPCAP-Key. Der Schlüssel gilt nur, solange die Person, die ihn angelegt hat, für das Event berechtigt ist und alle Termine des Events in ihrem Standort- oder Partnerbereich liegen."
-msgstr ""
+msgstr "Las claves de la API para desarrolladores dan a sistemas externos acceso de lectura a un único evento. Cada solicitud envía la clave en el encabezado X-WPCAP-Key. La clave solo es válida mientras la persona que la creó tenga permiso para el evento y todas las fechas del evento estén dentro de su ámbito de ubicación o de socio."
 
 #: src/Admin/DeveloperKeysPage.php:110
 msgid "Neuer API-Key – wird nur jetzt angezeigt:"
-msgstr ""
+msgstr "Nueva clave de API (solo se muestra ahora):"
 
 #: src/Admin/DeveloperKeysPage.php:111 src/Partners/AdminPage.php:515
 msgid "Neuer API-Key"
@@ -1039,23 +1039,23 @@ msgstr "Nueva clave de API"
 
 #: src/Admin/DeveloperKeysPage.php:112
 msgid "Gespeichert wird nur ein Hash. Geht der Schlüssel verloren, widerrufe ihn und lege einen neuen an."
-msgstr ""
+msgstr "Solo se guarda un hash. Si pierdes la clave, revócala y crea una nueva."
 
 #: src/Admin/DeveloperKeysPage.php:115
 msgid "Neuen API-Key anlegen"
-msgstr ""
+msgstr "Crear nueva clave de API"
 
 #: src/Admin/DeveloperKeysPage.php:117
 msgid "Es gibt noch kein Event, für das du API-Keys anlegen darfst."
-msgstr ""
+msgstr "Todavía no hay ningún evento para el que puedas crear claves de API."
 
 #: src/Admin/DeveloperKeysPage.php:121
 msgid "z. B. Ticketstatistik Website"
-msgstr ""
+msgstr "p. ej. estadísticas de entradas del sitio web"
 
 #: src/Admin/DeveloperKeysPage.php:124
 msgid "Der Schlüssel funktioniert nur für dieses Event."
-msgstr ""
+msgstr "La clave solo funciona para este evento."
 
 #: src/Admin/DeveloperKeysPage.php:125 src/Admin/DeveloperKeysPage.php:149
 #: src/Partners/AdminPage.php:495 src/Partners/AdminPage.php:520
@@ -1066,25 +1066,25 @@ msgstr "Scopes"
 #: src/Admin/DeveloperKeysPage.php:131
 #, php-format
 msgid "Leer = unbefristet. Zeitzone: %s"
-msgstr ""
+msgstr "Vacío = sin vencimiento. Zona horaria: %s"
 
-#: src/Admin/DeveloperKeysPage.php:132 src/Admin/DeveloperKeysPage.php:167
+#: src/Admin/DeveloperKeysPage.php:132 src/Admin/DeveloperKeysPage.php:170
 msgid "Läuft ab am"
-msgstr ""
+msgstr "Vence el"
 
 #. translators: %d: default requests per minute
 #: src/Admin/DeveloperKeysPage.php:134
 #, php-format
 msgid "Anfragen pro Minute. Leer = Standard (%d)."
-msgstr ""
+msgstr "Solicitudes por minuto. Vacío = predeterminado (%d)."
 
 #: src/Admin/DeveloperKeysPage.php:135 src/Admin/DeveloperKeysPage.php:149
 msgid "Ratenlimit"
-msgstr ""
+msgstr "Límite de frecuencia"
 
 #: src/Admin/DeveloperKeysPage.php:137
 msgid "API-Key anlegen"
-msgstr ""
+msgstr "Crear clave de API"
 
 #: src/Admin/DeveloperKeysPage.php:141 src/Partners/AdminPage.php:488
 msgid "API-Keys"
@@ -1098,11 +1098,11 @@ msgstr "Todos"
 
 #: src/Admin/DeveloperKeysPage.php:149
 msgid "Präfix"
-msgstr ""
+msgstr "Prefijo"
 
 #: src/Admin/DeveloperKeysPage.php:149
 msgid "Angelegt von"
-msgstr ""
+msgstr "Creada por"
 
 #: src/Admin/DeveloperKeysPage.php:149 src/Admin/OrdersPage.php:373
 msgid "Angelegt"
@@ -1114,7 +1114,7 @@ msgstr "Último uso"
 
 #: src/Admin/DeveloperKeysPage.php:149
 msgid "Läuft ab"
-msgstr ""
+msgstr "Vence"
 
 #. translators: 1: list, 2: used, 3: quota
 #: src/Admin/DeveloperKeysPage.php:149 src/Admin/OperationsPage.php:132
@@ -1131,30 +1131,29 @@ msgstr "Acciones"
 #: src/Admin/DeveloperKeysPage.php:158
 #, php-format
 msgid "%d/min"
-msgstr ""
+msgstr "%d/min"
 
-#. translators: %d: requests per minute
-#: src/Admin/DeveloperKeysPage.php:158
+#: src/Admin/DeveloperKeysPage.php:160
 msgid "(Standard)"
-msgstr ""
+msgstr "(predeterminado)"
 
-#: src/Admin/DeveloperKeysPage.php:162
+#: src/Admin/DeveloperKeysPage.php:165
 msgid "unbefristet"
-msgstr ""
-
-#: src/Admin/DeveloperKeysPage.php:164
-msgid "Ablauf und Ratenlimit ändern"
-msgstr ""
+msgstr "sin vencimiento"
 
 #: src/Admin/DeveloperKeysPage.php:167
+msgid "Ablauf und Ratenlimit ändern"
+msgstr "Cambiar vencimiento y límite de frecuencia"
+
+#: src/Admin/DeveloperKeysPage.php:170
 msgid "Leer = unbefristet."
-msgstr ""
+msgstr "Vacío = sin vencimiento."
 
-#: src/Admin/DeveloperKeysPage.php:168
+#: src/Admin/DeveloperKeysPage.php:171
 msgid "Ratenlimit (Anfragen pro Minute)"
-msgstr ""
+msgstr "Límite de frecuencia (solicitudes por minuto)"
 
-#: src/Admin/DeveloperKeysPage.php:169 src/Admin/ServiceSlotsPage.php:153
+#: src/Admin/DeveloperKeysPage.php:172 src/Admin/ServiceSlotsPage.php:153
 #: src/Admin/ServiceSlotsPage.php:187 src/Admission/RulesPage.php:192
 #: src/Admission/RulesPage.php:209 src/Admission/RulesPage.php:247
 #: src/Allocations/AdminPage.php:218 src/Allocations/AdminPage.php:278
@@ -1169,31 +1168,31 @@ msgstr ""
 msgid "Speichern"
 msgstr "Guardar"
 
-#: src/Admin/DeveloperKeysPage.php:170
+#: src/Admin/DeveloperKeysPage.php:173
 msgid "API-Key wirklich widerrufen? Das lässt sich nicht rückgängig machen."
-msgstr ""
-
-#: src/Admin/DeveloperKeysPage.php:178
-msgid "Keine API-Keys vorhanden."
-msgstr ""
+msgstr "¿Seguro que quieres revocar la clave de API? No se puede deshacer."
 
 #: src/Admin/DeveloperKeysPage.php:181
+msgid "Keine API-Keys vorhanden."
+msgstr "No hay claves de API."
+
+#: src/Admin/DeveloperKeysPage.php:184
 msgid "Endpunkte und Scopes"
-msgstr ""
+msgstr "Endpoints y ámbitos"
 
-#: src/Admin/DeveloperKeysPage.php:182
+#: src/Admin/DeveloperKeysPage.php:185
 msgid "Endpunkt"
-msgstr ""
+msgstr "Endpoint"
 
-#: src/Admin/DeveloperKeysPage.php:182
+#: src/Admin/DeveloperKeysPage.php:185
 msgid "Scope"
-msgstr ""
+msgstr "Ámbito"
 
 #. translators: %d: default requests per minute
-#: src/Admin/DeveloperKeysPage.php:188
+#: src/Admin/DeveloperKeysPage.php:191
 #, php-format
-msgid "Standard-Ratenlimit: %d Anfragen pro Minute und Schlüssel (Filter wpcap_developer_key_rate_limit). Über dem Limit antwortet die API mit 401/403."
-msgstr ""
+msgid "Standard-Ratenlimit: %d Anfragen pro Minute und Schlüssel (Filter wpcap_developer_key_rate_limit). Über dem Limit antwortet die API mit 429 und Retry-After."
+msgstr "Límite de frecuencia predeterminado: %d solicitudes por minuto y clave (filtro wpcap_developer_key_rate_limit). Por encima del límite, la API responde con 429 y Retry-After."
 
 #: src/Admin/DevicesPage.php:40
 msgid "Kopplungscode erstellt. Jetzt mit der App scannen."
@@ -1368,8 +1367,8 @@ msgstr "No se ha podido guardar el tipo de entrada."
 #: src/Allocations/BuyerLimits.php:75 src/DeveloperKeys.php:83
 #: src/Exchange/Policy.php:86 src/GuestLists/Service.php:175
 #: src/OfflineScanner/AdminPage.php:35 src/OfflineScanner/AdminPage.php:53
-#: src/Partners/Api.php:164 src/Rest/Controller.php:756
-#: src/Rest/Controller.php:811 src/Seating/Layouts.php:443
+#: src/Partners/Api.php:164 src/Rest/Controller.php:758
+#: src/Rest/Controller.php:813 src/Seating/Layouts.php:443
 #: src/Series/Generator.php:68 src/ServiceBookings.php:92
 msgid "Event nicht gefunden."
 msgstr "Evento no encontrado."
@@ -1385,7 +1384,7 @@ msgstr "Los eventos cancelados ya no se pueden editar."
 #: src/GuestLists/Service.php:601 src/OfflineScanner/Rest.php:62
 #: src/Partners/Sales.php:344 src/Passes/Definitions.php:319
 #: src/Reports/Settlement.php:361 src/Rest/Controller.php:639
-#: src/Rest/Controller.php:866 src/Seating/Layouts.php:606
+#: src/Rest/Controller.php:868 src/Seating/Layouts.php:606
 msgid "Termin nicht gefunden."
 msgstr "Fecha no encontrada."
 
@@ -1802,15 +1801,15 @@ msgstr "Datos del evento"
 
 #: src/Admin/EventsPage.php:847
 msgid "Änderungsmitteilungen"
-msgstr ""
+msgstr "Avisos de cambios"
 
 #: src/Admin/EventsPage.php:847
 msgid "Ticketinhaber:innen per E-Mail informieren, wenn sich Zeit, Ort oder Einlass eines Termins ändern (mit aktualisierter Kalenderdatei)"
-msgstr ""
+msgstr "Informar por correo electrónico a los titulares de las entradas cuando cambien la hora, el lugar o el acceso de una fecha (con el archivo de calendario actualizado)"
 
 #: src/Admin/EventsPage.php:847
 msgid "Absagen werden unabhängig davon immer mitgeteilt."
-msgstr ""
+msgstr "Las cancelaciones se comunican siempre, independientemente de esta opción."
 
 #: src/Admin/EventsPage.php:850
 msgid "Event aktualisieren"
@@ -2479,7 +2478,7 @@ msgstr "Revisión fiscal"
 
 #: src/Admin/Menu.php:205 src/Admin/ServiceSlotsPage.php:124
 msgid "Service-Zeitfenster"
-msgstr ""
+msgstr "Franjas horarias de servicio"
 
 #: src/Admin/Menu.php:212 src/Allocations/AdminPage.php:212
 #: src/Partners/AdminPage.php:254 src/Passes/AdminPage.php:261
@@ -2489,7 +2488,7 @@ msgstr "Ajustes"
 
 #: src/Admin/Menu.php:215 src/Admin/OperationsPage.php:85
 msgid "Betrieb"
-msgstr ""
+msgstr "Operación"
 
 #: src/Admin/Menu.php:218 src/Integrations/Vouchers/IntegrationStatus.php:33
 #: src/Integrations/Vouchers/IntegrationStatus.php:44
@@ -2512,83 +2511,83 @@ msgstr "WP Voucher Captain ↗"
 #: src/Admin/OperationsPage.php:35 src/Operations/Queues.php:207
 #: src/Operations/Queues.php:241
 msgid "Unbekannte Warteschlange."
-msgstr ""
+msgstr "Cola desconocida."
 
 #: src/Admin/OperationsPage.php:50
 msgid "Bitte eine Aktion wählen."
-msgstr ""
+msgstr "Elige una acción."
 
 #. translators: %d: number of items
 #: src/Admin/OperationsPage.php:65
 #, php-format
 msgid "%d Eintrag wurde erneut eingeplant; die Verarbeitung ist angestoßen."
 msgid_plural "%d Einträge wurden erneut eingeplant; die Verarbeitung ist angestoßen."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%d elemento se ha vuelto a programar; se ha iniciado el procesamiento."
+msgstr[1] "%d elementos se han vuelto a programar; se ha iniciado el procesamiento."
 
 #. translators: %d: number of items
 #: src/Admin/OperationsPage.php:67
 #, php-format
 msgid "%d Eintrag wurde verworfen."
 msgid_plural "%d Einträge wurden verworfen."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%d elemento se ha descartado."
+msgstr[1] "%d elementos se han descartado."
 
 #. translators: %d: minutes
 #: src/Admin/OperationsPage.php:77
 #, php-format
 msgid "%d min"
-msgstr ""
+msgstr "%d min"
 
 #. translators: 1: hours, 2: minutes
 #: src/Admin/OperationsPage.php:80
 #, php-format
 msgid "%1$d h %2$d min"
-msgstr ""
+msgstr "%1$d h %2$d min"
 
 #: src/Admin/OperationsPage.php:87
 msgid "Zustand der Hintergrundverarbeitung: Hier siehst du Rückstände und endgültig fehlgeschlagene Einträge und kannst sie erneut versuchen oder verwerfen. Inhalte werden nicht angezeigt, nur die Namen der enthaltenen Felder."
-msgstr ""
+msgstr "Estado del procesamiento en segundo plano: aquí ves los elementos acumulados y los que han fallado definitivamente, y puedes reintentarlos o descartarlos. No se muestran los contenidos, solo los nombres de los campos que contienen."
 
 #: src/Admin/OperationsPage.php:99
 msgid "Überwachung"
-msgstr ""
+msgstr "Supervisión"
 
 #: src/Admin/OperationsPage.php:101
 msgid "in Ordnung"
-msgstr ""
+msgstr "correcto"
 
 #: src/Admin/OperationsPage.php:102
 msgid "empfohlen"
-msgstr ""
+msgstr "recomendado"
 
 #: src/Admin/OperationsPage.php:103
 msgid "kritisch"
-msgstr ""
+msgstr "crítico"
 
 #: src/Admin/OperationsPage.php:109
 msgid "Alle Prüfungen im Website-Zustand ansehen"
-msgstr ""
+msgstr "Ver todas las comprobaciones en Salud del sitio"
 
 #: src/Admin/OperationsPage.php:118
 msgid "Einträge nach Status:"
-msgstr ""
+msgstr "Elementos por estado:"
 
 #. translators: %s: number of due items
 #: src/Admin/OperationsPage.php:120
 #, php-format
 msgid "Fällig und wartend: %s"
-msgstr ""
+msgstr "Vencidos y en espera: %s"
 
 #. translators: %s: age, e.g. "1 h 5 min"
 #: src/Admin/OperationsPage.php:123
 #, php-format
 msgid "ältester fälliger Eintrag wartet seit %s"
-msgstr ""
+msgstr "el elemento vencido más antiguo lleva esperando %s"
 
 #: src/Admin/OperationsPage.php:127
 msgid "Keine fehlgeschlagenen Einträge."
-msgstr ""
+msgstr "No hay elementos fallidos."
 
 #: src/Admin/OperationsPage.php:132 src/blocks/events/editor.js:15
 msgid "Auswahl"
@@ -2596,7 +2595,7 @@ msgstr "Selección"
 
 #: src/Admin/OperationsPage.php:132
 msgid "ID"
-msgstr ""
+msgstr "ID"
 
 #: src/Admin/OperationsPage.php:132 src/Modules/Webhooks.php:330
 msgid "Versuche"
@@ -2604,53 +2603,53 @@ msgstr "Intentos"
 
 #: src/Admin/OperationsPage.php:132
 msgid "Letzter Fehler"
-msgstr ""
+msgstr "Último error"
 
 #: src/Admin/OperationsPage.php:132
 msgid "Inhalt (nur Feldnamen)"
-msgstr ""
+msgstr "Contenido (solo nombres de campos)"
 
 #: src/Admin/OperationsPage.php:132
 msgid "Erstellt"
-msgstr ""
+msgstr "Creado"
 
 #. translators: %d: item id
 #: src/Admin/OperationsPage.php:135
 #, php-format
 msgid "Eintrag %d auswählen"
-msgstr ""
+msgstr "Seleccionar el elemento %d"
 
 #: src/Admin/OperationsPage.php:141 src/Admin/OperationsPage.php:151
 msgid "Erneut versuchen"
-msgstr ""
+msgstr "Reintentar"
 
 #: src/Admin/OperationsPage.php:142
 msgid "Diesen Eintrag endgültig verwerfen?"
-msgstr ""
+msgstr "¿Descartar definitivamente este elemento?"
 
 #: src/Admin/OperationsPage.php:142 src/Admin/OperationsPage.php:151
 msgid "Verwerfen"
-msgstr ""
+msgstr "Descartar"
 
 #. translators: 1: shown items, 2: total failed items
 #: src/Admin/OperationsPage.php:147
 #, php-format
 msgid "Angezeigt werden die neuesten %1$d von %2$d fehlgeschlagenen Einträgen."
-msgstr ""
+msgstr "Se muestran los %1$d más recientes de %2$d elementos fallidos."
 
 #: src/Admin/OperationsPage.php:150
 msgid "Mehrfachaktion"
-msgstr ""
+msgstr "Acción en bloque"
 
 #. translators: %d: maximum number of items
 #: src/Admin/OperationsPage.php:154
 #, php-format
 msgid "alle fehlgeschlagenen Einträge dieser Warteschlange (höchstens %d)"
-msgstr ""
+msgstr "todos los elementos fallidos de esta cola (máximo %d)"
 
 #: src/Admin/OperationsPage.php:155
 msgid "Ausführen"
-msgstr ""
+msgstr "Ejecutar"
 
 #: src/Admin/OrdersPage.php:35 src/Orders.php:991 src/Partners/Sales.php:446
 #: src/Payments/PayPalGateway.php:130 src/Rest/Controller.php:452
@@ -3146,7 +3145,7 @@ msgstr "El tramo horario no es válido."
 
 #: src/Admin/ServiceSlotsPage.php:56 src/ServiceBookings.php:70
 msgid "Ressource oder Zeitfenster nicht gefunden."
-msgstr ""
+msgstr "Recurso o franja horaria no encontrados."
 
 #: src/Admin/ServiceSlotsPage.php:62 src/ServiceBookings.php:149
 msgid "Keine Berechtigung für diese Ressource."
@@ -3154,23 +3153,23 @@ msgstr "No tienes permiso para este recurso."
 
 #: src/Admin/ServiceSlotsPage.php:70
 msgid "Ressource gespeichert."
-msgstr ""
+msgstr "Recurso guardado."
 
 #: src/Admin/ServiceSlotsPage.php:76
 msgid "Ressource mit ihren Zeitfenstern gelöscht."
-msgstr ""
+msgstr "Recurso eliminado junto con sus franjas horarias."
 
 #: src/Admin/ServiceSlotsPage.php:82
 msgid "Zeitfenster gespeichert."
-msgstr ""
+msgstr "Franja horaria guardada."
 
 #: src/Admin/ServiceSlotsPage.php:88
 msgid "Zeitfenster gelöscht."
-msgstr ""
+msgstr "Franja horaria eliminada."
 
 #: src/Admin/ServiceSlotsPage.php:95
 msgid "Buchbar"
-msgstr ""
+msgstr "Reservable"
 
 #: src/Admin/ServiceSlotsPage.php:96 src/BoxOffice/ShiftPage.php:329
 #: src/BoxOffice/ZReport.php:360
@@ -3179,31 +3178,31 @@ msgstr "Cierre"
 
 #: src/Admin/ServiceSlotsPage.php:97
 msgid "Reserviert"
-msgstr ""
+msgstr "Reservado"
 
 #: src/Admin/ServiceSlotsPage.php:98
 msgid "Bestätigt"
-msgstr ""
+msgstr "Confirmado"
 
 #: src/Admin/ServiceSlotsPage.php:106
 msgid "z. B. Workshopraum 1"
-msgstr ""
+msgstr "p. ej. sala de talleres 1"
 
 #: src/Admin/ServiceSlotsPage.php:107 src/Admin/ServiceSlotsPage.php:144
 msgid "Plätze je Zeitfenster"
-msgstr ""
+msgstr "Plazas por franja horaria"
 
 #: src/Admin/ServiceSlotsPage.php:108
 msgid "Puffer vorher (Min.)"
-msgstr ""
+msgstr "Margen previo (min)"
 
 #: src/Admin/ServiceSlotsPage.php:109
 msgid "Puffer danach (Min.)"
-msgstr ""
+msgstr "Margen posterior (min)"
 
 #: src/Admin/ServiceSlotsPage.php:126
 msgid "Ressourcen sind Räume, Personen oder Geräte eines Events. Für jede Ressource legst du buchbare Zeitfenster mit einer Platzzahl an; Kund:innen reservieren sie über die öffentliche Buchungsschnittstelle. Zeitfenster mit Buchungen können nicht gelöscht, aber geschlossen werden."
-msgstr ""
+msgstr "Los recursos son salas, personas o equipos de un evento. Para cada recurso creas franjas horarias reservables con un número de plazas; los clientes las reservan a través de la interfaz pública de reservas. Las franjas horarias con reservas no se pueden eliminar, pero sí cerrar."
 
 #: src/Admin/ServiceSlotsPage.php:128 src/Waitlists/AdminPage.php:88
 msgid "– Event wählen –"
@@ -3219,24 +3218,24 @@ msgstr "Mostrar"
 
 #: src/Admin/ServiceSlotsPage.php:131
 msgid "Es gibt noch kein Event, das du verwalten darfst."
-msgstr ""
+msgstr "Todavía no hay ningún evento que puedas gestionar."
 
 #: src/Admin/ServiceSlotsPage.php:143
 msgid "Ressourcen"
-msgstr ""
+msgstr "Recursos"
 
 #: src/Admin/ServiceSlotsPage.php:144
 msgid "Puffer vorher/danach (Min.)"
-msgstr ""
+msgstr "Margen previo/posterior (min)"
 
 #: src/Admin/ServiceSlotsPage.php:144 src/Admin/ServiceSlotsPage.php:168
 #: src/Admin/ServiceSlotsPage.php:225
 msgid "Zeitfenster"
-msgstr ""
+msgstr "Franja horaria"
 
 #: src/Admin/ServiceSlotsPage.php:154
 msgid "Ressource mit allen Zeitfenstern löschen? Das geht nur, solange es keine Buchungen gibt."
-msgstr ""
+msgstr "¿Eliminar el recurso con todas sus franjas horarias? Solo es posible mientras no haya reservas."
 
 #: src/Admin/ServiceSlotsPage.php:157 src/Admin/ServiceSlotsPage.php:194
 #: src/Modules/Webhooks.php:303 src/Partners/AdminPage.php:404
@@ -3246,21 +3245,21 @@ msgstr "Eliminar"
 
 #: src/Admin/ServiceSlotsPage.php:159
 msgid "Noch keine Ressourcen."
-msgstr ""
+msgstr "Aún no hay recursos."
 
 #: src/Admin/ServiceSlotsPage.php:161
 msgid "Ressource hinzufügen"
-msgstr ""
+msgstr "Añadir recurso"
 
 #: src/Admin/ServiceSlotsPage.php:165
 msgid "Ressource anlegen"
-msgstr ""
+msgstr "Crear recurso"
 
 #. translators: %s: timezone
 #: src/Admin/ServiceSlotsPage.php:170
 #, php-format
 msgid "Alle Zeiten in %s."
-msgstr ""
+msgstr "Todas las horas en %s."
 
 #: src/Admin/ServiceSlotsPage.php:171 src/Admin/ServiceSlotsPage.php:210
 #: src/Admin/ServiceSlotsPage.php:225 src/Privacy.php:198
@@ -3269,7 +3268,7 @@ msgstr "Recurso"
 
 #: src/Admin/ServiceSlotsPage.php:171
 msgid "Gebucht / Plätze"
-msgstr ""
+msgstr "Reservadas / plazas"
 
 #: src/Admin/ServiceSlotsPage.php:182 src/Admin/ServiceSlotsPage.php:214
 #: src/Admin/ServiceSlotsPage.php:225 src/Allocations/AdminPage.php:331
@@ -3279,7 +3278,7 @@ msgstr "Asientos"
 
 #: src/Admin/ServiceSlotsPage.php:186
 msgid "Das Zeitfenster hat Buchungen; Beginn und Ende sind fest."
-msgstr ""
+msgstr "La franja horaria tiene reservas; el inicio y el fin son fijos."
 
 #: src/Admin/ServiceSlotsPage.php:189 src/Admin/ServiceSlotsPage.php:221
 #: src/BoxOffice/ZReport.php:403
@@ -3288,39 +3287,39 @@ msgstr "Movimientos"
 
 #: src/Admin/ServiceSlotsPage.php:198
 msgid "Noch keine Zeitfenster."
-msgstr ""
+msgstr "Aún no hay franjas horarias."
 
 #: src/Admin/ServiceSlotsPage.php:204
 msgid "Zeitfenster hinzufügen"
-msgstr ""
+msgstr "Añadir franja horaria"
 
 #: src/Admin/ServiceSlotsPage.php:206
 msgid "Lege zuerst eine aktive Ressource an."
-msgstr ""
+msgstr "Crea primero un recurso activo."
 
 #: src/Admin/ServiceSlotsPage.php:214
 msgid "wie Ressource"
-msgstr ""
+msgstr "como el recurso"
 
 #: src/Admin/ServiceSlotsPage.php:215
 msgid "Zeitfenster anlegen"
-msgstr ""
+msgstr "Crear franja horaria"
 
 #: src/Admin/ServiceSlotsPage.php:223
 msgid "Alle Buchungen des Events anzeigen"
-msgstr ""
+msgstr "Mostrar todas las reservas del evento"
 
 #: src/Admin/ServiceSlotsPage.php:225
 msgid "Buchung"
-msgstr ""
+msgstr "Reserva"
 
 #: src/Admin/ServiceSlotsPage.php:225
 msgid "Gebucht am"
-msgstr ""
+msgstr "Reservado el"
 
 #: src/Admin/ServiceSlotsPage.php:229
 msgid "Keine Buchungen."
-msgstr ""
+msgstr "No hay reservas."
 
 #: src/Admin/SettingsPage.php:37
 msgid "Allgemein / Reservierung"
@@ -6717,21 +6716,21 @@ msgstr "Estado actual"
 
 #: src/DeveloperKeys.php:31
 msgid "Eventdaten lesen (Name, Beschreibung, Status)"
-msgstr ""
+msgstr "Leer los datos del evento (nombre, descripción, estado)"
 
 #: src/DeveloperKeys.php:32
 msgid "Eventbericht lesen (Umsatz je Währung, Check-ins)"
-msgstr ""
+msgstr "Leer el informe del evento (ingresos por moneda, check-ins)"
 
 #: src/DeveloperKeys.php:33
 msgid "Service-Zeitfenster lesen (Kapazität und Belegung, ohne Kundendaten)"
-msgstr ""
+msgstr "Leer las franjas horarias de servicio (capacidad y ocupación, sin datos de clientes)"
 
 #. translators: %d: maximum requests per minute
 #: src/DeveloperKeys.php:64
 #, php-format
 msgid "Das Ratenlimit muss zwischen 1 und %d Anfragen pro Minute liegen (leer = Standard)."
-msgstr ""
+msgstr "El límite de frecuencia debe estar entre 1 y %d solicitudes por minuto (vacío = predeterminado)."
 
 #: src/DeveloperKeys.php:82
 msgid "Event und mindestens ein unterstützter Scope sind erforderlich."
@@ -6741,13 +6740,17 @@ msgstr "Se requieren un evento y al menos un scope compatible."
 msgid "API-Key konnte nicht angelegt werden."
 msgstr "No se ha podido crear la clave de API."
 
-#: src/DeveloperKeys.php:156 src/DeveloperKeys.php:174
+#: src/DeveloperKeys.php:134
+msgid "Ratenlimit des API-Keys erreicht. Bitte warte bis zur nächsten Minute."
+msgstr "Se ha alcanzado el límite de frecuencia de la clave de API. Espera hasta el minuto siguiente."
+
+#: src/DeveloperKeys.php:189 src/DeveloperKeys.php:207
 msgid "API-Key nicht gefunden oder keine Berechtigung."
 msgstr "Clave de API no encontrada o sin permiso."
 
-#: src/DeveloperKeys.php:175
+#: src/DeveloperKeys.php:208
 msgid "Ein widerrufener API-Key kann nicht mehr geändert werden. Lege einen neuen an."
-msgstr ""
+msgstr "Una clave de API revocada ya no se puede modificar. Crea una nueva."
 
 #: src/DoorsOpen.php:47
 msgid "Die Einlasszeit ist ungültig."
@@ -9096,7 +9099,7 @@ msgstr "Nueva fecha y hora"
 
 #: src/Mail/Types.php:354 src/Mail/Types.php:372
 msgid "Link zur aktualisierten Kalenderdatei (.ics)"
-msgstr ""
+msgstr "Enlace al archivo de calendario actualizado (.ics)"
 
 #. translators: %s: event
 #: src/Mail/Types.php:357
@@ -9126,29 +9129,29 @@ msgstr ""
 
 #: src/Mail/Types.php:363
 msgid "Termindetails geändert"
-msgstr ""
+msgstr "Detalles de la fecha modificados"
 
 #: src/Mail/Types.php:364
 msgid "Information an Ticketinhaber:innen, wenn sich Ort, Ende, Einlass oder Veranstaltungsland eines Termins ändern – auch zusammen mit einer neuen Uhrzeit (dann ersetzt sie die Mail „Terminänderung“). Je Änderung höchstens einmal; die aktualisierte Kalenderdatei ist angehängt."
-msgstr ""
+msgstr "Aviso a los titulares de las entradas cuando cambian el lugar, el fin, el acceso o el país del evento de una fecha, también junto con una nueva hora (en ese caso sustituye al correo «Cambio de fecha»). Como máximo una vez por cambio; se adjunta el archivo de calendario actualizado."
 
 #: src/Mail/Types.php:367
 msgid "Liste der Änderungen (bisher → neu), eine Zeile je Angabe"
-msgstr ""
+msgstr "Lista de cambios (antes → ahora), una línea por dato"
 
 #: src/Mail/Types.php:368
 msgid "Aktuelles Datum und Uhrzeit"
-msgstr ""
+msgstr "Fecha y hora actuales"
 
 #: src/Mail/Types.php:371
 msgid "Aktueller Ort"
-msgstr ""
+msgstr "Lugar actual"
 
 #. translators: %s: event
 #: src/Mail/Types.php:375
 #, php-format
 msgid "Geänderte Termindetails: %s"
-msgstr ""
+msgstr "Detalles de la fecha modificados: %s"
 
 #. translators: 1: event, 2: list of changes, 3: date and time, 4: timezone, 5: location, 6: link to the calendar file
 #: src/Mail/Types.php:377
@@ -9164,6 +9167,15 @@ msgid ""
 "Dein Ticket bleibt gültig. Die aktualisierte Kalenderdatei ist angehängt; du kannst sie auch hier laden: %6$s\n"
 "Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter."
 msgstr ""
+"Han cambiado algunos datos de tu fecha «%1$s»:\n"
+"\n"
+"%2$s\n"
+"\n"
+"Fecha: %3$s (%4$s)\n"
+"Lugar: %5$s\n"
+"\n"
+"Tu entrada sigue siendo válida. Se adjunta el archivo de calendario actualizado; también puedes descargarlo aquí: %6$s\n"
+"Si tienes preguntas sobre devoluciones o reembolsos, ponte en contacto con el organizador."
 
 #: src/Mail/Types.php:381
 msgid "Warteliste: Eintragung"
@@ -9183,7 +9195,7 @@ msgstr "Cantidad deseada"
 
 #: src/Mail/Types.php:388 src/Mail/Types.php:408
 msgid "Persönlicher Link zum Austragen aus der Warteliste"
-msgstr ""
+msgstr "Enlace personal para darse de baja de la lista de espera"
 
 #: src/Mail/Types.php:390
 msgid "Du stehst auf der Warteliste"
@@ -9306,6 +9318,8 @@ msgid ""
 "Du möchtest nicht mehr auf der Warteliste stehen? Hier kannst du dich austragen:\n"
 "%s"
 msgstr ""
+"¿Ya no quieres estar en la lista de espera? Puedes darte de baja aquí:\n"
+"%s"
 
 #. translators: %s: credit note number
 #: src/Mail/Types.php:474
@@ -10108,7 +10122,7 @@ msgstr "Error de Mollie: %s"
 
 #: src/Notifications.php:169
 msgid "nicht angegeben"
-msgstr ""
+msgstr "no indicado"
 
 #: src/OccurrenceCancellation.php:81 src/Passes/Cancellation.php:231
 msgid "Der Veranstalter informiert dich über Erstattung oder Ersatztermin."
@@ -10270,259 +10284,259 @@ msgstr "Resuelto automáticamente: regla «Gana la primera sincronización» (es
 
 #: src/Operations/Queues.php:67
 msgid "Hintergrundjobs"
-msgstr ""
+msgstr "Tareas en segundo plano"
 
 #: src/Operations/Queues.php:68
 msgid "E-Mail-Warteschlange"
-msgstr ""
+msgstr "Cola de correo electrónico"
 
 #: src/Operations/Queues.php:69
 msgid "Webhook-Zustellungen"
-msgstr ""
+msgstr "Entregas de webhooks"
 
 #: src/Operations/Queues.php:209 src/Operations/Queues.php:243
 msgid "Bitte mindestens einen Eintrag auswählen."
-msgstr ""
+msgstr "Selecciona al menos un elemento."
 
 #. translators: %d: number of minutes
 #: src/Operations/SiteHealth.php:115
 #, php-format
 msgid "%d Minute"
 msgid_plural "%d Minuten"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%d minuto"
+msgstr[1] "%d minutos"
 
 #. translators: %d: number of hours
 #: src/Operations/SiteHealth.php:124
 #, php-format
 msgid "%d Stunde"
 msgid_plural "%d Stunden"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "%d hora"
+msgstr[1] "%d horas"
 
 #: src/Operations/SiteHealth.php:134
 msgid "Zur Betriebsübersicht von WP Pass Captain"
-msgstr ""
+msgstr "Ir al resumen de operación de WP Pass Captain"
 
 #. translators: 1: cron hook name, 2: duration, e.g. "20 Minuten"
 #: src/Operations/SiteHealth.php:183
 #, php-format
 msgid "%1$s ist seit %2$s überfällig."
-msgstr ""
+msgstr "%1$s lleva %2$s de retraso."
 
 #. translators: %s: cron hook name
 #: src/Operations/SiteHealth.php:187
 #, php-format
 msgid "%s ist nicht eingeplant."
-msgstr ""
+msgstr "%s no está programado."
 
 #. translators: %s: duration, e.g. "3 Stunden"
 #: src/Operations/SiteHealth.php:192
 #, php-format
 msgid "DISABLE_WP_CRON ist gesetzt und die Warteschlangen liefen seit %s nicht mehr – offenbar löst kein externer Cronjob WP-Cron aus."
-msgstr ""
+msgstr "DISABLE_WP_CRON está definido y las colas no se ejecutan desde hace %s; parece que ningún cron externo dispara WP-Cron."
 
 #: src/Operations/SiteHealth.php:194
 msgid "WP-Cron ist per DISABLE_WP_CRON abgeschaltet; ein System-Cronjob muss wp-cron.php regelmäßig aufrufen."
-msgstr ""
+msgstr "WP-Cron está desactivado mediante DISABLE_WP_CRON; un cron del sistema debe llamar a wp-cron.php con regularidad."
 
 #: src/Operations/SiteHealth.php:194
 msgid "WP-Cron läuft bei Seitenaufrufen. Für verlässliche Ticketmails, Erinnerungen und Webhooks empfehlen wir einen System-Cronjob."
-msgstr ""
+msgstr "WP-Cron se ejecuta con las visitas a las páginas. Para que los correos de entradas, recordatorios y webhooks sean fiables, recomendamos un cron del sistema."
 
 #. translators: %s: duration, e.g. "4 Minuten"
 #: src/Operations/SiteHealth.php:197
 #, php-format
 msgid "Letzter Lauf der Warteschlangen vor %s."
-msgstr ""
+msgstr "Última ejecución de las colas hace %s."
 
 #: src/Operations/SiteHealth.php:199
 msgid "Externen Cronjob einrichten"
-msgstr ""
+msgstr "Configurar un cron externo"
 
 #: src/Operations/SiteHealth.php:201
 msgid "WP Pass Captain: geplante Aufgaben laufen nicht"
-msgstr ""
+msgstr "WP Pass Captain: las tareas programadas no se ejecutan"
 
 #: src/Operations/SiteHealth.php:204
 msgid "WP Pass Captain: geplante Aufgaben verspätet"
-msgstr ""
+msgstr "WP Pass Captain: las tareas programadas van con retraso"
 
 #: src/Operations/SiteHealth.php:206
 msgid "WP Pass Captain: geplante Aufgaben laufen pünktlich"
-msgstr ""
+msgstr "WP Pass Captain: las tareas programadas se ejecutan puntualmente"
 
 #. translators: 1: queue name, 2: number of due items, 3: waiting time of the oldest due item, e.g. "40 Minuten", 4: number of failed items
 #: src/Operations/SiteHealth.php:225
 #, php-format
 msgid "%1$s: fällig %2$d (ältester wartet seit %3$s), fehlgeschlagen %4$d."
-msgstr ""
+msgstr "%1$s: %2$d vencidos (el más antiguo espera desde hace %3$s), %4$d fallidos."
 
 #: src/Operations/SiteHealth.php:229
 msgid "WP Pass Captain: keine Rückstände in den Warteschlangen"
-msgstr ""
+msgstr "WP Pass Captain: no hay elementos acumulados en las colas"
 
 #: src/Operations/SiteHealth.php:229
 msgid "Hintergrundjobs, E-Mails und Webhooks werden zeitnah verarbeitet; es gibt keine endgültig fehlgeschlagenen Einträge."
-msgstr ""
+msgstr "Las tareas en segundo plano, los correos y los webhooks se procesan sin demora; no hay elementos fallidos definitivamente."
 
 #: src/Operations/SiteHealth.php:231
 msgid "WP Pass Captain: große Rückstände oder viele fehlgeschlagene Einträge"
-msgstr ""
+msgstr "WP Pass Captain: muchos elementos acumulados o fallidos"
 
 #: src/Operations/SiteHealth.php:231
 msgid "WP Pass Captain: Rückstände oder fehlgeschlagene Einträge in den Warteschlangen"
-msgstr ""
+msgstr "WP Pass Captain: elementos acumulados o fallidos en las colas"
 
 #: src/Operations/SiteHealth.php:232
 msgid "Prüfe die Einträge und versuche sie erneut oder verwirf sie."
-msgstr ""
+msgstr "Revisa los elementos y reinténtalos o descártalos."
 
 #. translators: %s: period, e.g. "24 Stunden"
 #: src/Operations/SiteHealth.php:244
 #, php-format
 msgid "Innerhalb von %s ist kein Versand einer Plugin-E-Mail fehlgeschlagen."
-msgstr ""
+msgstr "En las últimas %s no ha fallado el envío de ningún correo del plugin."
 
 #: src/Operations/SiteHealth.php:245
 msgid "WP Pass Captain: E-Mail-Versand ohne Fehler"
-msgstr ""
+msgstr "WP Pass Captain: envío de correos sin errores"
 
 #. translators: 1: number of failed mails, 2: period, e.g. "24 Stunden"
 #: src/Operations/SiteHealth.php:249
 #, php-format
 msgid "Innerhalb von %2$s ist %1$d Plugin-E-Mail nicht versendet worden (wp_mail() meldete einen Fehler)."
 msgid_plural "Innerhalb von %2$s sind %1$d Plugin-E-Mails nicht versendet worden (wp_mail() meldete einen Fehler)."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "En las últimas %2$s no se ha enviado %1$d correo del plugin (wp_mail() devolvió un error)."
+msgstr[1] "En las últimas %2$s no se han enviado %1$d correos del plugin (wp_mail() devolvió un error)."
 
 #. translators: 1: mail type, 2: error code, 3: error message
 #: src/Operations/SiteHealth.php:251
 #, php-format
 msgid "Letzter Fehler: Typ %1$s, Code %2$s %3$s"
-msgstr ""
+msgstr "Último error: tipo %1$s, código %2$s %3$s"
 
 #: src/Operations/SiteHealth.php:253
 msgid "WP Pass Captain: E-Mails werden nicht zugestellt"
-msgstr ""
+msgstr "WP Pass Captain: los correos no se entregan"
 
 #: src/Operations/SiteHealth.php:253
 msgid "Prüfe die SMTP-Einstellungen bzw. das Mail-Plugin der Website."
-msgstr ""
+msgstr "Revisa los ajustes SMTP o el plugin de correo del sitio web."
 
 #. translators: %s: period, e.g. "24 Stunden"
 #: src/Operations/SiteHealth.php:272
 #, php-format
 msgid "Innerhalb von %s hat der SMS-Anbieter keinen Fehler gemeldet."
-msgstr ""
+msgstr "En las últimas %s el proveedor de SMS no ha notificado ningún error."
 
 #: src/Operations/SiteHealth.php:273
 msgid "WP Pass Captain: SMS-Versand ohne Fehler"
-msgstr ""
+msgstr "WP Pass Captain: envío de SMS sin errores"
 
 #. translators: 1: number of SMS, 2: period, e.g. "24 Stunden"
 #: src/Operations/SiteHealth.php:277
 #, php-format
 msgid "Innerhalb von %2$s ist %1$d SMS fehlgeschlagen oder nicht zugestellt worden."
 msgid_plural "Innerhalb von %2$s sind %1$d SMS fehlgeschlagen oder nicht zugestellt worden."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "En las últimas %2$s ha fallado o no se ha entregado %1$d SMS."
+msgstr[1] "En las últimas %2$s han fallado o no se han entregado %1$d SMS."
 
 #: src/Operations/SiteHealth.php:278
 msgid "WP Pass Captain: SMS-Versand fehlerhaft"
-msgstr ""
+msgstr "WP Pass Captain: errores en el envío de SMS"
 
 #: src/Operations/SiteHealth.php:278
 msgid "Prüfe Zugangsdaten und Guthaben beim SMS-Anbieter."
-msgstr ""
+msgstr "Revisa las credenciales y el saldo en el proveedor de SMS."
 
 #: src/Operations/SiteHealth.php:278
 msgid "SMS-Einstellungen"
-msgstr ""
+msgstr "Ajustes de SMS"
 
 #. translators: 1: payment provider id, 2: number of orders, 3: period, e.g. "48 Stunden"
 #: src/Operations/SiteHealth.php:315
 #, php-format
 msgid "%1$s: Bestellungen innerhalb von %3$s: %2$d, aber noch nie eine Webhook-Benachrichtigung erhalten."
-msgstr ""
+msgstr "%1$s: pedidos en las últimas %3$s: %2$d, pero nunca se ha recibido una notificación de webhook."
 
 #. translators: 1: payment provider id, 2: number of orders, 3: period, e.g. "48 Stunden", 4: date and time (UTC)
 #: src/Operations/SiteHealth.php:317
 #, php-format
 msgid "%1$s: Bestellungen innerhalb von %3$s: %2$d, letzte Webhook-Benachrichtigung am %4$s (UTC)."
-msgstr ""
+msgstr "%1$s: pedidos en las últimas %3$s: %2$d, última notificación de webhook el %4$s (UTC)."
 
 #: src/Operations/SiteHealth.php:321
 msgid "WP Pass Captain: keine aktuellen Zahlungs-Webhooks"
-msgstr ""
+msgstr "WP Pass Captain: no hay webhooks de pago recientes"
 
 #: src/Operations/SiteHealth.php:321
 msgid "Zahlungen werden über Webhooks des Zahlungsanbieters bestätigt. Prüfe die Webhook-URL und das Signatur-Secret im Dashboard des Anbieters."
-msgstr ""
+msgstr "Los pagos se confirman mediante webhooks del proveedor de pagos. Revisa la URL del webhook y el secreto de firma en el panel del proveedor."
 
 #: src/Operations/SiteHealth.php:323
 msgid "WP Pass Captain: Zahlungs-Webhooks kommen an"
-msgstr ""
+msgstr "WP Pass Captain: los webhooks de pago llegan correctamente"
 
 #: src/Operations/SiteHealth.php:323
 msgid "Für alle aktiven Zahlungsanbieter mit aktuellen Bestellungen sind Webhook-Benachrichtigungen eingegangen."
-msgstr ""
+msgstr "Se han recibido notificaciones de webhook de todos los proveedores de pago activos con pedidos recientes."
 
 #: src/Operations/SiteHealth.php:353
 msgid "WP Pass Captain: Der Betrieb ist gestört."
-msgstr ""
+msgstr "WP Pass Captain: hay problemas en la operación."
 
 #: src/Operations/SiteHealth.php:353
 msgid "Betriebsübersicht öffnen"
-msgstr ""
+msgstr "Abrir el resumen de operación"
 
 #: src/Operations/SiteHealth.php:353
 msgid "Website-Zustand"
-msgstr ""
+msgstr "Salud del sitio"
 
-#. translators: %s: cron hook name
+#. translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time
 #: src/Operations/SiteHealth.php:368
 #, php-format
 msgid "Letzter Lauf %s"
-msgstr ""
+msgstr "Última ejecución %s"
 
-#. translators: %s: cron hook name
+#. translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time
 #: src/Operations/SiteHealth.php:377
 #, php-format
 msgid "Nächster Lauf %s"
-msgstr ""
+msgstr "Próxima ejecución %s"
 
 #: src/Operations/SiteHealth.php:378
 msgid "nicht eingeplant"
-msgstr ""
+msgstr "no programado"
 
 #. translators: 1: counts per status, 2: due items, 3: age of the oldest due item in minutes
 #: src/Operations/SiteHealth.php:390
 #, php-format
 msgid "%1$s; fällig %2$d, ältester seit %3$d Min."
-msgstr ""
+msgstr "%1$s; vencidos %2$d, el más antiguo desde hace %3$d min"
 
 #. translators: %d: hours
 #: src/Operations/SiteHealth.php:396
 #, php-format
 msgid "Fehlgeschlagene Plugin-E-Mails (%d h)"
-msgstr ""
+msgstr "Correos del plugin fallidos (%d h)"
 
 #. translators: %d: hours
 #: src/Operations/SiteHealth.php:402
 #, php-format
 msgid "Fehlgeschlagene SMS (%d h)"
-msgstr ""
+msgstr "SMS fallidos (%d h)"
 
 #. translators: %s: payment provider id
 #: src/Operations/SiteHealth.php:409
 #, php-format
 msgid "Letzter Zahlungs-Webhook %s"
-msgstr ""
+msgstr "Último webhook de pago %s"
 
 #: src/Operations/SiteHealth.php:414
 msgid "WP Pass Captain – Betrieb"
-msgstr ""
+msgstr "WP Pass Captain – Operación"
 
 #: src/OrderPortal.php:85
 msgid "Abbrechen"
@@ -14471,47 +14485,47 @@ msgstr "Plano de asientos no encontrado."
 msgid "Keine Berechtigung für diese Ticketart."
 msgstr "No tienes permiso para este tipo de entrada."
 
-#: src/Rest/Controller.php:721
+#: src/Rest/Controller.php:723
 msgid "Berichtszeitraum muss gültig und höchstens 90 Tage lang sein."
 msgstr "El periodo del informe debe ser válido y no superar los 90 días."
 
-#: src/Rest/Controller.php:777
+#: src/Rest/Controller.php:779
 msgid "Übersetzung nicht gefunden."
 msgstr "Traducción no encontrada."
 
-#: src/Rest/Controller.php:787
+#: src/Rest/Controller.php:789
 msgid "Locale oder übersetzter Titel ist ungültig."
 msgstr "La configuración regional o el título traducido no son válidos."
 
-#: src/Rest/Controller.php:808
+#: src/Rest/Controller.php:810
 msgid "Sitzplan muss einen Namen und 1 bis 500 Sitzplätze enthalten."
 msgstr "Un plano de asientos debe tener un nombre y de 1 a 500 asientos."
 
-#: src/Rest/Controller.php:815
+#: src/Rest/Controller.php:817
 msgid "Sitzplan konnte nicht gespeichert werden."
 msgstr "No se ha podido guardar el plano de asientos."
 
-#: src/Rest/Controller.php:819
+#: src/Rest/Controller.php:821
 msgid "Jeder Sitzplatz benötigt einen eindeutigen Schlüssel und eine Bezeichnung."
 msgstr "Cada asiento necesita una clave única y una etiqueta."
 
-#: src/Rest/Controller.php:821
+#: src/Rest/Controller.php:823
 msgid "Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel."
 msgstr "No se han podido guardar todos los asientos; comprueba si hay claves duplicadas."
 
-#: src/Rest/Controller.php:841
+#: src/Rest/Controller.php:843
 msgid "Keine Berechtigung für diesen Termin."
 msgstr "No tienes permiso para esta fecha."
 
-#: src/Rest/Controller.php:844
+#: src/Rest/Controller.php:846
 msgid "Bitte 1 bis 31 Veranstaltungstage angeben."
 msgstr "Indica de 1 a 31 días de evento."
 
-#: src/Rest/Controller.php:853
+#: src/Rest/Controller.php:855
 msgid "Ein Veranstaltungstag oder eine Einlassregel ist ungültig."
 msgstr "Un día de evento o una regla de acceso no es válido."
 
-#: src/Rest/Controller.php:855
+#: src/Rest/Controller.php:857
 msgid "Einlassregeln konnten nicht gespeichert werden."
 msgstr "No se han podido guardar las reglas de acceso."
 
@@ -15849,7 +15863,7 @@ msgstr "No se ha podido guardar el recurso."
 
 #: src/ServiceBookings.php:123
 msgid "Die Ressource hat Buchungen und kann nicht gelöscht werden. Deaktiviere sie stattdessen."
-msgstr ""
+msgstr "El recurso tiene reservas y no se puede eliminar. Desactívalo en su lugar."
 
 #: src/ServiceBookings.php:155
 msgid "Zeitfenster konnte nicht gespeichert werden."
@@ -15859,15 +15873,15 @@ msgstr "No se ha podido guardar el tramo horario."
 #: src/ServiceBookings.php:182
 #, php-format
 msgid "Die Kapazität darf nicht unter die bereits gebuchten Plätze (%d) sinken."
-msgstr ""
+msgstr "La capacidad no puede ser inferior a las plazas ya reservadas (%d)."
 
 #: src/ServiceBookings.php:190
 msgid "Das Zeitfenster hat Buchungen; die Uhrzeit kann nicht mehr geändert werden. Schließe es und lege ein neues an."
-msgstr ""
+msgstr "La franja horaria tiene reservas; ya no se puede cambiar la hora. Ciérrala y crea una nueva."
 
 #: src/ServiceBookings.php:207
 msgid "Das Zeitfenster hat Buchungen und kann nicht gelöscht werden. Schließe es stattdessen."
-msgstr ""
+msgstr "La franja horaria tiene reservas y no se puede eliminar. Ciérrala en su lugar."
 
 #: src/Sms/HttpProvider.php:47
 msgid "Der HTTP-SMS-Anbieter ist nicht konfiguriert (HTTPS-Endpunkt erforderlich)."
@@ -16084,7 +16098,7 @@ msgstr "La oferta de la lista de espera no es válida o ha caducado."
 
 #: src/Waitlists.php:579
 msgid "Das Angebot konnte gerade nicht angenommen werden. Bitte versuche es gleich noch einmal."
-msgstr ""
+msgstr "No se ha podido aceptar la oferta en este momento. Inténtalo de nuevo enseguida."
 
 #: src/Waitlists.php:595
 msgid "Wartelistenangebot konnte nicht angenommen werden."
@@ -16092,80 +16106,80 @@ msgstr "No se ha podido aceptar la oferta de la lista de espera."
 
 #: src/Waitlists.php:697
 msgid "Dieser Link zum Austragen ist ungültig."
-msgstr ""
+msgstr "Este enlace para darse de baja no es válido."
 
 #: src/Waitlists.php:740
 msgid "Das Austragen hat gerade nicht geklappt. Bitte versuche es gleich noch einmal."
-msgstr ""
+msgstr "No se ha podido completar la baja en este momento. Inténtalo de nuevo enseguida."
 
 #: src/Waitlists.php:772 src/Waitlists.php:821
 msgid "Du hast das Angebot bereits angenommen; die Bestellung wartet auf deine Zahlung. Zahlst du nicht, verfällt die Reservierung automatisch und der Platz geht an die nächste Person."
-msgstr ""
+msgstr "Ya has aceptado la oferta; el pedido está pendiente de tu pago. Si no pagas, la reserva caducará automáticamente y la plaza pasará a la siguiente persona."
 
 #: src/Waitlists.php:809 src/Waitlists.php:852 src/Waitlists.php:869
 #: src/Waitlists.php:939
 msgid "Von der Warteliste austragen"
-msgstr ""
+msgstr "Darse de baja de la lista de espera"
 
 #: src/Waitlists.php:818
 msgid "Du bist bereits von dieser Warteliste ausgetragen."
-msgstr ""
+msgstr "Ya te has dado de baja de esta lista de espera."
 
 #: src/Waitlists.php:824
 msgid "Du stehst nicht mehr auf dieser Warteliste."
-msgstr ""
+msgstr "Ya no estás en esta lista de espera."
 
 #: src/Waitlists.php:833
 msgid "Für dich sind gerade Tickets reserviert. Wenn du dich austrägst, verfällt dieses Angebot sofort und die Tickets gehen an die nächste Person auf der Warteliste."
-msgstr ""
+msgstr "Ahora mismo tienes entradas reservadas. Si te das de baja, esta oferta caducará de inmediato y las entradas pasarán a la siguiente persona de la lista de espera."
 
 #: src/Waitlists.php:834
 msgid "Wenn du dich austrägst, bekommst du für diese Ticketart kein Angebot mehr. Deine E-Mail-Adresse wird aus dem Eintrag gelöscht."
-msgstr ""
+msgstr "Si te das de baja, ya no recibirás ofertas para este tipo de entrada. Tu dirección de correo electrónico se eliminará de la inscripción."
 
 #: src/Waitlists.php:838
 msgid "Jetzt von der Warteliste austragen"
-msgstr ""
+msgstr "Darme de baja ahora de la lista de espera"
 
 #: src/Waitlists.php:877
 msgid "Austragen nicht möglich"
-msgstr ""
+msgstr "No es posible darse de baja"
 
 #: src/Waitlists.php:880
 msgid "Nicht mehr auf der Warteliste"
-msgstr ""
+msgstr "Ya no está en la lista de espera"
 
 #: src/Waitlists.php:880
 msgid "Du stehst nicht mehr auf dieser Warteliste. Es ist nichts weiter zu tun."
-msgstr ""
+msgstr "Ya no estás en esta lista de espera. No tienes que hacer nada más."
 
 #: src/Waitlists.php:883
 msgid "Du bist von der Warteliste ausgetragen. Die für dich reservierten Tickets gehen an die nächste Person auf der Warteliste."
-msgstr ""
+msgstr "Te has dado de baja de la lista de espera. Las entradas reservadas para ti pasan a la siguiente persona de la lista de espera."
 
 #: src/Waitlists.php:884
 msgid "Du bist von der Warteliste ausgetragen und bekommst dafür keine E-Mails mehr."
-msgstr ""
+msgstr "Te has dado de baja de la lista de espera y ya no recibirás correos sobre ella."
 
 #: src/Waitlists.php:885
 msgid "Ausgetragen"
-msgstr ""
+msgstr "Baja realizada"
 
 #: src/Waitlists.php:925
 msgid "Deine Wartelisten"
-msgstr ""
+msgstr "Tus listas de espera"
 
 #: src/Waitlists.php:927
 msgid "Du bist von der Warteliste ausgetragen."
-msgstr ""
+msgstr "Te has dado de baja de la lista de espera."
 
 #: src/Waitlists.php:929
 msgid "Das Austragen hat nicht geklappt. Bitte lade die Seite neu und versuche es erneut."
-msgstr ""
+msgstr "No se ha podido completar la baja. Vuelve a cargar la página e inténtalo de nuevo."
 
 #: src/Waitlists.php:932
 msgid "Mit deiner E-Mail-Adresse stehst du auf diesen Wartelisten."
-msgstr ""
+msgstr "Con tu dirección de correo electrónico estás en estas listas de espera."
 
 #: src/Waitlists.php:957
 msgid "Dieser Eintrag ist bereits abgeschlossen."

@@ -364,7 +364,7 @@ final class SiteHealth {
 		foreach ( Monitor::HEARTBEAT_HOOKS as $hook ) {
 			$beat = Monitor::last_heartbeat( $hook );
 			$fields[ 'heartbeat_' . $hook ] = array(
-				/* translators: %s: cron hook name */
+				/* translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time */
 				'label' => sprintf( __( 'Letzter Lauf %s', 'wp-pass-captain' ), $hook ),
 				'value' => $beat ? gmdate( 'Y-m-d H:i:s', $beat ) . ' UTC' : __( 'nie', 'wp-pass-captain' ),
 			);
@@ -373,7 +373,7 @@ final class SiteHealth {
 			foreach ( self::RECURRING_HOOKS as $hook ) {
 				$next = wp_next_scheduled( $hook );
 				$fields[ 'next_' . $hook ] = array(
-					/* translators: %s: cron hook name */
+					/* translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time */
 					'label' => sprintf( __( 'Nächster Lauf %s', 'wp-pass-captain' ), $hook ),
 					'value' => $next ? gmdate( 'Y-m-d H:i:s', (int) $next ) . ' UTC' : __( 'nicht eingeplant', 'wp-pass-captain' ),
 				);

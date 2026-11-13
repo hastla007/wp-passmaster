@@ -113,7 +113,7 @@ foreach ( DeveloperKeys::ROUTES as $z_route => $z_scope ) {
 }
 check( 'every mapped developer route is registered with a permission callback and a known scope', $z_map_ok && 3 === count( DeveloperKeys::ROUTES ) );
 $z_src = (string) file_get_contents( WPCAP_PATH . 'src/Rest/Controller.php' );
-preg_match_all( "/DeveloperKeys::authorize\( \\\$request, '([a-z.]+)'/", $z_src, $z_used );
+preg_match_all( "/DeveloperKeys::(?:authorize|permission)\( \\\$request, '([a-z.]+)'/", $z_src, $z_used );
 check( 'every scope checked in the controller is in the route map', $z_used[1] && ! array_diff( $z_used[1], array_values( DeveloperKeys::ROUTES ) ) && ! array_diff( array_values( DeveloperKeys::ROUTES ), $z_used[1] ) );
 
 $GLOBALS['wpcap_test_transients'] = array();
@@ -136,6 +136,18 @@ $GLOBALS['wpcap_test_filters']['wpcap_developer_key_rate_limit'] = 1;
 $z_hits = array( DeveloperKeys::authorize( $z_request( $z_key, $z_event ), 'events.read', $z_event ) !== false, DeveloperKeys::authorize( $z_request( $z_key, $z_event ), 'events.read', $z_event ) !== false );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_developer_key_rate_limit'] );
 check( 'filter wpcap_developer_key_rate_limit overrides the limit', array( true, false ) === $z_hits );
+// Over the limit the route answers 429 with Retry-After, not 401/403 (translator review).
+$GLOBALS['wpcap_test_transients'] = array();
+$GLOBALS['wpcap_test_filters']['wpcap_developer_key_rate_limit'] = 1;
+$z_first = PassCaptain\Rest\Controller::developer_key_permission( $z_request( $z_key, $z_event ) );
+$z_second = PassCaptain\Rest\Controller::developer_key_permission( $z_request( $z_key, $z_event ) );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_developer_key_rate_limit'] );
+$z_resp = new class() { public $headers = array(); public function header( $k, $v ) { $this->headers[ $k ] = $v; } public function get_status() { return 429; } };
+DeveloperKeys::retry_after_header( $z_resp );
+check( 'rate limit reached: first request true, then a 429 wpcap_rate_limited error with Retry-After', true === $z_first && is_wp_error( $z_second ) && 'wpcap_rate_limited' === $z_second->get_error_code() && 429 === ( $z_second->get_error_data()['status'] ?? 0 ) && (int) ( $z_resp->headers['Retry-After'] ?? 0 ) >= 1 && (int) $z_resp->headers['Retry-After'] <= 60 );
+check( 'report route returns the developer-key result itself (a 429 WP_Error is never collapsed into true by ||)', 1 === preg_match( '/function report_permission.*?return DeveloperKeys::permission\( \$request, \'reports\.read\'/s', $z_src ) );
+$GLOBALS['wpcap_test_transients'] = array();
+check( 'a wrong key is still a plain refusal (false → 401/403), not 429', false === PassCaptain\Rest\Controller::developer_key_permission( $z_request( $z_row->public_prefix . '.' . str_repeat( 'b', 64 ), $z_event ) ) );
 check( 'last use is recorded', null !== $wpdb->get_var( "SELECT last_used_at FROM {$p}wpcap_api_keys WHERE api_key_id=$z_key_id" ) );
 
 // Location scope of the key owner (A119).

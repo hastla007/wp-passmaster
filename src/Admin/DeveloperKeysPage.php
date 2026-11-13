@@ -155,7 +155,10 @@ final class DeveloperKeysPage {
 			$id = (int) $key->api_key_id;
 			$event = $key->event_name ? $key->event_name . ' (#' . (int) $key->event_id . ')' : '#' . (int) $key->event_id;
 			/* translators: %d: requests per minute */
-			$rate = sprintf( __( '%d/min', 'wp-pass-captain' ), DeveloperKeys::rate_limit( $key ) ) . ( (int) ( $key->rate_limit ?? 0 ) > 0 ? '' : ' ' . __( '(Standard)', 'wp-pass-captain' ) );
+			$rate = sprintf( __( '%d/min', 'wp-pass-captain' ), DeveloperKeys::rate_limit( $key ) );
+			if ( (int) ( $key->rate_limit ?? 0 ) <= 0 ) {
+				$rate .= ' ' . __( '(Standard)', 'wp-pass-captain' );
+			}
 			echo '<tr><td><code>' . esc_html( $key->public_prefix ) . '…</code></td><td>' . esc_html( '' !== (string) $key->label ? $key->label : '—' ) . '</td><td>' . esc_html( Forms::user_label( $key->user_id ) ) . '</td>';
 			echo '<td>' . esc_html( implode( ', ', DeveloperKeys::key_scopes( $key ) ) ) . '</td><td>' . esc_html( $event ) . '</td>';
 			echo '<td>' . esc_html( Forms::datetime( $key->created_at, $zone, false ) ) . '</td><td>' . esc_html( $key->last_used_at ? Forms::datetime( $key->last_used_at, $zone, false ) : '—' ) . '</td>';
@@ -185,7 +188,7 @@ final class DeveloperKeysPage {
 		}
 		echo '</tbody></table>';
 		/* translators: %d: default requests per minute */
-		echo '<p class="description">' . esc_html( sprintf( __( 'Standard-Ratenlimit: %d Anfragen pro Minute und Schlüssel (Filter wpcap_developer_key_rate_limit). Über dem Limit antwortet die API mit 401/403.', 'wp-pass-captain' ), DeveloperKeys::DEFAULT_RATE_LIMIT ) ) . '</p>';
+		echo '<p class="description">' . esc_html( sprintf( __( 'Standard-Ratenlimit: %d Anfragen pro Minute und Schlüssel (Filter wpcap_developer_key_rate_limit). Über dem Limit antwortet die API mit 429 und Retry-After.', 'wp-pass-captain' ), DeveloperKeys::DEFAULT_RATE_LIMIT ) ) . '</p>';
 		echo '</div>';
 	}
 }

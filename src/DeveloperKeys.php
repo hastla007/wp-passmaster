@@ -117,12 +117,42 @@ final class DeveloperKeys {
 		return 'active';
 	}
 
+	/** Whether the last authorize() call was refused only because the key's rate limit was reached. */
+	private static $rate_limited = false;
+
+	/**
+	 * REST permission callback for a developer route: true, false (401/403 by WordPress) or a 429 error
+	 * when the key is valid but over its per-minute limit (Retry-After = seconds until the next minute).
+	 *
+	 * @return true|false|\WP_Error
+	 */
+	public static function permission( \WP_REST_Request $request, $scope, $event_id ) {
+		if ( false !== self::authorize( $request, $scope, $event_id ) ) { return true; }
+		if ( ! self::$rate_limited ) { return false; }
+		$retry = max( 1, 60 - (int) gmdate( 's' ) );
+		self::$retry_after = $retry;
+		return new \WP_Error( 'wpcap_rate_limited', __( 'Ratenlimit des API-Keys erreicht. Bitte warte bis zur nächsten Minute.', 'wp-pass-captain' ), array( 'status' => 429, 'retry_after' => $retry ) );
+	}
+
+	/** Seconds for the Retry-After header of the current 429 response (0 = none). */
+	private static $retry_after = 0;
+
+	/** rest_post_dispatch: adds Retry-After to a developer-key 429. */
+	public static function retry_after_header( $response ) {
+		if ( self::$retry_after > 0 && is_object( $response ) && method_exists( $response, 'header' ) && method_exists( $response, 'get_status' ) && 429 === (int) $response->get_status() ) {
+			$response->header( 'Retry-After', (string) self::$retry_after );
+			self::$retry_after = 0;
+		}
+		return $response;
+	}
+
 	/**
 	 * Checks the X-WPCAP-Key header for a scope and event; returns the owner's user id or false.
 	 * Counts the request against the key's rate limit.
 	 */
 	public static function authorize( \WP_REST_Request $request, $scope, $event_id ) {
 		global $wpdb;
+		self::$rate_limited = false;
 		$provided = (string) $request->get_header( 'x-wpcap-key' );
 		$parts = explode( '.', $provided, 2 );
 		if ( 2 !== count( $parts ) || ! preg_match( '/^[a-f0-9]{12}$/', $parts[0] ) || ! preg_match( '/^[a-f0-9]{64}$/', $parts[1] ) ) { return false; }
@@ -136,7 +166,10 @@ final class DeveloperKeys {
 		if ( ! is_array( $scopes ) || ! in_array( $scope, $scopes, true ) ) { return false; }
 		$rate_key = 'wpcap_api_rate_' . (int) $key->api_key_id . '_' . gmdate( 'YmdHi' );
 		$rate = (int) get_transient( $rate_key );
-		if ( $rate >= self::rate_limit( $key ) ) { return false; }
+		if ( $rate >= self::rate_limit( $key ) ) {
+			self::$rate_limited = true;
+			return false;
+		}
 		set_transient( $rate_key, $rate + 1, MINUTE_IN_SECONDS );
 		$wpdb->update( $wpdb->prefix . 'wpcap_api_keys', array( 'last_used_at' => current_time( 'mysql', true ) ), array( 'api_key_id' => (int) $key->api_key_id ), array( '%s' ), array( '%d' ) );
 		return (int) $key->user_id;
