@@ -35,6 +35,13 @@ final class PolicyText {
 			'webhooks' => self::rows( 'wpcap_webhook_subscriptions', "status='active'" ),
 			'affiliate' => class_exists( '\PassCaptain\Integrations\AffiliateCaptain\Adapter' ) && \PassCaptain\Integrations\AffiliateCaptain\Adapter::available(),
 			'woocommerce' => class_exists( 'WooCommerce' ),
+			// Functions in use (module tables with data): sections appear only then.
+			'guest_lists' => self::rows( 'wpcap_guest_lists', '1=1' ),
+			'waitlist' => self::rows( 'wpcap_waitlist', '1=1' ),
+			'buyer_limits' => self::rows( 'wpcap_alloc_limits', 'max_per_buyer>0' ),
+			'box_office' => self::rows( 'wpcap_boxoffice_sales', '1=1' ),
+			'exchange' => self::rows( 'wpcap_ticket_exchanges', '1=1' ),
+			'partner_sales' => self::rows( 'wpcap_partner_orders', '1=1' ),
 		);
 		return (array) apply_filters( 'wpcap_privacy_policy_recipients', $out );
 	}
@@ -73,6 +80,17 @@ final class PolicyText {
 			__( 'Rechnungen und Buchungsbelege bewahren wir aufgrund gesetzlicher Pflichten auf (Art. 6 Abs. 1 lit. c DSGVO).', 'wp-pass-captain' ),
 		) );
 
+		$functions = array();
+		if ( ! empty( $r['guest_lists'] ) ) { $functions[] = __( 'Gästelisten und Freikarten: Wenn Sie auf eine Gästeliste gesetzt werden, erhalten wir Name, gegebenenfalls E-Mail-Adresse und Firma von der Person oder Organisation, die Sie angemeldet hat (Art. 14 DSGVO). Wir verwenden sie für Freikarte und Einlass (Art. 6 Abs. 1 lit. b bzw. f DSGVO) und leeren diese Angaben nach der Veranstaltung mit der Frist für Teilnehmerangaben.', 'wp-pass-captain' ); }
+		if ( ! empty( $r['waitlist'] ) ) { $functions[] = __( 'Warteliste: Wird ein Platz frei, reservieren wir ihn automatisch für Sie und senden Ihnen ein befristetes Angebot per E-Mail; nehmen Sie es nicht an, geht es an die nächste Person. Die E-Mail-Adresse löschen wir 30 Tage nach dem Termin.', 'wp-pass-captain' ); }
+		if ( ! empty( $r['buyer_limits'] ) ) { $functions[] = __( 'Höchstmenge pro Person: Um die Höchstmenge je Käufer:in durchzusetzen, speichern wir zu Ihrer E-Mail-Adresse (und gegebenenfalls Ihrem Benutzerkonto) nur einen mit einem geheimen Schlüssel gebildeten Hashwert und die gezählten Bestellungen (Art. 6 Abs. 1 lit. f DSGVO); diese Zähler löschen wir nach dem letzten Termin mit der Frist für Teilnehmerangaben.', 'wp-pass-captain' ); }
+		if ( ! empty( $r['box_office'] ) ) { $functions[] = __( 'Abendkasse: Bei Kassenverkäufen erfassen wir Ihre E-Mail-Adresse nur, wenn Sie Tickets oder eine Rechnung zugesandt bekommen möchten, bei „Rechnung auf Firma“ zusätzlich Firma, Name, Anschrift und UID-Nummer. Kassenbelege und Kassenberichte bewahren wir aufgrund gesetzlicher Pflichten auf (Art. 6 Abs. 1 lit. c DSGVO).', 'wp-pass-captain' ); }
+		if ( ! empty( $r['exchange'] ) ) { $functions[] = __( 'Ticketumtausch: Für einen Umtausch verarbeiten wir die Bestellung, das bisherige und das neue Ticket sowie einen Aufpreis oder eine Erstattung (Art. 6 Abs. 1 lit. b DSGVO). Haben Sie per Überweisung bezahlt, können Sie für Erstattungen eine Bankverbindung angeben; wir verwenden sie nur dafür.', 'wp-pass-captain' ); }
+		if ( ! empty( $r['partner_sales'] ) ) { $functions[] = __( 'Verkauf über Partner: Kaufen Sie bei einem Vertriebspartner oder Veranstalter, der an unser System angebunden ist, übermittelt dieser uns die für Ticket und Einlass nötigen Angaben. Der Partner ist für seine eigene Verarbeitung selbst verantwortlich; Wiederverkäufer erhalten von uns nur Daten ihrer eigenen Verkäufe.', 'wp-pass-captain' ); }
+		if ( $functions ) {
+			$html .= '<h3>' . esc_html__( 'Weitere Funktionen', 'wp-pass-captain' ) . '</h3>' . self::items( $functions );
+		}
+
 		$recipients = array();
 		if ( $r['woocommerce'] ) { $recipients[] = __( 'WooCommerce (auf diesem Server): Bestellungen über den Shop werden zusätzlich in WooCommerce gespeichert; dort gelten die Datenschutzhinweise und Löschfristen des Shops.', 'wp-pass-captain' ); }
 		if ( $r['stripe'] ) { $recipients[] = __( 'Stripe Payments Europe Ltd. (Irland) für Kartenzahlungen und weitere Zahlarten: Bestellreferenz, Betrag, E-Mail-Adresse; Stripe verarbeitet Zahlungsdaten auch in den USA.', 'wp-pass-captain' ); }
@@ -102,7 +120,7 @@ final class PolicyText {
 		) );
 
 		$html .= self::section( __( 'Ihre Rechte', 'wp-pass-captain' ), array(
-			__( 'Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie auf Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft. Bei einer Löschung bleiben Rechnungen und Buchungsdaten bis zum Ablauf der gesetzlichen Aufbewahrungsfrist gespeichert (Art. 17 Abs. 3 lit. b DSGVO); Tickets für künftige Termine werden mit der Löschung ungültig. Sie können sich bei einer Datenschutzaufsichtsbehörde beschweren.', 'wp-pass-captain' ),
+			__( 'Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und Widerspruch sowie auf Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft. Bei einer Löschung bleiben Rechnungen und Buchungsdaten bis zum Ablauf der gesetzlichen Aufbewahrungsfrist gespeichert (Art. 17 Abs. 3 lit. b DSGVO). Haben Sie Tickets für künftige Termine, bleiben diese gültig, und wir löschen die zugehörigen Bestelldaten automatisch nach dem letzten Termin; möchten Sie die Tickets sofort aufgeben, teilen Sie uns das bitte mit. Sie können sich bei einer Datenschutzaufsichtsbehörde beschweren.', 'wp-pass-captain' ),
 		) );
 		return (string) apply_filters( 'wpcap_privacy_policy_content', $html, $r );
 	}

@@ -385,3 +385,8 @@ $a28_id = (int) $wpdb->insert_id;
 $a28_counts = PassCaptain\Privacy\Retention::run();
 $a28_row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_waitlist WHERE waitlist_id=$a28_id" );
 check( 'A028: waitlist e-mail and hash are removed 30 days after the date', $a28_counts['waitlist'] >= 1 && '' === $a28_row->email && hash( 'sha256', 'wl-old@example.com' ) !== $a28_row->email_hash );
+
+echo "Audit 3: privacy policy text matches the behaviour and the modules in use (A030)\n";
+$a30 = PassCaptain\Privacy\PolicyText::content();
+check( 'A030: policy text describes the deferred deletion, not immediate invalidation', false === strpos( $a30, 'werden mit der Löschung ungültig' ) && false !== strpos( $a30, 'nach dem letzten Termin' ) );
+check( 'A030: sections for guest lists (Art. 14), waitlist offers, buyer limits, box office, exchange and partner sales when used', false !== strpos( $a30, 'Art. 14 DSGVO' ) && false !== strpos( $a30, 'befristetes Angebot' ) && false !== strpos( $a30, 'Höchstmenge pro Person' ) && false !== strpos( $a30, 'Abendkasse' ) && false !== strpos( $a30, 'Ticketumtausch' ) && false !== strpos( $a30, 'Verkauf über Partner' ) );

@@ -32,6 +32,7 @@
 - Datenschutz Gästelisten: Name, E-Mail, Firma und Notiz (auch abgelehnter/stornierter Einträge) werden nach Terminende + Teilnehmer-Aufbewahrungsfrist geleert; Anzahl und Status bleiben. Hinweis im Notizfeld: keine Gesundheitsdaten.
 - Datenschutz Warteliste: E-Mail und Hash eines Eintrags werden 30 Tage nach dem Termin entfernt (Schritt `waitlist` in `wpcap_privacy_retention_days`); Frist in Datenschutztext und OPERATIONS.md.
 - Partner-API: Wiederverkäufer lesen Bestellungen, Tickets und Check-ins nur ihrer eigenen Verkäufe (keine E-Mails anderer Käufer der verknüpften Events).
+- Datenschutztext-Vorschlag: beschreibt die zurückgestellte Löschung bei kommenden Terminen richtig und enthält – sobald genutzt – Abschnitte zu Gästelisten (Art. 14), Wartelisten-Angeboten, Höchstmenge pro Person, Abendkasse/Rechnung auf Firma, Ticketumtausch (inkl. Bankverbindung) und Partnerverkauf; OPERATIONS.md entsprechend korrigiert.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.
