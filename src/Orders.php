@@ -195,7 +195,8 @@ final class Orders {
 			if ( is_wp_error( $adjustments ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
 			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
 			$total = max( 0, $subtotal - $discount );
-			if ( ! $external && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
+			// Trusted channels (box office "invoice", partner API) ask for the same rule via require_billing.
+			if ( ( ! $external || ! empty( $internal['require_billing'] ) ) && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
 			// Each campaign discount sits on the lines it applies to (Campaigns::calculate()); VAT per
 			// line on the discounted gross amount. The line discount is stored with the line.
 			$tax_total = 0;

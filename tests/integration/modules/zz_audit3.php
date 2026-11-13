@@ -636,3 +636,21 @@ $wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_order_items WHERE order_id=
 
 echo "Audit 3: box office free tickets are comps, not sales (A052)\n";
 check( 'A052: pos_free is a comp provider (no revenue, no ticket fee in statements)', in_array( 'pos_free', PassCaptain\Reports\Data::comp_providers(), true ) && in_array( 'comp', PassCaptain\Reports\Data::comp_providers(), true ) );
+
+echo "Audit 3: billing data threshold also for trusted channels and supplements (A054)\n";
+$a54_t = make_type( 20, 5, 30000 );
+$a54_threshold = PassCaptain\Settings::get( 'billing_required_threshold_minor' );
+PassCaptain\Settings::update( array( 'billing_required_threshold_minor' => 25000 ) );
+$GLOBALS['wpcap_test_transients'] = array();
+$a54_pos = Orders::create( array( 'email' => 'a54@example.com', 'items' => array( array( 'ticket_type_id' => $a54_t, 'quantity' => 1 ) ), 'idempotency_key' => 'a54-' . uniqid() ), array( 'external' => true, 'payment_provider' => 'manual', 'require_billing' => true ) );
+check( 'A054: a trusted channel with require_billing gets billing_required above 250 €', is_wp_error( $a54_pos ) && 'wpcap_billing_required' === $a54_pos->get_error_code() );
+$a54_free = Orders::create( array( 'email' => 'a54b@example.com', 'items' => array( array( 'ticket_type_id' => $a54_t, 'quantity' => 1 ) ), 'idempotency_key' => 'a54b-' . uniqid() ), array( 'external' => true, 'payment_provider' => 'manual' ) );
+check( 'A054: without require_billing trusted channels are unchanged', ! is_wp_error( $a54_free ) );
+$a54_lux = ex_type( $a4_occ, 'Luxus A54', 40000, 2 );
+list( $a54_o, $a54_ids ) = ex_buy( $a4_std, 2, 'a54x@example.com' );
+$a54_x = Exchange::request( $a54_ids[0], $a54_lux, array( 'channel' => 'admin', 'idempotency_key' => 'a54x-1' ) );
+check( 'A054: an exchange supplement above 250 € without billing data is refused', is_wp_error( $a54_x ) && 'billing_required' === ( $a54_x->get_error_data()['reason'] ?? '' ) );
+$a54_y = Exchange::request( $a54_ids[1], $a54_lux, array( 'channel' => 'admin', 'idempotency_key' => 'a54x-2', 'billing' => array( 'first_name' => 'Ada', 'last_name' => 'Lovelace', 'street' => 'Ring 1', 'postcode' => '1010', 'city' => 'Wien', 'country' => 'AT' ) ) );
+$a54_supp = is_wp_error( $a54_y ) ? 0 : (int) ( $a54_y['supplementary_order_id'] ?? 0 );
+check( 'A054: with billing data the supplement is created and carries it', $a54_supp && 'Lovelace' === ( PassCaptain\Billing::for_order( $a54_supp )['last_name'] ?? '' ) );
+PassCaptain\Settings::update( array( 'billing_required_threshold_minor' => $a54_threshold ) );

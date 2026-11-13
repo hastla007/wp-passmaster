@@ -142,6 +142,22 @@ $buy = static fn( $type, $qty = 1, $extra = array() ) => array_merge( array( 'mo
 $r = ps_create( $tok_read, $buy( $ta ), 'ps-scope-1' );
 check( 'read-only key cannot create orders (403, audited scope_missing)', 403 === ps_status( $r ) && 'wpcap_partner_forbidden' === ps_code( $r ) );
 check( 'missing Idempotency-Key is rejected', 'wpcap_partner_idempotency_key' === ps_code( ps_create( $tok_org, $buy( $ta ), null ) ) );
+// A054: billing data above the threshold (threshold lowered to 10 € for this check).
+$a54_threshold = PassCaptain\Settings::get( 'billing_required_threshold_minor' );
+PassCaptain\Settings::update( array( 'billing_required_threshold_minor' => 1000 ) );
+$a54_no = ps_create( $tok_org, $buy( $ta ), 'ps-a54-1' );
+$a54_bad = ps_create( $tok_org, $buy( $ta, 1, array( 'billing' => array( 'first_name' => 'Ada' ) ) ), 'ps-a54-2' );
+$a54_ok = ps_create( $tok_org, $buy( $ta, 1, array( 'billing' => array( 'first_name' => 'Ada', 'last_name' => 'Lovelace', 'street' => 'Ring 1', 'postcode' => '1010', 'city' => 'Wien', 'country' => 'AT' ) ) ), 'ps-a54-3' );
+check( 'A054: above the billing threshold the partner API requires "billing" (422)', 422 === ps_status( $a54_no ) && 'wpcap_partner_billing_required' === ps_code( $a54_no ) );
+check( 'A054: incomplete billing data is rejected (400)', 'wpcap_partner_invalid_billing' === ps_code( $a54_bad ) );
+$a54_oid = is_wp_error( $a54_ok ) ? 0 : ps_order_id( $a54_ok['order']['id'] );
+check( 'A054: with billing the order is created and stores it', 201 === ps_status( $a54_ok ) && $a54_oid && 'Lovelace' === ( PassCaptain\Billing::for_order( $a54_oid )['last_name'] ?? '' ) );
+if ( $a54_oid ) {
+	// Released again and removed so the following checks start without partner orders.
+	ps_cancel( $tok_org, $a54_ok['order']['id'] );
+	$wpdb->query( "DELETE FROM {$p}wpcap_partner_orders WHERE order_id=" . (int) $a54_oid );
+}
+PassCaptain\Settings::update( array( 'billing_required_threshold_minor' => $a54_threshold ) );
 check( 'unknown fields are rejected (strict validation)', 'wpcap_partner_invalid_field' === ps_code( ps_create( $tok_org, $buy( $ta, 1, array( 'unit_price' => 1 ) ), 'ps-val-1' ) ) );
 check( 'client cannot pass prices or quantities as strings', 'wpcap_partner_invalid_items' === ps_code( ps_create( $tok_org, array( 'items' => array( array( 'ticket_type_id' => $ta, 'quantity' => '2', 'price_minor' => 1 ) ), 'buyer' => array( 'email' => 'a@example.com' ) ), 'ps-val-2' ) ) );
 check( 'buyer e-mail is required', 'wpcap_partner_invalid_buyer' === ps_code( ps_create( $tok_org, array( 'items' => array( array( 'ticket_type_id' => $ta, 'quantity' => 1 ) ) ), 'ps-val-3' ) ) );

@@ -489,7 +489,7 @@ final class Sales {
 			return self::error( 'wpcap_partner_idempotency_key', __( 'Der Header Idempotency-Key ist erforderlich (8–100 Zeichen: Buchstaben, Ziffern, . _ : -).', 'wp-pass-captain' ) );
 		}
 		if ( ! is_array( $body ) ) { return self::error( 'wpcap_partner_invalid_body', __( 'Der Request-Body muss ein JSON-Objekt sein.', 'wp-pass-captain' ) ); }
-		$unknown = self::unknown_fields( $body, array( 'mode', 'items', 'buyer', 'anonymous_buyer', 'attendees', 'external_reference', 'payment_reference' ) );
+		$unknown = self::unknown_fields( $body, array( 'mode', 'items', 'buyer', 'anonymous_buyer', 'attendees', 'external_reference', 'payment_reference', 'billing' ) );
 		if ( $unknown ) { return $unknown; }
 		$mode = $body['mode'] ?? 'reserve';
 		if ( ! in_array( $mode, self::MODES, true ) ) { return self::error( 'wpcap_partner_invalid_mode', __( 'mode muss "reserve" oder "sell" sein.', 'wp-pass-captain' ), 400, array( 'field' => 'mode' ) ); }
@@ -545,8 +545,16 @@ final class Sales {
 		if ( '' !== $payment_reference && ( 'sell' !== $mode || ! self::valid_reference( $payment_reference ) ) ) {
 			return self::error( 'wpcap_partner_invalid_reference', __( 'payment_reference ist nur bei mode "sell" erlaubt (höchstens 100 Zeichen).', 'wp-pass-captain' ), 400, array( 'field' => 'payment_reference' ) );
 		}
-		$request = array( 'mode' => $mode, 'items' => $clean, 'email' => $anonymous ? '' : strtolower( $email ), 'anonymous' => $anonymous, 'attendees' => array_values( $attendees ), 'external_reference' => $reference, 'payment_reference' => $payment_reference );
-		$request['hash'] = hash( 'sha256', (string) wp_json_encode( array( $request['mode'], $request['items'], $request['email'], $request['anonymous'], $request['attendees'], $request['external_reference'] ) ) );
+		// Optional buyer billing data (name/company/address/VAT ID) – required above the billing threshold.
+		$billing = isset( $body['billing'] ) ? \PassCaptain\Billing::validate( array( 'enabled' => true ) + (array) $body['billing'] ) : array();
+		if ( is_wp_error( $billing ) ) {
+			return self::error( 'wpcap_partner_invalid_billing', $billing->get_error_message(), 400, array( 'field' => 'billing' ) );
+		}
+		$billing = $billing && ! \PassCaptain\Billing::is_empty( $billing ) ? $billing : array();
+		$request = array( 'mode' => $mode, 'items' => $clean, 'email' => $anonymous ? '' : strtolower( $email ), 'anonymous' => $anonymous, 'attendees' => array_values( $attendees ), 'external_reference' => $reference, 'payment_reference' => $payment_reference, 'billing' => $billing );
+		$hashed = array( $request['mode'], $request['items'], $request['email'], $request['anonymous'], $request['attendees'], $request['external_reference'] );
+		if ( $billing ) { $hashed[] = $billing; } // Requests without billing keep their previous hash (idempotent replays).
+		$request['hash'] = hash( 'sha256', (string) wp_json_encode( $hashed ) );
 		return $request;
 	}
 
@@ -593,6 +601,8 @@ final class Sales {
 			'key_namespace' => 'partner' . (int) $partner->partner_id,
 			'hold_minutes' => max( 1, min( Repository::MAX_HOLD_MINUTES, (int) ( $partner->hold_minutes ?? 15 ) ?: 15 ) ),
 			'unit_prices' => $unit_prices,
+			'require_billing' => true,
+			'billing' => $req['billing'],
 			'partner_sale' => array(
 				'partner_id' => (int) $partner->partner_id,
 				'key_id' => (int) $ctx['key']->key_id,
@@ -614,6 +624,11 @@ final class Sales {
 		);
 		self::$messages = array();
 		$result = Orders::create( $payload, $internal );
+		if ( is_wp_error( $result ) && 'wpcap_billing_required' === $result->get_error_code() ) {
+			$result = self::error( 'wpcap_partner_billing_required', __( 'Für diesen Bestellbetrag braucht die Rechnung Name und Anschrift des Käufers: bitte das Objekt "billing" mitsenden (first_name, last_name, street, postcode, city, country; optional company, vat_id, po_number).', 'wp-pass-captain' ), 422, array( 'field' => 'billing' ) );
+			self::audit( $ctx, 'create', 0, $result );
+			return $result;
+		}
 		if ( is_wp_error( $result ) ) {
 			$data = (array) $result->get_error_data();
 			$status = (int) ( $data['status'] ?? 409 );

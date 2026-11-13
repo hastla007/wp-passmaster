@@ -285,27 +285,7 @@ final class Page {
 
 	/** Optional "Rechnung auf Firma" fields (collapsed); empty fields mean no billing data. */
 	private static function render_billing_fields() {
-		$labels = \PassCaptain\Billing::labels();
-		$default = \PassCaptain\Billing::default_country();
-		echo '<details class="wpcap-pos-billing"><summary>' . esc_html__( 'Rechnung auf Firma/Adresse (optional)', 'wp-pass-captain' ) . '</summary>';
-		echo '<p class="description">' . esc_html__( 'Nur ausfüllen, wenn der Käufer eine Rechnung mit Name und Anschrift braucht. Wenn ein Feld ausgefüllt ist, sind Vorname, Nachname, Straße, PLZ, Ort und Land Pflicht.', 'wp-pass-captain' ) . '</p><table class="form-table" role="presentation"><tbody>';
-		$autocomplete = array( 'company' => 'organization', 'first_name' => 'given-name', 'last_name' => 'family-name', 'street' => 'street-address', 'postcode' => 'postal-code', 'city' => 'address-level2', 'country' => 'country', 'vat_id' => 'off', 'po_number' => 'off' );
-		foreach ( \PassCaptain\Billing::FIELDS as $field ) {
-			$id = 'wpcap-pos-billing-' . $field;
-			$label = $labels[ $field ] . ( in_array( $field, \PassCaptain\Billing::REQUIRED, true ) ? '' : ' ' . __( '(optional)', 'wp-pass-captain' ) );
-			echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
-			if ( 'country' === $field ) {
-				echo '<select id="' . esc_attr( $id ) . '" name="billing[country]" autocomplete="country">';
-				foreach ( \PassCaptain\Billing::countries() as $code => $name ) {
-					echo '<option value="' . esc_attr( $code ) . '"' . selected( $code, $default, false ) . '>' . esc_html( $name ) . '</option>';
-				}
-				echo '</select>';
-			} else {
-				echo '<input type="text" class="regular-text" id="' . esc_attr( $id ) . '" name="billing[' . esc_attr( $field ) . ']" maxlength="' . (int) \PassCaptain\Billing::MAX[ $field ] . '" autocomplete="' . esc_attr( $autocomplete[ $field ] ) . '">';
-			}
-			echo '</td></tr>';
-		}
-		echo '</tbody></table></details>';
+		echo \PassCaptain\Billing::fields_html( 'wpcap-pos-billing' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in Billing::fields_html().
 	}
 
 	/** Maps the POS form to Service::sell() input. */

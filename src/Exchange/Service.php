@@ -570,6 +570,8 @@ final class Service {
 			'transferred' => __( 'Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht werden.', 'wp-pass-captain' ),
 			'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'wp-pass-captain' ),
 			'insert_failed' => __( 'Der Umtausch konnte nicht gespeichert werden.', 'wp-pass-captain' ),
+			'billing_invalid' => __( 'Die Rechnungsdaten sind unvollständig: Vorname, Nachname, Straße, PLZ, Ort und Land angeben.', 'wp-pass-captain' ),
+			'billing_required' => __( 'Für diesen Aufpreis braucht die Rechnung Name und Anschrift. Bitte Rechnungsdaten angeben oder den Veranstalter kontaktieren.', 'wp-pass-captain' ),
 		) );
 		$message = $messages[ $code ] ?? __( 'Der Umtausch konnte nicht durchgeführt werden.', 'wp-pass-captain' );
 		return new \WP_Error( 'wpcap_exchange_failed', $message, array( 'status' => 'db_busy' === $code ? 503 : 409, 'reason' => (string) $code, 'retryable' => 'db_busy' === $code ) );
@@ -853,6 +855,17 @@ final class Service {
 		$supplement = (int) $money['supplement_minor'];
 		$fee = (int) $money['fee_minor'];
 		$total = (int) $money['due_minor'];
+		// The supplement is invoiced on its own: above the billing threshold it needs the buyer's name
+		// and address – from the original order, or passed with the exchange ($args['billing']).
+		$billing_json = ! empty( $order->billing ) ? (string) $order->billing : '';
+		if ( '' === $billing_json && is_array( $args['billing'] ?? null ) ) {
+			$given = \PassCaptain\Billing::validate( array( 'enabled' => true ) + $args['billing'] );
+			if ( is_wp_error( $given ) ) { throw new \RuntimeException( 'billing_invalid' ); }
+			if ( $given && ! \PassCaptain\Billing::is_empty( $given ) ) { $billing_json = (string) wp_json_encode( $given ); }
+		}
+		if ( '' === $billing_json && \PassCaptain\Billing::required_for( $total, (string) $order->currency ) ) {
+			throw new \RuntimeException( 'billing_required' );
+		}
 		$tax_line = Orders::gross_tax( $supplement, $rate );
 		$tax_fee = Orders::gross_tax( $fee, $rate );
 		$access_token = bin2hex( random_bytes( 32 ) );
@@ -885,7 +898,7 @@ final class Service {
 			'created_at' => $now,
 			'updated_at' => $now,
 		);
-		if ( ! empty( $order->billing ) ) { $order_row['billing'] = (string) $order->billing; }
+		if ( '' !== $billing_json ) { $order_row['billing'] = $billing_json; }
 		if ( ! $wpdb->insert( "{$p}wpcap_orders", $order_row ) ) { throw new \RuntimeException( 'insert_failed' ); }
 		$supp_id = (int) $wpdb->insert_id;
 		// Target line: one unit of the target (holds/counts capacity until the unit moves to the original order).

@@ -53,6 +53,7 @@ final class AdminPage {
 			'waive' => ! empty( $in['waive'] ),
 			'note' => sanitize_text_field( (string) ( $in['note'] ?? '' ) ),
 		);
+		if ( is_array( $in['billing'] ?? null ) ) { $args['billing'] = $in['billing']; } // Needed above the billing threshold.
 		if ( '' !== $refund_policy ) { $args['refund_policy'] = $refund_policy; }
 		return Service::request( (int) $ticket->ticket_id, absint( $in['ticket_type_id'] ?? 0 ), $args );
 	}
@@ -203,6 +204,7 @@ final class AdminPage {
 		echo '<tr><th><label for="wpcap-exchange-refund">' . esc_html__( 'Günstigeres Ziel', 'wp-pass-captain' ) . '</label></th><td>';
 		Forms::select( 'refund_policy', array( '' => __( 'Regel des Events', 'wp-pass-captain' ), 'refund' => __( 'Differenz erstatten', 'wp-pass-captain' ), 'none' => __( 'Keine Erstattung', 'wp-pass-captain' ) ), '', 'wpcap-exchange-refund' );
 		echo '</td></tr><tr><th><label for="wpcap-exchange-note">' . esc_html__( 'Notiz', 'wp-pass-captain' ) . '</label></th><td><input type="text" name="note" id="wpcap-exchange-note" class="regular-text" maxlength="255"></td></tr></table>';
+		echo \PassCaptain\Billing::fields_html( 'wpcap-exchange-billing' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in Billing::fields_html().
 		echo '<p><button class="button button-primary" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Ticket jetzt umtauschen? Der bisherige Ticketcode wird ungültig.', 'wp-pass-captain' ) ) . '\')">' . esc_html__( 'Umtauschen', 'wp-pass-captain' ) . '</button></p></form>';
 	}
 

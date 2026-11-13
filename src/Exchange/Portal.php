@@ -61,6 +61,7 @@ final class Portal {
 			'channel' => 'portal',
 			'idempotency_key' => sanitize_text_field( (string) ( $in['idempotency_key'] ?? '' ) ),
 			'provider' => sanitize_key( (string) ( $in['provider'] ?? '' ) ),
+			'billing' => is_array( $in['billing'] ?? null ) ? $in['billing'] : null,
 		) );
 		if ( is_wp_error( $result ) ) { return $result; }
 		return self::public_result( $result );
@@ -184,6 +185,7 @@ final class Portal {
 			/* translators: %d: hours */
 			$out .= '<p class="muted"><small>' . esc_html( sprintf( _n( 'Umtausch bis %d Stunde vor Beginn möglich.', 'Umtausch bis %d Stunden vor Beginn möglich.', (int) $policy['portal_hours'], 'wp-pass-captain' ), (int) $policy['portal_hours']) ) . '</small></p>';
 		}
+		$out .= \PassCaptain\Billing::fields_html( 'wpcap-exchange-billing-' . esc_attr( $ticket->public_id ) );
 		$out .= '<button type="submit">' . esc_html__( 'Jetzt umtauschen', 'wp-pass-captain' ) . '</button><p class="message" role="status" aria-live="polite"></p></form></details>';
 		if ( ! self::$script_printed ) {
 			self::$script_printed = true;
@@ -202,7 +204,7 @@ final class Portal {
 		return '<script>(function(){var S=' . wp_json_encode( $strings ) . ',URL=' . wp_json_encode( $url ) . ',TOKEN=' . wp_json_encode( $token ) . ';'
 			. 'function key(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random();}'
 			. 'document.addEventListener("submit",async function(e){var form=e.target;if(!form||!form.classList||!form.classList.contains("wpcap-exchange-form")){return;}e.preventDefault();if(!form.dataset.k){form.dataset.k=key();}var k=form.dataset.k;var m=form.querySelector(".message"),b=form.querySelector("button");if(!window.confirm(S.confirm)){return;}b.disabled=true;m.textContent=S.sending;'
-			. 'try{var body={access_token:TOKEN,ticket_public_id:form.dataset.ticket,ticket_type_id:form.ticket_type_id.value,idempotency_key:k};if(form.provider){body.provider=form.provider.value;}'
+			. 'try{var body={access_token:TOKEN,ticket_public_id:form.dataset.ticket,ticket_type_id:form.ticket_type_id.value,idempotency_key:k};if(form.provider){body.provider=form.provider.value;}var bill={},has=false;form.querySelectorAll("[name^=billing]").forEach(function(n){var f=n.name.slice(8,-1);bill[f]=n.value;if(n.value&&f!=="country"){has=true;}});if(has){body.billing=bill;}'
 			. 'var r=await fetch(URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});var d={};try{d=await r.json();}catch(x){}'
 			. 'if(!r.ok){form.dataset.k=key();throw new Error(d.message||S.failed);}m.textContent=(d.message||"")+(d.payment&&d.payment.instructions?" "+d.payment.instructions:"");'
 			. 'if(d.payment&&d.payment.bank){var dl=document.createElement("dl");dl.className="bank";Object.keys(d.payment.bank).forEach(function(l){var dt=document.createElement("dt");dt.textContent=l;var dd=document.createElement("dd");dd.textContent=d.payment.bank[l];dl.appendChild(dt);dl.appendChild(dd);});m.appendChild(dl);}'

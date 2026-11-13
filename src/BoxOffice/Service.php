@@ -339,6 +339,8 @@ final class Service {
 		// 2. Order through the shared checkout path (same capacity locks as online).
 		$internal = array(
 			'external' => true,
+			// An invoice above the threshold needs the buyer's name and address (DE §14 UStG / AT §11 UStG).
+			'require_billing' => 'invoice' === $method,
 			'payment_provider' => $methods[ $method ]['provider'],
 			'key_namespace' => 'pos',
 			'source' => 'pos',
@@ -356,6 +358,9 @@ final class Service {
 		if ( is_wp_error( $order ) ) {
 			// No order was created: release the form key claim.
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d AND status='pending' AND (order_id IS NULL OR order_id=0)", $sale_id ) );
+			if ( 'wpcap_billing_required' === $order->get_error_code() ) {
+				return self::error( 'wpcap_billing_required', __( 'Für eine Rechnung über diesem Betrag sind Name und Anschrift des Käufers nötig. Bitte unter „Rechnung auf Firma/Adresse“ ausfüllen.', 'wp-pass-captain' ), 400 );
+			}
 			return $order;
 		}
 		$order_id = (int) $order['order_id'];

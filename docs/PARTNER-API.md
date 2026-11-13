@@ -251,6 +251,8 @@ Käufer-E-Mail“ aktiv ist und der Key `tickets:issue` hat. Die Bestellung erh�
 Platzhalteradresse `partner+…@invalid.example`; es werden keine Mails versendet, die Tickets gehen nur an
 den Verkäufer. Mit Käufer-E-Mail erhält die Käuferin zusätzlich die normale Ticket-Mail.
 
+**Rechnungsdaten (`billing`, optional):** `{ "first_name", "last_name", "street", "postcode", "city", "country" (ISO-2), optional "company", "vat_id", "po_number" }`. Über der Schwelle „Name und Anschrift ab Bestellbetrag“ (Einstellungen, Standard 250 €; DE Kleinbetragsrechnung) ist das Objekt Pflicht, sonst `422 wpcap_partner_billing_required`.
+
 ### Idempotenz
 
 `POST /partner/orders` verlangt den Header **`Idempotency-Key`** (8–100 Zeichen `A–Z a–z 0–9 . _ : -`).
@@ -299,6 +301,8 @@ curl -X POST https://example.com/wp-json/wp-pass-captain/v1/partner/orders/6f1c0
 | 400 | `wpcap_partner_invalid_mode` / `_items` / `_buyer` / `_attendees` / `_reference` | ungültige Eingabe (`data.field`) |
 | 400 | `wpcap_partner_order_invalid` | von der Bestelllogik abgelehnt, z. B. Pflichtfelder der Teilnehmenden (`data.reason`) |
 | 400 | `wpcap_partner_allocation_mixed` | Positionen aus verschiedenen Holds |
+| 400 | `wpcap_partner_invalid_billing` | ungültige Rechnungsdaten in `billing` |
+| 422 | `wpcap_partner_billing_required` | Bestellbetrag über der Rechnungsdaten-Schwelle (Einstellung, Standard 250 €) ohne `billing` |
 | 403 | `wpcap_partner_forbidden` | Scope fehlt (z. B. `orders:write`) |
 | 403 | `wpcap_partner_type_forbidden` | Ticketart nicht im Sortiment bzw. außerhalb der Key-Einschränkung |
 | 403 | `wpcap_partner_anonymous_forbidden` | Verkauf ohne E-Mail nicht freigegeben bzw. ohne `tickets:issue` |
