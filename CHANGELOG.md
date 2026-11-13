@@ -20,6 +20,7 @@
 - Admin-Bestellansicht: Positionen wie bezahlt (passend zur Rechnung) mit Spalte „Umgebucht (Stk.)“ für Umtausche; Zusatzbestellungen tragen einen Hinweis mit Link zur ursprünglichen Bestellung.
 - Terminauswahl an Kasse, Druck, Gästeliste und Abholliste: nur geplante Termine veröffentlichter Events; laufender/nächster Termin ist vorausgewählt, vergangene stehen danach mit „(vergangen)“ (an der Kasse gar nicht).
 - Rabattcodes: neue Admin-Seite „Rabattcodes“ (anlegen, Nutzung und Rabattsumme, aktivieren/deaktivieren; Event-Zuständige für ihre Events, Codes für alle Events nur Administration). Das Feld „Rabattcode“ erscheint nur bei aktivem Code; die Preisvorschau zeigt den Rabatt (`POST /campaigns/preview`, unverbindlich, ratenbegrenzt). Behoben: die REST-Antwort beim Anlegen lieferte die ID des Audit-Eintrags statt des Codes.
+- Ticket-Erstattung bei zielgerichtetem Rabatt: Betrag und USt aus dem Positionsbrutto nach dem eigenen Rabatt (ein Rabatt für ein anderes Event mindert die Erstattung nicht mehr).
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

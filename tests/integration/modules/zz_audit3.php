@@ -257,3 +257,11 @@ $a17_off = PassCaptain\Admin\CampaignsPage::set_status( array( 'campaign_id' => 
 check( 'A017: deactivated code is no longer offered', true === $a17_off && false === PassCaptain\Campaigns::has_active( $a17_event, 'EUR' ) || PassCaptain\Campaigns::has_active( 0, 'EUR' ) );
 $a17_list = PassCaptain\Campaigns::all( null );
 check( 'A017: list contains usage statistics', (bool) array_filter( $a17_list, static fn( $r ) => 'HERBST20' === $r->code && isset( $r->orders_committed, $r->discount_committed ) ) );
+
+echo "Audit 3: refund VAT uses the stored line discount (A020 with A007)\n";
+$GLOBALS['wpcap_test_transients'] = array();
+$a20 = Orders::create( array( 'email' => 'a20@example.com', 'items' => array( array( 'ticket_type_id' => $a7_t1, 'quantity' => 1 ), array( 'ticket_type_id' => $a7_t2, 'quantity' => 1 ) ), 'campaign_codes' => array( 'NURA25' ), 'idempotency_key' => 'a20-' . uniqid() ) );
+Orders::confirm_external_payment( $a20['order_id'], 'test' );
+$a20_b = array_values( array_filter( tickets( $a20['order_id'], 'valid' ), static fn( $t ) => $a7_t2 === (int) $t->ticket_type_id ) )[0];
+$a20_r = PassCaptain\Refunds::request( $a20['order_id'], array( (int) $a20_b->ticket_id ), 'Test', 'a20-r' );
+check( 'A020: refund of the undiscounted event-B ticket: 100,00 with 9,09 VAT (10 %)', ! is_wp_error( $a20_r ) && 10000 === (int) $a20_r['amount_minor'] && 909 === (int) $a20_r['tax_minor'] );

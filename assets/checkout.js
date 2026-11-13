@@ -95,7 +95,9 @@
 	// Discount code preview (non-binding): POST …/campaigns/preview, debounced.
 	const previewTimers = new WeakMap();
 	function previewDiscount(form, total) {
-		const code = form.querySelector('[name="campaign_code"]');
+		// Discount field, or the single code field (a voucher code there is not previewed).
+		const single = form.querySelector('[name="code"]');
+		const code = form.querySelector('[name="campaign_code"]') || single;
 		if (!code || !config.previewUrl) return;
 		clearTimeout(previewTimers.get(form));
 		const value = code.value.trim();
@@ -113,7 +115,7 @@
 				if (code.value.trim() !== value) return; // Changed meanwhile.
 				if (r.ok && box) {
 					box.textContent = fill(t.estimateDiscount || '%1$s − %2$s = %3$s', [money(d.subtotal_minor, d.currency), money(d.discount_minor, d.currency), money(d.total_minor, d.currency)]);
-				} else if (409 === r.status && box) {
+				} else if (409 === r.status && box && !single) {
 					box.textContent = (t.estimate || '%s').replace('%s', money(total, d.currency || '')) + ' ' + (t.codeInvalid || '');
 				}
 			} catch (e) { /* Estimate only. */ }
@@ -333,7 +335,7 @@
 		}
 	});
 	document.addEventListener('input', function (event) {
-		if (event.target.name === 'campaign_code') {
+		if (event.target.name === 'campaign_code' || event.target.name === 'code') {
 			const form = event.target.closest('.wpcap-checkout-form');
 			if (form) renderEstimate(form);
 		}

@@ -447,9 +447,11 @@ final class Refunds {
 		if ( count( $ticket_ids ) === count( $open_ids ) ) {
 			$amount = $remaining_total;
 		} else {
-			list( $gross ) = self::line_shares( $order, $ticket_ids );
-			$subtotal = max( 1, (int) $order->subtotal_minor ?: (int) $order->total_minor );
-			$amount = min( $remaining_total, (int) round( $gross * (int) $order->total_minor / $subtotal ) );
+			// The tickets' share of the gross after their own discount (a discount for another event
+			// does not reduce it), scaled to the amount paid (a multi-purpose voucher pays the rest).
+			list( , , $base ) = self::line_shares( $order, $ticket_ids );
+			$after_discount = max( 1, ( (int) $order->subtotal_minor ?: (int) $order->total_minor ) - (int) $order->discount_minor );
+			$amount = min( $remaining_total, (int) round( $base * (int) $order->total_minor / $after_discount ) );
 		}
 		$tax = self::tax_for( $order, count( $ticket_ids ) === count( $open_ids ) ? null : $ticket_ids, $amount );
 		return array( 'ticket_ids' => $ticket_ids, 'amount_minor' => $amount, 'tax_minor' => $tax );
@@ -515,7 +517,7 @@ final class Refunds {
 		$p = $wpdb->prefix;
 		if ( ! $ticket_ids ) { return array( 0, 0 ); }
 		$unit = array();
-		$items = (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,quantity,line_total_minor,tax_minor FROM {$p}wpcap_order_items WHERE order_id=%d ORDER BY item_id", (int) $order->order_id ) );
+		$items = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,quantity,line_total_minor,tax_minor' . ( OrderLines::ready() ? ',discount_minor' : '' ) . " FROM {$p}wpcap_order_items WHERE order_id=%d ORDER BY item_id", (int) $order->order_id ) );
 		// Line totals are stored before the order discount, the line VAT after it: the gross that carries this VAT
 		// is the discounted line total (same allocation as in reports and settlements).
 		$discount = isset( $order->discount_minor ) ? (int) $order->discount_minor : (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$p}wpcap_orders WHERE order_id=%d", (int) $order->order_id ) );
