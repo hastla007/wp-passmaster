@@ -379,6 +379,8 @@ final class Privacy {
 		// Fired after anonymisation, so listeners (webhooks with personal data) see no address.
 		Orders::fire_revoked( $revoked, 'privacy_erasure' );
 		Audit::record( 'privacy_erasure', 'order', $order_id, array( 'tickets' => count( $ticket_ids ), 'revoked' => count( $revoked ), 'details' => $details ) );
+		/** An order was anonymised (privacy erasure): modules drop data they keep per order. */
+		do_action( 'wpcap_privacy_order_anonymized', (int) $order_id );
 		return array( 'invoices' => $invoices, 'billing' => $billing_erased );
 	}
 

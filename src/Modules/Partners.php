@@ -28,6 +28,10 @@ final class Partners {
 		// rows that may still count (open holds and paid sales).
 		add_action( 'wpcap_capacity_released', array( \PassCaptain\Partners\Sales::class, 'prune_usage' ), 20, 1 );
 		add_filter( 'wpcap_checkout_error_messages', array( SalesModel::class, 'checkout_messages' ) );
+		// Stored partner ticket codes: gone with the ticket, the order's privacy erasure and after retention.
+		add_action( 'wpcap_ticket_revoked', array( \PassCaptain\Partners\Sales::class, 'forget_code' ), 10, 1 );
+		add_action( 'wpcap_privacy_order_anonymized', array( \PassCaptain\Partners\Sales::class, 'forget_order_codes' ), 10, 1 );
+		add_filter( 'wpcap_privacy_retention_steps', array( \PassCaptain\Partners\Sales::class, 'retention_step' ), 10, 2 );
 	}
 
 	public static function settings_defaults() {

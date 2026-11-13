@@ -864,6 +864,37 @@ final class Sales {
 		return false === $plain ? null : $plain;
 	}
 
+	/** wpcap_ticket_revoked: a revoked ticket's code is never handed out again. */
+	public static function forget_code( $ticket_id ) {
+		global $wpdb;
+		if ( ! \PassCaptain\Privacy::has_table( 'wpcap_partner_ticket_codes' ) ) { return 0; }
+		return (int) $wpdb->delete( self::t( 'partner_ticket_codes' ), array( 'ticket_id' => absint( $ticket_id ) ), array( '%d' ) );
+	}
+
+	/** wpcap_privacy_order_anonymized: drops all stored codes of the order (also checked-in tickets). */
+	public static function forget_order_codes( $order_id ) {
+		global $wpdb;
+		if ( ! \PassCaptain\Privacy::has_table( 'wpcap_partner_ticket_codes' ) ) { return 0; }
+		return (int) $wpdb->delete( self::t( 'partner_ticket_codes' ), array( 'order_id' => absint( $order_id ) ), array( '%d' ) );
+	}
+
+	/**
+	 * wpcap_privacy_retention_steps: codes are kept for re-download only until N days after the end
+	 * of the ticket's date (wpcap_privacy_retention_days, step "partner_ticket_codes", default 30).
+	 */
+	public static function retention_step( $counts, $now = null ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( ! \PassCaptain\Privacy::has_table( 'wpcap_partner_ticket_codes' ) ) { return $counts; }
+		$days = max( 0, (int) apply_filters( 'wpcap_privacy_retention_days', 30, 'partner_ticket_codes' ) );
+		$cutoff = gmdate( 'Y-m-d H:i:s', ( null === $now ? time() : (int) $now ) - $days * DAY_IN_SECONDS );
+		$counts = (array) $counts;
+		$counts['partner_ticket_codes'] = (int) $wpdb->query( $wpdb->prepare( 'DELETE c FROM ' . self::t( 'partner_ticket_codes' ) . " c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY)) < %s", $cutoff ) );
+		// Codes whose ticket no longer exists.
+		$counts['partner_ticket_codes'] += (int) $wpdb->query( 'DELETE c FROM ' . self::t( 'partner_ticket_codes' ) . " c LEFT JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id WHERE t.ticket_id IS NULL" );
+		return $counts;
+	}
+
 	private static function store_code( $ticket_id, $order_id, $partner_id, $code ) {
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . self::t( 'partner_ticket_codes' ) . ' (ticket_id,order_id,partner_id,code_box,updated_at) VALUES (%d,%d,%d,%s,%s) ON DUPLICATE KEY UPDATE code_box=VALUES(code_box),updated_at=VALUES(updated_at)', (int) $ticket_id, (int) $order_id, (int) $partner_id, self::seal( $code ), current_time( 'mysql', true ) ) );

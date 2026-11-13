@@ -654,3 +654,26 @@ $a54_y = Exchange::request( $a54_ids[1], $a54_lux, array( 'channel' => 'admin', 
 $a54_supp = is_wp_error( $a54_y ) ? 0 : (int) ( $a54_y['supplementary_order_id'] ?? 0 );
 check( 'A054: with billing data the supplement is created and carries it', $a54_supp && 'Lovelace' === ( PassCaptain\Billing::for_order( $a54_supp )['last_name'] ?? '' ) );
 PassCaptain\Settings::update( array( 'billing_required_threshold_minor' => $a54_threshold ) );
+
+echo "Audit 3: stored partner ticket codes are deleted (A055)\n";
+$a55_code = static function ( $ticket_id, $order_id ) use ( $wpdb, $p ) {
+	$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_partner_ticket_codes (ticket_id,order_id,partner_id,code_box,updated_at) VALUES (%d,%d,1,'box',%s) ON DUPLICATE KEY UPDATE code_box='box'", $ticket_id, $order_id, gmdate( 'Y-m-d H:i:s' ) ) );
+};
+$a55_has = static fn( $ticket_id ) => (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_partner_ticket_codes WHERE ticket_id=%d", $ticket_id ) );
+// The Partners module registers these hooks (module file checked; the module itself boots later in this run).
+$a55_module = file_get_contents( dirname( __DIR__, 3 ) . '/src/Modules/Partners.php' );
+check( 'A055: the Partners module wires revocation, privacy erasure and retention', false !== strpos( $a55_module, "'wpcap_ticket_revoked', array( \\PassCaptain\\Partners\\Sales::class, 'forget_code' )" ) && false !== strpos( $a55_module, "'wpcap_privacy_order_anonymized'" ) && false !== strpos( $a55_module, "'wpcap_privacy_retention_steps'" ) );
+add_action( 'wpcap_ticket_revoked', array( PassCaptain\Partners\Sales::class, 'forget_code' ), 10, 1 );
+add_action( 'wpcap_privacy_order_anonymized', array( PassCaptain\Partners\Sales::class, 'forget_order_codes' ), 10, 1 );
+list( $a55_o, $a55_t ) = ex_buy( $a4_std, 3, 'a55@example.com' );
+foreach ( $a55_t as $a55_id ) { $a55_code( $a55_id, $a55_o ); }
+Orders::fire_revoked( Orders::revoke_ids( array( $a55_t[0] ) ), 'test' );
+check( 'A055: revoking a ticket deletes its stored code', ! $a55_has( $a55_t[0] ) && $a55_has( $a55_t[1] ) );
+do_action( 'wpcap_privacy_order_anonymized', $a55_o );
+check( 'A055: privacy anonymisation deletes all codes of the order', ! $a55_has( $a55_t[1] ) && ! $a55_has( $a55_t[2] ) );
+list( $a55_o2, $a55_t2 ) = ex_buy( $a4_std, 1, 'a55b@example.com' );
+$a55_code( $a55_t2[0], $a55_o2 );
+$a55_kept = PassCaptain\Partners\Sales::retention_step( array() );
+$a55_occ_end = strtotime( (string) $wpdb->get_var( "SELECT COALESCE(ends_at, DATE_ADD(starts_at, INTERVAL 1 DAY)) FROM {$p}wpcap_occurrences WHERE occurrence_id=$a4_occ" ) . ' UTC' );
+$a55_late = PassCaptain\Partners\Sales::retention_step( array(), $a55_occ_end + 31 * DAY_IN_SECONDS );
+check( 'A055: retention keeps codes until 30 days after the date, then deletes them', $a55_has( $a55_t2[0] ) === false && 0 === (int) ( $a55_kept['partner_ticket_codes'] ?? -1 ) && (int) $a55_late['partner_ticket_codes'] >= 1 );
