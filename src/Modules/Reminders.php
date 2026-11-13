@@ -70,7 +70,7 @@ final class Reminders {
 	 * @param int[] $offsets Ascending offsets in hours.
 	 */
 	public static function stage( $starts, array $offsets, $now = null ) {
-		$now = $now ?? time();
+		$now = $now ?? \PassCaptain\Clock::now();
 		if ( $starts <= $now ) { return 0; }
 		foreach ( $offsets as $hours ) {
 			if ( $starts - $hours * HOUR_IN_SECONDS <= $now ) { return (int) $hours; }
@@ -84,7 +84,7 @@ final class Reminders {
 		$c = self::config();
 		if ( empty( $c['enabled'] ) || ! $c['offsets'] ) { return 0; }
 		$p = $wpdb->prefix;
-		$now = $now ?? time();
+		$now = $now ?? \PassCaptain\Clock::now();
 		$occurrences = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.location,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.status='scheduled' AND e.status='published' AND o.starts_at>%s AND o.starts_at<=%s ORDER BY o.starts_at LIMIT 200", gmdate( 'Y-m-d H:i:s', $now ), gmdate( 'Y-m-d H:i:s', $now + max( $c['offsets'] ) * HOUR_IN_SECONDS ) ) );
 		$queued = 0;
 		foreach ( $occurrences as $occ ) {
@@ -119,7 +119,7 @@ final class Reminders {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT o.starts_at,o.status,e.status AS event_status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", (int) ( $payload['occurrence_id'] ?? 0 ) ) );
-		if ( ! $occ || 'scheduled' !== $occ->status || 'published' !== $occ->event_status || $occ->starts_at !== ( $payload['starts_at'] ?? '' ) || strtotime( $occ->starts_at . ' UTC' ) <= time() ) { return false; }
+		if ( ! $occ || 'scheduled' !== $occ->status || 'published' !== $occ->event_status || $occ->starts_at !== ( $payload['starts_at'] ?? '' ) || strtotime( $occ->starts_at . ' UTC' ) <= \PassCaptain\Clock::now() ) { return false; }
 		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' AND t.refunded=0 AND ord.payment_status='paid' AND LOWER(COALESCE(NULLIF(t.attendee_email,''),ord.customer_email))=%s", (int) $payload['occurrence_id'], strtolower( (string) $recipient ) ) );
 	}
 

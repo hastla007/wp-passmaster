@@ -108,7 +108,7 @@ final class Orders {
 		$tickets_table = $wpdb->prefix . 'wpcap_tickets';
 		$items_table = $wpdb->prefix . 'wpcap_order_items';
 		$event_table = $wpdb->prefix . 'wpcap_events';
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$door_sale = ! empty( $internal['allow_door_sales'] ) || 'pos' === $namespace;
 		$custom_error = null;
 		$commit_unknown = false;
@@ -147,7 +147,7 @@ final class Orders {
 				// Door sales (box office) may sell after the start and outside the online sales window,
 				// but never for an occurrence that has ended.
 				$ended = $occurrence && ( $occurrence->ends_at ? $occurrence->ends_at : gmdate( 'Y-m-d H:i:s', strtotime( $occurrence->starts_at . ' UTC' ) + 6 * HOUR_IN_SECONDS ) ) < $now;
-				$started = $occurrence && strtotime( $occurrence->starts_at . ' UTC' ) < time();
+				$started = $occurrence && strtotime( $occurrence->starts_at . ' UTC' ) < Clock::now();
 				if ( ! $occurrence || 'published' !== $occurrence->event_status || 'scheduled' !== $occurrence->status || ( $door_sale ? $ended : $started ) ) {
 					throw new \RuntimeException( 'occurrence_unavailable' );
 				}
@@ -246,7 +246,7 @@ final class Orders {
 				'idempotency_key' => $key_hash,
 				'customer_email' => $email,
 				'access_token_hash' => hash( 'sha256', $access_token ),
-				'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS ),
+				'access_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + 30 * DAY_IN_SECONDS ),
 				'status' => ( $total || $external ) ? 'pending_payment' : 'complete',
 				'payment_status' => ( $total || $external ) ? 'pending' : 'paid',
 				'currency' => $currency,
@@ -299,7 +299,7 @@ final class Orders {
 						'order_id' => $order_id,
 						'ticket_type_id' => $type_id,
 						'quantity' => (int) $line['quantity'],
-						'expires_at' => gmdate( 'Y-m-d H:i:s', time() + $hold_minutes * MINUTE_IN_SECONDS ),
+						'expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + $hold_minutes * MINUTE_IN_SECONDS ),
 						'status' => 'active',
 					);
 					if ( $counted ) { $hold['counted_qty'] = (int) $line['quantity']; }
@@ -367,7 +367,7 @@ final class Orders {
 	private static function store_attendee( $ticket_id, $order, array $attendee ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$name = sanitize_text_field( $attendee['name'] ?? '' );
 		$email = sanitize_email( $attendee['email'] ?? '' );
 		if ( $name || is_email( $email ) ) {
@@ -679,7 +679,7 @@ final class Orders {
 	private static function capacity_error_counted( $type, $occurrence, $quantity, $exclude_order_id, $occurrence_quantity ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		if ( (int) $type->capacity > 0 ) {
 			// Holds that no longer hold (lapsed while still "active", or already expired/released/
 			// converted but not yet synced) still count in held_qty until the counters catch up.
@@ -715,7 +715,7 @@ final class Orders {
 	private static function capacity_error_summed( $type, $occurrence, $quantity, $exclude_order_id, $occurrence_quantity ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		if ( (int) $type->capacity > 0 ) {
 			$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d", $type->ticket_type_id, $exclude_order_id ) );
 			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
@@ -762,7 +762,7 @@ final class Orders {
 		$context = array_merge( array( 'phase' => 'display', 'source' => 'native' ), $context );
 		$context['occurrence'] = $occurrence;
 		$context['quantity'] = max( 1, absint( $quantity ) );
-		$context['now'] = isset( $context['now'] ) ? (string) $context['now'] : current_time( 'mysql', true );
+		$context['now'] = isset( $context['now'] ) ? (string) $context['now'] : Clock::mysql();
 		/**
 		 * Filters the gross unit price (minor units) of a ticket type. Server-side only; trusted
 		 * `unit_prices` overrides of adapters (WooCommerce, free box office sales) bypass it.
@@ -785,7 +785,7 @@ final class Orders {
 		if ( ! $occurrence && isset( $type->occurrence_id ) ) {
 			$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $type->occurrence_id ) );
 		}
-		$context = array_merge( array( 'phase' => 'display', 'source' => 'native', 'quantity' => 1, 'now' => current_time( 'mysql', true ) ), $context, array( 'occurrence' => $occurrence ) );
+		$context = array_merge( array( 'phase' => 'display', 'source' => 'native', 'quantity' => 1, 'now' => Clock::mysql() ), $context, array( 'occurrence' => $occurrence ) );
 		return (string) apply_filters( 'wpcap_ticket_price_label', '', $type, $context );
 	}
 
@@ -833,7 +833,7 @@ final class Orders {
 				'order_id' => 0,
 				'types' => array( (int) $type->ticket_type_id => $type ),
 				'occurrences' => array( (int) $occurrence->occurrence_id => $occurrence ),
-				'now' => current_time( 'mysql', true ),
+				'now' => Clock::mysql(),
 				'source' => 'exchange',
 			),
 			$context,
@@ -982,7 +982,7 @@ final class Orders {
 	private static function compute_availability( array $ids, array $rows ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$types = array();
 		$need = array();
 		foreach ( $ids as $id ) {
@@ -1075,7 +1075,7 @@ final class Orders {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		// Ticket types of a pending order never change, so they can be read before the transaction;
 		// they are locked right after the order row (order → types → occurrences, by id).
 		$type_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ticket_type_id FROM {$p}wpcap_order_items WHERE order_id=%d ORDER BY ticket_type_id", $order_id ) ) );
@@ -1236,7 +1236,7 @@ final class Orders {
 	public static function manual_hold_until( $start_ts, $minutes = null ) {
 		$minutes = null === $minutes ? max( 1, (int) Settings::get( 'manual_hold_hours' ) ) * 60 : (int) $minutes;
 		if ( ! $start_ts ) { return $minutes; }
-		$left = (int) floor( ( (int) $start_ts - time() ) / 60 );
+		$left = (int) floor( ( (int) $start_ts - Clock::now() ) / 60 );
 		$cutoff = max( 0, (int) Settings::get( 'manual_cutoff_hours' ) ) * 60;
 		if ( $left < 1 || $left < $cutoff ) { return null; }
 		return max( 1, min( $minutes, $left ) );
@@ -1245,8 +1245,8 @@ final class Orders {
 	/** Extends active holds of a pending order (e.g. WooCommerce "on-hold" bank transfers). */
 	public static function extend_hold( $order_id, $minutes ) {
 		global $wpdb;
-		$until = gmdate( 'Y-m-d H:i:s', time() + max( 1, absint( $minutes ) ) * MINUTE_IN_SECONDS );
-		return $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_reservations SET expires_at=GREATEST(expires_at,%s) WHERE order_id=%d AND status='active' AND expires_at > %s", $until, absint( $order_id ), current_time( 'mysql', true ) ) );
+		$until = gmdate( 'Y-m-d H:i:s', Clock::now() + max( 1, absint( $minutes ) ) * MINUTE_IN_SECONDS );
+		return $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_reservations SET expires_at=GREATEST(expires_at,%s) WHERE order_id=%d AND status='active' AND expires_at > %s", $until, absint( $order_id ), Clock::mysql() ) );
 	}
 
 	/**
@@ -1265,14 +1265,14 @@ final class Orders {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$busy = static function ( $order = null ) use ( $wpdb, $order_id, $reason ) {
 			$wpdb->query( 'ROLLBACK' );
 			Audit::record( 'order_cancel_failed', 'order', $order_id, array() );
 			if ( $order ) {
 				// Safety net for callers that cannot retry themselves (hooks, sweeps): a job repeats the
 				// cancellation, but only while the payment status is still the one seen here.
-				Jobs::enqueue( 'order-cancel-retry|' . $order_id . '|' . $order->payment_status, 'order_cancel_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason, 'payment_status' => (string) $order->payment_status ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
+				Jobs::enqueue( 'order-cancel-retry|' . $order_id . '|' . $order->payment_status, 'order_cancel_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason, 'payment_status' => (string) $order->payment_status ), gmdate( 'Y-m-d H:i:s', Clock::now() + 2 * MINUTE_IN_SECONDS ) );
 			}
 			return Errors::busy( __( 'Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen.', 'pass-captain' ) );
 		};
@@ -1344,7 +1344,7 @@ final class Orders {
 		$busy = static function () use ( $wpdb, $order_id, $reason ) {
 			$wpdb->query( 'ROLLBACK' );
 			Audit::record( 'order_refund_mark_failed', 'order', $order_id, array() );
-			Jobs::enqueue( 'order-refund-mark-retry|' . $order_id, 'order_refund_mark_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
+			Jobs::enqueue( 'order-refund-mark-retry|' . $order_id, 'order_refund_mark_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason ), gmdate( 'Y-m-d H:i:s', Clock::now() + 2 * MINUTE_IN_SECONDS ) );
 			return Errors::busy( __( 'Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt.', 'pass-captain' ) );
 		};
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
@@ -1361,7 +1361,7 @@ final class Orders {
 		$revoked_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' FOR UPDATE", $order_id ) ) );
 		if ( $revoked_ids && false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=%d AND status='valid'", $order_id ) ) ) { return $busy(); }
 		$revoked = count( $revoked_ids );
-		$updated = StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'refunded', array( 'payment_status' => 'refunded', 'updated_at' => current_time( 'mysql', true ) ) );
+		$updated = StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'refunded', array( 'payment_status' => 'refunded', 'updated_at' => Clock::mysql() ) );
 		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		CapacityCounters::sync_order_now( $order_id );
 		self::capacity_released( $order_id, 'refunded', array( 'reason' => (string) $reason ) );
@@ -1378,7 +1378,7 @@ final class Orders {
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,customer_email FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
 		if ( ! $order ) { return false; }
 		$token = bin2hex( random_bytes( 32 ) );
-		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'access_token_hash' => hash( 'sha256', $token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
+		$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'access_token_hash' => hash( 'sha256', $token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', Clock::now() + 30 * DAY_IN_SECONDS ) ), array( 'order_id' => (int) $order->order_id ), array( '%s', '%s' ), array( '%d' ) );
 		return self::send_order_access_link( $order->customer_email, $order->public_id, $token );
 	}
 
@@ -1463,7 +1463,7 @@ final class Orders {
 			return new \WP_Error( 'wpcap_transfer_invalid', __( 'Die Übertragungsdaten sind ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
-		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) {
+		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= Clock::mysql() || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) {
 			return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		if ( 'paid' !== $order->payment_status ) {
@@ -1476,7 +1476,7 @@ final class Orders {
 			sanitize_text_field( $ticket_public_id ),
 			$order->order_id
 		) );
-		if ( ! $ticket || 'valid' !== $ticket->status || (int) $ticket->transfer_count >= 1 || strtotime( $ticket->starts_at . ' UTC' ) <= time() ) {
+		if ( ! $ticket || 'valid' !== $ticket->status || (int) $ticket->transfer_count >= 1 || strtotime( $ticket->starts_at . ' UTC' ) <= Clock::now() ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_transfer_not_allowed', __( 'Dieses Ticket kann nicht mehr übertragen werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
@@ -1553,7 +1553,7 @@ final class Orders {
 		) );
 
 		$wpdb->query( 'START TRANSACTION' );
-		$changed = $wpdb->update( "{$p}wpcap_events", array( 'status' => 'cancelled', 'updated_at' => current_time( 'mysql', true ) ), array( 'event_id' => $event_id, 'status' => 'published' ), array( '%s', '%s' ), array( '%d', '%s' ) );
+		$changed = $wpdb->update( "{$p}wpcap_events", array( 'status' => 'cancelled', 'updated_at' => Clock::mysql() ), array( 'event_id' => $event_id, 'status' => 'published' ), array( '%s', '%s' ), array( '%d', '%s' ) );
 		if ( 1 !== (int) $changed ) {
 			// A concurrent request cancelled (or changed) the event first.
 			$wpdb->query( 'ROLLBACK' );
@@ -1660,7 +1660,7 @@ final class Orders {
 	 */
 	public static function expire_holds( $limit = 200 ) {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$reservations = $wpdb->prefix . 'wpcap_reservations';
 		$orders = $wpdb->prefix . 'wpcap_orders';
 		$limit = max( 1, (int) apply_filters( 'wpcap_expire_holds_batch', absint( $limit ) ?: 200 ) );
@@ -1736,7 +1736,7 @@ final class Orders {
 					'ticket_type_id' => (int) $line->ticket_type_id,
 					'token_hash' => hash( 'sha256', $token ),
 					'status' => 'valid',
-					'issued_at' => current_time( 'mysql', true ),
+					'issued_at' => Clock::mysql(),
 				), array( '%s', '%d', '%d', '%s', '%s', '%s' ) );
 				if ( '' !== $wpdb->last_error || ! $wpdb->insert_id ) {
 					// Nothing of this issuance is kept (the attendee data stays on the order for a retry).
@@ -1813,7 +1813,7 @@ final class Orders {
 					// The codes exist only in this mail: a retry sends new codes (resend), with backoff
 					// up to the job's dead letter; the order page shows the open retry.
 					Audit::record( 'ticket_mail_failed', 'order', (int) $order_id, array( 'tickets' => count( $issued ) ) );
-					Jobs::enqueue( 'ticket-mail-retry|' . (int) $order_id . '|' . time(), 'ticket_mail_retry', array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+					Jobs::enqueue( 'ticket-mail-retry|' . (int) $order_id . '|' . Clock::now(), 'ticket_mail_retry', array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', Clock::now() + 5 * MINUTE_IN_SECONDS ) );
 				}
 			} finally {
 				$attachments = array_unique( array_merge( $attachments, (array) ( $mail['attachments'] ?? array() ) ) );
@@ -2040,7 +2040,7 @@ final class Orders {
 		if ( ! $sent ) {
 			Audit::record( 'ticket_mail_failed', 'order', $order_id, array( 'tickets' => count( $tickets ), 'resend' => true ) );
 			if ( empty( $args['from_job'] ) ) {
-				Jobs::enqueue( 'ticket-mail-retry|' . $order_id . '|' . time(), 'ticket_mail_retry', array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+				Jobs::enqueue( 'ticket-mail-retry|' . $order_id . '|' . Clock::now(), 'ticket_mail_retry', array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', Clock::now() + 5 * MINUTE_IN_SECONDS ) );
 			}
 			return new \WP_Error( 'wpcap_mail_failed', __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; der Versand wird automatisch wiederholt.', 'pass-captain' ) );
 		}

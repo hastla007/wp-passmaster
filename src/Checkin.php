@@ -28,7 +28,7 @@ final class Checkin {
 
 	/** Current time for admission decisions (filterable for tests and simulations). */
 	public static function now() {
-		return (int) apply_filters( 'wpcap_checkin_now', time() );
+		return (int) apply_filters( 'wpcap_checkin_now', Clock::now() );
 	}
 
 	/**

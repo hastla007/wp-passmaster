@@ -57,6 +57,11 @@ der nach der Wirkung und vor dem Abschluss stirbt, und den Neustart nach einem A
 älter als 15 Minuten). Die parallelen bzw. sterbenden Worker sind eigene PHP-Prozesse
 (`tests/integration/job_worker.php race|die`).
 
+Zeitabhängige Regeln testen die Module ohne Warten: Sie setzen die Uhr über den Filter `wpcap_now`
+(`PassCaptain\Clock`, im Test `$GLOBALS['wpcap_test_filters']['wpcap_now'] = $timestamp`). `modules/zz_a199.php`
+prüft so die Sommerzeitumstellungen in Europe/Vienna und America/New_York (siehe docs/OPERATIONS.md,
+„Zeit, Zeitzonen und Sommerzeit“).
+
 ## Upgrade-Tests je Vorgängerversion (`tests/upgrade/`, A181)
 
 ```bash

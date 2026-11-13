@@ -332,7 +332,7 @@ final class OrderAdapter {
 			return __( 'Diese Ticketkategorie existiert nicht mehr.', 'pass-captain' );
 		}
 		$name = sprintf( '%s – %s', $type->event_name, $type->name );
-		$now  = current_time( 'mysql', true );
+		$now  = \PassCaptain\Clock::mysql();
 		if ( 'published' !== $type->event_status || 'active' !== $type->status || 'scheduled' !== $type->occurrence_status || $type->starts_at <= $now ) {
 			/* translators: %s: event and ticket name */
 			return sprintf( __( '„%s“ ist nicht mehr buchbar.', 'pass-captain' ), $name );

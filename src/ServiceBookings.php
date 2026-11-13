@@ -41,7 +41,7 @@ final class ServiceBookings {
 		// First consistent read: only after every lock is held.
 		$reused = self::reused_booking( $idempotency_key, $slot_id, $email, $quantity );
 		if ( null !== $reused ) { $wpdb->query( 'ROLLBACK' ); return $reused; }
-		$now = current_time( 'mysql', true );
+		$now = Clock::mysql();
 		$slot = self::bookable_slot( $slot_id );
 		if ( ! $slot || 'open' !== $slot->status || $slot->starts_at <= $now ) { $wpdb->query( 'ROLLBACK' ); return self::unavailable(); }
 		// A134: booking window and per-customer limit (serialised by the resource lock).
@@ -52,7 +52,7 @@ final class ServiceBookings {
 		if ( $used + $quantity > (int) $slot->capacity ) { $wpdb->query( 'ROLLBACK' ); return self::full(); }
 		$blocked = self::blocking_error( $slot );
 		if ( $blocked ) { $wpdb->query( 'ROLLBACK' ); return $blocked; }
-		$expires = gmdate( 'Y-m-d H:i:s', time() + min( 15, max( 1, absint( $minutes ) ) ) * MINUTE_IN_SECONDS );
+		$expires = gmdate( 'Y-m-d H:i:s', Clock::now() + min( 15, max( 1, absint( $minutes ) ) ) * MINUTE_IN_SECONDS );
 		$row = array( 'slot_id' => $slot_id, 'order_id' => absint( $order_id ), 'customer_email' => $email, 'idempotency_key' => $idempotency_key, 'quantity' => $quantity, 'expires_at' => $expires, 'status' => 'held', 'created_at' => $now );
 		// A135: personal management token (confirm/rebook/cancel via REST); only its hash is stored.
 		$token = self::flow_ready() ? bin2hex( random_bytes( 32 ) ) : '';
@@ -123,7 +123,7 @@ final class ServiceBookings {
 
 	/** Whether "$hours before the start of $starts_at" has passed (0 hours = the start itself). */
 	public static function deadline_passed( $starts_at, $hours ) {
-		return time() >= strtotime( $starts_at . ' UTC' ) - absint( $hours ) * HOUR_IN_SECONDS;
+		return Clock::now() >= strtotime( $starts_at . ' UTC' ) - absint( $hours ) * HOUR_IN_SECONDS;
 	}
 
 	/** "90 Minuten" / "3 Stunden" / "2 Tage" for a number of minutes. */
@@ -157,7 +157,7 @@ final class ServiceBookings {
 		global $wpdb;
 		$rules = self::rules( $slot );
 		$start = strtotime( $slot->starts_at . ' UTC' );
-		if ( $rules['lead_minutes'] && $start < time() + $rules['lead_minutes'] * MINUTE_IN_SECONDS ) {
+		if ( $rules['lead_minutes'] && $start < Clock::now() + $rules['lead_minutes'] * MINUTE_IN_SECONDS ) {
 			return new \WP_Error(
 				'wpcap_booking_cutoff',
 				/* translators: %s: lead time, e.g. "24 Stunden" */
@@ -165,7 +165,7 @@ final class ServiceBookings {
 				array( 'status' => 409 )
 			);
 		}
-		if ( $rules['advance_days'] && $start > time() + $rules['advance_days'] * DAY_IN_SECONDS ) {
+		if ( $rules['advance_days'] && $start > Clock::now() + $rules['advance_days'] * DAY_IN_SECONDS ) {
 			return new \WP_Error(
 				'wpcap_booking_too_early',
 				/* translators: %d: number of days */
@@ -176,7 +176,7 @@ final class ServiceBookings {
 		if ( $rules['max_per_customer'] && '' !== (string) $email ) {
 			$p = $wpdb->prefix;
 			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ACTIVE_SQL is a constant with placeholders.
-			$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_service_bookings b INNER JOIN {$p}wpcap_service_slots s ON s.slot_id=b.slot_id WHERE s.resource_id=%d AND s.ends_at>%s AND b.customer_email=%s AND b.booking_id<>%d AND " . self::ACTIVE_SQL, (int) $slot->resource_id, current_time( 'mysql', true ), $email, absint( $exclude_booking ), current_time( 'mysql', true ) ) );
+			$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_service_bookings b INNER JOIN {$p}wpcap_service_slots s ON s.slot_id=b.slot_id WHERE s.resource_id=%d AND s.ends_at>%s AND b.customer_email=%s AND b.booking_id<>%d AND " . self::ACTIVE_SQL, (int) $slot->resource_id, Clock::mysql(), $email, absint( $exclude_booking ), Clock::mysql() ) );
 			if ( $count >= $rules['max_per_customer'] ) {
 				return new \WP_Error(
 					'wpcap_booking_customer_limit',
@@ -321,7 +321,7 @@ final class ServiceBookings {
 			$until,
 			$from,
 			absint( $exclude_booking ),
-			current_time( 'mysql', true ),
+			Clock::mysql(),
 			$resource_id
 		) );
 		// phpcs:enable
@@ -349,7 +349,7 @@ final class ServiceBookings {
 		$p = $wpdb->prefix;
 		list( $from, $until ) = self::window( (object) array( 'starts_at' => $starts_at, 'ends_at' => $ends_at, 'buffer_before' => $resource->buffer_before, 'buffer_after' => $resource->buffer_after ) );
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ACTIVE_SQL is a constant with placeholders.
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT s2.slot_id FROM {$p}wpcap_service_slots s2 WHERE s2.resource_id=%d AND s2.slot_id<>%d AND DATE_SUB(s2.starts_at, INTERVAL %d MINUTE) < %s AND DATE_ADD(s2.ends_at, INTERVAL %d MINUTE) > %s AND (s2.status='open' OR EXISTS (SELECT 1 FROM {$p}wpcap_service_bookings b WHERE b.slot_id=s2.slot_id AND " . self::ACTIVE_SQL . ')) ORDER BY s2.starts_at LIMIT 1', (int) $resource->resource_id, absint( $exclude_slot ), absint( $resource->buffer_before ), $until, absint( $resource->buffer_after ), $from, current_time( 'mysql', true ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT s2.slot_id FROM {$p}wpcap_service_slots s2 WHERE s2.resource_id=%d AND s2.slot_id<>%d AND DATE_SUB(s2.starts_at, INTERVAL %d MINUTE) < %s AND DATE_ADD(s2.ends_at, INTERVAL %d MINUTE) > %s AND (s2.status='open' OR EXISTS (SELECT 1 FROM {$p}wpcap_service_bookings b WHERE b.slot_id=s2.slot_id AND " . self::ACTIVE_SQL . ')) ORDER BY s2.starts_at LIMIT 1', (int) $resource->resource_id, absint( $exclude_slot ), absint( $resource->buffer_before ), $until, absint( $resource->buffer_after ), $from, Clock::mysql() ) );
 	}
 
 	private static function overlap_error( $slot_id ) {
@@ -383,7 +383,7 @@ final class ServiceBookings {
 	public static function booked( $slot_id ) {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ACTIVE_SQL is a constant with placeholders.
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(b.quantity),0) FROM {$wpdb->prefix}wpcap_service_bookings b WHERE b.slot_id=%d AND " . self::ACTIVE_SQL, absint( $slot_id ), current_time( 'mysql', true ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(b.quantity),0) FROM {$wpdb->prefix}wpcap_service_bookings b WHERE b.slot_id=%d AND " . self::ACTIVE_SQL, absint( $slot_id ), Clock::mysql() ) );
 	}
 
 	/**
@@ -526,13 +526,15 @@ final class ServiceBookings {
 		if ( (int) $day->diff( $last )->days > 366 ) { return $invalid; }
 		$capacity = min( 100, max( 1, isset( $data['capacity'] ) && '' !== (string) $data['capacity'] ? absint( $data['capacity'] ) : (int) $resource->capacity ) );
 		$step = ( $duration + (int) $resource->buffer_before + (int) $resource->buffer_after ) * MINUTE_IN_SECONDS;
-		$now = time();
+		$now = Clock::now();
 		$created = array();
 		$skipped = 0;
 		while ( $day <= $last && count( $created ) < 500 ) {
 			if ( in_array( (int) $day->format( 'N' ), $weekdays, true ) ) {
-				$start = ( new \DateTimeImmutable( $day->format( 'Y-m-d' ) . ' ' . $time_from, $zone ) )->getTimestamp();
-				$day_end = ( new \DateTimeImmutable( $day->format( 'Y-m-d' ) . ' ' . $time_to, $zone ) )->getTimestamp();
+				// DST: an opening time that occurs twice (fall back) starts at its first instance, a closing
+				// time at its second, so the whole wall-clock window is covered; times in a gap move forward.
+				$start = self::local_timestamp( $day->format( 'Y-m-d' ), $time_from, $zone, true );
+				$day_end = self::local_timestamp( $day->format( 'Y-m-d' ), $time_to, $zone, false );
 				for ( ; $start + $duration * MINUTE_IN_SECONDS <= $day_end && count( $created ) < 500; $start += $step ) {
 					if ( $start <= $now ) { ++$skipped; continue; }
 					$row = array( 'resource_id' => (int) $resource->resource_id, 'starts_at' => gmdate( 'Y-m-d H:i:s', $start ), 'ends_at' => gmdate( 'Y-m-d H:i:s', $start + $duration * MINUTE_IN_SECONDS ), 'capacity' => $capacity, 'status' => 'open' );
@@ -545,6 +547,23 @@ final class ServiceBookings {
 		}
 		Audit::record( 'service_slots_generated', 'resource', (int) $resource->resource_id, array( 'event_id' => (int) $resource->event_id, 'created' => count( $created ), 'skipped' => $skipped, 'date_from' => $from, 'date_to' => $to, 'duration' => $duration ) );
 		return array( 'created' => count( $created ), 'skipped' => $skipped, 'slot_ids' => $created );
+	}
+
+	/**
+	 * Unix timestamp of a local wall-clock time ("Y-m-d", "H:i") in $zone. A time that exists twice
+	 * (DST fall back) resolves to the first instance when $first, else to the second; a time inside
+	 * a DST gap is shifted forward by the gap (PHP behaviour, e.g. 02:30 → 03:30).
+	 */
+	public static function local_timestamp( $date, $time, \DateTimeZone $zone, $first = true ) {
+		$wall = $date . ' ' . $time;
+		$local = new \DateTimeImmutable( $wall, $zone );
+		$ts = $local->getTimestamp();
+		$instants = array();
+		foreach ( array( -7200, -3600, -1800, 0, 1800, 3600, 7200 ) as $delta ) {
+			if ( $local->setTimestamp( $ts + $delta )->format( 'Y-m-d H:i' ) === $wall ) { $instants[] = $ts + $delta; }
+		}
+		if ( ! $instants ) { return $ts; }
+		return $first ? min( $instants ) : max( $instants );
 	}
 
 	/**
@@ -615,7 +634,7 @@ final class ServiceBookings {
 	public static function slots( $event_id, $limit = 500 ) {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ACTIVE_SQL is a constant with placeholders.
-		return $wpdb->get_results( $wpdb->prepare( "SELECT s.*,r.name AS resource_name,r.event_id,(SELECT COALESCE(SUM(b.quantity),0) FROM {$wpdb->prefix}wpcap_service_bookings b WHERE b.slot_id=s.slot_id AND " . self::ACTIVE_SQL . ") AS booked,(SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_service_bookings b2 WHERE b2.slot_id=s.slot_id) AS booking_rows FROM {$wpdb->prefix}wpcap_service_slots s INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id WHERE r.event_id=%d ORDER BY s.starts_at,s.slot_id LIMIT %d", current_time( 'mysql', true ), absint( $event_id ), max( 1, min( 2000, absint( $limit ) ) ) ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT s.*,r.name AS resource_name,r.event_id,(SELECT COALESCE(SUM(b.quantity),0) FROM {$wpdb->prefix}wpcap_service_bookings b WHERE b.slot_id=s.slot_id AND " . self::ACTIVE_SQL . ") AS booked,(SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_service_bookings b2 WHERE b2.slot_id=s.slot_id) AS booking_rows FROM {$wpdb->prefix}wpcap_service_slots s INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id WHERE r.event_id=%d ORDER BY s.starts_at,s.slot_id LIMIT %d", Clock::mysql(), absint( $event_id ), max( 1, min( 2000, absint( $limit ) ) ) ) );
 	}
 
 	/**
@@ -629,7 +648,7 @@ final class ServiceBookings {
 		$p = $wpdb->prefix;
 		$columns = self::resource_columns();
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- column list from a constant.
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.*,$columns FROM {$p}wpcap_service_slots s INNER JOIN {$p}wpcap_resources r ON r.resource_id=s.resource_id INNER JOIN {$p}wpcap_events e ON e.event_id=r.event_id WHERE r.event_id=%d AND r.status='active' AND e.status='published' AND s.status='open' AND s.starts_at>%s ORDER BY s.starts_at,s.slot_id LIMIT 300", absint( $event_id ), current_time( 'mysql', true ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.*,$columns FROM {$p}wpcap_service_slots s INNER JOIN {$p}wpcap_resources r ON r.resource_id=s.resource_id INNER JOIN {$p}wpcap_events e ON e.event_id=r.event_id WHERE r.event_id=%d AND r.status='active' AND e.status='published' AND s.status='open' AND s.starts_at>%s ORDER BY s.starts_at,s.slot_id LIMIT 300", absint( $event_id ), Clock::mysql() ) );
 		$out = array();
 		foreach ( $rows as $slot ) {
 			$available = (int) $slot->capacity - self::booked( (int) $slot->slot_id );
@@ -746,7 +765,7 @@ final class ServiceBookings {
 
 	/** Display status of a booking (held bookings past expires_at count as expired). */
 	public static function booking_status( $booking ) {
-		if ( in_array( $booking->status, array( 'held', 'pending_payment' ), true ) && $booking->expires_at && $booking->expires_at <= current_time( 'mysql', true ) ) { return 'expired'; }
+		if ( in_array( $booking->status, array( 'held', 'pending_payment' ), true ) && $booking->expires_at && $booking->expires_at <= Clock::mysql() ) { return 'expired'; }
 		return (string) $booking->status;
 	}
 
@@ -765,7 +784,7 @@ final class ServiceBookings {
 
 	/** Whether $booking (row) still occupies its places. */
 	public static function is_active( $booking ) {
-		return 'confirmed' === $booking->status || ( in_array( $booking->status, array( 'held', 'pending_payment' ), true ) && ( ! $booking->expires_at || $booking->expires_at > current_time( 'mysql', true ) ) );
+		return 'confirmed' === $booking->status || ( in_array( $booking->status, array( 'held', 'pending_payment' ), true ) && ( ! $booking->expires_at || $booking->expires_at > Clock::mysql() ) );
 	}
 
 	private static function state_error( $message = '' ) {
@@ -846,13 +865,13 @@ final class ServiceBookings {
 		if ( in_array( $booking->status, array( 'confirmed', 'pending_payment' ), true ) && self::is_active( $booking ) ) { $wpdb->query( 'ROLLBACK' ); return array( 'booking_id' => (int) $booking->booking_id, 'status' => (string) $booking->status, 'order_id' => (int) $booking->order_id, 'already' => true ); }
 		if ( 'held' !== $booking->status || ! self::is_active( $booking ) ) { $wpdb->query( 'ROLLBACK' ); return self::state_error( __( 'Die Reservierung ist abgelaufen. Bitte wähle das Zeitfenster erneut.', 'pass-captain' ) ); }
 		$slot = self::bookable_slot( (int) $booking->slot_id );
-		if ( ! $slot || $slot->starts_at <= current_time( 'mysql', true ) ) { $wpdb->query( 'ROLLBACK' ); return self::unavailable(); }
+		if ( ! $slot || $slot->starts_at <= Clock::mysql() ) { $wpdb->query( 'ROLLBACK' ); return self::unavailable(); }
 		$rule_error = self::rule_error( $slot, (string) $booking->customer_email, (int) $booking->booking_id );
 		if ( $rule_error ) { $wpdb->query( 'ROLLBACK' ); return $rule_error; }
 		$ticket_type = self::flow_ready() ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_resources WHERE resource_id=%d", (int) $booking->resource_id ) ) : 0;
 		if ( $ticket_type ) {
 			// Keep the hold alive while the checkout runs; the order transaction then takes it over.
-			$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', array( 'expires_at' => min( (string) $slot->starts_at, gmdate( 'Y-m-d H:i:s', time() + 15 * MINUTE_IN_SECONDS ) ) ) + self::touched(), array( 'booking_id' => (int) $booking->booking_id ) );
+			$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', array( 'expires_at' => min( (string) $slot->starts_at, gmdate( 'Y-m-d H:i:s', Clock::now() + 15 * MINUTE_IN_SECONDS ) ) ) + self::touched(), array( 'booking_id' => (int) $booking->booking_id ) );
 			$committed = self::commit();
 			if ( is_wp_error( $committed ) ) { return $committed; }
 			return ServiceBookingFlow::checkout( $booking, $slot, $ticket_type, $args );
@@ -867,7 +886,7 @@ final class ServiceBookings {
 
 	/** updated_at column (A135 schema) for an update, or nothing before the upgrade. */
 	public static function touched() {
-		return self::flow_ready() ? array( 'updated_at' => current_time( 'mysql', true ) ) : array();
+		return self::flow_ready() ? array( 'updated_at' => Clock::mysql() ) : array();
 	}
 
 	/** Whether the A135 schema (booking token, updated_at, resource ticket type) exists. */
@@ -891,14 +910,14 @@ final class ServiceBookings {
 			$booking = self::begin( $booking_id );
 			if ( is_wp_error( $booking ) ) {
 				// Lock trouble: retried by a job so a paid booking is never left unconfirmed.
-				Jobs::enqueue( 'service-booking-paid|' . $booking_id, 'service_booking_paid_retry', array( 'order_id' => absint( $order_id ) ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
+				Jobs::enqueue( 'service-booking-paid|' . $booking_id, 'service_booking_paid_retry', array( 'order_id' => absint( $order_id ) ), gmdate( 'Y-m-d H:i:s', Clock::now() + 2 * MINUTE_IN_SECONDS ) );
 				continue;
 			}
 			if ( (int) $booking->order_id !== (int) $order_id || 'confirmed' === $booking->status || 'cancelled' === $booking->status ) { $wpdb->query( 'ROLLBACK' ); continue; }
 			$ok = self::is_active( $booking );
 			if ( ! $ok ) {
 				$slot = self::bookable_slot( (int) $booking->slot_id );
-				$ok = $slot && $slot->starts_at > current_time( 'mysql', true ) && self::booked( (int) $booking->slot_id ) + (int) $booking->quantity <= (int) $slot->capacity && ! self::blocking_slot( $slot, (int) $booking->booking_id );
+				$ok = $slot && $slot->starts_at > Clock::mysql() && self::booked( (int) $booking->slot_id ) + (int) $booking->quantity <= (int) $slot->capacity && ! self::blocking_slot( $slot, (int) $booking->booking_id );
 			}
 			$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', ( $ok ? array( 'status' => 'confirmed', 'expires_at' => null ) : array( 'status' => 'unallocated', 'expires_at' => null ) ) + self::touched(), array( 'booking_id' => $booking_id ) );
 			if ( is_wp_error( self::commit() ) ) { continue; }
@@ -962,7 +981,7 @@ final class ServiceBookings {
 			if ( $deadline ) { $wpdb->query( 'ROLLBACK' ); return $deadline; }
 		}
 		$target = self::bookable_slot( (int) $target->slot_id );
-		if ( ! $target || 'open' !== $target->status || $target->starts_at <= current_time( 'mysql', true ) || (int) $target->event_id !== (int) $booking->event_id ) { $wpdb->query( 'ROLLBACK' ); return self::unavailable(); }
+		if ( ! $target || 'open' !== $target->status || $target->starts_at <= Clock::mysql() || (int) $target->event_id !== (int) $booking->event_id ) { $wpdb->query( 'ROLLBACK' ); return self::unavailable(); }
 		if ( self::flow_ready() && (int) $booking->order_id ) {
 			$types = $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_resources WHERE resource_id IN (%d,%d)", (int) $booking->resource_id, (int) $target->resource_id ) );
 			if ( count( array_unique( array_map( 'intval', $types ) ) ) > 1 ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_rebook_price', __( 'Eine bezahlte Buchung kann nur auf ein Zeitfenster mit demselben Preis umgebucht werden.', 'pass-captain' ), array( 'status' => 409 ) ); }

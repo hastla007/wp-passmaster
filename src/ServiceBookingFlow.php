@@ -83,8 +83,8 @@ final class ServiceBookingFlow {
 		global $wpdb;
 		$booking_id = absint( $internal['service_booking_id'] ?? 0 );
 		if ( ! $booking_id ) { return; }
-		$now = current_time( 'mysql', true );
-		$until = gmdate( 'Y-m-d H:i:s', time() + max( 1, absint( $internal['hold_minutes'] ?? 10 ) ) * MINUTE_IN_SECONDS );
+		$now = Clock::mysql();
+		$until = gmdate( 'Y-m-d H:i:s', Clock::now() + max( 1, absint( $internal['hold_minutes'] ?? 10 ) ) * MINUTE_IN_SECONDS );
 		$cap = (string) ( $internal['service_booking_until'] ?? '' );
 		if ( '' !== $cap && $cap < $until ) { $until = $cap; }
 		$linked = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_service_bookings SET status='pending_payment',order_id=%d,expires_at=%s,updated_at=%s WHERE booking_id=%d AND status='held' AND order_id=0 AND expires_at>%s", absint( $order_id ), $until, $now, $booking_id, $now ) );
@@ -319,7 +319,7 @@ final class ServiceBookingFlow {
 		global $wpdb;
 		$email = strtolower( trim( (string) ( $order->customer_email ?? '' ) ) );
 		if ( '' === $email || Mail\Mailer::is_placeholder( $email ) ) { return array(); }
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT b.booking_id FROM {$wpdb->prefix}wpcap_service_bookings b INNER JOIN {$wpdb->prefix}wpcap_service_slots s ON s.slot_id=b.slot_id WHERE b.customer_email=%s AND b.status IN ('held','pending_payment','confirmed') AND s.ends_at>%s ORDER BY s.starts_at LIMIT 50", $email, current_time( 'mysql', true ) ) );
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT b.booking_id FROM {$wpdb->prefix}wpcap_service_bookings b INNER JOIN {$wpdb->prefix}wpcap_service_slots s ON s.slot_id=b.slot_id WHERE b.customer_email=%s AND b.status IN ('held','pending_payment','confirmed') AND s.ends_at>%s ORDER BY s.starts_at LIMIT 50", $email, Clock::mysql() ) );
 		$out = array();
 		foreach ( $ids as $id ) {
 			$booking = ServiceBookings::booking( (int) $id );

@@ -737,17 +737,21 @@ final class Controller {
 	public static function event_report( \WP_REST_Request $request ) {
 		global $wpdb;
 		$event_id = absint( $request['event_id'] );
-		$from = sanitize_text_field( $request->get_param( 'from' ) ?: gmdate( 'Y-m-d', time() - 30 * DAY_IN_SECONDS ) );
-		$to = sanitize_text_field( $request->get_param( 'to' ) ?: gmdate( 'Y-m-d' ) );
+		// Day boundaries follow the site timezone (like the reports page), not UTC.
+		$tz = \PassCaptain\Reports\Scope::site_timezone();
+		$today = \PassCaptain\Clock::today( $tz );
+		$from = sanitize_text_field( $request->get_param( 'from' ) ?: ( new \DateTimeImmutable( $today . ' 00:00:00', new \DateTimeZone( 'UTC' ) ) )->modify( '-30 days' )->format( 'Y-m-d' ) );
+		$to = sanitize_text_field( $request->get_param( 'to' ) ?: $today );
 		$from_parts = array_map( 'intval', explode( '-', $from ) );
 		$to_parts = array_map( 'intval', explode( '-', $to ) );
 		$valid_dates = 3 === count( $from_parts ) && 3 === count( $to_parts ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) && checkdate( $from_parts[1], $from_parts[2], $from_parts[0] ) && checkdate( $to_parts[1], $to_parts[2], $to_parts[0] );
 		if ( ! $valid_dates || $from > $to || strtotime( $to ) - strtotime( $from ) > 90 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_report_range', __( 'Berichtszeitraum muss gültig und höchstens 90 Tage lang sein.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$key = 'wpcap_report_' . $event_id . '_' . md5( $from . '|' . $to );
+		list( $range_start, $range_end ) = \PassCaptain\Reports\Data::bounds( $from, $to, $tz );
+		$key = 'wpcap_report_' . $event_id . '_' . md5( $from . '|' . $to . '|' . $tz );
 		$cached = get_transient( $key );
 		if ( false !== $cached ) { return rest_ensure_response( $cached ); }
-		$sales = $wpdb->get_results( $wpdb->prepare( "SELECT ord.currency,COUNT(DISTINCT ord.order_id) AS orders_count,COALESCE(SUM(" . \PassCaptain\OrderLines::paid( 'quantity' ) . "),0) AS tickets_sold,COALESCE(SUM(" . \PassCaptain\OrderLines::paid( 'line_total_minor' ) . "),0) AS gross_minor FROM {$wpdb->prefix}wpcap_orders ord INNER JOIN {$wpdb->prefix}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND ord.payment_status='paid' AND ord.status<>'refunded' AND ord.created_at >= %s AND ord.created_at < DATE_ADD(%s,INTERVAL 1 DAY) GROUP BY ord.currency", $event_id, $from . ' 00:00:00', $to . ' 00:00:00' ), ARRAY_A );
-		$checkins = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_checkins WHERE event_id=%d AND result='checked_in' AND created_at >= %s AND created_at < DATE_ADD(%s,INTERVAL 1 DAY)", $event_id, $from . ' 00:00:00', $to . ' 00:00:00' ) );
+		$sales = $wpdb->get_results( $wpdb->prepare( "SELECT ord.currency,COUNT(DISTINCT ord.order_id) AS orders_count,COALESCE(SUM(" . \PassCaptain\OrderLines::paid( 'quantity' ) . "),0) AS tickets_sold,COALESCE(SUM(" . \PassCaptain\OrderLines::paid( 'line_total_minor' ) . "),0) AS gross_minor FROM {$wpdb->prefix}wpcap_orders ord INNER JOIN {$wpdb->prefix}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND ord.payment_status='paid' AND ord.status<>'refunded' AND ord.created_at >= %s AND ord.created_at < %s GROUP BY ord.currency", $event_id, $range_start, $range_end ), ARRAY_A );
+		$checkins = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_checkins WHERE event_id=%d AND result='checked_in' AND created_at >= %s AND created_at < %s", $event_id, $range_start, $range_end ) );
 		$currency_totals = array();
 		foreach ( $sales as $sale ) { $currency_totals[] = array( 'currency' => $sale['currency'], 'orders_count' => (int) $sale['orders_count'], 'tickets_sold' => (int) $sale['tickets_sold'], 'gross_minor' => (int) $sale['gross_minor'] ); }
 		$data = array( 'event_id' => $event_id, 'from' => $from, 'to' => $to, 'sales_by_currency' => $currency_totals, 'checkins' => $checkins, 'financial_basis' => 'gross_line_totals_before_order_discounts_tax_and_refunds' );

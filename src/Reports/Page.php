@@ -17,9 +17,10 @@ final class Page {
 
 	/** Filters from the query string. */
 	public static function filters( array $in ) {
+		$today = \PassCaptain\Clock::today( Scope::site_timezone() );
 		return array(
-			'from' => Data::valid_date( $in['from'] ?? '' ) ? $in['from'] : gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ),
-			'to' => Data::valid_date( $in['to'] ?? '' ) ? $in['to'] : gmdate( 'Y-m-d' ),
+			'from' => Data::valid_date( $in['from'] ?? '' ) ? $in['from'] : ( new \DateTimeImmutable( $today . ' 00:00:00', new \DateTimeZone( 'UTC' ) ) )->modify( '-29 days' )->format( 'Y-m-d' ),
+			'to' => Data::valid_date( $in['to'] ?? '' ) ? $in['to'] : $today,
 			'event_id' => absint( $in['event_id'] ?? 0 ),
 			'occurrence_id' => absint( $in['occurrence_id'] ?? 0 ),
 		);

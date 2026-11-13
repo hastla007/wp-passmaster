@@ -572,3 +572,32 @@ Statusfolge einer Buchung: `held` (Reservierung, 10 Min.) → `pending_payment` 
 - **Bestellportal**: Die Karte „Deine Termine“ zeigt aktive, noch nicht beendete Buchungen mit der E-Mail-Adresse der Bestellung – mit Umbuchen (nur passende freie Zeitfenster) und Stornieren, solange die Fristen laufen (POST mit Nonce je Bestellung, danach Weiterleitung mit Ergebnis).
 - **Team**: In der Buchungsliste der Seite „Service-Zeitfenster“ lassen sich Buchungen bestätigen, umbuchen und stornieren (mit/ohne Erstattung), Link zur Bestellung.
 - **Parallelität**: Reservieren, Bestätigen, Umbuchen und Stornieren sperren Ressourcen → Leistungserbringer → Zeitfenster → Buchung (`ServiceBookings::lock()`/`begin()`) und lesen erst danach. Tests: parallele Prozesse (ein Platz, gemeinsamer Leistungserbringer, Umbuchung gegen Reservierungen) und ein deterministischer Ablauf, bei dem eine Reservierung während der Umbuchungstransaktion (`wpcap_service_booking_rebooking`) auf deren Sperren wartet (`tests/integration/modules/zz_a135.php`).
+
+## Zeit, Zeitzonen und Sommerzeit (A199)
+
+Alle Zeitpunkte werden in UTC gespeichert und verglichen; Ortszeit entsteht nur bei Eingabe, Anzeige und
+Tagesgrenzen. Die aktuelle Zeit für Geschäftsregeln liefert `PassCaptain\Clock` (`Clock::now()`,
+`Clock::mysql()`, `Clock::today( $zeitzone )`); der Filter `wpcap_now` macht sie für Tests und Simulationen
+austauschbar. Regeln bei der Zeitumstellung:
+
+- **Fristen sind echte Dauern.** Reservierungen (Halten), Wartelistenangebote (`offer_hours`), Erinnerungen
+  („48 h vor Beginn“), Buchungsschluss/Vorausbuchung/Umbuchungs- und Stornofrist von Servicebuchungen
+  und das Ende des Abendkassenverkaufs (Ende des Termins, ohne Ende 6 h nach Beginn) zählen Sekunden,
+  nicht Uhrzeiten. „24 h vor Sonntag 10:00 MESZ“ ist Samstag 09:00 MEZ; ein Halt von 10 Minuten ab
+  02:55 MESZ endet um 02:05 MEZ.
+- **Erinnerungen** werden je Termin, Startzeit, Stufe und Empfänger:in genau einmal eingeplant
+  (Dedupe-Schlüssel mit der UTC-Startzeit). In der doppelten Stunde (Herbst) gibt es daher keinen zweiten
+  Versand, und ein Versandzeitpunkt, der als Ortszeit in die fehlende Stunde (Frühjahr) fiele, wird nicht
+  übersprungen.
+- **Eingegebene Ortszeiten**: Eine Zeit in der fehlenden Stunde wird beim Termin abgelehnt (mit
+  Vorschlag), bei Verkaufsfenstern um die Lücke nach vorn verschoben (02:30 → 03:30); eine doppelte Zeit
+  nimmt die erste (Sommerzeit). Zeitfenster-Serien von Servicebuchungen (`generate_slots`) beginnen eine
+  doppelte Öffnungszeit beim ersten und enden eine doppelte Schließzeit beim zweiten Vorkommen; die
+  Fenster folgen im Abstand echter Minuten (Herbst: eine Stunde mehr Zeitfenster, Frühjahr: eine weniger).
+- **Kalenderdateien (ICS)** schreiben alle Zeiten in UTC (`…Z`), ohne `TZID`/`VTIMEZONE`.
+- **Berichte** (Umsatzbericht, Buchhaltungsexport, REST-Eventbericht) nutzen Kalendertage in der
+  Zeitzone der Website; der Frühjahrstag hat 23, der Herbsttag 25 Stunden. Eine Buchung um 00:30 Ortszeit
+  gehört zum neuen Tag. Auch die Standardzeiträume („bis heute“) richten sich nach dem Ortsdatum.
+
+Die Tests dazu (`tests/integration/modules/zz_a199.php`) stellen die Uhr über `wpcap_now` auf die
+Umstellungen in Europe/Vienna und America/New_York, statt zu warten.

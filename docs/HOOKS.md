@@ -106,7 +106,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_service_booking_rebooking` (Action) | `int $booking_id, int $target_slot_id` | In `ServiceBookings::rebook()` innerhalb der Transaktion nach allen Prüfungen, bevor die Buchung verschoben wird (Ressourcen, Leistungserbringer, beide Zeitfenster und die Buchung sind gesperrt). Für Erweiterungen und deterministische Wettlauf-Tests; keine eigene Transaktion starten. |
 | `wpcap_developer_key_rate_limit` | `int $limit` (eigenes Limit des Schlüssels, sonst 600), `int $api_key_id`, `int $own` (gespeichertes Limit, 0 = Standard) | Anfragen pro Minute für einen Entwickler-API-Schlüssel (`DeveloperKeys::rate_limit()`, A161); Rückgabe mindestens 1. |
 | `wpcap_seating_availability_limit` | `int $limit` (120) | Abrufe der Sitzplatzverfügbarkeit je Client und Minute. |
-| `wpcap_checkin_now` | `int $timestamp` | Zeitpunkt für Einlassentscheidungen (Tests/Simulation). |
+| `wpcap_now` | `int $timestamp` (`time()`) | Aktuelle Zeit der Geschäftsregeln (`PassCaptain\Clock`): Reservierungen, Verkaufsfenster, Erinnerungen, Servicebuchungsfristen, Wartelistenangebote, Kalender-DTSTAMP, Standardzeiträume der Berichte (Tests/Simulation, A199). |
+| `wpcap_checkin_now` | `int $timestamp` | Zeitpunkt für Einlassentscheidungen (Tests/Simulation); Ausgangswert ist `Clock::now()`. |
 | `wpcap_user_has_2fa` | `bool $has, int $user_id` | Zwei-Faktor-Status für Erstattungen. |
 | `wpcap_portal_refund_request_allowed` | `bool $allowed` (`true`), `object $order` | Ob die Käufer:in dieser Bestellung im Bestellportal eine Stornierung anfragen darf – nach den Kernregeln (Einstellung `portal_refund_request_hours` > 0, bezahlt, keine WooCommerce-Bestellung, keine Freikarte). |
 | `wpcap_portal_refund_rate_limit` | `int $limit` (5), `object $order` | Stornierungsanfragen im Bestellportal je Bestellung und Stunde (zusätzlich 20 je Client). |

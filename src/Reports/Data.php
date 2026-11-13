@@ -100,8 +100,10 @@ final class Data {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$tz = Scope::site_timezone();
-		$from = self::valid_date( $filters['from'] ?? '' ) ? $filters['from'] : gmdate( 'Y-m-01' );
-		$to = self::valid_date( $filters['to'] ?? '' ) ? $filters['to'] : gmdate( 'Y-m-d' );
+		// Defaults use the local date of the site timezone (00:30 local is already "today").
+		$today = \PassCaptain\Clock::today( $tz );
+		$from = self::valid_date( $filters['from'] ?? '' ) ? $filters['from'] : substr( $today, 0, 8 ) . '01';
+		$to = self::valid_date( $filters['to'] ?? '' ) ? $filters['to'] : $today;
 		if ( $to < $from ) { list( $from, $to ) = array( $to, $from ); }
 		$event_filter = absint( $filters['event_id'] ?? 0 );
 		if ( $event_filter ) {

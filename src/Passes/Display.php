@@ -126,7 +126,7 @@ final class Display {
 	 */
 	public static function on_sale() {
 		global $wpdb;
-		$now = current_time( 'mysql', true );
+		$now = \PassCaptain\Clock::mysql();
 		$out = array();
 		foreach ( Definitions::all_ids() as $type_id ) {
 			$type = Definitions::type_row( $type_id );

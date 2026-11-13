@@ -90,7 +90,7 @@ final class Ics {
 	 *                       'method' => PUBLISH (default) or CANCEL, 'organizer' => e-mail address].
 	 */
 	public static function build( array $entries, array $options = array() ) {
-		$now = (int) ( $options['now'] ?? time() );
+		$now = (int) ( $options['now'] ?? \PassCaptain\Clock::now() );
 		$organizer = (string) ( $options['organizer'] ?? '' );
 		// RFC 5546: CANCEL needs an ORGANIZER; without one the cancelled entry is published instead.
 		$method = 'CANCEL' === strtoupper( (string) ( $options['method'] ?? '' ) ) && '' !== $organizer ? 'CANCEL' : 'PUBLISH';
@@ -181,7 +181,7 @@ final class Ics {
 		$p = $wpdb->prefix;
 		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name FROM {$p}wpcap_events WHERE event_id=%d AND status IN ('published','cancelled')", absint( $event_id ) ) );
 		if ( ! $event ) { return null; }
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . self::columns() . " FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.event_id=%d AND o.starts_at>=%s ORDER BY o.starts_at LIMIT 500", (int) $event->event_id, gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- column list built from literals.
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT ' . self::columns() . " FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.event_id=%d AND o.starts_at>=%s ORDER BY o.starts_at LIMIT 500", (int) $event->event_id, \PassCaptain\Clock::mysql( -30 * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- column list built from literals.
 		return self::build( array_map( array( __CLASS__, 'entry_from_row' ), $rows ), array( 'name' => $event->name, 'organizer' => self::organizer() ) );
 	}
 
