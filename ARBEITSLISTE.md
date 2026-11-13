@@ -257,7 +257,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Kein Restore-/Downgrade-Test oder -Code; docs/OPERATIONS.md:51 nennt Prüfung nur als ausstehend
 - [x] **A114** Terminserien mit Kapazität, Preisfenstern, getrennten Änderungsverläufen — _TEILWEISE_ (TODO L19; P0 – Event- und Verkaufsgrundlage)
   - Kapazität EventsPage.php:170, Preisregeln Series/Pricing.php:38, Pools; Audit occurrence_updated (EventsPage.php:198) ohne Kapazitäts-/Preisdiff, Seriendefinition nicht editierbar
-- [ ] **A115** Steuerklassen/länderspezifische Steuerregeln an Bestellungen anbinden — _TEILWEISE_ (TODO L21; P0 – Event- und Verkaufsgrundlage)
+- [x] **A115** Steuerklassen/länderspezifische Steuerregeln an Bestellungen anbinden — _TEILWEISE_ (TODO L21; P0 – Event- und Verkaufsgrundlage)
   - Steuersatz je Ticketart Orders.php:207; Länderprofile Installer.php:559/Controller.php:693 nur als Draft, nicht an Bestellungen angebunden; Steuerprüfung fehlt
 - [x] **A116** Teilnehmerfelder: Editor, Erfassung, Validierung, Export/Löschung, Einwilligung — _TEILWEISE_ (TODO L24; P0 – Event- und Verkaufsgrundlage)
   - Editor EventsPage.php:305, Checkout checkout.js:322, Validierung Orders.php:430, Export/Löschung Privacy.php:208/428; Einwilligung nur Checkbox+Zweck, keine Protokollierung/Widerruf

@@ -43,7 +43,7 @@ Profiles::flush();
 check( 'four-eyes for tax profiles is on by default', 1 === PassCaptain\Settings::defaults()['tax_profile_four_eyes'] );
 Settings::update( array( 'seller_country' => 'DE', 'refund_approval_threshold' => 0, 'auto_invoice' => 0, 'tax_profile_four_eyes' => 1 ) );
 
-check( 'schema 3.9.2: venue country, line tax source and review columns exist', '3.9.2' === PassCaptain\Installer::DB_VERSION && Profiles::ready()
+check( 'schema 3.9.7: venue country, line tax source and review columns exist', version_compare( PassCaptain\Installer::DB_VERSION, '3.9.7', '>=' ) && Profiles::ready()
 	&& null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_occurrences LIKE 'venue_country'" )
 	&& 4 === count( $wpdb->get_results( "SHOW COLUMNS FROM {$p}wpcap_order_items WHERE Field IN ('tax_source','tax_profile_id','tax_profile_version','tax_country')" ) )
 	&& 3 === count( $wpdb->get_results( "SHOW COLUMNS FROM {$p}wpcap_tax_profiles WHERE Field IN ('created_by','reviewed_by','retired_at')" ) ) );
@@ -187,7 +187,7 @@ check( 'report: VAT per rate from the stored lines (13 %: 26,00 + 13,00 box offi
 
 // Order admin view label.
 $a115_items = PassCaptain\Admin\Queries::order_items( $a115_o2 );
-check( 'order view: rate source label names country, version and profile', 'Steuerprofil AT, Version 2020-a (#' . $a115_p1 . ')' === Profiles::source_label( $a115_items[0] ) && 'Satz der Ticketart (Leistungsort AT)' === Profiles::source_label( $a115_l0 ) && 'Satz der Ticketart (vor Version 3.9.2 erfasst)' === Profiles::source_label( (object) array( 'tax_source' => '' ) ) );
+check( 'order view: rate source label names country, version and profile', 'Steuerprofil AT, Version 2020-a (#' . $a115_p1 . ')' === Profiles::source_label( $a115_items[0] ) && 'Satz der Ticketart (Leistungsort AT)' === Profiles::source_label( $a115_l0 ) && 'Satz der Ticketart (vor Einführung der Steuerprofile erfasst)' === Profiles::source_label( (object) array( 'tax_source' => '' ) ) );
 
 // Admin forms: ticket type tax class and occurrence venue country.
 $a115_as( 1, array() );
