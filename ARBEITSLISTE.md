@@ -184,9 +184,10 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Erledigt mit A061: `Plugin::cron_hooks()` enthält `Waitlists::HOOK`, Deaktivierung/Deinstallation melden ihn ab (Test A061).
 - [x] **A081** Umtausch: Zusatzfelder, Webhook ticket.exchanged, Woo-Differenzerstattung — _OFFEN_ (TODO L340; Offene Nacharbeiten aus Phase 3)
   - src/Exchange/Service.php:649 Antworten nicht übernommen; kein Webhook-Ereignis ticket.exchanged; kein WooCommerce-Bezug in Exchange
-- [ ] **A082** wpcap_reserve_capacity um internal, E-Mail, User-ID erweitern — _OFFEN_ (TODO L341; Offene Nacharbeiten aus Phase 3)
+- [x] **A082** wpcap_reserve_capacity um internal, E-Mail, User-ID erweitern — _OFFEN_ (TODO L341; Offene Nacharbeiten aus Phase 3)
   - src/Orders.php:151 Kontext nur phase/order_id/types/occurrences/now/source
-- [ ] **A083** Neue Hooks in docs/HOOKS.md dokumentieren — _TEILWEISE_ (TODO L342; Offene Nacharbeiten aus Phase 3)
+- [x] **A083** Neue Hooks in docs/HOOKS.md dokumentieren — _TEILWEISE_ (TODO L342; Offene Nacharbeiten aus Phase 3)
+  - Erledigt mit A064: alle Hooks dokumentiert, Test gleicht docs/HOOKS.md und Code in beide Richtungen ab.
   - Nur wpcap_capacity_increased dokumentiert; wpcap_allocation_*, wpcap_boxoffice_*, wpcap_ticket_exchanged, Pass-Filter fehlen
 - [ ] **A084** Präfix GS/Exportbezeichnung Gutschrift umbenennen — _OFFEN_ (TODO L353; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
   - src/Settings.php:73 'GS'; src/Invoices.php:190,403 'GS' und 'Gutschrift' unverändert

@@ -981,3 +981,12 @@ $a75_html = is_wp_error( $a75_draft ) ? '' : PassCaptain\Partners\Settlements::r
 check( 'A075: the statement document shows the netting lines (self-collected, carried balance)', false !== strpos( $a75_html, 'selbst vereinnahmte Ticketerlöse' ) && false !== strpos( $a75_html, 'Saldovortrag aus der vorigen Abrechnung' ) );
 $a75_stmt = PassCaptain\Partners\Statement::compute( $a75_partner, $a75_period )['totals'];
 check( 'A075: the organizer\'s own sales statement says "netted", not "to transfer"', true === $a75_stmt['netted_in_settlement'] );
+
+echo "Audit 3: wpcap_reserve_capacity gets buyer e-mail, user and channel options (A082)\n";
+$a82_ctx = null;
+$a82_rec = static function ( $ok, $demand, $context ) use ( &$a82_ctx ) { $a82_ctx = $context; return $ok; };
+add_filter( 'wpcap_reserve_capacity', $a82_rec, 99, 3 );
+$GLOBALS['wpcap_test_transients'] = array();
+Orders::create( array( 'email' => 'a82@example.com', 'items' => array( array( 'ticket_type_id' => $a4_std, 'quantity' => 1 ) ), 'idempotency_key' => 'a82-' . uniqid() ), array( 'source' => 'pos', 'external' => true, 'payment_provider' => 'manual' ) );
+remove_filter( 'wpcap_reserve_capacity', $a82_rec, 99 );
+check( 'A082: context carries email, user_id and the internal channel options', is_array( $a82_ctx ) && 'a82@example.com' === $a82_ctx['email'] && array_key_exists( 'user_id', $a82_ctx ) && 'pos' === ( $a82_ctx['internal']['source'] ?? '' ) && 'create' === $a82_ctx['phase'] );

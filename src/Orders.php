@@ -148,7 +148,7 @@ final class Orders {
 					throw new \RuntimeException( 'mixed_currency' );
 				}
 			}
-			$capacity_context = array( 'phase' => 'create', 'order_id' => 0, 'types' => $types, 'occurrences' => $occurrences, 'now' => $now, 'source' => sanitize_key( $internal['source'] ?? ( '' !== $namespace ? $namespace : 'native' ) ) );
+			$capacity_context = array( 'phase' => 'create', 'order_id' => 0, 'types' => $types, 'occurrences' => $occurrences, 'now' => $now, 'source' => sanitize_key( $internal['source'] ?? ( '' !== $namespace ? $namespace : 'native' ) ), 'email' => $email, 'user_id' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0, 'internal' => $internal );
 			$reserve_error = self::reserve_capacity( $clean_lines, $capacity_context );
 			if ( $reserve_error ) {
 				$custom_error = $reserve_error;
@@ -672,8 +672,10 @@ final class Orders {
 	 * that locks its own rows here and only then reads usage sees every committed reservation.
 	 *
 	 * @param array $demand  ticket_type_id => quantity.
-	 * @param array $context phase ('create'|'recover'), order_id (excluded from usage; 0 on create),
-	 *                       types (locked rows by id), occurrences (locked rows by id), now, source.
+	 * @param array $context phase ('create'|'recover'|'exchange'), order_id (excluded from usage; 0 on
+	 *                       create), types (locked rows by id), occurrences (locked rows by id), now,
+	 *                       source, email (buyer e-mail), user_id (current user, 0 for guests/cron),
+	 *                       internal (trusted channel options of Orders::create(); empty on recover).
 	 * @return \WP_Error|null
 	 */
 	private static function reserve_capacity( array $demand, array $context ) {
@@ -983,7 +985,7 @@ final class Orders {
 			}
 			$demand = array();
 			foreach ( $lines as $line ) { $demand[ (int) $line->ticket_type_id ] = (int) $line->quantity; }
-			$reserve_error = in_array( null, $locked_types, true ) ? null : self::reserve_capacity( $demand, array( 'phase' => 'recover', 'order_id' => $order_id, 'types' => $locked_types, 'occurrences' => array_filter( $occurrences ), 'now' => $now, 'source' => (string) $order->payment_provider ) );
+			$reserve_error = in_array( null, $locked_types, true ) ? null : self::reserve_capacity( $demand, array( 'phase' => 'recover', 'order_id' => $order_id, 'types' => $locked_types, 'occurrences' => array_filter( $occurrences ), 'now' => $now, 'source' => (string) $order->payment_provider, 'email' => (string) $order->customer_email, 'user_id' => 0, 'internal' => array() ) );
 			$error = '';
 			$per_occurrence = array();
 			foreach ( $lines as $line ) {
