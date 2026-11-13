@@ -1020,8 +1020,17 @@ final class Service {
 		$review = '';
 		$wpdb->query( 'START TRANSACTION' );
 		try {
-			// Same lock order as request(): order, ticket, exchange, ticket types, occurrences.
-			$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", (int) $exchange['order_id'] ) );
+			// Same lock order as request(): orders, ticket, exchange, ticket types, occurrences. The
+			// supplementary order is locked here too (ascending order ids), before the types: a concurrent
+			// cancellation of it locks order → types (CapacityCounters::sync_order_now()), so locking it
+			// only later inside sync_order() could deadlock.
+			$order_ids = array_values( array_unique( array_filter( array( (int) $exchange['order_id'], (int) $exchange['supplementary_order_id'] ) ) ) );
+			sort( $order_ids );
+			$orders = array();
+			foreach ( $order_ids as $lock_id ) {
+				$orders[ $lock_id ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $lock_id ) );
+			}
+			$order = $orders[ (int) $exchange['order_id'] ] ?? null;
 			$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", (int) $exchange['old_ticket_id'] ) );
 			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE exchange_id=%d FOR UPDATE', absint( $exchange_id ) ), ARRAY_A );
 			$supp = $wpdb->get_row( $wpdb->prepare( "SELECT payment_status FROM {$p}wpcap_orders WHERE order_id=%d", (int) $exchange['supplementary_order_id'] ) );

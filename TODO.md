@@ -486,7 +486,7 @@ Fragen an die Steuerberatung (neu):
 - [x] [P3][BESTÄTIGT] `docs/HOOKS.md` — Etwa 70 von 145 Hooks undokumentiert (22 nirgends), Dokument nennt Nicht-Hooks (`wpcap_jobs`, `wpcap_message_queue`). **Maßnahme:** Aus dem Code erzeugen bzw. per CI abgleichen.
 
 Verdachtsfälle:
-- [ ] [VERDACHT] `src/Exchange/Service.php:949–993` — Sperrreihenfolge in `finalize` (Typen/Termine → Zusatzbestellung) umgekehrt zu `sync_order_now()` (Bestellung → Typen); Deadlock bei gleichzeitiger Stornierung denkbar.
+- [x] [VERDACHT] `src/Exchange/Service.php:949–993` — Sperrreihenfolge in `finalize` (Typen/Termine → Zusatzbestellung) umgekehrt zu `sync_order_now()` (Bestellung → Typen); Deadlock bei gleichzeitiger Stornierung denkbar.
 - [ ] [VERDACHT] `src/Orders.php:524–557` — `capacity_error_counted` zieht nur `active`-Holds ab; bereits `expired`, aber nicht synchronisierte Holds blockieren im Grenzfall die eigene späte Zahlung.
 - [ ] [VERDACHT] `src/Partners/Statement.php` vs. `src/Partners/Settlements.php` — zwei Abrechnungswege mit eigener Zuordnung; Verrechnung bei selbst verkaufenden Veranstaltern nur manuell.
 - [ ] [VERDACHT] Datenschutz-Löschung widerruft Tickets ohne Kontingentfreigabe (anders als `Orders::revoke_tickets`).

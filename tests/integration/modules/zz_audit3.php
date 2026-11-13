@@ -850,3 +850,20 @@ $a72_rows = PassCaptain\BoxOffice\ZReport::rows( PassCaptain\BoxOffice\ZReport::
 $a72_html = PassCaptain\BoxOffice\ZReport::html( null );
 restore_error_handler();
 check( 'A072: rows()/html() of an unknown Z report return empty without PHP warnings', array() === $a72_rows && '' === $a72_html && ! $a72_warn );
+
+echo "Audit 3: exchange finalize locks orders before ticket types (A073)\n";
+list( $a73_o, $a73_ids ) = ex_buy( $a4_std, 1, 'a73@example.com' );
+$a73_vip = ex_type( $a4_occ, 'VIP A73', 9000, 2 );
+$a73_x = Exchange::request( $a73_ids[0], $a73_vip, array( 'channel' => 'admin', 'idempotency_key' => 'a73-x' ) );
+$a73_supp = is_wp_error( $a73_x ) ? 0 : (int) $a73_x['supplementary_order_id'];
+$a73_log = array();
+$a73_rec = static function ( $sql ) use ( &$a73_log ) { if ( false !== stripos( $sql, 'FOR UPDATE' ) ) { $a73_log[] = $sql; } return $sql; };
+add_filter( 'query', $a73_rec );
+Orders::confirm_external_payment( $a73_supp, 'a73-pay' );
+remove_filter( 'query', $a73_rec );
+$a73_pos = static function ( $needle, $from = 0 ) use ( &$a73_log ) { foreach ( $a73_log as $i => $q ) { if ( $i >= $from && preg_match( $needle, $q ) ) { return $i; } } return -1; };
+// finalize() starts with the lock of the original order ("SELECT * … order_id=<original>").
+$a73_start = $a73_pos( '/SELECT \* FROM \w+wpcap_orders WHERE order_id=' . $a73_o . ' FOR UPDATE/' );
+$a73_supp_lock = $a73_start < 0 ? -1 : $a73_pos( '/wpcap_orders WHERE order_id=' . $a73_supp . ' FOR UPDATE/', $a73_start );
+$a73_type_lock = $a73_start < 0 ? -1 : $a73_pos( '/wpcap_ticket_types WHERE ticket_type_id=\d+ FOR UPDATE/', $a73_start );
+check( 'A073: the exchange completed and the supplementary order was locked before the ticket types', $a73_supp && 'completed' === ( Exchange::get( (int) $a73_x['exchange_id'] )['status'] ?? '' ) && $a73_supp_lock >= 0 && $a73_type_lock >= 0 && $a73_supp_lock < $a73_type_lock );

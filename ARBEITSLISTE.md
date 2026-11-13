@@ -162,7 +162,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 - [x] **A070** [VERDACHT] Pass mit zwei Terminen am selben Tag: Web-Scanner bindet an Betriebstag, zweiter Scan „Tageskontingent erreicht“ – Abendshow vermutlich nicht betretbar. — _OFFEN_ (TODO L427; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
 - [x] **A071** [VERDACHT] Blindzählung wirkt nur für Kassierer ohne Manager-/Finanzrecht; UI erklärt das nicht. — _OFFEN_ (TODO L428; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
 - [x] **A072** [VERDACHT] `src/BoxOffice/ZReport.php` `rows()` ohne Null-Prüfung (Warnings bei ungültiger ID). — _OFFEN_ (TODO L429; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
-- [ ] **A073** [VERDACHT] Sperrreihenfolge in `finalize` (Typen/Termine → Zusatzbestellung) umgekehrt zu `sync_order_now()` (Bestellung → Typen); Deadlock bei gleichzeitiger Stornierung denkbar. — _OFFEN_ (TODO L488; Architektur und QA (Prüfung 5))
+- [x] **A073** [VERDACHT] Sperrreihenfolge in `finalize` (Typen/Termine → Zusatzbestellung) umgekehrt zu `sync_order_now()` (Bestellung → Typen); Deadlock bei gleichzeitiger Stornierung denkbar. — _OFFEN_ (TODO L488; Architektur und QA (Prüfung 5))
   - `src/Exchange/Service.php:949–993` — 
 - [ ] **A074** [VERDACHT] `capacity_error_counted` zieht nur `active`-Holds ab; bereits `expired`, aber nicht synchronisierte Holds blockieren im Grenzfall die eigene späte Zahlung. — _OFFEN_ (TODO L489; Architektur und QA (Prüfung 5))
   - `src/Orders.php:524–557` — 

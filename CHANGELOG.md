@@ -79,6 +79,7 @@
 - Pässe mit zwei Vorstellungen am selben Tag: Der Scan bindet bevorzugt an eine Vorstellung, für die das Ticket noch nicht eingelassen wurde – die Abendvorstellung ist nach der Matinee nicht mehr fälschlich „Tageskontingent erreicht“.
 - Kasse: Blindzählung wird erklärt – im Kassenformular (gilt für Kassierkräfte; Kassenverwaltung/Finanzrecht sehen den Soll-Bestand immer) und in der Schichtansicht für Vorgesetzte.
 - Z-Bericht: unbekannte Berichtsnummer liefert „nicht gefunden“ (404) statt „keine Berechtigung“; Ausgabe-Funktionen prüfen auf fehlende Berichte (keine PHP-Warnungen).
+- Umtausch-Abschluss sperrt Original- und Aufpreisbestellung (aufsteigend) vor Ticketarten und Terminen – gleiche Sperrreihenfolge wie Stornierung/Zählerabgleich, kein Deadlock bei gleichzeitiger Stornierung der Aufpreisbestellung.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.
