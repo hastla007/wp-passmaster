@@ -207,10 +207,13 @@ final class StripeGateway implements GatewayInterface {
 	}
 
 	/**
-	 * charge.refunded carries the cumulative refunded amount. A fully refunded charge is reported as
-	 * a refund of its total. For partial refunds the latest refund is inspected: refunds created by
-	 * this plugin (metadata wpcap_refund) are already booked by Refunds and are ignored; others
-	 * (e.g. Stripe dashboard) are reported with the amount of that single refund.
+	 * charge.refunded is a snapshot of all refunds of the charge (A346, A347). Refunds created by this
+	 * plugin (metadata wpcap_refund) are booked by Refunds and never count here – also not when they
+	 * refund the charge in full (`refunded` = true). All other refunds (Stripe dashboard, API of another
+	 * system) that did not fail are summed up and reported as the cumulative external refund of the
+	 * charge (`cumulative`): Webhooks books only the part not yet booked for this charge, whatever the
+	 * order and number of the events. Without an external refund the event is ignored, so nothing over
+	 * 0 € is ever booked.
 	 */
 	private function normalize_refund( array $base, array $charge ) {
 		$base['provider_reference'] = (string) ( $charge['id'] ?? '' );
@@ -218,23 +221,44 @@ final class StripeGateway implements GatewayInterface {
 		if ( is_wp_error( $public_id ) ) { return $public_id; }
 		if ( '' === $public_id ) { return $base; }
 		$base['order_public_id'] = $public_id;
-		if ( ! empty( $charge['refunded'] ) ) {
-			$base['type'] = 'refunded';
-			$base['amount_minor'] = self::from_stripe_amount( (int) ( $charge['amount_refunded'] ?? 0 ), $base['currency'] );
-			return $base;
+		$refunds = $this->charge_refunds( $charge );
+		if ( is_wp_error( $refunds ) ) { return self::retry_error( $refunds ); }
+		$external = 0;
+		foreach ( $refunds as $refund ) {
+			if ( ! is_array( $refund ) || ! empty( $refund['metadata']['wpcap_refund'] ) || in_array( (string) ( $refund['status'] ?? '' ), array( 'failed', 'canceled' ), true ) ) { continue; }
+			$external += max( 0, (int) ( $refund['amount'] ?? 0 ) );
 		}
-		$latest = $charge['refunds']['data'][0] ?? null;
-		if ( ! is_array( $latest ) ) {
-			$list = $this->api( 'GET', 'refunds?' . http_build_query( array( 'charge' => (string) $charge['id'], 'limit' => 1 ) ) );
-			if ( is_wp_error( $list ) ) { return self::retry_error( $list ); }
-			$latest = $list['data'][0] ?? null;
-		}
-		if ( ! is_array( $latest ) || ! empty( $latest['metadata']['wpcap_refund'] ) ) {
-			return $base;
-		}
+		if ( $external <= 0 ) { return $base; }
 		$base['type'] = 'refunded';
-		$base['amount_minor'] = self::from_stripe_amount( (int) ( $latest['amount'] ?? 0 ), $base['currency'] );
+		$base['cumulative'] = true;
+		$base['amount_minor'] = self::from_stripe_amount( $external, $base['currency'] );
 		return $base;
+	}
+
+	/**
+	 * All refunds of a charge: the embedded list when it is complete, otherwise read from the API
+	 * (newer API versions do not embed refunds in the charge at all).
+	 *
+	 * @return array[]|\WP_Error
+	 */
+	private function charge_refunds( array $charge ) {
+		if ( isset( $charge['refunds']['data'] ) && is_array( $charge['refunds']['data'] ) && empty( $charge['refunds']['has_more'] ) ) {
+			return $charge['refunds']['data'];
+		}
+		$all = array();
+		$after = '';
+		for ( $page = 0; $page < 10; $page++ ) {
+			$query = array( 'charge' => (string) ( $charge['id'] ?? '' ), 'limit' => 100 );
+			if ( '' !== $after ) { $query['starting_after'] = $after; }
+			$list = $this->api( 'GET', 'refunds?' . http_build_query( $query ) );
+			if ( is_wp_error( $list ) ) { return $list; }
+			$data = is_array( $list['data'] ?? null ) ? $list['data'] : array();
+			$all = array_merge( $all, $data );
+			$last = end( $data );
+			if ( empty( $list['has_more'] ) || ! is_array( $last ) || empty( $last['id'] ) ) { return $all; }
+			$after = (string) $last['id'];
+		}
+		return new \WP_Error( 'wpcap_stripe_refund_list', __( 'Die Erstattungen der Stripe-Zahlung konnten nicht vollständig gelesen werden.', 'pass-captain' ) );
 	}
 
 	/**

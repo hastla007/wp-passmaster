@@ -236,9 +236,19 @@ Zu einzelnen Fällen:
 - **Erstattung einer nie verbuchten Zahlung** (Bestellung `cancelled`/`expired`, zum Beispiel nach
   `paid_for_closed_order`): Es gibt keine Erstattungszeile, keine Gutschrift und keinen
   Statuswechsel. Das wird nur protokolliert (`refund_for_unpaid_order`).
-- **Kumulative Beträge (Mollie).** Mollie meldet die Summe aller externen Erstattungen und Chargebacks
-  einer Zahlung. Verbucht wird nur der noch nicht verbuchte Rest dieser Zahlung (`cumulative`). Ein
+- **Kumulative Beträge (Mollie, Stripe).** Mollie meldet die Summe aller externen Erstattungen und
+  Chargebacks einer Zahlung. Bei Stripe bildet der Adapter aus `charge.refunded` dieselbe Summe: alle
+  Erstattungen der Charge ohne Metadatum `wpcap_refund` (also nicht vom Plugin ausgelöst), die nicht
+  `failed`/`canceled` sind; fehlt die Liste im Ereignis oder ist sie unvollständig, liest er sie über die
+  API (Fehler: 5xx, Stripe stellt erneut zu). Das gilt auch für eine volle Erstattung (`refunded` =
+  true): Die eigene Erstattung des Plugins zählt nie als externe. Verbucht wird nur der noch nicht
+  verbuchte Rest dieser Zahlung (`cumulative`), unabhängig von Reihenfolge und Anzahl der Ereignisse. Ein
   älterer Stand nach einem neueren ergibt `already_booked`.
+- **Nie eine Erstattung über 0 €.** Betrag, den eine laufende Erstattung des Plugins (`processing`) gerade
+  auszahlt, gilt nicht als offen. Ist der Rest 0, wird nichts gebucht (`already_booked`);
+  `Refunds::record_external()` lehnt eine auf 0 € gekappte Erstattung ab (`wpcap_refund_nothing`). Meldet
+  der Anbieter währenddessen eine zusätzliche externe Erstattung, bekommt der Admin eine Mail (Audit
+  `external_refund_during_native_refund`).
 - **Buchung einer vollen externen Erstattung schlägt fehl** (zum Beispiel Datenbankfehler beim Anlegen
   der Erstattungszeile): Die Bestellung wird trotzdem als erstattet markiert (Tickets widerrufen), das
   Ereignis aber nicht bestätigt. Der Anbieter bekommt 5xx (`wpcap_refund_booking_retry`, Audit

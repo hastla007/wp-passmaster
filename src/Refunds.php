@@ -505,6 +505,12 @@ final class Refunds {
 		$running = self::open_refunds( $order_id, array( 'processing' ) );
 		$ticket_ids = array_values( array_diff( $ticket_ids, $running['ticket_ids'] ) );
 		$amount = min( max( 0, (int) $amount_minor ), max( 0, (int) $order->total_minor - (int) $order->refunded_minor - $running['amount_minor'] ) );
+		if ( $amount <= 0 && ( ! $ticket_ids || (int) $amount_minor > 0 ) ) {
+			// Nothing left to refund (e.g. a native refund pays out the rest right now): never book a
+			// refund over 0 € with a credit note (A346). A free order's tickets are still cancelled.
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_refund_nothing', __( 'Es ist kein Betrag mehr offen, der als Erstattung verbucht werden könnte.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
 		$tax = isset( $args['tax_minor'] ) ? min( $amount, absint( $args['tax_minor'] ) ) : self::tax_for( $order, $ticket_ids ?: null, $amount );
 		$now = current_time( 'mysql', true );
 		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
@@ -576,6 +582,11 @@ final class Refunds {
 			$amount += (int) $row->amount_minor;
 		}
 		return array( 'ticket_ids' => array_values( array_unique( array_filter( $ids ) ) ), 'amount_minor' => $amount );
+	}
+
+	/** Amount of the order's native refunds that are being paid out right now (status processing). */
+	public static function running_minor( $order_id ) {
+		return (int) self::open_refunds( absint( $order_id ), array( 'processing' ) )['amount_minor'];
 	}
 
 	/** execution_conflict(): a read failed, so it is unknown whether the refund may be paid out. */

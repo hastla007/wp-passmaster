@@ -206,15 +206,25 @@ final class Webhooks {
 				Audit::record( 'refund_for_unpaid_order', 'order', $order_id, array( 'provider' => $provider, 'status' => $order->status, 'chargeback' => $chargeback ) );
 				return 'refund_for_unpaid_order';
 			}
-			$remaining = max( 0, (int) $order->total_minor - (int) $order->refunded_minor );
+			// Money a native refund is paying out right now belongs to that refund (A346): it is not open
+			// for an external refund, and its own provider event never books it a second time.
+			$running   = Refunds::running_minor( $order_id );
+			$remaining = max( 0, (int) $order->total_minor - (int) $order->refunded_minor - $running );
 			$amount    = max( 0, (int) ( $event['amount_minor'] ?? 0 ) );
 			if ( ! empty( $event['cumulative'] ) ) {
-				// Cumulative provider total (Mollie snapshots): only the part not yet booked for this payment
-				// counts, so a repeated or older snapshot never books an amount twice.
+				// Cumulative provider total (Mollie and Stripe snapshots): only the part not yet booked for
+				// this payment counts, so a repeated or older snapshot never books an amount twice.
 				$amount = max( 0, $amount - (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND provider_reference=%s AND status='completed'", $order_id, (string) ( $event['provider_reference'] ?? '' ) ) ) );
-				if ( 0 === $amount && $remaining > 0 ) {
+				if ( 0 === $amount && ( $remaining > 0 || $running > 0 ) ) {
 					return 'already_booked';
 				}
+			}
+			if ( 0 === $remaining && $running > 0 && ! $chargeback ) {
+				// Everything still open is being refunded by the plugin right now: an external refund on top
+				// would pay out more than was paid. Nothing is booked (never a refund over 0 €); the admin checks it.
+				Audit::record( 'external_refund_during_native_refund', 'order', $order_id, array( 'provider' => $provider, 'amount_minor' => $amount ) );
+				self::alert( $order, __( 'Beim Zahlungsanbieter wurde eine Erstattung gemeldet, während eine Erstattung über Pass Captain für den ganzen offenen Betrag läuft. Es wurde nichts zusätzlich gebucht; bitte beim Anbieter prüfen, ob doppelt erstattet wurde.', 'pass-captain' ), $provider, $event );
+				return 'already_booked';
 			}
 			$reason    = $provider . ( $chargeback ? '_chargeback' : '_dashboard_refund' );
 			$full      = $amount >= $remaining;
@@ -245,6 +255,9 @@ final class Webhooks {
 					$provider . ':' . $event_id,
 					array( 'provider_reference' => (string) ( $event['provider_reference'] ?? '' ), 'source' => $provider )
 				);
+				if ( is_wp_error( $booked ) && 'wpcap_refund_nothing' === $booked->get_error_code() ) {
+					$booked = null; // Nothing left to book (0 €): no refund row, no credit note.
+				}
 				if ( is_wp_error( $booked ) ) {
 					if ( ! $full ) {
 						return $booked; // Retried by the provider.
