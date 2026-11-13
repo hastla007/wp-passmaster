@@ -30,4 +30,9 @@ folgenden Gates erfüllt sind. Die automatischen Gates erzwingt GitHub Actions, 
 2. `docs/release-acceptance/TEMPLATE.md` nach `docs/release-acceptance/v<Version>.md` kopieren, alle Punkte prüfen, abhaken, Datum, Prüfer und Commit eintragen.
 3. Protokoll mit dem Release-Commit auf `main` mergen. Nach grüner CI veröffentlicht der Workflow das Release mit ZIP, `.sha256` und `build-info.txt`.
 
+### WordPress.org-Pflichtangaben (A269, A270)
+
+- **External services**: `readme.txt` beschreibt im Abschnitt `== External services ==` jeden externen Dienst (Zweck, Zeitpunkt, gesendete Daten, Links zu Bedingungen und Datenschutz). `tests/consistency.php` schlägt fehl, wenn ein `https://`-Host aus `src/` dort nicht genannt ist – wer eine neue Anbindung einbaut, ergänzt den Abschnitt (reine Doku-Links/Beispiele stehen in `$local_hosts`).
+- **Minifizierte Bibliotheken**: Neben jeder `.min.js` liegt der lesbare Quelltext derselben Version und eine Quellangabe als `.txt` (Markdown wird über `.distignore` ausgefiltert). Für tweetnacl: `assets/vendor/tweetnacl/nacl-fast.js` und `SOURCE.txt` (Version, URL, Lizenz, SHA-256 beider Dateien – von `tests/consistency.php` geprüft); `tests/wp-matrix/zip-install.sh` prüft, dass beide im ZIP liegen.
+
 Fehlt das Protokoll oder ist ein Punkt offen, bricht der Release-Workflow mit einer Meldung ab, welche Angabe fehlt; CI auf `main` bleibt davon unberührt. Frühere Releases (bis 1.4.0) wurden vor Einführung dieses Gates veröffentlicht.

@@ -21,6 +21,10 @@ TOP="$(cut -d/ -f1 <<<"$LIST" | sort -u)"
 for f in pass-captain.php readme.txt uninstall.php vendor/autoload.php languages/pass-captain.pot src/Plugin.php languages/pass-captain-en_US.mo; do
 	grep -qx "$SLUG/$f" <<<"$LIST" && ok "contains $f" || bad "missing $f"
 done
+# A270: minified tweetnacl ships with its readable source and a (non-Markdown) source reference.
+for f in assets/vendor/tweetnacl/nacl-fast.min.js assets/vendor/tweetnacl/nacl-fast.js assets/vendor/tweetnacl/SOURCE.txt assets/vendor/tweetnacl/LICENSE; do
+	grep -qx "$SLUG/$f" <<<"$LIST" && ok "contains $f" || bad "missing $f"
+done
 # Development files that must never ship.
 FORBIDDEN='(^|/)(tests?|\.github|\.claude|node_modules|build|docs/release-acceptance)/|(^|/)(phpcs\.xml(\.dist)?|phpunit\.xml(\.dist)?|phpstan\.neon(\.dist)?|eslint\.config\.mjs|package(-lock)?\.json|composer\.lock|\.distignore|\.gitignore|\.gitattributes|\.editorconfig|TODO\.md|ARBEITSLISTE\.md|CLAUDE\.md)$|\.map$|(^|/)vendor/(squizlabs|wp-coding-standards|phpcompatibility|dealerdirect|phpcsstandards|phpunit|bin)/'
 HITS="$(grep -E "$FORBIDDEN" <<<"$LIST" || true)"
