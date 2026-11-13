@@ -25,6 +25,11 @@ final class Webhooks {
 			// 5xx so the provider retries later; the event row was released for the retry.
 			return new \WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => 500 ) );
 		}
+		if ( ! empty( $event['redeliver'] ) && 'duplicate' !== $result ) {
+			// The provider state holds a further change (e.g. a refund) that applies only after this event:
+			// ask for a redelivery, which is then normalized against the new order state.
+			return new \WP_Error( 'wpcap_webhook_redeliver', 'Applied; please redeliver for the follow-up change.', array( 'status' => 503 ) );
+		}
 		return rest_ensure_response( array( 'received' => true, 'result' => $result ) );
 	}
 
@@ -72,7 +77,8 @@ final class Webhooks {
 			$release();
 			return $result;
 		}
-		$wpdb->update( "{$p}wpcap_payment_events", array( 'status' => 'processed', 'order_id' => $order_id, 'updated_at' => current_time( 'mysql', true ) ), array( 'provider' => $provider, 'provider_event_id' => $event_id ) );
+		// processing → processed (StateMachine 'payment_event'); a processed event is never reopened.
+		$wpdb->update( "{$p}wpcap_payment_events", array( 'status' => 'processed', 'order_id' => $order_id, 'updated_at' => current_time( 'mysql', true ) ), array( 'provider' => $provider, 'provider_event_id' => $event_id, 'status' => 'processing' ) );
 		return $result;
 	}
 
@@ -115,6 +121,16 @@ final class Webhooks {
 				Orders::issue_and_email( $order_id );
 				return 'already_paid';
 			}
+			if ( 'paid_unallocated' === $order->payment_status ) {
+				// Paid but flagged for review (no capacity left): a repeated confirmation must not complete
+				// it behind the operator's back; a payment of another attempt is a double payment.
+				if ( ! self::is_current_attempt( $order, $event ) ) {
+					Audit::record( 'payment_double', 'order', $order_id, array( 'provider' => $provider, 'reference' => (string) ( $event['provider_reference'] ?? '' ) ) );
+					self::alert( $order, __( 'Für eine bereits bezahlte Bestellung ist eine zweite Zahlung eingegangen. Bitte die doppelte Zahlung beim Zahlungsanbieter erstatten.', 'pass-captain' ), $provider, $event );
+					return 'double_payment';
+				}
+				return 'needs_review';
+			}
 			if ( in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) {
 				Audit::record( 'payment_for_closed_order', 'order', $order_id, array( 'provider' => $provider, 'status' => $order->status, 'reference' => (string) ( $event['provider_reference'] ?? '' ) ) );
 				self::alert( $order, __( 'Für eine stornierte oder erstattete Bestellung ist eine Zahlung eingegangen. Es wurden keine Tickets ausgestellt; bitte erstatten oder die Bestellung manuell klären.', 'pass-captain' ), $provider, $event );
@@ -139,7 +155,11 @@ final class Webhooks {
 				Audit::record( 'stale_payment_failure_ignored', 'order', $order_id, array( 'provider' => $provider ) );
 				return 'stale_attempt';
 			}
-			$cancelled = Orders::cancel_order( $order_id, $provider . '_payment_failed' );
+			// Guarded under the order lock: a confirmation that won the race keeps the order paid.
+			$cancelled = Orders::cancel_order( $order_id, $provider . '_payment_failed', array( 'pending' ) );
+			if ( is_wp_error( $cancelled ) && 'wpcap_order_state' === $cancelled->get_error_code() ) {
+				return 'ignored';
+			}
 			// A database error keeps the event unprocessed: the provider redelivers it.
 			return is_wp_error( $cancelled ) ? $cancelled : 'cancelled';
 		}
@@ -148,16 +168,54 @@ final class Webhooks {
 			// row, refunded amount, credit note, voucher share and partner settlement all follow from
 			// `wpcap_refund_completed` – instead of only flipping the order status.
 			global $wpdb;
+			$chargeback = ! empty( $event['chargeback'] );
+			if ( 'pending' === $order->payment_status ) {
+				// Out of order: the refund overtook the payment confirmation. Nothing is booked; the 5xx makes
+				// the provider redeliver it, by then the payment is confirmed (or the order closed).
+				Audit::record( 'refund_before_payment', 'order', $order_id, array( 'provider' => $provider, 'event' => $event_id ) );
+				return new \WP_Error( 'wpcap_refund_before_payment', 'Refund event before the payment confirmation; retry later.', array( 'status' => 503, 'retryable' => true ) );
+			}
+			if ( in_array( $order->payment_status, array( 'cancelled', 'expired' ), true ) ) {
+				// The plugin never booked this payment (e.g. "paid_for_closed_order" refunded by the operator):
+				// no refund row, no credit note, the order stays closed.
+				Audit::record( 'refund_for_unpaid_order', 'order', $order_id, array( 'provider' => $provider, 'status' => $order->status, 'chargeback' => $chargeback ) );
+				return 'refund_for_unpaid_order';
+			}
 			$remaining = max( 0, (int) $order->total_minor - (int) $order->refunded_minor );
 			$amount    = max( 0, (int) ( $event['amount_minor'] ?? 0 ) );
+			if ( ! empty( $event['cumulative'] ) ) {
+				// Cumulative provider total (Mollie snapshots): only the part not yet booked for this payment
+				// counts, so a repeated or older snapshot never books an amount twice.
+				$amount = max( 0, $amount - (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND provider_reference=%s AND status='completed'", $order_id, (string) ( $event['provider_reference'] ?? '' ) ) ) );
+				if ( 0 === $amount && $remaining > 0 ) {
+					return 'already_booked';
+				}
+			}
+			$reason    = $provider . ( $chargeback ? '_chargeback' : '_dashboard_refund' );
 			$full      = $amount >= $remaining;
+			if ( 'paid_unallocated' === $order->payment_status ) {
+				// No tickets, no invoice: a full refund closes the case, a partial one stays with the operator.
+				if ( ! $full ) {
+					Audit::record( 'partial_refund_for_review_order', 'order', $order_id, array( 'provider' => $provider, 'amount_minor' => $amount ) );
+					self::alert( $order, __( 'Für eine zu prüfende Bestellung (bezahlt, ohne Tickets) wurde ein Teilbetrag erstattet. Bitte die Bestellung manuell klären.', 'pass-captain' ), $provider, $event );
+					return 'needs_review';
+				}
+				$marked = Orders::mark_refunded( $order_id, $reason );
+				return is_wp_error( $marked ) ? $marked : 'refunded';
+			}
+			if ( 0 === $remaining && 'refunded' === $order->status && $chargeback ) {
+				// Money pulled back a second time after the order was refunded in full: dispute the chargeback.
+				Audit::record( 'chargeback_after_refund', 'order', $order_id, array( 'provider' => $provider, 'amount_minor' => $amount ) );
+				self::alert( $order, __( 'Für eine bereits vollständig erstattete Bestellung wurde eine Rückbuchung (Chargeback) gemeldet. Bitte beim Zahlungsanbieter widersprechen; es wurde nichts erneut gebucht.', 'pass-captain' ), $provider, $event );
+				return 'chargeback_after_refund';
+			}
 			if ( $remaining > 0 && $amount > 0 ) {
 				$tickets = $full ? array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND refunded=0", $order_id ) ) ) : array();
 				$booked  = Refunds::record_external(
 					$order_id,
 					$tickets,
 					$full ? $remaining : $amount,
-					$provider . '_dashboard_refund',
+					$reason,
 					$provider . ':' . $event_id,
 					array( 'provider_reference' => (string) ( $event['provider_reference'] ?? '' ), 'source' => $provider )
 				);
@@ -166,7 +224,7 @@ final class Webhooks {
 				}
 			}
 			if ( $full ) {
-				$marked = Orders::mark_refunded( $order_id, $provider . '_dashboard_refund' );
+				$marked = Orders::mark_refunded( $order_id, $reason );
 				return is_wp_error( $marked ) ? $marked : 'refunded'; // A database error: the provider redelivers.
 			}
 			return 'partial_refund';

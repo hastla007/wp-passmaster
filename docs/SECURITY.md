@@ -4,10 +4,67 @@
 
 - Ticket-, Gastbestellungs- und API-Schlüssel werden als zufällige Geheimnisse ausgegeben; in der Datenbank werden nur Hashes gespeichert. Gastlinks sind Inhaberzugänge und dürfen nicht weitergegeben werden.
 - WordPress REST-Schreibzugriffe prüfen Berechtigungen und Eventbereiche. Entwickler-API-Schlüssel sind auf ein Event und lesende Scopes beschränkt, haben ein Ratenlimit und können ablaufen oder widerrufen werden (siehe [Entwickler-API-Schlüssel](#entwickler-api-schlüssel)).
-- Öffentliche Checkout-, Sitzplatz- und Wartelistenrouten sind nicht authentifiziert. Sie benötigen Hosting-seitige Rate-Limits, TLS, Bot-Abwehr und Überwachung. Plugin-Transients sind kein verteilter Rate-Limiter. Checkout und Servicebuchungen begrenzen zusätzlich pro IP (Filter `wpcap_checkout_ip_limit`, Standard 30/Stunde, und `wpcap_service_booking_ip_limit`, Standard 40/Stunde); hinter einem Proxy muss `REMOTE_ADDR` korrekt gesetzt sein.
+- Öffentliche Checkout-, Sitzplatz- und Wartelistenrouten sind nicht authentifiziert. Sie benötigen Hosting-seitige Rate-Limits, TLS, Bot-Abwehr und Überwachung. Das Plugin begrenzt zusätzlich pro Client: Checkout (Filter `wpcap_checkout_ip_limit`, Standard 30 pro Stunde), Servicebuchungen (`wpcap_service_booking_ip_limit`, Standard 40 pro Stunde), Sitzplatz-Reservierungen, Warteliste, Bestellportal, Mollie-Webhooks und weitere. Die Zähler sind über alle PHP-Worker und Webserver hinweg atomar. Hinter einem Proxy oder CDN muss die Client-Adresse richtig aufgelöst werden; siehe [Ratenlimits hinter Proxys und mit mehreren Workern](#ratenlimits-hinter-proxys-und-mit-mehreren-workern).
 - Selbstbedienung im Bestellportal (A118) nutzt dieselbe Prüfung wie das Portal (Bestell-ID + Zugangstoken). Ticket-PDFs werden per POST mit Nonce abgerufen, je Bestellung und Client begrenzt und enthalten nur gültige, unbenutzte Tickets der eigenen Bestellung, die nicht an andere Personen übertragen oder zugewiesen sind. Da Ticketcodes nur gehasht gespeichert sind, erhält ein Ticket beim Download einen neuen Code (der alte wird ungültig), außer ein Modul kennt den aktuellen Code noch (`wpcap_ticket_known_code`, z. B. Wallet). Stornierungsanfragen (Nonce, Idempotenzschlüssel, Rate-Limit) landen immer als `pending_approval` in der Erstattungsfreigabe; ausgezahlt wird erst nach der Entscheidung einer berechtigten Person.
 - Offline-Scanner speichern Codes lokal und können während einer Netzunterbrechung nicht garantieren, dass ein Ticket an einem anderen Gerät unbenutzt geblieben ist.
 - Integrationsadapter werden standardmäßig nicht aktiviert. Externe Zugangsdaten gehören in geschützte WordPress-Konfiguration bzw. Secret-Storage, niemals in Quellcode oder Logs.
+
+## Ratenlimits hinter Proxys und mit mehreren Workern
+
+**Zähler (`PassCaptain\RateLimit`).** Es gilt ein festes Zeitfenster je Bucket. Jeder Aufruf zählt;
+erlaubt sind genau `limit` Aufrufe je Fenster, egal wie viele Worker gleichzeitig zählen:
+
+| Backend | Wann | Atomar |
+|---|---|---|
+| `cache` | Ein persistenter Objekt-Cache ist installiert (`wp_using_ext_object_cache()`). Gezählt wird mit `wp_cache_add()` und `wp_cache_incr()`, das Fenster ist die TTL. | Ja, mit einem Redis oder Memcached, den alle Webserver gemeinsam nutzen. |
+| `db` | Standard ohne Objekt-Cache. Eine Zeile je Bucket und Fenster in `wpcap_rate_limits`, gezählt mit einem einzigen `INSERT … ON DUPLICATE KEY UPDATE hits=LAST_INSERT_ID(hits+1)`. | Ja, auch mit mehreren Webservern an derselben Datenbank. |
+| `transient` | Nur als Rückfall, wenn die Tabelle noch fehlt (vor dem Datenbank-Upgrade) oder die Datenbank einen Fehler meldet. | Nein. |
+
+Schlägt `wp_cache_incr()` fehl (Schlüssel verdrängt, Cache nicht erreichbar), wird in der Datenbank
+gezählt. Abgelaufene Zeilen löscht der Cron `wpcap_cleanup_reservations` (`RateLimit::purge()`), dazu
+gelegentlich ein Aufruf. Die Bucket-Namen werden mit einem Schlüssel aus `wp_salt()` gehasht; IP-Adressen
+stehen nie im Klartext in Datenbank oder Cache. Mit dem Filter `wpcap_rate_limit_backend` lässt sich das
+Backend erzwingen.
+
+Nachweis: `tests/integration/modules/zz_a186.php` startet 8 PHP-Prozesse, die gleichzeitig je 30 Mal
+denselben Bucket mit Limit 50 zählen. Erlaubt werden genau 50 Aufrufe, gezählt werden alle 240.
+
+**Client-Adresse (`PassCaptain\ClientIp`).** Ohne Konfiguration gilt immer `REMOTE_ADDR`.
+Weiterleitungs-Header wie `X-Forwarded-For`, `Forwarded` oder `CF-Connecting-IP` werden standardmäßig
+nie ausgewertet, weil jeder Client sie setzen kann. Ausgewertet wird ein Header nur, wenn die direkte
+Gegenstelle (`REMOTE_ADDR`) in **Einstellungen → Allgemein → Proxy / Client-Adresse →
+Vertrauenswürdige Proxys** steht. Dort stehen IP-Adressen oder CIDR-Bereiche für IPv4 und IPv6. Alternativ
+geht das über die Konstante oder Umgebungsvariable `WPCAP_TRUSTED_PROXIES` oder den Filter
+`wpcap_trusted_proxies`. Welcher Header gilt, legt die Einstellung `client_ip_header` fest
+(`WPCAP_CLIENT_IP_HEADER`, Filter `wpcap_client_ip_header`):
+
+- `x-forwarded-for` (Standard) und `forwarded` (RFC 7239): Die Kette wird von rechts gelesen.
+  Vertrauenswürdige Proxys werden übersprungen; die **rechteste nicht vertrauenswürdige** Adresse ist der
+  Client. Was der Client selbst links einträgt, wird ignoriert. Ist ein Eintrag ungültig (zum Beispiel
+  `unknown` oder ein verschleierter Name), gilt `REMOTE_ADDR`.
+- `cf-connecting-ip`: die von Cloudflare gesetzte Adresse. Dafür müssen die Cloudflare-IP-Bereiche als
+  vertrauenswürdige Proxys eingetragen sein.
+
+Die aufgelöste Adresse nutzen alle Ratenlimits, die Einwilligungsnachweise und die Partner-API. Der
+bisherige Filter `wpcap_client_ip` kann das Ergebnis weiterhin überschreiben.
+
+**Empfehlungen fürs Hosting**
+
+- **Mehrere Webserver oder PHP-FPM-Worker:** einen persistenten Objekt-Cache mit Redis oder Memcached
+  einrichten, den alle Server gemeinsam nutzen (zum Beispiel Redis Object Cache). Ein Objekt-Cache, der
+  nur auf einem Server liegt (APCu-Drop-ins), ist zwischen Servern nicht atomar. In diesem Fall
+  `add_filter( 'wpcap_rate_limit_backend', fn() => 'db' );` setzen. Ohne Objekt-Cache ist die
+  Datenbank-Tabelle bereits atomar; sie kostet einen Schreibzugriff je begrenztem Aufruf.
+- **Reverse Proxy, Load Balancer oder CDN:** genau dessen Adressen beziehungsweise Bereiche als
+  vertrauenswürdige Proxys eintragen und den passenden Header wählen. Keine breiten Bereiche wie
+  `0.0.0.0/0` eintragen. Interne Bereiche wie `10.0.0.0/8` nur dann, wenn kein Client sie erreichen kann.
+  Der Proxy muss `X-Forwarded-For` anhängen und nicht ungeprüft durchreichen; bei nginx `proxy_set_header
+  X-Forwarded-For $proxy_add_x_forwarded_for;`. Alternativ setzt der Webserver `REMOTE_ADDR` selbst
+  korrekt, mit nginx `real_ip` oder Apache `mod_remoteip`. Dann bleibt die Liste leer.
+- **Ohne Proxy-Konfiguration** teilen sich alle Käufer hinter einem Proxy dessen Adresse und damit dessen
+  Limit. Das ist sicher, kann bei großen Vorverkäufen aber zu frühen 429-Antworten führen.
+- Hosting-seitige Limits (WAF, nginx `limit_req`, CDN-Regeln) bleiben die erste Verteidigungslinie. Die
+  Limits des Plugins sind die zweite.
 
 ## Rollen, Zugriffsbereiche und Prüfreihenfolge
 

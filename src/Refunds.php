@@ -287,13 +287,13 @@ final class Refunds {
 		$locked_order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", (int) $refund['order_id'] ) );
 		$invalid = self::execution_conflict( $refund, $locked_order );
 		if ( '' !== $invalid ) {
-			$wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'failed', 'error_message' => substr( $invalid, 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id ) );
+			StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => substr( $invalid, 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ) );
 			$wpdb->query( 'COMMIT' );
 			Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => 'wpcap_refund_conflict' ) );
 			return new \WP_Error( 'wpcap_refund_conflict', $invalid, array( 'status' => 409 ) );
 		}
-		$moved = $wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'processing', 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id ) );
-		if ( false === $moved || false === $wpdb->query( 'COMMIT' ) ) {
+		$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'processing', array( 'updated_at' => current_time( 'mysql', true ) ) );
+		if ( 1 !== $moved || false === $wpdb->query( 'COMMIT' ) ) {
 			// Nothing paid out yet: safe to retry.
 			$wpdb->query( 'ROLLBACK' );
 			return Errors::busy( __( 'Die Erstattung konnte gerade nicht gestartet werden. Bitte erneut versuchen.', 'pass-captain' ) );
@@ -305,7 +305,7 @@ final class Refunds {
 		if ( $gateway && $gateway->supports_refunds() && (int) $refund['amount_minor'] > 0 ) {
 			$result = $gateway->refund( (array) $order, (int) $refund['amount_minor'], 'wpcap-refund-' . $refund_id );
 			if ( is_wp_error( $result ) ) {
-				$wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'failed', 'error_message' => substr( $result->get_error_message(), 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id ) );
+				StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => substr( $result->get_error_message(), 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing' ) );
 				Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => $result->get_error_code() ) );
 				return $result;
 			}
@@ -347,8 +347,8 @@ final class Refunds {
 			CapacityCounters::sync_order_now( (int) $refund['order_id'] );
 		}
 		$total_ok = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=LEAST(total_minor,refunded_minor+%d),updated_at=%s WHERE order_id=%d", (int) $refund['amount_minor'], current_time( 'mysql', true ), (int) $refund['order_id'] ) );
-		$done_ok = $wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'completed', 'provider_reference' => substr( '' !== (string) $provider_reference ? (string) $provider_reference : 'manual', 0, 191 ), 'error_message' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id ) );
-		if ( false === $total_ok || false === $done_ok || false === $wpdb->query( 'COMMIT' ) ) {
+		$done_ok = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'completed', array( 'provider_reference' => substr( '' !== (string) $provider_reference ? (string) $provider_reference : 'manual', 0, 191 ), 'error_message' => '', 'updated_at' => current_time( 'mysql', true ) ) );
+		if ( false === $total_ok || 1 !== $done_ok || false === $wpdb->query( 'COMMIT' ) ) {
 			// Stays "processing" with its provider reference: repair_stuck() finishes it later.
 			$wpdb->query( 'ROLLBACK' );
 			Audit::record( 'refund_bookkeeping_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id ) );

@@ -49,12 +49,14 @@ final class Jobs {
 			$handled = Hooks::legacy_filter( 'wpcap_process_job', $handled, $row->job_type, $payload, (int) $row->job_id );
 			Jobs\TimeBudget::finished( $table, (int) $row->job_id );
 			if ( true === $handled ) {
-				$wpdb->update( $table, array( 'status' => 'complete', 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+				// Only this run's claim (running + its locked_at) may finish the job: a stale claim that was
+				// re-queued and taken over by another worker is left to that worker.
+				StateMachine::transition( 'job', $table, 'job_id', (int) $row->job_id, 'complete', array( 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'locked_at' => $now ) );
 				continue;
 			}
 			$attempts = (int) $row->attempts + 1;
 			$status = $attempts >= 8 ? 'dead_letter' : 'queued';
-			$wpdb->update( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
+			StateMachine::transition( 'job', $table, 'job_id', (int) $row->job_id, $status, array( 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'running', 'locked_at' => $now ) );
 		}
 		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s LIMIT 1", $now ) ) ) {
 			Jobs\TimeBudget::continue_later( 'wpcap_process_jobs' );

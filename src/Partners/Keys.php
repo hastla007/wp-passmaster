@@ -207,10 +207,9 @@ final class Keys {
 		return false;
 	}
 
-	/** Client address (REMOTE_ADDR; proxies must be resolved via the wpcap_partner_client_ip filter). */
+	/** Client address (ClientIp: REMOTE_ADDR, or the forwarded client behind a trusted proxy; filter wpcap_partner_client_ip). */
 	public static function client_ip() {
-		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
-		return (string) apply_filters( 'wpcap_partner_client_ip', $ip );
+		return (string) apply_filters( 'wpcap_partner_client_ip', \PassCaptain\ClientIp::get() );
 	}
 
 	/** Address with the host part removed for the audit log (IPv4 /24, IPv6 /48). */

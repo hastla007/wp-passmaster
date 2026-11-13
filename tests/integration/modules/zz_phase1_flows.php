@@ -232,7 +232,8 @@ $a3 = $buy( '198.51.100.1', 3 );
 $b1 = $buy( '198.51.100.2', 4 );
 check( 'limit applies per real client, not to the whole proxy', ! is_wp_error( $a1 ) && ! is_wp_error( $a2 ) && is_wp_error( $a3 ) && 429 === $a3->get_error_data()['status'] && ! is_wp_error( $b1 ) );
 $keys = array_keys( $GLOBALS['wpcap_test_transients'] );
-check( 'transient keys use a keyed hash, not plain sha256 of the IP', in_array( 'wpcap_checkout_ip_' . Orders::rate_hash( '198.51.100.1' ), $keys, true ) && ! in_array( 'wpcap_checkout_ip_' . hash( 'sha256', '198.51.100.1' ), $keys, true ) && ! in_array( 'wpcap_checkout_ip_' . hash( 'sha256', '203.0.113.10' ), $keys, true ) );
+$plain = array_filter( $keys, static fn( $k ) => false !== strpos( $k, '198.51.100.1' ) || false !== strpos( $k, hash( 'sha256', '198.51.100.1' ) ) || false !== strpos( $k, hash( 'sha256', '203.0.113.10' ) ) );
+check( 'rate-limit keys use a keyed hash, not plain sha256 of the IP', ! $plain && (bool) preg_grep( '/^wpcap_rl_[0-9a-f]{40}$/', $keys ) );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_checkout_ip_limit'], $_SERVER['HTTP_CF_CONNECTING_IP'] );
 remove_filter( 'wpcap_client_ip', $p1f_proxy, 10 );
 if ( null === $p1f_remote ) { unset( $_SERVER['REMOTE_ADDR'] ); } else { $_SERVER['REMOTE_ADDR'] = $p1f_remote; }

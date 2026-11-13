@@ -32,7 +32,11 @@ interface GatewayInterface {
 	 * Verify a provider webhook.
 	 *
 	 * @return array|\WP_Error Normalized event: ['event_id'=>string, 'type'=>'paid'|'failed'|'refunded'|'ignored',
-	 *                         'order_public_id'=>string, 'provider_reference'=>string, 'amount_minor'=>int, 'currency'=>string]
+	 *                         'order_public_id'=>string, 'provider_reference'=>string, 'amount_minor'=>int, 'currency'=>string,
+	 *                         optional 'related_references'=>string[], 'chargeback'=>bool (a "refunded" event caused by a
+	 *                         chargeback/dispute), 'cumulative'=>bool (amount_minor is the provider's running total of
+	 *                         external refunds for provider_reference; only the unbooked rest is booked), 'redeliver'=>bool (answer 503 after applying it, so the provider
+	 *                         delivers again and a follow-up change in the same provider state is applied)]. How each type is applied in each order state: docs/STATE-MACHINES.md.
 	 */
 	public function verify_webhook( \WP_REST_Request $request );
 

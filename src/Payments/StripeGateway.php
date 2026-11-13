@@ -196,6 +196,9 @@ final class StripeGateway implements GatewayInterface {
 
 			case 'charge.refunded':
 				return $this->normalize_refund( $base, $object );
+
+			case 'charge.dispute.funds_withdrawn':
+				return $this->normalize_dispute( $base, $object );
 		}
 		return $base;
 	}
@@ -208,13 +211,8 @@ final class StripeGateway implements GatewayInterface {
 	 */
 	private function normalize_refund( array $base, array $charge ) {
 		$base['provider_reference'] = (string) ( $charge['id'] ?? '' );
-		$public_id = (string) ( $charge['metadata']['wpcap_order'] ?? '' );
-		$intent = self::id_of( $charge['payment_intent'] ?? '' );
-		if ( '' === $public_id && '' !== $intent ) {
-			$pi = $this->api( 'GET', 'payment_intents/' . rawurlencode( $intent ) );
-			if ( is_wp_error( $pi ) ) { return self::retry_error( $pi ); }
-			$public_id = (string) ( $pi['metadata']['wpcap_order'] ?? '' );
-		}
+		$public_id = $this->order_of( $charge );
+		if ( is_wp_error( $public_id ) ) { return $public_id; }
 		if ( '' === $public_id ) { return $base; }
 		$base['order_public_id'] = $public_id;
 		if ( ! empty( $charge['refunded'] ) ) {
@@ -234,6 +232,34 @@ final class StripeGateway implements GatewayInterface {
 		$base['type'] = 'refunded';
 		$base['amount_minor'] = self::from_stripe_amount( (int) ( $latest['amount'] ?? 0 ), $base['currency'] );
 		return $base;
+	}
+
+	/**
+	 * A chargeback whose funds were withdrawn (charge.dispute.funds_withdrawn) has the same consequences as
+	 * an external refund of the disputed amount: reported as "refunded" with the flag `chargeback`.
+	 */
+	private function normalize_dispute( array $base, array $dispute ) {
+		$base['provider_reference'] = (string) ( $dispute['id'] ?? '' );
+		$public_id = $this->order_of( $dispute );
+		if ( is_wp_error( $public_id ) ) { return $public_id; }
+		if ( '' === $public_id ) { return $base; }
+		$base['order_public_id'] = $public_id;
+		$base['type'] = 'refunded';
+		$base['chargeback'] = true;
+		$base['amount_minor'] = self::from_stripe_amount( (int) ( $dispute['amount'] ?? 0 ), $base['currency'] );
+		return $base;
+	}
+
+	/** Public order id of a charge or dispute (metadata, else its PaymentIntent); WP_Error (503) on a lookup failure. */
+	private function order_of( array $object ) {
+		$public_id = (string) ( $object['metadata']['wpcap_order'] ?? '' );
+		$intent = self::id_of( $object['payment_intent'] ?? '' );
+		if ( '' === $public_id && '' !== $intent ) {
+			$pi = $this->api( 'GET', 'payment_intents/' . rawurlencode( $intent ) );
+			if ( is_wp_error( $pi ) ) { return self::retry_error( $pi ); }
+			$public_id = (string) ( $pi['metadata']['wpcap_order'] ?? '' );
+		}
+		return $public_id;
 	}
 
 	/** Stripe API call; returns the decoded body or WP_Error with Stripe's message. */

@@ -32,9 +32,8 @@ add_filter( 'wpcap_checkout_ip_limit', static fn() => PHP_INT_MAX );
 
 global $wpdb;
 $p = $wpdb->prefix;
-// Repeated local runs submit checkouts from 127.0.0.1; reset that IP's checkout rate limit (test install only).
-delete_transient( 'wpcap_checkout_ip_' . hash( 'sha256', '127.0.0.1' ) );
-delete_transient( 'wpcap_checkout_ip_' . hash( 'sha256', '::1' ) );
+// Repeated local runs submit checkouts from 127.0.0.1; reset the rate-limit counters (test install only).
+$wpdb->query( "DELETE FROM {$p}wpcap_rate_limits" );
 $slug = 'a11y-test-event';
 $now = gmdate( 'Y-m-d H:i:s' );
 $event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_events WHERE slug=%s", $slug ) );

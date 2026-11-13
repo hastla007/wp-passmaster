@@ -52,6 +52,23 @@ final class SettingsPage {
 					'guestlist_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)', 'pass-captain' ) ),
 				),
 			),
+			'network' => array(
+				'title' => __( 'Proxy / Client-Adresse', 'pass-captain' ),
+				'tab' => 'general',
+				'fields' => array(
+					'trusted_proxies' => array( 'type' => 'textarea', 'label' => __( 'Vertrauenswürdige Proxys (IP-Adressen oder CIDR-Bereiche)', 'pass-captain' ), 'overridable' => true, 'description' => __( 'Eine Adresse oder ein Bereich je Zeile, z. B. 10.0.0.0/8 oder die Adressbereiche des CDN. Nur wenn die direkte Gegenstelle (REMOTE_ADDR) hier steht, wird der Weiterleitungs-Header ausgewertet; leer = immer REMOTE_ADDR. Ratenlimits und Einwilligungsnachweise verwenden diese Adresse.', 'pass-captain' ) ),
+					'client_ip_header' => array(
+						'type' => 'choice',
+						'label' => __( 'Header mit der Client-Adresse', 'pass-captain' ),
+						'overridable' => true,
+						'options' => array(
+							'x-forwarded-for' => __( 'X-Forwarded-For (rechteste nicht vertrauenswürdige Adresse)', 'pass-captain' ),
+							'forwarded' => __( 'Forwarded (RFC 7239, rechteste nicht vertrauenswürdige Adresse)', 'pass-captain' ),
+							'cf-connecting-ip' => __( 'CF-Connecting-IP (Cloudflare)', 'pass-captain' ),
+						),
+					),
+				),
+			),
 			'scanner' => array(
 				'title' => __( 'Einlass / Scanner-Geräte', 'pass-captain' ),
 				'tab' => 'admission',

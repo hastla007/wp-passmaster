@@ -89,19 +89,13 @@ final class Orders {
 		if ( is_wp_error( $billing ) ) { return $billing; }
 		$billing = $billing && ! Billing::is_empty( $billing ) ? $billing : array();
 
-		// Keep anonymous checkout abuse bounded without retaining raw IP addresses.
-		$ip = self::client_ip();
-		$rate_key = 'wpcap_checkout_' . self::rate_hash( $ip . '|' . strtolower( $email ) );
-		$count = (int) get_transient( $rate_key );
+		// Keep anonymous checkout abuse bounded without retaining raw IP addresses (RateLimit: keyed hashes,
+		// atomic across workers). Per IP+email and per IP alone, so rotating email addresses cannot bypass it.
 		if ( ! $skip_rate_limit ) {
-			// Per IP+email and per IP alone, so rotating email addresses cannot bypass the limit.
-			$ip_key = 'wpcap_checkout_ip_' . self::rate_hash( $ip );
-			$ip_count = (int) get_transient( $ip_key );
-			if ( $count >= 8 || $ip_count >= (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ) ) {
+			$ip = self::client_ip();
+			if ( ! RateLimit::allow( 'checkout|' . $ip . '|' . strtolower( $email ), 8, HOUR_IN_SECONDS ) || ! RateLimit::allow( 'checkout_ip|' . $ip, (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ), HOUR_IN_SECONDS ) ) {
 				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 			}
-			set_transient( $rate_key, $count + 1, HOUR_IN_SECONDS );
-			set_transient( $ip_key, $ip_count + 1, HOUR_IN_SECONDS );
 		}
 
 		$types_table = $wpdb->prefix . 'wpcap_ticket_types';
@@ -425,11 +419,11 @@ final class Orders {
 	}
 
 	/**
-	 * Client IP used for the anonymous checkout rate limit. Defaults to REMOTE_ADDR.
+	 * Client IP used for rate limits and consent records: ClientIp::get() – REMOTE_ADDR, or the forwarded
+	 * client when REMOTE_ADDR is a trusted proxy (settings `trusted_proxies` / `client_ip_header`).
 	 *
-	 * Behind a reverse proxy / CDN (e.g. Cloudflare) REMOTE_ADDR is the proxy, so every buyer would
-	 * share one limit. Sites that trust a proxy header can resolve the real client via the filter
-	 * `wpcap_client_ip` – only when REMOTE_ADDR is the trusted proxy, otherwise the header is forgeable:
+	 * The filter `wpcap_client_ip` can still override the result (custom setups); only resolve a header
+	 * when REMOTE_ADDR is the trusted proxy, otherwise the header is forgeable:
 	 *
 	 *     add_filter( 'wpcap_client_ip', function ( $ip, $server ) {
 	 *         $trusted = array( '203.0.113.10' ); // Proxy addresses.
@@ -439,10 +433,10 @@ final class Orders {
 	 *         return $ip;
 	 *     }, 10, 2 );
 	 *
-	 * Invalid return values fall back to REMOTE_ADDR.
+	 * Invalid return values fall back to the ClientIp result.
 	 */
 	public static function client_ip() {
-		$remote = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
+		$remote = ClientIp::get();
 		$ip = trim( (string) apply_filters( 'wpcap_client_ip', $remote, $_SERVER ) );
 		return false !== filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : $remote;
 	}
@@ -1056,7 +1050,8 @@ final class Orders {
 			}
 			if ( 'db_busy' === $error ) { return self::payment_busy(); }
 			if ( $error ) {
-				$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'needs_review', 'payment_status' => 'paid_unallocated', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+				// Guarded like every order transition (StateMachine); a repeated flag of a needs_review order changes nothing.
+				if ( false === StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'needs_review', array( 'payment_status' => 'paid_unallocated', 'updated_at' => $now ) ) ) { return self::payment_busy(); }
 				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='expired' WHERE order_id=%d AND status='active'", $order_id ) );
 				CapacityCounters::sync_order( $order_id );
 				$wpdb->query( 'COMMIT' );
@@ -1070,7 +1065,7 @@ final class Orders {
 		}
 		// Checked like Orders::create(): after a server-side rollback the remaining statements would
 		// autocommit without the capacity re-check's locks.
-		if ( false === $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'complete', 'payment_status' => 'paid', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) { return self::payment_busy(); }
+		if ( 1 !== StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'complete', array( 'payment_status' => 'paid', 'updated_at' => $now ) ) ) { return self::payment_busy(); }
 		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='converted' WHERE order_id=%d AND status IN ('active','expired','released')", $order_id ) ) ) { return self::payment_busy(); }
 		// Holds leave held_qty, the paid lines enter sold_qty – atomically with the status change.
 		if ( false === CapacityCounters::sync_order( $order_id ) ) { return self::payment_busy(); }
@@ -1123,9 +1118,13 @@ final class Orders {
 	 * step is checked: on an error nothing is changed and a retryable WP_Error is returned, so a
 	 * webhook is redelivered instead of being recorded as processed.
 	 *
+	 * @param int      $order_id            Order.
+	 * @param string   $reason              Audit reason.
+	 * @param string[] $only_payment_status Optional guard: cancel only while the payment status (read under
+	 *                                      the row lock) is one of these; otherwise WP_Error `wpcap_order_state`.
 	 * @return true|\WP_Error
 	 */
-	public static function cancel_order( $order_id, $reason = '' ) {
+	public static function cancel_order( $order_id, $reason = '', array $only_payment_status = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
@@ -1151,6 +1150,11 @@ final class Orders {
 			$wpdb->query( 'COMMIT' );
 			return true;
 		}
+		if ( $only_payment_status && ! in_array( (string) $order->payment_status, $only_payment_status, true ) ) {
+			// E.g. a "payment failed" event that lost the race against the confirmation: nothing to cancel.
+			$wpdb->query( 'COMMIT' );
+			return new \WP_Error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'pass-captain' ), array( 'status' => 409, 'payment_status' => (string) $order->payment_status ) );
+		}
 		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) ) ) {
 			return $busy( $order );
 		}
@@ -1159,7 +1163,7 @@ final class Orders {
 			return $busy( $order );
 		}
 		$revoked = count( $revoked_ids );
-		$updated = $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'cancelled', 'payment_status' => 'cancelled', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+		$updated = StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'cancelled', array( 'payment_status' => 'cancelled', 'updated_at' => $now ) );
 		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) {
 			return $busy( $order );
 		}
@@ -1210,11 +1214,17 @@ final class Orders {
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( ! $order && '' !== (string) $wpdb->last_error ) { return $busy(); }
 		if ( ! $order || 'refunded' === $order->status ) { $wpdb->query( 'COMMIT' ); return true; }
+		if ( ! StateMachine::allowed( 'order', $order->status, 'refunded' ) ) {
+			// Never paid (pending_payment, expired): there is nothing to refund. Final, no retry job.
+			$wpdb->query( 'COMMIT' );
+			Audit::record( 'order_refund_mark_rejected', 'order', $order_id, array( 'status' => (string) $order->status, 'reason' => sanitize_text_field( $reason ) ) );
+			return new \WP_Error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
 		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) ) ) { return $busy(); }
 		$revoked_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' FOR UPDATE", $order_id ) ) );
 		if ( $revoked_ids && false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=%d AND status='valid'", $order_id ) ) ) { return $busy(); }
 		$revoked = count( $revoked_ids );
-		$updated = $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'refunded', 'payment_status' => 'refunded', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+		$updated = StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'refunded', array( 'payment_status' => 'refunded', 'updated_at' => current_time( 'mysql', true ) ) );
 		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		CapacityCounters::sync_order_now( $order_id );
 		self::capacity_released( $order_id, 'refunded', array( 'reason' => (string) $reason ) );
@@ -1517,14 +1527,16 @@ final class Orders {
 		$wpdb->query( $wpdb->prepare( "UPDATE $reservations SET status='expired' WHERE status='active' AND expires_at <= %s", $now ) );
 		foreach ( $lapsed_orders as $lapsed_order_id ) { CapacityCounters::sync_order_now( $lapsed_order_id ); }
 		$candidates = $wpdb->get_col( $wpdb->prepare(
-			"SELECT ord.order_id FROM $orders ord WHERE ord.payment_status='pending' AND NOT EXISTS (SELECT 1 FROM $reservations r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>%s) ORDER BY ord.order_id LIMIT %d",
+			"SELECT ord.order_id FROM $orders ord WHERE ord.payment_status='pending' AND " . StateMachine::source_sql( 'order', 'expired', 'ord.status' ) . ' AND NOT EXISTS'
+			. " (SELECT 1 FROM $reservations r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>%s) ORDER BY ord.order_id LIMIT %d",
 			$now,
 			$limit
 		) );
 		$expired = 0;
 		foreach ( array_map( 'absint', $candidates ) as $order_id ) {
 			$changed = $wpdb->query( $wpdb->prepare(
-				"UPDATE $orders SET status='expired',payment_status='expired',updated_at=%s WHERE order_id=%d AND payment_status='pending' AND NOT EXISTS (SELECT 1 FROM $reservations r WHERE r.order_id=%d AND r.status='active' AND r.expires_at > %s)",
+				"UPDATE $orders SET status='expired',payment_status='expired',updated_at=%s WHERE order_id=%d AND payment_status='pending' AND " . StateMachine::source_sql( 'order', 'expired' ) . ' AND NOT EXISTS'
+				. " (SELECT 1 FROM $reservations r WHERE r.order_id=%d AND r.status='active' AND r.expires_at > %s)",
 				$now,
 				$order_id,
 				$order_id,
@@ -1659,7 +1671,9 @@ final class Orders {
 	/** Job handler (wpcap_process_job): retry of a failed ticket mail (new codes). */
 	public static function handle_job( $handled, $type, $payload = array() ) {
 		if ( 'order_refund_mark_retry' === $type ) {
-			return true === self::mark_refunded( absint( $payload['order_id'] ?? 0 ), (string) ( $payload['reason'] ?? '' ) );
+			$marked = self::mark_refunded( absint( $payload['order_id'] ?? 0 ), (string) ( $payload['reason'] ?? '' ) );
+			// A refused transition is final (never paid): acknowledge instead of retrying into the dead letter.
+			return true === $marked || ( is_wp_error( $marked ) && 'wpcap_order_state' === $marked->get_error_code() );
 		}
 		if ( 'order_cancel_retry' === $type ) {
 			$order = self::get( absint( $payload['order_id'] ?? 0 ) );

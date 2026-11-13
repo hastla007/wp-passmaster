@@ -284,6 +284,12 @@ final class PayPalGateway implements GatewayInterface {
 
 			case 'PAYMENT.CAPTURE.REFUNDED':
 				return self::normalize_refund( $ignored, $resource );
+
+			case 'PAYMENT.CAPTURE.REVERSED':
+				// Chargeback/reversal: the money went back to the buyer like an external refund.
+				$reversed = self::normalize_refund( $ignored, $resource );
+				if ( is_array( $reversed ) && 'refunded' === $reversed['type'] ) { $reversed['chargeback'] = true; }
+				return $reversed;
 		}
 		return $ignored;
 	}

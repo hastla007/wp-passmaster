@@ -106,7 +106,10 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_woocommerce_hold_minutes` | `int $minutes` | Reservierung bei WooCommerce-Checkout. |
 | `wpcap_woocommerce_on_hold_minutes` | `int $minutes` (3 Tage) | Reservierung für WooCommerce-Bestellungen „in Wartestellung“. |
 | `wpcap_max_line_quantity` | `int $limit` (100) | Absolute Obergrenze der Menge je Bestellzeile in `Orders::create()`, geprüft vor dem Sperren (Schutz gegen absurde Mengen); `max_per_order` der Ticketart gilt zusätzlich. |
-| `wpcap_client_ip` | `string $ip` (`REMOTE_ADDR`), `array $server` (`$_SERVER`) | Client-IP für Ratenbegrenzungen (`Orders::client_ip()`). Hinter einem Proxy nur dann einen Header übernehmen, wenn `$ip` der vertrauenswürdige Proxy ist; ungültige Rückgaben fallen auf `REMOTE_ADDR` zurück. |
+| `wpcap_client_ip` | `string $ip` (Ergebnis von `ClientIp::get()`), `array $server` (`$_SERVER`) | Client-IP für Ratenbegrenzungen (`Orders::client_ip()`). Für Proxys genügt in der Regel die Einstellung „Vertrauenswürdige Proxys“ (siehe `docs/SECURITY.md`); dieser Filter bleibt für Sonderfälle. Einen Header nur übernehmen, wenn die direkte Gegenstelle der vertrauenswürdige Proxy ist; ungültige Rückgaben fallen auf das `ClientIp`-Ergebnis zurück. |
+| `wpcap_trusted_proxies` | `string[] $proxies` (Einstellung `trusted_proxies` bzw. Konstante `WPCAP_TRUSTED_PROXIES`) | IP-Adressen/CIDR-Bereiche, deren Weiterleitungs-Header ausgewertet wird (`ClientIp::get()`). Leer = immer `REMOTE_ADDR`. Ungültige Einträge werden ignoriert. |
+| `wpcap_client_ip_header` | `string $header` (`x-forwarded-for`, `forwarded` oder `cf-connecting-ip`) | Header mit der Client-Adresse hinter einem vertrauenswürdigen Proxy. Bei `X-Forwarded-For`/`Forwarded` gilt die rechteste nicht vertrauenswürdige Adresse. |
+| `wpcap_rate_limit_backend` | `string $backend` (`cache` mit persistentem Objekt-Cache, sonst `db`) | Zähler von `RateLimit::allow()`: `cache` (`wp_cache_incr`, nur mit gemeinsamem Redis/Memcached atomar), `db` (Tabelle `wpcap_rate_limits`, atomar) oder `transient` (nicht atomar, nur als Rückfall). |
 | `wpcap_checkout_error_field` | `string $field, WP_Error $error` | Formularfeld (`data.field`), dem ein Checkout-Fehler zugeordnet wird (z. B. `email`, `campaign_code`, `voucher_code`); leer = keinem Feld. |
 | `wpcap_manual_open_orders_per_email` | `int $limit` (2) | Offene, unbezahlte Überweisungsbestellungen (`manual`) je E-Mail-Adresse; darüber lehnt der Checkout mit HTTP 429 ab. |
 | `wpcap_manual_orders_per_client` | `int $limit` (5) | Überweisungsbestellungen je Client-IP innerhalb der Reservierungszeit (mindestens eine Stunde). |
@@ -317,7 +320,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 
 | Hook | Wert, Argumente | Zweck |
 |---|---|---|
-| `wpcap_partner_client_ip` | `string $ip` (`REMOTE_ADDR`) | Client-Adresse für Partner-API-Schlüssel (Proxys hier auflösen). |
+| `wpcap_partner_client_ip` | `string $ip` (`ClientIp::get()`) | Client-Adresse für Partner-API-Schlüssel (vertrauenswürdige Proxys sind bereits aufgelöst). |
 | `wpcap_refuse_mixed_seller_orders` | `bool $refuse` (true), `int $order_id` | Bestellungen ablehnen, die Rechnungen verschiedener Verkäufer bräuchten (Prüfung in `wpcap_order_creating`, Abbruchcode `mixed_sellers`). |
 | `wpcap_reseller_statement_document` | `string $document` (`reseller_invoice`), `object $partner` | Beleg der Vergütung in der Reseller-Abrechnung: `reseller_invoice` (Reseller stellt Rechnung) oder `self_billing` (Gutschrift der Plattform). |
 | `wpcap_report_channel` | `string $channel, string $provider` | Verkaufskanal einer Bestellung im Umsatzbericht (`pos`, `partner`, `woocommerce`, `online`) anhand des Zahlungsanbieters; unbekannte Werte zählen als `online`. |

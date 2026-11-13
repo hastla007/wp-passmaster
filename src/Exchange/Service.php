@@ -32,6 +32,7 @@ use PassCaptain\Orders;
 use PassCaptain\Payments\Registry;
 use PassCaptain\Refunds;
 use PassCaptain\Settings;
+use PassCaptain\StateMachine;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -496,7 +497,7 @@ final class Service {
 			}
 			if ( $pending ) {
 				// Hold lapsed but not cleaned up yet: this request supersedes it.
-				$wpdb->update( self::table(), array( 'status' => self::EXPIRED, 'pending_ticket_id' => null, 'updated_at' => $now ), array( 'exchange_id' => (int) $pending['exchange_id'] ) );
+				$wpdb->update( self::table(), array( 'status' => self::EXPIRED, 'pending_ticket_id' => null, 'updated_at' => $now ), array( 'exchange_id' => (int) $pending['exchange_id'], 'status' => self::PENDING ) );
 				$stale_supplement = (int) $pending['supplementary_order_id'];
 			}
 
@@ -719,8 +720,9 @@ final class Service {
 		$row['updated_at'] = $now;
 		if ( $from_supplement ) {
 			$exchange_id = (int) $row['exchange_id'];
-			$ok = $wpdb->update( self::table(), array( 'new_ticket_id' => $new_id, 'status' => self::COMPLETED, 'pending_ticket_id' => null, 'completed_at' => $now, 'updated_at' => $now ), array( 'exchange_id' => $exchange_id ) );
-			if ( false === $ok ) { throw new \RuntimeException( 'insert_failed' ); }
+			// Guarded transition (StateMachine 'exchange'): a completed or reviewed exchange rolls the issuance back.
+			$ok = StateMachine::transition( 'exchange', self::table(), 'exchange_id', $exchange_id, self::COMPLETED, array( 'new_ticket_id' => $new_id, 'pending_ticket_id' => null, 'completed_at' => $now, 'updated_at' => $now ) );
+			if ( 1 !== (int) $ok ) { throw new \RuntimeException( 'insert_failed' ); }
 		} else {
 			$row['pending_ticket_id'] = null;
 			if ( ! $wpdb->insert( self::table(), $row ) ) { throw new \RuntimeException( 'insert_failed' ); }
@@ -1063,7 +1065,7 @@ final class Service {
 			$old_item = $review ? null : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d AND quantity>0 ORDER BY item_id LIMIT 1 FOR UPDATE", (int) $order->order_id, (int) $exchange['from_type_id'] ) );
 			if ( ! $review && ! $old_item ) { $review = 'order_line_missing'; }
 			if ( $review ) {
-				$wpdb->update( self::table(), array( 'status' => self::REVIEW, 'pending_ticket_id' => null, 'note' => $review, 'updated_at' => current_time( 'mysql', true ) ), array( 'exchange_id' => absint( $exchange_id ) ) );
+				StateMachine::transition( 'exchange', self::table(), 'exchange_id', absint( $exchange_id ), self::REVIEW, array( 'pending_ticket_id' => null, 'note' => $review, 'updated_at' => current_time( 'mysql', true ) ) );
 				$wpdb->query( 'COMMIT' );
 			} else {
 				$type_ids = array( (int) $exchange['from_type_id'], (int) $exchange['to_type_id'] );

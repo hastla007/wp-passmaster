@@ -14,7 +14,8 @@
  *    Gateways that collect money on delivery (cash on delivery, filter
  *    `wpcap_woocommerce_issue_on_completed_gateways`) issue only at "completed".
  * 4. on-hold (e.g. bank transfer): hold is extended.
- * 5. cancelled/failed: hold released, valid tickets revoked.
+ * 5. cancelled: hold released, valid tickets revoked. failed: the same, but only while the order is unpaid
+ *    (a late "failed" never revokes paid tickets). A full refund of a never paid order cancels it.
  * 6. Refunds: every WooCommerce refund is recorded in the Pass Captain refund ledger (refund row,
  *    refunded amount, credit note) when the core supports external refunds; refunded ticket
  *    quantities revoke tickets; a full refund revokes all valid tickets.
@@ -92,7 +93,7 @@ final class OrderAdapter {
 		add_action( 'woocommerce_order_status_completed', array( __CLASS__, 'sync_paid_order' ), 20 );
 		add_action( 'woocommerce_order_status_on-hold', array( __CLASS__, 'sync_on_hold_order' ), 20 );
 		add_action( 'woocommerce_order_status_cancelled', array( __CLASS__, 'sync_cancelled_order' ), 20 );
-		add_action( 'woocommerce_order_status_failed', array( __CLASS__, 'sync_cancelled_order' ), 20 );
+		add_action( 'woocommerce_order_status_failed', array( __CLASS__, 'sync_failed_order' ), 20 );
 		add_action( 'woocommerce_order_refunded', array( __CLASS__, 'sync_refund' ), 20, 2 );
 		add_action( 'wpcap_exchange_refund_external', array( __CLASS__, 'note_exchange_refund' ), 10, 4 );
 		add_action( 'woocommerce_order_status_refunded', array( __CLASS__, 'sync_fully_refunded_order' ), 20 );
@@ -726,6 +727,24 @@ final class OrderAdapter {
 	}
 
 	/**
+	 * A failed payment only ends an order that is still unpaid: a "failed" arriving after the payment was
+	 * confirmed (out of order, or set by hand) keeps the tickets. Use "cancelled" to cancel a paid order.
+	 */
+	public static function sync_failed_order( $wc_order_id ) {
+		$core_id = self::core_order_id( $wc_order_id );
+		if ( ! $core_id ) {
+			return;
+		}
+		$result = Orders::cancel_order( $core_id, 'woocommerce_woocommerce_order_status_failed', array( 'pending', 'expired' ) );
+		if ( is_wp_error( $result ) && 'wpcap_order_state' === $result->get_error_code() ) {
+			$wc_order = wc_get_order( absint( $wc_order_id ) );
+			if ( $wc_order ) {
+				$wc_order->add_order_note( __( 'Pass Captain: Status „Fehlgeschlagen“ für eine bereits bezahlte Bestellung – die Tickets bleiben gültig. Zum Stornieren die Bestellung auf „Storniert“ setzen.', 'pass-captain' ) );
+			}
+		}
+	}
+
+	/**
 	 * Mirrors a WooCommerce refund into Pass Captain. Idempotent per refund.
 	 *
 	 * With core support (Refunds::record_external) the refund goes through the core refund ledger:
@@ -908,6 +927,12 @@ final class OrderAdapter {
 	public static function sync_fully_refunded_order( $wc_order_id ) {
 		$core_id = self::core_order_id( $wc_order_id );
 		if ( ! $core_id ) {
+			return;
+		}
+		$core = Orders::get( $core_id );
+		if ( $core && in_array( (string) $core->payment_status, array( 'pending', 'expired' ), true ) ) {
+			// Refunded before Pass Captain saw a payment: nothing to book, the order is closed like a cancellation.
+			Orders::cancel_order( $core_id, 'woocommerce_refunded_unpaid' );
 			return;
 		}
 		$wc_order = wc_get_order( absint( $wc_order_id ) );

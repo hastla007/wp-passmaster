@@ -11,6 +11,14 @@ Datenbank brauchen getrennte Tabellenpräfixe: `WPCAP_TEST_PREFIX=wpx1_ php test
 Zusätzlich in CI: `node tests/offline-scanner-i18n.js` (Übersetzungskataloge der Offline-PWA) und
 `bash tests/release-guard.sh`.
 
+Die Modultests setzen Ratenlimits zurück, indem sie die Transients leeren. Deshalb läuft `RateLimit` in
+der Suite auf dem Backend `transient` (`WPCAP_TEST_RATE_BACKEND`, Standard `transient`).
+`modules/zz_a186.php` prüft die atomaren Backends `db` und `cache`. Dazu startet der Test parallele
+PHP-Prozesse (`modules/a186/ratelimit_child.php` mit `WPCAP_TEST_RATE_BACKEND=db`) und prüft, dass das
+Limit genau eingehalten wird. Außerdem prüft er die Auswertung der Proxy-Header. `modules/zz_a184.php`
+spielt doppelte und in falscher Reihenfolge eintreffende Zahlungsereignisse für alle Zahlungsadapter
+durch (siehe `docs/STATE-MACHINES.md`).
+
 ## Last- und Nebenläufigkeitstests (`tests/load/`)
 
 ### Ohne Webserver: `tests/load/run.php`

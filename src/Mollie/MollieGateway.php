@@ -227,6 +227,8 @@ final class MollieGateway implements GatewayInterface {
 				// Money pulled back by the bank/card issuer: same consequences as an external refund.
 				$event['event_id'] = 'mollie-' . $id . '-chargeback-' . $chargeback;
 				$event['type'] = 'refunded';
+				$event['chargeback'] = true;
+				$event['cumulative'] = true;
 				$event['amount_minor'] = $chargeback + $external;
 				return $event;
 			}
@@ -234,10 +236,16 @@ final class MollieGateway implements GatewayInterface {
 				// Refund made outside the plugin (Mollie dashboard); cumulative external amount.
 				$event['event_id'] = 'mollie-' . $id . '-refunded-' . $external;
 				$event['type'] = 'refunded';
+				$event['cumulative'] = true;
 				$event['amount_minor'] = $external;
 				return $event;
 			}
 			$event['type'] = 'paid';
+			if ( $order && 'pending' === $order->payment_status && ( $chargeback > 0 || $external > 0 ) ) {
+				// Refund/chargeback seen before the payment was confirmed here (first webhook lost): the payment
+				// is applied first, Mollie is asked to redeliver and the redelivery books the refund.
+				$event['redeliver'] = true;
+			}
 		} elseif ( in_array( $status, array( 'failed', 'canceled', 'expired' ), true ) ) {
 			$event['type'] = 'failed';
 		}

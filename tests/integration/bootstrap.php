@@ -103,6 +103,9 @@ $GLOBALS['wpcap_test_mails'] = array();
 $GLOBALS['wpcap_test_notices'] = array();
 $GLOBALS['wpcap_test_options'] = array( 'woocommerce_hold_stock_minutes' => 60, 'admin_email' => 'admin@example.com' );
 $GLOBALS['wpcap_test_transients'] = array();
+// Module tests reset RateLimit counters by clearing the transients: they run on the transient backend.
+// The atomic database/object-cache backends are tested in modules/zz_a186.php (WPCAP_TEST_RATE_BACKEND=db for workers).
+$GLOBALS['wpcap_test_filters']['wpcap_rate_limit_backend'] = getenv( 'WPCAP_TEST_RATE_BACKEND' ) ?: 'transient';
 $GLOBALS['wpcap_test_actions'] = array();
 
 function __( $t, $d = null ) { return $t; }

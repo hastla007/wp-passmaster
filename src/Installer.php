@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.2';
+	const DB_VERSION = '3.10.3';
 
 	public static function install() {
 		global $wpdb;
@@ -734,6 +734,13 @@ final class Installer {
 				UNIQUE KEY idempotency_key (idempotency_key),
 				KEY due_jobs (status,run_after),
 				KEY job_type (job_type,status)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_rate_limits (
+				rl_key char(40) NOT NULL,
+				hits int(10) unsigned NOT NULL DEFAULT 0,
+				expires_at datetime NOT NULL,
+				PRIMARY KEY  (rl_key),
+				KEY expires_at (expires_at)
 			) ENGINE=InnoDB $charset;",
 		);
 

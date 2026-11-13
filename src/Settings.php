@@ -104,6 +104,9 @@ final class Settings {
 			'device_max_hours'          => 24,
 			'admission_day_cutoff_hour' => 0,
 			'auto_refund_cancelled'     => 0,
+			// Reverse proxies / CDN whose forwarding header is trusted (ClientIp); empty = REMOTE_ADDR only.
+			'trusted_proxies'           => '',
+			'client_ip_header'          => 'x-forwarded-for',
 			// Entry window for ticket types without their own admission rule: 2 h before start until the end.
 			'default_entry_window'      => 1,
 			'entry_opens_before_minutes' => 120,
