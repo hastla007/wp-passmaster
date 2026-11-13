@@ -503,7 +503,7 @@ check( 'A040: a refund stuck without provider reference is flagged for a manual 
 echo "Audit 3: queue workers run nothing without a durable claim (A041)\n";
 $a41_runs = 0;
 $a41_handler = static function ( $handled, $type ) use ( &$a41_runs ) { if ( 'a41_probe' === $type ) { ++$a41_runs; return true; } return $handled; };
-add_filter( 'wp_pass_captain_process_job_v1', $a41_handler, 10, 2 );
+add_filter( 'wpcap_process_job', $a41_handler, 10, 2 );
 PassCaptain\Jobs::enqueue( 'a41-' . uniqid(), 'a41_probe', array(), '2000-01-01 00:00:00' );
 $a41_fail = static function ( $sql ) { return preg_match( "/^UPDATE \w*wpcap_(jobs|message_queue) SET status='(running|sending)'/", $sql ) ? 'UPDATE wpcap_table_that_does_not_exist SET x=1' : $sql; };
 add_filter( 'query', $a41_fail );
@@ -512,7 +512,7 @@ remove_filter( 'query', $a41_fail );
 check( 'A041: a failed job claim runs no handler and leaves the job queued', 0 === $a41_runs && 'queued' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_jobs WHERE job_type='a41_probe'" ) );
 PassCaptain\Jobs::process_due( 5 );
 check( 'A041: the next run claims and runs the job exactly once', 1 === $a41_runs && 'complete' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_jobs WHERE job_type='a41_probe'" ) );
-remove_filter( 'wp_pass_captain_process_job_v1', $a41_handler, 10 );
+remove_filter( 'wpcap_process_job', $a41_handler, 10 );
 PassCaptain\Communications::enqueue( 'a41m-' . uniqid(), 'a41@example.com', 'a41_probe', array( 'subject' => 'A41', 'body' => 'Hallo' ), '2000-01-01 00:00:00' );
 $GLOBALS['wpcap_test_mails'] = array();
 add_filter( 'query', $a41_fail );

@@ -28,7 +28,7 @@ final class Service {
 		add_action( 'wpcap_ticket_code_rotated', array( __CLASS__, 'on_code_rotated' ), 10, 2 );
 		// Wallet links for the new code in the resend/transfer/assignment mails.
 		add_filter( 'wpcap_ticket_code_mail_section', array( __CLASS__, 'code_mail_section' ), 10, 2 );
-		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 		add_action( 'shutdown', array( __CLASS__, 'flush' ), 5 );
 	}
 
@@ -321,7 +321,7 @@ final class Service {
 		$wpdb->update( $wpdb->prefix . 'wpcap_jobs', array( 'status' => 'complete', 'updated_at' => current_time( 'mysql', true ) ), array( 'idempotency_key' => hash( 'sha256', $key ), 'status' => 'queued' ) );
 	}
 
-	/** Filter wp_pass_captain_process_job_v1. */
+	/** Filter wpcap_process_job. */
 	public static function handle_job( $handled, $type, $payload = array() ) {
 		if ( self::JOB !== $type ) { return $handled; }
 		$occurrences = (array) ( $payload['occurrence_ids'] ?? array() );

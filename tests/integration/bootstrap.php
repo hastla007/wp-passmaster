@@ -160,6 +160,9 @@ function wp_specialchars_decode( $s, $q = ENT_NOQUOTES ) { return htmlspecialcha
 function apply_filters( $hook, $value, ...$args ) { if ( array_key_exists( $hook, $GLOBALS['wpcap_test_filters'] ?? array() ) ) { return $GLOBALS['wpcap_test_filters'][ $hook ]; } return wpcap_test_run_hooks( $hook, array_merge( array( $value ), $args ), true ); }
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) { $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][] = array( $callback, $accepted_args ); return true; }
 function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) { return add_action( $hook, $callback, $priority, $accepted_args ); }
+function has_filter( $hook, $callback = false ) { foreach ( $GLOBALS['wpcap_test_hooks'][ $hook ] ?? array() as $cbs ) { if ( $cbs ) { return true; } } return false; }
+function has_action( $hook, $callback = false ) { return has_filter( $hook, $callback ); }
+function apply_filters_deprecated( $hook, $args, $version, $replacement = '', $message = '' ) { $GLOBALS['wpcap_test_deprecated_hooks'][] = array( $hook, $version, $replacement ); return apply_filters( $hook, ...$args ); }
 function remove_filter( $hook, $callback, $priority = 10 ) { foreach ( $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ] ?? array() as $i => $entry ) { if ( $entry[0] === $callback ) { unset( $GLOBALS['wpcap_test_hooks'][ $hook ][ $priority ][ $i ] ); return true; } } return false; }
 function remove_action( $hook, $callback, $priority = 10 ) { return remove_filter( $hook, $callback, $priority ); }
 function remove_all_actions( $hook ) { unset( $GLOBALS['wpcap_test_hooks'][ $hook ] ); }

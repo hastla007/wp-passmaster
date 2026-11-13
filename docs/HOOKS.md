@@ -1,8 +1,27 @@
 # Interne Entwickler-Hooks
 
 Alle `do_action()`- und `apply_filters()`-Aufrufe in `src/` (Stand 2026-11-13), mit Argumenten.
-Hooks mit Suffix `_v1` sind versionierte Verträge für Drittanbieter; die übrigen sind stabile interne
-Erweiterungspunkte. Externe Systeme sollten statt PHP-Hooks die signierten
+**Namensregel (A104):** Alle Hooks beginnen mit `wpcap_`. Ausnahme sind die versionierten
+Integrationsverträge zwischen Plugins mit dem Muster `wp_pass_captain_*_v1` (Gutscheinanbieter,
+Ticketdienst, Check-in-Dienst, Gutschein-Tickets storniert, Wallet-Anbieter, Connectoren und
+Connector-Fehler): andere Plugins rufen sie unter diesem Namen auf, die Versionsnummer gehört zum
+Vertrag, eine neue Fassung bekommt `_v2`. Die übrigen sind stabile interne Erweiterungspunkte.
+
+**Umbenannte Hooks (seit 1.5.0):** Die alten Namen funktionieren weiter – Callbacks darauf laufen nach
+dem neuen Hook und WordPress meldet sie bei aktivem `WP_DEBUG` als veraltet
+(`apply_filters_deprecated`). Bitte auf den neuen Namen umstellen; die Zuordnung steht in
+`PassCaptain\Hooks::RENAMED`.
+
+| Alter Name (veraltet) | Neuer Name |
+|---|---|
+| `wp_pass_captain_process_job_v1` | `wpcap_process_job` |
+| `wp_pass_captain_email_template_v1` | `wpcap_email_template` |
+| `wp_pass_captain_event_card_html` | `wpcap_event_card_html` |
+| `wp_pass_captain_currencies` | `wpcap_currencies` |
+
+Shortcodes gibt es ebenfalls mit Präfix `wpcap_`: `[wpcap_events]`, `[wpcap_scanner]`,
+`[wpcap_calendar]`, `[wpcap_passes]`; die bisherigen `[wp_pass_captain_events]`,
+`[wp_pass_captain_scanner]` und `[wp_pass_captain_calendar]` bleiben gültig. Externe Systeme sollten statt PHP-Hooks die signierten
 [ausgehenden Webhooks](WEBHOOKS.md) verwenden.
 
 Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
@@ -113,9 +132,9 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_mail_test_recipient` | `string $email, WP_User|null $user` | Empfänger der „Testmail senden“-Funktion (Standard: Adresse der angemeldeten Person). |
 | `wpcap_ticket_code_mail_section` | `string $section, int $ticket_id` | Zusatztext je Ticket in Übertragungs-, Zuweisungs- und Neuversand-Mails (z. B. Wallet-Links). |
 | `wpcap_ticket_seat_label` | `string $label, int $ticket_id, array $ticket` | Sitzplatz-/Bereichsbezeichnung für Wallet-Pässe und Druckvorlagen. |
-| `wp_pass_captain_email_template_v1` | `array|null $template, string $template_key, array $payload` | Vorlage für Nachrichten aus `wpcap_message_queue`; Rückgabe `['subject' => …, 'body' => …]`. Erinnerungen nutzen den Schlüssel `wpcap_reminder`. |
-| `wp_pass_captain_event_card_html` | `string $html, object $event, array $types` | HTML einer Event-Karte im Shortcode `[wp_pass_captain_events]` (das Kalender-Modul ergänzt den Anker `id="wpcap-occ-{Termin}"`). |
-| `wp_pass_captain_currencies` | `string[] $currencies` | Wählbare Währungen. |
+| `wpcap_email_template` | `array|null $template, string $template_key, array $payload` | Vorlage für Nachrichten aus `wpcap_message_queue`; Rückgabe `['subject' => …, 'body' => …]`. Erinnerungen nutzen den Schlüssel `wpcap_reminder`. |
+| `wpcap_event_card_html` | `string $html, object $event, array $types` | HTML einer Event-Karte im Shortcode `[wpcap_events]` (alias `[wp_pass_captain_events]`) (das Kalender-Modul ergänzt den Anker `id="wpcap-occ-{Termin}"`). |
+| `wpcap_currencies` | `string[] $currencies` | Wählbare Währungen. |
 | `wpcap_sender_name` | `string $name` | Name in der Kundenkommunikation (Website-Titel, sonst der Hostname). |
 | `wpcap_currency_symbols` | `array $symbols` (ISO-Code → Symbol) | Währungssymbole für die Anzeige; unbekannte Währungen erscheinen als ISO-Code. |
 | `wpcap_order_portal_ticket_html` | `string $html` (`''`), `object $ticket, object $order, string $token` | Zusätzliches HTML je Ticket im Bestellportal (z. B. Umtausch-Formular); der Callback muss selbst escapen. |
@@ -272,7 +291,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 |---|---|---|
 | `wpcap_modules` | `string[] $classes` | Liste der Modulklassen (`src/Modules`). |
 | `wp_pass_captain_connectors_v1` | `ConnectorInterface[] $connectors` | Connectoren registrieren. |
-| `wp_pass_captain_process_job_v1` | `bool $handled, string $job_type, array $payload, int $job_id` | Hintergrundjobs aus `wpcap_jobs` verarbeiten (`true` = erledigt). |
+| `wpcap_process_job` | `bool $handled, string $job_type, array $payload, int $job_id` | Hintergrundjobs aus `wpcap_jobs` verarbeiten (`true` = erledigt). |
 | `wp_pass_captain_voucher_provider_v1` | `ProviderInterface|null $provider, int $version` | Gutschein-Anbieter. `commit()`-Fehler mit Status ≥ 500 oder Code `vcap_temporary_failure` werden über den Job `voucher_commit` wiederholt, alle anderen markieren die bezahlte Bestellung zur Prüfung. Das Angebot (`quote()`) kann `treatment` liefern: `payment` (Mehrzweckgutschein – USt bleibt, Gutschein erscheint als Zahlung auf der Rechnung, Gutschriften umfassen den Gutscheinanteil), `single` (Einzweckgutschein – USt bereits beim Verkauf abgeführt) oder `discount` (Standard – Preisnachlass). |
 | `wp_pass_captain_ticket_service_v1` | `TicketService|null $service, int $version` | Dienst für die Rückrichtung: ein eingelöster Gutschein wird in Tickets umgewandelt (`issue_tickets`, `revoke_tickets`, `get`, `targets`, `options`, `events`); Ziel ist eine feste Ticketart oder eine Veranstaltung mit frei wählbarem Termin. Idempotent pro Schlüssel; Fehler tragen `retryable`. |
 | `wp_pass_captain_checkin_service_v1` | `CheckinService|null $service, int $version` | Check-in-Dienst für einen fremden Scanner (gemeinsamer Scanner): `recognizes`, `preview`, `check_in`; prüft das Recht `wpcap_checkin`. |

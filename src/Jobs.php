@@ -44,7 +44,9 @@ final class Jobs {
 			Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued' );
 			++$processed;
 			$payload = json_decode( $row->payload, true );
-			$handled = apply_filters( 'wp_pass_captain_process_job_v1', false, $row->job_type, is_array( $payload ) ? $payload : array(), (int) $row->job_id );
+			$payload = is_array( $payload ) ? $payload : array();
+			$handled = apply_filters( 'wpcap_process_job', false, $row->job_type, $payload, (int) $row->job_id );
+			$handled = Hooks::legacy_filter( 'wpcap_process_job', $handled, $row->job_type, $payload, (int) $row->job_id );
 			Jobs\TimeBudget::finished( $table, (int) $row->job_id );
 			if ( true === $handled ) {
 				$wpdb->update( $table, array( 'status' => 'complete', 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );

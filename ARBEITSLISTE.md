@@ -230,7 +230,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - src/Admin/Forms.php:135 verschiebt Zeiten in DST-Lücke still
 - [ ] **A103** endroid/bacon mit Strauss/PHP-Scoper präfixieren — _OFFEN_ (TODO L381; Architektur und Wartbarkeit (noch offen))
   - composer.json ohne Strauss/Scoper; TicketPdf.php:67-69 nutzt \BaconQrCode unpräfixiert
-- [ ] **A104** Hook-Präfixe vereinheitlichen, öffentliche Hook-Liste — _OFFEN_ (TODO L382; Architektur und Wartbarkeit (noch offen))
+- [x] **A104** Hook-Präfixe vereinheitlichen, öffentliche Hook-Liste — _OFFEN_ (TODO L382; Architektur und Wartbarkeit (noch offen))
   - src/Jobs.php:42 wp_pass_captain_process_job_v1, Communications.php:51 wp_pass_captain_email_template_v1 neben wpcap_*
 - [x] **A105** Index-Längen > 767 Bytes kürzen oder dokumentieren — _OFFEN_ (TODO L383; Architektur und Wartbarkeit (noch offen))
   - Geprüft 13.11.: einzige Indexspalte über 767 Byte war wallet_registrations.push_token (varchar 200) → Präfixindex (191); zusammengesetzte Indizes bleiben unter 3072 Byte. Test A105 prüft alle Schemata.

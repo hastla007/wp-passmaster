@@ -53,7 +53,9 @@ final class Communications {
 			}
 			Jobs\TimeBudget::claimed( $table, 'message_id', (int) $row->message_id, 'sending', 'queued' );
 			$payload = json_decode( $row->payload, true );
-			$template = apply_filters( 'wp_pass_captain_email_template_v1', null, $row->template_key, is_array( $payload ) ? $payload : array() );
+			$payload  = is_array( $payload ) ? $payload : array();
+			$template = apply_filters( 'wpcap_email_template', null, $row->template_key, $payload );
+			$template = Hooks::legacy_filter( 'wpcap_email_template', $template, $row->template_key, $payload );
 			$template = is_array( $template ) ? $template : ( is_array( $payload ) ? $payload : array() );
 			$subject = sanitize_text_field( $template['subject'] ?? '' );
 			$body = (string) ( $template['body'] ?? '' );

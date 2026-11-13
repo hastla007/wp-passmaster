@@ -36,7 +36,7 @@ final class Plugin {
 			}, 200 );
 		}
 		add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'expire_holds' ) );
-		add_filter( 'wp_pass_captain_process_job_v1', array( Orders::class, 'handle_job' ), 10, 3 );
+		add_filter( 'wpcap_process_job', array( Orders::class, 'handle_job' ), 10, 3 );
 		CapacityCounters::register();
 		add_action( 'wpcap_cleanup_reservations', array( Privacy::class, 'process_deferred' ), 30, 0 );
 		add_action( 'wpcap_cleanup_reservations', array( Refunds::class, 'repair_stuck' ), 40, 0 );
@@ -57,7 +57,9 @@ final class Plugin {
 		OccurrenceCancellation::register();
 		Modules::register_all();
 		add_shortcode( 'wp_pass_captain_events', array( PublicEvents::class, 'render_shortcode' ) );
+		add_shortcode( 'wpcap_events', array( PublicEvents::class, 'render_shortcode' ) );
 		add_shortcode( 'wp_pass_captain_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
+		add_shortcode( 'wpcap_scanner', array( PublicEvents::class, 'render_scanner_shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( PublicEvents::class, 'register_assets' ) );
 	}
 

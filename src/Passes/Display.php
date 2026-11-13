@@ -89,7 +89,7 @@ final class Display {
 		return '' === $valid ? $section : (string) $section . $valid . "\n";
 	}
 
-	/** Filter callback for `wp_pass_captain_event_card_html`. */
+	/** Filter callback for `wpcap_event_card_html`. */
 	public static function event_card( $html, $event = null, $types = array() ) {
 		if ( ! is_string( $html ) || ! $event ) { return $html; }
 		$occurrence_id = (int) ( $event->occurrence_id ?? 0 );

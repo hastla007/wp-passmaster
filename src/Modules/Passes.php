@@ -11,7 +11,7 @@
  *   `wpcap_admission_evaluate`, `wpcap_ticket_allowed_areas`;
  * - offline packages: `wpcap_offline_live_tickets`, `wpcap_offline_package_types`;
  * - display: `wpcap_ticket_seat_label`, `wpcap_ticket_mail`, `wpcap_ticket_code_mail_section`,
- *   `wp_pass_captain_event_card_html`, shortcode [wpcap_passes];
+ *   `wpcap_event_card_html`, shortcode [wpcap_passes];
  * - cancellation: `wpcap_occurrence_cancelled` (priority 5 re-anchors, priority 20 refunds per day).
  *
  * @package PassCaptain
@@ -54,7 +54,7 @@ final class Passes {
 		add_filter( 'wpcap_ticket_seat_label', array( Display::class, 'seat_label' ), 20, 3 );
 		add_filter( 'wpcap_ticket_mail', array( Display::class, 'ticket_mail' ), 20, 3 );
 		add_filter( 'wpcap_ticket_code_mail_section', array( Display::class, 'code_mail_section' ), 20, 2 );
-		add_filter( 'wp_pass_captain_event_card_html', array( Display::class, 'event_card' ), 10, 3 );
+		add_filter( 'wpcap_event_card_html', array( Display::class, 'event_card' ), 10, 3 );
 		if ( function_exists( 'add_shortcode' ) ) { add_shortcode( 'wpcap_passes', array( Display::class, 'shortcode' ) ); }
 		// Cancellation of a linked occurrence.
 		add_action( 'wpcap_occurrence_cancelled', array( Cancellation::class, 'before_core' ), 5, 1 );

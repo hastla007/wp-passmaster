@@ -1605,7 +1605,7 @@ final class Orders {
 		}
 	}
 
-	/** Job handler (wp_pass_captain_process_job_v1): retry of a failed ticket mail (new codes). */
+	/** Job handler (wpcap_process_job): retry of a failed ticket mail (new codes). */
 	public static function handle_job( $handled, $type, $payload = array() ) {
 		if ( 'order_refund_mark_retry' === $type ) {
 			return true === self::mark_refunded( absint( $payload['order_id'] ?? 0 ), (string) ( $payload['reason'] ?? '' ) );

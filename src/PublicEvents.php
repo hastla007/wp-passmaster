@@ -148,7 +148,8 @@ final class PublicEvents {
 				ob_start();
 				include $template;
 				$card_html = ob_get_clean();
-				echo apply_filters( 'wp_pass_captain_event_card_html', $card_html, $event, $types ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
+				$card_html = apply_filters( 'wpcap_event_card_html', $card_html, $event, $types );
+				echo Hooks::legacy_filter( 'wpcap_event_card_html', $card_html, $event, $types ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Template escapes all output; trusted theme/plugin filter can customize markup.
 				?>
 			<?php endforeach; ?>
 		</div>

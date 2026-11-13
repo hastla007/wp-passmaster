@@ -46,7 +46,7 @@ final class Checkout {
 
 	public static function register() {
 		add_action( 'wpcap_order_paid', array( __CLASS__, 'commit' ) );
-		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 4 );
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 4 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'release' ) );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'refund' ), 20, 2 );
 	}
@@ -218,7 +218,7 @@ final class Checkout {
 		return 'wpcap_voucher_amount_changed' === $error->get_error_code() ? self::needs_review( $order_id, $snapshot, $error ) : self::commit_error( $order_id, $snapshot, $error, $final );
 	}
 
-	/** Filter wp_pass_captain_process_job_v1: retries a voucher commit. */
+	/** Filter wpcap_process_job: retries a voucher commit. */
 	public static function handle_job( $handled, $type, $payload = array(), $job_id = 0 ) {
 		if ( self::JOB !== $type && self::REFUND_JOB !== $type ) { return $handled; }
 		global $wpdb;

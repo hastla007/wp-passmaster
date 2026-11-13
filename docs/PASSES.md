@@ -129,7 +129,7 @@ diesem Termin (Modus `once`) oder wenn N aus M ausgeschöpft ist, sonst `valid`.
   bei mehreren Events mit Eventnamen, abgesagte Termine mit „(abgesagt)“. Labels anderer Module
   (Sitzplatz) bleiben vorne erhalten.
 - Ticketmail (`wpcap_ticket_mail`) und Mails mit neuem Code (`wpcap_ticket_code_mail_section`).
-- Eventkarte (`wp_pass_captain_event_card_html`): Termine neben dem Pass; auf Karten enthaltener
+- Eventkarte (`wpcap_event_card_html`): Termine neben dem Pass; auf Karten enthaltener
   Termine der Hinweis „Auch enthalten im Pass „X“ (erhältlich bei … am …)“.
 - Shortcode `[wpcap_passes]`: Liste der Pässe im Verkauf mit Preis, Terminen und Verkaufstermin.
 

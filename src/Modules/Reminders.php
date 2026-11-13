@@ -29,7 +29,7 @@ final class Reminders {
 	public static function register() {
 		add_action( 'wpcap_process_messages', array( __CLASS__, 'schedule_due' ), 1, 0 );
 		add_action( 'wpcap_process_messages', array( __CLASS__, 'purge_stale' ), 5, 0 );
-		add_filter( 'wp_pass_captain_email_template_v1', array( __CLASS__, 'render_template' ), 10, 3 );
+		add_filter( 'wpcap_email_template', array( __CLASS__, 'render_template' ), 10, 3 );
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'purge_stale' ), 20, 0 );
 		add_action( 'wpcap_occurrence_rescheduled', array( __CLASS__, 'purge_stale' ), 20, 0 );
 	}
@@ -137,7 +137,7 @@ final class Reminders {
 		return $cancelled;
 	}
 
-	/** wp_pass_captain_email_template_v1: renders the reminder with the current texts and occurrence data. */
+	/** wpcap_email_template: renders the reminder with the current texts and occurrence data. */
 	public static function render_template( $template, $key = '', $payload = array() ) {
 		if ( self::TEMPLATE !== $key || ! is_array( $payload ) ) { return $template; }
 		global $wpdb;

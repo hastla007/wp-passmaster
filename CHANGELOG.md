@@ -107,6 +107,7 @@
 - Neue No-Show-Liste pro Termin (gültige, nicht eingelassene Tickets) mit CSV-Export (A095).
 - Kundenmails mit eingebautem Standardtext (alle Mail-Typen und Erinnerungen) werden jetzt als HTML-Mail im Layout versendet; die Textversion entspricht wortgleich der bisherigen Textmail. Eigene Vorlagen behalten ihr Format; der neue Filter `wpcap_mail_default_format` schaltet bei Bedarf auf reine Textmails zurück (A101).
 - Ortszeiten, die es wegen der Zeitumstellung nicht gibt (z. B. 28.03.2027 02:30), werden im Termin- und Eventformular mit Hinweis auf die nächste gültige Zeit abgelehnt; doppelte Ortszeiten (z. B. 31.10.2027 02:30) verwenden die erste (Sommerzeit) und zeigen einen Hinweis. Wöchentliche Wiederholungen und der Seriengenerator melden betroffene Termine (A102).
+- Hook-Namen vereinheitlicht: alle internen Hooks heißen `wpcap_*` (`wpcap_process_job`, `wpcap_email_template`, `wpcap_event_card_html`, `wpcap_currencies`); die alten Namen funktionieren weiter und werden als veraltet gemeldet. Nur die versionierten Plugin-Verträge `wp_pass_captain_*_v1` behalten ihren Namen. Shortcodes zusätzlich als `[wpcap_events]`, `[wpcap_scanner]`, `[wpcap_calendar]`; docs/HOOKS.md beschreibt die Namensregel (A104).
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.
