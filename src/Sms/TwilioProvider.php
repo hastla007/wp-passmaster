@@ -49,14 +49,15 @@ final class TwilioProvider implements ProviderInterface {
 		$params = array( 'To' => (string) $to, 'Body' => (string) $body, 'StatusCallback' => self::status_callback_url() );
 		$from = self::sender();
 		if ( 0 === strpos( $from, 'MG' ) ) { $params['MessagingServiceSid'] = $from; } else { $params['From'] = $from; }
-		$response = wp_remote_post( self::API . rawurlencode( $sid ) . '/Messages.json', array(
+		$response = \PassCaptain\OutboundHttp::request( self::API . rawurlencode( $sid ) . '/Messages.json', array(
+			'method' => 'POST',
 			'timeout' => 15,
 			'headers' => array(
 				'Authorization' => 'Basic ' . base64_encode( $sid . ':' . \PassCaptain\Secrets::get( 'twilio_auth_token' ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 				'Content-Type' => 'application/x-www-form-urlencoded',
 			),
 			'body' => http_build_query( $params, '', '&' ),
-		) );
+		), array( 'context' => 'sms_twilio', 'hosts' => array( 'api.twilio.com' ) ) );
 		if ( is_wp_error( $response ) ) {
 			return new \WP_Error( 'wpcap_sms_http', $response->get_error_message() );
 		}

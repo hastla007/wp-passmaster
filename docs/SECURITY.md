@@ -9,6 +9,61 @@
 - Offline-Scanner speichern Codes lokal und können während einer Netzunterbrechung nicht garantieren, dass ein Ticket an einem anderen Gerät unbenutzt geblieben ist.
 - Integrationsadapter werden standardmäßig nicht aktiviert. Externe Zugangsdaten gehören in geschützte WordPress-Konfiguration bzw. Secret-Storage, niemals in Quellcode oder Logs.
 
+## Ausgehende HTTP-Aufrufe (A202)
+
+Alle ausgehenden HTTP-Aufrufe in `src/` laufen über den zentralen Guard `PassCaptain\OutboundHttp`
+(`request()` bzw. `check()` für den rohen HTTP/2-Client von APNs):
+
+| Aufrufer | Ziel | Regel |
+|---|---|---|
+| Webhooks (`Webhooks\Dispatcher`) | konfigurierbare URL | HTTPS, öffentliche Adresse nach DNS, festgelegt; Antwort ≤ 64 KB, 10 s |
+| Fiskal-Anbieter (`Fiscalization\Providers\HttpClient`: fiskaltrust, efsta) | konfigurierbare `base_url` | HTTPS, öffentliche Adresse; einzige Ausnahme die feste lokale efsta-EFR-Adresse `http://127.0.0.1:5618`; Antwort ≤ 512 KB, 15 s |
+| SMS über generischen HTTP-Anbieter (`Sms\HttpProvider`) | konfigurierbarer Endpunkt | HTTPS, öffentliche Adresse; Antwort ≤ 64 KB, 15 s; ein abgelehntes Ziel ist ein dauerhafter Fehler |
+| SMS über Twilio | `api.twilio.com` | fester Host |
+| Google Wallet | `walletobjects.googleapis.com`; `token_uri` des Dienstkontos nur `oauth2.googleapis.com`, `accounts.google.com`, `www.googleapis.com` | feste Hosts |
+| Apple Wallet (APNs, cURL direkt) | `api.push.apple.com`, `api.sandbox.push.apple.com` | feste Hosts, `CURLOPT_RESOLVE`, nur HTTPS, keine Weiterleitung, Antwort ≤ 64 KB |
+| Stripe, PayPal, Mollie | `api.stripe.com`, `api-m.paypal.com`/`api-m.sandbox.paypal.com`, `api.mollie.com` | feste Hosts (die URLs sind nicht konfigurierbar) |
+
+Partner-API und Voucher-Captain-Bridge rufen nichts per HTTP auf (Partner fragen die REST-API ab, die Bridge
+läuft im selben WordPress); der Affiliate-Captain-Adapter ebenso.
+
+Der Guard erzwingt:
+
+- **Nur HTTPS.** HTTP (oder eine private Adresse) nur für exakte Origins `schema://host:port`, die ein
+  Anbieter-Adapter fest mitgibt (efsta lokal) oder die die Site per Filter `wpcap_outbound_http_exceptions`
+  freigibt (z. B. efsta EFR auf einem Kassenrechner im LAN). Keine Platzhalter, keine Benutzerdaten in der URL.
+- **Feste Hosts** für Anbieter-Aufrufe: jeder andere Host wird abgelehnt (`wpcap_http_host_not_allowed`).
+- **Keine internen Ziele.** `localhost`, `*.localhost`, `*.local`, `*.internal`, `*.localdomain`, `*.home.arpa`,
+  einteilige Hostnamen und nicht-kanonische IP-Schreibweisen (`2130706433`, `0x7f.1`, `127.1`) werden abgelehnt.
+  Der Host wird **einmal** aufgelöst (A und AAAA); **jede** Adresse muss öffentlich sein. Gesperrt sind u. a.
+  0/8, 10/8, 100.64/10, 127/8, 169.254/16 (inkl. Metadaten 169.254.169.254), 172.16/12, 192.0.0/24,
+  192.168/16, 198.18/15, Dokumentationsnetze, Multicast, 240/4, 168.63.129.16 (Azure) sowie ::, ::1,
+  fc00::/7 (inkl. AWS-IMDS fd00:ec2::254), fe80::/10, fec0::/10, ff00::/8, 2001::/23, 2001:db8::/32; in
+  IPv4-mapped (`::ffff:a.b.c.d`), NAT64 (`64:ff9b::/96`) und 6to4 (`2002::/16`) wird die eingebettete
+  IPv4-Adresse geprüft.
+- **DNS-Rebinding:** Die Verbindung wird über `CURLOPT_RESOLVE` (Action `http_api_curl`) auf die geprüfte
+  Adresse festgelegt; eine zweite, andere DNS-Antwort wird nie verwendet. Ohne cURL-Transport lehnt der Guard
+  ab (`wpcap_http_unpinned`, abschaltbar mit `wpcap_outbound_allow_unpinned` – nicht empfohlen). Zusätzlich
+  bleibt `reject_unsafe_urls` (WordPress-eigene Prüfung) aktiv.
+- **Keine Weiterleitungen** (`redirection` 0, `CURLOPT_FOLLOWLOCATION` aus); eine 3xx-Antwort ist ein Fehler
+  `wpcap_http_redirect`. Ein Aufrufer kann bis zu drei Weiterleitungen erlauben; jedes Ziel wird dann erneut
+  vollständig geprüft, bei Origin-Wechsel entfallen Authorization- und Schlüssel-Header.
+- **Zeitlimits:** Standard 10 s, höchstens 30 s; Verbindungsaufbau höchstens 5 s.
+- **Antwortgröße:** Standard 1 MB (`limit_response_size`), je Aufrufer kleiner; größere Antworten ergeben
+  `wpcap_http_too_large`.
+- **Schwärzung:** Fehlermeldungen (auch im Webhook-Zustellprotokoll und in SMS-Fehlern) enthalten keine Werte
+  von Authorization-, Cookie-, Schlüssel-, Token- oder Signatur-Headern, keine `Bearer`/`Basic`-Zugangsdaten,
+  keine Benutzerdaten in URLs und keine geheimen Query-Parameter (`key`, `token`, `secret`, `password`,
+  `signature` …). `OutboundHttp::redact()` und `redact_headers()` stehen für eigene Logs bereit.
+- Abgelehnte Anfragen lösen die Action `wpcap_outbound_http_blocked` (Code, geschwärzte URL, Kontext) aus.
+- Der Server muss die Zielhosts selbst auflösen können (auch hinter einem ausgehenden Proxy, `WP_PROXY_HOST`);
+  ist ein Host nicht auflösbar, lehnt der Guard ab (`wpcap_http_dns`). Für Split-Horizon-DNS liefert der Filter
+  `wpcap_outbound_resolve` die Adressen.
+
+Getestet in `tests/integration/modules/zz_a202.php`: DNS über `wpcap_outbound_resolve`, Transport über
+`pre_http_request`/HTTP-Stubs, jeder Aufrufer, Rebinding (zweite DNS-Antwort privat), Weiterleitungen,
+Größen- und Zeitlimits, Schwärzung.
+
 ## Ratenlimits hinter Proxys und mit mehreren Workern
 
 **Zähler (`PassCaptain\RateLimit`).** Es gilt ein festes Zeitfenster je Bucket. Jeder Aufruf zählt;

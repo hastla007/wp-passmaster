@@ -23,7 +23,11 @@ $GLOBALS['wpcap_test_http_requests'] = array();
 if ( ! function_exists( 'wp_remote_request' ) ) {
 	function wp_remote_request( $url, $args = array() ) {
 		$method = strtoupper( $args['method'] ?? 'GET' );
-		$GLOBALS['wpcap_test_http_requests'][] = array( 'method' => $method, 'url' => $url, 'headers' => $args['headers'] ?? array(), 'body' => $args['body'] ?? '', 'timeout' => $args['timeout'] ?? null );
+		$GLOBALS['wpcap_test_http_requests'][] = array( 'method' => $method, 'url' => $url, 'headers' => $args['headers'] ?? array(), 'body' => $args['body'] ?? '', 'timeout' => $args['timeout'] ?? null, 'args' => $args );
+		// Like WP_Http: pre_http_request short-circuits, http_api_curl sees the cURL handle and the arguments.
+		$pre = apply_filters( 'pre_http_request', false, $args, $url );
+		if ( false !== $pre ) { return $pre; }
+		if ( function_exists( 'curl_init' ) && has_action( 'http_api_curl' ) ) { $handle = curl_init(); do_action( 'http_api_curl', $handle, $args, $url ); curl_close( $handle ); }
 		foreach ( $GLOBALS['wpcap_test_http_queue'] as $i => $entry ) {
 			if ( empty( $entry['match'] ) || false !== strpos( $url, $entry['match'] ) ) {
 				array_splice( $GLOBALS['wpcap_test_http_queue'], $i, 1 );
@@ -40,6 +44,10 @@ if ( ! function_exists( 'wp_remote_retrieve_body' ) ) { function wp_remote_retri
 if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? (int) ( $r['response']['code'] ?? 0 ) : ''; } }
 if ( ! function_exists( 'wp_remote_retrieve_header' ) ) { function wp_remote_retrieve_header( $r, $h ) { foreach ( (array) ( $r['headers'] ?? array() ) as $k => $v ) { if ( strtolower( $k ) === strtolower( $h ) ) { return $v; } } return ''; } }
 if ( ! function_exists( 'delete_transient' ) ) { function delete_transient( $k ) { unset( $GLOBALS['wpcap_test_transients'][ $k ] ); return true; } }
+if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); } }
+if ( ! function_exists( 'untrailingslashit' ) ) { function untrailingslashit( $s ) { return rtrim( (string) $s, '/\\' ); } }
+// DNS for OutboundHttp: every test host resolves to a public address unless a test sets $GLOBALS['wpcap_test_dns'][ $host ].
+add_filter( 'wpcap_outbound_resolve', static function ( $ips, $host ) { return $ips ?? ( $GLOBALS['wpcap_test_dns'][ $host ] ?? array( '93.184.216.34' ) ); }, 10, 2 );
 
 if ( ! class_exists( 'WP_REST_Request' ) ) {
 	class WP_REST_Request implements ArrayAccess {

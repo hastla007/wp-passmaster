@@ -85,13 +85,14 @@ final class Dispatcher {
 		return \PassCaptain\Payments\StripeGateway::signature_valid( $body, $header, $secret, $now );
 	}
 
-	/** Only absolute https URLs to public hosts. */
+	/**
+	 * Only absolute https URLs to public hosts (form check without DNS; every delivery is checked
+	 * again with DNS and pinned by OutboundHttp).
+	 */
 	public static function valid_url( $url ) {
 		$url = trim( (string) $url );
 		if ( ! preg_match( '~^https://[^\s/?#]+~i', $url ) || false !== strpos( $url, '@' ) ) { return false; }
-		$host = strtolower( (string) parse_url( $url, PHP_URL_HOST ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url
-		if ( '' === $host || 'localhost' === $host || preg_match( '/\.(local|localhost|internal)$/', $host ) ) { return false; }
-		if ( filter_var( trim( $host, '[]' ), FILTER_VALIDATE_IP ) && ! filter_var( trim( $host, '[]' ), FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) { return false; }
+		if ( is_wp_error( \PassCaptain\OutboundHttp::check( $url, array( 'context' => 'webhook', 'resolve' => false ) ) ) ) { return false; }
 		return function_exists( 'wp_http_validate_url' ) ? false !== wp_http_validate_url( $url ) : true;
 	}
 
@@ -229,8 +230,8 @@ final class Dispatcher {
 		}
 		$timestamp = time();
 		$args = array(
+			'method' => 'POST',
 			'timeout' => 10,
-			'redirection' => 0,
 			'headers' => array(
 				'Content-Type' => 'application/json',
 				'User-Agent' => 'Pass-Captain-Webhooks/' . self::API_VERSION,
@@ -241,7 +242,8 @@ final class Dispatcher {
 			),
 			'body' => $row->payload,
 		);
-		$response = function_exists( 'wp_safe_remote_post' ) ? wp_safe_remote_post( $sub->url, $args ) : wp_remote_post( $sub->url, $args );
+		// HTTPS, public address checked after DNS and pinned, no redirects, 64 KB response (A202).
+		$response = \PassCaptain\OutboundHttp::request( $sub->url, $args, array( 'context' => 'webhook', 'max_bytes' => 65536 ) );
 		$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
 		$attempts = (int) $row->attempts + 1;
 		$now = current_time( 'mysql', true );
@@ -252,7 +254,7 @@ final class Dispatcher {
 			$wpdb->update( self::t( 'subscriptions' ), array( 'consecutive_failures' => 0, 'last_success_at' => $now ), array( 'subscription_id' => (int) $sub->subscription_id ) );
 			return;
 		}
-		$error = is_wp_error( $response ) ? mb_substr( sanitize_text_field( $response->get_error_message() ), 0, 190 ) : 'HTTP ' . $code;
+		$error = is_wp_error( $response ) ? mb_substr( sanitize_text_field( \PassCaptain\OutboundHttp::redact( $response->get_error_message(), array( $sub->secret ) ) ), 0, 190 ) : 'HTTP ' . $code;
 		$final = $attempts >= self::max_attempts();
 		$update_row = array( 'status' => $final ? 'failed' : 'pending', 'attempts' => $attempts, 'response_code' => $code, 'last_error' => $error, 'locked_at' => null, 'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + self::backoff( $attempts ) ), 'updated_at' => $now );
 		if ( $final && $had_pii ) { $update_row['payload'] = $stripped; $update_row['pii_purged'] = 1; }

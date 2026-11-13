@@ -56,10 +56,12 @@ final class HttpProvider implements ProviderInterface {
 		$secret = \PassCaptain\Secrets::get( 'sms_http_secret' );
 		$header = preg_replace( '/[^A-Za-z0-9\-]/', '', $c['header'] );
 		if ( '' !== $secret && '' !== $header ) { $headers[ $header ] = $secret; }
-		$args = array( 'timeout' => 15, 'redirection' => 0, 'headers' => $headers, 'body' => self::render_body( $c['template'], $c['content_type'], array( 'to' => $to, 'body' => $body, 'reference' => $reference ) ) );
-		$response = function_exists( 'wp_safe_remote_post' ) ? wp_safe_remote_post( $c['endpoint'], $args ) : wp_remote_post( $c['endpoint'], $args );
+		$args = array( 'method' => 'POST', 'timeout' => 15, 'headers' => $headers, 'body' => self::render_body( $c['template'], $c['content_type'], array( 'to' => $to, 'body' => $body, 'reference' => $reference ) ) );
+		// Configurable endpoint: HTTPS, public address after DNS (pinned), no redirects (A202).
+		$response = \PassCaptain\OutboundHttp::request( $c['endpoint'], $args, array( 'context' => 'sms_http', 'max_bytes' => 65536 ) );
 		if ( is_wp_error( $response ) ) {
-			return new \WP_Error( 'wpcap_sms_http', $response->get_error_message() );
+			// The guard already redacted the auth header value; refused targets are permanent (DNS/transport errors are retried).
+			return new \WP_Error( 'wpcap_sms_http', \PassCaptain\OutboundHttp::redact( $response->get_error_message(), array( $secret ) ), array( 'permanent' => in_array( $response->get_error_code(), array( 'wpcap_http_url_invalid', 'wpcap_http_insecure', 'wpcap_http_host_blocked', 'wpcap_http_host_not_allowed', 'wpcap_http_unpinned', 'wpcap_http_redirect' ), true ) ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 ) {

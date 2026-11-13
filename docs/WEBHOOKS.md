@@ -8,7 +8,7 @@ Pass Captain kann Ereignisse als signierte HTTP-POST-Anfragen an externe Systeme
 
 | Feld | Beschreibung |
 |---|---|
-| URL | Nur `https://` zu öffentlichen Hosts (kein `localhost`, keine privaten IP-Adressen, keine Zugangsdaten in der URL). Zustellung über `wp_safe_remote_post`, ohne Weiterleitungen, Timeout 10 s. |
+| URL | Nur `https://` zu öffentlichen Hosts (kein `localhost`, keine privaten IP-Adressen, keine Zugangsdaten in der URL). Zustellung über den Ausgangs-Guard `OutboundHttp` ([SECURITY.md](SECURITY.md#ausgehende-http-aufrufe-a202)): bei jeder Zustellung erneute DNS-Prüfung (alle Adressen öffentlich, auch IPv6), Verbindung auf die geprüfte Adresse festgelegt (DNS-Rebinding), ohne Weiterleitungen, Timeout 10 s, Antwort höchstens 64 KB; Fehlertexte im Protokoll ohne Geheimnisse. |
 | Ereignisse | Auswahl aus der Liste unten. |
 | Secret | Pro Abonnement erzeugt (`whsec_…`, 48 Hex-Zeichen), im Admin anzeigbar und erneuerbar („Secret erneuern“). |
 | Personenbezogene Daten | Standard: aus. Nur wenn aktiviert, enthalten Payloads die unten als *PII (opt-in)* markierten Felder. |

@@ -8,6 +8,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class EfstaEfrAdapter implements AdapterInterface {
 	const ID = 'efsta_efr';
+	/** Fixed endpoint of a local efsta EFR (plain HTTP on loopback): the only OutboundHttp exception. */
+	const LOCAL_EFR = 'http://127.0.0.1:5618';
 	const COUNTRIES = array( 'AT', 'BE', 'CZ', 'DE', 'DK', 'ES', 'FR', 'HR', 'HU', 'IT', 'LT', 'PL', 'PT', 'SE', 'SI', 'SK' );
 	public function id() { return self::ID; }
 	public function interface_version() { return AdapterInterface::VERSION; }
@@ -18,7 +20,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		$auth = $this->authorization( $configuration, $seller );
 		if ( is_wp_error( $auth ) ) { return $auth; }
 		$headers = $auth ? array( 'Authorization' => 'Bearer ' . $auth ) : array();
-		$response = HttpClient::request( HttpClient::endpoint( $configuration, 'http://127.0.0.1:5618', 'state' ), 'GET', $headers );
+		$response = self::http( HttpClient::endpoint( $configuration, self::LOCAL_EFR, 'state' ), 'GET', $headers );
 		if ( is_wp_error( $response ) ) { return $response; }
 		if ( 200 !== $response['status'] ) { return new \WP_Error( 'efsta_health_failed', __( 'efsta EFR-Verbindungstest wurde abgelehnt.', 'pass-captain' ) ); }
 		return array( 'ok' => true );
@@ -33,8 +35,8 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		$date = gmdate( 'Y-m-d', strtotime( (string) ( $document['created_at'] ?? 'now' ) ) );
 		$tn = absint( $document['document_id'] ?? 0 );
 		$query = http_build_query( array( 'rn' => $rn, 'd' => $date, 'tn' => $tn, '_' => 'Tra', 'limit' => '5rows5000ms' ) );
-		$url = HttpClient::endpoint( $configuration, 'http://127.0.0.1:5618', 'find?' . $query );
-		$response = HttpClient::request( $url, 'GET', $headers );
+		$url = HttpClient::endpoint( $configuration, self::LOCAL_EFR, 'find?' . $query );
+		$response = self::http( $url, 'GET', $headers );
 		if ( is_wp_error( $response ) ) { return $response; }
 		if ( 200 !== $response['status'] ) { return new \WP_Error( 'efsta_status_unknown', __( 'efsta-Journalstatus konnte nicht sicher abgefragt werden.', 'pass-captain' ) ); }
 		$matches = $this->transactions( $response['data'] );
@@ -101,7 +103,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		if ( '' !== $tax_id ) { $esr['TaxId'] = $tax_id; }
 		$headers = array( 'Accept' => 'application/json' );
 		if ( $auth ) { $headers['Authorization'] = 'Bearer ' . $auth; }
-		$response = HttpClient::request( HttpClient::endpoint( $configuration, 'http://127.0.0.1:5618', 'register' ), 'POST', $headers, array( 'Tra' => array( 'ESR' => $esr ) ) );
+		$response = self::http( HttpClient::endpoint( $configuration, self::LOCAL_EFR, 'register' ), 'POST', $headers, array( 'Tra' => array( 'ESR' => $esr ) ) );
 		if ( is_wp_error( $response ) ) { return $response; }
 		if ( ! in_array( $response['status'], array( 200, 201 ), true ) ) { return new \WP_Error( 'efsta_submit_failed', __( 'efsta hat den Beleg nicht bestätigt.', 'pass-captain' ) ); }
 		$data = $response['data'];
@@ -123,11 +125,16 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		$base = untrailingslashit( (string) ( $configuration['base_url'] ?? '' ) );
 		$body = http_build_query( array( 'grant_type' => 'client_credentials', 'TaxId' => $tax_id, 'TL' => (string) ( $configuration['transaction_location'] ?? '001' ), 'TT' => (string) ( $configuration['transaction_terminal'] ?? '1' ) ) );
 		$headers = array( 'Content-Type' => 'application/x-www-form-urlencoded', 'Authorization' => 'Basic ' . base64_encode( $key . ':' . $secret ) );
-		$token = HttpClient::request( $base . '/auth/token', 'POST', $headers, $body );
+		$token = self::http( $base . '/auth/token', 'POST', $headers, $body );
 		if ( is_wp_error( $token ) || ! in_array( (int) ( $token['status'] ?? 0 ), array( 200, 201 ), true ) || empty( $token['data']['access_token'] ) ) {
 			return new \WP_Error( 'efsta_auth_failed', __( 'efsta Cloud-Zugang konnte nicht authentifiziert werden.', 'pass-captain' ) );
 		}
 		return sanitize_text_field( (string) $token['data']['access_token'] );
+	}
+
+	/** HttpClient::request() with the fixed local EFR origin as the only HTTP/loopback exception. */
+	private static function http( $url, $method, array $headers = array(), $body = null ) {
+		return HttpClient::request( $url, $method, $headers, $body, array( 'exceptions' => array( self::LOCAL_EFR ) ) );
 	}
 
 	private function transactions( array $data ) {

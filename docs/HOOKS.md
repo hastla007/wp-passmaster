@@ -355,6 +355,11 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_message_batch_size` | `int $size` (500) | Nachrichten aus der Queue je Lauf von `wpcap_process_messages`. |
 | `wpcap_waitlist_process_delay` | `int $seconds` (60) | Verzögerung, bevor freigewordene Plätze der Warteliste angeboten werden (mehrere Freigaben in einem Lauf). |
 | `wpcap_health_thresholds` | `array $thresholds` | Schwellwerte der Website-Zustand-Prüfungen (A164): `cron_late_minutes` (15), `cron_critical_minutes` (60), `backlog_items` (200), `backlog_age_minutes` (30), `backlog_critical_minutes` (120), `dead_letters` (1), `dead_letters_critical` (25), `mail_window_hours` (24), `mail_failures` (1), `mail_failures_critical` (10), `sms_failures` (1), `sms_failures_critical` (10), `payment_webhook_hours` (48). `0` schaltet eine Anzahl-Schwelle ab. Siehe [OPERATIONS.md](OPERATIONS.md#betriebsüberwachung-website-zustand). |
+| `wpcap_outbound_http_exceptions` | `string[] $origins` ([]), `string $context` | Zusätzliche Ausnahmen des Ausgangs-Guards (`OutboundHttp`): exakte Origins `schema://host:port`, für die HTTP bzw. eine private Adresse erlaubt ist (z. B. efsta EFR auf einem Kassenrechner im LAN, Kontext `fiscal`). Keine Platzhalter. Siehe [SECURITY.md](SECURITY.md#ausgehende-http-aufrufe-a202). |
+| `wpcap_outbound_resolve` | `string[]|null $ips` (null = System-DNS), `string $host` | Ersetzt die DNS-Auflösung des Guards (Tests, Split-Horizon). Alle gelieferten Adressen müssen öffentlich sein; verbunden wird mit der ersten geprüften Adresse. |
+| `wpcap_outbound_allow_unpinned` | `bool $allow` (false), `string $context` | Erlaubt Anfragen ohne cURL-Transport, bei denen die geprüfte Adresse nicht festgelegt werden kann (Schutz gegen DNS-Rebinding entfällt). Nicht empfohlen. |
+| `wpcap_outbound_can_pin` | `bool $can_pin` (cURL mit `CURLOPT_RESOLVE` vorhanden) | Ob der Transport die geprüfte Adresse festlegen kann (Diagnose/Tests). |
+| `wpcap_outbound_http_blocked` (Action) | `string $code, string $url` (geschwärzt), `string $context` | Der Guard hat eine ausgehende Anfrage abgelehnt (`wpcap_http_insecure`, `wpcap_http_host_blocked`, `wpcap_http_host_not_allowed`, `wpcap_http_dns`, `wpcap_http_url_invalid`, `wpcap_http_unpinned`); für Logs/Monitoring. |
 
 ## Cron-Hooks
 

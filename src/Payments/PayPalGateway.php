@@ -350,7 +350,8 @@ final class PayPalGateway implements GatewayInterface {
 		$cache_key = 'wpcap_paypal_token_' . substr( hash( 'sha256', self::base() . '|' . $client_id . '|' . $secret ), 0, 20 );
 		$cached = $force ? false : get_transient( $cache_key );
 		if ( is_string( $cached ) && '' !== $cached ) { return $cached; }
-		$response = wp_remote_post( self::base() . '/v1/oauth2/token', array(
+		$response = \PassCaptain\OutboundHttp::request( self::base() . '/v1/oauth2/token', array(
+			'method' => 'POST',
 			'timeout' => 15,
 			'headers' => array(
 				'Authorization' => 'Basic ' . base64_encode( $client_id . ':' . $secret ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
@@ -358,7 +359,7 @@ final class PayPalGateway implements GatewayInterface {
 				'Accept' => 'application/json',
 			),
 			'body' => 'grant_type=client_credentials',
-		) );
+		), self::http_policy() );
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
 			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), $response->get_error_message() ) );
@@ -390,10 +391,8 @@ final class PayPalGateway implements GatewayInterface {
 		if ( '' !== $request_id ) { $args['headers']['PayPal-Request-Id'] = substr( $request_id, 0, 108 ); }
 		if ( null !== $body ) {
 			$args['body'] = is_string( $body ) ? $body : wp_json_encode( $body );
-			$response = wp_remote_post( self::base() . $path, $args );
-		} else {
-			$response = wp_remote_get( self::base() . $path, $args );
 		}
+		$response = \PassCaptain\OutboundHttp::request( self::base() . $path, $args, self::http_policy() );
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
 			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), $response->get_error_message() ) );
@@ -412,6 +411,11 @@ final class PayPalGateway implements GatewayInterface {
 			return new \WP_Error( 'wpcap_paypal_api', sprintf( __( 'PayPal-Fehler: %s', 'pass-captain' ), trim( $issue . ' ' . $message ) ), array( 'status' => $code, 'issue' => $issue ) );
 		}
 		return $decoded;
+	}
+
+	/** OutboundHttp policy: the two fixed PayPal API hosts. */
+	private static function http_policy() {
+		return array( 'context' => 'paypal', 'hosts' => array( 'api-m.paypal.com', 'api-m.sandbox.paypal.com' ) );
 	}
 
 	private static function base() {

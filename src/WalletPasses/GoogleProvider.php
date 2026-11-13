@@ -12,6 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 class GoogleProvider implements WalletProvider {
 	const API = 'https://walletobjects.googleapis.com/walletobjects/v1/';
+	/** Hosts a service account token_uri may point to (OutboundHttp policy). */
+	const TOKEN_HOSTS = array( 'oauth2.googleapis.com', 'accounts.google.com', 'www.googleapis.com' );
 	const SCOPE = 'https://www.googleapis.com/auth/wallet_object.issuer';
 	const SAVE_URL = 'https://pay.google.com/gp/v/save/';
 
@@ -128,7 +130,8 @@ class GoogleProvider implements WalletProvider {
 		if ( is_wp_error( $account ) ) { return ''; }
 		$now = time();
 		$assertion = Jwt::sign( array( 'iss' => $account['client_email'], 'scope' => self::SCOPE, 'aud' => $account['token_uri'], 'iat' => $now, 'exp' => $now + 3600 ), $account['private_key'] );
-		$res = wp_remote_post( $account['token_uri'], array( 'timeout' => 15, 'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ), 'body' => http_build_query( array( 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer', 'assertion' => $assertion ) ) ) );
+		// token_uri comes from the uploaded service account JSON: only Google's token endpoints (A202).
+		$res = \PassCaptain\OutboundHttp::request( $account['token_uri'], array( 'method' => 'POST', 'timeout' => 15, 'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ), 'body' => http_build_query( array( 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer', 'assertion' => $assertion ) ) ), array( 'context' => 'wallet_google', 'hosts' => self::TOKEN_HOSTS, 'max_bytes' => 65536 ) );
 		if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) { return ''; }
 		$data = json_decode( wp_remote_retrieve_body( $res ), true );
 		$token = is_array( $data ) ? (string) ( $data['access_token'] ?? '' ) : '';
@@ -140,7 +143,7 @@ class GoogleProvider implements WalletProvider {
 	public function api( $method, $path, array $body ) {
 		$token = $this->access_token();
 		if ( '' === $token ) { return array( 'code' => 0, 'body' => null ); }
-		$res = wp_remote_request( self::API . $path, array( 'method' => $method, 'timeout' => 15, 'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ), 'body' => wp_json_encode( $body ) ) );
+		$res = \PassCaptain\OutboundHttp::request( self::API . $path, array( 'method' => $method, 'timeout' => 15, 'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ), 'body' => wp_json_encode( $body ) ), array( 'context' => 'wallet_google', 'hosts' => array( 'walletobjects.googleapis.com' ) ) );
 		if ( is_wp_error( $res ) ) { return array( 'code' => 0, 'body' => null ); }
 		$code = (int) wp_remote_retrieve_response_code( $res );
 		if ( 401 === $code ) { delete_transient( 'wpcap_wallet_google_token' ); }

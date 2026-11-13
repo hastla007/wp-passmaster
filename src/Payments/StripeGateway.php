@@ -277,10 +277,8 @@ final class StripeGateway implements GatewayInterface {
 			$args['headers']['Content-Type'] = 'application/x-www-form-urlencoded';
 			$args['body'] = http_build_query( $params, '', '&' );
 			if ( '' !== $idempotency_key ) { $args['headers']['Idempotency-Key'] = substr( $idempotency_key, 0, 255 ); }
-			$response = wp_remote_post( self::API . $path, $args );
-		} else {
-			$response = wp_remote_get( self::API . $path, $args );
 		}
+		$response = \PassCaptain\OutboundHttp::request( self::API . $path, $args, array( 'context' => 'stripe', 'hosts' => array( 'api.stripe.com' ) ) );
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
 			return new \WP_Error( 'wpcap_stripe_http', sprintf( __( 'Stripe ist nicht erreichbar: %s', 'pass-captain' ), $response->get_error_message() ) );

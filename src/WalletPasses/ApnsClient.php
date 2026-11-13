@@ -11,8 +11,21 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 class ApnsClient {
 	/** @return int HTTP status (0 = transport error). */
+	/** The only APNs hosts (production, sandbox). */
+	const HOSTS = array( 'api.push.apple.com', 'api.sandbox.push.apple.com' );
+	/** Response size limit (APNs answers with a small JSON reason). */
+	const MAX_BYTES = 65536;
+
+	/** CURLOPT_RESOLVE entries of the checked target (OutboundHttp), set by send(). */
+	protected $pin = array();
+
 	public function send( $push_token, $topic, array $credentials, $host = 'https://api.push.apple.com' ) {
 		$url = rtrim( $host, '/' ) . '/3/device/' . rawurlencode( $push_token );
+		// Raw cURL (HTTP/2 with client certificate) still goes through the outbound guard (A202):
+		// fixed Apple hosts, HTTPS, public address after DNS, pinned below.
+		$target = \PassCaptain\OutboundHttp::check( $url, array( 'context' => 'wallet_apns', 'hosts' => self::HOSTS ) );
+		if ( is_wp_error( $target ) ) { return 0; }
+		$this->pin = $target['pin'];
 		$result = $this->request( $url, array( 'apns-topic: ' . $topic, 'apns-priority: 10', 'content-type: application/json' ), '{}', $credentials );
 		return (int) ( $result['status'] ?? 0 );
 	}
@@ -33,6 +46,11 @@ class ApnsClient {
 			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_TIMEOUT => 10,
+			CURLOPT_CONNECTTIMEOUT => 5,
+			CURLOPT_FOLLOWLOCATION => false,
+			CURLOPT_NOPROGRESS => false,
+			// Abort responses above MAX_BYTES.
+			CURLOPT_XFERINFOFUNCTION => static function ( $ch, $download_total, $downloaded ) { return $downloaded > self::MAX_BYTES ? 1 : 0; },
 			CURLOPT_SSLCERTTYPE => 'PEM',
 			CURLOPT_SSLKEYTYPE => 'PEM',
 		);
@@ -49,6 +67,8 @@ class ApnsClient {
 			}
 		}
 		if ( '' !== (string) ( $credentials['password'] ?? '' ) ) { $options[ CURLOPT_KEYPASSWD ] = $credentials['password']; }
+		if ( $this->pin ) { $options[ CURLOPT_RESOLVE ] = $this->pin; }
+		if ( defined( 'CURLOPT_PROTOCOLS' ) && defined( 'CURLPROTO_HTTPS' ) ) { $options[ CURLOPT_PROTOCOLS ] = CURLPROTO_HTTPS; }
 		curl_setopt_array( $ch, $options );
 		$response = curl_exec( $ch );
 		$status = (int) curl_getinfo( $ch, CURLINFO_RESPONSE_CODE );
