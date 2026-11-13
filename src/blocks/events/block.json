@@ -1,7 +1,7 @@
 {
   "apiVersion": 3,
   "name": "wp-pass-captain/events",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "WP Pass Captain Events",
   "category": "widgets",
   "icon": "tickets-alt",
@@ -12,5 +12,15 @@
     "html": false
   },
   "render": "file:./render.php",
-  "editorScript": "file:./editor.js"
+  "editorScript": "file:./editor.js",
+  "attributes": {
+    "event": {
+      "type": "number",
+      "default": 0
+    },
+    "occurrence": {
+      "type": "number",
+      "default": 0
+    }
+  }
 }

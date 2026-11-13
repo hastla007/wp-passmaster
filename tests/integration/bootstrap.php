@@ -223,3 +223,10 @@ function wpcap_test_install() {
 	file_put_contents( ABSPATH . 'wp-admin/includes/upgrade.php', '<?php if ( ! function_exists( "dbDelta" ) ) { function dbDelta( $sql ) { global $wpdb; if ( preg_match( "/CREATE TABLE (\\S+)/", $sql, $m ) ) { $wpdb->query( "DROP TABLE IF EXISTS " . $m[1] ); } if ( false === $wpdb->query( $sql ) ) { fwrite( STDERR, $wpdb->last_error . "\n" ); } } }' );
 	PassCaptain\Installer::install();
 }
+if ( ! function_exists( 'shortcode_atts' ) ) {
+	function shortcode_atts( $pairs, $atts, $shortcode = '' ) {
+		$out = array();
+		foreach ( $pairs as $name => $default ) { $out[ $name ] = array_key_exists( $name, (array) $atts ) ? $atts[ $name ] : $default; }
+		return $out;
+	}
+}

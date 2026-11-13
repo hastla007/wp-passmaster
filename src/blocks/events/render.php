@@ -1,4 +1,4 @@
 <?php
-/** Dynamic block server renderer. */
+/** Dynamic block server renderer. Attributes: event, occurrence (0 = all). */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
-echo do_shortcode( '[wp_pass_captain_events]' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+echo \PassCaptain\PublicEvents::render_shortcode( array( 'event' => absint( $attributes['event'] ?? 0 ), 'occurrence' => absint( $attributes['occurrence'] ?? 0 ) ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped

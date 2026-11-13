@@ -106,11 +106,21 @@ final class PublicEvents {
 		) ) );
 	}
 
-	public static function render_shortcode() {
+	/**
+	 * [wp_pass_captain_events event="12" occurrence="34" limit="50"] – upcoming bookable occurrences,
+	 * optionally only of one event or one occurrence (also the block attributes).
+	 */
+	public static function render_shortcode( $atts = array() ) {
 		global $wpdb;
+		$atts = shortcode_atts( array( 'event' => 0, 'occurrence' => 0, 'limit' => 50 ), is_array( $atts ) ? $atts : array(), 'wp_pass_captain_events' );
+		$where = '';
+		$args = array( current_time( 'mysql', true ) );
+		if ( absint( $atts['event'] ) ) { $where .= ' AND e.event_id=%d'; $args[] = absint( $atts['event'] ); }
+		if ( absint( $atts['occurrence'] ) ) { $where .= ' AND o.occurrence_id=%d'; $args[] = absint( $atts['occurrence'] ); }
+		$args[] = max( 1, min( 200, absint( $atts['limit'] ) ?: 50 ) );
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC LIMIT 50",
-			current_time( 'mysql', true )
+			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s{$where} ORDER BY o.starts_at ASC LIMIT %d",
+			...$args
 		) );
 		$listing = self::listing_data( $rows );
 		wp_enqueue_script( 'wpcap-checkout' );
@@ -206,6 +216,28 @@ final class PublicEvents {
 			}
 		}
 		return $by_occurrence;
+	}
+
+	/**
+	 * Choices for the events block: published events with their upcoming dates. Labels carry the next
+	 * date (and the date for each occurrence) so events with the same name can be told apart.
+	 *
+	 * @return array{events: array[]}
+	 */
+	public static function block_choices() {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT e.event_id,e.name,o.occurrence_id,o.starts_at,o.timezone FROM {$p}wpcap_events e INNER JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at ASC LIMIT 500", current_time( 'mysql', true ) ) );
+		$events = array();
+		foreach ( (array) $rows as $row ) {
+			$id = (int) $row->event_id;
+			$when = Orders::format_start( $row->starts_at, $row->timezone );
+			if ( ! isset( $events[ $id ] ) ) {
+				$events[ $id ] = array( 'id' => $id, 'label' => wp_specialchars_decode( (string) $row->name, ENT_QUOTES ) . ' (' . $when . ', #' . $id . ')', 'occurrences' => array() );
+			}
+			$events[ $id ]['occurrences'][] = array( 'id' => (int) $row->occurrence_id, 'label' => $when );
+		}
+		return array( 'events' => array_values( $events ) );
 	}
 
 	/**

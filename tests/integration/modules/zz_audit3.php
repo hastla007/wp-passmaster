@@ -572,3 +572,18 @@ check( 'A044: a failed refund marking changes nothing and returns a retryable er
 check( 'A044: a repair job is scheduled', 1 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type='order_refund_mark_retry' AND status='queued' AND payload LIKE %s", '%"order_id":' . $a44_o . ',%' ) ) );
 check( 'A044: the repair job marks the order refunded and revokes the ticket', true === Orders::handle_job( false, 'order_refund_mark_retry', array( 'order_id' => $a44_o, 'reason' => 'test' ) ) && 'refunded' === Orders::get( $a44_o )->status && 'revoked' === ex_ticket( $a44_t[0] )->status );
 check( 'A044: repeating it is a no-op', true === Orders::mark_refunded( $a44_o, 'test' ) );
+
+echo "Audit 3: events shortcode/block can be limited to an event or a date (A049a)\n";
+$a49_t1 = make_type( 20, 5, 1000 );
+$a49_t2 = make_type( 20, 5, 1000 );
+$a49_o1 = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$a49_t1" );
+$a49_o2 = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$a49_t2" );
+$a49_e1 = (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$a49_o1" );
+$a49_has = static fn( $html, $type ) => false !== strpos( $html, 'data-type="' . $type . '"' );
+$a49_by_occ = PassCaptain\PublicEvents::render_shortcode( array( 'occurrence' => $a49_o1 ) );
+$a49_by_event = PassCaptain\PublicEvents::render_shortcode( array( 'event' => $a49_e1 ) );
+check( 'A049a: occurrence="…" shows only that date', $a49_has( $a49_by_occ, $a49_t1 ) && ! $a49_has( $a49_by_occ, $a49_t2 ) );
+check( 'A049a: event="…" shows only that event', $a49_has( $a49_by_event, $a49_t1 ) && ! $a49_has( $a49_by_event, $a49_t2 ) );
+$a49_choices = PassCaptain\PublicEvents::block_choices()['events'];
+$a49_choice = array_values( array_filter( $a49_choices, static fn( $e ) => $a49_e1 === $e['id'] ) )[0] ?? null;
+check( 'A049a: block choices label events with date and ID and list their dates', $a49_choice && false !== strpos( $a49_choice['label'], '#' . $a49_e1 ) && in_array( $a49_o1, array_column( $a49_choice['occurrences'], 'id' ), true ) );

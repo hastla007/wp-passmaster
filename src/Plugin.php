@@ -142,6 +142,11 @@ final class Plugin {
 	}
 
 	public function register_blocks() {
-		register_block_type( WPCAP_PATH . 'src/blocks/events' );
+		$block = register_block_type( WPCAP_PATH . 'src/blocks/events' );
+		if ( $block && ! empty( $block->editor_script_handles ) && is_admin() ) {
+			add_action( 'enqueue_block_editor_assets', static function () use ( $block ) {
+				wp_add_inline_script( $block->editor_script_handles[0], 'window.WPCAP_BLOCK_EVENTS=' . wp_json_encode( PublicEvents::block_choices() ) . ';', 'before' );
+			} );
+		}
 	}
 }

@@ -52,6 +52,7 @@
 - Kassen-Storno, Partner-API-Storno und Umtausch erkennen Nutzung auch bei gültig gebliebenen Wiedereinlass-, Mehrfach- und Pass-Tickets (Check-in-Historie ohne Rücknahme, Einlassbuchungen) über das gemeinsame `Orders::used_ticket_ids()`.
 - Mails an Platzhalteradressen (Kasse/Gästeliste/Partner ohne Käufer-E-Mail, reservierte `.invalid`-Domains) werden zentral im Mailer unterdrückt – auch wenn ein SMTP-Plugin `wp_mail()` ersetzt; für solche Bestellungen wird kein Ticket-PDF mehr erzeugt. Neuer Hook `wpcap_mail_suppressed`.
 - Einlass: Ablehnungen wegen Einlasszeit, Tagesgültigkeit oder falschem Termin nennen den Termin, für den das Ticket gilt; der Web-Scanner bietet eine Terminauswahl (berechtigte Termine von gestern bis +7 Tage, auf dem Gerät gemerkt), die online und bei der Offline-Synchronisierung mitgeschickt wird.
+- Events-Shortcode/-Block: Attribute `event`, `occurrence` und `limit` (`[wp_pass_captain_events event="12"]`); der Block bietet im Editor Auswahllisten für Event und Termin (mit Datum und ID, damit gleichnamige Events unterscheidbar sind).
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

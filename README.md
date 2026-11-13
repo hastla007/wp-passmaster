@@ -5,7 +5,7 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 ## Funktionen
 
 - Events als Einzeltermin oder wöchentliche Serie mit bis zu 12 getrennten Terminen im Admin anlegen.
-- Events als Shortcode `[wp_pass_captain_events]` oder Gutenberg-Block ausgeben.
+- Events als Shortcode `[wp_pass_captain_events]` (optional `event="ID"`, `occurrence="ID"`, `limit="50"`) oder Gutenberg-Block (mit Event-/Terminauswahl) ausgeben.
 - Bestellungen mit zehnminütiger Reservierung anlegen; kostenlose Bestellungen stellen Tickets direkt aus.
 - Bezahlte Bestellungen können manuell bestätigt oder über den optionalen WooCommerce-Adapter synchronisiert werden.
 - Ticketlink enthält einen zufälligen 256-Bit-Code; nur dessen SHA-256-Hash wird für die Prüfung gespeichert.
