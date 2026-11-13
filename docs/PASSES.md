@@ -147,7 +147,10 @@ diesem Termin (Modus `once`) oder wenn N aus M ausgeschöpft ist, sonst `valid`.
   `wpcap_pass_day_refund_failed( $order_id, $type_id, $occurrence_id, $amount_minor )` – in WooCommerce
   erstatten. Käufer erhalten die Absage-Mail mit Hinweis auf die weitere Gültigkeit.
 - `revoke`: ganzer Pass wird widerrufen; mit `auto_refund_cancelled` werden bezahlte native
-  Bestellungen für die Pass-Tickets erstattet.
+  Bestellungen für die Pass-Tickets erstattet (Systemerstattung, auch für bereits eingelassene
+  Pässe; Ticket-IDs je Bestellung).
+- Scheitert eine Pass-Erstattung (Teilerstattung oder `revoke`), wird sie als Job
+  `cancellation_refund` wiederholt (siehe docs/OPERATIONS.md, „Automatische Erstattung bei Absagen“).
 
 Vollständige Erstattung eines Passes (`Refunds::request`) gibt die Plätze in allen Terminen frei.
 Bei N aus M wird bei Absagen nicht nachgerechnet, ob noch N Termine übrig sind.

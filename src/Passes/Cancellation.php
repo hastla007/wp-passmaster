@@ -26,8 +26,8 @@
 namespace PassCaptain\Passes;
 
 use PassCaptain\Audit;
+use PassCaptain\OccurrenceCancellation;
 use PassCaptain\Orders;
-use PassCaptain\Refunds;
 use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -116,7 +116,7 @@ final class Cancellation {
 			// Still anchored here: the core already handled (revoked/refunded) the pass tickets.
 			if ( ! $config || ! $type || (int) $type->occurrence_id === $occurrence_id ) { continue; }
 			++$summary['passes'];
-			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT t.order_id,ord.payment_provider,ord.customer_email,ord.locale,GROUP_CONCAT(t.ticket_id ORDER BY t.ticket_id) AS ticket_ids,COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE t.ticket_type_id=%d AND t.refunded=0 AND t.status IN ('valid','checked_in') AND ord.payment_status='paid' GROUP BY t.order_id,ord.payment_provider,ord.customer_email,ord.locale ORDER BY t.order_id", $type_id ) );
+			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT t.order_id,ord.payment_provider,ord.customer_email,ord.locale,COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE t.ticket_type_id=%d AND t.refunded=0 AND t.status IN ('valid','checked_in') AND ord.payment_status='paid' GROUP BY t.order_id,ord.payment_provider,ord.customer_email,ord.locale ORDER BY t.order_id", $type_id ) );
 			if ( 'revoke' === $config->on_cancel ) {
 				$summary = self::revoke_pass( $type_id, $orders, $occurrence_id, $summary );
 				continue;
@@ -125,13 +125,25 @@ final class Cancellation {
 			$per_day = (int) $config->refund_per_day_minor;
 			foreach ( (array) $orders as $row ) {
 				if ( $per_day > 0 ) {
+					$job = array(
+						'mode' => 'amount',
+						'order_id' => (int) $row->order_id,
+						'occurrence_id' => $occurrence_id,
+						'amount_minor' => $per_day * (int) $row->n,
+						'tax_minor' => self::pass_tax( (int) $row->order_id, $type_id, $per_day * (int) $row->n ),
+						/* translators: 1: pass name, 2: event name, 3: date */
+						'reason' => sprintf( __( 'Pass „%1$s“: Termin %2$s am %3$s abgesagt', 'pass-captain' ), $type->name, $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ) ),
+						'key' => 'pass-day-' . $occurrence_id . '-' . $type_id,
+					);
 					$result = 'woocommerce' === $row->payment_provider
 						? new \WP_Error( 'wpcap_refund_woocommerce', 'woocommerce' )
-						/* translators: 1: pass name, 2: event name, 3: date */
-						: Refunds::request_amount( (int) $row->order_id, $per_day * (int) $row->n, sprintf( __( 'Pass „%1$s“: Termin %2$s am %3$s abgesagt', 'pass-captain' ), $type->name, $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ) ), 'pass-day-' . $occurrence_id . '-' . $type_id, array( 'system' => true, 'tax_minor' => self::pass_tax( (int) $row->order_id, $type_id, $per_day * (int) $row->n ) ) );
+						: OccurrenceCancellation::request_refund( $job );
 					if ( is_wp_error( $result ) || ! in_array( $result['status'] ?? '', array( 'completed', 'pending_approval' ), true ) ) {
 						++$summary['refund_errors'];
-						Audit::record( 'pass_day_refund_pending', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $type_id, 'error' => is_wp_error( $result ) ? $result->get_error_code() : ( $result['status'] ?? '' ) ) );
+						$error = is_wp_error( $result ) ? $result->get_error_code() : ( $result['status'] ?? '' );
+						Audit::record( 'pass_day_refund_pending', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $type_id, 'error' => $error ) );
+						// A354: a failed native refund is retried in the background (idempotent refund key).
+						if ( 'woocommerce' !== $row->payment_provider && 'retry' === OccurrenceCancellation::refund_outcome( $result ) ) { OccurrenceCancellation::schedule_refund_retry( $job, $error ); }
 						/** A partial pass refund could not be executed here (e.g. WooCommerce order: refund there). */
 						do_action( 'wpcap_pass_day_refund_failed', (int) $row->order_id, $type_id, $occurrence_id, $per_day * (int) $row->n );
 					} else {
@@ -162,8 +174,17 @@ final class Cancellation {
 		foreach ( (array) $orders as $row ) {
 			$refunded = false;
 			if ( $auto && 'woocommerce' !== $row->payment_provider ) {
-				$result = Refunds::request( (int) $row->order_id, array_map( 'absint', explode( ',', (string) $row->ticket_ids ) ), __( 'Pass: Termin abgesagt', 'pass-captain' ), 'pass-cancelled-' . $occurrence_id . '-' . $type_id );
-				if ( is_wp_error( $result ) || ! in_array( $result['status'] ?? '', array( 'completed', 'pending_approval' ), true ) ) { ++$summary['refund_errors']; } else { $refunded = true; }
+				// A436: ticket ids per order (GROUP_CONCAT would be cut at group_concat_max_len).
+				$ticket_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND ticket_type_id=%d AND refunded=0 AND status IN ('valid','checked_in') ORDER BY ticket_id", (int) $row->order_id, $type_id ) ) );
+				$job = array( 'mode' => 'tickets', 'order_id' => (int) $row->order_id, 'occurrence_id' => absint( $occurrence_id ), 'ticket_ids' => $ticket_ids, 'reason' => __( 'Pass: Termin abgesagt', 'pass-captain' ), 'key' => 'pass-cancelled-' . $occurrence_id . '-' . $type_id );
+				// A354: system refund, also for passes already used for admission on another day.
+				$result = OccurrenceCancellation::request_refund( $job );
+				if ( is_wp_error( $result ) || ! in_array( $result['status'] ?? '', array( 'completed', 'pending_approval' ), true ) ) {
+					++$summary['refund_errors'];
+					if ( 'retry' === OccurrenceCancellation::refund_outcome( $result ) ) { OccurrenceCancellation::schedule_refund_retry( $job, is_wp_error( $result ) ? $result->get_error_code() : (string) ( $result['status'] ?? '' ) ); }
+				} else {
+					$refunded = true;
+				}
 			}
 			if ( 'woocommerce' === $row->payment_provider ) {
 				do_action( 'wpcap_occurrence_cancelled_woocommerce_order', (int) $row->order_id, absint( $occurrence_id ) );

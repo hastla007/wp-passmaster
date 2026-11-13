@@ -870,6 +870,14 @@ A429; vorher Full Scan, bei 500.000 Reservierungen ≈ 300 ms je Prüfung unter 
 
 Tickets, die bereits zum Einlass genutzt wurden (Status „eingecheckt“, ein nicht zurückgenommener Check-in oder ein Eintritt im Einlassmodul), werden in der Bestellansicht nur erstattet, wenn eine Person mit `wpcap_approve_refunds` im Feld „Ausnahme für bereits eingelassene Tickets“ eine Begründung angibt. Die Erstattung landet dann immer in „Erstattungen zur Freigabe“ (Vier-Augen-Prinzip), Grund und Ausnahme stehen im Erstattungsgrund und im Audit-Log. Automatische Erstattungen bei Terminabsage sowie Kassen-Stornos (mit eigener Ausnahme an der Kasse) sind davon nicht betroffen; das Bestellportal bietet eingelassene Tickets gar nicht zur Stornierung an.
 
+### Automatische Erstattung bei Absagen (A354, A436)
+
+Ist „Bei Absage automatisch erstatten“ (`auto_refund_cancelled`) aktiv, erstattet eine Termin- oder Eventabsage bezahlte native Bestellungen als **Systemerstattung**: unabhängig von Rechten und Zwei-Faktor-Anmeldung der Person, die absagt (bzw. des Cron-Workers), und einschließlich bereits eingelassener Tickets – die Käufer:innen haben für einen Termin bezahlt, der nicht stattfindet. Die Freigabeschwelle (`refund_approval_threshold`) gilt weiter; solche Erstattungen warten in „Erstattungen zur Freigabe“. Dasselbe gilt für Pässe mit `on_cancel = revoke` und die Teilerstattung pro Tag.
+
+Scheitert eine solche Erstattung (z. B. Anbieter nicht erreichbar, eine andere Erstattung derselben Tickets wartet noch auf Freigabe), wird sie als Hintergrundjob `cancellation_refund` erneut versucht – mit dem Backoff der Jobs und demselben Idempotenzschlüssel, also nie doppelt. Nach `Jobs::MAX_ATTEMPTS` Läufen steht der Job als Dead Letter in der Betriebsübersicht. Ist nichts mehr zu erstatten (Bestellung inzwischen erstattet/storniert, Tickets erstattet), endet der Job ohne Fehler; Audit `cancellation_refund_retry_scheduled` bzw. `cancellation_refund_retried`.
+
+Die Ticket-IDs einer Pass-Absage werden je Bestellung einzeln gelesen (keine `GROUP_CONCAT`-Liste, die bei vielen Tickets an `group_concat_max_len` abgeschnitten würde).
+
 ## Servicebuchungen (Ressourcen, Zeitfenster, Leistungserbringer)
 
 Service-Zeitfenster (Bootsschule, Werkstatt, Beratung) werden unter **Events → Service-Zeitfenster** je Event verwaltet; Kund:innen reservieren sie über `POST /service-slots/{slot_id}/bookings`.

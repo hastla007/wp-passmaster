@@ -20,8 +20,76 @@ final class OccurrenceCancellation {
 	/** Summary of the last handle() run per occurrence id (request scope). */
 	private static $summaries = array();
 
+	/** Job type of a cancellation refund that failed and is retried in the background (A354). */
+	const REFUND_JOB = 'cancellation_refund';
+
+	/** Error codes after which a retried cancellation refund has nothing left to do. */
+	const REFUND_FINAL_ERRORS = array( 'wpcap_refund_state', 'wpcap_refund_woocommerce', 'wpcap_refund_tickets', 'wpcap_refund_amount' );
+
 	public static function register() {
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'handle' ), 10, 1 );
+		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 4 );
+	}
+
+	/**
+	 * Executes one cancellation refund (A354): a system flow – independent of the capabilities and
+	 * 2FA of whoever cancelled (or of the cron worker) – that also refunds tickets already used for
+	 * admission (allow_used: the buyer paid for a date that did not take place).
+	 *
+	 * @param array $job mode (tickets|amount), order_id, ticket_ids, amount_minor, tax_minor, reason, key.
+	 * @return array|\WP_Error Refund row or error.
+	 */
+	public static function request_refund( array $job ) {
+		$args = array( 'system' => true, 'allow_used' => true );
+		if ( 'amount' === ( $job['mode'] ?? 'tickets' ) ) {
+			if ( isset( $job['tax_minor'] ) ) { $args['tax_minor'] = absint( $job['tax_minor'] ); }
+			return Refunds::request_amount( absint( $job['order_id'] ?? 0 ), absint( $job['amount_minor'] ?? 0 ), (string) ( $job['reason'] ?? '' ), (string) ( $job['key'] ?? '' ), $args );
+		}
+		return Refunds::request( absint( $job['order_id'] ?? 0 ), array_map( 'absint', (array) ( $job['ticket_ids'] ?? array() ) ), (string) ( $job['reason'] ?? '' ), (string) ( $job['key'] ?? '' ), $args );
+	}
+
+	/**
+	 * Outcome of a cancellation refund: 'done' (paid out or handed to the provider), 'open' (waits
+	 * for the second approval or was rejected there), 'final' (nothing left to refund) or 'retry'.
+	 */
+	public static function refund_outcome( $result ) {
+		if ( is_wp_error( $result ) ) {
+			return in_array( $result->get_error_code(), self::REFUND_FINAL_ERRORS, true ) ? 'final' : 'retry';
+		}
+		$status = (string) ( $result['status'] ?? '' );
+		if ( in_array( $status, array( 'completed', 'processing' ), true ) ) { return 'done'; }
+		return in_array( $status, array( 'pending_approval', 'rejected' ), true ) ? 'open' : 'retry';
+	}
+
+	/**
+	 * Queues a failed cancellation refund as a background job (A354): retried with the job
+	 * backoff, idempotent through the refund key, dead letter after Jobs::MAX_ATTEMPTS runs.
+	 */
+	public static function schedule_refund_retry( array $job, $error = '' ) {
+		$order_id = absint( $job['order_id'] ?? 0 );
+		$queued = Jobs::enqueue( 'cancellation-refund|' . $order_id . '|' . (string) ( $job['key'] ?? '' ), self::REFUND_JOB, $job, gmdate( 'Y-m-d H:i:s', time() + Jobs::backoff_seconds( 1 ) ) );
+		Audit::record( 'cancellation_refund_retry_scheduled', 'order', $order_id, array( 'occurrence_id' => absint( $job['occurrence_id'] ?? 0 ), 'error' => (string) $error ) );
+		return true === $queued;
+	}
+
+	/** wpcap_process_job: retries a failed cancellation refund. */
+	public static function handle_job( $handled, $type, $payload = array(), $job_id = 0 ) {
+		if ( self::REFUND_JOB !== $type || true === $handled ) { return $handled; }
+		$payload = (array) $payload;
+		$result = self::request_refund( $payload );
+		$outcome = self::refund_outcome( $result );
+		if ( 'retry' === $outcome ) {
+			return is_wp_error( $result ) ? $result : new \WP_Error( 'wpcap_refund_failed', (string) ( $result['error_message'] ?? 'refund failed' ) );
+		}
+		Audit::record( 'cancellation_refund_retried', 'order', absint( $payload['order_id'] ?? 0 ), array( 'occurrence_id' => absint( $payload['occurrence_id'] ?? 0 ), 'outcome' => $outcome, 'job_id' => absint( $job_id ) ) );
+		/**
+		 * A cancellation refund retried in the background has finished (A354).
+		 *
+		 * @param array  $payload Job payload (order_id, occurrence_id, mode, key, …).
+		 * @param string $outcome done, open or final.
+		 */
+		do_action( 'wpcap_cancellation_refund_retried', $payload, $outcome );
+		return true;
 	}
 
 	/** Marks the start of a whole-event cancellation: holders get the event mail instead. */
@@ -121,13 +189,17 @@ final class OccurrenceCancellation {
 				continue;
 			}
 			if ( ! Settings::get( 'auto_refund_cancelled' ) ) { continue; }
-			$result = Refunds::request( (int) $row->order_id, array_map( 'absint', explode( ',', $row->ticket_ids ) ), __( 'Termin abgesagt', 'pass-captain' ), $key );
-			if ( is_wp_error( $result ) || 'completed' !== ( $result['status'] ?? '' ) ) {
-				++$counts['refund_errors'];
-				Audit::record( 'occurrence_auto_refund_pending', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'error' => is_wp_error( $result ) ? $result->get_error_code() : ( $result['status'] ?? '' ) ) );
-			} else {
+			$job = array( 'mode' => 'tickets', 'order_id' => (int) $row->order_id, 'occurrence_id' => $occurrence_id, 'ticket_ids' => array_map( 'absint', explode( ',', $row->ticket_ids ) ), 'reason' => __( 'Termin abgesagt', 'pass-captain' ), 'key' => $key );
+			$result = self::request_refund( $job );
+			$outcome = self::refund_outcome( $result );
+			if ( 'done' === $outcome ) {
 				++$counts['refunds'];
+				continue;
 			}
+			++$counts['refund_errors'];
+			$error = is_wp_error( $result ) ? $result->get_error_code() : ( $result['status'] ?? '' );
+			Audit::record( 'occurrence_auto_refund_pending', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'error' => $error ) );
+			if ( 'retry' === $outcome ) { self::schedule_refund_retry( $job, $error ); }
 		}
 		return $counts;
 	}
