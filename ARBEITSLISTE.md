@@ -93,7 +93,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - src/Orders.php:1363-1412: START TRANSACTION/insert/update/COMMIT ungeprüft; attendee_data wird bei `$issued` gelöscht (1407-1410)
 - [x] **A039** [P2] Mailer::deliver-Rückgabe ignoriert, kein Versand-Retry/Outbox — _OFFEN_ (TODO L295; Bestätigte Befunde)
   - src/Orders.php:1440: Rückgabewert von Mailer::deliver() verworfen; keine Outbox/kein Zustellstatus
-- [ ] **A040** [P2] Refunds: DB-Operationen ungeprüft, keine Refund-Reconciliation — _OFFEN_ (TODO L296; Bestätigte Befunde)
+- [x] **A040** [P2] Refunds: DB-Operationen ungeprüft, keine Refund-Reconciliation — _OFFEN_ (TODO L296; Bestätigte Befunde)
   - src/Refunds.php:177,185-186: COMMIT bzw. approve-Update ungeprüft; keine persistente Zustandsmaschine/Reparatur nach Provider-Erfolg gefunden
 - [ ] **A041** [P2] Queue-Worker prüfen Claim/Commit nicht vor Ausführung — _OFFEN_ (TODO L309; Bestätigte Befunde)
   - src/Jobs.php:35-38 und src/Communications.php:45-48: update-Rowcount und COMMIT ungeprüft, Handler/Mailversand läuft trotzdem

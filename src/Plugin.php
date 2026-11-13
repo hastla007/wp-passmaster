@@ -39,6 +39,7 @@ final class Plugin {
 		add_filter( 'wp_pass_captain_process_job_v1', array( Orders::class, 'handle_job' ), 10, 3 );
 		CapacityCounters::register();
 		add_action( 'wpcap_cleanup_reservations', array( Privacy::class, 'process_deferred' ), 30, 0 );
+		add_action( 'wpcap_cleanup_reservations', array( Refunds::class, 'repair_stuck' ), 40, 0 );
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		add_action( 'wpcap_process_messages', array( Communications::class, 'process_due' ) );
 		add_action( 'wpcap_process_jobs', array( Jobs::class, 'process_due' ) );

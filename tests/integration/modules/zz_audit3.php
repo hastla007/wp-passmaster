@@ -479,3 +479,23 @@ check( 'A039: a failed ticket mail schedules a retry job', $a39_job && 'queued' 
 $GLOBALS['wpcap_test_mails'] = array();
 $a39_ok = Orders::handle_job( false, 'ticket_mail_retry', array( 'order_id' => $a39_o ) );
 check( 'A039: the retry sends the tickets (new codes)', true === $a39_ok && 1 === count( array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => 'a39@example.com' === $m['to'] ) ) );
+
+echo "Audit 3: refund bookkeeping is checked and repaired after the payout (A040)\n";
+list( $a40_o, $a40_t ) = ex_buy( $a4_std, 2, 'a40@example.com' );
+$a40_fail = static function ( $sql ) { return false !== stripos( $sql, 'SET refunded_minor=LEAST' ) ? 'UPDATE wpcap_table_that_does_not_exist SET x=1' : $sql; };
+add_filter( 'query', $a40_fail );
+$a40 = PassCaptain\Refunds::request( $a40_o, array( $a40_t[0] ), 'Test', 'a40-' . uniqid() );
+remove_filter( 'query', $a40_fail );
+$a40_row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE order_id=%d", $a40_o ) );
+check( 'A040: a failed bookkeeping after the payout returns a retryable error', is_wp_error( $a40 ) && ! empty( $a40->get_error_data()['retryable'] ) );
+check( 'A040: the refund stays processing with its provider reference, nothing half-booked', $a40_row && 'processing' === $a40_row->status && '' !== $a40_row->provider_reference && 0 === (int) ex_ticket( $a40_t[0] )->refunded && 'valid' === ex_ticket( $a40_t[0] )->status && 0 === (int) Orders::get( $a40_o )->refunded_minor );
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_refunds SET updated_at=%s WHERE refund_id=%d", gmdate( 'Y-m-d H:i:s', time() - 3600 ), $a40_row->refund_id ) );
+$a40_fixed = PassCaptain\Refunds::repair_stuck();
+$a40_after = PassCaptain\Refunds::get( (int) $a40_row->refund_id );
+check( 'A040: the repair job finishes the refund once (ticket refunded, amount booked)', $a40_fixed >= 1 && 'completed' === $a40_after['status'] && 1 === (int) ex_ticket( $a40_t[0] )->refunded && (int) $a40_row->amount_minor === (int) Orders::get( $a40_o )->refunded_minor );
+check( 'A040: a second repair run does nothing', 0 === PassCaptain\Refunds::repair_stuck() && (int) $a40_row->amount_minor === (int) Orders::get( $a40_o )->refunded_minor );
+$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_refunds (order_id,currency,ticket_ids,amount_minor,tax_minor,reason,status,idempotency_key,provider_reference,error_message,requested_by,created_at,updated_at) VALUES (%d,'EUR','[]',100,0,'x','processing',%s,'','',0,%s,%s)", $a40_o, 'a40-stuck-' . uniqid(), gmdate( 'Y-m-d H:i:s', time() - 3600 ), gmdate( 'Y-m-d H:i:s', time() - 3600 ) ) );
+$a40_stuck = (int) $wpdb->insert_id;
+PassCaptain\Refunds::repair_stuck();
+$a40_s = PassCaptain\Refunds::get( $a40_stuck );
+check( 'A040: a refund stuck without provider reference is flagged for a manual check, never paid twice', 'processing' === $a40_s['status'] && 'needs_manual_check' === $a40_s['error_message'] );
