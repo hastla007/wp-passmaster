@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.3';
+	const DB_VERSION = '3.10.4';
 
 	public static function install() {
 		global $wpdb;
@@ -748,6 +748,8 @@ final class Installer {
 		foreach ( $all_queries as $query ) {
 			dbDelta( $query );
 		}
+		// dbDelta only adds indexes: changed and removed ones are fixed here (schema 3.10.4, A181).
+		self::upgrade_indexes( $all_queries );
 		// dbDelta reports no errors: verify every table/column exists before the version is stored,
 		// otherwise the next request would rely on a schema that is not there.
 		$missing = self::missing_schema( $all_queries );
@@ -859,6 +861,60 @@ final class Installer {
 			foreach ( array_diff( $columns, $existing ) as $column ) { $missing[] = $table . '.' . $column; }
 		}
 		return $missing;
+	}
+
+	/**
+	 * Indexes removed from the schema (table without prefix => names). dbDelta never drops an index,
+	 * so upgrades drop them here. Never list an index a site could have added itself.
+	 */
+	const OBSOLETE_INDEXES = array(
+		// Replaced by capacity_sum (ticket_type_id,order_id,quantity,refunded_quantity), which covers it.
+		'wpcap_order_items' => array( 'type_order' ),
+	);
+
+	/**
+	 * Brings existing indexes in line with the CREATE TABLE statements, which dbDelta does not do:
+	 * an index whose columns, prefix lengths or uniqueness changed is rebuilt (drop and add in one
+	 * ALTER, so a failure keeps the old index), and OBSOLETE_INDEXES are dropped. Idempotent.
+	 *
+	 * @param string[] $queries CREATE TABLE statements (dbDelta format).
+	 * @return string[] "table.index" of the indexes that were changed.
+	 */
+	public static function upgrade_indexes( array $queries ) {
+		global $wpdb;
+		$changed = array();
+		foreach ( $queries as $query ) {
+			if ( ! preg_match( '/CREATE TABLE\s+`?([A-Za-z0-9_]+)`?\s*\((.*)\)[^)]*$/s', (string) $query, $m ) ) { continue; }
+			$table = $m[1];
+			$existing = array();
+			foreach ( (array) $wpdb->get_results( "SHOW INDEX FROM `$table`" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from our own schema.
+				$row = (array) $row;
+				$name = (string) $row['Key_name'];
+				$existing[ $name ]['unique'] = ! (int) $row['Non_unique'];
+				$existing[ $name ]['columns'][ (int) $row['Seq_in_index'] ] = strtolower( (string) $row['Column_name'] ) . ( null !== $row['Sub_part'] && '' !== (string) $row['Sub_part'] ? '(' . (int) $row['Sub_part'] . ')' : '' );
+			}
+			if ( ! $existing ) { continue; }
+			$short = substr( $table, strlen( (string) $wpdb->prefix ) );
+			foreach ( self::OBSOLETE_INDEXES[ $short ] ?? array() as $name ) {
+				if ( isset( $existing[ $name ] ) && false !== $wpdb->query( "ALTER TABLE `$table` DROP INDEX `$name`" ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- names from our own schema.
+					$changed[] = "$table.$name";
+				}
+			}
+			foreach ( preg_split( '/\R/', $m[2] ) as $line ) {
+				if ( ! preg_match( '/^\s*(UNIQUE\s+KEY|UNIQUE\s+INDEX|KEY|INDEX)\s+`?([A-Za-z0-9_]+)`?\s*\((.+)\)\s*,?\s*$/i', $line, $k ) ) { continue; }
+				$name = $k[2];
+				if ( ! isset( $existing[ $name ] ) ) { continue; } // dbDelta adds missing indexes.
+				$unique = 0 === stripos( $k[1], 'UNIQUE' );
+				$columns = array_map( static fn( $c ) => strtolower( (string) preg_replace( '/[\s`]/', '', $c ) ), explode( ',', $k[3] ) );
+				ksort( $existing[ $name ]['columns'] );
+				if ( $unique === $existing[ $name ]['unique'] && array_values( $existing[ $name ]['columns'] ) === $columns ) { continue; }
+				$type = $unique ? 'UNIQUE KEY' : 'KEY';
+				if ( false !== $wpdb->query( "ALTER TABLE `$table` DROP INDEX `$name`, ADD $type `$name` ({$k[3]})" ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- definition from our own schema.
+					$changed[] = "$table.$name";
+				}
+			}
+		}
+		return $changed;
 	}
 
 	/** Cron hook that performs a deferred upgrade (scheduled by frontend requests). */

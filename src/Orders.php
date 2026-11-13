@@ -791,8 +791,10 @@ final class Orders {
 		do_action( 'wpcap_capacity_released', (int) $order_id, (string) $reason, $details );
 	}
 
-	/** Per-request availability memo: ticket_type_id => remaining (int|null). */
+	/** Per-request availability memo: ticket_type_id => remaining (int|null), of the site $memo_prefix. */
 	private static $availability_memo = array();
+	/** Table prefix the memo belongs to (multisite: switch_to_blog() changes it within a request). */
+	private static $memo_prefix = null;
 	/** Whether this request wrote to plugin tables (then the object cache is not read any more). */
 	private static $wrote = false;
 	private static $query_hooked = false;
@@ -805,6 +807,18 @@ final class Orders {
 		self::$availability_memo = array();
 		self::$wrote = true;
 		/** Request caches of modules (holds, passes, seat links, limits) are stale after a write. */
+		do_action( 'wpcap_availability_flushed' );
+	}
+
+	/**
+	 * Action `switch_blog` (and any other prefix change): the memo and the request caches of the
+	 * modules belong to the previous site. Does not count as a write (the object cache stays usable;
+	 * its keys contain the prefix).
+	 */
+	public static function site_switched() {
+		global $wpdb;
+		self::$availability_memo = array();
+		self::$memo_prefix = (string) $wpdb->prefix;
 		do_action( 'wpcap_availability_flushed' );
 	}
 
@@ -845,6 +859,7 @@ final class Orders {
 			add_filter( 'query', array( __CLASS__, 'note_query' ) );
 			self::$query_hooked = true;
 		}
+		if ( self::$memo_prefix !== (string) $wpdb->prefix ) { self::site_switched(); }
 		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ticket_type_ids ) ) ) );
 		$out = array();
 		$missing = array();

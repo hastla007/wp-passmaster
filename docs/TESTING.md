@@ -19,6 +19,87 @@ Limit genau eingehalten wird. Außerdem prüft er die Auswertung der Proxy-Heade
 spielt doppelte und in falscher Reihenfolge eintreffende Zahlungsereignisse für alle Zahlungsadapter
 durch (siehe `docs/STATE-MACHINES.md`).
 
+## Upgrade-Tests je Vorgängerversion (`tests/upgrade/`, A181)
+
+```bash
+php tests/upgrade/run.php   # Wegwerf-Datenbank, Git-Historie mit Tags, wp-cli (oder WPCAP_TEST_WP_DIR=/pfad/zu/wordpress)
+```
+
+Die normalen Integrationstests können kein Upgrade prüfen (ihr `dbDelta`-Ersatz legt Tabellen neu an). Dieser
+eigene Lauf verwendet das echte `dbDelta()` aus einem WordPress-Download (`wp core download` nach
+`tests/upgrade/.wordpress/`, Version über `WPCAP_TEST_WP_VERSION`), Optionen in einer Datenbanktabelle (wie
+WordPress mit Cache je Prozess, damit parallele Prozesse sie teilen) und eigene Tabellenpräfixe
+(`WPCAP_UPGRADE_PREFIX`, Standard `wpupg_`, plus Kürzel je Szenario; vorher und nachher gelöscht,
+`WPCAP_UPGRADE_KEEP=1` behält sie).
+
+Vorgängerstände: jedes Git-Tag `v*`, der Commit vor der letzten Änderung von `Installer::DB_VERSION` und
+weitere Refs aus `WPCAP_UPGRADE_REFS` (kommagetrennt). Jeder Stand wird von seinem **eigenen** Code angelegt
+(`git archive` des Tags, dessen Installer und Test-Bootstrap; `tests/upgrade/legacy.php`), jede Tabelle mit
+drei Zeilen gefüllt (alle Spalten belegt, dazu eine bezahlte Bestellung und eine aktive Reservierung), in den
+Einstellungen ein Klartext-Zugangsdatum und kein Gutschriftpräfix. Dann führt `tests/upgrade/worker.php`
+`Installer::maybe_upgrade( 'cron' )` des aktuellen Codes aus. Geprüft wird je Stand:
+
+- Tabellen, Spalten (Typ, NULL, Vorgabe, Extra, Kollation) und Indizes gleichen einer Neuinstallation
+  (`information_schema`; die Spaltenreihenfolge zählt nicht, `dbDelta` hängt neue Spalten hinten an);
+- Schema-Version und `wpcap_db_version_max` aktuell, Version genau einmal geschrieben;
+- alle vorhandenen Zeilen unverändert (alte Spalten; ausgenommen der abgeleitete Cache `wpcap_alloc_buyers`);
+- einmalige Datenmigrationen genau einmal (Protokoll aller Optionsschreibvorgänge): Gutschriftpräfix „GS“
+  festgeschrieben (Stände vor 3.8.3), Zugangsdaten in den Tresor verschoben (ein Audit-Eintrag),
+  Kontingentzähler neu aufgebaut und ohne Abweichung, Kassen- und Käuferlimit-Migration;
+- ein zweiter Upgrade-Lauf ändert nichts (`SHOW CREATE TABLE`, Optionen).
+
+Zusätzlich mit dem ältesten Tag: Abbruch mitten im Schema (Ausnahme bei der dritten DDL-Anweisung) und mitten
+in den Datenmigrationen (vor dem Schreiben des Tresors) – die Sperre ist danach frei, die Version unverändert,
+der nächste Lauf vervollständigt das Upgrade (der Zählerneuaufbau läuft dann zweimal, er ist idempotent);
+sowie zwei gleichzeitig gestartete Upgrade-Prozesse (eigene Datenbankverbindungen, verlangsamte DDL): genau
+einer führt das Upgrade aus, der andere überspringt es ohne Fehler, während das Upgrade läuft.
+
+Gefundene und behobene Fehler (13.11.2026): Upgrades von 1.1.0/1.2.0 behielten den abgelösten Index
+`wpcap_order_items.type_order`, alle Stände bis 1.4.0 den vollen Index auf `wallet_registrations.push_token`
+statt des Präfixindex (191) – `dbDelta` ändert und löscht keine Indizes. Behoben mit
+`Installer::upgrade_indexes()` (Schema 3.10.4, siehe OPERATIONS.md). Lauf lokal (MariaDB, WordPress 7.1.4):
+123 Prüfungen, 0 Fehler, 15–25 Sekunden. CI: Pflichtschritt im Job `integration` (alle DB-/PHP-Kombinationen,
+volle Git-Historie).
+
+## Tabellenpräfixe und Isolation (A182)
+
+**Statische Prüfung** (CI-Job `php`, vor PHPCS):
+
+```bash
+php tests/sql-prefix-check.php --self-test   # src/, templates/, uninstall.php, pass-captain.php
+```
+
+Setzt jede PHP-Zeichenkette mit dem Tokenizer zusammen (Interpolationen und angehängte Ausdrücke gelten als
+dynamisch) und prüft in SQL-Zeichenketten:
+
+- an Tabellenstellen (nach `FROM`, `JOIN`, `INTO`, `UPDATE`, `TABLE`, `DESCRIBE`) steht ein dynamischer Name
+  (`{$wpdb->prefix}wpcap_…`, `{$wpdb->posts}`, `$table`, Platzhalter) oder eine Unterabfrage, nie ein
+  wörtlicher Tabellenname;
+- kein fest verdrahtetes `wp_`;
+- keine direkten Abfragen auf WooCommerce-Bestelltabellen: `wc_orders`, `wc_orders_meta`, `wc_order_*`,
+  `woocommerce_order_items`/`_itemmeta` und Beiträge vom Typ `shop_order*` (auch als Argument eines
+  `$wpdb->…()`-Aufrufs oder als bloßer Tabellenname wie in `$wpdb->prefix . 'wc_orders'`). Bestellungen laufen
+  über die WooCommerce-CRUD-API (HPOS und Beitragsspeicher, siehe WOOCOMMERCE.md).
+
+Ausnahmen nur über die Allow-List `WPCAP_SQL_ALLOW` im Skript (Datei => Teiltext => Begründung; derzeit leer).
+`--self-test` prüft die Regeln vorab an eingebauten Positiv- und Negativbeispielen. Stand 13.11.2026: 227
+Dateien, rund 1 600 SQL-Zeichenketten, keine Befunde.
+
+**Integrationstest** `tests/integration/modules/zz_a182.php`: zwei Sites nebeneinander mit den Präfixen
+`<p>` und `<p>2_` (wie `wp_` und `wp_2_` im Netzwerk), gleichem Schema und **gleichen IDs** für Event, Termin
+und Ticketart. Der Seitenwechsel bildet `switch_to_blog()` nach (Präfix, Optionen und Transients je Site,
+Aktion `switch_blog`), ohne Caches des Plugins zu leeren. Geprüft: Verfügbarkeit, Veranstaltungsland
+(Steuer), Schema-Bereitschaft, Upgrade-Sperre und Schema-Version je Site; Bestellung, Zahlung, Tickets und
+Einlass nur auf der eigenen Site (fremder Ticketcode unbekannt, fremde Bestell-ID nicht sichtbar); gleicher
+Idempotenzschlüssel auf beiden Sites ergibt zwei Bestellungen; Einstellungen, Audit-Log und Job-Warteschlange
+je Site; Erstattung auf A ändert B nicht; Kontingentzähler beider Sites ohne Abweichung; beim Löschen einer Site
+werden nur deren Tabellen entfernt.
+
+Gefundene und behobene Fehler: Der Verfügbarkeits-Zwischenspeicher je Anfrage (`Orders::availability()`), der
+Steuerprofil-Cache (`Tax\Profiles`, u. a. Veranstaltungsland je Termin-ID) und die Schema-Bereitschaft
+(`OrderLines::ready()`, `Tax\Profiles::ready()`) waren nicht an die Site gebunden – nach `switch_to_blog()`
+lieferten sie Werte der vorherigen Site für dieselbe ID.
+
 ## Last- und Nebenläufigkeitstests (`tests/load/`)
 
 ### Ohne Webserver: `tests/load/run.php`

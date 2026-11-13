@@ -36,6 +36,8 @@ Das Datenbank-Upgrade (`dbDelta` für alle Kern- und Modultabellen) läuft nicht
 - **Admin-Aufrufe** (`admin_init`), **WP-Cron** und **WP-CLI** vergleichen die gespeicherte Schema-Version (`wpcap_db_version`, Kernversion plus Hash der Modul-Schemata) und führen das Upgrade aus. Es läuft hinter einer Datenbanksperre (`GET_LOCK`, je Site); parallele Aufrufe ohne Sperre überspringen es und arbeiten mit dem bisherigen Schema weiter. Die Sperre endet automatisch, wenn der Prozess abbricht.
 - **Frontend- und REST-Aufrufe** prüfen nur einen günstigen Fingerabdruck (Schema-/Plugin-Version und Modulliste, Option `wpcap_schema_fingerprint`). Weicht er ab, wird einmalig das Cron-Ereignis `wpcap_run_upgrade` eingeplant. Nur wenn dieses Ereignis länger als fünf Minuten überfällig ist (WP-Cron läuft nicht), übernimmt ein einzelner Frontend-Aufruf das Upgrade hinter derselben Sperre.
 - Bis zum Upgrade läuft der neue Code gegen das alte Schema. Das ist unkritisch, weil Migrationen nur Tabellen, Spalten und Indizes ergänzen; nach einem Update trotzdem zeitnah den Admin-Bereich öffnen oder `wp cron event run wpcap_run_upgrade` ausführen.
+- `dbDelta` ergänzt nur. Was es nicht kann, erledigt das Upgrade selbst (Schema 3.10.4, `Installer::upgrade_indexes()`): Ein Index, dessen Spalten, Präfixlänge oder Eindeutigkeit sich geändert hat, wird in einem einzigen `ALTER TABLE` gelöscht und neu angelegt (schlägt das fehl, z. B. weil ein neuer eindeutiger Index an doppelten Daten scheitert, bleibt der alte Index unverändert); entfernte Indizes (`Installer::OBSOLETE_INDEXES`, bisher `wpcap_order_items.type_order`, abgelöst durch `capacity_sum`) werden gelöscht. Von Betreibern selbst angelegte Indizes bleiben unberührt. Änderungen von NULL/NOT NULL übernehmen die Datenmigrationen der Module (z. B. Kasse).
+- Bricht ein Upgrade ab (Fehler, Zeitüberschreitung, Prozessende), bleibt `wpcap_db_version` auf der alten Version und die Sperre wird freigegeben; der nächste Admin-/Cron-Aufruf setzt es fort. Alle Schritte sind wiederholbar, einmalige Datenmigrationen laufen trotzdem nur einmal (geprüft in `tests/upgrade/run.php`, siehe TESTING.md).
 
 ## Hintergrundverarbeitung (WP-Cron)
 
@@ -118,6 +120,7 @@ Einstellungen unter **Pass Captain → SMS**; Tabellen `wpcap_sms_consents`, `wp
 ## Multisite: Site löschen und Plugin deinstallieren
 
 - Wird eine Site im Netzwerk gelöscht, entfernt WordPress auch deren `*_wpcap_*`-Tabellen (Filter `wpmu_drop_tables`). Tabellen anderer Sites sind nicht betroffen.
+- Jede Site hat eigene Tabellen (`{präfix}wpcap_*`) und eigene Optionen; das Plugin greift nur über `$wpdb->prefix` bzw. `$wpdb->…`-Tabellen zu (statisch geprüft, siehe TESTING.md „Tabellenpräfixe und Isolation“). Zwischenspeicher je Anfrage (Verfügbarkeit, Steuerprofile, Schema-Bereitschaft, Schema-Version) gelten nur für die Site, für die sie gefüllt wurden; nach `switch_to_blog()` werden sie neu aufgebaut (Aktion `switch_blog` und Präfixvergleich).
 - Beim Deinstallieren entscheidet jede Site über „Daten beim Löschen entfernen“. Netzwerkweite Benutzer-Metadaten (`wpcap_*` ohne Site-Präfix) werden nur gelöscht, wenn alle Sites zugestimmt haben; Site-bezogene Benutzeroptionen (`{präfix}wpcap_*`) und Rollen/Berechtigungen nur auf zustimmenden Sites.
 
 ## Zugangsdaten / Secrets

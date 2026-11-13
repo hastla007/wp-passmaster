@@ -18,15 +18,19 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class OrderLines {
-	/** Per-request cache of ready(). */
+	/** Per-request cache of ready(), for the site (table prefix) in $prefix. */
 	private static $ready = null;
+	private static $prefix = null;
 
 	/**
 	 * Whether the 3.8.1 columns (orig_*, discount_minor) exist. Until a deferred upgrade has run, the
 	 * live columns are used (no "unknown column" errors in that window).
 	 */
 	public static function ready() {
-		if ( null === self::$ready ) {
+		global $wpdb;
+		$prefix = isset( $wpdb->prefix ) ? (string) $wpdb->prefix : '';
+		if ( null === self::$ready || self::$prefix !== $prefix ) {
+			self::$prefix = $prefix;
 			$version = (string) get_option( 'wpcap_db_version', '' );
 			$version = strtok( $version, '+' );
 			self::$ready = false !== $version && '' !== $version && version_compare( $version, '3.8.1', '>=' );

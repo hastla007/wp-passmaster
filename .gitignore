@@ -7,3 +7,4 @@ tests/a11y/node_modules/
 tests/a11y/report/
 .claude/worktrees/
 /node_modules/
+tests/upgrade/.wordpress/

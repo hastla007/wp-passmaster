@@ -45,6 +45,8 @@ final class Plugin {
 			}, 200 );
 		}
 		add_action( 'wpcap_cleanup_reservations', array( Orders::class, 'expire_holds' ) );
+		// Multisite: request caches belong to one site; switch_to_blog() must not reuse them (A182).
+		add_action( 'switch_blog', array( Orders::class, 'site_switched' ), 10, 0 );
 		add_filter( 'wpcap_process_job', array( Orders::class, 'handle_job' ), 10, 3 );
 		CapacityCounters::register();
 		add_action( 'wpcap_cleanup_reservations', array( Privacy::class, 'process_deferred' ), 30, 0 );

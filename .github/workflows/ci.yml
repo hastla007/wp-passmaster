@@ -24,6 +24,8 @@ jobs:
         run: composer install --no-interaction --prefer-dist
       - name: PHP syntax checks
         run: find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: SQL table prefixes, no hard-coded wp_, no direct WooCommerce order table queries (docs/TESTING.md)
+        run: php tests/sql-prefix-check.php --self-test
       - name: PHPCS (WordPress security, SQL, i18n, PHP compatibility – fails on errors)
         run: vendor/bin/phpcs -q --report=summary
       - name: Composer security audit (fails on known vulnerabilities, also in dev dependencies)
@@ -86,10 +88,13 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tags v* and history: the upgrade tests install every previous version
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           extensions: mbstring, mysqli, gd, zip, sodium, openssl
+          tools: wp-cli
           coverage: none
       - name: Server versions
         run: php -r 'echo "PHP ", PHP_VERSION, PHP_EOL; $m = new mysqli("127.0.0.1", "wp", "wp", "wp"); echo "DB  ", $m->server_info, PHP_EOL;'
@@ -97,6 +102,10 @@ jobs:
         env:
           WPCAP_TEST_DB_HOST: 127.0.0.1
         run: php tests/integration/run.php
+      - name: Upgrade tests from every previous version (real dbDelta, abort, parallel; docs/TESTING.md)
+        env:
+          WPCAP_TEST_DB_HOST: 127.0.0.1
+        run: php tests/upgrade/run.php
       - name: Concurrency/load smoke test (200 buyers, 8 scanners, 100 webhook deliveries; ~10 s)
         # Regression test for the check-in deadlock (false "admitted" responses, see docs/TESTING.md).
         env:

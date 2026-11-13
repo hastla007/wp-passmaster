@@ -42,9 +42,22 @@ final class Profiles {
 	private static $ready = null;
 	private static $occurrence_country = array();
 	private static $active = array();
+	/** Table prefix the caches belong to (multisite: switch_to_blog() changes it within a request). */
+	private static $prefix = null;
+
+	/** Drops the caches when the site (table prefix) changed since they were filled. */
+	private static function same_site() {
+		global $wpdb;
+		$prefix = isset( $wpdb->prefix ) ? (string) $wpdb->prefix : '';
+		if ( self::$prefix !== $prefix ) {
+			self::flush();
+			self::$prefix = $prefix;
+		}
+	}
 
 	/** Whether the 3.9.7 columns exist (venue country, line tax source, review fields). */
 	public static function ready() {
+		self::same_site();
 		if ( null === self::$ready ) {
 			$version = strtok( (string) get_option( 'wpcap_db_version', '' ), '+' );
 			self::$ready = false !== $version && '' !== $version && version_compare( $version, '3.9.7', '>=' );
@@ -82,7 +95,7 @@ final class Profiles {
 			return '' !== $own ? $own : self::seller_country();
 		}
 		$id = is_object( $occurrence ) ? (int) ( $occurrence->occurrence_id ?? 0 ) : absint( $occurrence );
-		if ( ! $id || ! self::ready() ) { return self::seller_country(); }
+		if ( ! $id || ! self::ready() ) { return self::seller_country(); } // ready() also checks the site.
 		if ( ! array_key_exists( $id, self::$occurrence_country ) ) {
 			global $wpdb;
 			self::$occurrence_country[ $id ] = self::country( (string) $wpdb->get_var( $wpdb->prepare( "SELECT venue_country FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $id ) ) );
@@ -103,6 +116,7 @@ final class Profiles {
 		$tax_class = sanitize_key( (string) $tax_class );
 		if ( '' === $country || '' === $tax_class ) { return null; }
 		$key = $country . '|' . $tax_class . '|' . $date;
+		self::same_site();
 		if ( ! array_key_exists( $key, self::$active ) ) {
 			global $wpdb;
 			self::$active[ $key ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_tax_profiles WHERE country_code=%s AND tax_class=%s AND status='active' AND effective_from<=%s AND (effective_until IS NULL OR effective_until>=%s) ORDER BY effective_from DESC,tax_profile_id DESC LIMIT 1", $country, $tax_class, $date, $date ) );

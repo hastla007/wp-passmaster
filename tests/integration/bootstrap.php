@@ -32,6 +32,8 @@ class WP_Error {
 final class Test_WPDB {
 	public $prefix = 'wptest_';
 	public function __construct_prefix() { $this->prefix = getenv( 'WPCAP_TEST_PREFIX' ) ?: 'wptest_'; }
+	/** Options table; empty here (options live in memory) unless a runner sets a DB-backed store (tests/upgrade). */
+	public $options = '';
 	public $last_error = '';
 	public $insert_id = 0;
 	public $rows_affected = 0;
@@ -45,6 +47,12 @@ final class Test_WPDB {
 		// WPCAP_TEST_SQL_MODE=<modes> runs the suite under a given sql_mode (e.g. MySQL 8's strict default).
 		if ( false !== getenv( 'WPCAP_TEST_SQL_MODE' ) ) { $this->db->query( "SET SESSION sql_mode='" . $this->db->real_escape_string( (string) getenv( 'WPCAP_TEST_SQL_MODE' ) ) . "'" ); }
 	}
+	/* Used by WordPress' real dbDelta() (tests/upgrade loads it from a WordPress download). */
+	private $suppress = false;
+	public function suppress_errors( $suppress = true ) { $old = $this->suppress; $this->suppress = (bool) $suppress; return $old; }
+	public function db_server_info() { return (string) $this->db->server_info; }
+	public function db_version() { return preg_replace( '/[^0-9.].*/', '', $this->db_server_info() ); }
+	public function tables( $scope = 'all', $prefix = true, $blog_id = 0 ) { return array(); }
 	public function get_charset_collate() { return 'DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'; }
 	private function esc( $v ) { return null === $v ? 'NULL' : "'" . $this->db->real_escape_string( (string) $v ) . "'"; }
 	public function prepare( $query, ...$args ) {
@@ -131,9 +139,10 @@ function current_time( $type, $gmt = 0 ) { return gmdate( 'Y-m-d H:i:s' ); }
 function wp_salt( $scheme = 'auth' ) { return 'salt-' . $scheme; } // Same in parent and worker processes (keyed hashes).
 function current_user_can( $cap ) { return ! in_array( $cap, $GLOBALS['wpcap_test_denied_caps'] ?? array(), true ); }
 function get_current_user_id() { return $GLOBALS['wpcap_test_user_id'] ?? 1; }
-function get_option( $k, $d = false ) { return $GLOBALS['wpcap_test_options'][ $k ] ?? $d; }
-function update_option( $k, $v ) { $GLOBALS['wpcap_test_options'][ $k ] = $v; return true; }
-if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { unset( $GLOBALS['wpcap_test_options'][ $k ] ); return true; } }
+// tests/upgrade sets $GLOBALS['wpcap_test_option_store'] (options in the database, shared between processes).
+function get_option( $k, $d = false ) { if ( isset( $GLOBALS['wpcap_test_option_store'] ) ) { return $GLOBALS['wpcap_test_option_store']->get( $k, $d ); } return $GLOBALS['wpcap_test_options'][ $k ] ?? $d; }
+function update_option( $k, $v, $autoload = null ) { if ( isset( $GLOBALS['wpcap_test_option_store'] ) ) { return $GLOBALS['wpcap_test_option_store']->update( $k, $v ); } $GLOBALS['wpcap_test_options'][ $k ] = $v; return true; }
+if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { if ( isset( $GLOBALS['wpcap_test_option_store'] ) && method_exists( $GLOBALS['wpcap_test_option_store'], 'delete' ) ) { return $GLOBALS['wpcap_test_option_store']->delete( $k ); } unset( $GLOBALS['wpcap_test_options'][ $k ] ); return true; } }
 function get_transient( $k ) { return $GLOBALS['wpcap_test_transients'][ $k ] ?? false; }
 function set_transient( $k, $v, $e = 0 ) { $GLOBALS['wpcap_test_transients'][ $k ] = $v; return true; }
 function add_query_arg( $args, $url, $u = null ) { if ( ! is_array( $args ) ) { $args = array( $args => $url ); $url = $u; } return $url . '?' . http_build_query( $args ); }
