@@ -1120,6 +1120,203 @@ Gesamt: 262 Aufgaben.
 - [ ] **A534** [OPTIMIERUNG] accept_terms: "false" gilt als Zustimmung — _R3 QA_ (TODO L846; Audit Runde 4)
   - src/Orders.php:43, Rest/Controller.php:711: rest_sanitize_boolean / streng true/1
 
+### Audit Runde 6 – Ticketing: Transaktionen, Ticket-Sicherheit, Dokumente/Mail/Wallet, Zeit/Caching, Käufer-UX/Einlass, Eigen-Audit (13.11.2026, Snapshot a1b11e5)
+
+- [ ] **A535** [KRITISCH] Mehrtägige Termine: Online-Verkauf endet beim Beginn, Web-Scanner und App verlieren den Termin nach 24 h — _R4 Zeit/Caching/Lebenszyklus_ (TODO L850; Audit Runde 4)
+  - src/Orders.php:152–154, PublicEvents.php:156/362–364, Mobile/Api.php:77: Überall COALESCE(ends_at, starts_at) für „läuft noch“, sales_end bis ends_at; Einlass Tag 2/3 sonst ohne Terminprüfung (belegt)
+- [ ] **A536** [KRITISCH] Warteliste bietet bei Ticketarten mit Pflicht-Teilnehmerfeld nie etwas an — _R4 Eigen (Deep Dive 3)_ (TODO L851; Audit Runde 4)
+  - src/Waitlists.php:324, :269, Orders.php:87: Teilnehmerdaten erst auf der Annahmeseite erfassen, Pflichtfelder bei Angebotsanlage überspringen (belegt t1)
+- [ ] **A537** [KRITISCH] Freigegebene Erstattung nach Umtausch: Geld zurück, neues Ticket gültig, Ticketart überverkauft — _R4 Transaktionen/Concurrency_ (TODO L852; Audit Runde 4)
+  - src/Refunds.php:602–616 (execution_conflict), :380–391, Exchange/Service.php:167/459: execution_conflict verlangt valid/checked_in; Umtausch/Widerruf/Übertragung bei offener Erstattung sperren (belegt t2)
+- [ ] **A538** [KRITISCH] Widerruf mit Kapazitätsfreigabe und anschließende Erstattung geben den Platz doppelt frei — _R4 Transaktionen/Concurrency_ (TODO L853; Audit Runde 4)
+  - src/Admin/TicketsPage.php:52–54, Refunds.php:388–390, Orders.php:1332: Freigegebene widerrufene Units markieren, in Refunds nur nicht freigegebene abziehen (belegt t3)
+- [ ] **A539** [WICHTIG] PWA-Kamera meldet nach 3 s „Bereits verwendet“ für gerade eingelassenen Gast — _R4 Käufer-UX/Einlass_ (TODO L854; Audit Runde 4)
+  - assets/offline-scanner/app.js:466/476, tick() :647ff.: lastScan.at bei jedem gleichen Code nachziehen (wie scanner.js:539)
+- [ ] **A540** [WICHTIG] Web-Scanner ohne Request-Timeout, hängt bei Funkloch auf „…“ — _R4 Käufer-UX/Einlass_ (TODO L855; Audit Runde 4)
+  - assets/scanner.js:388–395: ~5 s Timeout, danach Offline-Entscheidung mit gleichem idempotency_key
+- [ ] **A541** [WICHTIG] Web-Scanner: Netzabbruch mitten im Scan → Schein-Konflikt beim Abgleich — _R4 Käufer-UX/Einlass_ (TODO L856; Audit Runde 4)
+  - assets/scanner.js:390, :396–399, enqueue :290–292: Schlüssel des Online-Versuchs an enqueue weitergeben
+- [ ] **A542** [WICHTIG] Web-Scanner offline: derselbe Code auf demselben Gerät beliebig oft einlassbar — _R4 Käufer-UX/Einlass_ (TODO L857; Audit Runde 4)
+  - assets/scanner.js:290–318: Vor Anzeige in lokaler Queue suchen, Treffer rot mit Uhrzeit
+- [ ] **A543** [WICHTIG] Übertragene/neu ausgestellte Tickets melden „nicht gefunden“ statt Grund; „Widerrufen“ ohne Grund — _R4 Käufer-UX/Einlass_ (TODO L858; Audit Runde 4)
+  - src/Checkin.php:93, :428, Orders.php:1459–1508/2028/2087, TicketAssignments.php:70: Abgelöste Hashes mit Grund/Zeit aufbewahren, eigenes Ergebnis „Code ersetzt“, Widerrufsgrund mitgeben
+- [ ] **A544** [WICHTIG] Am Scanner keine manuelle Suche (Name/E-Mail/Bestellnummer), auch offline nicht — _R4 Käufer-UX/Einlass_ (TODO L859; Audit Runde 4)
+  - assets/scanner.js, PublicEvents.php:377–395, offline-scanner/index.html:55–58, OfflineScanner/Package.php:136–138: Suchfeld online (REST mit Pii-Regeln) und offline (Paket), dann Einchecken
+- [ ] **A545** [WICHTIG] Admin-Ticketsuche findet angezeigte Bestellnummer „AB12-CD34“ und Hilfscodes nicht (erweitert A336) — _R4 Käufer-UX/Einlass_ (TODO L860; Audit Runde 4)
+  - src/Admin/Queries.php:418–423, Frontend/Format.php:39–41: Suchbegriff normalisieren, Hilfscode suchbar
+- [ ] **A546** [WICHTIG] Kein Check-in-Zähler (eingecheckt/gesamt) in Web-Scanner und PWA — _R4 Käufer-UX/Einlass_ (TODO L861; Audit Runde 4)
+  - assets/scanner.js, offline-scanner/app.js:374–392, Mobile/Api.php:92: Zählerleiste online (stats) und offline (Paket + Log)
+- [ ] **A547** [WICHTIG] „Rückgängig“ für Fehl-Check-in fehlt am Scanner; Grund im Admin optional — _R4 Käufer-UX/Einlass_ (TODO L862; Audit Runde 4)
+  - assets/scanner.js, offline-scanner/app.js, Mobile/Api.php:38/146, Admin/TicketsPage.php:282: 30 s Rückgängig mit Pflicht-Grund am Gerät, Grund im Admin Pflicht
+- [ ] **A548** [WICHTIG] PWA: Ergebnis bleibt unbegrenzt stehen, kein Vollbild, kleine Schrift — _R4 Käufer-UX/Einlass_ (TODO L863; Audit Runde 4)
+  - assets/offline-scanner/app.js:164–171, app.css:23–29, index.html:44–47: Haltezeit + Rücksetzen, Vollbild-Overlay mit Uhrzeit/Kurzcode
+- [ ] **A549** [WICHTIG] Teilnehmerdaten gehen beim Korrigieren der Menge verloren — _R4 Käufer-UX/Checkout_ (TODO L864; Audit Runde 4)
+  - assets/checkout.js:40–52, :431–437: Blöcke je Slot zwischenspeichern, Neuberechnung bei change/verzögert
+- [ ] **A550** [WICHTIG] Nummerierung der Teilnehmerblöcke nach Mengenänderung falsch — _R4 Käufer-UX/Checkout_ (TODO L865; Audit Runde 4)
+  - assets/checkout.js:52–54: Legenden nach jedem Rendern neu nummerieren
+- [ ] **A551** [WICHTIG] Fehlermeldungen nennen nicht, welche Teilnehmer:in gemeint ist — _R4 Käufer-UX/Checkout_ (TODO L866; Audit Runde 4)
+  - assets/checkout.js:217–222, :313–316, Orders.php:477ff.: Legende voranstellen, Server liefert data.index
+- [ ] **A552** [WICHTIG] Teilnehmerfelder nur Text/E-Mail/Textfeld/Checkbox; Name je Ticket nicht erzwingbar; kein „wie Käufer:in“ — _R4 Käufer-UX/Checkout_ (TODO L867; Audit Runde 4)
+  - src/Admin/EventsPage.php:25, checkout.js:33–60, Orders.php:510–517: Typen date/select/tel/number, Pflicht-Schalter Teilnehmername, Übernahme-Knopf
+- [ ] **A553** [WICHTIG] Kein Schutz gegen Tippfehler in der Käufer-E-Mail — _R4 Käufer-UX/Checkout_ (TODO L868; Audit Runde 4)
+  - templates/event-card.php:79–82, Rest/Controller.php:392, checkout.js:386/406: Domain-Tippfehler-Hinweis oder Bestätigungsfeld, „Adresse falsch?“ auf Bestätigung
+- [ ] **A554** [WICHTIG] Rückkehr von Stripe/PayPal/Mollie auf Startseite; Abbruch hält Plätze, Neuversuch erzeugt zweite Bestellung (erweitert A307) — _R4 Käufer-UX/Checkout_ (TODO L869; Audit Runde 4)
+  - src/Payments/StripeGateway.php:65–66/340–342, PayPalGateway.php:62/466, MollieGateway.php:339, ReturnNotice.php:13–29: Kaufseite als Rückkehr-URL; bei cancel Reservierung freigeben oder „Zahlung fortsetzen“; Bestellnummer zeigen
+- [ ] **A555** [WICHTIG] Verschobener Einzeltermin: Verkaufsfenster bleiben auf alten Zeiten — _R4 Zeit/Caching/Lebenszyklus_ (TODO L870; Audit Runde 4)
+  - src/Admin/EventsPage.php:213–241, :340–347: Fenster um dieselbe Differenz verschieben, Fenster außerhalb [jetzt, Ende] mit Warnung ablehnen
+- [ ] **A556** [WICHTIG] Serien: „Verkaufsstart N Tage vor Beginn“ über DST 1 h daneben — _R4 Zeit/Caching/Lebenszyklus_ (TODO L871; Audit Runde 4)
+  - src/Series/Generator.php:221–223, :653–655: modify(-N days) in Termin-Zone, DST-Test (belegt)
+- [ ] **A557** [WICHTIG] Wartelisten-Einträge abgesagter/vergangener Termine bleiben dauerhaft „wartet“ — _R4 Zeit/Caching/Lebenszyklus_ (TODO L872; Audit Runde 4)
+  - src/Waitlists.php:45–51, :911–918: Bei Absage/Ende/sales_end schließen (mit Mail), Portal filtern
+- [ ] **A558** [WICHTIG] Erinnerungs-Mail nennt bei späten Käufern falsche Restzeit; LIMIT 200 verzögert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L873; Audit Runde 4)
+  - src/Modules/Reminders.php:72–79, :101, Reminders/Placeholders.php:16: {hours} aus starts_at − now, Scheduler mit Cursor
+- [ ] **A559** [WICHTIG] Wallet-Pässe bei Änderung von Ort/Ende/Einlass nicht aktualisiert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L874; Audit Runde 4)
+  - src/WalletPasses/Service.php:23–24, Notifications.php:52–60: An wpcap_occurrence_changed hängen
+- [ ] **A560** [WICHTIG] Checkout nicht an angezeigten Terminstand gebunden – nach Verschiebung still neuer Termin gekauft — _R4 Zeit/Caching/Lebenszyklus_ (TODO L875; Audit Runde 4)
+  - src/Rest/Controller.php:317, assets/checkout.js:502–533: occurrence_revision und Preis mitsenden, 409 mit neuem Stand, Karte live nachladen
+- [ ] **A561** [WICHTIG] REST /events liefert UTC ohne Zonenkennung neben Termin-Timezone, ohne Verkaufsstatus — _R4 Zeit/Caching/Lebenszyklus_ (TODO L876; Audit Runde 4)
+  - src/Rest/Controller.php:242–290: ISO 8601 mit Offset, Verkaufsstatus/Fenster/Verfügbarkeit je Ticketart, no-store
+- [ ] **A562** [WICHTIG] Keine zentrale Lebenszyklus-Instanz für Termine — _R4 Zeit/Caching/Lebenszyklus_ (TODO L877; Audit Runde 4)
+  - src/: Occurrence::phase($now) + Aktion wpcap_occurrence_phase_changed für Verkauf, Listen, Scanner, Warteliste, Wallet, Purge
+- [ ] **A563** [WICHTIG] Ein nicht anbietbarer Eintrag blockiert die ganze Warteliste; Käuferlimit beim Eintragen ungeprüft — _R4 Eigen (Deep Dive 3)_ (TODO L878; Audit Runde 4)
+  - src/Waitlists.php:267–270, :92ff.: Eintrag überspringen/markieren (blocked mit Grund), Limit beim Eintragen (belegt t2)
+- [ ] **A564** [WICHTIG] Warteliste ohne E-Mail-Bestätigung, Angebote halten Kontingent bis 24 h (erweitert A279/A280) — _R4 Eigen (Deep Dive 3)_ (TODO L879; Audit Runde 4)
+  - src/Waitlists.php:92–143, :307–355: Double-Opt-in vor waiting
+- [ ] **A565** [WICHTIG] Angebotsseite/-mail ohne Termin, Ort und Rechtstexte; Wartende bei Absage/Verschiebung nicht informiert — _R4 Eigen (Deep Dive 3)_ (TODO L880; Audit Runde 4)
+  - src/Waitlists.php:1069–1088, Mail/Types.php:398–412: Datum/Ort/Zeitzone und Rechtstexte wie im Checkout, Platzhalter event_date/event_location
+- [ ] **A566** [WICHTIG] Google Wallet: Ticketdaten gehen ohne Zutun des Käufers an Google; Löschung lässt Namen dort — _R4 Eigen (Deep Dive 3)_ (TODO L881; Audit Runde 4)
+  - src/WalletPasses/GoogleProvider.php:98–109, Service.php:97–117/276–283, Privacy/PolicyText.php: Bei 404 kein Objekt anlegen solange nicht gespeichert, bei Löschung Name/Barcode leeren
+- [ ] **A567** [WICHTIG] Datenschutzerklärung-Vorschlag nennt feste Fristen statt der eingestellten (erweitert A030) — _R4 Eigen (Deep Dive 3)_ (TODO L882; Audit Runde 4)
+  - src/Privacy/PolicyText.php:79/118/119, Settings.php:77–84, Retention.php:58–75: Fristen aus Retention::days()/financial_years(), eigene Formulierung für 0
+- [ ] **A568** [WICHTIG] Nachweis der akzeptierten AGB-Fassung nicht möglich; Bestätigungsmail ohne Vertragstexte (§312f BGB) — _R4 Eigen (Deep Dive 3)_ (TODO L883; Audit Runde 4)
+  - src/Settings.php:275–278, Admin/SettingsPage.php:378, Mail/Types.php:132: Fassungen je Sprache append-only archivieren, Platzhalter in Standard-Bestätigungsmail
+- [ ] **A569** [WICHTIG] Personalisierung über reine Namensänderung unbegrenzt umgehbar; Zähler im Audit-Log — _R4 Eigen (Deep Dive 3)_ (TODO L884; Audit Runde 4)
+  - src/TicketAssignments.php:27–36: Namensänderungen zählen, Zähler am Ticket
+- [ ] **A570** [WICHTIG] Nach Übertragung kann niemand außer Verwaltung personalisieren — _R4 Eigen (Deep Dive 3)_ (TODO L885; Audit Runde 4)
+  - src/Orders.php:1502–1503, TicketAssignments.php:30–34, TicketPage.php: Ticketseite: Name/Felder für aktuelle Inhaberin bearbeitbar mit Frist
+- [ ] **A571** [WICHTIG] Einlasskurve schneidet 72 h nach erstem Scan ab, zählt zurückgenommene Scans — _R4 Eigen (Deep Dive 3)_ (TODO L886; Audit Runde 4)
+  - src/Reports/Data.php:374: Ab Einlass-/Terminbeginn, undone abziehen (belegt t3)
+- [ ] **A572** [WICHTIG] Check-in-Quote im Bericht widerspricht No-Show-Liste (undone) — _R4 Eigen (Deep Dive 3)_ (TODO L887; Audit Runde 4)
+  - src/Reports/Data.php:322, Printing/NoShowList.php:27: Gleiche Admitted-Logik (belegt t3)
+- [ ] **A573** [WICHTIG] Pass-Inhaber fehlen in Listen/Berichten verknüpfter Termine; No-Shows des Ankertermins falsch — _R4 Eigen (Deep Dive 3)_ (TODO L888; Audit Runde 4)
+  - src/Printing/Templates.php:289, NoShowList.php:27, Reports/Data.php:320–362: Über admission_entries.occurrence_id bzw. Pass-Verknüpfungen bilden
+- [ ] **A574** [WICHTIG] Partner-API: since-Abruf übersieht Widerruf/Erstattung/Übertragung; keine Namen/Antworten — _R4 Eigen (Deep Dive 3)_ (TODO L889; Audit Runde 4)
+  - src/Partners/Api.php:238, Installer.php:195–217: updated_at an Tickets, since darauf; Namen/Antworten mit eigenem Scope
+- [ ] **A575** [WICHTIG] Umtausch eines Tickets gibt das gesamte Kontingent der Bestellung zurück — _R4 Transaktionen/Concurrency_ (TODO L890; Audit Runde 4)
+  - src/Exchange/Service.php:754, Allocations/Holds.php:300–303: Jeden Grund mit ticket_type_id/quantity als Teilfreigabe (belegt t4c)
+- [ ] **A576** [WICHTIG] Checkout ohne Preisprüfung: Käufer zahlt mehr als angezeigt — _R4 Transaktionen/Concurrency_ (TODO L891; Audit Runde 4)
+  - src/Orders.php:191–200, Series/Pricing.php:270ff., assets/checkout.js:84: Preis-Snapshot mitsenden, 409 price_changed (belegt t5; vgl. Caching-Befund)
+- [ ] **A577** [WICHTIG] Stripe-Sitzung lebt 10 min länger als die Reservierung → bezahlt ohne Ticket — _R4 Transaktionen/Concurrency_ (TODO L892; Audit Runde 4)
+  - src/Payments/StripeGateway.php:319–325, Rest/Controller.php:324: Sitzungsende = Reservierungsende, verzögerte Zahlarten nur mit langer Reservierung (belegt t7)
+- [ ] **A578** [WICHTIG] Teilerstattung und Admin-Widerruf informieren Warteliste und Kontingente nicht — _R4 Transaktionen/Concurrency_ (TODO L893; Audit Runde 4)
+  - src/Refunds.php:418–428, Admin/TicketsPage.php:56–60: Nach Commit capacity_released(tickets_revoked, type, qty) (belegt t4a/b)
+- [ ] **A579** [WICHTIG] Keine Invariante „pro Ticket höchstens einmal freigegeben“; drift() erkennt falsche Bestellzeilen nicht — _R4 Transaktionen/Concurrency_ (TODO L894; Audit Runde 4)
+  - src/Refunds.php, Exchange, TicketsPage, CapacityCounters::drift: Zentrale Freigabe je Ticket, Abgleich gegen gültige Tickets, Kombinationstests Erstattung×Umtausch×Widerruf×Absage
+- [ ] **A580** [WICHTIG] Ticketmail ohne Größengrenze: 26–40 MB bei 1.000 Tickets, Gmail kürzt ab ~22 Tickets mit Wallet — _R4 Dokumente/Mail/Wallet_ (TODO L895; Audit Runde 4)
+  - src/Orders.php:1797–1823, WalletPasses/Service.php:183–199, TicketPdf.php:86–113: Ab Schwelle Portal-Link/geteilte PDFs, ein „Alle hinzufügen“-Wallet-Link (gemessen)
+- [ ] **A581** [WICHTIG] Teilnehmer-E-Mail aus Checkout: Ticket nur an Käufer, Portal verweigert dann PDF (held_elsewhere) — _R4 Dokumente/Mail/Wallet_ (TODO L896; Audit Runde 4)
+  - src/Orders.php:377, :1813, PortalSelfService.php:107, Modules/Reminders.php:94: Je Teilnehmeradresse eigene Ticketmail oder held_elsewhere nur nach Übertragung/Rotation
+- [ ] **A582** [WICHTIG] Wallet-Pässe folgen Ort, Endzeit, Event-/Ticketname, Namenskorrektur nicht — _R4 Dokumente/Mail/Wallet_ (TODO L897; Audit Runde 4)
+  - src/WalletPasses/Service.php:22–28, Notifications.php:56, TicketAssignments.php:70–90: occurrence_changed, Event-/Typ-Speichern und Teilnehmer-Updates anbinden
+- [ ] **A583** [WICHTIG] Google-Speichern-Link je Ticket mit vollem Objekt im JWT (>1.800 Zeichen) — _R4 Dokumente/Mail/Wallet_ (TODO L898; Audit Runde 4)
+  - src/WalletPasses/GoogleProvider.php:77–89, Service.php:162: Objekte vorab per REST/Job anlegen, kurzer JWT mit allen IDs der Bestellung
+- [ ] **A584** [WICHTIG] Salt-Rotation macht alle Wallet-Pässe ungültig (voided), ohne Warnung — _R4 Dokumente/Mail/Wallet_ (TODO L899; Audit Runde 4)
+  - src/WalletPasses/Store.php:16–20, Service.php:81, AppleProvider.php:64, GoogleProvider.php:62: Warnung ohne WPCAP_WALLET_ENCRYPTION_KEY, nicht entschlüsselbar ≠ voided
+- [ ] **A585** [WICHTIG] Abgelaufenes Apple-Zertifikat wird weiter verwendet, nur Hinweis auf Wallet-Seite — _R4 Dokumente/Mail/Wallet_ (TODO L900; Audit Runde 4)
+  - src/WalletPasses/Credentials.php:203–231, AdminPage.php:135–138: Site-Health/Admin-Hinweis 30 Tage vorher, abgelaufen = nicht konfiguriert
+- [ ] **A586** [WICHTIG] Erneuter Portal-Download ohne Wallet-Modul rotiert jedes Mal die Codes; kein Admin-PDF je Bestellung/Ticket (ergänzt A207) — _R4 Dokumente/Mail/Wallet_ (TODO L901; Audit Runde 4)
+  - src/PortalSelfService.php:139–144/186–200, Orders.php:1960ff/2058ff: Code verschlüsselt speichern (idempotentes PDF/Neuversand), Admin-Knopf „Ticket-PDF“
+- [ ] **A587** [WICHTIG] Erinnerungen nur in Website-Sprache und ohne Ticketlink — _R4 Dokumente/Mail/Wallet_ (TODO L902; Audit Runde 4)
+  - src/Modules/Reminders.php:37–46, :98, :141–155: Locale im Payload, Vorlagen je Sprache, Platzhalter für Ticket-/Portalzugang
+- [ ] **A588** [WICHTIG] Zustellung/Wiederherstellung hängt am Klartext-Code der ersten Mail (blinder Fleck) — _R4 Dokumente/Mail/Wallet_ (TODO L903; Audit Runde 4)
+  - Orders, PortalSelfService, WalletPasses: Code verschlüsselt speichern, Zustellkontrolle (Größe, Bounce)
+- [ ] **A589** [WICHTIG] Gleicher Idempotency-Key bei parallelem Retry mehrfach eingelöst; offline-sync ohne Key — _R4 Ticket-Sicherheit_ (TODO L904; Audit Runde 4)
+  - src/Checkin.php:166–179, Installer.php:231 (Index nicht UNIQUE), Rest/Controller.php:606–619: UNIQUE (user_id, idempotency_key) bzw. Key-Reservierung, Prüfung nach Ticket-Sperre (belegt 6/6)
+- [ ] **A590** [WICHTIG] „Check-in zurücknehmen“ macht erstattete Tickets wieder einlassfähig — _R4 Ticket-Sicherheit_ (TODO L905; Audit Runde 4)
+  - src/Admin/TicketsPage.php:82–108, Mobile/Api.php:159, Checkin.php:87–115, Refunds.php:384–393: Undo bei refunded/unbezahlt ablehnen, lookup prüft refunded=0 (belegt)
+- [ ] **A591** [WICHTIG] Gästelisten-„Angekommen“ zerstört bei abgelehntem Check-in die Ticketcodes — _R4 Ticket-Sicherheit_ (TODO L906; Audit Runde 4)
+  - src/GuestLists/Service.php:646–651: Erst einchecken per ticket_id unter Sperre, Bereich übergeben, nie vorab rotieren (belegt)
+- [ ] **A592** [WICHTIG] Offline-Upload mit frei gewähltem scanned_at umgeht Einlassfenster und Bereichskapazität — _R4 Ticket-Sicherheit_ (TODO L907; Audit Runde 4)
+  - src/Admission/Rest.php:62–70, Mobile/Api.php:184–186, Checkin.php:39–46/224/236, OfflineScanner/Sync.php:250, Rest/Controller.php:925: Nur freigegebene Events/gekoppelte Geräte, zurückdatierte Einlässe immer als Konflikt, source nie vom Client (belegt)
+- [ ] **A593** [WICHTIG] Käufer-Code-Rotationen während des Einlasses erzeugen „offline gültig, online ungültig“ (erweitert A211) — _R4 Ticket-Sicherheit_ (TODO L908; Audit Runde 4)
+  - src/Rest/Controller.php:503–521, PortalSelfService.php:150ff., Orders.php:1481: Selbstbedienungs-Rotation ab Einlassbeginn bzw. nach Paketausgabe sperren
+- [ ] **A594** [WICHTIG] Einlass-Garantien nur im Normalpfad getestet — _R4 Ticket-Sicherheit_ (TODO L909; Audit Runde 4)
+  - tests/: Tests für parallele Retries, Client-Zeit/-Quelle, Statuswechsel außerhalb Checkin
+- [ ] **A595** [OPTIMIERUNG] Doppelscan-Anzeige ohne Gerät/Person, nicht in Ortszeit; PWA offline ohne Zeit (erweitert A089) — _R4 Käufer-UX/Einlass_ (TODO L910; Audit Runde 4)
+  - src/Checkin.php:468–486, scanner.js:101–108, app.js:103–106/173–181: device_label/Name im Payload, Termin-TZ, lokale Zeit aus Log
+- [ ] **A596** [OPTIMIERUNG] Keine Gruppen-Check-in-Funktion — _R4 Käufer-UX/Einlass_ (TODO L911; Audit Runde 4)
+  - assets/scanner.js, offline-scanner/app.js, Checkin.php: Weitere gültige Tickets der Bestellung anzeigen, Auswahl einchecken
+- [ ] **A597** [OPTIMIERUNG] Kopplung für Aushilfen umständlich (QR in PWA nicht nutzbar, maxlength 40, zweiter Admin-Schritt) — _R4 Käufer-UX/Einlass_ (TODO L912; Audit Runde 4)
+  - src/Admin/DevicesPage.php:66–68, Mobile/Devices.php:19/62/189–194, offline-scanner/index.html:26, app.js:672–751: QR als PWA-URL ?pair=CODE, Events automatisch zuweisen, maxlength entfernen
+- [ ] **A598** [OPTIMIERUNG] PWA „Gerät entkoppeln“ trotz nicht synchronisierter Einlässe (erweitert A345) — _R4 Käufer-UX/Einlass_ (TODO L913; Audit Runde 4)
+  - assets/offline-scanner/app.js:696–702: Bei pending>0 sperren oder Sync/Export erzwingen
+- [ ] **A599** [OPTIMIERUNG] Ungültige Teilnehmer-E-Mail serverseitig still verworfen — _R4 Käufer-UX/Checkout_ (TODO L914; Audit Runde 4)
+  - src/Orders.php:515–516: 400 mit field=attendees
+- [ ] **A600** [OPTIMIERUNG] Bestätigung ohne Kalendereintrag/Ticketlink — _R4 Käufer-UX/Checkout_ (TODO L915; Audit Runde 4)
+  - assets/checkout.js:368–429: .ics-Link sofort, kurzlebiger Ticketlink abwägen
+- [ ] **A601** [OPTIMIERUNG] Überweisungsseite ohne GiroCode und Kopier-Knöpfe — _R4 Käufer-UX/Checkout_ (TODO L916; Audit Runde 4)
+  - assets/checkout.js:389–401, Payments/BankTransfer.php:38–59: EPC-QR (GiroCode), Kopieren für IBAN/Verwendungszweck
+- [ ] **A602** [OPTIMIERUNG] Mobile: Summe weit vom Kaufknopf, street-address auf einzeiligem Feld — _R4 Käufer-UX/Checkout_ (TODO L917; Audit Runde 4)
+  - templates/event-card.php:78/94/169, checkout.js:58: Sticky Summe am Button, address-line1
+- [ ] **A603** [OPTIMIERUNG] Browser-Autofill trägt Käufernamen in alle Teilnehmerblöcke (PLAUSIBEL) — _R4 Käufer-UX/Checkout_ (TODO L918; Audit Runde 4)
+  - assets/checkout.js:58: autocomplete="section-attN name" bzw. off ab Block 2
+- [ ] **A604** [OPTIMIERUNG] SMS-Nummer „+49 (0)151 …“ wird zu falscher Nummer — _R4 Käufer-UX/Checkout_ (TODO L919; Audit Runde 4)
+  - src/Sms/Service.php:83–91: „(0)“ nach Ländervorwahl entfernen
+- [ ] **A605** [OPTIMIERUNG] Löschfrist für Finanzbelege nach UTC-Jahr statt lokalem Rechnungsjahr (GoBD, ein Jahr zu früh) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L920; Audit Runde 4)
+  - src/Privacy/Retention.php:88–92: Stichtag 01.01. 00:00 Site-Zone → UTC (belegt)
+- [ ] **A606** [OPTIMIERUNG] „Termin vorbei“ ohne ends_at sechsfach unterschiedlich definiert — _R4 Zeit/Caching/Lebenszyklus_ (TODO L921; Audit Runde 4)
+  - src/Orders.php:152, Calendar/Ics.php:126, AppleProvider.php:63, Retention.php:138, Waitlists.php:67, CapacityCounters.php:549, OfflineScanner/Assignments.php:98: Zentral Occurrence::effective_end() mit Standarddauer
+- [ ] **A607** [OPTIMIERUNG] Weitere Geschäftsregeln umgehen Clock::now() (erweitert A199) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L922; Audit Runde 4)
+  - src/Exchange/Service.php:184/206/876, PortalSelfService.php:306, OrderPortal.php:130, TicketAssignments.php:24, Seats.php:36, Seating/Reservations.php:124, Passes/Admission.php:41, Mobile/Api.php:186, EventCard.php:143, Admin/Queries.php:89: Auf Clock umstellen, Grep-Regel in CI
+- [ ] **A608** [OPTIMIERUNG] Mails mischen Zeitzonen (Frist in Site-Zone ohne Label) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L923; Audit Runde 4)
+  - src/Payments/BankTransfer.php:54, Waitlists.php:343/1074: Fristen in Termin-Zone mit Label
+- [ ] **A609** [OPTIMIERUNG] Offline-scanned_at ohne Offset als UTC gelesen (PLAUSIBEL) — _R4 Zeit/Caching/Lebenszyklus_ (TODO L924; Audit Runde 4)
+  - src/Mobile/Api.php:185–186, OfflineScanner/Sync.php:44, Admission/Rest.php:67: Offset Pflicht (sonst 400), Doku
+- [ ] **A610** [OPTIMIERUNG] Saalplan bei abgesagtem/vergangenem Termin: nur „Laden fehlgeschlagen“, Formular aktiv — _R4 Zeit/Caching/Lebenszyklus_ (TODO L925; Audit Runde 4)
+  - src/Seating/Reservations.php:442, Seating/Rest.php:25–27, assets/seating/picker.js:55: occurrence_status/sales_open liefern, Picker und Kauf sperren
+- [ ] **A611** [OPTIMIERUNG] Teilnehmer-Export unvollständig (Check-in-Zeit, Sitz, Termin, Bereich, Status bei Pässen) — _R4 Eigen (Deep Dive 3)_ (TODO L926; Audit Runde 4)
+  - src/Printing/AttendeeList.php:44–60: Spalten ergänzen, Status aus Einlassprotokoll, nur aktive Felder, streamen
+- [ ] **A612** [OPTIMIERUNG] Webhooks ohne Einwilligungsstand/Consent-Ereignisse — _R4 Eigen (Deep Dive 3)_ (TODO L927; Audit Runde 4)
+  - src/Webhooks/Dispatcher.php:18, Consents.php:383–386: consent.granted/withdrawn, Consent-Feld im Payload
+- [ ] **A613** [OPTIMIERUNG] Umsatzbericht nach Bestell- statt Zahlungsdatum — _R4 Eigen (Deep Dive 3)_ (TODO L928; Audit Runde 4)
+  - src/Reports/Data.php:165: paid_at speichern und verwenden
+- [ ] **A614** [OPTIMIERUNG] Alters-/Ausweishinweis und Inhabername nur auf Eventkarte — _R4 Eigen (Deep Dive 3)_ (TODO L929; Audit Runde 4)
+  - templates/event-card.php:64, TicketPage.php: buyer_notice() und Name auf Ticketseite, Mail, PDF
+- [ ] **A615** [OPTIMIERUNG] Fehlend: Admin-Dashboard-Widget — _R4 Eigen (Deep Dive 3)_ (TODO L930; Audit Runde 4)
+  - —: Widget mit Verkäufen, offenen Prüfungen, nächsten Terminen
+- [ ] **A616** [OPTIMIERUNG] Rabattcode-Gültigkeit per REST ohne Prüfung und Zeitzone — _R4 Transaktionen/Concurrency_ (TODO L931; Audit Runde 4)
+  - src/Rest/Controller.php:681–692, Campaigns.php:47/183: Datum validieren, Ortszeit → UTC, reines Datum als Tagesende (belegt t5)
+- [ ] **A617** [OPTIMIERUNG] Nachfragestufe mit einer großen Bestellung umgehbar — _R4 Transaktionen/Concurrency_ (TODO L932; Audit Runde 4)
+  - src/Series/Pricing.php, Orders.php:191: Preis je Unit staffeln oder Menge einrechnen (belegt t5)
+- [ ] **A618** [OPTIMIERUNG] Ticket-PDF unkomprimiert (~21 KB je Ticket, Faktor 7 möglich) — _R4 Dokumente/Mail/Wallet_ (TODO L933; Audit Runde 4)
+  - src/TicketPdf.php:49–55, :98: FlateDecode, QR-Module zeilenweise zusammenfassen
+- [ ] **A619** [OPTIMIERUNG] Alter Google-Link legt nach Rotation ACTIVE-Pass mit ungültigem Code an — _R4 Dokumente/Mail/Wallet_ (TODO L934; Audit Runde 4)
+  - src/WalletPasses/GoogleProvider.php:111–114, Service.php:216/379: Bei 404 in revoke Objekt mit state INACTIVE anlegen
+- [ ] **A620** [OPTIMIERUNG] Pass-Bau ohne Cache (Bilder, Signatur, Credentials je Abruf) — _R4 Dokumente/Mail/Wallet_ (TODO L935; Audit Runde 4)
+  - src/WalletPasses/Service.php:398–419, WebService.php:112–124, AppleProvider.php:119–148: Bundle je (Serial, update_tag), Bilder je Einstellungs-Hash, Credentials statisch
+- [ ] **A621** [OPTIMIERUNG] Neuversand-/Retry-Mail ohne PDF, ICS, .pkpass — _R4 Dokumente/Mail/Wallet_ (TODO L936; Audit Runde 4)
+  - src/Orders.php:2036–2041, :2091–2094: Gleicher Anhangs-Builder wie issue_and_email
+- [ ] **A622** [OPTIMIERUNG] Übertragungsempfänger ohne Wiederherstellungsweg — _R4 Dokumente/Mail/Wallet_ (TODO L937; Audit Runde 4)
+  - src/Orders.php:1509–1524, TicketPage.php:252–258: „Meine Tickets per E-Mail anfordern“ für Inhaber-Adressen mit Rate-Limit
+- [ ] **A623** [OPTIMIERUNG] Erinnerungsversand ohne Drosselung; Anbieterlimits → Mails endgültig verloren; kein List-Unsubscribe — _R4 Dokumente/Mail/Wallet_ (TODO L938; Audit Runde 4)
+  - src/Communications.php:39–80: Einstellbare Rate, Limit-Fehler als Aufschub, List-Unsubscribe One-Click
+- [ ] **A624** [OPTIMIERUNG] Keine Bounce-Verarbeitung (ergänzt A328) — _R4 Dokumente/Mail/Wallet_ (TODO L939; Audit Runde 4)
+  - src/Mail/Mailer.php:321–350: Return-Path/VERP, Hook wpcap_mail_bounced, Markierung + Hinweis
+- [ ] **A625** [OPTIMIERUNG] HTML-Layout: Outlook ohne MSO-Tabelle, kein Dark Mode, Wallet-Links als lange URLs — _R4 Dokumente/Mail/Wallet_ (TODO L940; Audit Runde 4)
+  - src/Mail/Layout.php:167–175, WalletPasses/Service.php:158–163, Mailer.php:449–455: MSO-Ghost-Tabelle, color-scheme, beschriftete Wallet-Buttons
+- [ ] **A626** [OPTIMIERUNG] Anhänge sofort nach wp_mail gelöscht – Mail-Queue-Plugins senden ohne Anhang (PLAUSIBEL) — _R4 Dokumente/Mail/Wallet_ (TODO L941; Audit Runde 4)
+  - src/Orders.php:1820–1823, Modules/Calendar.php:96, Mailer.php:332–347: Anhänge bis Cron-Bereinigung aufbewahren
+- [ ] **A627** [OPTIMIERUNG] Portal-Download „alle“ ohne Obergrenze (1.000 Rotationen, 20 MB je Klick) — _R4 Dokumente/Mail/Wallet_ (TODO L942; Audit Runde 4)
+  - src/PortalSelfService.php:162–166: Max. 50 je PDF, sonst Stapel/Job
+- [ ] **A628** [OPTIMIERUNG] Pass-Design: Logo mit doppeltem Namen, Umlaute entfernt, Google ohne Logo — _R4 Dokumente/Mail/Wallet_ (TODO L943; Audit Runde 4)
+  - src/WalletPasses/Archive.php:285, AppleProvider.php:87/125, GoogleProvider.php:43–58: Logo ohne Text, UTF-8, Google-Logo
+- [ ] **A629** [OPTIMIERUNG] Lost Update bei Offline-Signaturschlüsseln — _R4 Ticket-Sicherheit_ (TODO L944; Audit Runde 4)
+  - src/OfflineScanner/Keys.php:178–233: GET_LOCK/Versionsprüfung, max_expires getrennt
+- [ ] **A630** [OPTIMIERUNG] Massendruck mit neuen Codes entwertet übertragene/zugewiesene Tickets ohne Nachricht (erweitert A335/A427) — _R4 Ticket-Sicherheit_ (TODO L945; Audit Runde 4)
+  - src/Printing/Templates.php:318–348: Ausnehmen oder Inhaber benachrichtigen
+- [ ] **A631** [OPTIMIERUNG] Abfotografierter QR-Code kann Bestelllink des Käufers rotieren — _R4 Ticket-Sicherheit_ (TODO L946; Audit Runde 4)
+  - src/TicketPage.php:34–39, PortalSelfService.php:588–606: Alten Link bis Klick auf neuen gültig lassen oder E-Mail-Bestätigung
+
 ## Bereits erledigt (vor bzw. beim Anlegen der Liste)
 
 - [x] Portal-Umtausch übertragener Tickets gesperrt (Sicherheit P1) — Commit 4c7e7bc
