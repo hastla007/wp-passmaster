@@ -585,7 +585,7 @@ Gesamt: 262 Aufgaben.
   - readme.txt: Pflicht für WordPress.org: Stripe, PayPal, Mollie, Twilio, APNs, Google Wallet, fiskaltrust, SMS-HTTP, Webhooks, Affiliate Captain mit Zweck, Daten, ToS-/Privacy-Link
 - [ ] **A270** [KRITISCH] Minifiziertes tweetnacl ohne mitgelieferten Quellverweis — _R1 Release_ (TODO L576; Audit Runde 4)
   - assets/vendor/tweetnacl/nacl-fast.min.js, .distignore:43 (*.md): Guideline 4: Quelle oder Verweis muss im Paket liegen; README.md wird ausgefiltert. nacl-fast.js beilegen oder Verweis in readme.txt/.txt
-- [ ] **A271** [KRITISCH] Web-Scanner hängt nächsten Scan an alten Code an – Einlass für falsches Ticket — _R2 Frontend_ (TODO L577; Audit Runde 4)
+- [x] **A271** [KRITISCH] Web-Scanner hängt nächsten Scan an alten Code an – Einlass für falsches Ticket — _R2 Frontend_ (TODO L577; Audit Runde 4)
   - assets/scanner.js:381, 413–419, 426, 430 (submitToken): Feld nur nach Erfolg geleert; Tastatur-Scanner sendet T1T2, normalize_code nimmt T1 (mit Playwright nachgestellt). Feld nach jedem Ergebnis leeren, Sperr-Treffer verwerfen und melden
 - [ ] **A272** [KRITISCH] Unklarer Ausgang eines Erstattungsaufrufs als „fehlgeschlagen“ gespeichert → doppelte Erstattung — _R2 API_ (TODO L578; Audit Runde 4)
   - src/Refunds.php:305–311 (execute), StripeGateway.php:114–140, PayPalGateway.php:178–195, MollieGateway.php:278–296: Timeout/5xx/409 als „unbekannt“ (processing ohne Referenz) behandeln, über Metadatum wpcap_refund per Webhook/GET abgleichen
@@ -673,7 +673,7 @@ Gesamt: 262 Aufgaben.
   - src/Modules/Calendar.php:233–273: Einheitliche Zone; Zurück im aktuellen Monat ausblenden, „Heute“, Wochentag mobil
 - [ ] **A314** [WICHTIG] Kasse: Termin-Auswahl sendet Formular bei jeder Pfeiltaste — _R2 Frontend_ (TODO L620; Audit Runde 4)
   - src/BoxOffice/Page.php:104, ShiftPage.php:316: „Anzeigen“-Button statt onchange-Submit
-- [ ] **A315** [WICHTIG] WAF-/HTML-Fehler zeigt am Web-Scanner „KEIN EINLASS“ — _R2 Frontend_ (TODO L621; Audit Runde 4)
+- [x] **A315** [WICHTIG] WAF-/HTML-Fehler zeigt am Web-Scanner „KEIN EINLASS“ — _R2 Frontend_ (TODO L621; Audit Runde 4)
   - assets/scanner.js:401–419, offline-scanner/app.js:494–499: Nur wpcap_-JSON-Fehler als Ablehnung, sonst gelbe Systemwarnung
 - [ ] **A316** [WICHTIG] Kamera-Start doppelt angetippt: erster Stream bleibt an — _R2 Frontend_ (TODO L622; Audit Runde 4)
   - assets/scanner.js:504–520, offline-scanner/app.js:623–633: Button sofort sperren/Flag, alten Stream stoppen
@@ -1130,13 +1130,13 @@ Gesamt: 262 Aufgaben.
   - src/Refunds.php:602–616 (execution_conflict), :380–391, Exchange/Service.php:167/459: execution_conflict verlangt valid/checked_in; Umtausch/Widerruf/Übertragung bei offener Erstattung sperren (belegt t2)
 - [ ] **A538** [KRITISCH] Widerruf mit Kapazitätsfreigabe und anschließende Erstattung geben den Platz doppelt frei — _R4 Transaktionen/Concurrency_ (TODO L853; Audit Runde 4)
   - src/Admin/TicketsPage.php:52–54, Refunds.php:388–390, Orders.php:1332: Freigegebene widerrufene Units markieren, in Refunds nur nicht freigegebene abziehen (belegt t3)
-- [ ] **A539** [WICHTIG] PWA-Kamera meldet nach 3 s „Bereits verwendet“ für gerade eingelassenen Gast — _R4 Käufer-UX/Einlass_ (TODO L854; Audit Runde 4)
+- [x] **A539** [WICHTIG] PWA-Kamera meldet nach 3 s „Bereits verwendet“ für gerade eingelassenen Gast — _R4 Käufer-UX/Einlass_ (TODO L854; Audit Runde 4)
   - assets/offline-scanner/app.js:466/476, tick() :647ff.: lastScan.at bei jedem gleichen Code nachziehen (wie scanner.js:539)
-- [ ] **A540** [WICHTIG] Web-Scanner ohne Request-Timeout, hängt bei Funkloch auf „…“ — _R4 Käufer-UX/Einlass_ (TODO L855; Audit Runde 4)
+- [x] **A540** [WICHTIG] Web-Scanner ohne Request-Timeout, hängt bei Funkloch auf „…“ — _R4 Käufer-UX/Einlass_ (TODO L855; Audit Runde 4)
   - assets/scanner.js:388–395: ~5 s Timeout, danach Offline-Entscheidung mit gleichem idempotency_key
-- [ ] **A541** [WICHTIG] Web-Scanner: Netzabbruch mitten im Scan → Schein-Konflikt beim Abgleich — _R4 Käufer-UX/Einlass_ (TODO L856; Audit Runde 4)
+- [x] **A541** [WICHTIG] Web-Scanner: Netzabbruch mitten im Scan → Schein-Konflikt beim Abgleich — _R4 Käufer-UX/Einlass_ (TODO L856; Audit Runde 4)
   - assets/scanner.js:390, :396–399, enqueue :290–292: Schlüssel des Online-Versuchs an enqueue weitergeben
-- [ ] **A542** [WICHTIG] Web-Scanner offline: derselbe Code auf demselben Gerät beliebig oft einlassbar — _R4 Käufer-UX/Einlass_ (TODO L857; Audit Runde 4)
+- [x] **A542** [WICHTIG] Web-Scanner offline: derselbe Code auf demselben Gerät beliebig oft einlassbar — _R4 Käufer-UX/Einlass_ (TODO L857; Audit Runde 4)
   - assets/scanner.js:290–318: Vor Anzeige in lokaler Queue suchen, Treffer rot mit Uhrzeit
 - [ ] **A543** [WICHTIG] Übertragene/neu ausgestellte Tickets melden „nicht gefunden“ statt Grund; „Widerrufen“ ohne Grund — _R4 Käufer-UX/Einlass_ (TODO L858; Audit Runde 4)
   - src/Checkin.php:93, :428, Orders.php:1459–1508/2028/2087, TicketAssignments.php:70: Abgelöste Hashes mit Grund/Zeit aufbewahren, eigenes Ergebnis „Code ersetzt“, Widerrufsgrund mitgeben
