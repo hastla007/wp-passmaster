@@ -396,17 +396,17 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 - [x] **A180** Versions-/Changelog-/Header-/Composer-/Stable-tag-Konsistenz automatisch prüfen — _TEILWEISE_ (TODO L247; CI, statische Qualität und Artefakt)
   - release.yml:146-151 prüft Header und WPCAP_VERSION gegen Tag; Stable tag, Changelog-Eintrag, Composer nicht geprüft
   - Erledigt 13.11.: tests/consistency.php prüft Header-Version = WPCAP_VERSION = Stable tag, Requires (Header/readme/composer), CHANGELOG/readme-Einträge, Text Domain, Doku-Links; CI-Pflichtschritt.
-- [ ] **A181** Upgrade-Integrationstests je Vorgängerversion, parallel, nach Abbruch — _TEILWEISE_ (TODO L251; Datenbank, Zustandsautomaten und Fehlerpfade)
+- [x] **A181** Upgrade-Integrationstests je Vorgängerversion, parallel, nach Abbruch — _TEILWEISE_ (TODO L251; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Upgrade-Lock/parallel getestet (tests/integration/modules/zz_phase1_arch.php:19-48), Einzelmigration boxoffice_migration.php; keine Tests je Vorgängerversion/Abbruch
-- [ ] **A182** Tabellenpräfixe, Isolation, keine direkten WC-Tabellenabfragen automatisiert prüfen — _TEILWEISE_ (TODO L252; Datenbank, Zustandsautomaten und Fehlerpfade)
+- [x] **A182** Tabellenpräfixe, Isolation, keine direkten WC-Tabellenabfragen automatisiert prüfen — _TEILWEISE_ (TODO L252; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Code nutzt WC-API statt WC-Tabellen (src/Integrations/WooCommerce/OrderAdapter.php); keine automatisierte Prüfung für HPOS/Multisite
 - [ ] **A183** Fault-Injection für Deadlock, Lock-Timeout, Verbindungsabbruch, Commit-Fehler — _OFFEN_ (TODO L253; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Keine Fault-Injection-Tests in tests/ gefunden
-- [ ] **A184** Zustandsautomaten dokumentieren, doppelte/out-of-order Events testen — _TEILWEISE_ (TODO L254; Datenbank, Zustandsautomaten und Fehlerpfade)
+- [x] **A184** Zustandsautomaten dokumentieren, doppelte/out-of-order Events testen — _TEILWEISE_ (TODO L254; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Doppelte Webhooks getestet (tests/integration/payments.php:167,271; zz_integration.php:30); keine Zustandsautomaten-Doku außer Warteliste, kein systematischer out-of-order-Test
 - [ ] **A185** REST-Endpunkte negativ testen — _TEILWEISE_ (TODO L255; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Partner-API: abgelaufener/widerrufener Schlüssel getestet (tests/integration/modules/partners.php:259,263); nicht systematisch für alle REST-Routen/Rollen/Scopes
-- [ ] **A186** Rate-Limits hinter Proxy/mehreren Workern validieren und dokumentieren — _TEILWEISE_ (TODO L256; Datenbank, Zustandsautomaten und Fehlerpfade)
+- [x] **A186** Rate-Limits hinter Proxy/mehreren Workern validieren und dokumentieren — _TEILWEISE_ (TODO L256; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Doku: Transients kein verteilter Schutz (docs/SECURITY.md:7); keine Validierung, keine konkrete Hosting-Empfehlung, keine Proxy-Header-Behandlung (src/RateLimit.php:21)
 - [x] **A187** Lastprofile und REST-Lasttests als geplante CI-Prüfung mit Referenzwerten — _TEILWEISE_ (TODO L260; Last, Hintergrundjobs und Wiederanlauf)
   - CI-Profil bei jedem Push (ci.yml:56-60), Werte in docs/TESTING.md:57; Heavy-/REST-Profile nicht geplant in CI
