@@ -29,6 +29,7 @@ final class Privacy {
 		add_action( 'init', array( Retention::class, 'schedule' ) );
 		add_action( self::WALLET_PURGE_HOOK, array( __CLASS__, 'purge_wallet_registrations' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'scanner_context' ), 30 );
+		Privacy\AccessLog::register();
 	}
 
 	public static function register_exporter( $exporters ) {

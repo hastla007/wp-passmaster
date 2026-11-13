@@ -257,6 +257,7 @@ final class OrdersPage {
 		$page = Forms::current_page();
 		$per_page = 20;
 		$data = Queries::search_orders( $filters, $scope, $page, $per_page );
+		\PassCaptain\Privacy\AccessLog::list_view( 'order_list', $filters + array( 'paged' => $page ), count( $data['rows'] ) );
 		$events = Queries::event_options( $scope );
 		$base = Forms::page_url( self::SLUG, array_filter( array( 'status' => $filters['status'], 'payment_status' => $filters['payment_status'], 's' => $filters['search'], 'event_id' => $filters['event_id'] ) ) );
 		$status_options = array( '' => __( 'Alle Bestellstatus', 'wp-pass-captain' ) );
@@ -318,6 +319,7 @@ final class OrdersPage {
 			echo '<p><a href="' . esc_url( $list_url ) . '">' . esc_html__( '← Zur Bestellliste', 'wp-pass-captain' ) . '</a></p>';
 			return;
 		}
+		\PassCaptain\Privacy\AccessLog::view( 'order_detail', 'order', (int) $order_id );
 		$items = Queries::order_items( $order_id );
 		$is_supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order_id );
 		$has_moves = $is_supplement;

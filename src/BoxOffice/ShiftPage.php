@@ -363,6 +363,7 @@ final class ShiftPage {
 		$z = ZReport::get( absint( $_GET['z_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view with permission check.
 		if ( ! $z ) { wp_die( esc_html__( 'Z-Bericht nicht gefunden.', 'wp-pass-captain' ), 404 ); }
 		if ( ! self::can_view_z( $z ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		\PassCaptain\Privacy\AccessLog::export( 'zreport_html', 'pos_register', (int) $z->register_id, array( 'z_number' => (int) $z->z_number ) );
 		nocache_headers();
 		echo ZReport::html( $z ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in html().
 		exit;
@@ -372,6 +373,7 @@ final class ShiftPage {
 		$z = ZReport::get( absint( $_GET['z_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only download with permission check.
 		if ( ! $z ) { wp_die( esc_html__( 'Z-Bericht nicht gefunden.', 'wp-pass-captain' ), 404 ); }
 		if ( ! self::can_view_z( $z ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		\PassCaptain\Privacy\AccessLog::export( 'zreport_csv', 'pos_register', (int) $z->register_id, array( 'z_number' => (int) $z->z_number ) );
 		Scope::send_download( ZReport::csv( $z ), 'z-report-' . (int) $z->register_id . '-' . (int) $z->z_number . '.csv', 'text/csv; charset=utf-8' );
 	}
 

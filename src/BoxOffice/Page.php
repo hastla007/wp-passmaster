@@ -173,6 +173,7 @@ final class Page {
 			echo '<p>' . esc_html__( 'Kein Beleg mit dieser Nummer gefunden.', 'wp-pass-captain' ) . '</p>';
 			return;
 		}
+		\PassCaptain\Privacy\AccessLog::view( 'pos_sale', 'pos_sale', (int) $sale->sale_id );
 		echo '<table class="widefat striped"><tbody>';
 		self::render_sale_row( $sale );
 		echo '</tbody></table>';
@@ -383,6 +384,7 @@ final class Page {
 		$sale = Service::sale( absint( $_GET['sale_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view with permission check.
 		if ( ! self::can_view_sale( $sale ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		if ( ! Service::is_booked( $sale ) ) { wp_die( esc_html__( 'Für diesen Verkauf gibt es keinen Beleg, weil er nicht gebucht wurde.', 'wp-pass-captain' ), 404 ); }
+		\PassCaptain\Privacy\AccessLog::export( 'pos_receipt', 'pos_sale', (int) $sale->sale_id, array( 'storno' => ! empty( $_GET['storno'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		nocache_headers();
 		echo Service::receipt_html( $sale->sale_id, ! empty( $_GET['storno'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in receipt_html.
 		exit;
@@ -393,6 +395,7 @@ final class Page {
 		Forms::verify( 'wpcap_pos_tickets_' . $sale_id );
 		$result = self::tickets_pdf( $sale_id );
 		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 403 ); }
+		\PassCaptain\Privacy\AccessLog::export( 'pos_tickets_pdf', 'pos_sale', $sale_id );
 		Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );
 	}
 

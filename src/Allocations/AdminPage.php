@@ -228,6 +228,7 @@ final class AdminPage {
 		foreach ( (array) $types as $type ) { $type_names[ (int) $type->ticket_type_id ] = $type->name; }
 		$seated = class_exists( \PassCaptain\Seating\Layouts::class ) && \PassCaptain\Seating\Layouts::link( $occurrence_id );
 		$report = Holds::report( $occurrence_id );
+		\PassCaptain\Privacy\AccessLog::view( 'allocation_occurrence', 'occurrence', $occurrence_id );
 		$sources = array( 'pos' => __( 'Abendkasse', 'wp-pass-captain' ), 'guestlist' => __( 'Gästeliste', 'wp-pass-captain' ), 'admin' => __( 'Admin', 'wp-pass-captain' ) );
 		foreach ( Holds::trusted_sources() as $source ) { $sources[ $source ] = $sources[ $source ] ?? $source; }
 

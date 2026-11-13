@@ -177,6 +177,7 @@ final class AdminPage {
 		if ( ! Settlements::can_view( $s ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		$format = sanitize_key( $_GET['format'] ?? 'html' ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$name = 'abrechnung-' . ( $s->document_number ?: 'entwurf-' . $s->period );
+		\PassCaptain\Privacy\AccessLog::export( 'csv' === $format ? 'partner_settlement_csv' : 'partner_settlement_html', 'partner', (int) $s->partner_id, array( 'settlement_id' => (int) $s->settlement_id, 'period' => (string) $s->period ) );
 		if ( 'csv' === $format ) {
 			Scope::send_download( Scope::csv( Settlements::csv_rows( $s ) ), $name . '.csv', 'text/csv; charset=utf-8' );
 		}
@@ -194,6 +195,7 @@ final class AdminPage {
 		$partner = Repository::get( absint( $_GET['partner_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nonce checked above.
 		$period = sanitize_text_field( wp_unslash( $_GET['period'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $partner || ! Settlements::valid_period( $period ) ) { wp_die( esc_html__( 'Ungültige Anfrage.', 'wp-pass-captain' ), 400 ); }
+		\PassCaptain\Privacy\AccessLog::export( 'partner_statement_csv', 'partner', (int) $partner->partner_id, array( 'period' => $period ) );
 		Scope::send_download( Scope::csv( Statement::csv_rows( $partner, $period ) ), 'wiederverkaeufer-abrechnung-' . (int) $partner->partner_id . '-' . $period . '.csv', 'text/csv; charset=utf-8' );
 	}
 
@@ -227,6 +229,7 @@ final class AdminPage {
 			echo '<p><a href="' . esc_url( Forms::page_url( self::PAGE ) ) . '">&larr; ' . esc_html__( 'Alle Veranstalter', 'wp-pass-captain' ) . '</a></p>';
 			self::render_partner_form( $partner );
 			if ( $partner ) {
+				\PassCaptain\Privacy\AccessLog::view( 'partner_detail', 'partner', (int) $partner->partner_id );
 				self::render_keys( $partner );
 				self::render_sales( $partner );
 			}
@@ -239,6 +242,7 @@ final class AdminPage {
 			echo '<p>' . esc_html__( 'Noch keine Veranstalter.', 'wp-pass-captain' ) . '</p>';
 		} else {
 			$policies = Repository::refund_policy_labels();
+			\PassCaptain\Privacy\AccessLog::list_view( 'partner_list', array(), count( $partners ) );
 			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Name', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Kontakt', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Konditionen', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Verkaufsmodell', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Events', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $partners as $pa ) {
 				$terms = sprintf( /* translators: 1: percent, 2: fee */ __( '%1$s %% Provision, %2$s je Ticket', 'wp-pass-captain' ), Forms::percent_input( $pa->commission_bp ), Forms::money( $pa->fee_per_ticket_minor, $pa->currency ) );

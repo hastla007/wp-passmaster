@@ -326,10 +326,12 @@ final class Billing {
 		}
 		$billing = self::validate( $input );
 		if ( is_wp_error( $billing ) ) { return $billing; }
+		$before = self::for_order( $order );
 		if ( ! self::save( (int) $order->order_id, $billing ?: array() ) ) {
 			return new \WP_Error( 'wpcap_billing_save', __( 'Die Rechnungsdaten konnten nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
 		}
-		Audit::record( 'billing_updated', 'order', (int) $order->order_id, array( 'source' => 'portal', 'cleared' => ! $billing ) );
+		// Masked before/after diff (A122): field names and masked values only.
+		Audit::record( 'billing_updated', 'order', (int) $order->order_id, array( 'source' => 'portal', 'cleared' => ! $billing, 'changes' => Privacy\AccessLog::diff( $before, $billing ?: array(), array( 'country' ) ) ) );
 		return array( 'billing' => $billing ?: array() );
 	}
 

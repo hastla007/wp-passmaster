@@ -239,6 +239,7 @@ final class InvoicePdf {
 		if ( is_wp_error( $result ) ) {
 			wp_die( esc_html( $result->get_error_message() ), (int) ( $result->get_error_data()['status'] ?? 400 ) );
 		}
+		\PassCaptain\Privacy\AccessLog::export( 'invoice_pdf', 'order', $order_id, array( 'credit_note_id' => $credit_note_id ) );
 		\PassCaptain\Reports\Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );
 	}
 

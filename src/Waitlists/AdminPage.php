@@ -111,6 +111,7 @@ final class AdminPage {
 			echo '<p>' . esc_html__( 'Keine Einträge für dieses Event.', 'wp-pass-captain' ) . '</p>';
 			return;
 		}
+		\PassCaptain\Privacy\AccessLog::view( 'waitlist', 'event', (int) $event_id, array( 'rows' => count( $rows ) ) );
 		echo '<table class="widefat striped"><thead><tr>';
 		foreach ( array( __( 'Rang', 'wp-pass-captain' ), __( 'Position', 'wp-pass-captain' ), __( 'Ticketart', 'wp-pass-captain' ), __( 'E-Mail', 'wp-pass-captain' ), __( 'Anzahl', 'wp-pass-captain' ), __( 'Priorität', 'wp-pass-captain' ), __( 'Status', 'wp-pass-captain' ), __( 'Reserviert bis', 'wp-pass-captain' ), __( 'Bestellung', 'wp-pass-captain' ), __( 'Aktionen', 'wp-pass-captain' ) ) as $head ) {
 			echo '<th scope="col">' . esc_html( $head ) . '</th>';

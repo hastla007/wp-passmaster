@@ -60,6 +60,7 @@ final class ConflictsPage {
 		if ( ! in_array( $status, array( 'open', 'resolved', 'all' ), true ) ) { $status = 'open'; }
 		$page = Forms::current_page();
 		$data = Conflicts::search( array( 'status' => 'all' === $status ? '' : $status, 'event_id' => $event_id ), $scope, $page, 50 );
+		\PassCaptain\Privacy\AccessLog::list_view( 'admission_conflicts', array( 'event_id' => $event_id, 'status' => $status, 'paged' => $page ), count( (array) ( $data['rows'] ?? array() ) ) );
 		$resolutions = Conflicts::resolutions();
 		?>
 		<div class="wrap wpcap-admin">

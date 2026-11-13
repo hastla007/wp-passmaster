@@ -458,6 +458,7 @@ final class Service {
 			if ( ! is_email( $email ) || self::is_placeholder_email( $email ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'wp-pass-captain' ) ); }
 			$wpdb->update( "{$p}wpcap_guest_entries", array( 'email' => $email, 'updated_at' => current_time( 'mysql', true ) ), array( 'entry_id' => (int) $entry->entry_id ) );
 			$wpdb->update( "{$p}wpcap_orders", array( 'customer_email' => $email ), array( 'order_id' => (int) $entry->order_id ) );
+			\PassCaptain\Privacy\AccessLog::correction( 'guest_entry', (int) $entry->entry_id, array( 'email' => self::is_placeholder_email( (string) $entry->email ) ? '' : (string) $entry->email ), array( 'email' => $email ), array( 'order_id' => (int) $entry->order_id, 'event_id' => (int) $list->event_id, 'source' => 'guestlist_resend' ) );
 			$entry->email = $email;
 		}
 		if ( '' === (string) $entry->email ) { return self::error( 'wpcap_guestlist_no_email', __( 'Für diesen Gast ist keine E-Mail-Adresse hinterlegt. Die Tickets liegen an der Abendkasse (Abholliste).', 'wp-pass-captain' ) ); }

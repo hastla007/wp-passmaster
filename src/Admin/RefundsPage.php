@@ -24,6 +24,7 @@ final class RefundsPage {
 			wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 );
 		}
 		$refunds = Queries::pending_refunds( Queries::event_ids_for( OrdersPage::CAP ) );
+		if ( $refunds ) { \PassCaptain\Privacy\AccessLog::list_view( 'refund_queue', array(), count( $refunds ) ); }
 		?>
 		<div class="wrap wpcap-admin">
 		<h1><?php esc_html_e( 'Erstattungen zur Freigabe', 'wp-pass-captain' ); ?></h1>

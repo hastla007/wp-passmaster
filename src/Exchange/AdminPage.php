@@ -162,7 +162,7 @@ final class AdminPage {
 			$rows = array_values( array_filter( $rows, static function ( $row ) { return Queries::can_access_order( (int) $row['order_id'], self::CAP ); } ) );
 		}
 		echo '<h2>' . esc_html__( 'Letzte Umtausche', 'wp-pass-captain' ) . '</h2>';
-		if ( $rows ) { self::render_table( $rows ); } else { echo '<p>' . esc_html__( 'Noch keine Umtausche.', 'wp-pass-captain' ) . '</p>'; }
+		if ( $rows ) { \PassCaptain\Privacy\AccessLog::list_view( 'exchange_list', array(), count( $rows ) ); self::render_table( $rows ); } else { echo '<p>' . esc_html__( 'Noch keine Umtausche.', 'wp-pass-captain' ) . '</p>'; }
 		echo '</div>';
 	}
 
@@ -173,6 +173,7 @@ final class AdminPage {
 			return;
 		}
 		echo '<h2>' . esc_html( sprintf( /* translators: 1: event, 2: ticket type, 3: date */ __( 'Ticket umtauschen: %1$s — %2$s (%3$s)', 'wp-pass-captain' ), $ticket->event_name, $ticket->ticket_name, Forms::datetime( $ticket->starts_at, $ticket->timezone ) ) ) . '</h2>';
+		\PassCaptain\Privacy\AccessLog::view( 'exchange_ticket', 'ticket', (int) $ticket_id );
 		$options = Service::options( $ticket_id, 'admin' );
 		if ( 'valid' !== $ticket->status || ! $options ) {
 			echo '<p>' . esc_html__( 'Für dieses Ticket ist derzeit kein Umtausch möglich (Status, Zahlung oder keine verfügbaren Ziele).', 'wp-pass-captain' ) . '</p>';

@@ -37,6 +37,7 @@ final class Menu {
 			'wpcap_reject_refund' => array( OrdersPage::class, 'handle_reject_refund' ),
 			'wpcap_revoke_ticket' => array( TicketsPage::class, 'handle_revoke_ticket' ),
 			'wpcap_undo_checkin' => array( TicketsPage::class, 'handle_undo_checkin' ),
+			'wpcap_correct_attendee' => array( TicketsPage::class, 'handle_correct_attendee' ),
 			'wpcap_reissue_ticket' => array( TicketsPage::class, 'handle_reissue_ticket' ),
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
 			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
@@ -149,6 +150,7 @@ final class Menu {
 			'wpcap-reminders'              => 'communication',
 			'wpcap-sms'                    => 'communication',
 			SettingsPage::SLUG             => 'settings',
+			AuditLogPage::SLUG             => 'settings',
 			'wpcap-mollie'                 => 'settings',
 			'wpcap-wallet'                 => 'settings',
 			'wpcap-webhooks'               => 'settings',
@@ -188,6 +190,7 @@ final class Menu {
 			$entries[] = array( $slug, $title, $title, $cap, $callback, (string) ( $page[4] ?? '' ) );
 		}
 		$entries[] = array( SettingsPage::SLUG, __( 'Einstellungen', 'wp-pass-captain' ), __( 'Einstellungen', 'wp-pass-captain' ), SettingsPage::CAP, array( SettingsPage::class, 'render' ), '' );
+		$entries[] = array( AuditLogPage::SLUG, __( 'Audit-Log', 'wp-pass-captain' ), __( 'Audit-Log', 'wp-pass-captain' ), AuditLogPage::CAP, array( AuditLogPage::class, 'render' ), '' );
 		if ( \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) {
 			// Links into Voucher Captain's own menu (both plugins keep their menus, CONCEPT 15.7).
 			$entries[] = array( 'admin.php?page=vcap-scanner', __( 'Gemeinsamer Scanner', 'wp-pass-captain' ), __( 'Gemeinsamer Scanner ↗', 'wp-pass-captain' ), 'wpcap_checkin', null, '' );

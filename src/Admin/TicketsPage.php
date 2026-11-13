@@ -9,6 +9,7 @@ namespace PassCaptain\Admin;
 
 use PassCaptain\Access;
 use PassCaptain\Audit;
+use PassCaptain\Privacy\AccessLog;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -106,6 +107,49 @@ final class TicketsPage {
 		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id );
 	}
 
+	/**
+	 * Corrects the attendee name and e-mail of a ticket (right to rectification, Art. 16 GDPR) for the
+	 * same person: the ticket code stays valid (a change of person uses "Neu ausstellen"). Requires
+	 * wpcap_manage_orders for the ticket's event and a reason. Audited as record_corrected with a masked
+	 * before/after diff (field names, masked values).
+	 */
+	public static function correct_attendee( array $in ) {
+		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
+		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
+		if ( ! in_array( (string) $ticket->status, array( 'valid', 'checked_in' ), true ) ) {
+			return Forms::error( 'wpcap_ticket_not_valid', __( 'Nur gültige oder eingecheckte Tickets können korrigiert werden.', 'wp-pass-captain' ), 409 );
+		}
+		$name = Forms::text( $in, 'attendee_name', 190 );
+		$email = sanitize_email( Forms::text( $in, 'attendee_email', 190 ) );
+		$reason = Forms::text( $in, 'reason', 255 );
+		if ( '' === $reason ) { return Forms::error( 'wpcap_correction_reason', __( 'Bitte einen Grund für die Korrektur angeben.', 'wp-pass-captain' ) ); }
+		if ( '' !== $email && ! is_email( $email ) ) { return Forms::error( 'wpcap_correction_email', __( 'Die E-Mail-Adresse ist ungültig.', 'wp-pass-captain' ) ); }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$assignment = $wpdb->get_row( $wpdb->prepare( "SELECT attendee_name,attendee_email FROM {$p}wpcap_ticket_assignments WHERE ticket_id=%d", (int) $ticket->ticket_id ) );
+		$before = array(
+			'attendee_name' => $assignment ? (string) $assignment->attendee_name : '',
+			'attendee_email' => $assignment && '' !== (string) $assignment->attendee_email ? (string) $assignment->attendee_email : (string) $ticket->attendee_email,
+		);
+		$after = array( 'attendee_name' => $name, 'attendee_email' => $email );
+		if ( AccessLog::diff( $before, $after ) === array() ) {
+			return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id, 'changed' => false );
+		}
+		$wpdb->query( 'START TRANSACTION' );
+		$wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => (int) $ticket->ticket_id ), array( '%s' ), array( '%d' ) );
+		$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", (int) $ticket->ticket_id, (string) $ticket->customer_email, $email, $name, current_time( 'mysql', true ) ) );
+		if ( $wpdb->last_error ) {
+			$wpdb->query( 'ROLLBACK' );
+			return Forms::error( 'wpcap_correction_failed', __( 'Die Teilnehmerdaten konnten nicht gespeichert werden.', 'wp-pass-captain' ), 500 );
+		}
+		$wpdb->query( 'COMMIT' );
+		$changes = AccessLog::correction( 'ticket', (int) $ticket->ticket_id, $before, $after, array( 'order_id' => (int) $ticket->order_id, 'event_id' => (int) $ticket->event_id, 'source' => 'admin', 'reason' => $reason ) );
+		/** Staff corrected personal data of a record (A122); $changes holds field names with masked values. */
+		do_action( 'wpcap_record_corrected', 'ticket', (int) $ticket->ticket_id, $changes );
+		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id, 'changed' => true );
+	}
+
 	/* =============================================================================================
 	 * admin-post wrappers
 	 * =========================================================================================== */
@@ -128,6 +172,14 @@ final class TicketsPage {
 		$message = ! is_wp_error( $result ) && empty( $result['mailed'] )
 			? __( 'Ticket neu ausgestellt. Die E-Mail an den Inhaber konnte nicht zugestellt werden; bitte erneut versuchen.', 'wp-pass-captain' )
 			: __( 'Ticket neu ausgestellt und an den Inhaber gesendet. Der bisherige Code ist ungültig.', 'wp-pass-captain' );
+		Forms::finish( $result, $message, self::back_url( $in ) );
+	}
+
+	public static function handle_correct_attendee() {
+		$in = Forms::post();
+		Forms::verify( 'wpcap_correct_attendee_' . Forms::int( $in, 'ticket_id' ) );
+		$result = self::correct_attendee( $in );
+		$message = ! is_wp_error( $result ) && empty( $result['changed'] ) ? __( 'Keine Änderung – die Teilnehmerdaten waren bereits so gespeichert.', 'wp-pass-captain' ) : __( 'Teilnehmerdaten korrigiert. Der Ticketcode bleibt gültig.', 'wp-pass-captain' );
 		Forms::finish( $result, $message, self::back_url( $in ) );
 	}
 
@@ -155,6 +207,7 @@ final class TicketsPage {
 		$page = Forms::current_page();
 		$per_page = 30;
 		$data = $has_filter ? Queries::search_tickets( $filters, $scope, $page, $per_page ) : array( 'rows' => array(), 'total' => 0 );
+		if ( $has_filter ) { \PassCaptain\Privacy\AccessLog::list_view( 'ticket_list', $filters + array( 'paged' => $page ), count( $data['rows'] ) ); }
 		$status_options = array( '' => __( 'Alle Status', 'wp-pass-captain' ) );
 		foreach ( self::STATUSES as $s ) { $status_options[ $s ] = Forms::status_label( $s ); }
 		?>
@@ -209,7 +262,18 @@ final class TicketsPage {
 								<?php Forms::open_form( 'wpcap_reissue_ticket', 'wpcap_reissue_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
 								<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink.', 'wp-pass-captain' ) ); ?>')"><?php esc_html_e( 'Neu ausstellen', 'wp-pass-captain' ); ?></button>
 								</form>
-							<?php elseif ( 'checked_in' === $ticket->status && $can_checkin ) : ?>
+							<?php endif; ?>
+							<?php if ( in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) && $can_orders ) : ?>
+								<details><summary><?php esc_html_e( 'Teilnehmerdaten korrigieren', 'wp-pass-captain' ); ?></summary>
+								<?php Forms::open_form( 'wpcap_correct_attendee', 'wpcap_correct_attendee_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
+								<p><label><?php esc_html_e( 'Name', 'wp-pass-captain' ); ?> <input type="text" name="attendee_name" maxlength="190" value="<?php echo esc_attr( (string) $ticket->attendee_name ); ?>"></label></p>
+								<p><label><?php esc_html_e( 'E-Mail', 'wp-pass-captain' ); ?> <input type="email" name="attendee_email" maxlength="190" value="<?php echo esc_attr( (string) $email ); ?>"></label></p>
+								<p><input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund der Korrektur', 'wp-pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Grund der Korrektur', 'wp-pass-captain' ); ?>">
+								<button class="button" type="submit"><?php esc_html_e( 'Korrektur speichern', 'wp-pass-captain' ); ?></button></p>
+								<p class="description"><?php esc_html_e( 'Nur für Tippfehler derselben Person; der Ticketcode bleibt gültig. Für eine andere Person „Neu ausstellen“ verwenden.', 'wp-pass-captain' ); ?></p>
+								</form></details>
+							<?php endif; ?>
+							<?php if ( 'checked_in' === $ticket->status && $can_checkin ) : ?>
 								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
 								<input type="text" name="reason" maxlength="255" placeholder="<?php esc_attr_e( 'Grund (optional)', 'wp-pass-captain' ); ?>">
 								<button class="button" type="submit"><?php esc_html_e( 'Check-in zurücknehmen', 'wp-pass-captain' ); ?></button>

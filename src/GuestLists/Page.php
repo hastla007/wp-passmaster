@@ -129,6 +129,7 @@ final class Page {
 		$event_id = absint( Forms::query_arg( 'event_id' ) );
 		$rows = Service::export_rows( $event_id, absint( Forms::query_arg( 'list_id' ) ) );
 		if ( is_wp_error( $rows ) ) { wp_die( esc_html( $rows->get_error_message() ), '', array( 'response' => 403 ) ); }
+		\PassCaptain\Privacy\AccessLog::export( 'guestlist_csv', 'event', $event_id, array( 'list_id' => absint( Forms::query_arg( 'list_id' ) ), 'rows' => max( 0, count( $rows ) - 1 ) ) );
 		Scope::send_download( Scope::csv( $rows ), 'gaesteliste-' . $event_id . '.csv', 'text/csv; charset=utf-8' );
 	}
 
@@ -136,6 +137,7 @@ final class Page {
 		Forms::verify( 'wpcap_gl_print' );
 		$html = self::will_call_html( absint( Forms::query_arg( 'occurrence_id' ) ) );
 		if ( is_wp_error( $html ) ) { wp_die( esc_html( $html->get_error_message() ), '', array( 'response' => 403 ) ); }
+		\PassCaptain\Privacy\AccessLog::export( 'guestlist_print', 'occurrence', absint( Forms::query_arg( 'occurrence_id' ) ) );
 		if ( ! headers_sent() ) { header( 'Content-Type: text/html; charset=utf-8' ); header( 'X-Content-Type-Options: nosniff' ); }
 		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 		exit;
@@ -178,6 +180,7 @@ final class Page {
 		echo '</label> <button class="button">' . esc_html__( 'Anzeigen', 'wp-pass-captain' ) . '</button></form>';
 
 		if ( Service::can_manage( $event_id ) ) {
+			\PassCaptain\Privacy\AccessLog::view( 'guestlist', 'event', $event_id, array_filter( array( 'list_id' => absint( Forms::query_arg( 'list_id' ) ) ) ) );
 			echo '<div class="notice notice-info inline"><p>' . esc_html__( 'Freikarten werden mit 0 € und 0 % USt ausgestellt und erscheinen in Umsatzberichten und Veranstalter-Abrechnungen nicht als Verkauf, sondern separat als Freikarten. Hinweis: Freikarten als Gegenleistung (z. B. Sponsoring, Medienkooperationen, Tausch gegen Werbeleistungen) können umsatzsteuerlich ein tauschähnlicher Umsatz sein – die steuerliche Beurteilung und Erfassung liegt beim Betreiber.', 'wp-pass-captain' ) . '</p></div>';
 			self::render_lists( $event_id );
 		}
@@ -315,6 +318,7 @@ final class Page {
 		if ( '' === $q ) { return; }
 		$results = Service::can_checkin( $event_id ) ? Service::search( $occurrence_id, $q ) : array();
 		if ( is_wp_error( $results ) || ! $results ) { echo '<p>' . esc_html__( 'Kein ausgestellter Gästelisten-Eintrag gefunden.', 'wp-pass-captain' ) . '</p>'; return; }
+		\PassCaptain\Privacy\AccessLog::list_view( 'guestlist_checkin', array( 'q' => $q ), count( $results ), 'occurrence', $occurrence_id );
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Name', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Firma', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Liste', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Personen', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Codes', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Eingecheckt', 'wp-pass-captain' ) . '</th><th></th></tr></thead><tbody>';
 		foreach ( $results as $r ) {
 			echo '<tr><td>' . esc_html( $r['name'] ) . '</td><td>' . esc_html( $r['company'] ) . '</td><td>' . esc_html( $r['list'] ) . '</td><td>' . (int) $r['quantity'] . '</td><td><code>' . esc_html( implode( ' ', $r['codes'] ) ) . '</code></td><td>' . (int) $r['tickets_checked_in'] . ' / ' . (int) $r['quantity'] . '</td><td>';

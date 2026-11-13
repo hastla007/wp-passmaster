@@ -181,6 +181,9 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_privacy_policy_content` | `string $html, array $recipients` | HTML des Datenschutztext-Vorschlags. |
 | `wpcap_scanner_queue_max_hours` | `int $hours` (24, 1–168) | Wie lange der Web-Scanner Offline-Scans im Browser aufbewahrt. |
 | `wpcap_privacy_defer_upcoming` | `bool $defer` (true), `int $order_id` | Bei einer Löschanfrage Bestellungen mit Tickets für kommende Termine zurückstellen (Anonymisierung automatisch nach dem letzten Termin) statt die Tickets zu widerrufen (Art. 17 Abs. 3 lit. b DSGVO). |
+| `wpcap_pii_audit_window` | `int $seconds` (600) | Zeitfenster, in dem wiederholte Ansichten/Lesezugriffe derselben Person auf dasselbe Objekt bzw. dieselbe Liste mit denselben Filtern nur einmal ins Audit-Log kommen (`0` = jeden Aufruf protokollieren); siehe [SECURITY.md](SECURITY.md#audit-log-zugriffe-auf-personenbezogene-daten). |
+| `wpcap_pii_audit_rest_routes` | `array $routes` | REST-Routen (Regex → `[Ansicht, Objekttyp, ID-Parameter]`), deren erfolgreiche GET-Antworten als `pii_api_read` protokolliert werden (Warteliste, Gästeliste, Offline-Paket, Partner-API Bestellungen/Tickets/Check-ins). |
+| `wpcap_record_corrected` (Action) | `string $object_type, int $object_id, array $changes` | Personal hat personenbezogene Daten korrigiert (Teilnehmerkorrektur im Ticket-Admin); `$changes`: Feldname → maskiertes `from`/`to`, Audit-Eintrag `record_corrected`. |
 | `wpcap_privacy_retention_steps` | `array $counts, int $now, float $deadline` | Eigene Schritte des täglichen Löschlaufs anhängen (Gästelisten, Warteliste, Käuferlimits …): Anzahl je Schrittname ergänzen, `$deadline` (`microtime()`-Grenze) beachten. |
 
 ### Wallet

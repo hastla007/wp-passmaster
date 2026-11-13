@@ -524,6 +524,7 @@ final class Invoices {
 		if ( ! $exists ) { check_admin_referer( 'wpcap_issue_invoice_' . $order_id ); }
 		$result = self::issue_for_order( $order_id );
 		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 409 ); }
+		Privacy\AccessLog::export( 'invoice_html', 'order', $order_id, array( 'invoice_id' => (int) $result['invoice_id'] ) );
 		nocache_headers();
 		echo self::render_html( $result['invoice_id'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_html.
 		exit;

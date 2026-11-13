@@ -70,6 +70,7 @@ final class CheckinsPage {
 		$page = Forms::current_page();
 		$per_page = 50;
 		$data = Queries::checkin_log( array( 'event_id' => $event_id, 'result' => $result, 'date_from' => $from_utc, 'date_to' => $to_utc ), $scope, $page, $per_page );
+		\PassCaptain\Privacy\AccessLog::list_view( 'checkin_list', array( 'event_id' => $event_id, 'result' => $result, 'date_from' => $date_from, 'date_to' => $date_to, 'paged' => $page ), count( $data['rows'] ) );
 		$result_options = array( '' => __( 'Alle Ergebnisse', 'wp-pass-captain' ) );
 		foreach ( $results as $r ) { $result_options[ $r ] = \PassCaptain\Admission\ConflictsPage::result_label( $r ); }
 		$base = Forms::page_url( self::SLUG, array_filter( array( 'event_id' => $event_id, 'result' => $result, 'date_from' => $date_from, 'date_to' => $date_to ) ) );
