@@ -939,6 +939,187 @@ Gesamt: 262 Aufgaben.
 - [ ] **A445** [OPTIMIERUNG] WooCommerce-Absagenotiz sucht je Bestellung per meta_value (PLAUSIBEL O(n²)) — _R2 DB/Performance_ (TODO L754; Audit Runde 4)
   - src/Integrations/WooCommerce/OrderAdapter.php:948–953: WC-Order-ID an der Kernbestellung speichern
 
+### Audit Runde 5 – Lifecycle, Editor, Multisite/i18n, Caching/CDN, QA, Eigen-Audit (13.11.2026, Snapshot ccf2530)
+
+- [ ] **A446** [KRITISCH] Vorverkaufsstart und Eventänderungen werden nie aus dem Seitencache entfernt (kein Purge) — _R3 Caching_ (TODO L758; Audit Runde 4)
+  - src/PublicEvents.php:154, :244, Modules/Calendar.php:153/219: Aktion wpcap_purge_page_cache bei allen Event-/Termin-/Ticketart-Änderungen mit Adaptern (WP Rocket, LiteSpeed, W3TC, Cloudflare, Varnish), Cron-Purge zu sales_start/sales_end, Doku
+- [ ] **A447** [KRITISCH] Speichern eines Veranstalters löst still alle Event-Verknüpfungen jenseits der ersten 500 Events — _R3 Multisite/i18n/Skalierung_ (TODO L759; Audit Runde 4)
+  - src/Partners/AdminPage.php:313–317, Admin/Queries.php:288–292 (LIMIT 500), Partners/Repository.php:263–276 (set_events): Falsches Verkaufsmodell/Rechnungssteller, Aussperrung, fehlende Abrechnung; N+1. AJAX-Suche/Paginierung, set_events als Diff; alle Filter-Dropdowns mit 500er-Grenze prüfen
+- [ ] **A448** [KRITISCH] Event-Umhängen zwischen Veranstaltern führt zur doppelten Auszahlung — _R3 Eigen (Deep Dive 2)_ (TODO L760; Audit Runde 4)
+  - src/Partners/Settlements.php:105 (compute), Partners/Repository.php:263 (set_events): Abgerechnet-Schlüssel nur je Partner; keine Zuordnungshistorie. Global prüfen, Zuordnung mit Gültigkeitszeitraum, offene Posten beim alten Veranstalter (belegt t2)
+- [ ] **A449** [WICHTIG] Block-Unterstützungen fehlen auf der Website (keine get_block_wrapper_attributes) — _R3 Editor_ (TODO L761; Audit Runde 4)
+  - src/blocks/events/render.php:4, calendar/render.php:6, block.json: Eigene CSS-Klasse/Block-Klasse nur im Editor, theme.json-Blockstile greifen nie. Ausgabe in Wrapper mit get_block_wrapper_attributes(), supports bewusst setzen
+- [ ] **A450** [WICHTIG] Bestell-/Wartelistenformular ohne method/action: ohne JS personenbezogene Daten per GET in der URL — _R3 Editor_ (TODO L762; Audit Runde 4)
+  - templates/event-card.php:51, :174, assets/checkout.js:450/548: method="post" action="#", Absenden erst nach JS-Init aktivieren
+- [ ] **A451** [WICHTIG] ServerSideRender-Vorschau interaktiv statt in Disabled — _R3 Editor_ (TODO L763; Audit Runde 4)
+  - src/blocks/events/editor.js:20, calendar/editor.js:29: Vorschau in wp.components.Disabled einbetten
+- [ ] **A452** [WICHTIG] Kalender-Monatsnavigation nutzt get_permalink() des globalen Posts; zwei Kalender blättern gemeinsam — _R3 Editor_ (TODO L764; Audit Runde 4)
+  - src/Modules/Calendar.php:245, :153: Basis aus Request-URL, Parameter je Instanz
+- [ ] **A453** [WICHTIG] Event-Auswahl im Block auf 500 Termine begrenzt; gespeicherte Auswahl irreführend als „Alle Events“ — _R3 Editor_ (TODO L765; Audit Runde 4)
+  - src/PublicEvents.php:339 (block_choices), blocks/events/editor.js:11–16: Je Event aggregieren, fehlende Option als „Event #X (nicht mehr verfügbar)“
+- [ ] **A454** [WICHTIG] Editor-Skripte ohne Cache-Busting (Versionsnummer nicht erhöht) — _R3 Editor_ (TODO L766; Audit Runde 4)
+  - src/blocks/*/editor.asset.php:5: filemtime/WPCAP_VERSION, CI-Prüfung Asset-Version ↔ Dateihash
+- [ ] **A455** [WICHTIG] Keine Editor-/Builder-Tests; keine eigenen Event-URLs/Templates — _R3 Editor_ (TODO L767; Audit Runde 4)
+  - tests/: Blockvalidierung/Render-Tests, Iframe-Editor, Widget/Template-Teile; Event-Einzelseiten erwägen
+- [ ] **A456** [WICHTIG] Verfügbarkeit/Kaufzustand nur statisch im HTML, nie nachgeladen (Warteliste fehlt, veraltete Knappheitsangaben) — _R3 Caching_ (TODO L768; Audit Runde 4)
+  - templates/event-card.php:21/75/141/173, PublicEvents.php:173, EventCard.php: No-store-Endpunkt für Verfügbarkeit/Badges/Provider/Warteliste, per JS laden; Formular und Warteliste immer ausliefern
+- [ ] **A457** [WICHTIG] Nach AGB-Änderung ist jede gecachte Kaufseite blockiert (409, Reload hilft nicht) — _R3 Caching_ (TODO L769; Audit Runde 4)
+  - templates/event-card.php:162, Orders.php:64–67: Bei 409 Texte/Version per /checkout/options nachladen, erneut bestätigen; Purge beim Speichern
+- [ ] **A458** [WICHTIG] Zeitabhängige Preise still neu berechnet, Käufer sieht Abweichung erst beim Anbieter (PAngV/§312j) — _R3 Caching_ (TODO L770; Audit Runde 4)
+  - src/PublicEvents.php:280, Series/Pricing.php:257–266, assets/checkout.js:502–533: Erwartete Preise mitsenden, bei Abweichung 409 wpcap_price_changed mit Bestätigung
+- [ ] **A459** [WICHTIG] Stornoanfrage im Portal scheitert immer für angemeldete Käufer (Nonce/Cookie) — _R3 Caching_ (TODO L771; Audit Runde 4)
+  - src/PortalSelfService.php:557, :458, OrderPortal.php:144: Benutzerunabhängige Prüfung (HMAC) oder X-WP-Nonce mitsenden
+- [ ] **A460** [WICHTIG] Scanner-Kopplung und Hilfscode am Einlass je öffentlicher IP limitiert (Venue-NAT) — _R3 Caching_ (TODO L772; Audit Runde 4)
+  - src/Mobile/Api.php:50, HelpCode.php:186: Je Kopplungscode/Benutzer limitieren, IP-Bucket nur bei Fehlversuchen
+- [ ] **A461** [WICHTIG] Apple-Wallet-Webservice antwortet bei Ratenlimit mit 401 statt 429 — _R3 Caching_ (TODO L773; Audit Runde 4)
+  - src/WalletPasses/WebService.php:53, :65: 429/503 mit Retry-After, Limit je Seriennummer/Gerät
+- [ ] **A462** [WICHTIG] Token-Seiten ohne DONOTCACHEPAGE; Angebots-Nonce kürzer als Angebot (erweitert A283) — _R3 Caching_ (TODO L774; Audit Runde 4)
+  - src/Waitlists.php:83/870/889/1053/1075, Printing/InvoicePdf.php:288, Payments/ReturnNotice.php:23–29: Überall DONOTCACHEPAGE + nocache_headers (auch 404), Angebotsseite ohne Nonce oder mit langer Gültigkeit
+- [ ] **A463** [WICHTIG] Rollback auf 1.4.0 legt alle Zahlungs-Zugangsdaten still (Secrets-Vault) — _R3 Lifecycle_ (TODO L775; Audit Runde 4)
+  - src/Secrets.php:270–293, docs/OPERATIONS.md:269–278: Doku: vor Rollback Konstanten/Neueingabe; Drill mit Stripe-Schlüsseln; ggf. Klartext-Fallback bis Major
+- [ ] **A464** [WICHTIG] Rollback und erneutes Update: Kapazitätszähler bleiben falsch → Überverkauf — _R3 Lifecycle_ (TODO L776; Audit Runde 4)
+  - src/CapacityCounters.php:154–158, :519–520: Rollback erkennen (db_version < max) → Zähler neu aufbauen
+- [ ] **A465** [WICHTIG] Neuer Standard Einlassfenster gilt nach Update ohne Hinweis/Pinning — _R3 Lifecycle_ (TODO L777; Audit Runde 4)
+  - src/Settings.php:111, Admission/Engine.php:86–99, Checkin.php:140/214: Für Bestandsinstallationen default_entry_window=0 festschreiben oder Upgrade Notice + Admin-Hinweis
+- [ ] **A466** [WICHTIG] Dauerhaft fehlschlagendes Schema-Upgrade läuft endlos und teuer — _R3 Lifecycle_ (TODO L778; Audit Runde 4)
+  - src/Installer.php:797–803, :1017–1050, Plugin.php:18: Fehlversuch mit Zeitstempel, Backoff/Knopf; nach fehlgeschlagener Erstinstallation keine Events planen
+- [ ] **A467** [WICHTIG] Deinstallation löscht Optionen per Roh-SQL, persistenter Objekt-Cache bleibt — _R3 Lifecycle_ (TODO L779; Audit Runde 4)
+  - uninstall.php:36: delete_option je Option, alloptions-Cache leeren
+- [ ] **A468** [WICHTIG] rebuild_all() der Kapazitätszähler synchron im Upgrade-Request über die gesamte Historie — _R3 Lifecycle_ (TODO L780; Audit Runde 4)
+  - src/CapacityCounters.php:608–615, Installer.php:809: Resumierbarer Job mit Cursor, Version unabhängig speichern
+- [ ] **A469** [WICHTIG] Rollback-Drill prüft keine Zustände außerhalb des Schemas (Secrets, Zähler, Optionen, Standardwerte) — _R3 Lifecycle_ (TODO L781; Audit Runde 4)
+  - tests/restore/drill.sh: Drill mit Provider-Schlüsseln, Verkäufen im Altcode über >2 Tage simulierte Zeit, danach Kapazität und Zahlungsfähigkeit prüfen
+- [ ] **A470** [WICHTIG] Zugriffs-Scope als netzwerkweite User-Meta mit Site-lokalen IDs — _R3 Multisite/i18n/Skalierung_ (TODO L782; Audit Runde 4)
+  - src/Access.php:30/125/170–181, Admin/UserScope.php:26–72, BoxOffice/Page.php:271: get/update_user_option, Migration auf Hauptsite
+- [ ] **A471** [WICHTIG] Eventleitung holt beliebige Netzwerk-Benutzer in die Site (add_cap) und verrät Kontoexistenz — _R3 Multisite/i18n/Skalierung_ (TODO L783; Audit Runde 4)
+  - src/Admin/EventsPage.php:482–505, StaffAssignments.php:51–57, Admission/RulesPage.php:87–97: Nur is_user_member_of_blog, neutrale Meldung
+- [ ] **A472** [WICHTIG] Offline-Warteschlange des Web-Scanners zwischen Subdirectory-Sites geteilt → Scans gehen verloren — _R3 Multisite/i18n/Skalierung_ (TODO L784; Audit Runde 4)
+  - assets/scanner.js:15–35, :321–345, Privacy.php:104–106: Blog-ID/home_url in Owner und Schlüssel
+- [ ] **A473** [WICHTIG] Offline-PWA mit einem Datenbestand pro Origin für alle Sites — _R3 Multisite/i18n/Skalierung_ (TODO L785; Audit Runde 4)
+  - assets/offline-scanner/app.js:19, :45–53, :672–731, OfflineScanner/AdminPage.php:27–31: Store je API-Basis trennen, eigene Kopplung je Site
+- [ ] **A474** [WICHTIG] Ticket-Mail mischt Sprachen: PDF, Rechnung, Wallet-Text in Request- statt Käufersprache — _R3 Multisite/i18n/Skalierung_ (TODO L786; Audit Runde 4)
+  - src/Orders.php:1788–1806, WalletPasses/Service.php:183–199, Printing/InvoicePdf.php:293–306, AppleProvider.php:61–80: Anhänge und Filter in Mailer::with_locale($order->locale), Pass-Neubau in Ticket-Locale
+- [ ] **A475** [WICHTIG] Google-Wallet-IDs hängen an home_url(): Domainwechsel trennt Pässe still ab — _R3 Multisite/i18n/Skalierung_ (TODO L787; Audit Runde 4)
+  - src/WalletPasses/GoogleProvider.php:26–28, :113–117, Service.php:340–345: class_id beim Ausstellen speichern, 404 protokollieren
+- [ ] **A476** [WICHTIG] Event-Detailseite rendert alle Termine ungepaginiert mit Umsatz-Query je Termin; Terminlisten ohne Grenze — _R3 Multisite/i18n/Skalierung_ (TODO L788; Audit Runde 4)
+  - src/Admin/EventsPage.php:834–875, AssignmentsPage.php:131, Admission/RulesPage.php:228, OfflineScanner/AdminPage.php:130, Series/AdminPage.php:142: Paginieren, GROUP BY vorladen, Terminauswahl als Suche
+- [ ] **A477** [WICHTIG] Teilnehmer-/No-Show-Liste baut Großevents komplett im Speicher (IN mit 100k IDs) — _R3 Multisite/i18n/Skalierung_ (TODO L789; Audit Runde 4)
+  - src/Printing/AttendeeList.php:34–63, Printing/Page.php:151–170: Blockweise, JOIN, streamen; HTML-Druck als Job
+- [ ] **A478** [WICHTIG] Byteweises substr auf UTF-8 leert Audit-Details und lässt DB-Schreibvorgänge scheitern — _R3 Multisite/i18n/Skalierung_ (TODO L790; Audit Runde 4)
+  - src/Admin/AuditLogPage.php:71–77, Refunds.php:114/211/263/333: mb_substr/mb_strcut, CI-Lint
+- [ ] **A479** [WICHTIG] Keine Cross-Site-Tests für Zugriff, Scanner-Speicher, Benutzerzuweisung — _R3 Multisite/i18n/Skalierung_ (TODO L791; Audit Runde 4)
+  - tests/: Multisite-Tests (Subdirectory) für diese Pfade
+- [ ] **A480** [WICHTIG] Mitgliedspass: uses_total/uses_per_day bei gleichzeitigen Scans überschritten — _R3 Eigen (Deep Dive 2)_ (TODO L792; Audit Runde 4)
+  - src/Memberships.php:46, :54–55 (redeem): Snapshot vor FOR UPDATE. Erst Pass sperren, dann zählen (belegt t1)
+- [ ] **A481** [WICHTIG] Kassen-/Support-Rolle können unbegrenzte Gratis-Mitgliedspässe ausstellen — _R3 Eigen (Deep Dive 2)_ (TODO L793; Audit Runde 4)
+  - src/Rest/Controller.php:630, :566: wpcap_approve_comps + Vier-Augen-Prinzip, Admin-Liste zum Ansehen/Widerrufen
+- [ ] **A482** [WICHTIG] Mitgliedspass-Einlösung ignoriert Kapazität, Terminstatus, Einlassstatistik — _R3 Eigen (Deep Dive 2)_ (TODO L794; Audit Runde 4)
+  - src/Memberships.php:51: An Termin binden, scheduled prüfen, Admission-Eintrag, optional Kontingent
+- [ ] **A483** [WICHTIG] Käuferlimit mit verspäteter Zahlung umgehbar (erweitert A353) — _R3 Eigen (Deep Dive 2)_ (TODO L795; Audit Runde 4)
+  - src/Allocations/BuyerLimits.php:217, :375: Im recover-Pfad Limit unter Sperre prüfen, sonst needs_review (belegt t3)
+- [ ] **A484** [WICHTIG] Käuferlimit per Plus-Adresse umgehbar — _R3 Eigen (Deep Dive 2)_ (TODO L796; Audit Runde 4)
+  - src/Allocations/BuyerLimits.php:96 (normalize_email): +Zusatz für alle Domains entfernen (abschaltbar), Gmail-Punkte als Einstellung (belegt t3)
+- [ ] **A485** [WICHTIG] Rollstuhlplätze werden bei automatischer Platzvergabe zuerst vergeben; keine Begleitplätze — _R3 Eigen (Deep Dive 2)_ (TODO L797; Audit Runde 4)
+  - src/Seating/Reservations.php:229 (free_seats): Bei Auto-Vergabe ausschließen/nachrangig, eigene Zone/Freigabe, Begleitplätze koppeln (belegt t4)
+- [ ] **A486** [WICHTIG] Verfügbarkeit sitzplatzgebundener Ticketarten ignoriert den Saalplan — _R3 Eigen (Deep Dive 2)_ (TODO L798; Audit Runde 4)
+  - src/Modules/Seating.php:27–29: Freie passende Plätze als Obergrenze, Warnung beim Verknüpfen (belegt t4)
+- [ ] **A487** [WICHTIG] Neue Saalplan-Version ohne Zone macht Ticketart still unverkäuflich — _R3 Eigen (Deep Dive 2)_ (TODO L799; Audit Runde 4)
+  - src/Seating/Layouts.php:525 (publish/upgrade_links): Zuordnungen beim Veröffentlichen prüfen, abbrechen oder Neuzuordnung verlangen (belegt t4)
+- [ ] **A488** [WICHTIG] Backoffice-/Absage-Erstattungen von Kassenbestellungen in fremde Kassenschicht gebucht — _R3 Eigen (Deep Dive 2)_ (TODO L800; Audit Runde 4)
+  - src/BoxOffice/Shifts.php:622, :646, OccurrenceCancellation.php:121: Als offene Kassen-Rückzahlung vormerken, Buchung bei tatsächlicher Auszahlung
+- [ ] **A489** [WICHTIG] Schicht wird während laufendem Verkauf geschlossen: Tickets ohne Beleg und Z-Bericht — _R3 Eigen (Deep Dive 2)_ (TODO L801; Audit Runde 4)
+  - src/BoxOffice/Shifts.php:420 (close), Service.php:372/445: In close() Bestellungen stornieren; Verkaufsstatus vor Bestätigung unter Sperre prüfen
+- [ ] **A490** [WICHTIG] Nach Umtausch kein Wallet-Pass mehr (erweitert A091) — _R3 Eigen (Deep Dive 2)_ (TODO L802; Audit Runde 4)
+  - src/WalletPasses/Service.php:98, :210, Exchange/Service.php:715/851: issue() für neues Ticket, Link in Umtauschmail
+- [ ] **A491** [WICHTIG] Stammdaten ohne zeitliche Versionierung (Veranstalter-Zuordnung, Konditionen, Zonen) — _R3 Eigen (Deep Dive 2)_ (TODO L803; Audit Runde 4)
+  - Partners/, Seating/: Gültigkeitszeiträume/Momentaufnahmen einführen
+- [ ] **A492** [WICHTIG] Anonyme Fatal Errors durch Array statt String in E-Mail-Feldern (erweitert A421; gegen A194-Stand prüfen) — _R3 QA_ (TODO L804; Audit Runde 4)
+  - src/Rest/Controller.php:31, Orders.php:25/510/1461, Waitlists.php:98, ServiceBookings.php:26, Partners/Sales.php:534–538: is_string-Prüfung, args type string vor sanitize_callback; Recovery-Mails als Alarmrauschen
+- [ ] **A493** [WICHTIG] Überlange gültige Teilnehmer-E-Mail → bezahlte Bestellung dauerhaft ohne Tickets; Käufer >190 Zeichen endlos 503 — _R3 QA_ (TODO L805; Audit Runde 4)
+  - src/Orders.php:509–515, :374–377, :1750, :263–266, Installer.php:202/525: E-Mails ≤190 Zeichen beim Eingang (400), Längenfehler nicht als db_busy (belegt)
+- [ ] **A494** [WICHTIG] Byte-Kürzung von Freitext erzeugt ungültiges UTF-8 – Speichern dauerhaft unmöglich — _R3 QA_ (TODO L806; Audit Runde 4)
+  - src/Refunds.php:114/211/263/514, PortalSelfService.php:422–424, Partners/Repository.php:123/143/202, Partners/Sales.php:724: mb_substr/mb_strcut, Zeichenlimit vor Speichern (belegt)
+- [ ] **A495** [WICHTIG] CSV-Formel-Injection trotz csv_cell(), weil fputcsv-Escape Backslash ist — _R3 QA_ (TODO L807; Audit Runde 4)
+  - src/Reports/Scope.php:78: Escape '' wie Invoices.php:715, Test mit \" (belegt)
+- [ ] **A496** [WICHTIG] Ticketübertragung trotz offener Stornierungsanfrage: Empfänger verliert Ticket, Käufer bekommt Geld — _R3 QA_ (TODO L808; Audit Runde 4)
+  - src/Orders.php:1472–1488, TicketAssignments.php:22–35: Übertragung bei offener Erstattung sperren; execute lehnt übertragene Tickets ab (belegt)
+- [ ] **A497** [WICHTIG] Namen mit „<“ und „&“ erscheinen als Entities in ICS, PDF, Wallet, Text-Mails, Betreff, CSV — _R3 QA_ (TODO L809; Audit Runde 4)
+  - src/Admin/Forms.php:289–292, Calendar/Ics.php:127, Mail/Types.php:340: Klartext ohne Entities speichern oder an Klartext-Ausgaben dekodieren
+- [ ] **A498** [WICHTIG] Längen-/Typverträge Eingabe↔Schema ungetestet; Test-wpdb und Sanitize-Stubs bilden echtes WP nicht ab — _R3 QA_ (TODO L810; Audit Runde 4)
+  - tests/integration/bootstrap.php: Fuzz-/Grenzwerttest gegen echten WP-Core (tests/upgrade/.wordpress) für alle öffentlichen Eingänge
+- [ ] **A499** [OPTIMIERUNG] Shortcode/Block geben im RSS-Feed und REST content.rendered das Bestellformular aus — _R3 Editor_ (TODO L811; Audit Runde 4)
+  - src/PublicEvents.php:147ff., Modules/Calendar.php:149ff.: Im Feed/REST schlanke Terminliste mit Link, per Filter abschaltbar
+- [ ] **A500** [OPTIMIERUNG] checkout.js initialisiert nur beim Laden; per AJAX eingefügte Formulare unvollständig — _R3 Editor_ (TODO L812; Audit Runde 4)
+  - assets/checkout.js:200–201, :449: window.WPCAP.init(root), wpcap:init-Event/MutationObserver, Elementor-Hook
+- [ ] **A501** [OPTIMIERUNG] Blöcke ohne keywords, example, Shortcode-Transform — _R3 Editor_ (TODO L813; Audit Runde 4)
+  - src/blocks/*/block.json: keywords, example, transforms.from shortcode
+- [ ] **A502** [OPTIMIERUNG] Kalender-Block: Event-ID als Zahlenfeld, limit nicht einstellbar — _R3 Editor_ (TODO L814; Audit Runde 4)
+  - src/blocks/calendar/editor.js:21–26, block.json:10–13: Auswahlliste wie Events-Block, limit-Attribut
+- [ ] **A503** [OPTIMIERUNG] Ungültige Shortcode-Attribute fallen still auf „alle Events“; shortcode_atts-Filter-Tag immer Altname — _R3 Editor_ (TODO L815; Audit Runde 4)
+  - src/PublicEvents.php:148–152: Hinweis für Redakteure, Filter-Tag aus $tag
+- [ ] **A504** [OPTIMIERUNG] Doppelte IDs auch durch Sidebar/Archiv/doppeltes the_content (erweitert A308) — _R3 Editor_ (TODO L816; Audit Runde 4)
+  - templates/event-card.php:12, Modules/Calendar.php:131: wp_unique_id() je Render, Kalender-Anker nur erste Instanz
+- [ ] **A505** [OPTIMIERUNG] Öffentliche REST-GETs mit Live-Daten ohne Cache-Control (erweitert A370) — _R3 Caching_ (TODO L817; Audit Runde 4)
+  - src/Rest/Controller.php:21/107/122/176, WalletPasses/WebService.php:83: Zentral no-store für den Namespace
+- [ ] **A506** [OPTIMIERUNG] Offline-PWA ohne Asset-Versionierung — _R3 Caching_ (TODO L818; Audit Runde 4)
+  - assets/offline-scanner/sw.js:8, index.html:13/80–82: Cache-Namen/Asset-URLs an WPCAP_VERSION, fetch no-cache
+- [ ] **A507** [OPTIMIERUNG] Einmalige Geheimnisse (API-Key, Kopplungscode) hängen an Transient zwischen POST und Redirect — _R3 Caching_ (TODO L819; Audit Runde 4)
+  - src/Admin/DeveloperKeysPage.php:51/107, Partners/AdminPage.php:113/487, Admin/DevicesPage.php:28/54: Direkt in POST-Antwort rendern oder DB-Zeile mit Löschen-bei-Lesen
+- [ ] **A508** [OPTIMIERUNG] Web-Scanner-Shortcode-Seite ohne DONOTCACHEPAGE — _R3 Caching_ (TODO L820; Audit Runde 4)
+  - src/PublicEvents.php:378–394: DONOTCACHEPAGE + nocache_headers
+- [ ] **A509** [OPTIMIERUNG] Betriebsdoku ohne CDN-/WAF-/Seitencache-Ausnahmeregeln — _R3 Caching_ (TODO L821; Audit Runde 4)
+  - docs/OPERATIONS.md, SECURITY.md:66, readme.txt: Abschnitt Caching/CDN mit Ausnahmen je Produkt und Webhook-/Wallet-Bot-Ausnahmen
+- [ ] **A510** [OPTIMIERUNG] Deaktivierung verwirft geplante DSGVO-Löschung von Wallet-Registrierungen — _R3 Lifecycle_ (TODO L822; Audit Runde 4)
+  - src/Privacy.php:482–484, Plugin.php:169–178: Ausstehende Purges in Tabelle/Option, im Retention-Lauf abarbeiten
+- [ ] **A511** [OPTIMIERUNG] Kein eigener PHP-/WP-Versionsguard; Composer-Platform-Check legt Site lahm — _R3 Lifecycle_ (TODO L823; Audit Runde 4)
+  - pass-captain.php:61–63, composer.json, build/release.sh:38: Guard vor Autoloader mit Admin-Hinweis, platform-check false
+- [ ] **A512** [OPTIMIERUNG] Aktivierung installiert ohne Upgrade-Lock — _R3 Lifecycle_ (TODO L824; Audit Runde 4)
+  - src/Plugin.php:121–137, Installer.php:1073: Über Installer::run_locked()
+- [ ] **A513** [OPTIMIERUNG] Schema-Prüfung erkennt fehlgeschlagene Index-Änderungen nicht — _R3 Lifecycle_ (TODO L825; Audit Runde 4)
+  - src/Installer.php:794–806, :955–958: Soll-Indizes nach upgrade_indexes prüfen, in wpcap_schema_error
+- [ ] **A514** [OPTIMIERUNG] Multisite-Uninstall löscht netzwerkweite User-Meta praktisch nie; Reste in sitemeta/Action Scheduler — _R3 Lifecycle_ (TODO L826; Audit Runde 4)
+  - uninstall.php:59–67, LegacySlug.php:36: Sites ohne Daten als zugestimmt werten, delete_site_option, AS-Gruppe löschen
+- [ ] **A515** [OPTIMIERUNG] Mehrdeutige Kurz-Strings ohne _x-Kontext („Einlass“, „Offen“, Genus-Status) — _R3 Multisite/i18n/Skalierung_ (TODO L827; Audit Runde 4)
+  - src/Notifications.php:165, Admin/Menu.php:139, PublicEvents.php:114, Admin/Forms.php:504–515: _x() mit Kontext, POT neu
+- [ ] **A516** [OPTIMIERUNG] Scanner zeigen Terminzeiten in Gerätezeitzone statt Terminzeitzone — _R3 Multisite/i18n/Skalierung_ (TODO L828; Audit Runde 4)
+  - assets/offline-scanner/app.js:103–106/358/386, assets/scanner.js:100–108: toLocaleString mit timeZone des Termins
+- [ ] **A517** [OPTIMIERUNG] Request-Caches bei switch_blog nicht zurückgesetzt (A182 unvollständig) — _R3 Multisite/i18n/Skalierung_ (TODO L829; Audit Runde 4)
+  - src/StaffAssignments.php:35–37/82–89, ServiceProviders.php:41–44, Campaigns.php:215–224: An switch_blog flushen oder nach Präfix schlüsseln
+- [ ] **A518** [OPTIMIERUNG] Google Wallet meldet alle Texte als Deutsch — _R3 Multisite/i18n/Skalierung_ (TODO L830; Audit Runde 4)
+  - src/WalletPasses/GoogleProvider.php:34, :53: Sprache aus Ticket-/Site-Locale, translatedValues
+- [ ] **A519** [OPTIMIERUNG] Massenmails wählen Empfängersprache per MAX(locale) — _R3 Multisite/i18n/Skalierung_ (TODO L831; Audit Runde 4)
+  - src/Notifications.php:119–123: Locale der neuesten Bestellung des Termins
+- [ ] **A520** [OPTIMIERUNG] Bericht sortiert Namen mit strcmp (Umlaute, Groß/Klein) — _R3 Multisite/i18n/Skalierung_ (TODO L832; Audit Runde 4)
+  - src/Reports/Data.php:208: Collator mit Site-Locale
+- [ ] **A521** [OPTIMIERUNG] Serien-Übersicht zeigt rohe Regelwerte — _R3 Multisite/i18n/Skalierung_ (TODO L833; Audit Runde 4)
+  - src/Series/AdminPage.php:368: Übersetzte Labels, Datum im Site-Format
+- [ ] **A522** [OPTIMIERUNG] HTML-Mails ohne Leserichtung (erweitert A390) — _R3 Multisite/i18n/Skalierung_ (TODO L834; Audit Runde 4)
+  - src/Mail/Layout.php:55, Mail/Blocks.php:101: dir="rtl" je Empfänger-Locale
+- [ ] **A523** [OPTIMIERUNG] Konditionen-/Verkaufsmodell-Änderungen wirken rückwirkend auf offene Abrechnungsposten — _R3 Eigen (Deep Dive 2)_ (TODO L835; Audit Runde 4)
+  - src/Partners/Settlements.php:196–200: Momentaufnahme je Verkauf oder Versionierung ab Datum
+- [ ] **A524** [OPTIMIERUNG] Mitgliedspass-Laufzeit endet bei reinem Datum um 00:00 UTC; uses_per_day=0 unmöglich — _R3 Eigen (Deep Dive 2)_ (TODO L836; Audit Runde 4)
+  - src/Memberships.php:28, :50: Tagesende in Event-/Site-Zone, 0 = unbegrenzt
+- [ ] **A525** [OPTIMIERUNG] Warteschlange verschobener Kassen-Stornos als Option ohne Sperre (PLAUSIBEL) — _R3 Eigen (Deep Dive 2)_ (TODO L837; Audit Runde 4)
+  - src/BoxOffice/Shifts.php:693: Eigene Tabelle/Spalte deferred
+- [ ] **A526** [OPTIMIERUNG] Fehlend: anteilige Erstattung von Pässen nach Teilnutzung — _R3 Eigen (Deep Dive 2)_ (TODO L838; Audit Runde 4)
+  - src/Refunds.php:78–93: Anteiligen Betrag vorschlagen
+- [ ] **A527** [OPTIMIERUNG] Fehlend: Kasse ohne Netz unbenutzbar — _R3 Eigen (Deep Dive 2)_ (TODO L839; Audit Runde 4)
+  - assets/boxoffice/pos.js, BoxOffice/Service.php:263: Notfallmodus mit lokalen Belegen oder klare Offline-Anzeige
+- [ ] **A528** [OPTIMIERUNG] Saalplan: Stehplätze verschwinden still bei Schlüsselkollision — _R3 QA_ (TODO L840; Audit Runde 4)
+  - src/Seating/Layouts.php:311–312: Kollision als Fehler, kollisionsfreie Schlüssel (belegt)
+- [ ] **A529** [OPTIMIERUNG] Halbfertiges Alt-Sitzplan-API ohne Kaufpfad (öffentliche Holds, UPDATE bei jedem GET) — _R3 QA_ (TODO L841; Audit Runde 4)
+  - src/Rest/Controller.php:107–121/654–667/829–851/889–897, Seats.php:8: Entfernen/deprecaten hinter Seating-Modul
+- [ ] **A530** [OPTIMIERUNG] Connector-Vertrag ist tot (dispatch nie aufgerufen, Tabelle ungenutzt; erweitert A166) — _R3 QA_ (TODO L842; Audit Runde 4)
+  - src/Integrations/ConnectorRegistry.php:8, Installer.php:681: Anbinden oder Doku/Tabelle entfernen
+- [ ] **A531** [OPTIMIERUNG] Lost Update/Rennen beim Bearbeiten von Ticketarten — _R3 QA_ (TODO L843; Audit Runde 4)
+  - src/Admin/EventsPage.php:353–386: Revisionsspalte (optimistisches Locking), Prüfung+Update unter FOR UPDATE
+- [ ] **A532** [OPTIMIERUNG] Admin-Aktionen melden Erfolg ohne geprüfte Schreibvorgänge (Widerruf, Check-in zurücknehmen) — _R3 QA_ (TODO L844; Audit Runde 4)
+  - src/Admin/TicketsPage.php:53–55, :96–105: Jeden Schritt prüfen, ROLLBACK + Fehlermeldung
+- [ ] **A533** [OPTIMIERUNG] Doppelklick „Tickets erneut senden“ rotiert Codes zweimal (ergänzt A335) — _R3 QA_ (TODO L845; Audit Runde 4)
+  - src/Admin/OrdersPage.php:89–95: Formular-Schlüssel/Sperre je Bestellung
+- [ ] **A534** [OPTIMIERUNG] accept_terms: "false" gilt als Zustimmung — _R3 QA_ (TODO L846; Audit Runde 4)
+  - src/Orders.php:43, Rest/Controller.php:711: rest_sanitize_boolean / streng true/1
+
 ## Bereits erledigt (vor bzw. beim Anlegen der Liste)
 
 - [x] Portal-Umtausch übertragener Tickets gesperrt (Sicherheit P1) — Commit 4c7e7bc
