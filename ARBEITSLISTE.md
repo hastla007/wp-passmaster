@@ -259,11 +259,11 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Kapazität EventsPage.php:170, Preisregeln Series/Pricing.php:38, Pools; Audit occurrence_updated (EventsPage.php:198) ohne Kapazitäts-/Preisdiff, Seriendefinition nicht editierbar
 - [ ] **A115** Steuerklassen/länderspezifische Steuerregeln an Bestellungen anbinden — _TEILWEISE_ (TODO L21; P0 – Event- und Verkaufsgrundlage)
   - Steuersatz je Ticketart Orders.php:207; Länderprofile Installer.php:559/Controller.php:693 nur als Draft, nicht an Bestellungen angebunden; Steuerprüfung fehlt
-- [ ] **A116** Teilnehmerfelder: Editor, Erfassung, Validierung, Export/Löschung, Einwilligung — _TEILWEISE_ (TODO L24; P0 – Event- und Verkaufsgrundlage)
+- [x] **A116** Teilnehmerfelder: Editor, Erfassung, Validierung, Export/Löschung, Einwilligung — _TEILWEISE_ (TODO L24; P0 – Event- und Verkaufsgrundlage)
   - Editor EventsPage.php:305, Checkout checkout.js:322, Validierung Orders.php:430, Export/Löschung Privacy.php:208/428; Einwilligung nur Checkbox+Zweck, keine Protokollierung/Widerruf
 - [x] **A117** Checkout-Oberfläche, Ablaufregeln, Käuferlimits, Stapelregeln — _TEILWEISE_ (TODO L26; P0 – Event- und Verkaufsgrundlage)
   - Käuferlimits Allocations/BuyerLimits.php:123, Laufzeit Campaigns.php:24; Stapelung fest (max. 3, immer kumulativ, Campaigns.php:18), keine konfigurierbaren Stapelregeln
-- [ ] **A118** Ticketlink/QR, E-Mail, Druck, Portal, PDF, Selbstbedienung — _TEILWEISE_ (TODO L43; P0 – QR-Ticket und Online-Check-in)
+- [x] **A118** Ticketlink/QR, E-Mail, Druck, Portal, PDF, Selbstbedienung — _TEILWEISE_ (TODO L43; P0 – QR-Ticket und Online-Check-in)
   - PDF vorhanden (TicketPdf.php:18, Anhang Orders.php:1429); Portal (OrderPortal.php:92) ohne PDF-Download und Storno-/Erstattungsanfrage
 - [ ] **A119** Granulare Scopes, Finanzrollen, PII-Minimierung, Admin/REST-Abdeckung — _TEILWEISE_ (TODO L44; P0 – QR-Ticket und Online-Check-in)
   - Finanz-/Partnerrolle Installer.php:854-855, Eventscope Access.php:8; keine Standort-/Partner-Scopes, keine PII-Minimierung je Rolle
@@ -271,7 +271,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Manifest/SW vorhanden (docs/OFFLINE-SCANNER.md:125-126), aber keine Geräte-/Browser-Abnahmematrix dokumentiert
 - [x] **A121** Default-/Heavy-/REST-Lasttests regelmäßig auf MySQL/MariaDB — _TEILWEISE_ (TODO L48; P0 – QR-Ticket und Online-Check-in)
   - Profile tests/load/run.php:155-156, tests/load/http.php; CI führt nur --profile=ci aus (ci.yml), kein Zeitplan, keine Regressionsdoku
-- [ ] **A122** Audit für PII-Zugriffe, Exporte, Rollenänderungen, Korrekturen — _TEILWEISE_ (TODO L50; P0 – QR-Ticket und Online-Check-in)
+- [x] **A122** Audit für PII-Zugriffe, Exporte, Rollenänderungen, Korrekturen — _TEILWEISE_ (TODO L50; P0 – QR-Ticket und Online-Check-in)
   - Staff/Export-Audits (EventsPage.php:386, Invoices.php:371); fehlen Audit für PII-Ansicht, Datenschutzexport und WP-Rollenänderungen
 - [x] **A123** Fristen je Datenart, Teilnehmerdaten/Finanzbelege getrennt — _TEILWEISE_ (TODO L56; P0 – Datenschutz und Releasefähigkeit)
   - Getrennt: Privacy.php:320, Retention.php:39; nur Teilnehmerfrist im UI (SettingsPage.php:109), übrige nur per Filter; keine Löschung von Belegen nach Frist
@@ -323,7 +323,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - AttendeeList.php:18-19 (basic/full), Reports/Data.php:26; Support (wpcap_manage_orders) sieht volle PII, keine Maskierung
 - [ ] **A147** Erstattungen nach Capability, Scope, Schwelle, Zweitfreigabe absichern — _TEILWEISE_ (TODO L152; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - Refunds.php:66-69,459; OrdersPage.php:36; Sammel-Autorefund bei Absage (OccurrenceCancellation.php:113) ohne Gesamtschwelle/Sammelfreigabe
-- [ ] **A148** Audit-Log für Rollen, Exporte, PII, Refunds, Übertragungen, Korrekturen — _TEILWEISE_ (TODO L153; P0 – Rollen, Eventscoping und Zugriffsschutz)
+- [x] **A148** Audit-Log für Rollen, Exporte, PII, Refunds, Übertragungen, Korrekturen — _TEILWEISE_ (TODO L153; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - Viele Events (report_exported, refund_*, ticket_transferred, checkin_undone, staff_assigned); WP-Rollenänderungen und PII-Ansichten nicht protokolliert
 - [ ] **A149** Gemeinsame Konten ausschließen; Scannerzugänge kurzlebig/eventbezogen — _TEILWEISE_ (TODO L154; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - Geräte kurzlebig, eventgebunden, widerrufbar (Mobile/Devices.php:23-24,130,167); kein technischer Ausschluss gemeinsamer Konten
