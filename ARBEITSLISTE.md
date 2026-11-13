@@ -427,12 +427,12 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 - [x] **A193** Automatisierte Permission-Matrix für alle Aktionen und Routen — _OFFEN_ (TODO L269; Sicherheit, Datenschutz und UI-Abnahme)
   - Keine Matrix; nur Einzelprüfung Partner-Routen (tests/integration/modules/partners.php:299-304)
   - Erledigt 13.11. mit A145: automatische Permission-Matrix über alle REST-Routen, admin-post- und AJAX-Aktionen (zz_a145.php, gemeinsame Aufzählung tests/integration/channels.php); Rollen-/Capability-Matrix in docs/SECURITY.md wird gegen Installer::role_definitions() geprüft (zz_a143.php).
-- [ ] **A194** Secret-Redaction und Eingabevalidierung unter Fehlerbedingungen testen — _TEILWEISE_ (TODO L270; Sicherheit, Datenschutz und UI-Abnahme)
+- [x] **A194** Secret-Redaction und Eingabevalidierung unter Fehlerbedingungen testen — _TEILWEISE_ (TODO L270; Sicherheit, Datenschutz und UI-Abnahme)
   - Einzeltests Audit ohne Secrets (partners.php:254, p3_partner_sales.php:329); keine Tests für Logs/REST-Fehler/CI-Artefakte unter Fehlern
 - [x] **A195** Dependency-/Secret-Scanning und Paketprüfung als CI-Gates — _OFFEN_ (TODO L271; Sicherheit, Datenschutz und UI-Abnahme)
   - Keine entsprechenden Schritte in .github/workflows/ci.yml
   - Erledigt 13.11.: tests/secret-scan.php (Repo + Release-ZIP inkl. vendor/), composer audit, npm audit (high), Dependabot für Composer/npm/Actions; Gates in docs/RELEASE.md.
-- [ ] **A196** Datenschutzexport/Löschung/Retention mit großen Daten, Multisite testen — _TEILWEISE_ (TODO L272; Sicherheit, Datenschutz und UI-Abnahme)
+- [x] **A196** Datenschutzexport/Löschung/Retention mit großen Daten, Multisite testen — _TEILWEISE_ (TODO L272; Sicherheit, Datenschutz und UI-Abnahme)
   - Export/Löschung/Retention getestet (tests/integration/modules/zz_phase1_privacy.php:61-216); keine Großdaten-, Multisite- oder WooCommerce-Daten-Tests
 - [ ] **A197** Browser-E2E-Matrix Chrome/Firefox/Safari/iOS/Android — _OFFEN_ (TODO L273; Sicherheit, Datenschutz und UI-Abnahme)
   - Nur axe/Playwright-Chromium (tests/a11y/run.js), keine E2E-Matrix
@@ -443,9 +443,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Serien/Preisregeln DST getestet (tests/integration/modules/series.php:25-33, series_pricing.php:50,73), Einlass-Mitternacht admission.php:88; Reservierungsablauf, Erinnerungen, Service-Slots fehlen
 - [x] **A200** Geldberechnungen mit Eigenschafts-/Randfalltests absichern — _TEILWEISE_ (TODO L279; Technische Randfälle, die noch separat abgesichert werden müssen)
   - Einzelne Rundungs-/Rabattverteilungen (src/Orders.php:203-211); keine Property-Tests, keine Dreidezimalwährungen, CSV/Fiskal fest /100 (src/Reports/Data.php:336)
-- [ ] **A201** Invalidierungsregeln für Berichts-Caches festlegen und testen — _OFFEN_ (TODO L280; Technische Randfälle, die noch separat abgesichert werden müssen)
+- [x] **A201** Invalidierungsregeln für Berichts-Caches festlegen und testen — _OFFEN_ (TODO L280; Technische Randfälle, die noch separat abgesichert werden müssen)
   - Nur 5-Min-Transient ohne Invalidierung (src/Rest/Controller.php:624-631), keine Tests/Abfragepläne
-- [ ] **A202** Ausgehende HTTP-Aufrufe absichern und testen — _TEILWEISE_ (TODO L281; Technische Randfälle, die noch separat abgesichert werden müssen)
+- [x] **A202** Ausgehende HTTP-Aufrufe absichern und testen — _TEILWEISE_ (TODO L281; Technische Randfälle, die noch separat abgesichert werden müssen)
   - Webhooks: HTTPS/private Hosts geprüft (tests/integration/modules/webhooks.php:30-31), redirection 0; Fiskal-Client ohne SSRF-Schutz (src/Fiscalization/Providers/HttpClient.php:29), DNS/Redaction ungetestet
 - [x] **A203** Bridge-/REST-Verträge mit Kompatibilitätstests absichern — _TEILWEISE_ (TODO L282; Technische Randfälle, die noch separat abgesichert werden müssen)
   - Nur Affiliate-Vertragsversion getestet (tests/integration/affiliate.php:27-29); unbekannte Felder, Timeouts, REST-Verträge fehlen
