@@ -24,6 +24,9 @@ final class Partners {
 		Sales::register();
 		// Sales models (docs/SALES-MODELS.md): one order = one seller.
 		add_action( 'wpcap_order_creating', array( SalesModel::class, 'guard_checkout' ), 10, 1 );
+		// Usage rows of finished orders no longer count: removed, so the contingent check reads only
+		// rows that may still count (open holds and paid sales).
+		add_action( 'wpcap_capacity_released', array( \PassCaptain\Partners\Sales::class, 'prune_usage' ), 20, 1 );
 		add_filter( 'wpcap_checkout_error_messages', array( SalesModel::class, 'checkout_messages' ) );
 	}
 

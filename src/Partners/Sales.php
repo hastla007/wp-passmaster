@@ -199,6 +199,14 @@ final class Sales {
 		return $used;
 	}
 
+	/** wpcap_capacity_released: deletes contingent usage rows of an order that is cancelled, expired or refunded. */
+	public static function prune_usage( $order_id = 0 ) {
+		global $wpdb;
+		$order = \PassCaptain\Orders::get( absint( $order_id ) );
+		if ( ! $order || ! in_array( $order->status, array( 'cancelled', 'expired', 'refunded' ), true ) ) { return 0; }
+		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'partner_contingent_usage' ) . ' WHERE order_id=%d', absint( $order_id ) ) );
+	}
+
 	/* ------------------------------------------------------------------ Assortment, prices, contingents */
 
 	/** Price list rows of a partner: ticket_type_id => row. */

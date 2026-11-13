@@ -406,3 +406,16 @@ $a32_free = Orders::create( array( 'email' => 'a32f@example.com', 'items' => arr
 list( $a32_paid ) = ex_buy( $a4_std, 2, 'a32p@example.com' );
 remove_action( 'wpcap_order_paid', $a32_cb, 99 );
 check( 'A032: listeners see the same state (no tickets yet) for free and paid orders', 0 === ( $a32_seen[ $a32_free['order_id'] ] ?? -1 ) && 0 === ( $a32_seen[ $a32_paid ] ?? -1 ) && 2 === count( tickets( $a32_free['order_id'] ) ) );
+
+echo "Audit 3: module capacity from the counters (A033b)\n";
+$a33_type = ex_type( ex_occ( ex_event( 'Zähler' ) ), 'Z', 1000, 30 );
+ex_buy( $a33_type, 3, 'a33@example.com' );
+$GLOBALS['wpcap_test_transients'] = array();
+Orders::create( array( 'email' => 'a33h@example.com', 'items' => array( array( 'ticket_type_id' => $a33_type, 'quantity' => 2 ) ), 'idempotency_key' => 'a33h-' . uniqid() ), array( 'payment_provider' => 'manual', 'hold_minutes' => 60 ) );
+$a33_now = gmdate( 'Y-m-d H:i:s' );
+$a33_counted = PassCaptain\CapacityCounters::used_for_types( array( $a33_type ), 0, $a33_now );
+$GLOBALS['wpcap_test_filters']['wpcap_capacity_counters_enabled'] = false;
+$a33_summed = PassCaptain\Series\Pools::used( array( $a33_type ), $a33_now );
+$a33_pass_summed = PassCaptain\Passes\Capacity::type_units( array( $a33_type ), 0, $a33_now );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_capacity_counters_enabled'] );
+check( 'A033b: counters give the same usage as the SUM queries (3 sold + 2 held)', 5 === $a33_counted && 5 === $a33_summed && 5 === $a33_pass_summed && 5 === PassCaptain\Series\Pools::used( array( $a33_type ), $a33_now ) );

@@ -77,7 +77,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Orders.php:338–339` vs. `996–997` — Maßnahme: Einheitliche Reihenfolge; eigener Hook `wpcap_tickets_issued`; in HOOKS.md dokumentieren.
 - [x] **A033** [P2] Serienpools, Pässe und Partnerkontingente summieren weiter über `order_items`/`reservations` statt über Zähler; Availability-Filter je Ticketart mit eigenen Abfragen (mit Modulen: … — _OFFEN_ (TODO L479; Architektur und QA (Prüfung 5))
   - `src/Series/Pools.php:126–208`; `src/Passes/Capacity.php:44–238`; `src/Partners/Sales.php:173–200` — Maßnahme: Gepflegte Zähler in den Modulen, Batch-Filter `wpcap_ticket_availability_many`, Test auf konstante Abfragezahl.
-- [ ] **A033b** [P2] Checkout-Kapazitätsprüfung von Pässen, Serienpools und Partnerkontingenten über Zähler statt Summenabfragen unter Sperren (Rest von A033) — _OFFEN_
+- [x] **A033b** [P2] Checkout-Kapazitätsprüfung von Pässen, Serienpools und Partnerkontingenten über Zähler statt Summenabfragen unter Sperren (Rest von A033) — _OFFEN_
 - [ ] **A034** [P2] `reconcile()` alle 5 Minuten ohne Lock und Zeitbudget über den gesamten Bestand; Fenster zwischen `COMMIT` und `sync_order_now()` erzeugt Fehlalarme. — _OFFEN_ (TODO L480; Architektur und QA (Prüfung 5))
   - `src/CapacityCounters.php:441–480` — Maßnahme: Auf künftige/kürzlich geänderte Termine beschränken, `GET_LOCK`, Alarm erst nach bestätigter zweiter Prüfung.
 

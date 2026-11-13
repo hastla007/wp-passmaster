@@ -113,6 +113,30 @@ final class CapacityCounters {
 		return in_array( self::state(), array( 'building', 'verifying', 'ready' ), true );
 	}
 
+	/**
+	 * Counted units (CapacityCounters, schema 3.7.0) of ticket types: sold_qty + held_qty minus holds
+	 * still marked active but lapsed, minus the units of $exclude_order_id. Null when the counters are
+	 * not enabled (the SUM queries are used then).
+	 *
+	 * @param int[] $type_ids Ticket types.
+	 */
+	public static function used_for_types( array $type_ids, $exclude_order_id, $now ) {
+		global $wpdb;
+		if ( ! self::enabled() ) { return null; }
+		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
+		if ( ! $type_ids ) { return 0; }
+		$p = $wpdb->prefix;
+		$in = implode( ',', $type_ids );
+		$used = (int) $wpdb->get_var( "SELECT COALESCE(SUM(sold_qty+held_qty),0) FROM {$p}wpcap_ticket_types WHERE ticket_type_id IN ($in)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$lapsed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND status='active' AND expires_at <= %s", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$own = 0;
+		if ( $exclude_order_id ) {
+			$own = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id IN ($in)", absint( $exclude_order_id ) ) ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE order_id=%d AND ticket_type_id IN ($in) AND status='active' AND expires_at > %s", absint( $exclude_order_id ), $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		}
+		return max( 0, $used - $lapsed - $own );
+	}
+
 	/** Whether capacity decisions and availability use the counters (else the SUM queries). */
 	public static function enabled() {
 		return 'ready' === self::state() && (bool) apply_filters( 'wpcap_capacity_counters_enabled', true );

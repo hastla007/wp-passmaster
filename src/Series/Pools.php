@@ -128,6 +128,9 @@ final class Pools {
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return 0; }
 		$p = $wpdb->prefix;
+		// Maintained counters (one row per type) instead of summing order lines and holds.
+		$counted = \PassCaptain\CapacityCounters::used_for_types( $type_ids, $exclude_order_id, $now );
+		if ( null !== $counted ) { return $counted; }
 		$in = implode( ',', $type_ids );
 		$exclude = absint( $exclude_order_id );
 		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d", $exclude ) );

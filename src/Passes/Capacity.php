@@ -51,6 +51,10 @@ final class Capacity {
 	public static function core_used( $occurrence_id, $exclude_order_id, $now ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		if ( \PassCaptain\CapacityCounters::enabled() ) {
+			$types = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", absint( $occurrence_id ) ) ) );
+			return (int) \PassCaptain\CapacityCounters::used_for_types( $types, $exclude_order_id, $now );
+		}
 		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d", absint( $occurrence_id ), absint( $exclude_order_id ) ) );
 		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.quantity),0) FROM {$p}wpcap_reservations r INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s AND r.order_id <> %d", absint( $occurrence_id ), $now, absint( $exclude_order_id ) ) );
 		return $sold + $held;
@@ -66,6 +70,10 @@ final class Capacity {
 		$links = Definitions::table( 'occurrences' );
 		$occurrence_id = absint( $occurrence_id );
 		$foreign = $foreign_only ? $wpdb->prepare( ' AND tt.occurrence_id <> %d', $occurrence_id ) : '';
+		if ( \PassCaptain\CapacityCounters::enabled() ) {
+			$types = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT po.type_id FROM $links po INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=po.type_id WHERE po.occurrence_id=%d$foreign", $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name, prepared fragment.
+			return (int) \PassCaptain\CapacityCounters::used_for_types( $types, $exclude_order_id, $now );
+		}
 		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN $links po ON po.type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE po.occurrence_id=%d$foreign AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d", $occurrence_id, absint( $exclude_order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name, prepared fragment.
 		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.quantity),0) FROM {$p}wpcap_reservations r INNER JOIN $links po ON po.type_id=r.ticket_type_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=r.ticket_type_id WHERE po.occurrence_id=%d$foreign AND r.status='active' AND r.expires_at > %s AND r.order_id <> %d", $occurrence_id, $now, absint( $exclude_order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name, prepared fragment.
 		return $sold + $held;
@@ -77,6 +85,8 @@ final class Capacity {
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return 0; }
 		$p = $wpdb->prefix;
+		$counted = \PassCaptain\CapacityCounters::used_for_types( $type_ids, $exclude_order_id, $now );
+		if ( null !== $counted ) { return $counted; }
 		$in = implode( ',', $type_ids );
 		$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d", absint( $exclude_order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND status='active' AND expires_at > %s AND order_id <> %d", $now, absint( $exclude_order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
