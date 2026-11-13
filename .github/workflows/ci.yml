@@ -26,8 +26,10 @@ jobs:
         run: find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: PHPCS (WordPress security, SQL, i18n, PHP compatibility – fails on errors)
         run: vendor/bin/phpcs -q --report=summary
-      - name: Composer security audit
+      - name: Composer security audit (fails on known vulnerabilities, also in dev dependencies)
         run: composer audit --no-interaction
+      - name: Secret scan of all tracked files
+        run: php tests/secret-scan.php
       - name: JavaScript syntax checks
         run: node --check assets/checkout.js && node --check assets/scanner.js && node --check src/blocks/events/editor.js && node --check assets/offline-scanner/app.js && node --check assets/offline-scanner/i18n.js && node --check assets/offline-scanner/sw.js
       - name: Translations consistent, .pot and .mo up to date (completeness is a release gate)
@@ -39,6 +41,8 @@ jobs:
           node-version: '22'
       - name: JavaScript lint (ESLint, all own scripts) and logic tests
         run: npm ci --no-audit --no-fund && npm run lint:js && npm run test:js
+      - name: npm security audit (high/critical fail)
+        run: npm audit --audit-level=high && (cd tests/a11y && npm audit --audit-level=high)
       - name: Offline scanner translations
         run: node tests/offline-scanner-i18n.js
       - name: Release metadata consistency (version, readme, composer, changelogs, doc links)
@@ -130,6 +134,8 @@ jobs:
         run: bash tests/reproducible-build.sh
       - name: Build installable plugin ZIP
         run: bash build/release.sh
+      - name: Package gate - secret scan of every file in the ZIP, including bundled vendor code
+        run: php tests/secret-scan.php --zip=build/dist/wp-pass-captain.zip
       - uses: actions/upload-artifact@v4
         with:
           name: wp-pass-captain

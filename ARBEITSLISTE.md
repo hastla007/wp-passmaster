@@ -427,8 +427,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Keine Matrix; nur Einzelprüfung Partner-Routen (tests/integration/modules/partners.php:299-304)
 - [ ] **A194** Secret-Redaction und Eingabevalidierung unter Fehlerbedingungen testen — _TEILWEISE_ (TODO L270; Sicherheit, Datenschutz und UI-Abnahme)
   - Einzeltests Audit ohne Secrets (partners.php:254, p3_partner_sales.php:329); keine Tests für Logs/REST-Fehler/CI-Artefakte unter Fehlern
-- [ ] **A195** Dependency-/Secret-Scanning und Paketprüfung als CI-Gates — _OFFEN_ (TODO L271; Sicherheit, Datenschutz und UI-Abnahme)
+- [x] **A195** Dependency-/Secret-Scanning und Paketprüfung als CI-Gates — _OFFEN_ (TODO L271; Sicherheit, Datenschutz und UI-Abnahme)
   - Keine entsprechenden Schritte in .github/workflows/ci.yml
+  - Erledigt 13.11.: tests/secret-scan.php (Repo + Release-ZIP inkl. vendor/), composer audit, npm audit (high), Dependabot für Composer/npm/Actions; Gates in docs/RELEASE.md.
 - [ ] **A196** Datenschutzexport/Löschung/Retention mit großen Daten, Multisite testen — _TEILWEISE_ (TODO L272; Sicherheit, Datenschutz und UI-Abnahme)
   - Export/Löschung/Retention getestet (tests/integration/modules/zz_phase1_privacy.php:61-216); keine Großdaten-, Multisite- oder WooCommerce-Daten-Tests
 - [ ] **A197** Browser-E2E-Matrix Chrome/Firefox/Safari/iOS/Android — _OFFEN_ (TODO L273; Sicherheit, Datenschutz und UI-Abnahme)

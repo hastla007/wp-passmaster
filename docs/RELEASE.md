@@ -13,6 +13,9 @@ folgenden Gates erfüllt sind. Die automatischen Gates erzwingt GitHub Actions, 
 | Manuelle Screenreader- und Zoom-Abnahme (NVDA/VoiceOver, 200 %/400 %) | Checkliste | Abnahmeprotokoll |
 | PWA installierbar, Offline-Start | `ci.yml` Job `pwa` | CI grün |
 | Reproduzierbares ZIP mit Prüfsumme | `ci.yml` Job `package`, `tests/reproducible-build.sh` | CI grün |
+| Abhängigkeiten ohne bekannte Lücken (Composer, npm ≥ high), keine Secrets im Repository | `ci.yml` Job `php`: `composer audit`, `npm audit`, `tests/secret-scan.php`; Dependabot (`.github/dependabot.yml`) | CI grün |
+| Paketprüfung: keine Secrets im ZIP (inkl. mitgeliefertem vendor/), keine Entwicklungsdateien, Installation in frischem WordPress | `ci.yml` Job `package` (`tests/secret-scan.php --zip=…`), `wp-matrix.yml` (`tests/wp-matrix/zip-install.sh`) | CI grün |
+| Integrationssuite über PHP 8.2–8.5 und MySQL/MariaDB Minimum–aktuell | `ci.yml` Job `integration` (Matrix, siehe OPERATIONS.md „Datenbank- und PHP-Freigaben“) | CI grün |
 | Nur getestete Commits von `main` | `build/release-guard.sh` | Release-Workflow |
 | Übersetzungen vollständig (keine fehlenden/fuzzy Einträge) | `php tests/i18n-check.php` | Release-Workflow |
 | Plugin-Version = Tag | Schritt „Check plugin version matches the tag“ | Release-Workflow |
