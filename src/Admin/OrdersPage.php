@@ -116,7 +116,7 @@ final class OrdersPage {
 		if ( ! $all && ! $ticket_ids ) {
 			return Forms::error( 'wpcap_refund_tickets', __( 'Bitte Tickets auswählen oder „Alle offenen Tickets“ wählen.', 'wp-pass-captain' ) );
 		}
-		$result = Refunds::request( $order->order_id, $ticket_ids, $reason, $key );
+		$result = Refunds::request( $order->order_id, $ticket_ids, $reason, $key, array( 'used_override' => Forms::text( $in, 'used_override', 200 ) ) );
 		if ( is_wp_error( $result ) ) {
 			$status = (int) ( ( $result->get_error_data()['status'] ?? 409 ) );
 			return Forms::error( $result->get_error_code(), $result->get_error_message(), 403 === $status ? 403 : 409 );
@@ -511,6 +511,11 @@ final class OrdersPage {
 				<label><input type="checkbox" name="refund_all" value="1"> <?php esc_html_e( 'Alle offenen Tickets erstatten (Restbetrag der Bestellung)', 'wp-pass-captain' ); ?></label><br>
 				<label><?php esc_html_e( 'Grund', 'wp-pass-captain' ); ?> <input type="text" name="reason" class="regular-text" required maxlength="255"></label>
 			</p>
+			<?php if ( Refunds::used_ticket_ids( array_map( static function ( $t ) { return (int) $t->ticket_id; }, (array) $tickets ) ) && current_user_can( Refunds::APPROVE_CAP ) ) : ?>
+				<p><label for="wpcap-used-override"><?php esc_html_e( 'Ausnahme für bereits eingelassene Tickets (Begründung)', 'wp-pass-captain' ); ?></label><br>
+				<input type="text" id="wpcap-used-override" name="used_override" class="regular-text" maxlength="200" aria-describedby="wpcap-used-override-help">
+				<span id="wpcap-used-override-help" class="description"><?php esc_html_e( 'Nur ausfüllen, wenn eingelassene Tickets trotzdem erstattet werden sollen (z. B. Abbruch der Veranstaltung). Die Erstattung braucht dann immer eine zweite Freigabe.', 'wp-pass-captain' ); ?></span></p>
+			<?php endif; ?>
 			<?php if ( 'manual' === $order->payment_provider ) : ?>
 				<p class="description"><?php esc_html_e( 'Manuelle Zahlungen: Der Betrag muss außerhalb des Plugins zurücküberwiesen werden. Die Tickets werden widerrufen.', 'wp-pass-captain' ); ?></p>
 			<?php endif; ?>

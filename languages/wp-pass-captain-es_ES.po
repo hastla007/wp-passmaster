@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP Pass Captain 1.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
-"POT-Creation-Date: 2026-11-13T20:41:44+00:00\n"
+"POT-Creation-Date: 2026-11-13T20:45:05+00:00\n"
 "PO-Revision-Date: 2026-11-11 22:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: Spanish (Spain)\n"
@@ -49,7 +49,7 @@ msgstr "https://github.com/hastla007"
 #: src/BoxOffice/Page.php:385 src/BoxOffice/Page.php:412
 #: src/BoxOffice/Registers.php:51 src/BoxOffice/Service.php:110
 #: src/BoxOffice/Service.php:265 src/BoxOffice/Service.php:526
-#: src/BoxOffice/Service.php:608 src/BoxOffice/ShiftPage.php:152
+#: src/BoxOffice/Service.php:609 src/BoxOffice/ShiftPage.php:152
 #: src/BoxOffice/ShiftPage.php:365 src/BoxOffice/ShiftPage.php:375
 #: src/BoxOffice/ShiftPage.php:383 src/BoxOffice/ShiftPage.php:392
 #: src/BoxOffice/Shifts.php:182 src/BoxOffice/Shifts.php:263
@@ -65,7 +65,7 @@ msgstr "https://github.com/hastla007"
 #: src/Partners/AdminPage.php:543 src/Passes/AdminPage.php:124
 #: src/Printing/InvoicePdf.php:234 src/Printing/InvoicePdf.php:249
 #: src/Printing/Page.php:56 src/Printing/Page.php:128 src/Printing/Page.php:155
-#: src/Printing/Page.php:177 src/Printing/Templates.php:254 src/Refunds.php:228
+#: src/Printing/Page.php:177 src/Printing/Templates.php:254 src/Refunds.php:251
 #: src/Reports/Page.php:59 src/Reports/Page.php:153
 #: src/Reports/Settlement.php:358 src/Seating/AdminPage.php:91
 #: src/Series/AdminPage.php:72 src/Waitlists/AdminPage.php:81
@@ -110,7 +110,7 @@ msgstr ""
 #: src/Admin/AuditLogPage.php:106 src/Admin/AuditLogPage.php:113
 #: src/Admin/EventsPage.php:719 src/Admin/EventsPage.php:834
 #: src/Admin/EventsPage.php:903 src/Admin/EventsPage.php:1033
-#: src/Admin/OrdersPage.php:575 src/Admin/TicketsPage.php:234
+#: src/Admin/OrdersPage.php:580 src/Admin/TicketsPage.php:234
 #: src/Consents.php:523 src/Consents.php:611 src/Series/AdminPage.php:297
 msgid "Aktion"
 msgstr "Acción"
@@ -263,7 +263,7 @@ msgid "Gilt für"
 msgstr "Se aplica a"
 
 #: src/Admin/CampaignsPage.php:112 src/Admin/OrdersPage.php:447
-#: src/BoxOffice/Service.php:744 src/Invoices.php:492
+#: src/BoxOffice/Service.php:745 src/Invoices.php:492
 #: src/Printing/InvoicePdf.php:115
 msgid "Rabatt"
 msgstr "Descuento"
@@ -289,7 +289,7 @@ msgstr "Descuento total"
 #: src/Admin/EventsPage.php:950 src/Admin/EventsPage.php:996
 #: src/Admin/EventsPage.php:1032 src/Admin/OrdersPage.php:285
 #: src/Admin/OrdersPage.php:369 src/Admin/OrdersPage.php:482
-#: src/Admin/OrdersPage.php:573 src/Admin/TicketsPage.php:233
+#: src/Admin/OrdersPage.php:578 src/Admin/TicketsPage.php:233
 #: src/Admission/ConflictsPage.php:81 src/Admission/RulesPage.php:206
 #: src/Allocations/AdminPage.php:247 src/BoxOffice/ShiftPage.php:396
 #: src/BoxOffice/ShiftPage.php:426 src/Exchange/AdminPage.php:127
@@ -398,7 +398,7 @@ msgstr "Moneda"
 #: src/Admin/CampaignsPage.php:139 src/Admin/CheckinsPage.php:82
 #: src/Admin/CheckinsPage.php:93 src/Admin/EventsPage.php:712
 #: src/Admin/OrdersPage.php:274 src/Admin/OrdersPage.php:283
-#: src/Admin/OrdersPage.php:569 src/Allocations/AdminPage.php:202
+#: src/Admin/OrdersPage.php:574 src/Allocations/AdminPage.php:202
 #: src/Allocations/BuyerLimits.php:185 src/BoxOffice/ShiftPage.php:396
 #: src/Exchange/AdminPage.php:240 src/GuestLists/Page.php:178
 #: src/Integrations/WooCommerce/OrderAdapter.php:1041 src/Mail/Types.php:65
@@ -1979,7 +1979,7 @@ msgstr "No válida hoy"
 msgid "Tageslimit erreicht"
 msgstr "Límite diario alcanzado"
 
-#: src/Admin/Forms.php:505 src/Admin/OrdersPage.php:597
+#: src/Admin/Forms.php:505 src/Admin/OrdersPage.php:602
 msgid "Wartet auf Freigabe"
 msgstr "Pendiente de aprobación"
 
@@ -2192,7 +2192,7 @@ msgstr "Comunicación"
 msgid "Einstellungen & Integrationen"
 msgstr "Ajustes e integraciones"
 
-#: src/Admin/Menu.php:179 src/Admin/Menu.php:185 src/Admin/OrdersPage.php:525
+#: src/Admin/Menu.php:179 src/Admin/Menu.php:185 src/Admin/OrdersPage.php:530
 #: src/Admin/SettingsPage.php:120 src/BoxOffice/ZReport.php:381
 #: src/Reports/Page.php:78
 msgid "Erstattungen"
@@ -2205,7 +2205,7 @@ msgstr "Pedidos"
 
 #. translators: 1: list, 2: used, 3: quota
 #: src/Admin/Menu.php:183 src/Admin/OrdersPage.php:461
-#: src/Admin/OrdersPage.php:571 src/Admin/TicketsPage.php:215
+#: src/Admin/OrdersPage.php:576 src/Admin/TicketsPage.php:215
 #: src/BoxOffice/ZReport.php:383 src/GuestLists/Page.php:261
 #: src/GuestLists/Service.php:677 src/OrderPortal.php:113
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:804
@@ -2270,11 +2270,11 @@ msgstr "Cancela los pedidos de WooCommerce en WooCommerce."
 msgid "Nur unbezahlte, offene Bestellungen können storniert werden. Bezahlte Bestellungen bitte erstatten."
 msgstr "Solo se pueden cancelar los pedidos abiertos y sin pagar. Reembolsa los pedidos pagados."
 
-#: src/Admin/OrdersPage.php:104 src/Refunds.php:581
+#: src/Admin/OrdersPage.php:104 src/Refunds.php:616
 msgid "Keine Berechtigung für Erstattungen."
 msgstr "No tienes permiso para realizar reembolsos."
 
-#: src/Admin/OrdersPage.php:106 src/Refunds.php:51 src/Refunds.php:156
+#: src/Admin/OrdersPage.php:106 src/Refunds.php:51 src/Refunds.php:179
 msgid "WooCommerce-Bestellungen bitte in WooCommerce erstatten; die Tickets werden automatisch widerrufen."
 msgstr "Reembolsa los pedidos de WooCommerce en WooCommerce; las entradas se revocarán automáticamente."
 
@@ -2294,16 +2294,16 @@ msgstr "Selecciona entradas o elige «Todas las entradas abiertas»."
 msgid "Keine Berechtigung für Erstattungsfreigaben."
 msgstr "No tienes permiso para aprobar reembolsos."
 
-#: src/Admin/OrdersPage.php:131 src/Refunds.php:256
+#: src/Admin/OrdersPage.php:131 src/Refunds.php:279
 msgid "Erstattung nicht gefunden."
 msgstr "Reembolso no encontrado."
 
-#: src/Admin/OrdersPage.php:134 src/Refunds.php:207 src/Refunds.php:218
-#: src/Refunds.php:238
+#: src/Admin/OrdersPage.php:134 src/Refunds.php:230 src/Refunds.php:241
+#: src/Refunds.php:261
 msgid "Diese Erstattung wartet nicht auf Freigabe."
 msgstr "Este reembolso no está pendiente de aprobación."
 
-#: src/Admin/OrdersPage.php:144 src/Refunds.php:210
+#: src/Admin/OrdersPage.php:144 src/Refunds.php:233
 msgid "Die Freigabe muss durch eine andere berechtigte Person erfolgen."
 msgstr "La aprobación debe darla otra persona autorizada."
 
@@ -2365,7 +2365,7 @@ msgstr "Estado del pago"
 msgid "Bestellnummer oder E-Mail"
 msgstr "Número de pedido o correo electrónico"
 
-#: src/Admin/OrdersPage.php:280 src/Admin/OrdersPage.php:569
+#: src/Admin/OrdersPage.php:280 src/Admin/OrdersPage.php:574
 #: src/Allocations/AdminPage.php:331 src/Consents.php:611
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:821
 #: src/Partners/Statement.php:171 src/Printing/AttendeeList.php:48
@@ -2373,7 +2373,7 @@ msgstr "Número de pedido o correo electrónico"
 msgid "Bestellung"
 msgstr "Pedido"
 
-#: src/Admin/OrdersPage.php:281 src/Admin/OrdersPage.php:568
+#: src/Admin/OrdersPage.php:281 src/Admin/OrdersPage.php:573
 #: src/Allocations/AdminPage.php:331 src/Exchange/AdminPage.php:127
 #: src/Partners/Settlements.php:821 src/Partners/Statement.php:171
 #: src/Series/AdminPage.php:297 src/Series/AdminPage.php:338
@@ -2601,7 +2601,7 @@ msgstr "Reembolsar"
 msgid "Alle offenen Tickets erstatten (Restbetrag der Bestellung)"
 msgstr "Reembolsar todas las entradas abiertas (importe restante del pedido)"
 
-#: src/Admin/OrdersPage.php:512 src/Admin/OrdersPage.php:572
+#: src/Admin/OrdersPage.php:512 src/Admin/OrdersPage.php:577
 #: src/Admin/TicketsPage.php:258 src/BoxOffice/Page.php:241
 #: src/BoxOffice/ShiftPage.php:178 src/BoxOffice/ShiftPage.php:190
 #: src/BoxOffice/ShiftPage.php:351 src/BoxOffice/ShiftPage.php:407
@@ -2611,25 +2611,33 @@ msgid "Grund"
 msgstr "Motivo"
 
 #: src/Admin/OrdersPage.php:515
+msgid "Ausnahme für bereits eingelassene Tickets (Begründung)"
+msgstr ""
+
+#: src/Admin/OrdersPage.php:517
+msgid "Nur ausfüllen, wenn eingelassene Tickets trotzdem erstattet werden sollen (z. B. Abbruch der Veranstaltung). Die Erstattung braucht dann immer eine zweite Freigabe."
+msgstr ""
+
+#: src/Admin/OrdersPage.php:520
 msgid "Manuelle Zahlungen: Der Betrag muss außerhalb des Plugins zurücküberwiesen werden. Die Tickets werden widerrufen."
 msgstr "Pagos manuales: el importe debe devolverse mediante transferencia fuera del plugin. Las entradas se revocarán."
 
 #. translators: %s: amount
-#: src/Admin/OrdersPage.php:518
+#: src/Admin/OrdersPage.php:523
 #, php-format
 msgid "Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig."
 msgstr "Si la suma de todos los reembolsos de este pedido (incluidos los en curso y los pendientes) supera %s, se necesita una segunda aprobación."
 
-#: src/Admin/OrdersPage.php:520
+#: src/Admin/OrdersPage.php:525
 msgid "Ausgewählte Tickets wirklich erstatten?"
 msgstr "¿Seguro que quieres reembolsar las entradas seleccionadas?"
 
-#: src/Admin/OrdersPage.php:520
+#: src/Admin/OrdersPage.php:525
 msgid "Erstattung auslösen"
 msgstr "Iniciar reembolso"
 
 #. translators: 1: list, 2: used, 3: quota
-#: src/Admin/OrdersPage.php:535 src/Allocations/AdminPage.php:247
+#: src/Admin/OrdersPage.php:540 src/Allocations/AdminPage.php:247
 #: src/GuestLists/Page.php:261 src/Modules/Webhooks.php:296
 #: src/Partners/AdminPage.php:568 src/Series/AdminPage.php:364
 #: src/Series/AdminPage.php:482 src/Series/AdminPage.php:558
@@ -2637,79 +2645,79 @@ msgstr "Iniciar reembolso"
 msgid "Aktionen"
 msgstr "Acciones"
 
-#: src/Admin/OrdersPage.php:539
+#: src/Admin/OrdersPage.php:544
 msgid "Zahlungseingang bestätigen und Tickets ausstellen?"
 msgstr "¿Confirmar la recepción del pago y emitir las entradas?"
 
-#: src/Admin/OrdersPage.php:539
+#: src/Admin/OrdersPage.php:544
 msgid "Als bezahlt markieren"
 msgstr "Marcar como pagado"
 
-#: src/Admin/OrdersPage.php:544 src/Admin/TicketsPage.php:278
+#: src/Admin/OrdersPage.php:549 src/Admin/TicketsPage.php:278
 #: src/PortalSelfService.php:559
 msgid "Grund (optional)"
 msgstr "Motivo (opcional)"
 
-#: src/Admin/OrdersPage.php:545
+#: src/Admin/OrdersPage.php:550
 msgid "Unbezahlte Bestellung stornieren und Reservierung freigeben?"
 msgstr "¿Cancelar el pedido sin pagar y liberar la reserva?"
 
-#: src/Admin/OrdersPage.php:545 src/BoxOffice/Page.php:241
+#: src/Admin/OrdersPage.php:550 src/BoxOffice/Page.php:241
 #: src/GuestLists/Page.php:271
 msgid "Stornieren"
 msgstr "Cancelar pedido"
 
-#: src/Admin/OrdersPage.php:550
+#: src/Admin/OrdersPage.php:555
 msgid "Tickets erneut senden? Die bisherigen Ticketcodes werden dabei ungültig."
 msgstr "¿Reenviar las entradas? Los códigos de entrada anteriores dejarán de ser válidos."
 
-#: src/Admin/OrdersPage.php:550 src/Mail/Types.php:136
+#: src/Admin/OrdersPage.php:555 src/Mail/Types.php:136
 msgid "Tickets erneut senden"
 msgstr "Reenviar entradas"
 
-#: src/Admin/OrdersPage.php:570 src/BoxOffice/ShiftPage.php:178
+#: src/Admin/OrdersPage.php:575 src/BoxOffice/ShiftPage.php:178
 #: src/BoxOffice/ShiftPage.php:190 src/BoxOffice/ShiftPage.php:351
 #: src/Payments/BankTransfer.php:64 src/PublicEvents.php:74
 #: src/Reports/Settlement.php:272 src/Waitlists.php:707
 msgid "Betrag"
 msgstr "Importe"
 
-#: src/Admin/OrdersPage.php:574
+#: src/Admin/OrdersPage.php:579
 msgid "Angefordert / freigegeben von"
 msgstr "Solicitado / aprobado por"
 
-#: src/Admin/OrdersPage.php:578
+#: src/Admin/OrdersPage.php:583
 msgid "Keine Erstattungen."
 msgstr "No hay reembolsos."
 
 #. translators: %s: tax amount
-#: src/Admin/OrdersPage.php:589
+#: src/Admin/OrdersPage.php:594
 #, php-format
 msgid "davon Steuer %s"
 msgstr "de los cuales impuesto %s"
 
-#: src/Admin/OrdersPage.php:593
+#: src/Admin/OrdersPage.php:598
 msgid "Käufer:in (Stornierungsanfrage im Bestellportal)"
 msgstr ""
 
-#: src/Admin/OrdersPage.php:599
+#: src/Admin/OrdersPage.php:604
 msgid "Freigabe durch eine andere Person erforderlich"
 msgstr "Se requiere la aprobación de otra persona"
 
-#: src/Admin/OrdersPage.php:602
+#: src/Admin/OrdersPage.php:607
 msgid "Erstattung freigeben und auszahlen?"
 msgstr "¿Aprobar el reembolso y efectuar el pago?"
 
-#: src/Admin/OrdersPage.php:602 src/Allocations/AdminPage.php:285
+#: src/Admin/OrdersPage.php:607 src/Allocations/AdminPage.php:285
 #: src/GuestLists/Page.php:267
 msgid "Freigeben"
 msgstr "Aprobar"
 
-#: src/Admin/OrdersPage.php:605
+#: src/Admin/OrdersPage.php:610
 msgid "Grund der Ablehnung"
 msgstr "Motivo del rechazo"
 
-#: src/Admin/OrdersPage.php:606 src/GuestLists/Page.php:268
+#: src/Admin/OrdersPage.php:611 src/GuestLists/Page.php:268
 msgid "Ablehnen"
 msgstr "Rechazar"
 
@@ -4575,7 +4583,7 @@ msgstr "Las ventas en efectivo y con tarjeta también se registran en nuestra pr
 msgid "(nicht gebucht)"
 msgstr "(no registrada)"
 
-#: src/BoxOffice/Page.php:219 src/BoxOffice/Service.php:737
+#: src/BoxOffice/Page.php:219 src/BoxOffice/Service.php:738
 #: src/BoxOffice/ShiftPage.php:178
 msgid "Beleg"
 msgstr "Recibo"
@@ -4806,74 +4814,74 @@ msgstr "Para el pago tiene que haber un turno de caja abierto. Abre primero un t
 msgid "eingecheckt, Ausnahme:"
 msgstr "con check-in, excepción:"
 
-#: src/BoxOffice/Service.php:577
+#: src/BoxOffice/Service.php:578
 msgid "Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen."
 msgstr "La anulación se ha rechazado o ha fallado. Inténtalo de nuevo."
 
-#: src/BoxOffice/Service.php:607
+#: src/BoxOffice/Service.php:608
 msgid "Für diesen Verkauf wartet kein Storno."
 msgstr "Esta venta no tiene ninguna anulación pendiente."
 
 #. translators: %d: user ID
-#: src/BoxOffice/Service.php:661
+#: src/BoxOffice/Service.php:662
 #, php-format
 msgid "Bediener %d"
 msgstr "Operador %d"
 
 #. translators: %s: platform name
-#: src/BoxOffice/Service.php:736 src/Invoices.php:380 src/Invoices.php:394
+#: src/BoxOffice/Service.php:737 src/Invoices.php:380 src/Invoices.php:394
 #: src/Partners/Settlements.php:756
 msgid "USt-IdNr.:"
 msgstr "NIF-IVA:"
 
-#: src/BoxOffice/Service.php:737 src/BoxOffice/ZReport.php:442
+#: src/BoxOffice/Service.php:738 src/BoxOffice/ZReport.php:442
 msgid "STORNOBELEG"
 msgstr "RECIBO DE ANULACIÓN"
 
-#: src/BoxOffice/Service.php:738 src/BoxOffice/ZReport.php:443
+#: src/BoxOffice/Service.php:739 src/BoxOffice/ZReport.php:443
 msgid "Beleg-Nr.:"
 msgstr "N.º de recibo:"
 
-#: src/BoxOffice/Service.php:739
+#: src/BoxOffice/Service.php:740
 msgid "Storno zu Beleg"
 msgstr "Anulación del recibo"
 
-#: src/BoxOffice/Service.php:740 src/BoxOffice/ZReport.php:444
+#: src/BoxOffice/Service.php:741 src/BoxOffice/ZReport.php:444
 #: src/Printing/InvoicePdf.php:187
 msgid "Datum:"
 msgstr "Fecha:"
 
-#: src/BoxOffice/Service.php:740 src/BoxOffice/ZReport.php:444
+#: src/BoxOffice/Service.php:741 src/BoxOffice/ZReport.php:444
 msgid "Kasse/Schicht/Bediener:"
 msgstr "Caja/Turno/Operador:"
 
-#: src/BoxOffice/Service.php:745
+#: src/BoxOffice/Service.php:746
 msgid "SUMME"
 msgstr "TOTAL"
 
 #. translators: 1: rate, 2: net
-#: src/BoxOffice/Service.php:747 src/BoxOffice/ZReport.php:448
+#: src/BoxOffice/Service.php:748 src/BoxOffice/ZReport.php:448
 #, php-format
 msgid "USt %1$s %%: Netto %2$s"
 msgstr "IVA %1$s %%: neto %2$s"
 
-#: src/BoxOffice/Service.php:749 src/BoxOffice/ZReport.php:450
+#: src/BoxOffice/Service.php:750 src/BoxOffice/ZReport.php:450
 msgid "Zahlart:"
 msgstr "Método de pago:"
 
-#: src/BoxOffice/Service.php:751
+#: src/BoxOffice/Service.php:752
 msgid "Gegeben"
 msgstr "Entregado"
 
-#: src/BoxOffice/Service.php:751
+#: src/BoxOffice/Service.php:752
 msgid "Rückgeld"
 msgstr "Cambio"
 
-#: src/BoxOffice/Service.php:753
+#: src/BoxOffice/Service.php:754
 msgid "Bestellung:"
 msgstr "Pedido:"
 
-#: src/BoxOffice/Service.php:755 src/BoxOffice/ZReport.php:451
+#: src/BoxOffice/Service.php:756 src/BoxOffice/ZReport.php:451
 #: src/Printing/AttendeeList.php:79 src/Printing/NoShowList.php:78
 #: src/Reports/Settlement.php:349
 msgid "Drucken"
@@ -12960,8 +12968,8 @@ msgstr "Si el código QR no se puede leer, introduce el código auxiliar de 8 ca
 msgid "Ticket prüfen und einchecken"
 msgstr "Validar entrada y hacer check-in"
 
-#: src/Refunds.php:48 src/Refunds.php:59 src/Refunds.php:152
-#: src/Refunds.php:403
+#: src/Refunds.php:48 src/Refunds.php:59 src/Refunds.php:175
+#: src/Refunds.php:426
 msgid "Nur bezahlte Bestellungen können erstattet werden."
 msgstr "Solo se pueden reembolsar los pedidos pagados."
 
@@ -12969,64 +12977,86 @@ msgstr "Solo se pueden reembolsar los pedidos pagados."
 msgid "Für mindestens eines der gewählten Tickets läuft bereits eine Erstattung oder sie wartet auf Freigabe."
 msgstr "Para al menos una de las entradas seleccionadas ya hay un reembolso en curso o pendiente de aprobación."
 
-#: src/Refunds.php:99 src/Refunds.php:104 src/Refunds.php:188
-#: src/Refunds.php:193 src/Refunds.php:436 src/Refunds.php:452
+#. translators: %d: number of tickets
+#: src/Refunds.php:84
+#, php-format
+msgid "%d gewähltes Ticket wurde bereits zum Einlass genutzt. Für eine Erstattung bitte eine Ausnahme mit Begründung angeben."
+msgid_plural "%d gewählte Tickets wurden bereits zum Einlass genutzt. Für eine Erstattung bitte eine Ausnahme mit Begründung angeben."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of tickets
+#: src/Refunds.php:86
+#, php-format
+msgid "%d gewähltes Ticket wurde bereits zum Einlass genutzt und kann nur mit Freigabeberechtigung erstattet werden."
+msgid_plural "%d gewählte Tickets wurden bereits zum Einlass genutzt und können nur mit Freigabeberechtigung erstattet werden."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: reason for the exception
+#: src/Refunds.php:92
+#, php-format
+msgid "[eingelassen, Ausnahme: %s]"
+msgstr ""
+
+#: src/Refunds.php:122 src/Refunds.php:127 src/Refunds.php:211
+#: src/Refunds.php:216 src/Refunds.php:459 src/Refunds.php:475
 msgid "Die Erstattung konnte nicht gespeichert werden."
 msgstr "No se ha podido guardar el reembolso."
 
-#: src/Refunds.php:108
+#: src/Refunds.php:131
 msgid "WP Pass Captain: Stornierungsanfrage wartet auf Freigabe"
 msgstr ""
 
 #. translators: 1: order id, 2: amount
-#: src/Refunds.php:108
+#: src/Refunds.php:131
 #, php-format
 msgid "Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal eine Stornierung mit Erstattung über %2$s angefragt. Bitte unter „Erstattungen zur Freigabe“ freigeben oder ablehnen."
 msgstr ""
 
-#: src/Refunds.php:112 src/Refunds.php:197
+#: src/Refunds.php:135 src/Refunds.php:220
 msgid "WP Pass Captain: Erstattung wartet auf Freigabe"
 msgstr "WP Pass Captain: reembolso pendiente de aprobación"
 
 #. translators: 1: order id, 2: amount
-#: src/Refunds.php:112 src/Refunds.php:197
+#: src/Refunds.php:135 src/Refunds.php:220
 #, php-format
 msgid "Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt."
 msgstr "Se ha solicitado un reembolso de %2$s para el pedido %1$s, que requiere una segunda aprobación."
 
-#: src/Refunds.php:146
+#: src/Refunds.php:169
 msgid "Der Erstattungsbetrag muss größer als 0 sein."
 msgstr "El importe del reembolso debe ser mayor que 0."
 
-#: src/Refunds.php:164
+#: src/Refunds.php:187
 msgid "Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag."
 msgstr "El importe del reembolso supera el importe del pedido aún pendiente."
 
-#: src/Refunds.php:276
+#: src/Refunds.php:299
 msgid "Die Erstattung konnte gerade nicht gestartet werden. Bitte erneut versuchen."
 msgstr "No se ha podido iniciar el reembolso en este momento. Inténtalo de nuevo."
 
-#: src/Refunds.php:332
+#: src/Refunds.php:355
 msgid "Die Erstattung wurde ausgezahlt, konnte aber noch nicht verbucht werden; sie wird automatisch nachgebucht."
 msgstr "El reembolso se ha pagado, pero aún no se ha podido contabilizar; se contabilizará automáticamente más tarde."
 
-#: src/Refunds.php:493
+#: src/Refunds.php:516
 msgid "Die Bestellung kann nicht mehr erstattet werden."
 msgstr "El pedido ya no se puede reembolsar."
 
-#: src/Refunds.php:501
+#: src/Refunds.php:524
 msgid "Mindestens eines der Tickets wurde bereits erstattet; die Erstattung wurde nicht ausgeführt."
 msgstr "Al menos una de las entradas ya se ha reembolsado; el reembolso no se ha realizado."
 
-#: src/Refunds.php:508
+#: src/Refunds.php:531
 msgid "Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag; die Erstattung wurde nicht ausgeführt."
 msgstr "El importe del reembolso supera el importe del pedido aún pendiente; el reembolso no se ha realizado."
 
-#: src/Refunds.php:562
+#: src/Refunds.php:585
 msgid "Die gewählten Tickets gehören nicht zur Bestellung oder wurden bereits erstattet."
 msgstr "Las entradas seleccionadas no pertenecen al pedido o ya se han reembolsado."
 
-#: src/Refunds.php:584
+#: src/Refunds.php:619
 msgid "Für Erstattungen ist eine aktivierte Zwei-Faktor-Anmeldung erforderlich."
 msgstr "Para los reembolsos se necesita tener activada la autenticación en dos pasos."
 

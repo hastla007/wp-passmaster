@@ -78,13 +78,16 @@ foreach ( $mails as $mail ) {
 	if ( preg_match( '#https?://[^\s"\'<>]*wpcap_waitlist_accept=\d+[^\s"\'<>]*#', (string) ( $mail['message'] ?? '' ), $m ) ) { $waitlist_url = html_entity_decode( $m[0] ); }
 }
 
-$pages = $wpdb->get_results( "SELECT ID,post_content FROM {$wpdb->posts} WHERE post_type='page' AND post_status='publish' AND (post_content LIKE '%[wp_pass_captain_events%' OR post_content LIKE '%[wp_pass_captain_scanner%')" );
+$pages = $wpdb->get_results( "SELECT ID,post_content FROM {$wpdb->posts} WHERE post_type='page' AND post_status='publish' AND (post_content LIKE '%_events%' OR post_content LIKE '%_scanner%')" );
 $events_url = $scanner_url = '';
 foreach ( $pages as $page ) {
-	if ( ! $events_url && false !== strpos( $page->post_content, '[wp_pass_captain_events' ) ) { $events_url = get_permalink( $page->ID ); }
-	if ( ! $scanner_url && false !== strpos( $page->post_content, '[wp_pass_captain_scanner' ) ) { $scanner_url = get_permalink( $page->ID ); }
+	if ( ! $events_url && preg_match( '/\[(wp_pass_captain|wpcap)_events/', $page->post_content ) ) { $events_url = get_permalink( $page->ID ); }
+	if ( ! $scanner_url && preg_match( '/\[(wp_pass_captain|wpcap)_scanner/', $page->post_content ) ) { $scanner_url = get_permalink( $page->ID ); }
 }
 
+// Fresh installs (CI): create the pages with the shortcodes once.
+if ( ! $events_url ) { $events_url = get_permalink( wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Tickets', 'post_content' => '[wpcap_events]' ) ) ); }
+if ( ! $scanner_url ) { $scanner_url = get_permalink( wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'Scanner', 'post_content' => '[wpcap_scanner]' ) ) ); }
 echo wp_json_encode( array(
 	'event_id' => $event,
 	'occurrence_id' => $occ,

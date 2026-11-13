@@ -289,7 +289,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Export Invoices.php:365, Gutschriften Invoices.php:113, Berichte Reports/Data.php:73; fachliche Abnahme der Berichte/Exportformate fehlt
 - [ ] **A130** Release-Gates aus Konzept bestanden und dokumentiert — _OFFEN_ (TODO L108; Abnahmekriterien)
   - Alle Gates in CONCEPT.md:443-450 unerledigt; teils Rechtsfreigaben nötig
-- [ ] **A131** Terminverschiebung und Status-/Sonderfallregeln, Refund nach Check-in — _TEILWEISE_ (TODO L114; P1 – Ticketverwaltung nach dem Kauf)
+- [x] **A131** Terminverschiebung und Status-/Sonderfallregeln, Refund nach Check-in — _TEILWEISE_ (TODO L114; P1 – Ticketverwaltung nach dem Kauf)
   - Verschiebung vorhanden (Admin/EventsPage.php:148, Notifications.php:18); nativer Refund erstattet eingecheckte Tickets ohne Regel/Override (Refunds.php:439), Override nur POS (BoxOffice/Service.php:437)
 - [ ] **A132** End-to-End-Abnahme Storno/Widerruf/Neuausgabe/alle Refundkombinationen — _TEILWEISE_ (TODO L115; P1 – Ticketverwaltung nach dem Kauf)
   - Idempotenz vorhanden (Refunds.php:33-35); nur Mock-WP-Integrationstests (tests/integration/wp), keine echte E2E-Abnahmesuite aller Kombinationen

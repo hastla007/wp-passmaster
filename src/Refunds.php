@@ -69,6 +69,29 @@ final class Refunds {
 		$calc = self::calculate( $order, $requested, $open['ticket_ids'], $open['amount_minor'] );
 		if ( is_wp_error( $calc ) ) { $wpdb->query( 'ROLLBACK' ); return $calc; }
 
+		// A131: tickets already used for admission are only refunded with an explicit exception (reason,
+		// approver capability) or by a system flow (cancelled date/event); the refund then always needs
+		// the second approval, except for system flows.
+		$used = self::used_ticket_ids( $calc['ticket_ids'] );
+		$used_override = trim( sanitize_text_field( (string) ( $args['used_override'] ?? '' ) ) );
+		if ( $used && ! $system && empty( $args['allow_used'] ) ) {
+			if ( '' === $used_override || ! current_user_can( self::APPROVE_CAP ) ) {
+				$wpdb->query( 'ROLLBACK' );
+				return new \WP_Error(
+					'wpcap_refund_used_tickets',
+					current_user_can( self::APPROVE_CAP )
+						/* translators: %d: number of tickets */
+						? sprintf( _n( '%d gewähltes Ticket wurde bereits zum Einlass genutzt. Für eine Erstattung bitte eine Ausnahme mit Begründung angeben.', '%d gewählte Tickets wurden bereits zum Einlass genutzt. Für eine Erstattung bitte eine Ausnahme mit Begründung angeben.', count( $used ), 'wp-pass-captain' ), count( $used ) )
+						/* translators: %d: number of tickets */
+						: sprintf( _n( '%d gewähltes Ticket wurde bereits zum Einlass genutzt und kann nur mit Freigabeberechtigung erstattet werden.', '%d gewählte Tickets wurden bereits zum Einlass genutzt und können nur mit Freigabeberechtigung erstattet werden.', count( $used ), 'wp-pass-captain' ), count( $used ) ),
+					array( 'status' => 409, 'used_ticket_ids' => $used )
+				);
+			}
+			$args['require_approval'] = true;
+			/* translators: %s: reason for the exception */
+			$reason = trim( $reason . ' ' . sprintf( __( '[eingelassen, Ausnahme: %s]', 'wp-pass-captain' ), $used_override ) );
+		}
+
 		// The threshold applies to everything refunded or pending for this order, so splitting a
 		// large refund into small requests does not avoid the second approval.
 		$threshold = (int) Settings::get( 'refund_approval_threshold' );
@@ -573,6 +596,18 @@ final class Refunds {
 		}
 		$tax = self::tax_for( $order, count( $ticket_ids ) === count( $open_ids ) ? null : $ticket_ids, $amount );
 		return array( 'ticket_ids' => $ticket_ids, 'amount_minor' => $amount, 'tax_minor' => $tax );
+	}
+
+	/**
+	 * Tickets of the list that were used for admission (see Orders::used_ticket_ids()).
+	 *
+	 * @param int[] $ticket_ids Ticket ids.
+	 * @return int[]
+	 */
+	public static function used_ticket_ids( array $ticket_ids ) {
+		// Same definition as the rest of the plugin (undone check-ins do not count, entries of the
+		// admission module do).
+		return Orders::used_ticket_ids( $ticket_ids );
 	}
 
 	/** Optional enforcement of two-factor authentication for refund actions. */

@@ -556,7 +556,8 @@ final class Service {
 		$key = $partial ? 'pos-storno-' . (int) $sale->sale_id . '-t' . substr( md5( implode( ',', $targets ) ), 0, 12 ) . '-' . (int) $sale->storno_attempt : self::storno_key( $sale->sale_id, (int) $sale->storno_attempt );
 		$text = 'POS-Storno ' . $sale->receipt_number . ( '' !== (string) $reason ? ': ' . $reason : '' ) . ( $checked_in ? ' [' . __( 'eingecheckt, Ausnahme:', 'wp-pass-captain' ) . ' ' . $override_reason . ']' : '' );
 		Shifts::$storno_override = $checked_in ? $override_reason : '';
-		$refund = Refunds::request( (int) $sale->order_id, $partial ? $targets : array(), $text, $key );
+		// The box office checked its own exception (reason + capability) above.
+		$refund = Refunds::request( (int) $sale->order_id, $partial ? $targets : array(), $text, $key, $checked_in ? array( 'allow_used' => true ) : array() );
 		if ( ! is_wp_error( $refund ) && 'completed' === $refund['status'] ) {
 			self::on_refund_completed( (int) $refund['refund_id'], (int) $sale->order_id );
 		}

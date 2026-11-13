@@ -50,14 +50,17 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 		{ name: 'Admin: Check-ins', group: 'admin', url: admin('page=wpcap-checkins'), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: Box office', group: 'admin', url: admin('page=wpcap-boxoffice'), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: Settings', group: 'admin', url: admin('page=wpcap-settings'), include: '#wpbody-content', auth: true },
-	].filter((p) => p.url && (!args.only || p.group === args.only));
+	].filter((p) => !args.only || p.group === args.only);
+	// A page without URL (fixture could not create it) is a failure, never silently skipped.
+	const missing = pages.filter((p) => !p.url).map((p) => p.name);
+	if (missing.length) { console.log('Missing page URL (not checked): ' + missing.join(', ')); }
 
 	const { browser, ctx } = await launch();
 	await login(ctx);
 	const anon = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'de-DE' });
 	const results = [];
 	let failed = false;
-	for (const def of pages) {
+	for (const def of pages.filter((p) => p.url)) {
 		const page = await (def.auth ? ctx : anon).newPage();
 		const response = await page.goto(def.url, { waitUntil: 'load' });
 		const status = response ? response.status() : 0;
@@ -97,5 +100,5 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 		}
 	}
 	console.log('\nReport: ' + file);
-	process.exit(failed ? 1 : 0);
+	process.exit(failed || missing.length ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(2); });

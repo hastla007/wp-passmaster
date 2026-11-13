@@ -132,6 +132,7 @@
 - Schema 3.9.5 (Stornierungsanfragen, Einwilligungsnachweise).
 - Getrennte Änderungsverläufe je Termin und je Serie: Kapazität, Beginn/Ende, Ort, Status, Ticketpreise und Verkaufsfenster sowie Preisregeln, Kontingente und Seriendefinition werden lesbar als „alt → neu“ mit Zeitpunkt und Benutzer im Admin angezeigt (A114).
 - Terminserien lassen sich nach dem Anlegen bearbeiten (Regel, Ausnahmen, Uhrzeit, Standardkontingent, Verkaufsfenster, Saalplan) – mit Vorschau der hinzugefügten, geänderten und entfernten Termine. Änderungen gelten nur für künftige Termine, ausverkaufte und abgesagte nur auf ausdrücklichen Wunsch; Termine mit verkauften Tickets werden nie gelöscht, sondern markiert und können über „Termin absagen“ abgesagt werden. Preisregeln sind ebenfalls bearbeitbar; Hook `wpcap_series_updated`, Doku docs/SERIES.md, Schema 3.9.6 (A128).
+- Erstattung bereits eingelassener Tickets nur noch mit ausdrücklicher Ausnahme: Grund und Freigabeberechtigung nötig, die Erstattung braucht dann immer eine zweite Freigabe, die Ausnahme steht im Erstattungsgrund; Terminabsagen (System) und die Kasse (eigene Ausnahmeprüfung) bleiben möglich. Ein rückgängig gemachter Check-in zählt nicht als Einlass (A131).
 - Übersetzungsprüfung: CI verlangt aktuelle POT und konsistente Platzhalter, vollständige Übersetzungen sind Release-Gate.
 
 ### Kasse und Zahlungen (Experten-Review)
