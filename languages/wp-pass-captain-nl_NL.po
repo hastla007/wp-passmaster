@@ -63,7 +63,7 @@ msgstr "Geen toestemming voor dit evenement."
 
 #: src/Admin/CampaignsPage.php:41
 msgid "Codes für alle Events kann nur die Administration anlegen."
-msgstr ""
+msgstr "Codes voor alle evenementen kunnen alleen door de beheerder worden aangemaakt."
 
 #: src/Admin/CampaignsPage.php:47 src/Allocations/BuyerLimits.php:78
 #: src/Rest/Controller.php:661
@@ -71,24 +71,20 @@ msgid "Die Ticketart gehört nicht zu diesem Event."
 msgstr "Het tickettype hoort niet bij dit evenement."
 
 #: src/Admin/CampaignsPage.php:54
-#, fuzzy
 msgid "Bitte einen gültigen Rabattwert angeben."
-msgstr "Geef een geldige prijs op."
+msgstr "Geef een geldige kortingswaarde op."
 
 #: src/Admin/CampaignsPage.php:78
-#, fuzzy
 msgid "Rabattcode nicht gefunden."
-msgstr "Ticket niet gevonden."
+msgstr "Kortingscode niet gevonden."
 
 #: src/Admin/CampaignsPage.php:85
-#, fuzzy
 msgid "Rabattcode angelegt."
-msgstr "Kortingscode (optioneel)"
+msgstr "Kortingscode aangemaakt."
 
 #: src/Admin/CampaignsPage.php:91
-#, fuzzy
 msgid "Status gespeichert."
-msgstr "Opmaak opgeslagen."
+msgstr "Status opgeslagen."
 
 #: src/Admin/CampaignsPage.php:99 src/Admin/CheckinsPage.php:55
 #: src/Admin/DevicesPage.php:50 src/Admin/EventsPage.php:611
@@ -125,27 +121,24 @@ msgid "Keine Berechtigung."
 msgstr "Geen toestemming."
 
 #: src/Admin/CampaignsPage.php:102 src/Admin/Menu.php:182
-#, fuzzy
 msgid "Rabattcodes"
-msgstr "Korting"
+msgstr "Kortingscodes"
 
 #: src/Admin/CampaignsPage.php:104
 msgid "Kunden geben den Code im Checkout ein. Das Feld „Rabattcode“ erscheint nur, wenn für das Event ein aktiver Code existiert. Ein Code für eine Ticketart oder ein Event mindert nur diese Positionen."
-msgstr ""
+msgstr "Klanten voeren de code in bij het afrekenen. Het veld „Kortingscode” verschijnt alleen als er voor het evenement een actieve code bestaat. Een code voor een tickettype of een evenement verlaagt alleen die posten."
 
 #: src/Admin/CampaignsPage.php:107
 msgid "Vorhandene Codes"
-msgstr ""
+msgstr "Bestaande codes"
 
 #: src/Admin/CampaignsPage.php:109
-#, fuzzy
 msgid "Noch keine Rabattcodes."
-msgstr "Nog geen webhooks."
+msgstr "Nog geen kortingscodes."
 
 #: src/Admin/CampaignsPage.php:111 src/Admin/CampaignsPage.php:133
-#, fuzzy
 msgid "Code"
-msgstr "HTTP-code"
+msgstr "Code"
 
 #. translators: 1: entries, 2: tickets
 #. translators: 1: list, 2: used, 3: quota
@@ -182,16 +175,15 @@ msgstr "Korting"
 
 #: src/Admin/CampaignsPage.php:111
 msgid "Zeitraum"
-msgstr ""
+msgstr "Periode"
 
 #: src/Admin/CampaignsPage.php:111
 msgid "Nutzung"
-msgstr ""
+msgstr "Gebruik"
 
 #: src/Admin/CampaignsPage.php:111
-#, fuzzy
 msgid "Rabatt gesamt"
-msgstr "Korting"
+msgstr "Totale korting"
 
 #. translators: 1: entries, 2: tickets
 #. translators: 1: list, 2: used, 3: quota
@@ -220,15 +212,14 @@ msgid "Status"
 msgstr "Status"
 
 #: src/Admin/CampaignsPage.php:113
-#, fuzzy
 msgid "alle Events"
-msgstr "Alle evenementen"
+msgstr "alle evenementen"
 
 #. translators: %d: paid orders
 #: src/Admin/CampaignsPage.php:116
-#, fuzzy, php-format
+#, php-format
 msgid "%d bezahlt"
-msgstr "Betaald"
+msgstr "%d betaald"
 
 #. translators: %d: paid orders
 #. translators: 1: percent, 2: fee
@@ -256,9 +247,8 @@ msgid "Aktivieren"
 msgstr "Activeren"
 
 #: src/Admin/CampaignsPage.php:128
-#, fuzzy
 msgid "Neuen Code anlegen"
-msgstr "Evenement aanmaken"
+msgstr "Nieuwe code aanmaken"
 
 #: src/Admin/CampaignsPage.php:131 src/Admin/CheckinsPage.php:81
 #: src/Admin/OrdersPage.php:273 src/Admin/TicketsPage.php:167
@@ -269,11 +259,11 @@ msgstr "Alle evenementen"
 
 #: src/Admin/CampaignsPage.php:133
 msgid "3–32 Zeichen: Buchstaben, Ziffern, - und _"
-msgstr ""
+msgstr "3–32 tekens: letters, cijfers, - en _"
 
 #: src/Admin/CampaignsPage.php:134
 msgid "Name (intern)"
-msgstr ""
+msgstr "Naam (intern)"
 
 #: src/Admin/CampaignsPage.php:135 src/Admin/OrdersPage.php:479
 #: src/Allocations/AdminPage.php:246 src/Allocations/AdminPage.php:297
@@ -286,17 +276,16 @@ msgstr "Type"
 
 #: src/Admin/CampaignsPage.php:136
 msgid "Prozent"
-msgstr ""
+msgstr "Procent"
 
 #: src/Admin/CampaignsPage.php:136
-#, fuzzy
 msgid "Fester Betrag"
-msgstr "Bedrag"
+msgstr "Vast bedrag"
 
 #: src/Admin/CampaignsPage.php:137 src/BoxOffice/ShiftPage.php:47
 #: src/BoxOffice/ZReport.php:458
 msgid "Wert"
-msgstr ""
+msgstr "Waarde"
 
 #: src/Admin/CampaignsPage.php:137 src/Admin/EventsPage.php:753
 #: src/BoxOffice/ShiftPage.php:394 src/BoxOffice/ShiftPage.php:422
@@ -323,23 +312,20 @@ msgid "Event"
 msgstr "Evenement"
 
 #: src/Admin/CampaignsPage.php:140
-#, fuzzy
 msgid "Ticketart-ID (optional)"
-msgstr "Alleen evenement-ID (optioneel)"
+msgstr "Tickettype-ID (optioneel)"
 
 #: src/Admin/CampaignsPage.php:141
 msgid "Max. Nutzungen"
-msgstr ""
+msgstr "Max. gebruik"
 
 #: src/Admin/CampaignsPage.php:141
-#, fuzzy
 msgid "0 = unbegrenzt"
-msgstr "0 betekent onbeperkt."
+msgstr "0 = onbeperkt"
 
 #: src/Admin/CampaignsPage.php:142
-#, fuzzy
 msgid "Gültig ab / bis"
-msgstr "Geldig tot"
+msgstr "Geldig van / tot"
 
 #: src/Admin/CampaignsPage.php:142 src/Mail/Types.php:363
 #: src/OfflineScanner/AdminPage.php:182
@@ -348,9 +334,9 @@ msgstr "Geldig tot"
 
 #. translators: %s: timezone
 #: src/Admin/CampaignsPage.php:142
-#, fuzzy, php-format
+#, php-format
 msgid "Ortszeit %s; leer = unbegrenzt"
-msgstr "Lokale tijd %s; leeg = direct"
+msgstr "Lokale tijd %s; leeg = onbeperkt"
 
 #. translators: %s: timezone
 #: src/Admin/CampaignsPage.php:143 src/Admin/EventsPage.php:1044
@@ -360,12 +346,11 @@ msgstr "Volgorde"
 #. translators: %s: timezone
 #: src/Admin/CampaignsPage.php:143
 msgid "Bei mehreren Codes wird der niedrigere Wert zuerst angewendet."
-msgstr ""
+msgstr "Bij meerdere codes wordt de laagste waarde eerst toegepast."
 
 #: src/Admin/CampaignsPage.php:144
-#, fuzzy
 msgid "Code anlegen"
-msgstr "Evenement aanmaken"
+msgstr "Code aanmaken"
 
 #: src/Admin/CheckinsPage.php:45
 msgid "Aktuell anwesend"
@@ -661,39 +646,38 @@ msgstr "Het einde moet na het begin liggen."
 
 #. translators: %d: sold tickets
 #: src/Admin/EventsPage.php:184 src/Admin/EventsPage.php:335
-#, fuzzy, php-format
+#, php-format
 msgid "Das Kontingent darf nicht unter das bereits verkaufte %d Ticket sinken."
 msgid_plural "Das Kontingent darf nicht unter die bereits verkauften %d Tickets sinken."
-msgstr[0] "Het contingent mag niet lager worden dan de reeds verkochte %d tickets."
-msgstr[1] "Het contingent mag niet lager worden dan de reeds verkochte %d tickets."
+msgstr[0] "Het contingent mag niet lager worden dan het al verkochte %d ticket."
+msgstr[1] "Het contingent mag niet lager worden dan de %d al verkochte tickets."
 
 #: src/Admin/EventsPage.php:223
 msgid "Der Termin konnte nicht gespeichert werden."
 msgstr "De datum kon niet worden opgeslagen."
 
 #: src/Admin/EventsPage.php:268
-#, fuzzy
 msgid "Bitte einen Grund für die Absage angeben."
-msgstr "Geef een reden voor de afwijzing op."
+msgstr "Geef een reden voor de annulering op."
 
 #: src/Admin/EventsPage.php:269
 msgid "Bitte bestätigen, dass die Folgen der Absage geprüft wurden."
-msgstr ""
+msgstr "Bevestig dat de gevolgen van de annulering zijn gecontroleerd."
 
 #. translators: %d: number of tickets
 #: src/Admin/EventsPage.php:290
-#, fuzzy, php-format
+#, php-format
 msgid "%d Ticket wurde widerrufen, der Inhaber benachrichtigt und die bezahlte Bestellung automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü."
 msgid_plural "%d Tickets wurden widerrufen, die Inhaber benachrichtigt und bezahlte Bestellungen automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü."
-msgstr[0] "%d tickets zijn ingetrokken, de houders zijn op de hoogte gebracht en betaalde bestellingen zijn automatisch terugbetaald. Betaal WooCommerce-bestellingen terug in WooCommerce; fouten staan in het menu Terugbetalingen."
+msgstr[0] "%d ticket is ingetrokken, de houder is op de hoogte gebracht en de betaalde bestelling is automatisch terugbetaald. Betaal WooCommerce-bestellingen terug in WooCommerce; fouten staan in het menu Terugbetalingen."
 msgstr[1] "%d tickets zijn ingetrokken, de houders zijn op de hoogte gebracht en betaalde bestellingen zijn automatisch terugbetaald. Betaal WooCommerce-bestellingen terug in WooCommerce; fouten staan in het menu Terugbetalingen."
 
 #. translators: %d: number of tickets
 #: src/Admin/EventsPage.php:292
-#, fuzzy, php-format
+#, php-format
 msgid "%d Ticket wurde widerrufen und der Inhaber benachrichtigt. Ein bezahltes Ticket bleibt erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren)."
 msgid_plural "%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren)."
-msgstr[0] "%d tickets zijn ingetrokken en de houders zijn op de hoogte gebracht. Betaalde tickets blijven terugbetaalbaar: betaal ze terug via Bestelling → Terugbetalen (of schakel de automatische terugbetaling in bij de instellingen)."
+msgstr[0] "%d ticket is ingetrokken en de houder is op de hoogte gebracht. Een betaald ticket blijft terugbetaalbaar: betaal het terug via Bestelling → Terugbetalen (of schakel de automatische terugbetaling in bij de instellingen)."
 msgstr[1] "%d tickets zijn ingetrokken en de houders zijn op de hoogte gebracht. Betaalde tickets blijven terugbetaalbaar: betaal ze terug via Bestelling → Terugbetalen (of schakel de automatische terugbetaling in bij de instellingen)."
 
 #: src/Admin/EventsPage.php:301 src/Admin/EventsPage.php:382
@@ -789,7 +773,7 @@ msgstr "Datum geannuleerd."
 #: src/Admin/EventsPage.php:546
 #, php-format
 msgid "Termin abgesagt: %1$d offene Bestellungen storniert, %2$d Tickets widerrufen, %3$d Erstattungen ausgeführt, %4$d Erstattungen offen, %5$d Personen benachrichtigt."
-msgstr ""
+msgstr "Datum geannuleerd: %1$d openstaande bestellingen geannuleerd, %2$d tickets ingetrokken, %3$d terugbetalingen uitgevoerd, %4$d terugbetalingen open, %5$d personen op de hoogte gebracht."
 
 #: src/Admin/EventsPage.php:557
 msgid "Ticketart gespeichert."
@@ -828,91 +812,84 @@ msgid "Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Er
 msgstr "Betaalde tickets blijven terugbetaalbaar: betaal ze terug via Bestelling → Terugbetalen."
 
 #: src/Admin/EventsPage.php:634
-#, fuzzy
 msgid "← Zum Event"
-msgstr "← Naar evenementenlijst"
+msgstr "← Naar het evenement"
 
 #. translators: 1: event name, 2: date
 #: src/Admin/EventsPage.php:636
-#, fuzzy, php-format
+#, php-format
 msgid "Termin absagen: %1$s, %2$s"
-msgstr "Annulering van datum"
+msgstr "Datum annuleren: %1$s, %2$s"
 
 #: src/Admin/EventsPage.php:638
-#, fuzzy
 msgid "Dieser Termin ist bereits abgesagt."
-msgstr "Het evenement is geannuleerd."
+msgstr "Deze datum is al geannuleerd."
 
 #: src/Admin/EventsPage.php:640
-#, fuzzy
 msgid "Die Absage kann nicht rückgängig gemacht werden. Folgen:"
-msgstr "De sleutel kan niet worden gewijzigd."
+msgstr "De annulering kan niet ongedaan worden gemaakt. Gevolgen:"
 
 #. translators: %d: tickets
 #: src/Admin/EventsPage.php:642
-#, fuzzy, php-format
+#, php-format
 msgid "%d gültige Tickets werden widerrufen."
-msgstr "Ticket ingetrokken."
+msgstr "%d geldige tickets worden ingetrokken."
 
 #. translators: %d: orders
 #: src/Admin/EventsPage.php:644
-#, fuzzy, php-format
+#, php-format
 msgid "%d unbezahlte Bestellungen werden storniert, ihre Reservierungen freigegeben."
-msgstr "Onbetaalde bestelling annuleren en reservering vrijgeven?"
+msgstr "%d onbetaalde bestellingen worden geannuleerd en hun reserveringen vrijgegeven."
 
 #. translators: %d: orders
 #: src/Admin/EventsPage.php:647
-#, fuzzy, php-format
+#, php-format
 msgid "%d bezahlte Bestellungen werden automatisch erstattet (Freigaberegeln gelten)."
-msgstr "Betaalde bestellingen automatisch terugbetalen bij annulering van een datum"
+msgstr "%d betaalde bestellingen worden automatisch terugbetaald (goedkeuringsregels zijn van toepassing)."
 
 #. translators: %d: orders
 #: src/Admin/EventsPage.php:649
-#, fuzzy, php-format
+#, php-format
 msgid "%d bezahlte Bestellungen werden nicht automatisch erstattet; die Tickets bleiben erstattungsfähig (Bestellung → Erstatten)."
-msgstr "Betaalde tickets blijven terugbetaalbaar: betaal ze terug via Bestelling → Terugbetalen."
+msgstr "%d betaalde bestellingen worden niet automatisch terugbetaald; de tickets blijven terugbetaalbaar (Bestelling → Terugbetalen)."
 
 #. translators: %d: orders
 #: src/Admin/EventsPage.php:652
-#, fuzzy, php-format
+#, php-format
 msgid "%d WooCommerce-Bestellungen müssen in WooCommerce erstattet werden."
-msgstr "Annuleer WooCommerce-bestellingen in WooCommerce."
+msgstr "%d WooCommerce-bestellingen moeten in WooCommerce worden terugbetaald."
 
 #. translators: %d: recipients
 #: src/Admin/EventsPage.php:655
 #, php-format
 msgid "%d Personen erhalten die Absage-Mail."
-msgstr ""
+msgstr "%d personen ontvangen de annuleringsmail."
 
 #. translators: 1: pass name, 2: tickets, 3: effect
 #: src/Admin/EventsPage.php:658
-#, fuzzy, php-format
+#, php-format
 msgid "Pass „%1$s“ (%2$d Tickets): %3$s"
-msgstr "%1$s (%2$d tickettypen)"
+msgstr "Pas „%1$s” (%2$d tickets): %3$s"
 
 #: src/Admin/EventsPage.php:663
-#, fuzzy
 msgid "Grund der Absage"
-msgstr "Reden van afwijzing"
+msgstr "Reden van de annulering"
 
 #: src/Admin/EventsPage.php:663
-#, fuzzy
 msgid "Wird im Protokoll gespeichert."
-msgstr "Waarde opgeslagen"
+msgstr "Wordt in het logboek opgeslagen."
 
 #: src/Admin/EventsPage.php:664
-#, fuzzy
 msgid "Bestätigung"
-msgstr "Voorwaarde"
+msgstr "Bevestiging"
 
 #: src/Admin/EventsPage.php:664
 msgid "Ich habe die Folgen geprüft und möchte den Termin absagen."
-msgstr ""
+msgstr "Ik heb de gevolgen gecontroleerd en wil de datum annuleren."
 
 #: src/Admin/EventsPage.php:665
-#, fuzzy
 msgid "Termin endgültig absagen"
-msgstr "Ja, definitief overdragen"
+msgstr "Datum definitief annuleren"
 
 #: src/Admin/EventsPage.php:669 src/Seating/AdminPage.php:132
 msgid "Nicht gefunden oder keine Berechtigung für dieses Event."
@@ -934,7 +911,7 @@ msgstr "Gepubliceerd"
 
 #: src/Admin/EventsPage.php:688
 msgid "Events mit nächstem Termin, Auslastung und Umsatz"
-msgstr ""
+msgstr "Evenementen met volgende datum, bezettingsgraad en omzet"
 
 #: src/Admin/EventsPage.php:691 src/Frontend/EventCard.php:137
 msgid "Nächster Termin"
@@ -958,9 +935,8 @@ msgid "Verkauft / Kapazität"
 msgstr "Verkocht / Capaciteit"
 
 #: src/Admin/EventsPage.php:695
-#, fuzzy
 msgid "Umsatz"
-msgstr "Netto-omzet"
+msgstr "Omzet"
 
 #: src/Admin/EventsPage.php:697 src/Admin/EventsPage.php:812
 #: src/Admin/EventsPage.php:877 src/Admin/EventsPage.php:1006
@@ -1095,9 +1071,8 @@ msgid "Bearbeiten & Ticketarten"
 msgstr "Bewerken en tickettypen"
 
 #: src/Admin/EventsPage.php:826
-#, fuzzy
 msgid "Absagen …"
-msgstr "Annuleren"
+msgstr "Annuleren …"
 
 #: src/Admin/EventsPage.php:835 src/Admin/EventsPage.php:861
 msgid "Termin hinzufügen"
@@ -1109,13 +1084,12 @@ msgid "Beginn (Ortszeit)"
 msgstr "Begin (lokale tijd)"
 
 #: src/Admin/EventsPage.php:852
-#, fuzzy
 msgid "Einlass ab (optional)"
-msgstr "E-mailadres (optioneel)"
+msgstr "Toegang vanaf (optioneel)"
 
 #: src/Admin/EventsPage.php:852
 msgid "Ortszeit. Vorher wird am Einlass niemand eingelassen, auch wenn eine Einlassregel früher öffnet. Leer = kein eigener Einlassbeginn."
-msgstr ""
+msgstr "Lokale tijd. Daarvoor wordt bij de ingang niemand toegelaten, ook niet als een toegangsregel eerder opengaat. Leeg = geen eigen begin van de toegang."
 
 #: src/Admin/EventsPage.php:853 src/Admin/Forms.php:437 src/Mail/Types.php:301
 #: src/Mail/Types.php:317 src/Reminders/Placeholders.php:14
@@ -1267,28 +1241,24 @@ msgid "leer = bis Terminbeginn"
 msgstr "leeg = tot het begin van de datum"
 
 #: src/Admin/EventsPage.php:963
-#, fuzzy
 msgid "Einlasskontrolle"
-msgstr "Toegangsconflicten"
+msgstr "Toegangscontrole"
 
 #: src/Admin/EventsPage.php:964 src/AdmissionChecks.php:62
-#, fuzzy
 msgid "Ausweis prüfen"
-msgstr "Toewijzen"
+msgstr "Identiteitsbewijs controleren"
 
 #: src/Admin/EventsPage.php:965
-#, fuzzy
 msgid "Mindestalter"
-msgstr "Organisator"
+msgstr "Minimumleeftijd"
 
 #: src/Admin/EventsPage.php:966
-#, fuzzy
 msgid "Hinweis für das Einlasspersonal"
-msgstr "Pass Captain Toegangspersoneel"
+msgstr "Opmerking voor het toegangspersoneel"
 
 #: src/Admin/EventsPage.php:967
 msgid "Wird beim Scannen (Web-Scanner, App, Offline-Scanner) angezeigt; Mindestalter und Ausweispflicht sehen Käufer auch beim Ticketkauf. Der Scan wird dadurch nicht abgelehnt."
-msgstr ""
+msgstr "Wordt getoond tijdens het scannen (webscanner, app, offline scanner); minimumleeftijd en legitimatieplicht zien kopers ook bij het kopen van een ticket. De scan wordt hierdoor niet geweigerd."
 
 #: src/Admin/EventsPage.php:969 src/Admin/Forms.php:488
 #: src/Admin/SettingsPage.php:542 src/Allocations/AdminPage.php:262
@@ -1414,25 +1384,25 @@ msgstr "Veld opslaan"
 #: src/Admin/Forms.php:209
 #, php-format
 msgid "Die Ortszeit %1$s gibt es in der Zeitzone %2$s wegen der Umstellung auf Sommerzeit nicht. Bitte eine andere Zeit wählen, z. B. %3$s (erste gültige Zeit danach)."
-msgstr ""
+msgstr "De lokale tijd %1$s bestaat niet in de tijdzone %2$s vanwege de overgang naar de zomertijd. Kies een andere tijd, bijv. %3$s (eerste geldige tijd daarna)."
 
 #. translators: 1: entered local time, 2: timezone, 3: UTC offset used, 4: UTC offset of the second instance
 #: src/Admin/Forms.php:218
 #, php-format
 msgid "Die Ortszeit %1$s kommt in der Zeitzone %2$s wegen der Umstellung auf Winterzeit zweimal vor. Verwendet wurde die erste (Sommerzeit, UTC%3$s), nicht die zweite (UTC%4$s)."
-msgstr ""
+msgstr "De lokale tijd %1$s komt in de tijdzone %2$s twee keer voor vanwege de overgang naar de wintertijd. Gebruikt is de eerste (zomertijd, UTC%3$s), niet de tweede (UTC%4$s)."
 
 #. translators: 1: local time of the repetition, 2: timezone, 3: local time used instead
 #: src/Admin/Forms.php:245
 #, php-format
 msgid "Die Wiederholung am %1$s fällt in die Zeitumstellung (Zeitzone %2$s, diese Ortszeit gibt es nicht) und wurde auf %3$s verschoben."
-msgstr ""
+msgstr "De herhaling op %1$s valt in de tijdsovergang (tijdzone %2$s, deze lokale tijd bestaat niet) en is verschoven naar %3$s."
 
 #. translators: 1: local time of the repetition, 2: timezone, 3: UTC offset used
 #: src/Admin/Forms.php:248
 #, php-format
 msgid "Die Wiederholung am %1$s liegt in der doppelten Stunde der Zeitumstellung (Zeitzone %2$s); verwendet wurde die erste (Sommerzeit, UTC%3$s)."
-msgstr ""
+msgstr "De herhaling op %1$s valt in het dubbele uur van de tijdsovergang (tijdzone %2$s); gebruikt is het eerste (zomertijd, UTC%3$s)."
 
 #. translators: %s: number of entries
 #: src/Admin/Forms.php:445
@@ -1574,138 +1544,125 @@ msgstr "Uitgecheckt"
 
 #: src/Admin/GettingStarted.php:87
 msgid "Eine Online-Zahlungsart ist aktiv und vollständig eingerichtet."
-msgstr ""
+msgstr "Een online betaalmethode is actief en volledig ingesteld."
 
 #: src/Admin/GettingStarted.php:89
 msgid "Überweisung ist mit Bankverbindung bzw. Zahlungshinweis eingerichtet."
-msgstr ""
+msgstr "Overschrijving is ingesteld met bankgegevens of betalingsinstructie."
 
 #: src/Admin/GettingStarted.php:91
 msgid "Die Zahlung läuft über den WooCommerce-Checkout."
-msgstr ""
+msgstr "De betaling verloopt via de WooCommerce-checkout."
 
 #: src/Admin/GettingStarted.php:93
 msgid "Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überweisung die IBAN hinterlegen."
-msgstr ""
+msgstr "Activeer Stripe, PayPal of Mollie met toegangsgegevens of vul voor overschrijving de IBAN in."
 
 #: src/Admin/GettingStarted.php:98
-#, fuzzy
 msgid "Zahlungsart einrichten"
-msgstr "Betaalmethoden"
+msgstr "Betaalmethode instellen"
 
 #: src/Admin/GettingStarted.php:105
-#, fuzzy
 msgid "Rechtstexte hinterlegen"
-msgstr "Juridische teksten"
+msgstr "Juridische teksten toevoegen"
 
 #: src/Admin/GettingStarted.php:106
-#, fuzzy
 msgid "AGB/Teilnahmebedingungen und Verbraucherinformationen (Widerrufshinweis) für den Checkout."
-msgstr "Consumenteninformatie (bijv. herroepingsrecht)"
+msgstr "Algemene voorwaarden/deelnamevoorwaarden en consumenteninformatie (herroepingsrecht) voor het afrekenen."
 
 #: src/Admin/GettingStarted.php:112
-#, fuzzy
 msgid "Rechnungssteller angeben"
-msgstr "Factuurafzender"
+msgstr "Factuurafzender opgeven"
 
 #: src/Admin/GettingStarted.php:113
 msgid "Name und Anschrift für Rechnungen und Belege."
-msgstr ""
+msgstr "Naam en adres voor facturen en bonnen."
 
 #: src/Admin/GettingStarted.php:119
-#, fuzzy
 msgid "Erstes Event anlegen"
-msgstr "Evenement aanmaken"
+msgstr "Eerste evenement aanmaken"
 
 #: src/Admin/GettingStarted.php:120
 msgid "Ein Event mit erstem Termin und Ticketart lässt sich in einem Schritt anlegen."
-msgstr ""
+msgstr "Een evenement met een eerste datum en een tickettype kan in één stap worden aangemaakt."
 
 #: src/Admin/GettingStarted.php:126
-#, fuzzy
 msgid "Kommenden Termin planen"
-msgstr "Geen data."
+msgstr "Aankomende datum plannen"
 
 #: src/Admin/GettingStarted.php:127
 msgid "Mindestens ein geplanter Termin in der Zukunft."
-msgstr ""
+msgstr "Minstens één geplande datum in de toekomst."
 
 #: src/Admin/GettingStarted.php:133
-#, fuzzy
 msgid "Ticketart anlegen"
-msgstr "Tickettypen"
+msgstr "Tickettype aanmaken"
 
 #: src/Admin/GettingStarted.php:134
 msgid "Mindestens eine aktive Ticketart mit Preis und Kontingent."
-msgstr ""
+msgstr "Minstens één actief tickettype met prijs en contingent."
 
 #: src/Admin/GettingStarted.php:140
-#, fuzzy
 msgid "Event veröffentlichen"
-msgstr "Gepubliceerd"
+msgstr "Evenement publiceren"
 
 #: src/Admin/GettingStarted.php:141
-#, fuzzy
 msgid "Erst veröffentlichte Events sind buchbar."
-msgstr "Geen gepubliceerde evenementen met toegangsbevoegdheid."
+msgstr "Alleen gepubliceerde evenementen zijn boekbaar."
 
 #: src/Admin/GettingStarted.php:147
-#, fuzzy
 msgid "Scanner-Gerät koppeln"
-msgstr "Scannerapparaten"
+msgstr "Scannerapparaat koppelen"
 
 #: src/Admin/GettingStarted.php:148
 msgid "Ein Smartphone für den Einlass mit der Scanner-App koppeln."
-msgstr ""
+msgstr "Een smartphone voor de toegangscontrole koppelen met de scanner-app."
 
 #: src/Admin/GettingStarted.php:154
 msgid "Testbestellung durchführen"
-msgstr ""
+msgstr "Testbestelling uitvoeren"
 
 #: src/Admin/GettingStarted.php:155
 msgid "Eine Bestellung bis zur Zahlung durchspielen und Ticket-E-Mail prüfen."
-msgstr ""
+msgstr "Een bestelling tot en met de betaling doorlopen en de ticketmail controleren."
 
 #: src/Admin/GettingStarted.php:196
 msgid "Erste-Schritte-Checkliste anzeigen"
-msgstr ""
+msgstr "Checklist Eerste stappen tonen"
 
 #: src/Admin/GettingStarted.php:202
-#, fuzzy
 msgid "Erste Schritte"
-msgstr "Terugbetaald"
+msgstr "Eerste stappen"
 
 #. translators: 1: completed steps, 2: all steps
 #: src/Admin/GettingStarted.php:204
 #, php-format
 msgid "%1$d von %2$d Schritten erledigt"
-msgstr ""
+msgstr "%1$d van %2$d stappen voltooid"
 
 #: src/Admin/GettingStarted.php:205
 msgid "alles bereit für den Verkauf."
-msgstr ""
+msgstr "alles klaar voor de verkoop."
 
 #: src/Admin/GettingStarted.php:213
 msgid "Erledigt:"
-msgstr ""
+msgstr "Voltooid:"
 
 #: src/Admin/GettingStarted.php:213
-#, fuzzy
 msgid "Offen:"
-msgstr "Open"
+msgstr "Open:"
 
 #: src/Admin/GettingStarted.php:223
-#, fuzzy
 msgid "Checkliste ausblenden"
-msgstr "Check-ins lezen"
+msgstr "Checklist verbergen"
 
 #: src/Admin/Menu.php:64
 msgid "WP Pass Captain: Das Datenbank-Update ist unvollständig."
-msgstr ""
+msgstr "WP Pass Captain: de database-update is onvolledig."
 
 #: src/Admin/Menu.php:64
 msgid "Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren."
-msgstr ""
+msgstr "Er ontbreken tabellen of kolommen; de plug-in blijft werken met het oude schema. Controleer de databaserechten en deactiveer en activeer de plug-in opnieuw."
 
 #: src/Admin/Menu.php:87
 msgid "Pass Captain"
@@ -1713,7 +1670,7 @@ msgstr "Pass Captain"
 
 #: src/Admin/Menu.php:112
 msgid "Events & Programm"
-msgstr ""
+msgstr "Evenementen en programma"
 
 #: src/Admin/Menu.php:113 src/BoxOffice/Page.php:51
 #: src/Partners/Settlements.php:56 src/Partners/Statement.php:172
@@ -1729,17 +1686,15 @@ msgstr "Toegang"
 
 #: src/Admin/Menu.php:115
 msgid "Finanzen & Auswertung"
-msgstr ""
+msgstr "Financiën en analyse"
 
 #: src/Admin/Menu.php:116
-#, fuzzy
 msgid "Kommunikation"
-msgstr "Voorwaarden"
+msgstr "Communicatie"
 
 #: src/Admin/Menu.php:117
-#, fuzzy
 msgid "Einstellungen & Integrationen"
-msgstr "Instellingen opslaan"
+msgstr "Instellingen en integraties"
 
 #: src/Admin/Menu.php:175 src/Admin/Menu.php:181 src/Admin/OrdersPage.php:523
 #: src/Admin/SettingsPage.php:110 src/BoxOffice/ZReport.php:381
@@ -1865,9 +1820,8 @@ msgid "Zahlung bestätigt; Tickets wurden ausgestellt."
 msgstr "Betaling bevestigd; tickets zijn uitgegeven."
 
 #: src/Admin/OrdersPage.php:187
-#, fuzzy
 msgid "Kontingent zugeteilt; Tickets wurden ausgestellt."
-msgstr "Betaling bevestigd; tickets zijn uitgegeven."
+msgstr "Contingent toegewezen; tickets zijn uitgegeven."
 
 #: src/Admin/OrdersPage.php:194
 msgid "Bestellung storniert."
@@ -1986,31 +1940,27 @@ msgstr "Betaald, maar de cadeaubon ter waarde van %1$s kon niet worden afgeboekt
 
 #: src/Admin/OrdersPage.php:351
 msgid "Zusatzbestellung zu einem Ticketumtausch (Aufpreis/Gebühr). Das Ticket wird in der ursprünglichen Bestellung geführt."
-msgstr ""
+msgstr "Aanvullende bestelling bij een ticketomruil (meerprijs/vergoeding). Het ticket staat in de oorspronkelijke bestelling."
 
 #: src/Admin/OrdersPage.php:352
-#, fuzzy
 msgid "Ursprüngliche Bestellung öffnen"
-msgstr "WooCommerce-bestelling #%d openen"
+msgstr "Oorspronkelijke bestelling openen"
 
 #: src/Admin/OrdersPage.php:359
 msgid "Die Ticket-E-Mail konnte auch nach mehreren Versuchen nicht zugestellt werden. Bitte E-Mail-Adresse und Mailversand prüfen und „Tickets erneut senden“ verwenden."
-msgstr ""
+msgstr "De ticketmail kon ook na meerdere pogingen niet worden bezorgd. Controleer het e-mailadres en de e-mailverzending en gebruik „Tickets opnieuw verzenden”."
 
 #: src/Admin/OrdersPage.php:359
-#, fuzzy
 msgid "Die Ticket-E-Mail konnte nicht zugestellt werden; ein neuer Versuch (mit neuen Ticketcodes) ist geplant."
-msgstr "Minstens één e-mail kon niet worden bezorgd. Ticketcodes zijn vernieuwd; probeer het opnieuw te verzenden."
+msgstr "De ticketmail kon niet worden bezorgd; er is een nieuwe poging (met nieuwe ticketcodes) gepland."
 
 #: src/Admin/OrdersPage.php:362
-#, fuzzy
 msgid "Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung außerhalb des Plugins zurückerstatten."
-msgstr "De betaling is binnengekomen nadat de reservering was verlopen en er was geen contingent meer beschikbaar. Maak een plek vrij of betaal de betaling buiten de plug-in terug."
+msgstr "De betaling is binnengekomen nadat de reservering was verlopen en er was geen contingent meer beschikbaar. Geef een plek vrij en probeer de toewijzing opnieuw, of betaal de betaling buiten de plug-in terug."
 
 #: src/Admin/OrdersPage.php:363
-#, fuzzy
 msgid "Zuteilung erneut versuchen"
-msgstr "Toewijzing verwijderen"
+msgstr "Toewijzing opnieuw proberen"
 
 #: src/Admin/OrdersPage.php:368 src/Admin/TicketsPage.php:178
 #: src/Privacy.php:216
@@ -2034,13 +1984,12 @@ msgid "Zahlart / Referenz"
 msgstr "Betaalmethode / Referentie"
 
 #: src/Admin/OrdersPage.php:374 src/OrderPortal.php:115 src/Privacy.php:143
-#, fuzzy
 msgid "Bankverbindung für Erstattungen"
-msgstr "Geen toestemming voor terugbetalingen."
+msgstr "Bankgegevens voor terugbetalingen"
 
 #: src/Admin/OrdersPage.php:374
 msgid "Noch nicht angegeben (Käufer:in kann sie in der Bestellübersicht eintragen)."
-msgstr ""
+msgstr "Nog niet opgegeven (de koper kan ze invullen in het besteloverzicht)."
 
 #: src/Admin/OrdersPage.php:382 src/BoxOffice/Service.php:37
 #: src/Invoices.php:488 src/Printing/InvoicePdf.php:105
@@ -2055,9 +2004,9 @@ msgstr "Factuur %s bekijken"
 
 #. translators: %s: credit note numbers
 #: src/Admin/OrdersPage.php:385
-#, fuzzy, php-format
+#, php-format
 msgid "Rechnungskorrekturen (in der Rechnungsansicht): %s"
-msgstr "Creditnota's (in de factuurweergave): %s"
+msgstr "Factuurcorrecties (in de factuurweergave): %s"
 
 #: src/Admin/OrdersPage.php:387
 msgid "Rechnung erstellen"
@@ -2123,7 +2072,7 @@ msgstr "Terugbetaald (stuks)"
 
 #: src/Admin/OrdersPage.php:418
 msgid "Umgebucht (Stk.)"
-msgstr ""
+msgstr "Omgeboekt (st.)"
 
 #: src/Admin/OrdersPage.php:444
 msgid "Zwischensumme"
@@ -2290,7 +2239,7 @@ msgstr "Afwijzen"
 #: src/Admin/Queries.php:106
 #, php-format
 msgid "%s (vergangen)"
-msgstr ""
+msgstr "%s (verstreken)"
 
 #: src/Admin/RefundsPage.php:29
 msgid "Erstattungen zur Freigabe"
@@ -2318,7 +2267,7 @@ msgstr "Betaalde bestellingen automatisch terugbetalen bij annulering van een da
 
 #: src/Admin/SettingsPage.php:42
 msgid "Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)"
-msgstr ""
+msgstr "Vierogenprincipe voor vrijkaartjes (gastenlijst: wie aanvraagt, mag niet zelf goedkeuren; beheerders uitgezonderd)"
 
 #: src/Admin/SettingsPage.php:46
 msgid "Einlass / Scanner-Geräte"
@@ -2353,18 +2302,16 @@ msgid "Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungsta
 msgstr "Toegang tot (minuten na afloop; zonder einde: tot het einde van de evenementdag)"
 
 #: src/Admin/SettingsPage.php:58 src/Admin/SettingsPage.php:465
-#, fuzzy
 msgid "Übersicht"
-msgstr "Rapport"
+msgstr "Overzicht"
 
 #: src/Admin/SettingsPage.php:61
 msgid "Aktive Zahlungsarten"
 msgstr "Actieve betaalmethoden"
 
 #: src/Admin/SettingsPage.php:65
-#, fuzzy
 msgid "Überweisung"
-msgstr "Overschrijving: BIC"
+msgstr "Overschrijving"
 
 #: src/Admin/SettingsPage.php:69
 msgid "Hinweis für manuelle Zahlung (z. B. Bankverbindung)"
@@ -2396,16 +2343,15 @@ msgstr "Reservering bij handmatige betaling (uren)"
 
 #: src/Admin/SettingsPage.php:73
 msgid "Endet spätestens mit Beginn des (ersten) Termins."
-msgstr ""
+msgstr "Eindigt uiterlijk bij het begin van de (eerste) datum."
 
 #: src/Admin/SettingsPage.php:74
-#, fuzzy
 msgid "Überweisung nur bis … Stunden vor Beginn anbieten"
-msgstr "Wijzigingen zijn mogelijk tot %d uur voor het begin."
+msgstr "Overschrijving alleen aanbieden tot … uur voor aanvang"
 
 #: src/Admin/SettingsPage.php:74
 msgid "0 = bis zum Beginn. Empfohlen: 24–48 Stunden, damit die Zahlung rechtzeitig eingeht."
-msgstr ""
+msgstr "0 = tot het begin. Aanbevolen: 24–48 uur, zodat de betaling op tijd binnenkomt."
 
 #: src/Admin/SettingsPage.php:78
 msgid "Stripe"
@@ -2604,9 +2550,8 @@ msgid "Zahlungsarten"
 msgstr "Betaalmethoden"
 
 #: src/Admin/SettingsPage.php:204
-#, fuzzy
 msgid "Rechnungen"
-msgstr "Factuur"
+msgstr "Facturen"
 
 #. translators: %s: field label
 #: src/Admin/SettingsPage.php:286
@@ -2633,9 +2578,8 @@ msgid "Pass Captain Einstellungen"
 msgstr "Pass Captain-instellingen"
 
 #: src/Admin/SettingsPage.php:429
-#, fuzzy
 msgid "Einstellungsbereiche"
-msgstr "Instellingen opslaan"
+msgstr "Instellingsgebieden"
 
 #: src/Admin/SettingsPage.php:442
 msgid "Webhook-URL:"
@@ -2645,7 +2589,7 @@ msgstr "Webhook-URL:"
 #: src/Admin/SettingsPage.php:445
 #, php-format
 msgid "Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung."
-msgstr ""
+msgstr "De volgende teksten gelden voor de standaardtaal (%s) en voor elke taal zonder eigen versie."
 
 #: src/Admin/SettingsPage.php:457 src/Partners/AdminPage.php:261
 msgid "Einstellungen speichern"
@@ -2653,44 +2597,43 @@ msgstr "Instellingen opslaan"
 
 #. translators: %s: payment method
 #: src/Admin/SettingsPage.php:493
-#, fuzzy, php-format
+#, php-format
 msgid "%s im Checkout anbieten"
-msgstr "Toestemming vereisen bij het afrekenen"
+msgstr "%s aanbieden bij het afrekenen"
 
 #: src/Admin/SettingsPage.php:495 src/Admin/SettingsPage.php:552
 msgid "(nicht vollständig konfiguriert)"
 msgstr "(niet volledig geconfigureerd)"
 
 #: src/Admin/SettingsPage.php:505
-#, fuzzy
 msgid "Rechtstexte je Sprache"
-msgstr "Juridische teksten"
+msgstr "Juridische teksten per taal"
 
 #: src/Admin/SettingsPage.php:506
 msgid "Käufer sehen die Texte ihrer Sprache (Sprache der Seite bzw. von WPML/Polylang). Leere Felder übernehmen den Text der Standardsprache. Jede Sprache hat eine eigene Version, die mit der Bestellung gespeichert wird."
-msgstr ""
+msgstr "Kopers zien de teksten in hun eigen taal (taal van de pagina of van WPML/Polylang). Lege velden nemen de tekst van de standaardtaal over. Elke taal heeft een eigen versie, die bij de bestelling wordt opgeslagen."
 
 #. translators: %s: locale code
 #: src/Admin/SettingsPage.php:518
 #, php-format
 msgid "Leer: es gilt der Text von %s."
-msgstr ""
+msgstr "Leeg: de tekst van %s is van toepassing."
 
 #. translators: 1: locale code, 2: version hash
 #: src/Admin/SettingsPage.php:525
 #, php-format
 msgid "Aktuelle Version für %1$s: %2$s"
-msgstr ""
+msgstr "Huidige versie voor %1$s: %2$s"
 
 #: src/Admin/SettingsPage.php:530
 msgid "Weitere Sprache hinzufügen (Locale, z. B. en_US):"
-msgstr ""
+msgstr "Nog een taal toevoegen (locale, bijv. en_US):"
 
 #. translators: %s: payment method
 #: src/Admin/SettingsPage.php:558
-#, fuzzy, php-format
+#, php-format
 msgid "%s einrichten"
-msgstr "Rapporten"
+msgstr "%s instellen"
 
 #. translators: %s: version hash
 #: src/Admin/SettingsPage.php:570
@@ -2707,7 +2650,6 @@ msgid "Nicht gesetzt"
 msgstr "Niet ingesteld"
 
 #: src/Admin/SettingsPage.php:588 src/Secrets.php:415
-#, fuzzy
 msgid "Gespeicherten Wert löschen"
 msgstr "Opgeslagen waarde verwijderen"
 
@@ -3027,9 +2969,8 @@ msgid "Tickettyp nicht gefunden."
 msgstr "Tickettype niet gevonden."
 
 #: src/Admission/RulesPage.php:67
-#, fuzzy
 msgid "Die Kapazität muss eine ganze Zahl ab 0 sein (0 = unbegrenzt)."
-msgstr "De prioriteit moet een geheel getal zijn."
+msgstr "De capaciteit moet een geheel getal vanaf 0 zijn (0 = onbeperkt)."
 
 #: src/Admission/RulesPage.php:98
 msgid "Benutzer nicht gefunden."
@@ -3103,12 +3044,11 @@ msgstr "Gebieden (bijv. „Ingang noord”, „VIP”) beperken waar tickettypen
 
 #: src/Admission/RulesPage.php:205
 msgid "Kapazität: so viele Personen dürfen gleichzeitig über diesen Bereich drinnen sein (0 = unbegrenzt); ist sie erreicht, lehnt der Scanner weitere Einlässe ab, bis Auslässe gescannt werden."
-msgstr ""
+msgstr "Capaciteit: zoveel personen mogen tegelijk via dit gebied binnen zijn (0 = onbeperkt); is dit aantal bereikt, dan weigert de scanner verdere toegang totdat er check-outs worden gescand."
 
 #: src/Admission/RulesPage.php:209
-#, fuzzy
 msgid "Name des Bereichs"
-msgstr "Nieuw gebied"
+msgstr "Naam van het gebied"
 
 #: src/Admission/RulesPage.php:209 src/Admission/RulesPage.php:223
 #: src/Allocations/AdminPage.php:202 src/Reports/Data.php:403
@@ -3191,24 +3131,23 @@ msgstr "Alleen in deze gebieden (geen selectie = alle):"
 
 #: src/AdmissionChecks.php:33
 msgid "Das Mindestalter muss zwischen 0 und 99 Jahren liegen (leer oder 0 = keines)."
-msgstr ""
+msgstr "De minimumleeftijd moet tussen 0 en 99 jaar liggen (leeg of 0 = geen)."
 
 #. translators: %d: minimum age in years
 #: src/AdmissionChecks.php:64
 #, php-format
 msgid "Mindestalter %d"
-msgstr ""
+msgstr "Minimumleeftijd %d"
 
 #. translators: %d: minimum age in years
 #: src/AdmissionChecks.php:73
 #, php-format
 msgid "ab %d Jahren"
-msgstr ""
+msgstr "vanaf %d jaar"
 
 #: src/AdmissionChecks.php:74
-#, fuzzy
 msgid "Ausweis erforderlich"
-msgstr "idempotency_key is vereist."
+msgstr "Identiteitsbewijs vereist"
 
 #: src/Allocations/AdminPage.php:43 src/Partners/Sales.php:370
 #: src/Series/Pools.php:102
@@ -3216,58 +3155,51 @@ msgid "Kontingent nicht gefunden."
 msgstr "Contingent niet gevonden."
 
 #: src/Allocations/AdminPage.php:90 src/Allocations/SeatHolds.php:89
-#, fuzzy
 msgid "Das Saalplan-Modul ist nicht verfügbar."
-msgstr "Dit evenement is niet beschikbaar."
+msgstr "De zaalplanmodule is niet beschikbaar."
 
 #: src/Allocations/AdminPage.php:92 src/Allocations/SeatHolds.php:105
-#, fuzzy
 msgid "Dieser Termin hat keinen Saalplan."
-msgstr "Voor deze datum is er geen zaalplan."
+msgstr "Deze datum heeft geen zaalplan."
 
 #. translators: %s: seat key
 #: src/Allocations/AdminPage.php:100
-#, fuzzy, php-format
+#, php-format
 msgid "Sitzplatz „%s“ nicht gefunden."
-msgstr "Zaalplan niet gevonden."
+msgstr "Zitplaats „%s” niet gevonden."
 
 #: src/Allocations/AdminPage.php:144
-#, fuzzy
 msgid "Kontingent angelegt."
-msgstr "Contingent gewijzigd."
+msgstr "Contingent aangemaakt."
 
 #: src/Allocations/AdminPage.php:150
 msgid "Plätze für den freien Verkauf freigegeben."
-msgstr ""
+msgstr "Plaatsen vrijgegeven voor de vrije verkoop."
 
 #: src/Allocations/AdminPage.php:156 src/Series/AdminPage.php:216
 msgid "Kontingent gespeichert."
 msgstr "Contingent opgeslagen."
 
 #: src/Allocations/AdminPage.php:162
-#, fuzzy
 msgid "Sitzplätze aktualisiert."
-msgstr "Evenement bijgewerkt."
+msgstr "Zitplaatsen bijgewerkt."
 
 #: src/Allocations/AdminPage.php:168
-#, fuzzy
 msgid "Limits gespeichert."
-msgstr "Datum opgeslagen."
+msgstr "Limieten opgeslagen."
 
 #: src/Allocations/AdminPage.php:183 src/Modules/Allocations.php:144
 #: src/Partners/AdminPage.php:394
-#, fuzzy
 msgid "Kontingente"
-msgstr "Contingent"
+msgstr "Contingenten"
 
 #: src/Allocations/AdminPage.php:197
 msgid "Kontingente halten Plätze für Künstler, Sponsoren, Presse oder Technik zurück. Sie sind im freien Verkauf (Website, WooCommerce, Warteliste) nicht buchbar; Abendkasse, Gästeliste und Admin können sie nutzen. Sperren (z. B. Technik) blockieren Plätze dauerhaft."
-msgstr ""
+msgstr "Contingenten houden plaatsen vrij voor artiesten, sponsors, pers of techniek. Ze zijn in de vrije verkoop (website, WooCommerce, wachtlijst) niet boekbaar; de avondkassa, de gastenlijst en de beheerder kunnen ze wel gebruiken. Blokkeringen (bijv. techniek) blokkeren plaatsen permanent."
 
 #: src/Allocations/AdminPage.php:202
-#, fuzzy
 msgid "Aktive Kontingente"
-msgstr "Prijzen en contingenten"
+msgstr "Actieve contingenten"
 
 #. translators: %s: capacity
 #. translators: 1: ticket type, 2: available units
@@ -3276,32 +3208,28 @@ msgstr "Prijzen en contingenten"
 #: src/Allocations/AdminPage.php:240 src/Exchange/AdminPage.php:189
 #: src/Passes/AdminPage.php:156 src/Passes/AdminPage.php:236
 #: src/Passes/AdminPage.php:250
-#, fuzzy
 msgid "unbegrenzt"
-msgstr "0 betekent onbeperkt."
+msgstr "onbeperkt"
 
 #: src/Allocations/AdminPage.php:208 src/Passes/AdminPage.php:164
-#, fuzzy
 msgid "Keine kommenden Termine."
-msgstr "Geen data."
+msgstr "Geen aankomende data."
 
 #: src/Allocations/AdminPage.php:215
-#, fuzzy
 msgid "Automatische Freigabe (Stunden vor Beginn)"
-msgstr "Last minute vanaf uren voor begin"
+msgstr "Automatisch vrijgeven (uren voor aanvang)"
 
 #: src/Allocations/AdminPage.php:215
 msgid "Vorgabe für neue Kontingente; 0 = keine automatische Freigabe. Sperren werden nie automatisch freigegeben."
-msgstr ""
+msgstr "Standaardwaarde voor nieuwe contingenten; 0 = niet automatisch vrijgeven. Blokkeringen worden nooit automatisch vrijgegeven."
 
 #: src/Allocations/AdminPage.php:216
-#, fuzzy
 msgid "Käuferlimit"
-msgstr "Koper"
+msgstr "Kooplimiet"
 
 #: src/Allocations/AdminPage.php:216
 msgid "Zusätzlich je angemeldetem WordPress-Konto zählen (nicht nur je E-Mail-Adresse)"
-msgstr ""
+msgstr "Ook per aangemeld WordPress-account tellen (niet alleen per e-mailadres)"
 
 #: src/Allocations/AdminPage.php:227 src/Series/AdminPage.php:267
 msgid "Alle Ticketarten"
@@ -3309,15 +3237,15 @@ msgstr "Alle tickettypen"
 
 #: src/Allocations/AdminPage.php:231
 msgid "Abendkasse"
-msgstr ""
+msgstr "Avondkassa"
 
 #: src/Allocations/AdminPage.php:231 src/GuestLists/Page.php:152
 msgid "Gästeliste"
-msgstr ""
+msgstr "Gastenlijst"
 
 #: src/Allocations/AdminPage.php:231
 msgid "Admin"
-msgstr ""
+msgstr "Beheerder"
 
 #: src/Allocations/AdminPage.php:234 src/GuestLists/Page.php:198
 #: src/OfflineScanner/AdminPage.php:131 src/blocks/events/editor.js:13
@@ -3328,83 +3256,75 @@ msgstr "Alle data"
 #: src/Allocations/AdminPage.php:236
 #, php-format
 msgid "Kapazität des Termins: %s"
-msgstr ""
+msgstr "Capaciteit van de datum: %s"
 
 #. translators: 1: ticket type, 2: available units
 #: src/Allocations/AdminPage.php:240
 #, php-format
 msgid "%1$s: %2$s im freien Verkauf"
-msgstr ""
+msgstr "%1$s: %2$s in de vrije verkoop"
 
 #: src/Allocations/AdminPage.php:244
-#, fuzzy
 msgid "Kontingente und Sperren"
-msgstr "Contingent wijzigen"
+msgstr "Contingenten en blokkeringen"
 
 #: src/Allocations/AdminPage.php:246
 msgid "Genutzt / Gesamt"
-msgstr ""
+msgstr "Gebruikt / totaal"
 
 #: src/Allocations/AdminPage.php:246
-#, fuzzy
 msgid "Nutzung nach Kanal"
-msgstr "Omzet per kanaal"
+msgstr "Gebruik per kanaal"
 
 #: src/Allocations/AdminPage.php:246
-#, fuzzy
 msgid "Auto-Freigabe"
-msgstr "Goedkeuren"
+msgstr "Automatisch vrijgeven"
 
 #: src/Allocations/AdminPage.php:254
-#, fuzzy
 msgid "nie"
-msgstr "Spanje"
+msgstr "nooit"
 
 #. translators: %d: hours
 #: src/Allocations/AdminPage.php:254
-#, fuzzy, php-format
+#, php-format
 msgid "%d h vor Beginn"
-msgstr "vanaf %d uur voor begin"
+msgstr "%d u voor aanvang"
 
 #: src/Allocations/AdminPage.php:256
 msgid "Sperre"
-msgstr ""
+msgstr "Blokkering"
 
 #: src/Allocations/AdminPage.php:267
-#, fuzzy
 msgid "Anzahl freigeben"
-msgstr "Plek vrijgeven"
+msgstr "Aantal vrijgeven"
 
 #: src/Allocations/AdminPage.php:268
-#, fuzzy
 msgid "Teilweise freigeben"
-msgstr "Plek vrijgeven"
+msgstr "Gedeeltelijk vrijgeven"
 
 #: src/Allocations/AdminPage.php:269
-#, fuzzy
 msgid "Komplett freigeben"
-msgstr "Plek vrijgeven"
+msgstr "Volledig vrijgeven"
 
 #: src/Allocations/AdminPage.php:273
 msgid "Erhöhen um"
-msgstr ""
+msgstr "Verhogen met"
 
 #: src/Allocations/AdminPage.php:275
 msgid "Auto-Freigabe (h)"
-msgstr ""
+msgstr "Automatisch vrijgeven (u)"
 
 #: src/Allocations/AdminPage.php:282
 msgid "Sitzplätze (IDs oder Schlüssel)"
-msgstr ""
+msgstr "Zitplaatsen (ID's of sleutels)"
 
 #: src/Allocations/AdminPage.php:283
 msgid "Sperren"
-msgstr ""
+msgstr "Blokkeren"
 
 #: src/Allocations/AdminPage.php:289
-#, fuzzy
 msgid "Noch keine Kontingente."
-msgstr "Nog geen leveringen."
+msgstr "Nog geen contingenten."
 
 #: src/Allocations/AdminPage.php:292 src/Series/AdminPage.php:334
 msgid "Neues Kontingent"
@@ -3412,15 +3332,15 @@ msgstr "Nieuw contingent"
 
 #: src/Allocations/AdminPage.php:296
 msgid "z. B. Künstler, Sponsor, Presse"
-msgstr ""
+msgstr "bijv. artiest, sponsor, pers"
 
 #: src/Allocations/AdminPage.php:298
 msgid "Kontingent (nutzbar über Kasse/Gästeliste/Admin)"
-msgstr ""
+msgstr "Contingent (te gebruiken via kassa/gastenlijst/beheerder)"
 
 #: src/Allocations/AdminPage.php:298
 msgid "Sperre (dauerhaft blockiert)"
-msgstr ""
+msgstr "Blokkering (permanent geblokkeerd)"
 
 #: src/Allocations/AdminPage.php:302 src/BoxOffice/Page.php:111
 #: src/BoxOffice/ShiftPage.php:47 src/Privacy.php:188 src/Waitlists.php:654
@@ -3429,49 +3349,44 @@ msgid "Anzahl"
 msgstr "Aantal"
 
 #: src/Allocations/AdminPage.php:303
-#, fuzzy
 msgid "Automatisch freigeben (Stunden vor Beginn)"
-msgstr "Tijdstippen (uren voor begin)"
+msgstr "Automatisch vrijgeven (uren voor aanvang)"
 
 #: src/Allocations/AdminPage.php:303
 msgid "0 = nie. Nicht genutzte Plätze gehen dann in den freien Verkauf."
-msgstr ""
+msgstr "0 = nooit. Niet-gebruikte plaatsen gaan dan naar de vrije verkoop."
 
 #: src/Allocations/AdminPage.php:304
 msgid "Nutzbar über"
-msgstr ""
+msgstr "Te gebruiken via"
 
 #: src/Allocations/AdminPage.php:308
 msgid "Keine Auswahl = alle vertrauenswürdigen Kanäle."
-msgstr ""
+msgstr "Geen selectie = alle vertrouwde kanalen."
 
 #: src/Allocations/AdminPage.php:311
-#, fuzzy
 msgid "Kontingent anlegen"
-msgstr "Contingent wijzigen"
+msgstr "Contingent aanmaken"
 
 #: src/Allocations/AdminPage.php:315
 msgid "Max. Tickets pro Käufer"
-msgstr ""
+msgstr "Max. tickets per koper"
 
 #: src/Allocations/AdminPage.php:316
 msgid "Gilt über alle Bestellungen (bezahlt und aktiv reserviert) je E-Mail-Adresse bzw. Benutzerkonto, auch im WooCommerce-Checkout. Abendkasse, Gästeliste und Admin sind ausgenommen. 0 = kein Limit."
-msgstr ""
+msgstr "Geldt voor alle bestellingen (betaald en actief gereserveerd) per e-mailadres of gebruikersaccount, ook bij de WooCommerce-checkout. Avondkassa, gastenlijst en beheerder zijn uitgezonderd. 0 = geen limiet."
 
 #: src/Allocations/AdminPage.php:320
-#, fuzzy
 msgid "Ganzes Event (alle Termine)"
-msgstr "Evenement / Datum"
+msgstr "Heel evenement (alle data)"
 
 #: src/Allocations/AdminPage.php:326
-#, fuzzy
 msgid "Limits speichern"
-msgstr "Datum opslaan"
+msgstr "Limieten opslaan"
 
 #: src/Allocations/AdminPage.php:329
-#, fuzzy
 msgid "Nutzung der Kontingente"
-msgstr "Nieuw contingent"
+msgstr "Gebruik van de contingenten"
 
 #: src/Allocations/AdminPage.php:330 src/Exchange/AdminPage.php:127
 #: src/Reports/Data.php:399 src/Reports/Settlement.php:247
@@ -3486,114 +3401,104 @@ msgid "Plätze"
 msgstr "Plaatsen"
 
 #: src/Allocations/AdminPage.php:330
-#, fuzzy
 msgid "Zurückgegeben"
-msgstr "Goedgekeurd"
+msgstr "Teruggegeven"
 
 #: src/Allocations/AdminPage.php:336
-#, fuzzy
 msgid "Noch keine Nutzung."
-msgstr "Nog geen leveringen."
+msgstr "Nog geen gebruik."
 
 #: src/Allocations/BuyerLimits.php:31
-#, fuzzy
 msgid "Für dieses Event ist die maximale Anzahl an Tickets pro Person erreicht."
-msgstr "Voor dit evenement ontbreekt de toegangsbevoegdheid."
+msgstr "Voor dit evenement is het maximumaantal tickets per persoon bereikt."
 
 #: src/Allocations/BuyerLimits.php:85
-#, fuzzy
 msgid "Das Limit konnte nicht gespeichert werden."
-msgstr "Het evenement kon niet worden opgeslagen."
+msgstr "De limiet kon niet worden opgeslagen."
 
 #: src/Allocations/BuyerLimits.php:184 src/Modules/Allocations.php:44
 #: src/Modules/Allocations.php:48
-#, fuzzy
 msgid "WP Pass Captain Käuferlimit"
-msgstr "WP Pass Captain passen"
+msgstr "WP Pass Captain kooplimiet"
 
 #: src/Allocations/BuyerLimits.php:186
 msgid "Gezählte Bestellungen (Bestell-ID => Ticketart => Menge)"
-msgstr ""
+msgstr "Getelde bestellingen (bestel-ID => tickettype => aantal)"
 
 #: src/Allocations/BuyerLimits.php:187
 msgid "Aktualisiert (UTC)"
-msgstr ""
+msgstr "Bijgewerkt (UTC)"
 
 #. translators: 1: maximum tickets per person, 2: tickets the buyer already has
 #: src/Allocations/BuyerLimits.php:261
-#, fuzzy, php-format
+#, php-format
 msgid "Pro Person sind höchstens %1$d Tickets für dieses Event möglich; du hast bereits %2$d."
-msgstr "Per bestelling zijn maximaal %1$d tickets voor „%2$s” mogelijk."
+msgstr "Per persoon zijn maximaal %1$d tickets voor dit evenement mogelijk; je hebt er al %2$d."
 
 #. translators: 1: maximum tickets per person, 2: ticket type, 3: tickets the buyer already has
 #: src/Allocations/BuyerLimits.php:269 src/Allocations/BuyerLimits.php:332
-#, fuzzy, php-format
+#, php-format
 msgid "Pro Person sind höchstens %1$d Tickets der Ticketart „%2$s“ möglich; du hast bereits %3$d."
-msgstr "Per bestelling zijn maximaal %1$d tickets voor „%2$s” mogelijk."
+msgstr "Per persoon zijn maximaal %1$d tickets van het tickettype „%2$s” mogelijk; je hebt er al %3$d."
 
 #. translators: %d: maximum tickets per person
 #: src/Allocations/BuyerLimits.php:326
-#, fuzzy, php-format
+#, php-format
 msgid "Pro Person ist höchstens %d Ticket für dieses Event möglich."
 msgid_plural "Pro Person sind höchstens %d Tickets für dieses Event möglich."
-msgstr[0] "Per bestelling zijn maximaal %1$d tickets voor „%2$s” mogelijk."
-msgstr[1] "Per bestelling zijn maximaal %1$d tickets voor „%2$s” mogelijk."
+msgstr[0] "Per persoon is maximaal %d ticket voor dit evenement mogelijk."
+msgstr[1] "Per persoon zijn maximaal %d tickets voor dit evenement mogelijk."
 
 #. translators: %d: maximum tickets per person
 #: src/Allocations/BuyerLimits.php:422
-#, fuzzy, php-format
+#, php-format
 msgid "Max. %d Ticket pro Person für dieses Event."
 msgid_plural "Max. %d Tickets pro Person für dieses Event."
-msgstr[0] "Geen toestemming voor dit evenement."
-msgstr[1] "Geen toestemming voor dit evenement."
+msgstr[0] "Max. %d ticket per persoon voor dit evenement."
+msgstr[1] "Max. %d tickets per persoon voor dit evenement."
 
 #. translators: 1: ticket type, 2: maximum tickets per person
 #: src/Allocations/BuyerLimits.php:427
 #, php-format
 msgid "%1$s: max. %2$d pro Person."
-msgstr ""
+msgstr "%1$s: max. %2$d per persoon."
 
 #: src/Allocations/Holds.php:55
-#, fuzzy
 msgid "Das gewählte Kontingent passt nicht zu dieser Bestellung."
-msgstr "De cadeaubon past niet bij deze bestelling."
+msgstr "Het gekozen contingent past niet bij deze bestelling."
 
 #: src/Allocations/Holds.php:56
 msgid "Kontingente können über diesen Verkaufskanal nicht genutzt werden."
-msgstr ""
+msgstr "Contingenten kunnen niet via dit verkoopkanaal worden gebruikt."
 
 #: src/Allocations/Holds.php:57
-#, fuzzy
 msgid "Das gewählte Kontingent reicht für diese Bestellung nicht aus."
-msgstr "Geen toestemming voor deze bestelling."
+msgstr "Het gekozen contingent is niet toereikend voor deze bestelling."
 
 #. translators: 1: hold name, 2: remaining units
 #: src/Allocations/Holds.php:250
-#, fuzzy, php-format
+#, php-format
 msgid "Im Kontingent „%1$s“ sind nur noch %2$d Plätze frei."
-msgstr "Het gedeelde contingent „%1$s” heeft nog maar %2$d tickets vrij."
+msgstr "In het contingent „%1$s” zijn nog maar %2$d plaatsen vrij."
 
 #: src/Allocations/Holds.php:375
-#, fuzzy
 msgid "Bitte einen Namen für das Kontingent angeben."
-msgstr "Geef een naam op voor het tickettype."
+msgstr "Geef een naam op voor het contingent."
 
 #: src/Allocations/Holds.php:376 src/Allocations/Holds.php:466
-#, fuzzy
 msgid "Bitte eine Anzahl ab 1 angeben."
-msgstr "Geef een naam op."
+msgstr "Geef een aantal vanaf 1 op."
 
 #: src/Allocations/Holds.php:382 src/Partners/Sales.php:346
-#, fuzzy
 msgid "Die Ticketart gehört nicht zu diesem Termin."
-msgstr "Een tickettype hoort niet bij deze datum."
+msgstr "Het tickettype hoort niet bij deze datum."
 
 #. translators: %d: free units
 #: src/Allocations/Holds.php:387 src/Allocations/Holds.php:435
 #: src/Allocations/SeatHolds.php:127
 #, php-format
 msgid "Es sind nur noch %d Plätze im freien Verkauf, die zurückgehalten werden können."
-msgstr ""
+msgstr "Er zijn nog maar %d plaatsen in de vrije verkoop die kunnen worden vastgehouden."
 
 #: src/Allocations/Holds.php:404 src/Allocations/Holds.php:440
 #: src/Series/Pools.php:71
@@ -3604,44 +3509,36 @@ msgstr "Het contingent kon niet worden opgeslagen."
 #: src/Allocations/Holds.php:456 src/Allocations/Holds.php:461
 #: src/Allocations/SeatHolds.php:92 src/Allocations/SeatHolds.php:103
 #: src/Allocations/SeatHolds.php:149 src/Allocations/SeatHolds.php:156
-#, fuzzy
 msgid "Kontingent nicht gefunden oder bereits freigegeben."
-msgstr "Contingent niet gevonden."
+msgstr "Contingent niet gevonden of al vrijgegeven."
 
 #: src/Allocations/Holds.php:475
-#, fuzzy
 msgid "Das Kontingent konnte nicht freigegeben werden."
-msgstr "Het contingent kon niet worden opgeslagen."
+msgstr "Het contingent kon niet worden vrijgegeven."
 
 #: src/Allocations/SeatHolds.php:93 src/Allocations/SeatHolds.php:151
-#, fuzzy
 msgid "Bitte Sitzplätze auswählen."
-msgstr "Zitplaatsen kiezen"
+msgstr "Selecteer zitplaatsen."
 
 #: src/Allocations/SeatHolds.php:107
-#, fuzzy
 msgid "Mindestens ein Sitzplatz gehört nicht zum Saalplan dieses Termins."
-msgstr "Een tickettype hoort niet bij deze datum."
+msgstr "Minstens één zitplaats hoort niet bij het zaalplan van deze datum."
 
 #: src/Allocations/SeatHolds.php:112
-#, fuzzy
 msgid "Ein Sitzplatz passt nicht zur Ticketart des Kontingents."
-msgstr "Een gekozen zitplaats past niet bij het tickettype (ander gebied of andere categorie)."
+msgstr "Een zitplaats past niet bij het tickettype van het contingent."
 
 #: src/Allocations/SeatHolds.php:119 src/Allocations/SeatHolds.php:133
-#, fuzzy
 msgid "Mindestens ein Sitzplatz ist bereits reserviert, verkauft oder gesperrt."
-msgstr "Minstens één zitplaats is niet meer beschikbaar."
+msgstr "Minstens één zitplaats is al gereserveerd, verkocht of geblokkeerd."
 
 #: src/Allocations/SeatHolds.php:136
-#, fuzzy
 msgid "Die Sitzplätze konnten nicht gesperrt werden."
-msgstr "De zitplaatsen konden niet worden opgeslagen."
+msgstr "De zitplaatsen konden niet worden geblokkeerd."
 
 #: src/Allocations/SeatHolds.php:164
-#, fuzzy
 msgid "Die Sitzplätze konnten nicht freigegeben werden."
-msgstr "De zitplaatsen konden niet worden opgeslagen."
+msgstr "De zitplaatsen konden niet worden vrijgegeven."
 
 #: src/Billing.php:67
 msgid "Österreich"
@@ -3863,22 +3760,19 @@ msgstr "Je bestel-/referentienummer:"
 
 #: src/BoxOffice/Cash.php:40
 msgid "Bitte bei der Stückelung nur ganze Stückzahlen eintragen."
-msgstr ""
+msgstr "Vul bij de coupures alleen hele aantallen in."
 
 #: src/BoxOffice/Cash.php:45
-#, fuzzy
 msgid "Unbekannte Stückelung."
-msgstr "Onbekende actie."
+msgstr "Onbekende coupure."
 
 #: src/BoxOffice/Cash.php:72
-#, fuzzy
 msgid "Der Betrag stimmt nicht mit der Summe der Stückelung überein."
-msgstr "Het betaalde bedrag komt niet overeen met de bestelling."
+msgstr "Het bedrag komt niet overeen met het totaal van de coupures."
 
 #: src/BoxOffice/Cash.php:77
-#, fuzzy
 msgid "Bitte den gezählten Betrag oder die Stückelung angeben."
-msgstr "Geef een reden voor de afwijzing op."
+msgstr "Geef het getelde bedrag of de coupures op."
 
 #: src/BoxOffice/Cash.php:79 src/BoxOffice/ShiftPage.php:118
 #: src/BoxOffice/ShiftPage.php:131 src/BoxOffice/ShiftPage.php:250
@@ -3894,18 +3788,16 @@ msgstr "Voor geannuleerde verkopen worden geen tickets afgedrukt."
 
 #: src/BoxOffice/Page.php:52 src/BoxOffice/ShiftPage.php:329
 #: src/BoxOffice/ShiftPage.php:394 src/BoxOffice/ZReport.php:358
-#, fuzzy
 msgid "Schicht"
-msgstr "Lamp"
+msgstr "Dienst"
 
 #: src/BoxOffice/Page.php:53
 msgid "Schichten & Z-Berichte"
-msgstr ""
+msgstr "Diensten en Z-rapporten"
 
 #: src/BoxOffice/Page.php:55
-#, fuzzy
 msgid "Kassen"
-msgstr "Kassa"
+msgstr "Kassa's"
 
 #: src/BoxOffice/Page.php:64 src/BoxOffice/ShiftPage.php:105
 #: src/BoxOffice/ShiftPage.php:309 src/BoxOffice/ShiftPage.php:329
@@ -3916,9 +3808,8 @@ msgid "Kasse"
 msgstr "Kassa"
 
 #: src/BoxOffice/Page.php:67
-#, fuzzy
 msgid "Kassenbereiche"
-msgstr "Toegangsgebieden"
+msgstr "Kassaonderdelen"
 
 #: src/BoxOffice/Page.php:80
 #, php-format
@@ -3935,12 +3826,11 @@ msgstr "Tickets afdrukken (PDF)"
 
 #: src/BoxOffice/Page.php:88
 msgid "Ihre Schicht wird gerade gezählt; Verkäufe sind erst in der nächsten Schicht möglich."
-msgstr ""
+msgstr "Je dienst wordt op dit moment geteld; verkopen zijn pas in de volgende dienst mogelijk."
 
 #: src/BoxOffice/Page.php:88
-#, fuzzy
 msgid "Zum Kassenabschluss"
-msgstr "Kassa-afsluiting"
+msgstr "Naar de kassa-afsluiting"
 
 #: src/BoxOffice/Page.php:111 src/Passes/AdminPage.php:140
 #: src/Series/AdminPage.php:364
@@ -4018,29 +3908,27 @@ msgstr "Deelnemersgegevens"
 
 #: src/BoxOffice/Page.php:168
 msgid "Beleg suchen (Storno früherer Schichten)"
-msgstr ""
+msgstr "Bon zoeken (annulering van eerdere diensten)"
 
 #: src/BoxOffice/Page.php:168
-#, fuzzy
 msgid "Belegnummer"
-msgstr "Bestelnummer"
+msgstr "Bonnummer"
 
 #: src/BoxOffice/Page.php:173
-#, fuzzy
 msgid "Kein Beleg mit dieser Nummer gefunden."
-msgstr "Geen bestellingen gevonden."
+msgstr "Geen bon met dit nummer gevonden."
 
 #. translators: 1: register, 2: shift id, 3: time
 #: src/BoxOffice/Page.php:188 src/BoxOffice/ShiftPage.php:164
-#, fuzzy, php-format
+#, php-format
 msgid "Kasse „%1$s“ · Schicht #%2$d (seit %3$s)"
-msgstr "Kassasessie #%1$d (sinds %2$s)"
+msgstr "Kassa „%1$s” · dienst #%2$d (sinds %3$s)"
 
 #. translators: 1: sales, 2: stornos
 #: src/BoxOffice/Page.php:190
 #, php-format
 msgid "Verkäufe %1$d · Stornos %2$d. Blindzählung: Beträge und Soll-Bestand werden erst nach der Zählung angezeigt."
-msgstr ""
+msgstr "Verkopen %1$d · annuleringen %2$d. Blinde telling: bedragen en het verwachte saldo worden pas na de telling getoond."
 
 #: src/BoxOffice/Page.php:192 src/BoxOffice/ZReport.php:366
 #: src/BoxOffice/ZReport.php:379
@@ -4048,9 +3936,8 @@ msgid "Verkäufe"
 msgstr "Verkopen"
 
 #: src/BoxOffice/Page.php:192 src/BoxOffice/ZReport.php:367
-#, fuzzy
 msgid "Stornos/Erstattungen"
-msgstr "Terugbetalingen"
+msgstr "Annuleringen/terugbetalingen"
 
 #: src/BoxOffice/Page.php:192
 msgid "Netto-Umsatz"
@@ -4062,13 +3949,12 @@ msgid "Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s"
 msgstr "Beginsaldo %1$s · verwacht kassasaldo (contant) %2$s"
 
 #: src/BoxOffice/Page.php:201
-#, fuzzy
 msgid "Verkäufe dieser Schicht"
-msgstr "Verkopen van deze sessie"
+msgstr "Verkopen van deze dienst"
 
 #: src/BoxOffice/Page.php:205
 msgid "Einlage/Entnahme, Zählung und Kassenabschluss"
-msgstr ""
+msgstr "Storting/opname, telling en kassa-afsluiting"
 
 #: src/BoxOffice/Page.php:207
 msgid "Belegeinstellungen"
@@ -4084,21 +3970,19 @@ msgstr "Voettekst"
 
 #: src/BoxOffice/Page.php:209
 msgid "Bediener auf Kundenbelegen"
-msgstr ""
+msgstr "Medewerker op klantbonnen"
 
 #: src/BoxOffice/Page.php:209
-#, fuzzy
 msgid "Bedienernummer"
-msgstr "Belastingnummer"
+msgstr "Medewerkernummer"
 
 #: src/BoxOffice/Page.php:209
 msgid "Initialen"
-msgstr ""
+msgstr "Initialen"
 
 #: src/BoxOffice/Page.php:209
-#, fuzzy
 msgid "Vollständiger Name"
-msgstr "Volledig bestel-ID: %s"
+msgstr "Volledige naam"
 
 #: src/BoxOffice/Page.php:209
 msgid "Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben"
@@ -4126,14 +4010,12 @@ msgid "Stornobeleg"
 msgstr "Annuleringsbon"
 
 #: src/BoxOffice/Page.php:238
-#, fuzzy
 msgid "Wirklich stornieren?"
-msgstr "Verkoop echt annuleren?"
+msgstr "Echt annuleren?"
 
 #: src/BoxOffice/Page.php:242
-#, fuzzy
 msgid "Nur einzelne Tickets stornieren"
-msgstr "Meer tickets bestellen"
+msgstr "Alleen afzonderlijke tickets annuleren"
 
 #: src/BoxOffice/Page.php:244
 #: src/Integrations/WooCommerce/OrderAdapter.php:1038
@@ -4142,7 +4024,7 @@ msgstr "ingecheckt"
 
 #: src/BoxOffice/Page.php:249
 msgid "Ausnahme für eingecheckte Tickets, Grund:"
-msgstr ""
+msgstr "Uitzondering voor ingecheckte tickets, reden:"
 
 #: src/BoxOffice/Page.php:274
 msgid "Wichtiger Hinweis:"
@@ -4169,9 +4051,8 @@ msgid "Storno angelegt; es wartet auf Freigabe."
 msgstr "Annulering aangemaakt; deze wacht op goedkeuring."
 
 #: src/BoxOffice/Page.php:357
-#, fuzzy
 msgid "Storno gebucht. Bitte Betrag auszahlen bzw. am Kartenterminal gutschreiben und den Stornobeleg drucken."
-msgstr "Verkoop geannuleerd. Betaal het bedrag uit of schrijf het bij op de kaartterminal."
+msgstr "Annulering geboekt. Betaal het bedrag uit of schrijf het terug op de pinterminal en druk de annuleringsbon af."
 
 #: src/BoxOffice/Page.php:373
 msgid "Verkauf gebucht."
@@ -4194,39 +4075,34 @@ msgid "Kassenzahlungen verarbeiten keine Webhooks."
 msgstr "Kassabetalingen verwerken geen webhooks."
 
 #: src/BoxOffice/Registers.php:54 src/BoxOffice/ShiftPage.php:120
-#, fuzzy
 msgid "Kasse nicht gefunden."
-msgstr "Pas niet gevonden."
+msgstr "Kassa niet gevonden."
 
 #: src/BoxOffice/Registers.php:56
-#, fuzzy
 msgid "Bitte einen Namen für die Kasse angeben."
-msgstr "Geef een naam op voor het tickettype."
+msgstr "Geef een naam op voor de kassa."
 
 #: src/BoxOffice/Registers.php:61
-#, fuzzy
 msgid "Die Währung kann nicht geändert werden, solange eine Schicht offen ist."
-msgstr "De valuta kan na de eerste bestellingen niet meer worden gewijzigd."
+msgstr "De valuta kan niet worden gewijzigd zolang er een dienst open is."
 
 #: src/BoxOffice/Registers.php:64
-#, fuzzy
 msgid "Eine Kasse mit offener Schicht kann nicht deaktiviert werden."
-msgstr "Tijdvenster kon niet worden gereserveerd."
+msgstr "Een kassa met een open dienst kan niet worden gedeactiveerd."
 
 #: src/BoxOffice/Registers.php:81
-#, fuzzy
 msgid "Die Kasse konnte nicht gespeichert werden."
-msgstr "Het sjabloon kon niet worden opgeslagen."
+msgstr "De kassa kon niet worden opgeslagen."
 
 #: src/BoxOffice/Registers.php:106
 msgid "Hauptkasse"
-msgstr ""
+msgstr "Hoofdkassa"
 
 #. translators: %d: running number
 #: src/BoxOffice/Registers.php:153
 #, php-format
 msgid "Kasse %d (übernommen)"
-msgstr ""
+msgstr "Kassa %d (overgenomen)"
 
 #: src/BoxOffice/Service.php:34
 msgid "Bar"
@@ -4241,13 +4117,12 @@ msgid "Freikarte"
 msgstr "Vrijkaartje"
 
 #: src/BoxOffice/Service.php:120
-#, fuzzy
 msgid "Keine freie Kasse verfügbar."
-msgstr "Geen evenementen beschikbaar."
+msgstr "Geen vrije kassa beschikbaar."
 
 #: src/BoxOffice/Service.php:146 src/BoxOffice/Shifts.php:429
 msgid "Es gibt eine Kassendifferenz. Bitte einen Grund angeben."
-msgstr ""
+msgstr "Er is een kasverschil. Geef een reden op."
 
 #: src/BoxOffice/Service.php:239 src/BoxOffice/Service.php:267
 msgid "Das Formular ist ungültig. Bitte neu laden."
@@ -4266,9 +4141,8 @@ msgid "Bitte zuerst eine Kassensitzung öffnen."
 msgstr "Open eerst een kassasessie."
 
 #: src/BoxOffice/Service.php:278
-#, fuzzy
 msgid "Diese Kasse verkauft nur Tickets für ein anderes Event."
-msgstr "Dit apparaat is vrijgegeven voor een ander evenement."
+msgstr "Deze kassa verkoopt alleen tickets voor een ander evenement."
 
 #: src/BoxOffice/Service.php:282
 msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
@@ -4280,7 +4154,7 @@ msgstr "Kies een betaalmethode."
 
 #: src/BoxOffice/Service.php:286
 msgid "Freikarten an der Kasse brauchen die Berechtigung zur Freigabe von Freikarten."
-msgstr ""
+msgstr "Voor vrijkaartjes aan de kassa is de bevoegdheid nodig om vrijkaartjes goed te keuren."
 
 #: src/BoxOffice/Service.php:299 src/Seating/Layouts.php:561
 msgid "Eine Ticketart gehört nicht zu diesem Termin."
@@ -4309,9 +4183,8 @@ msgid "Der Verkauf konnte nicht gespeichert werden."
 msgstr "De verkoop kon niet worden opgeslagen."
 
 #: src/BoxOffice/Service.php:362
-#, fuzzy
 msgid "Für eine Rechnung über diesem Betrag sind Name und Anschrift des Käufers nötig. Bitte unter „Rechnung auf Firma/Adresse“ ausfüllen."
-msgstr "Voor dit bestelbedrag hebben we je naam en adres nodig voor de factuur. Schakel „Ik heb een factuur op naam van een bedrijf/adres nodig” in en vul de velden in."
+msgstr "Voor een factuur boven dit bedrag zijn naam en adres van de koper nodig. Vul deze in onder „Factuur op bedrijf/adres”."
 
 #: src/BoxOffice/Service.php:398 src/BoxOffice/Service.php:443
 #: src/BoxOffice/Service.php:523
@@ -4336,28 +4209,24 @@ msgid "Nur Verkäufe der eigenen Kassensitzung können storniert werden."
 msgstr "Alleen verkopen van de eigen kassasessie kunnen worden geannuleerd."
 
 #: src/BoxOffice/Service.php:542
-#, fuzzy
 msgid "Die gewählten Tickets gehören nicht zu diesem Verkauf oder wurden bereits storniert."
-msgstr "De gekozen tickets horen niet bij de bestelling of zijn al terugbetaald."
+msgstr "De gekozen tickets horen niet bij deze verkoop of zijn al geannuleerd."
 
 #: src/BoxOffice/Service.php:548
-#, fuzzy
 msgid "Mindestens ein Ticket wurde bereits eingecheckt. Für den Storno bitte einen Grund für die Ausnahme angeben."
-msgstr "Ten minste één van de tickets is al terugbetaald; de terugbetaling is niet uitgevoerd."
+msgstr "Minstens één ticket is al ingecheckt. Geef voor de annulering een reden voor de uitzondering op."
 
 #: src/BoxOffice/Service.php:549
-#, fuzzy
 msgid "Mindestens ein Ticket wurde bereits eingecheckt und kann an der Kasse nicht storniert werden."
-msgstr "Dit ticket is al aan een andere persoon overgedragen en kan via de bestelling niet meer worden gewijzigd."
+msgstr "Minstens één ticket is al ingecheckt en kan niet aan de kassa worden geannuleerd."
 
 #: src/BoxOffice/Service.php:552
 msgid "Für die Auszahlung muss eine Kassenschicht geöffnet sein. Bitte zuerst eine Schicht öffnen."
-msgstr ""
+msgstr "Voor de uitbetaling moet er een kassadienst geopend zijn. Open eerst een dienst."
 
 #: src/BoxOffice/Service.php:557
-#, fuzzy
 msgid "eingecheckt, Ausnahme:"
-msgstr "ingecheckt"
+msgstr "ingecheckt, uitzondering:"
 
 #: src/BoxOffice/Service.php:577
 msgid "Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen."
@@ -4369,9 +4238,9 @@ msgstr "Voor deze verkoop staat geen annulering in afwachting."
 
 #. translators: %d: user ID
 #: src/BoxOffice/Service.php:661
-#, fuzzy, php-format
+#, php-format
 msgid "Bediener %d"
-msgstr "Kassa/Medewerker:"
+msgstr "Medewerker %d"
 
 #. translators: %s: platform name
 #: src/BoxOffice/Service.php:736 src/Invoices.php:380 src/Invoices.php:394
@@ -4397,9 +4266,8 @@ msgid "Datum:"
 msgstr "Datum:"
 
 #: src/BoxOffice/Service.php:740 src/BoxOffice/ZReport.php:445
-#, fuzzy
 msgid "Kasse/Schicht/Bediener:"
-msgstr "Kassa/Medewerker:"
+msgstr "Kassa/dienst/medewerker:"
 
 #: src/BoxOffice/Service.php:745
 msgid "SUMME"
@@ -4435,157 +4303,142 @@ msgstr "Afdrukken"
 
 #: src/BoxOffice/ShiftPage.php:36
 msgid "– niemand –"
-msgstr ""
+msgstr "– niemand –"
 
 #: src/BoxOffice/ShiftPage.php:47
 msgid "Stückelung zählen (Scheine und Münzen)"
-msgstr ""
+msgstr "Coupures tellen (biljetten en munten)"
 
 #: src/BoxOffice/ShiftPage.php:51
 msgid "Wenn die Stückelung ausgefüllt ist, wird der Betrag daraus berechnet."
-msgstr ""
+msgstr "Als de coupures zijn ingevuld, wordt het bedrag daaruit berekend."
 
 #: src/BoxOffice/ShiftPage.php:70
-#, fuzzy
 msgid "offen"
-msgstr "Open"
+msgstr "open"
 
 #: src/BoxOffice/ShiftPage.php:70
 msgid "wird gezählt"
-msgstr ""
+msgstr "wordt geteld"
 
 #: src/BoxOffice/ShiftPage.php:70
-#, fuzzy
 msgid "abgeschlossen"
-msgstr "Afgerond"
+msgstr "afgesloten"
 
 #. translators: 1: user, 2: register
 #: src/BoxOffice/ShiftPage.php:87
 #, php-format
 msgid "Übergabe von %1$s an Kasse „%2$s“ annehmen"
-msgstr ""
+msgstr "Overdracht van %1$s aan kassa „%2$s” accepteren"
 
 #: src/BoxOffice/ShiftPage.php:88
 msgid "Bitte das übergebene Bargeld zählen. Der übergebene Betrag wird erst nach der Zählung angezeigt."
-msgstr ""
+msgstr "Tel het overgedragen contante geld. Het overgedragen bedrag wordt pas na de telling getoond."
 
 #. translators: %s: amount
 #: src/BoxOffice/ShiftPage.php:88
 #, php-format
 msgid "Übergebener Betrag laut Übergabe: %s. Bitte nachzählen."
-msgstr ""
+msgstr "Overgedragen bedrag volgens de overdracht: %s. Tel het na."
 
 #: src/BoxOffice/ShiftPage.php:91
-#, fuzzy
 msgid "Gezählter Betrag"
-msgstr "Geteld contant geld"
+msgstr "Geteld bedrag"
 
 #: src/BoxOffice/ShiftPage.php:92
-#, fuzzy
 msgid "Grund bei Abweichung"
-msgstr "Reden van afwijzing"
+msgstr "Reden bij afwijking"
 
 #: src/BoxOffice/ShiftPage.php:93
 msgid "Übergabe bestätigen und Schicht öffnen"
-msgstr ""
+msgstr "Overdracht bevestigen en dienst openen"
 
 #: src/BoxOffice/ShiftPage.php:97 src/BoxOffice/ShiftPage.php:110
 #: src/BoxOffice/ShiftPage.php:149
-#, fuzzy
 msgid "Schicht öffnen"
-msgstr "Niet gevonden."
+msgstr "Dienst openen"
 
 #: src/BoxOffice/ShiftPage.php:99
 msgid "Keine freie Kasse: Alle aktiven Kassen haben eine offene Schicht oder warten auf eine Übergabe."
-msgstr ""
+msgstr "Geen vrije kassa: alle actieve kassa's hebben een open dienst of wachten op een overdracht."
 
 #: src/BoxOffice/ShiftPage.php:99
-#, fuzzy
 msgid "Kassen verwalten"
-msgstr "Evenement beheren"
+msgstr "Kassa's beheren"
 
 #: src/BoxOffice/ShiftPage.php:103 src/BoxOffice/ShiftPage.php:394
 #: src/BoxOffice/ShiftPage.php:423 src/BoxOffice/ZReport.php:398
 msgid "Blindzählung"
-msgstr ""
+msgstr "Blinde telling"
 
 #: src/BoxOffice/ShiftPage.php:108
-#, fuzzy
 msgid "Wechselgeld (Anfangsbestand, gezählt)"
-msgstr "Wisselgeld (beginsaldo)"
+msgstr "Wisselgeld (beginsaldo, geteld)"
 
 #: src/BoxOffice/ShiftPage.php:121
-#, fuzzy
 msgid "Schicht geöffnet."
-msgstr "Niet gevonden."
+msgstr "Dienst geopend."
 
 #: src/BoxOffice/ShiftPage.php:133
 msgid "Übergabe bestätigt, Schicht geöffnet."
-msgstr ""
+msgstr "Overdracht bevestigd, dienst geopend."
 
 #: src/BoxOffice/ShiftPage.php:140
-#, fuzzy
 msgid "Übergabe storniert; die Kasse kann neu geöffnet werden."
-msgstr "De kassasessie kon niet worden geopend."
+msgstr "Overdracht geannuleerd; de kassa kan opnieuw worden geopend."
 
 #: src/BoxOffice/ShiftPage.php:149
 msgid "Sie haben keine offene Schicht."
-msgstr ""
+msgstr "Je hebt geen open dienst."
 
 #: src/BoxOffice/ShiftPage.php:155
-#, fuzzy
 msgid "Diese Schicht ist abgeschlossen."
-msgstr "De kassasessie is al gesloten."
+msgstr "Deze dienst is afgesloten."
 
 #. translators: %d: Z number
 #: src/BoxOffice/ShiftPage.php:155
-#, fuzzy, php-format
+#, php-format
 msgid "Z-Bericht Nr. %d"
-msgstr "Rapport"
+msgstr "Z-rapport nr. %d"
 
 #: src/BoxOffice/ShiftPage.php:165
-#, fuzzy
 msgid "Kassierer:"
-msgstr "Kassa/Medewerker:"
+msgstr "Kassamedewerkers:"
 
 #. translators: %s: amount
 #: src/BoxOffice/ShiftPage.php:165
-#, fuzzy, php-format
+#, php-format
 msgid "Anfangsbestand %s"
-msgstr "Wisselgeld (beginsaldo)"
+msgstr "Beginsaldo %s"
 
 #: src/BoxOffice/ShiftPage.php:170
-#, fuzzy
 msgid "Kassierer hinzufügen"
-msgstr "Datum toevoegen"
+msgstr "Kassamedewerker toevoegen"
 
 #: src/BoxOffice/ShiftPage.php:171 src/Seating/AdminPage.php:163
-#, fuzzy
 msgid "Hinzufügen"
-msgstr "Datum toevoegen"
+msgstr "Toevoegen"
 
 #: src/BoxOffice/ShiftPage.php:175
 msgid "Einlagen, Entnahmen und Auszahlungen"
-msgstr ""
+msgstr "Stortingen, opnames en uitbetalingen"
 
 #. translators: placeholder name for the Unix timestamp in the signature format
 #: src/BoxOffice/ShiftPage.php:178 src/Modules/Webhooks.php:290
-#, fuzzy
 msgid "Zeit"
-msgstr "Tijdzone"
+msgstr "Tijd"
 
 #: src/BoxOffice/ShiftPage.php:189
 msgid "Einlage (Geld in die Kasse)"
-msgstr ""
+msgstr "Storting (geld in de kassa)"
 
 #: src/BoxOffice/ShiftPage.php:189
 msgid "Entnahme (Geld aus der Kasse)"
-msgstr ""
+msgstr "Opname (geld uit de kassa)"
 
 #: src/BoxOffice/ShiftPage.php:190
-#, fuzzy
 msgid "Buchen"
-msgstr "Zoeken"
+msgstr "Boeken"
 
 #: src/BoxOffice/ShiftPage.php:194
 msgid "Kassenabschluss"
@@ -4593,57 +4446,52 @@ msgstr "Kassa-afsluiting"
 
 #: src/BoxOffice/ShiftPage.php:198
 msgid "Diese Kasse zählt blind. Du siehst den Soll-Bestand nur, weil du Kassenverwaltung oder Finanzrecht hast – Kassierkräfte ohne diese Rechte sehen ihn erst im Z-Bericht."
-msgstr ""
+msgstr "Deze kassa telt blind. Je ziet het verwachte saldo alleen omdat je het recht kassabeheer of financiën hebt – kassamedewerkers zonder deze rechten zien het pas in het Z-rapport."
 
 #: src/BoxOffice/ShiftPage.php:201
 msgid "Blindzählung: Soll-Bestand und Differenz stehen erst nach dem Schließen im Z-Bericht. Eine Nachzählung kann nur die Kassenverwaltung durchführen."
-msgstr ""
+msgstr "Blinde telling: verwacht saldo en verschil staan pas na het sluiten in het Z-rapport. Alleen het kassabeheer kan een hertelling uitvoeren."
 
 #. translators: %s: counted cash
 #: src/BoxOffice/ShiftPage.php:204
 #, php-format
 msgid "Abgegebene Zählung: Bargeld %s."
-msgstr ""
+msgstr "Ingediende telling: contant geld %s."
 
 #. translators: 1: cash, 2: card
 #: src/BoxOffice/ShiftPage.php:208
 #, php-format
 msgid "Soll-Bestand bar %1$s · Kartenumsatz laut Kasse %2$s"
-msgstr ""
+msgstr "Verwacht saldo contant %1$s · kaartomzet volgens kassa %2$s"
 
 #: src/BoxOffice/ShiftPage.php:213
-#, fuzzy
 msgid "Gezählt"
-msgstr "Geselecteerd"
+msgstr "Geteld"
 
 #: src/BoxOffice/ShiftPage.php:213
 msgid "Soll"
-msgstr ""
+msgstr "Verwacht"
 
 #: src/BoxOffice/ShiftPage.php:213 src/BoxOffice/ZReport.php:396
 #: src/Exchange/AdminPage.php:127
-#, fuzzy
 msgid "Differenz"
-msgstr "Ticketreferentie"
+msgstr "Verschil"
 
 #: src/BoxOffice/ShiftPage.php:214 src/BoxOffice/ZReport.php:385
 msgid "Bargeld"
-msgstr ""
+msgstr "Contant geld"
 
 #: src/BoxOffice/ShiftPage.php:215 src/BoxOffice/ZReport.php:393
-#, fuzzy
 msgid "Kartenterminal"
-msgstr "Kaart (terminal)"
+msgstr "Pinterminal"
 
 #: src/BoxOffice/ShiftPage.php:221 src/BoxOffice/ShiftPage.php:224
-#, fuzzy
 msgid "Neu zählen"
-msgstr "Selecteren"
+msgstr "Opnieuw tellen"
 
 #: src/BoxOffice/ShiftPage.php:221 src/BoxOffice/ShiftPage.php:224
-#, fuzzy
 msgid "Zählung abgeben"
-msgstr "Betalingen"
+msgstr "Telling indienen"
 
 #: src/BoxOffice/ShiftPage.php:222
 msgid "Gezählter Bargeldbestand"
@@ -4651,48 +4499,47 @@ msgstr "Geteld contant geld"
 
 #: src/BoxOffice/ShiftPage.php:223
 msgid "Summe laut Kartenterminal (Tagesabschluss)"
-msgstr ""
+msgstr "Totaal volgens pinterminal (dagafsluiting)"
 
 #: src/BoxOffice/ShiftPage.php:223
 msgid "Leer lassen, wenn kein Terminal genutzt wurde."
-msgstr ""
+msgstr "Leeg laten als er geen terminal is gebruikt."
 
 #: src/BoxOffice/ShiftPage.php:224
 msgid "Nach der Zählung sind keine Verkäufe mehr möglich."
-msgstr ""
+msgstr "Na de telling zijn geen verkopen meer mogelijk."
 
 #: src/BoxOffice/ShiftPage.php:227
 msgid "Schicht jetzt abschließen? Der Z-Bericht kann danach nicht mehr geändert werden."
-msgstr ""
+msgstr "Dienst nu afsluiten? Het Z-rapport kan daarna niet meer worden gewijzigd."
 
 #: src/BoxOffice/ShiftPage.php:229
 msgid "Schicht abschließen (Z-Bericht)"
-msgstr ""
+msgstr "Dienst afsluiten (Z-rapport)"
 
 #: src/BoxOffice/ShiftPage.php:230
 msgid "Grund der Differenz (Pflicht bei Abweichung)"
-msgstr ""
+msgstr "Reden van het verschil (verplicht bij afwijking)"
 
 #: src/BoxOffice/ShiftPage.php:231
 msgid "Übergabe an die nächste Schicht (optional)"
-msgstr ""
+msgstr "Overdracht aan de volgende dienst (optioneel)"
 
 #: src/BoxOffice/ShiftPage.php:232 src/BoxOffice/ZReport.php:403
 msgid "Übergabe an"
-msgstr ""
+msgstr "Overdracht aan"
 
 #: src/BoxOffice/ShiftPage.php:234
 msgid "Betrag, der in der Kasse bleibt (Rest wird abgeschöpft)"
-msgstr ""
+msgstr "Bedrag dat in de kassa blijft (de rest wordt afgeroomd)"
 
 #: src/BoxOffice/ShiftPage.php:235
-#, fuzzy
 msgid "Schicht abschließen"
-msgstr "Afronden"
+msgstr "Dienst afsluiten"
 
 #: src/BoxOffice/ShiftPage.php:242
 msgid "Kassierer hinzugefügt."
-msgstr ""
+msgstr "Kassamedewerker toegevoegd."
 
 #: src/BoxOffice/ShiftPage.php:251
 #, fuzzy

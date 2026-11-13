@@ -63,7 +63,7 @@ msgstr "Non hai l'autorizzazione per questo evento."
 
 #: src/Admin/CampaignsPage.php:41
 msgid "Codes für alle Events kann nur die Administration anlegen."
-msgstr ""
+msgstr "Solo l'amministrazione può creare codici validi per tutti gli eventi."
 
 #: src/Admin/CampaignsPage.php:47 src/Allocations/BuyerLimits.php:78
 #: src/Rest/Controller.php:661
@@ -71,24 +71,20 @@ msgid "Die Ticketart gehört nicht zu diesem Event."
 msgstr "Il tipo di biglietto non appartiene a questo evento."
 
 #: src/Admin/CampaignsPage.php:54
-#, fuzzy
 msgid "Bitte einen gültigen Rabattwert angeben."
-msgstr "Indica un prezzo valido."
+msgstr "Indica un valore di sconto valido."
 
 #: src/Admin/CampaignsPage.php:78
-#, fuzzy
 msgid "Rabattcode nicht gefunden."
-msgstr "Biglietto non trovato."
+msgstr "Codice sconto non trovato."
 
 #: src/Admin/CampaignsPage.php:85
-#, fuzzy
 msgid "Rabattcode angelegt."
-msgstr "Codice sconto (facoltativo)"
+msgstr "Codice sconto creato."
 
 #: src/Admin/CampaignsPage.php:91
-#, fuzzy
 msgid "Status gespeichert."
-msgstr "Layout salvato."
+msgstr "Stato salvato."
 
 #: src/Admin/CampaignsPage.php:99 src/Admin/CheckinsPage.php:55
 #: src/Admin/DevicesPage.php:50 src/Admin/EventsPage.php:611
@@ -125,27 +121,24 @@ msgid "Keine Berechtigung."
 msgstr "Autorizzazione mancante."
 
 #: src/Admin/CampaignsPage.php:102 src/Admin/Menu.php:182
-#, fuzzy
 msgid "Rabattcodes"
-msgstr "Sconto"
+msgstr "Codici sconto"
 
 #: src/Admin/CampaignsPage.php:104
 msgid "Kunden geben den Code im Checkout ein. Das Feld „Rabattcode“ erscheint nur, wenn für das Event ein aktiver Code existiert. Ein Code für eine Ticketart oder ein Event mindert nur diese Positionen."
-msgstr ""
+msgstr "I clienti inseriscono il codice al checkout. Il campo «Codice sconto» compare solo se per l'evento esiste un codice attivo. Un codice per un tipo di biglietto o per un evento riduce solo queste voci."
 
 #: src/Admin/CampaignsPage.php:107
 msgid "Vorhandene Codes"
-msgstr ""
+msgstr "Codici esistenti"
 
 #: src/Admin/CampaignsPage.php:109
-#, fuzzy
 msgid "Noch keine Rabattcodes."
-msgstr "Nessun webhook ancora presente."
+msgstr "Nessun codice sconto ancora presente."
 
 #: src/Admin/CampaignsPage.php:111 src/Admin/CampaignsPage.php:133
-#, fuzzy
 msgid "Code"
-msgstr "Codice HTTP"
+msgstr "Codice"
 
 #. translators: 1: entries, 2: tickets
 #. translators: 1: list, 2: used, 3: quota
@@ -182,16 +175,15 @@ msgstr "Sconto"
 
 #: src/Admin/CampaignsPage.php:111
 msgid "Zeitraum"
-msgstr ""
+msgstr "Periodo"
 
 #: src/Admin/CampaignsPage.php:111
 msgid "Nutzung"
-msgstr ""
+msgstr "Utilizzo"
 
 #: src/Admin/CampaignsPage.php:111
-#, fuzzy
 msgid "Rabatt gesamt"
-msgstr "Sconto"
+msgstr "Sconto totale"
 
 #. translators: 1: entries, 2: tickets
 #. translators: 1: list, 2: used, 3: quota
@@ -220,15 +212,14 @@ msgid "Status"
 msgstr "Stato"
 
 #: src/Admin/CampaignsPage.php:113
-#, fuzzy
 msgid "alle Events"
-msgstr "Tutti gli eventi"
+msgstr "tutti gli eventi"
 
 #. translators: %d: paid orders
 #: src/Admin/CampaignsPage.php:116
-#, fuzzy, php-format
+#, php-format
 msgid "%d bezahlt"
-msgstr "Pagato"
+msgstr "%d pagati"
 
 #. translators: %d: paid orders
 #. translators: 1: percent, 2: fee
@@ -256,9 +247,8 @@ msgid "Aktivieren"
 msgstr "Attiva"
 
 #: src/Admin/CampaignsPage.php:128
-#, fuzzy
 msgid "Neuen Code anlegen"
-msgstr "Crea evento"
+msgstr "Crea nuovo codice"
 
 #: src/Admin/CampaignsPage.php:131 src/Admin/CheckinsPage.php:81
 #: src/Admin/OrdersPage.php:273 src/Admin/TicketsPage.php:167
@@ -269,11 +259,11 @@ msgstr "Tutti gli eventi"
 
 #: src/Admin/CampaignsPage.php:133
 msgid "3–32 Zeichen: Buchstaben, Ziffern, - und _"
-msgstr ""
+msgstr "3–32 caratteri: lettere, cifre, - e _"
 
 #: src/Admin/CampaignsPage.php:134
 msgid "Name (intern)"
-msgstr ""
+msgstr "Nome (interno)"
 
 #: src/Admin/CampaignsPage.php:135 src/Admin/OrdersPage.php:479
 #: src/Allocations/AdminPage.php:246 src/Allocations/AdminPage.php:297
@@ -286,17 +276,16 @@ msgstr "Tipo"
 
 #: src/Admin/CampaignsPage.php:136
 msgid "Prozent"
-msgstr ""
+msgstr "Percentuale"
 
 #: src/Admin/CampaignsPage.php:136
-#, fuzzy
 msgid "Fester Betrag"
-msgstr "Importo"
+msgstr "Importo fisso"
 
 #: src/Admin/CampaignsPage.php:137 src/BoxOffice/ShiftPage.php:47
 #: src/BoxOffice/ZReport.php:458
 msgid "Wert"
-msgstr ""
+msgstr "Valore"
 
 #: src/Admin/CampaignsPage.php:137 src/Admin/EventsPage.php:753
 #: src/BoxOffice/ShiftPage.php:394 src/BoxOffice/ShiftPage.php:422
@@ -323,23 +312,20 @@ msgid "Event"
 msgstr "Evento"
 
 #: src/Admin/CampaignsPage.php:140
-#, fuzzy
 msgid "Ticketart-ID (optional)"
-msgstr "Solo ID evento (facoltativo)"
+msgstr "ID tipo di biglietto (facoltativo)"
 
 #: src/Admin/CampaignsPage.php:141
 msgid "Max. Nutzungen"
-msgstr ""
+msgstr "Utilizzi max."
 
 #: src/Admin/CampaignsPage.php:141
-#, fuzzy
 msgid "0 = unbegrenzt"
-msgstr "0 significa illimitato."
+msgstr "0 = illimitato"
 
 #: src/Admin/CampaignsPage.php:142
-#, fuzzy
 msgid "Gültig ab / bis"
-msgstr "Valido fino al"
+msgstr "Valido dal / al"
 
 #: src/Admin/CampaignsPage.php:142 src/Mail/Types.php:363
 #: src/OfflineScanner/AdminPage.php:182
@@ -348,9 +334,9 @@ msgstr "Valido fino al"
 
 #. translators: %s: timezone
 #: src/Admin/CampaignsPage.php:142
-#, fuzzy, php-format
+#, php-format
 msgid "Ortszeit %s; leer = unbegrenzt"
-msgstr "Ora locale %s; vuoto = subito"
+msgstr "Ora locale %s; vuoto = illimitato"
 
 #. translators: %s: timezone
 #: src/Admin/CampaignsPage.php:143 src/Admin/EventsPage.php:1044
@@ -360,12 +346,11 @@ msgstr "Ordine"
 #. translators: %s: timezone
 #: src/Admin/CampaignsPage.php:143
 msgid "Bei mehreren Codes wird der niedrigere Wert zuerst angewendet."
-msgstr ""
+msgstr "Se ci sono più codici, viene applicato prima il valore più basso."
 
 #: src/Admin/CampaignsPage.php:144
-#, fuzzy
 msgid "Code anlegen"
-msgstr "Crea evento"
+msgstr "Crea codice"
 
 #: src/Admin/CheckinsPage.php:45
 msgid "Aktuell anwesend"
@@ -661,10 +646,10 @@ msgstr "La fine deve essere successiva all'inizio."
 
 #. translators: %d: sold tickets
 #: src/Admin/EventsPage.php:184 src/Admin/EventsPage.php:335
-#, fuzzy, php-format
+#, php-format
 msgid "Das Kontingent darf nicht unter das bereits verkaufte %d Ticket sinken."
 msgid_plural "Das Kontingent darf nicht unter die bereits verkauften %d Tickets sinken."
-msgstr[0] "Il contingente non può scendere sotto i %d biglietti già venduti."
+msgstr[0] "Il contingente non può scendere sotto il %d biglietto già venduto."
 msgstr[1] "Il contingente non può scendere sotto i %d biglietti già venduti."
 
 #: src/Admin/EventsPage.php:223
@@ -672,28 +657,27 @@ msgid "Der Termin konnte nicht gespeichert werden."
 msgstr "Impossibile salvare la data."
 
 #: src/Admin/EventsPage.php:268
-#, fuzzy
 msgid "Bitte einen Grund für die Absage angeben."
-msgstr "Indica un motivo per il rifiuto."
+msgstr "Indica un motivo per l'annullamento."
 
 #: src/Admin/EventsPage.php:269
 msgid "Bitte bestätigen, dass die Folgen der Absage geprüft wurden."
-msgstr ""
+msgstr "Conferma di aver verificato le conseguenze dell'annullamento."
 
 #. translators: %d: number of tickets
 #: src/Admin/EventsPage.php:290
-#, fuzzy, php-format
+#, php-format
 msgid "%d Ticket wurde widerrufen, der Inhaber benachrichtigt und die bezahlte Bestellung automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü."
 msgid_plural "%d Tickets wurden widerrufen, die Inhaber benachrichtigt und bezahlte Bestellungen automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü."
-msgstr[0] "%d biglietti sono stati revocati, i titolari sono stati avvisati e gli ordini pagati sono stati rimborsati automaticamente. Rimborsa gli ordini WooCommerce direttamente in WooCommerce; gli errori sono elencati nel menu Rimborsi."
+msgstr[0] "%d biglietto è stato revocato, il titolare è stato avvisato e l'ordine pagato è stato rimborsato automaticamente. Rimborsa gli ordini WooCommerce direttamente in WooCommerce; gli errori sono elencati nel menu Rimborsi."
 msgstr[1] "%d biglietti sono stati revocati, i titolari sono stati avvisati e gli ordini pagati sono stati rimborsati automaticamente. Rimborsa gli ordini WooCommerce direttamente in WooCommerce; gli errori sono elencati nel menu Rimborsi."
 
 #. translators: %d: number of tickets
 #: src/Admin/EventsPage.php:292
-#, fuzzy, php-format
+#, php-format
 msgid "%d Ticket wurde widerrufen und der Inhaber benachrichtigt. Ein bezahltes Ticket bleibt erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren)."
 msgid_plural "%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren)."
-msgstr[0] "%d biglietti sono stati revocati e i titolari sono stati avvisati. I biglietti pagati restano rimborsabili: effettua il rimborso da Ordine → Rimborsa (oppure attiva il rimborso automatico nelle impostazioni)."
+msgstr[0] "%d biglietto è stato revocato e il titolare è stato avvisato. Un biglietto pagato resta rimborsabile: effettua il rimborso da Ordine → Rimborsa (oppure attiva il rimborso automatico nelle impostazioni)."
 msgstr[1] "%d biglietti sono stati revocati e i titolari sono stati avvisati. I biglietti pagati restano rimborsabili: effettua il rimborso da Ordine → Rimborsa (oppure attiva il rimborso automatico nelle impostazioni)."
 
 #: src/Admin/EventsPage.php:301 src/Admin/EventsPage.php:382
@@ -789,7 +773,7 @@ msgstr "Data annullata."
 #: src/Admin/EventsPage.php:546
 #, php-format
 msgid "Termin abgesagt: %1$d offene Bestellungen storniert, %2$d Tickets widerrufen, %3$d Erstattungen ausgeführt, %4$d Erstattungen offen, %5$d Personen benachrichtigt."
-msgstr ""
+msgstr "Data annullata: %1$d ordini aperti annullati, %2$d biglietti revocati, %3$d rimborsi eseguiti, %4$d rimborsi aperti, %5$d persone avvisate."
 
 #: src/Admin/EventsPage.php:557
 msgid "Ticketart gespeichert."
@@ -828,91 +812,84 @@ msgid "Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Er
 msgstr "I biglietti pagati restano rimborsabili: effettua il rimborso da Ordine → Rimborsa."
 
 #: src/Admin/EventsPage.php:634
-#, fuzzy
 msgid "← Zum Event"
-msgstr "← Torna agli eventi"
+msgstr "← Torna all'evento"
 
 #. translators: 1: event name, 2: date
 #: src/Admin/EventsPage.php:636
-#, fuzzy, php-format
+#, php-format
 msgid "Termin absagen: %1$s, %2$s"
-msgstr "Annullamento della data"
+msgstr "Annulla data: %1$s, %2$s"
 
 #: src/Admin/EventsPage.php:638
-#, fuzzy
 msgid "Dieser Termin ist bereits abgesagt."
-msgstr "L'evento è stato annullato."
+msgstr "Questa data è già stata annullata."
 
 #: src/Admin/EventsPage.php:640
-#, fuzzy
 msgid "Die Absage kann nicht rückgängig gemacht werden. Folgen:"
-msgstr "La chiave non può essere modificata."
+msgstr "L'annullamento non può essere revocato. Conseguenze:"
 
 #. translators: %d: tickets
 #: src/Admin/EventsPage.php:642
-#, fuzzy, php-format
+#, php-format
 msgid "%d gültige Tickets werden widerrufen."
-msgstr "Biglietto revocato."
+msgstr "%d biglietti validi verranno revocati."
 
 #. translators: %d: orders
 #: src/Admin/EventsPage.php:644
-#, fuzzy, php-format
+#, php-format
 msgid "%d unbezahlte Bestellungen werden storniert, ihre Reservierungen freigegeben."
-msgstr "Annullare l'ordine non pagato e liberare la prenotazione?"
+msgstr "%d ordini non pagati verranno annullati e le relative prenotazioni liberate."
 
 #. translators: %d: orders
 #: src/Admin/EventsPage.php:647
-#, fuzzy, php-format
+#, php-format
 msgid "%d bezahlte Bestellungen werden automatisch erstattet (Freigaberegeln gelten)."
-msgstr "In caso di annullamento di una data, rimborsa automaticamente gli ordini pagati"
+msgstr "%d ordini pagati verranno rimborsati automaticamente (si applicano le regole di approvazione)."
 
 #. translators: %d: orders
 #: src/Admin/EventsPage.php:649
-#, fuzzy, php-format
+#, php-format
 msgid "%d bezahlte Bestellungen werden nicht automatisch erstattet; die Tickets bleiben erstattungsfähig (Bestellung → Erstatten)."
-msgstr "I biglietti pagati restano rimborsabili: effettua il rimborso da Ordine → Rimborsa."
+msgstr "%d ordini pagati non verranno rimborsati automaticamente; i biglietti restano rimborsabili (Ordine → Rimborsa)."
 
 #. translators: %d: orders
 #: src/Admin/EventsPage.php:652
-#, fuzzy, php-format
+#, php-format
 msgid "%d WooCommerce-Bestellungen müssen in WooCommerce erstattet werden."
-msgstr "Annulla gli ordini WooCommerce direttamente in WooCommerce."
+msgstr "%d ordini WooCommerce devono essere rimborsati in WooCommerce."
 
 #. translators: %d: recipients
 #: src/Admin/EventsPage.php:655
 #, php-format
 msgid "%d Personen erhalten die Absage-Mail."
-msgstr ""
+msgstr "%d persone riceveranno l'e-mail di annullamento."
 
 #. translators: 1: pass name, 2: tickets, 3: effect
 #: src/Admin/EventsPage.php:658
-#, fuzzy, php-format
+#, php-format
 msgid "Pass „%1$s“ (%2$d Tickets): %3$s"
-msgstr "%1$s (%2$d tipi di biglietto)"
+msgstr "Pass «%1$s» (%2$d biglietti): %3$s"
 
 #: src/Admin/EventsPage.php:663
-#, fuzzy
 msgid "Grund der Absage"
-msgstr "Motivo del rifiuto"
+msgstr "Motivo dell'annullamento"
 
 #: src/Admin/EventsPage.php:663
-#, fuzzy
 msgid "Wird im Protokoll gespeichert."
-msgstr "Valore salvato"
+msgstr "Viene salvato nel registro."
 
 #: src/Admin/EventsPage.php:664
-#, fuzzy
 msgid "Bestätigung"
-msgstr "Condizione"
+msgstr "Conferma"
 
 #: src/Admin/EventsPage.php:664
 msgid "Ich habe die Folgen geprüft und möchte den Termin absagen."
-msgstr ""
+msgstr "Ho verificato le conseguenze e voglio annullare la data."
 
 #: src/Admin/EventsPage.php:665
-#, fuzzy
 msgid "Termin endgültig absagen"
-msgstr "Sì, trasferisci definitivamente"
+msgstr "Annulla definitivamente la data"
 
 #: src/Admin/EventsPage.php:669 src/Seating/AdminPage.php:132
 msgid "Nicht gefunden oder keine Berechtigung für dieses Event."
@@ -934,7 +911,7 @@ msgstr "Pubblicato"
 
 #: src/Admin/EventsPage.php:688
 msgid "Events mit nächstem Termin, Auslastung und Umsatz"
-msgstr ""
+msgstr "Eventi con prossima data, tasso di occupazione e fatturato"
 
 #: src/Admin/EventsPage.php:691 src/Frontend/EventCard.php:137
 msgid "Nächster Termin"
@@ -958,9 +935,8 @@ msgid "Verkauft / Kapazität"
 msgstr "Venduti / Capienza"
 
 #: src/Admin/EventsPage.php:695
-#, fuzzy
 msgid "Umsatz"
-msgstr "Ricavi netti"
+msgstr "Fatturato"
 
 #: src/Admin/EventsPage.php:697 src/Admin/EventsPage.php:812
 #: src/Admin/EventsPage.php:877 src/Admin/EventsPage.php:1006
@@ -1095,9 +1071,8 @@ msgid "Bearbeiten & Ticketarten"
 msgstr "Modifica e tipi di biglietto"
 
 #: src/Admin/EventsPage.php:826
-#, fuzzy
 msgid "Absagen …"
-msgstr "Annulla"
+msgstr "Annulla …"
 
 #: src/Admin/EventsPage.php:835 src/Admin/EventsPage.php:861
 msgid "Termin hinzufügen"
@@ -1109,13 +1084,12 @@ msgid "Beginn (Ortszeit)"
 msgstr "Inizio (ora locale)"
 
 #: src/Admin/EventsPage.php:852
-#, fuzzy
 msgid "Einlass ab (optional)"
-msgstr "E-mail (facoltativa)"
+msgstr "Ingresso dalle (facoltativo)"
 
 #: src/Admin/EventsPage.php:852
 msgid "Ortszeit. Vorher wird am Einlass niemand eingelassen, auch wenn eine Einlassregel früher öffnet. Leer = kein eigener Einlassbeginn."
-msgstr ""
+msgstr "Ora locale. Prima di quest'ora nessuno viene fatto entrare, anche se una regola di ingresso apre prima. Vuoto = nessun orario di apertura proprio."
 
 #: src/Admin/EventsPage.php:853 src/Admin/Forms.php:437 src/Mail/Types.php:301
 #: src/Mail/Types.php:317 src/Reminders/Placeholders.php:14
@@ -1267,28 +1241,24 @@ msgid "leer = bis Terminbeginn"
 msgstr "vuoto = fino all'inizio della data"
 
 #: src/Admin/EventsPage.php:963
-#, fuzzy
 msgid "Einlasskontrolle"
-msgstr "Conflitti di ingresso"
+msgstr "Controllo all'ingresso"
 
 #: src/Admin/EventsPage.php:964 src/AdmissionChecks.php:62
-#, fuzzy
 msgid "Ausweis prüfen"
-msgstr "Assegna"
+msgstr "Verifica documento d'identità"
 
 #: src/Admin/EventsPage.php:965
-#, fuzzy
 msgid "Mindestalter"
-msgstr "Organizzatore"
+msgstr "Età minima"
 
 #: src/Admin/EventsPage.php:966
-#, fuzzy
 msgid "Hinweis für das Einlasspersonal"
-msgstr "Pass Captain Personale ingressi"
+msgstr "Nota per il personale all'ingresso"
 
 #: src/Admin/EventsPage.php:967
 msgid "Wird beim Scannen (Web-Scanner, App, Offline-Scanner) angezeigt; Mindestalter und Ausweispflicht sehen Käufer auch beim Ticketkauf. Der Scan wird dadurch nicht abgelehnt."
-msgstr ""
+msgstr "Viene mostrata durante la scansione (scanner web, app, scanner offline); l'età minima e l'obbligo di documento sono visibili agli acquirenti anche al momento dell'acquisto. La scansione non viene comunque rifiutata."
 
 #: src/Admin/EventsPage.php:969 src/Admin/Forms.php:488
 #: src/Admin/SettingsPage.php:542 src/Allocations/AdminPage.php:262
@@ -1414,25 +1384,25 @@ msgstr "Salva campo"
 #: src/Admin/Forms.php:209
 #, php-format
 msgid "Die Ortszeit %1$s gibt es in der Zeitzone %2$s wegen der Umstellung auf Sommerzeit nicht. Bitte eine andere Zeit wählen, z. B. %3$s (erste gültige Zeit danach)."
-msgstr ""
+msgstr "L'ora locale %1$s non esiste nel fuso orario %2$s a causa del passaggio all'ora legale. Scegli un altro orario, ad es. %3$s (il primo orario valido successivo)."
 
 #. translators: 1: entered local time, 2: timezone, 3: UTC offset used, 4: UTC offset of the second instance
 #: src/Admin/Forms.php:218
 #, php-format
 msgid "Die Ortszeit %1$s kommt in der Zeitzone %2$s wegen der Umstellung auf Winterzeit zweimal vor. Verwendet wurde die erste (Sommerzeit, UTC%3$s), nicht die zweite (UTC%4$s)."
-msgstr ""
+msgstr "L'ora locale %1$s ricorre due volte nel fuso orario %2$s a causa del passaggio all'ora solare. È stata usata la prima (ora legale, UTC%3$s), non la seconda (UTC%4$s)."
 
 #. translators: 1: local time of the repetition, 2: timezone, 3: local time used instead
 #: src/Admin/Forms.php:245
 #, php-format
 msgid "Die Wiederholung am %1$s fällt in die Zeitumstellung (Zeitzone %2$s, diese Ortszeit gibt es nicht) und wurde auf %3$s verschoben."
-msgstr ""
+msgstr "La ripetizione del %1$s cade nel cambio d'ora (fuso orario %2$s, quest'ora locale non esiste) ed è stata spostata alle %3$s."
 
 #. translators: 1: local time of the repetition, 2: timezone, 3: UTC offset used
 #: src/Admin/Forms.php:248
 #, php-format
 msgid "Die Wiederholung am %1$s liegt in der doppelten Stunde der Zeitumstellung (Zeitzone %2$s); verwendet wurde die erste (Sommerzeit, UTC%3$s)."
-msgstr ""
+msgstr "La ripetizione del %1$s cade nell'ora doppia del cambio d'ora (fuso orario %2$s); è stata usata la prima (ora legale, UTC%3$s)."
 
 #. translators: %s: number of entries
 #: src/Admin/Forms.php:445
@@ -1574,138 +1544,125 @@ msgstr "Check-out effettuato"
 
 #: src/Admin/GettingStarted.php:87
 msgid "Eine Online-Zahlungsart ist aktiv und vollständig eingerichtet."
-msgstr ""
+msgstr "Un metodo di pagamento online è attivo e configurato completamente."
 
 #: src/Admin/GettingStarted.php:89
 msgid "Überweisung ist mit Bankverbindung bzw. Zahlungshinweis eingerichtet."
-msgstr ""
+msgstr "Il bonifico è configurato con le coordinate bancarie o le istruzioni di pagamento."
 
 #: src/Admin/GettingStarted.php:91
 msgid "Die Zahlung läuft über den WooCommerce-Checkout."
-msgstr ""
+msgstr "Il pagamento avviene tramite il checkout di WooCommerce."
 
 #: src/Admin/GettingStarted.php:93
 msgid "Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überweisung die IBAN hinterlegen."
-msgstr ""
+msgstr "Attiva Stripe, PayPal o Mollie con le credenziali di accesso oppure, per il bonifico, inserisci l'IBAN."
 
 #: src/Admin/GettingStarted.php:98
-#, fuzzy
 msgid "Zahlungsart einrichten"
-msgstr "Metodi di pagamento"
+msgstr "Configura metodo di pagamento"
 
 #: src/Admin/GettingStarted.php:105
-#, fuzzy
 msgid "Rechtstexte hinterlegen"
-msgstr "Testi legali"
+msgstr "Inserisci i testi legali"
 
 #: src/Admin/GettingStarted.php:106
-#, fuzzy
 msgid "AGB/Teilnahmebedingungen und Verbraucherinformationen (Widerrufshinweis) für den Checkout."
-msgstr "Informazioni per i consumatori (es. informativa sul diritto di recesso)"
+msgstr "Condizioni generali/condizioni di partecipazione e informazioni per i consumatori (informativa sul diritto di recesso) per il checkout."
 
 #: src/Admin/GettingStarted.php:112
-#, fuzzy
 msgid "Rechnungssteller angeben"
-msgstr "Emittente della fattura"
+msgstr "Indica l'emittente della fattura"
 
 #: src/Admin/GettingStarted.php:113
 msgid "Name und Anschrift für Rechnungen und Belege."
-msgstr ""
+msgstr "Nome e indirizzo per fatture e ricevute."
 
 #: src/Admin/GettingStarted.php:119
-#, fuzzy
 msgid "Erstes Event anlegen"
-msgstr "Crea evento"
+msgstr "Crea il primo evento"
 
 #: src/Admin/GettingStarted.php:120
 msgid "Ein Event mit erstem Termin und Ticketart lässt sich in einem Schritt anlegen."
-msgstr ""
+msgstr "Puoi creare un evento con la prima data e un tipo di biglietto in un solo passaggio."
 
 #: src/Admin/GettingStarted.php:126
-#, fuzzy
 msgid "Kommenden Termin planen"
-msgstr "Nessuna data."
+msgstr "Pianifica una data futura"
 
 #: src/Admin/GettingStarted.php:127
 msgid "Mindestens ein geplanter Termin in der Zukunft."
-msgstr ""
+msgstr "Almeno una data pianificata nel futuro."
 
 #: src/Admin/GettingStarted.php:133
-#, fuzzy
 msgid "Ticketart anlegen"
-msgstr "Tipi di biglietto"
+msgstr "Crea tipo di biglietto"
 
 #: src/Admin/GettingStarted.php:134
 msgid "Mindestens eine aktive Ticketart mit Preis und Kontingent."
-msgstr ""
+msgstr "Almeno un tipo di biglietto attivo con prezzo e contingente."
 
 #: src/Admin/GettingStarted.php:140
-#, fuzzy
 msgid "Event veröffentlichen"
-msgstr "Pubblicato"
+msgstr "Pubblica evento"
 
 #: src/Admin/GettingStarted.php:141
-#, fuzzy
 msgid "Erst veröffentlichte Events sind buchbar."
-msgstr "Nessun evento pubblicato con autorizzazione all'ingresso."
+msgstr "Solo gli eventi pubblicati sono prenotabili."
 
 #: src/Admin/GettingStarted.php:147
-#, fuzzy
 msgid "Scanner-Gerät koppeln"
-msgstr "Dispositivi scanner"
+msgstr "Abbina un dispositivo scanner"
 
 #: src/Admin/GettingStarted.php:148
 msgid "Ein Smartphone für den Einlass mit der Scanner-App koppeln."
-msgstr ""
+msgstr "Abbina uno smartphone all'app scanner per l'ingresso."
 
 #: src/Admin/GettingStarted.php:154
 msgid "Testbestellung durchführen"
-msgstr ""
+msgstr "Esegui un ordine di prova"
 
 #: src/Admin/GettingStarted.php:155
 msgid "Eine Bestellung bis zur Zahlung durchspielen und Ticket-E-Mail prüfen."
-msgstr ""
+msgstr "Completa un ordine fino al pagamento e controlla l'e-mail con i biglietti."
 
 #: src/Admin/GettingStarted.php:196
 msgid "Erste-Schritte-Checkliste anzeigen"
-msgstr ""
+msgstr "Mostra la checklist dei primi passi"
 
 #: src/Admin/GettingStarted.php:202
-#, fuzzy
 msgid "Erste Schritte"
-msgstr "Rimborsato"
+msgstr "Primi passi"
 
 #. translators: 1: completed steps, 2: all steps
 #: src/Admin/GettingStarted.php:204
 #, php-format
 msgid "%1$d von %2$d Schritten erledigt"
-msgstr ""
+msgstr "%1$d passaggi su %2$d completati"
 
 #: src/Admin/GettingStarted.php:205
 msgid "alles bereit für den Verkauf."
-msgstr ""
+msgstr "tutto pronto per la vendita."
 
 #: src/Admin/GettingStarted.php:213
 msgid "Erledigt:"
-msgstr ""
+msgstr "Completati:"
 
 #: src/Admin/GettingStarted.php:213
-#, fuzzy
 msgid "Offen:"
-msgstr "Aperto"
+msgstr "Da fare:"
 
 #: src/Admin/GettingStarted.php:223
-#, fuzzy
 msgid "Checkliste ausblenden"
-msgstr "Leggere i check-in"
+msgstr "Nascondi checklist"
 
 #: src/Admin/Menu.php:64
 msgid "WP Pass Captain: Das Datenbank-Update ist unvollständig."
-msgstr ""
+msgstr "WP Pass Captain: l'aggiornamento del database è incompleto."
 
 #: src/Admin/Menu.php:64
 msgid "Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren."
-msgstr ""
+msgstr "Mancano tabelle o colonne; il plugin continua a funzionare con lo schema precedente. Controlla i permessi del database, quindi disattiva e riattiva il plugin."
 
 #: src/Admin/Menu.php:87
 msgid "Pass Captain"
@@ -1713,7 +1670,7 @@ msgstr "Pass Captain"
 
 #: src/Admin/Menu.php:112
 msgid "Events & Programm"
-msgstr ""
+msgstr "Eventi e programma"
 
 #: src/Admin/Menu.php:113 src/BoxOffice/Page.php:51
 #: src/Partners/Settlements.php:56 src/Partners/Statement.php:172
@@ -1729,17 +1686,15 @@ msgstr "Ingresso"
 
 #: src/Admin/Menu.php:115
 msgid "Finanzen & Auswertung"
-msgstr ""
+msgstr "Finanze e report"
 
 #: src/Admin/Menu.php:116
-#, fuzzy
 msgid "Kommunikation"
-msgstr "Condizioni"
+msgstr "Comunicazione"
 
 #: src/Admin/Menu.php:117
-#, fuzzy
 msgid "Einstellungen & Integrationen"
-msgstr "Salva impostazioni"
+msgstr "Impostazioni e integrazioni"
 
 #: src/Admin/Menu.php:175 src/Admin/Menu.php:181 src/Admin/OrdersPage.php:523
 #: src/Admin/SettingsPage.php:110 src/BoxOffice/ZReport.php:381
@@ -1865,9 +1820,8 @@ msgid "Zahlung bestätigt; Tickets wurden ausgestellt."
 msgstr "Pagamento confermato; i biglietti sono stati emessi."
 
 #: src/Admin/OrdersPage.php:187
-#, fuzzy
 msgid "Kontingent zugeteilt; Tickets wurden ausgestellt."
-msgstr "Pagamento confermato; i biglietti sono stati emessi."
+msgstr "Contingente assegnato; i biglietti sono stati emessi."
 
 #: src/Admin/OrdersPage.php:194
 msgid "Bestellung storniert."
@@ -1986,31 +1940,27 @@ msgstr "Pagato, ma non è stato possibile addebitare il buono di %1$s (errore: %
 
 #: src/Admin/OrdersPage.php:351
 msgid "Zusatzbestellung zu einem Ticketumtausch (Aufpreis/Gebühr). Das Ticket wird in der ursprünglichen Bestellung geführt."
-msgstr ""
+msgstr "Ordine aggiuntivo per un cambio di biglietto (supplemento/commissione). Il biglietto resta registrato nell'ordine originale."
 
 #: src/Admin/OrdersPage.php:352
-#, fuzzy
 msgid "Ursprüngliche Bestellung öffnen"
-msgstr "Apri ordine WooCommerce #%d"
+msgstr "Apri ordine originale"
 
 #: src/Admin/OrdersPage.php:359
 msgid "Die Ticket-E-Mail konnte auch nach mehreren Versuchen nicht zugestellt werden. Bitte E-Mail-Adresse und Mailversand prüfen und „Tickets erneut senden“ verwenden."
-msgstr ""
+msgstr "Non è stato possibile consegnare l'e-mail con i biglietti nemmeno dopo diversi tentativi. Controlla l'indirizzo e-mail e l'invio delle e-mail, quindi usa «Invia di nuovo i biglietti»."
 
 #: src/Admin/OrdersPage.php:359
-#, fuzzy
 msgid "Die Ticket-E-Mail konnte nicht zugestellt werden; ein neuer Versuch (mit neuen Ticketcodes) ist geplant."
-msgstr "Almeno un'e-mail non ha potuto essere consegnata. I codici dei biglietti sono stati rinnovati; riprova l'invio."
+msgstr "Non è stato possibile consegnare l'e-mail con i biglietti; è previsto un nuovo tentativo (con nuovi codici dei biglietti)."
 
 #: src/Admin/OrdersPage.php:362
-#, fuzzy
 msgid "Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung außerhalb des Plugins zurückerstatten."
-msgstr "Il pagamento è arrivato dopo la scadenza della prenotazione e non c'era più contingente disponibile. Libera un posto oppure rimborsa il pagamento al di fuori del plugin."
+msgstr "Il pagamento è arrivato dopo la scadenza della prenotazione e non c'era più contingente disponibile. Libera un posto e riprova l'assegnazione oppure rimborsa il pagamento al di fuori del plugin."
 
 #: src/Admin/OrdersPage.php:363
-#, fuzzy
 msgid "Zuteilung erneut versuchen"
-msgstr "Rimuovi assegnazione"
+msgstr "Riprova assegnazione"
 
 #: src/Admin/OrdersPage.php:368 src/Admin/TicketsPage.php:178
 #: src/Privacy.php:216
@@ -2034,13 +1984,12 @@ msgid "Zahlart / Referenz"
 msgstr "Metodo di pagamento / Riferimento"
 
 #: src/Admin/OrdersPage.php:374 src/OrderPortal.php:115 src/Privacy.php:143
-#, fuzzy
 msgid "Bankverbindung für Erstattungen"
-msgstr "Non hai l'autorizzazione per effettuare rimborsi."
+msgstr "Coordinate bancarie per i rimborsi"
 
 #: src/Admin/OrdersPage.php:374
 msgid "Noch nicht angegeben (Käufer:in kann sie in der Bestellübersicht eintragen)."
-msgstr ""
+msgstr "Non ancora indicate (l'acquirente può inserirle nel riepilogo dell'ordine)."
 
 #: src/Admin/OrdersPage.php:382 src/BoxOffice/Service.php:37
 #: src/Invoices.php:488 src/Printing/InvoicePdf.php:105
@@ -2055,9 +2004,9 @@ msgstr "Visualizza fattura %s"
 
 #. translators: %s: credit note numbers
 #: src/Admin/OrdersPage.php:385
-#, fuzzy, php-format
+#, php-format
 msgid "Rechnungskorrekturen (in der Rechnungsansicht): %s"
-msgstr "Note di credito (nella vista fattura): %s"
+msgstr "Rettifiche fattura (nella vista fattura): %s"
 
 #: src/Admin/OrdersPage.php:387
 msgid "Rechnung erstellen"
@@ -2123,7 +2072,7 @@ msgstr "Rimborsati (pz.)"
 
 #: src/Admin/OrdersPage.php:418
 msgid "Umgebucht (Stk.)"
-msgstr ""
+msgstr "Trasferiti (pz.)"
 
 #: src/Admin/OrdersPage.php:444
 msgid "Zwischensumme"
@@ -2290,7 +2239,7 @@ msgstr "Rifiuta"
 #: src/Admin/Queries.php:106
 #, php-format
 msgid "%s (vergangen)"
-msgstr ""
+msgstr "%s (passata)"
 
 #: src/Admin/RefundsPage.php:29
 msgid "Erstattungen zur Freigabe"
@@ -2318,7 +2267,7 @@ msgstr "In caso di annullamento di una data, rimborsa automaticamente gli ordini
 
 #: src/Admin/SettingsPage.php:42
 msgid "Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)"
-msgstr ""
+msgstr "Principio dei quattro occhi per i biglietti omaggio (lista ospiti: chi fa la richiesta non può approvarla; amministratori esclusi)"
 
 #: src/Admin/SettingsPage.php:46
 msgid "Einlass / Scanner-Geräte"
@@ -2353,18 +2302,16 @@ msgid "Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungsta
 msgstr "Ingresso fino a (minuti dopo la fine; senza fine: fino alla fine del giorno dell'evento)"
 
 #: src/Admin/SettingsPage.php:58 src/Admin/SettingsPage.php:465
-#, fuzzy
 msgid "Übersicht"
-msgstr "Report"
+msgstr "Panoramica"
 
 #: src/Admin/SettingsPage.php:61
 msgid "Aktive Zahlungsarten"
 msgstr "Metodi di pagamento attivi"
 
 #: src/Admin/SettingsPage.php:65
-#, fuzzy
 msgid "Überweisung"
-msgstr "Bonifico: BIC"
+msgstr "Bonifico"
 
 #: src/Admin/SettingsPage.php:69
 msgid "Hinweis für manuelle Zahlung (z. B. Bankverbindung)"
@@ -2396,16 +2343,15 @@ msgstr "Prenotazione con pagamento manuale (ore)"
 
 #: src/Admin/SettingsPage.php:73
 msgid "Endet spätestens mit Beginn des (ersten) Termins."
-msgstr ""
+msgstr "Termina al più tardi all'inizio della (prima) data."
 
 #: src/Admin/SettingsPage.php:74
-#, fuzzy
 msgid "Überweisung nur bis … Stunden vor Beginn anbieten"
-msgstr "Le modifiche sono possibili fino a %d ore prima dell'inizio."
+msgstr "Offri il bonifico solo fino a … ore prima dell'inizio"
 
 #: src/Admin/SettingsPage.php:74
 msgid "0 = bis zum Beginn. Empfohlen: 24–48 Stunden, damit die Zahlung rechtzeitig eingeht."
-msgstr ""
+msgstr "0 = fino all'inizio. Consigliato: 24–48 ore, affinché il pagamento arrivi in tempo."
 
 #: src/Admin/SettingsPage.php:78
 msgid "Stripe"
@@ -2604,9 +2550,8 @@ msgid "Zahlungsarten"
 msgstr "Metodi di pagamento"
 
 #: src/Admin/SettingsPage.php:204
-#, fuzzy
 msgid "Rechnungen"
-msgstr "Fattura"
+msgstr "Fatture"
 
 #. translators: %s: field label
 #: src/Admin/SettingsPage.php:286
@@ -2633,9 +2578,8 @@ msgid "Pass Captain Einstellungen"
 msgstr "Impostazioni di Pass Captain"
 
 #: src/Admin/SettingsPage.php:429
-#, fuzzy
 msgid "Einstellungsbereiche"
-msgstr "Salva impostazioni"
+msgstr "Sezioni delle impostazioni"
 
 #: src/Admin/SettingsPage.php:442
 msgid "Webhook-URL:"
@@ -2645,7 +2589,7 @@ msgstr "URL del webhook:"
 #: src/Admin/SettingsPage.php:445
 #, php-format
 msgid "Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung."
-msgstr ""
+msgstr "I testi seguenti valgono per la lingua predefinita (%s) e per ogni lingua senza una versione propria."
 
 #: src/Admin/SettingsPage.php:457 src/Partners/AdminPage.php:261
 msgid "Einstellungen speichern"
@@ -2653,44 +2597,43 @@ msgstr "Salva impostazioni"
 
 #. translators: %s: payment method
 #: src/Admin/SettingsPage.php:493
-#, fuzzy, php-format
+#, php-format
 msgid "%s im Checkout anbieten"
-msgstr "Richiedi il consenso al checkout"
+msgstr "Offri %s al checkout"
 
 #: src/Admin/SettingsPage.php:495 src/Admin/SettingsPage.php:552
 msgid "(nicht vollständig konfiguriert)"
 msgstr "(non completamente configurato)"
 
 #: src/Admin/SettingsPage.php:505
-#, fuzzy
 msgid "Rechtstexte je Sprache"
-msgstr "Testi legali"
+msgstr "Testi legali per lingua"
 
 #: src/Admin/SettingsPage.php:506
 msgid "Käufer sehen die Texte ihrer Sprache (Sprache der Seite bzw. von WPML/Polylang). Leere Felder übernehmen den Text der Standardsprache. Jede Sprache hat eine eigene Version, die mit der Bestellung gespeichert wird."
-msgstr ""
+msgstr "Gli acquirenti vedono i testi nella propria lingua (lingua della pagina o di WPML/Polylang). I campi vuoti riprendono il testo della lingua predefinita. Ogni lingua ha una propria versione, che viene salvata con l'ordine."
 
 #. translators: %s: locale code
 #: src/Admin/SettingsPage.php:518
 #, php-format
 msgid "Leer: es gilt der Text von %s."
-msgstr ""
+msgstr "Vuoto: vale il testo di %s."
 
 #. translators: 1: locale code, 2: version hash
 #: src/Admin/SettingsPage.php:525
 #, php-format
 msgid "Aktuelle Version für %1$s: %2$s"
-msgstr ""
+msgstr "Versione attuale per %1$s: %2$s"
 
 #: src/Admin/SettingsPage.php:530
 msgid "Weitere Sprache hinzufügen (Locale, z. B. en_US):"
-msgstr ""
+msgstr "Aggiungi un'altra lingua (locale, ad es. en_US):"
 
 #. translators: %s: payment method
 #: src/Admin/SettingsPage.php:558
-#, fuzzy, php-format
+#, php-format
 msgid "%s einrichten"
-msgstr "Report"
+msgstr "Configura %s"
 
 #. translators: %s: version hash
 #: src/Admin/SettingsPage.php:570
@@ -2707,9 +2650,8 @@ msgid "Nicht gesetzt"
 msgstr "Non impostato"
 
 #: src/Admin/SettingsPage.php:588 src/Secrets.php:415
-#, fuzzy
 msgid "Gespeicherten Wert löschen"
-msgstr "Rimuovi il valore salvato"
+msgstr "Elimina il valore salvato"
 
 #. translators: %s: constant name
 #: src/Admin/SettingsPage.php:596
@@ -3027,9 +2969,8 @@ msgid "Tickettyp nicht gefunden."
 msgstr "Tipo di biglietto non trovato."
 
 #: src/Admission/RulesPage.php:67
-#, fuzzy
 msgid "Die Kapazität muss eine ganze Zahl ab 0 sein (0 = unbegrenzt)."
-msgstr "La priorità deve essere un numero intero."
+msgstr "La capacità deve essere un numero intero a partire da 0 (0 = illimitata)."
 
 #: src/Admission/RulesPage.php:98
 msgid "Benutzer nicht gefunden."
@@ -3103,12 +3044,11 @@ msgstr "Le aree (es. «Ingresso Nord», «VIP») limitano dove vengono ammessi i
 
 #: src/Admission/RulesPage.php:205
 msgid "Kapazität: so viele Personen dürfen gleichzeitig über diesen Bereich drinnen sein (0 = unbegrenzt); ist sie erreicht, lehnt der Scanner weitere Einlässe ab, bis Auslässe gescannt werden."
-msgstr ""
+msgstr "Capacità: il numero di persone che possono trovarsi contemporaneamente all'interno tramite quest'area (0 = illimitata); una volta raggiunta, lo scanner rifiuta altri ingressi finché non vengono scansionate delle uscite."
 
 #: src/Admission/RulesPage.php:209
-#, fuzzy
 msgid "Name des Bereichs"
-msgstr "Nuova area"
+msgstr "Nome dell'area"
 
 #: src/Admission/RulesPage.php:209 src/Admission/RulesPage.php:223
 #: src/Allocations/AdminPage.php:202 src/Reports/Data.php:403
@@ -3191,24 +3131,23 @@ msgstr "Solo in queste aree (nessuna selezione = tutte):"
 
 #: src/AdmissionChecks.php:33
 msgid "Das Mindestalter muss zwischen 0 und 99 Jahren liegen (leer oder 0 = keines)."
-msgstr ""
+msgstr "L'età minima deve essere compresa tra 0 e 99 anni (vuoto o 0 = nessuna)."
 
 #. translators: %d: minimum age in years
 #: src/AdmissionChecks.php:64
 #, php-format
 msgid "Mindestalter %d"
-msgstr ""
+msgstr "Età minima %d"
 
 #. translators: %d: minimum age in years
 #: src/AdmissionChecks.php:73
 #, php-format
 msgid "ab %d Jahren"
-msgstr ""
+msgstr "dai %d anni"
 
 #: src/AdmissionChecks.php:74
-#, fuzzy
 msgid "Ausweis erforderlich"
-msgstr "idempotency_key è obbligatorio."
+msgstr "Documento d'identità richiesto"
 
 #: src/Allocations/AdminPage.php:43 src/Partners/Sales.php:370
 #: src/Series/Pools.php:102
@@ -3216,58 +3155,51 @@ msgid "Kontingent nicht gefunden."
 msgstr "Contingente non trovato."
 
 #: src/Allocations/AdminPage.php:90 src/Allocations/SeatHolds.php:89
-#, fuzzy
 msgid "Das Saalplan-Modul ist nicht verfügbar."
-msgstr "Questo evento non è disponibile."
+msgstr "Il modulo mappa della sala non è disponibile."
 
 #: src/Allocations/AdminPage.php:92 src/Allocations/SeatHolds.php:105
-#, fuzzy
 msgid "Dieser Termin hat keinen Saalplan."
-msgstr "Per questa data non esiste una mappa della sala."
+msgstr "Questa data non ha una mappa della sala."
 
 #. translators: %s: seat key
 #: src/Allocations/AdminPage.php:100
-#, fuzzy, php-format
+#, php-format
 msgid "Sitzplatz „%s“ nicht gefunden."
-msgstr "Mappa della sala non trovata."
+msgstr "Posto «%s» non trovato."
 
 #: src/Allocations/AdminPage.php:144
-#, fuzzy
 msgid "Kontingent angelegt."
-msgstr "Contingente modificato."
+msgstr "Contingente creato."
 
 #: src/Allocations/AdminPage.php:150
 msgid "Plätze für den freien Verkauf freigegeben."
-msgstr ""
+msgstr "Posti liberati per la vendita libera."
 
 #: src/Allocations/AdminPage.php:156 src/Series/AdminPage.php:216
 msgid "Kontingent gespeichert."
 msgstr "Contingente salvato."
 
 #: src/Allocations/AdminPage.php:162
-#, fuzzy
 msgid "Sitzplätze aktualisiert."
-msgstr "Evento aggiornato."
+msgstr "Posti aggiornati."
 
 #: src/Allocations/AdminPage.php:168
-#, fuzzy
 msgid "Limits gespeichert."
-msgstr "Data salvata."
+msgstr "Limiti salvati."
 
 #: src/Allocations/AdminPage.php:183 src/Modules/Allocations.php:144
 #: src/Partners/AdminPage.php:394
-#, fuzzy
 msgid "Kontingente"
-msgstr "Contingente"
+msgstr "Contingenti"
 
 #: src/Allocations/AdminPage.php:197
 msgid "Kontingente halten Plätze für Künstler, Sponsoren, Presse oder Technik zurück. Sie sind im freien Verkauf (Website, WooCommerce, Warteliste) nicht buchbar; Abendkasse, Gästeliste und Admin können sie nutzen. Sperren (z. B. Technik) blockieren Plätze dauerhaft."
-msgstr ""
+msgstr "I contingenti riservano posti per artisti, sponsor, stampa o tecnica. Non sono prenotabili nella vendita libera (sito web, WooCommerce, lista d'attesa); possono usarli la cassa serale, la lista ospiti e l'amministrazione. I blocchi (ad es. per la tecnica) bloccano i posti in modo permanente."
 
 #: src/Allocations/AdminPage.php:202
-#, fuzzy
 msgid "Aktive Kontingente"
-msgstr "Prezzi e contingenti"
+msgstr "Contingenti attivi"
 
 #. translators: %s: capacity
 #. translators: 1: ticket type, 2: available units
@@ -3276,32 +3208,28 @@ msgstr "Prezzi e contingenti"
 #: src/Allocations/AdminPage.php:240 src/Exchange/AdminPage.php:189
 #: src/Passes/AdminPage.php:156 src/Passes/AdminPage.php:236
 #: src/Passes/AdminPage.php:250
-#, fuzzy
 msgid "unbegrenzt"
-msgstr "0 significa illimitato."
+msgstr "illimitato"
 
 #: src/Allocations/AdminPage.php:208 src/Passes/AdminPage.php:164
-#, fuzzy
 msgid "Keine kommenden Termine."
-msgstr "Nessuna data."
+msgstr "Nessuna data in programma."
 
 #: src/Allocations/AdminPage.php:215
-#, fuzzy
 msgid "Automatische Freigabe (Stunden vor Beginn)"
-msgstr "Last minute da ore prima dell'inizio"
+msgstr "Rilascio automatico (ore prima dell'inizio)"
 
 #: src/Allocations/AdminPage.php:215
 msgid "Vorgabe für neue Kontingente; 0 = keine automatische Freigabe. Sperren werden nie automatisch freigegeben."
-msgstr ""
+msgstr "Valore predefinito per i nuovi contingenti; 0 = nessun rilascio automatico. I blocchi non vengono mai rilasciati automaticamente."
 
 #: src/Allocations/AdminPage.php:216
-#, fuzzy
 msgid "Käuferlimit"
-msgstr "Acquirente"
+msgstr "Limite per acquirente"
 
 #: src/Allocations/AdminPage.php:216
 msgid "Zusätzlich je angemeldetem WordPress-Konto zählen (nicht nur je E-Mail-Adresse)"
-msgstr ""
+msgstr "Conta anche per ogni account WordPress connesso (non solo per indirizzo e-mail)"
 
 #: src/Allocations/AdminPage.php:227 src/Series/AdminPage.php:267
 msgid "Alle Ticketarten"
@@ -3309,15 +3237,15 @@ msgstr "Tutti i tipi di biglietto"
 
 #: src/Allocations/AdminPage.php:231
 msgid "Abendkasse"
-msgstr ""
+msgstr "Cassa serale"
 
 #: src/Allocations/AdminPage.php:231 src/GuestLists/Page.php:152
 msgid "Gästeliste"
-msgstr ""
+msgstr "Lista ospiti"
 
 #: src/Allocations/AdminPage.php:231
 msgid "Admin"
-msgstr ""
+msgstr "Amministrazione"
 
 #: src/Allocations/AdminPage.php:234 src/GuestLists/Page.php:198
 #: src/OfflineScanner/AdminPage.php:131 src/blocks/events/editor.js:13
@@ -3328,83 +3256,75 @@ msgstr "Tutte le date"
 #: src/Allocations/AdminPage.php:236
 #, php-format
 msgid "Kapazität des Termins: %s"
-msgstr ""
+msgstr "Capacità della data: %s"
 
 #. translators: 1: ticket type, 2: available units
 #: src/Allocations/AdminPage.php:240
 #, php-format
 msgid "%1$s: %2$s im freien Verkauf"
-msgstr ""
+msgstr "%1$s: %2$s nella vendita libera"
 
 #: src/Allocations/AdminPage.php:244
-#, fuzzy
 msgid "Kontingente und Sperren"
-msgstr "Modifica contingente"
+msgstr "Contingenti e blocchi"
 
 #: src/Allocations/AdminPage.php:246
 msgid "Genutzt / Gesamt"
-msgstr ""
+msgstr "Usati / totale"
 
 #: src/Allocations/AdminPage.php:246
-#, fuzzy
 msgid "Nutzung nach Kanal"
-msgstr "Ricavi per canale"
+msgstr "Utilizzo per canale"
 
 #: src/Allocations/AdminPage.php:246
-#, fuzzy
 msgid "Auto-Freigabe"
-msgstr "Approva"
+msgstr "Rilascio automatico"
 
 #: src/Allocations/AdminPage.php:254
-#, fuzzy
 msgid "nie"
-msgstr "Spagna"
+msgstr "mai"
 
 #. translators: %d: hours
 #: src/Allocations/AdminPage.php:254
-#, fuzzy, php-format
+#, php-format
 msgid "%d h vor Beginn"
-msgstr "da %d ore prima dell'inizio"
+msgstr "%d h prima dell'inizio"
 
 #: src/Allocations/AdminPage.php:256
 msgid "Sperre"
-msgstr ""
+msgstr "Blocco"
 
 #: src/Allocations/AdminPage.php:267
-#, fuzzy
 msgid "Anzahl freigeben"
-msgstr "Libera posto"
+msgstr "Quantità da liberare"
 
 #: src/Allocations/AdminPage.php:268
-#, fuzzy
 msgid "Teilweise freigeben"
-msgstr "Libera posto"
+msgstr "Libera parzialmente"
 
 #: src/Allocations/AdminPage.php:269
-#, fuzzy
 msgid "Komplett freigeben"
-msgstr "Libera posto"
+msgstr "Libera completamente"
 
 #: src/Allocations/AdminPage.php:273
 msgid "Erhöhen um"
-msgstr ""
+msgstr "Aumenta di"
 
 #: src/Allocations/AdminPage.php:275
 msgid "Auto-Freigabe (h)"
-msgstr ""
+msgstr "Rilascio automatico (h)"
 
 #: src/Allocations/AdminPage.php:282
 msgid "Sitzplätze (IDs oder Schlüssel)"
-msgstr ""
+msgstr "Posti (ID o chiavi)"
 
 #: src/Allocations/AdminPage.php:283
 msgid "Sperren"
-msgstr ""
+msgstr "Blocca"
 
 #: src/Allocations/AdminPage.php:289
-#, fuzzy
 msgid "Noch keine Kontingente."
-msgstr "Nessuna consegna ancora effettuata."
+msgstr "Nessun contingente ancora presente."
 
 #: src/Allocations/AdminPage.php:292 src/Series/AdminPage.php:334
 msgid "Neues Kontingent"
@@ -3412,15 +3332,15 @@ msgstr "Nuovo contingente"
 
 #: src/Allocations/AdminPage.php:296
 msgid "z. B. Künstler, Sponsor, Presse"
-msgstr ""
+msgstr "ad es. artisti, sponsor, stampa"
 
 #: src/Allocations/AdminPage.php:298
 msgid "Kontingent (nutzbar über Kasse/Gästeliste/Admin)"
-msgstr ""
+msgstr "Contingente (utilizzabile tramite cassa/lista ospiti/amministrazione)"
 
 #: src/Allocations/AdminPage.php:298
 msgid "Sperre (dauerhaft blockiert)"
-msgstr ""
+msgstr "Blocco (bloccato in modo permanente)"
 
 #: src/Allocations/AdminPage.php:302 src/BoxOffice/Page.php:111
 #: src/BoxOffice/ShiftPage.php:47 src/Privacy.php:188 src/Waitlists.php:654
@@ -3429,49 +3349,44 @@ msgid "Anzahl"
 msgstr "Quantità"
 
 #: src/Allocations/AdminPage.php:303
-#, fuzzy
 msgid "Automatisch freigeben (Stunden vor Beginn)"
-msgstr "Momenti (ore prima dell'inizio)"
+msgstr "Libera automaticamente (ore prima dell'inizio)"
 
 #: src/Allocations/AdminPage.php:303
 msgid "0 = nie. Nicht genutzte Plätze gehen dann in den freien Verkauf."
-msgstr ""
+msgstr "0 = mai. I posti non utilizzati passano quindi alla vendita libera."
 
 #: src/Allocations/AdminPage.php:304
 msgid "Nutzbar über"
-msgstr ""
+msgstr "Utilizzabile tramite"
 
 #: src/Allocations/AdminPage.php:308
 msgid "Keine Auswahl = alle vertrauenswürdigen Kanäle."
-msgstr ""
+msgstr "Nessuna selezione = tutti i canali affidabili."
 
 #: src/Allocations/AdminPage.php:311
-#, fuzzy
 msgid "Kontingent anlegen"
-msgstr "Modifica contingente"
+msgstr "Crea contingente"
 
 #: src/Allocations/AdminPage.php:315
 msgid "Max. Tickets pro Käufer"
-msgstr ""
+msgstr "Biglietti max. per acquirente"
 
 #: src/Allocations/AdminPage.php:316
 msgid "Gilt über alle Bestellungen (bezahlt und aktiv reserviert) je E-Mail-Adresse bzw. Benutzerkonto, auch im WooCommerce-Checkout. Abendkasse, Gästeliste und Admin sind ausgenommen. 0 = kein Limit."
-msgstr ""
+msgstr "Vale per tutti gli ordini (pagati e con prenotazione attiva) per indirizzo e-mail o account utente, anche nel checkout di WooCommerce. Cassa serale, lista ospiti e amministrazione sono escluse. 0 = nessun limite."
 
 #: src/Allocations/AdminPage.php:320
-#, fuzzy
 msgid "Ganzes Event (alle Termine)"
-msgstr "Evento / Data"
+msgstr "Intero evento (tutte le date)"
 
 #: src/Allocations/AdminPage.php:326
-#, fuzzy
 msgid "Limits speichern"
-msgstr "Salva data"
+msgstr "Salva limiti"
 
 #: src/Allocations/AdminPage.php:329
-#, fuzzy
 msgid "Nutzung der Kontingente"
-msgstr "Nuovo contingente"
+msgstr "Utilizzo dei contingenti"
 
 #: src/Allocations/AdminPage.php:330 src/Exchange/AdminPage.php:127
 #: src/Reports/Data.php:399 src/Reports/Settlement.php:247
@@ -3486,114 +3401,104 @@ msgid "Plätze"
 msgstr "Posti"
 
 #: src/Allocations/AdminPage.php:330
-#, fuzzy
 msgid "Zurückgegeben"
-msgstr "Approvato"
+msgstr "Restituiti"
 
 #: src/Allocations/AdminPage.php:336
-#, fuzzy
 msgid "Noch keine Nutzung."
-msgstr "Nessuna consegna ancora effettuata."
+msgstr "Nessun utilizzo ancora registrato."
 
 #: src/Allocations/BuyerLimits.php:31
-#, fuzzy
 msgid "Für dieses Event ist die maximale Anzahl an Tickets pro Person erreicht."
-msgstr "Per questo evento manca l'autorizzazione all'ingresso."
+msgstr "Per questo evento è stato raggiunto il numero massimo di biglietti per persona."
 
 #: src/Allocations/BuyerLimits.php:85
-#, fuzzy
 msgid "Das Limit konnte nicht gespeichert werden."
-msgstr "Impossibile salvare l'evento."
+msgstr "Impossibile salvare il limite."
 
 #: src/Allocations/BuyerLimits.php:184 src/Modules/Allocations.php:44
 #: src/Modules/Allocations.php:48
-#, fuzzy
 msgid "WP Pass Captain Käuferlimit"
-msgstr "Pass di WP Pass Captain"
+msgstr "Limite per acquirente WP Pass Captain"
 
 #: src/Allocations/BuyerLimits.php:186
 msgid "Gezählte Bestellungen (Bestell-ID => Ticketart => Menge)"
-msgstr ""
+msgstr "Ordini conteggiati (ID ordine => tipo di biglietto => quantità)"
 
 #: src/Allocations/BuyerLimits.php:187
 msgid "Aktualisiert (UTC)"
-msgstr ""
+msgstr "Aggiornato (UTC)"
 
 #. translators: 1: maximum tickets per person, 2: tickets the buyer already has
 #: src/Allocations/BuyerLimits.php:261
-#, fuzzy, php-format
+#, php-format
 msgid "Pro Person sind höchstens %1$d Tickets für dieses Event möglich; du hast bereits %2$d."
-msgstr "Per ogni ordine sono possibili al massimo %1$d biglietti per «%2$s»."
+msgstr "Per persona sono possibili al massimo %1$d biglietti per questo evento; ne hai già %2$d."
 
 #. translators: 1: maximum tickets per person, 2: ticket type, 3: tickets the buyer already has
 #: src/Allocations/BuyerLimits.php:269 src/Allocations/BuyerLimits.php:332
-#, fuzzy, php-format
+#, php-format
 msgid "Pro Person sind höchstens %1$d Tickets der Ticketart „%2$s“ möglich; du hast bereits %3$d."
-msgstr "Per ogni ordine sono possibili al massimo %1$d biglietti per «%2$s»."
+msgstr "Per persona sono possibili al massimo %1$d biglietti del tipo «%2$s»; ne hai già %3$d."
 
 #. translators: %d: maximum tickets per person
 #: src/Allocations/BuyerLimits.php:326
-#, fuzzy, php-format
+#, php-format
 msgid "Pro Person ist höchstens %d Ticket für dieses Event möglich."
 msgid_plural "Pro Person sind höchstens %d Tickets für dieses Event möglich."
-msgstr[0] "Per ogni ordine sono possibili al massimo %1$d biglietti per «%2$s»."
-msgstr[1] "Per ogni ordine sono possibili al massimo %1$d biglietti per «%2$s»."
+msgstr[0] "Per persona è possibile al massimo %d biglietto per questo evento."
+msgstr[1] "Per persona sono possibili al massimo %d biglietti per questo evento."
 
 #. translators: %d: maximum tickets per person
 #: src/Allocations/BuyerLimits.php:422
-#, fuzzy, php-format
+#, php-format
 msgid "Max. %d Ticket pro Person für dieses Event."
 msgid_plural "Max. %d Tickets pro Person für dieses Event."
-msgstr[0] "Non hai l'autorizzazione per questo evento."
-msgstr[1] "Non hai l'autorizzazione per questo evento."
+msgstr[0] "Max. %d biglietto per persona per questo evento."
+msgstr[1] "Max. %d biglietti per persona per questo evento."
 
 #. translators: 1: ticket type, 2: maximum tickets per person
 #: src/Allocations/BuyerLimits.php:427
 #, php-format
 msgid "%1$s: max. %2$d pro Person."
-msgstr ""
+msgstr "%1$s: max. %2$d per persona."
 
 #: src/Allocations/Holds.php:55
-#, fuzzy
 msgid "Das gewählte Kontingent passt nicht zu dieser Bestellung."
-msgstr "Il buono non è compatibile con questo ordine."
+msgstr "Il contingente scelto non è compatibile con questo ordine."
 
 #: src/Allocations/Holds.php:56
 msgid "Kontingente können über diesen Verkaufskanal nicht genutzt werden."
-msgstr ""
+msgstr "I contingenti non possono essere utilizzati tramite questo canale di vendita."
 
 #: src/Allocations/Holds.php:57
-#, fuzzy
 msgid "Das gewählte Kontingent reicht für diese Bestellung nicht aus."
-msgstr "Non hai l'autorizzazione per questo ordine."
+msgstr "Il contingente scelto non è sufficiente per questo ordine."
 
 #. translators: 1: hold name, 2: remaining units
 #: src/Allocations/Holds.php:250
-#, fuzzy, php-format
+#, php-format
 msgid "Im Kontingent „%1$s“ sind nur noch %2$d Plätze frei."
-msgstr "Il contingente condiviso «%1$s» ha ancora solo %2$d biglietti disponibili."
+msgstr "Nel contingente «%1$s» restano liberi solo %2$d posti."
 
 #: src/Allocations/Holds.php:375
-#, fuzzy
 msgid "Bitte einen Namen für das Kontingent angeben."
-msgstr "Inserisci un nome per il tipo di biglietto."
+msgstr "Inserisci un nome per il contingente."
 
 #: src/Allocations/Holds.php:376 src/Allocations/Holds.php:466
-#, fuzzy
 msgid "Bitte eine Anzahl ab 1 angeben."
-msgstr "Indica un nome."
+msgstr "Indica una quantità pari ad almeno 1."
 
 #: src/Allocations/Holds.php:382 src/Partners/Sales.php:346
-#, fuzzy
 msgid "Die Ticketart gehört nicht zu diesem Termin."
-msgstr "Un tipo di biglietto non appartiene a questa data."
+msgstr "Il tipo di biglietto non appartiene a questa data."
 
 #. translators: %d: free units
 #: src/Allocations/Holds.php:387 src/Allocations/Holds.php:435
 #: src/Allocations/SeatHolds.php:127
 #, php-format
 msgid "Es sind nur noch %d Plätze im freien Verkauf, die zurückgehalten werden können."
-msgstr ""
+msgstr "Nella vendita libera restano solo %d posti che possono essere trattenuti."
 
 #: src/Allocations/Holds.php:404 src/Allocations/Holds.php:440
 #: src/Series/Pools.php:71
@@ -3604,44 +3509,36 @@ msgstr "Impossibile salvare il contingente."
 #: src/Allocations/Holds.php:456 src/Allocations/Holds.php:461
 #: src/Allocations/SeatHolds.php:92 src/Allocations/SeatHolds.php:103
 #: src/Allocations/SeatHolds.php:149 src/Allocations/SeatHolds.php:156
-#, fuzzy
 msgid "Kontingent nicht gefunden oder bereits freigegeben."
-msgstr "Contingente non trovato."
+msgstr "Contingente non trovato o già liberato."
 
 #: src/Allocations/Holds.php:475
-#, fuzzy
 msgid "Das Kontingent konnte nicht freigegeben werden."
-msgstr "Impossibile salvare il contingente."
+msgstr "Impossibile liberare il contingente."
 
 #: src/Allocations/SeatHolds.php:93 src/Allocations/SeatHolds.php:151
-#, fuzzy
 msgid "Bitte Sitzplätze auswählen."
-msgstr "Scegli i posti"
+msgstr "Seleziona i posti."
 
 #: src/Allocations/SeatHolds.php:107
-#, fuzzy
 msgid "Mindestens ein Sitzplatz gehört nicht zum Saalplan dieses Termins."
-msgstr "Un tipo di biglietto non appartiene a questa data."
+msgstr "Almeno un posto non appartiene alla mappa della sala di questa data."
 
 #: src/Allocations/SeatHolds.php:112
-#, fuzzy
 msgid "Ein Sitzplatz passt nicht zur Ticketart des Kontingents."
-msgstr "Un posto scelto non è compatibile con il tipo di biglietto (altra area o altra categoria)."
+msgstr "Un posto non è compatibile con il tipo di biglietto del contingente."
 
 #: src/Allocations/SeatHolds.php:119 src/Allocations/SeatHolds.php:133
-#, fuzzy
 msgid "Mindestens ein Sitzplatz ist bereits reserviert, verkauft oder gesperrt."
-msgstr "Almeno un posto non è più disponibile."
+msgstr "Almeno un posto è già prenotato, venduto o bloccato."
 
 #: src/Allocations/SeatHolds.php:136
-#, fuzzy
 msgid "Die Sitzplätze konnten nicht gesperrt werden."
-msgstr "Impossibile salvare i posti."
+msgstr "Impossibile bloccare i posti."
 
 #: src/Allocations/SeatHolds.php:164
-#, fuzzy
 msgid "Die Sitzplätze konnten nicht freigegeben werden."
-msgstr "Impossibile salvare i posti."
+msgstr "Impossibile liberare i posti."
 
 #: src/Billing.php:67
 msgid "Österreich"
@@ -3863,22 +3760,19 @@ msgstr "Il tuo numero d’ordine/di riferimento:"
 
 #: src/BoxOffice/Cash.php:40
 msgid "Bitte bei der Stückelung nur ganze Stückzahlen eintragen."
-msgstr ""
+msgstr "Per i tagli inserisci solo quantità intere."
 
 #: src/BoxOffice/Cash.php:45
-#, fuzzy
 msgid "Unbekannte Stückelung."
-msgstr "Azione sconosciuta."
+msgstr "Taglio sconosciuto."
 
 #: src/BoxOffice/Cash.php:72
-#, fuzzy
 msgid "Der Betrag stimmt nicht mit der Summe der Stückelung überein."
-msgstr "L'importo pagato non corrisponde all'ordine."
+msgstr "L'importo non corrisponde alla somma dei tagli."
 
 #: src/BoxOffice/Cash.php:77
-#, fuzzy
 msgid "Bitte den gezählten Betrag oder die Stückelung angeben."
-msgstr "Indica un motivo per il rifiuto."
+msgstr "Indica l'importo contato o i tagli."
 
 #: src/BoxOffice/Cash.php:79 src/BoxOffice/ShiftPage.php:118
 #: src/BoxOffice/ShiftPage.php:131 src/BoxOffice/ShiftPage.php:250
@@ -3894,18 +3788,16 @@ msgstr "Per le vendite annullate non vengono stampati biglietti."
 
 #: src/BoxOffice/Page.php:52 src/BoxOffice/ShiftPage.php:329
 #: src/BoxOffice/ShiftPage.php:394 src/BoxOffice/ZReport.php:358
-#, fuzzy
 msgid "Schicht"
-msgstr "Luce"
+msgstr "Turno"
 
 #: src/BoxOffice/Page.php:53
 msgid "Schichten & Z-Berichte"
-msgstr ""
+msgstr "Turni e report Z"
 
 #: src/BoxOffice/Page.php:55
-#, fuzzy
 msgid "Kassen"
-msgstr "Cassa"
+msgstr "Casse"
 
 #: src/BoxOffice/Page.php:64 src/BoxOffice/ShiftPage.php:105
 #: src/BoxOffice/ShiftPage.php:309 src/BoxOffice/ShiftPage.php:329
@@ -3916,9 +3808,8 @@ msgid "Kasse"
 msgstr "Cassa"
 
 #: src/BoxOffice/Page.php:67
-#, fuzzy
 msgid "Kassenbereiche"
-msgstr "Aree di ingresso"
+msgstr "Aree cassa"
 
 #: src/BoxOffice/Page.php:80
 #, php-format
@@ -3935,12 +3826,11 @@ msgstr "Stampa biglietti (PDF)"
 
 #: src/BoxOffice/Page.php:88
 msgid "Ihre Schicht wird gerade gezählt; Verkäufe sind erst in der nächsten Schicht möglich."
-msgstr ""
+msgstr "Il tuo turno è in fase di conteggio; le vendite saranno possibili solo nel turno successivo."
 
 #: src/BoxOffice/Page.php:88
-#, fuzzy
 msgid "Zum Kassenabschluss"
-msgstr "Chiusura di cassa"
+msgstr "Vai alla chiusura di cassa"
 
 #: src/BoxOffice/Page.php:111 src/Passes/AdminPage.php:140
 #: src/Series/AdminPage.php:364
@@ -4018,29 +3908,27 @@ msgstr "Dati del partecipante"
 
 #: src/BoxOffice/Page.php:168
 msgid "Beleg suchen (Storno früherer Schichten)"
-msgstr ""
+msgstr "Cerca ricevuta (annullamento di turni precedenti)"
 
 #: src/BoxOffice/Page.php:168
-#, fuzzy
 msgid "Belegnummer"
-msgstr "Numero d'ordine"
+msgstr "Numero ricevuta"
 
 #: src/BoxOffice/Page.php:173
-#, fuzzy
 msgid "Kein Beleg mit dieser Nummer gefunden."
-msgstr "Nessun ordine trovato."
+msgstr "Nessuna ricevuta trovata con questo numero."
 
 #. translators: 1: register, 2: shift id, 3: time
 #: src/BoxOffice/Page.php:188 src/BoxOffice/ShiftPage.php:164
-#, fuzzy, php-format
+#, php-format
 msgid "Kasse „%1$s“ · Schicht #%2$d (seit %3$s)"
-msgstr "Sessione di cassa #%1$d (dal %2$s)"
+msgstr "Cassa «%1$s» · Turno #%2$d (dal %3$s)"
 
 #. translators: 1: sales, 2: stornos
 #: src/BoxOffice/Page.php:190
 #, php-format
 msgid "Verkäufe %1$d · Stornos %2$d. Blindzählung: Beträge und Soll-Bestand werden erst nach der Zählung angezeigt."
-msgstr ""
+msgstr "Vendite %1$d · Annullamenti %2$d. Conteggio alla cieca: gli importi e il saldo teorico vengono mostrati solo dopo il conteggio."
 
 #: src/BoxOffice/Page.php:192 src/BoxOffice/ZReport.php:366
 #: src/BoxOffice/ZReport.php:379
@@ -4048,9 +3936,8 @@ msgid "Verkäufe"
 msgstr "Vendite"
 
 #: src/BoxOffice/Page.php:192 src/BoxOffice/ZReport.php:367
-#, fuzzy
 msgid "Stornos/Erstattungen"
-msgstr "Rimborsi"
+msgstr "Annullamenti/rimborsi"
 
 #: src/BoxOffice/Page.php:192
 msgid "Netto-Umsatz"
@@ -4062,13 +3949,12 @@ msgid "Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s"
 msgstr "Saldo iniziale %1$s · saldo di cassa atteso (contanti) %2$s"
 
 #: src/BoxOffice/Page.php:201
-#, fuzzy
 msgid "Verkäufe dieser Schicht"
-msgstr "Vendite di questa sessione"
+msgstr "Vendite di questo turno"
 
 #: src/BoxOffice/Page.php:205
 msgid "Einlage/Entnahme, Zählung und Kassenabschluss"
-msgstr ""
+msgstr "Versamento/prelievo, conteggio e chiusura di cassa"
 
 #: src/BoxOffice/Page.php:207
 msgid "Belegeinstellungen"
@@ -4084,21 +3970,19 @@ msgstr "Piè di pagina"
 
 #: src/BoxOffice/Page.php:209
 msgid "Bediener auf Kundenbelegen"
-msgstr ""
+msgstr "Operatore sulle ricevute dei clienti"
 
 #: src/BoxOffice/Page.php:209
-#, fuzzy
 msgid "Bedienernummer"
-msgstr "Codice fiscale"
+msgstr "Numero operatore"
 
 #: src/BoxOffice/Page.php:209
 msgid "Initialen"
-msgstr ""
+msgstr "Iniziali"
 
 #: src/BoxOffice/Page.php:209
-#, fuzzy
 msgid "Vollständiger Name"
-msgstr "ID completo dell'ordine: %s"
+msgstr "Nome completo"
 
 #: src/BoxOffice/Page.php:209
 msgid "Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben"
@@ -4126,14 +4010,12 @@ msgid "Stornobeleg"
 msgstr "Ricevuta di annullamento"
 
 #: src/BoxOffice/Page.php:238
-#, fuzzy
 msgid "Wirklich stornieren?"
-msgstr "Annullare davvero questa vendita?"
+msgstr "Annullare davvero?"
 
 #: src/BoxOffice/Page.php:242
-#, fuzzy
 msgid "Nur einzelne Tickets stornieren"
-msgstr "Ordina altri biglietti"
+msgstr "Annulla solo singoli biglietti"
 
 #: src/BoxOffice/Page.php:244
 #: src/Integrations/WooCommerce/OrderAdapter.php:1038
@@ -4142,7 +4024,7 @@ msgstr "check-in effettuato"
 
 #: src/BoxOffice/Page.php:249
 msgid "Ausnahme für eingecheckte Tickets, Grund:"
-msgstr ""
+msgstr "Eccezione per biglietti con check-in, motivo:"
 
 #: src/BoxOffice/Page.php:274
 msgid "Wichtiger Hinweis:"
@@ -4169,9 +4051,8 @@ msgid "Storno angelegt; es wartet auf Freigabe."
 msgstr "Annullamento creato; è in attesa di approvazione."
 
 #: src/BoxOffice/Page.php:357
-#, fuzzy
 msgid "Storno gebucht. Bitte Betrag auszahlen bzw. am Kartenterminal gutschreiben und den Stornobeleg drucken."
-msgstr "Vendita annullata. Rimborsa l'importo in contanti oppure accreditalo sul terminale per carte."
+msgstr "Annullamento registrato. Restituisci l'importo o accreditalo sul terminale per carte e stampa la ricevuta di annullamento."
 
 #: src/BoxOffice/Page.php:373
 msgid "Verkauf gebucht."
@@ -4194,39 +4075,34 @@ msgid "Kassenzahlungen verarbeiten keine Webhooks."
 msgstr "I pagamenti in cassa non elaborano webhook."
 
 #: src/BoxOffice/Registers.php:54 src/BoxOffice/ShiftPage.php:120
-#, fuzzy
 msgid "Kasse nicht gefunden."
-msgstr "Pass non trovato."
+msgstr "Cassa non trovata."
 
 #: src/BoxOffice/Registers.php:56
-#, fuzzy
 msgid "Bitte einen Namen für die Kasse angeben."
-msgstr "Inserisci un nome per il tipo di biglietto."
+msgstr "Inserisci un nome per la cassa."
 
 #: src/BoxOffice/Registers.php:61
-#, fuzzy
 msgid "Die Währung kann nicht geändert werden, solange eine Schicht offen ist."
-msgstr "La valuta non può più essere modificata dopo i primi ordini."
+msgstr "La valuta non può essere modificata finché un turno è aperto."
 
 #: src/BoxOffice/Registers.php:64
-#, fuzzy
 msgid "Eine Kasse mit offener Schicht kann nicht deaktiviert werden."
-msgstr "Impossibile prenotare la fascia oraria."
+msgstr "Non è possibile disattivare una cassa con un turno aperto."
 
 #: src/BoxOffice/Registers.php:81
-#, fuzzy
 msgid "Die Kasse konnte nicht gespeichert werden."
-msgstr "Impossibile salvare il modello."
+msgstr "Impossibile salvare la cassa."
 
 #: src/BoxOffice/Registers.php:106
 msgid "Hauptkasse"
-msgstr ""
+msgstr "Cassa principale"
 
 #. translators: %d: running number
 #: src/BoxOffice/Registers.php:153
 #, php-format
 msgid "Kasse %d (übernommen)"
-msgstr ""
+msgstr "Cassa %d (migrata)"
 
 #: src/BoxOffice/Service.php:34
 msgid "Bar"
@@ -4241,13 +4117,12 @@ msgid "Freikarte"
 msgstr "Biglietto omaggio"
 
 #: src/BoxOffice/Service.php:120
-#, fuzzy
 msgid "Keine freie Kasse verfügbar."
-msgstr "Nessun evento disponibile."
+msgstr "Nessuna cassa libera disponibile."
 
 #: src/BoxOffice/Service.php:146 src/BoxOffice/Shifts.php:429
 msgid "Es gibt eine Kassendifferenz. Bitte einen Grund angeben."
-msgstr ""
+msgstr "C'è una differenza di cassa. Indica un motivo."
 
 #: src/BoxOffice/Service.php:239 src/BoxOffice/Service.php:267
 msgid "Das Formular ist ungültig. Bitte neu laden."
@@ -4266,9 +4141,8 @@ msgid "Bitte zuerst eine Kassensitzung öffnen."
 msgstr "Apri prima una sessione di cassa."
 
 #: src/BoxOffice/Service.php:278
-#, fuzzy
 msgid "Diese Kasse verkauft nur Tickets für ein anderes Event."
-msgstr "Questo dispositivo è abilitato per un altro evento."
+msgstr "Questa cassa vende solo biglietti per un altro evento."
 
 #: src/BoxOffice/Service.php:282
 msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
@@ -4280,7 +4154,7 @@ msgstr "Seleziona un metodo di pagamento."
 
 #: src/BoxOffice/Service.php:286
 msgid "Freikarten an der Kasse brauchen die Berechtigung zur Freigabe von Freikarten."
-msgstr ""
+msgstr "I biglietti omaggio alla cassa richiedono l'autorizzazione ad approvare biglietti omaggio."
 
 #: src/BoxOffice/Service.php:299 src/Seating/Layouts.php:561
 msgid "Eine Ticketart gehört nicht zu diesem Termin."
@@ -4309,9 +4183,8 @@ msgid "Der Verkauf konnte nicht gespeichert werden."
 msgstr "Impossibile salvare la vendita."
 
 #: src/BoxOffice/Service.php:362
-#, fuzzy
 msgid "Für eine Rechnung über diesem Betrag sind Name und Anschrift des Käufers nötig. Bitte unter „Rechnung auf Firma/Adresse“ ausfüllen."
-msgstr "Per questo importo d’ordine ci servono il tuo nome e il tuo indirizzo per la fattura. Attiva «Ho bisogno di una fattura intestata a un’azienda/indirizzo» e compila i campi."
+msgstr "Per una fattura oltre questo importo sono necessari il nome e l'indirizzo dell'acquirente. Compilali in «Fattura intestata ad azienda/indirizzo»."
 
 #: src/BoxOffice/Service.php:398 src/BoxOffice/Service.php:443
 #: src/BoxOffice/Service.php:523
@@ -4336,28 +4209,24 @@ msgid "Nur Verkäufe der eigenen Kassensitzung können storniert werden."
 msgstr "È possibile annullare solo le vendite della propria sessione di cassa."
 
 #: src/BoxOffice/Service.php:542
-#, fuzzy
 msgid "Die gewählten Tickets gehören nicht zu diesem Verkauf oder wurden bereits storniert."
-msgstr "I biglietti selezionati non appartengono all'ordine oppure sono già stati rimborsati."
+msgstr "I biglietti selezionati non appartengono a questa vendita oppure sono già stati annullati."
 
 #: src/BoxOffice/Service.php:548
-#, fuzzy
 msgid "Mindestens ein Ticket wurde bereits eingecheckt. Für den Storno bitte einen Grund für die Ausnahme angeben."
-msgstr "Almeno uno dei biglietti è già stato rimborsato; il rimborso non è stato eseguito."
+msgstr "Almeno un biglietto ha già effettuato il check-in. Per l'annullamento indica un motivo per l'eccezione."
 
 #: src/BoxOffice/Service.php:549
-#, fuzzy
 msgid "Mindestens ein Ticket wurde bereits eingecheckt und kann an der Kasse nicht storniert werden."
-msgstr "Questo biglietto è già stato trasferito a un'altra persona e non può più essere modificato tramite l'ordine."
+msgstr "Almeno un biglietto ha già effettuato il check-in e non può essere annullato alla cassa."
 
 #: src/BoxOffice/Service.php:552
 msgid "Für die Auszahlung muss eine Kassenschicht geöffnet sein. Bitte zuerst eine Schicht öffnen."
-msgstr ""
+msgstr "Per il rimborso in contanti deve essere aperto un turno di cassa. Apri prima un turno."
 
 #: src/BoxOffice/Service.php:557
-#, fuzzy
 msgid "eingecheckt, Ausnahme:"
-msgstr "check-in effettuato"
+msgstr "check-in effettuato, eccezione:"
 
 #: src/BoxOffice/Service.php:577
 msgid "Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen."
@@ -4369,9 +4238,9 @@ msgstr "Per questa vendita non è in attesa alcun annullamento."
 
 #. translators: %d: user ID
 #: src/BoxOffice/Service.php:661
-#, fuzzy, php-format
+#, php-format
 msgid "Bediener %d"
-msgstr "Cassa/Operatore:"
+msgstr "Operatore %d"
 
 #. translators: %s: platform name
 #: src/BoxOffice/Service.php:736 src/Invoices.php:380 src/Invoices.php:394
@@ -4397,9 +4266,8 @@ msgid "Datum:"
 msgstr "Data:"
 
 #: src/BoxOffice/Service.php:740 src/BoxOffice/ZReport.php:445
-#, fuzzy
 msgid "Kasse/Schicht/Bediener:"
-msgstr "Cassa/Operatore:"
+msgstr "Cassa/turno/operatore:"
 
 #: src/BoxOffice/Service.php:745
 msgid "SUMME"
@@ -4435,157 +4303,142 @@ msgstr "Stampa"
 
 #: src/BoxOffice/ShiftPage.php:36
 msgid "– niemand –"
-msgstr ""
+msgstr "– nessuno –"
 
 #: src/BoxOffice/ShiftPage.php:47
 msgid "Stückelung zählen (Scheine und Münzen)"
-msgstr ""
+msgstr "Conta i tagli (banconote e monete)"
 
 #: src/BoxOffice/ShiftPage.php:51
 msgid "Wenn die Stückelung ausgefüllt ist, wird der Betrag daraus berechnet."
-msgstr ""
+msgstr "Se i tagli sono compilati, l'importo viene calcolato da questi."
 
 #: src/BoxOffice/ShiftPage.php:70
-#, fuzzy
 msgid "offen"
-msgstr "Aperto"
+msgstr "aperto"
 
 #: src/BoxOffice/ShiftPage.php:70
 msgid "wird gezählt"
-msgstr ""
+msgstr "in conteggio"
 
 #: src/BoxOffice/ShiftPage.php:70
-#, fuzzy
 msgid "abgeschlossen"
-msgstr "Completato"
+msgstr "chiuso"
 
 #. translators: 1: user, 2: register
 #: src/BoxOffice/ShiftPage.php:87
 #, php-format
 msgid "Übergabe von %1$s an Kasse „%2$s“ annehmen"
-msgstr ""
+msgstr "Accetta il passaggio di consegne da %1$s alla cassa «%2$s»"
 
 #: src/BoxOffice/ShiftPage.php:88
 msgid "Bitte das übergebene Bargeld zählen. Der übergebene Betrag wird erst nach der Zählung angezeigt."
-msgstr ""
+msgstr "Conta il contante consegnato. L'importo consegnato viene mostrato solo dopo il conteggio."
 
 #. translators: %s: amount
 #: src/BoxOffice/ShiftPage.php:88
 #, php-format
 msgid "Übergebener Betrag laut Übergabe: %s. Bitte nachzählen."
-msgstr ""
+msgstr "Importo consegnato secondo il passaggio di consegne: %s. Ricontalo."
 
 #: src/BoxOffice/ShiftPage.php:91
-#, fuzzy
 msgid "Gezählter Betrag"
-msgstr "Contanti contati"
+msgstr "Importo contato"
 
 #: src/BoxOffice/ShiftPage.php:92
-#, fuzzy
 msgid "Grund bei Abweichung"
-msgstr "Motivo del rifiuto"
+msgstr "Motivo in caso di differenza"
 
 #: src/BoxOffice/ShiftPage.php:93
 msgid "Übergabe bestätigen und Schicht öffnen"
-msgstr ""
+msgstr "Conferma il passaggio di consegne e apri il turno"
 
 #: src/BoxOffice/ShiftPage.php:97 src/BoxOffice/ShiftPage.php:110
 #: src/BoxOffice/ShiftPage.php:149
-#, fuzzy
 msgid "Schicht öffnen"
-msgstr "Non trovato."
+msgstr "Apri turno"
 
 #: src/BoxOffice/ShiftPage.php:99
 msgid "Keine freie Kasse: Alle aktiven Kassen haben eine offene Schicht oder warten auf eine Übergabe."
-msgstr ""
+msgstr "Nessuna cassa libera: tutte le casse attive hanno un turno aperto o sono in attesa di un passaggio di consegne."
 
 #: src/BoxOffice/ShiftPage.php:99
-#, fuzzy
 msgid "Kassen verwalten"
-msgstr "Gestisci evento"
+msgstr "Gestisci casse"
 
 #: src/BoxOffice/ShiftPage.php:103 src/BoxOffice/ShiftPage.php:394
 #: src/BoxOffice/ShiftPage.php:423 src/BoxOffice/ZReport.php:398
 msgid "Blindzählung"
-msgstr ""
+msgstr "Conteggio alla cieca"
 
 #: src/BoxOffice/ShiftPage.php:108
-#, fuzzy
 msgid "Wechselgeld (Anfangsbestand, gezählt)"
-msgstr "Fondo cassa (saldo iniziale)"
+msgstr "Fondo cassa (saldo iniziale, contato)"
 
 #: src/BoxOffice/ShiftPage.php:121
-#, fuzzy
 msgid "Schicht geöffnet."
-msgstr "Non trovato."
+msgstr "Turno aperto."
 
 #: src/BoxOffice/ShiftPage.php:133
 msgid "Übergabe bestätigt, Schicht geöffnet."
-msgstr ""
+msgstr "Passaggio di consegne confermato, turno aperto."
 
 #: src/BoxOffice/ShiftPage.php:140
-#, fuzzy
 msgid "Übergabe storniert; die Kasse kann neu geöffnet werden."
-msgstr "Impossibile aprire la sessione di cassa."
+msgstr "Passaggio di consegne annullato; la cassa può essere riaperta."
 
 #: src/BoxOffice/ShiftPage.php:149
 msgid "Sie haben keine offene Schicht."
-msgstr ""
+msgstr "Non hai nessun turno aperto."
 
 #: src/BoxOffice/ShiftPage.php:155
-#, fuzzy
 msgid "Diese Schicht ist abgeschlossen."
-msgstr "La sessione di cassa è già chiusa."
+msgstr "Questo turno è chiuso."
 
 #. translators: %d: Z number
 #: src/BoxOffice/ShiftPage.php:155
-#, fuzzy, php-format
+#, php-format
 msgid "Z-Bericht Nr. %d"
-msgstr "Report"
+msgstr "Report Z n. %d"
 
 #: src/BoxOffice/ShiftPage.php:165
-#, fuzzy
 msgid "Kassierer:"
-msgstr "Cassa/Operatore:"
+msgstr "Cassieri:"
 
 #. translators: %s: amount
 #: src/BoxOffice/ShiftPage.php:165
-#, fuzzy, php-format
+#, php-format
 msgid "Anfangsbestand %s"
-msgstr "Fondo cassa (saldo iniziale)"
+msgstr "Saldo iniziale %s"
 
 #: src/BoxOffice/ShiftPage.php:170
-#, fuzzy
 msgid "Kassierer hinzufügen"
-msgstr "Aggiungi data"
+msgstr "Aggiungi cassiere"
 
 #: src/BoxOffice/ShiftPage.php:171 src/Seating/AdminPage.php:163
-#, fuzzy
 msgid "Hinzufügen"
-msgstr "Aggiungi data"
+msgstr "Aggiungi"
 
 #: src/BoxOffice/ShiftPage.php:175
 msgid "Einlagen, Entnahmen und Auszahlungen"
-msgstr ""
+msgstr "Versamenti, prelievi e rimborsi"
 
 #. translators: placeholder name for the Unix timestamp in the signature format
 #: src/BoxOffice/ShiftPage.php:178 src/Modules/Webhooks.php:290
-#, fuzzy
 msgid "Zeit"
-msgstr "Fuso orario"
+msgstr "Ora"
 
 #: src/BoxOffice/ShiftPage.php:189
 msgid "Einlage (Geld in die Kasse)"
-msgstr ""
+msgstr "Versamento (denaro nella cassa)"
 
 #: src/BoxOffice/ShiftPage.php:189
 msgid "Entnahme (Geld aus der Kasse)"
-msgstr ""
+msgstr "Prelievo (denaro dalla cassa)"
 
 #: src/BoxOffice/ShiftPage.php:190
-#, fuzzy
 msgid "Buchen"
-msgstr "Cerca"
+msgstr "Registra"
 
 #: src/BoxOffice/ShiftPage.php:194
 msgid "Kassenabschluss"
@@ -4593,57 +4446,52 @@ msgstr "Chiusura di cassa"
 
 #: src/BoxOffice/ShiftPage.php:198
 msgid "Diese Kasse zählt blind. Du siehst den Soll-Bestand nur, weil du Kassenverwaltung oder Finanzrecht hast – Kassierkräfte ohne diese Rechte sehen ihn erst im Z-Bericht."
-msgstr ""
+msgstr "Questa cassa effettua il conteggio alla cieca. Vedi il saldo teorico solo perché hai il permesso di gestione delle casse o il permesso finanziario: i cassieri senza questi permessi lo vedono solo nel report Z."
 
 #: src/BoxOffice/ShiftPage.php:201
 msgid "Blindzählung: Soll-Bestand und Differenz stehen erst nach dem Schließen im Z-Bericht. Eine Nachzählung kann nur die Kassenverwaltung durchführen."
-msgstr ""
+msgstr "Conteggio alla cieca: saldo teorico e differenza compaiono solo dopo la chiusura nel report Z. Solo la gestione casse può eseguire un nuovo conteggio."
 
 #. translators: %s: counted cash
 #: src/BoxOffice/ShiftPage.php:204
 #, php-format
 msgid "Abgegebene Zählung: Bargeld %s."
-msgstr ""
+msgstr "Conteggio consegnato: contanti %s."
 
 #. translators: 1: cash, 2: card
 #: src/BoxOffice/ShiftPage.php:208
 #, php-format
 msgid "Soll-Bestand bar %1$s · Kartenumsatz laut Kasse %2$s"
-msgstr ""
+msgstr "Saldo teorico in contanti %1$s · Incasso con carta secondo la cassa %2$s"
 
 #: src/BoxOffice/ShiftPage.php:213
-#, fuzzy
 msgid "Gezählt"
-msgstr "Selezionati"
+msgstr "Contato"
 
 #: src/BoxOffice/ShiftPage.php:213
 msgid "Soll"
-msgstr ""
+msgstr "Teorico"
 
 #: src/BoxOffice/ShiftPage.php:213 src/BoxOffice/ZReport.php:396
 #: src/Exchange/AdminPage.php:127
-#, fuzzy
 msgid "Differenz"
-msgstr "Riferimento del biglietto"
+msgstr "Differenza"
 
 #: src/BoxOffice/ShiftPage.php:214 src/BoxOffice/ZReport.php:385
 msgid "Bargeld"
-msgstr ""
+msgstr "Contanti"
 
 #: src/BoxOffice/ShiftPage.php:215 src/BoxOffice/ZReport.php:393
-#, fuzzy
 msgid "Kartenterminal"
-msgstr "Carta (terminale)"
+msgstr "Terminale per carte"
 
 #: src/BoxOffice/ShiftPage.php:221 src/BoxOffice/ShiftPage.php:224
-#, fuzzy
 msgid "Neu zählen"
-msgstr "Seleziona"
+msgstr "Conta di nuovo"
 
 #: src/BoxOffice/ShiftPage.php:221 src/BoxOffice/ShiftPage.php:224
-#, fuzzy
 msgid "Zählung abgeben"
-msgstr "Pagamenti"
+msgstr "Consegna conteggio"
 
 #: src/BoxOffice/ShiftPage.php:222
 msgid "Gezählter Bargeldbestand"
@@ -4651,106 +4499,99 @@ msgstr "Contanti contati"
 
 #: src/BoxOffice/ShiftPage.php:223
 msgid "Summe laut Kartenterminal (Tagesabschluss)"
-msgstr ""
+msgstr "Totale secondo il terminale per carte (chiusura giornaliera)"
 
 #: src/BoxOffice/ShiftPage.php:223
 msgid "Leer lassen, wenn kein Terminal genutzt wurde."
-msgstr ""
+msgstr "Lascia vuoto se non è stato usato alcun terminale."
 
 #: src/BoxOffice/ShiftPage.php:224
 msgid "Nach der Zählung sind keine Verkäufe mehr möglich."
-msgstr ""
+msgstr "Dopo il conteggio non sono più possibili vendite."
 
 #: src/BoxOffice/ShiftPage.php:227
 msgid "Schicht jetzt abschließen? Der Z-Bericht kann danach nicht mehr geändert werden."
-msgstr ""
+msgstr "Chiudere ora il turno? Dopo non sarà più possibile modificare il report Z."
 
 #: src/BoxOffice/ShiftPage.php:229
 msgid "Schicht abschließen (Z-Bericht)"
-msgstr ""
+msgstr "Chiudi turno (report Z)"
 
 #: src/BoxOffice/ShiftPage.php:230
 msgid "Grund der Differenz (Pflicht bei Abweichung)"
-msgstr ""
+msgstr "Motivo della differenza (obbligatorio in caso di scostamento)"
 
 #: src/BoxOffice/ShiftPage.php:231
 msgid "Übergabe an die nächste Schicht (optional)"
-msgstr ""
+msgstr "Passaggio di consegne al turno successivo (facoltativo)"
 
 #: src/BoxOffice/ShiftPage.php:232 src/BoxOffice/ZReport.php:403
 msgid "Übergabe an"
-msgstr ""
+msgstr "Consegna a"
 
 #: src/BoxOffice/ShiftPage.php:234
 msgid "Betrag, der in der Kasse bleibt (Rest wird abgeschöpft)"
-msgstr ""
+msgstr "Importo che resta in cassa (il resto viene prelevato)"
 
 #: src/BoxOffice/ShiftPage.php:235
-#, fuzzy
 msgid "Schicht abschließen"
-msgstr "Concludi"
+msgstr "Chiudi turno"
 
 #: src/BoxOffice/ShiftPage.php:242
 msgid "Kassierer hinzugefügt."
-msgstr ""
+msgstr "Cassiere aggiunto."
 
 #: src/BoxOffice/ShiftPage.php:251
-#, fuzzy
 msgid "Buchung gespeichert."
-msgstr "Evento salvato."
+msgstr "Registrazione salvata."
 
 #. translators: %s: counted amount
 #: src/BoxOffice/ShiftPage.php:269
 #, php-format
 msgid "Zählung gespeichert (Blindzählung). Gezählt %s. Soll und Differenz stehen nach dem Schließen im Z-Bericht."
-msgstr ""
+msgstr "Conteggio salvato (conteggio alla cieca). Contato %s. Saldo teorico e differenza compaiono nel report Z dopo la chiusura."
 
 #. translators: 1: counted, 2: expected, 3: difference
 #: src/BoxOffice/ShiftPage.php:271
-#, fuzzy, php-format
+#, php-format
 msgid "Zählung gespeichert. Gezählt %1$s, Soll %2$s, Differenz %3$s."
-msgstr "Cassa chiusa. Atteso %1$s, contato %2$s, differenza %3$s."
+msgstr "Conteggio salvato. Contato %1$s, teorico %2$s, differenza %3$s."
 
 #. translators: %d: Z number
 #: src/BoxOffice/ShiftPage.php:286
 #, php-format
 msgid "Schicht abgeschlossen: Z-Bericht Nr. %d."
-msgstr ""
+msgstr "Turno chiuso: report Z n. %d."
 
 #: src/BoxOffice/ShiftPage.php:318
-#, fuzzy
 msgid "Offene Schichten"
-msgstr "Conflitti aperti"
+msgstr "Turni aperti"
 
 #. translators: 1: register, 2: shift, 3: cashier
 #: src/BoxOffice/ShiftPage.php:320
 #, php-format
 msgid "%1$s · Schicht #%2$d · %3$s"
-msgstr ""
+msgstr "%1$s · Turno #%2$d · %3$s"
 
 #: src/BoxOffice/ShiftPage.php:324
-#, fuzzy
 msgid "Abgeschlossene Schichten (Z-Berichte)"
-msgstr "Leggere i rendiconti conclusi"
+msgstr "Turni chiusi (report Z)"
 
 #: src/BoxOffice/ShiftPage.php:326
-#, fuzzy
 msgid "Noch keine Z-Berichte."
-msgstr "Nessun tipo di biglietto ancora presente."
+msgstr "Nessun report Z ancora presente."
 
 #: src/BoxOffice/ShiftPage.php:329
 msgid "Z-Nr."
-msgstr ""
+msgstr "N. Z"
 
 #: src/BoxOffice/ShiftPage.php:329 src/BoxOffice/ZReport.php:359
-#, fuzzy
 msgid "Geöffnet"
-msgstr "Cassa aperta."
+msgstr "Aperto"
 
 #: src/BoxOffice/ShiftPage.php:329 src/BoxOffice/ZReport.php:360
-#, fuzzy
 msgid "Geschlossen"
-msgstr "Completato"
+msgstr "Chiuso"
 
 #. translators: 1: invoice number, 2: date
 #. translators: 1: period, 2: date
@@ -4767,11 +4608,11 @@ msgstr "Netto"
 
 #: src/BoxOffice/ShiftPage.php:329
 msgid "Grand Total"
-msgstr ""
+msgstr "Grand Total"
 
 #: src/BoxOffice/ShiftPage.php:329
 msgid "Differenz bar / Karte"
-msgstr ""
+msgstr "Differenza contanti / carta"
 
 #: src/BoxOffice/ShiftPage.php:329 src/Reports/Data.php:388
 msgid "Bericht"
@@ -4779,63 +4620,57 @@ msgstr "Report"
 
 #: src/BoxOffice/ShiftPage.php:331
 msgid "übernommen"
-msgstr ""
+msgstr "migrato"
 
 #: src/BoxOffice/ShiftPage.php:337
 msgid "Prüfung der Z-Kette"
-msgstr ""
+msgstr "Verifica della catena Z"
 
 #: src/BoxOffice/ShiftPage.php:340
 msgid "lückenlos und unverändert"
-msgstr ""
+msgstr "completa e non modificata"
 
 #: src/BoxOffice/ShiftPage.php:342
 msgid "Korrektur zu einem Z-Bericht"
-msgstr ""
+msgstr "Rettifica di un report Z"
 
 #: src/BoxOffice/ShiftPage.php:342
 msgid "Z-Berichte werden nie geändert. Eine Korrektur wird als neue Buchung in die offene Schicht derselben Kasse gebucht und erscheint im nächsten Z-Bericht."
-msgstr ""
+msgstr "I report Z non vengono mai modificati. Una rettifica viene registrata come nuova operazione nel turno aperto della stessa cassa e compare nel report Z successivo."
 
 #: src/BoxOffice/ShiftPage.php:347
-#, fuzzy
 msgid "Z-Bericht"
-msgstr "Report"
+msgstr "Report Z"
 
 #: src/BoxOffice/ShiftPage.php:349
-#, fuzzy
 msgid "Richtung"
-msgstr "Attenzione"
+msgstr "Direzione"
 
 #: src/BoxOffice/ShiftPage.php:350
 msgid "mehr Bargeld (+)"
-msgstr ""
+msgstr "più contanti (+)"
 
 #: src/BoxOffice/ShiftPage.php:350
 msgid "weniger Bargeld (−)"
-msgstr ""
+msgstr "meno contanti (−)"
 
 #: src/BoxOffice/ShiftPage.php:351
-#, fuzzy
 msgid "Korrektur buchen"
-msgstr "Importo della rettifica"
+msgstr "Registra rettifica"
 
 #: src/BoxOffice/ShiftPage.php:359
-#, fuzzy
 msgid "Korrektur gebucht."
-msgstr "Vendita registrata."
+msgstr "Rettifica registrata."
 
 #: src/BoxOffice/ShiftPage.php:364 src/BoxOffice/ShiftPage.php:373
 #: src/BoxOffice/Shifts.php:560
-#, fuzzy
 msgid "Z-Bericht nicht gefunden."
-msgstr "Area non trovata."
+msgstr "Report Z non trovato."
 
 #: src/BoxOffice/ShiftPage.php:394 src/BoxOffice/ShiftPage.php:418
 #: src/BoxOffice/ZReport.php:356
-#, fuzzy
 msgid "Standort"
-msgstr "Standard"
+msgstr "Sede"
 
 #: src/BoxOffice/ShiftPage.php:398 src/BoxOffice/ZReport.php:398
 #: src/WalletPasses/AdminPage.php:129
@@ -4850,88 +4685,76 @@ msgstr "no"
 #: src/BoxOffice/ShiftPage.php:402
 #, php-format
 msgid "Übergabe an %s ausstehend"
-msgstr ""
+msgstr "Passaggio di consegne a %s in sospeso"
 
 #: src/BoxOffice/ShiftPage.php:405
-#, fuzzy
 msgid "Übergabe stornieren"
-msgstr "Annulla ordine"
+msgstr "Annulla passaggio di consegne"
 
 #: src/BoxOffice/ShiftPage.php:413
-#, fuzzy
 msgid "Kasse bearbeiten"
-msgstr "Modifica modello"
+msgstr "Modifica cassa"
 
 #: src/BoxOffice/ShiftPage.php:413
-#, fuzzy
 msgid "Neue Kasse"
-msgstr "Cassa"
+msgstr "Nuova cassa"
 
 #: src/BoxOffice/ShiftPage.php:419
-#, fuzzy
 msgid "Nur für Event (optional)"
-msgstr "Solo ID evento (facoltativo)"
+msgstr "Solo per l'evento (facoltativo)"
 
 #: src/BoxOffice/ShiftPage.php:423
 msgid "Soll-Bestand erst nach der Zählung anzeigen"
-msgstr ""
+msgstr "Mostra il saldo teorico solo dopo il conteggio"
 
 #: src/BoxOffice/ShiftPage.php:423
 msgid "Gilt für Kassierkräfte. Personen mit Kassenverwaltung oder Finanzrecht sehen den Soll-Bestand immer (sie können auch nachzählen); für eine echte Blindzählung sollte daher eine Person ohne diese Rechte zählen."
-msgstr ""
+msgstr "Vale per i cassieri. Le persone con il permesso di gestione delle casse o il permesso finanziario vedono sempre il saldo teorico (e possono anche ricontare); per un vero conteggio alla cieca dovrebbe quindi contare una persona senza questi permessi."
 
 #: src/BoxOffice/ShiftPage.php:440
-#, fuzzy
 msgid "Kasse gespeichert."
-msgstr "Regola di ingresso salvata."
+msgstr "Cassa salvata."
 
 #: src/BoxOffice/Shifts.php:184
-#, fuzzy
 msgid "Kasse nicht gefunden oder deaktiviert."
-msgstr "Chiave API non trovata o autorizzazione mancante."
+msgstr "Cassa non trovata o disattivata."
 
 #: src/BoxOffice/Shifts.php:185
-#, fuzzy
 msgid "Keine Berechtigung für diese Kasse."
-msgstr "Non hai l'autorizzazione per questo pass."
+msgstr "Non hai l'autorizzazione per questa cassa."
 
 #: src/BoxOffice/Shifts.php:187
 msgid "Sie arbeiten bereits in einer offenen Schicht. Bitte diese zuerst abschließen."
-msgstr ""
+msgstr "Stai già lavorando in un turno aperto. Chiudilo prima."
 
 #: src/BoxOffice/Shifts.php:201
-#, fuzzy
 msgid "Auf dieser Kasse ist bereits eine Schicht offen."
-msgstr "La sessione di cassa è già chiusa."
+msgstr "Su questa cassa è già aperto un turno."
 
 #: src/BoxOffice/Shifts.php:206
 msgid "Für diese Kasse wartet eine Übergabe. Die nächste Schicht wird durch Annahme der Übergabe geöffnet."
-msgstr ""
+msgstr "Per questa cassa è in attesa un passaggio di consegne. Il turno successivo si apre accettando il passaggio di consegne."
 
 #: src/BoxOffice/Shifts.php:210 src/BoxOffice/Shifts.php:244
 #: src/BoxOffice/Shifts.php:506 src/BoxOffice/Shifts.php:522
-#, fuzzy
 msgid "Diese Übergabe wartet nicht mehr auf Annahme."
-msgstr "Questo rimborso non è in attesa di approvazione."
+msgstr "Questo passaggio di consegne non è più in attesa di accettazione."
 
 #: src/BoxOffice/Shifts.php:227
-#, fuzzy
 msgid "Die Schicht konnte nicht geöffnet werden (bereits eine offene Schicht?)."
-msgstr "Non è stato possibile creare le date della serie; non è stato salvato nulla."
+msgstr "Impossibile aprire il turno (c'è già un turno aperto?)."
 
 #: src/BoxOffice/Shifts.php:262
-#, fuzzy
 msgid "Die Schicht ist nicht offen."
-msgstr "Per il biglietto non è stato effettuato il check-in."
+msgstr "Il turno non è aperto."
 
 #: src/BoxOffice/Shifts.php:264 src/BoxOffice/Shifts.php:391
-#, fuzzy
 msgid "Dieser Benutzer darf nicht kassieren."
-msgstr "Questo evento non può essere annullato."
+msgstr "Questo utente non è autorizzato a incassare."
 
 #: src/BoxOffice/Shifts.php:266
 msgid "Dieser Benutzer arbeitet bereits in einer anderen offenen Schicht."
-msgstr ""
+msgstr "Questo utente lavora già in un altro turno aperto."
 
 #: src/BoxOffice/Shifts.php:288
 msgid "Ein Storno wartet noch auf Freigabe. Bitte freigeben oder ablehnen lassen, dann die Kasse abschließen."
@@ -4952,131 +4775,118 @@ msgstr "La sessione di cassa è già chiusa."
 
 #: src/BoxOffice/Shifts.php:328
 msgid "Bei Blindzählung ist nur eine Zählung möglich. Eine Nachzählung muss die Kassenverwaltung durchführen."
-msgstr ""
+msgstr "Con il conteggio alla cieca è possibile un solo conteggio. Un nuovo conteggio deve essere eseguito dalla gestione casse."
 
 #: src/BoxOffice/Shifts.php:384
-#, fuzzy
 msgid "Bitte zuerst den Kassenbestand zählen."
-msgstr "Apri prima una sessione di cassa."
+msgstr "Conta prima il fondo cassa."
 
 #: src/BoxOffice/Shifts.php:395
 msgid "Der übergebene Betrag ist höher als der gezählte Bargeldbestand."
-msgstr ""
+msgstr "L'importo consegnato è superiore ai contanti contati."
 
 #: src/BoxOffice/Shifts.php:479
-#, fuzzy
 msgid "Die Übergabe konnte nicht gespeichert werden."
-msgstr "Impossibile salvare il modello."
+msgstr "Impossibile salvare il passaggio di consegne."
 
 #: src/BoxOffice/Shifts.php:507
-#, fuzzy
 msgid "Diese Übergabe ist an eine andere Person gerichtet."
-msgstr "Approvazione da parte di un'altra persona necessaria"
+msgstr "Questo passaggio di consegne è destinato a un'altra persona."
 
 #: src/BoxOffice/Shifts.php:513
 msgid "Der gezählte Betrag weicht vom übergebenen Betrag ab. Bitte einen Grund angeben."
-msgstr ""
+msgstr "L'importo contato differisce dall'importo consegnato. Indica un motivo."
 
 #: src/BoxOffice/Shifts.php:525 src/BoxOffice/Shifts.php:547
-#, fuzzy
 msgid "Bitte einen Grund angeben."
-msgstr "Indica un nome."
+msgstr "Indica un motivo."
 
 #: src/BoxOffice/Shifts.php:541
-#, fuzzy
 msgid "Unbekannte Buchungsart."
-msgstr "Layout sconosciuto."
+msgstr "Tipo di operazione sconosciuto."
 
 #: src/BoxOffice/Shifts.php:562
-#, fuzzy
 msgid "Bitte Betrag und Grund der Korrektur angeben."
-msgstr "Indica oggetto e testo."
+msgstr "Indica l'importo e il motivo della rettifica."
 
 #: src/BoxOffice/Shifts.php:564
 msgid "Korrekturen werden in die offene Schicht der Kasse gebucht. Bitte zuerst eine Schicht öffnen."
-msgstr ""
+msgstr "Le rettifiche vengono registrate nel turno aperto della cassa. Apri prima un turno."
 
 #. translators: %d: Z number
 #: src/BoxOffice/Shifts.php:566
 #, php-format
 msgid "Korrektur zu Z %d: "
-msgstr ""
+msgstr "Rettifica a Z %d:"
 
 #: src/BoxOffice/Shifts.php:577
 msgid "Buchungen sind nur in einer offenen Schicht möglich (nicht während der Zählung)."
-msgstr ""
+msgstr "Le operazioni sono possibili solo in un turno aperto (non durante il conteggio)."
 
 #: src/BoxOffice/Shifts.php:602
-#, fuzzy
 msgid "Die Buchung konnte nicht gespeichert werden."
-msgstr "Impossibile salvare il rimborso."
+msgstr "Impossibile salvare l'operazione."
 
 #: src/BoxOffice/Shifts.php:657
 msgid "Für die Auszahlung einer Kassenbestellung (bar oder Karte) muss eine Kassenschicht geöffnet sein. Bitte eine Schicht öffnen und die Erstattung erneut ausführen."
-msgstr ""
+msgstr "Per il rimborso di un ordine di cassa (contanti o carta) deve essere aperto un turno di cassa. Apri un turno ed esegui di nuovo il rimborso."
 
 #: src/BoxOffice/ZReport.php:260
-#, fuzzy
 msgid "Der Z-Bericht konnte nicht gespeichert werden."
-msgstr "Impossibile salvare la data."
+msgstr "Impossibile salvare il report Z."
 
 #. translators: %d: Z number
 #: src/BoxOffice/ZReport.php:330
 #, php-format
 msgid "Lücke in der Z-Nummerierung vor Z %d."
-msgstr ""
+msgstr "Lacuna nella numerazione Z prima di Z %d."
 
 #: src/BoxOffice/ZReport.php:331
 #, php-format
 msgid "Z %d wurde nachträglich verändert."
-msgstr ""
+msgstr "Z %d è stato modificato successivamente."
 
 #: src/BoxOffice/ZReport.php:332
 #, php-format
 msgid "Die Verkettung vor Z %d ist unterbrochen."
-msgstr ""
+msgstr "Il concatenamento prima di Z %d è interrotto."
 
 #: src/BoxOffice/ZReport.php:333
 #, php-format
 msgid "Der Grand Total von Z %d stimmt nicht."
-msgstr ""
+msgstr "Il Grand Total di Z %d non è corretto."
 
 #: src/BoxOffice/ZReport.php:354
 msgid "Kopf"
-msgstr ""
+msgstr "Intestazione"
 
 #: src/BoxOffice/ZReport.php:357
-#, fuzzy
 msgid "Z-Nummer"
-msgstr "Numero"
+msgstr "Numero Z"
 
 #: src/BoxOffice/ZReport.php:361
-#, fuzzy
 msgid "Kassierer"
-msgstr "Cassa"
+msgstr "Cassieri"
 
 #: src/BoxOffice/ZReport.php:362
-#, fuzzy
 msgid "Abgeschlossen von"
-msgstr "Completato"
+msgstr "Chiuso da"
 
 #: src/BoxOffice/ZReport.php:363
 msgid "Herkunft"
-msgstr ""
+msgstr "Origine"
 
 #: src/BoxOffice/ZReport.php:363
 msgid "Aus Kassensitzung vor Version mit Kassen übernommen"
-msgstr ""
+msgstr "Migrato da una sessione di cassa precedente alla versione con casse"
 
 #: src/BoxOffice/ZReport.php:364
-#, fuzzy
 msgid "Zahlarten"
-msgstr "Metodo di pagamento"
+msgstr "Metodi di pagamento"
 
 #: src/BoxOffice/ZReport.php:370
-#, fuzzy
 msgid "USt-Sätze"
-msgstr "Aliquota IVA"
+msgstr "Aliquote IVA"
 
 #. translators: 1: invoice number, 2: date
 #: src/BoxOffice/ZReport.php:374 src/Invoices.php:492 src/Invoices.php:495
@@ -5101,43 +4911,39 @@ msgstr "Lordo"
 
 #: src/BoxOffice/ZReport.php:377
 msgid "Zähler"
-msgstr ""
+msgstr "Contatori"
 
 #: src/BoxOffice/ZReport.php:380
-#, fuzzy
 msgid "Stornos"
-msgstr "Ricevuta di annullamento"
+msgstr "Annullamenti"
 
 #: src/BoxOffice/ZReport.php:382
 msgid "Freikarten (Verkäufe/Tickets)"
-msgstr ""
+msgstr "Biglietti omaggio (vendite/biglietti)"
 
 #: src/BoxOffice/ZReport.php:386
 msgid "Anfangsbestand (Wechselgeld)"
-msgstr ""
+msgstr "Saldo iniziale (fondo cassa)"
 
 #: src/BoxOffice/ZReport.php:386
 msgid "Barumsatz"
-msgstr ""
+msgstr "Incasso in contanti"
 
 #: src/BoxOffice/ZReport.php:386
 msgid "Barauszahlungen (Storno/Erstattung)"
-msgstr ""
+msgstr "Uscite in contanti (annullamento/rimborso)"
 
 #: src/BoxOffice/ZReport.php:386
-#, fuzzy
 msgid "Einlagen"
-msgstr "Regole di ingresso"
+msgstr "Versamenti"
 
 #: src/BoxOffice/ZReport.php:386
-#, fuzzy
 msgid "Entnahmen"
-msgstr "Nome dell'evento"
+msgstr "Prelievi"
 
 #: src/BoxOffice/ZReport.php:386
-#, fuzzy
 msgid "Korrekturen"
-msgstr "Importo della rettifica"
+msgstr "Rettifiche"
 
 #: src/BoxOffice/ZReport.php:386
 msgid "Soll-Bestand"
