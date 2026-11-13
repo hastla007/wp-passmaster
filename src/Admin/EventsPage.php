@@ -678,29 +678,35 @@ final class EventsPage {
 		$scope = Queries::event_ids_for( self::CAP );
 		$page = Forms::current_page();
 		$data = Queries::events_overview( $scope, $page, 50 );
+		$figures = Queries::event_figures( array_map( static function ( $row ) { return (int) $row->event_id; }, $data['rows'] ) );
 		?>
 		<h1 class="wp-heading-inline"><?php esc_html_e( 'Events', 'wp-pass-captain' ); ?></h1>
 		<hr class="wp-header-end">
 		<?php Forms::render_notices(); ?>
-		<table class="widefat striped">
+		<?php GettingStarted::render(); ?>
+		<table class="widefat striped wpcap-events-list">
+			<caption class="screen-reader-text"><?php esc_html_e( 'Events mit nächstem Termin, Auslastung und Umsatz', 'wp-pass-captain' ); ?></caption>
 			<thead><tr>
-				<th><?php esc_html_e( 'Event', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Nächster Termin', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Ort', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Termine', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Aktion', 'wp-pass-captain' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Event', 'wp-pass-captain' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Nächster Termin', 'wp-pass-captain' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Ort', 'wp-pass-captain' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Termine', 'wp-pass-captain' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Verkauft / Kapazität', 'wp-pass-captain' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Umsatz', 'wp-pass-captain' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Aktion', 'wp-pass-captain' ); ?></th>
 			</tr></thead>
 			<tbody>
 			<?php if ( ! $data['rows'] ) : ?>
-				<tr><td colspan="6"><?php esc_html_e( 'Noch keine Events angelegt.', 'wp-pass-captain' ); ?></td></tr>
+				<tr><td colspan="8"><?php esc_html_e( 'Noch keine Events angelegt.', 'wp-pass-captain' ); ?></td></tr>
 			<?php endif; ?>
 			<?php foreach ( $data['rows'] as $event ) :
 				$next = $event->next_occurrence;
 				$shown = $next ? $next : $event->last_occurrence;
+				$fig = $figures[ (int) $event->event_id ] ?? array( 'sold' => 0, 'capacity' => 0, 'revenue' => array() );
 				?>
 				<tr>
-					<td><strong><a href="<?php echo esc_url( self::event_url( $event->event_id ) ); ?>"><?php echo esc_html( $event->name ); ?></a></strong></td>
+					<th scope="row"><strong><a href="<?php echo esc_url( self::event_url( $event->event_id ) ); ?>"><?php echo esc_html( $event->name ); ?></a></strong></th>
 					<td>
 						<?php
 						if ( $next ) {
@@ -715,6 +721,8 @@ final class EventsPage {
 					</td>
 					<td><?php echo esc_html( $shown ? $shown->location : '' ); ?></td>
 					<td><?php echo esc_html( (string) (int) $event->occurrence_count ); ?></td>
+					<td><?php echo esc_html( self::figures_sold_label( $fig ) ); ?></td>
+					<td><?php echo esc_html( self::figures_revenue_label( $fig ) ); ?></td>
 					<td><?php echo esc_html( Forms::status_label( $event->status ) ); ?></td>
 					<td>
 						<a class="button" href="<?php echo esc_url( self::event_url( $event->event_id ) ); ?>"><?php esc_html_e( 'Bearbeiten', 'wp-pass-captain' ); ?></a>
@@ -730,7 +738,7 @@ final class EventsPage {
 		</table>
 		<?php Forms::pagination( $data['total'], $page, 50, self::url() ); ?>
 
-		<h2><?php esc_html_e( 'Event anlegen', 'wp-pass-captain' ); ?></h2>
+		<h2 id="wpcap-create-event"><?php esc_html_e( 'Event anlegen', 'wp-pass-captain' ); ?></h2>
 		<p><?php esc_html_e( 'Neue Events starten als Entwurf. Zeiten werden in der gewählten Zeitzone eingegeben.', 'wp-pass-captain' ); ?></p>
 		<?php Forms::open_form( 'wpcap_create_event' ); ?>
 			<table class="form-table"><tbody>
@@ -750,6 +758,22 @@ final class EventsPage {
 			<?php submit_button( __( 'Event speichern', 'wp-pass-captain' ) ); ?>
 		</form>
 		<?php
+	}
+
+	/** "Verkauft / Kapazität" cell of the event list: "12 / 100 (12 %)", "12 / ∞". */
+	public static function figures_sold_label( array $fig ) {
+		$sold = (int) ( $fig['sold'] ?? 0 );
+		$capacity = array_key_exists( 'capacity', $fig ) ? $fig['capacity'] : 0;
+		if ( null === $capacity ) { return number_format_i18n( $sold ) . ' / ∞'; }
+		$label = number_format_i18n( $sold ) . ' / ' . number_format_i18n( (int) $capacity );
+		return (int) $capacity > 0 ? $label . ' (' . number_format_i18n( (int) floor( $sold * 100 / (int) $capacity ) ) . ' %)' : $label;
+	}
+
+	/** "Umsatz" cell of the event list: amounts per currency or "—". */
+	public static function figures_revenue_label( array $fig ) {
+		$parts = array();
+		foreach ( (array) ( $fig['revenue'] ?? array() ) as $currency => $minor ) { $parts[] = Forms::money( (int) $minor, (string) $currency ); }
+		return $parts ? implode( ' · ', $parts ) : '—';
 	}
 
 	private static function render_event( $event_id ) {

@@ -185,6 +185,9 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 |---|---|---|
 | `wpcap_admin_order_detail` (Action) | `object $order, array $tickets` | Zusätzliche Abschnitte auf der Bestelldetailseite im Admin vor den Erstattungen (z. B. Ticketumtausch). |
 | `wpcap_occurrence_sold` | `int $sold, int $occurrence_id` | Im Admin angezeigte verkaufte Einheiten eines Termins (bezahlt, nicht erstattet); Module zählen eigene Einheiten hinzu (z. B. an anderen Terminen verankerte Pässe). |
+| `wpcap_event_figures` | `array $figures, int[] $event_ids` | Kennzahlen der Eventliste im Admin, je Event `sold` (bezahlt, nicht erstattet), `capacity` (`null` = unbegrenzt) und `revenue` (Währung => Minor Units); Module passen sie gesammelt an (keine Abfrage pro Zeile). |
+| `wpcap_getting_started_items` | `array $items, array $state` | Schritte der „Erste Schritte“-Checkliste auf der Eventliste (`key`, `label`, `description`, `done`, `url`); `$state` aus `GettingStarted::state()`. `done` aus Daten ableiten, nicht manuell abhaken. |
+| `wpcap_admin_menu_group` | `string $group, string $slug` | Bereich einer Unterseite im Pass-Captain-Menü (`events`, `sales`, `admission`, `finance`, `communication`, `settings`); Module können ihn auch als 5. Element in `admin_pages()` angeben. |
 | `wpcap_occurrence_cancellation_preview` | `array $effects` (leer), `int $occurrence_id` | Weitere Folgen einer Terminabsage für die Vorschau im Admin, je Eintrag `[Name, Tickets, Wirkung]` (z. B. verknüpfte Pässe). |
 
 ### Kontingente und Käuferlimits

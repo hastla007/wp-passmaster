@@ -208,6 +208,79 @@ final class Queries {
 	}
 
 	/**
+	 * Key figures of many events with two queries (event list, no per-row queries):
+	 * - sold: paid, not refunded units (as sold_for_occurrence(), summed over all occurrences);
+	 * - capacity: sellable units over the not cancelled occurrences – per occurrence the smaller of
+	 *   the occurrence limit and the sum of its ticket type limits; null when one is unlimited;
+	 * - revenue: currency => gross minor units of the paid, not refunded units after line discounts
+	 *   (refunded/exchanged units pro rata).
+	 *
+	 * @param int[] $event_ids Event ids.
+	 * @return array event_id => ['sold' => int, 'capacity' => int|null, 'revenue' => array<string,int>]
+	 */
+	public static function event_figures( array $event_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ) );
+		if ( ! $ids ) { return array(); }
+		$in = implode( ',', $ids );
+		$out = array();
+		foreach ( $ids as $id ) { $out[ $id ] = array( 'sold' => 0, 'capacity' => 0, 'revenue' => array() ); }
+
+		$qty = 'oi.quantity - oi.refunded_quantity';
+		$paid_qty = \PassCaptain\OrderLines::paid( 'quantity' );
+		$paid_total = \PassCaptain\OrderLines::paid( 'line_total_minor' ) . ( \PassCaptain\OrderLines::ready() ? ' - COALESCE(oi.discount_minor,0)' : '' );
+		$sales = $wpdb->get_results(
+			"SELECT oc.event_id, ord.currency,
+				SUM({$qty}) AS sold,
+				SUM(CASE WHEN {$paid_qty} > 0 THEN FLOOR(GREATEST({$paid_total},0) * LEAST({$qty},{$paid_qty}) / {$paid_qty}) ELSE 0 END) AS revenue
+			FROM {$p}wpcap_order_items oi
+			INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id
+			INNER JOIN {$p}wpcap_occurrences oc ON oc.occurrence_id=tt.occurrence_id
+			INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id
+			WHERE oc.event_id IN ({$in}) AND ord.payment_status='paid' AND ord.status <> 'refunded'
+			GROUP BY oc.event_id, ord.currency"
+		);
+		foreach ( (array) $sales as $row ) {
+			$event = (int) $row->event_id;
+			$out[ $event ]['sold'] += (int) $row->sold;
+			$revenue = (int) $row->revenue;
+			if ( $revenue > 0 ) {
+				$currency = strtoupper( (string) $row->currency );
+				$out[ $event ]['revenue'][ $currency ] = ( $out[ $event ]['revenue'][ $currency ] ?? 0 ) + $revenue;
+			}
+		}
+
+		$caps = $wpdb->get_results(
+			"SELECT oc.event_id, oc.occurrence_id, oc.capacity AS occurrence_capacity,
+				COUNT(tt.ticket_type_id) AS types, COALESCE(SUM(tt.capacity = 0),0) AS unlimited_types, COALESCE(SUM(tt.capacity),0) AS type_capacity
+			FROM {$p}wpcap_occurrences oc
+			LEFT JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=oc.occurrence_id
+			WHERE oc.event_id IN ({$in}) AND oc.status <> 'cancelled'
+			GROUP BY oc.event_id, oc.occurrence_id, oc.capacity"
+		);
+		foreach ( (array) $caps as $row ) {
+			$event = (int) $row->event_id;
+			if ( null === $out[ $event ]['capacity'] ) { continue; }
+			$limits = array();
+			if ( (int) $row->occurrence_capacity > 0 ) { $limits[] = (int) $row->occurrence_capacity; }
+			if ( (int) $row->types > 0 && 0 === (int) $row->unlimited_types ) { $limits[] = (int) $row->type_capacity; }
+			if ( ! $limits && (int) $row->types > 0 ) {
+				$out[ $event ]['capacity'] = null; // Unlimited.
+				continue;
+			}
+			$out[ $event ]['capacity'] += $limits ? min( $limits ) : 0;
+		}
+		/**
+		 * Key figures of the admin event list; modules adjust them in bulk (e.g. units counted elsewhere).
+		 *
+		 * @param array $out       event_id => ['sold', 'capacity', 'revenue'].
+		 * @param int[] $event_ids Event ids.
+		 */
+		return (array) apply_filters( 'wpcap_event_figures', $out, $ids );
+	}
+
+	/**
 	 * Event id => label for selects (scoped). Events sharing a name are told apart by their first
 	 * date and ID ("Konzert (12.05.2027 20:00 Europe/Vienna, #14)").
 	 */

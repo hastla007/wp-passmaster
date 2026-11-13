@@ -5,7 +5,7 @@
  *   public static function register()                 – hooks (called on plugins_loaded)
  *   public static function schema( $prefix, $charset ) – array of CREATE TABLE statements (dbDelta format)
  *   public static function settings_defaults()        – array key => default (merged into Settings)
- *   public static function admin_pages()              – array of [slug, title, capability, callable]
+ *   public static function admin_pages()              – array of [slug, title, capability, callable, menu area (optional, see Admin\Menu::groups())]
  *   public static function admin_handlers()           – array admin-post action => callable
  *
  * Schema changes are detected by hashing all module statements, so adding a column upgrades the DB.
