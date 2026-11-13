@@ -143,7 +143,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_mollie_webhook_ip_limit` | `int $limit` (120) | Mollie-Webhook-Abfragen bekannter Zahlungen je IP und Minute (darüber HTTP 429). |
 | `wpcap_mollie_webhook_global_limit` | `int $limit` (1200) | Mollie-Webhook-Abfragen insgesamt je Minute. |
 | `wpcap_mollie_payment_body` | `array $body, array $order, array $items` | Body von `POST /v2/payments` (Mollie). |
-| `wpcap_bank_transfer_details` | `array $details, object $order` | Überweisungsdaten im Bestellportal und in Mails (`reference`, `remittance`, `amount_minor`, `currency`, `amount`, `recipient`, `iban`, `bic`, `due_at`, `due_date`, `instructions`). |
+| `wpcap_bank_transfer_details` | `array $details, object $order` | Überweisungsdaten im Checkout, Bestellportal und in Mails (`reference`, `remittance`, `amount_minor`, `currency`, `amount`, `recipient`, `iban`, `bic`, `due_at`, `due_date`, `instructions`, `transfer`). Ohne Empfänger und IBAN (auch nach dem Filter) werden `recipient`, `iban`, `bic` und `remittance` geleert und `transfer` ist `false`: Käufer sehen dann nur Betrag, Frist und Zahlungshinweis. |
 | `wpcap_send_refund_mail` | `bool $send, int $refund_id, object $order` | Ob die Erstattungsbestätigung an den Käufer geht (Standard: ja, außer bei WooCommerce-Bestellungen oder ohne gültige E-Mail-Adresse). |
 
 ### E-Mails, Tickets, Darstellung

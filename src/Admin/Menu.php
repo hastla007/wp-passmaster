@@ -76,6 +76,7 @@ final class Menu {
 		add_action( 'admin_head', array( self::class, 'admin_styles' ) );
 		add_action( 'admin_footer', array( self::class, 'menu_heading_script' ) );
 		add_action( 'admin_notices', array( self::class, 'schema_error_notice' ) );
+		add_action( 'admin_notices', array( self::class, 'manual_payment_notice' ) );
 		UserScope::register();
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
@@ -87,6 +88,20 @@ final class Menu {
 		$error = get_option( 'wpcap_schema_error' );
 		if ( ! is_array( $error ) || ! current_user_can( 'manage_options' ) ) { return; }
 		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Das Datenbank-Update ist unvollständig.', 'pass-captain' ) . '</strong> ' . esc_html__( 'Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren.', 'pass-captain' ) . '</p><p><code>' . esc_html( implode( ', ', array_slice( (array) ( $error['missing'] ?? array() ), 0, 10 ) ) ) . '</code>' . ( ! empty( $error['db_error'] ) ? ' – ' . esc_html( (string) $error['db_error'] ) : '' ) . '</p></div>';
+	}
+
+	/**
+	 * Manual payment enabled without bank account or payment instructions (A265, e.g. an install from
+	 * before 3.10.8 that kept the old default): the checkout does not offer it until it is completed.
+	 * Shown on the plugin's pages and the dashboard to users who may change the settings.
+	 */
+	public static function manual_payment_notice() {
+		if ( ! current_user_can( SettingsPage::CAP ) || ! \PassCaptain\Payments\ManualGateway::enabled_but_incomplete() ) { return; }
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects the screen.
+		$dashboard = $screen && 'dashboard' === ( $screen->id ?? '' );
+		if ( ! $dashboard && ! str_starts_with( $page, 'wpcap' ) && 'pass-captain' !== $page ) { return; }
+		echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Pass Captain: Die Zahlungsart „Überweisung“ ist aktiviert, aber nicht vollständig konfiguriert.', 'pass-captain' ) . '</strong> ' . esc_html__( 'Es fehlen Empfänger und IBAN bzw. ein Zahlungshinweis. Bis dahin wird Überweisung im Checkout nicht angeboten.', 'pass-captain' ) . ' <a href="' . esc_url( SettingsPage::provider_url( 'manual' ) ) . '">' . esc_html__( 'Überweisung einrichten', 'pass-captain' ) . '</a></p></div>';
 	}
 
 	/** Area headings of the menu (every admin page); small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */

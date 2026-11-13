@@ -322,6 +322,10 @@ final class Controller {
 			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$hold = max( 30, (int) \PassCaptain\Settings::get( 'hold_minutes' ) ); // Hosted payment pages (e.g. Stripe) live at least 30 minutes.
+		if ( 'manual' === $provider_id && ! $gateway->is_available( '' ) ) {
+			// Enabled but without bank account or payment instructions (A265): no order, no blocked seats.
+			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400, 'field' => 'provider' ) );
+		}
 		if ( 'manual' === $provider_id ) {
 			// Bank transfer: hold ends at the latest with the start; refused within manual_cutoff_hours.
 			$hold = isset( $context['manual_start_ts'] )
@@ -379,8 +383,13 @@ final class Controller {
 			}
 			$result['payment'] = array_intersect_key( $payment, array_flip( array( 'provider', 'status', 'redirect_url', 'instructions' ) ) );
 			if ( \PassCaptain\Payments\BankTransfer::applies( $order ) ) {
-				// Bank details for the confirmation panel (same data as the access-link mail).
-				$result['payment']['bank_transfer'] = \PassCaptain\Payments\BankTransfer::details( $order );
+				// Bank details for the confirmation panel (same data as the access-link mail); only with recipient and IBAN (A265).
+				$bank = \PassCaptain\Payments\BankTransfer::details( $order );
+				if ( ! empty( $bank['transfer'] ) ) {
+					$result['payment']['bank_transfer'] = $bank;
+				} else {
+					$result['payment']['instructions'] = (string) $bank['instructions'];
+				}
 			}
 		}
 		$fresh = Orders::get( $result['order_id'] );

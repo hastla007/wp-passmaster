@@ -306,7 +306,7 @@ check( 'every settings key has a form field', ! array_diff( array_keys( array_di
 putenv( 'WPCAP_STRIPE_SECRET_KEY=sk_env' );
 check( 'constant/environment overrides are detected', 'WPCAP_STRIPE_SECRET_KEY' === SettingsPage::override_source( 'stripe_secret_key' ) && '' === SettingsPage::override_source( 'stripe_webhook_secret' ) );
 putenv( 'WPCAP_STRIPE_SECRET_KEY' );
-Settings::update( array( 'stripe_mode' => 'test', 'stripe_secret_key' => '', 'stripe_webhook_secret' => '', 'require_terms' => 0, 'terms_text' => '', 'refund_approval_threshold' => 0, 'hold_minutes' => 10, 'manual_hold_hours' => 72, 'manual_instructions' => '', 'seller_name' => '', 'invoice_prefix' => 'WPC' ) );
+Settings::update( array( 'stripe_mode' => 'test', 'stripe_secret_key' => '', 'stripe_webhook_secret' => '', 'require_terms' => 0, 'terms_text' => '', 'refund_approval_threshold' => 0, 'hold_minutes' => 10, 'manual_hold_hours' => 72, 'manual_instructions' => '', 'seller_name' => '', 'invoice_prefix' => 'WPC', 'bank_iban' => 'AT611904300234573201', 'bank_recipient' => 'Testverein' ) ); // Bank account of the run.php fixture (A265).
 
 echo "Admin: admin-post wrappers\n";
 $GLOBALS['wpcap_test_transients'] = array();

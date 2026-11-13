@@ -67,10 +67,10 @@ final class GettingStarted {
 		return false;
 	}
 
-	/** Manual payment (bank transfer) enabled with an IBAN or payment instructions. */
+	/** Manual payment (bank transfer) enabled with a bank account (IBAN + recipient) or payment instructions. */
 	private static function manual_payment_ready() {
 		if ( ! in_array( 'manual', (array) Settings::get( 'enabled_providers' ), true ) ) { return false; }
-		return '' !== trim( (string) Settings::get( 'bank_iban' ) ) || '' !== trim( (string) Settings::get( 'manual_instructions' ) );
+		return \PassCaptain\Payments\ManualGateway::configured();
 	}
 
 	/**

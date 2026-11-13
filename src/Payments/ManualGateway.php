@@ -9,9 +9,20 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class ManualGateway implements GatewayInterface {
 	public function id() { return 'manual'; }
 
-	public function title() { return __( 'Überweisung / Zahlung vor Ort', 'pass-captain' ); }
+	public function title() { return __( 'Überweisung', 'pass-captain' ); }
 
-	public function is_available( $currency ) { return true; }
+	/** Only offered once the buyer can actually pay: bank account (IBAN + recipient) or a payment instruction text (A265). */
+	public function is_available( $currency ) { return self::configured(); }
+
+	/** Whether manual payment has what the buyer needs to pay (see is_available()). */
+	public static function configured() {
+		return BankTransfer::has_account() || '' !== trim( (string) Settings::get( 'manual_instructions' ) );
+	}
+
+	/** Enabled in the settings but not configured: the checkout does not offer it (admin notice, settings status). */
+	public static function enabled_but_incomplete() {
+		return in_array( 'manual', (array) Settings::get( 'enabled_providers' ), true ) && ! self::configured();
+	}
 
 	public function create_payment( array $order, array $items = array() ) {
 		$instructions = trim( (string) Settings::get( 'manual_instructions' ) );

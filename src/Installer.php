@@ -810,6 +810,7 @@ final class Installer {
 		// from the source tables and verify them before capacity decisions rely on them.
 		CapacityCounters::after_install();
 		self::pin_legacy_credit_prefix( $previous_version );
+		self::pin_legacy_manual_provider( $previous_version );
 		// Provider secrets leave wpcap_settings (encrypted store, idempotent; see Secrets).
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
 
@@ -878,6 +879,26 @@ final class Installer {
 		$stored = is_array( $stored ) ? $stored : array();
 		if ( '' !== (string) ( $stored['credit_note_prefix'] ?? '' ) ) { return false; }
 		$stored['credit_note_prefix'] = Invoices::CREDIT_PREFIX_LEGACY;
+		update_option( Settings::OPTION, $stored, false );
+		Settings::flush();
+		return true;
+	}
+
+	/**
+	 * Schema 3.10.8 (A265): new installs start without an enabled payment method (before: "manual").
+	 * Installs that existed before and never saved the payment methods relied on the old default;
+	 * they keep "manual" enabled (stored explicitly). Whether it is complete is shown by
+	 * Admin\Menu::manual_payment_notice(); the checkout only offers it once it is configured.
+	 *
+	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
+	 */
+	public static function pin_legacy_manual_provider( $previous_version ) {
+		$previous = (string) strtok( (string) $previous_version, '+' );
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || ! version_compare( $previous, '3.10.8', '<' ) ) { return false; }
+		$stored = get_option( Settings::OPTION, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+		if ( array_key_exists( 'enabled_providers', $stored ) ) { return false; }
+		$stored['enabled_providers'] = array( 'manual' );
 		update_option( Settings::OPTION, $stored, false );
 		Settings::flush();
 		return true;

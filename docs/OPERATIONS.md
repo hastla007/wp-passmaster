@@ -200,6 +200,26 @@ Einstellungen unter **Pass Captain → SMS**; Tabellen `wpcap_sms_consents`, `wp
 - **Zustellstatus**: Twilio meldet an `/wp-json/pass-captain/v1/sms/twilio/status` (geprüft mit `X-Twilio-Signature`). Der generische HTTP-Anbieter meldet an `/sms/http/status` (JSON oder Formular; Felder `reference` = `wpcap-sms-{id}` oder `id`/`message_id`, `status`, optional `error_code`, `price`, `currency`). Er muss den Rohinhalt mit dem „Signaturschlüssel für Rückmeldungen“ (`sms_http_webhook_secret`) per HMAC-SHA256 signieren und die Signatur (hex oder Base64, optional `sha256=`) im Header `X-Signature` (einstellbar) senden; ohne Schlüssel lehnt der Endpunkt jede Meldung ab (403). Endgültige Zustände werden nicht auf `sent` zurückgestuft.
 - **Einwilligung und Abmeldung**: Jede Einwilligung speichert Nummer, Zweck, Textversion, Quelle (`source`, im Checkout `checkout`) und Zeitpunkt; ein Widerruf Zeitpunkt und Quelle (`withdrawn_source`: `admin`, `inbound_stop`, `privacy_erasure` …). Eine eingehende SMS mit STOP (auch STOPP, ABMELDEN, ENDE, UNSUBSCRIBE …) über Twilio (`/sms/twilio/inbound`) oder den HTTP-Anbieter (`/sms/http/inbound`, Felder `from`, `text`, gleiche Signatur) widerruft alle Einwilligungen der Nummer, löscht die Nummer und setzt sie als SHA-256-Hash auf die Sperrliste `wpcap_sms_optouts`. Neue Einwilligungen für diese Nummer lehnt der Checkout ab (`sms_opted_out`), bis sie START (UNSTOP, ANMELDEN) sendet; alte Einwilligungen leben dadurch nicht wieder auf.
 
+## Überweisung (manuelle Zahlung) einrichten (A265)
+
+Die Zahlungsart „Überweisung“ (`manual`) ist bei neuen Installationen **nicht** aktiviert. Sie wird im
+Checkout (auch in Wartelisten-Angeboten) erst angeboten, wenn sie unter **Einstellungen → Zahlungen →
+Überweisung** aktiviert **und** vollständig konfiguriert ist (`ManualGateway::is_available()`):
+
+- **Bankverbindung**: IBAN und Empfänger (Feld „Empfänger“, leer = Name des Rechnungsstellers), oder
+- ein **Zahlungshinweis** (Freitext, z. B. für eine andere Zahlungsabsprache).
+
+Käufer sehen eine Überweisungsaufforderung (Empfänger, IBAN, BIC, Verwendungszweck, Frist) nur mit
+Empfänger **und** IBAN. Ist nur ein Zahlungshinweis hinterlegt, zeigen Bestätigungsseite, Bestellportal
+und Mail `{payment_instructions}` nur Betrag, Frist und diesen Hinweis. Ein Checkout mit der unvollständigen
+Zahlungsart wird vor dem Anlegen der Bestellung abgelehnt (`wpcap_provider_unavailable`, keine Plätze
+blockiert).
+
+Installationen von vor Schema 3.10.8, die die Zahlungsarten nie gespeichert hatten, behalten
+„Überweisung“ als aktivierte Zahlungsart (`Installer::pin_legacy_manual_provider()`). Fehlt dort die
+Bankverbindung, zeigt der Zahlungen-Tab „(nicht vollständig konfiguriert)“ und Administratoren sehen auf
+dem Dashboard und den Plugin-Seiten einen Hinweis mit Link zur Einrichtung.
+
 ## Multisite: Site löschen und Plugin deinstallieren
 
 - Wird eine Site im Netzwerk gelöscht, entfernt WordPress auch deren `*_wpcap_*`-Tabellen (Filter `wpmu_drop_tables`). Tabellen anderer Sites sind nicht betroffen.

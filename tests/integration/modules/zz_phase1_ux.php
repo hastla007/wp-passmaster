@@ -84,7 +84,9 @@ check( 'payment instructions are empty once the order is paid', ( function () us
 check( 'order_access registry lists the new placeholders; preview sample shows the bank block', isset( Mailer::type( 'order_access' )['placeholders']['payment_instructions'], Mailer::type( 'order_access' )['placeholders']['order_reference'] ) && false !== strpos( (string) Mailer::text_body( Mailer::compose( 'order_access', call_user_func( Mailer::type( 'order_access' )['sample'] ) ) ), 'IBAN: AT61 1904 3002 3457 3201' ) );
 Settings::update( array( 'bank_iban' => '' ) );
 $no_iban = BankTransfer::details( Orders::get( $data['order_id'] ) );
-check( 'without IBAN no bank rows (recipient/BIC) are shown, reference and amount stay', '' === $no_iban['iban'] && '' === $no_iban['bic'] && '' === $no_iban['recipient'] && ! isset( BankTransfer::rows( $no_iban )['IBAN'] ) && isset( BankTransfer::rows( $no_iban )['Verwendungszweck'] ) );
+// A265: without IBAN no transfer request at all (no remittance either), only amount, due date and instructions.
+check( 'without IBAN no bank rows (recipient/BIC/remittance) are shown, amount stays', '' === $no_iban['iban'] && '' === $no_iban['bic'] && '' === $no_iban['recipient'] && false === $no_iban['transfer'] && ! isset( BankTransfer::rows( $no_iban )['IBAN'] ) && ! isset( BankTransfer::rows( $no_iban )['Verwendungszweck'] ) && isset( BankTransfer::rows( $no_iban )['Betrag'] ) );
+Settings::update( array( 'bank_iban' => 'AT611904300234573201' ) );
 
 echo "Phase 1 UX: manual payment cannot block an event anonymously\n";
 $GLOBALS['wpcap_test_transients'] = array();

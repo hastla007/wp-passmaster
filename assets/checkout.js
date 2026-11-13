@@ -381,12 +381,14 @@
 			panel.appendChild(p);
 		}
 		const total = data.total_formatted || (typeof data.total_minor === 'number' ? money(data.total_minor, data.currency) : '');
-		if (total && Number(data.total_minor) > 0 && t.orderTotal && !(data.payment && data.payment.bank_transfer)) panel.appendChild(el('p', {}, t.orderTotal.replace('%s', total)));
+		if (total && Number(data.total_minor) > 0 && t.orderTotal && !(data.payment && data.payment.bank_transfer && data.payment.bank_transfer.iban)) panel.appendChild(el('p', {}, t.orderTotal.replace('%s', total)));
 		if (complete) {
 			panel.appendChild(el('p', {}, fill(t.ticketsSentTo || t.complete || '%s', [email])));
 		} else {
 			const payment = data.payment || {};
-			const bank = payment.bank_transfer;
+			// A transfer request needs recipient and IBAN (A265); otherwise only the instruction text.
+			const bank = payment.bank_transfer && payment.bank_transfer.iban && payment.bank_transfer.recipient ? payment.bank_transfer : null;
+			if (!bank && payment.bank_transfer && payment.bank_transfer.instructions && !payment.instructions) payment.instructions = payment.bank_transfer.instructions;
 			if (bank) {
 				panel.appendChild(el('p', {}, t.payNow || ''));
 				const list = el('dl', { class: 'wpcap-bank' });

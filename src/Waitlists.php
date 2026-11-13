@@ -550,7 +550,11 @@ final class Waitlists {
 			// Order link (bank details, status) by mail, like a regular checkout.
 			Orders::rotate_access_link( $order_id );
 			$payment = array_intersect_key( $payment, array_flip( array( 'provider', 'status', 'redirect_url', 'instructions' ) ) );
-			if ( Payments\BankTransfer::applies( $fresh ) ) { $payment['bank_transfer'] = Payments\BankTransfer::details( $fresh ); }
+			if ( Payments\BankTransfer::applies( $fresh ) ) {
+				$bank = Payments\BankTransfer::details( $fresh );
+				// Transfer request only with recipient and IBAN (A265); otherwise the instruction text.
+				if ( ! empty( $bank['transfer'] ) ) { $payment['bank_transfer'] = $bank; } else { $payment['instructions'] = (string) $bank['instructions']; }
+			}
 		}
 		Audit::record( 'waitlist_accepted', 'waitlist', (int) $row->waitlist_id, array( 'order_id' => $order_id, 'provider' => $gateway ? $gateway->id() : 'free' ) );
 		$order = Orders::get( $order_id ) ?: ( Orders::get( $order_id ) ?: $order ); // Once more after a failed read.

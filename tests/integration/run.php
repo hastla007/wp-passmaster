@@ -11,6 +11,10 @@
 
 require __DIR__ . '/bootstrap.php';
 
+// Fixture: an install with a configured bank transfer (A265: new installs start without a payment
+// method, and "manual" is only offered with recipient + IBAN or payment instructions).
+$GLOBALS['wpcap_test_options']['wpcap_settings'] = array( 'enabled_providers' => array( 'manual' ), 'bank_iban' => 'AT611904300234573201', 'bank_recipient' => 'Testverein' );
+
 use PassCaptain\Orders;
 use PassCaptain\Integrations\WooCommerce\OrderAdapter as Woo;
 
