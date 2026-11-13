@@ -366,7 +366,18 @@ final class Privacy {
 		$ticket_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) ) );
 		// Valid tickets are revoked through the core service so wallet passes, seats, offline
 		// packages (status in the next snapshot) and webhooks learn about it.
-		$revoked = Orders::revoke_ids( $ticket_ids );
+		// Through Orders::revoke_tickets() per ticket type: revoked units also leave the capacity
+		// (refunded_quantity, counters, wpcap_capacity_released) – relevant when the filter
+		// wpcap_privacy_defer_upcoming erases orders with upcoming dates right away.
+		$revoked = array();
+		$valid_by_type = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,ticket_type_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid'", $order_id ) ) as $row ) {
+			$valid_by_type[ (int) $row->ticket_type_id ][] = (int) $row->ticket_id;
+		}
+		foreach ( $valid_by_type as $type_id => $ids ) {
+			Orders::revoke_tickets( $order_id, $type_id, count( $ids ), 'privacy_erasure' );
+			$revoked = array_merge( $revoked, array_map( 'intval', $wpdb->get_col( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE ticket_id IN (" . implode( ',', $ids ) . ") AND status='revoked'" ) ) );
+		}
 		foreach ( $ticket_ids as $ticket_id ) {
 			// token_hash is UNIQUE: one random value per ticket.
 			$wpdb->update( $p . 'wpcap_tickets', array( 'token_hash' => self::random_hash(), 'attendee_email' => '' ), array( 'ticket_id' => $ticket_id ), array( '%s', '%s' ), array( '%d' ) );
@@ -390,7 +401,7 @@ final class Privacy {
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_service_bookings SET customer_email=%s WHERE order_id=%d AND customer_email=%s", $replacement, $order_id, $email ) );
 		$invoices += (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_invoices WHERE order_id=%d", $order_id ) );
 		// Fired after anonymisation, so listeners (webhooks with personal data) see no address.
-		Orders::fire_revoked( $revoked, 'privacy_erasure' );
+		// wpcap_ticket_revoked already fired per ticket inside Orders::revoke_tickets().
 		Audit::record( 'privacy_erasure', 'order', $order_id, array( 'tickets' => count( $ticket_ids ), 'revoked' => count( $revoked ), 'details' => $details ) );
 		/** An order was anonymised (privacy erasure): modules drop data they keep per order. */
 		do_action( 'wpcap_privacy_order_anonymized', (int) $order_id );

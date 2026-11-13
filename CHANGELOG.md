@@ -81,6 +81,7 @@
 - Z-Bericht: unbekannte Berichtsnummer liefert „nicht gefunden“ (404) statt „keine Berechtigung“; Ausgabe-Funktionen prüfen auf fehlende Berichte (keine PHP-Warnungen).
 - Umtausch-Abschluss sperrt Original- und Aufpreisbestellung (aufsteigend) vor Ticketarten und Terminen – gleiche Sperrreihenfolge wie Stornierung/Zählerabgleich, kein Deadlock bei gleichzeitiger Stornierung der Aufpreisbestellung.
 - Kapazitätsprüfung mit Zählern zieht alle noch gezählten, aber nicht mehr gültigen Reservierungen ab (abgelaufen, freigegeben, umgewandelt – noch nicht synchronisiert), nicht nur abgelaufene „aktive“; kein falsches „ausverkauft“ im Grenzfall.
+- Datenschutz-Löschung (auch sofort, Filter `wpcap_privacy_defer_upcoming`): widerrufene Tickets geben ihre Plätze frei (über `Orders::revoke_tickets()`: Kontingent, Zähler, `wpcap_capacity_released`).
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

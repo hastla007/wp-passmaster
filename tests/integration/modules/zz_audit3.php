@@ -882,3 +882,16 @@ $a74_next = Orders::create( array( 'email' => 'a74b@example.com', 'items' => arr
 check( 'A074: the next buyer gets the unit of an expired, not yet synced hold (no false "sold out")', 1 === $a74_counted && ! is_wp_error( $a74_next ) );
 PassCaptain\CapacityCounters::sync_order_now( (int) $a74['order_id'] );
 if ( ! is_wp_error( $a74_next ) ) { Orders::cancel_order( (int) $a74_next['order_id'], 'test' ); }
+
+echo "Audit 3: privacy erasure of upcoming tickets frees their capacity (A076)\n";
+$a76_type = make_type( 5, 3, 1000 );
+$a76_mail = 'a76@example.com';
+$GLOBALS['wpcap_test_transients'] = array();
+$a76 = Orders::create( array( 'email' => $a76_mail, 'items' => array( array( 'ticket_type_id' => $a76_type, 'quantity' => 2 ) ), 'idempotency_key' => 'a76-' . uniqid() ) );
+Orders::confirm_external_payment( $a76['order_id'], 'a76' );
+$a76_before = Orders::availability( $a76_type );
+$a76_now = static fn() => false;
+add_filter( 'wpcap_privacy_defer_upcoming', $a76_now );
+PassCaptain\Privacy::erase( $a76_mail );
+remove_filter( 'wpcap_privacy_defer_upcoming', $a76_now );
+check( 'A076: immediately erased upcoming tickets are revoked and their places are free again', 0 === count( tickets( $a76['order_id'], 'valid' ) ) && $a76_before + 2 === Orders::availability( $a76_type ) );

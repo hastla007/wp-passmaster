@@ -489,7 +489,7 @@ Verdachtsfälle:
 - [x] [VERDACHT] `src/Exchange/Service.php:949–993` — Sperrreihenfolge in `finalize` (Typen/Termine → Zusatzbestellung) umgekehrt zu `sync_order_now()` (Bestellung → Typen); Deadlock bei gleichzeitiger Stornierung denkbar.
 - [x] [VERDACHT] `src/Orders.php:524–557` — `capacity_error_counted` zieht nur `active`-Holds ab; bereits `expired`, aber nicht synchronisierte Holds blockieren im Grenzfall die eigene späte Zahlung.
 - [ ] [VERDACHT] `src/Partners/Statement.php` vs. `src/Partners/Settlements.php` — zwei Abrechnungswege mit eigener Zuordnung; Verrechnung bei selbst verkaufenden Veranstaltern nur manuell.
-- [ ] [VERDACHT] Datenschutz-Löschung widerruft Tickets ohne Kontingentfreigabe (anders als `Orders::revoke_tickets`).
+- [x] [VERDACHT] Datenschutz-Löschung widerruft Tickets ohne Kontingentfreigabe (anders als `Orders::revoke_tickets`).
 - [ ] [VERDACHT] `Modules::register_all` — Module nicht einzeln abschaltbar; Filterlast auch ohne Nutzung.
 
 Fehlende Tests: Fault-Injection `db_busy`/Deadlock in Modul-Filtern (späte Zahlung, Umtausch, `Refunds::execute`); modulübergreifende Nebenläufigkeit (Pass + Hold + Partnerkontingent + Käuferlimit gegen Umtausch); parallele Wartelisten-Annahmen und Gästelisten-Quote; Abfrage-Obergrenze mit allen Modulen; Upgrade-Pfad großer Bestand; Gutschein-Vertragstest `treatment`.
