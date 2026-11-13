@@ -61,6 +61,7 @@ final class ChangeHistory {
 			'occurrence_updated' => __( 'Termin geändert', 'wp-pass-captain' ),
 			'occurrence_cancelled' => __( 'Termin abgesagt', 'wp-pass-captain' ),
 			'occurrence_rescheduled' => __( 'Termin verschoben', 'wp-pass-captain' ),
+			'occurrence_change_notified' => __( 'Ticketinhaber:innen über Änderung informiert', 'wp-pass-captain' ),
 			'occurrence_deleted' => __( 'Termin entfernt (nicht mehr in der Serienregel)', 'wp-pass-captain' ),
 			'occurrence_flagged' => __( 'Termin außerhalb der Serienregel markiert', 'wp-pass-captain' ),
 			'occurrence_unflagged' => __( 'Markierung aufgehoben', 'wp-pass-captain' ),

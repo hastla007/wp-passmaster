@@ -505,7 +505,8 @@ final class Generator {
 	/**
 	 * Applies a definition change exactly as previewed (the fingerprint of plan_update() must still
 	 * match; otherwise nothing is changed). Fires `wpcap_occurrence_rescheduled` for moved
-	 * occurrences with issued tickets and `wpcap_series_updated` at the end.
+	 * occurrences with issued tickets, `wpcap_occurrence_changed` for calendar-relevant changes
+	 * (revision + 1, A140) and `wpcap_series_updated` at the end.
 	 *
 	 * @return array|\WP_Error {series_id, event_id, added[], changed[], deleted[], flagged[], skipped, seat_failed[], warning?}
 	 */
@@ -550,6 +551,8 @@ final class Generator {
 						$data = array();
 						foreach ( $row['changes'] as $field => $pair ) { $data[ $field ] = $pair[1]; }
 						if ( $data ) { $wpdb->update( "{$p}wpcap_occurrences", $data, array( 'occurrence_id' => $occurrence_id ) ); }
+						// A140: calendar-relevant changes raise the revision (iCalendar SEQUENCE).
+						$row['revision'] = \PassCaptain\Calendar\Revisions::relevant( $row['changes'] ) ? \PassCaptain\Calendar\Revisions::bump( $occurrence_id ) : 0;
 						self::update_sales_windows( $occurrence_id, $series_id, $row, $definition, $audits );
 						$wpdb->update( "{$p}wpcap_series_occurrences", array( 'starts_at' => $row['item']['starts_at'] ) + ( $flags ? array( 'flag' => '', 'flagged_at' => null ) : array() ), array( 'series_id' => $series_id, 'occurrence_id' => $occurrence_id ) );
 						$result['changed'][] = $occurrence_id;
@@ -604,9 +607,8 @@ final class Generator {
 			if ( ! empty( $row['seat'] ) && is_wp_error( self::relink_seat_map( $occurrence_id, $definition ) ) ) {
 				$result['seat_failed'][] = $occurrence_id;
 			}
-			if ( ! empty( $row['reschedule'] ) ) {
-				do_action( 'wpcap_occurrence_rescheduled', $occurrence_id, $row['changes']['starts_at'][0], $row['changes']['starts_at'][1] );
-			}
+			// Reschedule (moved start with issued tickets) and change notification: one mail per save.
+			\PassCaptain\Notifications::after_save( $occurrence_id, $row['changes'], (int) ( $row['revision'] ?? 0 ), ! empty( $row['reschedule'] ) );
 			if ( isset( $row['changes']['capacity'] ) && 'scheduled' === $row['status'] ) {
 				$old_cap = (int) $row['changes']['capacity'][0];
 				$new_cap = (int) $row['changes']['capacity'][1];

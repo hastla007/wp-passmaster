@@ -3,7 +3,9 @@
  * Event calendar: shortcode [wp_pass_captain_calendar] / block wp-pass-captain/calendar (month and
  * list view of upcoming published occurrences), public iCalendar downloads (?wpcap_ics=occurrence&id=N),
  * per-event feeds (?wpcap_ics=event&id=N, webcal-compatible) and an .ics attachment per occurrence
- * in the ticket mail.
+ * in the ticket mail. Every copy uses the same UID per occurrence and the occurrence's revision as
+ * SEQUENCE (A140, Calendar\Revisions), so a later download or the .ics of a change or cancellation
+ * mail (Notifications, OccurrenceCancellation) updates the imported entry.
  */
 namespace PassCaptain\Modules;
 

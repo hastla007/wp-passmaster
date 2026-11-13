@@ -80,8 +80,16 @@ final class OccurrenceCancellation {
 			// Translated in the recipient's locale.
 			'refund_note' => static function () use ( $auto_refund ) { return $auto_refund ? __( 'Der Ticketpreis wird automatisch erstattet.', 'wp-pass-captain' ) : __( 'Der Veranstalter informiert dich über Erstattung oder Ersatztermin.', 'wp-pass-captain' ); },
 		);
-		foreach ( self::$event_batch ? array() : $recipients as $recipient ) {
-			if ( is_email( $recipient->email ) && Mail\Mailer::send( 'occurrence_cancelled', $recipient->email, $vars, array(), (string) $recipient->locale ) ) { ++$summary['notified']; }
+		// A140: the cancelled .ics (same UID, higher SEQUENCE, STATUS:CANCELLED) updates imported entries.
+		$files = ! self::$event_batch && $recipients ? Notifications::ics_file( $occurrence_id ) : array();
+		try {
+			foreach ( self::$event_batch ? array() : $recipients as $recipient ) {
+				if ( is_email( $recipient->email ) && Mail\Mailer::send( 'occurrence_cancelled', $recipient->email, $vars, $files, (string) $recipient->locale ) ) { ++$summary['notified']; }
+			}
+		} finally {
+			foreach ( $files as $file ) {
+				if ( file_exists( $file ) ) { wp_delete_file( $file ); }
+			}
 		}
 		Audit::record( 'occurrence_cancellation_processed', 'occurrence', $occurrence_id, $summary );
 		self::$summaries[ $occurrence_id ] = $summary;

@@ -13,6 +13,7 @@ namespace PassCaptain\Admin;
 
 use PassCaptain\Access;
 use PassCaptain\Audit;
+use PassCaptain\Calendar\Revisions;
 use PassCaptain\Localization;
 use PassCaptain\Orders;
 
@@ -137,19 +138,29 @@ final class EventsPage {
 			return Forms::error( 'wpcap_event_invalid', __( 'Bitte prüfe die Eventdaten.', 'wp-pass-captain' ) );
 		}
 		global $wpdb;
-		$wpdb->update( $wpdb->prefix . 'wpcap_events', array(
+		$data = array(
 			'name' => $name,
 			'description' => wp_kses_post( (string) ( $in['description'] ?? '' ) ),
 			'status' => $status,
 			'updated_at' => current_time( 'mysql', true ),
-		), array( 'event_id' => (int) $event->event_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
-		Audit::record( 'event_updated', 'event', (int) $event->event_id, array( 'status' => $status, 'previous_status' => $event->status ) );
+		);
+		$formats = array( '%s', '%s', '%s', '%s' );
+		$extra = array();
+		// A140: per-event opt-out of change mails; only touched when the form showed the checkbox.
+		if ( ! empty( $in['notify_changes_shown'] ) && Revisions::ready() ) {
+			$data['notify_changes'] = Forms::flag( $in, 'notify_changes' ) ? 1 : 0;
+			$formats[] = '%d';
+			if ( (int) ( $event->notify_changes ?? 1 ) !== $data['notify_changes'] ) { $extra['notify_changes'] = $data['notify_changes']; }
+		}
+		$wpdb->update( $wpdb->prefix . 'wpcap_events', $data, array( 'event_id' => (int) $event->event_id ), $formats, array( '%d' ) );
+		Audit::record( 'event_updated', 'event', (int) $event->event_id, array( 'status' => $status, 'previous_status' => $event->status ) + $extra );
 		return array( 'event_id' => (int) $event->event_id );
 	}
 
 	/**
 	 * Creates or updates an occurrence. Fires `wpcap_occurrence_rescheduled` when the start of an
-	 * occurrence with issued tickets changes, and `wpcap_occurrence_cancelled` on cancellation.
+	 * occurrence with issued tickets changes, `wpcap_occurrence_changed` when a calendar-relevant
+	 * field changes (revision + 1, A140) and `wpcap_occurrence_cancelled` on cancellation.
 	 */
 	public static function save_occurrence( array $in ) {
 		$occurrence_id = Forms::int( $in, 'occurrence_id' );
@@ -213,10 +224,11 @@ final class EventsPage {
 			$wpdb->update( $table, $data, array( 'occurrence_id' => (int) $old->occurrence_id ), $formats, array( '%d' ) );
 			$occurrence_id = (int) $old->occurrence_id;
 			$issued = Queries::issued_ticket_count_for_occurrence( $occurrence_id );
-			if ( $old->starts_at !== $starts && $issued > 0 ) {
-				$rescheduled = true;
-				do_action( 'wpcap_occurrence_rescheduled', $occurrence_id, $old->starts_at, $starts );
-			}
+			// A140: calendar-relevant changes raise the revision (iCalendar SEQUENCE); one mail per save.
+			$revision_changes = Revisions::diff( $old, $data );
+			$revision = $revision_changes ? Revisions::bump( $occurrence_id ) : (int) ( $old->revision ?? 0 );
+			$rescheduled = $old->starts_at !== $starts && $issued > 0;
+			\PassCaptain\Notifications::after_save( $occurrence_id, $revision_changes, $revision, $rescheduled );
 			// A114: field-by-field diff (old → new) for the occurrence's change history.
 			$changes = ChangeHistory::diff( (array) $old, $data );
 			Audit::record( 'occurrence_updated', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'old_starts_at' => $old->starts_at, 'new_starts_at' => $starts, 'status' => $status, 'rescheduled' => $rescheduled, 'changes' => $changes ) + ( isset( $data['venue_country'] ) && (string) ( $old->venue_country ?? '' ) !== $data['venue_country'] ? array( 'old_venue_country' => (string) ( $old->venue_country ?? '' ), 'venue_country' => $data['venue_country'] ) : array() ) );
@@ -280,6 +292,7 @@ final class EventsPage {
 		if ( ! Forms::flag( $in, 'confirm' ) ) { return Forms::error( 'wpcap_cancel_confirm', __( 'Bitte bestätigen, dass die Folgen der Absage geprüft wurden.', 'wp-pass-captain' ) ); }
 		global $wpdb;
 		$wpdb->update( $wpdb->prefix . 'wpcap_occurrences', array( 'status' => 'cancelled' ), array( 'occurrence_id' => (int) $occ->occurrence_id ), array( '%s' ), array( '%d' ) );
+		Revisions::bump( (int) $occ->occurrence_id );
 		$issued = Queries::issued_ticket_count_for_occurrence( $occ->occurrence_id );
 		Audit::record( 'occurrence_cancelled', 'occurrence', (int) $occ->occurrence_id, array( 'event_id' => (int) $occ->event_id, 'issued_tickets' => $issued, 'reason' => $reason, 'changes' => array( 'status' => array( $occ->status, 'cancelled' ) ) ) );
 		do_action( 'wpcap_occurrence_cancelled', (int) $occ->occurrence_id, $issued );
@@ -830,6 +843,9 @@ final class EventsPage {
 				<tr><th><label for="wpcap-ev-name"><?php esc_html_e( 'Eventname', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-ev-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $event->name ); ?>"></td></tr>
 				<tr><th><label for="wpcap-ev-desc"><?php esc_html_e( 'Beschreibung', 'wp-pass-captain' ); ?></label></th><td><textarea id="wpcap-ev-desc" name="description" class="large-text" rows="5"><?php echo esc_textarea( $event->description ); ?></textarea></td></tr>
 				<tr><th><label for="wpcap-ev-status"><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></label></th><td><?php Forms::select( 'status', self::status_options(), $event->status, 'wpcap-ev-status' ); ?></td></tr>
+				<?php if ( Revisions::ready() ) : ?>
+				<tr><th scope="row"><?php esc_html_e( 'Änderungsmitteilungen', 'wp-pass-captain' ); ?></th><td><?php Forms::hidden( 'notify_changes_shown', 1 ); ?><label><input type="checkbox" name="notify_changes" value="1"<?php checked( 1 === (int) ( $event->notify_changes ?? 1 ) ); ?>> <?php esc_html_e( 'Ticketinhaber:innen per E-Mail informieren, wenn sich Zeit, Ort oder Einlass eines Termins ändern (mit aktualisierter Kalenderdatei)', 'wp-pass-captain' ); ?></label><p class="description"><?php esc_html_e( 'Absagen werden unabhängig davon immer mitgeteilt.', 'wp-pass-captain' ); ?></p></td></tr>
+				<?php endif; ?>
 			</tbody></table>
 			<?php submit_button( __( 'Event aktualisieren', 'wp-pass-captain' ) ); ?>
 			</form>

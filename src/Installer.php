@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.9.7';
+	const DB_VERSION = '3.9.9';
 
 	public static function install() {
 		global $wpdb;
@@ -66,6 +66,7 @@ final class Installer {
 				slug varchar(190) NOT NULL,
 				description longtext NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'draft',
+				notify_changes tinyint(1) unsigned NOT NULL DEFAULT 1,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (event_id),
@@ -85,6 +86,9 @@ final class Installer {
 				sold_qty int(11) NOT NULL DEFAULT 0,
 				held_qty int(11) NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'scheduled',
+				revision int(10) unsigned NOT NULL DEFAULT 0,
+				revised_at datetime NULL,
+				notified_revision int(10) unsigned NOT NULL DEFAULT 0,
 				PRIMARY KEY  (occurrence_id),
 				KEY event_id (event_id),
 				KEY starts_at (starts_at),

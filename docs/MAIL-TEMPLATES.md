@@ -20,7 +20,8 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 | `refund_request_rejected` | Stornierungsanfrage aus dem Bestellportal abgelehnt (Tickets bleiben gültig; der interne Ablehnungsgrund wird nicht gesendet) | `{order_id}` (kurze Bestellnummer), `{ticket_count}` |
 | `event_cancelled` | Ganzes Event abgesagt | `{event_name}` |
 | `occurrence_cancelled` | Einzelner Termin abgesagt | `{event_name}`, `{event_date}`, `{event_location}`, `{timezone}`, `{refund_note}` |
-| `occurrence_rescheduled` | Termin verschoben | `{event_name}`, `{old_date}`, `{event_date}`, `{timezone}`, `{event_location}` |
+| `occurrence_rescheduled` | Termin verschoben (nur die Zeit; aktualisierte .ics im Anhang) | `{event_name}`, `{old_date}`, `{event_date}`, `{timezone}`, `{event_location}`, `{ics_url}` |
+| `occurrence_changed` | Termindetails geändert (A140): Ort, Ende, Einlass oder Veranstaltungsland – auch zusammen mit einer neuen Zeit, dann statt `occurrence_rescheduled` (eine Mail je Speichern). Höchstens einmal je Revision des Termins; aktualisierte .ics im Anhang | `{event_name}`, `{changes}` (eine Zeile „Angabe: bisher → neu“ je Änderung), `{event_date}`, `{old_date}`, `{timezone}`, `{event_location}`, `{ics_url}` |
 | `waitlist_joined` | Eintragung in die Warteliste | `{position}`, `{quantity}`, `{event_name}`, `{ticket_name}` |
 | `waitlist_offer` | Platzangebot aus der Warteliste (Tickets bis zum Ablauf reserviert) | `{offer_expires}`, `{accept_link}`, `{quantity}`, `{position}`, `{event_name}`, `{ticket_name}` |
 | `member_pass` | Mitgliedspass ausgestellt | `{pass_code}`, `{valid_from}`, `{valid_until}` |
@@ -28,6 +29,16 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 In allen Mails stehen außerdem `{site_name}` (Filter `wpcap_sender_name`), `{site_url}` sowie `{terms_text}` und `{consumer_info_text}` zur Verfügung. Die Rechtstexte erscheinen in der Sprache der Mail (Locale der Bestellung) und fallen je Text auf die Standardsprache zurück, wenn für diese Sprache keine eigene Fassung gepflegt ist (**Einstellungen → Rechtstexte**). Die vollständige Liste mit Beschreibung zeigt der Editor je Typ.
 
 Erinnerungen (Modul *Erinnerungen*) werden weiterhin auf ihrer eigenen Seite bearbeitet (nur Text); sie gehen über die Nachrichten-Warteschlange und ebenfalls über den zentralen Mailer (`Mailer::deliver`). Der fertig ersetzte Text wird als Ganzes maskiert, URLs werden verlinkt und in das HTML-Layout gesetzt (Format-Schlüssel `reminder` im Filter `wpcap_mail_default_format`).
+
+## Änderungsmitteilungen und Kalenderdateien (A140)
+
+Jede Änderung an Beginn, Ende, Einlass, Ort, Veranstaltungsland oder Status eines Termins erhöht dessen **Revision** (`wpcap_occurrences.revision`, Schema 3.9.9) – egal ob im Termin-Formular, über eine Serienänderung, eine Terminabsage oder eine Eventabsage. Die Revision ist die `SEQUENCE` der .ics-Datei, `LAST-MODIFIED` der Zeitpunkt der Änderung, die `UID` bleibt je Termin gleich (`wpcap-occurrence-{id}@{host}`, identisch in Ticket-Mail, Änderungsmail, Download und Feed). Kalenderprogramme ersetzen dadurch den importierten Eintrag, statt einen zweiten anzulegen; abgesagte Termine kommen als `STATUS:CANCELLED`.
+
+- **Eine Mail je Speichern:** Ändert sich nur die Zeit, geht wie bisher `occurrence_rescheduled`. Ändern sich Ort, Ende/Einlass ohne neuen Beginn oder das Veranstaltungsland – auch zusammen mit der Zeit –, geht stattdessen genau eine `occurrence_changed` mit allen Änderungen in `{changes}`.
+- **Idempotent je Revision:** `wpcap_occurrences.notified_revision` merkt sich die zuletzt mitgeteilte Revision; ein erneuter Aufruf für dieselbe Revision sendet nichts.
+- **Anhang und Link:** Beide Mails sowie `occurrence_cancelled` hängen die aktuelle .ics an, wenn unter *Kalender* „Kalenderdatei (.ics) je Termin anhängen“ aktiv ist; `{ics_url}` verlinkt den öffentlichen Download (leer, wenn das Modul Kalender abgeschaltet ist).
+- **Abschalten je Event:** *Events → Event bearbeiten → Änderungsmitteilungen*. Ohne Haken gehen weder `occurrence_rescheduled` noch `occurrence_changed`; Absagen werden immer mitgeteilt.
+- Empfänger sind wie bei der Terminänderung die Inhaber:innen gültiger Tickets (Teilnehmer-Adresse, sonst Käufer:in), je Adresse eine Mail in der Sprache der Bestellung. Im Änderungsverlauf des Termins erscheint der Eintrag „Ticketinhaber:innen über Änderung informiert“.
 
 ## Standardformat: HTML (A101)
 
