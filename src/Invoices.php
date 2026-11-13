@@ -84,6 +84,11 @@ final class Invoices {
 		}
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'invoice_issued', 'invoice', $invoice_id, array( 'order_id' => $order_id, 'invoice_number' => $number, 'sales_model' => $seller_context['model'], 'partner_id' => $seller_context['partner_id'] ) );
+		// Refunds completed before the invoice existed: the invoice shows the full consideration, so
+		// each of them gets its correction document now (same as a refund after the invoice).
+		foreach ( array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT r.refund_id FROM {$p}wpcap_refunds r LEFT JOIN {$p}wpcap_credit_notes c ON c.refund_id=r.refund_id WHERE r.order_id=%d AND r.status='completed' AND c.credit_note_id IS NULL ORDER BY r.refund_id", $order_id ) ) ) as $refund_id ) {
+			self::credit_note_for_refund( $refund_id );
+		}
 		return array( 'invoice_id' => $invoice_id, 'invoice_number' => $number );
 	}
 

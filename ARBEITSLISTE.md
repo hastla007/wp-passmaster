@@ -53,7 +53,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Refunds.php:513–537,539–558` — Maßnahme: `line_shares()` mit Positionsbrutto nach Rabatt; Eigenschaftstest „Summe Korrekturen = Rechnung je Satz“.
 - [x] **A021** [P2] Betragserstattung bei Mehrzweckgutschein rechnet volle USt gegen Barrest (3,33 € statt 1,67 €). — _OFFEN_ (TODO L441; Steuer und Finanzen (Prüfung 3))
   - `src/Refunds.php:550–551` — Maßnahme: Basis `Checkout::gross_minor()` und Sätze der betroffenen Positionen.
-- [ ] **A022** [P2] Rechnung nach Teilerstattung weist volles Entgelt ohne Korrektur aus (Korrekturen nur, wenn Rechnung vor Erstattung existierte; `auto_invoice` standardmäßig aus). — _OFFEN_ (TODO L442; Steuer und Finanzen (Prüfung 3))
+- [x] **A022** [P2] Rechnung nach Teilerstattung weist volles Entgelt ohne Korrektur aus (Korrekturen nur, wenn Rechnung vor Erstattung existierte; `auto_invoice` standardmäßig aus). — _OFFEN_ (TODO L442; Steuer und Finanzen (Prüfung 3))
   - `src/Invoices.php:18,31–91` — Maßnahme: Beim Ausstellen Korrekturbelege für frühere Erstattungen erzeugen oder Rechnung auf Entgelt nach Erstattungen begrenzen.
 - [ ] **A023** [P2] Wiederverkäufer-Abrechnung ignoriert Reverse Charge und Kleinunternehmer, ohne Belegnummer. — _OFFEN_ (TODO L443; Steuer und Finanzen (Prüfung 3))
   - `src/Partners/Statement.php:124–133` — Maßnahme: Logik aus `SalesModel::reverse_charge()`/`small_business`; Beleg festlegen (Gutschrift mit Nummernkreis oder Rechnung des Wiederverkäufers).

@@ -308,3 +308,10 @@ list( $a21_o ) = ex_buy( $a21_type, 1, 'a21@example.com' );
 $wpdb->update( "{$p}wpcap_orders", array( 'total_minor' => 5000, 'voucher_snapshot' => wp_json_encode( array( 'purpose' => 'multi', 'status' => 'committed', 'amount_minor' => 5000, 'amount_paid_by_voucher' => 5000 ) ) ), array( 'order_id' => $a21_o ) );
 $a21 = PassCaptain\Refunds::request_amount( $a21_o, 2000, 'Kulanz', 'a21-r', array( 'system' => true ) );
 check( 'A021: refund of 20,00 cash carries 1,82 VAT (share of the full 100,00), not 3,64', ! is_wp_error( $a21 ) && 182 === (int) $a21['tax_minor'] );
+
+echo "Audit 3: invoice issued after a partial refund gets its correction (A022)\n";
+list( $a22_o, $a22_i ) = ex_buy( $a4_std, 2, 'a22@example.com' );
+$a22_r = PassCaptain\Refunds::request( $a22_o, array( $a22_i[0] ), 'Teil', 'a22-r' );
+$a22_inv = PassCaptain\Invoices::issue_for_order( $a22_o );
+$a22_cn = $wpdb->get_row( $wpdb->prepare( "SELECT c.* FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id WHERE i.order_id=%d", $a22_o ) );
+check( 'A022: the earlier partial refund (50,00) gets a credit note when the invoice is issued', ! is_wp_error( $a22_r ) && 'completed' === $a22_r['status'] && ! is_wp_error( $a22_inv ) && $a22_cn && 5000 === (int) $a22_cn->total_minor && (int) $a22_cn->refund_id === (int) $a22_r['refund_id'] );
