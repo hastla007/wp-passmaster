@@ -68,6 +68,7 @@
 - Veranstalter-Kontakte: WordPress-Datenexport und -Löschung für Ansprechpersonen (Name, E-Mail, Telefon; abgeschlossene Abrechnungen bleiben als Beleg); Auszahlungsdaten werden im Formular nur maskiert angezeigt (leeres Feld = unverändert, eigene Löschoption).
 - Kontingent im Admin erhöht (Termin oder Ticketart, auch Ticketart wieder aktiv): `wpcap_capacity_increased` wird sofort ausgelöst, Wartelisten-Angebote gehen ohne Warten auf den stündlichen Lauf raus.
 - Cron: Deaktivierung und Deinstallation entfernen alle Plugin-Hooks aus einer zentralen Liste (`Plugin::cron_hooks()`, jetzt inkl. Webhook-Versand, Kapazitätsabgleich und Warteliste); die Warteliste läuft im gemeinsamen Zeitbudget und setzt bei Bedarf in einem Folgelauf fort.
+- Kassen-Datenmigration läuft unter der Upgrade-Sperre des Installers (keine doppelte Migration paralleler Requests); offene Altschichten werden je in einer Transaktion übernommen, bei Fehlern im nächsten Lauf erneut.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

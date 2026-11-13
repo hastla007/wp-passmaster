@@ -763,3 +763,18 @@ $a61_ref->setValue( null, null );
 $a61_queue = (array) get_option( PassCaptain\Waitlists::QUEUE_OPTION, array() );
 check( 'A061: with the budget used up, due types stay queued for a follow-up run', isset( $a61_queue[ $a61_t1 ], $a61_queue[ $a61_t2 ] ) );
 update_option( PassCaptain\Waitlists::QUEUE_OPTION, array() );
+
+echo "Audit 3: box office migration runs under the upgrade lock (A062)\n";
+$a62_other = new mysqli( getenv( 'WPCAP_TEST_DB_HOST' ) ?: '127.0.0.1', getenv( 'WPCAP_TEST_DB_USER' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_PASS' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_NAME' ) ?: 'wp' );
+$a62_lock = PassCaptain\Installer::lock_name();
+$a62_held = '1' === (string) $a62_other->query( "SELECT GET_LOCK('" . $a62_other->real_escape_string( $a62_lock ) . "',0)" )->fetch_row()[0];
+$a62_version = get_option( 'wpcap_boxoffice_migration' );
+update_option( 'wpcap_boxoffice_migration', 1 );
+$a62_blocked = PassCaptain\Modules\BoxOffice::maybe_migrate();
+$a62_after_blocked = (int) get_option( 'wpcap_boxoffice_migration' );
+$a62_other->query( "SELECT RELEASE_LOCK('" . $a62_other->real_escape_string( $a62_lock ) . "')" );
+$a62_other->close();
+$a62_ran = PassCaptain\Modules\BoxOffice::maybe_migrate();
+check( 'A062: while another request holds the upgrade lock the migration waits', $a62_held && false === $a62_blocked && 1 === $a62_after_blocked );
+check( 'A062: afterwards it runs once and records its version', true === $a62_ran && PassCaptain\Modules\BoxOffice::MIGRATION_VERSION === (int) get_option( 'wpcap_boxoffice_migration' ) && false === PassCaptain\Modules\BoxOffice::maybe_migrate() );
+if ( false !== $a62_version ) { update_option( 'wpcap_boxoffice_migration', $a62_version ); }

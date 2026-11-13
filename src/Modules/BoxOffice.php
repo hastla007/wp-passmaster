@@ -38,7 +38,13 @@ final class BoxOffice {
 	/** Runs migrate() once per MIGRATION_VERSION (cheap autoloaded option check). */
 	public static function maybe_migrate() {
 		if ( (int) get_option( 'wpcap_boxoffice_migration', 0 ) >= self::MIGRATION_VERSION ) { return false; }
-		return self::migrate();
+		// Under the installer's upgrade lock: parallel first requests after an update must not migrate
+		// the same legacy sessions twice. Without the lock another request is migrating – try later.
+		$result = false;
+		\PassCaptain\Installer::run_locked( static function () use ( &$result ) {
+			$result = (int) get_option( 'wpcap_boxoffice_migration', 0 ) >= self::MIGRATION_VERSION ? false : self::migrate();
+		} );
+		return $result;
 	}
 
 	/**

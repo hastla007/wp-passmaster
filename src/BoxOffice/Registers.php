@@ -153,8 +153,16 @@ final class Registers {
 					$register_id = self::insert_system( sprintf( __( 'Kasse %d (übernommen)', 'wp-pass-captain' ), ++$extra ), (string) $s->currency ?: 'EUR' );
 				}
 				$open_seen = $open_seen || $register_id === $default;
-				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_boxoffice_sessions SET register_id=%d,open_register=%d WHERE session_id=%d AND register_id=0", $register_id, $register_id, $s->session_id ) );
-				$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_boxoffice_shift_cashiers (shift_id,user_id,role,added_by,added_at) VALUES (%d,%d,'opener',%d,%s)", $s->session_id, $s->user_id, $s->user_id, $s->opened_at ) );
+				// One transaction per open shift: register assignment and opener row together, or neither.
+				$wpdb->query( 'START TRANSACTION' );
+				$locked = $wpdb->get_row( $wpdb->prepare( "SELECT register_id FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", $s->session_id ) );
+				if ( ! $locked || 0 !== (int) $locked->register_id ) { $wpdb->query( 'COMMIT' ); continue; }
+				$moved = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_boxoffice_sessions SET register_id=%d,open_register=%d WHERE session_id=%d AND register_id=0", $register_id, $register_id, $s->session_id ) );
+				$opener = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_boxoffice_shift_cashiers (shift_id,user_id,role,added_by,added_at) VALUES (%d,%d,'opener',%d,%s)", $s->session_id, $s->user_id, $s->user_id, $s->opened_at ) );
+				if ( 1 !== (int) $moved || false === $opener || false === $wpdb->query( 'COMMIT' ) ) {
+					$wpdb->query( 'ROLLBACK' );
+					return false; // Retried on the next run (version option not updated).
+				}
 				Audit::record( 'pos_shift_migrated', 'pos_session', (int) $s->session_id, array( 'register_id' => $register_id, 'status' => $s->status ) );
 				continue;
 			}
