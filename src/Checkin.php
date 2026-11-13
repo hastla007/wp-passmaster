@@ -125,6 +125,9 @@ final class Checkin {
 			} else {
 				$status = Engine::default_window_block( $found, $at ) ?: $status;
 			}
+			if ( 'valid' === $status ) {
+				$status = Areas::capacity_block( $found, absint( $context['area_id'] ?? 0 ) ) ?: $status;
+			}
 		}
 		return self::public_view( $found, $status );
 	}
@@ -195,6 +198,11 @@ final class Checkin {
 				$undone_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE ticket_id=%d AND occurrence_day_id=%d AND result='undone'", $ticket->ticket_id, $day->occurrence_day_id ) );
 				if ( $entries_today - $undone_today >= (int) $day->max_entries ) { $blocked = 'daily_limit_reached'; }
 			}
+		}
+		// Capacity of the entrance area (people inside at the same time). Offline uploads are not
+		// refused for it: the person was already let in on the device.
+		if ( ! $blocked && 'offline' !== ( $context['source'] ?? '' ) ) {
+			$blocked = Areas::capacity_block( $found, absint( $context['area_id'] ?? 0 ), true );
 		}
 		if ( $blocked ) {
 			$id = $log( $ticket->ticket_id, $blocked, $day_id );
@@ -371,6 +379,7 @@ final class Checkin {
 			'outside_entry_window' => __( 'Einlass mit diesem Ticket ist zu dieser Uhrzeit nicht möglich.', 'wp-pass-captain' ),
 			'already_inside' => __( 'Ticket ist bereits eingecheckt; für einen Wiedereinlass zuerst auschecken.', 'wp-pass-captain' ),
 			'not_checked_in' => __( 'Das Ticket ist nicht eingecheckt.', 'wp-pass-captain' ),
+			'area_full' => __( 'Der Einlassbereich ist voll. Einlass erst, wenn Personen den Bereich verlassen haben (Auslass scannen).', 'wp-pass-captain' ),
 		);
 		$codes = array(
 			'not_valid_today' => 'wpcap_ticket_day_rule',
@@ -379,6 +388,7 @@ final class Checkin {
 			'outside_entry_window' => 'wpcap_ticket_entry_window',
 			'already_inside' => 'wpcap_ticket_already_inside',
 			'not_checked_in' => 'wpcap_ticket_not_checked_in',
+			'area_full' => 'wpcap_area_full',
 		);
 		$message = $messages[ $result ] ?? __( 'Ticket wurde bereits verwendet oder ist widerrufen.', 'wp-pass-captain' );
 		if ( in_array( $result, array( 'outside_entry_window', 'not_valid_today' ), true ) ) {

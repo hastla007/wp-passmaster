@@ -10,6 +10,8 @@
 // phpcs:ignoreFile
 
 use PassCaptain\Admin\EventsPage;
+use PassCaptain\Admission\Areas;
+use PassCaptain\Admission\RulesPage;
 use PassCaptain\Admission\Policies;
 use PassCaptain\Checkin;
 use PassCaptain\DoorsOpen;
@@ -61,3 +63,37 @@ $d_app = file_get_contents( WPCAP_PATH . 'assets/offline-scanner/app.js' );
 check( 'A092 offline package and app enforce doors_open_at', false !== strpos( $d_pkg_src, "'doors_open_at' =>" ) && false !== strpos( $d_app, 'occurrence.doors_open_at' ) );
 check( 'A092 doors time is shown on the event card and ticket page', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'templates/event-card.php' ), 'DoorsOpen::label' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/TicketPage.php' ), 'DoorsOpen::label' ) );
 $wpdb->update( "{$p}wpcap_occurrences", array( 'doors_open_at' => null ), array( 'occurrence_id' => $d['occ'] ) );
+
+/* ---------------------------------------------------------------------------------------------
+ * A093: capacity per entrance area
+ * ------------------------------------------------------------------------------------------- */
+echo "A093: capacity per entrance area enforced at check-in\n";
+$c = adm_setup( $vie, '2027-06-01 20:00', '2027-06-01 23:00', 5 );
+$c_bad = RulesPage::save_area( array( 'event_id' => $c['event'], 'name' => 'Stehplatz', 'capacity' => '-3' ) );
+$c_save = RulesPage::save_area( array( 'event_id' => $c['event'], 'name' => 'Stehplatz', 'capacity' => '2' ) );
+$c_area = is_array( $c_save ) ? (int) $c_save['area_id'] : 0;
+$c_free = (int) Areas::save( $c['event'], 'Balkon' );
+check( 'A093 schema: capacity column on areas; invalid capacity refused, valid stored', null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_admission_areas LIKE 'capacity'" ) && is_wp_error( $c_bad ) && $c_area && 2 === Areas::capacity( Areas::get( $c_area ) ) && 0 === Areas::capacity( Areas::get( $c_free ) ) );
+$c_rename = RulesPage::save_area( array( 'event_id' => $c['event'], 'area_id' => $c_area, 'name' => 'Stehplatz Halle' ) );
+check( 'A093 renaming without a capacity field keeps the capacity', ! is_wp_error( $c_rename ) && 2 === Areas::capacity( Areas::get( $c_area ) ) );
+Policies::save( $c['type'], array( 'policy' => 'reentry', 'max_entries' => '0' ) );
+$c_t = adm_ts( '2027-06-01 19:30', $vie );
+$c_ctx = array( 'area_id' => $c_area );
+$c1 = adm_in( $c['codes'][0], $c_t, $c_ctx );
+$c2 = adm_in( $c['codes'][1], $c_t + 10, $c_ctx );
+$c3 = adm_in( $c['codes'][2], $c_t + 20, $c_ctx );
+check( 'A093 entries up to the capacity are admitted, the next one is refused with area_full', 'checked_in' === $c1 && 'checked_in' === $c2 && 'area_full' === $c3 );
+check( 'A093 refused scan is logged as area_full', 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE result='area_full' AND event_id=" . $c['event'] ) );
+adm_now( $c_t + 25 );
+$c_prev = Checkin::preview( $c['codes'][2], $c_ctx );
+$c_err = Checkin::perform( $c['codes'][2], $c_ctx + array( 'idempotency_key' => 'a093-msg' ) );
+adm_now( null );
+check( 'A093 preview shows area_full; refusal has a clear message and code', ! is_wp_error( $c_prev ) && 'area_full' === $c_prev['status'] && is_wp_error( $c_err ) && 'wpcap_area_full' === $c_err->get_error_code() && false !== strpos( $c_err->get_error_message(), 'voll' ) );
+check( 'A093 an area without capacity is not limited', 'checked_in' === adm_in( $c['codes'][2], $c_t + 30, array( 'area_id' => $c_free ) ) );
+check( 'A093 a check-out frees a place in the area', 'checked_out' === adm_out( $c['codes'][0], $c_t + 40, $c_ctx ) && 'checked_in' === adm_in( $c['codes'][3], $c_t + 50, $c_ctx ) && 'area_full' === adm_in( $c['codes'][0], $c_t + 60, $c_ctx ) );
+check( 'A093 presence per area matches', 2 === PassCaptain\Admission\Engine::presence( $c['occ'] )['by_area'][ $c_area ] && 2 === Areas::present( $c_area, $c['occ'] ) );
+$c_off = adm_in( $c['codes'][4], $c_t + 70, $c_ctx + array( 'source' => 'offline', 'scanned_at' => gmdate( 'Y-m-d H:i:s', $c_t + 65 ) ) );
+check( 'A093 offline uploads (already admitted on the device) are not refused for capacity', 'checked_in' === $c_off );
+$GLOBALS['wpcap_test_filters']['wpcap_admission_area_capacity'] = 10;
+check( 'A093 capacity is filterable (wpcap_admission_area_capacity)', 'checked_in' === adm_in( $c['codes'][0], $c_t + 80, $c_ctx ) );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_admission_area_capacity'] );

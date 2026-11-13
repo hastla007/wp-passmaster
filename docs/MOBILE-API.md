@@ -126,6 +126,7 @@ Ein Scan-Ergebnis ist kein Transportfehler. Es kommt als HTTP 200 mit `ok: false
 | `daily_limit_reached` | heute bereits eingelassen (Tages-/Mehrtagesticket) | rot |
 | `entry_limit_reached` | maximale Anzahl Einlässe erreicht (Mehrfach-/Wiedereinlass) | rot |
 | `already_inside` | Wiedereinlass-Ticket ist noch drinnen; zuerst Check-out | gelb |
+| `area_full` | Kapazität des Einlassbereichs erreicht (Personen gleichzeitig drinnen); Einlass erst nach Auslässen. Gilt nicht für Offline-Uploads | rot |
 | `wrong_area` | Ticket gilt nicht in diesem Einlassbereich, oder die Person ist hier nicht eingeteilt | gelb |
 | `checked_out` | (nur `check-out`) Auslass erfolgt | grün |
 | `not_checked_in` | (nur `check-out`) Ticket ist nicht eingecheckt | gelb |

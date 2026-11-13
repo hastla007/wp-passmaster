@@ -49,6 +49,7 @@
 			'Einlasslimit erreicht': 'Entry limit reached',
 			'Außerhalb des Einlassfensters': 'Outside the entry window',
 			'Bereits drinnen': 'Already inside',
+			'Bereich voll': 'Area full',
 			'Kein Einlasszugriff': 'No entry access',
 			'Prüfpaket abgelaufen': 'Verification package expired',
 			'Kein gültiges Prüfpaket': 'No valid verification package',

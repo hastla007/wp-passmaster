@@ -61,9 +61,15 @@ final class RulesPage {
 		$event_id = Forms::int( $in, 'event_id' );
 		if ( ! $event_id || ! Queries::event( $event_id ) ) { return Forms::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'wp-pass-captain' ), 404 ); }
 		if ( ! self::can( $event_id ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
-		$id = Areas::save( $event_id, Forms::text( $in, 'name' ), Forms::int( $in, 'area_id' ) );
+		$capacity = null;
+		if ( array_key_exists( 'capacity', $in ) ) {
+			$raw = trim( (string) $in['capacity'] );
+			if ( '' !== $raw && ! preg_match( '/^\d{1,7}$/', $raw ) ) { return Forms::error( 'wpcap_area_capacity', __( 'Die Kapazität muss eine ganze Zahl ab 0 sein (0 = unbegrenzt).', 'wp-pass-captain' ) ); }
+			$capacity = (int) $raw;
+		}
+		$id = Areas::save( $event_id, Forms::text( $in, 'name' ), Forms::int( $in, 'area_id' ), $capacity );
 		if ( is_wp_error( $id ) ) { return $id; }
-		Audit::record( 'admission_area_saved', 'admission_area', $id, array( 'event_id' => $event_id ) );
+		Audit::record( 'admission_area_saved', 'admission_area', $id, array( 'event_id' => $event_id, 'capacity' => $capacity ) );
 		return array( 'area_id' => $id, 'event_id' => $event_id );
 	}
 
@@ -196,11 +202,11 @@ final class RulesPage {
 		$labels = Policies::labels();
 		?>
 		<h2><?php esc_html_e( 'Einlassbereiche', 'wp-pass-captain' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Bereiche (z. B. „Eingang Nord“, „VIP“) begrenzen, wo Tickettypen eingelassen werden. Personal mit Bereichszuweisung darf für dieses Event nur in seinen Bereichen scannen; Geräte werden beim Koppeln einem Bereich zugeordnet.', 'wp-pass-captain' ); ?></p>
+		<p class="description"><?php esc_html_e( 'Bereiche (z. B. „Eingang Nord“, „VIP“) begrenzen, wo Tickettypen eingelassen werden. Personal mit Bereichszuweisung darf für dieses Event nur in seinen Bereichen scannen; Geräte werden beim Koppeln einem Bereich zugeordnet.', 'wp-pass-captain' ); ?> <?php esc_html_e( 'Kapazität: so viele Personen dürfen gleichzeitig über diesen Bereich drinnen sein (0 = unbegrenzt); ist sie erreicht, lehnt der Scanner weitere Einlässe ab, bis Auslässe gescannt werden.', 'wp-pass-captain' ); ?></p>
 		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Bereich', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Personal', 'wp-pass-captain' ); ?></th><th></th></tr></thead><tbody>
 		<?php foreach ( $areas as $area ) : ?>
 			<tr>
-				<td><?php Forms::open_form( 'wpcap_admission_save_area' ); Forms::hidden( 'event_id', $event_id ); Forms::hidden( 'area_id', $area->area_id ); ?><input type="text" name="name" maxlength="190" value="<?php echo esc_attr( $area->name ); ?>"> <button class="button"><?php esc_html_e( 'Umbenennen', 'wp-pass-captain' ); ?></button></form></td>
+				<td><?php Forms::open_form( 'wpcap_admission_save_area' ); Forms::hidden( 'event_id', $event_id ); Forms::hidden( 'area_id', $area->area_id ); ?><input type="text" name="name" maxlength="190" aria-label="<?php esc_attr_e( 'Name des Bereichs', 'wp-pass-captain' ); ?>" value="<?php echo esc_attr( $area->name ); ?>"> <label><?php esc_html_e( 'Kapazität', 'wp-pass-captain' ); ?> <input type="number" name="capacity" min="0" step="1" class="small-text" value="<?php echo esc_attr( (string) Areas::capacity( $area ) ); ?>"></label> <button class="button"><?php esc_html_e( 'Speichern', 'wp-pass-captain' ); ?></button></form></td>
 				<td><?php echo esc_html( 'active' === $area->status ? __( 'aktiv', 'wp-pass-captain' ) : __( 'archiviert', 'wp-pass-captain' ) ); ?></td>
 				<td>
 					<?php foreach ( Areas::staff( $area->area_id ) as $user_id ) : ?>
@@ -214,7 +220,7 @@ final class RulesPage {
 		<?php if ( ! $areas ) : ?><tr><td colspan="4"><?php esc_html_e( 'Keine Bereiche – Tickets gelten an jedem Eingang.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
 		</tbody></table>
 		<?php Forms::open_form( 'wpcap_admission_save_area' ); Forms::hidden( 'event_id', $event_id ); ?>
-			<p><label><?php esc_html_e( 'Neuer Bereich', 'wp-pass-captain' ); ?> <input type="text" name="name" maxlength="190" required></label> <button class="button button-primary"><?php esc_html_e( 'Anlegen', 'wp-pass-captain' ); ?></button></p>
+			<p><label><?php esc_html_e( 'Neuer Bereich', 'wp-pass-captain' ); ?> <input type="text" name="name" maxlength="190" required></label> <label><?php esc_html_e( 'Kapazität', 'wp-pass-captain' ); ?> <input type="number" name="capacity" min="0" step="1" class="small-text" value="0"></label> <button class="button button-primary"><?php esc_html_e( 'Anlegen', 'wp-pass-captain' ); ?></button></p>
 		</form>
 
 		<h2><?php esc_html_e( 'Regeln pro Tickettyp', 'wp-pass-captain' ); ?></h2>

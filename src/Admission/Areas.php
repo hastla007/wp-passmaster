@@ -8,6 +8,11 @@
  *     (users with manage_options are not restricted). Staff without area assignment are unrestricted.
  *  3. A ticket type restricted to areas is only admitted in one of them (also not without an area).
  * Check-out applies rules 1 and 2 only.
+ *
+ * An area may have a capacity (people inside at the same time, 0 = unlimited). Online check-ins
+ * through a full area are refused with `area_full` (Checkin, under a row lock on the area); a
+ * check-out through any area frees the place. Offline uploads are not refused for capacity: the
+ * person was already let in on the device.
  */
 namespace PassCaptain\Admission;
 
@@ -28,19 +33,68 @@ final class Areas {
 		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_admission_areas WHERE event_id=%d" . ( $all ? '' : " AND status='active'" ) . ' ORDER BY name, area_id', absint( $event_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- literal fragment.
 	}
 
-	/** Creates or renames an area (caller checks permissions). */
-	public static function save( $event_id, $name, $area_id = 0 ) {
+	/**
+	 * Creates or renames an area (caller checks permissions).
+	 *
+	 * @param int|null $capacity People allowed inside at the same time (0 = unlimited, null = keep).
+	 */
+	public static function save( $event_id, $name, $area_id = 0, $capacity = null ) {
 		global $wpdb;
 		$name = mb_substr( sanitize_text_field( (string) $name ), 0, 190 );
 		if ( '' === $name ) { return new \WP_Error( 'wpcap_area_invalid', __( 'Bitte einen Namen für den Bereich angeben.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$data = array( 'name' => $name );
+		if ( null !== $capacity ) { $data['capacity'] = min( 1000000, absint( $capacity ) ); }
 		if ( $area_id ) {
 			$area = self::get( $area_id );
 			if ( ! $area || (int) $area->event_id !== (int) $event_id ) { return new \WP_Error( 'wpcap_area_missing', __( 'Bereich nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
-			$wpdb->update( "{$wpdb->prefix}wpcap_admission_areas", array( 'name' => $name ), array( 'area_id' => (int) $area_id ) );
+			$wpdb->update( "{$wpdb->prefix}wpcap_admission_areas", $data, array( 'area_id' => (int) $area_id ) );
 			return (int) $area_id;
 		}
-		$wpdb->insert( "{$wpdb->prefix}wpcap_admission_areas", array( 'event_id' => absint( $event_id ), 'name' => $name, 'status' => 'active', 'created_at' => current_time( 'mysql', true ) ) );
+		$wpdb->insert( "{$wpdb->prefix}wpcap_admission_areas", $data + array( 'event_id' => absint( $event_id ), 'status' => 'active', 'created_at' => current_time( 'mysql', true ) ) );
 		return (int) $wpdb->insert_id;
+	}
+
+	/** Capacity of an area (people inside at the same time); 0 = unlimited. */
+	public static function capacity( $area ) {
+		return $area ? (int) ( $area->capacity ?? 0 ) : 0;
+	}
+
+	/**
+	 * People currently inside an area of an occurrence (latest movement of the ticket was an entry
+	 * through this area and not undone).
+	 */
+	public static function present( $area_id, $occurrence_id, $exclude_ticket_id = 0 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_admission_state s WHERE s.occurrence_id=%d AND s.area_id=%d AND s.inside=1 AND s.ticket_id<>%d AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_checkins c WHERE c.ticket_id=s.ticket_id AND c.result='undone' AND c.checkin_id>s.last_checkin_id)", absint( $occurrence_id ), absint( $area_id ), absint( $exclude_ticket_id ) ) );
+	}
+
+	/**
+	 * Capacity check for an entry through an area: '' when there is room, otherwise 'area_full'.
+	 * With $lock (inside the check-in transaction, after the ticket row lock) the area row is locked
+	 * so concurrent entries through the same area are counted one after another.
+	 *
+	 * @param array $found Ticket context (ticket_id, occurrence_id).
+	 */
+	public static function capacity_block( array $found, $area_id, $lock = false ) {
+		$area_id = absint( $area_id );
+		if ( ! $area_id ) { return ''; }
+		global $wpdb;
+		$area = $lock
+			? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_admission_areas WHERE area_id=%d FOR UPDATE", $area_id ) )
+			: self::get( $area_id );
+		$capacity = self::capacity( $area );
+		/**
+		 * Capacity of an entrance area for one scan (0 = unlimited), e.g. to allow more people in
+		 * after a count by hand.
+		 *
+		 * @param int   $capacity Configured capacity.
+		 * @param int   $area_id  Area id.
+		 * @param array $found    Ticket context (ticket_id, occurrence_id, event_id, ticket_type_id).
+		 */
+		$capacity = (int) apply_filters( 'wpcap_admission_area_capacity', $capacity, $area_id, $found );
+		if ( $capacity < 1 ) { return ''; }
+		return self::present( $area_id, (int) $found['occurrence_id'], (int) $found['ticket_id'] ) >= $capacity ? 'area_full' : '';
 	}
 
 	/** Allowed area ids of a ticket type (empty = all areas). */

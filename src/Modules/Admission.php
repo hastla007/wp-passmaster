@@ -73,6 +73,7 @@ final class Admission {
 				event_id bigint(20) unsigned NOT NULL,
 				name varchar(190) NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				capacity int(10) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (area_id),
 				KEY event_status (event_id,status)

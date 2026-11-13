@@ -111,7 +111,7 @@
 		wrong_event: 'Falsches Event', wrong_occurrence: 'Falscher Termin', wrong_area: 'Falscher Einlassbereich',
 		cancelled_event: 'Termin abgesagt', out_of_window: 'Außerhalb des Einlasszeitraums', not_valid_today: 'Heute nicht gültig',
 		daily_limit_reached: 'Tageskontingent erreicht', entry_limit_reached: 'Einlasslimit erreicht', outside_entry_window: 'Außerhalb des Einlassfensters',
-		already_inside: 'Bereits drinnen', forbidden: 'Kein Einlasszugriff', package_expired: 'Prüfpaket abgelaufen', no_package: 'Kein gültiges Prüfpaket',
+		already_inside: 'Bereits drinnen', area_full: 'Bereich voll', forbidden: 'Kein Einlasszugriff', package_expired: 'Prüfpaket abgelaufen', no_package: 'Kein gültiges Prüfpaket',
 		invalid_code: 'Kein Ticketcode erkannt'
 	};
 	function resultText(code) { return RESULT_TEXT[code] ? t(RESULT_TEXT[code]) : code; }
