@@ -95,6 +95,7 @@ Alle Fristen außer den Teilnehmerfristen lassen sich mit `wpcap_privacy_retenti
 - Web-Scanner auf geteilten Geräten: vor Schichtwechsel synchronisieren, nach Schichtende Browser schließen bzw. Website-Daten löschen (Offline-Scans liegen bis zu 24 Stunden im Browser).
 - Gesetzliche Aufbewahrung von Rechnungen und Buchungsdaten (7 Jahre § 132 BAO, 10 Jahre § 147 AO/§ 257 HGB) überwachen und danach manuell löschen; das Plugin löscht Finanzdaten nicht automatisch.
 - Partner-API-Schlüssel mit `attendees:read` nur mit Rechtsgrundlage vergeben; gelöschte Adressen liefert die API als `null`.
+- Vorlagen für Gästelisten-Information (Art. 14 DSGVO), Rolle der Veranstalter, Kassen-Schichtdaten (Mitbestimmung, Z-Bericht-Aufbewahrung), AV-Vertrag Fiskalanbieter, Auskunft ohne E-Mail und Verarbeitungsverzeichnis: [BETREIBERPFLICHTEN.md](BETREIBERPFLICHTEN.md).
 
 ## Kasse: Kassen, Schichten, Übergabe und Z-Bericht
 
