@@ -105,7 +105,7 @@ Settings::flush();
 check( 'a stored provider list is never changed', false === Installer::pin_legacy_manual_provider( '3.9.0' ) && array( 'stripe' ) === Settings::get( 'enabled_providers' ) );
 update_option( Settings::OPTION, array() );
 Settings::flush();
-check( 'from 3.10.8 on nothing is pinned', false === Installer::pin_legacy_manual_provider( '3.10.8' ) && array() === Settings::get( 'enabled_providers' ) );
+check( 'from 3.10.9 on nothing is pinned', false === Installer::pin_legacy_manual_provider( '3.10.9' ) && array() === Settings::get( 'enabled_providers' ) );
 
 update_option( Settings::OPTION, $a265_saved );
 Settings::flush();

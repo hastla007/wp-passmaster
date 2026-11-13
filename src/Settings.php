@@ -52,7 +52,7 @@ final class Settings {
 			'manual_hold_hours'         => 72,
 			'manual_cutoff_hours'       => 0,
 			// No payment method by default (A265): manual payment needs a bank account or instructions first.
-			// Installs from before schema 3.10.8 keep 'manual' (Installer::pin_legacy_manual_provider()).
+			// Installs from before schema 3.10.9 keep 'manual' (Installer::pin_legacy_manual_provider()).
 			'enabled_providers'         => array(),
 			'manual_instructions'       => '',
 			'bank_recipient'            => '',

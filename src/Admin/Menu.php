@@ -92,7 +92,7 @@ final class Menu {
 
 	/**
 	 * Manual payment enabled without bank account or payment instructions (A265, e.g. an install from
-	 * before 3.10.8 that kept the old default): the checkout does not offer it until it is completed.
+	 * before 3.10.9 that kept the old default): the checkout does not offer it until it is completed.
 	 * Shown on the plugin's pages and the dashboard to users who may change the settings.
 	 */
 	public static function manual_payment_notice() {

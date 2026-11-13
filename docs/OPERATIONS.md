@@ -215,7 +215,7 @@ und Mail `{payment_instructions}` nur Betrag, Frist und diesen Hinweis. Ein Chec
 Zahlungsart wird vor dem Anlegen der Bestellung abgelehnt (`wpcap_provider_unavailable`, keine Plätze
 blockiert).
 
-Installationen von vor Schema 3.10.8, die die Zahlungsarten nie gespeichert hatten, behalten
+Installationen von vor Schema 3.10.9, die die Zahlungsarten nie gespeichert hatten, behalten
 „Überweisung“ als aktivierte Zahlungsart (`Installer::pin_legacy_manual_provider()`). Fehlt dort die
 Bankverbindung, zeigt der Zahlungen-Tab „(nicht vollständig konfiguriert)“ und Administratoren sehen auf
 dem Dashboard und den Plugin-Seiten einen Hinweis mit Link zur Einrichtung.
@@ -619,6 +619,10 @@ Gutschein-Sperrschlüssel mit Veranstalter-ID, Doppelabrechnungen als `dup:<line
 `partner_settlement_duplicates`), dann Indextausch. Scheitert der Indextausch, bleibt die Option
 unverändert und die Migration läuft beim nächsten Aufruf erneut; die Doppelprüfung der Abrechnung ist davon
 unabhängig plattformweit.
+
+**Schema 3.10.9** (A265, keine Tabellenänderung): Neue Installationen starten ohne aktive Zahlungsart. Beim Update
+behalten Installationen, die ihre Zahlungsarten nie gespeichert haben, „Überweisung“ als ausdrücklich gespeicherten Wert
+(`Installer::pin_legacy_manual_provider()`), siehe „Überweisung (manuelle Zahlung) einrichten“.
 
 **Event-Auswahllisten** im Admin zeigen höchstens 500 Events (`Queries::EVENT_OPTIONS_LIMIT`, alphabetisch).
 Ist die Liste gekürzt, erscheint ein Hinweis; ein gewähltes oder gespeichertes Event (z. B. `&event_id=…` in

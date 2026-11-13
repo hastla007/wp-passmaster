@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.8';
+	const DB_VERSION = '3.10.9';
 
 	public static function install() {
 		global $wpdb;
@@ -885,7 +885,7 @@ final class Installer {
 	}
 
 	/**
-	 * Schema 3.10.8 (A265): new installs start without an enabled payment method (before: "manual").
+	 * Schema 3.10.9 (A265): new installs start without an enabled payment method (before: "manual").
 	 * Installs that existed before and never saved the payment methods relied on the old default;
 	 * they keep "manual" enabled (stored explicitly). Whether it is complete is shown by
 	 * Admin\Menu::manual_payment_notice(); the checkout only offers it once it is configured.
@@ -894,7 +894,7 @@ final class Installer {
 	 */
 	public static function pin_legacy_manual_provider( $previous_version ) {
 		$previous = (string) strtok( (string) $previous_version, '+' );
-		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || ! version_compare( $previous, '3.10.8', '<' ) ) { return false; }
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || ! version_compare( $previous, '3.10.9', '<' ) ) { return false; }
 		$stored = get_option( Settings::OPTION, array() );
 		$stored = is_array( $stored ) ? $stored : array();
 		if ( array_key_exists( 'enabled_providers', $stored ) ) { return false; }
