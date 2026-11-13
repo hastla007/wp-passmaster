@@ -175,6 +175,11 @@ final class Service {
 			}
 		}
 		if ( 'portal' === $channel ) {
+			// A transferred ticket belongs to its recipient: the original buyer must not swap it (and
+			// collect the refund of a downgrade) through the order link. Staff can still exchange it.
+			if ( (int) $ticket->transfer_count > 0 ) {
+				return self::error( 'wpcap_exchange_transferred', __( 'Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht werden.', 'wp-pass-captain' ), 403 );
+			}
 			$now = current_time( 'mysql', true );
 			if ( ( $target->sales_start && $target->sales_start > $now ) || ( $target->sales_end && $target->sales_end < $now ) ) {
 				return self::error( 'wpcap_exchange_sales_closed', __( 'Der Verkauf für diese Ticketart ist geschlossen.', 'wp-pass-captain' ) );
@@ -419,6 +424,8 @@ final class Service {
 			$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", (int) $ticket->ticket_id ) );
 			if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
 			if ( ! $order || 'paid' !== $order->payment_status || ! $locked || 'valid' !== $locked->status || (int) $locked->refunded ) { throw new \RuntimeException( 'ticket_state' ); }
+			// Re-check under the lock: a transfer may have committed after validate().
+			if ( 'portal' === $channel && (int) $locked->transfer_count > 0 ) { throw new \RuntimeException( 'transferred' ); }
 			$type_ids = array( (int) $ticket->ticket_type_id, (int) $target->ticket_type_id );
 			sort( $type_ids, SORT_NUMERIC );
 			$types = array();
@@ -528,6 +535,7 @@ final class Service {
 			'ticket_state' => __( 'Nur gültige, nicht eingecheckte und nicht erstattete Tickets können umgetauscht werden.', 'wp-pass-captain' ),
 			'exchange_pending' => __( 'Für dieses Ticket läuft bereits ein Umtausch, der auf Zahlung wartet.', 'wp-pass-captain' ),
 			'target_unavailable' => __( 'Die gewählte Ticketart ist nicht verfügbar.', 'wp-pass-captain' ),
+			'transferred' => __( 'Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht werden.', 'wp-pass-captain' ),
 			'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'wp-pass-captain' ),
 			'insert_failed' => __( 'Der Umtausch konnte nicht gespeichert werden.', 'wp-pass-captain' ),
 		) );

@@ -13,7 +13,7 @@ use PassCaptain\Settings;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Portal {
-	/** Whether the portal script was printed on this page. */
+	/** Whether the portal script was printed on this page (it handles every exchange form by event delegation). */
 	private static $script_printed = false;
 
 	public static function register() {
@@ -105,6 +105,8 @@ final class Portal {
 	 */
 	public static function ticket_html( $html, $ticket = null, $order = null, $token = '' ) {
 		if ( ! is_object( $ticket ) || ! is_object( $order ) || 'valid' !== ( $ticket->status ?? '' ) || 'paid' !== $order->payment_status ) { return $html; }
+		if ( (int) ( $ticket->transfer_count ?? 0 ) > 0 ) { return $html; } // Transferred: only staff may exchange it.
+
 		$options = Service::options( (int) $ticket->ticket_id, 'portal' );
 		if ( ! $options ) { return $html; }
 		$policy = Policy::for_event( (int) Service::ticket( (int) $ticket->ticket_id )->event_id );
@@ -164,10 +166,10 @@ final class Portal {
 		$url = function_exists( 'rest_url' ) ? rest_url( 'wp-pass-captain/v1/orders/' . rawurlencode( $public_id ) . '/exchange' ) : '';
 		return '<script>(function(){var S=' . wp_json_encode( $strings ) . ',URL=' . wp_json_encode( $url ) . ',TOKEN=' . wp_json_encode( $token ) . ';'
 			. 'function key(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random();}'
-			. 'document.querySelectorAll(".wpcap-exchange-form").forEach(function(form){var k=key();form.addEventListener("submit",async function(e){e.preventDefault();var m=form.querySelector(".message"),b=form.querySelector("button");if(!window.confirm(S.confirm)){return;}b.disabled=true;m.textContent=S.sending;'
+			. 'document.addEventListener("submit",async function(e){var form=e.target;if(!form||!form.classList||!form.classList.contains("wpcap-exchange-form")){return;}e.preventDefault();if(!form.dataset.k){form.dataset.k=key();}var k=form.dataset.k;var m=form.querySelector(".message"),b=form.querySelector("button");if(!window.confirm(S.confirm)){return;}b.disabled=true;m.textContent=S.sending;'
 			. 'try{var body={access_token:TOKEN,ticket_public_id:form.dataset.ticket,ticket_type_id:form.ticket_type_id.value,idempotency_key:k};if(form.provider){body.provider=form.provider.value;}'
 			. 'var r=await fetch(URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});var d={};try{d=await r.json();}catch(x){}'
-			. 'if(!r.ok){k=key();throw new Error(d.message||S.failed);}m.textContent=(d.message||"")+(d.payment&&d.payment.instructions?" "+d.payment.instructions:"");'
-			. 'if(d.payment&&d.payment.redirect_url){window.location.href=d.payment.redirect_url;return;}form.querySelectorAll("select,button").forEach(function(n){n.disabled=true;});}catch(err){m.textContent=err.message;b.disabled=false;}});});})();</script>';
+			. 'if(!r.ok){form.dataset.k=key();throw new Error(d.message||S.failed);}m.textContent=(d.message||"")+(d.payment&&d.payment.instructions?" "+d.payment.instructions:"");'
+			. 'if(d.payment&&d.payment.redirect_url){window.location.href=d.payment.redirect_url;return;}form.querySelectorAll("select,button").forEach(function(n){n.disabled=true;});}catch(err){m.textContent=err.message;b.disabled=false;}});})();</script>';
 	}
 }

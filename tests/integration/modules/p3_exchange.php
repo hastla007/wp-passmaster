@@ -351,6 +351,24 @@ list( $order15, $ids15 ) = ex_buy( $pt_a, 1, 'portal2@example.com' );
 $vip15 = ex_type( $po_b, 'VIP Portal', 4000, 5 );
 $up15 = Exchange::request( $ids15[0], $vip15, array( 'channel' => 'portal', 'waive' => true, 'refund_policy' => 'refund' ) );
 check( 'portal upgrade always needs payment (waive ignored)', ! is_wp_error( $up15 ) && 'pending_payment' === $up15['status'] && 1500 === (int) $up15['due_minor'] && ! empty( $up15['payment'] ) );
+// Audit 3 (P1): the original buyer must not downgrade a ticket that was transferred to someone else.
+$cheap15 = ex_type( $po_b, 'Portal günstig', 1000 );
+list( $order19, $ids19 ) = ex_buy( $pt_a, 2, 'seller@example.com' );
+$wpdb->update( "{$p}wpcap_orders", array( 'access_token_hash' => hash( 'sha256', $token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 3600 ) ), array( 'order_id' => $order19 ) );
+$wpdb->update( "{$p}wpcap_tickets", array( 'transfer_count' => 1, 'attendee_email' => 'buyer2@example.com' ), array( 'ticket_id' => $ids19[0] ) );
+$o19 = Orders::get( $order19 );
+$t19 = ex_ticket( $ids19[0] );
+$t19b = ex_ticket( $ids19[1] );
+$tr = Portal::exchange( $o19->public_id, $token, array( 'ticket_public_id' => $t19->public_id, 'ticket_type_id' => $cheap15, 'idempotency_key' => 'tr-1' ) );
+check( 'portal refuses to exchange a transferred ticket', is_wp_error( $tr ) && 'wpcap_exchange_transferred' === $tr->get_error_code() && 403 === $tr->get_error_data()['status'] && 'valid' === ex_ticket( $ids19[0] )->status );
+check( 'no refund for the refused portal exchange', 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_refunds WHERE order_id=%d", $order19 ) ) );
+$html19 = Portal::ticket_html( '', (object) array( 'ticket_id' => $ids19[0], 'public_id' => $t19->public_id, 'status' => 'valid', 'transfer_count' => 1 ), $o19, $token );
+check( 'portal hides the exchange form of a transferred ticket', false === strpos( $html19, 'wpcap-exchange-form' ) );
+$html19b = Portal::ticket_html( '', (object) array( 'ticket_id' => $ids19[1], 'public_id' => $t19b->public_id, 'status' => 'valid', 'transfer_count' => 0 ), $o19, $token );
+$html19c = Portal::ticket_html( '', (object) array( 'ticket_id' => $ids19[1], 'public_id' => $t19b->public_id, 'status' => 'valid', 'transfer_count' => 0 ), $o19, $token );
+check( 'exchange script handles every form by event delegation (printed once)', ( false !== strpos( $html19b . $html19, 'document.addEventListener("submit"' ) || false !== strpos( $html, 'document.addEventListener("submit"' ) ) && false === strpos( $html19c, '<script>' ) );
+$staff19 = Exchange::request( $ids19[0], $cheap15, array( 'channel' => 'admin', 'refund_policy' => 'none' ) );
+check( 'staff can still exchange a transferred ticket', ! is_wp_error( $staff19 ) && 'completed' === $staff19['status'] );
 ex_policy( array() );
 
 echo "Exchange: paid supplement but old ticket gone\n";
