@@ -65,6 +65,11 @@ jobs:
           echo "Previous release: $prev"
           WPCAP_BUILD_REF="$prev" bash build/release.sh && mkdir -p "$RUNNER_TEMP/old" && unzip -q build/dist/wp-pass-captain.zip -d "$RUNNER_TEMP/old"
           bash build/release.sh && mkdir -p "$RUNNER_TEMP/new" && unzip -q build/dist/wp-pass-captain.zip -d "$RUNNER_TEMP/new"
+      - name: Release ZIP installed in a fresh WordPress ${{ matrix.wp }} (contents, install, activate, uninstall)
+        # A178: the built artefact itself, not the checkout; fails on development files in the ZIP.
+        env:
+          WPCAP_ZIP_WP_VERSION: ${{ matrix.wp }}
+        run: bash tests/wp-matrix/zip-install.sh build/dist/wp-pass-captain.zip "$RUNNER_TEMP/zip-install"
       - name: Upgrade / rollback / restore drill with real data
         run: |
           mkdir -p "$RUNNER_TEMP/drill"

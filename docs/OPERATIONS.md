@@ -9,7 +9,25 @@
 
 ## Datenbank-Anforderungen
 
-InnoDB mit `utf8mb4`. Jede Indexspalte bleibt unter 767 Byte (höchstens 191 Zeichen, sonst Präfixindex), zusammengesetzte Indizes unter 3072 Byte – damit läuft das Schema auch auf älteren MySQL-/MariaDB-Versionen ohne `innodb_large_prefix` (MySQL ab 5.6, MariaDB ab 10.1; empfohlen MySQL 8 / MariaDB 10.6+). Ein Test prüft das für alle Tabellen.
+InnoDB mit `utf8mb4`. Jede Indexspalte bleibt unter 767 Byte (höchstens 191 Zeichen, sonst Präfixindex), zusammengesetzte Indizes unter 3072 Byte – das Schema ist damit auch ohne `innodb_large_prefix` anlegbar. Ein Test prüft das für alle Tabellen.
+
+## Datenbank- und PHP-Freigaben
+
+Freigegeben ist nur, was die CI bei jedem Push mit der vollständigen Integrationssuite und dem Last-/Nebenläufigkeitstest (`tests/load/run.php --profile=ci`) prüft (`.github/workflows/ci.yml`, Job `integration`):
+
+| PHP | Datenbank | Rolle |
+| --- | --- | --- |
+| 8.2 | MariaDB 10.6 | Minimum PHP + Minimum MariaDB |
+| 8.2 | MySQL 8.0 | Minimum PHP + Minimum MySQL |
+| 8.3 | MariaDB 10.11 | LTS |
+| 8.3 | MySQL 8.4 | LTS |
+| 8.4 | MariaDB 11.4 | LTS |
+| 8.4 | MySQL 8.4 | LTS |
+| 8.5 | MariaDB 11.8 | neueste PHP- und MariaDB-LTS |
+
+- **Unterstützt:** PHP 8.2–8.5, MySQL 8.0 und 8.4, MariaDB 10.6 bis 11.8. Ältere Versionen (MySQL 5.7, MariaDB < 10.6) werden nicht getestet und sind nicht freigegeben, auch wenn das Schema dort anlegbar wäre; Transaktionserkennung (`@@in_transaction` bzw. Savepoint-Probe), Sperrverhalten und Deadlock-Wiederholungen sind nur auf den getesteten Versionen abgesichert.
+- **Echte WordPress-/WooCommerce-Installationen** prüft zusätzlich `.github/workflows/wp-matrix.yml` (WordPress 6.4/6.8/aktuell, WooCommerce 8.2.0/aktuell × HPOS/Beitragsspeicher, Release-ZIP in frischer Installation) gegen MariaDB 11.4; wöchentliche Lastgrenzen gegen MariaDB und MySQL in `load.yml`.
+- **Pro Release** wird die Matrix des Release-Commits im Abnahmeprotokoll verlinkt (`docs/release-acceptance/`); eine neue Datenbank- oder PHP-Version gilt erst als freigegeben, wenn sie in diese Matrix aufgenommen wurde und grün ist.
 
 ## Schema-Upgrade nach einem Update
 

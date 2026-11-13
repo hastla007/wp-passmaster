@@ -378,16 +378,21 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - .github/workflows/ci.yml:21-28 nur composer validate, php -l, node --check
 - [x] **A174** JS-Lint auf alle eigenen JS-Dateien, JS-Logik testen — _OFFEN_ (TODO L241; CI, statische Qualität und Artefakt)
   - ci.yml:28 prüft nur checkout.js, scanner.js, events/editor.js; keine JS-Unit-Tests
-- [ ] **A175** PHP-Integrationssuite über alle unterstützten PHP-Versionen — _OFFEN_ (TODO L242; CI, statische Qualität und Artefakt)
+- [x] **A175** PHP-Integrationssuite über alle unterstützten PHP-Versionen — _OFFEN_ (TODO L242; CI, statische Qualität und Artefakt)
   - Integration nur PHP 8.4 (ci.yml:49), Syntaxmatrix 8.2/8.4 (ci.yml:12)
-- [ ] **A176** Datenbankmatrix MySQL/MariaDB Minimum/aktuell, Freigaben dokumentieren — _OFFEN_ (TODO L243; CI, statische Qualität und Artefakt)
+  - Erledigt 13.11.: Integrationsjob als Matrix PHP 8.2/8.3/8.4/8.5 (ci.yml), jede Kombination mit voller Suite und Lasttest.
+- [x] **A176** Datenbankmatrix MySQL/MariaDB Minimum/aktuell, Freigaben dokumentieren — _OFFEN_ (TODO L243; CI, statische Qualität und Artefakt)
   - Nur mariadb:11.4 (ci.yml:34), kein MySQL, keine Freigabedoku
-- [ ] **A177** WooCommerce-Tests mit echter Installation, Versionen, HPOS an/aus — _OFFEN_ (TODO L244; CI, statische Qualität und Artefakt)
+  - Erledigt 13.11.: MariaDB 10.6/10.11/11.4/11.8 und MySQL 8.0/8.4 in ci.yml; Freigaben in docs/OPERATIONS.md „Datenbank- und PHP-Freigaben“.
+- [x] **A177** WooCommerce-Tests mit echter Installation, Versionen, HPOS an/aus — _OFFEN_ (TODO L244; CI, statische Qualität und Artefakt)
   - Tests nutzen nachgebaute WC-API (tests/integration/bootstrap.php, README.md:71), keine echte WC-Matrix
-- [ ] **A178** Release-ZIP in CI entpacken, in frischem WP installieren — _TEILWEISE_ (TODO L245; CI, statische Qualität und Artefakt)
+  - Erledigt (A127): wp-matrix.yml Job `woocommerce` installiert echtes WooCommerce 8.2.0/aktuell × HPOS/Beitragsspeicher, Smoke-Test tests/wp-matrix/woocommerce-smoke.php.
+- [x] **A178** Release-ZIP in CI entpacken, in frischem WP installieren — _TEILWEISE_ (TODO L245; CI, statische Qualität und Artefakt)
   - build/release.sh:213-215 prüft nur Pflichtdateien; kein Entpacken/Installieren/Aktivieren, keine Prüfung auf fehlende Tests/Dev-Dateien
-- [ ] **A179** Reproduzierbarkeit des ZIP-Builds technisch prüfen — _OFFEN_ (TODO L246; CI, statische Qualität und Artefakt)
+  - Erledigt 13.11.: tests/wp-matrix/zip-install.sh (Inhalt ohne Dev-Dateien, `wp plugin install <zip> --activate`, Schema, Übersetzungen, REST, Deinstallation ohne Reste, keine PHP-Meldungen) je WP-Version in wp-matrix.yml.
+- [x] **A179** Reproduzierbarkeit des ZIP-Builds technisch prüfen — _OFFEN_ (TODO L246; CI, statische Qualität und Artefakt)
   - Kein Prüfsummenvergleich/Doppelbuild; build/release.sh:219 nur zip -X ohne feste Zeitstempel
+  - Erledigt 13.11.: build/release.sh reproduzierbar (SOURCE_DATE_EPOCH, sortiert, zip -X -D); tests/reproducible-build.sh baut zweimal und vergleicht byte-genau (CI-Job `package`).
 - [x] **A180** Versions-/Changelog-/Header-/Composer-/Stable-tag-Konsistenz automatisch prüfen — _TEILWEISE_ (TODO L247; CI, statische Qualität und Artefakt)
   - release.yml:146-151 prüft Header und WPCAP_VERSION gegen Tag; Stable tag, Changelog-Eintrag, Composer nicht geprüft
   - Erledigt 13.11.: tests/consistency.php prüft Header-Version = WPCAP_VERSION = Stable tag, Requires (Header/readme/composer), CHANGELOG/readme-Einträge, Text Domain, Doku-Links; CI-Pflichtschritt.
