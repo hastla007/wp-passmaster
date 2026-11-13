@@ -68,8 +68,9 @@ final class CapacityCounters {
 		add_action( 'wpcap_ticket_revoked', array( __CLASS__, 'mark_dirty_ticket' ), 99, 1 );
 		add_action( 'shutdown', array( __CLASS__, 'flush_dirty' ), 5, 0 );
 		if ( defined( 'WP_CLI' ) && WP_CLI && class_exists( '\WP_CLI' ) ) {
-			\WP_CLI::add_command( 'pass-captain reconcile-capacity', static function () {
-				$report = self::reconcile();
+			\WP_CLI::add_command( 'pass-captain reconcile-capacity', static function ( $args = array(), $assoc = array() ) {
+				// --all: every order and occurrence (also past ones), without time budget.
+				$report = self::reconcile( ! empty( $assoc['all'] ) );
 				\WP_CLI::success( wp_json_encode( $report ) );
 			} );
 		}
@@ -462,21 +463,42 @@ final class CapacityCounters {
 	 *
 	 * @return array {state, resynced_orders, resynced_rows, repaired_occurrences, orders, occurrences}
 	 */
-	public static function reconcile() {
+	public static function reconcile( $all = false ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$report = array( 'state' => self::state(), 'resynced_orders' => 0, 'resynced_rows' => 0, 'repaired_occurrences' => 0, 'orders' => array(), 'occurrences' => array() );
+		$report = array( 'state' => self::state(), 'resynced_orders' => 0, 'resynced_rows' => 0, 'repaired_occurrences' => 0, 'orders' => array(), 'occurrences' => array(), 'complete' => true );
 		if ( ! self::maintained() ) {
 			return $report;
 		}
+		// One run at a time (overlapping cron runs would report the same drift twice).
+		if ( ! (int) $wpdb->get_var( "SELECT GET_LOCK('" . preg_replace( '/[^A-Za-z0-9_]/', '', $p ) . "wpcap_reconcile',0)" ) ) {
+			$report['state'] = 'locked';
+			return $report;
+		}
+		$deadline = microtime( true ) + ( $all ? 3600.0 : (float) apply_filters( 'wpcap_capacity_reconcile_budget', 10.0 ) );
 		$limit = (int) self::BATCH;
-		$orders = array_merge(
-			(array) $wpdb->get_col( "SELECT DISTINCT oi.order_id FROM {$p}wpcap_order_items oi LEFT JOIN {$p}wpcap_orders o ON o.order_id=oi.order_id WHERE oi.counted_qty<>" . self::line_units_sql() . " LIMIT $limit" ),
-			(array) $wpdb->get_col( "SELECT DISTINCT order_id FROM {$p}wpcap_reservations WHERE counted_qty<>IF(status='active',quantity,0) LIMIT $limit" )
-		);
-		$orders = array_values( array_unique( array_map( 'intval', $orders ) ) );
-		sort( $orders, SORT_NUMERIC );
+		// Cron runs look at recently changed orders and at running/upcoming dates only (the load does
+		// not grow with the whole history); `wp pass-captain reconcile-capacity --all` checks everything.
+		$since = gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS );
+		$recent = $all ? '' : $wpdb->prepare( ' AND o.updated_at >= %s', $since );
+		$candidates = static function () use ( $wpdb, $p, $limit, $recent, $all, $since ) {
+			$rows = array_merge(
+				(array) $wpdb->get_col( "SELECT DISTINCT oi.order_id FROM {$p}wpcap_order_items oi LEFT JOIN {$p}wpcap_orders o ON o.order_id=oi.order_id WHERE oi.counted_qty<>" . self::line_units_sql() . "$recent LIMIT $limit" ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
+				(array) $wpdb->get_col( "SELECT DISTINCT r.order_id FROM {$p}wpcap_reservations r LEFT JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.counted_qty<>IF(r.status='active',r.quantity,0)" . ( $all ? '' : $wpdb->prepare( ' AND (o.updated_at >= %s OR r.expires_at >= %s)', $since, $since ) ) . " LIMIT $limit" ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			);
+			$rows = array_values( array_unique( array_map( 'intval', $rows ) ) );
+			sort( $rows, SORT_NUMERIC );
+			return $rows;
+		};
+		$orders = $candidates();
+		if ( $orders && ! $all ) {
+			// A writer between its COMMIT and sync_order_now() looks like drift for a moment: only
+			// orders that still disagree a little later are treated (and alerted).
+			usleep( (int) apply_filters( 'wpcap_capacity_reconcile_confirm_us', 300000 ) );
+			$orders = array_values( array_intersect( $orders, $candidates() ) );
+		}
 		foreach ( $orders as $order_id ) {
+			if ( microtime( true ) >= $deadline ) { $report['complete'] = false; break; }
 			$changed = self::sync_order_now( $order_id );
 			if ( $changed ) {
 				++$report['resynced_orders'];
@@ -486,12 +508,16 @@ final class CapacityCounters {
 		}
 		// Counters against the units their lines and holds count (only differs after a bug or a
 		// manual edit of the counter columns).
-		$sums = "SELECT tt.ticket_type_id,tt.occurrence_id,tt.sold_qty,tt.held_qty,COALESCE((SELECT SUM(counted_qty) FROM {$p}wpcap_order_items oi WHERE oi.ticket_type_id=tt.ticket_type_id),0) AS sold_sum,COALESCE((SELECT SUM(counted_qty) FROM {$p}wpcap_reservations r WHERE r.ticket_type_id=tt.ticket_type_id),0) AS held_sum FROM {$p}wpcap_ticket_types tt";
+		// Cron: only running/upcoming dates (past dates no longer decide capacity).
+		$occ_scope = $all ? '' : $wpdb->prepare( ' WHERE COALESCE(oc2.ends_at, DATE_ADD(oc2.starts_at, INTERVAL 1 DAY)) >= %s', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) );
+		$sums = "SELECT tt.ticket_type_id,tt.occurrence_id,tt.sold_qty,tt.held_qty,COALESCE((SELECT SUM(counted_qty) FROM {$p}wpcap_order_items oi WHERE oi.ticket_type_id=tt.ticket_type_id),0) AS sold_sum,COALESCE((SELECT SUM(counted_qty) FROM {$p}wpcap_reservations r WHERE r.ticket_type_id=tt.ticket_type_id),0) AS held_sum FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences oc2 ON oc2.occurrence_id=tt.occurrence_id$occ_scope";
 		$bad = (array) $wpdb->get_col( "SELECT DISTINCT occurrence_id FROM ($sums) x WHERE sold_qty<>sold_sum OR held_qty<>held_sum" );
-		$bad = array_merge( $bad, (array) $wpdb->get_col( "SELECT oc.occurrence_id FROM {$p}wpcap_occurrences oc LEFT JOIN ($sums) x ON x.occurrence_id=oc.occurrence_id GROUP BY oc.occurrence_id,oc.sold_qty,oc.held_qty HAVING oc.sold_qty<>COALESCE(SUM(x.sold_sum),0) OR oc.held_qty<>COALESCE(SUM(x.held_sum),0)" ) );
+		$oc_scope = '' === $occ_scope ? '' : str_replace( 'oc2.', 'oc.', $occ_scope );
+		$bad = array_merge( $bad, (array) $wpdb->get_col( "SELECT oc.occurrence_id FROM {$p}wpcap_occurrences oc LEFT JOIN ($sums) x ON x.occurrence_id=oc.occurrence_id$oc_scope GROUP BY oc.occurrence_id,oc.sold_qty,oc.held_qty HAVING oc.sold_qty<>COALESCE(SUM(x.sold_sum),0) OR oc.held_qty<>COALESCE(SUM(x.held_sum),0)" ) );
 		$bad = array_values( array_unique( array_map( 'intval', $bad ) ) );
 		sort( $bad, SORT_NUMERIC );
 		foreach ( $bad as $occurrence_id ) {
+			if ( microtime( true ) >= $deadline ) { $report['complete'] = false; break; }
 			if ( false !== self::rebuild_occurrence( $occurrence_id ) ) {
 				++$report['repaired_occurrences'];
 				$report['occurrences'][] = $occurrence_id;
@@ -511,6 +537,7 @@ final class CapacityCounters {
 			}
 		}
 		$report['state'] = self::state();
+		$wpdb->query( "SELECT RELEASE_LOCK('" . preg_replace( '/[^A-Za-z0-9_]/', '', $p ) . "wpcap_reconcile')" );
 		return $report;
 	}
 

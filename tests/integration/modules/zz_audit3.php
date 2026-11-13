@@ -419,3 +419,21 @@ $a33_summed = PassCaptain\Series\Pools::used( array( $a33_type ), $a33_now );
 $a33_pass_summed = PassCaptain\Passes\Capacity::type_units( array( $a33_type ), 0, $a33_now );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_capacity_counters_enabled'] );
 check( 'A033b: counters give the same usage as the SUM queries (3 sold + 2 held)', 5 === $a33_counted && 5 === $a33_summed && 5 === $a33_pass_summed && 5 === PassCaptain\Series\Pools::used( array( $a33_type ), $a33_now ) );
+
+echo "Audit 3: reconcile with lock, scope and --all (A034)\n";
+$a34_other = new mysqli( getenv( 'WPCAP_TEST_DB_HOST' ) ?: '127.0.0.1', getenv( 'WPCAP_TEST_DB_USER' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_PASS' ) ?: 'wp', getenv( 'WPCAP_TEST_DB_NAME' ) ?: 'wp' );
+$a34_other->query( "SELECT GET_LOCK('" . preg_replace( '/[^A-Za-z0-9_]/', '', $p ) . "wpcap_reconcile',0)" );
+$a34_locked = PassCaptain\CapacityCounters::reconcile();
+$a34_other->query( "SELECT RELEASE_LOCK('" . preg_replace( '/[^A-Za-z0-9_]/', '', $p ) . "wpcap_reconcile')" );
+$a34_other->close();
+check( 'A034: a second reconcile run while one is active does nothing', 'locked' === $a34_locked['state'] );
+$a34_occ_old = ex_occ( ex_event( 'Vergangen Zähler' ), 0, 24 * 10 );
+$a34_type = ex_type( $a34_occ_old, 'Alt', 1000, 50 );
+ex_buy( $a34_type, 2, 'a34@example.com' );
+$wpdb->query( "UPDATE {$p}wpcap_occurrences SET starts_at='2020-01-01 10:00:00' WHERE occurrence_id=$a34_occ_old" );
+$wpdb->query( "UPDATE {$p}wpcap_occurrences SET sold_qty=sold_qty+5 WHERE occurrence_id=$a34_occ_old" ); // Drift on a past date.
+$a34_cron = PassCaptain\CapacityCounters::reconcile();
+$a34_kept = (int) $wpdb->get_var( "SELECT sold_qty FROM {$p}wpcap_occurrences WHERE occurrence_id=$a34_occ_old" );
+$a34_all = PassCaptain\CapacityCounters::reconcile( true );
+$a34_fixed = (int) $wpdb->get_var( "SELECT sold_qty FROM {$p}wpcap_occurrences WHERE occurrence_id=$a34_occ_old" );
+check( 'A034: cron run skips past dates, --all repairs them', ! in_array( $a34_occ_old, $a34_cron['occurrences'], true ) && 7 === $a34_kept && in_array( $a34_occ_old, $a34_all['occurrences'], true ) && 2 === $a34_fixed );
