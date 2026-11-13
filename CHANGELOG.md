@@ -94,6 +94,8 @@
 - Datenbank: Index auf `wallet_registrations.push_token` als Präfixindex (passt in 767 Byte für ältere MySQL/MariaDB); Anforderungen in `docs/OPERATIONS.md` dokumentiert, Test prüft alle Schemata.
 - Doku: neues `docs/BETREIBERPFLICHTEN.md` mit Vorlagen für Betreiberpflichten (keine Rechtsberatung): Art.-14-Information für Gästelisten und Vernichtung der Abholliste, Rolle der Veranstalter/Wiederverkäufer, Kassen-Schichtdaten mit Mitbestimmung und Z-Bericht-Aufbewahrung, AV-Vertrag Fiskalanbieter, Auskunft ohne E-Mail, Verarbeitungsverzeichnis.
 - Gästelisten-Löschlauf ersetzt nach der Frist auch die Gast-E-Mail an der Freikartenbestellung und leert Teilnehmernamen der Tickets.
+- Erstattungsbelege heißen durchgängig „Rechnungskorrektur“ statt „Gutschrift“ (Export, Berichte, Bestellansicht, Mail); neues Standardpräfix `RK` für neue Installationen, bestehende behalten ihr Präfix (ohne gespeicherte Einstellung wird `GS` festgeschrieben); Selbstfakturierungs-Gutschriften (`GU`) unverändert.
+- Rechnungskorrekturen schlüsseln Netto/USt/Brutto je Steuersatz auf (Druckansicht, PDF, Buchhaltungsexport mit einer Zeile je Satz); Aufteilung nach erstatteten Positionen, gespeichert in `wpcap_credit_notes.rates` (Schema 3.8.3), ältere Belege werden identisch berechnet.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

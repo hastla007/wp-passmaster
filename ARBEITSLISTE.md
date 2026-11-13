@@ -189,9 +189,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 - [x] **A083** Neue Hooks in docs/HOOKS.md dokumentieren — _TEILWEISE_ (TODO L342; Offene Nacharbeiten aus Phase 3)
   - Erledigt mit A064: alle Hooks dokumentiert, Test gleicht docs/HOOKS.md und Code in beide Richtungen ab.
   - Nur wpcap_capacity_increased dokumentiert; wpcap_allocation_*, wpcap_boxoffice_*, wpcap_ticket_exchanged, Pass-Filter fehlen
-- [ ] **A084** Präfix GS/Exportbezeichnung Gutschrift umbenennen — _OFFEN_ (TODO L353; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+- [x] **A084** Präfix GS/Exportbezeichnung Gutschrift umbenennen — _OFFEN_ (TODO L353; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
   - src/Settings.php:73 'GS'; src/Invoices.php:190,403 'GS' und 'Gutschrift' unverändert
-- [ ] **A085** Rechnungskorrekturen je Steuersatz aufschlüsseln — _OFFEN_ (TODO L354; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+- [x] **A085** Rechnungskorrekturen je Steuersatz aufschlüsseln — _OFFEN_ (TODO L354; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
   - src/Invoices.php:114-121,324 nur eine Netto/USt/Brutto-Summe je Korrektur, keine Aufschlüsselung je Satz
 - [ ] **A086** Mehrzweckgutscheine: Berichte auf refund_plans umstellen — _TEILWEISE_ (TODO L356; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
   - Rechnungskorrektur nutzt refund_plan (Invoices.php:113); Reports/Data.php:154, Partners/Settlements.php:135, Statement.php:51 nutzen weiter wpcap_refunds.amount_minor

@@ -350,8 +350,8 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [ ] UID-Prüfung: genügt formale Prüfung oder ist qualifizierte VIES-Bestätigung vor Reverse Charge Pflicht?
 - [ ] Negative Abrechnungsmonate (Erstattungen > Verkäufe) und Kleinunternehmer-Fälle festlegen.
 - [ ] E-Rechnungspflicht (XRechnung/ZUGFeRD) für B2B-Belege an Veranstalter und Firmenkunden in DE umsetzen, sobald der Umfang bestätigt ist.
-- [ ] Präfix „GS“ und Exportbezeichnung „Gutschrift“ für Rechnungskorrekturen umbenennen, um Verwechslung mit Selbstfakturierungs-Gutschriften (GU) zu vermeiden.
-- [ ] Rechnungskorrekturen mit Aufschlüsselung je Steuersatz (Netto/USt/Brutto) prüfen und ggf. ergänzen.
+- [x] Präfix „GS“ und Exportbezeichnung „Gutschrift“ für Rechnungskorrekturen umbenennen, um Verwechslung mit Selbstfakturierungs-Gutschriften (GU) zu vermeiden.
+- [x] Rechnungskorrekturen mit Aufschlüsselung je Steuersatz (Netto/USt/Brutto) prüfen und ggf. ergänzen.
 - [ ] Freikarten gegen Sponsoring/Medienleistungen (tauschähnlicher Umsatz) und Freikarten für Personal bewerten.
 - [ ] Mehrzweckgutscheine: Erstattungszeilen (`wpcap_refunds`) enthalten nur den Baranteil – Berichte/Abrechnungen auf Gutschrift-Beträge bzw. `refund_plans` umstellen.
 - [ ] Einzweckgutscheine aus dem Ticketdienst: Veranstalter-Abrechnung soll den gespeicherten Gutscheinwert (`face_value_minor`) berücksichtigen.
@@ -534,7 +534,7 @@ Fünf parallele Prüfungen (Sicherheit, Geld/Buchungen, Steuer/Recht/Datenschutz
 - [x] Provisionsrechnung (Settlements.php:273): Plattform-Kleinunternehmer berücksichtigen (0 % USt + Hinweis, kein § 14c). — *erledigt (a868a40).*
 - [ ] Gutschrift: Reverse Charge nach Veranstaltungsort statt Sitz des Veranstalters ermitteln; Veranstaltungsland am Event speichern. [Entscheidung]
 - [ ] Kleinunternehmer (Plattform/Veranstalter): 0 % schon beim Speichern der Ticketart bzw. im Checkout erzwingen, nicht erst bei der Rechnung (sonst bezahlte Bestellung ohne Rechnung).
-- [ ] Rechnungskorrekturen je Steuersatz aufschlüsseln (Datenmodell, PDF, CSV) und Hinweise (Kleinunternehmer, Vermittler) wie auf der Rechnung zeigen.
+- [x] Rechnungskorrekturen je Steuersatz aufschlüsseln (Datenmodell, PDF, CSV) und Hinweise (Kleinunternehmer, Vermittler) wie auf der Rechnung zeigen.
 - [ ] Rechnung nach Teilerstattung (auto_invoice aus): Erstattungen berücksichtigen bzw. Korrekturbelege nachträglich erzeugen.
 - [ ] Rechnungsstellung erst bei vollständigen Plattform-Stammdaten (Name, Anschrift, St.-Nr./USt-IdNr.) erlauben.
 - [ ] Checkout: Vertragspartner (Veranstalter im Vermittlermodell) anzeigen, Datenschutzlink, AGB-/Verbraucherinfo-Versionen archivieren und in der Bestellbestätigung mitsenden (§ 312f BGB).
