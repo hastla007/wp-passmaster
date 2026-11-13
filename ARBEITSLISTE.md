@@ -130,7 +130,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Modules/Partners.php:223–229`; `src/Partners/Sales.php:858–878` — Maßnahme: Bei `wpcap_ticket_revoked`/Privacy-Löschung und nach Terminende + Frist löschen.
 - [x] **A056** [P3] Export ohne Wartelisten-Menge/Termin/Angebot, ohne `wpcap_ticket_exchanges` und Partner-Verkaufsdaten. — _OFFEN_ (TODO L468; Datenschutz (Prüfung 4))
   - `src/Privacy.php:172–180` — Maßnahme: Exporter ergänzen.
-- [ ] **A057** [P3] Begleittickets tragen den Namen des Gastes („Begleitung von …“). — _OFFEN_ (TODO L469; Datenschutz (Prüfung 4))
+- [x] **A057** [P3] Begleittickets tragen den Namen des Gastes („Begleitung von …“). — _OFFEN_ (TODO L469; Datenschutz (Prüfung 4))
   - `src/GuestLists/Service.php:390` — Maßnahme: Neutral „Begleitung“ oder per Filter abschaltbar.
 - [ ] **A058** [P3] Kundenbelege zeigen den Klarnamen der Kassierkraft. — _OFFEN_ (TODO L470; Datenschutz (Prüfung 4))
   - `src/BoxOffice/Service.php:624` — Maßnahme: Kürzel/Bediener-ID, Klarname per Einstellung.

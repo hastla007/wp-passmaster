@@ -64,7 +64,8 @@ die Freikarte an der Kasse (`pos_free`):
 - der Grund steht im `price_snapshot` der Bestellung unter `comp` (`reason`, `list_id`, `list`,
   `entry_id`, `approved_by`, `vat` = 0);
 - `Orders::confirm_external_payment()` bestätigt die Bestellung, stellt die Tickets aus und mailt sie an
-  den Gast. Das erste Ticket trägt den Namen des Gastes, weitere „Begleitung von …“;
+  den Gast. Das erste Ticket trägt den Namen des Gastes, weitere neutral „Begleitung“ (Filter
+  `wpcap_guestlist_companion_name`, z. B. für „Begleitung von …“);
 - ohne E-Mail-Adresse bekommt die Bestellung die Platzhalteradresse
   `guestlist+<hash>@invalid.example`; Mails dorthin werden unterdrückt (`pre_wp_mail`). Die Tickets
   stehen dann auf der Abholliste. „Erneut senden“ mit neuer E-Mail-Adresse hinterlegt sie und mailt

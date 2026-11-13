@@ -386,8 +386,10 @@ final class Service {
 		$type_id = (int) $entry->ticket_type_id;
 		$attendees = array();
 		for ( $i = 0; $i < (int) $entry->quantity; $i++ ) {
-			/* translators: %s: guest name */
-			$attendees[] = array( 'ticket_type_id' => $type_id, 'name' => 0 === $i ? $entry->name : sprintf( __( 'Begleitung von %s', 'wp-pass-captain' ), $entry->name ) );
+			// Companion tickets are neutral by default: whoever holds one does not learn the guest's name.
+			// Filter wpcap_guestlist_companion_name (e.g. sprintf( 'Begleitung von %s', $entry->name )).
+			$companion = (string) apply_filters( 'wpcap_guestlist_companion_name', __( 'Begleitung', 'wp-pass-captain' ), $entry, $i );
+			$attendees[] = array( 'ticket_type_id' => $type_id, 'name' => 0 === $i ? $entry->name : $companion );
 		}
 		$internal = array(
 			'external' => true,
