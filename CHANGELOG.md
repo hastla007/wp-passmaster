@@ -30,6 +30,7 @@
 - Veranstalter-Abrechnung: Ein eingelöster Einzweckgutschein mindert die Auszahlung nicht mehr – sein Wert steht als eigene Zeile „Einzweckgutschein (Forderung gegen den Gutscheinverkäufer)“ in der Abrechnung.
 - Datenschutz Käuferlimit: Käuferschlüssel als HMAC mit Seitengeheimnis (einmalige Migration beim Schema-Update baut die Zeilen aus den Bestellungen neu auf); eigener Datenschutz-Export und -Löschung; Löschung nach Ende des letzten Termins + Aufbewahrungsfrist der Teilnehmerdaten. Neuer Filter `wpcap_privacy_retention_steps` für Löschschritte von Modulen.
 - Datenschutz Gästelisten: Name, E-Mail, Firma und Notiz (auch abgelehnter/stornierter Einträge) werden nach Terminende + Teilnehmer-Aufbewahrungsfrist geleert; Anzahl und Status bleiben. Hinweis im Notizfeld: keine Gesundheitsdaten.
+- Datenschutz Warteliste: E-Mail und Hash eines Eintrags werden 30 Tage nach dem Termin entfernt (Schritt `waitlist` in `wpcap_privacy_retention_days`); Frist in Datenschutztext und OPERATIONS.md.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

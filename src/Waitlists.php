@@ -37,6 +37,29 @@ final class Waitlists {
 		add_action( self::HOOK, array( __CLASS__, 'run_due' ), 10, 0 );
 		add_action( 'wpcap_process_jobs', array( __CLASS__, 'run_due' ), 20, 0 );
 		add_action( 'wpcap_cleanup_reservations', array( __CLASS__, 'sweep' ), 30, 0 );
+		add_filter( 'wpcap_privacy_retention_steps', array( __CLASS__, 'retention_step' ), 10, 3 );
+	}
+
+	/**
+	 * Retention (wpcap_privacy_retention_steps): waitlist entries are anonymised once their date (or,
+	 * for event-wide entries, the last date of the event) ended more than `waitlist` days ago
+	 * (default 30, filter wpcap_privacy_retention_days): e-mail emptied, e-mail hash replaced, offer
+	 * token removed; status and counts stay. Open offers are left alone.
+	 */
+	public static function retention_step( $counts, $now, $deadline ) {
+		global $wpdb;
+		if ( microtime( true ) >= $deadline ) { return $counts; }
+		$days = max( 0, (int) apply_filters( 'wpcap_privacy_retention_days', 30, 'waitlist' ) );
+		if ( ! $days ) { $counts['waitlist'] = 0; return $counts; }
+		$p = $wpdb->prefix;
+		$cutoff = gmdate( 'Y-m-d H:i:s', (int) $now - $days * DAY_IN_SECONDS );
+		$end = 'COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))';
+		$counts['waitlist'] = (int) $wpdb->query( $wpdb->prepare(
+			"UPDATE {$p}wpcap_waitlist w SET w.email='',w.email_hash=SHA2(CONCAT('deleted|',w.waitlist_id),256),w.offer_token_hash='',w.updated_at=%s WHERE w.email<>'' AND w.status<>'offered' AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_occurrences o WHERE ( o.occurrence_id=w.occurrence_id OR ( w.occurrence_id=0 AND o.event_id=w.event_id ) ) AND $end>=%s)", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static SQL.
+			gmdate( 'Y-m-d H:i:s', (int) $now ),
+			$cutoff
+		) );
+		return $counts;
 	}
 
 	/** Settings merged with defaults: auto_offers, offer_hours, max_offers_per_run, strict_fifo. */

@@ -374,3 +374,14 @@ $a27_id = (int) $wpdb->insert_id;
 $a27_counts = PassCaptain\Privacy\Retention::run();
 $a27_row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_guest_entries WHERE entry_id=$a27_id" );
 check( 'A027: personal fields of old guest entries are cleared, counts kept', $a27_counts['guest_entries'] >= 1 && '' === $a27_row->email && '' === $a27_row->company && '' === $a27_row->note && 'Erika Presse' !== $a27_row->name && 2 === (int) $a27_row->quantity );
+
+echo "Audit 3: waitlist entries are anonymised after the event (A028)\n";
+$a28_event = ex_event( 'Warteliste alt' );
+$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $a28_event, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() - 60 * 86400 ), 'timezone' => 'Europe/Vienna', 'location' => 'Wien', 'capacity' => 0, 'status' => 'scheduled' ) );
+$a28_occ = (int) $wpdb->insert_id;
+$a28_now = gmdate( 'Y-m-d H:i:s' );
+$wpdb->insert( "{$p}wpcap_waitlist", array( 'event_id' => $a28_event, 'occurrence_id' => $a28_occ, 'ticket_type_id' => 0, 'email_hash' => hash( 'sha256', 'wl-old@example.com' ), 'email' => 'wl-old@example.com', 'position' => 1, 'status' => 'waiting', 'created_at' => $a28_now, 'updated_at' => $a28_now ) );
+$a28_id = (int) $wpdb->insert_id;
+$a28_counts = PassCaptain\Privacy\Retention::run();
+$a28_row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_waitlist WHERE waitlist_id=$a28_id" );
+check( 'A028: waitlist e-mail and hash are removed 30 days after the date', $a28_counts['waitlist'] >= 1 && '' === $a28_row->email && hash( 'sha256', 'wl-old@example.com' ) !== $a28_row->email_hash );
