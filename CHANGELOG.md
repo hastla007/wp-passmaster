@@ -10,6 +10,7 @@
 - Umsatzsteuer von Teilerstattungen rabattierter Bestellungen korrigiert; Partnerabrechnung zählt bei Mehrzweckgutscheinen Bar- und Gutscheinanteil der Erstattung; Provisionsrechnung einer Kleinunternehmer-Plattform ohne Umsatzsteuer mit Hinweis.
 
 ### Zusammenspiel mit WP Voucher Captain
+- Abgleich: neue lesende API `Integrations\Vouchers\Reconciliation::orders()` (Vertrag v1, `Reconciliation::VERSION`) listet die Bestellungen mit Gutschein (Checkout und Ticketdienst) mit Status, Zahlstatus, Währung, Zahlungsreferenz und den Gutscheinfeldern des Snapshots; seitenweise über `after_id`/`before_id` (höchstens 500 je Aufruf) oder gezielt per `redemption_key`. WP Voucher Captain liest dafür nicht mehr die Bestelltabelle (siehe docs/VOUCHERS.md).
 - Ticketdienst: `get()` liefert zusätzlich Event, Ticketart, Beginn (Ortszeit) und Empfänger einer Umwandlung (für „2 Tickets für … am …, gesendet an …“ im Kundenkonto); neues `resend_tickets()` sendet die Tickets einer Umwandlung erneut (neue Codes, höchstens 3-mal pro Stunde wie im Bestellportal).
 - Wird eine Ticketart umbenannt, merkt sich Pass Captain den alten Namen je Event: Gutscheine „Kunde wählt den Termin“, die für „Stehplatz“ verkauft wurden, finden die Termine auch nach der Umbenennung.
 - Ein Codefeld im Checkout: „Gutschein- oder Rabattcode“ statt zwei Feldern. Bekannte Kampagnencodes werden als Rabatt angewendet, alles andere als Gutschein (nur wenn ein Gutschein-Plugin verbunden ist; sonst bleibt das Feld „Rabattcode“). Die API nimmt weiterhin `campaign_codes` und `voucher_code` an.

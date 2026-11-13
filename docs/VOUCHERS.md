@@ -94,6 +94,27 @@ Reine Betragserstattungen (ohne Tickets) werden nur aus dem Barteil gezahlt.
 - **Einzweckgutschein**: Tickets zu 0 € / 0 € USt (die Steuer wurde beim Gutscheinverkauf abgeführt). Der Gutscheinwert (`amount_minor`/`value_minor` aus `$source`, sonst Listenpreis × Menge) steht im Snapshot unter `face_value_minor`; `TicketService::settlement_value_minor( $order_id )` liefert ihn für Veranstalter-Abrechnungen.
 - Für diese Bestellungen belastet WP Voucher Captain den Gutschein selbst (Snapshot-Status `external`); Pass Captain bucht bei Erstattungen nichts automatisch auf den Gutschein zurück – der Widerruf läuft über `revoke_tickets()`.
 
+## Abgleich für das Gutscheinsystem (`Reconciliation`, Vertrag v1)
+
+`PassCaptain\Integrations\Vouchers\Reconciliation::orders( array $args )` listet – nur lesend – die Bestellungen mit Gutschein: im Ticket-Checkout (teilweise) per Gutschein bezahlte und über den Ticketdienst umgewandelte. WP Voucher Captain gleicht damit seine Einlösungen ab, ohne die Tabellen von Pass Captain zu lesen.
+
+- **Version**: `Reconciliation::VERSION` (seit 1.4: `1`). Vor dem Aufruf prüfen: `defined( 'PassCaptain\Integrations\Vouchers\Reconciliation::VERSION' ) && Reconciliation::VERSION >= 1`. Spätere Versionen fügen nur Felder hinzu; eine geänderte Bedeutung bekommt eine neue Version.
+- **Argumente**: `limit` (1–500, Standard 100), `order` (`asc` Standard, `desc` = neueste zuerst), `after_id` / `before_id` (Cursor: `order_id` der letzten Zeile übergeben), `redemption_key` (nur Bestellungen mit genau diesem Einlöse-Schlüssel, Checkout oder Ticketdienst).
+- **Zeilen**: `order_id`, `public_id`, `status`, `payment_status`, `payment_provider`, `provider_reference`, `currency`, `exchange_key` (Einlöse-Schlüssel einer Ticketdienst-Bestellung, sonst leer), `voucher` (`null` oder: `source` `checkout`/`ticket_service`, `redemption_key`, `status`, `purpose`, `amount_minor`, `amount_paid_by_voucher`, `refunded_minor` – wie im Snapshot gespeichert), `created_at`, `updated_at` (UTC, `Y-m-d H:i:s`). Angebot, Reservierung und Erstattungspläne des Snapshots bleiben intern.
+- **Rechte**: PHP-API ohne eigene Rechteprüfung; der Aufrufer zeigt die Daten nur berechtigten Nutzern (Voucher Captain: Berichtsrecht).
+
+Beispiel (alle Bestellungen seitenweise):
+
+```php
+use PassCaptain\Integrations\Vouchers\Reconciliation;
+$after = 0;
+do {
+	$rows = Reconciliation::orders( array( 'after_id' => $after, 'limit' => 500 ) );
+	foreach ( $rows as $row ) { /* vergleichen */ }
+	$after = $rows ? end( $rows )['order_id'] : 0;
+} while ( count( $rows ) === 500 );
+```
+
 ## Pflichten des Betreibers
 
 - **Art festlegen**: Für jede Gutscheinart prüfen, ob Ort der Leistung und Steuersatz beim Verkauf feststehen. Veranstaltungen in mehreren Ländern oder mit unterschiedlichen Steuersätzen sprechen für Mehrzweckgutscheine. Die Art möglichst in WP Voucher Captain hinterlegen; die Standardeinstellung ist nur der Rückfall.
