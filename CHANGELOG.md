@@ -62,6 +62,7 @@
 - Kasse: Stornos/Erstattungen von Verkäufen „Rechnung“/„Freikarte“ ohne offene Schicht gehen nicht mehr verloren, sondern werden vorgemerkt und beim Öffnen der nächsten Schicht (gleiche Währung) ins Journal und damit in Z-Bericht und Grand Total gebucht.
 - Rechnungsdatenpflicht ab Schwelle (Standard 250 €) gilt jetzt auch für Kassenverkäufe „Zahlung auf Rechnung“, die Partner-API (neues optionales Feld `billing`, sonst `422 wpcap_partner_billing_required`) und Aufpreis-Bestellungen beim Umtausch; Umtausch im Admin und im Bestellportal bietet dafür die einklappbaren Rechnungsfelder.
 - Datenschutz: gespeicherte Partner-Ticketcodes werden beim Widerruf eines Tickets, bei der Anonymisierung der Bestellung (neue Action `wpcap_privacy_order_anonymized`) und 30 Tage nach Terminende (Löschlauf, Schritt `partner_ticket_codes`) gelöscht.
+- Datenschutz-Export: Warteliste mit Event-/Terminname, Anzahl, Angebot und Angebotsbestellung; Tickets mit Umtauschverlauf (von/nach, Differenz, Gebühr, Status); Bestellungen mit Verkaufskanal des Veranstalters/Wiederverkäufers (Name, Kanal, Referenz).
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

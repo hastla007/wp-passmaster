@@ -677,3 +677,18 @@ $a55_kept = PassCaptain\Partners\Sales::retention_step( array() );
 $a55_occ_end = strtotime( (string) $wpdb->get_var( "SELECT COALESCE(ends_at, DATE_ADD(starts_at, INTERVAL 1 DAY)) FROM {$p}wpcap_occurrences WHERE occurrence_id=$a4_occ" ) . ' UTC' );
 $a55_late = PassCaptain\Partners\Sales::retention_step( array(), $a55_occ_end + 31 * DAY_IN_SECONDS );
 check( 'A055: retention keeps codes until 30 days after the date, then deletes them', $a55_has( $a55_t2[0] ) === false && 0 === (int) ( $a55_kept['partner_ticket_codes'] ?? -1 ) && (int) $a55_late['partner_ticket_codes'] >= 1 );
+
+echo "Audit 3: privacy export covers waitlist details, exchanges and partner sales (A056)\n";
+$a56_mail = 'a56@example.com';
+list( $a56_o, $a56_t ) = ex_buy( $a4_std, 1, $a56_mail );
+$a56_vip2 = ex_type( $a4_occ, 'VIP A56', 1000, 2 );
+Exchange::request( $a56_t[0], $a56_vip2, array( 'channel' => 'admin', 'waive' => true, 'idempotency_key' => 'a56-x' ) );
+$wpdb->insert( "{$p}wpcap_waitlist", array( 'event_id' => (int) $wpdb->get_var( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=$a4_occ" ), 'occurrence_id' => $a4_occ, 'ticket_type_id' => $a4_std, 'email_hash' => hash( 'sha256', $a56_mail ), 'email' => $a56_mail, 'position' => 1, 'quantity' => 3, 'status' => 'waiting', 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+if ( PassCaptain\Privacy::has_table( 'wpcap_partner_orders' ) ) {
+	$wpdb->insert( "{$p}wpcap_partner_orders", array( 'order_id' => $a56_o, 'partner_id' => 0, 'key_id' => 0, 'mode' => 'sell', 'channel' => 'Shop A56', 'external_reference' => 'REF-A56', 'anonymous' => 0, 'request_hash' => str_repeat( 'a', 64 ), 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+}
+$a56_json = wp_json_encode( PassCaptain\Privacy::export( $a56_mail )['data'] );
+check( 'A056: waitlist export has quantity and date', false !== strpos( $a56_json, 'Anzahl' ) && false !== strpos( $a56_json, 'Termin (Beginn UTC)' ) );
+check( 'A056: ticket export lists exchanges', false !== strpos( $a56_json, 'Umtausch (von\/nach' ) && false !== strpos( $a56_json, 'VIP A56' ) );
+check( 'A056: order export names the partner sale (channel, reference)', ! PassCaptain\Privacy::has_table( 'wpcap_partner_orders' ) || ( false !== strpos( $a56_json, 'Shop A56' ) && false !== strpos( $a56_json, 'REF-A56' ) ) );
+$wpdb->query( "DELETE FROM {$p}wpcap_partner_orders WHERE order_id=" . (int) $a56_o );

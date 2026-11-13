@@ -147,6 +147,12 @@ final class Privacy {
 				$rows[] = array( 'name' => __( 'Rechnungsdaten (Firma, Name, Anschrift, UID, Referenz)', 'wp-pass-captain' ), 'value' => wp_json_encode( $billing ) );
 			}
 			$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_number,issued_at,status,buyer_snapshot FROM {$p}wpcap_invoices WHERE order_id=%d", $order['order_id'] ), ARRAY_A );
+			if ( self::has_table( 'wpcap_partner_orders' ) ) {
+				$sale = $wpdb->get_row( $wpdb->prepare( "SELECT po.mode,po.channel,po.external_reference,po.confirmed_at,po.cancelled_at,po.created_at,pa.name AS partner_name FROM {$p}wpcap_partner_orders po LEFT JOIN {$p}wpcap_partners pa ON pa.partner_id=po.partner_id WHERE po.order_id=%d", $order['order_id'] ), ARRAY_A );
+				if ( $sale ) {
+					$rows[] = array( 'name' => __( 'Verkauft über Veranstalter/Wiederverkäufer (Name, Kanal, Referenz, Modus, bestätigt/storniert UTC)', 'wp-pass-captain' ), 'value' => wp_json_encode( $sale ) );
+				}
+			}
 			if ( $invoice ) {
 				$rows[] = array( 'name' => __( 'Rechnung (Nummer, Datum UTC, Status)', 'wp-pass-captain' ), 'value' => $invoice['invoice_number'] . ' / ' . $invoice['issued_at'] . ' / ' . $invoice['status'] );
 				$rows[] = array( 'name' => __( 'Käuferangaben auf der Rechnung', 'wp-pass-captain' ), 'value' => $invoice['buyer_snapshot'] );
@@ -173,13 +179,16 @@ final class Privacy {
 				array( 'name' => __( 'Status', 'wp-pass-captain' ), 'value' => $pass['status'] ),
 			) );
 		}
-		$waitlist = $wpdb->get_results( $wpdb->prepare( "SELECT event_id,ticket_type_id,position,status,created_at,offer_expires_at FROM {$p}wpcap_waitlist WHERE email=%s ORDER BY waitlist_id LIMIT 50 OFFSET %d", $email, $offset ), ARRAY_A );
+		$waitlist = $wpdb->get_results( $wpdb->prepare( "SELECT w.event_id,w.occurrence_id,w.ticket_type_id,w.quantity,w.position,w.status,w.created_at,w.offered_at,w.offer_expires_at,w.order_id,e.name AS event_name,o.starts_at,ord.public_id AS offer_order FROM {$p}wpcap_waitlist w LEFT JOIN {$p}wpcap_events e ON e.event_id=w.event_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=w.occurrence_id LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=w.order_id WHERE w.email=%s ORDER BY w.waitlist_id LIMIT 50 OFFSET %d", $email, $offset ), ARRAY_A );
 		foreach ( $waitlist as $entry ) {
 			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'WP Pass Captain Warteliste', 'wp-pass-captain' ), 'item_id' => 'waitlist-' . $entry['event_id'] . '-' . $entry['ticket_type_id'], 'data' => array(
-				array( 'name' => __( 'Event', 'wp-pass-captain' ), 'value' => $entry['event_id'] ),
+				array( 'name' => __( 'Event', 'wp-pass-captain' ), 'value' => ( '' !== (string) $entry['event_name'] ? $entry['event_name'] . ' ' : '' ) . '(#' . $entry['event_id'] . ')' ),
+				array( 'name' => __( 'Termin (Beginn UTC)', 'wp-pass-captain' ), 'value' => (int) $entry['occurrence_id'] ? $entry['starts_at'] . ' (#' . $entry['occurrence_id'] . ')' : __( 'alle Termine', 'wp-pass-captain' ) ),
 				array( 'name' => __( 'Ticketart', 'wp-pass-captain' ), 'value' => $entry['ticket_type_id'] ),
+				array( 'name' => __( 'Anzahl', 'wp-pass-captain' ), 'value' => $entry['quantity'] ),
 				array( 'name' => __( 'Position und Status', 'wp-pass-captain' ), 'value' => $entry['position'] . ' / ' . $entry['status'] ),
-				array( 'name' => __( 'Erstellt / Angebotsablauf', 'wp-pass-captain' ), 'value' => $entry['created_at'] . ' / ' . ( $entry['offer_expires_at'] ?? '' ) ),
+				array( 'name' => __( 'Erstellt / Angebot / Angebotsablauf (UTC)', 'wp-pass-captain' ), 'value' => $entry['created_at'] . ' / ' . ( $entry['offered_at'] ?? '' ) . ' / ' . ( $entry['offer_expires_at'] ?? '' ) ),
+				array( 'name' => __( 'Angebotsbestellung', 'wp-pass-captain' ), 'value' => (string) ( $entry['offer_order'] ?? '' ) ),
 			) );
 		}
 		$bookings = $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,b.quantity,b.status,b.created_at,s.starts_at,s.ends_at,r.name AS resource_name FROM {$p}wpcap_service_bookings b LEFT JOIN {$p}wpcap_service_slots s ON s.slot_id=b.slot_id LEFT JOIN {$p}wpcap_resources r ON r.resource_id=s.resource_id WHERE b.customer_email=%s ORDER BY b.booking_id LIMIT 50 OFFSET %d", $email, $offset ), ARRAY_A );
@@ -227,6 +236,10 @@ final class Privacy {
 			}
 		}
 		if ( $checkins ) { $rows[] = array( 'name' => __( 'Einlassprotokoll (Zeit UTC, Bereich)', 'wp-pass-captain' ), 'value' => wp_json_encode( $checkins ) ); }
+		if ( self::has_table( 'wpcap_ticket_exchanges' ) ) {
+			$exchanges = $wpdb->get_results( $wpdb->prepare( "SELECT x.status,x.channel,x.currency,x.difference_minor,x.fee_minor,x.refund_minor,x.due_minor,x.created_at,x.completed_at,tf.name AS from_type,tt2.name AS to_type,IF(x.old_ticket_id=%d,'old','new') AS role FROM {$p}wpcap_ticket_exchanges x LEFT JOIN {$p}wpcap_ticket_types tf ON tf.ticket_type_id=x.from_type_id LEFT JOIN {$p}wpcap_ticket_types tt2 ON tt2.ticket_type_id=x.to_type_id WHERE x.old_ticket_id=%d OR x.new_ticket_id=%d ORDER BY x.exchange_id", $id, $id, $id ), ARRAY_A );
+			if ( $exchanges ) { $rows[] = array( 'name' => __( 'Umtausch (von/nach, Differenz, Gebühr, Status, Zeit UTC)', 'wp-pass-captain' ), 'value' => wp_json_encode( $exchanges ) ); }
+		}
 		$wallet = $wpdb->get_results( $wpdb->prepare( "SELECT provider,serial_number,status,updated_at FROM {$p}wpcap_wallet_passes WHERE ticket_id=%d ORDER BY wallet_pass_id", $id ), ARRAY_A );
 		if ( $wallet ) {
 			if ( self::has_table( 'wpcap_wallet_registrations' ) ) {
