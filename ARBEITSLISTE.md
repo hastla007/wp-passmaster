@@ -307,7 +307,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Memberships.php:17 (Gültigkeit, uses_total je Regel); keine terminpflichtige Slot-Bindung, keine getrennte Abnahme
 - [ ] **A139** POS: Oberfläche, Zahlungsarten, fiskalische Belege, Druck — _TEILWEISE_ (TODO L136; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
   - UI BoxOffice/Page.php, Bar/Karte Service.php:34-35, Belegnummern, Druck Page.php:82; Fiskal-Adapter nicht angebunden, keine fiskalischen Belege
-- [ ] **A140** iCalendar-Download und Änderungsbenachrichtigungen pro Ereignis — _TEILWEISE_ (TODO L138; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
+- [x] **A140** iCalendar-Download und Änderungsbenachrichtigungen pro Ereignis — _TEILWEISE_ (TODO L138; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
   - ICS Calendar/Ics.php:63,122,128, Modules/Calendar.php:23; Mail bei Verschiebung/Absage; keine SEQUENCE in ICS, keine Benachrichtigung bei Orts-/Detailänderung
 - [ ] **A141** SMS: Anbieteradapter, Einwilligung, Kosten, Zustellstatus — _TEILWEISE_ (TODO L139; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
   - Twilio/HTTP-Adapter (src/Sms/), Einwilligung Sms/Service.php:67, Zustellstatus; Kosten nur als Hinweis (Modules/Sms.php:345), keine Segment-/Kostenerfassung
@@ -341,7 +341,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Fristen vorhanden (Privacy/Retention.php, Settings.php:64); A11y-Tests (tests/a11y) nicht in ci.yml/release.yml; keine manuelle Screenreader-Abnahme
 - [ ] **A156** Events/Termine vollständig bearbeiten, verschieben, versioniert ändern — _TEILWEISE_ (TODO L198; Kernprodukt und Admin-Bedienung)
   - Bearbeiten/Verschieben da (src/Admin/EventsPage.php:124,151 inkl. rescheduled-Hook); Event nur Name/Beschreibung/Status, keine Versionierung/Revisionshistorie außer Audit-Log
-- [ ] **A157** Admin-Oberflächen für REST-Module ergänzen — _TEILWEISE_ (TODO L199; Kernprodukt und Admin-Bedienung)
+- [x] **A157** Admin-Oberflächen für REST-Module ergänzen — _TEILWEISE_ (TODO L199; Kernprodukt und Admin-Bedienung)
   - Serien (src/Series/AdminPage.php) und Einlassregeln/Areas (src/Admission/RulesPage.php:60) vorhanden; Service-Zeitfenster und Entwickler-API-Schlüssel nur REST (src/Rest/Controller.php:117-198)
 - [ ] **A158** Event-Warteliste vervollständigen — _TEILWEISE_ (TODO L200; Kernprodukt und Admin-Bedienung)
   - Auto-Angebot mit Hold, Annahme/Ablehnung da (src/Waitlists.php:198,262,429,498); keine Selbst-Abmeldung durch Käufer, kein Test paralleler Annahmen in tests/integration/modules/p3_waitlist.php
@@ -349,7 +349,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Regeln nur für Serientermine (src/Series/Pricing.php:257,311), Snapshot src/Orders.php:213-217; keine Stapelbarkeitsregeln (nur eine Regel gewinnt), nicht für Einzelevents
 - [ ] **A160** Veranstalterberichte erweitern, rollenbeschränkte CSV-Exporte — _TEILWEISE_ (TODO L202; Kernprodukt und Admin-Bedienung)
   - Zeitraum, Erstattungen, Bestand, CSV mit Cap-Scope da (src/Reports/Data.php:73,154,335; Page.php:14); fehlen Vergleichsfilter, Kampagnen- und Teilnehmerdaten
-- [ ] **A161** Entwickler-API-Schlüssel administrierbar machen — _TEILWEISE_ (TODO L203; Kernprodukt und Admin-Bedienung)
+- [x] **A161** Entwickler-API-Schlüssel administrierbar machen — _TEILWEISE_ (TODO L203; Kernprodukt und Admin-Bedienung)
   - Erstellen/einmalig anzeigen/Widerruf per REST (src/DeveloperKeys.php:8,41); keine Admin-UI, Ablauf nur bei Anlage, Ratenlimit fest 600/min (:35), nur 2 Scopes
 - [ ] **A162** Multisite-Netzwerkverwaltung, netzwerkweite Berichte, Cross-Site-Tests — _TEILWEISE_ (TODO L204; Kernprodukt und Admin-Bedienung)
   - Netzwerkaktivierung/Site-Anlage/Löschung da (src/Plugin.php:30-138, uninstall.php:53); keine Netzwerk-Admin-Seite, keine Netzwerkberichte, keine Cross-Site-Tests

@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP Pass Captain 1.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
-"POT-Creation-Date: 2026-11-13T21:17:56+00:00\n"
+"POT-Creation-Date: 2026-11-13T21:21:50+00:00\n"
 "PO-Revision-Date: 2026-11-11 12:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: English (United States)\n"
@@ -15,7 +15,7 @@ msgstr ""
 "X-Domain: wp-pass-captain\n"
 
 #. Plugin Name of the plugin
-#: wp-pass-captain.php src/Admin/Menu.php:94
+#: wp-pass-captain.php src/Admin/Menu.php:101
 #: src/Integrations/WooCommerce/CartPricing.php:83
 #: src/Operations/SiteHealth.php:72 src/Operations/SiteHealth.php:101
 msgid "WP Pass Captain"
@@ -42,10 +42,11 @@ msgid "https://github.com/hastla007"
 msgstr "https://github.com/hastla007"
 
 #: src/Admin/AuditLogPage.php:80 src/Admin/CampaignsPage.php:100
-#: src/Admin/CheckinsPage.php:55 src/Admin/DevicesPage.php:50
-#: src/Admin/EventsPage.php:647 src/Admin/Forms.php:338
-#: src/Admin/OperationsPage.php:84 src/Admin/OrdersPage.php:238
-#: src/Admin/RefundsPage.php:24 src/Admin/SettingsPage.php:434
+#: src/Admin/CheckinsPage.php:55 src/Admin/DeveloperKeysPage.php:96
+#: src/Admin/DevicesPage.php:50 src/Admin/EventsPage.php:660
+#: src/Admin/Forms.php:338 src/Admin/OperationsPage.php:84
+#: src/Admin/OrdersPage.php:238 src/Admin/RefundsPage.php:24
+#: src/Admin/ServiceSlotsPage.php:119 src/Admin/SettingsPage.php:434
 #: src/Admin/TaxPage.php:75 src/Admin/TicketsPage.php:199
 #: src/Admission/ConflictsPage.php:54 src/Admission/RulesPage.php:174
 #: src/Allocations/AdminPage.php:182 src/BoxOffice/Page.php:60
@@ -60,7 +61,7 @@ msgstr "https://github.com/hastla007"
 #: src/BoxOffice/Shifts.php:558 src/Exchange/AdminPage.php:76
 #: src/Exchange/AdminPage.php:97 src/Exchange/AdminPage.php:151
 #: src/GuestLists/Page.php:173 src/Invoices.php:520 src/Invoices.php:556
-#: src/Mail/Admin.php:187 src/Modules/Calendar.php:300
+#: src/Mail/Admin.php:187 src/Modules/Calendar.php:302
 #: src/Modules/Mollie.php:178 src/Modules/Reminders.php:183
 #: src/Modules/Sms.php:325 src/Modules/Webhooks.php:287
 #: src/OfflineScanner/AdminPage.php:106 src/Partners/AdminPage.php:177
@@ -76,7 +77,7 @@ msgstr "https://github.com/hastla007"
 msgid "Keine Berechtigung."
 msgstr "Permission denied."
 
-#: src/Admin/AuditLogPage.php:95 src/Admin/Menu.php:203
+#: src/Admin/AuditLogPage.php:95 src/Admin/Menu.php:214
 msgid "Audit-Log"
 msgstr "Audit log"
 
@@ -111,8 +112,8 @@ msgid "Aktion, z. B. pii_viewed"
 msgstr "Action, e.g. pii_viewed"
 
 #: src/Admin/AuditLogPage.php:106 src/Admin/AuditLogPage.php:113
-#: src/Admin/EventsPage.php:733 src/Admin/EventsPage.php:848
-#: src/Admin/EventsPage.php:920 src/Admin/EventsPage.php:1051
+#: src/Admin/EventsPage.php:746 src/Admin/EventsPage.php:864
+#: src/Admin/EventsPage.php:936 src/Admin/EventsPage.php:1067
 #: src/Admin/OrdersPage.php:580 src/Admin/TicketsPage.php:234
 #: src/Consents.php:523 src/Consents.php:611 src/Series/AdminPage.php:297
 msgid "Aktion"
@@ -147,8 +148,8 @@ msgstr "Filter"
 msgid "Zeit"
 msgstr "Time"
 
-#: src/Admin/AuditLogPage.php:113 src/Admin/ChangeHistory.php:282
-#: src/Admin/EventsPage.php:920
+#: src/Admin/AuditLogPage.php:113 src/Admin/ChangeHistory.php:283
+#: src/Admin/EventsPage.php:936
 msgid "Benutzer"
 msgstr "User"
 
@@ -168,27 +169,27 @@ msgstr "No entries found."
 msgid "System"
 msgstr "System"
 
-#: src/Admin/CampaignsPage.php:41 src/Admin/EventsPage.php:130
-#: src/Admin/EventsPage.php:160 src/Admin/EventsPage.php:274
-#: src/Admin/EventsPage.php:315 src/Admin/EventsPage.php:405
-#: src/Admin/EventsPage.php:459 src/Admin/EventsPage.php:485
-#: src/Admin/EventsPage.php:522 src/Admin/EventsPage.php:533
-#: src/Admin/TicketsPage.php:40 src/Admin/TicketsPage.php:69
-#: src/Admin/TicketsPage.php:119 src/Admission/RulesPage.php:37
-#: src/Admission/RulesPage.php:63 src/Admission/RulesPage.php:79
-#: src/Admission/RulesPage.php:96 src/Admission/RulesPage.php:107
-#: src/BoxOffice/Service.php:277 src/Consents.php:603
-#: src/Exchange/Service.php:1228 src/GuestLists/Service.php:80
-#: src/OfflineScanner/AdminPage.php:36 src/OfflineScanner/AdminPage.php:54
-#: src/OfflineScanner/AdminPage.php:60 src/Passes/Definitions.php:189
-#: src/Passes/Definitions.php:226 src/Passes/Definitions.php:305
-#: src/Passes/Definitions.php:320 src/Rest/Controller.php:656
-#: src/Rest/Controller.php:695 src/Rest/Controller.php:732
-#: src/Rest/Controller.php:764 src/Rest/Controller.php:785
-#: src/Rest/Controller.php:811 src/Seating/Layouts.php:461
+#: src/Admin/CampaignsPage.php:41 src/Admin/EventsPage.php:131
+#: src/Admin/EventsPage.php:171 src/Admin/EventsPage.php:286
+#: src/Admin/EventsPage.php:328 src/Admin/EventsPage.php:418
+#: src/Admin/EventsPage.php:472 src/Admin/EventsPage.php:498
+#: src/Admin/EventsPage.php:535 src/Admin/EventsPage.php:546
+#: src/Admin/ServiceSlotsPage.php:136 src/Admin/TicketsPage.php:40
+#: src/Admin/TicketsPage.php:69 src/Admin/TicketsPage.php:119
+#: src/Admission/RulesPage.php:37 src/Admission/RulesPage.php:63
+#: src/Admission/RulesPage.php:79 src/Admission/RulesPage.php:96
+#: src/Admission/RulesPage.php:107 src/BoxOffice/Service.php:277
+#: src/Consents.php:603 src/DeveloperKeys.php:84 src/Exchange/Service.php:1228
+#: src/GuestLists/Service.php:80 src/OfflineScanner/AdminPage.php:36
+#: src/OfflineScanner/AdminPage.php:54 src/OfflineScanner/AdminPage.php:60
+#: src/Passes/Definitions.php:189 src/Passes/Definitions.php:226
+#: src/Passes/Definitions.php:305 src/Passes/Definitions.php:320
+#: src/Rest/Controller.php:661 src/Rest/Controller.php:700
+#: src/Rest/Controller.php:737 src/Rest/Controller.php:783
+#: src/Rest/Controller.php:804 src/Seating/Layouts.php:461
 #: src/Series/Generator.php:69 src/Series/Pools.php:64 src/Series/Pools.php:104
 #: src/Series/Pricing.php:182 src/Series/Pricing.php:210
-#: src/Series/Pricing.php:232
+#: src/Series/Pricing.php:232 src/ServiceBookings.php:66
 msgid "Keine Berechtigung für dieses Event."
 msgstr "You do not have permission for this event."
 
@@ -197,7 +198,7 @@ msgid "Codes für alle Events kann nur die Administration anlegen."
 msgstr "Only administrators can create codes for all events."
 
 #: src/Admin/CampaignsPage.php:47 src/Allocations/BuyerLimits.php:78
-#: src/Rest/Controller.php:662
+#: src/Rest/Controller.php:667
 msgid "Die Ticketart gehört nicht zu diesem Event."
 msgstr "The ticket type does not belong to this event."
 
@@ -217,7 +218,7 @@ msgstr "Discount code created."
 msgid "Status gespeichert."
 msgstr "Status saved."
 
-#: src/Admin/CampaignsPage.php:103 src/Admin/Menu.php:193
+#: src/Admin/CampaignsPage.php:103 src/Admin/Menu.php:202
 msgid "Rabattcodes"
 msgstr "Discount codes"
 
@@ -240,8 +241,9 @@ msgstr "Code"
 #. translators: 1: entries, 2: tickets
 #. translators: 1: list, 2: used, 3: quota
 #. translators: 1: ticket number, 2: event and ticket name
-#: src/Admin/CampaignsPage.php:112 src/Admin/ChangeHistory.php:91
-#: src/Admin/EventsPage.php:961 src/Admin/EventsPage.php:999
+#: src/Admin/CampaignsPage.php:112 src/Admin/ChangeHistory.php:92
+#: src/Admin/EventsPage.php:977 src/Admin/EventsPage.php:1015
+#: src/Admin/ServiceSlotsPage.php:106 src/Admin/ServiceSlotsPage.php:144
 #: src/Admin/TicketsPage.php:271 src/Allocations/AdminPage.php:247
 #: src/Allocations/AdminPage.php:297 src/BoxOffice/Page.php:151
 #: src/BoxOffice/ShiftPage.php:396 src/BoxOffice/ShiftPage.php:419
@@ -285,14 +287,17 @@ msgstr "Total discount"
 
 #. translators: 1: entries, 2: tickets
 #. translators: 1: list, 2: used, 3: quota
-#: src/Admin/CampaignsPage.php:112 src/Admin/ChangeHistory.php:90
-#: src/Admin/DevicesPage.php:84 src/Admin/EventsPage.php:732
-#: src/Admin/EventsPage.php:792 src/Admin/EventsPage.php:832
-#: src/Admin/EventsPage.php:847 src/Admin/EventsPage.php:899
-#: src/Admin/EventsPage.php:967 src/Admin/EventsPage.php:1014
-#: src/Admin/EventsPage.php:1050 src/Admin/OrdersPage.php:285
-#: src/Admin/OrdersPage.php:369 src/Admin/OrdersPage.php:482
-#: src/Admin/OrdersPage.php:578 src/Admin/TaxPage.php:101
+#: src/Admin/CampaignsPage.php:112 src/Admin/ChangeHistory.php:91
+#: src/Admin/DeveloperKeysPage.php:149 src/Admin/DevicesPage.php:84
+#: src/Admin/EventsPage.php:745 src/Admin/EventsPage.php:805
+#: src/Admin/EventsPage.php:845 src/Admin/EventsPage.php:863
+#: src/Admin/EventsPage.php:915 src/Admin/EventsPage.php:983
+#: src/Admin/EventsPage.php:1030 src/Admin/EventsPage.php:1066
+#: src/Admin/OrdersPage.php:285 src/Admin/OrdersPage.php:369
+#: src/Admin/OrdersPage.php:482 src/Admin/OrdersPage.php:578
+#: src/Admin/ServiceSlotsPage.php:111 src/Admin/ServiceSlotsPage.php:144
+#: src/Admin/ServiceSlotsPage.php:171 src/Admin/ServiceSlotsPage.php:183
+#: src/Admin/ServiceSlotsPage.php:225 src/Admin/TaxPage.php:101
 #: src/Admin/TicketsPage.php:233 src/Admission/ConflictsPage.php:81
 #: src/Admission/RulesPage.php:206 src/Allocations/AdminPage.php:247
 #: src/BoxOffice/ShiftPage.php:396 src/BoxOffice/ShiftPage.php:426
@@ -339,12 +344,12 @@ msgstr "active"
 msgid "inaktiv"
 msgstr "inactive"
 
-#: src/Admin/CampaignsPage.php:122 src/Admin/EventsPage.php:1068
+#: src/Admin/CampaignsPage.php:122 src/Admin/EventsPage.php:1084
 #: src/Modules/Webhooks.php:301
 msgid "Deaktivieren"
 msgstr "Deactivate"
 
-#: src/Admin/CampaignsPage.php:122 src/Admin/EventsPage.php:1068
+#: src/Admin/CampaignsPage.php:122 src/Admin/EventsPage.php:1084
 #: src/Modules/Webhooks.php:301
 msgid "Aktivieren"
 msgstr "Activate"
@@ -368,7 +373,7 @@ msgstr "3–32 characters: letters, digits, - and _"
 msgid "Name (intern)"
 msgstr "Name (internal)"
 
-#: src/Admin/CampaignsPage.php:136 src/Admin/ChangeHistory.php:117
+#: src/Admin/CampaignsPage.php:136 src/Admin/ChangeHistory.php:118
 #: src/Admin/OrdersPage.php:481 src/Allocations/AdminPage.php:247
 #: src/Allocations/AdminPage.php:298 src/BoxOffice/ShiftPage.php:178
 #: src/BoxOffice/ShiftPage.php:188 src/Partners/Settlements.php:688
@@ -391,22 +396,24 @@ msgstr "Fixed amount"
 msgid "Wert"
 msgstr "Value"
 
-#: src/Admin/CampaignsPage.php:138 src/Admin/ChangeHistory.php:93
-#: src/Admin/EventsPage.php:789 src/BoxOffice/ShiftPage.php:396
+#: src/Admin/CampaignsPage.php:138 src/Admin/ChangeHistory.php:94
+#: src/Admin/EventsPage.php:802 src/BoxOffice/ShiftPage.php:396
 #: src/BoxOffice/ShiftPage.php:424 src/Partners/AdminPage.php:300
 #: src/Passes/AdminPage.php:175
 msgid "Währung"
 msgstr "Currency"
 
 #: src/Admin/CampaignsPage.php:139 src/Admin/CheckinsPage.php:82
-#: src/Admin/CheckinsPage.php:93 src/Admin/EventsPage.php:726
+#: src/Admin/CheckinsPage.php:93 src/Admin/DeveloperKeysPage.php:122
+#: src/Admin/DeveloperKeysPage.php:149 src/Admin/EventsPage.php:739
 #: src/Admin/OrdersPage.php:274 src/Admin/OrdersPage.php:283
-#: src/Admin/OrdersPage.php:574 src/Allocations/AdminPage.php:202
-#: src/Allocations/BuyerLimits.php:185 src/BoxOffice/ShiftPage.php:396
-#: src/Exchange/AdminPage.php:240 src/GuestLists/Page.php:180
+#: src/Admin/OrdersPage.php:574 src/Admin/ServiceSlotsPage.php:127
+#: src/Allocations/AdminPage.php:202 src/Allocations/BuyerLimits.php:185
+#: src/BoxOffice/ShiftPage.php:396 src/Exchange/AdminPage.php:240
+#: src/GuestLists/Page.php:180
 #: src/Integrations/WooCommerce/OrderAdapter.php:1041 src/Mail/Types.php:65
 #: src/Mail/Types.php:324 src/Mail/Types.php:333 src/Mail/Types.php:349
-#: src/Mail/Types.php:367 src/Mail/Types.php:383
+#: src/Mail/Types.php:366 src/Mail/Types.php:386 src/Mail/Types.php:402
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:811
 #: src/Partners/Settlements.php:821 src/Partners/Statement.php:171
 #: src/Privacy.php:186 src/Reports/Data.php:393 src/Reports/Page.php:98
@@ -432,7 +439,7 @@ msgstr "0 = unlimited"
 msgid "Gültig ab / bis"
 msgstr "Valid from / until"
 
-#: src/Admin/CampaignsPage.php:143 src/Mail/Types.php:398
+#: src/Admin/CampaignsPage.php:143 src/Mail/Types.php:417
 #: src/OfflineScanner/AdminPage.php:182
 msgid "Gültig bis"
 msgstr "Valid until"
@@ -444,7 +451,7 @@ msgid "Ortszeit %s; leer = unbegrenzt"
 msgstr "Local time %s; empty = unlimited"
 
 #. translators: %s: timezone
-#: src/Admin/CampaignsPage.php:144 src/Admin/EventsPage.php:1093
+#: src/Admin/CampaignsPage.php:144 src/Admin/EventsPage.php:1109
 msgid "Reihenfolge"
 msgstr "Sort order"
 
@@ -474,7 +481,7 @@ msgid "Termin geändert"
 msgstr "Date changed"
 
 #: src/Admin/ChangeHistory.php:62 src/Admission/ConflictsPage.php:45
-#: src/OccurrenceCancellation.php:114
+#: src/OccurrenceCancellation.php:122
 msgid "Termin abgesagt"
 msgstr "Date canceled"
 
@@ -483,198 +490,207 @@ msgid "Termin verschoben"
 msgstr "Date rescheduled"
 
 #: src/Admin/ChangeHistory.php:64
+msgid "Ticketinhaber:innen über Änderung informiert"
+msgstr ""
+
+#: src/Admin/ChangeHistory.php:65
 msgid "Termin entfernt (nicht mehr in der Serienregel)"
 msgstr "Date removed (no longer in the series rule)"
 
-#: src/Admin/ChangeHistory.php:65
+#: src/Admin/ChangeHistory.php:66
 msgid "Termin außerhalb der Serienregel markiert"
 msgstr "Date flagged as outside the series rule"
 
-#: src/Admin/ChangeHistory.php:66
+#: src/Admin/ChangeHistory.php:67
 msgid "Markierung aufgehoben"
 msgstr "Flag removed"
 
-#: src/Admin/ChangeHistory.php:67
+#: src/Admin/ChangeHistory.php:68
 msgid "Ticketart angelegt"
 msgstr "Ticket type created"
 
-#: src/Admin/ChangeHistory.php:68
+#: src/Admin/ChangeHistory.php:69
 msgid "Ticketart geändert"
 msgstr "Ticket type changed"
 
-#: src/Admin/ChangeHistory.php:69
+#: src/Admin/ChangeHistory.php:70
 msgid "Saalplan verknüpft"
 msgstr "Seat map linked"
 
-#: src/Admin/ChangeHistory.php:70
+#: src/Admin/ChangeHistory.php:71
 msgid "Saalplan entfernt"
 msgstr "Seat map removed"
 
-#: src/Admin/ChangeHistory.php:71
+#: src/Admin/ChangeHistory.php:72
 msgid "Termine erzeugt"
 msgstr "Dates generated"
 
-#: src/Admin/ChangeHistory.php:72
+#: src/Admin/ChangeHistory.php:73
 msgid "Seriendefinition geändert"
 msgstr "Series definition changed"
 
-#: src/Admin/ChangeHistory.php:73
+#: src/Admin/ChangeHistory.php:74
 msgid "Preisregel hinzugefügt"
 msgstr "Pricing rule added"
 
-#: src/Admin/ChangeHistory.php:74
+#: src/Admin/ChangeHistory.php:75
 msgid "Preisregel geändert"
 msgstr "Pricing rule changed"
 
-#: src/Admin/ChangeHistory.php:75
+#: src/Admin/ChangeHistory.php:76
 msgid "Preisregel entfernt"
 msgstr "Pricing rule removed"
 
-#: src/Admin/ChangeHistory.php:76
+#: src/Admin/ChangeHistory.php:77
 msgid "Kontingent hinzugefügt"
 msgstr "Quota added"
 
-#: src/Admin/ChangeHistory.php:77
+#: src/Admin/ChangeHistory.php:78
 msgid "Kontingent geändert"
 msgstr "Quota changed"
 
-#: src/Admin/ChangeHistory.php:78
+#: src/Admin/ChangeHistory.php:79
 msgid "Kontingent entfernt"
 msgstr "Quota removed"
 
-#: src/Admin/ChangeHistory.php:84 src/Admin/EventsPage.php:783
-#: src/Admin/EventsPage.php:843 src/Allocations/AdminPage.php:202
+#: src/Admin/ChangeHistory.php:85 src/Admin/EventsPage.php:796
+#: src/Admin/EventsPage.php:859 src/Admin/ServiceSlotsPage.php:171
+#: src/Admin/ServiceSlotsPage.php:180 src/Admin/ServiceSlotsPage.php:212
+#: src/Allocations/AdminPage.php:202 src/Notifications.php:163
 msgid "Beginn"
 msgstr "Start"
 
-#: src/Admin/ChangeHistory.php:85 src/Admin/EventsPage.php:844
+#: src/Admin/ChangeHistory.php:86 src/Admin/EventsPage.php:860
+#: src/Admin/ServiceSlotsPage.php:171 src/Admin/ServiceSlotsPage.php:181
+#: src/Admin/ServiceSlotsPage.php:213 src/Notifications.php:164
 msgid "Ende"
 msgstr "End"
 
-#: src/Admin/ChangeHistory.php:86
+#: src/Admin/ChangeHistory.php:87
 msgid "Einlass ab"
 msgstr "Admission from"
 
-#: src/Admin/ChangeHistory.php:87 src/Admin/EventsPage.php:893
+#: src/Admin/ChangeHistory.php:88 src/Admin/EventsPage.php:909
 #: src/Admin/Forms.php:437 src/Mail/Types.php:336 src/Mail/Types.php:352
-#: src/Reminders/Placeholders.php:14 src/Series/AdminPage.php:185
-#: src/WalletPasses/AppleProvider.php:72
+#: src/Mail/Types.php:370 src/Reminders/Placeholders.php:14
+#: src/Series/AdminPage.php:185 src/WalletPasses/AppleProvider.php:72
 msgid "Zeitzone"
 msgstr "Time zone"
 
-#: src/Admin/ChangeHistory.php:88 src/Admin/EventsPage.php:728
-#: src/Admin/EventsPage.php:786 src/Admin/EventsPage.php:845
-#: src/Admin/EventsPage.php:894 src/Billing.php:133 src/Mail/Types.php:68
-#: src/Mail/Types.php:335 src/Mail/Types.php:353
-#: src/Reminders/Placeholders.php:15 src/WalletPasses/AppleProvider.php:66
-#: templates/event-card.php:34
+#: src/Admin/ChangeHistory.php:89 src/Admin/EventsPage.php:741
+#: src/Admin/EventsPage.php:799 src/Admin/EventsPage.php:861
+#: src/Admin/EventsPage.php:910 src/Billing.php:133 src/Mail/Types.php:68
+#: src/Mail/Types.php:335 src/Mail/Types.php:353 src/Mail/Types.php:378
+#: src/Notifications.php:166 src/Reminders/Placeholders.php:15
+#: src/WalletPasses/AppleProvider.php:66 templates/event-card.php:34
 msgid "Ort"
 msgstr "Venue"
 
-#: src/Admin/ChangeHistory.php:89 src/Admin/EventsPage.php:898
-#: src/Admin/EventsPage.php:1003 src/Allocations/AdminPage.php:257
+#: src/Admin/ChangeHistory.php:90 src/Admin/EventsPage.php:914
+#: src/Admin/EventsPage.php:1019 src/Allocations/AdminPage.php:257
 #: src/Allocations/AdminPage.php:331 src/Partners/AdminPage.php:359
 msgid "Kontingent"
 msgstr "Capacity"
 
-#: src/Admin/ChangeHistory.php:92 src/Admin/ChangeHistory.php:125
-#: src/Admin/EventsPage.php:962 src/BoxOffice/Page.php:111
+#: src/Admin/ChangeHistory.php:93 src/Admin/ChangeHistory.php:126
+#: src/Admin/EventsPage.php:978 src/BoxOffice/Page.php:111
 #: src/Partners/AdminPage.php:378 src/Passes/AdminPage.php:175
 #: src/Series/AdminPage.php:482 src/Series/AdminPage.php:533
 #: src/Waitlists.php:656 templates/event-card.php:36
 msgid "Preis"
 msgstr "Price"
 
-#: src/Admin/ChangeHistory.php:94 src/Admin/OrdersPage.php:416
+#: src/Admin/ChangeHistory.php:95 src/Admin/OrdersPage.php:416
 msgid "Steuersatz"
 msgstr "Tax rate"
 
-#: src/Admin/ChangeHistory.php:95 src/Admin/EventsPage.php:965
-#: src/Admin/EventsPage.php:1004 src/Passes/AdminPage.php:178
+#: src/Admin/ChangeHistory.php:96 src/Admin/EventsPage.php:981
+#: src/Admin/EventsPage.php:1020 src/Passes/AdminPage.php:178
 msgid "Max. pro Bestellung"
 msgstr "Max. per order"
 
-#: src/Admin/ChangeHistory.php:96 src/Admin/EventsPage.php:1005
+#: src/Admin/ChangeHistory.php:97 src/Admin/EventsPage.php:1021
 msgid "Verkaufsstart"
 msgstr "Sales start"
 
 #. translators: %s: timezone
-#: src/Admin/ChangeHistory.php:97 src/Admin/EventsPage.php:1006
+#: src/Admin/ChangeHistory.php:98 src/Admin/EventsPage.php:1022
 msgid "Verkaufsende"
 msgstr "Sales end"
 
-#: src/Admin/ChangeHistory.php:98 src/Seating/AdminPage.php:237
+#: src/Admin/ChangeHistory.php:99 src/Seating/AdminPage.php:237
 msgid "Saalplan-Version"
 msgstr "Seat map version"
 
-#: src/Admin/ChangeHistory.php:99
+#: src/Admin/ChangeHistory.php:100
 msgid "Vorlagentermin"
 msgstr "Template date"
 
-#: src/Admin/ChangeHistory.php:100 src/Series/AdminPage.php:191
+#: src/Admin/ChangeHistory.php:101 src/Series/AdminPage.php:191
 msgid "Verkaufsstart: Tage vor Beginn"
 msgstr "Sales start: days before start"
 
-#: src/Admin/ChangeHistory.php:101 src/Series/AdminPage.php:192
+#: src/Admin/ChangeHistory.php:102 src/Series/AdminPage.php:192
 msgid "Verkaufsende: Minuten vor Beginn"
 msgstr "Sales end: minutes before start"
 
-#: src/Admin/ChangeHistory.php:102 src/Series/AdminPage.php:167
+#: src/Admin/ChangeHistory.php:103 src/Series/AdminPage.php:167
 msgid "Wiederholung"
 msgstr "Recurrence"
 
-#: src/Admin/ChangeHistory.php:103 src/Series/AdminPage.php:168
+#: src/Admin/ChangeHistory.php:104 src/Series/AdminPage.php:168
 msgid "Intervall"
 msgstr "Interval"
 
-#: src/Admin/ChangeHistory.php:104 src/Series/AdminPage.php:169
+#: src/Admin/ChangeHistory.php:105 src/Series/AdminPage.php:169
 #: src/Series/AdminPage.php:541
 msgid "Wochentage"
 msgstr "Weekdays"
 
-#: src/Admin/ChangeHistory.php:105 src/Series/AdminPage.php:175
+#: src/Admin/ChangeHistory.php:106 src/Series/AdminPage.php:175
 msgid "Tag im Monat"
 msgstr "Day of month"
 
-#: src/Admin/ChangeHistory.php:106 src/Series/AdminPage.php:176
+#: src/Admin/ChangeHistory.php:107 src/Series/AdminPage.php:176
 msgid "n-ter Wochentag"
 msgstr "Nth weekday"
 
-#: src/Admin/ChangeHistory.php:107 src/Series/AdminPage.php:179
+#: src/Admin/ChangeHistory.php:108 src/Series/AdminPage.php:179
 msgid "Wochentag"
 msgstr "Weekday"
 
-#: src/Admin/ChangeHistory.php:108 src/Admin/ChangeHistory.php:186
+#: src/Admin/ChangeHistory.php:109 src/Admin/ChangeHistory.php:187
 #: src/Series/AdminPage.php:154 src/Series/AdminPage.php:181
 msgid "Datumsliste"
 msgstr "Date list"
 
-#: src/Admin/ChangeHistory.php:109 src/Series/AdminPage.php:182
+#: src/Admin/ChangeHistory.php:110 src/Series/AdminPage.php:182
 msgid "Erster Tag"
 msgstr "First day"
 
-#: src/Admin/ChangeHistory.php:110
+#: src/Admin/ChangeHistory.php:111
 msgid "Uhrzeit (Ortszeit)"
 msgstr "Time (local time)"
 
-#: src/Admin/ChangeHistory.php:111 src/Series/AdminPage.php:184
+#: src/Admin/ChangeHistory.php:112 src/Series/AdminPage.php:184
 msgid "Dauer (Minuten)"
 msgstr "Duration (minutes)"
 
-#: src/Admin/ChangeHistory.php:112
+#: src/Admin/ChangeHistory.php:113
 msgid "Ende am"
 msgstr "Ends on"
 
-#: src/Admin/ChangeHistory.php:113
+#: src/Admin/ChangeHistory.php:114
 msgid "Anzahl Termine"
 msgstr "Number of dates"
 
-#: src/Admin/ChangeHistory.php:114 src/Series/AdminPage.php:188
+#: src/Admin/ChangeHistory.php:115 src/Series/AdminPage.php:188
 msgid "Ausnahmen"
 msgstr "Exceptions"
 
-#: src/Admin/ChangeHistory.php:115 src/Admin/EventsPage.php:1045
-#: src/Admin/EventsPage.php:1084 src/BoxOffice/ZReport.php:457
+#: src/Admin/ChangeHistory.php:116 src/Admin/DeveloperKeysPage.php:121
+#: src/Admin/DeveloperKeysPage.php:149 src/Admin/EventsPage.php:1061
+#: src/Admin/EventsPage.php:1100 src/BoxOffice/ZReport.php:457
 #: src/Partners/AdminPage.php:519 src/Series/AdminPage.php:364
 #: src/Series/AdminPage.php:482
 msgid "Bezeichnung"
@@ -682,12 +698,12 @@ msgstr "Label"
 
 #. translators: 1: entries, 2: tickets
 #. translators: 1: list, 2: used, 3: quota
-#: src/Admin/ChangeHistory.php:116 src/Admin/OrdersPage.php:412
+#: src/Admin/ChangeHistory.php:117 src/Admin/OrdersPage.php:412
 #: src/Allocations/AdminPage.php:247 src/Allocations/AdminPage.php:300
 #: src/Allocations/AdminPage.php:331 src/BoxOffice/Page.php:111
 #: src/Consents.php:611 src/GuestLists/Page.php:159 src/GuestLists/Page.php:263
 #: src/GuestLists/Page.php:293 src/GuestLists/Service.php:677
-#: src/Mail/Types.php:66 src/Mail/Types.php:368 src/Mail/Types.php:384
+#: src/Mail/Types.php:66 src/Mail/Types.php:387 src/Mail/Types.php:403
 #: src/Partners/AdminPage.php:378 src/Partners/AdminPage.php:390
 #: src/Partners/AdminPage.php:401 src/Partners/AdminPage.php:414
 #: src/Printing/AttendeeList.php:35 src/Printing/AttendeeList.php:49
@@ -703,72 +719,72 @@ msgstr "Label"
 msgid "Ticketart"
 msgstr "Ticket type"
 
-#: src/Admin/ChangeHistory.php:118 src/Series/AdminPage.php:482
+#: src/Admin/ChangeHistory.php:119 src/Series/AdminPage.php:482
 #: src/Waitlists/AdminPage.php:116 src/Waitlists/AdminPage.php:125
 msgid "Priorität"
 msgstr "Priority"
 
 #. translators: %s: timezone
-#: src/Admin/ChangeHistory.php:119 src/Series/AdminPage.php:538
+#: src/Admin/ChangeHistory.php:120 src/Series/AdminPage.php:538
 msgid "Frühbucher bis"
 msgstr "Early bird until"
 
-#: src/Admin/ChangeHistory.php:120 src/Series/AdminPage.php:539
+#: src/Admin/ChangeHistory.php:121 src/Series/AdminPage.php:539
 msgid "Last-Minute ab Stunden vor Beginn"
 msgstr "Last minute from hours before start"
 
-#: src/Admin/ChangeHistory.php:121 src/Series/AdminPage.php:540
+#: src/Admin/ChangeHistory.php:122 src/Series/AdminPage.php:540
 msgid "Nachfragestufe ab % verkauft"
 msgstr "Demand tier from % sold"
 
-#: src/Admin/ChangeHistory.php:122
+#: src/Admin/ChangeHistory.php:123
 msgid "Zeitfenster von"
 msgstr "Time window from"
 
-#: src/Admin/ChangeHistory.php:123
+#: src/Admin/ChangeHistory.php:124
 msgid "Zeitfenster bis"
 msgstr "Time window to"
 
-#: src/Admin/ChangeHistory.php:124
+#: src/Admin/ChangeHistory.php:125
 msgid "Preisart"
 msgstr "Price type"
 
-#: src/Admin/ChangeHistory.php:126
+#: src/Admin/ChangeHistory.php:127
 msgid "Markierung"
 msgstr "Flag"
 
-#: src/Admin/ChangeHistory.php:131
+#: src/Admin/ChangeHistory.php:132
 msgid "Mo"
 msgstr "Mon"
 
-#: src/Admin/ChangeHistory.php:131
+#: src/Admin/ChangeHistory.php:132
 msgid "Di"
 msgstr "Tue"
 
-#: src/Admin/ChangeHistory.php:131
+#: src/Admin/ChangeHistory.php:132
 msgid "Mi"
 msgstr "Wed"
 
-#: src/Admin/ChangeHistory.php:131
+#: src/Admin/ChangeHistory.php:132
 msgid "Do"
 msgstr "Thu"
 
-#: src/Admin/ChangeHistory.php:131
+#: src/Admin/ChangeHistory.php:132
 msgid "Fr"
 msgstr "Fri"
 
-#: src/Admin/ChangeHistory.php:131
+#: src/Admin/ChangeHistory.php:132
 msgid "Sa"
 msgstr "Sat"
 
-#: src/Admin/ChangeHistory.php:131
+#: src/Admin/ChangeHistory.php:132
 msgid "So"
 msgstr "Sun"
 
 #. translators: %s: capacity
 #. translators: 1: ticket type, 2: available units
 #. translators: 1: sold, 2: available
-#: src/Admin/ChangeHistory.php:144 src/Admin/ChangeHistory.php:155
+#: src/Admin/ChangeHistory.php:145 src/Admin/ChangeHistory.php:156
 #: src/Allocations/AdminPage.php:206 src/Allocations/AdminPage.php:237
 #: src/Allocations/AdminPage.php:241 src/Exchange/AdminPage.php:190
 #: src/Passes/AdminPage.php:156 src/Passes/AdminPage.php:236
@@ -777,121 +793,122 @@ msgid "unbegrenzt"
 msgstr "unlimited"
 
 #. translators: %s: currency
-#: src/Admin/ChangeHistory.php:182 src/Series/AdminPage.php:534
+#: src/Admin/ChangeHistory.php:183 src/Series/AdminPage.php:534
 msgid "Prozentuale Änderung"
 msgstr "Percentage change"
 
-#: src/Admin/ChangeHistory.php:182
+#: src/Admin/ChangeHistory.php:183
 msgid "Fester Preis"
 msgstr "Fixed price"
 
-#: src/Admin/ChangeHistory.php:184
+#: src/Admin/ChangeHistory.php:185
 msgid "außerhalb der Serienregel"
 msgstr "outside the series rule"
 
-#: src/Admin/ChangeHistory.php:186 src/Series/AdminPage.php:154
+#: src/Admin/ChangeHistory.php:187 src/Series/AdminPage.php:154
 msgid "Wöchentlich an Wochentagen"
 msgstr "Weekly on weekdays"
 
-#: src/Admin/ChangeHistory.php:186 src/Series/AdminPage.php:154
+#: src/Admin/ChangeHistory.php:187 src/Series/AdminPage.php:154
 msgid "Täglich"
 msgstr "Daily"
 
-#: src/Admin/ChangeHistory.php:186 src/Series/AdminPage.php:154
+#: src/Admin/ChangeHistory.php:187 src/Series/AdminPage.php:154
 msgid "Monatlich am Tag X"
 msgstr "Monthly on day X"
 
-#: src/Admin/ChangeHistory.php:186 src/Series/AdminPage.php:154
+#: src/Admin/ChangeHistory.php:187 src/Series/AdminPage.php:154
 msgid "Monatlich am n-ten Wochentag"
 msgstr "Monthly on the nth weekday"
 
 #. translators: 1: field, 2: old value, 3: new value
-#: src/Admin/ChangeHistory.php:226 src/Series/AdminPage.php:259
-#: src/Series/AdminPage.php:287
+#. translators: 1: changed detail (e.g. "Ort"), 2: previous value, 3: new value
+#: src/Admin/ChangeHistory.php:227 src/Notifications.php:181
+#: src/Series/AdminPage.php:259 src/Series/AdminPage.php:287
 #, php-format
 msgid "%1$s: %2$s → %3$s"
 msgstr "%1$s: %2$s → %3$s"
 
 #. translators: 1: field, 2: value
-#: src/Admin/ChangeHistory.php:232 src/Series/AdminPage.php:255
+#: src/Admin/ChangeHistory.php:233 src/Series/AdminPage.php:255
 #, php-format
 msgid "%1$s: %2$s"
 msgstr "%1$s: %2$s"
 
 #. translators: %s: name
-#: src/Admin/ChangeHistory.php:237
+#: src/Admin/ChangeHistory.php:238
 #, php-format
 msgid "Name: %s"
 msgstr "Name: %s"
 
 #. translators: %d: capacity
-#: src/Admin/ChangeHistory.php:241
+#: src/Admin/ChangeHistory.php:242
 #, php-format
 msgid "Kontingent: %d"
 msgstr "Capacity: %d"
 
 #. translators: %s: start
-#: src/Admin/ChangeHistory.php:245
+#: src/Admin/ChangeHistory.php:246
 #, php-format
 msgid "Beginn: %s"
 msgstr "Start: %s"
 
 #. translators: %d: series id
-#: src/Admin/ChangeHistory.php:249
+#: src/Admin/ChangeHistory.php:250
 #, php-format
 msgid "durch Serie #%d"
 msgstr "by series #%d"
 
-#: src/Admin/ChangeHistory.php:252
+#: src/Admin/ChangeHistory.php:253
 msgid "Als Terminverschiebung gemeldet (Ticketinhaber werden benachrichtigt)."
 msgstr "Reported as a rescheduled date (ticket holders are notified)."
 
 #. translators: %s: reason
-#: src/Admin/ChangeHistory.php:256
+#: src/Admin/ChangeHistory.php:257
 #, php-format
 msgid "Grund: %s"
 msgstr "Reason: %s"
 
 #. translators: 1: created, 2: skipped existing, 3: skipped past
-#: src/Admin/ChangeHistory.php:260
+#: src/Admin/ChangeHistory.php:261
 #, php-format
 msgid "%1$d angelegt, %2$d bereits vorhanden, %3$d vergangen"
 msgstr "%1$d created, %2$d already existed, %3$d in the past"
 
 #. translators: 1: added, 2: changed, 3: deleted, 4: kept and flagged, 5: skipped
-#: src/Admin/ChangeHistory.php:265
+#: src/Admin/ChangeHistory.php:266
 #, php-format
 msgid "Auswirkung: %1$d hinzugefügt, %2$d geändert, %3$d entfernt, %4$d mit Verkäufen behalten und markiert, %5$d übersprungen"
 msgstr "Effect: %1$d added, %2$d changed, %3$d removed, %4$d kept and flagged because of sales, %5$d skipped"
 
 #. translators: %s: ticket type name
-#: src/Admin/ChangeHistory.php:269
+#: src/Admin/ChangeHistory.php:270
 #, php-format
 msgid "Ticketart „%s“"
 msgstr "Ticket type “%s”"
 
-#: src/Admin/ChangeHistory.php:276 src/Series/AdminPage.php:474
+#: src/Admin/ChangeHistory.php:277 src/Series/AdminPage.php:474
 msgid "Änderungsverlauf"
 msgstr "Change history"
 
-#: src/Admin/ChangeHistory.php:278
+#: src/Admin/ChangeHistory.php:279
 msgid "Noch keine Änderungen protokolliert."
 msgstr "No changes logged yet."
 
-#: src/Admin/ChangeHistory.php:282 src/Admin/CheckinsPage.php:92
+#: src/Admin/ChangeHistory.php:283 src/Admin/CheckinsPage.php:92
 msgid "Zeitpunkt"
 msgstr "Time"
 
-#: src/Admin/ChangeHistory.php:282
+#: src/Admin/ChangeHistory.php:283
 msgid "Änderung"
 msgstr "Change"
 
-#: src/Admin/ChangeHistory.php:282
+#: src/Admin/ChangeHistory.php:283
 msgid "Details (alt → neu)"
 msgstr "Details (old → new)"
 
 #. translators: %d: maximum number of entries
-#: src/Admin/ChangeHistory.php:291
+#: src/Admin/ChangeHistory.php:292
 #, php-format
 msgid "Die letzten %d Einträge. Einträge werden nach der Aufbewahrungsfrist des Protokolls gelöscht."
 msgstr "The last %d entries. Entries are deleted after the log retention period."
@@ -922,7 +939,7 @@ msgstr "Present"
 msgid "Alle Ergebnisse"
 msgstr "All results"
 
-#: src/Admin/CheckinsPage.php:79 src/Admin/Menu.php:191
+#: src/Admin/CheckinsPage.php:79 src/Admin/Menu.php:200
 msgid "Check-ins"
 msgstr "Check-ins"
 
@@ -965,6 +982,219 @@ msgstr "Staff"
 msgid "Keine Check-ins gefunden."
 msgstr "No check-ins found."
 
+#: src/Admin/DeveloperKeysPage.php:39 src/DeveloperKeys.php:54
+msgid "Ablaufdatum muss in der Zukunft liegen."
+msgstr "The expiration date must be in the future."
+
+#: src/Admin/DeveloperKeysPage.php:71
+msgid "API-Key angelegt. Kopiere ihn jetzt – er wird nur dieses eine Mal angezeigt."
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:77
+msgid "API-Key widerrufen. Anfragen damit werden ab sofort abgelehnt."
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:83
+msgid "Ablauf und Ratenlimit gespeichert."
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:88 src/Admin/DeveloperKeysPage.php:142
+#: src/Admin/EventsPage.php:1030 src/Admin/Forms.php:489
+#: src/Admin/ServiceSlotsPage.php:93 src/Admin/SettingsPage.php:562
+#: src/Admin/TaxPage.php:64 src/Allocations/AdminPage.php:263
+#: src/BoxOffice/ShiftPage.php:427 src/Modules/Reminders.php:189
+#: src/WalletPasses/AdminPage.php:178 src/WalletPasses/AdminPage.php:193
+msgid "Aktiv"
+msgstr "Active"
+
+#: src/Admin/DeveloperKeysPage.php:89 src/Admin/DeveloperKeysPage.php:142
+#: src/Admin/Forms.php:495 src/Admin/ServiceSlotsPage.php:99
+#: src/Waitlists.php:622
+msgid "Abgelaufen"
+msgstr "Expired"
+
+#. translators: %d: number of scans
+#: src/Admin/DeveloperKeysPage.php:90 src/Admin/DeveloperKeysPage.php:142
+#: src/Admin/DeveloperKeysPage.php:172 src/Admin/DevicesPage.php:90
+#: src/Admin/Forms.php:505 src/Admin/TicketsPage.php:262 src/Consents.php:530
+#: src/Partners/AdminPage.php:510
+msgid "Widerrufen"
+msgstr "Revoked"
+
+#: src/Admin/DeveloperKeysPage.php:103 src/Admin/Menu.php:213
+msgid "Entwickler-API"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:105
+msgid "Entwickler-API-Schlüssel geben externen Systemen lesenden Zugriff auf genau ein Event. Jede Anfrage sendet den Schlüssel im Header X-WPCAP-Key. Der Schlüssel gilt nur, solange die Person, die ihn angelegt hat, für das Event berechtigt ist und alle Termine des Events in ihrem Standort- oder Partnerbereich liegen."
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:110
+msgid "Neuer API-Key – wird nur jetzt angezeigt:"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:111 src/Partners/AdminPage.php:515
+msgid "Neuer API-Key"
+msgstr "New API key"
+
+#: src/Admin/DeveloperKeysPage.php:112
+msgid "Gespeichert wird nur ein Hash. Geht der Schlüssel verloren, widerrufe ihn und lege einen neuen an."
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:115
+msgid "Neuen API-Key anlegen"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:117
+msgid "Es gibt noch kein Event, für das du API-Keys anlegen darfst."
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:121
+msgid "z. B. Ticketstatistik Website"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:124
+msgid "Der Schlüssel funktioniert nur für dieses Event."
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:125 src/Admin/DeveloperKeysPage.php:149
+#: src/Partners/AdminPage.php:495 src/Partners/AdminPage.php:520
+msgid "Scopes"
+msgstr "Scopes"
+
+#. translators: %s: timezone
+#: src/Admin/DeveloperKeysPage.php:131
+#, php-format
+msgid "Leer = unbefristet. Zeitzone: %s"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:132 src/Admin/DeveloperKeysPage.php:167
+msgid "Läuft ab am"
+msgstr ""
+
+#. translators: %d: default requests per minute
+#: src/Admin/DeveloperKeysPage.php:134
+#, php-format
+msgid "Anfragen pro Minute. Leer = Standard (%d)."
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:135 src/Admin/DeveloperKeysPage.php:149
+msgid "Ratenlimit"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:137
+msgid "API-Key anlegen"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:141 src/Partners/AdminPage.php:488
+msgid "API-Keys"
+msgstr "API keys"
+
+#: src/Admin/DeveloperKeysPage.php:142 src/Admission/ConflictsPage.php:73
+#: src/BoxOffice/ShiftPage.php:310 src/Series/AdminPage.php:486
+#: src/Series/AdminPage.php:560
+msgid "Alle"
+msgstr "All"
+
+#: src/Admin/DeveloperKeysPage.php:149
+msgid "Präfix"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:149
+msgid "Angelegt von"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:149 src/Admin/OrdersPage.php:373
+msgid "Angelegt"
+msgstr "Created"
+
+#: src/Admin/DeveloperKeysPage.php:149 src/Partners/AdminPage.php:495
+msgid "Zuletzt genutzt"
+msgstr "Last used"
+
+#: src/Admin/DeveloperKeysPage.php:149
+msgid "Läuft ab"
+msgstr ""
+
+#. translators: 1: list, 2: used, 3: quota
+#: src/Admin/DeveloperKeysPage.php:149 src/Admin/OperationsPage.php:132
+#: src/Admin/OrdersPage.php:540 src/Admin/ServiceSlotsPage.php:144
+#: src/Admin/ServiceSlotsPage.php:171 src/Admin/TaxPage.php:101
+#: src/Allocations/AdminPage.php:247 src/GuestLists/Page.php:263
+#: src/Modules/Webhooks.php:296 src/Partners/AdminPage.php:568
+#: src/Series/AdminPage.php:364 src/Series/AdminPage.php:482
+#: src/Series/AdminPage.php:558 src/Waitlists/AdminPage.php:116
+msgid "Aktionen"
+msgstr "Actions"
+
+#. translators: %d: requests per minute
+#: src/Admin/DeveloperKeysPage.php:158
+#, php-format
+msgid "%d/min"
+msgstr ""
+
+#. translators: %d: requests per minute
+#: src/Admin/DeveloperKeysPage.php:158
+msgid "(Standard)"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:162
+msgid "unbefristet"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:164
+msgid "Ablauf und Ratenlimit ändern"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:167
+msgid "Leer = unbefristet."
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:168
+msgid "Ratenlimit (Anfragen pro Minute)"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:169 src/Admin/ServiceSlotsPage.php:153
+#: src/Admin/ServiceSlotsPage.php:187 src/Admission/RulesPage.php:192
+#: src/Admission/RulesPage.php:209 src/Admission/RulesPage.php:247
+#: src/Allocations/AdminPage.php:218 src/Allocations/AdminPage.php:278
+#: src/BoxOffice/Page.php:210 src/BoxOffice/ShiftPage.php:428
+#: src/Exchange/AdminPage.php:231 src/Mail/Admin.php:262
+#: src/Modules/Calendar.php:312 src/Modules/Mollie.php:196
+#: src/Modules/Reminders.php:197 src/Modules/Sms.php:369
+#: src/Modules/Webhooks.php:322 src/OfflineScanner/AdminPage.php:148
+#: src/Partners/AdminPage.php:419 src/Passes/AdminPage.php:255
+#: src/Printing/Page.php:121 src/Series/AdminPage.php:565
+#: src/Waitlists/AdminPage.php:147 src/WalletPasses/AdminPage.php:197
+msgid "Speichern"
+msgstr "Save"
+
+#: src/Admin/DeveloperKeysPage.php:170
+msgid "API-Key wirklich widerrufen? Das lässt sich nicht rückgängig machen."
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:178
+msgid "Keine API-Keys vorhanden."
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:181
+msgid "Endpunkte und Scopes"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:182
+msgid "Endpunkt"
+msgstr ""
+
+#: src/Admin/DeveloperKeysPage.php:182
+msgid "Scope"
+msgstr ""
+
+#. translators: %d: default requests per minute
+#: src/Admin/DeveloperKeysPage.php:188
+#, php-format
+msgid "Standard-Ratenlimit: %d Anfragen pro Minute und Schlüssel (Filter wpcap_developer_key_rate_limit). Über dem Limit antwortet die API mit 401/403."
+msgstr ""
+
 #: src/Admin/DevicesPage.php:40
 msgid "Kopplungscode erstellt. Jetzt mit der App scannen."
 msgstr "Pairing code created. Scan it with the app now."
@@ -973,7 +1203,7 @@ msgstr "Pairing code created. Scan it with the app now."
 msgid "Gerät widerrufen."
 msgstr "Device revoked."
 
-#: src/Admin/DevicesPage.php:63 src/Admin/Menu.php:194
+#: src/Admin/DevicesPage.php:63 src/Admin/Menu.php:203
 msgid "Scanner-Geräte"
 msgstr "Scanner devices"
 
@@ -1006,7 +1236,7 @@ msgid "Neues Gerät koppeln"
 msgstr "Pair new device"
 
 #: src/Admin/DevicesPage.php:74 src/Admin/DevicesPage.php:84
-#: src/Admin/EventsPage.php:719 src/Admin/Menu.php:188
+#: src/Admin/EventsPage.php:732 src/Admin/Menu.php:197
 #: src/Partners/AdminPage.php:246 src/Partners/AdminPage.php:311
 #: src/Partners/AdminPage.php:524
 msgid "Events"
@@ -1097,13 +1327,6 @@ msgstr "active until"
 msgid "abgelaufen"
 msgstr "expired"
 
-#. translators: %d: number of scans
-#: src/Admin/DevicesPage.php:90 src/Admin/Forms.php:505
-#: src/Admin/TicketsPage.php:262 src/Consents.php:530
-#: src/Partners/AdminPage.php:510
-msgid "Widerrufen"
-msgstr "Revoked"
-
 #: src/Admin/DevicesPage.php:92
 msgid "Noch keine Geräte gekoppelt."
 msgstr "No devices paired yet."
@@ -1112,97 +1335,98 @@ msgstr "No devices paired yet."
 msgid "API-Basis für Apps:"
 msgstr "API base for apps:"
 
-#: src/Admin/EventsPage.php:39 src/Admin/EventsPage.php:137
+#: src/Admin/EventsPage.php:40 src/Admin/EventsPage.php:138
 msgid "Bitte prüfe die Eventdaten."
 msgstr "Please check the event details."
 
-#: src/Admin/EventsPage.php:45 src/Admin/EventsPage.php:52
+#: src/Admin/EventsPage.php:46 src/Admin/EventsPage.php:53
 msgid "Beginn oder Ende des Events ist ungültig."
 msgstr "The event start or end is invalid."
 
-#: src/Admin/EventsPage.php:57
+#: src/Admin/EventsPage.php:58
 msgid "Der Preis ist ungültig."
 msgstr "The price is invalid."
 
-#: src/Admin/EventsPage.php:59
+#: src/Admin/EventsPage.php:60
 msgid "Der Steuersatz ist ungültig."
 msgstr "The tax rate is invalid."
 
-#: src/Admin/EventsPage.php:80
+#: src/Admin/EventsPage.php:81
 msgid "Das Event konnte nicht gespeichert werden."
 msgstr "The event could not be saved."
 
-#: src/Admin/EventsPage.php:100
+#: src/Admin/EventsPage.php:101
 msgid "Ein Termin konnte nicht gespeichert werden."
 msgstr "A date could not be saved."
 
-#: src/Admin/EventsPage.php:114 src/Admin/EventsPage.php:386
+#: src/Admin/EventsPage.php:115 src/Admin/EventsPage.php:399
 msgid "Die Ticketkategorie konnte nicht gespeichert werden."
 msgstr "The ticket type could not be saved."
 
-#: src/Admin/EventsPage.php:129 src/Admin/EventsPage.php:159
+#: src/Admin/EventsPage.php:130 src/Admin/EventsPage.php:170
 #: src/Admission/RulesPage.php:62 src/Allocations/AdminPage.php:111
-#: src/Allocations/BuyerLimits.php:75 src/Exchange/Policy.php:86
-#: src/GuestLists/Service.php:175 src/OfflineScanner/AdminPage.php:35
-#: src/OfflineScanner/AdminPage.php:53 src/Partners/Api.php:164
-#: src/Rest/Controller.php:751 src/Rest/Controller.php:792
-#: src/Seating/Layouts.php:443 src/Series/Generator.php:68
+#: src/Allocations/BuyerLimits.php:75 src/DeveloperKeys.php:83
+#: src/Exchange/Policy.php:86 src/GuestLists/Service.php:175
+#: src/OfflineScanner/AdminPage.php:35 src/OfflineScanner/AdminPage.php:53
+#: src/Partners/Api.php:164 src/Rest/Controller.php:756
+#: src/Rest/Controller.php:811 src/Seating/Layouts.php:443
+#: src/Series/Generator.php:68 src/ServiceBookings.php:92
 msgid "Event nicht gefunden."
 msgstr "Event not found."
 
-#: src/Admin/EventsPage.php:132 src/Admin/EventsPage.php:162
+#: src/Admin/EventsPage.php:133 src/Admin/EventsPage.php:173
 #: src/Series/Generator.php:70
 msgid "Abgesagte Events können nicht mehr bearbeitet werden."
 msgstr "Canceled events can no longer be edited."
 
-#: src/Admin/EventsPage.php:157 src/Admin/EventsPage.php:273
-#: src/Admin/EventsPage.php:314 src/Allocations/AdminPage.php:54
+#: src/Admin/EventsPage.php:168 src/Admin/EventsPage.php:285
+#: src/Admin/EventsPage.php:327 src/Allocations/AdminPage.php:54
 #: src/Allocations/Holds.php:380 src/GuestLists/Service.php:578
 #: src/GuestLists/Service.php:601 src/OfflineScanner/Rest.php:62
 #: src/Partners/Sales.php:344 src/Passes/Definitions.php:319
-#: src/Reports/Settlement.php:361 src/Rest/Controller.php:634
-#: src/Rest/Controller.php:863 src/Seating/Layouts.php:606
+#: src/Reports/Settlement.php:361 src/Rest/Controller.php:639
+#: src/Rest/Controller.php:866 src/Seating/Layouts.php:606
 msgid "Termin nicht gefunden."
 msgstr "Date not found."
 
-#: src/Admin/EventsPage.php:165 src/Series/Rules.php:68
+#: src/Admin/EventsPage.php:176 src/Series/Rules.php:68
 msgid "Die Zeitzone ist ungültig."
 msgstr "The time zone is invalid."
 
-#: src/Admin/EventsPage.php:169
+#: src/Admin/EventsPage.php:180
 msgid "Der Beginn ist ungültig."
 msgstr "The start is invalid."
 
-#: src/Admin/EventsPage.php:174
+#: src/Admin/EventsPage.php:185
 msgid "Das Ende muss nach dem Beginn liegen."
 msgstr "The end must be after the start."
 
 #. translators: %d: sold tickets
-#: src/Admin/EventsPage.php:184 src/Admin/EventsPage.php:346
+#: src/Admin/EventsPage.php:195 src/Admin/EventsPage.php:359
 #, php-format
 msgid "Das Kontingent darf nicht unter das bereits verkaufte %d Ticket sinken."
 msgid_plural "Das Kontingent darf nicht unter die bereits verkauften %d Tickets sinken."
 msgstr[0] "The capacity cannot be lower than the %d ticket already sold."
 msgstr[1] "The capacity cannot be lower than the %d tickets already sold."
 
-#: src/Admin/EventsPage.php:204
+#: src/Admin/EventsPage.php:215
 msgid "Das Veranstaltungsland muss ein ISO-Ländercode sein, z. B. DE oder AT."
 msgstr "The event country must be an ISO country code, e.g. DE or AT."
 
-#: src/Admin/EventsPage.php:234
+#: src/Admin/EventsPage.php:246
 msgid "Der Termin konnte nicht gespeichert werden."
 msgstr "The date could not be saved."
 
-#: src/Admin/EventsPage.php:279
+#: src/Admin/EventsPage.php:291
 msgid "Bitte einen Grund für die Absage angeben."
 msgstr "Please enter a reason for the cancellation."
 
-#: src/Admin/EventsPage.php:280
+#: src/Admin/EventsPage.php:292
 msgid "Bitte bestätigen, dass die Folgen der Absage geprüft wurden."
 msgstr "Please confirm that you have reviewed the consequences of the cancellation."
 
 #. translators: %d: number of tickets
-#: src/Admin/EventsPage.php:301
+#: src/Admin/EventsPage.php:314
 #, php-format
 msgid "%d Ticket wurde widerrufen, der Inhaber benachrichtigt und die bezahlte Bestellung automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü."
 msgid_plural "%d Tickets wurden widerrufen, die Inhaber benachrichtigt und bezahlte Bestellungen automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü."
@@ -1210,696 +1434,702 @@ msgstr[0] "%d ticket has been revoked, its holder notified, and the paid order r
 msgstr[1] "%d tickets have been revoked, their holders notified, and paid orders refunded automatically. Please refund WooCommerce orders in WooCommerce; errors are listed in the Refunds menu."
 
 #. translators: %d: number of tickets
-#: src/Admin/EventsPage.php:303
+#: src/Admin/EventsPage.php:316
 #, php-format
 msgid "%d Ticket wurde widerrufen und der Inhaber benachrichtigt. Ein bezahltes Ticket bleibt erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren)."
 msgid_plural "%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren)."
 msgstr[0] "%d ticket has been revoked and its holder notified. A paid ticket remains refundable: please refund it via Order → Refund (or enable automatic refunds in the settings)."
 msgstr[1] "%d tickets have been revoked and their holders notified. Paid tickets remain refundable: please refund them via Order → Refund (or enable automatic refunds in the settings)."
 
-#: src/Admin/EventsPage.php:312 src/Admin/EventsPage.php:404
+#: src/Admin/EventsPage.php:325 src/Admin/EventsPage.php:417
 #: src/Partners/Sales.php:292 src/Passes/Definitions.php:225
 msgid "Ticketart nicht gefunden."
 msgstr "Ticket type not found."
 
-#: src/Admin/EventsPage.php:317
+#: src/Admin/EventsPage.php:330
 msgid "Bitte einen Namen für die Ticketart angeben."
 msgstr "Please enter a name for the ticket type."
 
-#: src/Admin/EventsPage.php:319
+#: src/Admin/EventsPage.php:332
 msgid "Die Währung ist ungültig."
 msgstr "The currency is invalid."
 
-#: src/Admin/EventsPage.php:321
+#: src/Admin/EventsPage.php:334
 msgid "Der Preis ist ungültig. Beispiel: 12,50"
 msgstr "The price is invalid. Example: 12.50"
 
-#: src/Admin/EventsPage.php:323 src/Admin/TaxPage.php:27
+#: src/Admin/EventsPage.php:336 src/Admin/TaxPage.php:27
 msgid "Der Steuersatz ist ungültig. Beispiel: 19 oder 7,7"
 msgstr "The tax rate is invalid. Example: 19 or 7.7"
 
-#: src/Admin/EventsPage.php:325
+#: src/Admin/EventsPage.php:338
 msgid "Die maximale Anzahl pro Bestellung muss zwischen 1 und 100 liegen."
 msgstr "The maximum quantity per order must be between 1 and 100."
 
-#: src/Admin/EventsPage.php:330 src/Series/Generator.php:81
+#: src/Admin/EventsPage.php:343 src/Series/Generator.php:81
 msgid "Der Verkaufszeitraum ist ungültig."
 msgstr "The sales period is invalid."
 
-#: src/Admin/EventsPage.php:333
+#: src/Admin/EventsPage.php:346
 msgid "Das Verkaufsende muss nach dem Verkaufsstart liegen."
 msgstr "The sales end must be after the sales start."
 
-#: src/Admin/EventsPage.php:341
+#: src/Admin/EventsPage.php:354
 msgid "Die Währung kann nach den ersten Bestellungen nicht mehr geändert werden."
 msgstr "The currency can no longer be changed once orders have been placed."
 
-#: src/Admin/EventsPage.php:402 src/Admin/EventsPage.php:458
+#: src/Admin/EventsPage.php:415 src/Admin/EventsPage.php:471
 msgid "Feld nicht gefunden."
 msgstr "Field not found."
 
-#: src/Admin/EventsPage.php:408
+#: src/Admin/EventsPage.php:421
 msgid "Bitte Bezeichnung und Feldtyp angeben."
 msgstr "Please enter a label and field type."
 
-#: src/Admin/EventsPage.php:410
+#: src/Admin/EventsPage.php:423
 msgid "Die Aufbewahrungsdauer darf höchstens 3650 Tage betragen."
 msgstr "The retention period may not exceed 3650 days."
 
-#: src/Admin/EventsPage.php:413
+#: src/Admin/EventsPage.php:426
 msgid "Eine Einwilligung muss den Typ Checkbox haben."
 msgstr "A consent must be of the checkbox type."
 
-#: src/Admin/EventsPage.php:414
+#: src/Admin/EventsPage.php:427
 msgid "Bitte gib für die Einwilligung den Zweck an. Er wird beim Ankreuzen angezeigt und mit protokolliert."
 msgstr "Please enter the purpose of the consent. It is shown when the box is ticked and recorded in the log."
 
-#: src/Admin/EventsPage.php:436
+#: src/Admin/EventsPage.php:449
 msgid "Bitte einen technischen Schlüssel angeben (a-z, 0-9, _)."
 msgstr "Please enter a technical key (a-z, 0-9, _)."
 
-#: src/Admin/EventsPage.php:438
+#: src/Admin/EventsPage.php:451
 msgid "Dieser Schlüssel ist für die Ticketart bereits vergeben."
 msgstr "This key is already in use for this ticket type."
 
-#: src/Admin/EventsPage.php:444
+#: src/Admin/EventsPage.php:457
 msgid "Das Feld konnte nicht gespeichert werden."
 msgstr "The field could not be saved."
 
-#: src/Admin/EventsPage.php:483 src/Admin/EventsPage.php:521
+#: src/Admin/EventsPage.php:496 src/Admin/EventsPage.php:534
 msgid "Zuweisung ungültig."
 msgstr "Invalid assignment."
 
-#: src/Admin/EventsPage.php:490
+#: src/Admin/EventsPage.php:503
 msgid "Der Benutzer hat dieses Recht nicht über seine Rolle (z. B. Pass Captain Veranstaltungsleitung). Bitte zuerst die Rolle zuweisen."
 msgstr "The user does not have this capability through their role (e.g. Pass Captain Event Manager). Please assign the role first."
 
-#: src/Admin/EventsPage.php:553
+#: src/Admin/EventsPage.php:566
 msgid "Event gespeichert."
 msgstr "Event saved."
 
-#: src/Admin/EventsPage.php:559
+#: src/Admin/EventsPage.php:572
 msgid "Event aktualisiert."
 msgstr "Event updated."
 
-#: src/Admin/EventsPage.php:566
+#: src/Admin/EventsPage.php:579
 msgid "Termin gespeichert."
 msgstr "Date saved."
 
-#: src/Admin/EventsPage.php:568
+#: src/Admin/EventsPage.php:581
 msgid "Der Termin hat verkaufte Tickets; die Verschiebung wurde gemeldet."
 msgstr "This date has tickets sold; the reschedule has been announced."
 
-#: src/Admin/EventsPage.php:578
+#: src/Admin/EventsPage.php:591
 msgid "Termin abgesagt."
 msgstr "Date canceled."
 
 #. translators: 1: cancelled open orders, 2: revoked tickets, 3: refunds, 4: refunds open/failed, 5: notified holders
-#: src/Admin/EventsPage.php:582
+#: src/Admin/EventsPage.php:595
 #, php-format
 msgid "Termin abgesagt: %1$d offene Bestellungen storniert, %2$d Tickets widerrufen, %3$d Erstattungen ausgeführt, %4$d Erstattungen offen, %5$d Personen benachrichtigt."
 msgstr "Date canceled: %1$d open orders canceled, %2$d tickets revoked, %3$d refunds issued, %4$d refunds pending, %5$d people notified."
 
-#: src/Admin/EventsPage.php:593
+#: src/Admin/EventsPage.php:606
 msgid "Ticketart gespeichert."
 msgstr "Ticket type saved."
 
-#: src/Admin/EventsPage.php:601
+#: src/Admin/EventsPage.php:614
 msgid "Teilnehmerfeld gespeichert."
 msgstr "Attendee field saved."
 
-#: src/Admin/EventsPage.php:609
+#: src/Admin/EventsPage.php:622
 msgid "Teilnehmerfeld aktualisiert."
 msgstr "Attendee field updated."
 
-#: src/Admin/EventsPage.php:616
+#: src/Admin/EventsPage.php:629
 msgid "Zugriff zugewiesen."
 msgstr "Access assigned."
 
-#: src/Admin/EventsPage.php:622
+#: src/Admin/EventsPage.php:635
 msgid "Zugriff entfernt."
 msgstr "Access removed."
 
 #. translators: %d: notified buyers
-#: src/Admin/EventsPage.php:631
+#: src/Admin/EventsPage.php:644
 #, php-format
 msgid "Event abgesagt. %d Käufer wurden benachrichtigt."
 msgstr "Event canceled. %d buyers have been notified."
 
 #. translators: 1: automatic refunds, 2: failed refunds
-#: src/Admin/EventsPage.php:635
+#: src/Admin/EventsPage.php:648
 #, php-format
 msgid "%1$d Bestellungen wurden automatisch erstattet, %2$d Erstattungen sind offen (siehe Erstattungen). WooCommerce-Bestellungen bitte in WooCommerce erstatten."
 msgstr "%1$d orders were refunded automatically, %2$d refunds are still open (see Refunds). Please refund WooCommerce orders in WooCommerce."
 
-#: src/Admin/EventsPage.php:636
+#: src/Admin/EventsPage.php:649
 msgid "Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten."
 msgstr "Paid tickets remain refundable: please refund them via Order → Refund."
 
-#: src/Admin/EventsPage.php:670
+#: src/Admin/EventsPage.php:683
 msgid "← Zum Event"
 msgstr "← Back to event"
 
 #. translators: 1: event name, 2: date
-#: src/Admin/EventsPage.php:672
+#: src/Admin/EventsPage.php:685
 #, php-format
 msgid "Termin absagen: %1$s, %2$s"
 msgstr "Cancel date: %1$s, %2$s"
 
-#: src/Admin/EventsPage.php:674
+#: src/Admin/EventsPage.php:687
 msgid "Dieser Termin ist bereits abgesagt."
 msgstr "This date has already been canceled."
 
-#: src/Admin/EventsPage.php:676
+#: src/Admin/EventsPage.php:689
 msgid "Die Absage kann nicht rückgängig gemacht werden. Folgen:"
 msgstr "The cancellation cannot be undone. Consequences:"
 
 #. translators: %d: tickets
-#: src/Admin/EventsPage.php:678
+#: src/Admin/EventsPage.php:691
 #, php-format
 msgid "%d gültige Tickets werden widerrufen."
 msgstr "%d valid tickets will be revoked."
 
 #. translators: %d: orders
-#: src/Admin/EventsPage.php:680
+#: src/Admin/EventsPage.php:693
 #, php-format
 msgid "%d unbezahlte Bestellungen werden storniert, ihre Reservierungen freigegeben."
 msgstr "%d unpaid orders will be canceled and their holds released."
 
 #. translators: %d: orders
-#: src/Admin/EventsPage.php:683
+#: src/Admin/EventsPage.php:696
 #, php-format
 msgid "%d bezahlte Bestellungen werden automatisch erstattet (Freigaberegeln gelten)."
 msgstr "%d paid orders will be refunded automatically (approval rules apply)."
 
 #. translators: %d: orders
-#: src/Admin/EventsPage.php:685
+#: src/Admin/EventsPage.php:698
 #, php-format
 msgid "%d bezahlte Bestellungen werden nicht automatisch erstattet; die Tickets bleiben erstattungsfähig (Bestellung → Erstatten)."
 msgstr "%d paid orders will not be refunded automatically; the tickets remain refundable (Order → Refund)."
 
 #. translators: %d: orders
-#: src/Admin/EventsPage.php:688
+#: src/Admin/EventsPage.php:701
 #, php-format
 msgid "%d WooCommerce-Bestellungen müssen in WooCommerce erstattet werden."
 msgstr "%d WooCommerce orders must be refunded in WooCommerce."
 
 #. translators: %d: recipients
-#: src/Admin/EventsPage.php:691
+#: src/Admin/EventsPage.php:704
 #, php-format
 msgid "%d Personen erhalten die Absage-Mail."
 msgstr "%d people will receive the cancellation email."
 
 #. translators: 1: pass name, 2: tickets, 3: effect
-#: src/Admin/EventsPage.php:694
+#: src/Admin/EventsPage.php:707
 #, php-format
 msgid "Pass „%1$s“ (%2$d Tickets): %3$s"
 msgstr "Pass “%1$s” (%2$d tickets): %3$s"
 
-#: src/Admin/EventsPage.php:699
+#: src/Admin/EventsPage.php:712
 msgid "Grund der Absage"
 msgstr "Reason for cancellation"
 
-#: src/Admin/EventsPage.php:699
+#: src/Admin/EventsPage.php:712
 msgid "Wird im Protokoll gespeichert."
 msgstr "Will be saved in the log."
 
-#: src/Admin/EventsPage.php:700
+#: src/Admin/EventsPage.php:713
 msgid "Bestätigung"
 msgstr "Confirmation"
 
-#: src/Admin/EventsPage.php:700
+#: src/Admin/EventsPage.php:713
 msgid "Ich habe die Folgen geprüft und möchte den Termin absagen."
 msgstr "I have reviewed the consequences and want to cancel this date."
 
-#: src/Admin/EventsPage.php:701
+#: src/Admin/EventsPage.php:714
 msgid "Termin endgültig absagen"
 msgstr "Cancel date permanently"
 
-#: src/Admin/EventsPage.php:705 src/Seating/AdminPage.php:132
+#: src/Admin/EventsPage.php:718 src/Seating/AdminPage.php:132
 msgid "Nicht gefunden oder keine Berechtigung für dieses Event."
 msgstr "Not found, or you do not have permission for this event."
 
-#: src/Admin/EventsPage.php:706 src/Admin/EventsPage.php:822
+#: src/Admin/EventsPage.php:719 src/Admin/EventsPage.php:835
 msgid "← Zur Eventliste"
 msgstr "← Back to events"
 
-#: src/Admin/EventsPage.php:710 src/Admin/Forms.php:485
+#: src/Admin/EventsPage.php:723 src/Admin/Forms.php:485
 #: src/Partners/Settlements.php:51
 msgid "Entwurf"
 msgstr "Draft"
 
-#: src/Admin/EventsPage.php:710 src/Admin/Forms.php:486
+#: src/Admin/EventsPage.php:723 src/Admin/Forms.php:486
 #: src/Seating/AdminPage.php:206
 msgid "Veröffentlicht"
 msgstr "Published"
 
-#: src/Admin/EventsPage.php:724
+#: src/Admin/EventsPage.php:737
 msgid "Events mit nächstem Termin, Auslastung und Umsatz"
 msgstr "Events with next date, occupancy, and revenue"
 
-#: src/Admin/EventsPage.php:727 src/Frontend/EventCard.php:137
+#: src/Admin/EventsPage.php:740 src/Frontend/EventCard.php:137
 msgid "Nächster Termin"
 msgstr "Next date"
 
-#: src/Admin/EventsPage.php:729 src/Admin/EventsPage.php:840
+#: src/Admin/EventsPage.php:742 src/Admin/EventsPage.php:856
 #: src/Series/AdminPage.php:364
 msgid "Termine"
 msgstr "Dates"
 
-#: src/Admin/EventsPage.php:730 src/Reports/Page.php:106
+#: src/Admin/EventsPage.php:743 src/Reports/Page.php:106
 msgid "Verkauft / Kapazität"
 msgstr "Sold / Capacity"
 
-#: src/Admin/EventsPage.php:731
+#: src/Admin/EventsPage.php:744
 msgid "Umsatz"
 msgstr "Revenue"
 
-#: src/Admin/EventsPage.php:737
+#: src/Admin/EventsPage.php:750
 msgid "Noch keine Events angelegt."
 msgstr "No events created yet."
 
 #. translators: %s: date
-#: src/Admin/EventsPage.php:752
+#: src/Admin/EventsPage.php:765
 #, php-format
 msgid "Kein kommender Termin (zuletzt %s)"
 msgstr "No upcoming date (last: %s)"
 
 #. translators: %s: rule label or kind
-#: src/Admin/EventsPage.php:764 src/Admin/EventsPage.php:1066
+#: src/Admin/EventsPage.php:777 src/Admin/EventsPage.php:1082
+#: src/Admin/ServiceSlotsPage.php:148 src/Admin/ServiceSlotsPage.php:175
 #: src/Admin/TaxPage.php:109 src/BoxOffice/ShiftPage.php:411
 #: src/Printing/Page.php:92 src/Series/AdminPage.php:488
 msgid "Bearbeiten"
 msgstr "Edit"
 
-#: src/Admin/EventsPage.php:767
+#: src/Admin/EventsPage.php:780
 msgid "Event absagen und betroffene Käufer benachrichtigen?"
 msgstr "Cancel the event and notify affected buyers?"
 
-#: src/Admin/EventsPage.php:767
+#: src/Admin/EventsPage.php:780
 msgid "Event absagen"
 msgstr "Cancel event"
 
-#: src/Admin/EventsPage.php:777
+#: src/Admin/EventsPage.php:790
 msgid "Event anlegen"
 msgstr "Create event"
 
-#: src/Admin/EventsPage.php:778
+#: src/Admin/EventsPage.php:791
 msgid "Neue Events starten als Entwurf. Zeiten werden in der gewählten Zeitzone eingegeben."
 msgstr "New events start as drafts. Times are entered in the selected time zone."
 
-#: src/Admin/EventsPage.php:781 src/Admin/EventsPage.php:830
+#: src/Admin/EventsPage.php:794 src/Admin/EventsPage.php:843
 msgid "Eventname"
 msgstr "Event name"
 
-#: src/Admin/EventsPage.php:782 src/Admin/EventsPage.php:831
+#: src/Admin/EventsPage.php:795 src/Admin/EventsPage.php:844
 #: src/Mail/Admin.php:202 src/Modules/Webhooks.php:312
 msgid "Beschreibung"
 msgstr "Description"
 
-#: src/Admin/EventsPage.php:784 src/Admin/EventsPage.php:891
+#: src/Admin/EventsPage.php:797 src/Admin/EventsPage.php:907
 msgid "Ende (optional)"
 msgstr "End (optional)"
 
-#: src/Admin/EventsPage.php:785
+#: src/Admin/EventsPage.php:798
 msgid "Terminserie"
 msgstr "Recurring dates"
 
-#: src/Admin/EventsPage.php:785
+#: src/Admin/EventsPage.php:798
 msgid "Einmalig"
 msgstr "One-time"
 
-#: src/Admin/EventsPage.php:785
+#: src/Admin/EventsPage.php:798
 msgid "Wöchentlich"
 msgstr "Weekly"
 
-#: src/Admin/EventsPage.php:785
+#: src/Admin/EventsPage.php:798
 msgid "Anzahl Termine (max. 12)"
 msgstr "Number of dates (max. 12)"
 
-#: src/Admin/EventsPage.php:787
+#: src/Admin/EventsPage.php:800
 msgid "Kontingent pro Termin"
 msgstr "Capacity per date"
 
-#: src/Admin/EventsPage.php:787 src/Admin/EventsPage.php:898
-#: src/Admin/EventsPage.php:1003
+#: src/Admin/EventsPage.php:800 src/Admin/EventsPage.php:914
+#: src/Admin/EventsPage.php:1019
 msgid "0 bedeutet unbegrenzt."
 msgstr "0 means unlimited."
 
-#: src/Admin/EventsPage.php:788
+#: src/Admin/EventsPage.php:801
 msgid "Ticketkategorie"
 msgstr "Ticket type"
 
-#: src/Admin/EventsPage.php:789 src/Admin/EventsPage.php:1000
+#: src/Admin/EventsPage.php:802 src/Admin/EventsPage.php:1016
 msgid "Preis (brutto)"
 msgstr "Price (gross)"
 
-#: src/Admin/EventsPage.php:790 src/Admin/EventsPage.php:1001
+#: src/Admin/EventsPage.php:803 src/Admin/EventsPage.php:1017
 #: src/Admin/TaxPage.php:140
 msgid "Steuersatz in %"
 msgstr "Tax rate in %"
 
-#: src/Admin/EventsPage.php:790
+#: src/Admin/EventsPage.php:803
 msgid "z. B. 19 oder 7,7"
 msgstr "e.g. 19 or 7.7"
 
-#: src/Admin/EventsPage.php:791
+#: src/Admin/EventsPage.php:804
 msgid "Ticketkontingent"
 msgstr "Ticket capacity"
 
-#: src/Admin/EventsPage.php:794
+#: src/Admin/EventsPage.php:807
 msgid "Event speichern"
 msgstr "Save event"
 
-#: src/Admin/EventsPage.php:826
+#: src/Admin/EventsPage.php:839
 msgid "Eventdaten"
 msgstr "Event details"
 
-#: src/Admin/EventsPage.php:834
+#: src/Admin/EventsPage.php:847
+msgid "Änderungsmitteilungen"
+msgstr ""
+
+#: src/Admin/EventsPage.php:847
+msgid "Ticketinhaber:innen per E-Mail informieren, wenn sich Zeit, Ort oder Einlass eines Termins ändern (mit aktualisierter Kalenderdatei)"
+msgstr ""
+
+#: src/Admin/EventsPage.php:847
+msgid "Absagen werden unabhängig davon immer mitgeteilt."
+msgstr ""
+
+#: src/Admin/EventsPage.php:850
 msgid "Event aktualisieren"
 msgstr "Update event"
 
-#: src/Admin/EventsPage.php:837
+#: src/Admin/EventsPage.php:853
 msgid "Dieses Event wurde abgesagt und kann nicht mehr bearbeitet werden."
 msgstr "This event has been canceled and can no longer be edited."
 
-#: src/Admin/EventsPage.php:846 src/Admin/EventsPage.php:964
+#: src/Admin/EventsPage.php:862 src/Admin/EventsPage.php:980
 msgid "Verkauft / Kontingent"
 msgstr "Sold / Capacity"
 
-#: src/Admin/EventsPage.php:851
+#: src/Admin/EventsPage.php:867
 msgid "Keine Termine."
 msgstr "No dates."
 
-#: src/Admin/EventsPage.php:860
+#: src/Admin/EventsPage.php:876
 msgid "Bearbeiten & Ticketarten"
 msgstr "Edit & ticket types"
 
-#: src/Admin/EventsPage.php:862
+#: src/Admin/EventsPage.php:878
 msgid "Absagen …"
 msgstr "Cancel …"
 
-#: src/Admin/EventsPage.php:871
+#: src/Admin/EventsPage.php:887
 msgid "Einwilligungen exportieren (CSV)"
 msgstr "Export consents (CSV)"
 
-#: src/Admin/EventsPage.php:871
+#: src/Admin/EventsPage.php:887
 msgid "Alle Erteilungen und Widerrufe mit Textfassung, Quelle und aktuellem Stand; der Export wird im Audit-Protokoll vermerkt."
 msgstr "All grants and withdrawals with text version, source, and current status; the export is recorded in the audit log."
 
-#: src/Admin/EventsPage.php:875 src/Admin/EventsPage.php:904
+#: src/Admin/EventsPage.php:891 src/Admin/EventsPage.php:920
 msgid "Termin hinzufügen"
 msgstr "Add date"
 
-#: src/Admin/EventsPage.php:890 src/Series/AdminPage.php:183
+#: src/Admin/EventsPage.php:906 src/Series/AdminPage.php:183
 #: src/Series/AdminPage.php:338
 msgid "Beginn (Ortszeit)"
 msgstr "Start (local time)"
 
-#: src/Admin/EventsPage.php:892
+#: src/Admin/EventsPage.php:908
 msgid "Einlass ab (optional)"
 msgstr "Admission from (optional)"
 
-#: src/Admin/EventsPage.php:892
+#: src/Admin/EventsPage.php:908
 msgid "Ortszeit. Vorher wird am Einlass niemand eingelassen, auch wenn eine Einlassregel früher öffnet. Leer = kein eigener Einlassbeginn."
 msgstr "Local time. No one will be admitted before this time, even if an admission rule opens earlier. Empty = no separate admission start."
 
-#: src/Admin/EventsPage.php:896
+#: src/Admin/EventsPage.php:912 src/Notifications.php:167
 msgid "Veranstaltungsland"
 msgstr "Event country"
 
 #. translators: %s: seller country code from the settings
-#: src/Admin/EventsPage.php:896
+#: src/Admin/EventsPage.php:912
 #, php-format
 msgid "ISO-Code, z. B. AT. Leistungsort für die Umsatzsteuer auf Eintrittskarten (Steuerprofile). Leer = Land des Rechnungsstellers (%s)."
 msgstr "ISO code, e.g. AT. Place of supply for VAT on admission tickets (tax profiles). Empty = country of the invoice issuer (%s)."
 
-#: src/Admin/EventsPage.php:899 src/Admin/Forms.php:488
+#: src/Admin/EventsPage.php:915 src/Admin/Forms.php:488
 msgid "Geplant"
 msgstr "Scheduled"
 
-#: src/Admin/EventsPage.php:899 src/Frontend/EventCard.php:140
+#: src/Admin/EventsPage.php:915 src/Frontend/EventCard.php:140
 #: src/WalletPasses/GoogleProvider.php:53
 msgid "Abgesagt"
 msgstr "Canceled"
 
-#: src/Admin/EventsPage.php:902
+#: src/Admin/EventsPage.php:918
 msgid "Für diesen Termin sind bereits Tickets ausgestellt. Eine Änderung des Beginns wird als Terminverschiebung gemeldet."
 msgstr "Tickets have already been issued for this date. Changing the start will be announced as a reschedule."
 
-#: src/Admin/EventsPage.php:904
+#: src/Admin/EventsPage.php:920
 msgid "Termin speichern"
 msgstr "Save date"
 
-#: src/Admin/EventsPage.php:912
+#: src/Admin/EventsPage.php:928
 msgid "Einlass/Scanner"
 msgstr "Admission/Scanner"
 
-#: src/Admin/EventsPage.php:913
+#: src/Admin/EventsPage.php:929
 msgid "Event verwalten"
 msgstr "Manage event"
 
-#: src/Admin/EventsPage.php:914
+#: src/Admin/EventsPage.php:930
 msgid "Bestellungen/Kasse"
 msgstr "Orders/Box office"
 
-#: src/Admin/EventsPage.php:915 src/Modules/Reports.php:15
+#: src/Admin/EventsPage.php:931 src/Modules/Reports.php:15
 #: src/Reports/Page.php:65
 msgid "Berichte"
 msgstr "Reports"
 
-#: src/Admin/EventsPage.php:918
+#: src/Admin/EventsPage.php:934
 msgid "Personal und Zugriff"
 msgstr "Staff and access"
 
-#: src/Admin/EventsPage.php:920 src/Admin/EventsPage.php:939
+#: src/Admin/EventsPage.php:936 src/Admin/EventsPage.php:955
 msgid "Recht"
 msgstr "Capability"
 
-#: src/Admin/EventsPage.php:922
+#: src/Admin/EventsPage.php:938
 msgid "Noch kein Personal zugewiesen."
 msgstr "No staff assigned yet."
 
 #. translators: %s: rule label or kind
 #. translators: %s: pool name
-#: src/Admin/EventsPage.php:929 src/OfflineScanner/AdminPage.php:161
+#: src/Admin/EventsPage.php:945 src/OfflineScanner/AdminPage.php:161
 #: src/Partners/AdminPage.php:382 src/Seating/AdminPage.php:170
 #: src/Seating/Picker.php:24 src/Series/AdminPage.php:493
 #: src/Series/AdminPage.php:570 src/Waitlists/AdminPage.php:130
 msgid "Entfernen"
 msgstr "Remove"
 
-#: src/Admin/EventsPage.php:936 src/Admin/EventsPage.php:940
+#: src/Admin/EventsPage.php:952 src/Admin/EventsPage.php:956
 msgid "Zugriff zuweisen"
 msgstr "Assign access"
 
-#: src/Admin/EventsPage.php:938
+#: src/Admin/EventsPage.php:954
 msgid "Benutzer (ID, Login oder E-Mail)"
 msgstr "User (ID, login, or email)"
 
-#: src/Admin/EventsPage.php:941
+#: src/Admin/EventsPage.php:957
 msgid "Einlassrechte werden direkt vergeben. Für alle anderen Rechte braucht der Benutzer eine passende Rolle (z. B. Pass Captain Veranstaltungsleitung)."
 msgstr "Check-in permissions are granted directly. For all other capabilities, the user needs a matching role (e.g. Pass Captain Event Manager)."
 
 #. translators: %s: date
-#: src/Admin/EventsPage.php:954
+#: src/Admin/EventsPage.php:970
 #, php-format
 msgid "Termin %s"
 msgstr "Date %s"
 
-#: src/Admin/EventsPage.php:958 src/Admin/TaxPage.php:86
+#: src/Admin/EventsPage.php:974 src/Admin/TaxPage.php:86
 msgid "Ticketarten"
 msgstr "Ticket types"
 
-#: src/Admin/EventsPage.php:963
+#: src/Admin/EventsPage.php:979
 msgid "Steuer"
 msgstr "Tax"
 
-#: src/Admin/EventsPage.php:966
+#: src/Admin/EventsPage.php:982
 msgid "Verkaufszeitraum"
 msgstr "Sales period"
 
-#: src/Admin/EventsPage.php:970
+#: src/Admin/EventsPage.php:986
 msgid "Noch keine Ticketarten."
 msgstr "No ticket types yet."
 
-#: src/Admin/EventsPage.php:985 src/Admin/EventsPage.php:1016
+#: src/Admin/EventsPage.php:1001 src/Admin/EventsPage.php:1032
 msgid "Ticketart hinzufügen"
 msgstr "Add ticket type"
 
-#: src/Admin/EventsPage.php:1000
+#: src/Admin/EventsPage.php:1016
 msgid "z. B. 12,50"
 msgstr "e.g. 12.50"
 
-#: src/Admin/EventsPage.php:1001
+#: src/Admin/EventsPage.php:1017
 msgid "Im Preis enthaltene Umsatzsteuer, z. B. 19 oder 7,7"
 msgstr "VAT included in the price, e.g. 19 or 7.7"
 
-#: src/Admin/EventsPage.php:1002
+#: src/Admin/EventsPage.php:1018
 msgid "Steuerklasse (optional)"
 msgstr "Tax class (optional)"
 
-#: src/Admin/EventsPage.php:1002
+#: src/Admin/EventsPage.php:1018
 msgid "z. B. culture. Gibt es für das Veranstaltungsland ein aktives Steuerprofil dieser Klasse, gilt dessen Satz; sonst der Steuersatz oben."
 msgstr "e.g. culture. If there is an active tax profile of this class for the event country, its rate applies; otherwise the tax rate above."
 
 #. translators: %s: timezone
-#: src/Admin/EventsPage.php:1005
+#: src/Admin/EventsPage.php:1021
 #, php-format
 msgid "Ortszeit %s; leer = sofort"
 msgstr "Local time %s; empty = immediately"
 
 #. translators: %s: timezone
-#: src/Admin/EventsPage.php:1006
+#: src/Admin/EventsPage.php:1022
 msgid "leer = bis Terminbeginn"
 msgstr "empty = until the date starts"
 
-#: src/Admin/EventsPage.php:1008
+#: src/Admin/EventsPage.php:1024
 msgid "Einlasskontrolle"
 msgstr "Admission control"
 
-#: src/Admin/EventsPage.php:1009 src/AdmissionChecks.php:62
+#: src/Admin/EventsPage.php:1025 src/AdmissionChecks.php:62
 msgid "Ausweis prüfen"
 msgstr "Check ID"
 
-#: src/Admin/EventsPage.php:1010
+#: src/Admin/EventsPage.php:1026
 msgid "Mindestalter"
 msgstr "Minimum age"
 
-#: src/Admin/EventsPage.php:1011
+#: src/Admin/EventsPage.php:1027
 msgid "Hinweis für das Einlasspersonal"
 msgstr "Note for admission staff"
 
-#: src/Admin/EventsPage.php:1012
+#: src/Admin/EventsPage.php:1028
 msgid "Wird beim Scannen (Web-Scanner, App, Offline-Scanner) angezeigt; Mindestalter und Ausweispflicht sehen Käufer auch beim Ticketkauf. Der Scan wird dadurch nicht abgelehnt."
 msgstr "Shown when scanning (web scanner, app, offline scanner); buyers also see the minimum age and ID requirement when buying tickets. The scan is not rejected because of this."
 
-#: src/Admin/EventsPage.php:1014 src/Admin/Forms.php:489
-#: src/Admin/SettingsPage.php:562 src/Admin/TaxPage.php:64
-#: src/Allocations/AdminPage.php:263 src/BoxOffice/ShiftPage.php:427
-#: src/Modules/Reminders.php:189 src/WalletPasses/AdminPage.php:178
-#: src/WalletPasses/AdminPage.php:193
-msgid "Aktiv"
-msgstr "Active"
-
-#: src/Admin/EventsPage.php:1014 src/Admin/Forms.php:490
+#: src/Admin/EventsPage.php:1030 src/Admin/Forms.php:490
 msgid "Pausiert"
 msgstr "Paused"
 
-#: src/Admin/EventsPage.php:1016
+#: src/Admin/EventsPage.php:1032
 msgid "Ticketart speichern"
 msgstr "Save ticket type"
 
-#: src/Admin/EventsPage.php:1032 src/Mail/Admin.php:259
+#: src/Admin/EventsPage.php:1048 src/Mail/Admin.php:259
 #: src/Modules/Reminders.php:192
 msgid "Text"
 msgstr "Text"
 
 #. translators: 1: list, 2: used, 3: quota
-#: src/Admin/EventsPage.php:1032 src/Admin/OrdersPage.php:282
-#: src/Admin/TicketsPage.php:272 src/GuestLists/Page.php:263
-#: src/GuestLists/Page.php:292 src/GuestLists/Service.php:677
+#: src/Admin/EventsPage.php:1048 src/Admin/OrdersPage.php:282
+#: src/Admin/ServiceSlotsPage.php:225 src/Admin/TicketsPage.php:272
+#: src/GuestLists/Page.php:263 src/GuestLists/Page.php:292
+#: src/GuestLists/Service.php:677
 #: src/Integrations/WooCommerce/Attendees.php:194
 #: src/Integrations/WooCommerce/Attendees.php:329 src/Mail/Admin.php:202
 #: src/Modules/GuestLists.php:94 src/Waitlists/AdminPage.php:116
 msgid "E-Mail"
 msgstr "Email"
 
-#: src/Admin/EventsPage.php:1032
+#: src/Admin/EventsPage.php:1048
 msgid "Mehrzeiliger Text"
 msgstr "Multi-line text"
 
-#: src/Admin/EventsPage.php:1032
+#: src/Admin/EventsPage.php:1048
 msgid "Checkbox"
 msgstr "Checkbox"
 
 #. translators: %s: ticket type name
-#: src/Admin/EventsPage.php:1036
+#: src/Admin/EventsPage.php:1052
 #, php-format
 msgid "Ticketart: %s"
 msgstr "Ticket type: %s"
 
-#: src/Admin/EventsPage.php:1040
+#: src/Admin/EventsPage.php:1056
 msgid "Teilnehmerfelder"
 msgstr "Attendee fields"
 
-#: src/Admin/EventsPage.php:1041
+#: src/Admin/EventsPage.php:1057
 msgid "Nur Daten abfragen, die für die Veranstaltung erforderlich sind. Zweck und Aufbewahrungsdauer werden Käufern angezeigt."
 msgstr "Only collect data that is required for the event. The purpose and retention period are shown to buyers."
 
-#: src/Admin/EventsPage.php:1044 src/Admin/EventsPage.php:1080
+#: src/Admin/EventsPage.php:1060 src/Admin/EventsPage.php:1096
 #: src/Secrets.php:445
 msgid "Schlüssel"
 msgstr "Key"
 
-#: src/Admin/EventsPage.php:1046 src/Admin/EventsPage.php:1085
+#: src/Admin/EventsPage.php:1062 src/Admin/EventsPage.php:1101
 #: src/Admin/OperationsPage.php:132
 msgid "Typ"
 msgstr "Type"
 
-#: src/Admin/EventsPage.php:1047
+#: src/Admin/EventsPage.php:1063
 msgid "Pflicht"
 msgstr "Required"
 
-#: src/Admin/EventsPage.php:1048 src/Admin/EventsPage.php:1091
+#: src/Admin/EventsPage.php:1064 src/Admin/EventsPage.php:1107
 #: src/Consents.php:611 src/Modules/Sms.php:279
 msgid "Zweck"
 msgstr "Purpose"
 
-#: src/Admin/EventsPage.php:1049 src/Admin/EventsPage.php:1092
+#: src/Admin/EventsPage.php:1065 src/Admin/EventsPage.php:1108
 msgid "Aufbewahrung (Tage)"
 msgstr "Retention (days)"
 
-#: src/Admin/EventsPage.php:1054
+#: src/Admin/EventsPage.php:1070
 msgid "Keine Teilnehmerfelder."
 msgstr "No attendee fields."
 
-#: src/Admin/EventsPage.php:1059 src/Admin/EventsPage.php:1088
+#: src/Admin/EventsPage.php:1075 src/Admin/EventsPage.php:1104
 #: src/Consents.php:523
 msgid "Einwilligung"
 msgstr "Consent"
 
-#: src/Admin/EventsPage.php:1060 src/Admin/Queries.php:386
+#: src/Admin/EventsPage.php:1076 src/Admin/Queries.php:386
 msgid "Ja"
 msgstr "Yes"
 
-#: src/Admin/EventsPage.php:1060 src/Admin/Queries.php:386
+#: src/Admin/EventsPage.php:1076 src/Admin/Queries.php:386
 msgid "Nein"
 msgstr "No"
 
-#: src/Admin/EventsPage.php:1077
+#: src/Admin/EventsPage.php:1093
 msgid "Teilnehmerfeld bearbeiten"
 msgstr "Edit attendee field"
 
-#: src/Admin/EventsPage.php:1077
+#: src/Admin/EventsPage.php:1093
 msgid "Teilnehmerfeld hinzufügen"
 msgstr "Add attendee field"
 
-#: src/Admin/EventsPage.php:1081
+#: src/Admin/EventsPage.php:1097
 msgid "Der Schlüssel kann nicht geändert werden."
 msgstr "The key cannot be changed."
 
-#: src/Admin/EventsPage.php:1082
+#: src/Admin/EventsPage.php:1098
 msgid "Technischer Name, z. B. company (a-z, 0-9, _)"
 msgstr "Technical name, e.g. company (a-z, 0-9, _)"
 
-#: src/Admin/EventsPage.php:1086
+#: src/Admin/EventsPage.php:1102
 msgid "Pflichtfeld"
 msgstr "Required field"
 
-#: src/Admin/EventsPage.php:1086
+#: src/Admin/EventsPage.php:1102
 msgid "Für jedes Ticket erforderlich"
 msgstr "Required for every ticket"
 
-#: src/Admin/EventsPage.php:1088
+#: src/Admin/EventsPage.php:1104
 msgid "Als Einwilligung protokollieren und Widerruf ermöglichen"
 msgstr "Record as consent and allow withdrawal"
 
-#: src/Admin/EventsPage.php:1089
+#: src/Admin/EventsPage.php:1105
 msgid "Nur für Checkboxen. Jede Erteilung und jeder Widerruf wird mit Textfassung, Zeitpunkt und Quelle protokolliert; Teilnehmende können in der Bestellübersicht und auf der Ticketseite widerrufen. Zweck ist Pflicht. Eine Änderung von Bezeichnung oder Zweck gilt als neue Textfassung."
 msgstr "Checkboxes only. Every grant and every withdrawal is logged with the text version, time, and source; attendees can withdraw in the order overview and on the ticket page. The purpose is required. A change to the label or purpose counts as a new text version."
 
-#: src/Admin/EventsPage.php:1095
+#: src/Admin/EventsPage.php:1111
 msgid "Feld speichern"
 msgstr "Save field"
 
@@ -1945,8 +2175,8 @@ msgstr "Page %1$d of %2$d"
 msgid "Abgesagt/Storniert"
 msgstr "Canceled"
 
-#: src/Admin/Forms.php:491 src/BoxOffice/ShiftPage.php:427
-#: src/Modules/Sms.php:342
+#: src/Admin/Forms.php:491 src/Admin/ServiceSlotsPage.php:94
+#: src/BoxOffice/ShiftPage.php:427 src/Modules/Sms.php:342
 msgid "Deaktiviert"
 msgstr "Disabled"
 
@@ -1963,10 +2193,6 @@ msgstr "Completed"
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Erstattet"
 msgstr "Refunded"
-
-#: src/Admin/Forms.php:495 src/Waitlists.php:622
-msgid "Abgelaufen"
-msgstr "Expired"
 
 #: src/Admin/Forms.php:496
 msgid "Prüfung nötig"
@@ -2181,59 +2407,59 @@ msgstr "Open:"
 msgid "Checkliste ausblenden"
 msgstr "Hide checklist"
 
-#: src/Admin/Menu.php:72
+#: src/Admin/Menu.php:79
 msgid "WP Pass Captain: Das Datenbank-Update ist unvollständig."
 msgstr "WP Pass Captain: The database update is incomplete."
 
-#: src/Admin/Menu.php:72
+#: src/Admin/Menu.php:79
 msgid "Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren."
 msgstr "Tables or columns are missing; the plugin continues to work with the old schema. Please check the database permissions, then deactivate and reactivate the plugin."
 
-#: src/Admin/Menu.php:95
+#: src/Admin/Menu.php:102
 msgid "Pass Captain"
 msgstr "Pass Captain"
 
-#: src/Admin/Menu.php:120
+#: src/Admin/Menu.php:127
 msgid "Events & Programm"
 msgstr "Events & Program"
 
-#: src/Admin/Menu.php:121 src/BoxOffice/Page.php:51
+#: src/Admin/Menu.php:128 src/BoxOffice/Page.php:51
 #: src/Partners/Settlements.php:56 src/Partners/Statement.php:172
 msgid "Verkauf"
 msgstr "Sale"
 
-#: src/Admin/Menu.php:122 src/Admin/SettingsPage.php:221
-#: src/Admission/Rest.php:96 src/Passes/AdminPage.php:140
-#: src/PublicEvents.php:114 src/PublicEvents.php:119
-#: templates/event-card.php:35
+#: src/Admin/Menu.php:129 src/Admin/SettingsPage.php:221
+#: src/Admission/Rest.php:96 src/Notifications.php:165
+#: src/Passes/AdminPage.php:140 src/PublicEvents.php:114
+#: src/PublicEvents.php:119 templates/event-card.php:35
 msgid "Einlass"
 msgstr "Admission"
 
-#: src/Admin/Menu.php:123
+#: src/Admin/Menu.php:130
 msgid "Finanzen & Auswertung"
 msgstr "Finance & Reports"
 
-#: src/Admin/Menu.php:124
+#: src/Admin/Menu.php:131
 msgid "Kommunikation"
 msgstr "Communication"
 
-#: src/Admin/Menu.php:125
+#: src/Admin/Menu.php:132
 msgid "Einstellungen & Integrationen"
 msgstr "Settings & Integrations"
 
-#: src/Admin/Menu.php:186 src/Admin/Menu.php:192 src/Admin/OrdersPage.php:530
+#: src/Admin/Menu.php:195 src/Admin/Menu.php:201 src/Admin/OrdersPage.php:530
 #: src/Admin/SettingsPage.php:120 src/BoxOffice/ZReport.php:381
 #: src/Reports/Page.php:78
 msgid "Erstattungen"
 msgstr "Refunds"
 
-#: src/Admin/Menu.php:189 src/Admin/OrdersPage.php:268
+#: src/Admin/Menu.php:198 src/Admin/OrdersPage.php:268
 #: src/Exchange/AdminPage.php:127
 msgid "Bestellungen"
 msgstr "Orders"
 
 #. translators: 1: list, 2: used, 3: quota
-#: src/Admin/Menu.php:190 src/Admin/OrdersPage.php:461
+#: src/Admin/Menu.php:199 src/Admin/OrdersPage.php:461
 #: src/Admin/OrdersPage.php:576 src/Admin/TicketsPage.php:215
 #: src/BoxOffice/ZReport.php:383 src/GuestLists/Page.php:263
 #: src/GuestLists/Service.php:677 src/OrderPortal.php:113
@@ -2247,35 +2473,39 @@ msgstr "Orders"
 msgid "Tickets"
 msgstr "Tickets"
 
-#: src/Admin/Menu.php:195 src/Admin/TaxPage.php:76
+#: src/Admin/Menu.php:204 src/Admin/TaxPage.php:76
 msgid "Steuerprüfung"
 msgstr "Tax review"
 
-#: src/Admin/Menu.php:202 src/Allocations/AdminPage.php:212
+#: src/Admin/Menu.php:205 src/Admin/ServiceSlotsPage.php:124
+msgid "Service-Zeitfenster"
+msgstr ""
+
+#: src/Admin/Menu.php:212 src/Allocations/AdminPage.php:212
 #: src/Partners/AdminPage.php:254 src/Passes/AdminPage.php:261
 #: src/Waitlists/AdminPage.php:139
 msgid "Einstellungen"
 msgstr "Settings"
 
-#: src/Admin/Menu.php:204 src/Admin/OperationsPage.php:85
+#: src/Admin/Menu.php:215 src/Admin/OperationsPage.php:85
 msgid "Betrieb"
 msgstr ""
 
-#: src/Admin/Menu.php:207 src/Integrations/Vouchers/IntegrationStatus.php:33
+#: src/Admin/Menu.php:218 src/Integrations/Vouchers/IntegrationStatus.php:33
 #: src/Integrations/Vouchers/IntegrationStatus.php:44
 msgid "Gemeinsamer Scanner"
 msgstr "Shared scanner"
 
-#: src/Admin/Menu.php:207
+#: src/Admin/Menu.php:218
 msgid "Gemeinsamer Scanner ↗"
 msgstr "Shared scanner ↗"
 
-#: src/Admin/Menu.php:208 src/Integrations/Vouchers/IntegrationStatus.php:22
+#: src/Admin/Menu.php:219 src/Integrations/Vouchers/IntegrationStatus.php:22
 #: src/Integrations/Vouchers/IntegrationStatus.php:30
 msgid "WP Voucher Captain"
 msgstr "WP Voucher Captain"
 
-#: src/Admin/Menu.php:208
+#: src/Admin/Menu.php:219
 msgid "WP Voucher Captain ↗"
 msgstr "WP Voucher Captain ↗"
 
@@ -2384,16 +2614,6 @@ msgstr ""
 msgid "Erstellt"
 msgstr ""
 
-#. translators: 1: list, 2: used, 3: quota
-#: src/Admin/OperationsPage.php:132 src/Admin/OrdersPage.php:540
-#: src/Admin/TaxPage.php:101 src/Allocations/AdminPage.php:247
-#: src/GuestLists/Page.php:263 src/Modules/Webhooks.php:296
-#: src/Partners/AdminPage.php:568 src/Series/AdminPage.php:364
-#: src/Series/AdminPage.php:482 src/Series/AdminPage.php:558
-#: src/Waitlists/AdminPage.php:116
-msgid "Aktionen"
-msgstr "Actions"
-
 #. translators: %d: item id
 #: src/Admin/OperationsPage.php:135
 #, php-format
@@ -2433,13 +2653,13 @@ msgid "Ausführen"
 msgstr ""
 
 #: src/Admin/OrdersPage.php:35 src/Orders.php:991 src/Partners/Sales.php:446
-#: src/Payments/PayPalGateway.php:130 src/Rest/Controller.php:447
-#: src/Rest/Controller.php:527
+#: src/Payments/PayPalGateway.php:130 src/Rest/Controller.php:452
+#: src/Rest/Controller.php:532
 msgid "Bestellung nicht gefunden."
 msgstr "Order not found."
 
 #: src/Admin/OrdersPage.php:36 src/Admin/OrdersPage.php:132
-#: src/Consents.php:578 src/Rest/Controller.php:529 src/Rest/Controller.php:530
+#: src/Consents.php:578 src/Rest/Controller.php:534 src/Rest/Controller.php:535
 msgid "Keine Berechtigung für diese Bestellung."
 msgstr "You do not have permission for this order."
 
@@ -2447,7 +2667,7 @@ msgstr "You do not have permission for this order."
 msgid "Nur Bestellungen mit manueller Zahlart können hier als bezahlt markiert werden."
 msgstr "Only orders with a manual payment method can be marked as paid here."
 
-#: src/Admin/OrdersPage.php:65 src/Orders.php:1000 src/Orders.php:1488
+#: src/Admin/OrdersPage.php:65 src/Orders.php:1000 src/Orders.php:1489
 #: src/Partners/Sales.php:693 src/Partners/Sales.php:742
 msgid "Der Bestellstatus erlaubt diese Aktion nicht."
 msgstr "The order status does not allow this action."
@@ -2661,10 +2881,6 @@ msgstr "Invoice details"
 #: src/Admin/OrdersPage.php:372
 msgid "Keine (Rechnung nur mit E-Mail-Adresse)"
 msgstr "None (invoice with email address only)"
-
-#: src/Admin/OrdersPage.php:373
-msgid "Angelegt"
-msgstr "Created"
 
 #: src/Admin/OrdersPage.php:374
 msgid "Zahlart / Referenz"
@@ -2923,6 +3139,188 @@ msgstr "Cancellation requests that buyers submit in the order portal also appear
 #: src/Admin/RefundsPage.php:35
 msgid "Du kannst Erstattungen sehen, aber nicht freigeben."
 msgstr "You can view refunds but not approve them."
+
+#: src/Admin/ServiceSlotsPage.php:40 src/ServiceBookings.php:141
+msgid "Zeitfenster ist ungültig."
+msgstr "Invalid time slot."
+
+#: src/Admin/ServiceSlotsPage.php:56 src/ServiceBookings.php:70
+msgid "Ressource oder Zeitfenster nicht gefunden."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:62 src/ServiceBookings.php:149
+msgid "Keine Berechtigung für diese Ressource."
+msgstr "You do not have permission for this resource."
+
+#: src/Admin/ServiceSlotsPage.php:70
+msgid "Ressource gespeichert."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:76
+msgid "Ressource mit ihren Zeitfenstern gelöscht."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:82
+msgid "Zeitfenster gespeichert."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:88
+msgid "Zeitfenster gelöscht."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:95
+msgid "Buchbar"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:96 src/BoxOffice/ShiftPage.php:329
+#: src/BoxOffice/ZReport.php:360
+msgid "Geschlossen"
+msgstr "Closed"
+
+#: src/Admin/ServiceSlotsPage.php:97
+msgid "Reserviert"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:98
+msgid "Bestätigt"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:106
+msgid "z. B. Workshopraum 1"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:107 src/Admin/ServiceSlotsPage.php:144
+msgid "Plätze je Zeitfenster"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:108
+msgid "Puffer vorher (Min.)"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:109
+msgid "Puffer danach (Min.)"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:126
+msgid "Ressourcen sind Räume, Personen oder Geräte eines Events. Für jede Ressource legst du buchbare Zeitfenster mit einer Platzzahl an; Kund:innen reservieren sie über die öffentliche Buchungsschnittstelle. Zeitfenster mit Buchungen können nicht gelöscht, aber geschlossen werden."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:128 src/Waitlists/AdminPage.php:88
+msgid "– Event wählen –"
+msgstr "– Select event –"
+
+#. translators: %d: count
+#: src/Admin/ServiceSlotsPage.php:129 src/Admission/RulesPage.php:185
+#: src/GuestLists/Page.php:182 src/Modules/Webhooks.php:300
+#: src/OfflineScanner/AdminPage.php:120 src/Partners/AdminPage.php:427
+#: src/Reports/Page.php:70 src/Waitlists/AdminPage.php:89
+msgid "Anzeigen"
+msgstr "Show"
+
+#: src/Admin/ServiceSlotsPage.php:131
+msgid "Es gibt noch kein Event, das du verwalten darfst."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:143
+msgid "Ressourcen"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:144
+msgid "Puffer vorher/danach (Min.)"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:144 src/Admin/ServiceSlotsPage.php:168
+#: src/Admin/ServiceSlotsPage.php:225
+msgid "Zeitfenster"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:154
+msgid "Ressource mit allen Zeitfenstern löschen? Das geht nur, solange es keine Buchungen gibt."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:157 src/Admin/ServiceSlotsPage.php:194
+#: src/Modules/Webhooks.php:303 src/Partners/AdminPage.php:404
+#: src/Partners/AdminPage.php:576 src/Seating/AdminPage.php:176
+msgid "Löschen"
+msgstr "Delete"
+
+#: src/Admin/ServiceSlotsPage.php:159
+msgid "Noch keine Ressourcen."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:161
+msgid "Ressource hinzufügen"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:165
+msgid "Ressource anlegen"
+msgstr ""
+
+#. translators: %s: timezone
+#: src/Admin/ServiceSlotsPage.php:170
+#, php-format
+msgid "Alle Zeiten in %s."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:171 src/Admin/ServiceSlotsPage.php:210
+#: src/Admin/ServiceSlotsPage.php:225 src/Privacy.php:198
+msgid "Ressource"
+msgstr "Resource"
+
+#: src/Admin/ServiceSlotsPage.php:171
+msgid "Gebucht / Plätze"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:182 src/Admin/ServiceSlotsPage.php:214
+#: src/Admin/ServiceSlotsPage.php:225 src/Allocations/AdminPage.php:331
+#: src/Seating/AdminPage.php:157 src/Seating/AdminPage.php:206
+msgid "Plätze"
+msgstr "Seats"
+
+#: src/Admin/ServiceSlotsPage.php:186
+msgid "Das Zeitfenster hat Buchungen; Beginn und Ende sind fest."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:189 src/Admin/ServiceSlotsPage.php:221
+#: src/BoxOffice/ZReport.php:403
+msgid "Buchungen"
+msgstr "Entries"
+
+#: src/Admin/ServiceSlotsPage.php:198
+msgid "Noch keine Zeitfenster."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:204
+msgid "Zeitfenster hinzufügen"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:206
+msgid "Lege zuerst eine aktive Ressource an."
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:214
+msgid "wie Ressource"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:215
+msgid "Zeitfenster anlegen"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:223
+msgid "Alle Buchungen des Events anzeigen"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:225
+msgid "Buchung"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:225
+msgid "Gebucht am"
+msgstr ""
+
+#: src/Admin/ServiceSlotsPage.php:229
+msgid "Keine Buchungen."
+msgstr ""
 
 #: src/Admin/SettingsPage.php:37
 msgid "Allgemein / Reservierung"
@@ -3314,7 +3712,7 @@ msgstr "“%s” is not a valid amount."
 
 #: src/Admin/SettingsPage.php:410 src/Admission/RulesPage.php:126
 #: src/Allocations/AdminPage.php:174 src/BoxOffice/Page.php:422
-#: src/Modules/Calendar.php:296 src/Modules/Mollie.php:174
+#: src/Modules/Calendar.php:298 src/Modules/Mollie.php:174
 #: src/Modules/Reminders.php:179 src/Modules/Sms.php:321
 #: src/Printing/Page.php:180 src/Waitlists/AdminPage.php:77
 msgid "Einstellungen gespeichert."
@@ -3568,7 +3966,7 @@ msgstr "Create draft"
 #: src/Admin/TicketsPage.php:84 src/Admin/TicketsPage.php:118
 #: src/Checkin.php:82 src/Checkin.php:91 src/Exchange/Portal.php:59
 #: src/Exchange/Service.php:163 src/Exchange/Service.php:1226
-#: src/Orders.php:1836 src/PortalSelfService.php:175
+#: src/Orders.php:1837 src/PortalSelfService.php:175
 #: src/PortalSelfService.php:412 src/PortalSelfService.php:592
 msgid "Ticket nicht gefunden."
 msgstr "Ticket not found."
@@ -3820,11 +4218,6 @@ msgstr "Open"
 msgid "Geklärt"
 msgstr "Resolved"
 
-#: src/Admission/ConflictsPage.php:73 src/BoxOffice/ShiftPage.php:310
-#: src/Series/AdminPage.php:486 src/Series/AdminPage.php:560
-msgid "Alle"
-msgstr "All"
-
 #: src/Admission/ConflictsPage.php:79
 msgid "Offline-Scan"
 msgstr "Offline scan"
@@ -3916,7 +4309,7 @@ msgstr "Invalid date."
 msgid "Zu viele Tage (höchstens 366)."
 msgstr "Too many days (max. 366)."
 
-#: src/Admission/Rest.php:58 src/Rest/Controller.php:582
+#: src/Admission/Rest.php:58 src/Rest/Controller.php:587
 msgid "Der Offline-Scanbatch muss 1 bis 100 Codes enthalten."
 msgstr "The offline scan batch must contain 1 to 100 codes."
 
@@ -3974,14 +4367,6 @@ msgstr "Admission rules"
 msgid "Event wählen …"
 msgstr "Select event …"
 
-#. translators: %d: count
-#: src/Admission/RulesPage.php:185 src/GuestLists/Page.php:182
-#: src/Modules/Webhooks.php:300 src/OfflineScanner/AdminPage.php:120
-#: src/Partners/AdminPage.php:427 src/Reports/Page.php:70
-#: src/Waitlists/AdminPage.php:89
-msgid "Anzeigen"
-msgstr "Show"
-
 #: src/Admission/RulesPage.php:189
 msgid "Offline-Scans"
 msgstr "Offline scans"
@@ -3989,20 +4374,6 @@ msgstr "Offline scans"
 #: src/Admission/RulesPage.php:191
 msgid "Gerätezeit von Offline-Scans höchstens so viele Stunden zurück berücksichtigen (ältere werden zum Zeitpunkt des Uploads geprüft)"
 msgstr "Consider the device time of offline scans only up to this many hours back (older scans are checked at the time of upload)"
-
-#: src/Admission/RulesPage.php:192 src/Admission/RulesPage.php:209
-#: src/Admission/RulesPage.php:247 src/Allocations/AdminPage.php:218
-#: src/Allocations/AdminPage.php:278 src/BoxOffice/Page.php:210
-#: src/BoxOffice/ShiftPage.php:428 src/Exchange/AdminPage.php:231
-#: src/Mail/Admin.php:262 src/Modules/Calendar.php:310
-#: src/Modules/Mollie.php:196 src/Modules/Reminders.php:197
-#: src/Modules/Sms.php:369 src/Modules/Webhooks.php:322
-#: src/OfflineScanner/AdminPage.php:148 src/Partners/AdminPage.php:419
-#: src/Passes/AdminPage.php:255 src/Printing/Page.php:121
-#: src/Series/AdminPage.php:565 src/Waitlists/AdminPage.php:147
-#: src/WalletPasses/AdminPage.php:197
-msgid "Speichern"
-msgstr "Save"
 
 #: src/Admission/RulesPage.php:204 src/Passes/AdminPage.php:217
 msgid "Einlassbereiche"
@@ -4355,11 +4726,6 @@ msgstr "Quota usage"
 #: src/Reports/Settlement.php:316
 msgid "Kanal"
 msgstr "Channel"
-
-#: src/Allocations/AdminPage.php:331 src/Seating/AdminPage.php:157
-#: src/Seating/AdminPage.php:206
-msgid "Plätze"
-msgstr "Seats"
 
 #: src/Allocations/AdminPage.php:331
 msgid "Zurückgegeben"
@@ -5540,10 +5906,6 @@ msgstr "Z no."
 msgid "Geöffnet"
 msgstr "Opened"
 
-#: src/BoxOffice/ShiftPage.php:329 src/BoxOffice/ZReport.php:360
-msgid "Geschlossen"
-msgstr "Closed"
-
 #. translators: 1: invoice number, 2: date
 #. translators: 1: period, 2: date
 #: src/BoxOffice/ShiftPage.php:329 src/BoxOffice/ZReport.php:368
@@ -5950,10 +6312,6 @@ msgstr "Count %1$d (%2$s)"
 msgid "Ist %1$s, Differenz %2$s"
 msgstr "Actual %1$s, difference %2$s"
 
-#: src/BoxOffice/ZReport.php:403
-msgid "Buchungen"
-msgstr "Entries"
-
 #: src/BoxOffice/ZReport.php:406
 msgid "Override:"
 msgstr "Override:"
@@ -6073,7 +6431,7 @@ msgstr "The campaign could not be saved."
 msgid "Bitte wähle mindestens ein Ticket."
 msgstr "Please select at least one ticket."
 
-#: src/Campaigns.php:291 src/PublicEvents.php:22 src/Rest/Controller.php:311
+#: src/Campaigns.php:291 src/PublicEvents.php:22 src/Rest/Controller.php:316
 msgid "Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets."
 msgstr "The discount code is invalid or does not match the selected tickets."
 
@@ -6356,17 +6714,39 @@ msgstr "Personal reference (hash)"
 msgid "Aktueller Stand"
 msgstr "Current status"
 
-#: src/DeveloperKeys.php:13
+#: src/DeveloperKeys.php:31
+msgid "Eventdaten lesen (Name, Beschreibung, Status)"
+msgstr ""
+
+#: src/DeveloperKeys.php:32
+msgid "Eventbericht lesen (Umsatz je Währung, Check-ins)"
+msgstr ""
+
+#: src/DeveloperKeys.php:33
+msgid "Service-Zeitfenster lesen (Kapazität und Belegung, ohne Kundendaten)"
+msgstr ""
+
+#. translators: %d: maximum requests per minute
+#: src/DeveloperKeys.php:64
+#, php-format
+msgid "Das Ratenlimit muss zwischen 1 und %d Anfragen pro Minute liegen (leer = Standard)."
+msgstr ""
+
+#: src/DeveloperKeys.php:82
 msgid "Event und mindestens ein unterstützter Scope sind erforderlich."
 msgstr "An event and at least one supported scope are required."
 
-#: src/DeveloperKeys.php:17 src/Partners/Keys.php:97
+#: src/DeveloperKeys.php:99 src/Partners/Keys.php:97
 msgid "API-Key konnte nicht angelegt werden."
 msgstr "API key could not be created."
 
-#: src/DeveloperKeys.php:46
+#: src/DeveloperKeys.php:156 src/DeveloperKeys.php:174
 msgid "API-Key nicht gefunden oder keine Berechtigung."
 msgstr "API key not found, or you do not have permission."
+
+#: src/DeveloperKeys.php:175
+msgid "Ein widerrufener API-Key kann nicht mehr geändert werden. Lege einen neuen an."
+msgstr ""
 
 #: src/DoorsOpen.php:47
 msgid "Die Einlasszeit ist ungültig."
@@ -6656,9 +7036,9 @@ msgstr "Save event rules"
 msgid "Der Bestellzugriff ist ungültig."
 msgstr "The order access is invalid."
 
-#: src/Exchange/Portal.php:56 src/Orders.php:101 src/Rest/Controller.php:393
-#: src/Rest/Controller.php:479 src/Rest/Controller.php:499
-#: src/Rest/Controller.php:511 src/Rest/Controller.php:647
+#: src/Exchange/Portal.php:56 src/Orders.php:101 src/Rest/Controller.php:398
+#: src/Rest/Controller.php:484 src/Rest/Controller.php:504
+#: src/Rest/Controller.php:516 src/Rest/Controller.php:652
 #: src/Seating/Rest.php:22
 msgid "Bitte warte kurz und versuche es erneut."
 msgstr "Please wait a moment and try again."
@@ -7470,31 +7850,31 @@ msgstr "Short code for admission if the QR code cannot be read:"
 msgid "Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den langen Ticket-Code verwenden."
 msgstr "Too many short code attempts. Please wait a moment or use the QR code or the long ticket code."
 
-#: src/Installer.php:985 src/Installer.php:1017
+#: src/Installer.php:990 src/Installer.php:1022
 msgid "Pass Captain Veranstalter"
 msgstr "Pass Captain Organizer"
 
-#: src/Installer.php:1013
+#: src/Installer.php:1018
 msgid "Pass Captain Ticket-Administration"
 msgstr "Pass Captain Ticket Administrator"
 
-#: src/Installer.php:1014
+#: src/Installer.php:1019
 msgid "Pass Captain Veranstaltungsleitung"
 msgstr "Pass Captain Event Manager"
 
-#: src/Installer.php:1015
+#: src/Installer.php:1020
 msgid "Pass Captain Vor-Ort-Kasse"
 msgstr "Pass Captain Box Office"
 
-#: src/Installer.php:1016
+#: src/Installer.php:1021
 msgid "Pass Captain Einlasspersonal"
 msgstr "Pass Captain Check-in Staff"
 
-#: src/Installer.php:1018
+#: src/Installer.php:1023
 msgid "Pass Captain Finanzbuchhaltung"
 msgstr "Pass Captain Accounting"
 
-#: src/Installer.php:1019
+#: src/Installer.php:1024
 msgid "Pass Captain Support"
 msgstr "Pass Captain Support"
 
@@ -7654,7 +8034,7 @@ msgid "Zu diesem Gutschein wurden keine Tickets gefunden."
 msgstr "No tickets were found for this voucher."
 
 #. translators: %d: allowed resends per hour
-#: src/Integrations/Vouchers/TicketService.php:437 src/Rest/Controller.php:486
+#: src/Integrations/Vouchers/TicketService.php:437 src/Rest/Controller.php:491
 #, php-format
 msgid "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
 msgid_plural "Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal."
@@ -8705,7 +9085,7 @@ msgstr "Date change"
 msgid "Information an Ticketinhaber:innen, wenn ein Termin verschoben wird."
 msgstr "Information to ticket holders when a date is rescheduled."
 
-#: src/Mail/Types.php:350
+#: src/Mail/Types.php:350 src/Mail/Types.php:369
 msgid "Bisheriges Datum und Uhrzeit"
 msgstr "Previous date and time"
 
@@ -8713,14 +9093,18 @@ msgstr "Previous date and time"
 msgid "Neues Datum und Uhrzeit"
 msgstr "New date and time"
 
+#: src/Mail/Types.php:354 src/Mail/Types.php:372
+msgid "Link zur aktualisierten Kalenderdatei (.ics)"
+msgstr ""
+
 #. translators: %s: event
-#: src/Mail/Types.php:356
+#: src/Mail/Types.php:357
 #, php-format
 msgid "Terminänderung: %s"
 msgstr "Date change: %s"
 
 #. translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location
-#: src/Mail/Types.php:358
+#: src/Mail/Types.php:359
 #, php-format
 msgid ""
 "Der Termin für „%1$s“ wurde verschoben.\n"
@@ -8739,60 +9123,101 @@ msgstr ""
 "\n"
 "Your ticket remains valid. If you have questions about returns or refunds, please contact the organizer."
 
-#: src/Mail/Types.php:362
+#: src/Mail/Types.php:363
+msgid "Termindetails geändert"
+msgstr ""
+
+#: src/Mail/Types.php:364
+msgid "Information an Ticketinhaber:innen, wenn sich Ort, Ende, Einlass oder Veranstaltungsland eines Termins ändern – auch zusammen mit einer neuen Uhrzeit (dann ersetzt sie die Mail „Terminänderung“). Je Änderung höchstens einmal; die aktualisierte Kalenderdatei ist angehängt."
+msgstr ""
+
+#: src/Mail/Types.php:367
+msgid "Liste der Änderungen (bisher → neu), eine Zeile je Angabe"
+msgstr ""
+
+#: src/Mail/Types.php:368
+msgid "Aktuelles Datum und Uhrzeit"
+msgstr ""
+
+#: src/Mail/Types.php:371
+msgid "Aktueller Ort"
+msgstr ""
+
+#. translators: %s: event
+#: src/Mail/Types.php:375
+#, php-format
+msgid "Geänderte Termindetails: %s"
+msgstr ""
+
+#. translators: 1: event, 2: list of changes, 3: date and time, 4: timezone, 5: location, 6: link to the calendar file
+#: src/Mail/Types.php:377
+#, php-format
+msgid ""
+"Für deinen Termin „%1$s“ haben sich Angaben geändert:\n"
+"\n"
+"%2$s\n"
+"\n"
+"Termin: %3$s (%4$s)\n"
+"Ort: %5$s\n"
+"\n"
+"Dein Ticket bleibt gültig. Die aktualisierte Kalenderdatei ist angehängt; du kannst sie auch hier laden: %6$s\n"
+"Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter."
+msgstr ""
+
+#: src/Mail/Types.php:381
 msgid "Warteliste: Eintragung"
 msgstr "Waitlist: sign-up"
 
-#: src/Mail/Types.php:363
+#: src/Mail/Types.php:382
 msgid "Bestätigung der Eintragung in die Warteliste."
 msgstr "Confirmation of the waitlist sign-up."
 
-#: src/Mail/Types.php:365 src/Mail/Types.php:382
+#: src/Mail/Types.php:384 src/Mail/Types.php:401
 msgid "Position auf der Warteliste"
 msgstr "Waitlist position"
 
-#: src/Mail/Types.php:366
+#: src/Mail/Types.php:385
 msgid "Gewünschte Anzahl"
 msgstr "Requested quantity"
 
-#: src/Mail/Types.php:370
+#: src/Mail/Types.php:389
 msgid "Du stehst auf der Warteliste"
 msgstr "You are on the waitlist"
 
 #. translators: %d: waitlist position
-#: src/Mail/Types.php:372
+#: src/Mail/Types.php:391
 #, php-format
 msgid "Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird."
 msgstr "You have been added to the waitlist (position %d). We will email you as soon as a spot becomes available."
 
-#: src/Mail/Types.php:376
+#: src/Mail/Types.php:395
 msgid "Warteliste: Platzangebot"
 msgstr "Waitlist: spot offer"
 
-#: src/Mail/Types.php:377
+#: src/Mail/Types.php:396
 msgid "Angebot an die nächste Person auf der Warteliste; die Tickets sind bis zum Ablauf reserviert."
 msgstr "Offer to the next person on the waitlist; the tickets are held until the offer expires."
 
-#: src/Mail/Types.php:379
+#: src/Mail/Types.php:398
 msgid "Ablauf des Angebots"
 msgstr "Offer expiry"
 
-#: src/Mail/Types.php:380
+#: src/Mail/Types.php:399
 msgid "Link zur Annahme"
 msgstr "Link to accept"
 
-#: src/Mail/Types.php:381
+#: src/Mail/Types.php:400
 msgid "Anzahl der reservierten Tickets"
 msgstr "Number of tickets held"
 
 #. translators: %s: event
-#: src/Mail/Types.php:387
+#: src/Mail/Types.php:406
 #, php-format
 msgid "Tickets für dich reserviert: %s"
 msgstr "Tickets held for you: %s"
 
 #. translators: 1: quantity, 2: ticket type, 3: event, 4: expiry date, 5: accept link
-#: src/Mail/Types.php:389
+#: src/Mail/Types.php:408
 #, php-format
 msgid ""
 "Gute Nachrichten: Für dich sind %1$s × „%2$s“ für „%3$s“ reserviert.\n"
@@ -8809,38 +9234,38 @@ msgstr ""
 "\n"
 "If you no longer need the tickets, you can decline the offer using the same link."
 
-#: src/Mail/Types.php:393
+#: src/Mail/Types.php:412
 msgid "Mitgliedspass"
 msgstr "Membership pass"
 
-#: src/Mail/Types.php:394
+#: src/Mail/Types.php:413
 msgid "Passcode einer Mitgliedschaft bzw. eines Mehrfachpasses."
 msgstr "Passcode of a membership or multi-use pass."
 
-#: src/Mail/Types.php:396
+#: src/Mail/Types.php:415
 msgid "Passcode"
 msgstr "Passcode"
 
-#: src/Mail/Types.php:397
+#: src/Mail/Types.php:416
 msgid "Gültig ab"
 msgstr "Valid from"
 
 #. translators: %s: site name
-#: src/Mail/Types.php:401
+#: src/Mail/Types.php:420
 #, php-format
 msgid "Dein Pass für %s"
 msgstr "Your pass for %s"
 
-#: src/Mail/Types.php:402
+#: src/Mail/Types.php:421
 msgid "Dein Passcode:"
 msgstr "Your pass code:"
 
-#: src/Mail/Types.php:402
+#: src/Mail/Types.php:421
 msgid "Gültig bis:"
 msgstr "Valid until:"
 
 #. translators: %d: number of tickets
-#: src/Mail/Types.php:412
+#: src/Mail/Types.php:431
 #, php-format
 msgid "%d Ticket ist damit ungültig."
 msgid_plural "%d Tickets sind damit ungültig."
@@ -8848,29 +9273,29 @@ msgstr[0] "%d ticket is therefore invalid."
 msgstr[1] "%d tickets are therefore invalid."
 
 #. translators: %s: amount
-#: src/Mail/Types.php:425
+#: src/Mail/Types.php:444
 #, php-format
 msgid "Aufpreis bezahlt: %s"
 msgstr "Surcharge paid: %s"
 
 #. translators: %s: amount
-#: src/Mail/Types.php:427
+#: src/Mail/Types.php:446
 #, php-format
 msgid "Die Preisdifferenz von %s wird erstattet."
 msgstr "The price difference of %s will be refunded."
 
 #. translators: %s: amount
-#: src/Mail/Types.php:429
+#: src/Mail/Types.php:448
 #, php-format
 msgid "Die Erstattung der Preisdifferenz von %s wird geprüft."
 msgstr "The refund of the price difference of %s is being reviewed."
 
-#: src/Mail/Types.php:430
+#: src/Mail/Types.php:449
 msgid "Der Umtausch erfolgte aus Kulanz ohne Aufpreis."
 msgstr "The exchange was made as a goodwill gesture without a surcharge."
 
 #. translators: %s: credit note number
-#: src/Mail/Types.php:438
+#: src/Mail/Types.php:457
 #, php-format
 msgid "Rechnungskorrektur: %s"
 msgstr "Invoice correction: %s"
@@ -8963,158 +9388,158 @@ msgstr "Device not found."
 msgid "Keine Berechtigung für dieses Gerät."
 msgstr "You do not have permission for this device."
 
-#: src/Modules/Calendar.php:38 src/Modules/Calendar.php:302
+#: src/Modules/Calendar.php:40 src/Modules/Calendar.php:304
 msgid "Kalender"
 msgstr "Calendar"
 
-#: src/Modules/Calendar.php:63
+#: src/Modules/Calendar.php:65
 msgid "Kalendereintrag nicht gefunden."
 msgstr "Calendar entry not found."
 
-#: src/Modules/Calendar.php:198
+#: src/Modules/Calendar.php:200
 msgid "Aktuell sind keine Termine geplant."
 msgstr "No dates are currently scheduled."
 
 #. translators: %s: event name
-#: src/Modules/Calendar.php:210
+#: src/Modules/Calendar.php:212
 #, php-format
 msgid "%s zum Kalender hinzufügen (.ics)"
 msgstr "Add %s to calendar (.ics)"
 
 #. translators: %s: event name
-#: src/Modules/Calendar.php:210
+#: src/Modules/Calendar.php:212
 msgid "Zum Kalender (.ics)"
 msgstr "Add to calendar (.ics)"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "Januar"
 msgstr "January"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "Februar"
 msgstr "February"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "März"
 msgstr "March"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "April"
 msgstr "April"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "Mai"
 msgstr "May"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "Juni"
 msgstr "June"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "Juli"
 msgstr "July"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "August"
 msgstr "August"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "September"
 msgstr "September"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "Oktober"
 msgstr "October"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "November"
 msgstr "November"
 
-#: src/Modules/Calendar.php:240
+#: src/Modules/Calendar.php:242
 msgid "Dezember"
 msgstr "December"
 
-#: src/Modules/Calendar.php:241 src/Series/AdminPage.php:132
+#: src/Modules/Calendar.php:243 src/Series/AdminPage.php:132
 msgid "Montag"
 msgstr "Monday"
 
-#: src/Modules/Calendar.php:241 src/Series/AdminPage.php:132
+#: src/Modules/Calendar.php:243 src/Series/AdminPage.php:132
 msgid "Dienstag"
 msgstr "Tuesday"
 
-#: src/Modules/Calendar.php:241 src/Series/AdminPage.php:132
+#: src/Modules/Calendar.php:243 src/Series/AdminPage.php:132
 msgid "Mittwoch"
 msgstr "Wednesday"
 
-#: src/Modules/Calendar.php:241 src/Series/AdminPage.php:132
+#: src/Modules/Calendar.php:243 src/Series/AdminPage.php:132
 msgid "Donnerstag"
 msgstr "Thursday"
 
-#: src/Modules/Calendar.php:241 src/Series/AdminPage.php:132
+#: src/Modules/Calendar.php:243 src/Series/AdminPage.php:132
 msgid "Freitag"
 msgstr "Friday"
 
-#: src/Modules/Calendar.php:241 src/Series/AdminPage.php:132
+#: src/Modules/Calendar.php:243 src/Series/AdminPage.php:132
 msgid "Samstag"
 msgstr "Saturday"
 
-#: src/Modules/Calendar.php:241 src/Series/AdminPage.php:132
+#: src/Modules/Calendar.php:243 src/Series/AdminPage.php:132
 msgid "Sonntag"
 msgstr "Sunday"
 
-#: src/Modules/Calendar.php:245
+#: src/Modules/Calendar.php:247
 msgid "Monat wechseln"
 msgstr "Change month"
 
-#: src/Modules/Calendar.php:246
+#: src/Modules/Calendar.php:248
 msgid "← Vorheriger Monat"
 msgstr "← Previous month"
 
-#: src/Modules/Calendar.php:247
+#: src/Modules/Calendar.php:249
 msgid "Nächster Monat →"
 msgstr "Next month →"
 
 #. translators: 1: event name, 2: time
-#: src/Modules/Calendar.php:264
+#: src/Modules/Calendar.php:266
 #, php-format
 msgid "%1$s um %2$s"
 msgstr "%1$s at %2$s"
 
-#: src/Modules/Calendar.php:277
+#: src/Modules/Calendar.php:279
 msgid "In diesem Monat sind keine Termine geplant."
 msgstr "No dates are scheduled this month."
 
-#: src/Modules/Calendar.php:287
+#: src/Modules/Calendar.php:289
 msgid "Bitte eine vollständige URL angeben."
 msgstr "Please enter a complete URL."
 
-#: src/Modules/Calendar.php:304
+#: src/Modules/Calendar.php:306
 msgid "Shortcode: [wp_pass_captain_calendar view=\"month\"] oder view=\"list\"; alternativ der Block „WP Pass Captain Kalender“."
 msgstr "Shortcode: [wp_pass_captain_calendar view=\"month\"] or view=\"list\"; alternatively the “WP Pass Captain Calendar” block."
 
-#: src/Modules/Calendar.php:307
+#: src/Modules/Calendar.php:309
 msgid "Seite mit dem Ticket-Shortcode"
 msgstr "Page with the ticket shortcode"
 
 #. translators: %s: anchor format, e.g. #wpcap-occ-{Termin-ID}
-#: src/Modules/Calendar.php:307
+#: src/Modules/Calendar.php:309
 #, php-format
 msgid "Kalendereinträge verlinken auf diese Seite (Anker %s). Leer: nur Anker auf derselben Seite."
 msgstr "Calendar entries link to this page (anchor %s). Empty: anchor on the same page only."
 
 #. translators: %s: anchor format, e.g. #wpcap-occ-{Termin-ID}
-#: src/Modules/Calendar.php:307
+#: src/Modules/Calendar.php:309
 msgctxt "placeholder name for the numeric occurrence ID in an anchor"
 msgid "Termin-ID"
 msgstr "date-ID"
 
 #. translators: %s: anchor format, e.g. #wpcap-occ-{Termin-ID}
-#: src/Modules/Calendar.php:308
+#: src/Modules/Calendar.php:310
 msgid "Ticket-E-Mail"
 msgstr "Ticket email"
 
 #. translators: %s: anchor format, e.g. #wpcap-occ-{Termin-ID}
-#: src/Modules/Calendar.php:308
+#: src/Modules/Calendar.php:310
 msgid "Kalenderdatei (.ics) je Termin anhängen"
 msgstr "Attach a calendar file (.ics) for each date"
 
@@ -9572,11 +9997,6 @@ msgstr "Regenerate secret"
 msgid "Neues Secret erzeugen? Der Empfänger muss es übernehmen."
 msgstr "Generate a new secret? The receiver must update it."
 
-#: src/Modules/Webhooks.php:303 src/Partners/AdminPage.php:404
-#: src/Partners/AdminPage.php:576 src/Seating/AdminPage.php:176
-msgid "Löschen"
-msgstr "Delete"
-
 #: src/Modules/Webhooks.php:303
 msgid "Webhook und Zustellprotokoll löschen?"
 msgstr "Delete the webhook and its delivery log?"
@@ -9672,6 +10092,10 @@ msgstr "Mollie is unreachable: %s"
 #, php-format
 msgid "Mollie-Fehler: %s"
 msgstr "Mollie error: %s"
+
+#: src/Notifications.php:169
+msgid "nicht angegeben"
+msgstr ""
 
 #: src/OccurrenceCancellation.php:81 src/Passes/Cancellation.php:231
 msgid "Der Veranstalter informiert dich über Erstattung oder Ersatztermin."
@@ -10417,37 +10841,37 @@ msgstr "The ticket transfer was saved, but the email could not be delivered. Ple
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr "This event cannot be canceled."
 
-#: src/Orders.php:1632 src/PortalSelfService.php:227
+#: src/Orders.php:1633 src/PortalSelfService.php:227
 #: src/WalletPasses/AppleProvider.php:73
 msgid "Dieses Ticket ist nur einmal gültig. Code nicht weitergeben."
 msgstr "This ticket is valid only once. Do not share the code."
 
-#: src/Orders.php:1684
+#: src/Orders.php:1685
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr "The tickets could not be issued right now. Please try again."
 
-#: src/Orders.php:1756
+#: src/Orders.php:1757
 msgid "Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen."
 msgstr "The tickets could not be renewed right now. Please try again."
 
-#: src/Orders.php:1760
+#: src/Orders.php:1761
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr "Tickets can only be resent after payment is confirmed."
 
-#: src/Orders.php:1770
+#: src/Orders.php:1771
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr "No valid tickets found to resend."
 
-#: src/Orders.php:1780 src/Orders.php:1788 src/Orders.php:1846
+#: src/Orders.php:1781 src/Orders.php:1789 src/Orders.php:1847
 #: src/PortalSelfService.php:199 src/PortalSelfService.php:207
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr "Ticket code could not be renewed."
 
-#: src/Orders.php:1810
+#: src/Orders.php:1811
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; der Versand wird automatisch wiederholt."
 msgstr "At least one email could not be delivered. Ticket codes have been renewed; sending will be retried automatically."
 
-#: src/Orders.php:1840
+#: src/Orders.php:1841
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr "Only valid, not yet checked-in tickets of paid orders can be reissued."
 
@@ -10850,10 +11274,6 @@ msgstr "Note text for small business"
 msgid "Anschrift und USt-IdNr. werden aus den Stammdaten übernommen. Ohne eigenes Präfix wird V{ID} verwendet (z. B. V7-2026-000001); jeder Veranstalter hat einen eigenen lückenlosen Nummernkreis."
 msgstr "Address and VAT ID are taken from the master data. Without a custom prefix, V{ID} is used (e.g. V7-2026-000001); each organizer has their own gapless number range."
 
-#: src/Partners/AdminPage.php:488
-msgid "API-Keys"
-msgstr "API keys"
-
 #: src/Partners/AdminPage.php:491
 msgid "Neuer API-Key – wird nur jetzt einmal angezeigt:"
 msgstr "New API key – shown only once, now:"
@@ -10866,17 +11286,9 @@ msgstr "Please transmit this to the organizer securely. Only a hash is stored."
 msgid "Key"
 msgstr "Key"
 
-#: src/Partners/AdminPage.php:495 src/Partners/AdminPage.php:520
-msgid "Scopes"
-msgstr "Scopes"
-
 #: src/Partners/AdminPage.php:495
 msgid "Einschränkungen"
 msgstr "Restrictions"
-
-#: src/Partners/AdminPage.php:495
-msgid "Zuletzt genutzt"
-msgstr "Last used"
 
 #: src/Partners/AdminPage.php:500
 msgid "Events:"
@@ -10913,10 +11325,6 @@ msgstr "%d sales/min."
 #: src/Partners/AdminPage.php:510
 msgid "Key sofort widerrufen?"
 msgstr "Revoke key immediately?"
-
-#: src/Partners/AdminPage.php:515
-msgid "Neuer API-Key"
-msgstr "New API key"
 
 #: src/Partners/AdminPage.php:522
 msgid "schreibend"
@@ -12178,7 +12586,7 @@ msgstr "The partial refund per day cannot exceed the pass price."
 msgid "Ein neu gewählter Termin hat nicht genug freie Plätze für die bereits verkauften Pässe."
 msgstr "A newly selected date does not have enough available seats for the passes already sold."
 
-#: src/Passes/Definitions.php:304 src/Rest/Controller.php:619
+#: src/Passes/Definitions.php:304 src/Rest/Controller.php:624
 msgid "Pass nicht gefunden."
 msgstr "Pass not found."
 
@@ -12946,10 +13354,6 @@ msgstr "Offer order"
 #: src/Privacy.php:197
 msgid "WP Pass Captain Terminbuchungen"
 msgstr "WP Pass Captain appointment bookings"
-
-#: src/Privacy.php:198
-msgid "Ressource"
-msgstr "Resource"
 
 #: src/Privacy.php:199
 msgid "Termin von/bis (UTC)"
@@ -13989,136 +14393,112 @@ msgstr "Venue/organizer"
 msgid "Künstler/Tourneeleitung"
 msgstr "Artist/tour management"
 
-#: src/Rest/Controller.php:297 src/Waitlists.php:477
+#: src/Rest/Controller.php:302 src/Waitlists.php:477
 msgid "Diese Zahlungsart ist nicht verfügbar."
 msgstr "This payment method is not available."
 
-#: src/Rest/Controller.php:304 src/Waitlists.php:503
+#: src/Rest/Controller.php:309 src/Waitlists.php:503
 msgid "Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart."
 msgstr "Payment by bank transfer is no longer possible this close to the start. Please choose a different payment method."
 
-#: src/Rest/Controller.php:312
+#: src/Rest/Controller.php:317
 msgid "Der Rabattcode konnte nicht sicher auf die Bestellung angewendet werden. Bitte versuche es erneut."
 msgstr "The discount code could not be applied to the order reliably. Please try again."
 
-#: src/Rest/Controller.php:321
+#: src/Rest/Controller.php:326
 msgid "Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab."
 msgstr "This order attempt was cancelled. Please submit the form again."
 
-#: src/Rest/Controller.php:342
+#: src/Rest/Controller.php:347
 msgid "Diese Zahlungsart unterstützt die Währung nicht."
 msgstr "This payment method does not support the currency."
 
-#: src/Rest/Controller.php:387
+#: src/Rest/Controller.php:392
 msgid "Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen."
 msgstr "There are already open, unpaid orders for this email address. Please pay them first or let them expire."
 
-#: src/Rest/Controller.php:448 src/Rest/Controller.php:482
-#: src/Rest/Controller.php:502 src/Rest/Controller.php:514
+#: src/Rest/Controller.php:453 src/Rest/Controller.php:487
+#: src/Rest/Controller.php:507 src/Rest/Controller.php:519
 msgid "Der Bestellzugriff ist ungültig oder abgelaufen."
 msgstr "The order access is invalid or has expired."
 
-#: src/Rest/Controller.php:552
+#: src/Rest/Controller.php:557
 msgid "POS-Verkaufspositionen oder Idempotency-Key sind ungültig."
 msgstr "POS line items or idempotency key are invalid."
 
-#: src/Rest/Controller.php:554
+#: src/Rest/Controller.php:559
 msgid "Kassenverkäufe laufen über das Kassenmodul (Schicht, Belegnummer, Z-Bericht)."
 msgstr "Box office sales are handled through the box office module (shift, receipt number, Z report)."
 
-#: src/Rest/Controller.php:562
+#: src/Rest/Controller.php:567
 msgid "Alle Positionen eines Kassenverkaufs müssen zum selben Termin gehören."
 msgstr "All items of a box office sale must belong to the same date."
 
-#: src/Rest/Controller.php:598
+#: src/Rest/Controller.php:603
 msgid "Für dieses Event fehlt die Einlassberechtigung."
 msgstr "Check-in permission is missing for this event."
 
-#: src/Rest/Controller.php:606
+#: src/Rest/Controller.php:611
 msgid "Mindestens eine Passregel ist erforderlich."
 msgstr "At least one pass rule is required."
 
-#: src/Rest/Controller.php:609
+#: src/Rest/Controller.php:614
 msgid "Keine Berechtigung für eine Passregel."
 msgstr "You do not have permission for a pass rule."
 
-#: src/Rest/Controller.php:621
+#: src/Rest/Controller.php:626
 msgid "Keine Berechtigung für diesen Pass."
 msgstr "You do not have permission for this pass."
 
-#: src/Rest/Controller.php:632
+#: src/Rest/Controller.php:637
 msgid "Sitzplan nicht gefunden."
 msgstr "Seating plan not found."
 
-#: src/Rest/Controller.php:678
+#: src/Rest/Controller.php:683
 msgid "Keine Berechtigung für diese Ticketart."
 msgstr "You do not have permission for this ticket type."
 
-#: src/Rest/Controller.php:716
+#: src/Rest/Controller.php:721
 msgid "Berichtszeitraum muss gültig und höchstens 90 Tage lang sein."
 msgstr "The report period must be valid and no longer than 90 days."
 
-#: src/Rest/Controller.php:733
-msgid "Ablaufdatum muss in der Zukunft liegen."
-msgstr "The expiration date must be in the future."
-
-#: src/Rest/Controller.php:758
+#: src/Rest/Controller.php:777
 msgid "Übersetzung nicht gefunden."
 msgstr "Translation not found."
 
-#: src/Rest/Controller.php:768
+#: src/Rest/Controller.php:787
 msgid "Locale oder übersetzter Titel ist ungültig."
 msgstr "Invalid locale or translated title."
 
-#: src/Rest/Controller.php:789
+#: src/Rest/Controller.php:808
 msgid "Sitzplan muss einen Namen und 1 bis 500 Sitzplätze enthalten."
 msgstr "A seating plan must have a name and 1 to 500 seats."
 
-#: src/Rest/Controller.php:796
+#: src/Rest/Controller.php:815
 msgid "Sitzplan konnte nicht gespeichert werden."
 msgstr "Seating plan could not be saved."
 
-#: src/Rest/Controller.php:800
+#: src/Rest/Controller.php:819
 msgid "Jeder Sitzplatz benötigt einen eindeutigen Schlüssel und eine Bezeichnung."
 msgstr "Each seat needs a unique key and a label."
 
-#: src/Rest/Controller.php:802
+#: src/Rest/Controller.php:821
 msgid "Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel."
 msgstr "Not all seats could be saved; check for duplicate keys."
 
-#: src/Rest/Controller.php:814
-msgid "Ressourcenname fehlt."
-msgstr "Resource name is missing."
-
-#: src/Rest/Controller.php:816
-msgid "Ressource konnte nicht gespeichert werden."
-msgstr "Resource could not be saved."
-
-#: src/Rest/Controller.php:824
-msgid "Keine Berechtigung für diese Ressource."
-msgstr "You do not have permission for this resource."
-
-#: src/Rest/Controller.php:828
-msgid "Zeitfenster ist ungültig."
-msgstr "Invalid time slot."
-
-#: src/Rest/Controller.php:830
-msgid "Zeitfenster konnte nicht gespeichert werden."
-msgstr "Time slot could not be saved."
-
-#: src/Rest/Controller.php:838
+#: src/Rest/Controller.php:841
 msgid "Keine Berechtigung für diesen Termin."
 msgstr "You do not have permission for this date."
 
-#: src/Rest/Controller.php:841
+#: src/Rest/Controller.php:844
 msgid "Bitte 1 bis 31 Veranstaltungstage angeben."
 msgstr "Please specify 1 to 31 event days."
 
-#: src/Rest/Controller.php:850
+#: src/Rest/Controller.php:853
 msgid "Ein Veranstaltungstag oder eine Einlassregel ist ungültig."
 msgstr "An event day or admission rule is invalid."
 
-#: src/Rest/Controller.php:852
+#: src/Rest/Controller.php:855
 msgid "Einlassregeln konnten nicht gespeichert werden."
 msgstr "Admission rules could not be saved."
 
@@ -15284,16 +15664,16 @@ msgstr "Series not found."
 msgid "Eine andere Serie dieses Events hat bereits genau diese Definition."
 msgstr "Another series of this event already has exactly this definition."
 
-#: src/Series/Generator.php:518
+#: src/Series/Generator.php:519
 msgid "Die Termine haben sich seit der Vorschau geändert. Bitte prüfe die Vorschau erneut."
 msgstr "The dates have changed since the preview. Please review the preview again."
 
-#: src/Series/Generator.php:598
+#: src/Series/Generator.php:601
 msgid "Die Serie konnte nicht geändert werden; es wurde nichts gespeichert."
 msgstr "The series could not be changed; nothing was saved."
 
 #. translators: %d: number of occurrences
-#: src/Series/Generator.php:623
+#: src/Series/Generator.php:625
 #, php-format
 msgid "Bei %d Terminen konnte der Saalplan nicht umgestellt werden (z. B. weil verkaufte Plätze in der neuen Version fehlen). Bitte prüfe sie unter Saalpläne."
 msgstr "The seat map could not be switched for %d dates (e.g. because sold seats are missing in the new version). Please check them under Seat maps."
@@ -15422,29 +15802,59 @@ msgstr "Please specify the week of the month and the weekday."
 msgid "Die Regel ergibt mehr als %d Termine; bitte Enddatum oder Anzahl verringern."
 msgstr "The rule results in more than %d dates; please reduce the end date or the number."
 
-#: src/ServiceBookings.php:14
+#: src/ServiceBookings.php:17
 msgid "Buchungsdaten oder Idempotency-Key ungültig."
 msgstr "Invalid booking data or idempotency key."
 
-#: src/ServiceBookings.php:17 src/ServiceBookings.php:21
+#: src/ServiceBookings.php:20 src/ServiceBookings.php:24
 msgid "Zu viele Buchungsversuche; bitte warte kurz."
 msgstr "Too many booking attempts; please wait a moment."
 
-#: src/ServiceBookings.php:29
+#: src/ServiceBookings.php:32
 msgid "Idempotency-Key wurde für eine andere Buchung verwendet."
 msgstr "Idempotency key was used for a different booking."
 
-#: src/ServiceBookings.php:35
+#: src/ServiceBookings.php:38
 msgid "Dieses Zeitfenster ist nicht verfügbar."
 msgstr "This time slot is not available."
 
-#: src/ServiceBookings.php:38
+#: src/ServiceBookings.php:41
 msgid "Für dieses Zeitfenster sind nicht genügend Plätze frei."
 msgstr "Not enough spots are available for this time slot."
 
-#: src/ServiceBookings.php:41
+#: src/ServiceBookings.php:44
 msgid "Zeitfenster konnte nicht reserviert werden."
 msgstr "Time slot could not be reserved."
+
+#: src/ServiceBookings.php:83
+msgid "Ressourcenname fehlt."
+msgstr "Resource name is missing."
+
+#: src/ServiceBookings.php:96
+msgid "Ressource konnte nicht gespeichert werden."
+msgstr "Resource could not be saved."
+
+#: src/ServiceBookings.php:123
+msgid "Die Ressource hat Buchungen und kann nicht gelöscht werden. Deaktiviere sie stattdessen."
+msgstr ""
+
+#: src/ServiceBookings.php:155
+msgid "Zeitfenster konnte nicht gespeichert werden."
+msgstr "Time slot could not be saved."
+
+#. translators: %d: number of booked places
+#: src/ServiceBookings.php:182
+#, php-format
+msgid "Die Kapazität darf nicht unter die bereits gebuchten Plätze (%d) sinken."
+msgstr ""
+
+#: src/ServiceBookings.php:190
+msgid "Das Zeitfenster hat Buchungen; die Uhrzeit kann nicht mehr geändert werden. Schließe es und lege ein neues an."
+msgstr ""
+
+#: src/ServiceBookings.php:207
+msgid "Das Zeitfenster hat Buchungen und kann nicht gelöscht werden. Schließe es stattdessen."
+msgstr ""
 
 #: src/Sms/HttpProvider.php:47
 msgid "Der HTTP-SMS-Anbieter ist nicht konfiguriert (HTTPS-Endpunkt erforderlich)."
@@ -15768,10 +16178,6 @@ msgstr "Entry skipped."
 #: src/Waitlists/AdminPage.php:50
 msgid "Priorität gespeichert."
 msgstr "Priority saved."
-
-#: src/Waitlists/AdminPage.php:88
-msgid "– Event wählen –"
-msgstr "– Select event –"
 
 #: src/Waitlists/AdminPage.php:109
 msgid "Freie Plätze jetzt anbieten"
