@@ -112,7 +112,22 @@ final class Statement {
 			$t['fee'] += $l['fee_minor'];
 		}
 		$t['remuneration_net'] = $t['commission'] + $t['fee'];
-		$t['remuneration_tax'] = self::pct( $t['remuneration_net'], (int) $partner->fee_tax_rate_bp );
+		// The remuneration is the reseller's service to the platform: no VAT for a small business
+		// reseller; reverse charge when the reseller is established in another EU state than the
+		// platform and the platform has a VAT ID (SalesModel::reverse_charge()).
+		$platform = SalesModel::platform_seller();
+		$t['remuneration_small_business'] = ! empty( $partner->small_business );
+		$t['remuneration_reverse_charge'] = ! $t['remuneration_small_business'] && SalesModel::reverse_charge( SalesModel::partner_country( $partner ), (string) $platform['country'], (string) $platform['vat_id'] );
+		$t['remuneration_note'] = $t['remuneration_small_business']
+			? SalesModel::organizer_seller( $partner )['small_business_note']
+			: ( $t['remuneration_reverse_charge'] ? SalesModel::reverse_charge_note() : '' );
+		$t['remuneration_tax'] = ( $t['remuneration_small_business'] || $t['remuneration_reverse_charge'] ) ? 0 : self::pct( $t['remuneration_net'], (int) $partner->fee_tax_rate_bp );
+		/**
+		 * Document of the remuneration: 'reseller_invoice' (default: the reseller invoices the platform
+		 * with its own number) or 'self_billing' (the platform issues a Gutschrift; needs the reseller's
+		 * agreement and a number range – see the open tax question in TODO.md).
+		 */
+		$t['remuneration_document'] = (string) apply_filters( 'wpcap_reseller_statement_document', 'reseller_invoice', $partner );
 		$t['remuneration_gross'] = $t['remuneration_net'] + $t['remuneration_tax'];
 		$t['due_to_platform'] = $t['gross'] - $t['remuneration_gross'];
 		$t['terms'] = array( 'role' => Repository::role_of( $partner ), 'commission_bp' => (int) ( $partner->reseller_commission_bp ?? 0 ), 'fee_per_ticket_minor' => (int) ( $partner->reseller_fee_minor ?? 0 ), 'fee_tax_rate_bp' => (int) $partner->fee_tax_rate_bp );
@@ -132,6 +147,7 @@ final class Statement {
 				'tickets_sold' => $t['tickets_sold'], 'tickets_refunded' => $t['tickets_refunded'], 'sales_gross_minor' => $t['sales_gross'], 'refunded_minor' => $t['refunded'],
 				'gross_minor' => $t['gross'], 'tax_minor' => $t['tax'], 'net_minor' => $t['net'], 'commission_minor' => $t['commission'], 'fee_minor' => $t['fee'],
 				'remuneration_net_minor' => $t['remuneration_net'], 'remuneration_tax_minor' => $t['remuneration_tax'], 'remuneration_gross_minor' => $t['remuneration_gross'], 'due_to_platform_minor' => $t['due_to_platform'],
+				'remuneration_reverse_charge' => $t['remuneration_reverse_charge'], 'remuneration_small_business' => $t['remuneration_small_business'], 'remuneration_note' => $t['remuneration_note'], 'remuneration_document' => $t['remuneration_document'],
 			),
 			'lines' => array_map( static function ( $l ) use ( $iso ) {
 				return array( 'kind' => $l['kind'], 'order_id' => $l['order'], 'external_reference' => $l['external_reference'], 'event_id' => $l['event_id'], 'ticket_type_id' => $l['ticket_type_id'], 'occurred_at' => $iso( $l['occurred_at'] ), 'tax_rate_bp' => $l['tax_rate_bp'], 'tickets' => $l['tickets'], 'gross_minor' => $l['gross_minor'], 'tax_minor' => $l['tax_minor'], 'net_minor' => $l['net_minor'], 'commission_minor' => $l['commission_minor'], 'fee_minor' => $l['fee_minor'] );
@@ -154,6 +170,8 @@ final class Statement {
 		$rows[] = array( __( 'Vereinnahmt brutto nach Erstattungen', 'wp-pass-captain' ), $money( $t['gross'] ) );
 		$rows[] = array( __( 'Vergütung netto (Provision + Gebühren)', 'wp-pass-captain' ), $money( $t['remuneration_net'] ) );
 		$rows[] = array( __( 'USt auf Vergütung', 'wp-pass-captain' ), $money( $t['remuneration_tax'] ) );
+		if ( '' !== $t['remuneration_note'] ) { $rows[] = array( __( 'Hinweis Vergütung', 'wp-pass-captain' ), $t['remuneration_note'] ); }
+		$rows[] = array( __( 'Beleg der Vergütung', 'wp-pass-captain' ), 'self_billing' === $t['remuneration_document'] ? __( 'Gutschrift der Plattform', 'wp-pass-captain' ) : __( 'Rechnung des Wiederverkäufers (eigene Rechnungsnummer)', 'wp-pass-captain' ) );
 		$rows[] = array( __( 'An die Plattform abzuführen', 'wp-pass-captain' ), $money( $t['due_to_platform'] ) );
 		return $rows;
 	}

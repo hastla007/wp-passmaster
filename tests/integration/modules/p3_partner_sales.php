@@ -315,7 +315,17 @@ check( 'statement via API (settlements:read)', 200 === ps_status( $api_st ) && $
 check( 'statement refused for type-restricted keys / without scope', 403 === ps_status( ps_req( 'GET', '/partner/sales/statement', $tok_res_tc, null, array( 'period' => $period ) ) ) );
 $org_st = Statement::compute( Partners::get( $o1 ), $period )['totals'];
 check( 'organizer API sales: no reseller remuneration, everything collected is due', 0 === $org_st['commission'] && $org_st['due_to_platform'] === $org_st['gross'] );
-check( 'statement CSV has a header and totals', count( Statement::csv_rows( Partners::get( $r1 ), $period ) ) === count( $st['lines'] ) + 6 );
+check( 'statement CSV has a header and totals', count( Statement::csv_rows( Partners::get( $r1 ), $period ) ) === count( $st['lines'] ) + 7 );
+// Audit 3 (A023): reseller remuneration without VAT for a small business and with reverse charge.
+check( 'A023: domestic reseller: remuneration with VAT, document is the reseller invoice', $t['remuneration_tax'] > 0 && 'reseller_invoice' === $t['remuneration_document'] && false === $t['remuneration_reverse_charge'] );
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partners SET small_business=1 WHERE partner_id=%d", $r1 ) );
+$t_sb = Statement::compute( Partners::get( $r1 ), $period )['totals'];
+check( 'A023: small business reseller: no VAT on the remuneration, with note', 0 === $t_sb['remuneration_tax'] && true === $t_sb['remuneration_small_business'] && '' !== $t_sb['remuneration_note'] );
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partners SET small_business=0,country='AT' WHERE partner_id=%d", $r1 ) );
+PassCaptain\Settings::update( array( 'seller_country' => 'DE', 'seller_vat_id' => 'DE123456789' ) );
+$t_rc = Statement::compute( Partners::get( $r1 ), $period )['totals'];
+check( 'A023: reseller in another EU state: reverse charge, no VAT', 0 === $t_rc['remuneration_tax'] && true === $t_rc['remuneration_reverse_charge'] && false !== strpos( $t_rc['remuneration_note'], 'Reverse Charge' ) );
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partners SET country='' WHERE partner_id=%d", $r1 ) );
 
 echo "Partner sales: write rate limit and audit\n";
 $GLOBALS['wpcap_test_transients'] = array();
