@@ -51,6 +51,8 @@ if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $url, $compo
 if ( ! function_exists( 'untrailingslashit' ) ) { function untrailingslashit( $s ) { return rtrim( (string) $s, '/\\' ); } }
 // DNS for OutboundHttp: every test host resolves to a public address unless a test sets $GLOBALS['wpcap_test_dns'][ $host ].
 add_filter( 'wpcap_outbound_resolve', static function ( $ips, $host ) { return $ips ?? ( $GLOBALS['wpcap_test_dns'][ $host ] ?? array( '93.184.216.34' ) ); }, 10, 2 );
+// HTTP is stubbed, so pinning never touches cURL: behave the same with or without the cURL extension (CI images differ).
+$GLOBALS['wpcap_test_filters']['wpcap_outbound_can_pin'] = true;
 
 if ( ! class_exists( 'WP_REST_Request' ) ) {
 	class WP_REST_Request implements ArrayAccess {

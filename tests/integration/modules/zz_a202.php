@@ -86,7 +86,8 @@ check( 'without cURL (no pinning) the request is refused', 'wpcap_http_unpinned'
 $GLOBALS['wpcap_test_filters']['wpcap_outbound_allow_unpinned'] = true;
 http_push( array(), 200, 'public.example' );
 check( 'wpcap_outbound_allow_unpinned lets it through (explicit opt-out)', ! is_wp_error( OutboundHttp::request( 'https://public.example/x' ) ) );
-unset( $GLOBALS['wpcap_test_filters']['wpcap_outbound_can_pin'], $GLOBALS['wpcap_test_filters']['wpcap_outbound_allow_unpinned'] );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_outbound_allow_unpinned'] );
+$GLOBALS['wpcap_test_filters']['wpcap_outbound_can_pin'] = true;
 
 echo "A202: redirects, size limits, pre_http_request stubs\n";
 $a202_pre = static function ( $pre, $args, $url ) {
