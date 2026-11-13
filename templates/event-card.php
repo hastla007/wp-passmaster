@@ -2,7 +2,8 @@
 /**
  * Theme-overridable event card. Copy to your-theme/wp-pass-captain/event-card.php.
  *
- * Available: $event, $types (with ->available, ->fields), $providers (id => gateway), $legal.
+ * Available: $event, $types (with ->available, ->fields), $providers (id => gateway), $legal
+ * (require_terms, terms_text, consumer_info_text, locale, terms_version; texts in the page language).
  * The checkout script relies on the class names, the name attributes and the field wrappers
  * (.wpcap-field) for inline error messages.
  */
@@ -126,7 +127,9 @@ $wpcap_waitlist = $wpcap_soldout && (bool) apply_filters( 'wpcap_waitlist_public
 		<?php if ( $wpcap_has_consumer_info ) : ?>
 			<details class="wpcap-legal"><summary><?php esc_html_e( 'Verbraucherinformationen', 'wp-pass-captain' ); ?></summary><?php echo wp_kses_post( wpautop( $legal['consumer_info_text'] ) ); ?></details>
 		<?php endif; ?>
+		<?php if ( ! empty( $legal['locale'] ) ) : ?><input type="hidden" name="locale" value="<?php echo esc_attr( $legal['locale'] ); ?>"><?php endif; ?>
 		<?php if ( $legal['require_terms'] ) : ?>
+			<?php if ( ! empty( $legal['terms_version'] ) ) : ?><input type="hidden" name="terms_version" value="<?php echo esc_attr( $legal['terms_version'] ); ?>"><?php endif; ?>
 			<?php if ( '' !== trim( $legal['terms_text'] ) ) : ?><details class="wpcap-legal"><summary><?php esc_html_e( 'Bedingungen', 'wp-pass-captain' ); ?></summary><?php echo wp_kses_post( wpautop( $legal['terms_text'] ) ); ?></details><?php endif; ?>
 			<div class="wpcap-field wpcap-terms">
 				<input id="<?php echo esc_attr( $form_id . '-terms' ); ?>" type="checkbox" name="accept_terms" value="1" required>

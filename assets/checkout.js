@@ -375,6 +375,8 @@
 		const provider = form.querySelector('[name="provider"]:checked') || form.querySelector('input[type="hidden"][name="provider"]');
 		const code = form.querySelector('[name="campaign_code"]');
 		const terms = form.querySelector('[name="accept_terms"]');
+		const termsVersion = form.querySelector('input[type="hidden"][name="terms_version"]');
+		const formLocale = form.querySelector('input[type="hidden"][name="locale"]');
 		const voucher = form.querySelector('[name="voucher_code"]');
 		const single = form.querySelector('[name="code"]');
 		const email = form.querySelector('[name="email"]').value.trim();
@@ -406,6 +408,8 @@
 					campaign_codes: code && code.value.trim() ? [code.value.trim()] : [],
 					provider: provider ? provider.value : 'manual',
 					accept_terms: terms ? terms.checked : false,
+					terms_version: termsVersion ? termsVersion.value : '',
+					locale: formLocale ? formLocale.value : '',
 					voucher_code: voucher ? voucher.value.trim() : '',
 					code: single ? single.value.trim() : '',
 					idempotency_key: form.dataset.key

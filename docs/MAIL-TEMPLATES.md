@@ -23,7 +23,7 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 | `waitlist_offer` | Platzangebot aus der Warteliste (Tickets bis zum Ablauf reserviert) | `{offer_expires}`, `{accept_link}`, `{quantity}`, `{position}`, `{event_name}`, `{ticket_name}` |
 | `member_pass` | Mitgliedspass ausgestellt | `{pass_code}`, `{valid_from}`, `{valid_until}` |
 
-In allen Mails stehen außerdem `{site_name}` (Filter `wpcap_sender_name`) und `{site_url}` zur Verfügung. Die vollständige Liste mit Beschreibung zeigt der Editor je Typ.
+In allen Mails stehen außerdem `{site_name}` (Filter `wpcap_sender_name`), `{site_url}` sowie `{terms_text}` und `{consumer_info_text}` zur Verfügung. Die Rechtstexte erscheinen in der Sprache der Mail (Locale der Bestellung) und fallen je Text auf die Standardsprache zurück, wenn für diese Sprache keine eigene Fassung gepflegt ist (**Einstellungen → Rechtstexte**). Die vollständige Liste mit Beschreibung zeigt der Editor je Typ.
 
 Erinnerungen (Modul *Erinnerungen*) werden weiterhin auf ihrer eigenen Seite bearbeitet (nur Text); sie gehen über die Nachrichten-Warteschlange und ebenfalls über den zentralen Mailer (`Mailer::deliver`). Der fertig ersetzte Text wird als Ganzes maskiert, URLs werden verlinkt und in das HTML-Layout gesetzt (Format-Schlüssel `reminder` im Filter `wpcap_mail_default_format`).
 

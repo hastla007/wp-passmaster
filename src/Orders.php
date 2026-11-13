@@ -43,6 +43,10 @@ final class Orders {
 		if ( ! $external && Settings::get( 'require_terms' ) && empty( $payload['accept_terms'] ) ) {
 			return new \WP_Error( 'wpcap_terms_required', __( 'Bitte bestätige die Bedingungen und Verbraucherinformationen.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
+		// Buyer language: the locale the checkout form was rendered in (legal texts, mails), else the request locale.
+		$order_locale = Mail\Mailer::normalize_locale( is_string( $payload['locale'] ?? null ) ? $payload['locale'] : '' );
+		if ( '' === $order_locale ) { $order_locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : ''; }
+		$terms_version = $external ? '' : Settings::terms_version( $order_locale );
 		$unit_prices = ( $external && is_array( $internal['unit_prices'] ?? null ) ) ? array_map( 'absint', $internal['unit_prices'] ) : array();
 		// Exact gross line totals from the external system (unit prices may not divide evenly).
 		$line_totals = ( $external && is_array( $internal['line_totals'] ?? null ) ) ? array_map( 'absint', $internal['line_totals'] ) : array();
@@ -52,6 +56,11 @@ final class Orders {
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status FROM $orders_table WHERE idempotency_key = %s", $key_hash ) );
 		if ( $existing ) {
 			return array( 'order_id' => (int) $existing->order_id, 'public_id' => $existing->public_id, 'status' => $existing->status, 'payment_status' => $existing->payment_status, 'reused' => true );
+		}
+		// The form names the version it showed: accepting texts that changed meanwhile is no valid consent.
+		$shown_version = is_string( $payload['terms_version'] ?? null ) ? $payload['terms_version'] : '';
+		if ( ! $external && Settings::get( 'require_terms' ) && '' !== $shown_version && $shown_version !== $terms_version ) {
+			return new \WP_Error( 'wpcap_terms_changed', __( 'Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung.', 'wp-pass-captain' ), array( 'status' => 409 ) );
 		}
 
 		// The per-type limit is the ticket type's max_per_order (checked under lock below); this is
@@ -235,8 +244,8 @@ final class Orders {
 				'price_snapshot' => $price_snapshot,
 				'tax_minor' => $tax_total,
 				'payment_provider' => $payment_provider,
-				'terms_version' => $external ? '' : Settings::terms_version(),
-				'locale' => function_exists( 'determine_locale' ) ? determine_locale() : '',
+				'terms_version' => $terms_version,
+				'locale' => $order_locale,
 				'attendee_data' => $attendees ? wp_json_encode( $attendees ) : null,
 				'created_at' => $now,
 				'updated_at' => $now,

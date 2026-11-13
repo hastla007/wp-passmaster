@@ -42,6 +42,8 @@ final class Types {
 		return array(
 			'site_name' => __( 'Name der Website', 'wp-pass-captain' ),
 			'site_url' => __( 'Adresse der Website', 'wp-pass-captain' ),
+			'terms_text' => __( 'AGB / Teilnahmebedingungen in der Sprache des Empfängers', 'wp-pass-captain' ),
+			'consumer_info_text' => __( 'Verbraucherinformationen in der Sprache des Empfängers', 'wp-pass-captain' ),
 		);
 	}
 

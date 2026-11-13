@@ -136,11 +136,7 @@ final class PublicEvents {
 				$providers = Payments\Registry::enabled( $types[0]->currency );
 				// Bank transfer is not offered when the start is closer than manual_cutoff_hours.
 				if ( isset( $providers['manual'] ) && count( $providers ) > 1 && null === Orders::manual_hold_until( strtotime( $event->starts_at . ' UTC' ) ) ) { unset( $providers['manual'] ); }
-				$legal = array(
-					'require_terms' => (bool) Settings::get( 'require_terms' ),
-					'terms_text' => (string) Settings::get( 'terms_text' ),
-					'consumer_info_text' => (string) Settings::get( 'consumer_info_text' ),
-				);
+				$legal = self::legal_context();
 				?>
 				<?php
 				$template = locate_template( 'wp-pass-captain/event-card.php' );
@@ -155,6 +151,23 @@ final class PublicEvents {
 		</div>
 		<?php
 		return ob_get_clean();
+	}
+
+	/**
+	 * Legal texts of the checkout form in the page language (fallback: default language) plus the
+	 * locale and version the form sends back, so the order stores the version the buyer was shown.
+	 *
+	 * @return array require_terms, terms_text, consumer_info_text, locale, terms_version.
+	 */
+	public static function legal_context( $locale = null ) {
+		$locale = Mail\Mailer::normalize_locale( null === $locale ? Mail\Mailer::current_locale() : (string) $locale );
+		return array(
+			'require_terms' => (bool) Settings::get( 'require_terms' ),
+			'terms_text' => Settings::legal_text( 'terms_text', $locale ),
+			'consumer_info_text' => Settings::legal_text( 'consumer_info_text', $locale ),
+			'locale' => $locale,
+			'terms_version' => Settings::terms_version( $locale ),
+		);
 	}
 
 	/**

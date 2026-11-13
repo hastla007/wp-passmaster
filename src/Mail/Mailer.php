@@ -100,7 +100,7 @@ final class Mailer {
 		$def = self::type( $type );
 		// Optional per-type derived values (e.g. payment details of an order); passed values win.
 		$derived = $def && isset( $def['vars'] ) && is_callable( $def['vars'] ) ? (array) call_user_func( $def['vars'], $vars ) : array();
-		$vars = self::resolve_vars( array_merge( self::global_vars(), $derived, $vars ) );
+		$vars = self::resolve_vars( array_merge( self::global_vars( $locale ), $derived, $vars ) );
 		$body = (string) ( $template['body'] ?? '' );
 		$text_body = null;
 		if ( $html && ! self::has_tags( $body ) ) {
@@ -238,10 +238,21 @@ final class Mailer {
 	/* ---------------------------------------------------------------- Rendering helpers */
 
 	/** Placeholders available in every mail type. */
-	public static function global_vars() {
+	public static function global_vars( $locale = '' ) {
+		$locale = self::normalize_locale( $locale );
+		$locale = '' !== $locale ? $locale : self::current_locale();
+		$legal = static function ( $key ) use ( $locale ) {
+			return static function () use ( $key, $locale ) {
+				$text = \PassCaptain\Settings::legal_text( $key, $locale );
+				return '' === trim( $text ) ? '' : self::block( Layout::to_text( $text ), wp_kses_post( function_exists( 'wpautop' ) ? wpautop( $text ) : $text ) );
+			};
+		};
 		return array(
 			'site_name' => Orders::site_name(),
 			'site_url' => self::link( home_url( '/' ) ),
+			// Legal texts in the recipient's language (fallback: default language), built only when used.
+			'terms_text' => $legal( 'terms_text' ),
+			'consumer_info_text' => $legal( 'consumer_info_text' ),
 		);
 	}
 

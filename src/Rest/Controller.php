@@ -289,7 +289,7 @@ final class Controller {
 				$params['voucher_code'] = $single_code;
 			}
 		}
-		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code', 'billing' ) ) ) );
+		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'terms_version', 'locale', 'voucher_code', 'billing' ) ) ) );
 		$provider_id = sanitize_key( $params['provider'] ?? 'manual' );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
 		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );
@@ -401,6 +401,7 @@ final class Controller {
 		$map = array(
 			'wpcap_invalid_checkout' => 'email',
 			'wpcap_terms_required' => 'accept_terms',
+			'wpcap_terms_changed' => 'accept_terms',
 			'wpcap_attendees_invalid' => 'attendees',
 			'wpcap_attendee_field_required' => 'attendees',
 			'wpcap_attendee_field_invalid' => 'attendees',
@@ -425,12 +426,16 @@ final class Controller {
 		$currency = strtoupper( sanitize_text_field( $request->get_param( 'currency' ) ?: 'EUR' ) );
 		$providers = array();
 		foreach ( \PassCaptain\Payments\Registry::enabled( $currency ) as $id => $gateway ) { $providers[] = array( 'id' => $id, 'title' => $gateway->title() ); }
+		// Legal texts in the buyer's language (?locale=en_US), falling back to the default language.
+		$locale = \PassCaptain\Mail\Mailer::normalize_locale( (string) $request->get_param( 'locale' ) );
+		if ( '' === $locale ) { $locale = \PassCaptain\Mail\Mailer::current_locale(); }
 		return rest_ensure_response( array(
 			'providers' => $providers,
 			'require_terms' => (bool) \PassCaptain\Settings::get( 'require_terms' ),
-			'terms_text' => wp_kses_post( (string) \PassCaptain\Settings::get( 'terms_text' ) ),
-			'consumer_info_text' => wp_kses_post( (string) \PassCaptain\Settings::get( 'consumer_info_text' ) ),
-			'terms_version' => \PassCaptain\Settings::terms_version(),
+			'locale' => $locale,
+			'terms_text' => wp_kses_post( \PassCaptain\Settings::legal_text( 'terms_text', $locale ) ),
+			'consumer_info_text' => wp_kses_post( \PassCaptain\Settings::legal_text( 'consumer_info_text', $locale ) ),
+			'terms_version' => \PassCaptain\Settings::terms_version( $locale ),
 		) );
 	}
 

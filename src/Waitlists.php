@@ -490,7 +490,8 @@ final class Waitlists {
 			}
 			self::on_order_paid( $order_id );
 		} else {
-			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'payment_provider' => $gateway->id(), 'terms_version' => Settings::terms_version(), 'locale' => function_exists( 'determine_locale' ) ? determine_locale() : '', 'updated_at' => $now ), array( 'order_id' => $order_id, 'payment_status' => 'pending' ) );
+			$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : '';
+			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'payment_provider' => $gateway->id(), 'terms_version' => Settings::terms_version( $locale ), 'locale' => $locale, 'updated_at' => $now ), array( 'order_id' => $order_id, 'payment_status' => 'pending' ) );
 			// The hold now covers the payment window of the chosen method (never shortened).
 			$minutes = max( 30, (int) Settings::get( 'hold_minutes' ) );
 			if ( 'manual' === $gateway->id() ) {

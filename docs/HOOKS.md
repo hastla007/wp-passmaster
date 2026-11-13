@@ -72,6 +72,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 |---|---|---|
 | `wpcap_checkout_payload_keys` | `string[] $keys` | Zusätzliche öffentliche Checkout-Felder durchlassen (z. B. `sms_phone`, `sms_consent`, `mollie_method`). |
 | `wpcap_checkout_error_messages` | `array $messages` (Code → Text) | Meldungen zu Abbruch-Codes aus `wpcap_order_creating`. |
+| `wpcap_legal_default_locale` | `string $locale` | Sprache der Standard-Rechtstexte (`terms_text`, `consumer_info_text`). Standard: Standardsprache von Polylang (`pll_default_language`) bzw. WPML (`wpml_default_language`), sonst `get_locale()`. Texte weiterer Sprachen stehen in `legal_texts`; Käufer ohne eigene Fassung sehen die Standardtexte. |
+| `wpcap_legal_locales` | `string[] $locales, string $default` | Sprachen, für die unter **Einstellungen → Rechtstexte** eigene Rechtstexte angeboten werden (Standard: Standardsprache, Sprachen von Polylang/WPML, installierte Sprachpakete, bereits gepflegte Sprachen). |
 | `wpcap_affiliate_partner_field` | `bool $show` (true) | Partnercode-Feld im Checkout (nur mit WP Affiliate Captain). |
 | `wpcap_affiliate_tracking_allowed` | `bool $allowed`, `string $method` | Ob die Empfehlung aus `wpac_current_touch()` verwendet werden darf. Cookie (`cookie`): mit WP Consent API `wp_has_consent( 'marketing' )`, ohne Consent-API `true`. Partnerlink der Shop-Sitzung (`link`, `app`, kein Marketing-Cookie): standardmäßig `true`. Ein eingegebener Partnercode ist immer erlaubt. |
 | `wpcap_affiliate_hold_until` | `int $timestamp, object $order` | Sperrfrist der Provision (Standard: Ende des letzten gebuchten Termins). |
@@ -110,6 +112,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | Filter | Wert, Argumente | Zweck |
 |---|---|---|
 | `wpcap_payment_gateways` | `GatewayInterface[] $gateways` | Weitere Zahlungsadapter registrieren (z. B. Mollie). |
+| `wpcap_payment_settings_url` | `string $url` (''), `string $provider_id` | Einstellungsseite eines Zahlungsadapters ohne eigenen Abschnitt im Reiter **Einstellungen → Zahlungsarten**; der Reiter verlinkt sie in seiner Unternavigation und in der Übersicht (Mollie: eigene Modulseite). |
 | `wpcap_payment_return_url` | `string $url, string $status, string $public_id, string $provider` | Rückkehr-URL nach der Zahlungsseite (`success`, `pending`, `failed`, `cancel`). |
 | `wpcap_stripe_session_params` | `array $params, array $order, array $items` | Parameter der Stripe Checkout Session. |
 | `wpcap_paypal_order_body` | `array $body, array $order, array $items` | Body der PayPal-Order. |

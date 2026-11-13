@@ -60,6 +60,8 @@ Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Seriente
 
 ## Sprachen
 
+Rechtstexte (AGB/Teilnahmebedingungen, Verbraucherinformationen) werden unter **Einstellungen → Rechtstexte** je Sprache gepflegt: die Standardsprache (Website-Sprache bzw. Standardsprache von Polylang/WPML) und beliebig viele weitere Locales. Checkout und Mails verwenden die Sprache des Käufers und fallen je Text auf die Standardsprache zurück; die mit der Bestellung gespeicherte AGB-Version ist die der angezeigten Fassung. Die Einstellungen sind in Reiter gegliedert (Allgemein, Einlass, Zahlungsarten, Rechtstexte, Rechnungen); jede Zahlungsart hat im Reiter **Zahlungsarten** einen eigenen Unterbereich.
+
 Ausgangssprache ist Deutsch. Vollständige Übersetzungen liegen für Englisch (en_US), Französisch (fr_FR), Italienisch (it_IT), Spanisch (es_ES) und Niederländisch (nl_NL) in `languages/`. Weitere Sprachen entstehen aus der Vorlage `languages/wp-pass-captain.pot`. Kompilieren ohne gettext-Tools:
 
 ```sh

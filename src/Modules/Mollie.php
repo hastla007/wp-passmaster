@@ -27,6 +27,12 @@ final class Mollie {
 		add_action( 'wpcap_checkout_form_fields', array( __CLASS__, 'render_checkout_fields' ), 30, 2 );
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'store_method' ), 10, 4 );
 		add_action( 'template_redirect', array( __CLASS__, 'maybe_handle_return' ) );
+		add_filter( 'wpcap_payment_settings_url', array( __CLASS__, 'settings_url' ), 10, 2 );
+	}
+
+	/** wpcap_payment_settings_url: the payments tab of the settings links to this page. */
+	public static function settings_url( $url, $provider_id ) {
+		return 'mollie' === $provider_id ? Forms::page_url( self::PAGE ) : $url;
 	}
 
 	public static function schema( $prefix, $charset ) {
@@ -174,7 +180,7 @@ final class Mollie {
 		echo '<div class="wrap wpcap-admin"><h1>Mollie</h1>';
 		Forms::render_notices();
 		echo '<p>' . esc_html__( 'Webhook-URL (wird pro Zahlung automatisch übergeben):', 'wp-pass-captain' ) . ' <code>' . esc_html( MollieGateway::webhook_url() ) . '</code></p>';
-		echo '<p>' . esc_html__( 'Aktiviere „Mollie“ zusätzlich unter Einstellungen → Zahlungsarten.', 'wp-pass-captain' ) . '</p>';
+		echo '<p>' . esc_html__( 'Aktiviere „Mollie“ zusätzlich unter Einstellungen → Zahlungsarten.', 'wp-pass-captain' ) . ' <a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\SettingsPage::SLUG, array( 'tab' => 'payments' ) ) ) . '">' . esc_html__( 'Zu den Zahlungsarten', 'wp-pass-captain' ) . '</a></p>';
 		Forms::open_form( 'wpcap_mollie_save' );
 		echo '<table class="form-table"><tbody>';
 		echo '<tr><th scope="row"><label for="wpcap-mollie-key">' . esc_html__( 'API-Schlüssel', 'wp-pass-captain' ) . '</label></th><td>';
