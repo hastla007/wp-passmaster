@@ -50,6 +50,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
           wp core download --version=${{ matrix.wp }} --locale=en_US
           wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp config set AUTOMATIC_UPDATER_DISABLED true --raw   # pinned version: no background updates mid-test
+          wp config set WP_AUTO_UPDATE_CORE false --raw
           wp core install --url=http://localhost:8080 --title=Matrix --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
           echo "WordPress $(wp core version)"
           (PHP_CLI_SERVER_WORKERS=4 nohup php -S localhost:8080 >/dev/null 2>&1 &)
@@ -104,6 +106,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
           wp core download --locale=en_US
           wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp config set AUTOMATIC_UPDATER_DISABLED true --raw   # pinned version: no background updates mid-test
+          wp config set WP_AUTO_UPDATE_CORE false --raw
           wp core install --url=http://localhost:8080 --title=Woo --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
           if [ "${{ matrix.wc }}" = "latest" ]; then wp plugin install woocommerce --activate; else wp plugin install woocommerce --version=${{ matrix.wc }} --activate; fi
           wp option update woocommerce_currency EUR
@@ -157,6 +161,8 @@ jobs:
           mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
           wp core download --locale=de_DE
           wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp config set AUTOMATIC_UPDATER_DISABLED true --raw   # pinned version: no background updates mid-test
+          wp config set WP_AUTO_UPDATE_CORE false --raw
           wp core install --url=http://localhost:8080 --title=A11y --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
           wp language core install de_DE --activate || true
           ln -s "$GITHUB_WORKSPACE" wp-content/plugins/wp-pass-captain
