@@ -19,11 +19,17 @@
  *               Orders::availability() like a cart validation.
  *               Invariants: no overselling (type and occurrence), one order per key, sold/held
  *               counters equal the sums of the source tables afterwards.
+ *   waitlist  – A158: waitlist offers raced from several connections at once: parallel accepts of
+ *               the same offer, accept vs. decline, accept vs. self-unsubscribe, and accepts
+ *               spread around the moment the hold lapses while an expiry worker runs the
+ *               expiry job in a loop.
+ *               Invariants: at most one successful accept per offer, never accept and
+ *               decline/unsubscribe both, no place sold twice, entry and order states agree.
  *
  * Usage:  php tests/load/run.php [--profile=ci|default|heavy|big] [--buyers=N] [--capacity=N]
  *                                [--workers=N] [--devices=N] [--tickets=N] [--events=N]
  *                                [--dupes=N] [--retry-rate=0.15] [--sold=N] [--pay-rate=0.3]
- *                                [--scenario=all|checkout|checkin|webhooks|onsale]
+ *                                [--scenario=all|checkout|checkin|webhooks|onsale|waitlist]
  *                                [--json=/path/result.json]
  *         The "big" profile runs only the onsale scenario (20,000 pre-sold tickets, 1000 buyers).
  *
@@ -60,6 +66,14 @@ function load_settings() {
 	}
 }
 
+/** Waitlist scenario settings (coordinator and waitlist workers). */
+function load_waitlist_settings() {
+	PassCaptain\Settings::update( array( 'enabled_providers' => array( 'manual' ), 'require_terms' => 0, 'waitlist' => array( 'auto_offers' => 1, 'offer_hours' => 24, 'max_offers_per_run' => 10, 'strict_fifo' => 0 ) ) );
+	Registry::reset();
+	$GLOBALS['wpcap_test_filters']['wpcap_waitlist_process_delay'] = 0;
+	PassCaptain\Waitlists::register();
+}
+
 /* ====================================================================== */
 /* Worker                                                                  */
 /* ====================================================================== */
@@ -68,10 +82,13 @@ if ( isset( $argv[1] ) && '--worker' === $argv[1] ) {
 	$job = json_decode( (string) file_get_contents( $argv[2] ), true );
 	load_settings();
 	$stripe = Registry::get( 'stripe' );
+	if ( array_filter( $job['ops'], static fn( $op ) => 0 === strpos( $op['kind'], 'wl_' ) ) ) { load_waitlist_settings(); }
 	$out = array();
 	// Barrier: every worker is booted and connected; start together.
 	while ( microtime( true ) < $job['start_at'] ) { usleep( 200 ); }
 	foreach ( $job['ops'] as $op ) {
+		// Optional fixed start offset (seconds after the barrier), e.g. accepts around a hold expiry.
+		if ( isset( $op['at'] ) ) { while ( microtime( true ) < $job['start_at'] + (float) $op['at'] ) { usleep( 500 ); } }
 		$t0 = hrtime( true );
 		switch ( $op['kind'] ) {
 			case 'buy':
@@ -134,6 +151,39 @@ if ( isset( $argv[1] ) && '--worker' === $argv[1] ) {
 				$res = is_wp_error( $r )
 					? array( 'outcome' => 'error', 'detail' => $r->get_error_code() . ': ' . $r->get_error_message() )
 					: array( 'outcome' => (string) $r );
+				break;
+			case 'wl_accept':
+				$r = PassCaptain\Waitlists::accept_offer( $op['waitlist_id'], $op['token'] );
+				// A retryable "busy" answer (deadlock victim, all rolled back) is allowed; the state checks still apply.
+				$res = is_wp_error( $r )
+					? array( 'outcome' => 'wpcap_waitlist_offer_invalid' === $r->get_error_code() ? 'rejected' : ( PassCaptain\Errors::is_busy( $r ) ? 'busy' : 'error' ), 'detail' => $r->get_error_code() . ': ' . $r->get_error_message() )
+					: array( 'outcome' => 'accepted', 'detail' => (string) $r['status'] );
+				break;
+			case 'wl_decline':
+				$r = PassCaptain\Waitlists::decline_offer( $op['waitlist_id'], $op['token'] );
+				$res = is_wp_error( $r )
+					? array( 'outcome' => 'wpcap_waitlist_offer_invalid' === $r->get_error_code() ? 'rejected' : 'error', 'detail' => $r->get_error_code() . ': ' . $r->get_error_message() )
+					: array( 'outcome' => 'declined' );
+				break;
+			case 'wl_unsub':
+				$GLOBALS['wpcap_test_transients'] = array();
+				$r = PassCaptain\Waitlists::unsubscribe( $op['waitlist_id'], $op['token'] );
+				if ( is_wp_error( $r ) ) {
+					$res = array( 'outcome' => 'wpcap_waitlist_unsubscribe_accepted' === $r->get_error_code() ? 'rejected' : 'error', 'detail' => $r->get_error_code() . ': ' . $r->get_error_message() );
+				} else {
+					$res = array( 'outcome' => empty( $r['already'] ) ? 'unsubscribed' : 'noop' );
+				}
+				break;
+			case 'wl_expire':
+				// Expiry job in a loop, like overlapping cron runs while buyers click.
+				$n = 0;
+				$until = $job['start_at'] + (float) $op['until'];
+				while ( microtime( true ) < $until ) {
+					$n += Orders::expire_holds();
+					PassCaptain\Waitlists::sync_lapsed();
+					usleep( 20000 );
+				}
+				$res = array( 'outcome' => 'expiry_runs', 'detail' => (string) $n );
 				break;
 			default:
 				$res = array( 'outcome' => 'error', 'detail' => 'unknown op' );
@@ -452,6 +502,145 @@ if ( in_array( $cfg['scenario'], array( 'all', 'webhooks' ), true ) ) {
 	invariant( 'one processed event row per event', $events === $E, "$events rows" );
 	invariant( 'no unexpected errors', 0 === $s['errors'], json_encode( error_samples( $results ) ) );
 	$report[] = $s;
+}
+
+/* ---- Scenario 5: waitlist offers raced by accept / decline / unsubscribe / expiry (A158) ---- */
+if ( in_array( $cfg['scenario'], array( 'all', 'waitlist' ), true ) ) {
+	load_waitlist_settings();
+	$GLOBALS['wpcap_test_mails'] = array();
+	/** Sold-out type (capacity 1) with two waiting entries; the first gets the offer. Returns the offer. */
+	$make_offer = static function ( $k, $price ) {
+		global $wpdb;
+		$type = load_make_type( 1, 4, $price );
+		$occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=$type" );
+		$event = (int) $wpdb->get_var( "SELECT event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=$occ" );
+		$GLOBALS['wpcap_test_transients'] = array();
+		$block = Orders::create( array( 'email' => "wl-block$k@example.com", 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'idempotency_key' => "load-wl-block-$k-" . uniqid() ), array( 'skip_rate_limit' => true ) );
+		foreach ( array( 'a', 'b' ) as $who ) { PassCaptain\Waitlists::join( $event, $occ, $type, "wl$k$who@example.com", 1 ); }
+		Orders::cancel_order( (int) $block['order_id'], 'load' );
+		PassCaptain\Waitlists::run_due( true );
+		$entry = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_waitlist WHERE ticket_type_id=%d AND email=%s", $type, "wl{$k}a@example.com" ) );
+		$offer = $unsub = '';
+		foreach ( $GLOBALS['wpcap_test_mails'] as $mail ) {
+			if ( $mail['to'] !== "wl{$k}a@example.com" ) { continue; }
+			if ( preg_match( '/wpcap_waitlist_accept=\d+(?:&amp;|&)token=([a-f0-9]{64})/', $mail['body'], $m ) ) { $offer = $m[1]; }
+			if ( preg_match( '/wpcap_waitlist_unsubscribe=\d+(?:&amp;|&)token=([a-f0-9]{64})/', $mail['body'], $m ) ) { $unsub = $m[1]; }
+		}
+		return array( 'type' => $type, 'id' => (int) ( $entry->waitlist_id ?? 0 ), 'order_id' => (int) ( $entry->order_id ?? 0 ), 'status' => (string) ( $entry->status ?? '' ), 'offer' => $offer, 'unsub' => $unsub, 'price' => $price );
+	};
+	/** '' when entry, order, holds and tickets of a capacity-1 type agree, else the reason. */
+	$wl_consistent = static function ( $type ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$sold = (int) $wpdb->get_var( "SELECT COALESCE(SUM(oi.quantity),0) FROM {$p}wpcap_order_items oi JOIN {$p}wpcap_orders o ON o.order_id=oi.order_id WHERE oi.ticket_type_id=$type AND o.payment_status='paid'" );
+		$held = (int) $wpdb->get_var( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_reservations WHERE ticket_type_id=$type AND status='active' AND expires_at>'$now'" );
+		$tickets = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE ticket_type_id=$type AND status='valid'" );
+		if ( $sold + $held > 1 || $tickets !== $sold ) { return "type $type: sold $sold, held $held, tickets $tickets"; }
+		foreach ( $wpdb->get_results( "SELECT w.waitlist_id,w.status,w.order_id,o.payment_status,o.payment_provider,(SELECT COUNT(*) FROM {$p}wpcap_reservations r WHERE r.order_id=w.order_id AND r.status='active' AND r.expires_at>'$now') AS holds FROM {$p}wpcap_waitlist w LEFT JOIN {$p}wpcap_orders o ON o.order_id=w.order_id WHERE w.ticket_type_id=$type" ) as $row ) {
+			$open = in_array( $row->status, array( 'offered', 'accepted' ), true );
+			if ( $open && ! ( 'pending' === $row->payment_status && (int) $row->holds ) ) { return "entry {$row->waitlist_id} {$row->status} without hold ({$row->payment_status})"; }
+			if ( 'paid' === $row->status && 'paid' !== $row->payment_status ) { return "entry {$row->waitlist_id} paid, order {$row->payment_status}"; }
+			if ( ! $open && 'paid' !== $row->status && (int) $row->order_id && ( 'paid' === $row->payment_status || (int) $row->holds ) ) { return "entry {$row->waitlist_id} {$row->status} but order {$row->payment_status} / holds {$row->holds}"; }
+			if ( 'offered' === $row->status && PassCaptain\Waitlists::OFFER_PROVIDER !== $row->payment_provider ) { return "entry {$row->waitlist_id} offered with provider {$row->payment_provider}"; }
+		}
+		return '';
+	};
+	$wl_check = static function ( array $offers, array $results, array $op_offer, $label ) use ( $wl_consistent ) {
+		global $wpdb;
+		$by = array();
+		foreach ( $results as $idx => $rows ) { foreach ( $rows as $row ) { $by[ $op_offer[ $idx ] ][] = $row['outcome']; } }
+		$double = $both = $state = $inconsistent = array();
+		foreach ( $offers as $k => $o ) {
+			$c = array_count_values( $by[ $k ] ?? array() );
+			$entry = $wpdb->get_row( "SELECT status FROM {$wpdb->prefix}wpcap_waitlist WHERE waitlist_id=" . (int) $o['id'] );
+			if ( ( $c['accepted'] ?? 0 ) > 1 ) { $double[] = $k; }
+			if ( ( $c['accepted'] ?? 0 ) && ( ( $c['declined'] ?? 0 ) || ( $c['unsubscribed'] ?? 0 ) ) ) { $both[] = $k; }
+			$expect = ( $c['accepted'] ?? 0 ) ? array( 'accepted', 'paid' ) : ( ( $c['declined'] ?? 0 ) ? array( 'declined' ) : ( ( $c['unsubscribed'] ?? 0 ) ? array( 'removed' ) : array( 'expired', 'offered' ) ) );
+			if ( ! in_array( (string) ( $entry->status ?? '' ), $expect, true ) ) { $state[] = "$k:" . ( $entry->status ?? '?' ); }
+			$why = $wl_consistent( $o['type'] );
+			if ( '' !== $why ) { $inconsistent[] = $why; }
+		}
+		invariant( "$label: at most one successful accept per offer", ! $double, implode( ',', $double ) );
+		invariant( "$label: never accept and decline/unsubscribe both", ! $both, implode( ',', $both ) );
+		invariant( "$label: entry status matches the winning action", ! $state, implode( ' ', array_slice( $state, 0, 5 ) ) );
+		invariant( "$label: no place sold twice, entries/orders/holds agree", ! $inconsistent, implode( '; ', array_slice( $inconsistent, 0, 3 ) ) );
+	};
+
+	// Phase 1: per offer six ops at the same moment on six connections – parallel accepts only,
+	// accepts + decline, accepts + unsubscribe (round robin), free and paid offers.
+	$K = max( 3, min( 12, $cfg['events'] ) );
+	$n = min( 6, $W );
+	$groups = max( 1, intdiv( $W, $n ) );
+	echo "\nScenario waitlist: {$K} offers, {$n} concurrent actions each (accept/decline/unsubscribe), then accepts around a lapsing hold with an expiry loop\n";
+	$offers = array();
+	for ( $k = 0; $k < $K; $k++ ) { $offers[ $k ] = $make_offer( $k, $k % 2 ? 2500 : 0 ); }
+	$ready = array_filter( $offers, static fn( $o ) => 'offered' === $o['status'] && '' !== $o['offer'] && '' !== $o['unsub'] );
+	invariant( 'fixture: every first entry got an offer with accept and unsubscribe link', count( $ready ) === $K, count( $ready ) . " of $K" );
+	$per_worker = array_fill( 0, $W, array() );
+	$op_offer = array();
+	$i = 0;
+	foreach ( $offers as $k => $o ) {
+		for ( $j = 0; $j < $n; $j++ ) {
+			$kind = 'wl_accept';
+			if ( $j === $n - 1 && 1 === $k % 3 ) { $kind = 'wl_decline'; }
+			if ( $j === $n - 1 && 2 === $k % 3 ) { $kind = 'wl_unsub'; }
+			$op_offer[ $i ] = $k;
+			$per_worker[ ( $k % $groups ) * $n + $j ][] = array( 'kind' => $kind, 'waitlist_id' => $o['id'], 'token' => 'wl_unsub' === $kind ? $o['unsub'] : $o['offer'], 'i' => $i++ );
+		}
+	}
+	list( $results, $wall ) = run_workers( $per_worker );
+	$s = summarize( 'waitlist (parallel actions)', $results, $wall, $W );
+	$wl_check( $offers, $results, $op_offer, 'waitlist' );
+	invariant( 'waitlist: no unexpected errors', 0 === $s['errors'], json_encode( error_samples( $results ) ) );
+	$report[] = $s;
+
+	// Phase 2: the hold lapses 1–2 s after the start; the accepts of later offers start later (some
+	// before, some after the lapse) while dedicated workers run the expiry job in a loop.
+	$K2 = max( 2, min( 6, intdiv( $W, 4 ) ) );
+	$offers2 = array();
+	for ( $k = 0; $k < $K2; $k++ ) { $offers2[ $k ] = $make_offer( 100 + $k, $k % 2 ? 0 : 2500 ); }
+	$per_worker = array_fill( 0, $W, array() );
+	$op_offer = array();
+	$i = 0;
+	$expirers = min( $K2, max( 1, intdiv( $W, 4 ) ) );
+	for ( $e = 0; $e < $expirers; $e++ ) {
+		$op_offer[ $i ] = -1;
+		$per_worker[ $e ][] = array( 'kind' => 'wl_expire', 'until' => 4.0, 'i' => $i++ );
+	}
+	$slots = max( 1, $W - $expirers );
+	$accepts = array();
+	foreach ( $offers2 as $k => $o ) {
+		for ( $j = 0; $j < 5; $j++ ) { $accepts[] = array( 'kind' => 'wl_accept', 'waitlist_id' => $o['id'], 'token' => $o['offer'], 'at' => 0.1 + 0.5 * $k + 0.4 * $j, 'k' => $k ); }
+	}
+	foreach ( $accepts as $a => $op ) {
+		$op_offer[ $i ] = $op['k'];
+		unset( $op['k'] );
+		$per_worker[ $expirers + ( $a % $slots ) ][] = $op + array( 'i' => $i++ );
+	}
+	foreach ( array_keys( $per_worker ) as $w ) { usort( $per_worker[ $w ], static fn( $x, $y ) => ( $x['at'] ?? 0 ) <=> ( $y['at'] ?? 0 ) ); }
+	// Same start estimate as run_workers(); the hold (and offer deadline) lapse ~1.2 s after it.
+	$lapse = gmdate( 'Y-m-d H:i:s', (int) ceil( microtime( true ) + 1.0 + count( array_filter( $per_worker ) ) * 0.02 + 1.2 ) );
+	foreach ( $offers2 as $o ) {
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET expires_at=%s WHERE order_id=%d AND status='active'", $lapse, $o['order_id'] ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_waitlist SET offer_expires_at=%s WHERE waitlist_id=%d", $lapse, $o['id'] ) );
+	}
+	list( $results, $wall ) = run_workers( $per_worker );
+	$results_offers = array_filter( $results, static fn( $idx ) => $op_offer[ $idx ] >= 0, ARRAY_FILTER_USE_KEY );
+	$s = summarize( 'waitlist (accept vs expiry)', $results, $wall, $W );
+	$wl_check( $offers2, $results_offers, $op_offer, 'waitlist expiry' );
+	invariant( 'waitlist expiry: no unexpected errors', 0 === $s['errors'], json_encode( error_samples( $results ) ) );
+	$report[] = $s;
+
+	// Afterwards the queue offers freed places to the second entries; still never twice.
+	Orders::expire_holds();
+	PassCaptain\Waitlists::run_due( true );
+	$after = array();
+	foreach ( array_merge( $offers, $offers2 ) as $o ) {
+		$why = $wl_consistent( $o['type'] );
+		if ( '' !== $why ) { $after[] = $why; }
+	}
+	invariant( 'waitlist: consistent after the next offers', ! $after, implode( '; ', array_slice( $after, 0, 3 ) ) );
 }
 
 /* ---- Scenario 4: large on-sale on an occurrence with many sold tickets ---- */

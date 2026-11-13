@@ -385,11 +385,15 @@ final class Types {
 					'quantity' => __( 'Gewünschte Anzahl', 'wp-pass-captain' ),
 					'event_name' => __( 'Event', 'wp-pass-captain' ),
 					'ticket_name' => __( 'Ticketart', 'wp-pass-captain' ),
+					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'wp-pass-captain' ),
 				),
 				'subject' => static function () { return __( 'Du stehst auf der Warteliste', 'wp-pass-captain' ); },
-				/* translators: %d: waitlist position */
-				'body' => static function () { return str_replace( '%d', '{position}', __( 'Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird.', 'wp-pass-captain' ) ); },
-				'sample' => static function () { return array( 'position' => 3, 'quantity' => 2, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz' ); },
+				'body' => static function () {
+					/* translators: %d: waitlist position */
+					$intro = str_replace( '%d', '{position}', __( 'Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird.', 'wp-pass-captain' ) );
+					return $intro . "\n\n" . Types::waitlist_unsubscribe_note();
+				},
+				'sample' => static function () { return array( 'position' => 3, 'quantity' => 2, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'unsubscribe_link' => Mailer::link( home_url( '/?wpcap_waitlist_unsubscribe=12&token=' . str_repeat( 'a7', 32 ) ) ) ); },
 			),
 			'waitlist_offer' => array(
 				'label' => __( 'Warteliste: Platzangebot', 'wp-pass-captain' ),
@@ -401,12 +405,16 @@ final class Types {
 					'position' => __( 'Position auf der Warteliste', 'wp-pass-captain' ),
 					'event_name' => __( 'Event', 'wp-pass-captain' ),
 					'ticket_name' => __( 'Ticketart', 'wp-pass-captain' ),
+					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'wp-pass-captain' ),
 				),
 				/* translators: %s: event */
 				'subject' => static function () { return sprintf( __( 'Tickets für dich reserviert: %s', 'wp-pass-captain' ), '{event_name}' ); },
-				/* translators: 1: quantity, 2: ticket type, 3: event, 4: expiry date, 5: accept link */
-				'body' => static function () { return sprintf( __( "Gute Nachrichten: Für dich sind %1\$s × „%2\$s“ für „%3\$s“ reserviert.\n\nDie Reservierung gilt bis %4\$s. Nimm das Angebot bis dahin an und schließe die Bestellung ab, sonst geht es an die nächste Person auf der Warteliste:\n%5\$s\n\nWenn du die Tickets nicht mehr brauchst, kannst du das Angebot über denselben Link ablehnen.", 'wp-pass-captain' ), '{quantity}', '{ticket_name}', '{event_name}', '{offer_expires}', '{accept_link}' ); },
-				'sample' => static function () { return array( 'offer_expires' => '16.01.2027 19:30 UTC', 'accept_link' => Mailer::link( home_url( '/?wpcap_waitlist_accept=12&token=' . str_repeat( 'e5', 32 ) ) ), 'quantity' => 2, 'position' => 1, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz' ); },
+				'body' => static function () {
+					/* translators: 1: quantity, 2: ticket type, 3: event, 4: expiry date, 5: accept link */
+					$offer = sprintf( __( "Gute Nachrichten: Für dich sind %1\$s × „%2\$s“ für „%3\$s“ reserviert.\n\nDie Reservierung gilt bis %4\$s. Nimm das Angebot bis dahin an und schließe die Bestellung ab, sonst geht es an die nächste Person auf der Warteliste:\n%5\$s\n\nWenn du die Tickets nicht mehr brauchst, kannst du das Angebot über denselben Link ablehnen.", 'wp-pass-captain' ), '{quantity}', '{ticket_name}', '{event_name}', '{offer_expires}', '{accept_link}' );
+					return $offer . "\n\n" . Types::waitlist_unsubscribe_note();
+				},
+				'sample' => static function () { return array( 'offer_expires' => '16.01.2027 19:30 UTC', 'accept_link' => Mailer::link( home_url( '/?wpcap_waitlist_accept=12&token=' . str_repeat( 'e5', 32 ) ) ), 'quantity' => 2, 'position' => 1, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'unsubscribe_link' => Mailer::link( home_url( '/?wpcap_waitlist_unsubscribe=12&token=' . str_repeat( 'a7', 32 ) ) ) ); },
 			),
 			'member_pass' => array(
 				'label' => __( 'Mitgliedspass', 'wp-pass-captain' ),
@@ -449,6 +457,15 @@ final class Types {
 			case 'waived': return __( 'Der Umtausch erfolgte aus Kulanz ohne Aufpreis.', 'wp-pass-captain' ) . "\n\n";
 		}
 		return '';
+	}
+
+	/**
+	 * Waitlist mails: sentence with the personal unsubscribe link (placeholder {unsubscribe_link}).
+	 * Waitlists also appends it to customised templates that lack the link. Call inside the recipient locale.
+	 */
+	public static function waitlist_unsubscribe_note( $link = '{unsubscribe_link}' ) {
+		/* translators: %s: personal unsubscribe link */
+		return sprintf( __( "Du möchtest nicht mehr auf der Warteliste stehen? Hier kannst du dich austragen:\n%s", 'wp-pass-captain' ), $link );
 	}
 
 	/** Refund mail: correction document line incl. line break ('' without number). Call inside the recipient locale. */

@@ -29,6 +29,9 @@ final class Plugin {
 		add_action( 'admin_post_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'admin_post_nopriv_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'template_redirect', array( Waitlists::class, 'maybe_render_offer_page' ) );
+		add_action( 'admin_post_' . Waitlists::UNSUBSCRIBE_ACTION, array( Waitlists::class, 'handle_unsubscribe_request' ) );
+		add_action( 'admin_post_nopriv_' . Waitlists::UNSUBSCRIBE_ACTION, array( Waitlists::class, 'handle_unsubscribe_request' ) );
+		add_action( 'template_redirect', array( Waitlists::class, 'maybe_render_unsubscribe_page' ) );
 		Privacy::register();
 		Consents::register();
 		$network_plugins = is_multisite() ? get_site_option( 'active_sitewide_plugins', array() ) : array();

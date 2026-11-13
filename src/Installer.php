@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.0';
+	const DB_VERSION = '3.10.1';
 
 	public static function install() {
 		global $wpdb;
@@ -568,6 +568,7 @@ final class Installer {
 				priority int(11) NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'waiting',
 				offer_token_hash char(64) NOT NULL DEFAULT '',
+				unsubscribe_token_hash char(64) NOT NULL DEFAULT '',
 				offer_expires_at datetime NULL,
 				offered_at datetime NULL,
 				order_id bigint(20) unsigned NOT NULL DEFAULT 0,

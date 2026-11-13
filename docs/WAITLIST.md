@@ -19,7 +19,8 @@ Eintragen: `POST /wp-json/wp-pass-captain/v1/events/{event_id}/waitlist` mit `oc
 `ticket_type_id`, `email` und optional `quantity`. Die Antwort ist immer gleich und verrät nicht, ob
 die Adresse schon eingetragen war; die Position steht in der Bestätigungsmail (`waitlist_joined`).
 Einträge mit Status `expired`, `declined` oder `paid` dürfen sich erneut eintragen (am Ende der
-Schlange); vom Team übersprungene oder entfernte Einträge nicht.
+Schlange); vom Team übersprungene oder entfernte Einträge nicht. Wer sich selbst ausgetragen hat
+(siehe unten), kann sich später neu eintragen – der alte Eintrag ist anonymisiert.
 
 **Auf der Eventkarte** (Shortcode/Block): Ausverkaufte Ticketarten zeigen unter dem Bestellformular
 ein Wartelisten-Formular (Ticketart, Anzahl, E-Mail), das diesen Endpunkt aufruft. Ist der Termin ganz
@@ -70,12 +71,73 @@ ausverkauft, entfällt das Bestellformular. Ausblenden: `add_filter( 'wpcap_wait
 Alle Übergänge sind bedingte Updates (Status + Token), Mehrfachaufrufe von Hooks und Läufen ändern
 nichts doppelt.
 
+## Selbst austragen
+
+Jede Wartelisten-Mail (`waitlist_joined`, `waitlist_offer`) enthält einen persönlichen Link zum
+Austragen (Platzhalter `{unsubscribe_link}`, `/?wpcap_waitlist_unsubscribe={id}&token=…`). Fehlt der
+Platzhalter in einer angepassten Vorlage, hängt das Plugin den Standardsatz mit dem Link an.
+
+- **Token:** Schlüssel-Hash aus Eintrag und E-Mail-Hash (Site-Secret `wp_salt('auth')`), damit alle
+  Mails eines Eintrags denselben Link tragen. Gespeichert wird nur dessen SHA-256 in
+  `unsubscribe_token_hash` (Schema 3.10.1); Vergleich in konstanter Zeit. Einträge von vor 3.10.1
+  bekommen den Hash mit der nächsten Mail. Aufbewahrungsfrist und Löschanfrage leeren den Hash – der
+  Link ist dann ungültig.
+- **Kein Austragen per GET:** Der Link öffnet nur eine Bestätigungsseite (Event, Ticketart, Anzahl,
+  Status; bei offenem Angebot der Hinweis, dass die Tickets sofort freigegeben werden). Erst das
+  Formular (POST an `admin-post.php`, Aktion `wpcap_waitlist_unsubscribe`, Nonce) trägt aus. So lösen
+  Mail-Scanner und Link-Vorschauen nichts aus.
+- **Wirkung:** Status `removed`, E-Mail-Adresse geleert, E-Mail-Hash ersetzt (wie bei der
+  Aufbewahrungsfrist), Angebots-Token entfernt. Ein offenes Angebot wird zurückgezogen: die
+  Platzhalter-Bestellung wird storniert, die Reservierung freigegeben und die Ticketart erneut
+  vorgemerkt, damit der nächste Eintrag das Angebot bekommt. Audit `waitlist_unsubscribed`
+  (`previous`, `order_id`, `source`), Action `wpcap_waitlist_unsubscribed`.
+- **Idempotent:** Ein erneuter Aufruf meldet „nicht mehr auf der Warteliste“ ohne Änderung (auch für
+  bezahlte, abgelaufene oder abgelehnte Einträge). Ein bereits **angenommenes** Angebot (Zahlung
+  offen) lässt sich nicht austragen (409) – zahlt die Person nicht, verfällt die Reservierung wie
+  gewohnt.
+- **Rate-Limit:** höchstens 30 Versuche je Client-Adresse und 10 je Eintrag und Stunde (429), für
+  Seite und Formular.
+- **Bestellportal:** Hat die Käufer-Adresse einer Bestellung offene Einträge (wartend oder Angebot
+  offen), zeigt das Portal die Karte *Deine Wartelisten* mit *Von der Warteliste austragen* (POST an
+  den Portal-Link mit Nonce, Rückmeldung per Redirect). Austragen geht dort nur für Einträge mit
+  derselben E-Mail-Adresse.
+
+## Gleichzeitige Aktionen
+
+Annehmen, Ablehnen, Austragen, Team-Aktionen und der Ablauf-Job können dasselbe Angebot gleichzeitig
+treffen. Garantien:
+
+- **Annahme in einer Transaktion:** Platzhalter-Bestellung, Eintrag und die aktiven Reservierungen
+  dieser Bestellung werden gesperrt (`FOR UPDATE`, Bestellung zuerst – dieselbe Reihenfolge wie in
+  `Orders`). Unter den Sperren werden Status `offered`, Token, Frist, `payment_provider`
+  `waitlist_offer` und eine noch laufende Reservierung erneut geprüft. Erst dann wird der Eintrag
+  `accepted`, die Reservierung verlängert (kostenlos: mindestens 15 Minuten für den Abschluss;
+  kostenpflichtig: Zahlungsfenster der Zahlungsart) und die Zahlungsart gesetzt. Zwei parallele
+  Annahmen: genau eine gewinnt, die zweite bekommt 409.
+- **Annahme gegen Ablauf:** Ist die Reservierung zeitlich abgelaufen, aber der Ablauf-Job noch nicht
+  gelaufen, wird die Annahme abgelehnt. Gewinnt die Annahme, ist die Reservierung bereits verlängert,
+  bevor der Ablauf-Job sie sieht; er lässt das Angebot dann stehen. Verliert die Annahme einen
+  Deadlock gegen den Ablauf-Job, wird alles zurückgerollt und einmal neu versucht.
+- **Ablehnen, Austragen, Überspringen/Entfernen** sind bedingte Updates bzw. sperren Bestellung und
+  Eintrag ebenfalls; nach einer Annahme schlagen sie fehl (bzw. melden 409), vor ihr verhindern sie
+  die Annahme. Die Stornierung der Platzhalter-Bestellung wird bei einem Sperrkonflikt sofort einmal
+  wiederholt, danach übernimmt der Wiederholungs-Job von `Orders::cancel_order()`.
+- **Eintrag während des Angebots entfernt:** Wird ein Eintrag zwischen Beanspruchung und Verknüpfung
+  der Platzhalter-Bestellung entfernt (Austragen, Team, Löschanfrage), storniert das Angebot seine
+  eben angelegte Bestellung sofort wieder – keine verwaiste Reservierung.
+
+Tests: `tests/integration/modules/zz_a158.php` (deterministische Reihenfolgen) und
+`php tests/load/run.php --scenario=waitlist` (echte parallele Verbindungen: parallele Annahmen,
+Annahme gegen Ablehnung/Austragen, Annahmen rund um den Ablauf mit Ablauf-Job in Schleife; Teil von
+`--profile=ci`).
+
 ## Admin
 
 *Pass Captain → Warteliste* (Recht `wpcap_manage_orders`, Event-Berechtigung wie bei Bestellungen):
 
 - Einträge je Event mit Rang in der Schlange, Position, Ticketart, E-Mail, Anzahl, Priorität, Status,
   Reservierungsende und Bestellung.
+- Selbst ausgetragene Einträge erscheinen als *Entfernt* ohne E-Mail-Adresse.
 - Aktionen: *Jetzt anbieten* (auch bei abgeschalteten automatischen Angeboten), *Priorität setzen*,
   *Überspringen* (`skipped`) und *Entfernen* (`removed`); ein offenes, unbezahltes Angebot wird dabei
   zurückgezogen und die Reservierung freigegeben.
@@ -92,6 +154,9 @@ nichts doppelt.
 | `POST /events/{id}/waitlist/offer` | Event verwalten | Nächsten Eintrag einer Ticketart (`ticket_type_id`) sofort anbieten. |
 | `POST /waitlist/{id}/accept` | Token | Angebot annehmen (`token`, optional `provider`, `accept_terms`). |
 | `POST /waitlist/{id}/decline` | Token | Angebot ablehnen (`token`). |
+
+Das Austragen läuft bewusst nicht über REST, sondern über die Bestätigungsseite (POST + Nonce) bzw.
+das Bestellportal.
 
 ## Hinweise
 

@@ -327,7 +327,7 @@ final class Privacy {
 		foreach ( array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT w.order_id FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_orders o ON o.order_id=w.order_id WHERE w.email=%s AND w.status='offered' AND w.order_id>0 AND o.payment_status='pending'", $email ) ) ) as $offer_order ) {
 			Orders::cancel_order( $offer_order, 'privacy_erasure' );
 		}
-		$waitlist_removed = $wpdb->update( $p . 'wpcap_waitlist', array( 'email' => 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, 'email_hash' => self::random_hash(), 'offer_token_hash' => '', 'status' => 'removed', 'updated_at' => $now ), array( 'email' => $email ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%s' ) );
+		$waitlist_removed = $wpdb->update( $p . 'wpcap_waitlist', array( 'email' => 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, 'email_hash' => self::random_hash(), 'offer_token_hash' => '', 'unsubscribe_token_hash' => '', 'status' => 'removed', 'updated_at' => $now ), array( 'email' => $email ), array( '%s', '%s', '%s', '%s', '%s', '%s' ), array( '%s' ) );
 		$removed += $bookings + $messages_removed + (int) $passes_removed + (int) $waitlist_removed;
 
 		$retained = (bool) $orders;
