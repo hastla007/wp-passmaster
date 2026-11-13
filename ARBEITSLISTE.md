@@ -175,7 +175,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 
 ## Phase 6 – Nacharbeiten Phase 3, UX, Barrierefreiheit, Architektur
 
-- [ ] **A078** Datenschutz-Export/-Löschung für wpcap_guest_entries — _OFFEN_ (TODO L336; Offene Nacharbeiten aus Phase 3)
+- [x] **A078** Datenschutz-Export/-Löschung für wpcap_guest_entries — _OFFEN_ (TODO L336; Offene Nacharbeiten aus Phase 3)
   - src/Privacy.php enthält keine Behandlung von wpcap_guest_entries (grep ohne Treffer außerhalb GuestLists)
 - [ ] **A079** DSGVO-Löschung soll Wartelisten-Angebote sofort freigeben — _OFFEN_ (TODO L337; Offene Nacharbeiten aus Phase 3)
   - src/Privacy.php:305 setzt nur status='removed'; Platzhalter-Bestellung/Reservierung wird nicht storniert

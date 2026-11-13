@@ -333,7 +333,7 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 
 ### Offene Nacharbeiten aus Phase 3
 
-- [ ] Datenschutz-Export/-Löschung für Gästelisten-Einträge (`wpcap_guest_entries`) ergänzen.
+- [x] Datenschutz-Export/-Löschung für Gästelisten-Einträge (`wpcap_guest_entries`) ergänzen.
 - [ ] Datenschutz-Löschung soll laufende Wartelisten-Angebote (Platzhalter-Bestellung) sofort freigeben statt bis zum Ablauf zu halten.
 - [ ] `wpcap_waitlist_process` beim Deaktivieren des Plugins abmelden.
 - [ ] Wartelisten-Bestellungen unterstützen keine Rabattcodes, Gutscheine und Rechnungsdaten – entscheiden und ggf. ergänzen.

@@ -172,3 +172,11 @@ $rows = Gl::export_rows( $event );
 $flat = PassCaptain\Reports\Scope::csv( $rows );
 check( 'export lists entries with status and codes, never placeholder addresses', 'Liste' === $rows[0][0] && false !== strpos( $flat, 'Zoe Presse' ) && false !== strpos( $flat, $zoe->codes[0] ) && false === strpos( $flat, '@invalid.example' ) && false !== strpos( $flat, 'Abgelehnt' ) );
 check( 'module registers its admin page and handlers', 'wpcap-guestlists' === GuestLists::admin_pages()[0][0] && isset( GuestLists::admin_handlers()['wpcap_gl_entry_action'] ) && 2 === count( GuestLists::schema( 'x_', '' ) ) );
+
+echo "Guest lists: privacy export and erasure (A078)\n";
+$a78 = Gl::add_entry( $press->list_id, array( 'name' => 'Gina Datenschutz', 'email' => 'gina.a78@example.com', 'company' => 'Presse AG', 'quantity' => 1, 'ticket_type_id' => $type ) );
+$a78_json = wp_json_encode( PassCaptain\Modules\GuestLists::privacy_export( 'gina.a78@example.com' )['data'] );
+check( 'A078: export lists the guest entry (name, company, list, status)', false !== strpos( $a78_json, 'Gina Datenschutz' ) && false !== strpos( $a78_json, 'Presse AG' ) );
+$a78_erase = PassCaptain\Modules\GuestLists::privacy_erase( 'gina.a78@example.com' );
+$a78_row = Gl::get_entry( $a78->entry_id );
+check( 'A078: erasure clears name, e-mail and company of the entry', true === $a78_erase['items_removed'] && 'Gast (gelöscht)' === $a78_row->name && '' === $a78_row->email && '' === $a78_row->company );
