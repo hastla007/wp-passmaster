@@ -129,7 +129,7 @@ final class CapacityCounters {
 		$p = $wpdb->prefix;
 		$in = implode( ',', $type_ids );
 		$used = (int) $wpdb->get_var( "SELECT COALESCE(SUM(sold_qty+held_qty),0) FROM {$p}wpcap_ticket_types WHERE ticket_type_id IN ($in)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
-		$lapsed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND status='active' AND expires_at <= %s", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$lapsed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND counted_qty>0 AND (status<>'active' OR expires_at <= %s)", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$own = 0;
 		if ( $exclude_order_id ) {
 			$own = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id IN ($in)", absint( $exclude_order_id ) ) ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

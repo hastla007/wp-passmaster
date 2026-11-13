@@ -558,8 +558,9 @@ final class Orders {
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
 		if ( (int) $type->capacity > 0 ) {
-			// Holds still marked active but already lapsed count in held_qty until the cleanup.
-			$lapsed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE ticket_type_id=%d AND status='active' AND expires_at <= %s", $type->ticket_type_id, $now ) );
+			// Holds that no longer hold (lapsed while still "active", or already expired/released/
+			// converted but not yet synced) still count in held_qty until the counters catch up.
+			$lapsed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE ticket_type_id=%d AND counted_qty>0 AND (status<>'active' OR expires_at <= %s)", $type->ticket_type_id, $now ) );
 			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
 			$own = 0;
 			if ( $exclude_order_id ) {
@@ -572,7 +573,7 @@ final class Orders {
 			}
 		}
 		if ( (int) $occurrence->capacity > 0 ) {
-			$lapsed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.counted_qty),0) FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_reservations r ON r.ticket_type_id=tt.ticket_type_id AND r.status='active' AND r.expires_at <= %s WHERE tt.occurrence_id=%d", $now, $occurrence->occurrence_id ) );
+			$lapsed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.counted_qty),0) FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_reservations r ON r.ticket_type_id=tt.ticket_type_id AND r.counted_qty>0 AND (r.status<>'active' OR r.expires_at <= %s) WHERE tt.occurrence_id=%d", $now, $occurrence->occurrence_id ) );
 			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
 			$own = 0;
 			if ( $exclude_order_id ) {

@@ -80,6 +80,7 @@
 - Kasse: Blindzählung wird erklärt – im Kassenformular (gilt für Kassierkräfte; Kassenverwaltung/Finanzrecht sehen den Soll-Bestand immer) und in der Schichtansicht für Vorgesetzte.
 - Z-Bericht: unbekannte Berichtsnummer liefert „nicht gefunden“ (404) statt „keine Berechtigung“; Ausgabe-Funktionen prüfen auf fehlende Berichte (keine PHP-Warnungen).
 - Umtausch-Abschluss sperrt Original- und Aufpreisbestellung (aufsteigend) vor Ticketarten und Terminen – gleiche Sperrreihenfolge wie Stornierung/Zählerabgleich, kein Deadlock bei gleichzeitiger Stornierung der Aufpreisbestellung.
+- Kapazitätsprüfung mit Zählern zieht alle noch gezählten, aber nicht mehr gültigen Reservierungen ab (abgelaufen, freigegeben, umgewandelt – noch nicht synchronisiert), nicht nur abgelaufene „aktive“; kein falsches „ausverkauft“ im Grenzfall.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

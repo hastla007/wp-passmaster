@@ -867,3 +867,18 @@ $a73_start = $a73_pos( '/SELECT \* FROM \w+wpcap_orders WHERE order_id=' . $a73_
 $a73_supp_lock = $a73_start < 0 ? -1 : $a73_pos( '/wpcap_orders WHERE order_id=' . $a73_supp . ' FOR UPDATE/', $a73_start );
 $a73_type_lock = $a73_start < 0 ? -1 : $a73_pos( '/wpcap_ticket_types WHERE ticket_type_id=\d+ FOR UPDATE/', $a73_start );
 check( 'A073: the exchange completed and the supplementary order was locked before the ticket types', $a73_supp && 'completed' === ( Exchange::get( (int) $a73_x['exchange_id'] )['status'] ?? '' ) && $a73_supp_lock >= 0 && $a73_type_lock >= 0 && $a73_supp_lock < $a73_type_lock );
+
+echo "Audit 3: expired but not yet synced holds do not block capacity (A074)\n";
+$a74_type = make_type( 5, 1, 1000 ); // Capacity 1.
+$GLOBALS['wpcap_test_transients'] = array();
+$a74 = Orders::create( array( 'email' => 'a74@example.com', 'items' => array( array( 'ticket_type_id' => $a74_type, 'quantity' => 1 ) ), 'idempotency_key' => 'a74-' . uniqid() ), array( 'payment_provider' => 'stripe' ) );
+// The hold was marked expired, the counters are not synced yet (counted_qty and held_qty still 1).
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='expired',expires_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() - 60 ), $a74['order_id'] ) );
+$a74_counted = (int) $wpdb->get_var( $wpdb->prepare( "SELECT SUM(counted_qty) FROM {$p}wpcap_reservations WHERE order_id=%d", $a74['order_id'] ) );
+$a74_used = PassCaptain\CapacityCounters::used_for_types( array( $a74_type ), 0, current_time( 'mysql', true ) );
+check( 'A074: an expired hold that still counts is not "used" capacity', 1 === $a74_counted && ( null === $a74_used || 0 === (int) $a74_used ) );
+$GLOBALS['wpcap_test_transients'] = array();
+$a74_next = Orders::create( array( 'email' => 'a74b@example.com', 'items' => array( array( 'ticket_type_id' => $a74_type, 'quantity' => 1 ) ), 'idempotency_key' => 'a74b-' . uniqid() ), array( 'payment_provider' => 'stripe' ) );
+check( 'A074: the next buyer gets the unit of an expired, not yet synced hold (no false "sold out")', 1 === $a74_counted && ! is_wp_error( $a74_next ) );
+PassCaptain\CapacityCounters::sync_order_now( (int) $a74['order_id'] );
+if ( ! is_wp_error( $a74_next ) ) { Orders::cancel_order( (int) $a74_next['order_id'], 'test' ); }
