@@ -22,9 +22,32 @@ final class GuestLists {
 		add_action( 'wpcap_order_refunded', array( Service::class, 'on_order_ended' ), 10, 1 );
 		add_filter( 'pre_wp_mail', array( Service::class, 'suppress_placeholder_mail' ), 10, 2 );
 		add_action( 'rest_api_init', array( Rest::class, 'routes' ) );
+		add_filter( 'wpcap_privacy_retention_steps', array( __CLASS__, 'retention_step' ), 10, 3 );
 		add_action( 'init', array( __CLASS__, 'maybe_grant_caps' ), 6, 0 );
 		add_action( 'add_option_wpcap_db_version', array( __CLASS__, 'grant_caps' ), 10, 0 );
 		add_action( 'update_option_wpcap_db_version', array( __CLASS__, 'grant_caps' ), 10, 0 );
+	}
+
+	/**
+	 * Retention (wpcap_privacy_retention_steps): personal fields of guest entries (name, e-mail,
+	 * company, note – also of rejected/cancelled entries) are cleared once the occurrence ended more
+	 * than `attendee_retention_days` (or the default attendee retention) ago. Counts, status and the
+	 * link to the comp order stay for reports.
+	 */
+	public static function retention_step( $counts, $now, $deadline ) {
+		global $wpdb;
+		if ( microtime( true ) >= $deadline ) { return $counts; }
+		$p = $wpdb->prefix;
+		$days = \PassCaptain\Privacy\Retention::attendee_days() ?: \PassCaptain\Privacy\Retention::default_attendee_days();
+		$cutoff = gmdate( 'Y-m-d H:i:s', (int) $now - $days * DAY_IN_SECONDS );
+		$counts['guest_entries'] = (int) $wpdb->query( $wpdb->prepare(
+			"UPDATE {$p}wpcap_guest_entries g INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET g.name=%s,g.email='',g.company='',g.note='',g.updated_at=%s WHERE COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s AND (g.name<>%s OR g.email<>'' OR g.company<>'' OR g.note<>'')",
+			__( 'Gast (gelöscht)', 'wp-pass-captain' ),
+			gmdate( 'Y-m-d H:i:s', (int) $now ),
+			$cutoff,
+			__( 'Gast (gelöscht)', 'wp-pass-captain' )
+		) );
+		return $counts;
 	}
 
 	/** Grants wpcap_approve_comps once per CAPS_VERSION (Installer roles stay untouched). */

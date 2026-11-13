@@ -275,7 +275,7 @@ final class Page {
 			Forms::hidden( 'event_id', $event_id );
 			echo '<p><input name="name" required placeholder="' . esc_attr__( 'Name', 'wp-pass-captain' ) . '" aria-label="' . esc_attr__( 'Name', 'wp-pass-captain' ) . '"> <input name="email" type="email" placeholder="' . esc_attr__( 'E-Mail (optional)', 'wp-pass-captain' ) . '" aria-label="' . esc_attr__( 'E-Mail', 'wp-pass-captain' ) . '"> <input name="company" placeholder="' . esc_attr__( 'Firma/Medium', 'wp-pass-captain' ) . '" aria-label="' . esc_attr__( 'Firma', 'wp-pass-captain' ) . '"> <input name="quantity" type="number" min="1" max="' . (int) Service::max_quantity() . '" value="1" aria-label="' . esc_attr__( 'Tickets inkl. Begleitung', 'wp-pass-captain' ) . '"> ';
 			Forms::select( 'ticket_type_id', $types, (int) array_key_first( $types ), '', 'aria-label="' . esc_attr__( 'Ticketart', 'wp-pass-captain' ) . '"' );
-			echo ' <input name="note" placeholder="' . esc_attr__( 'Notiz', 'wp-pass-captain' ) . '" aria-label="' . esc_attr__( 'Notiz', 'wp-pass-captain' ) . '">';
+			echo ' <input name="note" placeholder="' . esc_attr__( 'Notiz (keine Gesundheitsdaten)', 'wp-pass-captain' ) . '" aria-label="' . esc_attr__( 'Notiz – bitte keine Gesundheits- oder anderen besonderen Daten eintragen', 'wp-pass-captain' ) . '">';
 			if ( $can_approve ) { echo ' <label><input type="checkbox" name="approve" value="1"> ' . esc_html__( 'gleich freigeben', 'wp-pass-captain' ) . '</label>'; }
 			echo ' <button class="button button-primary">' . esc_html__( 'Eintragen', 'wp-pass-captain' ) . '</button></p></form>';
 			echo '<h3>' . esc_html__( 'CSV-Import', 'wp-pass-captain' ) . '</h3>';
