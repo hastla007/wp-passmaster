@@ -10058,3 +10058,7 @@ msgstr "Cash and card sales are also recorded in our own certified cash register
 #: src/BoxOffice/Service.php:340
 msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
 msgstr "Cash and card payments at the box office require a certified cash register solution in Germany and Austria (TSE/RKSV). Pass Captain does not sign receipts. Please choose complimentary ticket or invoice, or confirm in the receipt settings that these sales are recorded in a certified cash register."
+
+#: src/Rest/Controller.php:344
+msgid "Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen."
+msgstr "There are already open, unpaid orders for this email address. Please pay them first or let them expire."

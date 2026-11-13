@@ -10057,3 +10057,7 @@ msgstr "Las ventas en efectivo y con tarjeta también se registran en nuestra pr
 #: src/BoxOffice/Service.php:340
 msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
 msgstr "Los pagos en efectivo y con tarjeta en taquilla requieren en Alemania y Austria una solución de caja certificada (TSE/RKSV). Pass Captain no firma los recibos. Elige entrada gratuita o factura, o confirma en los ajustes de recibos que estas ventas se registran en una caja certificada."
+
+#: src/Rest/Controller.php:344
+msgid "Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen."
+msgstr "Ya hay pedidos abiertos sin pagar para esta dirección de correo. Págalos primero o deja que caduquen."

@@ -259,6 +259,10 @@ final class Controller {
 			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
 		$hold = 'manual' === $provider_id ? max( 1, (int) \PassCaptain\Settings::get( 'manual_hold_hours' ) ) * 60 : max( 30, (int) \PassCaptain\Settings::get( 'hold_minutes' ) ); // Hosted payment pages (e.g. Stripe) live at least 30 minutes.
+		if ( 'manual' === $provider_id ) {
+			$blocked = self::manual_hold_limit( (string) ( $params['email'] ?? '' ), $hold );
+			if ( is_wp_error( $blocked ) ) { return $blocked; }
+		}
 		// Same wording as the form field ("Rabattcode"); the field is derived from the message below.
 		$campaign_messages = static function ( $messages ) {
 			$messages['campaign_invalid'] = __( 'Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets.', 'wp-pass-captain' );
@@ -325,6 +329,30 @@ final class Controller {
 	 *
 	 * @param string[] $campaign_messages Messages that belong to the discount code field.
 	 */
+	/**
+	 * Manual payment holds tickets for days without any payment: one visitor must not be able to block an event
+	 * with a stream of anonymous orders. At most 2 unpaid manual orders per e-mail address
+	 * (filter `wpcap_manual_open_orders_per_email`) and 5 per client within the hold time
+	 * (filter `wpcap_manual_orders_per_client`); paid or expired orders do not count.
+	 */
+	private static function manual_hold_limit( $email, $hold_minutes ) {
+		global $wpdb;
+		$email = sanitize_email( $email );
+		if ( is_email( $email ) ) {
+			$open = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s AND payment_provider='manual' AND payment_status='pending' AND status NOT IN ('cancelled','expired','refunded')", $email ) );
+			if ( $open >= max( 1, (int) apply_filters( 'wpcap_manual_open_orders_per_email', 2 ) ) ) {
+				return new \WP_Error( 'wpcap_manual_open_orders', __( 'Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen.', 'wp-pass-captain' ), array( 'status' => 429, 'field' => 'email' ) );
+			}
+		}
+		$key = 'wpcap_manual_client_' . Orders::rate_hash( Orders::client_ip() );
+		$count = (int) get_transient( $key );
+		if ( $count >= max( 1, (int) apply_filters( 'wpcap_manual_orders_per_client', 5 ) ) ) {
+			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+		}
+		set_transient( $key, $count + 1, max( HOUR_IN_SECONDS, (int) $hold_minutes * MINUTE_IN_SECONDS ) );
+		return true;
+	}
+
 	public static function with_error_field( \WP_Error $error, array $campaign_messages = array() ) {
 		$code = $error->get_error_code();
 		$map = array(

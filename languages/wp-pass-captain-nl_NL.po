@@ -10057,3 +10057,7 @@ msgstr "Contante en kaartverkopen worden ook in onze eigen gecertificeerde kassa
 #: src/BoxOffice/Service.php:340
 msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
 msgstr "Contante en kaartbetalingen aan de kassa vereisen in Duitsland en Oostenrijk een gecertificeerde kassaoplossing (TSE/RKSV). Pass Captain ondertekent geen bonnen. Kies vrijkaart of factuur, of bevestig in de boninstellingen dat deze verkopen in een gecertificeerde kassa worden vastgelegd."
+
+#: src/Rest/Controller.php:344
+msgid "Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen."
+msgstr "Voor dit e-mailadres zijn er al openstaande, onbetaalde bestellingen. Betaal die eerst of laat ze verlopen."
