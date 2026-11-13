@@ -419,7 +419,7 @@ Verdachtsfälle (nicht end-to-end bestätigt):
 - [x] [P2][BESTÄTIGT] `src/Rest/Controller.php:142` — Rabattcodes nur per REST anlegbar, keine Adminseite; Feld „Rabattcode“ immer sichtbar; Preisvorschau ignoriert den Code. **Maßnahme:** Kampagnen-Adminseite, Feld nur bei aktiven Codes, Live-Vorschau.
 - [x] [P2][BESTÄTIGT] `src/Mail/Types.php:263` — Erstattungsmail sagt „erstattet“ auch bei Überweisung (Geld noch nicht unterwegs), Käufer-IBAN wird nicht erfasst; Mail/Admin zeigen 32-stellige Hex-ID statt Bestellnummer. **Maßnahme:** Text je Zahlart, IBAN-Abfrage, überall kurze Bestellnummer.
 - [x] [P2][BESTÄTIGT] `src/Admin/EventsPage.php`; `src/OccurrenceCancellation.php:85` — Terminabsage nur mit `confirm()`, ohne Grund, Folgenvorschau und Zusammenfassung; Auslastung zählt Pässe nicht. **Maßnahme:** Bestätigungsseite mit Folgen, Summary-Notice.
-- [ ] [P3][BESTÄTIGT] `src/BoxOffice/Service.php:277` — Kassenverkäufe ohne E-Mail senden Ticketmail an `boxoffice+…@invalid.example`. **Maßnahme:** Versand an Platzhalter unterdrücken.
+- [x] [P3][BESTÄTIGT] `src/BoxOffice/Service.php:277` — Kassenverkäufe ohne E-Mail senden Ticketmail an `boxoffice+…@invalid.example`. **Maßnahme:** Versand an Platzhalter unterdrücken.
 - [ ] [P3][BESTÄTIGT] `src/Checkin.php:364` — Ticket für anderen Tag: „zu dieser Uhrzeit nicht möglich“ ohne Gültigkeit; Web-Scanner ohne Terminauswahl. **Maßnahme:** Gültigkeit nennen, Terminauswahl.
 - [ ] [P3][BESTÄTIGT] `src/PublicEvents.php:91–96` u. a. — Shortcode/Block ohne Event-/Termin-Attribut; „bis 1 Stunden“; gleichnamige Events ohne Datum in Dropdowns; Kassen-/Partnerformulare verlangen rohe IDs; Partner-Rechnungshinweis doppelt. **Maßnahme:** Attribute `event`/`occurrence`, Auswahllisten, Texte korrigieren.
 

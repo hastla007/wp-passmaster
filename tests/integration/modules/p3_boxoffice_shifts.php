@@ -116,7 +116,14 @@ $sale_cash = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $
 $as( 502, $cashier );
 $sale_card = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $t7 => 2 ), 'method' => 'card', 'reference' => 'T-1', 'form_key' => wpb_key() ) )['sale'];
 $as( 501, $cashier );
+$a47_mails = count( $GLOBALS['wpcap_test_mails'] );
+$a47_suppressed = 0;
+$a47_hook = static function () use ( &$a47_suppressed ) { ++$a47_suppressed; };
+add_action( 'wpcap_mail_suppressed', $a47_hook );
 $sale_free = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $t19 => 1 ), 'method' => 'free', 'form_key' => wpb_key() ) )['sale'];
+remove_action( 'wpcap_mail_suppressed', $a47_hook );
+check( 'A047: a sale without buyer e-mail sends no mail to the placeholder (even without pre_wp_mail)', $a47_suppressed >= 1 && ! array_filter( array_slice( $GLOBALS['wpcap_test_mails'], $a47_mails ), static fn( $m ) => false !== stripos( implode( ',', (array) $m['to'] ), 'invalid.example' ) ) );
+check( 'A047: placeholder detection', PassCaptain\Mail\Mailer::is_placeholder( 'boxoffice+ab12@invalid.example' ) && PassCaptain\Mail\Mailer::is_placeholder( 'x@test.invalid' ) && ! PassCaptain\Mail\Mailer::is_placeholder( 'a@example.com' ) && ! PassCaptain\Mail\Mailer::is_placeholder( 'boxoffice+x@invalid.example, a@example.com' ) && ! PassCaptain\Mail\Mailer::is_placeholder( '' ) );
 $in = Shifts::cash_movement( $s1->session_id, 'cash_in', 1000, 'Wechselgeld nachgelegt' );
 $out = Shifts::cash_movement( $s1->session_id, 'cash_out', 2000, 'Abschöpfung Tresor' );
 $no_reason = Shifts::cash_movement( $s1->session_id, 'cash_out', 100, ' ' );

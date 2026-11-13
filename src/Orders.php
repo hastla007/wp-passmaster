@@ -1566,7 +1566,8 @@ final class Orders {
 			}, $issued );
 			$message = Mail\Mailer::compose( 'tickets', self::ticket_mail_vars( $order, $entries, static function () use ( $entries ) { return Mail\Blocks::issued_tickets( $entries ); } ), (string) $order->locale );
 			$attachments = array();
-			if ( apply_filters( 'wpcap_attach_ticket_pdf', true, (int) $order_id ) ) {
+			// No PDF with plaintext codes for a placeholder address (sale without buyer e-mail).
+			if ( ! Mail\Mailer::is_placeholder( $order->customer_email ) && apply_filters( 'wpcap_attach_ticket_pdf', true, (int) $order_id ) ) {
 				$pdf_tickets = array_map( static function ( $ticket ) {
 					return array( 'event' => $ticket['event'], 'ticket' => $ticket['ticket'], 'when' => self::format_start( $ticket['starts_at'], $ticket['timezone'] ), 'location' => $ticket['location'], 'seat' => (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) $ticket['ticket_id'], $ticket ), 'token' => $ticket['token'] );
 				}, $issued );

@@ -54,6 +54,22 @@ final class Mailer {
 	 * @param string   $locale      Recipient locale (e.g. the order's locale); '' keeps the current one.
 	 * @return bool Whether wp_mail accepted the message.
 	 */
+	/**
+	 * Whether every recipient is a placeholder address of the reserved domain invalid.example (sales
+	 * without a buyer e-mail) or another reserved .invalid address – such mails are never sent.
+	 *
+	 * @param string|string[] $to Recipient(s).
+	 */
+	public static function is_placeholder( $to ) {
+		$list = array_filter( array_map( 'trim', is_array( $to ) ? $to : explode( ',', (string) $to ) ) );
+		if ( ! $list ) { return false; }
+		foreach ( $list as $address ) {
+			$domain = strtolower( (string) substr( strrchr( $address, '@' ) ?: '', 1 ) );
+			if ( 'invalid.example' !== $domain && 'invalid' !== $domain && '.invalid' !== substr( $domain, -8 ) ) { return false; }
+		}
+		return true;
+	}
+
 	public static function send( $type, $to, array $vars, array $attachments = array(), $locale = '' ) {
 		$message = self::compose( $type, $vars, $locale );
 		if ( ! $message ) { return false; }
@@ -130,6 +146,12 @@ final class Mailer {
 	 * @param array $message subject, body, format, attachments, locale, type (optional: headers).
 	 */
 	public static function deliver( $to, array $message ) {
+		if ( self::is_placeholder( $to ) ) {
+			// Box office, guest list or partner sale without a buyer address: nothing to deliver. Done
+			// here, not only in pre_wp_mail, because SMTP plugins may replace wp_mail() entirely.
+			do_action( 'wpcap_mail_suppressed', $to, (string) ( $message['type'] ?? '' ) );
+			return true;
+		}
 		$message = apply_filters( 'wpcap_mail', $message, $to );
 		if ( ! is_array( $message ) ) { return false; }
 		$prepared = self::prepare( $to, $message );

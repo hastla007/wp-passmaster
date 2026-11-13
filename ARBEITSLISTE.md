@@ -110,7 +110,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 
 - [x] **A046** [P3] `src/BoxOffice/Service.php:459–471` (auch `src/Partners/Sales.php:730`) — Storno erkennt Nutzung nur an `status=checked_in`; Wiedereinlass-/Mehrfach-/Pass-Tickets bleiben `valid` u… — _OFFEN_ (TODO L398; Sicherheit (Prüfung 1))
   - Maßnahme: Nutzung über `wpcap_checkins`/`wpcap_admission_entries` wie `Exchange\Service::was_admitted()` prüfen.
-- [ ] **A047** [P3] Kassenverkäufe ohne E-Mail senden Ticketmail an `boxoffice+…@invalid.example`. — _OFFEN_ (TODO L422; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [x] **A047** [P3] Kassenverkäufe ohne E-Mail senden Ticketmail an `boxoffice+…@invalid.example`. — _OFFEN_ (TODO L422; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/BoxOffice/Service.php:277` — Maßnahme: Versand an Platzhalter unterdrücken.
 - [ ] **A048** [P3] Ticket für anderen Tag: „zu dieser Uhrzeit nicht möglich“ ohne Gültigkeit; Web-Scanner ohne Terminauswahl. — _OFFEN_ (TODO L423; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Checkin.php:364` — Maßnahme: Gültigkeit nennen, Terminauswahl.
