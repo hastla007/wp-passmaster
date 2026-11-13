@@ -181,3 +181,16 @@ check( 'A009: staff exchanges stay exempt (like box office/admin sales)', ! is_w
 $GLOBALS['wpcap_test_transients'] = array();
 $a9_buy = Orders::create( array( 'email' => 'hamster@example.com', 'items' => array( array( 'ticket_type_id' => $a9_vip, 'quantity' => 1 ) ), 'idempotency_key' => 'a9b-' . uniqid() ) );
 check( 'A009: VIP units gained by exchange count for later purchases', is_wp_error( $a9_buy ) );
+
+echo "Audit 3: comps need the comp approval right (A010)\n";
+list( , $a10_i ) = ex_buy( $a4_std, 1, 'a10@example.com' );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_approve_comps' );
+$a10_waive = Exchange::request( $a10_i[0], $a4_vip, array( 'channel' => 'admin', 'waive' => true ) );
+$a10_pos = Exchange::box_office_exchange( $a10_i[0], $a4_vip, array( 'pos_method' => 'free' ) );
+$a10_sell = PassCaptain\BoxOffice\Service::sell( array( 'form_key' => 'a10-free-' . bin2hex( random_bytes( 6 ) ), 'occurrence_id' => $a4_occ, 'method' => 'free', 'quantities' => array( $a4_vip => 2 ) ) );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+check( 'A010: goodwill exchange (waive) without wpcap_approve_comps is refused (403)', is_wp_error( $a10_waive ) && 'wpcap_exchange_waive_forbidden' === $a10_waive->get_error_code() && 403 === $a10_waive->get_error_data()['status'] && 'valid' === ex_ticket( $a10_i[0] )->status );
+check( 'A010: box office exchange with method free without the right is refused', is_wp_error( $a10_pos ) && 'wpcap_exchange_waive_forbidden' === $a10_pos->get_error_code() );
+check( 'A010: box office free tickets without the right are refused', is_wp_error( $a10_sell ) && 'wpcap_pos_free_forbidden' === $a10_sell->get_error_code() );
+$a10_ok = Exchange::request( $a10_i[0], $a4_vip, array( 'channel' => 'admin', 'waive' => true ) );
+check( 'A010: with the right the goodwill exchange works', ! is_wp_error( $a10_ok ) && 'completed' === $a10_ok['status'] && 1 === (int) $a10_ok['waived'] );

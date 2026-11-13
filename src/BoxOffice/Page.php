@@ -128,6 +128,7 @@ final class Page {
 			echo '<noscript><p class="description">' . esc_html__( 'Für Teilnehmerangaben wird JavaScript benötigt.', 'wp-pass-captain' ) . '</p></noscript>';
 			echo '<p><strong>' . esc_html__( 'Summe:', 'wp-pass-captain' ) . ' <span id="wpcap-pos-total">0,00</span> ' . esc_html( $session->currency ) . '</strong></p><p>';
 			foreach ( Service::methods() as $key => $def ) {
+				if ( 'free' === $key && ! Service::can_give_free() ) { continue; }
 				echo '<label style="margin-right:1em"><input type="radio" name="method" value="' . esc_attr( $key ) . '"' . ( 'cash' === $key ? ' checked' : '' ) . '> ' . esc_html( $def['label'] ) . '</label>';
 			}
 			echo '</p><p><label>' . esc_html__( 'Gegeben (bar)', 'wp-pass-captain' ) . ' <input type="text" inputmode="decimal" name="tendered" size="8"></label> <span id="wpcap-pos-change"></span> ';

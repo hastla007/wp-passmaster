@@ -12,6 +12,7 @@
 - Rabattcodes für ein bestimmtes Event oder eine Ticketart mindern nur die passenden Positionen; die Umsatzsteuer wird je Position auf den eigenen rabattierten Betrag berechnet und der Positionsrabatt gespeichert (`wpcap_order_items.discount_minor`). Rechnung, Berichte, Abrechnungen und Affiliate-Provision nutzen dieselbe Aufteilung (`OrderLines::after_discount()`), auch die bisher unterschiedliche Rundung der Rechnung entfällt.
 - Kassen-Umtausch: Der Aufpreis wird als Kassenverkauf mit Belegnummer in der offenen Schicht gebucht (Z-Bericht, spätere Erstattungen als Auszahlung); bar/Karte nur mit geöffneter Schicht.
 - Käuferlimit gilt auch beim Umtausch im Bestellportal und über die Partner-API (Umtausch durch Personal bleibt ausgenommen).
+- Freikarten-Rechte: Kulanz-Umtausch ohne Aufpreis und die Kassen-Zahlart „Freikarte“ verlangen `wpcap_approve_comps` (wie die Gästelisten-Freigabe); ohne das Recht wird die Option nicht angezeigt.
 
 ### Zusammenspiel mit WP Voucher Captain
 - Gemeinsamer Scanner: neuer Dienst `wp_pass_captain_checkin_service_v1` (`Integrations\Vouchers\CheckinService`) – `recognizes()`, `preview()`, `check_in()` mit denselben Regeln, Sperren und Audit wie der eigene Web-Scanner; Recht `wpcap_checkin` wird im Dienst geprüft. Der Voucher-Captain-Scanner erkennt damit auch Pass-Captain-Tickets; Gutschein-Einlösung und Ticket-Check-in bleiben getrennte Aktionen.

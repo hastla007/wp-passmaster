@@ -32,6 +32,10 @@ requested/approved ──cancel──▶ cancelled
 | Abholliste ansehen/drucken | Event-Zuweisung `wpcap_manage_events` oder `wpcap_checkin` |
 | Namenssuche, „Angekommen“ | `wpcap_checkin` mit Event-Zuweisung (wie beim Scanner) |
 
+Dasselbe Recht brauchen alle anderen Freikarten-Wege: Kulanz-Umtausch ohne Aufpreis (`waive`) und die
+Kassen-Zahlart „Freikarte“ (auch beim Kassen-Umtausch); ohne das Recht wird die Zahlart an der Kasse
+nicht angeboten und die Aktion mit 403 abgelehnt.
+
 `wpcap_approve_comps` wird beim ersten Laden des Moduls (und nach jedem Schema-Update) der Rolle
 *Administrator* und – falls vorhanden – der Rolle *Pass Captain Ticket-Administration*
 (`wpcap_ticket_admin`) hinzugefügt. Andere Rollen bekommen das Recht nur manuell (z. B. per

@@ -38,7 +38,7 @@ andere Events **derselben Serie** tauschen (`allow_series`). Das alte Ticket wir
 
 | Fall | Ergebnis |
 |---|---|
-| Ziel teurer | Zusatzbestellung über die Differenz (+ Gebühr). Kulanz (`waive`, nur Mitarbeitende): ohne Aufpreis und Gebühr. |
+| Ziel teurer | Zusatzbestellung über die Differenz (+ Gebühr). Kulanz (`waive`, nur Mitarbeitende mit `wpcap_approve_comps`): ohne Aufpreis und Gebühr. |
 | gleicher Preis | ohne Gebühr sofort; mit Gebühr Zusatzbestellung über die Gebühr. |
 | Ziel günstiger, Regel `refund` | Teilerstattung der Differenz über `Refunds::request_amount()` (Freigaberegeln/Schwelle gelten; Selbstbedienung zählt nie als Freigabe). Eine Gebühr wird mit der Erstattung verrechnet (höchstens bis zur Differenz). |
 | Ziel günstiger, Regel `none` | keine Erstattung; das neue Ticket behält den bisherigen Wert (spätere Erstattung/Umtausch rechnet damit). Eine Gebühr wird per Zusatzbestellung berechnet. |

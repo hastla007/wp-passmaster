@@ -43,6 +43,9 @@ final class Service {
 	const REVIEW = 'needs_review';
 	const CHANNELS = array( 'admin', 'portal', 'pos', 'api' );
 
+	/** Right to give tickets away (goodwill exchange, box office free method); see GuestLists. */
+	const COMP_CAP = 'wpcap_approve_comps';
+
 	/** Supplementary order ids of the current request (order_id => bool). */
 	private static $supplement_cache = array();
 
@@ -393,6 +396,11 @@ final class Service {
 		if ( 'portal' === $channel ) {
 			// Goodwill and policy overrides are staff decisions.
 			unset( $args['waive'], $args['refund_policy'] );
+		}
+		// A free upgrade (goodwill) or a box office "free" supplement is a comp: same right as the
+		// guest list approval (four-eyes principle there), not just order management.
+		if ( ( ! empty( $args['waive'] ) || ( 'pos' === $channel && 'free' === ( $args['pos_method'] ?? '' ) ) ) && ! current_user_can( self::COMP_CAP ) ) {
+			return self::error( 'wpcap_exchange_waive_forbidden', __( 'Für einen Umtausch ohne Aufpreis (Kulanz/Freikarte) fehlt die Berechtigung zur Freigabe von Freikarten.', 'wp-pass-captain' ), 403 );
 		}
 		$key = sanitize_text_field( (string) ( $args['idempotency_key'] ?? '' ) );
 		$key_hash = '' !== $key ? hash( 'sha256', 'exchange|' . absint( $ticket_id ) . '|' . $key ) : null;

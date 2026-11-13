@@ -29,7 +29,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 
 - [x] **A009** [P2] Käuferlimit greift nur in `wpcap_order_creating`, nicht beim Umtausch (nachgestellt: VIP-Limit 1, drei Umtausche Standard→VIP ergeben 4 VIP-Tickets). — _OFFEN_ (TODO L395; Sicherheit (Prüfung 1))
   - `src/Allocations/BuyerLimits.php:123ff`; `src/Exchange/Service.php:373ff`; `src/Orders.php:671` — Maßnahme: Limit auch in `phase=exchange` mit derselben Sperrlogik durchsetzen; Test.
-- [ ] **A010** [P2] Gratis-Upgrade (`waive`) und Kassen-Zahlart `free` brauchen nur `wpcap_manage_orders`, nicht `wpcap_approve_comps` (nachgestellt: Support tauscht 10 € → 500 € ohne Aufpreis; Kasse … — _OFFEN_ (TODO L396; Sicherheit (Prüfung 1))
+- [x] **A010** [P2] Gratis-Upgrade (`waive`) und Kassen-Zahlart `free` brauchen nur `wpcap_manage_orders`, nicht `wpcap_approve_comps` (nachgestellt: Support tauscht 10 € → 500 € ohne Aufpreis; Kasse … — _OFFEN_ (TODO L396; Sicherheit (Prüfung 1))
   - `src/Exchange/AdminPage.php:43–57`; `src/BoxOffice/Service.php:36,316–322` — Maßnahme: An `wpcap_approve_comps` binden, optional Schwelle/Freigabe; Rechte-Matrix-Test.
 - [ ] **A011** [P2] Blindzählung umgehbar: Soll wird nach erster Zählung angezeigt, „Neu zählen“ unbegrenzt, Z-Bericht zeigt nur letzte Zählung. — _OFFEN_ (TODO L397; Sicherheit (Prüfung 1))
   - `src/BoxOffice/Shifts.php:299–352`; `src/BoxOffice/ShiftPage.php:244–256` — Maßnahme: Soll erst nach Abschluss zeigen oder Nachzählung nur mit Finanzrecht; alle Zählungen im Z-Bericht; Test.

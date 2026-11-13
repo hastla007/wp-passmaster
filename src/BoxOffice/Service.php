@@ -38,6 +38,11 @@ final class Service {
 		);
 	}
 
+	/** Free tickets at the counter are comps: same right as the guest list approval. */
+	public static function can_give_free() {
+		return current_user_can( 'wpcap_approve_comps' );
+	}
+
 	public static function method_label( $method ) {
 		$methods = self::methods();
 		return $methods[ $method ]['label'] ?? $method;
@@ -253,6 +258,9 @@ final class Service {
 		$methods = self::methods();
 		$method = (string) ( $input['method'] ?? '' );
 		if ( ! isset( $methods[ $method ] ) ) { return self::error( 'wpcap_pos_method', __( 'Bitte eine Zahlart wählen.', 'wp-pass-captain' ) ); }
+		if ( 'free' === $method && ! self::can_give_free() ) {
+			return self::error( 'wpcap_pos_free_forbidden', __( 'Freikarten an der Kasse brauchen die Berechtigung zur Freigabe von Freikarten.', 'wp-pass-captain' ), 403 );
+		}
 
 		$types = array();
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,currency,price_minor FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence_id ) ) as $t ) { $types[ (int) $t->ticket_type_id ] = $t; }

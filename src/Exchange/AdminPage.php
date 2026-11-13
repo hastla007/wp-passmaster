@@ -197,7 +197,9 @@ final class AdminPage {
 			}
 			echo '</select><p class="description">' . esc_html__( 'Der Platz muss zur Ticketart des Ziels passen.', 'wp-pass-captain' ) . '</p></td></tr>';
 		}
-		echo '<tr><th>' . esc_html__( 'Kulanz', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="waive" value="1"> ' . esc_html__( 'Ohne Aufpreis und Gebühr umtauschen', 'wp-pass-captain' ) . '</label></td></tr>';
+		if ( current_user_can( Service::COMP_CAP ) ) {
+			echo '<tr><th>' . esc_html__( 'Kulanz', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="waive" value="1"> ' . esc_html__( 'Ohne Aufpreis und Gebühr umtauschen', 'wp-pass-captain' ) . '</label></td></tr>';
+		}
 		echo '<tr><th><label for="wpcap-exchange-refund">' . esc_html__( 'Günstigeres Ziel', 'wp-pass-captain' ) . '</label></th><td>';
 		Forms::select( 'refund_policy', array( '' => __( 'Regel des Events', 'wp-pass-captain' ), 'refund' => __( 'Differenz erstatten', 'wp-pass-captain' ), 'none' => __( 'Keine Erstattung', 'wp-pass-captain' ) ), '', 'wpcap-exchange-refund' );
 		echo '</td></tr><tr><th><label for="wpcap-exchange-note">' . esc_html__( 'Notiz', 'wp-pass-captain' ) . '</label></th><td><input type="text" name="note" id="wpcap-exchange-note" class="regular-text" maxlength="255"></td></tr></table>';
