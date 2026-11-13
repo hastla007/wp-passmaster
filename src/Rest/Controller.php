@@ -480,7 +480,7 @@ final class Controller {
 			/* translators: %d: allowed resends per hour */
 			return new \WP_Error( 'wpcap_resend_rate_limited', sprintf( _n( 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', $limit, 'wp-pass-captain' ), $limit ), array( 'status' => 429 ) );
 		}
-		$result = Orders::resend_tickets( (int) $order->order_id );
+		$result = Orders::resend_tickets( (int) $order->order_id, array( 'skip_transferred' => true ) );
 		if ( is_wp_error( $result ) ) {
 			$status = in_array( $result->get_error_code(), array( 'wpcap_mail_failed', 'wpcap_ticket_rotation_failed' ), true ) ? 502 : 409;
 			return new \WP_Error( $result->get_error_code(), $result->get_error_message(), array( 'status' => $status ) );

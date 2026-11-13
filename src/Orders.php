@@ -1689,7 +1689,9 @@ final class Orders {
 	 * that a concurrent rotation already replaced. A failed mail schedules a retry job (new codes).
 	 *
 	 * @param int   $order_id Order ID.
-	 * @param array $args     from_job (bool, internal: the retry job reschedules itself).
+	 * @param array $args     from_job (bool, internal: the retry job reschedules itself),
+	 *                        skip_transferred (bool: buyer self-service – tickets passed on to someone
+	 *                        else keep their code, so the buyer cannot invalidate the recipient's QR code).
 	 * @return true|\WP_Error
 	 */
 	public static function resend_tickets( $order_id, array $args = array() ) {
@@ -1705,7 +1707,7 @@ final class Orders {
 			return new \WP_Error( 'wpcap_order_unpaid', __( 'Tickets können erst nach bestätigter Zahlung erneut gesendet werden.', 'wp-pass-captain' ) );
 		}
 		$tickets = $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.ticket_id,t.status,t.attendee_email,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status='valid' ORDER BY t.ticket_id FOR UPDATE",
+			"SELECT t.ticket_id,t.status,t.attendee_email,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status='valid'" . ( empty( $args['skip_transferred'] ) ? '' : ' AND t.transfer_count=0' ) . " ORDER BY t.ticket_id FOR UPDATE",
 			$order_id
 		) );
 		// Checked-in tickets are skipped: they are used, and rotating them would only invalidate the

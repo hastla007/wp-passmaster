@@ -155,7 +155,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Exchange/Service.php:700–708` — 
 - [x] **A067** [VERDACHT] alte Route `/pos/sales` umgeht Schicht, Belegnummer und Z-Bericht. — _OFFEN_ (TODO L403; Sicherheit (Prüfung 1))
   - `src/Rest/Controller.php` `pos_sale` — 
-- [ ] **A068** [VERDACHT] Portal-Nachsendung erneuert auch Codes übertragener Tickets (Käufer kann QR-Code der Empfängerin ungültig machen). — _OFFEN_ (TODO L404; Sicherheit (Prüfung 1))
+- [x] **A068** [VERDACHT] Portal-Nachsendung erneuert auch Codes übertragener Tickets (Käufer kann QR-Code der Empfängerin ungültig machen). — _OFFEN_ (TODO L404; Sicherheit (Prüfung 1))
   - `src/Orders.php:1500ff` — 
 - [ ] **A069** [VERDACHT] Freikarten-Antrag und Freigabe durch dieselbe Person möglich. — _OFFEN_ (TODO L405; Sicherheit (Prüfung 1))
   - `src/GuestLists/Service.php:93–98,305` — 

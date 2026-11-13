@@ -831,3 +831,14 @@ $GLOBALS['wpcap_test_user_id'] = 4242; // Admin without an open shift.
 $a67 = PassCaptain\Rest\Controller::pos_sale( a3_request( array( 'items' => array( array( 'ticket_type_id' => $a67_type, 'quantity' => 1 ) ), 'idempotency_key' => 'a67-' . uniqid(), 'method' => 'free' ) ) );
 $GLOBALS['wpcap_test_user_id'] = 1;
 check( 'A067: without an open shift no order is created (no sale beside shift, receipt and Z report)', is_wp_error( $a67 ) && 'wpcap_pos_no_session' === $a67->get_error_code() && $a67_orders === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders" ) );
+
+echo "Audit 3: buyer resend keeps codes of transferred tickets (A068)\n";
+list( $a68_o, $a68_t ) = ex_buy( $a4_std, 2, 'a68@example.com' );
+$wpdb->update( "{$p}wpcap_tickets", array( 'transfer_count' => 1, 'attendee_email' => 'friend.a68@example.com' ), array( 'ticket_id' => $a68_t[1] ) );
+$a68_hash = static fn( $id ) => $wpdb->get_var( $wpdb->prepare( "SELECT token_hash FROM {$p}wpcap_tickets WHERE ticket_id=%d", $id ) );
+$a68_before = array( $a68_hash( $a68_t[0] ), $a68_hash( $a68_t[1] ) );
+$GLOBALS['wpcap_test_mails'] = array();
+$a68 = Orders::resend_tickets( $a68_o, array( 'skip_transferred' => true ) );
+check( 'A068: self-service resend renews own tickets only; the transferred ticket keeps its code and gets no mail', true === $a68 && $a68_before[0] !== $a68_hash( $a68_t[0] ) && $a68_before[1] === $a68_hash( $a68_t[1] ) && ! array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => 'friend.a68@example.com' === $m['to'] ) );
+$a68_src = file_get_contents( dirname( __DIR__, 3 ) . '/src/Rest/Controller.php' );
+check( 'A068: the order portal resend uses skip_transferred', false !== strpos( $a68_src, "Orders::resend_tickets( (int) \$order->order_id, array( 'skip_transferred' => true ) )" ) );
