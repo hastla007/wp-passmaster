@@ -803,3 +803,23 @@ check( 'A066: portal downgrade of a partner sale with refund is refused (refund_
 check( 'A066: platform_collected() is false for partner, box office and comps, true for online providers', ! Exchange::platform_collected( (object) array( 'payment_provider' => 'partner' ) ) && ! Exchange::platform_collected( (object) array( 'payment_provider' => 'pos_cash' ) ) && ! Exchange::platform_collected( (object) array( 'payment_provider' => 'comp' ) ) && Exchange::platform_collected( (object) array( 'payment_provider' => 'stripe' ) ) && Exchange::platform_collected( (object) array( 'payment_provider' => 'manual' ) ) );
 $wpdb->update( "{$p}wpcap_orders", array( 'payment_provider' => 'manual' ), array( 'order_id' => $a66_o ) );
 ex_policy( array( 'portal_enabled' => 0 ) );
+
+echo "Audit 3: docs/HOOKS.md matches the code (A064)\n";
+$a64_root = dirname( __DIR__, 3 );
+$a64_src = '';
+$a64_code = array();
+foreach ( array( 'src', 'templates' ) as $a64_dir ) {
+	foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $a64_root . '/' . $a64_dir, FilesystemIterator::SKIP_DOTS ) ) as $a64_f ) {
+		if ( 'php' !== $a64_f->getExtension() ) { continue; }
+		$a64_text = file_get_contents( $a64_f->getPathname() );
+		$a64_src .= $a64_text;
+		if ( 'src' === $a64_dir && preg_match_all( "/\\b(?:do_action|apply_filters)\\(\\s*'((?:wpcap|wp_pass_captain)_[a-z0-9_]+)'/", $a64_text, $a64_m ) ) { $a64_code = array_merge( $a64_code, $a64_m[1] ); }
+	}
+}
+$a64_code = array_unique( $a64_code );
+preg_match_all( '/^\|\s*`((?:wpcap|wp_pass_captain)_[a-z0-9_]+)`/m', file_get_contents( $a64_root . '/docs/HOOKS.md' ), $a64_d );
+$a64_doc = array_unique( $a64_d[1] );
+$a64_missing = array_diff( $a64_code, $a64_doc );
+check( 'A064: every hook fired in src/ is documented in docs/HOOKS.md' . ( $a64_missing ? ' – missing: ' . implode( ', ', $a64_missing ) : '' ), ! $a64_missing );
+$a64_unknown = array_filter( $a64_doc, static fn( $h ) => ! in_array( $h, $a64_code, true ) && ! in_array( $h, PassCaptain\Plugin::cron_hooks(), true ) && false === strpos( $a64_src, "'" . $h . "'" ) );
+check( 'A064: docs/HOOKS.md documents no hook that does not exist' . ( $a64_unknown ? ' – unknown: ' . implode( ', ', $a64_unknown ) : '' ), ! $a64_unknown );

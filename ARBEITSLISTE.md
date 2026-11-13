@@ -144,7 +144,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Modules/BoxOffice.php:29–70`; `src/BoxOffice/Registers.php:148–158` — Maßnahme: In `Installer::install()` unter Lock ziehen.
 - [x] **A063** [P3] `db_busy` uneinheitlich (409 ohne `retryable`, 503 ohne `retryable`). — _OFFEN_ (TODO L484; Architektur und QA (Prüfung 5))
   - `src/Exchange/Service.php:525`; `src/Allocations/Holds.php:122`; `src/Passes/Capacity.php:183` — Maßnahme: Gemeinsame Fehlerfabrik `Errors::busy()` (503, `retryable=true`).
-- [ ] **A064** [P3] Etwa 70 von 145 Hooks undokumentiert (22 nirgends), Dokument nennt Nicht-Hooks (`wpcap_jobs`, `wpcap_message_queue`). — _OFFEN_ (TODO L485; Architektur und QA (Prüfung 5))
+- [x] **A064** [P3] Etwa 70 von 145 Hooks undokumentiert (22 nirgends), Dokument nennt Nicht-Hooks (`wpcap_jobs`, `wpcap_message_queue`). — _OFFEN_ (TODO L485; Architektur und QA (Prüfung 5))
   - `docs/HOOKS.md` — Maßnahme: Aus dem Code erzeugen bzw. per CI abgleichen.
 
 ## Phase 5 – Verdachtsfälle prüfen und ggf. beheben

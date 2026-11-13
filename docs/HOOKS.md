@@ -1,6 +1,6 @@
 # Interne Entwickler-Hooks
 
-Alle `do_action()`- und `apply_filters()`-Aufrufe in `src/` (Stand 2026-11-11), mit Argumenten.
+Alle `do_action()`- und `apply_filters()`-Aufrufe in `src/` (Stand 2026-11-13), mit Argumenten.
 Hooks mit Suffix `_v1` sind versionierte Verträge für Drittanbieter; die übrigen sind stabile interne
 Erweiterungspunkte. Externe Systeme sollten statt PHP-Hooks die signierten
 [ausgehenden Webhooks](WEBHOOKS.md) verwenden.
@@ -17,8 +17,10 @@ Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
 | `wpcap_capacity_increased` | `int $ticket_type_id, int $occurrence_id` | Von Modulen/Admin auszulösen, wenn Kontingent erhöht oder freigegeben wurde (eines der Argumente darf 0 sein). Die Warteliste bietet die neuen Plätze dann automatisch an (siehe [WAITLIST.md](WAITLIST.md)). |
 | `wpcap_waitlist_offered` | `int $waitlist_id, int $order_id` | Nach einem Wartelistenangebot samt Reservierung (Platzhalter-Bestellung mit `payment_provider` `waitlist_offer`) und Versand der Angebotsmail. |
 | `wpcap_mail_before_send` | `array $prepared, array $message` | Unmittelbar vor `wp_mail()` jeder Kunden-Mail des zentralen Mailers; `$prepared`: `to`, `subject`, `body` (inkl. Layout), `headers`, `attachments`, `alt_body` (Textversion bei HTML-Mails, sonst `null`). |
+| `wpcap_mail_suppressed` | `string $to, string $type` | `Mailer::deliver()`: Kunden-Mail an eine Platzhalteradresse (Kasse, Gästeliste oder Partnerverkauf ohne Käuferadresse) wird nicht versendet; `$type` ist der Mail-Typ. |
 | `wpcap_order_paid` | `int $order_id` | Nach der Zahlungsbestätigung (auch bei kostenlosen Bestellungen), immer **vor** der Ticketausgabe; wer die Tickets braucht, nutzt `wpcap_tickets_issued`. |
 | `wpcap_order_cancelled` | `int $order_id` | `Orders::cancel_order()`, beim Ablauf von Reservierungen (`expire_holds`) und für offene Bestellungen bei der Event-Absage (`cancel_event`). |
+| `wpcap_order_refunded` | `int $order_id, string $reason` | `Orders::mark_refunded()` nach dem Commit: Bestellung vollständig erstattet (native Erstattung, WooCommerce oder Dashboard des Zahlungsanbieters); offene Tickets sind widerrufen. |
 | `wp_pass_captain_voucher_tickets_revoked_v1` | `array $info` (`redemption_key`, `order_public_id`, `remaining`, `revoked`, `reason`) | Tickets einer Gutschein-Umwandlung wurden in Pass Captain storniert oder erstattet (Bestellung storniert/erstattet, Termin/Event abgesagt) – nicht bei `revoke_tickets()` durch das Gutscheinsystem selbst. Feuert bei jeder Änderung; `remaining` zählt noch gültige oder bereits eingecheckte Tickets. Der Gutscheinanbieter kann den Gutschein damit zurückgeben (idempotent behandeln). |
 | `wpcap_ticket_created` | `int $ticket_id, object $order, object $line, int $index` | Innerhalb der Ausgabe-Transaktion, je Ticket (z. B. Sitzplatz zuweisen). Klartext-Code nicht speichern. |
 | `wpcap_tickets_issued` | `int $order_id, int $count` | Nach dem Commit der Ticketausgabe, vor dem Versand der Ticket-E-Mail. |
@@ -27,19 +29,23 @@ Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
 | `wpcap_ticket_checked_in` | `int $ticket_id, array $context` | Nach erfolgreichem Einlass (`Checkin`). `$context`: u. a. `source`, `device_id`. |
 | `wpcap_ticket_checked_out` | `int $ticket_id, array $context` | Nach einem Auslass (Mehrfacheinlass/Bereiche). |
 | `wpcap_refund_completed` | `int $refund_id, int $order_id` | Erstattung über das Plugin erfolgreich ausgeführt (auch Teilerstattung). |
+| `wpcap_refund_rejected` | `int $refund_id, int $order_id` | Eine auf Freigabe wartende Erstattung (`pending_approval`) wurde von einer freigabeberechtigten Person abgelehnt (`Refunds::reject()`). |
+| `wpcap_pass_day_refund_failed` | `int $order_id, int $ticket_type_id, int $occurrence_id, int $amount_minor` | Pass-Modul: Die anteilige Erstattung für einen abgesagten Termin eines Passes (`refund_per_day_minor` × Anzahl) konnte nicht ausgeführt werden (z. B. WooCommerce-Bestellung – dort erstatten, oder Fehler/Freigabe ausstehend). |
 | `wpcap_occurrence_rescheduled` | `int $occurrence_id, string $old_starts_at, string $new_starts_at` | Admin: Startzeit eines Termins mit ausgegebenen Tickets geändert (UTC `Y-m-d H:i:s`). |
 | `wpcap_occurrence_cancelled` | `int $occurrence_id, int $issued` | Admin: Termin abgesagt (`$issued` = Anzahl ausgegebener Tickets). Kern-Folgen in `OccurrenceCancellation` (Priorität 10); das SMS-Modul hängt sich mit Priorität 5 davor. |
 | `wpcap_occurrence_cancelled_woocommerce_order` | `int $order_id, int $occurrence_id` | Je bezahlter WooCommerce-Bestellung eines abgesagten Termins (Erstattung erfolgt in WooCommerce). |
 | `wp_pass_captain_connector_error_v1` | `string $connector_key, string $event_name, string $message` | Ein Connector hat bei einem Ereignis eine Exception geworfen. |
-| `wpcap_checkout_form_fields` | `object $event, array $types` | Template `templates/event-card.php` innerhalb des Checkout-Formulars (eigene Felder ausgeben; JS-Ereignis `wpcap:checkout-payload` ergänzt den Payload). |
 
-Cron-Actions, an die sich Module hängen: `wpcap_process_messages` (alle 5 Minuten, Nachrichten-Queue;
-Erinnerungen planen sich mit Priorität 1 ein, Bereinigung mit 5, SMS-Versand mit 20),
-`wpcap_process_jobs` (alle 5 Minuten; Webhook-Zustellung mit Priorität 20),
-`wpcap_cleanup_reservations` (stündlich) und `wpcap_webhooks_dispatch` (einmalig nach neuen
-Webhook-Ereignissen).
+Außerdem feuert das Template `templates/event-card.php` innerhalb des Checkout-Formulars die Action
+`wpcap_checkout_form_fields` (`object $event, array $types`), an die sich Module zum Ausgeben eigener Felder
+hängen (Sitzplatzwahl, SMS, Mollie, Partnercode, Käuferlimits); das JS-Ereignis `wpcap:checkout-payload`
+ergänzt den Payload. Sie steht hier im Fließtext, weil sie nicht in `src/`, sondern im Template ausgelöst wird.
 
-## Filter
+Die WP-Cron-Hooks des Plugins stehen unter [Cron-Hooks](#cron-hooks).
+
+## Filter und themenbezogene Actions
+
+Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 
 ### Checkout und Bestellungen
 
@@ -66,6 +72,19 @@ Webhook-Ereignissen).
 | `wpcap_voucher_purpose` | `string|null $purpose, array $voucher, array $context` | Art eines Gutscheins: `single` (Einzweckgutschein, USt beim Gutscheinverkauf; Einlösung = Preisnachlass) oder `multi` (Mehrzweckgutschein, Einlösung = Zahlungsmittel, USt auf den vollen Preis). `$purpose` ist die Angabe aus den WP-Voucher-Captain-Daten (oder `null`); `$voucher`: Anbieterdaten (Checkout: `quote`, `reservation`; Ticketdienst: `$source`); `$context`: `source` (`checkout`/`ticket_service`), `order_id`, `code_hint`, `ticket_type_id`, `quantity`. Rückgabe `null`/unbekannt → Einstellung `voucher_default_purpose` (Standard `multi`). Siehe docs/VOUCHERS.md. |
 | `wpcap_woocommerce_hold_minutes` | `int $minutes` | Reservierung bei WooCommerce-Checkout. |
 | `wpcap_woocommerce_on_hold_minutes` | `int $minutes` (3 Tage) | Reservierung für WooCommerce-Bestellungen „in Wartestellung“. |
+| `wpcap_max_line_quantity` | `int $limit` (100) | Absolute Obergrenze der Menge je Bestellzeile in `Orders::create()`, geprüft vor dem Sperren (Schutz gegen absurde Mengen); `max_per_order` der Ticketart gilt zusätzlich. |
+| `wpcap_client_ip` | `string $ip` (`REMOTE_ADDR`), `array $server` (`$_SERVER`) | Client-IP für Ratenbegrenzungen (`Orders::client_ip()`). Hinter einem Proxy nur dann einen Header übernehmen, wenn `$ip` der vertrauenswürdige Proxy ist; ungültige Rückgaben fallen auf `REMOTE_ADDR` zurück. |
+| `wpcap_checkout_error_field` | `string $field, WP_Error $error` | Formularfeld (`data.field`), dem ein Checkout-Fehler zugeordnet wird (z. B. `email`, `campaign_code`, `voucher_code`); leer = keinem Feld. |
+| `wpcap_manual_open_orders_per_email` | `int $limit` (2) | Offene, unbezahlte Überweisungsbestellungen (`manual`) je E-Mail-Adresse; darüber lehnt der Checkout mit HTTP 429 ab. |
+| `wpcap_manual_orders_per_client` | `int $limit` (5) | Überweisungsbestellungen je Client-IP innerhalb der Reservierungszeit (mindestens eine Stunde). |
+| `wpcap_campaign_preview_rate_limit` | `int $limit` (30) | Unverbindliche Rabattvorschauen (`Campaigns::preview()`) je Client-IP in 10 Minuten. |
+| `wpcap_expire_holds_batch` | `int $limit` (200) | Bestellungen, deren Reservierungen ein Lauf von `Orders::expire_holds()` höchstens ablaufen lässt. |
+| `wpcap_issue_order_lines` | `object[] $lines, object $order` | Bestellzeilen (mit Ticketart-, Termin- und Eventspalten), die bei der Ausgabe Tickets erhalten; läuft in der Ausgabe-Transaktion mit gesperrter Bestellung. Module entfernen Zeilen ohne eigenen Einlass (z. B. die Aufpreis-Bestellung eines Umtauschs). |
+| `wpcap_max_holder_changes` | `int $max` (1), `int $ticket_id` | Anzahl Inhaberwechsel per Zuweisung, ab der eine Übertragung des Tickets abgelehnt wird (`wpcap_transfer_holder_changed`). |
+| `wpcap_refundable_tickets` | `object[] $rows` (`ticket_id`, `ticket_type_id`), `int $order_id` | Erstattbare Tickets einer Bestellung (nicht erstattet und gültig, eingecheckt oder wegen Termin-/Eventabsage widerrufen). |
+| `wpcap_order_started` | `bool $started, int $order_id, string $now` (UTC `Y-m-d H:i:s`) | Ob ein Termin der Bestellung bereits begonnen hat (`Partners\Sales::order_started()`, Stornoprüfung der Partner-API). Das Pass-Modul liefert `true`, wenn ein verknüpfter Termin eines Passes der Bestellung begonnen hat. |
+| `wpcap_guestlist_max_tickets_per_entry` | `int $max` (20, 1–100) | Höchstzahl Tickets je Gästelisteneintrag (Gast plus Begleitungen). |
+| `wpcap_portal_resend_limit` | `int $limit` (3) | Neuversand der Tickets einer Gutschein-Umwandlung (`TicketService::resend_tickets()`) je Bestellung und Stunde; die Codes werden dabei erneuert. |
 
 ### Zahlungen
 
@@ -78,6 +97,8 @@ Webhook-Ereignissen).
 | `wpcap_mollie_webhook_ip_limit` | `int $limit` (120) | Mollie-Webhook-Abfragen bekannter Zahlungen je IP und Minute (darüber HTTP 429). |
 | `wpcap_mollie_webhook_global_limit` | `int $limit` (1200) | Mollie-Webhook-Abfragen insgesamt je Minute. |
 | `wpcap_mollie_payment_body` | `array $body, array $order, array $items` | Body von `POST /v2/payments` (Mollie). |
+| `wpcap_bank_transfer_details` | `array $details, object $order` | Überweisungsdaten im Bestellportal und in Mails (`reference`, `remittance`, `amount_minor`, `currency`, `amount`, `recipient`, `iban`, `bic`, `due_at`, `due_date`, `instructions`). |
+| `wpcap_send_refund_mail` | `bool $send, int $refund_id, object $order` | Ob die Erstattungsbestätigung an den Käufer geht (Standard: ja, außer bei WooCommerce-Bestellungen oder ohne gültige E-Mail-Adresse). |
 
 ### E-Mails, Tickets, Darstellung
 
@@ -94,6 +115,9 @@ Webhook-Ereignissen).
 | `wp_pass_captain_email_template_v1` | `array|null $template, string $template_key, array $payload` | Vorlage für Nachrichten aus `wpcap_message_queue`; Rückgabe `['subject' => …, 'body' => …]`. Erinnerungen nutzen den Schlüssel `wpcap_reminder`. |
 | `wp_pass_captain_event_card_html` | `string $html, object $event, array $types` | HTML einer Event-Karte im Shortcode `[wp_pass_captain_events]` (das Kalender-Modul ergänzt den Anker `id="wpcap-occ-{Termin}"`). |
 | `wp_pass_captain_currencies` | `string[] $currencies` | Wählbare Währungen. |
+| `wpcap_sender_name` | `string $name` | Name in der Kundenkommunikation (Website-Titel, sonst der Hostname). |
+| `wpcap_currency_symbols` | `array $symbols` (ISO-Code → Symbol) | Währungssymbole für die Anzeige; unbekannte Währungen erscheinen als ISO-Code. |
+| `wpcap_order_portal_ticket_html` | `string $html` (`''`), `object $ticket, object $order, string $token` | Zusätzliches HTML je Ticket im Bestellportal (z. B. Umtausch-Formular); der Callback muss selbst escapen. |
 
 ### Kalender, Erinnerungen, SMS, Webhooks
 
@@ -121,6 +145,8 @@ Webhook-Ereignissen).
 | `wpcap_privacy_policy_recipients` | `array $recipients` | Welche Empfänger der Datenschutztext-Vorschlag nennt (`stripe`, `paypal`, `mollie`, `twilio`, `sms_http`, `apple`, `google`, `partners`, `webhooks`, `affiliate`, `woocommerce` → bool). |
 | `wpcap_privacy_policy_content` | `string $html, array $recipients` | HTML des Datenschutztext-Vorschlags. |
 | `wpcap_scanner_queue_max_hours` | `int $hours` (24, 1–168) | Wie lange der Web-Scanner Offline-Scans im Browser aufbewahrt. |
+| `wpcap_privacy_defer_upcoming` | `bool $defer` (true), `int $order_id` | Bei einer Löschanfrage Bestellungen mit Tickets für kommende Termine zurückstellen (Anonymisierung automatisch nach dem letzten Termin) statt die Tickets zu widerrufen (Art. 17 Abs. 3 lit. b DSGVO). |
+| `wpcap_privacy_retention_steps` | `array $counts, int $now, float $deadline` | Eigene Schritte des täglichen Löschlaufs anhängen (Gästelisten, Warteliste, Käuferlimits …): Anzahl je Schrittname ergänzen, `$deadline` (`microtime()`-Grenze) beachten. |
 
 ### Wallet
 
@@ -133,6 +159,109 @@ Webhook-Ereignissen).
 | `wpcap_wallet_google_class` | `array $class, array $ticket` | Google-Wallet-EventTicketClass. |
 | `wpcap_wallet_google_object` | `array $object, array $ticket` | Google-Wallet-EventTicketObject. |
 
+### Administration
+
+| Hook | Wert, Argumente | Zweck |
+|---|---|---|
+| `wpcap_admin_order_detail` (Action) | `object $order, array $tickets` | Zusätzliche Abschnitte auf der Bestelldetailseite im Admin vor den Erstattungen (z. B. Ticketumtausch). |
+| `wpcap_occurrence_sold` | `int $sold, int $occurrence_id` | Im Admin angezeigte verkaufte Einheiten eines Termins (bezahlt, nicht erstattet); Module zählen eigene Einheiten hinzu (z. B. an anderen Terminen verankerte Pässe). |
+| `wpcap_occurrence_cancellation_preview` | `array $effects` (leer), `int $occurrence_id` | Weitere Folgen einer Terminabsage für die Vorschau im Admin, je Eintrag `[Name, Tickets, Wirkung]` (z. B. verknüpfte Pässe). |
+
+### Kontingente und Käuferlimits
+
+| Hook | Wert, Argumente | Zweck |
+|---|---|---|
+| `wpcap_allocation_limit_exempt_sources` | `string[] $sources` (`pos`, `guestlist`, `admin`) | Bestellquellen, für die Käuferlimits nicht gelten. |
+| `wpcap_allocation_buyer_limit_applies` | `bool $applies, string $source, array $selected, array $internal` | Ob das Käuferlimit für diese Bestellung gilt (Standard: nicht für ausgenommene Quellen); läuft in `wpcap_order_creating`. |
+| `wpcap_allocation_normalize_gmail` | `bool $normalize` (false) | Gmail-Adressen für die Käuferidentität normalisieren (Punkte und `+Zusatz` entfernen, `googlemail.com` → `gmail.com`). |
+| `wpcap_allocation_buyer_email` | `string $email` | Normalisierte E-Mail-Adresse, aus der der Käuferschlüssel für Limits gebildet wird. |
+| `wpcap_allocation_trusted_sources` | `string[] $sources` (`pos`, `guestlist`, `admin`) | Quellen, die reservierte Kontingente (Holds) verbrauchen dürfen und nicht an sie gebunden sind. |
+| `wpcap_allocation_hold_for_source` | `int $hold_id` (0), `string $source, array $selected, array $internal` | Hold, den eine vertrauenswürdige Quelle ohne `allocation_id` verbraucht (z. B. Gästeliste → „Künstler“); 0 = keiner. |
+| `wpcap_allocation_released` (Action) | `int $hold_id, int $units, string $reason` | Nach dem Commit von `Holds::release()`: Ein Hold hat Einheiten an den freien Verkauf zurückgegeben (`$reason` z. B. `manual`, `auto`). |
+
+### Kapazitätszähler und Verfügbarkeit
+
+| Hook | Wert, Argumente | Zweck |
+|---|---|---|
+| `wpcap_capacity_counters_enabled` | `bool $enabled` (true) | Ob Kontingententscheidungen und Verfügbarkeit die Zählerspalten nutzen (nur im Zustand `ready`); `false` = SUM-Abfragen. |
+| `wpcap_capacity_reconcile_budget` | `float $seconds` (10.0) | Zeitbudget eines Abgleichlaufs per Cron (`wpcap_reconcile_capacity`); `--all` per WP-CLI nutzt 3600 s. |
+| `wpcap_capacity_reconcile_confirm_us` | `int $microseconds` (300000) | Wartezeit, nach der abweichende Bestellungen erneut geprüft werden, bevor sie als Drift gelten (laufende Schreibvorgänge). |
+| `wpcap_capacity_verify_after` | `int $seconds` (600) | Dauer ohne Drift im Zustand `verifying`, nach der die Zähler auf `ready` wechseln. |
+| `wpcap_capacity_drift` (Action) | `array $report` (`resynced_orders`, `resynced_rows`, `repaired_occurrences`, `orders`, `occurrences`) | Zähler wichen von Bestellungen/Holds ab und wurden korrigiert (ein Ablauf änderte Daten ohne `CapacityCounters::sync_order()`). |
+| `wpcap_capacity_drift_alert` | `bool $send` (true), `array $report` | Ob bei Drift eine E-Mail an die Admin-Adresse geht (höchstens einmal pro Stunde). |
+| `wpcap_availability_cache_ttl` | `int $seconds` (10, 0–60) | Objekt-Cache-Dauer der Verfügbarkeit in `Orders::availability()`; 0 = kein Cache. |
+| `wpcap_availability_flushed` (Action) | – | Der Verfügbarkeits-Memo des Requests wurde geleert (nach Schreibzugriffen auf Plugin-Tabellen oder Zähleränderungen); Module leeren ihre Request-Caches (Holds, Pässe, Sitzplätze, Limits). |
+
+### Rechnungsdaten
+
+| Hook | Wert, Argumente | Zweck |
+|---|---|---|
+| `wpcap_billing_countries` | `array $countries` (ISO-Code → Name) | Auswählbare Länder im Rechnungsformular (leere Rückgabe → AT/DE). |
+| `wpcap_billing_default_country` | `string $country` | Vorausgewähltes Land (Standard aus UID des Verkäufers, WooCommerce-Shopland oder Locale, sonst `DE`); muss in der Länderliste stehen. |
+| `wpcap_vat_id_patterns` | `array $patterns` (Präfix → Regex) | Formatprüfung von UID-Nummern je Länderpräfix. |
+| `wpcap_vat_id_validate` | `true|WP_Error $valid, string $vat_id, array $billing` | Optionale Online-Prüfung der UID (z. B. VIES); `true` akzeptiert, `false` oder `WP_Error` (Meldung wird angezeigt) lehnt ab. Standard: keine externe Abfrage. |
+| `wpcap_billing_required_threshold` | `int $minor` (Einstellung `billing_required_threshold_minor`), `string $currency` | Bestellsumme, ab der im öffentlichen Checkout Rechnungsdaten Pflicht sind (0 = aus); je Währung überschreibbar. |
+| `wpcap_invoice_items` | `object[] $items, object $order` | Rechnungszeilen einer Bestellung (Zeilen mit `name`, `event_name`, `starts_at`, `timezone`), z. B. Umtauschgebühren ergänzen. |
+
+### WooCommerce
+
+| Hook | Wert, Argumente | Zweck |
+|---|---|---|
+| `wpcap_woocommerce_collect_attendees` | `bool $collect, int $type_id` | Ob der WooCommerce-Checkout Teilnehmerdaten je Ticket abfragt (Standard: nur wenn Teilnehmerfelder konfiguriert sind). |
+| `wpcap_woocommerce_vat_meta_keys` | `string[] $keys, WC_Order $wc_order` | Bestell-Metaschlüssel, aus denen die UID-Nummer gelesen wird (erster nicht leerer Wert). |
+| `wpcap_woocommerce_billing` | `array $billing, WC_Order $wc_order` | Aus der WooCommerce-Bestellung übernommene Rechnungsdaten (`company`, `first_name`, `last_name`, `street`, `postcode`, `city`, `country`, `vat_id`, `po_number`). |
+| `wpcap_woocommerce_hold_fulfilment` | `bool $hold` (false), `WC_Order $wc_order` | Ticketausgabe einer bezahlten Bestellung zurückhalten (z. B. Voucher Captain bei nicht belastbarer Geschenkkarte); die Reservierung bleibt, Tickets folgen nach erneutem Statuswechsel. |
+| `wpcap_woocommerce_deferred_hold_minutes` | `int $minutes` (14 Tage), `WC_Order $wc_order` | Verlängerte Reservierung, solange die Ausgabe zurückgehalten oder bis „abgeschlossen“ verschoben wird. |
+| `wpcap_woocommerce_issue_on_completed_gateways` | `string[] $gateways` (`cod`), `WC_Order $wc_order` | Zahlungsarten, bei denen Tickets erst im Status „abgeschlossen“ ausgegeben werden („in Bearbeitung“ heißt dort nicht bezahlt). |
+
+### Umtausch
+
+| Hook | Wert, Argumente | Zweck |
+|---|---|---|
+| `wpcap_exchange_money` | `array $money, object $ticket, object $target_type, array $args` | Beträge eines Umtauschs vor dem Speichern (`old_value_minor`, `new_price_minor`, `difference_minor`, `fee_minor`, `refund_minor`, `due_minor`, `supplement_minor`, `new_value_minor`). |
+| `wpcap_exchange_portal_rate_limit` | `int $limit` (10) | Umtauschanfragen im Bestellportal je Bestellung und Stunde. |
+| `wpcap_exchange_refund_fee` | `bool $refund_fee` (false), `array $exchange` | Bei Erstattung des umgetauschten Tickets auch die Umtauschgebühr aus der Aufpreis-Bestellung erstatten (`true`); Standard: Gebühr wird einbehalten. |
+| `wpcap_exchange_platform_collected` | `bool $collected, object $order` | Ob die Plattform die Zahlung der Bestellung selbst erhalten hat (Standard: nicht bei `partner`, `woocommerce`, `comp` und `pos_*`); ohne das lehnt der Umtausch im Bestellportal Rückzahlungen ab (`refund_offline`). |
+| `wpcap_ticket_exchanged` (Action) | `int $old_ticket_id, int $new_ticket_id, int $exchange_id, array $exchange` | Ticket umgetauscht: altes Ticket widerrufen (Grund `exchange`), neues in derselben Bestellung ausgegeben. |
+
+### Einlass und Offline-Scanner
+
+| Hook | Wert, Argumente | Zweck |
+|---|---|---|
+| `wpcap_ticket_valid_for_occurrence` | `array $found, array $context, int $at` | Ticket an einen anderen Termin als den seiner Ticketart binden (Mehrtages-/Festivalpässe). Rückgabe `$found` mit `occurrence_id`, `event_id`, `event_name`, `starts_at`, `ends_at`, `timezone`, `occurrence_status`, `event_status`; `$context`: `event_ids`, `occurrence_id`, `area_id`. |
+| `wpcap_admission_policy` | `array|null $policy, int $ticket_type_id` | Wirksame Einlassregel einer Ticketart (`null` = einmaliger Einlass); eigene `policy`-Werte (z. B. `pass`) über `wpcap_admission_evaluate` auswerten, alle Schlüssel von `normalize()` angeben. |
+| `wpcap_admission_evaluate` | `string|null $result` (null), `array $policy, array $found, object|null $state, int $at` | Eigene Einlassentscheidung unter der Ticket-Zeilensperre: Sperrcode oder `''` (einlassen); `null` überlässt die Entscheidung den eingebauten Regeln. |
+| `wpcap_admission_day_cutoff_hour` | `int $hour` (Einstellung `admission_day_cutoff_hour`), `array $context` (`occurrence_id`, `event_id`) | Stunde (0–12), bis zu der ein Einlass noch zum Vortag zählt (Tages- und Mehrtagestickets). |
+| `wpcap_ticket_allowed_areas` | `int[] $area_ids, array $found` | Bereiche, in die ein Ticket eingelassen wird (leer = alle); z. B. Bereiche des gescannten Events bei Mehrtagespässen. |
+| `wpcap_offline_refresh_interval` | `int $seconds` (10) | Mindestabstand zweier Snapshot-Aktualisierungen eines Termins für den Offline-Scanner. |
+| `wpcap_offline_live_tickets` | `object[] $live, int $occurrence_id` | Ticketzeilen des Offline-Pakets (`ticket_id`, `token_hash`, `status`, `ticket_type_id`, `attendee_name`, `occurrence_status`, `event_status`); Module ergänzen hier gültige Tickets anderer Termine oder entfernen Zeilen. |
+| `wpcap_offline_package_types` | `array $types, object $occurrence` | Ticketart-Beschreibungen des Offline-Pakets (`id`, `name`, `areas`, `policy`, `multi`) für zusätzlich ausgelieferte Tickets. |
+
+### Kasse
+
+| Hook | Wert, Argumente | Zweck |
+|---|---|---|
+| `wpcap_boxoffice_denominations` | `int[] $list, string $currency` | Scheine und Münzen (Minor-Einheiten) für die Bargeldzählung. |
+| `wpcap_boxoffice_fiscal_ready` | `bool $ready` (false), `string $country` | `true`, wenn eine Fiskal-Integration die Belege signiert; sonst sind Bar- und Kartenverkäufe in DE/AT gesperrt, solange der Betreiber keine eigene zertifizierte Kasse bestätigt hat. |
+| `wpcap_boxoffice_fiscal_docs_url` | `string $url` | Linkziel des Hinweises zur Registrierkassenpflicht. |
+| `wpcap_boxoffice_can_close_shift` | `true|WP_Error $veto, object $shift, object $count` | Schichtabschluss verhindern (`WP_Error`); `$count` ist die Schlusszählung. |
+| `wpcap_boxoffice_shift_opened` (Action) | `int $shift_id, int $register_id` | Nach dem Commit: Schicht mit gezähltem Wechselgeld eröffnet. |
+| `wpcap_boxoffice_shift_closed` (Action) | `int $z_id, object $z, object $shift` | Schicht geschlossen und Z-Bericht geschrieben (nur einfügen, Hash-Kette); `$z->totals_data` enthält die dekodierten Summen – z. B. zum Signieren/Exportieren. |
+| `wpcap_boxoffice_handover_created` (Action) | `int $handover_id` | Beim Schichtabschluss wurde eine Bargeldübergabe an die nächste Kassierperson angelegt. |
+| `wpcap_boxoffice_handover_accepted` (Action) | `int $handover_id` | Die Übergabe wurde beim Eröffnen der nächsten Schicht angenommen. |
+| `wpcap_boxoffice_cash_movement` (Action) | `int $movement_id, object $movement` | Kassenbewegung ohne Erstattung gebucht (Einlage, Entnahme, Korrektur). |
+| `wpcap_boxoffice_refund_booked` (Action) | `int $movement_id, int $refund_id, object $movement` | Auszahlung einer Erstattung/Stornierung an der Kasse gebucht. |
+| `wpcap_boxoffice_zreport_html_extra` | `string $html` (`''`), `object $z` | Zusätzliches HTML im Z-Bericht (z. B. Signaturdaten); der Callback muss selbst escapen. |
+
+### Partner, Verkaufsmodelle und Berichte
+
+| Hook | Wert, Argumente | Zweck |
+|---|---|---|
+| `wpcap_partner_client_ip` | `string $ip` (`REMOTE_ADDR`) | Client-Adresse für Partner-API-Schlüssel (Proxys hier auflösen). |
+| `wpcap_refuse_mixed_seller_orders` | `bool $refuse` (true), `int $order_id` | Bestellungen ablehnen, die Rechnungen verschiedener Verkäufer bräuchten (Prüfung in `wpcap_order_creating`, Abbruchcode `mixed_sellers`). |
+| `wpcap_reseller_statement_document` | `string $document` (`reseller_invoice`), `object $partner` | Beleg der Vergütung in der Reseller-Abrechnung: `reseller_invoice` (Reseller stellt Rechnung) oder `self_billing` (Gutschrift der Plattform). |
+| `wpcap_comp_payment_providers` | `string[] $providers` (`comp`, `pos_free`) | Zahlungsanbieter von Freikarten; deren Tickets zählen in Berichten nicht als Verkauf. |
+
 ### Versionierte Verträge und Infrastruktur
 
 | Filter | Wert, Argumente | Zweck |
@@ -144,3 +273,26 @@ Webhook-Ereignissen).
 | `wp_pass_captain_ticket_service_v1` | `TicketService|null $service, int $version` | Dienst für die Rückrichtung: ein eingelöster Gutschein wird in Tickets umgewandelt (`issue_tickets`, `revoke_tickets`, `get`, `targets`, `options`, `events`); Ziel ist eine feste Ticketart oder eine Veranstaltung mit frei wählbarem Termin. Idempotent pro Schlüssel; Fehler tragen `retryable`. |
 | `wp_pass_captain_checkin_service_v1` | `CheckinService|null $service, int $version` | Check-in-Dienst für einen fremden Scanner (gemeinsamer Scanner): `recognizes`, `preview`, `check_in`; prüft das Recht `wpcap_checkin`. |
 | `wp_pass_captain_wallet_provider_v1` | `ProviderInterface|null $provider, string $provider_key, int $version` | Wallet-Anbieter (Bridge). |
+| `wpcap_cron_time_budget` | `float $seconds` (20) | Zeitbudget der Cron-Läufe `wpcap_process_messages`, `wpcap_process_jobs`, `wpcap_webhooks_dispatch` und `wpcap_waitlist_process` (begrenzt auf `max_execution_time` − 15 s, mindestens 1 s); Rückstände laufen sofort weiter. |
+| `wpcap_message_batch_size` | `int $size` (500) | Nachrichten aus der Queue je Lauf von `wpcap_process_messages`. |
+| `wpcap_waitlist_process_delay` | `int $seconds` (60) | Verzögerung, bevor freigewordene Plätze der Warteliste angeboten werden (mehrere Freigaben in einem Lauf). |
+
+## Cron-Hooks
+
+WP-Cron-Ereignisse, die das Plugin selbst plant. Sie werden nicht per `do_action()` im Code ausgelöst,
+sondern von WP-Cron; Module hängen sich mit `add_action()` an.
+
+| Hook | Planung | Zweck / angehängte Callbacks |
+|---|---|---|
+| `wpcap_cleanup_reservations` | stündlich (`Plugin::schedule_events()`) | Abgelaufene Reservierungen (`Orders::expire_holds`), zurückgestellte Datenschutz-Löschungen (30), hängende Erstattungen (40); Module: Sitzplatz-Reservierungen (20), automatische Hold-Freigabe und Wartelisten-Bereinigung (30). |
+| `wpcap_process_messages` | alle 5 Minuten (`wpcap_five_minutes`) | Nachrichten-Queue (`Communications::process_due`); Erinnerungen planen sich mit Priorität 1 ein, Bereinigung mit 5, SMS-Versand mit 20. |
+| `wpcap_process_jobs` | alle 5 Minuten (`wpcap_five_minutes`) | Hintergrundjobs (`Jobs::process_due`, Tabelle `wpcap_jobs`); Webhook-Zustellung und Warteliste mit Priorität 20, Webhook-Bereinigung mit 25. |
+| `wpcap_webhooks_dispatch` | einmalig 5 s nach neuen Webhook-Ereignissen (`Webhooks\Dispatcher`) | Sofortige Zustellung ausgehender Webhooks. |
+| `wpcap_reconcile_capacity` | alle 5 Minuten (`CapacityCounters::schedule()`) | Abgleich der Kapazitätszähler mit Bestellungen und Holds (siehe Kapazitätszähler). |
+| `wpcap_run_upgrade` | einmalig, wenn im Frontend ein Schema-Update ansteht (`Installer::UPGRADE_HOOK`) | Verzögertes Datenbank-Upgrade (`Plugin::run_deferred_upgrade`). |
+| `wpcap_privacy_retention` | täglich (`Privacy\Retention::schedule()`) | Löschlauf mit den Fristen aus `wpcap_privacy_retention_days`. |
+| `wpcap_privacy_purge_wallet_registrations` | einmalig eine Stunde nach einer Datenschutz-Löschung, Argument: Ticket-IDs | Apple-Wallet-Geräteregistrierungen löschen, nachdem der Widerrufs-Push zugestellt wurde. |
+| `wpcap_waitlist_process` | einmalig zum Fälligkeitszeitpunkt (`Waitlists::queue()`, Verzögerung `wpcap_waitlist_process_delay`) | Freigewordene Plätze der Warteliste anbieten. |
+
+Laufen nach Ende des Zeitbudgets noch Einträge auf, plant `Jobs\TimeBudget::continue_later()` einen sofortigen
+Folgelauf desselben Hooks (Action Scheduler, sonst WP-Cron mit Argument `continue`).
