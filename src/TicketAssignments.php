@@ -9,9 +9,11 @@ final class TicketAssignments {
 		global $wpdb;
 		$public_id = sanitize_text_field( $public_id );
 		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
-		$email = sanitize_email( $email );
+		$email = sanitize_email( (string) $email );
 		$name = sanitize_text_field( $name );
-		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! $name || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_assignment_invalid', __( 'Teilnehmerdaten ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		// The attendee e-mail is optional (as in the checkout): without one, only name and answers
+		// are corrected and the ticket code stays.
+		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! $name || ( '' !== $email && ! is_email( $email ) ) ) { return new \WP_Error( 'wpcap_assignment_invalid', __( 'Teilnehmerdaten ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
 		$orders = $wpdb->prefix . 'wpcap_orders';
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $orders WHERE public_id=%s", $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_assignment_denied', __( 'Bestellzugriff ungültig oder abgelaufen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
@@ -23,7 +25,8 @@ final class TicketAssignments {
 		// A new holder gets a new code (the previous holder's code stops working); correcting the
 		// name or answers for the same person keeps the code that was already mailed.
 		$holder = (string) $ticket->attendee_email !== '' ? (string) $ticket->attendee_email : (string) $order->customer_email;
-		$rotate = 0 !== strcasecmp( $holder, $email );
+		if ( '' === $email ) { $email = (string) $ticket->attendee_email; } // Keep the current holder.
+		$rotate = '' !== $email && 0 !== strcasecmp( $holder, $email );
 		// After a transfer the ticket belongs to the recipient: the buyer's order link must not be able
 		// to re-target it (that would rotate the code back and silently invalidate the recipient's ticket).
 		if ( (int) $ticket->transfer_count > 0 ) {

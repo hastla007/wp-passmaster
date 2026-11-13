@@ -194,3 +194,15 @@ check( 'A010: box office exchange with method free without the right is refused'
 check( 'A010: box office free tickets without the right are refused', is_wp_error( $a10_sell ) && 'wpcap_pos_free_forbidden' === $a10_sell->get_error_code() );
 $a10_ok = Exchange::request( $a10_i[0], $a4_vip, array( 'channel' => 'admin', 'waive' => true ) );
 check( 'A010: with the right the goodwill exchange works', ! is_wp_error( $a10_ok ) && 'completed' === $a10_ok['status'] && 1 === (int) $a10_ok['waived'] );
+
+echo "Audit 3: portal name correction without attendee e-mail (A012)\n";
+list( $a12_o, $a12_i ) = ex_buy( $a4_std, 1, 'a12@example.com' );
+$a12_token = str_repeat( 'ef', 32 );
+$wpdb->update( "{$p}wpcap_orders", array( 'access_token_hash' => hash( 'sha256', $a12_token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 3600 ) ), array( 'order_id' => $a12_o ) );
+$a12_before = ex_ticket( $a12_i[0] );
+$a12 = PassCaptain\TicketAssignments::assign( Orders::get( $a12_o )->public_id, $a12_token, $a12_before->public_id, 'Maria Muster', '' );
+$a12_after = ex_ticket( $a12_i[0] );
+$a12_name = $wpdb->get_var( $wpdb->prepare( "SELECT attendee_name FROM {$p}wpcap_ticket_assignments WHERE ticket_id=%d", $a12_i[0] ) );
+check( 'A012: name correction without e-mail is accepted and keeps the ticket code', ! is_wp_error( $a12 ) && 'Maria Muster' === $a12_name && $a12_before->token_hash === $a12_after->token_hash );
+$a12_bad = PassCaptain\TicketAssignments::assign( Orders::get( $a12_o )->public_id, $a12_token, $a12_before->public_id, 'Maria Muster', 'kein-mail' );
+check( 'A012: an invalid e-mail is still refused', is_wp_error( $a12_bad ) && 400 === $a12_bad->get_error_data()['status'] );

@@ -33,7 +33,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Exchange/AdminPage.php:43–57`; `src/BoxOffice/Service.php:36,316–322` — Maßnahme: An `wpcap_approve_comps` binden, optional Schwelle/Freigabe; Rechte-Matrix-Test.
 - [x] **A011** [P2] Blindzählung umgehbar: Soll wird nach erster Zählung angezeigt, „Neu zählen“ unbegrenzt, Z-Bericht zeigt nur letzte Zählung. — _OFFEN_ (TODO L397; Sicherheit (Prüfung 1))
   - `src/BoxOffice/Shifts.php:299–352`; `src/BoxOffice/ShiftPage.php:244–256` — Maßnahme: Soll erst nach Abschluss zeigen oder Nachzählung nur mit Finanzrecht; alle Zählungen im Z-Bericht; Test.
-- [ ] **A012** [P2] Teilnehmer-E-Mail im Portal Pflicht (im Checkout optional); Namenskorrektur ohne E-Mail abgelehnt, mit E-Mail rotiert der Code. — _OFFEN_ (TODO L414; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [x] **A012** [P2] Teilnehmer-E-Mail im Portal Pflicht (im Checkout optional); Namenskorrektur ohne E-Mail abgelehnt, mit E-Mail rotiert der Code. — _OFFEN_ (TODO L414; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/OrderPortal.php:84` — Maßnahme: E-Mail optional; Name/Antworten ohne Codewechsel speichern.
 - [ ] **A013** [P2] Offene Bestellungen zeigen in Portal und Bestellmail keine Positionen, nur Betrag und Bankdaten. — _OFFEN_ (TODO L415; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/OrderPortal.php:81`; `src/Mail/Types.php:156` — Maßnahme: Positionsübersicht (Event, Termin, Art, Menge, Preis, Rabatt).
