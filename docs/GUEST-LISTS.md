@@ -79,8 +79,8 @@ Eintrag automatisch storniert.
 
 ## Berichte und Abrechnungen
 
-Bestellungen mit einem Freikarten-Zahlungsanbieter (`comp`; erweiterbar über den Filter
-`wpcap_comp_payment_providers`) sind **keine Verkäufe**:
+Bestellungen mit einem Freikarten-Zahlungsanbieter (`comp` für Gästelisten, `pos_free` für Kassen-Freikarten;
+erweiterbar über den Filter `wpcap_comp_payment_providers`) sind **keine Verkäufe**:
 
 - Umsatzbericht (`Reports\Data::build`): weder Tickets noch Umsatz/USt; separat als
   `comps` (`orders`, `tickets`) und in der Übersicht/CSV als „Freikarten (nicht im Umsatz)“. In der

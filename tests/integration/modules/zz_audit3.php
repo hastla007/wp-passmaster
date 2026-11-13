@@ -633,3 +633,6 @@ foreach ( array( array( 501, 11000, 1000 ), array( 502, 12000, 2000 ) ) as $a51_
 }
 check( 'A051: 11 € of a 10 % pass in a mixed 10 %/20 % order carries 1 € VAT (not the 1,43 € average)', 100 === PassCaptain\Passes\Cancellation::pass_tax( $a51_order, 501, 1100 ) );
 $wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_order_items WHERE order_id=%d", $a51_order ) );
+
+echo "Audit 3: box office free tickets are comps, not sales (A052)\n";
+check( 'A052: pos_free is a comp provider (no revenue, no ticket fee in statements)', in_array( 'pos_free', PassCaptain\Reports\Data::comp_providers(), true ) && in_array( 'comp', PassCaptain\Reports\Data::comp_providers(), true ) );

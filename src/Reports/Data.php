@@ -53,7 +53,8 @@ final class Data {
 	 * @return string[]
 	 */
 	public static function comp_providers() {
-		return array_values( array_filter( array_map( 'sanitize_key', (array) apply_filters( 'wpcap_comp_payment_providers', array( 'comp' ) ) ) ) );
+		// comp: guest list comps; pos_free: box office "Freikarte" – neither is a sale (no revenue, no ticket fee).
+		return array_values( array_filter( array_map( 'sanitize_key', (array) apply_filters( 'wpcap_comp_payment_providers', array( 'comp', 'pos_free' ) ) ) ) );
 	}
 
 	/** SQL list of comp providers for IN (...) (sanitize_key values only). */

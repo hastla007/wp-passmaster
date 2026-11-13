@@ -120,7 +120,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Invoices.php:73–83` vs. `src/Orders.php:203–206`, `src/Reports/Data.php:241–252` — Maßnahme: Gemeinsamer Allokator bzw. gespeicherter Zeilenrabatt.
 - [x] **A051** [P3] Pass-Tageserstattungen mit Durchschnitts-USt der Bestellung statt Pass-Satz. — _OFFEN_ (TODO L447; Steuer und Finanzen (Prüfung 3))
   - `src/Passes/Cancellation.php:93–96`; `src/Refunds.php:550–551` — Maßnahme: `tax_minor` mit Pass-Satz übergeben.
-- [ ] **A052** [P3] Kassen-Freikarten (`pos_free`) zählen als verkauft, Ticketgebühr fällt an. — _OFFEN_ (TODO L448; Steuer und Finanzen (Prüfung 3))
+- [x] **A052** [P3] Kassen-Freikarten (`pos_free`) zählen als verkauft, Ticketgebühr fällt an. — _OFFEN_ (TODO L448; Steuer und Finanzen (Prüfung 3))
   - `src/Reports/Data.php:58`; `src/Partners/Settlements.php:113–120` — Maßnahme: `pos_free` in `comp_providers()` aufnehmen oder dokumentieren.
 - [ ] **A053** [P3] Stornos von Kassenverkäufen „Rechnung“/„Freikarte“ ohne offene Schicht werden nie gebucht; Grand Total ohne Storno. — _OFFEN_ (TODO L449; Steuer und Finanzen (Prüfung 3))
   - `src/BoxOffice/Shifts.php:621–626` — Maßnahme: Nachbuchungs-Warteschlange für nächste Schicht.
