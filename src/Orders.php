@@ -502,15 +502,14 @@ final class Orders {
 	 * `retryable` in its data, or HTTP status 503.
 	 */
 	public static function is_retryable_error( \WP_Error $error ) {
-		$data = (array) $error->get_error_data();
-		return in_array( $error->get_error_code(), array( 'db_busy', 'wpcap_db_busy' ), true ) || ! empty( $data['retryable'] ) || 503 === (int) ( $data['status'] ?? 0 );
+		return Errors::is_busy( $error );
 	}
 
 	/** Rolls back a payment confirmation that hit a deadlock/lock timeout; callers retry (webhooks get a 5xx). */
 	private static function payment_busy() {
 		global $wpdb;
 		$wpdb->query( 'ROLLBACK' );
-		return new \WP_Error( 'wpcap_db_busy', __( 'Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		return Errors::busy( __( 'Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen.', 'wp-pass-captain' ) );
 	}
 
 	/**
@@ -1093,7 +1092,7 @@ final class Orders {
 				// cancellation, but only while the payment status is still the one seen here.
 				Jobs::enqueue( 'order-cancel-retry|' . $order_id . '|' . $order->payment_status, 'order_cancel_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason, 'payment_status' => (string) $order->payment_status ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
 			}
-			return new \WP_Error( 'wpcap_db_busy', __( 'Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			return Errors::busy( __( 'Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen.', 'wp-pass-captain' ) );
 		};
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 			return $busy();
@@ -1159,7 +1158,7 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			Audit::record( 'order_refund_mark_failed', 'order', $order_id, array() );
 			Jobs::enqueue( 'order-refund-mark-retry|' . $order_id, 'order_refund_mark_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
-			return new \WP_Error( 'wpcap_db_busy', __( 'Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			return Errors::busy( __( 'Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt.', 'wp-pass-captain' ) );
 		};
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
@@ -1629,7 +1628,7 @@ final class Orders {
 	 */
 	private static function issue_failed( $order_id, $step ) {
 		Audit::record( 'ticket_issue_failed', 'order', absint( $order_id ), array( 'step' => (string) $step ) );
-		return new \WP_Error( 'wpcap_db_busy', __( 'Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		return Errors::busy( __( 'Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen.', 'wp-pass-captain' ) );
 	}
 
 	/** Creates a fresh directory (0700, random name) in the temp dir; null on failure. */
@@ -1699,7 +1698,7 @@ final class Orders {
 		$tx = $wpdb->query( 'START TRANSACTION' );
 		$order = false === $tx ? null : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( false === $tx ) {
-			return new \WP_Error( 'wpcap_db_busy', __( 'Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			return Errors::busy( __( 'Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen.', 'wp-pass-captain' ) );
 		}
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			$wpdb->query( 'ROLLBACK' );

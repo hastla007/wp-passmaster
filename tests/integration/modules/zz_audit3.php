@@ -778,3 +778,17 @@ $a62_ran = PassCaptain\Modules\BoxOffice::maybe_migrate();
 check( 'A062: while another request holds the upgrade lock the migration waits', $a62_held && false === $a62_blocked && 1 === $a62_after_blocked );
 check( 'A062: afterwards it runs once and records its version', true === $a62_ran && PassCaptain\Modules\BoxOffice::MIGRATION_VERSION === (int) get_option( 'wpcap_boxoffice_migration' ) && false === PassCaptain\Modules\BoxOffice::maybe_migrate() );
 if ( false !== $a62_version ) { update_option( 'wpcap_boxoffice_migration', $a62_version ); }
+
+echo "Audit 3: transient database errors are uniform (A063)\n";
+$a63 = PassCaptain\Errors::busy();
+$a63_legacy = PassCaptain\Errors::busy( 'x', 'db_busy', array( 'status' => 409, 'retryable' => false, 'field' => 'f' ) );
+check( 'A063: Errors::busy() is always 503 + retryable (also for legacy code db_busy, not overridable)', 'wpcap_db_busy' === $a63->get_error_code() && 503 === $a63->get_error_data()['status'] && true === $a63->get_error_data()['retryable'] && 'db_busy' === $a63_legacy->get_error_code() && 503 === $a63_legacy->get_error_data()['status'] && true === $a63_legacy->get_error_data()['retryable'] && 'f' === $a63_legacy->get_error_data()['field'] && PassCaptain\Errors::is_busy( $a63_legacy ) );
+$a63_bad = array();
+$a63_it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( dirname( __DIR__, 3 ) . '/src', FilesystemIterator::SKIP_DOTS ) );
+foreach ( $a63_it as $a63_file ) {
+	if ( 'php' !== $a63_file->getExtension() || 'Errors.php' === $a63_file->getFilename() ) { continue; }
+	foreach ( file( $a63_file->getPathname() ) as $a63_no => $a63_line ) {
+		if ( preg_match( "/new \\\\WP_Error\\(\\s*'(wpcap_)?db_busy'/", $a63_line ) ) { $a63_bad[] = $a63_file->getFilename() . ':' . ( $a63_no + 1 ); }
+	}
+}
+check( 'A063: no hand-built busy errors left (all through Errors::busy())' . ( $a63_bad ? ' – ' . implode( ', ', $a63_bad ) : '' ), ! $a63_bad );

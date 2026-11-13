@@ -258,7 +258,7 @@ final class Refunds {
 		if ( false === $moved || false === $wpdb->query( 'COMMIT' ) ) {
 			// Nothing paid out yet: safe to retry.
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_db_busy', __( 'Die Erstattung konnte gerade nicht gestartet werden. Bitte erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			return Errors::busy( __( 'Die Erstattung konnte gerade nicht gestartet werden. Bitte erneut versuchen.', 'wp-pass-captain' ) );
 		}
 
 		$order = Orders::get( (int) $refund['order_id'] );
@@ -314,7 +314,7 @@ final class Refunds {
 			// Stays "processing" with its provider reference: repair_stuck() finishes it later.
 			$wpdb->query( 'ROLLBACK' );
 			Audit::record( 'refund_bookkeeping_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id ) );
-			return new \WP_Error( 'wpcap_db_busy', __( 'Die Erstattung wurde ausgezahlt, konnte aber noch nicht verbucht werden; sie wird automatisch nachgebucht.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			return Errors::busy( __( 'Die Erstattung wurde ausgezahlt, konnte aber noch nicht verbucht werden; sie wird automatisch nachgebucht.', 'wp-pass-captain' ) );
 		}
 		if ( ! empty( $revoked_ids ) ) {
 			Orders::fire_revoked( $revoked_ids, 'refund_' . $refund_id );

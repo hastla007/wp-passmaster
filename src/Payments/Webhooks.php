@@ -48,7 +48,7 @@ final class Webhooks {
 		$claimed = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_payment_events (provider,provider_event_id,event_type,status,created_at,updated_at) VALUES (%s,%s,%s,'processing',%s,%s)", $provider, $event_id, sanitize_key( $event['type'] ?? '' ), $now, $now ) );
 		if ( false === $claimed ) {
 			// Database error (not a duplicate): the provider must redeliver the event.
-			return new \WP_Error( 'wpcap_db_busy', __( 'Das Ereignis konnte gerade nicht gespeichert werden. Bitte erneut zustellen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			return \PassCaptain\Errors::busy( __( 'Das Ereignis konnte gerade nicht gespeichert werden. Bitte erneut zustellen.', 'wp-pass-captain' ) );
 		}
 		if ( 0 === (int) $claimed ) {
 			return 'duplicate';

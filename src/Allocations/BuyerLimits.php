@@ -310,7 +310,7 @@ final class BuyerLimits {
 		foreach ( $keys as $key ) {
 			$wpdb->query( $wpdb->prepare( "INSERT INTO $table (event_id,buyer_key,holdings,updated_at) VALUES (%d,%s,'{}',%s) ON DUPLICATE KEY UPDATE updated_at=VALUES(updated_at)", $event_id, $key, $now ) );
 			$row = '' === $wpdb->last_error ? $wpdb->get_row( $wpdb->prepare( "SELECT buyer_id,holdings FROM $table WHERE event_id=%d AND buyer_key=%s FOR UPDATE", $event_id, $key ) ) : null;
-			if ( ! $row ) { return new \WP_Error( 'db_busy', 'db_busy', array( 'status' => 503, 'retryable' => true ) ); }
+			if ( ! $row ) { return \PassCaptain\Errors::busy( '', 'db_busy' ); }
 			$holdings = json_decode( (string) $row->holdings, true );
 			$holdings = is_array( $holdings ) ? $holdings : array();
 			// The original order counts with all its current lines (also types it got by exchanges).
@@ -320,7 +320,7 @@ final class BuyerLimits {
 			}
 			$holdings[ (string) $order_id ] = $recorded;
 			$current = self::current( $holdings, $now );
-			if ( null === $current ) { return new \WP_Error( 'db_busy', 'db_busy', array( 'status' => 503, 'retryable' => true ) ); }
+			if ( null === $current ) { return \PassCaptain\Errors::busy( '', 'db_busy' ); }
 			if ( isset( $limits[0] ) && array_sum( $current['types'] ) + $quantity > $limits[0] ) {
 				/* translators: %d: maximum tickets per person */
 				return new \WP_Error( 'allocation_buyer_limit', sprintf( _n( 'Pro Person ist höchstens %d Ticket für dieses Event möglich.', 'Pro Person sind höchstens %d Tickets für dieses Event möglich.', $limits[0], 'wp-pass-captain' ), $limits[0]), array( 'status' => 409 ) );
@@ -334,7 +334,7 @@ final class BuyerLimits {
 			$holdings = $current['holdings'];
 			$holdings[ (string) $order_id ] = array_replace( (array) ( $holdings[ (string) $order_id ] ?? array() ), array( $type_id => max( 1, (int) ( $recorded[ $type_id ] ?? 0 ) ) ) );
 			$wpdb->query( $wpdb->prepare( "UPDATE $table SET holdings=%s,updated_at=%s WHERE buyer_id=%d", wp_json_encode( $holdings ), $now, (int) $row->buyer_id ) );
-			if ( '' !== $wpdb->last_error ) { return new \WP_Error( 'db_busy', 'db_busy', array( 'status' => 503, 'retryable' => true ) ); }
+			if ( '' !== $wpdb->last_error ) { return \PassCaptain\Errors::busy( '', 'db_busy' ); }
 		}
 		return $result;
 	}

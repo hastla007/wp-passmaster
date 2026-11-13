@@ -197,7 +197,7 @@ final class Capacity {
 
 	private static function busy() {
 		self::$pending = null;
-		return new \WP_Error( 'db_busy', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'wp-pass-captain' ), array( 'status' => 503 ) );
+		return \PassCaptain\Errors::busy( '', 'db_busy' );
 	}
 
 	/* ---------------------------------------------------------------------------------------------

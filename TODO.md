@@ -482,7 +482,7 @@ Fragen an die Steuerberatung (neu):
 - [x] [P3][BESTÄTIGT] `src/Admin/EventsPage.php:191,291` — Kontingenterhöhung im Admin feuert kein `wpcap_capacity_increased`; Wartelisten-Angebote erst nach stündlichem Sweep. **Maßnahme:** Hook nach Erhöhung auslösen.
 - [x] [P3][BESTÄTIGT] `src/Plugin.php:134` — Deaktivierung meldet `wpcap_webhooks_dispatch` (und Fortsetzungsläufe aus `Jobs/TimeBudget`) nicht ab; `Waitlists::run_due` läuft außerhalb des Zeitbudgets. **Maßnahme:** Abzumeldende Hooks aus zentraler Konstante; `run_due` mit `TimeBudget`.
 - [x] [P3][BESTÄTIGT] `src/Modules/BoxOffice.php:29–70`; `src/BoxOffice/Registers.php:148–158` — Kassen-Migration mit eigener Versionsoption auf `init` ohne Upgrade-Lock, offene Schichten außerhalb einer Transaktion. **Mögliche Auswirkung:** Doppelte „Kasse N (übernommen)“; `SHOW COLUMNS` bei jedem Request bis zum Upgrade. **Maßnahme:** In `Installer::install()` unter Lock ziehen.
-- [ ] [P3][BESTÄTIGT] `src/Exchange/Service.php:525`; `src/Allocations/Holds.php:122`; `src/Passes/Capacity.php:183` — `db_busy` uneinheitlich (409 ohne `retryable`, 503 ohne `retryable`). **Maßnahme:** Gemeinsame Fehlerfabrik `Errors::busy()` (503, `retryable=true`).
+- [x] [P3][BESTÄTIGT] `src/Exchange/Service.php:525`; `src/Allocations/Holds.php:122`; `src/Passes/Capacity.php:183` — `db_busy` uneinheitlich (409 ohne `retryable`, 503 ohne `retryable`). **Maßnahme:** Gemeinsame Fehlerfabrik `Errors::busy()` (503, `retryable=true`).
 - [ ] [P3][BESTÄTIGT] `docs/HOOKS.md` — Etwa 70 von 145 Hooks undokumentiert (22 nirgends), Dokument nennt Nicht-Hooks (`wpcap_jobs`, `wpcap_message_queue`). **Maßnahme:** Aus dem Code erzeugen bzw. per CI abgleichen.
 
 Verdachtsfälle:

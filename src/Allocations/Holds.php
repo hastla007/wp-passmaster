@@ -137,7 +137,7 @@ final class Holds {
 		if ( ! $ids ) { return $result; }
 		sort( $ids, SORT_NUMERIC );
 		$rows = $wpdb->get_results( 'SELECT * FROM ' . self::table( 'holds' ) . ' WHERE occurrence_id IN (' . implode( ',', $ids ) . ") AND status='active' ORDER BY hold_id FOR UPDATE" );
-		if ( '' !== $wpdb->last_error ) { return new \WP_Error( 'db_busy', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'wp-pass-captain' ) ); }
+		if ( '' !== $wpdb->last_error ) { return \PassCaptain\Errors::busy( '', 'db_busy' ); }
 		$holds = array();
 		foreach ( (array) $rows as $row ) { $holds[ (int) $row->hold_id ] = $row; }
 		$phase = (string) ( $context['phase'] ?? 'create' );
@@ -201,7 +201,7 @@ final class Holds {
 				$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table( 'usage' ) . " SET released=0,status='active',updated_at=%s WHERE usage_id=%d", $now, (int) $row->usage_id ) );
 			}
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table( 'holds' ) . ' SET used=used+%d,updated_at=%s WHERE hold_id=%d', $consumed[ $hold_id ], $now, $hold_id ) );
-			if ( '' !== $wpdb->last_error ) { return new \WP_Error( 'db_busy', '' ); }
+			if ( '' !== $wpdb->last_error ) { return \PassCaptain\Errors::busy( '', 'db_busy' ); }
 		}
 		return $result;
 	}
