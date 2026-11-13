@@ -89,6 +89,10 @@ und aktiv reserviert):
 - Ausnahmen: `pos`, `guestlist`, `admin` (`wpcap_allocation_limit_exempt_sources`); feiner über
   `wpcap_allocation_buyer_limit_applies( $applies, $source, $selected, $internal )`.
 - WooCommerce ist über `Orders::create()` abgedeckt (Fehler bricht den Checkout ab).
+- Ticketumtausch (Bestellportal, Partner-API): ein Umtausch in eine andere Ticketart zählt als weiteres
+  Ticket der Zielart für den Käufer der ursprünglichen Bestellung (`wpcap_reserve_capacity`, Phase
+  `exchange`, gleiche gesperrte Käuferzeilen). Umtausch durch Personal (`admin`, `pos`) ist wie der
+  Verkauf ausgenommen.
 - Event-Karte: Hinweis über die Aktion `wpcap_checkout_form_fields` (`p.wpcap-buyer-limit`).
 
 **Nebenläufigkeit:** In `wpcap_order_creating` (Priorität 6) wird je Event und Identität eine Zeile in

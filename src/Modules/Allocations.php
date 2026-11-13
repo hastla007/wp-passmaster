@@ -33,6 +33,7 @@ final class Allocations {
 		add_filter( 'wpcap_ticket_availability', array( Holds::class, 'availability' ), 20, 3 );
 		add_action( 'wpcap_order_creating', array( Holds::class, 'on_order_creating' ), 4, 4 );
 		add_action( 'wpcap_order_creating', array( BuyerLimits::class, 'on_order_creating' ), 6, 4 );
+		add_filter( 'wpcap_reserve_capacity', array( BuyerLimits::class, 'reserve_exchange' ), 25, 3 );
 		add_action( 'wpcap_order_creating', array( SeatHolds::class, 'after_seat_claims' ), 20, 4 );
 		add_action( 'wpcap_capacity_released', array( Holds::class, 'on_capacity_released' ), 10, 3 );
 		add_filter( 'wpcap_checkout_error_messages', array( __CLASS__, 'error_messages' ) );
