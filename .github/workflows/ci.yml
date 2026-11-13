@@ -26,6 +26,8 @@ jobs:
         run: find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: JavaScript syntax checks
         run: node --check assets/checkout.js && node --check assets/scanner.js && node --check src/blocks/events/editor.js
+      - name: Release guard tests
+        run: bash tests/release-guard.sh
 
   integration:
     runs-on: ubuntu-latest

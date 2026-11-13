@@ -38,6 +38,7 @@
 - Leistung: Eventliste mit allen Modulen braucht eine konstante Zahl von Abfragen (Request-Caches für Pässe, Kontingente, Käuferlimits und Saalplan-Verknüpfungen; neue Aktion `wpcap_availability_flushed` setzt sie nach Schreibzugriffen zurück) – im Test 14 statt 117 Abfragen bei 12 Terminen.
 - Leistung im Checkout: Pässe und Serienpools prüfen die Kapazität über die gepflegten Zähler (`CapacityCounters::used_for_types()`) statt über Summen aller Bestellungen; Partnerkontingente entfernen Nutzungszeilen beendeter Bestellungen.
 - Zähler-Abgleich: Sperre gegen parallele Läufe, Zeitbudget, nur kürzlich geänderte Bestellungen und laufende/künftige Termine, Bestätigungsprüfung vor dem Alarm; `--all` für den vollständigen Abgleich.
+- Release: Tag-Pushes und manuelle Läufe veröffentlichen nur Commits, die auf `main` liegen und deren CI-Lauf erfolgreich war (`build/release-guard.sh`, getestet in CI).
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

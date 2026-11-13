@@ -83,7 +83,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 
 ## Phase 3 – Robustheit aus früheren Audits (main @ 14522c7)
 
-- [ ] **A035** [P1] Release-Workflow: Tag-Push ohne CI-/Main-Abstammungsprüfung — _OFFEN_ (TODO L291; Bestätigte Befunde)
+- [x] **A035** [P1] Release-Workflow: Tag-Push ohne CI-/Main-Abstammungsprüfung — _OFFEN_ (TODO L291; Bestätigte Befunde)
   - .github/workflows/release.yml:30-31: `github.ref_type == 'tag'` startet Release ohne CI-Status- oder Main-Ancestry-Prüfung; keine negativen Workflow-Tests
 - [ ] **A036** [P1] dbDelta-Fehler ungeprüft, Version/Fingerprint trotzdem gespeichert — _OFFEN_ (TODO L292; Bestätigte Befunde)
   - src/Installer.php:671-687: dbDelta()-Ergebnis ignoriert, danach update_option wpcap_db_version und wpcap_schema_fingerprint ohne Schema-Verifikation
