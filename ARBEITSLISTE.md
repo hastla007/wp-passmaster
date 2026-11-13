@@ -193,9 +193,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - src/Settings.php:73 'GS'; src/Invoices.php:190,403 'GS' und 'Gutschrift' unverändert
 - [x] **A085** Rechnungskorrekturen je Steuersatz aufschlüsseln — _OFFEN_ (TODO L354; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
   - src/Invoices.php:114-121,324 nur eine Netto/USt/Brutto-Summe je Korrektur, keine Aufschlüsselung je Satz
-- [ ] **A086** Mehrzweckgutscheine: Berichte auf refund_plans umstellen — _TEILWEISE_ (TODO L356; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+- [x] **A086** Mehrzweckgutscheine: Berichte auf refund_plans umstellen — _TEILWEISE_ (TODO L356; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
   - Rechnungskorrektur nutzt refund_plan (Invoices.php:113); Reports/Data.php:154, Partners/Settlements.php:135, Statement.php:51 nutzen weiter wpcap_refunds.amount_minor
-- [ ] **A087** Einzweckgutscheine: Abrechnung mit face_value_minor — _OFFEN_ (TODO L357; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+- [x] **A087** Einzweckgutscheine: Abrechnung mit face_value_minor — _OFFEN_ (TODO L357; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
   - face_value_minor nur in Integrations/Vouchers; Partners/Settlements.php nutzt es nicht
 - [ ] **A088** Admin-Menü gruppieren, Erste-Schritte-Checkliste, Eventliste mit Kennzahlen — _OFFEN_ (TODO L363; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/Admin/Menu.php:71ff flache Submenüs; keine Checkliste; Verkauft/Kapazität nur in Termin-/Ticketart-Tabelle (EventsPage.php:677)

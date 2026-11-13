@@ -97,6 +97,8 @@
 - Erstattungsbelege heißen durchgängig „Rechnungskorrektur“ statt „Gutschrift“ (Export, Berichte, Bestellansicht, Mail); neues Standardpräfix `RK` für neue Installationen, bestehende behalten ihr Präfix (ohne gespeicherte Einstellung wird `GS` festgeschrieben); Selbstfakturierungs-Gutschriften (`GU`) unverändert.
 - Rechnungskorrekturen schlüsseln Netto/USt/Brutto je Steuersatz auf (Druckansicht, PDF, Buchhaltungsexport mit einer Zeile je Satz); Aufteilung nach erstatteten Positionen, gespeichert in `wpcap_credit_notes.rates` (Schema 3.8.3), ältere Belege werden identisch berechnet.
 - Umsatzbericht: Auswertung je Verkaufskanal (Kasse, Veranstalter/Wiederverkäufer-API, WooCommerce-Shop, Online) statt nur Kasse/Online; Filter `wpcap_report_channel`.
+- Mehrzweckgutscheine: Berichte, Veranstalter- und Wiederverkäufer-Abrechnungen lesen Erstattungen aus dem gespeicherten Erstattungsplan (Bar- plus Gutscheinteil, volle USt) – eine voll erstattete Bestellung über 30,00 € mit 15,00 € Gutschein zeigt jetzt 0,00 € statt 15,00 € Restumsatz.
+- Einzweckgutscheine: Veranstalter-Abrechnung nutzt den gespeicherten Gutscheinwert (`face_value_minor`) für Ticketdienst-Einlösungen (bisher 0,00 €) und bucht bei Erstattungen den zurückgegebenen Gutscheinteil als eigene Zeile „Einzweckgutschein zurückgegeben (Erstattung)“ zurück.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

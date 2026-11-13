@@ -353,8 +353,8 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [x] Präfix „GS“ und Exportbezeichnung „Gutschrift“ für Rechnungskorrekturen umbenennen, um Verwechslung mit Selbstfakturierungs-Gutschriften (GU) zu vermeiden.
 - [x] Rechnungskorrekturen mit Aufschlüsselung je Steuersatz (Netto/USt/Brutto) prüfen und ggf. ergänzen.
 - [ ] Freikarten gegen Sponsoring/Medienleistungen (tauschähnlicher Umsatz) und Freikarten für Personal bewerten.
-- [ ] Mehrzweckgutscheine: Erstattungszeilen (`wpcap_refunds`) enthalten nur den Baranteil – Berichte/Abrechnungen auf Gutschrift-Beträge bzw. `refund_plans` umstellen.
-- [ ] Einzweckgutscheine aus dem Ticketdienst: Veranstalter-Abrechnung soll den gespeicherten Gutscheinwert (`face_value_minor`) berücksichtigen.
+- [x] Mehrzweckgutscheine: Erstattungszeilen (`wpcap_refunds`) enthalten nur den Baranteil – Berichte/Abrechnungen auf Gutschrift-Beträge bzw. `refund_plans` umstellen.
+- [x] Einzweckgutscheine aus dem Ticketdienst: Veranstalter-Abrechnung soll den gespeicherten Gutscheinwert (`face_value_minor`) berücksichtigen.
 - [ ] Regionale Abgaben (Vergnügungssteuer, Kulturförderabgabe) und Nicht-EUR-Währungen (EUR-Gegenwert der USt) abbilden oder ausschließen.
 - [ ] Affiliate-Provision bei Mehrzweckgutscheinen: Basis nur Baranteil oder voller Preis entscheiden (PR #19).
 
