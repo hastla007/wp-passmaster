@@ -38,13 +38,16 @@ final class EventsPage {
 		if ( '' === $name || '' === $ticket_name || ! in_array( $currency, Localization::currencies(), true ) || ! Forms::is_valid_timezone( $timezone ) ) {
 			return Forms::error( 'wpcap_event_invalid', __( 'Bitte prüfe die Eventdaten.', 'wp-pass-captain' ) );
 		}
-		$start_utc = Forms::local_to_utc( $in['starts_at'] ?? '', $timezone );
+		$dst_notes = array(); // A102: DST gap → rejected, ambiguous time → first instance with a note.
+		$start_utc = Forms::local_to_utc_checked( $in['starts_at'] ?? '', $timezone, $dst_notes );
+		if ( is_wp_error( $start_utc ) ) { return $start_utc; }
 		if ( null === $start_utc ) {
 			return Forms::error( 'wpcap_event_start', __( 'Beginn oder Ende des Events ist ungültig.', 'wp-pass-captain' ) );
 		}
 		$duration = 0;
 		if ( '' !== trim( (string) ( $in['ends_at'] ?? '' ) ) ) {
-			$end_utc = Forms::local_to_utc( $in['ends_at'], $timezone );
+			$end_utc = Forms::local_to_utc_checked( $in['ends_at'], $timezone, $dst_notes );
+			if ( is_wp_error( $end_utc ) ) { return $end_utc; }
 			if ( null === $end_utc || $end_utc <= $start_utc ) {
 				return Forms::error( 'wpcap_event_end', __( 'Beginn oder Ende des Events ist ungültig.', 'wp-pass-captain' ) );
 			}
@@ -80,7 +83,7 @@ final class EventsPage {
 		$local_start = $local_start->setTimezone( new \DateTimeZone( $timezone ) );
 		for ( $index = 0; $index < $repeat_count; $index++ ) {
 			// Weekly repetition keeps the local wall-clock time across DST changes.
-			$occ_start = $local_start->modify( '+' . ( 7 * $index ) . ' days' );
+			$occ_start = Forms::weekly_repeat_start( $local_start, $index, $timezone, $dst_notes );
 			$occ_end = $duration ? $occ_start->modify( '+' . $duration . ' seconds' ) : null;
 			$wpdb->insert( "{$p}wpcap_occurrences", array(
 				'event_id' => $event_id,
@@ -117,7 +120,7 @@ final class EventsPage {
 		}
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'event_created', 'event', $event_id, array( 'status' => $status, 'occurrences' => $repeat_count ) );
-		return array( 'event_id' => $event_id );
+		return array( 'event_id' => $event_id ) + Forms::dst_warning( $dst_notes );
 	}
 
 	/** Updates name, description and status (draft/published) of an event. */
@@ -160,11 +163,14 @@ final class EventsPage {
 		}
 		$timezone = Forms::text( $in, 'timezone', 64 );
 		if ( ! Forms::is_valid_timezone( $timezone ) ) { return Forms::error( 'wpcap_timezone', __( 'Die Zeitzone ist ungültig.', 'wp-pass-captain' ) ); }
-		$starts = Forms::local_to_utc( $in['starts_at'] ?? '', $timezone );
+		$dst_notes = array(); // A102: DST gap → rejected, ambiguous time → first instance with a note.
+		$starts = Forms::local_to_utc_checked( $in['starts_at'] ?? '', $timezone, $dst_notes );
+		if ( is_wp_error( $starts ) ) { return $starts; }
 		if ( null === $starts ) { return Forms::error( 'wpcap_occurrence_start', __( 'Der Beginn ist ungültig.', 'wp-pass-captain' ) ); }
 		$ends = null;
 		if ( '' !== trim( (string) ( $in['ends_at'] ?? '' ) ) ) {
-			$ends = Forms::local_to_utc( $in['ends_at'], $timezone );
+			$ends = Forms::local_to_utc_checked( $in['ends_at'], $timezone, $dst_notes );
+			if ( is_wp_error( $ends ) ) { return $ends; }
 			if ( null === $ends || $ends <= $starts ) { return Forms::error( 'wpcap_occurrence_end', __( 'Das Ende muss nach dem Beginn liegen.', 'wp-pass-captain' ) ); }
 		}
 		$doors = \PassCaptain\DoorsOpen::parse( $in['doors_open_at'] ?? '', $timezone, $starts );
@@ -217,7 +223,7 @@ final class EventsPage {
 			if ( ! $occurrence_id ) { return Forms::error( 'wpcap_occurrence_save', __( 'Der Termin konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
 			Audit::record( 'occurrence_created', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'starts_at' => $starts ) );
 		}
-		return array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled );
+		return array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled ) + Forms::dst_warning( $dst_notes );
 	}
 
 	/** Whether a capacity change frees places (0 = unlimited). */

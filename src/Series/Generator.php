@@ -211,7 +211,34 @@ final class Generator {
 			Audit::record( 'occurrence_created', 'occurrence', $occurrence_id, array( 'event_id' => $definition['event_id'], 'series_id' => $series_id ) );
 		}
 		Audit::record( 'series_generated', 'event', $definition['event_id'], array( 'series_id' => $series_id, 'created' => count( $created ), 'skipped_existing' => $skipped_existing, 'skipped_past' => $skipped_past ) );
-		return array( 'series_id' => $series_id, 'event_id' => $definition['event_id'], 'created' => $created, 'skipped_existing' => $skipped_existing, 'skipped_past' => $skipped_past, 'seat_links' => $seat_links );
+		return array( 'series_id' => $series_id, 'event_id' => $definition['event_id'], 'created' => $created, 'skipped_existing' => $skipped_existing, 'skipped_past' => $skipped_past, 'seat_links' => $seat_links ) + \PassCaptain\Admin\Forms::dst_warning( self::dst_notes( $items, $definition['rule']['timezone'] ) );
+	}
+
+	/**
+	 * A102: notes for generated items whose local time falls into a DST change (moved forward from
+	 * a nonexistent time, or first instance of an ambiguous time).
+	 *
+	 * @return string[]
+	 */
+	public static function dst_notes( array $items, $timezone ) {
+		$gap = array();
+		$ambiguous = array();
+		foreach ( $items as $item ) {
+			if ( ! empty( $item['past'] ) ) { continue; }
+			$when = gmdate( 'd.m.Y', strtotime( $item['date'] ) );
+			if ( 'gap' === ( $item['dst'] ?? '' ) ) { $gap[] = $when . ' → ' . substr( $item['local'], 11 ); }
+			if ( 'ambiguous' === ( $item['dst'] ?? '' ) ) { $ambiguous[] = $when . ' ' . substr( $item['local'], 11 ) . ' (UTC' . $item['offset'] . ')'; }
+		}
+		$notes = array();
+		if ( $gap ) {
+			/* translators: 1: timezone, 2: list of dates with the time used */
+			$notes[] = sprintf( __( 'Zeitumstellung (%1$s): Die Uhrzeit gibt es an diesen Tagen nicht, die Termine wurden auf die erste gültige Zeit danach verschoben: %2$s.', 'wp-pass-captain' ), $timezone, implode( ', ', $gap ) );
+		}
+		if ( $ambiguous ) {
+			/* translators: 1: timezone, 2: list of dates with the UTC offset used */
+			$notes[] = sprintf( __( 'Zeitumstellung (%1$s): Die Uhrzeit kommt an diesen Tagen zweimal vor; verwendet wurde jeweils die erste (Sommerzeit): %2$s.', 'wp-pass-captain' ), $timezone, implode( ', ', $ambiguous ) );
+		}
+		return $notes;
 	}
 
 	/**

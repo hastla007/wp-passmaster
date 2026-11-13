@@ -150,10 +150,14 @@ final class AdminPage {
 		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Datum', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Beginn (Ortszeit)', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'UTC', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $items as $item ) {
 			$status = $item['past'] ? __( 'Vergangen – wird übersprungen', 'wp-pass-captain' ) : ( $item['exists'] ? __( 'Existiert bereits – wird übersprungen', 'wp-pass-captain' ) : __( 'Neu', 'wp-pass-captain' ) );
-			if ( $item['shifted'] ) { $status .= ' · ' . __( 'wegen Zeitumstellung verschoben', 'wp-pass-captain' ); }
+			if ( $item['shifted'] ) { $status .= ' · ' . __( 'wegen Zeitumstellung verschoben (die Uhrzeit gibt es an diesem Tag nicht)', 'wp-pass-captain' ); }
+			if ( 'ambiguous' === ( $item['dst'] ?? '' ) ) { $status .= ' · ' . __( 'Uhrzeit wegen Zeitumstellung doppelt – erste (Sommerzeit) verwendet', 'wp-pass-captain' ); }
 			echo '<tr><td>' . esc_html( gmdate( 'd.m.Y', strtotime( $item['date'] ) ) ) . ' (' . esc_html( self::weekday_names()[ (int) gmdate( 'N', strtotime( $item['date'] ) ) ] ) . ')</td><td>' . esc_html( $item['local'] . ' (UTC' . $item['offset'] . ')' ) . '</td><td>' . esc_html( $item['starts_at'] ) . '</td><td>' . esc_html( $status ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
+		foreach ( Generator::dst_notes( $items, (string) ( $preview['definition']['rule']['timezone'] ?? '' ) ) as $note ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( $note ) . '</p></div>';
+		}
 		if ( ! $new ) { return; }
 		Forms::open_form( 'wpcap_series_create', self::NONCE );
 		foreach ( $in as $key => $value ) {

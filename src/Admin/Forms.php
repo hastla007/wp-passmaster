@@ -132,19 +132,128 @@ final class Forms {
 
 	/**
 	 * Converts a local wall-clock time (datetime-local input) in $timezone to a UTC MySQL datetime.
-	 * Times inside a DST gap are moved forward by PHP (02:30 → 03:30 on spring-forward days).
+	 * Deterministic around DST changes: a time inside a gap (02:30 on spring-forward days) is moved
+	 * forward by PHP (→ 03:30); an ambiguous time (fall-back hour) uses the first instance (summer
+	 * time). Admin forms for occurrence times use local_to_utc_checked(), which rejects gap times.
 	 *
 	 * @return string|null "Y-m-d H:i:s" in UTC, or null when the input or timezone is invalid.
 	 */
 	public static function local_to_utc( $local, $timezone ) {
+		$info = self::local_time_info( $local, $timezone );
+		return $info ? $info['utc'] : null;
+	}
+
+	/**
+	 * Analyses a local wall-clock time in $timezone with respect to DST changes.
+	 *
+	 * @return array|null null for invalid input, else:
+	 *   status     'ok', 'gap' (the time does not exist) or 'ambiguous' (it exists twice),
+	 *   utc        UTC datetime used by local_to_utc() (gap: shifted forward; ambiguous: first instance),
+	 *   local      normalised input "Y-m-d H:i",
+	 *   next_valid gap only: first valid local time after the gap ("Y-m-d H:i"),
+	 *   offsets    ambiguous only: UTC offsets of the first and second instance (e.g. +02:00, +01:00).
+	 */
+	public static function local_time_info( $local, $timezone ) {
 		if ( ! is_scalar( $local ) || ! self::is_valid_timezone( $timezone ) ) { return null; }
 		$local = str_replace( 'T', ' ', trim( (string) $local ) );
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}(:\d{2})?$/', $local, $m ) ) { return null; }
-		$format = isset( $m[1] ) ? '!Y-m-d H:i:s' : '!Y-m-d H:i';
-		$date = \DateTimeImmutable::createFromFormat( $format, $local, new \DateTimeZone( $timezone ) );
+		$format = isset( $m[1] ) ? 'Y-m-d H:i:s' : 'Y-m-d H:i';
+		$zone = new \DateTimeZone( $timezone );
+		$date = \DateTimeImmutable::createFromFormat( '!' . $format, $local, $zone );
 		$errors = \DateTimeImmutable::getLastErrors();
 		if ( ! $date || ( is_array( $errors ) && ( $errors['warning_count'] || $errors['error_count'] ) ) ) { return null; }
-		return $date->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		$utc = new \DateTimeZone( 'UTC' );
+		$ts = $date->getTimestamp();
+		$info = array( 'status' => 'ok', 'local' => substr( $local, 0, 16 ) );
+		if ( $date->format( $format ) !== $local ) {
+			// Not a wall-clock time of this zone: the last transition before the shifted instant ends the gap.
+			$info['status'] = 'gap';
+			$end = $ts;
+			foreach ( (array) $zone->getTransitions( $ts - 2 * DAY_IN_SECONDS, $ts ) as $i => $transition ) {
+				if ( $i > 0 && (int) $transition['ts'] <= $ts ) { $end = (int) $transition['ts']; }
+			}
+			$info['next_valid'] = $date->setTimestamp( $end )->format( 'Y-m-d H:i' );
+		} else {
+			// The same wall-clock time at another instant (shifts of up to two hours cover all zones).
+			$instants = array( $ts );
+			foreach ( array( -7200, -3600, -1800, 1800, 3600, 7200 ) as $delta ) {
+				if ( $date->setTimestamp( $ts + $delta )->format( $format ) === $local ) { $instants[] = $ts + $delta; }
+			}
+			if ( count( $instants ) > 1 ) {
+				sort( $instants );
+				$ts = $instants[0];
+				$info['status'] = 'ambiguous';
+				$info['offsets'] = array( $date->setTimestamp( $instants[0] )->format( 'P' ), $date->setTimestamp( $instants[1] )->format( 'P' ) );
+			}
+		}
+		$info['utc'] = $date->setTimestamp( $ts )->setTimezone( $utc )->format( 'Y-m-d H:i:s' );
+		return $info;
+	}
+
+	/**
+	 * local_to_utc() for occurrence times entered by an admin: a time inside a DST gap is rejected
+	 * with the next valid time; an ambiguous time uses the first instance and adds a note to $notes.
+	 *
+	 * @param mixed    $local    datetime-local input.
+	 * @param string   $timezone IANA timezone.
+	 * @param string[] $notes    Collects notes for ambiguous times (by reference).
+	 * @return string|null|\WP_Error UTC datetime, null for invalid input, WP_Error for a nonexistent time.
+	 */
+	public static function local_to_utc_checked( $local, $timezone, &$notes = array() ) {
+		$info = self::local_time_info( $local, $timezone );
+		if ( ! $info ) { return null; }
+		$shown = static function ( $value ) { return wp_date( 'd.m.Y H:i', strtotime( $value . ' UTC' ), new \DateTimeZone( 'UTC' ) ); };
+		if ( 'gap' === $info['status'] ) {
+			return self::error( 'wpcap_time_nonexistent', sprintf(
+				/* translators: 1: entered local time, 2: timezone, 3: next valid local time */
+				__( 'Die Ortszeit %1$s gibt es in der Zeitzone %2$s wegen der Umstellung auf Sommerzeit nicht. Bitte eine andere Zeit wählen, z. B. %3$s (erste gültige Zeit danach).', 'wp-pass-captain' ),
+				$shown( $info['local'] ),
+				$timezone,
+				$shown( $info['next_valid'] )
+			) );
+		}
+		if ( 'ambiguous' === $info['status'] ) {
+			$notes[] = sprintf(
+				/* translators: 1: entered local time, 2: timezone, 3: UTC offset used, 4: UTC offset of the second instance */
+				__( 'Die Ortszeit %1$s kommt in der Zeitzone %2$s wegen der Umstellung auf Winterzeit zweimal vor. Verwendet wurde die erste (Sommerzeit, UTC%3$s), nicht die zweite (UTC%4$s).', 'wp-pass-captain' ),
+				$shown( $info['local'] ),
+				$timezone,
+				$info['offsets'][0],
+				$info['offsets'][1]
+			);
+		}
+		return $info['utc'];
+	}
+
+	/**
+	 * Start of the $index-th weekly repetition at the same local wall-clock time. A repetition whose
+	 * time does not exist (DST gap) is moved forward by the gap, an ambiguous one uses the first
+	 * instance; both add a note to $notes.
+	 *
+	 * @param \DateTimeImmutable $first First start in the event timezone.
+	 * @return \DateTimeImmutable Start in the event timezone.
+	 */
+	public static function weekly_repeat_start( \DateTimeImmutable $first, $index, $timezone, &$notes = array() ) {
+		if ( ! $index ) { return $first; }
+		$wall = ( new \DateTimeImmutable( $first->format( 'Y-m-d H:i:s' ), new \DateTimeZone( 'UTC' ) ) )->modify( '+' . ( 7 * (int) $index ) . ' days' )->format( 'Y-m-d H:i:s' );
+		$info = self::local_time_info( $wall, $timezone );
+		if ( ! $info ) { return $first->modify( '+' . ( 7 * (int) $index ) . ' days' ); }
+		$start = ( new \DateTimeImmutable( $info['utc'], new \DateTimeZone( 'UTC' ) ) )->setTimezone( new \DateTimeZone( $timezone ) );
+		$shown = wp_date( 'd.m.Y H:i', strtotime( $info['local'] . ' UTC' ), new \DateTimeZone( 'UTC' ) );
+		if ( 'gap' === $info['status'] ) {
+			/* translators: 1: local time of the repetition, 2: timezone, 3: local time used instead */
+			$notes[] = sprintf( __( 'Die Wiederholung am %1$s fällt in die Zeitumstellung (Zeitzone %2$s, diese Ortszeit gibt es nicht) und wurde auf %3$s verschoben.', 'wp-pass-captain' ), $shown, $timezone, $start->format( 'd.m.Y H:i' ) );
+		} elseif ( 'ambiguous' === $info['status'] ) {
+			/* translators: 1: local time of the repetition, 2: timezone, 3: UTC offset used */
+			$notes[] = sprintf( __( 'Die Wiederholung am %1$s liegt in der doppelten Stunde der Zeitumstellung (Zeitzone %2$s); verwendet wurde die erste (Sommerzeit, UTC%3$s).', 'wp-pass-captain' ), $shown, $timezone, $info['offsets'][0] );
+		}
+		return $start;
+	}
+
+	/** Result fragment with the collected DST notes as a warning flash (Forms::finish), or array(). */
+	public static function dst_warning( array $notes ) {
+		$notes = array_values( array_unique( array_filter( $notes ) ) );
+		return $notes ? array( 'warning' => implode( ' ', $notes ) ) : array();
 	}
 
 	/**

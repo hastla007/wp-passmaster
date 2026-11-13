@@ -10,11 +10,16 @@
 
 // phpcs:ignoreFile
 
+use PassCaptain\Admin\EventsPage;
+use PassCaptain\Admin\Forms;
+use PassCaptain\Admin\Queries;
 use PassCaptain\Mail\Layout;
 use PassCaptain\Mail\Mailer;
 use PassCaptain\Mail\Templates;
 use PassCaptain\Mail\Types;
 use PassCaptain\Modules\Reminders;
+use PassCaptain\Series\Generator;
+use PassCaptain\Series\Rules;
 
 global $wpdb;
 $p = $wpdb->prefix;
@@ -74,3 +79,52 @@ $a101_rem2 = Reminders::render_template( null, Reminders::TEMPLATE, array( 'occu
 remove_filter( 'wpcap_mail_default_format', $a101_rem_text, 10 );
 PassCaptain\Settings::update( array( 'reminders' => $a101_rem_saved ) );
 check( 'reminder can be switched back to plain text', 'text' === $a101_rem2['format'] && false !== strpos( $a101_rem2['body'], 'Jazz <i>&</i> Blues' ) );
+
+/* ============================================================== A102 */
+
+echo "A102: nonexistent and ambiguous local times (Europe/Vienna)\n";
+$gap = Forms::local_time_info( '2027-03-28T02:30', 'Europe/Vienna' );
+check( '2027-03-28 02:30 does not exist; next valid time is 03:00', $gap && 'gap' === $gap['status'] && '2027-03-28 03:00' === $gap['next_valid'] );
+$amb = Forms::local_time_info( '2027-10-31T02:30', 'Europe/Vienna' );
+check( '2027-10-31 02:30 is ambiguous; first instance (summer time) is used', $amb && 'ambiguous' === $amb['status'] && '2027-10-31 00:30:00' === $amb['utc'] && array( '+02:00', '+01:00' ) === $amb['offsets'] );
+$ok = Forms::local_time_info( '2027-10-31T03:00', 'Europe/Vienna' );
+check( 'times outside the change are unaffected', $ok && 'ok' === $ok['status'] && '2027-10-31 02:00:00' === $ok['utc'] && 'ok' === Forms::local_time_info( '2027-03-28T03:00', 'Europe/Vienna' )['status'] && 'ok' === Forms::local_time_info( '2027-03-28T01:59', 'Europe/Vienna' )['status'] );
+check( 'local_to_utc is deterministic: ambiguous → first instance, gap → moved forward', '2027-10-31 00:30:00' === Forms::local_to_utc( '2027-10-31T02:30', 'Europe/Vienna' ) && '2027-10-31 00:00:00' === Forms::local_to_utc( '2027-10-31 02:00', 'Europe/Vienna' ) && '2027-03-28 01:30:00' === Forms::local_to_utc( '2027-03-28T02:30', 'Europe/Vienna' ) );
+check( 'other zones: New York spring gap and fall-back hour', 'gap' === Forms::local_time_info( '2027-03-14T02:30', 'America/New_York' )['status'] && '2027-03-14 03:00' === Forms::local_time_info( '2027-03-14T02:30', 'America/New_York' )['next_valid'] && '2027-11-07 05:30:00' === Forms::local_to_utc( '2027-11-07T01:30', 'America/New_York' ) );
+$notes = array();
+$err = Forms::local_to_utc_checked( '2027-03-28T02:30', 'Europe/Vienna', $notes );
+check( 'checked conversion rejects the nonexistent time and suggests the next valid one', is_wp_error( $err ) && 'wpcap_time_nonexistent' === $err->get_error_code() && false !== strpos( $err->get_error_message(), '28.03.2027 02:30' ) && false !== strpos( $err->get_error_message(), '28.03.2027 03:00' ) && ! $notes );
+$utc = Forms::local_to_utc_checked( '2027-10-31T02:30', 'Europe/Vienna', $notes );
+check( 'checked conversion accepts the ambiguous time with a note', '2027-10-31 00:30:00' === $utc && 1 === count( $notes ) && false !== strpos( $notes[0], 'zweimal' ) && false !== strpos( $notes[0], 'UTC+02:00' ) );
+check( 'invalid input stays null', null === Forms::local_to_utc_checked( '2027-02-30T10:00', 'Europe/Vienna' ) && null === Forms::local_to_utc_checked( '2027-10-31T02:30', 'Mars/Base' ) );
+
+echo "A102: occurrence form (EventsPage)\n";
+$occ_count = static function ( $event_id ) use ( $wpdb, $p ) { return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_occurrences WHERE event_id=%d", $event_id ) ); };
+$before = $occ_count( $a101_event );
+$gap_save = EventsPage::save_occurrence( array( 'event_id' => $a101_event, 'starts_at' => '2027-03-28T02:30', 'timezone' => 'Europe/Vienna', 'capacity' => '10' ) );
+check( 'new occurrence at a nonexistent time is rejected, nothing saved', is_wp_error( $gap_save ) && 'wpcap_time_nonexistent' === $gap_save->get_error_code() && $before === $occ_count( $a101_event ) );
+$gap_end = EventsPage::save_occurrence( array( 'event_id' => $a101_event, 'starts_at' => '2027-03-28T01:00', 'ends_at' => '2027-03-28T02:15', 'timezone' => 'Europe/Vienna' ) );
+check( 'an end time inside the gap is rejected as well', is_wp_error( $gap_end ) && 'wpcap_time_nonexistent' === $gap_end->get_error_code() );
+$amb_save = EventsPage::save_occurrence( array( 'event_id' => $a101_event, 'starts_at' => '2027-10-31T02:30', 'timezone' => 'Europe/Vienna', 'capacity' => '10' ) );
+check( 'ambiguous start is saved as the first instance with a warning notice', ! is_wp_error( $amb_save ) && '2027-10-31 00:30:00' === Queries::occurrence( $amb_save['occurrence_id'] )->starts_at && false !== strpos( $amb_save['warning'] ?? '', 'zweimal' ) );
+$plain_save = EventsPage::save_occurrence( array( 'occurrence_id' => $amb_save['occurrence_id'] ?? 0, 'starts_at' => '2027-10-31T19:30', 'timezone' => 'Europe/Vienna', 'capacity' => '10' ) );
+check( 'ordinary times carry no warning', ! is_wp_error( $plain_save ) && ! isset( $plain_save['warning'] ) );
+
+$event_base = array( 'name' => 'A102 Nachtkonzert', 'timezone' => 'Europe/Vienna', 'ticket_name' => 'Eintritt', 'price' => '10', 'currency' => 'EUR', 'tax_rate' => '10', 'status' => 'draft' );
+$ev_gap = EventsPage::create_event( $event_base + array( 'starts_at' => '2027-03-28T02:30' ) );
+check( 'new event at a nonexistent start time is rejected', is_wp_error( $ev_gap ) && 'wpcap_time_nonexistent' === $ev_gap->get_error_code() );
+$ev_amb = EventsPage::create_event( $event_base + array( 'starts_at' => '2027-10-17T02:30', 'repeat_frequency' => 'weekly', 'repeat_count' => '3' ) );
+$ev_amb_starts = is_wp_error( $ev_amb ) ? array() : $wpdb->get_col( $wpdb->prepare( "SELECT starts_at FROM {$p}wpcap_occurrences WHERE event_id=%d ORDER BY starts_at", $ev_amb['event_id'] ) );
+check( 'weekly repetition onto the fall-back night uses the first instance and warns', array( '2027-10-17 00:30:00', '2027-10-24 00:30:00', '2027-10-31 00:30:00' ) === $ev_amb_starts && false !== strpos( $ev_amb['warning'] ?? '', '31.10.2027 02:30' ) );
+$ev_spring = EventsPage::create_event( $event_base + array( 'starts_at' => '2027-03-14T02:30', 'repeat_frequency' => 'weekly', 'repeat_count' => '3' ) );
+$ev_spring_starts = is_wp_error( $ev_spring ) ? array() : $wpdb->get_col( $wpdb->prepare( "SELECT starts_at FROM {$p}wpcap_occurrences WHERE event_id=%d ORDER BY starts_at", $ev_spring['event_id'] ) );
+check( 'weekly repetition into the spring gap is moved forward and reported', array( '2027-03-14 01:30:00', '2027-03-21 01:30:00', '2027-03-28 01:30:00' ) === $ev_spring_starts && false !== strpos( $ev_spring['warning'] ?? '', '28.03.2027 03:30' ) );
+
+echo "A102: series generator\n";
+$rule = Rules::normalize( array( 'timezone' => 'Europe/Vienna', 'time' => '02:30', 'duration_minutes' => 60, 'freq' => 'dates', 'dates' => "2027-03-28\n2027-10-31\n2027-11-07" ) );
+$items = is_wp_error( $rule ) ? array() : Rules::expand( $rule );
+check( 'series items are flagged gap / ambiguous / ordinary', 3 === count( $items ) && 'gap' === $items[0]['dst'] && '2027-03-28 03:30' === $items[0]['local'] && 'ambiguous' === $items[1]['dst'] && '2027-10-31 00:30:00' === $items[1]['starts_at'] && '' === $items[2]['dst'] );
+$series_notes = Generator::dst_notes( $items, 'Europe/Vienna' );
+check( 'series notes list the moved and the ambiguous dates', 2 === count( $series_notes ) && false !== strpos( $series_notes[0], '28.03.2027 → 03:30' ) && false !== strpos( $series_notes[1], '31.10.2027 02:30 (UTC+02:00)' ) );
+$created = Generator::create( array( 'event_id' => $a101_event, 'template_occurrence_id' => $a101_occ, 'freq' => 'dates', 'dates' => "2027-03-28\n2027-10-31", 'time' => '02:30', 'duration_minutes' => 60, 'timezone' => 'Europe/Vienna', 'name' => 'A102' ) );
+check( 'creating the series reports the DST notes as a warning', ! is_wp_error( $created ) && 2 === count( $created['created'] ) && false !== strpos( $created['warning'] ?? '', '28.03.2027 → 03:30' ) && false !== strpos( $created['warning'] ?? '', 'zweimal' ) );
