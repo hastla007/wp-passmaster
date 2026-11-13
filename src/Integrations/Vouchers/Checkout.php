@@ -36,6 +36,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Checkout {
 	/** Job type for commit retries (Jobs queue). */
 	const JOB = 'voucher_commit';
+	/** Retry of a voucher share refund that failed temporarily. */
+	const REFUND_JOB = 'voucher_refund';
 	/** The Jobs queue moves a job to dead_letter after this many attempts; the last one flags the order. */
 	const FINAL_ATTEMPT = 8;
 	/** Voucher purposes (VAT treatment). */
@@ -218,9 +220,12 @@ final class Checkout {
 
 	/** Filter wp_pass_captain_process_job_v1: retries a voucher commit. */
 	public static function handle_job( $handled, $type, $payload = array(), $job_id = 0 ) {
-		if ( self::JOB !== $type ) { return $handled; }
+		if ( self::JOB !== $type && self::REFUND_JOB !== $type ) { return $handled; }
 		global $wpdb;
 		$attempts = (int) $wpdb->get_var( $wpdb->prepare( "SELECT attempts FROM {$wpdb->prefix}wpcap_jobs WHERE job_id=%d", absint( $job_id ) ) );
+		if ( self::REFUND_JOB === $type ) {
+			return self::refund( absint( $payload['refund_id'] ?? 0 ), absint( $payload['order_id'] ?? 0 ), true, $attempts >= self::FINAL_ATTEMPT );
+		}
 		return self::commit( absint( $payload['order_id'] ?? 0 ), $attempts >= self::FINAL_ATTEMPT );
 	}
 
@@ -287,11 +292,16 @@ final class Checkout {
 	 * is restored). The share comes from refund_plan(): proportional to the value of the refunded tickets,
 	 * the last refund receives the remainder. The cash part was refunded by the payment gateway.
 	 */
-	public static function refund( $refund_id, $order_id ) {
+	/**
+	 * @param bool $from_job      Called by the retry job (no new job is queued; false = try again later).
+	 * @param bool $final_attempt Last retry: a failure is flagged instead of retried.
+	 * @return bool True when the voucher share is settled (or nothing is to do), false while a retry is due.
+	 */
+	public static function refund( $refund_id, $order_id, $from_job = false, $final_attempt = false ) {
 		$snapshot = self::snapshot( $order_id );
-		if ( ! $snapshot ) { return; }
+		if ( ! $snapshot ) { return true; }
 		$done_ids = array_map( 'absint', (array) ( $snapshot['refund_ids'] ?? array() ) );
-		if ( in_array( absint( $refund_id ), $done_ids, true ) ) { return; }
+		if ( in_array( absint( $refund_id ), $done_ids, true ) ) { return true; }
 		if ( 'reserved' === $snapshot['status'] ) {
 			// Commit still pending (retry job): the share is refunded right after the commit.
 			$pending = array_map( 'absint', (array) ( $snapshot['pending_refund_ids'] ?? array() ) );
@@ -299,29 +309,43 @@ final class Checkout {
 				$snapshot['pending_refund_ids'] = array_merge( $pending, array( absint( $refund_id ) ) );
 				self::save( $order_id, $snapshot );
 			}
-			return;
+			return true;
 		}
-		if ( 'committed' !== $snapshot['status'] ) { return; }
+		if ( 'committed' !== $snapshot['status'] ) { return true; }
 		$plan = self::refund_plan( $refund_id );
 		$snapshot = self::snapshot( $order_id ); // refund_plan() may have stored the plan.
-		if ( ! $plan ) { return; }
+		if ( ! $plan ) { return true; }
 		$share = (int) $plan['voucher_minor'];
 		if ( $share < 1 ) {
 			$snapshot['refunded_tickets'] = (int) $snapshot['refunded_tickets'] + (int) $plan['tickets'];
 			$snapshot['refund_ids'] = array_merge( $done_ids, array( absint( $refund_id ) ) );
 			self::save( $order_id, $snapshot );
-			return;
+			return true;
 		}
 		$result = Bridge::refund( (array) ( $snapshot['redemption'] ?? array() ), $share, 'wpcap-refund-' . absint( $refund_id ) );
 		if ( is_wp_error( $result ) ) {
-			Audit::record( 'voucher_refund_failed', 'order', (int) $order_id, array( 'refund_id' => absint( $refund_id ), 'error' => $result->get_error_code() ) );
-			return;
+			// Never lose the voucher share: temporary errors are retried with the same refund key (the voucher
+			// system refunds each key once), a final one is flagged and the admin is told.
+			$final = $from_job ? $final_attempt : ! self::is_temporary( $result );
+			Audit::record( 'voucher_refund_failed', 'order', (int) $order_id, array( 'refund_id' => absint( $refund_id ), 'error' => $result->get_error_code(), 'retry' => ! $final ) );
+			$snapshot['failed_refund_ids'] = array_values( array_unique( array_merge( array_map( 'absint', (array) ( $snapshot['failed_refund_ids'] ?? array() ) ), array( absint( $refund_id ) ) ) ) );
+			self::save( $order_id, $snapshot );
+			if ( $final ) {
+				$order = \PassCaptain\Orders::get( (int) $order_id );
+				/* translators: 1: order, 2: amount in minor units, 3: error */
+				wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Gutschein-Rückbuchung fehlgeschlagen', 'wp-pass-captain' ), sprintf( __( "Bei Bestellung %1\$s konnte der Gutscheinanteil einer Erstattung (%2\$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3\$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren.", 'wp-pass-captain' ), $order ? $order->public_id : (string) $order_id, $share, $result->get_error_message() ) );
+			} elseif ( ! $from_job ) {
+				Jobs::enqueue( 'voucher-refund-' . absint( $refund_id ), self::REFUND_JOB, array( 'refund_id' => absint( $refund_id ), 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+			}
+			return $final;
 		}
 		$snapshot['refunded_minor'] = (int) $snapshot['refunded_minor'] + $share;
 		$snapshot['refunded_tickets'] = (int) $snapshot['refunded_tickets'] + (int) $plan['tickets'];
 		$snapshot['refund_ids'] = array_merge( $done_ids, array( absint( $refund_id ) ) );
+		$snapshot['failed_refund_ids'] = array_values( array_diff( array_map( 'absint', (array) ( $snapshot['failed_refund_ids'] ?? array() ) ), array( absint( $refund_id ) ) ) );
 		self::save( $order_id, $snapshot );
 		Audit::record( 'voucher_refunded', 'order', (int) $order_id, array( 'refund_id' => absint( $refund_id ), 'amount_minor' => $share, 'purpose' => self::snapshot_purpose( $snapshot ) ) );
+		return true;
 	}
 
 	/**

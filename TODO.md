@@ -499,3 +499,64 @@ Fehlende Tests: Fault-Injection `db_busy`/Deadlock in Modul-Filtern (späte Zahl
 - [ ] Rolle der Partner festlegen (eigener Verantwortlicher oder Auftragsverarbeitung) und dokumentieren.
 - [ ] Kassen-Schichtdaten: Mitbestimmung (§ 96/96a ArbVG, § 87 Abs. 1 Nr. 6 BetrVG); Z-Berichte aufbewahrungspflichtig.
 - [ ] AV-Vertrag mit dem Fiskalanbieter; manueller Auskunftsablauf für Bestellungen ohne E-Mail; Verarbeitungsverzeichnis erweitern.
+
+## Experten-Review, zweite Runde (12.11.2026, Branch `claude/youthful-bardeen-7ejd7a`)
+
+Fünf parallele Prüfungen (Sicherheit, Geld/Buchungen, Steuer/Recht/Datenschutz, WooCommerce/Zusammenspiel, Bedienung/Betrieb) gegen den Stand nach dem Merge von `main`. Jeder Befund wurde im Code nachvollzogen; Punkte mit [Entscheidung] brauchen Steuerberatung, Rechtsberatung oder eine Produktentscheidung. Bereits in den Abschnitten oben gelistete Befunde sind hier nicht wiederholt.
+
+### Sofort behoben
+
+- [x] Webscanner: 5xx-, Retry- und Nonce-Fehler erscheinen gelb „Systemfehler/Sitzung abgelaufen – erneut scannen“ statt „Kein Einlass“ (986caf3).
+
+### Sicherheit
+
+- [ ] Sicherheit: Inventar-Blockade durch anonyme Bestellungen mit manueller Zahlung (72 h Hold, 30 Bestellungen/h je IP) verhindern: kurzer Erst-Hold bis E-Mail-Bestätigung bzw. Zahlungsstart, Obergrenze offener Holds je Event, Bot-Schutz, Admin-Massenfreigabe. — *teilweise erledigt (4afd2cd): max. 2 offene manuelle Bestellungen je E-Mail, 5 je Besucher in der Haltezeit; offen: kurzer Erst-Hold bis E-Mail-Bestätigung, Obergrenze je Event, Bot-Schutz, Massenfreigabe.*
+- [ ] Warteliste: Eintrag erst nach Double-Opt-in aktiv (`Waitlists::join`), Missbrauchsgrenze je E-Mail.
+- [ ] Portal-Nachsendung (`Orders::resend_tickets`) darf übertragene Tickets (`transfer_count > 0`) nicht rotieren.
+- [ ] `rest_pre_serve_request`-Rohausgabe (WalletPasses/WebService.php) auf die eigenen Wallet-Routen beschränken.
+- [ ] Fiskal-`HttpClient` nur HTTPS und keine privaten/Loopback-Ziele (außer ausdrücklich erlaubten lokalen Diensten).
+
+### Geld, Buchungen und Nebenläufigkeit
+
+- [x] Geld (hoch): Provider-Refunds aus dem Stripe-/PayPal-Dashboard (Webhooks.php `refunded`) buchen nur `mark_refunded()` – keine Refund-Zeile, keine Rechnungskorrektur, kein Gutschein-Rückfluss, Partner wird voll ausbezahlt. Über `Refunds::record_external()` buchen (Schlüssel je Provider-Refund-ID, Teilbeträge); Test: Dashboard-Refund erzeugt genau eine Refund-Zeile. — *erledigt (36a8192): Buchung über `Refunds::record_external()`, Test in payments.php.*
+- [x] Geld (hoch): Partnerabrechnung bei Mehrzweckgutschein – Refund-Zeilen enthalten nur den Baranteil; mit `Checkout::credit_note_amounts()` (Bar + Gutschein) abrechnen. Test 2×50, Gutschein 60, Vollerstattung → Auszahlung 0. — *erledigt (a868a40), Test zz_voucher_purpose.php.*
+- [x] Geld: `Refunds::tax_for()` wendet Rabatt doppelt an (Zeilenbrutto vor, Steuer nach Rabatt); rabattierten Zeilenbrutto als Basis nehmen. Test 50-%-Kampagne, 1 von 2 Tickets → USt 3,99 statt 2,00. — *erledigt (a868a40), Test zz_integration.php.*
+- [x] Geld (hoch): Fehlgeschlagene Gutschein-Rückbuchung (`Checkout::refund`) geht verloren – als Job mit gleichem Schlüssel wiederholen, offen markieren, Admin benachrichtigen. — *erledigt (36a8192): Job `voucher_refund`, Admin-Mail bei endgültigem Fehler.*
+- [ ] `voucher_snapshot` nur unter Zeilensperre bzw. mit Versionsprüfung ändern (commit/release/refund/refund_plan); Race „Ablauf vs. Spätzahlung“ testen.
+- [ ] Kampagnennutzung bei Spätzahlung nach Hold-Ablauf erneut zählen bzw. bei erschöpftem Limit `needs_review`.
+- [ ] Erstattungs-/Freigabe-Mails ohne fest codiertes `/100` (Währungen ohne Nachkommastellen).
+- [ ] Abgleichbericht: VC-Einlösungen vs. PC-Snapshots (committed/released/refunded) und offene Gutschein-Rückbuchungen.
+
+### Steuer, Recht und Datenschutz (DE/AT)
+
+- [ ] Kasse: Bar/Karte für DE/AT sperren, solange kein Fiskalanbieter (TSE/RKSV) aktiv ist; die Fiskal-Adapter implementieren ein nicht vorhandenes `Fiscalization\AdapterInterface` (toter Code). Beleg im Vermittlermodell mit Veranstalter als Aussteller und Kleinunternehmer-Hinweis. — *teilweise erledigt (e44b8ac): Bar/Karte in DE/AT gesperrt, Admin-Bestätigung für eigene zertifizierte Kasse; offen: Fiskal-Kern/Adapter-Interface, Beleg im Vermittlermodell mit Veranstalter als Aussteller.*
+- [x] Provisionsrechnung (Settlements.php:273): Plattform-Kleinunternehmer berücksichtigen (0 % USt + Hinweis, kein § 14c). — *erledigt (a868a40).*
+- [ ] Gutschrift: Reverse Charge nach Veranstaltungsort statt Sitz des Veranstalters ermitteln; Veranstaltungsland am Event speichern. [Entscheidung]
+- [ ] Kleinunternehmer (Plattform/Veranstalter): 0 % schon beim Speichern der Ticketart bzw. im Checkout erzwingen, nicht erst bei der Rechnung (sonst bezahlte Bestellung ohne Rechnung).
+- [ ] Rechnungskorrekturen je Steuersatz aufschlüsseln (Datenmodell, PDF, CSV) und Hinweise (Kleinunternehmer, Vermittler) wie auf der Rechnung zeigen.
+- [ ] Rechnung nach Teilerstattung (auto_invoice aus): Erstattungen berücksichtigen bzw. Korrekturbelege nachträglich erzeugen.
+- [ ] Rechnungsstellung erst bei vollständigen Plattform-Stammdaten (Name, Anschrift, St.-Nr./USt-IdNr.) erlauben.
+- [ ] Checkout: Vertragspartner (Veranstalter im Vermittlermodell) anzeigen, Datenschutzlink, AGB-/Verbraucherinfo-Versionen archivieren und in der Bestellbestätigung mitsenden (§ 312f BGB).
+- [ ] XRechnung/ZUGFeRD für B2B-Rechnungen in DE (Ausstellungspflicht ab 2027/2028).
+- [ ] Ländersteuerprofile (`tax_profiles`, bisher nur geschrieben) tatsächlich anwenden; OSS- und ZM-Auswertung.
+- [ ] Finanzbelege nach Fristende sperren bzw. löschen (DE seit 2025: 8 Jahre für Buchungsbelege, AT 7 Jahre); Text „10 Jahre § 147 AO“ in Privacy.php prüfen. [Entscheidung]
+- [ ] Reverse Charge nur nach qualifizierter USt-IdNr.-Prüfung (BZSt/VIES) und mit eigener USt-IdNr. der Plattform.
+- [ ] Rundung: Rabattverteilung je Steuersatz in Rechnung und Checkout vereinheitlichen; Kassenbeleg rechnet netto vom Brutto vor Rabatt; CSV nennt Erstattungen „Gutschrift“ (Präfix GS) – in DE der Selbstfakturierung vorbehalten.
+- [ ] Einzweckgutschein: Steuersatz und Land des Verkaufs aus VC an PC übergeben; bei abweichendem Satz/Land als Mehrzweck behandeln; Rabattaktionen nicht mit „USt bereits beim Verkauf abgerechnet“ beschriften. [Entscheidung]
+
+### WooCommerce und Plugin-Zusammenspiel
+
+- [ ] Fähigkeit `wpcap_woocommerce_hold_fulfilment` versioniert anbieten und in VC prüfen (Hinweis, wenn PC zu alt – mit PC main werden Tickets trotz Fehlbetrag ausgestellt); E2E-Test Fehlbetrag mit beiden Plugins; CI-Matrix auf existierende PC-Refs inkl. Arbeits-/Release-Branch umstellen (der Ref `claude/woocommerce-ticket-plugin-8q4m8q` existiert nicht mehr).
+- [ ] Eine einheitliche ISO-4217-Nachkommastellen-Tabelle (KWD/BHD/OMR = 3) für Forms, OrderAdapter, CartPricing und Rechnungen.
+
+### Bedienung, Barrierefreiheit und Betrieb
+
+- [ ] Admin „Käufer-E-Mail ändern“ und „Neuen Bestelllink senden“; öffentliches Formular „Tickets/Bestelllink anfordern“; abgelaufener Portallink zeigt Hilfeseite statt leerem 404.
+- [ ] Event-/Terminabsage als Hintergrundjob mit Fortschritt und Wiederaufnahme; Sammel-Erstattung für abgesagte Termine.
+- [ ] Abgebrochene Zahlung führt zurück zur Eventseite mit „Erneut bezahlen“ statt zur Startseite.
+- [ ] Shortcode/Block `[wp_pass_captain_events]` mit Attribut `event`/`occurrence` für Eventseiten.
+- [ ] Webscanner zeigt Teilnehmername (Einstellung „Teilnehmernamen anzeigen“) und bei „bereits verwendet“ Zeitpunkt/Eingang/Personal des Ersteinlasses.
+- [ ] Rückgängig-Check-in nur mit Grund und eigener Berechtigung (Mobile/Api.php, TicketsPage.php); getrennte Rollen für Einlass/Einlösen/Rückgängig.
+- [ ] Wartelisten-Anmeldung im Frontend (bisher nur REST); Ticket-PDF und .ics im Bestellportal; Storno-/Erstattungsanfrage durch Kunden.
+- [ ] Teilnehmerformular im Portal für übertragene Tickets ausblenden; feste Datumsformate „d.m.Y H:i“ auf Website-Format umstellen; „Sie“-Reste in Kundentexten (Billing.php, Datenschutztext) auf „du“.
+- [ ] Website-Zustand-Prüfungen (Cron, Action Scheduler, Mail) und Protokoll fehlgeschlagener Mails (`wp_mail_failed`).

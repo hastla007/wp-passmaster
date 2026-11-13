@@ -69,6 +69,9 @@ final class Settings {
 			'seller_vat_id'             => '',
 			'seller_tax_number'         => '',
 			'seller_country'            => 'DE',
+			// Platform operator is a small business (DE § 19 UStG / AT § 6 Abs. 1 Z 27 UStG): no VAT on its invoices.
+			'seller_small_business'     => 0,
+			'seller_small_business_note' => '',
 			'invoice_prefix'            => 'WPC',
 			'billing_required_threshold_minor' => 25000,
 			'credit_note_prefix'        => 'GS',

@@ -274,6 +274,16 @@ final class Controller {
 		$params = $request->get_json_params() ?: $request->get_params();
 		$params = is_array( $params ) ? $params : array();
 		// Only customer fields; trusted adapter options must never come from a public request.
+		// One code field ("Gutschein- oder Rabattcode"): a known campaign code is a discount, anything else is
+		// tried as a voucher (when a voucher plugin is connected).
+		$single_code = sanitize_text_field( (string) ( $params['code'] ?? '' ) );
+		if ( '' !== $single_code ) {
+			if ( \PassCaptain\Campaigns::is_code( $single_code ) || ! \PassCaptain\Integrations\Vouchers\Bridge::available() ) {
+				$params['campaign_codes'] = array_merge( (array) ( $params['campaign_codes'] ?? array() ), array( $single_code ) );
+			} elseif ( '' === (string) ( $params['voucher_code'] ?? '' ) ) {
+				$params['voucher_code'] = $single_code;
+			}
+		}
 		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'voucher_code', 'billing' ) ) ) );
 		$provider_id = sanitize_key( $params['provider'] ?? 'manual' );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
@@ -288,6 +298,8 @@ final class Controller {
 			if ( null === $hold ) {
 				return new \WP_Error( 'wpcap_manual_too_late', __( 'Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart.', 'wp-pass-captain' ), array( 'status' => 400, 'field' => 'provider' ) );
 			}
+			$blocked = self::manual_hold_limit( (string) ( $params['email'] ?? '' ), $hold );
+			if ( is_wp_error( $blocked ) ) { return $blocked; }
 		}
 		// Same wording as the form field ("Rabattcode"); the field is derived from the message below.
 		$campaign_messages = static function ( $messages ) {
@@ -355,6 +367,30 @@ final class Controller {
 	 *
 	 * @param string[] $campaign_messages Messages that belong to the discount code field.
 	 */
+	/**
+	 * Manual payment holds tickets for days without any payment: one visitor must not be able to block an event
+	 * with a stream of anonymous orders. At most 2 unpaid manual orders per e-mail address
+	 * (filter `wpcap_manual_open_orders_per_email`) and 5 per client within the hold time
+	 * (filter `wpcap_manual_orders_per_client`); paid or expired orders do not count.
+	 */
+	private static function manual_hold_limit( $email, $hold_minutes ) {
+		global $wpdb;
+		$email = sanitize_email( $email );
+		if ( is_email( $email ) ) {
+			$open = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_orders WHERE customer_email=%s AND payment_provider='manual' AND payment_status='pending' AND status NOT IN ('cancelled','expired','refunded')", $email ) );
+			if ( $open >= max( 1, (int) apply_filters( 'wpcap_manual_open_orders_per_email', 2 ) ) ) {
+				return new \WP_Error( 'wpcap_manual_open_orders', __( 'Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen.', 'wp-pass-captain' ), array( 'status' => 429, 'field' => 'email' ) );
+			}
+		}
+		$key = 'wpcap_manual_client_' . Orders::rate_hash( Orders::client_ip() );
+		$count = (int) get_transient( $key );
+		if ( $count >= max( 1, (int) apply_filters( 'wpcap_manual_orders_per_client', 5 ) ) ) {
+			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+		}
+		set_transient( $key, $count + 1, max( HOUR_IN_SECONDS, (int) $hold_minutes * MINUTE_IN_SECONDS ) );
+		return true;
+	}
+
 	public static function with_error_field( \WP_Error $error, array $campaign_messages = array() ) {
 		$code = $error->get_error_code();
 		$map = array(

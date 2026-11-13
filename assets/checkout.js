@@ -236,7 +236,10 @@
 			const toggle = form.querySelector('[name="billing_enabled"]');
 			if (toggle && !toggle.checked) { toggle.checked = true; syncBilling(form); }
 		}
-		return form.querySelector('[name="' + field.replace(/[^a-z0-9_]/g, '') + '"]');
+		const input = form.querySelector('[name="' + field.replace(/[^a-z0-9_]/g, '') + '"]');
+		// Discount and voucher errors point at the single code field when the form has one.
+		if (!input && (field === 'campaign_code' || field === 'voucher_code')) return form.querySelector('[name="code"]');
+		return input;
 	}
 
 	/* ---------------------------------------------------------------- Billing data (B2B invoice) */
@@ -370,6 +373,7 @@
 		const code = form.querySelector('[name="campaign_code"]');
 		const terms = form.querySelector('[name="accept_terms"]');
 		const voucher = form.querySelector('[name="voucher_code"]');
+		const single = form.querySelector('[name="code"]');
 		const email = form.querySelector('[name="email"]').value.trim();
 		const extra = {};
 		const billing = billingPayload(form);
@@ -400,6 +404,7 @@
 					provider: provider ? provider.value : 'manual',
 					accept_terms: terms ? terms.checked : false,
 					voucher_code: voucher ? voucher.value.trim() : '',
+					code: single ? single.value.trim() : '',
 					idempotency_key: form.dataset.key
 				}, extra))
 			});

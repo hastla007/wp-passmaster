@@ -95,6 +95,16 @@ check( 'last refund: remainder of the voucher, credit notes add up to the invoic
 VoucherCheckout::refund( $m_r2['refund_id'], $m['order_id'] );
 check( 'repeated refund hook does not refund the voucher twice', 2 === count( $vp_refund_calls() ) );
 
+// Partner settlement of that fully refunded order: the sale counts the full 30,00 (voucher included), so the
+// refunds must count cash and voucher share as well – nothing is left to pay out.
+$vp_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $vp_type ) );
+$vp_partner = PassCaptain\Partners\Repository::save( array( 'name' => 'VP Veranstalter', 'billing_address' => "Weg 1\n10115 Berlin", 'vat_id' => 'DE555555555', 'sales_model' => 'agent', 'invoice_prefix' => 'VPV', 'commission_bp' => 0, 'fee_per_ticket_minor' => 0, 'fee_tax_rate_bp' => 1900, 'settlement_start' => gmdate( 'Y-m' ) . '-01' ) );
+PassCaptain\Partners\Repository::set_events( $vp_partner, array( $vp_event ) );
+$vp_draft = PassCaptain\Partners\Settlements::create_draft( $vp_partner, gmdate( 'Y-m' ) );
+$vp_tot = is_wp_error( $vp_draft ) ? array() : PassCaptain\Partners\Settlements::decoded_totals( PassCaptain\Partners\Settlements::get( $vp_draft ) );
+check( 'partner settlement: refunds of a voucher-paid order count the voucher share (payout 0, not +15,00)', ! is_wp_error( $vp_draft ) && 0 === (int) ( $vp_tot['gross'] ?? -1 ) && 0 === (int) ( $vp_tot['payout'] ?? -1 ) );
+PassCaptain\Partners\Repository::set_events( $vp_partner, array() );
+
 // Multi-purpose voucher covering everything: nothing due, invoice still shows the full VAT.
 $f = Orders::create( array( 'email' => 'mpv-full@example.com', 'items' => array( array( 'ticket_type_id' => $vp_type, 'quantity' => 1 ) ), 'idempotency_key' => 'vp-f1' ) );
 VoucherCheckout::apply( $f['order_id'], 'MPV-FULL-5678' );
@@ -137,6 +147,22 @@ $fl = Orders::create( array( 'email' => 'flt@example.com', 'items' => array( arr
 $fl_applied = VoucherCheckout::apply( $fl['order_id'], 'ANY-9999' );
 check( 'filter result is applied at checkout', 'single' === $fl_applied['purpose'] && 'single' === VoucherCheckout::voucher_state( $fl['order_id'] )['purpose'] );
 remove_filter( 'wpcap_voucher_purpose', $vp_filter, 10 );
+
+// One code field: campaign codes are discounts, everything else goes to the voucher plugin.
+$wpdb->insert( "{$p}wpcap_campaigns", array( 'code' => 'ONEFIELD10', 'name' => 'One field', 'kind' => 'fixed', 'discount_value' => 100, 'currency' => 'EUR', 'status' => 'active', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+check( 'campaign codes are recognised in any spelling', PassCaptain\Campaigns::is_code( ' onefield10 ' ) && ! PassCaptain\Campaigns::is_code( 'MPV-ABCD-1234' ) );
+$one_req = static function ( $code, $key ) use ( $vp_type ) {
+	$r = new WP_REST_Request( 'POST' );
+	$r->set_body( wp_json_encode( array( 'email' => 'one@example.com', 'items' => array( array( 'ticket_type_id' => $vp_type, 'quantity' => 1 ) ), 'provider' => 'manual', 'code' => $code, 'idempotency_key' => $key ) ) );
+	return PassCaptain\Rest\Controller::checkout( $r );
+};
+$one_calls = count( $vp_provider->calls );
+$one_c = $one_req( 'onefield10', 'vp-one-c' );
+$one_c = $one_c instanceof WP_REST_Response ? $one_c->get_data() : $one_c;
+check( 'a discount code in the single code field is applied as a discount', is_array( $one_c ) && 100 === (int) Orders::get( $one_c['order_id'] )->discount_minor && count( $vp_provider->calls ) === $one_calls );
+$one_v = $one_req( 'GIFT-ONE-0001', 'vp-one-v' );
+$one_v = $one_v instanceof WP_REST_Response ? $one_v->get_data() : $one_v;
+check( 'a voucher code in the single code field is redeemed through the voucher plugin', is_array( $one_v ) && in_array( array( 'quote', 'GIFT-ONE-0001' ), $vp_provider->calls, true ) && (int) $one_v['voucher_minor'] > 0 );
 unset( $GLOBALS['wpcap_test_filters'][ Bridge::FILTER ] );
 
 // --- Ticket service (voucher → tickets) -----------------------------------------------------------

@@ -5,6 +5,22 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Campaigns {
+	/** Normalised campaign code ("summer-10 " → "SUMMER-10"). */
+	public static function normalize_code( $code ) {
+		return strtoupper( preg_replace( '/[^A-Z0-9_-]/', '', strtoupper( sanitize_text_field( (string) $code ) ) ) );
+	}
+
+	/**
+	 * Whether a code entered in the single checkout code field is a discount campaign (any status, so an expired
+	 * campaign still gets the campaign's own error message instead of "unknown voucher").
+	 */
+	public static function is_code( $code ) {
+		global $wpdb;
+		$code = self::normalize_code( $code );
+		if ( '' === $code ) { return false; }
+		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_campaigns WHERE code=%s LIMIT 1", $code ) );
+	}
+
 	/**
 	 * Validate and calculate up to three explicit campaign codes.
 	 * The caller must already be inside the order transaction.

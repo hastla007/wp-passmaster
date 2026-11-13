@@ -86,6 +86,21 @@ Settings::update( array( 'bank_iban' => '' ) );
 $no_iban = BankTransfer::details( Orders::get( $data['order_id'] ) );
 check( 'without IBAN no bank rows (recipient/BIC) are shown, reference and amount stay', '' === $no_iban['iban'] && '' === $no_iban['bic'] && '' === $no_iban['recipient'] && ! isset( BankTransfer::rows( $no_iban )['IBAN'] ) && isset( BankTransfer::rows( $no_iban )['Verwendungszweck'] ) );
 
+echo "Phase 1 UX: manual payment cannot block an event anonymously\n";
+$GLOBALS['wpcap_test_transients'] = array();
+$mh = array();
+for ( $i = 0; $i < 3; $i++ ) {
+	$mh[] = Controller::checkout( p1u_request( array( 'email' => 'hold-abuse@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'p1u-hold-' . $i . uniqid() ) ) );
+}
+check( 'at most two unpaid manual orders per e-mail address', ! is_wp_error( $mh[0] ) && ! is_wp_error( $mh[1] ) && is_wp_error( $mh[2] ) && 'wpcap_manual_open_orders' === $mh[2]->get_error_code() );
+$mh_client = array();
+for ( $i = 0; $i < 4; $i++ ) {
+	$mh_client[] = Controller::checkout( p1u_request( array( 'email' => 'hold-abuse-' . $i . '@example.com', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'provider' => 'manual', 'idempotency_key' => 'p1u-holdc-' . $i . uniqid() ) ) );
+}
+check( 'at most five manual orders per client within the hold time', is_wp_error( end( $mh_client ) ) && 'wpcap_rate_limited' === end( $mh_client )->get_error_code() );
+foreach ( array_merge( $mh, $mh_client ) as $r ) { $r = p1u_data( $r ); if ( is_array( $r ) && ! empty( $r['order_id'] ) ) { Orders::cancel_order( $r['order_id'], 'test_cleanup' ); } }
+$GLOBALS['wpcap_test_transients'] = array();
+
 echo "Phase 1 UX: checkout errors carry the form field\n";
 $GLOBALS['wpcap_test_transients'] = array();
 $err = Controller::checkout( p1u_request( array( 'email' => 'kaputt', 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => 1 ) ), 'provider' => 'manual' ) ) );

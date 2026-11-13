@@ -105,6 +105,19 @@ $answers = $wpdb->get_col( "SELECT a.answer FROM {$p}wpcap_participant_answers a
 check( 'issued tickets carry the participant answers', array( 'ACME', 'Globex', 'vegan' ) === $answers );
 check( 'participant data is removed from the WooCommerce order after issuance', '' === $wc->get_meta( Woo::ATTENDEE_META ) );
 
+echo "WooCommerce: another plugin can hold the ticket issuance\n";
+check( 'the hold contract is versioned for integrations', 1 <= Woo::HOLD_FULFILMENT );
+$held_type = make_type( 5 );
+$held = woo_t_order( 7351, array( array( $held_type, 1, '25.00' ) ) );
+$held_core = Woo::reserve( $held );
+$held->status = 'processing';
+$GLOBALS['wpcap_test_filters']['wpcap_woocommerce_hold_fulfilment'] = true; // e.g. Voucher Captain: gift card shortfall.
+Woo::sync_paid_order( 7351 );
+check( 'a held order gets no tickets and keeps its reservation', 0 === count( tickets( $held_core ) ) && 'pending' === Orders::get( $held_core )->payment_status );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_woocommerce_hold_fulfilment'] );
+Woo::sync_paid_order( 7351 );
+check( 'once the hold is lifted the tickets are issued', 1 === count( tickets( $held_core ) ) );
+
 echo "WooCommerce: cash on delivery issues at completed\n";
 $type = make_type( 5 );
 $cod = woo_t_order( 7201, array( array( $type, 1, '25.00' ) ), 'cod' );

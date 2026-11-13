@@ -128,6 +128,12 @@ check( 'ticket service is offered for contract version 1 only', $ticket_service 
 $xt = make_type( 3, 10, 4000 );
 $targets = array_column( $ticket_service->targets(), 'ticket_type_id' );
 check( 'upcoming ticket types are listed as exchange targets', in_array( $xt, $targets, true ) );
+$xt_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $xt ) );
+$wpdb->update( "{$p}wpcap_ticket_types", array( 'name' => 'Stehplatz Innenraum' ), array( 'ticket_type_id' => $xt ) );
+PassCaptain\Integrations\Vouchers\TicketService::remember_rename( $xt_event, 'Standard', 'Stehplatz Innenraum' );
+check( 'a date-choice voucher sold for the old ticket name still finds the renamed ticket type', in_array( $xt, array_column( $ticket_service->options( array( 'event_id' => $xt_event, 'ticket_name' => 'standard', 'quantity' => 1 ) ), 'ticket_type_id' ), true ) );
+check( 'renames are tracked per event only', array( 'Standard' ) === PassCaptain\Integrations\Vouchers\TicketService::names_for( $xt_event + 999, 'Standard' ) );
+$wpdb->update( "{$p}wpcap_ticket_types", array( 'name' => 'Standard' ), array( 'ticket_type_id' => $xt ) );
 $src = array( 'provider' => 'voucher-captain', 'voucher_id' => 77, 'redemption_key' => 'vcap-x-77', 'code_hint' => 'ABCD' );
 $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 $x1 = $ticket_service->issue_tickets( $src, 'vcap-voucher-77', array( 'ticket_type_id' => $xt, 'quantity' => 2 ), array( 'email' => 'gift@example.com', 'name' => 'Gift' ) );

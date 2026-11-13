@@ -153,8 +153,9 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	await page.keyboard.type('ungueltig');
 	await page.keyboard.press('Enter');
 	await page.waitForFunction(() => { const r = document.querySelector('.wpcap-scan-result'); return r && r.textContent && !/…/.test(r.textContent); }, null, { timeout: 15000 }).catch(() => {});
-	const result = await page.evaluate(() => { const r = document.querySelector('.wpcap-scan-result'); return { text: r.textContent.trim(), role: r.getAttribute('role'), live: r.getAttribute('aria-live'), state: r.dataset.state }; });
-	check('scan result is announced (role=status, aria-live=polite)', result.text && result.role === 'status' && result.live === 'polite', `${result.state}: ${result.text}`);
+	const result = await page.evaluate(() => { const r = document.querySelector('.wpcap-scan-result'); const l = document.querySelector('.wpcap-scan-live'); return { text: r.textContent.trim(), icon: (r.querySelector('.wpcap-scan-icon') || {}).textContent || '', state: r.dataset.state, live: l ? l.textContent.trim() : '', role: l ? l.getAttribute('role') : '', buttons: l ? l.querySelectorAll('button').length : -1 }; });
+	check('scan result is a banner with an icon, not colour alone', result.text && result.icon && result.state === 'error', `${result.state}: ${result.icon} ${result.text}`);
+	check('scan result is announced in a separate short live region (role=status, no buttons)', result.role === 'status' && result.live && result.buttons === 0, result.live);
 
 	await browser.close();
 	console.log(failures ? `\n${failures} keyboard check(s) failed.` : '\nAll keyboard checks passed.');

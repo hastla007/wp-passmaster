@@ -21,7 +21,25 @@
 - Terminauswahl an Kasse, Druck, Gästeliste und Abholliste: nur geplante Termine veröffentlichter Events; laufender/nächster Termin ist vorausgewählt, vergangene stehen danach mit „(vergangen)“ (an der Kasse gar nicht).
 - Rabattcodes: neue Admin-Seite „Rabattcodes“ (anlegen, Nutzung und Rabattsumme, aktivieren/deaktivieren; Event-Zuständige für ihre Events, Codes für alle Events nur Administration). Das Feld „Rabattcode“ erscheint nur bei aktivem Code; die Preisvorschau zeigt den Rabatt (`POST /campaigns/preview`, unverbindlich, ratenbegrenzt). Behoben: die REST-Antwort beim Anlegen lieferte die ID des Audit-Eintrags statt des Codes.
 
+### Kasse und Zahlungen (Experten-Review)
+- Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.
+- Erstattungen im Stripe-/PayPal-/Mollie-Dashboard und Rückbuchungen werden wie jede Erstattung gebucht (Erstattungszeile, Rechnungskorrektur, Gutscheinanteil, Partnerabrechnung).
+- Fehlgeschlagene Rückbuchungen des Gutscheinanteils werden als Job wiederholt; endgültige Fehler gehen per Mail an den Admin.
+- Manuelle Zahlung (Überweisung, Haltezeit 72 h): höchstens 2 offene unbezahlte Bestellungen je E-Mail-Adresse und 5 je Besucher innerhalb der Haltezeit (Filter `wpcap_manual_open_orders_per_email`, `wpcap_manual_orders_per_client`), damit niemand anonym Kontingente blockiert.
+- Umsatzsteuer von Teilerstattungen rabattierter Bestellungen korrigiert; Partnerabrechnung zählt bei Mehrzweckgutscheinen Bar- und Gutscheinanteil der Erstattung; Provisionsrechnung einer Kleinunternehmer-Plattform ohne Umsatzsteuer mit Hinweis.
+
 ### Zusammenspiel mit WP Voucher Captain
+- Ticketdienst: `get()` liefert zusätzlich Event, Ticketart, Beginn (Ortszeit) und Empfänger einer Umwandlung (für „2 Tickets für … am …, gesendet an …“ im Kundenkonto); neues `resend_tickets()` sendet die Tickets einer Umwandlung erneut (neue Codes, höchstens 3-mal pro Stunde wie im Bestellportal).
+- Wird eine Ticketart umbenannt, merkt sich Pass Captain den alten Namen je Event: Gutscheine „Kunde wählt den Termin“, die für „Stehplatz“ verkauft wurden, finden die Termine auch nach der Umbenennung.
+- Ein Codefeld im Checkout: „Gutschein- oder Rabattcode“ statt zwei Feldern. Bekannte Kampagnencodes werden als Rabatt angewendet, alles andere als Gutschein (nur wenn ein Gutschein-Plugin verbunden ist; sonst bleibt das Feld „Rabattcode“). Die API nimmt weiterhin `campaign_codes` und `voucher_code` an.
+
+### Rechnungen
+- Plattformbetreiber als Kleinunternehmer: neue Einstellungen „Kleinunternehmer“ und „Kleinunternehmer-Hinweis“ (Rechnungssteller). Rechnungen der Plattform tragen den Hinweis (Standard nach Land: DE § 19 UStG, AT § 6 Abs. 1 Z 27 UStG) in HTML und PDF; Rechnungen mit Umsatzsteuer werden dann verweigert (§ 14c UStG). Der Standardtext für Veranstalter-Kleinunternehmer richtet sich jetzt ebenfalls nach dem Land.
+
+### Web-Scanner
+- Großes Ergebnisbanner mit Symbol und Text (Farbe ist nicht das einzige Signal), Töne und Vibration für Einlass/kein Einlass/Achtung, eigene kurze Live-Region für Screenreader.
+- Kamera stoppen, Licht (wo die Kamera es kann), Bildschirm bleibt beim Scannen an; Modusleiste „Modus: Einlass/Auslass“ (Auslass andersfarbig); Schaltflächen mindestens 48 px.
+- Ein QR-Code, der im Bild bleibt, wird erst wieder gesendet, nachdem er 3 s aus dem Bild war – „bereits verwendet“ überschreibt das grüne Ergebnis nicht mehr.
 - Gemeinsamer Scanner: neuer Dienst `wp_pass_captain_checkin_service_v1` (`Integrations\Vouchers\CheckinService`) – `recognizes()`, `preview()`, `check_in()` mit denselben Regeln, Sperren und Audit wie der eigene Web-Scanner; Recht `wpcap_checkin` wird im Dienst geprüft. Der Voucher-Captain-Scanner erkennt damit auch Pass-Captain-Tickets; Gutschein-Einlösung und Ticket-Check-in bleiben getrennte Aktionen.
 - Einstellungen zeigen den Status der Integration (Voucher Captain aktiv/Version, Gutscheine im Checkout, Gutschein → Ticket, gemeinsamer Scanner) mit Links; im Menü stehen „Gemeinsamer Scanner ↗“ und „WP Voucher Captain ↗“, wenn Voucher Captain aktiv ist.
 - Werden Tickets einer Gutschein-Umwandlung in Pass Captain storniert oder erstattet (Bestellung storniert/erstattet, Termin oder Event abgesagt), meldet Pass Captain das über die neue Action `wp_pass_captain_voucher_tickets_revoked_v1` (Einlöse-Schlüssel, verbleibende Tickets). WP Voucher Captain stellt den Gutschein damit wieder her. Ein Widerruf durch das Gutscheinsystem selbst wird nicht zurückgemeldet.

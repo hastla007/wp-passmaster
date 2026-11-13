@@ -101,16 +101,17 @@ $wpcap_waitlist = $wpcap_soldout && (bool) apply_filters( 'wpcap_waitlist_public
 				</div>
 			</fieldset>
 		<?php endif; ?>
-		<?php if ( $types && \PassCaptain\Campaigns::has_active( (int) $event->event_id, $types[0]->currency ) ) : ?>
-		<div class="wpcap-field">
-			<label for="<?php echo esc_attr( $form_id . '-campaign' ); ?>"><?php esc_html_e( 'Rabattcode (optional)', 'wp-pass-captain' ); ?></label>
-			<input id="<?php echo esc_attr( $form_id . '-campaign' ); ?>" name="campaign_code" type="text" autocomplete="off" maxlength="40">
-		</div>
-		<?php endif; ?>
 		<?php if ( \PassCaptain\Integrations\Vouchers\Bridge::available() ) : ?>
+			<?php /* One field for both: the server tells discount codes and vouchers apart. */ ?>
 			<div class="wpcap-field">
-				<label for="<?php echo esc_attr( $form_id . '-voucher' ); ?>"><?php esc_html_e( 'Gutscheincode (optional)', 'wp-pass-captain' ); ?></label>
-				<input id="<?php echo esc_attr( $form_id . '-voucher' ); ?>" name="voucher_code" type="text" autocomplete="off" maxlength="64">
+				<label for="<?php echo esc_attr( $form_id . '-code' ); ?>"><?php esc_html_e( 'Gutschein- oder Rabattcode (optional)', 'wp-pass-captain' ); ?></label>
+				<input id="<?php echo esc_attr( $form_id . '-code' ); ?>" name="code" type="text" autocomplete="off" maxlength="64">
+			</div>
+		<?php elseif ( $types && \PassCaptain\Campaigns::has_active( (int) $event->event_id, $types[0]->currency ) ) : ?>
+			<?php /* Discount code field only when a code is active for this event (or all events). */ ?>
+			<div class="wpcap-field">
+				<label for="<?php echo esc_attr( $form_id . '-campaign' ); ?>"><?php esc_html_e( 'Rabattcode (optional)', 'wp-pass-captain' ); ?></label>
+				<input id="<?php echo esc_attr( $form_id . '-campaign' ); ?>" name="campaign_code" type="text" autocomplete="off" maxlength="40">
 			</div>
 		<?php endif; ?>
 		<?php if ( count( $providers ) > 1 ) : ?>

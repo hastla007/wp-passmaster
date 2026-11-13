@@ -9767,3 +9767,297 @@ msgstr "Vanaf een bestelbedrag boven %s hebben we naam en adres nodig voor de fa
 #: templates/event-card.php:85
 msgid "Mit Länderkennzeichen, z. B. ATU12345678 oder DE123456789."
 msgstr "Met landcode, bijv. ATU12345678 of DE123456789."
+
+#: src/Admin/Menu.php:95 src/Integrations/Vouchers/IntegrationStatus.php:33 src/Integrations/Vouchers/IntegrationStatus.php:44
+msgid "Gemeinsamer Scanner"
+msgstr "Gedeelde scanner"
+
+#: src/Admin/Menu.php:95
+msgid "Gemeinsamer Scanner ↗"
+msgstr "Gedeelde scanner ↗"
+
+#: src/Admin/Menu.php:96 src/Integrations/Vouchers/IntegrationStatus.php:22 src/Integrations/Vouchers/IntegrationStatus.php:30
+msgid "WP Voucher Captain"
+msgstr "WP Voucher Captain"
+
+#: src/Admin/Menu.php:96
+msgid "WP Voucher Captain ↗"
+msgstr "WP Voucher Captain ↗"
+
+#: src/Admin/SettingsPage.php:43
+msgid "Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel"
+msgstr "Standaard toegangsvenster voor tickettypes zonder eigen toegangsregel"
+
+#: src/Admin/SettingsPage.php:44
+msgid "Einlass ab (Minuten vor Beginn)"
+msgstr "Toegang vanaf (minuten voor aanvang)"
+
+#: src/Admin/SettingsPage.php:45
+msgid "Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)"
+msgstr "Toegang tot (minuten na afloop; zonder einde: tot het einde van de evenementdag)"
+
+#: src/Admin/SettingsPage.php:121
+msgid "Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)"
+msgstr "Kleine ondernemer (geen btw op eigen facturen)"
+
+#: src/Admin/SettingsPage.php:121
+msgid "Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen)."
+msgstr "Facturen van het platform krijgen dan de vermelding kleine ondernemer en worden geweigerd zolang tickettypes btw bevatten (maak tickettypes aan met 0 %)."
+
+#: src/Admin/SettingsPage.php:122
+msgid "Kleinunternehmer-Hinweis (leer = Standardtext für das Land)"
+msgstr "Vermelding kleine ondernemer (leeg = standaardtekst voor het land)"
+
+#: src/Admin/SettingsPage.php:122
+msgid "DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“"
+msgstr "DE: ‘Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.’ – AT: ‘Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.’"
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:23
+msgid "efsta EFR-Verbindungstest wurde abgelehnt."
+msgstr "De efsta EFR-verbindingstest is geweigerd."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:39
+msgid "efsta-Journalstatus konnte nicht sicher abgefragt werden."
+msgstr "De efsta-journaalstatus kon niet betrouwbaar worden opgevraagd."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:60
+msgid "Ein Steuersatz ist keiner efsta-Steuergruppe zugeordnet."
+msgstr "Een btw-tarief is niet aan een efsta-belastinggroep toegewezen."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:79
+msgid "Der Fiskalbeleg enthält keine Positionen."
+msgstr "De fiscale bon bevat geen posten."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:84
+msgid "Zahlungsart ist keiner efsta-Zahlungsgruppe zugeordnet."
+msgstr "De betaalmethode is niet aan een efsta-betaalgroep toegewezen."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:106
+msgid "efsta hat den Beleg nicht bestätigt."
+msgstr "efsta heeft de bon niet bevestigd."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:110
+msgid "efsta hat die Transaktion abgelehnt oder zur Wiederholung markiert."
+msgstr "efsta heeft de transactie geweigerd of gemarkeerd voor een nieuwe poging."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:120
+msgid "efsta Cloud API-Key und Secret fehlen."
+msgstr "De efsta Cloud API-sleutel en het secret ontbreken."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:122
+msgid "Für efsta Cloud ist die Verkäufer-Steuernummer erforderlich."
+msgstr "Voor efsta Cloud is het fiscale nummer van de verkoper vereist."
+
+#: src/Fiscalization/Providers/EfstaEfrAdapter.php:128
+msgid "efsta Cloud-Zugang konnte nicht authentifiziert werden."
+msgstr "De toegang tot efsta Cloud kon niet worden geverifieerd."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:24
+msgid "fiskaltrust-Verbindungstest wurde abgelehnt."
+msgstr "De fiskaltrust-verbindingstest is geweigerd."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:37
+msgid "fiskaltrust-Status konnte nicht sicher abgefragt werden."
+msgstr "De fiskaltrust-status kon niet betrouwbaar worden opgevraagd."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:40
+msgid "fiskaltrust verarbeitet den Vorgang noch."
+msgstr "fiskaltrust verwerkt de transactie nog."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:44
+msgid "fiskaltrust meldet keinen erfolgreich abgeschlossenen Beleg."
+msgstr "fiskaltrust meldt geen succesvol afgeronde bon."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:58
+msgid "Steuer- oder Belegfall-Zuordnung für fiskaltrust fehlt."
+msgstr "De toewijzing van belasting- of bontypes voor fiskaltrust ontbreekt."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:69
+msgid "Zahlungsart ist in fiskaltrust nicht zugeordnet."
+msgstr "De betaalmethode is niet toegewezen in fiskaltrust."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:81
+msgid "fiskaltrust hat den Beleg nicht bestätigt."
+msgstr "fiskaltrust heeft de bon niet bevestigd."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:88
+msgid "Die von fiskaltrust für das Land freigegebenen Geschäftsfall-Codes fehlen."
+msgstr "De door fiskaltrust voor het land vrijgegeven bedrijfscodes ontbreken."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:93
+msgid "Ein Steuersatz ist nicht auf einen fiskaltrust-Belegfall abgebildet."
+msgstr "Een btw-tarief is niet gekoppeld aan een fiskaltrust-bontype."
+
+#: src/Fiscalization/Providers/FiskaltrustAdapter.php:114
+msgid "fiskaltrust CashBox-Zugang und POS-System-ID fehlen."
+msgstr "De fiskaltrust CashBox-toegang en de POS-systeem-ID ontbreken."
+
+#: src/Fiscalization/Providers/HttpClient.php:17
+msgid "Der Fiskal-Anbieter-Endpunkt ist ungültig."
+msgstr "Het endpoint van de fiscale aanbieder is ongeldig."
+
+#: src/Fiscalization/Providers/HttpClient.php:31
+msgid "Der Fiskal-Anbieter ist nicht erreichbar."
+msgstr "De fiscale aanbieder is niet bereikbaar."
+
+#: src/Fiscalization/Providers/HttpClient.php:36
+msgid "Die Antwort des Fiskal-Anbieters ist zu groß."
+msgstr "Het antwoord van de fiscale aanbieder is te groot."
+
+#: src/Fiscalization/Providers/HttpClient.php:40
+msgid "Die Antwort des Fiskal-Anbieters ist kein gültiges JSON."
+msgstr "Het antwoord van de fiscale aanbieder is geen geldige JSON."
+
+#: src/Integrations/Vouchers/CheckinService.php:68
+msgid "Du darfst keine Pass-Captain-Tickets einchecken."
+msgstr "Je mag geen Pass Captain-tickets inchecken."
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:22
+msgid "nicht aktiv – Gutscheine im Ticket-Checkout und Gutschein → Ticket sind ausgeschaltet. Pass Captain funktioniert ohne Einschränkung."
+msgstr "niet actief – vouchers in de ticketcheckout en voucher → ticket zijn uitgeschakeld. Pass Captain werkt zonder beperkingen."
+
+#. translators: %s: version
+#: src/Integrations/Vouchers/IntegrationStatus.php:30
+#, php-format
+msgid "aktiv (Version %s)"
+msgstr "actief (versie %s)"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:31
+msgid "Gutscheine im Ticket-Checkout"
+msgstr "Vouchers in de ticketcheckout"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:31
+msgid "aktiv (Anbieter-Vertrag v1)"
+msgstr "actief (aanbiederscontract v1)"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:31
+msgid "kein kompatibler Gutschein-Anbieter – Voucher Captain aktualisieren"
+msgstr "geen compatibele voucheraanbieder – werk Voucher Captain bij"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:32
+msgid "Gutschein → Ticket"
+msgstr "Voucher → ticket"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:32
+msgid "verfügbar – Ticketart am Voucher-Captain-Produkt wählen"
+msgstr "beschikbaar – kies het tickettype bij het Voucher Captain-product"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:32 src/Integrations/Vouchers/IntegrationStatus.php:33
+msgid "nicht verfügbar – Voucher Captain aktualisieren"
+msgstr "niet beschikbaar – werk Voucher Captain bij"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:33
+msgid "Der Voucher-Captain-Scanner erkennt auch Pass-Captain-Tickets (Recht „wpcap_checkin“ nötig)."
+msgstr "De Voucher Captain-scanner herkent ook Pass Captain-tickets (recht ‘wpcap_checkin’ vereist)."
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:38
+msgid "Integration WP Voucher Captain"
+msgstr "Integratie WP Voucher Captain"
+
+#: src/Integrations/Vouchers/IntegrationStatus.php:44
+msgid "Zu WP Voucher Captain"
+msgstr "Naar WP Voucher Captain"
+
+#: src/Integrations/Vouchers/TicketService.php:432
+msgid "Zu diesem Gutschein wurden keine Tickets gefunden."
+msgstr "Voor deze voucher zijn geen tickets gevonden."
+
+#: src/Integrations/WooCommerce/OrderAdapter.php:629
+msgid "Pass Captain: Die Tickets bleiben reserviert und werden nach der Prüfung der Bestellung ausgestellt."
+msgstr "Pass Captain: de tickets blijven gereserveerd en worden uitgegeven nadat de bestelling is gecontroleerd."
+
+#: src/Partners/SalesModel.php:53
+msgid "Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG."
+msgstr "Vrijgesteld van btw op grond van de kleineondernemersregeling volgens § 6 lid 1 nr. 27 UStG (Oostenrijk)."
+
+#: src/Partners/SalesModel.php:209
+msgid "Die Plattform ist als Kleinunternehmer eingestellt, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 % anlegen oder die Einstellung „Kleinunternehmer“ prüfen."
+msgstr "Het platform is ingesteld als kleine ondernemer, maar de bestelling bevat btw. Btw vermelden zou niet toegestaan zijn (§ 14c UStG). Maak de tickettypes aan met 0 % of controleer de instelling ‘Kleine ondernemer’."
+
+#: src/Privacy.php:294
+msgid "WP Pass Captain: Löschanfrage zurückgestellt"
+msgstr "WP Pass Captain: verwijderverzoek uitgesteld"
+
+#. translators: %d: number of orders
+#: src/Privacy.php:296
+#, php-format
+msgid "Eine Löschanfrage betrifft %d Bestellung(en) mit Tickets für kommende Termine. Die Tickets bleiben bis nach dem letzten Termin gültig; danach werden die Bestellungen automatisch anonymisiert."
+msgstr "Een verwijderverzoek betreft %d bestelling(en) met tickets voor komende data. De tickets blijven geldig tot na de laatste datum; daarna worden de bestellingen automatisch geanonimiseerd."
+
+#. translators: %d: number of orders
+#: src/Privacy.php:311
+#, php-format
+msgid "%d Bestellung(en) mit Tickets für bevorstehende Termine werden zur Vertragserfüllung (Art. 17 Abs. 3 DSGVO) bis nach dem letzten Termin aufbewahrt und danach automatisch anonymisiert; die Tickets bleiben gültig."
+msgstr "%d bestelling(en) met tickets voor komende data worden voor de uitvoering van de overeenkomst (art. 17 lid 3 AVG) bewaard tot na de laatste datum en daarna automatisch geanonimiseerd; de tickets blijven geldig."
+
+#: src/PublicEvents.php:82
+msgid "NICHT GEPRÜFT (offline): Das Ticket kann ohne Verbindung nicht geprüft werden. Nur nach Sichtprüfung einlassen; für geprüften Offline-Einlass die Offline-Scanner-App verwenden."
+msgstr "NIET GECONTROLEERD (offline): het ticket kan zonder verbinding niet worden gecontroleerd. Alleen toelaten na visuele controle; gebruik voor gecontroleerde offline toegang de offline-scanner-app."
+
+#: src/PublicEvents.php:83
+msgid "Nach Sichtprüfung einlassen (wird später geprüft)"
+msgstr "Toelaten na visuele controle (wordt later gecontroleerd)"
+
+#: src/PublicEvents.php:89
+msgid "Kein Einlass"
+msgstr "Geen toegang"
+
+#: src/PublicEvents.php:90
+msgid "Achtung"
+msgstr "Let op"
+
+#. translators: %s: scanner mode, e.g. "Einlass"
+#: src/PublicEvents.php:92
+#, php-format
+msgid "Modus: %s"
+msgstr "Modus: %s"
+
+#: src/PublicEvents.php:156
+msgid "Kamera stoppen"
+msgstr "Camera stoppen"
+
+#: src/PublicEvents.php:156
+msgid "Licht"
+msgstr "Lamp"
+
+#: src/Rest/Controller.php:274
+msgid "Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab."
+msgstr "Deze bestelpoging is afgebroken. Verstuur het formulier opnieuw."
+
+#: templates/event-card.php:97
+msgid "Gutschein- oder Rabattcode (optional)"
+msgstr "Voucher- of kortingscode (optioneel)"
+
+#: src/PublicEvents.php:94
+msgid "Systemfehler – das Ticket wurde nicht geprüft. Bitte erneut scannen."
+msgstr "Systeemfout – het ticket is niet gecontroleerd. Scan opnieuw."
+
+#: src/PublicEvents.php:95
+msgid "Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen."
+msgstr "Sessie verlopen – laad de pagina opnieuw en scan opnieuw."
+
+#. translators: 1: order, 2: amount in minor units, 3: error
+#: src/Integrations/Vouchers/Checkout.php:336
+msgid "WP Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
+msgstr "WP Pass Captain: terugboeking op voucher mislukt"
+
+#: src/Integrations/Vouchers/Checkout.php:336
+#, php-format
+msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
+msgstr "Bij bestelling %1$s kon het voucheraandeel van een terugbetaling (%2$d in de kleinste eenheid) niet op de voucher worden teruggeboekt:\n\n%3$s\n\nCorrigeer de voucher handmatig in de voucher-plugin."
+
+#: src/BoxOffice/Page.php:108
+msgid "Bar und Karte sind gesperrt: In Deutschland und Österreich brauchen diese Verkäufe eine zertifizierte Kassenlösung (TSE/RKSV), die Pass Captain nicht hat."
+msgstr "Contant en kaart zijn geblokkeerd: in Duitsland en Oostenrijk vereisen deze verkopen een gecertificeerde kassaoplossing (TSE/RKSV), die Pass Captain niet heeft."
+
+#: src/BoxOffice/Page.php:178
+msgid "Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben"
+msgstr "Contante en kaartverkopen worden ook in onze eigen gecertificeerde kassa (TSE/RKSV) vastgelegd – contant en kaart hier toestaan"
+
+#: src/BoxOffice/Service.php:340
+msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
+msgstr "Contante en kaartbetalingen aan de kassa vereisen in Duitsland en Oostenrijk een gecertificeerde kassaoplossing (TSE/RKSV). Pass Captain ondertekent geen bonnen. Kies vrijkaart of factuur, of bevestig in de boninstellingen dat deze verkopen in een gecertificeerde kassa worden vastgelegd."
+
+#: src/Rest/Controller.php:344
+msgid "Für diese E-Mail-Adresse gibt es bereits offene, noch nicht bezahlte Bestellungen. Bitte zuerst diese bezahlen oder ablaufen lassen."
+msgstr "Voor dit e-mailadres zijn er al openstaande, onbetaalde bestellingen. Betaal die eerst of laat ze verlopen."

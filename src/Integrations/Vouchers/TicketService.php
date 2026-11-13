@@ -77,6 +77,41 @@ final class TicketService {
 		) );
 	}
 
+	const ALIASES_OPTION = 'wpcap_ticket_name_aliases';
+
+	/**
+	 * Remembers that a ticket type of an event was renamed, so vouchers sold for the old name ("customer
+	 * chooses the date" with a ticket name) still find the dates under the new name.
+	 */
+	public static function remember_rename( $event_id, $old_name, $new_name ) {
+		$event_id = absint( $event_id );
+		$old_name = trim( (string) $old_name );
+		$new_name = trim( (string) $new_name );
+		if ( ! $event_id || '' === $old_name || '' === $new_name || 0 === strcasecmp( $old_name, $new_name ) ) { return; }
+		$aliases = get_option( self::ALIASES_OPTION, array() );
+		$aliases = is_array( $aliases ) ? $aliases : array();
+		$aliases[ $event_id ][ self::name_key( $old_name ) ][] = $new_name;
+		$aliases[ $event_id ][ self::name_key( $old_name ) ] = array_values( array_unique( $aliases[ $event_id ][ self::name_key( $old_name ) ] ) );
+		update_option( self::ALIASES_OPTION, $aliases, false );
+	}
+
+	/** The name and every later name of it (renames can chain: A → B → C). */
+	public static function names_for( $event_id, $name ) {
+		$aliases = get_option( self::ALIASES_OPTION, array() );
+		$map = is_array( $aliases ) && $event_id && isset( $aliases[ $event_id ] ) ? (array) $aliases[ $event_id ] : array();
+		$names = array( $name );
+		for ( $i = 0; $i < count( $names ) && $i < 50; $i++ ) {
+			foreach ( (array) ( $map[ self::name_key( $names[ $i ] ) ] ?? array() ) as $next ) {
+				if ( ! in_array( $next, $names, true ) ) { $names[] = (string) $next; }
+			}
+		}
+		return $names;
+	}
+
+	private static function name_key( $name ) {
+		return function_exists( 'mb_strtolower' ) ? mb_strtolower( trim( (string) $name ) ) : strtolower( trim( (string) $name ) );
+	}
+
 	/** Filter callback: the service for contract version 1 (another implementation registered earlier wins). */
 	public static function service( $service = null, $version = self::VERSION ) {
 		if ( null !== $service || self::VERSION !== (int) $version ) { return $service; }
@@ -178,7 +213,8 @@ final class TicketService {
 	/**
 	 * Ticket types that can be issued for vouchers (upcoming occurrences, active types), for admin selects.
 	 *
-	 * @param array $filter Optional event_id (int), ticket_name (string, exact name of the ticket type) and
+	 * @param array $filter Optional event_id (int), ticket_name (string, name of the ticket type; with event_id
+	 *                      also its later names after a rename) and
 	 *                      quantity (int: leave out ticket types with fewer free places).
 	 * @return array<int, array{ticket_type_id:int,event_id:int,occurrence_id:int,label:string,date_label:string,name:string,event:string,starts_at:string,currency:string,price_minor:int}>
 	 */
@@ -192,8 +228,10 @@ final class TicketService {
 			$args[] = absint( $filter['event_id'] );
 		}
 		if ( '' !== (string) ( $filter['ticket_name'] ?? '' ) ) {
-			$where .= ' AND tt.name=%s';
-			$args[] = sanitize_text_field( (string) $filter['ticket_name'] );
+			// Vouchers sold for "Stehplatz" keep working after the ticket type was renamed (see remember_rename()).
+			$names = self::names_for( absint( $filter['event_id'] ?? 0 ), sanitize_text_field( (string) $filter['ticket_name'] ) );
+			$where .= ' AND tt.name IN (' . implode( ',', array_fill( 0, count( $names ), '%s' ) ) . ')';
+			$args = array_merge( $args, $names );
 		}
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.name,tt.currency,tt.price_minor,e.event_id,e.name AS event_name,o.occurrence_id,o.starts_at,o.timezone FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE tt.status='active' AND o.status<>'cancelled' AND o.starts_at>=%s{$where} ORDER BY o.starts_at,e.name,tt.ticket_type_id LIMIT 500", $args ) );
 		$out = array();
@@ -359,16 +397,51 @@ final class TicketService {
 	}
 
 	private static function data( $order, $reused ) {
+		global $wpdb;
 		$tickets = Orders::tickets_for_order( (int) $order->order_id );
 		$valid = array_values( array_filter( (array) $tickets, static function ( $t ) { return 'valid' === $t->status || 'checked_in' === $t->status; } ) );
 		$revoked = in_array( $order->status, array( 'cancelled', 'refunded' ), true );
+		$first = $wpdb->get_row( $wpdb->prepare(
+			"SELECT e.name AS event_name,tt.name AS ticket_name,o.starts_at,o.timezone FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d ORDER BY t.ticket_id LIMIT 1",
+			(int) $order->order_id
+		) );
 		return array(
 			'order_id' => (int) $order->order_id,
 			'order_public_id' => (string) $order->public_id,
 			'ticket_ids' => array_map( static function ( $t ) { return (string) $t->public_id; }, $valid ),
 			'status' => $revoked ? 'revoked' : ( 'paid' === $order->payment_status ? 'issued' : 'pending' ),
 			'reused' => (bool) $reused,
+			// Since 1.5: what the customer got, for "2 tickets for … on …, sent to …" in the voucher system.
+			'event' => $first ? (string) $first->event_name : '',
+			'ticket_name' => $first ? (string) $first->ticket_name : '',
+			'starts_at' => $first ? Orders::format_start( $first->starts_at, $first->timezone ) : '',
+			'email' => (string) $order->customer_email,
 		);
+	}
+
+	/**
+	 * Sends the tickets of an exchange again (since 1.5). Codes are stored hashed, so they are renewed (the
+	 * old ones stop working), exactly like the resend in the order portal; at most 3 times per order and hour
+	 * (filter `wpcap_portal_resend_limit`).
+	 *
+	 * @return array|\WP_Error email (where the tickets went).
+	 */
+	public function resend_tickets( $idempotency_key ) {
+		$order = self::order_for_key( sanitize_text_field( (string) $idempotency_key ) );
+		if ( ! $order ) {
+			return self::error( 'wpcap_ticket_exchange_unknown', __( 'Zu diesem Gutschein wurden keine Tickets gefunden.', 'wp-pass-captain' ), 404 );
+		}
+		$limit = max( 1, (int) apply_filters( 'wpcap_portal_resend_limit', 3 ) );
+		if ( ! \PassCaptain\RateLimit::allow( 'portal-resend|' . $order->public_id, $limit, HOUR_IN_SECONDS ) ) {
+			/* translators: %d: allowed resends per hour */
+			return self::error( 'wpcap_resend_rate_limited', sprintf( _n( 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', 'Die Tickets können höchstens %d-mal pro Stunde erneut gesendet werden. Bitte versuche es später noch einmal.', $limit, 'wp-pass-captain' ), $limit ), 429 );
+		}
+		$result = Orders::resend_tickets( (int) $order->order_id );
+		if ( is_wp_error( $result ) ) {
+			return self::error( $result->get_error_code(), $result->get_error_message(), 409, 'wpcap_mail_failed' === $result->get_error_code() );
+		}
+		Audit::record( 'voucher_tickets_resent', 'order', (int) $order->order_id, array() );
+		return array( 'email' => (string) $order->customer_email );
 	}
 
 	private static function order_for_key( $key ) {

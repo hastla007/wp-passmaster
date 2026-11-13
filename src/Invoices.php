@@ -131,12 +131,17 @@ final class Invoices {
 
 	/** Platform seller data for documents (settings "Rechnungssteller"). */
 	public static function seller() {
+		$country = Partners\SalesModel::country( Settings::get( 'seller_country' ) );
+		$small = ! empty( Settings::get( 'seller_small_business' ) );
+		$note = trim( (string) Settings::get( 'seller_small_business_note' ) );
 		return array(
 			'name' => (string) Settings::get( 'seller_name' ),
 			'address' => (string) Settings::get( 'seller_address' ),
 			'vat_id' => (string) Settings::get( 'seller_vat_id' ),
 			'tax_number' => (string) Settings::get( 'seller_tax_number' ),
-			'country' => Partners\SalesModel::country( Settings::get( 'seller_country' ) ),
+			'country' => $country,
+			'small_business' => $small,
+			'small_business_note' => $small ? ( '' !== $note ? $note : Partners\SalesModel::default_small_business_note( $country ) ) : '',
 		);
 	}
 

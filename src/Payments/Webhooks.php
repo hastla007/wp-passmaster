@@ -4,6 +4,7 @@ namespace PassCaptain\Payments;
 
 use PassCaptain\Audit;
 use PassCaptain\Orders;
+use PassCaptain\Refunds;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -138,13 +139,32 @@ final class Webhooks {
 			return 'cancelled';
 		}
 		if ( 'refunded' === $type ) {
-			// Full refund triggered outside the plugin (e.g. provider dashboard).
-			if ( (int) ( $event['amount_minor'] ?? 0 ) >= (int) $order->total_minor - (int) $order->refunded_minor ) {
+			// Refund made outside the plugin (provider dashboard, chargeback). It is booked like any refund – refund
+			// row, refunded amount, credit note, voucher share and partner settlement all follow from
+			// `wpcap_refund_completed` – instead of only flipping the order status.
+			global $wpdb;
+			$remaining = max( 0, (int) $order->total_minor - (int) $order->refunded_minor );
+			$amount    = max( 0, (int) ( $event['amount_minor'] ?? 0 ) );
+			$full      = $amount >= $remaining;
+			if ( $remaining > 0 && $amount > 0 ) {
+				$tickets = $full ? array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND refunded=0", $order_id ) ) ) : array();
+				$booked  = Refunds::record_external(
+					$order_id,
+					$tickets,
+					$full ? $remaining : $amount,
+					$provider . '_dashboard_refund',
+					$provider . ':' . $event_id,
+					array( 'provider_reference' => (string) ( $event['provider_reference'] ?? '' ), 'source' => $provider )
+				);
+				if ( is_wp_error( $booked ) && ! $full ) {
+					return $booked; // Retried by the provider.
+				}
+			}
+			if ( $full ) {
 				Orders::mark_refunded( $order_id, $provider . '_dashboard_refund' );
 				return 'refunded';
 			}
-			Audit::record( 'external_partial_refund', 'order', $order_id, array( 'provider' => $provider, 'amount_minor' => (int) ( $event['amount_minor'] ?? 0 ) ) );
-			return 'partial_refund_logged';
+			return 'partial_refund';
 		}
 		return 'ignored';
 	}
