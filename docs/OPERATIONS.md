@@ -151,6 +151,30 @@ Offene Stornos, die auf Freigabe warten, und bezahlte, noch nicht gebuchte Verk�
 | `wpcap_boxoffice_zreport_html_extra` | Filter | zusätzliches (escaptes) HTML am Ende des Z-Berichts, Z-Bericht |
 | `wpcap_boxoffice_denominations` | Filter | Stückelung in kleinster Einheit, Währung |
 
+## Abrechnungsblatt pro Termin (Door Deal)
+
+Pass Captain → Berichte → „Abrechnungsblatt pro Termin“: Termin wählen, optional **Fixbetrag** und
+**Anteil %** eingeben, dann *Druckansicht* (A4, im Browser drucken oder als PDF speichern) oder *CSV-Export*
+(`admin-post.php?action=wpcap_settlement_sheet&occurrence_id=…&fixed=…&share=…&format=html|csv`). In der
+Druckansicht lassen sich Fixbetrag und Anteil ändern und neu berechnen; die Werte werden **nicht
+gespeichert**. Zugriff wie Berichte: Administratoren und `wpcap_view_finance` für alle Termine,
+`wpcap_view_reports` nur für zugewiesene Events. Jeder Abruf wird protokolliert (`settlement_sheet_html`,
+`settlement_sheet_csv`).
+
+Das Blatt umfasst den ganzen Termin (kein Datumsfilter) und rechnet wie der Umsatzbericht (Rabattverteilung,
+Umtausch, Mehrzweckgutscheine, Erstattungen):
+
+- Verkäufe je Ticketart und Verkaufskanal (Kasse, Veranstalter/Wiederverkäufer-API, WooCommerce, online):
+  verkauft, erstattet, Tickets netto, Brutto, Erstattungen, Umsatz nach Erstattung, davon USt, Netto; Summen je
+  Kanal und gesamt;
+- Umsatzsteuer je Satz (nach Erstattungen);
+- Kasse (Abendkasse) je Zahlungsart (Bar, Karte, Rechnung);
+- Freikarten (Gästeliste, Kassen-Freikarte) je Ticketart, getrennt und nicht im Umsatz;
+- Besucher: Kapazität, gültige Tickets (inkl. Freikarten), eingecheckt, No-Shows (gültig − eingecheckt);
+- Deal: vom Netto-Umsatz nach Erstattungen wird zuerst der Fixbetrag abgezogen, vom Rest erhält der
+  Künstler/Veranstalter den Anteil (kaufmännisch gerundet), der Rest verbleibt beim Haus. Beispiel: Netto
+  60,00 €, Fixbetrag 10,00 €, Anteil 70 % → Bemessungsgrundlage 50,00 €, Künstler 35,00 €, Haus 25,00 €.
+
 ## Kontingentzähler (große Vorverkäufe)
 
 Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht erstattete Einheiten) und

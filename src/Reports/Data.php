@@ -146,7 +146,7 @@ final class Data {
 				'channel' => self::channel_of( $provider ),
 			);
 		};
-		$line_sql = "SELECT oi.order_id,oi.item_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",oi.tax_rate_bp,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
+		$line_sql = self::line_sql();
 
 		// Sales.
 		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor FROM {$p}wpcap_orders WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $start, $end ) );
@@ -184,40 +184,11 @@ final class Data {
 		foreach ( $refunds as $refund ) {
 			$lines = $refund_lines[ (int) $refund->order_id ] ?? array();
 			if ( ! $lines ) { continue; }
-			// Multi-purpose voucher orders: the sale counts the full consideration, so the refund counts cash +
-			// voucher share and the full VAT from the stored refund plan (same numbers as the credit note).
-			$amounts = \PassCaptain\Integrations\Vouchers\Checkout::refund_amounts( $refund );
-			$refund->amount_minor = $amounts['amount_minor'];
-			$refund->tax_minor = $amounts['tax_minor'];
-			$by_type = array();
-			foreach ( $lines as $i => $line ) { $by_type[ (int) $line->ticket_type_id ] = $i; }
-			$ids = array_filter( array_map( 'absint', (array) json_decode( (string) $refund->ticket_ids, true ) ) );
-			$weights = array(); // line index => [tickets, weight]
-			if ( $ids ) {
-				foreach ( $wpdb->get_results( 'SELECT ticket_type_id FROM ' . $p . 'wpcap_tickets WHERE ticket_id IN (' . implode( ',', $ids ) . ')' ) as $t ) {
-					$i = $by_type[ (int) $t->ticket_type_id ] ?? null;
-					if ( null === $i ) { continue; }
-					$unit = intdiv( (int) $lines[ $i ]->line_total_minor, max( 1, (int) $lines[ $i ]->quantity ) );
-					$weights[ $i ] = array( ( $weights[ $i ][0] ?? 0 ) + 1, ( $weights[ $i ][1] ?? 0 ) + $unit );
-				}
-			}
-			if ( ! $weights ) {
-				foreach ( $lines as $i => $line ) { $weights[ $i ] = array( 0, (int) $line->line_total_minor ); }
-			}
-			$sum = max( 1, array_sum( array_map( static function ( $w ) { return $w[1]; }, $weights ) ) );
-			$amount_left = (int) $refund->amount_minor;
-			$tax_left = (int) $refund->tax_minor;
-			$keys = array_keys( $weights );
 			$day = Scope::local( $refund->updated_at, $tz, 'Y-m-d' );
-			foreach ( $keys as $n => $i ) {
-				$last = $n === count( $keys ) - 1;
-				$amount = $last ? $amount_left : intdiv( (int) $refund->amount_minor * $weights[ $i ][1], $sum );
-				$tax = $last ? $tax_left : intdiv( (int) $refund->tax_minor * $weights[ $i ][1], $sum );
-				$amount_left -= $amount;
-				$tax_left -= $tax;
-				$line = $lines[ $i ];
+			foreach ( self::refund_split( $refund, $lines ) as $part ) {
+				$line = $lines[ $part['index'] ];
 				if ( ! self::in_scope( $line->event_id, $scope ) ) { continue; }
-				$add( $keys_for( $line, $refund->payment_provider, $day ), array( 'refunded_tickets' => $weights[ $i ][0], 'refunded' => $amount, 'refunded_tax' => $tax, 'revenue' => -$amount, 'revenue_tax' => -$tax ) );
+				$add( $keys_for( $line, $refund->payment_provider, $day ), array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'], 'revenue' => -$part['amount'], 'revenue_tax' => -$part['tax'] ) );
 			}
 		}
 		foreach ( $dims as $d => $buckets ) {
@@ -258,9 +229,64 @@ final class Data {
 		);
 	}
 
-	/** Order lines grouped by order id (item order = Orders::create order). */
-	private static function lines_by_order( array $order_ids, $line_sql ) {
+	/** SELECT for paid order lines with ticket type, occurrence and event (append a WHERE clause). */
+	public static function line_sql() {
 		global $wpdb;
+		$p = $wpdb->prefix;
+		return "SELECT oi.order_id,oi.item_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",oi.tax_rate_bp,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
+	}
+
+	/**
+	 * Splits a completed refund onto the order lines: ticket refunds weight each refunded ticket with its
+	 * line's unit price, amount-only refunds weight all lines. Multi-purpose voucher orders count cash +
+	 * voucher share and the full VAT from the stored refund plan (same numbers as the credit note).
+	 *
+	 * @param object   $refund Refund row (refund_id, amount_minor, tax_minor, ticket_ids, optional has_voucher).
+	 * @param object[] $lines  Lines of the order (lines_by_order()).
+	 * @return array[] List of ['index' => line index, 'tickets' => int, 'amount' => int, 'tax' => int].
+	 */
+	public static function refund_split( $refund, array $lines ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( ! $lines ) { return array(); }
+		$amounts = \PassCaptain\Integrations\Vouchers\Checkout::refund_amounts( $refund );
+		$total_amount = (int) $amounts['amount_minor'];
+		$total_tax = (int) $amounts['tax_minor'];
+		$by_type = array();
+		foreach ( $lines as $i => $line ) { $by_type[ (int) $line->ticket_type_id ] = $i; }
+		$ids = array_filter( array_map( 'absint', (array) json_decode( (string) $refund->ticket_ids, true ) ) );
+		$weights = array(); // line index => [tickets, weight]
+		if ( $ids ) {
+			foreach ( $wpdb->get_results( 'SELECT ticket_type_id FROM ' . $p . 'wpcap_tickets WHERE ticket_id IN (' . implode( ',', $ids ) . ')' ) as $t ) {
+				$i = $by_type[ (int) $t->ticket_type_id ] ?? null;
+				if ( null === $i ) { continue; }
+				$unit = intdiv( (int) $lines[ $i ]->line_total_minor, max( 1, (int) $lines[ $i ]->quantity ) );
+				$weights[ $i ] = array( ( $weights[ $i ][0] ?? 0 ) + 1, ( $weights[ $i ][1] ?? 0 ) + $unit );
+			}
+		}
+		if ( ! $weights ) {
+			foreach ( $lines as $i => $line ) { $weights[ $i ] = array( 0, (int) $line->line_total_minor ); }
+		}
+		$sum = max( 1, array_sum( array_map( static function ( $w ) { return $w[1]; }, $weights ) ) );
+		$amount_left = $total_amount;
+		$tax_left = $total_tax;
+		$keys = array_keys( $weights );
+		$out = array();
+		foreach ( $keys as $n => $i ) {
+			$last = $n === count( $keys ) - 1;
+			$amount = $last ? $amount_left : intdiv( $total_amount * $weights[ $i ][1], $sum );
+			$tax = $last ? $tax_left : intdiv( $total_tax * $weights[ $i ][1], $sum );
+			$amount_left -= $amount;
+			$tax_left -= $tax;
+			$out[] = array( 'index' => $i, 'tickets' => $weights[ $i ][0], 'amount' => $amount, 'tax' => $tax );
+		}
+		return $out;
+	}
+
+	/** Order lines grouped by order id (item order = Orders::create order). */
+	public static function lines_by_order( array $order_ids, $line_sql = null ) {
+		global $wpdb;
+		$line_sql = $line_sql ?? self::line_sql();
 		$out = array();
 		foreach ( array_chunk( array_map( 'absint', $order_ids ), 500 ) as $chunk ) {
 			foreach ( $wpdb->get_results( $line_sql . ' WHERE oi.order_id IN (' . implode( ',', $chunk ) . ') ORDER BY oi.order_id,oi.item_id' ) as $line ) {

@@ -114,7 +114,23 @@ final class Page {
 			foreach ( $report['histogram'] as $hour => $n ) { $hist[ substr( $hour, 5 ) ] = $n; }
 			echo '<h2>' . esc_html__( 'Check-ins pro Stunde', 'wp-pass-captain' ) . '</h2>' . self::bar_chart( $hist, $report['occurrences'][ $report['histogram_occurrence'] ]['label'] ?? '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
+		self::settlement_form( $filters['occurrence_id'] );
 		echo '</div>';
+	}
+
+	/** Form for the settlement sheet per occurrence (Settlement; opens the print view or the CSV). */
+	private static function settlement_form( $selected ) {
+		$options = Settlement::occurrence_options();
+		echo '<h2 id="wpcap-settlement">' . esc_html__( 'Abrechnungsblatt pro Termin (Door Deal)', 'wp-pass-captain' ) . '</h2>';
+		if ( ! $options ) { echo '<p>' . esc_html__( 'Keine Termine im Zugriff.', 'wp-pass-captain' ) . '</p>'; return; }
+		echo '<form method="get" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" target="_blank"><input type="hidden" name="action" value="' . esc_attr( Settlement::ACTION ) . '">';
+		wp_nonce_field( Settlement::ACTION );
+		echo '<p><label for="wpcap-settlement-occ">' . esc_html__( 'Termin', 'wp-pass-captain' ) . '</label> <select id="wpcap-settlement-occ" name="occurrence_id">';
+		foreach ( $options as $id => $label ) { echo '<option value="' . (int) $id . '"' . selected( (int) $selected, (int) $id, false ) . '>' . esc_html( $label ) . '</option>'; }
+		echo '</select></p><p><label for="wpcap-settlement-fixed">' . esc_html__( 'Fixbetrag', 'wp-pass-captain' ) . '</label> <input id="wpcap-settlement-fixed" type="text" inputmode="decimal" name="fixed" size="10" placeholder="0,00" aria-describedby="wpcap-settlement-help"> ';
+		echo '<label for="wpcap-settlement-share">' . esc_html__( 'Anteil %', 'wp-pass-captain' ) . '</label> <input id="wpcap-settlement-share" type="text" inputmode="decimal" name="share" size="6" placeholder="0" aria-describedby="wpcap-settlement-help"> ';
+		echo '<button class="button" name="format" value="html">' . esc_html__( 'Druckansicht', 'wp-pass-captain' ) . '</button> <button class="button" name="format" value="csv">' . esc_html__( 'CSV-Export', 'wp-pass-captain' ) . '</button></p>';
+		echo '<p class="description" id="wpcap-settlement-help">' . esc_html__( 'Alle Verkäufe und Erstattungen des Termins nach Ticketart und Kanal, Freikarten, USt je Satz, Kasse nach Zahlungsart, Check-ins und No-Shows. Deal: vom Netto-Umsatz nach Erstattungen wird zuerst der Fixbetrag abgezogen, vom Rest erhält der Künstler/Veranstalter den Anteil. Die Deal-Werte werden nicht gespeichert.', 'wp-pass-captain' ) . '</p></form>';
 	}
 
 	private static function table( $label, array $buckets, callable $money ) {
