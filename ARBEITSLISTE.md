@@ -47,7 +47,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Rest/Controller.php:142` — Maßnahme: Kampagnen-Adminseite, Feld nur bei aktiven Codes, Live-Vorschau.
 - [x] **A018** [P2] Erstattungsmail sagt „erstattet“ auch bei Überweisung (Geld noch nicht unterwegs), Käufer-IBAN wird nicht erfasst; Mail/Admin zeigen 32-stellige Hex-ID statt Bestellnummer. — _OFFEN_ (TODO L420; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Mail/Types.php:263` — Maßnahme: Text je Zahlart, IBAN-Abfrage, überall kurze Bestellnummer.
-- [ ] **A019** [P2] Terminabsage nur mit `confirm()`, ohne Grund, Folgenvorschau und Zusammenfassung; Auslastung zählt Pässe nicht. — _OFFEN_ (TODO L421; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [x] **A019** [P2] Terminabsage nur mit `confirm()`, ohne Grund, Folgenvorschau und Zusammenfassung; Auslastung zählt Pässe nicht. — _OFFEN_ (TODO L421; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Admin/EventsPage.php`; `src/OccurrenceCancellation.php:85` — Maßnahme: Bestätigungsseite mit Folgen, Summary-Notice.
 - [x] **A020** [P2] `tax_for()` teilt USt nach Rabatt durch Brutto vor Rabatt (Beispiel: 10,67 € statt 13,33 €); betrifft auch `record_external()`. — _OFFEN_ (TODO L440; Steuer und Finanzen (Prüfung 3))
   - `src/Refunds.php:513–537,539–558` — Maßnahme: `line_shares()` mit Positionsbrutto nach Rabatt; Eigenschaftstest „Summe Korrekturen = Rechnung je Satz“.

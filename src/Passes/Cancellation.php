@@ -40,6 +40,31 @@ final class Cancellation {
 		return self::$summaries[ absint( $occurrence_id ) ] ?? array();
 	}
 
+	/**
+	 * wpcap_occurrence_cancellation_preview: what cancelling the occurrence does to linked passes.
+	 *
+	 * @return array[] name, tickets, effect.
+	 */
+	public static function preview( $items, $occurrence_id ) {
+		global $wpdb;
+		foreach ( Definitions::pass_ids_for_occurrence( absint( $occurrence_id ) ) as $type_id ) {
+			$config = Definitions::get( $type_id );
+			$type = Definitions::type_row( $type_id );
+			if ( ! $config || ! $type ) { continue; }
+			$tickets = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_type_id=%d AND status IN ('valid','checked_in') AND refunded=0", $type_id ) );
+			if ( 'revoke' === $config->on_cancel ) {
+				$effect = Settings::get( 'auto_refund_cancelled' ) ? __( 'der ganze Pass wird widerrufen und erstattet', 'wp-pass-captain' ) : __( 'der ganze Pass wird widerrufen; Erstattung offen (manuell)', 'wp-pass-captain' );
+			} elseif ( (int) $config->refund_per_day_minor > 0 ) {
+				/* translators: %s: amount per pass */
+				$effect = sprintf( __( 'bleibt für die übrigen Termine gültig; Teilerstattung %s je Pass', 'wp-pass-captain' ), \PassCaptain\Frontend\Format::money( (int) $config->refund_per_day_minor, (string) $type->currency ) );
+			} else {
+				$effect = __( 'bleibt für die übrigen Termine gültig, keine Erstattung', 'wp-pass-captain' );
+			}
+			$items[] = array( 'name' => (string) $type->name, 'tickets' => $tickets, 'effect' => $effect );
+		}
+		return $items;
+	}
+
 	/** Priority 5: re-anchor passes sold on the cancelled occurrence. */
 	public static function before_core( $occurrence_id ) {
 		global $wpdb;

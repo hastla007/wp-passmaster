@@ -40,6 +40,13 @@ final class Capacity {
 	 * Usage (same definition as Orders::capacity_error()).
 	 * ------------------------------------------------------------------------------------------- */
 
+	/** wpcap_occurrence_sold (admin occupancy): plus paid pass units anchored at another occurrence. */
+	public static function sold_display( $sold, $occurrence_id ) {
+		if ( ! Definitions::all_ids() ) { return $sold; }
+		// A far future "now" leaves out holds: sold units only.
+		return (int) $sold + self::pass_used( $occurrence_id, 0, '9999-12-31 00:00:00', true );
+	}
+
 	/** Units of all ticket types anchored at an occurrence (core usage). */
 	public static function core_used( $occurrence_id, $exclude_order_id, $now ) {
 		global $wpdb;

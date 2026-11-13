@@ -283,3 +283,20 @@ check( 'A018: payout account is validated and stored masked in the answer', is_w
 check( 'A018: with an IBAN the note names the masked account', false !== strpos( PassCaptain\PayoutAccount::refund_note( Orders::get( $a18['order_id'] ) ), 'AT61 •••• •••• 3201' ) );
 list( $a18c_o ) = ex_buy( $a4_std, 1, 'a18c@example.com' );
 check( 'A018: card/wallet orders need no payout account', is_wp_error( PassCaptain\PayoutAccount::save( Orders::get( $a18c_o ), 'AT61 1904 3002 3457 3201', 'X' ) ) || 'manual' === Orders::get( $a18c_o )->payment_provider );
+
+echo "Audit 3: occurrence cancellation with preview, reason and summary (A019)\n";
+$a19_event = ex_event( 'Absage Vorschau' );
+$a19_occ = ex_occ( $a19_event );
+$a19_type = ex_type( $a19_occ, 'Abend', 2000 );
+list( $a19_o ) = ex_buy( $a19_type, 2, 'a19@example.com' );
+$GLOBALS['wpcap_test_transients'] = array();
+Orders::create( array( 'email' => 'a19p@example.com', 'items' => array( array( 'ticket_type_id' => $a19_type, 'quantity' => 1 ) ), 'idempotency_key' => 'a19p-' . uniqid() ), array( 'payment_provider' => 'manual', 'hold_minutes' => 600 ) );
+$a19_pv = PassCaptain\Admin\EventsPage::cancellation_preview( $a19_occ );
+check( 'A019: preview lists tickets, paid and pending orders and recipients', 2 === $a19_pv['tickets'] && 1 === $a19_pv['paid_orders'] && 1 === $a19_pv['pending_orders'] && 1 === $a19_pv['recipients'] );
+$a19_no = PassCaptain\Admin\EventsPage::cancel_occurrence( array( 'occurrence_id' => $a19_occ ) );
+check( 'A019: cancelling needs a reason and an explicit confirmation', is_wp_error( $a19_no ) && 'scheduled' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_occurrences WHERE occurrence_id=$a19_occ" ) );
+add_action( 'wpcap_occurrence_cancelled', array( PassCaptain\OccurrenceCancellation::class, 'handle' ), 10, 1 );
+$a19 = PassCaptain\Admin\EventsPage::cancel_occurrence( array( 'occurrence_id' => $a19_occ, 'reason' => 'Künstler erkrankt', 'confirm' => 1 ) );
+remove_action( 'wpcap_occurrence_cancelled', array( PassCaptain\OccurrenceCancellation::class, 'handle' ), 10 );
+check( 'A019: summary counts cancelled orders, revoked tickets and notified holders', ! is_wp_error( $a19 ) && 1 === $a19['summary']['cancelled_orders'] && 2 === $a19['summary']['revoked'] && $a19['summary']['notified'] >= 1 );
+check( 'A019: the reason is in the audit log', (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_audit_logs WHERE action='occurrence_cancelled' AND object_id=%d AND details LIKE %s", $a19_occ, '%erkrankt%' ) ) );

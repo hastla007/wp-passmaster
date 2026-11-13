@@ -94,7 +94,7 @@ echo "Phase 1: single occurrence cancellation without automatic refund\n";
 $t5 = make_type( 10, 10, 1000 );
 $o5 = admin_paid_order( $t5, 1, 'p1f-occ@example.com' );
 $occ5 = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$t5" );
-$c5 = EventsPage::cancel_occurrence( array( 'occurrence_id' => $occ5 ) );
+$c5 = EventsPage::cancel_occurrence( array( 'occurrence_id' => $occ5, 'reason' => 'Test', 'confirm' => 1 ) );
 check( 'admin warning points to Bestellung → Erstatten', ! is_wp_error( $c5 ) && str_contains( (string) ( $c5['warning'] ?? '' ), 'Bestellung → Erstatten' ) );
 check( 'paid ticket is revoked but stays refundable', 'revoked' === Orders::tickets_for_order( $o5 )[0]->status && 1 === count( Orders::refundable_tickets( $o5 ) ) );
 

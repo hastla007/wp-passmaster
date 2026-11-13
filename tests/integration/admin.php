@@ -146,7 +146,7 @@ check( 'occurrence end must be after start', is_wp_error( $bad_end ) );
 $new_occ = EventsPage::save_occurrence( array( 'event_id' => $event_id, 'starts_at' => $future . 'T10:00', 'timezone' => 'America/New_York', 'location' => 'NYC', 'capacity' => '5' ) );
 check( 'a new occurrence is added in its own timezone', ! is_wp_error( $new_occ ) && Forms::local_to_utc( $future . 'T10:00', 'America/New_York' ) === Queries::occurrence( $new_occ['occurrence_id'] )->starts_at );
 $mark = count( $GLOBALS['wpcap_test_actions'] );
-$cancelled = EventsPage::cancel_occurrence( array( 'occurrence_id' => $occ->occurrence_id ) );
+$cancelled = EventsPage::cancel_occurrence( array( 'occurrence_id' => $occ->occurrence_id, 'reason' => 'Test', 'confirm' => 1 ) );
 check( 'cancelling an occurrence with tickets warns and fires wpcap_occurrence_cancelled', ! is_wp_error( $cancelled ) && 2 === $cancelled['issued'] && ! empty( $cancelled['warning'] ) && 'cancelled' === Queries::occurrence( $occ->occurrence_id )->status && in_array( 'wpcap_occurrence_cancelled', admin_actions_since( $mark ), true ) );
 EventsPage::save_occurrence( array( 'occurrence_id' => $occ->occurrence_id, 'starts_at' => $future . 'T20:00', 'timezone' => 'Europe/Berlin', 'capacity' => '100', 'status' => 'scheduled' ) );
 
