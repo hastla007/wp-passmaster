@@ -79,8 +79,10 @@ final class Page {
 		<input type="hidden" name="action" value="wpcap_attendee_list"><?php wp_nonce_field( 'wpcap_attendee_list' ); ?>
 		<p><?php Forms::select( 'occurrence_id', $occurrences, '' ); ?>
 		<button class="button" name="format" value="html"><?php esc_html_e( 'Druckansicht', 'wp-pass-captain' ); ?></button>
-		<button class="button" name="format" value="csv"><?php esc_html_e( 'CSV-Export', 'wp-pass-captain' ); ?></button></p>
-		<p class="description"><?php esc_html_e( 'Einlasspersonal erhält nur Name, Ticketart und Status; E-Mail-Adressen und Antworten sehen nur Personen mit Eventverwaltung.', 'wp-pass-captain' ); ?></p>
+		<button class="button" name="format" value="csv"><?php esc_html_e( 'CSV-Export', 'wp-pass-captain' ); ?></button>
+		<button class="button" name="format" value="noshow_html"><?php esc_html_e( 'No-Show-Liste', 'wp-pass-captain' ); ?></button>
+		<button class="button" name="format" value="noshow_csv"><?php esc_html_e( 'No-Shows als CSV', 'wp-pass-captain' ); ?></button></p>
+		<p class="description"><?php esc_html_e( 'Einlasspersonal erhält nur Name, Ticketart und Status; E-Mail-Adressen und Antworten sehen nur Personen mit Eventverwaltung.', 'wp-pass-captain' ); ?> <?php esc_html_e( 'Die No-Show-Liste enthält gültige Tickets des Termins, die nie eingelassen wurden (widerrufene und erstattete Tickets nicht).', 'wp-pass-captain' ); ?></p>
 		</form>
 
 		<?php if ( current_user_can( 'wpcap_manage_events' ) ) : ?>
@@ -151,7 +153,17 @@ final class Page {
 		$occurrence_id = absint( $_GET['occurrence_id'] ?? 0 );
 		$level = AttendeeList::access_level( $occurrence_id );
 		if ( '' === $level ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
-		$format = 'csv' === ( $_GET['format'] ?? '' ) ? 'csv' : 'html';
+		$format = sanitize_key( wp_unslash( $_GET['format'] ?? '' ) );
+		if ( in_array( $format, array( 'noshow_html', 'noshow_csv' ), true ) ) {
+			Audit::record( 'no_show_list_' . substr( $format, 7 ), 'occurrence', $occurrence_id, array( 'level' => $level ) );
+			if ( 'noshow_csv' === $format ) {
+				Scope::send_download( Scope::csv( NoShowList::rows( $occurrence_id, $level ) ), 'no-shows-' . $occurrence_id . '.csv', 'text/csv; charset=utf-8' );
+			}
+			nocache_headers();
+			echo NoShowList::html( $occurrence_id, $level ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in html().
+			exit;
+		}
+		$format = 'csv' === $format ? 'csv' : 'html';
 		Audit::record( 'attendee_list_' . $format, 'occurrence', $occurrence_id, array( 'level' => $level ) );
 		if ( 'csv' === $format ) {
 			Scope::send_download( Scope::csv( AttendeeList::rows( $occurrence_id, $level ) ), 'teilnehmer-' . $occurrence_id . '.csv', 'text/csv; charset=utf-8' );

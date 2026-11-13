@@ -11,6 +11,8 @@
 
 use PassCaptain\Admin\EventsPage;
 use PassCaptain\AdmissionChecks;
+use PassCaptain\Printing\AttendeeList;
+use PassCaptain\Printing\NoShowList;
 use PassCaptain\Admission\Areas;
 use PassCaptain\Admission\RulesPage;
 use PassCaptain\Admission\Policies;
@@ -127,3 +129,45 @@ check( 'A094 buyer notice on the event card', 'ab 18 Jahren, Ausweis erforderlic
 check( 'A094 web scanner, offline app and package show the hint', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'assets/scanner.js' ), 'data.staff_hint' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'assets/offline-scanner/app.js' ), 'd.type.hint' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/OfflineScanner/Package.php' ), "'hint' => \\PassCaptain\\AdmissionChecks::staff_hint" ) );
 $a_off = EventsPage::save_ticket_type( $a_base + array( 'min_age' => '' ) );
 check( 'A094 clearing the fields removes the hint', ! is_wp_error( $a_off ) && array() === AdmissionChecks::scan_fields( $a['type'] ) );
+
+/* ---------------------------------------------------------------------------------------------
+ * A095: no-show list per occurrence
+ * ------------------------------------------------------------------------------------------- */
+echo "A095: no-show list/export per occurrence\n";
+
+function a095_id( $code ) { global $wpdb; return (int) $wpdb->get_var( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE token_hash='" . hash( 'sha256', $code ) . "'" ); }
+$n = adm_setup( $vie, '2027-08-01 20:00', '2027-08-01 23:00', 5 );
+$n_t = adm_ts( '2027-08-01 19:30', $vie );
+$n_in = adm_in( $n['codes'][0], $n_t );
+$n_in2 = adm_in( $n['codes'][1], $n_t + 5 );
+$n_undo = PassCaptain\Admin\TicketsPage::undo_checkin( array( 'ticket_id' => a095_id( $n['codes'][1] ), 'reason' => 'Fehlscan' ) );
+$wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'revoked' ), array( 'ticket_id' => a095_id( $n['codes'][2] ) ) );
+$n_ids = array_map( static function ( $t ) { return (int) $t->ticket_id; }, NoShowList::tickets( $n['occ'] ) );
+sort( $n_ids );
+$n_expect = array( a095_id( $n['codes'][1] ), a095_id( $n['codes'][3] ), a095_id( $n['codes'][4] ) );
+sort( $n_expect );
+check( 'A095 no-shows: valid tickets never admitted (undone admission counts as not admitted; admitted and revoked tickets excluded)', 'checked_in' === $n_in && 'checked_in' === $n_in2 && ! is_wp_error( $n_undo ) && $n_expect === $n_ids );
+
+// Repeatable policy: status stays valid after the entry, the ticket is still not a no-show.
+$r = adm_setup( $vie, '2027-08-02 20:00', '2027-08-02 23:00', 2 );
+Policies::save( $r['type'], array( 'policy' => 'reentry', 'max_entries' => '0' ) );
+$r_t = adm_ts( '2027-08-02 19:30', $vie );
+$r_ok = 'checked_in' === adm_in( $r['codes'][0], $r_t ) && 'checked_out' === adm_out( $r['codes'][0], $r_t + 60 );
+$r_ids = array_map( static function ( $t ) { return (int) $t->ticket_id; }, NoShowList::tickets( $r['occ'] ) );
+check( 'A095 re-entry ticket that was inside (status still valid) is not a no-show', $r_ok && 'valid' === adm_ticket_status( $r['codes'][0] ) && array( a095_id( $r['codes'][1] ) ) === $r_ids );
+
+$n_full = NoShowList::rows( $n['occ'], 'full' );
+$n_basic = NoShowList::rows( $n['occ'], 'basic' );
+$n_flat = implode( '|', array_merge( ...$n_basic ) );
+check( 'A095 full list has header plus 3 rows with buyer e-mail and order; basic list only name and ticket type', 4 === count( $n_full ) && 6 === count( $n_full[0] ) && false !== strpos( implode( '|', array_merge( ...$n_full ) ), '@' ) && 4 === count( $n_basic ) && 2 === count( $n_basic[0] ) && false === strpos( $n_flat, '@' ) );
+$n_csv = PassCaptain\Reports\Scope::csv( $n_full );
+check( 'A095 CSV export has one line per no-show', 4 === count( array_filter( explode( "\n", trim( $n_csv ) ) ) ) );
+$n_html = NoShowList::html( $n['occ'], 'basic' );
+check( 'A095 print view names count and total', false !== strpos( $n_html, 'No-Show-Liste' ) && false !== strpos( $n_html, '3 von 4 gültigen Tickets nicht eingelassen' ) );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_events' );
+$n_lvl_basic = AttendeeList::access_level( $n['occ'] );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_events', 'wpcap_checkin', 'wpcap_manage_orders' );
+$n_lvl_none = AttendeeList::access_level( $n['occ'] );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+$n_page = (string) file_get_contents( WPCAP_PATH . 'src/Printing/Page.php' );
+check( 'A095 access follows the attendee-list scope (basic for check-in staff, none without access); handler offers HTML and CSV', 'basic' === $n_lvl_basic && '' === $n_lvl_none && false !== strpos( $n_page, 'NoShowList::rows( $occurrence_id, $level )' ) && false !== strpos( $n_page, 'noshow_csv' ) );
