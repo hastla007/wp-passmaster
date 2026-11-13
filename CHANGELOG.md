@@ -86,6 +86,7 @@
 - Gästelisten: WordPress-Datenexport und -Löschung für Gäste (Name, E-Mail, Firma, Notiz; Zählwerte und Status bleiben für Berichte).
 - Datenschutz-Löschung storniert laufende Wartelisten-Angebote (Platzhalter-Bestellung) sofort – der Platz geht an die nächste Person statt bis zum Ablauf blockiert zu sein.
 - Umtausch übernimmt Antworten auf Zusatzfelder ins neue Ticket, soweit die Ziel-Ticketart dasselbe Feld (gleicher Schlüssel) abfragt.
+- Neues Webhook-Ereignis `ticket.exchanged` (neues Ticket, vorheriges Ticket, Ticketarten, Kanal und Beträge des Umtauschs).
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

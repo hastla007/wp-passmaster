@@ -23,6 +23,7 @@ final class Webhooks {
 		add_action( 'wpcap_tickets_issued', array( __CLASS__, 'tickets_issued' ), 50, 2 );
 		add_action( 'wpcap_ticket_checked_in', array( __CLASS__, 'ticket_checked_in' ), 50, 2 );
 		add_action( 'wpcap_ticket_revoked', array( __CLASS__, 'ticket_revoked' ), 50, 2 );
+		add_action( 'wpcap_ticket_exchanged', array( __CLASS__, 'ticket_exchanged' ), 50, 4 );
 		add_action( 'wpcap_occurrence_rescheduled', array( __CLASS__, 'occurrence_rescheduled' ), 50, 3 );
 		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'occurrence_cancelled' ), 50, 2 );
 		add_action( 'wpcap_process_jobs', array( Dispatcher::class, 'process' ), 20, 0 );
@@ -196,6 +197,26 @@ final class Webhooks {
 		if ( ! $t ) { return 0; }
 		$t[0]['reason'] = sanitize_key( (string) $reason );
 		return Dispatcher::emit( 'ticket.revoked', 'revoked|' . (int) $ticket_id, $t[0], $t[1] );
+	}
+
+	/** ticket.exchanged: the new ticket with the previous ticket and the money of the exchange. */
+	public static function ticket_exchanged( $old_ticket_id, $new_ticket_id, $exchange_id = 0, $exchange = array() ) {
+		global $wpdb;
+		$t = self::ticket_object( $new_ticket_id );
+		if ( ! $t ) { return 0; }
+		$exchange = (array) $exchange;
+		$t[0]['previous_ticket_id'] = (string) $wpdb->get_var( $wpdb->prepare( "SELECT public_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $old_ticket_id ) ) );
+		$t[0]['exchange'] = array(
+			'from_ticket_type_id' => (int) ( $exchange['from_type_id'] ?? 0 ),
+			'to_ticket_type_id' => (int) ( $exchange['to_type_id'] ?? 0 ),
+			'channel' => sanitize_key( (string) ( $exchange['channel'] ?? '' ) ),
+			'currency' => (string) ( $exchange['currency'] ?? '' ),
+			'difference_minor' => (int) ( $exchange['difference_minor'] ?? 0 ),
+			'fee_minor' => (int) ( $exchange['fee_minor'] ?? 0 ),
+			'refund_minor' => (int) ( $exchange['refund_minor'] ?? 0 ),
+			'due_minor' => (int) ( $exchange['due_minor'] ?? 0 ),
+		);
+		return Dispatcher::emit( 'ticket.exchanged', 'exchanged|' . absint( $exchange_id ), $t[0], $t[1] );
 	}
 
 	public static function occurrence_rescheduled( $occurrence_id, $old = '', $new = '' ) {

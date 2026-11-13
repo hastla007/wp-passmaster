@@ -922,3 +922,13 @@ $a81_x = Exchange::request( $a81_ids[0], $a81_to, array( 'channel' => 'admin', '
 $a81_new = is_wp_error( $a81_x ) ? 0 : (int) $a81_x['new_ticket_id'];
 $a81_answers = $wpdb->get_results( $wpdb->prepare( "SELECT f.field_key,a.answer FROM {$p}wpcap_participant_answers a INNER JOIN {$p}wpcap_participant_fields f ON f.field_id=a.field_id WHERE a.ticket_id=%d", $a81_new ) );
 check( 'A081a: answers of fields the new type also has carry over; others do not', $a81_new && 1 === count( $a81_answers ) && 'diet_a81' === $a81_answers[0]->field_key && 'vegan' === $a81_answers[0]->answer );
+
+echo "Audit 3: webhook ticket.exchanged (A081b)\n";
+$a81b_sub = PassCaptain\Webhooks\Dispatcher::create_subscription( 'https://a81.hooks.example/in', array( 'ticket.exchanged' ) );
+list( $a81b_o, $a81b_ids ) = ex_buy( $a81_from, 1, 'a81b@example.com' );
+$a81b_x = Exchange::request( $a81b_ids[0], $a81_to, array( 'channel' => 'admin', 'idempotency_key' => 'a81b-x' ) );
+$a81b_d = is_wp_error( $a81b_sub ) ? null : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_webhook_deliveries WHERE subscription_id=%d ORDER BY delivery_id DESC LIMIT 1", $a81b_sub['subscription_id'] ) );
+$a81b_payload = $a81b_d ? json_decode( (string) $a81b_d->payload, true ) : array();
+$a81b_obj = $a81b_payload['data']['object'] ?? array();
+check( 'A081b: an exchange emits ticket.exchanged with the new ticket, the previous ticket and the money', ! is_wp_error( $a81b_x ) && 'ticket.exchanged' === ( $a81b_payload['type'] ?? '' ) && ( $obj_ok = ( $a81b_obj['id'] ?? '' ) === $wpdb->get_var( $wpdb->prepare( "SELECT public_id FROM {$p}wpcap_tickets WHERE ticket_id=%d", (int) $a81b_x['new_ticket_id'] ) ) ) && ( $a81b_obj['previous_ticket_id'] ?? '' ) === $wpdb->get_var( $wpdb->prepare( "SELECT public_id FROM {$p}wpcap_tickets WHERE ticket_id=%d", $a81b_ids[0] ) ) && $a81_to === ( $a81b_obj['exchange']['to_ticket_type_id'] ?? 0 ) );
+if ( ! is_wp_error( $a81b_sub ) ) { $wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_webhook_subscriptions WHERE subscription_id=%d", $a81b_sub['subscription_id'] ) ); $wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_webhook_deliveries WHERE subscription_id=%d", $a81b_sub['subscription_id'] ) ); }

@@ -23,6 +23,7 @@ WP Pass Captain kann Ereignisse als signierte HTTP-POST-Anfragen an externe Syst
 | `ticket.issued` | `wpcap_tickets_issued` – ein Ereignis je Ticket | Ticket |
 | `ticket.checked_in` | `wpcap_ticket_checked_in` – jeder Einlass ein eigenes Ereignis (Mehrfacheinlass) | Ticket + `checked_in_at`, `source` |
 | `ticket.revoked` | `wpcap_ticket_revoked` (Admin, Erstattung, Stornierung, Absage) | Ticket + `reason` |
+| `ticket.exchanged` | `wpcap_ticket_exchanged` (Umtausch abgeschlossen: Admin, Portal, Kasse) | neues Ticket + `previous_ticket_id` (öffentliche ID des alten Tickets) + `exchange` (`from_ticket_type_id`, `to_ticket_type_id`, `channel`, `currency`, `difference_minor`, `fee_minor`, `refund_minor`, `due_minor`) |
 | `occurrence.rescheduled` | `wpcap_occurrence_rescheduled` | Termin + `previous_starts_at` |
 | `occurrence.cancelled` | `wpcap_occurrence_cancelled` | Termin + `issued_tickets` |
 
