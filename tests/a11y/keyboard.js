@@ -67,7 +67,8 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	const first = await tabUntil(page, scope, () => true);
 	check('the event form is reachable with Tab', !!first);
 	const stops = [first];
-	for (let i = 0; i < 40; i++) {
+	// Quantity steppers (−/+, A100) add two stops per ticket type: allow enough Tabs to leave the form.
+	for (let i = 0; i < 120; i++) {
 		await page.keyboard.press('Tab');
 		const f = await focused(page, scope);
 		if (!f || !f.inside) break;
@@ -82,10 +83,15 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	check('submit button is reachable', !!submit, submit && submit.name);
 
 	console.log('Checkout: empty submit is announced');
-	// Focus is on the element after the form now; go back to the submit button with Shift+Tab.
-	await page.keyboard.press('Shift+Tab');
-	let f = await focused(page, scope);
-	check('Shift+Tab returns to the submit button', f && f.tag.startsWith('button'), f && f.tag);
+	// Focus is on the element after the card now; Shift+Tab back to the order button (the card may end
+	// with further forms, e.g. the waitlist form of a sold-out ticket type).
+	let f = null;
+	for (let i = 0; i < 12; i++) {
+		await page.keyboard.press('Shift+Tab');
+		f = await focused(page, scope);
+		if (await page.evaluate(() => document.activeElement && document.activeElement.classList.contains('wpcap-submit') && !!document.activeElement.closest('.wpcap-checkout-form'))) { break; }
+	}
+	check('Shift+Tab returns to the order button', f && f.tag === 'button[submit]' && await page.evaluate(() => document.activeElement.classList.contains('wpcap-submit')), f && f.tag);
 	await page.keyboard.press('Enter');
 	await page.waitForTimeout(200);
 	const live = await page.evaluate((sel) => {
@@ -104,8 +110,16 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	await page.waitForTimeout(100);
 	const attendees = await page.evaluate((sel) => document.querySelectorAll(sel + ' .wpcap-attendee').length, scope);
 	check('ArrowUp on the quantity adds an attendee fieldset', attendees === 1, String(attendees));
+	// The quantity is followed by its −/+ stepper buttons (named, A100); Tab past them.
 	await page.keyboard.press('Tab');
 	f = await focused(page, scope);
+	const stepperStops = [];
+	while (f && /^button/.test(f.tag) && /Ticket (mehr|weniger)/.test(f.name) && stepperStops.length < 4) {
+		stepperStops.push(f.name);
+		await page.keyboard.press('Tab');
+		f = await focused(page, scope);
+	}
+	check('stepper buttons after the quantity are named tab stops', stepperStops.length >= 1 && stepperStops.every((n) => n.length > 0), stepperStops.join(' | '));
 	check('next Tab reaches the buyer e-mail (placed before the attendee fields)', f && f.field === 'email' && /E-Mail/.test(f.name), f && `${f.tag}:${f.field} ${f.name}`);
 	await page.keyboard.type('keine-adresse');
 	await page.keyboard.press('Tab');
@@ -132,11 +146,11 @@ async function tabUntil(page, scope, predicate, max = 300) {
 		check('terms checkbox is labelled', f && f.name.length > 10, f && f.name.slice(0, 60));
 		await page.keyboard.press('Space');
 	}
-	const button = await tabUntil(page, scope, (s) => s.tag.startsWith('button'), 20);
+	const button = await tabUntil(page, scope, (s) => s.tag === 'button[submit]', 40);
 	check('Tab reaches the submit button after the form fields', !!button);
 	await page.keyboard.press('Enter');
 	await page.waitForFunction(() => !!document.querySelector('.wpcap-confirmation, .wpcap-error-summary'), null, { timeout: 15000 }).catch(() => {});
-	const done = await page.evaluate(() => { const p = document.querySelector('.wpcap-confirmation'); return { text: p ? p.textContent.trim() : '', focused: !!p && document.activeElement === p }; });
+	const done = await page.evaluate(() => { const p = document.querySelector('.wpcap-confirmation'); const e = document.querySelector('.wpcap-error-summary'); return { text: p ? p.textContent.trim() : (e ? 'ERROR: ' + e.textContent.trim() : ''), focused: !!p && document.activeElement === p }; });
 	check('successful order shows the confirmation panel with the order number', /Bestellnummer/.test(done.text), done.text.slice(0, 80));
 	check('focus moves to the confirmation panel', done.focused);
 

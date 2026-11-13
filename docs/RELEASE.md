@@ -9,6 +9,8 @@ folgenden Gates erfüllt sind. Die automatischen Gates erzwingt GitHub Actions, 
 | Syntax, Composer, JS, Konsistenz von Version/readme/CHANGELOG/Doku-Links | `ci.yml` Job `php` (PHP 8.2 und 8.4) | CI grün auf `main` |
 | Integrationstests (Bestellungen, Zahlungen, Erstattungen, Check-in, Datenschutz, Module) | `ci.yml` Job `integration` | CI grün |
 | Nebenläufigkeit/Last (Smoke) | `ci.yml` Job `integration`, `tests/load/run.php --profile=ci` | CI grün |
+| Barrierefreiheit: axe-core WCAG 2.2 A/AA ohne ernste/kritische Befunde, Tastatur-Durchlauf | `wp-matrix.yml` Job `accessibility` (`tests/a11y/run.js --fail-on=serious`, `keyboard.js`) | Release-Commit auf `main` muss grün sein |
+| Manuelle Screenreader- und Zoom-Abnahme (NVDA/VoiceOver, 200 %/400 %) | Checkliste | Abnahmeprotokoll |
 | PWA installierbar, Offline-Start | `ci.yml` Job `pwa` | CI grün |
 | Reproduzierbares ZIP mit Prüfsumme | `ci.yml` Job `package`, `tests/reproducible-build.sh` | CI grün |
 | Nur getestete Commits von `main` | `build/release-guard.sh` | Release-Workflow |

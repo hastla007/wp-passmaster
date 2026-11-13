@@ -208,3 +208,9 @@ Workflow `.github/workflows/wp-matrix.yml` (jeder Push/PR, wöchentlich, manuell
 Lokal (nur Test-Installation!): `WPCAP_LIFECYCLE_HTTP=1 bash tests/wp-matrix/lifecycle.sh /pfad/zu/wp /pfad/zum/plugin`
 (mit laufendem Webserver für die Site-URL; ohne `WPCAP_LIFECYCLE_HTTP` entfallen REST- und Admin-Seitenprüfung).
 Ergebnis 13.11.2026 lokal gegen WordPress 7.1.4: alle 21 Prüfungen bestanden.
+
+## Barrierefreiheit in CI (A155)
+
+Job `accessibility` in `.github/workflows/wp-matrix.yml`: echtes WordPress (de_DE) mit dem Plugin, `tests/a11y/run.js --fail-on=serious` (axe-core, WCAG 2.2 A/AA + best practice) und `tests/a11y/keyboard.js`; der axe-Bericht hängt als Artefakt am Lauf. Lauf 13.11.2026 lokal: 0 kritische/ernste Befunde auf allen 15 Seiten (behoben: Touch-Ziel der Zusammenklapp-Zeile „Nur einzelne Tickets stornieren“ an der Kasse < 24 px), Tastatur-Durchlauf vollständig grün (angepasst an die −/+-Mengenknöpfe der Eventkarte und das Wartelisten-Formular am Kartenende). Manuelle Screenreader-/Zoom-Abnahme ist Teil des Release-Abnahmeprotokolls (docs/RELEASE.md).
+
+Hinweis: Wiederholte lokale Läufe gegen dieselbe Installation können die Checkout-Ratenbegrenzung (30 je IP und Stunde) erreichen – dann `wp transient delete --all`.

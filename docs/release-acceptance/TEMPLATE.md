@@ -32,6 +32,8 @@ Commit:
 - [ ] Erstattung (Teil und voll), Rechnungskorrektur geprüft
 - [ ] Kasse: Verkauf, Schichtabschluss
 - [ ] Supportansicht: Bestellung suchen, Tickets neu senden
+- [ ] Screenreader (NVDA + Firefox, VoiceOver + Safari iOS): Checkout, Ticketseite, Scanner – Ergebnisse werden angesagt, alle Bedienelemente benannt
+- [ ] Zoom 200 % und 400 % (Umbruch ohne horizontales Scrollen) für Checkout und Admin-Bestellansicht
 
 ## Fachliche Freigabe (Betreiberkontext)
 
