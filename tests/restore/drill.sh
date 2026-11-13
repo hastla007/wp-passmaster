@@ -18,7 +18,13 @@ dump() {
 }
 load() { "$CLIENT" -h"$DBH" -u"$DBU" -p"$DBP" "$DBN" < "$1"; }
 LINK="$WP/wp-content/plugins/pass-captain"
-use() { rm -f "$LINK"; ln -s "$1" "$LINK"; }
+# Releases up to 1.4 have the main file wp-pass-captain.php, later ones pass-captain.php (renamed for WordPress.org,
+# legacy-slug): after switching the linked code, point an active entry of this folder at the main file it now has.
+use() {
+	rm -f "$LINK"; ln -s "$1" "$LINK"
+	local main="pass-captain.php"; [ -f "$1/$main" ] || main="wp-pass-captain.php" # legacy-slug
+	MAIN="$main" wpc --skip-plugins eval '$a = (array) get_option( "active_plugins", array() ); $n = array(); foreach ( $a as $p ) { $n[] = 0 === strpos( $p, "pass-captain/" ) ? "pass-captain/" . getenv( "MAIN" ) : $p; } if ( $n !== $a ) { update_option( "active_plugins", $n ); }' >/dev/null
+}
 upgrade() { wpc eval 'PassCaptain\Plugin::maybe_upgrade("admin"); wp_cache_flush();' ; }
 state() { wpc eval-file "$DIR/state.php"; }
 fail=0
@@ -58,7 +64,7 @@ S_RB2="$(state)"
 use "$NEW"; upgrade; S_FW="$(state)"; echo "   forward:  $S_FW"
 [ "$(echo "$S_RB2" | field data_hash)" = "$(echo "$S_FW" | field data_hash)" ] && ok "rolling forward again keeps the data" || bad "data changed rolling forward"
 [ "$(echo "$S_FW" | field db_version)" = "$(echo "$S_UP" | field db_version)" ] && ok "schema version is current again" || bad "schema version"
-load "$W/backup-old.sql"; wpc cache flush >/dev/null; upgrade; S_RS="$(state)"; echo "   restore:  $S_RS"
+load "$W/backup-old.sql"; use "$(readlink "$LINK")"; wpc cache flush >/dev/null; upgrade; S_RS="$(state)"; echo "   restore:  $S_RS"
 [ "$(echo "$S_OLD" | field data_hash)" = "$(echo "$S_RS" | field data_hash)" ] && ok "restoring the old backup under the new version gives exactly the backed-up data" || bad "restore data mismatch"
 [ "$(echo "$S_RS" | field columns)" = "$(echo "$S_UP" | field columns)" ] && ok "restored old backup is upgraded to the full new schema" || bad "restored schema incomplete"
 [ "$(neworder)" = OK ] && ok "sales work after the restore" || bad "sale after restore failed"
