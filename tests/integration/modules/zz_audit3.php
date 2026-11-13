@@ -346,3 +346,20 @@ $wpdb->update( "{$p}wpcap_orders", array( 'discount_minor' => 2000, 'total_minor
 $a25_s = PassCaptain\Partners\Settlements::compute( PassCaptain\Partners\Repository::get( $a25_partner ), gmdate( 'Y-m' ) );
 $a25_v = array_values( array_filter( $a25_s['lines'], static fn( $l ) => 'voucher' === $l['kind'] ) );
 check( 'A025: organizer is settled the full 50,00 (30,00 sale + 20,00 voucher claim as own line)', 1 === count( $a25_v ) && 2000 === $a25_v[0]['gross_minor'] && 5000 === (int) $a25_s['totals']['sales_gross'] );
+
+echo "Audit 3: buyer limit keys keyed, migrated, erased and pruned (A026)\n";
+$a26_keys = PassCaptain\Allocations\BuyerLimits::keys( 'Hamster@Example.com' );
+check( 'A026: buyer key is a keyed hash, not sha256 of the address', 1 === count( $a26_keys ) && hash( 'sha256', 'email:hamster@example.com' ) !== $a26_keys[0] );
+$a26_table = $wpdb->prefix . 'wpcap_alloc_buyers';
+$wpdb->query( "UPDATE $a26_table SET buyer_key=SHA2(CONCAT('legacy',buyer_id),256)" ); // Simulate old unkeyed rows.
+unset( $GLOBALS['wpcap_test_options']['wpcap_alloc_key_version'] );
+PassCaptain\Allocations\BuyerLimits::maybe_migrate_keys();
+check( 'A026: migration rebuilds the rows from the orders with keyed hashes', 2 <= PassCaptain\Allocations\BuyerLimits::count_for( $a9_event, 'hamster@example.com' ) && 0 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM $a26_table WHERE buyer_key LIKE '%legacy%'" ) );
+$a26_export = PassCaptain\Allocations\BuyerLimits::privacy_export( 'hamster@example.com' );
+$a26_erase = PassCaptain\Allocations\BuyerLimits::privacy_erase( 'hamster@example.com' );
+check( 'A026: exporter lists the rows, eraser removes them', ! empty( $a26_export['data'] ) && true === $a26_erase['items_removed'] && 0 === PassCaptain\Allocations\BuyerLimits::count_for( $a9_event, 'hamster@example.com' ) );
+$a26_old = ex_event( 'Lange vorbei' );
+$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => $a26_old, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() - 900 * 86400 ), 'timezone' => 'Europe/Vienna', 'location' => 'Wien', 'capacity' => 0, 'status' => 'scheduled' ) );
+$wpdb->insert( $a26_table, array( 'event_id' => $a26_old, 'buyer_key' => str_repeat( 'a', 64 ), 'holdings' => '{}', 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$a26_counts = PassCaptain\Privacy\Retention::run();
+check( 'A026: retention deletes buyer rows of long finished events', $a26_counts['buyer_limits'] >= 1 && 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $a26_table WHERE event_id=%d", $a26_old ) ) );

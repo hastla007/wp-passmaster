@@ -61,7 +61,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Exchange/Service.php:170–175` — Maßnahme: Umtausch zwischen verschiedenen Partnern/Verkaufsmodellen sperren.
 - [x] **A025** [P2] Einzweckgutschein im Checkout als `discount_minor` gebucht → Veranstalter-Abrechnung/Gutschrift sinken um den Gutscheinwert. — _OFFEN_ (TODO L445; Steuer und Finanzen (Prüfung 3))
   - `src/Integrations/Vouchers/Checkout.php:121–131` — Maßnahme: Gutscheinwert getrennt führen, in Abrechnung als Forderung gegen den Gutscheinverkäufer ausweisen.
-- [ ] **A026** [P2] `buyer_key` in `wpcap_alloc_buyers` ist ungesalzenes `sha256('email:'…)`/`sha256('user:'…)`, dazu Bestell-IDs in `holdings`; Tabelle weder exportiert, gelöscht noch von der Retenti… — _OFFEN_ (TODO L462; Datenschutz (Prüfung 4))
+- [x] **A026** [P2] `buyer_key` in `wpcap_alloc_buyers` ist ungesalzenes `sha256('email:'…)`/`sha256('user:'…)`, dazu Bestell-IDs in `holdings`; Tabelle weder exportiert, gelöscht noch von der Retenti… — _OFFEN_ (TODO L462; Datenschutz (Prüfung 4))
   - `src/Modules/Allocations.php:103–108`; `src/Allocations/BuyerLimits.php:105–110,157–181` — Maßnahme: `hash_hmac` mit `wp_salt()` (Migration), Eraser entfernt Zeilen/Bestell-IDs, Löschung nach Ende des letzten Termins.
 - [ ] **A027** [P2] Keine Löschfrist für `wpcap_guest_entries` (Name, E-Mail, Firma, Notiz, auch abgelehnte/stornierte). — _OFFEN_ (TODO L463; Datenschutz (Prüfung 4))
   - `src/Modules/GuestLists.php:73–94`; `src/Privacy/Retention.php:72` — Maßnahme: Retention-Schritt nach Terminende + `attendee_retention_days` (personenbezogene Felder leeren, Zählwerte behalten); Hinweis im Notizfeld.

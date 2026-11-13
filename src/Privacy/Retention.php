@@ -73,6 +73,14 @@ final class Retention {
 		foreach ( array( 'answers', 'attendees', 'unpaid_attendee_data', 'unpaid_customer_email', 'messages', 'checkin_staff', 'audit_logs' ) as $step ) {
 			$counts[ $step ] = microtime( true ) < $deadline ? (int) call_user_func( array( __CLASS__, 'step_' . $step ), $now, $deadline ) : 0;
 		}
+		/**
+		 * Module retention steps (guest lists, waitlist, buyer limits, …): add counts per step name.
+		 *
+		 * @param array $counts   Counts so far.
+		 * @param int   $now      Reference time.
+		 * @param float $deadline microtime() limit.
+		 */
+		$counts = (array) apply_filters( 'wpcap_privacy_retention_steps', $counts, $now, $deadline );
 		$counts['complete'] = microtime( true ) < $deadline;
 		if ( array_sum( array_map( 'intval', array_diff_key( $counts, array( 'complete' => 1 ) ) ) ) > 0 ) {
 			Audit::record( 'privacy_retention', 'system', 0, $counts );

@@ -34,6 +34,18 @@ final class Allocations {
 		add_action( 'wpcap_order_creating', array( Holds::class, 'on_order_creating' ), 4, 4 );
 		add_action( 'wpcap_order_creating', array( BuyerLimits::class, 'on_order_creating' ), 6, 4 );
 		add_filter( 'wpcap_reserve_capacity', array( BuyerLimits::class, 'reserve_exchange' ), 25, 3 );
+		// Keyed buyer hashes: migrated once with the schema install/upgrade (not on every request).
+		add_action( 'add_option_wpcap_db_version', array( BuyerLimits::class, 'maybe_migrate_keys' ), 10, 0 );
+		add_action( 'update_option_wpcap_db_version', array( BuyerLimits::class, 'maybe_migrate_keys' ), 10, 0 );
+		add_filter( 'wpcap_privacy_retention_steps', array( BuyerLimits::class, 'retention_step' ), 10, 3 );
+		add_filter( 'wp_privacy_personal_data_erasers', static function ( $erasers ) {
+			$erasers['wp-pass-captain-buyer-limits'] = array( 'eraser_friendly_name' => __( 'WP Pass Captain Käuferlimit', 'wp-pass-captain' ), 'callback' => array( BuyerLimits::class, 'privacy_erase' ) );
+			return $erasers;
+		} );
+		add_filter( 'wp_privacy_personal_data_exporters', static function ( $exporters ) {
+			$exporters['wp-pass-captain-buyer-limits'] = array( 'exporter_friendly_name' => __( 'WP Pass Captain Käuferlimit', 'wp-pass-captain' ), 'callback' => array( BuyerLimits::class, 'privacy_export' ) );
+			return $exporters;
+		} );
 		add_action( 'wpcap_order_creating', array( SeatHolds::class, 'after_seat_claims' ), 20, 4 );
 		add_action( 'wpcap_capacity_released', array( Holds::class, 'on_capacity_released' ), 10, 3 );
 		add_filter( 'wpcap_checkout_error_messages', array( __CLASS__, 'error_messages' ) );

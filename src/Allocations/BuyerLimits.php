@@ -105,10 +105,94 @@ final class BuyerLimits {
 	public static function keys( $email, $user_id = 0 ) {
 		$keys = array();
 		$email = self::normalize_email( $email );
-		if ( '' !== $email ) { $keys[] = hash( 'sha256', 'email:' . $email ); }
-		if ( $user_id && ! empty( Module::config()['buyer_limit_by_user'] ) ) { $keys[] = hash( 'sha256', 'user:' . absint( $user_id ) ); }
+		if ( '' !== $email ) { $keys[] = self::hash( 'email:' . $email ); }
+		if ( $user_id && ! empty( Module::config()['buyer_limit_by_user'] ) ) { $keys[] = self::hash( 'user:' . absint( $user_id ) ); }
 		sort( $keys );
 		return array_values( array_unique( $keys ) );
+	}
+
+	/**
+	 * Keyed hash of a buyer identity (site secret): a plain sha256 of an e-mail address could be
+	 * recomputed from a known address and re-identify anonymised orders.
+	 */
+	public static function hash( $value ) {
+		$secret = function_exists( 'wp_salt' ) ? (string) wp_salt( 'auth' ) : ( defined( 'AUTH_SALT' ) ? AUTH_SALT : 'wpcap' );
+		return hash_hmac( 'sha256', 'wpcap-buyer|' . (string) $value, $secret );
+	}
+
+	/** Version of the buyer key derivation (2 = HMAC). */
+	const KEY_VERSION = 2;
+
+	/**
+	 * One-time migration to keyed hashes: the buyer rows are rebuilt from the orders of events with
+	 * limits (e-mail identities; the old unkeyed rows are deleted). Runs once (option, lock).
+	 */
+	public static function maybe_migrate_keys() {
+		global $wpdb;
+		if ( (int) get_option( 'wpcap_alloc_key_version', 0 ) >= self::KEY_VERSION ) { return false; }
+		$table = Holds::table( 'buyers' );
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) ) { return false; }
+		if ( ! (int) $wpdb->get_var( "SELECT GET_LOCK('wpcap_alloc_keys', 0)" ) ) { return false; }
+		$p = $wpdb->prefix;
+		$now = current_time( 'mysql', true );
+		$wpdb->query( "DELETE FROM $table" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$events = array_map( 'absint', (array) $wpdb->get_col( 'SELECT DISTINCT event_id FROM ' . Holds::table( 'limits' ) . ' WHERE max_per_buyer>0' ) );
+		foreach ( $events as $event_id ) {
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.customer_email,oi.ticket_type_id,SUM(oi.quantity) AS qty FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND ord.status NOT IN ('cancelled','expired','refunded') GROUP BY ord.order_id,ord.customer_email,oi.ticket_type_id", $event_id ) );
+			$by_key = array();
+			foreach ( (array) $rows as $row ) {
+				foreach ( self::keys( (string) $row->customer_email ) as $key ) {
+					$by_key[ $key ][ (string) (int) $row->order_id ][ (int) $row->ticket_type_id ] = (int) $row->qty;
+				}
+			}
+			foreach ( $by_key as $key => $holdings ) {
+				$wpdb->insert( $table, array( 'event_id' => $event_id, 'buyer_key' => $key, 'holdings' => wp_json_encode( $holdings ), 'updated_at' => $now ) );
+			}
+		}
+		update_option( 'wpcap_alloc_key_version', self::KEY_VERSION );
+		$wpdb->query( "SELECT RELEASE_LOCK('wpcap_alloc_keys')" );
+		return true;
+	}
+
+	/** Privacy eraser: removes the buyer rows of an e-mail address (all events). */
+	public static function privacy_erase( $email_address, $page = 1 ) {
+		global $wpdb;
+		$keys = self::keys( (string) $email_address );
+		$removed = 0;
+		foreach ( $keys as $key ) {
+			$removed += (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . Holds::table( 'buyers' ) . ' WHERE buyer_key=%s', $key ) );
+		}
+		return array( 'items_removed' => $removed > 0, 'items_retained' => false, 'messages' => array(), 'done' => true );
+	}
+
+	/** Privacy exporter: events for which buyer-limit counts exist for the address. */
+	public static function privacy_export( $email_address, $page = 1 ) {
+		global $wpdb;
+		$data = array();
+		foreach ( self::keys( (string) $email_address ) as $key ) {
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT b.event_id,b.holdings,b.updated_at,e.name FROM ' . Holds::table( 'buyers' ) . " b LEFT JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=b.event_id WHERE b.buyer_key=%s", $key ) ) as $row ) {
+				$data[] = array( 'group_id' => 'wp-pass-captain-buyer-limits', 'group_label' => __( 'WP Pass Captain Käuferlimit', 'wp-pass-captain' ), 'item_id' => 'buyer-limit-' . (int) $row->event_id, 'data' => array(
+					array( 'name' => __( 'Event', 'wp-pass-captain' ), 'value' => (string) $row->name ),
+					array( 'name' => __( 'Gezählte Bestellungen (Bestell-ID => Ticketart => Menge)', 'wp-pass-captain' ), 'value' => (string) $row->holdings ),
+					array( 'name' => __( 'Aktualisiert (UTC)', 'wp-pass-captain' ), 'value' => (string) $row->updated_at ),
+				) );
+			}
+		}
+		return array( 'data' => $data, 'done' => true );
+	}
+
+	/**
+	 * Retention (wpcap_privacy_retention_steps): buyer rows of events whose last occurrence ended
+	 * more than `attendee_retention_days` (or the default attendee retention) ago are deleted.
+	 */
+	public static function retention_step( $counts, $now, $deadline ) {
+		global $wpdb;
+		if ( microtime( true ) >= $deadline ) { return $counts; }
+		$days = \PassCaptain\Privacy\Retention::attendee_days() ?: \PassCaptain\Privacy\Retention::default_attendee_days();
+		$cutoff = gmdate( 'Y-m-d H:i:s', (int) $now - $days * DAY_IN_SECONDS );
+		$table = Holds::table( 'buyers' );
+		$counts['buyer_limits'] = (int) $wpdb->query( $wpdb->prepare( "DELETE b FROM $table b WHERE NOT EXISTS (SELECT 1 FROM {$wpdb->prefix}wpcap_occurrences o WHERE o.event_id=b.event_id AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))>=%s)", $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		return $counts;
 	}
 
 	/* ---------------------------------------------------------------------------------------------
