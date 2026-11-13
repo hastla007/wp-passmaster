@@ -43,6 +43,8 @@ final class Checkout {
 	/** Voucher purposes (VAT treatment). */
 	const PURPOSE_SINGLE = 'single';
 	const PURPOSE_MULTI = 'multi';
+	/** Promotion code of the voucher plugin: reduces price and VAT like a single-purpose voucher, but no VAT was charged in advance. */
+	const PURPOSE_DISCOUNT = 'discount';
 
 	public static function register() {
 		add_action( 'wpcap_order_paid', array( __CLASS__, 'commit' ) );
@@ -93,7 +95,11 @@ final class Checkout {
 		$old_total = (int) $order->total_minor;
 		$new_total = $old_total - $amount;
 		$purpose = self::purpose( array( 'quote' => $quote, 'reservation' => $reservation ), array( 'source' => 'checkout', 'order_id' => (int) $order_id, 'code_hint' => substr( $code, -4 ) ) );
+		list( $purpose, $purpose_reason ) = self::effective_purpose( $purpose, array( 'quote' => $quote, 'reservation' => $reservation ), array_map( static function ( $item ) { return (int) $item->tax_rate_bp; }, $items ), array( 'source' => 'checkout', 'order_id' => (int) $order_id ) );
 		$snapshot = array( 'code_hint' => substr( $code, -4 ), 'amount_minor' => $amount, 'purpose' => $purpose, 'gross_minor' => $old_total, 'gross_tax_minor' => (int) $order->tax_minor, 'quote' => $quote, 'reservation' => $reservation, 'status' => 'reserved', 'refunded_minor' => 0, 'refunded_tickets' => 0 );
+		if ( '' !== $purpose_reason ) {
+			$snapshot['purpose_changed'] = $purpose_reason;
+		}
 		// One transaction, every write checked; the order row only changes while it is still pending, unchanged
 		// and without a voucher (a concurrent retry or an expiry in between wins).
 		$guard = $wpdb->prepare( " WHERE order_id=%d AND payment_status='pending' AND total_minor=%d AND (voucher_snapshot IS NULL OR voucher_snapshot='')", (int) $order_id, $old_total );
@@ -496,12 +502,50 @@ final class Checkout {
 		return null;
 	}
 
-	/** 'single'|'multi' for the usual spellings (SPV/MPV, Einzweck/Mehrzweck …), null for anything else. */
+	/** 'single'|'multi'|'discount' for the usual spellings (SPV/MPV, Einzweck/Mehrzweck, Rabatt …), null for anything else. */
 	public static function normalize_purpose( $value ) {
 		if ( ! is_scalar( $value ) ) { return null; }
 		$v = preg_replace( '/[^a-z]/', '', strtolower( (string) $value ) );
 		if ( in_array( $v, array( 'single', 'singlepurpose', 'singlepurposevoucher', 'spv', 'einzweck', 'einzweckgutschein' ), true ) ) { return self::PURPOSE_SINGLE; }
 		if ( in_array( $v, array( 'multi', 'multipurpose', 'multipurposevoucher', 'mpv', 'mehrzweck', 'mehrzweckgutschein' ), true ) ) { return self::PURPOSE_MULTI; }
+		if ( in_array( $v, array( 'discount', 'promotion', 'promo', 'rabatt', 'rabattcode', 'rabattaktion', 'preisnachlass' ), true ) ) { return self::PURPOSE_DISCOUNT; }
+		return null;
+	}
+
+	/**
+	 * A single-purpose voucher is only redeemed as such for goods with the VAT of its sale. When the voucher plugin
+	 * sends the VAT of the sale (`sale_tax` = rate_bp, country) and a ticket carries another rate, or the tickets are
+	 * taxed in another country (setting `seller_country`, filter `wpcap_voucher_tax_country`), the redemption is
+	 * treated as a multi-purpose voucher (means of payment, VAT at redemption). Without sale data nothing changes.
+	 *
+	 * @param string $purpose  Purpose from purpose().
+	 * @param array  $data     Voucher data (quote, reservation, ticket service source).
+	 * @param int[]  $rates_bp VAT rates of the ticket lines in basis points.
+	 * @param array  $context  Order or ticket context for the filter.
+	 * @return array{0:string,1:string} purpose and the reason of a change ('' | 'single_rate' | 'single_country')
+	 */
+	public static function effective_purpose( $purpose, array $data, array $rates_bp, array $context = array() ) {
+		if ( self::PURPOSE_SINGLE !== $purpose ) { return array( $purpose, '' ); }
+		$sale = self::sale_tax_from_data( $data );
+		if ( null === $sale ) { return array( $purpose, '' ); }
+		$country = strtoupper( (string) apply_filters( 'wpcap_voucher_tax_country', (string) \PassCaptain\Settings::get( 'seller_country' ), $context ) );
+		if ( '' !== $sale['country'] && '' !== $country && $sale['country'] !== $country ) { return array( self::PURPOSE_MULTI, 'single_country' ); }
+		foreach ( $rates_bp as $rate ) {
+			if ( (int) $rate !== $sale['rate_bp'] ) { return array( self::PURPOSE_MULTI, 'single_rate' ); }
+		}
+		return array( $purpose, '' );
+	}
+
+	/** VAT of the voucher sale from the plugin data (`sale_tax`, also nested in quote/reservation/voucher), else null. */
+	public static function sale_tax_from_data( $data, $depth = 0 ) {
+		if ( ! is_array( $data ) || $depth > 3 ) { return null; }
+		if ( isset( $data['sale_tax'] ) && is_array( $data['sale_tax'] ) && isset( $data['sale_tax']['rate_bp'] ) && is_numeric( $data['sale_tax']['rate_bp'] ) ) {
+			return array( 'rate_bp' => (int) $data['sale_tax']['rate_bp'], 'country' => strtoupper( substr( preg_replace( '/[^A-Za-z]/', '', (string) ( $data['sale_tax']['country'] ?? '' ) ), 0, 2 ) ) );
+		}
+		foreach ( array( 'quote', 'reservation', 'voucher' ) as $key ) {
+			$found = isset( $data[ $key ] ) ? self::sale_tax_from_data( $data[ $key ], $depth + 1 ) : null;
+			if ( null !== $found ) { return $found; }
+		}
 		return null;
 	}
 

@@ -24,6 +24,18 @@ Wie die Einlösung umsatzsteuerlich behandelt wird, hängt von der **Art des Gut
 2. **Filter** `wpcap_voucher_purpose( $purpose, $voucher, $context )`: erhält die Angabe aus Schritt 1 (oder `null`) und kann sie festlegen oder überschreiben, z. B. nach Code-Präfix oder Veranstaltung.
 3. **Einstellung** *Pass Captain → Einstellungen → Gutscheine → „Gutscheine standardmäßig als Mehrzweckgutschein behandeln“* (`voucher_default_purpose`, Standard `multi`).
 
+4. **Prüfung des Einzweckgutscheins**: Liefert WP Voucher Captain zum Einzweckgutschein die Umsatzsteuer des
+   Verkaufs (`sale_tax` = `rate_bp` in Basispunkten, `country`), gilt er nur für Tickets mit genau diesem Satz, die im
+   selben Land besteuert werden (`seller_country`, Filter `wpcap_voucher_tax_country( $country, $context )`).
+   Weicht der Satz einer Ticketposition oder das Land ab, wird die Einlösung als **Mehrzweckgutschein**
+   (Zahlungsmittel, USt bei Einlösung) behandelt; die Bestellung vermerkt `purpose_changed` = `single_rate` bzw.
+   `single_country`. Ohne `sale_tax` bleibt es bei der Angabe aus Schritt 1–3.
+
+**Rabattcodes** (`discount`, auch `promotion`/`Rabatt`): Aktionscodes von Voucher Captain sind keine Gutscheine im
+Sinne des Umsatzsteuerrechts. Sie mindern Preis und Umsatzsteuer wie ein Einzweckgutschein, auf der Rechnung steht
+aber nur „Eingelöster Rabattcode …: als Preisnachlass berücksichtigt“ – **nicht** „Umsatzsteuer bereits beim
+Verkauf abgerechnet“.
+
 Die ermittelte Art wird in der Bestellung gespeichert (`orders.voucher_snapshot`, Feld `purpose`) und gilt für Rechnung, Erstattungen und Abrechnung dieser Bestellung. Bestellungen aus älteren Versionen ohne `purpose` werden weiter als Einzweckgutschein (Preisnachlass) behandelt – so wurden sie gebucht.
 
 ```php

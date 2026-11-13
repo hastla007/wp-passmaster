@@ -9398,6 +9398,11 @@ msgstr "Pagato con il buono %s (buono multiuso)"
 msgid "Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt."
 msgstr "Buono monouso %s riscattato: l’IVA è già stata liquidata al momento della vendita del buono; il valore del buono è considerato come riduzione di prezzo."
 
+#: src/Invoices.php
+#, php-format
+msgid "Eingelöster Rabattcode %s: als Preisnachlass berücksichtigt."
+msgstr "Codice promozionale riscattato %s: considerato come riduzione di prezzo."
+
 #: src/Invoices.php:445
 msgid "Restbetrag (bezahlt)"
 msgstr "Importo residuo (pagato)"

@@ -441,6 +441,10 @@ final class Invoices {
 				$voucher_total += $amount;
 				/* translators: %s: masked voucher code */
 				$out['rows'][] = array( sprintf( __( 'Bezahlt mit Gutschein %s (Mehrzweckgutschein)', 'wp-pass-captain' ), $code ), -$amount, false );
+			} elseif ( Integrations\Vouchers\Checkout::PURPOSE_DISCOUNT === ( $voucher['purpose'] ?? '' ) ) {
+				// Promotion code: a plain price reduction – no VAT was charged in advance, so no such statement.
+				/* translators: %s: masked voucher code */
+				$out['notes'][] = sprintf( __( 'Eingelöster Rabattcode %s: als Preisnachlass berücksichtigt.', 'wp-pass-captain' ), $code );
 			} else {
 				/* translators: %s: masked voucher code */
 				$out['notes'][] = sprintf( __( 'Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt.', 'wp-pass-captain' ), $code );

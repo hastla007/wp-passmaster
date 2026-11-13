@@ -9398,6 +9398,11 @@ msgstr "Payé avec le bon %s (bon à usages multiples)"
 msgid "Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt."
 msgstr "Bon à usage unique %s utilisé : la TVA a déjà été acquittée lors de la vente du bon ; la valeur du bon est prise en compte comme réduction de prix."
 
+#: src/Invoices.php
+#, php-format
+msgid "Eingelöster Rabattcode %s: als Preisnachlass berücksichtigt."
+msgstr "Code promotionnel utilisé %s : pris en compte comme réduction de prix."
+
 #: src/Invoices.php:445
 msgid "Restbetrag (bezahlt)"
 msgstr "Solde (payé)"

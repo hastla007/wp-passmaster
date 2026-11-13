@@ -9399,6 +9399,11 @@ msgstr "Paid with voucher %s (multi-purpose voucher)"
 msgid "Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt."
 msgstr "Redeemed single-purpose voucher %s: VAT was already accounted for when the voucher was sold; the voucher value is taken into account as a price reduction."
 
+#: src/Invoices.php
+#, php-format
+msgid "Eingelöster Rabattcode %s: als Preisnachlass berücksichtigt."
+msgstr "Redeemed promotion code %s: taken into account as a price reduction."
+
 #: src/Invoices.php:445
 msgid "Restbetrag (bezahlt)"
 msgstr "Remaining amount (paid)"

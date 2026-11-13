@@ -9398,6 +9398,11 @@ msgstr "Betaald met voucher %s (voucher voor meervoudig gebruik)"
 msgid "Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt."
 msgstr "Verzilverde voucher voor enkelvoudig gebruik %s: de btw is al verrekend bij de verkoop van de voucher; de waarde van de voucher is verwerkt als prijskorting."
 
+#: src/Invoices.php
+#, php-format
+msgid "Eingelöster Rabattcode %s: als Preisnachlass berücksichtigt."
+msgstr "Ingewisselde kortingscode %s: verwerkt als prijsverlaging."
+
 #: src/Invoices.php:445
 msgid "Restbetrag (bezahlt)"
 msgstr "Restbedrag (betaald)"

@@ -153,6 +153,12 @@ final class TicketService {
 			}
 		}
 		$purpose = Checkout::purpose( $source, array( 'source' => 'ticket_service', 'ticket_type_id' => $type_id, 'quantity' => $quantity ) );
+		global $wpdb;
+		$type_rate = (int) $wpdb->get_var( $wpdb->prepare( "SELECT tax_rate_bp FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d", $type_id ) );
+		list( $purpose, $purpose_reason ) = Checkout::effective_purpose( $purpose, $source, array( $type_rate ), array( 'source' => 'ticket_service', 'ticket_type_id' => $type_id ) );
+		if ( '' !== $purpose_reason ) {
+			$source['purpose_changed'] = $purpose_reason;
+		}
 		$value = self::voucher_value( $source );
 		$internal = array(
 			'external' => true,
@@ -361,6 +367,7 @@ final class TicketService {
 		$snapshot = array(
 			'code_hint' => mb_substr( sanitize_text_field( (string) ( $source['code_hint'] ?? '' ) ), -4 ),
 			'purpose' => $purpose,
+			'purpose_changed' => sanitize_key( (string) ( $source['purpose_changed'] ?? '' ) ),
 			'status' => 'external',
 			'source' => array(
 				'provider' => sanitize_key( (string) ( $source['provider'] ?? '' ) ),

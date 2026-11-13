@@ -142,6 +142,30 @@ VoucherCheckout::refund( $s_r1['refund_id'], $s['order_id'] );
 $s_credit = Invoices::credit_note_for_refund( $s_r1['refund_id'] );
 check( 'single-purpose refund: credit note equals the cash refund, voucher share returned', 500 === (int) $s_r1['amount_minor'] && 500 === (int) $s_credit['total_minor'] && (int) $s_r1['tax_minor'] === (int) $s_credit['tax_minor'] && 500 === ( $vp_rc_all = $vp_refund_calls() )[ count( $vp_rc_all ) - 1 ][1] );
 
+// --- Single-purpose only for the VAT of its sale; promotion codes ---------------------------------
+check( 'promotion codes are their own purpose "discount"', 'discount' === VoucherCheckout::purpose( array( 'purpose' => 'discount' ) ) && 'discount' === VoucherCheckout::normalize_purpose( 'Rabattaktion' ) );
+$vp_sale = static fn( int $bp, string $cc ) => array( 'purpose' => 'single', 'sale_tax' => array( 'rate_bp' => $bp, 'country' => $cc ) );
+check( 'single-purpose with the VAT of the tickets stays single-purpose', array( 'single', '' ) === VoucherCheckout::effective_purpose( 'single', $vp_sale( 2000, 'DE' ), array( 2000, 2000 ) ) );
+check( 'single-purpose sold with another rate is treated as multi-purpose', array( 'multi', 'single_rate' ) === VoucherCheckout::effective_purpose( 'single', array( 'quote' => $vp_sale( 700, 'DE' ) ), array( 2000 ) ) );
+check( 'single-purpose sold in another country is treated as multi-purpose', array( 'multi', 'single_country' ) === VoucherCheckout::effective_purpose( 'single', $vp_sale( 2000, 'AT' ), array( 2000 ) ) );
+check( 'without sale data or for other purposes nothing changes', array( 'single', '' ) === VoucherCheckout::effective_purpose( 'single', array( 'purpose' => 'single' ), array( 700 ) ) && array( 'discount', '' ) === VoucherCheckout::effective_purpose( 'discount', $vp_sale( 700, 'AT' ), array( 2000 ) ) );
+$vp_provider->extra['SPV-RATE-1111'] = array( 'data' => $vp_sale( 700, 'DE' ) );
+$sr = Orders::create( array( 'email' => 'spv-rate@example.com', 'items' => array( array( 'ticket_type_id' => $vp_type, 'quantity' => 3 ) ), 'idempotency_key' => 'vp-sr1' ) );
+$sr_applied = VoucherCheckout::apply( $sr['order_id'], 'SPV-RATE-1111' );
+$sr_row = Orders::get( $sr['order_id'] );
+$sr_snap = VoucherCheckout::voucher_state( $sr['order_id'] );
+check( 'checkout: single-purpose voucher sold at 7 % for 20 % tickets is redeemed as means of payment (full VAT)', 'multi' === $sr_applied['purpose'] && 'single_rate' === ( $sr_snap['purpose_changed'] ?? '' ) && 500 === (int) $sr_row->tax_minor && 1500 === (int) $sr_row->total_minor && 1500 === VoucherCheckout::voucher_payment_minor( $sr['order_id'] ) );
+$vp_provider->extra['PROMO-AKT-7777'] = array( 'data' => array( 'purpose' => 'discount' ) );
+$pr = Orders::create( array( 'email' => 'promo@example.com', 'items' => array( array( 'ticket_type_id' => $vp_type, 'quantity' => 3 ) ), 'idempotency_key' => 'vp-pr1' ) );
+$pr_applied = VoucherCheckout::apply( $pr['order_id'], 'PROMO-AKT-7777' );
+$pr_row = Orders::get( $pr['order_id'] );
+check( 'checkout: promotion code reduces price and VAT', 'discount' === $pr_applied['purpose'] && 1500 === (int) $pr_row->total_minor && 250 === (int) $pr_row->tax_minor && 1500 === (int) $pr_row->discount_minor && 0 === VoucherCheckout::voucher_payment_minor( $pr['order_id'] ) );
+Orders::confirm_manual_payment( $pr['order_id'] );
+VoucherCheckout::commit( $pr['order_id'] );
+$pr_inv = Invoices::issue_for_order( $pr['order_id'] );
+$pr_html = Invoices::render_html( $pr_inv['invoice_id'] );
+check( 'invoice of a promotion code: "Rabattcode", never "Umsatzsteuer bereits beim Verkauf abgerechnet"', str_contains( $pr_html, 'Rabattcode …7777' ) && ! str_contains( $pr_html, 'bereits beim Verkauf' ) && ! str_contains( $pr_html, 'Einzweckgutschein' ) );
+
 // Filter decides at checkout (code ending 9999 → single-purpose).
 $fl = Orders::create( array( 'email' => 'flt@example.com', 'items' => array( array( 'ticket_type_id' => $vp_type, 'quantity' => 2 ) ), 'idempotency_key' => 'vp-fl1' ) );
 $fl_applied = VoucherCheckout::apply( $fl['order_id'], 'ANY-9999' );
@@ -190,3 +214,8 @@ $ts_s_snap = VoucherCheckout::voucher_state( $ts_s['order_id'] );
 check( 'ticket service, single-purpose: tickets at 0 / VAT 0, voucher value kept for settlements', 'issued' === $ts_s['status'] && 0 === (int) $ts_s_row->total_minor && 0 === (int) $ts_s_row->subtotal_minor && 0 === (int) $ts_s_row->tax_minor && 'single' === $ts_s_snap['purpose'] && 7500 === (int) $ts_s_snap['face_value_minor'] && 7500 === TicketService::settlement_value_minor( $ts_s['order_id'] ) );
 $ts_l = $vp_service->issue_tickets( $ts_src + array( 'single_purpose' => true ), 'vp-ts-single-list', array( 'ticket_type_id' => $ts_type, 'quantity' => 1 ), array( 'email' => 'ts-l@example.com' ) );
 check( 'ticket service, single-purpose without value: list price is recorded', 4000 === TicketService::settlement_value_minor( $ts_l['order_id'] ) && 'list_price' === VoucherCheckout::voucher_state( $ts_l['order_id'] )['face_value_source'] );
+$ts_rate_type = make_type( 40, 10, 1000 );
+$wpdb->query( "UPDATE {$p}wpcap_ticket_types SET tax_rate_bp=700 WHERE ticket_type_id=$ts_rate_type" );
+$ts_rate = $vp_service->issue_tickets( array( 'provider' => 'voucher-captain', 'voucher_id' => 9911, 'redemption_key' => 'vp-ts-rate-key', 'code_hint' => '9911' ) + $vp_sale( 2000, 'DE' ) + array( 'amount_minor' => 4000 ), 'vp-ts-rate', array( 'ticket_type_id' => $ts_rate_type, 'quantity' => 1 ), array( 'email' => 'ts-rate@example.com' ) );
+$ts_rate_snap = is_array( $ts_rate ) && ! empty( $ts_rate['order_id'] ) ? VoucherCheckout::voucher_state( $ts_rate['order_id'] ) : array();
+check( 'ticket exchange: single-purpose voucher (20 %) for a 7 % ticket is handled as multi-purpose', 'multi' === ( $ts_rate_snap['purpose'] ?? '' ) && 'single_rate' === ( $ts_rate_snap['purpose_changed'] ?? '' ), $ts_rate );

@@ -9398,6 +9398,11 @@ msgstr "Pagado con el bono %s (bono polivalente)"
 msgid "Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt."
 msgstr "Bono de un solo uso %s canjeado: el IVA ya se liquidó en la venta del bono; el valor del bono se tiene en cuenta como descuento sobre el precio."
 
+#: src/Invoices.php
+#, php-format
+msgid "Eingelöster Rabattcode %s: als Preisnachlass berücksichtigt."
+msgstr "Código promocional canjeado %s: considerado como reducción de precio."
+
 #: src/Invoices.php:445
 msgid "Restbetrag (bezahlt)"
 msgstr "Importe restante (pagado)"
