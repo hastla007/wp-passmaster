@@ -334,3 +334,15 @@ $a24_ok = Exchange::request( $a24_i[1], $a24_t3, array( 'channel' => 'admin' ) )
 check( 'A024: series exchange between events of the same seller still works', ! is_wp_error( $a24_ok ) && 'completed' === $a24_ok['status'] );
 ex_policy( array() );
 $wpdb->query( "DELETE FROM {$p}wpcap_series_occurrences WHERE series_id=990024" );
+
+echo "Audit 3: single-purpose voucher is a claim in the organizer settlement (A025)\n";
+$a25_event = ex_event( 'Einzweck Abrechnung' );
+$a25_type = ex_type( ex_occ( $a25_event ), 'Normal', 5000 );
+$a25_partner = PassCaptain\Partners\Repository::save( array( 'name' => 'Einzweck GmbH', 'commission_bp' => 0, 'fee_per_ticket_minor' => 0, 'fee_tax_rate_bp' => 0, 'settlement_start' => gmdate( 'Y-m' ) . '-01' ) );
+PassCaptain\Partners\Repository::set_events( $a25_partner, array( $a25_event ) );
+list( $a25_o ) = ex_buy( $a25_type, 1, 'a25@example.com' );
+// 20,00 single-purpose voucher booked as a discount: 30,00 paid.
+$wpdb->update( "{$p}wpcap_orders", array( 'discount_minor' => 2000, 'total_minor' => 3000, 'voucher_snapshot' => wp_json_encode( array( 'purpose' => 'single', 'status' => 'committed', 'amount_minor' => 2000 ) ) ), array( 'order_id' => $a25_o ) );
+$a25_s = PassCaptain\Partners\Settlements::compute( PassCaptain\Partners\Repository::get( $a25_partner ), gmdate( 'Y-m' ) );
+$a25_v = array_values( array_filter( $a25_s['lines'], static fn( $l ) => 'voucher' === $l['kind'] ) );
+check( 'A025: organizer is settled the full 50,00 (30,00 sale + 20,00 voucher claim as own line)', 1 === count( $a25_v ) && 2000 === $a25_v[0]['gross_minor'] && 5000 === (int) $a25_s['totals']['sales_gross'] );

@@ -523,6 +523,18 @@ final class Checkout {
 		return (int) ( $snapshot['amount_paid_by_voucher'] ?? $snapshot['amount_minor'] ?? 0 );
 	}
 
+	/**
+	 * Value of a single-purpose voucher redeemed on a paid order (booked as a discount on the order,
+	 * VAT was due when the voucher was sold). 0 otherwise.
+	 */
+	public static function single_purpose_minor( $order ) {
+		$order = is_object( $order ) ? $order : Orders::get( absint( $order ) );
+		if ( ! $order || empty( $order->voucher_snapshot ) ) { return 0; }
+		$snapshot = (array) json_decode( (string) $order->voucher_snapshot, true );
+		if ( self::PURPOSE_SINGLE !== self::snapshot_purpose( $snapshot ) || 'released' === ( $snapshot['status'] ?? '' ) ) { return 0; }
+		return max( 0, (int) ( $snapshot['applied_minor'] ?? $snapshot['amount_minor'] ?? 0 ) );
+	}
+
 	/** Full gross consideration of an order (amount due + multi-purpose voucher payment). */
 	public static function gross_minor( $order ) {
 		$order = is_object( $order ) ? $order : Orders::get( absint( $order ) );

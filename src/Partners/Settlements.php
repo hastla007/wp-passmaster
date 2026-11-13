@@ -57,6 +57,7 @@ final class Settlements {
 			'late_sale' => __( 'Nachtrag Verkauf (Vorperiode)', 'wp-pass-captain' ),
 			'refund' => __( 'Erstattung', 'wp-pass-captain' ),
 			'correction' => __( 'Korrektur Erstattung (Vorperiode)', 'wp-pass-captain' ),
+			'voucher' => __( 'Einzweckgutschein (Forderung gegen den Gutscheinverkäufer)', 'wp-pass-captain' ),
 		);
 	}
 
@@ -133,6 +134,23 @@ final class Settlements {
 					// An exchange supplement pays for a ticket already counted (and charged) on its original order.
 					$tickets = $supplement ? 0 : (int) $line->quantity;
 					$lines[] = self::line( $order->created_at >= $start ? 'sale' : 'late_sale', $key, $line, (int) $order->order_id, 0, $order->created_at, $order->created_at, $tickets, $gross, $tax, $partner, $tz );
+				}
+				// A single-purpose voucher was booked as a discount (VAT was due when it was sold): the
+				// organizer still earns the full ticket price, the voucher value is a claim against the
+				// voucher seller. Shown as its own line for the partner's share of the order.
+				$single = class_exists( '\\PassCaptain\\Integrations\\Vouchers\\Checkout' ) ? \PassCaptain\Integrations\Vouchers\Checkout::single_purpose_minor( (int) $order->order_id ) : 0;
+				if ( $single > 0 && ! isset( $settled[ 'voucher:' . (int) $order->order_id ] ) ) {
+					$all = 0;
+					$own = 0;
+					$first = null;
+					foreach ( $order_lines as $line ) {
+						$all += (int) $line->line_total_minor;
+						if ( in_array( (int) $line->event_id, $events, true ) ) { $own += (int) $line->line_total_minor; $first = $first ? $first : $line; }
+					}
+					$share = $all > 0 ? (int) round( $single * $own / $all ) : 0;
+					if ( $first && $share > 0 ) {
+						$lines[] = self::line( 'voucher', 'voucher:' . (int) $order->order_id, $first, (int) $order->order_id, 0, $order->created_at, $order->created_at, 0, $share, 0, $partner, $tz );
+					}
 				}
 			}
 
