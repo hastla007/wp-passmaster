@@ -71,6 +71,8 @@ final class Settings {
 			'legal_texts'               => array(),
 			'refund_approval_threshold' => 0,
 			'require_2fa_for_refunds'   => 0,
+			// Buyer cancellation/refund requests in the order portal until X hours before the start (0 = off).
+			'portal_refund_request_hours' => 0,
 			'attendee_retention_days'   => 0,
 			'retention_unpaid_customer_email_days' => 90,
 			'retention_message_content_days' => 30,

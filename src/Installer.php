@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.9.1';
+	const DB_VERSION = '3.9.4';
 
 	public static function install() {
 		global $wpdb;
@@ -622,6 +622,7 @@ final class Installer {
 				approved_by bigint(20) unsigned NOT NULL DEFAULT 0,
 				error_message varchar(255) NOT NULL DEFAULT '',
 				credit_note_number varchar(40) NOT NULL DEFAULT '',
+				source varchar(20) NOT NULL DEFAULT '',
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (refund_id),

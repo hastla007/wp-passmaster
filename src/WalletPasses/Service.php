@@ -28,6 +28,8 @@ final class Service {
 		add_action( 'wpcap_ticket_code_rotated', array( __CLASS__, 'on_code_rotated' ), 10, 2 );
 		// Wallet links for the new code in the resend/transfer/assignment mails.
 		add_filter( 'wpcap_ticket_code_mail_section', array( __CLASS__, 'code_mail_section' ), 10, 2 );
+		// The stored (encrypted) code lets the order portal build a ticket PDF without a new code.
+		add_filter( 'wpcap_ticket_known_code', array( __CLASS__, 'known_code' ), 10, 2 );
 		add_filter( 'wpcap_process_job', array( __CLASS__, 'handle_job' ), 10, 3 );
 		add_action( 'shutdown', array( __CLASS__, 'flush' ), 5 );
 	}
@@ -216,6 +218,18 @@ final class Service {
 		self::queue( array( (int) $ticket_id ) );
 		self::$rotated[ (int) $ticket_id ] = $passes;
 		return $passes;
+	}
+
+	/** Filter wpcap_ticket_known_code: the stored code when it is still the ticket's current one. */
+	public static function known_code( $code, $ticket_id ) {
+		if ( '' !== (string) $code ) { return $code; }
+		$state = Store::state( $ticket_id );
+		$secrets = Store::secrets( $state );
+		$stored = is_array( $secrets ) ? (string) ( $secrets['code'] ?? '' ) : '';
+		if ( '' === $stored ) { return $code; }
+		global $wpdb;
+		$current = (string) $wpdb->get_var( $wpdb->prepare( "SELECT token_hash FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
+		return hash_equals( $current, hash( 'sha256', $stored ) ) ? $stored : $code;
 	}
 
 	/** Passes created by a code rotation in this request, keyed by ticket id. */

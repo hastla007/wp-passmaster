@@ -588,7 +588,7 @@ final class OrdersPage {
 					<td><?php echo esc_html( (string) $ticket_count ); ?></td>
 					<td><?php echo esc_html( $refund['reason'] ); ?></td>
 					<td><?php echo esc_html( Forms::status_label( $refund['status'] ) ); ?><?php if ( '' !== (string) $refund['error_message'] ) : ?><br><small><?php echo esc_html( $refund['error_message'] ); ?></small><?php endif; ?><?php if ( '' !== (string) $refund['provider_reference'] ) : ?><br><small><?php echo esc_html( $refund['provider_reference'] ); ?></small><?php endif; ?></td>
-					<td><?php echo esc_html( Forms::user_label( $refund['requested_by'] ) . ' / ' . Forms::user_label( $refund['approved_by'] ) ); ?></td>
+					<td><?php echo esc_html( ( 'portal' === (string) ( $refund['source'] ?? '' ) ? __( 'Käufer:in (Stornierungsanfrage im Bestellportal)', 'wp-pass-captain' ) : Forms::user_label( $refund['requested_by'] ) ) . ' / ' . Forms::user_label( $refund['approved_by'] ) ); ?></td>
 					<td>
 						<?php if ( 'pending_approval' === $refund['status'] ) : ?>
 							<?php if ( ! $can_approve ) : ?>

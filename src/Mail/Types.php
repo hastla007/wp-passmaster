@@ -283,6 +283,41 @@ final class Types {
 					return array( 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e', 'refund_amount' => '25,00 EUR', 'revoked_count' => 1, 'revoked_note' => self::revoked_note( 1 ), 'credit_note_number' => 'RK-2027-000001', 'credit_note' => self::credit_note( 'RK-2027-000001' ), 'reason' => 'Kulanz' );
 				},
 			),
+			'refund_request_received' => array(
+				'label' => __( 'Stornierungsanfrage eingegangen', 'wp-pass-captain' ),
+				'description' => __( 'Bestätigung an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal eingegangen ist und geprüft wird (noch keine Erstattung).', 'wp-pass-captain' ),
+				'placeholders' => array(
+					'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
+					'ticket_count' => __( 'Anzahl angefragter Tickets', 'wp-pass-captain' ),
+					'ticket_list' => __( 'Angefragte Tickets, eines pro Zeile (Event, Ticketart, Datum)', 'wp-pass-captain' ),
+					'refund_amount' => __( 'Voraussichtlicher Erstattungsbetrag mit Währung', 'wp-pass-captain' ),
+					'reason' => __( 'Angegebener Grund (leer, wenn keiner)', 'wp-pass-captain' ),
+					'portal_link' => __( 'Persönlicher Link zur Bestellung (Status der Anfrage)', 'wp-pass-captain' ),
+				),
+				/* translators: %s: site name */
+				'subject' => static function () { return sprintf( __( 'Deine Stornierungsanfrage – %s', 'wp-pass-captain' ), '{site_name}' ); },
+				'body' => static function () {
+					/* translators: 1: short order number, 2: amount */
+					return sprintf( __( 'Wir haben deine Stornierungsanfrage für die Bestellung %1$s erhalten. Voraussichtliche Erstattung: %2$s.', 'wp-pass-captain' ), '{order_id}', '{refund_amount}' ) . "\n\n{ticket_list}\n\n"
+						. __( 'Deine Tickets bleiben gültig, bis wir die Anfrage geprüft haben. Wird sie angenommen, werden die Tickets ungültig und du erhältst eine Erstattungsbestätigung. Den Stand siehst du jederzeit in deiner Bestellung:', 'wp-pass-captain' ) . "\n{portal_link}";
+				},
+				'sample' => static function () {
+					return array( 'order_id' => '3F2A-9C1E', 'ticket_count' => 1, 'ticket_list' => 'Sommerkonzert — Stehplatz, 21.06.2027 20:00 Europe/Vienna', 'refund_amount' => '25,00 EUR', 'reason' => 'Krank', 'portal_link' => 'https://example.com/?wpcap_order=3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e&wpcap_access=…' );
+				},
+			),
+			'refund_request_rejected' => array(
+				'label' => __( 'Stornierungsanfrage abgelehnt', 'wp-pass-captain' ),
+				'description' => __( 'Information an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal nicht angenommen wurde (Tickets bleiben gültig).', 'wp-pass-captain' ),
+				'placeholders' => array(
+					'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
+					'ticket_count' => __( 'Anzahl angefragter Tickets', 'wp-pass-captain' ),
+				),
+				/* translators: %s: site name */
+				'subject' => static function () { return sprintf( __( 'Deine Stornierungsanfrage – %s', 'wp-pass-captain' ), '{site_name}' ); },
+				/* translators: %s: short order number */
+				'body' => static function () { return sprintf( __( 'Deine Stornierungsanfrage für die Bestellung %s wurde nicht angenommen. Deine Tickets bleiben gültig. Bei Fragen wende dich bitte an den Veranstalter.', 'wp-pass-captain' ), '{order_id}' ); },
+				'sample' => static function () { return array( 'order_id' => '3F2A-9C1E', 'ticket_count' => 1 ); },
+			),
 			'event_cancelled' => array(
 				'label' => __( 'Eventabsage', 'wp-pass-captain' ),
 				'description' => __( 'Information an Käufer:innen und Ticketinhaber:innen, wenn ein ganzes Event abgesagt wird.', 'wp-pass-captain' ),

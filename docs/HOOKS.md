@@ -44,11 +44,12 @@ Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
 | `wpcap_ticket_created` | `int $ticket_id, object $order, object $line, int $index` | Innerhalb der Ausgabe-Transaktion, je Ticket (z. B. Sitzplatz zuweisen). Klartext-Code nicht speichern. |
 | `wpcap_tickets_issued` | `int $order_id, int $count` | Nach dem Commit der Ticketausgabe, vor dem Versand der Ticket-E-Mail. |
 | `wpcap_ticket_revoked` | `int $ticket_id, string $reason` | Nach dem Widerruf: Admin (`TicketsPage`) und über `Orders::fire_revoked()` (Erstattung `refund_{id}`, Stornierung `order_cancelled`, Terminabsage `occurrence_cancelled`, Event-Absage `event_cancelled`, Vollerstattung). |
-| `wpcap_ticket_code_rotated` | `int $ticket_id, string $code, string $reason` | Neuer Ticketcode (`transfer`, `resend`, `assign`). `$code` ist der Klartext-Code – nur flüchtig verwenden, nie speichern oder loggen. |
+| `wpcap_ticket_code_rotated` | `int $ticket_id, string $code, string $reason` | Neuer Ticketcode (`transfer`, `resend`, `assign`, `portal_pdf` – PDF-Download im Bestellportal ohne bekannten Code). `$code` ist der Klartext-Code – nur flüchtig verwenden, nie speichern oder loggen. |
 | `wpcap_ticket_checked_in` | `int $ticket_id, array $context` | Nach erfolgreichem Einlass (`Checkin`). `$context`: u. a. `source`, `device_id`. |
 | `wpcap_ticket_checked_out` | `int $ticket_id, array $context` | Nach einem Auslass (Mehrfacheinlass/Bereiche). |
 | `wpcap_refund_completed` | `int $refund_id, int $order_id` | Erstattung über das Plugin erfolgreich ausgeführt (auch Teilerstattung). |
 | `wpcap_refund_rejected` | `int $refund_id, int $order_id` | Eine auf Freigabe wartende Erstattung (`pending_approval`) wurde von einer freigabeberechtigten Person abgelehnt (`Refunds::reject()`). |
+| `wpcap_portal_refund_requested` | `int $refund_id, int $order_id` | Käufer:in hat im Bestellportal eine Stornierung angefragt (A118, `PortalSelfService::request_refund()`): Erstattung mit `source` `portal` im Status `pending_approval`, nach Bestätigungsmail und Audit-Eintrag `refund_requested_by_customer`. Ausgezahlt wird erst nach der Freigabe (`wpcap_refund_completed`). |
 | `wpcap_pass_day_refund_failed` | `int $order_id, int $ticket_type_id, int $occurrence_id, int $amount_minor` | Pass-Modul: Die anteilige Erstattung für einen abgesagten Termin eines Passes (`refund_per_day_minor` × Anzahl) konnte nicht ausgeführt werden (z. B. WooCommerce-Bestellung – dort erstatten, oder Fehler/Freigabe ausstehend). |
 | `wpcap_occurrence_rescheduled` | `int $occurrence_id, string $old_starts_at, string $new_starts_at` | Admin: Startzeit eines Termins mit ausgegebenen Tickets geändert (UTC `Y-m-d H:i:s`). |
 | `wpcap_occurrence_cancelled` | `int $occurrence_id, int $issued` | Admin: Termin abgesagt (`$issued` = Anzahl ausgegebener Tickets). Kern-Folgen in `OccurrenceCancellation` (Priorität 10); das SMS-Modul hängt sich mit Priorität 5 davor. |
@@ -92,6 +93,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_seating_availability_limit` | `int $limit` (120) | Abrufe der Sitzplatzverfügbarkeit je Client und Minute. |
 | `wpcap_checkin_now` | `int $timestamp` | Zeitpunkt für Einlassentscheidungen (Tests/Simulation). |
 | `wpcap_user_has_2fa` | `bool $has, int $user_id` | Zwei-Faktor-Status für Erstattungen. |
+| `wpcap_portal_refund_request_allowed` | `bool $allowed` (`true`), `object $order` | Ob die Käufer:in dieser Bestellung im Bestellportal eine Stornierung anfragen darf – nach den Kernregeln (Einstellung `portal_refund_request_hours` > 0, bezahlt, keine WooCommerce-Bestellung, keine Freikarte). |
+| `wpcap_portal_refund_rate_limit` | `int $limit` (5), `object $order` | Stornierungsanfragen im Bestellportal je Bestellung und Stunde (zusätzlich 20 je Client). |
 | `wpcap_voucher_purpose` | `string|null $purpose, array $voucher, array $context` | Art eines Gutscheins: `single` (Einzweckgutschein, USt beim Gutscheinverkauf; Einlösung = Preisnachlass) oder `multi` (Mehrzweckgutschein, Einlösung = Zahlungsmittel, USt auf den vollen Preis). `$purpose` ist die Angabe aus den WP-Voucher-Captain-Daten (oder `null`); `$voucher`: Anbieterdaten (Checkout: `quote`, `reservation`; Ticketdienst: `$source`); `$context`: `source` (`checkout`/`ticket_service`), `order_id`, `code_hint`, `ticket_type_id`, `quantity`. Rückgabe `null`/unbekannt → Einstellung `voucher_default_purpose` (Standard `multi`). Siehe docs/VOUCHERS.md. |
 | `wpcap_woocommerce_hold_minutes` | `int $minutes` | Reservierung bei WooCommerce-Checkout. |
 | `wpcap_woocommerce_on_hold_minutes` | `int $minutes` (3 Tage) | Reservierung für WooCommerce-Bestellungen „in Wartestellung“. |
@@ -148,6 +151,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_sender_name` | `string $name` | Name in der Kundenkommunikation (Website-Titel, sonst der Hostname). |
 | `wpcap_currency_symbols` | `array $symbols` (ISO-Code → Symbol) | Währungssymbole für die Anzeige; unbekannte Währungen erscheinen als ISO-Code. |
 | `wpcap_order_portal_ticket_html` | `string $html` (`''`), `object $ticket, object $order, string $token` | Zusätzliches HTML je Ticket im Bestellportal (z. B. Umtausch-Formular); der Callback muss selbst escapen. |
+| `wpcap_ticket_known_code` | `string $code` (`''`), `int $ticket_id` | Klartext-Code, den ein Modul für den **aktuellen** Ticketcode noch kennt (Wallet-Modul: verschlüsselt gespeicherter Code). Der Ticket-PDF-Download im Bestellportal verwendet ihn statt einen neuen Code auszugeben; ein Wert, der nicht zum gespeicherten Hash passt, wird ignoriert. Nur flüchtig verwenden. |
+| `wpcap_portal_pdf_rate_limit` | `int $limit` (20), `object $order` | Ticket-PDF-Downloads im Bestellportal je Bestellung und Stunde (zusätzlich 60 je Client). |
 
 ### Kalender, Erinnerungen, SMS, Webhooks
 

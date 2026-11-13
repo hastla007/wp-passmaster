@@ -24,18 +24,25 @@ final class Refunds {
 	 * @param int[]  $ticket_ids      Tickets to refund; empty = all tickets not yet refunded.
 	 * @param string $reason          Reason (stored in audit log and refund record).
 	 * @param string $idempotency_key Unique key for this refund request.
+	 * @param array  $args            system (bool: buyer self-service – skips the actor check and never
+	 *                                approves itself), require_approval (bool: always wait for an approver,
+	 *                                whatever the threshold), source (string, e.g. "portal"; stored with
+	 *                                schema 3.9.4).
 	 * @return array|\WP_Error Refund row as array.
 	 */
-	public static function request( $order_id, array $ticket_ids, $reason, $idempotency_key ) {
+	public static function request( $order_id, array $ticket_ids, $reason, $idempotency_key, array $args = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
-		$key_hash = hash( 'sha256', 'refund|' . $order_id . '|' . sanitize_text_field( $idempotency_key ) );
-		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
+		$system = ! empty( $args['system'] );
+		$existing = self::find_by_key( $order_id, $idempotency_key );
 		if ( $existing ) { return $existing; }
+		$key_hash = self::key_hash( $order_id, $idempotency_key );
 
-		$check = self::check_actor();
-		if ( is_wp_error( $check ) ) { return $check; }
+		if ( ! $system ) {
+			$check = self::check_actor();
+			if ( is_wp_error( $check ) ) { return $check; }
+		}
 		$order = Orders::get( $order_id );
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
@@ -66,9 +73,9 @@ final class Refunds {
 		// large refund into small requests does not avoid the second approval.
 		$threshold = (int) Settings::get( 'refund_approval_threshold' );
 		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $calc['amount_minor'];
-		$needs_approval = $threshold > 0 && $cumulative > $threshold && ! current_user_can( self::APPROVE_CAP );
+		$needs_approval = ! empty( $args['require_approval'] ) || ( $threshold > 0 && $cumulative > $threshold && ( $system || ! current_user_can( self::APPROVE_CAP ) ) );
 		$now = current_time( 'mysql', true );
-		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
+		$row = array(
 			'order_id' => $order_id,
 			'idempotency_key' => $key_hash,
 			'amount_minor' => $calc['amount_minor'],
@@ -77,11 +84,15 @@ final class Refunds {
 			'ticket_ids' => wp_json_encode( $calc['ticket_ids'] ),
 			'reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
 			'status' => $needs_approval ? 'pending_approval' : 'approved',
-			'requested_by' => get_current_user_id(),
+			// A buyer request has no WordPress user as requester (any approver may decide on it).
+			'requested_by' => $system ? 0 : get_current_user_id(),
 			'approved_by' => $needs_approval ? 0 : get_current_user_id(),
 			'created_at' => $now,
 			'updated_at' => $now,
-		) );
+		);
+		$source = sanitize_key( (string) ( $args['source'] ?? '' ) );
+		if ( '' !== $source && self::source_ready() ) { $row['source'] = substr( $source, 0, 20 ); }
+		$inserted = $wpdb->insert( "{$p}wpcap_refunds", $row );
 		if ( false === $inserted ) {
 			$wpdb->query( 'ROLLBACK' );
 			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
@@ -92,7 +103,11 @@ final class Refunds {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		}
-		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval ) );
+		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval, 'source' => '' !== $source ? $source : 'admin' ) );
+		if ( $needs_approval && 'portal' === $source ) {
+			wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Stornierungsanfrage wartet auf Freigabe', 'wp-pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal eine Stornierung mit Erstattung über %2$s angefragt. Bitte unter „Erstattungen zur Freigabe“ freigeben oder ablehnen.', 'wp-pass-captain' ), $order->public_id, number_format_i18n( $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
+			return self::get( $refund_id );
+		}
 		if ( $needs_approval ) {
 			wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Erstattung wartet auf Freigabe', 'wp-pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'wp-pass-captain' ), $order->public_id, number_format_i18n( $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
 			return self::get( $refund_id );
@@ -493,6 +508,29 @@ final class Refunds {
 			return __( 'Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag; die Erstattung wurde nicht ausgeführt.', 'wp-pass-captain' );
 		}
 		return '';
+	}
+
+	/** Idempotency hash of a ticket refund request. */
+	private static function key_hash( $order_id, $idempotency_key ) {
+		return hash( 'sha256', 'refund|' . absint( $order_id ) . '|' . sanitize_text_field( $idempotency_key ) );
+	}
+
+	/** Ticket refund of an order created with this idempotency key (request()), or null. */
+	public static function find_by_key( $order_id, $idempotency_key ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_refunds WHERE idempotency_key=%s AND order_id=%d", self::key_hash( $order_id, $idempotency_key ), absint( $order_id ) ), ARRAY_A );
+	}
+
+	/** Whether wpcap_refunds.source exists (schema 3.9.4; not yet during a deferred upgrade). */
+	public static function source_ready() {
+		static $ready = array();
+		global $wpdb;
+		$key = (string) $wpdb->prefix;
+		// Only a positive answer is cached: the upgrade may complete later in the same process.
+		if ( empty( $ready[ $key ] ) ) {
+			$ready[ $key ] = null !== $wpdb->get_row( "SHOW COLUMNS FROM {$wpdb->prefix}wpcap_refunds LIKE 'source'" );
+		}
+		return $ready[ $key ];
 	}
 
 	public static function get( $refund_id ) {

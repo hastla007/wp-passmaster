@@ -122,6 +122,7 @@ final class SettingsPage {
 				'fields' => array(
 					'refund_approval_threshold' => array( 'type' => 'money', 'label' => __( 'Zweite Freigabe ab Betrag', 'wp-pass-captain' ), 'description' => __( '0 = keine zweite Freigabe. Betrag in der Bestellwährung, z. B. 100,00.', 'wp-pass-captain' ) ),
 					'require_2fa_for_refunds' => array( 'type' => 'bool', 'label' => __( 'Zwei-Faktor-Anmeldung für Erstattungen verlangen', 'wp-pass-captain' ) ),
+					'portal_refund_request_hours' => array( 'type' => 'int', 'label' => __( 'Stornierungsanfragen im Bestellportal bis (Stunden vor Beginn)', 'wp-pass-captain' ), 'min' => 0, 'max' => 8760, 'description' => __( '0 = aus. Käufer:innen können gültige, unbenutzte Tickets bis zu dieser Frist zur Stornierung mit Erstattung anfragen (nicht bei Freikarten und WooCommerce-Bestellungen). Jede Anfrage wartet unter „Erstattungen zur Freigabe“ auf eine Entscheidung; ausgezahlt wird erst nach der Freigabe.', 'wp-pass-captain' ) ),
 				),
 			),
 			'vouchers' => array(

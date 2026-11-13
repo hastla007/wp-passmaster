@@ -29,6 +29,7 @@ final class RefundsPage {
 		<h1><?php esc_html_e( 'Erstattungen zur Freigabe', 'wp-pass-captain' ); ?></h1>
 		<?php Forms::render_notices(); ?>
 		<p><?php esc_html_e( 'Erstattungen oberhalb des Freigabe-Schwellenwerts müssen von einer zweiten berechtigten Person freigegeben werden.', 'wp-pass-captain' ); ?></p>
+		<p><?php esc_html_e( 'Stornierungsanfragen, die Käufer:innen im Bestellportal stellen, erscheinen hier ebenfalls und werden erst nach der Freigabe ausgezahlt.', 'wp-pass-captain' ); ?></p>
 		<?php if ( ! current_user_can( Refunds::APPROVE_CAP ) ) : ?>
 			<div class="notice notice-info inline"><p><?php esc_html_e( 'Du kannst Erstattungen sehen, aber nicht freigeben.', 'wp-pass-captain' ); ?></p></div>
 		<?php endif; ?>
