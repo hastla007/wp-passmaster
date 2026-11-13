@@ -408,14 +408,17 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Partner-API: abgelaufener/widerrufener Schlüssel getestet (tests/integration/modules/partners.php:259,263); nicht systematisch für alle REST-Routen/Rollen/Scopes
 - [ ] **A186** Rate-Limits hinter Proxy/mehreren Workern validieren und dokumentieren — _TEILWEISE_ (TODO L256; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Doku: Transients kein verteilter Schutz (docs/SECURITY.md:7); keine Validierung, keine konkrete Hosting-Empfehlung, keine Proxy-Header-Behandlung (src/RateLimit.php:21)
-- [ ] **A187** Lastprofile und REST-Lasttests als geplante CI-Prüfung mit Referenzwerten — _TEILWEISE_ (TODO L260; Last, Hintergrundjobs und Wiederanlauf)
+- [x] **A187** Lastprofile und REST-Lasttests als geplante CI-Prüfung mit Referenzwerten — _TEILWEISE_ (TODO L260; Last, Hintergrundjobs und Wiederanlauf)
   - CI-Profil bei jedem Push (ci.yml:56-60), Werte in docs/TESTING.md:57; Heavy-/REST-Profile nicht geplant in CI
+  - Erledigt (A121): load.yml wöchentlich (Mo 03:17) + manuell, Profile default/heavy/big und REST gegen MariaDB und MySQL, Vergleich mit tests/load/baselines/*.json (tests/load/compare.php).
 - [ ] **A188** Worker-Fehler-/Neustartszenarien idempotent prüfen — _TEILWEISE_ (TODO L261; Last, Hintergrundjobs und Wiederanlauf)
   - Abgestürzte Claims/Budget getestet (zz_phase1_arch.php:93-115, zz_integration.php:43); Backoff, Dead-Letter, Doppelausführung der Jobs ungetestet
-- [ ] **A189** Cron-Ausfall, Queue-Rückstand, Mailfehler im Admin sichtbar machen — _OFFEN_ (TODO L262; Last, Hintergrundjobs und Wiederanlauf)
+- [x] **A189** Cron-Ausfall, Queue-Rückstand, Mailfehler im Admin sichtbar machen — _OFFEN_ (TODO L262; Last, Hintergrundjobs und Wiederanlauf)
   - Keine Admin-Anzeige für Rückstand, letzten Lauf, nächste Aktion gefunden
-- [ ] **A190** Restore-/Upgrade-Übung mit Ticket-/Bestell-/Jobdaten durchführen — _OFFEN_ (TODO L263; Last, Hintergrundjobs und Wiederanlauf)
+  - Erledigt (A163/A164): Admin-Seite „Betrieb“ (OperationsPage) und Website-Zustand (Operations/SiteHealth.php): letzter/nächster Lauf je Cron-Hook, Warteschlangen-Rückstand, fehlgeschlagene Jobs, Mailfehler (Operations/Monitor.php).
+- [x] **A190** Restore-/Upgrade-Übung mit Ticket-/Bestell-/Jobdaten durchführen — _OFFEN_ (TODO L263; Last, Hintergrundjobs und Wiederanlauf)
   - Kein Nachweis einer Übung oder eines Restore-Tests in tests/
+  - Erledigt (A113/A125): tests/restore/drill.sh mit Ticket-/Bestell-/Jobdaten (seed.php/state.php) gegen das Vorgänger-Release, in jedem wp-matrix-Lauf; Protokoll docs/OPERATIONS.md „Rollback und Restore – erprobt“.
 - [x] **A191** Provider-Secrets aus Klartext in wpcap_settings entfernen, Vault — _TEILWEISE_ (TODO L267; Sicherheit, Datenschutz und UI-Abnahme)
   - Konstanten/Env-Vorrang (src/Settings.php:118-124); Fallback weiterhin Klartext in Option, kein Vault, keine Migration/Rotation
 - [x] **A192** Automatisiert nachweisen, dass Provider-Secrets nirgends im Klartext auftauchen — _OFFEN_ (TODO L268; Sicherheit, Datenschutz und UI-Abnahme)
@@ -430,8 +433,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Export/Löschung/Retention getestet (tests/integration/modules/zz_phase1_privacy.php:61-216); keine Großdaten-, Multisite- oder WooCommerce-Daten-Tests
 - [ ] **A197** Browser-E2E-Matrix Chrome/Firefox/Safari/iOS/Android — _OFFEN_ (TODO L273; Sicherheit, Datenschutz und UI-Abnahme)
   - Nur axe/Playwright-Chromium (tests/a11y/run.js), keine E2E-Matrix
-- [ ] **A198** A11y-Prüfungen in Releaseprozess integrieren, manuelle Abnahme — _TEILWEISE_ (TODO L274; Sicherheit, Datenschutz und UI-Abnahme)
+- [x] **A198** A11y-Prüfungen in Releaseprozess integrieren, manuelle Abnahme — _TEILWEISE_ (TODO L274; Sicherheit, Datenschutz und UI-Abnahme)
   - axe-Skripte vorhanden (tests/a11y/run.js), Befunde behoben; nicht in CI/Release, manuelle Abnahme fehlt
+  - Erledigt (A155): wp-matrix.yml Job `accessibility` (axe WCAG 2.2, fail-on serious, Tastatur-Durchlauf) als Release-Gate in docs/RELEASE.md; manuelle Screenreader-Abnahme (NVDA/VoiceOver) im Abnahmeprotokoll docs/release-acceptance/TEMPLATE.md, release.yml verlangt das Protokoll.
 - [ ] **A199** Zeitzonen-/DST-Wechsel deterministisch testen — _TEILWEISE_ (TODO L278; Technische Randfälle, die noch separat abgesichert werden müssen)
   - Serien/Preisregeln DST getestet (tests/integration/modules/series.php:25-33, series_pricing.php:50,73), Einlass-Mitternacht admission.php:88; Reservierungsablauf, Erinnerungen, Service-Slots fehlen
 - [ ] **A200** Geldberechnungen mit Eigenschafts-/Randfalltests absichern — _TEILWEISE_ (TODO L279; Technische Randfälle, die noch separat abgesichert werden müssen)
