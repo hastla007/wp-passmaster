@@ -90,12 +90,14 @@ final class AdminPage {
 				);
 				$partner_id = Repository::save( $data, $id );
 				if ( is_wp_error( $partner_id ) ) { return $partner_id; }
-				$events = Repository::set_events( $partner_id, Forms::ids( $in, 'event_ids' ) );
+				// A447: only explicit changes – events that are not on the form are never unlinked.
+				$events = self::apply_event_changes( $partner_id, $in );
 				Repository::set_users( $partner_id, Repository::resolve_users( $in['users'] ?? '' ) );
 				$result = array( 'partner_id' => $partner_id );
 				// Missing seller data is shown inline on the form (render_sales_model_fields), not a second time here.
 				$warnings = array();
-				if ( ! is_wp_error( $events ) && $events['skipped'] ) {
+				if ( is_wp_error( $events ) ) { return $events; }
+				if ( $events['skipped'] ) {
 					/* translators: %s: event ids */
 					$warnings[] = sprintf( __( 'Folgende Events gehören bereits einem anderen Veranstalter und wurden nicht verknüpft: %s', 'pass-captain' ), implode( ', ', $events['skipped'] ) );
 				}
@@ -109,7 +111,8 @@ final class AdminPage {
 				}
 				$scopes = array_map( 'strval', array_filter( (array) ( $in['scopes'] ?? array() ), 'is_scalar' ) );
 				$types = is_array( $in['ticket_type_ids'] ?? null ) ? Forms::ids( $in, 'ticket_type_ids' ) : array_values( array_filter( array_map( 'absint', preg_split( '/[\s,;]+/', Forms::text( $in, 'ticket_type_ids', 2000 ), -1, PREG_SPLIT_NO_EMPTY ) ) ) );
-				$result = Keys::issue( $id, $scopes, array( 'label' => Forms::text( $in, 'label' ), 'event_ids' => Forms::ids( $in, 'event_ids' ), 'ticket_type_ids' => $types, 'ip_allowlist' => Forms::textarea( $in, 'ip_allowlist', 2000 ), 'expires_at' => $expires, 'rate_limit' => Forms::int( $in, 'rate_limit' ), 'write_rate_limit' => Forms::int( $in, 'write_rate_limit' ) ) );
+				$key_events = array_values( array_unique( array_filter( array_merge( Forms::ids( $in, 'event_ids' ), array_map( 'absint', preg_split( '/[\s,;]+/', Forms::text( $in, 'event_ids_text', 2000 ), -1, PREG_SPLIT_NO_EMPTY ) ) ) ) ) );
+				$result = Keys::issue( $id, $scopes, array( 'label' => Forms::text( $in, 'label' ), 'event_ids' => $key_events, 'ticket_type_ids' => $types, 'ip_allowlist' => Forms::textarea( $in, 'ip_allowlist', 2000 ), 'expires_at' => $expires, 'rate_limit' => Forms::int( $in, 'rate_limit' ), 'write_rate_limit' => Forms::int( $in, 'write_rate_limit' ) ) );
 				if ( ! is_wp_error( $result ) ) { set_transient( self::new_key_transient(), $result['key'], 5 * MINUTE_IN_SECONDS ); }
 				return $result;
 			case 'revoke_key':
@@ -151,6 +154,19 @@ final class AdminPage {
 				return Settlements::delete_draft( $id );
 		}
 		return Forms::error( 'wpcap_partner_action', __( 'Unbekannte Aktion.', 'pass-captain' ), 404 );
+	}
+
+	/**
+	 * Event link changes of the partner form (A447): add_event_ids[] (search results), add_event_ids_text
+	 * (IDs, comma separated) and the legacy event_ids[] are linked, remove_event_ids[] are unlinked.
+	 * Nothing else changes, whatever part of the events the form showed.
+	 *
+	 * @return array|\WP_Error Repository::update_events() result.
+	 */
+	public static function apply_event_changes( $partner_id, array $in ) {
+		$text = preg_split( '/[\s,;]+/', Forms::text( $in, 'add_event_ids_text', 2000 ), -1, PREG_SPLIT_NO_EMPTY );
+		$add = array_merge( Forms::ids( $in, 'add_event_ids' ), Forms::ids( $in, 'event_ids' ), array_map( 'absint', $text ) );
+		return Repository::update_events( $partner_id, $add, Forms::ids( $in, 'remove_event_ids' ) );
 	}
 
 	public static function handle_action() {
@@ -242,11 +258,12 @@ final class AdminPage {
 			echo '<p>' . esc_html__( 'Noch keine Veranstalter.', 'pass-captain' ) . '</p>';
 		} else {
 			$policies = Repository::refund_policy_labels();
+			$event_counts = Repository::event_counts();
 			\PassCaptain\Privacy\AccessLog::list_view( 'partner_list', array(), count( $partners ) );
 			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Name', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Kontakt', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Konditionen', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Verkaufsmodell', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Events', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'pass-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $partners as $pa ) {
 				$terms = sprintf( /* translators: 1: percent, 2: fee */ __( '%1$s %% Provision, %2$s je Ticket', 'pass-captain' ), Forms::percent_input( $pa->commission_bp ), Forms::money( $pa->fee_per_ticket_minor, $pa->currency ) );
-				echo '<tr><td><a href="' . esc_url( Forms::page_url( self::PAGE, array( 'partner_id' => (int) $pa->partner_id ) ) ) . '"><strong>' . esc_html( $pa->name ) . '</strong></a></td><td>' . esc_html( trim( $pa->contact_name . ' ' . $pa->contact_email ) ) . '</td><td>' . esc_html( $terms ) . '<br><small>' . esc_html( $policies[ $pa->refund_policy ] ?? $pa->refund_policy ) . '</small></td><td>' . esc_html( SalesModel::short_labels()[ SalesModel::model_of( $pa ) ] ) . ( self::seller_warnings( $pa ) ? '<br><small class="wpcap-warning">' . esc_html__( 'Rechnungsangaben unvollständig', 'pass-captain' ) . '</small>' : '' ) . '</td><td>' . count( Repository::event_ids( $pa->partner_id ) ) . '</td><td>' . esc_html( 'active' === $pa->status ? __( 'aktiv', 'pass-captain' ) : __( 'inaktiv', 'pass-captain' ) ) . '</td></tr>';
+				echo '<tr><td><a href="' . esc_url( Forms::page_url( self::PAGE, array( 'partner_id' => (int) $pa->partner_id ) ) ) . '"><strong>' . esc_html( $pa->name ) . '</strong></a></td><td>' . esc_html( trim( $pa->contact_name . ' ' . $pa->contact_email ) ) . '</td><td>' . esc_html( $terms ) . '<br><small>' . esc_html( $policies[ $pa->refund_policy ] ?? $pa->refund_policy ) . '</small></td><td>' . esc_html( SalesModel::short_labels()[ SalesModel::model_of( $pa ) ] ) . ( self::seller_warnings( $pa ) ? '<br><small class="wpcap-warning">' . esc_html__( 'Rechnungsangaben unvollständig', 'pass-captain' ) . '</small>' : '' ) . '</td><td>' . (int) ( $event_counts[ (int) $pa->partner_id ] ?? 0 ) . '</td><td>' . esc_html( 'active' === $pa->status ? __( 'aktiv', 'pass-captain' ) : __( 'inaktiv', 'pass-captain' ) ) . '</td></tr>';
 			}
 			echo '</tbody></table>';
 		}
@@ -308,18 +325,89 @@ final class AdminPage {
 		$area( 'notes', __( 'Interne Notizen', 'pass-captain' ), $v( 'notes' ) );
 		echo '</tbody></table>';
 		self::render_sales_fields( $partner, $field );
-		echo '<h3>' . esc_html__( 'Events und Zugänge', 'pass-captain' ) . '</h3><table class="form-table"><tbody><tr><th scope="row">' . esc_html__( 'Events dieses Veranstalters', 'pass-captain' ) . '</th><td><fieldset style="max-height:16rem;overflow:auto"><legend class="screen-reader-text">' . esc_html__( 'Events', 'pass-captain' ) . '</legend>';
-		$linked = $partner ? Repository::event_ids( $partner->partner_id ) : array();
-		foreach ( Queries::event_options( null ) as $event_id => $name ) {
-			$owner = Repository::partner_of_event( $event_id );
-			$foreign = $owner && ( ! $partner || $owner !== (int) $partner->partner_id );
-			echo '<label style="display:block"><input type="checkbox" name="event_ids[]" value="' . (int) $event_id . '"' . checked( in_array( (int) $event_id, $linked, true ), true, false ) . disabled( $foreign, true, false ) . '> ' . esc_html( $name ) . ( $foreign ? ' <em>(' . esc_html__( 'anderer Veranstalter', 'pass-captain' ) . ')</em>' : '' ) . '</label>';
-		}
-		echo '</fieldset></td></tr>';
+		echo '<h3>' . esc_html__( 'Events und Zugänge', 'pass-captain' ) . '</h3><table class="form-table"><tbody>';
+		self::render_event_picker( $partner );
 		$users = $partner ? implode( ', ', Repository::user_ids( $partner->partner_id ) ) : '';
 		echo '<tr><th scope="row"><label for="wpcap-pa-users">' . esc_html__( 'WordPress-Benutzer des Veranstalters', 'pass-captain' ) . '</label></th><td><input id="wpcap-pa-users" name="users" class="regular-text" value="' . esc_attr( $users ) . '"><p class="description">' . esc_html__( 'Benutzer-IDs, Logins oder E-Mail-Adressen (kommagetrennt). Diese Benutzer sehen die abgeschlossenen Abrechnungen des Veranstalters (nur lesend), z. B. mit der Rolle „Pass Captain Veranstalter“.', 'pass-captain' ) . '</p></td></tr></tbody></table>';
 		submit_button( __( 'Veranstalter speichern', 'pass-captain' ) );
 		echo '</form>';
+		// Event search (GET) – its fields sit in the event section above via the form attribute.
+		echo '<form id="wpcap-pa-event-search" method="get"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '"><input type="hidden" name="partner_id" value="' . esc_attr( $partner ? (string) (int) $partner->partner_id : 'new' ) . '"></form>';
+		if ( $partner ) { self::render_event_history( $partner ); }
+	}
+
+	/** Events shown per page in the partner's event list and per search. */
+	const EVENTS_PER_PAGE = 50;
+
+	/**
+	 * Event section of the partner form (A447): the linked events page by page with "remove"
+	 * checkboxes, a search for events to add and a field for event IDs. The form submits only these
+	 * changes (apply_event_changes()), so events on other pages or outside the search stay linked.
+	 */
+	private static function render_event_picker( $partner ) {
+		$partner_id = $partner ? (int) $partner->partner_id : 0;
+		echo '<tr><th scope="row">' . esc_html__( 'Events dieses Veranstalters', 'pass-captain' ) . '</th><td>';
+		if ( $partner_id ) {
+			$page = max( 1, absint( Forms::query_arg( 'events_page', 1 ) ) );
+			$linked = Repository::linked_events_page( $partner_id, $page, self::EVENTS_PER_PAGE );
+			if ( ! $linked['total'] ) {
+				echo '<p>' . esc_html__( 'Noch keine Events verknüpft.', 'pass-captain' ) . '</p>';
+			} else {
+				/* translators: %d: number of linked events */
+				echo '<p>' . esc_html( sprintf( _n( '%d verknüpftes Event. Zum Lösen anhaken und speichern.', '%d verknüpfte Events. Zum Lösen anhaken und speichern.', $linked['total'], 'pass-captain' ), $linked['total'] ) ) . '</p>';
+				echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Verknüpfte Events', 'pass-captain' ) . '</legend>';
+				foreach ( $linked['rows'] as $row ) {
+					echo '<label style="display:block"><input type="checkbox" name="remove_event_ids[]" value="' . (int) $row->event_id . '"> ' . esc_html__( 'lösen:', 'pass-captain' ) . ' ' . esc_html( '' !== (string) $row->name ? $row->name : '#' . (int) $row->event_id ) . ' <small>#' . (int) $row->event_id . '</small></label>';
+				}
+				echo '</fieldset>';
+				$pages = (int) ceil( $linked['total'] / self::EVENTS_PER_PAGE );
+				if ( $pages > 1 ) {
+					echo '<p class="wpcap-pagination">';
+					for ( $i = 1; $i <= $pages; $i++ ) {
+						echo $i === $page ? '<strong>' . (int) $i . '</strong> ' : '<a href="' . esc_url( Forms::page_url( self::PAGE, array( 'partner_id' => $partner_id, 'events_page' => $i ) ) ) . '">' . (int) $i . '</a> ';
+					}
+					echo '</p>';
+				}
+			}
+		}
+		echo '</td></tr><tr><th scope="row"><label for="wpcap-pa-event-q">' . esc_html__( 'Events hinzufügen', 'pass-captain' ) . '</label></th><td>';
+		$term = Forms::query_arg( 'event_search', '' );
+		echo '<p><input type="search" id="wpcap-pa-event-q" name="event_search" form="wpcap-pa-event-search" value="' . esc_attr( $term ) . '" placeholder="' . esc_attr__( 'Eventname oder Event-ID', 'pass-captain' ) . '"> <button type="submit" class="button" form="wpcap-pa-event-search">' . esc_html__( 'Events suchen', 'pass-captain' ) . '</button></p>';
+		echo '<p class="description">' . esc_html__( 'Die Suche lädt die Seite neu – nicht gespeicherte Änderungen im Formular gehen dabei verloren.', 'pass-captain' ) . '</p>';
+		$found = Repository::search_events( $term, self::EVENTS_PER_PAGE );
+		$shown = 0;
+		echo '<fieldset><legend class="screen-reader-text">' . esc_html__( 'Events hinzufügen', 'pass-captain' ) . '</legend>';
+		foreach ( $found['rows'] as $row ) {
+			$owner = (int) $row->owner_id;
+			if ( $partner_id && $owner === $partner_id ) { continue; }
+			++$shown;
+			$foreign = $owner > 0;
+			echo '<label style="display:block"><input type="checkbox" name="add_event_ids[]" value="' . (int) $row->event_id . '"' . disabled( $foreign, true, false ) . '> ' . esc_html( $row->name ) . ' <small>#' . (int) $row->event_id . '</small>' . ( $foreign ? ' <em>(' . esc_html__( 'anderer Veranstalter', 'pass-captain' ) . ')</em>' : '' ) . '</label>';
+		}
+		echo '</fieldset>';
+		if ( ! $shown ) { echo '<p>' . esc_html__( 'Keine weiteren Events gefunden.', 'pass-captain' ) . '</p>'; }
+		if ( $found['more'] ) {
+			/* translators: %d: number of search results shown */
+			echo '<p class="description wpcap-truncated">' . esc_html( sprintf( __( 'Es werden nur die ersten %d Treffer angezeigt – bitte die Suche eingrenzen oder Event-IDs eingeben.', 'pass-captain' ), self::EVENTS_PER_PAGE ) ) . '</p>';
+		}
+		echo '<p><label for="wpcap-pa-event-ids">' . esc_html__( 'Event-IDs hinzufügen (kommagetrennt)', 'pass-captain' ) . '</label><br><input id="wpcap-pa-event-ids" name="add_event_ids_text" class="regular-text" inputmode="numeric" placeholder="12, 15"></p>';
+		echo '<p class="description">' . esc_html__( 'Ein Event gehört immer nur einem Veranstalter. Zum Umhängen das Event erst beim bisherigen Veranstalter lösen: Verkäufe bis dahin und ihre späteren Erstattungen bleiben beim bisherigen Veranstalter, neue Verkäufe gehen an den neuen.', 'pass-captain' ) . '</p>';
+		echo '</td></tr>';
+	}
+
+	/** Assignment history of the partner's events (A448). */
+	private static function render_event_history( $partner ) {
+		$rows = Repository::history_of_partner( (int) $partner->partner_id, 50 );
+		if ( ! $rows ) { return; }
+		$tz = Scope::site_timezone();
+		echo '<h3>' . esc_html__( 'Zuordnungsverlauf der Events', 'pass-captain' ) . '</h3><p class="description">' . esc_html__( 'Verkäufe werden dem Veranstalter zugerechnet, dem das Event beim Bestelldatum zugeordnet war; Erstattungen folgen dem Verkauf.', 'pass-captain' ) . '</p>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Event', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Gültig ab', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Gültig bis', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			$from = $row->valid_from ? Scope::local( $row->valid_from, $tz, 'd.m.Y H:i' ) : __( 'von Beginn an', 'pass-captain' );
+			$to = $row->valid_to ? Scope::local( $row->valid_to, $tz, 'd.m.Y H:i' ) : __( 'aktuell', 'pass-captain' );
+			echo '<tr><td>' . esc_html( (string) ( $row->event_name ?? '' ) ) . ' <small>#' . (int) $row->event_id . '</small></td><td>' . esc_html( $from ) . '</td><td>' . esc_html( $to ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
 	}
 
 	/** Form section "Verkauf über die API" (role, channel, hold, cancellation window, reseller terms). */
@@ -526,6 +614,11 @@ final class AdminPage {
 		foreach ( $names as $event_id => $name ) {
 			echo '<label style="display:block"><input type="checkbox" name="event_ids[]" value="' . (int) $event_id . '"> ' . esc_html( $name ) . '</label>';
 		}
+		if ( Queries::event_options_truncated() ) {
+			/* translators: %d: number of events shown */
+			echo '<p class="description wpcap-truncated">' . esc_html( sprintf( __( 'Es werden nur die ersten %d Events angezeigt; weitere Events über ihre ID im Feld darunter angeben.', 'pass-captain' ), Queries::EVENT_OPTIONS_LIMIT ) ) . '</p>';
+		}
+		echo '<p><label for="wpcap-pk-event-ids">' . esc_html__( 'Weitere Event-IDs (kommagetrennt, optional)', 'pass-captain' ) . '</label><br><input id="wpcap-pk-event-ids" name="event_ids_text" class="regular-text" inputmode="numeric"></p>';
 		echo '<p class="description">' . esc_html__( 'Keine Auswahl = alle aktuellen und künftigen Events des Veranstalters. Event-beschränkte Keys können keine Abrechnungen abrufen.', 'pass-captain' ) . '</p></fieldset></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-pk-ip">' . esc_html__( 'IP-Allowlist (optional)', 'pass-captain' ) . '</label></th><td><textarea id="wpcap-pk-ip" name="ip_allowlist" rows="2" class="regular-text" placeholder="203.0.113.10&#10;198.51.100.0/24"></textarea></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-pk-exp">' . esc_html__( 'Gültig bis (optional)', 'pass-captain' ) . '</label></th><td><input type="datetime-local" id="wpcap-pk-exp" name="expires_at"></td></tr>';

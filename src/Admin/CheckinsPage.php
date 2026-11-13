@@ -54,8 +54,8 @@ final class CheckinsPage {
 	public static function render() {
 		if ( ! array_filter( self::VIEW_CAPS, 'current_user_can' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$scope = Queries::event_ids_for( self::VIEW_CAPS );
-		$events = Queries::event_options( $scope );
 		$event_id = absint( Forms::query_arg( 'event_id', 0 ) );
+		$events = Queries::event_options( $scope, array( $event_id ) );
 		if ( $event_id && ! isset( $events[ $event_id ] ) ) { $event_id = 0; }
 		$results = Queries::checkin_results();
 		$result = in_array( Forms::query_arg( 'result' ), $results, true ) ? Forms::query_arg( 'result' ) : '';
@@ -86,6 +86,7 @@ final class CheckinsPage {
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
 			<span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Datum und Uhrzeit in %s', 'pass-captain' ), $timezone ) ); ?></span>
 		</form>
+		<?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?>
 		<?php if ( $event_id && ! empty( $occurrences ) ) { self::render_presence( $event_id, $occurrences ); } ?>
 		<table class="widefat striped">
 			<thead><tr>

@@ -26,7 +26,7 @@ Code: `src/Modules/Partners.php`, `src/Partners/`.
 | Bei Erstattungen | `reverse_all`: Provision und Ticketgebühr werden storniert · `keep_fixed_fee`: nur die Provision wird storniert · `keep_all`: beide bleiben bestehen. |
 | Abrechnung ab | Bestellungen vor diesem Datum werden nie abgerechnet (verhindert, dass Altdaten in die erste Abrechnung fallen). Standard: Monatserster beim Anlegen. |
 | Status | `inaktiv` sperrt alle API-Keys des Veranstalters (403). |
-| Events | Ein Event gehört höchstens einem Veranstalter. |
+| Events | Ein Event gehört zu jedem Zeitpunkt höchstens einem Veranstalter. Das Formular zeigt die verknüpften Events seitenweise (je 50, Haken „lösen“), eine Suche nach Name oder Event-ID zum Hinzufügen (höchstens 50 Treffer mit Hinweis, wenn es mehr gibt) und ein Feld für Event-IDs. Gespeichert werden nur diese Änderungen – Events, die nicht angezeigt wurden, bleiben verknüpft. Zum Umhängen das Event erst beim bisherigen Veranstalter lösen, dann beim neuen hinzufügen (siehe *Zuordnung und Umhängen*). |
 | Rolle | `organizer` (Veranstalter, verkauft Ticketarten der eigenen Events) oder `reseller` (Wiederverkäufer, verkauft die Ticketarten seiner Preisliste – auch Events anderer Veranstalter). |
 | Name des Verkaufskanals | erscheint als `channel` an jeder API-Bestellung (z. B. „Reseller-Portal“). |
 | Reservierungsdauer | Haltezeit von API-Reservierungen in Minuten (1–60, Standard 15). |
@@ -371,6 +371,31 @@ Beträge stammen aus den Bestell-Schnappschüssen (brutto inkl. USt, Rabatt wie 
 Positionen verteilt); Erstattungen werden wie im Berichtsmodul auf die Positionen verteilt (USt laut
 Erstattung). Bestellungen anderer Währungen werden ignoriert.
 
+### Zuordnung und Umhängen von Events
+
+Jede Verknüpfung Event ↔ Veranstalter wird mit Gültigkeitszeitraum gespeichert
+(`wpcap_partner_event_history`, sichtbar als „Zuordnungsverlauf der Events“ auf der Veranstalterseite):
+
+- Ein **Verkauf** gehört dem Veranstalter, dem das Event beim **Bestelldatum** zugeordnet war – auch wenn
+  er erst später bezahlt wird (`late_sale` beim bisherigen Veranstalter).
+- Eine **Erstattung** folgt dem Verkauf: sie geht an den Veranstalter, der den Verkauf abgerechnet hat
+  (noch nicht abgerechnet: an den beim Bestelldatum zugeordneten) und erscheint dort als Erstattung bzw.
+  Korrektur – nie beim neuen Veranstalter.
+- Die erste Zuordnung eines Events gilt von Beginn an (begrenzt durch „Abrechnung ab“); eine spätere beginnt
+  dort, wo die vorige endete. Verkäufe in einer Lücke ohne Veranstalter gehen an den nächsten.
+- Jede Position wird beim Abschließen mit einem **plattformweit** eindeutigen Schlüssel gesperrt: Was ein
+  Veranstalter abgerechnet hat, kann kein anderer noch einmal abrechnen (keine Doppelauszahlung beim Umhängen).
+  Gutscheinpositionen (`voucher`, `voucher_refund`) werden je Veranstalter gesperrt, weil ihr Betrag auf die
+  Veranstalter einer Bestellung aufgeteilt wird.
+
+Das Update auf Schema 3.10.8 legt für alle bestehenden Verknüpfungen eine Zuordnung „von Beginn an“ an. Wurde
+ein Event schon vorher umgehängt, ist der frühere Zeitraum nicht rekonstruierbar: bereits abgerechnete Verkäufe
+und deren Erstattungen bleiben beim abrechnenden Veranstalter, noch nicht abgerechnete Verkäufe aus der Zeit
+vor dem Umhängen gehen an den aktuellen Veranstalter. Positionen, die vor dem Update bereits von zwei
+Veranstaltern abgerechnet wurden, behalten ihre (unveränderlichen) Belege; die spätere Position erhält den
+Sperrschlüssel `dup:<line_id>`, und das Audit-Log (`partner_settlement_duplicates`) listet sie, damit die
+Überzahlung zurückgefordert werden kann.
+
 ### Berechnung
 
 Je Position: `Netto = Brutto − USt`, `Provision = round(Netto × Provisionssatz)` (kaufmännisch,
@@ -404,8 +429,9 @@ Satz; ohne USt bei Kleinunternehmern oder Reverse Charge). Die API liefert zusä
 2. **Abgeschlossen** – „Abschließen“ ist erst nach Monatsende möglich und nur, wenn kein Entwurf
    eines früheren Monats offen ist. Der Entwurf wird neu berechnet, erhält eine lückenlose Nummer
    (Serie `partner`, Präfix einstellbar, z. B. `PA-2026-000001`), Veranstalter- und Verkäuferdaten
-   werden als Schnappschuss gespeichert, und jede Position wird per eindeutigem Schlüssel je
-   Veranstalter gesperrt (Datenbank-Unique-Index) – keine Position kann zweimal abgerechnet werden.
+   werden als Schnappschuss gespeichert, und jede Position wird per plattformweit eindeutigem Schlüssel
+   gesperrt (Datenbank-Unique-Index) – keine Position kann zweimal abgerechnet werden, auch nicht von einem
+   anderen Veranstalter nach dem Umhängen des Events.
 3. **Ausgezahlt** – „Als ausgezahlt markieren“ mit optionaler Zahlungsreferenz.
 
 Abgeschlossene/ausgezahlte Abrechnungen sind unveränderlich (keine Neuberechnung, kein Löschen, keine
@@ -416,7 +442,8 @@ Ausgaben: druckbare HTML-Ansicht („Drucken oder als PDF speichern“) und CSV 
 formelsicher) mit allen Positionen, USt nach Satz und Summen.
 
 Audit-Log: `partner_settlement_created`, `partner_settlement_finalized`, `partner_settlement_paid`,
-`partner_settlement_deleted`.
+`partner_settlement_deleted`, `partner_events_set` (hinzugefügte, gelöste und übersprungene Events),
+`partner_settlement_duplicates` (Migration, siehe oben).
 
 ### Berechtigungen
 

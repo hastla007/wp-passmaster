@@ -99,7 +99,9 @@ final class DeveloperKeysPage {
 		$filter = in_array( $filter, array( 'active', 'expired', 'revoked' ), true ) ? $filter : '';
 		$keys = DeveloperKeys::all( $filter );
 		$scopes = DeveloperKeys::scopes();
-		$events = Queries::event_options( Queries::event_ids_for( array( 'wpcap_manage_events' ) ) );
+		$preselect = absint( Forms::query_arg( 'event_id', 0 ) );
+		$events = Queries::event_options( Queries::event_ids_for( array( 'wpcap_manage_events' ) ), array( $preselect ) );
+		$events_note = Queries::event_options_note();
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Entwickler-API', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
 		echo '<p class="description">' . esc_html__( 'Entwickler-API-Schlüssel geben externen Systemen lesenden Zugriff auf genau ein Event. Jede Anfrage sendet den Schlüssel im Header X-WPCAP-Key. Der Schlüssel gilt nur, solange die Person, die ihn angelegt hat, für das Event berechtigt ist und alle Termine des Events in ihrem Standort- oder Partnerbereich liegen.', 'pass-captain' ) . '</p>';
@@ -120,8 +122,8 @@ final class DeveloperKeysPage {
 			echo '<table class="form-table" role="presentation"><tbody>';
 			echo '<tr><th scope="row"><label for="wpcap-key-label">' . esc_html__( 'Bezeichnung', 'pass-captain' ) . '</label></th><td><input type="text" id="wpcap-key-label" name="label" maxlength="190" class="regular-text" placeholder="' . esc_attr__( 'z. B. Ticketstatistik Website', 'pass-captain' ) . '"></td></tr>';
 			echo '<tr><th scope="row"><label for="wpcap-key-event">' . esc_html__( 'Event', 'pass-captain' ) . '</label></th><td>';
-			Forms::select( 'event_id', $events, '', 'wpcap-key-event' );
-			echo '<p class="description">' . esc_html__( 'Der Schlüssel funktioniert nur für dieses Event.', 'pass-captain' ) . '</p></td></tr>';
+			Forms::select( 'event_id', $events, $preselect ? (string) $preselect : '', 'wpcap-key-event' );
+			echo '<p class="description">' . esc_html__( 'Der Schlüssel funktioniert nur für dieses Event.', 'pass-captain' ) . '</p>' . $events_note . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note.
 			echo '<tr><th scope="row">' . esc_html__( 'Scopes', 'pass-captain' ) . '</th><td><fieldset><legend class="screen-reader-text">' . esc_html__( 'Scopes', 'pass-captain' ) . '</legend>';
 			foreach ( $scopes as $scope => $label ) {
 				echo '<label style="display:block"><input type="checkbox" name="scopes[]" value="' . esc_attr( $scope ) . '"> <code>' . esc_html( $scope ) . '</code> – ' . esc_html( $label ) . '</label>';

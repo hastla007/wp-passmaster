@@ -79,14 +79,14 @@ final class AdminPage {
 
 	public static function render() {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
-		$events = Queries::event_options( Queries::event_ids_for( self::CAP ) );
 		$event_id = absint( Forms::query_arg( 'event_id', 0 ) );
+		$events = Queries::event_options( Queries::event_ids_for( self::CAP ), array( $event_id ) );
 		if ( $event_id && ! isset( $events[ $event_id ] ) ) { $event_id = 0; }
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Warteliste', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '"><label for="wpcap-wl-event">' . esc_html__( 'Event', 'pass-captain' ) . '</label> ';
 		Forms::select( 'event_id', array( 0 => __( '– Event wählen –', 'pass-captain' ) ) + $events, $event_id, 'wpcap-wl-event' );
-		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></form>';
+		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></form>' . Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note.
 		if ( $event_id ) { self::render_entries( $event_id ); }
 		if ( current_user_can( self::SETTINGS_CAP ) ) { self::render_settings(); }
 		echo '</div>';

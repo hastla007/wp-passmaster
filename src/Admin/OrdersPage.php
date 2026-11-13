@@ -258,7 +258,7 @@ final class OrdersPage {
 		$per_page = 20;
 		$data = Queries::search_orders( $filters, $scope, $page, $per_page );
 		\PassCaptain\Privacy\AccessLog::list_view( 'order_list', $filters + array( 'paged' => $page ), count( $data['rows'] ) );
-		$events = Queries::event_options( $scope );
+		$events = Queries::event_options( $scope, array( $filters['event_id'] ) );
 		$base = Forms::page_url( self::SLUG, array_filter( array( 'status' => $filters['status'], 'payment_status' => $filters['payment_status'], 's' => $filters['search'], 'event_id' => $filters['event_id'] ) ) );
 		$status_options = array( '' => __( 'Alle Bestellstatus', 'pass-captain' ) );
 		foreach ( self::ORDER_STATUSES as $s ) { $status_options[ $s ] = Forms::status_label( $s ); }
@@ -275,6 +275,7 @@ final class OrdersPage {
 			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'pass-captain' ); ?>">
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
 		</form>
+		<?php echo Queries::event_options_note(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note. ?>
 		<table class="widefat striped">
 			<thead><tr>
 				<th><?php esc_html_e( 'Bestellung', 'pass-captain' ); ?></th>

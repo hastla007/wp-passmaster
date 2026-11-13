@@ -128,7 +128,9 @@ final class CampaignsPage {
 
 		echo '<h2>' . esc_html__( 'Neuen Code anlegen', 'pass-captain' ) . '</h2>';
 		Forms::open_form( 'wpcap_campaign_create' );
-		$events = Queries::event_options( $scope );
+		$preselect = absint( Forms::query_arg( 'event_id', 0 ) );
+		$events = Queries::event_options( $scope, array( $preselect ) );
+		$events_note = Queries::event_options_note();
 		if ( current_user_can( 'manage_options' ) ) { $events = array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events; }
 		echo '<table class="form-table"><tbody>';
 		echo '<tr><th><label for="wpcap-c-code">' . esc_html__( 'Code', 'pass-captain' ) . '</label></th><td><input id="wpcap-c-code" name="code" required maxlength="32" pattern="[A-Za-z0-9_-]{3,32}" style="text-transform:uppercase"> <span class="description">' . esc_html__( '3–32 Zeichen: Buchstaben, Ziffern, - und _', 'pass-captain' ) . '</span></td></tr>';
@@ -137,8 +139,8 @@ final class CampaignsPage {
 		Forms::select( 'kind', array( 'percent' => __( 'Prozent', 'pass-captain' ), 'fixed' => __( 'Fester Betrag', 'pass-captain' ) ), 'percent', 'wpcap-c-kind' );
 		echo ' <label for="wpcap-c-value">' . esc_html__( 'Wert', 'pass-captain' ) . '</label> <input id="wpcap-c-value" name="value" inputmode="decimal" size="8" required> <label for="wpcap-c-cur">' . esc_html__( 'Währung', 'pass-captain' ) . '</label> <input id="wpcap-c-cur" name="currency" value="EUR" size="4" maxlength="3"></td></tr>';
 		echo '<tr><th><label for="wpcap-c-event">' . esc_html__( 'Event', 'pass-captain' ) . '</label></th><td>';
-		Forms::select( 'event_id', $events, (int) array_key_first( $events ), 'wpcap-c-event' );
-		echo ' <label for="wpcap-c-type">' . esc_html__( 'Ticketart-ID (optional)', 'pass-captain' ) . '</label> <input id="wpcap-c-type" name="ticket_type_id" type="number" min="0" size="6"></td></tr>';
+		Forms::select( 'event_id', $events, isset( $events[ $preselect ] ) ? $preselect : (int) array_key_first( $events ), 'wpcap-c-event' );
+		echo ' <label for="wpcap-c-type">' . esc_html__( 'Ticketart-ID (optional)', 'pass-captain' ) . '</label> <input id="wpcap-c-type" name="ticket_type_id" type="number" min="0" size="6">' . $events_note . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note.
 		echo '<tr><th><label for="wpcap-c-limit">' . esc_html__( 'Max. Nutzungen', 'pass-captain' ) . '</label></th><td><input id="wpcap-c-limit" name="usage_limit" type="number" min="0" value="0"> <span class="description">' . esc_html__( '0 = unbegrenzt', 'pass-captain' ) . '</span></td></tr>';
 		echo '<tr><th><label for="wpcap-c-start">' . esc_html__( 'Gültig ab / bis', 'pass-captain' ) . '</label></th><td><input id="wpcap-c-start" name="starts_at" type="datetime-local"> – <input id="wpcap-c-end" name="ends_at" type="datetime-local" aria-label="' . esc_attr__( 'Gültig bis', 'pass-captain' ) . '"> <span class="description">' . esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = unbegrenzt', 'pass-captain' ), $tz ) ) . '</span></td></tr>';
 		echo '<tr><th><label for="wpcap-c-prio">' . esc_html__( 'Reihenfolge', 'pass-captain' ) . '</label></th><td><input id="wpcap-c-prio" name="priority" type="number" min="0" max="1000" value="100"> <span class="description">' . esc_html__( 'Bei mehreren Codes wird der niedrigere Wert zuerst angewendet.', 'pass-captain' ) . '</span></td></tr>';

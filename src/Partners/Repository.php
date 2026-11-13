@@ -1,8 +1,10 @@
 <?php
 /**
  * Partners (organisers/resellers): master data, commission/fee model, linked events and linked
- * WordPress users. An event belongs to at most one partner (primary key on event_id), so sales are
- * never settled twice.
+ * WordPress users. An event belongs to at most one partner at a time (primary key on event_id);
+ * wpcap_partner_event_history keeps every assignment with its validity period, so a sale and its
+ * refunds belong to the organizer assigned when the order was created (A448). Every item is settled
+ * at most once across all partners (unique source_key, see Settlements).
  */
 namespace PassCaptain\Partners;
 
@@ -255,27 +257,226 @@ final class Repository {
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT partner_id FROM {$wpdb->prefix}wpcap_partner_events WHERE event_id=%d", absint( $event_id ) ) );
 	}
 
+	/** Number of linked events per partner (partner_id => count), one query for the partner list. */
+	public static function event_counts() {
+		global $wpdb;
+		$out = array();
+		foreach ( (array) $wpdb->get_results( "SELECT partner_id, COUNT(*) AS n FROM {$wpdb->prefix}wpcap_partner_events GROUP BY partner_id" ) as $row ) {
+			$out[ (int) $row->partner_id ] = (int) $row->n;
+		}
+		return $out;
+	}
+
 	/**
-	 * Replaces the partner's events. Events already linked to another partner are not moved.
+	 * Replaces the partner's events with the given list (programmatic API). Only the difference is
+	 * written (update_events()); events already linked to another partner are not moved.
 	 *
-	 * @return array|\WP_Error ['event_ids' => linked, 'skipped' => ids owned by other partners]
+	 * @return array|\WP_Error ['event_ids' => linked, 'skipped' => ids owned by other partners, 'added' => ids, 'removed' => ids]
 	 */
 	public static function set_events( $partner_id, array $event_ids ) {
+		$event_ids = array_values( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ) );
+		$current = self::event_ids( $partner_id );
+		return self::update_events( $partner_id, array_diff( $event_ids, $current ), array_diff( $current, $event_ids ) );
+	}
+
+	/**
+	 * Links and unlinks events of a partner (A447): only the given events change, every other link
+	 * stays untouched – a form that shows only part of the events can never drop the others. Events
+	 * linked to another partner are skipped (unlink them there first). Every change is written to the
+	 * assignment history (A448), so sales stay with the organizer assigned at sale time.
+	 *
+	 * @param int[] $add    Event ids to link.
+	 * @param int[] $remove Event ids to unlink (only links of this partner).
+	 * @return array|\WP_Error ['event_ids' => all linked ids, 'skipped' => ids owned by other partners, 'added' => ids, 'removed' => ids]
+	 */
+	public static function update_events( $partner_id, array $add, array $remove = array() ) {
 		global $wpdb;
+		$p = $wpdb->prefix;
 		$partner_id = absint( $partner_id );
 		if ( ! self::get( $partner_id ) ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
-		$event_ids = array_values( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ) );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_events WHERE partner_id=%d", $partner_id ) );
-		$linked = array();
-		$skipped = array();
-		foreach ( $event_ids as $event_id ) {
-			if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) ) ) { continue; }
-			$owner = self::partner_of_event( $event_id );
-			if ( $owner && $owner !== $partner_id ) { $skipped[] = $event_id; continue; }
-			if ( false !== $wpdb->insert( "{$wpdb->prefix}wpcap_partner_events", array( 'event_id' => $event_id, 'partner_id' => $partner_id ) ) ) { $linked[] = $event_id; }
+		$remove = array_values( array_unique( array_filter( array_map( 'absint', $remove ) ) ) );
+		$add = array_values( array_diff( array_unique( array_filter( array_map( 'absint', $add ) ) ), $remove ) );
+		$removed = array();
+		if ( $remove ) {
+			$in = implode( ',', $remove );
+			$linked = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_partner_events WHERE partner_id=%d AND event_id IN ($in)", $partner_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			foreach ( $linked as $event_id ) {
+				if ( $wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_partner_events WHERE event_id=%d AND partner_id=%d", $event_id, $partner_id ) ) ) {
+					self::history_close( $event_id, $partner_id );
+					$removed[] = $event_id;
+				}
+			}
 		}
-		Audit::record( 'partner_events_set', 'partner', $partner_id, array( 'event_ids' => $linked, 'skipped' => $skipped ) );
-		return array( 'event_ids' => $linked, 'skipped' => $skipped );
+		$added = array();
+		$skipped = array();
+		if ( $add ) {
+			$in = implode( ',', $add );
+			$existing = array_map( 'absint', $wpdb->get_col( "SELECT event_id FROM {$p}wpcap_events WHERE event_id IN ($in)" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$owners = array();
+			foreach ( (array) $wpdb->get_results( "SELECT event_id, partner_id FROM {$p}wpcap_partner_events WHERE event_id IN ($in)" ) as $row ) { $owners[ (int) $row->event_id ] = (int) $row->partner_id; } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			foreach ( $add as $event_id ) {
+				if ( ! in_array( $event_id, $existing, true ) ) { continue; }
+				$owner = $owners[ $event_id ] ?? 0;
+				if ( $owner === $partner_id ) { continue; }
+				if ( $owner ) { $skipped[] = $event_id; continue; }
+				// The primary key on event_id rejects a concurrent link by another partner.
+				if ( 1 === (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_partner_events (event_id,partner_id) VALUES (%d,%d)", $event_id, $partner_id ) ) ) {
+					self::history_open( $event_id, $partner_id );
+					$added[] = $event_id;
+				} else {
+					$skipped[] = $event_id;
+				}
+			}
+		}
+		if ( $added || $removed || $skipped ) {
+			Audit::record( 'partner_events_set', 'partner', $partner_id, array( 'added' => $added, 'removed' => $removed, 'skipped' => $skipped ) );
+		}
+		return array( 'event_ids' => self::event_ids( $partner_id ), 'skipped' => $skipped, 'added' => $added, 'removed' => $removed );
+	}
+
+	/* ------------------------------------------------------------------ Assignment history (A448) */
+
+	/** Whether the assignment history table exists (schema 3.10.8). */
+	public static function history_ready() {
+		return \PassCaptain\Privacy::has_table( 'wpcap_partner_event_history' );
+	}
+
+	/**
+	 * Opens a history row for a new link. The first assignment of an event is valid since always
+	 * (earlier sales belong to the first organizer, bounded by its settlement start); a later one
+	 * starts where the previous assignment ended, so sales in an unassigned gap go to the next organizer.
+	 */
+	private static function history_open( $event_id, $partner_id ) {
+		global $wpdb;
+		if ( ! self::history_ready() ) { return; }
+		$table = $wpdb->prefix . 'wpcap_partner_event_history';
+		$now = current_time( 'mysql', true );
+		// A stale open row (link removed outside this class) ends now.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$table} SET valid_to=%s WHERE event_id=%d AND valid_to IS NULL", $now, $event_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$last = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(valid_to) FROM {$table} WHERE event_id=%d", $event_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		$row = array( 'event_id' => $event_id, 'partner_id' => $partner_id, 'created_by' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0, 'created_at' => $now );
+		if ( $last ) { $row['valid_from'] = (string) $last; }
+		$wpdb->insert( $table, $row );
+	}
+
+	/** Ends the open history row of a removed link (a link from before the history gets one since always). */
+	private static function history_close( $event_id, $partner_id ) {
+		global $wpdb;
+		if ( ! self::history_ready() ) { return; }
+		$table = $wpdb->prefix . 'wpcap_partner_event_history';
+		$now = current_time( 'mysql', true );
+		$updated = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET valid_to=%s WHERE event_id=%d AND partner_id=%d AND valid_to IS NULL", $now, $event_id, $partner_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+		if ( ! $updated && ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE event_id=%d LIMIT 1", $event_id ) ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
+			$wpdb->insert( $table, array( 'event_id' => $event_id, 'partner_id' => $partner_id, 'valid_to' => $now, 'created_by' => function_exists( 'get_current_user_id' ) ? (int) get_current_user_id() : 0, 'created_at' => $now ) );
+		}
+	}
+
+	/**
+	 * Assignment periods per event: event_id => list of ['partner_id', 'from' (''=since always), 'to' (''=open)],
+	 * oldest first. Events without history rows fall back to their current link (valid since always).
+	 *
+	 * @param int[] $event_ids
+	 * @return array<int,array<int,array{partner_id:int,from:string,to:string}>>
+	 */
+	public static function assignments( array $event_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$event_ids = array_values( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ) );
+		$out = array();
+		foreach ( array_chunk( $event_ids, 500 ) as $chunk ) {
+			$in = implode( ',', $chunk );
+			if ( self::history_ready() ) {
+				foreach ( (array) $wpdb->get_results( "SELECT event_id,partner_id,valid_from,valid_to FROM {$p}wpcap_partner_event_history WHERE event_id IN ($in) ORDER BY event_id, valid_from IS NOT NULL, valid_from, history_id" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+					$out[ (int) $row->event_id ][] = array( 'partner_id' => (int) $row->partner_id, 'from' => (string) $row->valid_from, 'to' => (string) $row->valid_to );
+				}
+			}
+			foreach ( (array) $wpdb->get_results( "SELECT event_id,partner_id FROM {$p}wpcap_partner_events WHERE event_id IN ($in)" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				if ( ! isset( $out[ (int) $row->event_id ] ) ) { $out[ (int) $row->event_id ] = array( array( 'partner_id' => (int) $row->partner_id, 'from' => '', 'to' => '' ) ); }
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Partner assigned at a point in time (UTC 'Y-m-d H:i:s') according to the assignments() periods
+	 * of one event; 0 = none. A period covers [from, to).
+	 */
+	public static function partner_at( array $periods, $at ) {
+		$at = (string) $at;
+		$found = 0;
+		foreach ( $periods as $period ) {
+			if ( ( '' === $period['from'] || $period['from'] <= $at ) && ( '' === $period['to'] || $at < $period['to'] ) ) { $found = (int) $period['partner_id']; }
+		}
+		return $found;
+	}
+
+	/**
+	 * Events a partner's settlement must look at: currently linked, linked at any time (history) and
+	 * events of items it already settled (refunds of those are corrections for it).
+	 *
+	 * @return int[]
+	 */
+	public static function settlement_event_ids( $partner_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$partner_id = absint( $partner_id );
+		$ids = self::event_ids( $partner_id );
+		if ( self::history_ready() ) {
+			$ids = array_merge( $ids, $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$p}wpcap_partner_event_history WHERE partner_id=%d", $partner_id ) ) );
+		}
+		$ids = array_merge( $ids, $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$p}wpcap_partner_settlement_lines WHERE partner_id=%d AND source_key IS NOT NULL AND event_id>0", $partner_id ) ) );
+		$ids = array_values( array_unique( array_map( 'absint', $ids ) ) );
+		sort( $ids );
+		return $ids;
+	}
+
+	/** Assignment history of a partner (newest first) with event names, for the admin screen. */
+	public static function history_of_partner( $partner_id, $limit = 50 ) {
+		global $wpdb;
+		if ( ! self::history_ready() ) { return array(); }
+		$p = $wpdb->prefix;
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT h.*, e.name AS event_name FROM {$p}wpcap_partner_event_history h LEFT JOIN {$p}wpcap_events e ON e.event_id=h.event_id WHERE h.partner_id=%d ORDER BY h.history_id DESC LIMIT %d", absint( $partner_id ), max( 1, (int) $limit ) ) );
+	}
+
+	/* ------------------------------------------------------------------ Event picker (A447) */
+
+	/**
+	 * One page of the partner's linked events with names (one query plus a count).
+	 *
+	 * @return array{rows:object[],total:int}
+	 */
+	public static function linked_events_page( $partner_id, $page = 1, $per_page = 50 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$partner_id = absint( $partner_id );
+		$per_page = max( 1, (int) $per_page );
+		$offset = ( max( 1, (int) $page ) - 1 ) * $per_page;
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_partner_events WHERE partner_id=%d", $partner_id ) );
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( "SELECT pe.event_id, COALESCE(e.name,'') AS name FROM {$p}wpcap_partner_events pe LEFT JOIN {$p}wpcap_events e ON e.event_id=pe.event_id WHERE pe.partner_id=%d ORDER BY e.name, pe.event_id LIMIT %d OFFSET %d", $partner_id, $per_page, $offset ) );
+		return array( 'rows' => $rows, 'total' => $total );
+	}
+
+	/**
+	 * Events matching a search (name contains the term, or the event id) with their current partner
+	 * (owner_id, 0 = none) in one query: at most $limit rows and whether more exist.
+	 *
+	 * @return array{rows:object[],more:bool}
+	 */
+	public static function search_events( $term, $limit = 50 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$term = trim( (string) $term );
+		$limit = max( 1, (int) $limit );
+		$where = '1=1';
+		$order = 'e.name, e.event_id';
+		if ( '' !== $term ) {
+			$like = '%' . addcslashes( $term, '_%\\' ) . '%';
+			$where = ctype_digit( $term ) ? $wpdb->prepare( '(e.event_id=%d OR e.name LIKE %s)', (int) $term, $like ) : $wpdb->prepare( 'e.name LIKE %s', $like );
+			// An exact ID match comes first.
+			$order = ctype_digit( $term ) ? $wpdb->prepare( '(e.event_id=%d) DESC, ', (int) $term ) . $order : $order;
+		}
+		$rows = (array) $wpdb->get_results( "SELECT e.event_id, e.name, COALESCE(pe.partner_id,0) AS owner_id FROM {$p}wpcap_events e LEFT JOIN {$p}wpcap_partner_events pe ON pe.event_id=e.event_id WHERE $where ORDER BY $order LIMIT " . ( $limit + 1 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragments, integer limit.
+		return array( 'rows' => array_slice( $rows, 0, $limit ), 'more' => count( $rows ) > $limit );
 	}
 
 	public static function user_ids( $partner_id ) {

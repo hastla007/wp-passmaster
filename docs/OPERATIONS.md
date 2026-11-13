@@ -589,6 +589,22 @@ ganze Tabelle; Schema 3.10.7 ergänzt `wpcap_refunds.status_updated (status,upda
 `wpcap_credit_notes.issued_at` (gelesene Zeilen 14 546 → 638 bzw. 7 471 → 638 für einen Monat). Die Indizes
 legt das Upgrade über `dbDelta` an; `Installer::upgrade_indexes()` gleicht sie bei späteren Änderungen ab.
 
+**Schema 3.10.8** (A448): neue Tabelle `wpcap_partner_event_history` (Zuordnung Event ↔ Veranstalter mit
+Gültigkeitszeitraum), `wpcap_partner_settlement_lines` bekommt `UNIQUE source_key` statt
+`partner_source (partner_id,source_key)` sowie `order_id` und `partner_event (partner_id,event_id)` – die
+Abrechnung liest bereits abgerechnete Positionen je Bestellung statt der ganzen Historie des Veranstalters.
+Die Datenmigration (`Modules\Partners::migrate()`, Option `wpcap_partners_migration`) läuft nach dem
+Schema-Update unter der Upgrade-Sperre: Zuordnungen „von Beginn an“ für bestehende Verknüpfungen,
+Gutschein-Sperrschlüssel mit Veranstalter-ID, Doppelabrechnungen als `dup:<line_id>` markiert (Audit
+`partner_settlement_duplicates`), dann Indextausch. Scheitert der Indextausch, bleibt die Option
+unverändert und die Migration läuft beim nächsten Aufruf erneut; die Doppelprüfung der Abrechnung ist davon
+unabhängig plattformweit.
+
+**Event-Auswahllisten** im Admin zeigen höchstens 500 Events (`Queries::EVENT_OPTIONS_LIMIT`, alphabetisch).
+Ist die Liste gekürzt, erscheint ein Hinweis; ein gewähltes oder gespeichertes Event (z. B. `&event_id=…` in
+der Adresse) steht immer in der Liste, sodass ein Filter oder Formular nie still auf ein anderes Event
+springt. Die Veranstalterseite nutzt statt einer Liste eine Suche mit Seitenblättern (A447).
+
 ## Kontingentzähler (große Vorverkäufe)
 
 Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht erstattete Einheiten) und

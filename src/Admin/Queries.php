@@ -281,15 +281,51 @@ final class Queries {
 		return (array) apply_filters( 'wpcap_event_figures', $out, $ids );
 	}
 
+	/** Maximum number of events in an event select (event_options()). */
+	const EVENT_OPTIONS_LIMIT = 500;
+
+	/** Whether the last event_options() call was cut at EVENT_OPTIONS_LIMIT. */
+	private static $options_truncated = false;
+
+	/** True when the last event_options() list was cut (more events exist than shown). */
+	public static function event_options_truncated() {
+		return self::$options_truncated;
+	}
+
+	/**
+	 * Escaped note for a cut event select (empty when the last list was complete): which events are
+	 * shown and how to reach the others (event ID in the page address).
+	 */
+	public static function event_options_note() {
+		if ( ! self::$options_truncated ) { return ''; }
+		/* translators: %d: number of events shown */
+		return '<p class="description wpcap-truncated">' . esc_html( sprintf( __( 'Es werden nur die ersten %d Events (alphabetisch) angezeigt. Weitere Events über die Event-ID in der Adresse auswählen (…&event_id=123); eine bereits gespeicherte Auswahl bleibt erhalten.', 'pass-captain' ), self::EVENT_OPTIONS_LIMIT ) ) . '</p>';
+	}
+
 	/**
 	 * Event id => label for selects (scoped). Events sharing a name are told apart by their first
-	 * date and ID ("Konzert (12.05.2027 20:00 Europe/Vienna, #14)").
+	 * date and ID ("Konzert (12.05.2027 20:00 Europe/Vienna, #14)"). At most EVENT_OPTIONS_LIMIT
+	 * events plus the $include ids (selected or stored values, when in scope).
+	 *
+	 * @param int[]|null $event_ids Scope (null = all).
+	 * @param int[]      $include   Event ids that must be in the list when in scope.
 	 */
-	public static function event_options( $event_ids ) {
+	public static function event_options( $event_ids, array $include = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$scope = self::scope_sql( $event_ids, 'e.event_id' );
-		$rows = $wpdb->get_results( "SELECT e.event_id,e.name,MIN(o.starts_at) AS first_start,MIN(o.timezone) AS timezone FROM {$p}wpcap_events e LEFT JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id WHERE 1=1{$scope} GROUP BY e.event_id,e.name ORDER BY e.name,first_start LIMIT 500" );
+		$select = "SELECT e.event_id,e.name,MIN(o.starts_at) AS first_start,MIN(o.timezone) AS timezone FROM {$p}wpcap_events e LEFT JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id WHERE 1=1{$scope}";
+		$rows = (array) $wpdb->get_results( "$select GROUP BY e.event_id,e.name ORDER BY e.name,first_start LIMIT " . ( self::EVENT_OPTIONS_LIMIT + 1 ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- scope from scope_sql(), integer limit.
+		// A447: the list is capped; a cut list is reported (event_options_note()) and the selected/stored
+		// events are always added, so a select never silently switches to another value or drops one.
+		self::$options_truncated = count( $rows ) > self::EVENT_OPTIONS_LIMIT;
+		$rows = array_slice( $rows, 0, self::EVENT_OPTIONS_LIMIT );
+		$have = array_map( static function ( $r ) { return (int) $r->event_id; }, $rows );
+		$include = array_values( array_diff( array_unique( array_filter( array_map( 'absint', $include ) ) ), $have ) );
+		if ( $include ) {
+			$extra = (array) $wpdb->get_results( "$select AND e.event_id IN (" . implode( ',', $include ) . ') GROUP BY e.event_id,e.name' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$rows = array_merge( $rows, $extra );
+		}
 		$count = array();
 		foreach ( (array) $rows as $row ) { $key = mb_strtolower( trim( (string) $row->name ) ); $count[ $key ] = ( $count[ $key ] ?? 0 ) + 1; }
 		$out = array();

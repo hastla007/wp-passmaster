@@ -105,15 +105,16 @@ final class AssignmentsPage {
 
 	public static function render() {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
-		$events = Queries::event_options( Queries::event_ids_for( array( self::CAP ) ) );
 		$event_id = absint( Forms::query_arg( 'event_id' ) );
+		$events = Queries::event_options( Queries::event_ids_for( array( self::CAP ) ), array( $event_id ) );
+		$events_note = Queries::event_options_note();
 		if ( ! $event_id && 1 === count( $events ) ) { $event_id = (int) array_key_first( $events ); }
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Zuweisungen', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
 		echo '<p class="description">' . esc_html__( 'Das Event-Team (Event-Seite, „Personal und Zugriff“) bestimmt, wer an einem Event mitarbeitet. Hier schränkst du Personen enger ein: auf einzelne Termine je Recht, auf Einlassbereiche und – für Leistungserbringer – auf einzelne Leistungen. Ohne engere Zuweisung gilt das ganze Event.', 'pass-captain' ) . '</p>';
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><label for="wpcap-assignments-event">' . esc_html__( 'Event', 'pass-captain' ) . '</label> ';
 		Forms::select( 'event_id', array( 0 => __( '– Event wählen –', 'pass-captain' ) ) + $events, (string) $event_id, 'wpcap-assignments-event' );
-		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></form>';
+		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button></form>' . $events_note; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped note.
 		if ( ! $event_id ) {
 			echo $events ? '' : '<p>' . esc_html__( 'Es gibt noch kein Event, das du verwalten darfst.', 'pass-captain' ) . '</p>'; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above.
 			echo '</div>';

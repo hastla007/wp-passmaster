@@ -18,8 +18,14 @@
  *
  * Lifecycle draft → finalized → paid. Drafts are recomputed on demand and right before finalizing.
  * Finalizing assigns a gapless document number (Invoices::next_document_number, series "partner"),
- * snapshots the partner data and marks every line with a unique source key per partner, so an item
- * can never be settled twice. Finalized/paid settlements are never changed again.
+ * snapshots the partner data and marks every line with a globally unique source key, so an item can
+ * never be settled twice – not even by another partner after its event was moved (A448).
+ * Finalized/paid settlements are never changed again.
+ *
+ * Attribution (A448): a sale belongs to the organizer that was assigned to its event when the order
+ * was created (Repository::assignments(), wpcap_partner_event_history); a refund belongs to the
+ * organizer that settled the sale, or – not settled yet – the one assigned at sale time. Moving an
+ * event therefore leaves earlier sales and their later corrections with the previous organizer.
  *
  * Document type follows the partner's sales model (SalesModel, docs/SALES-MODELS.md), fixed at finalizing:
  *  - agent    → "Provisionsrechnung" (platform invoices commission + fees, VAT or reverse charge) with an
@@ -95,20 +101,31 @@ final class Settlements {
 		if ( ! empty( $partner->settlement_start ) && Data::valid_date( substr( (string) $partner->settlement_start, 0, 10 ) ) ) {
 			$lower = Data::bounds( substr( (string) $partner->settlement_start, 0, 10 ), substr( (string) $partner->settlement_start, 0, 10 ), $tz )[0];
 		}
-		$events = Repository::event_ids( $partner->partner_id );
+		$partner_id = (int) $partner->partner_id;
+		// Every event the partner owns or owned (A448); each line is then attributed to the organizer
+		// assigned when its order was created – or to the organizer that already settled its sale.
+		$events = Repository::settlement_event_ids( $partner_id );
 		$lines = array();
 		$comp_tickets = 0;
 		$collected_self = 0;
 		$self_orders = array();
 		if ( $events ) {
 			$in = implode( ',', array_map( 'absint', $events ) );
-			$settled = array_flip( $wpdb->get_col( $wpdb->prepare( "SELECT source_key FROM {$p}wpcap_partner_settlement_lines WHERE partner_id=%d AND source_key IS NOT NULL", (int) $partner->partner_id ) ) );
+			$assignments = Repository::assignments( $events );
 			$line_sql = "SELECT oi.item_id,oi.order_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",oi.tax_rate_bp,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 			$has_partner_item = "EXISTS (SELECT 1 FROM {$p}wpcap_order_items x INNER JOIN {$p}wpcap_ticket_types xt ON xt.ticket_type_id=x.ticket_type_id INNER JOIN {$p}wpcap_occurrences xo ON xo.occurrence_id=xt.occurrence_id WHERE x.order_id=ord.order_id AND xo.event_id IN ($in))";
 			$lower_sql = '' !== $lower ? $wpdb->prepare( ' AND ord.created_at >= %s', $lower ) : '';
 
-			// Sales.
+			// Sales and completed refunds of orders with an item of these events.
 			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.created_at,ord.discount_minor,ord.payment_provider FROM {$p}wpcap_orders ord WHERE ord.payment_status IN ('paid','refunded') AND ord.currency=%s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY ord.order_id", $partner->currency, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list / prepared fragment.
+			$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.created_at AS order_created_at,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND ord.currency=%s AND r.updated_at < %s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY r.refund_id", $partner->currency, $end, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// Settled items of all partners (A448: an item is settled once, whoever settled it).
+			$settled = self::settled_keys( array_merge( array_map( static function ( $o ) { return (int) $o->order_id; }, $orders ), array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ) );
+			$is_own = static function ( $line, $order_created_at ) use ( $settled, $assignments, $partner_id ) {
+				$by = $settled[ 'sale:' . (int) $line->item_id ] ?? 0;
+				if ( $by ) { return $by === $partner_id; }
+				return Repository::partner_at( $assignments[ (int) $line->event_id ] ?? array(), $order_created_at ) === $partner_id;
+			};
 			$by_order = self::lines_by_order( array_map( static function ( $o ) { return (int) $o->order_id; }, $orders ), $line_sql );
 			// API sales this organizer sold and collected itself (seller of record = this partner): the money
 			// is already with the organizer, so it is netted against the payout (fees still apply).
@@ -121,15 +138,16 @@ final class Settlements {
 					// only (orders created in the period).
 					if ( $order->created_at >= $start ) {
 						foreach ( $order_lines as $line ) {
-							if ( in_array( (int) $line->event_id, $events, true ) ) { $comp_tickets += (int) $line->quantity; }
+							if ( $is_own( $line, $order->created_at ) ) { $comp_tickets += (int) $line->quantity; }
 						}
 					}
 					continue;
 				}
 				$gross_lines = Data::allocate_discount( $order_lines, (int) $order->discount_minor );
 				$supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order->order_id );
+				$own_line = static function ( $line ) use ( $is_own, $order ) { return $is_own( $line, $order->created_at ); };
 				foreach ( $order_lines as $i => $line ) {
-					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
+					if ( ! $own_line( $line ) ) { continue; }
 					// Lines moved in by a ticket exchange carry no paid amount (OrderLines): the money is on
 					// the original line, a supplementary order or a refund.
 					if ( \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; }
@@ -147,16 +165,16 @@ final class Settlements {
 				// voucher seller. Shown as its own line for the partner's share of the order.
 				// Ticket service exchanges (free tickets) use the stored voucher value (face_value_minor).
 				$single = \PassCaptain\Integrations\Vouchers\Checkout::single_purpose_minor( (int) $order->order_id );
-				if ( $single > 0 && ! isset( $settled[ 'voucher:' . (int) $order->order_id ] ) ) {
-					list( $first, $share ) = self::voucher_share( $single, $order_lines, $events );
+				if ( $single > 0 && ! self::voucher_settled( $settled, 'voucher:' . (int) $order->order_id, $partner_id ) ) {
+					list( $first, $share ) = self::voucher_share( $single, $order_lines, $own_line );
 					if ( $first && $share > 0 ) {
 						$lines[] = self::line( 'voucher', 'voucher:' . (int) $order->order_id, $first, (int) $order->order_id, 0, $order->created_at, $order->created_at, 0, $share, 0, $partner, $tz );
 					}
 				}
 			}
 
-			// Completed refunds.
-			$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.created_at AS order_created_at,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND ord.currency=%s AND r.updated_at < %s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY r.refund_id", $partner->currency, $end, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// Completed refunds: they follow their sale – to the organizer that settled it or, if not
+			// settled yet, the one assigned when the order was created (also after a reassignment).
 			$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
 			foreach ( $refunds as $refund ) {
 				// A multi-purpose voucher paid part of the order: the sale counts the full ticket value, so the refund
@@ -166,18 +184,19 @@ final class Settlements {
 				$refund->amount_minor = $amounts['amount_minor'];
 				$refund->tax_minor = $amounts['tax_minor'];
 				$order_lines = $refund_lines[ (int) $refund->order_id ] ?? array();
+				$own_line = static function ( $line ) use ( $is_own, $refund ) { return $is_own( $line, $refund->order_created_at ); };
 				// A single-purpose voucher share given back to the voucher ends the organizer's claim against the
 				// voucher seller for the refunded tickets: reverse it (own line, no VAT).
 				$back_key = 'voucher_refund:' . (int) $refund->refund_id;
-				if ( \PassCaptain\Integrations\Vouchers\Checkout::PURPOSE_SINGLE === $amounts['purpose'] && $amounts['voucher_minor'] > 0 && ! isset( $settled[ $back_key ] ) ) {
-					list( $first, $back ) = self::voucher_share( $amounts['voucher_minor'], $order_lines, $events );
+				if ( \PassCaptain\Integrations\Vouchers\Checkout::PURPOSE_SINGLE === $amounts['purpose'] && $amounts['voucher_minor'] > 0 && ! self::voucher_settled( $settled, $back_key, $partner_id ) ) {
+					list( $first, $back ) = self::voucher_share( $amounts['voucher_minor'], $order_lines, $own_line );
 					if ( $first && $back > 0 ) {
 						$lines[] = self::line( 'voucher_refund', $back_key, $first, (int) $refund->order_id, (int) $refund->refund_id, $refund->updated_at, $refund->order_created_at, 0, -$back, 0, $partner, $tz );
 					}
 				}
 				foreach ( self::allocate_refund( $refund, $order_lines ) as $i => $share ) {
 					$line = $order_lines[ $i ];
-					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
+					if ( ! $own_line( $line ) ) { continue; }
 					$key = 'refund:' . (int) $refund->refund_id . ':' . (int) $line->item_id;
 					if ( isset( $settled[ $key ] ) ) { continue; }
 					$kind = $refund->order_created_at >= $start ? 'refund' : 'correction';
@@ -269,11 +288,12 @@ final class Settlements {
 	 * Partner's share of a single-purpose voucher amount on an order: by line value, or by ticket count when
 	 * the lines are free (ticket service exchanges). The share is booked on the partner's first line.
 	 *
+	 * @param callable $own fn( object $line ): bool – whether the line belongs to this partner.
 	 * @return array{0:object|null,1:int} [first own line, share]
 	 */
-	private static function voucher_share( $amount, array $order_lines, array $events ) {
+	private static function voucher_share( $amount, array $order_lines, callable $own ) {
 		$all = 0;
-		$own = 0;
+		$own_total = 0;
 		$all_tickets = 0;
 		$own_tickets = 0;
 		$first = null;
@@ -281,18 +301,49 @@ final class Settlements {
 			if ( \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; }
 			$all += (int) $line->line_total_minor;
 			$all_tickets += (int) $line->quantity;
-			if ( in_array( (int) $line->event_id, $events, true ) ) {
-				$own += (int) $line->line_total_minor;
+			if ( $own( $line ) ) {
+				$own_total += (int) $line->line_total_minor;
 				$own_tickets += (int) $line->quantity;
 				$first = $first ? $first : $line;
 			}
 		}
 		if ( $all > 0 ) {
-			$share = (int) round( (int) $amount * $own / $all );
+			$share = (int) round( (int) $amount * $own_total / $all );
 		} else {
 			$share = $all_tickets > 0 ? (int) round( (int) $amount * $own_tickets / $all_tickets ) : 0;
 		}
 		return array( $first, $share );
+	}
+
+	/**
+	 * Settled items of the given orders across all partners (A448): source_key => partner_id. Read per
+	 * order (indexed), not the partner's whole settlement history.
+	 *
+	 * @param int[] $order_ids
+	 * @return array<string,int>
+	 */
+	public static function settled_keys( array $order_ids ) {
+		global $wpdb;
+		$out = array();
+		foreach ( array_chunk( array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) ), 500 ) as $chunk ) {
+			foreach ( (array) $wpdb->get_results( "SELECT source_key, partner_id FROM {$wpdb->prefix}wpcap_partner_settlement_lines WHERE order_id IN (" . implode( ',', $chunk ) . ') AND source_key IS NOT NULL' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				$out[ (string) $row->source_key ] = (int) $row->partner_id;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Source key a finalized line is locked with: the item key, globally unique. A voucher claim (and its
+	 * reversal) is split between the organizers of an order, so its key also names the partner.
+	 */
+	public static function source_key( $kind, $item_key, $partner_id ) {
+		return in_array( (string) $kind, array( 'voucher', 'voucher_refund' ), true ) ? $item_key . ':' . (int) $partner_id : (string) $item_key;
+	}
+
+	/** Whether this partner's voucher line was settled (current key, or the partner's own key from before 3.10.8). */
+	private static function voucher_settled( array $settled, $item_key, $partner_id ) {
+		return isset( $settled[ self::source_key( 'voucher', $item_key, $partner_id ) ] ) || ( $settled[ $item_key ] ?? 0 ) === (int) $partner_id;
 	}
 
 	private static function lines_by_order( array $order_ids, $line_sql ) {
@@ -573,8 +624,9 @@ final class Settlements {
 			$self_billing_number = Invoices::next_document_number( self::SELF_BILLING_SERIES, '' !== $sb_prefix ? $sb_prefix : 'GU', true );
 			if ( is_wp_error( $self_billing_number ) ) { return $fail( $self_billing_number ); }
 		}
-		// Locks every line: the unique (partner_id, source_key) index rejects items settled elsewhere.
-		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partner_settlement_lines SET source_key=item_key WHERE settlement_id=%d", $settlement_id ) ) ) {
+		// Locks every line: the unique source_key index rejects items settled elsewhere – also by another
+		// partner (A448: an event moved between organizers). Voucher keys name the partner (source_key()).
+		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partner_settlement_lines SET source_key=IF(kind IN ('voucher','voucher_refund'),CONCAT(item_key,':',partner_id),item_key) WHERE settlement_id=%d", $settlement_id ) ) ) {
 			return $fail( new \WP_Error( 'wpcap_settlement_conflict', __( 'Einzelne Positionen wurden bereits in einer anderen Abrechnung abgerechnet. Bitte neu berechnen.', 'pass-captain' ), array( 'status' => 409 ) ) );
 		}
 		$snapshot = array(
