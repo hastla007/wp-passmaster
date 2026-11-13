@@ -184,6 +184,7 @@ final class Generator {
 			Audit::record( 'occurrence_created', 'occurrence', $occurrence_id, array( 'event_id' => $definition['event_id'], 'series_id' => $series_id, 'starts_at' => $created_starts[ $occurrence_id ] ?? null ) );
 		}
 		Audit::record( 'series_generated', 'series', $series_id, array( 'event_id' => $definition['event_id'], 'series_id' => $series_id, 'created' => count( $created ), 'skipped_existing' => $skipped_existing, 'skipped_past' => $skipped_past ) );
+		if ( $created ) { \PassCaptain\PageCache::event_changed( (int) $definition['event_id'], 'series' ); } // A446.
 		return array( 'series_id' => $series_id, 'event_id' => $definition['event_id'], 'created' => $created, 'skipped_existing' => $skipped_existing, 'skipped_past' => $skipped_past, 'seat_links' => $seat_links ) + \PassCaptain\Admin\Forms::dst_warning( self::dst_notes( $items, $definition['rule']['timezone'] ) );
 	}
 
@@ -631,6 +632,7 @@ final class Generator {
 		 * @param array $result    added, changed, deleted, flagged (occurrence ids), skipped, seat_failed.
 		 */
 		do_action( 'wpcap_series_updated', $series_id, $result );
+		\PassCaptain\PageCache::event_changed( (int) $event_id, 'series' ); // A446.
 		$dst = \PassCaptain\Admin\Forms::dst_warning( $plan['dst_notes'] );
 		if ( isset( $result['warning'], $dst['warning'] ) ) { $dst['warning'] = $result['warning'] . ' ' . $dst['warning']; }
 		return $dst + $result;

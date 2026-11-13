@@ -1565,6 +1565,7 @@ final class Orders {
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET status='cancelled' WHERE event_id=%d", $event_id ) );
 		Calendar\Revisions::bump_many( $occurrence_ids ); // A140: SEQUENCE + 1 for STATUS:CANCELLED.
 		$wpdb->query( 'COMMIT' );
+		PageCache::event_changed( $event_id, 'event' ); // A446.
 
 		$summary = array( 'cancelled_orders' => 0, 'refunds' => 0, 'refund_errors' => 0, 'revoked' => 0 );
 		OccurrenceCancellation::begin_event_batch();

@@ -151,6 +151,7 @@ final class Settings {
 		$stored = array_diff_key( self::all(), array_flip( Secrets::KEYS ) );
 		update_option( self::OPTION, array_merge( $stored, $values ), false );
 		self::$all = null;
+		PageCache::settings_changed( $stored, $values ); // A446: legal texts are part of every listing.
 	}
 
 	/**

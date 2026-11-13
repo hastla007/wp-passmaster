@@ -121,6 +121,7 @@ final class EventsPage {
 		}
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'event_created', 'event', $event_id, array( 'status' => $status, 'occurrences' => $repeat_count ) );
+		\PassCaptain\PageCache::event_changed( $event_id, 'event' ); // A446: listing/calendar pages.
 		return array( 'event_id' => $event_id ) + Forms::dst_warning( $dst_notes );
 	}
 
@@ -154,6 +155,7 @@ final class EventsPage {
 		}
 		$wpdb->update( $wpdb->prefix . 'wpcap_events', $data, array( 'event_id' => (int) $event->event_id ), $formats, array( '%d' ) );
 		Audit::record( 'event_updated', 'event', (int) $event->event_id, array( 'status' => $status, 'previous_status' => $event->status ) + $extra );
+		\PassCaptain\PageCache::event_changed( (int) $event->event_id, 'event' ); // A446.
 		return array( 'event_id' => (int) $event->event_id );
 	}
 
@@ -246,6 +248,7 @@ final class EventsPage {
 			if ( ! $occurrence_id ) { return Forms::error( 'wpcap_occurrence_save', __( 'Der Termin konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 			Audit::record( 'occurrence_created', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'starts_at' => $starts ) );
 		}
+		\PassCaptain\PageCache::event_changed( (int) $event->event_id, 'occurrence', $occurrence_id ); // A446.
 		return array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled ) + Forms::dst_warning( $dst_notes );
 	}
 
@@ -405,6 +408,8 @@ final class EventsPage {
 			if ( isset( $details['changes']['currency'] ) ) { $details['currency'] = (string) $old->currency; }
 		}
 		Audit::record( $old ? 'ticket_type_updated' : 'ticket_type_created', 'ticket_type', $type_id, $details );
+		// A446: price, sales window, status or capacity changed what the listing shows.
+		\PassCaptain\PageCache::event_changed( (int) $occ->event_id, 'ticket_type', (int) $occ->occurrence_id );
 		return array( 'ticket_type_id' => $type_id, 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id );
 	}
 

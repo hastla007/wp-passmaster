@@ -294,6 +294,7 @@ final class Definitions {
 		}
 		self::flush();
 		Audit::record( 'pass_saved', 'event', (int) $type->event_id, array( 'ticket_type_id' => (int) $type->ticket_type_id, 'occurrences' => $ids, 'entry_mode' => $mode, 'max_occurrences' => $max ) );
+		\PassCaptain\PageCache::event_changed( (int) $type->event_id, 'ticket_type' ); // A446.
 		return self::get( $type_id );
 	}
 
@@ -308,6 +309,7 @@ final class Definitions {
 		$wpdb->delete( self::table( 'types' ), array( 'type_id' => absint( $type_id ) ) );
 		self::flush();
 		Audit::record( 'pass_removed', 'event', (int) $type->event_id, array( 'ticket_type_id' => absint( $type_id ) ) );
+		\PassCaptain\PageCache::event_changed( (int) $type->event_id, 'ticket_type' ); // A446.
 		return true;
 	}
 

@@ -340,7 +340,10 @@ final class CapacityCounters {
 			if ( ! $delta['sold'] && ! $delta['held'] ) { continue; }
 			if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET sold_qty=sold_qty+%d,held_qty=held_qty+%d WHERE occurrence_id=%d", $delta['sold'], $delta['held'], $occ_id ) ) ) { return false; }
 		}
-		if ( $deltas ) { Orders::flush_availability_cache(); }
+		if ( $deltas ) {
+			Orders::flush_availability_cache();
+			PageCache::note_capacity( $deltas, $occ_of ); // A446: sold out / available again.
+		}
 		return true;
 	}
 
