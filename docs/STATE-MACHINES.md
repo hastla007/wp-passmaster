@@ -239,6 +239,11 @@ Zu einzelnen Fällen:
 - **Kumulative Beträge (Mollie).** Mollie meldet die Summe aller externen Erstattungen und Chargebacks
   einer Zahlung. Verbucht wird nur der noch nicht verbuchte Rest dieser Zahlung (`cumulative`). Ein
   älterer Stand nach einem neueren ergibt `already_booked`.
+- **Buchung einer vollen externen Erstattung schlägt fehl** (zum Beispiel Datenbankfehler beim Anlegen
+  der Erstattungszeile): Die Bestellung wird trotzdem als erstattet markiert (Tickets widerrufen), das
+  Ereignis aber nicht bestätigt. Der Anbieter bekommt 5xx (`wpcap_refund_booking_retry`, Audit
+  `external_refund_booking_failed`) und stellt erneut zu; die erneute Zustellung bucht Erstattungszeile,
+  erstatteten Betrag und Gutschrift genau einmal.
 - **Chargebacks** werden wie eine externe Erstattung verbucht (Tickets widerrufen, Gutschrift):
   Stripe `charge.dispute.funds_withdrawn`, PayPal `PAYMENT.CAPTURE.REVERSED`, Mollie
   `_embedded.chargebacks`/`amountChargedBack` (ohne zurückgenommene). Ein Chargeback nach einer

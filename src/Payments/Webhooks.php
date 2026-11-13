@@ -234,6 +234,7 @@ final class Webhooks {
 				self::alert( $order, __( 'Für eine bereits vollständig erstattete Bestellung wurde eine Rückbuchung (Chargeback) gemeldet. Bitte beim Zahlungsanbieter widersprechen; es wurde nichts erneut gebucht.', 'pass-captain' ), $provider, $event );
 				return 'chargeback_after_refund';
 			}
+			$booking_error = null;
 			if ( $remaining > 0 && $amount > 0 ) {
 				$tickets = $full ? array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND refunded=0", $order_id ) ) ) : array();
 				$booked  = Refunds::record_external(
@@ -244,13 +245,28 @@ final class Webhooks {
 					$provider . ':' . $event_id,
 					array( 'provider_reference' => (string) ( $event['provider_reference'] ?? '' ), 'source' => $provider )
 				);
-				if ( is_wp_error( $booked ) && ! $full ) {
-					return $booked; // Retried by the provider.
+				if ( is_wp_error( $booked ) ) {
+					if ( ! $full ) {
+						return $booked; // Retried by the provider.
+					}
+					$booking_error = $booked;
 				}
 			}
 			if ( $full ) {
+				// The money is back with the buyer: the order is closed (tickets revoked) even if the refund
+				// row could not be written yet.
 				$marked = Orders::mark_refunded( $order_id, $reason );
-				return is_wp_error( $marked ) ? $marked : 'refunded'; // A database error: the provider redelivers.
+				if ( is_wp_error( $marked ) ) {
+					return $marked; // A database error: the provider redelivers.
+				}
+				if ( $booking_error ) {
+					// A264: refund row, credit note and refunded total are still missing. The 5xx makes the
+					// provider redeliver the event; record_external() is idempotent per event, so the
+					// redelivery books exactly the missing refund (the order is already "refunded").
+					Audit::record( 'external_refund_booking_failed', 'order', $order_id, array( 'provider' => $provider, 'event' => $event_id, 'error' => $booking_error->get_error_code() ) );
+					return new \WP_Error( 'wpcap_refund_booking_retry', 'Order marked refunded, refund booking failed; retry later.', array( 'status' => 503, 'retryable' => true ) );
+				}
+				return 'refunded';
 			}
 			return 'partial_refund';
 		}
