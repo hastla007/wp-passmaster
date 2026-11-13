@@ -400,7 +400,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Upgrade-Lock/parallel getestet (tests/integration/modules/zz_phase1_arch.php:19-48), Einzelmigration boxoffice_migration.php; keine Tests je Vorgängerversion/Abbruch
 - [x] **A182** Tabellenpräfixe, Isolation, keine direkten WC-Tabellenabfragen automatisiert prüfen — _TEILWEISE_ (TODO L252; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Code nutzt WC-API statt WC-Tabellen (src/Integrations/WooCommerce/OrderAdapter.php); keine automatisierte Prüfung für HPOS/Multisite
-- [ ] **A183** Fault-Injection für Deadlock, Lock-Timeout, Verbindungsabbruch, Commit-Fehler — _OFFEN_ (TODO L253; Datenbank, Zustandsautomaten und Fehlerpfade)
+- [x] **A183** Fault-Injection für Deadlock, Lock-Timeout, Verbindungsabbruch, Commit-Fehler — _OFFEN_ (TODO L253; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Keine Fault-Injection-Tests in tests/ gefunden
 - [x] **A184** Zustandsautomaten dokumentieren, doppelte/out-of-order Events testen — _TEILWEISE_ (TODO L254; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Doppelte Webhooks getestet (tests/integration/payments.php:167,271; zz_integration.php:30); keine Zustandsautomaten-Doku außer Warteliste, kein systematischer out-of-order-Test
@@ -412,7 +412,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 - [x] **A187** Lastprofile und REST-Lasttests als geplante CI-Prüfung mit Referenzwerten — _TEILWEISE_ (TODO L260; Last, Hintergrundjobs und Wiederanlauf)
   - CI-Profil bei jedem Push (ci.yml:56-60), Werte in docs/TESTING.md:57; Heavy-/REST-Profile nicht geplant in CI
   - Erledigt (A121): load.yml wöchentlich (Mo 03:17) + manuell, Profile default/heavy/big und REST gegen MariaDB und MySQL, Vergleich mit tests/load/baselines/*.json (tests/load/compare.php).
-- [ ] **A188** Worker-Fehler-/Neustartszenarien idempotent prüfen — _TEILWEISE_ (TODO L261; Last, Hintergrundjobs und Wiederanlauf)
+- [x] **A188** Worker-Fehler-/Neustartszenarien idempotent prüfen — _TEILWEISE_ (TODO L261; Last, Hintergrundjobs und Wiederanlauf)
   - Abgestürzte Claims/Budget getestet (zz_phase1_arch.php:93-115, zz_integration.php:43); Backoff, Dead-Letter, Doppelausführung der Jobs ungetestet
 - [x] **A189** Cron-Ausfall, Queue-Rückstand, Mailfehler im Admin sichtbar machen — _OFFEN_ (TODO L262; Last, Hintergrundjobs und Wiederanlauf)
   - Keine Admin-Anzeige für Rückstand, letzten Lauf, nächste Aktion gefunden
@@ -439,17 +439,17 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 - [x] **A198** A11y-Prüfungen in Releaseprozess integrieren, manuelle Abnahme — _TEILWEISE_ (TODO L274; Sicherheit, Datenschutz und UI-Abnahme)
   - axe-Skripte vorhanden (tests/a11y/run.js), Befunde behoben; nicht in CI/Release, manuelle Abnahme fehlt
   - Erledigt (A155): wp-matrix.yml Job `accessibility` (axe WCAG 2.2, fail-on serious, Tastatur-Durchlauf) als Release-Gate in docs/RELEASE.md; manuelle Screenreader-Abnahme (NVDA/VoiceOver) im Abnahmeprotokoll docs/release-acceptance/TEMPLATE.md, release.yml verlangt das Protokoll.
-- [ ] **A199** Zeitzonen-/DST-Wechsel deterministisch testen — _TEILWEISE_ (TODO L278; Technische Randfälle, die noch separat abgesichert werden müssen)
+- [x] **A199** Zeitzonen-/DST-Wechsel deterministisch testen — _TEILWEISE_ (TODO L278; Technische Randfälle, die noch separat abgesichert werden müssen)
   - Serien/Preisregeln DST getestet (tests/integration/modules/series.php:25-33, series_pricing.php:50,73), Einlass-Mitternacht admission.php:88; Reservierungsablauf, Erinnerungen, Service-Slots fehlen
-- [ ] **A200** Geldberechnungen mit Eigenschafts-/Randfalltests absichern — _TEILWEISE_ (TODO L279; Technische Randfälle, die noch separat abgesichert werden müssen)
+- [x] **A200** Geldberechnungen mit Eigenschafts-/Randfalltests absichern — _TEILWEISE_ (TODO L279; Technische Randfälle, die noch separat abgesichert werden müssen)
   - Einzelne Rundungs-/Rabattverteilungen (src/Orders.php:203-211); keine Property-Tests, keine Dreidezimalwährungen, CSV/Fiskal fest /100 (src/Reports/Data.php:336)
 - [ ] **A201** Invalidierungsregeln für Berichts-Caches festlegen und testen — _OFFEN_ (TODO L280; Technische Randfälle, die noch separat abgesichert werden müssen)
   - Nur 5-Min-Transient ohne Invalidierung (src/Rest/Controller.php:624-631), keine Tests/Abfragepläne
 - [ ] **A202** Ausgehende HTTP-Aufrufe absichern und testen — _TEILWEISE_ (TODO L281; Technische Randfälle, die noch separat abgesichert werden müssen)
   - Webhooks: HTTPS/private Hosts geprüft (tests/integration/modules/webhooks.php:30-31), redirection 0; Fiskal-Client ohne SSRF-Schutz (src/Fiscalization/Providers/HttpClient.php:29), DNS/Redaction ungetestet
-- [ ] **A203** Bridge-/REST-Verträge mit Kompatibilitätstests absichern — _TEILWEISE_ (TODO L282; Technische Randfälle, die noch separat abgesichert werden müssen)
+- [x] **A203** Bridge-/REST-Verträge mit Kompatibilitätstests absichern — _TEILWEISE_ (TODO L282; Technische Randfälle, die noch separat abgesichert werden müssen)
   - Nur Affiliate-Vertragsversion getestet (tests/integration/affiliate.php:27-29); unbekannte Felder, Timeouts, REST-Verträge fehlen
-- [ ] **A204** Diagnose-/Reconciliation-Prüfung für inkonsistente Daten — _TEILWEISE_ (TODO L283; Technische Randfälle, die noch separat abgesichert werden müssen)
+- [x] **A204** Diagnose-/Reconciliation-Prüfung für inkonsistente Daten — _TEILWEISE_ (TODO L283; Technische Randfälle, die noch separat abgesichert werden müssen)
   - Nur Kapazitätszähler-Reconcile (src/CapacityCounters.php:32,71); keine Prüfung auf Tickets ohne Bestellung, doppelte Refunds, Job-Claims, Vorschau/Audit
 
 ## Phase 9 – Entscheidungen und externe Abhängigkeiten (brauchen dich, Steuerberatung, Recht oder offene PRs)
