@@ -345,12 +345,19 @@ final class Checkin {
 			return new \WP_Error( 'wpcap_device_event', __( 'Dieses Gerät ist für ein anderes Event freigegeben.', 'wp-pass-captain' ), array_merge( $internal, array( 'status' => 403, 'result' => 'wrong_event' ) ) );
 		}
 		if ( ! empty( $context['occurrence_id'] ) && (int) $context['occurrence_id'] !== (int) $found['occurrence_id'] ) {
-			return new \WP_Error( 'wpcap_wrong_occurrence', __( 'Das Ticket gilt für einen anderen Termin.', 'wp-pass-captain' ), array_merge( $internal, array( 'status' => 409, 'result' => 'wrong_occurrence' ) ) );
+			return new \WP_Error( 'wpcap_wrong_occurrence', self::with_validity( __( 'Das Ticket gilt für einen anderen Termin.', 'wp-pass-captain' ), $found ), array_merge( $internal, array( 'status' => 409, 'result' => 'wrong_occurrence' ) ) );
 		}
 		if ( Areas::check( $found, absint( $context['area_id'] ?? 0 ), $direction ) ) {
 			return new \WP_Error( 'wpcap_wrong_area', __( 'Das Ticket gilt nicht für diesen Einlassbereich (oder du bist hier nicht eingeteilt).', 'wp-pass-captain' ), array_merge( $internal, array( 'status' => 409, 'result' => 'wrong_area', 'event' => $found['event_name'], 'ticket' => $found['ticket_name'] ) ) );
 		}
 		return null;
+	}
+
+	/** Appends the ticket's own date (event timezone) so staff can tell the holder when it is valid. */
+	private static function with_validity( $message, array $found ) {
+		if ( empty( $found['starts_at'] ) ) { return $message; }
+		/* translators: 1: refusal reason, 2: date and time of the ticket's occurrence */
+		return sprintf( __( '%1$s Das Ticket gilt für %2$s.', 'wp-pass-captain' ), $message, Orders::format_start( $found['starts_at'], (string) ( $found['timezone'] ?? '' ) ) );
 	}
 
 	/** Stable error per result code. */
@@ -373,7 +380,11 @@ final class Checkin {
 			'already_inside' => 'wpcap_ticket_already_inside',
 			'not_checked_in' => 'wpcap_ticket_not_checked_in',
 		);
-		return new \WP_Error( $codes[ $result ] ?? 'wpcap_ticket_not_valid', $messages[ $result ] ?? __( 'Ticket wurde bereits verwendet oder ist widerrufen.', 'wp-pass-captain' ), array( 'status' => 409, 'ticket_status' => $result, 'result' => $result, 'event' => $found['event_name'], 'ticket' => $found['ticket_name'], 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'], 'checkin_id' => (int) $checkin_id ) );
+		$message = $messages[ $result ] ?? __( 'Ticket wurde bereits verwendet oder ist widerrufen.', 'wp-pass-captain' );
+		if ( in_array( $result, array( 'outside_entry_window', 'not_valid_today' ), true ) ) {
+			$message = self::with_validity( $message, $found );
+		}
+		return new \WP_Error( $codes[ $result ] ?? 'wpcap_ticket_not_valid', $message, array( 'status' => 409, 'ticket_status' => $result, 'result' => $result, 'event' => $found['event_name'], 'ticket' => $found['ticket_name'], 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'], 'checkin_id' => (int) $checkin_id ) );
 	}
 
 	/** Data shown to scanning staff (no buyer e-mail, no payment data). */

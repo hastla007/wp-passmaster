@@ -208,12 +208,48 @@ final class PublicEvents {
 		return $by_occurrence;
 	}
 
+	/**
+	 * Occurrences the current user may admit to, from yesterday to a week ahead (web scanner date
+	 * selection: a ticket for another date is refused with its own date instead of a time error).
+	 *
+	 * @return array[] {id, label}
+	 */
+	public static function scanner_occurrences() {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.status<>'cancelled' AND o.starts_at BETWEEN %s AND %s ORDER BY o.starts_at,o.occurrence_id LIMIT 100",
+			gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ),
+			gmdate( 'Y-m-d H:i:s', time() + 7 * DAY_IN_SECONDS )
+		) );
+		$allowed = array();
+		$items = array();
+		foreach ( (array) $rows as $row ) {
+			$event_id = (int) $row->event_id;
+			if ( ! isset( $allowed[ $event_id ] ) ) { $allowed[ $event_id ] = Access::can_access_event( $event_id, 'wpcap_checkin' ); }
+			if ( ! $allowed[ $event_id ] ) { continue; }
+			$items[] = array( 'id' => (int) $row->occurrence_id, 'label' => wp_specialchars_decode( (string) $row->name, ENT_QUOTES ) . ' – ' . Orders::format_start( $row->starts_at, $row->timezone ) );
+		}
+		return $items;
+	}
+
 	public static function render_scanner_shortcode() {
 		if ( ! is_user_logged_in() || ! current_user_can( 'wpcap_checkin' ) ) {
 			return '<p>' . esc_html__( 'Für den Scanner ist eine Anmeldung mit Einlassberechtigung erforderlich.', 'wp-pass-captain' ) . '</p>';
 		}
 		wp_enqueue_script( 'wpcap-scanner' );
 		wp_enqueue_style( 'wpcap-public' );
+		$occurrences = 'window.WPCAP_SCANNER_OCCURRENCES=' . wp_json_encode( array(
+			'label' => __( 'Termin', 'wp-pass-captain' ),
+			'all' => __( 'Alle Termine (keine Terminprüfung)', 'wp-pass-captain' ),
+			'items' => self::scanner_occurrences(),
+		) ) . ';';
+		// Block themes render the content before wp_enqueue_scripts registers the script: attach later then.
+		if ( wp_script_is( 'wpcap-scanner', 'registered' ) ) {
+			wp_add_inline_script( 'wpcap-scanner', $occurrences, 'before' );
+		} else {
+			add_action( 'wp_enqueue_scripts', static function () use ( $occurrences ) { wp_add_inline_script( 'wpcap-scanner', $occurrences, 'before' ); }, 99 );
+		}
 		return '<section class="wpcap-scanner"><h2>' . esc_html__( 'Pass Captain Check-in', 'wp-pass-captain' ) . '</h2><p>' . esc_html__( 'Scanne den Ticketcode oder gib ihn manuell ein.', 'wp-pass-captain' ) . '</p><p class="wpcap-scan-mode" hidden></p><video class="wpcap-camera" playsinline hidden></video><div class="wpcap-camera-controls"><button type="button" class="wpcap-camera-start">' . esc_html__( 'Kamera starten', 'wp-pass-captain' ) . '</button><button type="button" class="wpcap-camera-stop" hidden>' . esc_html__( 'Kamera stoppen', 'wp-pass-captain' ) . '</button><button type="button" class="wpcap-camera-torch" aria-pressed="false" hidden>' . esc_html__( 'Licht', 'wp-pass-captain' ) . '</button></div><form class="wpcap-scan-form"><label>' . esc_html__( 'Ticket-Code', 'wp-pass-captain' ) . ' <input name="token" type="text" inputmode="text" autocomplete="off" required></label><button type="submit">' . esc_html__( 'Ticket prüfen und einchecken', 'wp-pass-captain' ) . '</button></form><div class="wpcap-scan-result"></div><p class="wpcap-scan-live wpcap-sr-only" role="status" aria-live="assertive" aria-atomic="true"></p></section>';
 	}
 }

@@ -345,6 +345,12 @@ $dw_ok = Checkin::perform( $dw['codes'][0], array( 'idempotency_key' => 'dw-1' )
 adm_now( $dw_start + 2 * 3600 + 60 );
 $dw_late = Checkin::perform( $dw['codes'][1], array( 'idempotency_key' => 'dw-2' ) );
 check( 'default entry window: closed 3 h before, open 90 min before the start, closed after the end', 'outside_entry_window' === ( $dw_early['status'] ?? '' ) && 'checked_in' === adm_r( $dw_ok ) && 'outside_entry_window' === adm_r( $dw_late ) );
+$dw_when = PassCaptain\Orders::format_start( gmdate( 'Y-m-d H:i:s', $dw_start ), 'Europe/Vienna' );
+check( 'A048: the refusal names the date the ticket is valid for', is_wp_error( $dw_late ) && false !== strpos( $dw_late->get_error_message(), $dw_when ) );
+$dw_other = Checkin::perform( $dw['codes'][2], array( 'idempotency_key' => 'dw-occ', 'occurrence_id' => $dw['occ'] + 100000 ) );
+check( 'A048: a ticket for another date (date chosen in the scanner) is refused with its own date', is_wp_error( $dw_other ) && 'wrong_occurrence' === $dw_other->get_error_data()['result'] && false !== strpos( $dw_other->get_error_message(), $dw_when ) );
+$dw_items = PassCaptain\PublicEvents::scanner_occurrences();
+check( 'A048: the web scanner offers the upcoming dates the user may admit to', (bool) array_filter( $dw_items, static fn( $i ) => (int) $i['id'] === (int) $dw['occ'] && false !== strpos( $i['label'], $dw_when ) ) );
 PassCaptain\Settings::update( array( 'default_entry_window' => 0 ) );
 check( 'the default entry window can be switched off', 'checked_in' === adm_r( Checkin::perform( $dw['codes'][2], array( 'idempotency_key' => 'dw-3' ) ) ) );
 PassCaptain\Settings::update( array( 'default_entry_window' => $dw_before ) );

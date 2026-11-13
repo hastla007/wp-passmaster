@@ -874,7 +874,7 @@ final class Controller {
 
 	/** Web scanner check-in; the logic lives in Checkin::perform() (shared with the app API). */
 	public static function check_in( \WP_REST_Request $request ) {
-		$result = \PassCaptain\Checkin::perform( $request->get_param( 'token' ), array( 'source' => sanitize_key( $request->get_param( 'source' ) ?: 'web' ), 'idempotency_key' => sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) ) ) );
+		$result = \PassCaptain\Checkin::perform( $request->get_param( 'token' ), array_filter( array( 'source' => sanitize_key( $request->get_param( 'source' ) ?: 'web' ), 'idempotency_key' => sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) ), 'occurrence_id' => absint( $request->get_param( 'occurrence_id' ) ) ) ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 }

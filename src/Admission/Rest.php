@@ -29,7 +29,7 @@ final class Rest {
 
 	private static function context( \WP_REST_Request $request, $source = 'web' ) {
 		$key = sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) );
-		return array( 'source' => $source, 'area_id' => absint( $request->get_param( 'area_id' ) ), 'idempotency_key' => '' !== $key ? 'web:' . $key : '' );
+		return array( 'source' => $source, 'area_id' => absint( $request->get_param( 'area_id' ) ), 'idempotency_key' => '' !== $key ? 'web:' . $key : '', 'occurrence_id' => absint( $request->get_param( 'occurrence_id' ) ) );
 	}
 
 	public static function check_in( \WP_REST_Request $request ) {
@@ -63,7 +63,7 @@ final class Rest {
 			if ( ! is_array( $scan ) ) { $scan = array( 'token' => (string) $scan ); }
 			$token = sanitize_text_field( (string) ( $scan['token'] ?? '' ) );
 			$key = sanitize_text_field( (string) ( $scan['idempotency_key'] ?? '' ) );
-			$context = array( 'source' => 'offline', 'area_id' => absint( $scan['area_id'] ?? 0 ), 'idempotency_key' => '' !== $key ? 'web:' . $key : '' );
+			$context = array( 'source' => 'offline', 'area_id' => absint( $scan['area_id'] ?? 0 ), 'idempotency_key' => '' !== $key ? 'web:' . $key : '', 'occurrence_id' => absint( $scan['occurrence_id'] ?? 0 ) );
 			$scanned = strtotime( (string) ( $scan['scanned_at'] ?? '' ) );
 			if ( $scanned && $scanned <= $now + 300 ) { $context['scanned_at'] = gmdate( 'Y-m-d H:i:s', $scanned ); }
 			$out = 'out' === ( $scan['direction'] ?? 'in' );

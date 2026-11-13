@@ -98,6 +98,31 @@
 	function savePrefs() { try { window.localStorage.setItem(prefKey, JSON.stringify(prefs)); } catch (ignore) {} }
 	let areaId = 0;
 	let mode = 'in';
+	// Date selection: with a date chosen the server refuses tickets of other dates and names their date.
+	let occurrenceId = 0;
+	(function occurrenceSelect() {
+		const occ = window.WPCAP_SCANNER_OCCURRENCES;
+		if (!occ || !occ.items || !occ.items.length) return;
+		const label = document.createElement('label');
+		label.className = 'wpcap-scanner-occurrence';
+		label.textContent = (occ.label || 'Date') + ' ';
+		const select = document.createElement('select');
+		const all = document.createElement('option');
+		all.value = '0';
+		all.textContent = occ.all || '—';
+		select.appendChild(all);
+		occ.items.forEach(function (item) {
+			const option = document.createElement('option');
+			option.value = String(item.id);
+			option.textContent = item.label;
+			select.appendChild(option);
+		});
+		if (prefs.occurrence && occ.items.some(function (i) { return String(i.id) === String(prefs.occurrence); })) select.value = String(prefs.occurrence);
+		occurrenceId = parseInt(select.value, 10) || 0;
+		select.addEventListener('change', function () { occurrenceId = parseInt(select.value, 10) || 0; prefs.occurrence = occurrenceId; savePrefs(); });
+		label.appendChild(select);
+		root.insertBefore(label, form);
+	}());
 	function uuid() {
 		if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
 		return 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -165,7 +190,7 @@
 	}
 	function enqueue(token) {
 		const items = queue();
-		items.push({ token: token, idempotency_key: uuid(), scanned_at: new Date().toISOString(), stored_at: Date.now(), area_id: areaId, direction: mode });
+		items.push({ token: token, idempotency_key: uuid(), scanned_at: new Date().toISOString(), stored_at: Date.now(), area_id: areaId, occurrence_id: occurrenceId, direction: mode });
 		saveQueue(items);
 		show('warning', t.queued || 'Saved offline.');
 		input.value = '';
@@ -224,7 +249,7 @@
 			for (let i = 0; i < items.length; i += SYNC_CHUNK) {
 				const chunk = items.slice(i, i + SYNC_CHUNK);
 				const response = adm
-					? await fetch(adm.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ scans: chunk.map(function (item) { return { token: item.token, idempotency_key: item.idempotency_key, scanned_at: item.scanned_at, area_id: item.area_id || 0, direction: item.direction || 'in' }; }) }) })
+					? await fetch(adm.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ scans: chunk.map(function (item) { return { token: item.token, idempotency_key: item.idempotency_key, scanned_at: item.scanned_at, area_id: item.area_id || 0, occurrence_id: item.occurrence_id || 0, direction: item.direction || 'in' }; }) }) })
 					: await fetch(WPCAP_SCANNER.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ tokens: chunk.map(function (item) { return item.token; }) }) });
 				const data = await response.json().catch(function () { return {}; });
 				if (!response.ok) throw new Error(data.message || t.syncFailed || 'Sync failed.');
@@ -259,7 +284,7 @@
 			let response;
 			try {
 				const url = adm ? (mode === 'out' ? adm.checkoutUrl : adm.checkinUrl) : WPCAP_SCANNER.checkinUrl;
-				const body = adm ? { token: token, area_id: areaId, idempotency_key: uuid() } : { token: token };
+				const body = adm ? { token: token, area_id: areaId, occurrence_id: occurrenceId, idempotency_key: uuid() } : { token: token, occurrence_id: occurrenceId };
 				response = await fetch(url, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce },

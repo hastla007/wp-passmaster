@@ -112,7 +112,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Maßnahme: Nutzung über `wpcap_checkins`/`wpcap_admission_entries` wie `Exchange\Service::was_admitted()` prüfen.
 - [x] **A047** [P3] Kassenverkäufe ohne E-Mail senden Ticketmail an `boxoffice+…@invalid.example`. — _OFFEN_ (TODO L422; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/BoxOffice/Service.php:277` — Maßnahme: Versand an Platzhalter unterdrücken.
-- [ ] **A048** [P3] Ticket für anderen Tag: „zu dieser Uhrzeit nicht möglich“ ohne Gültigkeit; Web-Scanner ohne Terminauswahl. — _OFFEN_ (TODO L423; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [x] **A048** [P3] Ticket für anderen Tag: „zu dieser Uhrzeit nicht möglich“ ohne Gültigkeit; Web-Scanner ohne Terminauswahl. — _OFFEN_ (TODO L423; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Checkin.php:364` — Maßnahme: Gültigkeit nennen, Terminauswahl.
 - [ ] **A049** [P3] `src/PublicEvents.php:91–96` u. a. — Shortcode/Block ohne Event-/Termin-Attribut; „bis 1 Stunden“; gleichnamige Events ohne Datum in Dropdowns; Kassen-/Partnerformulare verlangen r… — _OFFEN_ (TODO L424; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - Maßnahme: Attribute `event`/`occurrence`, Auswahllisten, Texte korrigieren.
