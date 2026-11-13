@@ -72,7 +72,10 @@ final class Admission {
 			$end = max( $start, strtotime( ( $occ->ends_at ? $occ->ends_at : $occ->starts_at ) . ' UTC' ) );
 			$distance = $at < $start ? $start - $at : ( $at > $end ? $at - $end : 0 );
 			$cancelled = 'cancelled' === $occ->status || 'cancelled' === $occ->event_status ? 1 : 0;
-			$score = array( in_array( $today, (array) $days, true ) ? 0 : 1, $cancelled, $distance, (int) $occ->occurrence_id );
+			// Among equally valid dates, one this ticket was not admitted to yet comes first: two shows on
+			// the same day (matinee + evening) must not bind the second scan to the used first show.
+			$used = ! empty( $found['ticket_id'] ) && self::entries_at( (int) $found['ticket_id'], (int) $occ->occurrence_id ) > 0 ? 1 : 0;
+			$score = array( in_array( $today, (array) $days, true ) ? 0 : 1, $cancelled, $used, $distance, (int) $occ->occurrence_id );
 			if ( null === $best_score || $score < $best_score ) {
 				$best = $occ;
 				$best_score = $score;

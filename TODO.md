@@ -424,7 +424,7 @@ Verdachtsfälle (nicht end-to-end bestätigt):
 - [x] [P3][BESTÄTIGT] `src/PublicEvents.php:91–96` u. a. — Shortcode/Block ohne Event-/Termin-Attribut; „bis 1 Stunden“; gleichnamige Events ohne Datum in Dropdowns; Kassen-/Partnerformulare verlangen rohe IDs; Partner-Rechnungshinweis doppelt. **Maßnahme:** Attribute `event`/`occurrence`, Auswahllisten, Texte korrigieren.
 
 Verdachtsfälle:
-- [ ] [VERDACHT] Pass mit zwei Terminen am selben Tag: Web-Scanner bindet an Betriebstag, zweiter Scan „Tageskontingent erreicht“ – Abendshow vermutlich nicht betretbar.
+- [x] [VERDACHT] Pass mit zwei Terminen am selben Tag: Web-Scanner bindet an Betriebstag, zweiter Scan „Tageskontingent erreicht“ – Abendshow vermutlich nicht betretbar.
 - [ ] [VERDACHT] Blindzählung wirkt nur für Kassierer ohne Manager-/Finanzrecht; UI erklärt das nicht.
 - [ ] [VERDACHT] `src/BoxOffice/ZReport.php` `rows()` ohne Null-Prüfung (Warnings bei ungültiger ID).
 

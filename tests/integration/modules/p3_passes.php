@@ -369,3 +369,18 @@ $a65_po = fp_buy( $a65_pass );
 $a65_so = fp_buy( $a65_single );
 check( 'A065: an order with a pass anchored on a later date counts as begun when its first date has begun', ! is_wp_error( $a65_po ) && true === PassCaptain\Partners\Sales::order_started( (int) $a65_po['order_id'], $a65_now ) );
 check( 'A065: a normal ticket of the later date has not begun', ! is_wp_error( $a65_so ) && false === PassCaptain\Partners\Sales::order_started( (int) $a65_so['order_id'], $a65_now ) );
+
+echo "Passes: two shows on the same day (A070)\n";
+$a70_ev = fp_event( 'A70 Doppelvorstellung' );
+$a70_matinee = fp_occ( $a70_ev, '2027-09-10' ); // 14:00–23:00
+$a70_evening = fp_occ( $a70_ev, '2027-09-10' );
+$wpdb->update( "{$p}wpcap_occurrences", array( 'starts_at' => fp_utc( '2027-09-10 19:00' ) ), array( 'occurrence_id' => $a70_evening ) );
+$a70_pass = fp_pass( $a70_matinee, array( $a70_matinee, $a70_evening ), array(), 0, 'A70 Pass' );
+$a70_o = fp_buy( $a70_pass, 1, 'a70@example.com' );
+$a70_code = is_wp_error( $a70_o ) ? '' : ( ticket_code_for( $a70_o['order_id'] )[0] ?? '' );
+$a70_first = fp_in( $a70_code, '2027-09-10 15:00' );
+$a70_first_occ = is_array( $GLOBALS['fp_last'] ) ? (int) ( $GLOBALS['fp_last']['occurrence_id'] ?? 0 ) : 0;
+$a70_second = fp_in( $a70_code, '2027-09-10 19:30' );
+$a70_second_occ = is_array( $GLOBALS['fp_last'] ) ? (int) ( $GLOBALS['fp_last']['occurrence_id'] ?? 0 ) : 0;
+check( 'A070: matinee entry, then the evening show of the same day is admitted (not "daily limit")', 'checked_in' === $a70_first && $a70_matinee === $a70_first_occ && 'checked_in' === $a70_second && $a70_evening === $a70_second_occ );
+check( 'A070: a third scan the same evening is refused (both shows used)', 'daily_limit_reached' === fp_in( $a70_code, '2027-09-10 21:00' ) );

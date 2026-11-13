@@ -76,6 +76,7 @@
 - Alte REST-Route `POST /pos/sales` (veraltet) bucht über das Kassenmodul: offene Schicht, lückenlose Belegnummer, Journal und Z-Bericht sowie die Regeln für Bar/Karte gelten auch dort.
 - Nachsenden im Bestellportal erneuert nur die Codes der eigenen Tickets; übertragene Tickets behalten ihren Code (der Käufer kann den QR-Code der Empfängerin nicht mehr ungültig machen). Die Nachsendung durch das Team bleibt vollständig.
 - Gästelisten: Vier-Augen-Prinzip für Freikarten – wer einen Eintrag beantragt, kann ihn nicht selbst freigeben (Administratoren ausgenommen; Einstellung `guestlist_four_eyes`, Standard an).
+- Pässe mit zwei Vorstellungen am selben Tag: Der Scan bindet bevorzugt an eine Vorstellung, für die das Ticket noch nicht eingelassen wurde – die Abendvorstellung ist nach der Matinee nicht mehr fälschlich „Tageskontingent erreicht“.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.
