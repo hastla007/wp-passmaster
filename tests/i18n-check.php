@@ -7,7 +7,9 @@
  * - printf placeholders (%s, %d, %1$s, %%) are the same as in the msgid (as a multiset; positional
  *   order may change), {placeholders} and HTML tags are kept, plural forms complete,
  * - the .po and the .pot have the same msgids, and the .mo is up to date (compiled from the .po).
- * Usage: php tests/i18n-check.php [--allow-incomplete]
+ * - with --fresh-pot=<file> (a .pot just generated from the code with `wp i18n make-pot`): the committed
+ *   .pot has exactly the same msgids, i.e. no source string was added or changed without updating it.
+ * Usage: php tests/i18n-check.php [--allow-incomplete] [--fresh-pot=<file>]
  */
 if ( PHP_SAPI !== 'cli' ) { exit( 1 ); }
 $root = dirname( __DIR__ );
@@ -50,6 +52,20 @@ $fail = 0;
 $pot = wpcap_po_parse( $root . '/languages/wp-pass-captain.pot' );
 $pot_ids = array();
 foreach ( $pot as $e ) { if ( '' !== $e['msgid'] ) { $pot_ids[ ( $e['msgctxt'] ?? '' ) . "\x04" . $e['msgid'] ] = true; } }
+foreach ( $argv as $arg ) {
+	if ( 0 !== strpos( $arg, '--fresh-pot=' ) ) { continue; }
+	$fresh = array();
+	foreach ( wpcap_po_parse( substr( $arg, 12 ) ) as $e ) { if ( '' !== $e['msgid'] ) { $fresh[ ( $e['msgctxt'] ?? '' ) . "\x04" . $e['msgid'] ] = true; } }
+	$new_ids = array_diff_key( $fresh, $pot_ids );
+	$gone_ids = array_diff_key( $pot_ids, $fresh );
+	if ( $new_ids || $gone_ids ) {
+		$fail = 1;
+		echo 'FAIL languages/wp-pass-captain.pot is outdated: ' . count( $new_ids ) . ' new, ' . count( $gone_ids ) . " removed source strings (regenerate with wp i18n make-pot, then msgmerge)\n";
+		foreach ( array_slice( array_keys( $new_ids ), 0, 10 ) as $k ) { echo '     + ' . str_replace( "\x04", ' | ', $k ) . "\n"; }
+	} else {
+		echo "ok   languages/wp-pass-captain.pot matches the source strings\n";
+	}
+}
 foreach ( glob( $root . '/languages/wp-pass-captain-*.po' ) as $po ) {
 	$locale = preg_replace( '/^.*wp-pass-captain-(.+)\.po$/', '$1', $po );
 	$problems = array(); $fuzzy = 0; $untranslated = 0; $ids = array();

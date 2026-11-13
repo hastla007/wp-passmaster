@@ -238,7 +238,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 - [x] **A106** Saalplan-Editor-JS-Texte übersetzbar machen — _TEILWEISE_ (TODO L384; Architektur und Wartbarkeit (noch offen))
   - editor.js nutzt teils t.* (Zeile 108-123), aber fest codiert: 103, 124, 187, 339; Englisch-Umstieg nicht geprüft
   - Erledigt 13.11.: alle Editor-Texte über den PHP-Katalog (Test A106). Englische Quelltexte geprüft: Umstieg beträfe alle ~3.000 Textstellen und alle Übersetzungen – nur sinnvoll vor einer Veröffentlichung auf wordpress.org; als Entscheidung offen (siehe Abschlussbericht).
-- [ ] **A107** Übersetzungen muttersprachlich prüfen, Platzhalter übersetzbar — _OFFEN_ (TODO L386; Architektur und Wartbarkeit (noch offen))
+- [ ] **A107** Übersetzungen muttersprachlich prüfen, Platzhalter übersetzbar — _TEILWEISE (13.11.2026: alle 5 Sprachen vollständig und KI-gestützt geprüft, Platzhalter übersetzbar, CI-Prüfung; offen: Durchsicht durch Muttersprachler, siehe docs/TRANSLATIONS.md)_ (TODO L386; Architektur und Wartbarkeit (noch offen))
   - {Termin-ID} weiter literal (Modules/Calendar.php:270, it_IT.po:4339); kein Nachweis einer Prüfung
 
 ## Phase 7 – Betreiberpflichten (Dokumentation)

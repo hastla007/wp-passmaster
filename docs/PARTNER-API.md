@@ -346,7 +346,7 @@ curl -X POST https://example.com/wp-json/wp-pass-captain/v1/partner/orders/6f1c0
   wird bei jedem Aufruf berechnet (keine Belegnummer).
 - **Automatische Verrechnung**: Eigene API-Verkäufe eines Veranstalters (Zahlungsanbieter `partner`,
   Verkäufer = derselbe Veranstalter) zählen in der Veranstalter-Abrechnung für Provision und Gebühren,
-  werden aber als *von Ihnen selbst vereinnahmte Ticketerlöse* (nach Erstattungen) von der Auszahlung
+  werden aber als *von dir selbst vereinnahmte Ticketerlöse* (nach Erstattungen) von der Auszahlung
   abgezogen. Ergibt sich ein negativer Saldo, wird nichts ausgezahlt: Standard ist der Vortrag in die
   nächste Abrechnung (*Saldovortrag aus der vorigen Abrechnung*), alternativ (Einstellungen →
   „Negativer Saldo …“) eine sofortige *Forderung an Veranstalter*. Felder in `totals`:

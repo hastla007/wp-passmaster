@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-13T19:50:57+00:00\n"
+"POT-Creation-Date: 2026-11-13T20:13:33+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-pass-captain\n"
@@ -398,7 +398,7 @@ msgstr ""
 
 #: src/Admin/CampaignsPage.php:137
 #: src/BoxOffice/ShiftPage.php:47
-#: src/BoxOffice/ZReport.php:458
+#: src/BoxOffice/ZReport.php:457
 msgid "Wert"
 msgstr ""
 
@@ -1578,7 +1578,7 @@ msgstr ""
 
 #: src/Admin/EventsPage.php:1000
 #: src/Admin/EventsPage.php:1039
-#: src/BoxOffice/ZReport.php:458
+#: src/BoxOffice/ZReport.php:457
 #: src/Partners/AdminPage.php:515
 #: src/Series/AdminPage.php:176
 #: src/Series/AdminPage.php:276
@@ -2055,7 +2055,7 @@ msgid "WP Voucher Captain ↗"
 msgstr ""
 
 #: src/Admin/OrdersPage.php:35
-#: src/Orders.php:957
+#: src/Orders.php:958
 #: src/Partners/Sales.php:445
 #: src/Payments/PayPalGateway.php:130
 #: src/Rest/Controller.php:447
@@ -2074,8 +2074,8 @@ msgid "Nur Bestellungen mit manueller Zahlart können hier als bezahlt markiert 
 msgstr ""
 
 #: src/Admin/OrdersPage.php:65
-#: src/Orders.php:966
-#: src/Orders.php:1451
+#: src/Orders.php:967
+#: src/Orders.php:1452
 #: src/Partners/Sales.php:692
 #: src/Partners/Sales.php:741
 msgid "Der Bestellstatus erlaubt diese Aktion nicht."
@@ -3076,7 +3076,7 @@ msgstr ""
 #: src/Exchange/Portal.php:59
 #: src/Exchange/Service.php:163
 #: src/Exchange/Service.php:1222
-#: src/Orders.php:1797
+#: src/Orders.php:1798
 msgid "Ticket nicht gefunden."
 msgstr ""
 
@@ -4336,7 +4336,7 @@ msgid "Tickets drucken (PDF)"
 msgstr ""
 
 #: src/BoxOffice/Page.php:88
-msgid "Ihre Schicht wird gerade gezählt; Verkäufe sind erst in der nächsten Schicht möglich."
+msgid "Deine Schicht wird gerade gezählt; Verkäufe sind erst in der nächsten Schicht möglich."
 msgstr ""
 
 #: src/BoxOffice/Page.php:88
@@ -4783,12 +4783,12 @@ msgid "USt-IdNr.:"
 msgstr ""
 
 #: src/BoxOffice/Service.php:737
-#: src/BoxOffice/ZReport.php:443
+#: src/BoxOffice/ZReport.php:442
 msgid "STORNOBELEG"
 msgstr ""
 
 #: src/BoxOffice/Service.php:738
-#: src/BoxOffice/ZReport.php:444
+#: src/BoxOffice/ZReport.php:443
 msgid "Beleg-Nr.:"
 msgstr ""
 
@@ -4797,13 +4797,13 @@ msgid "Storno zu Beleg"
 msgstr ""
 
 #: src/BoxOffice/Service.php:740
-#: src/BoxOffice/ZReport.php:445
+#: src/BoxOffice/ZReport.php:444
 #: src/Printing/InvoicePdf.php:187
 msgid "Datum:"
 msgstr ""
 
 #: src/BoxOffice/Service.php:740
-#: src/BoxOffice/ZReport.php:445
+#: src/BoxOffice/ZReport.php:444
 msgid "Kasse/Schicht/Bediener:"
 msgstr ""
 
@@ -4813,13 +4813,13 @@ msgstr ""
 
 #. translators: 1: rate, 2: net
 #: src/BoxOffice/Service.php:747
-#: src/BoxOffice/ZReport.php:449
+#: src/BoxOffice/ZReport.php:448
 #, php-format
 msgid "USt %1$s %%: Netto %2$s"
 msgstr ""
 
 #: src/BoxOffice/Service.php:749
-#: src/BoxOffice/ZReport.php:451
+#: src/BoxOffice/ZReport.php:450
 msgid "Zahlart:"
 msgstr ""
 
@@ -4836,7 +4836,7 @@ msgid "Bestellung:"
 msgstr ""
 
 #: src/BoxOffice/Service.php:755
-#: src/BoxOffice/ZReport.php:452
+#: src/BoxOffice/ZReport.php:451
 #: src/Printing/AttendeeList.php:79
 #: src/Printing/NoShowList.php:78
 #: src/Reports/Settlement.php:349
@@ -4933,7 +4933,7 @@ msgid "Übergabe storniert; die Kasse kann neu geöffnet werden."
 msgstr ""
 
 #: src/BoxOffice/ShiftPage.php:149
-msgid "Sie haben keine offene Schicht."
+msgid "Du hast keine offene Schicht."
 msgstr ""
 
 #: src/BoxOffice/ShiftPage.php:155
@@ -4969,9 +4969,7 @@ msgstr ""
 msgid "Einlagen, Entnahmen und Auszahlungen"
 msgstr ""
 
-#. translators: placeholder name for the Unix timestamp in the signature format
 #: src/BoxOffice/ShiftPage.php:178
-#: src/Modules/Webhooks.php:290
 msgid "Zeit"
 msgstr ""
 
@@ -5078,7 +5076,7 @@ msgid "Übergabe an die nächste Schicht (optional)"
 msgstr ""
 
 #: src/BoxOffice/ShiftPage.php:232
-#: src/BoxOffice/ZReport.php:403
+#: src/BoxOffice/ZReport.php:402
 msgid "Übergabe an"
 msgstr ""
 
@@ -5293,7 +5291,7 @@ msgid "Keine Berechtigung für diese Kasse."
 msgstr ""
 
 #: src/BoxOffice/Shifts.php:187
-msgid "Sie arbeiten bereits in einer offenen Schicht. Bitte diese zuerst abschließen."
+msgid "Du arbeitest bereits in einer offenen Schicht. Bitte schließe diese zuerst ab."
 msgstr ""
 
 #: src/BoxOffice/Shifts.php:201
@@ -5573,88 +5571,88 @@ msgstr ""
 msgid "Grund der Differenz"
 msgstr ""
 
-#. translators: 1: number of the count, 2: user, 3: counted cash, 4: cash difference
-#: src/BoxOffice/ZReport.php:401
+#. translators: 1: number of the count, 2: user who counted
+#: src/BoxOffice/ZReport.php:400
 #, php-format
 msgid "Zählung %1$d (%2$s)"
 msgstr ""
 
-#. translators: 1: number of the count, 2: user, 3: counted cash, 4: cash difference
-#: src/BoxOffice/ZReport.php:401
+#. translators: 1: counted cash, 2: cash difference
+#: src/BoxOffice/ZReport.php:400
 #, php-format
 msgid "Ist %1$s, Differenz %2$s"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:404
+#: src/BoxOffice/ZReport.php:403
 msgid "Buchungen"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:407
+#: src/BoxOffice/ZReport.php:406
 msgid "Override:"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:409
+#: src/BoxOffice/ZReport.php:408
 msgid "Summen"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:410
+#: src/BoxOffice/ZReport.php:409
 msgid "Nettoumsatz dieser Schicht"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:411
+#: src/BoxOffice/ZReport.php:410
 msgid "Grand Total (kumuliert)"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:412
+#: src/BoxOffice/ZReport.php:411
 msgid "Prüfsumme"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:418
+#: src/BoxOffice/ZReport.php:417
 msgid "Einlage"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:419
+#: src/BoxOffice/ZReport.php:418
 msgid "Entnahme"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:420
+#: src/BoxOffice/ZReport.php:419
 msgid "Storno"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:421
+#: src/BoxOffice/ZReport.php:420
 #: src/Partners/Settlements.php:58
 #: src/Partners/Settlements.php:688
 #: src/Partners/Statement.php:172
 msgid "Erstattung"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:422
+#: src/BoxOffice/ZReport.php:421
 msgid "Korrektur"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:443
+#: src/BoxOffice/ZReport.php:442
 msgid "AUSZAHLUNGSBELEG"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:444
+#: src/BoxOffice/ZReport.php:443
 msgid "zu Beleg"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:447
+#: src/BoxOffice/ZReport.php:446
 msgid "AUSZAHLUNG"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:458
+#: src/BoxOffice/ZReport.php:457
 msgid "Abschnitt"
 msgstr ""
 
 #. translators: 1: Z number, 2: register
-#: src/BoxOffice/ZReport.php:466
+#: src/BoxOffice/ZReport.php:465
 #, php-format
 msgid "Z-Bericht Nr. %1$d – %2$s"
 msgstr ""
 
-#: src/BoxOffice/ZReport.php:481
+#: src/BoxOffice/ZReport.php:480
 msgid "Drucken / als PDF speichern"
 msgstr ""
 
@@ -5836,7 +5834,7 @@ msgstr ""
 #: src/Errors.php:18
 #: src/Exchange/Service.php:577
 #: src/Orders.php:319
-#: src/Orders.php:745
+#: src/Orders.php:746
 msgid "Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut."
 msgstr ""
 
@@ -6119,7 +6117,7 @@ msgid "Event-Regeln speichern"
 msgstr ""
 
 #: src/Exchange/Portal.php:54
-#: src/Orders.php:1286
+#: src/Orders.php:1287
 msgid "Der Bestellzugriff ist ungültig."
 msgstr ""
 
@@ -8578,17 +8576,18 @@ msgstr ""
 msgid "Kalendereinträge verlinken auf diese Seite (Anker %s). Leer: nur Anker auf derselben Seite."
 msgstr ""
 
-#. translators: placeholder name for the numeric occurrence ID in an anchor
+#. translators: %s: anchor format, e.g. #wpcap-occ-{Termin-ID}
 #: src/Modules/Calendar.php:307
+msgctxt "placeholder name for the numeric occurrence ID in an anchor"
 msgid "Termin-ID"
 msgstr ""
 
-#. translators: placeholder name for the numeric occurrence ID in an anchor
+#. translators: %s: anchor format, e.g. #wpcap-occ-{Termin-ID}
 #: src/Modules/Calendar.php:308
 msgid "Ticket-E-Mail"
 msgstr ""
 
-#. translators: placeholder name for the numeric occurrence ID in an anchor
+#. translators: %s: anchor format, e.g. #wpcap-occ-{Termin-ID}
 #: src/Modules/Calendar.php:308
 msgid "Kalenderdatei (.ics) je Termin anhängen"
 msgstr ""
@@ -9006,8 +9005,15 @@ msgstr ""
 msgid "Ereignisse werden als signierte JSON-POSTs (API-Version %1$s) an HTTPS-Endpunkte gesendet. Signatur: Header X-WPCAP-Signature = %2$s. Fehlgeschlagene Zustellungen werden mit wachsendem Abstand wiederholt; nach wiederholten Fehlern wird der Webhook deaktiviert."
 msgstr ""
 
-#. translators: placeholder name for the raw request body in the signature format
+#. translators: 1: api version, 2: signature header format (not translated)
 #: src/Modules/Webhooks.php:290
+msgctxt "placeholder name for the Unix timestamp in the webhook signature format"
+msgid "Zeit"
+msgstr ""
+
+#. translators: 1: api version, 2: signature header format (not translated)
+#: src/Modules/Webhooks.php:290
+msgctxt "placeholder name for the raw request body in the webhook signature format"
 msgid "Body"
 msgstr ""
 
@@ -9567,12 +9573,12 @@ msgid "Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt
 msgstr ""
 
 #: src/Orders.php:323
-#: src/Orders.php:746
+#: src/Orders.php:747
 msgid "Für diese Ticketart sind nicht mehr genügend Tickets verfügbar."
 msgstr ""
 
 #: src/Orders.php:324
-#: src/Orders.php:747
+#: src/Orders.php:748
 #: src/Passes/Capacity.php:180
 msgid "Für diesen Termin sind nicht mehr genügend Plätze verfügbar."
 msgstr ""
@@ -9593,108 +9599,108 @@ msgstr ""
 msgid "Die Bestellung konnte nicht angelegt werden."
 msgstr ""
 
-#: src/Orders.php:471
+#: src/Orders.php:472
 msgid "Es wurden mehr Teilnehmende angegeben als Tickets bestellt."
 msgstr ""
 
 #. translators: %s: field label
-#: src/Orders.php:489
+#: src/Orders.php:490
 #, php-format
 msgid "Bitte „%s“ für jedes Ticket ausfüllen."
 msgstr ""
 
 #. translators: %s: field label
-#: src/Orders.php:493
+#: src/Orders.php:494
 #, php-format
 msgid "„%s“ ist keine gültige E-Mail-Adresse."
 msgstr ""
 
-#: src/Orders.php:521
+#: src/Orders.php:522
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr ""
 
-#: src/Orders.php:1032
+#: src/Orders.php:1033
 msgid "WP Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
 msgstr ""
 
-#: src/Orders.php:1032
+#: src/Orders.php:1033
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten)."
 msgstr ""
 
-#: src/Orders.php:1033
+#: src/Orders.php:1034
 msgid "Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden."
 msgstr ""
 
-#: src/Orders.php:1107
+#: src/Orders.php:1108
 msgid "Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen."
 msgstr ""
 
-#: src/Orders.php:1173
+#: src/Orders.php:1174
 msgid "Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt."
 msgstr ""
 
-#: src/Orders.php:1282
+#: src/Orders.php:1283
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr ""
 
-#: src/Orders.php:1289
+#: src/Orders.php:1290
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr ""
 
-#: src/Orders.php:1300
+#: src/Orders.php:1301
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr ""
 
-#: src/Orders.php:1305
+#: src/Orders.php:1306
 msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
 msgstr ""
 
-#: src/Orders.php:1315
+#: src/Orders.php:1316
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr ""
 
-#: src/Orders.php:1336
+#: src/Orders.php:1337
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr ""
 
-#: src/Orders.php:1359
-#: src/Orders.php:1376
+#: src/Orders.php:1360
+#: src/Orders.php:1377
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr ""
 
-#: src/Orders.php:1593
+#: src/Orders.php:1594
 #: src/WalletPasses/AppleProvider.php:73
 msgid "Dieses Ticket ist nur einmal gültig. Code nicht weitergeben."
 msgstr ""
 
-#: src/Orders.php:1645
+#: src/Orders.php:1646
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr ""
 
-#: src/Orders.php:1717
+#: src/Orders.php:1718
 msgid "Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen."
 msgstr ""
 
-#: src/Orders.php:1721
+#: src/Orders.php:1722
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr ""
 
-#: src/Orders.php:1731
+#: src/Orders.php:1732
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr ""
 
-#: src/Orders.php:1741
-#: src/Orders.php:1749
-#: src/Orders.php:1807
+#: src/Orders.php:1742
+#: src/Orders.php:1750
+#: src/Orders.php:1808
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr ""
 
-#: src/Orders.php:1771
+#: src/Orders.php:1772
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; der Versand wird automatisch wiederholt."
 msgstr ""
 
-#: src/Orders.php:1801
+#: src/Orders.php:1802
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr ""
 
@@ -11039,7 +11045,7 @@ msgid "Zwischensumme vor Verrechnung"
 msgstr ""
 
 #: src/Partners/Settlements.php:838
-msgid "abzüglich von Ihnen selbst vereinnahmte Ticketerlöse (eigene API-Verkäufe, nach Erstattungen)"
+msgid "abzüglich von dir selbst vereinnahmte Ticketerlöse (eigene API-Verkäufe, nach Erstattungen)"
 msgstr ""
 
 #: src/Partners/Settlements.php:839

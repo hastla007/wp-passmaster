@@ -146,7 +146,7 @@ final class ShiftPage {
 		$shift_id = absint( Forms::query_arg( 'shift_id', '0' ) );
 		$shift = $shift_id ? Shifts::get( $shift_id ) : Shifts::current_for_user( get_current_user_id() );
 		if ( ! $shift ) {
-			echo '<p>' . esc_html__( 'Sie haben keine offene Schicht.', 'wp-pass-captain' ) . ' <a href="' . esc_url( Page::back() ) . '">' . esc_html__( 'Schicht öffnen', 'wp-pass-captain' ) . '</a></p>';
+			echo '<p>' . esc_html__( 'Du hast keine offene Schicht.', 'wp-pass-captain' ) . ' <a href="' . esc_url( Page::back() ) . '">' . esc_html__( 'Schicht öffnen', 'wp-pass-captain' ) . '</a></p>';
 			return;
 		}
 		if ( ! Shifts::can_view( $shift ) ) { echo '<p>' . esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ) . '</p>'; return; }

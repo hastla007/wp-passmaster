@@ -835,7 +835,7 @@ final class Settlements {
 			$row = static function ( $label, $minor ) use ( $money ) { return '<tr><td>' . esc_html( $label ) . '</td><td class="n">' . esc_html( $money( (int) $minor ) ) . '</td></tr>'; };
 			if ( (int) $t['collected_self'] || (int) $t['carry_in'] ) {
 				$h .= $row( __( 'Zwischensumme vor Verrechnung', 'wp-pass-captain' ), (int) $t['payout_before_netting'] );
-				if ( (int) $t['collected_self'] ) { $h .= $row( __( 'abzüglich von Ihnen selbst vereinnahmte Ticketerlöse (eigene API-Verkäufe, nach Erstattungen)', 'wp-pass-captain' ), -(int) $t['collected_self'] ); }
+				if ( (int) $t['collected_self'] ) { $h .= $row( __( 'abzüglich von dir selbst vereinnahmte Ticketerlöse (eigene API-Verkäufe, nach Erstattungen)', 'wp-pass-captain' ), -(int) $t['collected_self'] ); }
 				if ( (int) $t['carry_in'] ) { $h .= $row( __( 'Saldovortrag aus der vorigen Abrechnung', 'wp-pass-captain' ), (int) $t['carry_in'] ); }
 			}
 			$h .= '<tr><th>' . esc_html__( 'Auszahlungsbetrag an Veranstalter', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html( $money( (int) $t['payout'] ) ) . '</th></tr>';

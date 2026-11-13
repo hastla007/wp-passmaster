@@ -85,7 +85,7 @@ final class Page {
 		if ( ! $session ) {
 			$active = Shifts::current_for_user( get_current_user_id() );
 			if ( $active ) {
-				echo '<p>' . esc_html__( 'Ihre Schicht wird gerade gezählt; Verkäufe sind erst in der nächsten Schicht möglich.', 'wp-pass-captain' ) . ' <a class="button" href="' . esc_url( ShiftPage::url( 'shift' ) ) . '">' . esc_html__( 'Zum Kassenabschluss', 'wp-pass-captain' ) . '</a></p>';
+				echo '<p>' . esc_html__( 'Deine Schicht wird gerade gezählt; Verkäufe sind erst in der nächsten Schicht möglich.', 'wp-pass-captain' ) . ' <a class="button" href="' . esc_url( ShiftPage::url( 'shift' ) ) . '">' . esc_html__( 'Zum Kassenabschluss', 'wp-pass-captain' ) . '</a></p>';
 			} else {
 				ShiftPage::render_open_forms();
 			}
