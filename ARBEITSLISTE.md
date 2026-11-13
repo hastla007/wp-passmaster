@@ -197,7 +197,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Rechnungskorrektur nutzt refund_plan (Invoices.php:113); Reports/Data.php:154, Partners/Settlements.php:135, Statement.php:51 nutzen weiter wpcap_refunds.amount_minor
 - [x] **A087** Einzweckgutscheine: Abrechnung mit face_value_minor — _OFFEN_ (TODO L357; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
   - face_value_minor nur in Integrations/Vouchers; Partners/Settlements.php nutzt es nicht
-- [ ] **A088** Admin-Menü gruppieren, Erste-Schritte-Checkliste, Eventliste mit Kennzahlen — _OFFEN_ (TODO L363; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A088** Admin-Menü gruppieren, Erste-Schritte-Checkliste, Eventliste mit Kennzahlen — _OFFEN_ (TODO L363; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/Admin/Menu.php:71ff flache Submenüs; keine Checkliste; Verkauft/Kapazität nur in Termin-/Ticketart-Tabelle (EventsPage.php:677)
 - [ ] **A089** Web-Scanner-Ergebnis wie PWA und Hilfscode — _OFFEN_ (TODO L364; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - assets/scanner.js ohne Ton/Vibration/Erstnutzungsanzeige; kein Hilfscode (short_code nur Gästelisten)
@@ -220,7 +220,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Kein Code gefunden
 - [x] **A098** Buchhaltungsexport: nicht fakturierte Verkäufe, Ortszeit-Tagesgrenzen — _OFFEN_ (TODO L373; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/Invoices.php:386-401 UTC-Tagesgrenzen, nur Rechnungen/Korrekturen
-- [ ] **A099** Einstellungen in Tabs, Zahlarten trennen, Rechtstexte je Sprache — _OFFEN_ (TODO L374; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A099** Einstellungen in Tabs, Zahlarten trennen, Rechtstexte je Sprache — _OFFEN_ (TODO L374; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/Admin/SettingsPage.php:276-288 alle Abschnitte untereinander; terms_text einsprachig (Zeile 80)
 - [ ] **A100** Eventkarte kompakt, Mengen-Stepper, Kalender-Badges, nächster Termin — _OFFEN_ (TODO L375; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Kein Stepper/Badge/Nächster-Termin-Code gefunden
@@ -411,9 +411,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Keine Admin-Anzeige für Rückstand, letzten Lauf, nächste Aktion gefunden
 - [ ] **A190** Restore-/Upgrade-Übung mit Ticket-/Bestell-/Jobdaten durchführen — _OFFEN_ (TODO L263; Last, Hintergrundjobs und Wiederanlauf)
   - Kein Nachweis einer Übung oder eines Restore-Tests in tests/
-- [ ] **A191** Provider-Secrets aus Klartext in wpcap_settings entfernen, Vault — _TEILWEISE_ (TODO L267; Sicherheit, Datenschutz und UI-Abnahme)
+- [x] **A191** Provider-Secrets aus Klartext in wpcap_settings entfernen, Vault — _TEILWEISE_ (TODO L267; Sicherheit, Datenschutz und UI-Abnahme)
   - Konstanten/Env-Vorrang (src/Settings.php:118-124); Fallback weiterhin Klartext in Option, kein Vault, keine Migration/Rotation
-- [ ] **A192** Automatisiert nachweisen, dass Provider-Secrets nirgends im Klartext auftauchen — _OFFEN_ (TODO L268; Sicherheit, Datenschutz und UI-Abnahme)
+- [x] **A192** Automatisiert nachweisen, dass Provider-Secrets nirgends im Klartext auftauchen — _OFFEN_ (TODO L268; Sicherheit, Datenschutz und UI-Abnahme)
   - Keine Tests für Stripe/PayPal-Secrets in Optionen/REST/HTML/Logs; Secrets liegen im Klartext
 - [ ] **A193** Automatisierte Permission-Matrix für alle Aktionen und Routen — _OFFEN_ (TODO L269; Sicherheit, Datenschutz und UI-Abnahme)
   - Keine Matrix; nur Einzelprüfung Partner-Routen (tests/integration/modules/partners.php:299-304)

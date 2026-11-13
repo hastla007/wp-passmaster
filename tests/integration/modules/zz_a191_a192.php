@@ -196,8 +196,18 @@ $a192_render = static function ( callable $render ) {
 	try { $render(); } catch ( Throwable $e ) { echo 'EXCEPTION ' . $e->getMessage(); }
 	return ob_get_clean();
 };
+// The settings screen has tabs (A099): render every tab and every payment provider section.
+$a192_settings_all = static function () use ( $a192_render ) {
+	$html = '';
+	foreach ( array( array( 'general', '' ), array( 'admission', '' ), array( 'payments', '' ), array( 'payments', 'manual' ), array( 'payments', 'stripe' ), array( 'payments', 'paypal' ), array( 'legal', '' ), array( 'invoices', '' ) ) as list( $tab, $section ) ) {
+		$_GET['tab'] = $tab; $_GET['section'] = $section;
+		$html .= $a192_render( array( PassCaptain\Admin\SettingsPage::class, 'render' ) );
+	}
+	unset( $_GET['tab'], $_GET['section'] );
+	return $html;
+};
 $a192_html = array(
-	'settings' => $a192_render( array( PassCaptain\Admin\SettingsPage::class, 'render' ) ),
+	'settings' => $a192_settings_all(),
 	'mollie' => $a192_render( array( PassCaptain\Modules\Mollie::class, 'render_admin' ) ),
 	'sms' => $a192_render( array( PassCaptain\Modules\Sms::class, 'render_admin' ) ),
 	'wallet' => $a192_render( array( PassCaptain\WalletPasses\AdminPage::class, 'render' ) ),
@@ -254,7 +264,7 @@ http_reset();
 $a192_unconfigured = Registry::get( 'stripe' )->create_payment( $a192_order, array() );
 check( 'no API request is made without a readable key; error names no value', is_wp_error( $a192_unconfigured ) && ! http_requests() && ! $a192_leaks( $a192_unconfigured->get_error_message() ) );
 ob_start(); Secrets::admin_notice(); $a192_notice = ob_get_clean();
-$a192_html_failed = $a192_render( array( PassCaptain\Admin\SettingsPage::class, 'render' ) );
+$a192_html_failed = $a192_settings_all();
 check( 'notice and form show the failure without values', false !== strpos( $a192_notice, 'notice-error' ) && false !== strpos( $a192_html_failed, 'nicht entschlüsselbar' ) && ! $a192_leaks( $a192_notice . $a192_html_failed ) );
 check( 'Site Health info reports "nicht entschlüsselbar"', false !== strpos( json_encode( Secrets::debug_information( array() ), JSON_UNESCAPED_UNICODE ), 'nicht entschlüsselbar' ) );
 a191_env( array( 'WPCAP_SECRETS_KEY' => 'a192-original-dedicated-key-0000000000' ) );

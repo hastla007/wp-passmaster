@@ -264,8 +264,8 @@ Diese Punkte zielen auf technische Robustheit und reproduzierbare Releasequalit�
 
 ### Sicherheit, Datenschutz und UI-Abnahme
 
-- [ ] Stripe-/PayPal- und andere Anbieter-Geheimnisse aus der Klartextspeicherung in der allgemeinen WordPress-Option `wpcap_settings` entfernen; verschlüsselten Credential-Vault oder externen Secret Store mit Schlüssel außerhalb der Datenbank festlegen. Bestehende Werte sicher migrieren und Rotation, Widerruf sowie Ausfall/Wiederherstellung fail-closed behandeln.
-- [ ] Automatisiert nachweisen, dass Provider-Secrets nach Speichern/Migration nicht im Klartext in Optionen, REST-Antworten, Admin-HTML, Audit-Logs, Fehlern oder Paketdateien auftauchen; Schlüsselverlust und erneute Eingabe testen.
+- [x] Stripe-/PayPal- und andere Anbieter-Geheimnisse aus der Klartextspeicherung in der allgemeinen WordPress-Option `wpcap_settings` entfernen; verschlüsselten Credential-Vault oder externen Secret Store mit Schlüssel außerhalb der Datenbank festlegen. Bestehende Werte sicher migrieren und Rotation, Widerruf sowie Ausfall/Wiederherstellung fail-closed behandeln.
+- [x] Automatisiert nachweisen, dass Provider-Secrets nach Speichern/Migration nicht im Klartext in Optionen, REST-Antworten, Admin-HTML, Audit-Logs, Fehlern oder Paketdateien auftauchen; Schlüsselverlust und erneute Eingabe testen.
 - [ ] Automatisierte Permission-Matrix für alle Admin-/REST-/Partner-/Käuferaktionen etablieren und sicherstellen, dass jede Route explizit geschützt oder bewusst öffentlich ist.
 - [ ] Secret-Redaction und Eingabevalidierung unter Fehlerbedingungen testen; API-Schlüssel, Ticketcodes, PII und Providerantworten dürfen nicht in Logs, REST-Fehlern oder CI-Artefakten erscheinen.
 - [ ] Dependency-/Secret-Scanning und Prüfung des erzeugten Pakets auf bekannte Schwachstellen bzw. eingebettete Geheimnisse als CI-Gates ergänzen.
@@ -360,7 +360,7 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 
 ### UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen)
 
-- [ ] Admin-Menü gruppieren (Verkaufen, Einlass, Kommunikation, Einstellungen) und „Erste Schritte“-Checkliste für neue Veranstalter ergänzen; Eventliste mit Verkauft/Kapazität/Umsatz.
+- [x] Admin-Menü gruppieren (Verkaufen, Einlass, Kommunikation, Einstellungen) und „Erste Schritte“-Checkliste für neue Veranstalter ergänzen; Eventliste mit Verkauft/Kapazität/Umsatz.
 - [ ] Web-Scanner-Ergebnis wie in der Offline-PWA (großes farbiges Ergebnis, Ton/Vibration, Zeit und Ort der Erstnutzung) und kurzer, eintippbarer Hilfscode (nur für Personal, gedrosselt).
 - [ ] Saalplan mobil nutzbar machen (Mindestgröße der Sitze, Zoom/Pan, Legende mit Form statt nur Farbe, Liste als Standard auf schmalen Bildschirmen).
 - [ ] Ticketseite und Ticket-PDF um Teilnehmername, Veranstaltungsadresse, Einlasszeit, Bestellnummer und Wallet-Button ergänzen; PDF-Dateiname lesbar.
@@ -371,7 +371,7 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [x] Getrennte Kontingente pro Verkaufskanal (online, Kasse, WooCommerce, Partner) und Kanal-Auswertung.
 - [x] Abrechnungsblatt pro Vorstellung für Spielstätte/Künstler (Kapazität, Freikarten, Besucher, Door Deal).
 - [x] Buchhaltungsexport um nicht fakturierte Online-/Kassenverkäufe ergänzen und Tagesgrenzen in Ortszeit statt UTC.
-- [ ] Einstellungsseite in Tabs aufteilen; Online- und Kassen-Zahlarten trennen; Rechtstexte mit Editor und je Sprache.
+- [x] Einstellungsseite in Tabs aufteilen; Online- und Kassen-Zahlarten trennen; Rechtstexte mit Editor und je Sprache.
 - [ ] Eventkarte kompakt (Zusammenfassung + „Tickets“-Button), Mengen-Stepper, Kalender mit Verfügbarkeits-Badges und Link zum nächsten Termin.
 - [x] HTML-Mail-Layout als Standard passend zu WooCommerce prüfen.
 - [x] Nicht vorhandene/mehrdeutige Ortszeiten bei Sommerzeitwechsel im Admin anzeigen statt still verschieben.
