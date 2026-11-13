@@ -75,9 +75,14 @@ jobs:
           php-version: '8.2'
           tools: composer:v2
           extensions: mbstring
+      - name: Reproducible build (two builds must be byte-identical)
+        run: bash tests/reproducible-build.sh
       - name: Build installable plugin ZIP
         run: bash build/release.sh
       - uses: actions/upload-artifact@v4
         with:
           name: wp-pass-captain
-          path: build/dist/wp-pass-captain.zip
+          path: |
+            build/dist/wp-pass-captain.zip
+            build/dist/wp-pass-captain.zip.sha256
+            build/dist/build-info.txt

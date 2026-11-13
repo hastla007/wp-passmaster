@@ -251,7 +251,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 
 ## Phase 8 – Ursprüngliche Roadmap-Punkte (P0–P2, Abnahme, CI)
 
-- [ ] **A112** Reproduzierbarer Release-Build mit Artefaktabgleich — _TEILWEISE_ (TODO L11; P0 – Repository und Plugin-Grundlage)
+- [x] **A112** Reproduzierbarer Release-Build mit Artefaktabgleich — _TEILWEISE_ (TODO L11; P0 – Repository und Plugin-Grundlage)
   - build/release.sh:23 git archive, composer.lock vorhanden; fehlen feste Zeitstempel (SOURCE_DATE_EPOCH), Prüfsummen und dokumentierter Abgleich Commit/veröffentlichtes ZIP
 - [ ] **A113** Rollback/Restore mit echten DB-Ständen erproben — _OFFEN_ (TODO L13; P0 – Repository und Plugin-Grundlage)
   - Kein Restore-/Downgrade-Test oder -Code; docs/OPERATIONS.md:51 nennt Prüfung nur als ausstehend

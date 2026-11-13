@@ -105,7 +105,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then target_args=(--verify-tag); else target_args=(--target "$RELEASE_SHA"); fi
-          gh release create "$TAG" build/dist/wp-pass-captain.zip \
+          gh release create "$TAG" build/dist/wp-pass-captain.zip build/dist/wp-pass-captain.zip.sha256 build/dist/build-info.txt \
             --title "WP Pass Captain ${TAG}" \
             --notes-file release-notes.md \
             "${target_args[@]}"

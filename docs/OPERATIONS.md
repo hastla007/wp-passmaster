@@ -52,7 +52,19 @@ Auftrags- und Ticketdaten nicht selektiv aus mehreren Sicherungszeitpunkten zusa
 
 ## Release-Kandidat
 
-Vor einer stabilen Version müssen Upgrade und Restore mit realistischen Datenbankständen, Eventänderungen, doppelten Webhooks, E-Mail-Ausfällen, hoher Scanrate und Multisite geprüft werden. Der ZIP-Build (`bash build/release.sh`) exportiert den committeten Stand per `git archive` (Standard `HEAD`, anders mit `WPCAP_BUILD_REF=<ref>`), installiert dort die Composer-Abhängigkeiten ohne Dev-Pakete und lässt alles weg, was in `.distignore` steht (Tests, Doku, Markdown außer `readme.txt`, `.po`-Quellen, Test-/CI-Dateien der Abhängigkeiten). Nicht committete Änderungen landen also nie im Paket. Der Release-Workflow veröffentlicht nur nach erfolgreicher CI auf `main` (genau der getestete Commit), bei Tags `v*` oder manuell von `main`.
+Vor einer stabilen Version müssen Upgrade und Restore mit realistischen Datenbankständen, Eventänderungen, doppelten Webhooks, E-Mail-Ausfällen, hoher Scanrate und Multisite geprüft werden. Der ZIP-Build (`bash build/release.sh`) exportiert den committeten Stand per `git archive` (Standard `HEAD`, anders mit `WPCAP_BUILD_REF=<ref>`), installiert dort die Composer-Abhängigkeiten ohne Dev-Pakete und lässt alles weg, was in `.distignore` steht (Tests, Doku, Markdown außer `readme.txt`, `.po`-Quellen, Test-/CI-Dateien der Abhängigkeiten). Nicht committete Änderungen landen also nie im Paket. Der Build ist reproduzierbar: Dateizeiten werden auf die Commit-Zeit gesetzt (`SOURCE_DATE_EPOCH`), Rechte vereinheitlicht (644/755), Einträge sortiert und ohne Zusatzattribute gepackt, der Autoloader-Suffix ist fest. Neben dem ZIP entstehen `wp-pass-captain.zip.sha256` und `build-info.txt` (Commit, Zeitstempel, Prüfsumme, Prüfsumme der `composer.lock`); beide hängen auch am GitHub-Release. CI prüft mit `tests/reproducible-build.sh`, dass zwei Builds identisch sind.
+
+**Abgleich veröffentlichtes ZIP ↔ Commit:** Release-ZIP und `.sha256` herunterladen, dann im Repository
+
+```bash
+WPCAP_BUILD_REF=v1.5.0 bash build/release.sh
+```
+
+```bash
+sha256sum build/dist/wp-pass-captain.zip
+```
+
+ausführen und die Summe mit der veröffentlichten `.sha256` bzw. `build-info.txt` vergleichen. Gleiche Summe = das ZIP stammt genau aus diesem Commit (gleiche Composer-Version vorausgesetzt; die CI nutzt Composer 2 aus `shivammathur/setup-php`). Der Release-Workflow veröffentlicht nur nach erfolgreicher CI auf `main` (genau der getestete Commit), bei Tags `v*` oder manuell von `main`.
 
 ## Kasse: keine Registrierkasse
 
