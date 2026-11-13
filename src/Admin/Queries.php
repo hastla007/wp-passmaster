@@ -207,13 +207,24 @@ final class Queries {
 		return array( 'rows' => $rows, 'total' => $total );
 	}
 
-	/** Event id => name for filter selects (scoped). */
+	/**
+	 * Event id => label for selects (scoped). Events sharing a name are told apart by their first
+	 * date and ID ("Konzert (12.05.2027 20:00 Europe/Vienna, #14)").
+	 */
 	public static function event_options( $event_ids ) {
 		global $wpdb;
-		$scope = self::scope_sql( $event_ids, 'event_id' );
+		$p = $wpdb->prefix;
+		$scope = self::scope_sql( $event_ids, 'e.event_id' );
+		$rows = $wpdb->get_results( "SELECT e.event_id,e.name,MIN(o.starts_at) AS first_start,MIN(o.timezone) AS timezone FROM {$p}wpcap_events e LEFT JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id WHERE 1=1{$scope} GROUP BY e.event_id,e.name ORDER BY e.name,first_start LIMIT 500" );
+		$count = array();
+		foreach ( (array) $rows as $row ) { $key = mb_strtolower( trim( (string) $row->name ) ); $count[ $key ] = ( $count[ $key ] ?? 0 ) + 1; }
 		$out = array();
-		foreach ( $wpdb->get_results( "SELECT event_id,name FROM {$wpdb->prefix}wpcap_events WHERE 1=1{$scope} ORDER BY name LIMIT 500" ) as $row ) {
-			$out[ (int) $row->event_id ] = $row->name;
+		foreach ( (array) $rows as $row ) {
+			$label = (string) $row->name;
+			if ( $count[ mb_strtolower( trim( $label ) ) ] > 1 ) {
+				$label .= ' (' . ( $row->first_start ? \PassCaptain\Orders::format_start( $row->first_start, (string) $row->timezone ) . ', ' : '' ) . '#' . (int) $row->event_id . ')';
+			}
+			$out[ (int) $row->event_id ] = $label;
 		}
 		return $out;
 	}

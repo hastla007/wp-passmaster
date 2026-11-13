@@ -602,3 +602,14 @@ foreach ( $a49b_it as $a49b_file ) {
 }
 check( 'A049b: no "%d Stunden/Tage/Minuten/Tickets" without _n() (no "1 Stunden")' . ( $a49b_bad ? ' – ' . implode( ', ', $a49b_bad ) : '' ), ! $a49b_bad );
 check( 'A049b: one hour reads "1 Stunde"', '1 Stunde' === sprintf( _n( '%d Stunde', '%d Stunden', 1, 'wp-pass-captain' ), 1 ) );
+
+echo "Audit 3: same-named events are distinguishable in selects (A049c)\n";
+$a49c_t1 = make_type( 10, 5, 1000 );
+$a49c_t2 = make_type( 10, 5, 1000 );
+$a49c_e = array_map( static fn( $t ) => (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$t" ), array( $a49c_t1, $a49c_t2 ) );
+$wpdb->query( "UPDATE {$p}wpcap_events SET name='Doppelname A49' WHERE event_id IN (" . implode( ',', $a49c_e ) . ')' );
+$a49c_unique = make_type( 10, 5, 1000 );
+$a49c_ue = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$a49c_unique" );
+$wpdb->query( "UPDATE {$p}wpcap_events SET name='Einzelname A49' WHERE event_id=$a49c_ue" );
+$a49c = PassCaptain\Admin\Queries::event_options( array_merge( $a49c_e, array( $a49c_ue ) ) );
+check( 'A049c: duplicate names get date and ID, unique names stay plain', 0 === strpos( $a49c[ $a49c_e[0] ], 'Doppelname A49 (' ) && false !== strpos( $a49c[ $a49c_e[0] ], '#' . $a49c_e[0] . ')' ) && $a49c[ $a49c_e[0] ] !== $a49c[ $a49c_e[1] ] && 'Einzelname A49' === $a49c[ $a49c_ue ] );
