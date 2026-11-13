@@ -1,6 +1,6 @@
 <?php
 /**
- * ID and age check per ticket type (schema 3.8.4, columns wpcap_ticket_types.id_check, min_age,
+ * ID and age check per ticket type (schema 3.8.5, columns wpcap_ticket_types.id_check, min_age,
  * staff_note): scanning staff see "Ausweis prüfen", the minimum age and a free note with every scan
  * result (web scanner, mobile API, offline package/app); buyers see the requirement on the event card.
  * The check itself is done by the staff – the scan is not refused.
@@ -19,7 +19,7 @@ final class AdmissionChecks {
 	/** Whether the columns exist (a deferred upgrade may still be pending). */
 	public static function ready() {
 		$version = strtok( (string) get_option( 'wpcap_db_version', '' ), '+' );
-		return false !== $version && '' !== $version && version_compare( $version, '3.8.4', '>=' );
+		return false !== $version && '' !== $version && version_compare( $version, '3.8.5', '>=' );
 	}
 
 	/**

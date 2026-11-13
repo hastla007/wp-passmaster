@@ -205,13 +205,13 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - assets/seating/picker.js:133-160 Legende nur Farbe, kein Zoom/Pan, Liste nur eingeklappt (details)
 - [ ] **A091** Ticketseite/PDF: Teilnehmer, Adresse, Einlass, Bestellnr., Wallet, Dateiname — _OFFEN_ (TODO L366; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/TicketPage.php:30 ohne Teilnehmer/Bestellnr./Wallet; PDF-Name tickets-<public_id>.pdf (Orders.php:1428)
-- [ ] **A092** Einlasszeit als Feld am Termin, Zutritt davor verhindern — _TEILWEISE_ (TODO L367; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A092** Einlasszeit als Feld am Termin, Zutritt davor verhindern — _TEILWEISE_ (TODO L367; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Nur relatives Einlassfenster (Admission/Engine.php:79-90); kein Doors-Feld in Occurrences-Schema (Installer.php:73-88)
-- [ ] **A093** Kapazität pro Einlassbereich am Einlass durchsetzen — _OFFEN_ (TODO L368; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A093** Kapazität pro Einlassbereich am Einlass durchsetzen — _OFFEN_ (TODO L368; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Keine Bereichskapazität im Check-in (Checkin.php:351 nur wrong_area, Admission/Engine.php)
-- [ ] **A094** Alters-/Ausweispflicht pro Ticketart mit Scanner-Hinweis — _OFFEN_ (TODO L369; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A094** Alters-/Ausweispflicht pro Ticketart mit Scanner-Hinweis — _OFFEN_ (TODO L369; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Kein entsprechendes Feld/Code gefunden
-- [ ] **A095** No-Show-Liste/Export pro Termin — _OFFEN_ (TODO L370; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A095** No-Show-Liste/Export pro Termin — _OFFEN_ (TODO L370; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Kein No-Show-Code gefunden
 - [x] **A096** Kontingente pro Verkaufskanal und Kanal-Auswertung — _OFFEN_ (TODO L371; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Nur Partner-Feld sales_channel (Partners/AdminPage.php:316); keine Kanal-Kontingente/Auswertung

@@ -1,6 +1,6 @@
 <?php
 /**
- * Doors-open time ("Einlass ab") per occurrence (schema 3.8.3, column wpcap_occurrences.doors_open_at,
+ * Doors-open time ("Einlass ab") per occurrence (schema 3.8.4, column wpcap_occurrences.doors_open_at,
  * UTC, NULL = no own doors time). Check-ins before that moment are refused with the result
  * `outside_entry_window`, whatever admission policy or default entry window applies; the time is
  * also shown on the ticket page, the event card and to scanning staff.
@@ -16,7 +16,7 @@ final class DoorsOpen {
 	/** Whether the column exists (a deferred upgrade may still be pending). */
 	public static function ready() {
 		$version = strtok( (string) get_option( 'wpcap_db_version', '' ), '+' );
-		return false !== $version && '' !== $version && version_compare( $version, '3.8.3', '>=' );
+		return false !== $version && '' !== $version && version_compare( $version, '3.8.4', '>=' );
 	}
 
 	/** Doors-open time (UTC "Y-m-d H:i:s") of an occurrence, or null. */

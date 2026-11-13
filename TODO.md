@@ -364,10 +364,10 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [ ] Web-Scanner-Ergebnis wie in der Offline-PWA (großes farbiges Ergebnis, Ton/Vibration, Zeit und Ort der Erstnutzung) und kurzer, eintippbarer Hilfscode (nur für Personal, gedrosselt).
 - [ ] Saalplan mobil nutzbar machen (Mindestgröße der Sitze, Zoom/Pan, Legende mit Form statt nur Farbe, Liste als Standard auf schmalen Bildschirmen).
 - [ ] Ticketseite und Ticket-PDF um Teilnehmername, Veranstaltungsadresse, Einlasszeit, Bestellnummer und Wallet-Button ergänzen; PDF-Dateiname lesbar.
-- [ ] Einlasszeit („Doors“) als eigenes Feld am Termin; Zutritt vor Einlass verhindern.
-- [ ] Kapazität pro Einlassbereich (Stehbereich) am Einlass durchsetzen.
-- [ ] Alters-/Ausweispflicht pro Ticketart mit Hinweis im Scanner.
-- [ ] No-Show-Liste/Export pro Termin.
+- [x] Einlasszeit („Doors“) als eigenes Feld am Termin; Zutritt vor Einlass verhindern.
+- [x] Kapazität pro Einlassbereich (Stehbereich) am Einlass durchsetzen.
+- [x] Alters-/Ausweispflicht pro Ticketart mit Hinweis im Scanner.
+- [x] No-Show-Liste/Export pro Termin.
 - [x] Getrennte Kontingente pro Verkaufskanal (online, Kasse, WooCommerce, Partner) und Kanal-Auswertung.
 - [ ] Abrechnungsblatt pro Vorstellung für Spielstätte/Künstler (Kapazität, Freikarten, Besucher, Door Deal).
 - [ ] Buchhaltungsexport um nicht fakturierte Online-/Kassenverkäufe ergänzen und Tagesgrenzen in Ortszeit statt UTC.

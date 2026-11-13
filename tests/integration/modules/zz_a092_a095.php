@@ -29,7 +29,7 @@ $GLOBALS['wpcap_test_denied_caps'] = array();
  * ------------------------------------------------------------------------------------------- */
 echo "A092: doors-open time per occurrence\n";
 $vie = 'Europe/Vienna';
-check( 'A092 schema: doors_open_at column, DB version >= 3.8.3, ready()', null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_occurrences LIKE 'doors_open_at'" ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.8.3', '>=' ) && DoorsOpen::ready() );
+check( 'A092 schema: doors_open_at column, DB version >= 3.8.4, ready()', null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_occurrences LIKE 'doors_open_at'" ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.8.4', '>=' ) && DoorsOpen::ready() );
 
 $d = adm_setup( $vie, '2027-05-01 20:00', '2027-05-01 23:00', 3 );
 $d_occ = $wpdb->get_row( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=" . $d['occ'] );
@@ -108,7 +108,7 @@ echo "A094: ID/age check per ticket type shown to scanning staff\n";
 $a = adm_setup( $vie, '2027-07-01 20:00', '2027-07-01 23:00', 3 );
 $a_type = $wpdb->get_row( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id=" . $a['type'] );
 $a_base = array( 'ticket_type_id' => $a['type'], 'name' => $a_type->name, 'price' => '0', 'currency' => $a_type->currency, 'tax_rate' => '0', 'capacity' => (string) $a_type->capacity, 'max_per_order' => (string) $a_type->max_per_order, 'status' => 'active' );
-check( 'A094 schema: columns on ticket types, DB version >= 3.8.4', null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_ticket_types LIKE 'min_age'" ) && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_ticket_types LIKE 'staff_note'" ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.8.4', '>=' ) && AdmissionChecks::ready() );
+check( 'A094 schema: columns on ticket types, DB version >= 3.8.5', null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_ticket_types LIKE 'min_age'" ) && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_ticket_types LIKE 'staff_note'" ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.8.5', '>=' ) && AdmissionChecks::ready() );
 $a_bad = EventsPage::save_ticket_type( $a_base + array( 'min_age' => '120' ) );
 check( 'A094 implausible minimum age is refused', is_wp_error( $a_bad ) && 'wpcap_type_min_age' === $a_bad->get_error_code() );
 $a_plain = adm_in( $a['codes'][0], adm_ts( '2027-07-01 19:30', $vie ) );
