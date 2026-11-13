@@ -8,8 +8,9 @@ WP="$1"; OLD="$2"; NEW="$3"; W="$4"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 wpc() { wp --allow-root --path="$WP" "$@"; }
 DBN="$(wpc config get DB_NAME)"; DBU="$(wpc config get DB_USER)"; DBP="$(wpc config get DB_PASSWORD)"; DBH="$(wpc config get DB_HOST)"
-dump() { mariadb-dump -h"$DBH" -u"$DBU" -p"$DBP" --single-transaction --skip-dump-date "$DBN" > "$1"; }
-load() { mariadb -h"$DBH" -u"$DBU" -p"$DBP" "$DBN" < "$1"; }
+DUMP="$(command -v mariadb-dump || command -v mysqldump)"; CLIENT="$(command -v mariadb || command -v mysql)"
+dump() { "$DUMP" -h"$DBH" -u"$DBU" -p"$DBP" --single-transaction --skip-dump-date --no-tablespaces "$DBN" > "$1"; }
+load() { "$CLIENT" -h"$DBH" -u"$DBU" -p"$DBP" "$DBN" < "$1"; }
 LINK="$WP/wp-content/plugins/wp-pass-captain"
 use() { rm -f "$LINK"; ln -s "$1" "$LINK"; }
 upgrade() { wpc eval 'PassCaptain\Plugin::maybe_upgrade("admin"); wp_cache_flush();' ; }

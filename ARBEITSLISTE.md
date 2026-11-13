@@ -277,7 +277,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Getrennt: Privacy.php:320, Retention.php:39; nur Teilnehmerfrist im UI (SettingsPage.php:109), übrige nur per Filter; keine Löschung von Belegen nach Frist
 - [ ] **A124** PWA-, PSP-Sandbox-, Refund-E2E in CI/Release-Gates — _OFFEN_ (TODO L60; P0 – Datenschutz und Releasefähigkeit)
   - ci.yml enthält nur Lint, Integration, Lasttest-CI-Profil, ZIP; keine PWA-/Sandbox-/E2E-Jobs
-- [ ] **A125** Aktivierung/Update/Restore/Deinstallation in realen WP-Versionen — _OFFEN_ (TODO L62; P0 – Datenschutz und Releasefähigkeit)
+- [x] **A125** Aktivierung/Update/Restore/Deinstallation in realen WP-Versionen — _OFFEN_ (TODO L62; P0 – Datenschutz und Releasefähigkeit)
   - Kein Test gegen echte WP-Installationen; tests/integration/wp nur Stub, keine Versionsmatrix in CI
 - [x] **A126** Verbindliche Release-Gates, manuelle Mobile/Desktop-Abnahme dokumentieren — _TEILWEISE_ (TODO L63; P0 – Datenschutz und Releasefähigkeit)
   - Automatische Prüfungen in ci.yml; Gates in CONCEPT.md:443-450 alle offen, keine Abnahmedokumentation

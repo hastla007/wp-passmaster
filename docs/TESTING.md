@@ -191,3 +191,20 @@ Referenzlauf 13.11.2026 (lokal, MariaDB 11, 4 vCPU), Grenze = 4 × gemessenes p9
 | http | Checkout / Check-in / Webhook (REST) | 672 / 898 / 972 ms | 2700 / 3600 / 3900 ms |
 
 Nach einer gewollten Änderung (z. B. zusätzliche Prüfung im Checkout) die Grenzen in der Baseline anpassen und hier begründen. Hinweis: Der REST-Lasttest hebt auf seinem privaten Testserver die Schutzgrenzen pro Client (`wpcap_checkout_ip_limit`, `wpcap_manual_orders_per_client`, `wpcap_manual_open_orders_per_email`) auf, weil alle Anfragen von 127.0.0.1 kommen, und verwendet je Lauf eigene Käuferadressen. Ausverkauft-Antworten erkennt er sprachunabhängig am neuen Feld `data.reason` der Checkout-Fehler.
+
+## Echte WordPress-Versionen (A125)
+
+Workflow `.github/workflows/wp-matrix.yml` (jeder Push/PR, wöchentlich, manuell) installiert WordPress
+6.4 (Mindestversion, PHP 8.2), 6.8 (PHP 8.3) und die neueste Version (PHP 8.4) mit MariaDB 11.4 und führt aus:
+
+- `tests/wp-matrix/lifecycle.sh`: Aktivierung (Schema, DB-Version, Fingerprint), öffentliche REST-Route,
+  Admin-Seiten (Events, Bestellungen, Check-ins, Einstellungen) als eingeloggter Admin, Deaktivierung
+  (Daten bleiben, Cron-Ereignisse entfernt), erneute Aktivierung, Deinstallation ohne und mit
+  „Daten beim Löschen entfernen“ (Tabellen, Optionen, Rollen), keine PHP-Fehler/-Warnungen/-Deprecations
+  des Plugins im `debug.log`.
+- `tests/restore/drill.sh` mit dem vorherigen Release und dem aktuellen Commit: Upgrade, Code-Rollback,
+  erneutes Upgrade, Restore einer alten Sicherung (siehe OPERATIONS.md).
+
+Lokal (nur Test-Installation!): `WPCAP_LIFECYCLE_HTTP=1 bash tests/wp-matrix/lifecycle.sh /pfad/zu/wp /pfad/zum/plugin`
+(mit laufendem Webserver für die Site-URL; ohne `WPCAP_LIFECYCLE_HTTP` entfallen REST- und Admin-Seitenprüfung).
+Ergebnis 13.11.2026 lokal gegen WordPress 7.1.4: alle 21 Prüfungen bestanden.

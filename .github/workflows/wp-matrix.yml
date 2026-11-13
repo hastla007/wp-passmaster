@@ -1,0 +1,69 @@
+name: WordPress version matrix
+
+# A125: activation, deactivation, reactivation, uninstall (with/without data removal), admin pages
+# and REST in real WordPress installs, plus the upgrade/rollback/restore drill against the previous
+# release (tests/restore/drill.sh). Runs on every push/PR and weekly against the newest WordPress.
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '41 4 * * 2'
+  workflow_dispatch:
+
+jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { wp: '6.4', php: '8.2' }   # minimum supported (Requires at least)
+          - { wp: '6.8', php: '8.3' }
+          - { wp: 'latest', php: '8.4' }
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer:v2, wp-cli
+          extensions: mbstring, mysqli, gd, zip, sodium, curl
+          coverage: none
+      - name: Plugin dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist
+      - name: Install WordPress ${{ matrix.wp }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
+          wp core download --version=${{ matrix.wp }} --locale=en_US
+          wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp core install --url=http://localhost:8080 --title=Matrix --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          echo "WordPress $(wp core version)"
+          (PHP_CLI_SERVER_WORKERS=4 nohup php -S localhost:8080 >/dev/null 2>&1 &)
+      - name: Lifecycle (activate, deactivate, reactivate, uninstall, admin pages, REST)
+        env:
+          WPCAP_LIFECYCLE_HTTP: '1'
+        run: bash tests/wp-matrix/lifecycle.sh "$RUNNER_TEMP/wp" "$GITHUB_WORKSPACE"
+      - name: Build the previous release (old) and this commit (new)
+        run: |
+          prev="$(git tag --list 'v*' --sort=-v:refname | head -n1)"
+          echo "Previous release: $prev"
+          WPCAP_BUILD_REF="$prev" bash build/release.sh && mkdir -p "$RUNNER_TEMP/old" && unzip -q build/dist/wp-pass-captain.zip -d "$RUNNER_TEMP/old"
+          bash build/release.sh && mkdir -p "$RUNNER_TEMP/new" && unzip -q build/dist/wp-pass-captain.zip -d "$RUNNER_TEMP/new"
+      - name: Upgrade / rollback / restore drill with real data
+        run: |
+          mkdir -p "$RUNNER_TEMP/drill"
+          bash tests/restore/drill.sh "$RUNNER_TEMP/wp" "$RUNNER_TEMP/old/wp-pass-captain" "$RUNNER_TEMP/new/wp-pass-captain" "$RUNNER_TEMP/drill"

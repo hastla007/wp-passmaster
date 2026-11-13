@@ -59,7 +59,7 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 - [x] Datenbank-/Integrationstests für Checkout, Zahlungs-Webhooks, Refunds, WooCommerce, REST und Scanner-Grundabläufe sowie Last- und A11y-Testwerkzeuge einrichten.
 - [ ] PWA-/Endgeräte-, reale PSP-Sandbox- und vollständige Refund-End-to-End-Abnahmen in CI/Release-Gates ergänzen.
 - [x] CI baut und prüft ein installierbares ZIP; Aktivierungs-/Deaktivierungshooks und Migrationen sind vorhanden.
-- [ ] Aktivierung, Update, Restore und Deinstallation in realen WordPress-Versionen durchtesten.
+- [x] Aktivierung, Update, Restore und Deinstallation in realen WordPress-Versionen durchtesten.
 - [x] Automatisierte Integration-, Syntax-, Last- und A11y-Prüfungen existieren; verbindliche Release-Gates sowie manuelle Mobile-/Desktop-Abnahme sind noch nicht vollständig dokumentiert.
 
 ## P1 – Voucher-Captain-Integration
