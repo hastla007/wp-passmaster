@@ -181,3 +181,15 @@ foreach ( array( 'wpcap_capacity_released', 'wpcap_capacity_increased', 'wpcap_o
 unset( $GLOBALS['wpcap_test_filters']['wpcap_waitlist_process_delay'] );
 update_option( Waitlists::QUEUE_OPTION, array() );
 Settings::update( $wl_saved );
+
+echo "Waitlist: privacy erasure releases a running offer at once (A079)\n";
+$a79_type = make_type( 1, 4, 1000 );
+$a79_block = Orders::create( array( 'email' => 'a79-block@example.com', 'items' => array( array( 'ticket_type_id' => $a79_type, 'quantity' => 1 ) ), 'idempotency_key' => 'a79-block-' . uniqid() ) );
+wl_join( $a79_type, 'a79@example.com', 1 );
+Orders::cancel_order( $a79_block['order_id'], 'test' );
+Waitlists::run_due( true );
+$a79_entry = wl_entry( $a79_type, 'a79@example.com' );
+$a79_offer = (int) $a79_entry->order_id;
+$a79_held = Orders::availability( $a79_type );
+PassCaptain\Privacy::erase( 'a79@example.com' );
+check( 'A079: the offer placeholder order is cancelled and its place is free right away', 'offered' === $a79_entry->status && $a79_offer && 0 === $a79_held && 'cancelled' === Orders::get( $a79_offer )->status && 1 === Orders::availability( $a79_type ) );

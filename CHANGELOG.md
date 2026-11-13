@@ -84,6 +84,7 @@
 - Datenschutz-Löschung (auch sofort, Filter `wpcap_privacy_defer_upcoming`): widerrufene Tickets geben ihre Plätze frei (über `Orders::revoke_tickets()`: Kontingent, Zähler, `wpcap_capacity_released`).
 - Module einzeln abschaltbar (Konstante `WPCAP_DISABLED_MODULES`, Filter `wpcap_module_enabled`): ein abgeschaltetes Modul registriert keine Hooks, Seiten und Aktionen; Tabellen und Einstellungen bleiben.
 - Gästelisten: WordPress-Datenexport und -Löschung für Gäste (Name, E-Mail, Firma, Notiz; Zählwerte und Status bleiben für Berichte).
+- Datenschutz-Löschung storniert laufende Wartelisten-Angebote (Platzhalter-Bestellung) sofort – der Platz geht an die nächste Person statt bis zum Ablauf blockiert zu sein.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

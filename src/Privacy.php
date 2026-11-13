@@ -319,6 +319,10 @@ final class Privacy {
 		$bookings = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_service_bookings SET customer_email=%s WHERE customer_email=%s", 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, $email ) );
 		$messages_removed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_message_queue SET recipient=%s,payload='{}',status=IF(status IN ('queued','sending'),'cancelled',status),locked_at=NULL,last_error='privacy_erasure' WHERE recipient=%s", 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, $email ) );
 		$passes_removed = $wpdb->update( $p . 'wpcap_member_passes', array( 'member_email' => 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, 'token_hash' => self::random_hash(), 'status' => 'revoked' ), array( 'member_email' => $email ), array( '%s', '%s', '%s' ), array( '%s' ) );
+		// Running offers hold places through a pending placeholder order: release them right away.
+		foreach ( array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT w.order_id FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_orders o ON o.order_id=w.order_id WHERE w.email=%s AND w.status='offered' AND w.order_id>0 AND o.payment_status='pending'", $email ) ) ) as $offer_order ) {
+			Orders::cancel_order( $offer_order, 'privacy_erasure' );
+		}
 		$waitlist_removed = $wpdb->update( $p . 'wpcap_waitlist', array( 'email' => 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, 'email_hash' => self::random_hash(), 'offer_token_hash' => '', 'status' => 'removed', 'updated_at' => $now ), array( 'email' => $email ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%s' ) );
 		$removed += $bookings + $messages_removed + (int) $passes_removed + (int) $waitlist_removed;
 

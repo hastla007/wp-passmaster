@@ -177,10 +177,11 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 
 - [x] **A078** Datenschutz-Export/-Löschung für wpcap_guest_entries — _OFFEN_ (TODO L336; Offene Nacharbeiten aus Phase 3)
   - src/Privacy.php enthält keine Behandlung von wpcap_guest_entries (grep ohne Treffer außerhalb GuestLists)
-- [ ] **A079** DSGVO-Löschung soll Wartelisten-Angebote sofort freigeben — _OFFEN_ (TODO L337; Offene Nacharbeiten aus Phase 3)
+- [x] **A079** DSGVO-Löschung soll Wartelisten-Angebote sofort freigeben — _OFFEN_ (TODO L337; Offene Nacharbeiten aus Phase 3)
   - src/Privacy.php:305 setzt nur status='removed'; Platzhalter-Bestellung/Reservierung wird nicht storniert
-- [ ] **A080** wpcap_waitlist_process beim Deaktivieren abmelden — _OFFEN_ (TODO L338; Offene Nacharbeiten aus Phase 3)
+- [x] **A080** wpcap_waitlist_process beim Deaktivieren abmelden — _OFFEN_ (TODO L338; Offene Nacharbeiten aus Phase 3)
   - src/Plugin.php:134 Hook-Liste ohne Waitlists::HOOK
+  - Erledigt mit A061: `Plugin::cron_hooks()` enthält `Waitlists::HOOK`, Deaktivierung/Deinstallation melden ihn ab (Test A061).
 - [ ] **A081** Umtausch: Zusatzfelder, Webhook ticket.exchanged, Woo-Differenzerstattung — _OFFEN_ (TODO L340; Offene Nacharbeiten aus Phase 3)
   - src/Exchange/Service.php:649 Antworten nicht übernommen; kein Webhook-Ereignis ticket.exchanged; kein WooCommerce-Bezug in Exchange
 - [ ] **A082** wpcap_reserve_capacity um internal, E-Mail, User-ID erweitern — _OFFEN_ (TODO L341; Offene Nacharbeiten aus Phase 3)
