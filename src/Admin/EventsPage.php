@@ -386,6 +386,10 @@ final class EventsPage {
 		if ( '' === $label || '' === $field_type ) { return Forms::error( 'wpcap_field_invalid', __( 'Bitte Bezeichnung und Feldtyp angeben.', 'wp-pass-captain' ) ); }
 		$retention = Forms::int( $in, 'retention_days', 365 );
 		if ( $retention > 3650 ) { return Forms::error( 'wpcap_field_retention', __( 'Die Aufbewahrungsdauer darf höchstens 3650 Tage betragen.', 'wp-pass-captain' ) ); }
+		// Consent (A116): a checkbox with a stated purpose; grants and withdrawals are logged.
+		$consent = \PassCaptain\Consents::ready() && Forms::flag( $in, 'consent' );
+		if ( $consent && 'checkbox' !== $field_type ) { return Forms::error( 'wpcap_field_consent_type', __( 'Eine Einwilligung muss den Typ Checkbox haben.', 'wp-pass-captain' ) ); }
+		if ( $consent && '' === Forms::text( $in, 'purpose' ) ) { return Forms::error( 'wpcap_field_consent_purpose', __( 'Bitte gib für die Einwilligung den Zweck an. Er wird beim Ankreuzen angezeigt und mit protokolliert.', 'wp-pass-captain' ) ); }
 		$data = array(
 			'label' => $label,
 			'field_type' => $field_type,
@@ -394,10 +398,15 @@ final class EventsPage {
 			'retention_days' => $retention,
 			'position' => min( 65535, Forms::int( $in, 'position' ) ),
 		);
+		$formats = array( '%s', '%s', '%d', '%s', '%d', '%d' );
+		if ( \PassCaptain\Consents::ready() ) {
+			$data['consent'] = $consent ? 1 : 0;
+			$formats[] = '%d';
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_participant_fields';
 		if ( $old ) {
-			$wpdb->update( $table, $data, array( 'field_id' => (int) $old->field_id ), array( '%s', '%s', '%d', '%s', '%d', '%d' ), array( '%d' ) );
+			$wpdb->update( $table, $data, array( 'field_id' => (int) $old->field_id ), $formats, array( '%d' ) );
 			$field_id = (int) $old->field_id;
 		} else {
 			$key = substr( sanitize_key( (string) ( $in['field_key'] ?? '' ) ), 0, 64 );
@@ -408,11 +417,16 @@ final class EventsPage {
 			$data['ticket_type_id'] = (int) $type->ticket_type_id;
 			$data['field_key'] = $key;
 			$data['status'] = 'active';
-			$wpdb->insert( $table, $data, array( '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s' ) );
+			$wpdb->insert( $table, $data, array_merge( $formats, array( '%d', '%s', '%s' ) ) );
 			$field_id = (int) $wpdb->insert_id;
 			if ( ! $field_id ) { return Forms::error( 'wpcap_field_save', __( 'Das Feld konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
 		}
-		Audit::record( $old ? 'participant_field_updated' : 'participant_field_created', 'ticket_type', (int) $type->ticket_type_id, array( 'field_id' => $field_id, 'required' => $data['required'], 'retention_days' => $retention ) );
+		$details = array( 'field_id' => $field_id, 'required' => $data['required'], 'retention_days' => $retention );
+		if ( $consent ) {
+			// A changed consent text is a new version; records name the version that was shown.
+			$details['consent_text_version'] = \PassCaptain\Consents::ensure_text( (object) array( 'field_id' => $field_id, 'label' => $label, 'purpose' => $data['purpose'] ) )['text_version'];
+		}
+		Audit::record( $old ? 'participant_field_updated' : 'participant_field_created', 'ticket_type', (int) $type->ticket_type_id, $details );
 		return array( 'field_id' => $field_id, 'ticket_type_id' => (int) $type->ticket_type_id );
 	}
 
@@ -831,6 +845,10 @@ final class EventsPage {
 			</tbody>
 		</table>
 
+		<?php if ( \PassCaptain\Consents::ready() && Access::can_access_event( $event_id, OrdersPage::CAP ) ) : ?>
+			<p><a class="button" href="<?php echo esc_url( \PassCaptain\Consents::export_url( $event_id ) ); ?>"><?php esc_html_e( 'Einwilligungen exportieren (CSV)', 'wp-pass-captain' ); ?></a> <span class="description"><?php esc_html_e( 'Alle Erteilungen und Widerrufe mit Textfassung, Quelle und aktuellem Stand; der Export wird im Audit-Protokoll vermerkt.', 'wp-pass-captain' ); ?></span></p>
+		<?php endif; ?>
+
 		<?php if ( $editable ) : ?>
 			<h3><?php esc_html_e( 'Termin hinzufügen', 'wp-pass-captain' ); ?></h3>
 			<?php self::occurrence_form( null, (int) $event->event_id, $default_tz ); ?>
@@ -1011,7 +1029,7 @@ final class EventsPage {
 				<tr>
 					<td><code><?php echo esc_html( $field->field_key ); ?></code></td>
 					<td><?php echo esc_html( $field->label ); ?></td>
-					<td><?php echo esc_html( $type_labels[ $field->field_type ] ?? $field->field_type ); ?></td>
+					<td><?php echo esc_html( ( $type_labels[ $field->field_type ] ?? $field->field_type ) . ( ! empty( $field->consent ) ? ' · ' . __( 'Einwilligung', 'wp-pass-captain' ) : '' ) ); ?></td>
 					<td><?php echo $field->required ? esc_html__( 'Ja', 'wp-pass-captain' ) : esc_html__( 'Nein', 'wp-pass-captain' ); ?></td>
 					<td><?php echo esc_html( $field->purpose ); ?></td>
 					<td><?php echo esc_html( (string) (int) $field->retention_days ); ?></td>
@@ -1039,6 +1057,10 @@ final class EventsPage {
 				<tr><th><label for="wpcap-pf-label"><?php esc_html_e( 'Bezeichnung', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-pf-label" name="label" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $edit_field ? $edit_field->label : '' ); ?>"></td></tr>
 				<tr><th><label for="wpcap-pf-type"><?php esc_html_e( 'Typ', 'wp-pass-captain' ); ?></label></th><td><?php Forms::select( 'field_type', $type_labels, $edit_field ? $edit_field->field_type : 'text', 'wpcap-pf-type' ); ?></td></tr>
 				<tr><th><?php esc_html_e( 'Pflichtfeld', 'wp-pass-captain' ); ?></th><td><label><input type="checkbox" name="required" value="1" <?php checked( $edit_field && $edit_field->required ); ?>> <?php esc_html_e( 'Für jedes Ticket erforderlich', 'wp-pass-captain' ); ?></label></td></tr>
+				<?php if ( \PassCaptain\Consents::ready() ) : ?>
+				<tr><th><?php esc_html_e( 'Einwilligung', 'wp-pass-captain' ); ?></th><td><label><input type="checkbox" name="consent" value="1" aria-describedby="wpcap-pf-consent-help" <?php checked( $edit_field && ! empty( $edit_field->consent ) ); ?>> <?php esc_html_e( 'Als Einwilligung protokollieren und Widerruf ermöglichen', 'wp-pass-captain' ); ?></label>
+					<p class="description" id="wpcap-pf-consent-help"><?php esc_html_e( 'Nur für Checkboxen. Jede Erteilung und jeder Widerruf wird mit Textfassung, Zeitpunkt und Quelle protokolliert; Teilnehmende können in der Bestellübersicht und auf der Ticketseite widerrufen. Zweck ist Pflicht. Eine Änderung von Bezeichnung oder Zweck gilt als neue Textfassung.', 'wp-pass-captain' ); ?></p></td></tr>
+				<?php endif; ?>
 				<tr><th><label for="wpcap-pf-purpose"><?php esc_html_e( 'Zweck', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-pf-purpose" name="purpose" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $edit_field ? $edit_field->purpose : '' ); ?>"></td></tr>
 				<tr><th><label for="wpcap-pf-ret"><?php esc_html_e( 'Aufbewahrung (Tage)', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-pf-ret" name="retention_days" type="number" min="0" max="3650" value="<?php echo esc_attr( $edit_field ? (int) $edit_field->retention_days : 365 ); ?>"></td></tr>
 				<tr><th><label for="wpcap-pf-pos"><?php esc_html_e( 'Reihenfolge', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-pf-pos" name="position" type="number" min="0" value="<?php echo esc_attr( $edit_field ? (int) $edit_field->position : count( $fields ) ); ?>"></td></tr>

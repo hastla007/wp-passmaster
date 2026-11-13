@@ -51,7 +51,8 @@ final class TicketAssignments {
 		if ( $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_failed', __( 'Teilnehmerdaten konnten nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
 		if ( is_array( $answers ) ) {
 			$type_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", $ticket->ticket_id ) );
-			$valid = Orders::validate_attendees( array( $type_id => 1 ), array( array( 'ticket_type_id' => $type_id, 'answers' => $answers ) ) );
+			// Consents are granted/withdrawn separately (Consents, logged); this form corrects the other answers.
+			$valid = Orders::validate_attendees( array( $type_id => 1 ), array( array( 'ticket_type_id' => $type_id, 'answers' => $answers ) ), array( 'skip_consent' => true ) );
 			if ( is_wp_error( $valid ) ) { $wpdb->query( 'ROLLBACK' ); return $valid; }
 			$now = current_time( 'mysql', true );
 			foreach ( (array) ( $valid[0]['answers'] ?? array() ) as $field_id => $value ) {
@@ -64,6 +65,8 @@ final class TicketAssignments {
 		}
 		$wpdb->query( 'COMMIT' );
 		if ( $rotate ) {
+			// Another person holds the ticket now: the previous holder's consents end (logged).
+			Consents::end_for_ticket( (int) $ticket->ticket_id, 'holder_change', $holder );
 			do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $code, 'assign' );
 			$url = add_query_arg( 'wpcap_ticket', $code, home_url( '/' ) );
 			$when = Orders::format_start( $ticket->starts_at, $ticket->timezone );

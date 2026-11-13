@@ -35,6 +35,8 @@ final class Menu {
 			'wpcap_refund_order' => array( OrdersPage::class, 'handle_refund' ),
 			'wpcap_approve_refund' => array( OrdersPage::class, 'handle_approve_refund' ),
 			'wpcap_reject_refund' => array( OrdersPage::class, 'handle_reject_refund' ),
+			'wpcap_consent_withdraw' => array( \PassCaptain\Consents::class, 'handle_admin_withdraw' ),
+			'wpcap_export_consents' => array( \PassCaptain\Consents::class, 'handle_export' ),
 			'wpcap_revoke_ticket' => array( TicketsPage::class, 'handle_revoke_ticket' ),
 			'wpcap_undo_checkin' => array( TicketsPage::class, 'handle_undo_checkin' ),
 			'wpcap_correct_attendee' => array( TicketsPage::class, 'handle_correct_attendee' ),

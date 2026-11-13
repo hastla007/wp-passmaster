@@ -18,11 +18,36 @@ final class OrderPortal {
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || 64 !== strlen( $token ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { status_header( 404 ); exit; }
+		// Consent grant/withdrawal (A116): plain POST to the same link, nonce-checked, then back (PRG).
+		if ( 'POST' === strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) && isset( $_POST['wpcap_consent_op'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in Consents::handle_self_service().
+			$result = self::handle_consent( $order, wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			wp_safe_redirect( add_query_arg( array( 'wpcap_order' => $public_id, 'wpcap_access' => $token, 'wpcap_consent_result' => is_wp_error( $result ) ? 'error' : $result ), home_url( '/' ) ) . '#wpcap-consents' );
+			exit;
+		}
 		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ) );
 		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
 		header( 'Referrer-Policy: no-referrer' );
 		echo self::render_page( $order, $token ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_page.
 		exit;
+	}
+
+	/**
+	 * Consent grant/withdrawal from the portal of an order whose access token the caller verified.
+	 * Tickets transferred to someone else are not the buyer's to manage.
+	 *
+	 * @return string|\WP_Error 'granted' or 'withdrawn'.
+	 */
+	public static function handle_consent( $order, array $post ) {
+		$tickets = array();
+		foreach ( self::consent_tickets( $order ) as $ticket ) { $tickets[ (string) $ticket->public_id ] = $ticket; }
+		return Consents::handle_self_service( $tickets, $post, (string) $order->public_id, 'portal' );
+	}
+
+	/** Tickets of the order whose consents the buyer manages (not transferred). */
+	private static function consent_tickets( $order ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT t.ticket_id,t.public_id,t.ticket_type_id,t.status,CONCAT(e.name,' — ',tt.name) AS title FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.transfer_count=0 ORDER BY t.ticket_id", (int) $order->order_id ) );
 	}
 
 	/** Portal HTML for an order whose access token was verified by the caller. */
@@ -38,7 +63,8 @@ final class OrderPortal {
 		$answers = array();
 		foreach ( $tickets as $ticket ) {
 			if ( ! isset( $fields[ $ticket->ticket_type_id ] ) ) {
-				$fields[ $ticket->ticket_type_id ] = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $ticket->ticket_type_id ) );
+				// Consent fields have their own card (grant/withdraw, logged).
+				$fields[ $ticket->ticket_type_id ] = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( Consents::ready() ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $ticket->ticket_type_id ) );
 			}
 			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT field_id,answer FROM {$wpdb->prefix}wpcap_participant_answers WHERE ticket_id=%d", $ticket->ticket_id ) ) as $row ) {
 				$answers[ $ticket->ticket_id ][ (int) $row->field_id ] = $row->answer;
@@ -76,7 +102,7 @@ final class OrderPortal {
 		$billing = Billing::for_order( $order );
 		ob_start();
 		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( sprintf( /* translators: %s: short order number */ __( 'Bestellung %s', 'wp-pass-captain' ), $reference ) ); ?></title>
-<style>body{font:16px/1.5 system-ui,sans-serif;max-width:48rem;margin:2rem auto;padding:0 1rem;color:#1d2327}.card{border:1px solid #c3c4c7;border-radius:10px;padding:1rem;margin:1rem 0}label{display:grid;gap:.25rem;margin:.5rem 0}input{max-width:28rem;padding:.5rem}button{padding:.55rem 1rem;min-height:2.75rem}.status{font-weight:700}.muted{color:#50575e}.bank{display:grid;grid-template-columns:max-content 1fr;gap:.25rem 1rem}.bank dd{margin:0;font-weight:700;overflow-wrap:anywhere}dialog{max-width:32rem;border:1px solid #c3c4c7;border-radius:10px;padding:1.25rem}dialog::backdrop{background:rgba(0,0,0,.45)}.actions{display:flex;gap:.75rem;flex-wrap:wrap;justify-content:flex-end}.danger{background:#b32d2e;color:#fff;border:1px solid #8a1f1f;border-radius:4px}:focus-visible{outline:3px solid #135e96;outline-offset:3px}</style></head><body><main>
+<style>body{font:16px/1.5 system-ui,sans-serif;max-width:48rem;margin:2rem auto;padding:0 1rem;color:#1d2327}.card{border:1px solid #c3c4c7;border-radius:10px;padding:1rem;margin:1rem 0}label{display:grid;gap:.25rem;margin:.5rem 0}input{max-width:28rem;padding:.5rem}button{padding:.55rem 1rem;min-height:2.75rem}.status{font-weight:700}.muted{color:#50575e}.bank{display:grid;grid-template-columns:max-content 1fr;gap:.25rem 1rem}.bank dd{margin:0;font-weight:700;overflow-wrap:anywhere}dialog{max-width:32rem;border:1px solid #c3c4c7;border-radius:10px;padding:1.25rem}dialog::backdrop{background:rgba(0,0,0,.45)}.actions{display:flex;gap:.75rem;flex-wrap:wrap;justify-content:flex-end}.danger{background:#b32d2e;color:#fff;border:1px solid #8a1f1f;border-radius:4px}.wpcap-consents{padding-left:1.2rem}.wpcap-consents li{margin:.75rem 0}:focus-visible{outline:3px solid #135e96;outline-offset:3px}</style></head><body><main>
 <h1><?php echo esc_html( sprintf( /* translators: %s: short order number */ __( 'Bestellung %s', 'wp-pass-captain' ), $reference ) ); ?></h1>
 <p class="muted"><?php echo esc_html( sprintf( /* translators: %s: order date */ __( 'Bestellt am %s', 'wp-pass-captain' ), Frontend\Format::site_datetime( $order->created_at ) ) ); ?></p>
 <p class="status"><?php echo esc_html( Admin\Forms::status_label( $order->status ) . ( $order->status !== $order->payment_status ? ' · ' . Admin\Forms::status_label( $order->payment_status ) : '' ) ); ?></p>
@@ -91,6 +117,7 @@ final class OrderPortal {
 <?php echo PortalSelfService::ticket_html( $ticket, $order, $token ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in PortalSelfService. ?>
 <?php if ( 'valid' === $ticket->status && strtotime( $ticket->starts_at . ' UTC' ) - $edit_hours * HOUR_IN_SECONDS > time() ) : ?><form class="wpcap-assignment-form"><input type="hidden" name="ticket_public_id" value="<?php echo esc_attr( $ticket->public_id ); ?>"><label><?php esc_html_e( 'Teilnehmername', 'wp-pass-captain' ); ?><input name="attendee_name" type="text" maxlength="190" value="<?php echo esc_attr( $ticket->attendee_name ?? '' ); ?>" required></label><label><?php esc_html_e( 'Teilnehmer-E-Mail (optional)', 'wp-pass-captain' ); ?><input name="attendee_email" type="email" autocomplete="email" value="<?php echo esc_attr( $ticket->attendee_email ); ?>"></label><?php foreach ( $fields[ $ticket->ticket_type_id ] as $field ) : $value = $answers[ $ticket->ticket_id ][ (int) $field->field_id ] ?? ''; ?><label><?php echo esc_html( $field->label . ( $field->required ? ' *' : '' ) ); ?><?php if ( 'textarea' === $field->field_type ) : ?><textarea data-answer="<?php echo esc_attr( $field->field_key ); ?>" <?php echo $field->required ? 'required' : ''; ?>><?php echo esc_textarea( $value ); ?></textarea><?php elseif ( 'checkbox' === $field->field_type ) : ?><input type="checkbox" value="1" data-answer="<?php echo esc_attr( $field->field_key ); ?>" <?php checked( '1', $value ); ?>><?php else : ?><input type="<?php echo 'email' === $field->field_type ? 'email' : 'text'; ?>" data-answer="<?php echo esc_attr( $field->field_key ); ?>" value="<?php echo esc_attr( $value ); ?>" <?php echo $field->required ? 'required' : ''; ?>><?php endif; ?></label><?php endforeach; ?><p><small><?php esc_html_e( 'Wenn du eine andere E-Mail-Adresse einträgst, erhält diese Person einen neuen Ticketcode und der bisherige Code wird ungültig. Namens- und Angabenkorrekturen behalten den Code.', 'wp-pass-captain' ); ?></small></p><?php if ( $edit_hours ) : ?><p><small><?php echo esc_html( sprintf( /* translators: %d: hours */ _n( 'Änderungen sind bis %d Stunde vor Beginn möglich.', 'Änderungen sind bis %d Stunden vor Beginn möglich.', $edit_hours, 'wp-pass-captain' ), $edit_hours) ); ?></small></p><?php endif; ?><button type="submit"><?php esc_html_e( 'Teilnehmer zuweisen', 'wp-pass-captain' ); ?></button><p class="message" aria-live="polite"></p></form><?php endif; ?>
 <?php if ( 'valid' === $ticket->status && 0 === (int) $ticket->transfer_count && strtotime( $ticket->starts_at . ' UTC' ) > time() ) : ?><form class="wpcap-transfer-form"><input type="hidden" name="ticket_public_id" value="<?php echo esc_attr( $ticket->public_id ); ?>"><label><?php esc_html_e( 'An E-Mail übertragen', 'wp-pass-captain' ); ?><input name="recipient_email" type="email" autocomplete="email" required></label><button type="submit"><?php esc_html_e( 'Ticket einmalig übertragen', 'wp-pass-captain' ); ?></button><p class="message" aria-live="polite"></p></form><?php endif; ?><?php echo (string) apply_filters( 'wpcap_order_portal_ticket_html', '', $ticket, $order, $token ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- modules escape their own markup (e.g. Exchange\Portal). ?></section><?php endforeach; endif; ?>
+<?php echo Consents::self_service_html( self::consent_tickets( $order ), (string) $order->public_id, Consents::result_notice( isset( $_GET['wpcap_consent_result'] ) ? sanitize_key( wp_unslash( $_GET['wpcap_consent_result'] ) ) : '' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in self_service_html; display flag only. ?>
 <?php echo self::billing_section( $billing, $has_invoice ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in billing_section. ?>
 <?php echo self::payout_section( $order ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in payout_section. ?>
 <?php if ( $has_invoice ) : ?><p><a href="<?php echo esc_url( add_query_arg( array( 'wpcap_invoice' => $public_id, 'wpcap_access' => $token ), home_url( '/' ) ) ); ?>"><?php esc_html_e( 'Rechnung anzeigen', 'wp-pass-captain' ); ?></a></p><?php endif; ?>

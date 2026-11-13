@@ -223,6 +223,9 @@ final class Privacy {
 			$label = '' !== (string) $answer->label ? $answer->label : __( 'Teilnehmerangabe', 'wp-pass-captain' );
 			$rows[] = array( 'name' => $label . ( '' !== (string) $answer->purpose ? ' (' . $answer->purpose . ')' : '' ), 'value' => $answer->answer );
 		}
+		// Consent records (A116): every grant/withdrawal with text version, source and time.
+		$consents = Consents::export_value( $id );
+		if ( $consents ) { $rows[] = array( 'name' => __( 'Einwilligungen (Verlauf, Zeit UTC)', 'wp-pass-captain' ), 'value' => wp_json_encode( $consents ) ); }
 		$checkins = array();
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT created_at,scanned_at,result,source FROM {$p}wpcap_checkins WHERE ticket_id=%d ORDER BY checkin_id LIMIT 500", $id ) ) as $c ) {
 			$checkins[] = array( 'time_utc' => $c->scanned_at ?: $c->created_at, 'result' => $c->result, 'source' => $c->source );
@@ -455,7 +458,8 @@ final class Privacy {
 	}
 
 	/**
-	 * Participant answers, offline package names and wallet device registrations of the tickets.
+	 * Participant answers, consent person references, offline package names and wallet device
+	 * registrations of the tickets.
 	 *
 	 * @param bool $registrations_now Delete Apple device registrations right away (ticket stays valid)
 	 *                                instead of after the revocation push (WALLET_PURGE_HOOK).
@@ -465,6 +469,8 @@ final class Privacy {
 		$p = $wpdb->prefix;
 		$in = self::in_list( $ticket_ids );
 		$count = (int) $wpdb->query( "DELETE FROM {$p}wpcap_participant_answers WHERE ticket_id IN ($in)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// Consents end; their proof records keep no person reference (docs/BETREIBERPFLICHTEN.md).
+		$count += Consents::anonymize_tickets( $ticket_ids );
 		if ( self::has_table( 'wpcap_offline_entries' ) ) {
 			$count += (int) $wpdb->query( "UPDATE {$p}wpcap_offline_entries SET attendee_name='' WHERE ticket_id IN ($in) AND attendee_name<>''" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		}

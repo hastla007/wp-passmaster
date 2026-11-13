@@ -80,6 +80,9 @@ final class Orders {
 		}
 		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array() );
 		if ( is_wp_error( $attendees ) ) { return $attendees; }
+		// Consent proof (A116): text version shown, time, source, locale; recorded at issuance.
+		$consent_source = Consents::source_for_channel( $internal['source'] ?? $namespace );
+		$attendees = Consents::annotate( $attendees, $consent_source, $order_locale, 'checkout' === $consent_source && ! $external ? Consents::ip_hash( self::client_ip() ) : '' );
 		// Buyer billing data (company/address/VAT ID). Trusted adapters (e.g. WooCommerce) pass data that
 		// their own checkout already validated as $internal['billing']; customer input is validated here.
 		$billing = ( $external && is_array( $internal['billing'] ?? null ) ) ? Billing::sanitize( $internal['billing'] ) : Billing::validate( $payload['billing'] ?? null );
@@ -374,6 +377,7 @@ final class Orders {
 		foreach ( (array) ( $attendee['answers'] ?? array() ) as $field_id => $value ) {
 			$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE answer=VALUES(answer),updated_at=VALUES(updated_at)", $ticket_id, absint( $field_id ), (string) $value, $now, $now ) );
 		}
+		Consents::record_checkout( $ticket_id, $order, $attendee );
 	}
 
 	/**
@@ -459,14 +463,19 @@ final class Orders {
 	 * Validates attendee data against the participant fields configured per ticket type.
 	 * Only configured fields are kept (data minimisation); required fields must be filled for every ticket.
 	 *
+	 * Consent fields (A116) are checkboxes: a required consent must be ticked ('1') for every ticket.
+	 * With $options['skip_consent'] consent fields are neither checked nor returned (order portal
+	 * corrections; consents are granted/withdrawn there through Consents).
+	 *
 	 * @return array|\WP_Error Normalised list [{ticket_type_id, name, email, answers{field_id:value}}].
 	 */
-	public static function validate_attendees( array $lines, $attendees ) {
+	public static function validate_attendees( array $lines, $attendees, array $options = array() ) {
 		global $wpdb;
 		$attendees = is_array( $attendees ) ? array_values( $attendees ) : array();
 		$out = array();
+		$skip_consent = ! empty( $options['skip_consent'] ) && Consents::ready();
 		foreach ( $lines as $type_id => $quantity ) {
-			$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $type_id ) );
+			$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( $skip_consent ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $type_id ) );
 			$given = array_values( array_filter( $attendees, static function ( $a ) use ( $type_id ) { return is_array( $a ) && absint( $a['ticket_type_id'] ?? 0 ) === (int) $type_id; } ) );
 			if ( count( $given ) > $quantity ) {
 				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'wp-pass-captain' ), array( 'status' => 400 ) );
@@ -1305,6 +1314,7 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_transfer_holder_changed', __( 'Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich.', 'wp-pass-captain' ), array( 'status' => 409 ) );
 		}
+		$previous_holder = Consents::holder_email_of( (int) $ticket->ticket_id );
 		$token = bin2hex( random_bytes( 32 ) );
 		$updated = $wpdb->update( $tickets_table, array(
 			'token_hash' => hash( 'sha256', $token ),
@@ -1319,6 +1329,8 @@ final class Orders {
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_ticket_assignments SET attendee_name='',attendee_email=%s WHERE ticket_id=%d", $recipient_email, (int) $ticket->ticket_id ) );
 		$wpdb->delete( $wpdb->prefix . 'wpcap_participant_answers', array( 'ticket_id' => (int) $ticket->ticket_id ) );
 		$wpdb->query( 'COMMIT' );
+		// The previous holder's consents end with the ticket (logged, hooks fire).
+		Consents::end_for_ticket( (int) $ticket->ticket_id, 'transfer', $previous_holder );
 		/** A ticket received a new code; the old one is invalid. $token is plaintext – never store it. */
 		do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'transfer' );
 		$ticket_url = add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) );
@@ -1572,6 +1584,8 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			return self::issue_failed( $order_id, 'commit' );
 		}
+		// Consent grants recorded with the tickets: hooks only now that they are committed.
+		Consents::flush_pending( (int) $order_id );
 		if ( $issued ) {
 			// Short help code for staff when the QR code cannot be read (stored only as keyed hash).
 			foreach ( $issued as $index => $ticket ) { $issued[ $index ]['help_code'] = HelpCode::for_ticket( $ticket['ticket_id'], $ticket['token'] ); }

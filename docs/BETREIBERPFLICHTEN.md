@@ -18,6 +18,7 @@ Inhalt:
 2. [Rolle der Veranstalter und Wiederverkäufer](#2-rolle-der-veranstalter-und-wiederverkäufer) (A109)
 3. [Kassen-Schichtdaten: Mitbestimmung und Aufbewahrung](#3-kassen-schichtdaten-mitbestimmung-und-aufbewahrung) (A110)
 4. [Fiskalanbieter, Auskunft ohne E-Mail-Adresse, Verarbeitungsverzeichnis](#4-fiskalanbieter-auskunft-ohne-e-mail-adresse-verarbeitungsverzeichnis) (A111)
+5. [Einwilligungen in Teilnehmerfeldern: Nachweis, Widerruf, Löschung](#5-einwilligungen-in-teilnehmerfeldern-nachweis-widerruf-löschung) (A116)
 
 ---
 
@@ -558,6 +559,7 @@ Drittlandübermittlung.
 | Veranstalter- und Wiederverkäuferverwaltung | Vertragsbeziehung, Abrechnung | Ansprechpersonen der Veranstalter | Name, Kontakt-E-Mail, Telefon, Rechnungsanschrift, USt-IdNr., Auszahlungsdaten, zugeordnete Benutzer (`wpcap_partners`, `wpcap_partner_settlements`) | Art. 6 Abs. 1 lit. b, c | Steuerberatung | Abrechnungen unveränderlich, Aufbewahrung; Stammdaten manuell |
 | Veranstalter-API und API-Verkauf | Datenbereitstellung, Verkauf über Partner | Käufer:innen, Teilnehmende, Partner-Systeme | siehe 2.1; Key-Präfix/Hash, gekürzte IP im Audit-Log (`wpcap_partner_keys`, `wpcap_partner_orders`) | je nach Rolle (Abschnitt 2) | Veranstalter/Wiederverkäufer | Audit 730 Tage; Bestelldaten wie Ticketverkauf |
 | Webhooks | Anbindung externer Systeme | Käufer:innen, Teilnehmende | Ereignisse, E-Mail nur mit `include_pii` | Art. 6 Abs. 1 lit. b/f, AV | Empfängersysteme | eigene Frist der Webhook-Zustellungen |
+| Einwilligungen in Teilnehmerfeldern | Nachweis der Einwilligung (Art. 7 Abs. 1 DSGVO), Umsetzung des Widerrufs | Teilnehmende, Käufer:innen | Feld, Textfassung (Hash + Text), Aktion, Quelle, Locale, Zeitpunkt, HMAC-Hash der E-Mail, beim eigenen Checkout HMAC-Hash der IP (`wpcap_consent_log`, `wpcap_consent_texts`) | Art. 6 Abs. 1 lit. c, f (Nachweis) für den Zweck der Einwilligung lit. a | intern, ggf. per Hook angebundene Systeme | keine automatische Löschung; bei Löschanfrage Personenbezug entfernt (Abschnitt 5) |
 | SMS-Benachrichtigungen | Information auf Wunsch | Käufer:innen | Mobilnummer, Einwilligung mit Textversion (`wpcap_sms_consents`) | Art. 6 Abs. 1 lit. a | SMS-Anbieter (z. B. Twilio, USA) | Einwilligung/Nachrichten nach Modulfristen |
 | Wallet-Pässe | Ticket im Wallet, Aktualisierungen | Ticketinhaber:innen | Geräte-ID, Push-Token (Apple), Ticketangaben (Google) | Art. 6 Abs. 1 lit. b | Apple, Google (USA) | Registrierungen nach Teilnehmerfrist bzw. 1 Stunde nach Löschung |
 | Nachrichtenwarteschlange | Zustellung von E-Mails/SMS | Empfänger:innen | Empfänger, Inhalt, Status (`wpcap_message_queue`) | wie Grundvorgang | E-Mail-/SMS-Versand | Inhalt nach 30 Tagen, Zeile nach 365 Tagen |
@@ -572,3 +574,77 @@ Drittlandübermittlung.
       Identitätsnachweis bereitgelegt.
 - [ ] Verarbeitungsverzeichnis um die Zeilen aus 4.4 ergänzt (nur die tatsächlich genutzten Funktionen).
 - [ ] Nach jedem Plugin-Update mit neuen Modulen oder Feldern die Tabellen 3.1, 2.1 und 4.4 prüfen.
+
+---
+
+## 5. Einwilligungen in Teilnehmerfeldern: Nachweis, Widerruf, Löschung
+
+Ein Teilnehmerfeld vom Typ Checkbox kann im Event-Editor (Ticketart → Teilnehmerfelder) als
+**Einwilligung** markiert werden; der Zweck ist dann Pflicht und wird beim Ankreuzen angezeigt. Für diese
+Felder gilt:
+
+### 5.1 Was gespeichert wird
+
+| Daten | Wo | Zweck |
+|---|---|---|
+| Bezeichnung und Zweck genau so, wie sie angezeigt wurden; Version = SHA-256 über beides | `wpcap_consent_texts` (je Feld und Fassung eine Zeile) | Nachweis, welchem Text zugestimmt wurde. Jede Änderung von Bezeichnung oder Zweck erzeugt eine neue Fassung; alte Fassungen bleiben. |
+| Jede Erteilung und jeder Widerruf als eigene Zeile: Ticket, Bestellung, Feld, Textfassung, Aktion (`granted`/`withdrawn`), Quelle (`checkout`, `woocommerce`, `box_office`, `api`, `portal`, `ticket_page`, `admin`, `exchange`, `transfer`, `holder_change`, `privacy_erasure`), Locale, Zeitpunkt (UTC), handelnde Benutzer-ID (Kasse/Verwaltung), Notiz der Verwaltung | `wpcap_consent_log` (nur anhängen) | Nachweis (Art. 7 Abs. 1 DSGVO); der aktuelle Stand ist immer die letzte Zeile je Ticket und Feld. |
+| Personenbezug: HMAC-SHA-256 der E-Mail-Adresse (Teilnehmer, sonst Käufer), Schlüssel aus dem WordPress-Auth-Salt | `subject_hash` | Zuordnung des Nachweises zu einer Person, ohne die Adresse im Protokoll zu speichern. |
+| IP-Adresse **nur als HMAC-Hash** (eigener Schlüssel, Nonce-Salt), nur beim eigenen Checkout und bei Selbstbedienung | `ip_hash` | Zusatzindiz für den Nachweis; die IP selbst wird nie gespeichert. Ein geänderter Salt macht den Hash unprüfbar, schadet dem Nachweis sonst nicht. |
+
+Bei Bestellungen im Checkout wird die Einwilligung beim Absenden erfasst (Zeitpunkt, Textfassung) und mit
+der Ticketausgabe ins Protokoll geschrieben. Unbezahlte, verfallene Bestellungen erzeugen keinen Eintrag.
+
+### 5.2 Widerruf
+
+- **Selbstbedienung:** In der Bestellübersicht (Link aus der Bestellmail) und auf der Ticketseite gibt es
+  die Karte „Einwilligungen“ mit Stand und Button „Einwilligung widerrufen“ (bzw. „erteilen“). Das Formular
+  ist an den Zugangslink gebunden und mit einer Nonce geschützt. Übertragene Tickets verwaltet nur noch die
+  neue Person über ihre Ticketseite.
+- **Verwaltung:** Bestellung öffnen → Abschnitt „Einwilligungen“ → „Widerruf erfassen“ (z. B. bei Widerruf
+  per E-Mail oder Telefon; Notiz optional). Jede Änderung steht zusätzlich im Audit-Log.
+- **Automatisch beendet** (als Widerruf protokolliert) werden die Einwilligungen eines Tickets bei
+  Übertragung (`transfer`), Wechsel der teilnehmenden Person über die Bestellübersicht (`holder_change`) und
+  bei der Datenschutz-Löschung (`privacy_erasure`). Ein Ticketumtausch übernimmt erteilte Einwilligungen
+  auf das neue Ticket (`exchange`).
+- Auch eine **Pflicht-Einwilligung** kann widerrufen werden. Das Plugin sperrt das Ticket deshalb nicht; ob
+  die Teilnahme ohne die Einwilligung möglich ist, entscheidet der Veranstalter.
+- Angebundene Systeme (z. B. Newsletter) reagieren über die Hooks `wpcap_consent_granted` und
+  `wpcap_consent_withdrawn` (siehe [HOOKS.md](HOOKS.md)); der Betreiber muss sicherstellen, dass ein Widerruf
+  dort ebenfalls umgesetzt wird.
+
+### 5.3 Entscheidung: Datenschutz-Löschung und Nachweis
+
+Bei einer Löschanfrage (WordPress → Werkzeuge → Personenbezogene Daten löschen) werden die Antworten der
+Teilnehmerfelder gelöscht, laufende Einwilligungen als Widerruf (`privacy_erasure`) beendet und in **allen**
+Protokollzeilen der Tickets der Personenbezug entfernt (E-Mail-Hash, IP-Hash, Notiz der Verwaltung).
+**Erhalten bleiben** Feld, Textfassung, Aktion, Quelle, Locale und Zeitpunkt sowie die Ticket-/Bestellnummer
+(die Tickets selbst sind dann ebenfalls anonymisiert).
+
+Begründung: Der Verantwortliche muss nachweisen können, dass eine Verarbeitung auf einer Einwilligung beruhte
+(Art. 7 Abs. 1 DSGVO), und sich gegen Ansprüche verteidigen können (Art. 17 Abs. 3 lit. b und e DSGVO). Dafür
+genügt nach der Löschung der minimale, nicht mehr personenbezogene Nachweis, dass zu einem Ticket zu einem
+Zeitpunkt einem bestimmten Text zugestimmt bzw. widersprochen wurde. Die Zuordnung zur Person wird nicht
+länger gebraucht und deshalb entfernt. Wer eine längere personenbezogene Nachweisführung braucht (z. B.
+laufende Rechtsstreitigkeit), muss die Löschanfrage vorher prüfen und ggf. zurückstellen.
+
+Der Export personenbezogener Daten (WordPress → Werkzeuge → Personenbezogene Daten exportieren) enthält je
+Ticket den Verlauf „Einwilligungen“ mit Text, Zweck, Textfassung, Aktion, Quelle, Locale und Zeitpunkt.
+
+Die Protokolle haben **keine automatische Löschfrist** (sie enthalten nach Ablauf der Teilnehmerfrist nur
+noch den Hash des Personenbezugs). Die Antworten der Felder selbst folgen weiter der Aufbewahrungsdauer des
+Feldes; das Löschen der Antwort durch die Frist beendet die Einwilligung nicht.
+
+### 5.4 CSV-Export je Event
+
+Event öffnen → „Einwilligungen exportieren (CSV)“ (Berechtigung Bestellungen verwalten für das Event): alle
+Erteilungen und Widerrufe mit Textfassung, Quelle, Locale, gekürztem Personen-Hash und aktuellem Stand. Jeder
+Export wird im Audit-Log (`consents_exported`) vermerkt. Die Datei enthält keine E-Mail-Adressen; sie wie
+andere Teilnehmerexporte behandeln und nach Gebrauch löschen.
+
+### 5.5 Checkliste A116
+
+- [ ] Nur echte Einwilligungen als „Einwilligung“ markiert (nicht z. B. Bestätigungen wie „Ich bin volljährig“).
+- [ ] Zweck vollständig und verständlich formuliert; Hinweis auf Widerruf in der Datenschutzerklärung.
+- [ ] Angebundene Systeme setzen `wpcap_consent_withdrawn` um (Newsletter abmelden usw.).
+- [ ] Ablauf für Widerrufe per E-Mail/Telefon festgelegt (Erfassung in der Bestellung).

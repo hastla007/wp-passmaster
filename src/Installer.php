@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.9.4';
+	const DB_VERSION = '3.9.5';
 
 	public static function install() {
 		global $wpdb;
@@ -398,6 +398,7 @@ final class Installer {
 				field_type varchar(24) NOT NULL DEFAULT 'text',
 				required tinyint(1) NOT NULL DEFAULT 0,
 				purpose varchar(190) NOT NULL DEFAULT '',
+				consent tinyint(1) NOT NULL DEFAULT 0,
 				retention_days smallint(5) unsigned NOT NULL DEFAULT 365,
 				position smallint(5) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'active',
@@ -414,6 +415,38 @@ final class Installer {
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (answer_id),
 				UNIQUE KEY ticket_field (ticket_id,field_id),
+				KEY field_id (field_id)
+			) ENGINE=InnoDB $charset;",
+			// Consent records (A116): consent texts by version, append-only grant/withdrawal log.
+			"CREATE TABLE {$wpdb->prefix}wpcap_consent_texts (
+				text_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				field_id bigint(20) unsigned NOT NULL,
+				text_version char(64) NOT NULL,
+				label varchar(190) NOT NULL,
+				purpose varchar(190) NOT NULL DEFAULT '',
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (text_id),
+				UNIQUE KEY field_version (field_id,text_version)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_consent_log (
+				log_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				ticket_id bigint(20) unsigned NOT NULL,
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				field_id bigint(20) unsigned NOT NULL,
+				field_key varchar(64) NOT NULL,
+				text_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				text_version char(64) NOT NULL DEFAULT '',
+				action varchar(12) NOT NULL,
+				source varchar(24) NOT NULL,
+				locale varchar(20) NOT NULL DEFAULT '',
+				subject_hash char(64) NOT NULL DEFAULT '',
+				ip_hash char(64) NOT NULL DEFAULT '',
+				actor_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				note varchar(190) NOT NULL DEFAULT '',
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (log_id),
+				KEY ticket_field (ticket_id,field_id,log_id),
+				KEY order_id (order_id),
 				KEY field_id (field_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $message_queue (
