@@ -1141,6 +1141,35 @@ final class Orders {
 		return $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", absint( $order_id ) ) );
 	}
 
+	/**
+	 * What was ordered, for the buyer (portal, order mail): one row per line with event, ticket type,
+	 * date, quantity and gross after discount (lines as paid, see OrderLines).
+	 *
+	 * @return array[] event, ticket, when, quantity, gross_minor, currency.
+	 */
+	public static function summary_lines( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order = self::get( $order_id );
+		if ( ! $order ) { return array(); }
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.item_id,oi.ticket_type_id,' . OrderLines::paid_columns() . ",tt.name,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", absint( $order_id ) ) );
+		$lines = array_values( array_filter( (array) $lines, static function ( $l ) { return ! OrderLines::is_moved_in( $l ); } ) );
+		$after = OrderLines::after_discount( $lines, (int) $order->discount_minor );
+		$out = array();
+		foreach ( $lines as $i => $line ) {
+			if ( (int) $line->quantity < 1 && (int) $after[ $i ] < 1 ) { continue; }
+			$out[] = array(
+				'event' => (string) $line->event_name,
+				'ticket' => (string) $line->name,
+				'when' => self::format_start( $line->starts_at, $line->timezone ),
+				'quantity' => (int) $line->quantity,
+				'gross_minor' => (int) $after[ $i ],
+				'currency' => (string) $order->currency,
+			);
+		}
+		return $out;
+	}
+
 	/** Stores the provider's payment reference (session/order id). */
 	public static function set_provider_reference( $order_id, $reference ) {
 		global $wpdb;

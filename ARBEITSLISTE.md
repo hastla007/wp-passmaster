@@ -35,7 +35,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/BoxOffice/Shifts.php:299–352`; `src/BoxOffice/ShiftPage.php:244–256` — Maßnahme: Soll erst nach Abschluss zeigen oder Nachzählung nur mit Finanzrecht; alle Zählungen im Z-Bericht; Test.
 - [x] **A012** [P2] Teilnehmer-E-Mail im Portal Pflicht (im Checkout optional); Namenskorrektur ohne E-Mail abgelehnt, mit E-Mail rotiert der Code. — _OFFEN_ (TODO L414; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/OrderPortal.php:84` — Maßnahme: E-Mail optional; Name/Antworten ohne Codewechsel speichern.
-- [ ] **A013** [P2] Offene Bestellungen zeigen in Portal und Bestellmail keine Positionen, nur Betrag und Bankdaten. — _OFFEN_ (TODO L415; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [x] **A013** [P2] Offene Bestellungen zeigen in Portal und Bestellmail keine Positionen, nur Betrag und Bankdaten. — _OFFEN_ (TODO L415; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/OrderPortal.php:81`; `src/Mail/Types.php:156` — Maßnahme: Positionsübersicht (Event, Termin, Art, Menge, Preis, Rabatt).
 - [ ] **A014** [P2] Nach Upgrade mit Aufpreis keine Bankdaten/Betrag/Verwendungszweck im Portal; offener Umtausch nach Neuladen unsichtbar, Button erneut angeboten. — _OFFEN_ (TODO L416; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Exchange/Portal.php:170` — Maßnahme: Bankdaten anzeigen; offenen Umtausch mit Link zur Zusatzbestellung darstellen.

@@ -10,7 +10,7 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 |---|---|---|
 | `tickets` | Tickets nach bestätigter Zahlung (mit PDF) | `{order_id}`, `{ticket_list}`, `{ticket_links}`, `{ticket_count}`, `{event_name}`, `{event_date}`, `{event_location}`, `{customer_email}` |
 | `tickets_resend` | Tickets erneut senden (neue Codes, je Empfänger:in) | wie `tickets`; `{ticket_list}` enthält je Ticket den Link und den Zusatztext aus `wpcap_ticket_code_mail_section` (z. B. Wallet-Links) |
-| `order_access` | Persönlicher Link zur Bestellung | `{order_id}`, `{access_link}` |
+| `order_access` | Persönlicher Link zur Bestellung | `{order_id}`, `{order_reference}`, `{access_link}`, `{order_items}` (bestellte Positionen), `{payment_instructions}` |
 | `ticket_transfer_recipient` | Ticket wurde an eine Person übertragen | `{event_name}`, `{ticket_name}`, `{event_date}`, `{event_location}`, `{ticket_link}`, `{ticket_extras}` |
 | `ticket_transfer_sender` | Bestätigung der Übertragung an die Käufer:in | `{event_name}`, `{recipient_email}` |
 | `ticket_assigned_attendee` | Ticket an zugewiesene Teilnehmer:in | `{attendee_name}`, `{attendee_email}`, `{ticket_link}`, `{ticket_extras}` … |

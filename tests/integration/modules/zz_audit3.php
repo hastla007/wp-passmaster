@@ -206,3 +206,11 @@ $a12_name = $wpdb->get_var( $wpdb->prepare( "SELECT attendee_name FROM {$p}wpcap
 check( 'A012: name correction without e-mail is accepted and keeps the ticket code', ! is_wp_error( $a12 ) && 'Maria Muster' === $a12_name && $a12_before->token_hash === $a12_after->token_hash );
 $a12_bad = PassCaptain\TicketAssignments::assign( Orders::get( $a12_o )->public_id, $a12_token, $a12_before->public_id, 'Maria Muster', 'kein-mail' );
 check( 'A012: an invalid e-mail is still refused', is_wp_error( $a12_bad ) && 400 === $a12_bad->get_error_data()['status'] );
+
+echo "Audit 3: pending orders show what was ordered (A013)\n";
+$GLOBALS['wpcap_test_transients'] = array();
+$a13 = Orders::create( array( 'email' => 'a13@example.com', 'items' => array( array( 'ticket_type_id' => $a4_std, 'quantity' => 2 ) ), 'idempotency_key' => 'a13-' . uniqid() ), array( 'payment_provider' => 'manual', 'hold_minutes' => 600 ) );
+$a13_lines = Orders::summary_lines( $a13['order_id'] );
+check( 'A013: summary lists event, type, quantity and amount', 1 === count( $a13_lines ) && 2 === $a13_lines[0]['quantity'] && 'Steh' === $a13_lines[0]['ticket'] && 10000 === $a13_lines[0]['gross_minor'] );
+$a13_vars = PassCaptain\Mail\Types::order_access_vars( Orders::get( $a13['order_id'] )->public_id );
+check( 'A013: order mail placeholder {order_items} carries the lines', false !== strpos( (string) $a13_vars['order_items']['text'], '2 × Umtausch Abrechnung — Steh' ) );

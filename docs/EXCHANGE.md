@@ -69,7 +69,7 @@ Eine Einheit wandert innerhalb der ursprünglichen Bestellung: alte Position `qu
 Anteil an Betrag und USt.), Zielposition `+ 1` mit dem übertragenen Wert (bei Erstattung abzüglich der
 erstatteten Differenz). Damit stimmen Kapazität, Serienkontingente und spätere Erstattungen.
 
-**Buchhaltung sieht die Positionen wie bezahlt** (Schema 3.8.0, `PassCaptain\OrderLines`): Vor der
+**Buchhaltung sieht die Positionen wie bezahlt** (Schema 3.8.1, `PassCaptain\OrderLines`): Vor der
 ersten Änderung einer bezahlten Position werden Menge, Betrag und USt. in `orig_quantity`,
 `orig_line_total_minor`, `orig_tax_minor` festgehalten; vom Umtausch neu angelegte Positionen haben
 dort `0`. Rechnungen, Berichte, Veranstalter-Abrechnung, Wiederverkäufer-Abrechnung, Z-Bericht,

@@ -107,9 +107,10 @@ final class Types {
 	 */
 	public static function order_access_vars( $public_id ) {
 		global $wpdb;
-		$vars = array( 'order_reference' => \PassCaptain\Frontend\Format::order_reference( $public_id ), 'payment_instructions' => Blocks::payment_instructions( null ) );
+		$vars = array( 'order_reference' => \PassCaptain\Frontend\Format::order_reference( $public_id ), 'payment_instructions' => Blocks::payment_instructions( null ), 'order_items' => Blocks::order_items( array() ) );
 		if ( 32 !== strlen( $public_id ) ) { return $vars; }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,payment_provider,payment_status,total_minor,currency FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
+		if ( $order ) { $vars['order_items'] = Blocks::order_items( \PassCaptain\Orders::summary_lines( (int) $order->order_id ) ); }
 		if ( $order && \PassCaptain\Payments\BankTransfer::applies( $order ) ) {
 			$vars['payment_instructions'] = Blocks::payment_instructions( \PassCaptain\Payments\BankTransfer::details( $order ) );
 		}
@@ -147,13 +148,14 @@ final class Types {
 					'order_reference' => __( 'Kurze Bestellnummer (z. B. 3F2A-9C1E, auch Verwendungszweck)', 'wp-pass-captain' ),
 					'access_link' => __( 'Persönlicher Link zur Bestellung', 'wp-pass-captain' ),
 					'payment_instructions' => __( 'Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer', 'wp-pass-captain' ),
+					'order_items' => __( 'Bestellte Positionen (Event, Ticketart, Termin, Menge, Preis)', 'wp-pass-captain' ),
 				),
 				/* translators: %s: site name */
 				'subject' => static function () { return sprintf( __( 'Deine Bestellung bei %s', 'wp-pass-captain' ), '{site_name}' ); },
 				'body' => static function () {
 					// {payment_instructions} is empty unless a manual payment is pending; it brings its own trailing blank line.
 					/* translators: %s: site name */
-					return sprintf( __( 'Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:', 'wp-pass-captain' ), '{site_name}' ) . "\n\n{access_link}\n\n{payment_instructions}" . __( 'Bewahre diesen Link sicher auf und teile ihn nicht.', 'wp-pass-captain' );
+					return sprintf( __( 'Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:', 'wp-pass-captain' ), '{site_name}' ) . "\n\n{access_link}\n\n{order_items}{payment_instructions}" . __( 'Bewahre diesen Link sicher auf und teile ihn nicht.', 'wp-pass-captain' );
 				},
 				// Values derived from the order when the caller does not pass them.
 				'vars' => static function ( array $vars ) { return self::order_access_vars( (string) ( $vars['order_id'] ?? '' ) ); },
@@ -162,6 +164,7 @@ final class Types {
 						'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e',
 						'order_reference' => '3F2A-9C1E',
 						'access_link' => Mailer::link( home_url( '/?wpcap_order=3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e&wpcap_access=' . str_repeat( 'd4', 32 ) ) ),
+						'order_items' => Blocks::order_items( array( array( 'event' => 'Sommerkonzert', 'ticket' => 'Stehplatz', 'when' => '20.07.2027 19:30', 'quantity' => 2, 'gross_minor' => 5000, 'currency' => 'EUR' ) ) ),
 						'payment_instructions' => Blocks::payment_instructions( array( 'reference' => '3F2A-9C1E', 'remittance' => sprintf( /* translators: %s: short order number */ __( 'Bestellung %s', 'wp-pass-captain' ), '3F2A-9C1E' ), 'amount' => '50,00 €', 'recipient' => 'Kulturverein Musterstadt', 'iban' => 'AT61 1904 3002 3457 3201', 'bic' => 'BKAUATWW', 'due_date' => '18.01.2027 12:00', 'instructions' => '' ) ),
 					);
 				},

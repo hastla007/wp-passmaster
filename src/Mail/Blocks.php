@@ -80,6 +80,26 @@ final class Blocks {
 		return Mailer::block( $text . "\n", $html );
 	}
 
+	/**
+	 * Ordered lines for {order_items}: "2 × Event — Type (date): 50,00 €" per line.
+	 *
+	 * @param array[] $lines Orders::summary_lines().
+	 */
+	public static function order_items( array $lines ) {
+		if ( ! $lines ) { return Mailer::block( '', '' ); }
+		$title = __( 'Deine Bestellung', 'wp-pass-captain' );
+		$text = $title . "\n";
+		$html = '<p style="margin:0 0 8px"><strong>' . esc_html( $title ) . '</strong></p><table role="presentation" style="border-collapse:collapse;margin:0 0 16px">';
+		foreach ( $lines as $l ) {
+			$label = sprintf( '%d × %s — %s (%s)', (int) $l['quantity'], $l['event'], $l['ticket'], $l['when'] );
+			$money = \PassCaptain\Frontend\Format::money( (int) $l['gross_minor'], (string) $l['currency'] );
+			$text .= $label . ': ' . $money . "\n";
+			$html .= '<tr><td style="padding:2px 16px 2px 0;vertical-align:top">' . esc_html( $label ) . '</td><td style="padding:2px 0;text-align:right">' . esc_html( $money ) . '</td></tr>';
+		}
+		$html .= '</table>';
+		return Mailer::block( $text . "\n", $html );
+	}
+
 	/** Extra text from filters such as wpcap_ticket_code_mail_section (wallet links). */
 	public static function extra( $text ) {
 		$text = (string) $text;

@@ -1,6 +1,6 @@
 <?php
 /**
- * Order lines "as paid" (schema 3.8.0).
+ * Order lines "as paid" (schema 3.8.1).
  *
  * A ticket exchange moves units and money between the lines of a paid order (the live columns
  * quantity / line_total_minor / tax_minor feed capacity and refund maths). Accounting must not see
@@ -22,14 +22,14 @@ final class OrderLines {
 	private static $ready = null;
 
 	/**
-	 * Whether the 3.8.0 columns (orig_*, discount_minor) exist. Until a deferred upgrade has run, the
+	 * Whether the 3.8.1 columns (orig_*, discount_minor) exist. Until a deferred upgrade has run, the
 	 * live columns are used (no "unknown column" errors in that window).
 	 */
 	public static function ready() {
 		if ( null === self::$ready ) {
 			$version = (string) get_option( 'wpcap_db_version', '' );
 			$version = strtok( $version, '+' );
-			self::$ready = false !== $version && '' !== $version && version_compare( $version, '3.8.0', '>=' );
+			self::$ready = false !== $version && '' !== $version && version_compare( $version, '3.8.1', '>=' );
 		}
 		return self::$ready;
 	}
@@ -72,7 +72,7 @@ final class OrderLines {
 
 	/**
 	 * Gross per line after the order discount: the discount stored per line at checkout (campaigns
-	 * apply to their eligible lines only, schema 3.8.0); for older orders (or lines without it) the
+	 * apply to their eligible lines only, schema 3.8.1); for older orders (or lines without it) the
 	 * order discount is spread proportionally, the last line taking the remainder.
 	 *
 	 * @param object[] $lines    Lines with line_total_minor (and discount_minor when available).
