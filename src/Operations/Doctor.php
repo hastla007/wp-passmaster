@@ -98,6 +98,12 @@ final class Doctor {
 				'repair'   => 'rebuild_counters',
 				'hint'     => __( 'Die Zähler werden aus Bestellungen und Reservierungen neu aufgebaut.', 'pass-captain' ),
 			),
+			'capacity_ticket_drift'      => array(
+				'label'    => __( 'Bestellzeilen zählen weniger Plätze als gültige Tickets', 'pass-captain' ),
+				'severity' => 'critical',
+				'repair'   => '',
+				'hint'     => __( 'Ein Platz wurde doppelt freigegeben (z. B. Erstattung nach Widerruf oder Umtausch); die Ticketart kann überverkauft werden. Bestellung und Tickets prüfen und das überzählige Ticket widerrufen oder erstatten.', 'pass-captain' ),
+			),
 			'document_number_gaps'       => array(
 				'label'    => __( 'Lücken in Rechnungs- und Korrekturnummern', 'pass-captain' ),
 				'severity' => 'warning',
@@ -333,6 +339,19 @@ final class Doctor {
 					? sprintf( __( 'Ticketart #%1$d: verkauft %2$d statt %3$d, reserviert %4$d statt %5$d', 'pass-captain' ), $row['id'], $row['sold_qty'], $row['sold_sum'], $row['held_qty'], $row['held_sum'] )
 					/* translators: 1: occurrence id, 2: counted sold, 3: actual sold, 4: counted held, 5: actual held */
 					: sprintf( __( 'Termin #%1$d: verkauft %2$d statt %3$d, reserviert %4$d statt %5$d', 'pass-captain' ), $row['id'], $row['sold_qty'], $row['sold_sum'], $row['held_qty'], $row['held_sum'] ),
+			);
+		}
+		return self::result( count( $drift ), $items );
+	}
+
+	private static function check_capacity_ticket_drift( $limit ) {
+		$items = array();
+		$drift = CapacityCounters::ticket_drift( array(), max( $limit, 1000 ) );
+		foreach ( array_slice( $drift, 0, $limit ) as $row ) {
+			$items[] = array(
+				'key'    => 'order:' . (int) $row['order_id'] . ':type:' . (int) $row['ticket_type_id'],
+				/* translators: 1: order id, 2: ticket type id, 3: tickets in use, 4: units counted by the order lines */
+				'detail' => sprintf( __( 'Bestellung #%1$d, Ticketart #%2$d: %3$d gültige Tickets, aber nur %4$d gezählte Plätze', 'pass-captain' ), $row['order_id'], $row['ticket_type_id'], $row['tickets'], $row['units'] ),
 			);
 		}
 		return self::result( count( $drift ), $items );

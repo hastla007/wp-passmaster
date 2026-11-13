@@ -72,7 +72,7 @@ function wpa204_fingerprint() {
 
 echo "A204: diagnosis – checks, registration, read-only\n";
 $a204_checks = Doctor::checks();
-check( 'all required checks exist', array( 'tickets_without_order', 'tickets_of_closed_orders', 'paid_orders_without_tickets', 'refunds_exceed_payment', 'duplicate_provider_refunds', 'stale_queue_claims', 'expired_holds', 'capacity_counter_drift', 'document_number_gaps', 'service_bookings', 'audit_gaps' ) === array_keys( $a204_checks ) );
+check( 'all required checks exist', array( 'tickets_without_order', 'tickets_of_closed_orders', 'paid_orders_without_tickets', 'refunds_exceed_payment', 'duplicate_provider_refunds', 'stale_queue_claims', 'expired_holds', 'capacity_counter_drift', 'capacity_ticket_drift', 'document_number_gaps', 'service_bookings', 'audit_gaps' ) === array_keys( $a204_checks ) );
 $a204_rep_ok = true;
 foreach ( Doctor::repairs() as $a204_id => $a204_r ) { $a204_rep_ok = $a204_rep_ok && isset( $a204_checks[ $a204_r['check'] ] ) && $a204_id === $a204_checks[ $a204_r['check'] ]['repair']; }
 check( 'every repair belongs to exactly one check and only to checks that offer it', $a204_rep_ok && 5 === count( Doctor::repairs() ) );
@@ -259,7 +259,7 @@ ob_start();
 OperationsPage::render_doctor();
 $a204_html = ob_get_clean();
 $_GET = array();
-check( 'on request all checks are listed with findings, hints and the manual/repair column', 11 === substr_count( $a204_html, 'data-check=' ) && false !== strpos( $a204_html, 'ticket:' . $a204_orphan ) && false !== strpos( $a204_html, 'Ticket prüfen' ) && false !== strpos( $a204_html, 'manuell prüfen' ) );
+check( 'on request all checks are listed with findings, hints and the manual/repair column', 12 === substr_count( $a204_html, 'data-check=' ) && false !== strpos( $a204_html, 'ticket:' . $a204_orphan ) && false !== strpos( $a204_html, 'Ticket prüfen' ) && false !== strpos( $a204_html, 'manuell prüfen' ) );
 check( 'a check with a repair offers a preview link', false !== strpos( $a204_html, 'wpcap_doctor_preview=requeue_stale_claims' ) );
 check( 'the requested preview shows a confirm form posting to the repair action', false !== strpos( $a204_html, 'value="' . OperationsPage::DOCTOR_ACTION . '"' ) && false !== strpos( $a204_html, 'name="repair" value="sync_service_bookings"' ) && false !== strpos( $a204_html, 'name="confirm" value="1"' ) );
 

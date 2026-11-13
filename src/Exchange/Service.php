@@ -485,6 +485,11 @@ final class Service {
 			$capacity = Orders::reserve_exchange_capacity( $target_type, $target_occ, 1, array( 'now' => $now, 'source' => $channel, 'exchange' => array( 'ticket_id' => (int) $ticket->ticket_id, 'order_id' => (int) $order->order_id, 'from_type_id' => (int) $ticket->ticket_type_id ) ) );
 			if ( $capacity ) { $error = $capacity; throw new \RuntimeException( $capacity->get_error_code() ); }
 			if ( false === Orders::transaction_alive() ) { throw new \RuntimeException( 'db_busy' ); }
+			// A537: a refund of this ticket that is pending or running decides about it first (read after
+			// every lock is held; refund requests insert under the order lock held here).
+			$refund_open = Refunds::ticket_has_open_refund( (int) $order->order_id, (int) $ticket->ticket_id );
+			if ( null === $refund_open ) { throw new \RuntimeException( 'db_busy' ); }
+			if ( $refund_open ) { throw new \RuntimeException( 'refund_open' ); }
 			// Under the ticket lock: a concurrent request with the same key or a pending exchange won.
 			if ( $key_hash ) {
 				$again = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE idempotency_key=%s', $key_hash ), ARRAY_A );
@@ -574,6 +579,7 @@ final class Service {
 			'exchange_pending' => __( 'Für dieses Ticket läuft bereits ein Umtausch, der auf Zahlung wartet.', 'pass-captain' ),
 			'target_unavailable' => __( 'Die gewählte Ticketart ist nicht verfügbar.', 'pass-captain' ),
 			'transferred' => __( 'Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht werden.', 'pass-captain' ),
+			'refund_open' => __( 'Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden.', 'pass-captain' ),
 			'refund_offline' => __( 'Bei diesem Umtausch würde Geld erstattet, das bei der Verkaufsstelle (Kasse oder Vertriebspartner) bezahlt wurde. Bitte wende dich für den Umtausch an die Verkaufsstelle oder den Veranstalter.', 'pass-captain' ),
 			'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ),
 			'insert_failed' => __( 'Der Umtausch konnte nicht gespeichert werden.', 'pass-captain' ),
@@ -677,6 +683,9 @@ final class Service {
 
 		$revoked = Orders::revoke_ids( array( (int) $ticket->ticket_id ) );
 		if ( 1 !== count( $revoked ) ) { throw new \RuntimeException( 'ticket_state' ); }
+		// The old ticket's unit left its order line above (release_unit()): recorded on the ticket, so no
+		// later refund or revoke releases it again (CapacityRelease, A537/A579).
+		if ( ! \PassCaptain\CapacityRelease::mark( array( (int) $ticket->ticket_id ) ) ) { throw new \RuntimeException( 'db_busy' ); }
 
 		$token = bin2hex( random_bytes( 32 ) );
 		$inserted = $wpdb->insert( "{$p}wpcap_tickets", array(
@@ -1061,6 +1070,10 @@ final class Service {
 			}
 			if ( ! $order || 'paid' !== $order->payment_status || ! $locked || 'valid' !== $locked->status || (int) $locked->refunded || ! $ticket || self::was_admitted( $ticket ) ) {
 				$review = 'ticket_state';
+			}
+			if ( ! $review && false !== Refunds::ticket_has_open_refund( (int) $exchange['order_id'], (int) $exchange['old_ticket_id'] ) ) {
+				// A537: the ticket is being refunded; the paid supplement is reviewed by staff.
+				$review = 'refund_open';
 			}
 			$old_item = $review ? null : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d AND quantity>0 ORDER BY item_id LIMIT 1 FOR UPDATE", (int) $order->order_id, (int) $exchange['from_type_id'] ) );
 			if ( ! $review && ! $old_item ) { $review = 'order_line_missing'; }

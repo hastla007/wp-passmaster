@@ -1497,6 +1497,10 @@ final class Orders {
 		if ( $revoked_ids && false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=%d AND status='valid'", $order_id ) ) ) {
 			return $busy( $order );
 		}
+		// The whole order stops counting; every ticket records that its unit is released (CapacityRelease).
+		if ( ! CapacityRelease::mark_order( $order_id ) ) {
+			return $busy( $order );
+		}
 		$revoked = count( $revoked_ids );
 		$updated = StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'cancelled', array( 'payment_status' => 'cancelled', 'updated_at' => $now ) );
 		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) {
@@ -1514,21 +1518,34 @@ final class Orders {
 
 	/**
 	 * Revokes up to $count still valid tickets of a ticket type (newest first). Checked-in tickets
-	 * are never revoked. Returns the number of revoked tickets.
+	 * are never revoked. Their units are released through CapacityRelease (once per ticket) and
+	 * announced with `wpcap_capacity_released` (tickets_revoked, type, quantity). Returns the number
+	 * of revoked tickets.
 	 */
 	public static function revoke_tickets( $order_id, $ticket_type_id, $count, $reason = '' ) {
 		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = absint( $order_id );
 		$count = absint( $count );
 		if ( ! $count ) { return 0; }
-		$revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND ticket_type_id=%d AND status='valid' ORDER BY ticket_id DESC LIMIT %d", absint( $order_id ), absint( $ticket_type_id ), $count ) ) );
+		// Inside a caller's transaction (MariaDB reports it) the revoke joins it.
+		$nested = true === self::transaction_alive();
+		if ( ! $nested && false === $wpdb->query( 'START TRANSACTION' ) ) { return 0; }
+		$wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		$candidates = '' === $wpdb->last_error ? $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND ticket_type_id=%d AND status='valid' ORDER BY ticket_id DESC LIMIT %d FOR UPDATE", $order_id, absint( $ticket_type_id ), $count ) ) : array();
+		$revoked_ids = '' === $wpdb->last_error ? self::revoke_ids( $candidates ) : array();
+		// Revoked units no longer consume capacity.
+		$released = $revoked_ids ? CapacityRelease::release_tickets( $order_id, $revoked_ids ) : array();
+		if ( false === $released || false === self::transaction_alive() || ( ! $nested && false === $wpdb->query( 'COMMIT' ) ) ) {
+			if ( ! $nested ) { $wpdb->query( 'ROLLBACK' ); }
+			return 0;
+		}
 		$revoked = count( $revoked_ids );
 		self::fire_revoked( $revoked_ids, $reason );
 		if ( $revoked ) {
-			// Revoked units no longer consume capacity.
-			$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_order_items SET refunded_quantity=LEAST(quantity,refunded_quantity+%d) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1", $revoked, absint( $order_id ), absint( $ticket_type_id ) ) );
 			CapacityCounters::sync_order_now( $order_id );
-			self::capacity_released( $order_id, 'tickets_revoked', array( 'ticket_type_id' => absint( $ticket_type_id ), 'quantity' => $revoked, 'reason' => (string) $reason ) );
-			Audit::record( 'tickets_revoked', 'order', absint( $order_id ), array( 'ticket_type_id' => absint( $ticket_type_id ), 'count' => $revoked, 'reason' => sanitize_text_field( $reason ) ) );
+			CapacityRelease::announce( $order_id, $released, 'tickets_revoked', array( 'reason' => (string) $reason ) );
+			Audit::record( 'tickets_revoked', 'order', $order_id, array( 'ticket_type_id' => absint( $ticket_type_id ), 'count' => $revoked, 'reason' => sanitize_text_field( $reason ) ) );
 		}
 		return $revoked;
 	}
@@ -1558,6 +1575,7 @@ final class Orders {
 		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) ) ) { return $busy(); }
 		$revoked_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' FOR UPDATE", $order_id ) ) );
 		if ( $revoked_ids && false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=%d AND status='valid'", $order_id ) ) ) { return $busy(); }
+		if ( ! CapacityRelease::mark_order( $order_id ) ) { return $busy(); }
 		$revoked = count( $revoked_ids );
 		$updated = StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'refunded', array( 'payment_status' => 'refunded', 'updated_at' => Clock::mysql() ) );
 		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
@@ -1669,6 +1687,8 @@ final class Orders {
 		}
 		$tickets_table = $wpdb->prefix . 'wpcap_tickets';
 		$wpdb->query( 'START TRANSACTION' );
+		// Order row first (same lock order as refunds): a refund request cannot slip in between.
+		$wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d FOR UPDATE", (int) $order->order_id ) );
 		$ticket = $wpdb->get_row( $wpdb->prepare(
 			"SELECT t.ticket_id,t.status,t.transfer_count,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM $tickets_table t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.public_id=%s AND t.order_id=%d FOR UPDATE",
 			sanitize_text_field( $ticket_public_id ),
@@ -1677,6 +1697,11 @@ final class Orders {
 		if ( ! $ticket || 'valid' !== $ticket->status || (int) $ticket->transfer_count >= 1 || strtotime( $ticket->starts_at . ' UTC' ) <= Clock::now() ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_transfer_not_allowed', __( 'Dieses Ticket kann nicht mehr übertragen werden.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		// A537: while a refund of the ticket is pending or running, it stays with the buyer.
+		if ( false !== Refunds::ticket_has_open_refund( (int) $order->order_id, (int) $ticket->ticket_id ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_ticket_refund_open', __( 'Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		// A holder change by assignment counts against the same limit as a transfer.
 		if ( method_exists( TicketAssignments::class, 'holder_changes' ) && TicketAssignments::holder_changes( (int) $ticket->ticket_id ) >= (int) apply_filters( 'wpcap_max_holder_changes', 1, (int) $ticket->ticket_id ) ) {
@@ -1810,16 +1835,21 @@ final class Orders {
 	 * checked in, or revoked because their occurrence or event was cancelled (the buyer paid for an
 	 * event that did not take place). Tickets revoked for other reasons are not refundable here.
 	 *
+	 * @param int       $order_id Order.
+	 * @param bool|null $failed   Set to true when a read failed (the list is then incomplete, A183).
 	 * @return object[] Rows {ticket_id, ticket_type_id}, ordered by ticket_id.
 	 */
-	public static function refundable_tickets( $order_id ) {
+	public static function refundable_tickets( $order_id, &$failed = null ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$rows = $wpdb->get_results( $wpdb->prepare(
 			"SELECT t.ticket_id,t.ticket_type_id FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.refunded=0 AND (t.status IN ('valid','checked_in') OR (t.status='revoked' AND (o.status='cancelled' OR e.status='cancelled'))) ORDER BY t.ticket_id",
 			absint( $order_id )
 		) );
-		return (array) apply_filters( 'wpcap_refundable_tickets', $rows, absint( $order_id ) );
+		$failed = '' !== $wpdb->last_error;
+		$rows = (array) apply_filters( 'wpcap_refundable_tickets', $rows, absint( $order_id ) );
+		$failed = $failed || '' !== $wpdb->last_error;
+		return $rows;
 	}
 
 	/**

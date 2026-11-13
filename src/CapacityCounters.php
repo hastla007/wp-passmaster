@@ -489,6 +489,31 @@ final class CapacityCounters {
 		return $out;
 	}
 
+	/**
+	 * Order lines that count fewer units than their order still has tickets in use (A579). The
+	 * counters are checked against the order lines (drift()); this checks the order lines against the
+	 * tickets: every valid or checked-in, not refunded ticket of a paid order must still hold a unit
+	 * (quantity − refunded_quantity) of its order and ticket type. Fewer units than tickets means a
+	 * unit was released twice (e.g. refund after revoke or exchange) and the type can be oversold.
+	 * Read-only; for the doctor (`capacity_ticket_drift`), monitoring and tests. More units than
+	 * tickets is normal (revoked without release, cancelled dates, tickets not issued yet).
+	 *
+	 * @param int[] $occurrence_ids Limit to these occurrences (all when empty).
+	 * @return array[] {kind (tickets), order_id, ticket_type_id, units, tickets}
+	 */
+	public static function ticket_drift( array $occurrence_ids = array(), $limit = 100 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$where = $occurrence_ids ? ' AND tt.occurrence_id IN (' . implode( ',', array_map( 'intval', $occurrence_ids ) ) . ')' : '';
+		$units = "COALESCE((SELECT SUM(GREATEST(CAST(oi.quantity AS SIGNED)-oi.refunded_quantity,0)) FROM {$p}wpcap_order_items oi WHERE oi.order_id=t.order_id AND oi.ticket_type_id=t.ticket_type_id),0)";
+		$rows = $wpdb->get_results( "SELECT t.order_id,t.ticket_type_id,COUNT(*) AS tickets,$units AS units FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders o ON o.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE o.payment_status='paid' AND o.status<>'refunded' AND t.status IN ('valid','checked_in') AND t.refunded=0$where GROUP BY t.order_id,t.ticket_type_id HAVING tickets>units ORDER BY t.order_id,t.ticket_type_id LIMIT " . (int) $limit ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer lists and fixed fragments.
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			$out[] = array( 'kind' => 'tickets', 'order_id' => (int) $row->order_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'units' => (int) $row->units, 'tickets' => (int) $row->tickets );
+		}
+		return $out;
+	}
+
 	/** Cron: expire lapsed holds (keeps the lapsed-hold correction small), then reconcile. */
 	public static function run_cron() {
 		Orders::expire_holds();

@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.9';
+	const DB_VERSION = '3.10.10';
 
 	public static function install() {
 		global $wpdb;
@@ -203,6 +203,7 @@ final class Installer {
 				attendee_email varchar(190) NOT NULL DEFAULT '',
 				transfer_count tinyint(3) unsigned NOT NULL DEFAULT 0,
 				refunded tinyint(1) unsigned NOT NULL DEFAULT 0,
+				capacity_released tinyint(1) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'valid',
 				issued_at datetime NOT NULL,
 				PRIMARY KEY  (ticket_id),
@@ -811,6 +812,7 @@ final class Installer {
 		CapacityCounters::after_install();
 		self::pin_legacy_credit_prefix( $previous_version );
 		self::pin_legacy_manual_provider( $previous_version );
+		self::backfill_capacity_released( $previous_version );
 		// Provider secrets leave wpcap_settings (encrypted store, idempotent; see Secrets).
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
 
@@ -866,6 +868,20 @@ final class Installer {
 	 *
 	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
 	 */
+	/**
+	 * Schema 3.10.10 (A579): tickets record the release of their capacity unit. Refunded tickets of
+	 * earlier versions already released it (refunded_quantity); they are marked once, so a later flow
+	 * never releases them a second time. Idempotent.
+	 *
+	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
+	 */
+	public static function backfill_capacity_released( $previous_version ) {
+		global $wpdb;
+		$previous = (string) strtok( (string) $previous_version, '+' );
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || version_compare( $previous, '3.10.10', '>=' ) || ! CapacityRelease::ready() ) { return false; }
+		return false !== $wpdb->query( "UPDATE {$wpdb->prefix}wpcap_tickets SET capacity_released=1 WHERE refunded=1 AND capacity_released=0" );
+	}
+
 	public static function pin_legacy_credit_prefix( $previous_version ) {
 		global $wpdb;
 		$previous = (string) strtok( (string) $previous_version, '+' );

@@ -32,7 +32,9 @@ final class TicketsPage {
 
 	/**
 	 * Revokes a valid ticket. Requires wpcap_manage_orders for the ticket's event and a reason.
-	 * With release_capacity the seat becomes sellable again (counted as refunded quantity).
+	 * With release_capacity the seat becomes sellable again (counted as refunded quantity, once per
+	 * ticket via CapacityRelease, announced to waitlists and allocations). Refused while a refund of
+	 * the ticket is pending or running (A537).
 	 */
 	public static function revoke_ticket( array $in ) {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
@@ -42,20 +44,34 @@ final class TicketsPage {
 		if ( '' === $reason ) { return Forms::error( 'wpcap_revoke_reason', __( 'Bitte einen Grund für den Widerruf angeben.', 'pass-captain' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
+		$release = Forms::flag( $in, 'release_capacity' );
 		$wpdb->query( 'START TRANSACTION' );
+		// Order row first (same lock order as refunds and exchanges), then the ticket.
+		$wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", (int) $ticket->order_id ) );
+		// A537: while a refund of the ticket is pending or running, the refund decides about it.
+		$open_refund = '' === $wpdb->last_error ? \PassCaptain\Refunds::ticket_has_open_refund( (int) $ticket->order_id, (int) $ticket->ticket_id ) : null;
+		if ( false !== $open_refund ) {
+			$wpdb->query( 'ROLLBACK' );
+			return null === $open_refund
+				? Forms::error( 'wpcap_db_busy', __( 'Das Ticket konnte gerade nicht widerrufen werden. Bitte erneut versuchen.', 'pass-captain' ), 503 )
+				: Forms::error( 'wpcap_ticket_refund_open', __( 'Für dieses Ticket läuft eine Erstattung oder sie wartet auf Freigabe. Es kann bis zur Entscheidung nicht übertragen, umgetauscht oder widerrufen werden.', 'pass-captain' ), 409 );
+		}
 		$updated = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE ticket_id=%d AND status='valid'", (int) $ticket->ticket_id ) );
 		if ( 1 !== $updated ) {
 			$wpdb->query( 'ROLLBACK' );
 			return Forms::error( 'wpcap_ticket_not_valid', __( 'Nur gültige (nicht eingecheckte) Tickets können widerrufen werden.', 'pass-captain' ), 409 );
 		}
-		$release = Forms::flag( $in, 'release_capacity' );
-		if ( $release ) {
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET refunded_quantity=LEAST(quantity,refunded_quantity+1) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1", (int) $ticket->order_id, (int) $ticket->ticket_type_id ) );
+		// The unit is released once per ticket and recorded on it (CapacityRelease): a later refund or
+		// exchange of the same ticket never releases it again (A538).
+		$released = $release ? \PassCaptain\CapacityRelease::release_tickets( (int) $ticket->order_id, array( (int) $ticket->ticket_id ) ) : array();
+		if ( false === $released || false === $wpdb->query( 'COMMIT' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return Forms::error( 'wpcap_db_busy', __( 'Das Ticket konnte gerade nicht widerrufen werden. Bitte erneut versuchen.', 'pass-captain' ), 503 );
 		}
-		$wpdb->query( 'COMMIT' );
-		if ( $release ) { \PassCaptain\CapacityCounters::sync_order_now( (int) $ticket->order_id ); }
 		Audit::record( 'ticket_revoked', 'ticket', (int) $ticket->ticket_id, array( 'order_id' => (int) $ticket->order_id, 'event_id' => (int) $ticket->event_id, 'reason' => $reason, 'capacity_released' => $release ) );
 		do_action( 'wpcap_ticket_revoked', (int) $ticket->ticket_id, $reason );
+		// Waitlists and allocation holds get the released unit (A578).
+		\PassCaptain\CapacityRelease::announce( (int) $ticket->order_id, $released, 'tickets_revoked', array( 'reason' => $reason, 'ticket_id' => (int) $ticket->ticket_id ) );
 		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id );
 	}
 

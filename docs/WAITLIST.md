@@ -30,7 +30,7 @@ ausverkauft, entfällt das Bestellformular. Ausblenden: `add_filter( 'wpcap_wait
 ## Ablauf
 
 1. **Kontingent wird frei** – `wpcap_capacity_released` (Reservierung abgelaufen, Storno, Erstattung,
-   Widerruf, verspätete Zahlung ohne Kontingent) oder `wpcap_capacity_increased` (von Modulen bzw. nach
+   Teilerstattung, Widerruf mit Platzfreigabe, Umtausch, verspätete Zahlung ohne Kontingent) oder `wpcap_capacity_increased` (von Modulen bzw. nach
    einer Kontingenterhöhung auszulösen). Alle Ticketarten desselben Termins mit wartenden Einträgen
    werden vorgemerkt (Option `wpcap_waitlist_queue`), denn das Termin-Kontingent ist gemeinsam.
 2. **Verarbeitung mit kurzer Verzögerung** – ein einmaliges Cron-Ereignis `wpcap_waitlist_process`

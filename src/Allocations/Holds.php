@@ -291,13 +291,16 @@ final class Holds {
 
 	/**
 	 * wpcap_capacity_released: consumed units of the order go back to their hold (to public sale
-	 * when the hold is released or holds seats). `tickets_revoked` returns only the revoked units.
+	 * when the hold is released or holds seats). A partial release – any reason whose details name
+	 * ticket_type_id and quantity (tickets_revoked, partial_refund, exchange; A575) – returns only
+	 * those units; a release without them (expired, cancelled, refunded) returns the whole order.
 	 */
 	public static function on_capacity_released( $order_id, $reason = '', $details = array() ) {
 		global $wpdb;
 		$order_id = absint( $order_id );
 		if ( ! $order_id ) { return; }
-		$partial = 'tickets_revoked' === $reason;
+		$details = is_array( $details ) ? $details : array();
+		$partial = 'tickets_revoked' === $reason || isset( $details['ticket_type_id'] ) || isset( $details['quantity'] );
 		$type_id = $partial ? absint( $details['ticket_type_id'] ?? 0 ) : 0;
 		$need = $partial ? absint( $details['quantity'] ?? 0 ) : PHP_INT_MAX;
 		if ( $partial && ( ! $type_id || ! $need ) ) { return; }

@@ -44,7 +44,7 @@ PassCaptain\Allocations\Holds::create_order( $hold_id, $payload, $internal );
 - Öffentliche Quellen mit `allocation_id` → „Kontingente können über diesen Verkaufskanal nicht genutzt werden.“
 
 Rückgaben: `wpcap_capacity_released` (`expired`, `cancelled`, `refunded`, `event_cancelled`,
-`payment_unallocated`, `tickets_revoked` anteilig) gibt genutzte Plätze ins Kontingent zurück. Ist das
+`payment_unallocated`; anteilig `tickets_revoked`, `partial_refund` und `exchange` – jede Freigabe mit `ticket_type_id` und `quantity` gibt genau diese Plätze zurück, A575) gibt genutzte Plätze ins Kontingent zurück. Ist das
 Kontingent bereits freigegeben oder hat es Sitzplätze, gehen sie in den freien Verkauf. Abgelaufene,
 noch nicht bereinigte Reservierungen zählen sofort nicht mehr (wie im Kern). Verspätete Zahlung
 (`confirm_external_payment`) nimmt die Plätze erneut aus dem Kontingent, sonst gelten die öffentlichen

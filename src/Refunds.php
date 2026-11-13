@@ -370,31 +370,31 @@ final class Refunds {
 		}
 		$ticket_ids = array_values( array_filter( array_map( 'absint', (array) json_decode( $refund['ticket_ids'], true ) ) ) );
 		$revoked_ids = array();
+		$released = array();
 		$ids = implode( ',', $ticket_ids );
 		if ( $ticket_ids ) {
 			$tickets = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,ticket_type_id,status,refunded FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND order_id=%d ORDER BY ticket_id FOR UPDATE", $order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			if ( '' !== $wpdb->last_error ) { return $failed(); }
-			$first_item = array();
-			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,MIN(item_id) AS item_id FROM {$p}wpcap_order_items WHERE order_id=%d GROUP BY ticket_type_id", $order_id ) ) as $row ) {
-				$first_item[ (int) $row->ticket_type_id ] = (int) $row->item_id;
-			}
-			if ( '' !== $wpdb->last_error ) { return $failed(); }
+			$counted = array();
+			$flag_only = array();
 			foreach ( (array) $tickets as $ticket ) {
 				if ( 'valid' === $ticket->status ) {
 					$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE ticket_id=%d AND status='valid'", (int) $ticket->ticket_id ) );
 					if ( false === $changed ) { return $failed(); }
 					if ( 1 === (int) $changed ) { $revoked_ids[] = (int) $ticket->ticket_id; }
 				}
-				if ( ! (int) $ticket->refunded && in_array( $ticket->status, array( 'valid', 'checked_in', 'revoked' ), true ) && isset( $first_item[ (int) $ticket->ticket_type_id ] ) ) {
-					// Flag and refunded line unit in one statement: a repeat never counts a ticket twice.
-					$flagged = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets t INNER JOIN {$p}wpcap_order_items oi ON oi.item_id=%d SET t.refunded=1,oi.refunded_quantity=LEAST(oi.quantity,oi.refunded_quantity+1) WHERE t.ticket_id=%d AND t.refunded=0", $first_item[ (int) $ticket->ticket_type_id ], (int) $ticket->ticket_id ) );
+				if ( in_array( $ticket->status, array( 'valid', 'checked_in', 'revoked' ), true ) ) {
+					$counted[] = (int) $ticket->ticket_id;
 				} elseif ( ! (int) $ticket->refunded ) {
-					$flagged = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE ticket_id=%d AND refunded=0", (int) $ticket->ticket_id ) );
-				} else {
-					$flagged = 0;
+					$flag_only[] = (int) $ticket->ticket_id;
 				}
-				if ( false === $flagged ) { return $failed(); }
 			}
+			// One rule for every flow (CapacityRelease, A579): the ticket is flagged refunded and its
+			// unit is released only if no earlier flow (revoke, exchange) released it – a repeat never
+			// counts a ticket twice.
+			$released = CapacityRelease::release_tickets( $order_id, $counted, array( 'refund' => true ) );
+			if ( false === $released ) { return $failed(); }
+			if ( $flag_only && false === $wpdb->query( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE ticket_id IN (" . implode( ',', $flag_only ) . ') AND refunded=0' ) ) { return $failed(); } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			// Refunded units leave the sold counters (CapacityCounters).
 			if ( false === CapacityCounters::sync_order_now( $order_id ) ) { return $failed(); }
 		}
@@ -420,11 +420,14 @@ final class Refunds {
 		if ( ! empty( $revoked_ids ) ) {
 			Orders::fire_revoked( $revoked_ids, 'refund_' . $refund_id );
 		}
-		$remaining_sql = $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0", (int) $refund['order_id'] );
-		$remaining = $wpdb->get_var( $remaining_sql );
-		if ( '' !== $wpdb->last_error ) { $remaining = $wpdb->get_var( $remaining_sql ); }
+		// Partial release: waitlists and allocation holds get exactly these units back (A578).
+		CapacityRelease::announce( $order_id, $released, 'partial_refund', array( 'refund_id' => $refund_id ) );
+		// The order is refunded once no ticket is left that is in use or still refundable (A357):
+		// tickets revoked by an admin or exchanged away do not keep it open.
+		$remaining = self::refundable_count( $order_id );
+		if ( null === $remaining ) { $remaining = self::refundable_count( $order_id ); }
 		// A failed count is no "nothing left": that would refund the whole order (A183).
-		if ( '' === $wpdb->last_error && null !== $remaining && 0 === (int) $remaining ) {
+		if ( 0 === $remaining ) {
 			Orders::mark_refunded( (int) $refund['order_id'], 'native_refund_' . $refund_id );
 		}
 		Audit::record( 'refund_completed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'amount_minor' => (int) $refund['amount_minor'], 'revoked_tickets' => $revoked, 'provider' => $order->payment_provider ) );
@@ -526,15 +529,18 @@ final class Refunds {
 		}
 		$refund_id = (int) $wpdb->insert_id;
 		$revoked_ids = array();
+		$released = array();
+		$booked = true;
 		if ( $ticket_ids ) {
 			$ids = implode( ',', $ticket_ids );
-			foreach ( $wpdb->get_results( "SELECT ticket_type_id, COUNT(*) AS n FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND refunded=0 AND status IN ('valid','checked_in','revoked') GROUP BY ticket_type_id" ) as $row ) {
-				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET refunded_quantity=LEAST(quantity,refunded_quantity+%d) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1", (int) $row->n, $order_id, (int) $row->ticket_type_id ) );
-			}
+			$counted = array_map( 'intval', (array) $wpdb->get_col( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND status IN ('valid','checked_in','revoked')" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			$revoked_ids = Orders::revoke_ids( $ticket_ids );
-			$wpdb->query( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE ticket_id IN ($ids)" );
+			// Same rule as native refunds (CapacityRelease): a ticket whose unit a revoke or an exchange
+			// already released is flagged refunded without releasing it again.
+			$released = CapacityRelease::release_tickets( $order_id, $counted, array( 'refund' => true ) );
+			$booked = false !== $released && false !== $wpdb->query( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE ticket_id IN ($ids)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		}
-		$total_ok = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=LEAST(total_minor,refunded_minor+%d),updated_at=%s WHERE order_id=%d", $amount, $now, $order_id ) );
+		$total_ok = $booked ? $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=LEAST(total_minor,refunded_minor+%d),updated_at=%s WHERE order_id=%d", $amount, $now, $order_id ) ) : false;
 		if ( false === $total_ok || false === $wpdb->query( 'COMMIT' ) ) {
 			// Nothing recorded: the adapter may retry with the same idempotency key.
 			$wpdb->query( 'ROLLBACK' );
@@ -542,7 +548,9 @@ final class Refunds {
 		}
 		if ( $ticket_ids ) { CapacityCounters::sync_order_now( $order_id ); }
 		Orders::fire_revoked( $revoked_ids, 'refund_' . $refund_id );
-		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0", $order_id ) );
+		CapacityRelease::announce( $order_id, (array) $released, 'partial_refund', array( 'refund_id' => $refund_id ) );
+		// Tickets revoked by an admin or exchanged away do not keep the order open (A357).
+		$remaining = self::refundable_count( $order_id );
 		if ( 0 === $remaining && $ticket_ids ) {
 			Orders::mark_refunded( $order_id, sanitize_key( $args['source'] ?? 'external' ) . '_refund_' . $refund_id );
 		}
@@ -614,6 +622,15 @@ final class Refunds {
 			if ( $open !== count( $ticket_ids ) || array_intersect( $ticket_ids, $running['ticket_ids'] ) ) {
 				return __( 'Mindestens eines der Tickets wurde bereits erstattet; die Erstattung wurde nicht ausgeführt.', 'pass-captain' );
 			}
+			// A537: every ticket must still be in use (valid or checked in) or revoked by the cancellation
+			// of its date (Orders::refundable_tickets()). A ticket exchanged or revoked since the request
+			// already gave its unit back and lives on elsewhere: paying it out would refund a ticket that
+			// is still valid (exchange) or release its capacity a second time (revoke).
+			$refundable = Orders::refundable_tickets( (int) $refund['order_id'], $read_failed );
+			if ( $read_failed ) { return self::CONFLICT_UNKNOWN; }
+			if ( array_diff( $ticket_ids, array_map( static function ( $t ) { return (int) $t->ticket_id; }, $refundable ) ) ) {
+				return __( 'Mindestens eines der Tickets wurde inzwischen umgetauscht oder widerrufen; die Erstattung wurde nicht ausgeführt.', 'pass-captain' );
+			}
 		} else {
 			$running = self::open_refunds( (int) $refund['order_id'], array( 'processing' ), (int) $refund['refund_id'] );
 		}
@@ -622,6 +639,29 @@ final class Refunds {
 			return __( 'Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag; die Erstattung wurde nicht ausgeführt.', 'pass-captain' );
 		}
 		return '';
+	}
+
+	/**
+	 * Tickets of the order that keep it open: in use (valid, checked in) or still refundable after a
+	 * cancellation (Orders::refundable_tickets()). Null when the read failed (A183).
+	 */
+	private static function refundable_count( $order_id ) {
+		$rows = Orders::refundable_tickets( absint( $order_id ), $failed );
+		return $failed ? null : count( $rows );
+	}
+
+	/**
+	 * Whether a refund of the ticket is pending, approved or running (A537): exchange, revoke and
+	 * transfer of the ticket wait until it is decided. Call under the order row lock (refund requests
+	 * lock it too). Null when the read failed.
+	 *
+	 * @return bool|null
+	 */
+	public static function ticket_has_open_refund( $order_id, $ticket_id ) {
+		global $wpdb;
+		$open = self::open_refunds( absint( $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return null; }
+		return in_array( absint( $ticket_id ), $open['ticket_ids'], true );
 	}
 
 	/** Idempotency hash of a ticket refund request. */
@@ -675,18 +715,48 @@ final class Refunds {
 		if ( ! $ticket_ids || array_diff( $ticket_ids, $open_ids ) ) {
 			return new \WP_Error( 'wpcap_refund_tickets', __( 'Die gewählten Tickets gehören nicht zur Bestellung oder wurden bereits erstattet.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$remaining_total = max( 0, (int) $order->total_minor - (int) $order->refunded_minor - max( 0, (int) $reserved_minor ) );
-		if ( count( $ticket_ids ) === count( $open_ids ) ) {
+		// A357: completeness is decided by ticket value. Tickets that are neither refundable nor refunded
+		// (revoked by an admin, with or without releasing their place) keep their share of the money;
+		// tickets exchanged away carried theirs into the new ticket, which is refundable.
+		$retained = self::retained_ticket_ids( $order, array_map( static function ( $t ) { return (int) $t->ticket_id; }, $open ) );
+		$retained_minor = $retained ? self::scaled_value( $order, $retained ) : 0;
+		$remaining_total = max( 0, (int) $order->total_minor - (int) $order->refunded_minor - max( 0, (int) $reserved_minor ) - $retained_minor );
+		$full = count( $ticket_ids ) === count( $open_ids );
+		if ( $full ) {
+			// The last remaining tickets receive the rounding remainder.
 			$amount = $remaining_total;
 		} else {
-			// The tickets' share of the gross after their own discount (a discount for another event
-			// does not reduce it), scaled to the amount paid (a multi-purpose voucher pays the rest).
-			list( , , $base ) = self::line_shares( $order, $ticket_ids );
-			$after_discount = max( 1, ( (int) $order->subtotal_minor ?: (int) $order->total_minor ) - (int) $order->discount_minor );
-			$amount = min( $remaining_total, (int) round( $base * (int) $order->total_minor / $after_discount ) );
+			$amount = min( $remaining_total, self::scaled_value( $order, $ticket_ids ) );
 		}
-		$tax = self::tax_for( $order, count( $ticket_ids ) === count( $open_ids ) ? null : $ticket_ids, $amount );
+		$tax = self::tax_for( $order, $full && ! $retained ? null : $ticket_ids, $amount );
 		return array( 'ticket_ids' => $ticket_ids, 'amount_minor' => $amount, 'tax_minor' => $tax );
+	}
+
+	/**
+	 * The tickets' share of the gross after their own discount (a discount for another event does not
+	 * reduce it), scaled to the amount paid (a multi-purpose voucher pays the rest).
+	 */
+	private static function scaled_value( $order, array $ticket_ids ) {
+		if ( ! $ticket_ids ) { return 0; }
+		list( , , $base ) = self::line_shares( $order, $ticket_ids );
+		$after_discount = max( 1, ( (int) $order->subtotal_minor ?: (int) $order->total_minor ) - (int) $order->discount_minor );
+		return (int) round( $base * (int) $order->total_minor / $after_discount );
+	}
+
+	/**
+	 * Tickets of an order that keep their value without being refundable (A357): not refunded, not
+	 * in use or refundable, and not exchanged away (an exchanged ticket's value lives on in its new
+	 * ticket and order line).
+	 *
+	 * @param int[] $refundable Refundable ticket ids of the order.
+	 * @return int[]
+	 */
+	private static function retained_ticket_ids( $order, array $refundable ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$exchanged = Privacy::has_table( 'wpcap_ticket_exchanges' ) ? " AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_ticket_exchanges x WHERE x.old_ticket_id=t.ticket_id AND x.status='completed')" : '';
+		$ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_tickets t WHERE t.order_id=%d AND t.refunded=0$exchanged ORDER BY t.ticket_id", (int) $order->order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed fragment.
+		return array_values( array_diff( $ids, array_map( 'intval', $refundable ) ) );
 	}
 
 	/**

@@ -278,6 +278,7 @@ Beide Aktionen sind nonce-geschützt und landen im Audit-Log (`operations_retry`
 | `stale_queue_claims` | Jobs `running`, E-Mails `sending`, Webhook-Zustellungen `delivering` seit über 15 Minuten | `requeue_stale_claims`: zurück auf wartend, Claim gelöscht (wie die Worker selbst; nur noch hängende Einträge) |
 | `expired_holds` | aktive Ticket- und Sitzplatz-Reservierungen nach Ablauf, reservierte Servicebuchungen ohne Bestellung nach Ablauf, unbezahlte Bestellungen ohne gültige Reservierung | `release_expired_holds`: der Cron-Ablauf `Orders::expire_holds()` (Zähler, Bestellung `expired`, Kampagnen, Hooks) plus Sitzplatz- und Servicebuchungs-Reservierungen |
 | `capacity_counter_drift` | Kontingentzähler ≠ Summe aus Bestellungen/Reservierungen (`CapacityCounters::drift()`) | `rebuild_counters`: `CapacityCounters::reconcile( true )` |
+| `capacity_ticket_drift` | Bestellzeilen zählen weniger Plätze (`quantity − refunded_quantity`) als gültige, nicht erstattete Tickets derselben Bestellung und Ticketart (`CapacityCounters::ticket_drift()`): ein Platz wurde doppelt freigegeben, die Ticketart kann überverkauft werden | – (manuell prüfen) |
 | `document_number_gaps` | Lücken in Rechnungs- und Korrekturnummern des laufenden und des Vorjahres (`Invoices::document_gaps()`) | – (Nummern werden nie nachträglich vergeben; Lücke dokumentieren) |
 | `service_bookings` | aktive Buchungen beendeter oder fehlender Bestellungen; `pending_payment` bei bezahlter Bestellung; nach Ablauf der Reservierung bezahlt; „ohne Platz“ (`unallocated`) ohne Erstattung | `sync_service_bookings`: nur die eindeutigen Fälle – Buchungen beendeter Bestellungen freigeben (`ServiceBookings::release_order()`), Buchungen bezahlter Bestellungen mit noch gültiger Reservierung bestätigen (`confirm_paid_order()`). Die anderen beiden Fälle bleiben für eine Person. |
 | `audit_gaps` | abgeschlossene Erstattungen ohne `refund_completed`, Rechnungen ohne `invoice_issued`, Korrekturen ohne `credit_note_issued` (nur innerhalb der Aufbewahrungsfrist des Audit-Logs, ab dem ältesten Eintrag) | – |
@@ -768,6 +769,28 @@ abgelaufene, noch nicht aufgeräumte Reservierungen zieht sie über einen kleine
   setzen, Reservierung anlegen), muss innerhalb derselben Transaktion `CapacityCounters::sync_order()` aufrufen,
   nachdem Bestellung, dann Ticketarten, dann Termine (jeweils nach ID) gesperrt sind.
 - **Prüfen**: `CapacityCounters::drift()` liefert Zähler, die von den SUM-Abfragen abweichen (leer = in Ordnung).
+  `CapacityCounters::ticket_drift()` prüft zusätzlich die Bestellzeilen gegen die Tickets: jedes gültige oder
+  eingecheckte, nicht erstattete Ticket einer bezahlten Bestellung braucht eine gezählte Einheit
+  (`quantity − refunded_quantity`) seiner Bestellung und Ticketart. Weniger Einheiten als Tickets heißt: ein
+  Platz wurde doppelt freigegeben, die Ticketart kann überverkauft werden (Doctor-Prüfung `capacity_ticket_drift`).
+- **Freigabe je Ticket höchstens einmal** (Schema 3.10.10, A537/A538/A579): `wpcap_tickets.capacity_released`
+  hält fest, dass ein Ticket seinen Platz zurückgegeben hat. Alle Abläufe nutzen dieselbe Regel
+  (`PassCaptain\CapacityRelease`): Erstattung (nativ, extern, WooCommerce, Partner) und Widerruf mit
+  Platzfreigabe (Admin, `Orders::revoke_tickets()`) zählen eine Einheit als erstattet und markieren das Ticket in
+  einer Anweisung; ein bereits markiertes Ticket gibt nie eine zweite Einheit frei. Der Umtausch nimmt die
+  Einheit aus der alten Position und markiert das alte Ticket; Storno und vollständige Erstattung der Bestellung
+  markieren alle Tickets. Eine Absage des Termins widerruft die Tickets, ohne den Platz freizugeben – sie bleiben
+  erstattbar, die Erstattung gibt den Platz dann frei. Teilfreigaben melden `wpcap_capacity_released` mit
+  `ticket_type_id` und `quantity` (Warteliste, Kontingente). Beim Upgrade werden bereits erstattete Tickets
+  einmalig markiert.
+- **Erstattung, Umtausch, Widerruf, Übertragung**: Solange für ein Ticket eine Erstattung wartet, freigegeben ist
+  oder läuft, werden Umtausch, Widerruf und Übertragung abgelehnt (`refund_open` bzw.
+  `wpcap_ticket_refund_open`). Bei der Ausführung muss jedes Ticket der Erstattung noch gültig oder eingecheckt
+  sein oder wegen einer Terminabsage widerrufen (`Orders::refundable_tickets()`); sonst schlägt sie ohne
+  Auszahlung fehl (`wpcap_refund_conflict`). Ob eine Erstattung „vollständig“ ist, entscheidet der Ticketwert:
+  Tickets, die widerrufen, aber nicht erstattet wurden, behalten ihren Anteil; die Bestellung gilt als erstattet,
+  sobald kein gültiges, eingechecktes oder noch erstattbares Ticket übrig ist (widerrufene und umgetauschte
+  Tickets halten sie nicht offen).
 - **Verfügbarkeitsanzeige**: `Orders::availability()` ist pro Request gemerkt (jeder Schreibzugriff auf eine
   Plugin-Tabelle verwirft das) und liegt 10 s im Objekt-Cache (Filter `wpcap_availability_cache_ttl`, 0–60,
   0 = aus); Requests, die selbst geschrieben haben, lesen den Objekt-Cache nicht. Kaufentscheidungen nutzen nie

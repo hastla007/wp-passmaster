@@ -68,6 +68,11 @@ angestoßen; die Gebühr bleibt einbehalten (Filter `wpcap_exchange_refund_fee`)
 Eine Einheit wandert innerhalb der ursprünglichen Bestellung: alte Position `quantity − 1` (inkl.
 Anteil an Betrag und USt.), Zielposition `+ 1` mit dem übertragenen Wert (bei Erstattung abzüglich der
 erstatteten Differenz). Damit stimmen Kapazität, Serienkontingente und spätere Erstattungen.
+Das alte Ticket wird als freigegeben markiert (`wpcap_tickets.capacity_released`, siehe
+[OPERATIONS.md](OPERATIONS.md)): eine spätere Erstattung oder ein Widerruf gibt seinen Platz kein zweites Mal
+frei, und eine noch freigegebene Erstattung des alten Tickets schlägt bei der Ausführung fehl. Der Hook
+`wpcap_capacity_released` meldet den Umtausch als Teilfreigabe (`exchange`, `ticket_type_id`, `quantity` 1):
+Kontingente (Allocations) erhalten genau diese eine Einheit zurück, nicht die ganze Bestellung.
 
 **Buchhaltung sieht die Positionen wie bezahlt** (Schema 3.8.1, `PassCaptain\OrderLines`): Vor der
 ersten Änderung einer bezahlten Position werden Menge, Betrag und USt. in `orig_quantity`,
@@ -137,6 +142,8 @@ der Schicht).
 - Je Ticket höchstens ein offener Umtausch (eindeutiger Index `pending_ticket_id`), serialisiert über
   die Ticket-Zeilensperre. Zwei Umtausche auf den letzten Platz: genau einer gewinnt, die anderen
   erhalten `sold_out` und behalten ihr Ticket.
+- Solange für das Ticket eine Erstattung wartet, freigegeben ist oder läuft, wird der Umtausch abgelehnt
+  (`refund_open`); ein bezahlter Aufpreis-Umtausch wird dann `needs_review`.
 - Check-in, Widerruf oder Storno/Erstattung des alten Tickets bzw. der ursprünglichen Bestellung
   bricht einen offenen Aufpreis-Umtausch ab (Zusatzbestellung wird storniert). Wird trotzdem bezahlt,
   obwohl das alte Ticket nicht mehr gültig ist, wird der Umtausch `needs_review` und der Betreiber per
