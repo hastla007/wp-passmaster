@@ -67,3 +67,57 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/drill"
           bash tests/restore/drill.sh "$RUNNER_TEMP/wp" "$RUNNER_TEMP/old/wp-pass-captain" "$RUNNER_TEMP/new/wp-pass-captain" "$RUNNER_TEMP/drill"
+
+  woocommerce:
+    # A127: the WooCommerce adapter against installed WooCommerce versions, HPOS and posts storage.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        wc: ['8.2.0', 'latest']   # "WC requires at least" and newest
+        storage: ['hpos', 'posts']
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          tools: composer:v2, wp-cli
+          extensions: mbstring, mysqli, gd, zip, sodium, curl, intl
+          coverage: none
+      - name: Plugin dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist
+      - name: Install WordPress, WooCommerce ${{ matrix.wc }} and the plugin
+        run: |
+          mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
+          wp core download --locale=en_US
+          wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp core install --url=http://localhost:8080 --title=Woo --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          if [ "${{ matrix.wc }}" = "latest" ]; then wp plugin install woocommerce --activate; else wp plugin install woocommerce --version=${{ matrix.wc }} --activate; fi
+          wp option update woocommerce_currency EUR
+          ln -s "$GITHUB_WORKSPACE" wp-content/plugins/wp-pass-captain
+          wp plugin activate wp-pass-captain
+          echo "WooCommerce $(wp plugin get woocommerce --field=version)"
+      - name: Order storage ${{ matrix.storage }}
+        run: |
+          cd "$RUNNER_TEMP/wp"
+          if [ "${{ matrix.storage }}" = "hpos" ]; then
+            wp option update woocommerce_custom_orders_table_enabled yes
+          else
+            wp option update woocommerce_custom_orders_table_enabled no
+          fi
+          wp option update woocommerce_custom_orders_table_data_sync_enabled no
+      - name: WooCommerce adapter smoke test (hold, payment, refund, cancel, sold out)
+        run: wp --path="$RUNNER_TEMP/wp" eval-file tests/wp-matrix/woocommerce-smoke.php

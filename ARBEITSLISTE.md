@@ -281,7 +281,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Kein Test gegen echte WP-Installationen; tests/integration/wp nur Stub, keine Versionsmatrix in CI
 - [x] **A126** Verbindliche Release-Gates, manuelle Mobile/Desktop-Abnahme dokumentieren — _TEILWEISE_ (TODO L63; P0 – Datenschutz und Releasefähigkeit)
   - Automatische Prüfungen in ci.yml; Gates in CONCEPT.md:443-450 alle offen, keine Abnahmedokumentation
-- [ ] **A127** Echte WooCommerce-Version-/HPOS-Matrix — _OFFEN_ (TODO L81; P1 – Optionaler WooCommerce-Adapter)
+- [x] **A127** Echte WooCommerce-Version-/HPOS-Matrix — _OFFEN_ (TODO L81; P1 – Optionaler WooCommerce-Adapter)
   - Nur Tests mit WooCommerce-Attrappen (tests/integration/modules/woocommerce.php); keine Matrix gegen installiertes WooCommerce in CI
 - [ ] **A128** Terminserien: Kapazitäten/Preisfenster, Editierbarkeit, Sitzplanverknüpfung — _TEILWEISE_ (TODO L86; P2 – Erweiterte Eventfunktionen)
   - Frequenzen Rules.php:26, Kapazität AdminPage.php:136, Preisregeln Pricing.php:30, Sitzplan Generator.php:231; Seriendefinition nach Anlage nicht editierbar

@@ -9,7 +9,13 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 wpc() { wp --allow-root --path="$WP" "$@"; }
 DBN="$(wpc config get DB_NAME)"; DBU="$(wpc config get DB_USER)"; DBP="$(wpc config get DB_PASSWORD)"; DBH="$(wpc config get DB_HOST)"
 DUMP="$(command -v mariadb-dump || command -v mysqldump)"; CLIENT="$(command -v mariadb || command -v mysql)"
-dump() { "$DUMP" -h"$DBH" -u"$DBU" -p"$DBP" --single-transaction --skip-dump-date --no-tablespaces "$DBN" > "$1"; }
+# MySQL's mysqldump against MariaDB needs --column-statistics=0 (no COLUMN_STATISTICS table there).
+DUMP_OPTS=(--single-transaction --skip-dump-date --no-tablespaces)
+"$DUMP" --help 2>/dev/null | grep -q -- '--column-statistics' && DUMP_OPTS+=(--column-statistics=0)
+dump() {
+	"$DUMP" -h"$DBH" -u"$DBU" -p"$DBP" "${DUMP_OPTS[@]}" "$DBN" > "$1" || { echo "FAIL database dump failed" >&2; exit 2; }
+	grep -q "CREATE TABLE" "$1" || { echo "FAIL database dump is empty" >&2; exit 2; }
+}
 load() { "$CLIENT" -h"$DBH" -u"$DBU" -p"$DBP" "$DBN" < "$1"; }
 LINK="$WP/wp-content/plugins/wp-pass-captain"
 use() { rm -f "$LINK"; ln -s "$1" "$LINK"; }

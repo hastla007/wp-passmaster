@@ -65,3 +65,17 @@ Ticketkategorien mit Saalplan sind über WooCommerce kaufbar: WooCommerce zeigt 
 - Erstattete (widerrufene) Tickets geben ihr Kontingent frei; eingecheckte Tickets bleiben eingecheckt und werden nur als erstattet markiert.
 - Bei aktivierten Pass-Captain-Preisen gelten WooCommerce-Angebotspreise (auch zeitgesteuerte) für Ticketprodukte nicht; Rabatte über Preisstufen oder WooCommerce-Gutscheine abbilden.
 - Getestet mit den Integrationstests in `tests/integration/` (MariaDB plus WooCommerce-Attrappen). Pass-Captain-Preise im Warenkorb (Frühbucherstufe, Ablauf der Stufe zwischen Warenkorb und Bestellung, Preise inkl./exkl. Steuer) wurden zusätzlich mit WordPress 7.1 und WooCommerce 11.3 im klassischen und im Block-Warenkorb/-Checkout geprüft. Eine Abnahme mit echten Zahlungsanbietern steht aus.
+
+## Getestete Versionen (A127)
+
+Neben den Integrationstests mit WooCommerce-Attrappen läuft in `.github/workflows/wp-matrix.yml` (Job
+`woocommerce`) `tests/wp-matrix/woocommerce-smoke.php` gegen ein echt installiertes WooCommerce –
+8.2.0 („WC requires at least“) und die neueste Version, jeweils mit **HPOS** und mit dem klassischen
+Bestellspeicher (**posts**): Reservierung beim Checkout, genau eine Ausstellung je Einheit bei Zahlung
+und Abschluss, Teilerstattung über `wc_create_refund()` (einmal im Erstattungsjournal, ein Ticket
+erstattet), Freigabe bei Stornierung, Abbruch des Checkouts bei zu wenig Kontingent. Lokal geprüft am
+13.11.2026 mit WooCommerce 11.3.0 in beiden Speicherarten: alle 9 Prüfungen bestanden.
+
+```bash
+wp --path=/pfad/zu/wordpress eval-file tests/wp-matrix/woocommerce-smoke.php
+```
