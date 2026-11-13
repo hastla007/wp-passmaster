@@ -426,7 +426,7 @@ final class Service {
 	public static function log( $code, $message, $option = self::LOG_OPTION, $keep = 30 ) {
 		$log = get_option( $option, array() );
 		$log = is_array( $log ) ? $log : array();
-		$log[] = array( 'time' => time(), 'code' => sanitize_key( $code ), 'message' => substr( sanitize_text_field( (string) $message ), 0, 300 ) );
+		$log[] = array( 'time' => time(), 'code' => sanitize_key( $code ), 'message' => substr( sanitize_text_field( \PassCaptain\Redact::text( (string) $message ) ), 0, 300 ) );
 		update_option( $option, array_slice( $log, -$keep ), false );
 	}
 }

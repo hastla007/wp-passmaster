@@ -218,6 +218,7 @@ final class Secrets {
 			$vault[ $key ] = self::seal( $key, $value );
 		}
 		self::save_vault( $vault );
+		Redact::reset(); // The redaction list follows the new value within the same request.
 		return true;
 	}
 

@@ -345,6 +345,24 @@ Alle Einträge stehen in `wpcap_audit_logs` (Wer = `user_id`, Was = `action`, Ob
 
 **Nicht protokolliert:** einzelne Scans am Einlass (stehen als Check-in in `wpcap_checkins`), Käuferzugriffe über den eigenen Bestell- oder Ticketlink (betreffen die eigenen Daten).
 
+## Fehlerausgaben ohne Secrets (Redaction)
+
+Fehlertexte von Zahlungs-, SMS-, Fiskal- und Wallet-Anbietern, Transportfehler ausgehender HTTP-Aufrufe und Datenbankfehler können Zugangsdaten oder Kundendaten wiederholen (z. B. „Invalid API Key provided: sk_live_…“, eine URL mit `?api_key=…`, ein `Authorization`-Header). Alle Ausgaben für Betrieb und Clients laufen deshalb durch einen zentralen Filter (`PassCaptain\Redact`):
+
+| Ausgabe | Behandlung |
+|---|---|
+| Fehlertexte der Anbieter-Clients (Stripe, PayPal, Mollie, Twilio, HTTP-SMS) | beim Erzeugen bereinigt (`Redact::text()`), E-Mail-Adressen maskiert |
+| REST-Fehlerantworten aller `pass-captain/v1`-Routen (Meldung und `data`) | Filter `rest_request_after_callbacks` |
+| Unbehandelte Ausnahmen in REST-Callbacks und Berechtigungsprüfungen | `rest_endpoints` umhüllt die Callbacks: Antwort 500 `wpcap_internal_error` mit Referenz, ohne Meldung, Klasse oder Stack-Trace; ins PHP-Fehlerprotokoll (`debug.log`) nur „Klasse: bereinigte Meldung (Datei:Zeile)“ mit derselben Referenz |
+| Audit-Details | Werte von Schlüsseln wie `secret`, `password`, `token`, `api_key`, `signature`, `iban`, `card_number` werden entfernt, übrige Texte bereinigt |
+| Fehlerspalten: Jobs (`last_error`, auch bei abgestürztem Handler → `dead_letter` statt hängender Sperre), SMS, Webhook-Zustellungen, Erstattungen; Mail-Fehlerprotokoll, Wallet-Protokoll, Schema-Fehler | bereinigt und gekürzt |
+| Admin-Hinweise (Fehler), Bestellnotizen in WooCommerce, Admin-Mail bei fehlgeschlagener Gutschein-Rückbuchung | bereinigt (E-Mail-Adressen bleiben für das Personal sichtbar) |
+| Website-Zustand und Betriebsübersicht | zeigen nur bereinigte Fehlertexte; Zugangsdaten nur mit ihrer Quelle |
+
+Entfernt werden: die Werte aller Einstellungen aus `Secrets::KEYS` (auch aus Konstanten/Umgebung, im Klartext, URL- und JSON-kodiert, bei PEM-/JSON-Werten auch einzelne Schlüsselzeilen und `private_key`), die Signaturgeheimnisse ausgehender Webhooks, PEM-Privatschlüssel, `sk_`/`rk_`/`whsec_`-Schlüssel, `Bearer`/`Basic`-Zugangsdaten, `Name=Wert`-Paare mit geheimen Namen (`api_key=`, `token=`, `password:` …), `benutzer:passwort@` in URLs; Kartennummern (13–19 Ziffern mit Luhn-Prüfsumme) und IBANs (Prüfsumme) bleiben nur mit den letzten vier Zeichen stehen. Weitere Werte lassen sich mit dem Filter `wpcap_redact_values` ergänzen. Werte unter 8 Zeichen werden nicht gesucht (Verwechslung mit gewöhnlichen Wörtern).
+
+**Eingabeprüfung:** Öffentliche REST-Eingaben (Checkout, Check-in, Warteliste, Partner-API) mit falschem Typ (Liste statt Text, `true` als Anzahl), negativen oder gebrochenen Zahlen, Überlänge oder Unicode-Sonderfällen enden mit einer 4xx-Antwort ohne PHP-Warnung; Anzahlen und Ticketart-IDs werden streng als positive Ganzzahl gelesen (`-2` wird nicht mehr zu `2`). Getestet in `tests/integration/modules/zz_a194.php` (Canary-Werte für alle Secrets, erzwungene Fehler, Fuzzing).
+
 ## Offenlegung
 
 Sicherheitsprobleme bitte über GitHubs private Meldemöglichkeit des Repositorys melden, sofern sie aktiviert ist. Keine Ticketcodes, Kundendaten, API-Schlüssel oder funktionsfähigen Exploits in öffentlichen Issues posten. Eine unabhängige Prüfung und ein formeller Incident-Prozess stehen noch aus.

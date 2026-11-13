@@ -61,7 +61,7 @@ final class HttpProvider implements ProviderInterface {
 		$response = \PassCaptain\OutboundHttp::request( $c['endpoint'], $args, array( 'context' => 'sms_http', 'max_bytes' => 65536 ) );
 		if ( is_wp_error( $response ) ) {
 			// The guard already redacted the auth header value; refused targets are permanent (DNS/transport errors are retried).
-			return new \WP_Error( 'wpcap_sms_http', \PassCaptain\OutboundHttp::redact( $response->get_error_message(), array( $secret ) ), array( 'permanent' => in_array( $response->get_error_code(), array( 'wpcap_http_url_invalid', 'wpcap_http_insecure', 'wpcap_http_host_blocked', 'wpcap_http_host_not_allowed', 'wpcap_http_unpinned', 'wpcap_http_redirect' ), true ) ) );
+			return new \WP_Error( 'wpcap_sms_http', \PassCaptain\Redact::text( \PassCaptain\OutboundHttp::redact( $response->get_error_message(), array( $secret ) ) ), array( 'permanent' => in_array( $response->get_error_code(), array( 'wpcap_http_url_invalid', 'wpcap_http_insecure', 'wpcap_http_host_blocked', 'wpcap_http_host_not_allowed', 'wpcap_http_unpinned', 'wpcap_http_redirect' ), true ) ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 ) {

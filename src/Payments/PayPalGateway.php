@@ -362,13 +362,13 @@ final class PayPalGateway implements GatewayInterface {
 		), self::http_policy() );
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), $response->get_error_message() ) );
+			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Redact::text( $response->get_error_message() ) ) );
 		}
 		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 || empty( $body['access_token'] ) ) {
 			/* translators: %s: HTTP status */
-			return new \WP_Error( 'wpcap_paypal_auth', sprintf( __( 'PayPal-Anmeldung fehlgeschlagen (%s). Bitte Client-ID und Secret prüfen.', 'pass-captain' ), (string) ( $body['error_description'] ?? 'HTTP ' . $code ) ) );
+			return new \WP_Error( 'wpcap_paypal_auth', sprintf( __( 'PayPal-Anmeldung fehlgeschlagen (%s). Bitte Client-ID und Secret prüfen.', 'pass-captain' ), \PassCaptain\Redact::text( (string) ( $body['error_description'] ?? 'HTTP ' . $code ) ) ) );
 		}
 		$ttl = (int) ( $body['expires_in'] ?? 0 ) - 60;
 		if ( $ttl > 0 ) { set_transient( $cache_key, (string) $body['access_token'], $ttl ); }
@@ -395,7 +395,7 @@ final class PayPalGateway implements GatewayInterface {
 		$response = \PassCaptain\OutboundHttp::request( self::base() . $path, $args, self::http_policy() );
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), $response->get_error_message() ) );
+			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Redact::text( $response->get_error_message() ) ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( 401 === $code && $retry ) {
@@ -408,7 +408,7 @@ final class PayPalGateway implements GatewayInterface {
 			$issue = (string) ( $decoded['details'][0]['issue'] ?? '' );
 			$message = (string) ( $decoded['details'][0]['description'] ?? ( $decoded['message'] ?? 'HTTP ' . $code ) );
 			/* translators: %s: error message from PayPal */
-			return new \WP_Error( 'wpcap_paypal_api', sprintf( __( 'PayPal-Fehler: %s', 'pass-captain' ), trim( $issue . ' ' . $message ) ), array( 'status' => $code, 'issue' => $issue ) );
+			return new \WP_Error( 'wpcap_paypal_api', sprintf( __( 'PayPal-Fehler: %s', 'pass-captain' ), \PassCaptain\Redact::text( trim( $issue . ' ' . $message ) ) ), array( 'status' => $code, 'issue' => $issue ) );
 		}
 		return $decoded;
 	}

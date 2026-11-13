@@ -94,8 +94,9 @@ final class Waitlists {
 		$event_id = absint( $event_id );
 		$occurrence_id = absint( $occurrence_id );
 		$ticket_type_id = absint( $ticket_type_id );
-		$quantity = max( 1, absint( $quantity ) );
-		$email = sanitize_email( $email );
+		$quantity = null === $quantity || '' === $quantity ? 1 : Http::positive_int( $quantity );
+		$email = sanitize_email( Http::str( $email ) );
+		if ( ! $quantity ) { return new \WP_Error( 'wpcap_waitlist_quantity', __( 'Bitte eine gültige Anzahl angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		if ( ! $event_id || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		if ( ! RateLimit::allow( 'waitlist|' . $email . '|' . $event_id, 5, HOUR_IN_SECONDS ) || ! RateLimit::allow( 'waitlist_ip|' . Orders::client_ip() . '|' . $event_id, 20, HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
@@ -456,7 +457,7 @@ final class Waitlists {
 	/** Open offer for id + token (valid, not expired, still holding inventory) or null. */
 	private static function open_offer( $waitlist_id, $token ) {
 		global $wpdb;
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
+		$token = strtolower( (string) preg_replace( '/[^a-f0-9]/', '', Http::str( $token ) ) );
 		if ( 64 !== strlen( $token ) ) { return null; }
 		$row = self::get( $waitlist_id );
 		// A failed read is no invalid offer (A183): the buyer may try again.
@@ -721,7 +722,7 @@ final class Waitlists {
 
 	/** Entry for id + unsubscribe token (constant-time hash compare) or null. */
 	private static function unsubscribe_row( $waitlist_id, $token ) {
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
+		$token = strtolower( (string) preg_replace( '/[^a-f0-9]/', '', Http::str( $token ) ) );
 		if ( 64 !== strlen( $token ) ) { return null; }
 		$row = self::get( $waitlist_id );
 		if ( ! $row || '' === (string) $row->unsubscribe_token_hash || ! hash_equals( (string) $row->unsubscribe_token_hash, hash( 'sha256', $token ) ) ) { return null; }

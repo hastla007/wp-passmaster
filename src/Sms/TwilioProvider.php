@@ -59,13 +59,13 @@ final class TwilioProvider implements ProviderInterface {
 			'body' => http_build_query( $params, '', '&' ),
 		), array( 'context' => 'sms_twilio', 'hosts' => array( 'api.twilio.com' ) ) );
 		if ( is_wp_error( $response ) ) {
-			return new \WP_Error( 'wpcap_sms_http', $response->get_error_message() );
+			return new \WP_Error( 'wpcap_sms_http', \PassCaptain\Redact::text( $response->get_error_message() ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		if ( $code < 200 || $code >= 300 || ! is_array( $data ) || empty( $data['sid'] ) ) {
 			$message = is_array( $data ) && ! empty( $data['message'] ) ? (string) $data['message'] : 'HTTP ' . $code;
-			return new \WP_Error( 'wpcap_sms_twilio', substr( $message, 0, 200 ), array( 'status' => $code, 'permanent' => $code >= 400 && $code < 500 && 429 !== $code ) );
+			return new \WP_Error( 'wpcap_sms_twilio', substr( \PassCaptain\Redact::text( $message ), 0, 200 ), array( 'status' => $code, 'permanent' => $code >= 400 && $code < 500 && 429 !== $code ) );
 		}
 		$out = array( 'status' => 'sent', 'provider_ref' => (string) $data['sid'] );
 		// Twilio usually reports the price only later (null at creation); num_segments is known at once.

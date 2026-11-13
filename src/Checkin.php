@@ -23,7 +23,7 @@ final class Checkin {
 
 	/** Extracts the 64-hex ticket code from a scanned value (raw code or ticket URL). */
 	public static function normalize_code( $value ) {
-		return preg_match( '/[a-f0-9]{64}/i', (string) $value, $m ) ? strtolower( $m[0] ) : '';
+		return preg_match( '/[a-f0-9]{64}/i', Http::str( $value ), $m ) ? strtolower( $m[0] ) : '';
 	}
 
 	/** Current time for admission decisions (filterable for tests and simulations). */

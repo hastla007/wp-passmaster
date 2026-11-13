@@ -341,7 +341,7 @@ final class Checkout {
 			if ( $final ) {
 				$order = \PassCaptain\Orders::get( (int) $order_id );
 				/* translators: 1: order, 2: amount in minor units, 3: error */
-				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Gutschein-Rückbuchung fehlgeschlagen', 'pass-captain' ), sprintf( __( "Bei Bestellung %1\$s konnte der Gutscheinanteil einer Erstattung (%2\$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3\$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren.", 'pass-captain' ), $order ? $order->public_id : (string) $order_id, $share, $result->get_error_message() ) );
+				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Gutschein-Rückbuchung fehlgeschlagen', 'pass-captain' ), sprintf( __( "Bei Bestellung %1\$s konnte der Gutscheinanteil einer Erstattung (%2\$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3\$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren.", 'pass-captain' ), $order ? $order->public_id : (string) $order_id, $share, \PassCaptain\Redact::text( $result->get_error_message(), false ) ) );
 			} elseif ( ! $from_job ) {
 				Jobs::enqueue( 'voucher-refund-' . absint( $refund_id ), self::REFUND_JOB, array( 'refund_id' => absint( $refund_id ), 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
 			}

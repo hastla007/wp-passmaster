@@ -580,7 +580,7 @@ final class CapacityCounters {
 
 	private static function alert( array $report ) {
 		Audit::record( 'capacity_counter_drift', 'system', 0, $report );
-		error_log( 'Pass Captain: capacity counters drifted and were repaired: ' . wp_json_encode( $report ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		Redact::log( 'capacity counters drifted and were repaired: ' . wp_json_encode( $report ) );
 		/**
 		 * Capacity counters disagreed with the order/hold tables and were repaired. A writer changed
 		 * order lines, holds or order states without CapacityCounters::sync_order().

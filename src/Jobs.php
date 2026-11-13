@@ -95,7 +95,8 @@ final class Jobs {
 			} catch ( \Throwable $e ) {
 				// A crashing handler is a failed run (backoff, dead letter), not a job stuck in "running".
 				$handled = false;
-				$error = get_class( $e ) . ': ' . $e->getMessage();
+				$error = Redact::exception( $e );
+				Redact::log( 'job ' . (int) $row->job_id . ' (' . sanitize_key( $row->job_type ) . ') failed: ' . $error );
 			}
 			if ( true === $handled ) {
 				$done = array( 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) );
@@ -109,7 +110,7 @@ final class Jobs {
 			}
 			$dead = $attempts >= self::MAX_ATTEMPTS;
 			$to = $dead ? 'dead_letter' : 'queued';
-			$failed = array( 'run_after' => gmdate( 'Y-m-d H:i:s', time() + self::backoff_seconds( $attempts ) ), 'locked_at' => null, 'last_error' => self::short_error( $error ), 'updated_at' => current_time( 'mysql', true ) );
+			$failed = array( 'run_after' => gmdate( 'Y-m-d H:i:s', time() + self::backoff_seconds( $attempts ) ), 'locked_at' => null, 'last_error' => self::short_error( Redact::text( (string) $error ) ), 'updated_at' => current_time( 'mysql', true ) );
 			$marked = self::mark( (int) $row->job_id, $to, $failed, $now );
 			if ( false === $marked ) { $marked = self::mark( (int) $row->job_id, $to, $failed, $now ); }
 			if ( false === $marked ) {

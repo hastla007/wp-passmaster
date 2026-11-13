@@ -330,7 +330,7 @@ final class Refunds {
 		if ( $gateway && $gateway->supports_refunds() && (int) $refund['amount_minor'] > 0 ) {
 			$result = $gateway->refund( (array) $order, (int) $refund['amount_minor'], 'wpcap-refund-' . $refund_id );
 			if ( is_wp_error( $result ) ) {
-				StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => substr( $result->get_error_message(), 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing' ) );
+				StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => substr( Redact::text( $result->get_error_message(), false ), 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing' ) );
 				Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => $result->get_error_code() ) );
 				return $result;
 			}

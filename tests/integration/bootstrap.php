@@ -188,12 +188,15 @@ function esc_html_e( $t, $d = null ) { echo esc_html( $t ); }
 function esc_attr( $t ) { return esc_html( $t ); }
 function esc_url_raw( $u ) { return (string) $u; }
 function absint( $v ) { return abs( (int) $v ); }
-function sanitize_email( $e ) { return filter_var( trim( (string) $e ), FILTER_SANITIZE_EMAIL ); }
-function is_email( $e ) { return false !== filter_var( (string) $e, FILTER_VALIDATE_EMAIL ) ? $e : false; }
-function sanitize_text_field( $t ) { return trim( strip_tags( (string) $t ) ); }
-function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
+// Like WordPress on PHP 8: sanitize_email()/is_email() call strlen() first (TypeError for arrays/objects),
+// sanitize_text_field()/sanitize_key() return '' for non-scalars.
+function wpcap_test_strlen_arg( $v, $fn ) { if ( is_array( $v ) || is_object( $v ) ) { throw new TypeError( $fn . '(): strlen(): Argument #1 ($string) must be of type string, ' . gettype( $v ) . ' given' ); } }
+function sanitize_email( $e ) { wpcap_test_strlen_arg( $e, 'sanitize_email' ); return filter_var( trim( (string) $e ), FILTER_SANITIZE_EMAIL ); }
+function is_email( $e ) { wpcap_test_strlen_arg( $e, 'is_email' ); return false !== filter_var( (string) $e, FILTER_VALIDATE_EMAIL ) ? $e : false; }
+function sanitize_text_field( $t ) { if ( is_array( $t ) || is_object( $t ) ) { return ''; } return trim( strip_tags( (string) $t ) ); }
+function sanitize_key( $k ) { if ( ! is_scalar( $k ) ) { return ''; } return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $k ) ); }
 function wp_unslash( $v ) { return $v; }
-function sanitize_textarea_field( $t ) { return trim( strip_tags( (string) $t ) ); }
+function sanitize_textarea_field( $t ) { if ( is_array( $t ) || is_object( $t ) ) { return ''; } return trim( strip_tags( (string) $t ) ); }
 function wp_kses_post( $t ) { return (string) $t; }
 function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d, ",", "." ); }
 function user_can( $u, $c ) { return true; }

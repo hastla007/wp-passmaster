@@ -372,7 +372,7 @@ final class Forms {
 		$key = 'wpcap_admin_notices_' . get_current_user_id();
 		$notices = get_transient( $key );
 		$notices = is_array( $notices ) ? $notices : array();
-		$notices[] = array( 'type' => 'error' === $type ? 'error' : ( 'warning' === $type ? 'warning' : 'success' ), 'message' => (string) $message );
+		$notices[] = array( 'type' => 'error' === $type ? 'error' : ( 'warning' === $type ? 'warning' : 'success' ), 'message' => 'error' === $type ? \PassCaptain\Redact::text( (string) $message, false ) : (string) $message );
 		set_transient( $key, array_slice( $notices, -10 ), 5 * MINUTE_IN_SECONDS );
 	}
 

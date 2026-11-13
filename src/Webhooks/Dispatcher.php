@@ -254,7 +254,7 @@ final class Dispatcher {
 			$wpdb->update( self::t( 'subscriptions' ), array( 'consecutive_failures' => 0, 'last_success_at' => $now ), array( 'subscription_id' => (int) $sub->subscription_id ) );
 			return;
 		}
-		$error = is_wp_error( $response ) ? mb_substr( sanitize_text_field( \PassCaptain\OutboundHttp::redact( $response->get_error_message(), array( $sub->secret ) ) ), 0, 190 ) : 'HTTP ' . $code;
+		$error = is_wp_error( $response ) ? \PassCaptain\Operations\Queues::safe_error( sanitize_text_field( \PassCaptain\OutboundHttp::redact( $response->get_error_message(), array( $sub->secret ) ) ) ) : 'HTTP ' . $code;
 		$final = $attempts >= self::max_attempts();
 		$update_row = array( 'status' => $final ? 'failed' : 'pending', 'attempts' => $attempts, 'response_code' => $code, 'last_error' => $error, 'locked_at' => null, 'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + self::backoff( $attempts ) ), 'updated_at' => $now );
 		if ( $final && $had_pii ) { $update_row['payload'] = $stripped; $update_row['pii_purged'] = 1; }

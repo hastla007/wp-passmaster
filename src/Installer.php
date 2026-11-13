@@ -800,7 +800,7 @@ final class Installer {
 		// otherwise the next request would rely on a schema that is not there.
 		$missing = self::missing_schema( $all_queries );
 		if ( $missing ) {
-			update_option( 'wpcap_schema_error', array( 'missing' => array_slice( $missing, 0, 50 ), 'at' => time(), 'db_error' => (string) $wpdb->last_error ) );
+			update_option( 'wpcap_schema_error', array( 'missing' => array_slice( $missing, 0, 50 ), 'at' => time(), 'db_error' => Redact::text( (string) $wpdb->last_error ) ) );
 			Audit::record( 'schema_upgrade_failed', 'system', 0, array( 'missing' => array_slice( $missing, 0, 50 ) ) );
 			return false;
 		}

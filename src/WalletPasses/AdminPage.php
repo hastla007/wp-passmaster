@@ -75,8 +75,8 @@ final class AdminPage {
 				'gd' => function_exists( 'imagecreatetruecolor' ),
 				'curl_http2' => function_exists( 'curl_version' ) && defined( 'CURL_VERSION_HTTP2' ) && ( curl_version()['features'] & CURL_VERSION_HTTP2 ),
 			),
-			'apple' => array( 'enabled' => (bool) Settings::get( 'wallet_apple_enabled' ), 'configured' => ( new AppleProvider() )->is_configured(), 'error' => is_wp_error( $apple ) ? $apple->get_error_message() : '', 'cert' => null, 'wwdr' => null ),
-			'google' => array( 'enabled' => (bool) Settings::get( 'wallet_google_enabled' ), 'configured' => ( new GoogleProvider() )->is_configured(), 'error' => is_wp_error( $google ) ? $google->get_error_message() : '', 'account' => is_array( $google ) ? $google['client_email'] : '' ),
+			'apple' => array( 'enabled' => (bool) Settings::get( 'wallet_apple_enabled' ), 'configured' => ( new AppleProvider() )->is_configured(), 'error' => is_wp_error( $apple ) ? \PassCaptain\Redact::text( $apple->get_error_message() ) : '', 'cert' => null, 'wwdr' => null ),
+			'google' => array( 'enabled' => (bool) Settings::get( 'wallet_google_enabled' ), 'configured' => ( new GoogleProvider() )->is_configured(), 'error' => is_wp_error( $google ) ? \PassCaptain\Redact::text( $google->get_error_message() ) : '', 'account' => is_array( $google ) ? $google['client_email'] : '' ),
 		);
 		if ( is_array( $apple ) ) {
 			$status['apple']['cert'] = Credentials::describe_cert( $apple['cert'] );
@@ -104,7 +104,7 @@ final class AdminPage {
 		try {
 			return $provider->bundle( $provider->pass_json( $ticket ), $credentials );
 		} catch ( \Throwable $e ) {
-			return Forms::error( 'wpcap_wallet_test_pass', __( 'Der Test-Pass konnte nicht signiert werden.', 'pass-captain' ) . ' (' . $e->getMessage() . ')', 500 );
+			return Forms::error( 'wpcap_wallet_test_pass', __( 'Der Test-Pass konnte nicht signiert werden.', 'pass-captain' ) . ' (' . \PassCaptain\Redact::text( $e->getMessage() ) . ')', 500 );
 		}
 	}
 

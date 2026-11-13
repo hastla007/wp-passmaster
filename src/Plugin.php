@@ -24,6 +24,7 @@ final class Plugin {
 		add_action( 'init', array( __CLASS__, 'ensure_events' ), 20, 0 );
 		Settings::register();
 		Secrets::register();
+		Redact::register();
 		Jobs\TimeBudget::register();
 		Operations\Monitor::register();
 		Operations\SiteHealth::register();

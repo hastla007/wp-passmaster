@@ -171,9 +171,10 @@ final class Queues {
 		return array_slice( array_values( array_filter( $keys, 'strlen' ) ), 0, 12 );
 	}
 
-	/** Error text for display: e-mail addresses masked, at most 190 characters. */
+	/** Error text for display and storage: secrets redacted, e-mail addresses masked (Redact::text()), at most 190 characters. */
 	public static function safe_error( $error ) {
-		$error = (string) preg_replace( '/[^\s@<>"\']+@[^\s@<>"\']+/', '***@***', (string) $error );
+		$error = \PassCaptain\Redact::text( (string) $error );
+		$error = (string) preg_replace( '/[^\s@<>"\']+@[^\s@<>"\']+/', '***@***', $error );
 		$error = trim( (string) preg_replace( '/\s+/', ' ', $error ) );
 		return function_exists( 'mb_substr' ) ? mb_substr( $error, 0, 190 ) : substr( $error, 0, 190 );
 	}

@@ -610,7 +610,7 @@ final class OrderAdapter {
 			$core_id = self::reserve( $wc_order );
 			if ( is_wp_error( $core_id ) ) {
 				/* translators: %s: error message */
-				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets konnten nicht reserviert werden: %s', 'pass-captain' ), $core_id->get_error_message() ) );
+				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets konnten nicht reserviert werden: %s', 'pass-captain' ), \PassCaptain\Redact::text( $core_id->get_error_message(), false ) ) );
 				return;
 			}
 			if ( ! $core_id ) {
@@ -652,7 +652,7 @@ final class OrderAdapter {
 			// A failed payment released the hold; the customer has paid on a later attempt.
 			$core_id = self::reserve( $wc_order );
 			if ( is_wp_error( $core_id ) || ! $core_id ) {
-				$message = is_wp_error( $core_id ) ? $core_id->get_error_message() : '';
+				$message = is_wp_error( $core_id ) ? \PassCaptain\Redact::text( $core_id->get_error_message(), false ) : '';
 				/* translators: %s: error message */
 				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Zahlung eingegangen, aber Tickets konnten nicht erneut reserviert werden – bitte manuell klären. %s', 'pass-captain' ), $message ) );
 				return;
@@ -666,7 +666,7 @@ final class OrderAdapter {
 		$result = Orders::confirm_external_payment( $core_id, 'woocommerce:' . $wc_order->get_id() );
 		if ( is_wp_error( $result ) ) {
 			/* translators: %s: error message */
-			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Keine Tickets ausgestellt – %s', 'pass-captain' ), $result->get_error_message() ) );
+			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Keine Tickets ausgestellt – %s', 'pass-captain' ), \PassCaptain\Redact::text( $result->get_error_message(), false ) ) );
 			return;
 		}
 		$count = count( Orders::tickets_for_order( $core_id ) );
@@ -794,7 +794,7 @@ final class OrderAdapter {
 			if ( is_wp_error( $result ) ) {
 				if ( $wc_order ) {
 					/* translators: %s: error message */
-					$wc_order->add_order_note( sprintf( __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s', 'pass-captain' ), $result->get_error_message() ) );
+					$wc_order->add_order_note( sprintf( __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s', 'pass-captain' ), \PassCaptain\Redact::text( $result->get_error_message(), false ) ) );
 				}
 				return;
 			}
@@ -1036,7 +1036,7 @@ final class OrderAdapter {
 			return;
 		}
 		$result = Orders::resend_tickets( absint( $wc_order->get_meta( self::ORDER_META, true ) ) );
-		$wc_order->add_order_note( is_wp_error( $result ) ? sprintf( /* translators: %s: error */ __( 'Pass Captain: Erneuter Versand fehlgeschlagen – %s', 'pass-captain' ), $result->get_error_message() ) : __( 'Pass Captain: Tickets mit neuen Codes erneut gesendet.', 'pass-captain' ) );
+		$wc_order->add_order_note( is_wp_error( $result ) ? sprintf( /* translators: %s: error */ __( 'Pass Captain: Erneuter Versand fehlgeschlagen – %s', 'pass-captain' ), \PassCaptain\Redact::text( $result->get_error_message(), false ) ) : __( 'Pass Captain: Tickets mit neuen Codes erneut gesendet.', 'pass-captain' ) );
 	}
 
 	/** Order action: retry issuance (e.g. after resolving a needs_review order). */

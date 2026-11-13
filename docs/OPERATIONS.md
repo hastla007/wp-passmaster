@@ -146,7 +146,7 @@ Der Reiter **Bericht** des Website-Zustands enthält den Abschnitt „Pass Capta
 **Pass Captain → Einstellungen & Integrationen → Betrieb** (nur `manage_options`) zeigt die Ergebnisse der Prüfungen und je Warteschlange – Hintergrundjobs (`wpcap_jobs`), E-Mail-Warteschlange (`wpcap_message_queue`), Webhook-Zustellungen (`wpcap_webhook_deliveries`, falls das Modul installiert ist) –:
 
 - Einträge je Status, Anzahl fälliger Einträge und Wartezeit des ältesten,
-- die endgültig fehlgeschlagenen Einträge (Jobs `dead_letter`, E-Mails und Webhooks `failed`, neueste 50) mit Typ, Versuchen, letztem Fehler (E-Mail-Adressen maskiert) und nur den **Feldnamen** des Inhalts (bei Webhooks die von `data.object`); E-Mail-Empfänger erscheinen maskiert. Inhalte, Betreffzeilen und Secrets werden nie angezeigt.
+- die endgültig fehlgeschlagenen Einträge (Jobs `dead_letter`, E-Mails und Webhooks `failed`, neueste 50) mit Typ, Versuchen, letztem Fehler (Secrets, Karten- und IBAN-Daten entfernt, E-Mail-Adressen maskiert, siehe SECURITY.md „Fehlerausgaben ohne Secrets“) und nur den **Feldnamen** des Inhalts (bei Webhooks die von `data.object`); E-Mail-Empfänger erscheinen maskiert. Inhalte, Betreffzeilen und Secrets werden nie angezeigt.
 
 Aktionen je Zeile oder als Mehrfachaktion (ausgewählte oder alle fehlgeschlagenen Einträge, höchstens 500):
 

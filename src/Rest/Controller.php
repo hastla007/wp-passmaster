@@ -306,7 +306,7 @@ final class Controller {
 		// Only customer fields; trusted adapter options must never come from a public request.
 		// One code field ("Gutschein- oder Rabattcode"): a known campaign code is a discount, anything else is
 		// tried as a voucher (when a voucher plugin is connected).
-		$single_code = sanitize_text_field( (string) ( $params['code'] ?? '' ) );
+		$single_code = sanitize_text_field( \PassCaptain\Http::str( $params['code'] ?? '' ) );
 		if ( '' !== $single_code ) {
 			if ( \PassCaptain\Campaigns::is_code( $single_code ) || ! \PassCaptain\Integrations\Vouchers\Bridge::available() ) {
 				$params['campaign_codes'] = array_merge( (array) ( $params['campaign_codes'] ?? array() ), array( $single_code ) );
@@ -315,7 +315,7 @@ final class Controller {
 			}
 		}
 		$payload = array_intersect_key( $params, array_flip( apply_filters( 'wpcap_checkout_payload_keys', array( 'email', 'items', 'idempotency_key', 'campaign_codes', 'attendees', 'accept_terms', 'terms_version', 'locale', 'voucher_code', 'billing' ) ) ) );
-		$provider_id = sanitize_key( $params['provider'] ?? 'manual' );
+		$provider_id = sanitize_key( \PassCaptain\Http::str( $params['provider'] ?? 'manual' ) );
 		$gateway = \PassCaptain\Payments\Registry::get( $provider_id );
 		$enabled = (array) \PassCaptain\Settings::get( 'enabled_providers' );
 		if ( ! $gateway || ! in_array( $provider_id, $enabled, true ) ) {
@@ -330,7 +330,7 @@ final class Controller {
 			if ( null === $hold ) {
 				return new \WP_Error( 'wpcap_manual_too_late', __( 'Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart.', 'pass-captain' ), array( 'status' => 400, 'field' => 'provider' ) );
 			}
-			$blocked = self::manual_hold_limit( (string) ( $params['email'] ?? '' ), $hold );
+			$blocked = self::manual_hold_limit( \PassCaptain\Http::str( $params['email'] ?? '' ), $hold );
 			if ( is_wp_error( $blocked ) ) { return $blocked; }
 		}
 		// Same wording as the form field ("Rabattcode"); the field is derived from the message below.
@@ -708,7 +708,7 @@ final class Controller {
 	}
 
 	public static function accept_waitlist_offer( \WP_REST_Request $request ) {
-		$result = Waitlists::accept_offer( $request['waitlist_id'], $request->get_param( 'token' ), array( 'provider' => sanitize_key( (string) $request->get_param( 'provider' ) ), 'accept_terms' => ! empty( $request->get_param( 'accept_terms' ) ) ) );
+		$result = Waitlists::accept_offer( $request['waitlist_id'], $request->get_param( 'token' ), array( 'provider' => sanitize_key( \PassCaptain\Http::str( $request->get_param( 'provider' ) ) ), 'accept_terms' => ! empty( $request->get_param( 'accept_terms' ) ) ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
@@ -915,13 +915,13 @@ final class Controller {
 	}
 
 	public static function validate_ticket( \WP_REST_Request $request ) {
-		$result = \PassCaptain\Checkin::preview( $request->get_param( 'token' ) );
+		$result = \PassCaptain\Checkin::preview( \PassCaptain\Http::str( $request->get_param( 'token' ) ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
 	/** Web scanner check-in; the logic lives in Checkin::perform() (shared with the app API). */
 	public static function check_in( \WP_REST_Request $request ) {
-		$result = \PassCaptain\Checkin::perform( $request->get_param( 'token' ), array_filter( array( 'source' => sanitize_key( $request->get_param( 'source' ) ?: 'web' ), 'idempotency_key' => sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) ), 'occurrence_id' => absint( $request->get_param( 'occurrence_id' ) ) ) ) );
+		$result = \PassCaptain\Checkin::perform( \PassCaptain\Http::str( $request->get_param( 'token' ) ), array_filter( array( 'source' => sanitize_key( \PassCaptain\Http::str( $request->get_param( 'source' ) ) ?: 'web' ), 'idempotency_key' => sanitize_text_field( \PassCaptain\Http::str( $request->get_param( 'idempotency_key' ) ) ), 'occurrence_id' => \PassCaptain\Http::positive_int( $request->get_param( 'occurrence_id' ) ) ) ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 }

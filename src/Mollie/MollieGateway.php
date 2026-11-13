@@ -313,14 +313,14 @@ final class MollieGateway implements GatewayInterface {
 		$response = \PassCaptain\OutboundHttp::request( self::API . $path, $args, array( 'context' => 'mollie', 'hosts' => array( 'api.mollie.com' ) ) );
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_mollie_http', sprintf( __( 'Mollie ist nicht erreichbar: %s', 'pass-captain' ), $response->get_error_message() ) );
+			return new \WP_Error( 'wpcap_mollie_http', sprintf( __( 'Mollie ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Redact::text( $response->get_error_message() ) ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		if ( $code < 200 || $code >= 300 || ! is_array( $data ) ) {
 			$message = is_array( $data ) && ! empty( $data['detail'] ) ? (string) $data['detail'] : 'HTTP ' . $code;
 			/* translators: %s: error message from Mollie */
-			return new \WP_Error( 'wpcap_mollie_api', sprintf( __( 'Mollie-Fehler: %s', 'pass-captain' ), $message ), array( 'status' => $code ) );
+			return new \WP_Error( 'wpcap_mollie_api', sprintf( __( 'Mollie-Fehler: %s', 'pass-captain' ), \PassCaptain\Redact::text( $message ) ), array( 'status' => $code ) );
 		}
 		return $data;
 	}

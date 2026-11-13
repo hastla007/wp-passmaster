@@ -336,7 +336,7 @@ final class Service {
 			$consent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_sms_consents WHERE consent_id=%d AND withdrawn_at IS NULL AND phone<>''", (int) $row->consent_id ) );
 			$skip = ! $consent ? 'no_consent' : ( self::is_opted_out( $consent->phone ) ? 'opted_out' : (string) apply_filters( 'wpcap_sms_skip_reason', '', $row ) );
 			if ( '' !== $skip ) {
-				$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'skipped', 'locked_at' => null, 'last_error' => substr( $skip, 0, 190 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
+				$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'skipped', 'locked_at' => null, 'last_error' => \PassCaptain\Operations\Queues::safe_error( $skip ), 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
 				continue;
 			}
 			$costing = array();
@@ -356,7 +356,7 @@ final class Service {
 				$tries = (int) $row->attempts + 1;
 				$data = (array) $result->get_error_data();
 				$final = $tries >= self::MAX_ATTEMPTS || ! empty( $data['permanent'] );
-				$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => $final ? 'failed' : 'queued', 'provider' => $provider->id(), 'send_at' => gmdate( 'Y-m-d H:i:s', time() + 60 * ( 2 ** $tries ) ), 'locked_at' => null, 'last_error' => substr( $result->get_error_message(), 0, 190 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
+				$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => $final ? 'failed' : 'queued', 'provider' => $provider->id(), 'send_at' => gmdate( 'Y-m-d H:i:s', time() + 60 * ( 2 ** $tries ) ), 'locked_at' => null, 'last_error' => \PassCaptain\Operations\Queues::safe_error( $result->get_error_message() ), 'updated_at' => current_time( 'mysql', true ) ), array( 'message_id' => (int) $row->message_id ) );
 				continue;
 			}
 			$done = current_time( 'mysql', true );

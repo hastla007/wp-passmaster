@@ -22,13 +22,14 @@ final class Orders {
 	 */
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
-		$email = sanitize_email( $payload['email'] ?? '' );
+		$payload = is_array( $payload ) ? $payload : array();
+		$email = sanitize_email( Http::str( $payload['email'] ?? '' ) );
 		$lines = $payload['items'] ?? array();
 		if ( ! is_email( $email ) || ! is_array( $lines ) || empty( $lines ) || count( $lines ) > 10 ) {
 			return new \WP_Error( 'wpcap_invalid_checkout', __( 'Bitte eine gültige E-Mail-Adresse und Tickets auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 
-		$key = sanitize_text_field( $payload['idempotency_key'] ?? '' );
+		$key = substr( sanitize_text_field( Http::str( $payload['idempotency_key'] ?? '' ) ), 0, 191 );
 		if ( '' === $key ) {
 			$key = wp_generate_uuid4();
 		}
@@ -72,8 +73,9 @@ final class Orders {
 		$line_cap = max( 1, (int) apply_filters( 'wpcap_max_line_quantity', 100 ) );
 		$clean_lines = array();
 		foreach ( $lines as $line ) {
-			$type_id = absint( $line['ticket_type_id'] ?? 0 );
-			$quantity = absint( $line['quantity'] ?? 0 );
+			// Strict: booleans, negatives, fractions and arrays are invalid (absint() would turn -2 into 2).
+			$type_id = is_array( $line ) ? Http::positive_int( $line['ticket_type_id'] ?? 0 ) : 0;
+			$quantity = is_array( $line ) ? Http::positive_int( $line['quantity'] ?? 0 ) : 0;
 			if ( ! $type_id || $quantity < 1 || $quantity > $line_cap ) {
 				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 			}

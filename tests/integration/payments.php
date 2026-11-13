@@ -29,9 +29,12 @@ if ( ! function_exists( 'wp_remote_request' ) ) {
 		if ( false !== $pre ) { return $pre; }
 		if ( function_exists( 'curl_init' ) && has_action( 'http_api_curl' ) ) { $handle = curl_init(); do_action( 'http_api_curl', $handle, $args, $url ); curl_close( $handle ); }
 		foreach ( $GLOBALS['wpcap_test_http_queue'] as $i => $entry ) {
-			if ( empty( $entry['match'] ) || false !== strpos( $url, $entry['match'] ) ) {
+			// A WP_Error (transport failure) answers any URL; array( 'error' => WP_Error, 'match' => … ) only matching ones.
+			$match = is_array( $entry ) ? (string) ( $entry['match'] ?? '' ) : '';
+			if ( '' === $match || false !== strpos( $url, $match ) ) {
 				array_splice( $GLOBALS['wpcap_test_http_queue'], $i, 1 );
 				if ( $entry instanceof WP_Error ) { return $entry; }
+				if ( isset( $entry['error'] ) && $entry['error'] instanceof WP_Error ) { return $entry['error']; }
 				return array( 'response' => array( 'code' => $entry['code'] ?? 200, 'message' => '' ), 'headers' => $entry['headers'] ?? array(), 'body' => is_string( $entry['body'] ?? null ) ? $entry['body'] : json_encode( $entry['body'] ?? array() ) );
 			}
 		}
@@ -55,6 +58,8 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 		private $headers = array();
 		private $body = '';
 		public function __construct( public $method = 'GET', public $route = '' ) {}
+		public function get_route() { return (string) $this->route; }
+		public function get_method() { return (string) $this->method; }
 		private static function canonical( $key ) { return str_replace( '-', '_', strtolower( (string) $key ) ); }
 		public function set_header( $key, $value ) { $this->headers[ self::canonical( $key ) ] = (string) $value; }
 		public function get_header( $key ) { return $this->headers[ self::canonical( $key ) ] ?? null; }

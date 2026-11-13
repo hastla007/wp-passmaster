@@ -14,7 +14,7 @@ final class Audit {
 				'action' => sanitize_key( $action ),
 				'object_type' => sanitize_key( $object_type ),
 				'object_id' => absint( $object_id ),
-				'details' => wp_json_encode( $details ),
+				'details' => wp_json_encode( Redact::value( $details, false ) ), // A194: never secrets, card data or full IBANs.
 				'created_at' => current_time( 'mysql', true ),
 			),
 			array( '%d', '%s', '%s', '%d', '%s', '%s' )
