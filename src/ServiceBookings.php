@@ -453,6 +453,8 @@ final class ServiceBookings {
 		if ( $bookings ) { return new \WP_Error( 'wpcap_resource_has_bookings', __( 'Die Ressource hat Buchungen und kann nicht gelöscht werden. Deaktiviere sie stattdessen.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$slots = (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_service_slots WHERE resource_id=%d", (int) $resource->resource_id ) );
 		$wpdb->delete( $wpdb->prefix . 'wpcap_resources', array( 'resource_id' => (int) $resource->resource_id ), array( '%d' ) );
+		if ( self::providers_ready() ) { $wpdb->delete( $wpdb->prefix . 'wpcap_resource_providers', array( 'resource_id' => (int) $resource->resource_id ), array( '%d' ) ); }
+		ServiceProviders::flush();
 		Audit::record( 'service_resource_deleted', 'resource', (int) $resource->resource_id, array( 'event_id' => (int) $resource->event_id, 'name' => $resource->name, 'slots_deleted' => $slots ) );
 		return true;
 	}
@@ -647,6 +649,101 @@ final class ServiceBookings {
 		return $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,b.slot_id,b.order_id,b.customer_email,b.quantity,b.expires_at,b.status,b.created_at,s.starts_at,s.ends_at,r.name AS resource_name FROM {$wpdb->prefix}wpcap_service_bookings b INNER JOIN {$wpdb->prefix}wpcap_service_slots s ON s.slot_id=b.slot_id INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id WHERE r.event_id=%d$slot_sql ORDER BY b.booking_id DESC LIMIT %d", absint( $event_id ), max( 1, min( 1000, absint( $limit ) ) ) ) );
 	}
 
+	/**
+	 * Whether the current user may confirm a booking or mark it as no-show: event team with
+	 * wpcap_manage_events, or a service provider assigned to the booking's service (A143).
+	 */
+	public static function can_handle_booking( $booking ) {
+		if ( ! $booking ) { return false; }
+		return Access::can_access_event( (int) $booking->event_id, 'wpcap_manage_events' ) || Access::can_access_resource( (int) $booking->resource_id, ServiceProviders::USER_CAP );
+	}
+
+	/** Booking statuses set by staff or service providers: confirmed and no_show. */
+	const STAFF_STATUSES = array( 'confirmed', 'no_show' );
+
+	/**
+	 * Confirms a booking or marks it as no-show (A143) – for the event team (wpcap_manage_events)
+	 * and for service providers of the booking's resource (can_handle_booking()).
+	 *  - confirmed: only from `held`, through confirm() (same locks and rule checks). Bookings of a
+	 *    resource with a price (ticket type) are confirmed by their payment, not by hand.
+	 *  - no_show: only from `confirmed`, once the slot has started; frees no money (no refund).
+	 * Setting the current status again is a no-op. Audit service_booking_confirmed /
+	 * service_booking_no_show, action wpcap_service_booking_status_changed.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public static function set_booking_status( $booking_id, $status ) {
+		global $wpdb;
+		$status = sanitize_key( (string) $status );
+		if ( ! in_array( $status, self::STAFF_STATUSES, true ) ) { return new \WP_Error( 'wpcap_booking_status_invalid', __( 'Unbekannter Buchungsstatus.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		$booking = self::booking( $booking_id );
+		if ( ! $booking ) { return new \WP_Error( 'wpcap_booking_not_found', __( 'Buchung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! self::can_handle_booking( $booking ) ) { return new \WP_Error( 'wpcap_booking_forbidden', __( 'Keine Berechtigung für diese Buchung.', 'pass-captain' ), array( 'status' => 403 ) ); }
+		if ( 'confirmed' === $status ) {
+			if ( 'confirmed' === $booking->status ) { return true; }
+			if ( 'held' !== self::booking_status( $booking ) ) { return self::state_error( __( 'Bestätigen ist nur für eine aktive Reservierung möglich.', 'pass-captain' ) ); }
+			if ( self::flow_ready() && (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_resources WHERE resource_id=%d", (int) $booking->resource_id ) ) ) { return self::state_error( __( 'Kostenpflichtige Buchungen werden mit der Zahlung bestätigt.', 'pass-captain' ) ); }
+			$result = self::confirm( (int) $booking->booking_id, array( 'actor' => 'provider' ) );
+			if ( is_wp_error( $result ) ) { return $result; }
+			do_action( 'wpcap_service_booking_status_changed', (int) $booking->booking_id, 'confirmed', 'held' );
+			return true;
+		}
+		$locked = self::begin( (int) $booking->booking_id );
+		if ( is_wp_error( $locked ) ) { return $locked; }
+		if ( 'no_show' === $locked->status ) { $wpdb->query( 'ROLLBACK' ); return true; }
+		if ( 'confirmed' !== $locked->status ) { $wpdb->query( 'ROLLBACK' ); return self::state_error( __( 'Nicht erschienen kann nur für eine bestätigte Buchung markiert werden.', 'pass-captain' ) ); }
+		if ( (string) $locked->starts_at > current_time( 'mysql', true ) ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_not_started', __( 'Nicht erschienen kann erst ab Beginn des Zeitfensters markiert werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
+		$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', array( 'status' => 'no_show' ) + self::touched(), array( 'booking_id' => (int) $locked->booking_id ) );
+		$committed = self::commit();
+		if ( is_wp_error( $committed ) ) { return $committed; }
+		Audit::record( 'service_booking_no_show', 'service_booking', (int) $locked->booking_id, array( 'event_id' => (int) $locked->event_id, 'resource_id' => (int) $locked->resource_id, 'slot_id' => (int) $locked->slot_id ) );
+		/**
+		 * A service booking was confirmed or marked as no-show by the event team or a service
+		 * provider of its resource (A143).
+		 *
+		 * @param int    $booking_id Booking.
+		 * @param string $status     confirmed or no_show.
+		 * @param string $previous   Previous status (held or confirmed).
+		 */
+		do_action( 'wpcap_service_booking_status_changed', (int) $locked->booking_id, 'no_show', 'confirmed' );
+		return true;
+	}
+
+	/**
+	 * Resources a service-provider user reaches through their provider records (A143), with event name.
+	 *
+	 * @return object[]
+	 */
+	public static function provider_resources( $user_id = 0 ) {
+		global $wpdb;
+		$user_id = $user_id ? absint( $user_id ) : (int) get_current_user_id();
+		$ids = ServiceProviders::resource_ids_for_user( $user_id );
+		if ( ! $ids ) { return array(); }
+		return (array) $wpdb->get_results( "SELECT r.*,e.name AS event_name FROM {$wpdb->prefix}wpcap_resources r INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=r.event_id WHERE r.resource_id IN (" . implode( ',', array_map( 'absint', $ids ) ) . ') ORDER BY e.name,r.name' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer ids only.
+	}
+
+	/** Slots of the given services ending at or after $since (UTC), with booked places, by start. */
+	public static function slots_of_resources( array $resource_ids, $since = '', $limit = 500 ) {
+		global $wpdb;
+		$resource_ids = array_values( array_filter( array_map( 'absint', $resource_ids ) ) );
+		if ( ! $resource_ids ) { return array(); }
+		$since = '' !== (string) $since ? (string) $since : '1970-01-01 00:00:00';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ACTIVE_SQL is a constant with placeholders, ids are integers.
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT s.*,r.name AS resource_name,r.event_id,(SELECT COALESCE(SUM(b.quantity),0) FROM {$wpdb->prefix}wpcap_service_bookings b WHERE b.slot_id=s.slot_id AND " . self::ACTIVE_SQL . ") AS booked FROM {$wpdb->prefix}wpcap_service_slots s INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id WHERE s.resource_id IN (" . implode( ',', $resource_ids ) . ') AND s.ends_at >= %s ORDER BY s.starts_at,s.slot_id LIMIT %d', current_time( 'mysql', true ), $since, max( 1, min( 2000, absint( $limit ) ) ) ) );
+	}
+
+	/** Bookings of the given services (optionally of one slot) whose slot ends at or after $since, by slot start. */
+	public static function bookings_of_resources( array $resource_ids, $slot_id = 0, $since = '', $limit = 500 ) {
+		global $wpdb;
+		$resource_ids = array_values( array_filter( array_map( 'absint', $resource_ids ) ) );
+		if ( ! $resource_ids ) { return array(); }
+		$since = '' !== (string) $since ? (string) $since : '1970-01-01 00:00:00';
+		$slot_sql = $slot_id ? $wpdb->prepare( ' AND s.slot_id=%d', absint( $slot_id ) ) : '';
+		$price = self::flow_ready() ? ',r.ticket_type_id' : '';
+		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ids are integers, $slot_sql is prepared above, $price is a literal.
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,b.slot_id,b.order_id,b.customer_email,b.quantity,b.expires_at,b.status,b.created_at,s.starts_at,s.ends_at,s.resource_id,r.event_id,r.name AS resource_name$price FROM {$wpdb->prefix}wpcap_service_bookings b INNER JOIN {$wpdb->prefix}wpcap_service_slots s ON s.slot_id=b.slot_id INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id WHERE s.resource_id IN (" . implode( ',', $resource_ids ) . ")$slot_sql AND s.ends_at >= %s ORDER BY s.starts_at,b.booking_id LIMIT %d", $since, max( 1, min( 2000, absint( $limit ) ) ) ) );
+	}
+
 	/** Display status of a booking (held bookings past expires_at count as expired). */
 	public static function booking_status( $booking ) {
 		if ( in_array( $booking->status, array( 'held', 'pending_payment' ), true ) && $booking->expires_at && $booking->expires_at <= current_time( 'mysql', true ) ) { return 'expired'; }
@@ -676,10 +773,15 @@ final class ServiceBookings {
 	}
 
 	/**
-	 * Actor check: 'admin' needs wpcap_manage_events for the event; 'customer' is authorised by the
+	 * Actor check: 'admin' needs wpcap_manage_events for the event; 'provider' the event team or a
+	 * service provider of the resource (A143); 'customer' is authorised by the
 	 * caller (booking token, order portal) and bound to the customer rules (deadlines).
 	 */
 	private static function actor( array $args, $booking ) {
+		if ( 'provider' === ( $args['actor'] ?? '' ) ) {
+			// Service provider of the resource or event team (set_booking_status(), A143).
+			return self::can_handle_booking( $booking ) ? 'provider' : self::forbidden();
+		}
 		$actor = 'admin' === ( $args['actor'] ?? 'customer' ) ? 'admin' : 'customer';
 		if ( 'admin' === $actor && ! Access::can_access_event( (int) $booking->event_id, 'wpcap_manage_events' ) ) { return self::forbidden(); }
 		return $actor;

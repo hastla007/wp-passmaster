@@ -122,6 +122,7 @@ final class ShiftPage {
 	}
 
 	public static function handle_handover() {
+		Forms::require_any_cap( array( Service::CAP ) );
 		$in = Forms::post();
 		$id = Forms::int( $in, 'handover_id' );
 		Forms::verify( 'wpcap_pos_handover_' . $id );
@@ -134,6 +135,7 @@ final class ShiftPage {
 	}
 
 	public static function handle_handover_cancel() {
+		Forms::require_any_cap( array( Service::CAP ) );
 		$in = Forms::post();
 		$id = Forms::int( $in, 'handover_id' );
 		Forms::verify( 'wpcap_pos_handover_cancel_' . $id );
@@ -236,6 +238,7 @@ final class ShiftPage {
 	}
 
 	public static function handle_cashier() {
+		Forms::require_any_cap( array( Service::CAP ) );
 		$in = Forms::post();
 		$shift_id = Forms::int( $in, 'shift_id' );
 		Forms::verify( 'wpcap_pos_cashier_' . $shift_id );
@@ -243,6 +246,7 @@ final class ShiftPage {
 	}
 
 	public static function handle_movement() {
+		Forms::require_any_cap( array( Service::CAP ) );
 		$in = Forms::post();
 		$shift_id = Forms::int( $in, 'shift_id' );
 		Forms::verify( 'wpcap_pos_movement_' . $shift_id );
@@ -252,6 +256,7 @@ final class ShiftPage {
 	}
 
 	public static function handle_count() {
+		Forms::require_any_cap( array( Service::CAP ) );
 		$in = Forms::post();
 		$shift_id = Forms::int( $in, 'shift_id' );
 		Forms::verify( 'wpcap_pos_count_' . $shift_id );
@@ -274,6 +279,7 @@ final class ShiftPage {
 	}
 
 	public static function handle_close() {
+		Forms::require_any_cap( array( Service::CAP ) );
 		$in = Forms::post();
 		$shift_id = Forms::int( $in, 'shift_id' );
 		Forms::verify( 'wpcap_pos_close_' . $shift_id );

@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.5';
+	const DB_VERSION = '3.10.6';
 
 	public static function install() {
 		global $wpdb;
@@ -30,6 +30,7 @@ final class Installer {
 		$tickets = $wpdb->prefix . 'wpcap_tickets';
 		$checkins = $wpdb->prefix . 'wpcap_checkins';
 		$staff = $wpdb->prefix . 'wpcap_event_staff';
+		$staff_assignments = $wpdb->prefix . 'wpcap_staff_assignments';
 		$audit = $wpdb->prefix . 'wpcap_audit_logs';
 		$seat_maps = $wpdb->prefix . 'wpcap_seat_maps';
 		$seats = $wpdb->prefix . 'wpcap_seats';
@@ -240,6 +241,20 @@ final class Installer {
 				capability varchar(64) NOT NULL,
 				PRIMARY KEY  (event_id,user_id,capability),
 				KEY user_id (user_id)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE $staff_assignments (
+				assignment_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				user_id bigint(20) unsigned NOT NULL,
+				event_id bigint(20) unsigned NOT NULL,
+				scope varchar(20) NOT NULL,
+				object_id bigint(20) unsigned NOT NULL,
+				capability varchar(64) NOT NULL,
+				created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (assignment_id),
+				UNIQUE KEY user_object (user_id,scope,object_id,capability),
+				KEY event_user (event_id,user_id),
+				KEY scope_object (scope,object_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $audit (
 				audit_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -1095,27 +1110,42 @@ final class Installer {
 		}
 	}
 
+	/** All plugin capabilities (administrators hold every one of them). */
+	const CAPABILITIES = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance', 'wpcap_service_bookings' );
+
 	/**
-	 * Role packages from the concept. Operational roles are additionally limited per event through
+	 * Role packages from the concept: slug => [translated name, capabilities]. Matrix in
+	 * docs/SECURITY.md ("Rollen und Capabilities").
+	 *
+	 * @return array<string, array{0: string, 1: string[]}>
+	 */
+	public static function role_definitions() {
+		return array(
+			'wpcap_ticket_admin'      => array( __( 'Pass Captain Ticket-Administration', 'pass-captain' ), self::CAPABILITIES ),
+			'wpcap_event_manager'     => array( __( 'Pass Captain Veranstaltungsleitung', 'pass-captain' ), array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin' ) ),
+			'wpcap_box_office'        => array( __( 'Pass Captain Vor-Ort-Kasse', 'pass-captain' ), array( 'wpcap_manage_orders', 'wpcap_checkin' ) ),
+			'wpcap_checkin_staff'     => array( __( 'Pass Captain Einlasspersonal', 'pass-captain' ), array( 'wpcap_checkin' ) ),
+			'wpcap_partner'           => array( __( 'Pass Captain Veranstalter', 'pass-captain' ), array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
+			'wpcap_service_provider'  => array( __( 'Pass Captain Leistungserbringer', 'pass-captain' ), array( 'wpcap_service_bookings' ) ),
+			'wpcap_finance'           => array( __( 'Pass Captain Finanzbuchhaltung', 'pass-captain' ), array( 'wpcap_view_finance', 'wpcap_view_reports', 'wpcap_approve_refunds' ) ),
+			'wpcap_support'           => array( __( 'Pass Captain Support', 'pass-captain' ), array( 'wpcap_manage_orders' ) ),
+		);
+	}
+
+	/**
+	 * Registers the roles. Operational roles are additionally limited per event through
 	 * wpcap_event_staff assignments (Access::can_access_event); only finance gets global read access.
-	 * Optional per-user location/partner scopes (Access::scope()) and the PII matrix per capability
-	 * profile (Pii, docs/SECURITY.md) apply on top (A119).
+	 * Service providers (wpcap_service_bookings) reach nothing but the services their provider record
+	 * (ServiceProviders, linked through user_id) is assigned to (Access::can_access_resource()). Optional
+	 * per-user location/partner scopes (Access::scope()) and the PII matrix per capability profile
+	 * (Pii, docs/SECURITY.md) apply on top (A119).
 	 */
 	public static function register_roles() {
-		$all_caps = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance' );
 		$admin = get_role( 'administrator' );
 		if ( $admin ) {
-			foreach ( $all_caps as $cap ) { $admin->add_cap( $cap, true ); }
+			foreach ( self::CAPABILITIES as $cap ) { $admin->add_cap( $cap, true ); }
 		}
-		$roles = array(
-			'wpcap_ticket_admin'   => array( __( 'Pass Captain Ticket-Administration', 'pass-captain' ), $all_caps ),
-			'wpcap_event_manager'  => array( __( 'Pass Captain Veranstaltungsleitung', 'pass-captain' ), array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin' ) ),
-			'wpcap_box_office'     => array( __( 'Pass Captain Vor-Ort-Kasse', 'pass-captain' ), array( 'wpcap_manage_orders', 'wpcap_checkin' ) ),
-			'wpcap_checkin_staff'  => array( __( 'Pass Captain Einlasspersonal', 'pass-captain' ), array( 'wpcap_checkin' ) ),
-			'wpcap_partner'        => array( __( 'Pass Captain Veranstalter', 'pass-captain' ), array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
-			'wpcap_finance'        => array( __( 'Pass Captain Finanzbuchhaltung', 'pass-captain' ), array( 'wpcap_view_finance', 'wpcap_view_reports', 'wpcap_approve_refunds' ) ),
-			'wpcap_support'        => array( __( 'Pass Captain Support', 'pass-captain' ), array( 'wpcap_manage_orders' ) ),
-		);
+		$roles = self::role_definitions();
 		foreach ( $roles as $slug => $definition ) {
 			$caps = array( 'read' => true );
 			foreach ( $definition[1] as $cap ) { $caps[ $cap ] = true; }

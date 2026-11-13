@@ -5,6 +5,12 @@
  * a booking of a slot then occupies the provider as well, so the same provider cannot be booked
  * for overlapping slots (buffers included) of different resources (ServiceBookings::blocking_slot()).
  * Optionally linked to a WordPress user and/or a partner (wpcap_partners).
+ *
+ * Access (A143): an active provider record linked to a WordPress user (user_id) who holds
+ * USER_CAP (role "Pass Captain Leistungserbringer") gives that user access to exactly the resources
+ * the record is assigned to – slots, bookings, confirm, no-show (Access::can_access_resource(),
+ * Admin\MyServicesPage). Linking a user and assigning resources needs wpcap_manage_events; both are
+ * audited (service_provider_created/updated, service_resource_providers_set).
  */
 namespace PassCaptain;
 
@@ -12,6 +18,36 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class ServiceProviders {
 	const CAP = 'wpcap_manage_events';
+	/** Capability of service-provider users (role wpcap_service_provider). */
+	const USER_CAP = 'wpcap_service_bookings';
+
+	/** Per-request cache: user id => resource ids. */
+	private static $user_resources = array();
+
+	/** Forgets the per-request cache (after changes, tests). */
+	public static function flush() {
+		self::$user_resources = array();
+	}
+
+	/**
+	 * Resources the user reaches through active provider records linked to them (user_id).
+	 *
+	 * @return int[]
+	 */
+	public static function resource_ids_for_user( $user_id ) {
+		global $wpdb;
+		$user_id = absint( $user_id );
+		if ( ! $user_id || ! ServiceBookings::providers_ready() ) { return array(); }
+		if ( ! isset( self::$user_resources[ $user_id ] ) ) {
+			self::$user_resources[ $user_id ] = array_values( array_unique( array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT rp.resource_id FROM {$wpdb->prefix}wpcap_resource_providers rp INNER JOIN {$wpdb->prefix}wpcap_service_providers p ON p.provider_id=rp.provider_id WHERE p.user_id=%d AND p.status='active' ORDER BY rp.resource_id", $user_id ) ) ) ) );
+		}
+		return self::$user_resources[ $user_id ];
+	}
+
+	/** Whether the user reaches the resource through a linked, active provider record. */
+	public static function user_has_resource( $user_id, $resource_id ) {
+		return in_array( absint( $resource_id ), self::resource_ids_for_user( $user_id ), true );
+	}
 
 	/** All providers (optionally only one status), by name. */
 	public static function all( $status = '' ) {
@@ -27,6 +63,17 @@ final class ServiceProviders {
 		global $wpdb;
 		if ( ! ServiceBookings::providers_ready() ) { return null; }
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_service_providers WHERE provider_id=%d", absint( $provider_id ) ) );
+	}
+
+	/**
+	 * Events of the resources a provider is assigned to.
+	 *
+	 * @return int[]
+	 */
+	public static function event_ids( $provider_id ) {
+		global $wpdb;
+		if ( ! ServiceBookings::providers_ready() ) { return array(); }
+		return array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT r.event_id FROM {$wpdb->prefix}wpcap_resource_providers rp INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=rp.resource_id WHERE rp.provider_id=%d ORDER BY r.event_id", absint( $provider_id ) ) ) );
 	}
 
 	/** Providers assigned to a resource. */
@@ -48,6 +95,13 @@ final class ServiceProviders {
 		$provider_id = absint( $provider_id );
 		$current = $provider_id ? self::get( $provider_id ) : null;
 		if ( $provider_id && ! $current ) { return new \WP_Error( 'wpcap_provider_not_found', __( 'Leistungserbringer nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		// A record assigned to resources grants its linked user access to them (A143): only people who
+		// manage every event of those resources may change it (A145).
+		if ( $current ) {
+			foreach ( self::event_ids( $provider_id ) as $event_id ) {
+				if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return new \WP_Error( 'wpcap_provider_forbidden', __( 'Keine Berechtigung für die Events dieses Leistungserbringers.', 'pass-captain' ), array( 'status' => 403 ) ); }
+			}
+		}
 		$name = mb_substr( sanitize_text_field( (string) ( $data['name'] ?? '' ) ), 0, 190 );
 		$email = sanitize_email( (string) ( $data['email'] ?? '' ) );
 		if ( '' === $name ) { return new \WP_Error( 'wpcap_provider_invalid', __( 'Name des Leistungserbringers fehlt.', 'pass-captain' ), array( 'status' => 400 ) ); }
@@ -60,9 +114,10 @@ final class ServiceProviders {
 			'status' => in_array( $data['status'] ?? '', array( 'active', 'inactive' ), true ) ? $data['status'] : ( $current->status ?? 'active' ),
 		);
 		$table = $wpdb->prefix . 'wpcap_service_providers';
+		self::flush();
 		if ( $current ) {
 			$wpdb->update( $table, $row, array( 'provider_id' => $provider_id ) );
-			Audit::record( 'service_provider_updated', 'service_provider', $provider_id, array( 'before' => array( 'name' => $current->name, 'status' => $current->status ), 'after' => array( 'name' => $name, 'status' => $row['status'], 'user_id' => $row['user_id'], 'partner_id' => $row['partner_id'] ) ) );
+			Audit::record( 'service_provider_updated', 'service_provider', $provider_id, array( 'before' => array( 'name' => $current->name, 'status' => $current->status, 'user_id' => (int) $current->user_id ), 'after' => array( 'name' => $name, 'status' => $row['status'], 'user_id' => $row['user_id'], 'partner_id' => $row['partner_id'] ) ) );
 			return $provider_id;
 		}
 		$wpdb->insert( $table, $row + array( 'created_at' => current_time( 'mysql', true ) ) );
@@ -123,6 +178,7 @@ final class ServiceProviders {
 			$wpdb->insert( $p . 'wpcap_resource_providers', array( 'resource_id' => (int) $resource->resource_id, 'provider_id' => $provider_id ), array( '%d', '%d' ) );
 		}
 		if ( '' !== (string) $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return Errors::busy(); }
+		self::flush();
 		Audit::record( 'service_resource_providers_set', 'resource', (int) $resource->resource_id, array( 'event_id' => (int) $resource->event_id, 'before' => $before, 'after' => $provider_ids ) );
 		return true;
 	}

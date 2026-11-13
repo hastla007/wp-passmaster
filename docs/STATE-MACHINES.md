@@ -155,9 +155,10 @@ Zeitfenster → Buchung) und als bedingtes Update auf den erwarteten Ausgangssta
 | `pending_payment`/`held`/`expired` → `unallocated` | Bestellung bezahlt, das Zeitfenster ist inzwischen belegt; die Bestellung wird nach Ausstellung der Tickets automatisch erstattet (`refund_unallocated()`). |
 | `held`/`pending_payment` → `expired` | Bestellung abgelaufen. |
 | `held`/`pending_payment`/`confirmed` → `cancelled` | Bestellung storniert oder anderweitig erstattet; `cancel()` durch Kund:in (innerhalb der Stornofrist) oder Team, bezahlt mit voller Erstattung über `Refunds` (Quelle `service_booking`). |
+| `confirmed` → `no_show` | Leistungserbringer (über seinen Datensatz) oder Event-Team, erst ab Beginn des Zeitfensters; gibt den Platz frei, keine Erstattung. |
 | `confirmed` → `confirmed` (anderes Zeitfenster) | `rebook()`: atomar, beide Ressourcen und Zeitfenster gesperrt; innerhalb der Umbuchungsfrist, bei Bestellungen nur auf eine Ressource mit derselben Ticketart. |
 
-**Endzustände:** `cancelled`, `expired` (eine abgelaufene Buchung wird nur noch durch eine verspätete Zahlung
+**Endzustände:** `cancelled`, `no_show`, `expired` (eine abgelaufene Buchung wird nur noch durch eine verspätete Zahlung
 `confirmed` oder `unallocated`) und `unallocated`. Fristen, Limits und Benachrichtigungen: OPERATIONS.md.
 
 ## Doppelte und in falscher Reihenfolge eintreffende Zahlungsereignisse

@@ -91,6 +91,7 @@ final class Page {
 	}
 
 	public static function handle_entry_action() {
+		Forms::require_any_cap( array( Service::MANAGE_CAP, Service::APPROVE_CAP ) );
 		Forms::verify( 'wpcap_gl_entry_action' );
 		$in = Forms::post();
 		$entry_id = Forms::int( $in, 'entry_id' );
@@ -114,6 +115,7 @@ final class Page {
 	}
 
 	public static function handle_arrive() {
+		Forms::require_any_cap( array( Service::CHECKIN_CAP, Service::MANAGE_CAP ) );
 		Forms::verify( 'wpcap_gl_arrive' );
 		$in = Forms::post();
 		$result = Service::arrive( Forms::int( $in, 'entry_id' ), Forms::int( $in, 'count' ) );

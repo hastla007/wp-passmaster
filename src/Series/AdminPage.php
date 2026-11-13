@@ -390,6 +390,7 @@ final class AdminPage {
 	}
 
 	public static function handle_rule_update() {
+		Forms::require_any_cap( array( Generator::CAP ) );
 		Forms::verify( self::NONCE );
 		$in = Forms::post();
 		$series_id = Forms::int( $in, 'series_id' );
@@ -403,6 +404,7 @@ final class AdminPage {
 	}
 
 	public static function handle_rule_delete() {
+		Forms::require_any_cap( array( Generator::CAP ) );
 		Forms::verify( self::NONCE );
 		$in = Forms::post();
 		$result = Pricing::delete( Forms::int( $in, 'rule_id' ) );

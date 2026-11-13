@@ -599,7 +599,7 @@ final class Service {
 		$p = $wpdb->prefix;
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		if ( ! $event_id ) { return self::error( 'wpcap_guestlist_occurrence', __( 'Termin nicht gefunden.', 'pass-captain' ), 404 ); }
-		if ( ! self::can_checkin( $event_id ) || ! \PassCaptain\Access::occurrence_in_scope( $occurrence_id ) ) { return self::forbidden(); }
+		if ( ! self::can_checkin( $event_id ) || ! \PassCaptain\Access::occurrence_in_scope( $occurrence_id, 0, self::CHECKIN_CAP ) ) { return self::forbidden(); }
 		$query = trim( sanitize_text_field( (string) $query ) );
 		if ( mb_strlen( $query ) < 2 ) { return array(); }
 		$like = '%' . addcslashes( $query, '_%\\' ) . '%';

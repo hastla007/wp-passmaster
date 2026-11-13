@@ -185,6 +185,8 @@ RulesPage::save_policy( array( 'ticket_type_id' => $s['type'], 'policy' => 'defa
 $GLOBALS['wpcap_test_users'][] = new Wpcap_Test_User( 8, 'nordstaff', 'nord@example.com' );
 $added = RulesPage::add_staff( array( 'area_id' => $nord, 'user' => 'nord@example.com' ) );
 check( 'staff can be assigned to an area; unknown users rejected', ! is_wp_error( $added ) && array( 8 ) === Areas::staff( $nord ) && is_wp_error( RulesPage::add_staff( array( 'area_id' => $nord, 'user' => 'nobody' ) ) ) );
+// Non-administrators also need the event assignment for wpcap_checkin (Access::can_access_event).
+$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_event_staff (event_id,user_id,capability) VALUES (%d,8,'wpcap_checkin')", $s['event'] ) );
 $GLOBALS['wpcap_test_user_id'] = 8;
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
 $req = new WP_REST_Request( 'POST' );

@@ -62,6 +62,11 @@ final class Menu {
 			'wpcap_service_provider_save' => array( ServiceSlotsPage::class, 'handle_save_provider' ),
 			'wpcap_service_resource_providers' => array( ServiceSlotsPage::class, 'handle_assign_providers' ),
 			'wpcap_service_booking_action' => array( ServiceSlotsPage::class, 'handle_booking_action' ),
+			MyServicesPage::STATUS_ACTION => array( MyServicesPage::class, 'handle_status' ),
+			'wpcap_assignment_add' => array( AssignmentsPage::class, 'handle_add' ),
+			'wpcap_assignment_remove' => array( AssignmentsPage::class, 'handle_remove' ),
+			'wpcap_assignment_area_add' => array( AssignmentsPage::class, 'handle_add_area' ),
+			'wpcap_assignment_area_remove' => array( AssignmentsPage::class, 'handle_remove_area' ),
 		) +\PassCaptain\Modules::admin_handlers();
 	}
 
@@ -100,7 +105,7 @@ final class Menu {
 	}
 
 	public static function add_menus() {
-		$top_cap = self::first_cap( array( EventsPage::CAP, OrdersPage::CAP, 'wpcap_checkin', 'wpcap_view_reports', Refunds::APPROVE_CAP, SettingsPage::CAP ) );
+		$top_cap = self::first_cap( array( EventsPage::CAP, OrdersPage::CAP, 'wpcap_checkin', 'wpcap_view_reports', Refunds::APPROVE_CAP, SettingsPage::CAP, MyServicesPage::CAP ) );
 		add_menu_page(
 			__( 'Pass Captain', 'pass-captain' ),
 			__( 'Pass Captain', 'pass-captain' ),
@@ -147,6 +152,8 @@ final class Menu {
 			'wpcap-passes'                 => 'events',
 			'wpcap-print'                  => 'events',
 			ServiceSlotsPage::SLUG         => 'events',
+			MyServicesPage::SLUG           => 'events',
+			AssignmentsPage::SLUG          => 'events',
 			OrdersPage::SLUG               => 'sales',
 			TicketsPage::SLUG              => 'sales',
 			'wpcap-boxoffice'              => 'sales',
@@ -207,6 +214,8 @@ final class Menu {
 			array( DevicesPage::SLUG, __( 'Scanner-Geräte', 'pass-captain' ), __( 'Scanner-Geräte', 'pass-captain' ), DevicesPage::CAP, array( DevicesPage::class, 'render' ), '' ),
 			array( TaxPage::SLUG, __( 'Steuerprüfung', 'pass-captain' ), __( 'Steuerprüfung', 'pass-captain' ), TaxPage::CAP, array( TaxPage::class, 'render' ), '' ),
 			array( ServiceSlotsPage::SLUG, __( 'Service-Zeitfenster', 'pass-captain' ), __( 'Service-Zeitfenster', 'pass-captain' ), ServiceSlotsPage::CAP, array( ServiceSlotsPage::class, 'render' ), '' ),
+			array( MyServicesPage::SLUG, __( 'Meine Leistungen', 'pass-captain' ), __( 'Meine Leistungen', 'pass-captain' ), MyServicesPage::CAP, array( MyServicesPage::class, 'render' ), '' ),
+			array( AssignmentsPage::SLUG, __( 'Zuweisungen', 'pass-captain' ), __( 'Zuweisungen', 'pass-captain' ), AssignmentsPage::CAP, array( AssignmentsPage::class, 'render' ), '' ),
 		);
 		foreach ( \PassCaptain\Modules::admin_pages() as $page ) {
 			$page = array_values( (array) $page );

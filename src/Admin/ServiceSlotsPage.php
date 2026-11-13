@@ -110,14 +110,16 @@ final class ServiceSlotsPage {
 
 	/**
 	 * Staff action on a booking (A135): confirm (held), cancel (refund optional), rebook (any open
-	 * slot of the event; deadlines do not apply to staff, capacity/buffers/providers/window do).
+	 * slot of the event; deadlines do not apply to staff, capacity/buffers/providers/window do);
+	 * no_show (A143: confirmed booking, once the slot has started).
 	 */
 	public static function booking_action( array $in ) {
 		$booking = ServiceBookings::booking( Forms::int( $in, 'booking_id' ) );
 		if ( ! $booking ) { return Forms::error( 'wpcap_booking_not_found', __( 'Buchung nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( (int) $booking->event_id, self::CAP ) ) { return Forms::forbidden(); }
-		$op = Forms::choice( $in, 'op', array( 'confirm', 'cancel', 'rebook' ), '' );
+		$op = Forms::choice( $in, 'op', array( 'confirm', 'cancel', 'rebook', 'no_show' ), '' );
 		if ( 'confirm' === $op ) { return ServiceBookings::confirm( (int) $booking->booking_id, array( 'actor' => 'admin' ) ); }
+		if ( 'no_show' === $op ) { return ServiceBookings::set_booking_status( (int) $booking->booking_id, 'no_show' ); }
 		if ( 'cancel' === $op ) { return ServiceBookings::cancel( (int) $booking->booking_id, array( 'actor' => 'admin', 'refund' => Forms::flag( $in, 'refund' ), 'reason' => Forms::text( $in, 'reason', 190 ) ) ); }
 		if ( 'rebook' === $op ) { return ServiceBookings::rebook( (int) $booking->booking_id, Forms::int( $in, 'slot_id' ), array( 'actor' => 'admin' ) ); }
 		return Forms::error( 'wpcap_service_op', __( 'Unbekannte Aktion.', 'pass-captain' ) );
@@ -171,6 +173,7 @@ final class ServiceSlotsPage {
 			'cancelled' => __( 'Storniert', 'pass-captain' ),
 			'pending_payment' => __( 'Zahlung offen', 'pass-captain' ),
 			'unallocated' => __( 'Bezahlt, Termin vergeben (Erstattung)', 'pass-captain' ),
+			'no_show' => __( 'Nicht erschienen', 'pass-captain' ),
 		);
 		return $labels[ $status ] ?? Forms::status_label( $status );
 	}
@@ -250,7 +253,8 @@ final class ServiceSlotsPage {
 	private static function provider_fields( $provider, array $partners ) {
 		echo '<p><label>' . esc_html__( 'Name', 'pass-captain' ) . ' <input type="text" name="name" maxlength="190" required value="' . esc_attr( $provider ? (string) $provider->name : '' ) . '"></label> ';
 		echo '<label>' . esc_html__( 'E-Mail', 'pass-captain' ) . ' <input type="email" name="email" maxlength="190" value="' . esc_attr( $provider ? (string) $provider->email : '' ) . '"></label> ';
-		echo '<label>' . esc_html__( 'WordPress-Benutzer-ID', 'pass-captain' ) . ' <input type="number" name="user_id" min="0" class="small-text" value="' . esc_attr( $provider ? (string) (int) $provider->user_id : '0' ) . '"></label> ';
+		echo '<label>' . esc_html__( 'WordPress-Benutzer-ID', 'pass-captain' ) . ' <input type="number" name="user_id" min="0" class="small-text" aria-describedby="wpcap-provider-user-help" value="' . esc_attr( $provider ? (string) (int) $provider->user_id : '0' ) . '"></label> ';
+		echo '<span class="description" id="wpcap-provider-user-help">' . esc_html__( 'Mit der Rolle „Pass Captain Leistungserbringer“ sieht diese Person unter „Meine Leistungen“ die Zeitfenster und Buchungen der zugeordneten Ressourcen.', 'pass-captain' ) . '</span> ';
 		if ( count( $partners ) > 1 ) {
 			echo '<label>' . esc_html__( 'Partner', 'pass-captain' ) . ' ';
 			Forms::select( 'partner_id', $partners, $provider ? (string) (int) $provider->partner_id : '0' );
@@ -303,6 +307,10 @@ final class ServiceSlotsPage {
 		if ( 'held' === $status ) {
 			$open( 'confirm' );
 			echo '<button class="button-link">' . esc_html__( 'Bestätigen', 'pass-captain' ) . '</button></form>';
+		}
+		if ( 'confirmed' === $status && (string) $booking->starts_at <= current_time( 'mysql', true ) ) {
+			$open( 'no_show' );
+			echo '<button class="button-link">' . esc_html__( 'Nicht erschienen', 'pass-captain' ) . '</button></form>';
 		}
 		unset( $targets[ (int) $booking->slot_id ] );
 		if ( $targets ) {

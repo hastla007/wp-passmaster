@@ -504,6 +504,7 @@ final class EventsPage {
 		}
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->prefix}wpcap_event_staff (event_id,user_id,capability) VALUES (%d,%d,%s)", $event_id, (int) $user->ID, $capability ) );
+		\PassCaptain\StaffAssignments::flush();
 		Audit::record( 'staff_assigned', 'event', $event_id, array( 'user_id' => (int) $user->ID, 'capability' => $capability ) );
 		return array( 'event_id' => $event_id, 'user_id' => (int) $user->ID );
 	}
@@ -535,6 +536,8 @@ final class EventsPage {
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		global $wpdb;
 		$wpdb->delete( $wpdb->prefix . 'wpcap_event_staff', array( 'event_id' => $event_id, 'user_id' => $user_id, 'capability' => $capability ), array( '%d', '%d', '%s' ) );
+		// Occurrence assignments only narrow this team entry (A144); without it they would be stale.
+		\PassCaptain\StaffAssignments::delete_for_team( $event_id, $user_id, $capability );
 		if ( 'wpcap_checkin' === $capability ) { self::maybe_revoke_checkin_cap( $user_id ); }
 		Audit::record( 'staff_removed', 'event', $event_id, array( 'user_id' => $user_id, 'capability' => $capability ) );
 		return array( 'event_id' => $event_id );
@@ -556,7 +559,7 @@ final class EventsPage {
 		return Forms::page_url( self::SLUG, $args );
 	}
 
-	private static function event_url( $event_id ) {
+	public static function event_url( $event_id ) {
 		return self::url( array( 'view' => 'event', 'event_id' => absint( $event_id ) ) );
 	}
 
@@ -922,14 +925,19 @@ final class EventsPage {
 		<?php
 	}
 
-	private static function render_staff( $event ) {
-		$staff = Queries::staff_for_event( $event->event_id );
-		$cap_labels = array(
+	/** Labels of the event-team capabilities. */
+	public static function staff_cap_labels() {
+		return array(
 			'wpcap_checkin' => __( 'Einlass/Scanner', 'pass-captain' ),
 			'wpcap_manage_events' => __( 'Event verwalten', 'pass-captain' ),
 			'wpcap_manage_orders' => __( 'Bestellungen/Kasse', 'pass-captain' ),
 			'wpcap_view_reports' => __( 'Berichte', 'pass-captain' ),
 		);
+	}
+
+	private static function render_staff( $event ) {
+		$staff = Queries::staff_for_event( $event->event_id );
+		$cap_labels = self::staff_cap_labels();
 		?>
 		<h2><?php esc_html_e( 'Personal und Zugriff', 'pass-captain' ); ?></h2>
 		<table class="widefat striped">
@@ -956,6 +964,7 @@ final class EventsPage {
 		<button class="button" type="submit"><?php esc_html_e( 'Zugriff zuweisen', 'pass-captain' ); ?></button>
 		<p class="description"><?php esc_html_e( 'Einlassrechte werden direkt vergeben. Für alle anderen Rechte braucht der Benutzer eine passende Rolle (z. B. Pass Captain Veranstaltungsleitung).', 'pass-captain' ); ?></p>
 		</form>
+		<p><a href="<?php echo esc_url( AssignmentsPage::url( (int) $event->event_id ) ); ?>"><?php esc_html_e( 'Engere Zuweisungen: Termine, Einlassbereiche, Leistungen', 'pass-captain' ); ?></a></p>
 		<?php
 	}
 

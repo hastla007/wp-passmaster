@@ -729,7 +729,7 @@ final class Controller {
 	public static function report_permission( \WP_REST_Request $request ) {
 		$event_id = absint( $request['event_id'] );
 		// The summary covers all occurrences of the event: location-scoped users need all of them in scope (A119).
-		if ( Access::can_access_event( $event_id, 'wpcap_view_reports' ) && Access::event_fully_in_scope( $event_id ) ) { return true; }
+		if ( Access::can_access_event( $event_id, 'wpcap_view_reports' ) && Access::event_fully_in_scope( $event_id, 0, 'wpcap_view_reports' ) ) { return true; }
 		// true, false or a 429 WP_Error (never collapse it with || – an object is truthy).
 		return DeveloperKeys::permission( $request, 'reports.read', $event_id );
 	}

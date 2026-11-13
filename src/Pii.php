@@ -7,6 +7,8 @@
  *  - full:    manage_options, wpcap_manage_orders or wpcap_manage_events – everything (unchanged);
  *  - finance: wpcap_view_finance – buyer name/e-mail/phone and billing data, no attendee data;
  *  - door:    wpcap_checkin – attendee name only when the setting scanner_show_attendee is on;
+ *  - service: wpcap_service_bookings – e-mail address of the service bookings of their own services
+ *             (the only personal data a service provider sees, A143);
  *  - reports: wpcap_view_reports – aggregated figures only, no personal data.
  * A user with several profiles sees the union. Filters: `wpcap_pii_matrix`, `wpcap_pii_can_view`,
  * `wpcap_pii_mask`.
@@ -19,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Pii {
 	const FIELDS = array( 'buyer_name', 'buyer_email', 'buyer_phone', 'billing', 'attendee_name', 'attendee_email', 'attendee_answers' );
-	const PROFILES = array( 'full', 'finance', 'door', 'reports' );
+	const PROFILES = array( 'full', 'finance', 'door', 'service', 'reports' );
 	/** Matrix value meaning "visible when the setting scanner_show_attendee is on". */
 	const IF_SCANNER_SETTING = 'scanner_show_attendee';
 
@@ -35,6 +37,7 @@ final class Pii {
 			'full'    => $all,
 			'finance' => array_merge( $none, array( 'buyer_name' => true, 'buyer_email' => true, 'buyer_phone' => true, 'billing' => true ) ),
 			'door'    => array_merge( $none, array( 'attendee_name' => self::IF_SCANNER_SETTING ) ),
+			'service' => array_merge( $none, array( 'buyer_email' => true ) ),
 			'reports' => $none,
 		);
 		/**
@@ -60,6 +63,7 @@ final class Pii {
 		$profiles = array();
 		if ( Access::user_has( $user_id, 'wpcap_view_finance' ) ) { $profiles[] = 'finance'; }
 		if ( Access::user_has( $user_id, 'wpcap_checkin' ) ) { $profiles[] = 'door'; }
+		if ( Access::user_has( $user_id, ServiceProviders::USER_CAP ) ) { $profiles[] = 'service'; }
 		if ( Access::user_has( $user_id, 'wpcap_view_reports' ) ) { $profiles[] = 'reports'; }
 		return $profiles;
 	}

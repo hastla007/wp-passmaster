@@ -347,6 +347,20 @@ final class Forms {
 		return wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification -- nonce checked by caller.
 	}
 
+	/**
+	 * Stops an admin-post request with 403 unless the user holds at least one of the capabilities
+	 * (A145: capability first, before any lookup or validation; the object-level check follows in the
+	 * handler).
+	 *
+	 * @param string[] $caps Capabilities.
+	 */
+	public static function require_any_cap( array $caps ) {
+		foreach ( $caps as $cap ) {
+			if ( current_user_can( $cap ) ) { return; }
+		}
+		wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), '', array( 'response' => 403, 'back_link' => true ) );
+	}
+
 	/** Verifies the nonce of an admin-post request (dies on failure). */
 	public static function verify( $nonce_action ) {
 		check_admin_referer( $nonce_action );

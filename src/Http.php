@@ -14,4 +14,14 @@ final class Http {
 	public static function is_post() {
 		return 'POST' === self::method();
 	}
+
+	/**
+	 * Ends a response the plugin sent itself (downloads, printable pages). The action
+	 * `wpcap_response_end` runs first, so tests and logging can observe it.
+	 */
+	public static function end() {
+		/** A download or printable page was sent completely; the request ends right after. */
+		do_action( 'wpcap_response_end' );
+		exit;
+	}
 }

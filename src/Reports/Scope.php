@@ -92,7 +92,7 @@ final class Scope {
 			header( 'X-Content-Type-Options: nosniff' );
 		}
 		echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- binary download.
-		exit;
+		\PassCaptain\Http::end();
 	}
 
 	/** Money display "1.234,50 EUR". */

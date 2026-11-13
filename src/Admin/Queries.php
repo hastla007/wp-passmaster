@@ -324,7 +324,7 @@ final class Queries {
 		foreach ( $events as $event_id ) {
 			if ( ! Access::can_access_event( $event_id, $cap ) ) { return false; }
 		}
-		return Access::order_in_scope( $order_id );
+		return Access::order_in_scope( $order_id, 0, $cap );
 	}
 
 	/**

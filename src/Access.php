@@ -4,7 +4,14 @@
  *
  * Layers (all must pass; administrators with manage_options skip layers 2 and 3):
  *  1. capability of the role (current_user_can),
- *  2. event assignment in wpcap_event_staff for that capability,
+ *  2. event assignment in wpcap_event_staff for that capability; service providers
+ *     (wpcap_service_bookings) instead need a provider record linked to their user
+ *     and assigned to the resource (wpcap_service_providers/wpcap_resource_providers,
+ *     can_access_resource()),
+ *  2b. narrower assignments (A144, wpcap_staff_assignments): a team member limited to single
+ *     occurrences for a capability only reaches those occurrences with it (assigned_occurrence());
+ *     capability-free occurrence checks use the union of the person's team capabilities; entry areas
+ *     are enforced by the admission module (Admission\Areas::check()),
  *  3. optional scope of the user (A119, opt-in, user meta `wpcap_access_scope`):
  *     - locations: only occurrences whose location (occurrences.location, compared trimmed and
  *       case-insensitive) is listed; an event is reachable when at least one of its occurrences is,
@@ -41,7 +48,7 @@ final class Access {
 		if ( ! $user_id || ! current_user_can( $capability ) ) {
 			return false;
 		}
-		if ( user_can( $user_id, 'manage_options' ) ) {
+		if ( self::is_global( $user_id ) ) {
 			// Administrators: no assignment needed; event_in_scope() is true for them (is_global()).
 			return self::event_in_scope( $event_id, $user_id );
 		}
@@ -64,7 +71,47 @@ final class Access {
 	public static function can_access_occurrence( $occurrence_id, $capability ) {
 		$occurrence = self::occurrence_row( $occurrence_id );
 		if ( ! $occurrence ) { return false; }
-		return self::can_access_event( (int) $occurrence->event_id, $capability ) && self::occurrence_in_scope( $occurrence_id );
+		return self::can_access_event( (int) $occurrence->event_id, $capability ) && self::occurrence_in_scope( $occurrence_id, 0, $capability );
+	}
+
+	/**
+	 * Whether a narrower occurrence assignment (A144) admits the occurrence: true for administrators,
+	 * for people without occurrence assignments and when the occurrence is among the assigned ones.
+	 *
+	 * @param int         $occurrence_id Occurrence.
+	 * @param string|null $capability    Capability of the check; null = union of the team capabilities.
+	 * @param int         $user_id       User (0 = current).
+	 */
+	public static function assigned_occurrence( $occurrence_id, $capability = null, $user_id = 0 ) {
+		$user_id = $user_id ? (int) $user_id : (int) get_current_user_id();
+		if ( ! $user_id || ! StaffAssignments::has_occurrence_limits( $user_id ) || self::is_global( $user_id ) ) { return true; }
+		$occurrence = self::occurrence_row( $occurrence_id );
+		if ( ! $occurrence ) { return false; }
+		$limited = StaffAssignments::limited_occurrences( $user_id, (int) $occurrence->event_id, $capability );
+		return null === $limited || in_array( (int) $occurrence->occurrence_id, $limited, true );
+	}
+
+	/** Whether the user has narrower occurrence assignments that apply (non-administrators only). */
+	private static function occurrence_limited( $user_id ) {
+		$user_id = $user_id ? (int) $user_id : (int) get_current_user_id();
+		return $user_id && StaffAssignments::has_occurrence_limits( $user_id ) && ! self::is_global( $user_id );
+	}
+
+	/**
+	 * Service-level check (A143): the user holds the capability and may work with the resource
+	 * (wpcap_resources). Service providers (ServiceProviders::USER_CAP) need an active provider record
+	 * linked to their user and assigned to exactly this resource – the event alone is not enough;
+	 * every other capability uses the event check. Administrators reach every resource.
+	 */
+	public static function can_access_resource( $resource_id, $capability = ServiceProviders::USER_CAP ) {
+		global $wpdb;
+		$user_id = (int) get_current_user_id();
+		if ( ! $user_id || ! current_user_can( $capability ) ) { return false; }
+		$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_resources WHERE resource_id=%d", absint( $resource_id ) ) );
+		if ( ! $event_id ) { return false; }
+		if ( self::is_global( $user_id ) ) { return self::event_in_scope( $event_id, $user_id ); }
+		if ( ServiceProviders::USER_CAP !== $capability ) { return self::can_access_event( $event_id, $capability ); }
+		return ServiceProviders::user_has_resource( $user_id, $resource_id ) && self::event_in_scope( $event_id, $user_id );
 	}
 
 	/**
@@ -153,8 +200,16 @@ final class Access {
 		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d AND $sql LIMIT 1", array_merge( array( $event_id ), $args ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders only.
 	}
 
-	/** Whether the occurrence lies in the user's scope (true without scope). */
-	public static function occurrence_in_scope( $occurrence_id, $user_id = 0 ) {
+	/**
+	 * Whether the occurrence lies in the user's scope and narrower occurrence assignments (true
+	 * without either).
+	 *
+	 * @param int         $occurrence_id Occurrence.
+	 * @param int         $user_id       User (0 = current).
+	 * @param string|null $capability    Capability of the check (A144); null = union of the team capabilities.
+	 */
+	public static function occurrence_in_scope( $occurrence_id, $user_id = 0, $capability = null ) {
+		if ( ! self::assigned_occurrence( $occurrence_id, $capability, $user_id ) ) { return false; }
 		$scope = self::scope( $user_id );
 		if ( null === $scope ) { return true; }
 		$occurrence = self::occurrence_row( $occurrence_id );
@@ -170,24 +225,31 @@ final class Access {
 		return in_array( self::location_key( $location ), array_map( array( __CLASS__, 'location_key' ), $scope['locations'] ), true );
 	}
 
-	/** Whether every occurrence of the event lies in the user's scope (event-wide figures; true without scope). */
-	public static function event_fully_in_scope( $event_id, $user_id = 0 ) {
-		if ( null === self::scope( $user_id ) ) { return true; }
-		if ( ! self::event_in_scope( $event_id, $user_id ) ) { return false; }
+	/**
+	 * Whether every occurrence of the event lies in the user's scope and occurrence assignments
+	 * (event-wide figures; true without either). $capability narrows the assignment check (A144).
+	 */
+	public static function event_fully_in_scope( $event_id, $user_id = 0, $capability = null ) {
+		$scope = self::scope( $user_id );
+		if ( null === $scope && ! self::occurrence_limited( $user_id ) ) { return true; }
+		if ( null !== $scope && ! self::event_in_scope( $event_id, $user_id ) ) { return false; }
 		global $wpdb;
 		foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d", absint( $event_id ) ) ) as $occurrence_id ) {
-			if ( ! self::occurrence_in_scope( (int) $occurrence_id, $user_id ) ) { return false; }
+			if ( ! self::occurrence_in_scope( (int) $occurrence_id, $user_id, $capability ) ) { return false; }
 		}
 		return true;
 	}
 
-	/** Whether every occurrence of the order lies in the user's scope (orders without items: only unscoped users). */
-	public static function order_in_scope( $order_id, $user_id = 0 ) {
-		if ( null === self::scope( $user_id ) ) { return true; }
+	/**
+	 * Whether every occurrence of the order lies in the user's scope and occurrence assignments
+	 * (orders without items: only unscoped, unlimited users). $capability narrows the assignment check (A144).
+	 */
+	public static function order_in_scope( $order_id, $user_id = 0, $capability = null ) {
+		if ( null === self::scope( $user_id ) && ! self::occurrence_limited( $user_id ) ) { return true; }
 		$occurrences = self::order_occurrence_ids( $order_id );
 		if ( ! $occurrences ) { return false; }
 		foreach ( $occurrences as $occurrence_id ) {
-			if ( ! self::occurrence_in_scope( $occurrence_id, $user_id ) ) { return false; }
+			if ( ! self::occurrence_in_scope( $occurrence_id, $user_id, $capability ) ) { return false; }
 		}
 		return true;
 	}
@@ -234,10 +296,37 @@ final class Access {
 	 */
 	public static function occurrence_scope_sql( $alias = 'o', $user_id = 0 ) {
 		$scope = self::scope( $user_id );
-		if ( null === $scope ) { return ''; }
 		$alias = preg_replace( '/[^A-Za-z0-9_]/', '', (string) $alias );
-		$ids = self::scoped_occurrence_ids( $scope );
-		return $ids ? " AND {$alias}.occurrence_id IN (" . implode( ',', $ids ) . ')' : ' AND 1=0';
+		$sql = '';
+		if ( null !== $scope ) {
+			$ids = self::scoped_occurrence_ids( $scope );
+			$sql = $ids ? " AND {$alias}.occurrence_id IN (" . implode( ',', $ids ) . ')' : ' AND 1=0';
+		}
+		$excluded = self::unassigned_occurrence_ids( $user_id );
+		if ( $excluded ) { $sql .= " AND {$alias}.occurrence_id NOT IN (" . implode( ',', $excluded ) . ')'; }
+		return $sql;
+	}
+
+	/**
+	 * Occurrences a user with narrower occurrence assignments (A144) does not reach with any of their
+	 * team capabilities (the other occurrences of the limited events); empty when not limited.
+	 *
+	 * @return int[]
+	 */
+	private static function unassigned_occurrence_ids( $user_id = 0 ) {
+		$user_id = $user_id ? (int) $user_id : (int) get_current_user_id();
+		if ( ! self::occurrence_limited( $user_id ) ) { return array(); }
+		global $wpdb;
+		$excluded = array();
+		$events = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_staff_assignments WHERE user_id=%d AND scope='occurrence'", $user_id ) ) );
+		foreach ( $events as $event_id ) {
+			$allowed = StaffAssignments::limited_occurrences( $user_id, $event_id );
+			if ( null === $allowed ) { continue; }
+			foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d", $event_id ) ) as $occurrence_id ) {
+				if ( ! in_array( (int) $occurrence_id, $allowed, true ) ) { $excluded[] = (int) $occurrence_id; }
+			}
+		}
+		return $excluded;
 	}
 
 	/** Occurrence ids inside a (non-null) scope. */

@@ -375,6 +375,7 @@ final class Page {
 	}
 
 	public static function handle_storno_reject() {
+		Forms::require_any_cap( array( Service::CAP ) );
 		$sale_id = Forms::int( Forms::post(), 'sale_id' );
 		Forms::verify( 'wpcap_pos_storno_reject_' . $sale_id );
 		Forms::finish( Service::reject_storno( $sale_id ), __( 'Storno abgelehnt; der Verkauf bleibt bestehen.', 'pass-captain' ), self::back() );

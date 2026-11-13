@@ -65,6 +65,45 @@ bisherige Filter `wpcap_client_ip` kann das Ergebnis weiterhin überschreiben.
   Limit. Das ist sicher, kann bei großen Vorverkäufen aber zu frühen 429-Antworten führen.
 - Hosting-seitige Limits (WAF, nginx `limit_req`, CDN-Regeln) bleiben die erste Verteidigungslinie. Die
   Limits des Plugins sind die zweite.
+## Rollen und Capabilities
+
+Das Plugin legt diese Rollen an (`Installer::role_definitions()`; bei Updates werden Rechte nur ergänzt, nie
+entzogen). Jede Rolle hat zusätzlich `read`. Administratoren (`manage_options`) erhalten alle `wpcap_*`-Rechte
+und sind nie auf Events oder Bereiche beschränkt.
+
+| Capability | Wofür | Ticket-Administration | Veranstaltungsleitung | Vor-Ort-Kasse | Einlasspersonal | Veranstalter | Leistungserbringer | Finanzbuchhaltung | Support |
+|---|---|---|---|---|---|---|---|---|---|
+| `wpcap_manage_events` | Events, Termine, Ticketarten, Teams, Service-Zeitfenster und Zuweisungen verwalten | ✓ | ✓ | | | | | | |
+| `wpcap_manage_orders` | Bestellungen, Tickets, Kasse, Gästelisten, Erstattung anfragen | ✓ | ✓ | ✓ | | | | | ✓ |
+| `wpcap_checkin` | Einlass (Web-Scanner, Scanner-App, Offline-Scanner), Check-in-Liste | ✓ | ✓ | ✓ | ✓ | ✓ | | | |
+| `wpcap_view_reports` | Berichte und Kennzahlen (nur Summen) | ✓ | ✓ | | | ✓ | | ✓ | |
+| `wpcap_refund` | Erstattungen ausführen bzw. anstoßen | ✓ | ✓ | | | | | | |
+| `wpcap_approve_refunds` | Erstattungen freigeben (Vier-Augen) | ✓ | | | | | | ✓ | |
+| `wpcap_view_finance` | Rechnungen, Kassenbelege, Buchhaltungsexport – ohne Event-Zuweisung (Bereich nach A119) | ✓ | | | | | | ✓ | |
+| `wpcap_service_bookings` | Eigene Leistungen: Zeitfenster und Buchungen ansehen, bestätigen, als nicht erschienen markieren | ✓ | | | | | ✓ | | |
+
+Rollen-Slugs: `wpcap_ticket_admin`, `wpcap_event_manager`, `wpcap_box_office`, `wpcap_checkin_staff`,
+`wpcap_partner` (Veranstalter, also Organisator eines Events), `wpcap_service_provider` (Leistungserbringer,
+z. B. Workshopleitung, Fotograf:in, Behandlungsraum), `wpcap_finance`, `wpcap_support`.
+
+**Leistungserbringer (A143):** Die Rolle hat nur `wpcap_service_bookings`. Zugang entsteht ausschließlich über
+einen Leistungserbringer-Datensatz (A133, **Pass Captain → Service-Zeitfenster**, Tabellen
+`wpcap_service_providers`/`wpcap_resource_providers`): Ist ein *aktiver* Datensatz mit dem WordPress-Benutzer
+verknüpft (`user_id`), erreicht die Person genau die Ressourcen, denen dieser Datensatz zugeordnet ist
+(`ServiceProviders::resource_ids_for_user()`, `Access::can_access_resource()`). Verknüpfen und Zuordnen darf nur,
+wer `wpcap_manage_events` für das Event hat – einen bereits zugeordneten Datensatz ändern (z. B. den
+Benutzer umhängen) nur, wer alle Events seiner Ressourcen verwaltet (A145); beides wird auditiert (`service_provider_created`/`service_provider_updated`
+mit `user_id` vorher/nachher, `service_resource_providers_set`). Derselbe Datensatz schützt vor Doppelbuchung und
+bestimmt die Team-Mails der Ressource. Ohne verknüpften Datensatz sieht die Person nichts; mit ihm zeigt
+**Pass Captain → Meine Leistungen** die Zeitfenster und Buchungen dieser Ressourcen (ab gestern). Je Buchung:
+**Bestätigen** nur für eine aktive Reservierung (`held`) einer kostenlosen Ressource (kostenpflichtige werden
+mit der Zahlung bestätigt; läuft über `ServiceBookings::confirm()` mit allen Sperren und Regeln) und
+**Nicht erschienen** nur für eine bestätigte Buchung ab Beginn des Zeitfensters (`no_show`, keine Erstattung).
+Jede Aktion prüft serverseitig (`ServiceBookings::set_booking_status()`), schreibt `service_booking_confirmed`
+bzw. `service_booking_no_show` ins Audit-Log und löst `wpcap_service_booking_status_changed` aus. Personen mit
+`wpcap_manage_events` für das Event haben dieselben Aktionen in der Buchungsliste der Service-Zeitfenster.
+Andere Events, Bestellungen, Tickets, Berichte oder fremde Ressourcen erreicht die Rolle nicht; die Verknüpfung
+vergibt nie selbst ein Recht (die Rolle muss vorhanden sein), ein deaktivierter Datensatz entzieht den Zugang.
 
 ## Rollen, Zugriffsbereiche und Prüfreihenfolge
 
@@ -75,6 +114,30 @@ Jede Admin-Seite, jeder admin-post-Handler und jede authentifizierte REST-Route 
    `wpcap_view_finance`, `wpcap_refund`, `wpcap_approve_refunds` …).
 2. **Event-Zuweisung** in `wpcap_event_staff` für genau diese Capability (`Access::can_access_event()`).
    Finanzbuchhaltung (`wpcap_view_finance`) liest Berichte, Rechnungen und Kassenbelege ohne Zuweisung.
+   Leistungserbringer (`wpcap_service_bookings`) brauchen statt der Event-Zuweisung einen mit ihrem Benutzer
+   verknüpften, aktiven Leistungserbringer-Datensatz, der der Ressource zugeordnet ist
+   (`Access::can_access_resource()`).
+2b. **Engere Zuweisungen (A144)** unter **Pass Captain → Zuweisungen** (je Event; nur mit
+   `wpcap_manage_events` für das Event, Terminzuweisungen zusätzlich für den Termin):
+   - **Termine:** Eine Person aus dem Event-Team wird für ein Recht (Einlass, Bestellungen/Kasse, Event
+     verwalten, Berichte) auf einzelne Termine beschränkt (`wpcap_staff_assignments`, Bereich `occurrence`).
+     Sobald für (Person, Event, Recht) mindestens eine Terminzuweisung besteht, lassen alle terminbezogenen
+     Prüfungen mit diesem Recht nur noch diese Termine zu – Scannen (Web, App, Offline-Paket), Tickets,
+     Bestellungen (alle Termine der Bestellung), Teilnehmer-/No-Show-Listen, Terminabrechnung, Bearbeiten und
+     Absagen von Terminen (`Access::can_access_occurrence()`, `occurrence_in_scope()`, `order_in_scope()`).
+     Listen und Exporte ohne konkretes Recht (`occurrence_scope_sql()`) nutzen die Vereinigung über alle
+     Team-Rechte der Person: Sie werden erst gefiltert, wenn jedes ihrer Rechte beschränkt ist. Event-weite
+     Kennzahlen (REST `/events/{id}/reports/summary`) gibt es nur, wenn das Berichtsrecht nicht beschränkt ist.
+     Eine Terminzuweisung setzt den Team-Eintrag für dasselbe Recht voraus und vergibt nie selbst Zugriff;
+     wird der Team-Eintrag entfernt, verschwinden ihre Terminzuweisungen mit.
+   - **Einlassbereiche:** Zuordnung von Personen zu Bereichen des Einlassmoduls
+     (`wpcap_admission_area_staff`); wer einem Bereich zugewiesen ist, scannt für dieses Event nur dort
+     (`Admission\Areas::check()`, Bereichsauswahl im Scanner, Gerätekopplung).
+   - **Leistungen:** Leistungserbringer-Datensätze je Ressource (A133, siehe oben); die Seite zeigt sie je
+     Ressource, verwaltet werden sie auf der Seite Service-Zeitfenster.
+
+   Alle Änderungen landen im Audit-Log (`staff_assignment_added`/`staff_assignment_removed`,
+   `admission_area_staff_added`/`admission_area_staff_removed`, `service_resource_providers_set`). Administratoren sind nie beschränkt.
 3. **Zugriffsbereich (A119, optional je Person)** im WordPress-Profil unter „Pass Captain: Zugriffsbereich“
    (User-Meta `wpcap_access_scope`, Filter `wpcap_access_scope`):
    - **Spielorte:** nur Termine, deren Ort (`occurrences.location`, ohne Groß-/Kleinschreibung) aufgeführt ist.
@@ -107,6 +170,28 @@ Die Selbstbedienung für Servicebuchungen (`GET /service-bookings/{id}`, `POST /
 ist ohne Anmeldung erreichbar, aber nur mit dem persönlichen Buchungstoken aus der Reservierung (Prüfung im
 `permission_callback` `ServiceBookingFlow::token_permission`, Hash-Vergleich in konstanter Zeit, 10 Fehlversuche je Buchung
 und Stunde, danach 429). Die Antworten enthalten keine Daten anderer Kund:innen.
+
+**Objektberechtigung in allen Kanälen (A145).** `tests/integration/modules/zz_a145.php` zählt jede REST-Route,
+jede admin-post-Aktion (`Admin\Menu::handlers()` samt Modulen sowie per Quelltext-Scan alle übrigen
+`admin_post_*`-Registrierungen) und jede AJAX-Aktion (`wp_ajax_*`) auf und prüft für jeden authentifizierten
+Einstiegspunkt:
+
+1. **Ohne jede Capability** (angemeldet, kein Plugin-Recht) wird die Anfrage mit 403 abgewiesen – vor jeder
+   Validierung oder Objektsuche. admin-post-Handler prüfen deshalb zuerst das Recht
+   (`Admin\Forms::require_any_cap()` bzw. `current_user_can()`), erst danach Eingaben und Objekte.
+2. **Mit allen operativen Rechten, aber ohne Zuweisung zum Event des Objekts** (eigenes Event im Team,
+   ohne `manage_options`/`wpcap_view_finance`) wird jede Anfrage mit Objekt-ID – Pfad-, Query- oder
+   Formularparameter, gefüllt mit IDs bestehender Objekte eines fremden Events – mit 403/404 abgewiesen oder
+   scheitert an der Validierung in einem Codepfad mit objektbezogener Prüfung. Ein Filter auf ein fremdes Event
+   (z. B. Berichts-Export) wird abgewiesen statt still leer geliefert.
+3. **Statisch** enthält der erreichbare Code jedes Einstiegspunkts eine Rechte-/Zugriffsprüfung und – sobald er
+   eine Objekt-ID liest – eine objektbezogene (`Access::can_access_event/occurrence/resource`,
+   `order_in_scope`, `Scope::can_*`, Eigentum an Kassenschicht/Übergabe, Partner-Schlüssel und seine Events)
+   oder ist nur für Administratoren.
+
+Öffentliche admin-post-Aktionen sind ausschließlich die mit `admin_post_nopriv_` registrierten
+(Wartelisten-Angebot annehmen/ablehnen, Austragen); sie prüfen das Token des Links. Downloads und druckbare
+Seiten enden über `Http::end()` (Action `wpcap_response_end`), damit der Test sie beobachten kann.
 
 ## Entwickler-API-Schlüssel
 
@@ -150,6 +235,7 @@ Rechnungsdaten leer) und sind auch nicht durchsuchbar.
 | **voll** – `manage_options`, `wpcap_manage_orders` oder `wpcap_manage_events` (Administration, Ticket-Administration, Veranstaltungsleitung, Vor-Ort-Kasse, Support) | ja | ja | ja | ja | ja | ja | ja |
 | **Finanzen** – `wpcap_view_finance` (Finanzbuchhaltung) | ja | ja | ja | ja | nein | nein | nein |
 | **Einlass** – `wpcap_checkin` (Einlasspersonal, Veranstalter) | nein | nein | nein | nein | nur mit Einstellung „Teilnehmernamen beim Scannen anzeigen“ | nein | nein |
+| **Leistung** – `wpcap_service_bookings` (Leistungserbringer) | nein | ja (nur Buchungen der zugeordneten Ressourcen) | nein | nein | nein | nein | nein |
 | **Berichte** – `wpcap_view_reports` | nein (nur Summen) | nein | nein | nein | nein | nein | nein |
 
 Wirkung im Plugin:

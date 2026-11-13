@@ -366,6 +366,6 @@ final class Settlement {
 		}
 		nocache_headers();
 		echo self::html( $sheet, array( 'nonce' => wp_create_nonce( self::ACTION ), 'fixed' => is_scalar( $in['fixed'] ?? '' ) ? sanitize_text_field( (string) ( $in['fixed'] ?? '' ) ) : '', 'share' => is_scalar( $in['share'] ?? '' ) ? sanitize_text_field( (string) ( $in['share'] ?? '' ) ) : '' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in html().
-		exit;
+		\PassCaptain\Http::end();
 	}
 }

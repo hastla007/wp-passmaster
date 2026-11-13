@@ -26,6 +26,22 @@ final class Page {
 	}
 
 	/**
+	 * Whether an event/occurrence filter lies inside the user's report scope (A145): a filter on an
+	 * object outside it is refused instead of silently returning an empty report.
+	 *
+	 * @param array      $filters Output of filters().
+	 * @param int[]|null $scope   Output of Data::scope() (null = all events).
+	 */
+	public static function filters_allowed( array $filters, $scope ) {
+		if ( $filters['event_id'] && is_array( $scope ) && ! in_array( (int) $filters['event_id'], array_map( 'intval', $scope ), true ) ) { return false; }
+		if ( $filters['occurrence_id'] ) {
+			$event_id = Scope::occurrence_event( $filters['occurrence_id'] );
+			if ( ! $event_id || ( is_array( $scope ) && ! in_array( $event_id, array_map( 'intval', $scope ), true ) ) || ! \PassCaptain\Access::occurrence_in_scope( $filters['occurrence_id'] ) ) { return false; }
+		}
+		return true;
+	}
+
+	/**
 	 * Simple horizontal bar chart as inline SVG (escaped, no scripts).
 	 *
 	 * @param array<string,int|float> $values label => value.
@@ -58,6 +74,7 @@ final class Page {
 		$scope = Data::scope();
 		if ( false === $scope ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$filters = self::filters( wp_unslash( $_GET ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filters.
+		if ( ! self::filters_allowed( $filters, $scope ) ) { wp_die( esc_html__( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$report = Data::build( $filters, $scope );
 		$cur = $report['currency'];
 		$money = static function ( $minor ) use ( $cur ) { return Scope::money( $minor, $cur ); };
@@ -173,6 +190,7 @@ final class Page {
 		if ( false === $scope ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		check_admin_referer( 'wpcap_reports_csv' );
 		$filters = self::filters( wp_unslash( $_GET ) );
+		if ( ! self::filters_allowed( $filters, $scope ) ) { wp_die( esc_html__( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$report = Data::build( $filters, $scope );
 		Audit::record( 'report_exported', 'report', 0, array( 'from' => $report['from'], 'to' => $report['to'], 'event_id' => $filters['event_id'] ) );
 		Scope::send_download( Scope::csv( Data::csv_rows( $report ) ), 'pass-captain-bericht-' . $report['from'] . '-' . $report['to'] . '.csv', 'text/csv; charset=utf-8' );

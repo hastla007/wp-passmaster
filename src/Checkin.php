@@ -335,7 +335,7 @@ final class Checkin {
 		// Only scans the uploader was allowed to make for this event can be conflicts; otherwise a
 		// scanner of event A could create open conflicts in event B.
 		if ( ! $ticket_id || ! $event_id || in_array( (string) ( $data['result'] ?? '' ), array( 'forbidden', 'wrong_event', 'unknown' ), true ) ) { return $error; }
-		if ( ! Access::can_access_event( $event_id, 'wpcap_checkin' ) || ( $found && ! Access::occurrence_in_scope( $found['occurrence_id'] ) ) ) { return $error; }
+		if ( ! Access::can_access_event( $event_id, 'wpcap_checkin' ) || ( $found && ! Access::occurrence_in_scope( $found['occurrence_id'], 0, 'wpcap_checkin' ) ) ) { return $error; }
 		if ( isset( $context['event_ids'] ) && is_array( $context['event_ids'] ) && $context['event_ids'] && ! in_array( $event_id, array_map( 'intval', $context['event_ids'] ), true ) ) { return $error; }
 		$dedupe = $key ? get_current_user_id() . '|' . $key : 'scan|' . get_current_user_id() . '|' . $ticket_id . '|' . (string) ( $context['scanned_at'] ?? '' ) . '|' . (string) $checkin_id;
 		$conflict_id = Conflicts::record( array(

@@ -50,7 +50,7 @@ final class AccessLog {
 	const WINDOW = 600;
 
 	/** Roles the plugin ships (Installer::register_roles()). */
-	const PLUGIN_ROLES = array( 'wpcap_ticket_admin', 'wpcap_event_manager', 'wpcap_box_office', 'wpcap_checkin_staff', 'wpcap_partner', 'wpcap_finance', 'wpcap_support' );
+	const PLUGIN_ROLES = array( 'wpcap_ticket_admin', 'wpcap_event_manager', 'wpcap_box_office', 'wpcap_checkin_staff', 'wpcap_partner', 'wpcap_service_provider', 'wpcap_finance', 'wpcap_support' );
 
 	/** Exporter/eraser keys of the plugin start with one of these. */
 	const PRIVACY_KEY_PREFIXES = array( 'pass-captain', 'wpcap' );
@@ -80,7 +80,7 @@ final class AccessLog {
 			'pii' => array( self::ACTION_VIEW, self::ACTION_LIST, self::ACTION_REST ),
 			'export' => array( self::ACTION_EXPORT, 'attendee_list_csv', 'attendee_list_html', 'no_show_list_csv', 'no_show_list_html', 'print_batch', 'report_exported', 'accounting_exported', 'settlement_sheet_csv', 'settlement_sheet_html' ),
 			'privacy' => array( self::ACTION_PRIVACY_EXPORT, self::ACTION_PRIVACY_ERASE, self::ACTION_PRIVACY_EXPORTED, self::ACTION_PRIVACY_ERASED, 'privacy_erasure', 'privacy_erasure_deferred', 'privacy_retention' ),
-			'roles' => array( self::ACTION_ROLE_SET, self::ACTION_ROLE_ADDED, self::ACTION_ROLE_REMOVED, self::ACTION_CAP_ADDED, self::ACTION_CAP_REMOVED, 'staff_assigned', 'staff_removed', 'admission_area_staff_added', 'admission_area_staff_removed', 'partner_users_set', 'pos_cashier_added' ),
+			'roles' => array( self::ACTION_ROLE_SET, self::ACTION_ROLE_ADDED, self::ACTION_ROLE_REMOVED, self::ACTION_CAP_ADDED, self::ACTION_CAP_REMOVED, 'staff_assigned', 'staff_removed', 'admission_area_staff_added', 'admission_area_staff_removed', 'partner_users_set', 'pos_cashier_added', 'service_provider_created', 'service_provider_updated', 'service_resource_providers_set', 'staff_assignment_added', 'staff_assignment_removed' ),
 			'corrections' => array( self::ACTION_CORRECTED, 'billing_updated', 'ticket_holder_changed', 'ticket_assigned', 'ticket_reissued' ),
 		);
 	}

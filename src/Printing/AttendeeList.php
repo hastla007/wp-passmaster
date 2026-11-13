@@ -16,8 +16,13 @@ final class AttendeeList {
 	public static function access_level( $occurrence_id ) {
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		if ( ! $event_id || ! \PassCaptain\Access::occurrence_in_scope( $occurrence_id ) ) { return ''; }
-		if ( Scope::can_event( $event_id, array( 'wpcap_manage_events' ) ) ) { return 'full'; }
-		if ( Scope::can_event( $event_id, array( 'wpcap_checkin', 'wpcap_manage_orders' ) ) ) { return 'basic'; }
+		// Occurrence assignments (A144) are checked per capability: a person limited to other
+		// occurrences for a right does not get this list through that right.
+		$via = static function ( $cap ) use ( $event_id, $occurrence_id ) {
+			return Scope::can_event( $event_id, array( $cap ) ) && \PassCaptain\Access::occurrence_in_scope( $occurrence_id, 0, $cap );
+		};
+		if ( $via( 'wpcap_manage_events' ) ) { return 'full'; }
+		if ( $via( 'wpcap_checkin' ) || $via( 'wpcap_manage_orders' ) ) { return 'basic'; }
 		return '';
 	}
 

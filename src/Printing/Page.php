@@ -128,7 +128,7 @@ final class Page {
 		if ( ! current_user_can( 'wpcap_manage_events' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		Forms::verify( 'wpcap_print_save_template' );
 		$in = Forms::post();
-		$result = Templates::save_template( Forms::int( $in, 'template_id' ), Forms::text( $in, 'name' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), is_scalar( $in['body'] ?? '' ) ? (string) $in['body'] : '', Forms::int( $in, 'owner_event_id' ) );
+		$result = Templates::save_template( Forms::int( $in, 'template_id' ), Forms::text( $in, 'name' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), is_scalar( $in['body'] ?? '' ) ? (string) ( $in['body'] ?? '' ) : '', Forms::int( $in, 'owner_event_id' ) );
 		Forms::finish( $result, __( 'Vorlage gespeichert.', 'pass-captain' ), Forms::page_url( self::SLUG ) );
 	}
 

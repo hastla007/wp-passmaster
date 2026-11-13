@@ -16,10 +16,7 @@ use PassCaptain\Admin\Queries;
 use PassCaptain\Admin\OrdersPage;
 use PassCaptain\Admin\TicketsPage;
 
-if ( ! class_exists( 'WP_REST_Server' ) ) {
-	class WP_REST_Server { const READABLE = 'GET'; const CREATABLE = 'POST'; const EDITABLE = 'POST, PUT, PATCH'; const DELETABLE = 'DELETE'; const ALLMETHODS = 'GET, POST, PUT, PATCH, DELETE'; }
-}
-if ( ! function_exists( 'register_rest_route' ) ) { function register_rest_route( $ns, $route, $args ) { $GLOBALS['wpcap_test_routes'][ $ns . $route ] = $args; return true; } }
+require_once dirname( __DIR__ ) . '/channels.php';
 if ( ! function_exists( 'is_user_logged_in' ) ) { function is_user_logged_in() { return get_current_user_id() > 0; } }
 if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $single = false ) { return $GLOBALS['p1u_user_meta'][ $u ][ $k ] ?? ''; } }
 if ( ! function_exists( 'update_user_meta' ) ) { function update_user_meta( $u, $k, $v ) { $GLOBALS['p1u_user_meta'][ $u ][ $k ] = $v; return true; } }
@@ -28,90 +25,28 @@ global $wpdb;
 $p = $wpdb->prefix;
 
 echo "A119: every REST route has a permission check; public routes are explicit\n";
-$a119_root = dirname( __DIR__, 3 );
-// Registrar of every source file that calls register_rest_route().
-$a119_registrars = array(
-	'src/Rest/Controller.php' => array( PassCaptain\Rest\Controller::class, 'register_routes' ),
-	'src/Modules/Sms.php' => array( PassCaptain\Modules\Sms::class, 'register_routes' ),
-	'src/Mobile/Api.php' => array( PassCaptain\Mobile\Api::class, 'routes' ),
-	'src/WalletPasses/WebService.php' => array( PassCaptain\WalletPasses\WebService::class, 'routes' ),
-	'src/Partners/Api.php' => array( PassCaptain\Partners\Api::class, 'register_routes' ),
-	'src/OfflineScanner/Rest.php' => array( PassCaptain\OfflineScanner\Rest::class, 'routes' ),
-	'src/GuestLists/Rest.php' => array( PassCaptain\GuestLists\Rest::class, 'routes' ),
-	'src/Seating/Rest.php' => array( PassCaptain\Seating\Rest::class, 'register_routes' ),
-	'src/Exchange/Portal.php' => array( PassCaptain\Exchange\Portal::class, 'register_routes' ),
-	'src/Admission/Rest.php' => array( PassCaptain\Admission\Rest::class, 'routes' ),
-	'src/PortalSelfService.php' => array( PassCaptain\PortalSelfService::class, 'register_routes' ),
-);
-$a119_files = array();
-$a119_it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $a119_root . '/src', FilesystemIterator::SKIP_DOTS ) );
-foreach ( $a119_it as $a119_file ) {
-	if ( 'php' === $a119_file->getExtension() && false !== strpos( (string) file_get_contents( $a119_file->getPathname() ), 'register_rest_route(' ) ) {
-		$a119_files[] = ltrim( str_replace( $a119_root, '', $a119_file->getPathname() ), '/' );
-	}
-}
-sort( $a119_files );
+// Registrars, endpoints and the public list are shared with the A145 coverage test (channels.php).
+$a119_registrars = wpcap_test_rest_registrars();
+$a119_files = wpcap_test_source_files_with( 'register_rest_route(' );
 $a119_known = array_keys( $a119_registrars );
 sort( $a119_known );
 check( 'every source file registering REST routes is covered by this test' . ( array_diff( $a119_files, $a119_known ) ? ' – missing: ' . implode( ', ', array_diff( $a119_files, $a119_known ) ) : '' ), $a119_files === $a119_known );
 
-$a119_saved_routes = $GLOBALS['wpcap_test_routes'] ?? array();
-$GLOBALS['wpcap_test_routes'] = array();
-foreach ( $a119_registrars as $a119_reg ) { call_user_func( $a119_reg ); }
-$a119_routes = $GLOBALS['wpcap_test_routes'];
-$GLOBALS['wpcap_test_routes'] = $a119_saved_routes;
-
-// Intentionally public routes ("METHOD route"): access token / signature / pairing code checked in the
-// callback, or only public data. docs/SECURITY.md lists them.
-$a119_public = array(
-	'GET pass-captain/v1/events',
-	'POST pass-captain/v1/checkout',
-	'GET pass-captain/v1/checkout/options',
-	'GET pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})',
-	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/transfer',
-	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/resend',
-	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/assign',
-	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/billing',
-	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/payout-account',
-	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/exchange',
-	'POST pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/refund-request',
-	'GET pass-captain/v1/events/(?P<event_id>\d+)/seats',
-	'POST pass-captain/v1/events/(?P<event_id>\d+)/seat-holds',
-	'GET pass-captain/v1/events/(?P<event_id>\d+)/service-slots',
-	'POST pass-captain/v1/service-slots/(?P<slot_id>\d+)/bookings',
-	'POST pass-captain/v1/campaigns/preview',
-	'POST pass-captain/v1/payments/(?P<provider>[a-z0-9_-]+)/webhook',
-	'POST pass-captain/v1/events/(?P<event_id>\d+)/waitlist',
-	'POST pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/accept',
-	'POST pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/decline',
-	'GET pass-captain/v1/events/(?P<event_id>\d+)/translations',
-	'POST pass-captain/v1/sms/twilio/status',
-	'POST pass-captain/v1/sms/twilio/inbound',
-	// A141: generic HTTP gateway callbacks, HMAC-SHA256 body signature checked in the callback.
-	'POST pass-captain/v1/sms/http/status',
-	'POST pass-captain/v1/sms/http/inbound',
-	'POST pass-captain/v1/app/pair',
-	'GET pass-captain/v1/seating/occurrences/(?P<occurrence_id>\d+)',
-);
+// Intentionally public routes ("METHOD route"): docs/SECURITY.md lists them.
+$a119_public = wpcap_test_public_rest();
 $a119_unlisted = array();
 $a119_missing_cb = array();
 $a119_public_seen = array();
 $a119_endpoints = 0;
-foreach ( $a119_routes as $a119_route => $a119_args ) {
-	$a119_list = isset( $a119_args['methods'] ) || isset( $a119_args['callback'] ) ? array( $a119_args ) : array_values( array_filter( $a119_args, 'is_array' ) );
-	foreach ( $a119_list as $a119_ep ) {
-		$a119_endpoints++;
-		$a119_key = strtoupper( (string) ( $a119_ep['methods'] ?? 'GET' ) ) . ' ' . $a119_route;
-		$a119_cb = $a119_ep['permission_callback'] ?? null;
-		if ( '__return_true' === $a119_cb ) {
-			// Apple Wallet web service: authenticated by the pass's authentication token in the callback.
-			if ( false !== strpos( $a119_route, 'wallet' ) ) { $a119_public_seen[] = $a119_key; continue; }
-			if ( in_array( $a119_key, $a119_public, true ) ) { $a119_public_seen[] = $a119_key; continue; }
-			$a119_unlisted[] = $a119_key;
-			continue;
-		}
-		if ( null === $a119_cb || ! is_callable( $a119_cb ) ) { $a119_missing_cb[] = $a119_key; }
+foreach ( wpcap_test_rest_endpoints() as $a119_key => $a119_endpoint ) {
+	$a119_endpoints++;
+	$a119_cb = $a119_endpoint['args']['permission_callback'] ?? null;
+	if ( '__return_true' === $a119_cb ) {
+		if ( wpcap_test_rest_is_public( $a119_key, $a119_endpoint ) ) { $a119_public_seen[] = $a119_key; continue; }
+		$a119_unlisted[] = $a119_key;
+		continue;
 	}
+	if ( null === $a119_cb || ! is_callable( $a119_cb ) ) { $a119_missing_cb[] = $a119_key; }
 }
 check( 'routes were enumerated (' . $a119_endpoints . ' endpoints)', $a119_endpoints >= 60 );
 check( 'every endpoint has a callable permission_callback' . ( $a119_missing_cb ? ' – ' . implode( ', ', $a119_missing_cb ) : '' ), ! $a119_missing_cb );
@@ -252,7 +187,7 @@ check( 'empty scope removes the restriction again', null === Access::scope() && 
 
 echo "A119: PII minimisation per role\n";
 $a119_only = static function ( array $caps ) {
-	$all = array( 'manage_options', 'wpcap_manage_orders', 'wpcap_manage_events', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_view_finance', 'wpcap_refund', 'wpcap_approve_refunds' );
+	$all = array( 'manage_options', 'wpcap_manage_orders', 'wpcap_manage_events', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_view_finance', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_service_bookings' );
 	$GLOBALS['wpcap_test_denied_caps'] = array_values( array_diff( $all, $caps ) );
 };
 $a119_view = static function () { $out = array(); foreach ( Pii::FIELDS as $f ) { $out[ $f ] = Pii::can_view( $f ); } return $out; };
