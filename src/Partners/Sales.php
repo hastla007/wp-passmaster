@@ -124,7 +124,7 @@ final class Sales {
 				if ( null === $used ) { throw new \RuntimeException( 'db_busy' ); }
 				if ( $used + $demand > (int) $c->quantity ) {
 					/* translators: %d: remaining units */
-					self::$messages['partner_contingent_exhausted'] = sprintf( __( 'Im Kontingent dieses Veranstalters sind nur noch %d Tickets frei.', 'wp-pass-captain' ), max( 0, (int) $c->quantity - $used ) );
+					self::$messages['partner_contingent_exhausted'] = sprintf( _n( 'Im Kontingent dieses Veranstalters ist nur noch %d Ticket frei.', 'Im Kontingent dieses Veranstalters sind nur noch %d Tickets frei.', max( 0, (int) $c->quantity - $used ), 'wp-pass-captain' ), max( 0, (int) $c->quantity - $used ));
 					throw new \RuntimeException( 'partner_contingent_exhausted' );
 				}
 			}

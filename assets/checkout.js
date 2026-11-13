@@ -6,6 +6,7 @@
 		minutes = parseInt(minutes, 10) || 0;
 		if (minutes >= 2880 && minutes % 1440 === 0 && t.pendingDays) { return t.pendingDays.replace('%d', minutes / 1440); }
 		if (minutes >= 120 && minutes % 60 === 0 && t.pendingHours) { return t.pendingHours.replace('%d', minutes / 60); }
+		if (minutes === 1 && t.pendingOne) { return t.pendingOne; }
 		return (t.pending || '%d').replace('%d', minutes);
 	};
 	function fill(text, values) {

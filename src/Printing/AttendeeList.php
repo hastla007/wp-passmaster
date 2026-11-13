@@ -67,7 +67,7 @@ final class AttendeeList {
 		$title = ( $occ ? $occ->event_name . ' – ' . Scope::local( $occ->starts_at, $occ->timezone ) : '' );
 		$html = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( __( 'Teilnehmerliste', 'wp-pass-captain' ) ) . '</title>'
 			. '<style>@page{size:A4;margin:12mm}body{font:11px/1.35 system-ui,sans-serif;color:#000}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}th{background:#eee}td.box{width:14px}@media print{button{display:none}}</style></head><body>';
-		$html .= '<h1>' . esc_html( __( 'Teilnehmerliste', 'wp-pass-captain' ) ) . '</h1><p>' . esc_html( $title ) . ' · ' . esc_html( sprintf( /* translators: %d: count */ __( '%d Tickets', 'wp-pass-captain' ), count( $rows ) ) ) . '</p>';
+		$html .= '<h1>' . esc_html( __( 'Teilnehmerliste', 'wp-pass-captain' ) ) . '</h1><p>' . esc_html( $title ) . ' · ' . esc_html( sprintf( /* translators: %d: count */ _n( '%d Ticket', '%d Tickets', count( $rows ), 'wp-pass-captain' ), count( $rows )) ) . '</p>';
 		$html .= '<table><thead><tr><th></th>';
 		foreach ( $header as $cell ) { $html .= '<th>' . esc_html( $cell ) . '</th>'; }
 		$html .= '</tr></thead><tbody>';

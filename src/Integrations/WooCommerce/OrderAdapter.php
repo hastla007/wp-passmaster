@@ -479,7 +479,7 @@ final class OrderAdapter {
 		$wc_order->update_meta_data( self::ORDER_META, absint( $result['order_id'] ) );
 		$wc_order->save();
 		/* translators: %d: hold minutes */
-		$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets für %d Minuten reserviert.', 'wp-pass-captain' ), (int) $result['hold_minutes'] ) );
+		$wc_order->add_order_note( sprintf( _n( 'Pass Captain: Tickets für %d Minute reserviert.', 'Pass Captain: Tickets für %d Minuten reserviert.', (int) $result['hold_minutes'], 'wp-pass-captain' ), (int) $result['hold_minutes']) );
 		return absint( $result['order_id'] );
 	}
 

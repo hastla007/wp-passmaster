@@ -587,3 +587,18 @@ check( 'A049a: event="…" shows only that event', $a49_has( $a49_by_event, $a49
 $a49_choices = PassCaptain\PublicEvents::block_choices()['events'];
 $a49_choice = array_values( array_filter( $a49_choices, static fn( $e ) => $a49_e1 === $e['id'] ) )[0] ?? null;
 check( 'A049a: block choices label events with date and ID and list their dates', $a49_choice && false !== strpos( $a49_choice['label'], '#' . $a49_e1 ) && in_array( $a49_o1, array_column( $a49_choice['occurrences'], 'id' ), true ) );
+
+echo "Audit 3: counted units use singular/plural forms (A049b)\n";
+$a49b_bad = array();
+$a49b_it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( dirname( __DIR__, 3 ) . '/src', FilesystemIterator::SKIP_DOTS ) );
+foreach ( $a49b_it as $a49b_file ) {
+	if ( 'php' !== $a49b_file->getExtension() ) { continue; }
+	foreach ( file( $a49b_file->getPathname() ) as $a49b_no => $a49b_line ) {
+		// A number placeholder directly before a counted unit, in a single-form __() call.
+		if ( preg_match( "/__\\(\\s*'[^']*%d (Stunden|Minuten|Tage|Tickets)\\b/u", $a49b_line ) && ! preg_match( '/(zwischen 1 und|1 bis) %d|n>1:/u', $a49b_line ) ) {
+			$a49b_bad[] = basename( $a49b_file->getPathname() ) . ':' . ( $a49b_no + 1 );
+		}
+	}
+}
+check( 'A049b: no "%d Stunden/Tage/Minuten/Tickets" without _n() (no "1 Stunden")' . ( $a49b_bad ? ' – ' . implode( ', ', $a49b_bad ) : '' ), ! $a49b_bad );
+check( 'A049b: one hour reads "1 Stunde"', '1 Stunde' === sprintf( _n( '%d Stunde', '%d Stunden', 1, 'wp-pass-captain' ), 1 ) );

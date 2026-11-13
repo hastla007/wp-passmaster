@@ -234,7 +234,7 @@ final class AdminPage {
 				return sprintf( __( 'Buchung vor %s', 'wp-pass-captain' ), Forms::datetime( $rule->until_at, $timezone ) );
 			case 'last_minute':
 				/* translators: %d: hours */
-				return sprintf( __( 'ab %d Stunden vor Beginn', 'wp-pass-captain' ), (int) $rule->hours_before );
+				return sprintf( _n( 'ab %d Stunde vor Beginn', 'ab %d Stunden vor Beginn', (int) $rule->hours_before, 'wp-pass-captain' ), (int) $rule->hours_before);
 			case 'demand':
 				/* translators: %d: percent */
 				return sprintf( __( 'ab %d %% verkauft', 'wp-pass-captain' ), (int) $rule->sold_pct );

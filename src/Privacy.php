@@ -94,7 +94,7 @@ final class Privacy {
 			'maxAgeHours' => self::scanner_queue_hours(),
 			'i18n' => array(
 				/* translators: %d: number of discarded scans */
-				'expired' => sprintf( __( '%%d Offline-Scan(s) älter als %d Stunden wurden ohne Upload verworfen.', 'wp-pass-captain' ), self::scanner_queue_hours() ),
+				'expired' => sprintf( _n( '%%d Offline-Scan(s) älter als %d Stunde wurden ohne Upload verworfen.', '%%d Offline-Scan(s) älter als %d Stunden wurden ohne Upload verworfen.', self::scanner_queue_hours(), 'wp-pass-captain' ), self::scanner_queue_hours() ),
 			),
 		);
 		wp_add_inline_script( 'wpcap-scanner', 'window.WPCAP_SCANNER_PRIVACY=' . wp_json_encode( $data ) . ';', 'before' );

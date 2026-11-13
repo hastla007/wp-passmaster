@@ -67,9 +67,9 @@ final class PolicyText {
 		$days = Retention::attendee_days();
 		$attendee = $days > 0
 			/* translators: %d: days */
-			? sprintf( __( '%d Tage nach dem Ende der Veranstaltung', 'wp-pass-captain' ), $days )
+			? sprintf( _n( '%d Tag nach dem Ende der Veranstaltung', '%d Tage nach dem Ende der Veranstaltung', $days, 'wp-pass-captain' ), $days)
 			/* translators: %d: days */
-			: sprintf( __( 'nach der je Feld angegebenen Frist (Name und E-Mail der Teilnehmenden: %d Tage) nach dem Ende der Veranstaltung', 'wp-pass-captain' ), Retention::default_attendee_days() );
+			: sprintf( _n( 'nach der je Feld angegebenen Frist (Name und E-Mail der Teilnehmenden: %d Tag) nach dem Ende der Veranstaltung', 'nach der je Feld angegebenen Frist (Name und E-Mail der Teilnehmenden: %d Tage) nach dem Ende der Veranstaltung', Retention::default_attendee_days(), 'wp-pass-captain' ), Retention::default_attendee_days());
 
 		$html = '<p class="privacy-policy-tutorial">' . esc_html__( 'Vorschlag von WP Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind.', 'wp-pass-captain' ) . '</p>';
 

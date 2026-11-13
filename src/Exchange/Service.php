@@ -209,7 +209,7 @@ final class Service {
 			$limit = time() + max( 0, (int) $policy['portal_hours'] ) * HOUR_IN_SECONDS;
 			if ( strtotime( $ticket->starts_at . ' UTC' ) <= $limit || strtotime( $target->starts_at . ' UTC' ) <= $limit ) {
 				/* translators: %d: hours */
-				return self::error( 'wpcap_exchange_too_late', sprintf( __( 'Ein Umtausch ist nur bis %d Stunden vor Beginn möglich.', 'wp-pass-captain' ), (int) $policy['portal_hours'] ) );
+				return self::error( 'wpcap_exchange_too_late', sprintf( _n( 'Ein Umtausch ist nur bis %d Stunde vor Beginn möglich.', 'Ein Umtausch ist nur bis %d Stunden vor Beginn möglich.', (int) $policy['portal_hours'], 'wp-pass-captain' ), (int) $policy['portal_hours']) );
 			}
 			if ( self::exchange_count( (int) $ticket->ticket_id ) >= max( 0, (int) $policy['portal_max_per_ticket'] ) ) {
 				return self::error( 'wpcap_exchange_limit', __( 'Dieses Ticket wurde bereits so oft wie erlaubt umgetauscht.', 'wp-pass-captain' ) );

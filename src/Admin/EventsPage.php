@@ -173,7 +173,7 @@ final class EventsPage {
 			$sold = Queries::sold_for_occurrence( $old->occurrence_id );
 			if ( $capacity < $sold ) {
 				/* translators: %d: sold tickets */
-				return Forms::error( 'wpcap_capacity_below_sold', sprintf( __( 'Das Kontingent darf nicht unter die bereits verkauften %d Tickets sinken.', 'wp-pass-captain' ), $sold ) );
+				return Forms::error( 'wpcap_capacity_below_sold', sprintf( _n( 'Das Kontingent darf nicht unter das bereits verkaufte %d Ticket sinken.', 'Das Kontingent darf nicht unter die bereits verkauften %d Tickets sinken.', $sold, 'wp-pass-captain' ), $sold) );
 			}
 		}
 		$data = array(
@@ -265,9 +265,9 @@ final class EventsPage {
 			/* translators: %d: number of tickets */
 			$result['warning'] = \PassCaptain\Settings::get( 'auto_refund_cancelled' )
 				/* translators: %d: number of tickets */
-				? sprintf( __( '%d Tickets wurden widerrufen, die Inhaber benachrichtigt und bezahlte Bestellungen automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü.', 'wp-pass-captain' ), $issued )
+				? sprintf( _n( '%d Ticket wurde widerrufen, der Inhaber benachrichtigt und die bezahlte Bestellung automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü.', '%d Tickets wurden widerrufen, die Inhaber benachrichtigt und bezahlte Bestellungen automatisch erstattet. WooCommerce-Bestellungen bitte in WooCommerce erstatten; Fehler stehen im Erstattungs-Menü.', $issued, 'wp-pass-captain' ), $issued)
 				/* translators: %d: number of tickets */
-				: sprintf( __( '%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren).', 'wp-pass-captain' ), $issued );
+				: sprintf( _n( '%d Ticket wurde widerrufen und der Inhaber benachrichtigt. Ein bezahltes Ticket bleibt erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren).', '%d Tickets wurden widerrufen und die Inhaber benachrichtigt. Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten (oder die automatische Erstattung in den Einstellungen aktivieren).', $issued, 'wp-pass-captain' ), $issued);
 		}
 		return $result;
 	}
@@ -308,7 +308,7 @@ final class EventsPage {
 			$sold = Queries::sold_for_type( $old->ticket_type_id );
 			if ( $capacity > 0 && $capacity < $sold ) {
 				/* translators: %d: sold tickets */
-				return Forms::error( 'wpcap_capacity_below_sold', sprintf( __( 'Das Kontingent darf nicht unter die bereits verkauften %d Tickets sinken.', 'wp-pass-captain' ), $sold ) );
+				return Forms::error( 'wpcap_capacity_below_sold', sprintf( _n( 'Das Kontingent darf nicht unter das bereits verkaufte %d Ticket sinken.', 'Das Kontingent darf nicht unter die bereits verkauften %d Tickets sinken.', $sold, 'wp-pass-captain' ), $sold) );
 			}
 		}
 		$data = array(

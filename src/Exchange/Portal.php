@@ -182,7 +182,7 @@ final class Portal {
 		$out .= '<p class="muted"><small>' . esc_html__( 'Beim Umtausch wird der bisherige Ticketcode ungültig und du erhältst ein neues Ticket per E-Mail. Bei einem Aufpreis gilt das neue Ticket erst nach Zahlungseingang.', 'wp-pass-captain' ) . '</small></p>';
 		if ( $policy['portal_hours'] ) {
 			/* translators: %d: hours */
-			$out .= '<p class="muted"><small>' . esc_html( sprintf( __( 'Umtausch bis %d Stunden vor Beginn möglich.', 'wp-pass-captain' ), (int) $policy['portal_hours'] ) ) . '</small></p>';
+			$out .= '<p class="muted"><small>' . esc_html( sprintf( _n( 'Umtausch bis %d Stunde vor Beginn möglich.', 'Umtausch bis %d Stunden vor Beginn möglich.', (int) $policy['portal_hours'], 'wp-pass-captain' ), (int) $policy['portal_hours']) ) . '</small></p>';
 		}
 		$out .= '<button type="submit">' . esc_html__( 'Jetzt umtauschen', 'wp-pass-captain' ) . '</button><p class="message" role="status" aria-live="polite"></p></form></details>';
 		if ( ! self::$script_printed ) {

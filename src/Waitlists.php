@@ -101,7 +101,7 @@ final class Waitlists {
 		if ( ! $type ) { return new \WP_Error( 'wpcap_waitlist_ticket', __( 'Diese Ticketart ist nicht verfügbar.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $quantity > max( 1, (int) $type->max_per_order ) ) {
 			/* translators: %d: maximum number of tickets per order */
-			return new \WP_Error( 'wpcap_waitlist_quantity', sprintf( __( 'Auf der Warteliste sind höchstens %d Tickets pro Eintrag möglich.', 'wp-pass-captain' ), max( 1, (int) $type->max_per_order ) ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_waitlist_quantity', sprintf( _n( 'Auf der Warteliste ist höchstens %d Ticket pro Eintrag möglich.', 'Auf der Warteliste sind höchstens %d Tickets pro Eintrag möglich.', max( 1, (int) $type->max_per_order ), 'wp-pass-captain' ), max( 1, (int) $type->max_per_order )), array( 'status' => 400 ) );
 		}
 		$table = $wpdb->prefix . 'wpcap_waitlist';
 		$now = current_time( 'mysql', true );

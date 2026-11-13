@@ -235,7 +235,7 @@ final class Service {
 		$quantity = absint( $in['quantity'] ?? 1 );
 		if ( $quantity < 1 || $quantity > self::max_quantity() ) {
 			/* translators: %d: maximum tickets */
-			return self::error( 'wpcap_guestlist_entry_quantity', sprintf( __( 'Bitte 1 bis %d Tickets (inkl. Begleitpersonen) angeben.', 'wp-pass-captain' ), self::max_quantity() ) );
+			return self::error( 'wpcap_guestlist_entry_quantity', sprintf( _n( 'Bitte %d Ticket (inkl. Begleitpersonen) angeben.', 'Bitte 1 bis %d Tickets (inkl. Begleitpersonen) angeben.', self::max_quantity(), 'wp-pass-captain' ), self::max_quantity()) );
 		}
 		$type_id = absint( $in['ticket_type_id'] ?? 0 );
 		$type = null;

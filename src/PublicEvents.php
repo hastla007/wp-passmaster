@@ -30,11 +30,12 @@ final class PublicEvents {
 				'complete' => __( 'Bestellung abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet.', 'wp-pass-captain' ),
 				'redirecting' => __( 'Weiterleitung zur Zahlung …', 'wp-pass-captain' ),
 				/* translators: %d: hold minutes */
-				'pending' => __( 'Bestellung angelegt; deine Tickets sind %d Minuten reserviert.', 'wp-pass-captain' ),
+				'pending' => __( 'Bestellung angelegt; deine Tickets sind %d Minuten reserviert.', 'wp-pass-captain' ), // n>1: checkout.js uses pendingOne for 1
+				'pendingOne' => __( 'Bestellung angelegt; deine Tickets sind 1 Minute reserviert.', 'wp-pass-captain' ),
 				/* translators: %d: hold hours */
-				'pendingHours' => __( 'Bestellung angelegt; deine Tickets sind %d Stunden reserviert.', 'wp-pass-captain' ),
+				'pendingHours' => __( 'Bestellung angelegt; deine Tickets sind %d Stunden reserviert.', 'wp-pass-captain' ), // n>1: only for 2+ hours (checkout.js)
 				/* translators: %d: hold days */
-				'pendingDays' => __( 'Bestellung angelegt; deine Tickets sind %d Tage reserviert.', 'wp-pass-captain' ),
+				'pendingDays' => __( 'Bestellung angelegt; deine Tickets sind %d Tage reserviert.', 'wp-pass-captain' ), // n>1: only for 2+ days (checkout.js)
 				/* translators: %d: ticket number */
 				'attendee' => __( 'Teilnehmer:in %d', 'wp-pass-captain' ),
 				'name' => __( 'Name', 'wp-pass-captain' ),

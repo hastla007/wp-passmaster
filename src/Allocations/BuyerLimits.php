@@ -323,7 +323,7 @@ final class BuyerLimits {
 			if ( null === $current ) { return new \WP_Error( 'db_busy', 'db_busy', array( 'status' => 503, 'retryable' => true ) ); }
 			if ( isset( $limits[0] ) && array_sum( $current['types'] ) + $quantity > $limits[0] ) {
 				/* translators: %d: maximum tickets per person */
-				return new \WP_Error( 'allocation_buyer_limit', sprintf( __( 'Pro Person sind höchstens %d Tickets für dieses Event möglich.', 'wp-pass-captain' ), $limits[0] ), array( 'status' => 409 ) );
+				return new \WP_Error( 'allocation_buyer_limit', sprintf( _n( 'Pro Person ist höchstens %d Ticket für dieses Event möglich.', 'Pro Person sind höchstens %d Tickets für dieses Event möglich.', $limits[0], 'wp-pass-captain' ), $limits[0]), array( 'status' => 409 ) );
 			}
 			$max = $limits[ $type_id ] ?? 0;
 			$had = (int) ( $current['types'][ $type_id ] ?? 0 );
@@ -404,7 +404,7 @@ final class BuyerLimits {
 		$lines = array();
 		if ( isset( $limits[0] ) ) {
 			/* translators: %d: maximum tickets per person */
-			$lines[] = sprintf( __( 'Max. %d Tickets pro Person für dieses Event.', 'wp-pass-captain' ), $limits[0] );
+			$lines[] = sprintf( _n( 'Max. %d Ticket pro Person für dieses Event.', 'Max. %d Tickets pro Person für dieses Event.', $limits[0], 'wp-pass-captain' ), $limits[0]);
 		}
 		foreach ( (array) $types as $type ) {
 			$max = $limits[ (int) ( $type->ticket_type_id ?? 0 ) ] ?? 0;
