@@ -357,3 +357,15 @@ if ( function_exists( 'wp_die' ) ) {
 unset( $GLOBALS['wpcap_test_filters']['wpcap_admission_day_cutoff_hour'] );
 Settings::update( array( 'auto_refund_cancelled' => $fp_auto_refund_before ) );
 $GLOBALS['wpcap_test_user_id'] = $fp_user_before;
+
+echo "Passes: partner cancellation sees the begun first day of a pass anchored later (A065)\n";
+$a65_event = fp_event( 'A65 Festival' );
+$a65_day1 = fp_occ( $a65_event, gmdate( 'Y-m-d', time() - DAY_IN_SECONDS ) ); // Began yesterday.
+$a65_day2 = fp_occ( $a65_event, gmdate( 'Y-m-d', time() + 5 * DAY_IN_SECONDS ) );
+$a65_pass = fp_pass( $a65_day2, array( $a65_day1, $a65_day2 ), array(), 0, 'A65 Pass' );
+$a65_single = fp_type( $a65_day2, 'A65 Tag 2' );
+$a65_now = gmdate( 'Y-m-d H:i:s' );
+$a65_po = fp_buy( $a65_pass );
+$a65_so = fp_buy( $a65_single );
+check( 'A065: an order with a pass anchored on a later date counts as begun when its first date has begun', ! is_wp_error( $a65_po ) && true === PassCaptain\Partners\Sales::order_started( (int) $a65_po['order_id'], $a65_now ) );
+check( 'A065: a normal ticket of the later date has not begun', ! is_wp_error( $a65_so ) && false === PassCaptain\Partners\Sales::order_started( (int) $a65_so['order_id'], $a65_now ) );

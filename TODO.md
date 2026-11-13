@@ -398,7 +398,7 @@ Fünf Prüfungen (Sicherheit, Abläufe E2E, Steuer/Finanzen, Datenschutz, Archit
 - [x] [P3][BESTÄTIGT] `src/BoxOffice/Service.php:459–471` (auch `src/Partners/Sales.php:730`) — Storno erkennt Nutzung nur an `status=checked_in`; Wiedereinlass-/Mehrfach-/Pass-Tickets bleiben `valid` und werden ohne Override erstattet. **Maßnahme:** Nutzung über `wpcap_checkins`/`wpcap_admission_entries` wie `Exchange\Service::was_admitted()` prüfen.
 
 Verdachtsfälle (nicht end-to-end bestätigt):
-- [ ] [VERDACHT] `src/Partners/Sales.php:728–731` — Partner-Storno: Prüfung „Termin begonnen“ schützt bei Pässen mit anderem Anker-Termin wohl nicht.
+- [x] [VERDACHT] `src/Partners/Sales.php:728–731` — Partner-Storno: Prüfung „Termin begonnen“ schützt bei Pässen mit anderem Anker-Termin wohl nicht.
 - [ ] [VERDACHT] `src/Exchange/Service.php:700–708` — Portal-Herabstufung bei Partner-/Kassenbestellungen bucht Erstattung über Geld, das die Plattform nie erhielt.
 - [ ] [VERDACHT] `src/Rest/Controller.php` `pos_sale` — alte Route `/pos/sales` umgeht Schicht, Belegnummer und Z-Bericht.
 - [ ] [VERDACHT] `src/Orders.php:1500ff` — Portal-Nachsendung erneuert auch Codes übertragener Tickets (Käufer kann QR-Code der Empfängerin ungültig machen).

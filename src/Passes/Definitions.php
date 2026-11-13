@@ -113,6 +113,21 @@ final class Definitions {
 		return (array) $wpdb->get_results( "SELECT o.*,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id IN (" . implode( ',', $ids ) . ') ORDER BY o.starts_at,o.occurrence_id' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 	}
 
+	/** wpcap_order_started: true when a date linked to a pass type of the order has begun. */
+	public static function order_started( $started, $order_id, $now ) {
+		if ( $started ) { return true; }
+		global $wpdb;
+		$pass_ids = self::all_ids();
+		if ( ! $pass_ids ) { return false; }
+		$types = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ticket_type_id FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d", absint( $order_id ) ) ) );
+		foreach ( array_intersect( $types, array_map( 'intval', $pass_ids ) ) as $type_id ) {
+			foreach ( self::linked_occurrences( $type_id ) as $occ ) {
+				if ( (string) $occ->starts_at <= (string) $now ) { return true; }
+			}
+		}
+		return false;
+	}
+
 	/** Pass type ids linked to an occurrence. */
 	public static function pass_ids_for_occurrence( $occurrence_id ) {
 		global $wpdb;

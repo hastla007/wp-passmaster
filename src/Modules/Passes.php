@@ -42,6 +42,8 @@ final class Passes {
 		add_action( 'wpcap_capacity_released', array( Capacity::class, 'on_capacity_released' ), 10, 3 );
 		// Admission.
 		add_filter( 'wpcap_ticket_valid_for_occurrence', array( PassAdmission::class, 'bind' ), 10, 3 );
+		// A pass has begun as soon as its first linked date has (cancellation windows, partner API).
+		add_filter( 'wpcap_order_started', array( \PassCaptain\Passes\Definitions::class, 'order_started' ), 10, 3 );
 		add_filter( 'wpcap_admission_policy', array( PassAdmission::class, 'policy' ), 10, 2 );
 		add_filter( 'wpcap_admission_evaluate', array( PassAdmission::class, 'evaluate' ), 10, 5 );
 		add_filter( 'wpcap_ticket_allowed_areas', array( PassAdmission::class, 'allowed_areas' ), 10, 2 );

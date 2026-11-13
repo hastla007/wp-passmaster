@@ -749,7 +749,7 @@ final class Sales {
 			$error = self::error( 'wpcap_partner_cancel_not_allowed', __( 'Bezahlte Bestellungen können über die API nicht storniert werden (kein Stornofenster vereinbart).', 'wp-pass-captain' ), 409 );
 		} elseif ( strtotime( $since . ' UTC' ) + $window * HOUR_IN_SECONDS < time() ) {
 			$error = self::error( 'wpcap_partner_cancel_window_closed', __( 'Das Stornofenster für diese Bestellung ist abgelaufen.', 'wp-pass-captain' ), 409 );
-		} elseif ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d AND o.starts_at <= %s LIMIT 1", $order_id, $now ) ) ) {
+		} elseif ( self::order_started( $order_id, $now ) ) {
 			$error = self::error( 'wpcap_partner_cancel_started', __( 'Die Veranstaltung hat bereits begonnen; eine Stornierung ist nicht mehr möglich.', 'wp-pass-captain' ), 409 );
 		} elseif ( Orders::used_ticket_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) ) ) ) {
 			$error = self::error( 'wpcap_partner_cancel_checked_in', __( 'Mindestens ein Ticket wurde bereits eingecheckt; die Bestellung kann nicht storniert werden.', 'wp-pass-captain' ), 409 );
@@ -862,6 +862,18 @@ final class Sales {
 			$plain = sodium_crypto_secretbox_open( substr( $raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ), substr( $raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES ), self::code_key() );
 		} catch ( \Throwable $e ) { return null; }
 		return false === $plain ? null : $plain;
+	}
+
+	/**
+	 * Whether any date of the order has begun: the ticket types' own occurrences, plus – via the
+	 * filter wpcap_order_started (Passes module) – further dates a type is valid for (multi-date
+	 * passes whose anchor is a later date).
+	 */
+	public static function order_started( $order_id, $now ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$started = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d AND o.starts_at <= %s LIMIT 1", absint( $order_id ), $now ) );
+		return (bool) apply_filters( 'wpcap_order_started', $started, absint( $order_id ), (string) $now );
 	}
 
 	/** wpcap_ticket_revoked: a revoked ticket's code is never handed out again. */
