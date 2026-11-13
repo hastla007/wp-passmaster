@@ -14,7 +14,7 @@ monatlich mit dem Veranstalter austauscht.
 |---|---|---|
 | Verkauf an Kunden | Plattform im eigenen Namen (für Rechnung des Veranstalters) | Plattform im Namen und für Rechnung des Veranstalters |
 | Kundenrechnung | Plattform als Rechnungssteller, Nummernkreis der Plattform (`WPC-…`) | **Veranstalter** als Rechnungssteller, eigener Nummernkreis je Veranstalter (`TAG-…` bzw. `V{ID}-…`), Zusatz „Vermittelt durch {Plattform}“ |
-| Rechnungskorrekturen | Serie der Plattform (`GS-…`) | Serie des Veranstalters (`{Präfix}-K-…`) |
+| Rechnungskorrekturen | Serie der Plattform (`RK-…`, Bestandsinstallationen weiter `GS-…`) | Serie des Veranstalters (`{Präfix}-K-…`) |
 | USt auf Ticketumsatz schuldet | Plattform | Veranstalter |
 | Monatlicher Beleg an Veranstalter | **Gutschrift** (Teil A, Serie `credit-self`, `GU-…`) + **Rechnung über Plattformgebühren** (Teil B, `PA-…`) + Verrechnung (Teil C) | **Provisionsrechnung** (`PA-…`) + informative Aufstellung der vereinnahmten Ticketerlöse |
 | Events ohne Veranstalter | immer Eigenhändler (Plattform verkauft) | – |
@@ -100,6 +100,12 @@ Umsatzsteuer enthält (`wpcap_invoice_small_business_vat`, § 14c UStG) – Tick
   Ticketarten mit USt-Satz > 0 % (`wpcap_invoice_small_business_vat`, sonst unberechtigter Steuerausweis
   nach § 14c UStG).
 - Rechnungskorrekturen folgen immer dem Rechnungssteller und Nummernkreis der korrigierten Rechnung.
+- Rechnungskorrekturen schlüsseln Netto/USt/Brutto je Steuersatz auf: Der Korrekturbetrag und die
+  USt werden auf die Bestellpositionen der Erstattung verteilt (erstattete Tickets mit dem bezahlten
+  Positionsbrutto nach Rabatt, reine Betragserstattungen über alle Positionen; Restcent-Verteilung
+  nach größtem Rest) und mit dem Beleg gespeichert (`wpcap_credit_notes.rates`). Belege von vor
+  Schema 3.8.3 werden bei der Anzeige identisch berechnet. Der Buchhaltungsexport enthält je
+  Rechnungskorrektur eine Zeile je Steuersatz (Belegart `Rechnungskorrektur`).
 - Der Buchhaltungsexport enthält die Spalten `Verkaufsmodell` und `Rechnungssteller`. Belege im Modell
   Vermittler sind **keine Umsätze der Plattform** und in der Buchhaltung der Plattform als
   fremde Belege (Durchlaufposten/Verrechnungskonto Veranstalter) zu behandeln.
@@ -146,7 +152,7 @@ unverändert („Veranstalter-Abrechnung“, `document_type` leer).
 | Serie | Präfix (Beispiel) | Beleg |
 |---|---|---|
 | Jahreszähler `wpcap_invoice_sequences` | `WPC-2026-000001` | Kundenrechnung der Plattform |
-| `credit` | `GS-2026-000001` | Rechnungskorrektur der Plattform |
+| `credit` | `RK-2026-000001` | Rechnungskorrektur der Plattform (Präfix einstellbar; vor Schema 3.8.3 Standard `GS`) |
 | `invoice-org-{ID}` | `TAG-2026-000001` / `V7-2026-000001` | Kundenrechnung im Namen des Veranstalters |
 | `credit-org-{ID}` | `TAG-K-2026-000001` | Rechnungskorrektur im Namen des Veranstalters |
 | `partner` | `PA-2026-000001` | Provisionsrechnung / Rechnung über Plattformgebühren |
@@ -192,9 +198,12 @@ Die Spalte `series` der Tabelle `wpcap_document_sequences` wurde auf 40 Zeichen 
   B2B-Grundregel (§ 3a Abs. 2) oder ein Sondertatbestand?
 - Reicht ein formaler Check plus Prüfdatum, oder soll Reverse Charge erst nach eingetragener
   qualifizierter Bestätigung greifen?
-- Rechnungskorrekturen der Plattform tragen standardmäßig das Präfix `GS` und werden im
-  Buchhaltungsexport als „Gutschrift“ bezeichnet – sollte das wegen der Verwechslungsgefahr mit der
-  Gutschrift i. S. d. § 14 Abs. 2 Satz 2 UStG geändert werden?
+- Erledigt (Schema 3.8.3): Rechnungskorrekturen der Plattform tragen für neue Installationen das
+  Präfix `RK` und heißen im Buchhaltungsexport, in Berichten und in der Erstattungsmail
+  „Rechnungskorrektur“ (nicht „Gutschrift“, Verwechslung mit § 14 Abs. 2 Satz 2 UStG). Bestehende
+  Installationen behalten ihr bisheriges Präfix (ohne gespeicherte Einstellung wird `GS` fest
+  eingetragen); ausgestellte Belege werden nicht umnummeriert. Rechnungskorrekturen weisen Netto, USt
+  und Brutto je Steuersatz aus (Druckansicht, PDF, Buchhaltungsexport mit einer Zeile je Satz).
 - Negative Monatswerte (mehr Erstattungen als Verkäufe): Gutschrift mit negativem Betrag oder
   Korrekturbeleg zu einer früheren Gutschrift?
 - Kleinunternehmer im Eigenhändler-Modell: Wer trägt die USt auf den Kundenumsatz wirtschaftlich

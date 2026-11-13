@@ -78,7 +78,7 @@ final class Page {
 			__( 'Erstattungen', 'wp-pass-captain' ) => '-' . $money( $t['refunded'] ) . ' (' . (int) $t['refunded_tickets'] . ' ' . __( 'Tickets', 'wp-pass-captain' ) . ')',
 			__( 'Umsatz nach Erstattungen', 'wp-pass-captain' ) => $money( $t['revenue'] ),
 			__( 'davon USt', 'wp-pass-captain' ) => $money( $t['revenue_tax'] ),
-			__( 'Gutschriften (Belege)', 'wp-pass-captain' ) => (int) $report['credit_notes']['count'] . ' / ' . $money( $report['credit_notes']['total'] ),
+			__( 'Rechnungskorrekturen (Belege)', 'wp-pass-captain' ) => (int) $report['credit_notes']['count'] . ' / ' . $money( $report['credit_notes']['total'] ),
 			// Guest list comps (GuestLists module): shown separately, not part of sales/revenue.
 			__( 'Freikarten (nicht im Umsatz)', 'wp-pass-captain' ) => (string) (int) ( $report['comps']['tickets'] ?? 0 ),
 		);

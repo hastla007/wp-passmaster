@@ -196,7 +196,7 @@ final class Data {
 		}
 		ksort( $rates );
 
-		// Credit notes in the range (reference only).
+		// Correction documents (Rechnungskorrekturen) in the range (reference only).
 		$credit_rows = $wpdb->get_results( $wpdb->prepare( "SELECT c.credit_note_number,c.total_minor,c.tax_minor,i.order_id FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id WHERE c.issued_at >= %s AND c.issued_at < %s", $start, $end ) );
 		$credit = array( 'count' => 0, 'total' => 0, 'tax' => 0 );
 		foreach ( $credit_rows as $c ) {
@@ -349,7 +349,7 @@ final class Data {
 			$rows[] = array( $o['label'], $o['capacity'] ?: '∞', $o['sold'], null === $o['utilisation'] ? '' : number_format( $o['utilisation'], 1, '.', '' ), $o['issued'], $o['checked_in'], null === $o['checkin_rate'] ? '' : number_format( $o['checkin_rate'], 1, '.', '' ) );
 		}
 		$rows[] = array();
-		$rows[] = array( __( 'Gutschriften', 'wp-pass-captain' ), $report['credit_notes']['count'], $m( $report['credit_notes']['total'] ), $m( $report['credit_notes']['tax'] ) );
+		$rows[] = array( __( 'Rechnungskorrekturen', 'wp-pass-captain' ), $report['credit_notes']['count'], $m( $report['credit_notes']['total'] ), $m( $report['credit_notes']['tax'] ) );
 		if ( ! empty( $report['comps']['tickets'] ) ) {
 			$rows[] = array( __( 'Freikarten (nicht im Umsatz)', 'wp-pass-captain' ), (int) $report['comps']['tickets'], (int) $report['comps']['orders'] );
 		}

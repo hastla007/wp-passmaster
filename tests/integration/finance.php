@@ -23,7 +23,7 @@ $html = PassCaptain\Invoices::render_html( $inv['invoice_id'] );
 check( 'print view lists invoice number, VAT and credit note', false !== strpos( $html, $inv['invoice_number'] ) && false !== strpos( $html, $credit['credit_note_number'] ) && false !== strpos( $html, 'Umsatzsteuer' ) );
 $rows = PassCaptain\Invoices::export_rows( gmdate( 'Y-m-d', time() - 86400 ), gmdate( 'Y-m-d' ) );
 $kinds = array_count_values( array_column( array_slice( $rows, 1 ), 0 ) );
-check( 'accounting export contains invoice lines and credit notes', ( $kinds['Rechnung'] ?? 0 ) >= 1 && ( $kinds['Gutschrift'] ?? 0 ) >= 1 && 'Belegart' === $rows[0][0] );
+check( 'accounting export contains invoice lines and credit notes', ( $kinds['Rechnung'] ?? 0 ) >= 1 && ( $kinds['Rechnungskorrektur'] ?? 0 ) >= 1 && 'Belegart' === $rows[0][0] );
 
 echo "Voucher Captain bridge\n";
 final class Test_Voucher_Provider implements PassCaptain\Integrations\Vouchers\ProviderInterface {

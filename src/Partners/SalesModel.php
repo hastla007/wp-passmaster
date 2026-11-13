@@ -177,7 +177,7 @@ final class SalesModel {
 		}
 		$platform = self::platform_seller();
 		if ( ! $agents ) {
-			return array( 'model' => self::OWN_NAME, 'partner_id' => 0, 'seller' => $platform, 'agent' => null, 'series' => '', 'prefix' => '', 'credit_series' => 'credit', 'credit_prefix' => (string) Settings::get( 'credit_note_prefix' ) ?: 'GS' );
+			return array( 'model' => self::OWN_NAME, 'partner_id' => 0, 'seller' => $platform, 'agent' => null, 'series' => '', 'prefix' => '', 'credit_series' => 'credit', 'credit_prefix' => (string) Settings::get( 'credit_note_prefix' ) ?: \PassCaptain\Invoices::CREDIT_PREFIX_DEFAULT );
 		}
 		$partner = reset( $agents );
 		$prefix = self::invoice_prefix( $partner );

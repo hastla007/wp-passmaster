@@ -74,7 +74,7 @@ final class Settings {
 			'seller_small_business_note' => '',
 			'invoice_prefix'            => 'WPC',
 			'billing_required_threshold_minor' => 25000,
-			'credit_note_prefix'        => 'GS',
+			'credit_note_prefix'        => 'RK', // Rechnungskorrektur; installs from before schema 3.8.3 keep 'GS' (Installer).
 			'auto_invoice'              => 0,
 			// Voucher Captain redemptions without purpose data: 'multi' (payment, VAT at redemption) or 'single'.
 			'voucher_default_purpose'   => 'multi',

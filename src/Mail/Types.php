@@ -255,8 +255,8 @@ final class Types {
 					'refund_amount' => __( 'Erstatteter Betrag mit Währung', 'wp-pass-captain' ),
 					'revoked_count' => __( 'Anzahl ungültig gewordener Tickets', 'wp-pass-captain' ),
 					'revoked_note' => __( 'Satz zu ungültig gewordenen Tickets mit Zeilenumbruch (leer, wenn keine)', 'wp-pass-captain' ),
-					'credit_note_number' => __( 'Nummer der Gutschrift', 'wp-pass-captain' ),
-					'credit_note' => __( 'Zeile „Gutschrift: …“ mit Zeilenumbruch (leer ohne Gutschrift)', 'wp-pass-captain' ),
+					'credit_note_number' => __( 'Nummer der Rechnungskorrektur', 'wp-pass-captain' ),
+					'credit_note' => __( 'Zeile „Rechnungskorrektur: …“ mit Zeilenumbruch (leer ohne Rechnungskorrektur)', 'wp-pass-captain' ),
 					'reason' => __( 'Grund der Erstattung', 'wp-pass-captain' ),
 					'refund_intro' => __( 'Einleitungssatz passend zur Zahlart („haben wir … erstattet“ bzw. „erstatten wir … per Überweisung“)', 'wp-pass-captain' ),
 					'refund_method_note' => __( 'Hinweis zur Auszahlung je Zahlart (Kartenrückbuchung, bar an der Kasse, Überweisung auf IBAN bzw. Bitte um IBAN)', 'wp-pass-captain' ),
@@ -278,7 +278,7 @@ final class Types {
 					);
 				},
 				'sample' => static function () {
-					return array( 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e', 'refund_amount' => '25,00 EUR', 'revoked_count' => 1, 'revoked_note' => self::revoked_note( 1 ), 'credit_note_number' => 'GS-2027-0001', 'credit_note' => self::credit_note( 'GS-2027-0001' ), 'reason' => 'Kulanz' );
+					return array( 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e', 'refund_amount' => '25,00 EUR', 'revoked_count' => 1, 'revoked_note' => self::revoked_note( 1 ), 'credit_note_number' => 'RK-2027-000001', 'credit_note' => self::credit_note( 'RK-2027-000001' ), 'reason' => 'Kulanz' );
 				},
 			),
 			'event_cancelled' => array(
@@ -395,9 +395,9 @@ final class Types {
 		return '';
 	}
 
-	/** Refund mail: credit note line incl. line break ('' without number). Call inside the recipient locale. */
+	/** Refund mail: correction document line incl. line break ('' without number). Call inside the recipient locale. */
 	public static function credit_note( $number ) {
 		/* translators: %s: credit note number */
-		return '' !== (string) $number ? sprintf( __( 'Gutschrift: %s', 'wp-pass-captain' ), $number ) . "\n" : '';
+		return '' !== (string) $number ? sprintf( __( 'Rechnungskorrektur: %s', 'wp-pass-captain' ), $number ) . "\n" : '';
 	}
 }

@@ -12,10 +12,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.8.2';
+	const DB_VERSION = '3.8.3';
 
 	public static function install() {
 		global $wpdb;
+		// Schema version before this run ('' on a fresh install), for one-off data migrations below.
+		$previous_version = (string) get_option( 'wpcap_db_version', '' );
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		$charset = $wpdb->get_charset_collate();
@@ -627,6 +629,7 @@ final class Installer {
 				net_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				rates longtext NULL,
 				issued_at datetime NOT NULL,
 				PRIMARY KEY  (credit_note_id),
 				UNIQUE KEY refund_id (refund_id),
@@ -690,6 +693,7 @@ final class Installer {
 		// Capacity counters (schema 3.7.0): fresh installs use them right away, upgrades rebuild them
 		// from the source tables and verify them before capacity decisions rely on them.
 		CapacityCounters::after_install();
+		self::pin_legacy_credit_prefix( $previous_version );
 
 		// Role names are translated; before init that would load the text domain too early.
 		if ( did_action( 'init' ) || ! function_exists( 'add_action' ) ) {
@@ -701,6 +705,32 @@ final class Installer {
 		OrderLines::flush();
 		update_option( 'wpcap_version', WPCAP_VERSION );
 		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );
+	}
+
+	/**
+	 * Schema 3.8.3: the default prefix of refund corrections changed from "GS" (read as "Gutschrift",
+	 * which in DE tax law means self-billing) to "RK" ("Rechnungskorrektur"). Installs that existed
+	 * before keep the prefix their running correction range uses: when no prefix is stored, "GS" is
+	 * stored explicitly. A configured prefix and issued documents are never changed.
+	 *
+	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
+	 */
+	public static function pin_legacy_credit_prefix( $previous_version ) {
+		global $wpdb;
+		$previous = (string) strtok( (string) $previous_version, '+' );
+		$existing = 1 === preg_match( '/^\d+\.\d+/', $previous ) && version_compare( $previous, '3.8.3', '<' );
+		if ( ! $existing ) {
+			// Fallback for a lost version option: documents with the former default prefix exist.
+			$existing = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT credit_note_id FROM {$wpdb->prefix}wpcap_credit_notes WHERE credit_note_number LIKE %s LIMIT 1", addcslashes( Invoices::CREDIT_PREFIX_LEGACY . '-', '_%\\' ) . '%' ) );
+		}
+		if ( ! $existing ) { return false; }
+		$stored = get_option( Settings::OPTION, array() );
+		$stored = is_array( $stored ) ? $stored : array();
+		if ( '' !== (string) ( $stored['credit_note_prefix'] ?? '' ) ) { return false; }
+		$stored['credit_note_prefix'] = Invoices::CREDIT_PREFIX_LEGACY;
+		update_option( Settings::OPTION, $stored, false );
+		Settings::flush();
+		return true;
 	}
 
 	/**

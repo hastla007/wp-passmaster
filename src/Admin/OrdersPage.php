@@ -382,7 +382,7 @@ final class OrdersPage {
 			<tr><th><?php esc_html_e( 'Rechnung', 'wp-pass-captain' ); ?></th><td>
 				<?php if ( $invoice ) : ?>
 					<a href="<?php echo esc_url( $invoice_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( sprintf( /* translators: %s: invoice number */ __( 'Rechnung %s anzeigen', 'wp-pass-captain' ), $invoice->invoice_number ) ); ?></a>
-					<?php if ( $credit_notes ) : ?><br><?php echo esc_html( sprintf( /* translators: %s: credit note numbers */ __( 'Gutschriften (in der Rechnungsansicht): %s', 'wp-pass-captain' ), implode( ', ', $credit_notes ) ) ); ?><?php endif; ?>
+					<?php if ( $credit_notes ) : ?><br><?php echo esc_html( sprintf( /* translators: %s: credit note numbers */ __( 'Rechnungskorrekturen (in der Rechnungsansicht): %s', 'wp-pass-captain' ), implode( ', ', $credit_notes ) ) ); ?><?php endif; ?>
 				<?php elseif ( 'paid' === $order->payment_status && current_user_can( 'wpcap_view_finance' ) ) : ?>
 					<a class="button" href="<?php echo esc_url( wp_nonce_url( $invoice_url, 'wpcap_issue_invoice_' . (int) $order_id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Rechnung erstellen', 'wp-pass-captain' ); ?></a>
 				<?php else : ?>—<?php endif; ?>

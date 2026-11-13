@@ -187,11 +187,27 @@ final class InvoicePdf {
 			$pdf->text( 50, $y, 10, __( 'Datum:', 'wp-pass-captain' ) . ' ' . self::date( $credit->issued_at ) . ' · ' . __( 'Empfänger:', 'wp-pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) );
 			if ( Billing::address_lines( $snapshot ) ) { $y = self::recipient( $pdf, $y - 20, $snapshot, false ); }
 			$y -= 36;
-			$rows = array(
-				array( __( 'Nettobetrag', 'wp-pass-captain' ), '-' . self::money( $credit->net_minor, $credit->currency ), false ),
-				array( __( 'Umsatzsteuer', 'wp-pass-captain' ), '-' . self::money( $credit->tax_minor, $credit->currency ), false ),
-				array( __( 'Korrekturbetrag', 'wp-pass-captain' ), '-' . self::money( $credit->total_minor, $credit->currency ), true ),
-			);
+			// VAT breakdown per rate (net/tax/gross), like the invoice.
+			$credit_rates = Invoices::credit_rates( $credit );
+			$pdf->line( 50, $y + 6, 545, $y + 6 );
+			$y -= 10;
+			$pdf->text( 50, $y, 9, __( 'Aufstellung nach Steuersätzen', 'wp-pass-captain' ), true );
+			$pdf->text( 330, $y, 9, __( 'Netto', 'wp-pass-captain' ), true, 'right' );
+			$pdf->text( 440, $y, 9, __( 'USt.', 'wp-pass-captain' ), true, 'right' );
+			$pdf->text( 545, $y, 9, __( 'Brutto', 'wp-pass-captain' ), true, 'right' );
+			foreach ( $credit_rates as $r ) {
+				$y -= 13;
+				$pdf->text( 50, $y, 9, __( 'USt-Satz', 'wp-pass-captain' ) . ' ' . Invoices::rate_label( $r['rate_bp'] ) );
+				$pdf->text( 330, $y, 9, '-' . self::money( $r['net'], $credit->currency ), false, 'right' );
+				$pdf->text( 440, $y, 9, '-' . self::money( $r['tax'], $credit->currency ), false, 'right' );
+				$pdf->text( 545, $y, 9, '-' . self::money( $r['gross'], $credit->currency ), false, 'right' );
+			}
+			$y -= 30;
+			$rows = array( array( __( 'Nettobetrag', 'wp-pass-captain' ), '-' . self::money( $credit->net_minor, $credit->currency ), false ) );
+			foreach ( $credit_rates as $r ) {
+				$rows[] = array( sprintf( __( 'Umsatzsteuer %s %%', 'wp-pass-captain' ), number_format_i18n( $r['rate_bp'] / 100, 2 ) ), '-' . self::money( $r['tax'], $credit->currency ), false );
+			}
+			$rows[] = array( __( 'Korrekturbetrag', 'wp-pass-captain' ), '-' . self::money( $credit->total_minor, $credit->currency ), true );
 			foreach ( $rows as $r ) {
 				$pdf->text( 300, $y, 10, $r[0], $r[2] );
 				$pdf->text( 545, $y, 10, $r[1], $r[2], 'right' );

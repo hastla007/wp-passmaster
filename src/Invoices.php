@@ -13,6 +13,16 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Invoices {
 	const FINANCE_CAP = 'wpcap_view_finance';
 
+	/**
+	 * Default prefix of refund corrections ("Rechnungskorrektur"). "Gutschrift" is reserved for self-billing
+	 * (§ 14 Abs. 2 Satz 2 UStG, partner settlements, prefix GU); installs from before schema 3.8.3 keep the
+	 * former default 'GS' (see Installer::pin_legacy_credit_prefix()).
+	 */
+	const CREDIT_PREFIX_DEFAULT = 'RK';
+
+	/** Former default correction prefix (kept for existing installs). */
+	const CREDIT_PREFIX_LEGACY = 'GS';
+
 	public static function register() {
 		add_action( 'wpcap_order_paid', array( __CLASS__, 'maybe_auto_issue' ) );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'credit_note_for_refund' ) );
@@ -113,7 +123,7 @@ final class Invoices {
 		if ( is_wp_error( $number ) ) { $wpdb->query( 'ROLLBACK' ); return $number; }
 		// Payments/vouchers: with a multi-purpose voucher the correction covers cash + voucher part.
 		$credit_amounts = Integrations\Vouchers\Checkout::credit_note_amounts( $refund_id ) ?? array( 'total_minor' => (int) $refund['amount_minor'], 'tax_minor' => (int) $refund['tax_minor'] );
-		$saved = $wpdb->insert( "{$p}wpcap_credit_notes", array(
+		$row = array(
 			'invoice_id' => (int) $invoice->invoice_id,
 			'refund_id' => absint( $refund_id ),
 			'credit_note_number' => $number,
@@ -122,7 +132,12 @@ final class Invoices {
 			'tax_minor' => (int) $credit_amounts['tax_minor'],
 			'total_minor' => (int) $credit_amounts['total_minor'],
 			'issued_at' => current_time( 'mysql', true ),
-		) );
+		);
+		// Net/VAT/gross per tax rate, frozen with the document (schema 3.8.3; older rows are computed on display).
+		if ( self::credit_rates_ready() ) {
+			$row['rates'] = wp_json_encode( self::credit_note_rates( $refund, (int) $credit_amounts['total_minor'], (int) $credit_amounts['tax_minor'] ) );
+		}
+		$saved = $wpdb->insert( "{$p}wpcap_credit_notes", $row );
 		if ( false === $saved ) {
 			$wpdb->query( 'ROLLBACK' );
 			// A concurrent call created it first.
@@ -132,6 +147,165 @@ final class Invoices {
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'credit_note_issued', 'invoice', (int) $invoice->invoice_id, array( 'refund_id' => absint( $refund_id ), 'number' => $number ) );
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE refund_id=%d", absint( $refund_id ) ), ARRAY_A );
+	}
+
+	/* ------------------------------------------------------------------ Corrections per tax rate */
+
+	/** Whether wpcap_credit_notes.rates exists (schema 3.8.3; not yet during a deferred upgrade). */
+	public static function credit_rates_ready() {
+		$version = strtok( (string) get_option( 'wpcap_db_version', '' ), '+' );
+		return false !== $version && 1 === preg_match( '/^\d+\.\d+/', $version ) && version_compare( $version, '3.8.3', '>=' );
+	}
+
+	/**
+	 * Breakdown of a correction document per VAT rate (like the rate summary of an invoice).
+	 *
+	 * The gross amount and the VAT of the correction are allocated to the order lines the refund
+	 * belongs to: ticket refunds weight each refunded ticket with its line's paid gross after the
+	 * order discount (and its line VAT), amount-only refunds weight all paid lines. Lines are grouped
+	 * by rate; gross and VAT are apportioned with the largest-remainder method, so the rows always
+	 * add up exactly to the document totals and the result depends only on stored data.
+	 *
+	 * @param array $refund Refund row (order_id, ticket_ids).
+	 * @param int   $total  Gross amount of the correction (minor units).
+	 * @param int   $tax    VAT of the correction (minor units).
+	 * @return array[] List of ['rate_bp' => int, 'net' => int, 'tax' => int, 'gross' => int], ascending by rate.
+	 */
+	public static function credit_note_rates( array $refund, $total, $tax ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$total = (int) $total;
+		$tax = (int) $tax;
+		$order_id = (int) ( $refund['order_id'] ?? 0 );
+		$items = $order_id ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$p}wpcap_order_items WHERE order_id=%d ORDER BY item_id", $order_id ) ) : array();
+		$items = array_values( $items );
+		$discount = $order_id ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) ) : 0;
+		$after_discount = $items ? OrderLines::after_discount( $items, $discount ) : array();
+		// Line weights: [gross after discount, VAT] of the refunded part of each line.
+		$weights = array();
+		$ids = array_filter( array_map( 'absint', (array) json_decode( (string) ( $refund['ticket_ids'] ?? '' ), true ) ) );
+		if ( $ids && $items ) {
+			$counts = array();
+			$in = implode( ',', $ids );
+			foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_tickets WHERE order_id=%d AND ticket_id IN ($in)", $order_id ) ) as $type_id ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				$counts[ (int) $type_id ] = ( $counts[ (int) $type_id ] ?? 0 ) + 1;
+			}
+			foreach ( $counts as $type_id => $n ) {
+				// First paid line of the type (lines an exchange created carry no paid value).
+				foreach ( $items as $i => $item ) {
+					if ( (int) $item->ticket_type_id !== $type_id || (int) $item->quantity < 1 ) { continue; }
+					$q = (int) $item->quantity;
+					$share = min( $n, $q );
+					$weights[ $i ] = array(
+						$share >= $q ? (int) $after_discount[ $i ] : intdiv( (int) $after_discount[ $i ] * $share, $q ),
+						$share >= $q ? (int) $item->tax_minor : intdiv( (int) $item->tax_minor * $share, $q ),
+					);
+					break;
+				}
+			}
+		}
+		if ( ! array_filter( array_column( $weights, 0 ) ) ) {
+			$weights = array();
+			foreach ( $items as $i => $item ) { $weights[ $i ] = array( (int) $after_discount[ $i ], (int) $item->tax_minor ); }
+		}
+		$groups = array();
+		foreach ( $weights as $i => $w ) {
+			$rate = (int) $items[ $i ]->tax_rate_bp;
+			$groups[ $rate ] = array( ( $groups[ $rate ][0] ?? 0 ) + max( 0, $w[0] ), ( $groups[ $rate ][1] ?? 0 ) + max( 0, $w[1] ) );
+		}
+		ksort( $groups, SORT_NUMERIC );
+		if ( ! $groups || ! array_filter( array_column( $groups, 0 ) ) ) {
+			// No usable lines: one row, rate derived from the amounts.
+			$net = $total - $tax;
+			$rate = $tax > 0 && $net > 0 ? (int) round( $tax * 10000 / $net ) : 0;
+			return array( array( 'rate_bp' => $rate, 'net' => $net, 'tax' => $tax, 'gross' => $total ) );
+		}
+		$gross_by_rate = self::apportion( $total, array_map( static function ( $g ) { return $g[0]; }, $groups ) );
+		// VAT follows the line VAT (0 % lines get none); without any line VAT it follows the gross of rates > 0.
+		$tax_weights = array_map( static function ( $g ) { return $g[1]; }, $groups );
+		if ( ! array_filter( $tax_weights ) ) {
+			foreach ( $groups as $rate => $g ) { $tax_weights[ $rate ] = $rate > 0 ? $g[0] : 0; }
+			if ( ! array_filter( $tax_weights ) ) { $tax_weights = array_map( static function ( $g ) { return $g[0]; }, $groups ); }
+		}
+		$tax_by_rate = self::apportion( $tax, $tax_weights );
+		$out = array();
+		foreach ( array_keys( $groups ) as $rate ) {
+			$gross = (int) $gross_by_rate[ $rate ];
+			$vat = (int) $tax_by_rate[ $rate ];
+			if ( 0 === $gross && 0 === $vat ) { continue; }
+			$out[] = array( 'rate_bp' => (int) $rate, 'net' => $gross - $vat, 'tax' => $vat, 'gross' => $gross );
+		}
+		if ( ! $out ) {
+			$out[] = array( 'rate_bp' => (int) array_key_last( $groups ), 'net' => 0, 'tax' => 0, 'gross' => 0 );
+		}
+		return $out;
+	}
+
+	/**
+	 * Splits an amount by weights (largest remainder; ties go to the earlier key). The parts add up to $amount.
+	 *
+	 * @param int   $amount  Amount in minor units (≥ 0).
+	 * @param int[] $weights Key => weight (≥ 0).
+	 * @return int[] Key => part.
+	 */
+	public static function apportion( $amount, array $weights ) {
+		$amount = (int) $amount;
+		$sum = array_sum( $weights );
+		$out = array_fill_keys( array_keys( $weights ), 0 );
+		if ( ! $weights ) { return $out; }
+		if ( $sum <= 0 ) {
+			$out[ array_key_first( $weights ) ] = $amount;
+			return $out;
+		}
+		$rest = array();
+		$left = $amount;
+		foreach ( $weights as $key => $w ) {
+			$product = $amount * (int) $w;
+			$out[ $key ] = intdiv( $product, $sum );
+			$rest[ $key ] = $product - $out[ $key ] * $sum;
+			$left -= $out[ $key ];
+		}
+		$order = array_keys( $weights );
+		usort(
+			$order,
+			static function ( $a, $b ) use ( $rest, $order ) {
+				return $rest[ $b ] <=> $rest[ $a ] ?: array_search( $a, $order, true ) <=> array_search( $b, $order, true );
+			}
+		);
+		for ( $n = 0; $left > 0; $n++ ) {
+			$out[ $order[ $n % count( $order ) ] ]++;
+			$left--;
+		}
+		return $out;
+	}
+
+	/**
+	 * Rows per VAT rate of a stored correction document: the breakdown frozen at issue, or for documents
+	 * from before schema 3.8.3 the same computation from the refund (rows always add up to the totals).
+	 *
+	 * @param object|array $credit Row of wpcap_credit_notes.
+	 * @return array[] See credit_note_rates().
+	 */
+	public static function credit_rates( $credit ) {
+		$credit = (array) $credit;
+		$total = (int) ( $credit['total_minor'] ?? 0 );
+		$tax = (int) ( $credit['tax_minor'] ?? 0 );
+		$stored = json_decode( (string) ( $credit['rates'] ?? '' ), true );
+		if ( is_array( $stored ) && $stored ) {
+			$rows = array();
+			foreach ( $stored as $r ) {
+				if ( ! is_array( $r ) ) { $rows = array(); break; }
+				$rows[] = array( 'rate_bp' => (int) ( $r['rate_bp'] ?? 0 ), 'net' => (int) ( $r['net'] ?? 0 ), 'tax' => (int) ( $r['tax'] ?? 0 ), 'gross' => (int) ( $r['gross'] ?? 0 ) );
+			}
+			if ( $rows && array_sum( array_column( $rows, 'gross' ) ) === $total && array_sum( array_column( $rows, 'tax' ) ) === $tax ) { return $rows; }
+		}
+		$refund = Refunds::get( (int) ( $credit['refund_id'] ?? 0 ) );
+		return self::credit_note_rates( $refund ? $refund : array(), $total, $tax );
+	}
+
+	/** Rate of a breakdown row as a percentage label ("19,00 %"). */
+	public static function rate_label( $rate_bp ) {
+		return number_format_i18n( (int) $rate_bp / 100, 2 ) . ' %';
 	}
 
 	/** Platform seller data for documents (settings "Rechnungssteller"). */
@@ -194,7 +368,7 @@ final class Invoices {
 		if ( Partners\SalesModel::AGENT === ( $snapshot['sales_model'] ?? '' ) && ! empty( $snapshot['credit_series'] ) ) {
 			return array( (string) $snapshot['credit_series'], (string) $snapshot['credit_prefix'] );
 		}
-		return array( 'credit', (string) Settings::get( 'credit_note_prefix' ) ?: 'GS' );
+		return array( 'credit', (string) Settings::get( 'credit_note_prefix' ) ?: self::CREDIT_PREFIX_DEFAULT );
 	}
 
 	/** Seller block lines: name first, then address lines, VAT ID, tax number. */
@@ -328,7 +502,13 @@ final class Invoices {
 		</tbody></table>
 		<?php echo self::payments_html( $invoice, $snapshot, $money ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in payments_html(). ?>
 		<?php foreach ( self::seller_notes( $snapshot ) as $note ) : ?><p class="wpcap-seller-note"><?php echo esc_html( $note ); ?></p><?php endforeach; ?>
-		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Rechnungskorrektur', 'wp-pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'wp-pass-captain' ), $invoice->invoice_number, wp_date( 'd.m.Y', strtotime( $credit->issued_at . ' UTC' ) ) ) ); ?></p><table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'wp-pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr><tr><td><?php esc_html_e( 'Umsatzsteuer', 'wp-pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->tax_minor ) ); ?></td></tr><tr><th><?php esc_html_e( 'Korrekturbetrag', 'wp-pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
+		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Rechnungskorrektur', 'wp-pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'wp-pass-captain' ), $invoice->invoice_number, wp_date( 'd.m.Y', strtotime( $credit->issued_at . ' UTC' ) ) ) ); ?></p><?php $credit_rates = self::credit_rates( $credit ); ?>
+		<table class="wpcap-vat-summary"><caption><?php esc_html_e( 'Aufstellung nach Steuersätzen', 'wp-pass-captain' ); ?></caption><thead><tr><th><?php esc_html_e( 'USt-Satz', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Netto', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'USt.', 'wp-pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Brutto', 'wp-pass-captain' ); ?></th></tr></thead><tbody>
+		<?php foreach ( $credit_rates as $r ) : ?><tr><td><?php echo esc_html( self::rate_label( $r['rate_bp'] ) ); ?></td><td class="n">-<?php echo esc_html( $money( $r['net'] ) ); ?></td><td class="n">-<?php echo esc_html( $money( $r['tax'] ) ); ?></td><td class="n">-<?php echo esc_html( $money( $r['gross'] ) ); ?></td></tr><?php endforeach; ?>
+		</tbody></table>
+		<table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'wp-pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr>
+		<?php foreach ( $credit_rates as $r ) : ?><tr><td><?php echo esc_html( sprintf( /* translators: %s: rate */ __( 'Umsatzsteuer %s %%', 'wp-pass-captain' ), number_format_i18n( $r['rate_bp'] / 100, 2 ) ) ); ?></td><td class="n">-<?php echo esc_html( $money( $r['tax'] ) ); ?></td></tr><?php endforeach; ?>
+		<tr><th><?php esc_html_e( 'Korrekturbetrag', 'wp-pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
 		<button onclick="window.print()"><?php esc_html_e( 'Drucken oder als PDF speichern', 'wp-pass-captain' ); ?></button>
 		</body></html><?php
 		return (string) ob_get_clean();
@@ -406,8 +586,11 @@ final class Invoices {
 			$rows[] = array( 'Rechnung', $l->invoice_number, substr( $l->issued_at, 0, 10 ), $l->public_id, '', $safe( $l->description ), (int) $l->quantity, $money( (int) $l->total_minor - (int) $l->tax_minor ), number_format( (float) $l->tax_rate, 2, '.', '' ), $money( (int) $l->tax_minor ), $money( (int) $l->total_minor ), $l->currency, $safe( $l->payment_provider ), ...$seller_cols( $l->buyer_snapshot ) );
 		}
 		$credits = $wpdb->get_results( $wpdb->prepare( "SELECT c.*,i.invoice_number,i.buyer_snapshot,o.public_id,o.payment_provider FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id WHERE c.issued_at >= %s AND c.issued_at < %s ORDER BY c.credit_note_id", $from_utc, $to_utc ) );
+		// Corrections ("Rechnungskorrektur", not "Gutschrift": that term means self-billing): one row per VAT rate.
 		foreach ( $credits as $c ) {
-			$rows[] = array( 'Gutschrift', $c->credit_note_number, substr( $c->issued_at, 0, 10 ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( (int) $c->net_minor ), '', '-' . $money( (int) $c->tax_minor ), '-' . $money( (int) $c->total_minor ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
+			foreach ( self::credit_rates( $c ) as $r ) {
+				$rows[] = array( 'Rechnungskorrektur', $c->credit_note_number, substr( $c->issued_at, 0, 10 ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( $r['net'] ), number_format( $r['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $r['tax'] ), '-' . $money( $r['gross'] ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
+			}
 		}
 		return $rows;
 	}
