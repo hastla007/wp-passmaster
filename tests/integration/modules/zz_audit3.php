@@ -227,3 +227,15 @@ check( 'A014: pending upgrade response carries the bank details', ! is_wp_error(
 $a14_html = PassCaptain\Exchange\Portal::ticket_html( '', (object) array( 'ticket_id' => $a14_i[0], 'public_id' => $a14_t->public_id, 'status' => 'valid', 'transfer_count' => 0 ), Orders::get( $a14_o ), $a14_token );
 check( 'A014: after reload the portal shows the open exchange (amount, IBAN) instead of a new form', false !== strpos( $a14_html, 'Umtausch wartet auf Zahlung' ) && false !== strpos( $a14_html, 'AT61 1904 3002 3457 3201' ) && false === strpos( $a14_html, 'wpcap-exchange-form' ) );
 ex_policy( array() );
+
+echo "Audit 3: staff occurrence selectors (A016)\n";
+$a16_rows = array(
+	(object) array( 'occurrence_id' => 1, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() - 3 * 86400 ), 'status' => 'scheduled', 'event_status' => 'published', 'label' => 'Vorgestern' ),
+	(object) array( 'occurrence_id' => 2, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 5 * 86400 ), 'status' => 'scheduled', 'event_status' => 'published', 'label' => 'Später' ),
+	(object) array( 'occurrence_id' => 3, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() - 3600 ), 'status' => 'scheduled', 'event_status' => 'published', 'label' => 'Läuft' ),
+	(object) array( 'occurrence_id' => 4, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 86400 ), 'status' => 'cancelled', 'event_status' => 'published', 'label' => 'Abgesagt' ),
+	(object) array( 'occurrence_id' => 5, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 86400 ), 'status' => 'scheduled', 'event_status' => 'draft', 'label' => 'Entwurf' ),
+);
+$a16 = PassCaptain\Admin\Queries::occurrence_choices( $a16_rows );
+check( 'A016: running occurrence is the default, then upcoming, then past (marked); cancelled and drafts hidden', array( 3, 2, 1 ) === array_keys( $a16 ) && false !== strpos( $a16[1], 'vergangen' ) );
+check( 'A016: the box office gets no past dates', array( 3, 2 ) === array_keys( PassCaptain\Admin\Queries::occurrence_choices( $a16_rows, false ) ) );

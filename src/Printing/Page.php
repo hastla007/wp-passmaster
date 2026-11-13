@@ -21,15 +21,19 @@ final class Page {
 		return self::CAPS[0];
 	}
 
-	/** Occurrences (last 30 days and upcoming) of events reachable with $caps. */
-	public static function occurrence_options( $caps ) {
+	/**
+	 * Scheduled occurrences of published events reachable with $caps: running/upcoming first (the
+	 * first key is the default), then the last 30 days marked "vergangen" (Queries::occurrence_choices()).
+	 *
+	 * @param bool $include_past False for the box office (sales only for running/upcoming dates).
+	 */
+	public static function occurrence_options( $caps, $include_past = true ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$scope = Queries::scope_sql( Scope::event_ids( $caps ), 'o.event_id' );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s $scope ORDER BY o.starts_at LIMIT 300", gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) );
-		$out = array();
-		foreach ( $rows as $r ) { $out[ (int) $r->occurrence_id ] = $r->name . ' – ' . Scope::local( $r->starts_at, $r->timezone ); }
-		return $out;
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.ends_at,o.timezone,o.status,e.status AS event_status,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s AND o.status='scheduled' AND e.status='published' $scope ORDER BY o.starts_at LIMIT 300", gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) );
+		foreach ( $rows as $r ) { $r->label = $r->name . ' – ' . Scope::local( $r->starts_at, $r->timezone ); }
+		return Queries::occurrence_choices( $rows, $include_past );
 	}
 
 	/**

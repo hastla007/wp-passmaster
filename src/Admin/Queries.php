@@ -73,6 +73,40 @@ final class Queries {
 		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d ORDER BY starts_at, occurrence_id", absint( $event_id ) ) );
 	}
 
+	/**
+	 * Occurrence choices for staff selectors (box office, print, guest list): only scheduled
+	 * occurrences of published events; running and upcoming ones first (ascending, the default
+	 * choice is the first key), past ones after them (newest first, marked "vergangen").
+	 * An occurrence counts as running until 12 hours after its start (or until its end).
+	 *
+	 * @param object[] $rows        Rows with occurrence_id, starts_at, timezone, status, label (string),
+	 *                              optionally ends_at and event_status.
+	 * @param bool     $include_past Whether past occurrences are offered at all.
+	 * @return array occurrence_id => label
+	 */
+	public static function occurrence_choices( array $rows, $include_past = true ) {
+		$now = time();
+		$upcoming = array();
+		$past = array();
+		foreach ( $rows as $row ) {
+			if ( 'scheduled' !== ( $row->status ?? 'scheduled' ) || ( isset( $row->event_status ) && 'published' !== $row->event_status ) ) { continue; }
+			$start = strtotime( $row->starts_at . ' UTC' );
+			$end = ! empty( $row->ends_at ) ? strtotime( $row->ends_at . ' UTC' ) : $start + 12 * HOUR_IN_SECONDS;
+			if ( max( $end, $start ) >= $now ) {
+				$upcoming[ (int) $row->occurrence_id ] = array( $start, (string) $row->label );
+			} elseif ( $include_past ) {
+				$past[ (int) $row->occurrence_id ] = array( $start, (string) $row->label );
+			}
+		}
+		uasort( $upcoming, static function ( $a, $b ) { return $a[0] <=> $b[0]; } );
+		uasort( $past, static function ( $a, $b ) { return $b[0] <=> $a[0]; } );
+		$out = array();
+		foreach ( $upcoming as $id => $item ) { $out[ $id ] = $item[1]; }
+		/* translators: %s: occurrence label */
+		foreach ( $past as $id => $item ) { $out[ $id ] = sprintf( __( '%s (vergangen)', 'wp-pass-captain' ), $item[1] ); }
+		return $out;
+	}
+
 	/** Ticket type with occurrence context (event_id, timezone). */
 	public static function ticket_type( $ticket_type_id ) {
 		global $wpdb;

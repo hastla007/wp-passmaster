@@ -187,8 +187,10 @@ final class Page {
 
 	private static function occurrence_options( $event_id, $with_all = false ) {
 		$out = $with_all ? array( 0 => __( 'Alle Termine', 'wp-pass-captain' ) ) : array();
-		foreach ( Queries::occurrences_for_event( $event_id ) as $o ) { $out[ (int) $o->occurrence_id ] = Scope::local( $o->starts_at, $o->timezone ) . ( $o->location ? ' – ' . $o->location : '' ); }
-		return $out;
+		// Scheduled dates only; running/upcoming first (default), past ones marked (Queries::occurrence_choices()).
+		$rows = Queries::occurrences_for_event( $event_id );
+		foreach ( $rows as $o ) { $o->label = Scope::local( $o->starts_at, $o->timezone ) . ( $o->location ? ' – ' . $o->location : '' ); }
+		return $out + Queries::occurrence_choices( $rows );
 	}
 
 	private static function render_lists( $event_id ) {

@@ -93,7 +93,7 @@ final class Page {
 			return;
 		}
 		$register = Registers::get( $session->register_id );
-		$occurrences = \PassCaptain\Printing\Page::occurrence_options( Service::CAP );
+		$occurrences = \PassCaptain\Printing\Page::occurrence_options( Service::CAP, false );
 		if ( $register && (int) $register->event_id ) {
 			$occurrences = array_filter( $occurrences, static function ( $label, $id ) use ( $register ) { return Scope::occurrence_event( $id ) === (int) $register->event_id; }, ARRAY_FILTER_USE_BOTH );
 		}
