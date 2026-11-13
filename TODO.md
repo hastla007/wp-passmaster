@@ -496,10 +496,10 @@ Fehlende Tests: Fault-Injection `db_busy`/Deadlock in Modul-Filtern (späte Zahl
 
 ### Betreiberpflichten (für docs/OPERATIONS.md)
 
-- [ ] Art.-14-Information für Gästelisten; Abholliste nach dem Event vernichten.
-- [ ] Rolle der Partner festlegen (eigener Verantwortlicher oder Auftragsverarbeitung) und dokumentieren.
-- [ ] Kassen-Schichtdaten: Mitbestimmung (§ 96/96a ArbVG, § 87 Abs. 1 Nr. 6 BetrVG); Z-Berichte aufbewahrungspflichtig.
-- [ ] AV-Vertrag mit dem Fiskalanbieter; manueller Auskunftsablauf für Bestellungen ohne E-Mail; Verarbeitungsverzeichnis erweitern.
+- [x] Art.-14-Information für Gästelisten; Abholliste nach dem Event vernichten.
+- [x] Rolle der Partner festlegen (eigener Verantwortlicher oder Auftragsverarbeitung) und dokumentieren.
+- [x] Kassen-Schichtdaten: Mitbestimmung (§ 96/96a ArbVG, § 87 Abs. 1 Nr. 6 BetrVG); Z-Berichte aufbewahrungspflichtig.
+- [x] AV-Vertrag mit dem Fiskalanbieter; manueller Auskunftsablauf für Bestellungen ohne E-Mail; Verarbeitungsverzeichnis erweitern.
 
 ## Experten-Review, zweite Runde (12.11.2026, Branch `claude/youthful-bardeen-7ejd7a`)
 

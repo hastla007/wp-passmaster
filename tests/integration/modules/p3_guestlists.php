@@ -180,3 +180,11 @@ check( 'A078: export lists the guest entry (name, company, list, status)', false
 $a78_erase = PassCaptain\Modules\GuestLists::privacy_erase( 'gina.a78@example.com' );
 $a78_row = Gl::get_entry( $a78->entry_id );
 check( 'A078: erasure clears name, e-mail and company of the entry', true === $a78_erase['items_removed'] && 'Gast (gelöscht)' === $a78_row->name && '' === $a78_row->email && '' === $a78_row->company );
+
+echo "Guest lists: retention also clears the comp order and its tickets (A108b)\n";
+$a108_entry = Gl::get_entry( $e1->entry_id );
+$a108_order = (int) $a108_entry->order_id;
+PassCaptain\Modules\GuestLists::retention_step( array(), time() + 3000 * DAY_IN_SECONDS, microtime( true ) + 30 );
+$a108_o = Orders::get( $a108_order );
+$a108_names = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_ticket_assignments ta INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=ta.ticket_id WHERE t.order_id=%d AND (ta.attendee_name<>'' OR ta.attendee_email<>'')", $a108_order ) );
+check( 'A108b: after the retention period the comp order holds a placeholder address and no attendee names', $a108_order && str_ends_with( (string) $a108_o->customer_email, '@invalid.example' ) && 0 === $a108_names && 'paid' === $a108_o->payment_status );

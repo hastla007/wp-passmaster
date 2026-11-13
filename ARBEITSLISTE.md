@@ -242,10 +242,11 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 
 ## Phase 7 – Betreiberpflichten (Dokumentation)
 
-- [ ] **A108** Art.-14-Information für Gästelisten; Abholliste nach dem Event vernichten. — _OFFEN_ (TODO L498; Betreiberpflichten (für docs/OPERATIONS.md))
-- [ ] **A109** Rolle der Partner festlegen (eigener Verantwortlicher oder Auftragsverarbeitung) und dokumentieren. — _OFFEN_ (TODO L499; Betreiberpflichten (für docs/OPERATIONS.md))
-- [ ] **A110** Kassen-Schichtdaten: Mitbestimmung (§ 96/96a ArbVG, § 87 Abs. 1 Nr. 6 BetrVG); Z-Berichte aufbewahrungspflichtig. — _OFFEN_ (TODO L500; Betreiberpflichten (für docs/OPERATIONS.md))
-- [ ] **A111** AV-Vertrag mit dem Fiskalanbieter; manueller Auskunftsablauf für Bestellungen ohne E-Mail; Verarbeitungsverzeichnis erweitern. — _OFFEN_ (TODO L501; Betreiberpflichten (für docs/OPERATIONS.md))
+- [x] **A108** Art.-14-Information für Gästelisten; Abholliste nach dem Event vernichten. — _OFFEN_ (TODO L498; Betreiberpflichten (für docs/OPERATIONS.md))
+- [x] **A109** Rolle der Partner festlegen (eigener Verantwortlicher oder Auftragsverarbeitung) und dokumentieren. — _OFFEN_ (TODO L499; Betreiberpflichten (für docs/OPERATIONS.md))
+- [x] **A110** Kassen-Schichtdaten: Mitbestimmung (§ 96/96a ArbVG, § 87 Abs. 1 Nr. 6 BetrVG); Z-Berichte aufbewahrungspflichtig. — _OFFEN_ (TODO L500; Betreiberpflichten (für docs/OPERATIONS.md))
+- [x] **A111** AV-Vertrag mit dem Fiskalanbieter; manueller Auskunftsablauf für Bestellungen ohne E-Mail; Verarbeitungsverzeichnis erweitern. — _OFFEN_ (TODO L501; Betreiberpflichten (für docs/OPERATIONS.md))
+  - Erledigt 13.11.: Vorlagen in docs/BETREIBERPFLICHTEN.md (keine Rechtsberatung). Gefundene Lücke: echte Gast-E-Mail bleibt an der bezahlten 0-€-Freikartenbestellung über die Löschfrist hinaus → als A108b sofort behoben (Löschlauf ersetzt die E-Mail an der Freikartenbestellung, leert Teilnehmernamen; Test A108b).
 
 ## Phase 8 – Ursprüngliche Roadmap-Punkte (P0–P2, Abnahme, CI)
 

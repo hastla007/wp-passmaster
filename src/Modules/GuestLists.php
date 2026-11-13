@@ -61,6 +61,22 @@ final class GuestLists {
 			$cutoff,
 			__( 'Gast (gelöscht)', 'wp-pass-captain' )
 		) );
+		// The guest's comp order (paid 0 € order, kept for reports) and its tickets carry the guest's
+		// e-mail and attendee names too: replaced/cleared after the same period.
+		$counts['guest_comp_orders'] = (int) $wpdb->query( $wpdb->prepare(
+			"UPDATE {$p}wpcap_orders ord INNER JOIN {$p}wpcap_guest_entries g ON g.order_id=ord.order_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET ord.customer_email=CONCAT('guestlist+',LEFT(SHA2(CONCAT('guestlist|',g.entry_id),256),16),'@invalid.example'),ord.billing=NULL,ord.updated_at=%s WHERE COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s AND ord.customer_email NOT LIKE %s",
+			gmdate( 'Y-m-d H:i:s', (int) $now ),
+			$cutoff,
+			'%@invalid.example'
+		) );
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE {$p}wpcap_tickets t INNER JOIN {$p}wpcap_guest_entries g ON g.order_id=t.order_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET t.attendee_email='' WHERE COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s AND t.attendee_email<>''",
+			$cutoff
+		) );
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE {$p}wpcap_ticket_assignments ta INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=ta.ticket_id INNER JOIN {$p}wpcap_guest_entries g ON g.order_id=t.order_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id SET ta.attendee_name='',ta.attendee_email='',ta.buyer_email='' WHERE COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s AND (ta.attendee_name<>'' OR ta.attendee_email<>'' OR ta.buyer_email<>'')",
+			$cutoff
+		) );
 		return $counts;
 	}
 
