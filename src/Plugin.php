@@ -27,6 +27,7 @@ final class Plugin {
 		Jobs\TimeBudget::register();
 		Operations\Monitor::register();
 		Operations\SiteHealth::register();
+		Operations\Doctor::register();
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_site_tables' ), 10, 2 );
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
 		add_filter( 'rest_post_dispatch', array( DeveloperKeys::class, 'retry_after_header' ) );

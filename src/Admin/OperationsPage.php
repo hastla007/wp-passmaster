@@ -3,13 +3,15 @@
  * "Betrieb" admin page (A163): state of the background queues (jobs, e-mails, webhook deliveries) with
  * counts by status, backlog and age of the oldest due item, dead-letter/failed items without payload
  * values, and the actions "erneut versuchen" / "verwerfen" for single items and in bulk (nonce,
- * capability manage_options, audited). Also shows the Site Health results of the plugin (A164).
+ * capability manage_options, audited). Also shows the Site Health results of the plugin (A164) and the data
+ * diagnosis (A204, Operations\Doctor): checks on request, repair preview and audited repairs.
  *
  * @package PassCaptain
  */
 
 namespace PassCaptain\Admin;
 
+use PassCaptain\Operations\Doctor;
 use PassCaptain\Operations\Queues;
 use PassCaptain\Operations\SiteHealth;
 
@@ -19,6 +21,8 @@ final class OperationsPage {
 	const SLUG = 'wpcap-operations';
 	const CAP = 'manage_options';
 	const ACTION = 'wpcap_operations_action';
+	/** admin-post action of a diagnosis repair. */
+	const DOCTOR_ACTION = 'wpcap_doctor_repair';
 	const PER_QUEUE = 50;
 
 	/**
@@ -69,6 +73,34 @@ final class OperationsPage {
 		Forms::finish( $result, $message, Forms::page_url( self::SLUG ) );
 	}
 
+	/**
+	 * Executes a diagnosis repair. Input: repair (id), keys (finding keys, optional; comma list or array),
+	 * confirm=1 (without it nothing is changed and the preview is returned).
+	 *
+	 * @return array|\WP_Error See Doctor::repair().
+	 */
+	public static function doctor_action( array $in ) {
+		if ( ! current_user_can( Doctor::CAP ) ) { return Forms::forbidden(); }
+		$keys = $in['keys'] ?? array();
+		$keys = is_array( $keys ) ? $keys : explode( ',', (string) $keys );
+		return Doctor::repair( (string) ( $in['repair'] ?? '' ), empty( $in['confirm'] ), array_map( 'trim', array_map( 'strval', $keys ) ), 'admin' );
+	}
+
+	/** admin-post handler of a diagnosis repair. */
+	public static function handle_doctor() {
+		Forms::verify( self::DOCTOR_ACTION );
+		$result = self::doctor_action( Forms::post() );
+		$message = '';
+		if ( ! is_wp_error( $result ) ) {
+			$message = $result['dry_run']
+				/* translators: %d: number of objects */
+				? sprintf( _n( 'Vorschau: %d Objekt würde geändert.', 'Vorschau: %d Objekte würden geändert.', $result['count'], 'pass-captain' ), $result['count'] )
+				/* translators: %d: number of objects */
+				: sprintf( _n( '%d Objekt wurde repariert (im Audit-Log protokolliert).', '%d Objekte wurden repariert (im Audit-Log protokolliert).', $result['count'], 'pass-captain' ), $result['count'] );
+		}
+		Forms::finish( $result, $message, Forms::page_url( self::SLUG, array( 'wpcap_doctor' => 1 ) ) . '#wpcap-doctor' );
+	}
+
 	/** "3 h 12 min" style age. */
 	public static function age( $seconds ) {
 		$minutes = (int) floor( max( 0, (int) $seconds ) / 60 );
@@ -86,6 +118,7 @@ final class OperationsPage {
 		Forms::render_notices();
 		echo '<p class="description">' . esc_html__( 'Zustand der Hintergrundverarbeitung: Hier siehst du Rückstände und endgültig fehlgeschlagene Einträge und kannst sie erneut versuchen oder verwerfen. Inhalte werden nicht angezeigt, nur die Namen der enthaltenen Felder.', 'pass-captain' ) . '</p>';
 		self::render_health();
+		self::render_doctor();
 		$labels = Queues::labels();
 		foreach ( Queues::available() as $queue => $def ) {
 			self::render_queue( $queue, $labels[ $queue ] ?? $queue, $def );
@@ -107,6 +140,68 @@ final class OperationsPage {
 			echo '<tr><td style="width:9em"><strong style="color:' . esc_attr( $color ) . '">' . esc_html( $names[ $result['status'] ] ?? $result['status'] ) . '</strong></td><td><strong>' . esc_html( $result['label'] ) . '</strong>' . wp_kses_post( $result['description'] ) . '</td></tr>';
 		}
 		echo '</tbody></table><p><a href="' . esc_url( admin_url( 'site-health.php' ) ) . '">' . esc_html__( 'Alle Prüfungen im Website-Zustand ansehen', 'pass-captain' ) . '</a></p>';
+	}
+
+	/**
+	 * Section "Datenkonsistenz": the checks run only on request (?wpcap_doctor=1), a repair preview with
+	 * ?wpcap_doctor_preview=<repair>; repairs are POST requests with nonce and confirmation.
+	 */
+	public static function render_doctor() {
+		echo '<h2 id="wpcap-doctor">' . esc_html__( 'Datenkonsistenz', 'pass-captain' ) . '</h2>';
+		echo '<p class="description">' . esc_html__( 'Sucht nach widersprüchlichen Daten (Tickets, Bestellungen, Erstattungen, Reservierungen, Warteschlangen, Zähler, Nummernkreise, Servicebuchungen, Audit-Log). Die Prüfung ändert nichts; Reparaturen gibt es nur, wo das Ergebnis eindeutig ist, mit Vorschau und Eintrag im Audit-Log. Dasselbe per WP-CLI: wp pass-captain doctor', 'pass-captain' ) . '</p>';
+		$run = ! empty( $_GET['wpcap_doctor'] ); // phpcs:ignore WordPress.Security.NonceVerification -- read-only view.
+		if ( ! $run ) {
+			echo '<p><a class="button" href="' . esc_url( Forms::page_url( self::SLUG, array( 'wpcap_doctor' => 1 ) ) . '#wpcap-doctor' ) . '">' . esc_html__( 'Prüfung ausführen', 'pass-captain' ) . '</a></p>';
+			return;
+		}
+		$preview = isset( $_GET['wpcap_doctor_preview'] ) ? sanitize_key( wp_unslash( $_GET['wpcap_doctor_preview'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification -- read-only preview.
+		$repairs = Doctor::repairs();
+		$report = Doctor::run();
+		$names = array(
+			'critical' => __( 'kritisch', 'pass-captain' ),
+			'warning'  => __( 'Warnung', 'pass-captain' ),
+		);
+		echo '<table class="widefat striped wpcap-doctor"><thead><tr><th scope="col">' . esc_html__( 'Status', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Prüfung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Anzahl', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Beispiele und Hinweis', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Reparatur', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $report as $check ) {
+			$color = ! $check['count'] ? '#007017' : ( 'critical' === $check['severity'] ? '#b32d2e' : '#996800' );
+			$status = $check['count'] ? ( $names[ $check['severity'] ] ?? $check['severity'] ) : __( 'in Ordnung', 'pass-captain' );
+			echo '<tr data-check="' . esc_attr( $check['id'] ) . '"><td><strong style="color:' . esc_attr( $color ) . '">' . esc_html( $status ) . '</strong></td><td>' . esc_html( $check['label'] ) . '</td><td>' . esc_html( number_format_i18n( $check['count'] ) ) . '</td><td>';
+			if ( $check['count'] ) {
+				echo '<ul style="margin:0">';
+				foreach ( array_slice( $check['items'], 0, 10 ) as $item ) { echo '<li><code>' . esc_html( $item['key'] ) . '</code> ' . esc_html( $item['detail'] ) . '</li>'; }
+				echo '</ul><p class="description">' . esc_html( $check['hint'] ) . '</p>';
+			} else {
+				echo '–';
+			}
+			echo '</td><td>';
+			if ( $check['count'] && '' !== $check['repair'] && isset( $repairs[ $check['repair'] ] ) ) {
+				self::render_repair( $check['repair'], $repairs[ $check['repair'] ]['label'], $preview === $check['repair'] );
+			} elseif ( $check['count'] ) {
+				echo esc_html__( 'manuell prüfen', 'pass-captain' );
+			} else {
+				echo '–';
+			}
+			echo '</td></tr>';
+		}
+		echo '</tbody></table>';
+	}
+
+	private static function render_repair( $repair, $label, $show_preview ) {
+		if ( ! $show_preview ) {
+			echo '<a class="button button-small" href="' . esc_url( Forms::page_url( self::SLUG, array( 'wpcap_doctor' => 1, 'wpcap_doctor_preview' => $repair ) ) . '#wpcap-doctor' ) . '">' . esc_html__( 'Vorschau', 'pass-captain' ) . '</a>';
+			return;
+		}
+		$preview = Doctor::repair( $repair, true, array(), 'admin' );
+		$keys = is_wp_error( $preview ) ? array() : $preview['keys'];
+		/* translators: 1: repair name, 2: number of objects */
+		echo '<p>' . esc_html( sprintf( __( '%1$s – Vorschau: %2$d Objekte würden geändert.', 'pass-captain' ), $label, count( $keys ) ) ) . '</p>';
+		if ( $keys ) {
+			echo '<p class="description"><code>' . esc_html( implode( ', ', array_slice( $keys, 0, 30 ) ) ) . ( count( $keys ) > 30 ? ' …' : '' ) . '</code></p>';
+		}
+		Forms::open_form( self::DOCTOR_ACTION );
+		Forms::hidden( 'repair', $repair );
+		Forms::hidden( 'confirm', '1' );
+		echo '<button type="submit" class="button button-primary button-small" onclick="return confirm(' . esc_attr( wp_json_encode( __( 'Reparatur jetzt ausführen? Die Änderung wird im Audit-Log protokolliert.', 'pass-captain' ) ) ) . ')">' . esc_html( $label ) . '</button></form>';
 	}
 
 	private static function render_queue( $queue, $label, array $def ) {

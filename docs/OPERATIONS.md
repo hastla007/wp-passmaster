@@ -155,6 +155,40 @@ Aktionen je Zeile oder als Mehrfachaktion (ausgewählte oder alle fehlgeschlagen
 
 Beide Aktionen sind nonce-geschützt und landen im Audit-Log (`operations_retry`, `operations_discard`, Objekttyp `queue_jobs`/`queue_messages`/`queue_webhooks`, Details: Warteschlange, Anzahl, IDs).
 
+### Datenkonsistenz: Diagnose und Reparatur (A204)
+
+`PassCaptain\Operations\Doctor` sucht widersprüchliche Daten. Die Prüfung ändert nichts. Reparaturen gibt es nur, wo der richtige Zustand eindeutig ist und der Plugin-Code ihn selbst hergestellt hätte. Jede Reparatur hat eine Vorschau (Dry Run, nichts wird geschrieben), und jede ausgeführte Reparatur wird auditiert.
+
+| Prüfung (`id`) | Findet | Reparatur |
+|---|---|---|
+| `tickets_without_order` (kritisch) | gültige/eingecheckte Tickets, deren Bestellung fehlt | – (manuell prüfen) |
+| `tickets_of_closed_orders` (kritisch) | gültige Tickets stornierter, erstatteter oder abgelaufener Bestellungen sowie erstattete (`refunded=1`), aber noch gültige Tickets | `revoke_closed_order_tickets`: sperrt sie (`Orders::revoke_ids()`, `wpcap_ticket_revoked`, Audit `doctor_tickets_revoked` je Bestellung) |
+| `paid_orders_without_tickets` (kritisch) | bezahlte, abgeschlossene Bestellungen mit offenen Positionen ohne ein einziges Ticket, älter als 10 Minuten | – (Tickets in der Bestellung erneut senden) |
+| `refunds_exceed_payment` (kritisch) | Summe der abgeschlossenen/laufenden Erstattungen größer als der bezahlte Betrag (`total_minor`, ohne Gutscheinanteil) | – |
+| `duplicate_provider_refunds` (kritisch) | dieselbe Anbieter-Referenz (`provider_reference`) beim selben Zahlungsanbieter mehrfach verbucht | – |
+| `stale_queue_claims` | Jobs `running`, E-Mails `sending`, Webhook-Zustellungen `delivering` seit über 15 Minuten | `requeue_stale_claims`: zurück auf wartend, Claim gelöscht (wie die Worker selbst; nur noch hängende Einträge) |
+| `expired_holds` | aktive Ticket- und Sitzplatz-Reservierungen nach Ablauf, reservierte Servicebuchungen ohne Bestellung nach Ablauf, unbezahlte Bestellungen ohne gültige Reservierung | `release_expired_holds`: der Cron-Ablauf `Orders::expire_holds()` (Zähler, Bestellung `expired`, Kampagnen, Hooks) plus Sitzplatz- und Servicebuchungs-Reservierungen |
+| `capacity_counter_drift` | Kontingentzähler ≠ Summe aus Bestellungen/Reservierungen (`CapacityCounters::drift()`) | `rebuild_counters`: `CapacityCounters::reconcile( true )` |
+| `document_number_gaps` | Lücken in Rechnungs- und Korrekturnummern des laufenden und des Vorjahres (`Invoices::document_gaps()`) | – (Nummern werden nie nachträglich vergeben; Lücke dokumentieren) |
+| `service_bookings` | aktive Buchungen beendeter oder fehlender Bestellungen; `pending_payment` bei bezahlter Bestellung; nach Ablauf der Reservierung bezahlt; „ohne Platz“ (`unallocated`) ohne Erstattung | `sync_service_bookings`: nur die eindeutigen Fälle – Buchungen beendeter Bestellungen freigeben (`ServiceBookings::release_order()`), Buchungen bezahlter Bestellungen mit noch gültiger Reservierung bestätigen (`confirm_paid_order()`). Die anderen beiden Fälle bleiben für eine Person. |
+| `audit_gaps` | abgeschlossene Erstattungen ohne `refund_completed`, Rechnungen ohne `invoice_issued`, Korrekturen ohne `credit_note_issued` (nur innerhalb der Aufbewahrungsfrist des Audit-Logs, ab dem ältesten Eintrag) | – |
+
+Die Funde sind nach Neuigkeit sortiert (neueste zuerst). Jeder Fund hat einen Schlüssel wie `ticket:12`, `order:5`, `jobs:7`, `booking:3`. Über diese Schlüssel lässt sich eine Reparatur eingrenzen. `release_expired_holds` und `rebuild_counters` arbeiten immer auf dem ganzen Bestand, wie der Cron. Eine Reparatur ändert höchstens 500 Objekte je Lauf. Sie prüft jede Bedingung unmittelbar vor der Änderung erneut, ein zweiter Lauf ändert deshalb nichts mehr.
+
+**WP-CLI** (auch für das Monitoring: Exit-Code 1, sobald etwas gefunden wird):
+
+```bash
+wp pass-captain doctor                                   # alle Prüfungen, nur lesen
+wp pass-captain doctor --check=expired_holds,stale_queue_claims --format=json
+wp pass-captain doctor --repair=release_expired_holds    # Vorschau (Dry Run), nichts wird geändert
+wp pass-captain doctor --repair=release_expired_holds --apply
+wp pass-captain doctor --repair=revoke_closed_order_tickets --keys=ticket:12,ticket:13 --apply
+```
+
+**Admin**: Auf der Seite **Betrieb** gibt es den Abschnitt „Datenkonsistenz“. Die Prüfungen laufen nur auf Knopfdruck („Prüfung ausführen“), nicht bei jedem Seitenaufruf. Angezeigt werden Status, Anzahl, bis zu zehn Beispiele mit Hinweis sowie je Reparatur eine **Vorschau**. Aus der Vorschau startet ein Formular mit Nonce und Rückfrage die Reparatur. Nötig ist dafür `manage_options`.
+
+**Audit**: Jede ausgeführte Reparatur schreibt `doctor_repair` (Objekttyp `system`, Details: `repair`, `source` `cli`/`admin`, Anzahl, bis zu 100 Schlüssel, Kennzahlen). Dazu kommen die Einträge der wiederverwendeten Abläufe (`doctor_tickets_revoked`, `service_booking_released`, `service_booking_confirmed`, `capacity_counter_drift`).
+
 ## SMS: Segmente, Kosten, Budget, Zustellstatus und Abmeldung (A141)
 
 Einstellungen unter **Pass Captain → SMS**; Tabellen `wpcap_sms_consents`, `wpcap_sms_messages`, `wpcap_sms_optouts` (Schema 3.10.2, Prüfung `Sms\Service::ready()`; vor dem Schema-Upgrade läuft der Versand ohne Kostenerfassung und Sperrliste weiter).

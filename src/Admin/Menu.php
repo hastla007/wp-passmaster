@@ -51,6 +51,7 @@ final class Menu {
 			'wpcap_tax_profile_retire' => array( TaxPage::class, 'handle_retire' ),
 			'wpcap_getting_started' => array( GettingStarted::class, 'handle_toggle' ),
 			OperationsPage::ACTION => array( OperationsPage::class, 'handle_action' ),
+			OperationsPage::DOCTOR_ACTION => array( OperationsPage::class, 'handle_doctor' ),
 			'wpcap_developer_key_create' => array( DeveloperKeysPage::class, 'handle_create' ),
 			'wpcap_developer_key_update' => array( DeveloperKeysPage::class, 'handle_update' ),
 			'wpcap_developer_key_revoke' => array( DeveloperKeysPage::class, 'handle_revoke' ),
