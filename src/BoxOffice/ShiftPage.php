@@ -410,7 +410,9 @@ final class ShiftPage {
 		echo '<table class="form-table" role="presentation"><tbody>';
 		echo '<tr><th scope="row"><label for="wpcap-reg-name">' . esc_html__( 'Name', 'wp-pass-captain' ) . '</label></th><td><input type="text" id="wpcap-reg-name" name="name" required maxlength="100" value="' . esc_attr( $edit ? $edit->name : '' ) . '"></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-reg-location">' . esc_html__( 'Standort', 'wp-pass-captain' ) . '</label></th><td><input type="text" id="wpcap-reg-location" name="location" maxlength="190" value="' . esc_attr( $edit ? $edit->location : '' ) . '"></td></tr>';
-		echo '<tr><th scope="row"><label for="wpcap-reg-event">' . esc_html__( 'Nur für Event (ID, optional)', 'wp-pass-captain' ) . '</label></th><td><input type="number" min="0" id="wpcap-reg-event" name="event_id" class="small-text" value="' . esc_attr( $edit ? (string) (int) $edit->event_id : '0' ) . '"></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-reg-event">' . esc_html__( 'Nur für Event (optional)', 'wp-pass-captain' ) . '</label></th><td>';
+		\PassCaptain\Admin\Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'wp-pass-captain' ) ) + \PassCaptain\Admin\Queries::event_options( \PassCaptain\Admin\Queries::event_ids_for( array( Service::CAP ) ) ), $edit ? (int) $edit->event_id : 0, 'wpcap-reg-event' );
+		echo '</td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-reg-currency">' . esc_html__( 'Währung', 'wp-pass-captain' ) . '</label></th><td><input type="text" id="wpcap-reg-currency" name="currency" size="4" maxlength="3" value="' . esc_attr( $edit ? $edit->currency : 'EUR' ) . '"></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Blindzählung', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="blind_count" value="1"' . ( ! $edit || (int) $edit->blind_count ? ' checked' : '' ) . '> ' . esc_html__( 'Soll-Bestand erst nach der Zählung anzeigen', 'wp-pass-captain' ) . '</label></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th><td>';

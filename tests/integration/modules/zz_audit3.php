@@ -613,3 +613,10 @@ $a49c_ue = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types 
 $wpdb->query( "UPDATE {$p}wpcap_events SET name='Einzelname A49' WHERE event_id=$a49c_ue" );
 $a49c = PassCaptain\Admin\Queries::event_options( array_merge( $a49c_e, array( $a49c_ue ) ) );
 check( 'A049c: duplicate names get date and ID, unique names stay plain', 0 === strpos( $a49c[ $a49c_e[0] ], 'Doppelname A49 (' ) && false !== strpos( $a49c[ $a49c_e[0] ], '#' . $a49c_e[0] . ')' ) && $a49c[ $a49c_e[0] ] !== $a49c[ $a49c_e[1] ] && 'Einzelname A49' === $a49c[ $a49c_ue ] );
+
+echo "Audit 3: partner forms offer choices instead of raw IDs (A049d)\n";
+$a49d = PassCaptain\Partners\AdminPage::sales_choices();
+$a49d_type = make_type( 10, 5, 1000 );
+$a49d = PassCaptain\Partners\AdminPage::sales_choices();
+$a49d_occ = (int) $wpdb->get_var( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=$a49d_type" );
+check( 'A049d: upcoming dates and their ticket types are offered with event, date and name', isset( $a49d['occurrences'][ $a49d_occ ], $a49d['types'][ $a49d_type ] ) && false !== strpos( $a49d['types'][ $a49d_type ], ' – ' ) && false !== strpos( $a49d['types'][ $a49d_type ], '(#' . $a49d_type . ')' ) );

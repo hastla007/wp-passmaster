@@ -322,8 +322,39 @@ final class AdminPage {
 		echo '</tbody></table>';
 	}
 
+	/**
+	 * Choices for the price list and contingent forms (labels instead of raw IDs): upcoming dates,
+	 * their ticket types and the active holds (module "Kontingente").
+	 *
+	 * @return array{occurrences: array<int,string>, types: array<int,string>, holds: array<int,string>}
+	 */
+	public static function sales_choices() {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$out = array( 'occurrences' => array(), 'types' => array(), 'holds' => array() );
+		$since = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,e.name,tt.ticket_type_id,tt.name AS type_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id WHERE o.status='scheduled' AND o.starts_at >= %s ORDER BY o.starts_at,e.name,tt.ticket_type_id LIMIT 1000", $since ) );
+		foreach ( (array) $rows as $row ) {
+			$occ = $row->name . ' – ' . \PassCaptain\Orders::format_start( $row->starts_at, $row->timezone );
+			$out['occurrences'][ (int) $row->occurrence_id ] = $occ . ' (#' . (int) $row->occurrence_id . ')';
+			if ( $row->ticket_type_id ) { $out['types'][ (int) $row->ticket_type_id ] = $occ . ' – ' . $row->type_name . ' (#' . (int) $row->ticket_type_id . ')'; }
+		}
+		if ( \PassCaptain\Privacy::has_table( 'wpcap_alloc_holds' ) ) {
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT h.hold_id,h.name,h.occurrence_id FROM {$p}wpcap_alloc_holds h INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=h.occurrence_id WHERE h.status='active' AND o.starts_at >= %s ORDER BY o.starts_at,h.hold_id LIMIT 500", $since ) ) as $hold ) {
+				$out['holds'][ (int) $hold->hold_id ] = ( '' !== (string) $hold->name ? $hold->name : __( 'Kontingent', 'wp-pass-captain' ) ) . ' – ' . ( $out['occurrences'][ (int) $hold->occurrence_id ] ?? '#' . (int) $hold->occurrence_id ) . ' (Hold #' . (int) $hold->hold_id . ')';
+			}
+		}
+		return $out;
+	}
+
+	/** Label of an ID from a choice list, else "#ID" (e.g. past dates). */
+	private static function choice_label( array $choices, $id ) {
+		return $choices[ (int) $id ] ?? '#' . (int) $id;
+	}
+
 	/** Price list, contingents and reseller statement of a partner. */
 	private static function render_sales( $partner ) {
+		$choices = self::sales_choices();
 		$pid = (int) $partner->partner_id;
 		echo '<h2>' . esc_html__( 'Preisliste und Sortiment', 'wp-pass-captain' ) . '</h2>';
 		echo '<p class="description">' . esc_html( Repository::ROLE_RESELLER === Repository::role_of( $partner ) ? __( 'Wiederverkäufer dürfen nur die hier eingetragenen Ticketarten verkaufen. Ohne Preis gilt der Standardpreis der Ticketart.', 'wp-pass-captain' ) : __( 'Veranstalter dürfen alle Ticketarten ihrer Events verkaufen; hier eingetragene Preise ersetzen den Standardpreis.', 'wp-pass-captain' ) ) . '</p>';
@@ -332,7 +363,7 @@ final class AdminPage {
 			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Ticketart', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Preis', 'wp-pass-captain' ) . '</th><th scope="col"></th></tr></thead><tbody>';
 			foreach ( $prices as $type_id => $row ) {
 				$label = null === $row->price_minor ? __( 'Standardpreis', 'wp-pass-captain' ) : Forms::money_input( (int) $row->price_minor ) . ' ' . ( $row->price_is_net ? __( 'netto', 'wp-pass-captain' ) : __( 'brutto', 'wp-pass-captain' ) );
-				echo '<tr><td>#' . (int) $type_id . '</td><td>' . esc_html( $label ) . '</td><td>';
+				echo '<tr><td>' . esc_html( self::choice_label( $choices['types'], $type_id ) ) . '</td><td>' . esc_html( $label ) . '</td><td>';
 				self::button( 'delete_price', array( 'partner_id' => $pid, 'ticket_type_id' => (int) $type_id ), __( 'Entfernen', 'wp-pass-captain' ) );
 				echo '</td></tr>';
 			}
@@ -341,7 +372,9 @@ final class AdminPage {
 		Forms::open_form( self::ACTION );
 		Forms::hidden( 'do', 'save_price' );
 		Forms::hidden( 'partner_id', $pid );
-		echo '<p><label>' . esc_html__( 'Ticketart-ID', 'wp-pass-captain' ) . ' <input type="number" name="ticket_type_id" min="1" required style="width:7em"></label> <label>' . esc_html__( 'Preis (leer = Standardpreis)', 'wp-pass-captain' ) . ' <input type="text" name="price" inputmode="decimal" style="width:7em"></label> ';
+		echo '<p><label>' . esc_html__( 'Ticketart', 'wp-pass-captain' ) . ' ';
+		Forms::select( 'ticket_type_id', $choices['types'], '' );
+		echo '</label> <label>' . esc_html__( 'Preis (leer = Standardpreis)', 'wp-pass-captain' ) . ' <input type="text" name="price" inputmode="decimal" style="width:7em"></label> ';
 		Forms::select( 'price_basis', array( 'gross' => __( 'brutto', 'wp-pass-captain' ), 'net' => __( 'netto (zzgl. USt der Ticketart)', 'wp-pass-captain' ) ), 'gross' );
 		echo ' ';
 		submit_button( __( 'Hinzufügen/Ändern', 'wp-pass-captain' ), 'secondary', 'submit', false );
@@ -352,7 +385,7 @@ final class AdminPage {
 		if ( $contingents ) {
 			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Termin', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Ticketart', 'wp-pass-captain' ) . '</th><th scope="col" class="num">' . esc_html__( 'Menge', 'wp-pass-captain' ) . '</th><th scope="col" class="num">' . esc_html__( 'Genutzt', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Hold', 'wp-pass-captain' ) . '</th><th scope="col"></th></tr></thead><tbody>';
 			foreach ( $contingents as $c ) {
-				echo '<tr><td>#' . (int) $c->occurrence_id . '</td><td>' . ( (int) $c->ticket_type_id ? '#' . (int) $c->ticket_type_id : esc_html__( 'alle', 'wp-pass-captain' ) ) . '</td><td class="num">' . ( (int) $c->quantity ? (int) $c->quantity : '—' ) . '</td><td class="num">' . (int) Sales::contingent_used( $c ) . '</td><td>' . ( (int) $c->allocation_id ? '#' . (int) $c->allocation_id : '—' ) . '</td><td>';
+				echo '<tr><td>' . esc_html( self::choice_label( $choices['occurrences'], $c->occurrence_id ) ) . '</td><td>' . ( (int) $c->ticket_type_id ? esc_html( self::choice_label( $choices['types'], $c->ticket_type_id ) ) : esc_html__( 'alle', 'wp-pass-captain' ) ) . '</td><td class="num">' . ( (int) $c->quantity ? (int) $c->quantity : '—' ) . '</td><td class="num">' . (int) Sales::contingent_used( $c ) . '</td><td>' . ( (int) $c->allocation_id ? esc_html( self::choice_label( $choices['holds'], $c->allocation_id ) ) : '—' ) . '</td><td>';
 				self::button( 'delete_contingent', array( 'id' => (int) $c->contingent_id, 'partner_id' => $pid ), __( 'Löschen', 'wp-pass-captain' ), __( 'Kontingent löschen?', 'wp-pass-captain' ) );
 				echo '</td></tr>';
 			}
@@ -361,7 +394,13 @@ final class AdminPage {
 		Forms::open_form( self::ACTION );
 		Forms::hidden( 'do', 'save_contingent' );
 		Forms::hidden( 'partner_id', $pid );
-		echo '<p><label>' . esc_html__( 'Termin-ID', 'wp-pass-captain' ) . ' <input type="number" name="occurrence_id" min="1" required style="width:7em"></label> <label>' . esc_html__( 'Ticketart-ID (0 = alle)', 'wp-pass-captain' ) . ' <input type="number" name="ticket_type_id" min="0" value="0" style="width:7em"></label> <label>' . esc_html__( 'Menge (0 = ohne eigene Grenze)', 'wp-pass-captain' ) . ' <input type="number" name="quantity" min="0" value="0" style="width:7em"></label> <label>' . esc_html__( 'Hold-ID (optional)', 'wp-pass-captain' ) . ' <input type="number" name="allocation_id" min="0" value="0" style="width:7em"></label> ';
+		echo '<p><label>' . esc_html__( 'Termin', 'wp-pass-captain' ) . ' ';
+		Forms::select( 'occurrence_id', $choices['occurrences'], '' );
+		echo '</label> <label>' . esc_html__( 'Ticketart', 'wp-pass-captain' ) . ' ';
+		Forms::select( 'ticket_type_id', array( 0 => __( 'alle Ticketarten des Termins', 'wp-pass-captain' ) ) + $choices['types'], 0 );
+		echo '</label> <label>' . esc_html__( 'Menge (0 = ohne eigene Grenze)', 'wp-pass-captain' ) . ' <input type="number" name="quantity" min="0" value="0" style="width:7em"></label> <label>' . esc_html__( 'Aus Kontingent (optional)', 'wp-pass-captain' ) . ' ';
+		Forms::select( 'allocation_id', array( 0 => __( '— keins —', 'wp-pass-captain' ) ) + $choices['holds'], 0 );
+		echo '</label> ';
 		submit_button( __( 'Speichern', 'wp-pass-captain' ), 'secondary', 'submit', false );
 		echo '</p></form>';
 

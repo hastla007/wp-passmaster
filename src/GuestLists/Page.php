@@ -185,6 +185,15 @@ final class Page {
 		echo '</div>';
 	}
 
+	/** Users who may approve comps (user id => "Name (login)"); keeps a stored approver in the list. */
+	private static function approver_choices( $current ) {
+		$out = array();
+		$users = function_exists( 'get_users' ) ? get_users( array( 'capability__in' => array( Service::APPROVE_CAP, 'manage_options' ), 'fields' => array( 'ID', 'display_name', 'user_login' ), 'number' => 200, 'orderby' => 'display_name' ) ) : array();
+		foreach ( (array) $users as $user ) { $out[ (int) $user->ID ] = $user->display_name . ' (' . $user->user_login . ')'; }
+		if ( $current && ! isset( $out[ $current ] ) ) { $out[ $current ] = '#' . $current; }
+		return $out;
+	}
+
 	private static function occurrence_options( $event_id, $with_all = false ) {
 		$out = $with_all ? array( 0 => __( 'Alle Termine', 'wp-pass-captain' ) ) : array();
 		// Scheduled dates only; running/upcoming first (default), past ones marked (Queries::occurrence_choices()).
@@ -232,7 +241,9 @@ final class Page {
 		Forms::select( 'occurrence_id', $occurrences, $list ? (int) $list->occurrence_id : 0, 'wpcap-gl-occ' );
 		echo '</td></tr>';
 		echo '<tr><th><label for="wpcap-gl-quota">' . esc_html__( 'Kontingent (Tickets inkl. Begleitung)', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-gl-quota" type="number" min="0" name="quota" value="' . esc_attr( $list ? (int) $list->quota : 0 ) . '"><p class="description">' . esc_html__( '0 = unbegrenzt. Freikarten verbrauchen die Kapazität des Termins wie verkaufte Tickets.', 'wp-pass-captain' ) . '</p></td></tr>';
-		echo '<tr><th><label for="wpcap-gl-approver">' . esc_html__( 'Freigabe nur durch Benutzer-ID', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-gl-approver" type="number" min="0" name="approver_id" value="' . esc_attr( $list ? (int) $list->approver_id : 0 ) . '"><p class="description">' . esc_html__( '0 = alle mit dem Recht „Freikarten freigeben“ für dieses Event.', 'wp-pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th><label for="wpcap-gl-approver">' . esc_html__( 'Freigabe nur durch', 'wp-pass-captain' ) . '</label></th><td>';
+		Forms::select( 'approver_id', array( 0 => __( 'alle Berechtigten', 'wp-pass-captain' ) ) + self::approver_choices( $list ? (int) $list->approver_id : 0 ), $list ? (int) $list->approver_id : 0, 'wpcap-gl-approver' );
+		echo '<p class="description">' . esc_html__( '0 = alle mit dem Recht „Freikarten freigeben“ für dieses Event.', 'wp-pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th><label for="wpcap-gl-note">' . esc_html__( 'Notiz', 'wp-pass-captain' ) . '</label></th><td><textarea id="wpcap-gl-note" name="note" rows="2" class="large-text">' . esc_textarea( $list ? (string) $list->note : '' ) . '</textarea></td></tr>';
 		echo '</tbody></table><p><button class="button button-primary">' . esc_html__( 'Liste speichern', 'wp-pass-captain' ) . '</button></p></form>';
 	}
