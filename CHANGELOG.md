@@ -45,6 +45,7 @@
 - Ticketmail: Scheitert der Versand, wird ein Wiederholungsjob (neue Codes, Backoff) geplant; die Bestellansicht zeigt den offenen bzw. endgültig gescheiterten Versand.
 - Erstattungen: Datenbankschritte (Anlage, Freigabe, Start, Verbuchung, externe Erstattungen) werden geprüft; nach erfolgreicher Auszahlung wird zuerst die Provider-Referenz gespeichert und die Verbuchung in einer Transaktion abgeschlossen. Scheitert sie, bleibt die Erstattung „processing“ und ein Reparaturjob bucht sie ohne zweite Auszahlung nach; hängende Erstattungen ohne Referenz werden zur manuellen Prüfung markiert.
 - Queue-Worker (Jobs, Nachrichtenqueue): Transaktionsstart, Claim-Update (genau eine Zeile) und COMMIT werden geprüft; ohne dauerhaften Claim läuft kein Handler bzw. wird keine Mail versendet (keine Doppelausführung).
+- Sammel-Nachsendung: Codewechsel pro Bestellung serialisiert (Zeilensperre) und atomar (alle oder keiner, Rowcount geprüft); Rotations-Hooks erst nach dem COMMIT; scheitert der Versand, wird automatisch ein Wiederholungsjob geplant.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

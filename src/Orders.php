@@ -1548,7 +1548,7 @@ final class Orders {
 		$order_id = absint( $payload['order_id'] ?? 0 );
 		$order = self::get( $order_id );
 		if ( ! $order || 'paid' !== $order->payment_status ) { return true; } // Nothing (more) to send.
-		$result = self::resend_tickets( $order_id );
+		$result = self::resend_tickets( $order_id, array( 'from_job' => true ) );
 		if ( is_wp_error( $result ) && 'wpcap_no_resendable_tickets' === $result->get_error_code() ) { return true; }
 		return true === $result;
 	}
@@ -1613,31 +1613,65 @@ final class Orders {
 		return (string) apply_filters( 'wpcap_sender_name', '' !== trim( $name ) ? $name : (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
 	}
 
-	public static function resend_tickets( $order_id ) {
+	/**
+	 * Resends all valid tickets of a paid order with new codes (codes are stored hashed). The rotation
+	 * is serialised per order (order row lock) and atomic: either every code is replaced or none, so a
+	 * failure never leaves old codes invalid without a mail, and parallel resends cannot mail links
+	 * that a concurrent rotation already replaced. A failed mail schedules a retry job (new codes).
+	 *
+	 * @param int   $order_id Order ID.
+	 * @param array $args     from_job (bool, internal: the retry job reschedules itself).
+	 * @return true|\WP_Error
+	 */
+	public static function resend_tickets( $order_id, array $args = array() ) {
 		global $wpdb;
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		$order_id = absint( $order_id );
+		$tx = $wpdb->query( 'START TRANSACTION' );
+		$order = false === $tx ? null : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( false === $tx ) {
+			return new \WP_Error( 'wpcap_db_busy', __( 'Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		}
 		if ( ! $order || 'paid' !== $order->payment_status ) {
+			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_order_unpaid', __( 'Tickets können erst nach bestätigter Zahlung erneut gesendet werden.', 'wp-pass-captain' ) );
 		}
 		$tickets = $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.ticket_id,t.status,t.attendee_email,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status='valid' ORDER BY t.ticket_id",
+			"SELECT t.ticket_id,t.status,t.attendee_email,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status='valid' ORDER BY t.ticket_id FOR UPDATE",
 			$order_id
 		) );
-		// Codes are stored hashed, so a resend has to rotate them. Checked-in tickets are skipped:
-		// they are used, and rotating them would only invalidate the holder's admission history link.
+		// Checked-in tickets are skipped: they are used, and rotating them would only invalidate the
+		// holder's admission history link.
 		if ( ! $tickets ) {
+			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_no_resendable_tickets', __( 'Keine gültigen Tickets für den erneuten Versand gefunden.', 'wp-pass-captain' ) );
 		}
 		$entries = array();
+		$rotated = array();
 		foreach ( $tickets as $ticket ) {
 			$token = bin2hex( random_bytes( 32 ) );
 			$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'token_hash' => hash( 'sha256', $token ) ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => $ticket->status ), array( '%s' ), array( '%d', '%s' ) );
-			if ( false === $updated ) {
-				return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ) );
+			if ( 1 !== (int) $updated ) {
+				// All or nothing: no old code becomes invalid without the new one being mailed.
+				$wpdb->query( 'ROLLBACK' );
+				return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 			}
-			do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'resend' );
+			$rotated[ (int) $ticket->ticket_id ] = $token;
 			$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
-			$entries[ $recipient ][] = array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'extra' => (string) apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id ) );
+			$entries[ $recipient ][] = array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'ticket_id' => (int) $ticket->ticket_id );
+		}
+		if ( false === $wpdb->query( 'COMMIT' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		}
+		foreach ( $rotated as $rotated_id => $rotated_token ) {
+			do_action( 'wpcap_ticket_code_rotated', $rotated_id, $rotated_token, 'resend' );
+		}
+		// Mail sections are built after the rotation hooks (e.g. wallet passes see the new code).
+		foreach ( $entries as $recipient => $list ) {
+			foreach ( $list as $i => $entry ) {
+				$entries[ $recipient ][ $i ]['extra'] = (string) apply_filters( 'wpcap_ticket_code_mail_section', '', $entry['ticket_id'] );
+				unset( $entries[ $recipient ][ $i ]['ticket_id'] );
+			}
 		}
 		$sent = true;
 		foreach ( $entries as $recipient => $list ) {
@@ -1645,7 +1679,11 @@ final class Orders {
 			$sent = Mail\Mailer::send( 'tickets_resend', $recipient, $vars, array(), (string) $order->locale ) && $sent;
 		}
 		if ( ! $sent ) {
-			return new \WP_Error( 'wpcap_mail_failed', __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; bitte versuche den Versand erneut.', 'wp-pass-captain' ) );
+			Audit::record( 'ticket_mail_failed', 'order', $order_id, array( 'tickets' => count( $tickets ), 'resend' => true ) );
+			if ( empty( $args['from_job'] ) ) {
+				Jobs::enqueue( 'ticket-mail-retry|' . $order_id . '|' . time(), 'ticket_mail_retry', array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+			}
+			return new \WP_Error( 'wpcap_mail_failed', __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; der Versand wird automatisch wiederholt.', 'wp-pass-captain' ) );
 		}
 		Audit::record( 'tickets_resent', 'order', $order_id, array( 'ticket_count' => count( $tickets ) ) );
 		return true;

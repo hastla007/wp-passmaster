@@ -522,3 +522,25 @@ $a41_sent = static fn() => count( array_filter( $GLOBALS['wpcap_test_mails'], st
 check( 'A041: a failed message claim sends nothing and leaves the message queued', 0 === $a41_sent() && 'queued' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_message_queue WHERE template_key='a41_probe'" ) );
 PassCaptain\Communications::process_due();
 check( 'A041: the next run sends the message exactly once', 1 === $a41_sent() && 'sent' === $wpdb->get_var( "SELECT status FROM {$p}wpcap_message_queue WHERE template_key='a41_probe'" ) );
+
+echo "Audit 3: bulk resend rotates all codes or none, retries a failed mail (A042)\n";
+list( $a42_o, $a42_t ) = ex_buy( $a4_std, 2, 'a42@example.com' );
+$a42_hashes = static fn() => $wpdb->get_col( $wpdb->prepare( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=%d ORDER BY ticket_id", $a42_o ) );
+$a42_before = $a42_hashes();
+$a42_n = 0;
+$a42_fail = static function ( $sql ) use ( &$a42_n ) { if ( preg_match( '/^UPDATE \w*wpcap_tickets SET token_hash=/', $sql ) && 2 === ++$a42_n ) { return 'UPDATE wpcap_table_that_does_not_exist SET x=1'; } return $sql; };
+$GLOBALS['wpcap_test_mails'] = array();
+add_filter( 'query', $a42_fail );
+$a42 = Orders::resend_tickets( $a42_o );
+remove_filter( 'query', $a42_fail );
+check( 'A042: a failed rotation of the 2nd ticket keeps every old code and sends nothing', is_wp_error( $a42 ) && 'wpcap_ticket_rotation_failed' === $a42->get_error_code() && $a42_before === $a42_hashes() && ! array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => 'a42@example.com' === $m['to'] ) );
+$a42_block = static function () { return false; };
+add_filter( 'wpcap_mail', $a42_block );
+$a42_mailfail = Orders::resend_tickets( $a42_o );
+remove_filter( 'wpcap_mail', $a42_block );
+$a42_job = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type='ticket_mail_retry' AND status='queued' AND payload=%s", wp_json_encode( array( 'order_id' => $a42_o ) ) ) );
+check( 'A042: a failed resend mail schedules a retry job', is_wp_error( $a42_mailfail ) && 'wpcap_mail_failed' === $a42_mailfail->get_error_code() && (int) $a42_job >= 1 );
+$GLOBALS['wpcap_test_mails'] = array();
+$a42_ok = Orders::resend_tickets( $a42_o );
+$a42_after = $a42_hashes();
+check( 'A042: a successful resend replaces both codes and mails them', true === $a42_ok && $a42_before[0] !== $a42_after[0] && $a42_before[1] !== $a42_after[1] && 1 === count( array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => 'a42@example.com' === $m['to'] ) ) );

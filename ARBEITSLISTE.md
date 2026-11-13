@@ -97,7 +97,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - src/Refunds.php:177,185-186: COMMIT bzw. approve-Update ungeprüft; keine persistente Zustandsmaschine/Reparatur nach Provider-Erfolg gefunden
 - [x] **A041** [P2] Queue-Worker prüfen Claim/Commit nicht vor Ausführung — _OFFEN_ (TODO L309; Bestätigte Befunde)
   - src/Jobs.php:35-38 und src/Communications.php:45-48: update-Rowcount und COMMIT ungeprüft, Handler/Mailversand läuft trotzdem
-- [ ] **A042** [P2] Sammel-Nachsendung: Rotation unserialisiert, Rowcount 0 kein Fehler — _TEILWEISE_ (TODO L310; Bestätigte Befunde)
+- [x] **A042** [P2] Sammel-Nachsendung: Rotation unserialisiert, Rowcount 0 kein Fehler — _TEILWEISE_ (TODO L310; Bestätigte Befunde)
   - src/Orders.php:1517-1521: nur `false` geprüft, kein Lock/Rowcount/Outbox; nur reissue_ticket (1562-1570) mit FOR UPDATE und Rowcount-Prüfung
 - [ ] **A043** [P2] cancel_order ignoriert DB-Fehler, Webhook gilt als verarbeitet — _OFFEN_ (TODO L311; Bestätigte Befunde)
   - src/Orders.php:1017-1036: Reservierungs-, Widerrufs-, Status-Update und COMMIT ungeprüft, gibt immer true zurück
