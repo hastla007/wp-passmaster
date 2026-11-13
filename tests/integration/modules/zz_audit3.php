@@ -443,3 +443,13 @@ $a36_ok = PassCaptain\Installer::missing_schema( array( "CREATE TABLE {$p}wpcap_
 $a36_bad = PassCaptain\Installer::missing_schema( array( "CREATE TABLE {$p}wpcap_orders (\n order_id bigint(20) NOT NULL,\n gibt_es_nicht varchar(10) NOT NULL,\n KEY x (order_id)\n) ENGINE=InnoDB;", "CREATE TABLE {$p}wpcap_fehlt (\n id int NOT NULL\n) ENGINE=InnoDB;" ) );
 check( 'A036: missing columns and tables are detected', array() === $a36_ok && in_array( $p . 'wpcap_orders.gibt_es_nicht', $a36_bad, true ) && in_array( $p . 'wpcap_fehlt', $a36_bad, true ) );
 check( 'A036: the full plugin schema is complete after install', false === get_option( 'wpcap_schema_error' ) );
+
+echo "Audit 3: webhook claim errors are retried, not reported as duplicates (A037)\n";
+$a37_fail = static function ( $sql ) { return false !== stripos( $sql, 'INSERT IGNORE INTO' ) && false !== stripos( $sql, 'wpcap_payment_events' ) ? 'INSERT INTO wpcap_table_that_does_not_exist VALUES (1)' : $sql; };
+add_filter( 'query', $a37_fail );
+$a37 = PassCaptain\Payments\Webhooks::process( 'stripe', array( 'event_id' => 'evt_a37_' . uniqid(), 'type' => 'paid', 'order_public_id' => str_repeat( 'a', 32 ) ) );
+remove_filter( 'query', $a37_fail );
+check( 'A037: a database error while claiming the event returns a retryable 503', is_wp_error( $a37 ) && 503 === $a37->get_error_data()['status'] && ! empty( $a37->get_error_data()['retryable'] ) );
+$a37_id = 'evt_a37b_' . uniqid();
+PassCaptain\Payments\Webhooks::process( 'stripe', array( 'event_id' => $a37_id, 'type' => 'unknown_type' ) );
+check( 'A037: a real duplicate is still reported as duplicate', 'duplicate' === PassCaptain\Payments\Webhooks::process( 'stripe', array( 'event_id' => $a37_id, 'type' => 'unknown_type' ) ) );

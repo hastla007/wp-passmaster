@@ -46,7 +46,11 @@ final class Webhooks {
 		// A claim left in "processing" by a crashed request may be taken over after 10 minutes.
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_payment_events WHERE provider=%s AND provider_event_id=%s AND status='processing' AND updated_at < %s", $provider, $event_id, gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS ) ) );
 		$claimed = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_payment_events (provider,provider_event_id,event_type,status,created_at,updated_at) VALUES (%s,%s,%s,'processing',%s,%s)", $provider, $event_id, sanitize_key( $event['type'] ?? '' ), $now, $now ) );
-		if ( ! $claimed ) {
+		if ( false === $claimed ) {
+			// Database error (not a duplicate): the provider must redeliver the event.
+			return new \WP_Error( 'wpcap_db_busy', __( 'Das Ereignis konnte gerade nicht gespeichert werden. Bitte erneut zustellen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		}
+		if ( 0 === (int) $claimed ) {
 			return 'duplicate';
 		}
 		$release = static function () use ( $wpdb, $p, $provider, $event_id ) {

@@ -87,7 +87,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - .github/workflows/release.yml:30-31: `github.ref_type == 'tag'` startet Release ohne CI-Status- oder Main-Ancestry-Prüfung; keine negativen Workflow-Tests
 - [x] **A036** [P1] dbDelta-Fehler ungeprüft, Version/Fingerprint trotzdem gespeichert — _OFFEN_ (TODO L292; Bestätigte Befunde)
   - src/Installer.php:671-687: dbDelta()-Ergebnis ignoriert, danach update_option wpcap_db_version und wpcap_schema_fingerprint ohne Schema-Verifikation
-- [ ] **A037** [P1] Webhook INSERT IGNORE: DB-Fehler als duplicate gemeldet — _OFFEN_ (TODO L293; Bestätigte Befunde)
+- [x] **A037** [P1] Webhook INSERT IGNORE: DB-Fehler als duplicate gemeldet — _OFFEN_ (TODO L293; Bestätigte Befunde)
   - src/Payments/Webhooks.php:46-49: `if ( ! $claimed ) return 'duplicate'` unterscheidet 0 und false weiterhin nicht
 - [ ] **A038** [P1] Ticketausgabe: DB-Schreibfehler/Transaktion ungeprüft, Teilnehmerdaten gelöscht — _OFFEN_ (TODO L294; Bestätigte Befunde)
   - src/Orders.php:1363-1412: START TRANSACTION/insert/update/COMMIT ungeprüft; attendee_data wird bei `$issued` gelöscht (1407-1410)
