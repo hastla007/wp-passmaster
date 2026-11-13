@@ -36,7 +36,7 @@ final class Retention {
 	const HOOK = 'wpcap_privacy_retention';
 	const BATCH = 500;
 
-	/** Registers the daily event (runs on init, activation and after upgrades). */
+	/** Registers the daily event (activation, upgrades and the self-healing check on init, Plugin::ensure_events()). */
 	public static function schedule() {
 		if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( self::HOOK ) ) {
 			wp_schedule_event( time() + 2 * HOUR_IN_SECONDS, 'daily', self::HOOK );

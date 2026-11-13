@@ -28,10 +28,15 @@ Die Partner-Plugins heißen entsprechend **Voucher Captain** und **Affiliate Cap
    bleibt dabei installiert.
 3. Pass Captain schaltet die alte Kopie automatisch ab (beide dürfen nie gleichzeitig laufen) und übernimmt alle
    Daten unverändert; das Datenbank-Upgrade läuft beim nächsten Aufruf des Admin-Bereichs.
-4. Die alte Kopie unter *Plugins* löschen. Solange ihr Ordner existiert, ist „Beim Löschen des Plugins alle Daten entfernen“
+4. Die alte Kopie unter *Plugins* (bzw. im Netzwerk-Admin) löschen. Solange ihr Ordner existiert, ist „Beim Löschen des Plugins alle Daten entfernen“
    pausiert (ein Hinweis zeigt das an): Das Löschen der alten Kopie führt deren `uninstall.php` aus, die sonst die
    gemeinsamen Tabellen entfernen würde. Danach wird die Einstellung automatisch wiederhergestellt und die von der
    alten Kopie entfernten Cron-Ereignisse werden neu eingeplant.
+
+   Die Pause greift bei jedem Laden von Pass Captain (Admin, Frontend, Cron, WP-CLI) und auf einem Multisite-Netzwerk
+   für **alle** Sites – die `uninstall.php` der alten Kopie läuft über alle Sites des Netzwerks, auch über solche,
+   deren Admin-Bereich seit dem Umstieg niemand geöffnet hat. Fehlende Cron-Ereignisse plant jede Site beim nächsten
+   Aufruf selbst neu ein.
 
 ## Alte Adressen funktionieren weiter
 
@@ -58,4 +63,5 @@ bleibt mindestens für die Lebensdauer der ausgegebenen Wallet-Pässe erhalten.
   Vorgänger-Release und Daten → neues ZIP installieren und aktivieren → alte Kopie abgeschaltet, Daten unverändert,
   alte REST-URLs antworten, Löschen der alten Kopie behält die Daten, Cron-Ereignisse wieder eingeplant, keine
   PHP-Meldungen.
+- `tests/wp-matrix/rename-takeover-ms.sh` (CI): dasselbe auf einem Multisite-Netzwerk – alte Kopie netzwerkweit aktiv, Subsite mit „Daten beim Löschen entfernen“, Deinstallation der alten Kopie im Netzwerk ohne Aufruf der Subsite: Tabellen und Daten bleiben, Einstellung wird wiederhergestellt, Cron neu eingeplant.
 - `tests/wp-matrix/zip-install.sh`: das neue ZIP in einer frischen Installation.

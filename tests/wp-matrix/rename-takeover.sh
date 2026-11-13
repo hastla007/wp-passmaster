@@ -64,7 +64,7 @@ WH="$(wpc eval '$r = rest_do_request( new WP_REST_Request( "POST", "/wp-pass-cap
 [ "$WH" != "404" ] && ok "old payment webhook URL is routed (status $WH, not 404)" || bad "old webhook URL returns 404"
 
 # 4. Delete the old copy (its own uninstall.php runs): data stays, cron comes back, setting restored.
-wpc plugin delete "$OLD" >/dev/null 2>&1 && ok "old copy deleted (its uninstall.php ran)" || bad "deleting the old copy failed"
+wpc plugin uninstall "$OLD" >/dev/null 2>&1 && ok "old copy uninstalled (its own uninstall.php ran)" || bad "uninstalling the old copy failed"
 [ "$(state)" = "$BEFORE" ] && ok "data kept although delete-on-uninstall was on" || bad "data lost when deleting the old copy: $(state)"
 wpc eval 'PassCaptain\LegacySlug::watch_legacy_copy();' >/dev/null
 DEL2="$(wpc eval '$s = get_option( "wpcap_settings" ); echo (int) ( $s["delete_data_on_uninstall"] ?? 0 ), (int) get_option( "wpcap_uninstall_delete_parked" );')"

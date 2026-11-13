@@ -19,6 +19,9 @@ final class Plugin {
 		add_action( $upgrade_hook, array( __CLASS__, 'maybe_upgrade' ), 0, 0 );
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
 		LegacySlug::register();
+		// Self-healing cron: recurring events lost (cron option cleaned up by another plugin, restore, the
+		// old copy's uninstall.php) are re-scheduled on the next request; one cached option read.
+		add_action( 'init', array( __CLASS__, 'ensure_events' ), 20, 0 );
 		Settings::register();
 		Secrets::register();
 		Jobs\TimeBudget::register();
@@ -128,6 +131,13 @@ final class Plugin {
 
 	private static function activate_site() {
 		Installer::install();
+		self::schedule_events();
+	}
+
+	/** init: re-schedules the recurring events when the main queue event is missing (see run()). */
+	public static function ensure_events() {
+		if ( ! function_exists( 'wp_next_scheduled' ) || wp_next_scheduled( 'wpcap_process_jobs' ) ) { return; }
+		if ( '' === (string) get_option( 'wpcap_db_version', '' ) ) { return; } // not installed on this site (yet)
 		self::schedule_events();
 	}
 

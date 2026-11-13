@@ -81,6 +81,10 @@ jobs:
         env:
           WPCAP_ZIP_WP_VERSION: ${{ matrix.wp }}
         run: bash tests/wp-matrix/rename-takeover.sh "$RUNNER_TEMP/old.zip" build/dist/pass-captain.zip "$RUNNER_TEMP/rename"
+      - name: Same switch on a multisite network (old copy uninstalled network-wide, subsite data kept)
+        env:
+          WPCAP_ZIP_WP_VERSION: ${{ matrix.wp }}
+        run: bash tests/wp-matrix/rename-takeover-ms.sh "$RUNNER_TEMP/old.zip" build/dist/pass-captain.zip "$RUNNER_TEMP/rename-ms"
 
   woocommerce:
     # A127: the WooCommerce adapter against installed WooCommerce versions, HPOS and posts storage.
