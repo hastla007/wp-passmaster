@@ -233,8 +233,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - src/Jobs.php:42 wp_pass_captain_process_job_v1, Communications.php:51 wp_pass_captain_email_template_v1 neben wpcap_*
 - [ ] **A105** Index-Längen > 767 Bytes kürzen oder dokumentieren — _OFFEN_ (TODO L383; Architektur und Wartbarkeit (noch offen))
   - Installer.php:445,592; Modules/Wallet.php:46 unverändert; keine Doku der Mindestanforderung gefunden
-- [ ] **A106** Saalplan-Editor-JS-Texte übersetzbar machen — _TEILWEISE_ (TODO L384; Architektur und Wartbarkeit (noch offen))
+- [x] **A106** Saalplan-Editor-JS-Texte übersetzbar machen — _TEILWEISE_ (TODO L384; Architektur und Wartbarkeit (noch offen))
   - editor.js nutzt teils t.* (Zeile 108-123), aber fest codiert: 103, 124, 187, 339; Englisch-Umstieg nicht geprüft
+  - Erledigt 13.11.: alle Editor-Texte über den PHP-Katalog (Test A106). Englische Quelltexte geprüft: Umstieg beträfe alle ~3.000 Textstellen und alle Übersetzungen – nur sinnvoll vor einer Veröffentlichung auf wordpress.org; als Entscheidung offen (siehe Abschlussbericht).
 - [ ] **A107** Übersetzungen muttersprachlich prüfen, Platzhalter übersetzbar — _OFFEN_ (TODO L386; Architektur und Wartbarkeit (noch offen))
   - {Termin-ID} weiter literal (Modules/Calendar.php:270, it_IT.po:4339); kein Nachweis einer Prüfung
 

@@ -381,7 +381,7 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [ ] Gebündelte Bibliotheken (`endroid/qr-code`, `bacon`) mit Strauss/PHP-Scoper präfixieren, um Konflikte mit anderen Plugins zu vermeiden.
 - [ ] Hook-Präfixe vereinheitlichen (`wp_pass_captain_*_v1` vs. `wpcap_*`) und eine stabile Liste öffentlicher Hooks festlegen.
 - [ ] Index-Längen > 767 Bytes (`wallet_registrations.device_serial`, `payment_events.provider_event`, `member_passes.member_status`) kürzen oder Mindestanforderungen dokumentieren.
-- [ ] Fest codierte deutsche JS-Texte im Saalplan-Editor übersetzbar machen; Umstieg auf englische Quelltexte für translate.wordpress.org prüfen.
+- [x] Fest codierte deutsche JS-Texte im Saalplan-Editor übersetzbar machen; Umstieg auf englische Quelltexte für translate.wordpress.org prüfen.
 - [ ] Kassen-Warnhinweis „keine Registrierkasse“ ausblenden, sobald ein Fiskal-Adapter aktiv und eingerichtet ist (nach Merge von PR #14).
 - [ ] Übersetzungen fr_FR, it_IT, es_ES, nl_NL muttersprachlich gegenlesen lassen; Platzhalter in Hilfetexten (`{Termin-ID}` u. a.) übersetzbar machen.
 

@@ -57,13 +57,13 @@
 
 	/* ---- Layout ---- */
 	root.textContent = '';
-	const toolbar = h('div', { className: 'wpcap-se-toolbar', role: 'toolbar', 'aria-label': 'Werkzeuge' }, root);
+	const toolbar = h('div', { className: 'wpcap-se-toolbar', role: 'toolbar', 'aria-label': (t.tools || 'Werkzeuge') }, root);
 	const main = h('div', { className: 'wpcap-se-main' }, root);
 	const canvasWrap = h('div', { className: 'wpcap-se-canvas' }, main);
-	const svg = el('svg', { viewBox: '0 0 ' + draft.width + ' ' + draft.height, tabindex: '0', role: 'application', 'aria-label': 'Saalplan', 'aria-describedby': 'wpcap-se-help' }, canvasWrap);
+	const svg = el('svg', { viewBox: '0 0 ' + draft.width + ' ' + draft.height, tabindex: '0', role: 'application', 'aria-label': (t.map || 'Saalplan'), 'aria-describedby': 'wpcap-se-help' }, canvasWrap);
 	const panel = h('div', { className: 'wpcap-se-panel' }, main);
 	const status = h('p', { className: 'wpcap-se-status', role: 'status', 'aria-live': 'polite' }, root);
-	h('p', { id: 'wpcap-se-help', className: 'description' }, root, 'Klicken wählt einen Platz, Umschalt+Klick erweitert die Auswahl, Doppelklick wählt die ganze Gruppe. Ziehen oder Pfeiltasten verschieben (Umschalt: 1 px), Entf löscht, Esc hebt die Auswahl auf.');
+	h('p', { id: 'wpcap-se-help', className: 'description' }, root, (t.help || 'Klicken wählt einen Platz, Umschalt+Klick erweitert die Auswahl, Doppelklick wählt die ganze Gruppe. Ziehen oder Pfeiltasten verschieben (Umschalt: 1 px), Entf löscht, Esc hebt die Auswahl auf.'));
 
 	function numberInput(parent, label, value, min, max) {
 		const wrap = h('label', {}, parent, label + ' ');
@@ -98,21 +98,21 @@
 
 	/* ---- Toolbar: generators ---- */
 	const tools = h('details', { className: 'wpcap-se-tools', open: '' }, toolbar);
-	h('summary', {}, tools, 'Hinzufügen');
+	h('summary', {}, tools, (t.add || 'Hinzufügen'));
 	const toolGrid = h('div', { className: 'wpcap-se-toolgrid' }, tools);
-	const defaults = h('fieldset', {}, toolGrid); h('legend', {}, defaults, 'Standard für neue Plätze');
+	const defaults = h('fieldset', {}, toolGrid); h('legend', {}, defaults, (t.defaults || 'Standard für neue Plätze'));
 	const defZone = listSelect(defaults, t.zone || 'Bereich', 'zones', draft.zones[0] ? draft.zones[0].key : '');
 	const defCat = listSelect(defaults, t.category || 'Kategorie', 'categories', draft.categories[0] ? draft.categories[0].key : '');
-	const spacing = numberInput(defaults, 'Abstand', 30, 22, 100);
+	const spacing = numberInput(defaults, (t.spacing || 'Abstand'), 30, 22, 100);
 
 	const rowBox = h('fieldset', {}, toolGrid); h('legend', {}, rowBox, t.row || 'Reihe');
 	const rowSeats = numberInput(rowBox, t.seats || 'Plätze', 10, 1, 200);
-	const rowStart = numberInput(rowBox, 'ab Nr.', 1, 0, 9999);
+	const rowStart = numberInput(rowBox, (t.startNumber || 'ab Nr.'), 1, 0, 9999);
 	h('button', { type: 'button', className: 'button' }, rowBox, '+ ' + (t.row || 'Reihe')).addEventListener('click', function () {
 		addRows(1, Number(rowSeats.value) || 1, Number(rowStart.value) || 1, 'row');
 	});
 	const blockBox = h('fieldset', {}, toolGrid); h('legend', {}, blockBox, t.block || 'Block');
-	const blockRows = numberInput(blockBox, 'Reihen', 5, 1, 60);
+	const blockRows = numberInput(blockBox, (t.rows || 'Reihen'), 5, 1, 60);
 	const blockCols = numberInput(blockBox, t.seats || 'Plätze', 10, 1, 100);
 	h('button', { type: 'button', className: 'button' }, blockBox, '+ ' + (t.block || 'Block')).addEventListener('click', function () {
 		addRows(Number(blockRows.value) || 1, Number(blockCols.value) || 1, 1, 'block');
@@ -121,7 +121,7 @@
 	const tableSeats = numberInput(tableBox, t.seats || 'Plätze', 8, 2, 24);
 	h('button', { type: 'button', className: 'button' }, tableBox, '+ ' + (t.table || 'Tisch')).addEventListener('click', function () { addTable(Number(tableSeats.value) || 8); });
 	const standBox = h('fieldset', {}, toolGrid); h('legend', {}, standBox, t.standing || 'Stehbereich');
-	const standCap = numberInput(standBox, 'Kapazität', 100, 1, 2000);
+	const standCap = numberInput(standBox, (t.capacity || 'Kapazität'), 100, 1, 2000);
 	h('button', { type: 'button', className: 'button' }, standBox, '+ ' + (t.standing || 'Stehbereich')).addEventListener('click', function () {
 		const g = { key: uid('a'), type: 'standing', label: (t.standing || 'Stehbereich') + ' ' + (draft.groups.filter(function (x) { return x.type === 'standing'; }).length + 1), x: 20, y: snap(freeSpot(120)), w: 240, h: 120, capacity: Math.max(1, Math.min(2000, Number(standCap.value) || 1)), zone: defZone.value, category: defCat.value, accessible: false };
 		draft.groups.push(g);
@@ -164,7 +164,7 @@
 
 	/* ---- Zones and categories ---- */
 	const lists = h('details', { className: 'wpcap-se-lists' }, toolbar);
-	h('summary', {}, lists, (t.zone || 'Bereiche') + ' / ' + (t.category || 'Kategorien'));
+	h('summary', {}, lists, (t.zones || 'Bereiche') + ' / ' + (t.categories || 'Kategorien'));
 	function renderLists() {
 		lists.querySelectorAll('.wpcap-se-list').forEach(function (n) { n.remove(); });
 		[['zones', t.zone || 'Bereich'], ['categories', t.category || 'Kategorie']].forEach(function (pair) {
@@ -175,16 +175,16 @@
 				const row = h('div', {}, box);
 				const name = h('input', { type: 'text', value: item.name, 'aria-label': pair[1] + ' ' + item.key, maxlength: '60' }, row);
 				name.addEventListener('change', function () { item.name = name.value || item.key; dirty = true; refreshSelects(); });
-				const color = h('input', { type: 'color', value: item.color, 'aria-label': 'Farbe' }, row);
+				const color = h('input', { type: 'color', value: item.color, 'aria-label': (t.color || 'Farbe') }, row);
 				color.addEventListener('change', function () { item.color = color.value; changed(); });
 				h('code', {}, row, item.key);
 				const used = draft.seats.some(function (s) { return s[list === 'zones' ? 'zone' : 'category'] === item.key; }) || draft.groups.some(function (g) { return g[list === 'zones' ? 'zone' : 'category'] === item.key; });
-				const del = h('button', { type: 'button', className: 'button-link' }, row, 'Entfernen');
+				const del = h('button', { type: 'button', className: 'button-link' }, row, (t.remove || 'Entfernen'));
 				del.disabled = used;
 				del.addEventListener('click', function () { draft[list].splice(index, 1); changed(); renderLists(); refreshSelects(); });
 			});
 			const add = h('div', {}, box);
-			const input = h('input', { type: 'text', placeholder: 'Name', maxlength: '60', 'aria-label': pair[1] + ' hinzufügen' }, add);
+			const input = h('input', { type: 'text', placeholder: (t.name || 'Name'), maxlength: '60', 'aria-label': (t.addNamed || '%s hinzufügen').replace('%s', pair[1]) }, add);
 			h('button', { type: 'button', className: 'button' }, add, '+').addEventListener('click', function () {
 				const name = input.value.trim();
 				if (!name) return;
@@ -209,7 +209,7 @@
 	function render() {
 		while (svg.firstChild) svg.removeChild(svg.firstChild);
 		el('rect', { x: 0, y: 0, width: draft.width, height: draft.height, class: 'wpcap-se-bg' }, svg);
-		el('text', { x: draft.width / 2, y: 16, 'text-anchor': 'middle', class: 'wpcap-se-stage' }, svg).textContent = 'Bühne';
+		el('text', { x: draft.width / 2, y: 16, 'text-anchor': 'middle', class: 'wpcap-se-stage' }, svg).textContent = (t.stage || 'Bühne');
 		draft.groups.forEach(function (g) {
 			if (g.type === 'standing') {
 				const rect = el('rect', { x: g.x, y: g.y, width: g.w, height: g.h, rx: 6, fill: colorOf('categories', g.category), stroke: colorOf('zones', g.zone), class: 'wpcap-se-area' + (selectedArea === g.key ? ' is-selected' : ''), 'data-area': g.key }, svg);
@@ -316,14 +316,14 @@
 		if (selectedArea) {
 			const g = groupByKey(selectedArea);
 			if (standingLockedMax(g) > 0) { status.textContent = t.lockedDelete || ''; return; }
-			if (!window.confirm(t.confirmDelete || 'Delete?')) return;
+			if (!window.confirm(t.confirmDelete || 'Auswahl wirklich löschen?')) return;
 			draft.groups = draft.groups.filter(function (x) { return x.key !== selectedArea; });
 			selectedArea = null; changed(); return;
 		}
 		const seats = selectedSeats();
 		if (!seats.length) return;
 		if (seats.some(isLocked)) { status.textContent = t.lockedDelete || ''; return; }
-		if (!window.confirm(t.confirmDelete || 'Delete?')) return;
+		if (!window.confirm(t.confirmDelete || 'Auswahl wirklich löschen?')) return;
 		draft.seats = draft.seats.filter(function (s) { return !selection.has(s.key); });
 		draft.groups = draft.groups.filter(function (g) { return g.type === 'standing' || draft.seats.some(function (s) { return s.group === g.key; }); });
 		selection = new Set(); changed();
@@ -336,27 +336,27 @@
 			const g = groupByKey(selectedArea);
 			const lockedMax = standingLockedMax(g);
 			h('h3', {}, panel, t.standing || 'Stehbereich');
-			const label = textInput(panel, 'Name', g.label);
-			const cap = numberInput(panel, 'Kapazität', g.capacity, Math.max(1, lockedMax), 2000);
-			const w = numberInput(panel, 'Breite', g.w, 20, draft.width);
-			const hh = numberInput(panel, 'Höhe', g.h, 20, draft.height);
+			const label = textInput(panel, (t.name || 'Name'), g.label);
+			const cap = numberInput(panel, (t.capacity || 'Kapazität'), g.capacity, Math.max(1, lockedMax), 2000);
+			const w = numberInput(panel, (t.width || 'Breite'), g.w, 20, draft.width);
+			const hh = numberInput(panel, (t.height || 'Höhe'), g.h, 20, draft.height);
 			const zone = listSelect(panel, t.zone || 'Bereich', 'zones', g.zone);
 			const cat = listSelect(panel, t.category || 'Kategorie', 'categories', g.category);
-			const accWrap = h('label', {}, panel); const acc = h('input', { type: 'checkbox' }, accWrap); acc.checked = !!g.accessible; accWrap.appendChild(document.createTextNode(' rollstuhlgerecht'));
+			const accWrap = h('label', {}, panel); const acc = h('input', { type: 'checkbox' }, accWrap); acc.checked = !!g.accessible; accWrap.appendChild(document.createTextNode(' ' + (t.accessible || 'rollstuhlgerecht')));
 			if (lockedMax) { zone.disabled = true; cat.disabled = true; label.disabled = true; h('p', { className: 'description' }, panel, t.locked || ''); }
-			h('button', { type: 'button', className: 'button' }, panel, 'Übernehmen').addEventListener('click', function () {
+			h('button', { type: 'button', className: 'button' }, panel, (t.apply || 'Übernehmen')).addEventListener('click', function () {
 				g.label = label.value; g.capacity = Math.max(lockedMax, Math.max(1, Math.min(2000, Number(cap.value) || 1)));
 				g.w = Math.max(20, Number(w.value) || 20); g.h = Math.max(20, Number(hh.value) || 20);
 				if (!lockedMax) { g.zone = zone.value; g.category = cat.value; }
 				g.accessible = acc.checked; changed();
 			});
-			h('button', { type: 'button', className: 'button-link wpcap-se-delete' }, panel, 'Löschen').addEventListener('click', deleteSelection);
+			h('button', { type: 'button', className: 'button-link wpcap-se-delete' }, panel, (t.delete || 'Löschen')).addEventListener('click', deleteSelection);
 			return;
 		}
 		const seats = selectedSeats();
 		if (!seats.length) {
 			h('p', {}, panel, t.nothingSelected || '');
-			h('p', {}, panel, draft.seats.length + ' ' + (t.seats || 'Plätze') + ', ' + draft.groups.filter(function (g) { return g.type === 'standing'; }).length + ' ' + (t.standing || 'Stehbereiche'));
+			h('p', {}, panel, draft.seats.length + ' ' + (t.seats || 'Plätze') + ', ' + draft.groups.filter(function (g) { return g.type === 'standing'; }).length + ' ' + (t.standingAreas || 'Stehbereiche'));
 			return;
 		}
 		const anyLocked = seats.some(isLocked);
@@ -364,14 +364,14 @@
 		if (anyLocked) h('p', { className: 'description' }, panel, t.locked || '');
 		const single = seats.length === 1 ? seats[0] : null;
 		const row = textInput(panel, t.row || 'Reihe', single ? single.row : (seats.every(function (s) { return s.row === seats[0].row; }) ? seats[0].row : ''));
-		const label = single ? textInput(panel, 'Platz', single.label) : null;
+		const label = single ? textInput(panel, (t.seat || 'Platz'), single.label) : null;
 		const zone = listSelect(panel, t.zone || 'Bereich', 'zones', seats.every(function (s) { return s.zone === seats[0].zone; }) ? seats[0].zone : '');
 		const cat = listSelect(panel, t.category || 'Kategorie', 'categories', seats.every(function (s) { return s.category === seats[0].category; }) ? seats[0].category : '');
-		const accWrap = h('label', {}, panel); const acc = h('input', { type: 'checkbox' }, accWrap); acc.checked = seats.every(function (s) { return s.accessible; }); accWrap.appendChild(document.createTextNode(' rollstuhlgerecht'));
-		const renumber = single ? null : numberInput(panel, 'Neu nummerieren ab (leer = nein)', '', 0, 9999);
+		const accWrap = h('label', {}, panel); const acc = h('input', { type: 'checkbox' }, accWrap); acc.checked = seats.every(function (s) { return s.accessible; }); accWrap.appendChild(document.createTextNode(' ' + (t.accessible || 'rollstuhlgerecht')));
+		const renumber = single ? null : numberInput(panel, (t.renumber || 'Neu nummerieren ab (leer = nein)'), '', 0, 9999);
 		if (renumber) renumber.value = '';
 		[row, label, zone, cat, renumber].forEach(function (input) { if (input && anyLocked) input.disabled = true; });
-		h('button', { type: 'button', className: 'button' }, panel, 'Übernehmen').addEventListener('click', function () {
+		h('button', { type: 'button', className: 'button' }, panel, (t.apply || 'Übernehmen')).addEventListener('click', function () {
 			seats.forEach(function (s) {
 				if (!isLocked(s)) {
 					if (row.value.trim() || single) s.row = row.value.trim();
@@ -387,7 +387,7 @@
 			}
 			changed();
 		});
-		h('button', { type: 'button', className: 'button-link wpcap-se-delete' }, panel, 'Löschen').addEventListener('click', deleteSelection);
+		h('button', { type: 'button', className: 'button-link wpcap-se-delete' }, panel, (t.delete || 'Löschen')).addEventListener('click', deleteSelection);
 	}
 
 	form.addEventListener('submit', function () { field.value = JSON.stringify(draft); dirty = false; });

@@ -990,3 +990,21 @@ $GLOBALS['wpcap_test_transients'] = array();
 Orders::create( array( 'email' => 'a82@example.com', 'items' => array( array( 'ticket_type_id' => $a4_std, 'quantity' => 1 ) ), 'idempotency_key' => 'a82-' . uniqid() ), array( 'source' => 'pos', 'external' => true, 'payment_provider' => 'manual' ) );
 remove_filter( 'wpcap_reserve_capacity', $a82_rec, 99 );
 check( 'A082: context carries email, user_id and the internal channel options', is_array( $a82_ctx ) && 'a82@example.com' === $a82_ctx['email'] && array_key_exists( 'user_id', $a82_ctx ) && 'pos' === ( $a82_ctx['internal']['source'] ?? '' ) && 'create' === $a82_ctx['phase'] );
+
+echo "Audit 3: seating editor texts are translatable (A106)\n";
+$a106_js = file_get_contents( dirname( __DIR__, 3 ) . '/assets/seating/editor.js' );
+$a106_php = file_get_contents( dirname( __DIR__, 3 ) . '/src/Seating/AdminPage.php' );
+preg_match_all( '/\bt\.([a-zA-Z]+)/', $a106_js, $a106_used );
+preg_match_all( "/^\t\t\t'([a-zA-Z]+)' =>/m", $a106_php, $a106_have );
+$a106_missing = array_diff( array_unique( $a106_used[1] ), $a106_have[1] );
+// German UI words must only appear as fallback after "t.key || ".
+preg_match_all( "/'(?:[^'\\\\\n]|\\\\.)*'/u", $a106_js, $a106_lits, PREG_OFFSET_CAPTURE );
+$a106_bare = array();
+foreach ( $a106_lits[0] as $a106_l ) {
+	$a106_text = substr( $a106_l[0], 1, -1 );
+	if ( ! preg_match( '/[A-ZÄÖÜ][a-zäöüß]{2,}|[äöüß]/u', $a106_text ) || in_array( $a106_text, array( 'use strict', 'Delete', 'Backspace', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Enter', 'Shift', 'className' ), true ) ) { continue; }
+	if ( '|| ' === substr( $a106_js, max( 0, $a106_l[1] - 3 ), 3 ) ) { continue; }
+	$a106_bare[] = $a106_text;
+}
+check( 'A106: every editor text key is in the PHP catalog' . ( $a106_missing ? ' – missing ' . implode( ', ', $a106_missing ) : '' ), ! $a106_missing );
+check( 'A106: no hard-coded German text in the editor' . ( $a106_bare ? ' – ' . implode( ' | ', array_slice( $a106_bare, 0, 5 ) ) : '' ), ! $a106_bare );
