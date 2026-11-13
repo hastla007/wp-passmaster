@@ -213,8 +213,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Kein entsprechendes Feld/Code gefunden
 - [ ] **A095** No-Show-Liste/Export pro Termin — _OFFEN_ (TODO L370; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Kein No-Show-Code gefunden
-- [ ] **A096** Kontingente pro Verkaufskanal und Kanal-Auswertung — _OFFEN_ (TODO L371; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A096** Kontingente pro Verkaufskanal und Kanal-Auswertung — _OFFEN_ (TODO L371; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Nur Partner-Feld sales_channel (Partners/AdminPage.php:316); keine Kanal-Kontingente/Auswertung
+  - Erledigt 13.11.: Kanal-Kontingente gibt es über das Modul „Kontingente“ (Holds mit erlaubten Quellen: Kasse, Gästeliste, Partner, Admin); neu ist die Kanal-Auswertung im Umsatzbericht (Kasse, Partner-API, WooCommerce, Online) + Filter wpcap_report_channel.
 - [ ] **A097** Abrechnungsblatt pro Vorstellung (Door Deal) — _OFFEN_ (TODO L372; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Kein Code gefunden
 - [ ] **A098** Buchhaltungsexport: nicht fakturierte Verkäufe, Ortszeit-Tagesgrenzen — _OFFEN_ (TODO L373; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))

@@ -1027,3 +1027,11 @@ foreach ( array_merge( array( dirname( __DIR__, 3 ) . '/src/Installer.php' ), gl
 	}
 }
 check( 'A105: no indexed (var)char column above 191 characters without prefix length' . ( $a105_bad ? ' – ' . implode( ', ', $a105_bad ) : '' ), ! $a105_bad );
+
+echo "Audit 3: sales report per channel (A096)\n";
+check( 'A096: providers map to channels (box office, partner API, WooCommerce, online)', 'pos' === PassCaptain\Reports\Data::channel_of( 'pos_cash' ) && 'partner' === PassCaptain\Reports\Data::channel_of( 'partner' ) && 'woocommerce' === PassCaptain\Reports\Data::channel_of( 'woocommerce' ) && 'online' === PassCaptain\Reports\Data::channel_of( 'stripe' ) );
+list( $a96_o ) = ex_buy( $a4_std, 1, 'a96@example.com' );
+$wpdb->update( "{$p}wpcap_orders", array( 'payment_provider' => 'partner' ), array( 'order_id' => $a96_o ) );
+$a96_today = gmdate( 'Y-m-d' );
+$a96 = PassCaptain\Reports\Data::build( array( 'from' => $a96_today, 'to' => $a96_today ), null );
+check( 'A096: the report has a partner-API channel with the sale', isset( $a96['channels']['partner'] ) && (int) $a96['channels']['partner']['tickets'] >= 1 && 'Veranstalter/Wiederverkäufer (API)' === $a96['channels']['partner']['label'] );

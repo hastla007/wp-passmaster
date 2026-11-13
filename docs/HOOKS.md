@@ -261,6 +261,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_partner_client_ip` | `string $ip` (`REMOTE_ADDR`) | Client-Adresse für Partner-API-Schlüssel (Proxys hier auflösen). |
 | `wpcap_refuse_mixed_seller_orders` | `bool $refuse` (true), `int $order_id` | Bestellungen ablehnen, die Rechnungen verschiedener Verkäufer bräuchten (Prüfung in `wpcap_order_creating`, Abbruchcode `mixed_sellers`). |
 | `wpcap_reseller_statement_document` | `string $document` (`reseller_invoice`), `object $partner` | Beleg der Vergütung in der Reseller-Abrechnung: `reseller_invoice` (Reseller stellt Rechnung) oder `self_billing` (Gutschrift der Plattform). |
+| `wpcap_report_channel` | `string $channel, string $provider` | Verkaufskanal einer Bestellung im Umsatzbericht (`pos`, `partner`, `woocommerce`, `online`) anhand des Zahlungsanbieters; unbekannte Werte zählen als `online`. |
 | `wpcap_comp_payment_providers` | `string[] $providers` (`comp`, `pos_free`) | Zahlungsanbieter von Freikarten; deren Tickets zählen in Berichten nicht als Verkauf. |
 
 ### Versionierte Verträge und Infrastruktur

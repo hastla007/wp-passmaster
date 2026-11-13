@@ -96,6 +96,7 @@
 - Gästelisten-Löschlauf ersetzt nach der Frist auch die Gast-E-Mail an der Freikartenbestellung und leert Teilnehmernamen der Tickets.
 - Erstattungsbelege heißen durchgängig „Rechnungskorrektur“ statt „Gutschrift“ (Export, Berichte, Bestellansicht, Mail); neues Standardpräfix `RK` für neue Installationen, bestehende behalten ihr Präfix (ohne gespeicherte Einstellung wird `GS` festgeschrieben); Selbstfakturierungs-Gutschriften (`GU`) unverändert.
 - Rechnungskorrekturen schlüsseln Netto/USt/Brutto je Steuersatz auf (Druckansicht, PDF, Buchhaltungsexport mit einer Zeile je Satz); Aufteilung nach erstatteten Positionen, gespeichert in `wpcap_credit_notes.rates` (Schema 3.8.3), ältere Belege werden identisch berechnet.
+- Umsatzbericht: Auswertung je Verkaufskanal (Kasse, Veranstalter/Wiederverkäufer-API, WooCommerce-Shop, Online) statt nur Kasse/Online; Filter `wpcap_report_channel`.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

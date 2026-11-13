@@ -71,6 +71,27 @@ final class Data {
 	 * @param array $filters from, to (Y-m-d, local), event_id (0 = all), occurrence_id (histogram).
 	 * @param int[]|null $scope Event scope (see scope()).
 	 */
+	/** Report channels: key => label. */
+	public static function channel_labels() {
+		return array(
+			'pos' => __( 'Kasse', 'wp-pass-captain' ),
+			'partner' => __( 'Veranstalter/Wiederverkäufer (API)', 'wp-pass-captain' ),
+			'woocommerce' => __( 'WooCommerce-Shop', 'wp-pass-captain' ),
+			'online' => __( 'Online/sonstige', 'wp-pass-captain' ),
+		);
+	}
+
+	/** Sales channel of an order by its payment provider (filter wpcap_report_channel for own providers). */
+	public static function channel_of( $provider ) {
+		$provider = (string) $provider;
+		if ( 0 === strpos( $provider, 'pos_' ) ) { $channel = 'pos'; }
+		elseif ( 'partner' === $provider ) { $channel = 'partner'; }
+		elseif ( 'woocommerce' === $provider ) { $channel = 'woocommerce'; }
+		else { $channel = 'online'; }
+		$channel = (string) apply_filters( 'wpcap_report_channel', $channel, $provider );
+		return array_key_exists( $channel, self::channel_labels() ) ? $channel : 'online';
+	}
+
 	public static function build( array $filters, $scope ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
@@ -87,7 +108,10 @@ final class Data {
 		$dims = array();
 		foreach ( self::DIMENSIONS as $d ) { $dims[ $d ] = array(); }
 		$rates = array();
-		$channels = array( 'pos' => self::empty_bucket( __( 'Kasse', 'wp-pass-captain' ) ), 'online' => self::empty_bucket( __( 'Online/sonstige', 'wp-pass-captain' ) ) );
+		// Sales channels (fixed order; empty channels stay for a stable table): box office, partner API
+		// (organizers/resellers), WooCommerce shop, own online checkout and other providers.
+		$channels = array();
+		foreach ( self::channel_labels() as $channel_key => $channel_label ) { $channels[ $channel_key ] = self::empty_bucket( $channel_label ); }
 		$total = self::empty_bucket( __( 'Gesamt', 'wp-pass-captain' ) );
 		$currencies = array();
 		// Guest list comps (GuestLists module): counted separately, never as sales.
@@ -118,7 +142,7 @@ final class Data {
 					'day' => array( $day, $day ),
 				),
 				'rate' => (int) $line->tax_rate_bp,
-				'channel' => 0 === strpos( (string) $provider, 'pos_' ) ? 'pos' : 'online',
+				'channel' => self::channel_of( $provider ),
 			);
 		};
 		$line_sql = "SELECT oi.order_id,oi.item_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",oi.tax_rate_bp,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
