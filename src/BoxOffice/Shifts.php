@@ -98,11 +98,19 @@ final class Shifts {
 		return $shift && ( self::can_operate( $shift ) || current_user_can( self::FINANCE_CAP ) );
 	}
 
-	/** Whether the expected amounts may be shown (blind count: only after the count was submitted). */
+	/**
+	 * Whether the expected amounts may be shown. Blind count: cashiers see them only after the shift
+	 * is closed (not after the first count – that would let them "recount" to the expected amount);
+	 * register managers and finance always.
+	 */
 	public static function can_see_expected( $shift ) {
 		if ( ! $shift ) { return false; }
-		if ( ! (int) $shift->blind_count || 'closed' === $shift->status || current_user_can( Registers::MANAGE_CAP ) || current_user_can( self::FINANCE_CAP ) ) { return true; }
-		return (bool) self::latest_count( $shift->session_id );
+		return ! (int) $shift->blind_count || 'closed' === $shift->status || self::supervises();
+	}
+
+	/** Register managers and finance: may see expected amounts and recount a blind shift. */
+	public static function supervises() {
+		return current_user_can( Registers::MANAGE_CAP ) || current_user_can( self::FINANCE_CAP );
 	}
 
 	public static function latest_count( $shift_id, $kind = 'closing' ) {
@@ -310,9 +318,15 @@ final class Shifts {
 		$card = isset( $args['card_minor'] ) && null !== $args['card_minor'] && '' !== $args['card_minor'] ? (int) $args['card_minor'] : null;
 		if ( null !== $card && $card < 0 ) { return self::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'wp-pass-captain' ) ); }
 		$p = self::t( '' );
+		$blind = (bool) (int) $shift->blind_count && ! self::supervises();
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}sessions WHERE session_id=%d FOR UPDATE", $shift->session_id ) );
 		if ( ! $locked || ! in_array( $locked->status, self::ACTIVE, true ) ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'wp-pass-captain' ), 409 ); }
+		// Blind count: one count by the cashiers; a recount only by a register manager / finance.
+		if ( $blind && 'counting' === $locked->status ) {
+			$wpdb->query( 'ROLLBACK' );
+			return self::error( 'wpcap_pos_recount_forbidden', __( 'Bei Blindzählung ist nur eine Zählung möglich. Eine Nachzählung muss die Kassenverwaltung durchführen.', 'wp-pass-captain' ), 403 );
+		}
 		$totals = ZReport::compute( $shift->session_id );
 		$wpdb->insert( "{$p}counts", array(
 			'shift_id' => (int) $shift->session_id,
@@ -342,6 +356,13 @@ final class Shifts {
 			'currency' => $shift->currency,
 		);
 		Audit::record( 'pos_count_submitted', 'pos_session', (int) $shift->session_id, array_diff_key( $result, array( 'currency' => 1 ) ) );
+		if ( $blind ) {
+			// Not shown to the cashier before the shift is closed (stored with the count and in the audit).
+			$result['expected_cash_minor'] = null;
+			$result['expected_card_minor'] = null;
+			$result['cash_difference_minor'] = null;
+			$result['card_difference_minor'] = null;
+		}
 		return $result;
 	}
 
@@ -402,7 +423,8 @@ final class Shifts {
 		$cash_diff = (int) $count->cash_minor - $totals['cash']['expected'];
 		$card_counted = null === $count->card_minor ? null : (int) $count->card_minor;
 		$card_diff = null === $card_counted ? null : $card_counted - $totals['card']['expected'];
-		if ( ( 0 !== $cash_diff || ( null !== $card_diff && 0 !== $card_diff ) ) && '' === $reason ) {
+		// Blind count: the cashier does not know the difference, so no reason can be asked for.
+		if ( ( 0 !== $cash_diff || ( null !== $card_diff && 0 !== $card_diff ) ) && '' === $reason && ( ! (int) $locked->blind_count || self::supervises() ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return self::error( 'wpcap_pos_difference_reason', __( 'Es gibt eine Kassendifferenz. Bitte einen Grund angeben.', 'wp-pass-captain' ) );
 		}
@@ -420,6 +442,19 @@ final class Shifts {
 		$totals['blind_count'] = (bool) (int) $locked->blind_count;
 		$totals['count_id'] = (int) $count->count_id;
 		$totals['recounts'] = max( 0, (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}counts WHERE shift_id=%d AND kind='closing'", $locked->session_id ) ) - 1 );
+		// Every count with its difference (a recount must not hide the first result).
+		$totals['count_history'] = array();
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}counts WHERE shift_id=%d AND kind='closing' ORDER BY count_id", $locked->session_id ) ) as $c ) {
+			$totals['count_history'][] = array(
+				'count_id' => (int) $c->count_id,
+				'counted_by' => (int) $c->counted_by,
+				'at' => (string) $c->created_at,
+				'cash' => (int) $c->cash_minor,
+				'cash_difference' => (int) $c->cash_minor - (int) $c->expected_cash_minor,
+				'card' => null === $c->card_minor ? null : (int) $c->card_minor,
+				'card_difference' => null === $c->card_minor ? null : (int) $c->card_minor - (int) $c->expected_card_minor,
+			);
+		}
 		$z_id = ZReport::insert( $locked, $totals, $reason, $now );
 		if ( is_wp_error( $z_id ) ) { $wpdb->query( 'ROLLBACK' ); return $z_id; }
 		$wpdb->update( "{$p}sessions", array(

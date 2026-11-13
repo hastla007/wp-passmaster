@@ -129,19 +129,24 @@ $reset();
 check( 'administrators see the expected amounts of a blind shift', false === Shifts::view( $s1->session_id )['masked'] && 8950 === Shifts::view( $s1->session_id )['totals']['cash']['expected'] );
 $as( 501, $cashier );
 $count1 = Shifts::submit_count( $s1->session_id, array( 'denominations' => array( 5000 => 1, 2000 => 1, 1000 => 1, 500 => 1, 100 => 4 ), 'card_minor' => 2140 ) );
-check( 'submitting the blind count reveals expected cash and the difference', ! is_wp_error( $count1 ) && 8900 === $count1['cash_minor'] && 8950 === $count1['expected_cash_minor'] && -50 === $count1['cash_difference_minor'] && 0 === $count1['card_difference_minor'] && true === $count1['blind'] && false === Shifts::view( $s1->session_id )['masked'] );
+check( 'blind count: the cashier does not learn expected cash or the difference from the count (audit 3)', ! is_wp_error( $count1 ) && 8900 === $count1['cash_minor'] && null === $count1['expected_cash_minor'] && null === $count1['cash_difference_minor'] && null === $count1['card_difference_minor'] && true === $count1['blind'] && true === Shifts::view( $s1->session_id )['masked'] );
+$recount_cashier = Shifts::submit_count( $s1->session_id, array( 'cash_minor' => 8950 ) );
+check( 'blind count: the cashier cannot recount (audit 3)', is_wp_error( $recount_cashier ) && 'wpcap_pos_recount_forbidden' === $recount_cashier->get_error_code() && 1 === count( array_filter( Shifts::counts( $s1->session_id ), static fn( $c ) => 'closing' === $c->kind ) ) );
 $during = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $t19 => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
 $mv_during = Shifts::cash_movement( $s1->session_id, 'cash_in', 100, 'zu spät' );
 check( 'after the count no sales and no movements are possible', is_wp_error( $during ) && 'wpcap_pos_no_session' === $during->get_error_code() && is_wp_error( $mv_during ) );
+$reset(); // Register manager: sees the difference, so a reason is required.
 $no_diff_reason = Shifts::close( $s1->session_id );
 check( 'closing with a difference needs a reason', is_wp_error( $no_diff_reason ) && 'wpcap_pos_difference_reason' === $no_diff_reason->get_error_code() && 'counting' === Shifts::get( $s1->session_id )->status );
 $count2 = Shifts::submit_count( $s1->session_id, array( 'cash_minor' => 8950, 'card_minor' => 2100 ) );
-check( 'recount is a new count entry (both kept); card terminal difference is computed', -40 === $count2['card_difference_minor'] && 0 === $count2['cash_difference_minor'] && 2 === count( array_filter( Shifts::counts( $s1->session_id ), static fn( $c ) => 'closing' === $c->kind ) ) );
+check( 'recount by the register manager is a new count entry (both kept); card terminal difference is computed', -40 === $count2['card_difference_minor'] && 0 === $count2['cash_difference_minor'] && 2 === count( array_filter( Shifts::counts( $s1->session_id ), static fn( $c ) => 'closing' === $c->kind ) ) );
+$as( 501, $cashier );
 $too_much = Shifts::close( $s1->session_id, array( 'reason' => 'Terminal', 'handover_to' => 503, 'handover_minor' => 9000 ) );
 check( 'handover amount cannot exceed the counted cash', is_wp_error( $too_much ) && 'wpcap_pos_handover_amount' === $too_much->get_error_code() );
 $closed1 = Shifts::close( $s1->session_id, array( 'reason' => 'Terminal-Trinkgeld storniert', 'handover_to' => 503, 'handover_denominations' => array( 2000 => 2, 1000 => 1 ) ) );
 $z1 = ZReport::for_shift( $s1->session_id );
 $t = $z1 ? $z1->totals_data : array();
+check( 'Z report lists every count with its difference (first -0,50, recount 0) (audit 3)', 2 === count( $t['count_history'] ?? array() ) && -50 === $t['count_history'][0]['cash_difference'] && 0 === $t['count_history'][1]['cash_difference'] );
 
 echo "Box office shifts: Z report\n";
 check( 'closing writes Z report no. 1 of the register and fires wpcap_boxoffice_shift_closed', ! is_wp_error( $closed1 ) && 'closed' === $closed1->status && null === $closed1->open_register && 1 === (int) $z1->z_number && (int) $r1->register_id === (int) $z1->register_id && 1 === count( $closed_events ) && (int) $closed_events[0][0] === (int) $z1->z_id && 8950 === (int) $closed_events[0][1]->totals_data['cash']['expected'] );

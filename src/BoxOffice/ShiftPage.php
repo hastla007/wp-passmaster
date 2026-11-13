@@ -194,12 +194,16 @@ final class ShiftPage {
 		echo '<h3>' . esc_html__( 'Kassenabschluss', 'wp-pass-captain' ) . '</h3>';
 		$count = $view['count'];
 		if ( $view['masked'] ) {
-			echo '<p class="description">' . esc_html__( 'Blindzählung: Der Soll-Bestand wird erst angezeigt, nachdem die Zählung abgegeben wurde.', 'wp-pass-captain' ) . '</p>';
+			echo '<p class="description">' . esc_html__( 'Blindzählung: Soll-Bestand und Differenz stehen erst nach dem Schließen im Z-Bericht. Eine Nachzählung kann nur die Kassenverwaltung durchführen.', 'wp-pass-captain' ) . '</p>';
+			if ( $count && 'counting' === $shift->status ) {
+				/* translators: %s: counted cash */
+				echo '<p>' . esc_html( sprintf( __( 'Abgegebene Zählung: Bargeld %s.', 'wp-pass-captain' ), Scope::money( $count->cash_minor, $cur ) ) ) . '</p>';
+			}
 		} else {
 			$t = $view['totals'];
 			echo '<p>' . esc_html( sprintf( /* translators: 1: cash, 2: card */ __( 'Soll-Bestand bar %1$s · Kartenumsatz laut Kasse %2$s', 'wp-pass-captain' ), Scope::money( $t['cash']['expected'], $cur ), Scope::money( $t['card']['expected'], $cur ) ) ) . '</p>';
 		}
-		if ( $count && 'counting' === $shift->status ) {
+		if ( $count && 'counting' === $shift->status && ! $view['masked'] ) {
 			$cash_diff = (int) $count->cash_minor - (int) $count->expected_cash_minor;
 			$card_diff = null === $count->card_minor ? null : (int) $count->card_minor - (int) $count->expected_card_minor;
 			echo '<table class="widefat" style="max-width:40rem"><thead><tr><th></th><th>' . esc_html__( 'Gezählt', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Soll', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Differenz', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
@@ -207,12 +211,14 @@ final class ShiftPage {
 			echo '<tr><td>' . esc_html__( 'Kartenterminal', 'wp-pass-captain' ) . '</td><td>' . esc_html( self::money( $count->card_minor, $cur ) ) . '</td><td>' . esc_html( Scope::money( $count->expected_card_minor, $cur ) ) . '</td><td>' . esc_html( self::money( $card_diff, $cur ) ) . '</td></tr></tbody></table>';
 		}
 		if ( ! $can ) { return; }
-		Forms::open_form( 'wpcap_pos_count', 'wpcap_pos_count_' . (int) $shift->session_id );
-		Forms::hidden( 'shift_id', (int) $shift->session_id );
-		echo '<h4>' . esc_html( $count ? __( 'Neu zählen', 'wp-pass-captain' ) : __( 'Zählung abgeben', 'wp-pass-captain' ) ) . '</h4>';
-		self::denomination_fields( 'count', $cur, 'cash', __( 'Gezählter Bargeldbestand', 'wp-pass-captain' ) );
-		echo '<p><label>' . esc_html__( 'Summe laut Kartenterminal (Tagesabschluss)', 'wp-pass-captain' ) . ' <input type="text" inputmode="decimal" name="card" size="10"></label> <span class="description">' . esc_html__( 'Leer lassen, wenn kein Terminal genutzt wurde.', 'wp-pass-captain' ) . '</span></p>';
-		echo '<p><button class="button">' . esc_html( $count ? __( 'Neu zählen', 'wp-pass-captain' ) : __( 'Zählung abgeben', 'wp-pass-captain' ) ) . '</button> <span class="description">' . esc_html__( 'Nach der Zählung sind keine Verkäufe mehr möglich.', 'wp-pass-captain' ) . '</span></p></form>';
+		if ( ! ( $view['masked'] && $count ) ) { // Blind count: no recount by the cashiers.
+			Forms::open_form( 'wpcap_pos_count', 'wpcap_pos_count_' . (int) $shift->session_id );
+			Forms::hidden( 'shift_id', (int) $shift->session_id );
+			echo '<h4>' . esc_html( $count ? __( 'Neu zählen', 'wp-pass-captain' ) : __( 'Zählung abgeben', 'wp-pass-captain' ) ) . '</h4>';
+			self::denomination_fields( 'count', $cur, 'cash', __( 'Gezählter Bargeldbestand', 'wp-pass-captain' ) );
+			echo '<p><label>' . esc_html__( 'Summe laut Kartenterminal (Tagesabschluss)', 'wp-pass-captain' ) . ' <input type="text" inputmode="decimal" name="card" size="10"></label> <span class="description">' . esc_html__( 'Leer lassen, wenn kein Terminal genutzt wurde.', 'wp-pass-captain' ) . '</span></p>';
+			echo '<p><button class="button">' . esc_html( $count ? __( 'Neu zählen', 'wp-pass-captain' ) : __( 'Zählung abgeben', 'wp-pass-captain' ) ) . '</button> <span class="description">' . esc_html__( 'Nach der Zählung sind keine Verkäufe mehr möglich.', 'wp-pass-captain' ) . '</span></p></form>';
+		}
 		if ( ! $count || 'counting' !== $shift->status ) { return; }
 		Forms::open_form( 'wpcap_pos_close', 'wpcap_pos_close_' . (int) $shift->session_id, 'onsubmit="return confirm(\'' . esc_js( __( 'Schicht jetzt abschließen? Der Z-Bericht kann danach nicht mehr geändert werden.', 'wp-pass-captain' ) ) . '\')"' );
 		Forms::hidden( 'shift_id', (int) $shift->session_id );
@@ -252,7 +258,14 @@ final class ShiftPage {
 		$card = '' === $card_raw ? null : Forms::parse_money( $card_raw, Forms::currency_decimals( $cur ) );
 		if ( false === $cash || ( '' !== $card_raw && null === $card ) ) { Forms::finish( Forms::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'wp-pass-captain' ) ), '', self::url( 'shift' ) ); }
 		$result = Shifts::submit_count( $shift_id, array( 'cash_minor' => $cash, 'denominations' => $denoms, 'card_minor' => $card ) );
-		$message = is_wp_error( $result ) ? '' : sprintf( /* translators: 1: counted, 2: expected, 3: difference */ __( 'Zählung gespeichert. Gezählt %1$s, Soll %2$s, Differenz %3$s.', 'wp-pass-captain' ), Scope::money( $result['cash_minor'], $cur ), Scope::money( $result['expected_cash_minor'], $cur ), Scope::money( $result['cash_difference_minor'], $cur ) );
+		if ( is_wp_error( $result ) ) {
+			$message = '';
+		} elseif ( null === $result['expected_cash_minor'] ) {
+			/* translators: %s: counted amount */
+			$message = sprintf( __( 'Zählung gespeichert (Blindzählung). Gezählt %s. Soll und Differenz stehen nach dem Schließen im Z-Bericht.', 'wp-pass-captain' ), Scope::money( $result['cash_minor'], $cur ) );
+		} else {
+			$message = sprintf( /* translators: 1: counted, 2: expected, 3: difference */ __( 'Zählung gespeichert. Gezählt %1$s, Soll %2$s, Differenz %3$s.', 'wp-pass-captain' ), Scope::money( $result['cash_minor'], $cur ), Scope::money( $result['expected_cash_minor'], $cur ), Scope::money( $result['cash_difference_minor'], $cur ) );
+		}
 		Forms::finish( $result, $message, self::url( 'shift' ) );
 	}
 

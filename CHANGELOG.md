@@ -13,6 +13,7 @@
 - Kassen-Umtausch: Der Aufpreis wird als Kassenverkauf mit Belegnummer in der offenen Schicht gebucht (Z-Bericht, spätere Erstattungen als Auszahlung); bar/Karte nur mit geöffneter Schicht.
 - Käuferlimit gilt auch beim Umtausch im Bestellportal und über die Partner-API (Umtausch durch Personal bleibt ausgenommen).
 - Freikarten-Rechte: Kulanz-Umtausch ohne Aufpreis und die Kassen-Zahlart „Freikarte“ verlangen `wpcap_approve_comps` (wie die Gästelisten-Freigabe); ohne das Recht wird die Option nicht angezeigt.
+- Blindzählung: Kassierer sehen Soll und Differenz erst nach dem Schließen, zählen nur einmal (Nachzählung durch Kassenverwaltung/Finanz) und schließen ohne Differenzgrund; der Z-Bericht listet alle Zählungen mit Differenz.
 
 ### Zusammenspiel mit WP Voucher Captain
 - Gemeinsamer Scanner: neuer Dienst `wp_pass_captain_checkin_service_v1` (`Integrations\Vouchers\CheckinService`) – `recognizes()`, `preview()`, `check_in()` mit denselben Regeln, Sperren und Audit wie der eigene Web-Scanner; Recht `wpcap_checkin` wird im Dienst geprüft. Der Voucher-Captain-Scanner erkennt damit auch Pass-Captain-Tickets; Gutschein-Einlösung und Ticket-Check-in bleiben getrennte Aktionen.

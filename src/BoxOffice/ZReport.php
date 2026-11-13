@@ -394,6 +394,11 @@ final class ZReport {
 		$rows[] = array( $ks, __( 'Terminal-Summe', 'wp-pass-captain' ), self::money( $card['counted'] ?? null, $cur ) );
 		$rows[] = array( $ks, __( 'Differenz', 'wp-pass-captain' ), self::money( $card['difference'] ?? null, $cur ) );
 		if ( '' !== (string) $z->difference_reason ) { $rows[] = array( $bs, __( 'Grund der Differenz', 'wp-pass-captain' ), $z->difference_reason ); }
+		if ( ! empty( $t['blind_count'] ) ) { $rows[] = array( $bs, __( 'Blindzählung', 'wp-pass-captain' ), __( 'ja', 'wp-pass-captain' ) ); }
+		foreach ( (array) ( $t['count_history'] ?? array() ) as $n => $c ) {
+			/* translators: 1: number of the count, 2: user, 3: counted cash, 4: cash difference */
+			$rows[] = array( $bs, sprintf( __( 'Zählung %1$d (%2$s)', 'wp-pass-captain' ), $n + 1, Service::user_name( (int) $c['counted_by'] ) ), sprintf( __( 'Ist %1$s, Differenz %2$s', 'wp-pass-captain' ), self::money( $c['cash'], $cur ), self::money( $c['cash_difference'], $cur ) ) );
+		}
 		if ( ! empty( $t['handover'] ) ) { $rows[] = array( $bs, __( 'Übergabe an', 'wp-pass-captain' ), Service::user_name( $t['handover']['to_user'] ) ); }
 		$ms = __( 'Buchungen', 'wp-pass-captain' );
 		$kinds = self::kind_labels();
