@@ -65,6 +65,11 @@ final class Retention {
 			'audit_logs' => 730,
 			'waitlist' => 30,
 			'partner_ticket_codes' => 30,
+			'reservations' => 30,
+			'jobs' => 30,
+			'dead_jobs' => 180,
+			'seat_holds' => 30,
+			'payment_events' => 90,
 		);
 		$days = $defaults[ $step ] ?? 0;
 		if ( isset( self::SETTINGS[ $step ] ) ) {
@@ -127,6 +132,72 @@ final class Retention {
 		if ( array_sum( array_map( 'intval', array_diff_key( $counts, array( 'complete' => 1 ) ) ) ) > 0 ) {
 			Audit::record( 'privacy_retention', 'system', 0, $counts );
 		}
+		return $counts;
+	}
+
+	/** Seconds of one housekeeping run (filter wpcap_cleanup_budget). */
+	const HOUSEKEEPING_BUDGET = 10.0;
+
+	/**
+	 * Hourly housekeeping (cron `wpcap_cleanup_reservations`, A444): deletes finished rows that no
+	 * process reads any more, N days (wpcap_privacy_retention_days, step names below; 0 = keep) after
+	 * they finished, in batches of BATCH rows within a time budget; the next run continues.
+	 * - reservations (30): converted/expired/released holds with counted_qty 0 (they no longer count
+	 *   for capacity), expires_at older than N days, unless their order is still awaiting payment.
+	 * - jobs (30) / dead_jobs (180): completed or discarded (cancelled) jobs / dead letters (re-queueable on the operations page
+	 *   until then). Idempotency keys of deleted jobs can be used again.
+	 * - seat_holds (30): expired/released seat holds (sold holds stay: they mark the seat as taken).
+	 * - payment_events (90): processed (and abandoned "processing") provider events; providers stop
+	 *   redelivering after a few days, so the dedupe no longer needs them.
+	 *
+	 * @param int|null   $now    Reference time (UNIX, tests).
+	 * @param float|null $budget Seconds (filter wpcap_cleanup_budget, default 10).
+	 * @return array Deleted rows per step plus `complete` (false: out of time, the next run continues).
+	 */
+	public static function housekeeping( $now = null, $budget = null ) {
+		$now = null === $now || '' === $now ? time() : (int) $now;
+		$budget = null === $budget ? (float) apply_filters( 'wpcap_cleanup_budget', self::HOUSEKEEPING_BUDGET ) : (float) $budget;
+		$deadline = microtime( true ) + max( 0.0, $budget );
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$steps = array(
+			'reservations' => array(
+				// Range on expiry (status, expires_at); the order is read by primary key.
+				static fn( $cutoff ) => $wpdb->prepare( "SELECT r.reservation_id FROM {$p}wpcap_reservations r LEFT JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status IN ('converted','expired','released') AND r.expires_at<%s AND r.counted_qty=0 AND (o.order_id IS NULL OR o.payment_status<>'pending') LIMIT %d", $cutoff, self::BATCH ),
+				static fn( $in ) => "DELETE FROM {$p}wpcap_reservations WHERE reservation_id IN ($in) AND status IN ('converted','expired','released') AND counted_qty=0",
+			),
+			'jobs' => array(
+				// Range on due_jobs (status, run_after): a finished job ran after its run_after.
+				static fn( $cutoff ) => $wpdb->prepare( "SELECT job_id FROM {$p}wpcap_jobs WHERE status IN ('complete','cancelled') AND run_after<%s AND updated_at<%s LIMIT %d", $cutoff, $cutoff, self::BATCH ),
+				static fn( $in ) => "DELETE FROM {$p}wpcap_jobs WHERE job_id IN ($in) AND status IN ('complete','cancelled')",
+			),
+			'dead_jobs' => array(
+				static fn( $cutoff ) => $wpdb->prepare( "SELECT job_id FROM {$p}wpcap_jobs WHERE status='dead_letter' AND run_after<%s AND updated_at<%s LIMIT %d", $cutoff, $cutoff, self::BATCH ),
+				static fn( $in ) => "DELETE FROM {$p}wpcap_jobs WHERE job_id IN ($in) AND status='dead_letter'",
+			),
+			'seat_holds' => array(
+				static fn( $cutoff ) => $wpdb->prepare( "SELECT hold_id FROM {$p}wpcap_seat_holds WHERE status IN ('expired','released') AND expires_at<%s LIMIT %d", $cutoff, self::BATCH ),
+				static fn( $in ) => "DELETE FROM {$p}wpcap_seat_holds WHERE hold_id IN ($in) AND status IN ('expired','released')",
+			),
+			'payment_events' => array(
+				// Range on cleanup (status, updated_at), schema 3.10.8.
+				static fn( $cutoff ) => $wpdb->prepare( "SELECT payment_event_id FROM {$p}wpcap_payment_events WHERE status IN ('processed','processing') AND updated_at<%s LIMIT %d", $cutoff, self::BATCH ),
+				static fn( $in ) => "DELETE FROM {$p}wpcap_payment_events WHERE payment_event_id IN ($in) AND status IN ('processed','processing')",
+			),
+		);
+		$counts = array();
+		foreach ( $steps as $step => $sql ) {
+			$counts[ $step ] = 0;
+			$days = self::days( $step );
+			if ( ! $days || microtime( true ) >= $deadline ) { continue; }
+			$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
+			$counts[ $step ] = self::loop(
+				$deadline,
+				static fn() => $wpdb->get_col( $sql[0]( $cutoff ) ),
+				static fn( $ids ) => (int) $wpdb->query( $sql[1]( self::in_list( $ids ) ) )
+			);
+		}
+		$counts['complete'] = microtime( true ) < $deadline;
 		return $counts;
 	}
 

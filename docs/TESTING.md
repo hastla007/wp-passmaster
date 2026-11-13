@@ -306,7 +306,7 @@ Der Test-`$wpdb` zählt dafür `num_queries` und ruft wie WordPress den Filter `
 
 ## Historie: Reservierungen, Index und Aufräumen (A429, A430, A444)
 
-Datenbestand (`tests/load/history.php seed`, eigenes Präfix, danach `drop`): 500.000 Reservierungen aus
+Datenbestand (`php tests/load/history.php seed`, Präfix `wphist_`, danach `drop`; Messung `measure`/`raw`): 500.000 Reservierungen aus
 200 Tagen (85 % `converted`, 10 % `expired`, 5 % `released`, alle `counted_qty=0`), davon 202.777 auf einer
 künftigen Ticketart (Vorverkauf seit Monaten), 300 aktive Holds; 500.000 Bestellungen mit je einer Zeile,
 60 Termine (10 künftig) mit 180 Ticketarten. Gleiche Maschine wie oben (MariaDB 10.11, PHP 8.3), beste von
@@ -326,6 +326,14 @@ zusammen ≈ 3 s. `modules/zz_a429_a430.php` legt 6.000 umgewandelte Reservierun
 `EXPLAIN` jeder vom Checkout bzw. vom Reconcile-Lauf ausgeführten Abfrage auf `wpcap_reservations`, dass keine
 die Tabelle oder einen ganzen Index liest, dazu die Drift-Erkennung (alte, noch zählende Holds; aktive, nicht
 zählende Holds; manipulierte Zähler).
+
+Aufräumung (`php tests/load/history.php cleanup`, `Retention::housekeeping()` mit 10 s Budget je Lauf, wie der
+stündliche Cron): von 467.500 Reservierungen (nach einem unterbrochenen Vorlauf) 457.106 ältere als 30 Tage in zwei Läufen gelöscht (239.000 bzw. 218.106 Zeilen
+je 10 s), danach 86.000 erledigte Jobs (von 100.000; 13.593 jüngere bleiben), 57.547 abgelaufene Sitzplatz-Holds
+(verkaufte bleiben) und 55.913 Zahlungsereignisse älter als 90 Tage – zusammen ≈ 22 s. Jede Auswahlabfrage ist
+ein Indexbereich (`expiry`, `due_jobs`, `cleanup`). `modules/zz_a444.php` prüft, was bleibt (aktive und noch
+zählende Holds, Holds offener Bestellungen, junge Zeilen, wartende/laufende Jobs, verkaufte Plätze), Stapel über
+500 Zeilen, Zeitbudget 0 und das Abschalten eines Schritts per Filter. Danach `php tests/load/history.php drop`.
 
 ## Regelmäßige Lasttests und Regressionsgrenzen (A121)
 

@@ -201,12 +201,13 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 
 | Filter | Wert, Argumente | Zweck |
 |---|---|---|
-| `wpcap_privacy_retention_days` | `int $days, string $step` | Fristen des täglichen Löschlaufs (`0` = Schritt aus): `unpaid_attendee_data` (1), `unpaid_customer_email` (90), `message_content` (30), `message_rows` (365), `checkin_staff` (365), `audit_logs` (730), `partner_ticket_codes` (30, Tage nach Terminende). |
+| `wpcap_privacy_retention_days` | `int $days, string $step` | Fristen des täglichen Löschlaufs (`0` = Schritt aus): `unpaid_attendee_data` (1), `unpaid_customer_email` (90), `message_content` (30), `message_rows` (365), `checkin_staff` (365), `audit_logs` (730), `partner_ticket_codes` (30, Tage nach Terminende); stündliche Aufräumung (A444): `reservations` (30), `jobs` (30, erledigte/verworfene Jobs), `dead_jobs` (180), `seat_holds` (30), `payment_events` (90). |
 | `wpcap_attendee_default_retention_days` | `int $days` (365) | Frist für Teilnehmername/-E-Mail nach Terminende, wenn die Einstellung „Teilnehmerdaten löschen nach“ 0 ist (Antworten folgen dann der Frist des Felds). |
 | `wpcap_guestlist_companion_name` | `string $name, object $entry, int $index` | Name auf Begleittickets einer Gästeliste (Standard neutral „Begleitung“, z. B. `'Begleitung von ' . $entry->name`). |
 | `wpcap_privacy_order_anonymized` (Action) | `int $order_id` | Eine Bestellung wurde anonymisiert (Datenschutz-Löschung); Module löschen ihre Daten zur Bestellung (z. B. gespeicherte Partner-Ticketcodes). |
 | `wpcap_privacy_unpaid_attendee_data_cleared` (Action) | `int[] $order_ids` | Der Löschlauf (Schritt `unpaid_attendee_data`) hat die Teilnehmerangaben dieser nie bezahlten Bestellungen entfernt (ein Batch); Integrationen löschen ihre Kopien (z. B. `_wpcap_attendees` an der WooCommerce-Bestellung). |
 | `wpcap_privacy_retention_budget` | `float $seconds` (20) | Zeitbudget eines Löschlaufs; der nächste Lauf setzt fort. |
+| `wpcap_cleanup_budget` | `float $seconds` (10) | Zeitbudget der stündlichen Aufräumung abgeschlossener Zeilen (`Privacy\Retention::housekeeping()`, A444); der nächste Lauf setzt fort. |
 | `wpcap_privacy_policy_recipients` | `array $recipients` | Welche Empfänger der Datenschutztext-Vorschlag nennt (`stripe`, `paypal`, `mollie`, `twilio`, `sms_http`, `apple`, `google`, `partners`, `webhooks`, `affiliate`, `woocommerce` → bool). |
 | `wpcap_privacy_policy_content` | `string $html, array $recipients` | HTML des Datenschutztext-Vorschlags. |
 | `wpcap_scanner_queue_max_hours` | `int $hours` (24, 1–168) | Wie lange der Web-Scanner Offline-Scans im Browser aufbewahrt. |
@@ -378,7 +379,7 @@ sondern von WP-Cron; Module hängen sich mit `add_action()` an.
 
 | Hook | Planung | Zweck / angehängte Callbacks |
 |---|---|---|
-| `wpcap_cleanup_reservations` | stündlich (`Plugin::schedule_events()`) | Abgelaufene Reservierungen (`Orders::expire_holds`), zurückgestellte Datenschutz-Löschungen (30), hängende Erstattungen (40); Module: Sitzplatz-Reservierungen (20), automatische Hold-Freigabe und Wartelisten-Bereinigung (30). |
+| `wpcap_cleanup_reservations` | stündlich (`Plugin::schedule_events()`) | Abgelaufene Reservierungen (`Orders::expire_holds`), zurückgestellte Datenschutz-Löschungen (30), hängende Erstattungen (40), Rate-Limit-Zeilen (50), abgeschlossene Reservierungen/Jobs/Sitzplatz-Holds/Zahlungsereignisse (60, `Privacy\Retention::housekeeping()`, A444); Module: Sitzplatz-Reservierungen (20), automatische Hold-Freigabe und Wartelisten-Bereinigung (30). |
 | `wpcap_process_messages` | alle 5 Minuten (`wpcap_five_minutes`) | Nachrichten-Queue (`Communications::process_due`); Erinnerungen planen sich mit Priorität 1 ein, Bereinigung mit 5, SMS-Versand mit 20. |
 | `wpcap_process_jobs` | alle 5 Minuten (`wpcap_five_minutes`) | Hintergrundjobs (`Jobs::process_due`, Tabelle `wpcap_jobs`); Webhook-Zustellung und Warteliste mit Priorität 20, Webhook-Bereinigung mit 25. |
 | `wpcap_webhooks_dispatch` | einmalig 5 s nach neuen Webhook-Ereignissen (`Webhooks\Dispatcher`) | Sofortige Zustellung ausgehender Webhooks. |

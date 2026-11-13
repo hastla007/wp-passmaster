@@ -63,6 +63,8 @@ final class Plugin {
 		// Reconciles refunds with an unknown outcome at the provider (A272).
 		add_filter( 'wpcap_process_job', array( Refunds::class, 'handle_job' ), 10, 4 );
 		add_action( 'wpcap_cleanup_reservations', array( RateLimit::class, 'purge' ), 50, 0 );
+		// Finished reservations, jobs, seat holds and payment events (A444).
+		add_action( 'wpcap_cleanup_reservations', array( Privacy\Retention::class, 'housekeeping' ), 60, 0 );
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		add_action( 'wpcap_process_messages', array( Communications::class, 'process_due' ) );
 		add_action( 'wpcap_process_jobs', array( Jobs::class, 'process_due' ) );

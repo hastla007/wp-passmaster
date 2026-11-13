@@ -704,7 +704,8 @@ final class Installer {
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (payment_event_id),
 				UNIQUE KEY provider_event (provider,provider_event_id),
-				KEY order_id (order_id)
+				KEY order_id (order_id),
+				KEY cleanup (status,updated_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$wpdb->prefix}wpcap_refunds (
 				refund_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
