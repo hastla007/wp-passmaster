@@ -139,8 +139,9 @@ final class Webhooks {
 				Audit::record( 'stale_payment_failure_ignored', 'order', $order_id, array( 'provider' => $provider ) );
 				return 'stale_attempt';
 			}
-			Orders::cancel_order( $order_id, $provider . '_payment_failed' );
-			return 'cancelled';
+			$cancelled = Orders::cancel_order( $order_id, $provider . '_payment_failed' );
+			// A database error keeps the event unprocessed: the provider redelivers it.
+			return is_wp_error( $cancelled ) ? $cancelled : 'cancelled';
 		}
 		if ( 'refunded' === $type ) {
 			// Refund made outside the plugin (provider dashboard, chargeback). It is booked like any refund – refund

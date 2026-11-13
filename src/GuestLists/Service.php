@@ -474,8 +474,12 @@ final class Service {
 			if ( $checked ) { return self::error( 'wpcap_guestlist_checked_in', __( 'Mindestens ein Ticket dieses Eintrags wurde bereits eingecheckt; der Eintrag kann nicht mehr storniert werden.', 'wp-pass-captain' ), 409 ); }
 		}
 		$now = current_time( 'mysql', true );
+		// Tickets first: if that fails the entry stays active and the cancellation can be repeated.
+		if ( $entry->order_id ) {
+			$cancelled = Orders::cancel_order( (int) $entry->order_id, 'guestlist_cancelled' );
+			if ( is_wp_error( $cancelled ) ) { return $cancelled; }
+		}
 		$wpdb->update( "{$p}wpcap_guest_entries", array( 'status' => 'cancelled', 'cancelled_at' => $now, 'updated_at' => $now ), array( 'entry_id' => (int) $entry->entry_id ) );
-		if ( $entry->order_id ) { Orders::cancel_order( (int) $entry->order_id, 'guestlist_cancelled' ); }
 		Audit::record( 'guestlist_entry_cancelled', 'event', (int) $list->event_id, array( 'list_id' => (int) $list->list_id, 'entry_id' => (int) $entry->entry_id, 'order_id' => (int) $entry->order_id, 'reason' => sanitize_text_field( (string) $reason ) ) );
 		return self::get_entry( $entry_id );
 	}

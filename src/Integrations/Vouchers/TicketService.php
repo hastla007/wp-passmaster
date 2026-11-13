@@ -203,11 +203,11 @@ final class TicketService {
 		if ( ! $order ) { return true; }
 		self::$revoking = true;
 		try {
-			Orders::cancel_order( (int) $order->order_id, '' !== (string) $reason ? (string) $reason : 'voucher_revoked' );
+			$cancelled = Orders::cancel_order( (int) $order->order_id, '' !== (string) $reason ? (string) $reason : 'voucher_revoked' );
 		} finally {
 			self::$revoking = false;
 		}
-		return true;
+		return is_wp_error( $cancelled ) ? $cancelled : true;
 	}
 
 	/**

@@ -716,7 +716,8 @@ final class Sales {
 			return $done( array( 'already_cancelled' => true ) );
 		}
 		if ( 'pending' === $order->payment_status ) {
-			Orders::cancel_order( $order_id, 'partner_api' . ( '' !== $reason ? ': ' . $reason : '' ) );
+			$cancelled = Orders::cancel_order( $order_id, 'partner_api' . ( '' !== $reason ? ': ' . $reason : '' ) );
+			if ( is_wp_error( $cancelled ) ) { return $cancelled; }
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'partner_orders' ) . ' SET cancelled_at=%s WHERE order_id=%d', $now, $order_id ) );
 			self::audit( $ctx, 'cancel', $order_id, null, array( 'kind' => 'release' ) );
 			return $done( array( 'released' => true ) );

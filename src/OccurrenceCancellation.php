@@ -53,8 +53,9 @@ final class OccurrenceCancellation {
 		// 1. Unpaid orders touching this occurrence: cancel (releases holds, campaigns, vouchers).
 		$pending = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ord.order_id FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status='pending'", $occurrence_id ) );
 		foreach ( $pending as $order_id ) {
-			Orders::cancel_order( (int) $order_id, 'occurrence_cancelled' );
-			++$summary['cancelled_orders'];
+			if ( true === Orders::cancel_order( (int) $order_id, 'occurrence_cancelled' ) ) {
+				++$summary['cancelled_orders'];
+			} // Else a retry job finishes it (Orders::cancel_order).
 		}
 
 		// 2. Paid orders: optional automatic refund of the affected tickets (before they are revoked).

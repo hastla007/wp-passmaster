@@ -99,7 +99,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - src/Jobs.php:35-38 und src/Communications.php:45-48: update-Rowcount und COMMIT ungeprüft, Handler/Mailversand läuft trotzdem
 - [x] **A042** [P2] Sammel-Nachsendung: Rotation unserialisiert, Rowcount 0 kein Fehler — _TEILWEISE_ (TODO L310; Bestätigte Befunde)
   - src/Orders.php:1517-1521: nur `false` geprüft, kein Lock/Rowcount/Outbox; nur reissue_ticket (1562-1570) mit FOR UPDATE und Rowcount-Prüfung
-- [ ] **A043** [P2] cancel_order ignoriert DB-Fehler, Webhook gilt als verarbeitet — _OFFEN_ (TODO L311; Bestätigte Befunde)
+- [x] **A043** [P2] cancel_order ignoriert DB-Fehler, Webhook gilt als verarbeitet — _OFFEN_ (TODO L311; Bestätigte Befunde)
   - src/Orders.php:1017-1036: Reservierungs-, Widerrufs-, Status-Update und COMMIT ungeprüft, gibt immer true zurück
 - [ ] **A044** [P2] mark_refunded prüft DB-Ergebnisse nicht — _OFFEN_ (TODO L312; Bestätigte Befunde)
   - src/Orders.php:1060-1075: keine Transaktion, Updates ungeprüft; Webhooks.php:141-142 meldet 'refunded'

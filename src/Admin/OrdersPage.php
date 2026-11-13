@@ -80,7 +80,8 @@ final class OrdersPage {
 		if ( 'pending' !== $order->payment_status || 'pending_payment' !== $order->status ) {
 			return Forms::error( 'wpcap_order_not_unpaid', __( 'Nur unbezahlte, offene Bestellungen können storniert werden. Bezahlte Bestellungen bitte erstatten.', 'wp-pass-captain' ), 409 );
 		}
-		Orders::cancel_order( $order->order_id, Forms::text( $in, 'reason', 255 ) ?: 'admin_cancel' );
+		$cancelled = Orders::cancel_order( $order->order_id, Forms::text( $in, 'reason', 255 ) ?: 'admin_cancel' );
+		if ( is_wp_error( $cancelled ) ) { return $cancelled; }
 		return array( 'order_id' => (int) $order->order_id );
 	}
 

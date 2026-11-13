@@ -1052,24 +1052,50 @@ final class Orders {
 
 	/**
 	 * Cancels an order: releases holds and campaign reservations; for paid orders all still valid
-	 * tickets are revoked (checked-in tickets stay as historical record). Idempotent.
+	 * tickets are revoked (checked-in tickets stay as historical record). Idempotent. Every database
+	 * step is checked: on an error nothing is changed and a retryable WP_Error is returned, so a
+	 * webhook is redelivered instead of being recorded as processed.
+	 *
+	 * @return true|\WP_Error
 	 */
 	public static function cancel_order( $order_id, $reason = '' ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
 		$now = current_time( 'mysql', true );
-		$wpdb->query( 'START TRANSACTION' );
+		$busy = static function ( $order = null ) use ( $wpdb, $order_id, $reason ) {
+			$wpdb->query( 'ROLLBACK' );
+			Audit::record( 'order_cancel_failed', 'order', $order_id, array() );
+			if ( $order ) {
+				// Safety net for callers that cannot retry themselves (hooks, sweeps): a job repeats the
+				// cancellation, but only while the payment status is still the one seen here.
+				Jobs::enqueue( 'order-cancel-retry|' . $order_id . '|' . $order->payment_status, 'order_cancel_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason, 'payment_status' => (string) $order->payment_status ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
+			}
+			return new \WP_Error( 'wpcap_db_busy', __( 'Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		};
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+			return $busy();
+		}
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( ! $order && '' !== (string) $wpdb->last_error ) {
+			return $busy();
+		}
 		if ( ! $order || in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) {
 			$wpdb->query( 'COMMIT' );
 			return true;
 		}
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) );
-		$revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' FOR UPDATE", $order_id ) ) );
+		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) ) ) {
+			return $busy( $order );
+		}
+		$revoked_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' FOR UPDATE", $order_id ) ) );
+		if ( $revoked_ids && false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=%d AND status='valid'", $order_id ) ) ) {
+			return $busy( $order );
+		}
 		$revoked = count( $revoked_ids );
-		$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'cancelled', 'payment_status' => 'cancelled', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
-		$wpdb->query( 'COMMIT' );
+		$updated = $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'cancelled', 'payment_status' => 'cancelled', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) {
+			return $busy( $order );
+		}
 		// Released units leave the counters right after the commit (until then they only over-count).
 		CapacityCounters::sync_order_now( $order_id );
 		Campaigns::release_for_order( $order_id );
@@ -1325,8 +1351,9 @@ final class Orders {
 		// Safety net when the occurrence handler is unhooked: open orders and still valid tickets.
 		$still_pending = $order_ids ? array_map( 'absint', $wpdb->get_col( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id IN (" . implode( ',', $order_ids ) . ") AND payment_status='pending'" ) ) : array();
 		foreach ( $still_pending as $order_id ) {
-			self::cancel_order( $order_id, 'event_cancelled' );
-			++$summary['cancelled_orders'];
+			if ( true === self::cancel_order( $order_id, 'event_cancelled' ) ) {
+				++$summary['cancelled_orders'];
+			}
 		}
 		$revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND t.status='valid'", $event_id ) ) );
 		$summary['revoked'] += count( $revoked_ids );
@@ -1544,6 +1571,12 @@ final class Orders {
 
 	/** Job handler (wp_pass_captain_process_job_v1): retry of a failed ticket mail (new codes). */
 	public static function handle_job( $handled, $type, $payload = array() ) {
+		if ( 'order_cancel_retry' === $type ) {
+			$order = self::get( absint( $payload['order_id'] ?? 0 ) );
+			// Paid, refunded or cancelled meanwhile: the retry must not override that.
+			if ( ! $order || (string) $order->payment_status !== (string) ( $payload['payment_status'] ?? '' ) ) { return true; }
+			return true === self::cancel_order( (int) $order->order_id, (string) ( $payload['reason'] ?? '' ) );
+		}
 		if ( 'ticket_mail_retry' !== $type ) { return $handled; }
 		$order_id = absint( $payload['order_id'] ?? 0 );
 		$order = self::get( $order_id );
