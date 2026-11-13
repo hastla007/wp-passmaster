@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-13T21:21:50+00:00\n"
+"POT-Creation-Date: 2026-11-13T21:33:57+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: wp-pass-captain\n"
@@ -432,6 +432,7 @@ msgstr ""
 #: src/Privacy.php:180
 #: src/Privacy.php:216
 #: src/Series/AdminPage.php:338
+#: src/Waitlists.php:831
 #: src/Waitlists/AdminPage.php:116
 #: src/WalletPasses/AdminPage.php:159
 #: src/WalletPasses/AppleProvider.php:76
@@ -569,7 +570,7 @@ msgstr ""
 #: src/Mail/Types.php:349
 #: src/Mail/Types.php:366
 #: src/Mail/Types.php:386
-#: src/Mail/Types.php:402
+#: src/Mail/Types.php:406
 #: src/Partners/Settlements.php:688
 #: src/Partners/Settlements.php:811
 #: src/Partners/Settlements.php:821
@@ -580,7 +581,8 @@ msgstr ""
 #: src/Seating/AdminPage.php:110
 #: src/Seating/AdminPage.php:122
 #: src/Series/AdminPage.php:103
-#: src/Waitlists.php:653
+#: src/Waitlists.php:828
+#: src/Waitlists.php:1045
 #: src/Waitlists/AdminPage.php:87
 #: src/blocks/events/editor.js:16
 msgid "Event"
@@ -603,7 +605,7 @@ msgid "Gültig ab / bis"
 msgstr ""
 
 #: src/Admin/CampaignsPage.php:143
-#: src/Mail/Types.php:417
+#: src/Mail/Types.php:425
 #: src/OfflineScanner/AdminPage.php:182
 msgid "Gültig bis"
 msgstr ""
@@ -789,7 +791,7 @@ msgstr ""
 #: src/Passes/AdminPage.php:175
 #: src/Series/AdminPage.php:482
 #: src/Series/AdminPage.php:533
-#: src/Waitlists.php:656
+#: src/Waitlists.php:1048
 #: templates/event-card.php:36
 msgid "Preis"
 msgstr ""
@@ -928,7 +930,7 @@ msgstr ""
 #: src/GuestLists/Service.php:677
 #: src/Mail/Types.php:66
 #: src/Mail/Types.php:387
-#: src/Mail/Types.php:403
+#: src/Mail/Types.php:407
 #: src/Partners/AdminPage.php:378
 #: src/Partners/AdminPage.php:390
 #: src/Partners/AdminPage.php:401
@@ -950,7 +952,8 @@ msgstr ""
 #: src/Series/AdminPage.php:558
 #: src/Series/AdminPage.php:581
 #: src/Series/AdminPage.php:616
-#: src/Waitlists.php:654
+#: src/Waitlists.php:829
+#: src/Waitlists.php:1046
 #: src/Waitlists/AdminPage.php:116
 #: templates/event-card.php:180
 msgid "Ticketart"
@@ -1295,7 +1298,7 @@ msgstr ""
 #: src/Admin/DeveloperKeysPage.php:142
 #: src/Admin/Forms.php:495
 #: src/Admin/ServiceSlotsPage.php:99
-#: src/Waitlists.php:622
+#: src/Waitlists.php:1014
 msgid "Abgelaufen"
 msgstr ""
 
@@ -2616,7 +2619,7 @@ msgid "Ausstehend"
 msgstr ""
 
 #: src/Admin/Forms.php:498
-#: src/Waitlists.php:621
+#: src/Waitlists.php:1013
 msgid "Bezahlt"
 msgstr ""
 
@@ -2678,7 +2681,7 @@ msgstr ""
 #: src/Admin/Forms.php:511
 #: src/GuestLists/Service.php:60
 #: src/PortalSelfService.php:350
-#: src/Waitlists.php:623
+#: src/Waitlists.php:1015
 msgid "Abgelehnt"
 msgstr ""
 
@@ -2902,7 +2905,7 @@ msgstr ""
 #: src/BoxOffice/ZReport.php:383
 #: src/GuestLists/Page.php:263
 #: src/GuestLists/Service.php:677
-#: src/OrderPortal.php:113
+#: src/OrderPortal.php:119
 #: src/Partners/Settlements.php:688
 #: src/Partners/Settlements.php:804
 #: src/Partners/Settlements.php:811
@@ -3310,8 +3313,8 @@ msgstr ""
 #: src/Admin/OrdersPage.php:336
 #: src/Mail/Types.php:170
 #: src/Mollie/MollieGateway.php:101
-#: src/OrderPortal.php:104
-#: src/OrderPortal.php:106
+#: src/OrderPortal.php:110
+#: src/OrderPortal.php:112
 #: src/Payments/BankTransfer.php:46
 #: src/Payments/StripeGateway.php:79
 #, php-format
@@ -3365,7 +3368,7 @@ msgid "Käufer"
 msgstr ""
 
 #: src/Admin/OrdersPage.php:372
-#: src/OrderPortal.php:162
+#: src/OrderPortal.php:169
 msgid "Rechnungsdaten"
 msgstr ""
 
@@ -3378,7 +3381,7 @@ msgid "Zahlart / Referenz"
 msgstr ""
 
 #: src/Admin/OrdersPage.php:376
-#: src/OrderPortal.php:147
+#: src/OrderPortal.php:154
 #: src/Privacy.php:144
 msgid "Bankverbindung für Erstattungen"
 msgstr ""
@@ -3494,7 +3497,7 @@ msgstr ""
 
 #: src/Admin/OrdersPage.php:497
 #: src/Admin/TicketsPage.php:254
-#: src/OrderPortal.php:116
+#: src/OrderPortal.php:122
 msgid "erstattet"
 msgstr ""
 
@@ -3590,7 +3593,7 @@ msgstr ""
 #: src/Payments/BankTransfer.php:64
 #: src/PublicEvents.php:74
 #: src/Reports/Settlement.php:272
-#: src/Waitlists.php:708
+#: src/Waitlists.php:1100
 msgid "Betrag"
 msgstr ""
 
@@ -5295,7 +5298,9 @@ msgstr ""
 #: src/BoxOffice/Page.php:111
 #: src/BoxOffice/ShiftPage.php:47
 #: src/Privacy.php:189
-#: src/Waitlists.php:655
+#: src/Waitlists.php:830
+#: src/Waitlists.php:937
+#: src/Waitlists.php:1047
 #: src/Waitlists/AdminPage.php:116
 #: templates/event-card.php:189
 msgid "Anzahl"
@@ -5703,7 +5708,7 @@ msgstr ""
 
 #: src/Billing.php:266
 #: src/Integrations/WooCommerce/Attendees.php:330
-#: src/OrderPortal.php:175
+#: src/OrderPortal.php:182
 #: templates/event-card.php:111
 #: templates/event-card.php:124
 #: templates/event-card.php:129
@@ -5711,12 +5716,12 @@ msgid "(optional)"
 msgstr ""
 
 #: src/Billing.php:325
-#: src/OrderPortal.php:166
+#: src/OrderPortal.php:173
 msgid "Die Rechnung wurde bereits ausgestellt. Für eine Korrektur wende dich bitte an den Veranstalter."
 msgstr ""
 
 #: src/Billing.php:331
-#: src/OrderPortal.php:96
+#: src/OrderPortal.php:102
 msgid "Die Rechnungsdaten konnten nicht gespeichert werden."
 msgstr ""
 
@@ -7293,6 +7298,7 @@ msgid "Diese Einwilligung ist nicht erteilt und kann daher nicht widerrufen werd
 msgstr ""
 
 #: src/Consents.php:426
+#: src/Waitlists.php:910
 msgid "Die Sitzung ist abgelaufen. Bitte lade die Seite neu und versuche es erneut."
 msgstr ""
 
@@ -8644,32 +8650,32 @@ msgstr ""
 msgid "Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den langen Ticket-Code verwenden."
 msgstr ""
 
-#: src/Installer.php:990
-#: src/Installer.php:1022
+#: src/Installer.php:991
+#: src/Installer.php:1023
 msgid "Pass Captain Veranstalter"
 msgstr ""
 
-#: src/Installer.php:1018
+#: src/Installer.php:1019
 msgid "Pass Captain Ticket-Administration"
 msgstr ""
 
-#: src/Installer.php:1019
+#: src/Installer.php:1020
 msgid "Pass Captain Veranstaltungsleitung"
 msgstr ""
 
-#: src/Installer.php:1020
+#: src/Installer.php:1021
 msgid "Pass Captain Vor-Ort-Kasse"
 msgstr ""
 
-#: src/Installer.php:1021
+#: src/Installer.php:1022
 msgid "Pass Captain Einlasspersonal"
 msgstr ""
 
-#: src/Installer.php:1023
+#: src/Installer.php:1024
 msgid "Pass Captain Finanzbuchhaltung"
 msgstr ""
 
-#: src/Installer.php:1024
+#: src/Installer.php:1025
 msgid "Pass Captain Support"
 msgstr ""
 
@@ -9457,7 +9463,7 @@ msgstr ""
 
 #. translators: 1: voucher amount, 2: amount to pay
 #: src/Mail/Blocks.php:65
-#: src/OrderPortal.php:112
+#: src/OrderPortal.php:118
 msgid "Zahlungsinformationen"
 msgstr ""
 
@@ -10007,7 +10013,7 @@ msgid "Bestätigung der Eintragung in die Warteliste."
 msgstr ""
 
 #: src/Mail/Types.php:384
-#: src/Mail/Types.php:401
+#: src/Mail/Types.php:405
 msgid "Position auf der Warteliste"
 msgstr ""
 
@@ -10015,44 +10021,49 @@ msgstr ""
 msgid "Gewünschte Anzahl"
 msgstr ""
 
-#: src/Mail/Types.php:389
+#: src/Mail/Types.php:388
+#: src/Mail/Types.php:408
+msgid "Persönlicher Link zum Austragen aus der Warteliste"
+msgstr ""
+
+#: src/Mail/Types.php:390
 msgid "Du stehst auf der Warteliste"
 msgstr ""
 
 #. translators: %d: waitlist position
-#: src/Mail/Types.php:391
+#: src/Mail/Types.php:393
 #, php-format
 msgid "Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird."
 msgstr ""
 
-#: src/Mail/Types.php:395
+#: src/Mail/Types.php:399
 msgid "Warteliste: Platzangebot"
 msgstr ""
 
-#: src/Mail/Types.php:396
+#: src/Mail/Types.php:400
 msgid "Angebot an die nächste Person auf der Warteliste; die Tickets sind bis zum Ablauf reserviert."
 msgstr ""
 
-#: src/Mail/Types.php:398
+#: src/Mail/Types.php:402
 msgid "Ablauf des Angebots"
 msgstr ""
 
-#: src/Mail/Types.php:399
+#: src/Mail/Types.php:403
 msgid "Link zur Annahme"
 msgstr ""
 
-#: src/Mail/Types.php:400
+#: src/Mail/Types.php:404
 msgid "Anzahl der reservierten Tickets"
 msgstr ""
 
 #. translators: %s: event
-#: src/Mail/Types.php:406
+#: src/Mail/Types.php:411
 #, php-format
 msgid "Tickets für dich reserviert: %s"
 msgstr ""
 
 #. translators: 1: quantity, 2: ticket type, 3: event, 4: expiry date, 5: accept link
-#: src/Mail/Types.php:408
+#: src/Mail/Types.php:414
 #, php-format
 msgid ""
 "Gute Nachrichten: Für dich sind %1$s × „%2$s“ für „%3$s“ reserviert.\n"
@@ -10063,38 +10074,38 @@ msgid ""
 "Wenn du die Tickets nicht mehr brauchst, kannst du das Angebot über denselben Link ablehnen."
 msgstr ""
 
-#: src/Mail/Types.php:412
+#: src/Mail/Types.php:420
 msgid "Mitgliedspass"
 msgstr ""
 
-#: src/Mail/Types.php:413
+#: src/Mail/Types.php:421
 msgid "Passcode einer Mitgliedschaft bzw. eines Mehrfachpasses."
 msgstr ""
 
-#: src/Mail/Types.php:415
+#: src/Mail/Types.php:423
 msgid "Passcode"
 msgstr ""
 
-#: src/Mail/Types.php:416
+#: src/Mail/Types.php:424
 msgid "Gültig ab"
 msgstr ""
 
 #. translators: %s: site name
-#: src/Mail/Types.php:420
+#: src/Mail/Types.php:428
 #, php-format
 msgid "Dein Pass für %s"
 msgstr ""
 
-#: src/Mail/Types.php:421
+#: src/Mail/Types.php:429
 msgid "Dein Passcode:"
 msgstr ""
 
-#: src/Mail/Types.php:421
+#: src/Mail/Types.php:429
 msgid "Gültig bis:"
 msgstr ""
 
 #. translators: %d: number of tickets
-#: src/Mail/Types.php:431
+#: src/Mail/Types.php:439
 #, php-format
 msgid "%d Ticket ist damit ungültig."
 msgid_plural "%d Tickets sind damit ungültig."
@@ -10102,29 +10113,37 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %s: amount
-#: src/Mail/Types.php:444
+#: src/Mail/Types.php:452
 #, php-format
 msgid "Aufpreis bezahlt: %s"
 msgstr ""
 
 #. translators: %s: amount
-#: src/Mail/Types.php:446
+#: src/Mail/Types.php:454
 #, php-format
 msgid "Die Preisdifferenz von %s wird erstattet."
 msgstr ""
 
 #. translators: %s: amount
-#: src/Mail/Types.php:448
+#: src/Mail/Types.php:456
 #, php-format
 msgid "Die Erstattung der Preisdifferenz von %s wird geprüft."
 msgstr ""
 
-#: src/Mail/Types.php:449
+#: src/Mail/Types.php:457
 msgid "Der Umtausch erfolgte aus Kulanz ohne Aufpreis."
 msgstr ""
 
+#. translators: %s: personal unsubscribe link
+#: src/Mail/Types.php:468
+#, php-format
+msgid ""
+"Du möchtest nicht mehr auf der Warteliste stehen? Hier kannst du dich austragen:\n"
+"%s"
+msgstr ""
+
 #. translators: %s: credit note number
-#: src/Mail/Types.php:457
+#: src/Mail/Types.php:474
 #, php-format
 msgid "Rechnungskorrektur: %s"
 msgstr ""
@@ -11362,141 +11381,141 @@ msgstr ""
 msgid "WP Pass Captain – Betrieb"
 msgstr ""
 
-#: src/OrderPortal.php:79
+#: src/OrderPortal.php:85
 msgid "Abbrechen"
 msgstr ""
 
-#: src/OrderPortal.php:80
+#: src/OrderPortal.php:86
 msgid "Übertragung fehlgeschlagen."
 msgstr ""
 
-#: src/OrderPortal.php:81
+#: src/OrderPortal.php:87
 msgid "Ticket wurde übertragen. Der neue Code wurde per E-Mail versendet."
 msgstr ""
 
 #. translators: %s: recipient e-mail address
-#: src/OrderPortal.php:83
+#: src/OrderPortal.php:89
 #, php-format
 msgid "Ticket wirklich an %s übertragen? Das ist endgültig und nur einmal möglich: Der bisherige Ticketcode wird sofort ungültig und die neue Person erhält einen neuen Code per E-Mail."
 msgstr ""
 
-#: src/OrderPortal.php:84
+#: src/OrderPortal.php:90
 msgid "Ja, endgültig übertragen"
 msgstr ""
 
-#: src/OrderPortal.php:85
+#: src/OrderPortal.php:91
 msgid "Zuweisung fehlgeschlagen."
 msgstr ""
 
-#: src/OrderPortal.php:86
+#: src/OrderPortal.php:92
 msgid "Teilnehmer wurde zugewiesen. Ein neuer Ticketcode wurde an die Teilnehmer-E-Mail gesendet; der bisherige Code ist ungültig."
 msgstr ""
 
-#: src/OrderPortal.php:87
+#: src/OrderPortal.php:93
 msgid "Teilnehmerdaten gespeichert. Der Ticketcode bleibt unverändert."
 msgstr ""
 
-#: src/OrderPortal.php:88
+#: src/OrderPortal.php:94
 msgid "Tickets jetzt erneut senden? Dabei werden neue Ticketcodes erstellt; die bisher gesendeten Codes und Ausdrucke werden ungültig."
 msgstr ""
 
-#: src/OrderPortal.php:89
+#: src/OrderPortal.php:95
 msgid "Ja, erneut senden"
 msgstr ""
 
-#: src/OrderPortal.php:90
+#: src/OrderPortal.php:96
 msgid "Erneuter Versand fehlgeschlagen."
 msgstr ""
 
 #. translators: %s: masked e-mail address
-#: src/OrderPortal.php:92
+#: src/OrderPortal.php:98
 #, php-format
 msgid "Die Tickets wurden erneut an %s gesendet. Bitte verwende nur noch die neuen Codes."
 msgstr ""
 
-#: src/OrderPortal.php:93
+#: src/OrderPortal.php:99
 msgid "Wird gesendet …"
 msgstr ""
 
-#: src/OrderPortal.php:94
+#: src/OrderPortal.php:100
 msgid "Rechnungsdaten gespeichert. Sie werden auf der Rechnung verwendet."
 msgstr ""
 
-#: src/OrderPortal.php:95
+#: src/OrderPortal.php:101
 msgid "Rechnungsdaten entfernt."
 msgstr ""
 
 #. translators: %s: masked IBAN
-#: src/OrderPortal.php:98
+#: src/OrderPortal.php:104
 #, php-format
 msgid "Bankverbindung gespeichert (%s). Erstattungen überweisen wir auf dieses Konto."
 msgstr ""
 
-#: src/OrderPortal.php:99
+#: src/OrderPortal.php:105
 msgid "Bankverbindung entfernt."
 msgstr ""
 
-#: src/OrderPortal.php:100
+#: src/OrderPortal.php:106
 #: src/PayoutAccount.php:81
 msgid "Die Bankverbindung konnte nicht gespeichert werden."
 msgstr ""
 
 #. translators: %s: order date
-#: src/OrderPortal.php:107
+#: src/OrderPortal.php:113
 #, php-format
 msgid "Bestellt am %s"
 msgstr ""
 
-#: src/OrderPortal.php:110
+#: src/OrderPortal.php:116
 msgid "Bestellte Tickets"
 msgstr ""
 
 #. translators: %s: formatted amount
-#: src/OrderPortal.php:111
+#: src/OrderPortal.php:117
 #, php-format
 msgid "Gesamtbetrag: %s"
 msgstr ""
 
 #. translators: 1: voucher amount, 2: amount to pay
-#: src/OrderPortal.php:111
+#: src/OrderPortal.php:117
 #, php-format
 msgid "davon mit Gutschein bezahlt: %1$s · Zahlbetrag: %2$s"
 msgstr ""
 
-#: src/OrderPortal.php:113
+#: src/OrderPortal.php:119
 msgid "Die Ticketlinks und QR-Codes findest du in der Ticket-E-Mail (aus Sicherheitsgründen werden Ticketcodes nicht gespeichert und hier nicht angezeigt)."
 msgstr ""
 
 #. translators: %s: masked e-mail address
-#: src/OrderPortal.php:114
+#: src/OrderPortal.php:120
 #, php-format
 msgid "Tickets erneut an %s senden"
 msgstr ""
 
 #. translators: %s: masked e-mail address
-#: src/OrderPortal.php:114
+#: src/OrderPortal.php:120
 msgid "Dabei werden neue Ticketcodes erstellt; bisher gesendete Codes werden ungültig. Tickets mit eigener Teilnehmer-E-Mail gehen an diese Adresse. Höchstens dreimal pro Stunde."
 msgstr ""
 
-#: src/OrderPortal.php:116
+#: src/OrderPortal.php:122
 #: src/TicketPage.php:58
 msgid "Status:"
 msgstr ""
 
-#: src/OrderPortal.php:118
+#: src/OrderPortal.php:124
 msgid "Teilnehmername"
 msgstr ""
 
-#: src/OrderPortal.php:118
+#: src/OrderPortal.php:124
 msgid "Teilnehmer-E-Mail (optional)"
 msgstr ""
 
-#: src/OrderPortal.php:118
+#: src/OrderPortal.php:124
 msgid "Wenn du eine andere E-Mail-Adresse einträgst, erhält diese Person einen neuen Ticketcode und der bisherige Code wird ungültig. Namens- und Angabenkorrekturen behalten den Code."
 msgstr ""
 
 #. translators: %d: hours
-#: src/OrderPortal.php:118
+#: src/OrderPortal.php:124
 #, php-format
 msgid "Änderungen sind bis %d Stunde vor Beginn möglich."
 msgid_plural "Änderungen sind bis %d Stunden vor Beginn möglich."
@@ -11504,67 +11523,67 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: hours
-#: src/OrderPortal.php:118
+#: src/OrderPortal.php:124
 msgid "Teilnehmer zuweisen"
 msgstr ""
 
 #. translators: %d: hours
-#: src/OrderPortal.php:119
+#: src/OrderPortal.php:125
 msgid "An E-Mail übertragen"
 msgstr ""
 
 #. translators: %d: hours
-#: src/OrderPortal.php:119
+#: src/OrderPortal.php:125
 msgid "Ticket einmalig übertragen"
 msgstr ""
 
-#: src/OrderPortal.php:123
+#: src/OrderPortal.php:130
 msgid "Rechnung anzeigen"
 msgstr ""
 
-#: src/OrderPortal.php:124
+#: src/OrderPortal.php:131
 msgid "Diesen persönlichen Link sicher aufbewahren und nicht teilen."
 msgstr ""
 
 #. translators: %s: full order id
-#: src/OrderPortal.php:125
+#: src/OrderPortal.php:132
 #, php-format
 msgid "Vollständige Bestell-ID: %s"
 msgstr ""
 
-#: src/OrderPortal.php:148
+#: src/OrderPortal.php:155
 msgid "Du hast per Überweisung bezahlt. Falls wir dir etwas erstatten (z. B. bei einer Absage), überweisen wir den Betrag auf dieses Konto."
 msgstr ""
 
 #. translators: 1: masked IBAN, 2: account holder
-#: src/OrderPortal.php:151
+#: src/OrderPortal.php:158
 #, php-format
 msgid "Gespeichert: %1$s (%2$s)"
 msgstr ""
 
-#: src/OrderPortal.php:153
+#: src/OrderPortal.php:160
 msgid "Kontoinhaber:in"
 msgstr ""
 
-#: src/OrderPortal.php:154
+#: src/OrderPortal.php:161
 #: src/Payments/BankTransfer.php:66
 #: src/PublicEvents.php:76
 msgid "IBAN"
 msgstr ""
 
-#: src/OrderPortal.php:155
+#: src/OrderPortal.php:162
 msgid "IBAN leer lassen und speichern, um die Bankverbindung zu entfernen."
 msgstr ""
 
-#: src/OrderPortal.php:156
+#: src/OrderPortal.php:163
 msgid "Bankverbindung speichern"
 msgstr ""
 
-#: src/OrderPortal.php:169
+#: src/OrderPortal.php:176
 msgid "Bis zur Ausstellung der Rechnung kannst du hier Firma, Name, Anschrift und UID-Nummer für die Rechnung angeben oder korrigieren."
 msgstr ""
 
-#: src/OrderPortal.php:186
+#: src/OrderPortal.php:193
 msgid "Rechnungsdaten speichern"
 msgstr ""
 
@@ -11573,7 +11592,7 @@ msgid "Bitte eine gültige E-Mail-Adresse und Tickets auswählen."
 msgstr ""
 
 #: src/Orders.php:44
-#: src/Waitlists.php:470
+#: src/Waitlists.php:493
 msgid "Bitte bestätige die Bedingungen und Verbraucherinformationen."
 msgstr ""
 
@@ -11587,7 +11606,7 @@ msgid "Eine Ticketposition ist ungültig."
 msgstr ""
 
 #: src/Orders.php:328
-#: src/Waitlists.php:101
+#: src/Waitlists.php:112
 msgid "Diese Ticketart ist nicht verfügbar."
 msgstr ""
 
@@ -13544,7 +13563,7 @@ msgstr ""
 #: src/Payments/BankTransfer.php:65
 #: src/Privacy/PolicyText.php:107
 #: src/PublicEvents.php:75
-#: src/Waitlists.php:708
+#: src/Waitlists.php:1100
 msgid "Empfänger"
 msgstr ""
 
@@ -13555,13 +13574,13 @@ msgstr ""
 
 #: src/Payments/BankTransfer.php:68
 #: src/PublicEvents.php:78
-#: src/Waitlists.php:708
+#: src/Waitlists.php:1100
 msgid "Verwendungszweck"
 msgstr ""
 
 #: src/Payments/BankTransfer.php:69
 #: src/PublicEvents.php:79
-#: src/Waitlists.php:708
+#: src/Waitlists.php:1100
 msgid "Zahlbar bis"
 msgstr ""
 
@@ -15268,7 +15287,7 @@ msgstr ""
 
 #: src/Reports/Settlement.php:258
 #: src/Reports/Settlement.php:324
-#: src/Waitlists.php:662
+#: src/Waitlists.php:1054
 #: templates/event-card.php:149
 msgid "Zahlungsart"
 msgstr ""
@@ -15366,12 +15385,12 @@ msgid "Künstler/Tourneeleitung"
 msgstr ""
 
 #: src/Rest/Controller.php:302
-#: src/Waitlists.php:477
+#: src/Waitlists.php:503
 msgid "Diese Zahlungsart ist nicht verfügbar."
 msgstr ""
 
 #: src/Rest/Controller.php:309
-#: src/Waitlists.php:503
+#: src/Waitlists.php:509
 msgid "Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart."
 msgstr ""
 
@@ -16271,7 +16290,7 @@ msgid "Wieder in der Regel – Markierung wird aufgehoben"
 msgstr ""
 
 #: src/Series/AdminPage.php:216
-#: src/Waitlists.php:624
+#: src/Waitlists.php:1016
 msgid "Übersprungen"
 msgstr ""
 
@@ -17022,145 +17041,231 @@ msgstr ""
 msgid "Ticket QR-Code"
 msgstr ""
 
-#: src/Waitlists.php:88
+#: src/Waitlists.php:99
 msgid "Veranstaltung oder E-Mail-Adresse ist ungültig."
 msgstr ""
 
-#: src/Waitlists.php:91
-#: src/Waitlists.php:96
+#: src/Waitlists.php:102
+#: src/Waitlists.php:107
+#: src/Waitlists.php:693
 msgid "Zu viele Wartelistenanfragen. Bitte versuche es später erneut."
 msgstr ""
 
-#: src/Waitlists.php:99
+#: src/Waitlists.php:110
 msgid "Diese Veranstaltung ist nicht verfügbar."
 msgstr ""
 
 #. translators: %d: maximum number of tickets per order
-#: src/Waitlists.php:104
+#: src/Waitlists.php:115
 #, php-format
 msgid "Auf der Warteliste ist höchstens %d Ticket pro Eintrag möglich."
 msgid_plural "Auf der Warteliste sind höchstens %d Tickets pro Eintrag möglich."
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/Waitlists.php:135
+#: src/Waitlists.php:152
 msgid "Der Wartelistenplatz konnte nicht gespeichert werden."
 msgstr ""
 
-#: src/Waitlists.php:147
+#: src/Waitlists.php:164
 msgid "Danke! Falls die Adresse noch nicht eingetragen war, bekommst du eine Bestätigung per E-Mail."
 msgstr ""
 
-#: src/Waitlists.php:278
+#: src/Waitlists.php:295
 msgid "Für diese Ticketart gibt es keinen wartenden Eintrag."
 msgstr ""
 
-#: src/Waitlists.php:285
+#: src/Waitlists.php:302
 msgid "Dieser Eintrag wartet nicht (mehr) auf ein Angebot."
 msgstr ""
 
-#: src/Waitlists.php:304
+#: src/Waitlists.php:321
 msgid "Für diesen Termin ist kein Wartelistenangebot mehr möglich."
 msgstr ""
 
-#: src/Waitlists.php:310
+#: src/Waitlists.php:327
+#: src/Waitlists.php:345
 msgid "Das Angebot konnte nicht erstellt werden."
 msgstr ""
 
-#: src/Waitlists.php:330
+#: src/Waitlists.php:353
 msgid "Das Angebot konnte nicht per E-Mail gesendet werden und wurde zurückgenommen."
 msgstr ""
 
-#: src/Waitlists.php:452
-#: src/Waitlists.php:649
+#: src/Waitlists.php:475
+#: src/Waitlists.php:1041
 msgid "Wartelistenangebot ist ungültig oder abgelaufen."
 msgstr ""
 
-#: src/Waitlists.php:482
+#: src/Waitlists.php:579
+msgid "Das Angebot konnte gerade nicht angenommen werden. Bitte versuche es gleich noch einmal."
+msgstr ""
+
+#: src/Waitlists.php:595
 msgid "Wartelistenangebot konnte nicht angenommen werden."
 msgstr ""
 
-#: src/Waitlists.php:565
+#: src/Waitlists.php:697
+msgid "Dieser Link zum Austragen ist ungültig."
+msgstr ""
+
+#: src/Waitlists.php:740
+msgid "Das Austragen hat gerade nicht geklappt. Bitte versuche es gleich noch einmal."
+msgstr ""
+
+#: src/Waitlists.php:772
+#: src/Waitlists.php:821
+msgid "Du hast das Angebot bereits angenommen; die Bestellung wartet auf deine Zahlung. Zahlst du nicht, verfällt die Reservierung automatisch und der Platz geht an die nächste Person."
+msgstr ""
+
+#: src/Waitlists.php:809
+#: src/Waitlists.php:852
+#: src/Waitlists.php:869
+#: src/Waitlists.php:939
+msgid "Von der Warteliste austragen"
+msgstr ""
+
+#: src/Waitlists.php:818
+msgid "Du bist bereits von dieser Warteliste ausgetragen."
+msgstr ""
+
+#: src/Waitlists.php:824
+msgid "Du stehst nicht mehr auf dieser Warteliste."
+msgstr ""
+
+#: src/Waitlists.php:833
+msgid "Für dich sind gerade Tickets reserviert. Wenn du dich austrägst, verfällt dieses Angebot sofort und die Tickets gehen an die nächste Person auf der Warteliste."
+msgstr ""
+
+#: src/Waitlists.php:834
+msgid "Wenn du dich austrägst, bekommst du für diese Ticketart kein Angebot mehr. Deine E-Mail-Adresse wird aus dem Eintrag gelöscht."
+msgstr ""
+
+#: src/Waitlists.php:838
+msgid "Jetzt von der Warteliste austragen"
+msgstr ""
+
+#: src/Waitlists.php:877
+msgid "Austragen nicht möglich"
+msgstr ""
+
+#: src/Waitlists.php:880
+msgid "Nicht mehr auf der Warteliste"
+msgstr ""
+
+#: src/Waitlists.php:880
+msgid "Du stehst nicht mehr auf dieser Warteliste. Es ist nichts weiter zu tun."
+msgstr ""
+
+#: src/Waitlists.php:883
+msgid "Du bist von der Warteliste ausgetragen. Die für dich reservierten Tickets gehen an die nächste Person auf der Warteliste."
+msgstr ""
+
+#: src/Waitlists.php:884
+msgid "Du bist von der Warteliste ausgetragen und bekommst dafür keine E-Mails mehr."
+msgstr ""
+
+#: src/Waitlists.php:885
+msgid "Ausgetragen"
+msgstr ""
+
+#: src/Waitlists.php:925
+msgid "Deine Wartelisten"
+msgstr ""
+
+#: src/Waitlists.php:927
+msgid "Du bist von der Warteliste ausgetragen."
+msgstr ""
+
+#: src/Waitlists.php:929
+msgid "Das Austragen hat nicht geklappt. Bitte lade die Seite neu und versuche es erneut."
+msgstr ""
+
+#: src/Waitlists.php:932
+msgid "Mit deiner E-Mail-Adresse stehst du auf diesen Wartelisten."
+msgstr ""
+
+#: src/Waitlists.php:957
 msgid "Dieser Eintrag ist bereits abgeschlossen."
 msgstr ""
 
-#: src/Waitlists.php:568
+#: src/Waitlists.php:960
 msgid "Der Eintrag wurde gerade geändert. Bitte neu laden."
 msgstr ""
 
-#: src/Waitlists.php:618
+#: src/Waitlists.php:1010
 msgid "Wartet"
 msgstr ""
 
-#: src/Waitlists.php:619
+#: src/Waitlists.php:1011
 msgid "Angebot offen"
 msgstr ""
 
-#: src/Waitlists.php:620
+#: src/Waitlists.php:1012
 msgid "Angenommen, Zahlung offen"
 msgstr ""
 
-#: src/Waitlists.php:625
+#: src/Waitlists.php:1017
 msgid "Entfernt"
 msgstr ""
 
-#: src/Waitlists.php:646
-#: src/Waitlists.php:647
+#: src/Waitlists.php:1038
+#: src/Waitlists.php:1039
 msgid "Wartelistenangebot annehmen"
 msgstr ""
 
-#: src/Waitlists.php:652
+#: src/Waitlists.php:1044
 msgid "Für dich sind Tickets reserviert. Nimm das Angebot bis zum angegebenen Zeitpunkt an, sonst geht es an die nächste Person auf der Warteliste."
 msgstr ""
 
-#: src/Waitlists.php:657
+#: src/Waitlists.php:1049
 #: src/Waitlists/AdminPage.php:116
 msgid "Reserviert bis"
 msgstr ""
 
-#: src/Waitlists.php:671
+#: src/Waitlists.php:1063
 msgid "Ich akzeptiere die Bedingungen und Verbraucherinformationen."
 msgstr ""
 
-#: src/Waitlists.php:673
+#: src/Waitlists.php:1065
 msgid "Angebot annehmen"
 msgstr ""
 
-#: src/Waitlists.php:673
+#: src/Waitlists.php:1065
 msgid "Angebot ablehnen"
 msgstr ""
 
 #. translators: %s: site name
-#: src/Waitlists.php:690
+#: src/Waitlists.php:1082
 #, php-format
 msgid "Warteliste – %s"
 msgstr ""
 
-#: src/Waitlists.php:692
+#: src/Waitlists.php:1084
 msgid "Angebot nicht verfügbar"
 msgstr ""
 
-#: src/Waitlists.php:694
+#: src/Waitlists.php:1086
 msgid "Angebot abgelehnt"
 msgstr ""
 
-#: src/Waitlists.php:694
+#: src/Waitlists.php:1086
 msgid "Danke für deine Rückmeldung. Die Tickets gehen an die nächste Person auf der Warteliste."
 msgstr ""
 
-#: src/Waitlists.php:696
+#: src/Waitlists.php:1088
 msgid "Angebot angenommen"
 msgstr ""
 
-#: src/Waitlists.php:698
+#: src/Waitlists.php:1090
 msgid "Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet."
 msgstr ""
 
-#: src/Waitlists.php:700
+#: src/Waitlists.php:1092
 msgid "Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung. Den Link zu deiner Bestellung und die Zahlungsinformationen haben wir dir per E-Mail gesendet."
 msgstr ""
 
-#: src/Waitlists.php:703
+#: src/Waitlists.php:1095
 msgid "Jetzt bezahlen"
 msgstr ""
 

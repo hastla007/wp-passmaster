@@ -343,7 +343,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Bearbeiten/Verschieben da (src/Admin/EventsPage.php:124,151 inkl. rescheduled-Hook); Event nur Name/Beschreibung/Status, keine Versionierung/Revisionshistorie außer Audit-Log
 - [x] **A157** Admin-Oberflächen für REST-Module ergänzen — _TEILWEISE_ (TODO L199; Kernprodukt und Admin-Bedienung)
   - Serien (src/Series/AdminPage.php) und Einlassregeln/Areas (src/Admission/RulesPage.php:60) vorhanden; Service-Zeitfenster und Entwickler-API-Schlüssel nur REST (src/Rest/Controller.php:117-198)
-- [ ] **A158** Event-Warteliste vervollständigen — _TEILWEISE_ (TODO L200; Kernprodukt und Admin-Bedienung)
+- [x] **A158** Event-Warteliste vervollständigen — _TEILWEISE_ (TODO L200; Kernprodukt und Admin-Bedienung)
   - Auto-Angebot mit Hold, Annahme/Ablehnung da (src/Waitlists.php:198,262,429,498); keine Selbst-Abmeldung durch Käufer, kein Test paralleler Annahmen in tests/integration/modules/p3_waitlist.php
 - [ ] **A159** Automatische Preisregeln Frühbucher/Last-Minute/Nachfrage fertigstellen — _TEILWEISE_ (TODO L201; Kernprodukt und Admin-Bedienung)
   - Regeln nur für Serientermine (src/Series/Pricing.php:257,311), Snapshot src/Orders.php:213-217; keine Stapelbarkeitsregeln (nur eine Regel gewinnt), nicht für Einzelevents
