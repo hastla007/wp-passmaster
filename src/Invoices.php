@@ -671,12 +671,13 @@ final class Invoices {
 		$public_id = sanitize_text_field( wp_unslash( $_GET['wpcap_invoice'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', sanitize_text_field( wp_unslash( (string) ( $_GET['wpcap_access'] ?? '' ) ) ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- capability link (access token).
 		if ( '' === $public_id || 64 !== strlen( $token ) ) { return; }
+		// A283: personal page, also its 404 answers – never stored by a page cache or CDN.
+		PageCache::no_store( 'invoice' );
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { status_header( 404 ); exit; }
 		$invoice_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d", $order->order_id ) );
 		if ( ! $invoice_id ) { status_header( 404 ); exit; }
-		nocache_headers();
 		header( 'Referrer-Policy: no-referrer' );
 		echo self::render_html( $invoice_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_html.
 		exit;

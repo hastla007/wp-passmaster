@@ -24,6 +24,9 @@ final class ReturnNotice {
 		$state = sanitize_key( wp_unslash( $_GET['wpcap_payment'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
 		$message = self::message( $state );
 		if ( '' === $message ) { return; }
+		// A283: the banner belongs to one buyer. Headers were sent by template_redirect already
+		// (PageCache::maybe_no_store_request()); DONOTCACHEPAGE still keeps page-cache plugins away.
+		\PassCaptain\PageCache::no_store( 'payment_return' );
 		$color = in_array( $state, array( 'success', 'pending' ), true ) ? '#146c2e' : '#b32d2e';
 		echo '<div class="wpcap-payment-notice" role="status" style="padding:1rem;margin:1rem;border-left:4px solid ' . esc_attr( $color ) . ';background:#f6f7f7">' . esc_html( $message ) . '</div>';
 	}

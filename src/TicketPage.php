@@ -14,6 +14,8 @@ final class TicketPage {
 	public static function maybe_render() {
 		$token = get_query_var( 'wpcap_ticket' );
 		if ( ! $token ) { return; }
+		// A283: personal page, also its 404 answers – never stored by a page cache or CDN.
+		PageCache::no_store( 'ticket' );
 		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $token ) );
 		if ( 64 !== strlen( $token ) ) { status_header( 404 ); exit; }
 		global $wpdb;

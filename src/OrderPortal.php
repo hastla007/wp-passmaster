@@ -15,6 +15,8 @@ final class OrderPortal {
 		$public_id = sanitize_text_field( get_query_var( 'wpcap_order' ) );
 		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) get_query_var( 'wpcap_access' ) ) );
 		if ( '' === $public_id || '' === $token ) { return; }
+		// A283: personal page, also its 404 answers – never stored by a page cache or CDN.
+		PageCache::no_store( 'portal' );
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || 64 !== strlen( $token ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { status_header( 404 ); exit; }

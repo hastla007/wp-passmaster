@@ -382,6 +382,9 @@ final class PublicEvents {
 	}
 
 	public static function render_scanner_shortcode() {
+		// A508: never cache the scanner page (login state, nonce). Headers were sent on
+		// template_redirect (PageCache::maybe_no_store_request()); DONOTCACHEPAGE covers late rendering.
+		PageCache::no_store( 'scanner' );
 		if ( ! is_user_logged_in() || ! current_user_can( 'wpcap_checkin' ) ) {
 			return '<p>' . esc_html__( 'Für den Scanner ist eine Anmeldung mit Einlassberechtigung erforderlich.', 'pass-captain' ) . '</p>';
 		}

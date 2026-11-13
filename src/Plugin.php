@@ -74,6 +74,7 @@ final class Plugin {
 		Notifications::register();
 		Payments\PayPalGateway::register();
 		Payments\ReturnNotice::register();
+		PageCache::register();
 		Mobile\Api::register();
 		HelpCode::register();
 		OccurrenceCancellation::register();

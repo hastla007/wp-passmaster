@@ -872,7 +872,7 @@ final class Waitlists {
 		$waitlist_id = absint( $_GET[ self::UNSUBSCRIBE_QUERY ] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
-		nocache_headers();
+		PageCache::no_store( 'waitlist_unsubscribe' );
 		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
 		list( $code, $html ) = self::unsubscribe_page( $waitlist_id, $token );
 		status_header( $code );
@@ -891,7 +891,7 @@ final class Waitlists {
 		check_admin_referer( self::UNSUBSCRIBE_ACTION . '_' . $waitlist_id );
 		$token = sanitize_text_field( wp_unslash( (string) ( $_POST['token'] ?? '' ) ) );
 		$result = self::unsubscribe( $waitlist_id, $token, 'link' );
-		nocache_headers();
+		PageCache::no_store( 'waitlist_result' );
 		status_header( is_wp_error( $result ) ? (int) ( $result->get_error_data()['status'] ?? 409 ) : 200 );
 		self::page_head( __( 'Von der Warteliste austragen', 'pass-captain' ) );
 		echo self::unsubscribe_result_html( $result ) . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in unsubscribe_result_html().
@@ -1055,7 +1055,7 @@ final class Waitlists {
 		$waitlist_id = absint( $_GET['wpcap_waitlist_accept'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || 64 !== strlen( $token ) || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
-		nocache_headers();
+		PageCache::no_store( 'waitlist_offer' );
 		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
 		$row = self::open_offer( $waitlist_id, $token );
 		$busy = is_wp_error( $row );
@@ -1105,7 +1105,7 @@ final class Waitlists {
 		$token = preg_replace( '/[^a-f0-9]/', '', strtolower( sanitize_text_field( wp_unslash( (string) ( $_POST['token'] ?? '' ) ) ) ) );
 		$decline = 'decline' === sanitize_key( wp_unslash( $_POST['decision'] ?? '' ) );
 		$result = $decline ? self::decline_offer( $waitlist_id, $token ) : self::accept_offer( $waitlist_id, $token, array( 'provider' => sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) ), 'accept_terms' => ! empty( $_POST['accept_terms'] ) ) );
-		nocache_headers();
+		PageCache::no_store( 'waitlist_result' );
 		status_header( is_wp_error( $result ) ? 409 : 200 );
 		/* translators: %s: site name */
 		self::page_head( sprintf( __( 'Warteliste – %s', 'pass-captain' ), Orders::site_name() ) );

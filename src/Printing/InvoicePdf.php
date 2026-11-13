@@ -284,6 +284,8 @@ final class InvoicePdf {
 	/** template_redirect: ?wpcap_invoice_pdf=<public_id>&wpcap_access=<token> */
 	public static function maybe_customer_download() {
 		if ( ! isset( $_GET['wpcap_invoice_pdf'] ) ) { return; } // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		// A283: personal download, also the 404 answer – never stored by a page cache or CDN.
+		\PassCaptain\PageCache::no_store( 'invoice_pdf' );
 		$result = self::customer_pdf( wp_unslash( $_GET['wpcap_invoice_pdf'] ), wp_unslash( $_GET['wpcap_access'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended,WordPress.Security.ValidatedSanitizedInput
 		if ( is_wp_error( $result ) ) { status_header( 404 ); exit; }
 		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
