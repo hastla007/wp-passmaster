@@ -139,6 +139,8 @@
 - MySQL 8: Beim Umtausch wurden Antworten auf Zusatzfelder nicht übernommen, weil die Abfrage den in MySQL reservierten Alias `of` verwendete (MariaDB erlaubt ihn); behoben, durch den neuen MySQL-CI-Lauf gefunden.
 - Statische Prüfungen in CI: PHPCS mit WordPress Coding Standards (Sicherheit, Datenbank, i18n) und PHPCompatibility (PHP 8.2+) sowie `composer audit`; behoben: unbereinigte Request-Methode/Eingaben (neuer Helfer `Http::method()`), Token-Bereinigung, fehlende und falsch zugeordnete Übersetzerkommentare (A173, teilweise).
 - JavaScript: ESLint über alle eigenen Skripte und Logiktests der Offline-App (Signaturprüfung der Prüfpakete, Geräte-/Formatbindung, Offline-Einlassentscheidung) mit `node:test`, beides in CI (A174).
+- Neue Admin-Seite „Betrieb“: Hintergrundjobs, E-Mail-Warteschlange und Webhook-Zustellungen je Status, Rückstand und Wartezeit des ältesten fälligen Eintrags sowie alle endgültig fehlgeschlagenen Einträge (ohne Inhalte, nur Feldnamen und maskierte Empfänger); fehlgeschlagene Einträge einzeln oder gesammelt „erneut versuchen“ oder „verwerfen“, beides im Audit-Log (A163).
+- Website-Zustand von WordPress prüft WP-Cron (überfällige Ereignisse, `DISABLE_WP_CRON` ohne externen Cronjob), Rückstände und Dead Letters, fehlgeschlagene Plugin-E-Mails, SMS-Fehler und ausbleibende Zahlungs-Webhooks; Abschnitt im Bericht-Reiter, Hinweis auf den Plugin-Seiten bei kritischen Befunden, Schwellwerte über `wpcap_health_thresholds`; Doku in OPERATIONS.md (A164).
 - Übersetzungsprüfung: CI verlangt aktuelle POT und konsistente Platzhalter, vollständige Übersetzungen sind Release-Gate.
 
 ### Kasse und Zahlungen (Experten-Review)

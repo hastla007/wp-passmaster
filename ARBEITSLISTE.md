@@ -353,9 +353,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Erstellen/einmalig anzeigen/Widerruf per REST (src/DeveloperKeys.php:8,41); keine Admin-UI, Ablauf nur bei Anlage, Ratenlimit fest 600/min (:35), nur 2 Scopes
 - [ ] **A162** Multisite-Netzwerkverwaltung, netzwerkweite Berichte, Cross-Site-Tests — _TEILWEISE_ (TODO L204; Kernprodukt und Admin-Bedienung)
   - Netzwerkaktivierung/Site-Anlage/Löschung da (src/Plugin.php:30-138, uninstall.php:53); keine Netzwerk-Admin-Seite, keine Netzwerkberichte, keine Cross-Site-Tests
-- [ ] **A163** Job-Queue-Handler und Admin-Ansicht für Rückstände/Dead-Letter — _TEILWEISE_ (TODO L208; Hintergrunddienste, Übersetzungen und Integrationen)
+- [x] **A163** Job-Queue-Handler und Admin-Ansicht für Rückstände/Dead-Letter — _TEILWEISE_ (TODO L208; Hintergrunddienste, Übersetzungen und Integrationen)
   - Queue mit Retry/Dead-Letter (src/Jobs.php:23-57), Handler nur Wallet/Voucher; keine Admin-Ansicht und kein kontrolliertes Wiederholen
-- [ ] **A164** Betriebsüberwachung für Cron, Mail, SMS, Webhook, Jobs — _OFFEN_ (TODO L209; Hintergrunddienste, Übersetzungen und Integrationen)
+- [x] **A164** Betriebsüberwachung für Cron, Mail, SMS, Webhook, Jobs — _OFFEN_ (TODO L209; Hintergrunddienste, Übersetzungen und Integrationen)
   - Kein Monitoring, keine Site-Health-Tests oder Rückstandswarnungen im Code gefunden
 - [ ] **A165** Käufer-Sprachauswahl, Übersetzungen, Übersetzungsverwaltung, String-Prüfung — _TEILWEISE_ (TODO L210; Hintergrunddienste, Übersetzungen und Integrationen)
   - Mails in Bestell-Locale (src/Orders.php:239, src/Mail/Admin.php:30), 5 Sprachdateien; keine Käufer-Sprachauswahl, Event-Übersetzung nur REST, keine automatische String-Vollständigkeitsprüfung

@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP Pass Captain 1.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
-"POT-Creation-Date: 2026-11-13T20:57:42+00:00\n"
+"POT-Creation-Date: 2026-11-13T21:17:56+00:00\n"
 "PO-Revision-Date: 2026-11-11 22:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: Italian\n"
@@ -14,8 +14,9 @@ msgstr ""
 "X-Domain: wp-pass-captain\n"
 
 #. Plugin Name of the plugin
-#: wp-pass-captain.php src/Admin/Menu.php:93
+#: wp-pass-captain.php src/Admin/Menu.php:94
 #: src/Integrations/WooCommerce/CartPricing.php:83
+#: src/Operations/SiteHealth.php:72 src/Operations/SiteHealth.php:101
 msgid "WP Pass Captain"
 msgstr "WP Pass Captain"
 
@@ -42,30 +43,30 @@ msgstr "https://github.com/hastla007"
 #: src/Admin/AuditLogPage.php:80 src/Admin/CampaignsPage.php:100
 #: src/Admin/CheckinsPage.php:55 src/Admin/DevicesPage.php:50
 #: src/Admin/EventsPage.php:647 src/Admin/Forms.php:338
-#: src/Admin/OrdersPage.php:238 src/Admin/RefundsPage.php:24
-#: src/Admin/SettingsPage.php:434 src/Admin/TaxPage.php:75
-#: src/Admin/TicketsPage.php:199 src/Admission/ConflictsPage.php:54
-#: src/Admission/RulesPage.php:174 src/Allocations/AdminPage.php:182
-#: src/BoxOffice/Page.php:60 src/BoxOffice/Page.php:385
-#: src/BoxOffice/Page.php:412 src/BoxOffice/Registers.php:51
-#: src/BoxOffice/Service.php:110 src/BoxOffice/Service.php:266
-#: src/BoxOffice/Service.php:527 src/BoxOffice/Service.php:610
-#: src/BoxOffice/ShiftPage.php:152 src/BoxOffice/ShiftPage.php:365
-#: src/BoxOffice/ShiftPage.php:375 src/BoxOffice/ShiftPage.php:383
-#: src/BoxOffice/ShiftPage.php:392 src/BoxOffice/Shifts.php:182
-#: src/BoxOffice/Shifts.php:263 src/BoxOffice/Shifts.php:523
-#: src/BoxOffice/Shifts.php:543 src/BoxOffice/Shifts.php:558
-#: src/Exchange/AdminPage.php:76 src/Exchange/AdminPage.php:97
-#: src/Exchange/AdminPage.php:151 src/GuestLists/Page.php:173
-#: src/Invoices.php:520 src/Invoices.php:556 src/Mail/Admin.php:187
-#: src/Modules/Calendar.php:300 src/Modules/Mollie.php:178
-#: src/Modules/Reminders.php:183 src/Modules/Sms.php:325
-#: src/Modules/Webhooks.php:287 src/OfflineScanner/AdminPage.php:106
-#: src/Partners/AdminPage.php:177 src/Partners/AdminPage.php:194
-#: src/Partners/AdminPage.php:221 src/Partners/AdminPage.php:543
-#: src/Passes/AdminPage.php:124 src/Printing/InvoicePdf.php:234
-#: src/Printing/InvoicePdf.php:249 src/Printing/Page.php:56
-#: src/Printing/Page.php:128 src/Printing/Page.php:155
+#: src/Admin/OperationsPage.php:84 src/Admin/OrdersPage.php:238
+#: src/Admin/RefundsPage.php:24 src/Admin/SettingsPage.php:434
+#: src/Admin/TaxPage.php:75 src/Admin/TicketsPage.php:199
+#: src/Admission/ConflictsPage.php:54 src/Admission/RulesPage.php:174
+#: src/Allocations/AdminPage.php:182 src/BoxOffice/Page.php:60
+#: src/BoxOffice/Page.php:385 src/BoxOffice/Page.php:412
+#: src/BoxOffice/Registers.php:51 src/BoxOffice/Service.php:110
+#: src/BoxOffice/Service.php:266 src/BoxOffice/Service.php:527
+#: src/BoxOffice/Service.php:610 src/BoxOffice/ShiftPage.php:152
+#: src/BoxOffice/ShiftPage.php:365 src/BoxOffice/ShiftPage.php:375
+#: src/BoxOffice/ShiftPage.php:383 src/BoxOffice/ShiftPage.php:392
+#: src/BoxOffice/Shifts.php:182 src/BoxOffice/Shifts.php:263
+#: src/BoxOffice/Shifts.php:523 src/BoxOffice/Shifts.php:543
+#: src/BoxOffice/Shifts.php:558 src/Exchange/AdminPage.php:76
+#: src/Exchange/AdminPage.php:97 src/Exchange/AdminPage.php:151
+#: src/GuestLists/Page.php:173 src/Invoices.php:520 src/Invoices.php:556
+#: src/Mail/Admin.php:187 src/Modules/Calendar.php:300
+#: src/Modules/Mollie.php:178 src/Modules/Reminders.php:183
+#: src/Modules/Sms.php:325 src/Modules/Webhooks.php:287
+#: src/OfflineScanner/AdminPage.php:106 src/Partners/AdminPage.php:177
+#: src/Partners/AdminPage.php:194 src/Partners/AdminPage.php:221
+#: src/Partners/AdminPage.php:543 src/Passes/AdminPage.php:124
+#: src/Printing/InvoicePdf.php:234 src/Printing/InvoicePdf.php:249
+#: src/Printing/Page.php:56 src/Printing/Page.php:128 src/Printing/Page.php:155
 #: src/Printing/Page.php:177 src/Printing/Templates.php:254 src/Refunds.php:251
 #: src/Reports/Page.php:59 src/Reports/Page.php:153
 #: src/Reports/Settlement.php:358 src/Seating/AdminPage.php:91
@@ -74,7 +75,7 @@ msgstr "https://github.com/hastla007"
 msgid "Keine Berechtigung."
 msgstr "Autorizzazione mancante."
 
-#: src/Admin/AuditLogPage.php:95 src/Admin/Menu.php:201
+#: src/Admin/AuditLogPage.php:95 src/Admin/Menu.php:203
 msgid "Audit-Log"
 msgstr "Registro di audit"
 
@@ -215,7 +216,7 @@ msgstr "Codice sconto creato."
 msgid "Status gespeichert."
 msgstr "Stato salvato."
 
-#: src/Admin/CampaignsPage.php:103 src/Admin/Menu.php:191
+#: src/Admin/CampaignsPage.php:103 src/Admin/Menu.php:193
 msgid "Rabattcodes"
 msgstr "Codici sconto"
 
@@ -920,7 +921,7 @@ msgstr "Presenti"
 msgid "Alle Ergebnisse"
 msgstr "Tutti i risultati"
 
-#: src/Admin/CheckinsPage.php:79 src/Admin/Menu.php:189
+#: src/Admin/CheckinsPage.php:79 src/Admin/Menu.php:191
 msgid "Check-ins"
 msgstr "Check-in"
 
@@ -971,7 +972,7 @@ msgstr "Codice di abbinamento creato. Scansionalo ora con l'app."
 msgid "Gerät widerrufen."
 msgstr "Dispositivo revocato."
 
-#: src/Admin/DevicesPage.php:63 src/Admin/Menu.php:192
+#: src/Admin/DevicesPage.php:63 src/Admin/Menu.php:194
 msgid "Scanner-Geräte"
 msgstr "Dispositivi scanner"
 
@@ -1004,7 +1005,7 @@ msgid "Neues Gerät koppeln"
 msgstr "Abbina nuovo dispositivo"
 
 #: src/Admin/DevicesPage.php:74 src/Admin/DevicesPage.php:84
-#: src/Admin/EventsPage.php:719 src/Admin/Menu.php:186
+#: src/Admin/EventsPage.php:719 src/Admin/Menu.php:188
 #: src/Partners/AdminPage.php:246 src/Partners/AdminPage.php:311
 #: src/Partners/AdminPage.php:524
 msgid "Events"
@@ -1831,6 +1832,7 @@ msgid "Schlüssel"
 msgstr "Chiave"
 
 #: src/Admin/EventsPage.php:1046 src/Admin/EventsPage.php:1085
+#: src/Admin/OperationsPage.php:132
 msgid "Typ"
 msgstr "Tipo"
 
@@ -2178,59 +2180,59 @@ msgstr "Da fare:"
 msgid "Checkliste ausblenden"
 msgstr "Nascondi checklist"
 
-#: src/Admin/Menu.php:71
+#: src/Admin/Menu.php:72
 msgid "WP Pass Captain: Das Datenbank-Update ist unvollständig."
 msgstr "WP Pass Captain: l'aggiornamento del database è incompleto."
 
-#: src/Admin/Menu.php:71
+#: src/Admin/Menu.php:72
 msgid "Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren."
 msgstr "Mancano tabelle o colonne; il plugin continua a funzionare con lo schema precedente. Controlla i permessi del database, quindi disattiva e riattiva il plugin."
 
-#: src/Admin/Menu.php:94
+#: src/Admin/Menu.php:95
 msgid "Pass Captain"
 msgstr "Pass Captain"
 
-#: src/Admin/Menu.php:119
+#: src/Admin/Menu.php:120
 msgid "Events & Programm"
 msgstr "Eventi e programma"
 
-#: src/Admin/Menu.php:120 src/BoxOffice/Page.php:51
+#: src/Admin/Menu.php:121 src/BoxOffice/Page.php:51
 #: src/Partners/Settlements.php:56 src/Partners/Statement.php:172
 msgid "Verkauf"
 msgstr "Vendita"
 
-#: src/Admin/Menu.php:121 src/Admin/SettingsPage.php:221
+#: src/Admin/Menu.php:122 src/Admin/SettingsPage.php:221
 #: src/Admission/Rest.php:96 src/Passes/AdminPage.php:140
 #: src/PublicEvents.php:114 src/PublicEvents.php:119
 #: templates/event-card.php:35
 msgid "Einlass"
 msgstr "Ingresso"
 
-#: src/Admin/Menu.php:122
+#: src/Admin/Menu.php:123
 msgid "Finanzen & Auswertung"
 msgstr "Finanze e report"
 
-#: src/Admin/Menu.php:123
+#: src/Admin/Menu.php:124
 msgid "Kommunikation"
 msgstr "Comunicazione"
 
-#: src/Admin/Menu.php:124
+#: src/Admin/Menu.php:125
 msgid "Einstellungen & Integrationen"
 msgstr "Impostazioni e integrazioni"
 
-#: src/Admin/Menu.php:184 src/Admin/Menu.php:190 src/Admin/OrdersPage.php:530
+#: src/Admin/Menu.php:186 src/Admin/Menu.php:192 src/Admin/OrdersPage.php:530
 #: src/Admin/SettingsPage.php:120 src/BoxOffice/ZReport.php:381
 #: src/Reports/Page.php:78
 msgid "Erstattungen"
 msgstr "Rimborsi"
 
-#: src/Admin/Menu.php:187 src/Admin/OrdersPage.php:268
+#: src/Admin/Menu.php:189 src/Admin/OrdersPage.php:268
 #: src/Exchange/AdminPage.php:127
 msgid "Bestellungen"
 msgstr "Ordini"
 
 #. translators: 1: list, 2: used, 3: quota
-#: src/Admin/Menu.php:188 src/Admin/OrdersPage.php:461
+#: src/Admin/Menu.php:190 src/Admin/OrdersPage.php:461
 #: src/Admin/OrdersPage.php:576 src/Admin/TicketsPage.php:215
 #: src/BoxOffice/ZReport.php:383 src/GuestLists/Page.php:263
 #: src/GuestLists/Service.php:677 src/OrderPortal.php:113
@@ -2244,33 +2246,190 @@ msgstr "Ordini"
 msgid "Tickets"
 msgstr "Biglietti"
 
-#: src/Admin/Menu.php:193 src/Admin/TaxPage.php:76
+#: src/Admin/Menu.php:195 src/Admin/TaxPage.php:76
 msgid "Steuerprüfung"
 msgstr "Verifica fiscale"
 
-#: src/Admin/Menu.php:200 src/Allocations/AdminPage.php:212
+#: src/Admin/Menu.php:202 src/Allocations/AdminPage.php:212
 #: src/Partners/AdminPage.php:254 src/Passes/AdminPage.php:261
 #: src/Waitlists/AdminPage.php:139
 msgid "Einstellungen"
 msgstr "Impostazioni"
 
-#: src/Admin/Menu.php:204 src/Integrations/Vouchers/IntegrationStatus.php:33
+#: src/Admin/Menu.php:204 src/Admin/OperationsPage.php:85
+msgid "Betrieb"
+msgstr ""
+
+#: src/Admin/Menu.php:207 src/Integrations/Vouchers/IntegrationStatus.php:33
 #: src/Integrations/Vouchers/IntegrationStatus.php:44
 msgid "Gemeinsamer Scanner"
 msgstr "Scanner condiviso"
 
-#: src/Admin/Menu.php:204
+#: src/Admin/Menu.php:207
 msgid "Gemeinsamer Scanner ↗"
 msgstr "Scanner condiviso ↗"
 
-#: src/Admin/Menu.php:205 src/Integrations/Vouchers/IntegrationStatus.php:22
+#: src/Admin/Menu.php:208 src/Integrations/Vouchers/IntegrationStatus.php:22
 #: src/Integrations/Vouchers/IntegrationStatus.php:30
 msgid "WP Voucher Captain"
 msgstr "WP Voucher Captain"
 
-#: src/Admin/Menu.php:205
+#: src/Admin/Menu.php:208
 msgid "WP Voucher Captain ↗"
 msgstr "WP Voucher Captain ↗"
+
+#: src/Admin/OperationsPage.php:35 src/Operations/Queues.php:207
+#: src/Operations/Queues.php:241
+msgid "Unbekannte Warteschlange."
+msgstr ""
+
+#: src/Admin/OperationsPage.php:50
+msgid "Bitte eine Aktion wählen."
+msgstr ""
+
+#. translators: %d: number of items
+#: src/Admin/OperationsPage.php:65
+#, php-format
+msgid "%d Eintrag wurde erneut eingeplant; die Verarbeitung ist angestoßen."
+msgid_plural "%d Einträge wurden erneut eingeplant; die Verarbeitung ist angestoßen."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of items
+#: src/Admin/OperationsPage.php:67
+#, php-format
+msgid "%d Eintrag wurde verworfen."
+msgid_plural "%d Einträge wurden verworfen."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: minutes
+#: src/Admin/OperationsPage.php:77
+#, php-format
+msgid "%d min"
+msgstr ""
+
+#. translators: 1: hours, 2: minutes
+#: src/Admin/OperationsPage.php:80
+#, php-format
+msgid "%1$d h %2$d min"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:87
+msgid "Zustand der Hintergrundverarbeitung: Hier siehst du Rückstände und endgültig fehlgeschlagene Einträge und kannst sie erneut versuchen oder verwerfen. Inhalte werden nicht angezeigt, nur die Namen der enthaltenen Felder."
+msgstr ""
+
+#: src/Admin/OperationsPage.php:99
+msgid "Überwachung"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:101
+msgid "in Ordnung"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:102
+msgid "empfohlen"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:103
+msgid "kritisch"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:109
+msgid "Alle Prüfungen im Website-Zustand ansehen"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:118
+msgid "Einträge nach Status:"
+msgstr ""
+
+#. translators: %s: number of due items
+#: src/Admin/OperationsPage.php:120
+#, php-format
+msgid "Fällig und wartend: %s"
+msgstr ""
+
+#. translators: %s: age, e.g. "1 h 5 min"
+#: src/Admin/OperationsPage.php:123
+#, php-format
+msgid "ältester fälliger Eintrag wartet seit %s"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:127
+msgid "Keine fehlgeschlagenen Einträge."
+msgstr ""
+
+#: src/Admin/OperationsPage.php:132 src/blocks/events/editor.js:15
+msgid "Auswahl"
+msgstr "Selezione"
+
+#: src/Admin/OperationsPage.php:132
+msgid "ID"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:132 src/Modules/Webhooks.php:330
+msgid "Versuche"
+msgstr "Tentativi"
+
+#: src/Admin/OperationsPage.php:132
+msgid "Letzter Fehler"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:132
+msgid "Inhalt (nur Feldnamen)"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:132
+msgid "Erstellt"
+msgstr ""
+
+#. translators: 1: list, 2: used, 3: quota
+#: src/Admin/OperationsPage.php:132 src/Admin/OrdersPage.php:540
+#: src/Admin/TaxPage.php:101 src/Allocations/AdminPage.php:247
+#: src/GuestLists/Page.php:263 src/Modules/Webhooks.php:296
+#: src/Partners/AdminPage.php:568 src/Series/AdminPage.php:364
+#: src/Series/AdminPage.php:482 src/Series/AdminPage.php:558
+#: src/Waitlists/AdminPage.php:116
+msgid "Aktionen"
+msgstr "Azioni"
+
+#. translators: %d: item id
+#: src/Admin/OperationsPage.php:135
+#, php-format
+msgid "Eintrag %d auswählen"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:141 src/Admin/OperationsPage.php:151
+msgid "Erneut versuchen"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:142
+msgid "Diesen Eintrag endgültig verwerfen?"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:142 src/Admin/OperationsPage.php:151
+msgid "Verwerfen"
+msgstr ""
+
+#. translators: 1: shown items, 2: total failed items
+#: src/Admin/OperationsPage.php:147
+#, php-format
+msgid "Angezeigt werden die neuesten %1$d von %2$d fehlgeschlagenen Einträgen."
+msgstr ""
+
+#: src/Admin/OperationsPage.php:150
+msgid "Mehrfachaktion"
+msgstr ""
+
+#. translators: %d: maximum number of items
+#: src/Admin/OperationsPage.php:154
+#, php-format
+msgid "alle fehlgeschlagenen Einträge dieser Warteschlange (höchstens %d)"
+msgstr ""
+
+#: src/Admin/OperationsPage.php:155
+msgid "Ausführen"
+msgstr ""
 
 #: src/Admin/OrdersPage.php:35 src/Orders.php:991 src/Partners/Sales.php:446
 #: src/Payments/PayPalGateway.php:130 src/Rest/Controller.php:447
@@ -2665,15 +2824,6 @@ msgstr "Rimborsare davvero i biglietti selezionati?"
 #: src/Admin/OrdersPage.php:525
 msgid "Erstattung auslösen"
 msgstr "Avvia rimborso"
-
-#. translators: 1: list, 2: used, 3: quota
-#: src/Admin/OrdersPage.php:540 src/Admin/TaxPage.php:101
-#: src/Allocations/AdminPage.php:247 src/GuestLists/Page.php:263
-#: src/Modules/Webhooks.php:296 src/Partners/AdminPage.php:568
-#: src/Series/AdminPage.php:364 src/Series/AdminPage.php:482
-#: src/Series/AdminPage.php:558 src/Waitlists/AdminPage.php:116
-msgid "Aktionen"
-msgstr "Azioni"
 
 #: src/Admin/OrdersPage.php:544
 msgid "Zahlungseingang bestätigen und Tickets ausstellen?"
@@ -4089,7 +4239,8 @@ msgstr "Utilizzo per canale"
 msgid "Auto-Freigabe"
 msgstr "Rilascio automatico"
 
-#: src/Allocations/AdminPage.php:255
+#: src/Allocations/AdminPage.php:255 src/Operations/SiteHealth.php:369
+#: src/Operations/SiteHealth.php:410
 msgid "nie"
 msgstr "mai"
 
@@ -5472,11 +5623,12 @@ msgid "Standort"
 msgstr "Sede"
 
 #: src/BoxOffice/ShiftPage.php:400 src/BoxOffice/ZReport.php:398
-#: src/WalletPasses/AdminPage.php:129
+#: src/Operations/SiteHealth.php:362 src/WalletPasses/AdminPage.php:129
 msgid "ja"
 msgstr "sì"
 
-#: src/BoxOffice/ShiftPage.php:400 src/WalletPasses/AdminPage.php:129
+#: src/BoxOffice/ShiftPage.php:400 src/Operations/SiteHealth.php:362
+#: src/WalletPasses/AdminPage.php:129
 msgid "nein"
 msgstr "no"
 
@@ -9473,10 +9625,6 @@ msgid "Ereignis"
 msgstr "Evento"
 
 #: src/Modules/Webhooks.php:330
-msgid "Versuche"
-msgstr "Tentativi"
-
-#: src/Modules/Webhooks.php:330
 msgid "HTTP-Code"
 msgstr "Codice HTTP"
 
@@ -9681,6 +9829,262 @@ msgstr "Regola per le doppie scansioni sconosciuta."
 #: src/OfflineScanner/Sync.php:69
 msgid "Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner)."
 msgstr "Risolto automaticamente: regola «Vince la prima sincronizzazione» (scanner offline)."
+
+#: src/Operations/Queues.php:67
+msgid "Hintergrundjobs"
+msgstr ""
+
+#: src/Operations/Queues.php:68
+msgid "E-Mail-Warteschlange"
+msgstr ""
+
+#: src/Operations/Queues.php:69
+msgid "Webhook-Zustellungen"
+msgstr ""
+
+#: src/Operations/Queues.php:209 src/Operations/Queues.php:243
+msgid "Bitte mindestens einen Eintrag auswählen."
+msgstr ""
+
+#. translators: %d: number of minutes
+#: src/Operations/SiteHealth.php:115
+#, php-format
+msgid "%d Minute"
+msgid_plural "%d Minuten"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %d: number of hours
+#: src/Operations/SiteHealth.php:124
+#, php-format
+msgid "%d Stunde"
+msgid_plural "%d Stunden"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Operations/SiteHealth.php:134
+msgid "Zur Betriebsübersicht von WP Pass Captain"
+msgstr ""
+
+#. translators: 1: cron hook name, 2: duration, e.g. "20 Minuten"
+#: src/Operations/SiteHealth.php:183
+#, php-format
+msgid "%1$s ist seit %2$s überfällig."
+msgstr ""
+
+#. translators: %s: cron hook name
+#: src/Operations/SiteHealth.php:187
+#, php-format
+msgid "%s ist nicht eingeplant."
+msgstr ""
+
+#. translators: %s: duration, e.g. "3 Stunden"
+#: src/Operations/SiteHealth.php:192
+#, php-format
+msgid "DISABLE_WP_CRON ist gesetzt und die Warteschlangen liefen seit %s nicht mehr – offenbar löst kein externer Cronjob WP-Cron aus."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:194
+msgid "WP-Cron ist per DISABLE_WP_CRON abgeschaltet; ein System-Cronjob muss wp-cron.php regelmäßig aufrufen."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:194
+msgid "WP-Cron läuft bei Seitenaufrufen. Für verlässliche Ticketmails, Erinnerungen und Webhooks empfehlen wir einen System-Cronjob."
+msgstr ""
+
+#. translators: %s: duration, e.g. "4 Minuten"
+#: src/Operations/SiteHealth.php:197
+#, php-format
+msgid "Letzter Lauf der Warteschlangen vor %s."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:199
+msgid "Externen Cronjob einrichten"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:201
+msgid "WP Pass Captain: geplante Aufgaben laufen nicht"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:204
+msgid "WP Pass Captain: geplante Aufgaben verspätet"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:206
+msgid "WP Pass Captain: geplante Aufgaben laufen pünktlich"
+msgstr ""
+
+#. translators: 1: queue name, 2: number of due items, 3: waiting time of the oldest due item, e.g. "40 Minuten", 4: number of failed items
+#: src/Operations/SiteHealth.php:225
+#, php-format
+msgid "%1$s: fällig %2$d (ältester wartet seit %3$s), fehlgeschlagen %4$d."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:229
+msgid "WP Pass Captain: keine Rückstände in den Warteschlangen"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:229
+msgid "Hintergrundjobs, E-Mails und Webhooks werden zeitnah verarbeitet; es gibt keine endgültig fehlgeschlagenen Einträge."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:231
+msgid "WP Pass Captain: große Rückstände oder viele fehlgeschlagene Einträge"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:231
+msgid "WP Pass Captain: Rückstände oder fehlgeschlagene Einträge in den Warteschlangen"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:232
+msgid "Prüfe die Einträge und versuche sie erneut oder verwirf sie."
+msgstr ""
+
+#. translators: %s: period, e.g. "24 Stunden"
+#: src/Operations/SiteHealth.php:244
+#, php-format
+msgid "Innerhalb von %s ist kein Versand einer Plugin-E-Mail fehlgeschlagen."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:245
+msgid "WP Pass Captain: E-Mail-Versand ohne Fehler"
+msgstr ""
+
+#. translators: 1: number of failed mails, 2: period, e.g. "24 Stunden"
+#: src/Operations/SiteHealth.php:249
+#, php-format
+msgid "Innerhalb von %2$s ist %1$d Plugin-E-Mail nicht versendet worden (wp_mail() meldete einen Fehler)."
+msgid_plural "Innerhalb von %2$s sind %1$d Plugin-E-Mails nicht versendet worden (wp_mail() meldete einen Fehler)."
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: 1: mail type, 2: error code, 3: error message
+#: src/Operations/SiteHealth.php:251
+#, php-format
+msgid "Letzter Fehler: Typ %1$s, Code %2$s %3$s"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:253
+msgid "WP Pass Captain: E-Mails werden nicht zugestellt"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:253
+msgid "Prüfe die SMTP-Einstellungen bzw. das Mail-Plugin der Website."
+msgstr ""
+
+#. translators: %s: period, e.g. "24 Stunden"
+#: src/Operations/SiteHealth.php:272
+#, php-format
+msgid "Innerhalb von %s hat der SMS-Anbieter keinen Fehler gemeldet."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:273
+msgid "WP Pass Captain: SMS-Versand ohne Fehler"
+msgstr ""
+
+#. translators: 1: number of SMS, 2: period, e.g. "24 Stunden"
+#: src/Operations/SiteHealth.php:277
+#, php-format
+msgid "Innerhalb von %2$s ist %1$d SMS fehlgeschlagen oder nicht zugestellt worden."
+msgid_plural "Innerhalb von %2$s sind %1$d SMS fehlgeschlagen oder nicht zugestellt worden."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Operations/SiteHealth.php:278
+msgid "WP Pass Captain: SMS-Versand fehlerhaft"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:278
+msgid "Prüfe Zugangsdaten und Guthaben beim SMS-Anbieter."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:278
+msgid "SMS-Einstellungen"
+msgstr ""
+
+#. translators: 1: payment provider id, 2: number of orders, 3: period, e.g. "48 Stunden"
+#: src/Operations/SiteHealth.php:315
+#, php-format
+msgid "%1$s: Bestellungen innerhalb von %3$s: %2$d, aber noch nie eine Webhook-Benachrichtigung erhalten."
+msgstr ""
+
+#. translators: 1: payment provider id, 2: number of orders, 3: period, e.g. "48 Stunden", 4: date and time (UTC)
+#: src/Operations/SiteHealth.php:317
+#, php-format
+msgid "%1$s: Bestellungen innerhalb von %3$s: %2$d, letzte Webhook-Benachrichtigung am %4$s (UTC)."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:321
+msgid "WP Pass Captain: keine aktuellen Zahlungs-Webhooks"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:321
+msgid "Zahlungen werden über Webhooks des Zahlungsanbieters bestätigt. Prüfe die Webhook-URL und das Signatur-Secret im Dashboard des Anbieters."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:323
+msgid "WP Pass Captain: Zahlungs-Webhooks kommen an"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:323
+msgid "Für alle aktiven Zahlungsanbieter mit aktuellen Bestellungen sind Webhook-Benachrichtigungen eingegangen."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:353
+msgid "WP Pass Captain: Der Betrieb ist gestört."
+msgstr ""
+
+#: src/Operations/SiteHealth.php:353
+msgid "Betriebsübersicht öffnen"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:353
+msgid "Website-Zustand"
+msgstr ""
+
+#. translators: %s: cron hook name
+#: src/Operations/SiteHealth.php:368
+#, php-format
+msgid "Letzter Lauf %s"
+msgstr ""
+
+#. translators: %s: cron hook name
+#: src/Operations/SiteHealth.php:377
+#, php-format
+msgid "Nächster Lauf %s"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:378
+msgid "nicht eingeplant"
+msgstr ""
+
+#. translators: 1: counts per status, 2: due items, 3: age of the oldest due item in minutes
+#: src/Operations/SiteHealth.php:390
+#, php-format
+msgid "%1$s; fällig %2$d, ältester seit %3$d Min."
+msgstr ""
+
+#. translators: %d: hours
+#: src/Operations/SiteHealth.php:396
+#, php-format
+msgid "Fehlgeschlagene Plugin-E-Mails (%d h)"
+msgstr ""
+
+#. translators: %d: hours
+#: src/Operations/SiteHealth.php:402
+#, php-format
+msgid "Fehlgeschlagene SMS (%d h)"
+msgstr ""
+
+#. translators: %s: payment provider id
+#: src/Operations/SiteHealth.php:409
+#, php-format
+msgid "Letzter Zahlungs-Webhook %s"
+msgstr ""
+
+#: src/Operations/SiteHealth.php:414
+msgid "WP Pass Captain – Betrieb"
+msgstr ""
 
 #: src/OrderPortal.php:79
 msgid "Abbrechen"
@@ -15811,7 +16215,3 @@ msgstr "Visualizzazione"
 #: src/blocks/calendar/editor.js:22
 msgid "Nur Event-ID (optional)"
 msgstr "Solo ID evento (facoltativo)"
-
-#: src/blocks/events/editor.js:15
-msgid "Auswahl"
-msgstr "Selezione"
