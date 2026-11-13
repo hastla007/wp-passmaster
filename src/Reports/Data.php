@@ -120,7 +120,7 @@ final class Data {
 				'channel' => 0 === strpos( (string) $provider, 'pos_' ) ? 'pos' : 'online',
 			);
 		};
-		$line_sql = "SELECT oi.order_id,oi.item_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
+		$line_sql = "SELECT oi.order_id,oi.item_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",oi.tax_rate_bp,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 
 		// Sales.
 		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor FROM {$p}wpcap_orders WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $start, $end ) );
@@ -141,12 +141,14 @@ final class Data {
 			}
 			$gross_lines = self::allocate_discount( $lines, (int) $order->discount_minor );
 			$day = Scope::local( $order->created_at, $tz, 'Y-m-d' );
+			$supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order_id );
 			foreach ( $lines as $i => $line ) {
 				if ( ! self::in_scope( $line->event_id, $scope ) ) { continue; }
+				if ( \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; } // Moved in by an exchange.
 				$currencies[ $order->currency ] = true;
 				$gross = $gross_lines[ $i ];
 				$tax = (int) $line->tax_minor;
-				$add( $keys_for( $line, $order->payment_provider, $day ), array( 'tickets' => (int) $line->quantity, 'gross' => $gross, 'tax' => $tax, 'net' => $gross - $tax, 'revenue' => $gross, 'revenue_tax' => $tax ) );
+				$add( $keys_for( $line, $order->payment_provider, $day ), array( 'tickets' => $supplement ? 0 : (int) $line->quantity, 'gross' => $gross, 'tax' => $tax, 'net' => $gross - $tax, 'revenue' => $gross, 'revenue_tax' => $tax ) );
 			}
 		}
 

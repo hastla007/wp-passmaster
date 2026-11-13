@@ -320,7 +320,7 @@ final class Adapter {
 	private static function items( $order ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.item_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_minor,tt.name AS type_name,o.event_id,o.starts_at,o.ends_at,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", $order->order_id ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.item_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",tt.name AS type_name,o.event_id,o.starts_at,o.ends_at,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", $order->order_id ) );
 		$subtotal = 0;
 		foreach ( $lines as $line ) { $subtotal += (int) $line->line_total_minor; }
 		// Multi-purpose voucher (means of payment): the order keeps the full price and VAT, only the amount

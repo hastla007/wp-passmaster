@@ -2,6 +2,12 @@
 
 ## Unveröffentlicht
 
+### Auditbefunde Runde 3 (Arbeitsliste A001–)
+- Umtausch im Bestellportal: übertragene Tickets kann nur noch der Veranstalter umtauschen (kein Umtausch samt Erstattung durch den ursprünglichen Käufer); das Umtausch-Formular funktioniert für alle Tickets einer Bestellung.
+- Verspätete Zahlung: vorübergehende Datenbank-Sperren gelten nicht mehr als „ausverkauft“ – der Webhook wird erneut zugestellt. Bestellungen „Prüfung nötig“ haben den Knopf „Zuteilung erneut versuchen“.
+- Pässe mit „bei Absage widerrufen“: Käufer:innen erhalten die Absage-Mail; ohne automatische Erstattung wird die Erstattung als offen gemeldet und bleibt in der Bestellung möglich.
+- Umtausch und Buchhaltung (Schema 3.8.0): bezahlte Bestellpositionen bleiben für Rechnung, Berichte, Abrechnungen, Z-Bericht und Affiliate-Provision unverändert (`orig_*`-Spalten); keine Doppelzählung umgezogener Einheiten, Zusatzbestellungen ohne zweite Ticketgebühr. Der Ticketwert ändert sich nicht durch andere Umtausche derselben Ticketart und berücksichtigt Mehrzweckgutscheine. Umtausch zwischen unterschiedlichen Steuersätzen ist gesperrt.
+
 ### Zusammenspiel mit WP Voucher Captain
 - Gemeinsamer Scanner: neuer Dienst `wp_pass_captain_checkin_service_v1` (`Integrations\Vouchers\CheckinService`) – `recognizes()`, `preview()`, `check_in()` mit denselben Regeln, Sperren und Audit wie der eigene Web-Scanner; Recht `wpcap_checkin` wird im Dienst geprüft. Der Voucher-Captain-Scanner erkennt damit auch Pass-Captain-Tickets; Gutschein-Einlösung und Ticket-Check-in bleiben getrennte Aktionen.
 - Einstellungen zeigen den Status der Integration (Voucher Captain aktiv/Version, Gutscheine im Checkout, Gutschein → Ticket, gemeinsamer Scanner) mit Links; im Menü stehen „Gemeinsamer Scanner ↗“ und „WP Voucher Captain ↗“, wenn Voucher Captain aktiv ist.

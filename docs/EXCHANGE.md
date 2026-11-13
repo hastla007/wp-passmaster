@@ -67,7 +67,24 @@ angestoßen; die Gebühr bleibt einbehalten (Filter `wpcap_exchange_refund_fee`)
 
 Eine Einheit wandert innerhalb der ursprünglichen Bestellung: alte Position `quantity − 1` (inkl.
 Anteil an Betrag und USt.), Zielposition `+ 1` mit dem übertragenen Wert (bei Erstattung abzüglich der
-erstatteten Differenz). Damit stimmen Kapazität, Serienkontingente, Berichte und spätere Erstattungen.
+erstatteten Differenz). Damit stimmen Kapazität, Serienkontingente und spätere Erstattungen.
+
+**Buchhaltung sieht die Positionen wie bezahlt** (Schema 3.8.0, `PassCaptain\OrderLines`): Vor der
+ersten Änderung einer bezahlten Position werden Menge, Betrag und USt. in `orig_quantity`,
+`orig_line_total_minor`, `orig_tax_minor` festgehalten; vom Umtausch neu angelegte Positionen haben
+dort `0`. Rechnungen, Berichte, Veranstalter-Abrechnung, Wiederverkäufer-Abrechnung, Z-Bericht,
+Affiliate-Provision und die REST-Verkaufsstatistik lesen diese Werte. So gilt
+„Abrechnung = Zahlungen − Erstattungen“: die ursprüngliche Position bleibt unverändert, der Aufpreis
+steht in der Zusatzbestellung (dort ohne Ticketzählung und ohne Ticketgebühr), eine erstattete
+Differenz als Erstattung. Umgezogene Einheiten erscheinen nicht erneut als (Nach-)Verkauf.
+
+**Wert eines Tickets** (`Service::ticket_value()`): Anteil seiner bezahlten Position nach
+Bestellrabatten, gerechnet auf die volle Gegenleistung inklusive Mehrzweckgutschein
+(`Checkout::gross_minor()`); für ein getauschtes Ticket der beim Umtausch gespeicherte Wert.
+
+**Steuersatz**: Ein Umtausch zwischen Ticketarten mit unterschiedlichem Steuersatz ist gesperrt
+(`wpcap_exchange_tax_rate`) – dafür Ticket erstatten und neu verkaufen (Rechnungskorrektur und neuer
+Beleg).
 
 ## Selbstbedienung (Bestellportal)
 

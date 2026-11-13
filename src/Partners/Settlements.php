@@ -99,7 +99,7 @@ final class Settlements {
 		if ( $events ) {
 			$in = implode( ',', array_map( 'absint', $events ) );
 			$settled = array_flip( $wpdb->get_col( $wpdb->prepare( "SELECT source_key FROM {$p}wpcap_partner_settlement_lines WHERE partner_id=%d AND source_key IS NOT NULL", (int) $partner->partner_id ) ) );
-			$line_sql = "SELECT oi.item_id,oi.order_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
+			$line_sql = "SELECT oi.item_id,oi.order_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",oi.tax_rate_bp,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 			$has_partner_item = "EXISTS (SELECT 1 FROM {$p}wpcap_order_items x INNER JOIN {$p}wpcap_ticket_types xt ON xt.ticket_type_id=x.ticket_type_id INNER JOIN {$p}wpcap_occurrences xo ON xo.occurrence_id=xt.occurrence_id WHERE x.order_id=ord.order_id AND xo.event_id IN ($in))";
 			$lower_sql = '' !== $lower ? $wpdb->prepare( ' AND ord.created_at >= %s', $lower ) : '';
 
@@ -120,13 +120,18 @@ final class Settlements {
 					continue;
 				}
 				$gross_lines = Data::allocate_discount( $order_lines, (int) $order->discount_minor );
+				$supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order->order_id );
 				foreach ( $order_lines as $i => $line ) {
 					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
+					// Lines moved in by a ticket exchange carry no paid amount (OrderLines): the money is on
+					// the original line, a supplementary order or a refund.
+					if ( \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; }
 					$key = 'sale:' . (int) $line->item_id;
 					if ( isset( $settled[ $key ] ) ) { continue; }
 					$gross = (int) $gross_lines[ $i ];
 					$tax = (int) $line->tax_minor;
-					$tickets = (int) $line->quantity;
+					// An exchange supplement pays for a ticket already counted (and charged) on its original order.
+					$tickets = $supplement ? 0 : (int) $line->quantity;
 					$lines[] = self::line( $order->created_at >= $start ? 'sale' : 'late_sale', $key, $line, (int) $order->order_id, 0, $order->created_at, $order->created_at, $tickets, $gross, $tax, $partner, $tz );
 				}
 			}

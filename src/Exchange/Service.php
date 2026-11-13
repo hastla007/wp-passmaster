@@ -164,6 +164,11 @@ final class Service {
 		if ( strtoupper( (string) $target->currency ) !== strtoupper( (string) $ticket->currency ) ) {
 			return self::error( 'wpcap_exchange_currency', __( 'Ein Umtausch ist nur innerhalb derselben Währung möglich.', 'wp-pass-captain' ), 400 );
 		}
+		// A different VAT rate would change the invoiced service after the fact (invoice correction
+		// and a new document needed): refund the ticket and sell the new one instead.
+		if ( (int) $target->tax_rate_bp !== (int) $ticket->tax_rate_bp ) {
+			return self::error( 'wpcap_exchange_tax_rate', __( 'Ein Umtausch ist nur zwischen Ticketarten mit demselben Steuersatz möglich. Bitte das Ticket erstatten und das neue Ticket neu verkaufen.', 'wp-pass-captain' ), 400 );
+		}
 		if ( strtotime( $target->starts_at . ' UTC' ) <= time() && 'pos' !== $channel ) {
 			return self::error( 'wpcap_exchange_target_started', __( 'Der gewählte Termin hat bereits begonnen.', 'wp-pass-captain' ) );
 		}
@@ -241,20 +246,26 @@ final class Service {
 	}
 
 	/**
-	 * Value of a ticket: what a refund of it would pay out (line share after order discounts), or for
-	 * a ticket created by an exchange the value recorded with that exchange.
+	 * Value of a ticket: what it was paid with (its line share after order discounts, including a
+	 * multi-purpose voucher payment), or for a ticket created by an exchange the value recorded with
+	 * that exchange.
+	 *
+	 * The line share is taken from the lines as paid (OrderLines): units an exchange moved into or
+	 * out of the same ticket type do not change the value of the other tickets of the order.
 	 */
 	public static function ticket_value( $ticket ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$recorded = $wpdb->get_var( $wpdb->prepare( 'SELECT new_value_minor FROM ' . self::table() . " WHERE new_ticket_id=%d AND status='completed' ORDER BY exchange_id DESC LIMIT 1", (int) $ticket->ticket_id ) );
 		if ( null !== $recorded ) { return (int) $recorded; }
-		$line = $wpdb->get_row( $wpdb->prepare( "SELECT COALESCE(SUM(line_total_minor),0) AS gross,COALESCE(SUM(quantity),0) AS qty FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d", (int) $ticket->order_id, (int) $ticket->ticket_type_id ) );
+		$line = $wpdb->get_row( $wpdb->prepare( 'SELECT COALESCE(SUM(' . \PassCaptain\OrderLines::paid( 'line_total_minor', '' ) . '),0) AS gross,COALESCE(SUM(' . \PassCaptain\OrderLines::paid( 'quantity', '' ) . "),0) AS qty FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d", (int) $ticket->order_id, (int) $ticket->ticket_type_id ) );
 		$order = Orders::get( (int) $ticket->order_id );
 		if ( ! $line || ! $order || (int) $line->qty < 1 ) { return 0; }
 		$unit = (int) round( (int) $line->gross / (int) $line->qty );
-		$subtotal = (int) $order->subtotal_minor ?: (int) $order->total_minor;
-		return $subtotal > 0 ? (int) round( $unit * (int) $order->total_minor / $subtotal ) : 0;
+		// Full consideration: a multi-purpose voucher is a means of payment, not a discount.
+		$paid = \PassCaptain\Integrations\Vouchers\Checkout::gross_minor( $order );
+		$subtotal = (int) $order->subtotal_minor ?: $paid;
+		return $subtotal > 0 ? (int) round( $unit * min( $paid, $subtotal ) / $subtotal ) : 0;
 	}
 
 	/**
@@ -568,6 +579,8 @@ final class Service {
 	/** Takes one unit (and its money share) out of an order line. */
 	private static function release_unit( $item, array $share ) {
 		global $wpdb;
+		// Accounting keeps the paid values of the line (OrderLines).
+		if ( ! \PassCaptain\OrderLines::freeze( (int) $item->item_id ) ) { throw new \RuntimeException( 'db_busy' ); }
 		$ok = $wpdb->query( $wpdb->prepare(
 			"UPDATE {$wpdb->prefix}wpcap_order_items SET refunded_quantity=LEAST(refunded_quantity,quantity-1),quantity=quantity-1,line_total_minor=GREATEST(CAST(line_total_minor AS SIGNED)-%d,0),tax_minor=GREATEST(CAST(tax_minor AS SIGNED)-%d,0) WHERE item_id=%d AND quantity>0",
 			(int) $share[0],
@@ -592,9 +605,10 @@ final class Service {
 		$tax = Orders::gross_tax( $carried_gross, $rate );
 		$item = $wpdb->get_row( $wpdb->prepare( "SELECT item_id FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1 FOR UPDATE", (int) $order_id, (int) $target_type->ticket_type_id ) );
 		if ( $item ) {
+			if ( ! \PassCaptain\OrderLines::freeze( (int) $item->item_id ) ) { throw new \RuntimeException( 'db_busy' ); }
 			$ok = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET quantity=quantity+1,line_total_minor=line_total_minor+%d,tax_minor=tax_minor+%d WHERE item_id=%d", (int) $carried_gross, $tax, (int) $item->item_id ) );
 		} else {
-			$ok = $wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => (int) $order_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 1, 'unit_price_minor' => (int) $price, 'line_total_minor' => (int) $carried_gross, 'tax_rate_bp' => $rate, 'tax_minor' => $tax, 'refunded_quantity' => 0 ) );
+			$ok = $wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => (int) $order_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 1, 'unit_price_minor' => (int) $price, 'line_total_minor' => (int) $carried_gross, 'tax_rate_bp' => $rate, 'tax_minor' => $tax, 'refunded_quantity' => 0, 'orig_quantity' => 0, 'orig_line_total_minor' => 0, 'orig_tax_minor' => 0 ) );
 		}
 		if ( ! $ok ) { throw new \RuntimeException( 'db_busy' ); }
 	}
@@ -612,7 +626,7 @@ final class Service {
 		$now = current_time( 'mysql', true );
 		// Value carried into the target line (pre-discount gross, like the order lines): the old share
 		// minus what is refunded now. A paid supplement stays on the supplementary order.
-		$order_total = (int) $order->total_minor;
+		$order_total = \PassCaptain\Integrations\Vouchers\Checkout::gross_minor( $order ); // Incl. a multi-purpose voucher payment.
 		$order_subtotal = (int) $order->subtotal_minor ?: $order_total;
 		$refund_gross = (int) $money['refund_minor'] + ( (int) $money['difference_minor'] < 0 && 'refund' === $money['refund_policy'] ? (int) $money['fee_minor'] : 0 );
 		$refund_pre = $order_total > 0 ? (int) round( $refund_gross * $order_subtotal / $order_total ) : $refund_gross;

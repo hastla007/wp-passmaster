@@ -8,17 +8,17 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 
 ## Phase 1 – Kritische Fehler (P1, Audit Runde 3)
 
-- [ ] **A001** [P1] `ticket_value()` mittelt `line_total/qty` je Ticketart; nach Umtausch in dieselbe Art sinkt der Wert der übrigen Tickets (Erstattung 26,56 € statt 58,10 €). — _OFFEN_ (TODO L410; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [x] **A001** [P1] `ticket_value()` mittelt `line_total/qty` je Ticketart; nach Umtausch in dieselbe Art sinkt der Wert der übrigen Tickets (Erstattung 26,56 € statt 58,10 €). — _OFFEN_ (TODO L410; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Exchange/Service.php:242–253,589,612` — Maßnahme: Wert je Ticket als Snapshot speichern; Regressionstest „Upgrade, dann Rückstufung“.
 - [ ] **A002** [P1] Haltezeit bei Überweisung (72 h) nicht auf Terminbeginn begrenzt („Zahlbar bis 16.11.“ für Event am 13.11.). — _OFFEN_ (TODO L412; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Rest/Controller.php:279`; `src/Waitlists.php:462`; `src/Exchange/Service.php:804` — Maßnahme: min(Einstellung, Beginn − Puffer); Überweisung kurz vor Beginn ausblenden.
 - [ ] **A003** [P1] Ausverkaufte Karten zeigen weiterhin das Checkout-Formular und keinen Wartelisten-Eintrag (nur per REST). — _OFFEN_ (TODO L413; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `templates/event-card.php:29–31` — Maßnahme: Wartelisten-Formular einblenden, Checkout bei komplett ausverkauft ausblenden.
-- [ ] **A004** [P1] Umtausch verändert bereits abgerechnete Bestellpositionen: umgezogene Einheit bekommt neue `item_id` und erscheint erneut als `late_sale`; bei Herabstufung wird die Zielposition ge… — _OFFEN_ (TODO L435; Steuer und Finanzen (Prüfung 3))
+- [x] **A004** [P1] Umtausch verändert bereits abgerechnete Bestellpositionen: umgezogene Einheit bekommt neue `item_id` und erscheint erneut als `late_sale`; bei Herabstufung wird die Zielposition ge… — _OFFEN_ (TODO L435; Steuer und Finanzen (Prüfung 3))
   - `src/Exchange/Service.php:580–591,601–612`; `src/Partners/Settlements.php:108–126`; `src/Reports/Data.php:139–150` — Maßnahme: Positionen nach Zahlung unveränderlich halten, Umtausch als eigene Buchungszeilen (Abgang/Zugang/Gebühr), Abrechnung/Berichte umstellen, Abstimmungstest „Abrechnung = Zahlungen − Erstattungen“.
-- [ ] **A005** [P1] `ticket_value()` nutzt `total_minor/subtotal`; bei Mehrzweckgutschein ist `total_minor` nur der Barrest → voll per Gutschein bezahltes Ticket hat Wert 0 (Upgrade kostet vollen Ziel… — _OFFEN_ (TODO L436; Steuer und Finanzen (Prüfung 3))
+- [x] **A005** [P1] `ticket_value()` nutzt `total_minor/subtotal`; bei Mehrzweckgutschein ist `total_minor` nur der Barrest → voll per Gutschein bezahltes Ticket hat Wert 0 (Upgrade kostet vollen Ziel… — _OFFEN_ (TODO L436; Steuer und Finanzen (Prüfung 3))
   - `src/Exchange/Service.php:242–253` — Maßnahme: Wert aus `Checkout::gross_minor()`/Positionsbrutto nach Rabatt; Gutscheinanteil über `refund_plan`.
-- [ ] **A006** [P1] Umtausch in Ticketart mit anderem Steuersatz schreibt Positions-USt um, `orders.tax_minor` und Rechnung bleiben; später ausgestellte Rechnung ist widersprüchlich (Kopf 909 vs. Zeil… — _OFFEN_ (TODO L437; Steuer und Finanzen (Prüfung 3))
+- [x] **A006** [P1] Umtausch in Ticketart mit anderem Steuersatz schreibt Positions-USt um, `orders.tax_minor` und Rechnung bleiben; später ausgestellte Rechnung ist widersprüchlich (Kopf 909 vs. Zeil… — _OFFEN_ (TODO L437; Steuer und Finanzen (Prüfung 3))
   - `src/Exchange/Service.php:580–591`; `src/Invoices.php:70,318` — Maßnahme: Steuersatzwechsel nur mit Rechnungskorrektur + neuem Beleg oder sperren; `tax_minor` konsistent; Rechnungskopf aus Zeilen.
 - [ ] **A007** [P1] Zielgerichtete Kampagnenrabatte (Ticketart/Event) werden anteilig auf alle Positionen verteilt (Beispiel: USt 1.932 statt 1.742 Cent, fremde Position um 25 € gekürzt). — _OFFEN_ (TODO L438; Steuer und Finanzen (Prüfung 3))
   - `src/Orders.php:196–212` vs. `src/Campaigns.php:31–51` — Maßnahme: Zeilenverteilung aus `Campaigns::calculate()` übernehmen und je Position (`discount_minor`) speichern.

@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.7.0';
+	const DB_VERSION = '3.8.0';
 
 	public static function install() {
 		global $wpdb;
@@ -151,6 +151,9 @@ final class Installer {
 				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				refunded_quantity smallint(5) unsigned NOT NULL DEFAULT 0,
 				counted_qty smallint(5) unsigned NOT NULL DEFAULT 0,
+				orig_quantity smallint(5) unsigned DEFAULT NULL,
+				orig_line_total_minor bigint(20) unsigned DEFAULT NULL,
+				orig_tax_minor bigint(20) unsigned DEFAULT NULL,
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),

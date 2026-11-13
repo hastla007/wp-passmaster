@@ -36,7 +36,9 @@ final class Invoices {
 		if ( ! $order || 'paid' !== $order->payment_status ) { return new \WP_Error( 'wpcap_invoice_order_unpaid', __( 'Eine Rechnung kann erst für bezahlte Bestellungen erstellt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,invoice_number FROM {$p}wpcap_invoices WHERE order_id=%d LIMIT 1", $order_id ) );
 		if ( $existing ) { return array( 'invoice_id' => (int) $existing->invoice_id, 'invoice_number' => $existing->invoice_number, 'reused' => true ); }
-		$items = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", $order_id ) );
+		$items = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*," . OrderLines::paid_columns() . ",tt.name,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", $order_id ) );
+		// Lines created by a ticket exchange carry no paid amount (OrderLines): not invoiced here.
+		$items = array_values( array_filter( $items, static function ( $item ) { return ! OrderLines::is_moved_in( $item ); } ) );
 		/** Invoice lines of an order (item rows with name, event_name, starts_at, timezone); e.g. exchange fee lines. */
 		$items = (array) apply_filters( 'wpcap_invoice_items', $items, $order );
 		$order_subtotal = (int) $order->subtotal_minor ?: (int) $order->total_minor;

@@ -35,7 +35,7 @@ final class Statement {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		list( $start, $end ) = Settlements::period_bounds( $period );
-		$line_sql = "SELECT oi.item_id,oi.order_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
+		$line_sql = "SELECT oi.item_id,oi.order_id,oi.ticket_type_id," . \PassCaptain\OrderLines::paid_columns() . ",oi.tax_rate_bp,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 		$lines = array();
 		// Sales confirmed in the period (paid or later refunded).
 		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.public_id,ord.discount_minor,COALESCE(po.confirmed_at,ord.created_at) AS sold_at,po.external_reference FROM {$p}wpcap_partner_orders po INNER JOIN {$p}wpcap_orders ord ON ord.order_id=po.order_id WHERE po.partner_id=%d AND ord.payment_status IN ('paid','refunded') AND ord.currency=%s AND COALESCE(po.confirmed_at,ord.created_at) >= %s AND COALESCE(po.confirmed_at,ord.created_at) < %s ORDER BY ord.order_id", (int) $partner->partner_id, $partner->currency, $start, $end ) );
@@ -43,8 +43,11 @@ final class Statement {
 		foreach ( $orders as $order ) {
 			$order_lines = $by_order[ (int) $order->order_id ] ?? array();
 			$gross_lines = Data::allocate_discount( $order_lines, (int) $order->discount_minor );
+			$supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order->order_id );
 			foreach ( $order_lines as $i => $line ) {
-				$lines[] = self::line( 'sale', $order, $line, 0, $order->sold_at, (int) $line->quantity, (int) $gross_lines[ $i ], (int) $line->tax_minor, $partner );
+				if ( \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; } // Moved in by an exchange: paid elsewhere.
+				// An exchange supplement is money for a ticket that was already counted on its original order.
+				$lines[] = self::line( 'sale', $order, $line, 0, $order->sold_at, $supplement ? 0 : (int) $line->quantity, (int) $gross_lines[ $i ], (int) $line->tax_minor, $partner );
 			}
 		}
 		// Refunds completed in the period.

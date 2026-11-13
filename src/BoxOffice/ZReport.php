@@ -67,7 +67,7 @@ final class ZReport {
 		$order_ids = array_filter( array_map( 'absint', $order_ids ) );
 		if ( ! $order_ids ) { return array(); }
 		$out = array();
-		$rows = $wpdb->get_results( "SELECT order_id,tax_rate_bp,COALESCE(SUM(line_total_minor),0) AS g,COALESCE(SUM(tax_minor),0) AS t,COALESCE(SUM(quantity),0) AS q FROM {$wpdb->prefix}wpcap_order_items WHERE order_id IN (" . implode( ',', $order_ids ) . ') GROUP BY order_id,tax_rate_bp' );
+		$rows = $wpdb->get_results( "SELECT order_id,tax_rate_bp,COALESCE(SUM(" . \PassCaptain\OrderLines::paid( 'line_total_minor', '' ) . "),0) AS g,COALESCE(SUM(" . \PassCaptain\OrderLines::paid( 'tax_minor', '' ) . "),0) AS t,COALESCE(SUM(" . \PassCaptain\OrderLines::paid( 'quantity', '' ) . "),0) AS q FROM {$wpdb->prefix}wpcap_order_items WHERE order_id IN (" . implode( ',', $order_ids ) . ') GROUP BY order_id,tax_rate_bp' );
 		foreach ( $rows as $r ) { $out[ (int) $r->order_id ][ (int) $r->tax_rate_bp ] = array( (int) $r->g, (int) $r->t, (int) $r->q ); }
 		return $out;
 	}
