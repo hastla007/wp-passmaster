@@ -313,11 +313,11 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Twilio/HTTP-Adapter (src/Sms/), Einwilligung Sms/Service.php:67, Zustellstatus; Kosten nur als Hinweis (Modules/Sms.php:345), keine Segment-/Kostenerfassung
 - [ ] **A142** Vollständige E2E-Abnahmesuite inkl. Offlinekonflikten, Slots, realem POS — _TEILWEISE_ (TODO L142; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
   - Einzeltests vorhanden (tests/integration/modules, tests/load); keine Slot-Kollisionstests, kein realer POS, Mock-WP statt echter Installation
-- [ ] **A143** Rollen inkl. Partner/Leistungserbringer definieren — _TEILWEISE_ (TODO L147; P0 – Rollen, Eventscoping und Zugriffsschutz)
+- [x] **A143** Rollen inkl. Partner/Leistungserbringer definieren — _TEILWEISE_ (TODO L147; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - Installer.php:849-856 alle Rollen bis auf Leistungserbringer; wpcap_partner ist Veranstalter, keine Rolle für Servicepartner
-- [ ] **A144** Zuweisungen nach Event, Termin, Einlassbereich, Partnerleistung — _TEILWEISE_ (TODO L148; P0 – Rollen, Eventscoping und Zugriffsschutz)
+- [x] **A144** Zuweisungen nach Event, Termin, Einlassbereich, Partnerleistung — _TEILWEISE_ (TODO L148; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - Nur Event-Ebene (Access.php:19 wpcap_event_staff) plus Bereichs-Staff; keine Termin- oder Partnerleistungs-Zuweisung
-- [ ] **A145** Serverseitige Objektberechtigung in allen Kanälen — _TEILWEISE_ (TODO L149; P0 – Rollen, Eventscoping und Zugriffsschutz)
+- [x] **A145** Serverseitige Objektberechtigung in allen Kanälen — _TEILWEISE_ (TODO L149; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - Breit umgesetzt (Access.php:8, can_access_event/Scope in 37 Dateien, Controller.php:726); nur Eventgranularität, keine vollständige Abdeckungsprüfung
 - [x] **A146** Datenfelder je Rolle minimieren, Support maskiert — _TEILWEISE_ (TODO L151; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - AttendeeList.php:18-19 (basic/full), Reports/Data.php:26; Support (wpcap_manage_orders) sieht volle PII, keine Maskierung
@@ -404,8 +404,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Keine Fault-Injection-Tests in tests/ gefunden
 - [x] **A184** Zustandsautomaten dokumentieren, doppelte/out-of-order Events testen — _TEILWEISE_ (TODO L254; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Doppelte Webhooks getestet (tests/integration/payments.php:167,271; zz_integration.php:30); keine Zustandsautomaten-Doku außer Warteliste, kein systematischer out-of-order-Test
-- [ ] **A185** REST-Endpunkte negativ testen — _TEILWEISE_ (TODO L255; Datenbank, Zustandsautomaten und Fehlerpfade)
+- [x] **A185** REST-Endpunkte negativ testen — _TEILWEISE_ (TODO L255; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Partner-API: abgelaufener/widerrufener Schlüssel getestet (tests/integration/modules/partners.php:259,263); nicht systematisch für alle REST-Routen/Rollen/Scopes
+  - Erledigt 13.11. mit A145: tests/integration/modules/zz_a145.php prüft alle 87 REST-Routen ohne Recht und mit fremden Objekten, zz_a119.php Scopes der Entwickler-API; Partner-API-Schlüssel abgelaufen/widerrufen in partners.php.
 - [x] **A186** Rate-Limits hinter Proxy/mehreren Workern validieren und dokumentieren — _TEILWEISE_ (TODO L256; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Doku: Transients kein verteilter Schutz (docs/SECURITY.md:7); keine Validierung, keine konkrete Hosting-Empfehlung, keine Proxy-Header-Behandlung (src/RateLimit.php:21)
 - [x] **A187** Lastprofile und REST-Lasttests als geplante CI-Prüfung mit Referenzwerten — _TEILWEISE_ (TODO L260; Last, Hintergrundjobs und Wiederanlauf)
@@ -423,8 +424,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Konstanten/Env-Vorrang (src/Settings.php:118-124); Fallback weiterhin Klartext in Option, kein Vault, keine Migration/Rotation
 - [x] **A192** Automatisiert nachweisen, dass Provider-Secrets nirgends im Klartext auftauchen — _OFFEN_ (TODO L268; Sicherheit, Datenschutz und UI-Abnahme)
   - Keine Tests für Stripe/PayPal-Secrets in Optionen/REST/HTML/Logs; Secrets liegen im Klartext
-- [ ] **A193** Automatisierte Permission-Matrix für alle Aktionen und Routen — _OFFEN_ (TODO L269; Sicherheit, Datenschutz und UI-Abnahme)
+- [x] **A193** Automatisierte Permission-Matrix für alle Aktionen und Routen — _OFFEN_ (TODO L269; Sicherheit, Datenschutz und UI-Abnahme)
   - Keine Matrix; nur Einzelprüfung Partner-Routen (tests/integration/modules/partners.php:299-304)
+  - Erledigt 13.11. mit A145: automatische Permission-Matrix über alle REST-Routen, admin-post- und AJAX-Aktionen (zz_a145.php, gemeinsame Aufzählung tests/integration/channels.php); Rollen-/Capability-Matrix in docs/SECURITY.md wird gegen Installer::role_definitions() geprüft (zz_a143.php).
 - [ ] **A194** Secret-Redaction und Eingabevalidierung unter Fehlerbedingungen testen — _TEILWEISE_ (TODO L270; Sicherheit, Datenschutz und UI-Abnahme)
   - Einzeltests Audit ohne Secrets (partners.php:254, p3_partner_sales.php:329); keine Tests für Logs/REST-Fehler/CI-Artefakte unter Fehlern
 - [x] **A195** Dependency-/Secret-Scanning und Paketprüfung als CI-Gates — _OFFEN_ (TODO L271; Sicherheit, Datenschutz und UI-Abnahme)
