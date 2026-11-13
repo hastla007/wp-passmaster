@@ -41,19 +41,27 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db: ['mariadb:11.4', 'mysql:8.4']
     services:
-      mariadb:
-        image: mariadb:11.4
+      db:
+        image: ${{ matrix.db }}
         env:
           MARIADB_DATABASE: wp
           MARIADB_USER: wp
           MARIADB_PASSWORD: wp
           MARIADB_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wp
+          MYSQL_USER: wp
+          MYSQL_PASSWORD: wp
+          MYSQL_ROOT_PASSWORD: root
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
-          --health-interval=5s --health-timeout=5s --health-retries=20
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot || healthcheck.sh --connect"
+          --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
