@@ -10022,3 +10022,15 @@ msgstr ""
 #, php-format
 msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
 msgstr ""
+
+#: src/BoxOffice/Page.php:108
+msgid "Bar und Karte sind gesperrt: In Deutschland und Österreich brauchen diese Verkäufe eine zertifizierte Kassenlösung (TSE/RKSV), die Pass Captain nicht hat."
+msgstr ""
+
+#: src/BoxOffice/Page.php:178
+msgid "Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben"
+msgstr ""
+
+#: src/BoxOffice/Service.php:340
+msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
+msgstr ""

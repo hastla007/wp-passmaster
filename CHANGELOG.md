@@ -2,6 +2,12 @@
 
 ## Unveröffentlicht
 
+### Kasse und Zahlungen (Experten-Review)
+- Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.
+- Erstattungen im Stripe-/PayPal-/Mollie-Dashboard und Rückbuchungen werden wie jede Erstattung gebucht (Erstattungszeile, Rechnungskorrektur, Gutscheinanteil, Partnerabrechnung).
+- Fehlgeschlagene Rückbuchungen des Gutscheinanteils werden als Job wiederholt; endgültige Fehler gehen per Mail an den Admin.
+- Umsatzsteuer von Teilerstattungen rabattierter Bestellungen korrigiert; Partnerabrechnung zählt bei Mehrzweckgutscheinen Bar- und Gutscheinanteil der Erstattung; Provisionsrechnung einer Kleinunternehmer-Plattform ohne Umsatzsteuer mit Hinweis.
+
 ### Zusammenspiel mit WP Voucher Captain
 - Ticketdienst: `get()` liefert zusätzlich Event, Ticketart, Beginn (Ortszeit) und Empfänger einer Umwandlung (für „2 Tickets für … am …, gesendet an …“ im Kundenkonto); neues `resend_tickets()` sendet die Tickets einer Umwandlung erneut (neue Codes, höchstens 3-mal pro Stunde wie im Bestellportal).
 - Wird eine Ticketart umbenannt, merkt sich Pass Captain den alten Namen je Event: Gutscheine „Kunde wählt den Termin“, die für „Stehplatz“ verkauft wurden, finden die Termine auch nach der Umbenennung.

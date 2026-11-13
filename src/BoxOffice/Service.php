@@ -36,6 +36,27 @@ final class Service {
 		);
 	}
 
+	/** Payment methods that need a certified fiscal solution (cash register law) in DE/AT. */
+	const FISCAL_METHODS = array( 'cash', 'card' );
+
+	/**
+	 * Whether cash and card sales are blocked: the platform is in Germany or Austria, where cash register law
+	 * (KassenSichV/TSE, RKSV) requires signed receipts, Pass Captain has no certified fiscal solution, and the
+	 * operator has not confirmed that these sales are recorded in a certified cash register of their own.
+	 * Filter `wpcap_boxoffice_fiscal_ready` (true = a fiscal integration signs the receipts).
+	 */
+	public static function fiscal_block() {
+		$country = \PassCaptain\Partners\SalesModel::platform_seller()['country'];
+		if ( ! in_array( $country, array( 'DE', 'AT' ), true ) || Settings::get( 'boxoffice_cash_confirmed' ) ) { return false; }
+		return ! apply_filters( 'wpcap_boxoffice_fiscal_ready', false, $country );
+	}
+
+	/** Methods offered for a new sale (cash/card left out while fiscal_block()). */
+	public static function sale_methods() {
+		$methods = self::methods();
+		return self::fiscal_block() ? array_diff_key( $methods, array_flip( self::FISCAL_METHODS ) ) : $methods;
+	}
+
 	public static function method_label( $method ) {
 		$methods = self::methods();
 		return $methods[ $method ]['label'] ?? $method;
@@ -313,8 +334,11 @@ final class Service {
 		$occurrence_id = absint( $input['occurrence_id'] ?? 0 );
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		if ( ! $event_id || ! Scope::can_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
-		$methods = self::methods();
+		$methods = self::sale_methods();
 		$method = (string) ( $input['method'] ?? '' );
+		if ( in_array( $method, self::FISCAL_METHODS, true ) && ! isset( $methods[ $method ] ) ) {
+			return self::error( 'wpcap_pos_fiscal_required', __( 'Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden.', 'wp-pass-captain' ), 409 );
+		}
 		if ( ! isset( $methods[ $method ] ) ) { return self::error( 'wpcap_pos_method', __( 'Bitte eine Zahlart wählen.', 'wp-pass-captain' ) ); }
 
 		$types = array();

@@ -49,6 +49,15 @@ $type_b = wpb_add_type( $occ, 'Ermäßigt', 2140, 700, 0 );
 $no_session = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_a => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
 check( 'sale without open cash session is rejected', is_wp_error( $no_session ) && 'wpcap_pos_no_session' === $no_session->get_error_code() );
 $session = Pos::open_session( 10000 );
+// Cash register law: without a certified fiscal solution, cash and card are refused in DE/AT.
+Settings::update( array( 'seller_country' => 'DE', 'boxoffice_cash_confirmed' => 0 ) );
+$blocked = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $type_a => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) );
+check( 'without a certified fiscal solution cash and card are refused in DE', is_wp_error( $blocked ) && 'wpcap_pos_fiscal_required' === $blocked->get_error_code() && ! isset( Pos::sale_methods()['card'] ) && isset( Pos::sale_methods()['free'], Pos::sale_methods()['invoice'] ) );
+Settings::update( array( 'seller_country' => 'CH' ) );
+check( 'outside DE/AT cash and card stay available', isset( Pos::sale_methods()['cash'], Pos::sale_methods()['card'] ) );
+Settings::update( array( 'seller_country' => 'AT', 'boxoffice_cash_confirmed' => 1 ) );
+check( 'the operator can confirm a separate certified register (cash/card available again)', ! Pos::fiscal_block() && isset( Pos::sale_methods()['cash'] ) );
+Settings::update( array( 'seller_country' => 'DE' ) ); // Confirmation stays on for the following sales.
 $again = Pos::open_session( 5000 );
 check( 'one open session per cashier (opening twice returns it)', ! is_wp_error( $session ) && (int) $session->session_id === (int) $again->session_id && 10000 === (int) $again->opening_float_minor );
 

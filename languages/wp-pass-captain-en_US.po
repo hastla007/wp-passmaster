@@ -10046,3 +10046,15 @@ msgstr "WP Pass Captain: voucher refund failed"
 #, php-format
 msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
 msgstr "For order %1$s the voucher share of a refund (%2$d in minor units) could not be credited back to the voucher:\n\n%3$s\n\nPlease correct the voucher manually in the voucher plugin."
+
+#: src/BoxOffice/Page.php:108
+msgid "Bar und Karte sind gesperrt: In Deutschland und Österreich brauchen diese Verkäufe eine zertifizierte Kassenlösung (TSE/RKSV), die Pass Captain nicht hat."
+msgstr "Cash and card are blocked: in Germany and Austria these sales require a certified cash register solution (TSE/RKSV), which Pass Captain does not have."
+
+#: src/BoxOffice/Page.php:178
+msgid "Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben"
+msgstr "Cash and card sales are also recorded in our own certified cash register (TSE/RKSV) – allow cash and card here"
+
+#: src/BoxOffice/Service.php:340
+msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
+msgstr "Cash and card payments at the box office require a certified cash register solution in Germany and Austria (TSE/RKSV). Pass Captain does not sign receipts. Please choose complimentary ticket or invoice, or confirm in the receipt settings that these sales are recorded in a certified cash register."

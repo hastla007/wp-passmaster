@@ -10045,3 +10045,15 @@ msgstr "WP Pass Captain: error al devolver el importe al vale"
 #, php-format
 msgid "Bei Bestellung %1$s konnte der Gutscheinanteil einer Erstattung (%2$d in kleinster Einheit) nicht auf den Gutschein zurückgebucht werden:\n\n%3$s\n\nBitte den Gutschein im Gutschein-Plugin manuell korrigieren."
 msgstr "En el pedido %1$s no se pudo devolver al vale la parte de un reembolso pagada con vale (%2$d en la unidad mínima):\n\n%3$s\n\nCorrige el vale manualmente en el plugin de vales."
+
+#: src/BoxOffice/Page.php:108
+msgid "Bar und Karte sind gesperrt: In Deutschland und Österreich brauchen diese Verkäufe eine zertifizierte Kassenlösung (TSE/RKSV), die Pass Captain nicht hat."
+msgstr "Efectivo y tarjeta bloqueados: en Alemania y Austria estas ventas requieren una solución de caja certificada (TSE/RKSV), que Pass Captain no tiene."
+
+#: src/BoxOffice/Page.php:178
+msgid "Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben"
+msgstr "Las ventas en efectivo y con tarjeta también se registran en nuestra propia caja certificada (TSE/RKSV): permitir aquí efectivo y tarjeta"
+
+#: src/BoxOffice/Service.php:340
+msgid "Bar- und Kartenzahlungen an der Kasse brauchen in Deutschland und Österreich eine zertifizierte Kassenlösung (TSE/RKSV). Pass Captain signiert keine Belege. Bitte Freikarte oder Rechnung wählen, oder in den Belegeinstellungen bestätigen, dass diese Verkäufe in einer zertifizierten Kasse erfasst werden."
+msgstr "Los pagos en efectivo y con tarjeta en taquilla requieren en Alemania y Austria una solución de caja certificada (TSE/RKSV). Pass Captain no firma los recibos. Elige entrada gratuita o factura, o confirma en los ajustes de recibos que estas ventas se registran en una caja certificada."
