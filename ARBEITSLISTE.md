@@ -367,8 +367,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - docs/TESTING.md:85-93 nennt weiterhin Deadlock und continue-on-error, obwohl .github/workflows/ci.yml:56-60 verpflichtend läuft
 - [ ] **A169** Upgrade-/Restore-/Multisite-Notfallübungen durchführen und abgleichen — _OFFEN_ (TODO L218; Abnahme, Barrierefreiheit und Releasebetrieb)
   - Kein Nachweis einer Übung; nur Anforderung in docs/OPERATIONS.md:51
-- [ ] **A170** Plugin-Metadaten und Doku vor Release mit Code abgleichen — _OFFEN_ (TODO L221; Abnahme, Barrierefreiheit und Releasebetrieb)
+- [x] **A170** Plugin-Metadaten und Doku vor Release mit Code abgleichen — _OFFEN_ (TODO L221; Abnahme, Barrierefreiheit und Releasebetrieb)
   - Widerspruch besteht weiter: README.md:15 sagt Voucher nicht im Checkout orchestriert, src/Integrations/Vouchers/Checkout.php existiert; kein Abgleichsprozess/Check
+  - Erledigt 13.11.: readme.txt-Changelog um 1.2.0–1.4.0 ergänzt (fehlte); Abgleich automatisiert (tests/consistency.php).
 - [ ] **A171** Regeln für gemischte WooCommerce-Warenkörbe je Verkäufer — _TEILWEISE_ (TODO L225; Multi-Seller-Geschäftsabläufe)
   - Gemischte Verkäufer werden abgelehnt (src/Partners/SalesModel.php:226-236, Test zz_sales_models.php:131); keine Regeln für Rabatte/Gebühren/Versand/Rundung je Verkäufer
 - [ ] **A172** Refunds pro Verkäufer/Belegposition zuordnen und abstimmen — _TEILWEISE_ (TODO L226; Multi-Seller-Geschäftsabläufe)
@@ -387,8 +388,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - build/release.sh:213-215 prüft nur Pflichtdateien; kein Entpacken/Installieren/Aktivieren, keine Prüfung auf fehlende Tests/Dev-Dateien
 - [ ] **A179** Reproduzierbarkeit des ZIP-Builds technisch prüfen — _OFFEN_ (TODO L246; CI, statische Qualität und Artefakt)
   - Kein Prüfsummenvergleich/Doppelbuild; build/release.sh:219 nur zip -X ohne feste Zeitstempel
-- [ ] **A180** Versions-/Changelog-/Header-/Composer-/Stable-tag-Konsistenz automatisch prüfen — _TEILWEISE_ (TODO L247; CI, statische Qualität und Artefakt)
+- [x] **A180** Versions-/Changelog-/Header-/Composer-/Stable-tag-Konsistenz automatisch prüfen — _TEILWEISE_ (TODO L247; CI, statische Qualität und Artefakt)
   - release.yml:146-151 prüft Header und WPCAP_VERSION gegen Tag; Stable tag, Changelog-Eintrag, Composer nicht geprüft
+  - Erledigt 13.11.: tests/consistency.php prüft Header-Version = WPCAP_VERSION = Stable tag, Requires (Header/readme/composer), CHANGELOG/readme-Einträge, Text Domain, Doku-Links; CI-Pflichtschritt.
 - [ ] **A181** Upgrade-Integrationstests je Vorgängerversion, parallel, nach Abbruch — _TEILWEISE_ (TODO L251; Datenbank, Zustandsautomaten und Fehlerpfade)
   - Upgrade-Lock/parallel getestet (tests/integration/modules/zz_phase1_arch.php:19-48), Einzelmigration boxoffice_migration.php; keine Tests je Vorgängerversion/Abbruch
 - [ ] **A182** Tabellenpräfixe, Isolation, keine direkten WC-Tabellenabfragen automatisiert prüfen — _TEILWEISE_ (TODO L252; Datenbank, Zustandsautomaten und Fehlerpfade)

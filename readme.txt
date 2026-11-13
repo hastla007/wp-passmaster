@@ -48,5 +48,14 @@ Warteschlangen (E-Mails, SMS, Jobs, Webhooks) werden über WP-Cron mit einem Zei
 
 == Changelog ==
 
+= 1.4.0 =
+* Verkaufsmodelle Eigenhändler/Vermittler, Rechnung auf Firma/Adresse, Einzweck- und Mehrzweckgutscheine. Vollständige Liste: CHANGELOG.md im Repository.
+
+= 1.3.0 =
+* Sicherheit und Erstattungen, Abläufe, Kundenerlebnis, Steuer und Belege, Datenschutz, Betrieb und Release. Vollständige Liste: CHANGELOG.md im Repository.
+
+= 1.2.0 =
+* Gutschein in Ticket umwandeln (Voucher Captain), Veranstalter statt „Partner“. Vollständige Liste: CHANGELOG.md im Repository.
+
 = 1.1.0 =
 * Übersetzungen (fr_FR, it_IT, es_ES, nl_NL, en_US), Serien-Preisstufen im WooCommerce-Warenkorb, E-Mail-Vorlagen und Anbindung an WP Affiliate Captain. Vollständige Liste: CHANGELOG.md im Repository.
