@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Pass Captain 1.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/pass-captain\n"
-"POT-Creation-Date: 2026-11-13T22:00:48+00:00\n"
+"POT-Creation-Date: 2026-11-13T22:04:01+00:00\n"
 "PO-Revision-Date: 2026-11-11 22:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: Dutch\n"
@@ -62,7 +62,7 @@ msgstr "https://github.com/hastla007"
 #: src/GuestLists/Page.php:173 src/Invoices.php:572 src/Invoices.php:609
 #: src/Mail/Admin.php:187 src/Modules/Calendar.php:302
 #: src/Modules/Mollie.php:178 src/Modules/Reminders.php:183
-#: src/Modules/Sms.php:325 src/Modules/Webhooks.php:287
+#: src/Modules/Sms.php:401 src/Modules/Webhooks.php:287
 #: src/OfflineScanner/AdminPage.php:106 src/Partners/AdminPage.php:177
 #: src/Partners/AdminPage.php:194 src/Partners/AdminPage.php:221
 #: src/Partners/AdminPage.php:543 src/Passes/AdminPage.php:124
@@ -398,8 +398,9 @@ msgstr "Waarde"
 
 #: src/Admin/CampaignsPage.php:138 src/Admin/ChangeHistory.php:94
 #: src/Admin/EventsPage.php:802 src/BoxOffice/ShiftPage.php:396
-#: src/BoxOffice/ShiftPage.php:424 src/Partners/AdminPage.php:300
-#: src/Passes/AdminPage.php:175 src/Reports/Data.php:452
+#: src/BoxOffice/ShiftPage.php:424 src/Modules/Sms.php:434
+#: src/Partners/AdminPage.php:300 src/Passes/AdminPage.php:175
+#: src/Reports/Data.php:452
 msgid "Währung"
 msgstr "Valuta"
 
@@ -1160,7 +1161,7 @@ msgstr "Rate limit (verzoeken per minuut)"
 #: src/BoxOffice/Page.php:210 src/BoxOffice/ShiftPage.php:428
 #: src/Exchange/AdminPage.php:231 src/Mail/Admin.php:262
 #: src/Modules/Calendar.php:312 src/Modules/Mollie.php:196
-#: src/Modules/Reminders.php:197 src/Modules/Sms.php:369
+#: src/Modules/Reminders.php:197 src/Modules/Sms.php:457
 #: src/Modules/Webhooks.php:322 src/OfflineScanner/AdminPage.php:148
 #: src/Partners/AdminPage.php:419 src/Passes/AdminPage.php:255
 #: src/Printing/Page.php:121 src/Series/AdminPage.php:565
@@ -2057,7 +2058,7 @@ msgid "Nur Daten abfragen, die für die Veranstaltung erforderlich sind. Zweck u
 msgstr "Vraag alleen gegevens op die voor het evenement nodig zijn. Doel en bewaartermijn worden aan kopers getoond."
 
 #: src/Admin/EventsPage.php:1060 src/Admin/EventsPage.php:1096
-#: src/Secrets.php:445
+#: src/Secrets.php:447
 msgid "Schlüssel"
 msgstr "Sleutel"
 
@@ -2071,7 +2072,7 @@ msgid "Pflicht"
 msgstr "Verplicht"
 
 #: src/Admin/EventsPage.php:1064 src/Admin/EventsPage.php:1107
-#: src/Consents.php:611 src/Modules/Sms.php:279
+#: src/Consents.php:611 src/Modules/Sms.php:327
 msgid "Zweck"
 msgstr "Doel"
 
@@ -2175,7 +2176,7 @@ msgid "Abgesagt/Storniert"
 msgstr "Geannuleerd"
 
 #: src/Admin/Forms.php:491 src/Admin/ServiceSlotsPage.php:94
-#: src/BoxOffice/ShiftPage.php:427 src/Modules/Sms.php:342
+#: src/BoxOffice/ShiftPage.php:427 src/Modules/Sms.php:418
 msgid "Deaktiviert"
 msgstr "Gedeactiveerd"
 
@@ -3708,7 +3709,7 @@ msgstr "„%s” is geen geldig bedrag."
 #: src/Admin/SettingsPage.php:410 src/Admission/RulesPage.php:126
 #: src/Allocations/AdminPage.php:174 src/BoxOffice/Page.php:422
 #: src/Modules/Calendar.php:298 src/Modules/Mollie.php:174
-#: src/Modules/Reminders.php:179 src/Modules/Sms.php:321
+#: src/Modules/Reminders.php:179 src/Modules/Sms.php:397
 #: src/Printing/Page.php:180 src/Waitlists/AdminPage.php:77
 msgid "Einstellungen gespeichert."
 msgstr "Instellingen opgeslagen."
@@ -3785,11 +3786,11 @@ msgstr "Huidige versie: %s (wordt bij elke bestelling opgeslagen)"
 msgid "Gespeichert – leer lassen, um beizubehalten"
 msgstr "Opgeslagen – leeg laten om te behouden"
 
-#: src/Admin/SettingsPage.php:606 src/Secrets.php:407
+#: src/Admin/SettingsPage.php:606 src/Secrets.php:409
 msgid "Nicht gesetzt"
 msgstr "Niet ingesteld"
 
-#: src/Admin/SettingsPage.php:608 src/Secrets.php:415
+#: src/Admin/SettingsPage.php:608 src/Secrets.php:417
 msgid "Gespeicherten Wert löschen"
 msgstr "Opgeslagen waarde verwijderen"
 
@@ -9732,7 +9733,8 @@ msgstr "Tijdstippen (uren voor begin)"
 msgid "Kommagetrennt, z. B. 48, 2 (max. 5 Werte). Pro Termin und Zeitpunkt erhält jede Person höchstens eine Nachricht."
 msgstr "Gescheiden door komma's, bijv. 48, 2 (max. 5 waarden). Per datum en tijdstip ontvangt elke persoon maximaal één bericht."
 
-#: src/Modules/Reminders.php:193 src/Modules/Sms.php:108
+#: src/Modules/Reminders.php:193 src/Modules/Sms.php:138
+#: src/Modules/Sms.php:510 src/Modules/Sms.php:518
 msgid "SMS"
 msgstr "SMS"
 
@@ -9752,193 +9754,349 @@ msgstr "Zaalplannen"
 msgid "Serientermine"
 msgstr "Reeksdata"
 
-#: src/Modules/Sms.php:88
+#: src/Modules/Sms.php:108
 msgid "Ja, ich möchte Erinnerungen und Informationen zu Terminänderungen und Absagen dieser Bestellung per SMS erhalten. Die Einwilligung kann jederzeit widerrufen werden."
 msgstr "Ja, ik wil herinneringen en informatie over datumwijzigingen en annuleringen van deze bestelling per sms ontvangen. De toestemming kan op elk moment worden ingetrokken."
 
-#: src/Modules/Sms.php:97
+#: src/Modules/Sms.php:117
 msgid "Abgesagt: {event} am {date} um {time}. Dein Ticket ist ungültig; Infos zur Erstattung per E-Mail."
 msgstr "Geannuleerd: {event} op {date} om {time}. Je ticket is ongeldig; informatie over terugbetaling per e-mail."
 
-#: src/Modules/Sms.php:98
+#: src/Modules/Sms.php:118
 msgid "Neuer Termin: {event} findet am {date} um {time} ({timezone}) statt (bisher {old_date}). Dein Ticket bleibt gültig."
 msgstr "Nieuwe datum: {event} vindt plaats op {date} om {time} ({timezone}) (eerder {old_date}). Je ticket blijft geldig."
 
-#: src/Modules/Sms.php:156
+#: src/Modules/Sms.php:201
 msgid "SMS-Benachrichtigungen sind nur für Mobilnummern aus den unterstützten Ländern möglich. Bitte deaktiviere die SMS-Benachrichtigung oder nutze eine andere Nummer."
 msgstr "Sms-meldingen zijn alleen mogelijk voor mobiele nummers uit de ondersteunde landen. Schakel de sms-melding uit of gebruik een ander nummer."
 
-#: src/Modules/Sms.php:157
+#: src/Modules/Sms.php:202
 msgid "Für diese Mobilnummer wurden zu viele SMS-Anmeldungen erstellt. Bitte versuche es später erneut oder bestelle ohne SMS-Benachrichtigung."
 msgstr "Voor dit mobiele nummer zijn te veel sms-aanmeldingen aangemaakt. Probeer het later opnieuw of bestel zonder sms-melding."
 
-#: src/Modules/Sms.php:158
+#: src/Modules/Sms.php:203
+msgid "Für diese Mobilnummer wurden SMS mit STOP abbestellt. Antworte START auf eine unserer SMS, um sie wieder zu erhalten, oder bestelle ohne SMS-Benachrichtigung."
+msgstr ""
+
+#: src/Modules/Sms.php:204
 msgid "Bitte gib eine gültige Mobilnummer an (z. B. +49 151 23456789) oder deaktiviere die SMS-Benachrichtigung."
 msgstr "Geef een geldig mobiel nummer op (bijv. +31 6 12345678) of schakel de sms-melding uit."
 
-#: src/Modules/Sms.php:167
+#: src/Modules/Sms.php:213
 msgid "Bitte gib für SMS-Benachrichtigungen eine Mobilnummer an."
 msgstr "Geef voor sms-meldingen een mobiel nummer op."
 
-#: src/Modules/Sms.php:171
+#: src/Modules/Sms.php:217
 msgid "SMS-Benachrichtigung (optional)"
 msgstr "Sms-melding (optioneel)"
 
-#: src/Modules/Sms.php:173 src/Modules/Sms.php:278
+#: src/Modules/Sms.php:219 src/Modules/Sms.php:326
 msgid "Mobilnummer"
 msgstr "Mobiel nummer"
 
-#: src/Modules/Sms.php:245 src/Modules/Sms.php:249 src/Modules/Sms.php:277
+#: src/Modules/Sms.php:293 src/Modules/Sms.php:297 src/Modules/Sms.php:325
 msgid "Pass Captain SMS-Einwilligungen"
 msgstr "Pass Captain sms-toestemmingen"
 
-#: src/Modules/Sms.php:278
+#: src/Modules/Sms.php:326
 msgid "(gelöscht)"
 msgstr "(verwijderd)"
 
-#: src/Modules/Sms.php:280
+#: src/Modules/Sms.php:328
 msgid "Version des Einwilligungstexts"
 msgstr "Versie van de toestemmingstekst"
 
-#: src/Modules/Sms.php:281
+#: src/Modules/Sms.php:329
 msgid "Eingewilligt (UTC)"
 msgstr "Toestemming gegeven (UTC)"
 
-#: src/Modules/Sms.php:282
+#: src/Modules/Sms.php:330
 msgid "Widerrufen / beendet (UTC)"
 msgstr "Ingetrokken / beëindigd (UTC)"
 
-#: src/Modules/Sms.php:294
+#: src/Modules/Sms.php:331
+msgid "Quelle der Einwilligung"
+msgstr ""
+
+#: src/Modules/Sms.php:332
+msgid "Widerrufen durch"
+msgstr ""
+
+#: src/Modules/Sms.php:344
 msgid "Der SMS-Endpunkt muss HTTPS verwenden."
 msgstr "Het sms-eindpunt moet HTTPS gebruiken."
 
-#: src/Modules/Sms.php:343
+#: src/Modules/Sms.php:392
+msgid "Zurückgehaltene SMS wurden freigegeben."
+msgstr ""
+
+#: src/Modules/Sms.php:419
 msgid "(nicht konfiguriert)"
 msgstr "(niet geconfigureerd)"
 
-#: src/Modules/Sms.php:344
+#: src/Modules/Sms.php:420
 msgid "SMS-Benachrichtigungen"
 msgstr "Sms-meldingen"
 
-#: src/Modules/Sms.php:346
+#: src/Modules/Sms.php:422
 msgid "Kostenhinweis:"
 msgstr "Kostenmelding:"
 
-#: src/Modules/Sms.php:346
-msgid "Jede SMS wird vom Anbieter berechnet (je Segment von 160 GSM- bzw. 70 Unicode-Zeichen, Preise je Zielland). Erinnerungen, Verschiebungen und Absagen erzeugen pro einwilligender Bestellung je eine SMS. Prüfe die Preise deines Anbieters, bevor du SMS aktivierst."
-msgstr "Elke sms wordt door de aanbieder in rekening gebracht (per segment van 160 GSM- of 70 Unicode-tekens, prijzen per bestemmingsland). Herinneringen, verplaatsingen en annuleringen genereren per bestelling met toestemming telkens één sms. Controleer de prijzen van je aanbieder voordat je sms activeert."
+#: src/Modules/Sms.php:422
+msgid "Jede SMS wird vom Anbieter je Segment berechnet: 160 GSM-Zeichen bzw. 70 Unicode-Zeichen (z. B. Emojis) in einer SMS, bei längeren Texten 153 bzw. 67 Zeichen je Teil. Erinnerungen, Verschiebungen und Absagen erzeugen pro einwilligender Bestellung je eine SMS. Hinterlege unten die Preise deines Anbieters und ein Monatsbudget."
+msgstr ""
 
-#: src/Modules/Sms.php:347
+#: src/Modules/Sms.php:424
 msgid "SMS werden nur an Käufer:innen gesendet, die im Checkout ausdrücklich eingewilligt haben (Nummer, Zweck, Textversion und Zeitpunkt werden gespeichert)."
 msgstr "Sms-berichten worden alleen verzonden aan kopers die bij het afrekenen uitdrukkelijk toestemming hebben gegeven (nummer, doel, tekstversie en tijdstip worden opgeslagen)."
 
-#: src/Modules/Sms.php:350
+#: src/Modules/Sms.php:427
 msgid "Anbieter"
 msgstr "Aanbieder"
 
-#: src/Modules/Sms.php:351
+#: src/Modules/Sms.php:428
 msgid "Einwilligungstext im Checkout"
 msgstr "Toestemmingstekst bij het afrekenen"
 
 #. translators: %s: version
-#: src/Modules/Sms.php:351
+#: src/Modules/Sms.php:428
 #, php-format
 msgid "Aktuelle Textversion: %s – Änderungen erzeugen eine neue Version."
 msgstr "Huidige tekstversie: %s – wijzigingen maken een nieuwe versie aan."
 
 #. translators: %s: version
-#: src/Modules/Sms.php:352
+#: src/Modules/Sms.php:429
 msgid "Standard-Ländervorwahl"
 msgstr "Standaard landnummer"
 
 #. translators: %s: version
-#: src/Modules/Sms.php:352
+#: src/Modules/Sms.php:429
 msgid "Für Nummern mit führender 0, z. B. +49."
 msgstr "Voor nummers met een voorloopnul, bijv. +31."
 
-#: src/Modules/Sms.php:353
+#: src/Modules/Sms.php:430
 msgid "Erlaubte Ländervorwahlen"
 msgstr "Toegestane landnummers"
 
-#: src/Modules/Sms.php:353
+#: src/Modules/Sms.php:430
 msgid "Kommagetrennt. Für +43, +49 und +41 werden nur Mobilfunkbereiche akzeptiert (keine Premium-/Sonderrufnummern). Je Nummer höchstens 3 Einwilligungen pro Tag, je IP 10 pro Stunde. Eine Bestätigung per SMS-Code (OTP) ist nicht implementiert."
 msgstr "Gescheiden door komma's. Voor +43, +49 en +41 worden alleen mobiele nummerreeksen geaccepteerd (geen premium- of speciale nummers). Per nummer maximaal 3 toestemmingen per dag, per IP-adres 10 per uur. Bevestiging via sms-code (OTP) is niet geïmplementeerd."
 
-#: src/Modules/Sms.php:354
+#: src/Modules/Sms.php:431
 msgid "Text bei Absage"
 msgstr "Tekst bij annulering"
 
-#: src/Modules/Sms.php:355
+#: src/Modules/Sms.php:432
 msgid "Text bei Verschiebung"
 msgstr "Tekst bij verplaatsing"
 
-#: src/Modules/Sms.php:355
+#: src/Modules/Sms.php:432
 msgid "Platzhalter: "
 msgstr "Plaatsaanduidingen: "
 
-#: src/Modules/Sms.php:357
+#: src/Modules/Sms.php:433
+msgid "Kosten und Budget"
+msgstr ""
+
+#: src/Modules/Sms.php:434
+msgid "ISO-Code, z. B. EUR. Vom Anbieter gemeldete Preise in anderer Währung werden nur über den Filter wpcap_sms_convert_price umgerechnet, sonst gilt der hinterlegte Preis."
+msgstr ""
+
+#: src/Modules/Sms.php:435
+msgid "Preis je Segment und Land"
+msgstr ""
+
+#: src/Modules/Sms.php:435
+msgid "Eine Zeile je Ländervorwahl, z. B. „+49 0.075“. Die längste passende Vorwahl gilt."
+msgstr ""
+
+#: src/Modules/Sms.php:436
+msgid "Standardpreis je Segment"
+msgstr ""
+
+#: src/Modules/Sms.php:436
+msgid "Für Ziele ohne eigenen Preis. Leer: Kosten unbekannt (zählen nicht zum Budget)."
+msgstr ""
+
+#: src/Modules/Sms.php:437
+msgid "Monatsbudget"
+msgstr ""
+
+#: src/Modules/Sms.php:437
+msgid "Kalendermonat (UTC). Leer oder 0: kein Limit."
+msgstr ""
+
+#: src/Modules/Sms.php:438
+msgid "Warnung ab (Prozent)"
+msgstr ""
+
+#: src/Modules/Sms.php:438
+msgid "Einmal pro Monat: Eintrag im Protokoll und E-Mail an die Administrationsadresse."
+msgstr ""
+
+#: src/Modules/Sms.php:439
+msgid "Harte Grenze"
+msgstr ""
+
+#: src/Modules/Sms.php:439
+msgid "SMS zurückhalten, die das Monatsbudget überschreiten würden"
+msgstr ""
+
+#: src/Modules/Sms.php:439
+msgid "Zurückgehaltene SMS können nach einer Budgeterhöhung freigegeben werden; nach 7 Tagen verfallen sie."
+msgstr ""
+
+#: src/Modules/Sms.php:441
 msgid "Account SID"
 msgstr "Account SID"
 
-#: src/Modules/Sms.php:357
+#: src/Modules/Sms.php:441
 msgid "Alternativ Konstante WPCAP_TWILIO_ACCOUNT_SID."
 msgstr "Of gebruik de constante WPCAP_TWILIO_ACCOUNT_SID."
 
-#: src/Modules/Sms.php:358
+#: src/Modules/Sms.php:442
 msgid "Auth Token"
 msgstr "Auth Token"
 
-#: src/Modules/Sms.php:359
+#: src/Modules/Sms.php:443
 msgid "Absender (Nummer, Name oder Messaging Service SID)"
 msgstr "Afzender (nummer, naam of Messaging Service SID)"
 
-#: src/Modules/Sms.php:360
+#: src/Modules/Sms.php:444 src/Modules/Sms.php:455
 msgid "Eingehende SMS (Abmeldung mit STOP)"
 msgstr "Inkomende sms (afmelden met STOP)"
 
-#: src/Modules/Sms.php:360
-msgid "Bei der Twilio-Nummer als Webhook für „A message comes in“ eintragen; STOP, STOPP oder ABMELDEN widerruft alle Einwilligungen der Nummer."
-msgstr "Voer dit in bij het Twilio-nummer als webhook voor „A message comes in”; STOP, STOPP of ABMELDEN trekt alle toestemmingen van het nummer in."
+#: src/Modules/Sms.php:444
+msgid "Bei der Twilio-Nummer als Webhook für „A message comes in“ eintragen; STOP, STOPP oder ABMELDEN widerruft alle Einwilligungen der Nummer und sperrt sie für neue Einwilligungen, START hebt die Sperre auf."
+msgstr ""
 
-#: src/Modules/Sms.php:361
+#: src/Modules/Sms.php:445 src/Modules/Sms.php:454
 msgid "Status-Callback"
 msgstr "Statuscallback"
 
-#: src/Modules/Sms.php:361
+#: src/Modules/Sms.php:445
 msgid "Wird automatisch pro Nachricht übergeben; Signatur (X-Twilio-Signature) wird geprüft."
 msgstr "Wordt automatisch per bericht meegegeven; de handtekening (X-Twilio-Signature) wordt gecontroleerd."
 
-#: src/Modules/Sms.php:362 src/Sms/HttpProvider.php:19
+#: src/Modules/Sms.php:446 src/Sms/HttpProvider.php:25
 msgid "Generischer HTTP-Anbieter"
 msgstr "Generieke HTTP-aanbieder"
 
-#: src/Modules/Sms.php:363
+#: src/Modules/Sms.php:447
 msgid "Endpunkt (HTTPS)"
 msgstr "Eindpunt (HTTPS)"
 
-#: src/Modules/Sms.php:364
+#: src/Modules/Sms.php:448
 msgid "Auth-Header-Name"
 msgstr "Naam van de auth-header"
 
-#: src/Modules/Sms.php:365
+#: src/Modules/Sms.php:449
 msgid "Auth-Header-Wert"
 msgstr "Waarde van de auth-header"
 
-#: src/Modules/Sms.php:366
+#: src/Modules/Sms.php:450
 msgid "Content-Type"
 msgstr "Content-Type"
 
-#: src/Modules/Sms.php:367
+#: src/Modules/Sms.php:451
 msgid "Body-Vorlage"
 msgstr "Bodysjabloon"
 
-#: src/Modules/Sms.php:367
-msgid "Platzhalter {to}, {body}, {reference} werden passend zum Content-Type maskiert."
-msgstr "Plaatsaanduidingen {to}, {body}, {reference} worden passend bij het Content-Type geëscaped."
+#: src/Modules/Sms.php:451
+msgid "Platzhalter {to}, {body}, {reference} werden passend zum Content-Type maskiert. Antwortet der Dienst mit price, currency oder segments, werden diese Werte übernommen."
+msgstr ""
 
-#: src/Modules/Sms.php:373
+#: src/Modules/Sms.php:452
+msgid "Signaturschlüssel für Rückmeldungen"
+msgstr ""
+
+#: src/Modules/Sms.php:452
+msgid "HMAC-SHA256 über den Rohinhalt der Anfrage (hex oder Base64, optional mit „sha256=“). Ohne Schlüssel werden Rückmeldungen abgelehnt."
+msgstr ""
+
+#: src/Modules/Sms.php:453
+msgid "Signatur-Header"
+msgstr ""
+
+#: src/Modules/Sms.php:454
+msgid "Felder: reference (oder id), status (delivered, undelivered, failed, sent), optional error_code, price, currency."
+msgstr ""
+
+#: src/Modules/Sms.php:455
+msgid "Felder: from, text. STOP meldet die Nummer ab, START wieder an."
+msgstr ""
+
+#: src/Modules/Sms.php:461
 msgid "Versandstatus"
 msgstr "Verzendstatus"
+
+#. translators: 1: number of segments, 2: encoding (GSM-7 or UCS-2), 3: characters
+#: src/Modules/Sms.php:473
+#, php-format
+msgid "Vorlage: %1$d Segment(e), %2$s, %3$d Zeichen (ohne Ersetzung der Platzhalter)."
+msgstr ""
+
+#. translators: 1: month, 2: spent, 3: budget, 4: percent
+#: src/Modules/Sms.php:488
+#, php-format
+msgid "SMS-Budget %1$s: %2$s von %3$s verbraucht (%4$d %%)."
+msgstr ""
+
+#. translators: %d: number of messages
+#: src/Modules/Sms.php:494
+#, php-format
+msgid "%d SMS wird wegen des Monatsbudgets zurückgehalten."
+msgid_plural "%d SMS werden wegen des Monatsbudgets zurückgehalten."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/Modules/Sms.php:496
+msgid "Zurückgehaltene SMS freigeben"
+msgstr ""
+
+#: src/Modules/Sms.php:497
+msgid "Erhöhe vorher das Budget oder deaktiviere die harte Grenze, sonst werden sie erneut zurückgehalten."
+msgstr ""
+
+#: src/Modules/Sms.php:505
+msgid "Kostenbericht"
+msgstr ""
+
+#: src/Modules/Sms.php:507
+msgid "Noch keine versendeten SMS."
+msgstr ""
+
+#: src/Modules/Sms.php:510
+msgid "Monat (UTC)"
+msgstr ""
+
+#: src/Modules/Sms.php:510 src/Modules/Sms.php:518
+msgid "Segmente"
+msgstr ""
+
+#: src/Modules/Sms.php:510 src/Modules/Sms.php:518
+msgid "Kosten"
+msgstr ""
+
+#: src/Modules/Sms.php:510
+msgid "davon vom Anbieter gemeldet"
+msgstr ""
+
+#: src/Modules/Sms.php:510
+msgid "ohne Preis"
+msgstr ""
+
+#: src/Modules/Sms.php:517
+msgid "Aktueller Monat nach Zielland und Anlass"
+msgstr ""
+
+#: src/Modules/Sms.php:518
+msgid "Ländervorwahl"
+msgstr ""
+
+#: src/Modules/Sms.php:518
+msgid "Anlass"
+msgstr ""
 
 #: src/Modules/Waitlist.php:30 src/Waitlists/AdminPage.php:85
 #: templates/event-card.php:176
@@ -15044,122 +15202,126 @@ msgstr "Minstens één zitplaats is niet meer beschikbaar."
 msgid "Sitzplätze konnten nicht reserviert werden."
 msgstr "Zitplaatsen konden niet worden gereserveerd."
 
-#: src/Secrets.php:356
+#: src/Secrets.php:357
 msgid "Stripe Secret Key"
 msgstr "Stripe Secret Key"
 
-#: src/Secrets.php:357
+#: src/Secrets.php:358
 msgid "Stripe Webhook-Signing-Secret"
 msgstr "Stripe webhook signing secret"
 
-#: src/Secrets.php:358
+#: src/Secrets.php:359
 msgid "PayPal Client-Secret"
 msgstr "PayPal client secret"
 
-#: src/Secrets.php:359
+#: src/Secrets.php:360
 msgid "Mollie API-Schlüssel"
 msgstr "Mollie API-sleutel"
 
-#: src/Secrets.php:360
+#: src/Secrets.php:361
 msgid "Twilio Auth Token"
 msgstr "Twilio Auth Token"
 
-#: src/Secrets.php:361
+#: src/Secrets.php:362
 msgid "SMS-HTTP-Zugangsdaten"
 msgstr "Sms-HTTP-toegangsgegevens"
 
-#: src/Secrets.php:362
+#: src/Secrets.php:363
+msgid "SMS-HTTP-Signaturschlüssel für Rückmeldungen"
+msgstr ""
+
+#: src/Secrets.php:364
 msgid "Apple-Wallet-Zertifikat"
 msgstr "Apple Wallet-certificaat"
 
-#: src/Secrets.php:363
+#: src/Secrets.php:365
 msgid "Apple-Wallet-Schlüssel"
 msgstr "Apple Wallet-sleutel"
 
-#: src/Secrets.php:364
+#: src/Secrets.php:366
 msgid "Apple-Wallet-Schlüsselpasswort"
 msgstr "Apple Wallet-sleutelwachtwoord"
 
-#: src/Secrets.php:365
+#: src/Secrets.php:367
 msgid "Apple-WWDR-Zertifikat"
 msgstr "Apple WWDR-certificaat"
 
-#: src/Secrets.php:366
+#: src/Secrets.php:368
 msgid "Google-Wallet-Servicekonto"
 msgstr "Google Wallet-serviceaccount"
 
 #. translators: %s: constant name
-#: src/Secrets.php:377
+#: src/Secrets.php:379
 #, php-format
 msgid "Gesetzt über %s (wp-config.php oder Umgebungsvariable); ein hier gespeicherter Wert wird nicht verwendet."
 msgstr "Ingesteld via %s (wp-config.php of omgevingsvariabele); een hier opgeslagen waarde wordt niet gebruikt."
 
-#: src/Secrets.php:379
+#: src/Secrets.php:381
 msgid "Gespeichert, aber nicht entschlüsselbar (Schlüssel geändert?) – bitte neu eingeben. Bis dahin gilt der Dienst als nicht eingerichtet."
 msgstr "Opgeslagen, maar niet te ontsleutelen (sleutel gewijzigd?) – voer opnieuw in. Tot die tijd geldt de dienst als niet ingesteld."
 
 #. translators: %s: last four characters, e.g. "…a1b2"
-#: src/Secrets.php:383
+#: src/Secrets.php:385
 #, php-format
 msgid "Gespeichert (verschlüsselt), endet auf %s"
 msgstr "Opgeslagen (versleuteld), eindigt op %s"
 
 #. translators: %s: last four characters, e.g. "…a1b2"
-#: src/Secrets.php:383
+#: src/Secrets.php:385
 msgid "Gespeichert (verschlüsselt)"
 msgstr "Opgeslagen (versleuteld)"
 
-#: src/Secrets.php:385
+#: src/Secrets.php:387
 msgid "Kein Wert gespeichert"
 msgstr "Geen waarde opgeslagen"
 
-#: src/Secrets.php:407
+#: src/Secrets.php:409
 msgid "Leer lassen, um den gespeicherten Wert zu behalten"
 msgstr "Laat leeg om de opgeslagen waarde te behouden"
 
 #. translators: %s: constant name
-#: src/Secrets.php:418
+#: src/Secrets.php:420
 #, php-format
 msgid "Wird verschlüsselt gespeichert. Alternativ als Konstante %s in wp-config.php definieren."
 msgstr "Wordt versleuteld opgeslagen. Je kunt het ook als constante %s in wp-config.php definiëren."
 
-#: src/Secrets.php:428
+#: src/Secrets.php:430
 msgid "Pass Captain: Gespeicherte Zugangsdaten können nicht entschlüsselt werden."
 msgstr "Pass Captain: opgeslagen toegangsgegevens kunnen niet worden ontsleuteld."
 
-#: src/Secrets.php:430
+#: src/Secrets.php:432
 msgid "Die betroffenen Zahlungsarten und Dienste gelten bis zur Behebung als nicht eingerichtet. Ursache ist meist ein geänderter WPCAP_SECRETS_KEY oder geänderte WordPress-Salts: den bisherigen Schlüssel als WPCAP_SECRETS_KEY_PREVIOUS in wp-config.php eintragen oder die Werte in den Einstellungen neu eingeben."
 msgstr "De betrokken betaalmethoden en diensten gelden tot het herstel als niet ingesteld. De oorzaak is meestal een gewijzigde WPCAP_SECRETS_KEY of gewijzigde WordPress-salts: voer de vorige sleutel in als WPCAP_SECRETS_KEY_PREVIOUS in wp-config.php of voer de waarden opnieuw in bij de instellingen."
 
-#: src/Secrets.php:434
+#: src/Secrets.php:436
 msgid "Pass Captain: Zugangsdaten (z. B. Stripe, PayPal) werden mit einem aus den WordPress-Salts abgeleiteten Schlüssel verschlüsselt. Empfohlen: einen eigenen Schlüssel als Konstante WPCAP_SECRETS_KEY in wp-config.php festlegen (mindestens 32 zufällige Zeichen) – sonst werden die Zugangsdaten unlesbar, wenn die Salts erneuert werden."
 msgstr "Pass Captain: toegangsgegevens (bijv. Stripe, PayPal) worden versleuteld met een sleutel die is afgeleid van de WordPress-salts. Aanbevolen: leg een eigen sleutel vast als constante WPCAP_SECRETS_KEY in wp-config.php (minstens 32 willekeurige tekens) – anders worden de toegangsgegevens onleesbaar wanneer de salts worden vernieuwd."
 
-#: src/Secrets.php:445
+#: src/Secrets.php:447
 msgid "aus WordPress-Salts abgeleitet"
 msgstr "afgeleid van WordPress-salts"
 
-#: src/Secrets.php:447
+#: src/Secrets.php:449
 msgid "Konstante"
 msgstr "Constante"
 
-#: src/Secrets.php:447
+#: src/Secrets.php:449
 msgid "Umgebungsvariable"
 msgstr "Omgevingsvariabele"
 
-#: src/Secrets.php:447
+#: src/Secrets.php:449
 msgid "verschlüsselt gespeichert"
 msgstr "versleuteld opgeslagen"
 
-#: src/Secrets.php:447
+#: src/Secrets.php:449
 msgid "nicht entschlüsselbar"
 msgstr "niet te ontsleutelen"
 
-#: src/Secrets.php:447
+#: src/Secrets.php:449
 msgid "nicht gesetzt"
 msgstr "niet ingesteld"
 
-#: src/Secrets.php:452
+#: src/Secrets.php:454
 msgid "Pass Captain – Zugangsdaten"
 msgstr "Pass Captain – toegangsgegevens"
 
@@ -15911,11 +16073,31 @@ msgstr "Het tijdvak heeft boekingen; het tijdstip kan niet meer worden gewijzigd
 msgid "Das Zeitfenster hat Buchungen und kann nicht gelöscht werden. Schließe es stattdessen."
 msgstr "Het tijdvak heeft boekingen en kan niet worden verwijderd. Sluit het in plaats daarvan."
 
-#: src/Sms/HttpProvider.php:47
+#: src/Sms/Costs.php:181
+msgid "Pass Captain: SMS-Budget ausgeschöpft"
+msgstr ""
+
+#. translators: 1: month (YYYY-MM), 2: spent / budget with currency
+#: src/Sms/Costs.php:183
+#, php-format
+msgid "Das SMS-Monatsbudget für %1$s ist ausgeschöpft (%2$s). Weitere SMS werden zurückgehalten, bis das Budget erhöht und die zurückgehaltenen SMS unter „SMS“ freigegeben werden."
+msgstr ""
+
+#: src/Sms/Costs.php:185
+msgid "Pass Captain: SMS-Budget fast erreicht"
+msgstr ""
+
+#. translators: 1: month (YYYY-MM), 2: spent / budget with currency, 3: percent
+#: src/Sms/Costs.php:187
+#, php-format
+msgid "Die SMS-Kosten für %1$s haben %3$d %% des Monatsbudgets erreicht (%2$s)."
+msgstr ""
+
+#: src/Sms/HttpProvider.php:53
 msgid "Der HTTP-SMS-Anbieter ist nicht konfiguriert (HTTPS-Endpunkt erforderlich)."
 msgstr "De HTTP-sms-aanbieder is niet geconfigureerd (HTTPS-eindpunt vereist)."
 
-#: src/Sms/Service.php:239 src/Sms/Service.php:259
+#: src/Sms/Service.php:434 src/Sms/Service.php:452 src/Sms/Service.php:483
 msgid "Ungültige Signatur."
 msgstr "Ongeldige handtekening."
 

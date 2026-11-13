@@ -309,7 +309,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - UI BoxOffice/Page.php, Bar/Karte Service.php:34-35, Belegnummern, Druck Page.php:82; Fiskal-Adapter nicht angebunden, keine fiskalischen Belege
 - [x] **A140** iCalendar-Download und Änderungsbenachrichtigungen pro Ereignis — _TEILWEISE_ (TODO L138; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
   - ICS Calendar/Ics.php:63,122,128, Modules/Calendar.php:23; Mail bei Verschiebung/Absage; keine SEQUENCE in ICS, keine Benachrichtigung bei Orts-/Detailänderung
-- [ ] **A141** SMS: Anbieteradapter, Einwilligung, Kosten, Zustellstatus — _TEILWEISE_ (TODO L139; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
+- [x] **A141** SMS: Anbieteradapter, Einwilligung, Kosten, Zustellstatus — _TEILWEISE_ (TODO L139; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
   - Twilio/HTTP-Adapter (src/Sms/), Einwilligung Sms/Service.php:67, Zustellstatus; Kosten nur als Hinweis (Modules/Sms.php:345), keine Segment-/Kostenerfassung
 - [ ] **A142** Vollständige E2E-Abnahmesuite inkl. Offlinekonflikten, Slots, realem POS — _TEILWEISE_ (TODO L142; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
   - Einzeltests vorhanden (tests/integration/modules, tests/load); keine Slot-Kollisionstests, kein realer POS, Mock-WP statt echter Installation
