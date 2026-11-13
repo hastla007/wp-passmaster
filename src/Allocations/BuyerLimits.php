@@ -396,6 +396,21 @@ final class BuyerLimits {
 		return $max;
 	}
 
+	/** wpcap_event_card_quantity_max: the card's stepper stops at the per-person limit of the type. */
+	public static function card_quantity_max( $max, $type = null, $event = null ) {
+		if ( ! is_object( $event ) || empty( $event->event_id ) || ! is_object( $type ) ) { return $max; }
+		$limits = self::for_event( (int) $event->event_id );
+		$limit = (int) ( $limits[ (int) ( $type->ticket_type_id ?? 0 ) ] ?? 0 );
+		return $limit ? min( (int) $max, $limit ) : $max;
+	}
+
+	/** wpcap_event_card_max_total: per-person limit for the whole event caps all types together. */
+	public static function card_max_total( $max, $event = null ) {
+		if ( ! is_object( $event ) || empty( $event->event_id ) ) { return $max; }
+		$limit = (int) ( self::for_event( (int) $event->event_id )[0] ?? 0 );
+		return $limit && ( ! $max || $limit < $max ) ? $limit : $max;
+	}
+
 	/** wpcap_checkout_form_fields: shows the limits on the event card. */
 	public static function render_notice( $event = null, $types = array() ) {
 		if ( ! is_object( $event ) || empty( $event->event_id ) ) { return; }

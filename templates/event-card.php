@@ -3,7 +3,8 @@
  * Theme-overridable event card. Copy to your-theme/wp-pass-captain/event-card.php.
  *
  * Available: $event, $types (with ->available, ->fields), $providers (id => gateway), $legal
- * (require_terms, terms_text, consumer_info_text, locale, terms_version; texts in the page language).
+ * (require_terms, terms_text, consumer_info_text, locale, terms_version; texts in the page language) and
+ * $card (Frontend\EventCard::context(): badges, seats left, price, other dates, next date, limits).
  * The checkout script relies on the class names, the name attributes and the field wrappers
  * (.wpcap-field) for inline error messages.
  */
@@ -19,16 +20,43 @@ foreach ( $types as $wpcap_type ) {
 }
 $wpcap_all_soldout = $types && count( $wpcap_soldout ) === count( $types );
 $wpcap_waitlist = $wpcap_soldout && (bool) apply_filters( 'wpcap_waitlist_public_enabled', true, $event );
+if ( ! isset( $card ) || ! is_array( $card ) ) { $card = \PassCaptain\Frontend\EventCard::context( $event, $types ); }
+$wpcap_doors = ! empty( $event->doors_open_at ) ? \PassCaptain\DoorsOpen::label( $event->doors_open_at, $event->timezone, $event->starts_at ) : '';
+$wpcap_visible = (int) $card['visible_types'];
+$wpcap_collapse = count( $types ) > $wpcap_visible + 1; // Never collapse a single remaining type.
 ?>
 <article class="wpcap-event">
-	<<?php echo $wpcap_heading; // phpcs:ignore WordPress.Security.EscapeOutput -- fixed tag name. ?>><?php echo esc_html( $event->name ); ?></<?php echo $wpcap_heading; // phpcs:ignore WordPress.Security.EscapeOutput -- fixed tag name. ?>>
+	<header class="wpcap-event-header<?php echo $card['next'] ? ' wpcap-is-next' : ''; ?>">
+		<<?php echo $wpcap_heading; // phpcs:ignore WordPress.Security.EscapeOutput -- fixed tag name. ?> class="wpcap-event-title"><?php echo esc_html( $event->name ); ?></<?php echo $wpcap_heading; // phpcs:ignore WordPress.Security.EscapeOutput -- fixed tag name. ?>>
+		<?php echo \PassCaptain\Frontend\EventCard::render_badges( $card['badges'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_badges(). ?>
+		<dl class="wpcap-event-facts">
+			<div class="wpcap-fact-date"><dt class="wpcap-sr-only"><?php esc_html_e( 'Termin', 'wp-pass-captain' ); ?></dt><dd><time datetime="<?php echo esc_attr( \PassCaptain\Frontend\EventCard::iso( $event->starts_at ) ); ?>"><?php echo esc_html( \PassCaptain\Frontend\Format::event_start( $event->starts_at, $event->timezone ) ); ?></time></dd></div>
+			<?php if ( $event->location ) : ?><div class="wpcap-fact-location"><dt class="wpcap-sr-only"><?php esc_html_e( 'Ort', 'wp-pass-captain' ); ?></dt><dd><?php echo esc_html( $event->location ); ?></dd></div><?php endif; ?>
+			<?php if ( '' !== $wpcap_doors ) : ?><div class="wpcap-fact-doors"><dt class="wpcap-sr-only"><?php esc_html_e( 'Einlass', 'wp-pass-captain' ); ?></dt><dd><?php echo esc_html( $wpcap_doors ); ?></dd></div><?php endif; ?>
+			<?php if ( '' !== $card['price'] ) : ?><div class="wpcap-fact-price"><dt class="wpcap-sr-only"><?php esc_html_e( 'Preis', 'wp-pass-captain' ); ?></dt><dd><?php echo esc_html( $card['price'] ); ?></dd></div><?php endif; ?>
+			<div class="wpcap-fact-availability"><dt class="wpcap-sr-only"><?php esc_html_e( 'Verfügbarkeit', 'wp-pass-captain' ); ?></dt><dd><?php echo esc_html( $card['availability'] ); ?></dd></div>
+		</dl>
+	</header>
+	<?php if ( $card['dates'] ) : ?>
+		<details class="wpcap-dates">
+			<summary><?php echo esc_html( sprintf( /* translators: %d: number of other dates */ __( 'Weitere Termine (%d)', 'wp-pass-captain' ), count( $card['dates'] ) ) ); ?></summary>
+			<ul>
+				<?php foreach ( $card['dates'] as $wpcap_date ) : ?>
+					<li><?php if ( $wpcap_date['linked'] ) : ?><a href="#wpcap-occ-<?php echo esc_attr( $wpcap_date['occurrence_id'] ); ?>"><time datetime="<?php echo esc_attr( $wpcap_date['iso'] ); ?>"><?php echo esc_html( $wpcap_date['label'] ); ?></time></a><?php else : ?><time datetime="<?php echo esc_attr( $wpcap_date['iso'] ); ?>"><?php echo esc_html( $wpcap_date['label'] ); ?></time><?php endif; ?> <?php echo \PassCaptain\Frontend\EventCard::render_badges( $wpcap_date['badges'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_badges(). ?></li>
+				<?php endforeach; ?>
+			</ul>
+		</details>
+	<?php endif; ?>
 	<?php if ( $event->description ) : ?><div class="wpcap-description"><?php echo wp_kses_post( wpautop( $event->description ) ); ?></div><?php endif; ?>
-	<p><?php echo esc_html( \PassCaptain\Frontend\Format::event_start( $event->starts_at, $event->timezone ) ); ?><?php if ( $event->location ) : ?> · <?php echo esc_html( $event->location ); ?><?php endif; ?><?php if ( ! empty( $event->doors_open_at ) ) : ?> · <?php echo esc_html( \PassCaptain\DoorsOpen::label( $event->doors_open_at, $event->timezone, $event->starts_at ) ); ?><?php endif; ?></p>
 	<form class="wpcap-checkout-form" id="<?php echo esc_attr( $form_id ); ?>" data-heading-level="<?php echo esc_attr( min( 6, $wpcap_level + 1 ) ); ?>" novalidate>
-		<fieldset class="wpcap-types">
+		<fieldset class="wpcap-types"<?php echo $card['max_total'] ? ' data-max-total="' . esc_attr( $card['max_total'] ) . '"' : ''; ?>>
 			<legend><?php esc_html_e( 'Tickets', 'wp-pass-captain' ); ?></legend>
-			<?php foreach ( $types as $type ) :
-				$max = null === $type->available ? (int) $type->max_per_order : min( (int) $type->max_per_order, (int) $type->available );
+			<?php foreach ( array_values( $types ) as $wpcap_index => $type ) :
+				$max = \PassCaptain\Frontend\EventCard::quantity_max( $type, $event );
+				if ( $wpcap_collapse && $wpcap_index === $wpcap_visible ) :
+					?>
+					<details class="wpcap-more-types"><summary><?php echo esc_html( sprintf( /* translators: %d: number of further ticket types */ __( 'Weitere Ticketarten (%d)', 'wp-pass-captain' ), count( $types ) - $wpcap_visible ) ); ?></summary>
+				<?php endif;
 				$price = \PassCaptain\Frontend\Format::money( $type->price_minor, $type->currency );
 				$base_price = isset( $type->base_price_minor ) && (int) $type->base_price_minor !== (int) $type->price_minor ? \PassCaptain\Frontend\Format::money( $type->base_price_minor, $type->currency ) : '';
 				?>
@@ -41,7 +69,9 @@ $wpcap_waitlist = $wpcap_soldout && (bool) apply_filters( 'wpcap_waitlist_public
 					<?php endif; ?>
 				</div>
 			<?php endforeach; ?>
+			<?php if ( $wpcap_collapse ) : ?></details><?php endif; ?>
 		</fieldset>
+		<p class="wpcap-qty-live wpcap-sr-only" aria-live="polite" aria-atomic="true"></p>
 		<?php if ( $wpcap_all_soldout ) : ?>
 			<p class="wpcap-soldout-note"><?php esc_html_e( 'Dieser Termin ist ausverkauft.', 'wp-pass-captain' ); ?></p>
 		<?php else : ?>

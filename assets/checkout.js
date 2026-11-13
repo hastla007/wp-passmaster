@@ -123,6 +123,91 @@
 		}, 400));
 	}
 
+	/* ---------------------------------------------------------------- Quantity stepper (A100) */
+
+	// Progressive enhancement: −/+ buttons around each .wpcap-qty number field. The field stays the
+	// source of truth (typing and arrow keys keep working); the buttons respect min/max and the
+	// per-person total (data-max-total on .wpcap-types). Buttons at a limit get aria-disabled instead
+	// of disabled, so keyboard focus is never lost; .wpcap-qty-live announces the new quantity.
+	function qtyBounds(input) {
+		const min = Math.max(0, parseInt(input.min, 10) || 0);
+		const max = input.max === '' ? Infinity : Math.max(min, parseInt(input.max, 10) || 0);
+		return { min: min, max: max };
+	}
+	function totalRoom(form, input) {
+		const box = form.querySelector('.wpcap-types');
+		const limit = box ? parseInt(box.dataset.maxTotal, 10) || 0 : 0;
+		if (!limit) return Infinity;
+		let others = 0;
+		form.querySelectorAll('.wpcap-qty').forEach(function (qty) { if (qty !== input) others += Math.max(0, Number(qty.value) || 0); });
+		return Math.max(0, limit - others);
+	}
+	function syncSteppers(form) {
+		if (!form) return;
+		form.querySelectorAll('.wpcap-stepper').forEach(function (wrap) {
+			const input = wrap.querySelector('.wpcap-qty');
+			const value = Math.max(0, Number(input.value) || 0);
+			const b = qtyBounds(input);
+			const up = Math.min(b.max, totalRoom(form, input));
+			wrap.querySelector('.wpcap-step-down').setAttribute('aria-disabled', value <= b.min ? 'true' : 'false');
+			wrap.querySelector('.wpcap-step-up').setAttribute('aria-disabled', value >= up ? 'true' : 'false');
+		});
+	}
+	function announceQty(form, input, limited) {
+		const live = form.querySelector('.wpcap-qty-live');
+		if (!live) return;
+		const n = Math.max(0, Number(input.value) || 0);
+		const name = input.dataset.name || '';
+		let text = n === 0 ? fill(t.qtyNone || '%s: 0', [name]) : (n === 1 ? fill(t.qtyOne || '%s: 1', [name]) : fill(t.qtyMany || '%1$s: %2$d', [name, n]));
+		if (limited && t.qtyLimit) text += ' ' + t.qtyLimit;
+		// Re-set even when unchanged, so a repeated press at the limit is announced again.
+		live.textContent = '';
+		window.setTimeout(function () { live.textContent = text; }, 30);
+	}
+	function stepQty(button) {
+		const wrap = button.closest('.wpcap-stepper');
+		const input = wrap && wrap.querySelector('.wpcap-qty');
+		const form = input && input.closest('.wpcap-checkout-form');
+		if (!form) return;
+		const b = qtyBounds(input);
+		const current = Math.max(0, Number(input.value) || 0);
+		const delta = button.classList.contains('wpcap-step-up') ? 1 : -1;
+		const ceiling = Math.min(b.max, totalRoom(form, input));
+		const next = Math.min(Math.max(current + delta, b.min), Math.max(b.min, ceiling));
+		if (next !== current) {
+			input.value = String(next);
+			input.dispatchEvent(new Event('input', { bubbles: true }));
+			input.dispatchEvent(new Event('change', { bubbles: true }));
+		}
+		syncSteppers(form);
+		announceQty(form, input, delta > 0 && next >= ceiling);
+	}
+	function enhanceQty(input) {
+		if (input.closest('.wpcap-stepper') || !input.closest('.wpcap-checkout-form')) return;
+		const id = ensureId(input, 'wpcap-qty');
+		const name = input.dataset.name || '';
+		const wrap = el('span', { class: 'wpcap-stepper' });
+		const down = el('button', { type: 'button', class: 'wpcap-step wpcap-step-down', 'aria-controls': id, 'aria-label': fill(t.stepDown || '%s −', [name]) }, '−');
+		const up = el('button', { type: 'button', class: 'wpcap-step wpcap-step-up', 'aria-controls': id, 'aria-label': fill(t.stepUp || '%s +', [name]) }, '+');
+		input.parentNode.insertBefore(wrap, input);
+		wrap.appendChild(down);
+		wrap.appendChild(input);
+		wrap.appendChild(up);
+	}
+	document.querySelectorAll('.wpcap-checkout-form .wpcap-qty').forEach(enhanceQty);
+	document.querySelectorAll('.wpcap-checkout-form').forEach(syncSteppers);
+	document.addEventListener('click', function (event) {
+		const button = event.target.closest && event.target.closest('.wpcap-step');
+		if (!button) return;
+		event.preventDefault();
+		if (button.getAttribute('aria-disabled') === 'true') {
+			const input = button.closest('.wpcap-stepper').querySelector('.wpcap-qty');
+			announceQty(input.closest('.wpcap-checkout-form'), input, button.classList.contains('wpcap-step-up'));
+			return;
+		}
+		stepQty(button);
+	});
+
 	/* ---------------------------------------------------------------- Errors (WCAG 3.3.1 / 3.3.3) */
 
 	// Visible label wording of a control, without the "*" and "(optional)" markers.
@@ -175,12 +260,17 @@
 		if (errors.length > 1 && t.errorCount) summary.appendChild(el('p', {}, fill(t.errorCount, [errors.length])));
 		const list = el('ul');
 		errors.forEach(function (error) {
+			// A field in a collapsed list (e.g. "Weitere Ticketarten") must be visible to be fixed.
+			const collapsed = error.input && error.input.closest('details:not([open])');
+			if (collapsed) collapsed.open = true;
 			const item = el('li');
 			if (error.input) {
 				markField(error.input, error.message);
 				const link = el('a', { href: '#' + error.input.id }, error.message);
 				link.addEventListener('click', function (event) {
 					event.preventDefault();
+					const details = error.input.closest('details');
+					if (details) details.open = true;
 					error.input.scrollIntoView({ block: 'center' });
 					error.input.focus();
 				});
@@ -205,6 +295,12 @@
 			if (n > 0) selected += n;
 		});
 		if (!selected && qtys.length) errors.push({ input: qtys[0], message: t.selectTickets || 'Select tickets.' });
+		const types = form.querySelector('.wpcap-types');
+		const maxTotal = types ? parseInt(types.dataset.maxTotal, 10) || 0 : 0;
+		if (maxTotal && selected > maxTotal) {
+			const firstSet = qtys.filter(function (qty) { return (Number(qty.value) || 0) > 0; })[0] || qtys[0];
+			errors.push({ input: firstSet, message: maxTotal === 1 ? (t.errTotalOne || t.tooMany || '') : fill(t.errTotal || '%d', [maxTotal]) });
+		}
 		form.querySelectorAll('input, select, textarea').forEach(function (input) {
 			if (input.classList.contains('wpcap-qty') || input.type === 'hidden' || input.type === 'radio' || input.type === 'submit' || input.disabled || input.closest('[hidden]')) return;
 			const v = input.validity;
@@ -317,6 +413,7 @@
 			syncBilling(form);
 			renderAttendees(form);
 			renderEstimate(form);
+			syncSteppers(form);
 			form.hidden = false;
 			const first = form.querySelector('.wpcap-qty');
 			if (first) first.focus();
@@ -333,6 +430,7 @@
 			const form = event.target.closest('.wpcap-checkout-form');
 			renderAttendees(form);
 			renderEstimate(form);
+			syncSteppers(form);
 		}
 	});
 	document.addEventListener('input', function (event) {

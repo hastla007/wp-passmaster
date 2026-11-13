@@ -78,6 +78,21 @@ final class PublicEvents {
 				'remittance' => __( 'Verwendungszweck', 'wp-pass-captain' ),
 				'dueDate' => __( 'Zahlbar bis', 'wp-pass-captain' ),
 				'orderAgain' => __( 'Weitere Tickets bestellen', 'wp-pass-captain' ),
+				// Quantity stepper (−/+ around the number field).
+				/* translators: %s: ticket type */
+				'stepDown' => __( '%s: ein Ticket weniger', 'wp-pass-captain' ),
+				/* translators: %s: ticket type */
+				'stepUp' => __( '%s: ein Ticket mehr', 'wp-pass-captain' ),
+				/* translators: %s: ticket type */
+				'qtyNone' => __( '%s: keine Tickets', 'wp-pass-captain' ),
+				/* translators: %s: ticket type */
+				'qtyOne' => __( '%s: 1 Ticket', 'wp-pass-captain' ),
+				/* translators: 1: ticket type, 2: quantity (2 or more) */
+				'qtyMany' => __( '%1$s: %2$d Tickets', 'wp-pass-captain' ), // n>1: qtyOne / qtyNone otherwise
+				'qtyLimit' => __( 'Höchstmenge erreicht.', 'wp-pass-captain' ),
+				/* translators: %d: maximum tickets per order (2 or more) */
+				'errTotal' => __( 'Es sind höchstens %d Tickets pro Person möglich.', 'wp-pass-captain' ), // n>1: checkout.js uses errTotalOne for 1
+				'errTotalOne' => __( 'Es ist höchstens 1 Ticket pro Person möglich.', 'wp-pass-captain' ),
 			),
 		) );
 		wp_register_style( 'wpcap-public', WPCAP_URL . 'assets/public.css', array(), WPCAP_VERSION );
@@ -141,7 +156,9 @@ final class PublicEvents {
 			"SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location" . ( DoorsOpen::ready() ? ',o.doors_open_at' : '' ) . " FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at >= %s{$where} ORDER BY o.starts_at ASC LIMIT %d",
 			...$args
 		) );
-		$listing = self::listing_data( $rows );
+		$meta = array();
+		$listing = self::listing_data( $rows, $meta );
+		$card_listing = self::card_listing( $rows, $listing, $meta );
 		wp_enqueue_script( 'wpcap-checkout' );
 		wp_enqueue_style( 'wpcap-public' );
 		ob_start();
@@ -157,6 +174,8 @@ final class PublicEvents {
 				$legal = self::legal_context();
 				?>
 				<?php
+				// Badges, seats left, price and the event's other dates (theme templates may ignore it).
+				$card = Frontend\EventCard::context( $event, $types, $card_listing );
 				$template = locate_template( 'wp-pass-captain/event-card.php' );
 				if ( ! $template ) { $template = WPCAP_PATH . 'templates/event-card.php'; }
 				ob_start();
@@ -195,9 +214,12 @@ final class PublicEvents {
 	 * (price_minor = effective price, base_price_minor, price_label, available, fields).
 	 *
 	 * @param object[] $rows Listing rows (event_id, name, description, occurrence_id, location, …); changed in place.
+	 * @param array    $meta Set to occurrences (id => row with rescheduled_at, including upcoming cancelled
+	 *                       dates of the listed events) – loaded by the same query, no extra round trip.
 	 * @return array occurrence_id => object[] ticket types.
 	 */
-	public static function listing_data( array $rows ) {
+	public static function listing_data( array $rows, &$meta = null ) {
+		$meta = array( 'occurrences' => array() );
 		global $wpdb;
 		$p = $wpdb->prefix;
 		if ( ! $rows ) { return array(); }
@@ -225,9 +247,13 @@ final class PublicEvents {
 		}
 		if ( ! $all_types ) { return array(); }
 		$occurrences = array();
-		foreach ( (array) $wpdb->get_results( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id IN ($occ_in)" ) as $occurrence ) {
+		// Same query also brings the last reschedule (badge "Verschoben") and upcoming cancelled dates
+		// of the listed events (badge "Abgesagt" in the card's date list).
+		$event_in = implode( ',', $event_ids );
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT o.*," . Frontend\EventCard::rescheduled_sql( 'o' ) . " AS rescheduled_at FROM {$p}wpcap_occurrences o WHERE o.occurrence_id IN ($occ_in) OR (o.event_id IN ($event_in) AND o.status='cancelled' AND o.starts_at >= %s)", $now ) ) as $occurrence ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer lists.
 			$occurrences[ (int) $occurrence->occurrence_id ] = $occurrence;
 		}
+		$meta['occurrences'] = $occurrences;
 		$type_in = implode( ',', array_keys( $all_types ) );
 		$fields = array();
 		// Only field definitions are exposed (no answers); used to render attendee inputs.
@@ -249,6 +275,56 @@ final class PublicEvents {
 			}
 		}
 		return $by_occurrence;
+	}
+
+	/**
+	 * Listing-wide card data for Frontend\EventCard::context(): seats left per listed date, the next
+	 * bookable date of each event and the dates of each event (listed ones linkable, cancelled ones
+	 * flagged), without further queries.
+	 *
+	 * @param object[] $rows    Listing rows.
+	 * @param array    $listing occurrence_id => ticket types (listing_data()).
+	 * @param array    $meta    listing_data() meta.
+	 */
+	public static function card_listing( array $rows, array $listing, array $meta ) {
+		$occurrences = (array) ( $meta['occurrences'] ?? array() );
+		$available = array();
+		$dates = array();
+		$listed = array();
+		foreach ( $rows as $row ) {
+			$occ_id = (int) $row->occurrence_id;
+			if ( empty( $listing[ $occ_id ] ) ) { continue; }
+			$available[ $occ_id ] = Frontend\EventCard::occurrence_available( $listing[ $occ_id ], $occurrences[ $occ_id ] ?? null );
+			$date = (object) array(
+				'occurrence_id' => $occ_id,
+				'event_id' => (int) $row->event_id,
+				'starts_at' => $row->starts_at,
+				'timezone' => $row->timezone,
+				'doors_open_at' => $row->doors_open_at ?? null,
+				'rescheduled_at' => $occurrences[ $occ_id ]->rescheduled_at ?? null,
+				'status' => 'scheduled',
+				'listed' => true,
+			);
+			$listed[] = $date;
+			$dates[ (int) $row->event_id ][] = $date;
+		}
+		// A date list only where the listing shows several dates of the event (not for occurrence="…").
+		$dates = array_filter( $dates, static function ( $list ) { return count( $list ) > 1; } );
+		foreach ( $occurrences as $occ ) {
+			if ( 'cancelled' !== $occ->status || ! isset( $dates[ (int) $occ->event_id ] ) ) { continue; }
+			$occ->listed = false;
+			$dates[ (int) $occ->event_id ][] = $occ;
+		}
+		foreach ( $dates as &$list ) {
+			usort( $list, static function ( $a, $b ) { return strcmp( (string) $a->starts_at, (string) $b->starts_at ) ?: (int) $a->occurrence_id <=> (int) $b->occurrence_id; } );
+		}
+		unset( $list );
+		return array(
+			'occurrences' => $occurrences,
+			'available' => $available,
+			'next' => Frontend\EventCard::next_occurrences( $listed, $available ),
+			'dates' => $dates,
+		);
 	}
 
 	/**

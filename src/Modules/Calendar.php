@@ -9,6 +9,7 @@ namespace PassCaptain\Modules;
 
 use PassCaptain\Admin\Forms;
 use PassCaptain\Calendar\Ics;
+use PassCaptain\Frontend\EventCard;
 use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -123,11 +124,16 @@ final class Calendar {
 
 	/* ------------------------------------------------------------------ Shortcode / block */
 
-	/** Upcoming published, scheduled occurrences between two UTC datetimes. */
-	public static function occurrences( $from_utc, $to_utc, $event_id = 0, $limit = 200 ) {
+	/**
+	 * Upcoming occurrences of published events between two UTC datetimes: scheduled ones, plus
+	 * cancelled ones with $with_cancelled (badge "Abgesagt"). Rows carry the full occurrence (status,
+	 * capacity counters, doors_open_at), the event name and rescheduled_at (last reschedule or NULL).
+	 */
+	public static function occurrences( $from_utc, $to_utc, $event_id = 0, $limit = 200, $with_cancelled = false ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$sql = "SELECT o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.location,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE e.status='published' AND o.status='scheduled' AND o.starts_at>=%s AND o.starts_at<%s";
+		$status = $with_cancelled ? "o.status IN ('scheduled','cancelled')" : "o.status='scheduled'";
+		$sql = "SELECT o.*,e.name AS event_name," . EventCard::rescheduled_sql( 'o' ) . " AS rescheduled_at FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE e.status='published' AND $status AND o.starts_at>=%s AND o.starts_at<%s";
 		$args = array( $from_utc, $to_utc );
 		if ( $event_id ) { $sql .= ' AND o.event_id=%d'; $args[] = absint( $event_id ); }
 		$sql .= ' ORDER BY o.starts_at,o.occurrence_id LIMIT %d';
@@ -163,20 +169,46 @@ final class Calendar {
 		return '' !== $url ? $url : '#wpcap-occ-' . (int) $row->occurrence_id;
 	}
 
+	/** Whether cancelled upcoming dates stay visible (unlinked, badge "Abgesagt"). */
+	private static function show_cancelled() {
+		return (bool) apply_filters( 'wpcap_calendar_show_cancelled', true );
+	}
+
+	/**
+	 * Badges per occurrence row (Nächster Termin, Abgesagt, Verschoben, Ausverkauft, Wenige Plätze,
+	 * Einlass ab …): one ticket-type query plus availability for all rows.
+	 *
+	 * @return array occurrence_id => badge list
+	 */
+	public static function badges_for( array $rows ) {
+		$available = EventCard::availability_for( $rows );
+		$next = EventCard::next_occurrences( $rows, $available );
+		$out = array();
+		foreach ( $rows as $row ) {
+			$id = (int) $row->occurrence_id;
+			$out[ $id ] = EventCard::badges( $row, array_key_exists( $id, $available ) ? $available[ $id ] : false, array( 'next' => ! empty( $next[ $id ] ), 'view' => 'calendar' ) );
+		}
+		return $out;
+	}
+
 	public static function render_list( $event_id = 0, $limit = 50 ) {
-		$rows = self::occurrences( current_time( 'mysql', true ), '9999-12-31 00:00:00', $event_id, $limit ?: 50 );
+		$rows = self::occurrences( current_time( 'mysql', true ), '9999-12-31 00:00:00', $event_id, $limit ?: 50, self::show_cancelled() );
 		$out = '<div class="wpcap-calendar wpcap-calendar-list">';
 		if ( ! $rows ) {
 			return $out . '<p>' . esc_html__( 'Aktuell sind keine Termine geplant.', 'wp-pass-captain' ) . '</p></div>';
 		}
+		$badges = self::badges_for( $rows );
 		$out .= '<ul class="wpcap-cal-items">';
 		foreach ( $rows as $row ) {
 			$iso = self::local( $row, 'c' );
-			$out .= '<li class="wpcap-cal-item"><time datetime="' . esc_attr( $iso ) . '">' . esc_html( self::local( $row, 'd.m.Y H:i' ) . ' ' . $row->timezone ) . '</time> ';
-			$out .= '<a class="wpcap-cal-link" href="' . esc_url( self::link_for( $row ) ) . '">' . esc_html( $row->event_name ) . '</a>';
+			$cancelled = 'cancelled' === $row->status;
+			$out .= '<li class="wpcap-cal-item' . ( $cancelled ? ' wpcap-cal-cancelled' : '' ) . '"><time datetime="' . esc_attr( $iso ) . '">' . esc_html( self::local( $row, 'd.m.Y H:i' ) . ' ' . $row->timezone ) . '</time> ';
+			$out .= $cancelled ? '<span class="wpcap-cal-link">' . esc_html( $row->event_name ) . '</span>' : '<a class="wpcap-cal-link" href="' . esc_url( self::link_for( $row ) ) . '">' . esc_html( $row->event_name ) . '</a>';
 			if ( '' !== (string) $row->location ) { $out .= ' <span class="wpcap-cal-location">' . esc_html( $row->location ) . '</span>'; }
+			$out .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() );
 			/* translators: %s: event name */
-			$out .= ' <a class="wpcap-cal-ics" href="' . esc_url( Ics::occurrence_url( $row->occurrence_id ) ) . '" aria-label="' . esc_attr( sprintf( __( '%s zum Kalender hinzufügen (.ics)', 'wp-pass-captain' ), $row->event_name ) ) . '">' . esc_html__( 'Zum Kalender (.ics)', 'wp-pass-captain' ) . '</a></li>';
+			$out .= $cancelled ? '' : ' <a class="wpcap-cal-ics" href="' . esc_url( Ics::occurrence_url( $row->occurrence_id ) ) . '" aria-label="' . esc_attr( sprintf( __( '%s zum Kalender hinzufügen (.ics)', 'wp-pass-captain' ), $row->event_name ) ) . '">' . esc_html__( 'Zum Kalender (.ics)', 'wp-pass-captain' ) . '</a>';
+			$out .= '</li>';
 		}
 		return $out . '</ul></div>';
 	}
@@ -198,7 +230,9 @@ final class Calendar {
 		$from = max( $from, current_time( 'mysql', true ) ); // Upcoming only.
 		$to = ( clone $next )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 		$by_day = array();
-		foreach ( self::occurrences( $from, $to, $event_id, 500 ) as $row ) {
+		$rows = self::occurrences( $from, $to, $event_id, 500, self::show_cancelled() );
+		$badges = $rows ? self::badges_for( $rows ) : array();
+		foreach ( $rows as $row ) {
 			$dt = new \DateTime( $row->starts_at, new \DateTimeZone( 'UTC' ) );
 			$dt->setTimezone( $tz );
 			$by_day[ $dt->format( 'Y-m-d' ) ][] = $row;
@@ -228,7 +262,9 @@ final class Calendar {
 				foreach ( $items as $row ) {
 					/* translators: 1: event name, 2: time */
 					$label = sprintf( __( '%1$s um %2$s', 'wp-pass-captain' ), $row->event_name, self::local( $row, 'H:i' ) );
-					$out .= '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $label . ', ' . self::local( $row, 'd.m.Y' ) ) . '">' . esc_html( self::local( $row, 'H:i' ) . ' ' . $row->event_name ) . '</a></li>';
+					$text = esc_html( self::local( $row, 'H:i' ) . ' ' . $row->event_name );
+					$out .= 'cancelled' === $row->status ? '<li class="wpcap-cal-cancelled"><span>' . $text . '</span>' : '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $label . ', ' . self::local( $row, 'd.m.Y' ) ) . '">' . $text . '</a>';
+					$out .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() ) . '</li>';
 				}
 				$out .= '</ul>';
 			}

@@ -259,7 +259,7 @@ $make_listing = static function ( $n ) use ( $wpdb, $p, &$listing_occ ) {
 // limits, pass badge) run per ticket type/card; the core listing is measured without them, then
 // the module overhead is reported.
 $module_hooks = array();
-foreach ( array( 'wpcap_ticket_availability', 'wpcap_ticket_unit_price', 'wpcap_ticket_price_label', 'wpcap_checkout_form_fields', 'wpcap_event_card_html' ) as $hook ) {
+foreach ( array( 'wpcap_ticket_availability', 'wpcap_ticket_unit_price', 'wpcap_ticket_price_label', 'wpcap_checkout_form_fields', 'wpcap_event_card_html', 'wpcap_event_card_quantity_max', 'wpcap_event_card_max_total' ) as $hook ) {
 	$module_hooks[ $hook ] = $GLOBALS['wpcap_test_hooks'][ $hook ] ?? null;
 	unset( $GLOBALS['wpcap_test_hooks'][ $hook ] );
 }
