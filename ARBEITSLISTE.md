@@ -199,7 +199,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - face_value_minor nur in Integrations/Vouchers; Partners/Settlements.php nutzt es nicht
 - [x] **A088** Admin-Menü gruppieren, Erste-Schritte-Checkliste, Eventliste mit Kennzahlen — _OFFEN_ (TODO L363; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/Admin/Menu.php:71ff flache Submenüs; keine Checkliste; Verkauft/Kapazität nur in Termin-/Ticketart-Tabelle (EventsPage.php:677)
-- [ ] **A089** Web-Scanner-Ergebnis wie PWA und Hilfscode — _OFFEN_ (TODO L364; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A089** Web-Scanner-Ergebnis wie PWA und Hilfscode — _OFFEN_ (TODO L364; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - assets/scanner.js ohne Ton/Vibration/Erstnutzungsanzeige; kein Hilfscode (short_code nur Gästelisten)
 - [ ] **A090** Saalplan mobil: Sitzgröße, Zoom/Pan, Legende mit Form, Liste — _OFFEN_ (TODO L365; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - assets/seating/picker.js:133-160 Legende nur Farbe, kein Zoom/Pan, Liste nur eingeklappt (details)
@@ -222,7 +222,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - src/Invoices.php:386-401 UTC-Tagesgrenzen, nur Rechnungen/Korrekturen
 - [x] **A099** Einstellungen in Tabs, Zahlarten trennen, Rechtstexte je Sprache — _OFFEN_ (TODO L374; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/Admin/SettingsPage.php:276-288 alle Abschnitte untereinander; terms_text einsprachig (Zeile 80)
-- [ ] **A100** Eventkarte kompakt, Mengen-Stepper, Kalender-Badges, nächster Termin — _OFFEN_ (TODO L375; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A100** Eventkarte kompakt, Mengen-Stepper, Kalender-Badges, nächster Termin — _OFFEN_ (TODO L375; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Kein Stepper/Badge/Nächster-Termin-Code gefunden
 - [x] **A101** HTML-Mail-Layout als Standard prüfen — _OFFEN_ (TODO L376; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/Mail/Templates.php:41 Standard 'format' => 'text'

@@ -361,7 +361,7 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 ### UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen)
 
 - [x] Admin-Menü gruppieren (Verkaufen, Einlass, Kommunikation, Einstellungen) und „Erste Schritte“-Checkliste für neue Veranstalter ergänzen; Eventliste mit Verkauft/Kapazität/Umsatz.
-- [ ] Web-Scanner-Ergebnis wie in der Offline-PWA (großes farbiges Ergebnis, Ton/Vibration, Zeit und Ort der Erstnutzung) und kurzer, eintippbarer Hilfscode (nur für Personal, gedrosselt).
+- [x] Web-Scanner-Ergebnis wie in der Offline-PWA (großes farbiges Ergebnis, Ton/Vibration, Zeit und Ort der Erstnutzung) und kurzer, eintippbarer Hilfscode (nur für Personal, gedrosselt).
 - [ ] Saalplan mobil nutzbar machen (Mindestgröße der Sitze, Zoom/Pan, Legende mit Form statt nur Farbe, Liste als Standard auf schmalen Bildschirmen).
 - [ ] Ticketseite und Ticket-PDF um Teilnehmername, Veranstaltungsadresse, Einlasszeit, Bestellnummer und Wallet-Button ergänzen; PDF-Dateiname lesbar.
 - [x] Einlasszeit („Doors“) als eigenes Feld am Termin; Zutritt vor Einlass verhindern.
@@ -372,7 +372,7 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [x] Abrechnungsblatt pro Vorstellung für Spielstätte/Künstler (Kapazität, Freikarten, Besucher, Door Deal).
 - [x] Buchhaltungsexport um nicht fakturierte Online-/Kassenverkäufe ergänzen und Tagesgrenzen in Ortszeit statt UTC.
 - [x] Einstellungsseite in Tabs aufteilen; Online- und Kassen-Zahlarten trennen; Rechtstexte mit Editor und je Sprache.
-- [ ] Eventkarte kompakt (Zusammenfassung + „Tickets“-Button), Mengen-Stepper, Kalender mit Verfügbarkeits-Badges und Link zum nächsten Termin.
+- [x] Eventkarte kompakt (Zusammenfassung + „Tickets“-Button), Mengen-Stepper, Kalender mit Verfügbarkeits-Badges und Link zum nächsten Termin.
 - [x] HTML-Mail-Layout als Standard passend zu WooCommerce prüfen.
 - [x] Nicht vorhandene/mehrdeutige Ortszeiten bei Sommerzeitwechsel im Admin anzeigen statt still verschieben.
 
