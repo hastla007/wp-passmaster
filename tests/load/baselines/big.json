@@ -1,0 +1,16 @@
+{
+    "_comment": "A121: reference run 2026-11-13 (local MariaDB 11, 4 vCPU); limits = 4x measured p95 rounded up to 50 ms, errors must stay 0. Update after an intentional change and document it in docs/TESTING.md.",
+    "profile": "big",
+    "measured": {
+        "onsale (create + pay)": {
+            "p95_ms": 1964.5,
+            "p99_ms": 2068.7
+        }
+    },
+    "limits": {
+        "onsale (create + pay)": {
+            "p95_ms": 7900,
+            "error_rate": 0
+        }
+    }
+}

@@ -171,3 +171,23 @@ und Abschluss nach Zahlung); Reconcile repariert verpasste Writer und manipulier
 Upgrade-Pfad (Neuaufbau, „verifying“ → „ready“); Memo-/Objekt-Cache-Invalidierung; Event-Liste mit konstanter
 Abfragezahl (3 und 12 Termine: je 8 Abfragen ohne Modulfilter) und REST-`/events` (4 Abfragen).
 Der Test-`$wpdb` zählt dafür `num_queries` und ruft wie WordPress den Filter `query` auf.
+
+## Regelmäßige Lasttests und Regressionsgrenzen (A121)
+
+Der Workflow `.github/workflows/load.yml` läuft jeden Montag 03:17 UTC und manuell (`workflow_dispatch`):
+
+- `tests/load/run.php` mit den Profilen `default`, `heavy` und `big` jeweils gegen **MariaDB 11.4** und **MySQL 8.4**,
+- `tests/load/http.php` (echte REST-API) gegen ein frisch installiertes WordPress (neueste Version) mit dem Plugin.
+
+Jedes Ergebnis wird mit `tests/load/compare.php` gegen `tests/load/baselines/<profil>.json` geprüft: Invarianten-Verletzungen, Fehlerquote > 0 oder ein p95 über der Grenze lassen den Lauf fehlschlagen; ein fehlendes Szenario ebenso. Die JSON-Ergebnisse hängen als Artefakte am Lauf (Verlauf über die Actions-Historie).
+
+Referenzlauf 13.11.2026 (lokal, MariaDB 11, 4 vCPU), Grenze = 4 × gemessenes p95:
+
+| Profil | Szenario | p95 gemessen | Grenze |
+|---|---|---|---|
+| default | Checkout / Check-in / Webhook | 134 / 15 / 243 ms | 550 / 100 / 1000 ms |
+| heavy | Checkout / Check-in / Webhook | 249 / 21 / 401 ms | 1000 / 100 / 1650 ms |
+| big | Vorverkaufsstart (Anlegen + Bezahlen) | 1965 ms | 7900 ms |
+| http | Checkout / Check-in / Webhook (REST) | 672 / 898 / 972 ms | 2700 / 3600 / 3900 ms |
+
+Nach einer gewollten Änderung (z. B. zusätzliche Prüfung im Checkout) die Grenzen in der Baseline anpassen und hier begründen. Hinweis: Der REST-Lasttest hebt auf seinem privaten Testserver die Schutzgrenzen pro Client (`wpcap_checkout_ip_limit`, `wpcap_manual_orders_per_client`, `wpcap_manual_open_orders_per_email`) auf, weil alle Anfragen von 127.0.0.1 kommen, und verwendet je Lauf eigene Käuferadressen. Ausverkauft-Antworten erkennt er sprachunabhängig am neuen Feld `data.reason` der Checkout-Fehler.

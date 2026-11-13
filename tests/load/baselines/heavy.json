@@ -1,0 +1,32 @@
+{
+    "_comment": "A121: reference run 2026-11-13 (local MariaDB 11, 4 vCPU); limits = 4x measured p95 rounded up to 50 ms, errors must stay 0. Update after an intentional change and document it in docs/TESTING.md.",
+    "profile": "heavy",
+    "measured": {
+        "checkout (Orders::create)": {
+            "p95_ms": 248.8,
+            "p99_ms": 346.9
+        },
+        "check-in (Checkin::perform)": {
+            "p95_ms": 21.3,
+            "p99_ms": 40.5
+        },
+        "webhook (verify + process)": {
+            "p95_ms": 400.6,
+            "p99_ms": 555
+        }
+    },
+    "limits": {
+        "checkout (Orders::create)": {
+            "p95_ms": 1000,
+            "error_rate": 0
+        },
+        "check-in (Checkin::perform)": {
+            "p95_ms": 100,
+            "error_rate": 0
+        },
+        "webhook (verify + process)": {
+            "p95_ms": 1650,
+            "error_rate": 0
+        }
+    }
+}

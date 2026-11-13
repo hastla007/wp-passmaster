@@ -269,7 +269,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Finanz-/Partnerrolle Installer.php:854-855, Eventscope Access.php:8; keine Standort-/Partner-Scopes, keine PII-Minimierung je Rolle
 - [ ] **A120** Installierbare PWA-Abnahme für Browser/Endgeräte dokumentieren — _OFFEN_ (TODO L46; P0 – QR-Ticket und Online-Check-in)
   - Manifest/SW vorhanden (docs/OFFLINE-SCANNER.md:125-126), aber keine Geräte-/Browser-Abnahmematrix dokumentiert
-- [ ] **A121** Default-/Heavy-/REST-Lasttests regelmäßig auf MySQL/MariaDB — _TEILWEISE_ (TODO L48; P0 – QR-Ticket und Online-Check-in)
+- [x] **A121** Default-/Heavy-/REST-Lasttests regelmäßig auf MySQL/MariaDB — _TEILWEISE_ (TODO L48; P0 – QR-Ticket und Online-Check-in)
   - Profile tests/load/run.php:155-156, tests/load/http.php; CI führt nur --profile=ci aus (ci.yml), kein Zeitplan, keine Regressionsdoku
 - [ ] **A122** Audit für PII-Zugriffe, Exporte, Rollenänderungen, Korrekturen — _TEILWEISE_ (TODO L50; P0 – QR-Ticket und Online-Check-in)
   - Staff/Export-Audits (EventsPage.php:386, Invoices.php:371); fehlen Audit für PII-Ansicht, Datenschutzexport und WP-Rollenänderungen

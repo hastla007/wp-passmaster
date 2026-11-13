@@ -23,6 +23,8 @@
 
 // phpcs:ignoreFile
 
+// Unique per run: open manual-payment orders of an earlier run must not block the same buyers.
+$run_id = substr( md5( uniqid( '', true ) ), 0, 8 );
 $opts = getopt( '', array( 'wp:', 'server-workers:', 'concurrency:', 'buyers:', 'capacity:', 'tickets:', 'devices:', 'events:', 'dupes:', 'port:', 'json:', 'router' ) );
 
 /* ---- Router mode: runs inside the private php -S server. ---- */
@@ -31,7 +33,10 @@ if ( PHP_SAPI === 'cli-server' ) {
 	$path = (string) parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
 	if ( '/' !== $path && is_file( $root . $path ) && ! str_ends_with( $path, '.php' ) ) { return false; }
 	// Pre-initialised hook (WordPress converts $wp_filter arrays into WP_Hook objects on load).
-	$GLOBALS['wp_filter']['wpcap_checkout_ip_limit'][10]['wpcap_load'] = array( 'function' => static fn() => PHP_INT_MAX, 'accepted_args' => 1 );
+	// All buyers come from 127.0.0.1: lift the per-client limits (only on this private server).
+	foreach ( array( 'wpcap_checkout_ip_limit', 'wpcap_manual_orders_per_client', 'wpcap_manual_open_orders_per_email' ) as $hook ) {
+		$GLOBALS['wp_filter'][ $hook ][10]['wpcap_load'] = array( 'function' => static fn() => PHP_INT_MAX, 'accepted_args' => 1 );
+	}
 	chdir( $root );
 	$_SERVER['SCRIPT_FILENAME'] = $root . '/index.php';
 	require $root . '/index.php';
@@ -167,7 +172,7 @@ for ( $b = 0; $b < $cfg['buyers']; $b++ ) {
 	$qty = mt_rand( 1, 100 ) <= 70 ? 1 : mt_rand( 2, 4 );
 	$key = 'http-load-' . $b . '-' . bin2hex( random_bytes( 4 ) );
 	$keys[ $key ] = $qty;
-	$body = json_encode( array( 'email' => "httpbuyer$b@example.com", 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => $key, 'accept_terms' => true, 'provider' => 'manual' ) );
+	$body = json_encode( array( 'email' => "httpbuyer$b-{$run_id}@example.com", 'items' => array( array( 'ticket_type_id' => $type, 'quantity' => $qty ) ), 'idempotency_key' => $key, 'accept_terms' => true, 'provider' => 'manual' ) );
 	$reqs[] = array( 'i' => $i++, 'key' => $key, 'url' => "$base/?rest_route=/wp-pass-captain/v1/checkout", 'body' => $body, 'headers' => $json );
 	if ( mt_rand( 1, 100 ) <= 15 ) { $reqs[] = array( 'i' => $i++, 'key' => $key, 'url' => "$base/?rest_route=/wp-pass-captain/v1/checkout", 'body' => $body, 'headers' => $json ); }
 }
@@ -177,7 +182,7 @@ foreach ( $reqs as $r ) { if ( ! empty( $rows[ $r['i'] ]['body']['order_id'] ) )
 $split = count( array_filter( $by_key, static fn( $ids ) => count( array_unique( $ids ) ) > 1 ) );
 $sold = array_sum( array_intersect_key( $keys, $by_key ) );
 $held = (int) $wpdb->get_var( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_reservations WHERE ticket_type_id=$type AND status='active'" );
-$s = stats( 'checkout (REST)', $rows, $wall, static fn( $r ) => 201 === $r['code'] ? 'created' : ( 200 === $r['code'] ? 'reused' : ( 409 === $r['code'] && false !== strpos( (string) ( $r['body']['message'] ?? '' ), 'nicht mehr genügend' ) ? 'sold_out' : 'error' ) ) );
+$s = stats( 'checkout (REST)', $rows, $wall, static fn( $r ) => 201 === $r['code'] ? 'created' : ( 200 === $r['code'] ? 'reused' : ( 409 === $r['code'] && in_array( (string) ( $r['body']['data']['reason'] ?? '' ), array( 'sold_out', 'occurrence_sold_out' ), true ) ? 'sold_out' : 'error' ) ) );
 invariant( 'no overselling', $held <= $cfg['capacity'], "held $held of {$cfg['capacity']}" );
 invariant( 'held = tickets of successful orders', $held === $sold, "sold $sold" );
 invariant( 'one order per idempotency key', 0 === $split );

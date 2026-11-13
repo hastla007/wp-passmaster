@@ -1,0 +1,98 @@
+name: Load tests (scheduled)
+
+# A121: the default/heavy/big profiles and the REST load test run weekly and on demand against MySQL
+# and MariaDB. Results are compared with tests/load/baselines/*.json (fails on errors, invariant
+# violations or p95 regressions) and uploaded as artifacts for the regression history.
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+jobs:
+  services:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db: ['mariadb:11.4', 'mysql:8.4']
+        profile: ['default', 'heavy', 'big']
+    services:
+      db:
+        image: ${{ matrix.db }}
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wp
+          MYSQL_USER: wp
+          MYSQL_PASSWORD: wp
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot || healthcheck.sh --connect"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, mysqli, sodium
+          coverage: none
+      - name: Allow enough connections for the heavy profile
+        run: mysql -h127.0.0.1 -uroot -proot -e "SET GLOBAL max_connections=300"
+      - name: Load test (${{ matrix.profile }})
+        env:
+          WPCAP_TEST_DB_HOST: 127.0.0.1
+        run: php tests/load/run.php --profile=${{ matrix.profile }} --json=load-${{ matrix.profile }}.json
+      - name: Compare with baseline
+        run: php tests/load/compare.php load-${{ matrix.profile }}.json tests/load/baselines/${{ matrix.profile }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-${{ matrix.profile }}-${{ strategy.job-index }}
+          path: load-${{ matrix.profile }}.json
+
+  rest:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: wp
+          MARIADB_USER: wp
+          MARIADB_PASSWORD: wp
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2, wp-cli
+          extensions: mbstring, mysqli, gd, zip, sodium, curl
+          coverage: none
+      - name: Install plugin dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist
+      - name: Install WordPress with the plugin
+        run: |
+          mkdir -p "$RUNNER_TEMP/wp" && cd "$RUNNER_TEMP/wp"
+          wp core download --version=latest
+          wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
+          wp core install --url=http://127.0.0.1:8091 --title=Load --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
+          ln -s "$GITHUB_WORKSPACE" wp-content/plugins/wp-pass-captain
+          wp plugin activate wp-pass-captain
+      - name: REST load test
+        run: php tests/load/http.php --wp="$RUNNER_TEMP/wp" --json=load-http.json
+      - name: Compare with baseline
+        run: php tests/load/compare.php load-http.json tests/load/baselines/http.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: load-http
+          path: load-http.json
