@@ -1,5 +1,46 @@
 (function () {
 	'use strict';
+	/*
+	 * Pure decision helpers (no DOM), exposed as window.wpcapScannerLogic for the JS tests.
+	 *
+	 * scanCode(): same rule as PassCaptain\Checkin::normalize_code() – exactly one 64-hex ticket code.
+	 * A hex run longer than 64 characters or two different codes in one input (a keyboard wedge scanner
+	 * typing into a field that still holds the previous code) are "ambiguous" and never submitted.
+	 */
+	function scanCode(value) {
+		const runs = String(value || '').match(/[a-f0-9]{64,}/gi) || [];
+		const codes = runs.map(function (run) { return run.toLowerCase(); }).filter(function (run, i, all) { return all.indexOf(run) === i; });
+		if (!codes.length) return { code: '', ambiguous: false };
+		if (codes.length > 1 || codes[0].length !== 64) return { code: '', ambiguous: true };
+		return { code: codes[0], ambiguous: false };
+	}
+	/*
+	 * Classifies a server answer (A315). Only an error the plugin itself produced (JSON with a wpcap_*
+	 * code) is a verdict on the ticket ("refusal"); a WAF/proxy/login page, an unknown error code, an
+	 * answer that is no JSON object or a 2xx answer without status checked_in/checked_out is a system
+	 * problem ("system"), never "no entry" and never a green admission.
+	 * data: the parsed JSON object, or null when the body was no JSON object.
+	 */
+	function classifyAnswer(status, data) {
+		const code = data && typeof data.code === 'string' ? data.code : '';
+		if (status >= 200 && status < 300) return data && (data.status === 'checked_in' || data.status === 'checked_out') ? 'success' : 'system';
+		if (code === 'rest_cookie_invalid_nonce') return 'session';
+		if (status === 429) return 'rate';
+		if (status >= 500 || !data || code.indexOf('wpcap_') !== 0 || /retry|busy/.test(code) || data.data && data.data.retryable) return 'system';
+		return 'refusal';
+	}
+	/* Latest queued (not yet uploaded) admission of a code on this device, or null (A542). */
+	function queuedAdmission(items, code) {
+		let found = null;
+		(items || []).forEach(function (item) {
+			if (!item || scanCode(item.token).code !== code) return;
+			if (!found || String(item.scanned_at || '') >= String(found.scanned_at || '')) found = item;
+		});
+		return found && (found.direction || 'in') === 'in' ? found : null;
+	}
+	const REQUEST_TIMEOUT_MS = 5000;
+	window.wpcapScannerLogic = { scanCode: scanCode, classifyAnswer: classifyAnswer, queuedAdmission: queuedAdmission, REQUEST_TIMEOUT_MS: REQUEST_TIMEOUT_MS };
+
 	const root = document.querySelector('.wpcap-scanner');
 	if (!root || !window.WPCAP_SCANNER) return;
 	const form = root.querySelector('.wpcap-scan-form');
@@ -287,32 +328,50 @@
 		if (!item.stored_at) item.stored_at = item.scanned_at ? Date.parse(item.scanned_at) || Date.now() : Date.now();
 		return item;
 	}
-	function enqueue(token) {
+	// key: the idempotency key of the online attempt (A541) – if that request reached the server after
+	// all, the later upload is recognised as the same scan instead of a conflicting second admission.
+	function enqueue(token, key) {
 		const items = queue();
-		items.push({ token: token, idempotency_key: uuid(), scanned_at: new Date().toISOString(), stored_at: Date.now(), area_id: areaId, occurrence_id: occurrenceId, direction: mode });
+		items.push({ token: token, idempotency_key: key || uuid(), scanned_at: new Date().toISOString(), stored_at: Date.now(), area_id: areaId, occurrence_id: occurrenceId, direction: mode });
 		saveQueue(items);
 		show('warning', t.queued || 'Saved offline.');
-		input.value = '';
 		updateQueueButton();
 	}
 	// Offline the code cannot be checked: never shown as admitted. Only codes that look like a ticket are
 	// offered, and only after an explicit staff decision ("admit after a visual check") are they queued
 	// for the later server check. Reliable offline admission: the offline scanner app with a ticket package.
-	function offline(token) {
+	// key: idempotency key of the online attempt that did not get an answer (A541); reason: optional
+	// prefix ("no answer from the server") shown before the offline notice.
+	function offline(token, key, reason) {
 		if (looksLikeHelpCode(token)) {
 			show('warning', t.helpOffline || 'Help codes can only be checked online.');
 			return;
 		}
-		if (!/(^|[^a-f0-9])[a-f0-9]{64}($|[^a-f0-9])/i.test(token)) {
+		const code = scanCode(token).code;
+		if (!code) {
 			show('error', t.invalid || 'Invalid ticket.');
 			return;
 		}
-		show('warning', t.unchecked || 'NOT CHECKED (offline).');
+		// A542: the same code was already admitted offline on this device (queued, not yet uploaded):
+		// refused in red with the time, never offered again for "admit after visual check".
+		const earlier = mode === 'in' ? queuedAdmission(queue(), code) : null;
+		if (earlier) {
+			const line = (t.queuedAlready || 'Already admitted offline on this device at %s.').replace('%s', when(earlier.scanned_at) || '—');
+			show('error', line, { lines: [line] });
+			return;
+		}
+		show('warning', (reason ? reason + ' ' : '') + (t.unchecked || 'NOT CHECKED (offline).'));
 		const admit = document.createElement('button');
 		admit.type = 'button';
 		admit.className = 'button wpcap-admit-unchecked';
 		admit.textContent = t.admitUnchecked || 'Admit after visual check';
-		admit.addEventListener('click', function () { enqueue(token); input.focus(); });
+		admit.addEventListener('click', function () {
+			admit.disabled = true;
+			// Checked again at the moment of the decision (two taps, or a second scan meanwhile).
+			if (mode === 'in' && queuedAdmission(queue(), code)) { offline(token, key, reason); return; }
+			enqueue(token, key);
+			input.focus();
+		});
 		result.appendChild(document.createTextNode(' '));
 		result.appendChild(admit);
 	}
@@ -354,8 +413,10 @@
 				const response = adm
 					? await fetch(adm.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ scans: chunk.map(function (item) { return { token: item.token, idempotency_key: item.idempotency_key, scanned_at: item.scanned_at, area_id: item.area_id || 0, occurrence_id: item.occurrence_id || 0, direction: item.direction || 'in' }; }) }) })
 					: await fetch(WPCAP_SCANNER.offlineSyncUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce }, body: JSON.stringify({ tokens: chunk.map(function (item) { return item.token; }) }) });
-				const data = await response.json().catch(function () { return {}; });
-				if (!response.ok) throw new Error(data.message || t.syncFailed || 'Sync failed.');
+				const data = await response.json().catch(function () { return null; });
+				// Only a JSON answer with a results list confirms the upload (A315): a login, proxy or WAF page
+				// with status 200 must not remove queued scans.
+				if (!response.ok || !data || !Array.isArray(data.results)) throw new Error((data && data.message) || t.syncFailed || 'Sync failed.');
 				// Remove exactly the uploaded items; scans queued meanwhile stay.
 				removeSent(chunk.map(function (item) { return item.idempotency_key; }));
 				sent += chunk.length;
@@ -376,64 +437,106 @@
 	window.addEventListener('online', syncQueue);
 	updateQueueButton();
 
+	// Note under the current result that a scan was thrown away (the result itself stays visible).
+	function discarded(text) {
+		const note = document.createElement('span');
+		note.className = 'wpcap-scan-discarded';
+		note.textContent = ' ⚠ ' + text;
+		result.appendChild(note);
+		if (live) live.textContent = (t.attention || 'Attention') + ': ' + text;
+		feedback('warning');
+	}
+	// A271: the code field is emptied for every scan as soon as it is taken (before the answer), so a
+	// keyboard wedge scanner never types the next code behind the previous one.
+	function takeInput() {
+		const value = input.value;
+		input.value = '';
+		return value;
+	}
 	async function submitToken(token) {
 		token = String(token || '').trim();
-		if (locked || !token) return;
+		if (!token) return;
+		if (locked) {
+			// A271: a scan during the lock window is discarded visibly, never silently kept for later.
+			discarded(t.discarded || 'Scan discarded – scan again.');
+			return;
+		}
 		unlockAudio();
-		if (!navigator.onLine) { offline(token); return; }
+		const parsed = scanCode(token);
+		if (parsed.ambiguous) {
+			show('error', t.multipleCodes || 'Several ticket codes in one input – scan each ticket on its own.');
+			return;
+		}
+		// One idempotency key per scan: reused for the offline queue when the answer is lost (A541).
+		const key = uuid();
+		if (!navigator.onLine) { offline(token, key); return; }
 		locked = true;
 		show('busy', t.checking || '…');
+		const controller = window.AbortController ? new window.AbortController() : null;
+		const timer = controller ? window.setTimeout(function () { controller.abort(); }, REQUEST_TIMEOUT_MS) : 0;
 		try {
 			let response;
+			let data;
 			try {
 				const url = adm ? (mode === 'out' ? adm.checkoutUrl : adm.checkinUrl) : WPCAP_SCANNER.checkinUrl;
-				const body = adm ? { token: token, area_id: areaId, occurrence_id: occurrenceId, idempotency_key: uuid() } : { token: token, occurrence_id: occurrenceId };
+				const body = adm ? { token: token, area_id: areaId, occurrence_id: occurrenceId, idempotency_key: key } : { token: token, occurrence_id: occurrenceId, idempotency_key: key };
 				response = await fetch(url, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': WPCAP_SCANNER.nonce },
-					body: JSON.stringify(body)
+					body: JSON.stringify(body),
+					signal: controller ? controller.signal : undefined
 				});
+				// The body is read under the same timeout (A540).
+				const text = await response.text();
+				try { data = JSON.parse(text); } catch (ignore) { data = null; }
+				if (!data || typeof data !== 'object' || Array.isArray(data)) data = null;
 			} catch (networkError) {
-				// The browser reported "online" but the request never reached the server.
-				offline(token);
+				// No answer (network down although the browser reports "online", or no answer within
+				// REQUEST_TIMEOUT_MS, A540): the offline decision, with the key of this attempt.
+				offline(token, key, controller && controller.signal.aborted ? (t.timeout || 'No answer from the server.') : '');
 				return;
 			}
-			const data = await response.json().catch(function () { return {}; });
-			// Server fault, busy database or expired session: not a verdict on the ticket – never show "no entry".
-			const code = String(data.code || '');
-			if (response.status >= 500 || code === 'rest_cookie_invalid_nonce' || /retry|busy/.test(code)) {
-				show('warning', (code === 'rest_cookie_invalid_nonce' ? (t.sessionExpired || 'Session expired – reload the page.') : (t.systemError || 'System error – scan again.')) + (data.message && response.status < 500 ? ' (' + data.message + ')' : ''));
+			const kind = classifyAnswer(response.status, data);
+			const message = data && typeof data.message === 'string' ? data.message : '';
+			if (kind === 'session') {
+				show('warning', t.sessionExpired || 'Session expired – reload the page.');
 				return;
 			}
-			// Too many help-code entries: not a verdict on the ticket either.
-			if (response.status === 429) {
-				show('warning', data.message || t.rateLimited || 'Too many attempts.');
+			if (kind === 'rate') {
+				// Too many help-code entries: not a verdict on the ticket.
+				show('warning', message || t.rateLimited || 'Too many attempts.');
 				return;
 			}
-			if (!response.ok) {
+			if (kind === 'system') {
+				// Server fault, busy database, WAF/proxy page, unknown error: not a verdict on the ticket –
+				// never "no entry" (A315).
+				const why = data ? (t.systemError || 'System error – scan again.') + (message && response.status < 500 ? ' (' + message + ')' : '') : (t.badAnswer || 'Unexpected answer from the server (HTTP %d) – scan again.').replace('%d', String(response.status));
+				show('warning', why);
+				return;
+			}
+			if (kind === 'refusal') {
 				// Refusal of a known ticket: name the ticket and when it was first used.
 				const info = data.data || {};
-				const message = data.message || t.invalid || 'Invalid ticket.';
-				const refusal = [message].concat(info.event ? [info.event + (info.ticket ? ' — ' + info.ticket : '')] : [], historyLines(info, false), info.staff_hint ? ['⚠ ' + info.staff_hint] : []);
+				const refusal = [message || t.invalid || 'Invalid ticket.'].concat(info.event ? [info.event + (info.ticket ? ' — ' + info.ticket : '')] : [], historyLines(info, false), info.staff_hint ? ['⚠ ' + info.staff_hint] : []);
 				show('error', refusal.join(' — '), { lines: refusal });
 				return;
 			}
 			const out = data.status === 'checked_out';
 			// ID/age check of the ticket type ("Ausweis prüfen · Mindestalter 18") for the staff.
 			const hint = data.staff_hint && !out ? '⚠ ' + data.staff_hint : '';
-			const lines = [data.event + ' — ' + data.ticket, data.attendee_name || ''].concat(out ? [] : historyLines(data, true), hint ? [hint] : [], data.help_code && !out ? ['⚠ ' + (t.viaHelpCode || 'Help code')] : []).filter(Boolean);
+			const lines = [[data.event, data.ticket].filter(Boolean).join(' — '), data.attendee_name || ''].concat(out ? [] : historyLines(data, true), hint ? [hint] : [], data.help_code && !out ? ['⚠ ' + (t.viaHelpCode || 'Help code')] : []).filter(Boolean);
 			show('success', (out ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + lines.join(' — '), { title: out ? (t.checkedOutTitle || 'OUT') : (t.admitted || 'OK'), lines: lines });
-			input.value = '';
 		} catch (error) {
-			show('error', error.message);
+			show('warning', (t.systemError || 'System error – scan again.') + ' (' + error.message + ')');
 		} finally {
+			window.clearTimeout(timer);
 			window.setTimeout(function () { locked = false; }, 1400);
 		}
 	}
 
 	form.addEventListener('submit', function (event) {
 		event.preventDefault();
-		submitToken(input.value);
+		submitToken(takeInput());
 	});
 
 	// Native BarcodeDetector where available (Chrome/Android); otherwise jsQR on canvas frames (Safari/iOS, Firefox).
@@ -532,16 +635,16 @@
 					busy = true;
 					try {
 						const raw = await detect();
-						const match = raw.match(/[a-f0-9]{64}/i);
+						const match = scanCode(raw).code;
 						const now = Date.now();
 						// The same QR often stays in view after a scan: it is submitted again only after it was
 						// out of view for 3 s (sliding window), so "already used" never overwrites the green result.
-						if (match && match[0] === lastToken && now - lastTokenAt < 3000) {
+						if (match && match === lastToken && now - lastTokenAt < 3000) {
 							lastTokenAt = now;
 						} else if (match) {
-							lastToken = match[0];
+							lastToken = match;
 							lastTokenAt = now;
-							await submitToken(match[0]);
+							await submitToken(match);
 						}
 					} catch (ignore) {}
 					busy = false;

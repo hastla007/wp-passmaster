@@ -148,8 +148,17 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
   - the chain (`delta.since === previous cursor`).
 - **Scanning:**
   - Online, the app calls `POST /app/scan/check-in` with an idempotency key (5 s timeout).
-  - On a network error or 5xx it decides offline. It normalizes the code like the server, computes
-    its SHA-256 with WebCrypto and looks the hash up in the package.
+  - On a network error, a timeout or 5xx it decides offline. It normalizes the code like the server,
+    computes its SHA-256 with WebCrypto and looks the hash up in the package.
+  - Only a scan result of the plugin is shown green or red (`ok: true`, or `ok: false` with a
+    `wpcap_*` code). Any other answer – a WAF, proxy or login page, an answer that is no JSON object,
+    an unknown error code or a retryable server error – is a yellow “System error – ticket not
+    checked” warning, never “no entry”.
+  - An input with more than one ticket code (two codes, or a hex run longer than 64 characters,
+    e.g. codes typed behind each other) is refused without a check, like on the server.
+  - The camera ignores a code for as long as it stays in view: the 3 s duplicate window restarts
+    with every sighting (sliding, like the web scanner), so a guest just admitted never gets
+    “already used” a moment later. A manual entry is always checked.
   - A ticket is refused offline when it is unknown, revoked, already used (single entry: package
     status or the local log), in the wrong area (the type's area restriction against the device's or
     the selected area), or when the package is missing or expired.

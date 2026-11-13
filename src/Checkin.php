@@ -21,9 +21,26 @@ final class Checkin {
 	/** Results of an offline scan that count as double admission (API flag `conflict`). */
 	const REJECTED_ADMISSION = array( 'already_checked_in', 'daily_limit_reached', 'entry_limit_reached', 'already_inside' );
 
-	/** Extracts the 64-hex ticket code from a scanned value (raw code or ticket URL). */
+	/**
+	 * Extracts the 64-hex ticket code from a scanned value (raw code or ticket URL). A value with more
+	 * than one code (a hex run longer than 64 characters or two different codes, e.g. a keyboard
+	 * scanner typing behind the previous code, A271) has no code: '' – never the first of them.
+	 */
 	public static function normalize_code( $value ) {
-		return preg_match( '/[a-f0-9]{64}/i', Http::str( $value ), $m ) ? strtolower( $m[0] ) : '';
+		$codes = self::codes_in( $value );
+		return 1 === count( $codes ) && 64 === strlen( $codes[0] ) ? $codes[0] : '';
+	}
+
+	/** True when a scanned value holds more than one ticket code (refused, A271). */
+	public static function has_multiple_codes( $value ) {
+		$codes = self::codes_in( $value );
+		return count( $codes ) > 1 || ( 1 === count( $codes ) && 64 !== strlen( $codes[0] ) );
+	}
+
+	/** Distinct lower-case hex runs of at least 64 characters in a scanned value. */
+	private static function codes_in( $value ) {
+		if ( ! preg_match_all( '/[a-f0-9]{64,}/i', Http::str( $value ), $m ) ) { return array(); }
+		return array_values( array_unique( array_map( 'strtolower', $m[0] ) ) );
 	}
 
 	/** Current time for admission decisions (filterable for tests and simulations). */
@@ -70,6 +87,9 @@ final class Checkin {
 	 */
 	public static function lookup( $code, $at = null, $strict = true, array $context = array() ) {
 		$input = $code;
+		if ( self::has_multiple_codes( $input ) ) {
+			return new \WP_Error( 'wpcap_ticket_ambiguous', __( 'Mehrere Ticketcodes in einer Eingabe – nichts geprüft. Bitte jedes Ticket einzeln scannen.', 'pass-captain' ), array( 'status' => 400, 'result' => 'invalid_code' ) );
+		}
 		$code = self::normalize_code( $code );
 		$help_ticket = 0;
 		if ( '' === $code ) {

@@ -137,6 +137,13 @@ final class PublicEvents {
 			'soundOn' => __( 'Ton an', 'pass-captain' ),
 			'soundOff' => __( 'Ton aus', 'pass-captain' ),
 			'dismiss' => __( 'Antippen zum Schließen', 'pass-captain' ),
+			'discarded' => __( 'Scan verworfen – der vorige Scan wird noch bearbeitet. Bitte erneut scannen.', 'pass-captain' ),
+			'multipleCodes' => __( 'Mehrere Ticketcodes in einer Eingabe – nichts geprüft. Bitte jedes Ticket einzeln scannen.', 'pass-captain' ),
+			/* translators: %s: date/time of the earlier offline admission on this device */
+			'queuedAlready' => __( 'Auf diesem Gerät bereits offline eingelassen um %s.', 'pass-captain' ),
+			'timeout' => __( 'Keine Antwort vom Server.', 'pass-captain' ),
+			/* translators: %d: HTTP status code */
+			'badAnswer' => __( 'Unerwartete Antwort des Servers (HTTP %d) – das Ticket wurde nicht geprüft. Bitte erneut scannen.', 'pass-captain' ),
 		) ) );
 	}
 

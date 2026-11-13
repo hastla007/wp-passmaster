@@ -19,9 +19,19 @@ function element() {
 		apply: () => element(),
 	});
 }
+/** Elements by id keep the values set on them (result box, title, detail), everything else is a stand-in. */
+function recordingElement() {
+	const values = {};
+	return new Proxy(function () {}, {
+		get: (target, prop) => (prop in values ? values[prop] : prop === 'classList' ? { add() {}, remove() {}, toggle() {} } : prop === 'style' || prop === 'dataset' ? {} : element()),
+		set: (target, prop, value) => { values[prop] = value; return true; },
+		apply: () => element(),
+	});
+}
 function loadApp() {
+	const byId = new Map();
 	const window = {
-		document: { getElementById: () => element(), querySelector: () => element(), querySelectorAll: () => [], createElement: () => element(), addEventListener() {} },
+		document: { getElementById: (id) => { if (!byId.has(id)) byId.set(id, recordingElement()); return byId.get(id); }, querySelector: () => element(), querySelectorAll: () => [], createElement: () => element(), addEventListener() {} },
 		navigator: { onLine: true },
 		location: { search: '', pathname: '/', origin: 'https://example.test', href: 'https://example.test/' },
 		crypto: require('node:crypto').webcrypto,
@@ -104,4 +114,76 @@ test('decideOffline: area restriction, doors-open time and expired package', () 
 	assert.strictEqual(app.decideOffline(early, 'a').result, 'outside_entry_window');
 	const old = entry([ { h: 'a', t: 1, s: 'valid' } ], { expires_at: new Date(Date.now() - 1000).toISOString() });
 	assert.strictEqual(app.decideOffline(old, 'a').result, 'package_expired');
+});
+
+/* A271/A315/A539: classification of online answers, codes typed behind each other, sliding window. */
+
+test('scanCode/normalizeCode: concatenated or two different codes give no code (A271)', () => {
+	const a = 'a'.repeat(64);
+	const b = 'b'.repeat(64);
+	assert.strictEqual(app.normalizeCode(a + b), '');
+	assert.strictEqual(app.normalizeCode(a + ' ' + b), '');
+	assert.strictEqual(app.scanCode(a + b).ambiguous, true);
+	assert.strictEqual(app.normalizeCode(a + ' ' + a), a);
+	assert.strictEqual(app.scanCode('K7QM-4XWA').ambiguous, false);
+});
+
+test('classifyScan: only plugin results are ok/bad, everything else a warning or the offline decision (A315)', () => {
+	assert.strictEqual(app.classifyScan({ ok: true, result: 'checked_in' }, null), 'ok');
+	assert.strictEqual(app.classifyScan({ ok: false, result: 'already_checked_in', code: 'wpcap_ticket_already_checked_in' }, null), 'bad');
+	assert.strictEqual(app.classifyScan({ ok: false, result: 'error', code: 'wpcap_checkin_retry' }, null), 'warn');
+	assert.strictEqual(app.classifyScan({ ok: false, result: 'error', code: 'rest_no_route' }, null), 'warn');
+	assert.strictEqual(app.classifyScan({}, null), 'warn');
+	assert.strictEqual(app.classifyScan(null, { network: true }), 'offline');
+	assert.strictEqual(app.classifyScan(null, { status: 502, body: {}, invalid: true }), 'offline');
+	assert.strictEqual(app.classifyScan(null, { status: 401, body: { code: 'wpcap_device_unauthorized' } }), 'auth');
+	assert.strictEqual(app.classifyScan(null, { status: 429, body: {} }), 'rate');
+	assert.strictEqual(app.classifyScan(null, { status: 403, body: {}, invalid: true }), 'warn');
+	assert.strictEqual(app.classifyScan(null, { status: 403, body: { code: 'rest_forbidden' } }), 'warn');
+	assert.strictEqual(app.classifyScan(null, { status: 400, body: { code: 'wpcap_idempotency_required' } }), 'bad');
+});
+
+function htmlResponse(status, text) {
+	return Promise.resolve({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve().then(() => JSON.parse(text)) });
+}
+async function onlineScan(code, fetchImpl) {
+	w.fetch = fetchImpl;
+	app.state.selected = 7;
+	app.state.token = 'tok';
+	await app.handleScan(code).catch(() => {});
+	return w.document.getElementById('result').className;
+}
+
+test('online scan: WAF page or non-plugin error shows a yellow warning, not "no entry" (A315)', async () => {
+	assert.strictEqual(await onlineScan('1'.repeat(64), () => htmlResponse(403, '<html>blocked</html>')), 'result warn');
+	assert.strictEqual(await onlineScan('2'.repeat(64), () => htmlResponse(200, '<html>portal</html>')), 'result warn');
+	assert.strictEqual(await onlineScan('3'.repeat(64), () => htmlResponse(403, JSON.stringify({ code: 'rest_forbidden', message: 'x' }))), 'result warn');
+	assert.strictEqual(await onlineScan('4'.repeat(64), () => htmlResponse(200, JSON.stringify({ ok: false, result: 'error', code: 'wpcap_checkin_retry' }))), 'result warn');
+	assert.strictEqual(await onlineScan('5'.repeat(64), () => htmlResponse(200, JSON.stringify({ ok: false, result: 'unknown', code: 'wpcap_ticket_not_found' }))), 'result bad');
+	assert.strictEqual(await onlineScan('6'.repeat(64), () => htmlResponse(200, JSON.stringify({ ok: true, result: 'checked_in', ticket: 'T' }))), 'result ok');
+	app.state.selected = 0;
+	app.state.token = '';
+});
+
+test('sliding duplicate window: a code that stays in view is never submitted again (A539)', async () => {
+	const code = 'c'.repeat(64);
+	let requests = 0;
+	w.fetch = () => { requests++; return htmlResponse(200, JSON.stringify({ ok: true, result: 'checked_in' })); };
+	app.state.selected = 7;
+	await app.handleScan(code).catch(() => {});
+	const first = app.lastScan();
+	assert.strictEqual(requests, 1);
+	// Seen again every 2.5 s for 7.5 s: the window slides, so no second check-in.
+	for (let i = 0; i < 3; i++) {
+		first.at -= 2500;
+		await app.handleScan(code).catch(() => {});
+	}
+	assert.strictEqual(requests, 1);
+	assert.strictEqual(app.lastScan(), first);
+	assert.ok(Date.now() - first.at < 1000, 'window restarted at the last sighting');
+	// Out of view for more than 3 s: submitted again.
+	first.at -= 3500;
+	await app.handleScan(code).catch(() => {});
+	assert.strictEqual(requests, 2);
+	app.state.selected = 0;
 });

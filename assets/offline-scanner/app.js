@@ -85,11 +85,18 @@
 	function sha256Hex(text) {
 		return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(hex);
 	}
-	/** Same rule as PassCaptain\Checkin::normalize_code(): first 64-hex run, lowercase. */
-	function normalizeCode(value) {
-		var m = String(value || '').match(/[a-f0-9]{64}/i);
-		return m ? m[0].toLowerCase() : '';
+	/**
+	 * Same rule as PassCaptain\Checkin::normalize_code(): exactly one 64-hex code, lowercase. A longer
+	 * hex run or two different codes in one input (codes typed behind each other) give '' (A271).
+	 */
+	function scanCode(value) {
+		var runs = String(value || '').match(/[a-f0-9]{64,}/gi) || [];
+		var codes = runs.map(function (r) { return r.toLowerCase(); }).filter(function (r, i, all) { return all.indexOf(r) === i; });
+		if (!codes.length) { return { code: '', ambiguous: false }; }
+		if (codes.length > 1 || 64 !== codes[0].length) { return { code: '', ambiguous: true }; }
+		return { code: codes[0], ambiguous: false };
 	}
+	function normalizeCode(value) { return scanCode(value).code; }
 	/** Same rule as PassCaptain\HelpCode::normalize(): 8 characters without 0/O/1/I, '' otherwise. */
 	function normalizeHelpCode(value) {
 		var v = String(value || '').toUpperCase().replace(/[\s\-_.]+/g, '');
@@ -205,7 +212,30 @@
 		return url;
 	}
 
-	function ApiError(status, body) { this.status = status; this.body = body || {}; this.message = (body && body.message) || ('HTTP ' + status); }
+	/** invalid: the answer was no JSON object (login/proxy/WAF page), whatever the HTTP status. */
+	function ApiError(status, body, invalid) { this.status = status; this.body = body || {}; this.invalid = !!invalid; this.message = (body && body.message) || ('HTTP ' + status); }
+
+	/**
+	 * Classifies the answer to an online scan (A315): 'ok' / 'bad' only for a scan result of the plugin
+	 * (JSON with ok and a wpcap_* code for refusals); 'offline' for no answer, timeouts and server
+	 * outages (the offline decision follows); 'auth' / 'rate' for 401 / 429; everything else (WAF or
+	 * proxy page, unknown error, retryable server error, answer without a scan result) is 'warn':
+	 * a yellow system warning, never "no entry".
+	 */
+	function classifyScan(res, err) {
+		if (err) {
+			if (err.network || err.status >= 500) { return 'offline'; }
+			if (401 === err.status) { return 'auth'; }
+			if (429 === err.status) { return 'rate'; }
+			var code = err.body && 'string' === typeof err.body.code ? err.body.code : '';
+			return !err.invalid && 0 === code.indexOf('wpcap_') && !/retry|busy/.test(code) ? 'bad' : 'warn';
+		}
+		if (!res || 'object' !== typeof res) { return 'warn'; }
+		if (true === res.ok && 'string' === typeof res.result) { return 'ok'; }
+		var rc = 'string' === typeof res.code ? res.code : '';
+		if (false === res.ok && 0 === rc.indexOf('wpcap_') && !res.retryable && !/retry|busy/.test(rc)) { return 'bad'; }
+		return 'warn';
+	}
 
 	function api(method, route, body, query, timeoutMs) {
 		var ctrl = window.AbortController ? new AbortController() : null;
@@ -216,8 +246,9 @@
 		return fetch(endpoint(route, query), { method: method, headers: headers, body: body ? JSON.stringify(body) : undefined, credentials: 'omit', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined })
 			.then(function (res) {
 				if (timer) { clearTimeout(timer); }
-				return res.json().catch(function () { return {}; }).then(function (data) {
-					if (!res.ok) { throw new ApiError(res.status, data); }
+				return res.json().catch(function () { return null; }).then(function (data) {
+					var invalid = !data || 'object' !== typeof data || Array.isArray(data);
+					if (!res.ok || invalid) { throw new ApiError(res.status, invalid ? {} : data, invalid); }
 					return data;
 				});
 			}, function (err) {
@@ -452,28 +483,47 @@
 		var scannedAt = new Date(now()).toISOString();
 		var area = (entry && entry.meta && entry.meta.device_area_id) || state.areaId || 0;
 		return api('POST', 'scan/check-in', { code: help, idempotency_key: key, occurrence_id: occurrenceId, area_id: area }, null, 5000).then(function (res) {
-			showResult(res.ok ? 'ok' : 'bad', resultText(res.result), onlineDetail(res));
+			var kind = classifyScan(res, null);
+			if ('warn' === kind) { systemWarning(res); return; }
+			showResult(kind, resultText(res.result), onlineDetail(res));
 			return sha256Hex('help:' + help).then(function (hash) {
 				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'online', decision: res.result, ok: !!res.ok, synced: 1 });
 			});
 		}, function (err) {
-			if (err && (err.network || err.status >= 500)) { offlineMsg(); return; }
+			var kind = classifyScan(null, err || {});
+			if ('offline' === kind) { offlineMsg(); return; }
 			if (handleAuthError(err)) { return; }
-			showResult(err && 429 === err.status ? 'warn' : 'bad', err && 429 === err.status ? resultText('rate_limited') : t('Fehler'), err && err.message);
+			if ('rate' === kind) { showResult('warn', resultText('rate_limited'), err.message); return; }
+			if ('bad' === kind) { showResult('bad', t('Fehler'), err.message); return; }
+			systemWarning(err);
 		}).then(renderLog);
+	}
+
+	/** Yellow system warning: the ticket was not checked (A315). source: ApiError or a scan answer. */
+	function systemWarning(source) {
+		var status = source && source.status ? ' (HTTP ' + source.status + ')' : '';
+		var message = source && !source.invalid && source.body && source.body.message ? source.body.message : (source && source.message && !source.status ? source.message : '');
+		showResult('warn', t('Systemfehler – Ticket nicht geprüft'), [message, t('Bitte erneut scannen.') + status].filter(Boolean).join(' · '));
 	}
 
 	var lastScan = { code: '', at: 0 };
 	function handleScan(raw) {
 		unlockAudio();
-		var code = normalizeCode(raw);
+		var parsed = scanCode(raw);
+		var code = parsed.code;
 		if (!code) {
+			if (parsed.ambiguous) {
+				showResult('bad', t('Mehrere Ticketcodes erkannt'), t('Nichts geprüft. Bitte jedes Ticket einzeln scannen.'));
+				return Promise.resolve();
+			}
 			var help = normalizeHelpCode(raw);
 			if (help && state.selected) { return handleHelpCode(help); }
 			showResult('bad', help ? t('Kein Termin gewählt') : resultText('invalid_code'));
 			return Promise.resolve();
 		}
-		if (code === lastScan.code && Date.now() - lastScan.at < 3000) { return Promise.resolve(); }
+		// Sliding window (A539, like the web scanner): a code that stays in view is ignored until it was
+		// out of view for 3 s, so the guest just admitted never gets "already used" a moment later.
+		if (code === lastScan.code && Date.now() - lastScan.at < 3000) { lastScan.at = Date.now(); return Promise.resolve(); }
 		lastScan = { code: code, at: Date.now() };
 		var occurrenceId = state.selected;
 		var entry = state.packages[occurrenceId];
@@ -487,15 +537,21 @@
 				? api('POST', 'scan/check-in', { code: code, idempotency_key: key, occurrence_id: occurrenceId, area_id: area }, null, 5000)
 				: Promise.reject({ network: true });
 			return attempt.then(function (res) {
-				var ok = !!res.ok;
+				var kind = classifyScan(res, null);
+				if ('warn' === kind) { systemWarning(res); return; }
+				var ok = 'ok' === kind;
 				if (ok) { markAdmitted(occurrenceId, hash); }
-				showResult(ok ? 'ok' : 'bad', resultText(res.result), onlineDetail(res));
+				showResult(kind, resultText(res.result), onlineDetail(res));
 				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'online', decision: res.result, ok: ok, synced: 1 });
 			}, function (err) {
-				// Network errors, timeouts and server outages fall back to the offline decision.
-				if (!err || !(err.network || err.status >= 500)) {
+				// Network errors, timeouts and server outages fall back to the offline decision; only a
+				// wpcap_* error of the plugin is a refusal, anything else a system warning (A315).
+				var kind = classifyScan(null, err || {});
+				if ('offline' !== kind) {
 					if (handleAuthError(err)) { return; }
-					showResult('bad', t('Fehler'), err && err.message);
+					if ('rate' === kind) { showResult('warn', resultText('rate_limited'), err.message); return; }
+					if ('bad' === kind) { showResult('bad', t('Fehler'), err.message); return; }
+					systemWarning(err);
 					return;
 				}
 				var d = decideOffline(entry, hash);
@@ -774,7 +830,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { normalizeCode: normalizeCode, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll };
+	window.wpcapOffline = { normalizeCode: normalizeCode, scanCode: scanCode, classifyScan: classifyScan, handleScan: handleScan, lastScan: function () { return lastScan; }, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll };
 
 	boot();
 }());
