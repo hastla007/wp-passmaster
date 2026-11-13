@@ -625,3 +625,11 @@ $GLOBALS['wpcap_test_caps'] = array_merge( $GLOBALS['wpcap_test_caps'] ?? array(
 $a49e = PassCaptain\Partners\AdminPage::admin_action( array( 'do' => 'save_partner', 'name' => 'A49e Veranstalter', 'currency' => 'EUR', 'commission' => '10', 'fee_tax_rate' => '20', 'fee_per_ticket' => '0', 'sales_model' => 'agent', 'status' => 'active' ) );
 $a49e_partner = is_array( $a49e ) ? PassCaptain\Partners\Repository::get( $a49e['partner_id'] ) : null;
 check( 'A049e: saving does not repeat the inline seller-data warning as notice', is_array( $a49e ) && $a49e_partner && PassCaptain\Partners\AdminPage::seller_warnings( $a49e_partner ) && empty( $a49e['warning'] ) );
+
+echo "Audit 3: pass day refunds carry the pass's own VAT rate (A051)\n";
+$a51_order = 990000000 + random_int( 1, 9999 );
+foreach ( array( array( 501, 11000, 1000 ), array( 502, 12000, 2000 ) ) as $a51_l ) {
+	$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_order_items (order_id,ticket_type_id,quantity,unit_price_minor,line_total_minor,tax_minor) VALUES (%d,%d,1,%d,%d,%d)", $a51_order, $a51_l[0], $a51_l[1], $a51_l[1], $a51_l[2] ) );
+}
+check( 'A051: 11 € of a 10 % pass in a mixed 10 %/20 % order carries 1 € VAT (not the 1,43 € average)', 100 === PassCaptain\Passes\Cancellation::pass_tax( $a51_order, 501, 1100 ) );
+$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_order_items WHERE order_id=%d", $a51_order ) );

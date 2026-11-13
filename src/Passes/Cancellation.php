@@ -91,6 +91,17 @@ final class Cancellation {
 		Definitions::flush();
 	}
 
+	/**
+	 * VAT inside a pass day refund at the pass line's own rate (the order may mix rates, e.g. pass
+	 * and merchandise or another tax class) – not the order average.
+	 */
+	public static function pass_tax( $order_id, $type_id, $amount_minor ) {
+		global $wpdb;
+		$line = $wpdb->get_row( $wpdb->prepare( "SELECT COALESCE(SUM(line_total_minor),0) AS gross, COALESCE(SUM(tax_minor),0) AS tax FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d", absint( $order_id ), absint( $type_id ) ) );
+		if ( ! $line || (int) $line->gross <= 0 ) { return 0; }
+		return min( absint( $amount_minor ), (int) round( absint( $amount_minor ) * (int) $line->tax / (int) $line->gross ) );
+	}
+
 	/** Priority 20: keep/refund per day or revoke passes linked to the cancelled occurrence. */
 	public static function after_core( $occurrence_id ) {
 		global $wpdb;
@@ -117,7 +128,7 @@ final class Cancellation {
 					$result = 'woocommerce' === $row->payment_provider
 						? new \WP_Error( 'wpcap_refund_woocommerce', 'woocommerce' )
 						/* translators: 1: pass name, 2: event name, 3: date */
-						: Refunds::request_amount( (int) $row->order_id, $per_day * (int) $row->n, sprintf( __( 'Pass „%1$s“: Termin %2$s am %3$s abgesagt', 'wp-pass-captain' ), $type->name, $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ) ), 'pass-day-' . $occurrence_id . '-' . $type_id, array( 'system' => true ) );
+						: Refunds::request_amount( (int) $row->order_id, $per_day * (int) $row->n, sprintf( __( 'Pass „%1$s“: Termin %2$s am %3$s abgesagt', 'wp-pass-captain' ), $type->name, $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ) ), 'pass-day-' . $occurrence_id . '-' . $type_id, array( 'system' => true, 'tax_minor' => self::pass_tax( (int) $row->order_id, $type_id, $per_day * (int) $row->n ) ) );
 					if ( is_wp_error( $result ) || ! in_array( $result['status'] ?? '', array( 'completed', 'pending_approval' ), true ) ) {
 						++$summary['refund_errors'];
 						Audit::record( 'pass_day_refund_pending', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $type_id, 'error' => is_wp_error( $result ) ? $result->get_error_code() : ( $result['status'] ?? '' ) ) );

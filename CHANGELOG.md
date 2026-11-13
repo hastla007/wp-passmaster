@@ -57,6 +57,7 @@
 - Admin-Auswahllisten: gleichnamige Events werden mit erstem Termin und ID unterschieden („Konzert (12.05.2027 20:00 Europe/Vienna, #14)“), eindeutige Namen bleiben unverändert.
 - Formulare ohne rohe IDs: Veranstalter-Preisliste und -Kontingente (Termin, Ticketart, Kontingent), Kasse „Nur für Event“ und Gästeliste „Freigabe nur durch“ bieten Auswahllisten; die Tabellen zeigen Namen statt „#ID“.
 - Veranstalter speichern: fehlende Rechnungsangaben werden nur noch einmal (im Formular) angezeigt statt zusätzlich als Hinweis nach dem Speichern.
+- Pass-Tageserstattungen (abgesagter Termin) weisen die USt zum Satz der Pass-Zeile aus statt zum Durchschnittssatz der Bestellung.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.
