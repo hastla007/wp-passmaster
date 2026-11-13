@@ -558,14 +558,17 @@ final class Refunds {
 		$remaining_tax = max( 0, (int) $order->tax_minor - $refunded_tax );
 		$pending = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(amount_minor),0) FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND status IN ('processing','approved','pending_approval')", (int) $order->order_id ) );
 		$remaining_total = max( 0, $total - (int) $order->refunded_minor - $pending );
-		if ( $amount >= $remaining_total ) {
+		// The order VAT belongs to the full consideration: amount due plus a multi-purpose voucher
+		// payment. A refund of (part of) the cash share only carries its proportional VAT.
+		$gross = max( $total, Integrations\Vouchers\Checkout::gross_minor( $order ) );
+		if ( $amount >= $remaining_total && $gross === $total ) {
 			return min( $amount, $remaining_tax );
 		}
 		if ( ! $ticket_ids ) {
-			return min( $remaining_tax, (int) round( (int) $order->tax_minor * $amount / $total ) );
+			return min( $remaining_tax, $amount, (int) round( (int) $order->tax_minor * $amount / $gross ) );
 		}
 		list( , $tax, $base ) = self::line_shares( $order, $ticket_ids );
-		if ( $base <= 0 ) { return min( $remaining_tax, (int) round( (int) $order->tax_minor * $amount / $total ) ); }
+		if ( $base <= 0 ) { return min( $remaining_tax, (int) round( (int) $order->tax_minor * $amount / $gross ) ); }
 		return min( $remaining_tax, $amount, (int) round( $tax * $amount / $base ) );
 	}
 }

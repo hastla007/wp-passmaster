@@ -300,3 +300,11 @@ $a19 = PassCaptain\Admin\EventsPage::cancel_occurrence( array( 'occurrence_id' =
 remove_action( 'wpcap_occurrence_cancelled', array( PassCaptain\OccurrenceCancellation::class, 'handle' ), 10 );
 check( 'A019: summary counts cancelled orders, revoked tickets and notified holders', ! is_wp_error( $a19 ) && 1 === $a19['summary']['cancelled_orders'] && 2 === $a19['summary']['revoked'] && $a19['summary']['notified'] >= 1 );
 check( 'A019: the reason is in the audit log', (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_audit_logs WHERE action='occurrence_cancelled' AND object_id=%d AND details LIKE %s", $a19_occ, '%erkrankt%' ) ) );
+
+echo "Audit 3: amount refund VAT with a multi-purpose voucher (A021)\n";
+$a21_type = ex_type( $a4_occ, 'Gutschein 10 %', 10000, 0, 1000 );
+list( $a21_o ) = ex_buy( $a21_type, 1, 'a21@example.com' );
+// 100,00 incl. 9,09 VAT: 50,00 paid by a multi-purpose voucher, 50,00 in cash.
+$wpdb->update( "{$p}wpcap_orders", array( 'total_minor' => 5000, 'voucher_snapshot' => wp_json_encode( array( 'purpose' => 'multi', 'status' => 'committed', 'amount_minor' => 5000, 'amount_paid_by_voucher' => 5000 ) ) ), array( 'order_id' => $a21_o ) );
+$a21 = PassCaptain\Refunds::request_amount( $a21_o, 2000, 'Kulanz', 'a21-r', array( 'system' => true ) );
+check( 'A021: refund of 20,00 cash carries 1,82 VAT (share of the full 100,00), not 3,64', ! is_wp_error( $a21 ) && 182 === (int) $a21['tax_minor'] );

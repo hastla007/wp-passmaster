@@ -51,7 +51,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Admin/EventsPage.php`; `src/OccurrenceCancellation.php:85` — Maßnahme: Bestätigungsseite mit Folgen, Summary-Notice.
 - [x] **A020** [P2] `tax_for()` teilt USt nach Rabatt durch Brutto vor Rabatt (Beispiel: 10,67 € statt 13,33 €); betrifft auch `record_external()`. — _OFFEN_ (TODO L440; Steuer und Finanzen (Prüfung 3))
   - `src/Refunds.php:513–537,539–558` — Maßnahme: `line_shares()` mit Positionsbrutto nach Rabatt; Eigenschaftstest „Summe Korrekturen = Rechnung je Satz“.
-- [ ] **A021** [P2] Betragserstattung bei Mehrzweckgutschein rechnet volle USt gegen Barrest (3,33 € statt 1,67 €). — _OFFEN_ (TODO L441; Steuer und Finanzen (Prüfung 3))
+- [x] **A021** [P2] Betragserstattung bei Mehrzweckgutschein rechnet volle USt gegen Barrest (3,33 € statt 1,67 €). — _OFFEN_ (TODO L441; Steuer und Finanzen (Prüfung 3))
   - `src/Refunds.php:550–551` — Maßnahme: Basis `Checkout::gross_minor()` und Sätze der betroffenen Positionen.
 - [ ] **A022** [P2] Rechnung nach Teilerstattung weist volles Entgelt ohne Korrektur aus (Korrekturen nur, wenn Rechnung vor Erstattung existierte; `auto_invoice` standardmäßig aus). — _OFFEN_ (TODO L442; Steuer und Finanzen (Prüfung 3))
   - `src/Invoices.php:18,31–91` — Maßnahme: Beim Ausstellen Korrekturbelege für frühere Erstattungen erzeugen oder Rechnung auf Entgelt nach Erstattungen begrenzen.
