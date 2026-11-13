@@ -1,0 +1,136 @@
+{
+  "contract": "public",
+  "version": "1.0",
+  "description": "Öffentliche REST-API pass-captain/v1 (Eventliste, Checkout, Bestellstatus). Requests sind Beispiele mit Platzhaltern, Responses Shapes.",
+  "endpoints": {
+    "GET /events": {
+      "direction": "inbound",
+      "request": {
+        "locale": "de_DE"
+      },
+      "response": [
+        {
+          "event_id": "int",
+          "name": "string",
+          "slug": "string",
+          "description": "string",
+          "occurrence_id": "int",
+          "starts_at": "string",
+          "ends_at": "string|null",
+          "timezone": "string",
+          "location": "string",
+          "tickets": [
+            {
+              "ticket_type_id": "int",
+              "name": "string",
+              "price_minor": "int",
+              "regular_price_minor": "int",
+              "price_label": "string",
+              "currency": "string",
+              "max_per_order": "int"
+            }
+          ]
+        }
+      ]
+    },
+    "GET /checkout/options": {
+      "direction": "inbound",
+      "request": {
+        "currency": "EUR",
+        "locale": "de_DE"
+      },
+      "response": {
+        "providers": [
+          {
+            "id": "string",
+            "title": "string"
+          }
+        ],
+        "require_terms": "bool",
+        "locale": "string",
+        "terms_text": "string",
+        "consumer_info_text": "string",
+        "terms_version": "string"
+      }
+    },
+    "POST /checkout": {
+      "direction": "inbound",
+      "request": {
+        "email": "{{email}}",
+        "items": [
+          {
+            "ticket_type_id": "{{ticket_type_id}}",
+            "quantity": 2
+          }
+        ],
+        "idempotency_key": "{{idempotency_key}}",
+        "provider": "manual"
+      },
+      "response": {
+        "order_id": "int",
+        "public_id": "string",
+        "status": "string",
+        "payment_status": "string",
+        "subtotal_minor": "int",
+        "discount_minor": "int",
+        "total_minor": "int",
+        "currency": "string",
+        "hold_minutes": "int",
+        "?payment": {
+          "provider": "string",
+          "status": "string",
+          "?instructions": "string",
+          "?bank_transfer": {
+            "reference": "string",
+            "remittance": "string",
+            "amount_minor": "int",
+            "currency": "string",
+            "amount": "string",
+            "recipient": "string",
+            "iban": "string",
+            "bic": "string",
+            "due_at": "string",
+            "due_date": "string",
+            "instructions": "string"
+          },
+          "?redirect_url": "string"
+        },
+        "total_formatted": "string",
+        "reference": "string",
+        "?reused": "bool",
+        "?voucher_minor": "int"
+      }
+    },
+    "GET /orders/{public_id}": {
+      "direction": "inbound",
+      "request": {
+        "public_id": "{{public_id}}",
+        "access_token": "{{access_token}}"
+      },
+      "response": {
+        "public_id": "string",
+        "status": "string",
+        "payment_status": "string",
+        "currency": "string",
+        "total_minor": "int",
+        "created_at": "string",
+        "access_expires_at": "string|null"
+      }
+    },
+    "error": {
+      "direction": "inbound",
+      "request": {},
+      "response": {
+        "code": "string",
+        "message": "string",
+        "data": {
+          "status": "int",
+          "?api": "string",
+          "?requested": "string",
+          "?supported": "string",
+          "?field": "string"
+        }
+      }
+    }
+  }
+}

@@ -107,3 +107,7 @@ Berichte, Veranstalter-Abrechnungen und Wiederverkäufer-Abrechnungen lesen die 
 | `refund_plans` | Je Erstattung: `voucher_minor`, `cash_minor`, `tax_minor` (volle USt, nur Mehrzweck), `tickets` |
 
 Hilfsfunktionen: `Checkout::purpose()`, `Checkout::voucher_payment_minor( $order )`, `Checkout::gross_minor( $order )` (offener Betrag + Gutscheinzahlung), `Checkout::invoice_payments( $order )`, `Checkout::credit_note_amounts( $refund_id )`, `Invoices::payment_summary( $invoice, $snapshot )`.
+
+## Vertrag und Fehlerverhalten
+
+Versionsregel, optionale Methode `contract_version()` des Anbieters, Pflicht- und optionale Felder sowie das Verhalten bei Ausnahmen, Timeouts und ungültigen Antworten (kein halb gebuchter Zustand, Freigabe über den Idempotenzschlüssel) stehen in [CONTRACTS.md](CONTRACTS.md).

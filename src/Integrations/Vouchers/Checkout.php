@@ -88,7 +88,15 @@ final class Checkout {
 		}
 		$key = 'wpcap-order-' . $order->public_id;
 		$reservation = Bridge::reserve( $quote, $key );
-		if ( is_wp_error( $reservation ) ) { return self::user_error( $reservation ); }
+		if ( is_wp_error( $reservation ) ) {
+			if ( Bridge::is_transport_error( $reservation ) ) {
+				// Timeout/exception: the provider may have reserved before failing. Nothing was written on our
+				// side; release the key so no voucher amount stays blocked (contract: release by idempotency key).
+				Bridge::release( array( 'idempotency_key' => $key, 'order_reference' => 'wpcap:' . $order->public_id ), 'wpcap-release-' . $order->public_id );
+				Audit::record( 'voucher_reserve_failed', 'order', (int) $order_id, array( 'error' => $reservation->get_error_code() ) );
+			}
+			return self::user_error( $reservation );
+		}
 
 		$old_total = (int) $order->total_minor;
 		$new_total = $old_total - $amount;

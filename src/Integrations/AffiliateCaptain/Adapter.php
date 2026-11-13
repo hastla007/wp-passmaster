@@ -38,10 +38,18 @@ final class Adapter {
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'on_cancelled' ) );
 	}
 
-	/** True if Affiliate Captain is active with a contract of the same major version. */
+	/**
+	 * True if Affiliate Captain is active with a contract of the same major version (any minor version;
+	 * docs/CONTRACTS.md). A failing or malformed version answer counts as incompatible.
+	 */
 	public static function available() {
 		if ( ! function_exists( 'wpac_record_sale' ) || ! function_exists( 'wpac_contract_version' ) ) { return false; }
-		return strtok( (string) wpac_contract_version(), '.' ) === strtok( self::CONTRACT, '.' );
+		try {
+			$version = wpac_contract_version();
+		} catch ( \Throwable $e ) {
+			return false;
+		}
+		return is_scalar( $version ) && \PassCaptain\Contracts::compatible( (string) $version, self::CONTRACT );
 	}
 
 	public static function register_integration( $list ) {

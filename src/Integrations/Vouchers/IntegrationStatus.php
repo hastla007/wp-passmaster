@@ -28,10 +28,20 @@ final class IntegrationStatus {
 		$scanner = class_exists( '\\VCAP\\Compat\\PassCaptainScanner' );
 		return array(
 			__( 'Voucher Captain', 'pass-captain' ) => array( true, sprintf( /* translators: %s: version */ __( 'aktiv (Version %s)', 'pass-captain' ), $version ) ),
-			__( 'Gutscheine im Ticket-Checkout', 'pass-captain' ) => array( $provider, $provider ? __( 'aktiv (Anbieter-Vertrag v1)', 'pass-captain' ) : __( 'kein kompatibler Gutschein-Anbieter – Voucher Captain aktualisieren', 'pass-captain' ) ),
+			__( 'Gutscheine im Ticket-Checkout', 'pass-captain' ) => array( $provider, $provider ? __( 'aktiv (Anbieter-Vertrag v1)', 'pass-captain' ) : self::incompatible_text() ),
 			__( 'Gutschein → Ticket', 'pass-captain' ) => array( $tickets, $tickets ? __( 'verfügbar – Ticketart am Voucher-Captain-Produkt wählen', 'pass-captain' ) : __( 'nicht verfügbar – Voucher Captain aktualisieren', 'pass-captain' ) ),
 			__( 'Gemeinsamer Scanner', 'pass-captain' ) => array( $scanner, $scanner ? __( 'Der Voucher-Captain-Scanner erkennt auch Pass-Captain-Tickets (Recht „wpcap_checkin“ nötig).', 'pass-captain' ) : __( 'nicht verfügbar – Voucher Captain aktualisieren', 'pass-captain' ) ),
 		);
+	}
+
+	/** Text for a missing or incompatible provider (the provider's contract version when it declares one). */
+	private static function incompatible_text() {
+		$version = Bridge::incompatible_contract();
+		if ( '' === $version ) {
+			return __( 'kein kompatibler Gutschein-Anbieter – Voucher Captain aktualisieren', 'pass-captain' );
+		}
+		/* translators: 1: contract version of the provider, 2: supported contract version */
+		return sprintf( __( 'Gutschein-Anbieter mit Vertrag %1$s ist nicht kompatibel (unterstützt: %2$s.x) – Voucher Captain oder Pass Captain aktualisieren', 'pass-captain' ), $version, strtok( Bridge::CONTRACT, '.' ) );
 	}
 
 	public static function render() {

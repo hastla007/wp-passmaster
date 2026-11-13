@@ -8,7 +8,7 @@ Hintergrundadapter können idempotente Jobs über `PassCaptain\Jobs::enqueue()` 
 
 ## Affiliate Captain
 
-`src/Integrations/AffiliateCaptain/Adapter.php` verbindet Pass Captain mit Affiliate Captain über dessen öffentlichen Vertrag v1 (`wpac_record_sale()`, `wpac_record_refund()`, `wpac_resolve_partner_code()`, `wpac_current_touch()`). Kein Zugriff auf Tabellen von Affiliate Captain; ohne Affiliate Captain oder bei anderer Vertrags-Hauptversion ist der Adapter inaktiv.
+`src/Integrations/AffiliateCaptain/Adapter.php` verbindet Pass Captain mit Affiliate Captain über dessen öffentlichen Vertrag v1 (`wpac_record_sale()`, `wpac_record_refund()`, `wpac_resolve_partner_code()`, `wpac_current_touch()`). Kein Zugriff auf Tabellen von Affiliate Captain; ohne Affiliate Captain oder bei anderer Vertrags-Hauptversion (bzw. wenn `wpac_contract_version()` scheitert) ist der Adapter inaktiv, jede Minor-Version von 1.x wird akzeptiert. Ausnahmen und Timeouts von Affiliate Captain brechen den Pass-Captain-Ablauf nie ab: Sie werden als `affiliate_sale_failed` auditiert, die Bestellung gilt dann als nicht gemeldet und wird beim nächsten `wpcap_order_paid` genau einmal gemeldet. Versionsregel und Vertrags-Fixtures: [CONTRACTS.md](CONTRACTS.md).
 
 | Pass Captain | Affiliate Captain |
 |---|---|

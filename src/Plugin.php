@@ -30,6 +30,7 @@ final class Plugin {
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_site_tables' ), 10, 2 );
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
 		add_filter( 'rest_post_dispatch', array( DeveloperKeys::class, 'retry_after_header' ) );
+		Contracts::register();
 		Admin\Menu::register();
 		add_action( 'admin_post_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'admin_post_nopriv_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );

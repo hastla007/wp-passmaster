@@ -1,0 +1,61 @@
+{
+  "contract": "developer",
+  "version": "1.0",
+  "description": "Entwickler-API (Header X-WPCAP-Key), nur lesend. Requests sind Parameter mit Platzhaltern, Responses Shapes.",
+  "endpoints": {
+    "GET /developer/events/{event_id}": {
+      "direction": "inbound",
+      "request": {
+        "event_id": "{{event_id}}"
+      },
+      "response": {
+        "event_id": "string",
+        "name": "string",
+        "slug": "string",
+        "description": "string",
+        "status": "string"
+      }
+    },
+    "GET /developer/events/{event_id}/service-slots": {
+      "direction": "inbound",
+      "request": {
+        "event_id": "{{event_id}}"
+      },
+      "response": [
+        {
+          "slot_id": "int",
+          "resource_id": "int",
+          "resource_name": "string",
+          "starts_at": "string",
+          "ends_at": "string",
+          "capacity": "int",
+          "booked": "int",
+          "status": "string"
+        }
+      ]
+    },
+    "GET /events/{event_id}/reports/summary": {
+      "direction": "inbound",
+      "request": {
+        "event_id": "{{event_id}}",
+        "from": "{{from}}",
+        "to": "{{to}}"
+      },
+      "response": {
+        "event_id": "int",
+        "from": "string",
+        "to": "string",
+        "sales_by_currency": [
+          {
+            "currency": "string",
+            "orders_count": "int",
+            "tickets_sold": "int",
+            "gross_minor": "int"
+          }
+        ],
+        "checkins": "int",
+        "financial_basis": "string"
+      }
+    }
+  }
+}

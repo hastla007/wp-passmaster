@@ -1,0 +1,113 @@
+{
+  "contract": "voucher_provider",
+  "version": "1.0",
+  "description": "Voucher-Captain-Bridge. Ausgehend (Pass Captain ruft den Gutschein-Anbieter des Filters wp_pass_captain_voucher_provider_v1): request = Shape dessen, was Pass Captain sendet, response = Beispiel der kleinsten gültigen Anbieter-Antwort. Eingehend (Voucher Captain ruft den Ticket-Service wp_pass_captain_ticket_service_v1): request = Beispiel, response = Shape.",
+  "endpoints": {
+    "provider.quote": {
+      "direction": "outbound",
+      "response": {
+        "amount_minor": 1500,
+        "currency": "EUR"
+      },
+      "request": {
+        "code": "string",
+        "currency": "string",
+        "amount_minor": "int",
+        "tax_minor": "int",
+        "customer_email": "string",
+        "order_reference": "string",
+        "lines": [
+          {
+            "ticket_type_id": "int",
+            "event": "string",
+            "name": "string",
+            "quantity": "int",
+            "line_total_minor": "int",
+            "tax_rate_bp": "int"
+          }
+        ]
+      }
+    },
+    "provider.reserve": {
+      "direction": "outbound",
+      "request": {
+        "quote": "object",
+        "idempotency_key": "string"
+      },
+      "response": {
+        "reservation": "r-1"
+      }
+    },
+    "provider.commit": {
+      "direction": "outbound",
+      "request": {
+        "reservation": "object",
+        "idempotency_key": "string"
+      },
+      "response": {
+        "redemption": "d-1"
+      }
+    },
+    "provider.release": {
+      "direction": "outbound",
+      "request": {
+        "reservation": "object",
+        "idempotency_key": "string"
+      },
+      "response": true
+    },
+    "provider.refund": {
+      "direction": "outbound",
+      "request": {
+        "redemption": "object",
+        "amount_minor": "int",
+        "idempotency_key": "string"
+      },
+      "response": true
+    },
+    "ticket_service.issue_tickets": {
+      "direction": "inbound",
+      "request": {
+        "source": {
+          "provider": "voucher-captain",
+          "voucher_id": 4711,
+          "redemption_key": "{{redemption_key}}",
+          "code_hint": "1234"
+        },
+        "idempotency_key": "{{idempotency_key}}",
+        "target": {
+          "ticket_type_id": "{{ticket_type_id}}",
+          "quantity": 1
+        },
+        "recipient": {
+          "email": "{{email}}",
+          "name": "Gutschein Gast"
+        }
+      },
+      "response": {
+        "order_id": "int",
+        "order_public_id": "string",
+        "ticket_ids": [
+          "string"
+        ],
+        "status": "string",
+        "reused": "bool",
+        "event": "string",
+        "ticket_name": "string",
+        "starts_at": "string",
+        "email": "string"
+      }
+    },
+    "ticket_service.revoked_action": {
+      "direction": "outbound",
+      "response": null,
+      "request": {
+        "redemption_key": "string",
+        "order_public_id": "string",
+        "remaining": "int",
+        "revoked": "int",
+        "reason": "string"
+      }
+    }
+  }
+}
