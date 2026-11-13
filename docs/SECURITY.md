@@ -36,7 +36,7 @@ Jede Admin-Seite, jeder admin-post-Handler und jede authentifizierte REST-Route 
 
 **Öffentliche REST-Routen** (bewusst ohne Anmeldung; Schutz durch Zugangstoken, Signatur, Rate-Limit oder nur
 öffentliche Daten): Eventliste, Checkout und Checkout-Optionen, Bestellportal (`/orders/{id}` sowie
-`transfer`, `resend`, `assign`, `billing`, `payout-account`, `exchange` – Zugangstoken im Callback),
+`transfer`, `resend`, `assign`, `billing`, `payout-account`, `exchange`, `refund-request` – Zugangstoken im Callback, bei `refund-request` zusätzlich Nonce),
 Sitzplätze und Sitzplatz-Holds, Servicezeiten und -buchungen, Rabatt-Vorschau, Warteliste (Eintragen,
 Angebot annehmen/ablehnen mit Token), Event-Übersetzung lesen, Zahlungs-Webhooks (Anbietersignatur),
 SMS-Statusrückmeldungen (Signatur), Apple-Wallet-Webservice (Authentifizierungstoken des Passes),

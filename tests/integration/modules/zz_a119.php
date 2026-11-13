@@ -41,6 +41,7 @@ $a119_registrars = array(
 	'src/Seating/Rest.php' => array( PassCaptain\Seating\Rest::class, 'register_routes' ),
 	'src/Exchange/Portal.php' => array( PassCaptain\Exchange\Portal::class, 'register_routes' ),
 	'src/Admission/Rest.php' => array( PassCaptain\Admission\Rest::class, 'routes' ),
+	'src/PortalSelfService.php' => array( PassCaptain\PortalSelfService::class, 'register_routes' ),
 );
 $a119_files = array();
 $a119_it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $a119_root . '/src', FilesystemIterator::SKIP_DOTS ) );
@@ -73,6 +74,7 @@ $a119_public = array(
 	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/billing',
 	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/payout-account',
 	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/exchange',
+	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/refund-request',
 	'GET wp-pass-captain/v1/events/(?P<event_id>\d+)/seats',
 	'POST wp-pass-captain/v1/events/(?P<event_id>\d+)/seat-holds',
 	'GET wp-pass-captain/v1/events/(?P<event_id>\d+)/service-slots',

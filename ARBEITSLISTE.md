@@ -265,7 +265,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Käuferlimits Allocations/BuyerLimits.php:123, Laufzeit Campaigns.php:24; Stapelung fest (max. 3, immer kumulativ, Campaigns.php:18), keine konfigurierbaren Stapelregeln
 - [x] **A118** Ticketlink/QR, E-Mail, Druck, Portal, PDF, Selbstbedienung — _TEILWEISE_ (TODO L43; P0 – QR-Ticket und Online-Check-in)
   - PDF vorhanden (TicketPdf.php:18, Anhang Orders.php:1429); Portal (OrderPortal.php:92) ohne PDF-Download und Storno-/Erstattungsanfrage
-- [ ] **A119** Granulare Scopes, Finanzrollen, PII-Minimierung, Admin/REST-Abdeckung — _TEILWEISE_ (TODO L44; P0 – QR-Ticket und Online-Check-in)
+- [x] **A119** Granulare Scopes, Finanzrollen, PII-Minimierung, Admin/REST-Abdeckung — _TEILWEISE_ (TODO L44; P0 – QR-Ticket und Online-Check-in)
   - Finanz-/Partnerrolle Installer.php:854-855, Eventscope Access.php:8; keine Standort-/Partner-Scopes, keine PII-Minimierung je Rolle
 - [x] **A120** Installierbare PWA-Abnahme für Browser/Endgeräte dokumentieren — _OFFEN_ (TODO L46; P0 – QR-Ticket und Online-Check-in)
   - Manifest/SW vorhanden (docs/OFFLINE-SCANNER.md:125-126), aber keine Geräte-/Browser-Abnahmematrix dokumentiert
@@ -319,7 +319,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Nur Event-Ebene (Access.php:19 wpcap_event_staff) plus Bereichs-Staff; keine Termin- oder Partnerleistungs-Zuweisung
 - [ ] **A145** Serverseitige Objektberechtigung in allen Kanälen — _TEILWEISE_ (TODO L149; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - Breit umgesetzt (Access.php:8, can_access_event/Scope in 37 Dateien, Controller.php:726); nur Eventgranularität, keine vollständige Abdeckungsprüfung
-- [ ] **A146** Datenfelder je Rolle minimieren, Support maskiert — _TEILWEISE_ (TODO L151; P0 – Rollen, Eventscoping und Zugriffsschutz)
+- [x] **A146** Datenfelder je Rolle minimieren, Support maskiert — _TEILWEISE_ (TODO L151; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - AttendeeList.php:18-19 (basic/full), Reports/Data.php:26; Support (wpcap_manage_orders) sieht volle PII, keine Maskierung
 - [ ] **A147** Erstattungen nach Capability, Scope, Schwelle, Zweitfreigabe absichern — _TEILWEISE_ (TODO L152; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - Refunds.php:66-69,459; OrdersPage.php:36; Sammel-Autorefund bei Absage (OccurrenceCancellation.php:113) ohne Gesamtschwelle/Sammelfreigabe

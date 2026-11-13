@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP Pass Captain 1.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
-"POT-Creation-Date: 2026-11-13T20:46:48+00:00\n"
+"POT-Creation-Date: 2026-11-13T20:52:36+00:00\n"
 "PO-Revision-Date: 2026-11-11 22:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: Italian\n"
@@ -14,7 +14,7 @@ msgstr ""
 "X-Domain: wp-pass-captain\n"
 
 #. Plugin Name of the plugin
-#: wp-pass-captain.php src/Admin/Menu.php:92
+#: wp-pass-captain.php src/Admin/Menu.php:93
 #: src/Integrations/WooCommerce/CartPricing.php:83
 msgid "WP Pass Captain"
 msgstr "WP Pass Captain"
@@ -74,7 +74,7 @@ msgstr "https://github.com/hastla007"
 msgid "Keine Berechtigung."
 msgstr "Autorizzazione mancante."
 
-#: src/Admin/AuditLogPage.php:95 src/Admin/Menu.php:200
+#: src/Admin/AuditLogPage.php:95 src/Admin/Menu.php:201
 msgid "Audit-Log"
 msgstr ""
 
@@ -180,10 +180,10 @@ msgstr ""
 #: src/OfflineScanner/AdminPage.php:36 src/OfflineScanner/AdminPage.php:54
 #: src/OfflineScanner/AdminPage.php:60 src/Passes/Definitions.php:189
 #: src/Passes/Definitions.php:226 src/Passes/Definitions.php:305
-#: src/Passes/Definitions.php:320 src/Rest/Controller.php:655
-#: src/Rest/Controller.php:694 src/Rest/Controller.php:730
-#: src/Rest/Controller.php:762 src/Rest/Controller.php:783
-#: src/Rest/Controller.php:809 src/Seating/Layouts.php:461
+#: src/Passes/Definitions.php:320 src/Rest/Controller.php:656
+#: src/Rest/Controller.php:695 src/Rest/Controller.php:732
+#: src/Rest/Controller.php:764 src/Rest/Controller.php:785
+#: src/Rest/Controller.php:811 src/Seating/Layouts.php:461
 #: src/Series/Generator.php:69 src/Series/Pools.php:64 src/Series/Pools.php:104
 #: src/Series/Pricing.php:182 src/Series/Pricing.php:210
 #: src/Series/Pricing.php:232
@@ -195,7 +195,7 @@ msgid "Codes für alle Events kann nur die Administration anlegen."
 msgstr "Solo l'amministrazione può creare codici validi per tutti gli eventi."
 
 #: src/Admin/CampaignsPage.php:47 src/Allocations/BuyerLimits.php:78
-#: src/Rest/Controller.php:661
+#: src/Rest/Controller.php:662
 msgid "Die Ticketart gehört nicht zu diesem Event."
 msgstr "Il tipo di biglietto non appartiene a questo evento."
 
@@ -215,7 +215,7 @@ msgstr "Codice sconto creato."
 msgid "Status gespeichert."
 msgstr "Stato salvato."
 
-#: src/Admin/CampaignsPage.php:103 src/Admin/Menu.php:190
+#: src/Admin/CampaignsPage.php:103 src/Admin/Menu.php:191
 msgid "Rabattcodes"
 msgstr "Codici sconto"
 
@@ -240,7 +240,7 @@ msgstr "Codice"
 #. translators: 1: ticket number, 2: event and ticket name
 #: src/Admin/CampaignsPage.php:112 src/Admin/ChangeHistory.php:91
 #: src/Admin/EventsPage.php:961 src/Admin/EventsPage.php:999
-#: src/Admin/TicketsPage.php:269 src/Allocations/AdminPage.php:247
+#: src/Admin/TicketsPage.php:271 src/Allocations/AdminPage.php:247
 #: src/Allocations/AdminPage.php:297 src/BoxOffice/Page.php:151
 #: src/BoxOffice/ShiftPage.php:396 src/BoxOffice/ShiftPage.php:419
 #: src/GuestLists/Page.php:157 src/GuestLists/Page.php:240
@@ -249,7 +249,7 @@ msgstr "Codice"
 #: src/Integrations/WooCommerce/Attendees.php:193
 #: src/Integrations/WooCommerce/Attendees.php:328 src/Modules/GuestLists.php:93
 #: src/Partners/AdminPage.php:246 src/Passes/AdminPage.php:169
-#: src/Printing/AttendeeList.php:34 src/Printing/AttendeeList.php:48
+#: src/Printing/AttendeeList.php:35 src/Printing/AttendeeList.php:49
 #: src/Printing/NoShowList.php:39 src/Printing/NoShowList.php:43
 #: src/Printing/Page.php:90 src/Printing/Page.php:97 src/PublicEvents.php:41
 #: src/Seating/AdminPage.php:124 src/Seating/AdminPage.php:171
@@ -301,7 +301,7 @@ msgstr "Sconto totale"
 #: src/OfflineScanner/AdminPage.php:153 src/OfflineScanner/AdminPage.php:182
 #: src/Partners/AdminPage.php:246 src/Partners/AdminPage.php:295
 #: src/Partners/AdminPage.php:495 src/Partners/AdminPage.php:568
-#: src/Printing/AttendeeList.php:34 src/Printing/AttendeeList.php:48
+#: src/Printing/AttendeeList.php:35 src/Printing/AttendeeList.php:49
 #: src/Privacy.php:131 src/Privacy.php:180 src/Privacy.php:216
 #: src/Series/AdminPage.php:338 src/Waitlists/AdminPage.php:116
 #: src/WalletPasses/AdminPage.php:159 src/WalletPasses/AppleProvider.php:76
@@ -407,7 +407,7 @@ msgstr "Valuta"
 #: src/Mail/Types.php:367 src/Mail/Types.php:383
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:811
 #: src/Partners/Settlements.php:821 src/Partners/Statement.php:171
-#: src/Privacy.php:186 src/Reports/Data.php:389 src/Reports/Page.php:98
+#: src/Privacy.php:186 src/Reports/Data.php:393 src/Reports/Page.php:98
 #: src/Seating/AdminPage.php:110 src/Seating/AdminPage.php:122
 #: src/Series/AdminPage.php:103 src/Waitlists.php:652
 #: src/Waitlists/AdminPage.php:87 src/blocks/events/editor.js:16
@@ -688,9 +688,9 @@ msgstr "Etichetta"
 #: src/Mail/Types.php:66 src/Mail/Types.php:368 src/Mail/Types.php:384
 #: src/Partners/AdminPage.php:378 src/Partners/AdminPage.php:390
 #: src/Partners/AdminPage.php:401 src/Partners/AdminPage.php:414
-#: src/Printing/AttendeeList.php:34 src/Printing/AttendeeList.php:48
+#: src/Printing/AttendeeList.php:35 src/Printing/AttendeeList.php:49
 #: src/Printing/NoShowList.php:39 src/Printing/NoShowList.php:43
-#: src/Privacy.php:188 src/Reports/Data.php:389 src/Reports/Page.php:98
+#: src/Privacy.php:188 src/Reports/Data.php:393 src/Reports/Page.php:98
 #: src/Reports/Settlement.php:247 src/Reports/Settlement.php:311
 #: src/Reports/Settlement.php:329 src/Seating/AdminPage.php:239
 #: src/Seating/Picker.php:25 src/Series/AdminPage.php:482
@@ -904,8 +904,8 @@ msgstr "Attualmente presenti"
 #: src/GuestLists/Service.php:677 src/OfflineScanner/AdminPage.php:153
 #: src/OfflineScanner/AdminPage.php:168 src/Partners/AdminPage.php:401
 #: src/Partners/AdminPage.php:412 src/Passes/AdminPage.php:242
-#: src/Printing/Page.php:70 src/PublicEvents.php:384 src/Reports/Data.php:389
-#: src/Reports/Data.php:403 src/Reports/Page.php:98 src/Reports/Page.php:106
+#: src/Printing/Page.php:70 src/PublicEvents.php:384 src/Reports/Data.php:393
+#: src/Reports/Data.php:407 src/Reports/Page.php:98 src/Reports/Page.php:106
 #: src/Reports/Page.php:134 src/Series/AdminPage.php:297
 #: src/Series/AdminPage.php:616 templates/event-card.php:33
 #: src/blocks/events/editor.js:17
@@ -920,7 +920,7 @@ msgstr "Presenti"
 msgid "Alle Ergebnisse"
 msgstr "Tutti i risultati"
 
-#: src/Admin/CheckinsPage.php:79 src/Admin/Menu.php:188
+#: src/Admin/CheckinsPage.php:79 src/Admin/Menu.php:189
 msgid "Check-ins"
 msgstr "Check-in"
 
@@ -949,7 +949,7 @@ msgstr "Data e ora in %s"
 #: src/Consents.php:523 src/Consents.php:611
 #: src/Fiscalization/Providers/FiskaltrustAdapter.php:61
 #: src/Integrations/WooCommerce/OrderAdapter.php:1041
-#: src/Printing/AttendeeList.php:48 src/Printing/NoShowList.php:43
+#: src/Printing/AttendeeList.php:49 src/Printing/NoShowList.php:43
 #: src/TicketPage.php:58 src/WalletPasses/AppleProvider.php:67
 msgid "Ticket"
 msgstr "Biglietto"
@@ -971,7 +971,7 @@ msgstr "Codice di abbinamento creato. Scansionalo ora con l'app."
 msgid "Gerät widerrufen."
 msgstr "Dispositivo revocato."
 
-#: src/Admin/DevicesPage.php:63 src/Admin/Menu.php:191
+#: src/Admin/DevicesPage.php:63 src/Admin/Menu.php:192
 msgid "Scanner-Geräte"
 msgstr "Dispositivi scanner"
 
@@ -1004,7 +1004,7 @@ msgid "Neues Gerät koppeln"
 msgstr "Abbina nuovo dispositivo"
 
 #: src/Admin/DevicesPage.php:74 src/Admin/DevicesPage.php:84
-#: src/Admin/EventsPage.php:719 src/Admin/Menu.php:185
+#: src/Admin/EventsPage.php:719 src/Admin/Menu.php:186
 #: src/Partners/AdminPage.php:246 src/Partners/AdminPage.php:311
 #: src/Partners/AdminPage.php:524
 msgid "Events"
@@ -1097,7 +1097,7 @@ msgstr "scaduto"
 
 #. translators: %d: number of scans
 #: src/Admin/DevicesPage.php:90 src/Admin/Forms.php:504
-#: src/Admin/TicketsPage.php:260 src/Consents.php:530
+#: src/Admin/TicketsPage.php:262 src/Consents.php:530
 #: src/Partners/AdminPage.php:510
 msgid "Widerrufen"
 msgstr "Revocato"
@@ -1143,7 +1143,7 @@ msgstr "Impossibile salvare il tipo di biglietto."
 #: src/Allocations/BuyerLimits.php:75 src/Exchange/Policy.php:86
 #: src/GuestLists/Service.php:175 src/OfflineScanner/AdminPage.php:35
 #: src/OfflineScanner/AdminPage.php:53 src/Partners/Api.php:164
-#: src/Rest/Controller.php:749 src/Rest/Controller.php:790
+#: src/Rest/Controller.php:751 src/Rest/Controller.php:792
 #: src/Seating/Layouts.php:443 src/Series/Generator.php:68
 msgid "Event nicht gefunden."
 msgstr "Evento non trovato."
@@ -1158,8 +1158,8 @@ msgstr "Gli eventi annullati non possono più essere modificati."
 #: src/Allocations/Holds.php:380 src/GuestLists/Service.php:578
 #: src/GuestLists/Service.php:601 src/OfflineScanner/Rest.php:62
 #: src/Partners/Sales.php:344 src/Passes/Definitions.php:319
-#: src/Reports/Settlement.php:361 src/Rest/Controller.php:633
-#: src/Rest/Controller.php:861 src/Seating/Layouts.php:606
+#: src/Reports/Settlement.php:361 src/Rest/Controller.php:634
+#: src/Rest/Controller.php:863 src/Seating/Layouts.php:606
 msgid "Termin nicht gefunden."
 msgstr "Data non trovata."
 
@@ -1795,7 +1795,7 @@ msgstr "Testo"
 
 #. translators: 1: list, 2: used, 3: quota
 #: src/Admin/EventsPage.php:1032 src/Admin/OrdersPage.php:282
-#: src/Admin/TicketsPage.php:270 src/GuestLists/Page.php:261
+#: src/Admin/TicketsPage.php:272 src/GuestLists/Page.php:261
 #: src/GuestLists/Page.php:290 src/GuestLists/Service.php:677
 #: src/Integrations/WooCommerce/Attendees.php:194
 #: src/Integrations/WooCommerce/Attendees.php:329 src/Mail/Admin.php:202
@@ -1856,11 +1856,11 @@ msgstr "Nessun campo partecipante."
 msgid "Einwilligung"
 msgstr ""
 
-#: src/Admin/EventsPage.php:1060 src/Admin/Queries.php:384
+#: src/Admin/EventsPage.php:1060 src/Admin/Queries.php:386
 msgid "Ja"
 msgstr "Sì"
 
-#: src/Admin/EventsPage.php:1060 src/Admin/Queries.php:384
+#: src/Admin/EventsPage.php:1060 src/Admin/Queries.php:386
 msgid "Nein"
 msgstr "No"
 
@@ -1982,13 +1982,13 @@ msgid "Bezahlt, ohne Kontingent"
 msgstr "Pagato, senza contingente"
 
 #: src/Admin/Forms.php:499 src/Admin/TaxPage.php:100
-#: src/Printing/AttendeeList.php:32
+#: src/Printing/AttendeeList.php:33
 msgid "Gültig"
 msgstr "Valido"
 
 #: src/Admin/Forms.php:500 src/GuestLists/Page.php:322
-#: src/GuestLists/Service.php:677 src/Printing/AttendeeList.php:32
-#: src/Reports/Data.php:403 src/Reports/Settlement.php:268
+#: src/GuestLists/Service.php:677 src/Printing/AttendeeList.php:33
+#: src/Reports/Data.php:407 src/Reports/Settlement.php:268
 #: src/Reports/Settlement.php:337
 msgid "Eingecheckt"
 msgstr "Check-in effettuato"
@@ -2178,108 +2178,108 @@ msgstr "Da fare:"
 msgid "Checkliste ausblenden"
 msgstr "Nascondi checklist"
 
-#: src/Admin/Menu.php:70
+#: src/Admin/Menu.php:71
 msgid "WP Pass Captain: Das Datenbank-Update ist unvollständig."
 msgstr "WP Pass Captain: l'aggiornamento del database è incompleto."
 
-#: src/Admin/Menu.php:70
+#: src/Admin/Menu.php:71
 msgid "Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren."
 msgstr "Mancano tabelle o colonne; il plugin continua a funzionare con lo schema precedente. Controlla i permessi del database, quindi disattiva e riattiva il plugin."
 
-#: src/Admin/Menu.php:93
+#: src/Admin/Menu.php:94
 msgid "Pass Captain"
 msgstr "Pass Captain"
 
-#: src/Admin/Menu.php:118
+#: src/Admin/Menu.php:119
 msgid "Events & Programm"
 msgstr "Eventi e programma"
 
-#: src/Admin/Menu.php:119 src/BoxOffice/Page.php:51
+#: src/Admin/Menu.php:120 src/BoxOffice/Page.php:51
 #: src/Partners/Settlements.php:56 src/Partners/Statement.php:172
 msgid "Verkauf"
 msgstr "Vendita"
 
-#: src/Admin/Menu.php:120 src/Admin/SettingsPage.php:221
+#: src/Admin/Menu.php:121 src/Admin/SettingsPage.php:221
 #: src/Admission/Rest.php:96 src/Passes/AdminPage.php:140
 #: src/PublicEvents.php:114 src/PublicEvents.php:119
 #: templates/event-card.php:35
 msgid "Einlass"
 msgstr "Ingresso"
 
-#: src/Admin/Menu.php:121
+#: src/Admin/Menu.php:122
 msgid "Finanzen & Auswertung"
 msgstr "Finanze e report"
 
-#: src/Admin/Menu.php:122
+#: src/Admin/Menu.php:123
 msgid "Kommunikation"
 msgstr "Comunicazione"
 
-#: src/Admin/Menu.php:123
+#: src/Admin/Menu.php:124
 msgid "Einstellungen & Integrationen"
 msgstr "Impostazioni e integrazioni"
 
-#: src/Admin/Menu.php:183 src/Admin/Menu.php:189 src/Admin/OrdersPage.php:530
+#: src/Admin/Menu.php:184 src/Admin/Menu.php:190 src/Admin/OrdersPage.php:530
 #: src/Admin/SettingsPage.php:120 src/BoxOffice/ZReport.php:381
 #: src/Reports/Page.php:78
 msgid "Erstattungen"
 msgstr "Rimborsi"
 
-#: src/Admin/Menu.php:186 src/Admin/OrdersPage.php:268
+#: src/Admin/Menu.php:187 src/Admin/OrdersPage.php:268
 #: src/Exchange/AdminPage.php:127
 msgid "Bestellungen"
 msgstr "Ordini"
 
 #. translators: 1: list, 2: used, 3: quota
-#: src/Admin/Menu.php:187 src/Admin/OrdersPage.php:461
+#: src/Admin/Menu.php:188 src/Admin/OrdersPage.php:461
 #: src/Admin/OrdersPage.php:576 src/Admin/TicketsPage.php:215
 #: src/BoxOffice/ZReport.php:383 src/GuestLists/Page.php:261
 #: src/GuestLists/Service.php:677 src/OrderPortal.php:113
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:804
 #: src/Partners/Settlements.php:811 src/Partners/Settlements.php:821
 #: src/Partners/Statement.php:171 src/Payments/PayPalGateway.php:451
-#: src/Payments/StripeGateway.php:311 src/Reports/Data.php:386
+#: src/Payments/StripeGateway.php:311 src/Reports/Data.php:390
 #: src/Reports/Page.php:78 src/Reports/Page.php:143
 #: src/Reports/Settlement.php:261 src/Reports/Settlement.php:329
 #: templates/event-card.php:53
 msgid "Tickets"
 msgstr "Biglietti"
 
-#: src/Admin/Menu.php:192 src/Admin/TaxPage.php:76
+#: src/Admin/Menu.php:193 src/Admin/TaxPage.php:76
 msgid "Steuerprüfung"
 msgstr ""
 
-#: src/Admin/Menu.php:199 src/Allocations/AdminPage.php:212
+#: src/Admin/Menu.php:200 src/Allocations/AdminPage.php:212
 #: src/Partners/AdminPage.php:254 src/Passes/AdminPage.php:261
 #: src/Waitlists/AdminPage.php:139
 msgid "Einstellungen"
 msgstr "Impostazioni"
 
-#: src/Admin/Menu.php:203 src/Integrations/Vouchers/IntegrationStatus.php:33
+#: src/Admin/Menu.php:204 src/Integrations/Vouchers/IntegrationStatus.php:33
 #: src/Integrations/Vouchers/IntegrationStatus.php:44
 msgid "Gemeinsamer Scanner"
 msgstr "Scanner condiviso"
 
-#: src/Admin/Menu.php:203
+#: src/Admin/Menu.php:204
 msgid "Gemeinsamer Scanner ↗"
 msgstr "Scanner condiviso ↗"
 
-#: src/Admin/Menu.php:204 src/Integrations/Vouchers/IntegrationStatus.php:22
+#: src/Admin/Menu.php:205 src/Integrations/Vouchers/IntegrationStatus.php:22
 #: src/Integrations/Vouchers/IntegrationStatus.php:30
 msgid "WP Voucher Captain"
 msgstr "WP Voucher Captain"
 
-#: src/Admin/Menu.php:204
+#: src/Admin/Menu.php:205
 msgid "WP Voucher Captain ↗"
 msgstr "WP Voucher Captain ↗"
 
-#: src/Admin/OrdersPage.php:35 src/Orders.php:975 src/Partners/Sales.php:446
+#: src/Admin/OrdersPage.php:35 src/Orders.php:991 src/Partners/Sales.php:446
 #: src/Payments/PayPalGateway.php:130 src/Rest/Controller.php:447
 #: src/Rest/Controller.php:527
 msgid "Bestellung nicht gefunden."
 msgstr "Ordine non trovato."
 
 #: src/Admin/OrdersPage.php:36 src/Admin/OrdersPage.php:132
-#: src/Consents.php:578 src/Rest/Controller.php:529
+#: src/Consents.php:578 src/Rest/Controller.php:529 src/Rest/Controller.php:530
 msgid "Keine Berechtigung für diese Bestellung."
 msgstr "Non hai l'autorizzazione per questo ordine."
 
@@ -2287,7 +2287,7 @@ msgstr "Non hai l'autorizzazione per questo ordine."
 msgid "Nur Bestellungen mit manueller Zahlart können hier als bezahlt markiert werden."
 msgstr "Solo gli ordini con metodo di pagamento manuale possono essere contrassegnati come pagati qui."
 
-#: src/Admin/OrdersPage.php:65 src/Orders.php:984 src/Orders.php:1472
+#: src/Admin/OrdersPage.php:65 src/Orders.php:1000 src/Orders.php:1488
 #: src/Partners/Sales.php:693 src/Partners/Sales.php:742
 msgid "Der Bestellstatus erlaubt diese Aktion nicht."
 msgstr "Lo stato dell'ordine non consente questa azione."
@@ -2398,7 +2398,7 @@ msgstr "Numero d'ordine o e-mail"
 #: src/Admin/OrdersPage.php:280 src/Admin/OrdersPage.php:574
 #: src/Allocations/AdminPage.php:331 src/Consents.php:611
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:821
-#: src/Partners/Statement.php:171 src/Printing/AttendeeList.php:48
+#: src/Partners/Statement.php:171 src/Printing/AttendeeList.php:49
 #: src/Printing/NoShowList.php:43 src/Waitlists/AdminPage.php:116
 msgid "Bestellung"
 msgstr "Ordine"
@@ -2614,7 +2614,7 @@ msgstr "Nessun biglietto ancora emesso."
 msgid "Ticket %s erstatten"
 msgstr "Rimborsa biglietto %s"
 
-#: src/Admin/OrdersPage.php:497 src/Admin/TicketsPage.php:252
+#: src/Admin/OrdersPage.php:497 src/Admin/TicketsPage.php:254
 #: src/OrderPortal.php:116
 msgid "erstattet"
 msgstr "rimborsato"
@@ -2632,7 +2632,7 @@ msgid "Alle offenen Tickets erstatten (Restbetrag der Bestellung)"
 msgstr "Rimborsa tutti i biglietti aperti (importo residuo dell'ordine)"
 
 #: src/Admin/OrdersPage.php:512 src/Admin/OrdersPage.php:577
-#: src/Admin/TicketsPage.php:258 src/BoxOffice/Page.php:241
+#: src/Admin/TicketsPage.php:260 src/BoxOffice/Page.php:241
 #: src/BoxOffice/ShiftPage.php:178 src/BoxOffice/ShiftPage.php:190
 #: src/BoxOffice/ShiftPage.php:351 src/BoxOffice/ShiftPage.php:407
 #: src/GuestLists/Page.php:214 src/GuestLists/Page.php:241
@@ -2683,7 +2683,7 @@ msgstr "Confermare la ricezione del pagamento ed emettere i biglietti?"
 msgid "Als bezahlt markieren"
 msgstr "Segna come pagato"
 
-#: src/Admin/OrdersPage.php:549 src/Admin/TicketsPage.php:278
+#: src/Admin/OrdersPage.php:549 src/Admin/TicketsPage.php:280
 #: src/PortalSelfService.php:559
 msgid "Grund (optional)"
 msgstr "Motivo (facoltativo)"
@@ -2752,7 +2752,7 @@ msgid "Ablehnen"
 msgstr "Rifiuta"
 
 #. translators: %s: occurrence label
-#: src/Admin/Queries.php:106
+#: src/Admin/Queries.php:107
 #, php-format
 msgid "%s (vergangen)"
 msgstr "%s (passata)"
@@ -3419,7 +3419,7 @@ msgstr ""
 #: src/Admin/TicketsPage.php:84 src/Admin/TicketsPage.php:118
 #: src/Checkin.php:82 src/Checkin.php:91 src/Exchange/Portal.php:59
 #: src/Exchange/Service.php:163 src/Exchange/Service.php:1226
-#: src/Orders.php:1820 src/PortalSelfService.php:175
+#: src/Orders.php:1836 src/PortalSelfService.php:175
 #: src/PortalSelfService.php:412 src/PortalSelfService.php:591
 msgid "Ticket nicht gefunden."
 msgstr "Biglietto non trovato."
@@ -3508,41 +3508,67 @@ msgstr "Evento / Data"
 msgid "Keine Tickets gefunden."
 msgstr "Nessun biglietto trovato."
 
-#: src/Admin/TicketsPage.php:259
+#: src/Admin/TicketsPage.php:261
 msgid "Platz freigeben"
 msgstr "Libera posto"
 
-#: src/Admin/TicketsPage.php:260
+#: src/Admin/TicketsPage.php:262
 msgid "Ticket widerrufen? Es kann danach nicht mehr eingelöst werden. Eine Erstattung erfolgt nicht automatisch."
 msgstr "Revocare il biglietto? Dopo la revoca non potrà più essere utilizzato. Il rimborso non viene effettuato automaticamente."
 
-#: src/Admin/TicketsPage.php:263
+#: src/Admin/TicketsPage.php:265
 msgid "Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink."
 msgstr "Riemettere il biglietto? Il codice precedente diventerà non valido e il titolare riceverà un nuovo link del biglietto."
 
-#: src/Admin/TicketsPage.php:263
+#: src/Admin/TicketsPage.php:265
 msgid "Neu ausstellen"
 msgstr "Riemetti"
 
-#: src/Admin/TicketsPage.php:267
+#: src/Admin/TicketsPage.php:269
 msgid "Teilnehmerdaten korrigieren"
 msgstr ""
 
-#: src/Admin/TicketsPage.php:271
+#: src/Admin/TicketsPage.php:273
 msgid "Grund der Korrektur"
 msgstr ""
 
-#: src/Admin/TicketsPage.php:272
+#: src/Admin/TicketsPage.php:274
 msgid "Korrektur speichern"
 msgstr ""
 
-#: src/Admin/TicketsPage.php:273
+#: src/Admin/TicketsPage.php:275
 msgid "Nur für Tippfehler derselben Person; der Ticketcode bleibt gültig. Für eine andere Person „Neu ausstellen“ verwenden."
 msgstr ""
 
-#: src/Admin/TicketsPage.php:279
+#: src/Admin/TicketsPage.php:281
 msgid "Check-in zurücknehmen"
 msgstr "Annulla check-in"
+
+#: src/Admin/UserScope.php:36
+msgid "Pass Captain: Zugriffsbereich"
+msgstr ""
+
+#: src/Admin/UserScope.php:37
+msgid "Optional: beschränkt diese Person zusätzlich zu ihren Event-Zuweisungen auf Spielorte und/oder Veranstalter. Leer lassen = keine zusätzliche Einschränkung. Administratoren sind nie eingeschränkt."
+msgstr ""
+
+#: src/Admin/UserScope.php:41
+msgid "Spielorte"
+msgstr ""
+
+#: src/Admin/UserScope.php:44
+msgid "Ein Ort pro Zeile, genau wie beim Termin eingetragen (Groß-/Kleinschreibung egal). Die Person sieht nur Termine an diesen Orten."
+msgstr ""
+
+#: src/Admin/UserScope.php:49 src/Modules/Partners.php:255
+#: src/Partners/AdminPage.php:224 src/Partners/AdminPage.php:552
+#: src/Partners/AdminPage.php:568 src/Partners/Settlements.php:758
+msgid "Veranstalter"
+msgstr "Organizzatore"
+
+#: src/Admin/UserScope.php:51
+msgid "Nur Events der Veranstalter, mit denen diese Person verknüpft ist"
+msgstr ""
 
 #: src/Admission/Areas.php:44
 msgid "Bitte einen Namen für den Bereich angeben."
@@ -3741,7 +3767,7 @@ msgstr "Data non valida."
 msgid "Zu viele Tage (höchstens 366)."
 msgstr "Troppi giorni (massimo 366)."
 
-#: src/Admission/Rest.php:58 src/Rest/Controller.php:581
+#: src/Admission/Rest.php:58 src/Rest/Controller.php:582
 msgid "Der Offline-Scanbatch muss 1 bis 100 Codes enthalten."
 msgstr "Il batch di scansioni offline deve contenere da 1 a 100 codici."
 
@@ -3846,7 +3872,7 @@ msgid "Name des Bereichs"
 msgstr "Nome dell'area"
 
 #: src/Admission/RulesPage.php:209 src/Admission/RulesPage.php:223
-#: src/Allocations/AdminPage.php:202 src/Reports/Data.php:403
+#: src/Allocations/AdminPage.php:202 src/Reports/Data.php:407
 #: src/Reports/Settlement.php:266 src/Reports/Settlement.php:335
 #: src/Seating/AdminPage.php:168
 msgid "Kapazität"
@@ -4174,7 +4200,7 @@ msgid "Nutzung der Kontingente"
 msgstr "Utilizzo dei contingenti"
 
 #: src/Allocations/AdminPage.php:331 src/Exchange/AdminPage.php:127
-#: src/Reports/Data.php:399 src/Reports/Settlement.php:247
+#: src/Reports/Data.php:403 src/Reports/Settlement.php:247
 #: src/Reports/Settlement.php:251 src/Reports/Settlement.php:311
 #: src/Reports/Settlement.php:316
 msgid "Kanal"
@@ -4583,7 +4609,7 @@ msgstr "Casse"
 #: src/BoxOffice/Page.php:64 src/BoxOffice/ShiftPage.php:105
 #: src/BoxOffice/ShiftPage.php:309 src/BoxOffice/ShiftPage.php:329
 #: src/BoxOffice/ZReport.php:355 src/Modules/BoxOffice.php:299
-#: src/Reports/Data.php:78 src/Reports/Settlement.php:258
+#: src/Reports/Data.php:81 src/Reports/Settlement.php:258
 #: src/Reports/Settlement.php:259
 msgid "Kasse"
 msgstr "Cassa"
@@ -5072,7 +5098,7 @@ msgid "Bestellung:"
 msgstr "Ordine:"
 
 #: src/BoxOffice/Service.php:757 src/BoxOffice/ZReport.php:451
-#: src/Printing/AttendeeList.php:79 src/Printing/NoShowList.php:78
+#: src/Printing/AttendeeList.php:80 src/Printing/NoShowList.php:78
 #: src/Reports/Settlement.php:349
 msgid "Drucken"
 msgstr "Stampa"
@@ -5372,7 +5398,7 @@ msgstr "Chiuso"
 #: src/Partners/Settlements.php:811 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:859 src/Partners/Statement.php:171
 #: src/Printing/InvoicePdf.php:148 src/Printing/InvoicePdf.php:195
-#: src/Reports/Data.php:386 src/Reports/Page.php:143
+#: src/Reports/Data.php:390 src/Reports/Page.php:143
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Netto"
 msgstr "Netto"
@@ -5385,7 +5411,7 @@ msgstr "Grand Total"
 msgid "Differenz bar / Karte"
 msgstr "Differenza contanti / carta"
 
-#: src/BoxOffice/ShiftPage.php:329 src/Reports/Data.php:388
+#: src/BoxOffice/ShiftPage.php:329 src/Reports/Data.php:392
 msgid "Bericht"
 msgstr "Report"
 
@@ -5674,7 +5700,7 @@ msgstr "IVA"
 #: src/Partners/Settlements.php:811 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:821 src/Partners/Settlements.php:859
 #: src/Partners/Statement.php:171 src/Printing/InvoicePdf.php:150
-#: src/Printing/InvoicePdf.php:197 src/Reports/Data.php:386
+#: src/Printing/InvoicePdf.php:197 src/Reports/Data.php:390
 #: src/Reports/Page.php:143 src/Reports/Settlement.php:243
 #: src/Reports/Settlement.php:292
 msgid "Brutto"
@@ -6180,7 +6206,7 @@ msgstr "Sono necessari un evento e almeno uno scope supportato."
 msgid "API-Key konnte nicht angelegt werden."
 msgstr "Impossibile creare la chiave API."
 
-#: src/DeveloperKeys.php:44
+#: src/DeveloperKeys.php:46
 msgid "API-Key nicht gefunden oder keine Berechtigung."
 msgstr "Chiave API non trovata o autorizzazione mancante."
 
@@ -6203,7 +6229,7 @@ msgid "Einlass ab %s"
 msgstr "Ingresso dalle %s"
 
 #: src/Errors.php:18 src/Exchange/Service.php:577 src/Orders.php:330
-#: src/Orders.php:763
+#: src/Orders.php:779
 msgid "Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut."
 msgstr "Al momento c'è molta richiesta. Riprova tra un momento."
 
@@ -6468,13 +6494,13 @@ msgstr "Commissione (lorda)"
 msgid "Event-Regeln speichern"
 msgstr "Salva regole dell'evento"
 
-#: src/Exchange/Portal.php:54 src/Orders.php:1304 src/PortalSelfService.php:69
+#: src/Exchange/Portal.php:54 src/Orders.php:1320 src/PortalSelfService.php:69
 msgid "Der Bestellzugriff ist ungültig."
 msgstr "L'accesso all'ordine non è valido."
 
 #: src/Exchange/Portal.php:56 src/Orders.php:101 src/Rest/Controller.php:393
 #: src/Rest/Controller.php:479 src/Rest/Controller.php:499
-#: src/Rest/Controller.php:511 src/Rest/Controller.php:646
+#: src/Rest/Controller.php:511 src/Rest/Controller.php:647
 #: src/Seating/Rest.php:22
 msgid "Bitte warte kurz und versuche es erneut."
 msgstr "Attendi un momento e riprova."
@@ -7286,31 +7312,31 @@ msgstr "Codice di supporto per l'ingresso, nel caso in cui il codice QR non sia 
 msgid "Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den langen Ticket-Code verwenden."
 msgstr "Troppi inserimenti del codice di supporto. Attendi un momento oppure usa il codice QR o il codice lungo del biglietto."
 
-#: src/Installer.php:985 src/Installer.php:1015
+#: src/Installer.php:985 src/Installer.php:1017
 msgid "Pass Captain Veranstalter"
 msgstr "Organizzatore Pass Captain"
 
-#: src/Installer.php:1011
+#: src/Installer.php:1013
 msgid "Pass Captain Ticket-Administration"
 msgstr "Pass Captain Amministrazione biglietti"
 
-#: src/Installer.php:1012
+#: src/Installer.php:1014
 msgid "Pass Captain Veranstaltungsleitung"
 msgstr "Pass Captain Responsabile eventi"
 
-#: src/Installer.php:1013
+#: src/Installer.php:1015
 msgid "Pass Captain Vor-Ort-Kasse"
 msgstr "Pass Captain Biglietteria in sede"
 
-#: src/Installer.php:1014
+#: src/Installer.php:1016
 msgid "Pass Captain Einlasspersonal"
 msgstr "Pass Captain Personale ingressi"
 
-#: src/Installer.php:1016
+#: src/Installer.php:1018
 msgid "Pass Captain Finanzbuchhaltung"
 msgstr "Pass Captain Contabilità"
 
-#: src/Installer.php:1017
+#: src/Installer.php:1019
 msgid "Pass Captain Support"
 msgstr "Pass Captain Supporto"
 
@@ -7822,7 +7848,7 @@ msgstr "Riepilogo per aliquota"
 #: src/Invoices.php:495 src/Invoices.php:506 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:821 src/Partners/Settlements.php:859
 #: src/Printing/InvoicePdf.php:153 src/Printing/InvoicePdf.php:200
-#: src/Reports/Data.php:396 src/Reports/Settlement.php:255
+#: src/Reports/Data.php:400 src/Reports/Settlement.php:255
 #: src/Reports/Settlement.php:320
 msgid "USt-Satz"
 msgstr "Aliquota IVA"
@@ -9020,12 +9046,6 @@ msgstr "Scanner offline"
 msgid "WP Pass Captain Veranstalter-Kontakte"
 msgstr "Contatti degli organizzatori di WP Pass Captain"
 
-#: src/Modules/Partners.php:255 src/Partners/AdminPage.php:224
-#: src/Partners/AdminPage.php:552 src/Partners/AdminPage.php:568
-#: src/Partners/Settlements.php:758
-msgid "Veranstalter"
-msgstr "Organizzatore"
-
 #: src/Modules/Partners.php:256 src/Partners/AdminPage.php:544
 msgid "Veranstalter-Abrechnungen"
 msgstr "Rendiconti degli organizzatori"
@@ -9888,11 +9908,11 @@ msgstr "Questa data non è più disponibile."
 msgid "Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden."
 msgstr "I biglietti con valute diverse non possono essere ordinati insieme."
 
-#: src/Orders.php:334 src/Orders.php:764
+#: src/Orders.php:334 src/Orders.php:780
 msgid "Für diese Ticketart sind nicht mehr genügend Tickets verfügbar."
 msgstr "Non sono più disponibili biglietti sufficienti per questo tipo di biglietto."
 
-#: src/Orders.php:335 src/Orders.php:765 src/Passes/Capacity.php:180
+#: src/Orders.php:335 src/Orders.php:781 src/Passes/Capacity.php:180
 msgid "Für diesen Termin sind nicht mehr genügend Plätze verfügbar."
 msgstr "Per questa data non sono più disponibili posti sufficienti."
 
@@ -9932,86 +9952,86 @@ msgstr "«%s» non è un indirizzo e-mail valido."
 msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile registrare il pagamento. Riprova."
 
-#: src/Orders.php:1050
+#: src/Orders.php:1066
 msgid "WP Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
 msgstr "WP Pass Captain: ordine pagato senza contingente disponibile"
 
-#: src/Orders.php:1050
+#: src/Orders.php:1066
 #, php-format
 msgid "Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten)."
 msgstr "Il pagamento per l'ordine %1$s (%2$s) è arrivato dopo la scadenza della prenotazione e non c'è più contingente disponibile. Non sono stati emessi biglietti. Verifica manualmente (libera un posto o rimborsa)."
 
-#: src/Orders.php:1051
+#: src/Orders.php:1067
 msgid "Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden."
 msgstr "La prenotazione era scaduta e non c'è più contingente disponibile. L'ordine deve essere gestito manualmente."
 
-#: src/Orders.php:1125
+#: src/Orders.php:1141
 msgid "Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile annullare l'ordine. Riprova."
 
-#: src/Orders.php:1191
+#: src/Orders.php:1207
 msgid "Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt."
 msgstr "Al momento non è stato possibile contrassegnare l'ordine come rimborsato; l'operazione verrà ripetuta automaticamente."
 
-#: src/Orders.php:1300
+#: src/Orders.php:1316
 msgid "Die Übertragungsdaten sind ungültig."
 msgstr "I dati di trasferimento non sono validi."
 
-#: src/Orders.php:1307
+#: src/Orders.php:1323
 msgid "Tickets können erst nach bestätigter Zahlung übertragen werden."
 msgstr "I biglietti possono essere trasferiti solo dopo la conferma del pagamento."
 
-#: src/Orders.php:1318
+#: src/Orders.php:1334
 msgid "Dieses Ticket kann nicht mehr übertragen werden."
 msgstr "Questo biglietto non può più essere trasferito."
 
-#: src/Orders.php:1323
+#: src/Orders.php:1339
 msgid "Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich."
 msgstr "Il titolare di questo biglietto è già stato modificato; un ulteriore trasferimento non è possibile."
 
-#: src/Orders.php:1334
+#: src/Orders.php:1350
 msgid "Die Ticketübertragung konnte nicht gespeichert werden."
 msgstr "Impossibile salvare il trasferimento del biglietto."
 
-#: src/Orders.php:1357
+#: src/Orders.php:1373
 msgid "Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand."
 msgstr "Il trasferimento del biglietto è stato salvato, ma non è stato possibile consegnare l'e-mail. Contatta l'organizzatore per un nuovo invio."
 
-#: src/Orders.php:1380 src/Orders.php:1397
+#: src/Orders.php:1396 src/Orders.php:1413
 msgid "Dieses Event kann nicht abgesagt werden."
 msgstr "Questo evento non può essere annullato."
 
-#: src/Orders.php:1616 src/PortalSelfService.php:227
+#: src/Orders.php:1632 src/PortalSelfService.php:227
 #: src/WalletPasses/AppleProvider.php:73
 msgid "Dieses Ticket ist nur einmal gültig. Code nicht weitergeben."
 msgstr "Questo biglietto è valido una sola volta. Non condividere il codice."
 
-#: src/Orders.php:1668
+#: src/Orders.php:1684
 msgid "Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile emettere i biglietti. Riprova."
 
-#: src/Orders.php:1740
+#: src/Orders.php:1756
 msgid "Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile rinnovare i biglietti. Riprova."
 
-#: src/Orders.php:1744
+#: src/Orders.php:1760
 msgid "Tickets können erst nach bestätigter Zahlung erneut gesendet werden."
 msgstr "I biglietti possono essere inviati di nuovo solo dopo la conferma del pagamento."
 
-#: src/Orders.php:1754
+#: src/Orders.php:1770
 msgid "Keine gültigen Tickets für den erneuten Versand gefunden."
 msgstr "Nessun biglietto valido trovato per il nuovo invio."
 
-#: src/Orders.php:1764 src/Orders.php:1772 src/Orders.php:1830
+#: src/Orders.php:1780 src/Orders.php:1788 src/Orders.php:1846
 #: src/PortalSelfService.php:199 src/PortalSelfService.php:207
 msgid "Ticketcode konnte nicht erneuert werden."
 msgstr "Impossibile rinnovare il codice del biglietto."
 
-#: src/Orders.php:1794
+#: src/Orders.php:1810
 msgid "Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; der Versand wird automatisch wiederholt."
 msgstr "Non è stato possibile consegnare almeno un'e-mail. I codici dei biglietti sono stati rinnovati; l'invio verrà ripetuto automaticamente."
 
-#: src/Orders.php:1824
+#: src/Orders.php:1840
 msgid "Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden."
 msgstr "Possono essere riemessi solo i biglietti validi e non ancora registrati di ordini pagati."
 
@@ -11115,7 +11135,7 @@ msgstr "Aliquota IVA %"
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:694
 #: src/Partners/Settlements.php:804 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:859 src/Partners/Statement.php:171
-#: src/Reports/Data.php:386 src/Reports/Page.php:143
+#: src/Reports/Data.php:390 src/Reports/Page.php:143
 msgid "USt"
 msgstr "IVA"
 
@@ -11132,7 +11152,7 @@ msgstr "Commissione per biglietto"
 msgid "Verkaufte Tickets"
 msgstr "Biglietti venduti"
 
-#: src/Partners/Settlements.php:700 src/Reports/Data.php:386
+#: src/Partners/Settlements.php:700 src/Reports/Data.php:390
 msgid "Erstattete Tickets"
 msgstr "Biglietti rimborsati"
 
@@ -11483,7 +11503,7 @@ msgstr "Venduto su"
 msgid "Gültig für"
 msgstr "Valido per"
 
-#: src/Passes/AdminPage.php:140 src/Reports/Data.php:403
+#: src/Passes/AdminPage.php:140 src/Reports/Data.php:407
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Verkauft"
 msgstr "Venduti"
@@ -11742,7 +11762,7 @@ msgstr "Il rimborso parziale per giorno non può superare il prezzo del pass."
 msgid "Ein neu gewählter Termin hat nicht genug freie Plätze für die bereits verkauften Pässe."
 msgstr "Una data scelta di recente non ha abbastanza posti liberi per i pass già venduti."
 
-#: src/Passes/Definitions.php:304 src/Rest/Controller.php:618
+#: src/Passes/Definitions.php:304 src/Rest/Controller.php:619
 msgid "Pass nicht gefunden."
 msgstr "Pass non trovato."
 
@@ -12201,28 +12221,28 @@ msgstr ""
 msgid "Die E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut."
 msgstr ""
 
-#: src/Printing/AttendeeList.php:48 src/Printing/NoShowList.php:43
+#: src/Printing/AttendeeList.php:49 src/Printing/NoShowList.php:43
 msgid "E-Mail Teilnehmer"
 msgstr "E-mail partecipante"
 
-#: src/Printing/AttendeeList.php:48 src/Printing/NoShowList.php:43
+#: src/Printing/AttendeeList.php:49 src/Printing/NoShowList.php:43
 msgid "E-Mail Besteller"
 msgstr "E-mail ordinante"
 
-#: src/Printing/AttendeeList.php:68 src/Printing/AttendeeList.php:70
+#: src/Printing/AttendeeList.php:69 src/Printing/AttendeeList.php:71
 #: src/Printing/Page.php:77
 msgid "Teilnehmerliste"
 msgstr "Elenco partecipanti"
 
 #. translators: %d: count
-#: src/Printing/AttendeeList.php:70
+#: src/Printing/AttendeeList.php:71
 #, php-format
 msgid "%d Ticket"
 msgid_plural "%d Tickets"
 msgstr[0] "%d biglietto"
 msgstr[1] "%d biglietti"
 
-#: src/Printing/InvoicePdf.php:115 src/Reports/Data.php:116
+#: src/Printing/InvoicePdf.php:115 src/Reports/Data.php:119
 #: src/Reports/Settlement.php:253 src/Reports/Settlement.php:263
 #: src/Reports/Settlement.php:314 src/Reports/Settlement.php:331
 msgid "Gesamt"
@@ -13274,66 +13294,66 @@ msgstr "Data e ora precedenti (spostamento)"
 msgid "Link zur Kalenderdatei"
 msgstr "Link al file di calendario"
 
-#: src/Reports/Data.php:79
+#: src/Reports/Data.php:82
 msgid "Veranstalter/Wiederverkäufer (API)"
 msgstr "Organizzatore/rivenditore (API)"
 
-#: src/Reports/Data.php:80
+#: src/Reports/Data.php:83
 msgid "WooCommerce-Shop"
 msgstr "Negozio WooCommerce"
 
-#: src/Reports/Data.php:81
+#: src/Reports/Data.php:84
 msgid "Online/sonstige"
 msgstr "Online/altro"
 
-#: src/Reports/Data.php:386 src/Reports/Settlement.php:243
+#: src/Reports/Data.php:390 src/Reports/Settlement.php:243
 #: src/Reports/Settlement.php:292
 msgid "Erstattet brutto"
 msgstr "Rimborsato lordo"
 
-#: src/Reports/Data.php:386
+#: src/Reports/Data.php:390
 msgid "Erstattet USt"
 msgstr "IVA rimborsata"
 
-#: src/Reports/Data.php:386 src/Reports/Page.php:143
+#: src/Reports/Data.php:390 src/Reports/Page.php:143
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Umsatz nach Erstattung"
 msgstr "Ricavi dopo i rimborsi"
 
-#: src/Reports/Data.php:386
+#: src/Reports/Data.php:390
 msgid "USt nach Erstattung"
 msgstr "IVA dopo i rimborsi"
 
-#: src/Reports/Data.php:389 src/Reports/Page.php:98
+#: src/Reports/Data.php:393 src/Reports/Page.php:98
 msgid "Zahlungsanbieter"
 msgstr "Fornitore di pagamenti"
 
-#: src/Reports/Data.php:389
+#: src/Reports/Data.php:393
 msgid "Tag"
 msgstr "Giorno"
 
-#: src/Reports/Data.php:403
+#: src/Reports/Data.php:407
 msgid "Auslastung %"
 msgstr "Occupazione %"
 
-#: src/Reports/Data.php:403
+#: src/Reports/Data.php:407
 msgid "Gültige Tickets"
 msgstr "Biglietti validi"
 
-#: src/Reports/Data.php:403
+#: src/Reports/Data.php:407
 msgid "Check-in-Quote %"
 msgstr "Tasso di check-in %"
 
-#: src/Reports/Data.php:408
+#: src/Reports/Data.php:412
 msgid "Rechnungskorrekturen"
 msgstr "Rettifiche fattura"
 
-#: src/Reports/Data.php:410 src/Reports/Page.php:83
+#: src/Reports/Data.php:414 src/Reports/Page.php:83
 #: src/Reports/Settlement.php:261 src/Reports/Settlement.php:329
 msgid "Freikarten (nicht im Umsatz)"
 msgstr "Biglietti omaggio (non inclusi nel fatturato)"
 
-#: src/Reports/Data.php:414 src/Reports/Page.php:115
+#: src/Reports/Data.php:418 src/Reports/Page.php:115
 msgid "Check-ins pro Stunde"
 msgstr "Check-in all'ora"
 
@@ -13581,107 +13601,107 @@ msgstr "Per questo indirizzo e-mail ci sono già ordini aperti non pagati. Pagal
 msgid "Der Bestellzugriff ist ungültig oder abgelaufen."
 msgstr "L'accesso all'ordine non è valido o è scaduto."
 
-#: src/Rest/Controller.php:551
+#: src/Rest/Controller.php:552
 msgid "POS-Verkaufspositionen oder Idempotency-Key sind ungültig."
 msgstr "Le voci di vendita POS o l'idempotency key non sono validi."
 
-#: src/Rest/Controller.php:553
+#: src/Rest/Controller.php:554
 msgid "Kassenverkäufe laufen über das Kassenmodul (Schicht, Belegnummer, Z-Bericht)."
 msgstr "Le vendite alla cassa passano dal modulo cassa (turno, numero ricevuta, report Z)."
 
-#: src/Rest/Controller.php:561
+#: src/Rest/Controller.php:562
 msgid "Alle Positionen eines Kassenverkaufs müssen zum selben Termin gehören."
 msgstr "Tutte le voci di una vendita alla cassa devono appartenere alla stessa data."
 
-#: src/Rest/Controller.php:597
+#: src/Rest/Controller.php:598
 msgid "Für dieses Event fehlt die Einlassberechtigung."
 msgstr "Per questo evento manca l'autorizzazione all'ingresso."
 
-#: src/Rest/Controller.php:605
+#: src/Rest/Controller.php:606
 msgid "Mindestens eine Passregel ist erforderlich."
 msgstr "È necessaria almeno una regola del pass."
 
-#: src/Rest/Controller.php:608
+#: src/Rest/Controller.php:609
 msgid "Keine Berechtigung für eine Passregel."
 msgstr "Non hai l'autorizzazione per una regola del pass."
 
-#: src/Rest/Controller.php:620
+#: src/Rest/Controller.php:621
 msgid "Keine Berechtigung für diesen Pass."
 msgstr "Non hai l'autorizzazione per questo pass."
 
-#: src/Rest/Controller.php:631
+#: src/Rest/Controller.php:632
 msgid "Sitzplan nicht gefunden."
 msgstr "Mappa della sala non trovata."
 
-#: src/Rest/Controller.php:677
+#: src/Rest/Controller.php:678
 msgid "Keine Berechtigung für diese Ticketart."
 msgstr "Non hai l'autorizzazione per questo tipo di biglietto."
 
-#: src/Rest/Controller.php:714
+#: src/Rest/Controller.php:716
 msgid "Berichtszeitraum muss gültig und höchstens 90 Tage lang sein."
 msgstr "Il periodo del report deve essere valido e al massimo di 90 giorni."
 
-#: src/Rest/Controller.php:731
+#: src/Rest/Controller.php:733
 msgid "Ablaufdatum muss in der Zukunft liegen."
 msgstr "La data di scadenza deve essere nel futuro."
 
-#: src/Rest/Controller.php:756
+#: src/Rest/Controller.php:758
 msgid "Übersetzung nicht gefunden."
 msgstr "Traduzione non trovata."
 
-#: src/Rest/Controller.php:766
+#: src/Rest/Controller.php:768
 msgid "Locale oder übersetzter Titel ist ungültig."
 msgstr "Locale o titolo tradotto non valido."
 
-#: src/Rest/Controller.php:787
+#: src/Rest/Controller.php:789
 msgid "Sitzplan muss einen Namen und 1 bis 500 Sitzplätze enthalten."
 msgstr "Una mappa della sala deve avere un nome e da 1 a 500 posti."
 
-#: src/Rest/Controller.php:794
+#: src/Rest/Controller.php:796
 msgid "Sitzplan konnte nicht gespeichert werden."
 msgstr "Impossibile salvare la mappa della sala."
 
-#: src/Rest/Controller.php:798
+#: src/Rest/Controller.php:800
 msgid "Jeder Sitzplatz benötigt einen eindeutigen Schlüssel und eine Bezeichnung."
 msgstr "Ogni posto richiede una chiave univoca e un'etichetta."
 
-#: src/Rest/Controller.php:800
+#: src/Rest/Controller.php:802
 msgid "Sitzplätze konnten nicht vollständig gespeichert werden; prüfe doppelte Schlüssel."
 msgstr "Non è stato possibile salvare tutti i posti; controlla le chiavi duplicate."
 
-#: src/Rest/Controller.php:812
+#: src/Rest/Controller.php:814
 msgid "Ressourcenname fehlt."
 msgstr "Nome della risorsa mancante."
 
-#: src/Rest/Controller.php:814
+#: src/Rest/Controller.php:816
 msgid "Ressource konnte nicht gespeichert werden."
 msgstr "Impossibile salvare la risorsa."
 
-#: src/Rest/Controller.php:822
+#: src/Rest/Controller.php:824
 msgid "Keine Berechtigung für diese Ressource."
 msgstr "Non hai l'autorizzazione per questa risorsa."
 
-#: src/Rest/Controller.php:826
+#: src/Rest/Controller.php:828
 msgid "Zeitfenster ist ungültig."
 msgstr "Fascia oraria non valida."
 
-#: src/Rest/Controller.php:828
+#: src/Rest/Controller.php:830
 msgid "Zeitfenster konnte nicht gespeichert werden."
 msgstr "Impossibile salvare la fascia oraria."
 
-#: src/Rest/Controller.php:836
+#: src/Rest/Controller.php:838
 msgid "Keine Berechtigung für diesen Termin."
 msgstr "Non hai l'autorizzazione per questa data."
 
-#: src/Rest/Controller.php:839
+#: src/Rest/Controller.php:841
 msgid "Bitte 1 bis 31 Veranstaltungstage angeben."
 msgstr "Indica da 1 a 31 giorni di evento."
 
-#: src/Rest/Controller.php:848
+#: src/Rest/Controller.php:850
 msgid "Ein Veranstaltungstag oder eine Einlassregel ist ungültig."
 msgstr "Un giorno di evento o una regola di ingresso non è valido."
 
-#: src/Rest/Controller.php:850
+#: src/Rest/Controller.php:852
 msgid "Einlassregeln konnten nicht gespeichert werden."
 msgstr "Impossibile salvare le regole di ingresso."
 
