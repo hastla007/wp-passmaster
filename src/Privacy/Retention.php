@@ -232,7 +232,15 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE attendee_data IS NOT NULL AND payment_status IN ('expired','cancelled','failed') AND updated_at<%s LIMIT %d", $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( "UPDATE {$p}wpcap_orders SET attendee_data=NULL WHERE order_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$changed = (int) $wpdb->query( "UPDATE {$p}wpcap_orders SET attendee_data=NULL WHERE order_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				/**
+				 * Retention cleared the attendee details of these unpaid orders; integrations drop their copies
+				 * (e.g. the attendee payload on the WooCommerce order).
+				 *
+				 * @param int[] $ids Order ids of this batch.
+				 */
+				do_action( 'wpcap_privacy_unpaid_attendee_data_cleared', array_map( 'intval', $ids ) );
+				return $changed;
 			}
 		);
 	}

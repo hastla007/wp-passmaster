@@ -201,6 +201,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_attendee_default_retention_days` | `int $days` (365) | Frist für Teilnehmername/-E-Mail nach Terminende, wenn die Einstellung „Teilnehmerdaten löschen nach“ 0 ist (Antworten folgen dann der Frist des Felds). |
 | `wpcap_guestlist_companion_name` | `string $name, object $entry, int $index` | Name auf Begleittickets einer Gästeliste (Standard neutral „Begleitung“, z. B. `'Begleitung von ' . $entry->name`). |
 | `wpcap_privacy_order_anonymized` (Action) | `int $order_id` | Eine Bestellung wurde anonymisiert (Datenschutz-Löschung); Module löschen ihre Daten zur Bestellung (z. B. gespeicherte Partner-Ticketcodes). |
+| `wpcap_privacy_unpaid_attendee_data_cleared` (Action) | `int[] $order_ids` | Der Löschlauf (Schritt `unpaid_attendee_data`) hat die Teilnehmerangaben dieser nie bezahlten Bestellungen entfernt (ein Batch); Integrationen löschen ihre Kopien (z. B. `_wpcap_attendees` an der WooCommerce-Bestellung). |
 | `wpcap_privacy_retention_budget` | `float $seconds` (20) | Zeitbudget eines Löschlaufs; der nächste Lauf setzt fort. |
 | `wpcap_privacy_policy_recipients` | `array $recipients` | Welche Empfänger der Datenschutztext-Vorschlag nennt (`stripe`, `paypal`, `mollie`, `twilio`, `sms_http`, `apple`, `google`, `partners`, `webhooks`, `affiliate`, `woocommerce` → bool). |
 | `wpcap_privacy_policy_content` | `string $html, array $recipients` | HTML des Datenschutztext-Vorschlags. |

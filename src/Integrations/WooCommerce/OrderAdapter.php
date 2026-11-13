@@ -79,6 +79,8 @@ final class OrderAdapter {
 
 		// Per-ticket participant fields (classic and block checkout).
 		Attendees::register();
+		// Export/erasure/retention of the attendee payload kept on WooCommerce orders (A196).
+		Privacy::register();
 
 		// Optional: Pass Captain prices (e.g. series price tiers) in the cart.
 		CartPricing::register();

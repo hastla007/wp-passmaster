@@ -50,7 +50,15 @@ Hat eine Ticketkategorie Teilnehmerfelder, fragt der Checkout je Ticket Name, E-
 - **Klassischer Checkout** (Shortcode): Felder nach den Bestellnotizen (`woocommerce_after_order_notes`), Prüfung in `woocommerce_after_checkout_validation`.
 - **Checkout-Block:** ein kleiner innerer Block im Schritt „Kontaktinformationen“ (`assets/woocommerce/attendees.js`, ohne Build). Der Warenkorb liefert die nötigen Felder über die Store API (`extensions.wpcap.attendee_types`), die Antworten gehen als Checkout-Erweiterungsdaten (`extensions.wpcap.attendees`, JSON) zurück. Fehlende Pflichtangaben sperren „Bestellung aufgeben“ über den Validierungs-Store von WooCommerce; der Server prüft erneut.
 
-Die Antworten liegen bis zur Ticketausstellung als Bestellmeta `_wpcap_attendees` an der WooCommerce-Bestellung und werden danach dort gelöscht (sie sind dann am Ticket gespeichert). Mit dem Filter `wpcap_woocommerce_collect_attendees` ( `bool $collect, int $type_id` ) lassen sich Name/E-Mail auch für Kategorien ohne Felder abfragen.
+Die Antworten liegen bis zur Ticketausstellung als Bestellmeta `_wpcap_attendees` an der WooCommerce-Bestellung und werden danach dort gelöscht (sie sind dann am Ticket gespeichert).
+
+**Datenschutz (A196):** Personenbezogen ist an der WooCommerce-Bestellung nur diese Bestellmeta (Positionsmeta `_wpcap_ticket_type_id` und `_wpcap_core_order_id` enthalten keine Personendaten; Rechnungsadresse und Positionen sind WooCommerce-Daten und laufen über dessen Exporter/Löscher).
+
+- **Auskunft:** Der WooCommerce-Exporter „Bestellungen“ listet noch nicht ausgestellte Teilnehmerangaben der Bestellung mit (Filter `woocommerce_privacy_export_order_personal_data`). Die Pass-Captain-Bestellung, ihre Tickets und Teilnehmerangaben exportiert der Exporter „Pass Captain Bestellungen und Tickets“ über die Rechnungs-E-Mail bzw. die Teilnehmer-E-Mail.
+- **Löschung:** Der WooCommerce-Löscher und die WooCommerce-Aufbewahrung für stornierte/fehlgeschlagene/unbezahlte Bestellungen (Aktion `woocommerce_privacy_remove_order_personal_data`) entfernen `_wpcap_attendees`. Weil WooCommerce Bestelldaten nur bei aktivierter Einstellung „Persönliche Daten aus Bestellungen auf Anfrage entfernen“ anonymisiert, entfernt zusätzlich der Pass-Captain-Löscher die Meta, sobald er die zugehörige Pass-Captain-Bestellung anonymisiert – unabhängig von dieser Einstellung.
+- **Aufbewahrung:** Leert der tägliche Löschlauf die Teilnehmerangaben einer nie bezahlten Pass-Captain-Bestellung (nach 1 Tag, Schritt `unpaid_attendee_data`), verschwindet auch die Kopie an der WooCommerce-Bestellung (Aktion `wpcap_privacy_unpaid_attendee_data_cleared`).
+
+Mit dem Filter `wpcap_woocommerce_collect_attendees` ( `bool $collect, int $type_id` ) lassen sich Name/E-Mail auch für Kategorien ohne Felder abfragen.
 
 Ticketkategorien mit Saalplan sind über WooCommerce kaufbar: WooCommerce zeigt keine Platzwahl, der Kern vergibt beim Reservieren automatisch die besten freien Plätze der zugeordneten Zonen. Der Warenkorb prüft vorab, ob genug passende Plätze frei sind.
 

@@ -205,6 +205,19 @@ Einstellungen unter **Pass Captain → SMS**; Tabellen `wpcap_sms_consents`, `wp
 - Wird eine Site im Netzwerk gelöscht, entfernt WordPress auch deren `*_wpcap_*`-Tabellen (Filter `wpmu_drop_tables`). Tabellen anderer Sites sind nicht betroffen.
 - Jede Site hat eigene Tabellen (`{präfix}wpcap_*`) und eigene Optionen; das Plugin greift nur über `$wpdb->prefix` bzw. `$wpdb->…`-Tabellen zu (statisch geprüft, siehe TESTING.md „Tabellenpräfixe und Isolation“). Zwischenspeicher je Anfrage (Verfügbarkeit, Steuerprofile, Schema-Bereitschaft, Schema-Version) gelten nur für die Site, für die sie gefüllt wurden; nach `switch_to_blog()` werden sie neu aufgebaut (Aktion `switch_blog` und Präfixvergleich).
 - Beim Deinstallieren entscheidet jede Site über „Daten beim Löschen entfernen“. Netzwerkweite Benutzer-Metadaten (`wpcap_*` ohne Site-Präfix) werden nur gelöscht, wenn alle Sites zugestimmt haben; Site-bezogene Benutzeroptionen (`{präfix}wpcap_*`) und Rollen/Berechtigungen nur auf zustimmenden Sites.
+- Datenschutz-Auskunft und -Löschung (Werkzeuge → Personenbezogene Daten exportieren/löschen) laufen **je Site**: Exporter und Löscher lesen und ändern nur die Tabellen der Site, auf der die Anfrage bearbeitet wird. Hat eine Person auf mehreren Sites gekauft, muss die Anfrage auf jeder Site gestellt werden. Netzwerkweite Benutzer-Metadaten des Plugins (Hinweis-Schalter, Event-Zuständigkeit des Personals) enthalten keine Kundendaten und bleiben unberührt (getestet in `tests/integration/modules/zz_a196.php`).
+
+## Datenschutz-Auskunft und -Löschung mit großen Datenmengen
+
+WordPress ruft Exporter und Löscher seitenweise auf (eine AJAX-Anfrage je Seite), bis `done` gemeldet wird. Die Seiten des Plugins sind begrenzt, damit jede Anfrage auch bei Tausenden Bestellungen einer Adresse in wenigen Sekunden fertig ist:
+
+| Werkzeug | je Seite |
+|---|---|
+| Exporter „Pass Captain Bestellungen und Tickets“ | je Liste höchstens 50 Einträge: Bestellungen, Tickets (gekauft oder als Teilnehmer), Pässe, Wartelisteneinträge, Terminbuchungen (eigene Gruppen); `done` erst, wenn alle Listen erschöpft sind. Das Einlassprotokoll eines Tickets ist vollständig (keine Kürzung). |
+| Löscher „Pass Captain Bestellungen und Tickets“ | 50 Bestellungen und 200 Tickets anderer Käufer, auf denen die Adresse als Teilnehmer steht; zurückgestellte Bestellungen (kommende Termine) werden übersprungen. Hinweise an die Administration und die Mail „Löschanfrage zurückgestellt“ kommen einmal am Ende mit den Gesamtzahlen, nicht je Seite. |
+| SMS-Einwilligungen (Exporter und Löscher) | 100 Einwilligungen |
+
+Der tägliche Löschlauf arbeitet in Batches von höchstens 500 Zeilen und mit Zeitbudget (Filter `wpcap_privacy_retention_budget`); ein nicht fertiger Lauf wird beim nächsten Mal fortgesetzt. Getestet mit 2000 Bestellungen, 6700 Check-ins, 120 Wartelisteneinträgen und 300 SMS-Einwilligungen einer Adresse (`tests/integration/modules/zz_a196.php`).
 
 ## Zugangsdaten / Secrets
 

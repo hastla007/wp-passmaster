@@ -298,30 +298,45 @@ final class Sms {
 		return $exporters;
 	}
 
+	/** Consents per exporter/eraser page (A196: one person may have thousands of orders). */
+	const PRIVACY_PAGE = 100;
+
 	/**
 	 * Consents of orders bought with this e-mail. Also matches orders the core eraser already
 	 * anonymised (deterministic replacement deleted+{sha256(email|order_id)[0..24]}@invalid.example),
 	 * so the result does not depend on the eraser order.
+	 *
+	 * @param string $email   E-mail address.
+	 * @param int    $offset  Rows to skip.
+	 * @param bool   $pending Only consents that still hold a number or are not withdrawn (eraser).
 	 */
-	private static function consents_for_email( $email ) {
+	private static function consents_for_email( $email, $offset = 0, $pending = false ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$email = sanitize_email( $email );
 		if ( '' === $email ) { return array(); }
-		return $wpdb->get_results( $wpdb->prepare( "SELECT c.* FROM {$p}wpcap_sms_consents c INNER JOIN {$p}wpcap_orders o ON o.order_id=c.order_id WHERE o.customer_email=%s OR o.customer_email=CONCAT('deleted+',LEFT(SHA2(CONCAT(%s,'|',o.order_id),256),24),'@invalid.example') ORDER BY c.consent_id", $email, $email ) );
+		$open = $pending ? " AND (c.withdrawn_at IS NULL OR c.phone<>'')" : '';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $open is a literal.
+		return $wpdb->get_results( $wpdb->prepare( "SELECT c.* FROM {$p}wpcap_sms_consents c INNER JOIN {$p}wpcap_orders o ON o.order_id=c.order_id WHERE (o.customer_email=%s OR o.customer_email=CONCAT('deleted+',LEFT(SHA2(CONCAT(%s,'|',o.order_id),256),24),'@invalid.example'))$open ORDER BY c.consent_id LIMIT %d OFFSET %d", $email, $email, self::PRIVACY_PAGE, max( 0, (int) $offset ) ) );
 	}
 
+	/** Eraser: withdraws up to PRIVACY_PAGE open consents per page (withdrawn ones drop out of the selection). */
 	public static function erase( $email, $page = 1 ) {
 		$removed = 0;
-		foreach ( self::consents_for_email( $email ) as $consent ) {
-			if ( Service::withdraw( (int) $consent->order_id, 'privacy_erasure' ) ) { ++$removed; }
+		$open = self::consents_for_email( $email, 0, true );
+		$orders = array_values( array_unique( array_map( static function ( $c ) { return (int) $c->order_id; }, $open ) ) );
+		foreach ( $orders as $order_id ) {
+			if ( Service::withdraw( $order_id, 'privacy_erasure' ) ) { ++$removed; }
 		}
-		return array( 'items_removed' => $removed > 0, 'items_retained' => false, 'messages' => array(), 'done' => true );
+		// A page that changed nothing ends the run (no endless loop on rows the update cannot change).
+		return array( 'items_removed' => $removed > 0, 'items_retained' => false, 'messages' => array(), 'done' => count( $open ) < self::PRIVACY_PAGE || ! $removed );
 	}
 
+	/** Exporter: PRIVACY_PAGE consents per page. */
 	public static function export( $email, $page = 1 ) {
 		$data = array();
-		foreach ( self::consents_for_email( $email ) as $c ) {
+		$rows = self::consents_for_email( $email, ( max( 1, absint( $page ) ) - 1 ) * self::PRIVACY_PAGE );
+		foreach ( $rows as $c ) {
 			$data[] = array( 'group_id' => 'wpcap-sms', 'group_label' => __( 'Pass Captain SMS-Einwilligungen', 'pass-captain' ), 'item_id' => 'sms-consent-' . (int) $c->consent_id, 'data' => array(
 				array( 'name' => __( 'Mobilnummer', 'pass-captain' ), 'value' => '' !== $c->phone ? $c->phone : __( '(gelöscht)', 'pass-captain' ) ),
 				array( 'name' => __( 'Zweck', 'pass-captain' ), 'value' => $c->purpose ),
@@ -332,7 +347,7 @@ final class Sms {
 				array( 'name' => __( 'Widerrufen durch', 'pass-captain' ), 'value' => (string) ( $c->withdrawn_source ?? '' ) ),
 			) );
 		}
-		return array( 'data' => $data, 'done' => true );
+		return array( 'data' => $data, 'done' => count( $rows ) < self::PRIVACY_PAGE );
 	}
 
 	/* ------------------------------------------------------------------ Admin */
