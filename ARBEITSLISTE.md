@@ -224,9 +224,9 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - src/Admin/SettingsPage.php:276-288 alle Abschnitte untereinander; terms_text einsprachig (Zeile 80)
 - [ ] **A100** Eventkarte kompakt, Mengen-Stepper, Kalender-Badges, nächster Termin — _OFFEN_ (TODO L375; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - Kein Stepper/Badge/Nächster-Termin-Code gefunden
-- [ ] **A101** HTML-Mail-Layout als Standard prüfen — _OFFEN_ (TODO L376; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A101** HTML-Mail-Layout als Standard prüfen — _OFFEN_ (TODO L376; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/Mail/Templates.php:41 Standard 'format' => 'text'
-- [ ] **A102** Mehrdeutige/fehlende Ortszeiten bei Zeitumstellung anzeigen — _OFFEN_ (TODO L377; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+- [x] **A102** Mehrdeutige/fehlende Ortszeiten bei Zeitumstellung anzeigen — _OFFEN_ (TODO L377; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
   - src/Admin/Forms.php:135 verschiebt Zeiten in DST-Lücke still
 - [ ] **A103** endroid/bacon mit Strauss/PHP-Scoper präfixieren — _OFFEN_ (TODO L381; Architektur und Wartbarkeit (noch offen))
   - composer.json ohne Strauss/Scoper; TicketPdf.php:67-69 nutzt \BaconQrCode unpräfixiert

@@ -373,8 +373,8 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [ ] Buchhaltungsexport um nicht fakturierte Online-/Kassenverkäufe ergänzen und Tagesgrenzen in Ortszeit statt UTC.
 - [ ] Einstellungsseite in Tabs aufteilen; Online- und Kassen-Zahlarten trennen; Rechtstexte mit Editor und je Sprache.
 - [ ] Eventkarte kompakt (Zusammenfassung + „Tickets“-Button), Mengen-Stepper, Kalender mit Verfügbarkeits-Badges und Link zum nächsten Termin.
-- [ ] HTML-Mail-Layout als Standard passend zu WooCommerce prüfen.
-- [ ] Nicht vorhandene/mehrdeutige Ortszeiten bei Sommerzeitwechsel im Admin anzeigen statt still verschieben.
+- [x] HTML-Mail-Layout als Standard passend zu WooCommerce prüfen.
+- [x] Nicht vorhandene/mehrdeutige Ortszeiten bei Sommerzeitwechsel im Admin anzeigen statt still verschieben.
 
 ### Architektur und Wartbarkeit (noch offen)
 

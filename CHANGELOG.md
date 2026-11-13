@@ -105,6 +105,8 @@
 - Einlassbereiche haben eine optionale Kapazität; ist sie erreicht, meldet der Scanner `area_full` statt einzulassen; Filter `wpcap_admission_area_capacity` (A093).
 - Ticketarten können „Ausweis prüfen“, ein Mindestalter und einen Hinweis für das Einlasspersonal tragen (Schema 3.8.5); der Scanner zeigt diese Hinweise beim Einlass deutlich an (A094).
 - Neue No-Show-Liste pro Termin (gültige, nicht eingelassene Tickets) mit CSV-Export (A095).
+- Kundenmails mit eingebautem Standardtext (alle Mail-Typen und Erinnerungen) werden jetzt als HTML-Mail im Layout versendet; die Textversion entspricht wortgleich der bisherigen Textmail. Eigene Vorlagen behalten ihr Format; der neue Filter `wpcap_mail_default_format` schaltet bei Bedarf auf reine Textmails zurück (A101).
+- Ortszeiten, die es wegen der Zeitumstellung nicht gibt (z. B. 28.03.2027 02:30), werden im Termin- und Eventformular mit Hinweis auf die nächste gültige Zeit abgelehnt; doppelte Ortszeiten (z. B. 31.10.2027 02:30) verwenden die erste (Sommerzeit) und zeigen einen Hinweis. Wöchentliche Wiederholungen und der Seriengenerator melden betroffene Termine (A102).
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.
