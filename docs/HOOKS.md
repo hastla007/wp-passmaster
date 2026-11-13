@@ -318,6 +318,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_reseller_statement_document` | `string $document` (`reseller_invoice`), `object $partner` | Beleg der Vergütung in der Reseller-Abrechnung: `reseller_invoice` (Reseller stellt Rechnung) oder `self_billing` (Gutschrift der Plattform). |
 | `wpcap_report_channel` | `string $channel, string $provider` | Verkaufskanal einer Bestellung im Umsatzbericht (`pos`, `partner`, `woocommerce`, `online`) anhand des Zahlungsanbieters; unbekannte Werte zählen als `online`. |
 | `wpcap_comp_payment_providers` | `string[] $providers` (`comp`, `pos_free`) | Zahlungsanbieter von Freikarten; deren Tickets zählen in Berichten nicht als Verkauf. |
+| `wpcap_datev_accounts` | `array $accounts` (`revenue` Satz in Basispunkten => Konto, `revenue_default`, `bu_keys` Satz => BU-Schlüssel, `contra` Geldkonto, `contra_by_provider` Zahlungsanbieter => Konto) | Kontenzuordnung des Buchungsstapels im DATEV-Format (Standard SKR03: 8400/8300/8200 gegen 1360); siehe [OPERATIONS.md](OPERATIONS.md#buchungsstapel-datev-format). |
 
 ### Versionierte Verträge und Infrastruktur
 

@@ -84,6 +84,18 @@ final class Page {
 		);
 		foreach ( $summary as $k => $v ) { echo '<tr><th>' . esc_html( $k ) . '</th><td>' . esc_html( $v ) . '</td></tr>'; }
 		echo '</tbody></table>';
+		$unreconciled = Data::reconcile( $report );
+		if ( $unreconciled ) {
+			echo '<div class="notice notice-error inline"><p>' . esc_html( __( 'Die Summen des Berichts stimmen nicht überein:', 'wp-pass-captain' ) . ' ' . implode( ', ', $unreconciled ) ) . '</p></div>';
+		}
+		if ( count( (array) $report['currencies'] ) > 1 ) {
+			// Several currencies: the totals above mix them; the table per currency is authoritative.
+			echo '<h2>' . esc_html__( 'Umsatz nach Währung', 'wp-pass-captain' ) . '</h2><p class="description">' . esc_html__( 'Im Zeitraum wurde in mehreren Währungen verkauft. Die Gesamtsummen oben sind nicht addierbar; maßgeblich sind die Summen je Währung.', 'wp-pass-captain' ) . '</p>';
+			foreach ( $report['currencies'] as $cur_code => $cur_report ) {
+				$cur_money = static function ( $minor ) use ( $cur_code ) { return Scope::money( $minor, $cur_code ); };
+				self::table( __( 'Satz', 'wp-pass-captain' ), array_merge( array_values( $cur_report['rates'] ), array( $cur_report['total'] ) ), $cur_money );
+			}
+		}
 
 		$share = array();
 		foreach ( $report['channels'] as $c ) { $share[ $c['label'] ] = $c['revenue']; }
@@ -119,7 +131,15 @@ final class Page {
 			// Accounting export (Invoices::handle_export()) for the same local date range.
 			$export_url = add_query_arg( array( 'action' => 'wpcap_export_accounting', 'from' => $report['from'], 'to' => $report['to'], '_wpnonce' => wp_create_nonce( 'wpcap_export_accounting' ) ), admin_url( 'admin-post.php' ) );
 			echo '<h2>' . esc_html__( 'Buchhaltungsexport', 'wp-pass-captain' ) . '</h2><p><a class="button" href="' . esc_url( $export_url ) . '">' . esc_html( sprintf( /* translators: 1: from, 2: to */ __( 'Buchhaltungsexport %1$s bis %2$s (CSV)', 'wp-pass-captain' ), $report['from'], $report['to'] ) ) . '</a></p>';
+			$datev_url = add_query_arg( 'format', 'datev', $export_url );
+			echo '<p><a class="button" href="' . esc_url( $datev_url ) . '">' . esc_html( sprintf( /* translators: 1: from, 2: to */ __( 'Buchungsstapel %1$s bis %2$s (DATEV-Format, CSV)', 'wp-pass-captain' ), $report['from'], $report['to'] ) ) . '</a></p>';
 			echo '<p class="description">' . esc_html__( 'Rechnungen, Rechnungskorrekturen sowie Verkäufe und Erstattungen ohne Rechnung (z. B. Kasse, Partner-API, automatische Rechnungen aus). Tagesgrenzen in der Zeitzone der Website.', 'wp-pass-captain' ) . '</p>';
+			$gaps = \PassCaptain\Invoices::document_gaps( $report['from'], $report['to'] );
+			if ( $gaps ) {
+				$gap_text = array();
+				foreach ( $gaps as $range => $missing ) { $gap_text[] = $range . ': ' . implode( ', ', array_slice( $missing, 0, 10 ) ) . ( count( $missing ) > 10 ? ' …' : '' ); }
+				echo '<div class="notice notice-warning inline"><p>' . esc_html( __( 'Lücken in den Belegnummern:', 'wp-pass-captain' ) . ' ' . implode( '; ', $gap_text ) ) . '</p></div>';
+			}
 		}
 		echo '</div>';
 	}

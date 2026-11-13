@@ -348,7 +348,8 @@ existiert; wird sie später fakturiert, erscheint sie ab dann nur noch mit ihrer
 Ausstellung). Bereits übergebene Exporte eines Zeitraums daher nicht nach nachträglicher Fakturierung erneut
 buchen.
 
-**Spalten**:
+**Spalten** (feste Reihenfolge A–O wie unten; die Spalten sind eine stabile Schnittstelle – neue Spalten
+werden nur am Ende angefügt, vorhandene nie umbenannt oder verschoben; Konstante `Invoices::EXPORT_COLUMNS`):
 
 | Spalte | Inhalt |
 |---|---|
@@ -365,10 +366,66 @@ buchen.
 | `Verkaufsmodell` | `Eigenhaendler` oder `Vermittler` (siehe [SALES-MODELS.md](SALES-MODELS.md)); bei Zeilen ohne Rechnung der Rechnungssteller, den eine Rechnung hätte (leer bei Bestellungen mit mehreren Rechnungsstellern) |
 | `Rechnungssteller` | Name des Rechnungsstellers |
 
+**Vorzeichen**: Rechnungen und Verkäufe ohne Rechnung sind positiv, Rechnungskorrekturen (Teil- und
+Vollkorrektur/Storno) und Erstattungen ohne Rechnung negativ – in `Netto`, `USt` und `Brutto` gleichermaßen.
+Je Zeile gilt `Netto + USt = Brutto`. Eine Rechnungskorrektur nennt in `Bezug` immer die korrigierte Rechnung;
+ihre Zeilen je Steuersatz ergeben zusammen exakt den Korrekturbetrag (Aufteilung wie im Bericht, siehe unten).
+
+**Währungen**: Jede Bestellung hat genau eine Währung (Ticketarten mit unterschiedlicher Währung können nicht
+gemeinsam bestellt werden); `Waehrung` steht in jeder Zeile. Summen nur innerhalb einer Währung bilden
+(`Invoices::journal_totals()` liefert Netto/USt/Brutto je Währung und Steuersatz).
+
+**Belegnummern**: Rechnungen und Rechnungskorrekturen werden je Nummernkreis (Präfix und Jahr) lückenlos
+innerhalb der Belegtransaktion vergeben; ein abgebrochener Beleg gibt seine Nummer mit dem Rollback zurück.
+Die Berichtsseite prüft die Nummernkreise der Jahre des Zeitraums und warnt bei Lücken
+(`Invoices::document_gaps()`, z. B. nach manuellem Löschen in der Datenbank).
+
 **Abstimmung mit dem Umsatzbericht**: Die Summe `Brutto` (bzw. `USt`) aller Zeilen eines Zeitraums entspricht
 „Umsatz nach Erstattungen“ (bzw. „davon USt“) des Berichts für denselben Zeitraum, sofern Rechnungen am Tag
-der Bestellung und Rechnungskorrekturen am Tag der Erstattung ausgestellt wurden (automatische Rechnungen).
-Abweichungen entstehen nur durch später ausgestellte Belege (Rechnung/Korrektur an einem anderen Tag).
+der Bestellung und Rechnungskorrekturen am Tag der Erstattung ausgestellt wurden (automatische Rechnungen) –
+auch je Währung und je Steuersatz: Bericht und Rechnungskorrektur teilen eine Erstattung mit derselben Rechnung
+auf Positionen und Steuersätze auf (`Invoices::refund_line_parts()`: Ticket-Erstattungen nach dem bezahlten
+Positionswert nach Rabatt, Betragserstattungen über alle Positionen; USt nach der Positions-USt, 0-%-Positionen
+erhalten keine USt). Abweichungen entstehen nur durch später ausgestellte Belege (Rechnung/Korrektur an einem
+anderen Tag).
+
+### Buchungsstapel (DATEV-Format)
+
+Pass Captain → Berichte → „Buchungsstapel … (DATEV-Format, CSV)“ bzw. derselbe Aufruf wie der
+Buchhaltungsexport mit `&format=datev`. Gleiche Berechtigung, gleicher Zeitraum, protokolliert als
+`accounting_exported` mit `format=datev`. Der Stapel wird aus den Zeilen des Buchhaltungsexports gebildet und
+stimmt daher immer mit ihm überein.
+
+- Eine Buchung je Beleg (bei Zeilen ohne Rechnung: je Bestellung bzw. Erstattung), Steuersatz und Währung;
+  Betrag brutto auf das Erlöskonto des Satzes (Automatikkonto) gegen das Geldkonto.
+- Spalten: `Umsatz (ohne Soll/Haben-Kz)` (immer positiv, Komma als Dezimaltrennzeichen),
+  `Soll/Haben-Kennzeichen` (`S` = Verkauf, `H` = Rechnungskorrektur/Erstattung), `WKZ Umsatz`, `Konto`
+  (Geldkonto), `Gegenkonto (ohne BU-Schlüssel)` (Erlöskonto), `BU-Schlüssel`, `Belegdatum` (`TTMM`),
+  `Belegfeld 1` (Beleg- bzw. Bestellnummer), `Belegfeld 2` (korrigierte Rechnung), `Buchungstext`.
+- Konten: Standard SKR03 – 19 % → 8400, 7 % → 8300, andere Sätze → 8200, Geldkonto 1360 (Geldtransit);
+  anpassbar über den Filter `wpcap_datev_accounts` (z. B. SKR04, Geldkonto je Zahlungsanbieter, BU-Schlüssel
+  je Satz).
+- Belege im Vermittlermodell sind Umsatz des Veranstalters und werden nicht gebucht (Provision über die
+  Partnerabrechnung).
+- Kodierung Windows-1252 ohne BOM, Semikolon. Der Stapel enthält **keinen** EXTF-Vorlaufsatz; er ist für den
+  ASCII-/CSV-Import mit festgelegtem Wirtschaftsjahr gedacht. Da `Belegdatum` keine Jahreszahl trägt, den
+  Zeitraum innerhalb eines Wirtschaftsjahres wählen. Fremdwährungsbeträge werden ohne Kurs übergeben.
+  Kontenzuordnung und Import vor dem produktiven Einsatz mit der Steuerberatung abstimmen.
+
+### Abnahme der Berichte
+
+`Reports\Data::reconcile()` prüft einen Bericht rechnerisch; die Berichtsseite zeigt einen Fehlerhinweis, wenn
+eine Prüfung fehlschlägt:
+
+- je Zeile: `Netto = Brutto − USt`, `Umsatz nach Erstattung = Brutto − Erstattet`,
+  `USt nach Erstattung = USt − Erstattet USt`, `Netto nach Erstattung = Umsatz nach Erstattung − USt nach Erstattung`;
+- jede Gruppierung (Event, Termin, Ticketart, Zahlungsanbieter, Tag, Steuersatz, Kanal) ergibt in allen
+  Betragsspalten die Gesamtsumme;
+- die Währungen ergeben die Gesamtsumme, die Steuersätze jeder Währung deren Summe.
+
+Bei mehreren Währungen im Zeitraum zeigt die Seite zusätzlich „Umsatz nach Währung“ (je Satz und Summe);
+die Gesamtsummen sind dann nicht addierbar. Der CSV-Export des Berichts enthält die Spalte
+„Netto nach Erstattung“ und den Abschnitt „Währung / USt-Satz“.
 
 ## Kontingentzähler (große Vorverkäufe)
 

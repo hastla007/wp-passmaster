@@ -178,65 +178,117 @@ final class Invoices {
 		$tax = (int) $tax;
 		$order_id = (int) ( $refund['order_id'] ?? 0 );
 		$items = $order_id ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,tax_rate_bp,' . OrderLines::paid_columns( '' ) . " FROM {$p}wpcap_order_items WHERE order_id=%d ORDER BY item_id", $order_id ) ) : array();
-		$items = array_values( $items );
 		$discount = $order_id ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) ) : 0;
-		$after_discount = $items ? OrderLines::after_discount( $items, $discount ) : array();
-		// Line weights: [gross after discount, VAT] of the refunded part of each line.
-		$weights = array();
-		$ids = array_filter( array_map( 'absint', (array) json_decode( (string) ( $refund['ticket_ids'] ?? '' ), true ) ) );
-		if ( $ids && $items ) {
-			$counts = array();
-			$in = implode( ',', $ids );
-			foreach ( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_tickets WHERE order_id=%d AND ticket_id IN ($in)", $order_id ) ) as $type_id ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
-				$counts[ (int) $type_id ] = ( $counts[ (int) $type_id ] ?? 0 ) + 1;
-			}
-			foreach ( $counts as $type_id => $n ) {
-				// First paid line of the type (lines an exchange created carry no paid value).
-				foreach ( $items as $i => $item ) {
-					if ( (int) $item->ticket_type_id !== $type_id || (int) $item->quantity < 1 ) { continue; }
-					$q = (int) $item->quantity;
-					$share = min( $n, $q );
-					$weights[ $i ] = array(
-						$share >= $q ? (int) $after_discount[ $i ] : intdiv( (int) $after_discount[ $i ] * $share, $q ),
-						$share >= $q ? (int) $item->tax_minor : intdiv( (int) $item->tax_minor * $share, $q ),
-					);
-					break;
-				}
-			}
-		}
-		if ( ! array_filter( array_column( $weights, 0 ) ) ) {
-			$weights = array();
-			foreach ( $items as $i => $item ) { $weights[ $i ] = array( (int) $after_discount[ $i ], (int) $item->tax_minor ); }
-		}
-		$groups = array();
-		foreach ( $weights as $i => $w ) {
-			$rate = (int) $items[ $i ]->tax_rate_bp;
-			$groups[ $rate ] = array( ( $groups[ $rate ][0] ?? 0 ) + max( 0, $w[0] ), ( $groups[ $rate ][1] ?? 0 ) + max( 0, $w[1] ) );
-		}
-		ksort( $groups, SORT_NUMERIC );
-		if ( ! $groups || ! array_filter( array_column( $groups, 0 ) ) ) {
+		$parts = self::refund_line_parts( $refund, $items, $discount, $total, $tax );
+		if ( ! $parts ) {
 			// No usable lines: one row, rate derived from the amounts.
 			$net = $total - $tax;
 			$rate = $tax > 0 && $net > 0 ? (int) round( $tax * 10000 / $net ) : 0;
 			return array( array( 'rate_bp' => $rate, 'net' => $net, 'tax' => $tax, 'gross' => $total ) );
 		}
-		$gross_by_rate = self::apportion( $total, array_map( static function ( $g ) { return $g[0]; }, $groups ) );
-		// VAT follows the line VAT (0 % lines get none); without any line VAT it follows the gross of rates > 0.
-		$tax_weights = array_map( static function ( $g ) { return $g[1]; }, $groups );
-		if ( ! array_filter( $tax_weights ) ) {
-			foreach ( $groups as $rate => $g ) { $tax_weights[ $rate ] = $rate > 0 ? $g[0] : 0; }
-			if ( ! array_filter( $tax_weights ) ) { $tax_weights = array_map( static function ( $g ) { return $g[0]; }, $groups ); }
+		$groups = array();
+		foreach ( $parts as $part ) {
+			$rate = (int) $part['rate_bp'];
+			$groups[ $rate ] = array( ( $groups[ $rate ][0] ?? 0 ) + (int) $part['gross'], ( $groups[ $rate ][1] ?? 0 ) + (int) $part['tax'] );
 		}
-		$tax_by_rate = self::apportion( $tax, $tax_weights );
+		ksort( $groups, SORT_NUMERIC );
 		$out = array();
-		foreach ( array_keys( $groups ) as $rate ) {
-			$gross = (int) $gross_by_rate[ $rate ];
-			$vat = (int) $tax_by_rate[ $rate ];
-			if ( 0 === $gross && 0 === $vat ) { continue; }
-			$out[] = array( 'rate_bp' => (int) $rate, 'net' => $gross - $vat, 'tax' => $vat, 'gross' => $gross );
+		foreach ( $groups as $rate => $g ) {
+			if ( 0 === $g[0] && 0 === $g[1] ) { continue; }
+			$out[] = array( 'rate_bp' => (int) $rate, 'net' => $g[0] - $g[1], 'tax' => $g[1], 'gross' => $g[0] );
 		}
 		if ( ! $out ) {
 			$out[] = array( 'rate_bp' => (int) array_key_last( $groups ), 'net' => 0, 'tax' => 0, 'gross' => 0 );
+		}
+		return $out;
+	}
+
+	/**
+	 * Splits a refund/correction onto the paid order lines (shared by correction documents, the sales
+	 * report and the settlement sheet, so their figures per tax rate are identical).
+	 *
+	 * Weights: ticket refunds weight each refunded ticket with its line's paid gross after the order
+	 * discount (and its line VAT), filling the lines of the ticket type in item order; amount-only
+	 * refunds weight all paid lines. Gross and VAT are first apportioned per tax rate (largest
+	 * remainder; VAT by line VAT, so 0 % lines get none) and then onto the lines of each rate. The
+	 * parts add up exactly to $total / $tax.
+	 *
+	 * @param array|object $refund   Refund row (order_id, ticket_ids).
+	 * @param object[]     $items    Paid order lines in item order (ticket_type_id, tax_rate_bp, quantity,
+	 *                               line_total_minor, tax_minor, discount_minor; OrderLines::paid_columns()).
+	 * @param int          $discount Order discount (orders.discount_minor).
+	 * @param int          $total    Gross amount of the refund (minor units).
+	 * @param int          $tax      VAT of the refund (minor units).
+	 * @return array[] List of ['index' => line index, 'rate_bp' => int, 'tickets' => int, 'gross' => int, 'tax' => int];
+	 *                 empty when no line carries a paid value.
+	 */
+	public static function refund_line_parts( $refund, array $items, $discount, $total, $tax ) {
+		global $wpdb;
+		$refund = (array) $refund;
+		$items = array_values( $items );
+		$total = (int) $total;
+		$tax = (int) $tax;
+		if ( ! $items ) { return array(); }
+		$after_discount = OrderLines::after_discount( $items, (int) $discount );
+		// Line weights: [tickets, gross after discount, VAT] of the refunded part of each line.
+		$weights = array();
+		$ids = array_filter( array_map( 'absint', (array) json_decode( (string) ( $refund['ticket_ids'] ?? '' ), true ) ) );
+		if ( $ids ) {
+			$counts = array();
+			$order_id = (int) ( $refund['order_id'] ?? 0 );
+			$in = implode( ',', $ids );
+			$type_ids = $order_id
+				? $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND ticket_id IN ($in)", $order_id ) ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				: $wpdb->get_col( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id IN ($in)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			foreach ( $type_ids as $type_id ) {
+				$counts[ (int) $type_id ] = ( $counts[ (int) $type_id ] ?? 0 ) + 1;
+			}
+			foreach ( $counts as $type_id => $n ) {
+				// Paid lines of the type in item order (lines an exchange created carry no paid value).
+				foreach ( $items as $i => $item ) {
+					if ( $n <= 0 ) { break; }
+					if ( (int) $item->ticket_type_id !== $type_id || (int) $item->quantity < 1 ) { continue; }
+					$q = (int) $item->quantity;
+					$share = min( $n, $q );
+					$weights[ $i ] = array(
+						$share,
+						$share >= $q ? (int) $after_discount[ $i ] : intdiv( (int) $after_discount[ $i ] * $share, $q ),
+						$share >= $q ? (int) $item->tax_minor : intdiv( (int) $item->tax_minor * $share, $q ),
+					);
+					$n -= $share;
+				}
+			}
+		}
+		if ( ! array_filter( array_column( $weights, 1 ) ) ) {
+			$weights = array();
+			foreach ( $items as $i => $item ) { $weights[ $i ] = array( 0, (int) $after_discount[ $i ], (int) $item->tax_minor ); }
+		}
+		ksort( $weights, SORT_NUMERIC );
+		$groups = array(); // rate => [line index => [gross weight, VAT weight]]
+		foreach ( $weights as $i => $w ) {
+			$groups[ (int) $items[ $i ]->tax_rate_bp ][ $i ] = array( max( 0, $w[1] ), max( 0, $w[2] ) );
+		}
+		ksort( $groups, SORT_NUMERIC );
+		$gross_weights = array_map( static function ( $lines ) { return array_sum( array_column( $lines, 0 ) ); }, $groups );
+		if ( ! array_filter( $gross_weights ) ) { return array(); }
+		$gross_by_rate = self::apportion( $total, $gross_weights );
+		// VAT follows the line VAT (0 % lines get none); without any line VAT it follows the gross of rates > 0.
+		$tax_weights = array_map( static function ( $lines ) { return array_sum( array_column( $lines, 1 ) ); }, $groups );
+		if ( ! array_filter( $tax_weights ) ) {
+			foreach ( $gross_weights as $rate => $g ) { $tax_weights[ $rate ] = $rate > 0 ? $g : 0; }
+			if ( ! array_filter( $tax_weights ) ) { $tax_weights = $gross_weights; }
+		}
+		$tax_by_rate = self::apportion( $tax, $tax_weights );
+		$out = array();
+		foreach ( $groups as $rate => $lines ) {
+			$line_gross = array_map( static function ( $w ) { return $w[0]; }, $lines );
+			$line_tax = array_map( static function ( $w ) { return $w[1]; }, $lines );
+			if ( ! array_filter( $line_tax ) ) { $line_tax = $line_gross; }
+			$gross_parts = self::apportion( (int) $gross_by_rate[ $rate ], $line_gross );
+			$tax_parts = self::apportion( (int) $tax_by_rate[ $rate ], $line_tax );
+			foreach ( array_keys( $lines ) as $i ) {
+				$out[] = array( 'index' => (int) $i, 'rate_bp' => (int) $rate, 'tickets' => (int) $weights[ $i ][0], 'gross' => (int) $gross_parts[ $i ], 'tax' => (int) $tax_parts[ $i ] );
+			}
 		}
 		return $out;
 	}
@@ -551,6 +603,7 @@ final class Invoices {
 	 * VAT rate of each correction document, plus sales and refunds of orders without invoice (columns and
 	 * reconciliation with the sales report: docs/OPERATIONS.md "Buchhaltungsexport").
 	 * admin-post.php?action=wpcap_export_accounting&from=YYYY-MM-DD&to=YYYY-MM-DD&_wpnonce=…
+	 * With &format=datev the DATEV-style booking batch (datev_rows()) is sent instead.
 	 */
 	public static function handle_export() {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( self::FINANCE_CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
@@ -561,17 +614,31 @@ final class Invoices {
 		$to_in = sanitize_text_field( wp_unslash( (string) ( $_REQUEST['to'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$from = Reports\Data::valid_date( $from_in ) ? $from_in : substr( $today, 0, 8 ) . '01';
 		$to = Reports\Data::valid_date( $to_in ) ? $to_in : $today;
-		$rows = self::export_rows( $from, $to );
-		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => count( $rows ) ) );
+		if ( $to < $from ) { list( $from, $to ) = array( $to, $from ); }
+		$datev = 'datev' === sanitize_key( wp_unslash( (string) ( $_REQUEST['format'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$rows = $datev ? self::datev_rows( $from, $to ) : self::export_rows( $from, $to );
+		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => count( $rows ), 'format' => $datev ? 'datev' : 'csv' ) );
 		nocache_headers();
-		header( 'Content-Type: text/csv; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename="wp-pass-captain-buchhaltung-' . $from . '-' . $to . '.csv"' );
+		header( 'Content-Type: text/csv; charset=' . ( $datev ? 'windows-1252' : 'utf-8' ) );
+		header( 'Content-Disposition: attachment; filename="wp-pass-captain-' . ( $datev ? 'buchungsstapel' : 'buchhaltung' ) . '-' . $from . '-' . $to . '.csv"' );
 		$out = fopen( 'php://output', 'w' );
-		fwrite( $out, "\xEF\xBB\xBF" );
-		foreach ( $rows as $row ) { fputcsv( $out, $row, ';', '"', '' ); } // Explicit escape (PHP 8.4 deprecates the default); '' = RFC 4180 quoting only.
+		if ( ! $datev ) { fwrite( $out, "\xEF\xBB\xBF" ); }
+		foreach ( $rows as $row ) {
+			if ( $datev ) {
+				// DATEV import expects ANSI (Windows-1252).
+				$row = array_map( static function ( $cell ) { return mb_convert_encoding( (string) $cell, 'Windows-1252', 'UTF-8' ); }, $row );
+			}
+			fputcsv( $out, $row, ';', '"', '' ); // Explicit escape (PHP 8.4 deprecates the default); '' = RFC 4180 quoting only.
+		}
 		fclose( $out );
 		exit;
 	}
+
+	/**
+	 * Columns of the accounting export, in this order (stable interface: new columns are only ever
+	 * appended; documented in docs/OPERATIONS.md "Buchhaltungsexport").
+	 */
+	const EXPORT_COLUMNS = array( 'Belegart', 'Belegnummer', 'Belegdatum', 'Bestellung', 'Bezug', 'Beschreibung', 'Menge', 'Netto', 'USt-Satz', 'USt', 'Brutto', 'Waehrung', 'Zahlungsart', 'Verkaufsmodell', 'Rechnungssteller' );
 
 	/** Document types of the accounting export (column Belegart). */
 	const EXPORT_KIND_INVOICE = 'Rechnung';
@@ -595,7 +662,7 @@ final class Invoices {
 		$tz = Reports\Scope::site_timezone();
 		list( $from_utc, $to_utc ) = Reports\Data::bounds( $from, $to, $tz );
 		$local_day = static function ( $utc ) use ( $tz ) { return Reports\Scope::local( $utc, $tz, 'Y-m-d' ); };
-		$rows = array( array( 'Belegart', 'Belegnummer', 'Belegdatum', 'Bestellung', 'Bezug', 'Beschreibung', 'Menge', 'Netto', 'USt-Satz', 'USt', 'Brutto', 'Waehrung', 'Zahlungsart', 'Verkaufsmodell', 'Rechnungssteller' ) );
+		$rows = array( self::EXPORT_COLUMNS );
 		$money = static function ( $minor ) { return number_format( $minor / 100, 2, '.', '' ); };
 		$safe = static function ( $text ) { $text = (string) $text; return preg_match( '/^[=+\-@\t\r]/', $text ) ? "'" . $text : $text; };
 		// Seller columns: agent-model documents are issued in the organizer's name (not platform revenue).
@@ -673,6 +740,173 @@ final class Invoices {
 			}
 		}
 		return $rows;
+	}
+
+	/* ------------------------------------------------------------------ Journal totals, DATEV booking batch, number gaps */
+
+	/** Converts a decimal string of the export ("-12.34") into minor units (exact, no float). */
+	public static function decimal_to_minor( $value ) {
+		$value = trim( (string) $value );
+		if ( ! preg_match( '/^(-?)(\d+)(?:\.(\d{1,2}))?$/', $value, $m ) ) { return 0; }
+		$minor = (int) $m[2] * 100 + (int) str_pad( $m[3] ?? '', 2, '0' );
+		return '-' === $m[1] ? -$minor : $minor;
+	}
+
+	/**
+	 * Totals of accounting export rows per currency and VAT rate (minor units, signed).
+	 *
+	 * @param array[] $rows export_rows() (header row included or not).
+	 * @return array Currency => ['rates' => [rate "19.00" => [net, tax, gross]], 'total' => [net, tax, gross]].
+	 */
+	public static function journal_totals( array $rows ) {
+		$out = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) || count( $row ) < 12 || self::EXPORT_COLUMNS[0] === $row[0] ) { continue; }
+			$cur = (string) $row[11];
+			$rate = (string) $row[8];
+			$amounts = array( 'net' => self::decimal_to_minor( $row[7] ), 'tax' => self::decimal_to_minor( $row[9] ), 'gross' => self::decimal_to_minor( $row[10] ) );
+			$out[ $cur ] = $out[ $cur ] ?? array( 'rates' => array(), 'total' => array( 'net' => 0, 'tax' => 0, 'gross' => 0 ) );
+			$out[ $cur ]['rates'][ $rate ] = $out[ $cur ]['rates'][ $rate ] ?? array( 'net' => 0, 'tax' => 0, 'gross' => 0 );
+			foreach ( $amounts as $k => $v ) {
+				$out[ $cur ]['rates'][ $rate ][ $k ] += $v;
+				$out[ $cur ]['total'][ $k ] += $v;
+			}
+		}
+		ksort( $out );
+		foreach ( $out as $cur => $c ) { ksort( $out[ $cur ]['rates'], SORT_NUMERIC ); }
+		return $out;
+	}
+
+	/** Columns of the DATEV-style booking batch (names of the DATEV booking batch fields). */
+	const DATEV_COLUMNS = array( 'Umsatz (ohne Soll/Haben-Kz)', 'Soll/Haben-Kennzeichen', 'WKZ Umsatz', 'Konto', 'Gegenkonto (ohne BU-Schlüssel)', 'BU-Schlüssel', 'Belegdatum', 'Belegfeld 1', 'Belegfeld 2', 'Buchungstext' );
+
+	/**
+	 * Account mapping of the booking batch. Defaults follow SKR03 (revenue accounts with automatic VAT:
+	 * 8400 = 19 %, 8300 = 7 %; other rates 8200; money account 1360 "Geldtransit"). Filter
+	 * `wpcap_datev_accounts` (SKR04, own accounts, BU keys, one money account per payment provider).
+	 *
+	 * @return array{revenue: array<int,string>, revenue_default: string, bu_keys: array<int,string>, contra: string, contra_by_provider: array<string,string>}
+	 */
+	public static function datev_accounts() {
+		$defaults = array(
+			'revenue' => array( 1900 => '8400', 700 => '8300' ),
+			'revenue_default' => '8200',
+			'bu_keys' => array(),
+			'contra' => '1360',
+			'contra_by_provider' => array(),
+		);
+		/**
+		 * Accounts of the DATEV-style booking batch (docs/OPERATIONS.md "Buchungsstapel").
+		 *
+		 * @param array $accounts revenue (rate in basis points => account), revenue_default, bu_keys (rate in basis
+		 *                        points => BU key), contra (money account), contra_by_provider (payment provider => account).
+		 */
+		$accounts = (array) apply_filters( 'wpcap_datev_accounts', $defaults );
+		return array_merge( $defaults, array_intersect_key( $accounts, $defaults ) );
+	}
+
+	/**
+	 * DATEV-style booking batch (first row = header): one booking per document (or order without invoice),
+	 * VAT rate and currency, gross amount on the revenue account of the rate against the money account.
+	 * Sales are "S" (money account debit), corrections and refunds "H"; the amount is always positive.
+	 * Belegfeld 1 = document number (order number without invoice), Belegfeld 2 = corrected invoice.
+	 * Documents of the agent model (Vermittler) are the organizer's revenue and are not booked here.
+	 * Built from export_rows(), so both exports always agree.
+	 */
+	public static function datev_rows( $from, $to ) {
+		$accounts = self::datev_accounts();
+		$bookings = array();
+		foreach ( array_slice( self::export_rows( $from, $to ), 1 ) as $row ) {
+			if ( 'Vermittler' === $row[13] ) { continue; }
+			$doc = '' !== (string) $row[1] ? (string) $row[1] : (string) $row[3];
+			$key = implode( '|', array( $row[0], $doc, $row[2], $row[8], $row[11], $row[12] ) );
+			if ( ! isset( $bookings[ $key ] ) ) {
+				$rate_bp = (int) round( (float) $row[8] * 100 );
+				$bookings[ $key ] = array(
+					'gross' => 0,
+					'currency' => (string) $row[11],
+					'account' => (string) ( $accounts['revenue'][ $rate_bp ] ?? $accounts['revenue_default'] ),
+					'contra' => (string) ( $accounts['contra_by_provider'][ ltrim( (string) $row[12], "'" ) ] ?? $accounts['contra'] ),
+					'bu' => (string) ( $accounts['bu_keys'][ $rate_bp ] ?? '' ),
+					'date' => (string) $row[2],
+					'doc' => $doc,
+					'ref' => (string) $row[4],
+					'text' => $row[0] . ' ' . str_replace( '.', ',', (string) $row[8] ) . ' %',
+				);
+			}
+			$bookings[ $key ]['gross'] += self::decimal_to_minor( $row[10] );
+		}
+		$out = array( self::DATEV_COLUMNS );
+		foreach ( $bookings as $b ) {
+			if ( 0 === $b['gross'] ) { continue; }
+			$out[] = array(
+				number_format( abs( $b['gross'] ) / 100, 2, ',', '' ),
+				$b['gross'] > 0 ? 'S' : 'H',
+				$b['currency'],
+				$b['contra'],
+				$b['account'],
+				$b['bu'],
+				substr( $b['date'], 8, 2 ) . substr( $b['date'], 5, 2 ),
+				substr( preg_replace( '/[^A-Za-z0-9$&%*+\-\/._]/', '', $b['doc'] ), 0, 36 ),
+				substr( preg_replace( '/[^A-Za-z0-9$&%*+\-\/._]/', '', $b['ref'] ), 0, 36 ),
+				mb_substr( $b['text'], 0, 60 ),
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Missing numbers per number range (prefix and year) in a list of document numbers
+	 * ("PREFIX-YYYY-000123"); a range is checked from its lowest to its highest number.
+	 *
+	 * @param string[] $numbers Document numbers.
+	 * @return array<string,string[]> "PREFIX-YYYY" => missing numbers (formatted like the documents).
+	 */
+	public static function number_gaps( array $numbers ) {
+		$ranges = array();
+		foreach ( $numbers as $number ) {
+			if ( preg_match( '/^(.+)-(\d{4})-(\d{6,})$/', (string) $number, $m ) ) {
+				$ranges[ $m[1] . '-' . $m[2] ][] = (int) $m[3];
+			}
+		}
+		ksort( $ranges );
+		$out = array();
+		foreach ( $ranges as $range => $seq ) {
+			$present = array_flip( $seq );
+			$missing = array();
+			for ( $n = min( $seq ), $max = max( $seq ); $n <= $max && count( $missing ) < 1000; $n++ ) {
+				if ( ! isset( $present[ $n ] ) ) { $missing[] = sprintf( '%s-%06d', $range, $n ); }
+			}
+			if ( $missing ) { $out[ $range ] = $missing; }
+		}
+		return $out;
+	}
+
+	/**
+	 * Gaps in the invoice and correction number ranges of the years a period touches (local dates).
+	 *
+	 * @return array<string,string[]> See number_gaps().
+	 */
+	public static function document_gaps( $from, $to ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$first = (int) substr( (string) $from, 0, 4 );
+		$last = (int) substr( (string) $to, 0, 4 );
+		if ( $first < 1970 || $last < $first ) { return array(); }
+		// Issue dates one day around the years (UTC vs. local year), numbers filtered by their year.
+		$start = ( $first - 1 ) . '-12-31 00:00:00';
+		$end = ( $last + 1 ) . '-01-02 00:00:00';
+		$numbers = array_merge(
+			(array) $wpdb->get_col( $wpdb->prepare( "SELECT invoice_number FROM {$p}wpcap_invoices WHERE issued_at >= %s AND issued_at < %s", $start, $end ) ),
+			(array) $wpdb->get_col( $wpdb->prepare( "SELECT credit_note_number FROM {$p}wpcap_credit_notes WHERE issued_at >= %s AND issued_at < %s", $start, $end ) )
+		);
+		$numbers = array_filter(
+			$numbers,
+			static function ( $n ) use ( $first, $last ) {
+				return preg_match( '/-(\d{4})-\d{6,}$/', (string) $n, $m ) && (int) $m[1] >= $first && (int) $m[1] <= $last;
+			}
+		);
+		return self::number_gaps( $numbers );
 	}
 
 	/** Finance view permission for one order (global finance roles or event-scoped order managers). */

@@ -68,7 +68,7 @@ final class Data {
 	}
 
 	private static function empty_bucket( $label ) {
-		return array( 'label' => $label, 'tickets' => 0, 'gross' => 0, 'tax' => 0, 'net' => 0, 'refunded_tickets' => 0, 'refunded' => 0, 'refunded_tax' => 0, 'revenue' => 0, 'revenue_tax' => 0 );
+		return array( 'label' => $label, 'tickets' => 0, 'gross' => 0, 'tax' => 0, 'net' => 0, 'refunded_tickets' => 0, 'refunded' => 0, 'refunded_tax' => 0, 'revenue' => 0, 'revenue_tax' => 0, 'revenue_net' => 0 );
 	}
 
 	/**
@@ -122,7 +122,9 @@ final class Data {
 		$comp_providers = self::comp_providers();
 		$comps = array( 'orders' => 0, 'tickets' => 0 );
 
-		$add = static function ( array $keys, $field_values ) use ( &$dims, &$rates, &$channels, &$total ) {
+		// Per currency (amounts of different currencies are never added up in these buckets).
+		$by_currency = array();
+		$add = static function ( array $keys, $field_values ) use ( &$dims, &$rates, &$channels, &$total, &$by_currency ) {
 			foreach ( $keys['dims'] as $dim => $kl ) {
 				list( $key, $label ) = $kl;
 				if ( ! isset( $dims[ $dim ][ $key ] ) ) { $dims[ $dim ][ $key ] = self::empty_bucket( $label ); }
@@ -130,13 +132,18 @@ final class Data {
 			}
 			$rate = $keys['rate'];
 			if ( ! isset( $rates[ $rate ] ) ) { $rates[ $rate ] = self::empty_bucket( number_format_i18n( $rate / 100, 2 ) . ' %' ); }
+			$cur = $keys['currency'];
+			if ( ! isset( $by_currency[ $cur ] ) ) { $by_currency[ $cur ] = array( 'total' => self::empty_bucket( $cur ), 'rates' => array() ); }
+			if ( ! isset( $by_currency[ $cur ]['rates'][ $rate ] ) ) { $by_currency[ $cur ]['rates'][ $rate ] = self::empty_bucket( $rates[ $rate ]['label'] ); }
 			foreach ( $field_values as $f => $v ) {
 				$rates[ $rate ][ $f ] += $v;
 				$channels[ $keys['channel'] ][ $f ] += $v;
 				$total[ $f ] += $v;
+				$by_currency[ $cur ]['total'][ $f ] += $v;
+				$by_currency[ $cur ]['rates'][ $rate ][ $f ] += $v;
 			}
 		};
-		$keys_for = static function ( $line, $provider, $day ) {
+		$keys_for = static function ( $line, $provider, $day, $currency ) {
 			return array(
 				'dims' => array(
 					'event' => array( (int) $line->event_id, $line->event_name ),
@@ -147,6 +154,7 @@ final class Data {
 				),
 				'rate' => (int) $line->tax_rate_bp,
 				'channel' => self::channel_of( $provider ),
+				'currency' => (string) $currency,
 			);
 		};
 		$line_sql = self::line_sql();
@@ -177,12 +185,12 @@ final class Data {
 				$currencies[ $order->currency ] = true;
 				$gross = $gross_lines[ $i ];
 				$tax = (int) $line->tax_minor;
-				$add( $keys_for( $line, $order->payment_provider, $day ), array( 'tickets' => $supplement ? 0 : (int) $line->quantity, 'gross' => $gross, 'tax' => $tax, 'net' => $gross - $tax, 'revenue' => $gross, 'revenue_tax' => $tax ) );
+				$add( $keys_for( $line, $order->payment_provider, $day, $order->currency ), array( 'tickets' => $supplement ? 0 : (int) $line->quantity, 'gross' => $gross, 'tax' => $tax, 'net' => $gross - $tax, 'revenue' => $gross, 'revenue_tax' => $tax, 'revenue_net' => $gross - $tax ) );
 			}
 		}
 
 		// Completed refunds (netted on their completion day).
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $start, $end ) );
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.currency,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $start, $end ) );
 		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
 		foreach ( $refunds as $refund ) {
 			$lines = $refund_lines[ (int) $refund->order_id ] ?? array();
@@ -191,7 +199,7 @@ final class Data {
 			foreach ( self::refund_split( $refund, $lines ) as $part ) {
 				$line = $lines[ $part['index'] ];
 				if ( ! self::in_scope( $line->event_id, $scope, $line->occurrence_id ) ) { continue; }
-				$add( $keys_for( $line, $refund->payment_provider, $day ), array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'], 'revenue' => -$part['amount'], 'revenue_tax' => -$part['tax'] ) );
+				$add( $keys_for( $line, $refund->payment_provider, $day, $refund->currency ), array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'], 'revenue' => -$part['amount'], 'revenue_tax' => -$part['tax'], 'revenue_net' => $part['tax'] - $part['amount'] ) );
 			}
 		}
 		foreach ( $dims as $d => $buckets ) {
@@ -199,6 +207,8 @@ final class Data {
 			$dims[ $d ] = $buckets;
 		}
 		ksort( $rates );
+		ksort( $by_currency );
+		foreach ( $by_currency as $cur => $c ) { ksort( $by_currency[ $cur ]['rates'] ); }
 
 		// Correction documents (Rechnungskorrekturen) in the range (reference only).
 		$credit_rows = $wpdb->get_results( $wpdb->prepare( "SELECT c.credit_note_number,c.total_minor,c.tax_minor,i.order_id FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id WHERE c.issued_at >= %s AND c.issued_at < %s", $start, $end ) );
@@ -224,6 +234,7 @@ final class Data {
 			'total' => $total,
 			'dimensions' => $dims,
 			'rates' => $rates,
+			'currencies' => $by_currency,
 			'channels' => $channels,
 			'credit_notes' => $credit,
 			'comps' => $comps,
@@ -241,48 +252,32 @@ final class Data {
 	}
 
 	/**
-	 * Splits a completed refund onto the order lines: ticket refunds weight each refunded ticket with its
-	 * line's unit price, amount-only refunds weight all lines. Multi-purpose voucher orders count cash +
-	 * voucher share and the full VAT from the stored refund plan (same numbers as the credit note).
+	 * Splits a completed refund onto the order lines with the same allocation as the correction
+	 * document (Invoices::refund_line_parts()): the refunded amount and VAT per tax rate are identical
+	 * to the rows of the Rechnungskorrektur and of the accounting export. Multi-purpose voucher orders
+	 * count cash + voucher share and the full VAT from the stored refund plan.
 	 *
-	 * @param object   $refund Refund row (refund_id, amount_minor, tax_minor, ticket_ids, optional has_voucher).
+	 * @param object   $refund Refund row (refund_id, order_id, amount_minor, tax_minor, ticket_ids, optional
+	 *                         discount_minor and has_voucher).
 	 * @param object[] $lines  Lines of the order (lines_by_order()).
 	 * @return array[] List of ['index' => line index, 'tickets' => int, 'amount' => int, 'tax' => int].
 	 */
 	public static function refund_split( $refund, array $lines ) {
 		global $wpdb;
-		$p = $wpdb->prefix;
 		if ( ! $lines ) { return array(); }
+		$lines = array_values( $lines );
 		$amounts = \PassCaptain\Integrations\Vouchers\Checkout::refund_amounts( $refund );
 		$total_amount = (int) $amounts['amount_minor'];
 		$total_tax = (int) $amounts['tax_minor'];
-		$by_type = array();
-		foreach ( $lines as $i => $line ) { $by_type[ (int) $line->ticket_type_id ] = $i; }
-		$ids = array_filter( array_map( 'absint', (array) json_decode( (string) $refund->ticket_ids, true ) ) );
-		$weights = array(); // line index => [tickets, weight]
-		if ( $ids ) {
-			foreach ( $wpdb->get_results( 'SELECT ticket_type_id FROM ' . $p . 'wpcap_tickets WHERE ticket_id IN (' . implode( ',', $ids ) . ')' ) as $t ) {
-				$i = $by_type[ (int) $t->ticket_type_id ] ?? null;
-				if ( null === $i ) { continue; }
-				$unit = intdiv( (int) $lines[ $i ]->line_total_minor, max( 1, (int) $lines[ $i ]->quantity ) );
-				$weights[ $i ] = array( ( $weights[ $i ][0] ?? 0 ) + 1, ( $weights[ $i ][1] ?? 0 ) + $unit );
-			}
-		}
-		if ( ! $weights ) {
-			foreach ( $lines as $i => $line ) { $weights[ $i ] = array( 0, (int) $line->line_total_minor ); }
-		}
-		$sum = max( 1, array_sum( array_map( static function ( $w ) { return $w[1]; }, $weights ) ) );
-		$amount_left = $total_amount;
-		$tax_left = $total_tax;
-		$keys = array_keys( $weights );
+		$discount = isset( $refund->discount_minor ) ? (int) $refund->discount_minor : (int) $wpdb->get_var( $wpdb->prepare( "SELECT discount_minor FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", (int) ( $refund->order_id ?? 0 ) ) );
 		$out = array();
-		foreach ( $keys as $n => $i ) {
-			$last = $n === count( $keys ) - 1;
-			$amount = $last ? $amount_left : intdiv( $total_amount * $weights[ $i ][1], $sum );
-			$tax = $last ? $tax_left : intdiv( $total_tax * $weights[ $i ][1], $sum );
-			$amount_left -= $amount;
-			$tax_left -= $tax;
-			$out[] = array( 'index' => $i, 'tickets' => $weights[ $i ][0], 'amount' => $amount, 'tax' => $tax );
+		foreach ( \PassCaptain\Invoices::refund_line_parts( $refund, $lines, $discount, $total_amount, $total_tax ) as $part ) {
+			if ( 0 === $part['gross'] && 0 === $part['tax'] && 0 === $part['tickets'] ) { continue; }
+			$out[] = array( 'index' => $part['index'], 'tickets' => $part['tickets'], 'amount' => $part['gross'], 'tax' => $part['tax'] );
+		}
+		if ( ! $out && ( $total_amount || $total_tax ) ) {
+			// No line carries a paid value: book the refund on the last line (totals stay complete).
+			$out[] = array( 'index' => count( $lines ) - 1, 'tickets' => 0, 'amount' => $total_amount, 'tax' => $total_tax );
 		}
 		return $out;
 	}
@@ -384,11 +379,60 @@ final class Data {
 		return $out;
 	}
 
+	/** Amount fields of a report bucket that add up across buckets. */
+	const SUM_FIELDS = array( 'tickets', 'gross', 'tax', 'net', 'refunded_tickets', 'refunded', 'refunded_tax', 'revenue', 'revenue_tax', 'revenue_net' );
+
+	/**
+	 * Arithmetic acceptance of a report (build()): every bucket satisfies net = gross − VAT,
+	 * revenue = gross − refunded, revenue VAT = VAT − refunded VAT and revenue net = revenue − revenue VAT;
+	 * every grouping (event, occurrence, ticket type, provider, day, tax rate, channel) adds up to the
+	 * total, the currencies add up to the total and the tax rates of each currency to its total.
+	 *
+	 * @param array $report Result of build().
+	 * @return string[] Failed checks (empty when the report reconciles), e.g. "rates:revenue".
+	 */
+	public static function reconcile( array $report ) {
+		$failed = array();
+		$check_bucket = static function ( $name, array $b ) use ( &$failed ) {
+			$rules = array(
+				'net' => (int) $b['gross'] - (int) $b['tax'] === (int) $b['net'],
+				'revenue' => (int) $b['gross'] - (int) $b['refunded'] === (int) $b['revenue'],
+				'revenue_tax' => (int) $b['tax'] - (int) $b['refunded_tax'] === (int) $b['revenue_tax'],
+				'revenue_net' => (int) $b['revenue'] - (int) $b['revenue_tax'] === (int) ( $b['revenue_net'] ?? $b['revenue'] - $b['revenue_tax'] ),
+			);
+			foreach ( $rules as $rule => $ok ) {
+				if ( ! $ok ) { $failed[] = $name . ':' . $rule; }
+			}
+		};
+		$check_sum = static function ( $name, array $buckets, array $total ) use ( &$failed ) {
+			foreach ( self::SUM_FIELDS as $f ) {
+				if ( array_sum( array_map( static function ( $b ) use ( $f ) { return (int) ( $b[ $f ] ?? 0 ); }, $buckets ) ) !== (int) ( $total[ $f ] ?? 0 ) ) { $failed[] = $name . ':' . $f; }
+			}
+		};
+		$total = $report['total'];
+		$check_bucket( 'total', $total );
+		foreach ( (array) $report['dimensions'] as $dim => $buckets ) {
+			foreach ( $buckets as $key => $b ) { $check_bucket( $dim . '/' . $key, $b ); }
+			$check_sum( $dim, $buckets, $total );
+		}
+		foreach ( array( 'rates', 'channels' ) as $group ) {
+			foreach ( (array) $report[ $group ] as $key => $b ) { $check_bucket( $group . '/' . $key, $b ); }
+			$check_sum( $group, (array) $report[ $group ], $total );
+		}
+		$currencies = (array) ( $report['currencies'] ?? array() );
+		$check_sum( 'currencies', array_column( $currencies, 'total' ), $total );
+		foreach ( $currencies as $cur => $c ) {
+			$check_bucket( 'currency/' . $cur, $c['total'] );
+			$check_sum( 'currency/' . $cur . '/rates', $c['rates'], $c['total'] );
+		}
+		return array_values( array_unique( $failed ) );
+	}
+
 	/** CSV rows of a report (amounts as decimals). */
 	public static function csv_rows( array $report ) {
 		$m = static function ( $minor ) { return number_format( $minor / 100, 2, '.', '' ); };
-		$head = array( __( 'Tickets', 'wp-pass-captain' ), __( 'Brutto', 'wp-pass-captain' ), __( 'Netto', 'wp-pass-captain' ), __( 'USt', 'wp-pass-captain' ), __( 'Erstattete Tickets', 'wp-pass-captain' ), __( 'Erstattet brutto', 'wp-pass-captain' ), __( 'Erstattet USt', 'wp-pass-captain' ), __( 'Umsatz nach Erstattung', 'wp-pass-captain' ), __( 'USt nach Erstattung', 'wp-pass-captain' ) );
-		$vals = static function ( $b ) use ( $m ) { return array( $b['tickets'], $m( $b['gross'] ), $m( $b['net'] ), $m( $b['tax'] ), $b['refunded_tickets'], $m( $b['refunded'] ), $m( $b['refunded_tax'] ), $m( $b['revenue'] ), $m( $b['revenue_tax'] ) ); };
+		$head = array( __( 'Tickets', 'wp-pass-captain' ), __( 'Brutto', 'wp-pass-captain' ), __( 'Netto', 'wp-pass-captain' ), __( 'USt', 'wp-pass-captain' ), __( 'Erstattete Tickets', 'wp-pass-captain' ), __( 'Erstattet brutto', 'wp-pass-captain' ), __( 'Erstattet USt', 'wp-pass-captain' ), __( 'Umsatz nach Erstattung', 'wp-pass-captain' ), __( 'USt nach Erstattung', 'wp-pass-captain' ), __( 'Netto nach Erstattung', 'wp-pass-captain' ) );
+		$vals = static function ( $b ) use ( $m ) { return array( $b['tickets'], $m( $b['gross'] ), $m( $b['net'] ), $m( $b['tax'] ), $b['refunded_tickets'], $m( $b['refunded'] ), $m( $b['refunded_tax'] ), $m( $b['revenue'] ), $m( $b['revenue_tax'] ), $m( $b['revenue_net'] ?? ( $b['revenue'] - $b['revenue_tax'] ) ) ); };
 		$rows = array( array( __( 'Bericht', 'wp-pass-captain' ), $report['from'], $report['to'], $report['timezone'], $report['currency'] ) );
 		$sections = array( 'event' => __( 'Event', 'wp-pass-captain' ), 'occurrence' => __( 'Termin', 'wp-pass-captain' ), 'ticket_type' => __( 'Ticketart', 'wp-pass-captain' ), 'provider' => __( 'Zahlungsanbieter', 'wp-pass-captain' ), 'day' => __( 'Tag', 'wp-pass-captain' ) );
 		foreach ( $sections as $dim => $label ) {
@@ -403,6 +447,13 @@ final class Data {
 		$rows[] = array_merge( array( __( 'Kanal', 'wp-pass-captain' ) ), $head );
 		foreach ( $report['channels'] as $b ) { $rows[] = array_merge( array( $b['label'] ), $vals( $b ) ); }
 		$rows[] = array_merge( array( $report['total']['label'] ), $vals( $report['total'] ) );
+		// Per currency and tax rate (the totals above only add up within one currency).
+		$rows[] = array();
+		$rows[] = array_merge( array( __( 'Währung', 'wp-pass-captain' ), __( 'USt-Satz', 'wp-pass-captain' ) ), $head );
+		foreach ( (array) ( $report['currencies'] ?? array() ) as $cur => $c ) {
+			foreach ( $c['rates'] as $b ) { $rows[] = array_merge( array( $cur, $b['label'] ), $vals( $b ) ); }
+			$rows[] = array_merge( array( $cur, $report['total']['label'] ), $vals( $c['total'] ) );
+		}
 		$rows[] = array();
 		$rows[] = array( __( 'Termin', 'wp-pass-captain' ), __( 'Kapazität', 'wp-pass-captain' ), __( 'Verkauft', 'wp-pass-captain' ), __( 'Auslastung %', 'wp-pass-captain' ), __( 'Gültige Tickets', 'wp-pass-captain' ), __( 'Eingecheckt', 'wp-pass-captain' ), __( 'Check-in-Quote %', 'wp-pass-captain' ) );
 		foreach ( $report['occurrences'] as $o ) {
