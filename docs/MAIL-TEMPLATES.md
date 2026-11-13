@@ -15,7 +15,7 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 | `ticket_transfer_sender` | Bestätigung der Übertragung an die Käufer:in | `{event_name}`, `{recipient_email}` |
 | `ticket_assigned_attendee` | Ticket an zugewiesene Teilnehmer:in | `{attendee_name}`, `{attendee_email}`, `{ticket_link}`, `{ticket_extras}` … |
 | `ticket_assigned_buyer` | Hinweis an die Käufer:in (alter Code ungültig) | `{attendee_name}`, `{attendee_email}`, `{event_name}`, `{ticket_name}`, `{event_date}` |
-| `refund_confirmation` | Erstattung abgeschlossen (nicht bei WooCommerce) | `{refund_amount}`, `{order_id}`, `{revoked_count}`, `{revoked_note}`, `{credit_note_number}`, `{credit_note}`, `{reason}` |
+| `refund_confirmation` | Erstattung abgeschlossen (nicht bei WooCommerce) | `{refund_intro}` (Satz je Zahlart), `{refund_method_note}` (Auszahlungshinweis: Karte, bar, Überweisung mit IBAN bzw. Bitte um IBAN), `{refund_amount}`, `{order_id}` (kurze Bestellnummer), `{revoked_count}`, `{revoked_note}`, `{credit_note_number}`, `{credit_note}`, `{reason}` |
 | `event_cancelled` | Ganzes Event abgesagt | `{event_name}` |
 | `occurrence_cancelled` | Einzelner Termin abgesagt | `{event_name}`, `{event_date}`, `{event_location}`, `{timezone}`, `{refund_note}` |
 | `occurrence_rescheduled` | Termin verschoben | `{event_name}`, `{old_date}`, `{event_date}`, `{timezone}`, `{event_location}` |

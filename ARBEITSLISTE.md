@@ -45,7 +45,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Printing/Page.php:29`; `src/BoxOffice/Page.php:96–101` — Maßnahme: Standard = nächster/laufender Termin; Rest ausblenden oder gruppieren.
 - [x] **A017** [P2] Rabattcodes nur per REST anlegbar, keine Adminseite; Feld „Rabattcode“ immer sichtbar; Preisvorschau ignoriert den Code. — _OFFEN_ (TODO L419; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Rest/Controller.php:142` — Maßnahme: Kampagnen-Adminseite, Feld nur bei aktiven Codes, Live-Vorschau.
-- [ ] **A018** [P2] Erstattungsmail sagt „erstattet“ auch bei Überweisung (Geld noch nicht unterwegs), Käufer-IBAN wird nicht erfasst; Mail/Admin zeigen 32-stellige Hex-ID statt Bestellnummer. — _OFFEN_ (TODO L420; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [x] **A018** [P2] Erstattungsmail sagt „erstattet“ auch bei Überweisung (Geld noch nicht unterwegs), Käufer-IBAN wird nicht erfasst; Mail/Admin zeigen 32-stellige Hex-ID statt Bestellnummer. — _OFFEN_ (TODO L420; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Mail/Types.php:263` — Maßnahme: Text je Zahlart, IBAN-Abfrage, überall kurze Bestellnummer.
 - [ ] **A019** [P2] Terminabsage nur mit `confirm()`, ohne Grund, Folgenvorschau und Zusammenfassung; Auslastung zählt Pässe nicht. — _OFFEN_ (TODO L421; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Admin/EventsPage.php`; `src/OccurrenceCancellation.php:85` — Maßnahme: Bestätigungsseite mit Folgen, Summary-Notice.

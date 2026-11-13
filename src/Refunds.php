@@ -482,10 +482,14 @@ final class Refunds {
 		$credit_note = (string) ( $refund['credit_note_number'] ?? '' );
 		$amount_minor = (int) $refund['amount_minor'];
 		$currency = (string) $refund['currency'];
+		$reference = Frontend\Format::order_reference( (string) $order->public_id );
 		$vars = array(
-			'order_id' => (string) $order->public_id,
+			// The short order number the buyer knows (portal, bank reference), not the 32-character id.
+			'order_id' => $reference,
 			// Callables run in the recipient's locale (number format, translated notes).
 			'refund_amount' => static function () use ( $amount_minor, $currency ) { return number_format_i18n( $amount_minor / 100, 2 ) . ' ' . $currency; },
+			'refund_intro' => static function () use ( $order, $reference, $amount_minor, $currency ) { return PayoutAccount::refund_intro( $order, $reference, number_format_i18n( $amount_minor / 100, 2 ) . ' ' . $currency ); },
+			'refund_method_note' => static function () use ( $order ) { return PayoutAccount::refund_note( $order ); },
 			'revoked_count' => (int) $revoked,
 			'revoked_note' => static function () use ( $revoked ) { return Mail\Types::revoked_note( (int) $revoked ); },
 			'credit_note_number' => $credit_note,

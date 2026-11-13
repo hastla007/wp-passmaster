@@ -57,6 +57,11 @@ final class Controller {
 			'callback' => array( __CLASS__, 'update_billing' ),
 			'permission_callback' => '__return_true',
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/payout-account', array(
+			'methods' => \WP_REST_Server::CREATABLE,
+			'callback' => array( __CLASS__, 'update_payout_account' ),
+			'permission_callback' => '__return_true', // Capability link: the access token is checked in the callback.
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/invoice', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'issue_invoice' ),
@@ -492,6 +497,17 @@ final class Controller {
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
 		$input = $request->get_param( 'billing' );
 		$result = \PassCaptain\Billing::update_for_order( $order, is_array( $input ) ? $input : array( 'enabled' => false ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+	}
+
+	/** Bank account for refunds of a bank-transfer order (order portal, access token). */
+	public static function update_payout_account( \WP_REST_Request $request ) {
+		if ( ! \PassCaptain\RateLimit::allow( 'portal-payout|' . \PassCaptain\RateLimit::client(), 10, HOUR_IN_SECONDS ) ) {
+			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+		}
+		$order = self::order_with_access( sanitize_text_field( (string) $request['public_id'] ), $request->get_param( 'access_token' ) );
+		if ( ! $order ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		$result = \PassCaptain\PayoutAccount::save( $order, (string) $request->get_param( 'iban' ), (string) $request->get_param( 'holder' ) );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 

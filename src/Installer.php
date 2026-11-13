@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.8.1';
+	const DB_VERSION = '3.8.2';
 
 	public static function install() {
 		global $wpdb;
@@ -128,6 +128,7 @@ final class Installer {
 				voucher_snapshot longtext NULL,
 				attendee_data longtext NULL,
 				billing longtext NULL,
+				payout_account longtext NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (order_id),

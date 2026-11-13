@@ -330,7 +330,7 @@ final class OrdersPage {
 		$tz = wp_timezone_string();
 		?>
 		<p><a href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( '← Zur Bestellliste', 'wp-pass-captain' ); ?></a></p>
-		<h1><?php echo esc_html( sprintf( /* translators: %s: order id */ __( 'Bestellung %s', 'wp-pass-captain' ), $order->public_id ) ); ?></h1>
+		<h1><?php echo esc_html( sprintf( /* translators: %s: order id */ __( 'Bestellung %s', 'wp-pass-captain' ), \PassCaptain\Frontend\Format::order_reference( $order->public_id ) ) ); ?> <small style="font-size:.6em;font-weight:normal;color:#646970"><?php echo esc_html( $order->public_id ); ?></small></h1>
 		<?php Forms::render_notices(); ?>
 		<?php if ( $is_woo ) :
 			$wc_id = self::woocommerce_order_id( $order_id );
@@ -362,6 +362,9 @@ final class OrdersPage {
 			<tr><th><?php esc_html_e( 'Rechnungsdaten', 'wp-pass-captain' ); ?></th><td class="wpcap-order-billing"><?php echo $billing ? implode( '<br>', array_map( 'esc_html', array_merge( \PassCaptain\Billing::address_lines( $billing ), \PassCaptain\Billing::detail_lines( $billing ) ) ) ) : esc_html__( 'Keine (Rechnung nur mit E-Mail-Adresse)', 'wp-pass-captain' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each line escaped. ?></td></tr>
 			<tr><th><?php esc_html_e( 'Angelegt', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( Forms::datetime( $order->created_at, $tz ) ); ?></td></tr>
 			<tr><th><?php esc_html_e( 'Zahlart / Referenz', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( $order->payment_provider . ( '' !== (string) $order->provider_reference ? ' / ' . $order->provider_reference : '' ) ); ?></td></tr>
+			<?php if ( \PassCaptain\PayoutAccount::applies( $order ) ) : $payout = \PassCaptain\PayoutAccount::get( $order ); ?>
+			<tr><th><?php esc_html_e( 'Bankverbindung für Erstattungen', 'wp-pass-captain' ); ?></th><td><?php echo $payout ? esc_html( \PassCaptain\Payments\BankTransfer::format_iban( $payout['iban'] ) . ' · ' . $payout['holder'] ) : esc_html__( 'Noch nicht angegeben (Käufer:in kann sie in der Bestellübersicht eintragen).', 'wp-pass-captain' ); ?></td></tr>
+			<?php endif; ?>
 			<?php
 			global $wpdb;
 			$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,invoice_number FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d LIMIT 1", $order_id ) );

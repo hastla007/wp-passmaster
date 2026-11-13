@@ -258,12 +258,24 @@ final class Types {
 					'credit_note_number' => __( 'Nummer der Gutschrift', 'wp-pass-captain' ),
 					'credit_note' => __( 'Zeile „Gutschrift: …“ mit Zeilenumbruch (leer ohne Gutschrift)', 'wp-pass-captain' ),
 					'reason' => __( 'Grund der Erstattung', 'wp-pass-captain' ),
+					'refund_intro' => __( 'Einleitungssatz passend zur Zahlart („haben wir … erstattet“ bzw. „erstatten wir … per Überweisung“)', 'wp-pass-captain' ),
+					'refund_method_note' => __( 'Hinweis zur Auszahlung je Zahlart (Kartenrückbuchung, bar an der Kasse, Überweisung auf IBAN bzw. Bitte um IBAN)', 'wp-pass-captain' ),
 				),
 				/* translators: %s: site name */
 				'subject' => static function () { return sprintf( __( 'Erstattung bestätigt – %s', 'wp-pass-captain' ), '{site_name}' ); },
 				'body' => static function () {
-					/* translators: 1: amount, 2: order id */
-					return sprintf( __( 'Für deine Bestellung %2$s haben wir %1$s erstattet.', 'wp-pass-captain' ), '{refund_amount}', '{order_id}' ) . "\n{revoked_note}{credit_note}\n" . __( 'Je nach Zahlungsart kann es einige Tage dauern, bis der Betrag gutgeschrieben ist.', 'wp-pass-captain' );
+					return "{refund_intro}\n{revoked_note}{credit_note}\n{refund_method_note}";
+				},
+				// Defaults when the caller passes no payment context (wording of card/wallet providers).
+				'vars' => static function ( array $vars ) {
+					return array(
+						'refund_intro' => static function () use ( $vars ) {
+							$amount = $vars['refund_amount'] ?? '';
+							$amount = is_callable( $amount ) ? (string) call_user_func( $amount ) : (string) $amount;
+							return \PassCaptain\PayoutAccount::refund_intro( array(), (string) ( $vars['order_id'] ?? '' ), $amount );
+						},
+						'refund_method_note' => static function () { return \PassCaptain\PayoutAccount::refund_note( array() ); },
+					);
 				},
 				'sample' => static function () {
 					return array( 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e', 'refund_amount' => '25,00 EUR', 'revoked_count' => 1, 'revoked_note' => self::revoked_note( 1 ), 'credit_note_number' => 'GS-2027-0001', 'credit_note' => self::credit_note( 'GS-2027-0001' ), 'reason' => 'Kulanz' );

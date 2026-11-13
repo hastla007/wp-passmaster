@@ -138,6 +138,10 @@ final class Privacy {
 			if ( ! empty( $order['attendee_data'] ) ) {
 				$rows[] = array( 'name' => __( 'Noch nicht zugeordnete Teilnehmerangaben', 'wp-pass-captain' ), 'value' => $order['attendee_data'] );
 			}
+			$payout = PayoutAccount::get( (object) array( 'order_id' => (int) $order['order_id'] ) );
+			if ( $payout ) {
+				$rows[] = array( 'name' => __( 'Bankverbindung für Erstattungen', 'wp-pass-captain' ), 'value' => $payout['iban'] . ' / ' . $payout['holder'] );
+			}
 			$billing = Billing::for_order( (object) $order );
 			if ( $billing ) {
 				$rows[] = array( 'name' => __( 'Rechnungsdaten (Firma, Name, Anschrift, UID, Referenz)', 'wp-pass-captain' ), 'value' => wp_json_encode( $billing ) );
@@ -366,6 +370,10 @@ final class Privacy {
 		// snapshot (retention duty, Art. 17 Abs. 3 lit. b DSGVO). Separate statement: the column may be
 		// missing while a deferred schema upgrade is pending.
 		$billing_erased += (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET billing=NULL WHERE order_id=%d AND billing IS NOT NULL", $order_id ) );
+		if ( PayoutAccount::ready() ) {
+			// Bank account for refunds (IBAN, holder).
+			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET payout_account=NULL WHERE order_id=%d", $order_id ) );
+		}
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_service_bookings SET customer_email=%s WHERE order_id=%d AND customer_email=%s", $replacement, $order_id, $email ) );
 		$invoices += (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_invoices WHERE order_id=%d", $order_id ) );
 		// Fired after anonymisation, so listeners (webhooks with personal data) see no address.
