@@ -238,7 +238,7 @@ final class PortalSelfService {
 	/** template_redirect: streams the PDF of a portal download form (POST). */
 	public static function maybe_download() {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified below.
-		if ( 'POST' !== strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) || ! isset( $_POST['wpcap_portal_pdf'] ) ) { return; }
+		if ( ! \PassCaptain\Http::is_post() || ! isset( $_POST['wpcap_portal_pdf'] ) ) { return; }
 		$public_id = sanitize_text_field( wp_unslash( (string) ( $_POST['wpcap_portal_order'] ?? '' ) ) );
 		$token = sanitize_text_field( wp_unslash( (string) ( $_POST['wpcap_portal_access'] ?? '' ) ) );
 		$which = sanitize_key( wp_unslash( (string) $_POST['wpcap_portal_pdf'] ) );
@@ -558,7 +558,8 @@ final class PortalSelfService {
 		$html .= '<fieldset style="border:0;padding:0;margin:0"><legend>' . esc_html__( 'Welche Tickets möchtest du stornieren?', 'wp-pass-captain' ) . '</legend>' . $options . '</fieldset>';
 		$html .= '<label>' . esc_html__( 'Grund (optional)', 'wp-pass-captain' ) . '<textarea name="reason" maxlength="200" rows="2"></textarea></label>';
 		/* translators: %d: hours */
-		$html .= '<p class="muted"><small>' . esc_html( sprintf( _n( 'Anfragen sind bis %d Stunde vor Beginn möglich.', 'Anfragen sind bis %d Stunden vor Beginn möglich.', $hours, 'wp-pass-captain' ), $hours ) ) . ' ' . esc_html__( 'Die Anfrage wird vom Veranstalter geprüft; erst nach der Freigabe werden die Tickets ungültig und der Betrag erstattet.', 'wp-pass-captain' ) . '</small></p>';
+		$html .= '<p class="muted"><small>' . esc_html( sprintf( _n( 'Anfragen sind bis %d Stunde vor Beginn möglich.', 'Anfragen sind bis %d Stunden vor Beginn möglich.', $hours, 'wp-pass-captain' ), $hours ) ) . ' ';
+		$html .= esc_html__( 'Die Anfrage wird vom Veranstalter geprüft; erst nach der Freigabe werden die Tickets ungültig und der Betrag erstattet.', 'wp-pass-captain' ) . '</small></p>';
 		$html .= '<button type="submit">' . esc_html__( 'Stornierung anfragen', 'wp-pass-captain' ) . '</button><p class="message" role="status" aria-live="polite"></p></form></section>';
 		return $html;
 	}

@@ -374,7 +374,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Gemischte Verkäufer werden abgelehnt (src/Partners/SalesModel.php:226-236, Test zz_sales_models.php:131); keine Regeln für Rabatte/Gebühren/Versand/Rundung je Verkäufer
 - [ ] **A172** Refunds pro Verkäufer/Belegposition zuordnen und abstimmen — _TEILWEISE_ (TODO L226; Multi-Seller-Geschäftsabläufe)
   - Refund-Zuordnung je Zeile in Abrechnung (src/Partners/Settlements.php:9-17); kein Abgleich mit Zahlungs-/Fiskalanbieterstatus, gebrauchte Tickets/Ausfälle nicht je Verkäufer
-- [ ] **A173** PHPCS mit WPCS, statische Analyse, Composer-Audit in CI — _OFFEN_ (TODO L240; CI, statische Qualität und Artefakt)
+- [ ] **A173** PHPCS mit WPCS, statische Analyse, Composer-Audit in CI — _TEILWEISE (13.11.2026: PHPCS/WPCS + PHPCompatibility + composer audit in CI, 0 Fehler; offen: PHPStan, hier nicht installierbar)_ (TODO L240; CI, statische Qualität und Artefakt)
   - .github/workflows/ci.yml:21-28 nur composer validate, php -l, node --check
 - [ ] **A174** JS-Lint auf alle eigenen JS-Dateien, JS-Logik testen — _OFFEN_ (TODO L241; CI, statische Qualität und Artefakt)
   - ci.yml:28 prüft nur checkout.js, scanner.js, events/editor.js; keine JS-Unit-Tests

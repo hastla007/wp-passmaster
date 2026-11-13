@@ -214,3 +214,15 @@ Ergebnis 13.11.2026 lokal gegen WordPress 7.1.4: alle 21 Prüfungen bestanden.
 Job `accessibility` in `.github/workflows/wp-matrix.yml`: echtes WordPress (de_DE) mit dem Plugin, `tests/a11y/run.js --fail-on=serious` (axe-core, WCAG 2.2 A/AA + best practice) und `tests/a11y/keyboard.js`; der axe-Bericht hängt als Artefakt am Lauf. Lauf 13.11.2026 lokal: 0 kritische/ernste Befunde auf allen 15 Seiten (behoben: Touch-Ziel der Zusammenklapp-Zeile „Nur einzelne Tickets stornieren“ an der Kasse < 24 px), Tastatur-Durchlauf vollständig grün (angepasst an die −/+-Mengenknöpfe der Eventkarte und das Wartelisten-Formular am Kartenende). Manuelle Screenreader-/Zoom-Abnahme ist Teil des Release-Abnahmeprotokolls (docs/RELEASE.md).
 
 Hinweis: Wiederholte lokale Läufe gegen dieselbe Installation können die Checkout-Ratenbegrenzung (30 je IP und Stunde) erreichen – dann `wp transient delete --all`.
+
+## Statische Prüfungen (A173)
+
+`composer install` (mit Entwicklungsabhängigkeiten) bringt PHP_CodeSniffer mit den WordPress Coding Standards und PHPCompatibilityWP mit. Regeln: `phpcs.xml.dist` – Sicherheit (Escaping, Nonces, Eingabebereinigung), Datenbank, i18n (Textdomain, Übersetzerkommentare), veraltete WordPress-Funktionen, PHP 8.2+-Kompatibilität.
+
+```bash
+vendor/bin/phpcs -q --report=summary
+```
+
+CI (`ci.yml`, Job `php`) bricht bei **Fehlern** ab; Warnungen werden angezeigt. Stand 13.11.2026: 0 Fehler. Die rund 1 580 Warnungen stammen fast vollständig aus `WordPress.DB.PreparedSQL` für interpolierte Tabellennamen (`{$wpdb->prefix}wpcap_…`) und Integer-Listen – sie werden schrittweise abgebaut; neue Abfragen sollen Werte immer über `$wpdb->prepare()` übergeben. Zusätzlich prüft `composer audit` die Abhängigkeiten auf bekannte Sicherheitslücken.
+
+Noch offen: PHPStan mit WordPress-Stubs (in dieser Umgebung nicht installierbar, weil Composer keine GitHub-Downloads erhält; sollte in CI mit Baseline nachgezogen werden).

@@ -139,7 +139,7 @@ class AppleProvider implements WalletProvider {
 	/** Builds the signed .pkpass bytes. */
 	public function bundle( array $pass_json, $credentials = null ) {
 		$credentials = $credentials ?: Credentials::apple();
-		if ( is_wp_error( $credentials ) ) { throw new \RuntimeException( $credentials->get_error_code() ); }
+		if ( is_wp_error( $credentials ) ) { throw new \RuntimeException( $credentials->get_error_code() ); } // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal error code, never printed.
 		$files = array( 'pass.json' => (string) json_encode( $pass_json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ) + $this->images();
 		$manifest = array();
 		foreach ( $files as $name => $bytes ) { $manifest[ $name ] = sha1( $bytes ); }

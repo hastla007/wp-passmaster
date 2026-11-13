@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<ruleset name="WP Pass Captain">
+	<description>A173: security, database, i18n and PHP compatibility rules of the WordPress Coding Standards. Style rules are not enforced (yet).</description>
+	<file>wp-pass-captain.php</file>
+	<file>uninstall.php</file>
+	<file>src</file>
+	<file>templates</file>
+	<arg name="extensions" value="php"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+	<config name="ignore_warnings_on_exit" value="1"/>
+	<arg name="parallel" value="8"/>
+
+	<config name="minimum_wp_version" value="6.4"/>
+	<config name="testVersion" value="8.2-"/>
+
+	<rule ref="PHPCompatibilityWP"/>
+
+	<rule ref="WordPress.Security"/>
+	<!-- Interpolated table names ({$wpdb->prefix}wpcap_…) and integer lists are reported but do not fail
+	     the build yet (about 1500 findings, almost all fixed fragments); new code should prepare values. -->
+	<rule ref="WordPress.DB.PreparedSQL">
+		<type>warning</type>
+	</rule>
+	<rule ref="WordPress.DB.PreparedSQLPlaceholders">
+		<type>warning</type>
+	</rule>
+	<rule ref="WordPress.DB.RestrictedFunctions"/>
+	<rule ref="WordPress.DB.RestrictedClasses"/>
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="wp-pass-captain"/>
+			</property>
+		</properties>
+	</rule>
+	<rule ref="WordPress.WP.DeprecatedFunctions"/>
+	<rule ref="WordPress.WP.DeprecatedParameters"/>
+	<rule ref="WordPress.WP.DiscouragedConstants"/>
+	<rule ref="WordPress.PHP.DontExtract"/>
+	<rule ref="WordPress.PHP.RestrictedPHPFunctions"/>
+	<rule ref="WordPress.PHP.DiscouragedPHPFunctions">
+		<properties>
+			<property name="exclude" type="array">
+				<element value="serialize"/>
+				<element value="obfuscation"/>
+				<element value="urlencode"/>
+				<element value="system_calls"/>
+			</property>
+		</properties>
+	</rule>
+	<rule ref="Generic.PHP.Syntax"/>
+	<rule ref="Generic.PHP.BacktickOperator"/>
+	<rule ref="Squiz.PHP.Eval"/>
+</ruleset>

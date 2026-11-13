@@ -86,7 +86,8 @@ final class TaxPage {
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Land', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Steuerklasse', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Ticketarten', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Heute gültiges Profil', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $coverage as $row ) {
 				$profile = $row['profile'];
-				$label = $profile ? Forms::percent_input( (int) $profile->rate_basis_points ) . ' % – ' . sprintf( /* translators: %s: profile version */ __( 'Version %s', 'wp-pass-captain' ), $profile->version ) : __( 'keins – es gilt der Satz der Ticketart', 'wp-pass-captain' );
+				$none_label = __( 'keins – es gilt der Satz der Ticketart', 'wp-pass-captain' );
+				$label = $profile ? Forms::percent_input( (int) $profile->rate_basis_points ) . ' % – ' . sprintf( /* translators: %s: profile version */ __( 'Version %s', 'wp-pass-captain' ), $profile->version ) : $none_label;
 				echo '<tr><td>' . esc_html( $row['country'] ) . '</td><td><code>' . esc_html( $row['tax_class'] ) . '</code></td><td>' . (int) $row['ticket_types'] . '</td><td>' . ( $profile ? '' : '<span class="dashicons dashicons-warning" aria-hidden="true"></span> ' ) . esc_html( $label ) . '</td></tr>';
 			}
 			echo '</tbody></table>';
@@ -129,7 +130,8 @@ final class TaxPage {
 		$edit_id = absint( Forms::query_arg( 'edit', 0 ) );
 		$edit = $edit_id ? Profiles::get( $edit_id ) : null;
 		if ( $edit && 'draft' !== $edit->status ) { $edit = null; }
-		echo '<h2>' . esc_html( $edit ? sprintf( /* translators: %d: profile ID */ __( 'Entwurf #%d bearbeiten', 'wp-pass-captain' ), (int) $edit->tax_profile_id ) : __( 'Neues Steuerprofil (Entwurf)', 'wp-pass-captain' ) ) . '</h2>';
+		$new_title = __( 'Neues Steuerprofil (Entwurf)', 'wp-pass-captain' );
+		echo '<h2>' . esc_html( $edit ? sprintf( /* translators: %d: profile ID */ __( 'Entwurf #%d bearbeiten', 'wp-pass-captain' ), (int) $edit->tax_profile_id ) : $new_title ) . '</h2>';
 		Forms::open_form( 'wpcap_tax_profile_save' );
 		Forms::hidden( 'tax_profile_id', $edit ? (int) $edit->tax_profile_id : 0 );
 		echo '<table class="form-table"><tbody>';

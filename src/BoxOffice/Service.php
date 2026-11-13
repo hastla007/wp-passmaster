@@ -746,7 +746,7 @@ final class Service {
 		if ( $r['discount_minor'] ) { $h .= '<tr><td>' . esc_html__( 'Rabatt', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( ( $storno ? '' : '-' ) . $m( $r['discount_minor'] ) ) . '</td></tr>'; }
 		$h .= '</table><div class="sep"></div><table class="big"><tr><td>' . esc_html__( 'SUMME', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $sign . $m( $r['total_minor'] ) ) . '</td></tr></table><table class="small">';
 		foreach ( $r['vat'] as $rate => $v ) {
-			$h .= '<tr><td>' . esc_html( sprintf( __( 'USt %1$s %%: Netto %2$s', 'wp-pass-captain' ), number_format_i18n( $rate / 100, 2 ), $sign . $m( $v['net'] ) ) ) . '</td><td class="n">' . esc_html( $sign . $m( $v['tax'] ) ) . '</td></tr>';
+			$h .= '<tr><td>' . esc_html( sprintf( /* translators: 1: VAT rate, 2: net amount */ __( 'USt %1$s %%: Netto %2$s', 'wp-pass-captain' ), number_format_i18n( $rate / 100, 2 ), $sign . $m( $v['net'] ) ) ) . '</td><td class="n">' . esc_html( $sign . $m( $v['tax'] ) ) . '</td></tr>';
 		}
 		$h .= '</table><div class="sep"></div><p>' . esc_html( __( 'Zahlart:', 'wp-pass-captain' ) . ' ' . $r['method_label'] ) . '</p>';
 		if ( ! $storno && null !== $r['tendered_minor'] ) {

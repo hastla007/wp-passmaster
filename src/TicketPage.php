@@ -23,7 +23,7 @@ final class TicketPage {
 		) );
 		if ( ! $ticket ) { status_header( 404 ); exit; }
 		// Consent grant/withdrawal by the ticket holder (A116): POST to the same link, nonce-checked (PRG).
-		if ( 'POST' === strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) && isset( $_POST['wpcap_consent_op'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in Consents::handle_self_service().
+		if ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_consent_op'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in Consents::handle_self_service().
 			$result = self::handle_consent( $ticket, wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			wp_safe_redirect( add_query_arg( array( 'wpcap_ticket' => $token, 'wpcap_consent_result' => is_wp_error( $result ) ? 'error' : $result ), home_url( '/' ) ) . '#wpcap-consents' );
 			exit;
@@ -31,7 +31,7 @@ final class TicketPage {
 		// "Send me my order link" (A118): new portal link to the buyer, POST with nonce.
 		$link_message = '';
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified right here.
-		if ( 'POST' === strtoupper( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) && isset( $_POST['wpcap_order_link'] ) ) {
+		if ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_order_link'] ) ) {
 			$nonce = sanitize_text_field( wp_unslash( (string) ( $_POST['_wpnonce'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 			$sent = wp_verify_nonce( $nonce, 'wpcap_ticket_order_link_' . (int) $ticket->ticket_id ) ? PortalSelfService::send_order_link( $token ) : new \WP_Error( 'wpcap_nonce', __( 'Das Formular ist abgelaufen. Bitte lade die Seite neu.', 'wp-pass-captain' ) );
 			/* translators: %s: masked e-mail address */

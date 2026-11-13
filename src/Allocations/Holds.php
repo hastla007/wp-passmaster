@@ -253,7 +253,7 @@ final class Holds {
 			$consumed[ $hold_id ] = $covered;
 		}
 		$error = Capacity::check( $tx['demand'], $tx['types'], $tx['occurrences'], $tx['holds'], $consumed, (int) $order_id, $tx['now'] );
-		if ( '' !== $error ) { throw new \RuntimeException( $error ); }
+		if ( '' !== $error ) { throw new \RuntimeException( $error ); } // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- internal error code, mapped to a message by the caller.
 		if ( ! $hold ) { return; }
 		$now = $tx['now'];
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table( 'holds' ) . ' SET used=used+%d,updated_at=%s WHERE hold_id=%d', $consumed[ $hold_id ], $now, $hold_id ) );

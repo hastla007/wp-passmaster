@@ -632,8 +632,9 @@ final class Waitlists {
 	 * ------------------------------------------------------------------------------------------- */
 
 	public static function maybe_render_offer_page() {
-		$waitlist_id = absint( $_GET['wpcap_waitlist_accept'] ?? 0 );
-		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) );
+		// Capability link (offer token), no nonce by design: the token itself is the authorisation.
+		$waitlist_id = absint( $_GET['wpcap_waitlist_accept'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		if ( ! $waitlist_id || 64 !== strlen( $token ) || ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) { return; }
 		nocache_headers();
 		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
@@ -680,7 +681,7 @@ final class Waitlists {
 	public static function handle_accept_request() {
 		$waitlist_id = absint( $_POST['waitlist_id'] ?? 0 );
 		check_admin_referer( 'wpcap_accept_waitlist_' . $waitlist_id );
-		$token = wp_unslash( $_POST['token'] ?? '' );
+		$token = preg_replace( '/[^a-f0-9]/', '', strtolower( sanitize_text_field( wp_unslash( (string) ( $_POST['token'] ?? '' ) ) ) ) );
 		$decline = 'decline' === sanitize_key( wp_unslash( $_POST['decision'] ?? '' ) );
 		$result = $decline ? self::decline_offer( $waitlist_id, $token ) : self::accept_offer( $waitlist_id, $token, array( 'provider' => sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) ), 'accept_terms' => ! empty( $_POST['accept_terms'] ) ) );
 		nocache_headers();

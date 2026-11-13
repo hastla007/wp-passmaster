@@ -533,7 +533,7 @@ final class Invoices {
 	/** Buyer view through the personal order link: ?wpcap_invoice=<public_id>&wpcap_access=<token> */
 	public static function maybe_render_customer_invoice() {
 		$public_id = sanitize_text_field( wp_unslash( $_GET['wpcap_invoice'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) wp_unslash( $_GET['wpcap_access'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', sanitize_text_field( wp_unslash( (string) ( $_GET['wpcap_access'] ?? '' ) ) ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- capability link (access token).
 		if ( '' === $public_id || 64 !== strlen( $token ) ) { return; }
 		global $wpdb;
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
@@ -557,8 +557,10 @@ final class Invoices {
 		check_admin_referer( 'wpcap_export_accounting' );
 		// Defaults: current month up to today, both in the site timezone.
 		$today = Reports\Scope::local( gmdate( 'Y-m-d H:i:s' ), Reports\Scope::site_timezone(), 'Y-m-d' );
-		$from = Reports\Data::valid_date( $_REQUEST['from'] ?? '' ) ? sanitize_text_field( wp_unslash( $_REQUEST['from'] ) ) : substr( $today, 0, 8 ) . '01';
-		$to = Reports\Data::valid_date( $_REQUEST['to'] ?? '' ) ? sanitize_text_field( wp_unslash( $_REQUEST['to'] ) ) : $today;
+		$from_in = sanitize_text_field( wp_unslash( (string) ( $_REQUEST['from'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- nonce checked by the export handler.
+		$to_in = sanitize_text_field( wp_unslash( (string) ( $_REQUEST['to'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$from = Reports\Data::valid_date( $from_in ) ? $from_in : substr( $today, 0, 8 ) . '01';
+		$to = Reports\Data::valid_date( $to_in ) ? $to_in : $today;
 		$rows = self::export_rows( $from, $to );
 		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => count( $rows ) ) );
 		nocache_headers();

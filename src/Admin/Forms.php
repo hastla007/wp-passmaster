@@ -466,8 +466,9 @@ final class Forms {
 
 	/** Sanitised GET parameter. */
 	public static function query_arg( $key, $default = '' ) {
-		$value = $_GET[ $key ] ?? $default; // phpcs:ignore WordPress.Security.NonceVerification
-		return is_scalar( $value ) ? sanitize_text_field( wp_unslash( (string) $value ) ) : $default;
+		// phpcs:ignore WordPress.Security.NonceVerification, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- read-only view parameter, sanitised on the next line.
+		$value = isset( $_GET[ $key ] ) ? wp_unslash( $_GET[ $key ] ) : $default;
+		return is_scalar( $value ) ? sanitize_text_field( (string) $value ) : $default;
 	}
 
 	/** Display name of a WordPress user id. */

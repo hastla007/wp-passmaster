@@ -68,7 +68,7 @@ final class Page {
 		echo '<label>' . esc_html__( 'Bis', 'wp-pass-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $report['to'] ) . '"></label> ';
 		Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'wp-pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'] );
 		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'wp-pass-captain' ) . '</button> <a class="button" href="' . esc_url( $csv_url ) . '">' . esc_html__( 'CSV-Export', 'wp-pass-captain' ) . '</a></p></form>';
-		echo '<p class="description">' . esc_html( sprintf( __( 'Verkäufe nach Bestelldatum, Erstattungen nach Abschlussdatum (Zeitzone %s). Beträge brutto inkl. USt.', 'wp-pass-captain' ), $report['timezone'] ) ) . '</p>';
+		echo '<p class="description">' . esc_html( sprintf( /* translators: %s: timezone */ __( 'Verkäufe nach Bestelldatum, Erstattungen nach Abschlussdatum (Zeitzone %s). Beträge brutto inkl. USt.', 'wp-pass-captain' ), $report['timezone'] ) ) . '</p>';
 
 		$t = $report['total'];
 		echo '<table class="widefat" style="max-width:52rem"><tbody>';
@@ -97,7 +97,7 @@ final class Page {
 
 		$labels = array( 'event' => __( 'Event', 'wp-pass-captain' ), 'occurrence' => __( 'Termin', 'wp-pass-captain' ), 'ticket_type' => __( 'Ticketart', 'wp-pass-captain' ), 'provider' => __( 'Zahlungsanbieter', 'wp-pass-captain' ) );
 		foreach ( $labels as $dim => $label ) {
-			echo '<h2>' . esc_html( sprintf( __( 'Umsatz nach %s', 'wp-pass-captain' ), $label ) ) . '</h2>';
+			echo '<h2>' . esc_html( sprintf( /* translators: %s: grouping (e.g. ticket type, channel) */ __( 'Umsatz nach %s', 'wp-pass-captain' ), $label ) ) . '</h2>';
 			self::table( $label, $report['dimensions'][ $dim ], $money );
 		}
 		echo '<h2>' . esc_html__( 'Umsatzsteuer nach Satz', 'wp-pass-captain' ) . '</h2>';

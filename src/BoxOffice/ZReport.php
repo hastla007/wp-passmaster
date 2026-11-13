@@ -328,9 +328,9 @@ final class ZReport {
 		foreach ( $rows as $z ) {
 			/* translators: %d: Z number */
 			if ( (int) $z->z_number !== $expected_number ) { $problems[ (int) $z->z_id ] = sprintf( __( 'Lücke in der Z-Nummerierung vor Z %d.', 'wp-pass-captain' ), (int) $z->z_number ); }
-			if ( ! hash_equals( self::hash( $z ), (string) $z->hash ) ) { $problems[ (int) $z->z_id ] = sprintf( __( 'Z %d wurde nachträglich verändert.', 'wp-pass-captain' ), (int) $z->z_number ); }
-			if ( (string) $z->prev_hash !== ( $prev ? (string) $prev->hash : '' ) ) { $problems[ (int) $z->z_id ] = sprintf( __( 'Die Verkettung vor Z %d ist unterbrochen.', 'wp-pass-captain' ), (int) $z->z_number ); }
-			if ( (int) $z->grand_total_minor !== ( $prev ? (int) $prev->grand_total_minor : 0 ) + (int) $z->net_total_minor ) { $problems[ (int) $z->z_id ] = sprintf( __( 'Der Grand Total von Z %d stimmt nicht.', 'wp-pass-captain' ), (int) $z->z_number ); }
+			if ( ! hash_equals( self::hash( $z ), (string) $z->hash ) ) { $problems[ (int) $z->z_id ] = sprintf( /* translators: %d: Z report number */ __( 'Z %d wurde nachträglich verändert.', 'wp-pass-captain' ), (int) $z->z_number ); }
+			if ( (string) $z->prev_hash !== ( $prev ? (string) $prev->hash : '' ) ) { $problems[ (int) $z->z_id ] = sprintf( /* translators: %d: Z report number */ __( 'Die Verkettung vor Z %d ist unterbrochen.', 'wp-pass-captain' ), (int) $z->z_number ); }
+			if ( (int) $z->grand_total_minor !== ( $prev ? (int) $prev->grand_total_minor : 0 ) + (int) $z->net_total_minor ) { $problems[ (int) $z->z_id ] = sprintf( /* translators: %d: Z report number */ __( 'Der Grand Total von Z %d stimmt nicht.', 'wp-pass-captain' ), (int) $z->z_number ); }
 			$prev = $z;
 			$expected_number = (int) $z->z_number + 1;
 		}

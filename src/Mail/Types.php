@@ -322,8 +322,8 @@ final class Types {
 				'label' => __( 'Eventabsage', 'wp-pass-captain' ),
 				'description' => __( 'Information an Käufer:innen und Ticketinhaber:innen, wenn ein ganzes Event abgesagt wird.', 'wp-pass-captain' ),
 				'placeholders' => array( 'event_name' => __( 'Event', 'wp-pass-captain' ) ),
-				'subject' => static function () { return sprintf( __( 'Eventabsage: %s', 'wp-pass-captain' ), '{event_name}' ); },
-				'body' => static function () { return sprintf( __( 'Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung.', 'wp-pass-captain' ), '{event_name}' ); },
+				'subject' => static function () { return sprintf( /* translators: %s: event name */ __( 'Eventabsage: %s', 'wp-pass-captain' ), '{event_name}' ); },
+				'body' => static function () { return sprintf( /* translators: %s: event name */ __( 'Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung.', 'wp-pass-captain' ), '{event_name}' ); },
 				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert' ); },
 			),
 			'occurrence_cancelled' => array(

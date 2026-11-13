@@ -71,8 +71,10 @@ final class Page {
 		$list_id = Forms::int( $in, 'list_id' );
 		$csv = Forms::textarea( $in, 'csv', 200000 );
 		// phpcs:ignore WordPress.Security.NonceVerification -- verified above.
-		if ( ! empty( $_FILES['csv_file']['tmp_name'] ) && is_uploaded_file( $_FILES['csv_file']['tmp_name'] ) && (int) $_FILES['csv_file']['size'] <= 512000 ) {
-			$csv = (string) file_get_contents( $_FILES['csv_file']['tmp_name'] ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- uploaded temp file.
+		$upload = isset( $_FILES['csv_file'] ) && is_array( $_FILES['csv_file'] ) ? $_FILES['csv_file'] : array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified above; only the temp path and size are used.
+		$tmp = is_string( $upload['tmp_name'] ?? null ) ? $upload['tmp_name'] : '';
+		if ( '' !== $tmp && is_uploaded_file( $tmp ) && (int) ( $upload['size'] ?? 0 ) <= 512000 ) {
+			$csv = (string) file_get_contents( $tmp ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- uploaded temp file.
 		}
 		$result = Service::import_csv( $list_id, $csv, Forms::int( $in, 'ticket_type_id' ) );
 		$message = '';

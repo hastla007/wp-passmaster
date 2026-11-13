@@ -139,7 +139,7 @@ final class Adapter {
 
 	/** Rejects unknown codes; at most 10 wrong codes per hour and client (code guessing). */
 	private static function check_code( $code ) {
-		$client = class_exists( '\PassCaptain\RateLimit' ) ? \PassCaptain\RateLimit::client() : (string) ( $_SERVER['REMOTE_ADDR'] ?? '' );
+		$client = class_exists( '\PassCaptain\RateLimit' ) ? \PassCaptain\RateLimit::client() : sanitize_text_field( wp_unslash( (string) ( $_SERVER['REMOTE_ADDR'] ?? '' ) ) );
 		$key    = 'wpcap_partner_fail_' . hash( 'sha256', $client . '|' . wp_salt( 'nonce' ) );
 		$fails  = (int) get_transient( $key );
 		if ( $fails >= 10 ) { throw new \RuntimeException( 'partner_code_rate_limited' ); }

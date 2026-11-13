@@ -78,11 +78,11 @@ final class AdminPage {
 		$plan = null;
 		$edit_id = 0;
 		$options = array();
-		if ( 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) && isset( $_POST['wpcap_series_preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified below.
+		if ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_series_preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified below.
 			check_admin_referer( self::NONCE );
 			$in = self::input( Forms::post() );
 			$preview = Generator::preview( $in );
-		} elseif ( 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) && isset( $_POST['wpcap_series_edit_preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified below.
+		} elseif ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_series_edit_preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified below.
 			check_admin_referer( self::NONCE );
 			$post = Forms::post();
 			$edit_id = Forms::int( $post, 'series_id' );

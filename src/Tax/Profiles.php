@@ -160,8 +160,9 @@ final class Profiles {
 		}
 		if ( self::SOURCE_EXTERNAL === $source ) { return __( 'vom Verkaufskanal vorgegeben', 'wp-pass-captain' ); }
 		if ( self::SOURCE_TYPE === $source ) {
+			if ( '' === $country ) { return __( 'Satz der Ticketart', 'wp-pass-captain' ); }
 			/* translators: %s: country code */
-			return '' !== $country ? sprintf( __( 'Satz der Ticketart (Leistungsort %s)', 'wp-pass-captain' ), $country ) : __( 'Satz der Ticketart', 'wp-pass-captain' );
+			return sprintf( __( 'Satz der Ticketart (Leistungsort %s)', 'wp-pass-captain' ), $country );
 		}
 		return __( 'Satz der Ticketart (vor Einführung der Steuerprofile erfasst)', 'wp-pass-captain' );
 	}
