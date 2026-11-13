@@ -1,6 +1,6 @@
 # E-Mail-Vorlagen
 
-Alle E-Mails an Kund:innen laufen über den zentralen Mailer `PassCaptain\Mail\Mailer`. Jede Mail hat einen **Typ** mit eingebautem Standardtext – das ist genau der Text, den das Plugin bisher gesendet hat. Ohne eigene Vorlage ändert sich also nichts. Im Admin unter *Pass Captain → E-Mail-Vorlagen* (Modul `PassCaptain\Modules\MailTemplates`, Code in `src/Mail/`) lassen sich Betreff und Text je Typ und Sprache überschreiben.
+Alle E-Mails an Kund:innen laufen über den zentralen Mailer `PassCaptain\Mail\Mailer`. Jede Mail hat einen **Typ** mit eingebautem Standardtext – das ist genau der Text, den das Plugin bisher gesendet hat. Ohne eigene Vorlage wird dieser Text seit A101 **als HTML-Mail im Layout** versendet; die Textversion (AltBody) ist wortgleich mit der bisherigen Textmail (siehe [Standardformat](#standardformat-html-a101)). Im Admin unter *Pass Captain → E-Mail-Vorlagen* (Modul `PassCaptain\Modules\MailTemplates`, Code in `src/Mail/`) lassen sich Betreff und Text je Typ und Sprache überschreiben.
 
 Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook deaktiviert“) bleiben einfache Textmails und sind nicht über Vorlagen anpassbar.
 
@@ -25,7 +25,24 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 
 In allen Mails stehen außerdem `{site_name}` (Filter `wpcap_sender_name`) und `{site_url}` zur Verfügung. Die vollständige Liste mit Beschreibung zeigt der Editor je Typ.
 
-Erinnerungen (Modul *Erinnerungen*) werden weiterhin auf ihrer eigenen Seite bearbeitet; sie gehen über die Nachrichten-Warteschlange und ebenfalls über den zentralen Mailer (`Mailer::deliver`).
+Erinnerungen (Modul *Erinnerungen*) werden weiterhin auf ihrer eigenen Seite bearbeitet (nur Text); sie gehen über die Nachrichten-Warteschlange und ebenfalls über den zentralen Mailer (`Mailer::deliver`). Der fertig ersetzte Text wird als Ganzes maskiert, URLs werden verlinkt und in das HTML-Layout gesetzt (Format-Schlüssel `reminder` im Filter `wpcap_mail_default_format`).
+
+## Standardformat: HTML (A101)
+
+Prüfung der Formate (Stand A101):
+
+| Mail | vorher | jetzt (ohne eigene Vorlage) |
+|---|---|---|
+| alle Typen der Registry (`tickets` … `member_pass`, auch per `wpcap_mail_types` ergänzte) | Text | **HTML** mit Layout + Textversion |
+| Erinnerungen (Warteschlange, `reminder`) | Text | **HTML** mit Layout + Textversion |
+| eigene Vorlagen (Option `wpcap_mail_templates`) | wie gespeichert | **unverändert** wie gespeichert (Text bleibt Text) |
+| Admin-Benachrichtigungen (`wp_mail` direkt, z. B. „Webhook deaktiviert“) | Text | Text (keine Kundenmails) |
+
+- Eingebaute Standardtexte sind Klartext mit Platzhaltern. Im HTML-Modus wird der Text maskiert (`esc_html`) und umbrochen (`nl2br`); Platzhalterwerte werden einzeln maskiert, Listen und Links (`{ticket_list}`, `{access_link}`, `{site_url}` …) bringen ihre sichere HTML-Darstellung mit.
+- Die **Textversion** ist dieselbe Vorlage im Text-Modus gerendert (`Mailer::text_body()`), also exakt die bisherige Textmail – keine HTML-zu-Text-Umwandlung. Sie gilt nur, solange der HTML-Body unverändert ist: Hängt ein Altfilter (`wpcap_ticket_mail`) Text an, wird er auch an die Textversion angehängt; ersetzt ein Filter (`wpcap_ticket_mail`, `wpcap_mail`) den Body, wird die Textversion wie bei eigenen HTML-Vorlagen aus dem HTML erzeugt.
+- Die HTML-zu-Text-Umwandlung gibt Tabellenzeilen (Zahlungsdaten, Bestellpositionen) als „Bezeichnung: Wert“ je Zeile aus.
+- Zurück zu Textmails: Filter `wpcap_mail_default_format` (`'text'` für alle oder einzelne Typen) oder `'format' => 'text'` in der Typdefinition (`wpcap_mail_types`).
+- Im Editor ist das Formular ohne eigene Vorlage mit Format *HTML* vorbelegt; erst Speichern legt eine eigene Vorlage an.
 
 ## Regeln für Platzhalter
 

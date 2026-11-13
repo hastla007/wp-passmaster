@@ -134,7 +134,22 @@ function add_query_arg( $args, $url, $u = null ) { if ( ! is_array( $args ) ) { 
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function mysql2date( $f, $d ) { return gmdate( $f, strtotime( $d ) ); }
 function get_date_from_gmt( $d ) { return $d; }
-function wp_mail( $to, $subject, $body, $headers = '', $attachments = array() ) { $files = array(); foreach ( (array) $attachments as $f ) { $files[ basename( $f ) ] = (string) file_get_contents( $f ); } $GLOBALS['wpcap_test_mails'][] = compact( 'to', 'subject', 'body', 'files' ); return true; }
+// HTML mails (A101: default for customer mails) are recorded with their plain-text part as 'body'
+// (what the PHPMailer AltBody would carry, set through phpmailer_init) and the document as 'html'.
+function wp_mail( $to, $subject, $body, $headers = '', $attachments = array() ) {
+	$files = array();
+	foreach ( (array) $attachments as $f ) { $files[ basename( $f ) ] = (string) file_get_contents( $f ); }
+	$html = '';
+	if ( in_array( 'Content-Type: text/html; charset=UTF-8', (array) $headers, true ) ) {
+		$fake = new stdClass();
+		$fake->AltBody = '';
+		do_action( 'phpmailer_init', $fake );
+		$html = $body;
+		$body = '' !== $fake->AltBody ? $fake->AltBody : $body;
+	}
+	$GLOBALS['wpcap_test_mails'][] = compact( 'to', 'subject', 'body', 'files', 'html', 'headers' );
+	return true;
+}
 function get_temp_dir() { return sys_get_temp_dir() . '/'; }
 function trailingslashit( $p ) { return rtrim( $p, '/' ) . '/'; }
 function get_bloginfo( $k = '' ) { return 'Testsite'; }

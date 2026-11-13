@@ -67,14 +67,21 @@ preg_match( '/wpcap_access=([a-f0-9]{64})/', $access['body'], $am );
 $items_text = PassCaptain\Mail\Blocks::order_items( Orders::summary_lines( $o['order_id'] ) )['text'];
 check( 'access link mail: previous plain text plus the ordered lines (audit 3)', 'Deine Bestellung bei Testsite' === $access['subject'] && '' !== $items_text && "Über diesen persönlichen Link kannst du den Status deiner Bestellung bei Testsite ansehen und Tickets verwalten:\n\nhttps://example.test/?wpcap_order=" . $o['public_id'] . '&wpcap_access=' . ( $am[1] ?? '' ) . "\n\n" . $items_text . "Bewahre diesen Link sicher auf und teile ihn nicht." === $access['body'] );
 $text_prepared = end( $wpmt_prepared );
-check( 'text mails are sent without HTML header or AltBody', null === $text_prepared['alt_body'] && '' === $text_prepared['phpmailer_alt'] && ! in_array( 'Content-Type: text/html; charset=UTF-8', $text_prepared['headers'], true ) );
+// A101: built-in defaults are HTML now; the plain-text part (AltBody) is the historic text (checked above).
+check( 'built-in defaults are sent as HTML with the historic text as AltBody', str_starts_with( $text_prepared['body'], '<!DOCTYPE html>' ) && $text_prepared['phpmailer_alt'] === $text_prepared['alt_body'] && $access['body'] === $text_prepared['alt_body'] && in_array( 'Content-Type: text/html; charset=UTF-8', $text_prepared['headers'], true ) );
+add_filter( 'wpcap_mail_default_format', $wpmt_text_default = static function () { return 'text'; } );
+$wpmt_prepared = array();
+Orders::rotate_access_link( $o['order_id'] );
+$text_prepared = end( $wpmt_prepared );
+remove_filter( 'wpcap_mail_default_format', $wpmt_text_default );
+check( 'text mails (wpcap_mail_default_format = text) are sent without HTML header or AltBody', $text_prepared && null === $text_prepared['alt_body'] && '' === $text_prepared['phpmailer_alt'] && ! in_array( 'Content-Type: text/html; charset=UTF-8', $text_prepared['headers'], true ) );
 $refund = Mailer::compose( 'refund_confirmation', array( 'order_id' => 'ABC', 'refund_amount' => static fn() => number_format_i18n( 1500 / 100, 2 ) . ' EUR', 'revoked_count' => 2, 'revoked_note' => static fn() => Types::revoked_note( 2 ), 'credit_note_number' => 'GS-7', 'credit_note' => static fn() => Types::credit_note( 'GS-7' ) ) );
 $refund_plain = Mailer::compose( 'refund_confirmation', array( 'order_id' => 'ABC', 'refund_amount' => '15,00 EUR', 'revoked_note' => Types::revoked_note( 0 ), 'credit_note' => Types::credit_note( '' ) ) );
-check( 'refund confirmation identical to the previous text (with and without optional lines)', 'Erstattung bestätigt – Testsite' === $refund['subject'] && "Für deine Bestellung ABC haben wir 15,00 EUR erstattet.\n2 Tickets sind damit ungültig.\nRechnungskorrektur: GS-7\n\nJe nach Zahlungsart kann es einige Tage dauern, bis der Betrag gutgeschrieben ist." === $refund['body'] && "Für deine Bestellung ABC haben wir 15,00 EUR erstattet.\n\nJe nach Zahlungsart kann es einige Tage dauern, bis der Betrag gutgeschrieben ist." === $refund_plain['body'] );
+check( 'refund confirmation identical to the previous text (with and without optional lines)', 'Erstattung bestätigt – Testsite' === $refund['subject'] && "Für deine Bestellung ABC haben wir 15,00 EUR erstattet.\n2 Tickets sind damit ungültig.\nRechnungskorrektur: GS-7\n\nJe nach Zahlungsart kann es einige Tage dauern, bis der Betrag gutgeschrieben ist." === Mailer::text_body( $refund ) && "Für deine Bestellung ABC haben wir 15,00 EUR erstattet.\n\nJe nach Zahlungsart kann es einige Tage dauern, bis der Betrag gutgeschrieben ist." === Mailer::text_body( $refund_plain ) );
 $wl = Mailer::compose( 'waitlist_joined', array( 'position' => 4 ) );
 $mp = Mailer::compose( 'member_pass', array( 'pass_code' => 'abc', 'valid_until' => '2027-12-31' ) );
 $asg = Mailer::compose( 'ticket_assigned_attendee', array( 'event_name' => 'E', 'ticket_name' => 'T', 'event_date' => 'D', 'event_location' => 'L', 'attendee_name' => 'N', 'ticket_link' => Mailer::link( 'https://example.test/?wpcap_ticket=x' ), 'ticket_extras' => '' ) );
-check( 'other defaults keep their wording', 'Du bist auf der Warteliste eingetragen (Position 4). Wir schreiben dir, sobald ein Platz frei wird.' === $wl['body'] && "Dein Passcode: abc\nGültig bis: 2027-12-31" === $mp['body'] && 'Dein Pass für Testsite' === $mp['subject'] && "E — T\nD\nL\nTeilnehmer: N\n\nhttps://example.test/?wpcap_ticket=x" === $asg['body'] );
+check( 'other defaults keep their wording', 'Du bist auf der Warteliste eingetragen (Position 4). Wir schreiben dir, sobald ein Platz frei wird.' === Mailer::text_body( $wl ) && "Dein Passcode: abc\nGültig bis: 2027-12-31" === Mailer::text_body( $mp ) && 'Dein Pass für Testsite' === $mp['subject'] && "E — T\nD\nL\nTeilnehmer: N\n\nhttps://example.test/?wpcap_ticket=x" === Mailer::text_body( $asg ) );
 
 echo "Mail templates: overrides and placeholders\n";
 Templates::save( 'order_access', 'de_DE', array( 'subject' => 'Zugang {order_id} – {site_name}', 'body' => "Hallo!\n{access_link}\n{unknown_thing}Ende", 'format' => 'text' ) );
@@ -106,9 +113,9 @@ $o3 = wpmt_free_order( 'mt-html@example.com' );
 remove_filter( 'wpcap_ticket_mail', $wpmt_legacy, 50 );
 $hmail = array_values( array_filter( wpmt_mails_since( $before, 'mt-html@example.com' ), static fn( $m ) => str_starts_with( $m['subject'], 'HTML-Tickets' ) ) )[0] ?? array( 'subject' => '', 'body' => '' );
 $hprep = array_values( array_filter( $wpmt_prepared, static fn( $x ) => str_starts_with( $x['subject'], 'HTML-Tickets' ) ) )[0] ?? array( 'alt_body' => null, 'phpmailer_alt' => '', 'headers' => array() );
-preg_match( '/<code>([a-f0-9]{64})<\/code>/', $hmail['body'], $hc );
-check( 'HTML ticket mail: layout, ticket list with link and code', str_starts_with( $hmail['body'], '<!DOCTYPE html>' ) && ! empty( $hc[1] ) && false !== strpos( $hmail['body'], '<a href="https://example.test/?wpcap_ticket=' . $hc[1] . '">' ) );
-check( 'wpcap_ticket_mail still receives and changes subject/body; appended text is escaped and linked', 'HTML-Tickets ' . $o3['public_id'] . ' (gefiltert)' === $hmail['subject'] && false !== strpos( $hmail['body'], 'ZUSATZ &lt;x&gt; <a href="https://extra.example/y">https://extra.example/y</a>' ) );
+preg_match( '/<code>([a-f0-9]{64})<\/code>/', $hmail['html'] ?? '', $hc );
+check( 'HTML ticket mail: layout, ticket list with link and code', str_starts_with( $hmail['html'] ?? '', '<!DOCTYPE html>' ) && ! empty( $hc[1] ) && false !== strpos( $hmail['html'], '<a href="https://example.test/?wpcap_ticket=' . $hc[1] . '">' ) );
+check( 'wpcap_ticket_mail still receives and changes subject/body; appended text is escaped and linked', 'HTML-Tickets ' . $o3['public_id'] . ' (gefiltert)' === $hmail['subject'] && false !== strpos( $hmail['html'], 'ZUSATZ &lt;x&gt; <a href="https://extra.example/y">https://extra.example/y</a>' ) );
 check( 'AltBody is set via phpmailer_init and contains the plain ticket data', '' !== $hprep['phpmailer_alt'] && $hprep['phpmailer_alt'] === $hprep['alt_body'] && false !== strpos( $hprep['alt_body'], 'Ticket-Code: ' . ( $hc[1] ?? 'x' ) ) && false !== strpos( $hprep['alt_body'], 'ZUSATZ <x>' ) && false === strpos( $hprep['alt_body'], '<p>' ) );
 $after = new Wpmt_Fake_Mailer();
 do_action( 'phpmailer_init', $after );
@@ -126,7 +133,7 @@ Templates::save( 'tickets_resend', 'de_DE', array( 'subject' => 'Neu: {ticket_co
 $before = count( $GLOBALS['wpcap_test_mails'] );
 Orders::resend_tickets( $o['order_id'] );
 $resent_html = wpmt_mails_since( $before, 'mt-default@example.com' )[0] ?? array( 'subject' => '', 'body' => '' );
-check( 'resend (HTML) links the section text', 'Neu: 2' === $resent_html['subject'] && false !== strpos( $resent_html['body'], 'WALLET <a href="https://wallet.example/' . $tid . '">' ) );
+check( 'resend (HTML) links the section text', 'Neu: 2' === $resent_html['subject'] && false !== strpos( $resent_html['html'] ?? '', 'WALLET <a href="https://wallet.example/' . $tid . '">' ) );
 remove_filter( 'wpcap_ticket_code_mail_section', $wpmt_section, 5 );
 Templates::reset( 'tickets_resend', 'de_DE' );
 
@@ -183,7 +190,7 @@ $before = count( $GLOBALS['wpcap_test_mails'] );
 $redirect = '';
 try { MailAdmin::handle_test(); } catch ( Wpcap_Test_Redirect $e ) { $redirect = $e->getMessage(); }
 $test_mail = wpmt_mails_since( $before, 'mail-admin@example.com' )[0] ?? array( 'subject' => '', 'body' => '' );
-check( 'test mail goes to the current admin with sample data, checks the nonce and redirects back', in_array( MailAdmin::NONCE, $GLOBALS['wpcap_test_nonce_checks'], true ) && '[Test] Betreff 3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' === $test_mail['subject'] && str_starts_with( $test_mail['body'], '<!DOCTYPE html>' ) && false !== strpos( $redirect, 'type=order_access' ) && null === Templates::get( 'order_access', 'de_DE' ) );
+check( 'test mail goes to the current admin with sample data, checks the nonce and redirects back', in_array( MailAdmin::NONCE, $GLOBALS['wpcap_test_nonce_checks'], true ) && '[Test] Betreff 3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' === $test_mail['subject'] && str_starts_with( $test_mail['html'] ?? '', '<!DOCTYPE html>' ) && false !== strpos( $redirect, 'type=order_access' ) && null === Templates::get( 'order_access', 'de_DE' ) );
 remove_filter( 'wpcap_mail_test_recipient', $wpmt_recipient, 10 );
 $GLOBALS['wpcap_test_nonce_checks'] = array();
 $_POST = array( 'type' => 'order_access', 'locale' => 'en_US', 'subject' => "Hi <i>{order_id}</i>\n", 'body' => '<b>Text</b> {access_link}', 'format' => 'text' );

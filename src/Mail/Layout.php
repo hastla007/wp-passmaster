@@ -64,11 +64,16 @@ final class Layout {
 		return (string) apply_filters( 'wpcap_mail_layout_html', $html, $content, $subject );
 	}
 
-	/** Plain-text alternative of the content (plus footer text). */
-	public static function alt_text( $content ) {
-		$text = self::to_text( $content );
+	/**
+	 * Plain-text alternative of the content (plus footer text).
+	 *
+	 * @param string      $content HTML content.
+	 * @param string|null $text    Ready plain-text rendering of the same content (built-in texts), or null to convert.
+	 */
+	public static function alt_text( $content, $text = null ) {
+		$text = null !== $text ? (string) $text : self::to_text( $content );
 		$footer = trim( (string) self::settings()['footer'] );
-		return '' !== $footer ? $text . "\n\n-- \n" . $footer : $text;
+		return '' !== $footer ? rtrim( $text ) . "\n\n-- \n" . $footer : $text;
 	}
 
 	/** Converts HTML to readable plain text: links as "text (url)", paragraphs and breaks kept. */
@@ -82,6 +87,9 @@ final class Layout {
 		$t = (string) preg_replace( '#<br\s*/?>[ \t]*\r?\n?#i', "\n", $t );
 		$t = (string) preg_replace( '#<li\b[^>]*>#i', '- ', $t );
 		$t = (string) preg_replace( '#</li>#i', "\n", $t );
+		// Table rows (payment details, order lines): "label: value" per line.
+		$t = (string) preg_replace( '#</t[dh]>\s*(?=<t[dh]\b)#i', ': ', $t );
+		$t = (string) preg_replace( '#</tr>#i', "\n", $t );
 		$t = (string) preg_replace( '#</(p|div|h[1-6]|ul|ol|table|tr|blockquote)>#i', "\n\n", $t );
 		$t = html_entity_decode( strip_tags( $t ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		$t = (string) preg_replace( "/[ \t]+\n/", "\n", $t );

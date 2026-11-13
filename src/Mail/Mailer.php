@@ -5,7 +5,8 @@
  * Every customer-facing mail is identified by a type from the registry (Types::all()). The text
  * comes from an admin override (Templates, per type and locale) or from the built-in default, which
  * is the translatable German text the plugin always sent – so without overrides the content is
- * unchanged. Placeholders ({site_name}, {order_id}, …) are replaced in one pass; unknown ones become
+ * unchanged. Built-in defaults are sent as HTML with layout and plain-text alternative
+ * (Templates::default_format(), filter `wpcap_mail_default_format`); overrides keep their format. Placeholders ({site_name}, {order_id}, …) are replaced in one pass; unknown ones become
  * empty. In HTML mode values are escaped and the content is wrapped in a simple layout (Layout)
  * with an automatic plain-text alternative (PHPMailer AltBody); in text mode nothing is escaped.
  *
@@ -101,11 +102,15 @@ final class Mailer {
 		$derived = $def && isset( $def['vars'] ) && is_callable( $def['vars'] ) ? (array) call_user_func( $def['vars'], $vars ) : array();
 		$vars = self::resolve_vars( array_merge( self::global_vars(), $derived, $vars ) );
 		$body = (string) ( $template['body'] ?? '' );
+		$text_body = null;
 		if ( $html && ! self::has_tags( $body ) ) {
-			// Plain text in HTML mode (e.g. a built-in default): treat it as text.
+			// Plain text in HTML mode (e.g. a built-in default): treat it as text. The same template
+			// rendered in text mode becomes the plain-text alternative, so it reads exactly like the
+			// historic text mail instead of an HTML-to-text conversion.
+			$text_body = self::replace( $body, $vars, false );
 			$body = nl2br( esc_html( $body ) );
 		}
-		return array(
+		$message = array(
 			'type' => (string) $type,
 			'subject' => self::clean_subject( self::replace( (string) ( $template['subject'] ?? '' ), $vars, false ) ),
 			'body' => self::replace( $body, $vars, $html ),
@@ -113,6 +118,23 @@ final class Mailer {
 			'locale' => (string) $locale,
 			'attachments' => array(),
 		);
+		return null === $text_body ? $message : self::with_text_body( $message, $text_body );
+	}
+
+	/**
+	 * Attaches a plain-text rendering to an HTML message. It is bound to the current HTML body: if
+	 * a filter replaces the body later, prepare() falls back to converting the HTML.
+	 */
+	public static function with_text_body( array $message, $text ) {
+		$message['text_body'] = (string) $text;
+		$message['text_for'] = sha1( (string) $message['body'] );
+		return $message;
+	}
+
+	/** The plain-text rendering of an HTML message if it still matches its body, else null. */
+	public static function text_body( array $message ) {
+		if ( ! isset( $message['text_body'], $message['text_for'] ) ) { return null; }
+		return sha1( (string) ( $message['body'] ?? '' ) ) === $message['text_for'] ? (string) $message['text_body'] : null;
 	}
 
 	/**
@@ -125,17 +147,23 @@ final class Mailer {
 		if ( ! is_array( $filtered ) ) { return $message; }
 		$original = (string) $message['body'];
 		$body = (string) ( $filtered['body'] ?? $original );
+		$text = self::text_body( $message );
 		if ( 'html' === $message['format'] && $body !== $original ) {
 			$base = rtrim( $original );
 			if ( '' !== $base && str_starts_with( $body, $base ) ) {
 				$suffix = substr( $body, strlen( $base ) );
 				$body = $base . ( self::has_tags( $suffix ) ? wp_kses_post( $suffix ) : self::text_to_html( $suffix ) );
+				// Keep the plain-text part in step: the appended text (or its text form) goes there too.
+				$text = null === $text ? null : rtrim( $text ) . ( self::has_tags( $suffix ) ? "\n\n" . Layout::to_text( $suffix ) : $suffix );
 			} else {
 				$body = self::has_tags( $body ) ? wp_kses_post( $body ) : self::text_to_html( $body );
+				$text = null;
 			}
 		}
 		$message['subject'] = self::clean_subject( (string) ( $filtered['subject'] ?? $message['subject'] ) );
 		$message['body'] = $body;
+		unset( $message['text_body'], $message['text_for'] );
+		if ( null !== $text ) { $message = self::with_text_body( $message, $text ); }
 		$message['attachments'] = (array) ( $filtered['attachments'] ?? $message['attachments'] );
 		return $message;
 	}
@@ -184,8 +212,9 @@ final class Mailer {
 		$alt = null;
 		if ( 'html' === ( $message['format'] ?? 'text' ) ) {
 			$locale = (string) ( $message['locale'] ?? '' );
-			list( $body, $alt ) = self::with_locale( $locale, static function () use ( $body, $subject, $locale ) {
-				return array( Layout::wrap( $body, $subject, $locale ), Layout::alt_text( $body ) );
+			$text = self::text_body( $message );
+			list( $body, $alt ) = self::with_locale( $locale, static function () use ( $body, $subject, $locale, $text ) {
+				return array( Layout::wrap( $body, $subject, $locale ), Layout::alt_text( $body, $text ) );
 			} );
 			$headers[] = 'Content-Type: text/html; charset=UTF-8';
 		}
@@ -212,7 +241,7 @@ final class Mailer {
 	public static function global_vars() {
 		return array(
 			'site_name' => Orders::site_name(),
-			'site_url' => home_url( '/' ),
+			'site_url' => self::link( home_url( '/' ) ),
 		);
 	}
 

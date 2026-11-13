@@ -146,7 +146,11 @@ final class Reminders {
 		if ( ! $occ ) { return $template; }
 		$c = self::config();
 		$vars = array_merge( Placeholders::occurrence_vars( $occ ), array( 'hours' => (int) ( $payload['hours'] ?? 0 ), 'tickets' => (int) ( $payload['tickets'] ?? 0 ) ) );
-		return array( 'subject' => Placeholders::render( $c['subject'], $vars ), 'body' => Placeholders::render( $c['body'], $vars ) );
+		$body = Placeholders::render( $c['body'], $vars );
+		// The reminder editor is plain text: in HTML mode the rendered text is escaped as a whole
+		// (values included), URLs become links and the layout adds the plain-text alternative.
+		$html = 'html' === \PassCaptain\Mail\Templates::default_format( 'reminder' );
+		return array( 'subject' => Placeholders::render( $c['subject'], $vars ), 'body' => $html ? \PassCaptain\Mail\Mailer::text_to_html( $body ) : $body, 'format' => $html ? 'html' : 'text' );
 	}
 
 	/* ------------------------------------------------------------------ Admin */
