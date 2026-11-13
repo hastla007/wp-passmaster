@@ -49,6 +49,7 @@
 - Stornierung: jeder DB-Schritt (Transaktion, Reservierungen, Ticketwiderruf, Bestellstatus, COMMIT) wird geprüft; bei Fehler wird zurückgerollt, ein retrybarer Fehler geliefert (Zahlungs-Webhook wird erneut zugestellt, Partner-API, Gutschein-Widerruf und Gästeliste melden ihn weiter) und ein Wiederholungsjob geplant, der nur greift, solange sich der Zahlungsstatus nicht geändert hat.
 - Als erstattet markieren (`mark_refunded`): in einer Transaktion mit Zeilensperre, jeder Schritt geprüft; bei Fehler Rollback, retrybarer Fehler (Webhook wird erneut zugestellt, Partner-API meldet ihn) und Reparaturjob, da das Geld bereits zurückgezahlt ist.
 - Offline-Scanner (PWA): Oberfläche, Statusmeldungen, Fehler und Datumsformat sind übersetzbar (Katalog `i18n.js`, Deutsch/Englisch, offline verfügbar); die Sprache kommt aus dem WordPress-Benutzerprofil (`?lang=`), wird auf dem Gerät gemerkt, sonst Browsersprache; `html lang` wird korrekt gesetzt. Neuer CI-Test prüft Vollständigkeit der Kataloge und die Sprachwahl.
+- Kassen-Storno, Partner-API-Storno und Umtausch erkennen Nutzung auch bei gültig gebliebenen Wiedereinlass-, Mehrfach- und Pass-Tickets (Check-in-Historie ohne Rücknahme, Einlassbuchungen) über das gemeinsame `Orders::used_ticket_ids()`.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

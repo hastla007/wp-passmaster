@@ -531,13 +531,12 @@ final class Service {
 			if ( 'storno_pending' === $sale->status ) { return $sale; }
 		}
 		// Tickets: the requested ones must be open (not refunded) tickets of the order.
-		$open = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,status FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND refunded=0 ORDER BY ticket_id", (int) $sale->order_id ) ) as $t ) { $open[ (int) $t->ticket_id ] = $t->status; }
 		$refundable = array_map( static function ( $t ) { return (int) $t->ticket_id; }, Orders::refundable_tickets( (int) $sale->order_id ) );
 		$requested = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
 		$targets = $requested ? $requested : $refundable;
 		if ( ! $targets || array_diff( $targets, $refundable ) ) { return self::error( 'wpcap_pos_storno_tickets', __( 'Die gewählten Tickets gehören nicht zu diesem Verkauf oder wurden bereits storniert.', 'wp-pass-captain' ), 409 ); }
-		$checked_in = array_values( array_filter( $targets, static function ( $id ) use ( $open ) { return 'checked_in' === ( $open[ $id ] ?? '' ); } ) );
+		// Used = checked in, or admitted before (re-entry, multi-entry and pass tickets stay "valid").
+		$checked_in = Orders::used_ticket_ids( $targets );
 		$override_reason = trim( sanitize_text_field( (string) $override_reason ) );
 		if ( $checked_in && ( ! self::can_override_checkin() || '' === $override_reason ) ) {
 			return self::error( 'wpcap_pos_checked_in', self::can_override_checkin()

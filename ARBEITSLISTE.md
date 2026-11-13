@@ -108,7 +108,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 
 ## Phase 4 – Kleinere Fehler (P3, Audit Runde 3)
 
-- [ ] **A046** [P3] `src/BoxOffice/Service.php:459–471` (auch `src/Partners/Sales.php:730`) — Storno erkennt Nutzung nur an `status=checked_in`; Wiedereinlass-/Mehrfach-/Pass-Tickets bleiben `valid` u… — _OFFEN_ (TODO L398; Sicherheit (Prüfung 1))
+- [x] **A046** [P3] `src/BoxOffice/Service.php:459–471` (auch `src/Partners/Sales.php:730`) — Storno erkennt Nutzung nur an `status=checked_in`; Wiedereinlass-/Mehrfach-/Pass-Tickets bleiben `valid` u… — _OFFEN_ (TODO L398; Sicherheit (Prüfung 1))
   - Maßnahme: Nutzung über `wpcap_checkins`/`wpcap_admission_entries` wie `Exchange\Service::was_admitted()` prüfen.
 - [ ] **A047** [P3] Kassenverkäufe ohne E-Mail senden Ticketmail an `boxoffice+…@invalid.example`. — _OFFEN_ (TODO L422; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/BoxOffice/Service.php:277` — Maßnahme: Versand an Platzhalter unterdrücken.

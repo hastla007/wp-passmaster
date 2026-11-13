@@ -369,6 +369,27 @@ final class Orders {
 	 * Revokes the given tickets if still valid and returns the IDs actually changed.
 	 * Callers fire wpcap_ticket_revoked via fire_revoked() after their transaction commits.
 	 */
+	/**
+	 * Tickets of the list that were used for entry: checked in now, or – for re-entry, multi-entry
+	 * and pass tickets that stay "valid" – a check-in that was not undone, or an admission entry.
+	 *
+	 * @param int[] $ticket_ids Ticket IDs.
+	 * @return int[] Used ticket IDs.
+	 */
+	public static function used_ticket_ids( array $ticket_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
+		if ( ! $ids ) { return array(); }
+		$in = implode( ',', $ids );
+		$used = array_map( 'intval', $wpdb->get_col( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE ticket_id IN ($in) AND status='checked_in'" ) );
+		$used = array_merge( $used, array_map( 'intval', $wpdb->get_col( "SELECT ticket_id FROM {$p}wpcap_checkins WHERE ticket_id IN ($in) AND result IN ('checked_in','undone') GROUP BY ticket_id HAVING SUM(result='checked_in') > SUM(result='undone')" ) ) );
+		if ( Privacy::has_table( 'wpcap_admission_entries' ) ) {
+			$used = array_merge( $used, array_map( 'intval', $wpdb->get_col( "SELECT DISTINCT ticket_id FROM {$p}wpcap_admission_entries WHERE ticket_id IN ($in) AND direction='in' AND undone=0" ) ) );
+		}
+		return array_values( array_intersect( $ids, array_unique( $used ) ) );
+	}
+
 	public static function revoke_ids( array $ticket_ids ) {
 		global $wpdb;
 		$changed = array();

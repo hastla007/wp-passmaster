@@ -142,9 +142,8 @@ final class Service {
 
 	/** Whether the ticket was already used for admission (status or any successful scan). */
 	private static function was_admitted( $ticket ) {
-		global $wpdb;
 		if ( 'checked_in' === $ticket->status ) { return true; }
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_checkins WHERE ticket_id=%d AND result='checked_in' LIMIT 1", (int) $ticket->ticket_id ) );
+		return (bool) Orders::used_ticket_ids( array( (int) $ticket->ticket_id ) );
 	}
 
 	/** Completed exchanges in the chain of a ticket (all predecessors and the ticket itself). */

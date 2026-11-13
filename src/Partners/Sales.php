@@ -736,7 +736,7 @@ final class Sales {
 			$error = self::error( 'wpcap_partner_cancel_window_closed', __( 'Das Stornofenster für diese Bestellung ist abgelaufen.', 'wp-pass-captain' ), 409 );
 		} elseif ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d AND o.starts_at <= %s LIMIT 1", $order_id, $now ) ) ) {
 			$error = self::error( 'wpcap_partner_cancel_started', __( 'Die Veranstaltung hat bereits begonnen; eine Stornierung ist nicht mehr möglich.', 'wp-pass-captain' ), 409 );
-		} elseif ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_tickets WHERE order_id=%d AND status='checked_in' LIMIT 1", $order_id ) ) ) {
+		} elseif ( Orders::used_ticket_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) ) ) ) {
 			$error = self::error( 'wpcap_partner_cancel_checked_in', __( 'Mindestens ein Ticket wurde bereits eingecheckt; die Bestellung kann nicht storniert werden.', 'wp-pass-captain' ), 409 );
 		}
 		if ( $error ) { self::audit( $ctx, 'cancel', $order_id, $error ); return $error; }

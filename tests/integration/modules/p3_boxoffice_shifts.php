@@ -215,6 +215,24 @@ $rest = Pos::storno( $sale_p->sale_id, 'Rest' );
 $rest_mv = $wpdb->get_row( "SELECT * FROM {$p}wpcap_boxoffice_movements WHERE sale_id=" . (int) $sale_p->sale_id . ' ORDER BY movement_id DESC LIMIT 1' );
 check( 'storno of the remaining tickets voids the sale with the payout receipt number', ! is_wp_error( $rest ) && 'voided' === $rest->status && -2380 === (int) $rest_mv->amount_minor && $rest->storno_receipt_number === $rest_mv->receipt_number && 2 === Pos::session_totals( $s2->session_id )['counts']['stornos'] );
 
+if ( ! function_exists( 'a46_checkin' ) ) {
+	/** Check-in history row for a ticket that stays "valid" (re-entry / multi-entry / pass). */
+	function a46_checkin( $ticket_id, $result ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_checkins (ticket_id,event_id,occurrence_day_id,user_id,result,created_at) SELECT t.ticket_id,o.event_id,0,0,%s,%s FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id=%d", $result, gmdate( 'Y-m-d H:i:s' ), (int) $ticket_id ) );
+	}
+}
+echo "Box office shifts: re-entry tickets with an admission history are protected (A046)\n";
+$sale_re = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $t19 => 1 ), 'method' => 'cash', 'form_key' => wpb_key() ) )['sale'];
+$re_ticket = (int) tickets( $sale_re->order_id, 'valid' )[0]->ticket_id;
+a46_checkin( $re_ticket, 'checked_in' );
+$re_blocked = Pos::storno( $sale_re->sale_id, 'Rückgabe' );
+check( 'A046: a still valid ticket that was admitted before blocks the storno', is_wp_error( $re_blocked ) && 'wpcap_pos_checked_in' === $re_blocked->get_error_code() && 'valid' === tickets( $sale_re->order_id )[0]->status );
+a46_checkin( $re_ticket, 'undone' );
+$re_ok = Pos::storno( $sale_re->sale_id, 'Rückgabe' );
+check( 'A046: an undone check-in does not count as use', ! is_wp_error( $re_ok ) && 'voided' === $re_ok->status );
+
 echo "Box office shifts: checked-in tickets are protected\n";
 $sale_ci = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $t19 => 2 ), 'method' => 'cash', 'form_key' => wpb_key() ) )['sale'];
 $ci_tickets = tickets( $sale_ci->order_id, 'valid' );
