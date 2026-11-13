@@ -99,6 +99,7 @@
 - Umsatzbericht: Auswertung je Verkaufskanal (Kasse, Veranstalter/Wiederverkäufer-API, WooCommerce-Shop, Online) statt nur Kasse/Online; Filter `wpcap_report_channel`.
 - Mehrzweckgutscheine: Berichte, Veranstalter- und Wiederverkäufer-Abrechnungen lesen Erstattungen aus dem gespeicherten Erstattungsplan (Bar- plus Gutscheinteil, volle USt) – eine voll erstattete Bestellung über 30,00 € mit 15,00 € Gutschein zeigt jetzt 0,00 € statt 15,00 € Restumsatz.
 - Einzweckgutscheine: Veranstalter-Abrechnung nutzt den gespeicherten Gutscheinwert (`face_value_minor`) für Ticketdienst-Einlösungen (bisher 0,00 €) und bucht bei Erstattungen den zurückgegebenen Gutscheinteil als eigene Zeile „Einzweckgutschein zurückgegeben (Erstattung)“ zurück.
+- Doku: docs/TESTING.md aktualisiert (Check-in-Deadlock als behoben mit aktuellen Messwerten, verpflichtender CI-Lastschritt, Testpräfixe für parallele Läufe).
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

@@ -363,7 +363,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Nur Vertrag/Registry (src/Integrations/ConnectorInterface.php, ConnectorRegistry.php), keine konkreten Adapter, kein Mapping-UI
 - [ ] **A167** Bekannte Admin-A11y-Befunde beheben und erneut prüfen — _TEILWEISE_ (TODO L216; Abnahme, Barrierefreiheit und Releasebetrieb)
   - Letzter axe-Lauf ohne Befunde (tests/a11y/report/axe-2026-11-11T21-20-54-679Z.json); manuelle Zoom-/Screenreader-Prüfung fehlt, Tastaturtest nur öffentlicher Checkout (tests/a11y/keyboard.js)
-- [ ] **A168** Veralteten Fehlerbericht in docs/TESTING.md aktualisieren — _OFFEN_ (TODO L217; Abnahme, Barrierefreiheit und Releasebetrieb)
+- [x] **A168** Veralteten Fehlerbericht in docs/TESTING.md aktualisieren — _OFFEN_ (TODO L217; Abnahme, Barrierefreiheit und Releasebetrieb)
   - docs/TESTING.md:85-93 nennt weiterhin Deadlock und continue-on-error, obwohl .github/workflows/ci.yml:56-60 verpflichtend läuft
 - [ ] **A169** Upgrade-/Restore-/Multisite-Notfallübungen durchführen und abgleichen — _OFFEN_ (TODO L218; Abnahme, Barrierefreiheit und Releasebetrieb)
   - Kein Nachweis einer Übung; nur Anforderung in docs/OPERATIONS.md:51

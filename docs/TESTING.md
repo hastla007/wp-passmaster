@@ -6,6 +6,11 @@
 php tests/integration/run.php        # braucht eine Wegwerf-MariaDB/MySQL (WPCAP_TEST_DB_HOST/_USER/_PASS/_NAME)
 ```
 
+Stand 13.11.2026: rund 2.280 Prüfungen, 0 Fehler (CI: Pflichtschritt). Mehrere Läufe parallel auf derselben
+Datenbank brauchen getrennte Tabellenpräfixe: `WPCAP_TEST_PREFIX=wpx1_ php tests/integration/run.php`.
+Zusätzlich in CI: `node tests/offline-scanner-i18n.js` (Übersetzungskataloge der Offline-PWA) und
+`bash tests/release-guard.sh`.
+
 ## Last- und Nebenläufigkeitstests (`tests/load/`)
 
 ### Ohne Webserver: `tests/load/run.php`
@@ -82,15 +87,13 @@ Ergebnis:
   mit der Zahl gleichzeitiger Käufer (≈ 2 ms je wartendem Käufer), der Durchsatz bleibt bei ~400–570 Bestellungen/s.
 - **Webhooks:** jedes Event genau einmal angewendet, alle Duplikate als `duplicate` beantwortet, keine
   doppelten Tickets.
-- **Check-in: FEHLER gefunden.** Gleichzeitige Erst-Einlässe *verschiedener* Tickets laufen in einen
-  InnoDB-Gap-Lock-Deadlock auf `wpcap_admission_state` (`Admission\Engine::state_for_update()` liest eine
-  noch nicht existierende Zeile `FOR UPDATE`, `record()` fügt sie danach mit `INSERT … ON DUPLICATE KEY` ein).
-  Das Opfer der Deadlock-Erkennung wird von MariaDB komplett zurückgerollt, `Checkin::perform()` prüft die
-  Fehler aber nicht und meldet trotzdem „eingelassen“. Das Ticket bleibt gültig, der nächste Scan lässt es
-  erneut ein. Gemessen: heavy 395 „eingelassen“-Antworten für 50 Tickets, default 41 für 25, auch über die
-  REST-API (12 für 10). Reproduzierbar in 5 von 5 `--profile=ci`-Läufen. Mit entferntem `FOR UPDATE` in
-  `state_for_update()` (die Ticketzeile ist bereits gesperrt) waren in 3 von 3 Läufen alle Invarianten
-  erfüllt, 0 Deadlocks. Der CI-Schritt läuft deshalb vorerst mit `continue-on-error`.
+- **Check-in (behoben):** In der Messung vom 11.11.2026 liefen gleichzeitige Erst-Einlässe *verschiedener*
+  Tickets in einen InnoDB-Gap-Lock-Deadlock auf `wpcap_admission_state`, und `Checkin::perform()` meldete trotz
+  Rollback „eingelassen“. Behoben (Commit 53633f6): `Admission\Engine::state_for_update()` liest den Zustand
+  ohne `FOR UPDATE` (die Ticketzeile ist bereits gesperrt), Datenbankfehler brechen den Einlass mit einem
+  retrybaren Fehler ab. Seitdem in jedem `--profile=ci`-Lauf: 0 Deadlocks, je Ticket genau ein Einlass
+  (13.11.2026: 3 von 3 Läufen, `admitted` 10 / `rejected_duplicate` 140 / `replayed` 10). Der CI-Schritt
+  „Concurrency/load smoke test“ ist verpflichtend (kein `continue-on-error`).
 
 ## Barrierefreiheit (`tests/a11y/`)
 
