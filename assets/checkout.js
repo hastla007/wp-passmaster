@@ -396,4 +396,37 @@
 			if (!done && hadFocus && (!document.activeElement || document.activeElement === document.body)) button.focus();
 		}
 	});
+	// Waitlist on sold-out cards: POST …/events/{event}/waitlist.
+	document.addEventListener('submit', async function (event) {
+		var form = event.target;
+		if (!form || !form.classList || !form.classList.contains('wpcap-waitlist-form')) return;
+		event.preventDefault();
+		var message = form.querySelector('.wpcap-message');
+		var button = form.querySelector('button[type="submit"]');
+		var email = form.elements.email;
+		if (!email.value || !email.checkValidity()) {
+			email.setAttribute('aria-invalid', 'true');
+			message.textContent = t.waitlistEmail || '';
+			email.focus();
+			return;
+		}
+		email.removeAttribute('aria-invalid');
+		button.disabled = true;
+		message.textContent = t.waitlistJoining || '…';
+		try {
+			var response = await fetch((config.eventsUrl || '') + encodeURIComponent(form.dataset.event) + '/waitlist', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ occurrence_id: Number(form.dataset.occurrence), ticket_type_id: Number(form.elements.ticket_type_id.value), quantity: Number(form.elements.quantity.value || 1), email: email.value })
+			});
+			var data = {};
+			try { data = await response.json(); } catch (e) { data = {}; }
+			if (!response.ok) throw new Error(data.message || t.waitlistFailed || 'Failed.');
+			message.textContent = t.waitlistJoined || '';
+			form.querySelectorAll('input,select,button').forEach(function (n) { n.disabled = true; });
+		} catch (error) {
+			message.textContent = (error && error.message) || t.waitlistFailed || 'Failed.';
+			button.disabled = false;
+		}
+	});
 })();

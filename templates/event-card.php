@@ -11,6 +11,13 @@ $form_id = 'wpcap-' . (int) $event->occurrence_id;
 $wpcap_level = min( 6, max( 2, (int) apply_filters( 'wpcap_event_card_heading_level', 2 ) ) );
 $wpcap_heading = 'h' . $wpcap_level;
 $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
+// Sold-out ticket types (offered on the waitlist) and whether nothing is left to buy.
+$wpcap_soldout = array();
+foreach ( $types as $wpcap_type ) {
+	if ( null !== $wpcap_type->available && (int) $wpcap_type->available < 1 ) { $wpcap_soldout[] = $wpcap_type; }
+}
+$wpcap_all_soldout = $types && count( $wpcap_soldout ) === count( $types );
+$wpcap_waitlist = $wpcap_soldout && (bool) apply_filters( 'wpcap_waitlist_public_enabled', true, $event );
 ?>
 <article class="wpcap-event">
 	<<?php echo $wpcap_heading; // phpcs:ignore WordPress.Security.EscapeOutput -- fixed tag name. ?>><?php echo esc_html( $event->name ); ?></<?php echo $wpcap_heading; // phpcs:ignore WordPress.Security.EscapeOutput -- fixed tag name. ?>>
@@ -34,6 +41,9 @@ $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
 				</div>
 			<?php endforeach; ?>
 		</fieldset>
+		<?php if ( $wpcap_all_soldout ) : ?>
+			<p class="wpcap-soldout-note"><?php esc_html_e( 'Dieser Termin ist ausverkauft.', 'wp-pass-captain' ); ?></p>
+		<?php else : ?>
 		<p class="wpcap-estimate" aria-live="polite"></p>
 		<div class="wpcap-field">
 			<label for="<?php echo esc_attr( $form_id . '-email' ); ?>"><?php esc_html_e( 'Deine E-Mail-Adresse (für Tickets und Bestätigung)', 'wp-pass-captain' ); ?> *</label>
@@ -122,5 +132,35 @@ $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
 		<?php endif; ?>
 		<button type="submit" class="wp-element-button wpcap-submit"><?php esc_html_e( 'Zahlungspflichtig bestellen', 'wp-pass-captain' ); ?></button>
 		<p class="wpcap-message" role="status" aria-live="polite"></p>
+		<?php endif; ?>
 	</form>
+	<?php if ( $wpcap_waitlist ) : $wpcap_wl_id = $form_id . '-waitlist'; ?>
+		<form class="wpcap-waitlist-form" id="<?php echo esc_attr( $wpcap_wl_id ); ?>" data-event="<?php echo esc_attr( (int) $event->event_id ); ?>" data-occurrence="<?php echo esc_attr( (int) $event->occurrence_id ); ?>" novalidate>
+			<fieldset>
+				<legend><?php esc_html_e( 'Warteliste', 'wp-pass-captain' ); ?></legend>
+				<p><small><?php esc_html_e( 'Wird ein Platz frei, schicken wir dir ein Angebot per E-Mail, das du innerhalb der genannten Frist annehmen kannst.', 'wp-pass-captain' ); ?></small></p>
+				<?php if ( count( $wpcap_soldout ) > 1 ) : ?>
+					<div class="wpcap-field">
+						<label for="<?php echo esc_attr( $wpcap_wl_id . '-type' ); ?>"><?php esc_html_e( 'Ticketart', 'wp-pass-captain' ); ?></label>
+						<select id="<?php echo esc_attr( $wpcap_wl_id . '-type' ); ?>" name="ticket_type_id">
+							<?php foreach ( $wpcap_soldout as $wpcap_type ) : ?><option value="<?php echo esc_attr( (int) $wpcap_type->ticket_type_id ); ?>"><?php echo esc_html( $wpcap_type->name ); ?></option><?php endforeach; ?>
+						</select>
+					</div>
+				<?php else : ?>
+					<input type="hidden" name="ticket_type_id" value="<?php echo esc_attr( (int) $wpcap_soldout[0]->ticket_type_id ); ?>">
+				<?php endif; ?>
+				<div class="wpcap-field">
+					<label for="<?php echo esc_attr( $wpcap_wl_id . '-qty' ); ?>"><?php esc_html_e( 'Anzahl', 'wp-pass-captain' ); ?></label>
+					<input id="<?php echo esc_attr( $wpcap_wl_id . '-qty' ); ?>" name="quantity" type="number" min="1" max="<?php echo esc_attr( max( 1, (int) $wpcap_soldout[0]->max_per_order ) ); ?>" value="1" inputmode="numeric">
+				</div>
+				<div class="wpcap-field">
+					<label for="<?php echo esc_attr( $wpcap_wl_id . '-email' ); ?>"><?php esc_html_e( 'E-Mail-Adresse', 'wp-pass-captain' ); ?> *</label>
+					<input id="<?php echo esc_attr( $wpcap_wl_id . '-email' ); ?>" name="email" type="email" autocomplete="email" required>
+				</div>
+				<p><small><?php esc_html_e( 'Wir verwenden deine E-Mail-Adresse nur für die Warteliste dieses Termins. Ein Angebot kannst du annehmen oder ablehnen.', 'wp-pass-captain' ); ?></small></p>
+				<button type="submit" class="wp-element-button"><?php esc_html_e( 'Auf die Warteliste setzen', 'wp-pass-captain' ); ?></button>
+				<p class="wpcap-message" role="status" aria-live="polite"></p>
+			</fieldset>
+		</form>
+	<?php endif; ?>
 </article>

@@ -21,6 +21,11 @@ die Adresse schon eingetragen war; die Position steht in der Bestätigungsmail (
 Einträge mit Status `expired`, `declined` oder `paid` dürfen sich erneut eintragen (am Ende der
 Schlange); vom Team übersprungene oder entfernte Einträge nicht.
 
+**Auf der Eventkarte** (Shortcode/Block): Ausverkaufte Ticketarten zeigen unter dem Bestellformular
+ein Wartelisten-Formular (Ticketart, Anzahl, E-Mail), das diesen Endpunkt aufruft. Ist der Termin ganz
+ausverkauft, entfällt das Bestellformular. Ausblenden: `add_filter( 'wpcap_waitlist_public_enabled',
+'__return_false' )` (zweiter Parameter: Termin-Zeile der Karte).
+
 ## Ablauf
 
 1. **Kontingent wird frei** – `wpcap_capacity_released` (Reservierung abgelaufen, Storno, Erstattung,

@@ -11,9 +11,15 @@ final class PublicEvents {
 		foreach ( Payments\Registry::enabled( 'EUR' ) as $id => $gateway ) { $providers[] = array( 'id' => $id, 'title' => $gateway->title() ); }
 		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', array(
 			'url' => esc_url_raw( rest_url( 'wp-pass-captain/v1/checkout' ) ),
+			// Waitlist join: …/events/{event_id}/waitlist.
+			'eventsUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/events/' ) ),
 			'money' => Frontend\Format::js_config(),
 			'i18n' => array(
 				'selectTickets' => __( 'Bitte wähle mindestens ein Ticket.', 'wp-pass-captain' ),
+				'waitlistJoining' => __( 'Wird eingetragen …', 'wp-pass-captain' ),
+				'waitlistJoined' => __( 'Du stehst auf der Warteliste. Wir melden uns per E-Mail, sobald ein Platz frei wird.', 'wp-pass-captain' ),
+				'waitlistFailed' => __( 'Eintragen fehlgeschlagen.', 'wp-pass-captain' ),
+				'waitlistEmail' => __( 'Bitte gib eine gültige E-Mail-Adresse ein.', 'wp-pass-captain' ),
 				'tooMany' => __( 'Für eine Ticketart wurde die Höchstmenge überschritten.', 'wp-pass-captain' ),
 				'creating' => __( 'Bestellung wird angelegt …', 'wp-pass-captain' ),
 				'failed' => __( 'Bestellung fehlgeschlagen.', 'wp-pass-captain' ),
