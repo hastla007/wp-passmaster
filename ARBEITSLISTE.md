@@ -182,7 +182,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 - [x] **A080** wpcap_waitlist_process beim Deaktivieren abmelden — _OFFEN_ (TODO L338; Offene Nacharbeiten aus Phase 3)
   - src/Plugin.php:134 Hook-Liste ohne Waitlists::HOOK
   - Erledigt mit A061: `Plugin::cron_hooks()` enthält `Waitlists::HOOK`, Deaktivierung/Deinstallation melden ihn ab (Test A061).
-- [ ] **A081** Umtausch: Zusatzfelder, Webhook ticket.exchanged, Woo-Differenzerstattung — _OFFEN_ (TODO L340; Offene Nacharbeiten aus Phase 3)
+- [x] **A081** Umtausch: Zusatzfelder, Webhook ticket.exchanged, Woo-Differenzerstattung — _OFFEN_ (TODO L340; Offene Nacharbeiten aus Phase 3)
   - src/Exchange/Service.php:649 Antworten nicht übernommen; kein Webhook-Ereignis ticket.exchanged; kein WooCommerce-Bezug in Exchange
 - [ ] **A082** wpcap_reserve_capacity um internal, E-Mail, User-ID erweitern — _OFFEN_ (TODO L341; Offene Nacharbeiten aus Phase 3)
   - src/Orders.php:151 Kontext nur phase/order_id/types/occurrences/now/source

@@ -932,3 +932,15 @@ $a81b_payload = $a81b_d ? json_decode( (string) $a81b_d->payload, true ) : array
 $a81b_obj = $a81b_payload['data']['object'] ?? array();
 check( 'A081b: an exchange emits ticket.exchanged with the new ticket, the previous ticket and the money', ! is_wp_error( $a81b_x ) && 'ticket.exchanged' === ( $a81b_payload['type'] ?? '' ) && ( $obj_ok = ( $a81b_obj['id'] ?? '' ) === $wpdb->get_var( $wpdb->prepare( "SELECT public_id FROM {$p}wpcap_tickets WHERE ticket_id=%d", (int) $a81b_x['new_ticket_id'] ) ) ) && ( $a81b_obj['previous_ticket_id'] ?? '' ) === $wpdb->get_var( $wpdb->prepare( "SELECT public_id FROM {$p}wpcap_tickets WHERE ticket_id=%d", $a81b_ids[0] ) ) && $a81_to === ( $a81b_obj['exchange']['to_ticket_type_id'] ?? 0 ) );
 if ( ! is_wp_error( $a81b_sub ) ) { $wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_webhook_subscriptions WHERE subscription_id=%d", $a81b_sub['subscription_id'] ) ); $wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_webhook_deliveries WHERE subscription_id=%d", $a81b_sub['subscription_id'] ) ); }
+
+echo "Audit 3: exchange difference of WooCommerce orders is tracked for refund in WooCommerce (A081c)\n";
+$a81c_cheap = ex_type( $a4_occ, 'Billig A81c', 2000, 3 );
+list( $a81c_o, $a81c_ids ) = ex_buy( $a4_std, 1, 'a81c@example.com' );
+$wpdb->update( "{$p}wpcap_orders", array( 'payment_provider' => 'woocommerce' ), array( 'order_id' => $a81c_o ) );
+$a81c_ext = array();
+$a81c_hook = static function ( $exchange_id, $order_id, $amount ) use ( &$a81c_ext ) { $a81c_ext[] = array( (int) $order_id, (int) $amount ); };
+add_action( 'wpcap_exchange_refund_external', $a81c_hook, 5, 3 );
+$a81c_x = Exchange::request( $a81c_ids[0], $a81c_cheap, array( 'channel' => 'admin', 'idempotency_key' => 'a81c-x', 'refund_policy' => 'refund' ) );
+remove_action( 'wpcap_exchange_refund_external', $a81c_hook, 5 );
+$a81c_row = is_wp_error( $a81c_x ) ? array() : Exchange::get( (int) $a81c_x['exchange_id'] );
+check( 'A081c: no plugin refund; status "woocommerce"; external refund hook with the difference', ! is_wp_error( $a81c_x ) && 'woocommerce' === ( $a81c_row['refund_status'] ?? '' ) && array( array( $a81c_o, 3000 ) ) === $a81c_ext && 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_refunds WHERE order_id=%d", $a81c_o ) ) );

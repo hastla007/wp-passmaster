@@ -94,6 +94,7 @@ final class OrderAdapter {
 		add_action( 'woocommerce_order_status_cancelled', array( __CLASS__, 'sync_cancelled_order' ), 20 );
 		add_action( 'woocommerce_order_status_failed', array( __CLASS__, 'sync_cancelled_order' ), 20 );
 		add_action( 'woocommerce_order_refunded', array( __CLASS__, 'sync_refund' ), 20, 2 );
+		add_action( 'wpcap_exchange_refund_external', array( __CLASS__, 'note_exchange_refund' ), 10, 4 );
 		add_action( 'woocommerce_order_status_refunded', array( __CLASS__, 'sync_fully_refunded_order' ), 20 );
 
 		// Display and admin tools.
@@ -928,6 +929,17 @@ final class OrderAdapter {
 	}
 
 	/** Returns the linked core order ID. */
+	/** wpcap_exchange_refund_external: note on the WooCommerce order which difference to refund there. */
+	public static function note_exchange_refund( $exchange_id, $core_order_id, $amount_minor, $currency ) {
+		if ( ! function_exists( 'wc_get_orders' ) ) { return false; }
+		$orders = wc_get_orders( array( 'limit' => 1, 'meta_key' => self::ORDER_META, 'meta_value' => absint( $core_order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+		$wc_order = $orders ? $orders[0] : null;
+		if ( ! $wc_order ) { return false; }
+		/* translators: 1: amount, 2: currency, 3: exchange id */
+		$wc_order->add_order_note( sprintf( __( 'Pass Captain: Ticket umgetauscht (Umtausch #%3$d). Bitte die Differenz von %1$s %2$s hier in WooCommerce erstatten (Erstattung ohne Ticketauswahl).', 'wp-pass-captain' ), number_format_i18n( absint( $amount_minor ) / 100, 2 ), (string) $currency, absint( $exchange_id ) ) );
+		return true;
+	}
+
 	private static function core_order_id( $wc_order_id ) {
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
 		return $wc_order ? absint( $wc_order->get_meta( self::ORDER_META, true ) ) : 0;

@@ -753,7 +753,15 @@ final class Service {
 		$price_note = array( 'none', '' );
 		$row = self::get( $exchange_id );
 		$money = static function ( $minor ) use ( $order ) { return number_format_i18n( $minor / 100, 2 ) . ' ' . $order->currency; };
-		if ( (int) $row['refund_minor'] > 0 ) {
+		if ( (int) $row['refund_minor'] > 0 && 'woocommerce' === (string) $order->payment_provider ) {
+			// WooCommerce collected the money: the difference is refunded there (refund in WooCommerce →
+			// the adapter books it). Tracked as refund_status "woocommerce" with a note on the WC order.
+			$wpdb->update( self::table(), array( 'refund_status' => 'woocommerce', 'updated_at' => current_time( 'mysql', true ) ), array( 'exchange_id' => $exchange_id ) );
+			Audit::record( 'ticket_exchange_refund_external', 'order', (int) $order->order_id, array( 'exchange_id' => $exchange_id, 'amount_minor' => (int) $row['refund_minor'], 'provider' => 'woocommerce' ) );
+			/** The difference of an exchange must be refunded outside Pass Captain (e.g. in WooCommerce). */
+			do_action( 'wpcap_exchange_refund_external', $exchange_id, (int) $order->order_id, (int) $row['refund_minor'], (string) $order->currency );
+			$price_note = array( 'refund_pending', $money( (int) $row['refund_minor'] ) );
+		} elseif ( (int) $row['refund_minor'] > 0 ) {
 			$channel = (string) $row['channel'];
 			$refund = Refunds::request_amount(
 				(int) $order->order_id,

@@ -221,6 +221,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_exchange_money` | `array $money, object $ticket, object $target_type, array $args` | Beträge eines Umtauschs vor dem Speichern (`old_value_minor`, `new_price_minor`, `difference_minor`, `fee_minor`, `refund_minor`, `due_minor`, `supplement_minor`, `new_value_minor`). |
 | `wpcap_exchange_portal_rate_limit` | `int $limit` (10) | Umtauschanfragen im Bestellportal je Bestellung und Stunde. |
 | `wpcap_exchange_refund_fee` | `bool $refund_fee` (false), `array $exchange` | Bei Erstattung des umgetauschten Tickets auch die Umtauschgebühr aus der Aufpreis-Bestellung erstatten (`true`); Standard: Gebühr wird einbehalten. |
+| `wpcap_exchange_refund_external` (Action) | `int $exchange_id, int $order_id, int $amount_minor, string $currency` | Die Differenz eines Umtauschs muss außerhalb von Pass Captain erstattet werden (WooCommerce-Bestellung); der WooCommerce-Adapter schreibt dazu eine Notiz an die Woo-Bestellung. |
 | `wpcap_exchange_platform_collected` | `bool $collected, object $order` | Ob die Plattform die Zahlung der Bestellung selbst erhalten hat (Standard: nicht bei `partner`, `woocommerce`, `comp` und `pos_*`); ohne das lehnt der Umtausch im Bestellportal Rückzahlungen ab (`refund_offline`). |
 | `wpcap_ticket_exchanged` (Action) | `int $old_ticket_id, int $new_ticket_id, int $exchange_id, array $exchange` | Ticket umgetauscht: altes Ticket widerrufen (Grund `exchange`), neues in derselben Bestellung ausgegeben. |
 

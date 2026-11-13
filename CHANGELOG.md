@@ -87,6 +87,7 @@
 - Datenschutz-Löschung storniert laufende Wartelisten-Angebote (Platzhalter-Bestellung) sofort – der Platz geht an die nächste Person statt bis zum Ablauf blockiert zu sein.
 - Umtausch übernimmt Antworten auf Zusatzfelder ins neue Ticket, soweit die Ziel-Ticketart dasselbe Feld (gleicher Schlüssel) abfragt.
 - Neues Webhook-Ereignis `ticket.exchanged` (neues Ticket, vorheriges Ticket, Ticketarten, Kanal und Beträge des Umtauschs).
+- Umtausch bei WooCommerce-Bestellungen: die Differenz wird als „in WooCommerce erstatten“ geführt (Notiz an der Woo-Bestellung, Hinweis in der Umtauschliste, Action `wpcap_exchange_refund_external`) statt als fehlgeschlagene Erstattung.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

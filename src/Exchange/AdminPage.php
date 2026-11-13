@@ -128,6 +128,11 @@ final class AdminPage {
 		foreach ( $rows as $row ) {
 			$money = static function ( $minor ) use ( $row ) { return Forms::money( (int) $minor, $row['currency'] ); };
 			$settle = (int) $row['due_minor'] > 0 ? sprintf( /* translators: %s: amount */ __( 'Aufpreis %s', 'wp-pass-captain' ), $money( $row['due_minor'] ) ) : ( (int) $row['refund_minor'] > 0 ? sprintf( /* translators: %s: amount */ __( 'Erstattung %s', 'wp-pass-captain' ), $money( $row['refund_minor'] ) ) : ( (int) $row['waived'] ? __( 'Kulanz', 'wp-pass-captain' ) : '—' ) );
+			if ( 'woocommerce' === (string) ( $row['refund_status'] ?? '' ) ) {
+				$settle .= ' – ' . __( 'in WooCommerce erstatten', 'wp-pass-captain' );
+			} elseif ( 'error' === (string) ( $row['refund_status'] ?? '' ) ) {
+				$settle .= ' – ' . __( 'Erstattung fehlgeschlagen, bitte manuell erstatten', 'wp-pass-captain' );
+			}
 			$orders = '<a href="' . esc_url( OrdersPage::order_url( (int) $row['order_id'] ) ) . '">#' . (int) $row['order_id'] . '</a>';
 			if ( (int) $row['supplementary_order_id'] ) { $orders .= ' + <a href="' . esc_url( OrdersPage::order_url( (int) $row['supplementary_order_id'] ) ) . '">#' . (int) $row['supplementary_order_id'] . '</a>'; }
 			echo '<tr><td>' . esc_html( Forms::datetime( $row['created_at'], 'UTC', false ) ) . '</td><td>' . esc_html( self::type_label( (int) $row['from_type_id'] ) . ' → ' . self::type_label( (int) $row['to_type_id'] ) ) . '</td><td>' . esc_html( $row['channel'] ) . '</td><td>' . esc_html( $money( $row['difference_minor'] ) ) . '</td><td>' . esc_html( $money( $row['fee_minor'] ) ) . '</td><td>' . esc_html( $settle ) . '</td><td>' . esc_html( self::status_label( $row['status'] ) ) . '</td><td>' . $orders . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $orders is built from escaped parts.

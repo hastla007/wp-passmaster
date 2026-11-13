@@ -337,7 +337,7 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [x] Datenschutz-Löschung soll laufende Wartelisten-Angebote (Platzhalter-Bestellung) sofort freigeben statt bis zum Ablauf zu halten.
 - [x] `wpcap_waitlist_process` beim Deaktivieren des Plugins abmelden.
 - [ ] Wartelisten-Bestellungen unterstützen keine Rabattcodes, Gutscheine und Rechnungsdaten – entscheiden und ggf. ergänzen.
-- [ ] Umtausch: Antworten auf Zusatzfelder ins neue Ticket übernehmen; eigenes Webhook-Ereignis `ticket.exchanged`; Differenzerstattung bei WooCommerce-Bestellungen automatisieren oder klar im Admin führen.
+- [x] Umtausch: Antworten auf Zusatzfelder ins neue Ticket übernehmen; eigenes Webhook-Ereignis `ticket.exchanged`; Differenzerstattung bei WooCommerce-Bestellungen automatisieren oder klar im Admin führen.
 - [ ] Core-Hook `wpcap_reserve_capacity` um `$context['internal']`, Käufer-E-Mail und Benutzer-ID erweitern (Allocations/Käuferlimit prüfen derzeit in `wpcap_order_creating`).
 - [ ] Neue Hooks dokumentieren (`wpcap_capacity_increased`, `wpcap_allocation_*`, `wpcap_boxoffice_*`, `wpcap_ticket_exchanged`, Pass-Filter) in docs/HOOKS.md.
 - [ ] Pässe: Online-Verkauf endet mit Beginn des Verkaufstermins; „N aus M“ offline nur näherungsweise; nach Terminabsagen keine Neuprüfung der Restanzahl – fachlich entscheiden.
