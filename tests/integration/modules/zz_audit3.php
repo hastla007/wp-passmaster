@@ -792,3 +792,14 @@ foreach ( $a63_it as $a63_file ) {
 	}
 }
 check( 'A063: no hand-built busy errors left (all through Errors::busy())' . ( $a63_bad ? ' – ' . implode( ', ', $a63_bad ) : '' ), ! $a63_bad );
+
+echo "Audit 3: self-service downgrade refunds only money the platform received (A066)\n";
+$a66_cheap = ex_type( $a4_occ, 'Ermaessigt A66', 500, 5 );
+list( $a66_o, $a66_t ) = ex_buy( $a4_std, 2, 'a66@example.com' );
+$wpdb->update( "{$p}wpcap_orders", array( 'payment_provider' => 'partner' ), array( 'order_id' => $a66_o ) );
+ex_policy( array( 'portal_enabled' => 1, 'portal_hours' => 1, 'portal_max_per_ticket' => 5 ) );
+$a66_portal = Exchange::request( $a66_t[0], $a66_cheap, array( 'channel' => 'portal', 'idempotency_key' => 'a66-p' ) );
+check( 'A066: portal downgrade of a partner sale with refund is refused (refund_offline)', is_wp_error( $a66_portal ) && 'refund_offline' === ( $a66_portal->get_error_data()['reason'] ?? '' ) && 0 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_refunds WHERE order_id=%d", $a66_o ) ) );
+check( 'A066: platform_collected() is false for partner, box office and comps, true for online providers', ! Exchange::platform_collected( (object) array( 'payment_provider' => 'partner' ) ) && ! Exchange::platform_collected( (object) array( 'payment_provider' => 'pos_cash' ) ) && ! Exchange::platform_collected( (object) array( 'payment_provider' => 'comp' ) ) && Exchange::platform_collected( (object) array( 'payment_provider' => 'stripe' ) ) && Exchange::platform_collected( (object) array( 'payment_provider' => 'manual' ) ) );
+$wpdb->update( "{$p}wpcap_orders", array( 'payment_provider' => 'manual' ), array( 'order_id' => $a66_o ) );
+ex_policy( array( 'portal_enabled' => 0 ) );

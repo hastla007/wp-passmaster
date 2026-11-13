@@ -151,7 +151,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 
 - [x] **A065** [VERDACHT] Partner-Storno: Prüfung „Termin begonnen“ schützt bei Pässen mit anderem Anker-Termin wohl nicht. — _OFFEN_ (TODO L401; Sicherheit (Prüfung 1))
   - `src/Partners/Sales.php:728–731` — 
-- [ ] **A066** [VERDACHT] Portal-Herabstufung bei Partner-/Kassenbestellungen bucht Erstattung über Geld, das die Plattform nie erhielt. — _OFFEN_ (TODO L402; Sicherheit (Prüfung 1))
+- [x] **A066** [VERDACHT] Portal-Herabstufung bei Partner-/Kassenbestellungen bucht Erstattung über Geld, das die Plattform nie erhielt. — _OFFEN_ (TODO L402; Sicherheit (Prüfung 1))
   - `src/Exchange/Service.php:700–708` — 
 - [ ] **A067** [VERDACHT] alte Route `/pos/sales` umgeht Schicht, Belegnummer und Z-Bericht. — _OFFEN_ (TODO L403; Sicherheit (Prüfung 1))
   - `src/Rest/Controller.php` `pos_sale` — 

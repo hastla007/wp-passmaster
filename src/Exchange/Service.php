@@ -504,6 +504,11 @@ final class Service {
 			$money = self::calculate( $value, $price, $policy, $args );
 			/** Changes the money of an exchange (difference, fee, refund) before it is stored. */
 			$money = (array) apply_filters( 'wpcap_exchange_money', $money, $ticket, $target_type, $args );
+			// Self-service refunds only for money the platform itself collected: partner sales were paid
+			// to the partner, box office sales at the till – there the organizer/box office refunds.
+			if ( 'portal' === $channel && (int) $money['refund_minor'] > 0 && ! self::platform_collected( $order ) ) {
+				throw new \RuntimeException( 'refund_offline' );
+			}
 			$row = array(
 				'idempotency_key' => $key_hash,
 				'order_id' => (int) $order->order_id,
@@ -568,6 +573,7 @@ final class Service {
 			'exchange_pending' => __( 'Für dieses Ticket läuft bereits ein Umtausch, der auf Zahlung wartet.', 'wp-pass-captain' ),
 			'target_unavailable' => __( 'Die gewählte Ticketart ist nicht verfügbar.', 'wp-pass-captain' ),
 			'transferred' => __( 'Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht werden.', 'wp-pass-captain' ),
+			'refund_offline' => __( 'Bei diesem Umtausch würde Geld erstattet, das bei der Verkaufsstelle (Kasse oder Vertriebspartner) bezahlt wurde. Bitte wende dich für den Umtausch an die Verkaufsstelle oder den Veranstalter.', 'wp-pass-captain' ),
 			'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'wp-pass-captain' ),
 			'insert_failed' => __( 'Der Umtausch konnte nicht gespeichert werden.', 'wp-pass-captain' ),
 			'billing_invalid' => __( 'Die Rechnungsdaten sind unvollständig: Vorname, Nachname, Straße, PLZ, Ort und Land angeben.', 'wp-pass-captain' ),
@@ -920,6 +926,17 @@ final class Service {
 	}
 
 	/** Payment provider of a supplementary order. */
+	/**
+	 * Whether the platform itself received the order's payment (so it can refund it): not for partner
+	 * sales (paid to the partner), box office sales (till), WooCommerce orders (refunded in
+	 * WooCommerce) and comps. Filter wpcap_exchange_platform_collected.
+	 */
+	public static function platform_collected( $order ) {
+		$provider = (string) ( $order->payment_provider ?? '' );
+		$own = ! in_array( $provider, array( 'partner', 'woocommerce', 'comp' ), true ) && 0 !== strpos( $provider, 'pos_' );
+		return (bool) apply_filters( 'wpcap_exchange_platform_collected', $own, $order );
+	}
+
 	private static function supplement_provider( $order, array $args, $channel ) {
 		if ( 'pos' === $channel ) {
 			$method = sanitize_key( (string) ( $args['pos_method'] ?? 'cash' ) );

@@ -399,7 +399,7 @@ Fünf Prüfungen (Sicherheit, Abläufe E2E, Steuer/Finanzen, Datenschutz, Archit
 
 Verdachtsfälle (nicht end-to-end bestätigt):
 - [x] [VERDACHT] `src/Partners/Sales.php:728–731` — Partner-Storno: Prüfung „Termin begonnen“ schützt bei Pässen mit anderem Anker-Termin wohl nicht.
-- [ ] [VERDACHT] `src/Exchange/Service.php:700–708` — Portal-Herabstufung bei Partner-/Kassenbestellungen bucht Erstattung über Geld, das die Plattform nie erhielt.
+- [x] [VERDACHT] `src/Exchange/Service.php:700–708` — Portal-Herabstufung bei Partner-/Kassenbestellungen bucht Erstattung über Geld, das die Plattform nie erhielt.
 - [ ] [VERDACHT] `src/Rest/Controller.php` `pos_sale` — alte Route `/pos/sales` umgeht Schicht, Belegnummer und Z-Bericht.
 - [ ] [VERDACHT] `src/Orders.php:1500ff` — Portal-Nachsendung erneuert auch Codes übertragener Tickets (Käufer kann QR-Code der Empfängerin ungültig machen).
 - [ ] [VERDACHT] `src/GuestLists/Service.php:93–98,305` — Freikarten-Antrag und Freigabe durch dieselbe Person möglich.
