@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.11';
+	const DB_VERSION = '3.10.12';
 
 	public static function install() {
 		global $wpdb;
@@ -153,7 +153,8 @@ final class Installer {
 				KEY access_expires_at (access_expires_at),
 				KEY status (status),
 				KEY paid_created (payment_status,created_at,status),
-				KEY created (created_at,order_id)
+				KEY created (created_at,order_id),
+				KEY updated (updated_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $items (
 				item_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -177,7 +178,7 @@ final class Installer {
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),
-				KEY capacity_sum (ticket_type_id,order_id,quantity,refunded_quantity)
+				KEY capacity_sum (ticket_type_id,order_id,quantity,refunded_quantity,counted_qty)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $reservations (
 				reservation_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -190,7 +191,8 @@ final class Installer {
 				PRIMARY KEY  (reservation_id),
 				KEY order_id (order_id),
 				KEY inventory (ticket_type_id,status,expires_at),
-				KEY expiry (status,expires_at)
+				KEY expiry (status,expires_at),
+				KEY counted_type (ticket_type_id,counted_qty)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $tickets (
 				ticket_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

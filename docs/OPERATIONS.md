@@ -756,7 +756,11 @@ springt. Die Veranstalterseite nutzt statt einer Liste eine Suche mit Seitenblä
 Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht erstattete Einheiten) und
 `held_qty` (Reservierungen mit Status `active`); jede Bestellzeile/Reservierung merkt sich in `counted_qty`,
 was sie beiträgt. Die Kapazitätsprüfung liest die gesperrten Zähler statt alle Bestellzeilen zu summieren;
-abgelaufene, noch nicht aufgeräumte Reservierungen zieht sie über einen kleinen Indexbereich ab.
+Reservierungen, die noch zählen, aber nicht mehr halten (abgelaufen, freigegeben oder umgewandelt und noch nicht
+synchronisiert), zieht sie über den Index `counted_type (ticket_type_id, counted_qty)` mit `counted_qty>0` ab –
+je Ticketart bzw. für die Ticketarten des Termins als Bereich, nie über die Reservierungshistorie (Schema 3.10.8,
+A429; vorher Full Scan, bei 500.000 Reservierungen ≈ 300 ms je Prüfung unter den Kapazitätssperren, siehe
+[TESTING.md](TESTING.md#historie-reservierungen-index-und-aufräumen-a429-a430-a444)).
 
 - **Zustand** (Option `wpcap_capacity_counters`): Neuinstallation sofort `ready`. Beim Upgrade baut der
   Installer die Zähler je Termin unter Zeilensperren aus den Bestellungen neu auf (`building`) und entscheidet
@@ -772,7 +776,11 @@ abgelaufene, noch nicht aufgeräumte Reservierungen zieht sie über einen kleine
   `wpcap_capacity_drift_alert`). Ein Drift-Fund bedeutet: irgendwo ändert Code Bestellungen, Zeilen oder
   Reservierungen direkt in der Datenbank.
   Der Cron-Lauf läuft nie doppelt (`GET_LOCK`), hat ein Zeitbudget (10 s, `wpcap_capacity_reconcile_budget`)
-  und prüft nur in den letzten zwei Tagen geänderte Bestellungen sowie laufende/künftige Termine; eine
+  und prüft nur in den letzten zwei Tagen geänderte Bestellungen (Index `updated` auf `wpcap_orders`), aktive
+  Reservierungen (Index `expiry`), Reservierungen laufender/künftiger Termine mit `counted_qty>0` (Index
+  `counted_type`) und die Zähler laufender/künftiger Termine (je 500 Ticketarten eine gruppierte Summe über
+  `capacity_sum` bzw. `counted_type`, Vergleich in PHP; keine korrelierten Unterabfragen, A430). Jede Abfrage
+  ist ein Indexbereich; die Laufzeit hängt nicht von der Historie ab; eine
   scheinbare Abweichung wird nach 0,3 s erneut geprüft (Fenster zwischen COMMIT und Zählersync), erst dann
   gilt sie als Drift. `wp pass-captain reconcile-capacity --all` prüft den gesamten Bestand ohne Zeitlimit.
 - **Eigene Writer** (Plugins, Skripte): nach Änderungen an `wpcap_orders` (Zahl-/Status), `wpcap_order_items`

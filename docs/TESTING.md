@@ -304,6 +304,29 @@ Upgrade-Pfad (Neuaufbau, „verifying“ → „ready“); Memo-/Objekt-Cache-In
 Abfragezahl (3 und 12 Termine: je 8 Abfragen ohne Modulfilter) und REST-`/events` (4 Abfragen).
 Der Test-`$wpdb` zählt dafür `num_queries` und ruft wie WordPress den Filter `query` auf.
 
+## Historie: Reservierungen, Index und Aufräumen (A429, A430, A444)
+
+Datenbestand (`tests/load/history.php seed`, eigenes Präfix, danach `drop`): 500.000 Reservierungen aus
+200 Tagen (85 % `converted`, 10 % `expired`, 5 % `released`, alle `counted_qty=0`), davon 202.777 auf einer
+künftigen Ticketart (Vorverkauf seit Monaten), 300 aktive Holds; 500.000 Bestellungen mit je einer Zeile,
+60 Termine (10 künftig) mit 180 Ticketarten. Gleiche Maschine wie oben (MariaDB 10.11, PHP 8.3), beste von
+fünf Messungen:
+
+| Abfrage | vorher | nachher |
+|---|---|---|
+| Kapazitätsprüfung Ticketart (abgelaufene Holds abziehen) | 68,5 ms, `type=ALL`, 498.199 Zeilen | 0,5 ms, `range` auf `counted_type`, 121 Zeilen |
+| Kapazitätsprüfung Termin | 233 ms, `ref` auf `inventory` (alle Holds der Ticketarten) | 0,4 ms, `range` auf `counted_type` (Ticketarten per IN-Liste) |
+| `Orders::capacity_error()` gesamt (Ticketart + Termin, unter den Sperren) | ≈ 300 ms | 0,6 ms |
+| `CapacityCounters::used_for_types()` | 72 ms | 0,4 ms |
+| Reconcile-Cron (`reconcile()`) | 14,9 s (Zeilen-Kandidaten 3,1 s Full Scan, korrelierte SUMs 2 × 5,7 s) | 62 ms |
+| `reconcile( true )` (`--all`) | 22,6 s | 3,9 s |
+
+Indexaufbau beim Upgrade auf diesem Bestand (`ADD KEY counted_type`, `ADD KEY updated`, `capacity_sum` neu):
+zusammen ≈ 3 s. `modules/zz_a429_a430.php` legt 6.000 umgewandelte Reservierungen auf eine Ticketart und prüft per
+`EXPLAIN` jeder vom Checkout bzw. vom Reconcile-Lauf ausgeführten Abfrage auf `wpcap_reservations`, dass keine
+die Tabelle oder einen ganzen Index liest, dazu die Drift-Erkennung (alte, noch zählende Holds; aktive, nicht
+zählende Holds; manipulierte Zähler).
+
 ## Regelmäßige Lasttests und Regressionsgrenzen (A121)
 
 Der Workflow `.github/workflows/load.yml` läuft jeden Montag 03:17 UTC und manuell (`workflow_dispatch`):

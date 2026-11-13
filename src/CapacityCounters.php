@@ -544,13 +544,30 @@ final class CapacityCounters {
 		$limit = (int) self::BATCH;
 		// Cron runs look at recently changed orders and at running/upcoming dates only (the load does
 		// not grow with the whole history); `wp pass-captain reconcile-capacity --all` checks everything.
+		// Every cron query is an index range (A430): orders by `updated`, active holds by `expiry`,
+		// holds that still count by `counted_type` (ticket_type_id,counted_qty) – never the history
+		// of converted/expired holds.
 		$since = gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS );
-		$recent = $all ? '' : $wpdb->prepare( ' AND o.updated_at >= %s', $since );
-		$candidates = static function () use ( $wpdb, $p, $limit, $recent, $all, $since ) {
-			$rows = array_merge(
-				(array) $wpdb->get_col( "SELECT DISTINCT oi.order_id FROM {$p}wpcap_order_items oi LEFT JOIN {$p}wpcap_orders o ON o.order_id=oi.order_id WHERE oi.counted_qty<>" . self::line_units_sql() . "$recent LIMIT $limit" ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
-				(array) $wpdb->get_col( "SELECT DISTINCT r.order_id FROM {$p}wpcap_reservations r LEFT JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.counted_qty<>IF(r.status='active',r.quantity,0)" . ( $all ? '' : $wpdb->prepare( ' AND (o.updated_at >= %s OR r.expires_at >= %s)', $since, $since ) ) . " LIMIT $limit" ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			);
+		$scope = self::reconcile_scope( $all );
+		$candidates = static function () use ( $wpdb, $p, $limit, $all, $since, $scope ) {
+			if ( $all ) {
+				$rows = array_merge(
+					(array) $wpdb->get_col( "SELECT DISTINCT oi.order_id FROM {$p}wpcap_order_items oi LEFT JOIN {$p}wpcap_orders o ON o.order_id=oi.order_id WHERE oi.counted_qty<>" . self::line_units_sql() . " LIMIT $limit" ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed SQL.
+					(array) $wpdb->get_col( "SELECT DISTINCT order_id FROM {$p}wpcap_reservations WHERE counted_qty<>IF(status='active',quantity,0) LIMIT $limit" ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				);
+			} else {
+				$rows = array_merge(
+					// Lines and holds of recently changed orders (paid, cancelled, refunded, converted late).
+					(array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT oi.order_id FROM {$p}wpcap_orders o INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=o.order_id WHERE o.updated_at >= %s AND oi.counted_qty<>" . self::line_units_sql() . " LIMIT $limit", $since ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					(array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT r.order_id FROM {$p}wpcap_orders o INNER JOIN {$p}wpcap_reservations r ON r.order_id=o.order_id WHERE o.updated_at >= %s AND r.counted_qty<>IF(r.status='active',r.quantity,0) LIMIT $limit", $since ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					// Active holds that do not count fully (few rows: expired holds leave 'active' within minutes).
+					(array) $wpdb->get_col( "SELECT DISTINCT order_id FROM {$p}wpcap_reservations WHERE status='active' AND counted_qty<>quantity LIMIT $limit" ) // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				);
+				// Holds that still count although they no longer hold, for running/upcoming dates.
+				foreach ( array_chunk( array_keys( $scope['types'] ), 500 ) as $chunk ) {
+					$rows = array_merge( $rows, (array) $wpdb->get_col( "SELECT DISTINCT order_id FROM {$p}wpcap_reservations WHERE ticket_type_id IN (" . implode( ',', $chunk ) . ") AND counted_qty>0 AND status<>'active' LIMIT $limit" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+				}
+			}
 			$rows = array_values( array_unique( array_map( 'intval', $rows ) ) );
 			sort( $rows, SORT_NUMERIC );
 			return $rows;
@@ -572,13 +589,11 @@ final class CapacityCounters {
 			}
 		}
 		// Counters against the units their lines and holds count (only differs after a bug or a
-		// manual edit of the counter columns).
-		// Cron: only running/upcoming dates (past dates no longer decide capacity).
-		$occ_scope = $all ? '' : $wpdb->prepare( ' WHERE COALESCE(oc2.ends_at, DATE_ADD(oc2.starts_at, INTERVAL 1 DAY)) >= %s', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) );
-		$sums = "SELECT tt.ticket_type_id,tt.occurrence_id,tt.sold_qty,tt.held_qty,COALESCE((SELECT SUM(counted_qty) FROM {$p}wpcap_order_items oi WHERE oi.ticket_type_id=tt.ticket_type_id),0) AS sold_sum,COALESCE((SELECT SUM(counted_qty) FROM {$p}wpcap_reservations r WHERE r.ticket_type_id=tt.ticket_type_id),0) AS held_sum FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences oc2 ON oc2.occurrence_id=tt.occurrence_id$occ_scope";
-		$bad = (array) $wpdb->get_col( "SELECT DISTINCT occurrence_id FROM ($sums) x WHERE sold_qty<>sold_sum OR held_qty<>held_sum" );
-		$oc_scope = '' === $occ_scope ? '' : str_replace( 'oc2.', 'oc.', $occ_scope );
-		$bad = array_merge( $bad, (array) $wpdb->get_col( "SELECT oc.occurrence_id FROM {$p}wpcap_occurrences oc LEFT JOIN ($sums) x ON x.occurrence_id=oc.occurrence_id$oc_scope GROUP BY oc.occurrence_id,oc.sold_qty,oc.held_qty HAVING oc.sold_qty<>COALESCE(SUM(x.sold_sum),0) OR oc.held_qty<>COALESCE(SUM(x.held_sum),0)" ) );
+		// manual edit of the counter columns). Cron: only running/upcoming dates (past dates no
+		// longer decide capacity). One grouped SUM per 500 types and table (index-only on
+		// capacity_sum and counted_type), compared in PHP – no correlated subqueries (A430).
+		// Counters are read again: the re-syncs above changed them.
+		$bad = self::counter_mismatches( self::reconcile_scope( $all ) );
 		$bad = array_values( array_unique( array_map( 'intval', $bad ) ) );
 		sort( $bad, SORT_NUMERIC );
 		foreach ( $bad as $occurrence_id ) {
@@ -604,6 +619,57 @@ final class CapacityCounters {
 		$report['state'] = self::state();
 		$wpdb->query( "SELECT RELEASE_LOCK('" . preg_replace( '/[^A-Za-z0-9_]/', '', $p ) . "wpcap_reconcile')" );
 		return $report;
+	}
+
+	/**
+	 * Ticket types and occurrences the reconcile run checks: all, or (cron) those of dates that end
+	 * at most a day ago.
+	 *
+	 * @return array{types: array<int,object>, occurrences: array<int,object>}
+	 */
+	private static function reconcile_scope( $all ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$where = $all ? '' : $wpdb->prepare( ' WHERE COALESCE(oc.ends_at, DATE_ADD(oc.starts_at, INTERVAL 1 DAY)) >= %s', gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS ) );
+		$occurrences = array();
+		foreach ( (array) $wpdb->get_results( "SELECT oc.occurrence_id,oc.sold_qty,oc.held_qty FROM {$p}wpcap_occurrences oc$where" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
+			$occurrences[ (int) $row->occurrence_id ] = $row;
+		}
+		$types = array();
+		foreach ( (array) $wpdb->get_results( "SELECT tt.ticket_type_id,tt.occurrence_id,tt.sold_qty,tt.held_qty FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences oc ON oc.occurrence_id=tt.occurrence_id$where" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$types[ (int) $row->ticket_type_id ] = $row;
+		}
+		return array( 'types' => $types, 'occurrences' => $occurrences );
+	}
+
+	/**
+	 * Occurrences whose counters (or the counters of one of their types) differ from the units
+	 * their lines and holds count.
+	 *
+	 * @param array $scope reconcile_scope().
+	 * @return int[]
+	 */
+	private static function counter_mismatches( array $scope ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$sold = $held = array();
+		foreach ( array_chunk( array_keys( $scope['types'] ), 500 ) as $chunk ) {
+			$in = implode( ',', array_map( 'intval', $chunk ) );
+			foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,SUM(counted_qty) AS v FROM {$p}wpcap_order_items WHERE ticket_type_id IN ($in) GROUP BY ticket_type_id" ) as $row ) { $sold[ (int) $row->ticket_type_id ] = (int) $row->v; } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,SUM(counted_qty) AS v FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND counted_qty>0 GROUP BY ticket_type_id" ) as $row ) { $held[ (int) $row->ticket_type_id ] = (int) $row->v; } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		}
+		$bad = array();
+		$occ_sold = $occ_held = array();
+		foreach ( $scope['types'] as $type_id => $type ) {
+			$occurrence_id = (int) $type->occurrence_id;
+			$occ_sold[ $occurrence_id ] = ( $occ_sold[ $occurrence_id ] ?? 0 ) + ( $sold[ $type_id ] ?? 0 );
+			$occ_held[ $occurrence_id ] = ( $occ_held[ $occurrence_id ] ?? 0 ) + ( $held[ $type_id ] ?? 0 );
+			if ( (int) $type->sold_qty !== ( $sold[ $type_id ] ?? 0 ) || (int) $type->held_qty !== ( $held[ $type_id ] ?? 0 ) ) { $bad[] = $occurrence_id; }
+		}
+		foreach ( $scope['occurrences'] as $occurrence_id => $occurrence ) {
+			if ( (int) $occurrence->sold_qty !== ( $occ_sold[ $occurrence_id ] ?? 0 ) || (int) $occurrence->held_qty !== ( $occ_held[ $occurrence_id ] ?? 0 ) ) { $bad[] = (int) $occurrence_id; }
+		}
+		return $bad;
 	}
 
 	private static function alert( array $report ) {
@@ -667,7 +733,9 @@ final class CapacityCounters {
 		if ( $type_ids ) {
 			$in = implode( ',', $type_ids );
 			$lines = $wpdb->get_results( "SELECT oi.item_id AS id,oi.counted_qty AS counted," . self::line_units_sql() . " AS want FROM {$p}wpcap_order_items oi LEFT JOIN {$p}wpcap_orders o ON o.order_id=oi.order_id WHERE oi.ticket_type_id IN ($in) AND oi.counted_qty<>" . self::line_units_sql() );
-			$holds = $wpdb->get_results( "SELECT reservation_id AS id,counted_qty AS counted,IF(status='active',quantity,0) AS want FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND counted_qty<>IF(status='active',quantity,0)" );
+			// Holds that count (counted_type range) plus active holds that do not (inventory range):
+			// together every hold whose counted units can be wrong, without the converted history.
+			$holds = $wpdb->get_results( "SELECT reservation_id AS id,counted_qty AS counted,IF(status='active',quantity,0) AS want FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND counted_qty>0 AND counted_qty<>IF(status='active',quantity,0) UNION ALL SELECT reservation_id,counted_qty,quantity FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND status='active' AND counted_qty=0 AND quantity>0" );
 			if ( false === self::bulk_set( "{$p}wpcap_order_items", 'item_id', (array) $lines ) || false === self::bulk_set( "{$p}wpcap_reservations", 'reservation_id', (array) $holds ) ) {
 				$wpdb->query( 'ROLLBACK' );
 				return false;
@@ -675,7 +743,7 @@ final class CapacityCounters {
 			$changed = count( (array) $lines ) + count( (array) $holds );
 			foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,SUM(counted_qty) AS v FROM {$p}wpcap_order_items WHERE ticket_type_id IN ($in) GROUP BY ticket_type_id" ) as $row ) { $sold[ (int) $row->ticket_type_id ] = (int) $row->v; }
 			$failed = '' !== $wpdb->last_error;
-			foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,SUM(counted_qty) AS v FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) GROUP BY ticket_type_id" ) as $row ) { $held[ (int) $row->ticket_type_id ] = (int) $row->v; }
+			foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,SUM(counted_qty) AS v FROM {$p}wpcap_reservations WHERE ticket_type_id IN ($in) AND counted_qty>0 GROUP BY ticket_type_id" ) as $row ) { $held[ (int) $row->ticket_type_id ] = (int) $row->v; }
 			$failed = $failed || '' !== $wpdb->last_error;
 			foreach ( $type_ids as $type_id ) {
 				$failed = $failed || false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_ticket_types SET sold_qty=%d,held_qty=%d WHERE ticket_type_id=%d", $sold[ $type_id ] ?? 0, $held[ $type_id ] ?? 0, $type_id ) );

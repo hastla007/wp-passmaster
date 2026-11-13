@@ -686,8 +686,9 @@ final class Orders {
 	 * locks after any counter change in the same transaction. Capacity 0 means unlimited.
 	 *
 	 * With capacity counters (CapacityCounters::enabled()) usage is sold_qty + held_qty of the
-	 * locked rows minus active holds that already lapsed (indexed range, small); without them the
-	 * paid lines and holds are summed (upgrade fallback).
+	 * locked rows minus holds that still count but no longer hold (range counted_qty>0 on the index
+	 * counted_type (ticket_type_id,counted_qty), A429: only the few holds that still count, never the
+	 * reservation history); without them the paid lines and holds are summed (upgrade fallback).
 	 */
 	private static function capacity_error( $type, $occurrence, $quantity, $exclude_order_id = 0, $occurrence_quantity = null ) {
 		$occurrence_quantity = null === $occurrence_quantity ? $quantity : (int) $occurrence_quantity;
@@ -718,7 +719,11 @@ final class Orders {
 			}
 		}
 		if ( (int) $occurrence->capacity > 0 ) {
-			$lapsed = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.counted_qty),0) FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_reservations r ON r.ticket_type_id=tt.ticket_type_id AND r.counted_qty>0 AND (r.status<>'active' OR r.expires_at <= %s) WHERE tt.occurrence_id=%d", $now, $occurrence->occurrence_id ) );
+			// The occurrence's types first, then one range per type on counted_type (ticket_type_id,
+			// counted_qty): a join would read every historical hold of each type (A429).
+			$occ_types = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence->occurrence_id ) ) );
+			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
+			$lapsed = $occ_types ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(counted_qty),0) FROM {$p}wpcap_reservations WHERE ticket_type_id IN (" . implode( ',', $occ_types ) . ") AND counted_qty>0 AND (status<>'active' OR expires_at <= %s)", $now ) ) : 0; // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
 			$own = 0;
 			if ( $exclude_order_id ) {

@@ -122,7 +122,7 @@ echo "Phase 1 architecture: indexes\n";
 $arch_index = static fn( $table, $key ) => array_map( static fn( $r ) => $r->Column_name, $wpdb->get_results( "SHOW INDEX FROM {$p}wpcap_$table WHERE Key_name='$key'" ) );
 check( 'tickets.attendee_email index', array( 'attendee_email' ) === $arch_index( 'tickets', 'attendee_email' ) );
 check( 'orders (created_at, order_id) index', array( 'created_at', 'order_id' ) === $arch_index( 'orders', 'created' ) );
-check( 'covering capacity index on order items', array( 'ticket_type_id', 'order_id', 'quantity', 'refunded_quantity' ) === $arch_index( 'order_items', 'capacity_sum' ) );
+check( 'covering capacity index on order items (counted_qty since A430)', array( 'ticket_type_id', 'order_id', 'quantity', 'refunded_quantity', 'counted_qty' ) === $arch_index( 'order_items', 'capacity_sum' ) );
 check( 'reservations (ticket_type_id, status, expires_at) index', array( 'ticket_type_id', 'status', 'expires_at' ) === $arch_index( 'reservations', 'inventory' ) );
 
 echo "Phase 1 architecture: multisite site deletion drops the site's tables\n";
