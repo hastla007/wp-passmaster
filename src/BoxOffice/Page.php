@@ -18,7 +18,7 @@ final class Page {
 	/** Whether the current user may see a sale (receipt): cashier of the sale, order managers in scope or finance. */
 	public static function can_view_sale( $sale ) {
 		if ( ! $sale ) { return false; }
-		if ( current_user_can( 'manage_options' ) || current_user_can( 'wpcap_view_finance' ) ) { return true; }
+		if ( current_user_can( 'manage_options' ) || ( current_user_can( 'wpcap_view_finance' ) && \PassCaptain\Access::order_in_scope( $sale->order_id ) ) ) { return true; }
 		if ( (int) $sale->cashier_id === get_current_user_id() && current_user_can( Service::CAP ) ) { return true; }
 		return Scope::can_order( $sale->order_id, Service::CAP );
 	}
@@ -402,7 +402,7 @@ final class Page {
 	public static function handle_availability() {
 		check_admin_referer( 'wpcap_pos' );
 		$occurrence_id = absint( $_GET['occurrence_id'] ?? 0 );
-		if ( ! Scope::can_event( Scope::occurrence_event( $occurrence_id ), Service::CAP ) ) { wp_send_json_error( null, 403 ); }
+		if ( ! Scope::can_occurrence( $occurrence_id, Service::CAP ) ) { wp_send_json_error( null, 403 ); }
 		$out = array();
 		foreach ( Service::ticket_types( $occurrence_id ) as $t ) { $out[ $t['ticket_type_id'] ] = $t['available']; }
 		wp_send_json_success( $out );

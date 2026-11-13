@@ -9,6 +9,74 @@
 - Offline-Scanner speichern Codes lokal und können während einer Netzunterbrechung nicht garantieren, dass ein Ticket an einem anderen Gerät unbenutzt geblieben ist.
 - Integrationsadapter werden standardmäßig nicht aktiviert. Externe Zugangsdaten gehören in geschützte WordPress-Konfiguration bzw. Secret-Storage, niemals in Quellcode oder Logs.
 
+## Rollen, Zugriffsbereiche und Prüfreihenfolge
+
+Jede Admin-Seite, jeder admin-post-Handler und jede authentifizierte REST-Route prüft in dieser Reihenfolge
+(zentral in `PassCaptain\Access`):
+
+1. **Capability der Rolle** (`wpcap_manage_events`, `wpcap_manage_orders`, `wpcap_checkin`, `wpcap_view_reports`,
+   `wpcap_view_finance`, `wpcap_refund`, `wpcap_approve_refunds` …).
+2. **Event-Zuweisung** in `wpcap_event_staff` für genau diese Capability (`Access::can_access_event()`).
+   Finanzbuchhaltung (`wpcap_view_finance`) liest Berichte, Rechnungen und Kassenbelege ohne Zuweisung.
+3. **Zugriffsbereich (A119, optional je Person)** im WordPress-Profil unter „Pass Captain: Zugriffsbereich“
+   (User-Meta `wpcap_access_scope`, Filter `wpcap_access_scope`):
+   - **Spielorte:** nur Termine, deren Ort (`occurrences.location`, ohne Groß-/Kleinschreibung) aufgeführt ist.
+     Ein Event ist erreichbar, sobald einer seiner Termine im Bereich liegt; alles mit Terminbezug – Tickets,
+     Check-ins, Bestellungen (alle Termine der Bestellung), Teilnehmer- und No-Show-Listen, Kasse,
+     Gästelisten, Terminabrechnung, Berichtszeilen – wird auf Terminebene geprüft
+     (`Access::can_access_occurrence()`, `Access::occurrence_in_scope()`, `Access::occurrence_scope_sql()`).
+     Event-weite Kennzahlen (REST `/events/{id}/reports/summary`, Entwickler-Schlüssel) gibt es nur, wenn
+     alle Termine des Events im Bereich liegen.
+   - **Veranstalter:** nur Events, die einem der gewählten Partner zugeordnet sind (`wpcap_partner_events`);
+     „nur verknüpfte Veranstalter“ nimmt die Partner, mit denen die Person verknüpft ist (`wpcap_partner_users`).
+
+   Ohne Eintrag gilt keine zusätzliche Einschränkung (bisheriges Verhalten). Administratoren
+   (`manage_options`) sind nie eingeschränkt. Ein eingeschränkter Finanzzugang sieht Berichte, Rechnungen
+   und Kassenbelege nur noch innerhalb seines Bereichs.
+
+**Öffentliche REST-Routen** (bewusst ohne Anmeldung; Schutz durch Zugangstoken, Signatur, Rate-Limit oder nur
+öffentliche Daten): Eventliste, Checkout und Checkout-Optionen, Bestellportal (`/orders/{id}` sowie
+`transfer`, `resend`, `assign`, `billing`, `payout-account`, `exchange` – Zugangstoken im Callback),
+Sitzplätze und Sitzplatz-Holds, Servicezeiten und -buchungen, Rabatt-Vorschau, Warteliste (Eintragen,
+Angebot annehmen/ablehnen mit Token), Event-Übersetzung lesen, Zahlungs-Webhooks (Anbietersignatur),
+SMS-Statusrückmeldungen (Signatur), Apple-Wallet-Webservice (Authentifizierungstoken des Passes),
+Scanner-App-Kopplung (`/app/pair`, einmaliger Kopplungscode) und der öffentliche Saalplan
+(`/seating/occurrences/{id}`). Alle übrigen Routen haben eine Berechtigungsprüfung; der Test
+`tests/integration/modules/zz_a119.php` zählt alle registrierten Routen auf und schlägt fehl, wenn eine neue
+Route `__return_true` nutzt, ohne in dieser Liste zu stehen.
+
+## PII je Rolle
+
+Personenbezogene Daten in Admin-Listen, Detailansichten, Exporten und REST-Antworten laufen über
+`PassCaptain\Pii` (`Pii::can_view( $feld )`, `Pii::show( $feld, $wert )`, `Pii::mask_email()`). Das Profil ergibt
+sich aus den Capabilities, nicht aus dem Rollennamen; wer mehrere Profile hat, sieht die Vereinigung.
+Nicht freigegebene Felder werden maskiert (E-Mail `a***@e***.de`, Namen als Initialen, Antworten und
+Rechnungsdaten leer) und sind auch nicht durchsuchbar.
+
+| Profil (Capabilities) | Käufer-Name | Käufer-E-Mail | Telefon | Rechnungsdaten | Teilnehmer-Name | Teilnehmer-E-Mail | Antworten (Zusatzfelder) |
+|---|---|---|---|---|---|---|---|
+| **voll** – `manage_options`, `wpcap_manage_orders` oder `wpcap_manage_events` (Administration, Ticket-Administration, Veranstaltungsleitung, Vor-Ort-Kasse, Support) | ja | ja | ja | ja | ja | ja | ja |
+| **Finanzen** – `wpcap_view_finance` (Finanzbuchhaltung) | ja | ja | ja | ja | nein | nein | nein |
+| **Einlass** – `wpcap_checkin` (Einlasspersonal, Veranstalter) | nein | nein | nein | nein | nur mit Einstellung „Teilnehmernamen beim Scannen anzeigen“ | nein | nein |
+| **Berichte** – `wpcap_view_reports` | nein (nur Summen) | nein | nein | nein | nein | nein | nein |
+
+Wirkung im Plugin:
+
+- **Scanner** (Web, Scanner-App, Offline-Paket): nie Käuferdaten; Teilnehmername nur mit der Einstellung –
+  auch für volle Profile, denn der Scan-Bildschirm ist öffentlich sichtbar.
+- **Ticketliste im Admin:** Käufer- und Teilnehmer-E-Mail sowie Teilnehmername gemäß Matrix; Suche nur über
+  sichtbare Felder.
+- **Teilnehmer- und No-Show-Liste (Druck/CSV):** die volle Liste (E-Mails, Antworten) nur mit
+  `wpcap_manage_events`; die Basisliste zeigt den Namen gemäß Matrix.
+- **Berichte und Terminabrechnung:** ausschließlich Summen, keine Namen oder E-Mail-Adressen.
+- **REST:** Wartelisten-Einträge (E-Mail gemäß Matrix), Scan-Antworten (Name gemäß Matrix und Einstellung).
+- **Ausnahme Gästelisten:** Der Name des Gasts ist der Suchschlüssel an der Abendkasse und bleibt für
+  Einlasspersonal sichtbar; E-Mail-Adressen der Gäste werden nicht ausgegeben.
+- Partner-API-Schlüssel (Maschinenzugang) folgen den Einstellungen des Partners (`anonymous_buyer`), nicht
+  dieser Matrix.
+
+Anpassbar über `wpcap_pii_matrix`, `wpcap_pii_can_view` und `wpcap_pii_mask` (siehe [HOOKS.md](HOOKS.md)).
+
 ## Hilfscode für den Einlass
 
 Jedes Ticket hat neben dem 64-stelligen Ticket-Code (QR) einen kurzen **Hilfscode** (8 Zeichen, z. B. `K7QM-4XWA`), der auf der Ticketseite, im Ticket-PDF, in den Ticket-Mails und auf gedruckten Tickets (`{help_code}`) unter dem QR-Code steht. Einlasspersonal tippt ihn ein, wenn der QR-Code nicht lesbar ist (Web-Scanner, Offline-Scanner-PWA online, Scanner-App-API `code`).

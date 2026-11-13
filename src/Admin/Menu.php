@@ -58,6 +58,7 @@ final class Menu {
 		add_action( 'admin_head', array( self::class, 'admin_styles' ) );
 		add_action( 'admin_footer', array( self::class, 'menu_heading_script' ) );
 		add_action( 'admin_notices', array( self::class, 'schema_error_notice' ) );
+		UserScope::register();
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
 		}

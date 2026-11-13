@@ -16,14 +16,14 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class InvoicePdf {
 	/** Same rule as Invoices::can_view_order_finance(): finance roles globally, order managers per event. */
 	public static function can_view_order_finance( $order_id ) {
-		if ( current_user_can( 'manage_options' ) || current_user_can( Invoices::FINANCE_CAP ) ) { return true; }
+		if ( current_user_can( 'manage_options' ) || ( current_user_can( Invoices::FINANCE_CAP ) && Access::order_in_scope( $order_id ) ) ) { return true; }
 		global $wpdb;
 		$event_ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT o.event_id FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", absint( $order_id ) ) );
 		if ( ! $event_ids ) { return false; }
 		foreach ( $event_ids as $event_id ) {
 			if ( ! Access::can_access_event( (int) $event_id, 'wpcap_manage_orders' ) ) { return false; }
 		}
-		return true;
+		return Access::order_in_scope( $order_id );
 	}
 
 	private static function money( $minor, $currency ) {

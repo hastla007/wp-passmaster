@@ -1000,6 +1000,8 @@ final class Installer {
 	/**
 	 * Role packages from the concept. Operational roles are additionally limited per event through
 	 * wpcap_event_staff assignments (Access::can_access_event); only finance gets global read access.
+	 * Optional per-user location/partner scopes (Access::scope()) and the PII matrix per capability
+	 * profile (Pii, docs/SECURITY.md) apply on top (A119).
 	 */
 	public static function register_roles() {
 		$all_caps = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance' );

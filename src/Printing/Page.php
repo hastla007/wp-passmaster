@@ -30,7 +30,7 @@ final class Page {
 	public static function occurrence_options( $caps, $include_past = true ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$scope = Queries::scope_sql( Scope::event_ids( $caps ), 'o.event_id' );
+		$scope = Queries::scope_sql( Scope::event_ids( $caps ), 'o.event_id' ) . \PassCaptain\Access::occurrence_scope_sql( 'o' );
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.ends_at,o.timezone,o.status,e.status AS event_status,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s AND o.status='scheduled' AND e.status='published' $scope ORDER BY o.starts_at LIMIT 300", gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) );
 		foreach ( $rows as $r ) { $r->label = $r->name . ' – ' . Scope::local( $r->starts_at, $r->timezone ); }
 		return Queries::occurrence_choices( $rows, $include_past );
@@ -44,7 +44,7 @@ final class Page {
 	public static function batch_request( $occurrence_id, $kind, $with_codes ) {
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		if ( ! in_array( $kind, Templates::KINDS, true ) ) { return Forms::error( 'wpcap_print_kind', __( 'Unbekanntes Layout.', 'wp-pass-captain' ) ); }
-		if ( ! $event_id || ! Scope::can_event( $event_id, array( 'wpcap_manage_events', 'wpcap_manage_orders' ) ) ) { return Forms::forbidden(); }
+		if ( ! $event_id || ! Scope::can_occurrence( $occurrence_id, array( 'wpcap_manage_events', 'wpcap_manage_orders' ) ) ) { return Forms::forbidden(); }
 		// New ticket codes invalidate the old ones: only order managers may do that.
 		if ( $with_codes && ! Scope::can_event( $event_id, array( 'wpcap_manage_orders' ) ) ) { return Forms::forbidden( __( 'Neue Ticketcodes dürfen nur Personen mit Bestellverwaltung erzeugen.', 'wp-pass-captain' ) ); }
 		$pdf = Templates::batch_pdf( $occurrence_id, $kind, $with_codes );

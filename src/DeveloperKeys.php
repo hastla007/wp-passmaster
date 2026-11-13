@@ -28,6 +28,8 @@ final class DeveloperKeys {
 		if ( ! $key || ! hash_equals( $key->secret_hash, hash( 'sha256', $parts[1] ) ) || ( $key->expires_at && $key->expires_at <= current_time( 'mysql', true ) ) || (int) $key->event_id !== absint( $event_id ) ) { return false; }
 		$user_id = (int) $key->user_id;
 		if ( ! user_can( $user_id, 'manage_options' ) && ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_event_staff WHERE event_id=%d AND user_id=%d AND capability IN ('wpcap_manage_events','wpcap_view_reports') LIMIT 1", $event_id, $user_id ) ) ) { return false; }
+		// Location/partner scope of the key owner (A119): event-wide data only when every occurrence is in scope.
+		if ( ! Access::event_fully_in_scope( $event_id, $user_id ) ) { return false; }
 		$scopes = json_decode( $key->scopes, true );
 		if ( ! is_array( $scopes ) || ! in_array( $scope, $scopes, true ) ) { return false; }
 		$rate_key = 'wpcap_api_rate_' . (int) $key->api_key_id . '_' . gmdate( 'YmdHi' );

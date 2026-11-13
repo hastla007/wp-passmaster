@@ -2,7 +2,8 @@
 /**
  * Attendee list for an occurrence (print view and CSV), minimised per role:
  *  - wpcap_manage_events on the event: full list incl. e-mail addresses, order and field answers;
- *  - wpcap_checkin (or wpcap_manage_orders) only: name, ticket type and status.
+ *  - wpcap_checkin (or wpcap_manage_orders) only: name, ticket type and status; the name follows the
+ *    PII matrix (Pii::show(), door staff only with scanner_show_attendee, otherwise initials).
  */
 namespace PassCaptain\Printing;
 
@@ -14,7 +15,7 @@ final class AttendeeList {
 	/** 'full', 'basic' or '' (no access) for the current user. */
 	public static function access_level( $occurrence_id ) {
 		$event_id = Scope::occurrence_event( $occurrence_id );
-		if ( ! $event_id ) { return ''; }
+		if ( ! $event_id || ! \PassCaptain\Access::occurrence_in_scope( $occurrence_id ) ) { return ''; }
 		if ( Scope::can_event( $event_id, array( 'wpcap_manage_events' ) ) ) { return 'full'; }
 		if ( Scope::can_event( $event_id, array( 'wpcap_checkin', 'wpcap_manage_orders' ) ) ) { return 'basic'; }
 		return '';
@@ -33,7 +34,7 @@ final class AttendeeList {
 		if ( 'full' !== $level ) {
 			$rows = array( array( __( 'Name', 'wp-pass-captain' ), __( 'Ticketart', 'wp-pass-captain' ), __( 'Status', 'wp-pass-captain' ) ) );
 			foreach ( $tickets as $t ) {
-				$rows[] = array( $t->attendee_name, $t->ticket_name, $status_labels[ $t->status ] ?? $t->status );
+				$rows[] = array( \PassCaptain\Pii::show( 'attendee_name', $t->attendee_name ), $t->ticket_name, $status_labels[ $t->status ] ?? $t->status );
 			}
 			return $rows;
 		}

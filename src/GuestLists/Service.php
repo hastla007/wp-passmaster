@@ -576,7 +576,7 @@ final class Service {
 		$p = $wpdb->prefix;
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		if ( ! $event_id ) { return self::error( 'wpcap_guestlist_occurrence', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! self::can_view_will_call( $event_id ) ) { return self::forbidden(); }
+		if ( ! self::can_view_will_call( $event_id ) || ! \PassCaptain\Access::occurrence_in_scope( $occurrence_id ) ) { return self::forbidden(); }
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT g.*,l.name AS list_name,l.reason,tt.name AS ticket_name FROM {$p}wpcap_guest_entries g INNER JOIN {$p}wpcap_guest_lists l ON l.list_id=g.list_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=g.ticket_type_id WHERE g.occurrence_id=%d AND g.status IN ('approved','issuing','issued') ORDER BY g.name,g.company,g.entry_id", absint( $occurrence_id ) ) );
 		$rows = self::decorate( $rows );
 		usort( $rows, static function ( $a, $b ) { return array( self::sort_key( $a->name ), (int) $a->entry_id ) <=> array( self::sort_key( $b->name ), (int) $b->entry_id ); } );
@@ -599,7 +599,7 @@ final class Service {
 		$p = $wpdb->prefix;
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		if ( ! $event_id ) { return self::error( 'wpcap_guestlist_occurrence', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! self::can_checkin( $event_id ) ) { return self::forbidden(); }
+		if ( ! self::can_checkin( $event_id ) || ! \PassCaptain\Access::occurrence_in_scope( $occurrence_id ) ) { return self::forbidden(); }
 		$query = trim( sanitize_text_field( (string) $query ) );
 		if ( mb_strlen( $query ) < 2 ) { return array(); }
 		$like = '%' . addcslashes( $query, '_%\\' ) . '%';

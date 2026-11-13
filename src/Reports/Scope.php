@@ -34,6 +34,11 @@ final class Scope {
 		return false;
 	}
 
+	/** Like can_event() for the occurrence's event, plus the user's location/partner scope (A119). */
+	public static function can_occurrence( $occurrence_id, $caps ) {
+		return self::can_event( self::occurrence_event( $occurrence_id ), $caps ) && Access::occurrence_in_scope( $occurrence_id );
+	}
+
 	/** Event id of an occurrence (0 if unknown). */
 	public static function occurrence_event( $occurrence_id ) {
 		global $wpdb;
@@ -47,14 +52,14 @@ final class Scope {
 		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT o.event_id FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", absint( $order_id ) ) ) );
 	}
 
-	/** Whether the user may access every event of the order with one of the capabilities. */
+	/** Whether the user may access every event of the order with one of the capabilities (and every occurrence lies in the user's scope, A119). */
 	public static function can_order( $order_id, $caps ) {
 		$events = self::order_events( $order_id );
 		if ( ! $events ) { return false; }
 		foreach ( $events as $event_id ) {
 			if ( ! self::can_event( $event_id, $caps ) ) { return false; }
 		}
-		return true;
+		return Access::order_in_scope( $order_id );
 	}
 
 	/** CSV cell that spreadsheet programs never evaluate as a formula. */

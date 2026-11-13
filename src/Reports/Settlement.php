@@ -22,7 +22,7 @@ final class Settlement {
 	/** Whether the current user may see the sheet of the occurrence (report scope, see Data::scope()). */
 	public static function can_view( $occurrence_id ) {
 		$event_id = Scope::occurrence_event( $occurrence_id );
-		if ( ! $event_id ) { return false; }
+		if ( ! $event_id || ! \PassCaptain\Access::occurrence_in_scope( $occurrence_id ) ) { return false; }
 		$scope = Data::scope();
 		if ( false === $scope ) { return false; }
 		return null === $scope || in_array( $event_id, (array) $scope, true );
@@ -34,7 +34,7 @@ final class Settlement {
 		$p = $wpdb->prefix;
 		$scope = Data::scope();
 		if ( false === $scope ) { return array(); }
-		$scope_sql = \PassCaptain\Admin\Queries::scope_sql( $scope, 'o.event_id' );
+		$scope_sql = \PassCaptain\Admin\Queries::scope_sql( $scope, 'o.event_id' ) . \PassCaptain\Access::occurrence_scope_sql( 'o' );
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT o.occurrence_id,o.starts_at,o.timezone,o.status,e.name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.starts_at >= %s $scope_sql ORDER BY o.starts_at DESC LIMIT 300", gmdate( 'Y-m-d H:i:s', time() - 365 * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer scope list.
 		$out = array();
 		foreach ( $rows as $r ) {

@@ -211,6 +211,10 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_getting_started_items` | `array $items, array $state` | Schritte der „Erste Schritte“-Checkliste auf der Eventliste (`key`, `label`, `description`, `done`, `url`); `$state` aus `GettingStarted::state()`. `done` aus Daten ableiten, nicht manuell abhaken. |
 | `wpcap_admin_menu_group` | `string $group, string $slug` | Bereich einer Unterseite im Pass-Captain-Menü (`events`, `sales`, `admission`, `finance`, `communication`, `settings`); Module können ihn auch als 5. Element in `admin_pages()` angeben. |
 | `wpcap_occurrence_cancellation_preview` | `array $effects` (leer), `int $occurrence_id` | Weitere Folgen einer Terminabsage für die Vorschau im Admin, je Eintrag `[Name, Tickets, Wirkung]` (z. B. verknüpfte Pässe). |
+| `wpcap_access_scope` | `array $scope, int $user_id` | Zugriffsbereich einer Nicht-Administratorin (A119, `Access::scope()`): `['locations' => string[], 'partners' => int[]|null]`; leere Ortsliste und `partners` `null` = keine Einschränkung. Wirkt in Admin-Seiten, admin-post-Handlern, REST-Routen, Exporten und Berichten. |
+| `wpcap_pii_matrix` | `array $matrix` | PII-Matrix Profil (`full`, `finance`, `door`, `reports`) → Feld (`buyer_name`, `buyer_email`, `buyer_phone`, `billing`, `attendee_name`, `attendee_email`, `attendee_answers`) → `true`, `false` oder `'scanner_show_attendee'` (siehe [SECURITY.md](SECURITY.md#pii-je-rolle)). |
+| `wpcap_pii_can_view` | `bool $allowed, string $field, int $user_id, string[] $profiles` | Ob eine Person ein personenbezogenes Feld im Klartext sieht (`Pii::can_view()`). |
+| `wpcap_pii_mask` | `string $masked, string $field, string $value` | Maskierte Darstellung eines Felds (Standard: E-Mail `a***@e***.de`, Namen als Initialen, sonst leer). |
 
 ### Kontingente und Käuferlimits
 

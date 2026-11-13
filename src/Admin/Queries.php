@@ -33,7 +33,8 @@ final class Queries {
 		global $wpdb;
 		$placeholders = implode( ',', array_fill( 0, count( $caps ), '%s' ) );
 		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_event_staff WHERE user_id=%d AND capability IN ($placeholders)", array_merge( array( get_current_user_id() ), $caps ) ) );
-		return array_map( 'absint', $ids );
+		// Location/partner scope of the user (A119; no-op without scope).
+		return Access::filter_event_ids( array_map( 'absint', $ids ) );
 	}
 
 	/** SQL fragment restricting $column to the given scope (null = no restriction). */
@@ -312,7 +313,8 @@ final class Queries {
 	}
 
 	/**
-	 * Whether the current user may act on an order: they need the capability for every event in it.
+	 * Whether the current user may act on an order: they need the capability for every event in it
+	 * and every occurrence must lie in their location/partner scope (A119).
 	 * Orders without items are reserved for global admins.
 	 */
 	public static function can_access_order( $order_id, $cap ) {
@@ -322,7 +324,7 @@ final class Queries {
 		foreach ( $events as $event_id ) {
 			if ( ! Access::can_access_event( $event_id, $cap ) ) { return false; }
 		}
-		return true;
+		return Access::order_in_scope( $order_id );
 	}
 
 	/**
@@ -353,7 +355,7 @@ final class Queries {
 			$args[] = absint( $filters['event_id'] );
 		}
 		if ( null !== $event_ids ) {
-			$where .= $event_ids ? " AND EXISTS ($items_join" . self::scope_sql( $event_ids, 'fo.event_id' ) . ')' : ' AND 1=0';
+			$where .= $event_ids ? " AND EXISTS ($items_join" . self::scope_sql( $event_ids, 'fo.event_id' ) . Access::occurrence_scope_sql( 'fo' ) . ')' : ' AND 1=0';
 		}
 		$count_sql = "SELECT COUNT(*) FROM {$p}wpcap_orders ord WHERE $where";
 		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
@@ -410,14 +412,19 @@ final class Queries {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$from = "FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id";
-		$where = '1=1' . self::scope_sql( $event_ids, 'o.event_id' );
+		$where = '1=1' . self::scope_sql( $event_ids, 'o.event_id' ) . Access::occurrence_scope_sql( 'o' );
 		$args = array();
 		if ( isset( $filters['search'] ) && '' !== trim( (string) $filters['search'] ) ) {
 			$search = trim( (string) $filters['search'] );
 			$prefix = self::like( strtolower( $search ) ) . '%';
 			$part = '%' . self::like( $search ) . '%';
-			$where .= ' AND (t.public_id LIKE %s OR ord.public_id LIKE %s OR ord.customer_email LIKE %s OR t.attendee_email LIKE %s OR ta.attendee_email LIKE %s OR ta.attendee_name LIKE %s)';
-			array_push( $args, $prefix, $prefix, $part, $part, $part, $part );
+			// Only fields the user may see are searchable (A119: no probing of masked e-mails/names).
+			$columns = array( 't.public_id' => $prefix, 'ord.public_id' => $prefix );
+			if ( \PassCaptain\Pii::can_view( 'buyer_email' ) ) { $columns['ord.customer_email'] = $part; }
+			if ( \PassCaptain\Pii::can_view( 'attendee_email' ) ) { $columns['t.attendee_email'] = $part; $columns['ta.attendee_email'] = $part; }
+			if ( \PassCaptain\Pii::can_view( 'attendee_name' ) ) { $columns['ta.attendee_name'] = $part; }
+			$where .= ' AND (' . implode( ' OR ', array_map( static function ( $column ) { return $column . ' LIKE %s'; }, array_keys( $columns ) ) ) . ')';
+			array_push( $args, ...array_values( $columns ) );
 		}
 		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND o.event_id=%d'; $args[] = absint( $filters['event_id'] ); }
 		if ( ! empty( $filters['status'] ) ) { $where .= ' AND t.status=%s'; $args[] = (string) $filters['status']; }
@@ -441,7 +448,7 @@ final class Queries {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$from = "FROM {$p}wpcap_checkins c LEFT JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_events e ON e.event_id=c.event_id";
-		$where = '1=1' . self::scope_sql( $event_ids, 'c.event_id' );
+		$where = '1=1' . self::scope_sql( $event_ids, 'c.event_id' ) . Access::occurrence_scope_sql( 'o' );
 		$args = array();
 		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND c.event_id=%d'; $args[] = absint( $filters['event_id'] ); }
 		if ( ! empty( $filters['result'] ) ) { $where .= ' AND c.result=%s'; $args[] = (string) $filters['result']; }

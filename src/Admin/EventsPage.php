@@ -157,7 +157,7 @@ final class EventsPage {
 		if ( $occurrence_id && ! $old ) { return Forms::error( 'wpcap_occurrence_missing', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), 404 ); }
 		$event = Queries::event( $old ? $old->event_id : Forms::int( $in, 'event_id' ) );
 		if ( ! $event ) { return Forms::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $event->event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
+		if ( ! Access::can_access_event( $event->event_id, self::CAP ) || ( $old && ! Access::occurrence_in_scope( $old->occurrence_id ) ) || ! Access::location_in_scope( Forms::text( $in, 'location' ) ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
 		if ( 'cancelled' === $event->status ) {
 			return Forms::error( 'wpcap_event_cancelled', __( 'Abgesagte Events können nicht mehr bearbeitet werden.', 'wp-pass-captain' ), 409 );
 		}
@@ -271,7 +271,7 @@ final class EventsPage {
 	public static function cancel_occurrence( array $in ) {
 		$occ = Queries::occurrence( Forms::int( $in, 'occurrence_id' ) );
 		if ( ! $occ ) { return Forms::error( 'wpcap_occurrence_missing', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $occ->event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
+		if ( ! Access::can_access_occurrence( $occ->occurrence_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
 		if ( 'cancelled' === $occ->status ) {
 			return array( 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id, 'issued' => 0 );
 		}
@@ -312,7 +312,7 @@ final class EventsPage {
 		if ( $type_id && ! $old ) { return Forms::error( 'wpcap_type_missing', __( 'Ticketart nicht gefunden.', 'wp-pass-captain' ), 404 ); }
 		$occ = Queries::occurrence( $old ? $old->occurrence_id : Forms::int( $in, 'occurrence_id' ) );
 		if ( ! $occ ) { return Forms::error( 'wpcap_occurrence_missing', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $occ->event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
+		if ( ! Access::can_access_occurrence( $occ->occurrence_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
 		$name = Forms::text( $in, 'name' );
 		if ( '' === $name ) { return Forms::error( 'wpcap_type_name', __( 'Bitte einen Namen für die Ticketart angeben.', 'wp-pass-captain' ) ); }
 		$currency = strtoupper( Forms::text( $in, 'currency', 3 ) );
@@ -665,7 +665,7 @@ final class EventsPage {
 	/** Confirmation page of an occurrence cancellation: consequences, reason, explicit confirmation. */
 	private static function render_cancel_occurrence( $occurrence_id ) {
 		$occ = Queries::occurrence( $occurrence_id );
-		if ( ! $occ || ! Access::can_access_event( $occ->event_id, self::CAP ) ) { self::denied(); return; }
+		if ( ! $occ || ! Access::can_access_occurrence( $occ->occurrence_id, self::CAP ) ) { self::denied(); return; }
 		$event = Queries::event( (int) $occ->event_id );
 		echo '<p><a href="' . esc_url( self::event_url( (int) $occ->event_id ) ) . '">' . esc_html__( '← Zum Event', 'wp-pass-captain' ) . '</a></p>';
 		/* translators: 1: event name, 2: date */
@@ -945,7 +945,7 @@ final class EventsPage {
 
 	private static function render_occurrence( $occurrence_id ) {
 		$occ = Queries::occurrence( $occurrence_id );
-		if ( ! $occ || ! Access::can_access_event( $occ->event_id, self::CAP ) ) { self::denied(); return; }
+		if ( ! $occ || ! Access::can_access_occurrence( $occ->occurrence_id, self::CAP ) ) { self::denied(); return; }
 		$event = Queries::event( $occ->event_id );
 		$editable = $event && 'cancelled' !== $event->status;
 		$types = Queries::ticket_types_for_occurrence( $occurrence_id );

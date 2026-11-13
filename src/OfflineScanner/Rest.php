@@ -33,7 +33,7 @@ final class Rest {
 		$device = Devices::current();
 		$out = array();
 		foreach ( Assignments::occurrences_for_device( $device ) as $row ) {
-			if ( ! Access::can_access_event( (int) $row->event_id, 'wpcap_checkin' ) ) { continue; }
+			if ( ! Access::can_access_occurrence( (int) $row->occurrence_id, 'wpcap_checkin' ) ) { continue; }
 			$rules = Rules::get( (int) $row->event_id );
 			$out[] = array(
 				'occurrence_id' => (int) $row->occurrence_id,
@@ -66,7 +66,7 @@ final class Rest {
 			return new \WP_Error( 'wpcap_offline_disabled', __( 'Offline-Scannen ist für dieses Event nicht freigegeben.', 'wp-pass-captain' ), array( 'status' => 403 ) );
 		}
 		$assignment = Assignments::find( (int) $device->device_id, $event_id, (int) $occurrence->occurrence_id );
-		if ( ! $assignment || ! in_array( $event_id, Devices::event_ids( $device ), true ) || ! Access::can_access_event( $event_id, 'wpcap_checkin' ) ) {
+		if ( ! $assignment || ! in_array( $event_id, Devices::event_ids( $device ), true ) || ! Access::can_access_occurrence( (int) $occurrence->occurrence_id, 'wpcap_checkin' ) ) {
 			return new \WP_Error( 'wpcap_offline_not_assigned', __( 'Dieses Gerät ist für diesen Termin nicht zum Offline-Scannen zugewiesen.', 'wp-pass-captain' ), array( 'status' => 403 ) );
 		}
 		$since = $request->get_param( 'since' );

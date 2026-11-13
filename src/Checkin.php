@@ -335,7 +335,7 @@ final class Checkin {
 		// Only scans the uploader was allowed to make for this event can be conflicts; otherwise a
 		// scanner of event A could create open conflicts in event B.
 		if ( ! $ticket_id || ! $event_id || in_array( (string) ( $data['result'] ?? '' ), array( 'forbidden', 'wrong_event', 'unknown' ), true ) ) { return $error; }
-		if ( ! Access::can_access_event( $event_id, 'wpcap_checkin' ) ) { return $error; }
+		if ( ! Access::can_access_event( $event_id, 'wpcap_checkin' ) || ( $found && ! Access::occurrence_in_scope( $found['occurrence_id'] ) ) ) { return $error; }
 		if ( isset( $context['event_ids'] ) && is_array( $context['event_ids'] ) && $context['event_ids'] && ! in_array( $event_id, array_map( 'intval', $context['event_ids'] ), true ) ) { return $error; }
 		$dedupe = $key ? get_current_user_id() . '|' . $key : 'scan|' . get_current_user_id() . '|' . $ticket_id . '|' . (string) ( $context['scanned_at'] ?? '' ) . '|' . (string) $checkin_id;
 		$conflict_id = Conflicts::record( array(
@@ -358,7 +358,7 @@ final class Checkin {
 	/** Event scope, device and area restrictions; returns WP_Error or null. */
 	private static function deny( array $found, array $context, $direction = 'in' ) {
 		$internal = array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'] );
-		if ( ! Access::can_access_event( $found['event_id'], 'wpcap_checkin' ) ) {
+		if ( ! Access::can_access_occurrence( $found['occurrence_id'], 'wpcap_checkin' ) ) {
 			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ), array_merge( $internal, array( 'status' => 403, 'result' => 'forbidden' ) ) );
 		}
 		if ( isset( $context['event_ids'] ) && is_array( $context['event_ids'] ) && $context['event_ids'] && ! in_array( (int) $found['event_id'], array_map( 'intval', $context['event_ids'] ), true ) ) {
@@ -461,7 +461,8 @@ final class Checkin {
 		// ID/age check of the ticket type: shown to staff with every result of a known ticket.
 		$view += AdmissionChecks::scan_fields( (int) ( $found['ticket_type_id'] ?? 0 ) );
 		if ( ! empty( $found['help_code'] ) ) { $view['help_code'] = true; }
-		if ( Settings::get( 'scanner_show_attendee' ) && '' !== $found['attendee_name'] ) {
+		// Setting gates the scanner for everyone; Pii (A119) additionally hides it from roles without the name in their matrix.
+		if ( Settings::get( 'scanner_show_attendee' ) && '' !== $found['attendee_name'] && Pii::can_view( 'attendee_name' ) ) {
 			$view['attendee_name'] = $found['attendee_name'];
 		}
 		return $view;

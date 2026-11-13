@@ -274,7 +274,7 @@ final class Service {
 
 		$occurrence_id = absint( $input['occurrence_id'] ?? 0 );
 		$event_id = Scope::occurrence_event( $occurrence_id );
-		if ( ! $event_id || ! Scope::can_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $event_id || ! Scope::can_occurrence( $occurrence_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
 		$register = Registers::get( $session->register_id );
 		if ( $register && (int) $register->event_id && (int) $register->event_id !== $event_id ) { return self::error( 'wpcap_pos_register_event', __( 'Diese Kasse verkauft nur Tickets für ein anderes Event.', 'wp-pass-captain' ), 409 ); }
 		$methods = self::sale_methods();

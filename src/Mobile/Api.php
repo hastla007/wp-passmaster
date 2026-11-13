@@ -78,7 +78,7 @@ final class Api {
 		$out = array();
 		$areas = array();
 		foreach ( $rows as $row ) {
-			if ( ! \PassCaptain\Access::can_access_event( (int) $row->event_id, 'wpcap_checkin' ) ) { continue; }
+			if ( ! \PassCaptain\Access::can_access_occurrence( (int) $row->occurrence_id, 'wpcap_checkin' ) ) { continue; }
 			if ( ! isset( $areas[ $row->event_id ] ) ) {
 				$areas[ $row->event_id ] = array_map( static function ( $a ) { return array( 'id' => (int) $a->area_id, 'name' => $a->name ); }, Areas::for_event( (int) $row->event_id ) );
 			}
@@ -93,7 +93,7 @@ final class Api {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", absint( $request['occurrence_id'] ) ) );
-		if ( ! $occ || ! in_array( (int) $occ->event_id, Devices::event_ids( Devices::current() ), true ) || ! \PassCaptain\Access::can_access_event( (int) $occ->event_id, 'wpcap_checkin' ) ) {
+		if ( ! $occ || ! in_array( (int) $occ->event_id, Devices::event_ids( Devices::current() ), true ) || ! \PassCaptain\Access::can_access_occurrence( (int) $occ->occurrence_id, 'wpcap_checkin' ) ) {
 			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ), array( 'status' => 403 ) );
 		}
 		$counts = array();
@@ -151,7 +151,7 @@ final class Api {
 		}
 		$policy = Policies::for_type( $found['ticket_type_id'] );
 		if ( $policy && 'single' !== $policy['policy'] ) {
-			if ( ! \PassCaptain\Access::can_access_event( $found['event_id'], 'wpcap_checkin' ) ) {
+			if ( ! \PassCaptain\Access::can_access_occurrence( $found['occurrence_id'], 'wpcap_checkin' ) ) {
 				return self::scan_response( new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ), array( 'status' => 403, 'result' => 'forbidden' ) ) );
 			}
 			$result = Engine::undo_last( $found, (string) $request->get_param( 'reason' ) );

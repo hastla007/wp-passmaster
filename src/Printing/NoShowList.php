@@ -37,7 +37,7 @@ final class NoShowList {
 		$tickets = self::tickets( $occurrence_id );
 		if ( 'full' !== $level ) {
 			$rows = array( array( __( 'Name', 'wp-pass-captain' ), __( 'Ticketart', 'wp-pass-captain' ) ) );
-			foreach ( $tickets as $t ) { $rows[] = array( $t->attendee_name, $t->ticket_name ); }
+			foreach ( $tickets as $t ) { $rows[] = array( \PassCaptain\Pii::show( 'attendee_name', $t->attendee_name ), $t->ticket_name ); }
 			return $rows;
 		}
 		$rows = array( array( __( 'Ticket', 'wp-pass-captain' ), __( 'Name', 'wp-pass-captain' ), __( 'Ticketart', 'wp-pass-captain' ), __( 'E-Mail Teilnehmer', 'wp-pass-captain' ), __( 'E-Mail Besteller', 'wp-pass-captain' ), __( 'Bestellung', 'wp-pass-captain' ) ) );

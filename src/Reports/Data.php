@@ -18,19 +18,22 @@ final class Data {
 	const DIMENSIONS = array( 'event', 'occurrence', 'ticket_type', 'provider', 'day' );
 
 	/**
-	 * Event scope of the current user for reports: finance and administrators see everything,
-	 * wpcap_view_reports only assigned events.
+	 * Event scope of the current user for reports: administrators see everything, finance everything
+	 * inside its location/partner scope (A119; unscoped finance users: everything), wpcap_view_reports
+	 * only assigned events. Occurrence-level scope is applied per line (in_scope()).
 	 *
 	 * @return int[]|null|false Null = all, false = no access.
 	 */
 	public static function scope() {
-		if ( current_user_can( 'manage_options' ) || current_user_can( 'wpcap_view_finance' ) ) { return null; }
+		if ( current_user_can( 'manage_options' ) ) { return null; }
+		if ( current_user_can( 'wpcap_view_finance' ) ) { return \PassCaptain\Access::filter_event_ids( null ); }
 		if ( ! current_user_can( 'wpcap_view_reports' ) ) { return false; }
 		return Scope::event_ids( 'wpcap_view_reports' );
 	}
 
-	private static function in_scope( $event_id, $scope ) {
-		return null === $scope || in_array( (int) $event_id, (array) $scope, true );
+	private static function in_scope( $event_id, $scope, $occurrence_id = 0 ) {
+		if ( null !== $scope && ! in_array( (int) $event_id, (array) $scope, true ) ) { return false; }
+		return ! $occurrence_id || \PassCaptain\Access::occurrence_in_scope( (int) $occurrence_id );
 	}
 
 	public static function valid_date( $date ) {
@@ -158,7 +161,7 @@ final class Data {
 			if ( in_array( (string) $order->payment_provider, $comp_providers, true ) ) {
 				$in_scope = false;
 				foreach ( $lines as $line ) {
-					if ( ! self::in_scope( $line->event_id, $scope ) ) { continue; }
+					if ( ! self::in_scope( $line->event_id, $scope, $line->occurrence_id ) ) { continue; }
 					$comps['tickets'] += (int) $line->quantity;
 					$in_scope = true;
 				}
@@ -169,7 +172,7 @@ final class Data {
 			$day = Scope::local( $order->created_at, $tz, 'Y-m-d' );
 			$supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order_id );
 			foreach ( $lines as $i => $line ) {
-				if ( ! self::in_scope( $line->event_id, $scope ) ) { continue; }
+				if ( ! self::in_scope( $line->event_id, $scope, $line->occurrence_id ) ) { continue; }
 				if ( \PassCaptain\OrderLines::is_moved_in( $line ) ) { continue; } // Moved in by an exchange.
 				$currencies[ $order->currency ] = true;
 				$gross = $gross_lines[ $i ];
@@ -187,7 +190,7 @@ final class Data {
 			$day = Scope::local( $refund->updated_at, $tz, 'Y-m-d' );
 			foreach ( self::refund_split( $refund, $lines ) as $part ) {
 				$line = $lines[ $part['index'] ];
-				if ( ! self::in_scope( $line->event_id, $scope ) ) { continue; }
+				if ( ! self::in_scope( $line->event_id, $scope, $line->occurrence_id ) ) { continue; }
 				$add( $keys_for( $line, $refund->payment_provider, $day ), array( 'refunded_tickets' => $part['tickets'], 'refunded' => $part['amount'], 'refunded_tax' => $part['tax'], 'revenue' => -$part['amount'], 'revenue_tax' => -$part['tax'] ) );
 			}
 		}
@@ -203,6 +206,7 @@ final class Data {
 		foreach ( $credit_rows as $c ) {
 			$events = Scope::order_events( $c->order_id );
 			if ( null !== $scope && array_diff( $events, (array) $scope ) ) { continue; }
+			if ( ! \PassCaptain\Access::order_in_scope( $c->order_id ) ) { continue; }
 			$credit['count']++;
 			$credit['total'] += (int) $c->total_minor;
 			$credit['tax'] += (int) $c->tax_minor;
@@ -320,7 +324,7 @@ final class Data {
 		$checked = array();
 		foreach ( $wpdb->get_results( "SELECT tt.occurrence_id,COUNT(DISTINCT c.ticket_id) AS n FROM {$p}wpcap_checkins c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id IN ($in) AND c.result='checked_in' AND t.status IN ('valid','checked_in') GROUP BY tt.occurrence_id" ) as $r ) { $checked[ (int) $r->occurrence_id ] = (int) $r->n; }
 		foreach ( $occ_rows as $o ) {
-			if ( ! self::in_scope( $o->event_id, $scope ) ) { continue; }
+			if ( ! self::in_scope( $o->event_id, $scope, $o->occurrence_id ) ) { continue; }
 			$id = (int) $o->occurrence_id;
 			$type_rows = array();
 			$sold = 0;

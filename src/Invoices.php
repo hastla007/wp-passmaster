@@ -675,14 +675,14 @@ final class Invoices {
 
 	/** Finance view permission for one order (global finance roles or event-scoped order managers). */
 	private static function can_view_order_finance( $order_id ) {
-		if ( current_user_can( 'manage_options' ) || current_user_can( self::FINANCE_CAP ) ) { return true; }
+		if ( current_user_can( 'manage_options' ) || ( current_user_can( self::FINANCE_CAP ) && Access::order_in_scope( $order_id ) ) ) { return true; }
 		global $wpdb;
 		$event_ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT o.event_id FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", absint( $order_id ) ) );
 		if ( ! $event_ids ) { return false; }
 		foreach ( $event_ids as $event_id ) {
 			if ( ! Access::can_access_event( (int) $event_id, 'wpcap_manage_orders' ) ) { return false; }
 		}
-		return true;
+		return Access::order_in_scope( $order_id );
 	}
 
 	/* ------------------------------------------------------------------ Payments / vouchers (docs/VOUCHERS.md) */

@@ -37,7 +37,7 @@ final class TicketsPage {
 	public static function revoke_ticket( array $in ) {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
 		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
+		if ( ! Access::can_access_occurrence( $ticket->occurrence_id, 'wpcap_manage_orders' ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
 		$reason = Forms::text( $in, 'reason', 255 );
 		if ( '' === $reason ) { return Forms::error( 'wpcap_revoke_reason', __( 'Bitte einen Grund für den Widerruf angeben.', 'wp-pass-captain' ) ); }
 		global $wpdb;
@@ -66,7 +66,7 @@ final class TicketsPage {
 	public static function reissue_ticket( array $in ) {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
 		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
+		if ( ! Access::can_access_occurrence( $ticket->occurrence_id, 'wpcap_manage_orders' ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
 		$result = \PassCaptain\Orders::reissue_ticket( (int) $ticket->ticket_id, array( 'reason' => Forms::text( $in, 'reason', 255 ) ) );
 		if ( is_wp_error( $result ) ) {
 			$data = $result->get_error_data();
@@ -82,7 +82,7 @@ final class TicketsPage {
 	public static function undo_checkin( array $in ) {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
 		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_checkin' ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ) ); }
+		if ( ! Access::can_access_occurrence( $ticket->occurrence_id, 'wpcap_checkin' ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
@@ -236,7 +236,9 @@ final class TicketsPage {
 				<tbody>
 				<?php if ( ! $data['rows'] ) : ?><tr><td colspan="6"><?php esc_html_e( 'Keine Tickets gefunden.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
 				<?php foreach ( $data['rows'] as $ticket ) :
-					$email = '' !== (string) $ticket->assigned_email ? $ticket->assigned_email : $ticket->attendee_email;
+					$email = \PassCaptain\Pii::show( 'attendee_email', '' !== (string) $ticket->assigned_email ? $ticket->assigned_email : $ticket->attendee_email );
+					$buyer_email = \PassCaptain\Pii::show( 'buyer_email', $ticket->customer_email );
+					$attendee_name = \PassCaptain\Pii::show( 'attendee_name', (string) $ticket->attendee_name );
 					$can_orders = Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' );
 					$can_checkin = Access::can_access_event( $ticket->event_id, 'wpcap_checkin' );
 					?>
@@ -244,10 +246,10 @@ final class TicketsPage {
 						<td><code><?php echo esc_html( $ticket->public_id ); ?></code><br><small><?php echo esc_html( $ticket->ticket_name ); ?></small></td>
 						<td><?php echo esc_html( $ticket->event_name ); ?><br><small><?php echo esc_html( Forms::datetime( $ticket->starts_at, $ticket->timezone ) ); ?></small></td>
 						<td>
-							<?php if ( $can_orders ) : ?><a href="<?php echo esc_url( OrdersPage::order_url( $ticket->order_id ) ); ?>"><?php echo esc_html( $ticket->customer_email ); ?></a>
-							<?php else : ?><?php echo esc_html( $ticket->customer_email ); ?><?php endif; ?>
+							<?php if ( $can_orders ) : ?><a href="<?php echo esc_url( OrdersPage::order_url( $ticket->order_id ) ); ?>"><?php echo esc_html( $buyer_email ); ?></a>
+							<?php else : ?><?php echo esc_html( $buyer_email ); ?><?php endif; ?>
 						</td>
-						<td><?php echo esc_html( trim( (string) $ticket->attendee_name . ' ' . ( $email ? '<' . $email . '>' : '' ) ) ?: '—' ); ?></td>
+						<td><?php echo esc_html( trim( $attendee_name . ' ' . ( $email ? '<' . $email . '>' : '' ) ) ?: '—' ); ?></td>
 						<td>
 							<?php echo esc_html( Forms::status_label( $ticket->status ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'wp-pass-captain' ) . ')' : '' ) ); ?>
 							<?php if ( $ticket->last_checkin_at ) : ?><br><small><?php echo esc_html( Forms::datetime( $ticket->last_checkin_at, $ticket->timezone, false ) ); ?></small><?php endif; ?>
