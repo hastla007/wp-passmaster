@@ -705,3 +705,16 @@ PassCaptain\Settings::update( array( 'boxoffice_receipt_cashier' => $a58_before 
 $a58_full = PassCaptain\BoxOffice\Service::user_name( 4711 );
 check( 'A058: default is the operator number (no full name on customer receipts)', 'Bediener 4711' === $a58_id && 'id' === ( PassCaptain\Modules\BoxOffice::settings_defaults()['boxoffice_receipt_cashier'] ?? '' ) );
 check( 'A058: initials or the full name only when chosen', '' !== $a58_ini && $a58_ini !== $a58_full && mb_strlen( $a58_ini ) < mb_strlen( $a58_full ) && $a58_full === $a58_name );
+
+echo "Audit 3: partner contact persons and payout details (A059)\n";
+$a59_pid = PassCaptain\Partners\Repository::save( array( 'name' => 'A59 GmbH', 'contact_name' => 'Petra Kontakt', 'contact_email' => 'petra.a59@example.com', 'contact_phone' => '+43 1 234', 'payout_details' => "IBAN AT61 1904 3002 3457 3201\nBIC GIBAATWW", 'currency' => 'EUR', 'status' => 'active' ) );
+check( 'A059: IBANs are shown masked (last four characters)', false !== strpos( PassCaptain\Partners\Repository::masked_payout( "IBAN AT61 1904 3002 3457 3201\nBIC GIBAATWW" ), 'AT61 •••• •••• 3201' ) && false === strpos( PassCaptain\Partners\Repository::masked_payout( 'AT611904300234573201' ), '1904' ) );
+$a59_export = PassCaptain\Partners\Repository::privacy_export( 'petra.a59@example.com' );
+$a59_json = wp_json_encode( $a59_export['data'] );
+check( 'A059: the contact person is exported (payout masked)', 1 === count( $a59_export['data'] ) && false !== strpos( $a59_json, 'Petra Kontakt' ) && false !== strpos( $a59_json, '+43 1 234' ) && false === strpos( $a59_json, '3002 3457' ) );
+$GLOBALS['wpcap_test_caps']['manage_options'] = true;
+$a59_keep = PassCaptain\Partners\AdminPage::admin_action( array( 'do' => 'save_partner', 'id' => $a59_pid, 'name' => 'A59 GmbH', 'contact_name' => 'Petra Kontakt', 'contact_email' => 'petra.a59@example.com', 'currency' => 'EUR', 'commission' => '0', 'fee_tax_rate' => '20', 'fee_per_ticket' => '0', 'status' => 'active', 'payout_details' => '' ) );
+check( 'A059: saving with an empty payout field keeps the stored details', is_array( $a59_keep ) && false !== strpos( (string) PassCaptain\Partners\Repository::get( $a59_pid )->payout_details, 'AT61 1904' ) );
+$a59_erase = PassCaptain\Partners\Repository::privacy_erase( 'petra.a59@example.com' );
+$a59_row = PassCaptain\Partners\Repository::get( $a59_pid );
+check( 'A059: erasure removes the contact person, keeps the organisation', true === $a59_erase['items_removed'] && '' === $a59_row->contact_name && '' === $a59_row->contact_email && '' === $a59_row->contact_phone && 'A59 GmbH' === $a59_row->name );

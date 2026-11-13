@@ -64,6 +64,57 @@ final class Repository {
 	 *                    anonymous_buyer, reseller_commission_bp, reseller_fee_minor.
 	 * @return int|\WP_Error Partner id.
 	 */
+	/** Payout details for display: IBANs masked (last four characters), other text unchanged. */
+	public static function masked_payout( $text ) {
+		return (string) preg_replace_callback( '/\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{2,4}){3,8}\b/i', static function ( $m ) {
+			return \PassCaptain\PayoutAccount::mask( strtoupper( preg_replace( '/\s+/', '', $m[0] ) ) );
+		}, (string) $text );
+	}
+
+	/**
+	 * Personal data exporter (wp_privacy_personal_data_exporters): partners whose contact person has
+	 * this e-mail address – contact name, e-mail, phone and the organisation (payout details masked).
+	 */
+	public static function privacy_export( $email_address, $page = 1 ) {
+		global $wpdb;
+		$email = sanitize_email( (string) $email_address );
+		$data = array();
+		if ( '' !== $email && \PassCaptain\Privacy::has_table( 'wpcap_partners' ) ) {
+			foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT partner_id,name,contact_name,contact_email,contact_phone,payout_details,created_at FROM {$wpdb->prefix}wpcap_partners WHERE contact_email=%s ORDER BY partner_id", $email ) ) as $row ) {
+				$data[] = array( 'group_id' => 'wp-pass-captain-partners', 'group_label' => __( 'WP Pass Captain Veranstalter (Ansprechperson)', 'wp-pass-captain' ), 'item_id' => 'partner-' . (int) $row->partner_id, 'data' => array(
+					array( 'name' => __( 'Organisation', 'wp-pass-captain' ), 'value' => $row->name ),
+					array( 'name' => __( 'Ansprechperson', 'wp-pass-captain' ), 'value' => $row->contact_name ),
+					array( 'name' => __( 'Kontakt-E-Mail', 'wp-pass-captain' ), 'value' => $row->contact_email ),
+					array( 'name' => __( 'Telefon', 'wp-pass-captain' ), 'value' => $row->contact_phone ),
+					array( 'name' => __( 'Auszahlung (maskiert)', 'wp-pass-captain' ), 'value' => self::masked_payout( $row->payout_details ) ),
+					array( 'name' => __( 'Angelegt (UTC)', 'wp-pass-captain' ), 'value' => $row->created_at ),
+				) );
+			}
+		}
+		return array( 'data' => $data, 'done' => true );
+	}
+
+	/**
+	 * Personal data eraser: removes the contact person (name, e-mail, phone) from partners. The
+	 * organisation, its payout details and finalised statements (snapshots, retention duty) stay.
+	 */
+	public static function privacy_erase( $email_address, $page = 1 ) {
+		global $wpdb;
+		$email = sanitize_email( (string) $email_address );
+		$removed = 0;
+		$retained = false;
+		if ( '' !== $email && \PassCaptain\Privacy::has_table( 'wpcap_partners' ) ) {
+			$removed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_partners SET contact_name='',contact_email='',contact_phone='',updated_at=%s WHERE contact_email=%s", current_time( 'mysql', true ), $email ) );
+			$retained = $removed > 0 && \PassCaptain\Privacy::has_table( 'wpcap_partner_settlements' ) && (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_partner_settlements WHERE partner_snapshot LIKE %s LIMIT 1", '%' . addcslashes( $email, '_%\\' ) . '%' ) );
+		}
+		return array(
+			'items_removed' => $removed > 0,
+			'items_retained' => $retained,
+			'messages' => $retained ? array( __( 'Abgeschlossene Veranstalter-Abrechnungen enthalten die Kontaktdaten als unveränderlichen Beleg (Aufbewahrungspflicht) und bleiben bestehen.', 'wp-pass-captain' ) ) : array(),
+			'done' => true,
+		);
+	}
+
 	public static function save( array $data, $partner_id = 0 ) {
 		global $wpdb;
 		$partner_id = absint( $partner_id );

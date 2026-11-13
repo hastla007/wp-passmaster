@@ -63,7 +63,7 @@ final class AdminPage {
 					'contact_phone' => Forms::text( $in, 'contact_phone', 64 ),
 					'billing_address' => Forms::textarea( $in, 'billing_address', 2000 ),
 					'vat_id' => Forms::text( $in, 'vat_id', 64 ),
-					'payout_details' => Forms::textarea( $in, 'payout_details', 2000 ),
+					'payout_details' => self::payout_input( $in, $id ),
 					'currency' => $currency,
 					'commission_bp' => $commission,
 					'fee_per_ticket_minor' => $fee,
@@ -277,7 +277,13 @@ final class AdminPage {
 		$field( 'contact_phone', __( 'Telefon', 'wp-pass-captain' ), $v( 'contact_phone' ) );
 		$area( 'billing_address', __( 'Rechnungsanschrift', 'wp-pass-captain' ), $v( 'billing_address' ) );
 		$field( 'vat_id', __( 'USt-IdNr.', 'wp-pass-captain' ), $v( 'vat_id' ) );
-		$area( 'payout_details', __( 'Auszahlung (z. B. IBAN, BIC, Kontoinhaber)', 'wp-pass-captain' ), $v( 'payout_details' ) );
+		// Stored payout details are shown masked only; an empty field keeps them, the checkbox deletes them.
+		$stored_payout = $v( 'payout_details' );
+		echo '<tr><th scope="row"><label for="wpcap-pa-payout_details">' . esc_html__( 'Auszahlung (z. B. IBAN, BIC, Kontoinhaber)', 'wp-pass-captain' ) . '</label></th><td><textarea id="wpcap-pa-payout_details" name="payout_details" rows="3" class="large-text" autocomplete="off"></textarea>';
+		if ( '' !== $stored_payout ) {
+			echo '<p class="description">' . esc_html__( 'Gespeichert:', 'wp-pass-captain' ) . ' <code>' . esc_html( Repository::masked_payout( $stored_payout ) ) . '</code> · ' . esc_html__( 'Leer lassen, um die gespeicherten Angaben zu behalten.', 'wp-pass-captain' ) . ' <label><input type="checkbox" name="payout_details_clear" value="1"> ' . esc_html__( 'Auszahlungsdaten löschen', 'wp-pass-captain' ) . '</label></p>';
+		}
+		echo '</td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-pa-status">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</label></th><td>';
 		Forms::select( 'status', array( 'active' => __( 'aktiv', 'wp-pass-captain' ), 'inactive' => __( 'inaktiv (API-Keys gesperrt)', 'wp-pass-captain' ) ), $v( 'status', 'active' ), 'wpcap-pa-status' );
 		echo '</td></tr></tbody></table>';
@@ -421,6 +427,15 @@ final class AdminPage {
 		echo '<table class="widefat striped" style="max-width:40rem"><tbody>';
 		foreach ( $rows as $label => $value ) { echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td class="num">' . esc_html( $value ) . '</td></tr>'; }
 		echo '</tbody></table><p class="description">' . esc_html__( 'Die Veranstalter der verkauften Events erhalten diese Verkäufe in ihrer Veranstalter-Abrechnung. Diese Aufstellung zeigt, was der Verkäufer selbst vereinnahmt hat und an die Plattform abführt.', 'wp-pass-captain' ) . '</p>';
+	}
+
+	/** Payout details from the form: empty keeps the stored value (shown masked only), the checkbox clears it. */
+	private static function payout_input( array $in, $partner_id ) {
+		if ( Forms::flag( $in, 'payout_details_clear' ) ) { return ''; }
+		$given = Forms::textarea( $in, 'payout_details', 2000 );
+		if ( '' !== trim( $given ) || ! $partner_id ) { return $given; }
+		$stored = Repository::get( $partner_id );
+		return $stored ? (string) $stored->payout_details : '';
 	}
 
 	/** Admin warnings for incomplete seller data (agent invoices / Gutschriften need them). */

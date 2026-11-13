@@ -30,6 +30,15 @@ final class Partners {
 		add_filter( 'wpcap_checkout_error_messages', array( SalesModel::class, 'checkout_messages' ) );
 		// Stored partner ticket codes: gone with the ticket, the order's privacy erasure and after retention.
 		add_action( 'wpcap_ticket_revoked', array( \PassCaptain\Partners\Sales::class, 'forget_code' ), 10, 1 );
+		// Contact persons of partners: WordPress personal data export and erasure.
+		add_filter( 'wp_privacy_personal_data_exporters', static function ( $exporters ) {
+			$exporters['wp-pass-captain-partners'] = array( 'exporter_friendly_name' => __( 'WP Pass Captain Veranstalter-Kontakte', 'wp-pass-captain' ), 'callback' => array( \PassCaptain\Partners\Repository::class, 'privacy_export' ) );
+			return $exporters;
+		} );
+		add_filter( 'wp_privacy_personal_data_erasers', static function ( $erasers ) {
+			$erasers['wp-pass-captain-partners'] = array( 'eraser_friendly_name' => __( 'WP Pass Captain Veranstalter-Kontakte', 'wp-pass-captain' ), 'callback' => array( \PassCaptain\Partners\Repository::class, 'privacy_erase' ) );
+			return $erasers;
+		} );
 		add_action( 'wpcap_privacy_order_anonymized', array( \PassCaptain\Partners\Sales::class, 'forget_order_codes' ), 10, 1 );
 		add_filter( 'wpcap_privacy_retention_steps', array( \PassCaptain\Partners\Sales::class, 'retention_step' ), 10, 2 );
 	}

@@ -468,7 +468,7 @@ Fragen an die Steuerberatung (neu):
 - [x] [P3][BESTÄTIGT] `src/Privacy.php:172–180` — Export ohne Wartelisten-Menge/Termin/Angebot, ohne `wpcap_ticket_exchanges` und Partner-Verkaufsdaten. **Maßnahme:** Exporter ergänzen.
 - [x] [P3][BESTÄTIGT] `src/GuestLists/Service.php:390` — Begleittickets tragen den Namen des Gastes („Begleitung von …“). **Maßnahme:** Neutral „Begleitung“ oder per Filter abschaltbar.
 - [x] [P3][BESTÄTIGT] `src/BoxOffice/Service.php:624` — Kundenbelege zeigen den Klarnamen der Kassierkraft. **Maßnahme:** Kürzel/Bediener-ID, Klarname per Einstellung.
-- [ ] [P3][BESTÄTIGT] `src/Partners/Repository.php:58–97`; `src/Partners/Settlements.php:472` — Kontaktpersonen und IBAN der Partner im Klartext, dauerhaft, nicht exportiert/gelöscht. **Maßnahme:** In Exporter/Eraser aufnehmen (Snapshot ausgenommen), IBAN maskiert anzeigen.
+- [x] [P3][BESTÄTIGT] `src/Partners/Repository.php:58–97`; `src/Partners/Settlements.php:472` — Kontaktpersonen und IBAN der Partner im Klartext, dauerhaft, nicht exportiert/gelöscht. **Maßnahme:** In Exporter/Eraser aufnehmen (Snapshot ausgenommen), IBAN maskiert anzeigen.
 
 
 ### Architektur und QA (Prüfung 5)
