@@ -390,3 +390,8 @@ echo "Audit 3: privacy policy text matches the behaviour and the modules in use 
 $a30 = PassCaptain\Privacy\PolicyText::content();
 check( 'A030: policy text describes the deferred deletion, not immediate invalidation', false === strpos( $a30, 'werden mit der Löschung ungültig' ) && false !== strpos( $a30, 'nach dem letzten Termin' ) );
 check( 'A030: sections for guest lists (Art. 14), waitlist offers, buyer limits, box office, exchange and partner sales when used', false !== strpos( $a30, 'Art. 14 DSGVO' ) && false !== strpos( $a30, 'befristetes Angebot' ) && false !== strpos( $a30, 'Höchstmenge pro Person' ) && false !== strpos( $a30, 'Abendkasse' ) && false !== strpos( $a30, 'Ticketumtausch' ) && false !== strpos( $a30, 'Verkauf über Partner' ) );
+
+echo "Audit 3: voucher provider treatment field (A031)\n";
+$C = PassCaptain\Integrations\Vouchers\Checkout::class;
+check( 'A031: treatment payment → multi-purpose, single/discount → single-purpose (reduction)', 'multi' === $C::purpose_from_data( array( 'treatment' => 'payment' ) ) && 'single' === $C::purpose_from_data( array( 'treatment' => 'single' ) ) && 'single' === $C::purpose_from_data( array( 'treatment' => 'discount' ) ) );
+check( 'A031: explicit purpose fields still work without treatment', 'multi' === $C::purpose_from_data( array( 'voucher_type' => 'MPV' ) ) && null === $C::purpose_from_data( array( 'amount_minor' => 100 ) ) );

@@ -71,7 +71,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Partners/Api.php:176–232`; `src/Partners/Keys.php:133–137` — Maßnahme: Für `role=reseller` auf eigene `wpcap_partner_orders` beschränken oder `attendees:read` sperren; Admin-Warnung; Test.
 - [x] **A030** [P2] Texte beschreiben sofortige Ungültigkeit künftiger Tickets bei Löschung, tatsächlich wird zurückgestellt (`wpcap_privacy_defer_upcoming`, `src/Privacy.php:278–284`); Abschnitte zu … — _OFFEN_ (TODO L466; Datenschutz (Prüfung 4))
   - `src/Privacy/PolicyText.php:105`; `docs/OPERATIONS.md:78` — Maßnahme: Text korrigieren, Abschnitte modulabhängig ergänzen, Rolle der Partner benennen.
-- [ ] **A031** [P2] Dokumentiertes Feld `treatment` (`payment`/`single`/`discount`) wird nicht ausgewertet; alle Werte ergeben `multi`. — _OFFEN_ (TODO L477; Architektur und QA (Prüfung 5))
+- [x] **A031** [P2] Dokumentiertes Feld `treatment` (`payment`/`single`/`discount`) wird nicht ausgewertet; alle Werte ergeben `multi`. — _OFFEN_ (TODO L477; Architektur und QA (Prüfung 5))
   - `src/Integrations/Vouchers/ProviderInterface.php:8–12` vs. `src/Integrations/Vouchers/Checkout.php:441–486` — Maßnahme: `treatment` auswerten oder Docblock korrigieren; Vertragstest.
 - [ ] **A032** [P2] `wpcap_order_paid` feuert bei bezahlten Bestellungen vor, bei kostenlosen nach der Ticketausgabe (Webhook `order.paid` mit `ticket_count` 0 bzw. N). — _OFFEN_ (TODO L478; Architektur und QA (Prüfung 5))
   - `src/Orders.php:338–339` vs. `996–997` — Maßnahme: Einheitliche Reihenfolge; eigener Hook `wpcap_tickets_issued`; in HOOKS.md dokumentieren.

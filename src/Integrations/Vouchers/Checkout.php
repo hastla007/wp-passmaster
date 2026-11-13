@@ -474,6 +474,13 @@ final class Checkout {
 	/** Purpose stated in provider data (common keys, also nested in quote/reservation/voucher), or null. */
 	public static function purpose_from_data( $data, $depth = 0 ) {
 		if ( ! is_array( $data ) || $depth > 3 ) { return null; }
+		// Contract field of ProviderInterface::quote(): payment = multi-purpose voucher; single and
+		// discount = price reduction (single-purpose voucher / plain discount).
+		if ( isset( $data['treatment'] ) && is_scalar( $data['treatment'] ) ) {
+			$treatment = strtolower( trim( (string) $data['treatment'] ) );
+			if ( 'payment' === $treatment ) { return self::PURPOSE_MULTI; }
+			if ( in_array( $treatment, array( 'single', 'discount' ), true ) ) { return self::PURPOSE_SINGLE; }
+		}
 		foreach ( array( 'purpose', 'voucher_purpose', 'voucher_type', 'tax_type', 'vat_type', 'tax_treatment' ) as $key ) {
 			if ( isset( $data[ $key ] ) && is_scalar( $data[ $key ] ) ) {
 				$found = self::normalize_purpose( $data[ $key ] );

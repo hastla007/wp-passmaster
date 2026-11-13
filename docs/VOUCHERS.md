@@ -20,7 +20,7 @@ Wie die Einlösung umsatzsteuerlich behandelt wird, hängt von der **Art des Gut
 
 ## Wie die Art bestimmt wird
 
-1. **Angabe von WP Voucher Captain**: Liefert das Angebot (`quote()`), die Reservierung oder beim Ticketdienst `$source` ein Feld `purpose`, `voucher_purpose`, `voucher_type`, `tax_type`, `vat_type` oder `tax_treatment` (auch verschachtelt unter `voucher`), wird es ausgewertet. Erkannt werden `single`/`multi`, `single_purpose`/`multi_purpose`, `SPV`/`MPV`, `Einzweck(gutschein)`/`Mehrzweck(gutschein)` sowie die Wahrheitswerte `single_purpose`, `is_single_purpose`, `multi_purpose`, `is_multi_purpose`. Andere Werte (z. B. `voucher_type: value`) werden ignoriert.
+1. **Angabe von WP Voucher Captain**: Das Vertragsfeld `treatment` hat Vorrang: `payment` = Mehrzweckgutschein, `single` oder `discount` = Preisminderung (Einzweck). Sonst: Liefert das Angebot (`quote()`), die Reservierung oder beim Ticketdienst `$source` ein Feld `purpose`, `voucher_purpose`, `voucher_type`, `tax_type`, `vat_type` oder `tax_treatment` (auch verschachtelt unter `voucher`), wird es ausgewertet. Erkannt werden `single`/`multi`, `single_purpose`/`multi_purpose`, `SPV`/`MPV`, `Einzweck(gutschein)`/`Mehrzweck(gutschein)` sowie die Wahrheitswerte `single_purpose`, `is_single_purpose`, `multi_purpose`, `is_multi_purpose`. Andere Werte (z. B. `voucher_type: value`) werden ignoriert.
 2. **Filter** `wpcap_voucher_purpose( $purpose, $voucher, $context )`: erhält die Angabe aus Schritt 1 (oder `null`) und kann sie festlegen oder überschreiben, z. B. nach Code-Präfix oder Veranstaltung.
 3. **Einstellung** *Pass Captain → Einstellungen → Gutscheine → „Gutscheine standardmäßig als Mehrzweckgutschein behandeln“* (`voucher_default_purpose`, Standard `multi`).
 
