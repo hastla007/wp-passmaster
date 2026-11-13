@@ -1,0 +1,554 @@
+# Arbeitsliste – alle offenen Punkte aus TODO.md
+
+Jeder offene Punkt aus `TODO.md` ist hier eine eigene Aufgabe (nichts zusammengefasst). Reihenfolge: kritisch zuerst, Entscheidungen am Ende.
+Pro Aufgabe: umsetzen → Test → `TODO.md` abhaken → hier abhaken → Commit. `TODO Lnnn` verweist auf die Zeile in `TODO.md` beim Anlegen der Liste.
+
+Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umgesetzt, **TEILWEISE** = Rest beschrieben, **ENTSCHEIDUNG** = braucht Entscheidung/externen Schritt. 10 alte Punkte waren bereits umgesetzt und sind in `TODO.md` abgehakt; 4 P1-Befunde wurden bereits behoben.
+
+
+## Phase 1 – Kritische Fehler (P1, Audit Runde 3)
+
+- [ ] **A001** [P1] `ticket_value()` mittelt `line_total/qty` je Ticketart; nach Umtausch in dieselbe Art sinkt der Wert der übrigen Tickets (Erstattung 26,56 € statt 58,10 €). — _OFFEN_ (TODO L410; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `src/Exchange/Service.php:242–253,589,612` — Maßnahme: Wert je Ticket als Snapshot speichern; Regressionstest „Upgrade, dann Rückstufung“.
+- [ ] **A002** [P1] Haltezeit bei Überweisung (72 h) nicht auf Terminbeginn begrenzt („Zahlbar bis 16.11.“ für Event am 13.11.). — _OFFEN_ (TODO L412; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `src/Rest/Controller.php:279`; `src/Waitlists.php:462`; `src/Exchange/Service.php:804` — Maßnahme: min(Einstellung, Beginn − Puffer); Überweisung kurz vor Beginn ausblenden.
+- [ ] **A003** [P1] Ausverkaufte Karten zeigen weiterhin das Checkout-Formular und keinen Wartelisten-Eintrag (nur per REST). — _OFFEN_ (TODO L413; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `templates/event-card.php:29–31` — Maßnahme: Wartelisten-Formular einblenden, Checkout bei komplett ausverkauft ausblenden.
+- [ ] **A004** [P1] Umtausch verändert bereits abgerechnete Bestellpositionen: umgezogene Einheit bekommt neue `item_id` und erscheint erneut als `late_sale`; bei Herabstufung wird die Zielposition ge… — _OFFEN_ (TODO L435; Steuer und Finanzen (Prüfung 3))
+  - `src/Exchange/Service.php:580–591,601–612`; `src/Partners/Settlements.php:108–126`; `src/Reports/Data.php:139–150` — Maßnahme: Positionen nach Zahlung unveränderlich halten, Umtausch als eigene Buchungszeilen (Abgang/Zugang/Gebühr), Abrechnung/Berichte umstellen, Abstimmungstest „Abrechnung = Zahlungen − Erstattungen“.
+- [ ] **A005** [P1] `ticket_value()` nutzt `total_minor/subtotal`; bei Mehrzweckgutschein ist `total_minor` nur der Barrest → voll per Gutschein bezahltes Ticket hat Wert 0 (Upgrade kostet vollen Ziel… — _OFFEN_ (TODO L436; Steuer und Finanzen (Prüfung 3))
+  - `src/Exchange/Service.php:242–253` — Maßnahme: Wert aus `Checkout::gross_minor()`/Positionsbrutto nach Rabatt; Gutscheinanteil über `refund_plan`.
+- [ ] **A006** [P1] Umtausch in Ticketart mit anderem Steuersatz schreibt Positions-USt um, `orders.tax_minor` und Rechnung bleiben; später ausgestellte Rechnung ist widersprüchlich (Kopf 909 vs. Zeil… — _OFFEN_ (TODO L437; Steuer und Finanzen (Prüfung 3))
+  - `src/Exchange/Service.php:580–591`; `src/Invoices.php:70,318` — Maßnahme: Steuersatzwechsel nur mit Rechnungskorrektur + neuem Beleg oder sperren; `tax_minor` konsistent; Rechnungskopf aus Zeilen.
+- [ ] **A007** [P1] Zielgerichtete Kampagnenrabatte (Ticketart/Event) werden anteilig auf alle Positionen verteilt (Beispiel: USt 1.932 statt 1.742 Cent, fremde Position um 25 € gekürzt). — _OFFEN_ (TODO L438; Steuer und Finanzen (Prüfung 3))
+  - `src/Orders.php:196–212` vs. `src/Campaigns.php:31–51` — Maßnahme: Zeilenverteilung aus `Campaigns::calculate()` übernehmen und je Position (`discount_minor`) speichern.
+- [ ] **A008** [P1] Kassen-Umtausch bestätigt Zusatzbestellung ohne Kassenverkauf, Beleg und Schichtbuchung; spätere Erstattungen werden nicht gebucht. — _OFFEN_ (TODO L439; Steuer und Finanzen (Prüfung 3))
+  - `src/Exchange/Service.php:879–890`; `src/BoxOffice/Shifts.php:611–620` — Maßnahme: Aufpreis/Gebühr als Kassenverkauf mit Belegnummer in offene Schicht buchen; Erstattungen ebenso.
+
+## Phase 2 – Wichtige Fehler (P2, Audit Runde 3)
+
+- [ ] **A009** [P2] Käuferlimit greift nur in `wpcap_order_creating`, nicht beim Umtausch (nachgestellt: VIP-Limit 1, drei Umtausche Standard→VIP ergeben 4 VIP-Tickets). — _OFFEN_ (TODO L395; Sicherheit (Prüfung 1))
+  - `src/Allocations/BuyerLimits.php:123ff`; `src/Exchange/Service.php:373ff`; `src/Orders.php:671` — Maßnahme: Limit auch in `phase=exchange` mit derselben Sperrlogik durchsetzen; Test.
+- [ ] **A010** [P2] Gratis-Upgrade (`waive`) und Kassen-Zahlart `free` brauchen nur `wpcap_manage_orders`, nicht `wpcap_approve_comps` (nachgestellt: Support tauscht 10 € → 500 € ohne Aufpreis; Kasse … — _OFFEN_ (TODO L396; Sicherheit (Prüfung 1))
+  - `src/Exchange/AdminPage.php:43–57`; `src/BoxOffice/Service.php:36,316–322` — Maßnahme: An `wpcap_approve_comps` binden, optional Schwelle/Freigabe; Rechte-Matrix-Test.
+- [ ] **A011** [P2] Blindzählung umgehbar: Soll wird nach erster Zählung angezeigt, „Neu zählen“ unbegrenzt, Z-Bericht zeigt nur letzte Zählung. — _OFFEN_ (TODO L397; Sicherheit (Prüfung 1))
+  - `src/BoxOffice/Shifts.php:299–352`; `src/BoxOffice/ShiftPage.php:244–256` — Maßnahme: Soll erst nach Abschluss zeigen oder Nachzählung nur mit Finanzrecht; alle Zählungen im Z-Bericht; Test.
+- [ ] **A012** [P2] Teilnehmer-E-Mail im Portal Pflicht (im Checkout optional); Namenskorrektur ohne E-Mail abgelehnt, mit E-Mail rotiert der Code. — _OFFEN_ (TODO L414; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `src/OrderPortal.php:84` — Maßnahme: E-Mail optional; Name/Antworten ohne Codewechsel speichern.
+- [ ] **A013** [P2] Offene Bestellungen zeigen in Portal und Bestellmail keine Positionen, nur Betrag und Bankdaten. — _OFFEN_ (TODO L415; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `src/OrderPortal.php:81`; `src/Mail/Types.php:156` — Maßnahme: Positionsübersicht (Event, Termin, Art, Menge, Preis, Rabatt).
+- [ ] **A014** [P2] Nach Upgrade mit Aufpreis keine Bankdaten/Betrag/Verwendungszweck im Portal; offener Umtausch nach Neuladen unsichtbar, Button erneut angeboten. — _OFFEN_ (TODO L416; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `src/Exchange/Portal.php:170` — Maßnahme: Bankdaten anzeigen; offenen Umtausch mit Link zur Zusatzbestellung darstellen.
+- [ ] **A015** [P2] `src/Exchange/Service.php:589,605–612`; Admin-Bestellansicht — Nach Umtausch widersprüchliche Positionen (2 × 49,90 = 105,34), Zusatzbestellung „Erstattet 1“ bei 0,00 €, Abweichung… — _OFFEN_ (TODO L417; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - Maßnahme: Umtausch als eigene Bewegungen (siehe Steuer-P1); Anzeige „Umgebucht“.
+- [ ] **A016** [P2] Terminauswahl der Kasse/Gästeliste/Abholliste enthält Vergangenes, Entwürfe, Abgesagtes und wählt den ältesten. — _OFFEN_ (TODO L418; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `src/Printing/Page.php:29`; `src/BoxOffice/Page.php:96–101` — Maßnahme: Standard = nächster/laufender Termin; Rest ausblenden oder gruppieren.
+- [ ] **A017** [P2] Rabattcodes nur per REST anlegbar, keine Adminseite; Feld „Rabattcode“ immer sichtbar; Preisvorschau ignoriert den Code. — _OFFEN_ (TODO L419; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `src/Rest/Controller.php:142` — Maßnahme: Kampagnen-Adminseite, Feld nur bei aktiven Codes, Live-Vorschau.
+- [ ] **A018** [P2] Erstattungsmail sagt „erstattet“ auch bei Überweisung (Geld noch nicht unterwegs), Käufer-IBAN wird nicht erfasst; Mail/Admin zeigen 32-stellige Hex-ID statt Bestellnummer. — _OFFEN_ (TODO L420; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `src/Mail/Types.php:263` — Maßnahme: Text je Zahlart, IBAN-Abfrage, überall kurze Bestellnummer.
+- [ ] **A019** [P2] Terminabsage nur mit `confirm()`, ohne Grund, Folgenvorschau und Zusammenfassung; Auslastung zählt Pässe nicht. — _OFFEN_ (TODO L421; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `src/Admin/EventsPage.php`; `src/OccurrenceCancellation.php:85` — Maßnahme: Bestätigungsseite mit Folgen, Summary-Notice.
+- [ ] **A020** [P2] `tax_for()` teilt USt nach Rabatt durch Brutto vor Rabatt (Beispiel: 10,67 € statt 13,33 €); betrifft auch `record_external()`. — _OFFEN_ (TODO L440; Steuer und Finanzen (Prüfung 3))
+  - `src/Refunds.php:513–537,539–558` — Maßnahme: `line_shares()` mit Positionsbrutto nach Rabatt; Eigenschaftstest „Summe Korrekturen = Rechnung je Satz“.
+- [ ] **A021** [P2] Betragserstattung bei Mehrzweckgutschein rechnet volle USt gegen Barrest (3,33 € statt 1,67 €). — _OFFEN_ (TODO L441; Steuer und Finanzen (Prüfung 3))
+  - `src/Refunds.php:550–551` — Maßnahme: Basis `Checkout::gross_minor()` und Sätze der betroffenen Positionen.
+- [ ] **A022** [P2] Rechnung nach Teilerstattung weist volles Entgelt ohne Korrektur aus (Korrekturen nur, wenn Rechnung vor Erstattung existierte; `auto_invoice` standardmäßig aus). — _OFFEN_ (TODO L442; Steuer und Finanzen (Prüfung 3))
+  - `src/Invoices.php:18,31–91` — Maßnahme: Beim Ausstellen Korrekturbelege für frühere Erstattungen erzeugen oder Rechnung auf Entgelt nach Erstattungen begrenzen.
+- [ ] **A023** [P2] Wiederverkäufer-Abrechnung ignoriert Reverse Charge und Kleinunternehmer, ohne Belegnummer. — _OFFEN_ (TODO L443; Steuer und Finanzen (Prüfung 3))
+  - `src/Partners/Statement.php:124–133` — Maßnahme: Logik aus `SalesModel::reverse_charge()`/`small_business`; Beleg festlegen (Gutschrift mit Nummernkreis oder Rechnung des Wiederverkäufers).
+- [ ] **A024** [P2] Serien-Umtausch prüft nicht denselben Veranstalter/dasselbe Verkaufsmodell. — _OFFEN_ (TODO L444; Steuer und Finanzen (Prüfung 3))
+  - `src/Exchange/Service.php:170–175` — Maßnahme: Umtausch zwischen verschiedenen Partnern/Verkaufsmodellen sperren.
+- [ ] **A025** [P2] Einzweckgutschein im Checkout als `discount_minor` gebucht → Veranstalter-Abrechnung/Gutschrift sinken um den Gutscheinwert. — _OFFEN_ (TODO L445; Steuer und Finanzen (Prüfung 3))
+  - `src/Integrations/Vouchers/Checkout.php:121–131` — Maßnahme: Gutscheinwert getrennt führen, in Abrechnung als Forderung gegen den Gutscheinverkäufer ausweisen.
+- [ ] **A026** [P2] `buyer_key` in `wpcap_alloc_buyers` ist ungesalzenes `sha256('email:'…)`/`sha256('user:'…)`, dazu Bestell-IDs in `holdings`; Tabelle weder exportiert, gelöscht noch von der Retenti… — _OFFEN_ (TODO L462; Datenschutz (Prüfung 4))
+  - `src/Modules/Allocations.php:103–108`; `src/Allocations/BuyerLimits.php:105–110,157–181` — Maßnahme: `hash_hmac` mit `wp_salt()` (Migration), Eraser entfernt Zeilen/Bestell-IDs, Löschung nach Ende des letzten Termins.
+- [ ] **A027** [P2] Keine Löschfrist für `wpcap_guest_entries` (Name, E-Mail, Firma, Notiz, auch abgelehnte/stornierte). — _OFFEN_ (TODO L463; Datenschutz (Prüfung 4))
+  - `src/Modules/GuestLists.php:73–94`; `src/Privacy/Retention.php:72` — Maßnahme: Retention-Schritt nach Terminende + `attendee_retention_days` (personenbezogene Felder leeren, Zählwerte behalten); Hinweis im Notizfeld.
+- [ ] **A028** [P2] Wartelisteneinträge werden nach dem Event nie gelöscht/anonymisiert; keine Frist in PolicyText/OPERATIONS. — _OFFEN_ (TODO L464; Datenschutz (Prüfung 4))
+  - `src/Waitlists.php:58–105`; `src/Privacy/Retention.php:72` — Maßnahme: Pseudonymisieren/löschen X Tage nach Termin-/Eventende; Frist dokumentieren.
+- [ ] **A029** [P2] Lesende Partner-Endpunkte filtern nur nach verknüpften Events, nicht nach Rolle/eigenem Kanal: ein Wiederverkäufer mit `attendees:read` sieht E-Mails aller Käufer des Events (onlin… — _OFFEN_ (TODO L465; Datenschutz (Prüfung 4))
+  - `src/Partners/Api.php:176–232`; `src/Partners/Keys.php:133–137` — Maßnahme: Für `role=reseller` auf eigene `wpcap_partner_orders` beschränken oder `attendees:read` sperren; Admin-Warnung; Test.
+- [ ] **A030** [P2] Texte beschreiben sofortige Ungültigkeit künftiger Tickets bei Löschung, tatsächlich wird zurückgestellt (`wpcap_privacy_defer_upcoming`, `src/Privacy.php:278–284`); Abschnitte zu … — _OFFEN_ (TODO L466; Datenschutz (Prüfung 4))
+  - `src/Privacy/PolicyText.php:105`; `docs/OPERATIONS.md:78` — Maßnahme: Text korrigieren, Abschnitte modulabhängig ergänzen, Rolle der Partner benennen.
+- [ ] **A031** [P2] Dokumentiertes Feld `treatment` (`payment`/`single`/`discount`) wird nicht ausgewertet; alle Werte ergeben `multi`. — _OFFEN_ (TODO L477; Architektur und QA (Prüfung 5))
+  - `src/Integrations/Vouchers/ProviderInterface.php:8–12` vs. `src/Integrations/Vouchers/Checkout.php:441–486` — Maßnahme: `treatment` auswerten oder Docblock korrigieren; Vertragstest.
+- [ ] **A032** [P2] `wpcap_order_paid` feuert bei bezahlten Bestellungen vor, bei kostenlosen nach der Ticketausgabe (Webhook `order.paid` mit `ticket_count` 0 bzw. N). — _OFFEN_ (TODO L478; Architektur und QA (Prüfung 5))
+  - `src/Orders.php:338–339` vs. `996–997` — Maßnahme: Einheitliche Reihenfolge; eigener Hook `wpcap_tickets_issued`; in HOOKS.md dokumentieren.
+- [ ] **A033** [P2] Serienpools, Pässe und Partnerkontingente summieren weiter über `order_items`/`reservations` statt über Zähler; Availability-Filter je Ticketart mit eigenen Abfragen (mit Modulen: … — _OFFEN_ (TODO L479; Architektur und QA (Prüfung 5))
+  - `src/Series/Pools.php:126–208`; `src/Passes/Capacity.php:44–238`; `src/Partners/Sales.php:173–200` — Maßnahme: Gepflegte Zähler in den Modulen, Batch-Filter `wpcap_ticket_availability_many`, Test auf konstante Abfragezahl.
+- [ ] **A034** [P2] `reconcile()` alle 5 Minuten ohne Lock und Zeitbudget über den gesamten Bestand; Fenster zwischen `COMMIT` und `sync_order_now()` erzeugt Fehlalarme. — _OFFEN_ (TODO L480; Architektur und QA (Prüfung 5))
+  - `src/CapacityCounters.php:441–480` — Maßnahme: Auf künftige/kürzlich geänderte Termine beschränken, `GET_LOCK`, Alarm erst nach bestätigter zweiter Prüfung.
+
+## Phase 3 – Robustheit aus früheren Audits (main @ 14522c7)
+
+- [ ] **A035** [P1] Release-Workflow: Tag-Push ohne CI-/Main-Abstammungsprüfung — _OFFEN_ (TODO L291; Bestätigte Befunde)
+  - .github/workflows/release.yml:30-31: `github.ref_type == 'tag'` startet Release ohne CI-Status- oder Main-Ancestry-Prüfung; keine negativen Workflow-Tests
+- [ ] **A036** [P1] dbDelta-Fehler ungeprüft, Version/Fingerprint trotzdem gespeichert — _OFFEN_ (TODO L292; Bestätigte Befunde)
+  - src/Installer.php:671-687: dbDelta()-Ergebnis ignoriert, danach update_option wpcap_db_version und wpcap_schema_fingerprint ohne Schema-Verifikation
+- [ ] **A037** [P1] Webhook INSERT IGNORE: DB-Fehler als duplicate gemeldet — _OFFEN_ (TODO L293; Bestätigte Befunde)
+  - src/Payments/Webhooks.php:46-49: `if ( ! $claimed ) return 'duplicate'` unterscheidet 0 und false weiterhin nicht
+- [ ] **A038** [P1] Ticketausgabe: DB-Schreibfehler/Transaktion ungeprüft, Teilnehmerdaten gelöscht — _OFFEN_ (TODO L294; Bestätigte Befunde)
+  - src/Orders.php:1363-1412: START TRANSACTION/insert/update/COMMIT ungeprüft; attendee_data wird bei `$issued` gelöscht (1407-1410)
+- [ ] **A039** [P2] Mailer::deliver-Rückgabe ignoriert, kein Versand-Retry/Outbox — _OFFEN_ (TODO L295; Bestätigte Befunde)
+  - src/Orders.php:1440: Rückgabewert von Mailer::deliver() verworfen; keine Outbox/kein Zustellstatus
+- [ ] **A040** [P2] Refunds: DB-Operationen ungeprüft, keine Refund-Reconciliation — _OFFEN_ (TODO L296; Bestätigte Befunde)
+  - src/Refunds.php:177,185-186: COMMIT bzw. approve-Update ungeprüft; keine persistente Zustandsmaschine/Reparatur nach Provider-Erfolg gefunden
+- [ ] **A041** [P2] Queue-Worker prüfen Claim/Commit nicht vor Ausführung — _OFFEN_ (TODO L309; Bestätigte Befunde)
+  - src/Jobs.php:35-38 und src/Communications.php:45-48: update-Rowcount und COMMIT ungeprüft, Handler/Mailversand läuft trotzdem
+- [ ] **A042** [P2] Sammel-Nachsendung: Rotation unserialisiert, Rowcount 0 kein Fehler — _TEILWEISE_ (TODO L310; Bestätigte Befunde)
+  - src/Orders.php:1517-1521: nur `false` geprüft, kein Lock/Rowcount/Outbox; nur reissue_ticket (1562-1570) mit FOR UPDATE und Rowcount-Prüfung
+- [ ] **A043** [P2] cancel_order ignoriert DB-Fehler, Webhook gilt als verarbeitet — _OFFEN_ (TODO L311; Bestätigte Befunde)
+  - src/Orders.php:1017-1036: Reservierungs-, Widerrufs-, Status-Update und COMMIT ungeprüft, gibt immer true zurück
+- [ ] **A044** [P2] mark_refunded prüft DB-Ergebnisse nicht — _OFFEN_ (TODO L312; Bestätigte Befunde)
+  - src/Orders.php:1060-1075: keine Transaktion, Updates ungeprüft; Webhooks.php:141-142 meldet 'refunded'
+- [ ] **A045** [P2] Offline-Scanner fest auf Deutsch, Kataloge nicht geladen — _OFFEN_ (TODO L313; Bestätigte Befunde)
+  - assets/offline-scanner/index.html:2 lang="de"; app.js:98 toLocaleString('de-DE'); kein i18n-Laden
+
+## Phase 4 – Kleinere Fehler (P3, Audit Runde 3)
+
+- [ ] **A046** [P3] `src/BoxOffice/Service.php:459–471` (auch `src/Partners/Sales.php:730`) — Storno erkennt Nutzung nur an `status=checked_in`; Wiedereinlass-/Mehrfach-/Pass-Tickets bleiben `valid` u… — _OFFEN_ (TODO L398; Sicherheit (Prüfung 1))
+  - Maßnahme: Nutzung über `wpcap_checkins`/`wpcap_admission_entries` wie `Exchange\Service::was_admitted()` prüfen.
+- [ ] **A047** [P3] Kassenverkäufe ohne E-Mail senden Ticketmail an `boxoffice+…@invalid.example`. — _OFFEN_ (TODO L422; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `src/BoxOffice/Service.php:277` — Maßnahme: Versand an Platzhalter unterdrücken.
+- [ ] **A048** [P3] Ticket für anderen Tag: „zu dieser Uhrzeit nicht möglich“ ohne Gültigkeit; Web-Scanner ohne Terminauswahl. — _OFFEN_ (TODO L423; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - `src/Checkin.php:364` — Maßnahme: Gültigkeit nennen, Terminauswahl.
+- [ ] **A049** [P3] `src/PublicEvents.php:91–96` u. a. — Shortcode/Block ohne Event-/Termin-Attribut; „bis 1 Stunden“; gleichnamige Events ohne Datum in Dropdowns; Kassen-/Partnerformulare verlangen r… — _OFFEN_ (TODO L424; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+  - Maßnahme: Attribute `event`/`occurrence`, Auswahllisten, Texte korrigieren.
+- [ ] **A050** [P3] Unterschiedliche Rabatt-Rundung (floor kumulativ vs. intdiv + Rest). — _OFFEN_ (TODO L446; Steuer und Finanzen (Prüfung 3))
+  - `src/Invoices.php:73–83` vs. `src/Orders.php:203–206`, `src/Reports/Data.php:241–252` — Maßnahme: Gemeinsamer Allokator bzw. gespeicherter Zeilenrabatt.
+- [ ] **A051** [P3] Pass-Tageserstattungen mit Durchschnitts-USt der Bestellung statt Pass-Satz. — _OFFEN_ (TODO L447; Steuer und Finanzen (Prüfung 3))
+  - `src/Passes/Cancellation.php:93–96`; `src/Refunds.php:550–551` — Maßnahme: `tax_minor` mit Pass-Satz übergeben.
+- [ ] **A052** [P3] Kassen-Freikarten (`pos_free`) zählen als verkauft, Ticketgebühr fällt an. — _OFFEN_ (TODO L448; Steuer und Finanzen (Prüfung 3))
+  - `src/Reports/Data.php:58`; `src/Partners/Settlements.php:113–120` — Maßnahme: `pos_free` in `comp_providers()` aufnehmen oder dokumentieren.
+- [ ] **A053** [P3] Stornos von Kassenverkäufen „Rechnung“/„Freikarte“ ohne offene Schicht werden nie gebucht; Grand Total ohne Storno. — _OFFEN_ (TODO L449; Steuer und Finanzen (Prüfung 3))
+  - `src/BoxOffice/Shifts.php:621–626` — Maßnahme: Nachbuchungs-Warteschlange für nächste Schicht.
+- [ ] **A054** [P3] Rechnungsdatenpflicht über Schwelle greift nicht bei Kasse („Zahlung auf Rechnung“), Partner-API und Zusatzbestellungen. — _OFFEN_ (TODO L450; Steuer und Finanzen (Prüfung 3))
+  - `src/Orders.php:198`; `src/BoxOffice/Service.php:276–280` — Maßnahme: `Billing::required_for` auch dort erzwingen.
+- [ ] **A055** [P3] `wpcap_partner_ticket_codes` bleiben nach Löschung/Widerruf und Retention bestehen. — _OFFEN_ (TODO L467; Datenschutz (Prüfung 4))
+  - `src/Modules/Partners.php:223–229`; `src/Partners/Sales.php:858–878` — Maßnahme: Bei `wpcap_ticket_revoked`/Privacy-Löschung und nach Terminende + Frist löschen.
+- [ ] **A056** [P3] Export ohne Wartelisten-Menge/Termin/Angebot, ohne `wpcap_ticket_exchanges` und Partner-Verkaufsdaten. — _OFFEN_ (TODO L468; Datenschutz (Prüfung 4))
+  - `src/Privacy.php:172–180` — Maßnahme: Exporter ergänzen.
+- [ ] **A057** [P3] Begleittickets tragen den Namen des Gastes („Begleitung von …“). — _OFFEN_ (TODO L469; Datenschutz (Prüfung 4))
+  - `src/GuestLists/Service.php:390` — Maßnahme: Neutral „Begleitung“ oder per Filter abschaltbar.
+- [ ] **A058** [P3] Kundenbelege zeigen den Klarnamen der Kassierkraft. — _OFFEN_ (TODO L470; Datenschutz (Prüfung 4))
+  - `src/BoxOffice/Service.php:624` — Maßnahme: Kürzel/Bediener-ID, Klarname per Einstellung.
+- [ ] **A059** [P3] Kontaktpersonen und IBAN der Partner im Klartext, dauerhaft, nicht exportiert/gelöscht. — _OFFEN_ (TODO L471; Datenschutz (Prüfung 4))
+  - `src/Partners/Repository.php:58–97`; `src/Partners/Settlements.php:472` — Maßnahme: In Exporter/Eraser aufnehmen (Snapshot ausgenommen), IBAN maskiert anzeigen.
+- [ ] **A060** [P3] Kontingenterhöhung im Admin feuert kein `wpcap_capacity_increased`; Wartelisten-Angebote erst nach stündlichem Sweep. — _OFFEN_ (TODO L481; Architektur und QA (Prüfung 5))
+  - `src/Admin/EventsPage.php:191,291` — Maßnahme: Hook nach Erhöhung auslösen.
+- [ ] **A061** [P3] Deaktivierung meldet `wpcap_webhooks_dispatch` (und Fortsetzungsläufe aus `Jobs/TimeBudget`) nicht ab; `Waitlists::run_due` läuft außerhalb des Zeitbudgets. — _OFFEN_ (TODO L482; Architektur und QA (Prüfung 5))
+  - `src/Plugin.php:134` — Maßnahme: Abzumeldende Hooks aus zentraler Konstante; `run_due` mit `TimeBudget`.
+- [ ] **A062** [P3] Kassen-Migration mit eigener Versionsoption auf `init` ohne Upgrade-Lock, offene Schichten außerhalb einer Transaktion. — _OFFEN_ (TODO L483; Architektur und QA (Prüfung 5))
+  - `src/Modules/BoxOffice.php:29–70`; `src/BoxOffice/Registers.php:148–158` — Maßnahme: In `Installer::install()` unter Lock ziehen.
+- [ ] **A063** [P3] `db_busy` uneinheitlich (409 ohne `retryable`, 503 ohne `retryable`). — _OFFEN_ (TODO L484; Architektur und QA (Prüfung 5))
+  - `src/Exchange/Service.php:525`; `src/Allocations/Holds.php:122`; `src/Passes/Capacity.php:183` — Maßnahme: Gemeinsame Fehlerfabrik `Errors::busy()` (503, `retryable=true`).
+- [ ] **A064** [P3] Etwa 70 von 145 Hooks undokumentiert (22 nirgends), Dokument nennt Nicht-Hooks (`wpcap_jobs`, `wpcap_message_queue`). — _OFFEN_ (TODO L485; Architektur und QA (Prüfung 5))
+  - `docs/HOOKS.md` — Maßnahme: Aus dem Code erzeugen bzw. per CI abgleichen.
+
+## Phase 5 – Verdachtsfälle prüfen und ggf. beheben
+
+- [ ] **A065** [VERDACHT] Partner-Storno: Prüfung „Termin begonnen“ schützt bei Pässen mit anderem Anker-Termin wohl nicht. — _OFFEN_ (TODO L401; Sicherheit (Prüfung 1))
+  - `src/Partners/Sales.php:728–731` — 
+- [ ] **A066** [VERDACHT] Portal-Herabstufung bei Partner-/Kassenbestellungen bucht Erstattung über Geld, das die Plattform nie erhielt. — _OFFEN_ (TODO L402; Sicherheit (Prüfung 1))
+  - `src/Exchange/Service.php:700–708` — 
+- [ ] **A067** [VERDACHT] alte Route `/pos/sales` umgeht Schicht, Belegnummer und Z-Bericht. — _OFFEN_ (TODO L403; Sicherheit (Prüfung 1))
+  - `src/Rest/Controller.php` `pos_sale` — 
+- [ ] **A068** [VERDACHT] Portal-Nachsendung erneuert auch Codes übertragener Tickets (Käufer kann QR-Code der Empfängerin ungültig machen). — _OFFEN_ (TODO L404; Sicherheit (Prüfung 1))
+  - `src/Orders.php:1500ff` — 
+- [ ] **A069** [VERDACHT] Freikarten-Antrag und Freigabe durch dieselbe Person möglich. — _OFFEN_ (TODO L405; Sicherheit (Prüfung 1))
+  - `src/GuestLists/Service.php:93–98,305` — 
+- [ ] **A070** [VERDACHT] Pass mit zwei Terminen am selben Tag: Web-Scanner bindet an Betriebstag, zweiter Scan „Tageskontingent erreicht“ – Abendshow vermutlich nicht betretbar. — _OFFEN_ (TODO L427; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [ ] **A071** [VERDACHT] Blindzählung wirkt nur für Kassierer ohne Manager-/Finanzrecht; UI erklärt das nicht. — _OFFEN_ (TODO L428; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [ ] **A072** [VERDACHT] `src/BoxOffice/ZReport.php` `rows()` ohne Null-Prüfung (Warnings bei ungültiger ID). — _OFFEN_ (TODO L429; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [ ] **A073** [VERDACHT] Sperrreihenfolge in `finalize` (Typen/Termine → Zusatzbestellung) umgekehrt zu `sync_order_now()` (Bestellung → Typen); Deadlock bei gleichzeitiger Stornierung denkbar. — _OFFEN_ (TODO L488; Architektur und QA (Prüfung 5))
+  - `src/Exchange/Service.php:949–993` — 
+- [ ] **A074** [VERDACHT] `capacity_error_counted` zieht nur `active`-Holds ab; bereits `expired`, aber nicht synchronisierte Holds blockieren im Grenzfall die eigene späte Zahlung. — _OFFEN_ (TODO L489; Architektur und QA (Prüfung 5))
+  - `src/Orders.php:524–557` — 
+- [ ] **A075** [VERDACHT] zwei Abrechnungswege mit eigener Zuordnung; Verrechnung bei selbst verkaufenden Veranstaltern nur manuell. — _OFFEN_ (TODO L490; Architektur und QA (Prüfung 5))
+  - `src/Partners/Statement.php` vs. `src/Partners/Settlements.php` — 
+- [ ] **A076** [VERDACHT] Datenschutz-Löschung widerruft Tickets ohne Kontingentfreigabe (anders als `Orders::revoke_tickets`). — _OFFEN_ (TODO L491; Architektur und QA (Prüfung 5))
+- [ ] **A077** [VERDACHT] Module nicht einzeln abschaltbar; Filterlast auch ohne Nutzung. — _OFFEN_ (TODO L492; Architektur und QA (Prüfung 5))
+  - `Modules::register_all` — 
+
+## Phase 6 – Nacharbeiten Phase 3, UX, Barrierefreiheit, Architektur
+
+- [ ] **A078** Datenschutz-Export/-Löschung für wpcap_guest_entries — _OFFEN_ (TODO L336; Offene Nacharbeiten aus Phase 3)
+  - src/Privacy.php enthält keine Behandlung von wpcap_guest_entries (grep ohne Treffer außerhalb GuestLists)
+- [ ] **A079** DSGVO-Löschung soll Wartelisten-Angebote sofort freigeben — _OFFEN_ (TODO L337; Offene Nacharbeiten aus Phase 3)
+  - src/Privacy.php:305 setzt nur status='removed'; Platzhalter-Bestellung/Reservierung wird nicht storniert
+- [ ] **A080** wpcap_waitlist_process beim Deaktivieren abmelden — _OFFEN_ (TODO L338; Offene Nacharbeiten aus Phase 3)
+  - src/Plugin.php:134 Hook-Liste ohne Waitlists::HOOK
+- [ ] **A081** Umtausch: Zusatzfelder, Webhook ticket.exchanged, Woo-Differenzerstattung — _OFFEN_ (TODO L340; Offene Nacharbeiten aus Phase 3)
+  - src/Exchange/Service.php:649 Antworten nicht übernommen; kein Webhook-Ereignis ticket.exchanged; kein WooCommerce-Bezug in Exchange
+- [ ] **A082** wpcap_reserve_capacity um internal, E-Mail, User-ID erweitern — _OFFEN_ (TODO L341; Offene Nacharbeiten aus Phase 3)
+  - src/Orders.php:151 Kontext nur phase/order_id/types/occurrences/now/source
+- [ ] **A083** Neue Hooks in docs/HOOKS.md dokumentieren — _TEILWEISE_ (TODO L342; Offene Nacharbeiten aus Phase 3)
+  - Nur wpcap_capacity_increased dokumentiert; wpcap_allocation_*, wpcap_boxoffice_*, wpcap_ticket_exchanged, Pass-Filter fehlen
+- [ ] **A084** Präfix GS/Exportbezeichnung Gutschrift umbenennen — _OFFEN_ (TODO L353; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - src/Settings.php:73 'GS'; src/Invoices.php:190,403 'GS' und 'Gutschrift' unverändert
+- [ ] **A085** Rechnungskorrekturen je Steuersatz aufschlüsseln — _OFFEN_ (TODO L354; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - src/Invoices.php:114-121,324 nur eine Netto/USt/Brutto-Summe je Korrektur, keine Aufschlüsselung je Satz
+- [ ] **A086** Mehrzweckgutscheine: Berichte auf refund_plans umstellen — _TEILWEISE_ (TODO L356; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - Rechnungskorrektur nutzt refund_plan (Invoices.php:113); Reports/Data.php:154, Partners/Settlements.php:135, Statement.php:51 nutzen weiter wpcap_refunds.amount_minor
+- [ ] **A087** Einzweckgutscheine: Abrechnung mit face_value_minor — _OFFEN_ (TODO L357; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - face_value_minor nur in Integrations/Vouchers; Partners/Settlements.php nutzt es nicht
+- [ ] **A088** Admin-Menü gruppieren, Erste-Schritte-Checkliste, Eventliste mit Kennzahlen — _OFFEN_ (TODO L363; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - src/Admin/Menu.php:71ff flache Submenüs; keine Checkliste; Verkauft/Kapazität nur in Termin-/Ticketart-Tabelle (EventsPage.php:677)
+- [ ] **A089** Web-Scanner-Ergebnis wie PWA und Hilfscode — _OFFEN_ (TODO L364; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - assets/scanner.js ohne Ton/Vibration/Erstnutzungsanzeige; kein Hilfscode (short_code nur Gästelisten)
+- [ ] **A090** Saalplan mobil: Sitzgröße, Zoom/Pan, Legende mit Form, Liste — _OFFEN_ (TODO L365; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - assets/seating/picker.js:133-160 Legende nur Farbe, kein Zoom/Pan, Liste nur eingeklappt (details)
+- [ ] **A091** Ticketseite/PDF: Teilnehmer, Adresse, Einlass, Bestellnr., Wallet, Dateiname — _OFFEN_ (TODO L366; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - src/TicketPage.php:30 ohne Teilnehmer/Bestellnr./Wallet; PDF-Name tickets-<public_id>.pdf (Orders.php:1428)
+- [ ] **A092** Einlasszeit als Feld am Termin, Zutritt davor verhindern — _TEILWEISE_ (TODO L367; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - Nur relatives Einlassfenster (Admission/Engine.php:79-90); kein Doors-Feld in Occurrences-Schema (Installer.php:73-88)
+- [ ] **A093** Kapazität pro Einlassbereich am Einlass durchsetzen — _OFFEN_ (TODO L368; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - Keine Bereichskapazität im Check-in (Checkin.php:351 nur wrong_area, Admission/Engine.php)
+- [ ] **A094** Alters-/Ausweispflicht pro Ticketart mit Scanner-Hinweis — _OFFEN_ (TODO L369; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - Kein entsprechendes Feld/Code gefunden
+- [ ] **A095** No-Show-Liste/Export pro Termin — _OFFEN_ (TODO L370; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - Kein No-Show-Code gefunden
+- [ ] **A096** Kontingente pro Verkaufskanal und Kanal-Auswertung — _OFFEN_ (TODO L371; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - Nur Partner-Feld sales_channel (Partners/AdminPage.php:316); keine Kanal-Kontingente/Auswertung
+- [ ] **A097** Abrechnungsblatt pro Vorstellung (Door Deal) — _OFFEN_ (TODO L372; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - Kein Code gefunden
+- [ ] **A098** Buchhaltungsexport: nicht fakturierte Verkäufe, Ortszeit-Tagesgrenzen — _OFFEN_ (TODO L373; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - src/Invoices.php:386-401 UTC-Tagesgrenzen, nur Rechnungen/Korrekturen
+- [ ] **A099** Einstellungen in Tabs, Zahlarten trennen, Rechtstexte je Sprache — _OFFEN_ (TODO L374; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - src/Admin/SettingsPage.php:276-288 alle Abschnitte untereinander; terms_text einsprachig (Zeile 80)
+- [ ] **A100** Eventkarte kompakt, Mengen-Stepper, Kalender-Badges, nächster Termin — _OFFEN_ (TODO L375; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - Kein Stepper/Badge/Nächster-Termin-Code gefunden
+- [ ] **A101** HTML-Mail-Layout als Standard prüfen — _OFFEN_ (TODO L376; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - src/Mail/Templates.php:41 Standard 'format' => 'text'
+- [ ] **A102** Mehrdeutige/fehlende Ortszeiten bei Zeitumstellung anzeigen — _OFFEN_ (TODO L377; UX- und Barrierefreiheitsbefunde aus der Expertenprüfung (noch offen))
+  - src/Admin/Forms.php:135 verschiebt Zeiten in DST-Lücke still
+- [ ] **A103** endroid/bacon mit Strauss/PHP-Scoper präfixieren — _OFFEN_ (TODO L381; Architektur und Wartbarkeit (noch offen))
+  - composer.json ohne Strauss/Scoper; TicketPdf.php:67-69 nutzt \BaconQrCode unpräfixiert
+- [ ] **A104** Hook-Präfixe vereinheitlichen, öffentliche Hook-Liste — _OFFEN_ (TODO L382; Architektur und Wartbarkeit (noch offen))
+  - src/Jobs.php:42 wp_pass_captain_process_job_v1, Communications.php:51 wp_pass_captain_email_template_v1 neben wpcap_*
+- [ ] **A105** Index-Längen > 767 Bytes kürzen oder dokumentieren — _OFFEN_ (TODO L383; Architektur und Wartbarkeit (noch offen))
+  - Installer.php:445,592; Modules/Wallet.php:46 unverändert; keine Doku der Mindestanforderung gefunden
+- [ ] **A106** Saalplan-Editor-JS-Texte übersetzbar machen — _TEILWEISE_ (TODO L384; Architektur und Wartbarkeit (noch offen))
+  - editor.js nutzt teils t.* (Zeile 108-123), aber fest codiert: 103, 124, 187, 339; Englisch-Umstieg nicht geprüft
+- [ ] **A107** Übersetzungen muttersprachlich prüfen, Platzhalter übersetzbar — _OFFEN_ (TODO L386; Architektur und Wartbarkeit (noch offen))
+  - {Termin-ID} weiter literal (Modules/Calendar.php:270, it_IT.po:4339); kein Nachweis einer Prüfung
+
+## Phase 7 – Betreiberpflichten (Dokumentation)
+
+- [ ] **A108** Art.-14-Information für Gästelisten; Abholliste nach dem Event vernichten. — _OFFEN_ (TODO L498; Betreiberpflichten (für docs/OPERATIONS.md))
+- [ ] **A109** Rolle der Partner festlegen (eigener Verantwortlicher oder Auftragsverarbeitung) und dokumentieren. — _OFFEN_ (TODO L499; Betreiberpflichten (für docs/OPERATIONS.md))
+- [ ] **A110** Kassen-Schichtdaten: Mitbestimmung (§ 96/96a ArbVG, § 87 Abs. 1 Nr. 6 BetrVG); Z-Berichte aufbewahrungspflichtig. — _OFFEN_ (TODO L500; Betreiberpflichten (für docs/OPERATIONS.md))
+- [ ] **A111** AV-Vertrag mit dem Fiskalanbieter; manueller Auskunftsablauf für Bestellungen ohne E-Mail; Verarbeitungsverzeichnis erweitern. — _OFFEN_ (TODO L501; Betreiberpflichten (für docs/OPERATIONS.md))
+
+## Phase 8 – Ursprüngliche Roadmap-Punkte (P0–P2, Abnahme, CI)
+
+- [ ] **A112** Reproduzierbarer Release-Build mit Artefaktabgleich — _TEILWEISE_ (TODO L11; P0 – Repository und Plugin-Grundlage)
+  - build/release.sh:23 git archive, composer.lock vorhanden; fehlen feste Zeitstempel (SOURCE_DATE_EPOCH), Prüfsummen und dokumentierter Abgleich Commit/veröffentlichtes ZIP
+- [ ] **A113** Rollback/Restore mit echten DB-Ständen erproben — _OFFEN_ (TODO L13; P0 – Repository und Plugin-Grundlage)
+  - Kein Restore-/Downgrade-Test oder -Code; docs/OPERATIONS.md:51 nennt Prüfung nur als ausstehend
+- [ ] **A114** Terminserien mit Kapazität, Preisfenstern, getrennten Änderungsverläufen — _TEILWEISE_ (TODO L19; P0 – Event- und Verkaufsgrundlage)
+  - Kapazität EventsPage.php:170, Preisregeln Series/Pricing.php:38, Pools; Audit occurrence_updated (EventsPage.php:198) ohne Kapazitäts-/Preisdiff, Seriendefinition nicht editierbar
+- [ ] **A115** Steuerklassen/länderspezifische Steuerregeln an Bestellungen anbinden — _TEILWEISE_ (TODO L21; P0 – Event- und Verkaufsgrundlage)
+  - Steuersatz je Ticketart Orders.php:207; Länderprofile Installer.php:559/Controller.php:693 nur als Draft, nicht an Bestellungen angebunden; Steuerprüfung fehlt
+- [ ] **A116** Teilnehmerfelder: Editor, Erfassung, Validierung, Export/Löschung, Einwilligung — _TEILWEISE_ (TODO L24; P0 – Event- und Verkaufsgrundlage)
+  - Editor EventsPage.php:305, Checkout checkout.js:322, Validierung Orders.php:430, Export/Löschung Privacy.php:208/428; Einwilligung nur Checkbox+Zweck, keine Protokollierung/Widerruf
+- [ ] **A117** Checkout-Oberfläche, Ablaufregeln, Käuferlimits, Stapelregeln — _TEILWEISE_ (TODO L26; P0 – Event- und Verkaufsgrundlage)
+  - Käuferlimits Allocations/BuyerLimits.php:123, Laufzeit Campaigns.php:24; Stapelung fest (max. 3, immer kumulativ, Campaigns.php:18), keine konfigurierbaren Stapelregeln
+- [ ] **A118** Ticketlink/QR, E-Mail, Druck, Portal, PDF, Selbstbedienung — _TEILWEISE_ (TODO L43; P0 – QR-Ticket und Online-Check-in)
+  - PDF vorhanden (TicketPdf.php:18, Anhang Orders.php:1429); Portal (OrderPortal.php:92) ohne PDF-Download und Storno-/Erstattungsanfrage
+- [ ] **A119** Granulare Scopes, Finanzrollen, PII-Minimierung, Admin/REST-Abdeckung — _TEILWEISE_ (TODO L44; P0 – QR-Ticket und Online-Check-in)
+  - Finanz-/Partnerrolle Installer.php:854-855, Eventscope Access.php:8; keine Standort-/Partner-Scopes, keine PII-Minimierung je Rolle
+- [ ] **A120** Installierbare PWA-Abnahme für Browser/Endgeräte dokumentieren — _OFFEN_ (TODO L46; P0 – QR-Ticket und Online-Check-in)
+  - Manifest/SW vorhanden (docs/OFFLINE-SCANNER.md:125-126), aber keine Geräte-/Browser-Abnahmematrix dokumentiert
+- [ ] **A121** Default-/Heavy-/REST-Lasttests regelmäßig auf MySQL/MariaDB — _TEILWEISE_ (TODO L48; P0 – QR-Ticket und Online-Check-in)
+  - Profile tests/load/run.php:155-156, tests/load/http.php; CI führt nur --profile=ci aus (ci.yml), kein Zeitplan, keine Regressionsdoku
+- [ ] **A122** Audit für PII-Zugriffe, Exporte, Rollenänderungen, Korrekturen — _TEILWEISE_ (TODO L50; P0 – QR-Ticket und Online-Check-in)
+  - Staff/Export-Audits (EventsPage.php:386, Invoices.php:371); fehlen Audit für PII-Ansicht, Datenschutzexport und WP-Rollenänderungen
+- [ ] **A123** Fristen je Datenart, Teilnehmerdaten/Finanzbelege getrennt — _TEILWEISE_ (TODO L56; P0 – Datenschutz und Releasefähigkeit)
+  - Getrennt: Privacy.php:320, Retention.php:39; nur Teilnehmerfrist im UI (SettingsPage.php:109), übrige nur per Filter; keine Löschung von Belegen nach Frist
+- [ ] **A124** PWA-, PSP-Sandbox-, Refund-E2E in CI/Release-Gates — _OFFEN_ (TODO L60; P0 – Datenschutz und Releasefähigkeit)
+  - ci.yml enthält nur Lint, Integration, Lasttest-CI-Profil, ZIP; keine PWA-/Sandbox-/E2E-Jobs
+- [ ] **A125** Aktivierung/Update/Restore/Deinstallation in realen WP-Versionen — _OFFEN_ (TODO L62; P0 – Datenschutz und Releasefähigkeit)
+  - Kein Test gegen echte WP-Installationen; tests/integration/wp nur Stub, keine Versionsmatrix in CI
+- [ ] **A126** Verbindliche Release-Gates, manuelle Mobile/Desktop-Abnahme dokumentieren — _TEILWEISE_ (TODO L63; P0 – Datenschutz und Releasefähigkeit)
+  - Automatische Prüfungen in ci.yml; Gates in CONCEPT.md:443-450 alle offen, keine Abnahmedokumentation
+- [ ] **A127** Echte WooCommerce-Version-/HPOS-Matrix — _OFFEN_ (TODO L81; P1 – Optionaler WooCommerce-Adapter)
+  - Nur Tests mit WooCommerce-Attrappen (tests/integration/modules/woocommerce.php); keine Matrix gegen installiertes WooCommerce in CI
+- [ ] **A128** Terminserien: Kapazitäten/Preisfenster, Editierbarkeit, Sitzplanverknüpfung — _TEILWEISE_ (TODO L86; P2 – Erweiterte Eventfunktionen)
+  - Frequenzen Rules.php:26, Kapazität AdminPage.php:136, Preisregeln Pricing.php:30, Sitzplan Generator.php:231; Seriendefinition nach Anlage nicht editierbar
+- [ ] **A129** Berichte, Buchhaltungsexporte, Korrekturbelege — _TEILWEISE_ (TODO L89; P2 – Erweiterte Eventfunktionen)
+  - Export Invoices.php:365, Gutschriften Invoices.php:113, Berichte Reports/Data.php:73; fachliche Abnahme der Berichte/Exportformate fehlt
+- [ ] **A130** Release-Gates aus Konzept bestanden und dokumentiert — _OFFEN_ (TODO L108; Abnahmekriterien)
+  - Alle Gates in CONCEPT.md:443-450 unerledigt; teils Rechtsfreigaben nötig
+- [ ] **A131** Terminverschiebung und Status-/Sonderfallregeln, Refund nach Check-in — _TEILWEISE_ (TODO L114; P1 – Ticketverwaltung nach dem Kauf)
+  - Verschiebung vorhanden (Admin/EventsPage.php:148, Notifications.php:18); nativer Refund erstattet eingecheckte Tickets ohne Regel/Override (Refunds.php:439), Override nur POS (BoxOffice/Service.php:437)
+- [ ] **A132** End-to-End-Abnahme Storno/Widerruf/Neuausgabe/alle Refundkombinationen — _TEILWEISE_ (TODO L115; P1 – Ticketverwaltung nach dem Kauf)
+  - Idempotenz vorhanden (Refunds.php:33-35); nur Mock-WP-Integrationstests (tests/integration/wp), keine echte E2E-Abnahmesuite aller Kombinationen
+- [ ] **A133** Dauer/Puffer und Partnerverwaltung für Ressourcen — _TEILWEISE_ (TODO L121; P1 – Bootsschul- und Servicebuchungen)
+  - buffer_before/after nur gespeichert (Installer.php:274, Controller.php:730), nicht bei Slots/Überlappung erzwungen; keine Leistungserbringer-Zuordnung zu Ressourcen
+- [ ] **A134** Buchungsschluss, Vorlauf, Maximalbuchungen, Umbuchungs-/Stornofristen — _OFFEN_ (TODO L123; P1 – Bootsschul- und Servicebuchungen)
+  - ServiceBookings.php:33 prüft nur starts_at > jetzt und Kapazität; keine Fristen/Limits
+- [ ] **A135** Umbuchung/Stornierung Servicebuchung End-to-End — _OFFEN_ (TODO L124; P1 – Bootsschul- und Servicebuchungen)
+  - Nur reserve() als Hold (ServiceBookings.php:8); keine Bestätigung, Umbuchung, Storno, Zahlung oder Benachrichtigung
+- [ ] **A136** No-show-Regeln und manuelle Partnerbestätigung — _OFFEN_ (TODO L125; P1 – Bootsschul- und Servicebuchungen)
+  - Kein Code zu No-show oder Partnerbestätigung in src/ gefunden
+- [ ] **A137** Warteliste für ausgebuchte Service-Slots — _OFFEN_ (TODO L126; P1 – Bootsschul- und Servicebuchungen)
+  - Waitlists.php nur für Eventtickets; kein Slot-Bezug
+- [ ] **A138** Service-Pass-Regeln getrennt von Eventtickets abnehmen — _TEILWEISE_ (TODO L127; P1 – Bootsschul- und Servicebuchungen)
+  - Memberships.php:17 (Gültigkeit, uses_total je Regel); keine terminpflichtige Slot-Bindung, keine getrennte Abnahme
+- [ ] **A139** POS: Oberfläche, Zahlungsarten, fiskalische Belege, Druck — _TEILWEISE_ (TODO L136; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
+  - UI BoxOffice/Page.php, Bar/Karte Service.php:34-35, Belegnummern, Druck Page.php:82; Fiskal-Adapter nicht angebunden, keine fiskalischen Belege
+- [ ] **A140** iCalendar-Download und Änderungsbenachrichtigungen pro Ereignis — _TEILWEISE_ (TODO L138; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
+  - ICS Calendar/Ics.php:63,122,128, Modules/Calendar.php:23; Mail bei Verschiebung/Absage; keine SEQUENCE in ICS, keine Benachrichtigung bei Orts-/Detailänderung
+- [ ] **A141** SMS: Anbieteradapter, Einwilligung, Kosten, Zustellstatus — _TEILWEISE_ (TODO L139; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
+  - Twilio/HTTP-Adapter (src/Sms/), Einwilligung Sms/Service.php:67, Zustellstatus; Kosten nur als Hinweis (Modules/Sms.php:345), keine Segment-/Kostenerfassung
+- [ ] **A142** Vollständige E2E-Abnahmesuite inkl. Offlinekonflikten, Slots, realem POS — _TEILWEISE_ (TODO L142; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
+  - Einzeltests vorhanden (tests/integration/modules, tests/load); keine Slot-Kollisionstests, kein realer POS, Mock-WP statt echter Installation
+- [ ] **A143** Rollen inkl. Partner/Leistungserbringer definieren — _TEILWEISE_ (TODO L147; P0 – Rollen, Eventscoping und Zugriffsschutz)
+  - Installer.php:849-856 alle Rollen bis auf Leistungserbringer; wpcap_partner ist Veranstalter, keine Rolle für Servicepartner
+- [ ] **A144** Zuweisungen nach Event, Termin, Einlassbereich, Partnerleistung — _TEILWEISE_ (TODO L148; P0 – Rollen, Eventscoping und Zugriffsschutz)
+  - Nur Event-Ebene (Access.php:19 wpcap_event_staff) plus Bereichs-Staff; keine Termin- oder Partnerleistungs-Zuweisung
+- [ ] **A145** Serverseitige Objektberechtigung in allen Kanälen — _TEILWEISE_ (TODO L149; P0 – Rollen, Eventscoping und Zugriffsschutz)
+  - Breit umgesetzt (Access.php:8, can_access_event/Scope in 37 Dateien, Controller.php:726); nur Eventgranularität, keine vollständige Abdeckungsprüfung
+- [ ] **A146** Datenfelder je Rolle minimieren, Support maskiert — _TEILWEISE_ (TODO L151; P0 – Rollen, Eventscoping und Zugriffsschutz)
+  - AttendeeList.php:18-19 (basic/full), Reports/Data.php:26; Support (wpcap_manage_orders) sieht volle PII, keine Maskierung
+- [ ] **A147** Erstattungen nach Capability, Scope, Schwelle, Zweitfreigabe absichern — _TEILWEISE_ (TODO L152; P0 – Rollen, Eventscoping und Zugriffsschutz)
+  - Refunds.php:66-69,459; OrdersPage.php:36; Sammel-Autorefund bei Absage (OccurrenceCancellation.php:113) ohne Gesamtschwelle/Sammelfreigabe
+- [ ] **A148** Audit-Log für Rollen, Exporte, PII, Refunds, Übertragungen, Korrekturen — _TEILWEISE_ (TODO L153; P0 – Rollen, Eventscoping und Zugriffsschutz)
+  - Viele Events (report_exported, refund_*, ticket_transferred, checkin_undone, staff_assigned); WP-Rollenänderungen und PII-Ansichten nicht protokolliert
+- [ ] **A149** Gemeinsame Konten ausschließen; Scannerzugänge kurzlebig/eventbezogen — _TEILWEISE_ (TODO L154; P0 – Rollen, Eventscoping und Zugriffsschutz)
+  - Geräte kurzlebig, eventgebunden, widerrufbar (Mobile/Devices.php:23-24,130,167); kein technischer Ausschluss gemeinsamer Konten
+- [ ] **A150** MFA für Admin-/Finanzrollen; befristeten Supportzugriff protokollieren — _TEILWEISE_ (TODO L155; P0 – Rollen, Eventscoping und Zugriffsschutz)
+  - 2FA nur optional für Erstattungen (Refunds.php:463, Settings.php:63); kein MFA-Zwang je Rolle, kein befristeter Supportzugriff
+- [ ] **A151** Reale CI-Matrix WordPress/WooCommerce/MySQL — _OFFEN_ (TODO L162; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+  - .github/workflows/ci.yml: nur PHP 8.2/8.4, MariaDB 11.4, Mock-WP (tests/integration/wp); keine WP/WC/MySQL-Versionen
+- [ ] **A152** Kompatibilitäts-/Test-Baseline pro Release dokumentieren — _TEILWEISE_ (TODO L164; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+  - Header readme.txt:4-9 (Tested up to 7.1, WC 11.3), nicht durch echte Tests belegt; kein Baseline-Dokument je Release
+- [ ] **A153** Echte WordPress-/WooCommerce-Versionsmatrix in CI — _OFFEN_ (TODO L165; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+  - ci.yml:11 Matrix nur php: ['8.2','8.4']
+- [ ] **A154** Zahlungsmethoden pro Land/PSP/Transaktionstyp, Live-Akzeptanz — _TEILWEISE_ (TODO L167; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+  - Nur Mollie fragt Methoden je Land ab (MollieGateway.php:151-158); keine Matrix je Transaktionstyp; Live-Abnahme braucht Händlerkonten
+- [ ] **A155** Datenschutzfristen, Admin-A11y, Screenreader-Abnahme als Release-Gates — _TEILWEISE_ (TODO L169; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+  - Fristen vorhanden (Privacy/Retention.php, Settings.php:64); A11y-Tests (tests/a11y) nicht in ci.yml/release.yml; keine manuelle Screenreader-Abnahme
+- [ ] **A156** Events/Termine vollständig bearbeiten, verschieben, versioniert ändern — _TEILWEISE_ (TODO L198; Kernprodukt und Admin-Bedienung)
+  - Bearbeiten/Verschieben da (src/Admin/EventsPage.php:124,151 inkl. rescheduled-Hook); Event nur Name/Beschreibung/Status, keine Versionierung/Revisionshistorie außer Audit-Log
+- [ ] **A157** Admin-Oberflächen für REST-Module ergänzen — _TEILWEISE_ (TODO L199; Kernprodukt und Admin-Bedienung)
+  - Serien (src/Series/AdminPage.php) und Einlassregeln/Areas (src/Admission/RulesPage.php:60) vorhanden; Service-Zeitfenster und Entwickler-API-Schlüssel nur REST (src/Rest/Controller.php:117-198)
+- [ ] **A158** Event-Warteliste vervollständigen — _TEILWEISE_ (TODO L200; Kernprodukt und Admin-Bedienung)
+  - Auto-Angebot mit Hold, Annahme/Ablehnung da (src/Waitlists.php:198,262,429,498); keine Selbst-Abmeldung durch Käufer, kein Test paralleler Annahmen in tests/integration/modules/p3_waitlist.php
+- [ ] **A159** Automatische Preisregeln Frühbucher/Last-Minute/Nachfrage fertigstellen — _TEILWEISE_ (TODO L201; Kernprodukt und Admin-Bedienung)
+  - Regeln nur für Serientermine (src/Series/Pricing.php:257,311), Snapshot src/Orders.php:213-217; keine Stapelbarkeitsregeln (nur eine Regel gewinnt), nicht für Einzelevents
+- [ ] **A160** Veranstalterberichte erweitern, rollenbeschränkte CSV-Exporte — _TEILWEISE_ (TODO L202; Kernprodukt und Admin-Bedienung)
+  - Zeitraum, Erstattungen, Bestand, CSV mit Cap-Scope da (src/Reports/Data.php:73,154,335; Page.php:14); fehlen Vergleichsfilter, Kampagnen- und Teilnehmerdaten
+- [ ] **A161** Entwickler-API-Schlüssel administrierbar machen — _TEILWEISE_ (TODO L203; Kernprodukt und Admin-Bedienung)
+  - Erstellen/einmalig anzeigen/Widerruf per REST (src/DeveloperKeys.php:8,41); keine Admin-UI, Ablauf nur bei Anlage, Ratenlimit fest 600/min (:35), nur 2 Scopes
+- [ ] **A162** Multisite-Netzwerkverwaltung, netzwerkweite Berichte, Cross-Site-Tests — _TEILWEISE_ (TODO L204; Kernprodukt und Admin-Bedienung)
+  - Netzwerkaktivierung/Site-Anlage/Löschung da (src/Plugin.php:30-138, uninstall.php:53); keine Netzwerk-Admin-Seite, keine Netzwerkberichte, keine Cross-Site-Tests
+- [ ] **A163** Job-Queue-Handler und Admin-Ansicht für Rückstände/Dead-Letter — _TEILWEISE_ (TODO L208; Hintergrunddienste, Übersetzungen und Integrationen)
+  - Queue mit Retry/Dead-Letter (src/Jobs.php:23-57), Handler nur Wallet/Voucher; keine Admin-Ansicht und kein kontrolliertes Wiederholen
+- [ ] **A164** Betriebsüberwachung für Cron, Mail, SMS, Webhook, Jobs — _OFFEN_ (TODO L209; Hintergrunddienste, Übersetzungen und Integrationen)
+  - Kein Monitoring, keine Site-Health-Tests oder Rückstandswarnungen im Code gefunden
+- [ ] **A165** Käufer-Sprachauswahl, Übersetzungen, Übersetzungsverwaltung, String-Prüfung — _TEILWEISE_ (TODO L210; Hintergrunddienste, Übersetzungen und Integrationen)
+  - Mails in Bestell-Locale (src/Orders.php:239, src/Mail/Admin.php:30), 5 Sprachdateien; keine Käufer-Sprachauswahl, Event-Übersetzung nur REST, keine automatische String-Vollständigkeitsprüfung
+- [ ] **A166** Konkrete CRM-/Kalender-/Buchhaltungsadapter mit Mapping und Sync — _OFFEN_ (TODO L211; Hintergrunddienste, Übersetzungen und Integrationen)
+  - Nur Vertrag/Registry (src/Integrations/ConnectorInterface.php, ConnectorRegistry.php), keine konkreten Adapter, kein Mapping-UI
+- [ ] **A167** Bekannte Admin-A11y-Befunde beheben und erneut prüfen — _TEILWEISE_ (TODO L216; Abnahme, Barrierefreiheit und Releasebetrieb)
+  - Letzter axe-Lauf ohne Befunde (tests/a11y/report/axe-2026-11-11T21-20-54-679Z.json); manuelle Zoom-/Screenreader-Prüfung fehlt, Tastaturtest nur öffentlicher Checkout (tests/a11y/keyboard.js)
+- [ ] **A168** Veralteten Fehlerbericht in docs/TESTING.md aktualisieren — _OFFEN_ (TODO L217; Abnahme, Barrierefreiheit und Releasebetrieb)
+  - docs/TESTING.md:85-93 nennt weiterhin Deadlock und continue-on-error, obwohl .github/workflows/ci.yml:56-60 verpflichtend läuft
+- [ ] **A169** Upgrade-/Restore-/Multisite-Notfallübungen durchführen und abgleichen — _OFFEN_ (TODO L218; Abnahme, Barrierefreiheit und Releasebetrieb)
+  - Kein Nachweis einer Übung; nur Anforderung in docs/OPERATIONS.md:51
+- [ ] **A170** Plugin-Metadaten und Doku vor Release mit Code abgleichen — _OFFEN_ (TODO L221; Abnahme, Barrierefreiheit und Releasebetrieb)
+  - Widerspruch besteht weiter: README.md:15 sagt Voucher nicht im Checkout orchestriert, src/Integrations/Vouchers/Checkout.php existiert; kein Abgleichsprozess/Check
+- [ ] **A171** Regeln für gemischte WooCommerce-Warenkörbe je Verkäufer — _TEILWEISE_ (TODO L225; Multi-Seller-Geschäftsabläufe)
+  - Gemischte Verkäufer werden abgelehnt (src/Partners/SalesModel.php:226-236, Test zz_sales_models.php:131); keine Regeln für Rabatte/Gebühren/Versand/Rundung je Verkäufer
+- [ ] **A172** Refunds pro Verkäufer/Belegposition zuordnen und abstimmen — _TEILWEISE_ (TODO L226; Multi-Seller-Geschäftsabläufe)
+  - Refund-Zuordnung je Zeile in Abrechnung (src/Partners/Settlements.php:9-17); kein Abgleich mit Zahlungs-/Fiskalanbieterstatus, gebrauchte Tickets/Ausfälle nicht je Verkäufer
+- [ ] **A173** PHPCS mit WPCS, statische Analyse, Composer-Audit in CI — _OFFEN_ (TODO L240; CI, statische Qualität und Artefakt)
+  - .github/workflows/ci.yml:21-28 nur composer validate, php -l, node --check
+- [ ] **A174** JS-Lint auf alle eigenen JS-Dateien, JS-Logik testen — _OFFEN_ (TODO L241; CI, statische Qualität und Artefakt)
+  - ci.yml:28 prüft nur checkout.js, scanner.js, events/editor.js; keine JS-Unit-Tests
+- [ ] **A175** PHP-Integrationssuite über alle unterstützten PHP-Versionen — _OFFEN_ (TODO L242; CI, statische Qualität und Artefakt)
+  - Integration nur PHP 8.4 (ci.yml:49), Syntaxmatrix 8.2/8.4 (ci.yml:12)
+- [ ] **A176** Datenbankmatrix MySQL/MariaDB Minimum/aktuell, Freigaben dokumentieren — _OFFEN_ (TODO L243; CI, statische Qualität und Artefakt)
+  - Nur mariadb:11.4 (ci.yml:34), kein MySQL, keine Freigabedoku
+- [ ] **A177** WooCommerce-Tests mit echter Installation, Versionen, HPOS an/aus — _OFFEN_ (TODO L244; CI, statische Qualität und Artefakt)
+  - Tests nutzen nachgebaute WC-API (tests/integration/bootstrap.php, README.md:71), keine echte WC-Matrix
+- [ ] **A178** Release-ZIP in CI entpacken, in frischem WP installieren — _TEILWEISE_ (TODO L245; CI, statische Qualität und Artefakt)
+  - build/release.sh:213-215 prüft nur Pflichtdateien; kein Entpacken/Installieren/Aktivieren, keine Prüfung auf fehlende Tests/Dev-Dateien
+- [ ] **A179** Reproduzierbarkeit des ZIP-Builds technisch prüfen — _OFFEN_ (TODO L246; CI, statische Qualität und Artefakt)
+  - Kein Prüfsummenvergleich/Doppelbuild; build/release.sh:219 nur zip -X ohne feste Zeitstempel
+- [ ] **A180** Versions-/Changelog-/Header-/Composer-/Stable-tag-Konsistenz automatisch prüfen — _TEILWEISE_ (TODO L247; CI, statische Qualität und Artefakt)
+  - release.yml:146-151 prüft Header und WPCAP_VERSION gegen Tag; Stable tag, Changelog-Eintrag, Composer nicht geprüft
+- [ ] **A181** Upgrade-Integrationstests je Vorgängerversion, parallel, nach Abbruch — _TEILWEISE_ (TODO L251; Datenbank, Zustandsautomaten und Fehlerpfade)
+  - Upgrade-Lock/parallel getestet (tests/integration/modules/zz_phase1_arch.php:19-48), Einzelmigration boxoffice_migration.php; keine Tests je Vorgängerversion/Abbruch
+- [ ] **A182** Tabellenpräfixe, Isolation, keine direkten WC-Tabellenabfragen automatisiert prüfen — _TEILWEISE_ (TODO L252; Datenbank, Zustandsautomaten und Fehlerpfade)
+  - Code nutzt WC-API statt WC-Tabellen (src/Integrations/WooCommerce/OrderAdapter.php); keine automatisierte Prüfung für HPOS/Multisite
+- [ ] **A183** Fault-Injection für Deadlock, Lock-Timeout, Verbindungsabbruch, Commit-Fehler — _OFFEN_ (TODO L253; Datenbank, Zustandsautomaten und Fehlerpfade)
+  - Keine Fault-Injection-Tests in tests/ gefunden
+- [ ] **A184** Zustandsautomaten dokumentieren, doppelte/out-of-order Events testen — _TEILWEISE_ (TODO L254; Datenbank, Zustandsautomaten und Fehlerpfade)
+  - Doppelte Webhooks getestet (tests/integration/payments.php:167,271; zz_integration.php:30); keine Zustandsautomaten-Doku außer Warteliste, kein systematischer out-of-order-Test
+- [ ] **A185** REST-Endpunkte negativ testen — _TEILWEISE_ (TODO L255; Datenbank, Zustandsautomaten und Fehlerpfade)
+  - Partner-API: abgelaufener/widerrufener Schlüssel getestet (tests/integration/modules/partners.php:259,263); nicht systematisch für alle REST-Routen/Rollen/Scopes
+- [ ] **A186** Rate-Limits hinter Proxy/mehreren Workern validieren und dokumentieren — _TEILWEISE_ (TODO L256; Datenbank, Zustandsautomaten und Fehlerpfade)
+  - Doku: Transients kein verteilter Schutz (docs/SECURITY.md:7); keine Validierung, keine konkrete Hosting-Empfehlung, keine Proxy-Header-Behandlung (src/RateLimit.php:21)
+- [ ] **A187** Lastprofile und REST-Lasttests als geplante CI-Prüfung mit Referenzwerten — _TEILWEISE_ (TODO L260; Last, Hintergrundjobs und Wiederanlauf)
+  - CI-Profil bei jedem Push (ci.yml:56-60), Werte in docs/TESTING.md:57; Heavy-/REST-Profile nicht geplant in CI
+- [ ] **A188** Worker-Fehler-/Neustartszenarien idempotent prüfen — _TEILWEISE_ (TODO L261; Last, Hintergrundjobs und Wiederanlauf)
+  - Abgestürzte Claims/Budget getestet (zz_phase1_arch.php:93-115, zz_integration.php:43); Backoff, Dead-Letter, Doppelausführung der Jobs ungetestet
+- [ ] **A189** Cron-Ausfall, Queue-Rückstand, Mailfehler im Admin sichtbar machen — _OFFEN_ (TODO L262; Last, Hintergrundjobs und Wiederanlauf)
+  - Keine Admin-Anzeige für Rückstand, letzten Lauf, nächste Aktion gefunden
+- [ ] **A190** Restore-/Upgrade-Übung mit Ticket-/Bestell-/Jobdaten durchführen — _OFFEN_ (TODO L263; Last, Hintergrundjobs und Wiederanlauf)
+  - Kein Nachweis einer Übung oder eines Restore-Tests in tests/
+- [ ] **A191** Provider-Secrets aus Klartext in wpcap_settings entfernen, Vault — _TEILWEISE_ (TODO L267; Sicherheit, Datenschutz und UI-Abnahme)
+  - Konstanten/Env-Vorrang (src/Settings.php:118-124); Fallback weiterhin Klartext in Option, kein Vault, keine Migration/Rotation
+- [ ] **A192** Automatisiert nachweisen, dass Provider-Secrets nirgends im Klartext auftauchen — _OFFEN_ (TODO L268; Sicherheit, Datenschutz und UI-Abnahme)
+  - Keine Tests für Stripe/PayPal-Secrets in Optionen/REST/HTML/Logs; Secrets liegen im Klartext
+- [ ] **A193** Automatisierte Permission-Matrix für alle Aktionen und Routen — _OFFEN_ (TODO L269; Sicherheit, Datenschutz und UI-Abnahme)
+  - Keine Matrix; nur Einzelprüfung Partner-Routen (tests/integration/modules/partners.php:299-304)
+- [ ] **A194** Secret-Redaction und Eingabevalidierung unter Fehlerbedingungen testen — _TEILWEISE_ (TODO L270; Sicherheit, Datenschutz und UI-Abnahme)
+  - Einzeltests Audit ohne Secrets (partners.php:254, p3_partner_sales.php:329); keine Tests für Logs/REST-Fehler/CI-Artefakte unter Fehlern
+- [ ] **A195** Dependency-/Secret-Scanning und Paketprüfung als CI-Gates — _OFFEN_ (TODO L271; Sicherheit, Datenschutz und UI-Abnahme)
+  - Keine entsprechenden Schritte in .github/workflows/ci.yml
+- [ ] **A196** Datenschutzexport/Löschung/Retention mit großen Daten, Multisite testen — _TEILWEISE_ (TODO L272; Sicherheit, Datenschutz und UI-Abnahme)
+  - Export/Löschung/Retention getestet (tests/integration/modules/zz_phase1_privacy.php:61-216); keine Großdaten-, Multisite- oder WooCommerce-Daten-Tests
+- [ ] **A197** Browser-E2E-Matrix Chrome/Firefox/Safari/iOS/Android — _OFFEN_ (TODO L273; Sicherheit, Datenschutz und UI-Abnahme)
+  - Nur axe/Playwright-Chromium (tests/a11y/run.js), keine E2E-Matrix
+- [ ] **A198** A11y-Prüfungen in Releaseprozess integrieren, manuelle Abnahme — _TEILWEISE_ (TODO L274; Sicherheit, Datenschutz und UI-Abnahme)
+  - axe-Skripte vorhanden (tests/a11y/run.js), Befunde behoben; nicht in CI/Release, manuelle Abnahme fehlt
+- [ ] **A199** Zeitzonen-/DST-Wechsel deterministisch testen — _TEILWEISE_ (TODO L278; Technische Randfälle, die noch separat abgesichert werden müssen)
+  - Serien/Preisregeln DST getestet (tests/integration/modules/series.php:25-33, series_pricing.php:50,73), Einlass-Mitternacht admission.php:88; Reservierungsablauf, Erinnerungen, Service-Slots fehlen
+- [ ] **A200** Geldberechnungen mit Eigenschafts-/Randfalltests absichern — _TEILWEISE_ (TODO L279; Technische Randfälle, die noch separat abgesichert werden müssen)
+  - Einzelne Rundungs-/Rabattverteilungen (src/Orders.php:203-211); keine Property-Tests, keine Dreidezimalwährungen, CSV/Fiskal fest /100 (src/Reports/Data.php:336)
+- [ ] **A201** Invalidierungsregeln für Berichts-Caches festlegen und testen — _OFFEN_ (TODO L280; Technische Randfälle, die noch separat abgesichert werden müssen)
+  - Nur 5-Min-Transient ohne Invalidierung (src/Rest/Controller.php:624-631), keine Tests/Abfragepläne
+- [ ] **A202** Ausgehende HTTP-Aufrufe absichern und testen — _TEILWEISE_ (TODO L281; Technische Randfälle, die noch separat abgesichert werden müssen)
+  - Webhooks: HTTPS/private Hosts geprüft (tests/integration/modules/webhooks.php:30-31), redirection 0; Fiskal-Client ohne SSRF-Schutz (src/Fiscalization/Providers/HttpClient.php:29), DNS/Redaction ungetestet
+- [ ] **A203** Bridge-/REST-Verträge mit Kompatibilitätstests absichern — _TEILWEISE_ (TODO L282; Technische Randfälle, die noch separat abgesichert werden müssen)
+  - Nur Affiliate-Vertragsversion getestet (tests/integration/affiliate.php:27-29); unbekannte Felder, Timeouts, REST-Verträge fehlen
+- [ ] **A204** Diagnose-/Reconciliation-Prüfung für inkonsistente Daten — _TEILWEISE_ (TODO L283; Technische Randfälle, die noch separat abgesichert werden müssen)
+  - Nur Kapazitätszähler-Reconcile (src/CapacityCounters.php:32,71); keine Prüfung auf Tickets ohne Bestellung, doppelte Refunds, Job-Claims, Vorschau/Audit
+
+## Phase 9 – Entscheidungen und externe Abhängigkeiten (brauchen dich, Steuerberatung, Recht oder offene PRs)
+
+- [ ] **A205** PSP-Sandbox- und Wiederherstellungstests verspäteter Zahlungsereignisse — _ENTSCHEIDUNG_ (TODO L33; P0 – Reservierung, Zahlung und Ausgabe)
+  - Benötigt Stripe-/PayPal-Sandbox-Konten; keine Tests gegen echte Anbieter-Sandbox im Repo
+- [ ] **A206** Steuerberechnung, geprüfte Gutschriften, Refund-Sonderfälle je Land — _ENTSCHEIDUNG_ (TODO L37; P0 – Reservierung, Zahlung und Ausgabe)
+  - Technik vorhanden (Orders.php:210 Steuer, Invoices.php:113 Gutschrift); rechtliche/steuerliche Prüfung je Land durch Berater erforderlich
+- [ ] **A207** 256-Bit-Codes, Hash, signiertes QR-Payload entscheiden — _ENTSCHEIDUNG_ (TODO L42; P0 – QR-Ticket und Online-Check-in)
+  - Code erledigt (Orders.php:1384 random_bytes(32), :1390 token_hash); Entscheidung/Dokumentation zum signierten QR-Payload fehlt
+- [ ] **A208** Unabhängiger Sicherheitsreview/Penetrationstest — _ENTSCHEIDUNG_ (TODO L58; P0 – Datenschutz und Releasefähigkeit)
+  - Externer Dienstleister nötig; nicht im Code abbildbar
+- [ ] **A209** Wallet: Apple-/Google-Pass, Betreiberkonten, Zertifikate, Live-Abnahme — _ENTSCHEIDUNG_ (TODO L87; P2 – Erweiterte Eventfunktionen)
+  - Erzeugung implementiert (WalletPasses/AppleProvider.php:139, GoogleProvider.php:59); Konten, Zertifikate, Live-Abnahme extern
+- [ ] **A210** Rechnungsnummern, Drafts, Steuerberechnung, Freigabe je Land — _ENTSCHEIDUNG_ (TODO L88; P2 – Erweiterte Eventfunktionen)
+  - Rechnung/Steuer vorhanden (Invoices.php:51/70, Orders.php:210); rechtliche/steuerliche Freigabe je Land durch Berater nötig
+- [ ] **A211** Offline-Queue: Gerätezuweisung, lokale Prüfung, globale Einmaligkeit — _ENTSCHEIDUNG_ (TODO L90; P2 – Erweiterte Eventfunktionen)
+  - Zuweisung OfflineScanner/Assignments.php:37, lokale Regeln OfflineScanner/Rules.php, Konflikte Sync.php:7; globale Einmaligkeit offline prinzipbedingt unmöglich, Betreiber muss Restrisiko freigeben
+- [ ] **A212** Startländer festlegen, Rechts-/Steuerprüfung beauftragen — _ENTSCHEIDUNG_ (TODO L94; P2 – Entscheidungen vor Produktivstart)
+  - Betreiberentscheidung und externe Rechts-/Steuerberatung
+- [ ] **A213** MVP: Rechnungs-PDF oder Buchhaltungsexport — _ENTSCHEIDUNG_ (TODO L96; P2 – Entscheidungen vor Produktivstart)
+  - Beides technisch vorhanden (Printing/InvoicePdf.php:83, Invoices.php:365); MVP-Entscheidung liegt beim Betreiber
+- [ ] **A214** Seat Map im ersten Release enthalten? — _ENTSCHEIDUNG_ (TODO L97; P2 – Entscheidungen vor Produktivstart)
+  - Produktentscheidung des Betreibers; Sitzplan technisch umgesetzt (src/Seating)
+- [ ] **A215** Regeln Refund nach Check-in, Verschiebung, Wiederzulassung, Statusfolgen — _ENTSCHEIDUNG_ (TODO L98; P2 – Entscheidungen vor Produktivstart)
+  - Übertragung Orders.php:1145, Absage OccurrenceCancellation.php:85; Refund checked_in erlaubt (Refunds.php:260); Regelwerk muss Betreiber festlegen
+- [ ] **A216** Weitere Zahlungsanbieter nach Land/Währung priorisieren — _ENTSCHEIDUNG_ (TODO L140; P2 – Einlass-, Vor-Ort- und Veranstalter-Erweiterungen)
+  - Geschäftliche Priorisierung nötig; vorhanden: Stripe, PayPal, Mollie, Überweisung, manuell (src/Payments, src/Mollie)
+- [ ] **A217** Länderbezogene Steuer-/Rechtsprofile prüfen und aktivieren — _ENTSCHEIDUNG_ (TODO L160; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+  - Technik vorhanden (Rest/Controller.php:207 tax-profiles); fachliche Prüfung durch Steuerberatung nötig
+- [ ] **A218** EU-Steuerfälle, OSS, Leistungsort mit Steuerberatung spezifizieren — _ENTSCHEIDUNG_ (TODO L166; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+  - Benötigt fachliche Steuerberatung je Land
+- [ ] **A219** Verbraucherinfos und Storno-/Erstattungsbedingungen rechtlich prüfen — _ENTSCHEIDUNG_ (TODO L168; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+  - Rechtliche Prüfung je Land durch Anwalt nötig
+- [ ] **A220** PR #14 mit main abgleichen und integrieren — _ENTSCHEIDUNG_ (TODO L176; Fiskalisierung und Multi-Seller — nicht in `main`)
+  - PR #14 offen (Draft), codex/multi-seller-fiscalization-core 168 Commits nicht in origin/main
+- [ ] **A221** Multi-Seller-Profile, Korbaufteilung, fiskaly/efsta/fiskaltrust in main — _ENTSCHEIDUNG_ (TODO L177; Fiskalisierung und Multi-Seller — nicht in `main`)
+  - In main nur Adapter src/Fiscalization/Providers (efsta, fiskaltrust); keine Seller-Profile, Korbaufteilung, fiskaly; hängt an PR #14
+- [ ] **A222** AT/DE/HU-Konfiguration mit Anbieter-Sandboxen testen, freigeben — _ENTSCHEIDUNG_ (TODO L178; Fiskalisierung und Multi-Seller — nicht in `main`)
+  - Braucht PR #14, Sandbox-Konten und rechtlich/fachliche Freigabe
+- [ ] **A223** Refunds/Teilrefunds/Absagen providerseitig fiskalisieren — _ENTSCHEIDUNG_ (TODO L179; Fiskalisierung und Multi-Seller — nicht in `main`)
+  - Nur im unmerged PR #14; keine Fiskal-Refundpfade in main
+- [ ] **A224** Gesetzliche Länderanforderungen Signatur/TSE/Exporte fachlich prüfen — _ENTSCHEIDUNG_ (TODO L180; Fiskalisierung und Multi-Seller — nicht in `main`)
+  - Rechtliche/fachliche Prüfung nötig; Code nur in PR #14
+- [ ] **A225** WP License Captain Aktivierung integrieren (PR #20) — _ENTSCHEIDUNG_ (TODO L186; Kommerzielle Lizenzierung und Updates — offene PRs)
+  - PR #20 offen, codex/wplc-client 5 Commits nicht in origin/main
+- [ ] **A226** Premium-Updates mit Prüfsummenprüfung (PR #21) — _ENTSCHEIDUNG_ (TODO L187; Kommerzielle Lizenzierung und Updates — offene PRs)
+  - PR #21 offen, codex/wplc-updater 9 Commits nicht in origin/main
+- [ ] **A227** Fail-closed Entitlement-Prüfung (PR #22) — _ENTSCHEIDUNG_ (TODO L188; Kommerzielle Lizenzierung und Updates — offene PRs)
+  - PR #22 offen, codex/wplc-entitlement-helper 6 Commits nicht in origin/main
+- [ ] **A228** Signierter Offline-Entitlement-Cache (PR #23) — _ENTSCHEIDUNG_ (TODO L189; Kommerzielle Lizenzierung und Updates — offene PRs)
+  - PR #23 offen, codex/wplc-offline-cache 10 Commits nicht in origin/main
+- [ ] **A229** Lizenz-PRs zusammenführen, E2E testen, dann ausweisen — _ENTSCHEIDUNG_ (TODO L190; Kommerzielle Lizenzierung und Updates — offene PRs)
+  - Alle PRs #20–23 offen; kein Lizenz-Code in src/ von main
+- [ ] **A230** Native Scanner-Apps entwickeln oder als separates Produkt ausweisen — _ENTSCHEIDUNG_ (TODO L212; Hintergrunddienste, Übersetzungen und Integrationen)
+  - Produktentscheidung nötig; README.md:73 führt Apps weiter als offen, nicht als separates Produkt
+- [ ] **A231** Prozess für Sicherheitsmeldungen, Incidents, Updates, Kompatibilität festlegen — _ENTSCHEIDUNG_ (TODO L219; Abnahme, Barrierefreiheit und Releasebetrieb)
+  - Organisatorische Festlegung durch Betreiber; docs/SECURITY.md nennt formellen Incident-Prozess als ausstehend
+- [ ] **A232** Release- und Supportmodell für stabile Versionen festlegen — _ENTSCHEIDUNG_ (TODO L220; Abnahme, Barrierefreiheit und Releasebetrieb)
+  - Betreiberentscheidung (Matrix, Supportkanal, Patchfristen, EOL); nichts im Repo festgelegt
+- [ ] **A233** Auszahlungsmodell an mehrere Verkäufer entscheiden und dokumentieren — _ENTSCHEIDUNG_ (TODO L227; Multi-Seller-Geschäftsabläufe)
+  - Geschäfts-/Rechtsentscheidung (Zahlungsfluss, Haftung, Rechnungsaussteller) durch Betreiber/Anwalt nötig
+- [ ] **A234** Lizenz-PRs #20–23 einzeln und gemeinsam testen — _ENTSCHEIDUNG_ (TODO L231; Lizenzserver und Premium-Updates)
+  - Hängt an ungemergten PRs (Branches codex/wplc-*); kein Lizenzcode in src/
+- [ ] **A235** Feature-Gates mit signierten Entitlements verbinden — _ENTSCHEIDUNG_ (TODO L232; Lizenzserver und Premium-Updates)
+  - Hängt an ungemergten PRs #22/#23; keine Entitlement-Logik in src/
+- [ ] **A236** Premium-Updates nur von HTTPS-Hosts, SHA-256 prüfen, Grant testen — _ENTSCHEIDUNG_ (TODO L233; Lizenzserver und Premium-Updates)
+  - Hängt an ungemergtem PR #21 (codex/wplc-updater); kein Updater-Code in src/
+- [ ] **A237** Unabhängigen Sicherheitsreview abschließen — _ENTSCHEIDUNG_ (TODO L275; Sicherheit, Datenschutz und UI-Abnahme)
+  - Externe Prüfung erforderlich (docs/SECURITY.md: unabhängige Prüfung steht aus)
+- [ ] **A238** Gästelisten/Freikarten integrieren und abnehmen — _ENTSCHEIDUNG_ (TODO L325; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
+  - src/GuestLists/* im Branch vorhanden; Branch nicht in main gemergt (git merge-base), Merge/CI/Abnahme ausstehend
+- [ ] **A239** Kontingente/Sperren, Sitzplatz-Sperren, Käuferlimit integrieren — _ENTSCHEIDUNG_ (TODO L326; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
+  - src/Allocations/* (Holds, SeatHolds, BuyerLimits) im Branch; Merge nach main und Abnahme ausstehend
+- [ ] **A240** Kassen/Schichten/Z-Bericht integrieren, Fiskal-Hooks an PR #14 — _ENTSCHEIDUNG_ (TODO L327; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
+  - src/BoxOffice/* im Branch; Merge ausstehend, Fiskal-Anbindung hängt an ungemergtem PR #14
+- [ ] **A241** Ticketumtausch/Upgrade integrieren und abnehmen — _ENTSCHEIDUNG_ (TODO L328; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
+  - src/Exchange/* im Branch; Merge nach main und Abnahme ausstehend
+- [ ] **A242** Wartelisten-Angebote integrieren, parallele Annahmen real testen — _ENTSCHEIDUNG_ (TODO L329; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
+  - src/Waitlists.php im Branch; Merge und Test auf echter Installation ausstehend
+- [ ] **A243** Festival-/Mehrtagespässe integrieren und real abnehmen — _ENTSCHEIDUNG_ (TODO L330; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
+  - src/Passes/* im Branch; Merge und realer Mehrtages-Einlass-Test ausstehend
+- [ ] **A244** Partner-API-Verkauf fertigstellen und integrieren — _ENTSCHEIDUNG_ (TODO L331; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
+  - src/Partners/SalesApi.php:24-32 (reservieren/bestätigen/Statement) im Branch fertig (293d2ab); Merge nach main ausstehend
+- [ ] **A245** Leistung 20.000+ Tickets fertigstellen, messen, dokumentieren — _ENTSCHEIDUNG_ (TODO L332; Phase 3 – im Branch umgesetzt, noch nicht in `main`)
+  - Im Branch erledigt: docs/TESTING.md:127-162 Referenzwerte, src/CapacityCounters.php; Merge nach main/Abnahme ausstehend
+- [ ] **A246** Wartelisten-Bestellungen ohne Rabattcodes/Gutscheine/Rechnungsdaten — _ENTSCHEIDUNG_ (TODO L339; Offene Nacharbeiten aus Phase 3)
+  - docs/WAITLIST.md:96 dokumentiert Einschränkung; fachliche Entscheidung offen
+- [ ] **A247** Pässe: Verkaufsende, N aus M offline, Restanzahl nach Absage — _ENTSCHEIDUNG_ (TODO L343; Offene Nacharbeiten aus Phase 3)
+  - Fachliche Entscheidung offen
+- [ ] **A248** Kassenerstattungen benötigen offene Schicht – Ablauf festlegen — _ENTSCHEIDUNG_ (TODO L344; Offene Nacharbeiten aus Phase 3)
+  - Nur dokumentiert (docs/OPERATIONS.md:114, PosGateway.php:8); Betriebsentscheidung und Admin-Anzeige offen
+- [ ] **A249** Eigenhändler: Basis der Gutschrift bestätigen — _ENTSCHEIDUNG_ (TODO L348; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - Steuerberatung
+- [ ] **A250** Leistungsort Ausland und Reverse Charge klären — _ENTSCHEIDUNG_ (TODO L349; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - Steuerberatung
+- [ ] **A251** UID-Prüfung formal vs. qualifizierte VIES-Bestätigung — _ENTSCHEIDUNG_ (TODO L350; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - Steuerberatung
+- [ ] **A252** Negative Abrechnungsmonate und Kleinunternehmer festlegen — _ENTSCHEIDUNG_ (TODO L351; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - Steuerberatung
+- [ ] **A253** E-Rechnung XRechnung/ZUGFeRD für B2B-Belege — _ENTSCHEIDUNG_ (TODO L352; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - Umsetzung erst nach Bestätigung des Umfangs durch Steuerberatung
+- [ ] **A254** Freikarten gegen Sponsoring/für Personal steuerlich bewerten — _ENTSCHEIDUNG_ (TODO L355; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - Steuerberatung
+- [ ] **A255** Regionale Abgaben und Nicht-EUR-Währungen abbilden/ausschließen — _ENTSCHEIDUNG_ (TODO L358; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - Fachliche/steuerliche Entscheidung offen
+- [ ] **A256** Affiliate-Provision bei Mehrzweckgutscheinen: Basis — _ENTSCHEIDUNG_ (TODO L359; Steuer und Recht – Fragen an die Steuerberatung (Details in docs/SALES-MODELS.md, docs/VOUCHERS.md, docs/GUEST-LISTS.md))
+  - Entscheidung offen, hängt an PR #19
+- [ ] **A257** Registrierkassen-Warnung bei aktivem Fiskal-Adapter ausblenden — _ENTSCHEIDUNG_ (TODO L385; Architektur und Wartbarkeit (noch offen))
+  - src/BoxOffice/Page.php:259-268 ohne Adapterprüfung; hängt an ungemergtem PR #14
+- [ ] **A258** Leistungszeitpunkt bei Vorverkauf: Gutschrift/Provisionsrechnung ordnen nach Bestelldatum; Anzahlungsabrechnung (§ 13 Abs. 1 Nr. 1a S. 4 UStG / § 19 Abs. 2 Z 1 lit. a UStG AT) korr… — _ENTSCHEIDUNG_ (TODO L454; Steuer und Finanzen (Prüfung 3))
+- [ ] **A259** Umtauschgebühr: Nebenleistung zum Ticket oder eigenständige Leistung zum Regelsatz? Beleg bei Verrechnung mit Erstattung? — _ENTSCHEIDUNG_ (TODO L455; Steuer und Finanzen (Prüfung 3))
+- [ ] **A260** Umtausch mit Steuersatzwechsel oder in anderes Event: Rechnungsberichtigung + neue Rechnung oder Storno und Neuverkauf? — _ENTSCHEIDUNG_ (TODO L456; Steuer und Finanzen (Prüfung 3))
+- [ ] **A261** Partner-API-Verkäufe im Eigenhändler-Modell (Wiederverkäufer kassiert): zweite Kommissionsstufe? Wer belegt die Wiederverkäufer-Vergütung? — _ENTSCHEIDUNG_ (TODO L457; Steuer und Finanzen (Prüfung 3))
+- [ ] **A262** Zielgerichtete Rabatte bei gemischten Steuersätzen: zwingend der rabattierten Leistung zuordnen? — _ENTSCHEIDUNG_ (TODO L458; Steuer und Finanzen (Prüfung 3))
+
+Gesamt: 262 Aufgaben.
+## Bereits erledigt (vor bzw. beim Anlegen der Liste)
+
+- [x] Portal-Umtausch übertragener Tickets gesperrt (Sicherheit P1) — Commit 4c7e7bc
+- [x] Umtausch-Skript für alle Tickets einer Bestellung (Abläufe P1) — Commit 4c7e7bc
+- [x] Späte Zahlung: vorübergehender Sperrfehler wird wiederholt, Admin-Knopf „Zuteilung erneut versuchen“ (Architektur P1) — Commit 4302f70
+- [x] Pass-Widerruf nach Terminabsage mit Mail, „Erstattung offen“ und Erstattbarkeit (Abläufe P1) — Commit 70b5ba6
+- [x] Beim Abgleich als bereits umgesetzt erkannt und in `TODO.md` abgehakt: Sitzplan (L85), Käuferportal Nachsendung/Teilnehmerdaten (L112), Teilnehmerfelder (L116), Mailvorlagen Verschiebung/Erstattung/Übertragung (L117), getrennter Check-out und Korrekturrechte (L133), Gerätezuweisung nach Einlassbereich (L134), Offline-Doppeleinlösungen (L135), Druckvorlagen/Teilnehmerliste (L137), eigene Capabilities und Rollen (L146), Käuferzugriff mit Ablauf/Widerruf (L150)
