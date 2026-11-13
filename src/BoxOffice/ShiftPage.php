@@ -193,6 +193,10 @@ final class ShiftPage {
 		// Count and close.
 		echo '<h3>' . esc_html__( 'Kassenabschluss', 'wp-pass-captain' ) . '</h3>';
 		$count = $view['count'];
+		if ( ! $view['masked'] && (int) $shift->blind_count && 'closed' !== $shift->status ) {
+			// Supervisors see the expected amounts although the register counts blind: say so.
+			echo '<p class="description">' . esc_html__( 'Diese Kasse zählt blind. Du siehst den Soll-Bestand nur, weil du Kassenverwaltung oder Finanzrecht hast – Kassierkräfte ohne diese Rechte sehen ihn erst im Z-Bericht.', 'wp-pass-captain' ) . '</p>';
+		}
 		if ( $view['masked'] ) {
 			echo '<p class="description">' . esc_html__( 'Blindzählung: Soll-Bestand und Differenz stehen erst nach dem Schließen im Z-Bericht. Eine Nachzählung kann nur die Kassenverwaltung durchführen.', 'wp-pass-captain' ) . '</p>';
 			if ( $count && 'counting' === $shift->status ) {
@@ -414,7 +418,7 @@ final class ShiftPage {
 		\PassCaptain\Admin\Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'wp-pass-captain' ) ) + \PassCaptain\Admin\Queries::event_options( \PassCaptain\Admin\Queries::event_ids_for( array( Service::CAP ) ) ), $edit ? (int) $edit->event_id : 0, 'wpcap-reg-event' );
 		echo '</td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-reg-currency">' . esc_html__( 'Währung', 'wp-pass-captain' ) . '</label></th><td><input type="text" id="wpcap-reg-currency" name="currency" size="4" maxlength="3" value="' . esc_attr( $edit ? $edit->currency : 'EUR' ) . '"></td></tr>';
-		echo '<tr><th scope="row">' . esc_html__( 'Blindzählung', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="blind_count" value="1"' . ( ! $edit || (int) $edit->blind_count ? ' checked' : '' ) . '> ' . esc_html__( 'Soll-Bestand erst nach der Zählung anzeigen', 'wp-pass-captain' ) . '</label></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'Blindzählung', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="blind_count" value="1"' . ( ! $edit || (int) $edit->blind_count ? ' checked' : '' ) . '> ' . esc_html__( 'Soll-Bestand erst nach der Zählung anzeigen', 'wp-pass-captain' ) . '</label><p class="description">' . esc_html__( 'Gilt für Kassierkräfte. Personen mit Kassenverwaltung oder Finanzrecht sehen den Soll-Bestand immer (sie können auch nachzählen); für eine echte Blindzählung sollte daher eine Person ohne diese Rechte zählen.', 'wp-pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th><td>';
 		Forms::select( 'status', array( 'active' => __( 'Aktiv', 'wp-pass-captain' ), 'inactive' => __( 'Deaktiviert', 'wp-pass-captain' ) ), $edit ? $edit->status : 'active' );
 		echo '</td></tr></tbody></table><p><button class="button button-primary">' . esc_html__( 'Speichern', 'wp-pass-captain' ) . '</button></p></form>';

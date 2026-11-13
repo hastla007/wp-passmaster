@@ -324,6 +324,8 @@ $list_screen = $render( array( 'page' => 'wpcap-boxoffice', 'tab' => 'shifts' ) 
 $reg_screen = $render( array( 'page' => 'wpcap-boxoffice', 'tab' => 'registers' ) );
 $_GET = array();
 foreach ( array( 'open' => $open_screen, 'sale' => $sale_screen, 'shift' => $shift_screen, 'list' => $list_screen, 'reg' => $reg_screen ) as $k => $v ) { if ( strlen( $v ) < 400 || false !== strpos( $v, 'EXCEPTION' ) ) { echo "DEBUG $k: " . substr( $v, 0, 600 ) . "\n"; } }
+check( 'A071: the register form explains that supervisors always see the target amount', false !== strpos( $reg_screen, 'Kassenverwaltung oder Finanzrecht sehen den Soll-Bestand immer' ) );
+check( 'A071: a cashier without supervisor rights does not get the supervisor note', false === strpos( $shift_screen, 'Du siehst den Soll-Bestand nur, weil' ) );
 check( 'open, sale, shift, shift list and register screens render', false !== strpos( $open_screen, 'Schicht öffnen' ) && false !== strpos( $open_screen, 'denoms_open[5000]' ) && false !== strpos( $sale_screen, 'Verkauf buchen' ) && false !== strpos( $sale_screen, 'Race A' ) && false !== strpos( $shift_screen, 'Zählung abgeben' ) && false !== strpos( $shift_screen, 'Einlage' ) && false !== strpos( $list_screen, 'Z-Berichte' ) && false !== strpos( $list_screen, 'lückenlos' ) && false !== strpos( $reg_screen, 'Kasse Foyer' ) );
 $as( 801, $cashier );
 Pos::close_session( $s_ui->session_id, 1000 );
@@ -349,6 +351,20 @@ $as( 811, $cashier );
 $a53_s2 = Shifts::open( $a53_reg->register_id, array( 'float_minor' => 0 ) );
 check( 'A053: the next opened shift books the storno once and empties the queue', 1 === $a53_moves() && (int) $a53_s2->session_id === (int) $wpdb->get_var( $wpdb->prepare( "SELECT shift_id FROM {$p}wpcap_boxoffice_movements WHERE refund_id=%d", $a53_rid ) ) && ! in_array( $a53_rid, array_map( 'intval', (array) get_option( Shifts::DEFERRED_OPTION, array() ) ), true ) );
 Pos::close_session( $a53_s2->session_id, 0 );
+$reset();
+
+echo "Box office shifts: blind count is explained to supervisors (A071)\n";
+$reset();
+$a71_reg = Registers::save( array( 'name' => 'Kasse A71', 'currency' => 'EUR', 'blind_count' => 1 ) );
+$as( 812, $cashier );
+$a71_shift = Shifts::open( $a71_reg->register_id, array( 'float_minor' => 0 ) );
+$a71_cashier_view = $render( array( 'page' => 'wpcap-boxoffice', 'tab' => 'shift' ) );
+$reset();
+$a71_super_view = $render( array( 'page' => 'wpcap-boxoffice', 'tab' => 'shift', 'shift_id' => (int) $a71_shift->session_id ) );
+$_GET = array();
+check( 'A071: on a blind register a supervisor is told why the target amount is visible; the cashier is not', false === strpos( $a71_cashier_view, 'Du siehst den Soll-Bestand nur, weil' ) && false !== strpos( $a71_super_view, 'Du siehst den Soll-Bestand nur, weil' ) );
+$as( 812, $cashier );
+Pos::close_session( $a71_shift->session_id, 0 );
 $reset();
 
 echo "Box office shifts: migration of legacy cash sessions\n";
