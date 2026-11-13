@@ -718,3 +718,21 @@ check( 'A059: saving with an empty payout field keeps the stored details', is_ar
 $a59_erase = PassCaptain\Partners\Repository::privacy_erase( 'petra.a59@example.com' );
 $a59_row = PassCaptain\Partners\Repository::get( $a59_pid );
 check( 'A059: erasure removes the contact person, keeps the organisation', true === $a59_erase['items_removed'] && '' === $a59_row->contact_name && '' === $a59_row->contact_email && '' === $a59_row->contact_phone && 'A59 GmbH' === $a59_row->name );
+
+echo "Audit 3: raising capacity in the admin offers waitlist places right away (A060)\n";
+$a60_fired = array();
+$a60_rec = static function ( $type_id = 0, $occ_id = 0 ) use ( &$a60_fired ) { $a60_fired[] = array( (int) $type_id, (int) $occ_id ); };
+add_action( 'wpcap_capacity_increased', $a60_rec, 99, 2 );
+$a60_type = make_type( 20, 3, 1000 );
+$a60_row = $wpdb->get_row( "SELECT tt.*,o.timezone,o.starts_at AS occ_start,o.capacity AS occ_capacity,o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$a60_type" );
+$a60_in = array( 'ticket_type_id' => $a60_type, 'name' => $a60_row->name, 'currency' => $a60_row->currency, 'price' => '10,00', 'tax_rate' => '20', 'max_per_order' => 10, 'status' => 'active' );
+PassCaptain\Admin\EventsPage::save_ticket_type( $a60_in + array( 'capacity' => 3 ) );
+$a60_same = count( $a60_fired );
+$a60_up = PassCaptain\Admin\EventsPage::save_ticket_type( $a60_in + array( 'capacity' => 5 ) );
+check( 'A060: a higher ticket type capacity fires wpcap_capacity_increased (not an unchanged one)', ! is_wp_error( $a60_up ) && 0 === $a60_same && in_array( array( $a60_type, 0 ), $a60_fired, true ) );
+$a60_local = ( new DateTimeImmutable( $a60_row->occ_start . ' UTC' ) )->setTimezone( new DateTimeZone( $a60_row->timezone ) )->format( 'Y-m-d H:i' );
+$wpdb->update( "{$p}wpcap_occurrences", array( 'capacity' => 4 ), array( 'occurrence_id' => (int) $a60_row->occurrence_id ) );
+$a60_fired = array();
+$a60_occ = PassCaptain\Admin\EventsPage::save_occurrence( array( 'occurrence_id' => (int) $a60_row->occurrence_id, 'timezone' => $a60_row->timezone, 'starts_at' => $a60_local, 'capacity' => 8, 'status' => 'scheduled', 'location' => '' ) );
+check( 'A060: a higher occurrence capacity fires it for the occurrence', ! is_wp_error( $a60_occ ) && in_array( array( 0, (int) $a60_row->occurrence_id ), $a60_fired, true ) );
+remove_action( 'wpcap_capacity_increased', $a60_rec, 99 );

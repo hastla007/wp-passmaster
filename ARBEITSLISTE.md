@@ -136,7 +136,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/BoxOffice/Service.php:624` — Maßnahme: Kürzel/Bediener-ID, Klarname per Einstellung.
 - [x] **A059** [P3] Kontaktpersonen und IBAN der Partner im Klartext, dauerhaft, nicht exportiert/gelöscht. — _OFFEN_ (TODO L471; Datenschutz (Prüfung 4))
   - `src/Partners/Repository.php:58–97`; `src/Partners/Settlements.php:472` — Maßnahme: In Exporter/Eraser aufnehmen (Snapshot ausgenommen), IBAN maskiert anzeigen.
-- [ ] **A060** [P3] Kontingenterhöhung im Admin feuert kein `wpcap_capacity_increased`; Wartelisten-Angebote erst nach stündlichem Sweep. — _OFFEN_ (TODO L481; Architektur und QA (Prüfung 5))
+- [x] **A060** [P3] Kontingenterhöhung im Admin feuert kein `wpcap_capacity_increased`; Wartelisten-Angebote erst nach stündlichem Sweep. — _OFFEN_ (TODO L481; Architektur und QA (Prüfung 5))
   - `src/Admin/EventsPage.php:191,291` — Maßnahme: Hook nach Erhöhung auslösen.
 - [ ] **A061** [P3] Deaktivierung meldet `wpcap_webhooks_dispatch` (und Fortsetzungsläufe aus `Jobs/TimeBudget`) nicht ab; `Waitlists::run_due` läuft außerhalb des Zeitbudgets. — _OFFEN_ (TODO L482; Architektur und QA (Prüfung 5))
   - `src/Plugin.php:134` — Maßnahme: Abzumeldende Hooks aus zentraler Konstante; `run_due` mit `TimeBudget`.

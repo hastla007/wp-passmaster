@@ -198,6 +198,9 @@ final class EventsPage {
 			Audit::record( 'occurrence_updated', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'old_starts_at' => $old->starts_at, 'new_starts_at' => $starts, 'status' => $status, 'rescheduled' => $rescheduled ) );
 			if ( 'cancelled' === $status && 'cancelled' !== $old->status ) {
 				do_action( 'wpcap_occurrence_cancelled', $occurrence_id, $issued );
+			} elseif ( self::capacity_grew( (int) $old->capacity, (int) $capacity ) ) {
+				// More places: waitlist offers go out now instead of on the next hourly sweep.
+				do_action( 'wpcap_capacity_increased', 0, $occurrence_id );
 			}
 		} else {
 			$data['event_id'] = (int) $event->event_id;
@@ -207,6 +210,11 @@ final class EventsPage {
 			Audit::record( 'occurrence_created', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'starts_at' => $starts ) );
 		}
 		return array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled );
+	}
+
+	/** Whether a capacity change frees places (0 = unlimited). */
+	private static function capacity_grew( $old, $new ) {
+		return $old > 0 && ( 0 === $new || $new > $old );
 	}
 
 	/** Cancels a single occurrence (tickets stay; refunds are handled per order). */
@@ -328,6 +336,9 @@ final class EventsPage {
 		if ( $old ) {
 			$wpdb->update( $table, $data, array( 'ticket_type_id' => (int) $old->ticket_type_id ), $formats, array( '%d' ) );
 			$type_id = (int) $old->ticket_type_id;
+			if ( 'active' === $status && ( self::capacity_grew( (int) $old->capacity, (int) $capacity ) || 'active' !== (string) $old->status ) ) {
+				do_action( 'wpcap_capacity_increased', $type_id, 0 ); // Waitlist offers right away.
+			}
 			if ( isset( $old->name ) && (string) $old->name !== (string) $data['name'] ) {
 				\PassCaptain\Integrations\Vouchers\TicketService::remember_rename( (int) $occ->event_id, (string) $old->name, (string) $data['name'] );
 			}
