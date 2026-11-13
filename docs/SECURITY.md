@@ -3,7 +3,7 @@
 ## Schutzgrenzen
 
 - Ticket-, Gastbestellungs- und API-Schlüssel werden als zufällige Geheimnisse ausgegeben; in der Datenbank werden nur Hashes gespeichert. Gastlinks sind Inhaberzugänge und dürfen nicht weitergegeben werden.
-- WordPress REST-Schreibzugriffe prüfen Berechtigungen und Eventbereiche. Entwickler-API-Schlüssel sind auf ein Event sowie `events.read` und `reports.read` beschränkt und können ablaufen oder widerrufen werden.
+- WordPress REST-Schreibzugriffe prüfen Berechtigungen und Eventbereiche. Entwickler-API-Schlüssel sind auf ein Event und lesende Scopes beschränkt, haben ein Ratenlimit und können ablaufen oder widerrufen werden (siehe [Entwickler-API-Schlüssel](#entwickler-api-schlüssel)).
 - Öffentliche Checkout-, Sitzplatz- und Wartelistenrouten sind nicht authentifiziert. Sie benötigen Hosting-seitige Rate-Limits, TLS, Bot-Abwehr und Überwachung. Plugin-Transients sind kein verteilter Rate-Limiter. Checkout und Servicebuchungen begrenzen zusätzlich pro IP (Filter `wpcap_checkout_ip_limit`, Standard 30/Stunde, und `wpcap_service_booking_ip_limit`, Standard 40/Stunde); hinter einem Proxy muss `REMOTE_ADDR` korrekt gesetzt sein.
 - Selbstbedienung im Bestellportal (A118) nutzt dieselbe Prüfung wie das Portal (Bestell-ID + Zugangstoken). Ticket-PDFs werden per POST mit Nonce abgerufen, je Bestellung und Client begrenzt und enthalten nur gültige, unbenutzte Tickets der eigenen Bestellung, die nicht an andere Personen übertragen oder zugewiesen sind. Da Ticketcodes nur gehasht gespeichert sind, erhält ein Ticket beim Download einen neuen Code (der alte wird ungültig), außer ein Modul kennt den aktuellen Code noch (`wpcap_ticket_known_code`, z. B. Wallet). Stornierungsanfragen (Nonce, Idempotenzschlüssel, Rate-Limit) landen immer als `pending_approval` in der Erstattungsfreigabe; ausgezahlt wird erst nach der Entscheidung einer berechtigten Person.
 - Offline-Scanner speichern Codes lokal und können während einer Netzunterbrechung nicht garantieren, dass ein Ticket an einem anderen Gerät unbenutzt geblieben ist.
@@ -44,6 +44,34 @@ Scanner-App-Kopplung (`/app/pair`, einmaliger Kopplungscode) und der öffentlich
 (`/seating/occurrences/{id}`). Alle übrigen Routen haben eine Berechtigungsprüfung; der Test
 `tests/integration/modules/zz_a119.php` zählt alle registrierten Routen auf und schlägt fehl, wenn eine neue
 Route `__return_true` nutzt, ohne in dieser Liste zu stehen.
+
+## Entwickler-API-Schlüssel
+
+Verwaltung unter **Pass Captain → Entwickler-API** (Bereich „Einstellungen & Integrationen“, nur `manage_options`):
+Liste mit Präfix, Bezeichnung, angelegt von, Scopes, Event, Anlage, letzter Nutzung, Ablauf, Ratenlimit und
+Status; Anlegen (Bezeichnung, Event, Scopes, Ablauf, Ratenlimit), einmalige Anzeige des Schlüssels direkt nach
+der Anlage (gespeichert wird nur der SHA-256-Hash), Ablauf und Ratenlimit ändern, Widerrufen. Alle Aktionen
+prüfen Nonce und Recht und landen im Audit-Log (`developer_key_issued`, `developer_key_updated`,
+`developer_key_revoked`, Objekt `api_key`; nur Präfix, nie der Schlüssel). Per REST legen auch Personen mit
+`wpcap_manage_events` für ihr Event Schlüssel an (`POST /developer/keys`, optional `rate_limit`) und widerrufen
+eigene (`POST /developer/keys/{id}/revoke`).
+
+Jede Anfrage sendet `X-WPCAP-Key: <präfix>.<geheimnis>`. Geprüft werden: Schlüssel gültig, nicht widerrufen,
+nicht abgelaufen; Event der Anfrage = Event des Schlüssels; die Person, die den Schlüssel angelegt hat, ist
+Administrator oder im Event-Team (`wpcap_manage_events`/`wpcap_view_reports`) und hat alle Termine des Events
+in ihrem Standort-/Partnerbereich (A119); der Scope der Route ist im Schlüssel enthalten; das Ratenlimit des
+Schlüssels (Standard 600 Anfragen/Minute, je Schlüssel 1–10000, Filter `wpcap_developer_key_rate_limit`) ist
+nicht überschritten. Sonst lehnt WordPress die Anfrage ab (401/403).
+
+| Route (Namensraum `wp-pass-captain/v1`) | Scope | Inhalt |
+|---|---|---|
+| `GET /developer/events/{event_id}` | `events.read` | Name, Slug, Beschreibung, Status des Events |
+| `GET /developer/events/{event_id}/service-slots` | `slots.read` | Alle Service-Zeitfenster mit Ressource, Zeit, Kapazität, gebuchten Plätzen und Status – ohne Kundendaten |
+| `GET /events/{event_id}/reports/summary` | `reports.read` | Umsatz je Währung und Check-ins im Zeitraum (`from`, `to`, höchstens 90 Tage) |
+
+Die Zuordnung steht in `DeveloperKeys::ROUTES`; weitere Scopes gibt es bewusst nicht: Routen mit
+Personendaten (Warteliste, Gästelisten, Bestellungen) bleiben eingeloggten Personen bzw. der Partner-API mit
+eigenem Schlüsselmodell vorbehalten.
 
 ## PII je Rolle
 
@@ -98,7 +126,7 @@ Alle Einträge stehen in `wpcap_audit_logs` (Wer = `user_id`, Was = `action`, Ob
 | Bereich | Aktion | Wann |
 |---|---|---|
 | Ansicht | `pii_viewed` | Detailansicht mit Personendaten geöffnet: Bestellung (`order_detail`), Gästeliste eines Events (`guestlist`), Warteliste (`waitlist`), Umtausch eines Tickets (`exchange_ticket`), Kontingente eines Termins (`allocation_occurrence`), Veranstalter (`partner_detail`), Kassenbeleg-Suche (`pos_sale`). `details.view` nennt die Ansicht. |
-| Ansicht | `pii_list_viewed` | Liste mit Personendaten, **einmal je Seitenaufruf und Filter**, nicht je Zeile: Bestellungen (`order_list`), Tickets (`ticket_list`), Check-ins (`checkin_list`), Erstattungen (`refund_queue`), Gästelisten-Einlass (`guestlist_checkin`), Umtausche (`exchange_list`), Einlass-Konflikte (`admission_conflicts`), Veranstalter (`partner_list`), Audit-Log selbst (`audit_log`). `details.filters` und `details.rows`. |
+| Ansicht | `pii_list_viewed` | Liste mit Personendaten, **einmal je Seitenaufruf und Filter**, nicht je Zeile: Bestellungen (`order_list`), Tickets (`ticket_list`), Check-ins (`checkin_list`), Erstattungen (`refund_queue`), Gästelisten-Einlass (`guestlist_checkin`), Umtausche (`exchange_list`), Einlass-Konflikte (`admission_conflicts`), Buchungen der Service-Zeitfenster (`service_bookings`), Veranstalter (`partner_list`), Audit-Log selbst (`audit_log`). `details.filters` und `details.rows`. |
 | Ansicht | `pii_api_read` | Erfolgreicher GET auf eine REST-Route mit Personendaten: Warteliste (`waitlist_entries`), Gästelisten-Suche/Abholliste (`guestlist_search`, `guestlist_will_call`), Offline-Paket (`offline_package`), Partner-API Bestellungen/Tickets/Check-ins (`partner_*`, mit `key_id`). Erweiterbar über `wpcap_pii_audit_rest_routes`. |
 | Export | `pii_exported` | Jede Datei/Druckansicht (ohne Entprellung), `details.kind`: `guestlist_csv`, `guestlist_print`, `invoice_pdf`, `invoice_html`, `pos_receipt`, `pos_tickets_pdf`, `zreport_html`, `zreport_csv`, `partner_settlement_csv`/`_html`, `partner_statement_csv`. |
 | Export | bestehend | `attendee_list_csv`/`_html`, `no_show_list_csv`/`_html`, `print_batch`, `report_exported`, `accounting_exported`, `settlement_sheet_csv`/`_html`. |

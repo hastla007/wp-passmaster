@@ -210,6 +210,11 @@ final class Controller {
 			'callback' => array( __CLASS__, 'developer_event' ),
 			'permission_callback' => array( __CLASS__, 'developer_key_permission' ),
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/developer/events/(?P<event_id>\d+)/service-slots', array(
+			'methods' => \WP_REST_Server::READABLE,
+			'callback' => array( __CLASS__, 'developer_service_slots' ),
+			'permission_callback' => array( __CLASS__, 'developer_slots_permission' ),
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/events/(?P<event_id>\d+)/translations', array(
 			array( 'methods' => \WP_REST_Server::READABLE, 'callback' => array( __CLASS__, 'get_event_translation' ), 'permission_callback' => '__return_true' ),
 			array( 'methods' => \WP_REST_Server::CREATABLE, 'callback' => array( __CLASS__, 'save_event_translation' ), 'permission_callback' => array( __CLASS__, 'manage_events_permission' ) ),
@@ -730,8 +735,8 @@ final class Controller {
 		$payload = (array) $request->get_json_params();
 		$event_id = absint( $payload['event_id'] ?? 0 );
 		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
-		if ( ! empty( $payload['expires_at'] ) && ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $payload['expires_at'] ) || strtotime( $payload['expires_at'] . ' UTC' ) <= time() ) ) { return new \WP_Error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
-		$result = DeveloperKeys::issue( $event_id, (array) ( $payload['scopes'] ?? array() ), $payload['label'] ?? '', $payload['expires_at'] ?? '' );
+		// Expiry (UTC, future), scopes and the optional per-key rate limit are validated in issue().
+		$result = DeveloperKeys::issue( $event_id, (array) ( $payload['scopes'] ?? array() ), (string) ( $payload['label'] ?? '' ), (string) ( $payload['expires_at'] ?? '' ), $payload['rate_limit'] ?? 0 );
 		return is_wp_error( $result ) ? $result : new \WP_REST_Response( $result, 201 );
 	}
 
@@ -749,6 +754,20 @@ final class Controller {
 		// Authorised (and rate limited) once in developer_key_permission().
 		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name,slug,description,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", absint( $request['event_id'] ) ), ARRAY_A );
 		return $event ? rest_ensure_response( $event ) : new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+	}
+
+	/** GET /developer/events/{id}/service-slots: scope slots.read (DeveloperKeys::ROUTES). */
+	public static function developer_slots_permission( \WP_REST_Request $request ) {
+		return DeveloperKeys::authorize( $request, 'slots.read', absint( $request['event_id'] ) ) !== false;
+	}
+
+	/** All service slots of the event with capacity and booked places; no customer data. */
+	public static function developer_service_slots( \WP_REST_Request $request ) {
+		// Authorised (and rate limited) once in developer_slots_permission().
+		$rows = array_map( static function ( $slot ) {
+			return array( 'slot_id' => (int) $slot->slot_id, 'resource_id' => (int) $slot->resource_id, 'resource_name' => (string) $slot->resource_name, 'starts_at' => $slot->starts_at, 'ends_at' => $slot->ends_at, 'capacity' => (int) $slot->capacity, 'booked' => (int) $slot->booked, 'status' => (string) $slot->status );
+		}, ServiceBookings::slots( absint( $request['event_id'] ) ) );
+		return rest_ensure_response( $rows );
 	}
 
 	public static function get_event_translation( \WP_REST_Request $request ) {
@@ -806,29 +825,13 @@ final class Controller {
 	}
 
 	public static function create_resource( \WP_REST_Request $request ) {
-		global $wpdb;
-		$event_id = absint( $request['event_id'] );
-		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_resource_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
-		$payload = $request->get_json_params();
-		$name = sanitize_text_field( $payload['name'] ?? '' );
-		if ( ! $name ) { return new \WP_Error( 'wpcap_resource_invalid', __( 'Ressourcenname fehlt.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
-		$wpdb->insert( $wpdb->prefix . 'wpcap_resources', array( 'event_id' => $event_id, 'name' => $name, 'capacity' => min( 100, max( 1, absint( $payload['capacity'] ?? 1 ) ) ), 'buffer_before' => min( 1440, absint( $payload['buffer_before'] ?? 0 ) ), 'buffer_after' => min( 1440, absint( $payload['buffer_after'] ?? 0 ) ), 'status' => 'active' ), array( '%d', '%s', '%d', '%d', '%d', '%s' ) );
-		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_resource_save', __( 'Ressource konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
-		return new \WP_REST_Response( array( 'resource_id' => (int) $wpdb->insert_id ), 201 );
+		$id = ServiceBookings::create_resource( absint( $request['event_id'] ), (array) $request->get_json_params() );
+		return is_wp_error( $id ) ? $id : new \WP_REST_Response( array( 'resource_id' => (int) $id ), 201 );
 	}
 
 	public static function create_service_slot( \WP_REST_Request $request ) {
-		global $wpdb;
-		$resource_id = absint( $request['resource_id'] );
-		$resource = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_resources WHERE resource_id=%d AND status='active'", $resource_id ) );
-		if ( ! $resource || ! Access::can_access_event( $resource->event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_resource_forbidden', __( 'Keine Berechtigung für diese Ressource.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
-		$payload = $request->get_json_params();
-		$start = strtotime( sanitize_text_field( $payload['starts_at'] ?? '' ) );
-		$end = strtotime( sanitize_text_field( $payload['ends_at'] ?? '' ) );
-		if ( ! $start || ! $end || $end <= $start ) { return new \WP_Error( 'wpcap_service_slot_invalid', __( 'Zeitfenster ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
-		$wpdb->insert( $wpdb->prefix . 'wpcap_service_slots', array( 'resource_id' => $resource_id, 'starts_at' => gmdate( 'Y-m-d H:i:s', $start ), 'ends_at' => gmdate( 'Y-m-d H:i:s', $end ), 'capacity' => min( 100, max( 1, absint( $payload['capacity'] ?? $resource->capacity ) ) ), 'status' => 'open' ), array( '%d', '%s', '%s', '%d', '%s' ) );
-		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_service_slot_save', __( 'Zeitfenster konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
-		return new \WP_REST_Response( array( 'slot_id' => (int) $wpdb->insert_id ), 201 );
+		$id = ServiceBookings::create_slot( absint( $request['resource_id'] ), (array) $request->get_json_params() );
+		return is_wp_error( $id ) ? $id : new \WP_REST_Response( array( 'slot_id' => (int) $id ), 201 );
 	}
 
 	public static function set_admission_days( \WP_REST_Request $request ) {

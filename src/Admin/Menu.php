@@ -51,6 +51,13 @@ final class Menu {
 			'wpcap_tax_profile_retire' => array( TaxPage::class, 'handle_retire' ),
 			'wpcap_getting_started' => array( GettingStarted::class, 'handle_toggle' ),
 			OperationsPage::ACTION => array( OperationsPage::class, 'handle_action' ),
+			'wpcap_developer_key_create' => array( DeveloperKeysPage::class, 'handle_create' ),
+			'wpcap_developer_key_update' => array( DeveloperKeysPage::class, 'handle_update' ),
+			'wpcap_developer_key_revoke' => array( DeveloperKeysPage::class, 'handle_revoke' ),
+			'wpcap_service_resource_save' => array( ServiceSlotsPage::class, 'handle_save_resource' ),
+			'wpcap_service_resource_delete' => array( ServiceSlotsPage::class, 'handle_delete_resource' ),
+			'wpcap_service_slot_save' => array( ServiceSlotsPage::class, 'handle_save_slot' ),
+			'wpcap_service_slot_delete' => array( ServiceSlotsPage::class, 'handle_delete_slot' ),
 		) +\PassCaptain\Modules::admin_handlers();
 	}
 
@@ -135,6 +142,7 @@ final class Menu {
 			'wpcap-seating'                => 'events',
 			'wpcap-passes'                 => 'events',
 			'wpcap-print'                  => 'events',
+			ServiceSlotsPage::SLUG         => 'events',
 			OrdersPage::SLUG               => 'sales',
 			TicketsPage::SLUG              => 'sales',
 			'wpcap-boxoffice'              => 'sales',
@@ -163,6 +171,7 @@ final class Menu {
 			'wpcap-mollie'                 => 'settings',
 			'wpcap-wallet'                 => 'settings',
 			'wpcap-webhooks'               => 'settings',
+			DeveloperKeysPage::SLUG        => 'settings',
 			'admin.php?page=vcap-vouchers' => 'settings',
 		);
 	}
@@ -193,6 +202,7 @@ final class Menu {
 			array( CampaignsPage::SLUG, __( 'Rabattcodes', 'wp-pass-captain' ), __( 'Rabattcodes', 'wp-pass-captain' ), CampaignsPage::CAP, array( CampaignsPage::class, 'render' ), '' ),
 			array( DevicesPage::SLUG, __( 'Scanner-Geräte', 'wp-pass-captain' ), __( 'Scanner-Geräte', 'wp-pass-captain' ), DevicesPage::CAP, array( DevicesPage::class, 'render' ), '' ),
 			array( TaxPage::SLUG, __( 'Steuerprüfung', 'wp-pass-captain' ), __( 'Steuerprüfung', 'wp-pass-captain' ), TaxPage::CAP, array( TaxPage::class, 'render' ), '' ),
+			array( ServiceSlotsPage::SLUG, __( 'Service-Zeitfenster', 'wp-pass-captain' ), __( 'Service-Zeitfenster', 'wp-pass-captain' ), ServiceSlotsPage::CAP, array( ServiceSlotsPage::class, 'render' ), '' ),
 		);
 		foreach ( \PassCaptain\Modules::admin_pages() as $page ) {
 			$page = array_values( (array) $page );
@@ -200,6 +210,7 @@ final class Menu {
 			$entries[] = array( $slug, $title, $title, $cap, $callback, (string) ( $page[4] ?? '' ) );
 		}
 		$entries[] = array( SettingsPage::SLUG, __( 'Einstellungen', 'wp-pass-captain' ), __( 'Einstellungen', 'wp-pass-captain' ), SettingsPage::CAP, array( SettingsPage::class, 'render' ), '' );
+		$entries[] = array( DeveloperKeysPage::SLUG, __( 'Entwickler-API', 'wp-pass-captain' ), __( 'Entwickler-API', 'wp-pass-captain' ), DeveloperKeysPage::CAP, array( DeveloperKeysPage::class, 'render' ), '' );
 		$entries[] = array( AuditLogPage::SLUG, __( 'Audit-Log', 'wp-pass-captain' ), __( 'Audit-Log', 'wp-pass-captain' ), AuditLogPage::CAP, array( AuditLogPage::class, 'render' ), '' );
 		$entries[] = array( OperationsPage::SLUG, __( 'Betrieb', 'wp-pass-captain' ), __( 'Betrieb', 'wp-pass-captain' ), OperationsPage::CAP, array( OperationsPage::class, 'render' ), '' );
 		if ( \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) {
