@@ -376,7 +376,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Refund-Zuordnung je Zeile in Abrechnung (src/Partners/Settlements.php:9-17); kein Abgleich mit Zahlungs-/Fiskalanbieterstatus, gebrauchte Tickets/Ausfälle nicht je Verkäufer
 - [ ] **A173** PHPCS mit WPCS, statische Analyse, Composer-Audit in CI — _TEILWEISE (13.11.2026: PHPCS/WPCS + PHPCompatibility + composer audit in CI, 0 Fehler; offen: PHPStan, hier nicht installierbar)_ (TODO L240; CI, statische Qualität und Artefakt)
   - .github/workflows/ci.yml:21-28 nur composer validate, php -l, node --check
-- [ ] **A174** JS-Lint auf alle eigenen JS-Dateien, JS-Logik testen — _OFFEN_ (TODO L241; CI, statische Qualität und Artefakt)
+- [x] **A174** JS-Lint auf alle eigenen JS-Dateien, JS-Logik testen — _OFFEN_ (TODO L241; CI, statische Qualität und Artefakt)
   - ci.yml:28 prüft nur checkout.js, scanner.js, events/editor.js; keine JS-Unit-Tests
 - [ ] **A175** PHP-Integrationssuite über alle unterstützten PHP-Versionen — _OFFEN_ (TODO L242; CI, statische Qualität und Artefakt)
   - Integration nur PHP 8.4 (ci.yml:49), Syntaxmatrix 8.2/8.4 (ci.yml:12)

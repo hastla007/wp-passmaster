@@ -138,6 +138,7 @@
 - MySQL: Eine vom Server zurückgerollte Transaktion (z. B. Deadlock-Opfer) wird jetzt auch unter MySQL erkannt (Savepoint-Prüfung; bisher nur MariaDB über `@@in_transaction`), sodass keine halben Bestellungen entstehen; Integrationstests laufen in CI zusätzlich gegen MySQL 8.4.
 - MySQL 8: Beim Umtausch wurden Antworten auf Zusatzfelder nicht übernommen, weil die Abfrage den in MySQL reservierten Alias `of` verwendete (MariaDB erlaubt ihn); behoben, durch den neuen MySQL-CI-Lauf gefunden.
 - Statische Prüfungen in CI: PHPCS mit WordPress Coding Standards (Sicherheit, Datenbank, i18n) und PHPCompatibility (PHP 8.2+) sowie `composer audit`; behoben: unbereinigte Request-Methode/Eingaben (neuer Helfer `Http::method()`), Token-Bereinigung, fehlende und falsch zugeordnete Übersetzerkommentare (A173, teilweise).
+- JavaScript: ESLint über alle eigenen Skripte und Logiktests der Offline-App (Signaturprüfung der Prüfpakete, Geräte-/Formatbindung, Offline-Einlassentscheidung) mit `node:test`, beides in CI (A174).
 - Übersetzungsprüfung: CI verlangt aktuelle POT und konsistente Platzhalter, vollständige Übersetzungen sind Release-Gate.
 
 ### Kasse und Zahlungen (Experten-Review)

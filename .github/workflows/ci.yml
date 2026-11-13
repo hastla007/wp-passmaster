@@ -34,6 +34,11 @@ jobs:
         run: |
           wp i18n make-pot . "$RUNNER_TEMP/fresh.pot" --domain=wp-pass-captain --exclude=vendor,tests,build,.claude,node_modules --skip-audit --skip-block-json --skip-theme-json
           php tests/i18n-check.php --allow-incomplete --fresh-pot="$RUNNER_TEMP/fresh.pot"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript lint (ESLint, all own scripts) and logic tests
+        run: npm ci --no-audit --no-fund && npm run lint:js && npm run test:js
       - name: Offline scanner translations
         run: node tests/offline-scanner-i18n.js
       - name: Release metadata consistency (version, readme, composer, changelogs, doc links)

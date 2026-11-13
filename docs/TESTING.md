@@ -226,3 +226,13 @@ vendor/bin/phpcs -q --report=summary
 CI (`ci.yml`, Job `php`) bricht bei **Fehlern** ab; Warnungen werden angezeigt. Stand 13.11.2026: 0 Fehler. Die rund 1 580 Warnungen stammen fast vollständig aus `WordPress.DB.PreparedSQL` für interpolierte Tabellennamen (`{$wpdb->prefix}wpcap_…`) und Integer-Listen – sie werden schrittweise abgebaut; neue Abfragen sollen Werte immer über `$wpdb->prepare()` übergeben. Zusätzlich prüft `composer audit` die Abhängigkeiten auf bekannte Sicherheitslücken.
 
 Noch offen: PHPStan mit WordPress-Stubs (in dieser Umgebung nicht installierbar, weil Composer keine GitHub-Downloads erhält; sollte in CI mit Baseline nachgezogen werden).
+
+## JavaScript: Lint und Logiktests (A174)
+
+```bash
+npm ci
+npm run lint:js   # ESLint (empfohlene Regeln) über alle eigenen Skripte in assets/, src/blocks/ und tests/
+npm run test:js   # node:test – Logik der Offline-App (Code-Normalisierung, Paketsignatur/Format/Gerät, Offline-Einlassentscheidung)
+```
+
+Die Offline-App wird dazu in einer Node-Sandbox mit minimalen Browser-Attrappen geladen (`tests/js/offline-scanner.test.js`) und über `window.wpcapOffline` geprüft: manipulierte Pakete, fremde Geräte, unbekannte/abgelaufene Schlüssel, Doppel-Einlass, Mehrfacheinlass, Bereichsbeschränkung, Einlass-ab-Zeit und abgelaufene Pakete. Beides läuft im CI-Job `php`. Globale Daten aus `wp_localize_script()` sind in `eslint.config.mjs` als `readonly` deklariert – neue lokalisierte Objekte dort eintragen.

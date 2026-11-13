@@ -1,0 +1,14 @@
+{
+  "name": "wp-pass-captain-dev",
+  "private": true,
+  "description": "Development tooling only (not shipped): JavaScript lint and tests.",
+  "scripts": {
+    "lint:js": "eslint .",
+    "test:js": "node --test tests/js/*.test.js"
+  },
+  "devDependencies": {
+    "eslint": "9.39.1",
+    "@eslint/js": "9.39.1",
+    "globals": "15.15.0"
+  }
+}
