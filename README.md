@@ -7,12 +7,12 @@ Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwal
 - Events als Einzeltermin oder wöchentliche Serie mit bis zu 12 getrennten Terminen im Admin anlegen.
 - Events als Shortcode `[wp_pass_captain_events]` (optional `event="ID"`, `occurrence="ID"`, `limit="50"`) oder Gutenberg-Block (mit Event-/Terminauswahl) ausgeben.
 - Bestellungen mit zehnminütiger Reservierung anlegen; kostenlose Bestellungen stellen Tickets direkt aus.
-- Bezahlte Bestellungen können manuell bestätigt oder über den optionalen WooCommerce-Adapter synchronisiert werden.
+- Bezahlung über Stripe, PayPal, Mollie, Überweisung (manuelle Bestätigung) oder den optionalen WooCommerce-Adapter; Kasse, Gästelisten und Veranstalter-API als weitere Verkaufswege.
 - Ticketlink enthält einen zufälligen 256-Bit-Code; nur dessen SHA-256-Hash wird für die Prüfung gespeichert.
 - Einlasspersonal eventbezogen zuweisen und den Scanner über `[wp_pass_captain_scanner]` bereitstellen.
 - WordPress-Datenschutzexport/-löschung und ein CI-/ZIP-Build sind vorbereitet.
 - Käuferlinks verfallen nach 30 Tagen; ein gültiges Ticket kann vor Veranstaltungsbeginn einmalig übertragen werden.
-- Ein versionierter Voucher-Captain-Provider-Vertrag ist vorhanden; Voucher-Reservierung und Einlösung sind noch nicht im Checkout orchestriert.
+- Voucher Captain: Gutscheine (Einzweck/Mehrzweck) werden im Checkout reserviert und eingelöst, Gutscheine lassen sich in Tickets umwandeln; Details: [docs/VOUCHERS.md](docs/VOUCHERS.md).
 - WooCommerce bleibt optional und wird nur über CRUD-APIs angebunden (HPOS und klassischer Bestellspeicher). Ticketprodukte reservieren Kontingent bereits beim Woo-Checkout (Classic und Blocks), stellen nach Zahlung genau ein Ticket je Einheit aus und widerrufen Tickets bei Storno und (Teil-)Erstattung. Details: [docs/WOOCOMMERCE.md](docs/WOOCOMMERCE.md).
 - Veröffentliche Events können abgesagt werden; Käufer werden benachrichtigt und unbezahlte Reservierungen aufgehoben.
 - REST-Grundlagen für Sitzpläne, Service-Slots, POS-Verkäufe, Offline-Scan-Synchronisierung, Einlassregeln pro Tag und Teilnehmerzuweisung sind enthalten.
