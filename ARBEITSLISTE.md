@@ -293,11 +293,11 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Verschiebung vorhanden (Admin/EventsPage.php:148, Notifications.php:18); nativer Refund erstattet eingecheckte Tickets ohne Regel/Override (Refunds.php:439), Override nur POS (BoxOffice/Service.php:437)
 - [ ] **A132** End-to-End-Abnahme Storno/Widerruf/Neuausgabe/alle Refundkombinationen — _TEILWEISE_ (TODO L115; P1 – Ticketverwaltung nach dem Kauf)
   - Idempotenz vorhanden (Refunds.php:33-35); nur Mock-WP-Integrationstests (tests/integration/wp), keine echte E2E-Abnahmesuite aller Kombinationen
-- [ ] **A133** Dauer/Puffer und Partnerverwaltung für Ressourcen — _TEILWEISE_ (TODO L121; P1 – Bootsschul- und Servicebuchungen)
+- [x] **A133** Dauer/Puffer und Partnerverwaltung für Ressourcen — _TEILWEISE_ (TODO L121; P1 – Bootsschul- und Servicebuchungen)
   - buffer_before/after nur gespeichert (Installer.php:274, Controller.php:730), nicht bei Slots/Überlappung erzwungen; keine Leistungserbringer-Zuordnung zu Ressourcen
-- [ ] **A134** Buchungsschluss, Vorlauf, Maximalbuchungen, Umbuchungs-/Stornofristen — _OFFEN_ (TODO L123; P1 – Bootsschul- und Servicebuchungen)
+- [x] **A134** Buchungsschluss, Vorlauf, Maximalbuchungen, Umbuchungs-/Stornofristen — _OFFEN_ (TODO L123; P1 – Bootsschul- und Servicebuchungen)
   - ServiceBookings.php:33 prüft nur starts_at > jetzt und Kapazität; keine Fristen/Limits
-- [ ] **A135** Umbuchung/Stornierung Servicebuchung End-to-End — _OFFEN_ (TODO L124; P1 – Bootsschul- und Servicebuchungen)
+- [x] **A135** Umbuchung/Stornierung Servicebuchung End-to-End — _OFFEN_ (TODO L124; P1 – Bootsschul- und Servicebuchungen)
   - Nur reserve() als Hold (ServiceBookings.php:8); keine Bestätigung, Umbuchung, Storno, Zahlung oder Benachrichtigung
 - [ ] **A136** No-show-Regeln und manuelle Partnerbestätigung — _OFFEN_ (TODO L125; P1 – Bootsschul- und Servicebuchungen)
   - Kein Code zu No-show oder Partnerbestätigung in src/ gefunden
