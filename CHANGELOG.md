@@ -17,6 +17,7 @@
 - Bestellportal: Die Teilnehmer-E-Mail ist optional; eine Namens- oder Angabenkorrektur ohne E-Mail behält den Ticketcode.
 - Bestellportal und Bestellmail zeigen die bestellten Positionen (Event, Ticketart, Termin, Menge, Preis nach Rabatt); neuer Platzhalter `{order_items}` in der Vorlage „Bestellzugang“.
 - Portal-Umtausch mit Aufpreis per Überweisung: Betrag, IBAN, Verwendungszweck und Frist werden direkt angezeigt; nach dem Neuladen steht beim Ticket „Umtausch wartet auf Zahlung“ statt eines neuen Formulars.
+- Admin-Bestellansicht: Positionen wie bezahlt (passend zur Rechnung) mit Spalte „Umgebucht (Stk.)“ für Umtausche; Zusatzbestellungen tragen einen Hinweis mit Link zur ursprünglichen Bestellung.
 
 ### Zusammenspiel mit WP Voucher Captain
 - Gemeinsamer Scanner: neuer Dienst `wp_pass_captain_checkin_service_v1` (`Integrations\Vouchers\CheckinService`) – `recognizes()`, `preview()`, `check_in()` mit denselben Regeln, Sperren und Audit wie der eigene Web-Scanner; Recht `wpcap_checkin` wird im Dienst geprüft. Der Voucher-Captain-Scanner erkennt damit auch Pass-Captain-Tickets; Gutschein-Einlösung und Ticket-Check-in bleiben getrennte Aktionen.

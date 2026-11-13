@@ -39,7 +39,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/OrderPortal.php:81`; `src/Mail/Types.php:156` — Maßnahme: Positionsübersicht (Event, Termin, Art, Menge, Preis, Rabatt).
 - [x] **A014** [P2] Nach Upgrade mit Aufpreis keine Bankdaten/Betrag/Verwendungszweck im Portal; offener Umtausch nach Neuladen unsichtbar, Button erneut angeboten. — _OFFEN_ (TODO L416; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Exchange/Portal.php:170` — Maßnahme: Bankdaten anzeigen; offenen Umtausch mit Link zur Zusatzbestellung darstellen.
-- [ ] **A015** [P2] `src/Exchange/Service.php:589,605–612`; Admin-Bestellansicht — Nach Umtausch widersprüchliche Positionen (2 × 49,90 = 105,34), Zusatzbestellung „Erstattet 1“ bei 0,00 €, Abweichung… — _OFFEN_ (TODO L417; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [x] **A015** [P2] `src/Exchange/Service.php:589,605–612`; Admin-Bestellansicht — Nach Umtausch widersprüchliche Positionen (2 × 49,90 = 105,34), Zusatzbestellung „Erstattet 1“ bei 0,00 €, Abweichung… — _OFFEN_ (TODO L417; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - Maßnahme: Umtausch als eigene Bewegungen (siehe Steuer-P1); Anzeige „Umgebucht“.
 - [ ] **A016** [P2] Terminauswahl der Kasse/Gästeliste/Abholliste enthält Vergangenes, Entwürfe, Abgesagtes und wählt den ältesten. — _OFFEN_ (TODO L418; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Printing/Page.php:29`; `src/BoxOffice/Page.php:96–101` — Maßnahme: Standard = nächster/laufender Termin; Rest ausblenden oder gruppieren.

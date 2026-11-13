@@ -318,6 +318,11 @@ final class OrdersPage {
 			return;
 		}
 		$items = Queries::order_items( $order_id );
+		$is_supplement = \PassCaptain\Exchange\Service::is_supplement( (int) $order_id );
+		$has_moves = $is_supplement;
+		foreach ( $items as $item ) {
+			if ( null !== ( $item->orig_quantity ?? null ) && (int) $item->orig_quantity !== (int) $item->quantity ) { $has_moves = true; }
+		}
 		$tickets = Queries::order_tickets( $order_id );
 		$refunds = Refunds::for_order( $order_id );
 		$is_woo = 'woocommerce' === $order->payment_provider;
@@ -338,6 +343,12 @@ final class OrdersPage {
 		<?php $voucher = \PassCaptain\Integrations\Vouchers\Checkout::voucher_state( $order_id ); ?>
 		<?php if ( $voucher && 'commit_failed' === ( $voucher['status'] ?? '' ) ) : ?>
 			<div class="notice notice-error inline"><p><?php echo esc_html( sprintf( /* translators: 1: amount, 2: error code */ __( 'Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten.', 'wp-pass-captain' ), Forms::money( (int) $voucher['amount_minor'], $order->currency ), (string) ( $voucher['error'] ?? '' ) ) ); ?></p></div>
+		<?php endif; ?>
+		<?php if ( $is_supplement ) :
+			$exchange_row = \PassCaptain\Exchange\Service::for_supplement( (int) $order_id );
+			?>
+			<div class="notice notice-info inline"><p><?php esc_html_e( 'Zusatzbestellung zu einem Ticketumtausch (Aufpreis/Gebühr). Das Ticket wird in der ursprünglichen Bestellung geführt.', 'wp-pass-captain' ); ?>
+			<?php if ( $exchange_row ) : ?> <a href="<?php echo esc_url( self::order_url( (int) $exchange_row['order_id'] ) ); ?>"><?php esc_html_e( 'Ursprüngliche Bestellung öffnen', 'wp-pass-captain' ); ?></a><?php endif; ?></p></div>
 		<?php endif; ?>
 		<?php if ( 'needs_review' === $order->status ) : ?>
 			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung außerhalb des Plugins zurückerstatten.', 'wp-pass-captain' ); ?></p>
@@ -393,32 +404,42 @@ final class OrdersPage {
 				<th><?php esc_html_e( 'enth. Steuer', 'wp-pass-captain' ); ?></th>
 				<th><?php esc_html_e( 'Summe', 'wp-pass-captain' ); ?></th>
 				<th><?php esc_html_e( 'Erstattet (Stk.)', 'wp-pass-captain' ); ?></th>
+				<?php if ( $has_moves ) : ?><th><?php esc_html_e( 'Umgebucht (Stk.)', 'wp-pass-captain' ); ?></th><?php endif; ?>
 			</tr></thead>
 			<tbody>
-			<?php foreach ( $items as $item ) : ?>
+			<?php foreach ( $items as $item ) :
+				// Quantity, VAT and total as paid (OrderLines); units moved by a ticket exchange are shown
+				// separately, so the lines match the invoice.
+				$paid_qty = null !== ( $item->orig_quantity ?? null ) ? (int) $item->orig_quantity : (int) $item->quantity;
+				$paid_tax = null !== ( $item->orig_tax_minor ?? null ) ? (int) $item->orig_tax_minor : (int) $item->tax_minor;
+				$paid_total = null !== ( $item->orig_line_total_minor ?? null ) ? (int) $item->orig_line_total_minor : (int) $item->line_total_minor;
+				$moved = $is_supplement ? -(int) $item->quantity : (int) $item->quantity - $paid_qty;
+				$refunded_units = $is_supplement ? 0 : (int) $item->refunded_quantity;
+				?>
 				<tr>
 					<td><?php echo esc_html( $item->event_name . ' — ' . $item->name ); ?></td>
 					<td><?php echo esc_html( Forms::datetime( $item->starts_at, $item->timezone ) ); ?></td>
-					<td><?php echo esc_html( (string) (int) $item->quantity ); ?></td>
+					<td><?php echo esc_html( (string) $paid_qty ); ?></td>
 					<td><?php echo esc_html( Forms::money( $item->unit_price_minor, $currency ) ); ?></td>
 					<td><?php echo esc_html( Forms::percent_input( $item->tax_rate_bp ) . ' %' ); ?></td>
-					<td><?php echo esc_html( Forms::money( $item->tax_minor, $currency ) ); ?></td>
-					<td><?php echo esc_html( Forms::money( $item->line_total_minor, $currency ) ); ?></td>
-					<td><?php echo esc_html( (string) (int) $item->refunded_quantity ); ?></td>
+					<td><?php echo esc_html( Forms::money( $paid_tax, $currency ) ); ?></td>
+					<td><?php echo esc_html( Forms::money( $paid_total, $currency ) ); ?></td>
+					<td><?php echo esc_html( (string) $refunded_units ); ?></td>
+					<?php if ( $has_moves ) : ?><td><?php echo esc_html( 0 === $moved ? '—' : sprintf( '%+d', $moved ) ); ?></td><?php endif; ?>
 				</tr>
 			<?php endforeach; ?>
 			</tbody>
 			<tfoot>
-				<tr><th colspan="6"><?php esc_html_e( 'Zwischensumme', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->subtotal_minor, $currency ) ); ?></td></tr>
-				<?php if ( (int) $order->discount_minor ) : ?><tr><th colspan="6"><?php esc_html_e( 'Rabatt', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( '− ' . Forms::money( $order->discount_minor, $currency ) ); ?></td></tr><?php endif; ?>
+				<tr><th colspan="6"><?php esc_html_e( 'Zwischensumme', 'wp-pass-captain' ); ?></th><td colspan="<?php echo $has_moves ? 3 : 2; ?>"><?php echo esc_html( Forms::money( $order->subtotal_minor, $currency ) ); ?></td></tr>
+				<?php if ( (int) $order->discount_minor ) : ?><tr><th colspan="6"><?php esc_html_e( 'Rabatt', 'wp-pass-captain' ); ?></th><td colspan="<?php echo $has_moves ? 3 : 2; ?>"><?php echo esc_html( '− ' . Forms::money( $order->discount_minor, $currency ) ); ?></td></tr><?php endif; ?>
 				<?php $voucher_paid = class_exists( '\\PassCaptain\\Integrations\\Vouchers\\Checkout' ) ? \PassCaptain\Integrations\Vouchers\Checkout::voucher_payment_minor( $order ) : 0; ?>
-				<tr><th colspan="6"><?php esc_html_e( 'Gesamt (brutto)', 'wp-pass-captain' ); ?></th><td colspan="2"><strong><?php echo esc_html( Forms::money( (int) $order->total_minor + $voucher_paid, $currency ) ); ?></strong></td></tr>
+				<tr><th colspan="6"><?php esc_html_e( 'Gesamt (brutto)', 'wp-pass-captain' ); ?></th><td colspan="<?php echo $has_moves ? 3 : 2; ?>"><strong><?php echo esc_html( Forms::money( (int) $order->total_minor + $voucher_paid, $currency ) ); ?></strong></td></tr>
 				<?php if ( $voucher_paid ) : ?>
-					<tr><th colspan="6"><?php esc_html_e( 'davon bezahlt mit Mehrzweckgutschein', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $voucher_paid, $currency ) ); ?></td></tr>
-					<tr><th colspan="6"><?php esc_html_e( 'Zahlbetrag', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->total_minor, $currency ) ); ?></td></tr>
+					<tr><th colspan="6"><?php esc_html_e( 'davon bezahlt mit Mehrzweckgutschein', 'wp-pass-captain' ); ?></th><td colspan="<?php echo $has_moves ? 3 : 2; ?>"><?php echo esc_html( Forms::money( $voucher_paid, $currency ) ); ?></td></tr>
+					<tr><th colspan="6"><?php esc_html_e( 'Zahlbetrag', 'wp-pass-captain' ); ?></th><td colspan="<?php echo $has_moves ? 3 : 2; ?>"><?php echo esc_html( Forms::money( $order->total_minor, $currency ) ); ?></td></tr>
 				<?php endif; ?>
-				<tr><th colspan="6"><?php esc_html_e( 'darin enthaltene Steuer', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->tax_minor, $currency ) ); ?></td></tr>
-				<tr><th colspan="6"><?php esc_html_e( 'Erstattet', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->refunded_minor, $currency ) ); ?></td></tr>
+				<tr><th colspan="6"><?php esc_html_e( 'darin enthaltene Steuer', 'wp-pass-captain' ); ?></th><td colspan="<?php echo $has_moves ? 3 : 2; ?>"><?php echo esc_html( Forms::money( $order->tax_minor, $currency ) ); ?></td></tr>
+				<tr><th colspan="6"><?php esc_html_e( 'Erstattet', 'wp-pass-captain' ); ?></th><td colspan="<?php echo $has_moves ? 3 : 2; ?>"><?php echo esc_html( Forms::money( $order->refunded_minor, $currency ) ); ?></td></tr>
 			</tfoot>
 		</table>
 
