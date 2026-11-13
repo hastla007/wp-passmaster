@@ -89,7 +89,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - src/Installer.php:671-687: dbDelta()-Ergebnis ignoriert, danach update_option wpcap_db_version und wpcap_schema_fingerprint ohne Schema-Verifikation
 - [x] **A037** [P1] Webhook INSERT IGNORE: DB-Fehler als duplicate gemeldet — _OFFEN_ (TODO L293; Bestätigte Befunde)
   - src/Payments/Webhooks.php:46-49: `if ( ! $claimed ) return 'duplicate'` unterscheidet 0 und false weiterhin nicht
-- [ ] **A038** [P1] Ticketausgabe: DB-Schreibfehler/Transaktion ungeprüft, Teilnehmerdaten gelöscht — _OFFEN_ (TODO L294; Bestätigte Befunde)
+- [x] **A038** [P1] Ticketausgabe: DB-Schreibfehler/Transaktion ungeprüft, Teilnehmerdaten gelöscht — _OFFEN_ (TODO L294; Bestätigte Befunde)
   - src/Orders.php:1363-1412: START TRANSACTION/insert/update/COMMIT ungeprüft; attendee_data wird bei `$issued` gelöscht (1407-1410)
 - [ ] **A039** [P2] Mailer::deliver-Rückgabe ignoriert, kein Versand-Retry/Outbox — _OFFEN_ (TODO L295; Bestätigte Befunde)
   - src/Orders.php:1440: Rückgabewert von Mailer::deliver() verworfen; keine Outbox/kein Zustellstatus

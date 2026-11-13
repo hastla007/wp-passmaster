@@ -453,3 +453,18 @@ check( 'A037: a database error while claiming the event returns a retryable 503'
 $a37_id = 'evt_a37b_' . uniqid();
 PassCaptain\Payments\Webhooks::process( 'stripe', array( 'event_id' => $a37_id, 'type' => 'unknown_type' ) );
 check( 'A037: a real duplicate is still reported as duplicate', 'duplicate' === PassCaptain\Payments\Webhooks::process( 'stripe', array( 'event_id' => $a37_id, 'type' => 'unknown_type' ) ) );
+
+echo "Audit 3: ticket issuance checks database errors (A038)\n";
+$a38_type = ex_type( $a4_occ, 'Ausgabe A38', 1000 );
+$GLOBALS['wpcap_test_transients'] = array();
+$a38 = Orders::create( array( 'email' => 'a38@example.com', 'items' => array( array( 'ticket_type_id' => $a38_type, 'quantity' => 1 ) ), 'attendees' => array( array( 'ticket_type_id' => $a38_type, 'name' => 'Ada Muster' ) ), 'idempotency_key' => 'a38-' . uniqid() ), array( 'payment_provider' => 'manual', 'hold_minutes' => 60 ) );
+$a38_fail = static function ( $sql ) { return preg_match( '/^\s*INSERT INTO `?\w*wpcap_tickets`?/i', $sql ) ? 'INSERT INTO wpcap_table_that_does_not_exist VALUES (1)' : $sql; };
+add_filter( 'query', $a38_fail );
+$GLOBALS['wpcap_test_mails'] = array();
+Orders::confirm_external_payment( $a38['order_id'], 'a38-pay' );
+$a38_direct = Orders::issue_and_email( $a38['order_id'] );
+remove_filter( 'query', $a38_fail );
+$a38_order = Orders::get( $a38['order_id'] );
+check( 'A038: failed ticket insert: no tickets, no ticket mail, attendee data kept, retryable error', is_wp_error( $a38_direct ) && 0 === count( tickets( $a38['order_id'] ) ) && ! array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => str_starts_with( (string) $m['subject'], 'Deine Tickets' ) && 'a38@example.com' === $m['to'] ) && ! empty( $a38_order->attendee_data ) );
+Orders::issue_and_email( $a38['order_id'] );
+check( 'A038: a retry issues the ticket with the attendee name', 1 === count( tickets( $a38['order_id'], 'valid' ) ) && 'Ada Muster' === $wpdb->get_var( $wpdb->prepare( "SELECT ta.attendee_name FROM {$p}wpcap_ticket_assignments ta INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=ta.ticket_id WHERE t.order_id=%d", $a38['order_id'] ) ) );

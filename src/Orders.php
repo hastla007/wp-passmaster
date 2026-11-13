@@ -1436,6 +1436,10 @@ final class Orders {
 		// Serialise issuance per order so concurrent payment callbacks cannot create duplicates.
 		$wpdb->query( 'START TRANSACTION' );
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) {
+			$wpdb->query( 'ROLLBACK' );
+			return self::issue_failed( $order_id, 'lock' );
+		}
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			$wpdb->query( 'COMMIT' );
 			return;
@@ -1465,6 +1469,11 @@ final class Orders {
 					'status' => 'valid',
 					'issued_at' => current_time( 'mysql', true ),
 				), array( '%s', '%d', '%d', '%s', '%s', '%s' ) );
+				if ( '' !== $wpdb->last_error || ! $wpdb->insert_id ) {
+					// Nothing of this issuance is kept (the attendee data stays on the order for a retry).
+					$wpdb->query( 'ROLLBACK' );
+					return self::issue_failed( $order_id, 'insert' );
+				}
 				if ( $wpdb->insert_id ) {
 					$ticket_id = (int) $wpdb->insert_id;
 					foreach ( $pending_attendees as $index => $attendee ) {
@@ -1481,9 +1490,16 @@ final class Orders {
 		}
 		if ( $issued && $order->attendee_data ) {
 			// Personal data now lives with the tickets; drop the order-level copy (data minimisation).
-			$wpdb->update( $orders, array( 'attendee_data' => null ), array( 'order_id' => (int) $order_id ) );
+			if ( false === $wpdb->update( $orders, array( 'attendee_data' => null ), array( 'order_id' => (int) $order_id ) ) ) {
+				$wpdb->query( 'ROLLBACK' );
+				return self::issue_failed( $order_id, 'attendee_data' );
+			}
 		}
-		$wpdb->query( 'COMMIT' );
+		// A failed COMMIT (or a transaction the server rolled back) must not send tickets that do not exist.
+		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return self::issue_failed( $order_id, 'commit' );
+		}
 		if ( $issued ) {
 			do_action( 'wpcap_tickets_issued', (int) $order_id, count( $issued ) );
 			$entries = array_map( static function ( $ticket ) {
@@ -1518,6 +1534,15 @@ final class Orders {
 				if ( ! empty( $pdf_dir ) && is_dir( $pdf_dir ) ) { @rmdir( $pdf_dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			}
 		}
+	}
+
+	/**
+	 * Ticket issuance hit a database error: nothing was issued, the order stays paid with its
+	 * attendee data, and a later call (webhook retry, resend, "Zuteilung erneut versuchen") issues it.
+	 */
+	private static function issue_failed( $order_id, $step ) {
+		Audit::record( 'ticket_issue_failed', 'order', absint( $order_id ), array( 'step' => (string) $step ) );
+		return new \WP_Error( 'wpcap_db_busy', __( 'Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 	}
 
 	/** Creates a fresh directory (0700, random name) in the temp dir; null on failure. */
