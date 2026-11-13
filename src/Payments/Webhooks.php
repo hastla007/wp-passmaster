@@ -166,8 +166,8 @@ final class Webhooks {
 				}
 			}
 			if ( $full ) {
-				Orders::mark_refunded( $order_id, $provider . '_dashboard_refund' );
-				return 'refunded';
+				$marked = Orders::mark_refunded( $order_id, $provider . '_dashboard_refund' );
+				return is_wp_error( $marked ) ? $marked : 'refunded'; // A database error: the provider redelivers.
 			}
 			return 'partial_refund';
 		}

@@ -1132,12 +1132,23 @@ final class Orders {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
-		if ( ! $order || 'refunded' === $order->status ) { return true; }
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) );
-		$revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid'", $order_id ) ) );
+		// The money is already back with the buyer: a failure is repaired by a job, never dropped.
+		$busy = static function () use ( $wpdb, $order_id, $reason ) {
+			$wpdb->query( 'ROLLBACK' );
+			Audit::record( 'order_refund_mark_failed', 'order', $order_id, array() );
+			Jobs::enqueue( 'order-refund-mark-retry|' . $order_id, 'order_refund_mark_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
+			return new \WP_Error( 'wpcap_db_busy', __( 'Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		};
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( ! $order && '' !== (string) $wpdb->last_error ) { return $busy(); }
+		if ( ! $order || 'refunded' === $order->status ) { $wpdb->query( 'COMMIT' ); return true; }
+		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) ) ) { return $busy(); }
+		$revoked_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' FOR UPDATE", $order_id ) ) );
+		if ( $revoked_ids && false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE order_id=%d AND status='valid'", $order_id ) ) ) { return $busy(); }
 		$revoked = count( $revoked_ids );
-		$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'refunded', 'payment_status' => 'refunded', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+		$updated = $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'refunded', 'payment_status' => 'refunded', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		CapacityCounters::sync_order_now( $order_id );
 		self::capacity_released( $order_id, 'refunded', array( 'reason' => (string) $reason ) );
 		Audit::record( 'order_refunded', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
@@ -1571,6 +1582,9 @@ final class Orders {
 
 	/** Job handler (wp_pass_captain_process_job_v1): retry of a failed ticket mail (new codes). */
 	public static function handle_job( $handled, $type, $payload = array() ) {
+		if ( 'order_refund_mark_retry' === $type ) {
+			return true === self::mark_refunded( absint( $payload['order_id'] ?? 0 ), (string) ( $payload['reason'] ?? '' ) );
+		}
 		if ( 'order_cancel_retry' === $type ) {
 			$order = self::get( absint( $payload['order_id'] ?? 0 ) );
 			// Paid, refunded or cancelled meanwhile: the retry must not override that.

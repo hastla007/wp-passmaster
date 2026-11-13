@@ -744,7 +744,10 @@ final class Sales {
 		$amount = max( 0, (int) $order->total_minor - (int) $order->refunded_minor );
 		$refund = Refunds::record_external( $order_id, $ticket_ids, $amount, __( 'Storno durch Veranstalter-API', 'wp-pass-captain' ) . ( '' !== $reason ? ': ' . $reason : '' ), 'partner-cancel-' . $order_id, array( 'source' => self::SOURCE, 'provider_reference' => 'partner:' . (int) $ctx['partner']->partner_id ) );
 		if ( is_wp_error( $refund ) ) { self::audit( $ctx, 'cancel', $order_id, $refund ); return $refund; }
-		if ( ! $ticket_ids ) { Orders::mark_refunded( $order_id, 'partner_api' ); }
+		if ( ! $ticket_ids ) {
+			$marked = Orders::mark_refunded( $order_id, 'partner_api' );
+			if ( is_wp_error( $marked ) ) { self::audit( $ctx, 'cancel', $order_id, $marked ); return $marked; } // Idempotent retry.
+		}
 		$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::t( 'partner_orders' ) . ' SET cancelled_at=%s WHERE order_id=%d', $now, $order_id ) );
 		self::audit( $ctx, 'cancel', $order_id, null, array( 'kind' => 'refund', 'refund_id' => (int) ( $refund['refund_id'] ?? 0 ), 'amount_minor' => (int) ( $refund['amount_minor'] ?? 0 ) ) );
 		return $done( array( 'refund' => array( 'id' => (int) ( $refund['refund_id'] ?? 0 ), 'amount_minor' => (int) ( $refund['amount_minor'] ?? 0 ), 'tax_minor' => (int) ( $refund['tax_minor'] ?? 0 ), 'currency' => (string) ( $refund['currency'] ?? $order->currency ) ) ) );

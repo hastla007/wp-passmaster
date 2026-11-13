@@ -101,7 +101,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - src/Orders.php:1517-1521: nur `false` geprüft, kein Lock/Rowcount/Outbox; nur reissue_ticket (1562-1570) mit FOR UPDATE und Rowcount-Prüfung
 - [x] **A043** [P2] cancel_order ignoriert DB-Fehler, Webhook gilt als verarbeitet — _OFFEN_ (TODO L311; Bestätigte Befunde)
   - src/Orders.php:1017-1036: Reservierungs-, Widerrufs-, Status-Update und COMMIT ungeprüft, gibt immer true zurück
-- [ ] **A044** [P2] mark_refunded prüft DB-Ergebnisse nicht — _OFFEN_ (TODO L312; Bestätigte Befunde)
+- [x] **A044** [P2] mark_refunded prüft DB-Ergebnisse nicht — _OFFEN_ (TODO L312; Bestätigte Befunde)
   - src/Orders.php:1060-1075: keine Transaktion, Updates ungeprüft; Webhooks.php:141-142 meldet 'refunded'
 - [ ] **A045** [P2] Offline-Scanner fest auf Deutsch, Kataloge nicht geladen — _OFFEN_ (TODO L313; Bestätigte Befunde)
   - assets/offline-scanner/index.html:2 lang="de"; app.js:98 toLocaleString('de-DE'); kein i18n-Laden

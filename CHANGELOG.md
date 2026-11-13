@@ -47,6 +47,7 @@
 - Queue-Worker (Jobs, Nachrichtenqueue): Transaktionsstart, Claim-Update (genau eine Zeile) und COMMIT werden geprüft; ohne dauerhaften Claim läuft kein Handler bzw. wird keine Mail versendet (keine Doppelausführung).
 - Sammel-Nachsendung: Codewechsel pro Bestellung serialisiert (Zeilensperre) und atomar (alle oder keiner, Rowcount geprüft); Rotations-Hooks erst nach dem COMMIT; scheitert der Versand, wird automatisch ein Wiederholungsjob geplant.
 - Stornierung: jeder DB-Schritt (Transaktion, Reservierungen, Ticketwiderruf, Bestellstatus, COMMIT) wird geprüft; bei Fehler wird zurückgerollt, ein retrybarer Fehler geliefert (Zahlungs-Webhook wird erneut zugestellt, Partner-API, Gutschein-Widerruf und Gästeliste melden ihn weiter) und ein Wiederholungsjob geplant, der nur greift, solange sich der Zahlungsstatus nicht geändert hat.
+- Als erstattet markieren (`mark_refunded`): in einer Transaktion mit Zeilensperre, jeder Schritt geprüft; bei Fehler Rollback, retrybarer Fehler (Webhook wird erneut zugestellt, Partner-API meldet ihn) und Reparaturjob, da das Geld bereits zurückgezahlt ist.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

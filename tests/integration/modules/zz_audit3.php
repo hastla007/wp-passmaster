@@ -561,3 +561,14 @@ check( 'A043: the redelivered webhook cancels the order', 'cancelled' === PassCa
 check( 'A043: the retry job is a no-op once the payment status changed', true === Orders::handle_job( false, 'order_cancel_retry', array( 'order_id' => $a43['order_id'], 'reason' => 'x', 'payment_status' => 'pending' ) ) );
 list( $a43_paid ) = ex_buy( $a4_std, 1, 'a43p@example.com' );
 check( 'A043: the retry job never cancels an order that was paid meanwhile', true === Orders::handle_job( false, 'order_cancel_retry', array( 'order_id' => $a43_paid, 'reason' => 'x', 'payment_status' => 'pending' ) ) && 'paid' === Orders::get( $a43_paid )->payment_status );
+
+echo "Audit 3: mark_refunded checks database errors (A044)\n";
+list( $a44_o, $a44_t ) = ex_buy( $a4_std, 1, 'a44@example.com' );
+$a44_fail = static function ( $sql ) { return preg_match( "/^UPDATE \w*wpcap_orders SET status='refunded'/", $sql ) ? 'UPDATE wpcap_table_that_does_not_exist SET x=1' : $sql; };
+add_filter( 'query', $a44_fail );
+$a44 = Orders::mark_refunded( $a44_o, 'test' );
+remove_filter( 'query', $a44_fail );
+check( 'A044: a failed refund marking changes nothing and returns a retryable error', is_wp_error( $a44 ) && ! empty( $a44->get_error_data()['retryable'] ) && 'paid' === Orders::get( $a44_o )->payment_status && 'valid' === ex_ticket( $a44_t[0] )->status );
+check( 'A044: a repair job is scheduled', 1 === (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type='order_refund_mark_retry' AND status='queued' AND payload LIKE %s", '%"order_id":' . $a44_o . ',%' ) ) );
+check( 'A044: the repair job marks the order refunded and revokes the ticket', true === Orders::handle_job( false, 'order_refund_mark_retry', array( 'order_id' => $a44_o, 'reason' => 'test' ) ) && 'refunded' === Orders::get( $a44_o )->status && 'revoked' === ex_ticket( $a44_t[0] )->status );
+check( 'A044: repeating it is a no-op', true === Orders::mark_refunded( $a44_o, 'test' ) );
