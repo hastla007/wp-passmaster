@@ -64,6 +64,11 @@ Getestet in `tests/integration/modules/zz_a202.php`: DNS über `wpcap_outbound_r
 `pre_http_request`/HTTP-Stubs, jeder Aufrufer, Rebinding (zweite DNS-Antwort privat), Weiterleitungen,
 Größen- und Zeitlimits, Schwärzung.
 
+Der generische Varnish-Purge (A446, standardmäßig aus) läuft ebenfalls über den Guard; ein lokaler
+Varnish-Endpunkt (`http://127.0.0.1:6081`) gilt nur als Ausnahme, weil die Website ihn ausdrücklich im Filter
+`wpcap_page_cache_varnish` einträgt. WAF-/Bot-Schutz-Ausnahmen für Zahlungs-Webhooks und den Apple-Wallet-
+Webservice sowie die Seitencache-Ausschlüsse persönlicher Seiten: [OPERATIONS.md](OPERATIONS.md#seitencache-und-cdn).
+
 ## Ratenlimits hinter Proxys und mit mehreren Workern
 
 **Zähler (`PassCaptain\RateLimit`).** Es gilt ein festes Zeitfenster je Bucket. Jeder Aufruf zählt;

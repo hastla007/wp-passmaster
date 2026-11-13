@@ -110,6 +110,115 @@ Prüfen, ob der externe Cronjob greift: Unter **Werkzeuge → Website-Zustand** 
 | E-Mail-Warteschlange | Ebenfalls mindestens einmal: stirbt der Worker zwischen `wp_mail()` und dem Vermerk „gesendet“, wird die Mail erneut versendet (inhaltsgleich). |
 | Webhook-Zustellungen | Mindestens einmal; Empfänger erkennen Wiederholungen an `X-WPCAP-Event-Id` bzw. `X-WPCAP-Delivery` (siehe [WEBHOOKS.md](WEBHOOKS.md)). |
 
+## Seitencache und CDN
+
+Pass Captain funktioniert hinter Seitencaches (WP Rocket, LiteSpeed Cache, W3 Total Cache, WP Super Cache),
+Cloudflare APO und Varnish. Zwei Regeln halten die Ausgabe richtig: persönliche Seiten werden **nie** gecacht,
+und Seiten mit Event-Liste oder Kalender werden bei jeder Änderung **gezielt geleert** (A283, A446, A508).
+
+### Was das Plugin selbst tut
+
+- **Persönliche Seiten** setzen vor jeder Ausgabe `DONOTCACHEPAGE`, senden `nocache_headers()`
+  (`Cache-Control: no-cache, must-revalidate, max-age=0, no-store, private`) und lösen
+  `litespeed_control_set_nocache` aus – auch in ihren 404-Zweigen (`PageCache::no_store()`, Action
+  `wpcap_page_no_store`): Ticketseite, Bestellportal, Rechnung (HTML und PDF, auch Fehlerantworten),
+  Wartelisten-Angebot und -Abmeldung samt Ergebnisseiten, Rückkehr von der Zahlungsseite und die Seite mit
+  dem Web-Scanner-Shortcode. Für Rückkehrhinweis und Scanner greift das bereits auf `template_redirect`
+  (Priorität 0), also bevor das Theme Header sendet.
+- **Purge bei Änderungen:** Jede Änderung, die eine öffentliche Seite verändert, löst am Requestende die Action
+  `wpcap_purge_page_cache( $event_id, $urls, $context )` aus – je Event einmal: Event angelegt/geändert/abgesagt,
+  Termin angelegt/geändert/verschoben/abgesagt, Ticketart (Preis, Verkaufszeitraum, Status, Kontingent),
+  Pässe, Serientermine, Übersetzungen, ausverkauft bzw. wieder verfügbar (Kapazitätszähler kreuzen 0, frei
+  gewordene Plätze) und geänderte Rechtstexte (`$event_id` 0 = alle Seiten mit Liste).
+- **Welche Seiten:** Ein Index (Option `wpcap_page_cache_index`, beim ersten Gebrauch aus allen
+  veröffentlichten Beiträgen aufgebaut, danach bei `save_post` über `has_shortcode()`/`has_block()` gepflegt)
+  kennt alle Beiträge mit `[wp_pass_captain_events]`/`[wpcap_events]`, `[wp_pass_captain_calendar]`/
+  `[wpcap_calendar]` und den Blöcken `wp-pass-captain/events`/`wp-pass-captain/calendar`. Geleert werden die
+  Beiträge mit `event`/`occurrence`-Attribut des Events bzw. eines seiner Termine sowie **alle** Beiträge mit
+  vollständiger Liste oder Kalender. Listen in Templates, Template-Parts, synchronisierten Mustern oder
+  Widgets sieht der Index nicht – solche URLs mit dem Filter `wpcap_page_cache_urls` ergänzen.
+- **Verkaufsstart und -ende:** Für jede Ticketart plant das Plugin einmalige Cron-Ereignisse
+  `wpcap_page_cache_sales_window` zum Verkaufsstart und eine Sekunde nach Verkaufsende (je Event die nächsten
+  50 Zeitpunkte, danach die folgenden). Damit das pünktlich passiert, WP-Cron per System-Cron jede Minute
+  ausführen (siehe [Hintergrundverarbeitung](#hintergrundverarbeitung-wp-cron)). Bis dahin zeigt eine
+  gecachte Seite den alten Stand; der Checkout prüft Verkaufszeitraum und Verfügbarkeit aber immer serverseitig.
+
+### Mitgelieferte Purge-Adapter
+
+Jeder Adapter läuft nur, wenn sein Plugin aktiv ist (Filter `wpcap_page_cache_adapters` zum Abschalten):
+
+| Produkt | Purge | Nötige Ausnahmen |
+|---|---|---|
+| **WP Rocket** | `rocket_clean_post()` je Beitrag, `rocket_clean_files()` für alle URLs | „Niemals cachen (URLs)“: `/wp-json/pass-captain/(.*)`; „Niemals cachen (Query-Strings)“: `wpcap_ticket`, `wpcap_order`, `wpcap_access`, `wpcap_invoice`, `wpcap_invoice_pdf`, `wpcap_waitlist_accept`, `wpcap_waitlist_unsubscribe`, `wpcap_payment`, `wpcap_paypal_return`, `wpcap_mollie_return`. Die Scanner-Seite in „Niemals cachen (URLs)“ eintragen. Unter „Datei-Optimierung“ `assets/checkout.js` und `assets/scanner.js` nicht verzögern/kombinieren, falls der Checkout sonst erst nach einer Interaktion startet. |
+| **LiteSpeed Cache** | `litespeed_purge_post` je Beitrag, `litespeed_purge_url` je URL | Cache → Ausschließen: „URIs nicht cachen“ `/wp-json/pass-captain/` und die Scanner-Seite; „Query-Strings nicht cachen“ wie bei WP Rocket. LiteSpeed beachtet `DONOTCACHEPAGE` und `litespeed_control_set_nocache` bereits; die Einträge schützen zusätzlich vor ESI/Crawler-Vorwärmung. |
+| **W3 Total Cache** | `w3tc_flush_post()` je Beitrag, `w3tc_flush_url()` je URL | Page Cache: „Seiten mit Query-Strings nicht cachen“ einschalten oder die Parameter oben unter „Abgelehnte Query-Strings“ eintragen; „Nie folgende Seiten cachen“: `wp-json/pass-captain/*` und die Scanner-Seite. |
+| **WP Super Cache** | `wpsc_delete_url_cache()` je URL | „Seiten mit GET-Parametern nicht cachen“ einschalten; unter „Abgelehnte URL-Zeichenketten“ `wpcap_` und `/wp-json/`. |
+| **Cloudflare APO** (offizielles Cloudflare-Plugin) | `CF\WordPress\Hooks::purgeCacheByRelevantURLs()` für die Beiträge, unsere URLs über dessen Filter `cloudflare_purge_by_url` | APO überspringt den Cache bei Query-Strings nur, wenn sie nicht ignoriert werden – keine Cache-Regel „Ignore query string“ für die Website anlegen. Cache-Regel „Bypass cache“ für `/wp-json/pass-captain/*` und die Scanner-Seite. Ohne das offizielle Plugin leert Pass Captain Cloudflare nicht; dann eine eigene Funktion an `wpcap_purge_page_cache` hängen (API „Purge Files by URL“). |
+| **Varnish** (generisch, aus) | Je URL eine `PURGE`-Anfrage über den OutboundHttp-Guard, einzuschalten mit dem Filter `wpcap_page_cache_varnish` (siehe unten) | In der VCL `pass` für `req.url ~ "^/wp-json/pass-captain/"`, für die Query-Parameter oben (`req.url ~ "[?&]wpcap_"`) und die Scanner-Seite; Antworten mit `Cache-Control: private/no-store` nie speichern; `PURGE` nur aus dem eigenen Netz erlauben (ACL). |
+
+Varnish einschalten (Must-Use-Plugin oder Theme):
+
+```php
+add_filter( 'wpcap_page_cache_varnish', static function ( $config ) {
+	return array( 'enabled' => true, 'endpoint' => 'http://127.0.0.1:6081' ) + $config;
+} );
+```
+
+Ohne `endpoint` geht die Anfrage an die öffentliche URL selbst (nur HTTPS, öffentliche Adresse – Regeln des
+Guards). Mit `endpoint` geht sie an diesen Ursprung mit dem `Host`-Header der Seite; der Ursprung wird dem
+Guard dafür ausdrücklich als Ausnahme übergeben. Eigene Header (z. B. ein Purge-Token) und `BAN` statt
+`PURGE` über `wpcap_page_cache_varnish_request`.
+
+Andere Caches/CDNs (Nginx FastCGI Cache, Fastly, Bunny, Kinsta, WP Engine …) hängen sich an die Action:
+
+```php
+add_action( 'wpcap_purge_page_cache', static function ( $event_id, $urls, $context ) {
+	foreach ( $urls as $url ) { my_cdn_purge( $url ); }
+}, 20, 3 );
+```
+
+### Pfade und Parameter, die nie gecacht werden dürfen
+
+| Seite | Pfad / Parameter |
+|---|---|
+| Ticketseite | `/?wpcap_ticket=<64 Hex>` |
+| Bestellportal | `/?wpcap_order=<id>&wpcap_access=<64 Hex>` |
+| Rechnung (Käufer) | `/?wpcap_invoice=<id>&wpcap_access=…`, PDF `/?wpcap_invoice_pdf=<id>&wpcap_access=…` |
+| Warteliste | Angebot `/?wpcap_waitlist_accept=<id>&token=…`, Abmeldung `/?wpcap_waitlist_unsubscribe=<id>&token=…`, Formulare an `wp-admin/admin-post.php` |
+| Rückkehr von der Zahlung | `/?wpcap_payment=<status>&order=<id>`, PayPal `/?wpcap_paypal_return=1…`, Mollie `/?wpcap_mollie_return=1…` |
+| Web-Scanner | Seite mit `[wp_pass_captain_scanner]`/`[wpcap_scanner]` |
+| REST-API | `/wp-json/pass-captain/v1/*` (ohne Permalinks `/?rest_route=/pass-captain/v1/…`) – Checkout, Verfügbarkeit, Scanner-App, Wallet, Webhooks |
+
+`/?wpcap_ics=…` (Kalenderdatei) darf gecacht werden; sie ändert sich mit dem Termin (Revision).
+
+### WAF, Bot-Schutz und Ratenbegrenzung
+
+Zahlungsanbieter und Apple-Geräte rufen die Website ohne Browser, ohne Cookies und ohne JavaScript auf.
+Cloudflare „Bot Fight Mode“/„Super Bot Fight Mode“, „Under Attack“, JS-/Managed-Challenges, Wordfence-
+oder Sucuri-Firewalls und Ratenlimits des Hosters blockieren sie sonst (Folge: bezahlte Bestellungen bleiben
+offen, Wallet-Pässe aktualisieren sich nicht). Ausnahmen (Cloudflare: WAF → Custom Rule „Skip“ für alle
+Sicherheitsfunktionen inkl. Bot Fight Mode – der klassische Bot Fight Mode lässt sich nicht per Regel
+umgehen und muss dann aus sein; Super Bot Fight Mode „Verified bots: Allow“ reicht nicht):
+
+| Endpunkt | Aufrufer |
+|---|---|
+| `POST /wp-json/pass-captain/v1/payments/stripe/webhook`, `…/paypal/webhook`, `…/mollie/webhook` | Stripe, PayPal, Mollie (Signatur bzw. Rückfrage beim Anbieter prüft die Echtheit) |
+| `/wp-json/pass-captain/v1/wallet/apple/v1/devices/…`, `…/wallet/apple/v1/passes/…`, `…/wallet/apple/v1/log` (POST, GET, DELETE) | Apple Wallet Web Service (Geräte, Header `Authorization: ApplePass …`) |
+| `/wp-json/pass-captain/v1/sms/{twilio,http}/{status,inbound}` | SMS-Gateway (falls genutzt) |
+| `/wp-json/pass-captain/v1/app/*`, `/admission/*` | Scanner-App und Offline-Scanner (eigene Tokens) |
+
+Diese Pfade außerdem nicht cachen, keine Länder-Sperren darauf anwenden und keine Umschreibungen des
+Antwortinhalts (Cloudflare Email Obfuscation, Rocket Loader, HTML-Minify) für sie aktivieren. Die Ratenbegrenzung des Plugins selbst sieht die echte Client-IP nur mit korrekt eingerichteten
+vertrauenswürdigen Proxys (siehe [SECURITY.md](SECURITY.md#ratenlimits-hinter-proxys-und-mit-mehreren-workern)).
+
+### Prüfen
+
+- Ticket- oder Portallink in einem privaten Fenster zweimal laden: Antwort-Header `Cache-Control` enthält
+  `no-store`, Cache-Header des Produkts (`x-wp-rocket`, `x-litespeed-cache`, `cf-cache-status`, `x-varnish`
+  bzw. `Age`) zeigen keinen Treffer.
+- Preis einer Ticketart ändern, danach die Event-Seite ohne Anmeldung laden: der neue Preis erscheint sofort.
+- In **Werkzeuge → Website-Zustand** muss WP-Cron laufen, sonst kommen Purges zu Verkaufsstart/-ende zu spät.
+
 ## Betriebsüberwachung (Website-Zustand)
 
 Das Plugin trägt eigene Prüfungen in **Werkzeuge → Website-Zustand** ein (Site Health, A164), Abzeichen „Pass Captain“. Ist eine Prüfung **kritisch**, zeigt jede Pass-Captain-Admin-Seite Administratorinnen zusätzlich einen Hinweis mit Link zur Betriebsübersicht (Ergebnis fünf Minuten zwischengespeichert, Transient `wpcap_health_critical`).

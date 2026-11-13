@@ -125,6 +125,10 @@ Das Plugin heißt für WordPress.org jetzt „Pass Captain“ (Slug `pass-captai
 
 Warteschlangen (E-Mails, SMS, Jobs, Webhooks) werden über WP-Cron mit einem Zeitbudget von etwa 20 Sekunden pro Lauf abgearbeitet; bleibt ein Rückstand, folgt sofort ein weiterer Lauf. Ist Action Scheduler (z. B. mit WooCommerce) vorhanden, werden Folgeläufe darüber eingeplant. Für Shops mit viel Verkehr empfiehlt sich `define( 'DISABLE_WP_CRON', true );` in der wp-config.php und ein System-Cronjob, der jede Minute `wp cron event run --due-now` ausführt.
 
+= Funktioniert das Plugin mit Seitencache und CDN? =
+
+Ja. Ticketseite, Bestellportal, Wartelisten- und Rechnungslinks, Zahlungsrückkehr und Web-Scanner werden nie gecacht (DONOTCACHEPAGE und No-Cache-Header). Seiten mit Event-Liste oder Kalender werden bei Änderungen an Events, Terminen, Ticketarten, Preisen, Verkaufszeiträumen, Rechtstexten und bei „ausverkauft“/„wieder verfügbar“ sowie zu Verkaufsstart und -ende automatisch geleert: WP Rocket, LiteSpeed Cache, W3 Total Cache, WP Super Cache, Cloudflare (offizielles Plugin, auch APO) und optional Varnish. Ausschlussregeln je Produkt und die nötigen WAF-/Bot-Schutz-Ausnahmen für Zahlungs-Webhooks und Apple Wallet stehen in docs/OPERATIONS.md, Abschnitt „Seitencache und CDN“.
+
 == Changelog ==
 
 = 1.4.0 =
