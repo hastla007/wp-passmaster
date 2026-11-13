@@ -25,6 +25,7 @@ final class BoxOffice {
 		add_action( 'wpcap_refund_completed', array( Service::class, 'on_refund_completed' ), 10, 2 );
 		add_action( 'wpcap_refund_rejected', array( Service::class, 'on_refund_rejected' ), 10, 2 );
 		add_filter( 'pre_wp_mail', array( Service::class, 'suppress_placeholder_mail' ), 10, 2 );
+		add_action( 'wpcap_boxoffice_shift_opened', array( \PassCaptain\BoxOffice\Shifts::class, 'book_deferred' ), 10, 1 );
 		// Schema fixes dbDelta cannot apply: after every schema install/upgrade and once on existing installs.
 		add_action( 'add_option_wpcap_db_version', array( __CLASS__, 'migrate' ), 10, 0 );
 		add_action( 'update_option_wpcap_db_version', array( __CLASS__, 'migrate' ), 10, 0 );

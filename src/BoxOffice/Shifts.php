@@ -643,7 +643,7 @@ final class Shifts {
 	 *
 	 * @return object|null|\WP_Error Movement row, null when not a POS sale or nothing to book.
 	 */
-	public static function book_refund( $refund_id, $require_shift = true ) {
+	public static function book_refund( $refund_id, $require_shift = true, $shift = null ) {
 		global $wpdb;
 		$refund = Refunds::get( $refund_id );
 		if ( ! $refund ) { return null; }
@@ -651,11 +651,14 @@ final class Shifts {
 		if ( $existing ) { return $existing; }
 		$sale = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'sales' ) . ' WHERE order_id=%d', (int) $refund['order_id'] ) );
 		if ( ! $sale || ! Service::is_booked( $sale ) ) { return null; }
-		$target = self::target_shift_for_sale( $sale );
+		$target = $shift && 'open' === $shift->status && $shift->currency === $sale->currency ? $shift : self::target_shift_for_sale( $sale );
 		if ( ! $target ) {
 			if ( $require_shift && self::needs_shift( $sale->payment_method ) ) {
 				return self::error( 'wpcap_pos_no_shift', __( 'Für die Auszahlung einer Kassenbestellung (bar oder Karte) muss eine Kassenschicht geöffnet sein. Bitte eine Schicht öffnen und die Erstattung erneut ausführen.', 'wp-pass-captain' ), 409 );
 			}
+			// Invoice/free sale: no money at the till, but the storno belongs into the journal and the
+			// grand total – booked into the next shift that opens (book_deferred()).
+			self::defer_refund( (int) $refund['refund_id'] );
 			return null;
 		}
 		$ticket_ids = array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) );
@@ -676,7 +679,44 @@ final class Shifts {
 			'reason' => mb_substr( (string) $refund['reason'], 0, 255 ),
 			'override_reason' => mb_substr( (string) self::$storno_override, 0, 255 ),
 		), true );
-		if ( is_wp_error( $movement ) && ! ( $require_shift && self::needs_shift( $sale->payment_method ) ) ) { return null; }
+		if ( is_wp_error( $movement ) && ! ( $require_shift && self::needs_shift( $sale->payment_method ) ) ) {
+			self::defer_refund( (int) $refund['refund_id'] );
+			return null;
+		}
 		return $movement;
+	}
+
+	/** Option holding refund IDs of POS sales whose storno still has to be booked into a shift. */
+	const DEFERRED_OPTION = 'wpcap_pos_deferred_refunds';
+
+	/** Queues a refund for booking into the next opened shift. */
+	public static function defer_refund( $refund_id ) {
+		$queue = array_map( 'intval', (array) get_option( self::DEFERRED_OPTION, array() ) );
+		if ( ! in_array( (int) $refund_id, $queue, true ) ) {
+			$queue[] = (int) $refund_id;
+			update_option( self::DEFERRED_OPTION, $queue, false );
+			Audit::record( 'pos_refund_deferred', 'refund', (int) $refund_id, array() );
+		}
+	}
+
+	/**
+	 * wpcap_boxoffice_shift_opened: books queued stornos/refunds of invoice and free sales into the
+	 * opened shift (same currency); others stay queued. Returns the number booked.
+	 */
+	public static function book_deferred( $shift_id ) {
+		$queue = array_map( 'intval', (array) get_option( self::DEFERRED_OPTION, array() ) );
+		if ( ! $queue ) { return 0; }
+		$shift = self::get( $shift_id );
+		if ( ! $shift || 'open' !== $shift->status ) { return 0; }
+		$booked = 0;
+		foreach ( $queue as $refund_id ) {
+			// Taken off the queue first; book_refund() queues it again if it still cannot be booked
+			// (e.g. other currency). Refunds that are no POS sale (anymore) simply drop out.
+			$current = array_map( 'intval', (array) get_option( self::DEFERRED_OPTION, array() ) );
+			update_option( self::DEFERRED_OPTION, array_values( array_diff( $current, array( $refund_id ) ) ), false );
+			$movement = self::book_refund( $refund_id, false, $shift );
+			if ( $movement && ! is_wp_error( $movement ) ) { ++$booked; }
+		}
+		return $booked;
 	}
 }

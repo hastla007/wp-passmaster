@@ -446,7 +446,7 @@ Fehlende Abläufe: Wartelisten-Eintrag für Käufer:innen; Rabattcode-Verwaltung
 - [x] [P3][BESTÄTIGT] `src/Invoices.php:73–83` vs. `src/Orders.php:203–206`, `src/Reports/Data.php:241–252` — Unterschiedliche Rabatt-Rundung (floor kumulativ vs. intdiv + Rest). **Maßnahme:** Gemeinsamer Allokator bzw. gespeicherter Zeilenrabatt.
 - [x] [P3][BESTÄTIGT] `src/Passes/Cancellation.php:93–96`; `src/Refunds.php:550–551` — Pass-Tageserstattungen mit Durchschnitts-USt der Bestellung statt Pass-Satz. **Maßnahme:** `tax_minor` mit Pass-Satz übergeben.
 - [x] [P3][BESTÄTIGT] `src/Reports/Data.php:58`; `src/Partners/Settlements.php:113–120` — Kassen-Freikarten (`pos_free`) zählen als verkauft, Ticketgebühr fällt an. **Maßnahme:** `pos_free` in `comp_providers()` aufnehmen oder dokumentieren.
-- [ ] [P3][BESTÄTIGT] `src/BoxOffice/Shifts.php:621–626` — Stornos von Kassenverkäufen „Rechnung“/„Freikarte“ ohne offene Schicht werden nie gebucht; Grand Total ohne Storno. **Maßnahme:** Nachbuchungs-Warteschlange für nächste Schicht.
+- [x] [P3][BESTÄTIGT] `src/BoxOffice/Shifts.php:621–626` — Stornos von Kassenverkäufen „Rechnung“/„Freikarte“ ohne offene Schicht werden nie gebucht; Grand Total ohne Storno. **Maßnahme:** Nachbuchungs-Warteschlange für nächste Schicht.
 - [ ] [P3][BESTÄTIGT] `src/Orders.php:198`; `src/BoxOffice/Service.php:276–280` — Rechnungsdatenpflicht über Schwelle greift nicht bei Kasse („Zahlung auf Rechnung“), Partner-API und Zusatzbestellungen. **Maßnahme:** `Billing::required_for` auch dort erzwingen.
 
 Fragen an die Steuerberatung (neu):

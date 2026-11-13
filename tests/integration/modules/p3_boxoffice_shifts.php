@@ -329,6 +329,28 @@ $as( 801, $cashier );
 Pos::close_session( $s_ui->session_id, 1000 );
 $reset();
 
+echo "Box office shifts: stornos of invoice/free sales without an open shift are booked later (A053)\n";
+$reset();
+$a53_reg = Registers::save( array( 'name' => 'Kasse A53', 'currency' => 'EUR', 'blind_count' => 0 ) );
+$wpdb->insert( "{$p}wpcap_event_staff", array( 'event_id' => wpb_event_of_type( $t19 ), 'user_id' => 811, 'capability' => 'wpcap_manage_orders' ) );
+$as( 811, $cashier );
+$a53_s1 = Shifts::open( $a53_reg->register_id, array( 'float_minor' => 0 ) );
+$a53_sold = Pos::sell( array( 'occurrence_id' => $occ, 'quantities' => array( $t19 => 1 ), 'method' => 'free', 'form_key' => wpb_key() ) ); $a53_sale = $a53_sold["sale"];
+Pos::close_session( $a53_s1->session_id, 0 );
+// Refund by an order manager without any open shift (no fallback shift exists for this user).
+$wpdb->insert( "{$p}wpcap_event_staff", array( 'event_id' => wpb_event_of_type( $t19 ), 'user_id' => 812, 'capability' => 'wpcap_manage_orders' ) );
+$as( 812, array( 'manage_options' ) );
+PassCaptain\Settings::update( array( 'refund_approval_threshold' => 0 ) );
+$a53_refund = Refunds::request( (int) $a53_sale->order_id, array( (int) tickets( $a53_sale->order_id )[0]->ticket_id ), 'Nachträglich storniert', 'a53-' . uniqid() );
+$a53_rid = (int) ( $a53_refund['refund_id'] ?? 0 );
+$a53_moves = static fn() => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_movements WHERE refund_id=%d", $a53_rid ) );
+check( 'A053: without an open shift the storno is queued, not lost', $a53_rid && 0 === $a53_moves() && in_array( $a53_rid, array_map( 'intval', (array) get_option( Shifts::DEFERRED_OPTION, array() ) ), true ) );
+$as( 811, $cashier );
+$a53_s2 = Shifts::open( $a53_reg->register_id, array( 'float_minor' => 0 ) );
+check( 'A053: the next opened shift books the storno once and empties the queue', 1 === $a53_moves() && (int) $a53_s2->session_id === (int) $wpdb->get_var( $wpdb->prepare( "SELECT shift_id FROM {$p}wpcap_boxoffice_movements WHERE refund_id=%d", $a53_rid ) ) && ! in_array( $a53_rid, array_map( 'intval', (array) get_option( Shifts::DEFERRED_OPTION, array() ) ), true ) );
+Pos::close_session( $a53_s2->session_id, 0 );
+$reset();
+
 echo "Box office shifts: migration of legacy cash sessions\n";
 $mig_default = Registers::save( array( 'name' => 'Migrationskasse', 'blind_count' => 0 ) );
 $old_default = get_option( Registers::DEFAULT_OPTION );

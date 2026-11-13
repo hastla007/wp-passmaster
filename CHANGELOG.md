@@ -59,6 +59,7 @@
 - Veranstalter speichern: fehlende Rechnungsangaben werden nur noch einmal (im Formular) angezeigt statt zusätzlich als Hinweis nach dem Speichern.
 - Pass-Tageserstattungen (abgesagter Termin) weisen die USt zum Satz der Pass-Zeile aus statt zum Durchschnittssatz der Bestellung.
 - Kassen-Freikarten (`pos_free`) gelten wie Gästelisten-Freikarten als Freikarten: nicht im Umsatz/verkauften Tickets, keine Ticketgebühr in Veranstalter-Abrechnungen (separat ausgewiesen).
+- Kasse: Stornos/Erstattungen von Verkäufen „Rechnung“/„Freikarte“ ohne offene Schicht gehen nicht mehr verloren, sondern werden vorgemerkt und beim Öffnen der nächsten Schicht (gleiche Währung) ins Journal und damit in Z-Bericht und Grand Total gebucht.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.
