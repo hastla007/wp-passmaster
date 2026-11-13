@@ -319,8 +319,17 @@ $pass_v = fp_pass( $x3, array( $x3, fp_occ( $ev_x, '2027-11-04' ) ), array( 'on_
 $ov = fp_buy( $pass_v, 1 );
 $vcode = ticket_code_for( $ov['order_id'] )[0] ?? '';
 $x4 = Definitions::occurrence_ids( $pass_v )[1];
+$GLOBALS['wpcap_test_mails'] = array();
 $cancel( $x4 );
 check( 'on_cancel = revoke: the whole pass is revoked', 'revoked' === fp_status( $vcode ) );
+$ov_order = Orders::get( $ov['order_id'] );
+$ov_buyer_mail = array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => $m['to'] === $ov_order->customer_email && false !== strpos( (string) $m['body'], 'nicht mehr gültig' ) );
+check( 'revoked pass: buyer gets the cancellation mail', 1 === count( $ov_buyer_mail ) );
+check( 'revoked pass without auto refund: admin is told the refund is open', 1 === count( array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => 'admin@example.com' === $m['to'] && false !== strpos( (string) $m['subject'], 'abgesagte Pässe' ) ) ) && 1 === (int) PassCancellation::last_summary( $x4 )['refunds_open'] );
+$ov_refundable = array_map( static fn( $t ) => (int) $t->ticket_id, Orders::refundable_tickets( $ov['order_id'] ) );
+check( 'revoked pass stays refundable in the order', 1 === count( $ov_refundable ) );
+$ov_refund = Refunds::request( $ov['order_id'], $ov_refundable, 'Pass abgesagt', 'fp-revoked-refund' );
+check( 'refund of the revoked pass completes', ! is_wp_error( $ov_refund ) && in_array( $ov_refund['status'], array( 'completed', 'pending_approval' ), true ) );
 $o_full = fp_buy( $pass_x, 1, 'full@example.com' );
 Orders::confirm_manual_payment( $o_full['order_id'] );
 $before_full = Orders::availability( $tx3 );

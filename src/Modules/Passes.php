@@ -57,6 +57,7 @@ final class Passes {
 		// Cancellation of a linked occurrence.
 		add_action( 'wpcap_occurrence_cancelled', array( Cancellation::class, 'before_core' ), 5, 1 );
 		add_action( 'wpcap_occurrence_cancelled', array( Cancellation::class, 'after_core' ), 20, 1 );
+		add_filter( 'wpcap_refundable_tickets', array( Cancellation::class, 'refundable_tickets' ), 10, 2 );
 	}
 
 	public static function schema( $prefix, $charset ) {
