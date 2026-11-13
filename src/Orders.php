@@ -1011,6 +1011,34 @@ final class Orders {
 		return true;
 	}
 
+	/**
+	 * Hold for a bank transfer / manual payment: `manual_hold_hours`, but never beyond the start of
+	 * the earliest occurrence of the given ticket types (seats are not blocked past the start, and
+	 * no payment arrives after the event). Null when the start is closer than `manual_cutoff_hours`
+	 * (or already passed): bank transfer is then not offered.
+	 *
+	 * @param int[] $type_ids Ticket types of the order.
+	 * @return int|null Minutes.
+	 */
+	public static function manual_hold_minutes( array $type_ids ) {
+		global $wpdb;
+		$minutes = max( 1, (int) Settings::get( 'manual_hold_hours' ) ) * 60;
+		$type_ids = array_filter( array_map( 'absint', $type_ids ) );
+		if ( ! $type_ids ) { return $minutes; }
+		$start = $wpdb->get_var( "SELECT MIN(o.starts_at) FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id IN (" . implode( ',', $type_ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		return self::manual_hold_until( $start ? strtotime( $start . ' UTC' ) : 0, $minutes );
+	}
+
+	/** manual_hold_minutes() for a known start timestamp (0 = unknown: no cap). */
+	public static function manual_hold_until( $start_ts, $minutes = null ) {
+		$minutes = null === $minutes ? max( 1, (int) Settings::get( 'manual_hold_hours' ) ) * 60 : (int) $minutes;
+		if ( ! $start_ts ) { return $minutes; }
+		$left = (int) floor( ( (int) $start_ts - time() ) / 60 );
+		$cutoff = max( 0, (int) Settings::get( 'manual_cutoff_hours' ) ) * 60;
+		if ( $left < 1 || $left < $cutoff ) { return null; }
+		return max( 1, min( $minutes, $left ) );
+	}
+
 	/** Extends active holds of a pending order (e.g. WooCommerce "on-hold" bank transfers). */
 	public static function extend_hold( $order_id, $minutes ) {
 		global $wpdb;

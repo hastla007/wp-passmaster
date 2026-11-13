@@ -276,7 +276,14 @@ final class Controller {
 		if ( ! $gateway || ! in_array( $provider_id, $enabled, true ) ) {
 			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'wp-pass-captain' ), array( 'status' => 400 ) );
 		}
-		$hold = 'manual' === $provider_id ? max( 1, (int) \PassCaptain\Settings::get( 'manual_hold_hours' ) ) * 60 : max( 30, (int) \PassCaptain\Settings::get( 'hold_minutes' ) ); // Hosted payment pages (e.g. Stripe) live at least 30 minutes.
+		$hold = max( 30, (int) \PassCaptain\Settings::get( 'hold_minutes' ) ); // Hosted payment pages (e.g. Stripe) live at least 30 minutes.
+		if ( 'manual' === $provider_id ) {
+			// Bank transfer: hold ends at the latest with the start; refused within manual_cutoff_hours.
+			$hold = Orders::manual_hold_minutes( array_map( static function ( $item ) { return absint( is_array( $item ) ? ( $item['ticket_type_id'] ?? 0 ) : 0 ); }, (array) ( $payload['items'] ?? array() ) ) );
+			if ( null === $hold ) {
+				return new \WP_Error( 'wpcap_manual_too_late', __( 'Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart.', 'wp-pass-captain' ), array( 'status' => 400, 'field' => 'provider' ) );
+			}
+		}
 		// Same wording as the form field ("Rabattcode"); the field is derived from the message below.
 		$campaign_messages = static function ( $messages ) {
 			$messages['campaign_invalid'] = __( 'Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets.', 'wp-pass-captain' );

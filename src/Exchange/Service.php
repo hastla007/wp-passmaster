@@ -823,7 +823,8 @@ final class Service {
 		if ( isset( $args['hold_minutes'] ) ) {
 			$hold = max( 1, absint( $args['hold_minutes'] ) );
 		} elseif ( 'manual' === $provider ) {
-			$hold = max( 1, (int) Settings::get( 'manual_hold_hours' ) ) * 60;
+			// Never beyond the start of the target (no cutoff here: the old ticket stays valid meanwhile).
+			$hold = Orders::manual_hold_until( strtotime( $target_occ->starts_at . ' UTC' ) ) ?? max( 1, (int) floor( ( strtotime( $target_occ->starts_at . ' UTC' ) - time() ) / 60 ) );
 		} else {
 			$hold = max( 1, (int) Settings::get( 'hold_minutes' ) );
 		}

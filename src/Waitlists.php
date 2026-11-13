@@ -459,7 +459,16 @@ final class Waitlists {
 		} else {
 			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'payment_provider' => $gateway->id(), 'terms_version' => Settings::terms_version(), 'locale' => function_exists( 'determine_locale' ) ? determine_locale() : '', 'updated_at' => $now ), array( 'order_id' => $order_id, 'payment_status' => 'pending' ) );
 			// The hold now covers the payment window of the chosen method (never shortened).
-			$minutes = 'manual' === $gateway->id() ? max( 1, (int) Settings::get( 'manual_hold_hours' ) ) * 60 : max( 30, (int) Settings::get( 'hold_minutes' ) );
+			$minutes = max( 30, (int) Settings::get( 'hold_minutes' ) );
+			if ( 'manual' === $gateway->id() ) {
+				// Bank transfer: never beyond the start (and not offered within manual_cutoff_hours).
+				$minutes = Orders::manual_hold_minutes( array_map( static function ( $item ) { return (int) $item->ticket_type_id; }, Orders::items_for_order( $order_id ) ) );
+				if ( null === $minutes ) {
+					$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'payment_provider' => self::OFFER_PROVIDER ), array( 'order_id' => $order_id, 'payment_status' => 'pending' ) );
+					self::reopen( $row );
+					return new \WP_Error( 'wpcap_manual_too_late', __( 'Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+				}
+			}
 			Orders::extend_hold( $order_id, $minutes );
 			$fresh = (array) Orders::get( $order_id );
 			$items = array_map( static function ( $item ) { return (array) $item; }, Orders::items_for_order( $order_id ) );

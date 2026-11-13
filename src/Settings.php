@@ -44,6 +44,7 @@ final class Settings {
 		return array(
 			'hold_minutes'              => 10,
 			'manual_hold_hours'         => 72,
+			'manual_cutoff_hours'       => 0,
 			'enabled_providers'         => array( 'manual' ),
 			'manual_instructions'       => '',
 			'bank_recipient'            => '',

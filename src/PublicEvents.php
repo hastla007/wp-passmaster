@@ -105,6 +105,8 @@ final class PublicEvents {
 				$types = $listing[ (int) $event->occurrence_id ] ?? array();
 				if ( ! $types ) { continue; }
 				$providers = Payments\Registry::enabled( $types[0]->currency );
+				// Bank transfer is not offered when the start is closer than manual_cutoff_hours.
+				if ( isset( $providers['manual'] ) && count( $providers ) > 1 && null === Orders::manual_hold_until( strtotime( $event->starts_at . ' UTC' ) ) ) { unset( $providers['manual'] ); }
 				$legal = array(
 					'require_terms' => (bool) Settings::get( 'require_terms' ),
 					'terms_text' => (string) Settings::get( 'terms_text' ),

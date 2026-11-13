@@ -10,7 +10,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
 
 - [x] **A001** [P1] `ticket_value()` mittelt `line_total/qty` je Ticketart; nach Umtausch in dieselbe Art sinkt der Wert der übrigen Tickets (Erstattung 26,56 € statt 58,10 €). — _OFFEN_ (TODO L410; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Exchange/Service.php:242–253,589,612` — Maßnahme: Wert je Ticket als Snapshot speichern; Regressionstest „Upgrade, dann Rückstufung“.
-- [ ] **A002** [P1] Haltezeit bei Überweisung (72 h) nicht auf Terminbeginn begrenzt („Zahlbar bis 16.11.“ für Event am 13.11.). — _OFFEN_ (TODO L412; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
+- [x] **A002** [P1] Haltezeit bei Überweisung (72 h) nicht auf Terminbeginn begrenzt („Zahlbar bis 16.11.“ für Event am 13.11.). — _OFFEN_ (TODO L412; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `src/Rest/Controller.php:279`; `src/Waitlists.php:462`; `src/Exchange/Service.php:804` — Maßnahme: min(Einstellung, Beginn − Puffer); Überweisung kurz vor Beginn ausblenden.
 - [ ] **A003** [P1] Ausverkaufte Karten zeigen weiterhin das Checkout-Formular und keinen Wartelisten-Eintrag (nur per REST). — _OFFEN_ (TODO L413; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
   - `templates/event-card.php:29–31` — Maßnahme: Wartelisten-Formular einblenden, Checkout bei komplett ausverkauft ausblenden.
