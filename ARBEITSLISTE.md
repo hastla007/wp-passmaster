@@ -329,11 +329,11 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Geräte kurzlebig, eventgebunden, widerrufbar (Mobile/Devices.php:23-24,130,167); kein technischer Ausschluss gemeinsamer Konten
 - [ ] **A150** MFA für Admin-/Finanzrollen; befristeten Supportzugriff protokollieren — _TEILWEISE_ (TODO L155; P0 – Rollen, Eventscoping und Zugriffsschutz)
   - 2FA nur optional für Erstattungen (Refunds.php:463, Settings.php:63); kein MFA-Zwang je Rolle, kein befristeter Supportzugriff
-- [ ] **A151** Reale CI-Matrix WordPress/WooCommerce/MySQL — _OFFEN_ (TODO L162; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+- [x] **A151** Reale CI-Matrix WordPress/WooCommerce/MySQL — _OFFEN_ (TODO L162; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
   - .github/workflows/ci.yml: nur PHP 8.2/8.4, MariaDB 11.4, Mock-WP (tests/integration/wp); keine WP/WC/MySQL-Versionen
 - [ ] **A152** Kompatibilitäts-/Test-Baseline pro Release dokumentieren — _TEILWEISE_ (TODO L164; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
   - Header readme.txt:4-9 (Tested up to 7.1, WC 11.3), nicht durch echte Tests belegt; kein Baseline-Dokument je Release
-- [ ] **A153** Echte WordPress-/WooCommerce-Versionsmatrix in CI — _OFFEN_ (TODO L165; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
+- [x] **A153** Echte WordPress-/WooCommerce-Versionsmatrix in CI — _OFFEN_ (TODO L165; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
   - ci.yml:11 Matrix nur php: ['8.2','8.4']
 - [ ] **A154** Zahlungsmethoden pro Land/PSP/Transaktionstyp, Live-Akzeptanz — _TEILWEISE_ (TODO L167; P0 – EU-Zielmarkt und Plattform-Kompatibilität)
   - Nur Mollie fragt Methoden je Land ab (MollieGateway.php:151-158); keine Matrix je Transaktionstyp; Live-Abnahme braucht Händlerkonten
