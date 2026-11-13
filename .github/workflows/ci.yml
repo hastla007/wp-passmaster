@@ -73,5 +73,5 @@ jobs:
         run: bash build/release.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: wp-pass-captain
-          path: build/dist/wp-pass-captain.zip
+          name: pass-captain
+          path: build/dist/pass-captain.zip

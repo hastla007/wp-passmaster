@@ -35,17 +35,17 @@ final class TicketsPage {
 	 */
 	public static function revoke_ticket( array $in ) {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
-		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
+		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		$reason = Forms::text( $in, 'reason', 255 );
-		if ( '' === $reason ) { return Forms::error( 'wpcap_revoke_reason', __( 'Bitte einen Grund für den Widerruf angeben.', 'wp-pass-captain' ) ); }
+		if ( '' === $reason ) { return Forms::error( 'wpcap_revoke_reason', __( 'Bitte einen Grund für den Widerruf angeben.', 'pass-captain' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$wpdb->query( 'START TRANSACTION' );
 		$updated = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET status='revoked' WHERE ticket_id=%d AND status='valid'", (int) $ticket->ticket_id ) );
 		if ( 1 !== $updated ) {
 			$wpdb->query( 'ROLLBACK' );
-			return Forms::error( 'wpcap_ticket_not_valid', __( 'Nur gültige (nicht eingecheckte) Tickets können widerrufen werden.', 'wp-pass-captain' ), 409 );
+			return Forms::error( 'wpcap_ticket_not_valid', __( 'Nur gültige (nicht eingecheckte) Tickets können widerrufen werden.', 'pass-captain' ), 409 );
 		}
 		$release = Forms::flag( $in, 'release_capacity' );
 		if ( $release ) {
@@ -63,8 +63,8 @@ final class TicketsPage {
 	 */
 	public static function reissue_ticket( array $in ) {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
-		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ) ); }
+		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		$result = \PassCaptain\Orders::reissue_ticket( (int) $ticket->ticket_id, array( 'reason' => Forms::text( $in, 'reason', 255 ) ) );
 		if ( is_wp_error( $result ) ) {
 			$data = $result->get_error_data();
@@ -79,8 +79,8 @@ final class TicketsPage {
 	 */
 	public static function undo_checkin( array $in ) {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
-		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_checkin' ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ) ); }
+		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_checkin' ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
@@ -88,7 +88,7 @@ final class TicketsPage {
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", (int) $ticket->ticket_id ) );
 		if ( ! $row || 'checked_in' !== $row->status ) {
 			$wpdb->query( 'ROLLBACK' );
-			return Forms::error( 'wpcap_ticket_not_checked_in', __( 'Das Ticket ist nicht eingecheckt.', 'wp-pass-captain' ), 409 );
+			return Forms::error( 'wpcap_ticket_not_checked_in', __( 'Das Ticket ist nicht eingecheckt.', 'pass-captain' ), 409 );
 		}
 		$last = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id FROM {$p}wpcap_checkins WHERE ticket_id=%d AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", (int) $ticket->ticket_id ) );
 		$wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'valid' ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'checked_in' ), array( '%s' ), array( '%d', '%s' ) );
@@ -117,7 +117,7 @@ final class TicketsPage {
 	public static function handle_revoke_ticket() {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_revoke_ticket_' . Forms::int( $in, 'ticket_id' ) );
-		Forms::finish( self::revoke_ticket( $in ), __( 'Ticket widerrufen.', 'wp-pass-captain' ), self::back_url( $in ) );
+		Forms::finish( self::revoke_ticket( $in ), __( 'Ticket widerrufen.', 'pass-captain' ), self::back_url( $in ) );
 	}
 
 	public static function handle_reissue_ticket() {
@@ -125,15 +125,15 @@ final class TicketsPage {
 		Forms::verify( 'wpcap_reissue_ticket_' . Forms::int( $in, 'ticket_id' ) );
 		$result = self::reissue_ticket( $in );
 		$message = ! is_wp_error( $result ) && empty( $result['mailed'] )
-			? __( 'Ticket neu ausgestellt. Die E-Mail an den Inhaber konnte nicht zugestellt werden; bitte erneut versuchen.', 'wp-pass-captain' )
-			: __( 'Ticket neu ausgestellt und an den Inhaber gesendet. Der bisherige Code ist ungültig.', 'wp-pass-captain' );
+			? __( 'Ticket neu ausgestellt. Die E-Mail an den Inhaber konnte nicht zugestellt werden; bitte erneut versuchen.', 'pass-captain' )
+			: __( 'Ticket neu ausgestellt und an den Inhaber gesendet. Der bisherige Code ist ungültig.', 'pass-captain' );
 		Forms::finish( $result, $message, self::back_url( $in ) );
 	}
 
 	public static function handle_undo_checkin() {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_undo_checkin_' . Forms::int( $in, 'ticket_id' ) );
-		Forms::finish( self::undo_checkin( $in ), __( 'Check-in zurückgenommen; das Ticket ist wieder gültig.', 'wp-pass-captain' ), self::back_url( $in ) );
+		Forms::finish( self::undo_checkin( $in ), __( 'Check-in zurückgenommen; das Ticket ist wieder gültig.', 'pass-captain' ), self::back_url( $in ) );
 	}
 
 	/* =============================================================================================
@@ -143,7 +143,7 @@ final class TicketsPage {
 	public static function render() {
 		$scope = Queries::event_ids_for( self::VIEW_CAPS );
 		if ( array() === $scope && ! array_filter( self::VIEW_CAPS, 'current_user_can' ) ) {
-			wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 );
+			wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 );
 		}
 		$filters = array(
 			'search' => Forms::query_arg( 's' ),
@@ -154,33 +154,33 @@ final class TicketsPage {
 		$page = Forms::current_page();
 		$per_page = 30;
 		$data = $has_filter ? Queries::search_tickets( $filters, $scope, $page, $per_page ) : array( 'rows' => array(), 'total' => 0 );
-		$status_options = array( '' => __( 'Alle Status', 'wp-pass-captain' ) );
+		$status_options = array( '' => __( 'Alle Status', 'pass-captain' ) );
 		foreach ( self::STATUSES as $s ) { $status_options[ $s ] = Forms::status_label( $s ); }
 		?>
 		<div class="wrap wpcap-admin">
-		<h1><?php esc_html_e( 'Tickets', 'wp-pass-captain' ); ?></h1>
+		<h1><?php esc_html_e( 'Tickets', 'pass-captain' ); ?></h1>
 		<?php Forms::render_notices(); ?>
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
-			<input type="search" name="s" class="regular-text" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, E-Mail oder Name', 'wp-pass-captain' ); ?>">
-			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'wp-pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'] ); ?>
+			<input type="search" name="s" class="regular-text" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, E-Mail oder Name', 'pass-captain' ); ?>">
+			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'] ); ?>
 			<?php Forms::select( 'status', $status_options, $filters['status'] ); ?>
-			<button class="button" type="submit"><?php esc_html_e( 'Suchen', 'wp-pass-captain' ); ?></button>
+			<button class="button" type="submit"><?php esc_html_e( 'Suchen', 'pass-captain' ); ?></button>
 		</form>
 		<?php if ( ! $has_filter ) : ?>
-			<p><?php esc_html_e( 'Bitte nach Ticket, Käufer oder Teilnehmer suchen oder ein Event wählen.', 'wp-pass-captain' ); ?></p>
+			<p><?php esc_html_e( 'Bitte nach Ticket, Käufer oder Teilnehmer suchen oder ein Event wählen.', 'pass-captain' ); ?></p>
 		<?php else : ?>
 			<table class="widefat striped">
 				<thead><tr>
-					<th><?php esc_html_e( 'Ticket', 'wp-pass-captain' ); ?></th>
-					<th><?php esc_html_e( 'Event / Termin', 'wp-pass-captain' ); ?></th>
-					<th><?php esc_html_e( 'Käufer', 'wp-pass-captain' ); ?></th>
-					<th><?php esc_html_e( 'Teilnehmer', 'wp-pass-captain' ); ?></th>
-					<th><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th>
-					<th><?php esc_html_e( 'Aktion', 'wp-pass-captain' ); ?></th>
+					<th><?php esc_html_e( 'Ticket', 'pass-captain' ); ?></th>
+					<th><?php esc_html_e( 'Event / Termin', 'pass-captain' ); ?></th>
+					<th><?php esc_html_e( 'Käufer', 'pass-captain' ); ?></th>
+					<th><?php esc_html_e( 'Teilnehmer', 'pass-captain' ); ?></th>
+					<th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th>
+					<th><?php esc_html_e( 'Aktion', 'pass-captain' ); ?></th>
 				</tr></thead>
 				<tbody>
-				<?php if ( ! $data['rows'] ) : ?><tr><td colspan="6"><?php esc_html_e( 'Keine Tickets gefunden.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
+				<?php if ( ! $data['rows'] ) : ?><tr><td colspan="6"><?php esc_html_e( 'Keine Tickets gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 				<?php foreach ( $data['rows'] as $ticket ) :
 					$email = '' !== (string) $ticket->assigned_email ? $ticket->assigned_email : $ticket->attendee_email;
 					$can_orders = Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' );
@@ -195,23 +195,23 @@ final class TicketsPage {
 						</td>
 						<td><?php echo esc_html( trim( (string) $ticket->attendee_name . ' ' . ( $email ? '<' . $email . '>' : '' ) ) ?: '—' ); ?></td>
 						<td>
-							<?php echo esc_html( Forms::status_label( $ticket->status ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'wp-pass-captain' ) . ')' : '' ) ); ?>
+							<?php echo esc_html( Forms::status_label( $ticket->status ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : '' ) ); ?>
 							<?php if ( $ticket->last_checkin_at ) : ?><br><small><?php echo esc_html( Forms::datetime( $ticket->last_checkin_at, $ticket->timezone, false ) ); ?></small><?php endif; ?>
 						</td>
 						<td>
 							<?php if ( 'valid' === $ticket->status && $can_orders ) : ?>
 								<?php Forms::open_form( 'wpcap_revoke_ticket', 'wpcap_revoke_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
-								<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund', 'wp-pass-captain' ); ?>">
-								<label><input type="checkbox" name="release_capacity" value="1"> <?php esc_html_e( 'Platz freigeben', 'wp-pass-captain' ); ?></label>
-								<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ticket widerrufen? Es kann danach nicht mehr eingelöst werden. Eine Erstattung erfolgt nicht automatisch.', 'wp-pass-captain' ) ); ?>')"><?php esc_html_e( 'Widerrufen', 'wp-pass-captain' ); ?></button>
+								<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund', 'pass-captain' ); ?>">
+								<label><input type="checkbox" name="release_capacity" value="1"> <?php esc_html_e( 'Platz freigeben', 'pass-captain' ); ?></label>
+								<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ticket widerrufen? Es kann danach nicht mehr eingelöst werden. Eine Erstattung erfolgt nicht automatisch.', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Widerrufen', 'pass-captain' ); ?></button>
 								</form>
 								<?php Forms::open_form( 'wpcap_reissue_ticket', 'wpcap_reissue_ticket_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
-								<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink.', 'wp-pass-captain' ) ); ?>')"><?php esc_html_e( 'Neu ausstellen', 'wp-pass-captain' ); ?></button>
+								<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ticket neu ausstellen? Der bisherige Code wird ungültig und der Inhaber erhält einen neuen Ticketlink.', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Neu ausstellen', 'pass-captain' ); ?></button>
 								</form>
 							<?php elseif ( 'checked_in' === $ticket->status && $can_checkin ) : ?>
 								<?php Forms::open_form( 'wpcap_undo_checkin', 'wpcap_undo_checkin_' . $ticket->ticket_id ); Forms::hidden( 'ticket_id', $ticket->ticket_id ); Forms::hidden( 'return_search', $filters['search'] ); ?>
-								<input type="text" name="reason" maxlength="255" placeholder="<?php esc_attr_e( 'Grund (optional)', 'wp-pass-captain' ); ?>">
-								<button class="button" type="submit"><?php esc_html_e( 'Check-in zurücknehmen', 'wp-pass-captain' ); ?></button>
+								<input type="text" name="reason" maxlength="255" placeholder="<?php esc_attr_e( 'Grund (optional)', 'pass-captain' ); ?>">
+								<button class="button" type="submit"><?php esc_html_e( 'Check-in zurücknehmen', 'pass-captain' ); ?></button>
 								</form>
 							<?php endif; ?>
 						</td>

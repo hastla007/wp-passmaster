@@ -1,4 +1,4 @@
-/* WP Pass Captain – accessible seat picker for the checkout form (SVG + keyboard + list fallback). */
+/* Pass Captain – accessible seat picker for the checkout form (SVG + keyboard + list fallback). */
 (function () {
 	'use strict';
 	const SVGNS = 'http://www.w3.org/2000/svg';

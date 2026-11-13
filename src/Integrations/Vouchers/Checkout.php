@@ -60,11 +60,11 @@ final class Checkout {
 		$code = sanitize_text_field( (string) $code );
 		if ( '' === $code ) { return array( 'applied_minor' => 0 ); }
 		if ( ! Bridge::available() ) {
-			return new \WP_Error( 'wpcap_voucher_unavailable', __( 'Gutscheine können derzeit nicht eingelöst werden.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_voucher_unavailable', __( 'Gutscheine können derzeit nicht eingelöst werden.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$order = Orders::get( $order_id );
 		if ( ! $order || 'pending' !== $order->payment_status || $order->voucher_snapshot ) {
-			return new \WP_Error( 'wpcap_voucher_state', __( 'Der Gutschein kann auf diese Bestellung nicht angewendet werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_voucher_state', __( 'Der Gutschein kann auf diese Bestellung nicht angewendet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$items = Orders::items_for_order( $order_id );
 		$context = array(
@@ -82,7 +82,7 @@ final class Checkout {
 		if ( is_wp_error( $quote ) ) { return self::user_error( $quote ); }
 		$amount = (int) ( $quote['amount_minor'] ?? 0 );
 		if ( $amount < 1 || $amount > (int) $order->total_minor || strtoupper( (string) ( $quote['currency'] ?? $order->currency ) ) !== strtoupper( $order->currency ) ) {
-			return new \WP_Error( 'wpcap_voucher_quote_invalid', __( 'Der Gutschein passt nicht zu dieser Bestellung.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_voucher_quote_invalid', __( 'Der Gutschein passt nicht zu dieser Bestellung.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$key = 'wpcap-order-' . $order->public_id;
 		$reservation = Bridge::reserve( $quote, $key );
@@ -124,7 +124,7 @@ final class Checkout {
 			if ( ! $current || ! $current->voucher_snapshot ) {
 				Bridge::release( (array) $reservation, 'wpcap-release-' . $order->public_id );
 			}
-			return new \WP_Error( 'wpcap_voucher_state', __( 'Der Gutschein kann auf diese Bestellung nicht angewendet werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_voucher_state', __( 'Der Gutschein kann auf diese Bestellung nicht angewendet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'voucher_reserved', 'order', (int) $order_id, array( 'amount_minor' => $amount, 'purpose' => $purpose ) );
@@ -202,7 +202,7 @@ final class Checkout {
 		$amount = $again['applied_minor'] ?? ( $again['amount_minor'] ?? null );
 		if ( null !== $amount && (int) $amount !== (int) $snapshot['amount_minor'] ) {
 			Bridge::release( (array) $again, 'wpcap-release-late-' . $order->public_id );
-			return new \WP_Error( 'wpcap_voucher_amount_changed', __( 'Der Gutschein deckt den ursprünglichen Betrag nicht mehr.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_voucher_amount_changed', __( 'Der Gutschein deckt den ursprünglichen Betrag nicht mehr.', 'pass-captain' ) );
 		}
 		$snapshot['reservation'] = $again;
 		$snapshot['status'] = 'reserved';
@@ -249,10 +249,10 @@ final class Checkout {
 		$order = Orders::get( $order_id );
 		wp_mail(
 			get_option( 'admin_email' ),
-			__( 'WP Pass Captain: Gutschein konnte nicht belastet werden', 'wp-pass-captain' ),
+			__( 'Pass Captain: Gutschein konnte nicht belastet werden', 'pass-captain' ),
 			sprintf(
 				/* translators: 1: order id, 2: amount with currency, 3: last code characters, 4: error code */
-				__( 'Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in WP Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten.', 'wp-pass-captain' ),
+				__( 'Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in WP Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten.', 'pass-captain' ),
 				$order ? $order->public_id : (int) $order_id,
 				\PassCaptain\Admin\Forms::money( (int) $snapshot['amount_minor'], $order ? $order->currency : 'EUR' ),
 				(string) ( $snapshot['code_hint'] ?? '' ),
@@ -546,7 +546,7 @@ final class Checkout {
 
 	/** Provider errors are shown to customers without internal details. */
 	private static function user_error( \WP_Error $error ) {
-		$message = $error->get_error_message() ?: __( 'Der Gutschein konnte nicht eingelöst werden.', 'wp-pass-captain' );
+		$message = $error->get_error_message() ?: __( 'Der Gutschein konnte nicht eingelöst werden.', 'pass-captain' );
 		return new \WP_Error( 'wpcap_voucher_rejected', $message, array( 'status' => 409 ) );
 	}
 }

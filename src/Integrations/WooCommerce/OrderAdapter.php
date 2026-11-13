@@ -109,26 +109,26 @@ final class OrderAdapter {
 		$current = ( $product_object && is_callable( array( $product_object, 'get_meta' ) ) ) ? absint( $product_object->get_meta( self::PRODUCT_META, true ) ) : 0;
 		$p       = $wpdb->prefix;
 		$rows    = $wpdb->get_results( "SELECT tt.ticket_type_id,tt.name,tt.status,tt.capacity,o.starts_at,o.timezone,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id ORDER BY o.starts_at DESC, tt.ticket_type_id ASC LIMIT 500" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
-		$options = array( '' => __( '— Kein Ticketprodukt —', 'wp-pass-captain' ) );
+		$options = array( '' => __( '— Kein Ticketprodukt —', 'pass-captain' ) );
 		foreach ( $rows as $row ) {
 			$label = sprintf( '%1$s · %2$s · %3$s', $row->event_name, mysql2date( 'd.m.Y H:i', get_date_from_gmt( $row->starts_at ), true ), $row->name );
 			if ( 'published' !== $row->event_status || 'active' !== $row->status ) {
-				$label .= ' (' . __( 'nicht im Verkauf', 'wp-pass-captain' ) . ')';
+				$label .= ' (' . __( 'nicht im Verkauf', 'pass-captain' ) . ')';
 			}
 			$options[ (string) $row->ticket_type_id ] = $label;
 		}
 		if ( $current && ! isset( $options[ (string) $current ] ) ) {
 			/* translators: %d: ticket type ID */
-			$options[ (string) $current ] = sprintf( __( 'Unbekannte Ticketkategorie #%d', 'wp-pass-captain' ), $current );
+			$options[ (string) $current ] = sprintf( __( 'Unbekannte Ticketkategorie #%d', 'pass-captain' ), $current );
 		}
 		echo '<div class="options_group">';
 		woocommerce_wp_select(
 			array(
 				'id'          => self::PRODUCT_META,
-				'label'       => __( 'Pass Captain Ticketkategorie', 'wp-pass-captain' ),
+				'label'       => __( 'Pass Captain Ticketkategorie', 'pass-captain' ),
 				'description' => CartPricing::enabled()
-					? __( 'Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster, Höchstmenge und – laut WooCommerce-Einstellung – der Preis inklusive Preisstufen kommen aus Pass Captain. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen.', 'wp-pass-captain' )
-					: __( 'Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster und Höchstmenge kommen aus Pass Captain; der Preis kommt aus WooCommerce. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen.', 'wp-pass-captain' ),
+					? __( 'Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster, Höchstmenge und – laut WooCommerce-Einstellung – der Preis inklusive Preisstufen kommen aus Pass Captain. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen.', 'pass-captain' )
+					: __( 'Verkauft dieses Produkt Tickets der gewählten Kategorie. Kontingent, Verkaufsfenster und Höchstmenge kommen aus Pass Captain; der Preis kommt aus WooCommerce. Lagerverwaltung von WooCommerce für dieses Produkt deaktiviert lassen.', 'pass-captain' ),
 				'desc_tip'    => true,
 				'options'     => $options,
 				'value'       => $current ? (string) $current : '',
@@ -321,37 +321,37 @@ final class OrderAdapter {
 	public static function quantity_error( $type_id, $quantity ) {
 		$type = self::ticket_type( $type_id );
 		if ( ! $type ) {
-			return __( 'Diese Ticketkategorie existiert nicht mehr.', 'wp-pass-captain' );
+			return __( 'Diese Ticketkategorie existiert nicht mehr.', 'pass-captain' );
 		}
 		$name = sprintf( '%s – %s', $type->event_name, $type->name );
 		$now  = current_time( 'mysql', true );
 		if ( 'published' !== $type->event_status || 'active' !== $type->status || 'scheduled' !== $type->occurrence_status || $type->starts_at <= $now ) {
 			/* translators: %s: event and ticket name */
-			return sprintf( __( '„%s“ ist nicht mehr buchbar.', 'wp-pass-captain' ), $name );
+			return sprintf( __( '„%s“ ist nicht mehr buchbar.', 'pass-captain' ), $name );
 		}
 		if ( ( $type->sales_start && $type->sales_start > $now ) || ( $type->sales_end && $type->sales_end < $now ) ) {
 			/* translators: %s: event and ticket name */
-			return sprintf( __( 'Der Verkauf für „%s“ ist derzeit geschlossen.', 'wp-pass-captain' ), $name );
+			return sprintf( __( 'Der Verkauf für „%s“ ist derzeit geschlossen.', 'pass-captain' ), $name );
 		}
 		if ( $quantity > (int) $type->max_per_order ) {
 			/* translators: 1: max quantity, 2: event and ticket name */
-			return sprintf( __( 'Pro Bestellung sind höchstens %1$d Tickets für „%2$s“ möglich.', 'wp-pass-captain' ), (int) $type->max_per_order, $name );
+			return sprintf( __( 'Pro Bestellung sind höchstens %1$d Tickets für „%2$s“ möglich.', 'pass-captain' ), (int) $type->max_per_order, $name );
 		}
 		$available = Orders::availability( $type_id );
 		if ( null !== $available && $quantity > $available ) {
 			return 0 === $available
 				/* translators: %s: event and ticket name */
-				? sprintf( __( '„%s“ ist ausverkauft.', 'wp-pass-captain' ), $name )
+				? sprintf( __( '„%s“ ist ausverkauft.', 'pass-captain' ), $name )
 				/* translators: 1: available quantity, 2: event and ticket name */
-				: sprintf( __( 'Für „%2$s“ sind nur noch %1$d Tickets verfügbar.', 'wp-pass-captain' ), $available, $name );
+				: sprintf( __( 'Für „%2$s“ sind nur noch %1$d Tickets verfügbar.', 'pass-captain' ), $available, $name );
 		}
 		$seats = self::free_seat_count( $type );
 		if ( null !== $seats && $quantity > $seats ) {
 			return 0 === $seats
 				/* translators: %s: event and ticket name */
-				? sprintf( __( 'Für „%s“ sind keine passenden Sitzplätze mehr frei.', 'wp-pass-captain' ), $name )
+				? sprintf( __( 'Für „%s“ sind keine passenden Sitzplätze mehr frei.', 'pass-captain' ), $name )
 				/* translators: 1: free seats, 2: event and ticket name */
-				: sprintf( __( 'Für „%2$s“ sind nur noch %1$d passende Sitzplätze frei.', 'wp-pass-captain' ), $seats, $name );
+				: sprintf( __( 'Für „%2$s“ sind nur noch %1$d passende Sitzplätze frei.', 'pass-captain' ), $seats, $name );
 		}
 		return '';
 	}
@@ -437,7 +437,7 @@ final class OrderAdapter {
 		}
 		$email = sanitize_email( $wc_order->get_billing_email() );
 		if ( ! is_email( $email ) ) {
-			return new \WP_Error( 'wpcap_missing_email', __( 'Für Tickets wird eine gültige E-Mail-Adresse benötigt.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_missing_email', __( 'Für Tickets wird eine gültige E-Mail-Adresse benötigt.', 'pass-captain' ) );
 		}
 		$attempt = absint( $wc_order->get_meta( self::ATTEMPT_META, true ) ) + 1;
 		$unit_prices = array_map( static function ( $line ) {
@@ -473,7 +473,7 @@ final class OrderAdapter {
 		$wc_order->update_meta_data( self::ORDER_META, absint( $result['order_id'] ) );
 		$wc_order->save();
 		/* translators: %d: hold minutes */
-		$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets für %d Minuten reserviert.', 'wp-pass-captain' ), (int) $result['hold_minutes'] ) );
+		$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets für %d Minuten reserviert.', 'pass-captain' ), (int) $result['hold_minutes'] ) );
 		return absint( $result['order_id'] );
 	}
 
@@ -605,7 +605,7 @@ final class OrderAdapter {
 			$core_id = self::reserve( $wc_order );
 			if ( is_wp_error( $core_id ) ) {
 				/* translators: %s: error message */
-				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets konnten nicht reserviert werden: %s', 'wp-pass-captain' ), $core_id->get_error_message() ) );
+				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets konnten nicht reserviert werden: %s', 'pass-captain' ), $core_id->get_error_message() ) );
 				return;
 			}
 			if ( ! $core_id ) {
@@ -622,7 +622,7 @@ final class OrderAdapter {
 			if ( ! $wc_order->get_meta( self::DEFER_NOTE, true ) ) {
 				$wc_order->update_meta_data( self::DEFER_NOTE, 1 );
 				$wc_order->save();
-				$wc_order->add_order_note( __( 'Pass Captain: Zahlung bei Lieferung/Abholung – die Tickets bleiben reserviert und werden ausgestellt, sobald die Bestellung auf „Abgeschlossen“ gesetzt wird.', 'wp-pass-captain' ) );
+				$wc_order->add_order_note( __( 'Pass Captain: Zahlung bei Lieferung/Abholung – die Tickets bleiben reserviert und werden ausgestellt, sobald die Bestellung auf „Abgeschlossen“ gesetzt wird.', 'pass-captain' ) );
 			}
 			return;
 		}
@@ -636,7 +636,7 @@ final class OrderAdapter {
 			if ( is_wp_error( $core_id ) || ! $core_id ) {
 				$message = is_wp_error( $core_id ) ? $core_id->get_error_message() : '';
 				/* translators: %s: error message */
-				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Zahlung eingegangen, aber Tickets konnten nicht erneut reserviert werden – bitte manuell klären. %s', 'wp-pass-captain' ), $message ) );
+				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Zahlung eingegangen, aber Tickets konnten nicht erneut reserviert werden – bitte manuell klären. %s', 'pass-captain' ), $message ) );
 				return;
 			}
 		}
@@ -648,12 +648,12 @@ final class OrderAdapter {
 		$result = Orders::confirm_external_payment( $core_id, 'woocommerce:' . $wc_order->get_id() );
 		if ( is_wp_error( $result ) ) {
 			/* translators: %s: error message */
-			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Keine Tickets ausgestellt – %s', 'wp-pass-captain' ), $result->get_error_message() ) );
+			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Keine Tickets ausgestellt – %s', 'pass-captain' ), $result->get_error_message() ) );
 			return;
 		}
 		$count = count( Orders::tickets_for_order( $core_id ) );
 		/* translators: %d: ticket count */
-		$wc_order->add_order_note( sprintf( _n( 'Pass Captain: %d Ticket ausgestellt und per E-Mail versendet.', 'Pass Captain: %d Tickets ausgestellt und per E-Mail versendet.', $count, 'wp-pass-captain' ), $count ) );
+		$wc_order->add_order_note( sprintf( _n( 'Pass Captain: %d Ticket ausgestellt und per E-Mail versendet.', 'Pass Captain: %d Tickets ausgestellt und per E-Mail versendet.', $count, 'pass-captain' ), $count ) );
 		if ( ! $had_tickets && $count ) {
 			// Personal link for ticket transfer/self-service, sent once with the first issuance.
 			Orders::rotate_access_link( $core_id );
@@ -748,7 +748,7 @@ final class OrderAdapter {
 				$core_id,
 				$plan['ticket_ids'],
 				$plan['amount_minor'],
-				'' !== $reason ? $reason : __( 'Erstattung in WooCommerce', 'wp-pass-captain' ),
+				'' !== $reason ? $reason : __( 'Erstattung in WooCommerce', 'pass-captain' ),
 				'woocommerce-refund-' . $refund->get_id(),
 				array(
 					'source'             => 'woocommerce',
@@ -758,7 +758,7 @@ final class OrderAdapter {
 			if ( is_wp_error( $result ) ) {
 				if ( $wc_order ) {
 					/* translators: %s: error message */
-					$wc_order->add_order_note( sprintf( __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s', 'wp-pass-captain' ), $result->get_error_message() ) );
+					$wc_order->add_order_note( sprintf( __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s', 'pass-captain' ), $result->get_error_message() ) );
 				}
 				return;
 			}
@@ -873,10 +873,10 @@ final class OrderAdapter {
 			return;
 		}
 		/* translators: %d: ticket count */
-		$note = sprintf( __( 'Pass Captain: %d Ticket(s) wegen Erstattung widerrufen.', 'wp-pass-captain' ), $revoked );
+		$note = sprintf( __( 'Pass Captain: %d Ticket(s) wegen Erstattung widerrufen.', 'pass-captain' ), $revoked );
 		if ( $kept ) {
 			/* translators: %d: ticket count */
-			$note .= ' ' . sprintf( __( '%d erstattete(s) Ticket(s) waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert.', 'wp-pass-captain' ), $kept );
+			$note .= ' ' . sprintf( __( '%d erstattete(s) Ticket(s) waren bereits eingecheckt oder nicht mehr gültig und wurden nicht verändert.', 'pass-captain' ), $kept );
 		}
 		$wc_order->add_order_note( $note );
 	}
@@ -904,7 +904,7 @@ final class OrderAdapter {
 		if ( ! function_exists( 'wc_get_orders' ) ) { return; }
 		$orders = wc_get_orders( array( 'limit' => 1, 'meta_key' => self::ORDER_META, 'meta_value' => absint( $core_order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
 		if ( $orders ) {
-			$orders[0]->add_order_note( __( 'Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten.', 'wp-pass-captain' ) );
+			$orders[0]->add_order_note( __( 'Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten.', 'pass-captain' ) );
 		}
 	}
 
@@ -925,12 +925,12 @@ final class OrderAdapter {
 			return;
 		}
 		$tickets = Orders::tickets_for_order( $core_id );
-		echo '<section class="wpcap-woo-tickets"><h2>' . esc_html__( 'Deine Tickets', 'wp-pass-captain' ) . '</h2>';
+		echo '<section class="wpcap-woo-tickets"><h2>' . esc_html__( 'Deine Tickets', 'pass-captain' ) . '</h2>';
 		if ( ! $tickets ) {
-			echo '<p>' . esc_html__( 'Deine Tickets werden nach bestätigter Zahlung per E-Mail zugestellt.', 'wp-pass-captain' ) . '</p></section>';
+			echo '<p>' . esc_html__( 'Deine Tickets werden nach bestätigter Zahlung per E-Mail zugestellt.', 'pass-captain' ) . '</p></section>';
 			return;
 		}
-		echo '<p>' . esc_html__( 'Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet.', 'wp-pass-captain' ) . '</p>';
+		echo '<p>' . esc_html__( 'Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet.', 'pass-captain' ) . '</p>';
 		self::render_ticket_table( $tickets );
 		echo '</section>';
 	}
@@ -942,7 +942,7 @@ final class OrderAdapter {
 			$screens[] = wc_get_page_screen_id( 'shop-order' );
 		}
 		foreach ( array_unique( $screens ) as $screen ) {
-			add_meta_box( 'wpcap-woo-tickets', __( 'Pass Captain Tickets', 'wp-pass-captain' ), array( __CLASS__, 'render_meta_box' ), $screen, 'side' );
+			add_meta_box( 'wpcap-woo-tickets', __( 'Pass Captain Tickets', 'pass-captain' ), array( __CLASS__, 'render_meta_box' ), $screen, 'side' );
 		}
 	}
 
@@ -951,15 +951,15 @@ final class OrderAdapter {
 		$wc_order = $post_or_order instanceof \WC_Order ? $post_or_order : wc_get_order( $post_or_order->ID ?? 0 );
 		$core_id  = $wc_order ? absint( $wc_order->get_meta( self::ORDER_META, true ) ) : 0;
 		if ( ! $core_id ) {
-			echo '<p>' . esc_html__( 'Keine Tickets in dieser Bestellung.', 'wp-pass-captain' ) . '</p>';
+			echo '<p>' . esc_html__( 'Keine Tickets in dieser Bestellung.', 'pass-captain' ) . '</p>';
 			return;
 		}
 		$core = Orders::get( $core_id );
 		if ( $core ) {
 			/* translators: 1: order ID, 2: status, 3: payment status */
-			echo '<p>' . esc_html( sprintf( __( 'Pass Captain Bestellung #%1$d: %2$s / %3$s', 'wp-pass-captain' ), $core_id, $core->status, $core->payment_status ) ) . '</p>';
+			echo '<p>' . esc_html( sprintf( __( 'Pass Captain Bestellung #%1$d: %2$s / %3$s', 'pass-captain' ), $core_id, $core->status, $core->payment_status ) ) . '</p>';
 			if ( 'needs_review' === $core->status ) {
-				echo '<p><strong>' . esc_html__( 'Zahlung eingegangen, aber kein Kontingent mehr frei. Bitte Platz freigeben und „Tickets erneut ausstellen“ wählen oder erstatten.', 'wp-pass-captain' ) . '</strong></p>';
+				echo '<p><strong>' . esc_html__( 'Zahlung eingegangen, aber kein Kontingent mehr frei. Bitte Platz freigeben und „Tickets erneut ausstellen“ wählen oder erstatten.', 'pass-captain' ) . '</strong></p>';
 			}
 		}
 		$tickets = Orders::tickets_for_order( $core_id );
@@ -971,8 +971,8 @@ final class OrderAdapter {
 	/** Adds order actions. */
 	public static function order_actions( $actions, $wc_order = null ) {
 		if ( $wc_order instanceof \WC_Order && $wc_order->get_meta( self::ORDER_META, true ) && current_user_can( 'wpcap_manage_orders' ) ) {
-			$actions['wpcap_resend_tickets'] = __( 'Pass Captain: Tickets erneut senden (neue Codes)', 'wp-pass-captain' );
-			$actions['wpcap_retry_tickets']  = __( 'Pass Captain: Tickets erneut ausstellen', 'wp-pass-captain' );
+			$actions['wpcap_resend_tickets'] = __( 'Pass Captain: Tickets erneut senden (neue Codes)', 'pass-captain' );
+			$actions['wpcap_retry_tickets']  = __( 'Pass Captain: Tickets erneut ausstellen', 'pass-captain' );
 		}
 		return $actions;
 	}
@@ -983,7 +983,7 @@ final class OrderAdapter {
 			return;
 		}
 		$result = Orders::resend_tickets( absint( $wc_order->get_meta( self::ORDER_META, true ) ) );
-		$wc_order->add_order_note( is_wp_error( $result ) ? sprintf( /* translators: %s: error */ __( 'Pass Captain: Erneuter Versand fehlgeschlagen – %s', 'wp-pass-captain' ), $result->get_error_message() ) : __( 'Pass Captain: Tickets mit neuen Codes erneut gesendet.', 'wp-pass-captain' ) );
+		$wc_order->add_order_note( is_wp_error( $result ) ? sprintf( /* translators: %s: error */ __( 'Pass Captain: Erneuter Versand fehlgeschlagen – %s', 'pass-captain' ), $result->get_error_message() ) : __( 'Pass Captain: Tickets mit neuen Codes erneut gesendet.', 'pass-captain' ) );
 	}
 
 	/** Order action: retry issuance (e.g. after resolving a needs_review order). */
@@ -992,22 +992,22 @@ final class OrderAdapter {
 			return;
 		}
 		if ( self::defers_issuance( $wc_order ) ) {
-			$wc_order->add_order_note( __( 'Pass Captain: Bei dieser Zahlungsart werden die Tickets erst mit dem Status „Abgeschlossen“ ausgestellt.', 'wp-pass-captain' ) );
+			$wc_order->add_order_note( __( 'Pass Captain: Bei dieser Zahlungsart werden die Tickets erst mit dem Status „Abgeschlossen“ ausgestellt.', 'pass-captain' ) );
 		} elseif ( $wc_order->is_paid() ) {
 			self::sync_paid_order( $wc_order->get_id(), true );
 		} else {
-			$wc_order->add_order_note( __( 'Pass Captain: Die Bestellung ist noch nicht bezahlt.', 'wp-pass-captain' ) );
+			$wc_order->add_order_note( __( 'Pass Captain: Die Bestellung ist noch nicht bezahlt.', 'pass-captain' ) );
 		}
 	}
 
 	/** Renders a ticket table (no codes – tokens are only stored as hashes). */
 	private static function render_ticket_table( array $tickets ) {
 		$labels = array(
-			'valid'      => __( 'gültig', 'wp-pass-captain' ),
-			'checked_in' => __( 'eingecheckt', 'wp-pass-captain' ),
-			'revoked'    => __( 'widerrufen', 'wp-pass-captain' ),
+			'valid'      => __( 'gültig', 'pass-captain' ),
+			'checked_in' => __( 'eingecheckt', 'pass-captain' ),
+			'revoked'    => __( 'widerrufen', 'pass-captain' ),
 		);
-		echo '<table class="shop_table wpcap-ticket-table"><thead><tr><th>' . esc_html__( 'Event', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Ticket', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="shop_table wpcap-ticket-table"><thead><tr><th>' . esc_html__( 'Event', 'pass-captain' ) . '</th><th>' . esc_html__( 'Ticket', 'pass-captain' ) . '</th><th>' . esc_html__( 'Status', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $tickets as $ticket ) {
 			$when = mysql2date( 'd.m.Y H:i', get_date_from_gmt( $ticket->starts_at ), true );
 			echo '<tr><td>' . esc_html( $ticket->event_name . ' · ' . $when ) . '</td><td>' . esc_html( $ticket->ticket_name ) . '</td><td>' . esc_html( $labels[ $ticket->status ] ?? $ticket->status ) . '</td></tr>';

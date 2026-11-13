@@ -25,8 +25,8 @@ final class Rules {
 
 	public static function policy_labels() {
 		return array(
-			'review' => __( 'Zur Prüfung markieren (offener Einlass-Konflikt)', 'wp-pass-captain' ),
-			'first_sync_wins' => __( 'Erste Synchronisierung gewinnt (Doppelscan automatisch geklärt)', 'wp-pass-captain' ),
+			'review' => __( 'Zur Prüfung markieren (offener Einlass-Konflikt)', 'pass-captain' ),
+			'first_sync_wins' => __( 'Erste Synchronisierung gewinnt (Doppelscan automatisch geklärt)', 'pass-captain' ),
 		);
 	}
 
@@ -71,11 +71,11 @@ final class Rules {
 		global $wpdb;
 		$hours = (int) ( $in['max_offline_hours'] ?? 12 );
 		if ( $hours < 1 || $hours > self::MAX_HOURS ) {
-			return new \WP_Error( 'wpcap_offline_hours', sprintf( /* translators: %d: hours */ __( 'Die maximale Offline-Dauer muss zwischen 1 und %d Stunden liegen.', 'wp-pass-captain' ), self::MAX_HOURS ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_offline_hours', sprintf( /* translators: %d: hours */ __( 'Die maximale Offline-Dauer muss zwischen 1 und %d Stunden liegen.', 'pass-captain' ), self::MAX_HOURS ), array( 'status' => 400 ) );
 		}
 		$policy = (string) ( $in['duplicate_policy'] ?? 'review' );
 		if ( ! in_array( $policy, self::POLICIES, true ) ) {
-			return new \WP_Error( 'wpcap_offline_policy', __( 'Unbekannte Regel für Doppelscans.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_offline_policy', __( 'Unbekannte Regel für Doppelscans.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$rules = array( 'enabled' => ! empty( $in['enabled'] ), 'max_offline_hours' => $hours, 'duplicate_policy' => $policy, 'include_attendee' => ! empty( $in['include_attendee'] ) );
 		$wpdb->query( $wpdb->prepare(

@@ -122,7 +122,7 @@ final class PdfWriter {
 		$objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
 		$objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
 		$objects[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
-		$objects[5] = '<< /Producer (WP Pass Captain)' . ( '' !== (string) $title ? ' /Title (' . self::escape( $title ) . ')' : '' ) . ' >>';
+		$objects[5] = '<< /Producer (Pass Captain)' . ( '' !== (string) $title ? ' /Title (' . self::escape( $title ) . ')' : '' ) . ' >>';
 		$kids = array();
 		$next = 6;
 		foreach ( $this->pages as $page ) {

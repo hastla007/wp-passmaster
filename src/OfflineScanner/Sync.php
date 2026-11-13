@@ -66,7 +66,7 @@ final class Sync {
 	private static function auto_resolve( $conflict ) {
 		global $wpdb;
 		if ( 'open' !== $conflict->status ) { return; }
-		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_admission_conflicts SET status='resolved', resolution='duplicate_scan', resolution_note=%s, resolved_by=0, resolved_at=%s WHERE conflict_id=%d AND status='open'", __( 'Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner).', 'wp-pass-captain' ), current_time( 'mysql', true ), (int) $conflict->conflict_id ) );
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_admission_conflicts SET status='resolved', resolution='duplicate_scan', resolution_note=%s, resolved_by=0, resolved_at=%s WHERE conflict_id=%d AND status='open'", __( 'Automatisch geklärt: Regel „Erste Synchronisierung gewinnt“ (Offline-Scanner).', 'pass-captain' ), current_time( 'mysql', true ), (int) $conflict->conflict_id ) );
 		if ( $updated ) {
 			Audit::record( 'admission_conflict_auto_resolved', 'admission_conflict', (int) $conflict->conflict_id, array( 'event_id' => (int) $conflict->event_id, 'ticket_id' => (int) $conflict->ticket_id, 'rule' => 'first_sync_wins' ) );
 		}

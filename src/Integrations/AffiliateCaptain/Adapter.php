@@ -46,7 +46,7 @@ final class Adapter {
 
 	public static function register_integration( $list ) {
 		$list = is_array( $list ) ? $list : array();
-		$list[ self::SOURCE ] = array( 'name' => 'WP Pass Captain', 'version' => defined( 'WPCAP_VERSION' ) ? WPCAP_VERSION : '', 'contract' => self::CONTRACT, 'active' => true );
+		$list[ self::SOURCE ] = array( 'name' => 'Pass Captain', 'version' => defined( 'WPCAP_VERSION' ) ? WPCAP_VERSION : '', 'contract' => self::CONTRACT, 'active' => true );
 		return $list;
 	}
 
@@ -64,14 +64,14 @@ final class Adapter {
 
 	public static function error_messages( $messages ) {
 		$messages = (array) $messages;
-		$messages['partner_code_invalid'] = __( 'Dieser Partnercode ist ungültig oder nicht mehr aktiv.', 'wp-pass-captain' );
-		$messages['partner_code_rate_limited'] = __( 'Zu viele ungültige Partnercodes. Bitte warte etwas und versuche es erneut.', 'wp-pass-captain' );
+		$messages['partner_code_invalid'] = __( 'Dieser Partnercode ist ungültig oder nicht mehr aktiv.', 'pass-captain' );
+		$messages['partner_code_rate_limited'] = __( 'Zu viele ungültige Partnercodes. Bitte warte etwas und versuche es erneut.', 'pass-captain' );
 		return $messages;
 	}
 
 	public static function form_field() {
 		if ( ! self::partner_field_enabled() ) { return; }
-		echo '<label>' . esc_html__( 'Partnercode (optional)', 'wp-pass-captain' ) . ' <input name="partner_code" type="text" autocomplete="off" maxlength="64" pattern="[A-Za-z0-9_\-]*"></label>';
+		echo '<label>' . esc_html__( 'Partnercode (optional)', 'pass-captain' ) . ' <input name="partner_code" type="text" autocomplete="off" maxlength="64" pattern="[A-Za-z0-9_\-]*"></label>';
 	}
 
 	/** Adds the partner code to the checkout request through the checkout's payload event. */

@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Reports {
 	public static function admin_pages() {
-		return array( array( Page::SLUG, __( 'Berichte', 'wp-pass-captain' ), Page::menu_cap(), array( Page::class, 'render' ) ) );
+		return array( array( Page::SLUG, __( 'Berichte', 'pass-captain' ), Page::menu_cap(), array( Page::class, 'render' ) ) );
 	}
 
 	public static function admin_handlers() {

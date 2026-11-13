@@ -1,16 +1,16 @@
 # WooCommerce-Adapter
 
-Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nutzt ausschließlich die CRUD-APIs von WooCommerce (`wc_get_order()`, Bestell-/Produktmetadaten) und ist mit HPOS und dem klassischen Bestellspeicher sowie mit Cart/Checkout Blocks kompatibel deklariert. WP Pass Captain greift nie direkt auf WooCommerce-Tabellen zu.
+Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nutzt ausschließlich die CRUD-APIs von WooCommerce (`wc_get_order()`, Bestell-/Produktmetadaten) und ist mit HPOS und dem klassischen Bestellspeicher sowie mit Cart/Checkout Blocks kompatibel deklariert. Pass Captain greift nie direkt auf WooCommerce-Tabellen zu.
 
 ## Einrichtung
 
-1. In WP Pass Captain Event, Termin und Ticketkategorie mit Kontingent anlegen.
+1. In Pass Captain Event, Termin und Ticketkategorie mit Kontingent anlegen.
 2. In WooCommerce ein (virtuelles) Produkt anlegen und im Tab „Allgemein“ unter **Pass Captain Ticketkategorie** die Kategorie wählen. Bei variablen Produkten erben Varianten die Kategorie des Elternprodukts.
-3. Den Preis in WooCommerce pflegen – oder unter **WooCommerce → Einstellungen → Produkte → WP Pass Captain** „Pass-Captain-Preise (z. B. Serien-Preisstufen) im WooCommerce-Warenkorb verwenden“ aktivieren (siehe unten). Kontingent, Verkaufsfenster und Höchstmenge je Bestellung kommen aus WP Pass Captain. Die WooCommerce-Lagerverwaltung für Ticketprodukte nicht zusätzlich aktivieren, damit es nur eine Quelle für das Kontingent gibt.
+3. Den Preis in WooCommerce pflegen – oder unter **WooCommerce → Einstellungen → Produkte → Pass Captain** „Pass-Captain-Preise (z. B. Serien-Preisstufen) im WooCommerce-Warenkorb verwenden“ aktivieren (siehe unten). Kontingent, Verkaufsfenster und Höchstmenge je Bestellung kommen aus Pass Captain. Die WooCommerce-Lagerverwaltung für Ticketprodukte nicht zusätzlich aktivieren, damit es nur eine Quelle für das Kontingent gibt.
 
 ## Ablauf
 
-| WooCommerce | WP Pass Captain |
+| WooCommerce | Pass Captain |
 |---|---|
 | In den Warenkorb / Menge ändern / Kasse | Prüfung von Verkaufsstatus, Verkaufsfenster, Höchstmenge, Restkontingent und – bei Saalplänen – freien passenden Plätzen (nicht sperrend). Im Warenkorb-Block (Store API) wird die Höchstmenge der Mengenauswahl begrenzt und `update-item` über dem Kontingent abgelehnt |
 | Bestellung angelegt, vor der Zahlung (`woocommerce_checkout_order_processed`, `woocommerce_store_api_checkout_order_processed`) | Bestellung mit Reservierung anlegen (atomar, mit Zeilensperren). Kein Kontingent → Checkout bricht vor der Zahlung ab |
@@ -29,7 +29,7 @@ Eingecheckte Tickets werden bei Storno oder Erstattung nicht verändert und blei
 
 **Standard (Einstellung aus):** WooCommerce behält seine eigenen Produktpreise. Preisstufen des Moduls „Serientermine“ (Frühbucher, Last-Minute, Nachfrage, Wochentag/Zeitfenster) wirken dann nur im eigenen Checkout und an der Kasse.
 
-**Pass-Captain-Preise im Warenkorb (Opt-in):** Die globale Einstellung **WooCommerce → Einstellungen → Produkte → WP Pass Captain → „Pass-Captain-Preise (z. B. Serien-Preisstufen) im WooCommerce-Warenkorb verwenden“** (Option `wpcap_woocommerce_core_prices`, Standard `no`) ersetzt für alle verknüpften Ticketprodukte den WooCommerce-Preis durch `Orders::unit_price()` – den gespeicherten Preis der Ticketkategorie plus Filter `wpcap_ticket_unit_price` (also jede aktive Serien-Preisstufe oder eigene Preislogik). Einzelne Produkte lassen sich mit dem Filter `wpcap_woocommerce_use_core_prices` ( `bool $enabled, WC_Product $product, int $ticket_type_id` ) ausnehmen oder einschließen. Der im WooCommerce-Produkt gepflegte Preis wird dann im Warenkorb ignoriert (für Feeds/Sortierung am besten gleich dem Ticketpreis setzen).
+**Pass-Captain-Preise im Warenkorb (Opt-in):** Die globale Einstellung **WooCommerce → Einstellungen → Produkte → Pass Captain → „Pass-Captain-Preise (z. B. Serien-Preisstufen) im WooCommerce-Warenkorb verwenden“** (Option `wpcap_woocommerce_core_prices`, Standard `no`) ersetzt für alle verknüpften Ticketprodukte den WooCommerce-Preis durch `Orders::unit_price()` – den gespeicherten Preis der Ticketkategorie plus Filter `wpcap_ticket_unit_price` (also jede aktive Serien-Preisstufe oder eigene Preislogik). Einzelne Produkte lassen sich mit dem Filter `wpcap_woocommerce_use_core_prices` ( `bool $enabled, WC_Product $product, int $ticket_type_id` ) ausnehmen oder einschließen. Der im WooCommerce-Produkt gepflegte Preis wird dann im Warenkorb ignoriert (für Feeds/Sortierung am besten gleich dem Ticketpreis setzen).
 
 - **Berechnung nur serverseitig:** Grundlage sind ausschließlich die verknüpfte Ticketkategorie und die Warenkorbmenge der Kategorie (Kontext `source` = `woocommerce`, `phase` = `cart`, Produktanzeige `display` mit Menge 1). Der Preis wird bei jedem Laden des Warenkorbs und vor jeder Summenberechnung (`woocommerce_cart_loaded_from_session`, `woocommerce_before_calculate_totals` → `set_price()`) neu ermittelt – im klassischen Warenkorb, Mini-Warenkorb, Checkout und in der Store API (Warenkorb-/Checkout-Block).
 - **Steuern:** Pass-Captain-Preise sind Bruttopreise. Bei „Preise inkl. Steuer eingeben“ (oder ohne Steuerberechnung) wird der Bruttopreis direkt gesetzt. Werden Preise in WooCommerce **ohne** Steuer eingegeben, rechnet der Adapter mit den WooCommerce-Basissteuersätzen der Steuerklasse des Produkts auf netto zurück (zusammengesetzte Sätze wie WooCommerce; ohne passenden Satz mit dem Steuersatz der Ticketkategorie). Annahme: Kundschaft am Shop-Standort zahlt damit genau den Pass-Captain-Bruttopreis (Rundung auf 6 Nachkommastellen netto); bei abweichenden Steuersätzen anderer Länder rechnet WooCommerce wie bei jedem Nettopreis.
@@ -60,7 +60,7 @@ Ticketkategorien mit Saalplan sind über WooCommerce kaufbar: WooCommerce zeigt 
 
 ## Grenzen
 
-- Kampagnencodes von WP Pass Captain gelten nicht im WooCommerce-Checkout; Rabatte laufen dort über WooCommerce-Gutscheine. Gespeichert wird der tatsächlich gezahlte Bruttobetrag je Ticket.
+- Kampagnencodes von Pass Captain gelten nicht im WooCommerce-Checkout; Rabatte laufen dort über WooCommerce-Gutscheine. Gespeichert wird der tatsächlich gezahlte Bruttobetrag je Ticket.
 - Teilerstattungen nur über einen Betrag ohne Mengenangabe widerrufen keine Tickets (der Betrag wird gebucht). Für einen Widerruf die Menge in der Erstattung angeben.
 - Erstattete (widerrufene) Tickets geben ihr Kontingent frei; eingecheckte Tickets bleiben eingecheckt und werden nur als erstattet markiert.
 - Bei aktivierten Pass-Captain-Preisen gelten WooCommerce-Angebotspreise (auch zeitgesteuerte) für Ticketprodukte nicht; Rabatte über Preisstufen oder WooCommerce-Gutscheine abbilden.

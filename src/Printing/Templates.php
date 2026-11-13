@@ -19,10 +19,10 @@ final class Templates {
 
 	public static function kind_labels() {
 		return array(
-			'ticket'    => __( 'Ticket (A4)', 'wp-pass-captain' ),
-			'badge'     => __( 'Badge (A6)', 'wp-pass-captain' ),
-			'nametag'   => __( 'Namensschild (90×55 mm, 10 pro A4)', 'wp-pass-captain' ),
-			'wristband' => __( 'Einlassband (250×25 mm)', 'wp-pass-captain' ),
+			'ticket'    => __( 'Ticket (A4)', 'pass-captain' ),
+			'badge'     => __( 'Badge (A6)', 'pass-captain' ),
+			'nametag'   => __( 'Namensschild (90×55 mm, 10 pro A4)', 'pass-captain' ),
+			'wristband' => __( 'Einlassband (250×25 mm)', 'pass-captain' ),
 		);
 	}
 
@@ -107,7 +107,7 @@ final class Templates {
 				$pdf->rect( $x, $y, $w, $h, false, 0.8 );
 				self::cell( $pdf, $lines, $item, $x, $y, $w, $h, 'center', 'right' );
 			}
-			return $pdf->output( __( 'Namensschilder', 'wp-pass-captain' ) );
+			return $pdf->output( __( 'Namensschilder', 'pass-captain' ) );
 		}
 		$sizes = array(
 			'ticket'    => array( 595.28, 841.89, 50, 'left', 'flow' ),
@@ -220,16 +220,16 @@ final class Templates {
 		$name = mb_substr( sanitize_text_field( (string) $name ), 0, 190 );
 		$body = self::sanitize_body( $body );
 		if ( '' === $name || ! in_array( $kind, self::KINDS, true ) || '' === $body ) {
-			return new \WP_Error( 'wpcap_print_template_invalid', __( 'Bitte Name, Layout und Inhalt angeben.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_print_template_invalid', __( 'Bitte Name, Layout und Inhalt angeben.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$data = array( 'name' => $name, 'kind' => $kind, 'body' => $body, 'status' => 'active', 'updated_at' => current_time( 'mysql', true ) );
-		$forbidden = new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung für diese Vorlage.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		$forbidden = new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung für diese Vorlage.', 'pass-captain' ), array( 'status' => 403 ) );
 		if ( $template_id ) {
 			$template = self::get_template( $template_id );
-			if ( ! $template ) { return new \WP_Error( 'wpcap_print_template_missing', __( 'Vorlage nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+			if ( ! $template ) { return new \WP_Error( 'wpcap_print_template_missing', __( 'Vorlage nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 			if ( ! self::can_edit( (int) $template->owner_event_id, (int) $template->template_id ) ) { return $forbidden; }
 			if ( $template->kind !== $kind && self::assigned_events( $template_id ) ) {
-				return new \WP_Error( 'wpcap_print_template_kind', __( 'Das Layout einer zugeordneten Vorlage kann nicht geändert werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+				return new \WP_Error( 'wpcap_print_template_kind', __( 'Das Layout einer zugeordneten Vorlage kann nicht geändert werden.', 'pass-captain' ), array( 'status' => 409 ) );
 			}
 			$wpdb->update( $wpdb->prefix . 'wpcap_print_templates', $data, array( 'template_id' => absint( $template_id ) ) );
 			Audit::record( 'print_template_saved', 'print_template', absint( $template_id ) );
@@ -239,7 +239,7 @@ final class Templates {
 		if ( ! self::can_edit( $owner_event_id ) ) { return $forbidden; }
 		$data['owner_event_id'] = $owner_event_id;
 		if ( false === $wpdb->insert( $wpdb->prefix . 'wpcap_print_templates', $data ) ) {
-			return new \WP_Error( 'wpcap_print_template_save', __( 'Die Vorlage konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+			return new \WP_Error( 'wpcap_print_template_save', __( 'Die Vorlage konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
 		$new_id = (int) $wpdb->insert_id;
 		Audit::record( 'print_template_saved', 'print_template', $new_id );
@@ -250,14 +250,14 @@ final class Templates {
 	public static function assign( $event_id, $kind, $template_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		if ( ! in_array( $kind, self::KINDS, true ) ) { return new \WP_Error( 'wpcap_print_kind', __( 'Unbekanntes Layout.', 'wp-pass-captain' ) ); }
-		if ( ! Scope::can_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		if ( ! in_array( $kind, self::KINDS, true ) ) { return new \WP_Error( 'wpcap_print_kind', __( 'Unbekanntes Layout.', 'pass-captain' ) ); }
+		if ( ! Scope::can_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$template_id = absint( $template_id );
 		if ( $template_id ) {
 			$template = self::get_template( $template_id );
-			if ( ! $template || $template->kind !== $kind ) { return new \WP_Error( 'wpcap_print_template_kind', __( 'Die Vorlage passt nicht zum Layout.', 'wp-pass-captain' ) ); }
+			if ( ! $template || $template->kind !== $kind ) { return new \WP_Error( 'wpcap_print_template_kind', __( 'Die Vorlage passt nicht zum Layout.', 'pass-captain' ) ); }
 			if ( (int) $template->owner_event_id && (int) $template->owner_event_id !== absint( $event_id ) ) {
-				return new \WP_Error( 'wpcap_print_template_owner', __( 'Diese Vorlage gehört zu einem anderen Event.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+				return new \WP_Error( 'wpcap_print_template_owner', __( 'Diese Vorlage gehört zu einem anderen Event.', 'pass-captain' ), array( 'status' => 403 ) );
 			}
 		}
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_print_event_templates WHERE event_id=%d AND kind=%s", absint( $event_id ), $kind ) );

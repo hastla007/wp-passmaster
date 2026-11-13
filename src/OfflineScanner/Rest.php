@@ -59,15 +59,15 @@ final class Rest {
 		$device = Devices::current();
 		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", absint( $request->get_param( 'occurrence_id' ) ) ) );
 		if ( ! $occurrence ) {
-			return new \WP_Error( 'wpcap_offline_occurrence', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_offline_occurrence', __( 'Termin nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		$event_id = (int) $occurrence->event_id;
 		if ( ! Rules::enabled( $event_id ) ) {
-			return new \WP_Error( 'wpcap_offline_disabled', __( 'Offline-Scannen ist für dieses Event nicht freigegeben.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_offline_disabled', __( 'Offline-Scannen ist für dieses Event nicht freigegeben.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$assignment = Assignments::find( (int) $device->device_id, $event_id, (int) $occurrence->occurrence_id );
 		if ( ! $assignment || ! in_array( $event_id, Devices::event_ids( $device ), true ) || ! Access::can_access_event( $event_id, 'wpcap_checkin' ) ) {
-			return new \WP_Error( 'wpcap_offline_not_assigned', __( 'Dieses Gerät ist für diesen Termin nicht zum Offline-Scannen zugewiesen.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_offline_not_assigned', __( 'Dieses Gerät ist für diesen Termin nicht zum Offline-Scannen zugewiesen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$since = $request->get_param( 'since' );
 		$body = Package::build( $device, $occurrence, is_string( $since ) ? $since : null );

@@ -34,7 +34,7 @@ final class WebService {
 	}
 
 	private static function unauthorized() {
-		return new \WP_Error( 'wpcap_wallet_unauthorized', __( 'Nicht autorisiert.', 'wp-pass-captain' ), array( 'status' => 401 ) );
+		return new \WP_Error( 'wpcap_wallet_unauthorized', __( 'Nicht autorisiert.', 'pass-captain' ), array( 'status' => 401 ) );
 	}
 
 	private static function token( \WP_REST_Request $request ) {
@@ -66,7 +66,7 @@ final class WebService {
 		if ( is_wp_error( $auth ) ) { return $auth; }
 		$push = (string) ( $request->get_param( 'pushToken' ) ?? '' );
 		if ( ! preg_match( '/^[A-Za-z0-9]{8,200}$/', $push ) ) {
-			return new \WP_Error( 'wpcap_wallet_push_token', __( 'Ungültiger Push-Token.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_wallet_push_token', __( 'Ungültiger Push-Token.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$created = Store::register_device( (string) $request->get_param( 'device' ), $auth['pass']->provider_ref, $auth['pass']->serial_number, $push, $auth['hash'] );
 		return new \WP_REST_Response( null, $created ? 201 : 200 );
@@ -120,7 +120,7 @@ final class WebService {
 			Service::log( 'build_failed', $e->getMessage() );
 			$built = null;
 		}
-		return $built ? self::pkpass_response( $built ) : new \WP_Error( 'wpcap_wallet_build', __( 'Pass konnte nicht erstellt werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+		return $built ? self::pkpass_response( $built ) : new \WP_Error( 'wpcap_wallet_build', __( 'Pass konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) );
 	}
 
 	public static function download( \WP_REST_Request $request ) {
@@ -129,7 +129,7 @@ final class WebService {
 		$state = $pass ? Store::state( $pass->ticket_id ) : null;
 		$sig = (string) $request->get_param( 'sig' );
 		if ( ! RateLimit::allow( 'wallet_dl_' . RateLimit::client(), 60, MINUTE_IN_SECONDS ) || ! $state || ! hash_equals( Service::download_sig( $serial, $state ), $sig ) ) {
-			return new \WP_Error( 'wpcap_wallet_link', __( 'Dieser Wallet-Link ist ungültig oder wurde durch einen neueren ersetzt.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_wallet_link', __( 'Dieser Wallet-Link ist ungültig oder wurde durch einen neueren ersetzt.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		try {
 			$built = Service::apple_bundle( $serial, null );
@@ -137,7 +137,7 @@ final class WebService {
 			Service::log( 'build_failed', $e->getMessage() );
 			$built = null;
 		}
-		if ( ! $built ) { return new \WP_Error( 'wpcap_wallet_build', __( 'Pass konnte nicht erstellt werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( ! $built ) { return new \WP_Error( 'wpcap_wallet_build', __( 'Pass konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$response = self::pkpass_response( $built );
 		$data = $response->get_data();
 		$data['headers']['Content-Disposition'] = 'attachment; filename="ticket.pkpass"';

@@ -1,6 +1,6 @@
 # Verkaufsmodelle: Eigenhändler und Vermittler
 
-WP Pass Captain unterstützt je Veranstalter eines von zwei Verkaufsmodellen. Das Modell entscheidet,
+Pass Captain unterstützt je Veranstalter eines von zwei Verkaufsmodellen. Das Modell entscheidet,
 **wer** gegenüber den Ticketkäufern leistet und Rechnungen ausstellt und **welche Belege** die Plattform
 monatlich mit dem Veranstalter austauscht.
 

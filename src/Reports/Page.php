@@ -56,29 +56,29 @@ final class Page {
 
 	public static function render() {
 		$scope = Data::scope();
-		if ( false === $scope ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( false === $scope ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$filters = self::filters( wp_unslash( $_GET ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filters.
 		$report = Data::build( $filters, $scope );
 		$cur = $report['currency'];
 		$money = static function ( $minor ) use ( $cur ) { return Scope::money( $minor, $cur ); };
 		$csv_url = add_query_arg( array_merge( $filters, array( 'action' => 'wpcap_reports_csv', '_wpnonce' => wp_create_nonce( 'wpcap_reports_csv' ) ) ), admin_url( 'admin-post.php' ) );
-		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Berichte', 'wp-pass-captain' ) . '</h1>';
+		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Berichte', 'pass-captain' ) . '</h1>';
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><p>';
-		echo '<label>' . esc_html__( 'Von', 'wp-pass-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $report['from'] ) . '"></label> ';
-		echo '<label>' . esc_html__( 'Bis', 'wp-pass-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $report['to'] ) . '"></label> ';
-		Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'wp-pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'] );
-		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'wp-pass-captain' ) . '</button> <a class="button" href="' . esc_url( $csv_url ) . '">' . esc_html__( 'CSV-Export', 'wp-pass-captain' ) . '</a></p></form>';
-		echo '<p class="description">' . esc_html( sprintf( __( 'Verkäufe nach Bestelldatum, Erstattungen nach Abschlussdatum (Zeitzone %s). Beträge brutto inkl. USt.', 'wp-pass-captain' ), $report['timezone'] ) ) . '</p>';
+		echo '<label>' . esc_html__( 'Von', 'pass-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $report['from'] ) . '"></label> ';
+		echo '<label>' . esc_html__( 'Bis', 'pass-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $report['to'] ) . '"></label> ';
+		Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'] );
+		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button> <a class="button" href="' . esc_url( $csv_url ) . '">' . esc_html__( 'CSV-Export', 'pass-captain' ) . '</a></p></form>';
+		echo '<p class="description">' . esc_html( sprintf( __( 'Verkäufe nach Bestelldatum, Erstattungen nach Abschlussdatum (Zeitzone %s). Beträge brutto inkl. USt.', 'pass-captain' ), $report['timezone'] ) ) . '</p>';
 
 		$t = $report['total'];
 		echo '<table class="widefat" style="max-width:52rem"><tbody>';
 		$summary = array(
-			__( 'Verkaufte Tickets', 'wp-pass-captain' ) => (string) $t['tickets'],
-			__( 'Umsatz brutto', 'wp-pass-captain' ) => $money( $t['gross'] ),
-			__( 'Erstattungen', 'wp-pass-captain' ) => '-' . $money( $t['refunded'] ) . ' (' . (int) $t['refunded_tickets'] . ' ' . __( 'Tickets', 'wp-pass-captain' ) . ')',
-			__( 'Umsatz nach Erstattungen', 'wp-pass-captain' ) => $money( $t['revenue'] ),
-			__( 'davon USt', 'wp-pass-captain' ) => $money( $t['revenue_tax'] ),
-			__( 'Gutschriften (Belege)', 'wp-pass-captain' ) => (int) $report['credit_notes']['count'] . ' / ' . $money( $report['credit_notes']['total'] ),
+			__( 'Verkaufte Tickets', 'pass-captain' ) => (string) $t['tickets'],
+			__( 'Umsatz brutto', 'pass-captain' ) => $money( $t['gross'] ),
+			__( 'Erstattungen', 'pass-captain' ) => '-' . $money( $t['refunded'] ) . ' (' . (int) $t['refunded_tickets'] . ' ' . __( 'Tickets', 'pass-captain' ) . ')',
+			__( 'Umsatz nach Erstattungen', 'pass-captain' ) => $money( $t['revenue'] ),
+			__( 'davon USt', 'pass-captain' ) => $money( $t['revenue_tax'] ),
+			__( 'Gutschriften (Belege)', 'pass-captain' ) => (int) $report['credit_notes']['count'] . ' / ' . $money( $report['credit_notes']['total'] ),
 		);
 		foreach ( $summary as $k => $v ) { echo '<tr><th>' . esc_html( $k ) . '</th><td>' . esc_html( $v ) . '</td></tr>'; }
 		echo '</tbody></table>';
@@ -86,47 +86,47 @@ final class Page {
 		$share = array();
 		foreach ( $report['channels'] as $c ) { $share[ $c['label'] ] = $c['revenue']; }
 		$total_rev = max( 1, array_sum( array_map( 'abs', $share ) ) );
-		echo '<h2>' . esc_html__( 'Kasse vs. online', 'wp-pass-captain' ) . '</h2>';
-		echo self::bar_chart( $share, __( 'Umsatz nach Kanal', 'wp-pass-captain' ), static function ( $v ) use ( $money, $total_rev ) { return $money( $v ) . ' (' . number_format_i18n( 100 * $v / $total_rev, 1 ) . ' %)'; } ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in bar_chart.
+		echo '<h2>' . esc_html__( 'Kasse vs. online', 'pass-captain' ) . '</h2>';
+		echo self::bar_chart( $share, __( 'Umsatz nach Kanal', 'pass-captain' ), static function ( $v ) use ( $money, $total_rev ) { return $money( $v ) . ' (' . number_format_i18n( 100 * $v / $total_rev, 1 ) . ' %)'; } ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in bar_chart.
 
 		$days = array();
 		foreach ( $report['dimensions']['day'] as $b ) { $days[ $b['label'] ] = $b['revenue']; }
-		echo '<h2>' . esc_html__( 'Umsatz pro Tag', 'wp-pass-captain' ) . '</h2>' . self::bar_chart( $days, __( 'Umsatz nach Erstattungen pro Tag', 'wp-pass-captain' ), $money ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		echo '<h2>' . esc_html__( 'Umsatz pro Tag', 'pass-captain' ) . '</h2>' . self::bar_chart( $days, __( 'Umsatz nach Erstattungen pro Tag', 'pass-captain' ), $money ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 
-		$labels = array( 'event' => __( 'Event', 'wp-pass-captain' ), 'occurrence' => __( 'Termin', 'wp-pass-captain' ), 'ticket_type' => __( 'Ticketart', 'wp-pass-captain' ), 'provider' => __( 'Zahlungsanbieter', 'wp-pass-captain' ) );
+		$labels = array( 'event' => __( 'Event', 'pass-captain' ), 'occurrence' => __( 'Termin', 'pass-captain' ), 'ticket_type' => __( 'Ticketart', 'pass-captain' ), 'provider' => __( 'Zahlungsanbieter', 'pass-captain' ) );
 		foreach ( $labels as $dim => $label ) {
-			echo '<h2>' . esc_html( sprintf( __( 'Umsatz nach %s', 'wp-pass-captain' ), $label ) ) . '</h2>';
+			echo '<h2>' . esc_html( sprintf( __( 'Umsatz nach %s', 'pass-captain' ), $label ) ) . '</h2>';
 			self::table( $label, $report['dimensions'][ $dim ], $money );
 		}
-		echo '<h2>' . esc_html__( 'Umsatzsteuer nach Satz', 'wp-pass-captain' ) . '</h2>';
-		self::table( __( 'Satz', 'wp-pass-captain' ), $report['rates'], $money );
+		echo '<h2>' . esc_html__( 'Umsatzsteuer nach Satz', 'pass-captain' ) . '</h2>';
+		self::table( __( 'Satz', 'pass-captain' ), $report['rates'], $money );
 
-		echo '<h2>' . esc_html__( 'Auslastung und Check-in', 'wp-pass-captain' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Termin', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Verkauft / Kapazität', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Eingecheckt / gültig', 'wp-pass-captain' ) . '</th><th></th></tr></thead><tbody>';
+		echo '<h2>' . esc_html__( 'Auslastung und Check-in', 'pass-captain' ) . '</h2><table class="widefat striped"><thead><tr><th>' . esc_html__( 'Termin', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verkauft / Kapazität', 'pass-captain' ) . '</th><th>' . esc_html__( 'Eingecheckt / gültig', 'pass-captain' ) . '</th><th></th></tr></thead><tbody>';
 		foreach ( $report['occurrences'] as $o ) {
 			$link = Forms::page_url( self::SLUG, array_merge( $filters, array( 'occurrence_id' => $o['occurrence_id'] ) ) );
-			echo '<tr><td>' . esc_html( $o['label'] ) . '</td><td>' . esc_html( $o['sold'] . ' / ' . ( $o['capacity'] ?: '∞' ) . ( null !== $o['utilisation'] ? ' (' . number_format_i18n( $o['utilisation'], 1 ) . ' %)' : '' ) ) . '</td><td>' . esc_html( $o['checked_in'] . ' / ' . $o['issued'] . ( null !== $o['checkin_rate'] ? ' (' . number_format_i18n( $o['checkin_rate'], 1 ) . ' %)' : '' ) ) . '</td><td><a href="' . esc_url( $link ) . '">' . esc_html__( 'Einlass pro Stunde', 'wp-pass-captain' ) . '</a></td></tr>';
+			echo '<tr><td>' . esc_html( $o['label'] ) . '</td><td>' . esc_html( $o['sold'] . ' / ' . ( $o['capacity'] ?: '∞' ) . ( null !== $o['utilisation'] ? ' (' . number_format_i18n( $o['utilisation'], 1 ) . ' %)' : '' ) ) . '</td><td>' . esc_html( $o['checked_in'] . ' / ' . $o['issued'] . ( null !== $o['checkin_rate'] ? ' (' . number_format_i18n( $o['checkin_rate'], 1 ) . ' %)' : '' ) ) . '</td><td><a href="' . esc_url( $link ) . '">' . esc_html__( 'Einlass pro Stunde', 'pass-captain' ) . '</a></td></tr>';
 		}
 		echo '</tbody></table>';
 		if ( $report['histogram'] ) {
 			$hist = array();
 			foreach ( $report['histogram'] as $hour => $n ) { $hist[ substr( $hour, 5 ) ] = $n; }
-			echo '<h2>' . esc_html__( 'Check-ins pro Stunde', 'wp-pass-captain' ) . '</h2>' . self::bar_chart( $hist, $report['occurrences'][ $report['histogram_occurrence'] ]['label'] ?? '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo '<h2>' . esc_html__( 'Check-ins pro Stunde', 'pass-captain' ) . '</h2>' . self::bar_chart( $hist, $report['occurrences'][ $report['histogram_occurrence'] ]['label'] ?? '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 		echo '</div>';
 	}
 
 	private static function table( $label, array $buckets, callable $money ) {
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html( $label ) . '</th><th>' . esc_html__( 'Tickets', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Brutto', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Netto', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'USt', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Erstattet', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Umsatz nach Erstattung', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html( $label ) . '</th><th>' . esc_html__( 'Tickets', 'pass-captain' ) . '</th><th>' . esc_html__( 'Brutto', 'pass-captain' ) . '</th><th>' . esc_html__( 'Netto', 'pass-captain' ) . '</th><th>' . esc_html__( 'USt', 'pass-captain' ) . '</th><th>' . esc_html__( 'Erstattet', 'pass-captain' ) . '</th><th>' . esc_html__( 'Umsatz nach Erstattung', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $buckets as $b ) {
 			echo '<tr><td>' . esc_html( $b['label'] ) . '</td><td>' . (int) $b['tickets'] . '</td><td>' . esc_html( $money( $b['gross'] ) ) . '</td><td>' . esc_html( $money( $b['net'] ) ) . '</td><td>' . esc_html( $money( $b['tax'] ) ) . '</td><td>' . esc_html( '-' . $money( $b['refunded'] ) ) . '</td><td>' . esc_html( $money( $b['revenue'] ) ) . '</td></tr>';
 		}
-		if ( ! $buckets ) { echo '<tr><td colspan="7">' . esc_html__( 'Keine Daten im Zeitraum.', 'wp-pass-captain' ) . '</td></tr>'; }
+		if ( ! $buckets ) { echo '<tr><td colspan="7">' . esc_html__( 'Keine Daten im Zeitraum.', 'pass-captain' ) . '</td></tr>'; }
 		echo '</tbody></table>';
 	}
 
 	public static function handle_csv() {
 		$scope = Data::scope();
-		if ( false === $scope ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( false === $scope ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		check_admin_referer( 'wpcap_reports_csv' );
 		$filters = self::filters( wp_unslash( $_GET ) );
 		$report = Data::build( $filters, $scope );

@@ -140,9 +140,9 @@ final class Admission {
 
 	public static function admin_pages() {
 		$open = Conflicts::open_count_for_current_user();
-		$title = __( 'Einlass-Konflikte', 'wp-pass-captain' ) . ( $open ? ' <span class="awaiting-mod">' . (int) $open . '</span>' : '' );
+		$title = __( 'Einlass-Konflikte', 'pass-captain' ) . ( $open ? ' <span class="awaiting-mod">' . (int) $open . '</span>' : '' );
 		return array(
-			array( RulesPage::SLUG, __( 'Einlassregeln', 'wp-pass-captain' ), RulesPage::CAP, array( RulesPage::class, 'render' ) ),
+			array( RulesPage::SLUG, __( 'Einlassregeln', 'pass-captain' ), RulesPage::CAP, array( RulesPage::class, 'render' ) ),
 			array( ConflictsPage::SLUG, $title, ConflictsPage::menu_cap(), array( ConflictsPage::class, 'render' ) ),
 		);
 	}

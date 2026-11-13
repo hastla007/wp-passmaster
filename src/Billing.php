@@ -64,37 +64,37 @@ final class Billing {
 	/** Country code => German name (EU plus frequent neighbours); filter `wpcap_billing_countries`. */
 	public static function countries() {
 		$countries = array(
-			'AT' => __( 'Österreich', 'wp-pass-captain' ),
-			'DE' => __( 'Deutschland', 'wp-pass-captain' ),
-			'CH' => __( 'Schweiz', 'wp-pass-captain' ),
-			'LI' => __( 'Liechtenstein', 'wp-pass-captain' ),
-			'BE' => __( 'Belgien', 'wp-pass-captain' ),
-			'BG' => __( 'Bulgarien', 'wp-pass-captain' ),
-			'DK' => __( 'Dänemark', 'wp-pass-captain' ),
-			'EE' => __( 'Estland', 'wp-pass-captain' ),
-			'FI' => __( 'Finnland', 'wp-pass-captain' ),
-			'FR' => __( 'Frankreich', 'wp-pass-captain' ),
-			'GR' => __( 'Griechenland', 'wp-pass-captain' ),
-			'IE' => __( 'Irland', 'wp-pass-captain' ),
-			'IT' => __( 'Italien', 'wp-pass-captain' ),
-			'HR' => __( 'Kroatien', 'wp-pass-captain' ),
-			'LV' => __( 'Lettland', 'wp-pass-captain' ),
-			'LT' => __( 'Litauen', 'wp-pass-captain' ),
-			'LU' => __( 'Luxemburg', 'wp-pass-captain' ),
-			'MT' => __( 'Malta', 'wp-pass-captain' ),
-			'NL' => __( 'Niederlande', 'wp-pass-captain' ),
-			'NO' => __( 'Norwegen', 'wp-pass-captain' ),
-			'PL' => __( 'Polen', 'wp-pass-captain' ),
-			'PT' => __( 'Portugal', 'wp-pass-captain' ),
-			'RO' => __( 'Rumänien', 'wp-pass-captain' ),
-			'SE' => __( 'Schweden', 'wp-pass-captain' ),
-			'SK' => __( 'Slowakei', 'wp-pass-captain' ),
-			'SI' => __( 'Slowenien', 'wp-pass-captain' ),
-			'ES' => __( 'Spanien', 'wp-pass-captain' ),
-			'CZ' => __( 'Tschechien', 'wp-pass-captain' ),
-			'HU' => __( 'Ungarn', 'wp-pass-captain' ),
-			'GB' => __( 'Vereinigtes Königreich', 'wp-pass-captain' ),
-			'CY' => __( 'Zypern', 'wp-pass-captain' ),
+			'AT' => __( 'Österreich', 'pass-captain' ),
+			'DE' => __( 'Deutschland', 'pass-captain' ),
+			'CH' => __( 'Schweiz', 'pass-captain' ),
+			'LI' => __( 'Liechtenstein', 'pass-captain' ),
+			'BE' => __( 'Belgien', 'pass-captain' ),
+			'BG' => __( 'Bulgarien', 'pass-captain' ),
+			'DK' => __( 'Dänemark', 'pass-captain' ),
+			'EE' => __( 'Estland', 'pass-captain' ),
+			'FI' => __( 'Finnland', 'pass-captain' ),
+			'FR' => __( 'Frankreich', 'pass-captain' ),
+			'GR' => __( 'Griechenland', 'pass-captain' ),
+			'IE' => __( 'Irland', 'pass-captain' ),
+			'IT' => __( 'Italien', 'pass-captain' ),
+			'HR' => __( 'Kroatien', 'pass-captain' ),
+			'LV' => __( 'Lettland', 'pass-captain' ),
+			'LT' => __( 'Litauen', 'pass-captain' ),
+			'LU' => __( 'Luxemburg', 'pass-captain' ),
+			'MT' => __( 'Malta', 'pass-captain' ),
+			'NL' => __( 'Niederlande', 'pass-captain' ),
+			'NO' => __( 'Norwegen', 'pass-captain' ),
+			'PL' => __( 'Polen', 'pass-captain' ),
+			'PT' => __( 'Portugal', 'pass-captain' ),
+			'RO' => __( 'Rumänien', 'pass-captain' ),
+			'SE' => __( 'Schweden', 'pass-captain' ),
+			'SK' => __( 'Slowakei', 'pass-captain' ),
+			'SI' => __( 'Slowenien', 'pass-captain' ),
+			'ES' => __( 'Spanien', 'pass-captain' ),
+			'CZ' => __( 'Tschechien', 'pass-captain' ),
+			'HU' => __( 'Ungarn', 'pass-captain' ),
+			'GB' => __( 'Vereinigtes Königreich', 'pass-captain' ),
+			'CY' => __( 'Zypern', 'pass-captain' ),
 		);
 		$countries = apply_filters( 'wpcap_billing_countries', $countries );
 		return is_array( $countries ) && $countries ? $countries : array( 'AT' => 'Österreich', 'DE' => 'Deutschland' );
@@ -124,16 +124,16 @@ final class Billing {
 	/** Visible field labels (also used in server error messages, same wording as the form). */
 	public static function labels() {
 		return array(
-			'enabled' => __( 'Ich brauche eine Rechnung auf Firma/Adresse', 'wp-pass-captain' ),
-			'company' => __( 'Firma', 'wp-pass-captain' ),
-			'first_name' => __( 'Vorname', 'wp-pass-captain' ),
-			'last_name' => __( 'Nachname', 'wp-pass-captain' ),
-			'street' => __( 'Straße und Hausnummer', 'wp-pass-captain' ),
-			'postcode' => __( 'PLZ', 'wp-pass-captain' ),
-			'city' => __( 'Ort', 'wp-pass-captain' ),
-			'country' => __( 'Land', 'wp-pass-captain' ),
-			'vat_id' => __( 'UID-Nummer', 'wp-pass-captain' ),
-			'po_number' => __( 'Bestell- oder Referenznummer', 'wp-pass-captain' ),
+			'enabled' => __( 'Ich brauche eine Rechnung auf Firma/Adresse', 'pass-captain' ),
+			'company' => __( 'Firma', 'pass-captain' ),
+			'first_name' => __( 'Vorname', 'pass-captain' ),
+			'last_name' => __( 'Nachname', 'pass-captain' ),
+			'street' => __( 'Straße und Hausnummer', 'pass-captain' ),
+			'postcode' => __( 'PLZ', 'pass-captain' ),
+			'city' => __( 'Ort', 'pass-captain' ),
+			'country' => __( 'Land', 'pass-captain' ),
+			'vat_id' => __( 'UID-Nummer', 'pass-captain' ),
+			'po_number' => __( 'Bestell- oder Referenznummer', 'pass-captain' ),
 		);
 	}
 
@@ -198,19 +198,19 @@ final class Billing {
 		foreach ( self::REQUIRED as $field ) {
 			if ( '' === $billing[ $field ] ) {
 				/* translators: %s: field label */
-				return self::error( $field, sprintf( __( 'Bitte fülle „%s“ aus.', 'wp-pass-captain' ), $labels[ $field ] ) );
+				return self::error( $field, sprintf( __( 'Bitte fülle „%s“ aus.', 'pass-captain' ), $labels[ $field ] ) );
 			}
 		}
 		if ( ! isset( self::countries()[ $billing['country'] ] ) ) {
-			return self::error( 'country', __( 'Bitte wähle ein Land aus der Liste.', 'wp-pass-captain' ) );
+			return self::error( 'country', __( 'Bitte wähle ein Land aus der Liste.', 'pass-captain' ) );
 		}
 		if ( ! self::postcode_valid( $billing['postcode'], $billing['country'] ) ) {
 			/* translators: %s: field label */
-			return self::error( 'postcode', sprintf( __( '„%s“ ist ungültig.', 'wp-pass-captain' ), $labels['postcode'] ) );
+			return self::error( 'postcode', sprintf( __( '„%s“ ist ungültig.', 'pass-captain' ), $labels['postcode'] ) );
 		}
 		if ( '' !== $billing['vat_id'] ) {
 			if ( ! self::vat_id_format_valid( $billing['vat_id'], $billing['country'] ) ) {
-				return self::error( 'vat_id', __( 'Die UID-Nummer hat kein gültiges Format. Bitte mit Länderkennzeichen angeben, z. B. ATU12345678 oder DE123456789.', 'wp-pass-captain' ) );
+				return self::error( 'vat_id', __( 'Die UID-Nummer hat kein gültiges Format. Bitte mit Länderkennzeichen angeben, z. B. ATU12345678 oder DE123456789.', 'pass-captain' ) );
 			}
 			/**
 			 * Optional online check of the VAT ID (e.g. against VIES). No external call by default.
@@ -222,7 +222,7 @@ final class Billing {
 			 */
 			$checked = apply_filters( 'wpcap_vat_id_validate', true, $billing['vat_id'], $billing );
 			if ( is_wp_error( $checked ) ) { return self::error( 'vat_id', $checked->get_error_message() ); }
-			if ( true !== $checked ) { return self::error( 'vat_id', __( 'Die UID-Nummer konnte nicht bestätigt werden. Bitte prüfe die Eingabe.', 'wp-pass-captain' ) ); }
+			if ( true !== $checked ) { return self::error( 'vat_id', __( 'Die UID-Nummer konnte nicht bestätigt werden. Bitte prüfe die Eingabe.', 'pass-captain' ) ); }
 		}
 		return $billing;
 	}
@@ -290,12 +290,12 @@ final class Billing {
 	 */
 	public static function update_for_order( $order, $input ) {
 		if ( self::invoice_issued( (int) $order->order_id ) ) {
-			return new \WP_Error( 'wpcap_billing_locked', __( 'Die Rechnung wurde bereits ausgestellt. Für eine Korrektur wende dich bitte an den Veranstalter.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_billing_locked', __( 'Die Rechnung wurde bereits ausgestellt. Für eine Korrektur wende dich bitte an den Veranstalter.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$billing = self::validate( $input );
 		if ( is_wp_error( $billing ) ) { return $billing; }
 		if ( ! self::save( (int) $order->order_id, $billing ?: array() ) ) {
-			return new \WP_Error( 'wpcap_billing_save', __( 'Die Rechnungsdaten konnten nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+			return new \WP_Error( 'wpcap_billing_save', __( 'Die Rechnungsdaten konnten nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
 		Audit::record( 'billing_updated', 'order', (int) $order->order_id, array( 'source' => 'portal', 'cleared' => ! $billing ) );
 		return array( 'billing' => $billing ?: array() );
@@ -324,8 +324,8 @@ final class Billing {
 	/** Additional recipient lines: VAT ID and the buyer's reference (label => value). */
 	public static function detail_lines( array $data ) {
 		$lines = array();
-		if ( '' !== (string) ( $data['vat_id'] ?? '' ) ) { $lines[] = __( 'UID des Leistungsempfängers:', 'wp-pass-captain' ) . ' ' . $data['vat_id']; }
-		if ( '' !== (string) ( $data['po_number'] ?? '' ) ) { $lines[] = __( 'Ihre Bestell-/Referenznummer:', 'wp-pass-captain' ) . ' ' . $data['po_number']; }
+		if ( '' !== (string) ( $data['vat_id'] ?? '' ) ) { $lines[] = __( 'UID des Leistungsempfängers:', 'pass-captain' ) . ' ' . $data['vat_id']; }
+		if ( '' !== (string) ( $data['po_number'] ?? '' ) ) { $lines[] = __( 'Ihre Bestell-/Referenznummer:', 'pass-captain' ) . ' ' . $data['po_number']; }
 		return $lines;
 	}
 }

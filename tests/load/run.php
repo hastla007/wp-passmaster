@@ -133,7 +133,7 @@ if ( $cfg['workers'] > $max_conn - 5 ) {
 	$cfg['workers'] = $max_conn - 5;
 }
 
-echo "WP Pass Captain load test – PHP " . PHP_VERSION . ", DB " . $wpdb->get_var( 'SELECT VERSION()' ) . ", prefix $p\n";
+echo "Pass Captain load test – PHP " . PHP_VERSION . ", DB " . $wpdb->get_var( 'SELECT VERSION()' ) . ", prefix $p\n";
 echo 'Config: ' . json_encode( $cfg ) . "\n";
 wpcap_test_install();
 load_settings();

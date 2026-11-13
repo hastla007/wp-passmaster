@@ -10,11 +10,11 @@ final class DeveloperKeys {
 		$event_id = absint( $event_id );
 		$allowed = array( 'events.read', 'reports.read' );
 		$scopes = array_values( array_unique( array_intersect( array_map( static function ( $scope ) { return trim( sanitize_text_field( $scope ) ); }, $scopes ), $allowed ) ) );
-		if ( ! $event_id || ! $scopes ) { return new \WP_Error( 'wpcap_api_key_invalid', __( 'Event und mindestens ein unterstützter Scope sind erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $event_id || ! $scopes ) { return new \WP_Error( 'wpcap_api_key_invalid', __( 'Event und mindestens ein unterstützter Scope sind erforderlich.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$secret = bin2hex( random_bytes( 32 ) );
 		$prefix = substr( bin2hex( random_bytes( 8 ) ), 0, 12 );
 		$inserted = $wpdb->insert( $wpdb->prefix . 'wpcap_api_keys', array( 'user_id' => get_current_user_id(), 'public_prefix' => $prefix, 'secret_hash' => hash( 'sha256', $secret ), 'event_id' => $event_id, 'scopes' => wp_json_encode( $scopes ), 'label' => sanitize_text_field( $label ), 'expires_at' => $expires_at ? sanitize_text_field( $expires_at ) : null, 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s' ) );
-		if ( false === $inserted ) { return new \WP_Error( 'wpcap_api_key_save', __( 'API-Key konnte nicht angelegt werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( false === $inserted ) { return new \WP_Error( 'wpcap_api_key_save', __( 'API-Key konnte nicht angelegt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( 'developer_key_issued', 'api_key', (int) $wpdb->insert_id, array( 'event_id' => $event_id, 'scopes' => $scopes ) );
 		return array( 'api_key_id' => (int) $wpdb->insert_id, 'key' => $prefix . '.' . $secret, 'scopes' => $scopes, 'shown_once' => true );
 	}
@@ -41,7 +41,7 @@ final class DeveloperKeys {
 	public static function revoke( $key_id ) {
 		global $wpdb;
 		$key = $wpdb->get_row( $wpdb->prepare( "SELECT api_key_id,user_id FROM {$wpdb->prefix}wpcap_api_keys WHERE api_key_id=%d", absint( $key_id ) ) );
-		if ( ! $key || ( (int) $key->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'API-Key nicht gefunden oder keine Berechtigung.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $key || ( (int) $key->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'API-Key nicht gefunden oder keine Berechtigung.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$wpdb->update( $wpdb->prefix . 'wpcap_api_keys', array( 'revoked_at' => current_time( 'mysql', true ) ), array( 'api_key_id' => absint( $key_id ), 'revoked_at' => null ), array( '%s' ), array( '%d', '%s' ) );
 		Audit::record( 'developer_key_revoked', 'api_key', absint( $key_id ) );
 		return true;

@@ -43,7 +43,7 @@ final class Admin {
 	public static function draft( array $in ) {
 		$type = sanitize_key( Forms::text( $in, 'type', 64 ) );
 		if ( ! Mailer::type( $type ) ) {
-			return Forms::error( 'wpcap_mail_type', __( 'Unbekannter E-Mail-Typ.', 'wp-pass-captain' ), 404 );
+			return Forms::error( 'wpcap_mail_type', __( 'Unbekannter E-Mail-Typ.', 'pass-captain' ), 404 );
 		}
 		$locale = Mailer::normalize_locale( Forms::text( $in, 'locale', 20 ) );
 		$format = Forms::choice( $in, 'format', array( 'text', 'html' ), 'text' );
@@ -63,7 +63,7 @@ final class Admin {
 		$d = self::draft( $in );
 		if ( is_wp_error( $d ) ) { return $d; }
 		if ( '' === trim( $d['subject'] ) || '' === trim( $d['body'] ) ) {
-			return Forms::error( 'wpcap_mail_template_empty', __( 'Bitte Betreff und Text angeben.', 'wp-pass-captain' ) );
+			return Forms::error( 'wpcap_mail_template_empty', __( 'Bitte Betreff und Text angeben.', 'pass-captain' ) );
 		}
 		Templates::save( $d['type'], $d['locale'], $d );
 		return array( 'saved' => $d );
@@ -110,14 +110,14 @@ final class Admin {
 		$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
 		$to = (string) apply_filters( 'wpcap_mail_test_recipient', $user && ! empty( $user->user_email ) ? sanitize_email( $user->user_email ) : '', $user );
 		if ( ! is_email( $to ) ) {
-			return Forms::error( 'wpcap_mail_test_recipient', __( 'Dein Benutzerkonto hat keine gültige E-Mail-Adresse.', 'wp-pass-captain' ) );
+			return Forms::error( 'wpcap_mail_test_recipient', __( 'Dein Benutzerkonto hat keine gültige E-Mail-Adresse.', 'pass-captain' ) );
 		}
 		$preview = self::preview( $in );
 		if ( is_wp_error( $preview ) ) { return $preview; }
 		$message = $preview['message'];
-		$message['subject'] = '[' . __( 'Test', 'wp-pass-captain' ) . '] ' . $message['subject'];
+		$message['subject'] = '[' . __( 'Test', 'pass-captain' ) . '] ' . $message['subject'];
 		if ( ! Mailer::deliver( $to, $message ) ) {
-			return Forms::error( 'wpcap_mail_test_failed', __( 'Die Testmail konnte nicht gesendet werden.', 'wp-pass-captain' ), 502 );
+			return Forms::error( 'wpcap_mail_test_failed', __( 'Die Testmail konnte nicht gesendet werden.', 'pass-captain' ), 502 );
 		}
 		return array( 'sent' => true, 'to' => $to );
 	}
@@ -141,13 +141,13 @@ final class Admin {
 	public static function handle_save() {
 		Forms::verify( self::NONCE );
 		$in = Forms::post();
-		Forms::finish( self::save( $in ), __( 'Vorlage gespeichert.', 'wp-pass-captain' ), self::edit_url( $in ) );
+		Forms::finish( self::save( $in ), __( 'Vorlage gespeichert.', 'pass-captain' ), self::edit_url( $in ) );
 	}
 
 	public static function handle_reset() {
 		Forms::verify( self::NONCE );
 		$in = Forms::post();
-		Forms::finish( self::reset( $in ), __( 'Vorlage auf den Standard zurückgesetzt.', 'wp-pass-captain' ), self::edit_url( $in ) );
+		Forms::finish( self::reset( $in ), __( 'Vorlage auf den Standard zurückgesetzt.', 'pass-captain' ), self::edit_url( $in ) );
 	}
 
 	public static function handle_test() {
@@ -155,12 +155,12 @@ final class Admin {
 		$in = Forms::post();
 		$result = self::send_test( $in );
 		/* translators: %s: e-mail address */
-		Forms::finish( $result, is_array( $result ) ? sprintf( __( 'Testmail an %s gesendet.', 'wp-pass-captain' ), $result['to'] ) : '', self::edit_url( $in ) );
+		Forms::finish( $result, is_array( $result ) ? sprintf( __( 'Testmail an %s gesendet.', 'pass-captain' ), $result['to'] ) : '', self::edit_url( $in ) );
 	}
 
 	public static function handle_layout() {
 		Forms::verify( self::NONCE );
-		Forms::finish( self::save_layout( Forms::post() ), __( 'Layout gespeichert.', 'wp-pass-captain' ), Forms::page_url( self::PAGE ) );
+		Forms::finish( self::save_layout( Forms::post() ), __( 'Layout gespeichert.', 'pass-captain' ), Forms::page_url( self::PAGE ) );
 	}
 
 	/** admin-ajax: live preview as JSON. */
@@ -184,7 +184,7 @@ final class Admin {
 	/* ------------------------------------------------------------------ Rendering */
 
 	public static function render() {
-		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$type = sanitize_key( (string) Forms::query_arg( 'type' ) );
 		echo '<div class="wrap wpcap-admin">';
 		if ( '' !== $type && Mailer::type( $type ) ) {
@@ -196,28 +196,28 @@ final class Admin {
 	}
 
 	private static function render_overview() {
-		echo '<h1>' . esc_html__( 'E-Mail-Vorlagen', 'wp-pass-captain' ) . '</h1>';
+		echo '<h1>' . esc_html__( 'E-Mail-Vorlagen', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
-		echo '<p>' . esc_html__( 'Betreff und Text der E-Mails an Kund:innen anpassen – je Sprache. Ohne eigene Vorlage wird der eingebaute Text in der Sprache der Bestellung gesendet.', 'wp-pass-captain' ) . '</p>';
-		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'E-Mail', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Beschreibung', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Eigene Vorlagen', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		echo '<p>' . esc_html__( 'Betreff und Text der E-Mails an Kund:innen anpassen – je Sprache. Ohne eigene Vorlage wird der eingebaute Text in der Sprache der Bestellung gesendet.', 'pass-captain' ) . '</p>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'E-Mail', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Beschreibung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Eigene Vorlagen', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( Mailer::types() as $key => $def ) {
 			$custom = Templates::locales( $key );
-			echo '<tr><td><a href="' . esc_url( Forms::page_url( self::PAGE, array( 'type' => $key ) ) ) . '"><strong>' . esc_html( $def['label'] ) . '</strong></a></td><td>' . esc_html( $def['description'] ) . '</td><td>' . ( $custom ? esc_html( implode( ', ', $custom ) ) : '<span class="description">' . esc_html__( 'Standard', 'wp-pass-captain' ) . '</span>' ) . '</td></tr>';
+			echo '<tr><td><a href="' . esc_url( Forms::page_url( self::PAGE, array( 'type' => $key ) ) ) . '"><strong>' . esc_html( $def['label'] ) . '</strong></a></td><td>' . esc_html( $def['description'] ) . '</td><td>' . ( $custom ? esc_html( implode( ', ', $custom ) ) : '<span class="description">' . esc_html__( 'Standard', 'pass-captain' ) . '</span>' ) . '</td></tr>';
 		}
 		if ( class_exists( '\\PassCaptain\\Modules\\Reminders' ) ) {
-			echo '<tr><td><a href="' . esc_url( Forms::page_url( \PassCaptain\Modules\Reminders::PAGE ) ) . '"><strong>' . esc_html__( 'Erinnerung', 'wp-pass-captain' ) . '</strong></a></td><td colspan="2">' . esc_html__( 'Wird unter „Erinnerungen“ bearbeitet.', 'wp-pass-captain' ) . '</td></tr>';
+			echo '<tr><td><a href="' . esc_url( Forms::page_url( \PassCaptain\Modules\Reminders::PAGE ) ) . '"><strong>' . esc_html__( 'Erinnerung', 'pass-captain' ) . '</strong></a></td><td colspan="2">' . esc_html__( 'Wird unter „Erinnerungen“ bearbeitet.', 'pass-captain' ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 
 		$layout = Layout::settings();
-		echo '<h2>' . esc_html__( 'HTML-Layout', 'wp-pass-captain' ) . '</h2><p>' . esc_html__( 'Gilt für Vorlagen im HTML-Modus. Eine Textversion wird automatisch mitgesendet.', 'wp-pass-captain' ) . '</p>';
+		echo '<h2>' . esc_html__( 'HTML-Layout', 'pass-captain' ) . '</h2><p>' . esc_html__( 'Gilt für Vorlagen im HTML-Modus. Eine Textversion wird automatisch mitgesendet.', 'pass-captain' ) . '</p>';
 		Forms::open_form( self::ACTION_LAYOUT, self::NONCE );
 		echo '<table class="form-table"><tbody>';
-		echo '<tr><th scope="row"><label for="wpcap-mail-logo">' . esc_html__( 'Logo-URL', 'wp-pass-captain' ) . '</label></th><td><input type="url" id="wpcap-mail-logo" name="logo_url" class="large-text" value="' . esc_attr( $layout['logo_url'] ) . '"><p class="description">' . esc_html__( 'Leer: Logo des Themes bzw. Name der Website.', 'wp-pass-captain' ) . '</p></td></tr>';
-		echo '<tr><th scope="row"><label for="wpcap-mail-color">' . esc_html__( 'Akzentfarbe', 'wp-pass-captain' ) . '</label></th><td><input type="color" id="wpcap-mail-color" name="color" value="' . esc_attr( $layout['color'] ) . '"></td></tr>';
-		echo '<tr><th scope="row"><label for="wpcap-mail-footer">' . esc_html__( 'Fußzeile', 'wp-pass-captain' ) . '</label></th><td><textarea id="wpcap-mail-footer" name="footer" class="large-text" rows="3">' . esc_textarea( $layout['footer'] ) . '</textarea><p class="description">' . esc_html__( 'Z. B. Impressum oder Kontakt. Leer: Name der Website.', 'wp-pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-mail-logo">' . esc_html__( 'Logo-URL', 'pass-captain' ) . '</label></th><td><input type="url" id="wpcap-mail-logo" name="logo_url" class="large-text" value="' . esc_attr( $layout['logo_url'] ) . '"><p class="description">' . esc_html__( 'Leer: Logo des Themes bzw. Name der Website.', 'pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-mail-color">' . esc_html__( 'Akzentfarbe', 'pass-captain' ) . '</label></th><td><input type="color" id="wpcap-mail-color" name="color" value="' . esc_attr( $layout['color'] ) . '"></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-mail-footer">' . esc_html__( 'Fußzeile', 'pass-captain' ) . '</label></th><td><textarea id="wpcap-mail-footer" name="footer" class="large-text" rows="3">' . esc_textarea( $layout['footer'] ) . '</textarea><p class="description">' . esc_html__( 'Z. B. Impressum oder Kontakt. Leer: Name der Website.', 'pass-captain' ) . '</p></td></tr>';
 		echo '</tbody></table>';
-		submit_button( __( 'Layout speichern', 'wp-pass-captain' ) );
+		submit_button( __( 'Layout speichern', 'pass-captain' ) );
 		echo '</form>';
 	}
 
@@ -227,23 +227,23 @@ final class Admin {
 		$effective = Mailer::with_locale( $locale, static function () use ( $type, $locale ) { return Templates::resolve( $type, $locale ); } );
 		$template = $own ? $own : $effective;
 		echo '<h1>' . esc_html( $def['label'] ) . '</h1>';
-		echo '<p><a href="' . esc_url( Forms::page_url( self::PAGE ) ) . '">&larr; ' . esc_html__( 'Alle E-Mail-Vorlagen', 'wp-pass-captain' ) . '</a></p>';
+		echo '<p><a href="' . esc_url( Forms::page_url( self::PAGE ) ) . '">&larr; ' . esc_html__( 'Alle E-Mail-Vorlagen', 'pass-captain' ) . '</a></p>';
 		Forms::render_notices();
 		echo '<p>' . esc_html( $def['description'] ) . '</p>';
 
-		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Sprache', 'wp-pass-captain' ) . '">';
+		echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Sprache', 'pass-captain' ) . '">';
 		foreach ( self::locales() as $code ) {
-			$label = $code . ( Mailer::site_locale() === $code ? ' (' . __( 'Standard', 'wp-pass-captain' ) . ')' : '' ) . ( Templates::get( $type, $code ) ? ' ✓' : '' );
+			$label = $code . ( Mailer::site_locale() === $code ? ' (' . __( 'Standard', 'pass-captain' ) . ')' : '' ) . ( Templates::get( $type, $code ) ? ' ✓' : '' );
 			echo '<a class="nav-tab' . ( $code === $locale ? ' nav-tab-active' : '' ) . '"' . ( $code === $locale ? ' aria-current="page"' : '' ) . ' href="' . esc_url( Forms::page_url( self::PAGE, array( 'type' => $type, 'locale' => $code ) ) ) . '">' . esc_html( $label ) . '</a>';
 		}
 		echo '</nav>';
 		if ( $own ) {
-			$status = __( 'Eigene Vorlage für diese Sprache.', 'wp-pass-captain' );
+			$status = __( 'Eigene Vorlage für diese Sprache.', 'pass-captain' );
 		} elseif ( 'custom' === $effective['source'] ) {
 			/* translators: %s: locale */
-			$status = sprintf( __( 'Keine eigene Vorlage für diese Sprache – es gilt die Vorlage der Standardsprache (%s).', 'wp-pass-captain' ), $effective['locale'] );
+			$status = sprintf( __( 'Keine eigene Vorlage für diese Sprache – es gilt die Vorlage der Standardsprache (%s).', 'pass-captain' ), $effective['locale'] );
 		} else {
-			$status = __( 'Eingebaute Standardvorlage (übersetzt in die Sprache der Empfänger:in).', 'wp-pass-captain' );
+			$status = __( 'Eingebaute Standardvorlage (übersetzt in die Sprache der Empfänger:in).', 'pass-captain' );
 		}
 		echo '<p><em>' . esc_html( $status ) . '</em></p>';
 
@@ -252,32 +252,32 @@ final class Admin {
 		Forms::open_form( self::ACTION_SAVE, self::NONCE, 'id="wpcap-mail-form"' );
 		Forms::hidden( 'type', $type );
 		Forms::hidden( 'locale', $locale );
-		echo '<p><label for="wpcap-mail-subject"><strong>' . esc_html__( 'Betreff', 'wp-pass-captain' ) . '</strong></label><br><input type="text" id="wpcap-mail-subject" name="subject" class="large-text" maxlength="250" value="' . esc_attr( $template['subject'] ) . '"></p>';
-		echo '<p><label for="wpcap-mail-format"><strong>' . esc_html__( 'Format', 'wp-pass-captain' ) . '</strong></label><br>';
-		Forms::select( 'format', array( 'text' => __( 'Nur Text', 'wp-pass-captain' ), 'html' => __( 'HTML (mit Layout und automatischer Textversion)', 'wp-pass-captain' ) ), $template['format'], 'wpcap-mail-format' );
+		echo '<p><label for="wpcap-mail-subject"><strong>' . esc_html__( 'Betreff', 'pass-captain' ) . '</strong></label><br><input type="text" id="wpcap-mail-subject" name="subject" class="large-text" maxlength="250" value="' . esc_attr( $template['subject'] ) . '"></p>';
+		echo '<p><label for="wpcap-mail-format"><strong>' . esc_html__( 'Format', 'pass-captain' ) . '</strong></label><br>';
+		Forms::select( 'format', array( 'text' => __( 'Nur Text', 'pass-captain' ), 'html' => __( 'HTML (mit Layout und automatischer Textversion)', 'pass-captain' ) ), $template['format'], 'wpcap-mail-format' );
 		echo '</p>';
-		echo '<p><label for="wpcap-mail-body"><strong>' . esc_html__( 'Text', 'wp-pass-captain' ) . '</strong></label><br><textarea id="wpcap-mail-body" name="body" class="large-text code" rows="16">' . esc_textarea( $template['body'] ) . '</textarea></p>';
-		echo '<p class="description">' . esc_html__( 'Im HTML-Modus sind die üblichen Beitrags-Tags erlaubt (Absätze, Links, Listen, Fettdruck …); Text ohne Tags wird automatisch umbrochen. Platzhalterwerte werden immer maskiert.', 'wp-pass-captain' ) . '</p>';
+		echo '<p><label for="wpcap-mail-body"><strong>' . esc_html__( 'Text', 'pass-captain' ) . '</strong></label><br><textarea id="wpcap-mail-body" name="body" class="large-text code" rows="16">' . esc_textarea( $template['body'] ) . '</textarea></p>';
+		echo '<p class="description">' . esc_html__( 'Im HTML-Modus sind die üblichen Beitrags-Tags erlaubt (Absätze, Links, Listen, Fettdruck …); Text ohne Tags wird automatisch umbrochen. Platzhalterwerte werden immer maskiert.', 'pass-captain' ) . '</p>';
 		echo '<p class="submit">';
-		submit_button( __( 'Speichern', 'wp-pass-captain' ), 'primary', 'submit', false );
-		echo ' <button type="submit" class="button" name="action" value="' . esc_attr( self::ACTION_TEST ) . '">' . esc_html__( 'Testmail senden', 'wp-pass-captain' ) . '</button>';
+		submit_button( __( 'Speichern', 'pass-captain' ), 'primary', 'submit', false );
+		echo ' <button type="submit" class="button" name="action" value="' . esc_attr( self::ACTION_TEST ) . '">' . esc_html__( 'Testmail senden', 'pass-captain' ) . '</button>';
 		if ( $own ) {
-			echo ' <button type="submit" class="button button-link-delete" name="action" value="' . esc_attr( self::ACTION_RESET ) . '" onclick="return confirm(' . esc_attr( wp_json_encode( __( 'Eigene Vorlage für diese Sprache löschen?', 'wp-pass-captain' ) ) ) . ')">' . esc_html__( 'Auf Standard zurücksetzen', 'wp-pass-captain' ) . '</button>';
+			echo ' <button type="submit" class="button button-link-delete" name="action" value="' . esc_attr( self::ACTION_RESET ) . '" onclick="return confirm(' . esc_attr( wp_json_encode( __( 'Eigene Vorlage für diese Sprache löschen?', 'pass-captain' ) ) ) . ')">' . esc_html__( 'Auf Standard zurücksetzen', 'pass-captain' ) . '</button>';
 		}
-		echo '</p><p class="description">' . esc_html__( 'Die Testmail nutzt den aktuellen Formularinhalt mit Beispieldaten und geht an deine eigene Adresse.', 'wp-pass-captain' ) . '</p>';
+		echo '</p><p class="description">' . esc_html__( 'Die Testmail nutzt den aktuellen Formularinhalt mit Beispieldaten und geht an deine eigene Adresse.', 'pass-captain' ) . '</p>';
 		echo '</form>';
 
-		echo '<h2>' . esc_html__( 'Platzhalter', 'wp-pass-captain' ) . '</h2><table class="widefat striped"><tbody>';
+		echo '<h2>' . esc_html__( 'Platzhalter', 'pass-captain' ) . '</h2><table class="widefat striped"><tbody>';
 		foreach ( Types::global_placeholders() + (array) $def['placeholders'] as $key => $label ) {
 			echo '<tr><td><code>{' . esc_html( $key ) . '}</code></td><td>' . esc_html( $label ) . '</td></tr>';
 		}
-		echo '</tbody></table><p class="description">' . esc_html__( 'Unbekannte Platzhalter werden durch einen leeren Text ersetzt.', 'wp-pass-captain' ) . '</p>';
+		echo '</tbody></table><p class="description">' . esc_html__( 'Unbekannte Platzhalter werden durch einen leeren Text ersetzt.', 'pass-captain' ) . '</p>';
 		echo '</div>';
 
 		$preview = self::preview( array( 'type' => $type, 'locale' => $locale, 'subject' => $template['subject'], 'body' => $template['body'], 'format' => $template['format'] ) );
-		echo '<div style="flex:1 1 420px;min-width:300px"><h2>' . esc_html__( 'Vorschau (Beispieldaten)', 'wp-pass-captain' ) . '</h2>';
-		echo '<p><strong>' . esc_html__( 'Betreff:', 'wp-pass-captain' ) . '</strong> <span id="wpcap-mail-preview-subject">' . esc_html( is_array( $preview ) ? $preview['subject'] : '' ) . '</span></p>';
-		echo '<iframe id="wpcap-mail-preview" title="' . esc_attr__( 'Vorschau der E-Mail', 'wp-pass-captain' ) . '" sandbox="" style="width:100%;height:600px;border:1px solid #c3c4c7;background:#fff" srcdoc="' . esc_attr( is_array( $preview ) ? $preview['html'] : '' ) . '"></iframe>';
+		echo '<div style="flex:1 1 420px;min-width:300px"><h2>' . esc_html__( 'Vorschau (Beispieldaten)', 'pass-captain' ) . '</h2>';
+		echo '<p><strong>' . esc_html__( 'Betreff:', 'pass-captain' ) . '</strong> <span id="wpcap-mail-preview-subject">' . esc_html( is_array( $preview ) ? $preview['subject'] : '' ) . '</span></p>';
+		echo '<iframe id="wpcap-mail-preview" title="' . esc_attr__( 'Vorschau der E-Mail', 'pass-captain' ) . '" sandbox="" style="width:100%;height:600px;border:1px solid #c3c4c7;background:#fff" srcdoc="' . esc_attr( is_array( $preview ) ? $preview['html'] : '' ) . '"></iframe>';
 		echo '</div></div>';
 		self::print_preview_script();
 	}

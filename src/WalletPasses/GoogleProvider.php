@@ -50,7 +50,7 @@ class GoogleProvider implements WalletProvider {
 		);
 		if ( $ticket['ends_at'] ) { $class['dateTime']['end'] = self::iso( $ticket['ends_at'], $ticket['timezone'] ); }
 		if ( 'cancelled' === ( $ticket['occurrence_status'] ?? '' ) || 'cancelled' === ( $ticket['event_status'] ?? '' ) ) {
-			$class['messages'] = array( array( 'id' => 'wpcap_cancelled', 'header' => __( 'Abgesagt', 'wp-pass-captain' ), 'body' => __( 'Die Veranstaltung wurde abgesagt.', 'wp-pass-captain' ) ) );
+			$class['messages'] = array( array( 'id' => 'wpcap_cancelled', 'header' => __( 'Abgesagt', 'pass-captain' ), 'body' => __( 'Die Veranstaltung wurde abgesagt.', 'pass-captain' ) ) );
 		}
 		if ( '' !== (string) $ticket['location'] ) { $class['venue'] = array( 'name' => self::text( $ticket['location'] ), 'address' => self::text( $ticket['location'] ) ); }
 		return apply_filters( 'wpcap_wallet_google_class', $class, $ticket );

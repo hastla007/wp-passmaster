@@ -8,18 +8,18 @@
 			var attrs = props.attributes;
 			return el( 'div', blockProps,
 				el( blockEditor.InspectorControls, null,
-					el( components.PanelBody, { title: __( 'Ansicht', 'wp-pass-captain' ) },
+					el( components.PanelBody, { title: __( 'Ansicht', 'pass-captain' ) },
 						el( components.SelectControl, {
-							label: __( 'Darstellung', 'wp-pass-captain' ),
+							label: __( 'Darstellung', 'pass-captain' ),
 							value: attrs.view,
 							options: [
-								{ label: __( 'Monat', 'wp-pass-captain' ), value: 'month' },
-								{ label: __( 'Liste', 'wp-pass-captain' ), value: 'list' }
+								{ label: __( 'Monat', 'pass-captain' ), value: 'month' },
+								{ label: __( 'Liste', 'pass-captain' ), value: 'list' }
 							],
 							onChange: function ( value ) { props.setAttributes( { view: value } ); }
 						} ),
 						el( components.TextControl, {
-							label: __( 'Nur Event-ID (optional)', 'wp-pass-captain' ),
+							label: __( 'Nur Event-ID (optional)', 'pass-captain' ),
 							type: 'number',
 							value: attrs.eventId || '',
 							onChange: function ( value ) { props.setAttributes( { eventId: parseInt( value, 10 ) || 0 } ); }

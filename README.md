@@ -1,4 +1,4 @@
-# WP Pass Captain
+# Pass Captain
 
 Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwaltung. WooCommerce und Voucher Captain sind optionale Integrationen und keine Voraussetzung für den Kern.
 
@@ -60,10 +60,10 @@ Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Seriente
 
 ## Sprachen
 
-Ausgangssprache ist Deutsch. Vollständige Übersetzungen liegen für Englisch (en_US), Französisch (fr_FR), Italienisch (it_IT), Spanisch (es_ES) und Niederländisch (nl_NL) in `languages/`. Weitere Sprachen entstehen aus der Vorlage `languages/wp-pass-captain.pot`. Kompilieren ohne gettext-Tools:
+Ausgangssprache ist Deutsch. Vollständige Übersetzungen liegen für Englisch (en_US), Französisch (fr_FR), Italienisch (it_IT), Spanisch (es_ES) und Niederländisch (nl_NL) in `languages/`. Weitere Sprachen entstehen aus der Vorlage `languages/pass-captain.pot`. Kompilieren ohne gettext-Tools:
 
 ```sh
-php build/compile-mo.php languages/wp-pass-captain-xx_XX.po
+php build/compile-mo.php languages/pass-captain-xx_XX.po
 ```
 
 ## Noch offen

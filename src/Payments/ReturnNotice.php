@@ -12,10 +12,10 @@ final class ReturnNotice {
 	/** Messages only; the order state is never changed here (webhooks/capture do that). */
 	public static function message( $state ) {
 		$messages = array(
-			'success' => __( 'Danke! Deine Zahlung wird bestätigt. Die Tickets kommen in wenigen Minuten per E-Mail.', 'wp-pass-captain' ),
-			'pending' => __( 'Deine Zahlung wird noch verarbeitet. Sobald sie bestätigt ist, senden wir dir die Tickets per E-Mail.', 'wp-pass-captain' ),
-			'failed'  => __( 'Die Zahlung ist fehlgeschlagen. Es wurde nichts abgebucht; du kannst es erneut versuchen.', 'wp-pass-captain' ),
-			'cancel'  => __( 'Die Zahlung wurde abgebrochen. Deine Reservierung verfällt automatisch.', 'wp-pass-captain' ),
+			'success' => __( 'Danke! Deine Zahlung wird bestätigt. Die Tickets kommen in wenigen Minuten per E-Mail.', 'pass-captain' ),
+			'pending' => __( 'Deine Zahlung wird noch verarbeitet. Sobald sie bestätigt ist, senden wir dir die Tickets per E-Mail.', 'pass-captain' ),
+			'failed'  => __( 'Die Zahlung ist fehlgeschlagen. Es wurde nichts abgebucht; du kannst es erneut versuchen.', 'pass-captain' ),
+			'cancel'  => __( 'Die Zahlung wurde abgebrochen. Deine Reservierung verfällt automatisch.', 'pass-captain' ),
 		);
 		return $messages[ $state ] ?? '';
 	}

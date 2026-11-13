@@ -1,6 +1,6 @@
 # Gutscheine: Einzweck- und Mehrzweckgutscheine
 
-WP Pass Captain löst Gutscheine von **WP Voucher Captain** an zwei Stellen ein:
+Pass Captain löst Gutscheine von **WP Voucher Captain** an zwei Stellen ein:
 
 - **Checkout** (`src/Integrations/Vouchers/Checkout.php`): Der Kunde gibt im Ticket-Checkout einen Gutscheincode ein; der Gutschein deckt einen Teil oder den ganzen Betrag.
 - **Ticketdienst** (`src/Integrations/Vouchers/TicketService.php`, Filter `wp_pass_captain_ticket_service_v1`): WP Voucher Captain tauscht einen Gutschein direkt in Tickets um („Gutschein für 2 Tickets“).

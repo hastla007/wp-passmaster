@@ -2,6 +2,12 @@
 
 ## Unveröffentlicht
 
+### Neuer Name: Pass Captain
+- Das Plugin heißt jetzt „Pass Captain“ (WordPress.org erlaubt kein „WP“ im Plugin-Namen). Hauptdatei `pass-captain.php`, Plugin-Ordner und ZIP `pass-captain`, Textdomain `pass-captain`, Übersetzungsdateien `languages/pass-captain-*.po/.mo`.
+- Umstieg: die neue Version installieren und aktivieren. Ist die alte Kopie `wp-pass-captain/wp-pass-captain.php` noch aktiv, übernimmt die neue Kopie deren Aktivierung (auf Multisite auch die Netzwerkaktivierung) – ohne Deaktivierungs- oder Deinstallationsroutine der alten Kopie. Daten, Einstellungen und Zeitpläne bleiben erhalten. Danach kann die alte Kopie gelöscht werden: Ihre Deinstallation entfernt dabei nie Daten, auch wenn „Daten beim Löschen entfernen“ aktiv ist, und die dabei gelöschten Zeitpläne legt die neue Kopie beim nächsten Seitenaufruf neu an.
+- Unverändert (öffentliche Schnittstellen und gespeicherte Daten): REST-Namensraum `wp-pass-captain/v1` (Webhooks, Scanner-Apps, Wallet), Blocknamen `wp-pass-captain/*`, Admin-Seite `wp-pass-captain`, Theme-Vorlagenordner `wp-pass-captain/`, Shortcodes `wp_pass_captain_*`, Hooks, Präfix `wpcap_`, Action-Scheduler-Gruppe `wp-pass-captain`.
+- Eigene Übersetzungen unter `wp-content/languages/plugins/` müssen von `wp-pass-captain-*` in `pass-captain-*` umbenannt werden.
+
 ### Zusammenspiel mit WP Voucher Captain
 - Gemeinsamer Scanner: neuer Dienst `wp_pass_captain_checkin_service_v1` (`Integrations\Vouchers\CheckinService`) – `recognizes()`, `preview()`, `check_in()` mit denselben Regeln, Sperren und Audit wie der eigene Web-Scanner; Recht `wpcap_checkin` wird im Dienst geprüft. Der Voucher-Captain-Scanner erkennt damit auch Pass-Captain-Tickets; Gutschein-Einlösung und Ticket-Check-in bleiben getrennte Aktionen.
 - Einstellungen zeigen den Status der Integration (Voucher Captain aktiv/Version, Gutscheine im Checkout, Gutschein → Ticket, gemeinsamer Scanner) mit Links; im Menü stehen „Gemeinsamer Scanner ↗“ und „WP Voucher Captain ↗“, wenn Voucher Captain aktiv ist.

@@ -43,7 +43,7 @@ final class BankTransfer {
 		$details = array(
 			'reference' => $reference,
 			/* translators: %s: short order number */
-			'remittance' => sprintf( __( 'Bestellung %s', 'wp-pass-captain' ), $reference ),
+			'remittance' => sprintf( __( 'Bestellung %s', 'pass-captain' ), $reference ),
 			'amount_minor' => (int) ( $order->total_minor ?? 0 ),
 			'currency' => (string) ( $order->currency ?? '' ),
 			'amount' => Format::money( (int) ( $order->total_minor ?? 0 ), (string) ( $order->currency ?? '' ) ),
@@ -52,7 +52,7 @@ final class BankTransfer {
 			'bic' => strtoupper( preg_replace( '/[^A-Za-z0-9]/', '', (string) Settings::get( 'bank_bic' ) ) ),
 			'due_at' => $due_at,
 			'due_date' => '' !== $due_at ? Format::site_datetime( $due_at ) : '',
-			'instructions' => '' !== $instructions ? $instructions : __( 'Die Zahlung wird vom Veranstalter bestätigt. Danach erhältst du deine Tickets per E-Mail.', 'wp-pass-captain' ),
+			'instructions' => '' !== $instructions ? $instructions : __( 'Die Zahlung wird vom Veranstalter bestätigt. Danach erhältst du deine Tickets per E-Mail.', 'pass-captain' ),
 		);
 		if ( '' === $details['iban'] ) { $details['recipient'] = ''; $details['bic'] = ''; }
 		return (array) apply_filters( 'wpcap_bank_transfer_details', $details, $order );
@@ -61,12 +61,12 @@ final class BankTransfer {
 	/** Label => value rows in display order (empty values are skipped). */
 	public static function rows( array $details ) {
 		$rows = array(
-			__( 'Betrag', 'wp-pass-captain' ) => $details['amount'] ?? '',
-			__( 'Empfänger', 'wp-pass-captain' ) => $details['recipient'] ?? '',
-			__( 'IBAN', 'wp-pass-captain' ) => $details['iban'] ?? '',
-			__( 'BIC', 'wp-pass-captain' ) => $details['bic'] ?? '',
-			__( 'Verwendungszweck', 'wp-pass-captain' ) => $details['remittance'] ?? '',
-			__( 'Zahlbar bis', 'wp-pass-captain' ) => $details['due_date'] ?? '',
+			__( 'Betrag', 'pass-captain' ) => $details['amount'] ?? '',
+			__( 'Empfänger', 'pass-captain' ) => $details['recipient'] ?? '',
+			__( 'IBAN', 'pass-captain' ) => $details['iban'] ?? '',
+			__( 'BIC', 'pass-captain' ) => $details['bic'] ?? '',
+			__( 'Verwendungszweck', 'pass-captain' ) => $details['remittance'] ?? '',
+			__( 'Zahlbar bis', 'pass-captain' ) => $details['due_date'] ?? '',
 		);
 		return array_filter( $rows, static function ( $value ) { return '' !== (string) $value; } );
 	}

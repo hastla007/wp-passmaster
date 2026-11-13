@@ -804,7 +804,7 @@ final class Installer {
 	public static function rename_legacy_roles() {
 		if ( ! function_exists( 'wp_roles' ) ) { return; }
 		$wp_roles = wp_roles();
-		$targets  = array( 'wpcap_partner' => __( 'Pass Captain Veranstalter', 'wp-pass-captain' ) );
+		$targets  = array( 'wpcap_partner' => __( 'Pass Captain Veranstalter', 'pass-captain' ) );
 		$changed  = false;
 		foreach ( self::LEGACY_ROLE_NAMES as $slug => $old_names ) {
 			$current = $wp_roles->roles[ $slug ]['name'] ?? null;
@@ -830,13 +830,13 @@ final class Installer {
 			foreach ( $all_caps as $cap ) { $admin->add_cap( $cap, true ); }
 		}
 		$roles = array(
-			'wpcap_ticket_admin'   => array( __( 'Pass Captain Ticket-Administration', 'wp-pass-captain' ), $all_caps ),
-			'wpcap_event_manager'  => array( __( 'Pass Captain Veranstaltungsleitung', 'wp-pass-captain' ), array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin' ) ),
-			'wpcap_box_office'     => array( __( 'Pass Captain Vor-Ort-Kasse', 'wp-pass-captain' ), array( 'wpcap_manage_orders', 'wpcap_checkin' ) ),
-			'wpcap_checkin_staff'  => array( __( 'Pass Captain Einlasspersonal', 'wp-pass-captain' ), array( 'wpcap_checkin' ) ),
-			'wpcap_partner'        => array( __( 'Pass Captain Veranstalter', 'wp-pass-captain' ), array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
-			'wpcap_finance'        => array( __( 'Pass Captain Finanzbuchhaltung', 'wp-pass-captain' ), array( 'wpcap_view_finance', 'wpcap_view_reports', 'wpcap_approve_refunds' ) ),
-			'wpcap_support'        => array( __( 'Pass Captain Support', 'wp-pass-captain' ), array( 'wpcap_manage_orders' ) ),
+			'wpcap_ticket_admin'   => array( __( 'Pass Captain Ticket-Administration', 'pass-captain' ), $all_caps ),
+			'wpcap_event_manager'  => array( __( 'Pass Captain Veranstaltungsleitung', 'pass-captain' ), array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_checkin' ) ),
+			'wpcap_box_office'     => array( __( 'Pass Captain Vor-Ort-Kasse', 'pass-captain' ), array( 'wpcap_manage_orders', 'wpcap_checkin' ) ),
+			'wpcap_checkin_staff'  => array( __( 'Pass Captain Einlasspersonal', 'pass-captain' ), array( 'wpcap_checkin' ) ),
+			'wpcap_partner'        => array( __( 'Pass Captain Veranstalter', 'pass-captain' ), array( 'wpcap_checkin', 'wpcap_view_reports' ) ),
+			'wpcap_finance'        => array( __( 'Pass Captain Finanzbuchhaltung', 'pass-captain' ), array( 'wpcap_view_finance', 'wpcap_view_reports', 'wpcap_approve_refunds' ) ),
+			'wpcap_support'        => array( __( 'Pass Captain Support', 'pass-captain' ), array( 'wpcap_manage_orders' ) ),
 		);
 		foreach ( $roles as $slug => $definition ) {
 			$caps = array( 'read' => true );

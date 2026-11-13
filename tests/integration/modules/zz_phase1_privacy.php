@@ -254,7 +254,7 @@ check( 'policy: enabled services, third-country transfers and consent (lit. a) a
 $wpdb->query( "UPDATE {$p}wpcap_partners SET status='active' WHERE status='p1p_inactive'" );
 $wpdb->query( "UPDATE {$p}wpcap_webhook_subscriptions SET status='active' WHERE status='p1p_inactive'" );
 PolicyText::add();
-check( 'policy: registered through wp_add_privacy_policy_content', ! isset( $GLOBALS['p1p_policy'] ) || isset( $GLOBALS['p1p_policy']['WP Pass Captain'] ) );
+check( 'policy: registered through wp_add_privacy_policy_content', ! isset( $GLOBALS['p1p_policy'] ) || isset( $GLOBALS['p1p_policy']['Pass Captain'] ) );
 Settings::update( array( 'enabled_providers' => array( 'manual' ), 'wallet_apple_enabled' => 0, 'wallet_google_enabled' => 0, 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'provider' => '' ) ), 'attendee_retention_days' => 0 ) );
 
 echo "Privacy: affiliate referral cookie needs consent\n";

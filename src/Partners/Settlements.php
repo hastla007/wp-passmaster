@@ -46,15 +46,15 @@ final class Settlements {
 	const MANAGE_CAP = 'wpcap_view_finance';
 
 	public static function status_labels() {
-		return array( 'draft' => __( 'Entwurf', 'wp-pass-captain' ), 'finalized' => __( 'Abgeschlossen', 'wp-pass-captain' ), 'paid' => __( 'Ausgezahlt', 'wp-pass-captain' ) );
+		return array( 'draft' => __( 'Entwurf', 'pass-captain' ), 'finalized' => __( 'Abgeschlossen', 'pass-captain' ), 'paid' => __( 'Ausgezahlt', 'pass-captain' ) );
 	}
 
 	public static function kind_labels() {
 		return array(
-			'sale' => __( 'Verkauf', 'wp-pass-captain' ),
-			'late_sale' => __( 'Nachtrag Verkauf (Vorperiode)', 'wp-pass-captain' ),
-			'refund' => __( 'Erstattung', 'wp-pass-captain' ),
-			'correction' => __( 'Korrektur Erstattung (Vorperiode)', 'wp-pass-captain' ),
+			'sale' => __( 'Verkauf', 'pass-captain' ),
+			'late_sale' => __( 'Nachtrag Verkauf (Vorperiode)', 'pass-captain' ),
+			'refund' => __( 'Erstattung', 'pass-captain' ),
+			'correction' => __( 'Korrektur Erstattung (Vorperiode)', 'pass-captain' ),
 		);
 	}
 
@@ -336,14 +336,14 @@ final class Settlements {
 	public static function create_draft( $partner_id, $period ) {
 		global $wpdb;
 		$partner = Repository::get( $partner_id );
-		if ( ! $partner ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
-		if ( ! self::valid_period( $period ) ) { return new \WP_Error( 'wpcap_settlement_period', __( 'Ungültiger Abrechnungszeitraum (JJJJ-MM).', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $partner ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! self::valid_period( $period ) ) { return new \WP_Error( 'wpcap_settlement_period', __( 'Ungültiger Abrechnungszeitraum (JJJJ-MM).', 'pass-captain' ), array( 'status' => 400 ) ); }
 		list( $start, $end ) = self::period_bounds( $period );
-		if ( $start > current_time( 'mysql', true ) ) { return new \WP_Error( 'wpcap_settlement_future', __( 'Für zukünftige Zeiträume kann keine Abrechnung erstellt werden.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( $start > current_time( 'mysql', true ) ) { return new \WP_Error( 'wpcap_settlement_future', __( 'Für zukünftige Zeiträume kann keine Abrechnung erstellt werden.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$latest = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(period) FROM {$wpdb->prefix}wpcap_partner_settlements WHERE partner_id=%d AND status IN ('finalized','paid')", (int) $partner->partner_id ) );
 		if ( '' !== $latest && $period <= $latest ) {
 			/* translators: %s: period */
-			return new \WP_Error( 'wpcap_settlement_order', sprintf( __( 'Es gibt bereits eine abgeschlossene Abrechnung bis %s. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet.', 'wp-pass-captain' ), $latest ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_settlement_order', sprintf( __( 'Es gibt bereits eine abgeschlossene Abrechnung bis %s. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet.', 'pass-captain' ), $latest ), array( 'status' => 409 ) );
 		}
 		$now = current_time( 'mysql', true );
 		$saved = $wpdb->insert( "{$wpdb->prefix}wpcap_partner_settlements", array(
@@ -358,7 +358,7 @@ final class Settlements {
 			'created_at' => $now,
 			'updated_at' => $now,
 		) );
-		if ( false === $saved ) { return new \WP_Error( 'wpcap_settlement_exists', __( 'Für diesen Veranstalter und Zeitraum gibt es bereits eine Abrechnung.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( false === $saved ) { return new \WP_Error( 'wpcap_settlement_exists', __( 'Für diesen Veranstalter und Zeitraum gibt es bereits eine Abrechnung.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$id = (int) $wpdb->insert_id;
 		$r = self::recompute( $id );
 		if ( is_wp_error( $r ) ) { return $r; }
@@ -367,13 +367,13 @@ final class Settlements {
 	}
 
 	private static function immutable_error() {
-		return new \WP_Error( 'wpcap_settlement_immutable', __( 'Abgeschlossene Abrechnungen können nicht mehr geändert werden. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		return new \WP_Error( 'wpcap_settlement_immutable', __( 'Abgeschlossene Abrechnungen können nicht mehr geändert werden. Spätere Änderungen werden in der nächsten Periode als Korrektur abgerechnet.', 'pass-captain' ), array( 'status' => 409 ) );
 	}
 
 	/** Recomputes a draft (lines and totals). */
 	public static function recompute( $settlement_id ) {
 		$s = self::get( $settlement_id );
-		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( 'draft' !== $s->status ) { return self::immutable_error(); }
 		$partner = Repository::get( $s->partner_id );
 		$result = self::compute( $partner, $s->period );
@@ -423,11 +423,11 @@ final class Settlements {
 		$wpdb->query( 'START TRANSACTION' );
 		$s = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_partner_settlements WHERE settlement_id=%d FOR UPDATE", $settlement_id ) );
 		$fail = static function ( $error ) use ( $wpdb ) { $wpdb->query( 'ROLLBACK' ); return $error; };
-		if ( ! $s ) { return $fail( new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ) ); }
+		if ( ! $s ) { return $fail( new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ) ); }
 		if ( 'draft' !== $s->status ) { return $fail( self::immutable_error() ); }
-		if ( $s->period_end > current_time( 'mysql', true ) ) { return $fail( new \WP_Error( 'wpcap_settlement_open_period', __( 'Der Abrechnungszeitraum ist noch nicht beendet.', 'wp-pass-captain' ), array( 'status' => 409 ) ) ); }
+		if ( $s->period_end > current_time( 'mysql', true ) ) { return $fail( new \WP_Error( 'wpcap_settlement_open_period', __( 'Der Abrechnungszeitraum ist noch nicht beendet.', 'pass-captain' ), array( 'status' => 409 ) ) ); }
 		if ( $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_partner_settlements WHERE partner_id=%d AND status='draft' AND period < %s LIMIT 1", (int) $s->partner_id, $s->period ) ) ) {
-			return $fail( new \WP_Error( 'wpcap_settlement_order', __( 'Bitte zuerst die Entwürfe früherer Zeiträume abschließen oder löschen.', 'wp-pass-captain' ), array( 'status' => 409 ) ) );
+			return $fail( new \WP_Error( 'wpcap_settlement_order', __( 'Bitte zuerst die Entwürfe früherer Zeiträume abschließen oder löschen.', 'pass-captain' ), array( 'status' => 409 ) ) );
 		}
 		$partner = Repository::get( $s->partner_id );
 		$model = SalesModel::model_of( $partner );
@@ -435,7 +435,7 @@ final class Settlements {
 		$missing = SalesModel::OWN_NAME === $model ? SalesModel::missing_supplier_fields( $partner ) : array();
 		if ( $missing ) {
 			/* translators: %s: missing fields */
-			return $fail( new \WP_Error( 'wpcap_settlement_supplier_incomplete', sprintf( __( 'Gutschrift nicht möglich – beim Veranstalter fehlen: %s.', 'wp-pass-captain' ), implode( ', ', $missing ) ), array( 'status' => 409 ) ) );
+			return $fail( new \WP_Error( 'wpcap_settlement_supplier_incomplete', sprintf( __( 'Gutschrift nicht möglich – beim Veranstalter fehlen: %s.', 'pass-captain' ), implode( ', ', $missing ) ), array( 'status' => 409 ) ) );
 		}
 		self::store( $s, self::compute( $partner, $s->period ), $partner );
 		$settings = (array) Settings::get( 'partners' );
@@ -450,7 +450,7 @@ final class Settlements {
 		}
 		// Locks every line: the unique (partner_id, source_key) index rejects items settled elsewhere.
 		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partner_settlement_lines SET source_key=item_key WHERE settlement_id=%d", $settlement_id ) ) ) {
-			return $fail( new \WP_Error( 'wpcap_settlement_conflict', __( 'Einzelne Positionen wurden bereits in einer anderen Abrechnung abgerechnet. Bitte neu berechnen.', 'wp-pass-captain' ), array( 'status' => 409 ) ) );
+			return $fail( new \WP_Error( 'wpcap_settlement_conflict', __( 'Einzelne Positionen wurden bereits in einer anderen Abrechnung abgerechnet. Bitte neu berechnen.', 'pass-captain' ), array( 'status' => 409 ) ) );
 		}
 		$snapshot = array(
 			'partner' => array_intersect_key( (array) $partner, array_flip( array( 'partner_id', 'name', 'contact_name', 'contact_email', 'billing_address', 'vat_id', 'payout_details', 'currency', 'sales_model', 'legal_name', 'country', 'tax_number', 'vat_id_checked_at', 'small_business', 'small_business_note' ) ) ),
@@ -461,7 +461,7 @@ final class Settlements {
 		$now = current_time( 'mysql', true );
 		$sb_sql = null === $self_billing_number ? 'NULL' : $wpdb->prepare( '%s', $self_billing_number );
 		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partner_settlements SET status='finalized', document_number=%s, self_billing_number=$sb_sql, partner_snapshot=%s, finalized_by=%d, finalized_at=%s, updated_at=%s WHERE settlement_id=%d AND status='draft'", $number, wp_json_encode( $snapshot ), get_current_user_id(), $now, $now, $settlement_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
-		if ( 1 !== (int) $updated ) { return $fail( new \WP_Error( 'wpcap_settlement_save', __( 'Abrechnung konnte nicht abgeschlossen werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ) ); }
+		if ( 1 !== (int) $updated ) { return $fail( new \WP_Error( 'wpcap_settlement_save', __( 'Abrechnung konnte nicht abgeschlossen werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'partner_settlement_finalized', 'partner_settlement', $settlement_id, array( 'partner_id' => (int) $s->partner_id, 'period' => $s->period, 'number' => $number, 'self_billing_number' => $self_billing_number, 'sales_model' => $model ) );
 		return self::get( $settlement_id );
@@ -471,8 +471,8 @@ final class Settlements {
 	public static function mark_paid( $settlement_id, $reference = '' ) {
 		global $wpdb;
 		$s = self::get( $settlement_id );
-		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
-		if ( 'finalized' !== $s->status ) { return new \WP_Error( 'wpcap_settlement_state', __( 'Nur abgeschlossene Abrechnungen können als ausgezahlt markiert werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		if ( 'finalized' !== $s->status ) { return new \WP_Error( 'wpcap_settlement_state', __( 'Nur abgeschlossene Abrechnungen können als ausgezahlt markiert werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$now = current_time( 'mysql', true );
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_partner_settlements SET status='paid', paid_at=%s, payment_reference=%s, updated_at=%s WHERE settlement_id=%d AND status='finalized'", $now, substr( sanitize_text_field( (string) $reference ), 0, 190 ), $now, (int) $s->settlement_id ) );
 		Audit::record( 'partner_settlement_paid', 'partner_settlement', (int) $s->settlement_id, array( 'partner_id' => (int) $s->partner_id, 'reference' => substr( sanitize_text_field( (string) $reference ), 0, 190 ) ) );
@@ -483,7 +483,7 @@ final class Settlements {
 	public static function delete_draft( $settlement_id ) {
 		global $wpdb;
 		$s = self::get( $settlement_id );
-		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $s ) { return new \WP_Error( 'wpcap_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( 'draft' !== $s->status ) { return self::immutable_error(); }
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_settlement_lines WHERE settlement_id=%d", (int) $s->settlement_id ) );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_settlements WHERE settlement_id=%d AND status='draft'", (int) $s->settlement_id ) );
@@ -530,21 +530,21 @@ final class Settlements {
 		$type = self::document_type( $s );
 		$draft = 'draft' === $s->status;
 		if ( self::TYPE_COMMISSION === $type ) {
-			return $draft ? __( 'Entwurf Provisionsrechnung', 'wp-pass-captain' ) : __( 'Provisionsrechnung', 'wp-pass-captain' ) . ' ' . $s->document_number;
+			return $draft ? __( 'Entwurf Provisionsrechnung', 'pass-captain' ) : __( 'Provisionsrechnung', 'pass-captain' ) . ' ' . $s->document_number;
 		}
 		if ( self::TYPE_SELF_BILLING === $type ) {
 			/* translators: 1: Gutschrift number, 2: invoice number */
-			return $draft ? __( 'Entwurf Gutschrift und Rechnung über Plattformgebühren', 'wp-pass-captain' ) : sprintf( __( 'Gutschrift %1$s und Rechnung %2$s', 'wp-pass-captain' ), $s->self_billing_number, $s->document_number );
+			return $draft ? __( 'Entwurf Gutschrift und Rechnung über Plattformgebühren', 'pass-captain' ) : sprintf( __( 'Gutschrift %1$s und Rechnung %2$s', 'pass-captain' ), $s->self_billing_number, $s->document_number );
 		}
-		return $draft ? __( 'Abrechnungsentwurf', 'wp-pass-captain' ) : __( 'Veranstalter-Abrechnung', 'wp-pass-captain' ) . ' ' . $s->document_number;
+		return $draft ? __( 'Abrechnungsentwurf', 'pass-captain' ) : __( 'Veranstalter-Abrechnung', 'pass-captain' ) . ' ' . $s->document_number;
 	}
 
 	/** Short document type label for lists. */
 	public static function document_label( $s ) {
 		$type = self::document_type( $s );
-		if ( self::TYPE_COMMISSION === $type ) { return __( 'Provisionsrechnung (Vermittler)', 'wp-pass-captain' ); }
-		if ( self::TYPE_SELF_BILLING === $type ) { return __( 'Gutschrift + Gebührenrechnung (Eigenhändler)', 'wp-pass-captain' ); }
-		return __( 'Veranstalter-Abrechnung', 'wp-pass-captain' );
+		if ( self::TYPE_COMMISSION === $type ) { return __( 'Provisionsrechnung (Vermittler)', 'pass-captain' ); }
+		if ( self::TYPE_SELF_BILLING === $type ) { return __( 'Gutschrift + Gebührenrechnung (Eigenhändler)', 'pass-captain' ); }
+		return __( 'Veranstalter-Abrechnung', 'pass-captain' );
 	}
 
 	private static function m( $minor ) {
@@ -560,19 +560,19 @@ final class Settlements {
 		$rows = array(
 			array( self::document_label( $s ), (string) $s->document_number, $partner_name, $s->period, self::status_labels()[ $s->status ] ?? $s->status, $s->currency, (string) ( $s->self_billing_number ?? '' ) ),
 			array(),
-			array( __( 'Art', 'wp-pass-captain' ), __( 'Datum (UTC)', 'wp-pass-captain' ), __( 'Event', 'wp-pass-captain' ), __( 'Bestellung', 'wp-pass-captain' ), __( 'Erstattung', 'wp-pass-captain' ), __( 'Ursprungsperiode', 'wp-pass-captain' ), __( 'USt-Satz %', 'wp-pass-captain' ), __( 'Tickets', 'wp-pass-captain' ), __( 'Brutto', 'wp-pass-captain' ), __( 'USt', 'wp-pass-captain' ), __( 'Netto', 'wp-pass-captain' ), __( 'Provision', 'wp-pass-captain' ), __( 'Ticketgebühr', 'wp-pass-captain' ) ),
+			array( __( 'Art', 'pass-captain' ), __( 'Datum (UTC)', 'pass-captain' ), __( 'Event', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Erstattung', 'pass-captain' ), __( 'Ursprungsperiode', 'pass-captain' ), __( 'USt-Satz %', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Netto', 'pass-captain' ), __( 'Provision', 'pass-captain' ), __( 'Ticketgebühr', 'pass-captain' ) ),
 		);
 		foreach ( self::lines( $s->settlement_id ) as $l ) {
 			$rows[] = array( $kinds[ $l->kind ] ?? $l->kind, $l->occurred_at, $l->event_name, (int) $l->order_id, (int) $l->refund_id ?: '', $l->origin_period, number_format( (int) $l->tax_rate_bp / 100, 2, '.', '' ), (int) $l->tickets, self::m( $l->gross_minor ), self::m( $l->tax_minor ), self::m( $l->net_minor ), self::m( $l->commission_minor ), self::m( $l->fee_minor ) );
 		}
 		$rows[] = array();
-		$rows[] = array( __( 'USt-Satz %', 'wp-pass-captain' ), __( 'Brutto', 'wp-pass-captain' ), __( 'USt', 'wp-pass-captain' ), __( 'Netto', 'wp-pass-captain' ) );
+		$rows[] = array( __( 'USt-Satz %', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Netto', 'pass-captain' ) );
 		foreach ( (array) ( $t['rates'] ?? array() ) as $bp => $r ) {
 			$rows[] = array( number_format( (int) $bp / 100, 2, '.', '' ), self::m( $r['gross'] ), self::m( $r['tax'] ), self::m( $r['net'] ) );
 		}
 		$rows[] = array();
-		$rows[] = array( __( 'Verkaufte Tickets', 'wp-pass-captain' ), (int) $s->tickets_sold );
-		$rows[] = array( __( 'Erstattete Tickets', 'wp-pass-captain' ), (int) $s->tickets_refunded );
+		$rows[] = array( __( 'Verkaufte Tickets', 'pass-captain' ), (int) $s->tickets_sold );
+		$rows[] = array( __( 'Erstattete Tickets', 'pass-captain' ), (int) $s->tickets_refunded );
 		foreach ( self::summary( $s ) as $label => $minor ) { $rows[] = array( $label, self::m( $minor ) ); }
 		return $rows;
 	}
@@ -583,23 +583,23 @@ final class Settlements {
 		$extra = array();
 		if ( self::TYPE_SELF_BILLING === self::document_type( $s ) && isset( $t['self_billing'] ) ) {
 			$extra = array(
-				__( 'Gutschrift netto', 'wp-pass-captain' ) => (int) $t['self_billing']['net'],
-				__( 'Gutschrift USt', 'wp-pass-captain' ) => (int) $t['self_billing']['tax'],
-				__( 'Gutschrift brutto', 'wp-pass-captain' ) => (int) $t['self_billing']['gross'],
+				__( 'Gutschrift netto', 'pass-captain' ) => (int) $t['self_billing']['net'],
+				__( 'Gutschrift USt', 'pass-captain' ) => (int) $t['self_billing']['tax'],
+				__( 'Gutschrift brutto', 'pass-captain' ) => (int) $t['self_billing']['gross'],
 			);
 		}
 		return $extra + array(
-			__( 'Erstattungen brutto', 'wp-pass-captain' ) => (int) $s->refunded_minor,
-			__( 'davon Korrekturen/Nachträge aus Vorperioden', 'wp-pass-captain' ) => (int) $s->corrections_minor,
-			__( 'Ticketumsatz brutto nach Erstattungen', 'wp-pass-captain' ) => (int) $s->gross_minor,
-			__( 'darin USt', 'wp-pass-captain' ) => (int) $s->tax_minor,
-			__( 'Ticketumsatz netto', 'wp-pass-captain' ) => (int) $s->net_minor,
-			__( 'Provision (netto)', 'wp-pass-captain' ) => (int) $s->commission_minor,
-			__( 'Ticketgebühren (netto)', 'wp-pass-captain' ) => (int) $s->fee_minor,
-			__( 'Plattformgebühr netto', 'wp-pass-captain' ) => (int) $s->platform_fee_net_minor,
-			__( 'USt auf Plattformgebühr', 'wp-pass-captain' ) => (int) $s->platform_fee_tax_minor,
-			__( 'Plattformgebühr brutto', 'wp-pass-captain' ) => (int) $s->platform_fee_gross_minor,
-			__( 'Auszahlungsbetrag', 'wp-pass-captain' ) => (int) $s->payout_minor,
+			__( 'Erstattungen brutto', 'pass-captain' ) => (int) $s->refunded_minor,
+			__( 'davon Korrekturen/Nachträge aus Vorperioden', 'pass-captain' ) => (int) $s->corrections_minor,
+			__( 'Ticketumsatz brutto nach Erstattungen', 'pass-captain' ) => (int) $s->gross_minor,
+			__( 'darin USt', 'pass-captain' ) => (int) $s->tax_minor,
+			__( 'Ticketumsatz netto', 'pass-captain' ) => (int) $s->net_minor,
+			__( 'Provision (netto)', 'pass-captain' ) => (int) $s->commission_minor,
+			__( 'Ticketgebühren (netto)', 'pass-captain' ) => (int) $s->fee_minor,
+			__( 'Plattformgebühr netto', 'pass-captain' ) => (int) $s->platform_fee_net_minor,
+			__( 'USt auf Plattformgebühr', 'pass-captain' ) => (int) $s->platform_fee_tax_minor,
+			__( 'Plattformgebühr brutto', 'pass-captain' ) => (int) $s->platform_fee_gross_minor,
+			__( 'Auszahlungsbetrag', 'pass-captain' ) => (int) $s->payout_minor,
 		);
 	}
 
@@ -627,104 +627,104 @@ final class Settlements {
 		$h .= '<style>body{font:14px/1.45 system-ui,sans-serif;max-width:56rem;margin:2rem auto;padding:0 1rem;color:#1d2327}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border-bottom:1px solid #dcdcde;padding:.35rem;text-align:left}td.n,th.n{text-align:right}.addr{white-space:pre-line}.cols{display:flex;gap:2rem;justify-content:space-between;flex-wrap:wrap}.draft{color:#b32d2e;font-weight:bold;text-transform:uppercase}section.part{border-top:2px solid #1d2327;margin-top:2rem;padding-top:.5rem}.note{font-weight:600}@media print{button{display:none}section.part{break-inside:avoid}}</style></head><body>';
 		if ( '' === $type ) {
 			// Legacy layout (settlements finalized before sales models existed).
-			$h .= '<div class="cols">' . $block( \PassCaptain\Invoices::seller_lines( $seller ) ) . $block( array_merge( array( (string) ( $partner['name'] ?? '' ) ), preg_split( '/\r\n|\r|\n/', (string) ( $partner['billing_address'] ?? '' ) ), ! empty( $partner['vat_id'] ) ? array( __( 'USt-IdNr.:', 'wp-pass-captain' ) . ' ' . $partner['vat_id'] ) : array() ) ) . '</div>';
+			$h .= '<div class="cols">' . $block( \PassCaptain\Invoices::seller_lines( $seller ) ) . $block( array_merge( array( (string) ( $partner['name'] ?? '' ) ), preg_split( '/\r\n|\r|\n/', (string) ( $partner['billing_address'] ?? '' ) ), ! empty( $partner['vat_id'] ) ? array( __( 'USt-IdNr.:', 'pass-captain' ) . ' ' . $partner['vat_id'] ) : array() ) ) . '</div>';
 		} else {
-			$h .= '<div class="cols">' . $block( \PassCaptain\Invoices::seller_lines( $seller ), __( 'Aussteller', 'wp-pass-captain' ) ) . $block( \PassCaptain\Invoices::seller_lines( $supplier ), __( 'Veranstalter', 'wp-pass-captain' ) ) . '</div>';
+			$h .= '<div class="cols">' . $block( \PassCaptain\Invoices::seller_lines( $seller ), __( 'Aussteller', 'pass-captain' ) ) . $block( \PassCaptain\Invoices::seller_lines( $supplier ), __( 'Veranstalter', 'pass-captain' ) ) . '</div>';
 		}
-		if ( 'draft' === $s->status ) { $h .= '<p class="draft">' . esc_html__( 'Entwurf – nicht abgeschlossen, Werte können sich noch ändern', 'wp-pass-captain' ) . '</p>'; }
-		$h .= '<h1>' . esc_html( $title ) . '</h1><p>' . esc_html( sprintf( /* translators: 1: period, 2: date */ __( 'Zeitraum: %1$s · Erstellt: %2$s', 'wp-pass-captain' ), $s->period, $date ) );
-		if ( 'paid' === $s->status ) { $h .= '<br>' . esc_html( sprintf( /* translators: 1: date, 2: reference */ __( 'Ausgezahlt am %1$s %2$s', 'wp-pass-captain' ), Scope::local( $s->paid_at, Scope::site_timezone(), 'd.m.Y' ), $s->payment_reference ) ); }
-		$h .= '<br>' . esc_html( sprintf( /* translators: 1: commission, 2: fee, 3: VAT */ __( 'Konditionen: Provision %1$s vom Nettoumsatz, Ticketgebühr %2$s pro Ticket, USt auf Plattformgebühr %3$s', 'wp-pass-captain' ), $pct( $terms['commission_bp'] ?? 0 ), $money( $terms['fee_per_ticket_minor'] ?? 0 ), $pct( $terms['fee_tax_rate_bp'] ?? 0 ) ) ) . '</p>';
+		if ( 'draft' === $s->status ) { $h .= '<p class="draft">' . esc_html__( 'Entwurf – nicht abgeschlossen, Werte können sich noch ändern', 'pass-captain' ) . '</p>'; }
+		$h .= '<h1>' . esc_html( $title ) . '</h1><p>' . esc_html( sprintf( /* translators: 1: period, 2: date */ __( 'Zeitraum: %1$s · Erstellt: %2$s', 'pass-captain' ), $s->period, $date ) );
+		if ( 'paid' === $s->status ) { $h .= '<br>' . esc_html( sprintf( /* translators: 1: date, 2: reference */ __( 'Ausgezahlt am %1$s %2$s', 'pass-captain' ), Scope::local( $s->paid_at, Scope::site_timezone(), 'd.m.Y' ), $s->payment_reference ) ); }
+		$h .= '<br>' . esc_html( sprintf( /* translators: 1: commission, 2: fee, 3: VAT */ __( 'Konditionen: Provision %1$s vom Nettoumsatz, Ticketgebühr %2$s pro Ticket, USt auf Plattformgebühr %3$s', 'pass-captain' ), $pct( $terms['commission_bp'] ?? 0 ), $money( $terms['fee_per_ticket_minor'] ?? 0 ), $pct( $terms['fee_tax_rate_bp'] ?? 0 ) ) ) . '</p>';
 
 		if ( self::TYPE_SELF_BILLING === $type ) {
 			$h .= self::html_self_billing( $s, $t, $seller, $supplier, $money, $pct, $date );
-			$h .= self::html_fee_invoice( $s, $t, $seller, $supplier, $money, $pct, __( 'Teil B – Rechnung über Plattformgebühren', 'wp-pass-captain' ) );
-			$h .= '<section class="part"><h2>' . esc_html__( 'Teil C – Verrechnung', 'wp-pass-captain' ) . '</h2><table><tbody>';
-			$h .= '<tr><td>' . esc_html__( 'Gutschriftsbetrag (Teil A)', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $money( (int) ( $t['self_billing']['gross'] ?? 0 ) ) ) . '</td></tr>';
-			$h .= '<tr><td>' . esc_html__( 'abzüglich Rechnungsbetrag Plattformgebühren (Teil B)', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $money( -(int) $s->platform_fee_gross_minor ) ) . '</td></tr>';
+			$h .= self::html_fee_invoice( $s, $t, $seller, $supplier, $money, $pct, __( 'Teil B – Rechnung über Plattformgebühren', 'pass-captain' ) );
+			$h .= '<section class="part"><h2>' . esc_html__( 'Teil C – Verrechnung', 'pass-captain' ) . '</h2><table><tbody>';
+			$h .= '<tr><td>' . esc_html__( 'Gutschriftsbetrag (Teil A)', 'pass-captain' ) . '</td><td class="n">' . esc_html( $money( (int) ( $t['self_billing']['gross'] ?? 0 ) ) ) . '</td></tr>';
+			$h .= '<tr><td>' . esc_html__( 'abzüglich Rechnungsbetrag Plattformgebühren (Teil B)', 'pass-captain' ) . '</td><td class="n">' . esc_html( $money( -(int) $s->platform_fee_gross_minor ) ) . '</td></tr>';
 			$h .= self::payout_row( $s, $money ) . '</tbody></table></section>';
 		} elseif ( self::TYPE_COMMISSION === $type ) {
 			$h .= self::html_fee_invoice( $s, $t, $seller, $supplier, $money, $pct, '' );
-			$h .= '<section class="part"><h2>' . esc_html__( 'Informative Aufstellung: vereinnahmte Ticketerlöse (keine Rechnung)', 'wp-pass-captain' ) . '</h2><p>' . esc_html__( 'Die Ticketerlöse wurden im Namen und für Rechnung des Veranstalters vereinnahmt. Die Kundenrechnungen wurden im Namen des Veranstalters ausgestellt; die Umsatzsteuer auf die Ticketumsätze schuldet der Veranstalter.', 'wp-pass-captain' ) . '</p><table><tbody>';
+			$h .= '<section class="part"><h2>' . esc_html__( 'Informative Aufstellung: vereinnahmte Ticketerlöse (keine Rechnung)', 'pass-captain' ) . '</h2><p>' . esc_html__( 'Die Ticketerlöse wurden im Namen und für Rechnung des Veranstalters vereinnahmt. Die Kundenrechnungen wurden im Namen des Veranstalters ausgestellt; die Umsatzsteuer auf die Ticketumsätze schuldet der Veranstalter.', 'pass-captain' ) . '</p><table><tbody>';
 			$rows = array(
-				__( 'Ticketumsatz brutto (Verkäufe)', 'wp-pass-captain' ) => (int) ( $t['sales_gross'] ?? 0 ),
-				__( 'Erstattungen brutto', 'wp-pass-captain' ) => -(int) $s->refunded_minor,
-				__( 'Vereinnahmte Ticketerlöse nach Erstattungen', 'wp-pass-captain' ) => (int) $s->gross_minor,
-				__( 'darin enthaltene USt (Schuldner: Veranstalter)', 'wp-pass-captain' ) => (int) $s->tax_minor,
-				__( 'abzüglich Provisionsrechnung (brutto)', 'wp-pass-captain' ) => -(int) $s->platform_fee_gross_minor,
+				__( 'Ticketumsatz brutto (Verkäufe)', 'pass-captain' ) => (int) ( $t['sales_gross'] ?? 0 ),
+				__( 'Erstattungen brutto', 'pass-captain' ) => -(int) $s->refunded_minor,
+				__( 'Vereinnahmte Ticketerlöse nach Erstattungen', 'pass-captain' ) => (int) $s->gross_minor,
+				__( 'darin enthaltene USt (Schuldner: Veranstalter)', 'pass-captain' ) => (int) $s->tax_minor,
+				__( 'abzüglich Provisionsrechnung (brutto)', 'pass-captain' ) => -(int) $s->platform_fee_gross_minor,
 			);
 			foreach ( $rows as $label => $minor ) { $h .= '<tr><td>' . esc_html( $label ) . '</td><td class="n">' . esc_html( $money( $minor ) ) . '</td></tr>'; }
 			$h .= self::payout_row( $s, $money ) . '</tbody></table></section>';
 		} else {
-			$h .= '<h2>' . esc_html__( 'Abrechnung', 'wp-pass-captain' ) . '</h2><table><tbody>';
+			$h .= '<h2>' . esc_html__( 'Abrechnung', 'pass-captain' ) . '</h2><table><tbody>';
 			$rows = array(
-				__( 'Ticketumsatz brutto (Verkäufe)', 'wp-pass-captain' ) => (int) ( $t['sales_gross'] ?? 0 ),
-				__( 'Erstattungen brutto', 'wp-pass-captain' ) => -(int) $s->refunded_minor,
-				__( 'Ticketumsatz brutto nach Erstattungen', 'wp-pass-captain' ) => (int) $s->gross_minor,
-				__( 'darin enthaltene USt', 'wp-pass-captain' ) => (int) $s->tax_minor,
-				__( 'Ticketumsatz netto', 'wp-pass-captain' ) => (int) $s->net_minor,
-				sprintf( /* translators: %s: percent */ __( 'Provision %s vom Nettoumsatz', 'wp-pass-captain' ), $pct( $terms['commission_bp'] ?? 0 ) ) => -(int) $s->commission_minor,
-				__( 'Ticketgebühren', 'wp-pass-captain' ) => -(int) $s->fee_minor,
-				sprintf( /* translators: %s: percent */ __( 'USt %s auf Plattformgebühr', 'wp-pass-captain' ), $pct( $terms['fee_tax_rate_bp'] ?? 0 ) ) => -(int) $s->platform_fee_tax_minor,
+				__( 'Ticketumsatz brutto (Verkäufe)', 'pass-captain' ) => (int) ( $t['sales_gross'] ?? 0 ),
+				__( 'Erstattungen brutto', 'pass-captain' ) => -(int) $s->refunded_minor,
+				__( 'Ticketumsatz brutto nach Erstattungen', 'pass-captain' ) => (int) $s->gross_minor,
+				__( 'darin enthaltene USt', 'pass-captain' ) => (int) $s->tax_minor,
+				__( 'Ticketumsatz netto', 'pass-captain' ) => (int) $s->net_minor,
+				sprintf( /* translators: %s: percent */ __( 'Provision %s vom Nettoumsatz', 'pass-captain' ), $pct( $terms['commission_bp'] ?? 0 ) ) => -(int) $s->commission_minor,
+				__( 'Ticketgebühren', 'pass-captain' ) => -(int) $s->fee_minor,
+				sprintf( /* translators: %s: percent */ __( 'USt %s auf Plattformgebühr', 'pass-captain' ), $pct( $terms['fee_tax_rate_bp'] ?? 0 ) ) => -(int) $s->platform_fee_tax_minor,
 			);
 			foreach ( $rows as $label => $minor ) { $h .= '<tr><td>' . esc_html( $label ) . '</td><td class="n">' . esc_html( $money( $minor ) ) . '</td></tr>'; }
 			$h .= self::payout_row( $s, $money ) . '</tbody></table>';
 		}
 		if ( (int) $s->corrections_minor ) {
-			$h .= '<p>' . esc_html( sprintf( /* translators: %s: amount */ __( 'Enthält Korrekturen und Nachträge aus bereits abgeschlossenen Vorperioden: %s brutto.', 'wp-pass-captain' ), $money( $s->corrections_minor ) ) ) . '</p>';
+			$h .= '<p>' . esc_html( sprintf( /* translators: %s: amount */ __( 'Enthält Korrekturen und Nachträge aus bereits abgeschlossenen Vorperioden: %s brutto.', 'pass-captain' ), $money( $s->corrections_minor ) ) ) . '</p>';
 		}
 
-		$h .= '' !== $type ? '<section class="part"><h2>' . esc_html__( 'Anlage: Einzelaufstellung', 'wp-pass-captain' ) . '</h2>' : '';
-		$h .= '<h2>' . esc_html__( 'Übersicht nach Art', 'wp-pass-captain' ) . '</h2><table><thead><tr><th>' . esc_html__( 'Art', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Tickets', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'USt', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		$h .= '' !== $type ? '<section class="part"><h2>' . esc_html__( 'Anlage: Einzelaufstellung', 'pass-captain' ) . '</h2>' : '';
+		$h .= '<h2>' . esc_html__( 'Übersicht nach Art', 'pass-captain' ) . '</h2><table><thead><tr><th>' . esc_html__( 'Art', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Tickets', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'USt', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $kinds as $kind => $label ) {
 			if ( empty( $t['kinds'][ $kind ] ) ) { continue; }
 			$k = $t['kinds'][ $kind ];
 			$h .= '<tr><td>' . esc_html( $label ) . '</td><td class="n">' . (int) $k['tickets'] . '</td><td class="n">' . esc_html( $money( $k['tax'] ) ) . '</td><td class="n">' . esc_html( $money( $k['gross'] ) ) . '</td></tr>';
 		}
 		$h .= '</tbody></table>';
-		$h .= '<h2>' . esc_html__( 'Nach Event', 'wp-pass-captain' ) . '</h2><table><thead><tr><th>' . esc_html__( 'Event', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Tickets', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Netto', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Provision', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Ticketgebühr', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		$h .= '<h2>' . esc_html__( 'Nach Event', 'pass-captain' ) . '</h2><table><thead><tr><th>' . esc_html__( 'Event', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Tickets', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Netto', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Provision', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Ticketgebühr', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( (array) ( $t['events'] ?? array() ) as $ev ) {
 			$h .= '<tr><td>' . esc_html( $ev['name'] ) . '</td><td class="n">' . (int) $ev['tickets'] . '</td><td class="n">' . esc_html( $money( $ev['gross'] ) ) . '</td><td class="n">' . esc_html( $money( $ev['net'] ) ) . '</td><td class="n">' . esc_html( $money( $ev['commission'] ) ) . '</td><td class="n">' . esc_html( $money( $ev['fee'] ) ) . '</td></tr>';
 		}
 		$h .= '</tbody></table>';
-		$h .= '<h2>' . esc_html__( 'Ticketumsatz nach Steuersatz (Kundenverkauf)', 'wp-pass-captain' ) . '</h2><table><thead><tr><th>' . esc_html__( 'USt-Satz', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Netto', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'USt', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		$h .= '<h2>' . esc_html__( 'Ticketumsatz nach Steuersatz (Kundenverkauf)', 'pass-captain' ) . '</h2><table><thead><tr><th>' . esc_html__( 'USt-Satz', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Netto', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'USt', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( (array) ( $t['rates'] ?? array() ) as $bp => $r ) {
 			$h .= '<tr><td>' . esc_html( $pct( $bp ) ) . '</td><td class="n">' . esc_html( $money( $r['net'] ) ) . '</td><td class="n">' . esc_html( $money( $r['tax'] ) ) . '</td><td class="n">' . esc_html( $money( $r['gross'] ) ) . '</td></tr>';
 		}
 		$h .= '</tbody></table>';
-		$h .= '<h2>' . esc_html__( 'Positionen', 'wp-pass-captain' ) . '</h2><table><thead><tr><th>' . esc_html__( 'Datum', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Art', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Event', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Bestellung', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Tickets', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'USt-Satz', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Provision', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Gebühr', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		$h .= '<h2>' . esc_html__( 'Positionen', 'pass-captain' ) . '</h2><table><thead><tr><th>' . esc_html__( 'Datum', 'pass-captain' ) . '</th><th>' . esc_html__( 'Art', 'pass-captain' ) . '</th><th>' . esc_html__( 'Event', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Bestellung', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Tickets', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'USt-Satz', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Provision', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Gebühr', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( self::lines( $s->settlement_id ) as $l ) {
 			$label = ( $kinds[ $l->kind ] ?? $l->kind ) . ( in_array( $l->kind, array( 'late_sale', 'correction' ), true ) ? ' ' . $l->origin_period : '' );
 			$h .= '<tr><td>' . esc_html( Scope::local( $l->occurred_at, Scope::site_timezone(), 'd.m.Y' ) ) . '</td><td>' . esc_html( $label ) . '</td><td>' . esc_html( $l->event_name ) . '</td><td class="n">' . (int) $l->order_id . '</td><td class="n">' . (int) $l->tickets . '</td><td class="n">' . esc_html( $pct( $l->tax_rate_bp ) ) . '</td><td class="n">' . esc_html( $money( $l->gross_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->commission_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->fee_minor ) ) . '</td></tr>';
 		}
-		$h .= '</tbody></table>' . ( '' !== $type ? '</section>' : '' ) . '<button onclick="window.print()">' . esc_html__( 'Drucken oder als PDF speichern', 'wp-pass-captain' ) . '</button></body></html>';
+		$h .= '</tbody></table>' . ( '' !== $type ? '</section>' : '' ) . '<button onclick="window.print()">' . esc_html__( 'Drucken oder als PDF speichern', 'pass-captain' ) . '</button></body></html>';
 		return $h;
 	}
 
 	private static function payout_row( $s, $money ) {
-		$payout_label = (int) $s->payout_minor >= 0 ? __( 'Auszahlungsbetrag an Veranstalter', 'wp-pass-captain' ) : __( 'Forderung an Veranstalter', 'wp-pass-captain' );
+		$payout_label = (int) $s->payout_minor >= 0 ? __( 'Auszahlungsbetrag an Veranstalter', 'pass-captain' ) : __( 'Forderung an Veranstalter', 'pass-captain' );
 		return '<tr><th>' . esc_html( $payout_label ) . '</th><th class="n">' . esc_html( $money( abs( (int) $s->payout_minor ) ) ) . '</th></tr>';
 	}
 
 	/** Part A of the own_name document: self-billing "Gutschrift" for the organizer's supply to the platform. */
 	private static function html_self_billing( $s, array $t, array $seller, array $supplier, $money, $pct, $date ) {
 		$sb = (array) ( $t['self_billing'] ?? array() );
-		$number = 'draft' === $s->status ? __( '(Nummer wird beim Abschließen vergeben)', 'wp-pass-captain' ) : (string) $s->self_billing_number;
-		$h = '<section class="part"><h2>' . esc_html( sprintf( /* translators: %s: number */ __( 'Teil A – Gutschrift %s', 'wp-pass-captain' ), $number ) ) . '</h2>';
-		$h .= '<p>' . esc_html__( 'Abrechnung im Gutschriftsverfahren: Der Leistungsempfänger rechnet über die Leistung des Veranstalters ab (§ 14 Abs. 2 Satz 2 UStG; Österreich: § 11 Abs. 7 UStG). Der Veranstalter kann der Gutschrift widersprechen; sie verliert damit ihre Wirkung als Rechnung.', 'wp-pass-captain' ) . '</p>';
-		$h .= '<div class="cols"><div class="addr"><small>' . esc_html__( 'Leistender Unternehmer (Gutschriftsempfänger)', 'wp-pass-captain' ) . '</small>' . "\n" . esc_html( implode( "\n", \PassCaptain\Invoices::seller_lines( $supplier ) ) ) . '</div>';
-		$h .= '<div class="addr"><small>' . esc_html__( 'Leistungsempfänger (Gutschriftsaussteller)', 'wp-pass-captain' ) . '</small>' . "\n" . esc_html( implode( "\n", \PassCaptain\Invoices::seller_lines( $seller ) ) ) . '</div></div>';
-		$h .= '<p>' . esc_html( sprintf( /* translators: 1: period, 2: date */ __( 'Leistung: Durchführung der Veranstaltungen und Einräumung der Eintrittsberechtigungen laut Anlage (Leistungskommission, Verkauf durch die Plattform im eigenen Namen für Rechnung des Veranstalters). Leistungszeitraum: %1$s. Gutschriftsdatum: %2$s.', 'wp-pass-captain' ), $s->period, $date ) ) . '</p>';
-		$h .= '<table><thead><tr><th>' . esc_html__( 'USt-Satz', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Netto', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'USt', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		$number = 'draft' === $s->status ? __( '(Nummer wird beim Abschließen vergeben)', 'pass-captain' ) : (string) $s->self_billing_number;
+		$h = '<section class="part"><h2>' . esc_html( sprintf( /* translators: %s: number */ __( 'Teil A – Gutschrift %s', 'pass-captain' ), $number ) ) . '</h2>';
+		$h .= '<p>' . esc_html__( 'Abrechnung im Gutschriftsverfahren: Der Leistungsempfänger rechnet über die Leistung des Veranstalters ab (§ 14 Abs. 2 Satz 2 UStG; Österreich: § 11 Abs. 7 UStG). Der Veranstalter kann der Gutschrift widersprechen; sie verliert damit ihre Wirkung als Rechnung.', 'pass-captain' ) . '</p>';
+		$h .= '<div class="cols"><div class="addr"><small>' . esc_html__( 'Leistender Unternehmer (Gutschriftsempfänger)', 'pass-captain' ) . '</small>' . "\n" . esc_html( implode( "\n", \PassCaptain\Invoices::seller_lines( $supplier ) ) ) . '</div>';
+		$h .= '<div class="addr"><small>' . esc_html__( 'Leistungsempfänger (Gutschriftsaussteller)', 'pass-captain' ) . '</small>' . "\n" . esc_html( implode( "\n", \PassCaptain\Invoices::seller_lines( $seller ) ) ) . '</div></div>';
+		$h .= '<p>' . esc_html( sprintf( /* translators: 1: period, 2: date */ __( 'Leistung: Durchführung der Veranstaltungen und Einräumung der Eintrittsberechtigungen laut Anlage (Leistungskommission, Verkauf durch die Plattform im eigenen Namen für Rechnung des Veranstalters). Leistungszeitraum: %1$s. Gutschriftsdatum: %2$s.', 'pass-captain' ), $s->period, $date ) ) . '</p>';
+		$h .= '<table><thead><tr><th>' . esc_html__( 'USt-Satz', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Netto', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'USt', 'pass-captain' ) . '</th><th class="n">' . esc_html__( 'Brutto', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		$no_vat = ! empty( $sb['small_business'] ) || ! empty( $sb['reverse_charge'] );
 		foreach ( (array) ( $sb['rates'] ?? array() ) as $bp => $r ) {
 			$h .= '<tr><td>' . esc_html( $no_vat ? '—' : $pct( $bp ) ) . '</td><td class="n">' . esc_html( $money( $r['net'] ) ) . '</td><td class="n">' . esc_html( $money( $r['tax'] ) ) . '</td><td class="n">' . esc_html( $money( $r['gross'] ) ) . '</td></tr>';
 		}
-		$h .= '<tr><th>' . esc_html__( 'Gutschriftsbetrag', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html( $money( (int) ( $sb['net'] ?? 0 ) ) ) . '</th><th class="n">' . esc_html( $money( (int) ( $sb['tax'] ?? 0 ) ) ) . '</th><th class="n">' . esc_html( $money( (int) ( $sb['gross'] ?? 0 ) ) ) . '</th></tr></tbody></table>';
+		$h .= '<tr><th>' . esc_html__( 'Gutschriftsbetrag', 'pass-captain' ) . '</th><th class="n">' . esc_html( $money( (int) ( $sb['net'] ?? 0 ) ) ) . '</th><th class="n">' . esc_html( $money( (int) ( $sb['tax'] ?? 0 ) ) ) . '</th><th class="n">' . esc_html( $money( (int) ( $sb['gross'] ?? 0 ) ) ) . '</th></tr></tbody></table>';
 		if ( ! empty( $sb['small_business'] ) ) {
 			$h .= '<p class="note">' . esc_html( (string) ( $supplier['small_business_note'] ?? SalesModel::default_small_business_note() ) ) . '</p>';
 		} elseif ( ! empty( $sb['reverse_charge'] ) ) {
-			$h .= '<p class="note">' . esc_html( SalesModel::reverse_charge_note() ) . '</p><p><small>' . esc_html__( 'Die Steuer schuldet der Leistungsempfänger (§ 13b UStG / Art. 196 MwStSystRL / § 19 Abs. 1 öUStG).', 'wp-pass-captain' ) . '</small></p>';
+			$h .= '<p class="note">' . esc_html( SalesModel::reverse_charge_note() ) . '</p><p><small>' . esc_html__( 'Die Steuer schuldet der Leistungsempfänger (§ 13b UStG / Art. 196 MwStSystRL / § 19 Abs. 1 öUStG).', 'pass-captain' ) . '</small></p>';
 		}
 		return $h . '</section>';
 	}
@@ -735,22 +735,22 @@ final class Settlements {
 		$rc = ! empty( $t['fee_reverse_charge'] );
 		$h = '<section class="part">';
 		if ( '' !== $heading ) {
-			$number = 'draft' === $s->status ? __( '(Nummer wird beim Abschließen vergeben)', 'wp-pass-captain' ) : (string) $s->document_number;
+			$number = 'draft' === $s->status ? __( '(Nummer wird beim Abschließen vergeben)', 'pass-captain' ) : (string) $s->document_number;
 			$h .= '<h2>' . esc_html( $heading . ' ' . $number ) . '</h2>';
-			$h .= '<div class="cols"><div class="addr"><small>' . esc_html__( 'Rechnungssteller', 'wp-pass-captain' ) . '</small>' . "\n" . esc_html( implode( "\n", \PassCaptain\Invoices::seller_lines( $seller ) ) ) . '</div>';
-			$h .= '<div class="addr"><small>' . esc_html__( 'Rechnungsempfänger', 'wp-pass-captain' ) . '</small>' . "\n" . esc_html( implode( "\n", \PassCaptain\Invoices::seller_lines( $supplier ) ) ) . '</div></div>';
+			$h .= '<div class="cols"><div class="addr"><small>' . esc_html__( 'Rechnungssteller', 'pass-captain' ) . '</small>' . "\n" . esc_html( implode( "\n", \PassCaptain\Invoices::seller_lines( $seller ) ) ) . '</div>';
+			$h .= '<div class="addr"><small>' . esc_html__( 'Rechnungsempfänger', 'pass-captain' ) . '</small>' . "\n" . esc_html( implode( "\n", \PassCaptain\Invoices::seller_lines( $supplier ) ) ) . '</div></div>';
 		} else {
-			$h .= '<h2>' . esc_html__( 'Rechnung über Vermittlungsleistungen', 'wp-pass-captain' ) . '</h2>';
+			$h .= '<h2>' . esc_html__( 'Rechnung über Vermittlungsleistungen', 'pass-captain' ) . '</h2>';
 		}
-		$h .= '<p>' . esc_html( sprintf( /* translators: %s: period */ __( 'Leistung: Vermittlung und Abwicklung des Ticketverkaufs für die Veranstaltungen laut Anlage. Leistungszeitraum: %s.', 'wp-pass-captain' ), $s->period ) ) . '</p><table><tbody>';
-		$h .= '<tr><td>' . esc_html( sprintf( /* translators: 1: percent, 2: net revenue */ __( 'Provision %1$s auf Netto-Ticketumsatz %2$s', 'wp-pass-captain' ), $pct( $terms['commission_bp'] ?? 0 ), $money( (int) $s->net_minor ) ) ) . '</td><td class="n">' . esc_html( $money( (int) $s->commission_minor ) ) . '</td></tr>';
-		$h .= '<tr><td>' . esc_html( sprintf( /* translators: %s: fee per ticket */ __( 'Ticketgebühren (%s je Ticket)', 'wp-pass-captain' ), $money( $terms['fee_per_ticket_minor'] ?? 0 ) ) ) . '</td><td class="n">' . esc_html( $money( (int) $s->fee_minor ) ) . '</td></tr>';
-		$h .= '<tr><td>' . esc_html__( 'Nettobetrag', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $money( (int) $s->platform_fee_net_minor ) ) . '</td></tr>';
-		$tax_label = $rc ? __( 'Umsatzsteuer (Reverse Charge)', 'wp-pass-captain' ) : sprintf( /* translators: %s: percent */ __( 'Umsatzsteuer %s', 'wp-pass-captain' ), $pct( $terms['fee_tax_rate_bp'] ?? 0 ) );
+		$h .= '<p>' . esc_html( sprintf( /* translators: %s: period */ __( 'Leistung: Vermittlung und Abwicklung des Ticketverkaufs für die Veranstaltungen laut Anlage. Leistungszeitraum: %s.', 'pass-captain' ), $s->period ) ) . '</p><table><tbody>';
+		$h .= '<tr><td>' . esc_html( sprintf( /* translators: 1: percent, 2: net revenue */ __( 'Provision %1$s auf Netto-Ticketumsatz %2$s', 'pass-captain' ), $pct( $terms['commission_bp'] ?? 0 ), $money( (int) $s->net_minor ) ) ) . '</td><td class="n">' . esc_html( $money( (int) $s->commission_minor ) ) . '</td></tr>';
+		$h .= '<tr><td>' . esc_html( sprintf( /* translators: %s: fee per ticket */ __( 'Ticketgebühren (%s je Ticket)', 'pass-captain' ), $money( $terms['fee_per_ticket_minor'] ?? 0 ) ) ) . '</td><td class="n">' . esc_html( $money( (int) $s->fee_minor ) ) . '</td></tr>';
+		$h .= '<tr><td>' . esc_html__( 'Nettobetrag', 'pass-captain' ) . '</td><td class="n">' . esc_html( $money( (int) $s->platform_fee_net_minor ) ) . '</td></tr>';
+		$tax_label = $rc ? __( 'Umsatzsteuer (Reverse Charge)', 'pass-captain' ) : sprintf( /* translators: %s: percent */ __( 'Umsatzsteuer %s', 'pass-captain' ), $pct( $terms['fee_tax_rate_bp'] ?? 0 ) );
 		$h .= '<tr><td>' . esc_html( $tax_label ) . '</td><td class="n">' . esc_html( $money( (int) $s->platform_fee_tax_minor ) ) . '</td></tr>';
-		$h .= '<tr><th>' . esc_html__( 'Rechnungsbetrag', 'wp-pass-captain' ) . '</th><th class="n">' . esc_html( $money( (int) $s->platform_fee_gross_minor ) ) . '</th></tr></tbody></table>';
+		$h .= '<tr><th>' . esc_html__( 'Rechnungsbetrag', 'pass-captain' ) . '</th><th class="n">' . esc_html( $money( (int) $s->platform_fee_gross_minor ) ) . '</th></tr></tbody></table>';
 		if ( $rc ) {
-			$h .= '<p class="note">' . esc_html( SalesModel::reverse_charge_note() ) . '</p><p><small>' . esc_html__( 'Die Steuer schuldet der Leistungsempfänger (§ 13b UStG / Art. 196 MwStSystRL / § 19 Abs. 1 öUStG).', 'wp-pass-captain' ) . '</small></p>';
+			$h .= '<p class="note">' . esc_html( SalesModel::reverse_charge_note() ) . '</p><p><small>' . esc_html__( 'Die Steuer schuldet der Leistungsempfänger (§ 13b UStG / Art. 196 MwStSystRL / § 19 Abs. 1 öUStG).', 'pass-captain' ) . '</small></p>';
 		}
 		return $h . '</section>';
 	}

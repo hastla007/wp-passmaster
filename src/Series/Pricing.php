@@ -122,21 +122,21 @@ final class Pricing {
 	 */
 	public static function normalize( array $in, $timezone, $currency = 'EUR' ) {
 		$kind = in_array( $in['kind'] ?? '', self::KINDS, true ) ? $in['kind'] : '';
-		if ( '' === $kind ) { return self::error( 'wpcap_series_rule_kind', __( 'Bitte eine Art der Preisregel wählen.', 'wp-pass-captain' ) ); }
+		if ( '' === $kind ) { return self::error( 'wpcap_series_rule_kind', __( 'Bitte eine Art der Preisregel wählen.', 'pass-captain' ) ); }
 		$mode = 'percent' === ( $in['price_mode'] ?? '' ) ? 'percent' : 'fixed';
 		$raw_amount = is_scalar( $in['amount'] ?? null ) ? trim( (string) $in['amount'] ) : '';
 		if ( 'fixed' === $mode ) {
 			$amount = \PassCaptain\Admin\Forms::parse_money( $raw_amount, \PassCaptain\Admin\Forms::currency_decimals( $currency ) );
-			if ( null === $amount ) { return self::error( 'wpcap_series_rule_amount', __( 'Bitte einen gültigen Preis angeben.', 'wp-pass-captain' ) ); }
+			if ( null === $amount ) { return self::error( 'wpcap_series_rule_amount', __( 'Bitte einen gültigen Preis angeben.', 'pass-captain' ) ); }
 		} else {
 			$raw_amount = str_replace( '−', '-', $raw_amount );
 			$negative = 0 === strpos( $raw_amount, '-' );
 			$bp = \PassCaptain\Admin\Forms::parse_percent_bp( ltrim( $raw_amount, '+-' ) );
-			if ( null === $bp || '' === $raw_amount || 0 === $bp ) { return self::error( 'wpcap_series_rule_amount', __( 'Bitte eine gültige prozentuale Änderung angeben (z. B. -20 oder 15).', 'wp-pass-captain' ) ); }
+			if ( null === $bp || '' === $raw_amount || 0 === $bp ) { return self::error( 'wpcap_series_rule_amount', __( 'Bitte eine gültige prozentuale Änderung angeben (z. B. -20 oder 15).', 'pass-captain' ) ); }
 			$amount = $negative ? -$bp : $bp;
 		}
 		$priority_raw = is_scalar( $in['priority'] ?? null ) ? trim( (string) $in['priority'] ) : '';
-		if ( '' !== $priority_raw && ! preg_match( '/^-?\d{1,4}$/', $priority_raw ) ) { return self::error( 'wpcap_series_rule_priority', __( 'Die Priorität muss eine ganze Zahl sein.', 'wp-pass-captain' ) ); }
+		if ( '' !== $priority_raw && ! preg_match( '/^-?\d{1,4}$/', $priority_raw ) ) { return self::error( 'wpcap_series_rule_priority', __( 'Die Priorität muss eine ganze Zahl sein.', 'pass-captain' ) ); }
 		$rule = array(
 			'label' => mb_substr( sanitize_text_field( (string) ( $in['label'] ?? '' ) ), 0, 190 ),
 			'type_name' => mb_substr( sanitize_text_field( (string) ( $in['type_name'] ?? '' ) ), 0, 190 ),
@@ -153,20 +153,20 @@ final class Pricing {
 		);
 		if ( 'early_bird' === $kind ) {
 			$rule['until_at'] = \PassCaptain\Admin\Forms::local_to_utc( $in['until'] ?? '', $timezone );
-			if ( null === $rule['until_at'] ) { return self::error( 'wpcap_series_rule_until', __( 'Bitte ein gültiges Datum „Frühbucher bis“ angeben.', 'wp-pass-captain' ) ); }
+			if ( null === $rule['until_at'] ) { return self::error( 'wpcap_series_rule_until', __( 'Bitte ein gültiges Datum „Frühbucher bis“ angeben.', 'pass-captain' ) ); }
 		} elseif ( 'last_minute' === $kind ) {
 			$rule['hours_before'] = absint( $in['hours_before'] ?? 0 );
-			if ( $rule['hours_before'] < 1 || $rule['hours_before'] > 24 * 60 ) { return self::error( 'wpcap_series_rule_hours', __( 'Last-Minute: Stunden vor Beginn zwischen 1 und 1440 angeben.', 'wp-pass-captain' ) ); }
+			if ( $rule['hours_before'] < 1 || $rule['hours_before'] > 24 * 60 ) { return self::error( 'wpcap_series_rule_hours', __( 'Last-Minute: Stunden vor Beginn zwischen 1 und 1440 angeben.', 'pass-captain' ) ); }
 		} elseif ( 'demand' === $kind ) {
 			$rule['sold_pct'] = absint( $in['sold_pct'] ?? 0 );
-			if ( $rule['sold_pct'] < 1 || $rule['sold_pct'] > 100 ) { return self::error( 'wpcap_series_rule_pct', __( 'Nachfragestufe: Verkaufsanteil zwischen 1 und 100 % angeben.', 'wp-pass-captain' ) ); }
+			if ( $rule['sold_pct'] < 1 || $rule['sold_pct'] > 100 ) { return self::error( 'wpcap_series_rule_pct', __( 'Nachfragestufe: Verkaufsanteil zwischen 1 und 100 % angeben.', 'pass-captain' ) ); }
 		} else {
 			$days = array_values( array_unique( array_filter( array_map( 'absint', array_filter( (array) ( $in['weekdays'] ?? array() ), 'is_scalar' ) ), static function ( $d ) { return $d >= 1 && $d <= 7; } ) ) );
 			sort( $days );
 			$from = self::clock( $in['time_from'] ?? '' );
 			$to = self::clock( $in['time_to'] ?? '' );
-			if ( null === $from || null === $to || ( '' === $from ) !== ( '' === $to ) || ( '' !== $from && $from === $to ) ) { return self::error( 'wpcap_series_rule_slot', __( 'Zeitfenster: Beginn und Ende (HH:MM) beide angeben oder beide leer lassen.', 'wp-pass-captain' ) ); }
-			if ( ! $days && '' === $from ) { return self::error( 'wpcap_series_rule_slot', __( 'Bitte Wochentage und/oder ein Zeitfenster angeben.', 'wp-pass-captain' ) ); }
+			if ( null === $from || null === $to || ( '' === $from ) !== ( '' === $to ) || ( '' !== $from && $from === $to ) ) { return self::error( 'wpcap_series_rule_slot', __( 'Zeitfenster: Beginn und Ende (HH:MM) beide angeben oder beide leer lassen.', 'pass-captain' ) ); }
+			if ( ! $days && '' === $from ) { return self::error( 'wpcap_series_rule_slot', __( 'Bitte Wochentage und/oder ein Zeitfenster angeben.', 'pass-captain' ) ); }
 			$rule['weekdays'] = implode( ',', $days );
 			$rule['time_from'] = $from;
 			$rule['time_to'] = $to;
@@ -178,13 +178,13 @@ final class Pricing {
 	public static function create( $series_id, array $in ) {
 		global $wpdb;
 		$series = self::series( $series_id );
-		if ( ! $series ) { return self::error( 'wpcap_series_missing', __( 'Serie nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! \PassCaptain\Access::can_access_event( (int) $series->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $series ) { return self::error( 'wpcap_series_missing', __( 'Serie nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! \PassCaptain\Access::can_access_event( (int) $series->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$rule = self::normalize( $in, $series->timezone, $series->currency );
 		if ( is_wp_error( $rule ) ) { return $rule; }
 		$now = current_time( 'mysql', true );
 		$ok = $wpdb->insert( "{$wpdb->prefix}wpcap_series_price_rules", $rule + array( 'series_id' => (int) $series->series_id, 'status' => 'active', 'created_at' => $now, 'updated_at' => $now ) );
-		if ( ! $ok ) { return self::error( 'wpcap_series_rule_save', __( 'Die Preisregel konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		if ( ! $ok ) { return self::error( 'wpcap_series_rule_save', __( 'Die Preisregel konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$rule_id = (int) $wpdb->insert_id;
 		self::flush_cache();
 		\PassCaptain\Audit::record( 'series_price_rule_created', 'event', (int) $series->event_id, array( 'series_id' => (int) $series->series_id, 'rule_id' => $rule_id, 'kind' => $rule['kind'] ) );
@@ -195,8 +195,8 @@ final class Pricing {
 	public static function delete( $rule_id ) {
 		global $wpdb;
 		$rule = $wpdb->get_row( $wpdb->prepare( "SELECT r.rule_id,r.series_id,s.event_id FROM {$wpdb->prefix}wpcap_series_price_rules r INNER JOIN {$wpdb->prefix}wpcap_series s ON s.series_id=r.series_id WHERE r.rule_id=%d", absint( $rule_id ) ) );
-		if ( ! $rule ) { return self::error( 'wpcap_series_rule_missing', __( 'Preisregel nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! \PassCaptain\Access::can_access_event( (int) $rule->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $rule ) { return self::error( 'wpcap_series_rule_missing', __( 'Preisregel nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! \PassCaptain\Access::can_access_event( (int) $rule->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$wpdb->update( "{$wpdb->prefix}wpcap_series_price_rules", array( 'status' => 'deleted', 'updated_at' => current_time( 'mysql', true ) ), array( 'rule_id' => (int) $rule->rule_id ) );
 		self::flush_cache();
 		\PassCaptain\Audit::record( 'series_price_rule_deleted', 'event', (int) $rule->event_id, array( 'series_id' => (int) $rule->series_id, 'rule_id' => (int) $rule->rule_id ) );
@@ -341,10 +341,10 @@ final class Pricing {
 
 	public static function kind_labels() {
 		return array(
-			'early_bird' => __( 'Frühbucherpreis', 'wp-pass-captain' ),
-			'last_minute' => __( 'Last-Minute-Preis', 'wp-pass-captain' ),
-			'demand' => __( 'Nachfragepreis', 'wp-pass-captain' ),
-			'weekday' => __( 'Wochentags-/Zeitfensterpreis', 'wp-pass-captain' ),
+			'early_bird' => __( 'Frühbucherpreis', 'pass-captain' ),
+			'last_minute' => __( 'Last-Minute-Preis', 'pass-captain' ),
+			'demand' => __( 'Nachfragepreis', 'pass-captain' ),
+			'weekday' => __( 'Wochentags-/Zeitfensterpreis', 'pass-captain' ),
 		);
 	}
 }

@@ -1,6 +1,6 @@
 # Ausgehende Webhooks
 
-WP Pass Captain kann Ereignisse als signierte HTTP-POST-Anfragen an externe Systeme senden
+Pass Captain kann Ereignisse als signierte HTTP-POST-Anfragen an externe Systeme senden
 (Buchhaltung, CRM, Zutrittskontrolle, Automatisierung). Verwaltung: **Pass Captain → Webhooks**
 (Capability `manage_options`).
 
@@ -137,7 +137,7 @@ und sollte nur mit Rechtsgrundlage und Auftragsverarbeitungsvertrag aktiviert we
   abgelehnt.
 - Abgeschlossene Zustellungen werden nach 30 Tagen gelöscht (einstellbar auf der Webhook-Seite,
   1–365 Tage; Cron `wpcap_process_jobs`). Ausstehende Zustellungen bleiben erhalten.
-- Der WordPress-Datenlöscher „WP Pass Captain Webhook-Protokoll“ entfernt eine E-Mail-Adresse aus allen
+- Der WordPress-Datenlöscher „Pass Captain Webhook-Protokoll“ entfernt eine E-Mail-Adresse aus allen
   gespeicherten Payloads, auch aus noch ausstehenden.
 
 Secrets werden im Klartext in der Datenbank gespeichert, weil sie zum Signieren benötigt werden.

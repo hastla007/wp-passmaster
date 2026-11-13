@@ -38,15 +38,15 @@ final class Assignments {
 		global $wpdb;
 		$device = self::device( $device_id );
 		if ( ! self::device_active( $device ) ) {
-			return new \WP_Error( 'wpcap_offline_device', __( 'Gerät nicht gefunden, abgelaufen oder widerrufen.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_offline_device', __( 'Gerät nicht gefunden, abgelaufen oder widerrufen.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		$event_id = absint( $event_id );
 		if ( ! in_array( $event_id, Devices::event_ids( $device ), true ) ) {
-			return new \WP_Error( 'wpcap_offline_device_event', __( 'Das Gerät ist nicht für dieses Event gekoppelt.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_offline_device_event', __( 'Das Gerät ist nicht für dieses Event gekoppelt.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$occurrence_id = absint( $occurrence_id );
 		if ( $occurrence_id && $event_id !== (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $occurrence_id ) ) ) {
-			return new \WP_Error( 'wpcap_offline_occurrence', __( 'Der Termin gehört nicht zu diesem Event.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_offline_occurrence', __( 'Der Termin gehört nicht zu diesem Event.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::table() . ' (device_id,event_id,occurrence_id,assigned_by,created_at) VALUES (%d,%d,%d,%d,%s)', (int) $device->device_id, $event_id, $occurrence_id, get_current_user_id(), current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		Audit::record( 'offline_device_assigned', 'device', (int) $device->device_id, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id ) );

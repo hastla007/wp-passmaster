@@ -69,31 +69,31 @@ final class Menu {
 	public static function add_menus() {
 		$top_cap = self::first_cap( array( EventsPage::CAP, OrdersPage::CAP, 'wpcap_checkin', 'wpcap_view_reports', Refunds::APPROVE_CAP, SettingsPage::CAP ) );
 		add_menu_page(
-			__( 'WP Pass Captain', 'wp-pass-captain' ),
-			__( 'Pass Captain', 'wp-pass-captain' ),
+			__( 'Pass Captain', 'pass-captain' ),
+			__( 'Pass Captain', 'pass-captain' ),
 			$top_cap,
 			self::SLUG,
 			array( EventsPage::class, 'render' ),
 			'dashicons-tickets-alt',
 			58
 		);
-		add_submenu_page( self::SLUG, __( 'Events', 'wp-pass-captain' ), __( 'Events', 'wp-pass-captain' ), EventsPage::CAP, self::SLUG, array( EventsPage::class, 'render' ) );
-		add_submenu_page( self::SLUG, __( 'Bestellungen', 'wp-pass-captain' ), __( 'Bestellungen', 'wp-pass-captain' ), OrdersPage::CAP, OrdersPage::SLUG, array( OrdersPage::class, 'render' ) );
-		add_submenu_page( self::SLUG, __( 'Tickets', 'wp-pass-captain' ), __( 'Tickets', 'wp-pass-captain' ), TicketsPage::menu_cap(), TicketsPage::SLUG, array( TicketsPage::class, 'render' ) );
-		add_submenu_page( self::SLUG, __( 'Check-ins', 'wp-pass-captain' ), __( 'Check-ins', 'wp-pass-captain' ), CheckinsPage::menu_cap(), CheckinsPage::SLUG, array( CheckinsPage::class, 'render' ) );
+		add_submenu_page( self::SLUG, __( 'Events', 'pass-captain' ), __( 'Events', 'pass-captain' ), EventsPage::CAP, self::SLUG, array( EventsPage::class, 'render' ) );
+		add_submenu_page( self::SLUG, __( 'Bestellungen', 'pass-captain' ), __( 'Bestellungen', 'pass-captain' ), OrdersPage::CAP, OrdersPage::SLUG, array( OrdersPage::class, 'render' ) );
+		add_submenu_page( self::SLUG, __( 'Tickets', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), TicketsPage::menu_cap(), TicketsPage::SLUG, array( TicketsPage::class, 'render' ) );
+		add_submenu_page( self::SLUG, __( 'Check-ins', 'pass-captain' ), __( 'Check-ins', 'pass-captain' ), CheckinsPage::menu_cap(), CheckinsPage::SLUG, array( CheckinsPage::class, 'render' ) );
 		$pending = current_user_can( Refunds::APPROVE_CAP ) ? count( Queries::pending_refunds( Queries::event_ids_for( OrdersPage::CAP ) ) ) : 0;
-		$refund_title = __( 'Erstattungen', 'wp-pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
-		add_submenu_page( self::SLUG, __( 'Erstattungen', 'wp-pass-captain' ), $refund_title, RefundsPage::menu_cap(), RefundsPage::SLUG, array( RefundsPage::class, 'render' ) );
-		add_submenu_page( self::SLUG, __( 'Scanner-Geräte', 'wp-pass-captain' ), __( 'Scanner-Geräte', 'wp-pass-captain' ), DevicesPage::CAP, DevicesPage::SLUG, array( DevicesPage::class, 'render' ) );
+		$refund_title = __( 'Erstattungen', 'pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
+		add_submenu_page( self::SLUG, __( 'Erstattungen', 'pass-captain' ), $refund_title, RefundsPage::menu_cap(), RefundsPage::SLUG, array( RefundsPage::class, 'render' ) );
+		add_submenu_page( self::SLUG, __( 'Scanner-Geräte', 'pass-captain' ), __( 'Scanner-Geräte', 'pass-captain' ), DevicesPage::CAP, DevicesPage::SLUG, array( DevicesPage::class, 'render' ) );
 		foreach ( \PassCaptain\Modules::admin_pages() as $page ) {
 			list( $slug, $title, $cap, $callback ) = $page;
 			add_submenu_page( self::SLUG, $title, $title, $cap, $slug, $callback );
 		}
-		add_submenu_page( self::SLUG, __( 'Einstellungen', 'wp-pass-captain' ), __( 'Einstellungen', 'wp-pass-captain' ), SettingsPage::CAP, SettingsPage::SLUG, array( SettingsPage::class, 'render' ) );
+		add_submenu_page( self::SLUG, __( 'Einstellungen', 'pass-captain' ), __( 'Einstellungen', 'pass-captain' ), SettingsPage::CAP, SettingsPage::SLUG, array( SettingsPage::class, 'render' ) );
 		if ( \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) {
 			// Links into Voucher Captain's own menu (both plugins keep their menus, CONCEPT 15.7).
-			add_submenu_page( self::SLUG, __( 'Gemeinsamer Scanner', 'wp-pass-captain' ), __( 'Gemeinsamer Scanner ↗', 'wp-pass-captain' ), 'wpcap_checkin', 'admin.php?page=vcap-scanner' );
-			add_submenu_page( self::SLUG, __( 'WP Voucher Captain', 'wp-pass-captain' ), __( 'WP Voucher Captain ↗', 'wp-pass-captain' ), 'manage_woocommerce', 'admin.php?page=vcap-vouchers' );
+			add_submenu_page( self::SLUG, __( 'Gemeinsamer Scanner', 'pass-captain' ), __( 'Gemeinsamer Scanner ↗', 'pass-captain' ), 'wpcap_checkin', 'admin.php?page=vcap-scanner' );
+			add_submenu_page( self::SLUG, __( 'WP Voucher Captain', 'pass-captain' ), __( 'WP Voucher Captain ↗', 'pass-captain' ), 'manage_woocommerce', 'admin.php?page=vcap-vouchers' );
 		}
 	}
 }

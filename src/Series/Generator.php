@@ -63,25 +63,25 @@ final class Generator {
 		global $wpdb;
 		$event_id = absint( $in['event_id'] ?? 0 );
 		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) );
-		if ( ! $event ) { return self::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
-		if ( 'cancelled' === $event->status ) { return self::error( 'wpcap_event_cancelled', __( 'Abgesagte Events können nicht mehr bearbeitet werden.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $event ) { return self::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
+		if ( 'cancelled' === $event->status ) { return self::error( 'wpcap_event_cancelled', __( 'Abgesagte Events können nicht mehr bearbeitet werden.', 'pass-captain' ), 409 ); }
 		$rule = Rules::normalize( $in );
 		if ( is_wp_error( $rule ) ) { return $rule; }
 		$template_id = absint( $in['template_occurrence_id'] ?? 0 );
 		if ( $template_id ) {
 			$template = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $template_id ) );
-			if ( ! $template || (int) $template->event_id !== $event_id ) { return self::error( 'wpcap_series_template', __( 'Der Vorlagentermin gehört nicht zu diesem Event.', 'wp-pass-captain' ) ); }
+			if ( ! $template || (int) $template->event_id !== $event_id ) { return self::error( 'wpcap_series_template', __( 'Der Vorlagentermin gehört nicht zu diesem Event.', 'pass-captain' ) ); }
 		}
 		$sales_start = self::optional_int( $in['sales_start_days_before'] ?? '' );
 		$sales_end = self::optional_int( $in['sales_end_minutes_before'] ?? '' );
 		if ( false === $sales_start || false === $sales_end || ( null !== $sales_start && $sales_start > 730 ) || ( null !== $sales_end && $sales_end > 60 * 24 * 60 ) ) {
-			return self::error( 'wpcap_series_sales', __( 'Der Verkaufszeitraum ist ungültig.', 'wp-pass-captain' ) );
+			return self::error( 'wpcap_series_sales', __( 'Der Verkaufszeitraum ist ungültig.', 'pass-captain' ) );
 		}
 		$seat_version = absint( $in['seat_version_id'] ?? 0 );
 		if ( $seat_version ) {
 			$version_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_seating_versions WHERE version_id=%d", $seat_version ) );
-			if ( $version_event !== $event_id ) { return self::error( 'wpcap_series_seat_map', __( 'Die Saalplan-Version gehört nicht zu diesem Event.', 'wp-pass-captain' ) ); }
+			if ( $version_event !== $event_id ) { return self::error( 'wpcap_series_seat_map', __( 'Die Saalplan-Version gehört nicht zu diesem Event.', 'pass-captain' ) ); }
 		}
 		$definition = array(
 			'event_id' => $event_id,
@@ -204,7 +204,7 @@ final class Generator {
 			$wpdb->query( 'COMMIT' );
 		} catch ( \Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_series_failed', __( 'Die Serientermine konnten nicht angelegt werden; es wurde nichts gespeichert.', 'wp-pass-captain' ), 500 );
+			return self::error( 'wpcap_series_failed', __( 'Die Serientermine konnten nicht angelegt werden; es wurde nichts gespeichert.', 'pass-captain' ), 500 );
 		}
 		$seat_links = self::link_seat_maps( $definition, $type_maps );
 		foreach ( $created as $occurrence_id ) {

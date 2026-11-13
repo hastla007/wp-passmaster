@@ -1,4 +1,4 @@
-/* SMS opt-in for the WP Pass Captain checkout: adds sms_phone/sms_consent to the payload only with consent. */
+/* SMS opt-in for the Pass Captain checkout: adds sms_phone/sms_consent to the payload only with consent. */
 ( function () {
 	'use strict';
 	var config = window.WPCAP_SMS || {};

@@ -32,8 +32,8 @@ final class OrdersPage {
 	/** Loads an order the current user may act on. */
 	private static function order_for_action( array $in ) {
 		$order = Orders::get( Forms::int( $in, 'order_id' ) );
-		if ( ! $order ) { return Forms::error( 'wpcap_order_missing', __( 'Bestellung nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Queries::can_access_order( $order->order_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für diese Bestellung.', 'wp-pass-captain' ) ); }
+		if ( ! $order ) { return Forms::error( 'wpcap_order_missing', __( 'Bestellung nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Queries::can_access_order( $order->order_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für diese Bestellung.', 'pass-captain' ) ); }
 		return $order;
 	}
 
@@ -46,7 +46,7 @@ final class OrdersPage {
 		$order = self::order_for_action( $in );
 		if ( is_wp_error( $order ) ) { return $order; }
 		if ( 'manual' !== $order->payment_provider ) {
-			return Forms::error( 'wpcap_not_manual', __( 'Nur Bestellungen mit manueller Zahlart können hier als bezahlt markiert werden.', 'wp-pass-captain' ), 409 );
+			return Forms::error( 'wpcap_not_manual', __( 'Nur Bestellungen mit manueller Zahlart können hier als bezahlt markiert werden.', 'pass-captain' ), 409 );
 		}
 		$result = Orders::confirm_manual_payment( $order->order_id );
 		if ( is_wp_error( $result ) ) { return Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ); }
@@ -58,10 +58,10 @@ final class OrdersPage {
 		$order = self::order_for_action( $in );
 		if ( is_wp_error( $order ) ) { return $order; }
 		if ( 'woocommerce' === $order->payment_provider ) {
-			return Forms::error( 'wpcap_order_woocommerce', __( 'WooCommerce-Bestellungen bitte in WooCommerce stornieren.', 'wp-pass-captain' ), 409 );
+			return Forms::error( 'wpcap_order_woocommerce', __( 'WooCommerce-Bestellungen bitte in WooCommerce stornieren.', 'pass-captain' ), 409 );
 		}
 		if ( 'pending' !== $order->payment_status || 'pending_payment' !== $order->status ) {
-			return Forms::error( 'wpcap_order_not_unpaid', __( 'Nur unbezahlte, offene Bestellungen können storniert werden. Bezahlte Bestellungen bitte erstatten.', 'wp-pass-captain' ), 409 );
+			return Forms::error( 'wpcap_order_not_unpaid', __( 'Nur unbezahlte, offene Bestellungen können storniert werden. Bezahlte Bestellungen bitte erstatten.', 'pass-captain' ), 409 );
 		}
 		Orders::cancel_order( $order->order_id, Forms::text( $in, 'reason', 255 ) ?: 'admin_cancel' );
 		return array( 'order_id' => (int) $order->order_id );
@@ -83,20 +83,20 @@ final class OrdersPage {
 	public static function refund( array $in ) {
 		$order = self::order_for_action( $in );
 		if ( is_wp_error( $order ) ) { return $order; }
-		if ( ! self::can_request_refunds() ) { return Forms::forbidden( __( 'Keine Berechtigung für Erstattungen.', 'wp-pass-captain' ) ); }
+		if ( ! self::can_request_refunds() ) { return Forms::forbidden( __( 'Keine Berechtigung für Erstattungen.', 'pass-captain' ) ); }
 		if ( 'woocommerce' === $order->payment_provider ) {
-			return Forms::error( 'wpcap_refund_woocommerce', __( 'WooCommerce-Bestellungen bitte in WooCommerce erstatten; die Tickets werden automatisch widerrufen.', 'wp-pass-captain' ), 409 );
+			return Forms::error( 'wpcap_refund_woocommerce', __( 'WooCommerce-Bestellungen bitte in WooCommerce erstatten; die Tickets werden automatisch widerrufen.', 'pass-captain' ), 409 );
 		}
 		$reason = Forms::text( $in, 'reason', 255 );
-		if ( '' === $reason ) { return Forms::error( 'wpcap_refund_reason', __( 'Bitte einen Grund für die Erstattung angeben.', 'wp-pass-captain' ) ); }
+		if ( '' === $reason ) { return Forms::error( 'wpcap_refund_reason', __( 'Bitte einen Grund für die Erstattung angeben.', 'pass-captain' ) ); }
 		$key = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) ( $in['idempotency_key'] ?? '' ) );
 		if ( strlen( $key ) < 16 || strlen( $key ) > 64 ) {
-			return Forms::error( 'wpcap_refund_key', __( 'Das Formular ist abgelaufen. Bitte die Seite neu laden.', 'wp-pass-captain' ) );
+			return Forms::error( 'wpcap_refund_key', __( 'Das Formular ist abgelaufen. Bitte die Seite neu laden.', 'pass-captain' ) );
 		}
 		$all = Forms::flag( $in, 'refund_all' );
 		$ticket_ids = $all ? array() : Forms::ids( $in, 'ticket_ids' );
 		if ( ! $all && ! $ticket_ids ) {
-			return Forms::error( 'wpcap_refund_tickets', __( 'Bitte Tickets auswählen oder „Alle offenen Tickets“ wählen.', 'wp-pass-captain' ) );
+			return Forms::error( 'wpcap_refund_tickets', __( 'Bitte Tickets auswählen oder „Alle offenen Tickets“ wählen.', 'pass-captain' ) );
 		}
 		$result = Refunds::request( $order->order_id, $ticket_ids, $reason, $key );
 		if ( is_wp_error( $result ) ) {
@@ -108,12 +108,12 @@ final class OrdersPage {
 
 	/** Loads a pending refund the current user may decide on. */
 	private static function refund_for_decision( array $in ) {
-		if ( ! current_user_can( Refunds::APPROVE_CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für Erstattungsfreigaben.', 'wp-pass-captain' ) ); }
+		if ( ! current_user_can( Refunds::APPROVE_CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für Erstattungsfreigaben.', 'pass-captain' ) ); }
 		$refund = Refunds::get( Forms::int( $in, 'refund_id' ) );
-		if ( ! $refund ) { return Forms::error( 'wpcap_refund_missing', __( 'Erstattung nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Queries::can_access_order( $refund['order_id'], self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für diese Bestellung.', 'wp-pass-captain' ) ); }
+		if ( ! $refund ) { return Forms::error( 'wpcap_refund_missing', __( 'Erstattung nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Queries::can_access_order( $refund['order_id'], self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für diese Bestellung.', 'pass-captain' ) ); }
 		if ( 'pending_approval' !== $refund['status'] ) {
-			return Forms::error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'wp-pass-captain' ), 409 );
+			return Forms::error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'pass-captain' ), 409 );
 		}
 		return $refund;
 	}
@@ -123,7 +123,7 @@ final class OrdersPage {
 		$refund = self::refund_for_decision( $in );
 		if ( is_wp_error( $refund ) ) { return $refund; }
 		if ( (int) $refund['requested_by'] === get_current_user_id() ) {
-			return Forms::error( 'wpcap_refund_same_person', __( 'Die Freigabe muss durch eine andere berechtigte Person erfolgen.', 'wp-pass-captain' ), 409 );
+			return Forms::error( 'wpcap_refund_same_person', __( 'Die Freigabe muss durch eine andere berechtigte Person erfolgen.', 'pass-captain' ), 409 );
 		}
 		$result = Refunds::approve( $refund['refund_id'] );
 		if ( is_wp_error( $result ) ) { return Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ); }
@@ -135,7 +135,7 @@ final class OrdersPage {
 		$refund = self::refund_for_decision( $in );
 		if ( is_wp_error( $refund ) ) { return $refund; }
 		$reason = Forms::text( $in, 'reason', 255 );
-		if ( '' === $reason ) { return Forms::error( 'wpcap_refund_reason', __( 'Bitte einen Grund für die Ablehnung angeben.', 'wp-pass-captain' ) ); }
+		if ( '' === $reason ) { return Forms::error( 'wpcap_refund_reason', __( 'Bitte einen Grund für die Ablehnung angeben.', 'pass-captain' ) ); }
 		$result = Refunds::reject( $refund['refund_id'], $reason );
 		if ( is_wp_error( $result ) ) { return Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ); }
 		\PassCaptain\Audit::record( 'refund_rejected', 'order', (int) $refund['order_id'], array( 'refund_id' => (int) $refund['refund_id'], 'reason' => $reason ) );
@@ -159,21 +159,21 @@ final class OrdersPage {
 		$in = Forms::post();
 		$order_id = Forms::int( $in, 'order_id' );
 		Forms::verify( 'wpcap_confirm_payment_' . $order_id );
-		Forms::finish( self::confirm_payment( $in ), __( 'Zahlung bestätigt; Tickets wurden ausgestellt.', 'wp-pass-captain' ), self::order_url( $order_id ) );
+		Forms::finish( self::confirm_payment( $in ), __( 'Zahlung bestätigt; Tickets wurden ausgestellt.', 'pass-captain' ), self::order_url( $order_id ) );
 	}
 
 	public static function handle_cancel_order() {
 		$in = Forms::post();
 		$order_id = Forms::int( $in, 'order_id' );
 		Forms::verify( 'wpcap_cancel_order_' . $order_id );
-		Forms::finish( self::cancel_order( $in ), __( 'Bestellung storniert.', 'wp-pass-captain' ), self::order_url( $order_id ) );
+		Forms::finish( self::cancel_order( $in ), __( 'Bestellung storniert.', 'pass-captain' ), self::order_url( $order_id ) );
 	}
 
 	public static function handle_resend_tickets() {
 		$in = Forms::post();
 		$order_id = Forms::int( $in, 'order_id' );
 		Forms::verify( 'wpcap_resend_tickets_' . $order_id );
-		Forms::finish( self::resend_tickets( $in ), __( 'Tickets wurden mit neuen Codes erneut gesendet.', 'wp-pass-captain' ), self::order_url( $order_id ) );
+		Forms::finish( self::resend_tickets( $in ), __( 'Tickets wurden mit neuen Codes erneut gesendet.', 'pass-captain' ), self::order_url( $order_id ) );
 	}
 
 	public static function handle_refund() {
@@ -184,7 +184,7 @@ final class OrdersPage {
 		$message = '';
 		if ( ! is_wp_error( $result ) ) {
 			$status = $result['refund']['status'] ?? '';
-			$message = 'pending_approval' === $status ? __( 'Erstattung angefordert. Sie wartet auf die Freigabe durch eine zweite Person.', 'wp-pass-captain' ) : sprintf( /* translators: %s: status */ __( 'Erstattung verarbeitet (Status: %s).', 'wp-pass-captain' ), Forms::status_label( $status ) );
+			$message = 'pending_approval' === $status ? __( 'Erstattung angefordert. Sie wartet auf die Freigabe durch eine zweite Person.', 'pass-captain' ) : sprintf( /* translators: %s: status */ __( 'Erstattung verarbeitet (Status: %s).', 'pass-captain' ), Forms::status_label( $status ) );
 		}
 		Forms::finish( $result, $message, self::order_url( $order_id ) );
 	}
@@ -194,7 +194,7 @@ final class OrdersPage {
 		Forms::verify( 'wpcap_approve_refund_' . Forms::int( $in, 'refund_id' ) );
 		$result = self::approve_refund( $in );
 		$order_id = is_wp_error( $result ) ? Forms::int( $in, 'order_id' ) : $result['order_id'];
-		Forms::finish( $result, __( 'Erstattung freigegeben.', 'wp-pass-captain' ), self::decision_url( $in, $order_id ) );
+		Forms::finish( $result, __( 'Erstattung freigegeben.', 'pass-captain' ), self::decision_url( $in, $order_id ) );
 	}
 
 	public static function handle_reject_refund() {
@@ -202,7 +202,7 @@ final class OrdersPage {
 		Forms::verify( 'wpcap_reject_refund_' . Forms::int( $in, 'refund_id' ) );
 		$result = self::reject_refund( $in );
 		$order_id = is_wp_error( $result ) ? Forms::int( $in, 'order_id' ) : $result['order_id'];
-		Forms::finish( $result, __( 'Erstattung abgelehnt.', 'wp-pass-captain' ), self::decision_url( $in, $order_id ) );
+		Forms::finish( $result, __( 'Erstattung abgelehnt.', 'pass-captain' ), self::decision_url( $in, $order_id ) );
 	}
 
 	/* =============================================================================================
@@ -210,7 +210,7 @@ final class OrdersPage {
 	 * =========================================================================================== */
 
 	public static function render() {
-		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		echo '<div class="wrap wpcap-admin">';
 		$order_id = absint( $_GET['order_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification
 		if ( $order_id ) {
@@ -234,40 +234,40 @@ final class OrdersPage {
 		$data = Queries::search_orders( $filters, $scope, $page, $per_page );
 		$events = Queries::event_options( $scope );
 		$base = Forms::page_url( self::SLUG, array_filter( array( 'status' => $filters['status'], 'payment_status' => $filters['payment_status'], 's' => $filters['search'], 'event_id' => $filters['event_id'] ) ) );
-		$status_options = array( '' => __( 'Alle Bestellstatus', 'wp-pass-captain' ) );
+		$status_options = array( '' => __( 'Alle Bestellstatus', 'pass-captain' ) );
 		foreach ( self::ORDER_STATUSES as $s ) { $status_options[ $s ] = Forms::status_label( $s ); }
-		$payment_options = array( '' => __( 'Alle Zahlungsstatus', 'wp-pass-captain' ) );
+		$payment_options = array( '' => __( 'Alle Zahlungsstatus', 'pass-captain' ) );
 		foreach ( self::PAYMENT_STATUSES as $s ) { $payment_options[ $s ] = Forms::status_label( $s ); }
 		?>
-		<h1><?php esc_html_e( 'Bestellungen', 'wp-pass-captain' ); ?></h1>
+		<h1><?php esc_html_e( 'Bestellungen', 'pass-captain' ); ?></h1>
 		<?php Forms::render_notices(); ?>
 		<form method="get" class="wpcap-filters">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
-			<?php Forms::select( 'status', $status_options, $filters['status'], '', 'aria-label="' . esc_attr__( 'Bestellstatus', 'wp-pass-captain' ) . '"' ); ?>
-			<?php Forms::select( 'payment_status', $payment_options, $filters['payment_status'], '', 'aria-label="' . esc_attr__( 'Zahlungsstatus', 'wp-pass-captain' ) . '"' ); ?>
-			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'wp-pass-captain' ) ) + $events, $filters['event_id'], '', 'aria-label="' . esc_attr__( 'Event', 'wp-pass-captain' ) . '"' ); ?>
-			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'wp-pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'wp-pass-captain' ); ?>">
-			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'wp-pass-captain' ); ?></button>
+			<?php Forms::select( 'status', $status_options, $filters['status'], '', 'aria-label="' . esc_attr__( 'Bestellstatus', 'pass-captain' ) . '"' ); ?>
+			<?php Forms::select( 'payment_status', $payment_options, $filters['payment_status'], '', 'aria-label="' . esc_attr__( 'Zahlungsstatus', 'pass-captain' ) . '"' ); ?>
+			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $filters['event_id'], '', 'aria-label="' . esc_attr__( 'Event', 'pass-captain' ) . '"' ); ?>
+			<input type="search" name="s" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'pass-captain' ); ?>" aria-label="<?php esc_attr_e( 'Bestellnummer oder E-Mail', 'pass-captain' ); ?>">
+			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
 		</form>
 		<table class="widefat striped">
 			<thead><tr>
-				<th><?php esc_html_e( 'Bestellung', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Datum', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'E-Mail', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Event', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Summe', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Zahlart', 'wp-pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Bestellung', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Datum', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'E-Mail', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Event', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Summe', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Zahlart', 'pass-captain' ); ?></th>
 			</tr></thead>
 			<tbody>
-			<?php if ( ! $data['rows'] ) : ?><tr><td colspan="7"><?php esc_html_e( 'Keine Bestellungen gefunden.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
+			<?php if ( ! $data['rows'] ) : ?><tr><td colspan="7"><?php esc_html_e( 'Keine Bestellungen gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 			<?php foreach ( $data['rows'] as $order ) : ?>
 				<tr>
 					<td><a href="<?php echo esc_url( self::order_url( $order->order_id ) ); ?>"><code><?php echo esc_html( substr( $order->public_id, 0, 12 ) ); ?>…</code></a></td>
 					<td><?php echo esc_html( Forms::datetime( $order->created_at, wp_timezone_string(), false ) ); ?></td>
 					<td><?php echo esc_html( $order->customer_email ); ?></td>
 					<td><?php echo esc_html( (string) $order->event_names ); ?></td>
-					<td><?php echo esc_html( Forms::money( $order->total_minor, $order->currency ) ); ?><?php if ( (int) $order->refunded_minor ) : ?><br><small><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'erstattet: %s', 'wp-pass-captain' ), Forms::money( $order->refunded_minor, $order->currency ) ) ); ?></small><?php endif; ?></td>
+					<td><?php echo esc_html( Forms::money( $order->total_minor, $order->currency ) ); ?><?php if ( (int) $order->refunded_minor ) : ?><br><small><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'erstattet: %s', 'pass-captain' ), Forms::money( $order->refunded_minor, $order->currency ) ) ); ?></small><?php endif; ?></td>
 					<td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td>
 					<td><?php echo esc_html( $order->payment_provider ); ?></td>
 				</tr>
@@ -289,8 +289,8 @@ final class OrdersPage {
 		$order = Orders::get( $order_id );
 		$list_url = Forms::page_url( self::SLUG );
 		if ( ! $order || ! Queries::can_access_order( $order_id, self::CAP ) ) {
-			echo '<div class="notice notice-error"><p>' . esc_html__( 'Bestellung nicht gefunden oder keine Berechtigung.', 'wp-pass-captain' ) . '</p></div>';
-			echo '<p><a href="' . esc_url( $list_url ) . '">' . esc_html__( '← Zur Bestellliste', 'wp-pass-captain' ) . '</a></p>';
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Bestellung nicht gefunden oder keine Berechtigung.', 'pass-captain' ) . '</p></div>';
+			echo '<p><a href="' . esc_url( $list_url ) . '">' . esc_html__( '← Zur Bestellliste', 'pass-captain' ) . '</a></p>';
 			return;
 		}
 		$items = Queries::order_items( $order_id );
@@ -300,44 +300,44 @@ final class OrdersPage {
 		$currency = $order->currency;
 		$tz = wp_timezone_string();
 		?>
-		<p><a href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( '← Zur Bestellliste', 'wp-pass-captain' ); ?></a></p>
-		<h1><?php echo esc_html( sprintf( /* translators: %s: order id */ __( 'Bestellung %s', 'wp-pass-captain' ), $order->public_id ) ); ?></h1>
+		<p><a href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( '← Zur Bestellliste', 'pass-captain' ); ?></a></p>
+		<h1><?php echo esc_html( sprintf( /* translators: %s: order id */ __( 'Bestellung %s', 'pass-captain' ), $order->public_id ) ); ?></h1>
 		<?php Forms::render_notices(); ?>
 		<?php if ( $is_woo ) :
 			$wc_id = self::woocommerce_order_id( $order_id );
 			?>
 			<div class="notice notice-info inline"><p>
-				<?php esc_html_e( 'Diese Bestellung wurde über WooCommerce abgewickelt und ist hier nur lesbar. Zahlungen, Stornos und Erstattungen bitte in WooCommerce durchführen; Tickets werden automatisch widerrufen.', 'wp-pass-captain' ); ?>
-				<?php if ( $wc_id ) : ?> <a href="<?php echo esc_url( admin_url( 'post.php?post=' . $wc_id . '&action=edit' ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: WooCommerce order id */ __( 'WooCommerce-Bestellung #%d öffnen', 'wp-pass-captain' ), $wc_id ) ); ?></a><?php endif; ?>
+				<?php esc_html_e( 'Diese Bestellung wurde über WooCommerce abgewickelt und ist hier nur lesbar. Zahlungen, Stornos und Erstattungen bitte in WooCommerce durchführen; Tickets werden automatisch widerrufen.', 'pass-captain' ); ?>
+				<?php if ( $wc_id ) : ?> <a href="<?php echo esc_url( admin_url( 'post.php?post=' . $wc_id . '&action=edit' ) ); ?>"><?php echo esc_html( sprintf( /* translators: %d: WooCommerce order id */ __( 'WooCommerce-Bestellung #%d öffnen', 'pass-captain' ), $wc_id ) ); ?></a><?php endif; ?>
 			</p></div>
 		<?php endif; ?>
 		<?php $voucher = \PassCaptain\Integrations\Vouchers\Checkout::voucher_state( $order_id ); ?>
 		<?php if ( $voucher && 'commit_failed' === ( $voucher['status'] ?? '' ) ) : ?>
-			<div class="notice notice-error inline"><p><?php echo esc_html( sprintf( /* translators: 1: amount, 2: error code */ __( 'Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten.', 'wp-pass-captain' ), Forms::money( (int) $voucher['amount_minor'], $order->currency ), (string) ( $voucher['error'] ?? '' ) ) ); ?></p></div>
+			<div class="notice notice-error inline"><p><?php echo esc_html( sprintf( /* translators: 1: amount, 2: error code */ __( 'Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten.', 'pass-captain' ), Forms::money( (int) $voucher['amount_minor'], $order->currency ), (string) ( $voucher['error'] ?? '' ) ) ); ?></p></div>
 		<?php endif; ?>
 		<?php if ( 'needs_review' === $order->status ) : ?>
-			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben oder die Zahlung außerhalb des Plugins zurückerstatten.', 'wp-pass-captain' ); ?></p></div>
+			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben oder die Zahlung außerhalb des Plugins zurückerstatten.', 'pass-captain' ); ?></p></div>
 		<?php endif; ?>
 
 		<table class="form-table"><tbody>
-			<tr><th><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td></tr>
-			<tr><th><?php esc_html_e( 'Käufer', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( $order->customer_email ); ?></td></tr>
+			<tr><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td></tr>
+			<tr><th><?php esc_html_e( 'Käufer', 'pass-captain' ); ?></th><td><?php echo esc_html( $order->customer_email ); ?></td></tr>
 			<?php $billing = \PassCaptain\Billing::for_order( $order ); ?>
-			<tr><th><?php esc_html_e( 'Rechnungsdaten', 'wp-pass-captain' ); ?></th><td class="wpcap-order-billing"><?php echo $billing ? implode( '<br>', array_map( 'esc_html', array_merge( \PassCaptain\Billing::address_lines( $billing ), \PassCaptain\Billing::detail_lines( $billing ) ) ) ) : esc_html__( 'Keine (Rechnung nur mit E-Mail-Adresse)', 'wp-pass-captain' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each line escaped. ?></td></tr>
-			<tr><th><?php esc_html_e( 'Angelegt', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( Forms::datetime( $order->created_at, $tz ) ); ?></td></tr>
-			<tr><th><?php esc_html_e( 'Zahlart / Referenz', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( $order->payment_provider . ( '' !== (string) $order->provider_reference ? ' / ' . $order->provider_reference : '' ) ); ?></td></tr>
+			<tr><th><?php esc_html_e( 'Rechnungsdaten', 'pass-captain' ); ?></th><td class="wpcap-order-billing"><?php echo $billing ? implode( '<br>', array_map( 'esc_html', array_merge( \PassCaptain\Billing::address_lines( $billing ), \PassCaptain\Billing::detail_lines( $billing ) ) ) ) : esc_html__( 'Keine (Rechnung nur mit E-Mail-Adresse)', 'pass-captain' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each line escaped. ?></td></tr>
+			<tr><th><?php esc_html_e( 'Angelegt', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::datetime( $order->created_at, $tz ) ); ?></td></tr>
+			<tr><th><?php esc_html_e( 'Zahlart / Referenz', 'pass-captain' ); ?></th><td><?php echo esc_html( $order->payment_provider . ( '' !== (string) $order->provider_reference ? ' / ' . $order->provider_reference : '' ) ); ?></td></tr>
 			<?php
 			global $wpdb;
 			$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_id,invoice_number FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d LIMIT 1", $order_id ) );
 			$credit_notes = $invoice ? $wpdb->get_col( $wpdb->prepare( "SELECT credit_note_number FROM {$wpdb->prefix}wpcap_credit_notes WHERE invoice_id=%d ORDER BY credit_note_id", $invoice->invoice_id ) ) : array();
 			$invoice_url = add_query_arg( array( 'action' => 'wpcap_print_invoice', 'order_id' => (int) $order_id ), admin_url( 'admin-post.php' ) );
 			?>
-			<tr><th><?php esc_html_e( 'Rechnung', 'wp-pass-captain' ); ?></th><td>
+			<tr><th><?php esc_html_e( 'Rechnung', 'pass-captain' ); ?></th><td>
 				<?php if ( $invoice ) : ?>
-					<a href="<?php echo esc_url( $invoice_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( sprintf( /* translators: %s: invoice number */ __( 'Rechnung %s anzeigen', 'wp-pass-captain' ), $invoice->invoice_number ) ); ?></a>
-					<?php if ( $credit_notes ) : ?><br><?php echo esc_html( sprintf( /* translators: %s: credit note numbers */ __( 'Gutschriften (in der Rechnungsansicht): %s', 'wp-pass-captain' ), implode( ', ', $credit_notes ) ) ); ?><?php endif; ?>
+					<a href="<?php echo esc_url( $invoice_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( sprintf( /* translators: %s: invoice number */ __( 'Rechnung %s anzeigen', 'pass-captain' ), $invoice->invoice_number ) ); ?></a>
+					<?php if ( $credit_notes ) : ?><br><?php echo esc_html( sprintf( /* translators: %s: credit note numbers */ __( 'Gutschriften (in der Rechnungsansicht): %s', 'pass-captain' ), implode( ', ', $credit_notes ) ) ); ?><?php endif; ?>
 				<?php elseif ( 'paid' === $order->payment_status && current_user_can( 'wpcap_view_finance' ) ) : ?>
-					<a class="button" href="<?php echo esc_url( wp_nonce_url( $invoice_url, 'wpcap_issue_invoice_' . (int) $order_id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Rechnung erstellen', 'wp-pass-captain' ); ?></a>
+					<a class="button" href="<?php echo esc_url( wp_nonce_url( $invoice_url, 'wpcap_issue_invoice_' . (int) $order_id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Rechnung erstellen', 'pass-captain' ); ?></a>
 				<?php else : ?>—<?php endif; ?>
 			</td></tr>
 			<?php
@@ -349,25 +349,25 @@ final class OrdersPage {
 				$sales_label = is_wp_error( $sales_context ) ? '' : \PassCaptain\Invoices::seller_label( array( 'sales_model' => $sales_context['model'], 'seller' => $sales_context['seller'] ) );
 			}
 			?>
-			<tr><th><?php esc_html_e( 'Verkaufsmodell', 'wp-pass-captain' ); ?></th><td>
+			<tr><th><?php esc_html_e( 'Verkaufsmodell', 'pass-captain' ); ?></th><td>
 				<?php if ( ! $invoice && isset( $sales_context ) && is_wp_error( $sales_context ) ) : ?>
 					<div class="notice notice-error inline"><p><?php echo esc_html( $sales_context->get_error_message() ); ?></p></div>
 				<?php else : ?><?php echo esc_html( $sales_label ); ?><?php endif; ?>
 			</td></tr>
-			<tr><th><?php esc_html_e( 'Version AGB/Verbraucherinfo', 'wp-pass-captain' ); ?></th><td><?php echo esc_html( '' !== (string) $order->terms_version ? $order->terms_version : '—' ); ?></td></tr>
+			<tr><th><?php esc_html_e( 'Version AGB/Verbraucherinfo', 'pass-captain' ); ?></th><td><?php echo esc_html( '' !== (string) $order->terms_version ? $order->terms_version : '—' ); ?></td></tr>
 		</tbody></table>
 
-		<h2><?php esc_html_e( 'Positionen', 'wp-pass-captain' ); ?></h2>
+		<h2><?php esc_html_e( 'Positionen', 'pass-captain' ); ?></h2>
 		<table class="widefat striped">
 			<thead><tr>
-				<th><?php esc_html_e( 'Ticketart', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Termin', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Menge', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Einzelpreis', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Steuersatz', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'enth. Steuer', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Summe', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Erstattet (Stk.)', 'wp-pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Ticketart', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Termin', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Menge', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Einzelpreis', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Steuersatz', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'enth. Steuer', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Summe', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Erstattet (Stk.)', 'pass-captain' ); ?></th>
 			</tr></thead>
 			<tbody>
 			<?php foreach ( $items as $item ) : ?>
@@ -384,22 +384,22 @@ final class OrdersPage {
 			<?php endforeach; ?>
 			</tbody>
 			<tfoot>
-				<tr><th colspan="6"><?php esc_html_e( 'Zwischensumme', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->subtotal_minor, $currency ) ); ?></td></tr>
-				<?php if ( (int) $order->discount_minor ) : ?><tr><th colspan="6"><?php esc_html_e( 'Rabatt', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( '− ' . Forms::money( $order->discount_minor, $currency ) ); ?></td></tr><?php endif; ?>
+				<tr><th colspan="6"><?php esc_html_e( 'Zwischensumme', 'pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->subtotal_minor, $currency ) ); ?></td></tr>
+				<?php if ( (int) $order->discount_minor ) : ?><tr><th colspan="6"><?php esc_html_e( 'Rabatt', 'pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( '− ' . Forms::money( $order->discount_minor, $currency ) ); ?></td></tr><?php endif; ?>
 				<?php $voucher_paid = class_exists( '\\PassCaptain\\Integrations\\Vouchers\\Checkout' ) ? \PassCaptain\Integrations\Vouchers\Checkout::voucher_payment_minor( $order ) : 0; ?>
-				<tr><th colspan="6"><?php esc_html_e( 'Gesamt (brutto)', 'wp-pass-captain' ); ?></th><td colspan="2"><strong><?php echo esc_html( Forms::money( (int) $order->total_minor + $voucher_paid, $currency ) ); ?></strong></td></tr>
+				<tr><th colspan="6"><?php esc_html_e( 'Gesamt (brutto)', 'pass-captain' ); ?></th><td colspan="2"><strong><?php echo esc_html( Forms::money( (int) $order->total_minor + $voucher_paid, $currency ) ); ?></strong></td></tr>
 				<?php if ( $voucher_paid ) : ?>
-					<tr><th colspan="6"><?php esc_html_e( 'davon bezahlt mit Mehrzweckgutschein', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $voucher_paid, $currency ) ); ?></td></tr>
-					<tr><th colspan="6"><?php esc_html_e( 'Zahlbetrag', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->total_minor, $currency ) ); ?></td></tr>
+					<tr><th colspan="6"><?php esc_html_e( 'davon bezahlt mit Mehrzweckgutschein', 'pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $voucher_paid, $currency ) ); ?></td></tr>
+					<tr><th colspan="6"><?php esc_html_e( 'Zahlbetrag', 'pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->total_minor, $currency ) ); ?></td></tr>
 				<?php endif; ?>
-				<tr><th colspan="6"><?php esc_html_e( 'darin enthaltene Steuer', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->tax_minor, $currency ) ); ?></td></tr>
-				<tr><th colspan="6"><?php esc_html_e( 'Erstattet', 'wp-pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->refunded_minor, $currency ) ); ?></td></tr>
+				<tr><th colspan="6"><?php esc_html_e( 'darin enthaltene Steuer', 'pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->tax_minor, $currency ) ); ?></td></tr>
+				<tr><th colspan="6"><?php esc_html_e( 'Erstattet', 'pass-captain' ); ?></th><td colspan="2"><?php echo esc_html( Forms::money( $order->refunded_minor, $currency ) ); ?></td></tr>
 			</tfoot>
 		</table>
 
 		<?php if ( ! $is_woo ) { self::render_actions( $order ); } ?>
 
-		<h2><?php esc_html_e( 'Tickets', 'wp-pass-captain' ); ?></h2>
+		<h2><?php esc_html_e( 'Tickets', 'pass-captain' ); ?></h2>
 		<?php
 		$in_progress = array();
 		foreach ( $refunds as $refund ) {
@@ -418,24 +418,24 @@ final class OrdersPage {
 		<table class="widefat striped">
 			<thead><tr>
 				<?php if ( $can_refund ) : ?><td class="check-column"></td><?php endif; ?>
-				<th><?php esc_html_e( 'Ticket', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Art', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Teilnehmer', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Angaben', 'wp-pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Ticket', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Art', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Teilnehmer', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Angaben', 'pass-captain' ); ?></th>
 			</tr></thead>
 			<tbody>
-			<?php if ( ! $tickets ) : ?><tr><td colspan="6"><?php esc_html_e( 'Noch keine Tickets ausgestellt.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
+			<?php if ( ! $tickets ) : ?><tr><td colspan="6"><?php esc_html_e( 'Noch keine Tickets ausgestellt.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 			<?php foreach ( $tickets as $index => $ticket ) :
 				$email = '' !== (string) $ticket->assigned_email ? $ticket->assigned_email : $ticket->attendee_email;
 				?>
 				<tr>
 					<?php if ( $can_refund ) : ?>
-						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s erstatten', 'wp-pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></th>
+						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s erstatten', 'pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></th>
 					<?php endif; ?>
 					<td><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $ticket->public_id ) ) ); ?>"><code><?php echo esc_html( $ticket->public_id ); ?></code></a></td>
 					<td><?php echo esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ); ?></td>
-					<td><?php echo esc_html( Forms::status_label( $ticket->status ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'wp-pass-captain' ) . ')' : ( in_array( (int) $ticket->ticket_id, $in_progress, true ) ? ' (' . __( 'Erstattung läuft', 'wp-pass-captain' ) . ')' : '' ) ) ); ?></td>
+					<td><?php echo esc_html( Forms::status_label( $ticket->status ) . ( (int) $ticket->refunded ? ' (' . __( 'erstattet', 'pass-captain' ) . ')' : ( in_array( (int) $ticket->ticket_id, $in_progress, true ) ? ' (' . __( 'Erstattung läuft', 'pass-captain' ) . ')' : '' ) ) ); ?></td>
 					<td><?php echo esc_html( trim( (string) $ticket->attendee_name . ' ' . ( $email ? '<' . $email . '>' : '' ) ) ?: '—' ); ?></td>
 					<td>
 						<?php foreach ( $ticket->answers as $label => $answer ) : ?>
@@ -447,22 +447,22 @@ final class OrdersPage {
 			</tbody>
 		</table>
 		<?php if ( $can_refund ) : ?>
-			<h3><?php esc_html_e( 'Erstatten', 'wp-pass-captain' ); ?></h3>
+			<h3><?php esc_html_e( 'Erstatten', 'pass-captain' ); ?></h3>
 			<p>
-				<label><input type="checkbox" name="refund_all" value="1"> <?php esc_html_e( 'Alle offenen Tickets erstatten (Restbetrag der Bestellung)', 'wp-pass-captain' ); ?></label><br>
-				<label><?php esc_html_e( 'Grund', 'wp-pass-captain' ); ?> <input type="text" name="reason" class="regular-text" required maxlength="255"></label>
+				<label><input type="checkbox" name="refund_all" value="1"> <?php esc_html_e( 'Alle offenen Tickets erstatten (Restbetrag der Bestellung)', 'pass-captain' ); ?></label><br>
+				<label><?php esc_html_e( 'Grund', 'pass-captain' ); ?> <input type="text" name="reason" class="regular-text" required maxlength="255"></label>
 			</p>
 			<?php if ( 'manual' === $order->payment_provider ) : ?>
-				<p class="description"><?php esc_html_e( 'Manuelle Zahlungen: Der Betrag muss außerhalb des Plugins zurücküberwiesen werden. Die Tickets werden widerrufen.', 'wp-pass-captain' ); ?></p>
+				<p class="description"><?php esc_html_e( 'Manuelle Zahlungen: Der Betrag muss außerhalb des Plugins zurücküberwiesen werden. Die Tickets werden widerrufen.', 'pass-captain' ); ?></p>
 			<?php endif; ?>
 			<?php if ( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ) > 0 && ! current_user_can( Refunds::APPROVE_CAP ) ) : ?>
-				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig.', 'wp-pass-captain' ), Forms::money( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ), $currency ) ) ); ?></p>
+				<p class="description"><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'Übersteigt die Summe aller Erstattungen dieser Bestellung (inklusive laufender und wartender) %s, ist eine zweite Freigabe nötig.', 'pass-captain' ), Forms::money( (int) \PassCaptain\Settings::get( 'refund_approval_threshold' ), $currency ) ) ); ?></p>
 			<?php endif; ?>
-			<button class="button button-primary" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ausgewählte Tickets wirklich erstatten?', 'wp-pass-captain' ) ); ?>')"><?php esc_html_e( 'Erstattung auslösen', 'wp-pass-captain' ); ?></button>
+			<button class="button button-primary" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Ausgewählte Tickets wirklich erstatten?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Erstattung auslösen', 'pass-captain' ); ?></button>
 			</form>
 		<?php endif; ?>
 
-		<h2><?php esc_html_e( 'Erstattungen', 'wp-pass-captain' ); ?></h2>
+		<h2><?php esc_html_e( 'Erstattungen', 'pass-captain' ); ?></h2>
 		<?php self::render_refund_table( $refunds, $currency, false ); ?>
 		<?php
 	}
@@ -472,22 +472,22 @@ final class OrdersPage {
 		$can_cancel = 'pending' === $order->payment_status && 'pending_payment' === $order->status;
 		$can_resend = 'paid' === $order->payment_status;
 		if ( ! $can_mark_paid && ! $can_cancel && ! $can_resend ) { return; }
-		echo '<h2>' . esc_html__( 'Aktionen', 'wp-pass-captain' ) . '</h2><p>';
+		echo '<h2>' . esc_html__( 'Aktionen', 'pass-captain' ) . '</h2><p>';
 		if ( $can_mark_paid ) {
 			Forms::open_form( 'wpcap_confirm_payment', 'wpcap_confirm_payment_' . $order->order_id, 'style="display:inline"' );
 			Forms::hidden( 'order_id', $order->order_id );
-			echo '<button class="button button-primary" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Zahlungseingang bestätigen und Tickets ausstellen?', 'wp-pass-captain' ) ) . '\')">' . esc_html__( 'Als bezahlt markieren', 'wp-pass-captain' ) . '</button></form> ';
+			echo '<button class="button button-primary" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Zahlungseingang bestätigen und Tickets ausstellen?', 'pass-captain' ) ) . '\')">' . esc_html__( 'Als bezahlt markieren', 'pass-captain' ) . '</button></form> ';
 		}
 		if ( $can_cancel ) {
 			Forms::open_form( 'wpcap_cancel_order', 'wpcap_cancel_order_' . $order->order_id, 'style="display:inline"' );
 			Forms::hidden( 'order_id', $order->order_id );
-			echo '<input type="text" name="reason" placeholder="' . esc_attr__( 'Grund (optional)', 'wp-pass-captain' ) . '" maxlength="255"> ';
-			echo '<button class="button" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Unbezahlte Bestellung stornieren und Reservierung freigeben?', 'wp-pass-captain' ) ) . '\')">' . esc_html__( 'Stornieren', 'wp-pass-captain' ) . '</button></form> ';
+			echo '<input type="text" name="reason" placeholder="' . esc_attr__( 'Grund (optional)', 'pass-captain' ) . '" maxlength="255"> ';
+			echo '<button class="button" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Unbezahlte Bestellung stornieren und Reservierung freigeben?', 'pass-captain' ) ) . '\')">' . esc_html__( 'Stornieren', 'pass-captain' ) . '</button></form> ';
 		}
 		if ( $can_resend ) {
 			Forms::open_form( 'wpcap_resend_tickets', 'wpcap_resend_tickets_' . $order->order_id, 'style="display:inline"' );
 			Forms::hidden( 'order_id', $order->order_id );
-			echo '<button class="button" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Tickets erneut senden? Die bisherigen Ticketcodes werden dabei ungültig.', 'wp-pass-captain' ) ) . '\')">' . esc_html__( 'Tickets erneut senden', 'wp-pass-captain' ) . '</button></form>';
+			echo '<button class="button" type="submit" onclick="return window.confirm(\'' . esc_js( __( 'Tickets erneut senden? Die bisherigen Ticketcodes werden dabei ungültig.', 'pass-captain' ) ) . '\')">' . esc_html__( 'Tickets erneut senden', 'pass-captain' ) . '</button></form>';
 		}
 		echo '</p>';
 	}
@@ -505,17 +505,17 @@ final class OrdersPage {
 		?>
 		<table class="widefat striped">
 			<thead><tr>
-				<th><?php esc_html_e( 'Datum', 'wp-pass-captain' ); ?></th>
-				<?php if ( $queue ) : ?><th><?php esc_html_e( 'Bestellung', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Event', 'wp-pass-captain' ); ?></th><?php endif; ?>
-				<th><?php esc_html_e( 'Betrag', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Tickets', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Grund', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Angefordert / freigegeben von', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Aktion', 'wp-pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Datum', 'pass-captain' ); ?></th>
+				<?php if ( $queue ) : ?><th><?php esc_html_e( 'Bestellung', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Event', 'pass-captain' ); ?></th><?php endif; ?>
+				<th><?php esc_html_e( 'Betrag', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Tickets', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Grund', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Angefordert / freigegeben von', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Aktion', 'pass-captain' ); ?></th>
 			</tr></thead>
 			<tbody>
-			<?php if ( ! $refunds ) : ?><tr><td colspan="<?php echo esc_attr( $cols ); ?>"><?php esc_html_e( 'Keine Erstattungen.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
+			<?php if ( ! $refunds ) : ?><tr><td colspan="<?php echo esc_attr( $cols ); ?>"><?php esc_html_e( 'Keine Erstattungen.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 			<?php foreach ( $refunds as $refund ) :
 				$refund = (array) $refund;
 				$ticket_count = count( (array) json_decode( (string) $refund['ticket_ids'], true ) );
@@ -526,7 +526,7 @@ final class OrdersPage {
 						<td><a href="<?php echo esc_url( self::order_url( $refund['order_id'] ) ); ?>"><code><?php echo esc_html( substr( (string) ( $refund['order_public_id'] ?? '' ), 0, 12 ) ); ?>…</code></a><br><small><?php echo esc_html( (string) ( $refund['customer_email'] ?? '' ) ); ?></small></td>
 						<td><?php echo esc_html( (string) ( $refund['event_names'] ?? '' ) ); ?></td>
 					<?php endif; ?>
-					<td><?php echo esc_html( Forms::money( $refund['amount_minor'], $refund['currency'] ?: $currency ) ); ?><br><small><?php echo esc_html( sprintf( /* translators: %s: tax amount */ __( 'davon Steuer %s', 'wp-pass-captain' ), Forms::money( $refund['tax_minor'], $refund['currency'] ?: $currency ) ) ); ?></small></td>
+					<td><?php echo esc_html( Forms::money( $refund['amount_minor'], $refund['currency'] ?: $currency ) ); ?><br><small><?php echo esc_html( sprintf( /* translators: %s: tax amount */ __( 'davon Steuer %s', 'pass-captain' ), Forms::money( $refund['tax_minor'], $refund['currency'] ?: $currency ) ) ); ?></small></td>
 					<td><?php echo esc_html( (string) $ticket_count ); ?></td>
 					<td><?php echo esc_html( $refund['reason'] ); ?></td>
 					<td><?php echo esc_html( Forms::status_label( $refund['status'] ) ); ?><?php if ( '' !== (string) $refund['error_message'] ) : ?><br><small><?php echo esc_html( $refund['error_message'] ); ?></small><?php endif; ?><?php if ( '' !== (string) $refund['provider_reference'] ) : ?><br><small><?php echo esc_html( $refund['provider_reference'] ); ?></small><?php endif; ?></td>
@@ -534,16 +534,16 @@ final class OrdersPage {
 					<td>
 						<?php if ( 'pending_approval' === $refund['status'] ) : ?>
 							<?php if ( ! $can_approve ) : ?>
-								<?php esc_html_e( 'Wartet auf Freigabe', 'wp-pass-captain' ); ?>
+								<?php esc_html_e( 'Wartet auf Freigabe', 'pass-captain' ); ?>
 							<?php elseif ( (int) $refund['requested_by'] === get_current_user_id() ) : ?>
-								<em><?php esc_html_e( 'Freigabe durch eine andere Person erforderlich', 'wp-pass-captain' ); ?></em>
+								<em><?php esc_html_e( 'Freigabe durch eine andere Person erforderlich', 'pass-captain' ); ?></em>
 							<?php else : ?>
 								<?php Forms::open_form( 'wpcap_approve_refund', 'wpcap_approve_refund_' . $refund['refund_id'], 'style="display:inline"' ); Forms::hidden( 'refund_id', $refund['refund_id'] ); Forms::hidden( 'order_id', $refund['order_id'] ); if ( $queue ) { Forms::hidden( 'return', 'queue' ); } ?>
-								<button class="button button-primary" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Erstattung freigeben und auszahlen?', 'wp-pass-captain' ) ); ?>')"><?php esc_html_e( 'Freigeben', 'wp-pass-captain' ); ?></button>
+								<button class="button button-primary" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Erstattung freigeben und auszahlen?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Freigeben', 'pass-captain' ); ?></button>
 								</form>
 								<?php Forms::open_form( 'wpcap_reject_refund', 'wpcap_reject_refund_' . $refund['refund_id'], 'style="display:inline"' ); Forms::hidden( 'refund_id', $refund['refund_id'] ); Forms::hidden( 'order_id', $refund['order_id'] ); if ( $queue ) { Forms::hidden( 'return', 'queue' ); } ?>
-								<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund der Ablehnung', 'wp-pass-captain' ); ?>">
-								<button class="button" type="submit"><?php esc_html_e( 'Ablehnen', 'wp-pass-captain' ); ?></button>
+								<input type="text" name="reason" required maxlength="255" placeholder="<?php esc_attr_e( 'Grund der Ablehnung', 'pass-captain' ); ?>">
+								<button class="button" type="submit"><?php esc_html_e( 'Ablehnen', 'pass-captain' ); ?></button>
 								</form>
 							<?php endif; ?>
 						<?php endif; ?>

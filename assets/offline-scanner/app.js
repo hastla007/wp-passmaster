@@ -1,5 +1,5 @@
 /**
- * WP Pass Captain offline scanner (PWA).
+ * Pass Captain offline scanner (PWA).
  *
  * - Pairs via the existing pairing-code flow (POST /app/pair) and stores the device token locally.
  * - Loads signed verification packages (GET /app/offline/package) for assigned occurrences, verifies

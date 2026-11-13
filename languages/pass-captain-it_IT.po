@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: WP Pass Captain 1.4.0\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
+"Project-Id-Version: Pass Captain 1.4.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/pass-captain\n"
 "Last-Translator: \n"
 "Language-Team: Italian\n"
 "MIME-Version: 1.0\n"
@@ -11,17 +11,18 @@ msgstr ""
 "PO-Revision-Date: 2026-11-11 22:00+0000\n"
 "Language: it_IT\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Domain: wp-pass-captain\n"
+"X-Domain: pass-captain\n"
 
 #. Plugin Name of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 #: src/Admin/Menu.php:72
 #: src/Integrations/WooCommerce/CartPricing.php:83
-msgid "WP Pass Captain"
-msgstr "WP Pass Captain"
+#: src/Admin/Menu.php:73
+msgid "Pass Captain"
+msgstr "Pass Captain"
 
 #. Description of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "Eigenständige Event-, Ticket- und Passverwaltung für WordPress."
 msgstr "Gestione autonoma di eventi, biglietti e pass per WordPress."
 
@@ -1308,10 +1309,6 @@ msgstr "Area di ingresso errata"
 #: src/Admission/Rest.php:98
 msgid "Ausgecheckt"
 msgstr "Check-out effettuato"
-
-#: src/Admin/Menu.php:73
-msgid "Pass Captain"
-msgstr "Pass Captain"
 
 #: src/Admin/Menu.php:81
 #: src/Admin/OrdersPage.php:242
@@ -3030,8 +3027,8 @@ msgid "Ticket wurde bereits verwendet oder ist widerrufen."
 msgstr "Il biglietto è già stato utilizzato oppure è stato revocato."
 
 #: src/Communications.php:9
-msgid "Alle fünf Minuten (WP Pass Captain)"
-msgstr "Ogni cinque minuti (WP Pass Captain)"
+msgid "Alle fünf Minuten (Pass Captain)"
+msgstr "Ogni cinque minuti (Pass Captain)"
 
 #: src/Communications.php:18
 msgid "Nachrichtendaten ungültig."
@@ -3324,6 +3321,7 @@ msgid "Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet."
 msgstr "Ti abbiamo inviato via e-mail i link ai biglietti con il QR code."
 
 #: src/Integrations/WooCommerce/OrderAdapter.php:945
+#: src/Privacy.php:235
 msgid "Pass Captain Tickets"
 msgstr "Biglietti Pass Captain"
 
@@ -4328,8 +4326,8 @@ msgid "Bitte eine vollständige URL angeben."
 msgstr "Inserisci un URL completo."
 
 #: src/Modules/Calendar.php:267
-msgid "Shortcode: [wp_pass_captain_calendar view=\"month\"] oder view=\"list\"; alternativ der Block „WP Pass Captain Kalender“."
-msgstr "Shortcode: [wp_pass_captain_calendar view=\"month\"] oppure view=\"list\"; in alternativa il blocco «WP Pass Captain Calendario»."
+msgid "Shortcode: [wp_pass_captain_calendar view=\"month\"] oder view=\"list\"; alternativ der Block „Pass Captain Kalender“."
+msgstr "Shortcode: [wp_pass_captain_calendar view=\"month\"] oppure view=\"list\"; in alternativa il blocco «Pass Captain Calendario»."
 
 #: src/Modules/Calendar.php:270
 msgid "Seite mit dem Ticket-Shortcode"
@@ -4522,8 +4520,8 @@ msgstr "Numero di cellulare"
 #: src/Modules/Sms.php:245
 #: src/Modules/Sms.php:249
 #: src/Modules/Sms.php:277
-msgid "WP Pass Captain SMS-Einwilligungen"
-msgstr "Consensi SMS di WP Pass Captain"
+msgid "Pass Captain SMS-Einwilligungen"
+msgstr "Consensi SMS di Pass Captain"
 
 #: src/Modules/Sms.php:278
 msgid "(gelöscht)"
@@ -4690,8 +4688,8 @@ msgid "Wallet"
 msgstr "Wallet"
 
 #: src/Modules/Webhooks.php:39
-msgid "WP Pass Captain Webhook-Protokoll"
-msgstr "Registro webhook di WP Pass Captain"
+msgid "Pass Captain Webhook-Protokoll"
+msgstr "Registro webhook di Pass Captain"
 
 #: src/Modules/Webhooks.php:89
 #: src/Modules/Webhooks.php:262
@@ -5199,8 +5197,8 @@ msgid "Der Bestellstatus erlaubt diese Aktion nicht."
 msgstr "Lo stato dell'ordine non consente questa azione."
 
 #: src/Orders.php:711
-msgid "WP Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
-msgstr "WP Pass Captain: ordine pagato senza contingente disponibile"
+msgid "Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
+msgstr "Pass Captain: ordine pagato senza contingente disponibile"
 
 #: src/Orders.php:711
 #, php-format
@@ -6031,8 +6029,8 @@ msgstr "È arrivato un pagamento per un ordine annullato o rimborsato. Non sono 
 
 #. translators: 1: order id, 2: provider, 3: reference, 4: message
 #: src/Payments/Webhooks.php:155
-msgid "WP Pass Captain: Zahlung prüfen"
-msgstr "WP Pass Captain: verifica pagamento"
+msgid "Pass Captain: Zahlung prüfen"
+msgstr "Pass Captain: verifica pagamento"
 
 #. translators: 1: order id, 2: provider, 3: reference, 4: message
 #: src/Payments/Webhooks.php:155
@@ -6248,12 +6246,12 @@ msgstr "Questo modello appartiene a un altro evento."
 
 #: src/Privacy.php:35
 #: src/Privacy.php:40
-msgid "WP Pass Captain Bestellungen und Tickets"
-msgstr "Ordini e biglietti di WP Pass Captain"
+msgid "Pass Captain Bestellungen und Tickets"
+msgstr "Ordini e biglietti di Pass Captain"
 
 #: src/Privacy.php:150
-msgid "WP Pass Captain Bestellungen"
-msgstr "Ordini di WP Pass Captain"
+msgid "Pass Captain Bestellungen"
+msgstr "Ordini di Pass Captain"
 
 #: src/Privacy.php:129
 msgid "Bestellreferenz"
@@ -6281,8 +6279,8 @@ msgid "Tickets und Teilnehmerdaten"
 msgstr "Biglietti e dati dei partecipanti"
 
 #: src/Privacy.php:166
-msgid "WP Pass Captain Pässe"
-msgstr "Pass di WP Pass Captain"
+msgid "Pass Captain Pässe"
+msgstr "Pass di Pass Captain"
 
 #: src/Privacy.php:167
 msgid "Passreferenz"
@@ -6293,8 +6291,8 @@ msgid "Gültig von/bis (UTC)"
 msgstr "Valido dal/fino al (UTC)"
 
 #: src/Privacy.php:174
-msgid "WP Pass Captain Warteliste"
-msgstr "Lista d'attesa di WP Pass Captain"
+msgid "Pass Captain Warteliste"
+msgstr "Lista d'attesa di Pass Captain"
 
 #: src/Privacy.php:177
 msgid "Position und Status"
@@ -6444,8 +6442,8 @@ msgid "Die Erstattung konnte nicht gespeichert werden."
 msgstr "Impossibile salvare il rimborso."
 
 #: src/Refunds.php:94
-msgid "WP Pass Captain: Erstattung wartet auf Freigabe"
-msgstr "WP Pass Captain: rimborso in attesa di approvazione"
+msgid "Pass Captain: Erstattung wartet auf Freigabe"
+msgstr "Pass Captain: rimborso in attesa di approvazione"
 
 #. translators: 1: order id, 2: amount
 #: src/Refunds.php:94
@@ -7168,8 +7166,8 @@ msgid "Für diese Ticketart sind keine passenden Sitzplätze mehr frei."
 msgstr "Per questo tipo di biglietto non ci sono più posti adatti liberi."
 
 #: src/Seating/Reservations.php:293
-msgid "WP Pass Captain: Sitzplätze nach verspäteter Zahlung fehlen"
-msgstr "WP Pass Captain: posti mancanti dopo pagamento tardivo"
+msgid "Pass Captain: Sitzplätze nach verspäteter Zahlung fehlen"
+msgstr "Pass Captain: posti mancanti dopo pagamento tardivo"
 
 #. translators: %d: order id
 #: src/Seating/Reservations.php:293
@@ -8261,8 +8259,8 @@ msgstr "Impossibile salvare il webhook."
 
 #. translators: 1: webhook id, 2: failure count
 #: src/Webhooks/Dispatcher.php:268
-msgid "WP Pass Captain: Webhook deaktiviert"
-msgstr "WP Pass Captain: webhook disattivato"
+msgid "Pass Captain: Webhook deaktiviert"
+msgstr "Pass Captain: webhook disattivato"
 
 #. translators: 1: webhook id, 2: failure count
 #: src/Webhooks/Dispatcher.php:268
@@ -8360,8 +8358,8 @@ msgid "Der Gutschein deckt den ursprünglichen Betrag nicht mehr."
 msgstr "Il buono non copre più l’importo originale."
 
 #: src/Integrations/Vouchers/Checkout.php:197
-msgid "WP Pass Captain: Gutschein konnte nicht belastet werden"
-msgstr "WP Pass Captain: impossibile addebitare il buono"
+msgid "Pass Captain: Gutschein konnte nicht belastet werden"
+msgstr "Pass Captain: impossibile addebitare il buono"
 
 #. translators: 1: order id, 2: amount with currency, 3: last code characters, 4: error code
 #: src/Integrations/Vouchers/Checkout.php:200
@@ -8475,17 +8473,17 @@ msgid "Forderung an Veranstalter"
 msgstr "Credito verso l’organizzatore"
 
 #. Plugin URI of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "https://github.com/hastla007/wp-passmaster"
 msgstr "https://github.com/hastla007/wp-passmaster"
 
 #. Author of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "hastla007"
 msgstr "hastla007"
 
 #. Author URI of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "https://github.com/hastla007"
 msgstr "https://github.com/hastla007"
 
@@ -8763,8 +8761,8 @@ msgid "Käuferangaben auf der Rechnung"
 msgstr "Dati dell'acquirente in fattura"
 
 #: src/Privacy.php:183
-msgid "WP Pass Captain Terminbuchungen"
-msgstr "Prenotazioni di appuntamenti WP Pass Captain"
+msgid "Pass Captain Terminbuchungen"
+msgstr "Prenotazioni di appuntamenti Pass Captain"
 
 #: src/Privacy.php:184
 msgid "Ressource"
@@ -8810,10 +8808,6 @@ msgstr "Registro degli ingressi (ora UTC, area)"
 msgid "Wallet-Pässe"
 msgstr "Pass wallet"
 
-#: src/Privacy.php:235
-msgid "WP Pass Captain Tickets"
-msgstr "Biglietti WP Pass Captain"
-
 #. translators: %d: number of tickets
 #: src/Privacy.php:263
 #, php-format
@@ -8853,8 +8847,8 @@ msgid "nach der je Feld angegebenen Frist (Name und E-Mail der Teilnehmenden: %d
 msgstr "dopo il termine indicato per ciascun campo (nome ed e-mail dei partecipanti: %d giorni) dalla fine dell'evento"
 
 #: src/Privacy/PolicyText.php:67
-msgid "Vorschlag von WP Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind."
-msgstr "Proposta di WP Pass Captain. Controllala e adattala alla tua azienda, ai tuoi contratti e ai tuoi processi effettivi; il testo non sostituisce una consulenza legale. Le sezioni sui fornitori di servizi compaiono solo se sono attivati nelle impostazioni."
+msgid "Vorschlag von Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind."
+msgstr "Proposta di Pass Captain. Controllala e adattala alla tua azienda, ai tuoi contratti e ai tuoi processi effettivi; il testo non sostituisce una consulenza legale. Le sezioni sui fornitori di servizi compaiono solo se sono attivati nelle impostazioni."
 
 #: src/Privacy/PolicyText.php:69
 msgid "Ticketkauf, Tickets und Einlass"

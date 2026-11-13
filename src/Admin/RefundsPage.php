@@ -21,16 +21,16 @@ final class RefundsPage {
 
 	public static function render() {
 		if ( ! current_user_can( Refunds::APPROVE_CAP ) && ! current_user_can( OrdersPage::CAP ) ) {
-			wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 );
+			wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 );
 		}
 		$refunds = Queries::pending_refunds( Queries::event_ids_for( OrdersPage::CAP ) );
 		?>
 		<div class="wrap wpcap-admin">
-		<h1><?php esc_html_e( 'Erstattungen zur Freigabe', 'wp-pass-captain' ); ?></h1>
+		<h1><?php esc_html_e( 'Erstattungen zur Freigabe', 'pass-captain' ); ?></h1>
 		<?php Forms::render_notices(); ?>
-		<p><?php esc_html_e( 'Erstattungen oberhalb des Freigabe-Schwellenwerts müssen von einer zweiten berechtigten Person freigegeben werden.', 'wp-pass-captain' ); ?></p>
+		<p><?php esc_html_e( 'Erstattungen oberhalb des Freigabe-Schwellenwerts müssen von einer zweiten berechtigten Person freigegeben werden.', 'pass-captain' ); ?></p>
 		<?php if ( ! current_user_can( Refunds::APPROVE_CAP ) ) : ?>
-			<div class="notice notice-info inline"><p><?php esc_html_e( 'Du kannst Erstattungen sehen, aber nicht freigeben.', 'wp-pass-captain' ); ?></p></div>
+			<div class="notice notice-info inline"><p><?php esc_html_e( 'Du kannst Erstattungen sehen, aber nicht freigeben.', 'pass-captain' ); ?></p></div>
 		<?php endif; ?>
 		<?php OrdersPage::render_refund_table( $refunds, 'EUR', true ); ?>
 		</div>
