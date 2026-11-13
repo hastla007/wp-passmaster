@@ -20,7 +20,7 @@ final class TimeBudget {
 	const DEFAULT_SECONDS = 20;
 
 	/** Cron hooks whose workers share one deadline. */
-	const HOOKS = array( 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch' );
+	const HOOKS = array( 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_waitlist_process' );
 
 	/** Shared deadline (microtime) while a cron hook runs; null otherwise. */
 	private static $deadline = null;

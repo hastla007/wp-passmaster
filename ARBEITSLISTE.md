@@ -138,7 +138,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Partners/Repository.php:58–97`; `src/Partners/Settlements.php:472` — Maßnahme: In Exporter/Eraser aufnehmen (Snapshot ausgenommen), IBAN maskiert anzeigen.
 - [x] **A060** [P3] Kontingenterhöhung im Admin feuert kein `wpcap_capacity_increased`; Wartelisten-Angebote erst nach stündlichem Sweep. — _OFFEN_ (TODO L481; Architektur und QA (Prüfung 5))
   - `src/Admin/EventsPage.php:191,291` — Maßnahme: Hook nach Erhöhung auslösen.
-- [ ] **A061** [P3] Deaktivierung meldet `wpcap_webhooks_dispatch` (und Fortsetzungsläufe aus `Jobs/TimeBudget`) nicht ab; `Waitlists::run_due` läuft außerhalb des Zeitbudgets. — _OFFEN_ (TODO L482; Architektur und QA (Prüfung 5))
+- [x] **A061** [P3] Deaktivierung meldet `wpcap_webhooks_dispatch` (und Fortsetzungsläufe aus `Jobs/TimeBudget`) nicht ab; `Waitlists::run_due` läuft außerhalb des Zeitbudgets. — _OFFEN_ (TODO L482; Architektur und QA (Prüfung 5))
   - `src/Plugin.php:134` — Maßnahme: Abzumeldende Hooks aus zentraler Konstante; `run_due` mit `TimeBudget`.
 - [ ] **A062** [P3] Kassen-Migration mit eigener Versionsoption auf `init` ohne Upgrade-Lock, offene Schichten außerhalb einer Transaktion. — _OFFEN_ (TODO L483; Architektur und QA (Prüfung 5))
   - `src/Modules/BoxOffice.php:29–70`; `src/BoxOffice/Registers.php:148–158` — Maßnahme: In `Installer::install()` unter Lock ziehen.

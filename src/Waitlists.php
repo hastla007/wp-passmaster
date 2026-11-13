@@ -190,12 +190,22 @@ final class Waitlists {
 		$queue = self::queued();
 		if ( ! $queue ) { return 0; }
 		$now = time();
+		$force = true === $force; // A TimeBudget continuation passes "continue": not a forced run.
 		$due = array_keys( array_filter( $queue, static function ( $ts ) use ( $now, $force ) { return $force || $ts <= $now; } ) );
 		if ( ! $due ) { return 0; }
 		// Remove before processing: releases during the run (e.g. a failed mail) queue the type again.
 		update_option( self::QUEUE_OPTION, array_diff_key( $queue, array_flip( $due ) ), false );
 		$made = 0;
-		foreach ( $due as $type_id ) { $made += self::process_type( (int) $type_id ); }
+		// Shared cron time budget: types not reached go back into the queue and a follow-up run starts.
+		$deadline = Jobs\TimeBudget::deadline();
+		foreach ( array_values( $due ) as $i => $type_id ) {
+			if ( Jobs\TimeBudget::exhausted( $deadline ) ) {
+				self::queue( array_slice( $due, $i ), $now );
+				Jobs\TimeBudget::continue_later( self::HOOK );
+				break;
+			}
+			$made += self::process_type( (int) $type_id );
+		}
 		return $made;
 	}
 

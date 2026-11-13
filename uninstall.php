@@ -17,7 +17,8 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) { exit; }
 /** Removes the plugin data of the current site if the operator opted in; returns whether it did. */
 function wpcap_uninstall_site() {
 	global $wpdb;
-	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_run_upgrade', 'wpcap_privacy_retention', 'wpcap_privacy_purge_wallet_registrations' ) as $hook ) {
+	// Same list as PassCaptain\Plugin::cron_hooks() (the plugin classes are not loaded here).
+	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_reconcile_capacity', 'wpcap_run_upgrade', 'wpcap_privacy_retention', 'wpcap_privacy_purge_wallet_registrations', 'wpcap_waitlist_process' ) as $hook ) {
 		wp_unschedule_hook( $hook ); // All events of the hook, including continuation runs with arguments.
 	}
 	$settings = get_option( 'wpcap_settings', array() );

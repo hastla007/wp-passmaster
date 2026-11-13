@@ -736,3 +736,30 @@ $a60_fired = array();
 $a60_occ = PassCaptain\Admin\EventsPage::save_occurrence( array( 'occurrence_id' => (int) $a60_row->occurrence_id, 'timezone' => $a60_row->timezone, 'starts_at' => $a60_local, 'capacity' => 8, 'status' => 'scheduled', 'location' => '' ) );
 check( 'A060: a higher occurrence capacity fires it for the occurrence', ! is_wp_error( $a60_occ ) && in_array( array( 0, (int) $a60_row->occurrence_id ), $a60_fired, true ) );
 remove_action( 'wpcap_capacity_increased', $a60_rec, 99 );
+
+echo "Audit 3: all cron hooks are unscheduled; waitlist runs within the time budget (A061)\n";
+$a61_hooks = PassCaptain\Plugin::cron_hooks();
+$a61_found = array();
+$a61_it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( dirname( __DIR__, 3 ) . '/src', FilesystemIterator::SKIP_DOTS ) );
+foreach ( $a61_it as $a61_file ) {
+	if ( 'php' !== $a61_file->getExtension() ) { continue; }
+	$a61_src = file_get_contents( $a61_file->getPathname() );
+	if ( preg_match_all( "/wp_schedule_(?:single_)?event\\([^;]*?'(wpcap_[a-z_]+)'\\s*\\)/", $a61_src, $a61_m ) ) {
+		foreach ( $a61_m[1] as $a61_h ) { if ( 'wpcap_five_minutes' !== $a61_h ) { $a61_found[] = $a61_h; } }
+	}
+}
+$a61_missing = array_diff( array_unique( array_merge( $a61_found, array( 'wpcap_waitlist_process', 'wpcap_webhooks_dispatch', 'wpcap_reconcile_capacity' ) ) ), $a61_hooks );
+check( 'A061: Plugin::cron_hooks() lists every scheduled hook' . ( $a61_missing ? ' – missing ' . implode( ', ', $a61_missing ) : '' ), ! $a61_missing );
+$a61_uninstall = file_get_contents( dirname( __DIR__, 3 ) . '/uninstall.php' );
+check( 'A061: uninstall.php unschedules the same hooks', ! array_filter( $a61_hooks, static fn( $h ) => false === strpos( $a61_uninstall, "'" . $h . "'" ) ) );
+$a61_t1 = make_type( 5, 5, 1000 );
+$a61_t2 = make_type( 5, 5, 1000 );
+update_option( PassCaptain\Waitlists::QUEUE_OPTION, array( $a61_t1 => time() - 10, $a61_t2 => time() - 10 ) );
+$a61_ref = new ReflectionProperty( PassCaptain\Jobs\TimeBudget::class, 'deadline' );
+$a61_ref->setAccessible( true );
+$a61_ref->setValue( null, microtime( true ) - 1 );
+PassCaptain\Waitlists::run_due();
+$a61_ref->setValue( null, null );
+$a61_queue = (array) get_option( PassCaptain\Waitlists::QUEUE_OPTION, array() );
+check( 'A061: with the budget used up, due types stay queued for a follow-up run', isset( $a61_queue[ $a61_t1 ], $a61_queue[ $a61_t2 ] ) );
+update_option( PassCaptain\Waitlists::QUEUE_OPTION, array() );
