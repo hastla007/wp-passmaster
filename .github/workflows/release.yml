@@ -77,6 +77,10 @@ jobs:
           extensions: mbstring
           coverage: none
 
+      - name: Release gate – all translations complete
+        if: env.SKIP == ''
+        run: php tests/i18n-check.php
+
       - name: Release gate – manual acceptance record complete (docs/RELEASE.md)
         if: env.SKIP == ''
         run: bash build/release-acceptance.sh "${TAG#v}"

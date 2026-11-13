@@ -66,6 +66,7 @@ final class CampaignsPage {
 			'ticket_type_id' => $type_id,
 			'usage_limit' => Forms::int( $in, 'usage_limit' ),
 			'priority' => Forms::int( $in, 'priority', 100 ),
+			'stacking' => Forms::flag( $in, 'exclusive' ) ? 'exclusive' : 'combinable',
 			'starts_at' => '' !== $starts ? Forms::local_to_utc( $starts, $tz ) : '',
 			'ends_at' => '' !== $ends ? Forms::local_to_utc( $ends, $tz ) : '',
 		) );
@@ -113,7 +114,7 @@ final class CampaignsPage {
 				$applies = (int) $row->event_id ? (string) $row->event_name . ( (int) $row->ticket_type_id ? ' – ' . (string) $row->ticket_name : '' ) : __( 'alle Events', 'wp-pass-captain' );
 				$window = ( $row->starts_at ? Forms::datetime( $row->starts_at, $tz, false ) : '…' ) . ' – ' . ( $row->ends_at ? Forms::datetime( $row->ends_at, $tz, false ) : '…' );
 				$usage = (int) $row->used_count . ' / ' . ( (int) $row->usage_limit ? (int) $row->usage_limit : '∞' );
-				echo '<tr><td><code>' . esc_html( $row->code ) . '</code></td><td>' . esc_html( $row->name ) . '</td><td>' . esc_html( $applies ) . '</td><td>' . esc_html( self::value_label( $row ) ) . '</td><td>' . esc_html( $window ) . '</td><td>' . esc_html( $usage ) . ' <small>(' . esc_html( sprintf( /* translators: %d: paid orders */ __( '%d bezahlt', 'wp-pass-captain' ), (int) $row->orders_committed ) ) . ')</small></td><td>' . esc_html( Forms::money( (int) $row->discount_committed, (string) $row->currency ) ) . '</td><td>' . esc_html( 'active' === $row->status ? __( 'aktiv', 'wp-pass-captain' ) : __( 'inaktiv', 'wp-pass-captain' ) ) . '</td><td>';
+				echo '<tr><td><code>' . esc_html( $row->code ) . '</code></td><td>' . esc_html( $row->name ) . '</td><td>' . esc_html( $applies ) . '</td><td>' . esc_html( self::value_label( $row ) ) . ( 'exclusive' === ( $row->stacking ?? 'combinable' ) ? ' <small>(' . esc_html__( 'nicht kombinierbar', 'wp-pass-captain' ) . ')</small>' : '' ) . '</td><td>' . esc_html( $window ) . '</td><td>' . esc_html( $usage ) . ' <small>(' . esc_html( sprintf( /* translators: %d: paid orders */ __( '%d bezahlt', 'wp-pass-captain' ), (int) $row->orders_committed ) ) . ')</small></td><td>' . esc_html( Forms::money( (int) $row->discount_committed, (string) $row->currency ) ) . '</td><td>' . esc_html( 'active' === $row->status ? __( 'aktiv', 'wp-pass-captain' ) : __( 'inaktiv', 'wp-pass-captain' ) ) . '</td><td>';
 				if ( self::can_manage( (int) $row->event_id ) ) {
 					Forms::open_form( 'wpcap_campaign_status', 'wpcap_campaign_status_' . (int) $row->campaign_id );
 					Forms::hidden( 'campaign_id', (int) $row->campaign_id );
@@ -141,6 +142,7 @@ final class CampaignsPage {
 		echo '<tr><th><label for="wpcap-c-limit">' . esc_html__( 'Max. Nutzungen', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-c-limit" name="usage_limit" type="number" min="0" value="0"> <span class="description">' . esc_html__( '0 = unbegrenzt', 'wp-pass-captain' ) . '</span></td></tr>';
 		echo '<tr><th><label for="wpcap-c-start">' . esc_html__( 'Gültig ab / bis', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-c-start" name="starts_at" type="datetime-local"> – <input id="wpcap-c-end" name="ends_at" type="datetime-local" aria-label="' . esc_attr__( 'Gültig bis', 'wp-pass-captain' ) . '"> <span class="description">' . esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = unbegrenzt', 'wp-pass-captain' ), $tz ) ) . '</span></td></tr>';
 		echo '<tr><th><label for="wpcap-c-prio">' . esc_html__( 'Reihenfolge', 'wp-pass-captain' ) . '</label></th><td><input id="wpcap-c-prio" name="priority" type="number" min="0" max="1000" value="100"> <span class="description">' . esc_html__( 'Bei mehreren Codes wird der niedrigere Wert zuerst angewendet.', 'wp-pass-captain' ) . '</span></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Kombinierbar', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="exclusive" value="1"> ' . esc_html__( 'Nicht mit anderen Rabattcodes kombinierbar (gilt nur allein)', 'wp-pass-captain' ) . '</label></td></tr>';
 		echo '</tbody></table><p><button class="button button-primary">' . esc_html__( 'Code anlegen', 'wp-pass-captain' ) . '</button></p></form></div>';
 	}
 }

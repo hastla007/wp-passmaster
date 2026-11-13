@@ -124,6 +124,8 @@
 - Übersetzungen vollständig: alle 3234 Texte in Englisch, Spanisch, Französisch, Italienisch und Niederländisch übersetzt bzw. geprüft (630 veraltete Vorschläge einzeln korrigiert, 471 neue Texte); Platzhalter in Hinweistexten übersetzbar, gemischte „Sie“-Anrede in Kassen- und Abrechnungstexten auf „du“ vereinheitlicht, Kontext für mehrdeutige Begriffe. Neue CI-Prüfung `tests/i18n-check.php` (POT passt zum Code, keine fehlenden/fuzzy Einträge, Platzhalter und HTML-Tags identisch, `.mo` aktuell); Ablauf und Glossar in docs/TRANSLATIONS.md (A107).
 - Neue CI-Matrix gegen echtes WordPress 6.4, 6.8 und die neueste Version: Aktivierung, Admin-Seiten, REST, Deaktivierung, erneute Aktivierung, Deinstallation mit/ohne Datenlöschung, keine PHP-Meldungen des Plugins, dazu Upgrade-/Rollback-/Restore-Drill gegen das vorherige Release (A125).
 - WooCommerce-Adapter gegen echt installiertes WooCommerce getestet (8.2.0 und neueste Version, jeweils HPOS und klassischer Bestellspeicher): Reservierung, Ticketausgabe, Teilerstattung, Stornierung, Ausverkauft (A127).
+- Rabattcodes: einstellbare Stapelregeln – höchstens 1–5 Codes je Bestellung (Standard 3), „nacheinander anwenden“ (bisheriges Verhalten) oder „nur den günstigsten Code“, einzelne Codes als „nicht kombinierbar“ anlegbar (Schema 3.9.1); Filter `wpcap_campaign_stacking` (A117).
+- Übersetzungsprüfung: CI verlangt aktuelle POT und konsistente Platzhalter, vollständige Übersetzungen sind Release-Gate.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

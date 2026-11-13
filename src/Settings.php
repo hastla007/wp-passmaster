@@ -47,6 +47,8 @@ final class Settings {
 	private static function core_defaults() {
 		return array(
 			'hold_minutes'              => 10,
+			'campaign_max_codes'        => 3,
+			'campaign_stacking'         => 'cumulative',
 			'manual_hold_hours'         => 72,
 			'manual_cutoff_hours'       => 0,
 			'enabled_providers'         => array( 'manual' ),

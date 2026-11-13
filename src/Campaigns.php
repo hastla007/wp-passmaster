@@ -22,8 +22,16 @@ final class Campaigns {
 	}
 
 	/**
-	 * Validate and calculate up to three explicit campaign codes.
+	 * Validate and calculate the campaign codes of an order (A117 stacking rules).
 	 * The caller must already be inside the order transaction.
+	 *
+	 * - At most Settings `campaign_max_codes` codes (1–5, default 3).
+	 * - A campaign with stacking "exclusive" is only valid alone.
+	 * - Settings `campaign_stacking`: "cumulative" (default) applies the codes one after another on what
+	 *   is left, ordered by priority; "best" applies only the code with the highest discount (on a tie the
+	 *   one with the lower priority value), the others are ignored.
+	 * - Filter `wpcap_campaign_stacking` ( string $mode, array $campaigns, array $selected ) can change
+	 *   the mode per order.
 	 *
 	 * @param bool $lock False for a non-binding preview (no row locks).
 	 * @return array|\WP_Error Adjustments: campaign, amount_minor, lines (index of $selected => discount).
@@ -34,7 +42,10 @@ final class Campaigns {
 			return strtoupper( preg_replace( '/[^A-Z0-9_-]/', '', strtoupper( sanitize_text_field( $code ) ) ) );
 		}, $codes ) ) ) );
 		sort( $codes, SORT_STRING );
-		if ( count( $codes ) > 3 ) { return new \WP_Error( 'wpcap_campaign_limit', __( 'Es können höchstens drei Kampagnencodes verwendet werden.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		$max_codes = max( 1, min( 5, (int) Settings::get( 'campaign_max_codes', 3 ) ) );
+		if ( count( $codes ) > $max_codes ) {
+			return new \WP_Error( 'wpcap_campaign_limit', 1 === $max_codes ? __( 'Pro Bestellung kann nur ein Rabattcode verwendet werden.', 'wp-pass-captain' ) : sprintf( /* translators: %d: maximum number of discount codes */ __( 'Es können höchstens %d Rabattcodes verwendet werden.', 'wp-pass-captain' ), $max_codes ), array( 'status' => 400 ) );
+		}
 		$campaigns = array();
 		$table = $wpdb->prefix . 'wpcap_campaigns';
 		$now = current_time( 'mysql', true );
@@ -46,6 +57,35 @@ final class Campaigns {
 			$campaigns[] = $campaign;
 		}
 		usort( $campaigns, static function ( $a, $b ) { $priority = (int) $a->priority <=> (int) $b->priority; return $priority ?: ( (int) $a->campaign_id <=> (int) $b->campaign_id ); } );
+		if ( count( $campaigns ) > 1 ) {
+			foreach ( $campaigns as $campaign ) {
+				if ( 'exclusive' === ( $campaign->stacking ?? 'combinable' ) ) {
+					/* translators: %s: discount code */
+					return new \WP_Error( 'wpcap_campaign_not_combinable', sprintf( __( 'Der Rabattcode %s kann nicht mit anderen Codes kombiniert werden.', 'wp-pass-captain' ), $campaign->code ), array( 'status' => 409 ) );
+				}
+			}
+			$mode = (string) apply_filters( 'wpcap_campaign_stacking', 'best' === Settings::get( 'campaign_stacking', 'cumulative' ) ? 'best' : 'cumulative', $campaigns, $selected );
+			if ( 'best' === $mode ) {
+				$best = null;
+				$best_amount = -1;
+				foreach ( $campaigns as $campaign ) {
+					$single = self::calculate_sequence( $selected, array( $campaign ) );
+					if ( is_wp_error( $single ) ) { continue; }
+					$amount = (int) $single[0]['amount_minor'];
+					if ( $amount > $best_amount ) { $best = $single; $best_amount = $amount; }
+				}
+				return $best ?? new \WP_Error( 'wpcap_campaign_no_match', __( 'Ein Kampagnencode passt nicht zu den ausgewählten Tickets.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			}
+		}
+		return self::calculate_sequence( $selected, $campaigns );
+	}
+
+	/**
+	 * Applies the campaigns one after another on what is left of the eligible lines.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private static function calculate_sequence( array $selected, array $campaigns ) {
 		$adjustments = array();
 		$remaining = array_map( static function ( $line ) { return (int) $line['line_total']; }, $selected );
 		foreach ( $campaigns as $campaign ) {
@@ -151,11 +191,12 @@ final class Campaigns {
 			'usage_limit' => absint( $data['usage_limit'] ?? 0 ), 'used_count' => 0, 'priority' => min( 1000, absint( $data['priority'] ?? 100 ) ),
 			'starts_at' => sanitize_text_field( $data['starts_at'] ?? '' ) ?: null, 'ends_at' => sanitize_text_field( $data['ends_at'] ?? '' ) ?: null,
 			'status' => 'active', 'created_at' => current_time( 'mysql', true ),
-		), array( '%d', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s', '%s' ) );
+			'stacking' => 'exclusive' === ( $data['stacking'] ?? '' ) ? 'exclusive' : 'combinable',
+		), array( '%d', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s' ) );
 		if ( false === $inserted ) { return new \WP_Error( 'wpcap_campaign_save', __( 'Kampagne konnte nicht angelegt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
 		$campaign_id = (int) $wpdb->insert_id; // Before the audit insert changes insert_id.
 		self::flush();
-		Audit::record( 'campaign_created', 'campaign', $campaign_id, array( 'code' => $code, 'kind' => $kind ) );
+		Audit::record( 'campaign_created', 'campaign', $campaign_id, array( 'code' => $code, 'kind' => $kind, 'stacking' => 'exclusive' === ( $data['stacking'] ?? '' ) ? 'exclusive' : 'combinable' ) );
 		return array( 'campaign_id' => $campaign_id, 'code' => $code );
 	}
 

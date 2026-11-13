@@ -39,6 +39,16 @@ final class SettingsPage {
 				'fields' => array(
 					'hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierungsdauer im Checkout (Minuten)', 'wp-pass-captain' ), 'min' => 1, 'max' => 120 ),
 					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'wp-pass-captain' ) ),
+					'campaign_max_codes' => array( 'type' => 'int', 'label' => __( 'Rabattcodes je Bestellung (höchstens)', 'wp-pass-captain' ), 'min' => 1, 'max' => 5 ),
+					'campaign_stacking' => array(
+						'type' => 'choice',
+						'label' => __( 'Mehrere Rabattcodes', 'wp-pass-captain' ),
+						'options' => array(
+							'cumulative' => __( 'nacheinander anwenden (jeder Code auf den Restbetrag, Reihenfolge nach Priorität)', 'wp-pass-captain' ),
+							'best' => __( 'nur den günstigsten Code anwenden', 'wp-pass-captain' ),
+						),
+						'description' => __( 'Codes, die als „nicht kombinierbar“ angelegt sind, gelten immer nur allein.', 'wp-pass-captain' ),
+					),
 					'guestlist_four_eyes' => array( 'type' => 'bool', 'label' => __( 'Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)', 'wp-pass-captain' ) ),
 				),
 			),

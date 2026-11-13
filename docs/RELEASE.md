@@ -12,6 +12,7 @@ folgenden Gates erfüllt sind. Die automatischen Gates erzwingt GitHub Actions, 
 | PWA installierbar, Offline-Start | `ci.yml` Job `pwa` | CI grün |
 | Reproduzierbares ZIP mit Prüfsumme | `ci.yml` Job `package`, `tests/reproducible-build.sh` | CI grün |
 | Nur getestete Commits von `main` | `build/release-guard.sh` | Release-Workflow |
+| Übersetzungen vollständig (keine fehlenden/fuzzy Einträge) | `php tests/i18n-check.php` | Release-Workflow |
 | Plugin-Version = Tag | Schritt „Check plugin version matches the tag“ | Release-Workflow |
 | Last-/Regressionsgrenzen (default/heavy/big, REST, MariaDB + MySQL) | `load.yml` (wöchentlich) | im Abnahmeprotokoll verlinkt |
 | Upgrade/Rollback/Restore mit echten Daten | `tests/restore/drill.sh` (siehe OPERATIONS.md) | Abnahmeprotokoll |

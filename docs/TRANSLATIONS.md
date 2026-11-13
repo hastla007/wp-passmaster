@@ -16,8 +16,9 @@ for l in en_US es_ES fr_FR it_IT nl_NL; do msgmerge -q --no-wrap -U --backup=off
 
 Danach die neuen und als `fuzzy` markierten Einträge übersetzen bzw. prüfen (Fuzzy-Vorschläge sind
 oft falsch), `.mo` mit `php build/compile-mo.php <po> <mo>` erzeugen und `php tests/i18n-check.php`
-ausführen. CI bricht ab, wenn die `.pot` nicht zum Code passt, ein Eintrag fehlt oder fuzzy ist,
-Platzhalter (`%s`, `%1$s`, `{order_id}`) oder HTML-Tags abweichen oder eine `.mo` veraltet ist.
+ausführen. CI bricht ab, wenn die `.pot` nicht zum Code passt, Platzhalter (`%s`, `%1$s`,
+`{order_id}`) oder HTML-Tags abweichen oder eine `.mo` veraltet ist. Fehlende oder fuzzy Einträge sind
+zwischen zwei Releases erlaubt; der Release-Workflow verlangt dagegen vollständige Übersetzungen.
 
 Regeln für Quelltexte: Anrede „du“ (Rechtstexte/Datenschutzhinweise ausgenommen); Platzhalter immer
 über `sprintf` mit Übersetzerkommentar (`/* translators: … */` direkt vor dem `__()`); gleiche Wörter

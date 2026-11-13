@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP Pass Captain 1.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
-"POT-Creation-Date: 2026-11-13T20:13:33+00:00\n"
+"POT-Creation-Date: 2026-11-13T20:22:23+00:00\n"
 "PO-Revision-Date: 2026-11-11 22:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: French (France)\n"
@@ -74,22 +74,22 @@ msgstr "Le type de ticket n’appartient pas à cet événement."
 msgid "Bitte einen gültigen Rabattwert angeben."
 msgstr "Veuillez indiquer une valeur de remise valide."
 
-#: src/Admin/CampaignsPage.php:78
+#: src/Admin/CampaignsPage.php:79
 msgid "Rabattcode nicht gefunden."
 msgstr "Code de réduction introuvable."
 
-#: src/Admin/CampaignsPage.php:85
+#: src/Admin/CampaignsPage.php:86
 msgid "Rabattcode angelegt."
 msgstr "Code de réduction créé."
 
-#: src/Admin/CampaignsPage.php:91
+#: src/Admin/CampaignsPage.php:92
 msgid "Status gespeichert."
 msgstr "Statut enregistré."
 
-#: src/Admin/CampaignsPage.php:99 src/Admin/CheckinsPage.php:55
+#: src/Admin/CampaignsPage.php:100 src/Admin/CheckinsPage.php:55
 #: src/Admin/DevicesPage.php:50 src/Admin/EventsPage.php:611
 #: src/Admin/Forms.php:338 src/Admin/OrdersPage.php:238
-#: src/Admin/RefundsPage.php:24 src/Admin/SettingsPage.php:414
+#: src/Admin/RefundsPage.php:24 src/Admin/SettingsPage.php:424
 #: src/Admin/TicketsPage.php:147 src/Admission/ConflictsPage.php:54
 #: src/Admission/RulesPage.php:174 src/Allocations/AdminPage.php:182
 #: src/BoxOffice/Page.php:60 src/BoxOffice/Page.php:384
@@ -120,30 +120,30 @@ msgstr "Statut enregistré."
 msgid "Keine Berechtigung."
 msgstr "Autorisation insuffisante."
 
-#: src/Admin/CampaignsPage.php:102 src/Admin/Menu.php:182
+#: src/Admin/CampaignsPage.php:103 src/Admin/Menu.php:182
 msgid "Rabattcodes"
 msgstr "Codes de réduction"
 
-#: src/Admin/CampaignsPage.php:104
+#: src/Admin/CampaignsPage.php:105
 msgid "Kunden geben den Code im Checkout ein. Das Feld „Rabattcode“ erscheint nur, wenn für das Event ein aktiver Code existiert. Ein Code für eine Ticketart oder ein Event mindert nur diese Positionen."
 msgstr "Les clients saisissent le code lors du paiement. Le champ « Code de réduction » n’apparaît que si un code actif existe pour l’événement. Un code associé à un type de ticket ou à un événement ne réduit que les lignes correspondantes."
 
-#: src/Admin/CampaignsPage.php:107
+#: src/Admin/CampaignsPage.php:108
 msgid "Vorhandene Codes"
 msgstr "Codes existants"
 
-#: src/Admin/CampaignsPage.php:109
+#: src/Admin/CampaignsPage.php:110
 msgid "Noch keine Rabattcodes."
 msgstr "Aucun code de réduction pour le moment."
 
-#: src/Admin/CampaignsPage.php:111 src/Admin/CampaignsPage.php:133
+#: src/Admin/CampaignsPage.php:112 src/Admin/CampaignsPage.php:134
 msgid "Code"
 msgstr "Code"
 
 #. translators: 1: entries, 2: tickets
 #. translators: 1: list, 2: used, 3: quota
 #. translators: 1: ticket number, 2: event and ticket name
-#: src/Admin/CampaignsPage.php:111 src/Admin/EventsPage.php:918
+#: src/Admin/CampaignsPage.php:112 src/Admin/EventsPage.php:918
 #: src/Admin/EventsPage.php:955 src/Allocations/AdminPage.php:246
 #: src/Allocations/AdminPage.php:296 src/BoxOffice/Page.php:151
 #: src/BoxOffice/ShiftPage.php:394 src/BoxOffice/ShiftPage.php:417
@@ -162,32 +162,32 @@ msgstr "Code"
 msgid "Name"
 msgstr "Nom"
 
-#: src/Admin/CampaignsPage.php:111 src/Printing/Page.php:90
+#: src/Admin/CampaignsPage.php:112 src/Printing/Page.php:90
 #: src/Printing/Page.php:99
 msgid "Gilt für"
 msgstr "S’applique à"
 
-#: src/Admin/CampaignsPage.php:111 src/Admin/OrdersPage.php:445
+#: src/Admin/CampaignsPage.php:112 src/Admin/OrdersPage.php:445
 #: src/BoxOffice/Service.php:744 src/Invoices.php:492
 #: src/Printing/InvoicePdf.php:115
 msgid "Rabatt"
 msgstr "Remise"
 
-#: src/Admin/CampaignsPage.php:111
+#: src/Admin/CampaignsPage.php:112
 msgid "Zeitraum"
 msgstr "Période"
 
-#: src/Admin/CampaignsPage.php:111
+#: src/Admin/CampaignsPage.php:112
 msgid "Nutzung"
 msgstr "Utilisation"
 
-#: src/Admin/CampaignsPage.php:111
+#: src/Admin/CampaignsPage.php:112
 msgid "Rabatt gesamt"
 msgstr "Remise totale"
 
 #. translators: 1: entries, 2: tickets
 #. translators: 1: list, 2: used, 3: quota
-#: src/Admin/CampaignsPage.php:111 src/Admin/DevicesPage.php:84
+#: src/Admin/CampaignsPage.php:112 src/Admin/DevicesPage.php:84
 #: src/Admin/EventsPage.php:696 src/Admin/EventsPage.php:756
 #: src/Admin/EventsPage.php:796 src/Admin/EventsPage.php:811
 #: src/Admin/EventsPage.php:856 src/Admin/EventsPage.php:924
@@ -211,19 +211,23 @@ msgstr "Remise totale"
 msgid "Status"
 msgstr "Statut"
 
-#: src/Admin/CampaignsPage.php:113
+#: src/Admin/CampaignsPage.php:114
 msgid "alle Events"
 msgstr "tous les événements"
 
+#: src/Admin/CampaignsPage.php:117
+msgid "nicht kombinierbar"
+msgstr "non cumulable"
+
 #. translators: %d: paid orders
-#: src/Admin/CampaignsPage.php:116
+#: src/Admin/CampaignsPage.php:117
 #, php-format
 msgid "%d bezahlt"
 msgstr "%d payée(s)"
 
 #. translators: %d: paid orders
 #. translators: 1: percent, 2: fee
-#: src/Admin/CampaignsPage.php:116 src/Admission/RulesPage.php:210
+#: src/Admin/CampaignsPage.php:117 src/Admission/RulesPage.php:210
 #: src/Modules/Webhooks.php:298 src/OfflineScanner/AdminPage.php:160
 #: src/OfflineScanner/AdminPage.php:184 src/Partners/AdminPage.php:245
 #: src/Partners/AdminPage.php:292 src/Partners/AdminPage.php:504
@@ -232,40 +236,40 @@ msgstr "actif"
 
 #. translators: %d: paid orders
 #. translators: 1: percent, 2: fee
-#: src/Admin/CampaignsPage.php:116 src/Partners/AdminPage.php:245
+#: src/Admin/CampaignsPage.php:117 src/Partners/AdminPage.php:245
 msgid "inaktiv"
 msgstr "inactif"
 
-#: src/Admin/CampaignsPage.php:121 src/Admin/EventsPage.php:1023
+#: src/Admin/CampaignsPage.php:122 src/Admin/EventsPage.php:1023
 #: src/Modules/Webhooks.php:301
 msgid "Deaktivieren"
 msgstr "Désactiver"
 
-#: src/Admin/CampaignsPage.php:121 src/Admin/EventsPage.php:1023
+#: src/Admin/CampaignsPage.php:122 src/Admin/EventsPage.php:1023
 #: src/Modules/Webhooks.php:301
 msgid "Aktivieren"
 msgstr "Activer"
 
-#: src/Admin/CampaignsPage.php:128
+#: src/Admin/CampaignsPage.php:129
 msgid "Neuen Code anlegen"
 msgstr "Créer un nouveau code"
 
-#: src/Admin/CampaignsPage.php:131 src/Admin/CheckinsPage.php:81
+#: src/Admin/CampaignsPage.php:132 src/Admin/CheckinsPage.php:81
 #: src/Admin/OrdersPage.php:273 src/Admin/TicketsPage.php:167
 #: src/Admission/ConflictsPage.php:71 src/BoxOffice/ShiftPage.php:420
 #: src/Reports/Page.php:69 src/blocks/events/editor.js:11
 msgid "Alle Events"
 msgstr "Tous les événements"
 
-#: src/Admin/CampaignsPage.php:133
+#: src/Admin/CampaignsPage.php:134
 msgid "3–32 Zeichen: Buchstaben, Ziffern, - und _"
 msgstr "3 à 32 caractères : lettres, chiffres, - et _"
 
-#: src/Admin/CampaignsPage.php:134
+#: src/Admin/CampaignsPage.php:135
 msgid "Name (intern)"
 msgstr "Nom (interne)"
 
-#: src/Admin/CampaignsPage.php:135 src/Admin/OrdersPage.php:479
+#: src/Admin/CampaignsPage.php:136 src/Admin/OrdersPage.php:479
 #: src/Allocations/AdminPage.php:246 src/Allocations/AdminPage.php:297
 #: src/BoxOffice/ShiftPage.php:178 src/BoxOffice/ShiftPage.php:188
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:804
@@ -274,26 +278,26 @@ msgstr "Nom (interne)"
 msgid "Art"
 msgstr "Type"
 
-#: src/Admin/CampaignsPage.php:136
+#: src/Admin/CampaignsPage.php:137
 msgid "Prozent"
 msgstr "Pourcentage"
 
-#: src/Admin/CampaignsPage.php:136
+#: src/Admin/CampaignsPage.php:137
 msgid "Fester Betrag"
 msgstr "Montant fixe"
 
-#: src/Admin/CampaignsPage.php:137 src/BoxOffice/ShiftPage.php:47
+#: src/Admin/CampaignsPage.php:138 src/BoxOffice/ShiftPage.php:47
 #: src/BoxOffice/ZReport.php:457
 msgid "Wert"
 msgstr "Valeur"
 
-#: src/Admin/CampaignsPage.php:137 src/Admin/EventsPage.php:753
+#: src/Admin/CampaignsPage.php:138 src/Admin/EventsPage.php:753
 #: src/BoxOffice/ShiftPage.php:394 src/BoxOffice/ShiftPage.php:422
 #: src/Partners/AdminPage.php:296 src/Passes/AdminPage.php:175
 msgid "Währung"
 msgstr "Devise"
 
-#: src/Admin/CampaignsPage.php:138 src/Admin/CheckinsPage.php:81
+#: src/Admin/CampaignsPage.php:139 src/Admin/CheckinsPage.php:81
 #: src/Admin/CheckinsPage.php:92 src/Admin/EventsPage.php:690
 #: src/Admin/OrdersPage.php:273 src/Admin/OrdersPage.php:282
 #: src/Admin/OrdersPage.php:567 src/Allocations/AdminPage.php:202
@@ -311,44 +315,52 @@ msgstr "Devise"
 msgid "Event"
 msgstr "Événement"
 
-#: src/Admin/CampaignsPage.php:140
+#: src/Admin/CampaignsPage.php:141
 msgid "Ticketart-ID (optional)"
 msgstr "ID du type de ticket (facultatif)"
 
-#: src/Admin/CampaignsPage.php:141
+#: src/Admin/CampaignsPage.php:142
 msgid "Max. Nutzungen"
 msgstr "Utilisations max."
 
-#: src/Admin/CampaignsPage.php:141
+#: src/Admin/CampaignsPage.php:142
 msgid "0 = unbegrenzt"
 msgstr "0 = illimité"
 
-#: src/Admin/CampaignsPage.php:142
+#: src/Admin/CampaignsPage.php:143
 msgid "Gültig ab / bis"
 msgstr "Valable du / au"
 
-#: src/Admin/CampaignsPage.php:142 src/Mail/Types.php:363
+#: src/Admin/CampaignsPage.php:143 src/Mail/Types.php:363
 #: src/OfflineScanner/AdminPage.php:182
 msgid "Gültig bis"
 msgstr "Valable jusqu’au"
 
 #. translators: %s: timezone
-#: src/Admin/CampaignsPage.php:142
+#: src/Admin/CampaignsPage.php:143
 #, php-format
 msgid "Ortszeit %s; leer = unbegrenzt"
 msgstr "Heure locale %s ; vide = illimité"
 
 #. translators: %s: timezone
-#: src/Admin/CampaignsPage.php:143 src/Admin/EventsPage.php:1044
+#: src/Admin/CampaignsPage.php:144 src/Admin/EventsPage.php:1044
 msgid "Reihenfolge"
 msgstr "Ordre"
 
 #. translators: %s: timezone
-#: src/Admin/CampaignsPage.php:143
+#: src/Admin/CampaignsPage.php:144
 msgid "Bei mehreren Codes wird der niedrigere Wert zuerst angewendet."
 msgstr "Si plusieurs codes s’appliquent, la valeur la plus basse est appliquée en premier."
 
-#: src/Admin/CampaignsPage.php:144
+#: src/Admin/CampaignsPage.php:145
+msgid "Kombinierbar"
+msgstr "Cumulable"
+
+#: src/Admin/CampaignsPage.php:145
+msgid "Nicht mit anderen Rabattcodes kombinierbar (gilt nur allein)"
+msgstr "Non cumulable avec d’autres codes de réduction (valable uniquement seul)"
+
+#: src/Admin/CampaignsPage.php:146
 msgid "Code anlegen"
 msgstr "Créer le code"
 
@@ -1261,7 +1273,7 @@ msgid "Wird beim Scannen (Web-Scanner, App, Offline-Scanner) angezeigt; Mindesta
 msgstr "Affiché lors du scan (scanner web, application, scanner hors ligne) ; l’âge minimum et l’obligation de présenter une pièce d’identité sont aussi visibles par les acheteurs lors de l’achat. Le scan n’est pas refusé pour autant."
 
 #: src/Admin/EventsPage.php:969 src/Admin/Forms.php:488
-#: src/Admin/SettingsPage.php:542 src/Allocations/AdminPage.php:262
+#: src/Admin/SettingsPage.php:552 src/Allocations/AdminPage.php:262
 #: src/BoxOffice/ShiftPage.php:425 src/Modules/Reminders.php:189
 #: src/WalletPasses/AdminPage.php:178 src/WalletPasses/AdminPage.php:193
 msgid "Aktiv"
@@ -1677,7 +1689,7 @@ msgstr "Événements et programme"
 msgid "Verkauf"
 msgstr "Vente"
 
-#: src/Admin/Menu.php:114 src/Admin/SettingsPage.php:201
+#: src/Admin/Menu.php:114 src/Admin/SettingsPage.php:211
 #: src/Admission/Rest.php:96 src/Passes/AdminPage.php:140
 #: src/PublicEvents.php:114 src/PublicEvents.php:119
 #: templates/event-card.php:35
@@ -1697,7 +1709,7 @@ msgid "Einstellungen & Integrationen"
 msgstr "Réglages et intégrations"
 
 #: src/Admin/Menu.php:175 src/Admin/Menu.php:181 src/Admin/OrdersPage.php:523
-#: src/Admin/SettingsPage.php:110 src/BoxOffice/ZReport.php:381
+#: src/Admin/SettingsPage.php:120 src/BoxOffice/ZReport.php:381
 #: src/Reports/Page.php:78
 msgid "Erstattungen"
 msgstr "Remboursements"
@@ -2266,306 +2278,326 @@ msgid "Bei Terminabsage bezahlte Bestellungen automatisch erstatten"
 msgstr "Rembourser automatiquement les commandes payées en cas d’annulation d’une date"
 
 #: src/Admin/SettingsPage.php:42
+msgid "Rabattcodes je Bestellung (höchstens)"
+msgstr "Codes de réduction par commande (maximum)"
+
+#: src/Admin/SettingsPage.php:45
+msgid "Mehrere Rabattcodes"
+msgstr "Plusieurs codes de réduction"
+
+#: src/Admin/SettingsPage.php:47
+msgid "nacheinander anwenden (jeder Code auf den Restbetrag, Reihenfolge nach Priorität)"
+msgstr "appliquer l’un après l’autre (chaque code sur le montant restant, par ordre de priorité)"
+
+#: src/Admin/SettingsPage.php:48
+msgid "nur den günstigsten Code anwenden"
+msgstr "appliquer uniquement le code le plus avantageux"
+
+#: src/Admin/SettingsPage.php:50
+msgid "Codes, die als „nicht kombinierbar“ angelegt sind, gelten immer nur allein."
+msgstr "Les codes créés comme « non cumulables » ne sont jamais valables qu’utilisés seuls."
+
+#: src/Admin/SettingsPage.php:52
 msgid "Vier-Augen-Prinzip für Freikarten (Gästeliste: wer beantragt, darf nicht selbst freigeben; Administratoren ausgenommen)"
 msgstr "Principe des quatre yeux pour les billets gratuits (liste d’invités : la personne qui fait la demande ne peut pas la valider elle-même ; administrateurs exceptés)"
 
-#: src/Admin/SettingsPage.php:46
+#: src/Admin/SettingsPage.php:56
 msgid "Einlass / Scanner-Geräte"
 msgstr "Entrée / Appareils de scan"
 
-#: src/Admin/SettingsPage.php:49
+#: src/Admin/SettingsPage.php:59
 msgid "Teilnehmernamen beim Scannen anzeigen"
 msgstr "Afficher les noms des participants lors du scan"
 
-#: src/Admin/SettingsPage.php:50
+#: src/Admin/SettingsPage.php:60
 msgid "Maximale Gültigkeit einer Gerätekopplung (Stunden)"
 msgstr "Validité maximale d’un appairage d’appareil (heures)"
 
-#: src/Admin/SettingsPage.php:51
+#: src/Admin/SettingsPage.php:61
 msgid "Einlass-Tageswechsel (Uhrzeit, volle Stunde)"
 msgstr "Changement de jour d’admission (heure, heure pleine)"
 
-#: src/Admin/SettingsPage.php:51
+#: src/Admin/SettingsPage.php:61
 msgid "0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits."
 msgstr "0 = minuit. Exemple 6 : les scans jusqu’à 05:59 comptent encore pour la veille (festivals, événements nocturnes). S’applique aux tickets journaliers et aux limites quotidiennes."
 
-#: src/Admin/SettingsPage.php:52
+#: src/Admin/SettingsPage.php:62
 msgid "Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel"
 msgstr "Fenêtre d'entrée par défaut pour les types de billets sans règle d'admission propre"
 
-#: src/Admin/SettingsPage.php:53
+#: src/Admin/SettingsPage.php:63
 msgid "Einlass ab (Minuten vor Beginn)"
 msgstr "Entrée à partir de (minutes avant le début)"
 
-#: src/Admin/SettingsPage.php:54
+#: src/Admin/SettingsPage.php:64
 msgid "Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)"
 msgstr "Entrée jusqu'à (minutes après la fin ; sans fin : jusqu'à la fin du jour de l'événement)"
 
-#: src/Admin/SettingsPage.php:58 src/Admin/SettingsPage.php:465
+#: src/Admin/SettingsPage.php:68 src/Admin/SettingsPage.php:475
 msgid "Übersicht"
 msgstr "Vue d’ensemble"
 
-#: src/Admin/SettingsPage.php:61
+#: src/Admin/SettingsPage.php:71
 msgid "Aktive Zahlungsarten"
 msgstr "Modes de paiement actifs"
 
-#: src/Admin/SettingsPage.php:65
+#: src/Admin/SettingsPage.php:75
 msgid "Überweisung"
 msgstr "Virement bancaire"
 
-#: src/Admin/SettingsPage.php:69
+#: src/Admin/SettingsPage.php:79
 msgid "Hinweis für manuelle Zahlung (z. B. Bankverbindung)"
 msgstr "Instructions pour le paiement manuel (p. ex. coordonnées bancaires)"
 
-#: src/Admin/SettingsPage.php:70
+#: src/Admin/SettingsPage.php:80
 msgid "Überweisung: Empfänger (Kontoinhaber)"
 msgstr "Virement : bénéficiaire (titulaire du compte)"
 
-#: src/Admin/SettingsPage.php:70
+#: src/Admin/SettingsPage.php:80
 msgid "Leer = Name / Firma des Rechnungsstellers."
 msgstr "Vide = nom / société de l’émetteur de la facture."
 
-#: src/Admin/SettingsPage.php:71
+#: src/Admin/SettingsPage.php:81
 msgid "Überweisung: IBAN"
 msgstr "Virement : IBAN"
 
-#: src/Admin/SettingsPage.php:71
+#: src/Admin/SettingsPage.php:81
 msgid "Wird nach der Bestellung und in der Bestell-E-Mail mit Betrag, Verwendungszweck und Zahlungsfrist angezeigt."
 msgstr "Affiché après la commande et dans l’e-mail de commande avec le montant, la référence de paiement et le délai de paiement."
 
-#: src/Admin/SettingsPage.php:72
+#: src/Admin/SettingsPage.php:82
 msgid "Überweisung: BIC"
 msgstr "Virement : BIC"
 
-#: src/Admin/SettingsPage.php:73
+#: src/Admin/SettingsPage.php:83
 msgid "Reservierung bei manueller Zahlung (Stunden)"
 msgstr "Réservation en cas de paiement manuel (heures)"
 
-#: src/Admin/SettingsPage.php:73
+#: src/Admin/SettingsPage.php:83
 msgid "Endet spätestens mit Beginn des (ersten) Termins."
 msgstr "Se termine au plus tard au début de la (première) date."
 
-#: src/Admin/SettingsPage.php:74
+#: src/Admin/SettingsPage.php:84
 msgid "Überweisung nur bis … Stunden vor Beginn anbieten"
 msgstr "Ne proposer le virement que jusqu’à … heures avant le début"
 
-#: src/Admin/SettingsPage.php:74
+#: src/Admin/SettingsPage.php:84
 msgid "0 = bis zum Beginn. Empfohlen: 24–48 Stunden, damit die Zahlung rechtzeitig eingeht."
 msgstr "0 = jusqu’au début. Recommandé : 24 à 48 heures, pour que le paiement arrive à temps."
 
-#: src/Admin/SettingsPage.php:78
+#: src/Admin/SettingsPage.php:88
 msgid "Stripe"
 msgstr "Stripe"
 
-#: src/Admin/SettingsPage.php:83 src/Admin/SettingsPage.php:94
+#: src/Admin/SettingsPage.php:93 src/Admin/SettingsPage.php:104
 msgid "Modus"
 msgstr "Mode"
 
-#: src/Admin/SettingsPage.php:83 src/Mail/Admin.php:118
+#: src/Admin/SettingsPage.php:93 src/Mail/Admin.php:118
 msgid "Test"
 msgstr "Test"
 
-#: src/Admin/SettingsPage.php:83 src/Admin/SettingsPage.php:94
+#: src/Admin/SettingsPage.php:93 src/Admin/SettingsPage.php:104
 msgid "Live"
 msgstr "Live"
 
-#: src/Admin/SettingsPage.php:84
+#: src/Admin/SettingsPage.php:94
 msgid "Secret Key"
 msgstr "Clé secrète"
 
-#: src/Admin/SettingsPage.php:85
+#: src/Admin/SettingsPage.php:95
 msgid "Webhook-Signing-Secret"
 msgstr "Secret de signature du webhook"
 
-#: src/Admin/SettingsPage.php:89 src/Payments/PayPalGateway.php:35
+#: src/Admin/SettingsPage.php:99 src/Payments/PayPalGateway.php:35
 msgid "PayPal"
 msgstr "PayPal"
 
-#: src/Admin/SettingsPage.php:94 src/WalletPasses/AdminPage.php:184
+#: src/Admin/SettingsPage.php:104 src/WalletPasses/AdminPage.php:184
 msgid "Sandbox"
 msgstr "Sandbox"
 
-#: src/Admin/SettingsPage.php:95
+#: src/Admin/SettingsPage.php:105
 msgid "Client-ID"
 msgstr "ID client"
 
-#: src/Admin/SettingsPage.php:96
+#: src/Admin/SettingsPage.php:106
 msgid "Client-Secret"
 msgstr "Secret client"
 
-#: src/Admin/SettingsPage.php:97
+#: src/Admin/SettingsPage.php:107
 msgid "Webhook-ID"
 msgstr "ID du webhook"
 
-#: src/Admin/SettingsPage.php:101 src/Admin/SettingsPage.php:203
+#: src/Admin/SettingsPage.php:111 src/Admin/SettingsPage.php:213
 msgid "Rechtstexte"
 msgstr "Mentions légales"
 
-#: src/Admin/SettingsPage.php:104
+#: src/Admin/SettingsPage.php:114
 msgid "Zustimmung im Checkout verlangen"
 msgstr "Exiger l’acceptation lors du paiement"
 
-#: src/Admin/SettingsPage.php:105 src/Admin/SettingsPage.php:512
+#: src/Admin/SettingsPage.php:115 src/Admin/SettingsPage.php:522
 msgid "AGB / Teilnahmebedingungen"
 msgstr "CGV / Conditions de participation"
 
-#: src/Admin/SettingsPage.php:106 src/Admin/SettingsPage.php:512
+#: src/Admin/SettingsPage.php:116 src/Admin/SettingsPage.php:522
 msgid "Verbraucherinformationen (z. B. Widerrufshinweis)"
 msgstr "Informations consommateur (p. ex. information sur le droit de rétractation)"
 
-#: src/Admin/SettingsPage.php:113
+#: src/Admin/SettingsPage.php:123
 msgid "Zweite Freigabe ab Betrag"
 msgstr "Seconde validation à partir du montant"
 
-#: src/Admin/SettingsPage.php:113
+#: src/Admin/SettingsPage.php:123
 msgid "0 = keine zweite Freigabe. Betrag in der Bestellwährung, z. B. 100,00."
 msgstr "0 = pas de seconde validation. Montant dans la devise de la commande, p. ex. 100,00."
 
-#: src/Admin/SettingsPage.php:114
+#: src/Admin/SettingsPage.php:124
 msgid "Zwei-Faktor-Anmeldung für Erstattungen verlangen"
 msgstr "Exiger l’authentification à deux facteurs pour les remboursements"
 
-#: src/Admin/SettingsPage.php:118
+#: src/Admin/SettingsPage.php:128
 msgid "Gutscheine"
 msgstr "Bons"
 
-#: src/Admin/SettingsPage.php:123
+#: src/Admin/SettingsPage.php:133
 msgid "Gutscheine standardmäßig als Mehrzweckgutschein behandeln"
 msgstr "Traiter les bons par défaut comme des bons à usages multiples"
 
-#: src/Admin/SettingsPage.php:125
+#: src/Admin/SettingsPage.php:135
 msgid "Ja – Mehrzweckgutschein (Zahlungsmittel, USt bei Einlösung)"
 msgstr "Oui – bon à usages multiples (moyen de paiement, TVA exigible lors de l’utilisation)"
 
-#: src/Admin/SettingsPage.php:126
+#: src/Admin/SettingsPage.php:136
 msgid "Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)"
 msgstr "Non – bon à usage unique (TVA déjà exigible lors de la vente du bon)"
 
-#: src/Admin/SettingsPage.php:128
+#: src/Admin/SettingsPage.php:138
 msgid "Gilt nur, wenn WP Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md)."
 msgstr "S’applique uniquement si WP Voucher Captain ne communique pas de type pour le bon. Bon à usages multiples : les tickets conservent leur prix et leur TVA intégraux, et le bon figure sur la facture comme moyen de paiement. Bon à usage unique (lieu de la prestation et taux de TVA connus lors de la vente, p. ex. bon pour un événement précis en Allemagne ou en Autriche) : la TVA a déjà été acquittée lors de la vente du bon, et son utilisation réduit le prix. En cas de doute, consultez votre conseiller fiscal (voir docs/VOUCHERS.md)."
 
-#: src/Admin/SettingsPage.php:133
+#: src/Admin/SettingsPage.php:143
 msgid "Datenschutz"
 msgstr "Confidentialité"
 
-#: src/Admin/SettingsPage.php:136
+#: src/Admin/SettingsPage.php:146
 msgid "Teilnehmerdaten nach dem Event löschen nach (Tagen)"
 msgstr "Supprimer les données des participants après l’événement au bout de (jours)"
 
-#: src/Admin/SettingsPage.php:136
+#: src/Admin/SettingsPage.php:146
 msgid "0 = Feldeinstellung verwenden."
 msgstr "0 = utiliser le réglage du champ."
 
-#: src/Admin/SettingsPage.php:137
+#: src/Admin/SettingsPage.php:147
 msgid "Teilnehmerdaten änderbar bis (Stunden vor Beginn)"
 msgstr "Données des participants modifiables jusqu’à (heures avant le début)"
 
-#: src/Admin/SettingsPage.php:141 src/Partners/Settlements.php:881
+#: src/Admin/SettingsPage.php:151 src/Partners/Settlements.php:881
 msgid "Rechnungssteller"
 msgstr "Émetteur de la facture"
 
-#: src/Admin/SettingsPage.php:144
+#: src/Admin/SettingsPage.php:154
 msgid "Name / Firma"
 msgstr "Nom / Société"
 
-#: src/Admin/SettingsPage.php:145
+#: src/Admin/SettingsPage.php:155
 msgid "Anschrift"
 msgstr "Adresse"
 
-#: src/Admin/SettingsPage.php:146 src/Partners/AdminPage.php:283
+#: src/Admin/SettingsPage.php:156 src/Partners/AdminPage.php:283
 msgid "USt-IdNr."
 msgstr "N° de TVA"
 
-#: src/Admin/SettingsPage.php:147 src/Partners/AdminPage.php:474
+#: src/Admin/SettingsPage.php:157 src/Partners/AdminPage.php:474
 msgid "Steuernummer"
 msgstr "Numéro fiscal"
 
-#: src/Admin/SettingsPage.php:147
+#: src/Admin/SettingsPage.php:157
 msgid "Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist."
 msgstr "Mention obligatoire sur les factures lorsqu’aucun numéro de TVA n’est indiqué."
 
-#: src/Admin/SettingsPage.php:148
+#: src/Admin/SettingsPage.php:158
 msgid "Land (ISO-Code, z. B. DE oder AT)"
 msgstr "Pays (code ISO, p. ex. DE ou AT)"
 
-#: src/Admin/SettingsPage.php:148
+#: src/Admin/SettingsPage.php:158
 msgid "Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet (siehe docs/SALES-MODELS.md)."
 msgstr "Utilisé pour la vérification de l’autoliquidation pour les organisateurs établis dans un autre pays de l’UE (voir docs/SALES-MODELS.md)."
 
-#: src/Admin/SettingsPage.php:149
+#: src/Admin/SettingsPage.php:159
 msgid "Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)"
 msgstr "Petite entreprise (pas de TVA sur les propres factures)"
 
-#: src/Admin/SettingsPage.php:149
+#: src/Admin/SettingsPage.php:159
 msgid "Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen)."
 msgstr "Les factures de la plateforme portent alors la mention petite entreprise et sont refusées tant que des types de billets contiennent de la TVA (créer les types de billets à 0 %)."
 
-#: src/Admin/SettingsPage.php:150
+#: src/Admin/SettingsPage.php:160
 msgid "Kleinunternehmer-Hinweis (leer = Standardtext für das Land)"
 msgstr "Mention petite entreprise (vide = texte par défaut du pays)"
 
-#: src/Admin/SettingsPage.php:150
+#: src/Admin/SettingsPage.php:160
 msgid "DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“"
 msgstr "DE : « Gemäß § 19 UStG wird keine Umsatzsteuer berechnet. » – AT : « Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG. »"
 
-#: src/Admin/SettingsPage.php:151
+#: src/Admin/SettingsPage.php:161
 msgid "Präfix Rechnungsnummer"
 msgstr "Préfixe du numéro de facture"
 
-#: src/Admin/SettingsPage.php:152
+#: src/Admin/SettingsPage.php:162
 msgid "Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)"
 msgstr "Demander le nom et l’adresse lors du paiement à partir d’un montant de commande de (0 = jamais ; DE : 250 €, AT : 400 €)"
 
-#: src/Admin/SettingsPage.php:153
+#: src/Admin/SettingsPage.php:163
 msgid "Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)"
 msgstr "Préfixe de correction de facture (document d’annulation / de correction)"
 
-#: src/Admin/SettingsPage.php:154
+#: src/Admin/SettingsPage.php:164
 msgid "Rechnung nach Zahlung automatisch erstellen"
 msgstr "Créer automatiquement la facture après le paiement"
 
-#: src/Admin/SettingsPage.php:158
+#: src/Admin/SettingsPage.php:168
 msgid "Deinstallation"
 msgstr "Désinstallation"
 
-#: src/Admin/SettingsPage.php:161
+#: src/Admin/SettingsPage.php:171
 msgid "Beim Löschen des Plugins alle Daten entfernen"
 msgstr "Supprimer toutes les données lors de la suppression du plugin"
 
-#: src/Admin/SettingsPage.php:161
+#: src/Admin/SettingsPage.php:171
 msgid "Achtung: Events, Bestellungen, Tickets und Rechnungen werden unwiderruflich gelöscht. Gesetzliche Aufbewahrungspflichten beachten."
 msgstr "Attention : les événements, commandes, tickets et factures seront supprimés définitivement. Respectez les obligations légales de conservation."
 
-#: src/Admin/SettingsPage.php:192
+#: src/Admin/SettingsPage.php:202
 msgid "Weitere Einstellungen"
 msgstr "Autres réglages"
 
-#: src/Admin/SettingsPage.php:200 src/WalletPasses/AdminPage.php:172
+#: src/Admin/SettingsPage.php:210 src/WalletPasses/AdminPage.php:172
 msgid "Allgemein"
 msgstr "Général"
 
-#: src/Admin/SettingsPage.php:202
+#: src/Admin/SettingsPage.php:212
 msgid "Zahlungsarten"
 msgstr "Modes de paiement"
 
-#: src/Admin/SettingsPage.php:204
+#: src/Admin/SettingsPage.php:214
 msgid "Rechnungen"
 msgstr "Factures"
 
 #. translators: %s: field label
-#: src/Admin/SettingsPage.php:286
+#: src/Admin/SettingsPage.php:296
 #, php-format
 msgid "„%s“ muss eine ganze Zahl sein."
 msgstr "« %s » doit être un nombre entier."
 
 #. translators: %s: field label
-#: src/Admin/SettingsPage.php:311
+#: src/Admin/SettingsPage.php:321
 #, php-format
 msgid "„%s“ ist kein gültiger Betrag."
 msgstr "« %s » n’est pas un montant valide."
 
-#: src/Admin/SettingsPage.php:390 src/Admission/RulesPage.php:126
+#: src/Admin/SettingsPage.php:400 src/Admission/RulesPage.php:126
 #: src/Allocations/AdminPage.php:174 src/BoxOffice/Page.php:419
 #: src/Modules/Calendar.php:296 src/Modules/Mollie.php:174
 #: src/Modules/Reminders.php:179 src/Modules/Sms.php:321
@@ -2573,88 +2605,88 @@ msgstr "« %s » n’est pas un montant valide."
 msgid "Einstellungen gespeichert."
 msgstr "Réglages enregistrés."
 
-#: src/Admin/SettingsPage.php:426
+#: src/Admin/SettingsPage.php:436
 msgid "Pass Captain Einstellungen"
 msgstr "Réglages de Pass Captain"
 
-#: src/Admin/SettingsPage.php:429
+#: src/Admin/SettingsPage.php:439
 msgid "Einstellungsbereiche"
 msgstr "Sections des réglages"
 
-#: src/Admin/SettingsPage.php:442
+#: src/Admin/SettingsPage.php:452
 msgid "Webhook-URL:"
 msgstr "URL du webhook :"
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:445
+#: src/Admin/SettingsPage.php:455
 #, php-format
 msgid "Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung."
 msgstr "Les textes suivants s’appliquent à la langue par défaut (%s) et à toute langue sans version propre."
 
-#: src/Admin/SettingsPage.php:457 src/Partners/AdminPage.php:261
+#: src/Admin/SettingsPage.php:467 src/Partners/AdminPage.php:261
 msgid "Einstellungen speichern"
 msgstr "Enregistrer les réglages"
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:493
+#: src/Admin/SettingsPage.php:503
 #, php-format
 msgid "%s im Checkout anbieten"
 msgstr "Proposer %s lors du paiement"
 
-#: src/Admin/SettingsPage.php:495 src/Admin/SettingsPage.php:552
+#: src/Admin/SettingsPage.php:505 src/Admin/SettingsPage.php:562
 msgid "(nicht vollständig konfiguriert)"
 msgstr "(configuration incomplète)"
 
-#: src/Admin/SettingsPage.php:505
+#: src/Admin/SettingsPage.php:515
 msgid "Rechtstexte je Sprache"
 msgstr "Textes juridiques par langue"
 
-#: src/Admin/SettingsPage.php:506
+#: src/Admin/SettingsPage.php:516
 msgid "Käufer sehen die Texte ihrer Sprache (Sprache der Seite bzw. von WPML/Polylang). Leere Felder übernehmen den Text der Standardsprache. Jede Sprache hat eine eigene Version, die mit der Bestellung gespeichert wird."
 msgstr "Les acheteurs voient les textes dans leur langue (langue du site ou de WPML/Polylang). Les champs vides reprennent le texte de la langue par défaut. Chaque langue possède sa propre version, enregistrée avec la commande."
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:518
+#: src/Admin/SettingsPage.php:528
 #, php-format
 msgid "Leer: es gilt der Text von %s."
 msgstr "Vide : le texte de %s s’applique."
 
 #. translators: 1: locale code, 2: version hash
-#: src/Admin/SettingsPage.php:525
+#: src/Admin/SettingsPage.php:535
 #, php-format
 msgid "Aktuelle Version für %1$s: %2$s"
 msgstr "Version actuelle pour %1$s : %2$s"
 
-#: src/Admin/SettingsPage.php:530
+#: src/Admin/SettingsPage.php:540
 msgid "Weitere Sprache hinzufügen (Locale, z. B. en_US):"
 msgstr "Ajouter une autre langue (locale, p. ex. en_US) :"
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:558
+#: src/Admin/SettingsPage.php:568
 #, php-format
 msgid "%s einrichten"
 msgstr "Configurer %s"
 
 #. translators: %s: version hash
-#: src/Admin/SettingsPage.php:570
+#: src/Admin/SettingsPage.php:580
 #, php-format
 msgid "Aktuelle Version: %s (wird mit jeder Bestellung gespeichert)"
 msgstr "Version actuelle : %s (enregistrée avec chaque commande)"
 
-#: src/Admin/SettingsPage.php:586
+#: src/Admin/SettingsPage.php:596
 msgid "Gespeichert – leer lassen, um beizubehalten"
 msgstr "Enregistré – laissez vide pour conserver"
 
-#: src/Admin/SettingsPage.php:586 src/Secrets.php:407
+#: src/Admin/SettingsPage.php:596 src/Secrets.php:407
 msgid "Nicht gesetzt"
 msgstr "Non défini"
 
-#: src/Admin/SettingsPage.php:588 src/Secrets.php:415
+#: src/Admin/SettingsPage.php:598 src/Secrets.php:415
 msgid "Gespeicherten Wert löschen"
 msgstr "Supprimer la valeur enregistrée"
 
 #. translators: %s: constant name
-#: src/Admin/SettingsPage.php:596
+#: src/Admin/SettingsPage.php:606
 #, php-format
 msgid "Wird durch %s (wp-config.php oder Umgebungsvariable) überschrieben; der hier gespeicherte Wert wird nicht verwendet."
 msgstr "Remplacé par %s (wp-config.php ou variable d’environnement) ; la valeur enregistrée ici n’est pas utilisée."
@@ -5065,47 +5097,59 @@ msgstr "Rapport Z n° %1$d – %2$s"
 msgid "Drucken / als PDF speichern"
 msgstr "Imprimer / enregistrer en PDF"
 
-#: src/Campaigns.php:37
-msgid "Es können höchstens drei Kampagnencodes verwendet werden."
-msgstr "Trois codes de campagne au maximum peuvent être utilisés."
+#: src/Campaigns.php:47
+msgid "Pro Bestellung kann nur ein Rabattcode verwendet werden."
+msgstr "Un seul code de réduction peut être utilisé par commande."
 
-#: src/Campaigns.php:44
+#. translators: %d: maximum number of discount codes
+#: src/Campaigns.php:47
+#, php-format
+msgid "Es können höchstens %d Rabattcodes verwendet werden."
+msgstr "Vous pouvez utiliser au maximum %d codes de réduction."
+
+#: src/Campaigns.php:55
 msgid "Ein Kampagnencode ist ungültig, abgelaufen oder nicht mehr verfügbar."
 msgstr "Un code de campagne n’est pas valide, a expiré ou n’est plus disponible."
 
-#: src/Campaigns.php:59
+#. translators: %s: discount code
+#: src/Campaigns.php:64
+#, php-format
+msgid "Der Rabattcode %s kann nicht mit anderen Codes kombiniert werden."
+msgstr "Le code de réduction %s n’est pas cumulable avec d’autres codes."
+
+#: src/Campaigns.php:77 src/Campaigns.php:99
 msgid "Ein Kampagnencode passt nicht zu den ausgewählten Tickets."
 msgstr "Un code de campagne ne correspond pas aux tickets sélectionnés."
 
-#: src/Campaigns.php:115
+#: src/Campaigns.php:155
 msgid "Kampagnennutzung konnte nicht gespeichert werden."
 msgstr "L’utilisation de la campagne n’a pas pu être enregistrée."
 
-#: src/Campaigns.php:117
+#: src/Campaigns.php:157
 msgid "Das Kampagnenlimit wurde während des Checkouts erreicht."
 msgstr "La limite de la campagne a été atteinte pendant le paiement."
 
-#: src/Campaigns.php:146
+#: src/Campaigns.php:186
 msgid "Kampagnencode, Währung oder Rabattwert ist ungültig."
 msgstr "Le code de campagne, la devise ou la valeur de la remise n’est pas valide."
 
-#: src/Campaigns.php:155
+#: src/Campaigns.php:196
 msgid "Kampagne konnte nicht angelegt werden."
 msgstr "La campagne n’a pas pu être créée."
 
-#: src/Campaigns.php:212
+#: src/Campaigns.php:253
 msgid "Ungültiger Status."
 msgstr "Statut non valide."
 
-#: src/Campaigns.php:214
+#: src/Campaigns.php:255
 msgid "Kampagne konnte nicht gespeichert werden."
 msgstr "La campagne n’a pas pu être enregistrée."
 
-#: src/Campaigns.php:247 src/PublicEvents.php:19
+#: src/Campaigns.php:288 src/PublicEvents.php:19
 msgid "Bitte wähle mindestens ein Ticket."
 msgstr "Veuillez choisir au moins un ticket."
 
-#: src/Campaigns.php:250 src/PublicEvents.php:22 src/Rest/Controller.php:311
+#: src/Campaigns.php:291 src/PublicEvents.php:22 src/Rest/Controller.php:311
 msgid "Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets."
 msgstr "Le code de réduction n’est pas valide ou ne correspond pas aux tickets sélectionnés."
 
@@ -6323,31 +6367,31 @@ msgstr "Code de secours pour l’entrée, si le QR code est illisible :"
 msgid "Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den langen Ticket-Code verwenden."
 msgstr "Trop de saisies de code de secours. Veuillez patienter un instant ou utiliser le QR code ou le code de ticket long."
 
-#: src/Installer.php:936 src/Installer.php:966
+#: src/Installer.php:937 src/Installer.php:967
 msgid "Pass Captain Veranstalter"
 msgstr "Organisateur Pass Captain"
 
-#: src/Installer.php:962
+#: src/Installer.php:963
 msgid "Pass Captain Ticket-Administration"
 msgstr "Pass Captain Administration des tickets"
 
-#: src/Installer.php:963
+#: src/Installer.php:964
 msgid "Pass Captain Veranstaltungsleitung"
 msgstr "Pass Captain Direction d’événement"
 
-#: src/Installer.php:964
+#: src/Installer.php:965
 msgid "Pass Captain Vor-Ort-Kasse"
 msgstr "Pass Captain Caisse sur place"
 
-#: src/Installer.php:965
+#: src/Installer.php:966
 msgid "Pass Captain Einlasspersonal"
 msgstr "Pass Captain Personnel d’entrée"
 
-#: src/Installer.php:967
+#: src/Installer.php:968
 msgid "Pass Captain Finanzbuchhaltung"
 msgstr "Pass Captain Comptabilité"
 
-#: src/Installer.php:968
+#: src/Installer.php:969
 msgid "Pass Captain Support"
 msgstr "Pass Captain Support"
 

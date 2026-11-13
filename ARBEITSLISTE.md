@@ -261,7 +261,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Steuersatz je Ticketart Orders.php:207; Länderprofile Installer.php:559/Controller.php:693 nur als Draft, nicht an Bestellungen angebunden; Steuerprüfung fehlt
 - [ ] **A116** Teilnehmerfelder: Editor, Erfassung, Validierung, Export/Löschung, Einwilligung — _TEILWEISE_ (TODO L24; P0 – Event- und Verkaufsgrundlage)
   - Editor EventsPage.php:305, Checkout checkout.js:322, Validierung Orders.php:430, Export/Löschung Privacy.php:208/428; Einwilligung nur Checkbox+Zweck, keine Protokollierung/Widerruf
-- [ ] **A117** Checkout-Oberfläche, Ablaufregeln, Käuferlimits, Stapelregeln — _TEILWEISE_ (TODO L26; P0 – Event- und Verkaufsgrundlage)
+- [x] **A117** Checkout-Oberfläche, Ablaufregeln, Käuferlimits, Stapelregeln — _TEILWEISE_ (TODO L26; P0 – Event- und Verkaufsgrundlage)
   - Käuferlimits Allocations/BuyerLimits.php:123, Laufzeit Campaigns.php:24; Stapelung fest (max. 3, immer kumulativ, Campaigns.php:18), keine konfigurierbaren Stapelregeln
 - [ ] **A118** Ticketlink/QR, E-Mail, Druck, Portal, PDF, Selbstbedienung — _TEILWEISE_ (TODO L43; P0 – QR-Ticket und Online-Check-in)
   - PDF vorhanden (TicketPdf.php:18, Anhang Orders.php:1429); Portal (OrderPortal.php:92) ohne PDF-Download und Storno-/Erstattungsanfrage
