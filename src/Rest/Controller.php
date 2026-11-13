@@ -139,6 +139,11 @@ final class Controller {
 			'callback' => array( __CLASS__, 'set_admission_days' ),
 			'permission_callback' => array( __CLASS__, 'manage_events_permission' ),
 		) );
+		register_rest_route( 'wp-pass-captain/v1', '/campaigns/preview', array(
+			'methods' => 'POST',
+			'callback' => array( __CLASS__, 'preview_campaign' ),
+			'permission_callback' => '__return_true', // Public, rate-limited, read-only (no locks, nothing reserved).
+		) );
 		register_rest_route( 'wp-pass-captain/v1', '/events/(?P<event_id>\d+)/campaigns', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'create_campaign' ),
@@ -564,6 +569,16 @@ final class Controller {
 	}
 
 	public static function manage_events_permission() { return is_user_logged_in() && current_user_can( 'wpcap_manage_events' ); }
+
+	/** Non-binding discount preview for the checkout estimate (Campaigns::preview()). */
+	public static function preview_campaign( \WP_REST_Request $request ) {
+		if ( ! \PassCaptain\RateLimit::allow( 'campaign-preview|' . Orders::client_ip(), (int) apply_filters( 'wpcap_campaign_preview_rate_limit', 30 ), 600 ) ) {
+			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+		}
+		$params = $request->get_json_params() ?: $request->get_params();
+		$result = Campaigns::preview( (array) ( $params['items'] ?? array() ), sanitize_text_field( (string) ( $params['code'] ?? '' ) ) );
+		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
+	}
 
 	public static function create_campaign( \WP_REST_Request $request ) {
 		$event_id = absint( $request['event_id'] );

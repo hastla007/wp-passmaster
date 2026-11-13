@@ -89,6 +89,35 @@
 			if (n) currency = qty.dataset.currency || currency;
 		});
 		box.textContent = total > 0 ? (t.estimate || '%s').replace('%s', money(total, currency)) : '';
+		previewDiscount(form, total);
+	}
+
+	// Discount code preview (non-binding): POST …/campaigns/preview, debounced.
+	const previewTimers = new WeakMap();
+	function previewDiscount(form, total) {
+		const code = form.querySelector('[name="campaign_code"]');
+		if (!code || !config.previewUrl) return;
+		clearTimeout(previewTimers.get(form));
+		const value = code.value.trim();
+		if (!value || total <= 0) return;
+		previewTimers.set(form, setTimeout(async function () {
+			const items = [];
+			form.querySelectorAll('.wpcap-qty').forEach(function (qty) {
+				const n = Math.max(0, Number(qty.value) || 0);
+				if (n) items.push({ ticket_type_id: Number(qty.dataset.type), quantity: n });
+			});
+			const box = form.querySelector('.wpcap-estimate');
+			try {
+				const r = await fetch(config.previewUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: value, items: items }) });
+				const d = await r.json().catch(function () { return {}; });
+				if (code.value.trim() !== value) return; // Changed meanwhile.
+				if (r.ok && box) {
+					box.textContent = fill(t.estimateDiscount || '%1$s − %2$s = %3$s', [money(d.subtotal_minor, d.currency), money(d.discount_minor, d.currency), money(d.total_minor, d.currency)]);
+				} else if (409 === r.status && box) {
+					box.textContent = (t.estimate || '%s').replace('%s', money(total, d.currency || '')) + ' ' + (t.codeInvalid || '');
+				}
+			} catch (e) { /* Estimate only. */ }
+		}, 400));
 	}
 
 	/* ---------------------------------------------------------------- Errors (WCAG 3.3.1 / 3.3.3) */
@@ -298,6 +327,12 @@
 			const form = event.target.closest('.wpcap-checkout-form');
 			renderAttendees(form);
 			renderEstimate(form);
+		}
+	});
+	document.addEventListener('input', function (event) {
+		if (event.target.name === 'campaign_code') {
+			const form = event.target.closest('.wpcap-checkout-form');
+			if (form) renderEstimate(form);
 		}
 	});
 	document.addEventListener('change', function (event) {

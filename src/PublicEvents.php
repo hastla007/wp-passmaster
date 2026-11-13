@@ -13,9 +13,13 @@ final class PublicEvents {
 			'url' => esc_url_raw( rest_url( 'wp-pass-captain/v1/checkout' ) ),
 			// Waitlist join: …/events/{event_id}/waitlist.
 			'eventsUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/events/' ) ),
+			'previewUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/campaigns/preview' ) ),
 			'money' => Frontend\Format::js_config(),
 			'i18n' => array(
 				'selectTickets' => __( 'Bitte wähle mindestens ein Ticket.', 'wp-pass-captain' ),
+				/* translators: 1: subtotal, 2: discount, 3: total */
+				'estimateDiscount' => __( 'Summe: %1$s − Rabatt %2$s = %3$s (vorläufig; der endgültige Preis wird bei der Bestellung berechnet)', 'wp-pass-captain' ),
+				'codeInvalid' => __( 'Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets.', 'wp-pass-captain' ),
 				'waitlistJoining' => __( 'Wird eingetragen …', 'wp-pass-captain' ),
 				'waitlistJoined' => __( 'Du stehst auf der Warteliste. Wir melden uns per E-Mail, sobald ein Platz frei wird.', 'wp-pass-captain' ),
 				'waitlistFailed' => __( 'Eintragen fehlgeschlagen.', 'wp-pass-captain' ),

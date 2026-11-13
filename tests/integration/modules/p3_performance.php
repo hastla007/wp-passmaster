@@ -265,6 +265,7 @@ foreach ( array( 'wpcap_ticket_availability', 'wpcap_ticket_unit_price', 'wpcap_
 }
 $count = static function ( callable $fn ) use ( $wpdb ) {
 	Orders::flush_availability_cache();
+	PassCaptain\Campaigns::flush(); // Per-request cache of active discount codes (one query per listing).
 	$before = $wpdb->num_queries;
 	$out = $fn();
 	return array( $wpdb->num_queries - $before, $out );
@@ -273,7 +274,7 @@ $make_listing( 3 );
 list( $q3, $html3 ) = $count( array( PublicEvents::class, 'render_shortcode' ) );
 $make_listing( 9 );
 list( $q12, $html12 ) = $count( array( PublicEvents::class, 'render_shortcode' ) );
-check( "listing: query count independent of the number of dates (3 dates: $q3, 12 dates: $q12)", $q3 === $q12 && $q12 <= 8 );
+check( "listing: query count independent of the number of dates (3 dates: $q3, 12 dates: $q12)", $q3 === $q12 && $q12 <= 9 );
 check( 'listing shows all 12 dates with translation, fields and availability', 12 === substr_count( $html12, '<article class="wpcap-event">' ) && false !== strpos( $html12, 'Übersetzt ' . $listing_occ[11] ) && false !== strpos( $html12, '&quot;key&quot;:&quot;firma&quot;' ) && false !== strpos( $html12, 'max="10"' ) );
 $req = class_exists( 'WP_REST_Request' ) ? new WP_REST_Request( 'GET' ) : null;
 if ( $req ) {

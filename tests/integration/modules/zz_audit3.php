@@ -239,3 +239,21 @@ $a16_rows = array(
 $a16 = PassCaptain\Admin\Queries::occurrence_choices( $a16_rows );
 check( 'A016: running occurrence is the default, then upcoming, then past (marked); cancelled and drafts hidden', array( 3, 2, 1 ) === array_keys( $a16 ) && false !== strpos( $a16[1], 'vergangen' ) );
 check( 'A016: the box office gets no past dates', array( 3, 2 ) === array_keys( PassCaptain\Admin\Queries::occurrence_choices( $a16_rows, false ) ) );
+
+echo "Audit 3: discount code administration and preview (A017)\n";
+$a17_event = ex_event( 'Rabatt Admin' );
+$a17_type = ex_type( ex_occ( $a17_event ), 'Normal', 4000 );
+check( 'A017: no active code → the checkout field is hidden', false === PassCaptain\Campaigns::has_active( $a17_event, 'EUR' ) || PassCaptain\Campaigns::has_active( 0, 'EUR' ) );
+$GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
+$a17_global = PassCaptain\Admin\CampaignsPage::create( array( 'code' => 'ALLE10', 'kind' => 'percent', 'value' => '10', 'currency' => 'EUR', 'event_id' => 0 ) );
+$GLOBALS['wpcap_test_denied_caps'] = array();
+check( 'A017: codes for all events need manage_options', is_wp_error( $a17_global ) );
+$a17 = PassCaptain\Admin\CampaignsPage::create( array( 'code' => 'herbst20', 'name' => 'Herbst', 'kind' => 'percent', 'value' => '20', 'currency' => 'EUR', 'event_id' => $a17_event, 'usage_limit' => 5 ) );
+check( 'A017: admin form creates an event code (uppercase, 20 %)', ! is_wp_error( $a17 ) && 'HERBST20' === $a17['code'] && true === PassCaptain\Campaigns::has_active( $a17_event, 'EUR' ) );
+$a17_preview = PassCaptain\Campaigns::preview( array( array( 'ticket_type_id' => $a17_type, 'quantity' => 2 ) ), 'herbst20' );
+check( 'A017: preview 80,00 − 16,00 = 64,00 without reserving a use', ! is_wp_error( $a17_preview ) && 8000 === $a17_preview['subtotal_minor'] && 1600 === $a17_preview['discount_minor'] && 6400 === $a17_preview['total_minor'] && 0 === (int) PassCaptain\Campaigns::get( $a17['campaign_id'] )->used_count );
+check( 'A017: preview with an unknown code is an error', is_wp_error( PassCaptain\Campaigns::preview( array( array( 'ticket_type_id' => $a17_type, 'quantity' => 1 ) ), 'GIBTSNICHT' ) ) );
+$a17_off = PassCaptain\Admin\CampaignsPage::set_status( array( 'campaign_id' => $a17['campaign_id'], 'status' => 'inactive' ) );
+check( 'A017: deactivated code is no longer offered', true === $a17_off && false === PassCaptain\Campaigns::has_active( $a17_event, 'EUR' ) || PassCaptain\Campaigns::has_active( 0, 'EUR' ) );
+$a17_list = PassCaptain\Campaigns::all( null );
+check( 'A017: list contains usage statistics', (bool) array_filter( $a17_list, static fn( $r ) => 'HERBST20' === $r->code && isset( $r->orders_committed, $r->discount_committed ) ) );

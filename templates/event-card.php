@@ -101,10 +101,12 @@ $wpcap_waitlist = $wpcap_soldout && (bool) apply_filters( 'wpcap_waitlist_public
 				</div>
 			</fieldset>
 		<?php endif; ?>
+		<?php if ( $types && \PassCaptain\Campaigns::has_active( (int) $event->event_id, $types[0]->currency ) ) : ?>
 		<div class="wpcap-field">
 			<label for="<?php echo esc_attr( $form_id . '-campaign' ); ?>"><?php esc_html_e( 'Rabattcode (optional)', 'wp-pass-captain' ); ?></label>
 			<input id="<?php echo esc_attr( $form_id . '-campaign' ); ?>" name="campaign_code" type="text" autocomplete="off" maxlength="40">
 		</div>
+		<?php endif; ?>
 		<?php if ( \PassCaptain\Integrations\Vouchers\Bridge::available() ) : ?>
 			<div class="wpcap-field">
 				<label for="<?php echo esc_attr( $form_id . '-voucher' ); ?>"><?php esc_html_e( 'Gutscheincode (optional)', 'wp-pass-captain' ); ?></label>
