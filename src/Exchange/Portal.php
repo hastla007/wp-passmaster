@@ -79,12 +79,31 @@ final class Portal {
 		if ( Service::PENDING === $row['status'] ) {
 			$out['message'] = __( 'Der neue Platz ist für dich reserviert. Bitte bezahle den Aufpreis; das neue Ticket kommt nach Zahlungseingang per E-Mail. Bis dahin bleibt dein bisheriges Ticket gültig.', 'wp-pass-captain' );
 			$out['payment'] = array_intersect_key( (array) ( $row['payment'] ?? array() ), array_flip( array( 'provider', 'status', 'redirect_url', 'instructions', 'amount_minor', 'currency', 'hold_minutes' ) ) );
+			// Bank transfer: amount, IBAN, reference and due date right here (not only in the mail).
+			$bank = self::bank_rows( (int) ( $row['supplementary_order_id'] ?? 0 ) );
+			if ( $bank ) { $out['payment']['bank'] = $bank; }
 		} elseif ( Service::COMPLETED === $row['status'] ) {
 			$out['message'] = __( 'Umtausch erledigt. Das neue Ticket wurde per E-Mail gesendet; der bisherige Ticketcode ist ungültig.', 'wp-pass-captain' );
 		}
 		if ( ! empty( $row['reused'] ) ) { $out['reused'] = true; }
 		if ( ! empty( $row['warning'] ) ) { $out['warning'] = (string) $row['warning']; }
 		return $out;
+	}
+
+	/** Bank transfer rows (label => value) of a pending supplementary order, empty otherwise. */
+	public static function bank_rows( $supplement_id ) {
+		$supp = $supplement_id ? \PassCaptain\Orders::get( $supplement_id ) : null;
+		if ( ! $supp || ! \PassCaptain\Payments\BankTransfer::applies( $supp ) ) { return array(); }
+		return \PassCaptain\Payments\BankTransfer::rows( \PassCaptain\Payments\BankTransfer::details( $supp ) );
+	}
+
+	/** Open (pending payment) exchange of a ticket whose supplement still holds the target, or null. */
+	public static function open_exchange( $ticket_id ) {
+		global $wpdb;
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Service::table() . ' WHERE old_ticket_id=%d AND status=%s ORDER BY exchange_id DESC LIMIT 1', absint( $ticket_id ), Service::PENDING ), ARRAY_A );
+		if ( ! $row ) { return null; }
+		$supp = \PassCaptain\Orders::get( (int) $row['supplementary_order_id'] );
+		return $supp && 'pending' === $supp->payment_status ? $row : null;
 	}
 
 	public static function rest_exchange( \WP_REST_Request $request ) {
@@ -107,6 +126,22 @@ final class Portal {
 		if ( ! is_object( $ticket ) || ! is_object( $order ) || 'valid' !== ( $ticket->status ?? '' ) || 'paid' !== $order->payment_status ) { return $html; }
 		if ( (int) ( $ticket->transfer_count ?? 0 ) > 0 ) { return $html; } // Transferred: only staff may exchange it.
 
+		// An exchange waiting for its supplement payment: show it (amount, bank details) instead of a new form.
+		$open = self::open_exchange( (int) $ticket->ticket_id );
+		if ( $open ) {
+			$supp = \PassCaptain\Orders::get( (int) $open['supplementary_order_id'] );
+			$out = '<div class="wpcap-exchange-open card"><p><strong>' . esc_html__( 'Umtausch wartet auf Zahlung', 'wp-pass-captain' ) . '</strong><br>';
+			/* translators: 1: target ticket type, 2: amount */
+			$out .= esc_html( sprintf( __( 'Neue Ticketart: %1$s · Aufpreis: %2$s', 'wp-pass-captain' ), Service::type_name( (int) $open['to_type_id'] ), Format::money( (int) $supp->total_minor, (string) $supp->currency ) ) ) . '</p>';
+			$rows = self::bank_rows( (int) $open['supplementary_order_id'] );
+			if ( $rows ) {
+				$out .= '<dl class="bank">';
+				foreach ( $rows as $label => $value ) { $out .= '<dt>' . esc_html( $label ) . '</dt><dd>' . esc_html( $value ) . '</dd>'; }
+				$out .= '</dl>';
+			}
+			$out .= '<p class="muted"><small>' . esc_html__( 'Bis zum Zahlungseingang bleibt dein bisheriges Ticket gültig. Die Zahlungsdetails stehen auch in der E-Mail zum Aufpreis.', 'wp-pass-captain' ) . '</small></p></div>';
+			return $html . $out;
+		}
 		$options = Service::options( (int) $ticket->ticket_id, 'portal' );
 		if ( ! $options ) { return $html; }
 		$policy = Policy::for_event( (int) Service::ticket( (int) $ticket->ticket_id )->event_id );
@@ -170,6 +205,7 @@ final class Portal {
 			. 'try{var body={access_token:TOKEN,ticket_public_id:form.dataset.ticket,ticket_type_id:form.ticket_type_id.value,idempotency_key:k};if(form.provider){body.provider=form.provider.value;}'
 			. 'var r=await fetch(URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});var d={};try{d=await r.json();}catch(x){}'
 			. 'if(!r.ok){form.dataset.k=key();throw new Error(d.message||S.failed);}m.textContent=(d.message||"")+(d.payment&&d.payment.instructions?" "+d.payment.instructions:"");'
+			. 'if(d.payment&&d.payment.bank){var dl=document.createElement("dl");dl.className="bank";Object.keys(d.payment.bank).forEach(function(l){var dt=document.createElement("dt");dt.textContent=l;var dd=document.createElement("dd");dd.textContent=d.payment.bank[l];dl.appendChild(dt);dl.appendChild(dd);});m.appendChild(dl);}'
 			. 'if(d.payment&&d.payment.redirect_url){window.location.href=d.payment.redirect_url;return;}form.querySelectorAll("select,button").forEach(function(n){n.disabled=true;});}catch(err){m.textContent=err.message;b.disabled=false;}});})();</script>';
 	}
 }

@@ -214,3 +214,16 @@ $a13_lines = Orders::summary_lines( $a13['order_id'] );
 check( 'A013: summary lists event, type, quantity and amount', 1 === count( $a13_lines ) && 2 === $a13_lines[0]['quantity'] && 'Steh' === $a13_lines[0]['ticket'] && 10000 === $a13_lines[0]['gross_minor'] );
 $a13_vars = PassCaptain\Mail\Types::order_access_vars( Orders::get( $a13['order_id'] )->public_id );
 check( 'A013: order mail placeholder {order_items} carries the lines', false !== strpos( (string) $a13_vars['order_items']['text'], '2 × Umtausch Abrechnung — Steh' ) );
+
+echo "Audit 3: portal shows a pending upgrade with bank details (A014)\n";
+ex_policy( array( 'portal_enabled' => 1, 'portal_hours' => 24, 'portal_max_per_ticket' => 3 ) );
+PassCaptain\Settings::update( array( 'bank_iban' => 'AT611904300234573201', 'bank_recipient' => 'Kulturverein' ) );
+list( $a14_o, $a14_i ) = ex_buy( $a4_std, 1, 'a14@example.com' );
+$a14_token = str_repeat( 'cd', 32 );
+$wpdb->update( "{$p}wpcap_orders", array( 'access_token_hash' => hash( 'sha256', $a14_token ), 'access_expires_at' => gmdate( 'Y-m-d H:i:s', time() + 3600 ) ), array( 'order_id' => $a14_o ) );
+$a14_t = ex_ticket( $a14_i[0] );
+$a14 = PassCaptain\Exchange\Portal::exchange( Orders::get( $a14_o )->public_id, $a14_token, array( 'ticket_public_id' => $a14_t->public_id, 'ticket_type_id' => $a4_vip, 'idempotency_key' => 'a14', 'provider' => 'manual' ) );
+check( 'A014: pending upgrade response carries the bank details', ! is_wp_error( $a14 ) && 'pending_payment' === $a14['status'] && ! empty( $a14['payment']['bank'] ) && in_array( 'AT61 1904 3002 3457 3201', $a14['payment']['bank'], true ) );
+$a14_html = PassCaptain\Exchange\Portal::ticket_html( '', (object) array( 'ticket_id' => $a14_i[0], 'public_id' => $a14_t->public_id, 'status' => 'valid', 'transfer_count' => 0 ), Orders::get( $a14_o ), $a14_token );
+check( 'A014: after reload the portal shows the open exchange (amount, IBAN) instead of a new form', false !== strpos( $a14_html, 'Umtausch wartet auf Zahlung' ) && false !== strpos( $a14_html, 'AT61 1904 3002 3457 3201' ) && false === strpos( $a14_html, 'wpcap-exchange-form' ) );
+ex_policy( array() );

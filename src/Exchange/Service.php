@@ -1130,7 +1130,7 @@ final class Service {
 		return $items;
 	}
 
-	private static function type_name( $type_id ) {
+	public static function type_name( $type_id ) {
 		global $wpdb;
 		return (string) $wpdb->get_var( $wpdb->prepare( "SELECT name FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d", absint( $type_id ) ) );
 	}
