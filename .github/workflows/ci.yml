@@ -25,7 +25,9 @@ jobs:
       - name: PHP syntax checks
         run: find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: JavaScript syntax checks
-        run: node --check assets/checkout.js && node --check assets/scanner.js && node --check src/blocks/events/editor.js
+        run: node --check assets/checkout.js && node --check assets/scanner.js && node --check src/blocks/events/editor.js && node --check assets/offline-scanner/app.js && node --check assets/offline-scanner/i18n.js && node --check assets/offline-scanner/sw.js
+      - name: Offline scanner translations
+        run: node tests/offline-scanner-i18n.js
       - name: Release guard tests
         run: bash tests/release-guard.sh
 

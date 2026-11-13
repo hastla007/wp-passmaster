@@ -20,10 +20,14 @@ final class AdminPage {
 		return current_user_can( self::CAP ) && Access::can_access_event( (int) $event_id, self::CAP );
 	}
 
-	/** URL of the PWA; the API base is passed so the app works in subdirectory installs. */
+	/**
+	 * URL of the PWA; the API base is passed so the app works in subdirectory installs, the language
+	 * (WordPress user locale) so the app speaks it – it remembers it for offline starts.
+	 */
 	public static function app_url() {
 		$base = defined( 'WPCAP_URL' ) ? WPCAP_URL : '';
-		return $base . 'assets/offline-scanner/index.html?api=' . rawurlencode( rest_url( 'wp-pass-captain/v1/app/' ) );
+		$locale = function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+		return $base . 'assets/offline-scanner/index.html?api=' . rawurlencode( rest_url( 'wp-pass-captain/v1/app/' ) ) . '&lang=' . rawurlencode( strtolower( substr( (string) $locale, 0, 2 ) ) );
 	}
 
 	public static function save_rules( array $in ) {

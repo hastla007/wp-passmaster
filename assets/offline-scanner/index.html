@@ -14,69 +14,70 @@
 </head>
 <body>
 <header class="bar">
-	<strong>Offline-Scanner</strong>
+	<strong data-i18n>Offline-Scanner</strong>
 	<span id="net" class="pill" role="status" aria-live="polite">…</span>
-	<span id="pending" class="pill pill-muted" title="Noch nicht hochgeladene Offline-Scans">0 offen</span>
+	<span id="pending" class="pill pill-muted" data-i18n-title title="Noch nicht hochgeladene Offline-Scans">0</span>
 </header>
 
 <main>
 	<section id="pair-view" hidden>
-		<h1>Gerät koppeln</h1>
-		<p>Im WordPress-Admin unter <em>Pass Captain → Scanner-Geräte</em> einen Kopplungscode für die gewünschten Events erstellen und hier eingeben. Danach unter <em>Offline-Scanner</em> das Gerät dem Event zuweisen.</p>
+		<h1 data-i18n>Gerät koppeln</h1>
+		<p data-i18n>Im WordPress-Admin unter „Pass Captain → Scanner-Geräte“ einen Kopplungscode für die gewünschten Events erstellen und hier eingeben. Danach unter „Offline-Scanner“ das Gerät dem Event zuweisen.</p>
 		<form id="pair-form" autocomplete="off">
-			<label>Kopplungscode<input id="pair-code" name="code" required minlength="16" maxlength="40" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-…"></label>
-			<label>Gerätename<input id="pair-label" name="label" maxlength="190" placeholder="z. B. Einlass Nord"></label>
-			<button type="submit" class="primary">Koppeln</button>
+			<label><span data-i18n>Kopplungscode</span><input id="pair-code" name="code" required minlength="16" maxlength="40" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-…"></label>
+			<label><span data-i18n>Gerätename</span><input id="pair-label" name="label" maxlength="190" data-i18n-placeholder placeholder="z. B. Einlass Nord"></label>
+			<button type="submit" class="primary" data-i18n>Koppeln</button>
 		</form>
-		<p class="small">Server: <code id="api-base"></code></p>
+		<p class="small"><span data-i18n>Server:</span> <code id="api-base"></code></p>
 	</section>
 
 	<section id="main-view" hidden>
 		<div class="card">
-			<label>Termin
+			<label><span data-i18n>Termin</span>
 				<select id="occurrence"></select>
 			</label>
-			<label id="area-wrap" hidden>Einlassbereich
+			<label id="area-wrap" hidden><span data-i18n>Einlassbereich</span>
 				<select id="area"></select>
 			</label>
 			<div id="pkg" class="pkg small" aria-live="polite"></div>
 			<div class="row">
-				<button type="button" id="refresh">Paket aktualisieren</button>
-				<button type="button" id="sync">Jetzt synchronisieren</button>
+				<button type="button" id="refresh" data-i18n>Paket aktualisieren</button>
+				<button type="button" id="sync" data-i18n>Jetzt synchronisieren</button>
 			</div>
 		</div>
 
 		<div id="result" class="result idle" role="status" aria-live="assertive">
-			<div id="result-title">Bereit</div>
+			<div id="result-title" data-i18n>Bereit</div>
 			<div id="result-detail" class="small"></div>
 		</div>
 
 		<div class="card">
 			<div class="row">
-				<button type="button" id="camera" class="primary">Kamera starten</button>
+				<button type="button" id="camera" class="primary" data-i18n>Kamera starten</button>
 			</div>
 			<video id="video" playsinline muted hidden></video>
 			<form id="manual" autocomplete="off">
-				<label>Ticketcode manuell<input id="manual-code" spellcheck="false" inputmode="text" placeholder="64-stelliger Code oder Ticket-Link"></label>
-				<button type="submit">Prüfen</button>
+				<label><span data-i18n>Ticketcode manuell</span><input id="manual-code" spellcheck="false" inputmode="text" data-i18n-placeholder placeholder="64-stelliger Code oder Ticket-Link"></label>
+				<button type="submit" data-i18n>Prüfen</button>
 			</form>
 		</div>
 
 		<div class="card">
-			<h2>Konflikte nach Synchronisierung</h2>
+			<h2 data-i18n>Konflikte nach Synchronisierung</h2>
 			<ul id="conflicts" class="list"></ul>
 		</div>
 
 		<div class="card">
-			<h2>Letzte Scans</h2>
+			<h2 data-i18n>Letzte Scans</h2>
 			<ul id="log" class="list"></ul>
 		</div>
 
-		<p class="small">Gerät <code id="device-id"></code> · <button type="button" id="unpair" class="link">Gerät entkoppeln</button></p>
+		<p class="small"><span data-i18n>Gerät</span> <code id="device-id"></code> · <button type="button" id="unpair" class="link" data-i18n>Gerät entkoppeln</button></p>
 	</section>
 </main>
 
 <script src="../vendor/tweetnacl/nacl-fast.min.js"></script>
+<script src="i18n.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

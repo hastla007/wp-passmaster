@@ -120,8 +120,9 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
 
 | File | Contents |
 |---|---|
-| `index.html` | App shell, German UI. Strict CSP with `connect-src 'self'`. |
-| `app.js` | App logic. |
+| `index.html` | App shell (German source texts, marked with `data-i18n`). Strict CSP with `connect-src 'self'`. |
+| `i18n.js` | Static translation catalogs (German source, English); works offline. |
+| `app.js` | App logic; all visible texts go through `t()`. |
 | `app.css` | Styles. |
 | `sw.js` | Service worker that caches the app shell. API calls are never cached. |
 | `manifest.json`, icons | Makes the app installable. |
@@ -129,6 +130,9 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
 | `../vendor/jsqr/` | Camera fallback when `BarcodeDetector` is unavailable. |
 
 - **Start:** open the app from the admin button. The link passes `?api=<rest_url>`, which is stored.
+- **Language:** the link also passes `?lang=` (WordPress user locale). The app remembers it on the
+  device for offline starts and otherwise falls back to the browser language, then German. Dates use
+  the matching locale. Add a language by adding a catalog to `i18n.js` (keys = German source text).
   Only **same-origin** API bases are accepted. HTTPS (or localhost) is required for the service
   worker and WebCrypto.
 - **Pairing:** enter the pairing code, or paste the JSON payload of the pairing QR. The device token
