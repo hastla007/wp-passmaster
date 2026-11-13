@@ -87,6 +87,9 @@ $a119_public = array(
 	'GET pass-captain/v1/events/(?P<event_id>\d+)/translations',
 	'POST pass-captain/v1/sms/twilio/status',
 	'POST pass-captain/v1/sms/twilio/inbound',
+	// A141: generic HTTP gateway callbacks, HMAC-SHA256 body signature checked in the callback.
+	'POST pass-captain/v1/sms/http/status',
+	'POST pass-captain/v1/sms/http/inbound',
 	'POST pass-captain/v1/app/pair',
 	'GET pass-captain/v1/seating/occurrences/(?P<occurrence_id>\d+)',
 );

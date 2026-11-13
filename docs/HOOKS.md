@@ -172,6 +172,10 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_sms_number_daily_limit` | `int $limit` (3) | SMS-Einwilligungen je Mobilnummer in 24 Stunden (Missbrauchsschutz; eine Bestätigung per SMS-Code ist nicht implementiert). |
 | `wpcap_sms_ip_hourly_limit` | `int $limit` (10) | SMS-Einwilligungen je Client-IP und Stunde. |
 | `wpcap_sms_skip_reason` | `string $reason, object $message` | Grund, eine fällige SMS nicht zu senden (leer = senden). Erinnerungs-SMS werden so bei ungültigen Tickets übersprungen. |
+| `wpcap_sms_convert_price` | `float\|null $converted` (`null`), `float $amount, string $from, string $to` | Rechnet einen vom SMS-Anbieter gemeldeten Preis in eine andere Währung (z. B. Twilio `USD`) in die Abrechnungswährung (`sms.currency`) um (A141). `null` = nicht umrechenbar; dann gilt der hinterlegte Preis je Segment. |
+| `wpcap_sms_http_status_map` | `array $map` | Statuswerte des generischen HTTP-Status-Callbacks (kleingeschrieben) => `delivered`, `undelivered`, `failed` oder `sent` (Standard u. a. `DELIVRD`, `UNDELIV`, `EXPIRED`, `REJECTD`). |
+| `wpcap_sms_budget_warning` *(Action)* | `string $level, array $status` | SMS-Monatsbudget: `warn` (Warnschwelle `sms.budget_warn_percent` erreicht) bzw. `stop` (harte Grenze hat eine SMS zurückgehalten), je Kalendermonat (UTC) höchstens einmal, nach Audit-Eintrag und Admin-Mail. `$status`: `month`, `currency`, `budget`, `spent`, `percent`, `warning`, `exhausted`. |
+| `wpcap_sms_opted_out` *(Action)* | `string $source, int $withdrawn` | Eine Mobilnummer hat sich abgemeldet (`inbound_stop`: STOP per SMS über Twilio oder den HTTP-Anbieter); `$withdrawn` = widerrufene Einwilligungen. Die Nummer steht danach (als SHA-256-Hash) auf der Sperrliste. |
 | `wpcap_webhook_payload_object` | `array $object, string $type` | `data.object` eines ausgehenden Webhooks (keine PII ergänzen). |
 | `wpcap_webhooks_max_attempts` | `int $attempts` (8) | Zustellversuche je Webhook-Ereignis. |
 | `wpcap_webhooks_disable_after` | `int $failures` (20) | Fehlversuche in Folge, nach denen ein Abonnement deaktiviert wird. |

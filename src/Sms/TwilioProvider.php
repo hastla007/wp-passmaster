@@ -66,7 +66,14 @@ final class TwilioProvider implements ProviderInterface {
 			$message = is_array( $data ) && ! empty( $data['message'] ) ? (string) $data['message'] : 'HTTP ' . $code;
 			return new \WP_Error( 'wpcap_sms_twilio', substr( $message, 0, 200 ), array( 'status' => $code, 'permanent' => $code >= 400 && $code < 500 && 429 !== $code ) );
 		}
-		return array( 'status' => 'sent', 'provider_ref' => (string) $data['sid'] );
+		$out = array( 'status' => 'sent', 'provider_ref' => (string) $data['sid'] );
+		// Twilio usually reports the price only later (null at creation); num_segments is known at once.
+		if ( isset( $data['price'] ) && is_numeric( $data['price'] ) ) {
+			$out['price'] = (string) $data['price'];
+			$out['currency'] = strtoupper( (string) ( $data['price_unit'] ?? '' ) );
+		}
+		if ( isset( $data['num_segments'] ) && is_numeric( $data['num_segments'] ) ) { $out['segments'] = (int) $data['num_segments']; }
+		return $out;
 	}
 
 	/**

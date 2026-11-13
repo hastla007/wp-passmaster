@@ -4,6 +4,12 @@
  * body template. Placeholders {to}, {body}, {reference} are escaped for the content type
  * (JSON string content or URL encoding). The auth header value is a secret:
  * Secrets::get('sms_http_secret') (encrypted store) (constant WPCAP_SMS_HTTP_SECRET).
+ *
+ * Delivery reports and inbound SMS (STOP/START) are accepted at /sms/http/status and
+ * /sms/http/inbound when they carry an HMAC-SHA256 signature of the raw request body, keyed with
+ * Secrets::get('sms_http_webhook_secret'), in the header sms.http_signature_header (default
+ * X-Signature; hex or base64, optionally prefixed "sha256="). Without that secret both endpoints
+ * reject every request.
  */
 namespace PassCaptain\Sms;
 
@@ -61,6 +67,42 @@ final class HttpProvider implements ProviderInterface {
 		}
 		$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		$ref = is_array( $data ) ? (string) ( $data['id'] ?? ( $data['message_id'] ?? '' ) ) : '';
-		return array( 'status' => 'sent', 'provider_ref' => substr( sanitize_text_field( $ref ), 0, 64 ) );
+		$out = array( 'status' => 'sent', 'provider_ref' => substr( sanitize_text_field( $ref ), 0, 64 ) );
+		// Optional fields of the gateway response: price, currency, segments.
+		if ( is_array( $data ) && isset( $data['price'] ) && is_numeric( $data['price'] ) ) {
+			$out['price'] = (string) $data['price'];
+			$out['currency'] = strtoupper( substr( sanitize_text_field( (string) ( $data['currency'] ?? '' ) ), 0, 3 ) );
+		}
+		if ( is_array( $data ) && isset( $data['segments'] ) && is_numeric( $data['segments'] ) ) { $out['segments'] = (int) $data['segments']; }
+		return $out;
+	}
+
+	/** Header carrying the callback signature (setting sms.http_signature_header). */
+	public static function signature_header() {
+		$s = (array) Settings::get( 'sms' );
+		$header = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) ( $s['http_signature_header'] ?? '' ) );
+		return '' !== $header ? $header : 'X-Signature';
+	}
+
+	/** URL the gateway posts delivery reports to. */
+	public static function status_callback_url() {
+		return rest_url( 'pass-captain/v1/sms/http/status' );
+	}
+
+	/** URL the gateway posts inbound SMS to (opt-out via STOP). */
+	public static function inbound_url() {
+		return rest_url( 'pass-captain/v1/sms/http/inbound' );
+	}
+
+	/**
+	 * Validates the callback signature: HMAC-SHA256(secret, raw body) as hex or base64, optionally
+	 * prefixed with "sha256=". An empty secret or signature never validates.
+	 */
+	public static function callback_signature_valid( $body, $signature, $secret ) {
+		$signature = trim( (string) $signature );
+		if ( '' === (string) $secret || '' === $signature ) { return false; }
+		if ( 0 === stripos( $signature, 'sha256=' ) ) { $signature = substr( $signature, 7 ); }
+		$raw = hash_hmac( 'sha256', (string) $body, (string) $secret, true );
+		return hash_equals( bin2hex( $raw ), strtolower( $signature ) ) || hash_equals( base64_encode( $raw ), $signature ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 	}
 }

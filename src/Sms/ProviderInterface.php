@@ -20,7 +20,10 @@ interface ProviderInterface {
 	 * @param string $to        E.164 number (+4917...).
 	 * @param string $body      Message text.
 	 * @param string $reference Internal message reference (no PII), usable as idempotency key.
-	 * @return array|\WP_Error ['status' => 'sent'|'queued', 'provider_ref' => string]
+	 * @return array|\WP_Error ['status' => 'sent'|'queued', 'provider_ref' => string] plus optional
+	 *                         'price' (decimal string, sign ignored), 'currency' (ISO 4217) and
+	 *                         'segments' (int) when the provider reports them; the price is then
+	 *                         recorded instead of the configured estimate.
 	 */
 	public function send( $to, $body, $reference );
 }
