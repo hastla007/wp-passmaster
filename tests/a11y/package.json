@@ -1,7 +1,7 @@
 {
-  "name": "wp-pass-captain-a11y",
+  "name": "pass-captain-a11y",
   "private": true,
-  "description": "Accessibility checks (axe-core + Playwright) against a running WordPress install with WP Pass Captain.",
+  "description": "Accessibility checks (axe-core + Playwright) against a running WordPress install with Pass Captain.",
   "scripts": {
     "test": "node run.js",
     "keyboard": "node keyboard.js"

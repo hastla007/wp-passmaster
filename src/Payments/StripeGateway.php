@@ -26,7 +26,7 @@ final class StripeGateway implements GatewayInterface {
 
 	public function id() { return 'stripe'; }
 
-	public function title() { return __( 'Kreditkarte & weitere Zahlarten (Stripe)', 'wp-pass-captain' ); }
+	public function title() { return __( 'Kreditkarte & weitere Zahlarten (Stripe)', 'pass-captain' ); }
 
 	public function is_available( $currency ) {
 		// Without the webhook secret payments could never be confirmed, so both are required.
@@ -43,7 +43,7 @@ final class StripeGateway implements GatewayInterface {
 		$currency = strtoupper( (string) ( $order['currency'] ?? '' ) );
 		$total = (int) ( $order['total_minor'] ?? 0 );
 		if ( '' === $public_id || $total <= 0 || 3 !== strlen( $currency ) ) {
-			return new \WP_Error( 'wpcap_stripe_order', __( 'Die Bestellung kann nicht mit Stripe bezahlt werden.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_stripe_order', __( 'Die Bestellung kann nicht mit Stripe bezahlt werden.', 'pass-captain' ) );
 		}
 
 		// A retried checkout (same idempotency key) reuses a still open session instead of creating a second one.
@@ -76,7 +76,7 @@ final class StripeGateway implements GatewayInterface {
 						'product_data' => array(
 							'name' => self::summary( $items ),
 							/* translators: %s: order number */
-							'description' => sprintf( __( 'Bestellung %s', 'wp-pass-captain' ), $public_id ),
+							'description' => sprintf( __( 'Bestellung %s', 'pass-captain' ), $public_id ),
 						),
 					),
 				),
@@ -91,7 +91,7 @@ final class StripeGateway implements GatewayInterface {
 		$session = $this->api( 'POST', 'checkout/sessions', $params, 'wpcap-session-' . $public_id . $key_suffix );
 		if ( is_wp_error( $session ) ) { return $session; }
 		if ( empty( $session['id'] ) || empty( $session['url'] ) ) {
-			return new \WP_Error( 'wpcap_stripe_response', __( 'Unerwartete Antwort von Stripe.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_stripe_response', __( 'Unerwartete Antwort von Stripe.', 'pass-captain' ) );
 		}
 		return $this->payment_result( $session );
 	}
@@ -101,11 +101,11 @@ final class StripeGateway implements GatewayInterface {
 		$secret = \PassCaptain\Secrets::get( 'stripe_webhook_secret' );
 		$payload = (string) $request->get_body();
 		if ( '' === $secret || ! self::signature_valid( $payload, (string) $request->get_header( 'stripe-signature' ), $secret ) ) {
-			return new \WP_Error( 'wpcap_stripe_signature', __( 'Ungültige Stripe-Signatur.', 'wp-pass-captain' ), array( 'status' => 401 ) );
+			return new \WP_Error( 'wpcap_stripe_signature', __( 'Ungültige Stripe-Signatur.', 'pass-captain' ), array( 'status' => 401 ) );
 		}
 		$event = json_decode( $payload, true );
 		if ( ! is_array( $event ) || empty( $event['id'] ) || empty( $event['type'] ) || ! isset( $event['data']['object'] ) || ! is_array( $event['data']['object'] ) ) {
-			return new \WP_Error( 'wpcap_stripe_payload', __( 'Ungültige Stripe-Nachricht.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_stripe_payload', __( 'Ungültige Stripe-Nachricht.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		return $this->normalize( $event );
 	}
@@ -125,7 +125,7 @@ final class StripeGateway implements GatewayInterface {
 		} elseif ( 0 === strpos( $reference, 'ch_' ) || 0 === strpos( $reference, 'py_' ) ) {
 			$params['charge'] = $reference;
 		} else {
-			return new \WP_Error( 'wpcap_stripe_refund_reference', __( 'Für diese Bestellung ist keine Stripe-Zahlung bekannt.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_stripe_refund_reference', __( 'Für diese Bestellung ist keine Stripe-Zahlung bekannt.', 'pass-captain' ) );
 		}
 		$amount = self::to_stripe_amount( (int) $amount_minor, $currency );
 		$params['amount'] = $amount;
@@ -134,7 +134,7 @@ final class StripeGateway implements GatewayInterface {
 		$refund = $this->api( 'POST', 'refunds', $params, (string) $idempotency_key );
 		if ( is_wp_error( $refund ) ) { return $refund; }
 		if ( empty( $refund['id'] ) || in_array( $refund['status'] ?? '', array( 'failed', 'canceled' ), true ) ) {
-			return new \WP_Error( 'wpcap_stripe_refund_failed', __( 'Stripe hat die Erstattung abgelehnt.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_stripe_refund_failed', __( 'Stripe hat die Erstattung abgelehnt.', 'pass-captain' ) );
 		}
 		return (string) $refund['id'];
 	}
@@ -240,7 +240,7 @@ final class StripeGateway implements GatewayInterface {
 	private function api( $method, $path, array $params = array(), $idempotency_key = '' ) {
 		$secret = \PassCaptain\Secrets::get( 'stripe_secret_key' );
 		if ( '' === $secret ) {
-			return new \WP_Error( 'wpcap_stripe_config', __( 'Stripe ist nicht konfiguriert.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_stripe_config', __( 'Stripe ist nicht konfiguriert.', 'pass-captain' ) );
 		}
 		$args = array(
 			'method' => $method,
@@ -257,14 +257,14 @@ final class StripeGateway implements GatewayInterface {
 		}
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_stripe_http', sprintf( __( 'Stripe ist nicht erreichbar: %s', 'wp-pass-captain' ), $response->get_error_message() ) );
+			return new \WP_Error( 'wpcap_stripe_http', sprintf( __( 'Stripe ist nicht erreichbar: %s', 'pass-captain' ), $response->get_error_message() ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		if ( $code < 200 || $code >= 300 || ! is_array( $body ) ) {
 			$message = is_array( $body ) && ! empty( $body['error']['message'] ) ? (string) $body['error']['message'] : 'HTTP ' . $code;
 			/* translators: %s: error message from Stripe */
-			return new \WP_Error( 'wpcap_stripe_api', sprintf( __( 'Stripe-Fehler: %s', 'wp-pass-captain' ), $message ), array( 'status' => $code ) );
+			return new \WP_Error( 'wpcap_stripe_api', sprintf( __( 'Stripe-Fehler: %s', 'pass-captain' ), $message ), array( 'status' => $code ) );
 		}
 		return $body;
 	}
@@ -308,7 +308,7 @@ final class StripeGateway implements GatewayInterface {
 			$name = trim( (string) ( $item['event_name'] ?? '' ) . ' – ' . (string) ( $item['name'] ?? '' ), ' –' );
 			$parts[] = $name . ' × ' . (int) ( $item['quantity'] ?? 1 );
 		}
-		$summary = $parts ? implode( ', ', $parts ) : __( 'Tickets', 'wp-pass-captain' );
+		$summary = $parts ? implode( ', ', $parts ) : __( 'Tickets', 'pass-captain' );
 		return function_exists( 'mb_substr' ) ? mb_substr( $summary, 0, 250 ) : substr( $summary, 0, 250 );
 	}
 

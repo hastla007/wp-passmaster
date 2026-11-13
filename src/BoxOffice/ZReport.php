@@ -257,7 +257,7 @@ final class ZReport {
 		);
 		$row['hash'] = self::hash( $row );
 		if ( false === $wpdb->insert( self::t( 'zreports' ), $row ) ) {
-			return new \WP_Error( 'wpcap_pos_z', __( 'Der Z-Bericht konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+			return new \WP_Error( 'wpcap_pos_z', __( 'Der Z-Bericht konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
 		return (int) $wpdb->insert_id;
 	}
@@ -327,10 +327,10 @@ final class ZReport {
 		$expected_number = 1;
 		foreach ( $rows as $z ) {
 			/* translators: %d: Z number */
-			if ( (int) $z->z_number !== $expected_number ) { $problems[ (int) $z->z_id ] = sprintf( __( 'Lücke in der Z-Nummerierung vor Z %d.', 'wp-pass-captain' ), (int) $z->z_number ); }
-			if ( ! hash_equals( self::hash( $z ), (string) $z->hash ) ) { $problems[ (int) $z->z_id ] = sprintf( /* translators: %d: Z report number */ __( 'Z %d wurde nachträglich verändert.', 'wp-pass-captain' ), (int) $z->z_number ); }
-			if ( (string) $z->prev_hash !== ( $prev ? (string) $prev->hash : '' ) ) { $problems[ (int) $z->z_id ] = sprintf( /* translators: %d: Z report number */ __( 'Die Verkettung vor Z %d ist unterbrochen.', 'wp-pass-captain' ), (int) $z->z_number ); }
-			if ( (int) $z->grand_total_minor !== ( $prev ? (int) $prev->grand_total_minor : 0 ) + (int) $z->net_total_minor ) { $problems[ (int) $z->z_id ] = sprintf( /* translators: %d: Z report number */ __( 'Der Grand Total von Z %d stimmt nicht.', 'wp-pass-captain' ), (int) $z->z_number ); }
+			if ( (int) $z->z_number !== $expected_number ) { $problems[ (int) $z->z_id ] = sprintf( __( 'Lücke in der Z-Nummerierung vor Z %d.', 'pass-captain' ), (int) $z->z_number ); }
+			if ( ! hash_equals( self::hash( $z ), (string) $z->hash ) ) { $problems[ (int) $z->z_id ] = sprintf( /* translators: %d: Z report number */ __( 'Z %d wurde nachträglich verändert.', 'pass-captain' ), (int) $z->z_number ); }
+			if ( (string) $z->prev_hash !== ( $prev ? (string) $prev->hash : '' ) ) { $problems[ (int) $z->z_id ] = sprintf( /* translators: %d: Z report number */ __( 'Die Verkettung vor Z %d ist unterbrochen.', 'pass-captain' ), (int) $z->z_number ); }
+			if ( (int) $z->grand_total_minor !== ( $prev ? (int) $prev->grand_total_minor : 0 ) + (int) $z->net_total_minor ) { $problems[ (int) $z->z_id ] = sprintf( /* translators: %d: Z report number */ __( 'Der Grand Total von Z %d stimmt nicht.', 'pass-captain' ), (int) $z->z_number ); }
 			$prev = $z;
 			$expected_number = (int) $z->z_number + 1;
 		}
@@ -351,74 +351,74 @@ final class ZReport {
 		$tz = Scope::site_timezone();
 		$register = Registers::get( $z->register_id );
 		$rows = array();
-		$head = __( 'Kopf', 'wp-pass-captain' );
-		$rows[] = array( $head, __( 'Kasse', 'wp-pass-captain' ), ( $register ? $register->name : '#' . $z->register_id ) . ' (ID ' . (int) $z->register_id . ')' );
-		if ( $register && '' !== (string) $register->location ) { $rows[] = array( $head, __( 'Standort', 'wp-pass-captain' ), $register->location ); }
-		$rows[] = array( $head, __( 'Z-Nummer', 'wp-pass-captain' ), (int) $z->z_number );
-		$rows[] = array( $head, __( 'Schicht', 'wp-pass-captain' ), (int) $z->shift_id );
-		$rows[] = array( $head, __( 'Geöffnet', 'wp-pass-captain' ), Scope::local( $z->opened_at, $tz, 'd.m.Y H:i:s' ) );
-		$rows[] = array( $head, __( 'Geschlossen', 'wp-pass-captain' ), Scope::local( $z->closed_at, $tz, 'd.m.Y H:i:s' ) );
-		$rows[] = array( $head, __( 'Kassierer', 'wp-pass-captain' ), implode( ', ', array_map( array( Service::class, 'user_name' ), (array) ( $t['cashiers'] ?? array( $z->opened_by ) ) ) ) );
-		$rows[] = array( $head, __( 'Abgeschlossen von', 'wp-pass-captain' ), Service::user_name( $z->closed_by ) );
-		if ( 'migration' === $z->source ) { $rows[] = array( $head, __( 'Herkunft', 'wp-pass-captain' ), __( 'Aus Kassensitzung vor Version mit Kassen übernommen', 'wp-pass-captain' ) ); }
-		$pm = __( 'Zahlarten', 'wp-pass-captain' );
+		$head = __( 'Kopf', 'pass-captain' );
+		$rows[] = array( $head, __( 'Kasse', 'pass-captain' ), ( $register ? $register->name : '#' . $z->register_id ) . ' (ID ' . (int) $z->register_id . ')' );
+		if ( $register && '' !== (string) $register->location ) { $rows[] = array( $head, __( 'Standort', 'pass-captain' ), $register->location ); }
+		$rows[] = array( $head, __( 'Z-Nummer', 'pass-captain' ), (int) $z->z_number );
+		$rows[] = array( $head, __( 'Schicht', 'pass-captain' ), (int) $z->shift_id );
+		$rows[] = array( $head, __( 'Geöffnet', 'pass-captain' ), Scope::local( $z->opened_at, $tz, 'd.m.Y H:i:s' ) );
+		$rows[] = array( $head, __( 'Geschlossen', 'pass-captain' ), Scope::local( $z->closed_at, $tz, 'd.m.Y H:i:s' ) );
+		$rows[] = array( $head, __( 'Kassierer', 'pass-captain' ), implode( ', ', array_map( array( Service::class, 'user_name' ), (array) ( $t['cashiers'] ?? array( $z->opened_by ) ) ) ) );
+		$rows[] = array( $head, __( 'Abgeschlossen von', 'pass-captain' ), Service::user_name( $z->closed_by ) );
+		if ( 'migration' === $z->source ) { $rows[] = array( $head, __( 'Herkunft', 'pass-captain' ), __( 'Aus Kassensitzung vor Version mit Kassen übernommen', 'pass-captain' ) ); }
+		$pm = __( 'Zahlarten', 'pass-captain' );
 		foreach ( (array) ( $t['methods'] ?? array() ) as $m => $v ) {
-			$rows[] = array( $pm, Service::method_label( $m ) . ' – ' . __( 'Verkäufe', 'wp-pass-captain' ), (int) ( $v['sales_count'] ?? 0 ) . ' / ' . self::money( $v['sales_gross'] ?? 0, $cur ) );
-			$rows[] = array( $pm, Service::method_label( $m ) . ' – ' . __( 'Stornos/Erstattungen', 'wp-pass-captain' ), (int) ( $v['refund_count'] ?? 0 ) . ' / ' . self::money( -(int) ( $v['refund_amount'] ?? 0 ), $cur ) );
-			$rows[] = array( $pm, Service::method_label( $m ) . ' – ' . __( 'Netto', 'wp-pass-captain' ), self::money( $v['net'] ?? 0, $cur ) );
+			$rows[] = array( $pm, Service::method_label( $m ) . ' – ' . __( 'Verkäufe', 'pass-captain' ), (int) ( $v['sales_count'] ?? 0 ) . ' / ' . self::money( $v['sales_gross'] ?? 0, $cur ) );
+			$rows[] = array( $pm, Service::method_label( $m ) . ' – ' . __( 'Stornos/Erstattungen', 'pass-captain' ), (int) ( $v['refund_count'] ?? 0 ) . ' / ' . self::money( -(int) ( $v['refund_amount'] ?? 0 ), $cur ) );
+			$rows[] = array( $pm, Service::method_label( $m ) . ' – ' . __( 'Netto', 'pass-captain' ), self::money( $v['net'] ?? 0, $cur ) );
 		}
-		$vs = __( 'USt-Sätze', 'wp-pass-captain' );
+		$vs = __( 'USt-Sätze', 'pass-captain' );
 		foreach ( (array) ( $t['vat'] ?? array() ) as $rate => $v ) {
 			$label = number_format_i18n( (int) $rate / 100, 2 ) . ' %';
-			$rows[] = array( $vs, $label . ' ' . __( 'Netto', 'wp-pass-captain' ), self::money( $v['net'], $cur ) );
-			$rows[] = array( $vs, $label . ' ' . __( 'USt.', 'wp-pass-captain' ), self::money( $v['tax'], $cur ) );
-			$rows[] = array( $vs, $label . ' ' . __( 'Brutto', 'wp-pass-captain' ), self::money( $v['gross'], $cur ) );
+			$rows[] = array( $vs, $label . ' ' . __( 'Netto', 'pass-captain' ), self::money( $v['net'], $cur ) );
+			$rows[] = array( $vs, $label . ' ' . __( 'USt.', 'pass-captain' ), self::money( $v['tax'], $cur ) );
+			$rows[] = array( $vs, $label . ' ' . __( 'Brutto', 'pass-captain' ), self::money( $v['gross'], $cur ) );
 		}
-		$cs = __( 'Zähler', 'wp-pass-captain' );
+		$cs = __( 'Zähler', 'pass-captain' );
 		$c = (array) ( $t['counts'] ?? array() );
-		$rows[] = array( $cs, __( 'Verkäufe', 'wp-pass-captain' ), (int) ( $c['sales'] ?? 0 ) );
-		$rows[] = array( $cs, __( 'Stornos', 'wp-pass-captain' ), (int) ( $c['stornos'] ?? 0 ) );
-		$rows[] = array( $cs, __( 'Erstattungen', 'wp-pass-captain' ), (int) ( $c['refunds'] ?? 0 ) );
-		$rows[] = array( $cs, __( 'Freikarten (Verkäufe/Tickets)', 'wp-pass-captain' ), (int) ( $c['comps'] ?? 0 ) . ' / ' . (int) ( $c['comp_tickets'] ?? 0 ) );
-		$rows[] = array( $cs, __( 'Tickets', 'wp-pass-captain' ), (int) ( $c['tickets'] ?? 0 ) );
+		$rows[] = array( $cs, __( 'Verkäufe', 'pass-captain' ), (int) ( $c['sales'] ?? 0 ) );
+		$rows[] = array( $cs, __( 'Stornos', 'pass-captain' ), (int) ( $c['stornos'] ?? 0 ) );
+		$rows[] = array( $cs, __( 'Erstattungen', 'pass-captain' ), (int) ( $c['refunds'] ?? 0 ) );
+		$rows[] = array( $cs, __( 'Freikarten (Verkäufe/Tickets)', 'pass-captain' ), (int) ( $c['comps'] ?? 0 ) . ' / ' . (int) ( $c['comp_tickets'] ?? 0 ) );
+		$rows[] = array( $cs, __( 'Tickets', 'pass-captain' ), (int) ( $c['tickets'] ?? 0 ) );
 		$cash = (array) ( $t['cash'] ?? array() );
-		$bs = __( 'Bargeld', 'wp-pass-captain' );
-		foreach ( array( 'opening' => __( 'Anfangsbestand (Wechselgeld)', 'wp-pass-captain' ), 'sales' => __( 'Barumsatz', 'wp-pass-captain' ), 'refunds' => __( 'Barauszahlungen (Storno/Erstattung)', 'wp-pass-captain' ), 'in' => __( 'Einlagen', 'wp-pass-captain' ), 'out' => __( 'Entnahmen', 'wp-pass-captain' ), 'corrections' => __( 'Korrekturen', 'wp-pass-captain' ), 'expected' => __( 'Soll-Bestand', 'wp-pass-captain' ), 'counted' => __( 'Ist-Bestand (gezählt)', 'wp-pass-captain' ), 'difference' => __( 'Kassendifferenz', 'wp-pass-captain' ), 'handover' => __( 'Übergeben an nächste Schicht', 'wp-pass-captain' ), 'to_safe' => __( 'Abgeschöpft (Tresor/Bank)', 'wp-pass-captain' ) ) as $k => $label ) {
+		$bs = __( 'Bargeld', 'pass-captain' );
+		foreach ( array( 'opening' => __( 'Anfangsbestand (Wechselgeld)', 'pass-captain' ), 'sales' => __( 'Barumsatz', 'pass-captain' ), 'refunds' => __( 'Barauszahlungen (Storno/Erstattung)', 'pass-captain' ), 'in' => __( 'Einlagen', 'pass-captain' ), 'out' => __( 'Entnahmen', 'pass-captain' ), 'corrections' => __( 'Korrekturen', 'pass-captain' ), 'expected' => __( 'Soll-Bestand', 'pass-captain' ), 'counted' => __( 'Ist-Bestand (gezählt)', 'pass-captain' ), 'difference' => __( 'Kassendifferenz', 'pass-captain' ), 'handover' => __( 'Übergeben an nächste Schicht', 'pass-captain' ), 'to_safe' => __( 'Abgeschöpft (Tresor/Bank)', 'pass-captain' ) ) as $k => $label ) {
 			if ( array_key_exists( $k, $cash ) ) { $rows[] = array( $bs, $label, self::money( $cash[ $k ], $cur ) ); }
 		}
 		foreach ( (array) ( $cash['denominations'] ?? array() ) as $value => $qty ) {
-			$rows[] = array( $bs, sprintf( /* translators: %s: denomination */ __( 'Stückelung %s', 'wp-pass-captain' ), Cash::label( $value ) ), (int) $qty );
+			$rows[] = array( $bs, sprintf( /* translators: %s: denomination */ __( 'Stückelung %s', 'pass-captain' ), Cash::label( $value ) ), (int) $qty );
 		}
 		$card = (array) ( $t['card'] ?? array() );
-		$ks = __( 'Kartenterminal', 'wp-pass-captain' );
-		$rows[] = array( $ks, __( 'Soll (Kartenumsatz)', 'wp-pass-captain' ), self::money( $card['expected'] ?? 0, $cur ) );
-		$rows[] = array( $ks, __( 'Terminal-Summe', 'wp-pass-captain' ), self::money( $card['counted'] ?? null, $cur ) );
-		$rows[] = array( $ks, __( 'Differenz', 'wp-pass-captain' ), self::money( $card['difference'] ?? null, $cur ) );
-		if ( '' !== (string) $z->difference_reason ) { $rows[] = array( $bs, __( 'Grund der Differenz', 'wp-pass-captain' ), $z->difference_reason ); }
-		if ( ! empty( $t['blind_count'] ) ) { $rows[] = array( $bs, __( 'Blindzählung', 'wp-pass-captain' ), __( 'ja', 'wp-pass-captain' ) ); }
+		$ks = __( 'Kartenterminal', 'pass-captain' );
+		$rows[] = array( $ks, __( 'Soll (Kartenumsatz)', 'pass-captain' ), self::money( $card['expected'] ?? 0, $cur ) );
+		$rows[] = array( $ks, __( 'Terminal-Summe', 'pass-captain' ), self::money( $card['counted'] ?? null, $cur ) );
+		$rows[] = array( $ks, __( 'Differenz', 'pass-captain' ), self::money( $card['difference'] ?? null, $cur ) );
+		if ( '' !== (string) $z->difference_reason ) { $rows[] = array( $bs, __( 'Grund der Differenz', 'pass-captain' ), $z->difference_reason ); }
+		if ( ! empty( $t['blind_count'] ) ) { $rows[] = array( $bs, __( 'Blindzählung', 'pass-captain' ), __( 'ja', 'pass-captain' ) ); }
 		foreach ( (array) ( $t['count_history'] ?? array() ) as $n => $c ) {
-			$rows[] = array( $bs, sprintf( /* translators: 1: number of the count, 2: user who counted */ __( 'Zählung %1$d (%2$s)', 'wp-pass-captain' ), $n + 1, Service::user_name( (int) $c['counted_by'] ) ), sprintf( /* translators: 1: counted cash, 2: cash difference */ __( 'Ist %1$s, Differenz %2$s', 'wp-pass-captain' ), self::money( $c['cash'], $cur ), self::money( $c['cash_difference'], $cur ) ) );
+			$rows[] = array( $bs, sprintf( /* translators: 1: number of the count, 2: user who counted */ __( 'Zählung %1$d (%2$s)', 'pass-captain' ), $n + 1, Service::user_name( (int) $c['counted_by'] ) ), sprintf( /* translators: 1: counted cash, 2: cash difference */ __( 'Ist %1$s, Differenz %2$s', 'pass-captain' ), self::money( $c['cash'], $cur ), self::money( $c['cash_difference'], $cur ) ) );
 		}
-		if ( ! empty( $t['handover'] ) ) { $rows[] = array( $bs, __( 'Übergabe an', 'wp-pass-captain' ), Service::user_name( $t['handover']['to_user'] ) ); }
-		$ms = __( 'Buchungen', 'wp-pass-captain' );
+		if ( ! empty( $t['handover'] ) ) { $rows[] = array( $bs, __( 'Übergabe an', 'pass-captain' ), Service::user_name( $t['handover']['to_user'] ) ); }
+		$ms = __( 'Buchungen', 'pass-captain' );
 		$kinds = self::kind_labels();
 		foreach ( (array) ( $t['movements'] ?? array() ) as $mv ) {
-			$rows[] = array( $ms, ( $kinds[ $mv['kind'] ] ?? $mv['kind'] ) . ( '' !== $mv['receipt'] ? ' ' . $mv['receipt'] : '' ) . ' (' . Service::method_label( $mv['method'] ) . '): ' . $mv['reason'] . ( '' !== (string) $mv['override'] ? ' [' . __( 'Override:', 'wp-pass-captain' ) . ' ' . $mv['override'] . ']' : '' ), self::money( $mv['amount'], $cur ) );
+			$rows[] = array( $ms, ( $kinds[ $mv['kind'] ] ?? $mv['kind'] ) . ( '' !== $mv['receipt'] ? ' ' . $mv['receipt'] : '' ) . ' (' . Service::method_label( $mv['method'] ) . '): ' . $mv['reason'] . ( '' !== (string) $mv['override'] ? ' [' . __( 'Override:', 'pass-captain' ) . ' ' . $mv['override'] . ']' : '' ), self::money( $mv['amount'], $cur ) );
 		}
-		$gs = __( 'Summen', 'wp-pass-captain' );
-		$rows[] = array( $gs, __( 'Nettoumsatz dieser Schicht', 'wp-pass-captain' ), self::money( $z->net_total_minor, $cur ) );
-		$rows[] = array( $gs, __( 'Grand Total (kumuliert)', 'wp-pass-captain' ), self::money( $z->grand_total_minor, $cur ) );
-		$rows[] = array( $gs, __( 'Prüfsumme', 'wp-pass-captain' ), $z->hash );
+		$gs = __( 'Summen', 'pass-captain' );
+		$rows[] = array( $gs, __( 'Nettoumsatz dieser Schicht', 'pass-captain' ), self::money( $z->net_total_minor, $cur ) );
+		$rows[] = array( $gs, __( 'Grand Total (kumuliert)', 'pass-captain' ), self::money( $z->grand_total_minor, $cur ) );
+		$rows[] = array( $gs, __( 'Prüfsumme', 'pass-captain' ), $z->hash );
 		return $rows;
 	}
 
 	public static function kind_labels() {
 		return array(
-			'cash_in' => __( 'Einlage', 'wp-pass-captain' ),
-			'cash_out' => __( 'Entnahme', 'wp-pass-captain' ),
-			'storno' => __( 'Storno', 'wp-pass-captain' ),
-			'refund' => __( 'Erstattung', 'wp-pass-captain' ),
-			'correction' => __( 'Korrektur', 'wp-pass-captain' ),
+			'cash_in' => __( 'Einlage', 'pass-captain' ),
+			'cash_out' => __( 'Entnahme', 'pass-captain' ),
+			'storno' => __( 'Storno', 'pass-captain' ),
+			'refund' => __( 'Erstattung', 'pass-captain' ),
+			'correction' => __( 'Korrektur', 'pass-captain' ),
 		);
 	}
 
@@ -439,22 +439,22 @@ final class ZReport {
 		$h = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( (string) $mv->receipt_number ) . '</title>'
 			. '<style>@page{size:80mm auto;margin:0}body{width:80mm;margin:0;padding:3mm 4mm;font:12px/1.3 "DejaVu Sans Mono",monospace;color:#000}h1{font-size:15px;margin:0 0 2mm;text-align:center}p{margin:0 0 1.5mm}.c{text-align:center}table{width:100%;border-collapse:collapse}td.n{text-align:right;white-space:nowrap}.sep{border-top:1px dashed #000;margin:2mm 0}.big td{font-size:15px;font-weight:bold}.small{font-size:10px}@media print{.noprint{display:none}}</style></head><body onload="window.print()">';
 		$h .= '<p class="c"><strong>' . esc_html( (string) Settings::get( 'seller_name' ) ) . '</strong><br>' . nl2br( esc_html( (string) Settings::get( 'seller_address' ) ) ) . '</p>';
-		$h .= '<h1>' . esc_html( 'storno' === $mv->kind ? __( 'STORNOBELEG', 'wp-pass-captain' ) : __( 'AUSZAHLUNGSBELEG', 'wp-pass-captain' ) ) . '</h1>';
-		$h .= '<p>' . esc_html( __( 'Beleg-Nr.:', 'wp-pass-captain' ) . ' ' . $mv->receipt_number ) . '<br>' . ( $sale ? esc_html( __( 'zu Beleg', 'wp-pass-captain' ) . ' ' . $sale->receipt_number ) . '<br>' : '' );
-		$h .= esc_html( __( 'Datum:', 'wp-pass-captain' ) . ' ' . Scope::local( $mv->created_at, Scope::site_timezone(), 'd.m.Y H:i' ) ) . '<br>' . esc_html( __( 'Kasse/Schicht/Bediener:', 'wp-pass-captain' ) . ' ' . Service::register_label( $mv->shift_id ) . ' / ' . (int) $mv->shift_id . ' / ' . Service::receipt_cashier( $mv->created_by ) ) . '</p><div class="sep"></div><table>';
+		$h .= '<h1>' . esc_html( 'storno' === $mv->kind ? __( 'STORNOBELEG', 'pass-captain' ) : __( 'AUSZAHLUNGSBELEG', 'pass-captain' ) ) . '</h1>';
+		$h .= '<p>' . esc_html( __( 'Beleg-Nr.:', 'pass-captain' ) . ' ' . $mv->receipt_number ) . '<br>' . ( $sale ? esc_html( __( 'zu Beleg', 'pass-captain' ) . ' ' . $sale->receipt_number ) . '<br>' : '' );
+		$h .= esc_html( __( 'Datum:', 'pass-captain' ) . ' ' . Scope::local( $mv->created_at, Scope::site_timezone(), 'd.m.Y H:i' ) ) . '<br>' . esc_html( __( 'Kasse/Schicht/Bediener:', 'pass-captain' ) . ' ' . Service::register_label( $mv->shift_id ) . ' / ' . (int) $mv->shift_id . ' / ' . Service::receipt_cashier( $mv->created_by ) ) . '</p><div class="sep"></div><table>';
 		foreach ( $items as $i ) { $h .= '<tr><td>' . esc_html( (int) $i->n . ' x ' . $i->name ) . '</td></tr>'; }
-		$h .= '</table><table class="big"><tr><td>' . esc_html__( 'AUSZAHLUNG', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $m( (int) $mv->amount_minor ) ) . '</td></tr></table><table class="small">';
+		$h .= '</table><table class="big"><tr><td>' . esc_html__( 'AUSZAHLUNG', 'pass-captain' ) . '</td><td class="n">' . esc_html( $m( (int) $mv->amount_minor ) ) . '</td></tr></table><table class="small">';
 		foreach ( (array) json_decode( (string) $mv->vat, true ) as $rate => $v ) {
-			$h .= '<tr><td>' . esc_html( sprintf( /* translators: 1: rate, 2: net */ __( 'USt %1$s %%: Netto %2$s', 'wp-pass-captain' ), number_format_i18n( (int) $rate / 100, 2 ), $m( (int) $v['net'] ) ) ) . '</td><td class="n">' . esc_html( $m( (int) $v['tax'] ) ) . '</td></tr>';
+			$h .= '<tr><td>' . esc_html( sprintf( /* translators: 1: rate, 2: net */ __( 'USt %1$s %%: Netto %2$s', 'pass-captain' ), number_format_i18n( (int) $rate / 100, 2 ), $m( (int) $v['net'] ) ) ) . '</td><td class="n">' . esc_html( $m( (int) $v['tax'] ) ) . '</td></tr>';
 		}
-		$h .= '</table><div class="sep"></div><p>' . esc_html( __( 'Zahlart:', 'wp-pass-captain' ) . ' ' . Service::method_label( $mv->method ) ) . '<br>' . esc_html( $mv->reason ) . '</p>';
-		$h .= '<p class="noprint c"><button onclick="window.print()">' . esc_html__( 'Drucken', 'wp-pass-captain' ) . '</button></p></body></html>';
+		$h .= '</table><div class="sep"></div><p>' . esc_html( __( 'Zahlart:', 'pass-captain' ) . ' ' . Service::method_label( $mv->method ) ) . '<br>' . esc_html( $mv->reason ) . '</p>';
+		$h .= '<p class="noprint c"><button onclick="window.print()">' . esc_html__( 'Drucken', 'pass-captain' ) . '</button></p></body></html>';
 		return $h;
 	}
 
 	/** CSV (semicolon, UTF-8 BOM) of a Z report. */
 	public static function csv( $z ) {
-		return Scope::csv( array_merge( array( array( __( 'Abschnitt', 'wp-pass-captain' ), __( 'Bezeichnung', 'wp-pass-captain' ), __( 'Wert', 'wp-pass-captain' ) ) ), self::rows( $z ) ) );
+		return Scope::csv( array_merge( array( array( __( 'Abschnitt', 'pass-captain' ), __( 'Bezeichnung', 'pass-captain' ), __( 'Wert', 'pass-captain' ) ) ), self::rows( $z ) ) );
 	}
 
 	/** Printable HTML (A4; "Drucken" or "Als PDF speichern" in the browser). */
@@ -462,7 +462,7 @@ final class ZReport {
 		if ( ! is_object( $z ) ) { return ''; }
 		$seller = (string) Settings::get( 'seller_name' );
 		/* translators: 1: Z number, 2: register */
-		$title = sprintf( __( 'Z-Bericht Nr. %1$d – %2$s', 'wp-pass-captain' ), (int) $z->z_number, ( $r = Registers::get( $z->register_id ) ) ? $r->name : '#' . (int) $z->register_id );
+		$title = sprintf( __( 'Z-Bericht Nr. %1$d – %2$s', 'pass-captain' ), (int) $z->z_number, ( $r = Registers::get( $z->register_id ) ) ? $r->name : '#' . (int) $z->register_id );
 		$h = '<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . esc_html( $title ) . '</title>'
 			. '<style>@page{size:A4;margin:15mm}body{font:13px/1.4 system-ui,sans-serif;color:#000;max-width:50rem;margin:1.5rem auto;padding:0 1rem}h1{font-size:20px;margin:0 0 .25rem}h2{font-size:15px;margin:1.2rem 0 .3rem;border-bottom:1px solid #000}table{width:100%;border-collapse:collapse}td{padding:.2rem .3rem;border-bottom:1px solid #ddd;vertical-align:top}td.n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.small{font-size:11px;color:#333;word-break:break-all}@media print{.noprint{display:none}}</style></head><body>';
 		$h .= '<p>' . esc_html( $seller ) . '</p><h1>' . esc_html( $title ) . '</h1>';
@@ -477,7 +477,7 @@ final class ZReport {
 		$h .= '</table>';
 		/** Extra HTML for the Z report (e.g. fiscal signature data); must be escaped by the callback. */
 		$h .= (string) apply_filters( 'wpcap_boxoffice_zreport_html_extra', '', $z );
-		$h .= '<p class="noprint"><button onclick="window.print()">' . esc_html__( 'Drucken / als PDF speichern', 'wp-pass-captain' ) . '</button></p></body></html>';
+		$h .= '<p class="noprint"><button onclick="window.print()">' . esc_html__( 'Drucken / als PDF speichern', 'pass-captain' ) . '</button></p></body></html>';
 		return $h;
 	}
 }

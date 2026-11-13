@@ -543,7 +543,7 @@ final class CapacityCounters {
 
 	private static function alert( array $report ) {
 		Audit::record( 'capacity_counter_drift', 'system', 0, $report );
-		error_log( 'WP Pass Captain: capacity counters drifted and were repaired: ' . wp_json_encode( $report ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( 'Pass Captain: capacity counters drifted and were repaired: ' . wp_json_encode( $report ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		/**
 		 * Capacity counters disagreed with the order/hold tables and were repaired. A writer changed
 		 * order lines, holds or order states without CapacityCounters::sync_order().
@@ -555,10 +555,10 @@ final class CapacityCounters {
 			set_transient( 'wpcap_capacity_drift_mail', 1, HOUR_IN_SECONDS );
 			wp_mail(
 				get_option( 'admin_email' ),
-				__( 'WP Pass Captain: Kontingentzähler korrigiert', 'wp-pass-captain' ),
+				__( 'Pass Captain: Kontingentzähler korrigiert', 'pass-captain' ),
 				sprintf(
 					/* translators: 1: number of orders, 2: number of occurrences, 3: order ids */
-					__( 'Die Zähler für verkaufte und reservierte Tickets wichen von den Bestellungen ab und wurden korrigiert (%1$d Bestellungen, %2$d Termine; Bestellungen: %3$s). Bitte prüfen, welches Plugin oder welcher Ablauf Bestellungen direkt in der Datenbank ändert.', 'wp-pass-captain' ),
+					__( 'Die Zähler für verkaufte und reservierte Tickets wichen von den Bestellungen ab und wurden korrigiert (%1$d Bestellungen, %2$d Termine; Bestellungen: %3$s). Bitte prüfen, welches Plugin oder welcher Ablauf Bestellungen direkt in der Datenbank ändert.', 'pass-captain' ),
 					(int) $report['resynced_orders'],
 					(int) $report['repaired_occurrences'],
 					implode( ', ', array_slice( (array) $report['orders'], 0, 20 ) )

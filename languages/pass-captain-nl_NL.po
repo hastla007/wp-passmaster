@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: WP Pass Captain 1.4.0\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
-"POT-Creation-Date: 2026-11-13T21:38:14+00:00\n"
+"Project-Id-Version: Pass Captain 1.4.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/pass-captain\n"
+"POT-Creation-Date: 2026-11-13T22:00:48+00:00\n"
 "PO-Revision-Date: 2026-11-11 22:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: Dutch\n"
@@ -11,32 +11,32 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Domain: wp-pass-captain\n"
+"X-Domain: pass-captain\n"
 
 #. Plugin Name of the plugin
-#: wp-pass-captain.php src/Admin/Menu.php:101
+#: pass-captain.php src/Admin/Menu.php:101 src/Admin/Menu.php:102
 #: src/Integrations/WooCommerce/CartPricing.php:83
 #: src/Operations/SiteHealth.php:72 src/Operations/SiteHealth.php:101
-msgid "WP Pass Captain"
-msgstr "WP Pass Captain"
+msgid "Pass Captain"
+msgstr "Pass Captain"
 
 #. Plugin URI of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "https://github.com/hastla007/wp-passmaster"
 msgstr "https://github.com/hastla007/wp-passmaster"
 
 #. Description of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "Eigenständige Event-, Ticket- und Passverwaltung für WordPress."
 msgstr "Zelfstandig beheer van evenementen, tickets en passen voor WordPress."
 
 #. Author of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "hastla007"
 msgstr "hastla007"
 
 #. Author URI of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "https://github.com/hastla007"
 msgstr "https://github.com/hastla007"
 
@@ -59,7 +59,7 @@ msgstr "https://github.com/hastla007"
 #: src/BoxOffice/Shifts.php:523 src/BoxOffice/Shifts.php:543
 #: src/BoxOffice/Shifts.php:558 src/Exchange/AdminPage.php:76
 #: src/Exchange/AdminPage.php:97 src/Exchange/AdminPage.php:151
-#: src/GuestLists/Page.php:173 src/Invoices.php:520 src/Invoices.php:556
+#: src/GuestLists/Page.php:173 src/Invoices.php:572 src/Invoices.php:609
 #: src/Mail/Admin.php:187 src/Modules/Calendar.php:302
 #: src/Modules/Mollie.php:178 src/Modules/Reminders.php:183
 #: src/Modules/Sms.php:325 src/Modules/Webhooks.php:287
@@ -69,7 +69,7 @@ msgstr "https://github.com/hastla007"
 #: src/Printing/InvoicePdf.php:234 src/Printing/InvoicePdf.php:249
 #: src/Printing/Page.php:56 src/Printing/Page.php:128 src/Printing/Page.php:155
 #: src/Printing/Page.php:177 src/Printing/Templates.php:254 src/Refunds.php:251
-#: src/Reports/Page.php:59 src/Reports/Page.php:153
+#: src/Reports/Page.php:59 src/Reports/Page.php:173
 #: src/Reports/Settlement.php:358 src/Seating/AdminPage.php:91
 #: src/Series/AdminPage.php:72 src/Waitlists/AdminPage.php:81
 #: src/WalletPasses/AdminPage.php:154
@@ -267,7 +267,7 @@ msgid "Gilt für"
 msgstr "Geldt voor"
 
 #: src/Admin/CampaignsPage.php:112 src/Admin/OrdersPage.php:447
-#: src/BoxOffice/Service.php:746 src/Invoices.php:492
+#: src/BoxOffice/Service.php:746 src/Invoices.php:544
 #: src/Printing/InvoicePdf.php:115
 msgid "Rabatt"
 msgstr "Korting"
@@ -399,7 +399,7 @@ msgstr "Waarde"
 #: src/Admin/CampaignsPage.php:138 src/Admin/ChangeHistory.php:94
 #: src/Admin/EventsPage.php:802 src/BoxOffice/ShiftPage.php:396
 #: src/BoxOffice/ShiftPage.php:424 src/Partners/AdminPage.php:300
-#: src/Passes/AdminPage.php:175
+#: src/Passes/AdminPage.php:175 src/Reports/Data.php:452
 msgid "Währung"
 msgstr "Valuta"
 
@@ -416,7 +416,7 @@ msgstr "Valuta"
 #: src/Mail/Types.php:366 src/Mail/Types.php:386 src/Mail/Types.php:406
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:811
 #: src/Partners/Settlements.php:821 src/Partners/Statement.php:171
-#: src/Privacy.php:186 src/Reports/Data.php:393 src/Reports/Page.php:98
+#: src/Privacy.php:186 src/Reports/Data.php:437 src/Reports/Page.php:110
 #: src/Seating/AdminPage.php:110 src/Seating/AdminPage.php:122
 #: src/Series/AdminPage.php:103 src/Waitlists.php:828 src/Waitlists.php:1045
 #: src/Waitlists/AdminPage.php:87 src/blocks/events/editor.js:16
@@ -708,7 +708,7 @@ msgstr "Label"
 #: src/Partners/AdminPage.php:401 src/Partners/AdminPage.php:414
 #: src/Printing/AttendeeList.php:35 src/Printing/AttendeeList.php:49
 #: src/Printing/NoShowList.php:39 src/Printing/NoShowList.php:43
-#: src/Privacy.php:188 src/Reports/Data.php:393 src/Reports/Page.php:98
+#: src/Privacy.php:188 src/Reports/Data.php:437 src/Reports/Page.php:110
 #: src/Reports/Settlement.php:247 src/Reports/Settlement.php:311
 #: src/Reports/Settlement.php:329 src/Seating/AdminPage.php:239
 #: src/Seating/Picker.php:25 src/Series/AdminPage.php:482
@@ -923,9 +923,9 @@ msgstr "Momenteel aanwezig"
 #: src/GuestLists/Service.php:677 src/OfflineScanner/AdminPage.php:153
 #: src/OfflineScanner/AdminPage.php:168 src/Partners/AdminPage.php:401
 #: src/Partners/AdminPage.php:412 src/Passes/AdminPage.php:242
-#: src/Printing/Page.php:70 src/PublicEvents.php:384 src/Reports/Data.php:393
-#: src/Reports/Data.php:407 src/Reports/Page.php:98 src/Reports/Page.php:106
-#: src/Reports/Page.php:134 src/Series/AdminPage.php:297
+#: src/Printing/Page.php:70 src/PublicEvents.php:384 src/Reports/Data.php:437
+#: src/Reports/Data.php:458 src/Reports/Page.php:110 src/Reports/Page.php:118
+#: src/Reports/Page.php:154 src/Series/AdminPage.php:297
 #: src/Series/AdminPage.php:616 templates/event-card.php:33
 #: src/blocks/events/editor.js:17
 msgid "Termin"
@@ -1690,7 +1690,7 @@ msgstr "Volgende datum"
 msgid "Termine"
 msgstr "Data"
 
-#: src/Admin/EventsPage.php:743 src/Reports/Page.php:106
+#: src/Admin/EventsPage.php:743 src/Reports/Page.php:118
 msgid "Verkauft / Kapazität"
 msgstr "Verkocht / Capaciteit"
 
@@ -2188,7 +2188,7 @@ msgid "Abgeschlossen"
 msgstr "Afgerond"
 
 #: src/Admin/Forms.php:494 src/Admin/OrdersPage.php:455
-#: src/PortalSelfService.php:348 src/Reports/Page.php:143
+#: src/PortalSelfService.php:348 src/Reports/Page.php:163
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Erstattet"
 msgstr "Terugbetaald"
@@ -2216,7 +2216,7 @@ msgstr "Geldig"
 
 #: src/Admin/Forms.php:501 src/GuestLists/Page.php:324
 #: src/GuestLists/Service.php:677 src/Printing/AttendeeList.php:33
-#: src/Reports/Data.php:407 src/Reports/Settlement.php:268
+#: src/Reports/Data.php:458 src/Reports/Settlement.php:268
 #: src/Reports/Settlement.php:337
 msgid "Eingecheckt"
 msgstr "Ingecheckt"
@@ -2407,16 +2407,12 @@ msgid "Checkliste ausblenden"
 msgstr "Checklist verbergen"
 
 #: src/Admin/Menu.php:79
-msgid "WP Pass Captain: Das Datenbank-Update ist unvollständig."
-msgstr "WP Pass Captain: de database-update is onvolledig."
+msgid "Pass Captain: Das Datenbank-Update ist unvollständig."
+msgstr "Pass Captain: de database-update is onvolledig."
 
 #: src/Admin/Menu.php:79
 msgid "Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren."
 msgstr "Er ontbreken tabellen of kolommen; de plug-in blijft werken met het oude schema. Controleer de databaserechten en deactiveer en activeer de plug-in opnieuw."
-
-#: src/Admin/Menu.php:102
-msgid "Pass Captain"
-msgstr "Pass Captain"
 
 #: src/Admin/Menu.php:127
 msgid "Events & Programm"
@@ -2465,8 +2461,8 @@ msgstr "Bestellingen"
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:804
 #: src/Partners/Settlements.php:811 src/Partners/Settlements.php:821
 #: src/Partners/Statement.php:171 src/Payments/PayPalGateway.php:451
-#: src/Payments/StripeGateway.php:311 src/Reports/Data.php:390
-#: src/Reports/Page.php:78 src/Reports/Page.php:143
+#: src/Payments/StripeGateway.php:311 src/Reports/Data.php:434
+#: src/Reports/Page.php:78 src/Reports/Page.php:163
 #: src/Reports/Settlement.php:261 src/Reports/Settlement.php:329
 #: templates/event-card.php:53
 msgid "Tickets"
@@ -2501,12 +2497,12 @@ msgstr "Gedeelde scanner ↗"
 
 #: src/Admin/Menu.php:219 src/Integrations/Vouchers/IntegrationStatus.php:22
 #: src/Integrations/Vouchers/IntegrationStatus.php:30
-msgid "WP Voucher Captain"
-msgstr "WP Voucher Captain"
+msgid "Voucher Captain"
+msgstr "Voucher Captain"
 
 #: src/Admin/Menu.php:219
-msgid "WP Voucher Captain ↗"
-msgstr "WP Voucher Captain ↗"
+msgid "Voucher Captain ↗"
+msgstr "Voucher Captain ↗"
 
 #: src/Admin/OperationsPage.php:35 src/Operations/Queues.php:207
 #: src/Operations/Queues.php:241
@@ -2841,8 +2837,8 @@ msgstr "WooCommerce-bestelling #%d openen"
 #. translators: 1: amount, 2: error code
 #: src/Admin/OrdersPage.php:348
 #, php-format
-msgid "Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten."
-msgstr "Betaald, maar de cadeaubon ter waarde van %1$s kon niet worden afgeboekt (fout: %2$s). De tickets zijn geldig. Vorder het bedrag apart na of boek de cadeaubon handmatig af in WP Voucher Captain."
+msgid "Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in Voucher Captain manuell belasten."
+msgstr "Betaald, maar de cadeaubon ter waarde van %1$s kon niet worden afgeboekt (fout: %2$s). De tickets zijn geldig. Vorder het bedrag apart na of boek de cadeaubon handmatig af in Voucher Captain."
 
 #: src/Admin/OrdersPage.php:353
 msgid "Zusatzbestellung zu einem Ticketumtausch (Aufpreis/Gebühr). Das Ticket wird in der ursprünglichen Bestellung geführt."
@@ -2894,7 +2890,7 @@ msgid "Noch nicht angegeben (Käufer:in kann sie in der Bestellübersicht eintra
 msgstr "Nog niet opgegeven (de koper kan ze invullen in het besteloverzicht)."
 
 #: src/Admin/OrdersPage.php:384 src/BoxOffice/Service.php:37
-#: src/Invoices.php:488 src/Printing/InvoicePdf.php:105
+#: src/Invoices.php:540 src/Printing/InvoicePdf.php:105
 msgid "Rechnung"
 msgstr "Factuur"
 
@@ -2928,12 +2924,12 @@ msgstr "Versie algemene voorwaarden/consumenteninformatie"
 msgid "Positionen"
 msgstr "Regels"
 
-#: src/Admin/OrdersPage.php:414 src/Invoices.php:492
+#: src/Admin/OrdersPage.php:414 src/Invoices.php:544
 #: src/Partners/AdminPage.php:401 src/Printing/InvoicePdf.php:115
 msgid "Menge"
 msgstr "Aantal"
 
-#: src/Admin/OrdersPage.php:415 src/Invoices.php:492
+#: src/Admin/OrdersPage.php:415 src/Invoices.php:544
 #: src/Printing/InvoicePdf.php:115
 msgid "Einzelpreis"
 msgstr "Stukprijs"
@@ -2954,7 +2950,7 @@ msgstr "Omgeboekt (st.)"
 msgid "Zwischensumme"
 msgstr "Subtotaal"
 
-#: src/Admin/OrdersPage.php:449 src/Invoices.php:492
+#: src/Admin/OrdersPage.php:449 src/Invoices.php:544
 msgid "Gesamt (brutto)"
 msgstr "Totaal (bruto)"
 
@@ -3538,8 +3534,8 @@ msgid "Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)"
 msgstr "Nee – voucher voor enkelvoudig gebruik (btw al verschuldigd bij verkoop van de voucher)"
 
 #: src/Admin/SettingsPage.php:139
-msgid "Gilt nur, wenn WP Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md)."
-msgstr "Geldt alleen als WP Voucher Captain voor de bon geen type doorgeeft. Voucher voor meervoudig gebruik: tickets behouden de volledige prijs en de volledige btw, en de voucher verschijnt op de factuur als betaling. Voucher voor enkelvoudig gebruik (plaats van de dienst en btw-tarief stonden bij de verkoop vast, bijv. een voucher voor een bepaald evenement in het binnenland): de btw is al afgedragen bij de verkoop van de voucher en verzilvering verlaagt de prijs. Overleg bij twijfel met je belastingadviseur (zie docs/VOUCHERS.md)."
+msgid "Gilt nur, wenn Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md)."
+msgstr "Geldt alleen als Voucher Captain voor de bon geen type doorgeeft. Voucher voor meervoudig gebruik: tickets behouden de volledige prijs en de volledige btw, en de voucher verschijnt op de factuur als betaling. Voucher voor enkelvoudig gebruik (plaats van de dienst en btw-tarief stonden bij de verkoop vast, bijv. een voucher voor een bepaald evenement in het binnenland): de btw is al afgedragen bij de verkoop van de voucher en verzilvering verlaagt de prijs. Overleg bij twijfel met je belastingadviseur (zie docs/VOUCHERS.md)."
 
 #: src/Admin/SettingsPage.php:144
 msgid "Datenschutz"
@@ -3874,7 +3870,7 @@ msgstr "Belastingprofielen"
 msgid "Noch keine Steuerprofile."
 msgstr "Nog geen belastingprofielen."
 
-#: src/Admin/TaxPage.php:101 src/Reports/Page.php:104
+#: src/Admin/TaxPage.php:101 src/Reports/Page.php:96 src/Reports/Page.php:116
 msgid "Satz"
 msgstr "Tarief"
 
@@ -4391,7 +4387,7 @@ msgid "Name des Bereichs"
 msgstr "Naam van het gebied"
 
 #: src/Admission/RulesPage.php:209 src/Admission/RulesPage.php:223
-#: src/Allocations/AdminPage.php:202 src/Reports/Data.php:407
+#: src/Allocations/AdminPage.php:202 src/Reports/Data.php:458
 #: src/Reports/Settlement.php:266 src/Reports/Settlement.php:335
 #: src/Seating/AdminPage.php:168
 msgid "Kapazität"
@@ -4721,7 +4717,7 @@ msgid "Nutzung der Kontingente"
 msgstr "Gebruik van de contingenten"
 
 #: src/Allocations/AdminPage.php:331 src/Exchange/AdminPage.php:127
-#: src/Reports/Data.php:403 src/Reports/Settlement.php:247
+#: src/Reports/Data.php:447 src/Reports/Settlement.php:247
 #: src/Reports/Settlement.php:251 src/Reports/Settlement.php:311
 #: src/Reports/Settlement.php:316
 msgid "Kanal"
@@ -4745,8 +4741,8 @@ msgstr "De limiet kon niet worden opgeslagen."
 
 #: src/Allocations/BuyerLimits.php:184 src/Modules/Allocations.php:44
 #: src/Modules/Allocations.php:48
-msgid "WP Pass Captain Käuferlimit"
-msgstr "WP Pass Captain kooplimiet"
+msgid "Pass Captain Käuferlimit"
+msgstr "Pass Captain kooplimiet"
 
 #: src/Allocations/BuyerLimits.php:186
 msgid "Gezählte Bestellungen (Bestell-ID => Ticketart => Menge)"
@@ -5564,7 +5560,7 @@ msgid "Bediener %d"
 msgstr "Medewerker %d"
 
 #. translators: %s: platform name
-#: src/BoxOffice/Service.php:738 src/Invoices.php:380 src/Invoices.php:394
+#: src/BoxOffice/Service.php:738 src/Invoices.php:432 src/Invoices.php:446
 #: src/Partners/Settlements.php:756
 msgid "USt-IdNr.:"
 msgstr "Btw-nr.:"
@@ -5909,12 +5905,12 @@ msgstr "Geopend"
 #. translators: 1: invoice number, 2: date
 #. translators: 1: period, 2: date
 #: src/BoxOffice/ShiftPage.php:329 src/BoxOffice/ZReport.php:368
-#: src/BoxOffice/ZReport.php:373 src/Invoices.php:495 src/Invoices.php:506
+#: src/BoxOffice/ZReport.php:373 src/Invoices.php:547 src/Invoices.php:558
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:694
 #: src/Partners/Settlements.php:811 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:859 src/Partners/Statement.php:171
 #: src/Printing/InvoicePdf.php:148 src/Printing/InvoicePdf.php:195
-#: src/Reports/Data.php:390 src/Reports/Page.php:143
+#: src/Reports/Data.php:434 src/Reports/Page.php:163
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Netto"
 msgstr "Netto"
@@ -5927,7 +5923,7 @@ msgstr "Grand total"
 msgid "Differenz bar / Karte"
 msgstr "Verschil contant / kaart"
 
-#: src/BoxOffice/ShiftPage.php:329 src/Reports/Data.php:392
+#: src/BoxOffice/ShiftPage.php:329 src/Reports/Data.php:436
 msgid "Bericht"
 msgstr "Rapport"
 
@@ -6206,22 +6202,22 @@ msgid "USt-Sätze"
 msgstr "Btw-tarieven"
 
 #. translators: 1: invoice number, 2: date
-#: src/BoxOffice/ZReport.php:374 src/Invoices.php:492 src/Invoices.php:495
-#: src/Invoices.php:506 src/Printing/InvoicePdf.php:115
+#: src/BoxOffice/ZReport.php:374 src/Invoices.php:544 src/Invoices.php:547
+#: src/Invoices.php:558 src/Printing/InvoicePdf.php:115
 #: src/Printing/InvoicePdf.php:149 src/Printing/InvoicePdf.php:196
 msgid "USt."
 msgstr "Btw"
 
 #. translators: 1: invoice number, 2: date
 #. translators: 1: period, 2: date
-#: src/BoxOffice/ZReport.php:375 src/Invoices.php:495 src/Invoices.php:506
+#: src/BoxOffice/ZReport.php:375 src/Invoices.php:547 src/Invoices.php:558
 #: src/Partners/AdminPage.php:568 src/Partners/Settlements.php:688
 #: src/Partners/Settlements.php:694 src/Partners/Settlements.php:804
 #: src/Partners/Settlements.php:811 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:821 src/Partners/Settlements.php:859
 #: src/Partners/Statement.php:171 src/Printing/InvoicePdf.php:150
-#: src/Printing/InvoicePdf.php:197 src/Reports/Data.php:390
-#: src/Reports/Page.php:143 src/Reports/Settlement.php:243
+#: src/Printing/InvoicePdf.php:197 src/Reports/Data.php:434
+#: src/Reports/Page.php:163 src/Reports/Settlement.php:243
 #: src/Reports/Settlement.php:292
 msgid "Brutto"
 msgstr "Bruto"
@@ -6436,8 +6432,8 @@ msgid "Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Ticket
 msgstr "De kortingscode is ongeldig of past niet bij de geselecteerde tickets."
 
 #: src/CapacityCounters.php:558
-msgid "WP Pass Captain: Kontingentzähler korrigiert"
-msgstr "WP Pass Captain: contingenttellers gecorrigeerd"
+msgid "Pass Captain: Kontingentzähler korrigiert"
+msgstr "Pass Captain: contingenttellers gecorrigeerd"
 
 #. translators: 1: number of orders, 2: number of occurrences, 3: order ids
 #: src/CapacityCounters.php:561
@@ -6516,8 +6512,8 @@ msgid "Ticket wurde bereits verwendet oder ist widerrufen."
 msgstr "Ticket is al gebruikt of is ingetrokken."
 
 #: src/Communications.php:9
-msgid "Alle fünf Minuten (WP Pass Captain)"
-msgstr "Elke vijf minuten (WP Pass Captain)"
+msgid "Alle fünf Minuten (Pass Captain)"
+msgstr "Elke vijf minuten (Pass Captain)"
 
 #: src/Communications.php:18
 msgid "Nachrichtendaten ungültig."
@@ -7237,8 +7233,8 @@ msgid "Umtausch nicht gefunden."
 msgstr "Omruil niet gevonden."
 
 #: src/Exchange/Service.php:1105
-msgid "WP Pass Captain: Umtausch bezahlt, aber nicht durchführbar"
-msgstr "WP Pass Captain: omruil betaald, maar niet uitvoerbaar"
+msgid "Pass Captain: Umtausch bezahlt, aber nicht durchführbar"
+msgstr "Pass Captain: omruil betaald, maar niet uitvoerbaar"
 
 #. translators: 1: exchange id, 2: order id
 #: src/Exchange/Service.php:1105
@@ -7896,8 +7892,8 @@ msgstr "Partnercode (optioneel)"
 
 #: src/Integrations/Vouchers/Bridge.php:21
 #: src/Integrations/Vouchers/Bridge.php:31
-msgid "Es ist kein kompatibler WP Voucher Captain Anbieter aktiv."
-msgstr "Er is geen compatibele WP Voucher Captain-aanbieder actief."
+msgid "Es ist kein kompatibler Voucher Captain Anbieter aktiv."
+msgstr "Er is geen compatibele Voucher Captain-aanbieder actief."
 
 #: src/Integrations/Vouchers/CheckinService.php:68
 msgid "Du darfst keine Pass-Captain-Tickets einchecken."
@@ -7921,19 +7917,19 @@ msgid "Der Gutschein deckt den ursprünglichen Betrag nicht mehr."
 msgstr "De cadeaubon dekt het oorspronkelijke bedrag niet meer."
 
 #: src/Integrations/Vouchers/Checkout.php:257
-msgid "WP Pass Captain: Gutschein konnte nicht belastet werden"
-msgstr "WP Pass Captain: cadeaubon kon niet worden afgeboekt"
+msgid "Pass Captain: Gutschein konnte nicht belastet werden"
+msgstr "Pass Captain: cadeaubon kon niet worden afgeboekt"
 
 #. translators: 1: order id, 2: amount with currency, 3: last code characters, 4: error code
 #: src/Integrations/Vouchers/Checkout.php:260
 #, php-format
-msgid "Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in WP Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten."
-msgstr "Bestelling %1$s is betaald en de tickets zijn uitgegeven, maar de cadeaubon (…%3$s, %2$s) kon niet worden afgeboekt in WP Voucher Captain (fout: %4$s). Vorder het bedrag bij de klant na of boek de cadeaubon handmatig af."
+msgid "Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten."
+msgstr "Bestelling %1$s is betaald en de tickets zijn uitgegeven, maar de cadeaubon (…%3$s, %2$s) kon niet worden afgeboekt in Voucher Captain (fout: %4$s). Vorder het bedrag bij de klant na of boek de cadeaubon handmatig af."
 
 #. translators: 1: order, 2: amount in minor units, 3: error
 #: src/Integrations/Vouchers/Checkout.php:336
-msgid "WP Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
-msgstr "WP Pass Captain: terugboeking op voucher mislukt"
+msgid "Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
+msgstr "Pass Captain: terugboeking op voucher mislukt"
 
 #. translators: 1: order, 2: amount in minor units, 3: error
 #: src/Integrations/Vouchers/Checkout.php:336
@@ -7998,12 +7994,12 @@ msgid "Der Voucher-Captain-Scanner erkennt auch Pass-Captain-Tickets (Recht „w
 msgstr "De Voucher Captain-scanner herkent ook Pass Captain-tickets (recht ‘wpcap_checkin’ vereist)."
 
 #: src/Integrations/Vouchers/IntegrationStatus.php:38
-msgid "Integration WP Voucher Captain"
-msgstr "Integratie WP Voucher Captain"
+msgid "Integration Voucher Captain"
+msgstr "Integratie Voucher Captain"
 
 #: src/Integrations/Vouchers/IntegrationStatus.php:44
-msgid "Zu WP Voucher Captain"
-msgstr "Naar WP Voucher Captain"
+msgid "Zu Voucher Captain"
+msgstr "Naar Voucher Captain"
 
 #: src/Integrations/Vouchers/TicketService.php:143
 msgid "Ticketart, Anzahl, Schlüssel und eine gültige E-Mail-Adresse sind erforderlich."
@@ -8267,7 +8263,7 @@ msgstr "Je tickets worden na bevestigde betaling per e-mail bezorgd."
 msgid "Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet."
 msgstr "We hebben je de ticketlinks met QR-code per e-mail gestuurd."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:976
+#: src/Integrations/WooCommerce/OrderAdapter.php:976 src/Privacy.php:256
 msgid "Pass Captain Tickets"
 msgstr "Pass Captain-tickets"
 
@@ -8332,130 +8328,130 @@ msgstr "Factuur kon niet worden aangemaakt."
 msgid "Rechnungsposition konnte nicht gespeichert werden."
 msgstr "Factuurregel kon niet worden opgeslagen."
 
-#: src/Invoices.php:381
+#: src/Invoices.php:433
 msgid "Steuernummer:"
 msgstr "Belastingnummer:"
 
 #. translators: %s: platform name
-#: src/Invoices.php:394
+#: src/Invoices.php:446
 #, php-format
 msgid "Vermittelt durch %s"
 msgstr "Bemiddeld door %s"
 
 #. translators: %s: organizer name
-#: src/Invoices.php:396
+#: src/Invoices.php:448
 #, php-format
 msgid "Die Leistung wird von %s erbracht. Die Plattform handelt im Namen und für Rechnung des Veranstalters."
 msgstr "De dienst wordt verricht door %s. Het platform handelt in naam en voor rekening van de organisator."
 
 #. translators: %s: organizer
-#: src/Invoices.php:406
+#: src/Invoices.php:458
 #, php-format
 msgid "Vermittler – Rechnungssteller: %s"
 msgstr "Bemiddelaar – factuurafzender: %s"
 
-#: src/Invoices.php:408
+#: src/Invoices.php:460
 msgid "Eigenhändler – Rechnungssteller: Plattform"
 msgstr "Verkoper in eigen naam – factuurafzender: platform"
 
-#: src/Invoices.php:423 src/Invoices.php:426
+#: src/Invoices.php:475 src/Invoices.php:478
 msgid "Rechnungsnummer konnte nicht reserviert werden."
 msgstr "Factuurnummer kon niet worden gereserveerd."
 
-#: src/Invoices.php:464
+#: src/Invoices.php:516
 msgid "Belegnummer konnte nicht reserviert werden."
 msgstr "Documentnummer kon niet worden gereserveerd."
 
-#: src/Invoices.php:489 src/Printing/InvoicePdf.php:107
+#: src/Invoices.php:541 src/Printing/InvoicePdf.php:107
 msgid "Rechnungsdatum:"
 msgstr "Factuurdatum:"
 
-#: src/Invoices.php:489 src/Invoices.php:490 src/Printing/InvoicePdf.php:66
+#: src/Invoices.php:541 src/Invoices.php:542 src/Printing/InvoicePdf.php:66
 #: src/Printing/InvoicePdf.php:112
 msgid "Rechnungsempfänger:"
 msgstr "Factuur aan:"
 
-#: src/Invoices.php:492 src/Printing/InvoicePdf.php:115
+#: src/Invoices.php:544 src/Printing/InvoicePdf.php:115
 msgid "Leistung"
 msgstr "Dienst"
 
 #. translators: 1: invoice number, 2: date
-#: src/Invoices.php:495 src/Invoices.php:506 src/Printing/InvoicePdf.php:147
+#: src/Invoices.php:547 src/Invoices.php:558 src/Printing/InvoicePdf.php:147
 #: src/Printing/InvoicePdf.php:194
 msgid "Aufstellung nach Steuersätzen"
 msgstr "Specificatie per btw-tarief"
 
 #. translators: 1: invoice number, 2: date
 #. translators: 1: period, 2: date
-#: src/Invoices.php:495 src/Invoices.php:506 src/Partners/Settlements.php:816
+#: src/Invoices.php:547 src/Invoices.php:558 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:821 src/Partners/Settlements.php:859
 #: src/Printing/InvoicePdf.php:153 src/Printing/InvoicePdf.php:200
-#: src/Reports/Data.php:400 src/Reports/Settlement.php:255
-#: src/Reports/Settlement.php:320
+#: src/Reports/Data.php:444 src/Reports/Data.php:452
+#: src/Reports/Settlement.php:255 src/Reports/Settlement.php:320
 msgid "USt-Satz"
 msgstr "Btw-tarief"
 
 #. translators: %s: fee per ticket
-#: src/Invoices.php:499 src/Invoices.php:509 src/Partners/Settlements.php:889
+#: src/Invoices.php:551 src/Invoices.php:561 src/Partners/Settlements.php:889
 #: src/Printing/InvoicePdf.php:160 src/Printing/InvoicePdf.php:206
 msgid "Nettobetrag"
 msgstr "Nettobedrag"
 
 #. translators: %s: rate
 #. translators: %s: VAT rate
-#: src/Invoices.php:500 src/Invoices.php:510 src/Printing/InvoicePdf.php:164
+#: src/Invoices.php:552 src/Invoices.php:562 src/Printing/InvoicePdf.php:164
 #: src/Printing/InvoicePdf.php:208
 #, php-format
 msgid "Umsatzsteuer %s %%"
 msgstr "Btw %s %%"
 
 #. translators: %s: rate
-#: src/Invoices.php:501 src/Partners/Settlements.php:895
+#: src/Invoices.php:553 src/Partners/Settlements.php:895
 #: src/Printing/InvoicePdf.php:168
 msgid "Rechnungsbetrag"
 msgstr "Factuurbedrag"
 
-#: src/Invoices.php:505 src/Printing/InvoicePdf.php:183
+#: src/Invoices.php:557 src/Printing/InvoicePdf.php:183
 msgid "Rechnungskorrektur"
 msgstr "Factuurcorrectie"
 
 #. translators: 1: invoice number, 2: date
 #. translators: 1: invoice number, 2: invoice date
-#: src/Invoices.php:505 src/Printing/InvoicePdf.php:185
+#: src/Invoices.php:557 src/Printing/InvoicePdf.php:185
 #, php-format
 msgid "Korrektur zu Rechnung %1$s vom %2$s"
 msgstr "Correctie op factuur %1$s van %2$s"
 
 #. translators: %s: rate
-#: src/Invoices.php:511 src/Printing/InvoicePdf.php:210
+#: src/Invoices.php:563 src/Printing/InvoicePdf.php:210
 msgid "Korrekturbetrag"
 msgstr "Correctiebedrag"
 
-#: src/Invoices.php:512 src/Partners/Settlements.php:826 src/TicketPage.php:58
+#: src/Invoices.php:564 src/Partners/Settlements.php:826 src/TicketPage.php:58
 msgid "Drucken oder als PDF speichern"
 msgstr "Afdrukken of opslaan als PDF"
 
 #. translators: %s: masked voucher code
-#: src/Invoices.php:710
+#: src/Invoices.php:944
 #, php-format
 msgid "Bezahlt mit Gutschein %s (Mehrzweckgutschein)"
 msgstr "Betaald met voucher %s (voucher voor meervoudig gebruik)"
 
 #. translators: %s: masked voucher code
-#: src/Invoices.php:713
+#: src/Invoices.php:947
 #, php-format
 msgid "Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt."
 msgstr "Verzilverde voucher voor enkelvoudig gebruik %s: de btw is al verrekend bij de verkoop van de voucher; de waarde van de voucher is verwerkt als prijskorting."
 
-#: src/Invoices.php:717
+#: src/Invoices.php:951
 msgid "Restbetrag (bezahlt)"
 msgstr "Restbedrag (betaald)"
 
-#: src/Invoices.php:718
+#: src/Invoices.php:952
 msgid "Der Gutschein ist ein Zahlungsmittel (Mehrzweckgutschein); die Umsatzsteuer ist auf den vollen Rechnungsbetrag ausgewiesen."
 msgstr "De voucher is een betaalmiddel (voucher voor meervoudig gebruik); de btw wordt weergegeven over het volledige factuurbedrag."
 
-#: src/Invoices.php:727 src/Printing/InvoicePdf.php:345
+#: src/Invoices.php:961 src/Printing/InvoicePdf.php:345
 msgid "Zahlungen"
 msgstr "Betalingen"
 
@@ -8466,6 +8462,16 @@ msgstr "Taaksleutel of taaktype ongeldig."
 #: src/Jobs.php:14
 msgid "Job konnte nicht eingeplant werden."
 msgstr "Taak kon niet worden ingepland."
+
+#. translators: %s: folder name of the old plugin copy
+#: src/LegacySlug.php:182
+#, php-format
+msgid "Die frühere Version von Pass Captain (Ordner „%s“) ist noch installiert. Sie wurde deaktiviert und kann unter „Plugins“ gelöscht werden – Bestellungen, Tickets und Einstellungen bleiben erhalten, Pass Captain nutzt dieselben Daten weiter."
+msgstr "De vorige versie van Pass Captain (map ‘%s’) is nog geïnstalleerd. Ze is gedeactiveerd en kan onder ‘Plugins’ worden verwijderd – bestellingen, tickets en instellingen blijven behouden, Pass Captain gebruikt dezelfde gegevens verder."
+
+#: src/LegacySlug.php:187
+msgid "„Beim Löschen des Plugins alle Daten entfernen“ ist so lange pausiert und wird danach automatisch wieder eingeschaltet."
+msgstr "‘Bij het verwijderen van de plug-in alle gegevens wissen’ is tot dan gepauzeerd en wordt daarna automatisch weer ingeschakeld."
 
 #: src/Mail/Admin.php:46
 msgid "Unbekannter E-Mail-Typ."
@@ -9541,8 +9547,8 @@ msgid "Bitte eine vollständige URL angeben."
 msgstr "Geef een volledige URL op."
 
 #: src/Modules/Calendar.php:306
-msgid "Shortcode: [wp_pass_captain_calendar view=\"month\"] oder view=\"list\"; alternativ der Block „WP Pass Captain Kalender“."
-msgstr "Shortcode: [wp_pass_captain_calendar view=\"month\"] of view=\"list\"; of het blok „WP Pass Captain Agenda”."
+msgid "Shortcode: [wp_pass_captain_calendar view=\"month\"] oder view=\"list\"; alternativ der Block „Pass Captain Kalender“."
+msgstr "Shortcode: [wp_pass_captain_calendar view=\"month\"] of view=\"list\"; of het blok „Pass Captain Agenda”."
 
 #: src/Modules/Calendar.php:309
 msgid "Seite mit dem Ticket-Shortcode"
@@ -9572,8 +9578,8 @@ msgstr "Een agendabestand (.ics) per datum bijvoegen"
 
 #: src/Modules/GuestLists.php:33 src/Modules/GuestLists.php:37
 #: src/Modules/GuestLists.php:92
-msgid "WP Pass Captain Gästelisten"
-msgstr "WP Pass Captain gastenlijsten"
+msgid "Pass Captain Gästelisten"
+msgstr "Pass Captain gastenlijsten"
 
 #: src/Modules/GuestLists.php:59 src/Modules/GuestLists.php:62
 #: src/Modules/GuestLists.php:116
@@ -9657,8 +9663,8 @@ msgid "Offline-Scanner"
 msgstr "Offline scanner"
 
 #: src/Modules/Partners.php:35 src/Modules/Partners.php:39
-msgid "WP Pass Captain Veranstalter-Kontakte"
-msgstr "WP Pass Captain contactpersonen van organisatoren"
+msgid "Pass Captain Veranstalter-Kontakte"
+msgstr "Pass Captain contactpersonen van organisatoren"
 
 #: src/Modules/Partners.php:256 src/Partners/AdminPage.php:544
 msgid "Veranstalter-Abrechnungen"
@@ -9783,8 +9789,8 @@ msgid "Mobilnummer"
 msgstr "Mobiel nummer"
 
 #: src/Modules/Sms.php:245 src/Modules/Sms.php:249 src/Modules/Sms.php:277
-msgid "WP Pass Captain SMS-Einwilligungen"
-msgstr "WP Pass Captain sms-toestemmingen"
+msgid "Pass Captain SMS-Einwilligungen"
+msgstr "Pass Captain sms-toestemmingen"
 
 #: src/Modules/Sms.php:278
 msgid "(gelöscht)"
@@ -9945,8 +9951,8 @@ msgid "Wallet"
 msgstr "Wallet"
 
 #: src/Modules/Webhooks.php:40
-msgid "WP Pass Captain Webhook-Protokoll"
-msgstr "WP Pass Captain webhooklogboek"
+msgid "Pass Captain Webhook-Protokoll"
+msgstr "Pass Captain webhooklogboek"
 
 #: src/Modules/Webhooks.php:90 src/Modules/Webhooks.php:288
 msgid "Webhooks"
@@ -10315,8 +10321,8 @@ msgstr[0] "%d uur"
 msgstr[1] "%d uur"
 
 #: src/Operations/SiteHealth.php:134
-msgid "Zur Betriebsübersicht von WP Pass Captain"
-msgstr "Naar het bedrijfsoverzicht van WP Pass Captain"
+msgid "Zur Betriebsübersicht von Pass Captain"
+msgstr "Naar het bedrijfsoverzicht van Pass Captain"
 
 #. translators: 1: cron hook name, 2: duration, e.g. "20 Minuten"
 #: src/Operations/SiteHealth.php:183
@@ -10355,16 +10361,16 @@ msgid "Externen Cronjob einrichten"
 msgstr "Externe cronjob instellen"
 
 #: src/Operations/SiteHealth.php:201
-msgid "WP Pass Captain: geplante Aufgaben laufen nicht"
-msgstr "WP Pass Captain: geplande taken worden niet uitgevoerd"
+msgid "Pass Captain: geplante Aufgaben laufen nicht"
+msgstr "Pass Captain: geplande taken worden niet uitgevoerd"
 
 #: src/Operations/SiteHealth.php:204
-msgid "WP Pass Captain: geplante Aufgaben verspätet"
-msgstr "WP Pass Captain: geplande taken lopen achter"
+msgid "Pass Captain: geplante Aufgaben verspätet"
+msgstr "Pass Captain: geplande taken lopen achter"
 
 #: src/Operations/SiteHealth.php:206
-msgid "WP Pass Captain: geplante Aufgaben laufen pünktlich"
-msgstr "WP Pass Captain: geplande taken worden op tijd uitgevoerd"
+msgid "Pass Captain: geplante Aufgaben laufen pünktlich"
+msgstr "Pass Captain: geplande taken worden op tijd uitgevoerd"
 
 #. translators: 1: queue name, 2: number of due items, 3: waiting time of the oldest due item, e.g. "40 Minuten", 4: number of failed items
 #: src/Operations/SiteHealth.php:225
@@ -10373,20 +10379,20 @@ msgid "%1$s: fällig %2$d (ältester wartet seit %3$s), fehlgeschlagen %4$d."
 msgstr "%1$s: te verwerken %2$d (oudste wacht al %3$s), mislukt %4$d."
 
 #: src/Operations/SiteHealth.php:229
-msgid "WP Pass Captain: keine Rückstände in den Warteschlangen"
-msgstr "WP Pass Captain: geen achterstanden in de wachtrijen"
+msgid "Pass Captain: keine Rückstände in den Warteschlangen"
+msgstr "Pass Captain: geen achterstanden in de wachtrijen"
 
 #: src/Operations/SiteHealth.php:229
 msgid "Hintergrundjobs, E-Mails und Webhooks werden zeitnah verarbeitet; es gibt keine endgültig fehlgeschlagenen Einträge."
 msgstr "Achtergrondtaken, e-mails en webhooks worden tijdig verwerkt; er zijn geen definitief mislukte items."
 
 #: src/Operations/SiteHealth.php:231
-msgid "WP Pass Captain: große Rückstände oder viele fehlgeschlagene Einträge"
-msgstr "WP Pass Captain: grote achterstanden of veel mislukte items"
+msgid "Pass Captain: große Rückstände oder viele fehlgeschlagene Einträge"
+msgstr "Pass Captain: grote achterstanden of veel mislukte items"
 
 #: src/Operations/SiteHealth.php:231
-msgid "WP Pass Captain: Rückstände oder fehlgeschlagene Einträge in den Warteschlangen"
-msgstr "WP Pass Captain: achterstanden of mislukte items in de wachtrijen"
+msgid "Pass Captain: Rückstände oder fehlgeschlagene Einträge in den Warteschlangen"
+msgstr "Pass Captain: achterstanden of mislukte items in de wachtrijen"
 
 #: src/Operations/SiteHealth.php:232
 msgid "Prüfe die Einträge und versuche sie erneut oder verwirf sie."
@@ -10399,8 +10405,8 @@ msgid "Innerhalb von %s ist kein Versand einer Plugin-E-Mail fehlgeschlagen."
 msgstr "Binnen %s is het verzenden van geen enkele e-mail van de plug-in mislukt."
 
 #: src/Operations/SiteHealth.php:245
-msgid "WP Pass Captain: E-Mail-Versand ohne Fehler"
-msgstr "WP Pass Captain: e-mailverzending zonder fouten"
+msgid "Pass Captain: E-Mail-Versand ohne Fehler"
+msgstr "Pass Captain: e-mailverzending zonder fouten"
 
 #. translators: 1: number of failed mails, 2: period, e.g. "24 Stunden"
 #: src/Operations/SiteHealth.php:249
@@ -10417,8 +10423,8 @@ msgid "Letzter Fehler: Typ %1$s, Code %2$s %3$s"
 msgstr "Laatste fout: type %1$s, code %2$s %3$s"
 
 #: src/Operations/SiteHealth.php:253
-msgid "WP Pass Captain: E-Mails werden nicht zugestellt"
-msgstr "WP Pass Captain: e-mails worden niet bezorgd"
+msgid "Pass Captain: E-Mails werden nicht zugestellt"
+msgstr "Pass Captain: e-mails worden niet bezorgd"
 
 #: src/Operations/SiteHealth.php:253
 msgid "Prüfe die SMTP-Einstellungen bzw. das Mail-Plugin der Website."
@@ -10431,8 +10437,8 @@ msgid "Innerhalb von %s hat der SMS-Anbieter keinen Fehler gemeldet."
 msgstr "Binnen %s heeft de sms-aanbieder geen fout gemeld."
 
 #: src/Operations/SiteHealth.php:273
-msgid "WP Pass Captain: SMS-Versand ohne Fehler"
-msgstr "WP Pass Captain: sms-verzending zonder fouten"
+msgid "Pass Captain: SMS-Versand ohne Fehler"
+msgstr "Pass Captain: sms-verzending zonder fouten"
 
 #. translators: 1: number of SMS, 2: period, e.g. "24 Stunden"
 #: src/Operations/SiteHealth.php:277
@@ -10443,8 +10449,8 @@ msgstr[0] "Binnen %2$s is %1$d sms mislukt of niet bezorgd."
 msgstr[1] "Binnen %2$s zijn %1$d sms-berichten mislukt of niet bezorgd."
 
 #: src/Operations/SiteHealth.php:278
-msgid "WP Pass Captain: SMS-Versand fehlerhaft"
-msgstr "WP Pass Captain: sms-verzending met fouten"
+msgid "Pass Captain: SMS-Versand fehlerhaft"
+msgstr "Pass Captain: sms-verzending met fouten"
 
 #: src/Operations/SiteHealth.php:278
 msgid "Prüfe Zugangsdaten und Guthaben beim SMS-Anbieter."
@@ -10467,24 +10473,24 @@ msgid "%1$s: Bestellungen innerhalb von %3$s: %2$d, letzte Webhook-Benachrichtig
 msgstr "%1$s: bestellingen binnen %3$s: %2$d, laatste webhookmelding op %4$s (UTC)."
 
 #: src/Operations/SiteHealth.php:321
-msgid "WP Pass Captain: keine aktuellen Zahlungs-Webhooks"
-msgstr "WP Pass Captain: geen recente betalingswebhooks"
+msgid "Pass Captain: keine aktuellen Zahlungs-Webhooks"
+msgstr "Pass Captain: geen recente betalingswebhooks"
 
 #: src/Operations/SiteHealth.php:321
 msgid "Zahlungen werden über Webhooks des Zahlungsanbieters bestätigt. Prüfe die Webhook-URL und das Signatur-Secret im Dashboard des Anbieters."
 msgstr "Betalingen worden bevestigd via webhooks van de betaalprovider. Controleer de webhook-URL en het signing secret in het dashboard van de provider."
 
 #: src/Operations/SiteHealth.php:323
-msgid "WP Pass Captain: Zahlungs-Webhooks kommen an"
-msgstr "WP Pass Captain: betalingswebhooks komen binnen"
+msgid "Pass Captain: Zahlungs-Webhooks kommen an"
+msgstr "Pass Captain: betalingswebhooks komen binnen"
 
 #: src/Operations/SiteHealth.php:323
 msgid "Für alle aktiven Zahlungsanbieter mit aktuellen Bestellungen sind Webhook-Benachrichtigungen eingegangen."
 msgstr "Voor alle actieve betaalproviders met recente bestellingen zijn webhookmeldingen ontvangen."
 
 #: src/Operations/SiteHealth.php:353
-msgid "WP Pass Captain: Der Betrieb ist gestört."
-msgstr "WP Pass Captain: de bedrijfsvoering is verstoord."
+msgid "Pass Captain: Der Betrieb ist gestört."
+msgstr "Pass Captain: de bedrijfsvoering is verstoord."
 
 #: src/Operations/SiteHealth.php:353
 msgid "Betriebsübersicht öffnen"
@@ -10535,8 +10541,8 @@ msgid "Letzter Zahlungs-Webhook %s"
 msgstr "Laatste betalingswebhook %s"
 
 #: src/Operations/SiteHealth.php:414
-msgid "WP Pass Captain – Betrieb"
-msgstr "WP Pass Captain – bedrijfsvoering"
+msgid "Pass Captain – Betrieb"
+msgstr "Pass Captain – bedrijfsvoering"
 
 #: src/OrderPortal.php:85
 msgid "Abbrechen"
@@ -10818,8 +10824,8 @@ msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr "De betaling kon nu niet worden verwerkt. Probeer het opnieuw."
 
 #: src/Orders.php:1066
-msgid "WP Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
-msgstr "WP Pass Captain: betaalde bestelling zonder beschikbaar contingent"
+msgid "Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
+msgstr "Pass Captain: betaalde bestelling zonder beschikbaar contingent"
 
 #. translators: 1: order id, 2: buyer e-mail
 #: src/Orders.php:1066
@@ -11574,8 +11580,8 @@ msgid "Provision und Ticketgebühr bleiben bei Erstattungen bestehen"
 msgstr "Commissie en tickettoeslag blijven bij terugbetalingen bestaan"
 
 #: src/Partners/Repository.php:84
-msgid "WP Pass Captain Veranstalter (Ansprechperson)"
-msgstr "WP Pass Captain organisator (contactpersoon)"
+msgid "Pass Captain Veranstalter (Ansprechperson)"
+msgstr "Pass Captain organisator (contactpersoon)"
 
 #: src/Partners/Repository.php:85
 msgid "Organisation"
@@ -11986,7 +11992,7 @@ msgstr "Btw-tarief %"
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:694
 #: src/Partners/Settlements.php:804 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:859 src/Partners/Statement.php:171
-#: src/Reports/Data.php:390 src/Reports/Page.php:143
+#: src/Reports/Data.php:434 src/Reports/Page.php:163
 msgid "USt"
 msgstr "Btw"
 
@@ -12003,7 +12009,7 @@ msgstr "Tickettoeslag"
 msgid "Verkaufte Tickets"
 msgstr "Verkochte tickets"
 
-#: src/Partners/Settlements.php:700 src/Reports/Data.php:390
+#: src/Partners/Settlements.php:700 src/Reports/Data.php:434
 msgid "Erstattete Tickets"
 msgstr "Terugbetaalde tickets"
 
@@ -12354,7 +12360,7 @@ msgstr "Verkocht op"
 msgid "Gültig für"
 msgstr "Geldig voor"
 
-#: src/Passes/AdminPage.php:140 src/Reports/Data.php:407
+#: src/Passes/AdminPage.php:140 src/Reports/Data.php:458
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Verkauft"
 msgstr "Verkocht"
@@ -12530,8 +12536,8 @@ msgid "Pass: Termin abgesagt"
 msgstr "Pas: datum geannuleerd"
 
 #: src/Passes/Cancellation.php:188
-msgid "WP Pass Captain: Erstattungen für abgesagte Pässe offen"
-msgstr "WP Pass Captain: terugbetalingen voor geannuleerde passen open"
+msgid "Pass Captain: Erstattungen für abgesagte Pässe offen"
+msgstr "Pass Captain: terugbetalingen voor geannuleerde passen open"
 
 #. translators: 1: pass name, 2: event name, 3: date, 4: number of orders, 5: order ids
 #: src/Passes/Cancellation.php:190
@@ -12824,8 +12830,8 @@ msgstr "Voor een geannuleerde of terugbetaalde bestelling is een betaling binnen
 
 #. translators: 1: order id, 2: provider, 3: reference, 4: message
 #: src/Payments/Webhooks.php:180
-msgid "WP Pass Captain: Zahlung prüfen"
-msgstr "WP Pass Captain: betaling controleren"
+msgid "Pass Captain: Zahlung prüfen"
+msgstr "Pass Captain: betaling controleren"
 
 #. translators: 1: order id, 2: provider, 3: reference, 4: message
 #: src/Payments/Webhooks.php:180
@@ -13161,11 +13167,11 @@ msgstr "Afdrukken met QR-code: maakt nieuwe ticketcodes aan voor alle geldige ti
 msgid "PDF erzeugen"
 msgstr "PDF genereren"
 
-#: src/Printing/Page.php:81 src/Reports/Page.php:138
+#: src/Printing/Page.php:81 src/Reports/Page.php:158
 msgid "Druckansicht"
 msgstr "Afdrukweergave"
 
-#: src/Printing/Page.php:82 src/Reports/Page.php:70 src/Reports/Page.php:138
+#: src/Printing/Page.php:82 src/Reports/Page.php:70 src/Reports/Page.php:158
 #: src/Reports/Settlement.php:307
 msgid "CSV-Export"
 msgstr "CSV-export"
@@ -13287,8 +13293,8 @@ msgid "Diese Vorlage gehört zu einem anderen Event."
 msgstr "Dit sjabloon hoort bij een ander evenement."
 
 #: src/Privacy.php:36 src/Privacy.php:41
-msgid "WP Pass Captain Bestellungen und Tickets"
-msgstr "WP Pass Captain bestellingen en tickets"
+msgid "Pass Captain Bestellungen und Tickets"
+msgstr "Pass Captain bestellingen en tickets"
 
 #. translators: %d: number of discarded scans
 #: src/Privacy.php:98
@@ -13343,12 +13349,12 @@ msgid "Käuferangaben auf der Rechnung"
 msgstr "Kopergegevens op de factuur"
 
 #: src/Privacy.php:161
-msgid "WP Pass Captain Bestellungen"
-msgstr "WP Pass Captain bestellingen"
+msgid "Pass Captain Bestellungen"
+msgstr "Pass Captain bestellingen"
 
 #: src/Privacy.php:177
-msgid "WP Pass Captain Pässe"
-msgstr "WP Pass Captain passen"
+msgid "Pass Captain Pässe"
+msgstr "Pass Captain passen"
 
 #: src/Privacy.php:178
 msgid "Passreferenz"
@@ -13359,8 +13365,8 @@ msgid "Gültig von/bis (UTC)"
 msgstr "Geldig van/tot (UTC)"
 
 #: src/Privacy.php:185
-msgid "WP Pass Captain Warteliste"
-msgstr "WP Pass Captain wachtlijst"
+msgid "Pass Captain Warteliste"
+msgstr "Pass Captain wachtlijst"
 
 #: src/Privacy.php:187
 msgid "alle Termine"
@@ -13379,8 +13385,8 @@ msgid "Angebotsbestellung"
 msgstr "Bestelling uit aanbod"
 
 #: src/Privacy.php:197
-msgid "WP Pass Captain Terminbuchungen"
-msgstr "WP Pass Captain afspraakboekingen"
+msgid "Pass Captain Terminbuchungen"
+msgstr "Pass Captain afspraakboekingen"
 
 #: src/Privacy.php:199
 msgid "Termin von/bis (UTC)"
@@ -13426,10 +13432,6 @@ msgstr "Omruil (van/naar, verschil, vergoeding, status, tijd UTC)"
 msgid "Wallet-Pässe"
 msgstr "Wallet-passen"
 
-#: src/Privacy.php:256
-msgid "WP Pass Captain Tickets"
-msgstr "WP Pass Captain-tickets"
-
 #. translators: %d: number of tickets
 #: src/Privacy.php:284
 #, php-format
@@ -13437,8 +13439,8 @@ msgid "Hinweis: %d Ticket(s) anderer Käufer für bevorstehende Termine bleiben 
 msgstr "Let op: %d ticket(s) van andere kopers voor komende data blijven geldig; alleen de naam, het e-mailadres en de gegevens van deze persoon als deelnemer zijn verwijderd."
 
 #: src/Privacy.php:315
-msgid "WP Pass Captain: Löschanfrage zurückgestellt"
-msgstr "WP Pass Captain: verwijderverzoek uitgesteld"
+msgid "Pass Captain: Löschanfrage zurückgestellt"
+msgstr "Pass Captain: verwijderverzoek uitgesteld"
 
 #. translators: %d: number of orders
 #: src/Privacy.php:317
@@ -13509,8 +13511,8 @@ msgstr[0] "na de per veld opgegeven termijn (naam en e-mailadres van deelnemers:
 msgstr[1] "na de per veld opgegeven termijn (naam en e-mailadres van deelnemers: %d dagen) na het einde van het evenement"
 
 #: src/Privacy/PolicyText.php:74
-msgid "Vorschlag von WP Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind."
-msgstr "Voorstel van WP Pass Captain. Controleer het en pas het aan op je bedrijf, je contracten en je werkelijke werkwijze; de tekst vervangt geen juridisch advies. Secties over dienstverleners verschijnen alleen als die in de instellingen zijn ingeschakeld."
+msgid "Vorschlag von Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind."
+msgstr "Voorstel van Pass Captain. Controleer het en pas het aan op je bedrijf, je contracten en je werkelijke werkwijze; de tekst vervangt geen juridisch advies. Secties over dienstverleners verschijnen alleen als die in de instellingen zijn ingeschakeld."
 
 #: src/Privacy/PolicyText.php:76
 msgid "Ticketkauf, Tickets und Einlass"
@@ -13601,8 +13603,8 @@ msgid "Angebundene Systeme (Webhooks), z. B. Buchhaltung, CRM oder Newsletter-Di
 msgstr "Gekoppelde systemen (webhooks), bijv. boekhouding, CRM of nieuwsbriefdienst: bestel- en ticketgebeurtenissen; e-mailadressen alleen als dit voor het betreffende systeem uitdrukkelijk is ingeschakeld."
 
 #: src/Privacy/PolicyText.php:105
-msgid "Affiliate-Programm (WP Affiliate Captain, auf diesem Server): Wenn Sie über einen Partnerlink kommen oder einen Partnercode eingeben, ordnen wir die Bestellung dem Partner zu, um dessen Provision abzurechnen. Den Empfehlungs-Cookie werten wir nur mit Ihrer Einwilligung aus (Art. 6 Abs. 1 lit. a DSGVO, § 165 Abs. 3 TKG 2021 bzw. § 25 TDDDG); bei einem selbst eingegebenen Code auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Ihre E-Mail-Adresse wird nur zur Prüfung von Eigenempfehlungen verwendet und dort nicht gespeichert."
-msgstr "Affiliateprogramma (WP Affiliate Captain, op deze server): als je via een partnerlink komt of een partnercode invoert, wijzen wij de bestelling toe aan de partner om diens commissie af te rekenen. De verwijzingscookie evalueren wij alleen met je toestemming (art. 6 lid 1 sub a AVG, § 165 lid 3 TKG 2021 of § 25 TDDDG); bij een zelf ingevoerde code op basis van art. 6 lid 1 sub f AVG. Je e-mailadres wordt alleen gebruikt om zelfverwijzingen te controleren en wordt daar niet opgeslagen."
+msgid "Affiliate-Programm (Affiliate Captain, auf diesem Server): Wenn Sie über einen Partnerlink kommen oder einen Partnercode eingeben, ordnen wir die Bestellung dem Partner zu, um dessen Provision abzurechnen. Den Empfehlungs-Cookie werten wir nur mit Ihrer Einwilligung aus (Art. 6 Abs. 1 lit. a DSGVO, § 165 Abs. 3 TKG 2021 bzw. § 25 TDDDG); bei einem selbst eingegebenen Code auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Ihre E-Mail-Adresse wird nur zur Prüfung von Eigenempfehlungen verwendet und dort nicht gespeichert."
+msgstr "Affiliateprogramma (Affiliate Captain, op deze server): als je via een partnerlink komt of een partnercode invoert, wijzen wij de bestelling toe aan de partner om diens commissie af te rekenen. De verwijzingscookie evalueren wij alleen met je toestemming (art. 6 lid 1 sub a AVG, § 165 lid 3 TKG 2021 of § 25 TDDDG); bij een zelf ingevoerde code op basis van art. 6 lid 1 sub f AVG. Je e-mailadres wordt alleen gebruikt om zelfverwijzingen te controleren en wordt daar niet opgeslagen."
 
 #: src/Privacy/PolicyText.php:106
 msgid "Unser Hosting- und E-Mail-Dienstleister als Auftragsverarbeiter."
@@ -14061,8 +14063,8 @@ msgid "Die Erstattung konnte nicht gespeichert werden."
 msgstr "De terugbetaling kon niet worden opgeslagen."
 
 #: src/Refunds.php:131
-msgid "WP Pass Captain: Stornierungsanfrage wartet auf Freigabe"
-msgstr "WP Pass Captain: annuleringsverzoek wacht op goedkeuring"
+msgid "Pass Captain: Stornierungsanfrage wartet auf Freigabe"
+msgstr "Pass Captain: annuleringsverzoek wacht op goedkeuring"
 
 #. translators: 1: order id, 2: amount
 #: src/Refunds.php:131
@@ -14071,8 +14073,8 @@ msgid "Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal 
 msgstr "Voor bestelling %1$s heeft de koper in het bestelportaal annulering met terugbetaling van %2$s aangevraagd. Keur het verzoek goed of wijs het af onder „Terugbetalingen ter goedkeuring”."
 
 #: src/Refunds.php:135 src/Refunds.php:220
-msgid "WP Pass Captain: Erstattung wartet auf Freigabe"
-msgstr "WP Pass Captain: terugbetaling wacht op goedkeuring"
+msgid "Pass Captain: Erstattung wartet auf Freigabe"
+msgstr "Pass Captain: terugbetaling wacht op goedkeuring"
 
 #. translators: 1: order id, 2: amount
 #: src/Refunds.php:135 src/Refunds.php:220
@@ -14152,54 +14154,58 @@ msgstr "WooCommerce-winkel"
 msgid "Online/sonstige"
 msgstr "Online/overig"
 
-#: src/Reports/Data.php:390 src/Reports/Settlement.php:243
+#: src/Reports/Data.php:434 src/Reports/Settlement.php:243
 #: src/Reports/Settlement.php:292
 msgid "Erstattet brutto"
 msgstr "Terugbetaald bruto"
 
-#: src/Reports/Data.php:390
+#: src/Reports/Data.php:434
 msgid "Erstattet USt"
 msgstr "Terugbetaald btw"
 
-#: src/Reports/Data.php:390 src/Reports/Page.php:143
+#: src/Reports/Data.php:434 src/Reports/Page.php:163
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Umsatz nach Erstattung"
 msgstr "Omzet na terugbetaling"
 
-#: src/Reports/Data.php:390
+#: src/Reports/Data.php:434
 msgid "USt nach Erstattung"
 msgstr "Btw na terugbetaling"
 
-#: src/Reports/Data.php:393 src/Reports/Page.php:98
+#: src/Reports/Data.php:434
+msgid "Netto nach Erstattung"
+msgstr "Netto na terugbetalingen"
+
+#: src/Reports/Data.php:437 src/Reports/Page.php:110
 msgid "Zahlungsanbieter"
 msgstr "Betaalaanbieder"
 
-#: src/Reports/Data.php:393
+#: src/Reports/Data.php:437
 msgid "Tag"
 msgstr "Dag"
 
-#: src/Reports/Data.php:407
+#: src/Reports/Data.php:458
 msgid "Auslastung %"
 msgstr "Bezettingsgraad %"
 
-#: src/Reports/Data.php:407
+#: src/Reports/Data.php:458
 msgid "Gültige Tickets"
 msgstr "Geldige tickets"
 
-#: src/Reports/Data.php:407
+#: src/Reports/Data.php:458
 msgid "Check-in-Quote %"
 msgstr "Check-inpercentage %"
 
-#: src/Reports/Data.php:412
+#: src/Reports/Data.php:463
 msgid "Rechnungskorrekturen"
 msgstr "Factuurcorrecties"
 
-#: src/Reports/Data.php:414 src/Reports/Page.php:83
+#: src/Reports/Data.php:465 src/Reports/Page.php:83
 #: src/Reports/Settlement.php:261 src/Reports/Settlement.php:329
 msgid "Freikarten (nicht im Umsatz)"
 msgstr "Vrijkaartjes (niet in de omzet)"
 
-#: src/Reports/Data.php:418 src/Reports/Page.php:115
+#: src/Reports/Data.php:469 src/Reports/Page.php:127
 msgid "Check-ins pro Stunde"
 msgstr "Check-ins per uur"
 
@@ -14234,85 +14240,107 @@ msgstr "waarvan btw"
 msgid "Rechnungskorrekturen (Belege)"
 msgstr "Factuurcorrecties (documenten)"
 
-#: src/Reports/Page.php:91
+#: src/Reports/Page.php:89
+msgid "Die Summen des Berichts stimmen nicht überein:"
+msgstr "De totalen van het rapport kloppen niet:"
+
+#: src/Reports/Page.php:93
+msgid "Umsatz nach Währung"
+msgstr "Omzet per valuta"
+
+#: src/Reports/Page.php:93
+msgid "Im Zeitraum wurde in mehreren Währungen verkauft. Die Gesamtsummen oben sind nicht addierbar; maßgeblich sind die Summen je Währung."
+msgstr "In deze periode is in meerdere valuta verkocht. De totalen hierboven kunnen niet worden opgeteld; de totalen per valuta zijn bepalend."
+
+#: src/Reports/Page.php:103
 msgid "Kasse vs. online"
 msgstr "Kassa versus online"
 
-#: src/Reports/Page.php:92
+#: src/Reports/Page.php:104
 msgid "Umsatz nach Kanal"
 msgstr "Omzet per kanaal"
 
-#: src/Reports/Page.php:96
+#: src/Reports/Page.php:108
 msgid "Umsatz pro Tag"
 msgstr "Omzet per dag"
 
-#: src/Reports/Page.php:96
+#: src/Reports/Page.php:108
 msgid "Umsatz nach Erstattungen pro Tag"
 msgstr "Omzet na terugbetalingen per dag"
 
 #. translators: %s: grouping (e.g. ticket type, channel)
-#: src/Reports/Page.php:100
+#: src/Reports/Page.php:112
 #, php-format
 msgid "Umsatz nach %s"
 msgstr "Omzet per %s"
 
-#: src/Reports/Page.php:103 src/Reports/Settlement.php:320
+#: src/Reports/Page.php:115 src/Reports/Settlement.php:320
 msgid "Umsatzsteuer nach Satz"
 msgstr "Btw per tarief"
 
-#: src/Reports/Page.php:106
+#: src/Reports/Page.php:118
 msgid "Auslastung und Check-in"
 msgstr "Bezettingsgraad en check-in"
 
-#: src/Reports/Page.php:106
+#: src/Reports/Page.php:118
 msgid "Eingecheckt / gültig"
 msgstr "Ingecheckt / geldig"
 
-#: src/Reports/Page.php:109
+#: src/Reports/Page.php:121
 msgid "Freikarten"
 msgstr "Vrijkaartjes"
 
-#: src/Reports/Page.php:109
+#: src/Reports/Page.php:121
 msgid "Einlass pro Stunde"
 msgstr "Toegang per uur"
 
-#: src/Reports/Page.php:121
+#: src/Reports/Page.php:133
 msgid "Buchhaltungsexport"
 msgstr "Boekhoudexport"
 
 #. translators: 1: from, 2: to
-#: src/Reports/Page.php:121
+#: src/Reports/Page.php:133
 #, php-format
 msgid "Buchhaltungsexport %1$s bis %2$s (CSV)"
 msgstr "Boekhoudexport %1$s tot %2$s (CSV)"
 
 #. translators: 1: from, 2: to
-#: src/Reports/Page.php:122
+#: src/Reports/Page.php:135
+#, php-format
+msgid "Buchungsstapel %1$s bis %2$s (DATEV-Format, CSV)"
+msgstr "Boekingsbatch %1$s tot %2$s (DATEV-formaat, CSV)"
+
+#. translators: 1: from, 2: to
+#: src/Reports/Page.php:136
 msgid "Rechnungen, Rechnungskorrekturen sowie Verkäufe und Erstattungen ohne Rechnung (z. B. Kasse, Partner-API, automatische Rechnungen aus). Tagesgrenzen in der Zeitzone der Website."
 msgstr "Facturen, factuurcorrecties en verkopen en terugbetalingen zonder factuur (bijv. kassa, partner-API, automatische facturen uit). Daggrenzen in de tijdzone van de website."
 
-#: src/Reports/Page.php:130
+#: src/Reports/Page.php:141
+msgid "Lücken in den Belegnummern:"
+msgstr "Hiaten in de documentnummers:"
+
+#: src/Reports/Page.php:150
 msgid "Abrechnungsblatt pro Termin (Door Deal)"
 msgstr "Afrekenblad per datum (door deal)"
 
-#: src/Reports/Page.php:131
+#: src/Reports/Page.php:151
 msgid "Keine Termine im Zugriff."
 msgstr "Geen data waartoe je toegang hebt."
 
-#: src/Reports/Page.php:136 src/Reports/Settlement.php:305
+#: src/Reports/Page.php:156 src/Reports/Settlement.php:305
 msgid "Fixbetrag"
 msgstr "Vast bedrag"
 
-#: src/Reports/Page.php:137 src/Reports/Settlement.php:276
+#: src/Reports/Page.php:157 src/Reports/Settlement.php:276
 #: src/Reports/Settlement.php:306
 msgid "Anteil %"
 msgstr "Aandeel %"
 
-#: src/Reports/Page.php:139
+#: src/Reports/Page.php:159
 msgid "Alle Verkäufe und Erstattungen des Termins nach Ticketart und Kanal, Freikarten, USt je Satz, Kasse nach Zahlungsart, Check-ins und No-Shows. Deal: vom Netto-Umsatz nach Erstattungen wird zuerst der Fixbetrag abgezogen, vom Rest erhält der Künstler/Veranstalter den Anteil. Die Deal-Werte werden nicht gespeichert."
 msgstr "Alle verkopen en terugbetalingen van de datum per tickettype en kanaal, vrijkaartjes, btw per tarief, kassa per betaalmethode, check-ins en no-shows. Deal: van de netto-omzet na terugbetalingen wordt eerst het vaste bedrag afgetrokken; van de rest krijgt de artiest/organisator het aandeel. De dealwaarden worden niet opgeslagen."
 
-#: src/Reports/Page.php:147
+#: src/Reports/Page.php:167
 msgid "Keine Daten im Zeitraum."
 msgstr "Geen gegevens in de periode."
 
@@ -14975,8 +15003,8 @@ msgid "Für diese Ticketart sind keine passenden Sitzplätze mehr frei."
 msgstr "Voor dit tickettype zijn er geen passende zitplaatsen meer vrij."
 
 #: src/Seating/Reservations.php:293
-msgid "WP Pass Captain: Sitzplätze nach verspäteter Zahlung fehlen"
-msgstr "WP Pass Captain: zitplaatsen ontbreken na late betaling"
+msgid "Pass Captain: Sitzplätze nach verspäteter Zahlung fehlen"
+msgstr "Pass Captain: zitplaatsen ontbreken na late betaling"
 
 #. translators: %d: order id
 #: src/Seating/Reservations.php:293
@@ -15096,16 +15124,16 @@ msgid "Wird verschlüsselt gespeichert. Alternativ als Konstante %s in wp-config
 msgstr "Wordt versleuteld opgeslagen. Je kunt het ook als constante %s in wp-config.php definiëren."
 
 #: src/Secrets.php:428
-msgid "WP Pass Captain: Gespeicherte Zugangsdaten können nicht entschlüsselt werden."
-msgstr "WP Pass Captain: opgeslagen toegangsgegevens kunnen niet worden ontsleuteld."
+msgid "Pass Captain: Gespeicherte Zugangsdaten können nicht entschlüsselt werden."
+msgstr "Pass Captain: opgeslagen toegangsgegevens kunnen niet worden ontsleuteld."
 
 #: src/Secrets.php:430
 msgid "Die betroffenen Zahlungsarten und Dienste gelten bis zur Behebung als nicht eingerichtet. Ursache ist meist ein geänderter WPCAP_SECRETS_KEY oder geänderte WordPress-Salts: den bisherigen Schlüssel als WPCAP_SECRETS_KEY_PREVIOUS in wp-config.php eintragen oder die Werte in den Einstellungen neu eingeben."
 msgstr "De betrokken betaalmethoden en diensten gelden tot het herstel als niet ingesteld. De oorzaak is meestal een gewijzigde WPCAP_SECRETS_KEY of gewijzigde WordPress-salts: voer de vorige sleutel in als WPCAP_SECRETS_KEY_PREVIOUS in wp-config.php of voer de waarden opnieuw in bij de instellingen."
 
 #: src/Secrets.php:434
-msgid "WP Pass Captain: Zugangsdaten (z. B. Stripe, PayPal) werden mit einem aus den WordPress-Salts abgeleiteten Schlüssel verschlüsselt. Empfohlen: einen eigenen Schlüssel als Konstante WPCAP_SECRETS_KEY in wp-config.php festlegen (mindestens 32 zufällige Zeichen) – sonst werden die Zugangsdaten unlesbar, wenn die Salts erneuert werden."
-msgstr "WP Pass Captain: toegangsgegevens (bijv. Stripe, PayPal) worden versleuteld met een sleutel die is afgeleid van de WordPress-salts. Aanbevolen: leg een eigen sleutel vast als constante WPCAP_SECRETS_KEY in wp-config.php (minstens 32 willekeurige tekens) – anders worden de toegangsgegevens onleesbaar wanneer de salts worden vernieuwd."
+msgid "Pass Captain: Zugangsdaten (z. B. Stripe, PayPal) werden mit einem aus den WordPress-Salts abgeleiteten Schlüssel verschlüsselt. Empfohlen: einen eigenen Schlüssel als Konstante WPCAP_SECRETS_KEY in wp-config.php festlegen (mindestens 32 zufällige Zeichen) – sonst werden die Zugangsdaten unlesbar, wenn die Salts erneuert werden."
+msgstr "Pass Captain: toegangsgegevens (bijv. Stripe, PayPal) worden versleuteld met een sleutel die is afgeleid van de WordPress-salts. Aanbevolen: leg een eigen sleutel vast als constante WPCAP_SECRETS_KEY in wp-config.php (minstens 32 willekeurige tekens) – anders worden de toegangsgegevens onleesbaar wanneer de salts worden vernieuwd."
 
 #: src/Secrets.php:445
 msgid "aus WordPress-Salts abgeleitet"
@@ -15132,8 +15160,8 @@ msgid "nicht gesetzt"
 msgstr "niet ingesteld"
 
 #: src/Secrets.php:452
-msgid "WP Pass Captain – Zugangsdaten"
-msgstr "WP Pass Captain – toegangsgegevens"
+msgid "Pass Captain – Zugangsdaten"
+msgstr "Pass Captain – toegangsgegevens"
 
 #. translators: 1: created, 2: skipped existing, 3: skipped past
 #: src/Series/AdminPage.php:47
@@ -15887,7 +15915,7 @@ msgstr "Het tijdvak heeft boekingen en kan niet worden verwijderd. Sluit het in 
 msgid "Der HTTP-SMS-Anbieter ist nicht konfiguriert (HTTPS-Endpunkt erforderlich)."
 msgstr "De HTTP-sms-aanbieder is niet geconfigureerd (HTTPS-eindpunt vereist)."
 
-#: src/Sms/Service.php:238 src/Sms/Service.php:258
+#: src/Sms/Service.php:239 src/Sms/Service.php:259
 msgid "Ungültige Signatur."
 msgstr "Ongeldige handtekening."
 
@@ -16614,8 +16642,8 @@ msgstr "De webhook kon niet worden opgeslagen."
 
 #. translators: 1: webhook id, 2: failure count
 #: src/Webhooks/Dispatcher.php:268
-msgid "WP Pass Captain: Webhook deaktiviert"
-msgstr "WP Pass Captain: webhook gedeactiveerd"
+msgid "Pass Captain: Webhook deaktiviert"
+msgstr "Pass Captain: webhook gedeactiveerd"
 
 #. translators: 1: webhook id, 2: failure count
 #: src/Webhooks/Dispatcher.php:268

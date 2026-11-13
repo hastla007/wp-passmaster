@@ -2,6 +2,8 @@
 
 ## Unveröffentlicht
 
+- **Neuer Name „Pass Captain“, Slug `pass-captain` (für WordPress.org).** Bisher „WP Pass Captain“ mit Slug, Ordner und Textdomain `wp-pass-captain` – WordPress.org erlaubt kein „WP“ am Namensanfang, und Sprachpakete brauchen Textdomain = Slug. Geändert: Plugin-Name, Ordner/Hauptdatei `pass-captain/pass-captain.php`, Textdomain und Sprachdateien `pass-captain`, REST-Namensraum `/wp-json/pass-captain/v1/`, Admin-Seiten `page=pass-captain…`, Release-ZIP `pass-captain.zip`; die Partner-Plugins heißen in der Oberfläche „Voucher Captain“ und „Affiliate Captain“. Unverändert: Daten (`wpcap_*`), Rollen, Hooks/Shortcodes, Blocknamen. Kompatibilität (`src/LegacySlug.php`): der alte REST-Namensraum funktioniert weiter (Zahlungs- und SMS-Webhooks, bereits ausgegebene Wallet-Pässe, Apps; Antwort mit `Deprecation`/`Link`, Twilio-Signatur gegen die aufgerufene URL), alte Admin-Links leiten um, eine installierte alte Kopie wird beim Aktivieren abgeschaltet (kein Doppelladen), und solange ihr Ordner existiert, ist die Datenlöschung beim Deinstallieren pausiert, damit das Löschen der alten Kopie keine Daten entfernt. Neuer CI-Test `tests/wp-matrix/rename-takeover.sh` (echte Website mit Vorgänger-Release und Daten → Umstieg). Anleitung: docs/RENAME.md.
+
 ### Auditbefunde Runde 3 (Arbeitsliste A001–)
 - Umtausch im Bestellportal: übertragene Tickets kann nur noch der Veranstalter umtauschen (kein Umtausch samt Erstattung durch den ursprünglichen Käufer); das Umtausch-Formular funktioniert für alle Tickets einer Bestellung.
 - Verspätete Zahlung: vorübergehende Datenbank-Sperren gelten nicht mehr als „ausverkauft“ – der Webhook wird erneut zugestellt. Bestellungen „Prüfung nötig“ haben den Knopf „Zuteilung erneut versuchen“.

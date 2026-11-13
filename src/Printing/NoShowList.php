@@ -36,11 +36,11 @@ final class NoShowList {
 	public static function rows( $occurrence_id, $level ) {
 		$tickets = self::tickets( $occurrence_id );
 		if ( 'full' !== $level ) {
-			$rows = array( array( __( 'Name', 'wp-pass-captain' ), __( 'Ticketart', 'wp-pass-captain' ) ) );
+			$rows = array( array( __( 'Name', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ) ) );
 			foreach ( $tickets as $t ) { $rows[] = array( \PassCaptain\Pii::show( 'attendee_name', $t->attendee_name ), $t->ticket_name ); }
 			return $rows;
 		}
-		$rows = array( array( __( 'Ticket', 'wp-pass-captain' ), __( 'Name', 'wp-pass-captain' ), __( 'Ticketart', 'wp-pass-captain' ), __( 'E-Mail Teilnehmer', 'wp-pass-captain' ), __( 'E-Mail Besteller', 'wp-pass-captain' ), __( 'Bestellung', 'wp-pass-captain' ) ) );
+		$rows = array( array( __( 'Ticket', 'pass-captain' ), __( 'Name', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'E-Mail Teilnehmer', 'pass-captain' ), __( 'E-Mail Besteller', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ) ) );
 		foreach ( $tickets as $t ) {
 			$buyer = false !== strpos( (string) $t->customer_email, '@invalid.example' ) ? '' : $t->customer_email;
 			$rows[] = array( substr( $t->public_id, 0, 12 ), $t->attendee_name, $t->ticket_name, $t->attendee_email, $buyer, $t->order_public_id );
@@ -58,12 +58,12 @@ final class NoShowList {
 		$issued = count( Templates::tickets_for_occurrence( $occurrence_id, array( 'valid', 'checked_in' ) ) );
 		$title = $occ ? $occ->event_name . ' – ' . Scope::local( $occ->starts_at, $occ->timezone ) : '';
 		/* translators: 1: tickets never admitted, 2: valid tickets in total */
-		$summary = sprintf( __( '%1$d von %2$d gültigen Tickets nicht eingelassen', 'wp-pass-captain' ), count( $rows ), $issued );
-		$html = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( __( 'No-Show-Liste', 'wp-pass-captain' ) ) . '</title>'
+		$summary = sprintf( __( '%1$d von %2$d gültigen Tickets nicht eingelassen', 'pass-captain' ), count( $rows ), $issued );
+		$html = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( __( 'No-Show-Liste', 'pass-captain' ) ) . '</title>'
 			. '<style>@page{size:A4;margin:12mm}body{font:11px/1.35 system-ui,sans-serif;color:#000}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}th{background:#eee}@media print{button{display:none}}</style></head><body>';
-		$html .= '<h1>' . esc_html( __( 'No-Show-Liste', 'wp-pass-captain' ) ) . '</h1><p>' . esc_html( $title ) . ' · ' . esc_html( $summary ) . '</p>';
+		$html .= '<h1>' . esc_html( __( 'No-Show-Liste', 'pass-captain' ) ) . '</h1><p>' . esc_html( $title ) . ' · ' . esc_html( $summary ) . '</p>';
 		if ( ! $rows ) {
-			$html .= '<p>' . esc_html( __( 'Alle gültigen Tickets wurden eingelassen.', 'wp-pass-captain' ) ) . '</p>';
+			$html .= '<p>' . esc_html( __( 'Alle gültigen Tickets wurden eingelassen.', 'pass-captain' ) ) . '</p>';
 		} else {
 			$html .= '<table><thead><tr>';
 			foreach ( $header as $cell ) { $html .= '<th>' . esc_html( $cell ) . '</th>'; }
@@ -75,7 +75,7 @@ final class NoShowList {
 			}
 			$html .= '</tbody></table>';
 		}
-		$html .= '<p><button onclick="window.print()">' . esc_html( __( 'Drucken', 'wp-pass-captain' ) ) . '</button></p></body></html>';
+		$html .= '<p><button onclick="window.print()">' . esc_html( __( 'Drucken', 'pass-captain' ) ) . '</button></p></body></html>';
 		return $html;
 	}
 }

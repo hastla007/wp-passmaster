@@ -28,7 +28,7 @@ final class BuyerLimits {
 
 	public static function error_messages() {
 		return array_merge(
-			array( 'allocation_buyer_limit' => __( 'Für dieses Event ist die maximale Anzahl an Tickets pro Person erreicht.', 'wp-pass-captain' ) ),
+			array( 'allocation_buyer_limit' => __( 'Für dieses Event ist die maximale Anzahl an Tickets pro Person erreicht.', 'pass-captain' ) ),
 			self::$messages
 		);
 	}
@@ -72,17 +72,17 @@ final class BuyerLimits {
 		$event_id = absint( $event_id );
 		$ticket_type_id = absint( $ticket_type_id );
 		$max = absint( $max );
-		if ( ! $event_id ) { return new \WP_Error( 'wpcap_alloc_event', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $event_id ) { return new \WP_Error( 'wpcap_alloc_event', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $ticket_type_id ) {
 			$owner = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$wpdb->prefix}wpcap_ticket_types t INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=t.occurrence_id WHERE t.ticket_type_id=%d", $ticket_type_id ) );
-			if ( $owner !== $event_id ) { return new \WP_Error( 'wpcap_alloc_type', __( 'Die Ticketart gehört nicht zu diesem Event.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+			if ( $owner !== $event_id ) { return new \WP_Error( 'wpcap_alloc_type', __( 'Die Ticketart gehört nicht zu diesem Event.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		}
 		if ( ! $max ) {
 			$wpdb->delete( Holds::table( 'limits' ), array( 'event_id' => $event_id, 'ticket_type_id' => $ticket_type_id ) );
 			return true;
 		}
 		$wpdb->query( $wpdb->prepare( 'INSERT INTO ' . Holds::table( 'limits' ) . ' (event_id,ticket_type_id,max_per_buyer,updated_at) VALUES (%d,%d,%d,%s) ON DUPLICATE KEY UPDATE max_per_buyer=VALUES(max_per_buyer),updated_at=VALUES(updated_at)', $event_id, $ticket_type_id, $max, current_time( 'mysql', true ) ) );
-		return '' === $wpdb->last_error ? true : new \WP_Error( 'wpcap_alloc_save', __( 'Das Limit konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+		return '' === $wpdb->last_error ? true : new \WP_Error( 'wpcap_alloc_save', __( 'Das Limit konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 	}
 
 	/* ---------------------------------------------------------------------------------------------
@@ -181,10 +181,10 @@ final class BuyerLimits {
 		$data = array();
 		foreach ( self::keys( (string) $email_address ) as $key ) {
 			foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT b.event_id,b.holdings,b.updated_at,e.name FROM ' . Holds::table( 'buyers' ) . " b LEFT JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=b.event_id WHERE b.buyer_key=%s", $key ) ) as $row ) {
-				$data[] = array( 'group_id' => 'wp-pass-captain-buyer-limits', 'group_label' => __( 'WP Pass Captain Käuferlimit', 'wp-pass-captain' ), 'item_id' => 'buyer-limit-' . (int) $row->event_id, 'data' => array(
-					array( 'name' => __( 'Event', 'wp-pass-captain' ), 'value' => (string) $row->name ),
-					array( 'name' => __( 'Gezählte Bestellungen (Bestell-ID => Ticketart => Menge)', 'wp-pass-captain' ), 'value' => (string) $row->holdings ),
-					array( 'name' => __( 'Aktualisiert (UTC)', 'wp-pass-captain' ), 'value' => (string) $row->updated_at ),
+				$data[] = array( 'group_id' => 'pass-captain-buyer-limits', 'group_label' => __( 'Pass Captain Käuferlimit', 'pass-captain' ), 'item_id' => 'buyer-limit-' . (int) $row->event_id, 'data' => array(
+					array( 'name' => __( 'Event', 'pass-captain' ), 'value' => (string) $row->name ),
+					array( 'name' => __( 'Gezählte Bestellungen (Bestell-ID => Ticketart => Menge)', 'pass-captain' ), 'value' => (string) $row->holdings ),
+					array( 'name' => __( 'Aktualisiert (UTC)', 'pass-captain' ), 'value' => (string) $row->updated_at ),
 				) );
 			}
 		}
@@ -258,7 +258,7 @@ final class BuyerLimits {
 				$had_total = array_sum( $current['types'] );
 				if ( isset( $event_limits[0] ) && $had_total + $ordered_total > $event_limits[0] ) {
 					/* translators: 1: maximum tickets per person, 2: tickets the buyer already has */
-					self::$messages['allocation_buyer_limit'] = sprintf( __( 'Pro Person sind höchstens %1$d Tickets für dieses Event möglich; du hast bereits %2$d.', 'wp-pass-captain' ), $event_limits[0], $had_total );
+					self::$messages['allocation_buyer_limit'] = sprintf( __( 'Pro Person sind höchstens %1$d Tickets für dieses Event möglich; du hast bereits %2$d.', 'pass-captain' ), $event_limits[0], $had_total );
 					throw new \RuntimeException( 'allocation_buyer_limit' );
 				}
 				foreach ( $ordered as $type_id => $quantity ) {
@@ -266,7 +266,7 @@ final class BuyerLimits {
 					$had = (int) ( $current['types'][ $type_id ] ?? 0 );
 					if ( $max && $had + $quantity > $max ) {
 						/* translators: 1: maximum tickets per person, 2: ticket type, 3: tickets the buyer already has */
-						self::$messages['allocation_buyer_limit'] = sprintf( __( 'Pro Person sind höchstens %1$d Tickets der Ticketart „%2$s“ möglich; du hast bereits %3$d.', 'wp-pass-captain' ), $max, $names[ $type_id ] ?? '', $had );
+						self::$messages['allocation_buyer_limit'] = sprintf( __( 'Pro Person sind höchstens %1$d Tickets der Ticketart „%2$s“ möglich; du hast bereits %3$d.', 'pass-captain' ), $max, $names[ $type_id ] ?? '', $had );
 						throw new \RuntimeException( 'allocation_buyer_limit' );
 					}
 				}
@@ -323,13 +323,13 @@ final class BuyerLimits {
 			if ( null === $current ) { return \PassCaptain\Errors::busy( '', 'db_busy' ); }
 			if ( isset( $limits[0] ) && array_sum( $current['types'] ) + $quantity > $limits[0] ) {
 				/* translators: %d: maximum tickets per person */
-				return new \WP_Error( 'allocation_buyer_limit', sprintf( _n( 'Pro Person ist höchstens %d Ticket für dieses Event möglich.', 'Pro Person sind höchstens %d Tickets für dieses Event möglich.', $limits[0], 'wp-pass-captain' ), $limits[0]), array( 'status' => 409 ) );
+				return new \WP_Error( 'allocation_buyer_limit', sprintf( _n( 'Pro Person ist höchstens %d Ticket für dieses Event möglich.', 'Pro Person sind höchstens %d Tickets für dieses Event möglich.', $limits[0], 'pass-captain' ), $limits[0]), array( 'status' => 409 ) );
 			}
 			$max = $limits[ $type_id ] ?? 0;
 			$had = (int) ( $current['types'][ $type_id ] ?? 0 );
 			if ( $max && $had + $quantity > $max ) {
 				/* translators: 1: maximum tickets per person, 2: ticket type, 3: tickets the buyer already has */
-				return new \WP_Error( 'allocation_buyer_limit', sprintf( __( 'Pro Person sind höchstens %1$d Tickets der Ticketart „%2$s“ möglich; du hast bereits %3$d.', 'wp-pass-captain' ), $max, $name, $had ), array( 'status' => 409 ) );
+				return new \WP_Error( 'allocation_buyer_limit', sprintf( __( 'Pro Person sind höchstens %1$d Tickets der Ticketart „%2$s“ möglich; du hast bereits %3$d.', 'pass-captain' ), $max, $name, $had ), array( 'status' => 409 ) );
 			}
 			$holdings = $current['holdings'];
 			$holdings[ (string) $order_id ] = array_replace( (array) ( $holdings[ (string) $order_id ] ?? array() ), array( $type_id => max( 1, (int) ( $recorded[ $type_id ] ?? 0 ) ) ) );
@@ -419,12 +419,12 @@ final class BuyerLimits {
 		$lines = array();
 		if ( isset( $limits[0] ) ) {
 			/* translators: %d: maximum tickets per person */
-			$lines[] = sprintf( _n( 'Max. %d Ticket pro Person für dieses Event.', 'Max. %d Tickets pro Person für dieses Event.', $limits[0], 'wp-pass-captain' ), $limits[0]);
+			$lines[] = sprintf( _n( 'Max. %d Ticket pro Person für dieses Event.', 'Max. %d Tickets pro Person für dieses Event.', $limits[0], 'pass-captain' ), $limits[0]);
 		}
 		foreach ( (array) $types as $type ) {
 			$max = $limits[ (int) ( $type->ticket_type_id ?? 0 ) ] ?? 0;
 			/* translators: 1: ticket type, 2: maximum tickets per person */
-			if ( $max ) { $lines[] = sprintf( __( '%1$s: max. %2$d pro Person.', 'wp-pass-captain' ), $type->name, $max ); }
+			if ( $max ) { $lines[] = sprintf( __( '%1$s: max. %2$d pro Person.', 'pass-captain' ), $type->name, $max ); }
 		}
 		if ( $lines ) { echo '<p class="wpcap-buyer-limit">' . esc_html( implode( ' ', $lines ) ) . '</p>'; }
 	}

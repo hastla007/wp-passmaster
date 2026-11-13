@@ -134,20 +134,20 @@ final class EventCard {
 		$th = self::thresholds();
 		$badges = array();
 		if ( ! empty( $context['next'] ) ) {
-			$badges[] = array( 'key' => 'next', 'label' => __( 'Nächster Termin', 'wp-pass-captain' ) );
+			$badges[] = array( 'key' => 'next', 'label' => __( 'Nächster Termin', 'pass-captain' ) );
 		}
 		if ( 'cancelled' === ( $occurrence->status ?? '' ) ) {
-			$badges[] = array( 'key' => 'cancelled', 'label' => __( 'Abgesagt', 'wp-pass-captain' ) );
+			$badges[] = array( 'key' => 'cancelled', 'label' => __( 'Abgesagt', 'pass-captain' ) );
 		} else {
 			$moved = (string) ( $occurrence->rescheduled_at ?? '' );
 			if ( '' !== $moved && ( ! $th['rescheduled_days'] || strtotime( $moved . ' UTC' ) >= time() - $th['rescheduled_days'] * DAY_IN_SECONDS ) ) {
-				$badges[] = array( 'key' => 'rescheduled', 'label' => __( 'Verschoben', 'wp-pass-captain' ) );
+				$badges[] = array( 'key' => 'rescheduled', 'label' => __( 'Verschoben', 'pass-captain' ) );
 			}
 			if ( false !== $available && null !== $available ) {
 				if ( (int) $available < 1 ) {
-					$badges[] = array( 'key' => 'soldout', 'label' => __( 'Ausverkauft', 'wp-pass-captain' ) );
+					$badges[] = array( 'key' => 'soldout', 'label' => __( 'Ausverkauft', 'pass-captain' ) );
 				} elseif ( $th['few_left'] && (int) $available <= $th['few_left'] ) {
-					$badges[] = array( 'key' => 'few_left', 'label' => __( 'Wenige Plätze', 'wp-pass-captain' ) );
+					$badges[] = array( 'key' => 'few_left', 'label' => __( 'Wenige Plätze', 'pass-captain' ) );
 				}
 			}
 			if ( ( $context['doors'] ?? true ) && ! empty( $occurrence->doors_open_at ) ) {
@@ -172,15 +172,15 @@ final class EventCard {
 
 	/** "Tickets verfügbar", "Nur noch 3 Plätze frei" (at or below few_left) or "Ausverkauft". */
 	public static function availability_text( $available ) {
-		if ( null === $available ) { return __( 'Tickets verfügbar', 'wp-pass-captain' ); }
+		if ( null === $available ) { return __( 'Tickets verfügbar', 'pass-captain' ); }
 		$available = (int) $available;
-		if ( $available < 1 ) { return __( 'Ausverkauft', 'wp-pass-captain' ); }
+		if ( $available < 1 ) { return __( 'Ausverkauft', 'pass-captain' ); }
 		$th = self::thresholds();
 		if ( $th['few_left'] && $available <= $th['few_left'] ) {
 			/* translators: %d: seats left */
-			return sprintf( _n( 'Nur noch %d Platz frei', 'Nur noch %d Plätze frei', $available, 'wp-pass-captain' ), $available );
+			return sprintf( _n( 'Nur noch %d Platz frei', 'Nur noch %d Plätze frei', $available, 'pass-captain' ), $available );
 		}
-		return __( 'Tickets verfügbar', 'wp-pass-captain' );
+		return __( 'Tickets verfügbar', 'pass-captain' );
 	}
 
 	/** "19,90 €" when all prices are equal, else "ab 9,90 €" (lowest price of the types still on sale). */
@@ -191,7 +191,7 @@ final class EventCard {
 		$min = min( $prices );
 		$money = Format::money( $min, $types[0]->currency );
 		/* translators: %s: lowest price */
-		return min( $prices ) === max( $prices ) ? $money : sprintf( __( 'ab %s', 'wp-pass-captain' ), $money );
+		return min( $prices ) === max( $prices ) ? $money : sprintf( __( 'ab %s', 'pass-captain' ), $money );
 	}
 
 	/** Most tickets of a type one order may hold on this card (max per order, seats left, buyer limits). */

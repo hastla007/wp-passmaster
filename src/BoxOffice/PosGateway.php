@@ -30,11 +30,11 @@ final class PosGateway implements GatewayInterface {
 	public function is_available( $currency ) { return false; }
 
 	public function create_payment( array $order, array $items = array() ) {
-		return new \WP_Error( 'wpcap_pos_only', __( 'Diese Zahlart ist nur an der Kasse verfügbar.', 'wp-pass-captain' ) );
+		return new \WP_Error( 'wpcap_pos_only', __( 'Diese Zahlart ist nur an der Kasse verfügbar.', 'pass-captain' ) );
 	}
 
 	public function verify_webhook( \WP_REST_Request $request ) {
-		return new \WP_Error( 'wpcap_pos_no_webhook', __( 'Kassenzahlungen verarbeiten keine Webhooks.', 'wp-pass-captain' ) );
+		return new \WP_Error( 'wpcap_pos_no_webhook', __( 'Kassenzahlungen verarbeiten keine Webhooks.', 'pass-captain' ) );
 	}
 
 	public function supports_refunds() { return true; }

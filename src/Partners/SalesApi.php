@@ -61,11 +61,11 @@ final class SalesApi {
 	private static function body( $request, $required ) {
 		$raw = method_exists( $request, 'get_body' ) ? trim( (string) $request->get_body() ) : '';
 		if ( '' === $raw ) {
-			return $required ? new \WP_Error( 'wpcap_partner_invalid_body', __( 'Der Request-Body muss ein JSON-Objekt sein.', 'wp-pass-captain' ), array( 'status' => 400 ) ) : null;
+			return $required ? new \WP_Error( 'wpcap_partner_invalid_body', __( 'Der Request-Body muss ein JSON-Objekt sein.', 'pass-captain' ), array( 'status' => 400 ) ) : null;
 		}
 		$data = json_decode( $raw, true );
 		if ( ! is_array( $data ) || ( $data && array_keys( $data ) === range( 0, count( $data ) - 1 ) ) ) {
-			return new \WP_Error( 'wpcap_partner_invalid_body', __( 'Der Request-Body muss ein JSON-Objekt sein.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_partner_invalid_body', __( 'Der Request-Body muss ein JSON-Objekt sein.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		return $data;
 	}
@@ -114,12 +114,12 @@ final class SalesApi {
 		$ctx = Api::context();
 		if ( Keys::restricted_events( $ctx['key'] ) || Keys::restricted_types( $ctx['key'] ) ) {
 			Keys::audit_failure( 'event_restricted_settlements', $ctx['key'], Keys::client_ip(), method_exists( $request, 'get_route' ) ? $request->get_route() : '' );
-			return new \WP_Error( 'wpcap_partner_settlements_restricted', __( 'Abrechnungen sind nur mit API-Keys ohne Event-Einschränkung abrufbar.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_partner_settlements_restricted', __( 'Abrechnungen sind nur mit API-Keys ohne Event-Einschränkung abrufbar.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$period = (string) $request->get_param( 'period' );
 		if ( '' === $period ) { $period = gmdate( 'Y-m', strtotime( 'first day of last month' ) ); }
 		if ( ! Settlements::valid_period( $period ) ) {
-			return new \WP_Error( 'wpcap_settlement_period', __( 'Ungültiger Abrechnungszeitraum (JJJJ-MM).', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_settlement_period', __( 'Ungültiger Abrechnungszeitraum (JJJJ-MM).', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		return self::respond( array( 'data' => Statement::payload( $ctx['partner'], $period ) ) );
 	}

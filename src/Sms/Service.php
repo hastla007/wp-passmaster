@@ -9,6 +9,7 @@
  */
 namespace PassCaptain\Sms;
 
+use PassCaptain\LegacySlug;
 use PassCaptain\Audit;
 use PassCaptain\Settings;
 
@@ -234,8 +235,8 @@ final class Service {
 		$params = method_exists( $request, 'get_body_params' ) ? (array) $request->get_body_params() : array();
 		if ( ! $params ) { parse_str( (string) $request->get_body(), $params ); }
 		$signature = (string) $request->get_header( 'x-twilio-signature' );
-		if ( ! TwilioProvider::signature_valid( TwilioProvider::status_callback_url(), $params, $signature, \PassCaptain\Secrets::get( 'twilio_auth_token' ) ) ) {
-			return new \WP_Error( 'wpcap_sms_signature', __( 'Ungültige Signatur.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		if ( ! TwilioProvider::signature_valid( LegacySlug::called_url( TwilioProvider::status_callback_url() ), $params, $signature, \PassCaptain\Secrets::get( 'twilio_auth_token' ) ) ) {
+			return new \WP_Error( 'wpcap_sms_signature', __( 'Ungültige Signatur.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$sid = preg_replace( '/[^A-Za-z0-9]/', '', (string) ( $params['MessageSid'] ?? '' ) );
 		$status = sanitize_key( $params['MessageStatus'] ?? ( $params['SmsStatus'] ?? '' ) );
@@ -254,8 +255,8 @@ final class Service {
 	public static function twilio_inbound( \WP_REST_Request $request ) {
 		$params = method_exists( $request, 'get_body_params' ) ? (array) $request->get_body_params() : array();
 		if ( ! $params ) { parse_str( (string) $request->get_body(), $params ); }
-		if ( ! TwilioProvider::signature_valid( TwilioProvider::inbound_url(), $params, (string) $request->get_header( 'x-twilio-signature' ), \PassCaptain\Secrets::get( 'twilio_auth_token' ) ) ) {
-			return new \WP_Error( 'wpcap_sms_signature', __( 'Ungültige Signatur.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		if ( ! TwilioProvider::signature_valid( LegacySlug::called_url( TwilioProvider::inbound_url() ), $params, (string) $request->get_header( 'x-twilio-signature' ), \PassCaptain\Secrets::get( 'twilio_auth_token' ) ) ) {
+			return new \WP_Error( 'wpcap_sms_signature', __( 'Ungültige Signatur.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$word = strtoupper( trim( (string) ( $params['Body'] ?? '' ) ) );
 		$from = self::normalize_phone( (string) ( $params['From'] ?? '' ) );

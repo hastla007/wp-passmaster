@@ -57,79 +57,79 @@ final class ChangeHistory {
 
 	public static function action_labels() {
 		return array(
-			'occurrence_created' => __( 'Termin angelegt', 'wp-pass-captain' ),
-			'occurrence_updated' => __( 'Termin geändert', 'wp-pass-captain' ),
-			'occurrence_cancelled' => __( 'Termin abgesagt', 'wp-pass-captain' ),
-			'occurrence_rescheduled' => __( 'Termin verschoben', 'wp-pass-captain' ),
-			'occurrence_change_notified' => __( 'Ticketinhaber:innen über Änderung informiert', 'wp-pass-captain' ),
-			'occurrence_deleted' => __( 'Termin entfernt (nicht mehr in der Serienregel)', 'wp-pass-captain' ),
-			'occurrence_flagged' => __( 'Termin außerhalb der Serienregel markiert', 'wp-pass-captain' ),
-			'occurrence_unflagged' => __( 'Markierung aufgehoben', 'wp-pass-captain' ),
-			'ticket_type_created' => __( 'Ticketart angelegt', 'wp-pass-captain' ),
-			'ticket_type_updated' => __( 'Ticketart geändert', 'wp-pass-captain' ),
-			'seat_map_linked' => __( 'Saalplan verknüpft', 'wp-pass-captain' ),
-			'seat_map_unlinked' => __( 'Saalplan entfernt', 'wp-pass-captain' ),
-			'series_generated' => __( 'Termine erzeugt', 'wp-pass-captain' ),
-			'series_updated' => __( 'Seriendefinition geändert', 'wp-pass-captain' ),
-			'series_price_rule_created' => __( 'Preisregel hinzugefügt', 'wp-pass-captain' ),
-			'series_price_rule_updated' => __( 'Preisregel geändert', 'wp-pass-captain' ),
-			'series_price_rule_deleted' => __( 'Preisregel entfernt', 'wp-pass-captain' ),
-			'series_pool_created' => __( 'Kontingent hinzugefügt', 'wp-pass-captain' ),
-			'series_pool_updated' => __( 'Kontingent geändert', 'wp-pass-captain' ),
-			'series_pool_deleted' => __( 'Kontingent entfernt', 'wp-pass-captain' ),
+			'occurrence_created' => __( 'Termin angelegt', 'pass-captain' ),
+			'occurrence_updated' => __( 'Termin geändert', 'pass-captain' ),
+			'occurrence_cancelled' => __( 'Termin abgesagt', 'pass-captain' ),
+			'occurrence_rescheduled' => __( 'Termin verschoben', 'pass-captain' ),
+			'occurrence_change_notified' => __( 'Ticketinhaber:innen über Änderung informiert', 'pass-captain' ),
+			'occurrence_deleted' => __( 'Termin entfernt (nicht mehr in der Serienregel)', 'pass-captain' ),
+			'occurrence_flagged' => __( 'Termin außerhalb der Serienregel markiert', 'pass-captain' ),
+			'occurrence_unflagged' => __( 'Markierung aufgehoben', 'pass-captain' ),
+			'ticket_type_created' => __( 'Ticketart angelegt', 'pass-captain' ),
+			'ticket_type_updated' => __( 'Ticketart geändert', 'pass-captain' ),
+			'seat_map_linked' => __( 'Saalplan verknüpft', 'pass-captain' ),
+			'seat_map_unlinked' => __( 'Saalplan entfernt', 'pass-captain' ),
+			'series_generated' => __( 'Termine erzeugt', 'pass-captain' ),
+			'series_updated' => __( 'Seriendefinition geändert', 'pass-captain' ),
+			'series_price_rule_created' => __( 'Preisregel hinzugefügt', 'pass-captain' ),
+			'series_price_rule_updated' => __( 'Preisregel geändert', 'pass-captain' ),
+			'series_price_rule_deleted' => __( 'Preisregel entfernt', 'pass-captain' ),
+			'series_pool_created' => __( 'Kontingent hinzugefügt', 'pass-captain' ),
+			'series_pool_updated' => __( 'Kontingent geändert', 'pass-captain' ),
+			'series_pool_deleted' => __( 'Kontingent entfernt', 'pass-captain' ),
 		);
 	}
 
 	public static function field_labels() {
 		return array(
-			'starts_at' => __( 'Beginn', 'wp-pass-captain' ),
-			'ends_at' => __( 'Ende', 'wp-pass-captain' ),
-			'doors_open_at' => __( 'Einlass ab', 'wp-pass-captain' ),
-			'timezone' => __( 'Zeitzone', 'wp-pass-captain' ),
-			'location' => __( 'Ort', 'wp-pass-captain' ),
-			'capacity' => __( 'Kontingent', 'wp-pass-captain' ),
-			'status' => __( 'Status', 'wp-pass-captain' ),
-			'name' => __( 'Name', 'wp-pass-captain' ),
-			'price_minor' => __( 'Preis', 'wp-pass-captain' ),
-			'currency' => __( 'Währung', 'wp-pass-captain' ),
-			'tax_rate_bp' => __( 'Steuersatz', 'wp-pass-captain' ),
-			'max_per_order' => __( 'Max. pro Bestellung', 'wp-pass-captain' ),
-			'sales_start' => __( 'Verkaufsstart', 'wp-pass-captain' ),
-			'sales_end' => __( 'Verkaufsende', 'wp-pass-captain' ),
-			'seat_version_id' => __( 'Saalplan-Version', 'wp-pass-captain' ),
-			'template_occurrence_id' => __( 'Vorlagentermin', 'wp-pass-captain' ),
-			'sales_start_days_before' => __( 'Verkaufsstart: Tage vor Beginn', 'wp-pass-captain' ),
-			'sales_end_minutes_before' => __( 'Verkaufsende: Minuten vor Beginn', 'wp-pass-captain' ),
-			'freq' => __( 'Wiederholung', 'wp-pass-captain' ),
-			'interval' => __( 'Intervall', 'wp-pass-captain' ),
-			'weekdays' => __( 'Wochentage', 'wp-pass-captain' ),
-			'month_day' => __( 'Tag im Monat', 'wp-pass-captain' ),
-			'nth' => __( 'n-ter Wochentag', 'wp-pass-captain' ),
-			'nth_weekday' => __( 'Wochentag', 'wp-pass-captain' ),
-			'dates' => __( 'Datumsliste', 'wp-pass-captain' ),
-			'start_date' => __( 'Erster Tag', 'wp-pass-captain' ),
-			'time' => __( 'Uhrzeit (Ortszeit)', 'wp-pass-captain' ),
-			'duration_minutes' => __( 'Dauer (Minuten)', 'wp-pass-captain' ),
-			'until' => __( 'Ende am', 'wp-pass-captain' ),
-			'count' => __( 'Anzahl Termine', 'wp-pass-captain' ),
-			'exclusions' => __( 'Ausnahmen', 'wp-pass-captain' ),
-			'label' => __( 'Bezeichnung', 'wp-pass-captain' ),
-			'type_name' => __( 'Ticketart', 'wp-pass-captain' ),
-			'kind' => __( 'Art', 'wp-pass-captain' ),
-			'priority' => __( 'Priorität', 'wp-pass-captain' ),
-			'until_at' => __( 'Frühbucher bis', 'wp-pass-captain' ),
-			'hours_before' => __( 'Last-Minute ab Stunden vor Beginn', 'wp-pass-captain' ),
-			'sold_pct' => __( 'Nachfragestufe ab % verkauft', 'wp-pass-captain' ),
-			'time_from' => __( 'Zeitfenster von', 'wp-pass-captain' ),
-			'time_to' => __( 'Zeitfenster bis', 'wp-pass-captain' ),
-			'price_mode' => __( 'Preisart', 'wp-pass-captain' ),
-			'amount' => __( 'Preis', 'wp-pass-captain' ),
-			'flag' => __( 'Markierung', 'wp-pass-captain' ),
+			'starts_at' => __( 'Beginn', 'pass-captain' ),
+			'ends_at' => __( 'Ende', 'pass-captain' ),
+			'doors_open_at' => __( 'Einlass ab', 'pass-captain' ),
+			'timezone' => __( 'Zeitzone', 'pass-captain' ),
+			'location' => __( 'Ort', 'pass-captain' ),
+			'capacity' => __( 'Kontingent', 'pass-captain' ),
+			'status' => __( 'Status', 'pass-captain' ),
+			'name' => __( 'Name', 'pass-captain' ),
+			'price_minor' => __( 'Preis', 'pass-captain' ),
+			'currency' => __( 'Währung', 'pass-captain' ),
+			'tax_rate_bp' => __( 'Steuersatz', 'pass-captain' ),
+			'max_per_order' => __( 'Max. pro Bestellung', 'pass-captain' ),
+			'sales_start' => __( 'Verkaufsstart', 'pass-captain' ),
+			'sales_end' => __( 'Verkaufsende', 'pass-captain' ),
+			'seat_version_id' => __( 'Saalplan-Version', 'pass-captain' ),
+			'template_occurrence_id' => __( 'Vorlagentermin', 'pass-captain' ),
+			'sales_start_days_before' => __( 'Verkaufsstart: Tage vor Beginn', 'pass-captain' ),
+			'sales_end_minutes_before' => __( 'Verkaufsende: Minuten vor Beginn', 'pass-captain' ),
+			'freq' => __( 'Wiederholung', 'pass-captain' ),
+			'interval' => __( 'Intervall', 'pass-captain' ),
+			'weekdays' => __( 'Wochentage', 'pass-captain' ),
+			'month_day' => __( 'Tag im Monat', 'pass-captain' ),
+			'nth' => __( 'n-ter Wochentag', 'pass-captain' ),
+			'nth_weekday' => __( 'Wochentag', 'pass-captain' ),
+			'dates' => __( 'Datumsliste', 'pass-captain' ),
+			'start_date' => __( 'Erster Tag', 'pass-captain' ),
+			'time' => __( 'Uhrzeit (Ortszeit)', 'pass-captain' ),
+			'duration_minutes' => __( 'Dauer (Minuten)', 'pass-captain' ),
+			'until' => __( 'Ende am', 'pass-captain' ),
+			'count' => __( 'Anzahl Termine', 'pass-captain' ),
+			'exclusions' => __( 'Ausnahmen', 'pass-captain' ),
+			'label' => __( 'Bezeichnung', 'pass-captain' ),
+			'type_name' => __( 'Ticketart', 'pass-captain' ),
+			'kind' => __( 'Art', 'pass-captain' ),
+			'priority' => __( 'Priorität', 'pass-captain' ),
+			'until_at' => __( 'Frühbucher bis', 'pass-captain' ),
+			'hours_before' => __( 'Last-Minute ab Stunden vor Beginn', 'pass-captain' ),
+			'sold_pct' => __( 'Nachfragestufe ab % verkauft', 'pass-captain' ),
+			'time_from' => __( 'Zeitfenster von', 'pass-captain' ),
+			'time_to' => __( 'Zeitfenster bis', 'pass-captain' ),
+			'price_mode' => __( 'Preisart', 'pass-captain' ),
+			'amount' => __( 'Preis', 'pass-captain' ),
+			'flag' => __( 'Markierung', 'pass-captain' ),
 		);
 	}
 
 	private static function weekday_list( $value ) {
-		$names = array( 1 => __( 'Mo', 'wp-pass-captain' ), 2 => __( 'Di', 'wp-pass-captain' ), 3 => __( 'Mi', 'wp-pass-captain' ), 4 => __( 'Do', 'wp-pass-captain' ), 5 => __( 'Fr', 'wp-pass-captain' ), 6 => __( 'Sa', 'wp-pass-captain' ), 7 => __( 'So', 'wp-pass-captain' ) );
+		$names = array( 1 => __( 'Mo', 'pass-captain' ), 2 => __( 'Di', 'pass-captain' ), 3 => __( 'Mi', 'pass-captain' ), 4 => __( 'Do', 'pass-captain' ), 5 => __( 'Fr', 'pass-captain' ), 6 => __( 'Sa', 'pass-captain' ), 7 => __( 'So', 'pass-captain' ) );
 		$days = is_array( $value ) ? $value : ( '' === (string) $value ? array() : explode( ',', (string) $value ) );
 		return implode( ', ', array_map( static function ( $d ) use ( $names ) { return $names[ (int) $d ] ?? (string) $d; }, $days ) );
 	}
@@ -142,7 +142,7 @@ final class ChangeHistory {
 	public static function format_value( $field, $value, array $context = array() ) {
 		$timezone = (string) ( $context['timezone'] ?? 'UTC' );
 		if ( null === $value || '' === $value || array() === $value ) {
-			return in_array( $field, array( 'capacity' ), true ) ? __( 'unbegrenzt', 'wp-pass-captain' ) : '—';
+			return in_array( $field, array( 'capacity' ), true ) ? __( 'unbegrenzt', 'pass-captain' ) : '—';
 		}
 		switch ( $field ) {
 			case 'starts_at':
@@ -153,7 +153,7 @@ final class ChangeHistory {
 			case 'until_at':
 				return Forms::datetime( (string) $value, $timezone, false );
 			case 'capacity':
-				return (int) $value > 0 ? (string) (int) $value : __( 'unbegrenzt', 'wp-pass-captain' );
+				return (int) $value > 0 ? (string) (int) $value : __( 'unbegrenzt', 'pass-captain' );
 			case 'status':
 				return Forms::status_label( (string) $value );
 			case 'price_minor':
@@ -180,11 +180,11 @@ final class ChangeHistory {
 				$kinds = class_exists( '\\PassCaptain\\Series\\Pricing' ) ? \PassCaptain\Series\Pricing::kind_labels() : array();
 				return $kinds[ $value ] ?? (string) $value;
 			case 'price_mode':
-				return 'percent' === $value ? __( 'Prozentuale Änderung', 'wp-pass-captain' ) : __( 'Fester Preis', 'wp-pass-captain' );
+				return 'percent' === $value ? __( 'Prozentuale Änderung', 'pass-captain' ) : __( 'Fester Preis', 'pass-captain' );
 			case 'flag':
-				return 'outside_rule' === $value ? __( 'außerhalb der Serienregel', 'wp-pass-captain' ) : (string) $value;
+				return 'outside_rule' === $value ? __( 'außerhalb der Serienregel', 'pass-captain' ) : (string) $value;
 			case 'freq':
-				$freqs = array( 'weekly' => __( 'Wöchentlich an Wochentagen', 'wp-pass-captain' ), 'daily' => __( 'Täglich', 'wp-pass-captain' ), 'monthly_day' => __( 'Monatlich am Tag X', 'wp-pass-captain' ), 'monthly_nth' => __( 'Monatlich am n-ten Wochentag', 'wp-pass-captain' ), 'dates' => __( 'Datumsliste', 'wp-pass-captain' ) );
+				$freqs = array( 'weekly' => __( 'Wöchentlich an Wochentagen', 'pass-captain' ), 'daily' => __( 'Täglich', 'pass-captain' ), 'monthly_day' => __( 'Monatlich am Tag X', 'pass-captain' ), 'monthly_nth' => __( 'Monatlich am n-ten Wochentag', 'pass-captain' ), 'dates' => __( 'Datumsliste', 'pass-captain' ) );
 				return $freqs[ $value ] ?? (string) $value;
 			case 'seat_version_id':
 			case 'template_occurrence_id':
@@ -224,63 +224,63 @@ final class ChangeHistory {
 				$new_context['currency'] = (string) $changes['currency'][1];
 			}
 			/* translators: 1: field, 2: old value, 3: new value */
-			$lines[] = sprintf( __( '%1$s: %2$s → %3$s', 'wp-pass-captain' ), $labels[ $field ] ?? $field, self::format_value( $field, $pair[0], $old_context ), self::format_value( $field, $pair[1], $new_context ) );
+			$lines[] = sprintf( __( '%1$s: %2$s → %3$s', 'pass-captain' ), $labels[ $field ] ?? $field, self::format_value( $field, $pair[0], $old_context ), self::format_value( $field, $pair[1], $new_context ) );
 		}
 		if ( is_array( $details['rule'] ?? null ) ) {
 			foreach ( $details['rule'] as $field => $value ) {
 				if ( null === $value || '' === $value || ( 0 === $value && ! in_array( $field, array( 'amount', 'priority' ), true ) ) ) { continue; }
 				/* translators: 1: field, 2: value */
-				$lines[] = sprintf( __( '%1$s: %2$s', 'wp-pass-captain' ), $labels[ $field ] ?? $field, self::format_value( $field, $value, array( 'price_mode' => (string) ( $details['rule']['price_mode'] ?? 'fixed' ) ) + $context ) );
+				$lines[] = sprintf( __( '%1$s: %2$s', 'pass-captain' ), $labels[ $field ] ?? $field, self::format_value( $field, $value, array( 'price_mode' => (string) ( $details['rule']['price_mode'] ?? 'fixed' ) ) + $context ) );
 			}
 		}
 		if ( isset( $details['name'] ) && in_array( $row->action, array( 'series_pool_created', 'series_pool_deleted', 'ticket_type_created' ), true ) ) {
 			/* translators: %s: name */
-			$lines[] = sprintf( __( 'Name: %s', 'wp-pass-captain' ), (string) $details['name'] );
+			$lines[] = sprintf( __( 'Name: %s', 'pass-captain' ), (string) $details['name'] );
 		}
 		if ( 'series_pool_created' === $row->action && isset( $details['capacity'] ) ) {
 			/* translators: %d: capacity */
-			$lines[] = sprintf( __( 'Kontingent: %d', 'wp-pass-captain' ), (int) $details['capacity'] );
+			$lines[] = sprintf( __( 'Kontingent: %d', 'pass-captain' ), (int) $details['capacity'] );
 		}
 		if ( 'occurrence_created' === $row->action && isset( $details['starts_at'] ) ) {
 			/* translators: %s: start */
-			$lines[] = sprintf( __( 'Beginn: %s', 'wp-pass-captain' ), self::format_value( 'starts_at', $details['starts_at'], $context ) );
+			$lines[] = sprintf( __( 'Beginn: %s', 'pass-captain' ), self::format_value( 'starts_at', $details['starts_at'], $context ) );
 		}
 		if ( ! empty( $details['series_id'] ) && in_array( $row->action, array( 'occurrence_created', 'occurrence_updated', 'occurrence_flagged', 'occurrence_unflagged' ), true ) ) {
 			/* translators: %d: series id */
-			$lines[] = sprintf( __( 'durch Serie #%d', 'wp-pass-captain' ), (int) $details['series_id'] );
+			$lines[] = sprintf( __( 'durch Serie #%d', 'pass-captain' ), (int) $details['series_id'] );
 		}
 		if ( ! empty( $details['rescheduled'] ) ) {
-			$lines[] = __( 'Als Terminverschiebung gemeldet (Ticketinhaber werden benachrichtigt).', 'wp-pass-captain' );
+			$lines[] = __( 'Als Terminverschiebung gemeldet (Ticketinhaber werden benachrichtigt).', 'pass-captain' );
 		}
 		if ( isset( $details['reason'] ) && '' !== (string) $details['reason'] ) {
 			/* translators: %s: reason */
-			$lines[] = sprintf( __( 'Grund: %s', 'wp-pass-captain' ), (string) $details['reason'] );
+			$lines[] = sprintf( __( 'Grund: %s', 'pass-captain' ), (string) $details['reason'] );
 		}
 		if ( 'series_generated' === $row->action ) {
 			/* translators: 1: created, 2: skipped existing, 3: skipped past */
-			$lines[] = sprintf( __( '%1$d angelegt, %2$d bereits vorhanden, %3$d vergangen', 'wp-pass-captain' ), (int) ( $details['created'] ?? 0 ), (int) ( $details['skipped_existing'] ?? 0 ), (int) ( $details['skipped_past'] ?? 0 ) );
+			$lines[] = sprintf( __( '%1$d angelegt, %2$d bereits vorhanden, %3$d vergangen', 'pass-captain' ), (int) ( $details['created'] ?? 0 ), (int) ( $details['skipped_existing'] ?? 0 ), (int) ( $details['skipped_past'] ?? 0 ) );
 		}
 		if ( 'series_updated' === $row->action && is_array( $details['effects'] ?? null ) ) {
 			$e = $details['effects'];
 			/* translators: 1: added, 2: changed, 3: deleted, 4: kept and flagged, 5: skipped */
-			$lines[] = sprintf( __( 'Auswirkung: %1$d hinzugefügt, %2$d geändert, %3$d entfernt, %4$d mit Verkäufen behalten und markiert, %5$d übersprungen', 'wp-pass-captain' ), (int) ( $e['add'] ?? 0 ), (int) ( $e['change'] ?? 0 ), (int) ( $e['delete'] ?? 0 ), (int) ( $e['flag'] ?? 0 ), (int) ( $e['skip'] ?? 0 ) + (int) ( $e['conflict'] ?? 0 ) );
+			$lines[] = sprintf( __( 'Auswirkung: %1$d hinzugefügt, %2$d geändert, %3$d entfernt, %4$d mit Verkäufen behalten und markiert, %5$d übersprungen', 'pass-captain' ), (int) ( $e['add'] ?? 0 ), (int) ( $e['change'] ?? 0 ), (int) ( $e['delete'] ?? 0 ), (int) ( $e['flag'] ?? 0 ), (int) ( $e['skip'] ?? 0 ) + (int) ( $e['conflict'] ?? 0 ) );
 		}
 		if ( 'ticket_type' === $row->object_type && isset( $details['type_name'] ) ) {
 			/* translators: %s: ticket type name */
-			array_unshift( $lines, sprintf( __( 'Ticketart „%s“', 'wp-pass-captain' ), (string) $details['type_name'] ) );
+			array_unshift( $lines, sprintf( __( 'Ticketart „%s“', 'pass-captain' ), (string) $details['type_name'] ) );
 		}
 		return $lines;
 	}
 
 	/** Renders a history table (or a short note when empty). */
 	public static function render( array $rows, $timezone, $heading_id = '' ) {
-		echo '<h2' . ( '' !== $heading_id ? ' id="' . esc_attr( $heading_id ) . '"' : '' ) . '>' . esc_html__( 'Änderungsverlauf', 'wp-pass-captain' ) . '</h2>';
+		echo '<h2' . ( '' !== $heading_id ? ' id="' . esc_attr( $heading_id ) . '"' : '' ) . '>' . esc_html__( 'Änderungsverlauf', 'pass-captain' ) . '</h2>';
 		if ( ! $rows ) {
-			echo '<p>' . esc_html__( 'Noch keine Änderungen protokolliert.', 'wp-pass-captain' ) . '</p>';
+			echo '<p>' . esc_html__( 'Noch keine Änderungen protokolliert.', 'pass-captain' ) . '</p>';
 			return;
 		}
 		$actions = self::action_labels();
-		echo '<table class="widefat striped wpcap-change-history"><thead><tr><th scope="col">' . esc_html__( 'Zeitpunkt', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Benutzer', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Änderung', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Details (alt → neu)', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		echo '<table class="widefat striped wpcap-change-history"><thead><tr><th scope="col">' . esc_html__( 'Zeitpunkt', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Benutzer', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Änderung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Details (alt → neu)', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $rows as $row ) {
 			$lines = self::lines( $row, $timezone );
 			echo '<tr><td>' . esc_html( Forms::datetime( $row->created_at, $timezone ) ) . '</td><td>' . esc_html( Forms::user_label( $row->user_id ) ) . '</td><td>' . esc_html( $actions[ $row->action ] ?? $row->action ) . '</td><td>';
@@ -289,6 +289,6 @@ final class ChangeHistory {
 		}
 		echo '</tbody></table>';
 		/* translators: %d: maximum number of entries */
-		echo '<p class="description">' . esc_html( sprintf( __( 'Die letzten %d Einträge. Einträge werden nach der Aufbewahrungsfrist des Protokolls gelöscht.', 'wp-pass-captain' ), self::LIMIT ) ) . '</p>';
+		echo '<p class="description">' . esc_html( sprintf( __( 'Die letzten %d Einträge. Einträge werden nach der Aufbewahrungsfrist des Protokolls gelöscht.', 'pass-captain' ), self::LIMIT ) ) . '</p>';
 	}
 }

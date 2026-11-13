@@ -78,10 +78,10 @@ final class Data {
 	/** Report channels: key => label. */
 	public static function channel_labels() {
 		return array(
-			'pos' => __( 'Kasse', 'wp-pass-captain' ),
-			'partner' => __( 'Veranstalter/Wiederverkäufer (API)', 'wp-pass-captain' ),
-			'woocommerce' => __( 'WooCommerce-Shop', 'wp-pass-captain' ),
-			'online' => __( 'Online/sonstige', 'wp-pass-captain' ),
+			'pos' => __( 'Kasse', 'pass-captain' ),
+			'partner' => __( 'Veranstalter/Wiederverkäufer (API)', 'pass-captain' ),
+			'woocommerce' => __( 'WooCommerce-Shop', 'pass-captain' ),
+			'online' => __( 'Online/sonstige', 'pass-captain' ),
 		);
 	}
 
@@ -116,7 +116,7 @@ final class Data {
 		// (organizers/resellers), WooCommerce shop, own online checkout and other providers.
 		$channels = array();
 		foreach ( self::channel_labels() as $channel_key => $channel_label ) { $channels[ $channel_key ] = self::empty_bucket( $channel_label ); }
-		$total = self::empty_bucket( __( 'Gesamt', 'wp-pass-captain' ) );
+		$total = self::empty_bucket( __( 'Gesamt', 'pass-captain' ) );
 		$currencies = array();
 		// Guest list comps (GuestLists module): counted separately, never as sales.
 		$comp_providers = self::comp_providers();
@@ -431,42 +431,42 @@ final class Data {
 	/** CSV rows of a report (amounts as decimals). */
 	public static function csv_rows( array $report ) {
 		$m = static function ( $minor ) { return number_format( $minor / 100, 2, '.', '' ); };
-		$head = array( __( 'Tickets', 'wp-pass-captain' ), __( 'Brutto', 'wp-pass-captain' ), __( 'Netto', 'wp-pass-captain' ), __( 'USt', 'wp-pass-captain' ), __( 'Erstattete Tickets', 'wp-pass-captain' ), __( 'Erstattet brutto', 'wp-pass-captain' ), __( 'Erstattet USt', 'wp-pass-captain' ), __( 'Umsatz nach Erstattung', 'wp-pass-captain' ), __( 'USt nach Erstattung', 'wp-pass-captain' ), __( 'Netto nach Erstattung', 'wp-pass-captain' ) );
+		$head = array( __( 'Tickets', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'Netto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Erstattete Tickets', 'pass-captain' ), __( 'Erstattet brutto', 'pass-captain' ), __( 'Erstattet USt', 'pass-captain' ), __( 'Umsatz nach Erstattung', 'pass-captain' ), __( 'USt nach Erstattung', 'pass-captain' ), __( 'Netto nach Erstattung', 'pass-captain' ) );
 		$vals = static function ( $b ) use ( $m ) { return array( $b['tickets'], $m( $b['gross'] ), $m( $b['net'] ), $m( $b['tax'] ), $b['refunded_tickets'], $m( $b['refunded'] ), $m( $b['refunded_tax'] ), $m( $b['revenue'] ), $m( $b['revenue_tax'] ), $m( $b['revenue_net'] ?? ( $b['revenue'] - $b['revenue_tax'] ) ) ); };
-		$rows = array( array( __( 'Bericht', 'wp-pass-captain' ), $report['from'], $report['to'], $report['timezone'], $report['currency'] ) );
-		$sections = array( 'event' => __( 'Event', 'wp-pass-captain' ), 'occurrence' => __( 'Termin', 'wp-pass-captain' ), 'ticket_type' => __( 'Ticketart', 'wp-pass-captain' ), 'provider' => __( 'Zahlungsanbieter', 'wp-pass-captain' ), 'day' => __( 'Tag', 'wp-pass-captain' ) );
+		$rows = array( array( __( 'Bericht', 'pass-captain' ), $report['from'], $report['to'], $report['timezone'], $report['currency'] ) );
+		$sections = array( 'event' => __( 'Event', 'pass-captain' ), 'occurrence' => __( 'Termin', 'pass-captain' ), 'ticket_type' => __( 'Ticketart', 'pass-captain' ), 'provider' => __( 'Zahlungsanbieter', 'pass-captain' ), 'day' => __( 'Tag', 'pass-captain' ) );
 		foreach ( $sections as $dim => $label ) {
 			$rows[] = array();
 			$rows[] = array_merge( array( $label ), $head );
 			foreach ( $report['dimensions'][ $dim ] as $b ) { $rows[] = array_merge( array( $b['label'] ), $vals( $b ) ); }
 		}
 		$rows[] = array();
-		$rows[] = array_merge( array( __( 'USt-Satz', 'wp-pass-captain' ) ), $head );
+		$rows[] = array_merge( array( __( 'USt-Satz', 'pass-captain' ) ), $head );
 		foreach ( $report['rates'] as $b ) { $rows[] = array_merge( array( $b['label'] ), $vals( $b ) ); }
 		$rows[] = array();
-		$rows[] = array_merge( array( __( 'Kanal', 'wp-pass-captain' ) ), $head );
+		$rows[] = array_merge( array( __( 'Kanal', 'pass-captain' ) ), $head );
 		foreach ( $report['channels'] as $b ) { $rows[] = array_merge( array( $b['label'] ), $vals( $b ) ); }
 		$rows[] = array_merge( array( $report['total']['label'] ), $vals( $report['total'] ) );
 		// Per currency and tax rate (the totals above only add up within one currency).
 		$rows[] = array();
-		$rows[] = array_merge( array( __( 'Währung', 'wp-pass-captain' ), __( 'USt-Satz', 'wp-pass-captain' ) ), $head );
+		$rows[] = array_merge( array( __( 'Währung', 'pass-captain' ), __( 'USt-Satz', 'pass-captain' ) ), $head );
 		foreach ( (array) ( $report['currencies'] ?? array() ) as $cur => $c ) {
 			foreach ( $c['rates'] as $b ) { $rows[] = array_merge( array( $cur, $b['label'] ), $vals( $b ) ); }
 			$rows[] = array_merge( array( $cur, $report['total']['label'] ), $vals( $c['total'] ) );
 		}
 		$rows[] = array();
-		$rows[] = array( __( 'Termin', 'wp-pass-captain' ), __( 'Kapazität', 'wp-pass-captain' ), __( 'Verkauft', 'wp-pass-captain' ), __( 'Auslastung %', 'wp-pass-captain' ), __( 'Gültige Tickets', 'wp-pass-captain' ), __( 'Eingecheckt', 'wp-pass-captain' ), __( 'Check-in-Quote %', 'wp-pass-captain' ) );
+		$rows[] = array( __( 'Termin', 'pass-captain' ), __( 'Kapazität', 'pass-captain' ), __( 'Verkauft', 'pass-captain' ), __( 'Auslastung %', 'pass-captain' ), __( 'Gültige Tickets', 'pass-captain' ), __( 'Eingecheckt', 'pass-captain' ), __( 'Check-in-Quote %', 'pass-captain' ) );
 		foreach ( $report['occurrences'] as $o ) {
 			$rows[] = array( $o['label'], $o['capacity'] ?: '∞', $o['sold'], null === $o['utilisation'] ? '' : number_format( $o['utilisation'], 1, '.', '' ), $o['issued'], $o['checked_in'], null === $o['checkin_rate'] ? '' : number_format( $o['checkin_rate'], 1, '.', '' ) );
 		}
 		$rows[] = array();
-		$rows[] = array( __( 'Rechnungskorrekturen', 'wp-pass-captain' ), $report['credit_notes']['count'], $m( $report['credit_notes']['total'] ), $m( $report['credit_notes']['tax'] ) );
+		$rows[] = array( __( 'Rechnungskorrekturen', 'pass-captain' ), $report['credit_notes']['count'], $m( $report['credit_notes']['total'] ), $m( $report['credit_notes']['tax'] ) );
 		if ( ! empty( $report['comps']['tickets'] ) ) {
-			$rows[] = array( __( 'Freikarten (nicht im Umsatz)', 'wp-pass-captain' ), (int) $report['comps']['tickets'], (int) $report['comps']['orders'] );
+			$rows[] = array( __( 'Freikarten (nicht im Umsatz)', 'pass-captain' ), (int) $report['comps']['tickets'], (int) $report['comps']['orders'] );
 		}
 		if ( $report['histogram'] ) {
 			$rows[] = array();
-			$rows[] = array( __( 'Check-ins pro Stunde', 'wp-pass-captain' ), $report['occurrences'][ $report['histogram_occurrence'] ]['label'] ?? '' );
+			$rows[] = array( __( 'Check-ins pro Stunde', 'pass-captain' ), $report['occurrences'][ $report['histogram_occurrence'] ]['label'] ?? '' );
 			foreach ( $report['histogram'] as $hour => $n ) { $rows[] = array( $hour, $n ); }
 		}
 		return $rows;

@@ -1,4 +1,4 @@
-# WP Pass Captain – Schritte 31–50
+# Pass Captain – Schritte 31–50
 
 Diese Stufen folgen auf die Kern- und Integrationsausbaustufen 1–30. Sie erweitern Anpassbarkeit, Veranstalterbetrieb und Plattformreife; sie setzen die abgeschlossenen Sicherheits- und Datenmodelle der vorherigen Stufen voraus.
 

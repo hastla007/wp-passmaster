@@ -33,22 +33,22 @@ final class UserScope {
 		$scope = self::stored( (int) $user->ID );
 		$partners = Privacy::has_table( 'wpcap_partners' ) ? \PassCaptain\Partners\Repository::all() : array();
 		?>
-		<h2><?php esc_html_e( 'Pass Captain: Zugriffsbereich', 'wp-pass-captain' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Optional: beschränkt diese Person zusätzlich zu ihren Event-Zuweisungen auf Spielorte und/oder Veranstalter. Leer lassen = keine zusätzliche Einschränkung. Administratoren sind nie eingeschränkt.', 'wp-pass-captain' ); ?></p>
+		<h2><?php esc_html_e( 'Pass Captain: Zugriffsbereich', 'pass-captain' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Optional: beschränkt diese Person zusätzlich zu ihren Event-Zuweisungen auf Spielorte und/oder Veranstalter. Leer lassen = keine zusätzliche Einschränkung. Administratoren sind nie eingeschränkt.', 'pass-captain' ); ?></p>
 		<?php wp_nonce_field( self::NONCE, self::NONCE . '_nonce' ); ?>
 		<table class="form-table" role="presentation">
 			<tr>
-				<th><label for="wpcap_scope_locations"><?php esc_html_e( 'Spielorte', 'wp-pass-captain' ); ?></label></th>
+				<th><label for="wpcap_scope_locations"><?php esc_html_e( 'Spielorte', 'pass-captain' ); ?></label></th>
 				<td>
 					<textarea id="wpcap_scope_locations" name="wpcap_scope_locations" rows="3" class="regular-text"><?php echo esc_textarea( implode( "\n", $scope['locations'] ) ); ?></textarea>
-					<p class="description"><?php esc_html_e( 'Ein Ort pro Zeile, genau wie beim Termin eingetragen (Groß-/Kleinschreibung egal). Die Person sieht nur Termine an diesen Orten.', 'wp-pass-captain' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Ein Ort pro Zeile, genau wie beim Termin eingetragen (Groß-/Kleinschreibung egal). Die Person sieht nur Termine an diesen Orten.', 'pass-captain' ); ?></p>
 				</td>
 			</tr>
 			<?php if ( $partners ) : ?>
 			<tr>
-				<th><?php esc_html_e( 'Veranstalter', 'wp-pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Veranstalter', 'pass-captain' ); ?></th>
 				<td>
-					<label><input type="checkbox" name="wpcap_scope_linked_partners" value="1" <?php checked( $scope['linked_partners'] ); ?>> <?php esc_html_e( 'Nur Events der Veranstalter, mit denen diese Person verknüpft ist', 'wp-pass-captain' ); ?></label><br>
+					<label><input type="checkbox" name="wpcap_scope_linked_partners" value="1" <?php checked( $scope['linked_partners'] ); ?>> <?php esc_html_e( 'Nur Events der Veranstalter, mit denen diese Person verknüpft ist', 'pass-captain' ); ?></label><br>
 					<?php foreach ( $partners as $partner ) : ?>
 						<label><input type="checkbox" name="wpcap_scope_partners[]" value="<?php echo (int) $partner->partner_id; ?>" <?php checked( in_array( (int) $partner->partner_id, (array) $scope['partners'], true ) ); ?>> <?php echo esc_html( $partner->name ); ?></label><br>
 					<?php endforeach; ?>

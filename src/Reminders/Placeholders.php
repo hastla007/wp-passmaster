@@ -8,16 +8,16 @@ final class Placeholders {
 	/** Documented placeholders (key => description). */
 	public static function available() {
 		return array(
-			'{event}' => __( 'Name des Events', 'wp-pass-captain' ),
-			'{date}' => __( 'Datum (Zeitzone des Termins)', 'wp-pass-captain' ),
-			'{time}' => __( 'Uhrzeit (Zeitzone des Termins)', 'wp-pass-captain' ),
-			'{timezone}' => __( 'Zeitzone', 'wp-pass-captain' ),
-			'{location}' => __( 'Ort', 'wp-pass-captain' ),
-			'{hours}' => __( 'Stunden bis Beginn (Erinnerung)', 'wp-pass-captain' ),
-			'{tickets}' => __( 'Anzahl Tickets', 'wp-pass-captain' ),
-			'{old_date}' => __( 'Bisheriges Datum und Uhrzeit (Verschiebung)', 'wp-pass-captain' ),
-			'{ics_url}' => __( 'Link zur Kalenderdatei', 'wp-pass-captain' ),
-			'{site}' => __( 'Name der Website', 'wp-pass-captain' ),
+			'{event}' => __( 'Name des Events', 'pass-captain' ),
+			'{date}' => __( 'Datum (Zeitzone des Termins)', 'pass-captain' ),
+			'{time}' => __( 'Uhrzeit (Zeitzone des Termins)', 'pass-captain' ),
+			'{timezone}' => __( 'Zeitzone', 'pass-captain' ),
+			'{location}' => __( 'Ort', 'pass-captain' ),
+			'{hours}' => __( 'Stunden bis Beginn (Erinnerung)', 'pass-captain' ),
+			'{tickets}' => __( 'Anzahl Tickets', 'pass-captain' ),
+			'{old_date}' => __( 'Bisheriges Datum und Uhrzeit (Verschiebung)', 'pass-captain' ),
+			'{ics_url}' => __( 'Link zur Kalenderdatei', 'pass-captain' ),
+			'{site}' => __( 'Name der Website', 'pass-captain' ),
 		);
 	}
 

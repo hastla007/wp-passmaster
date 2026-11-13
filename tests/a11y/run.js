@@ -1,6 +1,6 @@
 'use strict';
 /*
- * axe-core scan of the public pages and the main admin screens of WP Pass Captain.
+ * axe-core scan of the public pages and the main admin screens of Pass Captain.
  *
  *   WPCAP_A11Y_WP_PATH=/path/to/wp node run.js [--fail-on=critical|serious|moderate|minor|none] [--only=public|admin]
  *
@@ -43,8 +43,8 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 			name: 'Scanner result (invalid code)', group: 'public', url: fx.scanner_url, include: '.wpcap-scanner', auth: true,
 			prepare: async (page) => { await page.fill('.wpcap-scan-form [name="token"]', 'ungueltig'); await page.press('.wpcap-scan-form [name="token"]', 'Enter'); await page.waitForTimeout(800); },
 		},
-		{ name: 'Admin: Events', group: 'admin', url: admin('page=wp-pass-captain'), include: '#wpbody-content', auth: true },
-		{ name: 'Admin: Event detail', group: 'admin', url: admin('page=wp-pass-captain&view=event&event_id=' + fx.event_id), include: '#wpbody-content', auth: true },
+		{ name: 'Admin: Events', group: 'admin', url: admin('page=pass-captain'), include: '#wpbody-content', auth: true },
+		{ name: 'Admin: Event detail', group: 'admin', url: admin('page=pass-captain&view=event&event_id=' + fx.event_id), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: Orders', group: 'admin', url: admin('page=wpcap-orders'), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: Order detail', group: 'admin', url: admin('page=wpcap-orders&order_id=' + fx.order_id), include: '#wpbody-content', auth: true },
 		{ name: 'Admin: Check-ins', group: 'admin', url: admin('page=wpcap-checkins'), include: '#wpbody-content', auth: true },

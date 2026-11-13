@@ -161,8 +161,8 @@ final class Layouts {
 		return array(
 			'width' => 1000,
 			'height' => 700,
-			'zones' => array( array( 'key' => 'parkett', 'name' => __( 'Parkett', 'wp-pass-captain' ), 'color' => '#2271b1' ) ),
-			'categories' => array( array( 'key' => 'kat1', 'name' => __( 'Kategorie 1', 'wp-pass-captain' ), 'color' => '#00a32a' ) ),
+			'zones' => array( array( 'key' => 'parkett', 'name' => __( 'Parkett', 'pass-captain' ), 'color' => '#2271b1' ) ),
+			'categories' => array( array( 'key' => 'kat1', 'name' => __( 'Kategorie 1', 'pass-captain' ), 'color' => '#00a32a' ) ),
 			'groups' => array(),
 			'seats' => array(),
 		);
@@ -180,7 +180,7 @@ final class Layouts {
 	public static function normalize( $draft ) {
 		if ( is_string( $draft ) ) { $draft = json_decode( $draft, true ); }
 		if ( ! is_array( $draft ) ) {
-			return new \WP_Error( 'wpcap_seating_invalid', __( 'Der Saalplan konnte nicht gelesen werden.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_seating_invalid', __( 'Der Saalplan konnte nicht gelesen werden.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$out = array(
 			'width' => (int) max( 200, min( self::MAX_COORD, (int) ( $draft['width'] ?? 1000 ) ) ),
@@ -203,7 +203,7 @@ final class Layouts {
 			if ( ! is_array( $group ) ) { continue; }
 			$key = self::key( $group['key'] ?? '' );
 			if ( '' === $key || isset( $out['groups'][ $key ] ) ) {
-				return new \WP_Error( 'wpcap_seating_group_key', __( 'Jede Gruppe benötigt einen eindeutigen Schlüssel.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'wpcap_seating_group_key', __( 'Jede Gruppe benötigt einen eindeutigen Schlüssel.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 			$type = in_array( $group['type'] ?? '', array( 'row', 'block', 'table', 'standing' ), true ) ? $group['type'] : 'row';
 			$entry = array(
@@ -218,7 +218,7 @@ final class Layouts {
 			if ( 'standing' === $type ) {
 				$capacity = absint( $group['capacity'] ?? 0 );
 				if ( $capacity < 1 || $capacity > 2000 ) {
-					return new \WP_Error( 'wpcap_seating_standing', __( 'Ein Stehbereich braucht eine Kapazität von 1 bis 2000.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+					return new \WP_Error( 'wpcap_seating_standing', __( 'Ein Stehbereich braucht eine Kapazität von 1 bis 2000.', 'pass-captain' ), array( 'status' => 400 ) );
 				}
 				$standing += $capacity;
 				$entry['capacity'] = $capacity;
@@ -229,22 +229,22 @@ final class Layouts {
 			$out['groups'][ $key ] = $entry;
 		}
 		if ( $standing > self::MAX_STANDING ) {
-			return new \WP_Error( 'wpcap_seating_standing', __( 'Zu viele Stehplätze im Saalplan.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_seating_standing', __( 'Zu viele Stehplätze im Saalplan.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$seats = (array) ( $draft['seats'] ?? array() );
 		if ( count( $seats ) > self::MAX_SEATS ) {
 			/* translators: %d: maximum seats */
-			return new \WP_Error( 'wpcap_seating_too_many', sprintf( __( 'Ein Saalplan darf höchstens %d Sitzplätze enthalten.', 'wp-pass-captain' ), self::MAX_SEATS ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_seating_too_many', sprintf( __( 'Ein Saalplan darf höchstens %d Sitzplätze enthalten.', 'pass-captain' ), self::MAX_SEATS ), array( 'status' => 400 ) );
 		}
 		foreach ( $seats as $seat ) {
 			if ( ! is_array( $seat ) ) { continue; }
 			$key = self::key( $seat['key'] ?? '' );
 			if ( '' === $key || isset( $out['seats'][ $key ] ) ) {
-				return new \WP_Error( 'wpcap_seating_seat_key', __( 'Jeder Sitzplatz benötigt einen eindeutigen Schlüssel.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'wpcap_seating_seat_key', __( 'Jeder Sitzplatz benötigt einen eindeutigen Schlüssel.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 			$label = self::text( $seat['label'] ?? '', 40 );
 			if ( '' === $label ) {
-				return new \WP_Error( 'wpcap_seating_seat_label', __( 'Jeder Sitzplatz benötigt eine Bezeichnung.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'wpcap_seating_seat_label', __( 'Jeder Sitzplatz benötigt eine Bezeichnung.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 			$group = self::key( $seat['group'] ?? '' );
 			$group = isset( $out['groups'][ $group ] ) && 'standing' !== $out['groups'][ $group ]['type'] ? $group : '';
@@ -273,10 +273,10 @@ final class Layouts {
 	public static function display_label( $row, $label, $kind = 'seat' ) {
 		if ( 'standing' === $kind ) {
 			/* translators: %s: standing area */
-			return sprintf( __( '%s (Stehplatz)', 'wp-pass-captain' ), '' !== $row ? $row : __( 'Stehbereich', 'wp-pass-captain' ) );
+			return sprintf( __( '%s (Stehplatz)', 'pass-captain' ), '' !== $row ? $row : __( 'Stehbereich', 'pass-captain' ) );
 		}
 		/* translators: 1: row or table, 2: seat */
-		return '' !== $row ? sprintf( __( '%1$s, Platz %2$s', 'wp-pass-captain' ), $row, $label ) : $label;
+		return '' !== $row ? sprintf( __( '%1$s, Platz %2$s', 'pass-captain' ), $row, $label ) : $label;
 	}
 
 	/**
@@ -427,7 +427,7 @@ final class Layouts {
 		return new \WP_Error(
 			'wpcap_seating_locked_seat',
 			/* translators: %s: seat labels */
-			sprintf( __( 'Verkaufte oder reservierte Plätze dürfen nicht verschoben, geändert oder gelöscht werden: %s', 'wp-pass-captain' ), implode( '; ', array_slice( array_values( $violations ), 0, 10 ) ) . ( count( $violations ) > 10 ? ' …' : '' ) ),
+			sprintf( __( 'Verkaufte oder reservierte Plätze dürfen nicht verschoben, geändert oder gelöscht werden: %s', 'pass-captain' ), implode( '; ', array_slice( array_values( $violations ), 0, 10 ) ) . ( count( $violations ) > 10 ? ' …' : '' ) ),
 			array( 'status' => 409, 'seat_keys' => array_keys( $violations ) )
 		);
 	}
@@ -440,14 +440,14 @@ final class Layouts {
 		global $wpdb;
 		$event_id = absint( $event_id );
 		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) );
-		if ( ! $event ) { return new \WP_Error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $event ) { return new \WP_Error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::forbidden(); }
 		$name = self::text( $name, 190 );
-		if ( '' === $name ) { return new \WP_Error( 'wpcap_seating_name', __( 'Bitte einen Namen für den Saalplan angeben.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( '' === $name ) { return new \WP_Error( 'wpcap_seating_name', __( 'Bitte einen Namen für den Saalplan angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$now = current_time( 'mysql', true );
 		$wpdb->insert( self::table( 'layouts' ), array( 'event_id' => $event_id, 'name' => $name, 'draft' => wp_json_encode( self::empty_draft() ), 'draft_revision' => 0, 'published_version' => 0, 'created_at' => $now, 'updated_at' => $now ) );
 		$layout_id = (int) $wpdb->insert_id;
-		if ( ! $layout_id ) { return new \WP_Error( 'wpcap_seating_save', __( 'Der Saalplan konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( ! $layout_id ) { return new \WP_Error( 'wpcap_seating_save', __( 'Der Saalplan konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( 'seat_map_created', 'event', $event_id, array( 'layout_id' => $layout_id ) );
 		return array( 'layout_id' => $layout_id, 'event_id' => $event_id );
 	}
@@ -458,7 +458,7 @@ final class Layouts {
 	}
 
 	private static function forbidden() {
-		return new \WP_Error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		return new \WP_Error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), array( 'status' => 403 ) );
 	}
 
 	/**
@@ -468,7 +468,7 @@ final class Layouts {
 	public static function save_draft( $layout_id, $draft, $revision = 0, $name = null ) {
 		global $wpdb;
 		$layout = self::get( $layout_id );
-		if ( ! $layout ) { return new \WP_Error( 'wpcap_seating_missing', __( 'Saalplan nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $layout ) { return new \WP_Error( 'wpcap_seating_missing', __( 'Saalplan nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! Access::can_access_event( $layout->event_id, self::CAP ) ) { return self::forbidden(); }
 		$normalized = self::normalize( $draft );
 		if ( is_wp_error( $normalized ) ) { return $normalized; }
@@ -482,7 +482,7 @@ final class Layouts {
 		if ( $revision ) { $sql .= $wpdb->prepare( ' AND draft_revision=%d', absint( $revision ) ); }
 		$updated = $wpdb->query( $sql );
 		if ( ! $updated ) {
-			return new \WP_Error( 'wpcap_seating_conflict', __( 'Der Saalplan wurde inzwischen von jemand anderem geändert. Bitte neu laden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_seating_conflict', __( 'Der Saalplan wurde inzwischen von jemand anderem geändert. Bitte neu laden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		return array( 'layout_id' => (int) $layout->layout_id, 'event_id' => (int) $layout->event_id, 'revision' => (int) $layout->draft_revision + 1, 'seat_count' => count( self::expand( $normalized ) ) );
 	}
@@ -494,7 +494,7 @@ final class Layouts {
 	public static function publish( $layout_id, $upgrade_links = true ) {
 		global $wpdb;
 		$layout = self::get( $layout_id );
-		if ( ! $layout ) { return new \WP_Error( 'wpcap_seating_missing', __( 'Saalplan nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $layout ) { return new \WP_Error( 'wpcap_seating_missing', __( 'Saalplan nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! Access::can_access_event( $layout->event_id, self::CAP ) ) { return self::forbidden(); }
 		$wpdb->query( 'START TRANSACTION' );
 		try {
@@ -502,7 +502,7 @@ final class Layouts {
 			$normalized = self::normalize( $layout->draft );
 			if ( is_wp_error( $normalized ) ) { throw new SeatingException( $normalized ); }
 			$rows = self::expand( $normalized );
-			if ( ! $rows ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_empty', __( 'Ein leerer Saalplan kann nicht veröffentlicht werden.', 'wp-pass-captain' ), array( 'status' => 400 ) ) ); }
+			if ( ! $rows ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_empty', __( 'Ein leerer Saalplan kann nicht veröffentlicht werden.', 'pass-captain' ), array( 'status' => 400 ) ) ); }
 			// Lock the links first so no seat of a linked occurrence can be claimed while we check.
 			$links = $wpdb->get_results( $wpdb->prepare( 'SELECT occurrence_id,version_id FROM ' . self::table( 'links' ) . ' WHERE layout_id=%d ORDER BY occurrence_id FOR UPDATE', (int) $layout->layout_id ) );
 			$violations = self::protection_violations( self::locked_seats( $layout->layout_id ), $rows );
@@ -511,14 +511,14 @@ final class Layouts {
 			$now = current_time( 'mysql', true );
 			$inserted = $wpdb->insert( self::table( 'versions' ), array( 'layout_id' => (int) $layout->layout_id, 'event_id' => (int) $layout->event_id, 'version' => $version, 'name' => $layout->name, 'definition' => wp_json_encode( $normalized ), 'seat_count' => count( $rows ), 'created_by' => get_current_user_id(), 'created_at' => $now ) );
 			$version_id = (int) $wpdb->insert_id;
-			if ( ! $inserted || ! $version_id ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Version konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ) ); }
+			if ( ! $inserted || ! $version_id ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Version konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
 			foreach ( array_chunk( array_values( $rows ), 200 ) as $chunk ) {
 				$values = array();
 				foreach ( $chunk as $row ) {
 					$values[] = $wpdb->prepare( '(%d,%s,%s,%s,%s,%s,%s,%s,%s,%d,%f,%f,%d)', $version_id, $row['seat_key'], $row['kind'], $row['group_key'], $row['row_label'], $row['seat_label'], $row['label'], $row['zone'], $row['category'], $row['accessible'], $row['pos_x'], $row['pos_y'], $row['sort_order'] );
 				}
 				$ok = $wpdb->query( 'INSERT INTO ' . self::table( 'seats' ) . ' (version_id,seat_key,kind,group_key,row_label,seat_label,label,zone,category,is_accessible,pos_x,pos_y,sort_order) VALUES ' . implode( ',', $values ) );
-				if ( false === $ok ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Sitzplätze konnten nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ) ); }
+				if ( false === $ok ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Sitzplätze konnten nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
 			}
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table( 'layouts' ) . ' SET published_version=%d,updated_at=%s WHERE layout_id=%d', $version, $now, (int) $layout->layout_id ) );
 			$upgraded = array();
@@ -546,10 +546,10 @@ final class Layouts {
 		global $wpdb;
 		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
 		$version = self::version( $version_id );
-		if ( ! $occurrence || ! $version ) { return new \WP_Error( 'wpcap_seating_missing', __( 'Termin oder Saalplan-Version nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $occurrence || ! $version ) { return new \WP_Error( 'wpcap_seating_missing', __( 'Termin oder Saalplan-Version nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! Access::can_access_event( $occurrence->event_id, self::CAP ) ) { return self::forbidden(); }
 		if ( (int) $version->event_id !== (int) $occurrence->event_id ) {
-			return new \WP_Error( 'wpcap_seating_event_mismatch', __( 'Der Saalplan gehört zu einem anderen Event.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_seating_event_mismatch', __( 'Der Saalplan gehört zu einem anderen Event.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$definition = json_decode( $version->definition, true );
 		$known = array_merge( self::item_keys( $definition['zones'] ?? array() ), self::item_keys( $definition['categories'] ?? array() ) );
@@ -558,13 +558,13 @@ final class Layouts {
 		foreach ( $type_zones as $type_id => $zones ) {
 			$type_id = absint( $type_id );
 			if ( ! in_array( $type_id, $type_ids, true ) ) {
-				return new \WP_Error( 'wpcap_seating_type', __( 'Eine Ticketart gehört nicht zu diesem Termin.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'wpcap_seating_type', __( 'Eine Ticketart gehört nicht zu diesem Termin.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 			foreach ( (array) $zones as $zone ) {
 				$zone = sanitize_key( $zone );
 				if ( '' === $zone ) { continue; }
 				if ( ! in_array( $zone, $known, true ) ) {
-					return new \WP_Error( 'wpcap_seating_zone', __( 'Ein Bereich bzw. eine Kategorie existiert in dieser Version nicht.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+					return new \WP_Error( 'wpcap_seating_zone', __( 'Ein Bereich bzw. eine Kategorie existiert in dieser Version nicht.', 'pass-captain' ), array( 'status' => 400 ) );
 				}
 				$clean[ $type_id ][ $zone ] = $zone;
 			}
@@ -603,14 +603,14 @@ final class Layouts {
 	public static function unlink_occurrence( $occurrence_id ) {
 		global $wpdb;
 		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
-		if ( ! $occurrence ) { return new \WP_Error( 'wpcap_seating_missing', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $occurrence ) { return new \WP_Error( 'wpcap_seating_missing', __( 'Termin nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! Access::can_access_event( $occurrence->event_id, self::CAP ) ) { return self::forbidden(); }
 		$wpdb->query( 'START TRANSACTION' );
 		$wpdb->query( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", (int) $occurrence->occurrence_id ) );
 		$claimed = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::table( 'claims' ) . ' WHERE occurrence_id=%d AND active_key IS NOT NULL', (int) $occurrence->occurrence_id ) );
 		if ( $claimed ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_seating_in_use', __( 'Für diesen Termin sind bereits Plätze reserviert oder verkauft; der Saalplan kann nicht entfernt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_seating_in_use', __( 'Für diesen Termin sind bereits Plätze reserviert oder verkauft; der Saalplan kann nicht entfernt werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::table( 'links' ) . ' WHERE occurrence_id=%d', (int) $occurrence->occurrence_id ) );
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::table( 'type_zones' ) . ' WHERE occurrence_id=%d', (int) $occurrence->occurrence_id ) );

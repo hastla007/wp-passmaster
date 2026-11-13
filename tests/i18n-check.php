@@ -49,7 +49,7 @@ function wpcap_placeholders( $s ) {
 	return array( 'printf' => $printf, 'braces' => $braces, 'tags' => $tags );
 }
 $fail = 0;
-$pot = wpcap_po_parse( $root . '/languages/wp-pass-captain.pot' );
+$pot = wpcap_po_parse( $root . '/languages/pass-captain.pot' );
 $pot_ids = array();
 foreach ( $pot as $e ) { if ( '' !== $e['msgid'] ) { $pot_ids[ ( $e['msgctxt'] ?? '' ) . "\x04" . $e['msgid'] ] = true; } }
 foreach ( $argv as $arg ) {
@@ -60,14 +60,14 @@ foreach ( $argv as $arg ) {
 	$gone_ids = array_diff_key( $pot_ids, $fresh );
 	if ( $new_ids || $gone_ids ) {
 		$fail = 1;
-		echo 'FAIL languages/wp-pass-captain.pot is outdated: ' . count( $new_ids ) . ' new, ' . count( $gone_ids ) . " removed source strings (regenerate with wp i18n make-pot, then msgmerge)\n";
+		echo 'FAIL languages/pass-captain.pot is outdated: ' . count( $new_ids ) . ' new, ' . count( $gone_ids ) . " removed source strings (regenerate with wp i18n make-pot, then msgmerge)\n";
 		foreach ( array_slice( array_keys( $new_ids ), 0, 10 ) as $k ) { echo '     + ' . str_replace( "\x04", ' | ', $k ) . "\n"; }
 	} else {
-		echo "ok   languages/wp-pass-captain.pot matches the source strings\n";
+		echo "ok   languages/pass-captain.pot matches the source strings\n";
 	}
 }
-foreach ( glob( $root . '/languages/wp-pass-captain-*.po' ) as $po ) {
-	$locale = preg_replace( '/^.*wp-pass-captain-(.+)\.po$/', '$1', $po );
+foreach ( glob( $root . '/languages/pass-captain-*.po' ) as $po ) {
+	$locale = preg_replace( '/^.*pass-captain-(.+)\.po$/', '$1', $po );
 	$problems = array(); $fuzzy = 0; $untranslated = 0; $ids = array();
 	foreach ( wpcap_po_parse( $po ) as $e ) {
 		if ( '' === $e['msgid'] ) { continue; }

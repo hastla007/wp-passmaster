@@ -1,6 +1,6 @@
 # Veranstalter, Veranstalter-API und Veranstalter-Abrechnungen
 
-> **Bezeichnung:** Diese Organisationen heißen **Veranstalter**; „Partner“ meint in den Captain-Plugins nur noch die Affiliate-Partner von WP Affiliate Captain. Technische Bezeichner bleiben aus Kompatibilitätsgründen unverändert: REST-Pfade `/wp-json/wp-pass-captain/v1/partner/…`, Header `X-WPCAP-Partner-API`, Fehlercodes `wpcap_partner_*`, Tabellen, Optionen und der Rollen-Slug `wpcap_partner`. Der Rollenname „Pass Captain Partner“ wird beim Update automatisch in „Pass Captain Veranstalter“ umbenannt (ein selbst vergebener Name bleibt).
+> **Bezeichnung:** Diese Organisationen heißen **Veranstalter**; „Partner“ meint in den Captain-Plugins nur noch die Affiliate-Partner von Affiliate Captain. Technische Bezeichner bleiben aus Kompatibilitätsgründen unverändert: REST-Pfade `/wp-json/pass-captain/v1/partner/…`, Header `X-WPCAP-Partner-API`, Fehlercodes `wpcap_partner_*`, Tabellen, Optionen und der Rollen-Slug `wpcap_partner`. Der Rollenname „Pass Captain Partner“ wird beim Update automatisch in „Pass Captain Veranstalter“ umbenannt (ein selbst vergebener Name bleibt).
 
 Veranstalter sind Organisationen (Veranstaltende oder Wiederverkäufer), denen Events zugeordnet werden.
 Für sie gibt es:
@@ -86,7 +86,7 @@ die gekürzte Client-Adresse (IPv4 /24, IPv6 /48) – nie das Secret.
 ## Authentifizierung
 
 ```http
-GET /wp-json/wp-pass-captain/v1/partner/me
+GET /wp-json/pass-captain/v1/partner/me
 Authorization: Bearer wpcap_pk_3f9a0c1b2d4e_8c1f…
 ```
 
@@ -108,7 +108,7 @@ Zeitstempel ISO 8601 in UTC.
 
 ## Endpunkte
 
-Alle unter `/wp-json/wp-pass-captain/v1`, lesend (`GET`). Schreibende Endpunkte: siehe
+Alle unter `/wp-json/pass-captain/v1`, lesend (`GET`). Schreibende Endpunkte: siehe
 [Verkauf über die API](#verkauf-über-die-api).
 
 | Route | Scope | Parameter |
@@ -186,7 +186,7 @@ Plätze. Eine Bestellung kann nur aus einem Hold verkaufen.
 **A) Reservieren, dann bestätigen** (z. B. Warenkorb beim Wiederverkäufer):
 
 ```bash
-curl -X POST https://example.com/wp-json/wp-pass-captain/v1/partner/orders \
+curl -X POST https://example.com/wp-json/pass-captain/v1/partner/orders \
   -H "Authorization: Bearer wpcap_pk_3f9a0c1b2d4e_8c1f…" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: shop-4711-a" \
@@ -222,7 +222,7 @@ Die Plätze sind bis `hold_expires_at` reserviert (Reservierungsdauer des Verans
 60 Minuten). Nach erfolgreicher Zahlung beim Verkäufer:
 
 ```bash
-curl -X POST https://example.com/wp-json/wp-pass-captain/v1/partner/orders/6f1c0e…/confirm \
+curl -X POST https://example.com/wp-json/pass-captain/v1/partner/orders/6f1c0e…/confirm \
   -H "Authorization: Bearer wpcap_pk_…" -H "Content-Type: application/json" \
   -d '{ "payment_reference": "PSP-998877" }'
 ```
@@ -279,7 +279,7 @@ werden abgelehnt (`400 wpcap_partner_invalid_field`).
 ### Stornieren
 
 ```bash
-curl -X POST https://example.com/wp-json/wp-pass-captain/v1/partner/orders/6f1c0e…/cancel \
+curl -X POST https://example.com/wp-json/pass-captain/v1/partner/orders/6f1c0e…/cancel \
   -H "Authorization: Bearer wpcap_pk_…" -H "Content-Type: application/json" \
   -d '{ "reason": "Kunde storniert" }'
 ```

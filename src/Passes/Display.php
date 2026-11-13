@@ -30,7 +30,7 @@ final class Display {
 		foreach ( $linked as $occ ) {
 			$item = self::date( $occ->starts_at, $occ->timezone );
 			if ( count( $events ) > 1 ) { $item = $occ->event_name . ' ' . $item; }
-			if ( 'cancelled' === $occ->status ) { $item .= ' ' . __( '(abgesagt)', 'wp-pass-captain' ); }
+			if ( 'cancelled' === $occ->status ) { $item .= ' ' . __( '(abgesagt)', 'pass-captain' ); }
 			$items[] = $item;
 		}
 		return implode( ', ', $items );
@@ -42,10 +42,10 @@ final class Display {
 		if ( ! $config ) { return ''; }
 		$dates = self::dates( $type_id );
 		if ( '' === $dates ) { return ''; }
-		$label = sprintf( /* translators: %s: list of dates */ __( 'Gültig für: %s', 'wp-pass-captain' ), $dates );
+		$label = sprintf( /* translators: %s: list of dates */ __( 'Gültig für: %s', 'pass-captain' ), $dates );
 		if ( $config->max_occurrences > 0 ) {
 			/* translators: 1: usable dates, 2: included dates */
-			$label .= ' ' . sprintf( __( '(%1$d aus %2$d Terminen frei wählbar)', 'wp-pass-captain' ), $config->max_occurrences, count( $config->occurrence_ids ) );
+			$label .= ' ' . sprintf( __( '(%1$d aus %2$d Terminen frei wählbar)', 'pass-captain' ), $config->max_occurrences, count( $config->occurrence_ids ) );
 		}
 		return $label;
 	}
@@ -109,7 +109,7 @@ final class Display {
 			$type = Definitions::type_row( $type_id );
 			if ( ! $type || 'active' !== $type->status || (int) $type->occurrence_id === $occurrence_id ) { continue; }
 			/* translators: 1: pass name, 2: event name, 3: date */
-			$hints[] = sprintf( __( 'Auch enthalten im Pass „%1$s“ (erhältlich bei %2$s am %3$s).', 'wp-pass-captain' ), $type->name, $type->event_name, self::date( $type->starts_at, $type->timezone ) );
+			$hints[] = sprintf( __( 'Auch enthalten im Pass „%1$s“ (erhältlich bei %2$s am %3$s).', 'pass-captain' ), $type->name, $type->event_name, self::date( $type->starts_at, $type->timezone ) );
 		}
 		if ( $hints ) {
 			$block = '<p class="wpcap-pass-hint">' . implode( '<br>', array_map( 'esc_html', $hints ) ) . '</p>';
@@ -141,15 +141,15 @@ final class Display {
 	public static function shortcode() {
 		$passes = self::on_sale();
 		$html = '<div class="wpcap-passes">';
-		if ( ! $passes ) { $html .= '<p>' . esc_html__( 'Aktuell sind keine Pässe verfügbar.', 'wp-pass-captain' ) . '</p>'; }
+		if ( ! $passes ) { $html .= '<p>' . esc_html__( 'Aktuell sind keine Pässe verfügbar.', 'pass-captain' ) . '</p>'; }
 		foreach ( $passes as $entry ) {
 			$type = $entry['type'];
 			$html .= '<article class="wpcap-pass"><h3>' . esc_html( $type->name ) . '</h3>';
 			$html .= '<p>' . esc_html( \PassCaptain\Frontend\Format::money( $entry['price_minor'], $type->currency ) ) . '</p>';
 			$html .= '<p class="wpcap-pass-dates">' . esc_html( $entry['dates'] ) . '</p>';
 			/* translators: 1: event name, 2: date */
-			$html .= '<p>' . esc_html( sprintf( __( 'Erhältlich bei %1$s am %2$s.', 'wp-pass-captain' ), $type->event_name, self::date( $type->starts_at, $type->timezone ) ) ) . '</p>';
-			if ( null !== $entry['available'] && (int) $entry['available'] < 1 ) { $html .= '<p class="wpcap-soldout">' . esc_html__( 'Ausverkauft', 'wp-pass-captain' ) . '</p>'; }
+			$html .= '<p>' . esc_html( sprintf( __( 'Erhältlich bei %1$s am %2$s.', 'pass-captain' ), $type->event_name, self::date( $type->starts_at, $type->timezone ) ) ) . '</p>';
+			if ( null !== $entry['available'] && (int) $entry['available'] < 1 ) { $html .= '<p class="wpcap-soldout">' . esc_html__( 'Ausverkauft', 'pass-captain' ) . '</p>'; }
 			$html .= '</article>';
 		}
 		return $html . '</div>';

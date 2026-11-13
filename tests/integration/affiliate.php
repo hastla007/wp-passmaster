@@ -1,10 +1,10 @@
 <?php
-/** WP Affiliate Captain adapter (contract v1). Included from run.php; contract functions are stubbed. */
+/** Affiliate Captain adapter (contract v1). Included from run.php; contract functions are stubbed. */
 // phpcs:ignoreFile
 use PassCaptain\Orders;
 use PassCaptain\Integrations\AffiliateCaptain\Adapter as AffiliateAdapter;
 
-echo "WP Affiliate Captain adapter\n";
+echo "Affiliate Captain adapter\n";
 $GLOBALS['wpac_test_version'] = '1.1.0';
 $GLOBALS['wpac_test_sales']   = array();
 $GLOBALS['wpac_test_refunds'] = array();

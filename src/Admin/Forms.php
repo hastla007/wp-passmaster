@@ -206,7 +206,7 @@ final class Forms {
 		if ( 'gap' === $info['status'] ) {
 			return self::error( 'wpcap_time_nonexistent', sprintf(
 				/* translators: 1: entered local time, 2: timezone, 3: next valid local time */
-				__( 'Die Ortszeit %1$s gibt es in der Zeitzone %2$s wegen der Umstellung auf Sommerzeit nicht. Bitte eine andere Zeit wählen, z. B. %3$s (erste gültige Zeit danach).', 'wp-pass-captain' ),
+				__( 'Die Ortszeit %1$s gibt es in der Zeitzone %2$s wegen der Umstellung auf Sommerzeit nicht. Bitte eine andere Zeit wählen, z. B. %3$s (erste gültige Zeit danach).', 'pass-captain' ),
 				$shown( $info['local'] ),
 				$timezone,
 				$shown( $info['next_valid'] )
@@ -215,7 +215,7 @@ final class Forms {
 		if ( 'ambiguous' === $info['status'] ) {
 			$notes[] = sprintf(
 				/* translators: 1: entered local time, 2: timezone, 3: UTC offset used, 4: UTC offset of the second instance */
-				__( 'Die Ortszeit %1$s kommt in der Zeitzone %2$s wegen der Umstellung auf Winterzeit zweimal vor. Verwendet wurde die erste (Sommerzeit, UTC%3$s), nicht die zweite (UTC%4$s).', 'wp-pass-captain' ),
+				__( 'Die Ortszeit %1$s kommt in der Zeitzone %2$s wegen der Umstellung auf Winterzeit zweimal vor. Verwendet wurde die erste (Sommerzeit, UTC%3$s), nicht die zweite (UTC%4$s).', 'pass-captain' ),
 				$shown( $info['local'] ),
 				$timezone,
 				$info['offsets'][0],
@@ -242,10 +242,10 @@ final class Forms {
 		$shown = wp_date( 'd.m.Y H:i', strtotime( $info['local'] . ' UTC' ), new \DateTimeZone( 'UTC' ) );
 		if ( 'gap' === $info['status'] ) {
 			/* translators: 1: local time of the repetition, 2: timezone, 3: local time used instead */
-			$notes[] = sprintf( __( 'Die Wiederholung am %1$s fällt in die Zeitumstellung (Zeitzone %2$s, diese Ortszeit gibt es nicht) und wurde auf %3$s verschoben.', 'wp-pass-captain' ), $shown, $timezone, $start->format( 'd.m.Y H:i' ) );
+			$notes[] = sprintf( __( 'Die Wiederholung am %1$s fällt in die Zeitumstellung (Zeitzone %2$s, diese Ortszeit gibt es nicht) und wurde auf %3$s verschoben.', 'pass-captain' ), $shown, $timezone, $start->format( 'd.m.Y H:i' ) );
 		} elseif ( 'ambiguous' === $info['status'] ) {
 			/* translators: 1: local time of the repetition, 2: timezone, 3: UTC offset used */
-			$notes[] = sprintf( __( 'Die Wiederholung am %1$s liegt in der doppelten Stunde der Zeitumstellung (Zeitzone %2$s); verwendet wurde die erste (Sommerzeit, UTC%3$s).', 'wp-pass-captain' ), $shown, $timezone, $info['offsets'][0] );
+			$notes[] = sprintf( __( 'Die Wiederholung am %1$s liegt in der doppelten Stunde der Zeitumstellung (Zeitzone %2$s); verwendet wurde die erste (Sommerzeit, UTC%3$s).', 'pass-captain' ), $shown, $timezone, $info['offsets'][0] );
 		}
 		return $start;
 	}
@@ -335,7 +335,7 @@ final class Forms {
 
 	/** Standard "no permission" error. */
 	public static function forbidden( $message = '' ) {
-		return self::error( 'wpcap_admin_forbidden', '' !== $message ? $message : __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 );
+		return self::error( 'wpcap_admin_forbidden', '' !== $message ? $message : __( 'Keine Berechtigung.', 'pass-captain' ), 403 );
 	}
 
 	/* ---------------------------------------------------------------------------------------------
@@ -434,7 +434,7 @@ final class Forms {
 	/** Timezone select. */
 	public static function timezone_select( $name, $selected, $id = '', $extra = '' ) {
 		$zones = timezone_identifiers_list();
-		self::select( $name, array_combine( $zones, $zones ), $selected, $id, $extra ?: 'aria-label="' . esc_attr__( 'Zeitzone', 'wp-pass-captain' ) . '"' );
+		self::select( $name, array_combine( $zones, $zones ), $selected, $id, $extra ?: 'aria-label="' . esc_attr__( 'Zeitzone', 'pass-captain' ) . '"' );
 	}
 
 	/** Renders "Seite x von y" pagination links. */
@@ -442,7 +442,7 @@ final class Forms {
 		$pages = max( 1, (int) ceil( $total / max( 1, $per_page ) ) );
 		echo '<div class="tablenav"><div class="tablenav-pages"><span class="displaying-num">';
 		/* translators: %s: number of entries */
-		echo esc_html( sprintf( _n( '%s Eintrag', '%s Einträge', (int) $total, 'wp-pass-captain' ), number_format_i18n( (int) $total ) ) );
+		echo esc_html( sprintf( _n( '%s Eintrag', '%s Einträge', (int) $total, 'pass-captain' ), number_format_i18n( (int) $total ) ) );
 		echo '</span>';
 		if ( $pages > 1 ) {
 			echo ' <span class="pagination-links">';
@@ -450,7 +450,7 @@ final class Forms {
 				echo '<a class="prev-page button" href="' . esc_url( add_query_arg( 'paged', $page - 1, $base_url ) ) . '">&lsaquo;</a> ';
 			}
 			/* translators: 1: current page, 2: total pages */
-			echo '<span class="paging-input">' . esc_html( sprintf( __( 'Seite %1$d von %2$d', 'wp-pass-captain' ), $page, $pages ) ) . '</span>';
+			echo '<span class="paging-input">' . esc_html( sprintf( __( 'Seite %1$d von %2$d', 'pass-captain' ), $page, $pages ) ) . '</span>';
 			if ( $page < $pages ) {
 				echo ' <a class="next-page button" href="' . esc_url( add_query_arg( 'paged', $page + 1, $base_url ) ) . '">&rsaquo;</a>';
 			}
@@ -482,41 +482,41 @@ final class Forms {
 	/** Translated labels for status values. */
 	public static function status_label( $status ) {
 		$labels = array(
-			'draft'            => __( 'Entwurf', 'wp-pass-captain' ),
-			'published'        => __( 'Veröffentlicht', 'wp-pass-captain' ),
-			'cancelled'        => __( 'Abgesagt/Storniert', 'wp-pass-captain' ),
-			'scheduled'        => __( 'Geplant', 'wp-pass-captain' ),
-			'active'           => __( 'Aktiv', 'wp-pass-captain' ),
-			'paused'           => __( 'Pausiert', 'wp-pass-captain' ),
-			'inactive'         => __( 'Deaktiviert', 'wp-pass-captain' ),
-			'pending_payment'  => __( 'Zahlung offen', 'wp-pass-captain' ),
-			'complete'         => __( 'Abgeschlossen', 'wp-pass-captain' ),
-			'refunded'         => __( 'Erstattet', 'wp-pass-captain' ),
-			'expired'          => __( 'Abgelaufen', 'wp-pass-captain' ),
-			'needs_review'     => __( 'Prüfung nötig', 'wp-pass-captain' ),
-			'pending'          => __( 'Ausstehend', 'wp-pass-captain' ),
-			'paid'             => __( 'Bezahlt', 'wp-pass-captain' ),
-			'paid_unallocated' => __( 'Bezahlt, ohne Kontingent', 'wp-pass-captain' ),
-			'valid'            => __( 'Gültig', 'wp-pass-captain' ),
-			'checked_in'       => __( 'Eingecheckt', 'wp-pass-captain' ),
-			'already_checked_in' => __( 'Bereits eingecheckt (abgelehnt)', 'wp-pass-captain' ),
-			'not_valid_today'  => __( 'Heute nicht gültig', 'wp-pass-captain' ),
-			'daily_limit_reached' => __( 'Tageslimit erreicht', 'wp-pass-captain' ),
-			'revoked'          => __( 'Widerrufen', 'wp-pass-captain' ),
-			'pending_approval' => __( 'Wartet auf Freigabe', 'wp-pass-captain' ),
-			'approved'         => __( 'Freigegeben', 'wp-pass-captain' ),
-			'processing'       => __( 'In Bearbeitung', 'wp-pass-captain' ),
-			'completed'        => __( 'Durchgeführt', 'wp-pass-captain' ),
-			'failed'           => __( 'Fehlgeschlagen', 'wp-pass-captain' ),
-			'rejected'         => __( 'Abgelehnt', 'wp-pass-captain' ),
-			'undone'           => __( 'Check-in zurückgenommen', 'wp-pass-captain' ),
-			'unknown'          => __( 'Unbekannt', 'wp-pass-captain' ),
-			'outside_entry_window' => __( 'Außerhalb des Einlasszeitraums', 'wp-pass-captain' ),
-			'entry_limit_reached' => __( 'Einlass-Limit erreicht', 'wp-pass-captain' ),
-			'already_inside'   => __( 'Bereits drinnen', 'wp-pass-captain' ),
-			'not_checked_in'   => __( 'Nicht eingecheckt', 'wp-pass-captain' ),
-			'wrong_area'       => __( 'Falscher Einlassbereich', 'wp-pass-captain' ),
-			'checked_out'      => __( 'Ausgecheckt', 'wp-pass-captain' ),
+			'draft'            => __( 'Entwurf', 'pass-captain' ),
+			'published'        => __( 'Veröffentlicht', 'pass-captain' ),
+			'cancelled'        => __( 'Abgesagt/Storniert', 'pass-captain' ),
+			'scheduled'        => __( 'Geplant', 'pass-captain' ),
+			'active'           => __( 'Aktiv', 'pass-captain' ),
+			'paused'           => __( 'Pausiert', 'pass-captain' ),
+			'inactive'         => __( 'Deaktiviert', 'pass-captain' ),
+			'pending_payment'  => __( 'Zahlung offen', 'pass-captain' ),
+			'complete'         => __( 'Abgeschlossen', 'pass-captain' ),
+			'refunded'         => __( 'Erstattet', 'pass-captain' ),
+			'expired'          => __( 'Abgelaufen', 'pass-captain' ),
+			'needs_review'     => __( 'Prüfung nötig', 'pass-captain' ),
+			'pending'          => __( 'Ausstehend', 'pass-captain' ),
+			'paid'             => __( 'Bezahlt', 'pass-captain' ),
+			'paid_unallocated' => __( 'Bezahlt, ohne Kontingent', 'pass-captain' ),
+			'valid'            => __( 'Gültig', 'pass-captain' ),
+			'checked_in'       => __( 'Eingecheckt', 'pass-captain' ),
+			'already_checked_in' => __( 'Bereits eingecheckt (abgelehnt)', 'pass-captain' ),
+			'not_valid_today'  => __( 'Heute nicht gültig', 'pass-captain' ),
+			'daily_limit_reached' => __( 'Tageslimit erreicht', 'pass-captain' ),
+			'revoked'          => __( 'Widerrufen', 'pass-captain' ),
+			'pending_approval' => __( 'Wartet auf Freigabe', 'pass-captain' ),
+			'approved'         => __( 'Freigegeben', 'pass-captain' ),
+			'processing'       => __( 'In Bearbeitung', 'pass-captain' ),
+			'completed'        => __( 'Durchgeführt', 'pass-captain' ),
+			'failed'           => __( 'Fehlgeschlagen', 'pass-captain' ),
+			'rejected'         => __( 'Abgelehnt', 'pass-captain' ),
+			'undone'           => __( 'Check-in zurückgenommen', 'pass-captain' ),
+			'unknown'          => __( 'Unbekannt', 'pass-captain' ),
+			'outside_entry_window' => __( 'Außerhalb des Einlasszeitraums', 'pass-captain' ),
+			'entry_limit_reached' => __( 'Einlass-Limit erreicht', 'pass-captain' ),
+			'already_inside'   => __( 'Bereits drinnen', 'pass-captain' ),
+			'not_checked_in'   => __( 'Nicht eingecheckt', 'pass-captain' ),
+			'wrong_area'       => __( 'Falscher Einlassbereich', 'pass-captain' ),
+			'checked_out'      => __( 'Ausgecheckt', 'pass-captain' ),
 		);
 		return $labels[ (string) $status ] ?? (string) $status;
 	}

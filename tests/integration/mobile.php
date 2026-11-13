@@ -55,7 +55,7 @@ check( 'test tickets and codes available', 3 === count( $codes ) && 1 === count(
 check( 'pairing needs at least one event', is_wp_error( Devices::create_pairing( array() ) ) );
 $pairing = Devices::create_pairing( array( $m_event ), 'Einlass Nord', 12 );
 $qr = json_decode( $pairing['qr_payload'], true );
-check( 'pairing QR carries API base and one-time code', 'wpcap-pair' === $qr['type'] && str_ends_with( $qr['api'], 'wp-pass-captain/v1/app/' ) && 20 === strlen( $qr['code'] ) );
+check( 'pairing QR carries API base and one-time code', 'wpcap-pair' === $qr['type'] && str_ends_with( $qr['api'], 'pass-captain/v1/app/' ) && 20 === strlen( $qr['code'] ) );
 $GLOBALS['wpcap_test_user_id'] = 0;
 $paired = Devices::pair( $pairing['code'], 'iPhone Nord', 'ios', '1.0.0' );
 $again = Devices::pair( $pairing['code'], 'iPhone 2', 'ios', '1.0.0' );

@@ -1,4 +1,4 @@
-=== WP Pass Captain ===
+=== Pass Captain ===
 Contributors: hastla007
 Tags: events, tickets, check-in, booking, woocommerce
 Requires at least: 6.4
@@ -14,17 +14,17 @@ Eigenständige Event-, Ticket- und Einlassverwaltung für WordPress – mit opti
 
 == Description ==
 
-WP Pass Captain verwaltet Veranstaltungen, Termine, Ticketarten, Bestellungen, Tickets und den Einlass direkt in WordPress. WooCommerce ist optional und keine Voraussetzung für den Kern.
+Pass Captain verwaltet Veranstaltungen, Termine, Ticketarten, Bestellungen, Tickets und den Einlass direkt in WordPress. WooCommerce ist optional und keine Voraussetzung für den Kern.
 
-* Events als Einzeltermin oder Serie, Ausgabe per Shortcode `[wp_pass_captain_events]` oder Block.
+* Events als Einzeltermin oder Serie, Ausgabe per Shortcode `[wpcap_events]` oder Block.
 * Bestellungen mit zeitlich begrenzter Reservierung; kostenlose Bestellungen stellen Tickets sofort aus.
 * Zahlungen manuell, über Stripe, PayPal, Mollie oder den WooCommerce-Adapter (HPOS und Block-Checkout).
-* Tickets mit QR-Code, PDF und Wallet-Pass; Scanner per Shortcode `[wp_pass_captain_scanner]`, Mobil-API und Offline-Scanner.
+* Tickets mit QR-Code, PDF und Wallet-Pass; Scanner per Shortcode `[wpcap_scanner]`, Mobil-API und Offline-Scanner.
 * Rechnungen und Gutschriften, Erstattungen mit Freigabe, Berichte, Wartelisten, Kampagnencodes, Mitgliedspässe.
 * E-Mail-Vorlagen je Sprache, Erinnerungen per E-Mail und SMS, Webhooks für externe Systeme.
 * Datenschutz-Export und -Löschung über die WordPress-Werkzeuge; Multisite-fähig (Daten je Site getrennt).
 
-Daten werden beim Löschen des Plugins nur entfernt, wenn „Daten beim Löschen entfernen“ in den Einstellungen aktiviert ist.
+Daten werden beim Löschen des Plugins nur entfernt, wenn „Beim Löschen des Plugins alle Daten entfernen“ in den Einstellungen aktiviert ist.
 
 == Installation ==
 
@@ -42,6 +42,10 @@ Nein. WooCommerce ist eine optionale Integration; Checkout, Zahlung und Tickets 
 
 Das Schema-Upgrade läuft im Admin-Bereich, per WP-Cron oder WP-CLI – geschützt durch eine Datenbanksperre, damit parallele Aufrufe es nicht mehrfach starten. Frontend-Aufrufe planen das Upgrade nur ein.
 
+= Ich nutze noch „WP Pass Captain“ (bis 1.4) – wie steige ich um? =
+
+Das Plugin heißt für WordPress.org jetzt „Pass Captain“ (Slug `pass-captain`). Neue Version installieren und aktivieren: Die alte Kopie wird automatisch abgeschaltet, alle Daten bleiben erhalten, alte Webhook- und API-Adressen funktionieren weiter. Danach die alte Kopie löschen – die Daten bleiben auch dann erhalten. Details: docs/RENAME.md im Repository.
+
 = Betrieb =
 
 Warteschlangen (E-Mails, SMS, Jobs, Webhooks) werden über WP-Cron mit einem Zeitbudget von etwa 20 Sekunden pro Lauf abgearbeitet; bleibt ein Rückstand, folgt sofort ein weiterer Lauf. Ist Action Scheduler (z. B. mit WooCommerce) vorhanden, werden Folgeläufe darüber eingeplant. Für Shops mit viel Verkehr empfiehlt sich `define( 'DISABLE_WP_CRON', true );` in der wp-config.php und ein System-Cronjob, der jede Minute `wp cron event run --due-now` ausführt.
@@ -58,4 +62,9 @@ Warteschlangen (E-Mails, SMS, Jobs, Webhooks) werden über WP-Cron mit einem Zei
 * Gutschein in Ticket umwandeln (Voucher Captain), Veranstalter statt „Partner“. Vollständige Liste: CHANGELOG.md im Repository.
 
 = 1.1.0 =
-* Übersetzungen (fr_FR, it_IT, es_ES, nl_NL, en_US), Serien-Preisstufen im WooCommerce-Warenkorb, E-Mail-Vorlagen und Anbindung an WP Affiliate Captain. Vollständige Liste: CHANGELOG.md im Repository.
+* Übersetzungen (fr_FR, it_IT, es_ES, nl_NL, en_US), Serien-Preisstufen im WooCommerce-Warenkorb, E-Mail-Vorlagen und Anbindung an Affiliate Captain. Vollständige Liste: CHANGELOG.md im Repository.
+
+== Upgrade Notice ==
+
+= 1.5.0 =
+Neuer Name „Pass Captain“ (früher „WP Pass Captain“). Beim Aktivieren wird die alte Kopie abgeschaltet; Daten, Webhooks und API-Adressen bleiben erhalten.

@@ -53,7 +53,7 @@ final class AccessLog {
 	const PLUGIN_ROLES = array( 'wpcap_ticket_admin', 'wpcap_event_manager', 'wpcap_box_office', 'wpcap_checkin_staff', 'wpcap_partner', 'wpcap_finance', 'wpcap_support' );
 
 	/** Exporter/eraser keys of the plugin start with one of these. */
-	const PRIVACY_KEY_PREFIXES = array( 'wp-pass-captain', 'wpcap' );
+	const PRIVACY_KEY_PREFIXES = array( 'pass-captain', 'wpcap' );
 
 	/** Field names whose values never appear in a diff, not even masked. */
 	const SECRET_FIELD_PATTERN = '/token|hash|secret|password|passwort|iban|(^|_)code$|(^|_)key$/i';
@@ -88,11 +88,11 @@ final class AccessLog {
 	/** Labels of the filter groups (audit log viewer). */
 	public static function group_labels() {
 		return array(
-			'pii' => __( 'Ansicht personenbezogener Daten', 'wp-pass-captain' ),
-			'export' => __( 'Exporte und Drucklisten', 'wp-pass-captain' ),
-			'privacy' => __( 'Datenschutz-Export und -Löschung', 'wp-pass-captain' ),
-			'roles' => __( 'Rollen, Rechte und Teamzuordnung', 'wp-pass-captain' ),
-			'corrections' => __( 'Korrekturen', 'wp-pass-captain' ),
+			'pii' => __( 'Ansicht personenbezogener Daten', 'pass-captain' ),
+			'export' => __( 'Exporte und Drucklisten', 'pass-captain' ),
+			'privacy' => __( 'Datenschutz-Export und -Löschung', 'pass-captain' ),
+			'roles' => __( 'Rollen, Rechte und Teamzuordnung', 'pass-captain' ),
+			'corrections' => __( 'Korrekturen', 'pass-captain' ),
 		);
 	}
 
@@ -427,13 +427,13 @@ final class AccessLog {
 	 */
 	public static function rest_routes() {
 		$routes = array(
-			'#^/wp-pass-captain/v1/events/(?P<id>\d+)/waitlist/entries$#' => array( 'waitlist_entries', 'event' ),
-			'#^/wp-pass-captain/v1/guestlists/search$#' => array( 'guestlist_search', 'occurrence', 'occurrence_id' ),
-			'#^/wp-pass-captain/v1/guestlists/will-call$#' => array( 'guestlist_will_call', 'occurrence', 'occurrence_id' ),
-			'#^/wp-pass-captain/v1/app/offline/package$#' => array( 'offline_package', 'occurrence', 'occurrence_id' ),
-			'#^/wp-pass-captain/v1/partner/orders$#' => array( 'partner_orders', 'partner' ),
-			'#^/wp-pass-captain/v1/partner/tickets$#' => array( 'partner_tickets', 'partner' ),
-			'#^/wp-pass-captain/v1/partner/checkins$#' => array( 'partner_checkins', 'partner' ),
+			'#^/pass-captain/v1/events/(?P<id>\d+)/waitlist/entries$#' => array( 'waitlist_entries', 'event' ),
+			'#^/pass-captain/v1/guestlists/search$#' => array( 'guestlist_search', 'occurrence', 'occurrence_id' ),
+			'#^/pass-captain/v1/guestlists/will-call$#' => array( 'guestlist_will_call', 'occurrence', 'occurrence_id' ),
+			'#^/pass-captain/v1/app/offline/package$#' => array( 'offline_package', 'occurrence', 'occurrence_id' ),
+			'#^/pass-captain/v1/partner/orders$#' => array( 'partner_orders', 'partner' ),
+			'#^/pass-captain/v1/partner/tickets$#' => array( 'partner_tickets', 'partner' ),
+			'#^/pass-captain/v1/partner/checkins$#' => array( 'partner_checkins', 'partner' ),
 		);
 		/** REST routes (regex => [view, object type, id parameter]) whose successful GET responses are audited as personal data reads. */
 		return (array) apply_filters( 'wpcap_pii_audit_rest_routes', $routes );

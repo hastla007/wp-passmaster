@@ -143,7 +143,7 @@ check( 'A100 stepper keeps focus at limits (aria-disabled, not disabled) and res
 check( 'A100 stepper fires input and change (estimate, attendees, seat picker) and announces via .wpcap-qty-live', false !== strpos( $js, "dispatchEvent(new Event('input', { bubbles: true }))" ) && false !== strpos( $js, "dispatchEvent(new Event('change', { bubbles: true }))" ) && false !== strpos( $js, "querySelector('.wpcap-qty-live')" ) );
 check( 'A100 errors inside a collapsed list open it', false !== strpos( $js, "closest('details:not([open])')" ) );
 $a100_src = (string) file_get_contents( WPCAP_PATH . 'src/PublicEvents.php' );
-check( 'A100 stepper strings are translatable', false !== strpos( $a100_src, "'stepUp' => __( '%s: ein Ticket mehr', 'wp-pass-captain' )" ) && false !== strpos( $a100_src, "'qtyOne' => __(" ) && false !== strpos( $a100_src, "'errTotalOne' => __(" ) );
+check( 'A100 stepper strings are translatable', false !== strpos( $a100_src, "'stepUp' => __( '%s: ein Ticket mehr', 'pass-captain' )" ) && false !== strpos( $a100_src, "'qtyOne' => __(" ) && false !== strpos( $a100_src, "'errTotalOne' => __(" ) );
 
 // Theme templates without $card keep working.
 $a100_rows = $wpdb->get_results( $wpdb->prepare( "SELECT e.event_id,e.name,e.description,o.occurrence_id,o.starts_at,o.timezone,o.location,o.doors_open_at FROM {$p}wpcap_events e INNER JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id WHERE o.occurrence_id=%d", $occ_c ) );

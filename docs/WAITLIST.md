@@ -15,7 +15,7 @@ dabei**, damit niemand anderes sie in der Zwischenzeit kaufen kann.
 | `order_id` | Bestellung, die das offene Angebot reserviert (0 ohne Angebot). |
 | `offer_expires_at` | Ende der Reservierung (UTC): beim Angebot die Annahmefrist, nach der Annahme das Zahlungsziel. |
 
-Eintragen: `POST /wp-json/wp-pass-captain/v1/events/{event_id}/waitlist` mit `occurrence_id`,
+Eintragen: `POST /wp-json/pass-captain/v1/events/{event_id}/waitlist` mit `occurrence_id`,
 `ticket_type_id`, `email` und optional `quantity`. Die Antwort ist immer gleich und verrät nicht, ob
 die Adresse schon eingetragen war; die Position steht in der Bestätigungsmail (`waitlist_joined`).
 Einträge mit Status `expired`, `declined` oder `paid` dürfen sich erneut eintragen (am Ende der

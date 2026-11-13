@@ -177,10 +177,10 @@ final class Capacity {
 				if ( '' !== $wpdb->last_error ) { return self::busy(); }
 				if ( $used + $need > (int) $occ->capacity ) {
 					if ( ! $foreign_need ) {
-						return new \WP_Error( 'occurrence_sold_out', __( 'Für diesen Termin sind nicht mehr genügend Plätze verfügbar.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+						return new \WP_Error( 'occurrence_sold_out', __( 'Für diesen Termin sind nicht mehr genügend Plätze verfügbar.', 'pass-captain' ), array( 'status' => 409 ) );
 					}
 					/* translators: 1: event name, 2: date */
-					return new \WP_Error( 'pass_occurrence_sold_out', sprintf( __( 'Der Pass ist nicht mehr verfügbar: Der enthaltene Termin „%1$s“ am %2$s ist ausgebucht.', 'wp-pass-captain' ), $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ) ), array( 'status' => 409 ) );
+					return new \WP_Error( 'pass_occurrence_sold_out', sprintf( __( 'Der Pass ist nicht mehr verfügbar: Der enthaltene Termin „%1$s“ am %2$s ist ausgebucht.', 'pass-captain' ), $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ) ), array( 'status' => 409 ) );
 				}
 			}
 			if ( $quota > 0 && $pass_need > 0 ) {
@@ -188,7 +188,7 @@ final class Capacity {
 				if ( '' !== $wpdb->last_error ) { return self::busy(); }
 				if ( $pass_used + $pass_need > $quota ) {
 					/* translators: 1: event name, 2: date */
-					return new \WP_Error( 'pass_quota_exhausted', sprintf( __( 'Das Pass-Kontingent für „%1$s“ am %2$s ist ausgeschöpft.', 'wp-pass-captain' ), $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ) ), array( 'status' => 409 ) );
+					return new \WP_Error( 'pass_quota_exhausted', sprintf( __( 'Das Pass-Kontingent für „%1$s“ am %2$s ist ausgeschöpft.', 'pass-captain' ), $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ) ), array( 'status' => 409 ) );
 				}
 			}
 		}

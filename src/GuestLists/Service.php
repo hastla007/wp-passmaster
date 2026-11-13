@@ -42,23 +42,23 @@ final class Service {
 
 	public static function reasons() {
 		return array(
-			'press' => __( 'Presse', 'wp-pass-captain' ),
-			'artist' => __( 'Künstler', 'wp-pass-captain' ),
-			'sponsor' => __( 'Sponsor', 'wp-pass-captain' ),
-			'staff' => __( 'Personal', 'wp-pass-captain' ),
-			'promotion' => __( 'Promotion', 'wp-pass-captain' ),
-			'other' => __( 'Sonstiges', 'wp-pass-captain' ),
+			'press' => __( 'Presse', 'pass-captain' ),
+			'artist' => __( 'Künstler', 'pass-captain' ),
+			'sponsor' => __( 'Sponsor', 'pass-captain' ),
+			'staff' => __( 'Personal', 'pass-captain' ),
+			'promotion' => __( 'Promotion', 'pass-captain' ),
+			'other' => __( 'Sonstiges', 'pass-captain' ),
 		);
 	}
 
 	public static function status_labels() {
 		return array(
-			'requested' => __( 'Angefragt', 'wp-pass-captain' ),
-			'approved' => __( 'Freigegeben', 'wp-pass-captain' ),
-			'issuing' => __( 'Wird ausgestellt', 'wp-pass-captain' ),
-			'issued' => __( 'Ausgestellt', 'wp-pass-captain' ),
-			'rejected' => __( 'Abgelehnt', 'wp-pass-captain' ),
-			'cancelled' => __( 'Storniert', 'wp-pass-captain' ),
+			'requested' => __( 'Angefragt', 'pass-captain' ),
+			'approved' => __( 'Freigegeben', 'pass-captain' ),
+			'issuing' => __( 'Wird ausgestellt', 'pass-captain' ),
+			'issued' => __( 'Ausgestellt', 'pass-captain' ),
+			'rejected' => __( 'Abgelehnt', 'pass-captain' ),
+			'cancelled' => __( 'Storniert', 'pass-captain' ),
 		);
 	}
 
@@ -77,7 +77,7 @@ final class Service {
 	}
 
 	private static function forbidden() {
-		return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 );
+		return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 );
 	}
 
 	/* ------------------------------------------------------------------ permissions */
@@ -170,14 +170,14 @@ final class Service {
 		$p = $wpdb->prefix;
 		$list_id = absint( $in['list_id'] ?? 0 );
 		$existing = $list_id ? self::get_list( $list_id ) : null;
-		if ( $list_id && ! $existing ) { return self::error( 'wpcap_guestlist_missing', __( 'Gästeliste nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( $list_id && ! $existing ) { return self::error( 'wpcap_guestlist_missing', __( 'Gästeliste nicht gefunden.', 'pass-captain' ), 404 ); }
 		$event_id = $existing ? (int) $existing->event_id : absint( $in['event_id'] ?? 0 );
-		if ( ! $event_id || ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_events WHERE event_id=%d", $event_id ) ) ) { return self::error( 'wpcap_guestlist_event', __( 'Event nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $event_id || ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_events WHERE event_id=%d", $event_id ) ) ) { return self::error( 'wpcap_guestlist_event', __( 'Event nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_manage( $event_id ) ) { return self::forbidden(); }
 		$occurrence_id = absint( $in['occurrence_id'] ?? ( $existing ? $existing->occurrence_id : 0 ) );
-		if ( $occurrence_id && $event_id !== Scope::occurrence_event( $occurrence_id ) ) { return self::error( 'wpcap_guestlist_occurrence', __( 'Der Termin gehört nicht zu diesem Event.', 'wp-pass-captain' ) ); }
+		if ( $occurrence_id && $event_id !== Scope::occurrence_event( $occurrence_id ) ) { return self::error( 'wpcap_guestlist_occurrence', __( 'Der Termin gehört nicht zu diesem Event.', 'pass-captain' ) ); }
 		$name = mb_substr( sanitize_text_field( (string) ( $in['name'] ?? '' ) ), 0, 190 );
-		if ( '' === $name ) { return self::error( 'wpcap_guestlist_name', __( 'Bitte einen Namen für die Gästeliste angeben.', 'wp-pass-captain' ) ); }
+		if ( '' === $name ) { return self::error( 'wpcap_guestlist_name', __( 'Bitte einen Namen für die Gästeliste angeben.', 'pass-captain' ) ); }
 		$reason = sanitize_key( (string) ( $in['reason'] ?? 'other' ) );
 		if ( ! isset( self::reasons()[ $reason ] ) ) { $reason = 'other'; }
 		$row = array(
@@ -192,15 +192,15 @@ final class Service {
 			'updated_at' => current_time( 'mysql', true ),
 		);
 		if ( $existing ) {
-			if ( (int) $existing->approver_id !== $row['approver_id'] && ! self::can_approve( $existing ) ) { return self::error( 'wpcap_forbidden', __( 'Nur Freigabeberechtigte können die freigebende Person ändern.', 'wp-pass-captain' ), 403 ); }
-			if ( $row['quota'] && $row['quota'] < self::usage( $list_id )['used'] ) { return self::error( 'wpcap_guestlist_quota', __( 'Das Kontingent ist kleiner als die bereits freigegebenen Tickets.', 'wp-pass-captain' ), 409 ); }
-			if ( $occurrence_id !== (int) $existing->occurrence_id && $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_guest_entries WHERE list_id=%d", $list_id ) ) ) { return self::error( 'wpcap_guestlist_occurrence', __( 'Der Termin kann nicht mehr geändert werden, die Liste hat bereits Einträge.', 'wp-pass-captain' ), 409 ); }
+			if ( (int) $existing->approver_id !== $row['approver_id'] && ! self::can_approve( $existing ) ) { return self::error( 'wpcap_forbidden', __( 'Nur Freigabeberechtigte können die freigebende Person ändern.', 'pass-captain' ), 403 ); }
+			if ( $row['quota'] && $row['quota'] < self::usage( $list_id )['used'] ) { return self::error( 'wpcap_guestlist_quota', __( 'Das Kontingent ist kleiner als die bereits freigegebenen Tickets.', 'pass-captain' ), 409 ); }
+			if ( $occurrence_id !== (int) $existing->occurrence_id && $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_guest_entries WHERE list_id=%d", $list_id ) ) ) { return self::error( 'wpcap_guestlist_occurrence', __( 'Der Termin kann nicht mehr geändert werden, die Liste hat bereits Einträge.', 'pass-captain' ), 409 ); }
 			$wpdb->update( "{$p}wpcap_guest_lists", $row, array( 'list_id' => $list_id ) );
 			Audit::record( 'guestlist_updated', 'event', $event_id, array( 'list_id' => $list_id ) );
 			return self::get_list( $list_id );
 		}
 		$row += array( 'status' => 'active', 'created_by' => get_current_user_id(), 'created_at' => $row['updated_at'] );
-		if ( ! $wpdb->insert( "{$p}wpcap_guest_lists", $row ) ) { return self::error( 'wpcap_guestlist_save', __( 'Die Gästeliste konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		if ( ! $wpdb->insert( "{$p}wpcap_guest_lists", $row ) ) { return self::error( 'wpcap_guestlist_save', __( 'Die Gästeliste konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$list_id = (int) $wpdb->insert_id;
 		Audit::record( 'guestlist_created', 'event', $event_id, array( 'list_id' => $list_id, 'reason' => $reason, 'quota' => $row['quota'] ) );
 		return self::get_list( $list_id );
@@ -210,10 +210,10 @@ final class Service {
 	public static function archive_list( $list_id ) {
 		global $wpdb;
 		$list = self::get_list( $list_id );
-		if ( ! $list ) { return self::error( 'wpcap_guestlist_missing', __( 'Gästeliste nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $list ) { return self::error( 'wpcap_guestlist_missing', __( 'Gästeliste nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_manage( $list->event_id ) ) { return self::forbidden(); }
 		$open = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_guest_entries WHERE list_id=%d AND status IN ('requested','approved','issuing','issued')", (int) $list->list_id ) );
-		if ( $open ) { return self::error( 'wpcap_guestlist_open_entries', __( 'Die Liste hat noch offene oder ausgestellte Einträge.', 'wp-pass-captain' ), 409 ); }
+		if ( $open ) { return self::error( 'wpcap_guestlist_open_entries', __( 'Die Liste hat noch offene oder ausgestellte Einträge.', 'pass-captain' ), 409 ); }
 		$wpdb->update( "{$wpdb->prefix}wpcap_guest_lists", array( 'status' => 'archived', 'updated_at' => current_time( 'mysql', true ) ), array( 'list_id' => (int) $list->list_id ) );
 		Audit::record( 'guestlist_archived', 'event', (int) $list->event_id, array( 'list_id' => (int) $list->list_id ) );
 		return true;
@@ -232,23 +232,23 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$list = self::get_list( $list_id );
-		if ( ! $list || 'active' !== $list->status ) { return self::error( 'wpcap_guestlist_missing', __( 'Gästeliste nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $list || 'active' !== $list->status ) { return self::error( 'wpcap_guestlist_missing', __( 'Gästeliste nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_manage( $list->event_id ) ) { return self::forbidden(); }
 		$name = mb_substr( sanitize_text_field( (string) ( $in['name'] ?? '' ) ), 0, 190 );
-		if ( '' === $name ) { return self::error( 'wpcap_guestlist_entry_name', __( 'Bitte den Namen des Gastes angeben.', 'wp-pass-captain' ) ); }
+		if ( '' === $name ) { return self::error( 'wpcap_guestlist_entry_name', __( 'Bitte den Namen des Gastes angeben.', 'pass-captain' ) ); }
 		$email = sanitize_email( (string) ( $in['email'] ?? '' ) );
-		if ( '' !== $email && ( ! is_email( $email ) || self::is_placeholder_email( $email ) ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'wp-pass-captain' ) ); }
+		if ( '' !== $email && ( ! is_email( $email ) || self::is_placeholder_email( $email ) ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
 		$quantity = absint( $in['quantity'] ?? 1 );
 		if ( $quantity < 1 || $quantity > self::max_quantity() ) {
 			/* translators: %d: maximum tickets */
-			return self::error( 'wpcap_guestlist_entry_quantity', sprintf( _n( 'Bitte %d Ticket (inkl. Begleitpersonen) angeben.', 'Bitte 1 bis %d Tickets (inkl. Begleitpersonen) angeben.', self::max_quantity(), 'wp-pass-captain' ), self::max_quantity()) );
+			return self::error( 'wpcap_guestlist_entry_quantity', sprintf( _n( 'Bitte %d Ticket (inkl. Begleitpersonen) angeben.', 'Bitte 1 bis %d Tickets (inkl. Begleitpersonen) angeben.', self::max_quantity(), 'pass-captain' ), self::max_quantity()) );
 		}
 		$type_id = absint( $in['ticket_type_id'] ?? 0 );
 		$type = null;
 		foreach ( self::ticket_types_for_list( $list ) as $t ) {
 			if ( (int) $t->ticket_type_id === $type_id ) { $type = $t; }
 		}
-		if ( ! $type ) { return self::error( 'wpcap_guestlist_entry_type', __( 'Bitte eine Ticketart dieses Termins wählen.', 'wp-pass-captain' ) ); }
+		if ( ! $type ) { return self::error( 'wpcap_guestlist_entry_type', __( 'Bitte eine Ticketart dieses Termins wählen.', 'pass-captain' ) ); }
 		$now = current_time( 'mysql', true );
 		$row = array(
 			'list_id' => (int) $list->list_id,
@@ -265,7 +265,7 @@ final class Service {
 			'created_at' => $now,
 			'updated_at' => $now,
 		);
-		if ( ! $wpdb->insert( "{$p}wpcap_guest_entries", $row ) ) { return self::error( 'wpcap_guestlist_save', __( 'Der Eintrag konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		if ( ! $wpdb->insert( "{$p}wpcap_guest_entries", $row ) ) { return self::error( 'wpcap_guestlist_save', __( 'Der Eintrag konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$entry_id = (int) $wpdb->insert_id;
 		Audit::record( 'guestlist_entry_requested', 'event', (int) $list->event_id, array( 'list_id' => (int) $list->list_id, 'entry_id' => $entry_id, 'quantity' => $quantity ) );
 		if ( ! empty( $in['approve'] ) && self::can_approve( $list ) && ! self::self_approval_blocked( self::get_entry( $entry_id ) ) ) {
@@ -283,7 +283,7 @@ final class Service {
 	 */
 	public static function import_csv( $list_id, $csv, $default_type_id = 0 ) {
 		$list = self::get_list( $list_id );
-		if ( ! $list ) { return self::error( 'wpcap_guestlist_missing', __( 'Gästeliste nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $list ) { return self::error( 'wpcap_guestlist_missing', __( 'Gästeliste nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_manage( $list->event_id ) ) { return self::forbidden(); }
 		$types = array();
 		foreach ( self::ticket_types_for_list( $list ) as $t ) {
@@ -292,7 +292,7 @@ final class Service {
 		}
 		$text = preg_replace( '/^\xEF\xBB\xBF/', '', (string) $csv );
 		$lines = preg_split( '/\r\n|\r|\n/', $text );
-		if ( count( $lines ) > 1001 ) { return self::error( 'wpcap_guestlist_import_size', __( 'Bitte höchstens 1000 Zeilen pro Import.', 'wp-pass-captain' ) ); }
+		if ( count( $lines ) > 1001 ) { return self::error( 'wpcap_guestlist_import_size', __( 'Bitte höchstens 1000 Zeilen pro Import.', 'pass-captain' ) ); }
 		$created = 0;
 		$errors = array();
 		foreach ( $lines as $n => $line ) {
@@ -313,25 +313,25 @@ final class Service {
 		$p = $wpdb->prefix;
 		$entry = self::get_entry( $entry_id );
 		$list = $entry ? self::get_list( $entry->list_id ) : null;
-		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! self::can_approve( $list ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung, Freikarten freizugeben.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! self::can_approve( $list ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung, Freikarten freizugeben.', 'pass-captain' ), 403 ); }
 		if ( self::self_approval_blocked( $entry ) ) {
-			return self::error( 'wpcap_guestlist_four_eyes', __( 'Vier-Augen-Prinzip: Eine Freikarte kann nicht von der Person freigegeben werden, die sie beantragt hat.', 'wp-pass-captain' ), 403 );
+			return self::error( 'wpcap_guestlist_four_eyes', __( 'Vier-Augen-Prinzip: Eine Freikarte kann nicht von der Person freigegeben werden, die sie beantragt hat.', 'pass-captain' ), 403 );
 		}
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT quota FROM {$p}wpcap_guest_lists WHERE list_id=%d FOR UPDATE", (int) $list->list_id ) );
 		$current = $wpdb->get_row( $wpdb->prepare( "SELECT status,quantity FROM {$p}wpcap_guest_entries WHERE entry_id=%d FOR UPDATE", (int) $entry->entry_id ) );
-		if ( ! $locked || ! $current ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_guestlist_busy', __( 'Bitte erneut versuchen.', 'wp-pass-captain' ), 503 ); }
+		if ( ! $locked || ! $current ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_guestlist_busy', __( 'Bitte erneut versuchen.', 'pass-captain' ), 503 ); }
 		if ( 'requested' !== $current->status ) {
 			$wpdb->query( 'COMMIT' );
-			return in_array( $current->status, self::QUOTA_STATUSES, true ) ? self::get_entry( $entry_id ) : self::error( 'wpcap_guestlist_state', __( 'Der Eintrag kann in diesem Status nicht freigegeben werden.', 'wp-pass-captain' ), 409 );
+			return in_array( $current->status, self::QUOTA_STATUSES, true ) ? self::get_entry( $entry_id ) : self::error( 'wpcap_guestlist_state', __( 'Der Eintrag kann in diesem Status nicht freigegeben werden.', 'pass-captain' ), 409 );
 		}
 		if ( (int) $locked->quota > 0 ) {
 			$used = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_guest_entries WHERE list_id=%d AND status IN ('approved','issuing','issued')", (int) $list->list_id ) );
 			if ( $used + (int) $current->quantity > (int) $locked->quota ) {
 				$wpdb->query( 'ROLLBACK' );
 				/* translators: 1: used, 2: quota */
-				return self::error( 'wpcap_guestlist_quota', sprintf( __( 'Das Kontingent der Liste ist ausgeschöpft (%1$d von %2$d Tickets vergeben).', 'wp-pass-captain' ), $used, (int) $locked->quota ), 409 );
+				return self::error( 'wpcap_guestlist_quota', sprintf( __( 'Das Kontingent der Liste ist ausgeschöpft (%1$d von %2$d Tickets vergeben).', 'pass-captain' ), $used, (int) $locked->quota ), 409 );
 			}
 		}
 		$now = current_time( 'mysql', true );
@@ -345,11 +345,11 @@ final class Service {
 		global $wpdb;
 		$entry = self::get_entry( $entry_id );
 		$list = $entry ? self::get_list( $entry->list_id ) : null;
-		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! self::can_approve( $list ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung, Freikarten freizugeben.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! self::can_approve( $list ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung, Freikarten freizugeben.', 'pass-captain' ), 403 ); }
 		$now = current_time( 'mysql', true );
 		$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_guest_entries SET status='rejected',decided_by=%d,decided_at=%s,updated_at=%s WHERE entry_id=%d AND status IN ('requested','approved')", get_current_user_id(), $now, $now, (int) $entry->entry_id ) );
-		if ( ! $changed ) { return self::error( 'wpcap_guestlist_state', __( 'Der Eintrag kann in diesem Status nicht abgelehnt werden.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $changed ) { return self::error( 'wpcap_guestlist_state', __( 'Der Eintrag kann in diesem Status nicht abgelehnt werden.', 'pass-captain' ), 409 ); }
 		$note = mb_substr( sanitize_text_field( (string) $note ), 0, 255 );
 		if ( '' !== $note ) { $wpdb->update( "{$wpdb->prefix}wpcap_guest_entries", array( 'note' => $note ), array( 'entry_id' => (int) $entry->entry_id ) ); }
 		Audit::record( 'guestlist_entry_rejected', 'event', (int) $list->event_id, array( 'list_id' => (int) $list->list_id, 'entry_id' => (int) $entry->entry_id ) );
@@ -381,14 +381,14 @@ final class Service {
 		$p = $wpdb->prefix;
 		$entry = self::get_entry( $entry_id );
 		$list = $entry ? self::get_list( $entry->list_id ) : null;
-		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_manage( $list->event_id ) ) { return self::forbidden(); }
 		if ( 'issued' === $entry->status ) { return $entry; }
 		if ( 'approved' === $entry->status ) {
 			$claimed = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_guest_entries SET status='issuing',updated_at=%s WHERE entry_id=%d AND status='approved'", current_time( 'mysql', true ), (int) $entry->entry_id ) );
 			if ( ! $claimed ) { return self::issue( $entry_id ); }
 		} elseif ( 'issuing' !== $entry->status ) {
-			return self::error( 'wpcap_guestlist_state', __( 'Nur freigegebene Einträge können ausgestellt werden.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_guestlist_state', __( 'Nur freigegebene Einträge können ausgestellt werden.', 'pass-captain' ), 409 );
 		}
 
 		$email = '' !== (string) $entry->email ? (string) $entry->email : 'guestlist+' . substr( hash( 'sha256', 'guestlist|' . (int) $entry->entry_id . '|' . self::wp_salt_value() ), 0, 16 ) . self::PLACEHOLDER_DOMAIN;
@@ -397,7 +397,7 @@ final class Service {
 		for ( $i = 0; $i < (int) $entry->quantity; $i++ ) {
 			// Companion tickets are neutral by default: whoever holds one does not learn the guest's name.
 			// Filter wpcap_guestlist_companion_name (e.g. sprintf( 'Begleitung von %s', $entry->name )).
-			$companion = (string) apply_filters( 'wpcap_guestlist_companion_name', __( 'Begleitung', 'wp-pass-captain' ), $entry, $i );
+			$companion = (string) apply_filters( 'wpcap_guestlist_companion_name', __( 'Begleitung', 'pass-captain' ), $entry, $i );
 			$attendees[] = array( 'ticket_type_id' => $type_id, 'name' => 0 === $i ? $entry->name : $companion );
 		}
 		$internal = array(
@@ -421,14 +421,14 @@ final class Service {
 		$order_id = (int) $order['order_id'];
 		$existing = Orders::get( $order_id );
 		if ( $existing && in_array( $existing->status, array( 'cancelled', 'refunded' ), true ) ) {
-			return self::error( 'wpcap_guestlist_order_state', __( 'Die Freikarten-Bestellung dieses Eintrags wurde storniert.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_guestlist_order_state', __( 'Die Freikarten-Bestellung dieses Eintrags wurde storniert.', 'pass-captain' ), 409 );
 		}
 		$wpdb->update( "{$p}wpcap_guest_entries", array( 'order_id' => $order_id ), array( 'entry_id' => (int) $entry->entry_id ) );
 		$confirmed = Orders::confirm_external_payment( $order_id, 'comp:guestlist:' . (int) $entry->entry_id );
 		if ( is_wp_error( $confirmed ) ) { return $confirmed; }
 		$issued = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) );
 		if ( $issued < (int) $entry->quantity ) {
-			return self::error( 'wpcap_guestlist_not_issued', __( 'Es wurden nicht alle Tickets ausgestellt. Bitte erneut versuchen.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_guestlist_not_issued', __( 'Es wurden nicht alle Tickets ausgestellt. Bitte erneut versuchen.', 'pass-captain' ), 409 );
 		}
 		$now = current_time( 'mysql', true );
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_guest_entries SET status='issued',issued_at=%s,updated_at=%s WHERE entry_id=%d AND status='issuing'", $now, $now, (int) $entry->entry_id ) );
@@ -450,18 +450,18 @@ final class Service {
 		$p = $wpdb->prefix;
 		$entry = self::get_entry( $entry_id );
 		$list = $entry ? self::get_list( $entry->list_id ) : null;
-		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_manage( $list->event_id ) ) { return self::forbidden(); }
-		if ( 'issued' !== $entry->status || ! $entry->order_id ) { return self::error( 'wpcap_guestlist_state', __( 'Nur ausgestellte Einträge können erneut gesendet werden.', 'wp-pass-captain' ), 409 ); }
+		if ( 'issued' !== $entry->status || ! $entry->order_id ) { return self::error( 'wpcap_guestlist_state', __( 'Nur ausgestellte Einträge können erneut gesendet werden.', 'pass-captain' ), 409 ); }
 		$email = sanitize_email( (string) $email );
 		if ( '' !== $email ) {
-			if ( ! is_email( $email ) || self::is_placeholder_email( $email ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'wp-pass-captain' ) ); }
+			if ( ! is_email( $email ) || self::is_placeholder_email( $email ) ) { return self::error( 'wpcap_guestlist_entry_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
 			$wpdb->update( "{$p}wpcap_guest_entries", array( 'email' => $email, 'updated_at' => current_time( 'mysql', true ) ), array( 'entry_id' => (int) $entry->entry_id ) );
 			$wpdb->update( "{$p}wpcap_orders", array( 'customer_email' => $email ), array( 'order_id' => (int) $entry->order_id ) );
 			\PassCaptain\Privacy\AccessLog::correction( 'guest_entry', (int) $entry->entry_id, array( 'email' => self::is_placeholder_email( (string) $entry->email ) ? '' : (string) $entry->email ), array( 'email' => $email ), array( 'order_id' => (int) $entry->order_id, 'event_id' => (int) $list->event_id, 'source' => 'guestlist_resend' ) );
 			$entry->email = $email;
 		}
-		if ( '' === (string) $entry->email ) { return self::error( 'wpcap_guestlist_no_email', __( 'Für diesen Gast ist keine E-Mail-Adresse hinterlegt. Die Tickets liegen an der Abendkasse (Abholliste).', 'wp-pass-captain' ) ); }
+		if ( '' === (string) $entry->email ) { return self::error( 'wpcap_guestlist_no_email', __( 'Für diesen Gast ist keine E-Mail-Adresse hinterlegt. Die Tickets liegen an der Abendkasse (Abholliste).', 'pass-captain' ) ); }
 		$sent = Orders::resend_tickets( (int) $entry->order_id );
 		if ( is_wp_error( $sent ) ) { return $sent; }
 		Audit::record( 'guestlist_entry_resent', 'order', (int) $entry->order_id, array( 'entry_id' => (int) $entry->entry_id ) );
@@ -477,13 +477,13 @@ final class Service {
 		$p = $wpdb->prefix;
 		$entry = self::get_entry( $entry_id );
 		$list = $entry ? self::get_list( $entry->list_id ) : null;
-		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_manage( $list->event_id ) ) { return self::forbidden(); }
 		if ( 'cancelled' === $entry->status ) { return $entry; }
-		if ( 'rejected' === $entry->status ) { return self::error( 'wpcap_guestlist_state', __( 'Abgelehnte Einträge können nicht storniert werden.', 'wp-pass-captain' ), 409 ); }
+		if ( 'rejected' === $entry->status ) { return self::error( 'wpcap_guestlist_state', __( 'Abgelehnte Einträge können nicht storniert werden.', 'pass-captain' ), 409 ); }
 		if ( $entry->order_id ) {
 			$checked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t WHERE t.order_id=%d AND (t.status='checked_in' OR EXISTS (SELECT 1 FROM {$p}wpcap_checkins c WHERE c.ticket_id=t.ticket_id AND c.result='checked_in'))", (int) $entry->order_id ) );
-			if ( $checked ) { return self::error( 'wpcap_guestlist_checked_in', __( 'Mindestens ein Ticket dieses Eintrags wurde bereits eingecheckt; der Eintrag kann nicht mehr storniert werden.', 'wp-pass-captain' ), 409 ); }
+			if ( $checked ) { return self::error( 'wpcap_guestlist_checked_in', __( 'Mindestens ein Ticket dieses Eintrags wurde bereits eingecheckt; der Eintrag kann nicht mehr storniert werden.', 'pass-captain' ), 409 ); }
 		}
 		$now = current_time( 'mysql', true );
 		// Tickets first: if that fails the entry stays active and the cancellation can be repeated.
@@ -575,7 +575,7 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$event_id = Scope::occurrence_event( $occurrence_id );
-		if ( ! $event_id ) { return self::error( 'wpcap_guestlist_occurrence', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $event_id ) { return self::error( 'wpcap_guestlist_occurrence', __( 'Termin nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_view_will_call( $event_id ) || ! \PassCaptain\Access::occurrence_in_scope( $occurrence_id ) ) { return self::forbidden(); }
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT g.*,l.name AS list_name,l.reason,tt.name AS ticket_name FROM {$p}wpcap_guest_entries g INNER JOIN {$p}wpcap_guest_lists l ON l.list_id=g.list_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=g.ticket_type_id WHERE g.occurrence_id=%d AND g.status IN ('approved','issuing','issued') ORDER BY g.name,g.company,g.entry_id", absint( $occurrence_id ) ) );
 		$rows = self::decorate( $rows );
@@ -598,7 +598,7 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$event_id = Scope::occurrence_event( $occurrence_id );
-		if ( ! $event_id ) { return self::error( 'wpcap_guestlist_occurrence', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $event_id ) { return self::error( 'wpcap_guestlist_occurrence', __( 'Termin nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_checkin( $event_id ) || ! \PassCaptain\Access::occurrence_in_scope( $occurrence_id ) ) { return self::forbidden(); }
 		$query = trim( sanitize_text_field( (string) $query ) );
 		if ( mb_strlen( $query ) < 2 ) { return array(); }
@@ -634,13 +634,13 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$entry = self::get_entry( $entry_id );
-		if ( ! $entry ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $entry ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! self::can_checkin( $entry->event_id ) ) { return self::forbidden(); }
-		if ( 'issued' !== $entry->status || ! $entry->order_id ) { return self::error( 'wpcap_guestlist_state', __( 'Für diesen Eintrag sind keine Tickets ausgestellt.', 'wp-pass-captain' ), 409 ); }
+		if ( 'issued' !== $entry->status || ! $entry->order_id ) { return self::error( 'wpcap_guestlist_state', __( 'Für diesen Eintrag sind keine Tickets ausgestellt.', 'pass-captain' ), 409 ); }
 		$ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' ORDER BY ticket_id", (int) $entry->order_id ) ) );
 		$count = absint( $count );
 		if ( $count ) { $ids = array_slice( $ids, 0, $count ); }
-		if ( ! $ids ) { return self::error( 'wpcap_guestlist_all_checked_in', __( 'Alle Tickets dieses Eintrags sind bereits eingecheckt.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $ids ) { return self::error( 'wpcap_guestlist_all_checked_in', __( 'Alle Tickets dieses Eintrags sind bereits eingecheckt.', 'pass-captain' ), 409 ); }
 		$checked = 0;
 		$errors = array();
 		foreach ( $ids as $ticket_id ) {
@@ -674,7 +674,7 @@ final class Service {
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT g.*,l.name AS list_name,l.reason,tt.name AS ticket_name,o.starts_at,o.timezone FROM {$p}wpcap_guest_entries g INNER JOIN {$p}wpcap_guest_lists l ON l.list_id=g.list_id LEFT JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=g.ticket_type_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=g.occurrence_id WHERE g.event_id=%d{$where} ORDER BY l.name,g.name,g.entry_id", absint( $event_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
 		$reasons = self::reasons();
 		$statuses = self::status_labels();
-		$out = array( array( __( 'Liste', 'wp-pass-captain' ), __( 'Grund', 'wp-pass-captain' ), __( 'Termin', 'wp-pass-captain' ), __( 'Name', 'wp-pass-captain' ), __( 'E-Mail', 'wp-pass-captain' ), __( 'Firma', 'wp-pass-captain' ), __( 'Tickets', 'wp-pass-captain' ), __( 'Begleitpersonen', 'wp-pass-captain' ), __( 'Ticketart', 'wp-pass-captain' ), __( 'Status', 'wp-pass-captain' ), __( 'Ticketcodes', 'wp-pass-captain' ), __( 'Eingecheckt', 'wp-pass-captain' ), __( 'Notiz', 'wp-pass-captain' ) ) );
+		$out = array( array( __( 'Liste', 'pass-captain' ), __( 'Grund', 'pass-captain' ), __( 'Termin', 'pass-captain' ), __( 'Name', 'pass-captain' ), __( 'E-Mail', 'pass-captain' ), __( 'Firma', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), __( 'Begleitpersonen', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'Ticketcodes', 'pass-captain' ), __( 'Eingecheckt', 'pass-captain' ), __( 'Notiz', 'pass-captain' ) ) );
 		foreach ( self::decorate( $rows ) as $e ) {
 			$out[] = array( $e->list_name, $reasons[ $e->reason ] ?? $e->reason, Scope::local( $e->starts_at, $e->timezone ), $e->name, self::is_placeholder_email( $e->email ) ? '' : $e->email, $e->company, (int) $e->quantity, (int) $e->plus_ones, (string) $e->ticket_name, $statuses[ $e->status ] ?? $e->status, implode( ' ', $e->codes ), (int) $e->tickets_checked_in, $e->note );
 		}

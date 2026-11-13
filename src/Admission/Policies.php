@@ -24,11 +24,11 @@ final class Policies {
 
 	public static function labels() {
 		return array(
-			'single' => __( 'Einmaliger Einlass', 'wp-pass-captain' ),
-			'daily' => __( 'Täglicher Einlass (einmal pro gültigem Tag)', 'wp-pass-captain' ),
-			'multi_day' => __( 'Mehrtagesticket (gewählte Tage, einmal pro Tag)', 'wp-pass-captain' ),
-			'multi_entry' => __( 'Mehrfacheinlass (N Einlässe insgesamt)', 'wp-pass-captain' ),
-			'reentry' => __( 'Wiedereinlass (Auslass, dann erneuter Einlass)', 'wp-pass-captain' ),
+			'single' => __( 'Einmaliger Einlass', 'pass-captain' ),
+			'daily' => __( 'Täglicher Einlass (einmal pro gültigem Tag)', 'pass-captain' ),
+			'multi_day' => __( 'Mehrtagesticket (gewählte Tage, einmal pro Tag)', 'pass-captain' ),
+			'multi_entry' => __( 'Mehrfacheinlass (N Einlässe insgesamt)', 'pass-captain' ),
+			'reentry' => __( 'Wiedereinlass (Auslass, dann erneuter Einlass)', 'pass-captain' ),
 		);
 	}
 
@@ -78,28 +78,28 @@ final class Policies {
 		$ticket_type_id = absint( $ticket_type_id );
 		$policy = isset( $in['policy'] ) && in_array( (string) $in['policy'], self::TYPES, true ) ? (string) $in['policy'] : '';
 		if ( ! $ticket_type_id || '' === $policy ) {
-			return self::invalid( __( 'Unbekannte Einlassregel.', 'wp-pass-captain' ) );
+			return self::invalid( __( 'Unbekannte Einlassregel.', 'pass-captain' ) );
 		}
 		$max = absint( $in['max_entries'] ?? 0 );
 		if ( 'multi_entry' === $policy && ( $max < 1 || $max > 1000 ) ) {
-			return self::invalid( __( 'Für Mehrfacheinlass bitte 1 bis 1000 Einlässe angeben.', 'wp-pass-captain' ) );
+			return self::invalid( __( 'Für Mehrfacheinlass bitte 1 bis 1000 Einlässe angeben.', 'pass-captain' ) );
 		}
 		if ( 'reentry' === $policy && $max > 1000 ) {
-			return self::invalid( __( 'Höchstens 1000 Einlässe.', 'wp-pass-captain' ) );
+			return self::invalid( __( 'Höchstens 1000 Einlässe.', 'pass-captain' ) );
 		}
 		if ( ! in_array( $policy, array( 'multi_entry', 'reentry' ), true ) ) { $max = 0; }
 		$dates = array();
 		if ( 'multi_day' === $policy ) {
 			$dates = self::parse_dates( $in['valid_dates'] ?? '' );
 			if ( is_wp_error( $dates ) ) { return $dates; }
-			if ( ! $dates ) { return self::invalid( __( 'Für Mehrtagestickets mindestens einen gültigen Tag angeben.', 'wp-pass-captain' ) ); }
+			if ( ! $dates ) { return self::invalid( __( 'Für Mehrtagestickets mindestens einen gültigen Tag angeben.', 'pass-captain' ) ); }
 		}
 		$minutes = array();
 		foreach ( array( 'opens_before_minutes', 'closes_after_minutes' ) as $field ) {
 			$raw = isset( $in[ $field ] ) && is_scalar( $in[ $field ] ) ? trim( (string) $in[ $field ] ) : '';
 			if ( '' === $raw ) { $minutes[ $field ] = null; continue; }
 			if ( ! preg_match( '/^-?\d{1,6}$/', $raw ) || abs( (int) $raw ) > 525600 ) {
-				return self::invalid( __( 'Das Einlassfenster muss in ganzen Minuten angegeben werden.', 'wp-pass-captain' ) );
+				return self::invalid( __( 'Das Einlassfenster muss in ganzen Minuten angegeben werden.', 'pass-captain' ) );
 			}
 			$minutes[ $field ] = (int) $raw;
 		}
@@ -108,19 +108,19 @@ final class Policies {
 			$raw = isset( $in[ $field ] ) && is_scalar( $in[ $field ] ) ? trim( (string) $in[ $field ] ) : '';
 			if ( '' === $raw ) { $hours[ $field ] = null; continue; }
 			if ( ! preg_match( '/^([01]\d|2[0-3]):[0-5]\d$/', $raw ) ) {
-				return self::invalid( __( 'Uhrzeiten bitte als HH:MM angeben.', 'wp-pass-captain' ) );
+				return self::invalid( __( 'Uhrzeiten bitte als HH:MM angeben.', 'pass-captain' ) );
 			}
 			$hours[ $field ] = $raw;
 		}
 		if ( $hours['day_from'] && $hours['day_until'] && $hours['day_until'] <= $hours['day_from'] ) {
-			return self::invalid( __( 'Die tägliche Einlasszeit muss vor ihrem Ende beginnen.', 'wp-pass-captain' ) );
+			return self::invalid( __( 'Die tägliche Einlasszeit muss vor ihrem Ende beginnen.', 'pass-captain' ) );
 		}
 		$wpdb->query( $wpdb->prepare(
 			'REPLACE INTO ' . self::table() . ' (ticket_type_id,policy,max_entries,valid_dates,opens_before_minutes,closes_after_minutes,day_from,day_until,updated_by,updated_at) VALUES (%d,%s,%d,%s,' . ( null === $minutes['opens_before_minutes'] ? 'NULL' : (int) $minutes['opens_before_minutes'] ) . ',' . ( null === $minutes['closes_after_minutes'] ? 'NULL' : (int) $minutes['closes_after_minutes'] ) . ',' . ( $hours['day_from'] ? "'" . $hours['day_from'] . "'" : 'NULL' ) . ',' . ( $hours['day_until'] ? "'" . $hours['day_until'] . "'" : 'NULL' ) . ',%d,%s)', // phpcs:ignore WordPress.DB.PreparedSQL -- integers and regex-validated HH:MM only.
 			$ticket_type_id, $policy, $max, wp_json_encode( $dates ), get_current_user_id(), current_time( 'mysql', true )
 		) );
 		if ( $wpdb->last_error ) {
-			return new \WP_Error( 'wpcap_admission_policy_save', __( 'Einlassregel konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+			return new \WP_Error( 'wpcap_admission_policy_save', __( 'Einlassregel konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
 		return self::for_type( $ticket_type_id );
 	}
@@ -155,14 +155,14 @@ final class Policies {
 			$item = trim( (string) $item );
 			if ( '' === $item ) { continue; }
 			$parts = explode( '..', $item );
-			if ( count( $parts ) > 2 ) { return self::invalid( __( 'Ungültige Datumsangabe.', 'wp-pass-captain' ) ); }
+			if ( count( $parts ) > 2 ) { return self::invalid( __( 'Ungültige Datumsangabe.', 'pass-captain' ) ); }
 			$from = self::valid_date( $parts[0] );
 			$to = self::valid_date( $parts[1] ?? $parts[0] );
-			if ( ! $from || ! $to || $to < $from ) { return self::invalid( __( 'Ungültige Datumsangabe.', 'wp-pass-captain' ) ); }
+			if ( ! $from || ! $to || $to < $from ) { return self::invalid( __( 'Ungültige Datumsangabe.', 'pass-captain' ) ); }
 			$day = new \DateTimeImmutable( $from, new \DateTimeZone( 'UTC' ) );
 			while ( $day->format( 'Y-m-d' ) <= $to ) {
 				$out[ $day->format( 'Y-m-d' ) ] = true;
-				if ( count( $out ) > self::MAX_DATES ) { return self::invalid( __( 'Zu viele Tage (höchstens 366).', 'wp-pass-captain' ) ); }
+				if ( count( $out ) > self::MAX_DATES ) { return self::invalid( __( 'Zu viele Tage (höchstens 366).', 'pass-captain' ) ); }
 				$day = $day->modify( '+1 day' );
 			}
 		}

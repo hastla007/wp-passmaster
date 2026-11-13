@@ -37,12 +37,12 @@ final class Cash {
 		foreach ( $counts as $value => $qty ) {
 			if ( ! is_scalar( $qty ) || '' === trim( (string) $qty ) ) { continue; }
 			if ( ! preg_match( '/^\d+$/', trim( (string) $qty ) ) ) {
-				return new \WP_Error( 'wpcap_pos_denomination', __( 'Bitte bei der Stückelung nur ganze Stückzahlen eintragen.', 'wp-pass-captain' ) );
+				return new \WP_Error( 'wpcap_pos_denomination', __( 'Bitte bei der Stückelung nur ganze Stückzahlen eintragen.', 'pass-captain' ) );
 			}
 			$qty = (int) $qty;
 			$value = absint( $value );
 			if ( ! in_array( $value, $allowed, true ) ) {
-				return new \WP_Error( 'wpcap_pos_denomination', __( 'Unbekannte Stückelung.', 'wp-pass-captain' ) );
+				return new \WP_Error( 'wpcap_pos_denomination', __( 'Unbekannte Stückelung.', 'pass-captain' ) );
 			}
 			if ( $qty > 0 ) { $out[ $value ] = $qty; }
 		}
@@ -69,14 +69,14 @@ final class Cash {
 		if ( $counts ) {
 			$sum = self::sum( $counts );
 			if ( null !== $amount_minor && '' !== $amount_minor && (int) $amount_minor !== $sum ) {
-				return new \WP_Error( 'wpcap_pos_denomination_sum', __( 'Der Betrag stimmt nicht mit der Summe der Stückelung überein.', 'wp-pass-captain' ) );
+				return new \WP_Error( 'wpcap_pos_denomination_sum', __( 'Der Betrag stimmt nicht mit der Summe der Stückelung überein.', 'pass-captain' ) );
 			}
 			return array( $sum, $counts );
 		}
 		if ( null === $amount_minor || '' === $amount_minor ) {
-			return new \WP_Error( 'wpcap_pos_amount', __( 'Bitte den gezählten Betrag oder die Stückelung angeben.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_pos_amount', __( 'Bitte den gezählten Betrag oder die Stückelung angeben.', 'pass-captain' ) );
 		}
-		if ( (int) $amount_minor < 0 ) { return new \WP_Error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'wp-pass-captain' ) ); }
+		if ( (int) $amount_minor < 0 ) { return new \WP_Error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'pass-captain' ) ); }
 		return array( (int) $amount_minor, array() );
 	}
 }

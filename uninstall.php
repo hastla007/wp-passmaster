@@ -21,6 +21,10 @@ function wpcap_uninstall_site() {
 	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_reconcile_capacity', 'wpcap_run_upgrade', 'wpcap_privacy_retention', 'wpcap_privacy_purge_wallet_registrations', 'wpcap_waitlist_process' ) as $hook ) {
 		wp_unschedule_hook( $hook ); // All events of the hook, including continuation runs with arguments.
 	}
+	// The pre-rename copy (folder wp-pass-captain) still installed: it uses the same tables – keep them. (legacy-slug)
+	if ( is_file( WP_PLUGIN_DIR . '/wp-pass-captain/wp-pass-captain.php' ) ) { // legacy-slug
+		return false;
+	}
 	$settings = get_option( 'wpcap_settings', array() );
 	if ( empty( $settings['delete_data_on_uninstall'] ) ) {
 		return false;

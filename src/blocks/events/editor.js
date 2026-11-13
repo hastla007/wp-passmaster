@@ -8,13 +8,13 @@
 		edit: function ( props ) {
 			var attrs = props.attributes;
 			var blockProps = blockEditor.useBlockProps ? blockEditor.useBlockProps() : {};
-			var eventOptions = [ { value: '0', label: __( 'Alle Events', 'wp-pass-captain' ) } ].concat( data.events.map( function ( e ) { return { value: String( e.id ), label: e.label }; } ) );
+			var eventOptions = [ { value: '0', label: __( 'Alle Events', 'pass-captain' ) } ].concat( data.events.map( function ( e ) { return { value: String( e.id ), label: e.label }; } ) );
 			var current = data.events.filter( function ( e ) { return e.id === attrs.event; } )[ 0 ];
-			var occurrenceOptions = [ { value: '0', label: __( 'Alle Termine', 'wp-pass-captain' ) } ].concat( ( current ? current.occurrences : [] ).map( function ( o ) { return { value: String( o.id ), label: o.label }; } ) );
+			var occurrenceOptions = [ { value: '0', label: __( 'Alle Termine', 'pass-captain' ) } ].concat( ( current ? current.occurrences : [] ).map( function ( o ) { return { value: String( o.id ), label: o.label }; } ) );
 			var controls = blockEditor.InspectorControls && components && components.SelectControl ? el( blockEditor.InspectorControls, {},
-				el( components.PanelBody, { title: __( 'Auswahl', 'wp-pass-captain' ) },
-					el( components.SelectControl, { label: __( 'Event', 'wp-pass-captain' ), value: String( attrs.event || 0 ), options: eventOptions, onChange: function ( v ) { props.setAttributes( { event: parseInt( v, 10 ) || 0, occurrence: 0 } ); } } ),
-					attrs.event ? el( components.SelectControl, { label: __( 'Termin', 'wp-pass-captain' ), value: String( attrs.occurrence || 0 ), options: occurrenceOptions, onChange: function ( v ) { props.setAttributes( { occurrence: parseInt( v, 10 ) || 0 } ); } } ) : null
+				el( components.PanelBody, { title: __( 'Auswahl', 'pass-captain' ) },
+					el( components.SelectControl, { label: __( 'Event', 'pass-captain' ), value: String( attrs.event || 0 ), options: eventOptions, onChange: function ( v ) { props.setAttributes( { event: parseInt( v, 10 ) || 0, occurrence: 0 } ); } } ),
+					attrs.event ? el( components.SelectControl, { label: __( 'Termin', 'pass-captain' ), value: String( attrs.occurrence || 0 ), options: occurrenceOptions, onChange: function ( v ) { props.setAttributes( { occurrence: parseInt( v, 10 ) || 0 } ); } } ) : null
 				)
 			) : null;
 			return el( element.Fragment, {}, controls, el( 'div', blockProps, el( serverSideRender, { block: 'wp-pass-captain/events', attributes: attrs } ) ) );

@@ -1,5 +1,5 @@
 <?php
-/** Safe, versioned integration boundary for WP Voucher Captain. */
+/** Safe, versioned integration boundary for Voucher Captain. */
 namespace PassCaptain\Integrations\Vouchers;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -18,7 +18,7 @@ final class Bridge {
 
 	public static function quote( array $context ) {
 		$provider = self::provider();
-		return $provider ? $provider->quote( $context ) : new \WP_Error( 'wpcap_voucher_unavailable', __( 'Es ist kein kompatibler WP Voucher Captain Anbieter aktiv.', 'wp-pass-captain' ) );
+		return $provider ? $provider->quote( $context ) : new \WP_Error( 'wpcap_voucher_unavailable', __( 'Es ist kein kompatibler Voucher Captain Anbieter aktiv.', 'pass-captain' ) );
 	}
 
 	public static function reserve( array $quote, $key ) { return self::call( 'reserve', array( $quote, sanitize_text_field( $key ) ) ); }
@@ -28,7 +28,7 @@ final class Bridge {
 
 	private static function call( $method, array $args ) {
 		$provider = self::provider();
-		if ( ! $provider ) { return new \WP_Error( 'wpcap_voucher_unavailable', __( 'Es ist kein kompatibler WP Voucher Captain Anbieter aktiv.', 'wp-pass-captain' ) ); }
+		if ( ! $provider ) { return new \WP_Error( 'wpcap_voucher_unavailable', __( 'Es ist kein kompatibler Voucher Captain Anbieter aktiv.', 'pass-captain' ) ); }
 		return call_user_func_array( array( $provider, $method ), $args );
 	}
 }

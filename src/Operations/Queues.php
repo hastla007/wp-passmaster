@@ -64,9 +64,9 @@ final class Queues {
 	/** Display names of the queues. */
 	public static function labels() {
 		return array(
-			'jobs'     => __( 'Hintergrundjobs', 'wp-pass-captain' ),
-			'messages' => __( 'E-Mail-Warteschlange', 'wp-pass-captain' ),
-			'webhooks' => __( 'Webhook-Zustellungen', 'wp-pass-captain' ),
+			'jobs'     => __( 'Hintergrundjobs', 'pass-captain' ),
+			'messages' => __( 'E-Mail-Warteschlange', 'pass-captain' ),
+			'webhooks' => __( 'Webhook-Zustellungen', 'pass-captain' ),
 		);
 	}
 
@@ -204,9 +204,9 @@ final class Queues {
 	public static function retry( $queue, array $ids ) {
 		global $wpdb;
 		$def = self::def( $queue );
-		if ( ! $def ) { return new \WP_Error( 'wpcap_operations_queue', __( 'Unbekannte Warteschlange.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $def ) { return new \WP_Error( 'wpcap_operations_queue', __( 'Unbekannte Warteschlange.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$ids = self::clean_ids( $ids );
-		if ( ! $ids ) { return new \WP_Error( 'wpcap_operations_empty', __( 'Bitte mindestens einen Eintrag auswählen.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $ids ) { return new \WP_Error( 'wpcap_operations_empty', __( 'Bitte mindestens einen Eintrag auswählen.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$table = $wpdb->prefix . $def['table'];
 		$now = current_time( 'mysql', true );
 		$done = array();
@@ -238,9 +238,9 @@ final class Queues {
 	public static function discard( $queue, array $ids ) {
 		global $wpdb;
 		$def = self::def( $queue );
-		if ( ! $def ) { return new \WP_Error( 'wpcap_operations_queue', __( 'Unbekannte Warteschlange.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $def ) { return new \WP_Error( 'wpcap_operations_queue', __( 'Unbekannte Warteschlange.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$ids = self::clean_ids( $ids );
-		if ( ! $ids ) { return new \WP_Error( 'wpcap_operations_empty', __( 'Bitte mindestens einen Eintrag auswählen.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $ids ) { return new \WP_Error( 'wpcap_operations_empty', __( 'Bitte mindestens einen Eintrag auswählen.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$table = $wpdb->prefix . $def['table'];
 		$id_col = $def['id'];
 		$set = 'messages' === $queue ? "status='cancelled', locked_at=NULL" : $wpdb->prepare( "status='cancelled', locked_at=NULL, updated_at=%s", current_time( 'mysql', true ) );

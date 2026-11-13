@@ -62,7 +62,7 @@ $mails_before = count( $GLOBALS['wpcap_test_mails'] );
 $eo = Orders::create( array( 'email' => 'e2e@example.com', 'items' => array( array( 'ticket_type_id' => $et, 'quantity' => 1 ) ), 'idempotency_key' => 'zz-e2e-1' ) );
 $e2e_mails = array_slice( $GLOBALS['wpcap_test_mails'], $mails_before );
 $e2e_ticket_mail = array_values( array_filter( $e2e_mails, static fn( $m ) => str_starts_with( $m['subject'], 'Deine Tickets' ) ) )[0] ?? array( 'body' => '', 'subject' => '' );
-check( 'ticket mail shows local start time and site name instead of plugin name', false !== strpos( $e2e_ticket_mail['body'], '15.01.2027 19:30 Europe/Vienna' ) && false === strpos( $e2e_ticket_mail['subject'] . $e2e_ticket_mail['body'], 'WP Pass Captain' ) );
+check( 'ticket mail shows local start time and site name instead of plugin name', false !== strpos( $e2e_ticket_mail['body'], '15.01.2027 19:30 Europe/Vienna' ) && false === strpos( $e2e_ticket_mail['subject'] . $e2e_ticket_mail['body'], 'Pass Captain' ) );
 $access = array_values( array_filter( $e2e_mails, static fn( $m ) => false !== strpos( $m['body'], 'wpcap_access=' ) ) );
 preg_match( '/wpcap_access=([a-f0-9]{64})/', $access ? end( $access )['body'] : '', $eam );
 $eticket = tickets( $eo['order_id'] )[0];

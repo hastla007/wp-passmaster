@@ -37,7 +37,7 @@ function off_sync( $token, array $scans ) {
 	$req = app_request( 'POST', $token, array( 'scans' => $scans ) );
 	$auth = Api::authenticate( $req );
 	if ( true !== $auth ) { return $auth; }
-	$req->route = '/wp-pass-captain/v1/app/scan/sync';
+	$req->route = '/pass-captain/v1/app/scan/sync';
 	$res = Rest::after_callbacks( Api::sync( $req ), null, $req );
 	return $res->get_data();
 }
@@ -180,7 +180,7 @@ $opt = get_option( Keys::OPTION );
 $opt['keys'][ $old_kid ]['valid_until'] = time() - 1;
 update_option( Keys::OPTION, $opt );
 check( 'after the grace period the old key is no longer published and its packages fail', ! in_array( $old_kid, array_column( Keys::public_keys(), 'key_id' ), true ) && null === Package::verify( $old_pkg ) );
-$pair_req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/app/pair' );
+$pair_req = new WP_REST_Request( 'POST', '/pass-captain/v1/app/pair' );
 $pair_res = Rest::after_callbacks( new WP_REST_Response( array( 'token' => 'x', 'device_id' => 'y' ), 201 ), null, $pair_req );
 check( 'pairing response delivers the trusted public keys', $rot['key_id'] === $pair_res->get_data()['offline']['keys'][0]['key_id'] && 1 === $pair_res->get_data()['offline']['package_format'] );
 

@@ -138,7 +138,7 @@ final class Attendees {
 		}
 		foreach ( $out as $entry ) {
 			if ( '' !== $entry['email'] && ! is_email( $entry['email'] ) ) {
-				return new \WP_Error( 'wpcap_attendee_email_invalid', __( 'Bitte eine gültige E-Mail-Adresse für die teilnehmende Person angeben oder das Feld leer lassen.', 'wp-pass-captain' ) );
+				return new \WP_Error( 'wpcap_attendee_email_invalid', __( 'Bitte eine gültige E-Mail-Adresse für die teilnehmende Person angeben oder das Feld leer lassen.', 'pass-captain' ) );
 			}
 		}
 		$valid = Orders::validate_attendees( $quantities, $out );
@@ -176,7 +176,7 @@ final class Attendees {
 			wp_enqueue_style( self::HANDLE, WPCAP_URL . 'assets/woocommerce/attendees.css', array(), WPCAP_VERSION );
 		}
 		echo '<div class="wpcap-woo-attendees" id="wpcap-woo-attendees">';
-		echo '<h3>' . esc_html__( 'Angaben zu den Teilnehmenden', 'wp-pass-captain' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Angaben zu den Teilnehmenden', 'pass-captain' ) . '</h3>';
 		$number = 0;
 		foreach ( $requirements as $requirement ) {
 			$type_id = $requirement['ticket_type_id'];
@@ -189,9 +189,9 @@ final class Attendees {
 					$v     = in_array( $key, array( 'name', 'email' ), true ) ? ( $entry[ $key ] ?? '' ) : ( $entry['answers'][ $key ] ?? '' );
 					return is_scalar( $v ) ? sanitize_text_field( (string) $v ) : '';
 				};
-				echo '<fieldset class="wpcap-woo-attendee"><legend>' . esc_html( sprintf( /* translators: 1: ticket number, 2: event and ticket name */ __( 'Ticket %1$d · %2$s', 'wp-pass-captain' ), $number, $requirement['label'] ) ) . '</legend>';
-				woocommerce_form_field( $base . '[name]', array( 'type' => 'text', 'id' => $id . '_name', 'label' => __( 'Name', 'wp-pass-captain' ), 'autocomplete' => 'off', 'custom_attributes' => array( 'maxlength' => 190 ) ), $value( 'name' ) );
-				woocommerce_form_field( $base . '[email]', array( 'type' => 'email', 'id' => $id . '_email', 'label' => __( 'E-Mail', 'wp-pass-captain' ), 'autocomplete' => 'off' ), $value( 'email' ) );
+				echo '<fieldset class="wpcap-woo-attendee"><legend>' . esc_html( sprintf( /* translators: 1: ticket number, 2: event and ticket name */ __( 'Ticket %1$d · %2$s', 'pass-captain' ), $number, $requirement['label'] ) ) . '</legend>';
+				woocommerce_form_field( $base . '[name]', array( 'type' => 'text', 'id' => $id . '_name', 'label' => __( 'Name', 'pass-captain' ), 'autocomplete' => 'off', 'custom_attributes' => array( 'maxlength' => 190 ) ), $value( 'name' ) );
+				woocommerce_form_field( $base . '[email]', array( 'type' => 'email', 'id' => $id . '_email', 'label' => __( 'E-Mail', 'pass-captain' ), 'autocomplete' => 'off' ), $value( 'email' ) );
 				foreach ( $requirement['fields'] as $index => $field ) {
 					woocommerce_form_field(
 						$base . '[answers][' . $field['key'] . ']',
@@ -269,7 +269,7 @@ final class Attendees {
 	public static function cart_schema() {
 		return array(
 			'attendee_types' => array(
-				'description' => __( 'Ticketarten, für die Angaben zu den Teilnehmenden nötig sind.', 'wp-pass-captain' ),
+				'description' => __( 'Ticketarten, für die Angaben zu den Teilnehmenden nötig sind.', 'pass-captain' ),
 				'type'        => 'array',
 				'context'     => array( 'view', 'edit' ),
 				'readonly'    => true,
@@ -281,7 +281,7 @@ final class Attendees {
 	public static function checkout_schema() {
 		return array(
 			'attendees' => array(
-				'description' => __( 'Angaben zu den Teilnehmenden je Ticket (JSON).', 'wp-pass-captain' ),
+				'description' => __( 'Angaben zu den Teilnehmenden je Ticket (JSON).', 'pass-captain' ),
 				'type'        => array( 'string', 'null' ),
 				'context'     => array( 'view', 'edit' ),
 				'maxLength'   => 200000,
@@ -322,15 +322,15 @@ final class Attendees {
 	public static function script_data() {
 		return array(
 			'i18n' => array(
-				'title'        => __( 'Angaben zu den Teilnehmenden', 'wp-pass-captain' ),
+				'title'        => __( 'Angaben zu den Teilnehmenden', 'pass-captain' ),
 				/* translators: 1: ticket number, 2: event and ticket name */
-				'ticket'       => __( 'Ticket %1$d · %2$s', 'wp-pass-captain' ),
-				'name'         => __( 'Name', 'wp-pass-captain' ),
-				'email'        => __( 'E-Mail', 'wp-pass-captain' ),
-				'optional'     => __( '(optional)', 'wp-pass-captain' ),
+				'ticket'       => __( 'Ticket %1$d · %2$s', 'pass-captain' ),
+				'name'         => __( 'Name', 'pass-captain' ),
+				'email'        => __( 'E-Mail', 'pass-captain' ),
+				'optional'     => __( '(optional)', 'pass-captain' ),
 				/* translators: %s: field label */
-				'required'     => __( 'Bitte „%s“ ausfüllen.', 'wp-pass-captain' ),
-				'invalidEmail' => __( 'Bitte eine gültige E-Mail-Adresse angeben.', 'wp-pass-captain' ),
+				'required'     => __( 'Bitte „%s“ ausfüllen.', 'pass-captain' ),
+				'invalidEmail' => __( 'Bitte eine gültige E-Mail-Adresse angeben.', 'pass-captain' ),
 			),
 		);
 	}

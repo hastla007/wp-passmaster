@@ -353,17 +353,17 @@ final class Secrets {
 	/** Human-readable label of a secret for notices. */
 	public static function label( $key ) {
 		$labels = array(
-			'stripe_secret_key' => __( 'Stripe Secret Key', 'wp-pass-captain' ),
-			'stripe_webhook_secret' => __( 'Stripe Webhook-Signing-Secret', 'wp-pass-captain' ),
-			'paypal_client_secret' => __( 'PayPal Client-Secret', 'wp-pass-captain' ),
-			'mollie_api_key' => __( 'Mollie API-Schlüssel', 'wp-pass-captain' ),
-			'twilio_auth_token' => __( 'Twilio Auth Token', 'wp-pass-captain' ),
-			'sms_http_secret' => __( 'SMS-HTTP-Zugangsdaten', 'wp-pass-captain' ),
-			'apple_pass_cert' => __( 'Apple-Wallet-Zertifikat', 'wp-pass-captain' ),
-			'apple_pass_key' => __( 'Apple-Wallet-Schlüssel', 'wp-pass-captain' ),
-			'apple_pass_key_password' => __( 'Apple-Wallet-Schlüsselpasswort', 'wp-pass-captain' ),
-			'apple_wwdr_cert' => __( 'Apple-WWDR-Zertifikat', 'wp-pass-captain' ),
-			'google_wallet_service_account' => __( 'Google-Wallet-Servicekonto', 'wp-pass-captain' ),
+			'stripe_secret_key' => __( 'Stripe Secret Key', 'pass-captain' ),
+			'stripe_webhook_secret' => __( 'Stripe Webhook-Signing-Secret', 'pass-captain' ),
+			'paypal_client_secret' => __( 'PayPal Client-Secret', 'pass-captain' ),
+			'mollie_api_key' => __( 'Mollie API-Schlüssel', 'pass-captain' ),
+			'twilio_auth_token' => __( 'Twilio Auth Token', 'pass-captain' ),
+			'sms_http_secret' => __( 'SMS-HTTP-Zugangsdaten', 'pass-captain' ),
+			'apple_pass_cert' => __( 'Apple-Wallet-Zertifikat', 'pass-captain' ),
+			'apple_pass_key' => __( 'Apple-Wallet-Schlüssel', 'pass-captain' ),
+			'apple_pass_key_password' => __( 'Apple-Wallet-Schlüsselpasswort', 'pass-captain' ),
+			'apple_wwdr_cert' => __( 'Apple-WWDR-Zertifikat', 'pass-captain' ),
+			'google_wallet_service_account' => __( 'Google-Wallet-Servicekonto', 'pass-captain' ),
 		);
 		return $labels[ $key ] ?? (string) $key;
 	}
@@ -374,15 +374,15 @@ final class Secrets {
 			case 'constant':
 			case 'env':
 				/* translators: %s: constant name */
-				return sprintf( __( 'Gesetzt über %s (wp-config.php oder Umgebungsvariable); ein hier gespeicherter Wert wird nicht verwendet.', 'wp-pass-captain' ), 'WPCAP_' . strtoupper( $key ) );
+				return sprintf( __( 'Gesetzt über %s (wp-config.php oder Umgebungsvariable); ein hier gespeicherter Wert wird nicht verwendet.', 'pass-captain' ), 'WPCAP_' . strtoupper( $key ) );
 			case 'undecryptable':
-				return __( 'Gespeichert, aber nicht entschlüsselbar (Schlüssel geändert?) – bitte neu eingeben. Bis dahin gilt der Dienst als nicht eingerichtet.', 'wp-pass-captain' );
+				return __( 'Gespeichert, aber nicht entschlüsselbar (Schlüssel geändert?) – bitte neu eingeben. Bis dahin gilt der Dienst als nicht eingerichtet.', 'pass-captain' );
 			case 'vault':
 				$hint = self::hint( $key );
 				/* translators: %s: last four characters, e.g. "…a1b2" */
-				return '' !== $hint ? sprintf( __( 'Gespeichert (verschlüsselt), endet auf %s', 'wp-pass-captain' ), $hint ) : __( 'Gespeichert (verschlüsselt)', 'wp-pass-captain' );
+				return '' !== $hint ? sprintf( __( 'Gespeichert (verschlüsselt), endet auf %s', 'pass-captain' ), $hint ) : __( 'Gespeichert (verschlüsselt)', 'pass-captain' );
 			default:
-				return __( 'Kein Wert gespeichert', 'wp-pass-captain' );
+				return __( 'Kein Wert gespeichert', 'pass-captain' );
 		}
 	}
 
@@ -404,7 +404,7 @@ final class Secrets {
 			return;
 		}
 		$stored = in_array( $source, array( 'vault', 'undecryptable' ), true );
-		$placeholder = $stored ? __( 'Leer lassen, um den gespeicherten Wert zu behalten', 'wp-pass-captain' ) : __( 'Nicht gesetzt', 'wp-pass-captain' );
+		$placeholder = $stored ? __( 'Leer lassen, um den gespeicherten Wert zu behalten', 'pass-captain' ) : __( 'Nicht gesetzt', 'pass-captain' );
 		if ( $multiline ) {
 			echo '<textarea class="large-text code" rows="3" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" autocomplete="off" placeholder="' . esc_attr( $placeholder ) . '"></textarea>';
 		} else {
@@ -412,10 +412,10 @@ final class Secrets {
 		}
 		echo ' <strong>' . esc_html( self::status_text( $key ) ) . '</strong>';
 		if ( $stored ) {
-			echo ' <label><input type="checkbox" name="' . esc_attr( $clear_name ) . '" value="1"> ' . esc_html__( 'Gespeicherten Wert löschen', 'wp-pass-captain' ) . '</label>';
+			echo ' <label><input type="checkbox" name="' . esc_attr( $clear_name ) . '" value="1"> ' . esc_html__( 'Gespeicherten Wert löschen', 'pass-captain' ) . '</label>';
 		}
 		/* translators: %s: constant name */
-		echo '<p class="description">' . esc_html( sprintf( __( 'Wird verschlüsselt gespeichert. Alternativ als Konstante %s in wp-config.php definieren.', 'wp-pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
+		echo '<p class="description">' . esc_html( sprintf( __( 'Wird verschlüsselt gespeichert. Alternativ als Konstante %s in wp-config.php definieren.', 'pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
 	}
 
 	/** Admin notice: undecryptable entries (error) and salt-derived key in use (warning). */
@@ -425,13 +425,13 @@ final class Secrets {
 		if ( ! $vault ) { return; }
 		$failed = self::undecryptable();
 		if ( $failed ) {
-			echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'WP Pass Captain: Gespeicherte Zugangsdaten können nicht entschlüsselt werden.', 'wp-pass-captain' ) . '</strong> '
+			echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Gespeicherte Zugangsdaten können nicht entschlüsselt werden.', 'pass-captain' ) . '</strong> '
 				. esc_html( implode( ', ', array_map( array( __CLASS__, 'label' ), $failed ) ) ) . '. '
-				. esc_html__( 'Die betroffenen Zahlungsarten und Dienste gelten bis zur Behebung als nicht eingerichtet. Ursache ist meist ein geänderter WPCAP_SECRETS_KEY oder geänderte WordPress-Salts: den bisherigen Schlüssel als WPCAP_SECRETS_KEY_PREVIOUS in wp-config.php eintragen oder die Werte in den Einstellungen neu eingeben.', 'wp-pass-captain' )
+				. esc_html__( 'Die betroffenen Zahlungsarten und Dienste gelten bis zur Behebung als nicht eingerichtet. Ursache ist meist ein geänderter WPCAP_SECRETS_KEY oder geänderte WordPress-Salts: den bisherigen Schlüssel als WPCAP_SECRETS_KEY_PREVIOUS in wp-config.php eintragen oder die Werte in den Einstellungen neu eingeben.', 'pass-captain' )
 				. '</p></div>';
 		}
 		if ( 'salts' === self::key_source() ) {
-			echo '<div class="notice notice-warning"><p>' . esc_html__( 'WP Pass Captain: Zugangsdaten (z. B. Stripe, PayPal) werden mit einem aus den WordPress-Salts abgeleiteten Schlüssel verschlüsselt. Empfohlen: einen eigenen Schlüssel als Konstante WPCAP_SECRETS_KEY in wp-config.php festlegen (mindestens 32 zufällige Zeichen) – sonst werden die Zugangsdaten unlesbar, wenn die Salts erneuert werden.', 'wp-pass-captain' ) . '</p></div>';
+			echo '<div class="notice notice-warning"><p>' . esc_html__( 'Pass Captain: Zugangsdaten (z. B. Stripe, PayPal) werden mit einem aus den WordPress-Salts abgeleiteten Schlüssel verschlüsselt. Empfohlen: einen eigenen Schlüssel als Konstante WPCAP_SECRETS_KEY in wp-config.php festlegen (mindestens 32 zufällige Zeichen) – sonst werden die Zugangsdaten unlesbar, wenn die Salts erneuert werden.', 'pass-captain' ) . '</p></div>';
 		}
 	}
 
@@ -442,14 +442,14 @@ final class Secrets {
 	 */
 	public static function debug_information( $info ) {
 		$fields = array(
-			'key_source' => array( 'label' => __( 'Schlüssel', 'wp-pass-captain' ), 'value' => 'constant' === self::key_source() ? 'WPCAP_SECRETS_KEY' : __( 'aus WordPress-Salts abgeleitet', 'wp-pass-captain' ) ),
+			'key_source' => array( 'label' => __( 'Schlüssel', 'pass-captain' ), 'value' => 'constant' === self::key_source() ? 'WPCAP_SECRETS_KEY' : __( 'aus WordPress-Salts abgeleitet', 'pass-captain' ) ),
 		);
-		$labels = array( 'constant' => __( 'Konstante', 'wp-pass-captain' ), 'env' => __( 'Umgebungsvariable', 'wp-pass-captain' ), 'vault' => __( 'verschlüsselt gespeichert', 'wp-pass-captain' ), 'undecryptable' => __( 'nicht entschlüsselbar', 'wp-pass-captain' ), '' => __( 'nicht gesetzt', 'wp-pass-captain' ) );
+		$labels = array( 'constant' => __( 'Konstante', 'pass-captain' ), 'env' => __( 'Umgebungsvariable', 'pass-captain' ), 'vault' => __( 'verschlüsselt gespeichert', 'pass-captain' ), 'undecryptable' => __( 'nicht entschlüsselbar', 'pass-captain' ), '' => __( 'nicht gesetzt', 'pass-captain' ) );
 		foreach ( self::KEYS as $key ) {
 			$fields[ $key ] = array( 'label' => self::label( $key ), 'value' => $labels[ self::source( $key ) ] ?? '', 'private' => true );
 		}
 		$info = is_array( $info ) ? $info : array();
-		$info['wp-pass-captain-secrets'] = array( 'label' => __( 'WP Pass Captain – Zugangsdaten', 'wp-pass-captain' ), 'fields' => $fields );
+		$info['pass-captain-secrets'] = array( 'label' => __( 'Pass Captain – Zugangsdaten', 'pass-captain' ), 'fields' => $fields );
 		return $info;
 	}
 }

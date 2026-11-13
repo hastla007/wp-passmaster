@@ -64,7 +64,7 @@ Schlüssels (Standard 600 Anfragen/Minute, je Schlüssel 1–10000, Filter `wpca
 nicht überschritten. Sonst lehnt WordPress die Anfrage ab (401/403); ist nur das Ratenlimit erreicht, antwortet
 die API mit 429 `wpcap_rate_limited` und `Retry-After` (Sekunden bis zur nächsten Minute).
 
-| Route (Namensraum `wp-pass-captain/v1`) | Scope | Inhalt |
+| Route (Namensraum `pass-captain/v1`) | Scope | Inhalt |
 |---|---|---|
 | `GET /developer/events/{event_id}` | `events.read` | Name, Slug, Beschreibung, Status des Events |
 | `GET /developer/events/{event_id}/service-slots` | `slots.read` | Alle Service-Zeitfenster mit Ressource, Zeit, Kapazität, gebuchten Plätzen und Status – ohne Kundendaten |

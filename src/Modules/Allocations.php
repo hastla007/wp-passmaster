@@ -41,11 +41,11 @@ final class Allocations {
 		add_action( 'update_option_wpcap_db_version', array( BuyerLimits::class, 'maybe_migrate_keys' ), 10, 0 );
 		add_filter( 'wpcap_privacy_retention_steps', array( BuyerLimits::class, 'retention_step' ), 10, 3 );
 		add_filter( 'wp_privacy_personal_data_erasers', static function ( $erasers ) {
-			$erasers['wp-pass-captain-buyer-limits'] = array( 'eraser_friendly_name' => __( 'WP Pass Captain Käuferlimit', 'wp-pass-captain' ), 'callback' => array( BuyerLimits::class, 'privacy_erase' ) );
+			$erasers['pass-captain-buyer-limits'] = array( 'eraser_friendly_name' => __( 'Pass Captain Käuferlimit', 'pass-captain' ), 'callback' => array( BuyerLimits::class, 'privacy_erase' ) );
 			return $erasers;
 		} );
 		add_filter( 'wp_privacy_personal_data_exporters', static function ( $exporters ) {
-			$exporters['wp-pass-captain-buyer-limits'] = array( 'exporter_friendly_name' => __( 'WP Pass Captain Käuferlimit', 'wp-pass-captain' ), 'callback' => array( BuyerLimits::class, 'privacy_export' ) );
+			$exporters['pass-captain-buyer-limits'] = array( 'exporter_friendly_name' => __( 'Pass Captain Käuferlimit', 'pass-captain' ), 'callback' => array( BuyerLimits::class, 'privacy_export' ) );
 			return $exporters;
 		} );
 		add_action( 'wpcap_order_creating', array( SeatHolds::class, 'after_seat_claims' ), 20, 4 );
@@ -141,7 +141,7 @@ final class Allocations {
 	}
 
 	public static function admin_pages() {
-		return array( array( AdminPage::SLUG, __( 'Kontingente', 'wp-pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render' ) ) );
+		return array( array( AdminPage::SLUG, __( 'Kontingente', 'pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render' ) ) );
 	}
 
 	public static function admin_handlers() {

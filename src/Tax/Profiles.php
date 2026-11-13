@@ -156,15 +156,15 @@ final class Profiles {
 		$country = (string) ( $item->tax_country ?? '' );
 		if ( self::SOURCE_PROFILE === $source ) {
 			/* translators: 1: country code, 2: profile version, 3: profile ID */
-			return sprintf( __( 'Steuerprofil %1$s, Version %2$s (#%3$d)', 'wp-pass-captain' ), $country, (string) $item->tax_profile_version, (int) $item->tax_profile_id );
+			return sprintf( __( 'Steuerprofil %1$s, Version %2$s (#%3$d)', 'pass-captain' ), $country, (string) $item->tax_profile_version, (int) $item->tax_profile_id );
 		}
-		if ( self::SOURCE_EXTERNAL === $source ) { return __( 'vom Verkaufskanal vorgegeben', 'wp-pass-captain' ); }
+		if ( self::SOURCE_EXTERNAL === $source ) { return __( 'vom Verkaufskanal vorgegeben', 'pass-captain' ); }
 		if ( self::SOURCE_TYPE === $source ) {
-			if ( '' === $country ) { return __( 'Satz der Ticketart', 'wp-pass-captain' ); }
+			if ( '' === $country ) { return __( 'Satz der Ticketart', 'pass-captain' ); }
 			/* translators: %s: country code */
-			return sprintf( __( 'Satz der Ticketart (Leistungsort %s)', 'wp-pass-captain' ), $country );
+			return sprintf( __( 'Satz der Ticketart (Leistungsort %s)', 'pass-captain' ), $country );
 		}
-		return __( 'Satz der Ticketart (vor Einführung der Steuerprofile erfasst)', 'wp-pass-captain' );
+		return __( 'Satz der Ticketart (vor Einführung der Steuerprofile erfasst)', 'pass-captain' );
 	}
 
 	/* ------------------------------------------------------------------ review workflow */
@@ -217,11 +217,11 @@ final class Profiles {
 		$from = trim( (string) ( $in['effective_from'] ?? '' ) );
 		$until = trim( (string) ( $in['effective_until'] ?? '' ) );
 		$version = trim( (string) ( $in['version'] ?? '' ) );
-		if ( '' === $country ) { return self::error( 'wpcap_tax_profile_invalid', __( 'Bitte gib einen gültigen Ländercode an (z. B. DE oder AT).', 'wp-pass-captain' ) ); }
-		if ( '' === $class || strlen( $class ) > 64 ) { return self::error( 'wpcap_tax_profile_invalid', __( 'Bitte gib eine Steuerklasse an (Kleinbuchstaben, Ziffern, - und _).', 'wp-pass-captain' ) ); }
-		if ( ! is_scalar( $rate ) || ! preg_match( '/^\d{1,5}$/', (string) $rate ) || (int) $rate > 10000 ) { return self::error( 'wpcap_tax_profile_invalid', __( 'Der Steuersatz muss zwischen 0 und 100 % liegen.', 'wp-pass-captain' ) ); }
-		if ( ! preg_match( '/^[A-Za-z0-9._-]{1,32}$/', $version ) ) { return self::error( 'wpcap_tax_profile_invalid', __( 'Die Version darf 1–32 Zeichen aus Buchstaben, Ziffern, Punkt, - und _ enthalten.', 'wp-pass-captain' ) ); }
-		if ( ! self::valid_date( $from ) || ( '' !== $until && ( ! self::valid_date( $until ) || $until < $from ) ) ) { return self::error( 'wpcap_tax_profile_invalid', __( 'Der Gültigkeitszeitraum ist ungültig (gültig ab ist Pflicht, gültig bis darf nicht davor liegen).', 'wp-pass-captain' ) ); }
+		if ( '' === $country ) { return self::error( 'wpcap_tax_profile_invalid', __( 'Bitte gib einen gültigen Ländercode an (z. B. DE oder AT).', 'pass-captain' ) ); }
+		if ( '' === $class || strlen( $class ) > 64 ) { return self::error( 'wpcap_tax_profile_invalid', __( 'Bitte gib eine Steuerklasse an (Kleinbuchstaben, Ziffern, - und _).', 'pass-captain' ) ); }
+		if ( ! is_scalar( $rate ) || ! preg_match( '/^\d{1,5}$/', (string) $rate ) || (int) $rate > 10000 ) { return self::error( 'wpcap_tax_profile_invalid', __( 'Der Steuersatz muss zwischen 0 und 100 % liegen.', 'pass-captain' ) ); }
+		if ( ! preg_match( '/^[A-Za-z0-9._-]{1,32}$/', $version ) ) { return self::error( 'wpcap_tax_profile_invalid', __( 'Die Version darf 1–32 Zeichen aus Buchstaben, Ziffern, Punkt, - und _ enthalten.', 'pass-captain' ) ); }
+		if ( ! self::valid_date( $from ) || ( '' !== $until && ( ! self::valid_date( $until ) || $until < $from ) ) ) { return self::error( 'wpcap_tax_profile_invalid', __( 'Der Gültigkeitszeitraum ist ungültig (gültig ab ist Pflicht, gültig bis darf nicht davor liegen).', 'pass-captain' ) ); }
 		return array( 'country_code' => $country, 'tax_class' => $class, 'rate_basis_points' => (int) $rate, 'version' => $version, 'effective_from' => $from, 'effective_until' => '' !== $until ? $until : null );
 	}
 
@@ -232,7 +232,7 @@ final class Profiles {
 	 */
 	public static function save_draft( array $in ) {
 		global $wpdb;
-		if ( ! self::can_manage() ) { return self::error( 'wpcap_forbidden', __( 'Für Steuerprofile brauchst du Finanzrechte.', 'wp-pass-captain' ), 403 ); }
+		if ( ! self::can_manage() ) { return self::error( 'wpcap_forbidden', __( 'Für Steuerprofile brauchst du Finanzrechte.', 'pass-captain' ), 403 ); }
 		$clean = self::validate( $in );
 		if ( is_wp_error( $clean ) ) { return $clean; }
 		$table = $wpdb->prefix . 'wpcap_tax_profiles';
@@ -241,14 +241,14 @@ final class Profiles {
 		$me = (int) get_current_user_id();
 		if ( $id ) {
 			$old = self::get( $id );
-			if ( ! $old ) { return self::error( 'wpcap_tax_profile_missing', __( 'Steuerprofil nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-			if ( 'draft' !== $old->status ) { return self::error( 'wpcap_tax_profile_locked', __( 'Nur Entwürfe können bearbeitet werden. Lege für eine Änderung eine neue Version an und setze die alte außer Kraft.', 'wp-pass-captain' ), 409 ); }
+			if ( ! $old ) { return self::error( 'wpcap_tax_profile_missing', __( 'Steuerprofil nicht gefunden.', 'pass-captain' ), 404 ); }
+			if ( 'draft' !== $old->status ) { return self::error( 'wpcap_tax_profile_locked', __( 'Nur Entwürfe können bearbeitet werden. Lege für eine Änderung eine neue Version an und setze die alte außer Kraft.', 'pass-captain' ), 409 ); }
 			$data = $clean + ( self::ready() ? array( 'updated_by' => $me, 'updated_at' => $now ) : array() );
-			if ( false === $wpdb->update( $table, $data, array( 'tax_profile_id' => $id, 'status' => 'draft' ) ) ) { return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+			if ( false === $wpdb->update( $table, $data, array( 'tax_profile_id' => $id, 'status' => 'draft' ) ) ) { return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 			Audit::record( 'tax_profile_updated', 'tax_profile', $id, array( 'before' => self::snapshot( $old ), 'after' => $clean ) );
 		} else {
 			$data = $clean + array( 'status' => 'draft', 'created_at' => $now ) + ( self::ready() ? array( 'created_by' => $me, 'updated_by' => $me, 'updated_at' => $now ) : array() );
-			if ( ! $wpdb->insert( $table, $data ) ) { return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+			if ( ! $wpdb->insert( $table, $data ) ) { return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 			$id = (int) $wpdb->insert_id;
 			Audit::record( 'tax_profile_created', 'tax_profile', $id, $clean );
 		}
@@ -281,13 +281,13 @@ final class Profiles {
 	 */
 	public static function activate( $id, $note = '' ) {
 		global $wpdb;
-		if ( ! self::can_manage() ) { return self::error( 'wpcap_forbidden', __( 'Steuerprofile darf nur die Finanzbuchhaltung freigeben.', 'wp-pass-captain' ), 403 ); }
+		if ( ! self::can_manage() ) { return self::error( 'wpcap_forbidden', __( 'Steuerprofile darf nur die Finanzbuchhaltung freigeben.', 'pass-captain' ), 403 ); }
 		$profile = self::get( $id );
-		if ( ! $profile ) { return self::error( 'wpcap_tax_profile_missing', __( 'Steuerprofil nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( 'draft' !== $profile->status ) { return self::error( 'wpcap_tax_profile_state', __( 'Nur Entwürfe können geprüft und aktiviert werden.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $profile ) { return self::error( 'wpcap_tax_profile_missing', __( 'Steuerprofil nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( 'draft' !== $profile->status ) { return self::error( 'wpcap_tax_profile_state', __( 'Nur Entwürfe können geprüft und aktiviert werden.', 'pass-captain' ), 409 ); }
 		if ( self::self_review_blocked( $profile ) ) {
 			Audit::record( 'tax_profile_review_denied', 'tax_profile', (int) $id, array( 'reason' => 'four_eyes' ) );
-			return self::error( 'wpcap_tax_profile_four_eyes', __( 'Vier-Augen-Prinzip: Ein Steuerprofil kann nicht von der Person aktiviert werden, die es angelegt oder zuletzt bearbeitet hat.', 'wp-pass-captain' ), 403 );
+			return self::error( 'wpcap_tax_profile_four_eyes', __( 'Vier-Augen-Prinzip: Ein Steuerprofil kann nicht von der Person aktiviert werden, die es angelegt oder zuletzt bearbeitet hat.', 'pass-captain' ), 403 );
 		}
 		$table = $wpdb->prefix . 'wpcap_tax_profiles';
 		$wpdb->query( 'START TRANSACTION' );
@@ -296,7 +296,7 @@ final class Profiles {
 		$profile = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE tax_profile_id=%d FOR UPDATE", absint( $id ) ) );
 		if ( ! $profile || 'draft' !== $profile->status ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_tax_profile_state', __( 'Nur Entwürfe können geprüft und aktiviert werden.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_tax_profile_state', __( 'Nur Entwürfe können geprüft und aktiviert werden.', 'pass-captain' ), 409 );
 		}
 		$overlap = self::overlapping( $profile, (int) $id, true );
 		if ( $overlap ) {
@@ -304,12 +304,12 @@ final class Profiles {
 			$ids = array_map( static function ( $row ) { return '#' . (int) $row->tax_profile_id . ' (' . $row->version . ')'; }, $overlap );
 			Audit::record( 'tax_profile_review_denied', 'tax_profile', (int) $id, array( 'reason' => 'overlap', 'overlapping' => array_map( static function ( $row ) { return (int) $row->tax_profile_id; }, $overlap ) ) );
 			/* translators: %s: list of profiles */
-			return self::error( 'wpcap_tax_profile_overlap', sprintf( __( 'Für dieses Land und diese Steuerklasse ist im Zeitraum schon ein Profil aktiv: %s. Setze es zuerst außer Kraft oder begrenze die Gültigkeit.', 'wp-pass-captain' ), implode( ', ', $ids ) ), 409 );
+			return self::error( 'wpcap_tax_profile_overlap', sprintf( __( 'Für dieses Land und diese Steuerklasse ist im Zeitraum schon ein Profil aktiv: %s. Setze es zuerst außer Kraft oder begrenze die Gültigkeit.', 'pass-captain' ), implode( ', ', $ids ) ), 409 );
 		}
 		$data = array( 'status' => 'active' ) + ( self::ready() ? array( 'reviewed_by' => (int) get_current_user_id(), 'reviewed_at' => current_time( 'mysql', true ), 'review_note' => mb_substr( sanitize_text_field( (string) $note ), 0, 190 ) ) : array() );
 		if ( false === $wpdb->update( $table, $data, array( 'tax_profile_id' => absint( $id ) ) ) || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 );
+			return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
 		}
 		self::flush();
 		Audit::record( 'tax_profile_activated', 'tax_profile', (int) $id, self::snapshot( $profile ) + array( 'note' => $data['review_note'] ?? '' ) );
@@ -324,13 +324,13 @@ final class Profiles {
 	 */
 	public static function retire( $id, $note = '' ) {
 		global $wpdb;
-		if ( ! self::can_manage() ) { return self::error( 'wpcap_forbidden', __( 'Steuerprofile darf nur die Finanzbuchhaltung außer Kraft setzen.', 'wp-pass-captain' ), 403 ); }
+		if ( ! self::can_manage() ) { return self::error( 'wpcap_forbidden', __( 'Steuerprofile darf nur die Finanzbuchhaltung außer Kraft setzen.', 'pass-captain' ), 403 ); }
 		$profile = self::get( $id );
-		if ( ! $profile ) { return self::error( 'wpcap_tax_profile_missing', __( 'Steuerprofil nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( 'retired' === $profile->status ) { return self::error( 'wpcap_tax_profile_state', __( 'Das Steuerprofil ist bereits außer Kraft.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $profile ) { return self::error( 'wpcap_tax_profile_missing', __( 'Steuerprofil nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( 'retired' === $profile->status ) { return self::error( 'wpcap_tax_profile_state', __( 'Das Steuerprofil ist bereits außer Kraft.', 'pass-captain' ), 409 ); }
 		$data = array( 'status' => 'retired' ) + ( self::ready() ? array( 'retired_by' => (int) get_current_user_id(), 'retired_at' => current_time( 'mysql', true ) ) : array() );
 		if ( false === $wpdb->update( $wpdb->prefix . 'wpcap_tax_profiles', $data, array( 'tax_profile_id' => absint( $id ), 'status' => (string) $profile->status ) ) ) {
-			return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 );
+			return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
 		}
 		self::flush();
 		Audit::record( 'tax_profile_retired', 'tax_profile', (int) $id, self::snapshot( $profile ) + array( 'previous_status' => (string) $profile->status, 'note' => mb_substr( sanitize_text_field( (string) $note ), 0, 190 ) ) );

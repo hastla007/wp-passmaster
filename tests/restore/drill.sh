@@ -17,7 +17,7 @@ dump() {
 	grep -q "CREATE TABLE" "$1" || { echo "FAIL database dump is empty" >&2; exit 2; }
 }
 load() { "$CLIENT" -h"$DBH" -u"$DBU" -p"$DBP" "$DBN" < "$1"; }
-LINK="$WP/wp-content/plugins/wp-pass-captain"
+LINK="$WP/wp-content/plugins/pass-captain"
 use() { rm -f "$LINK"; ln -s "$1" "$LINK"; }
 upgrade() { wpc eval 'PassCaptain\Plugin::maybe_upgrade("admin"); wp_cache_flush();' ; }
 state() { wpc eval-file "$DIR/state.php"; }
@@ -34,14 +34,14 @@ ORIG_LINK="$(readlink "$LINK")"
 dump "$W/pre-drill.sql"
 
 reset_plugin() {
-	wpc plugin deactivate wp-pass-captain >/dev/null 2>&1
+	wpc plugin deactivate pass-captain >/dev/null 2>&1
 	wpc db query "SELECT CONCAT('DROP TABLE \`',table_name,'\`;') FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name LIKE '$(wpc db prefix)wpcap\\_%'" --skip-column-names | wpc db query >/dev/null
 	wpc db query "DELETE FROM $(wpc db prefix)options WHERE option_name LIKE 'wpcap\\_%' OR option_name LIKE '\\_transient%wpcap%'" >/dev/null
 
 }
 
 echo "== Scenario 1: install old version, seed, upgrade, rollback, roll forward, restore"
-reset_plugin; use "$OLD"; wpc plugin activate wp-pass-captain >/dev/null
+reset_plugin; use "$OLD"; wpc plugin activate pass-captain >/dev/null
 SEED_TAG=old SEED_OUT="$W/seed.json" wpc eval-file "$DIR/seed.php"; export SEED_OUT="$W/seed.json"
 S_OLD="$(state)"; echo "   old:      $S_OLD"
 dump "$W/backup-old.sql"
@@ -64,7 +64,7 @@ load "$W/backup-old.sql"; wpc cache flush >/dev/null; upgrade; S_RS="$(state)"; 
 [ "$(neworder)" = OK ] && ok "sales work after the restore" || bad "sale after restore failed"
 
 echo "== Scenario 2: fresh new install, rollback to old code, roll forward (settings must not change)"
-reset_plugin; use "$NEW"; wpc plugin activate wp-pass-captain >/dev/null
+reset_plugin; use "$NEW"; wpc plugin activate pass-captain >/dev/null
 SEED_TAG=new SEED_OUT="$W/seed.json" wpc eval-file "$DIR/seed.php"
 S_N="$(state)"; echo "   new:      $S_N"
 use "$OLD"; upgrade; use "$NEW"; upgrade; S_N2="$(state)"; echo "   forward:  $S_N2"

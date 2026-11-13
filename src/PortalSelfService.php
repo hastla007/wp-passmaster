@@ -45,7 +45,7 @@ final class PortalSelfService {
 	}
 
 	public static function register_routes() {
-		register_rest_route( 'wp-pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/refund-request', array(
+		register_rest_route( 'pass-captain/v1', '/orders/(?P<public_id>[a-f0-9]{32})/refund-request', array(
 			'methods' => 'POST',
 			'callback' => array( __CLASS__, 'rest_refund_request' ),
 			'permission_callback' => '__return_true', // Capability link: access token and nonce are checked in the callback.
@@ -66,11 +66,11 @@ final class PortalSelfService {
 	}
 
 	private static function denied() {
-		return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig.', 'pass-captain' ), array( 'status' => 403 ) );
 	}
 
 	private static function limited() {
-		return new \WP_Error( 'wpcap_rate_limited', __( 'Zu viele Anfragen. Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+		return new \WP_Error( 'wpcap_rate_limited', __( 'Zu viele Anfragen. Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 	}
 
 	/** Nonce action of the portal forms of an order. */
@@ -112,13 +112,13 @@ final class PortalSelfService {
 	public static function pdf_state_note( $state ) {
 		switch ( $state ) {
 			case 'void':
-				return __( 'Dieses Ticket ist storniert bzw. erstattet und nicht mehr gültig.', 'wp-pass-captain' );
+				return __( 'Dieses Ticket ist storniert bzw. erstattet und nicht mehr gültig.', 'pass-captain' );
 			case 'used':
-				return __( 'Dieses Ticket wurde bereits zum Einlass verwendet.', 'wp-pass-captain' );
+				return __( 'Dieses Ticket wurde bereits zum Einlass verwendet.', 'pass-captain' );
 			case 'held_elsewhere':
-				return __( 'Dieses Ticket wurde an eine andere Person übertragen bzw. zugewiesen; nur sie hat den Ticketcode.', 'wp-pass-captain' );
+				return __( 'Dieses Ticket wurde an eine andere Person übertragen bzw. zugewiesen; nur sie hat den Ticketcode.', 'pass-captain' );
 			case 'unpaid':
-				return __( 'Tickets gibt es erst nach bestätigter Zahlung.', 'wp-pass-captain' );
+				return __( 'Tickets gibt es erst nach bestätigter Zahlung.', 'pass-captain' );
 		}
 		return '';
 	}
@@ -171,8 +171,8 @@ final class PortalSelfService {
 		}
 		if ( ! $selected ) {
 			return 'all' === $which
-				? new \WP_Error( 'wpcap_ticket_pdf_none', __( 'Für diese Bestellung gibt es keine Tickets, die du herunterladen kannst.', 'wp-pass-captain' ), array( 'status' => 409 ) )
-				: new \WP_Error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+				? new \WP_Error( 'wpcap_ticket_pdf_none', __( 'Für diese Bestellung gibt es keine Tickets, die du herunterladen kannst.', 'pass-captain' ), array( 'status' => 409 ) )
+				: new \WP_Error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 
 		// Codes: serialised per order like resend_tickets(); either every needed code is replaced or none.
@@ -196,7 +196,7 @@ final class PortalSelfService {
 				$updated = $wpdb->update( "{$p}wpcap_tickets", array( 'token_hash' => hash( 'sha256', $code ) ), array( 'ticket_id' => (int) $row->ticket_id, 'status' => 'valid', 'token_hash' => (string) $row->token_hash ), array( '%s' ), array( '%d', '%s', '%s' ) );
 				if ( 1 !== (int) $updated ) {
 					$wpdb->query( 'ROLLBACK' );
-					return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+					return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 				}
 				$rotated[ (int) $row->ticket_id ] = $code;
 			}
@@ -204,7 +204,7 @@ final class PortalSelfService {
 		}
 		if ( false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		}
 		foreach ( $rotated as $ticket_id => $code ) {
 			/** A ticket received a new code; the old one is invalid. $code is plaintext – never store it. */
@@ -224,7 +224,7 @@ final class PortalSelfService {
 				'help_code' => HelpCode::for_ticket( (int) $ticket->ticket_id, $code ),
 			);
 		}
-		$content = TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'wp-pass-captain' ) ) );
+		$content = TicketPdf::render( $entries, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) );
 		Audit::record( 'portal_ticket_pdf', 'order', (int) $order->order_id, array( 'tickets' => count( $entries ), 'new_codes' => count( $rotated ), 'scope' => 'all' === $which ? 'all' : 'single' ) );
 		$reference = preg_replace( '/[^A-Za-z0-9\-]/', '', Frontend\Format::order_reference( $order->public_id ) );
 		return array(
@@ -245,7 +245,7 @@ final class PortalSelfService {
 		$nonce = sanitize_text_field( wp_unslash( (string) ( $_POST['_wpnonce'] ?? '' ) ) );
 		// phpcs:enable
 		if ( ! wp_verify_nonce( $nonce, self::nonce_action( 'pdf', $public_id ) ) ) {
-			wp_die( esc_html__( 'Das Formular ist abgelaufen. Bitte lade die Bestellseite neu.', 'wp-pass-captain' ), '', array( 'response' => 403, 'back_link' => true ) );
+			wp_die( esc_html__( 'Das Formular ist abgelaufen. Bitte lade die Bestellseite neu.', 'pass-captain' ), '', array( 'response' => 403, 'back_link' => true ) );
 		}
 		$result = self::pdf( $public_id, $token, $which );
 		if ( is_wp_error( $result ) ) {
@@ -313,41 +313,41 @@ final class PortalSelfService {
 		switch ( $reason ) {
 			case 'disabled':
 			case 'not_allowed':
-				return __( 'Für diese Bestellung ist keine Stornierungsanfrage im Bestellportal möglich. Bitte wende dich an den Veranstalter.', 'wp-pass-captain' );
+				return __( 'Für diese Bestellung ist keine Stornierungsanfrage im Bestellportal möglich. Bitte wende dich an den Veranstalter.', 'pass-captain' );
 			case 'unpaid':
-				return __( 'Eine Stornierung kann erst nach bestätigter Zahlung angefragt werden.', 'wp-pass-captain' );
+				return __( 'Eine Stornierung kann erst nach bestätigter Zahlung angefragt werden.', 'pass-captain' );
 			case 'woocommerce':
-				return __( 'Diese Bestellung wurde im Shop abgewickelt. Bitte wende dich für eine Stornierung an den Shop.', 'wp-pass-captain' );
+				return __( 'Diese Bestellung wurde im Shop abgewickelt. Bitte wende dich für eine Stornierung an den Shop.', 'pass-captain' );
 			case 'comp':
-				return __( 'Für Freikarten ist keine Erstattung möglich.', 'wp-pass-captain' );
+				return __( 'Für Freikarten ist keine Erstattung möglich.', 'pass-captain' );
 			case 'refunded':
-				return __( 'Dieses Ticket wurde bereits erstattet.', 'wp-pass-captain' );
+				return __( 'Dieses Ticket wurde bereits erstattet.', 'pass-captain' );
 			case 'requested':
-				return __( 'Für dieses Ticket liegt bereits eine Stornierungsanfrage vor.', 'wp-pass-captain' );
+				return __( 'Für dieses Ticket liegt bereits eine Stornierungsanfrage vor.', 'pass-captain' );
 			case 'not_valid':
-				return __( 'Nur gültige, noch nicht verwendete Tickets können storniert werden.', 'wp-pass-captain' );
+				return __( 'Nur gültige, noch nicht verwendete Tickets können storniert werden.', 'pass-captain' );
 			case 'transferred':
-				return __( 'Übertragene Tickets können nicht über das Bestellportal storniert werden.', 'wp-pass-captain' );
+				return __( 'Übertragene Tickets können nicht über das Bestellportal storniert werden.', 'pass-captain' );
 			case 'too_late':
 				/* translators: %d: hours */
-				return sprintf( _n( 'Stornierungen können nur bis %d Stunde vor Beginn angefragt werden.', 'Stornierungen können nur bis %d Stunden vor Beginn angefragt werden.', self::refund_hours(), 'wp-pass-captain' ), self::refund_hours() );
+				return sprintf( _n( 'Stornierungen können nur bis %d Stunde vor Beginn angefragt werden.', 'Stornierungen können nur bis %d Stunden vor Beginn angefragt werden.', self::refund_hours(), 'pass-captain' ), self::refund_hours() );
 		}
-		return __( 'Die Stornierung ist für dieses Ticket nicht möglich.', 'wp-pass-captain' );
+		return __( 'Die Stornierung ist für dieses Ticket nicht möglich.', 'pass-captain' );
 	}
 
 	/** Buyer-facing status of a refund (request). */
 	public static function refund_status_label( $status ) {
 		switch ( $status ) {
 			case 'pending_approval':
-				return __( 'Angefragt – wird geprüft', 'wp-pass-captain' );
+				return __( 'Angefragt – wird geprüft', 'pass-captain' );
 			case 'approved':
 			case 'processing':
 			case 'failed':
-				return __( 'Angenommen – Erstattung in Bearbeitung', 'wp-pass-captain' );
+				return __( 'Angenommen – Erstattung in Bearbeitung', 'pass-captain' );
 			case 'completed':
-				return __( 'Erstattet', 'wp-pass-captain' );
+				return __( 'Erstattet', 'pass-captain' );
 			case 'rejected':
-				return __( 'Abgelehnt', 'wp-pass-captain' );
+				return __( 'Abgelehnt', 'pass-captain' );
 		}
 		return Admin\Forms::status_label( $status );
 	}
@@ -379,7 +379,7 @@ final class PortalSelfService {
 		if ( ! $order ) { return self::denied(); }
 		$key = substr( preg_replace( '/[^A-Za-z0-9\-]/', '', (string) ( $in['idempotency_key'] ?? '' ) ), 0, 64 );
 		if ( strlen( $key ) < 16 ) {
-			return new \WP_Error( 'wpcap_refund_key', __( 'Das Formular ist abgelaufen. Bitte lade die Bestellseite neu.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_refund_key', __( 'Das Formular ist abgelaufen. Bitte lade die Bestellseite neu.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$refund_key = self::SOURCE . '|' . $key;
 		// Double submit: the same form returns the request it already created (no second mail).
@@ -396,10 +396,10 @@ final class PortalSelfService {
 		}
 		$wanted = array_slice( array_values( array_unique( array_filter( array_map( static function ( $id ) { return strtolower( preg_replace( '/[^a-f0-9]/i', '', (string) $id ) ); }, (array) ( $in['ticket_public_ids'] ?? array() ) ) ) ) ), 0, self::MAX_TICKETS + 1 );
 		if ( ! $wanted ) {
-			return new \WP_Error( 'wpcap_refund_tickets', __( 'Bitte wähle mindestens ein Ticket aus.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_refund_tickets', __( 'Bitte wähle mindestens ein Ticket aus.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		if ( count( $wanted ) > self::MAX_TICKETS ) {
-			return new \WP_Error( 'wpcap_refund_tickets', __( 'Zu viele Tickets ausgewählt.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_refund_tickets', __( 'Zu viele Tickets ausgewählt.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$by_public = array();
 		foreach ( self::tickets( $order ) as $ticket ) { $by_public[ (string) $ticket->public_id ] = $ticket; }
@@ -409,7 +409,7 @@ final class PortalSelfService {
 		foreach ( $wanted as $public ) {
 			// Tickets of other orders look exactly like unknown ones.
 			if ( ! isset( $by_public[ $public ] ) ) {
-				return new \WP_Error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+				return new \WP_Error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 			}
 			$ticket = $by_public[ $public ];
 			$why = self::refund_ticket_block( $ticket, $order, $open );
@@ -448,7 +448,7 @@ final class PortalSelfService {
 	}
 
 	private static function request_message() {
-		return __( 'Deine Stornierungsanfrage ist eingegangen. Wir prüfen sie und melden uns per E-Mail. Bis dahin bleiben deine Tickets gültig.', 'wp-pass-captain' );
+		return __( 'Deine Stornierungsanfrage ist eingegangen. Wir prüfen sie und melden uns per E-Mail. Bis dahin bleiben deine Tickets gültig.', 'pass-captain' );
 	}
 
 	public static function rest_refund_request( \WP_REST_Request $request ) {
@@ -456,7 +456,7 @@ final class PortalSelfService {
 		$params = is_array( $params ) ? $params : array();
 		$public_id = (string) $request['public_id'];
 		if ( ! wp_verify_nonce( (string) ( $params['nonce'] ?? '' ), self::nonce_action( 'refund', $public_id ) ) ) {
-			return new \WP_Error( 'wpcap_nonce', __( 'Das Formular ist abgelaufen. Bitte lade die Bestellseite neu.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_nonce', __( 'Das Formular ist abgelaufen. Bitte lade die Bestellseite neu.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$result = self::request_refund( $public_id, (string) ( $params['access_token'] ?? '' ), $params );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
@@ -475,10 +475,10 @@ final class PortalSelfService {
 		$html = '';
 		$available = array_values( array_filter( $tickets, static function ( $t ) use ( $order ) { return 'available' === self::pdf_state( $t, $order ); } ) );
 		if ( $available ) {
-			$html .= '<section class="card" aria-labelledby="wpcap-pdf-title"><h2 id="wpcap-pdf-title">' . esc_html__( 'Tickets als PDF', 'wp-pass-captain' ) . '</h2>';
-			$html .= self::pdf_form( $order, $token, 'all', sprintf( /* translators: %d: number of tickets */ _n( '%d Ticket als PDF herunterladen', 'Alle %d Tickets als PDF herunterladen', count( $available ), 'wp-pass-captain' ), count( $available ) ), self::pdf_needs_new_codes( $available ) );
+			$html .= '<section class="card" aria-labelledby="wpcap-pdf-title"><h2 id="wpcap-pdf-title">' . esc_html__( 'Tickets als PDF', 'pass-captain' ) . '</h2>';
+			$html .= self::pdf_form( $order, $token, 'all', sprintf( /* translators: %d: number of tickets */ _n( '%d Ticket als PDF herunterladen', 'Alle %d Tickets als PDF herunterladen', count( $available ), 'pass-captain' ), count( $available ) ), self::pdf_needs_new_codes( $available ) );
 			if ( count( $available ) < count( $tickets ) ) {
-				$html .= '<p class="muted"><small>' . esc_html__( 'Stornierte, erstattete, bereits verwendete und an andere Personen übertragene Tickets sind nicht enthalten.', 'wp-pass-captain' ) . '</small></p>';
+				$html .= '<p class="muted"><small>' . esc_html__( 'Stornierte, erstattete, bereits verwendete und an andere Personen übertragene Tickets sind nicht enthalten.', 'pass-captain' ) . '</small></p>';
 			}
 			$html .= '</section>';
 		}
@@ -491,7 +491,7 @@ final class PortalSelfService {
 	public static function ticket_html( $ticket, $order, $token ) {
 		$state = self::pdf_state( $ticket, $order );
 		if ( 'available' === $state ) {
-			return self::pdf_form( $order, $token, (string) $ticket->public_id, __( 'Dieses Ticket als PDF', 'wp-pass-captain' ), self::pdf_needs_new_codes( array( $ticket ) ) );
+			return self::pdf_form( $order, $token, (string) $ticket->public_id, __( 'Dieses Ticket als PDF', 'pass-captain' ), self::pdf_needs_new_codes( array( $ticket ) ) );
 		}
 		$note = self::pdf_state_note( $state );
 		return '' === $note ? '' : '<p class="muted"><small>' . esc_html( $note ) . '</small></p>';
@@ -505,7 +505,7 @@ final class PortalSelfService {
 		$html .= '<input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( self::nonce_action( 'pdf', (string) $order->public_id ) ) ) . '">';
 		$html .= '<button type="submit">' . esc_html( $label ) . '</button>';
 		if ( $new_codes ) {
-			$html .= '<p class="muted"><small>' . esc_html__( 'Beim Herunterladen erhalten die Tickets neue Codes: Bisher gesendete Ticketlinks, QR-Codes und Ausdrucke dieser Tickets werden ungültig. Verwende danach nur noch das PDF.', 'wp-pass-captain' ) . '</small></p>';
+			$html .= '<p class="muted"><small>' . esc_html__( 'Beim Herunterladen erhalten die Tickets neue Codes: Bisher gesendete Ticketlinks, QR-Codes und Ausdrucke dieser Tickets werden ungültig. Verwende danach nur noch das PDF.', 'pass-captain' ) . '</small></p>';
 		}
 		return $html . '</form>';
 	}
@@ -514,12 +514,12 @@ final class PortalSelfService {
 	private static function refunds_html( $order ) {
 		$rows = Refunds::for_order( (int) $order->order_id );
 		if ( ! $rows ) { return ''; }
-		$html = '<section class="card" aria-labelledby="wpcap-refunds-title"><h2 id="wpcap-refunds-title">' . esc_html__( 'Stornierungen und Erstattungen', 'wp-pass-captain' ) . '</h2><ul class="wpcap-refund-list">';
+		$html = '<section class="card" aria-labelledby="wpcap-refunds-title"><h2 id="wpcap-refunds-title">' . esc_html__( 'Stornierungen und Erstattungen', 'pass-captain' ) . '</h2><ul class="wpcap-refund-list">';
 		foreach ( $rows as $row ) {
 			$view = self::public_refund( $row );
 			$html .= '<li>' . esc_html( sprintf(
 				/* translators: 1: date, 2: number of tickets, 3: amount, 4: status */
-				_n( '%1$s: %2$d Ticket, %3$s – %4$s', '%1$s: %2$d Tickets, %3$s – %4$s', max( 1, $view['ticket_count'] ), 'wp-pass-captain' ),
+				_n( '%1$s: %2$d Ticket, %3$s – %4$s', '%1$s: %2$d Tickets, %3$s – %4$s', max( 1, $view['ticket_count'] ), 'pass-captain' ),
 				Frontend\Format::site_datetime( $view['created_at'] ),
 				$view['ticket_count'],
 				$view['amount'],
@@ -534,7 +534,7 @@ final class PortalSelfService {
 		$block = self::refund_order_block( $order );
 		if ( 'disabled' === $block || 'unpaid' === $block ) { return ''; }
 		$hours = self::refund_hours();
-		$html = '<section class="card" aria-labelledby="wpcap-cancel-title"><h2 id="wpcap-cancel-title">' . esc_html__( 'Stornierung anfragen', 'wp-pass-captain' ) . '</h2>';
+		$html = '<section class="card" aria-labelledby="wpcap-cancel-title"><h2 id="wpcap-cancel-title">' . esc_html__( 'Stornierung anfragen', 'pass-captain' ) . '</h2>';
 		if ( '' !== $block ) {
 			return $html . '<p class="muted">' . esc_html( self::refund_block_message( $block ) ) . '</p></section>';
 		}
@@ -552,27 +552,27 @@ final class PortalSelfService {
 			}
 		}
 		if ( ! $count ) {
-			return $html . $options . '<p class="muted">' . esc_html__( 'Derzeit kann für keines deiner Tickets eine Stornierung angefragt werden.', 'wp-pass-captain' ) . '</p></section>';
+			return $html . $options . '<p class="muted">' . esc_html__( 'Derzeit kann für keines deiner Tickets eine Stornierung angefragt werden.', 'pass-captain' ) . '</p></section>';
 		}
 		$html .= '<form class="wpcap-refund-form"><input type="hidden" name="idempotency_key" value="' . esc_attr( str_replace( '-', '', wp_generate_uuid4() ) ) . '"><input type="hidden" name="nonce" value="' . esc_attr( wp_create_nonce( self::nonce_action( 'refund', (string) $order->public_id ) ) ) . '">';
-		$html .= '<fieldset style="border:0;padding:0;margin:0"><legend>' . esc_html__( 'Welche Tickets möchtest du stornieren?', 'wp-pass-captain' ) . '</legend>' . $options . '</fieldset>';
-		$html .= '<label>' . esc_html__( 'Grund (optional)', 'wp-pass-captain' ) . '<textarea name="reason" maxlength="200" rows="2"></textarea></label>';
+		$html .= '<fieldset style="border:0;padding:0;margin:0"><legend>' . esc_html__( 'Welche Tickets möchtest du stornieren?', 'pass-captain' ) . '</legend>' . $options . '</fieldset>';
+		$html .= '<label>' . esc_html__( 'Grund (optional)', 'pass-captain' ) . '<textarea name="reason" maxlength="200" rows="2"></textarea></label>';
 		/* translators: %d: hours */
-		$html .= '<p class="muted"><small>' . esc_html( sprintf( _n( 'Anfragen sind bis %d Stunde vor Beginn möglich.', 'Anfragen sind bis %d Stunden vor Beginn möglich.', $hours, 'wp-pass-captain' ), $hours ) ) . ' ';
-		$html .= esc_html__( 'Die Anfrage wird vom Veranstalter geprüft; erst nach der Freigabe werden die Tickets ungültig und der Betrag erstattet.', 'wp-pass-captain' ) . '</small></p>';
-		$html .= '<button type="submit">' . esc_html__( 'Stornierung anfragen', 'wp-pass-captain' ) . '</button><p class="message" role="status" aria-live="polite"></p></form></section>';
+		$html .= '<p class="muted"><small>' . esc_html( sprintf( _n( 'Anfragen sind bis %d Stunde vor Beginn möglich.', 'Anfragen sind bis %d Stunden vor Beginn möglich.', $hours, 'pass-captain' ), $hours ) ) . ' ';
+		$html .= esc_html__( 'Die Anfrage wird vom Veranstalter geprüft; erst nach der Freigabe werden die Tickets ungültig und der Betrag erstattet.', 'pass-captain' ) . '</small></p>';
+		$html .= '<button type="submit">' . esc_html__( 'Stornierung anfragen', 'pass-captain' ) . '</button><p class="message" role="status" aria-live="polite"></p></form></section>';
 		return $html;
 	}
 
 	/** Strings of the portal script (confirmations and messages). */
 	public static function script_strings() {
 		return array(
-			'pdfConfirm' => __( 'Beim Herunterladen erhalten die Tickets neue Codes. Bisher gesendete Ticketlinks, QR-Codes und Ausdrucke werden ungültig. Fortfahren?', 'wp-pass-captain' ),
-			'pdfConfirmButton' => __( 'Ja, PDF erstellen', 'wp-pass-captain' ),
-			'refundConfirm' => __( 'Stornierung der ausgewählten Tickets jetzt anfragen?', 'wp-pass-captain' ),
-			'refundConfirmButton' => __( 'Ja, Stornierung anfragen', 'wp-pass-captain' ),
-			'refundNone' => __( 'Bitte wähle mindestens ein Ticket aus.', 'wp-pass-captain' ),
-			'refundFailed' => __( 'Die Anfrage konnte nicht gesendet werden.', 'wp-pass-captain' ),
+			'pdfConfirm' => __( 'Beim Herunterladen erhalten die Tickets neue Codes. Bisher gesendete Ticketlinks, QR-Codes und Ausdrucke werden ungültig. Fortfahren?', 'pass-captain' ),
+			'pdfConfirmButton' => __( 'Ja, PDF erstellen', 'pass-captain' ),
+			'refundConfirm' => __( 'Stornierung der ausgewählten Tickets jetzt anfragen?', 'pass-captain' ),
+			'refundConfirmButton' => __( 'Ja, Stornierung anfragen', 'pass-captain' ),
+			'refundNone' => __( 'Bitte wähle mindestens ein Ticket aus.', 'pass-captain' ),
+			'refundFailed' => __( 'Die Anfrage konnte nicht gesendet werden.', 'pass-captain' ),
 		);
 	}
 
@@ -589,17 +589,17 @@ final class PortalSelfService {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$ticket_token = strtolower( preg_replace( '/[^a-f0-9]/i', '', (string) $ticket_token ) );
-		if ( 64 !== strlen( $ticket_token ) ) { return new \WP_Error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( 64 !== strlen( $ticket_token ) ) { return new \WP_Error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.order_id,t.status,t.refunded,t.transfer_count,t.attendee_email FROM {$p}wpcap_tickets t WHERE t.token_hash=%s LIMIT 1", hash( 'sha256', $ticket_token ) ) );
 		$order = $ticket ? Orders::get( (int) $ticket->order_id ) : null;
 		if ( ! $ticket || ! $order || ! self::can_request_order_link( $ticket, $order ) ) {
-			return new \WP_Error( 'wpcap_order_link_unavailable', __( 'Für dieses Ticket kann kein Bestelllink gesendet werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_order_link_unavailable', __( 'Für dieses Ticket kann kein Bestelllink gesendet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		if ( ! RateLimit::allow( 'ticket-order-link-client|' . RateLimit::client(), 10, HOUR_IN_SECONDS ) || ! RateLimit::allow( 'ticket-order-link|' . (int) $order->order_id, 3, DAY_IN_SECONDS ) ) {
 			return self::limited();
 		}
 		if ( ! Orders::rotate_access_link( (int) $order->order_id ) ) {
-			return new \WP_Error( 'wpcap_mail_failed', __( 'Die E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut.', 'wp-pass-captain' ), array( 'status' => 503 ) );
+			return new \WP_Error( 'wpcap_mail_failed', __( 'Die E-Mail konnte nicht gesendet werden. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 503 ) );
 		}
 		Audit::record( 'order_link_requested', 'order', (int) $order->order_id, array( 'ticket_id' => (int) $ticket->ticket_id, 'source' => 'ticket_page' ) );
 		return Frontend\Format::mask_email( (string) $order->customer_email );

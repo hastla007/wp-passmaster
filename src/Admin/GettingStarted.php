@@ -84,75 +84,75 @@ final class GettingStarted {
 		$events = Forms::page_url( EventsPage::SLUG );
 		$payment_done = ! empty( $state['payment_online'] ) || ! empty( $state['payment_manual'] ) || ! empty( $state['woocommerce'] );
 		if ( ! empty( $state['payment_online'] ) ) {
-			$payment_note = __( 'Eine Online-Zahlungsart ist aktiv und vollständig eingerichtet.', 'wp-pass-captain' );
+			$payment_note = __( 'Eine Online-Zahlungsart ist aktiv und vollständig eingerichtet.', 'pass-captain' );
 		} elseif ( ! empty( $state['payment_manual'] ) ) {
-			$payment_note = __( 'Überweisung ist mit Bankverbindung bzw. Zahlungshinweis eingerichtet.', 'wp-pass-captain' );
+			$payment_note = __( 'Überweisung ist mit Bankverbindung bzw. Zahlungshinweis eingerichtet.', 'pass-captain' );
 		} elseif ( ! empty( $state['woocommerce'] ) ) {
-			$payment_note = __( 'Die Zahlung läuft über den WooCommerce-Checkout.', 'wp-pass-captain' );
+			$payment_note = __( 'Die Zahlung läuft über den WooCommerce-Checkout.', 'pass-captain' );
 		} else {
-			$payment_note = __( 'Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überweisung die IBAN hinterlegen.', 'wp-pass-captain' );
+			$payment_note = __( 'Stripe, PayPal oder Mollie mit Zugangsdaten aktivieren oder für Überweisung die IBAN hinterlegen.', 'pass-captain' );
 		}
 		$items = array(
 			array(
 				'key' => 'payment',
-				'label' => __( 'Zahlungsart einrichten', 'wp-pass-captain' ),
+				'label' => __( 'Zahlungsart einrichten', 'pass-captain' ),
 				'description' => $payment_note,
 				'done' => $payment_done,
 				'url' => $settings( 'payments' ),
 			),
 			array(
 				'key' => 'legal',
-				'label' => __( 'Rechtstexte hinterlegen', 'wp-pass-captain' ),
-				'description' => __( 'AGB/Teilnahmebedingungen und Verbraucherinformationen (Widerrufshinweis) für den Checkout.', 'wp-pass-captain' ),
+				'label' => __( 'Rechtstexte hinterlegen', 'pass-captain' ),
+				'description' => __( 'AGB/Teilnahmebedingungen und Verbraucherinformationen (Widerrufshinweis) für den Checkout.', 'pass-captain' ),
 				'done' => ! empty( $state['legal_texts'] ),
 				'url' => $settings( 'legal' ),
 			),
 			array(
 				'key' => 'seller',
-				'label' => __( 'Rechnungssteller angeben', 'wp-pass-captain' ),
-				'description' => __( 'Name und Anschrift für Rechnungen und Belege.', 'wp-pass-captain' ),
+				'label' => __( 'Rechnungssteller angeben', 'pass-captain' ),
+				'description' => __( 'Name und Anschrift für Rechnungen und Belege.', 'pass-captain' ),
 				'done' => ! empty( $state['seller'] ),
 				'url' => $settings( 'seller' ),
 			),
 			array(
 				'key' => 'event',
-				'label' => __( 'Erstes Event anlegen', 'wp-pass-captain' ),
-				'description' => __( 'Ein Event mit erstem Termin und Ticketart lässt sich in einem Schritt anlegen.', 'wp-pass-captain' ),
+				'label' => __( 'Erstes Event anlegen', 'pass-captain' ),
+				'description' => __( 'Ein Event mit erstem Termin und Ticketart lässt sich in einem Schritt anlegen.', 'pass-captain' ),
 				'done' => ! empty( $state['events'] ),
 				'url' => $events . '#wpcap-create-event',
 			),
 			array(
 				'key' => 'occurrence',
-				'label' => __( 'Kommenden Termin planen', 'wp-pass-captain' ),
-				'description' => __( 'Mindestens ein geplanter Termin in der Zukunft.', 'wp-pass-captain' ),
+				'label' => __( 'Kommenden Termin planen', 'pass-captain' ),
+				'description' => __( 'Mindestens ein geplanter Termin in der Zukunft.', 'pass-captain' ),
 				'done' => ! empty( $state['upcoming_occurrences'] ),
 				'url' => $events,
 			),
 			array(
 				'key' => 'ticket_type',
-				'label' => __( 'Ticketart anlegen', 'wp-pass-captain' ),
-				'description' => __( 'Mindestens eine aktive Ticketart mit Preis und Kontingent.', 'wp-pass-captain' ),
+				'label' => __( 'Ticketart anlegen', 'pass-captain' ),
+				'description' => __( 'Mindestens eine aktive Ticketart mit Preis und Kontingent.', 'pass-captain' ),
 				'done' => ! empty( $state['ticket_types'] ),
 				'url' => $events,
 			),
 			array(
 				'key' => 'publish',
-				'label' => __( 'Event veröffentlichen', 'wp-pass-captain' ),
-				'description' => __( 'Erst veröffentlichte Events sind buchbar.', 'wp-pass-captain' ),
+				'label' => __( 'Event veröffentlichen', 'pass-captain' ),
+				'description' => __( 'Erst veröffentlichte Events sind buchbar.', 'pass-captain' ),
 				'done' => ! empty( $state['published_events'] ),
 				'url' => $events,
 			),
 			array(
 				'key' => 'scanner',
-				'label' => __( 'Scanner-Gerät koppeln', 'wp-pass-captain' ),
-				'description' => __( 'Ein Smartphone für den Einlass mit der Scanner-App koppeln.', 'wp-pass-captain' ),
+				'label' => __( 'Scanner-Gerät koppeln', 'pass-captain' ),
+				'description' => __( 'Ein Smartphone für den Einlass mit der Scanner-App koppeln.', 'pass-captain' ),
 				'done' => ! empty( $state['devices'] ),
 				'url' => Forms::page_url( DevicesPage::SLUG ),
 			),
 			array(
 				'key' => 'test_order',
-				'label' => __( 'Testbestellung durchführen', 'wp-pass-captain' ),
-				'description' => __( 'Eine Bestellung bis zur Zahlung durchspielen und Ticket-E-Mail prüfen.', 'wp-pass-captain' ),
+				'label' => __( 'Testbestellung durchführen', 'pass-captain' ),
+				'description' => __( 'Eine Bestellung bis zur Zahlung durchspielen und Ticket-E-Mail prüfen.', 'pass-captain' ),
 				'done' => ! empty( $state['paid_orders'] ),
 				'url' => Forms::page_url( OrdersPage::SLUG ),
 			),
@@ -193,16 +193,16 @@ final class GettingStarted {
 		if ( self::hidden() ) {
 			if ( $done < $total ) {
 				echo '<div class="wpcap-getting-started-restore">';
-				self::toggle_form( 'show', __( 'Erste-Schritte-Checkliste anzeigen', 'wp-pass-captain' ) );
+				self::toggle_form( 'show', __( 'Erste-Schritte-Checkliste anzeigen', 'pass-captain' ) );
 				echo '</div>';
 			}
 			return;
 		}
 		echo '<section class="wpcap-getting-started card" aria-labelledby="wpcap-getting-started-title" style="max-width:none;margin:16px 0;padding:12px 20px">';
-		echo '<h2 id="wpcap-getting-started-title">' . esc_html__( 'Erste Schritte', 'wp-pass-captain' ) . '</h2>';
+		echo '<h2 id="wpcap-getting-started-title">' . esc_html__( 'Erste Schritte', 'pass-captain' ) . '</h2>';
 		/* translators: 1: completed steps, 2: all steps */
-		$progress = sprintf( __( '%1$d von %2$d Schritten erledigt', 'wp-pass-captain' ), $done, $total );
-		echo '<p id="wpcap-getting-started-progress">' . esc_html( $progress ) . ( $done === $total ? ' – ' . esc_html__( 'alles bereit für den Verkauf.', 'wp-pass-captain' ) : '' ) . '</p>';
+		$progress = sprintf( __( '%1$d von %2$d Schritten erledigt', 'pass-captain' ), $done, $total );
+		echo '<p id="wpcap-getting-started-progress">' . esc_html( $progress ) . ( $done === $total ? ' – ' . esc_html__( 'alles bereit für den Verkauf.', 'pass-captain' ) : '' ) . '</p>';
 		echo '<progress max="' . (int) $total . '" value="' . (int) $done . '" aria-labelledby="wpcap-getting-started-progress" style="width:100%;max-width:420px"></progress>';
 		echo '<ol class="wpcap-getting-started-list" style="list-style:none;margin:12px 0 0;padding:0">';
 		foreach ( $items as $item ) {
@@ -210,7 +210,7 @@ final class GettingStarted {
 			$color = $item['done'] ? '#00a32a' : '#646970';
 			echo '<li class="wpcap-gs-' . esc_attr( $item['key'] ) . ( $item['done'] ? ' is-done' : ' is-open' ) . '" style="display:flex;gap:8px;align-items:flex-start;margin:0 0 8px">';
 			echo '<span class="dashicons ' . esc_attr( $icon ) . '" style="color:' . esc_attr( $color ) . '" aria-hidden="true"></span><span>';
-			echo '<span class="screen-reader-text">' . esc_html( $item['done'] ? __( 'Erledigt:', 'wp-pass-captain' ) : __( 'Offen:', 'wp-pass-captain' ) ) . ' </span>';
+			echo '<span class="screen-reader-text">' . esc_html( $item['done'] ? __( 'Erledigt:', 'pass-captain' ) : __( 'Offen:', 'pass-captain' ) ) . ' </span>';
 			if ( ! $item['done'] && '' !== $item['url'] ) {
 				echo '<strong><a href="' . esc_url( $item['url'] ) . '">' . esc_html( $item['label'] ) . '</a></strong>';
 			} else {
@@ -220,7 +220,7 @@ final class GettingStarted {
 			echo '</span></li>';
 		}
 		echo '</ol>';
-		self::toggle_form( 'hide', __( 'Checkliste ausblenden', 'wp-pass-captain' ) );
+		self::toggle_form( 'hide', __( 'Checkliste ausblenden', 'pass-captain' ) );
 		echo '</section>';
 	}
 

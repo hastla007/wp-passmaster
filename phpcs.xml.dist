@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
-<ruleset name="WP Pass Captain">
+<ruleset name="Pass Captain">
 	<description>A173: security, database, i18n and PHP compatibility rules of the WordPress Coding Standards. Style rules are not enforced (yet).</description>
-	<file>wp-pass-captain.php</file>
+	<file>pass-captain.php</file>
 	<file>uninstall.php</file>
 	<file>src</file>
 	<file>templates</file>
@@ -30,7 +30,7 @@
 	<rule ref="WordPress.WP.I18n">
 		<properties>
 			<property name="text_domain" type="array">
-				<element value="wp-pass-captain"/>
+				<element value="pass-captain"/>
 			</property>
 		</properties>
 	</rule>

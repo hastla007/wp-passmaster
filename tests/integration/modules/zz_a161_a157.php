@@ -108,7 +108,7 @@ $GLOBALS['wpcap_test_routes'] = $z_saved_routes;
 $z_map_ok = true;
 foreach ( DeveloperKeys::ROUTES as $z_route => $z_scope ) {
 	list( $z_method, $z_path ) = explode( ' ', $z_route, 2 );
-	$z_reg = 'wp-pass-captain/v1' . str_replace( '{event_id}', '(?P<event_id>\d+)', $z_path );
+	$z_reg = 'pass-captain/v1' . str_replace( '{event_id}', '(?P<event_id>\d+)', $z_path );
 	$z_map_ok = $z_map_ok && isset( $z_routes[ $z_reg ] ) && 'GET' === $z_routes[ $z_reg ]['methods'] && is_callable( $z_routes[ $z_reg ]['permission_callback'] ) && isset( DeveloperKeys::scopes()[ $z_scope ] );
 }
 check( 'every mapped developer route is registered with a permission callback and a known scope', $z_map_ok && 3 === count( DeveloperKeys::ROUTES ) );

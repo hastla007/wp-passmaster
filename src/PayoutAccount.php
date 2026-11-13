@@ -65,8 +65,8 @@ final class PayoutAccount {
 	 */
 	public static function save( $order, $iban, $holder ) {
 		global $wpdb;
-		if ( ! self::ready() ) { return new \WP_Error( 'wpcap_payout_unavailable', __( 'Die Bankverbindung kann gerade nicht gespeichert werden. Bitte später erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 503 ) ); }
-		if ( ! self::applies( $order ) ) { return new \WP_Error( 'wpcap_payout_not_needed', __( 'Für diese Bestellung wird keine Bankverbindung benötigt.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( ! self::ready() ) { return new \WP_Error( 'wpcap_payout_unavailable', __( 'Die Bankverbindung kann gerade nicht gespeichert werden. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 503 ) ); }
+		if ( ! self::applies( $order ) ) { return new \WP_Error( 'wpcap_payout_not_needed', __( 'Für diese Bestellung wird keine Bankverbindung benötigt.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$holder = mb_substr( sanitize_text_field( (string) $holder ), 0, 190 );
 		if ( '' === trim( (string) $iban ) ) {
 			$wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'payout_account' => null ), array( 'order_id' => (int) $order->order_id ) );
@@ -74,11 +74,11 @@ final class PayoutAccount {
 			return array( 'saved' => false, 'iban_masked' => '' );
 		}
 		$normalized = self::normalize_iban( $iban );
-		if ( '' === $normalized ) { return new \WP_Error( 'wpcap_payout_iban', __( 'Die IBAN ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400, 'field' => 'iban' ) ); }
-		if ( '' === $holder ) { return new \WP_Error( 'wpcap_payout_holder', __( 'Bitte den Namen des Kontoinhabers angeben.', 'wp-pass-captain' ), array( 'status' => 400, 'field' => 'holder' ) ); }
+		if ( '' === $normalized ) { return new \WP_Error( 'wpcap_payout_iban', __( 'Die IBAN ist ungültig.', 'pass-captain' ), array( 'status' => 400, 'field' => 'iban' ) ); }
+		if ( '' === $holder ) { return new \WP_Error( 'wpcap_payout_holder', __( 'Bitte den Namen des Kontoinhabers angeben.', 'pass-captain' ), array( 'status' => 400, 'field' => 'holder' ) ); }
 		$data = array( 'iban' => $normalized, 'holder' => $holder, 'updated_at' => current_time( 'mysql', true ) );
 		$ok = $wpdb->update( $wpdb->prefix . 'wpcap_orders', array( 'payout_account' => wp_json_encode( $data ) ), array( 'order_id' => (int) $order->order_id ) );
-		if ( false === $ok ) { return new \WP_Error( 'wpcap_payout_save', __( 'Die Bankverbindung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( false === $ok ) { return new \WP_Error( 'wpcap_payout_save', __( 'Die Bankverbindung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( 'payout_account_saved', 'order', (int) $order->order_id );
 		return array( 'saved' => true, 'iban_masked' => self::mask( $normalized ) );
 	}
@@ -90,24 +90,24 @@ final class PayoutAccount {
 	 */
 	public static function refund_note( $order ) {
 		$provider = (string) ( ( (object) $order )->payment_provider ?? '' );
-		if ( 'pos_cash' === $provider ) { return __( 'Der Betrag wurde dir an der Kasse bar ausgezahlt.', 'wp-pass-captain' ); }
-		if ( 'pos_card' === $provider ) { return __( 'Der Betrag wird auf die Karte zurückgebucht, mit der du bezahlt hast.', 'wp-pass-captain' ); }
+		if ( 'pos_cash' === $provider ) { return __( 'Der Betrag wurde dir an der Kasse bar ausgezahlt.', 'pass-captain' ); }
+		if ( 'pos_card' === $provider ) { return __( 'Der Betrag wird auf die Karte zurückgebucht, mit der du bezahlt hast.', 'pass-captain' ); }
 		if ( 'pos_free' === $provider ) { return ''; }
 		if ( self::applies( $order ) ) {
 			$account = self::get( (object) $order );
 			/* translators: %s: masked IBAN */
-			return $account ? sprintf( __( 'Wir überweisen den Betrag in den nächsten Tagen auf dein Konto %s.', 'wp-pass-captain' ), self::mask( $account['iban'] ) ) : __( 'Bitte gib in deiner Bestellübersicht (Link aus der Bestellbestätigung) deine IBAN an oder antworte auf diese E-Mail damit, damit wir den Betrag überweisen können.', 'wp-pass-captain' );
+			return $account ? sprintf( __( 'Wir überweisen den Betrag in den nächsten Tagen auf dein Konto %s.', 'pass-captain' ), self::mask( $account['iban'] ) ) : __( 'Bitte gib in deiner Bestellübersicht (Link aus der Bestellbestätigung) deine IBAN an oder antworte auf diese E-Mail damit, damit wir den Betrag überweisen können.', 'pass-captain' );
 		}
-		return __( 'Je nach Zahlungsart kann es einige Tage dauern, bis der Betrag gutgeschrieben ist.', 'wp-pass-captain' );
+		return __( 'Je nach Zahlungsart kann es einige Tage dauern, bis der Betrag gutgeschrieben ist.', 'pass-captain' );
 	}
 
 	/** First sentence of the refund mail: "erstattet" only when the money is already on its way. */
 	public static function refund_intro( $order, $reference, $amount ) {
 		if ( self::applies( $order ) ) {
 			/* translators: 1: amount, 2: order number */
-			return sprintf( __( 'Für deine Bestellung %2$s erstatten wir dir %1$s per Überweisung.', 'wp-pass-captain' ), $amount, $reference );
+			return sprintf( __( 'Für deine Bestellung %2$s erstatten wir dir %1$s per Überweisung.', 'pass-captain' ), $amount, $reference );
 		}
 		/* translators: 1: amount, 2: order number */
-		return sprintf( __( 'Für deine Bestellung %2$s haben wir %1$s erstattet.', 'wp-pass-captain' ), $amount, $reference );
+		return sprintf( __( 'Für deine Bestellung %2$s haben wir %1$s erstattet.', 'pass-captain' ), $amount, $reference );
 	}
 }

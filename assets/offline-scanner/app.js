@@ -1,5 +1,5 @@
 /**
- * WP Pass Captain offline scanner (PWA).
+ * Pass Captain offline scanner (PWA).
  *
  * - Pairs via the existing pairing-code flow (POST /app/pair) and stores the device token locally.
  * - Loads signed verification packages (GET /app/offline/package) for assigned occurrences, verifies
@@ -188,7 +188,7 @@
 	function deriveApi() {
 		var path = location.pathname;
 		var i = path.indexOf('/wp-content/');
-		return location.origin + (i >= 0 ? path.slice(0, i) : '') + '/wp-json/wp-pass-captain/v1/app/';
+		return location.origin + (i >= 0 ? path.slice(0, i) : '') + '/wp-json/pass-captain/v1/app/';
 	}
 	/** Only same-origin API bases are accepted (the token must never go to another host). */
 	function sameOrigin(url) {

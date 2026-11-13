@@ -1,7 +1,7 @@
 <?php
 /**
  * Module: partners ("Partner") – organisers/resellers linked to events, scoped partner API keys
- * (REST under wp-pass-captain/v1/partner/…, Bearer wpcap_pk_…) and monthly partner settlements
+ * (REST under pass-captain/v1/partner/…, Bearer wpcap_pk_…) and monthly partner settlements
  * ("Abrechnungen") with a gapless number series. Code lives in src/Partners/. API: docs/PARTNER-API.md.
  * Organizers and resellers can sell through the API (scopes orders:write, orders:cancel, tickets:issue;
  * src/Partners/Sales.php, SalesApi.php, Statement.php): price list, contingents, holds, cancellation window.
@@ -32,11 +32,11 @@ final class Partners {
 		add_action( 'wpcap_ticket_revoked', array( \PassCaptain\Partners\Sales::class, 'forget_code' ), 10, 1 );
 		// Contact persons of partners: WordPress personal data export and erasure.
 		add_filter( 'wp_privacy_personal_data_exporters', static function ( $exporters ) {
-			$exporters['wp-pass-captain-partners'] = array( 'exporter_friendly_name' => __( 'WP Pass Captain Veranstalter-Kontakte', 'wp-pass-captain' ), 'callback' => array( \PassCaptain\Partners\Repository::class, 'privacy_export' ) );
+			$exporters['pass-captain-partners'] = array( 'exporter_friendly_name' => __( 'Pass Captain Veranstalter-Kontakte', 'pass-captain' ), 'callback' => array( \PassCaptain\Partners\Repository::class, 'privacy_export' ) );
 			return $exporters;
 		} );
 		add_filter( 'wp_privacy_personal_data_erasers', static function ( $erasers ) {
-			$erasers['wp-pass-captain-partners'] = array( 'eraser_friendly_name' => __( 'WP Pass Captain Veranstalter-Kontakte', 'wp-pass-captain' ), 'callback' => array( \PassCaptain\Partners\Repository::class, 'privacy_erase' ) );
+			$erasers['pass-captain-partners'] = array( 'eraser_friendly_name' => __( 'Pass Captain Veranstalter-Kontakte', 'pass-captain' ), 'callback' => array( \PassCaptain\Partners\Repository::class, 'privacy_erase' ) );
 			return $erasers;
 		} );
 		add_action( 'wpcap_privacy_order_anonymized', array( \PassCaptain\Partners\Sales::class, 'forget_order_codes' ), 10, 1 );
@@ -252,8 +252,8 @@ final class Partners {
 
 	public static function admin_pages() {
 		return array(
-			array( AdminPage::PAGE, __( 'Veranstalter', 'wp-pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render_partners' ) ),
-			array( AdminPage::SETTLEMENTS_PAGE, __( 'Veranstalter-Abrechnungen', 'wp-pass-captain' ), AdminPage::settlements_menu_cap(), array( AdminPage::class, 'render_settlements' ) ),
+			array( AdminPage::PAGE, __( 'Veranstalter', 'pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render_partners' ) ),
+			array( AdminPage::SETTLEMENTS_PAGE, __( 'Veranstalter-Abrechnungen', 'pass-captain' ), AdminPage::settlements_menu_cap(), array( AdminPage::class, 'render_settlements' ) ),
 		);
 	}
 

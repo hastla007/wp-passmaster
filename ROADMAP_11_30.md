@@ -1,4 +1,4 @@
-# WP Pass Captain – Schritte 11–30
+# Pass Captain – Schritte 11–30
 
 Diese Ausbaustufen folgen auf den eigenständigen Event-, Verkaufs- und Einlasskern. Die Integrationen bleiben Adapter; Ticket- und Voucher-Datenhoheit werden nicht zusammengelegt.
 

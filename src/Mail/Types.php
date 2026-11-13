@@ -40,32 +40,32 @@ final class Types {
 	/** Placeholders available in every mail. */
 	public static function global_placeholders() {
 		return array(
-			'site_name' => __( 'Name der Website', 'wp-pass-captain' ),
-			'site_url' => __( 'Adresse der Website', 'wp-pass-captain' ),
-			'terms_text' => __( 'AGB / Teilnahmebedingungen in der Sprache des Empfängers', 'wp-pass-captain' ),
-			'consumer_info_text' => __( 'Verbraucherinformationen in der Sprache des Empfängers', 'wp-pass-captain' ),
+			'site_name' => __( 'Name der Website', 'pass-captain' ),
+			'site_url' => __( 'Adresse der Website', 'pass-captain' ),
+			'terms_text' => __( 'AGB / Teilnahmebedingungen in der Sprache des Empfängers', 'pass-captain' ),
+			'consumer_info_text' => __( 'Verbraucherinformationen in der Sprache des Empfängers', 'pass-captain' ),
 		);
 	}
 
 	private static function ticket_placeholders() {
 		return array(
-			'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
-			'customer_email' => __( 'E-Mail-Adresse der Käufer:in', 'wp-pass-captain' ),
-			'event_name' => __( 'Event (erstes Ticket)', 'wp-pass-captain' ),
-			'event_date' => __( 'Beginn mit Zeitzone (erstes Ticket)', 'wp-pass-captain' ),
-			'event_location' => __( 'Ort (erstes Ticket)', 'wp-pass-captain' ),
-			'ticket_count' => __( 'Anzahl Tickets', 'wp-pass-captain' ),
-			'ticket_list' => __( 'Ticketliste mit Datum, Ort, Link (und Code bzw. Wallet-Links)', 'wp-pass-captain' ),
-			'ticket_links' => __( 'Nur die Ticket-Links, einer pro Zeile', 'wp-pass-captain' ),
+			'order_id' => __( 'Bestellnummer', 'pass-captain' ),
+			'customer_email' => __( 'E-Mail-Adresse der Käufer:in', 'pass-captain' ),
+			'event_name' => __( 'Event (erstes Ticket)', 'pass-captain' ),
+			'event_date' => __( 'Beginn mit Zeitzone (erstes Ticket)', 'pass-captain' ),
+			'event_location' => __( 'Ort (erstes Ticket)', 'pass-captain' ),
+			'ticket_count' => __( 'Anzahl Tickets', 'pass-captain' ),
+			'ticket_list' => __( 'Ticketliste mit Datum, Ort, Link (und Code bzw. Wallet-Links)', 'pass-captain' ),
+			'ticket_links' => __( 'Nur die Ticket-Links, einer pro Zeile', 'pass-captain' ),
 		);
 	}
 
 	private static function single_ticket_placeholders() {
 		return array(
-			'event_name' => __( 'Event', 'wp-pass-captain' ),
-			'ticket_name' => __( 'Ticketart', 'wp-pass-captain' ),
-			'event_date' => __( 'Beginn mit Zeitzone', 'wp-pass-captain' ),
-			'event_location' => __( 'Ort', 'wp-pass-captain' ),
+			'event_name' => __( 'Event', 'pass-captain' ),
+			'ticket_name' => __( 'Ticketart', 'pass-captain' ),
+			'event_date' => __( 'Beginn mit Zeitzone', 'pass-captain' ),
+			'event_location' => __( 'Ort', 'pass-captain' ),
 		);
 	}
 
@@ -123,41 +123,41 @@ final class Types {
 	private static function core() {
 		return array(
 			'tickets' => array(
-				'label' => __( 'Ticketversand', 'wp-pass-captain' ),
-				'description' => __( 'Tickets nach bestätigter Zahlung (mit PDF-Anhang).', 'wp-pass-captain' ),
+				'label' => __( 'Ticketversand', 'pass-captain' ),
+				'description' => __( 'Tickets nach bestätigter Zahlung (mit PDF-Anhang).', 'pass-captain' ),
 				'placeholders' => self::ticket_placeholders(),
 				/* translators: %s: site name */
-				'subject' => static function () { return sprintf( __( 'Deine Tickets für %s', 'wp-pass-captain' ), '{site_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Deine Tickets für %s', 'pass-captain' ), '{site_name}' ); },
 				/* translators: %s: site name */
-				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'wp-pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}"; },
+				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}"; },
 				'sample' => static function () { return self::sample_ticket_vars( false ); },
 			),
 			'tickets_resend' => array(
-				'label' => __( 'Tickets erneut senden', 'wp-pass-captain' ),
-				'description' => __( 'Erneuter Versand mit neuen Ticketcodes (je Empfänger:in).', 'wp-pass-captain' ),
+				'label' => __( 'Tickets erneut senden', 'pass-captain' ),
+				'description' => __( 'Erneuter Versand mit neuen Ticketcodes (je Empfänger:in).', 'pass-captain' ),
 				'placeholders' => self::ticket_placeholders(),
 				/* translators: %s: site name */
-				'subject' => static function () { return sprintf( __( 'Deine Tickets für %s', 'wp-pass-captain' ), '{site_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Deine Tickets für %s', 'pass-captain' ), '{site_name}' ); },
 				/* translators: %s: site name */
-				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'wp-pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}"; },
+				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}"; },
 				'sample' => static function () { return self::sample_ticket_vars( true ); },
 			),
 			'order_access' => array(
-				'label' => __( 'Bestellzugang', 'wp-pass-captain' ),
-				'description' => __( 'Persönlicher Link zur Bestellübersicht nach der Bestellung.', 'wp-pass-captain' ),
+				'label' => __( 'Bestellzugang', 'pass-captain' ),
+				'description' => __( 'Persönlicher Link zur Bestellübersicht nach der Bestellung.', 'pass-captain' ),
 				'placeholders' => array(
-					'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
-					'order_reference' => __( 'Kurze Bestellnummer (z. B. 3F2A-9C1E, auch Verwendungszweck)', 'wp-pass-captain' ),
-					'access_link' => __( 'Persönlicher Link zur Bestellung', 'wp-pass-captain' ),
-					'payment_instructions' => __( 'Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer', 'wp-pass-captain' ),
-					'order_items' => __( 'Bestellte Positionen (Event, Ticketart, Termin, Menge, Preis)', 'wp-pass-captain' ),
+					'order_id' => __( 'Bestellnummer', 'pass-captain' ),
+					'order_reference' => __( 'Kurze Bestellnummer (z. B. 3F2A-9C1E, auch Verwendungszweck)', 'pass-captain' ),
+					'access_link' => __( 'Persönlicher Link zur Bestellung', 'pass-captain' ),
+					'payment_instructions' => __( 'Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer', 'pass-captain' ),
+					'order_items' => __( 'Bestellte Positionen (Event, Ticketart, Termin, Menge, Preis)', 'pass-captain' ),
 				),
 				/* translators: %s: site name */
-				'subject' => static function () { return sprintf( __( 'Deine Bestellung bei %s', 'wp-pass-captain' ), '{site_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Deine Bestellung bei %s', 'pass-captain' ), '{site_name}' ); },
 				'body' => static function () {
 					// {payment_instructions} is empty unless a manual payment is pending; it brings its own trailing blank line.
 					/* translators: %s: site name */
-					return sprintf( __( 'Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:', 'wp-pass-captain' ), '{site_name}' ) . "\n\n{access_link}\n\n{order_items}{payment_instructions}" . __( 'Bewahre diesen Link sicher auf und teile ihn nicht.', 'wp-pass-captain' );
+					return sprintf( __( 'Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:', 'pass-captain' ), '{site_name}' ) . "\n\n{access_link}\n\n{order_items}{payment_instructions}" . __( 'Bewahre diesen Link sicher auf und teile ihn nicht.', 'pass-captain' );
 				},
 				// Values derived from the order when the caller does not pass them.
 				'vars' => static function ( array $vars ) { return self::order_access_vars( (string) ( $vars['order_id'] ?? '' ) ); },
@@ -167,104 +167,104 @@ final class Types {
 						'order_reference' => '3F2A-9C1E',
 						'access_link' => Mailer::link( home_url( '/?wpcap_order=3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e&wpcap_access=' . str_repeat( 'd4', 32 ) ) ),
 						'order_items' => Blocks::order_items( array( array( 'event' => 'Sommerkonzert', 'ticket' => 'Stehplatz', 'when' => '20.07.2027 19:30', 'quantity' => 2, 'gross_minor' => 5000, 'currency' => 'EUR' ) ) ),
-						'payment_instructions' => Blocks::payment_instructions( array( 'reference' => '3F2A-9C1E', 'remittance' => sprintf( /* translators: %s: short order number */ __( 'Bestellung %s', 'wp-pass-captain' ), '3F2A-9C1E' ), 'amount' => '50,00 €', 'recipient' => 'Kulturverein Musterstadt', 'iban' => 'AT61 1904 3002 3457 3201', 'bic' => 'BKAUATWW', 'due_date' => '18.01.2027 12:00', 'instructions' => '' ) ),
+						'payment_instructions' => Blocks::payment_instructions( array( 'reference' => '3F2A-9C1E', 'remittance' => sprintf( /* translators: %s: short order number */ __( 'Bestellung %s', 'pass-captain' ), '3F2A-9C1E' ), 'amount' => '50,00 €', 'recipient' => 'Kulturverein Musterstadt', 'iban' => 'AT61 1904 3002 3457 3201', 'bic' => 'BKAUATWW', 'due_date' => '18.01.2027 12:00', 'instructions' => '' ) ),
 					);
 				},
 			),
 			'ticket_transfer_recipient' => array(
-				'label' => __( 'Ticketübertragung: Empfänger:in', 'wp-pass-captain' ),
-				'description' => __( 'Neues Ticket für die Person, an die ein Ticket übertragen wurde.', 'wp-pass-captain' ),
+				'label' => __( 'Ticketübertragung: Empfänger:in', 'pass-captain' ),
+				'description' => __( 'Neues Ticket für die Person, an die ein Ticket übertragen wurde.', 'pass-captain' ),
 				'placeholders' => self::single_ticket_placeholders() + array(
-					'ticket_link' => __( 'Link zum Ticket', 'wp-pass-captain' ),
-					'ticket_extras' => __( 'Zusatzinformationen zum Ticket (z. B. Wallet-Links)', 'wp-pass-captain' ),
-					'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
+					'ticket_link' => __( 'Link zum Ticket', 'pass-captain' ),
+					'ticket_extras' => __( 'Zusatzinformationen zum Ticket (z. B. Wallet-Links)', 'pass-captain' ),
+					'order_id' => __( 'Bestellnummer', 'pass-captain' ),
 				),
-				'subject' => static function () { return __( 'Ein Ticket wurde an dich übertragen', 'wp-pass-captain' ); },
+				'subject' => static function () { return __( 'Ein Ticket wurde an dich übertragen', 'pass-captain' ); },
 				'body' => static function () { return "{event_name} — {ticket_name}\n{event_date}\n{event_location}\n\n{ticket_link}\n{ticket_extras}"; },
 				'sample' => static function () { return self::sample_single_ticket() + array( 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' ); },
 			),
 			'ticket_transfer_sender' => array(
-				'label' => __( 'Ticketübertragung: Bestätigung', 'wp-pass-captain' ),
-				'description' => __( 'Bestätigung an die Käufer:in, dass ein Ticket übertragen wurde.', 'wp-pass-captain' ),
+				'label' => __( 'Ticketübertragung: Bestätigung', 'pass-captain' ),
+				'description' => __( 'Bestätigung an die Käufer:in, dass ein Ticket übertragen wurde.', 'pass-captain' ),
 				'placeholders' => self::single_ticket_placeholders() + array(
-					'recipient_email' => __( 'E-Mail-Adresse der neuen Inhaber:in', 'wp-pass-captain' ),
-					'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
+					'recipient_email' => __( 'E-Mail-Adresse der neuen Inhaber:in', 'pass-captain' ),
+					'order_id' => __( 'Bestellnummer', 'pass-captain' ),
 				),
-				'subject' => static function () { return __( 'Ticketübertragung abgeschlossen', 'wp-pass-captain' ); },
+				'subject' => static function () { return __( 'Ticketübertragung abgeschlossen', 'pass-captain' ); },
 				/* translators: 1: event, 2: recipient e-mail */
-				'body' => static function () { return sprintf( __( 'Dein Ticket für %1$s wurde an %2$s übertragen. Der bisherige Ticketcode ist ungültig.', 'wp-pass-captain' ), '{event_name}', '{recipient_email}' ); },
+				'body' => static function () { return sprintf( __( 'Dein Ticket für %1$s wurde an %2$s übertragen. Der bisherige Ticketcode ist ungültig.', 'pass-captain' ), '{event_name}', '{recipient_email}' ); },
 				'sample' => static function () { return self::sample_single_ticket() + array( 'recipient_email' => 'freundin@example.com', 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' ); },
 			),
 			'ticket_exchanged' => array(
-				'label' => __( 'Ticketumtausch', 'wp-pass-captain' ),
-				'description' => __( 'Neues Ticket nach einem Umtausch (anderer Termin oder andere Ticketart); der bisherige Code ist ungültig.', 'wp-pass-captain' ),
+				'label' => __( 'Ticketumtausch', 'pass-captain' ),
+				'description' => __( 'Neues Ticket nach einem Umtausch (anderer Termin oder andere Ticketart); der bisherige Code ist ungültig.', 'pass-captain' ),
 				'placeholders' => self::single_ticket_placeholders() + array(
-					'old_event_name' => __( 'Bisheriges Event', 'wp-pass-captain' ),
-					'old_ticket_name' => __( 'Bisherige Ticketart', 'wp-pass-captain' ),
-					'old_event_date' => __( 'Bisheriger Beginn mit Zeitzone', 'wp-pass-captain' ),
-					'seat' => __( 'Sitzplatz (leer ohne Saalplan)', 'wp-pass-captain' ),
-					'seat_note' => __( 'Zeile „Sitzplatz: …“ mit Zeilenumbruch (leer ohne Saalplan)', 'wp-pass-captain' ),
-					'price_note' => __( 'Hinweis zu Aufpreis, Gebühr oder Erstattung mit Zeilenumbruch (leer ohne Preisdifferenz)', 'wp-pass-captain' ),
-					'ticket_link' => __( 'Link zum neuen Ticket', 'wp-pass-captain' ),
-					'ticket_extras' => __( 'Zusatzinformationen zum Ticket (z. B. Wallet-Links)', 'wp-pass-captain' ),
-					'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
+					'old_event_name' => __( 'Bisheriges Event', 'pass-captain' ),
+					'old_ticket_name' => __( 'Bisherige Ticketart', 'pass-captain' ),
+					'old_event_date' => __( 'Bisheriger Beginn mit Zeitzone', 'pass-captain' ),
+					'seat' => __( 'Sitzplatz (leer ohne Saalplan)', 'pass-captain' ),
+					'seat_note' => __( 'Zeile „Sitzplatz: …“ mit Zeilenumbruch (leer ohne Saalplan)', 'pass-captain' ),
+					'price_note' => __( 'Hinweis zu Aufpreis, Gebühr oder Erstattung mit Zeilenumbruch (leer ohne Preisdifferenz)', 'pass-captain' ),
+					'ticket_link' => __( 'Link zum neuen Ticket', 'pass-captain' ),
+					'ticket_extras' => __( 'Zusatzinformationen zum Ticket (z. B. Wallet-Links)', 'pass-captain' ),
+					'order_id' => __( 'Bestellnummer', 'pass-captain' ),
 				),
 				/* translators: %s: site name */
-				'subject' => static function () { return sprintf( __( 'Dein Ticket wurde umgetauscht – %s', 'wp-pass-captain' ), '{site_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Dein Ticket wurde umgetauscht – %s', 'pass-captain' ), '{site_name}' ); },
 				'body' => static function () {
 					/* translators: 1: previous event, 2: previous ticket type, 3: previous date */
-					return __( 'Dein Ticket wurde umgetauscht.', 'wp-pass-captain' ) . "\n\n" . sprintf( __( 'Bisher: %1$s — %2$s (%3$s)', 'wp-pass-captain' ), '{old_event_name}', '{old_ticket_name}', '{old_event_date}' ) . "\n" . __( 'Neu:', 'wp-pass-captain' ) . " {event_name} — {ticket_name}\n{event_date}\n{event_location}\n{seat_note}\n{ticket_link}\n{ticket_extras}{price_note}" . __( 'Der bisherige Ticketcode ist ab sofort ungültig. Bitte verwende nur noch das neue Ticket.', 'wp-pass-captain' );
+					return __( 'Dein Ticket wurde umgetauscht.', 'pass-captain' ) . "\n\n" . sprintf( __( 'Bisher: %1$s — %2$s (%3$s)', 'pass-captain' ), '{old_event_name}', '{old_ticket_name}', '{old_event_date}' ) . "\n" . __( 'Neu:', 'pass-captain' ) . " {event_name} — {ticket_name}\n{event_date}\n{event_location}\n{seat_note}\n{ticket_link}\n{ticket_extras}{price_note}" . __( 'Der bisherige Ticketcode ist ab sofort ungültig. Bitte verwende nur noch das neue Ticket.', 'pass-captain' );
 				},
 				'sample' => static function () {
-					return self::sample_single_ticket() + array( 'old_event_name' => 'Sommerkonzert', 'old_ticket_name' => 'Stehplatz', 'old_event_date' => '14.01.2027 19:30 Europe/Vienna', 'ticket_name' => 'Sitzplatz Parkett', 'seat' => 'Reihe A, Platz 4', 'seat_note' => __( 'Sitzplatz:', 'wp-pass-captain' ) . " Reihe A, Platz 4\n", 'price_note' => self::exchange_price_note( 'paid', '20,00 EUR' ), 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' );
+					return self::sample_single_ticket() + array( 'old_event_name' => 'Sommerkonzert', 'old_ticket_name' => 'Stehplatz', 'old_event_date' => '14.01.2027 19:30 Europe/Vienna', 'ticket_name' => 'Sitzplatz Parkett', 'seat' => 'Reihe A, Platz 4', 'seat_note' => __( 'Sitzplatz:', 'pass-captain' ) . " Reihe A, Platz 4\n", 'price_note' => self::exchange_price_note( 'paid', '20,00 EUR' ), 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' );
 				},
 			),
 			'ticket_assigned_attendee' => array(
-				'label' => __( 'Teilnehmerzuweisung: Teilnehmer:in', 'wp-pass-captain' ),
-				'description' => __( 'Ticket für eine Person, der die Käufer:in ein Ticket zugewiesen hat.', 'wp-pass-captain' ),
+				'label' => __( 'Teilnehmerzuweisung: Teilnehmer:in', 'pass-captain' ),
+				'description' => __( 'Ticket für eine Person, der die Käufer:in ein Ticket zugewiesen hat.', 'pass-captain' ),
 				'placeholders' => self::single_ticket_placeholders() + array(
-					'attendee_name' => __( 'Name der Teilnehmer:in', 'wp-pass-captain' ),
-					'attendee_email' => __( 'E-Mail-Adresse der Teilnehmer:in', 'wp-pass-captain' ),
-					'ticket_link' => __( 'Link zum Ticket', 'wp-pass-captain' ),
-					'ticket_extras' => __( 'Zusatzinformationen zum Ticket (z. B. Wallet-Links)', 'wp-pass-captain' ),
-					'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
+					'attendee_name' => __( 'Name der Teilnehmer:in', 'pass-captain' ),
+					'attendee_email' => __( 'E-Mail-Adresse der Teilnehmer:in', 'pass-captain' ),
+					'ticket_link' => __( 'Link zum Ticket', 'pass-captain' ),
+					'ticket_extras' => __( 'Zusatzinformationen zum Ticket (z. B. Wallet-Links)', 'pass-captain' ),
+					'order_id' => __( 'Bestellnummer', 'pass-captain' ),
 				),
 				/* translators: %s: site name */
-				'subject' => static function () { return sprintf( __( 'Dein Ticket für %s', 'wp-pass-captain' ), '{site_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Dein Ticket für %s', 'pass-captain' ), '{site_name}' ); },
 				/* translators: %s: attendee name */
-				'body' => static function () { return "{event_name} — {ticket_name}\n{event_date}\n{event_location}\n" . sprintf( __( 'Teilnehmer: %s', 'wp-pass-captain' ), '{attendee_name}' ) . "\n\n{ticket_link}{ticket_extras}"; },
+				'body' => static function () { return "{event_name} — {ticket_name}\n{event_date}\n{event_location}\n" . sprintf( __( 'Teilnehmer: %s', 'pass-captain' ), '{attendee_name}' ) . "\n\n{ticket_link}{ticket_extras}"; },
 				'sample' => static function () { return self::sample_single_ticket() + array( 'attendee_name' => 'Alex Muster', 'attendee_email' => 'alex@example.com', 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' ); },
 			),
 			'ticket_assigned_buyer' => array(
-				'label' => __( 'Teilnehmerzuweisung: Käufer:in', 'wp-pass-captain' ),
-				'description' => __( 'Hinweis an die Käufer:in, dass der bisherige Code eines zugewiesenen Tickets ungültig ist.', 'wp-pass-captain' ),
+				'label' => __( 'Teilnehmerzuweisung: Käufer:in', 'pass-captain' ),
+				'description' => __( 'Hinweis an die Käufer:in, dass der bisherige Code eines zugewiesenen Tickets ungültig ist.', 'pass-captain' ),
 				'placeholders' => self::single_ticket_placeholders() + array(
-					'attendee_name' => __( 'Name der Teilnehmer:in', 'wp-pass-captain' ),
-					'attendee_email' => __( 'E-Mail-Adresse der Teilnehmer:in', 'wp-pass-captain' ),
-					'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
+					'attendee_name' => __( 'Name der Teilnehmer:in', 'pass-captain' ),
+					'attendee_email' => __( 'E-Mail-Adresse der Teilnehmer:in', 'pass-captain' ),
+					'order_id' => __( 'Bestellnummer', 'pass-captain' ),
 				),
 				/* translators: %s: site name */
-				'subject' => static function () { return sprintf( __( 'Ticket zugewiesen – %s', 'wp-pass-captain' ), '{site_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Ticket zugewiesen – %s', 'pass-captain' ), '{site_name}' ); },
 				/* translators: 1: event and ticket, 2: date, 3: attendee name, 4: attendee email */
-				'body' => static function () { return sprintf( __( "Das Ticket %1\$s (%2\$s) wurde %3\$s (%4\$s) zugewiesen. Der neue Ticketcode wurde an diese Adresse gesendet; der bisherige Code für dieses Ticket ist nicht mehr gültig.", 'wp-pass-captain' ), '{event_name} — {ticket_name}', '{event_date}', '{attendee_name}', '{attendee_email}' ); },
+				'body' => static function () { return sprintf( __( "Das Ticket %1\$s (%2\$s) wurde %3\$s (%4\$s) zugewiesen. Der neue Ticketcode wurde an diese Adresse gesendet; der bisherige Code für dieses Ticket ist nicht mehr gültig.", 'pass-captain' ), '{event_name} — {ticket_name}', '{event_date}', '{attendee_name}', '{attendee_email}' ); },
 				'sample' => static function () { return self::sample_single_ticket() + array( 'attendee_name' => 'Alex Muster', 'attendee_email' => 'alex@example.com', 'order_id' => '3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e' ); },
 			),
 			'refund_confirmation' => array(
-				'label' => __( 'Erstattungsbestätigung', 'wp-pass-captain' ),
-				'description' => __( 'Bestätigung einer abgeschlossenen Erstattung (nicht bei WooCommerce-Bestellungen).', 'wp-pass-captain' ),
+				'label' => __( 'Erstattungsbestätigung', 'pass-captain' ),
+				'description' => __( 'Bestätigung einer abgeschlossenen Erstattung (nicht bei WooCommerce-Bestellungen).', 'pass-captain' ),
 				'placeholders' => array(
-					'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
-					'refund_amount' => __( 'Erstatteter Betrag mit Währung', 'wp-pass-captain' ),
-					'revoked_count' => __( 'Anzahl ungültig gewordener Tickets', 'wp-pass-captain' ),
-					'revoked_note' => __( 'Satz zu ungültig gewordenen Tickets mit Zeilenumbruch (leer, wenn keine)', 'wp-pass-captain' ),
-					'credit_note_number' => __( 'Nummer der Rechnungskorrektur', 'wp-pass-captain' ),
-					'credit_note' => __( 'Zeile „Rechnungskorrektur: …“ mit Zeilenumbruch (leer ohne Rechnungskorrektur)', 'wp-pass-captain' ),
-					'reason' => __( 'Grund der Erstattung', 'wp-pass-captain' ),
-					'refund_intro' => __( 'Einleitungssatz passend zur Zahlart („haben wir … erstattet“ bzw. „erstatten wir … per Überweisung“)', 'wp-pass-captain' ),
-					'refund_method_note' => __( 'Hinweis zur Auszahlung je Zahlart (Kartenrückbuchung, bar an der Kasse, Überweisung auf IBAN bzw. Bitte um IBAN)', 'wp-pass-captain' ),
+					'order_id' => __( 'Bestellnummer', 'pass-captain' ),
+					'refund_amount' => __( 'Erstatteter Betrag mit Währung', 'pass-captain' ),
+					'revoked_count' => __( 'Anzahl ungültig gewordener Tickets', 'pass-captain' ),
+					'revoked_note' => __( 'Satz zu ungültig gewordenen Tickets mit Zeilenumbruch (leer, wenn keine)', 'pass-captain' ),
+					'credit_note_number' => __( 'Nummer der Rechnungskorrektur', 'pass-captain' ),
+					'credit_note' => __( 'Zeile „Rechnungskorrektur: …“ mit Zeilenumbruch (leer ohne Rechnungskorrektur)', 'pass-captain' ),
+					'reason' => __( 'Grund der Erstattung', 'pass-captain' ),
+					'refund_intro' => __( 'Einleitungssatz passend zur Zahlart („haben wir … erstattet“ bzw. „erstatten wir … per Überweisung“)', 'pass-captain' ),
+					'refund_method_note' => __( 'Hinweis zur Auszahlung je Zahlart (Kartenrückbuchung, bar an der Kasse, Überweisung auf IBAN bzw. Bitte um IBAN)', 'pass-captain' ),
 				),
 				/* translators: %s: site name */
-				'subject' => static function () { return sprintf( __( 'Erstattung bestätigt – %s', 'wp-pass-captain' ), '{site_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Erstattung bestätigt – %s', 'pass-captain' ), '{site_name}' ); },
 				'body' => static function () {
 					return "{refund_intro}\n{revoked_note}{credit_note}\n{refund_method_note}";
 				},
@@ -284,149 +284,149 @@ final class Types {
 				},
 			),
 			'refund_request_received' => array(
-				'label' => __( 'Stornierungsanfrage eingegangen', 'wp-pass-captain' ),
-				'description' => __( 'Bestätigung an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal eingegangen ist und geprüft wird (noch keine Erstattung).', 'wp-pass-captain' ),
+				'label' => __( 'Stornierungsanfrage eingegangen', 'pass-captain' ),
+				'description' => __( 'Bestätigung an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal eingegangen ist und geprüft wird (noch keine Erstattung).', 'pass-captain' ),
 				'placeholders' => array(
-					'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
-					'ticket_count' => __( 'Anzahl angefragter Tickets', 'wp-pass-captain' ),
-					'ticket_list' => __( 'Angefragte Tickets, eines pro Zeile (Event, Ticketart, Datum)', 'wp-pass-captain' ),
-					'refund_amount' => __( 'Voraussichtlicher Erstattungsbetrag mit Währung', 'wp-pass-captain' ),
-					'reason' => __( 'Angegebener Grund (leer, wenn keiner)', 'wp-pass-captain' ),
-					'portal_link' => __( 'Persönlicher Link zur Bestellung (Status der Anfrage)', 'wp-pass-captain' ),
+					'order_id' => __( 'Bestellnummer', 'pass-captain' ),
+					'ticket_count' => __( 'Anzahl angefragter Tickets', 'pass-captain' ),
+					'ticket_list' => __( 'Angefragte Tickets, eines pro Zeile (Event, Ticketart, Datum)', 'pass-captain' ),
+					'refund_amount' => __( 'Voraussichtlicher Erstattungsbetrag mit Währung', 'pass-captain' ),
+					'reason' => __( 'Angegebener Grund (leer, wenn keiner)', 'pass-captain' ),
+					'portal_link' => __( 'Persönlicher Link zur Bestellung (Status der Anfrage)', 'pass-captain' ),
 				),
 				/* translators: %s: site name */
-				'subject' => static function () { return sprintf( __( 'Deine Stornierungsanfrage – %s', 'wp-pass-captain' ), '{site_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Deine Stornierungsanfrage – %s', 'pass-captain' ), '{site_name}' ); },
 				'body' => static function () {
 					/* translators: 1: short order number, 2: amount */
-					return sprintf( __( 'Wir haben deine Stornierungsanfrage für die Bestellung %1$s erhalten. Voraussichtliche Erstattung: %2$s.', 'wp-pass-captain' ), '{order_id}', '{refund_amount}' ) . "\n\n{ticket_list}\n\n"
-						. __( 'Deine Tickets bleiben gültig, bis wir die Anfrage geprüft haben. Wird sie angenommen, werden die Tickets ungültig und du erhältst eine Erstattungsbestätigung. Den Stand siehst du jederzeit in deiner Bestellung:', 'wp-pass-captain' ) . "\n{portal_link}";
+					return sprintf( __( 'Wir haben deine Stornierungsanfrage für die Bestellung %1$s erhalten. Voraussichtliche Erstattung: %2$s.', 'pass-captain' ), '{order_id}', '{refund_amount}' ) . "\n\n{ticket_list}\n\n"
+						. __( 'Deine Tickets bleiben gültig, bis wir die Anfrage geprüft haben. Wird sie angenommen, werden die Tickets ungültig und du erhältst eine Erstattungsbestätigung. Den Stand siehst du jederzeit in deiner Bestellung:', 'pass-captain' ) . "\n{portal_link}";
 				},
 				'sample' => static function () {
 					return array( 'order_id' => '3F2A-9C1E', 'ticket_count' => 1, 'ticket_list' => 'Sommerkonzert — Stehplatz, 21.06.2027 20:00 Europe/Vienna', 'refund_amount' => '25,00 EUR', 'reason' => 'Krank', 'portal_link' => 'https://example.com/?wpcap_order=3f2a9c1e5b7d4a6f8e0c2b4d6f8a0c2e&wpcap_access=…' );
 				},
 			),
 			'refund_request_rejected' => array(
-				'label' => __( 'Stornierungsanfrage abgelehnt', 'wp-pass-captain' ),
-				'description' => __( 'Information an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal nicht angenommen wurde (Tickets bleiben gültig).', 'wp-pass-captain' ),
+				'label' => __( 'Stornierungsanfrage abgelehnt', 'pass-captain' ),
+				'description' => __( 'Information an die Käufer:in, dass ihre Stornierungsanfrage aus dem Bestellportal nicht angenommen wurde (Tickets bleiben gültig).', 'pass-captain' ),
 				'placeholders' => array(
-					'order_id' => __( 'Bestellnummer', 'wp-pass-captain' ),
-					'ticket_count' => __( 'Anzahl angefragter Tickets', 'wp-pass-captain' ),
+					'order_id' => __( 'Bestellnummer', 'pass-captain' ),
+					'ticket_count' => __( 'Anzahl angefragter Tickets', 'pass-captain' ),
 				),
 				/* translators: %s: site name */
-				'subject' => static function () { return sprintf( __( 'Deine Stornierungsanfrage – %s', 'wp-pass-captain' ), '{site_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Deine Stornierungsanfrage – %s', 'pass-captain' ), '{site_name}' ); },
 				/* translators: %s: short order number */
-				'body' => static function () { return sprintf( __( 'Deine Stornierungsanfrage für die Bestellung %s wurde nicht angenommen. Deine Tickets bleiben gültig. Bei Fragen wende dich bitte an den Veranstalter.', 'wp-pass-captain' ), '{order_id}' ); },
+				'body' => static function () { return sprintf( __( 'Deine Stornierungsanfrage für die Bestellung %s wurde nicht angenommen. Deine Tickets bleiben gültig. Bei Fragen wende dich bitte an den Veranstalter.', 'pass-captain' ), '{order_id}' ); },
 				'sample' => static function () { return array( 'order_id' => '3F2A-9C1E', 'ticket_count' => 1 ); },
 			),
 			'event_cancelled' => array(
-				'label' => __( 'Eventabsage', 'wp-pass-captain' ),
-				'description' => __( 'Information an Käufer:innen und Ticketinhaber:innen, wenn ein ganzes Event abgesagt wird.', 'wp-pass-captain' ),
-				'placeholders' => array( 'event_name' => __( 'Event', 'wp-pass-captain' ) ),
-				'subject' => static function () { return sprintf( /* translators: %s: event name */ __( 'Eventabsage: %s', 'wp-pass-captain' ), '{event_name}' ); },
-				'body' => static function () { return sprintf( /* translators: %s: event name */ __( 'Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung.', 'wp-pass-captain' ), '{event_name}' ); },
+				'label' => __( 'Eventabsage', 'pass-captain' ),
+				'description' => __( 'Information an Käufer:innen und Ticketinhaber:innen, wenn ein ganzes Event abgesagt wird.', 'pass-captain' ),
+				'placeholders' => array( 'event_name' => __( 'Event', 'pass-captain' ) ),
+				'subject' => static function () { return sprintf( /* translators: %s: event name */ __( 'Eventabsage: %s', 'pass-captain' ), '{event_name}' ); },
+				'body' => static function () { return sprintf( /* translators: %s: event name */ __( 'Das Event „%s“ wurde abgesagt. Bitte kontaktiere den Veranstalter für Informationen zu den nächsten Schritten. Diese Nachricht ist keine Bestätigung einer Erstattung.', 'pass-captain' ), '{event_name}' ); },
 				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert' ); },
 			),
 			'occurrence_cancelled' => array(
-				'label' => __( 'Terminabsage', 'wp-pass-captain' ),
-				'description' => __( 'Information an Ticketinhaber:innen, wenn ein einzelner Termin abgesagt wird.', 'wp-pass-captain' ),
+				'label' => __( 'Terminabsage', 'pass-captain' ),
+				'description' => __( 'Information an Ticketinhaber:innen, wenn ein einzelner Termin abgesagt wird.', 'pass-captain' ),
 				'placeholders' => array(
-					'event_name' => __( 'Event', 'wp-pass-captain' ),
-					'event_date' => __( 'Datum und Uhrzeit des Termins', 'wp-pass-captain' ),
-					'event_location' => __( 'Ort', 'wp-pass-captain' ),
-					'timezone' => __( 'Zeitzone', 'wp-pass-captain' ),
-					'refund_note' => __( 'Hinweis zur Erstattung (automatisch oder durch den Veranstalter)', 'wp-pass-captain' ),
+					'event_name' => __( 'Event', 'pass-captain' ),
+					'event_date' => __( 'Datum und Uhrzeit des Termins', 'pass-captain' ),
+					'event_location' => __( 'Ort', 'pass-captain' ),
+					'timezone' => __( 'Zeitzone', 'pass-captain' ),
+					'refund_note' => __( 'Hinweis zur Erstattung (automatisch oder durch den Veranstalter)', 'pass-captain' ),
 				),
 				/* translators: %s: event */
-				'subject' => static function () { return sprintf( __( 'Absage: %s', 'wp-pass-captain' ), '{event_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Absage: %s', 'pass-captain' ), '{event_name}' ); },
 				/* translators: 1: event, 2: date and time, 3: refund note */
-				'body' => static function () { return sprintf( __( "Der Termin „%1\$s“ am %2\$s wurde abgesagt. Dein Ticket ist dafür nicht mehr gültig.\n\n%3\$s", 'wp-pass-captain' ), '{event_name}', '{event_date}', '{refund_note}' ); },
-				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'event_date' => '15.01.2027 19:30', 'event_location' => 'Stadthalle Wien', 'timezone' => 'Europe/Vienna', 'refund_note' => __( 'Der Ticketpreis wird automatisch erstattet.', 'wp-pass-captain' ) ); },
+				'body' => static function () { return sprintf( __( "Der Termin „%1\$s“ am %2\$s wurde abgesagt. Dein Ticket ist dafür nicht mehr gültig.\n\n%3\$s", 'pass-captain' ), '{event_name}', '{event_date}', '{refund_note}' ); },
+				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'event_date' => '15.01.2027 19:30', 'event_location' => 'Stadthalle Wien', 'timezone' => 'Europe/Vienna', 'refund_note' => __( 'Der Ticketpreis wird automatisch erstattet.', 'pass-captain' ) ); },
 			),
 			'occurrence_rescheduled' => array(
-				'label' => __( 'Terminänderung', 'wp-pass-captain' ),
-				'description' => __( 'Information an Ticketinhaber:innen, wenn ein Termin verschoben wird.', 'wp-pass-captain' ),
+				'label' => __( 'Terminänderung', 'pass-captain' ),
+				'description' => __( 'Information an Ticketinhaber:innen, wenn ein Termin verschoben wird.', 'pass-captain' ),
 				'placeholders' => array(
-					'event_name' => __( 'Event', 'wp-pass-captain' ),
-					'old_date' => __( 'Bisheriges Datum und Uhrzeit', 'wp-pass-captain' ),
-					'event_date' => __( 'Neues Datum und Uhrzeit', 'wp-pass-captain' ),
-					'timezone' => __( 'Zeitzone', 'wp-pass-captain' ),
-					'event_location' => __( 'Ort', 'wp-pass-captain' ),
-					'ics_url' => __( 'Link zur aktualisierten Kalenderdatei (.ics)', 'wp-pass-captain' ),
+					'event_name' => __( 'Event', 'pass-captain' ),
+					'old_date' => __( 'Bisheriges Datum und Uhrzeit', 'pass-captain' ),
+					'event_date' => __( 'Neues Datum und Uhrzeit', 'pass-captain' ),
+					'timezone' => __( 'Zeitzone', 'pass-captain' ),
+					'event_location' => __( 'Ort', 'pass-captain' ),
+					'ics_url' => __( 'Link zur aktualisierten Kalenderdatei (.ics)', 'pass-captain' ),
 				),
 				/* translators: %s: event */
-				'subject' => static function () { return sprintf( __( 'Terminänderung: %s', 'wp-pass-captain' ), '{event_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Terminänderung: %s', 'pass-captain' ), '{event_name}' ); },
 				/* translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location */
-				'body' => static function () { return sprintf( __( "Der Termin für „%1\$s“ wurde verschoben.\n\nBisher: %2\$s\nNeu: %3\$s (%4\$s)\nOrt: %5\$s\n\nDein Ticket bleibt gültig. Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter.", 'wp-pass-captain' ), '{event_name}', '{old_date}', '{event_date}', '{timezone}', '{event_location}' ); },
+				'body' => static function () { return sprintf( __( "Der Termin für „%1\$s“ wurde verschoben.\n\nBisher: %2\$s\nNeu: %3\$s (%4\$s)\nOrt: %5\$s\n\nDein Ticket bleibt gültig. Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter.", 'pass-captain' ), '{event_name}', '{old_date}', '{event_date}', '{timezone}', '{event_location}' ); },
 				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'old_date' => '15.01.2027 19:30', 'event_date' => '22.01.2027 20:00', 'timezone' => 'Europe/Vienna', 'event_location' => 'Stadthalle Wien', 'ics_url' => Mailer::link( home_url( '/?wpcap_ics=occurrence&id=42' ) ) ); },
 			),
 			'occurrence_changed' => array(
-				'label' => __( 'Termindetails geändert', 'wp-pass-captain' ),
-				'description' => __( 'Information an Ticketinhaber:innen, wenn sich Ort, Ende, Einlass oder Veranstaltungsland eines Termins ändern – auch zusammen mit einer neuen Uhrzeit (dann ersetzt sie die Mail „Terminänderung“). Je Änderung höchstens einmal; die aktualisierte Kalenderdatei ist angehängt.', 'wp-pass-captain' ),
+				'label' => __( 'Termindetails geändert', 'pass-captain' ),
+				'description' => __( 'Information an Ticketinhaber:innen, wenn sich Ort, Ende, Einlass oder Veranstaltungsland eines Termins ändern – auch zusammen mit einer neuen Uhrzeit (dann ersetzt sie die Mail „Terminänderung“). Je Änderung höchstens einmal; die aktualisierte Kalenderdatei ist angehängt.', 'pass-captain' ),
 				'placeholders' => array(
-					'event_name' => __( 'Event', 'wp-pass-captain' ),
-					'changes' => __( 'Liste der Änderungen (bisher → neu), eine Zeile je Angabe', 'wp-pass-captain' ),
-					'event_date' => __( 'Aktuelles Datum und Uhrzeit', 'wp-pass-captain' ),
-					'old_date' => __( 'Bisheriges Datum und Uhrzeit', 'wp-pass-captain' ),
-					'timezone' => __( 'Zeitzone', 'wp-pass-captain' ),
-					'event_location' => __( 'Aktueller Ort', 'wp-pass-captain' ),
-					'ics_url' => __( 'Link zur aktualisierten Kalenderdatei (.ics)', 'wp-pass-captain' ),
+					'event_name' => __( 'Event', 'pass-captain' ),
+					'changes' => __( 'Liste der Änderungen (bisher → neu), eine Zeile je Angabe', 'pass-captain' ),
+					'event_date' => __( 'Aktuelles Datum und Uhrzeit', 'pass-captain' ),
+					'old_date' => __( 'Bisheriges Datum und Uhrzeit', 'pass-captain' ),
+					'timezone' => __( 'Zeitzone', 'pass-captain' ),
+					'event_location' => __( 'Aktueller Ort', 'pass-captain' ),
+					'ics_url' => __( 'Link zur aktualisierten Kalenderdatei (.ics)', 'pass-captain' ),
 				),
 				/* translators: %s: event */
-				'subject' => static function () { return sprintf( __( 'Geänderte Termindetails: %s', 'wp-pass-captain' ), '{event_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Geänderte Termindetails: %s', 'pass-captain' ), '{event_name}' ); },
 				/* translators: 1: event, 2: list of changes, 3: date and time, 4: timezone, 5: location, 6: link to the calendar file */
-				'body' => static function () { return sprintf( __( "Für deinen Termin „%1\$s“ haben sich Angaben geändert:\n\n%2\$s\n\nTermin: %3\$s (%4\$s)\nOrt: %5\$s\n\nDein Ticket bleibt gültig. Die aktualisierte Kalenderdatei ist angehängt; du kannst sie auch hier laden: %6\$s\nBei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter.", 'wp-pass-captain' ), '{event_name}', '{changes}', '{event_date}', '{timezone}', '{event_location}', '{ics_url}' ); },
-				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'changes' => __( 'Ort', 'wp-pass-captain' ) . ': Stadthalle Wien → Konzerthaus Wien', 'event_date' => '22.01.2027 20:00', 'old_date' => '22.01.2027 20:00', 'timezone' => 'Europe/Vienna', 'event_location' => 'Konzerthaus Wien', 'ics_url' => Mailer::link( home_url( '/?wpcap_ics=occurrence&id=42' ) ) ); },
+				'body' => static function () { return sprintf( __( "Für deinen Termin „%1\$s“ haben sich Angaben geändert:\n\n%2\$s\n\nTermin: %3\$s (%4\$s)\nOrt: %5\$s\n\nDein Ticket bleibt gültig. Die aktualisierte Kalenderdatei ist angehängt; du kannst sie auch hier laden: %6\$s\nBei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter.", 'pass-captain' ), '{event_name}', '{changes}', '{event_date}', '{timezone}', '{event_location}', '{ics_url}' ); },
+				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'changes' => __( 'Ort', 'pass-captain' ) . ': Stadthalle Wien → Konzerthaus Wien', 'event_date' => '22.01.2027 20:00', 'old_date' => '22.01.2027 20:00', 'timezone' => 'Europe/Vienna', 'event_location' => 'Konzerthaus Wien', 'ics_url' => Mailer::link( home_url( '/?wpcap_ics=occurrence&id=42' ) ) ); },
 			),
 			'waitlist_joined' => array(
-				'label' => __( 'Warteliste: Eintragung', 'wp-pass-captain' ),
-				'description' => __( 'Bestätigung der Eintragung in die Warteliste.', 'wp-pass-captain' ),
+				'label' => __( 'Warteliste: Eintragung', 'pass-captain' ),
+				'description' => __( 'Bestätigung der Eintragung in die Warteliste.', 'pass-captain' ),
 				'placeholders' => array(
-					'position' => __( 'Position auf der Warteliste', 'wp-pass-captain' ),
-					'quantity' => __( 'Gewünschte Anzahl', 'wp-pass-captain' ),
-					'event_name' => __( 'Event', 'wp-pass-captain' ),
-					'ticket_name' => __( 'Ticketart', 'wp-pass-captain' ),
-					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'wp-pass-captain' ),
+					'position' => __( 'Position auf der Warteliste', 'pass-captain' ),
+					'quantity' => __( 'Gewünschte Anzahl', 'pass-captain' ),
+					'event_name' => __( 'Event', 'pass-captain' ),
+					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
+					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'pass-captain' ),
 				),
-				'subject' => static function () { return __( 'Du stehst auf der Warteliste', 'wp-pass-captain' ); },
+				'subject' => static function () { return __( 'Du stehst auf der Warteliste', 'pass-captain' ); },
 				'body' => static function () {
 					/* translators: %d: waitlist position */
-					$intro = str_replace( '%d', '{position}', __( 'Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird.', 'wp-pass-captain' ) );
+					$intro = str_replace( '%d', '{position}', __( 'Du bist auf der Warteliste eingetragen (Position %d). Wir schreiben dir, sobald ein Platz frei wird.', 'pass-captain' ) );
 					return $intro . "\n\n" . Types::waitlist_unsubscribe_note();
 				},
 				'sample' => static function () { return array( 'position' => 3, 'quantity' => 2, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'unsubscribe_link' => Mailer::link( home_url( '/?wpcap_waitlist_unsubscribe=12&token=' . str_repeat( 'a7', 32 ) ) ) ); },
 			),
 			'waitlist_offer' => array(
-				'label' => __( 'Warteliste: Platzangebot', 'wp-pass-captain' ),
-				'description' => __( 'Angebot an die nächste Person auf der Warteliste; die Tickets sind bis zum Ablauf reserviert.', 'wp-pass-captain' ),
+				'label' => __( 'Warteliste: Platzangebot', 'pass-captain' ),
+				'description' => __( 'Angebot an die nächste Person auf der Warteliste; die Tickets sind bis zum Ablauf reserviert.', 'pass-captain' ),
 				'placeholders' => array(
-					'offer_expires' => __( 'Ablauf des Angebots', 'wp-pass-captain' ),
-					'accept_link' => __( 'Link zur Annahme', 'wp-pass-captain' ),
-					'quantity' => __( 'Anzahl der reservierten Tickets', 'wp-pass-captain' ),
-					'position' => __( 'Position auf der Warteliste', 'wp-pass-captain' ),
-					'event_name' => __( 'Event', 'wp-pass-captain' ),
-					'ticket_name' => __( 'Ticketart', 'wp-pass-captain' ),
-					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'wp-pass-captain' ),
+					'offer_expires' => __( 'Ablauf des Angebots', 'pass-captain' ),
+					'accept_link' => __( 'Link zur Annahme', 'pass-captain' ),
+					'quantity' => __( 'Anzahl der reservierten Tickets', 'pass-captain' ),
+					'position' => __( 'Position auf der Warteliste', 'pass-captain' ),
+					'event_name' => __( 'Event', 'pass-captain' ),
+					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
+					'unsubscribe_link' => __( 'Persönlicher Link zum Austragen aus der Warteliste', 'pass-captain' ),
 				),
 				/* translators: %s: event */
-				'subject' => static function () { return sprintf( __( 'Tickets für dich reserviert: %s', 'wp-pass-captain' ), '{event_name}' ); },
+				'subject' => static function () { return sprintf( __( 'Tickets für dich reserviert: %s', 'pass-captain' ), '{event_name}' ); },
 				'body' => static function () {
 					/* translators: 1: quantity, 2: ticket type, 3: event, 4: expiry date, 5: accept link */
-					$offer = sprintf( __( "Gute Nachrichten: Für dich sind %1\$s × „%2\$s“ für „%3\$s“ reserviert.\n\nDie Reservierung gilt bis %4\$s. Nimm das Angebot bis dahin an und schließe die Bestellung ab, sonst geht es an die nächste Person auf der Warteliste:\n%5\$s\n\nWenn du die Tickets nicht mehr brauchst, kannst du das Angebot über denselben Link ablehnen.", 'wp-pass-captain' ), '{quantity}', '{ticket_name}', '{event_name}', '{offer_expires}', '{accept_link}' );
+					$offer = sprintf( __( "Gute Nachrichten: Für dich sind %1\$s × „%2\$s“ für „%3\$s“ reserviert.\n\nDie Reservierung gilt bis %4\$s. Nimm das Angebot bis dahin an und schließe die Bestellung ab, sonst geht es an die nächste Person auf der Warteliste:\n%5\$s\n\nWenn du die Tickets nicht mehr brauchst, kannst du das Angebot über denselben Link ablehnen.", 'pass-captain' ), '{quantity}', '{ticket_name}', '{event_name}', '{offer_expires}', '{accept_link}' );
 					return $offer . "\n\n" . Types::waitlist_unsubscribe_note();
 				},
 				'sample' => static function () { return array( 'offer_expires' => '16.01.2027 19:30 UTC', 'accept_link' => Mailer::link( home_url( '/?wpcap_waitlist_accept=12&token=' . str_repeat( 'e5', 32 ) ) ), 'quantity' => 2, 'position' => 1, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'unsubscribe_link' => Mailer::link( home_url( '/?wpcap_waitlist_unsubscribe=12&token=' . str_repeat( 'a7', 32 ) ) ) ); },
 			),
 			'member_pass' => array(
-				'label' => __( 'Mitgliedspass', 'wp-pass-captain' ),
-				'description' => __( 'Passcode einer Mitgliedschaft bzw. eines Mehrfachpasses.', 'wp-pass-captain' ),
+				'label' => __( 'Mitgliedspass', 'pass-captain' ),
+				'description' => __( 'Passcode einer Mitgliedschaft bzw. eines Mehrfachpasses.', 'pass-captain' ),
 				'placeholders' => array(
-					'pass_code' => __( 'Passcode', 'wp-pass-captain' ),
-					'valid_from' => __( 'Gültig ab', 'wp-pass-captain' ),
-					'valid_until' => __( 'Gültig bis', 'wp-pass-captain' ),
+					'pass_code' => __( 'Passcode', 'pass-captain' ),
+					'valid_from' => __( 'Gültig ab', 'pass-captain' ),
+					'valid_until' => __( 'Gültig bis', 'pass-captain' ),
 				),
 				/* translators: %s: site name */
-				'subject' => static function () { return sprintf( __( 'Dein Pass für %s', 'wp-pass-captain' ), '{site_name}' ); },
-				'body' => static function () { return __( 'Dein Passcode:', 'wp-pass-captain' ) . " {pass_code}\n" . __( 'Gültig bis:', 'wp-pass-captain' ) . ' {valid_until}'; },
+				'subject' => static function () { return sprintf( __( 'Dein Pass für %s', 'pass-captain' ), '{site_name}' ); },
+				'body' => static function () { return __( 'Dein Passcode:', 'pass-captain' ) . " {pass_code}\n" . __( 'Gültig bis:', 'pass-captain' ) . ' {valid_until}'; },
 				'sample' => static function () { return array( 'pass_code' => str_repeat( 'f6', 32 ), 'valid_from' => '2027-01-01 00:00:00', 'valid_until' => '2027-12-31 23:59:59' ); },
 			),
 		);
@@ -436,7 +436,7 @@ final class Types {
 	public static function revoked_note( $count ) {
 		$count = (int) $count;
 		/* translators: %d: number of tickets */
-		return $count ? sprintf( _n( '%d Ticket ist damit ungültig.', '%d Tickets sind damit ungültig.', $count, 'wp-pass-captain' ), $count ) . "\n" : '';
+		return $count ? sprintf( _n( '%d Ticket ist damit ungültig.', '%d Tickets sind damit ungültig.', $count, 'pass-captain' ), $count ) . "\n" : '';
 	}
 
 	/**
@@ -449,12 +449,12 @@ final class Types {
 	public static function exchange_price_note( $kind, $amount = '' ) {
 		switch ( (string) $kind ) {
 			/* translators: %s: amount */
-			case 'paid': return sprintf( __( 'Aufpreis bezahlt: %s', 'wp-pass-captain' ), $amount ) . "\n\n";
+			case 'paid': return sprintf( __( 'Aufpreis bezahlt: %s', 'pass-captain' ), $amount ) . "\n\n";
 			/* translators: %s: amount */
-			case 'refund': return sprintf( __( 'Die Preisdifferenz von %s wird erstattet.', 'wp-pass-captain' ), $amount ) . "\n\n";
+			case 'refund': return sprintf( __( 'Die Preisdifferenz von %s wird erstattet.', 'pass-captain' ), $amount ) . "\n\n";
 			/* translators: %s: amount */
-			case 'refund_pending': return sprintf( __( 'Die Erstattung der Preisdifferenz von %s wird geprüft.', 'wp-pass-captain' ), $amount ) . "\n\n";
-			case 'waived': return __( 'Der Umtausch erfolgte aus Kulanz ohne Aufpreis.', 'wp-pass-captain' ) . "\n\n";
+			case 'refund_pending': return sprintf( __( 'Die Erstattung der Preisdifferenz von %s wird geprüft.', 'pass-captain' ), $amount ) . "\n\n";
+			case 'waived': return __( 'Der Umtausch erfolgte aus Kulanz ohne Aufpreis.', 'pass-captain' ) . "\n\n";
 		}
 		return '';
 	}
@@ -465,12 +465,12 @@ final class Types {
 	 */
 	public static function waitlist_unsubscribe_note( $link = '{unsubscribe_link}' ) {
 		/* translators: %s: personal unsubscribe link */
-		return sprintf( __( "Du möchtest nicht mehr auf der Warteliste stehen? Hier kannst du dich austragen:\n%s", 'wp-pass-captain' ), $link );
+		return sprintf( __( "Du möchtest nicht mehr auf der Warteliste stehen? Hier kannst du dich austragen:\n%s", 'pass-captain' ), $link );
 	}
 
 	/** Refund mail: correction document line incl. line break ('' without number). Call inside the recipient locale. */
 	public static function credit_note( $number ) {
 		/* translators: %s: credit note number */
-		return '' !== (string) $number ? sprintf( __( 'Rechnungskorrektur: %s', 'wp-pass-captain' ), $number ) . "\n" : '';
+		return '' !== (string) $number ? sprintf( __( 'Rechnungskorrektur: %s', 'pass-captain' ), $number ) . "\n" : '';
 	}
 }

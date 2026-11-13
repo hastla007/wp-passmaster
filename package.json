@@ -1,5 +1,5 @@
 {
-  "name": "wp-pass-captain-dev",
+  "name": "pass-captain-dev",
   "private": true,
   "description": "Development tooling only (not shipped): JavaScript lint and tests.",
   "scripts": {

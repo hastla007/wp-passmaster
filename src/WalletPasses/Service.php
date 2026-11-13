@@ -124,7 +124,7 @@ final class Service {
 		$pass = Store::pass_by_serial( 'apple', $serial );
 		$state = $pass ? Store::state( $pass->ticket_id ) : null;
 		if ( ! $state ) { return ''; }
-		return add_query_arg( 'sig', self::download_sig( $serial, $state ), rest_url( 'wp-pass-captain/v1/' . AppleProvider::REST_BASE . '/download/' . rawurlencode( $serial ) ) );
+		return add_query_arg( 'sig', self::download_sig( $serial, $state ), rest_url( 'pass-captain/v1/' . AppleProvider::REST_BASE . '/download/' . rawurlencode( $serial ) ) );
 	}
 
 	public static function download_sig( $serial, $state ) {
@@ -150,17 +150,17 @@ final class Service {
 					@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 					$files[] = $file;
 					/* translators: %s: file name */
-					$text .= sprintf( __( 'Zu Apple Wallet hinzufügen: Anhang %s öffnen', 'wp-pass-captain' ), basename( $file ) ) . "\n";
+					$text .= sprintf( __( 'Zu Apple Wallet hinzufügen: Anhang %s öffnen', 'pass-captain' ), basename( $file ) ) . "\n";
 				} else {
 					$use_file = false;
 				}
 			}
 			if ( ! $use_file && ! empty( $passes['apple']['download_url'] ) ) {
-				$text .= __( 'Zu Apple Wallet hinzufügen:', 'wp-pass-captain' ) . ' ' . esc_url_raw( $passes['apple']['download_url'] ) . "\n";
+				$text .= __( 'Zu Apple Wallet hinzufügen:', 'pass-captain' ) . ' ' . esc_url_raw( $passes['apple']['download_url'] ) . "\n";
 			}
 		}
 		if ( ! empty( $passes['google']['save_url'] ) ) {
-			$text .= __( 'In Google Wallet speichern:', 'wp-pass-captain' ) . ' ' . esc_url_raw( $passes['google']['save_url'] ) . "\n";
+			$text .= __( 'In Google Wallet speichern:', 'pass-captain' ) . ' ' . esc_url_raw( $passes['google']['save_url'] ) . "\n";
 		}
 		if ( '' !== $text ) { $text = implode( ' — ', array_filter( $ticket_label ) ) . "\n" . $text . "\n"; }
 		return array( $text, $files );
@@ -195,7 +195,7 @@ final class Service {
 			$text .= $part;
 			$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), $files );
 		}
-		if ( '' !== $text ) { $mail['body'] = (string) $mail['body'] . "\n" . __( 'Wallet', 'wp-pass-captain' ) . "\n" . $text; }
+		if ( '' !== $text ) { $mail['body'] = (string) $mail['body'] . "\n" . __( 'Wallet', 'pass-captain' ) . "\n" . $text; }
 		return $mail;
 	}
 
@@ -241,7 +241,7 @@ final class Service {
 		if ( ! $passes ) { return $text; }
 		$ticket = self::ticket( (int) $ticket_id );
 		list( $part ) = self::mail_parts( $passes, array( $ticket['event_name'] ?? '', $ticket['ticket_name'] ?? '' ), false );
-		return '' === $part ? $text : $text . "\n" . __( 'Wallet', 'wp-pass-captain' ) . "\n" . $part;
+		return '' === $part ? $text : $text . "\n" . __( 'Wallet', 'pass-captain' ) . "\n" . $part;
 	}
 
 	/* ---- change propagation ---- */

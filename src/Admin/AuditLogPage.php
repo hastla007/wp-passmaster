@@ -77,7 +77,7 @@ final class AuditLogPage {
 	}
 
 	public static function render() {
-		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$filters = self::filters();
 		$page = Forms::current_page();
 		$data = self::query( $filters, $page );
@@ -92,30 +92,30 @@ final class AuditLogPage {
 			'date_from' => $filters['date_from'],
 			'date_to' => $filters['date_to'],
 		) ) );
-		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Audit-Log', 'wp-pass-captain' ) . '</h1>';
-		echo '<p class="description">' . esc_html__( 'Protokoll von Änderungen, Exporten und Zugriffen auf personenbezogene Daten. Personenbezogene Werte erscheinen hier nur maskiert.', 'wp-pass-captain' ) . ' ';
+		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Audit-Log', 'pass-captain' ) . '</h1>';
+		echo '<p class="description">' . esc_html__( 'Protokoll von Änderungen, Exporten und Zugriffen auf personenbezogene Daten. Personenbezogene Werte erscheinen hier nur maskiert.', 'pass-captain' ) . ' ';
 		if ( $days > 0 ) {
 			/* translators: %d: number of days */
-			echo esc_html( sprintf( _n( 'Einträge werden nach %d Tag automatisch gelöscht.', 'Einträge werden nach %d Tagen automatisch gelöscht.', $days, 'wp-pass-captain' ), $days ) );
+			echo esc_html( sprintf( _n( 'Einträge werden nach %d Tag automatisch gelöscht.', 'Einträge werden nach %d Tagen automatisch gelöscht.', $days, 'pass-captain' ), $days ) );
 		} else {
-			echo esc_html__( 'Einträge werden nicht automatisch gelöscht.', 'wp-pass-captain' );
+			echo esc_html__( 'Einträge werden nicht automatisch gelöscht.', 'pass-captain' );
 		}
 		echo '</p>';
 		echo '<form method="get" class="wpcap-filters"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '">';
-		Forms::select( 'group', array( '' => __( 'Alle Bereiche', 'wp-pass-captain' ) ) + AccessLog::group_labels(), $filters['group'], '', 'aria-label="' . esc_attr__( 'Bereich', 'wp-pass-captain' ) . '"' );
-		echo ' <input type="text" name="audit_action" size="18" value="' . esc_attr( $filters['action'] ) . '" placeholder="' . esc_attr__( 'Aktion, z. B. pii_viewed', 'wp-pass-captain' ) . '" aria-label="' . esc_attr__( 'Aktion', 'wp-pass-captain' ) . '">';
-		echo ' <input type="number" name="user_id" min="0" style="width:7em" value="' . esc_attr( $filters['user_id'] ? (string) $filters['user_id'] : '' ) . '" placeholder="' . esc_attr__( 'Benutzer-ID', 'wp-pass-captain' ) . '" aria-label="' . esc_attr__( 'Benutzer-ID', 'wp-pass-captain' ) . '">';
-		echo ' <input type="text" name="object_type" size="10" value="' . esc_attr( $filters['object_type'] ) . '" placeholder="' . esc_attr__( 'Objekttyp', 'wp-pass-captain' ) . '" aria-label="' . esc_attr__( 'Objekttyp', 'wp-pass-captain' ) . '">';
-		echo ' <input type="number" name="object_id" min="0" style="width:7em" value="' . esc_attr( $filters['object_id'] ? (string) $filters['object_id'] : '' ) . '" placeholder="' . esc_attr__( 'Objekt-ID', 'wp-pass-captain' ) . '" aria-label="' . esc_attr__( 'Objekt-ID', 'wp-pass-captain' ) . '">';
-		echo ' <input type="date" name="date_from" value="' . esc_attr( $filters['date_from'] ) . '" aria-label="' . esc_attr__( 'Von (UTC)', 'wp-pass-captain' ) . '">';
-		echo ' <input type="date" name="date_to" value="' . esc_attr( $filters['date_to'] ) . '" aria-label="' . esc_attr__( 'Bis (UTC)', 'wp-pass-captain' ) . '">';
-		echo ' <button class="button" type="submit">' . esc_html__( 'Filtern', 'wp-pass-captain' ) . '</button></form>';
-		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Zeit', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Benutzer', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktion', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Objekt', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Details', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		Forms::select( 'group', array( '' => __( 'Alle Bereiche', 'pass-captain' ) ) + AccessLog::group_labels(), $filters['group'], '', 'aria-label="' . esc_attr__( 'Bereich', 'pass-captain' ) . '"' );
+		echo ' <input type="text" name="audit_action" size="18" value="' . esc_attr( $filters['action'] ) . '" placeholder="' . esc_attr__( 'Aktion, z. B. pii_viewed', 'pass-captain' ) . '" aria-label="' . esc_attr__( 'Aktion', 'pass-captain' ) . '">';
+		echo ' <input type="number" name="user_id" min="0" style="width:7em" value="' . esc_attr( $filters['user_id'] ? (string) $filters['user_id'] : '' ) . '" placeholder="' . esc_attr__( 'Benutzer-ID', 'pass-captain' ) . '" aria-label="' . esc_attr__( 'Benutzer-ID', 'pass-captain' ) . '">';
+		echo ' <input type="text" name="object_type" size="10" value="' . esc_attr( $filters['object_type'] ) . '" placeholder="' . esc_attr__( 'Objekttyp', 'pass-captain' ) . '" aria-label="' . esc_attr__( 'Objekttyp', 'pass-captain' ) . '">';
+		echo ' <input type="number" name="object_id" min="0" style="width:7em" value="' . esc_attr( $filters['object_id'] ? (string) $filters['object_id'] : '' ) . '" placeholder="' . esc_attr__( 'Objekt-ID', 'pass-captain' ) . '" aria-label="' . esc_attr__( 'Objekt-ID', 'pass-captain' ) . '">';
+		echo ' <input type="date" name="date_from" value="' . esc_attr( $filters['date_from'] ) . '" aria-label="' . esc_attr__( 'Von (UTC)', 'pass-captain' ) . '">';
+		echo ' <input type="date" name="date_to" value="' . esc_attr( $filters['date_to'] ) . '" aria-label="' . esc_attr__( 'Bis (UTC)', 'pass-captain' ) . '">';
+		echo ' <button class="button" type="submit">' . esc_html__( 'Filtern', 'pass-captain' ) . '</button></form>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Zeit', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Benutzer', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktion', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Objekt', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Details', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		if ( ! $data['rows'] ) {
-			echo '<tr><td colspan="5">' . esc_html__( 'Keine Einträge gefunden.', 'wp-pass-captain' ) . '</td></tr>';
+			echo '<tr><td colspan="5">' . esc_html__( 'Keine Einträge gefunden.', 'pass-captain' ) . '</td></tr>';
 		}
 		foreach ( $data['rows'] as $row ) {
-			echo '<tr><td>' . esc_html( Forms::datetime( $row->created_at, wp_timezone_string(), false ) ) . '</td><td>' . esc_html( (int) $row->user_id ? Forms::user_label( (int) $row->user_id ) : __( 'System', 'wp-pass-captain' ) ) . '</td><td><code>' . esc_html( $row->action ) . '</code></td><td>' . esc_html( $row->object_type . ( (int) $row->object_id ? ' #' . (int) $row->object_id : '' ) ) . '</td><td><code style="white-space:pre-wrap;word-break:break-word">' . esc_html( self::details_text( $row->details ) ) . '</code></td></tr>';
+			echo '<tr><td>' . esc_html( Forms::datetime( $row->created_at, wp_timezone_string(), false ) ) . '</td><td>' . esc_html( (int) $row->user_id ? Forms::user_label( (int) $row->user_id ) : __( 'System', 'pass-captain' ) ) . '</td><td><code>' . esc_html( $row->action ) . '</code></td><td>' . esc_html( $row->object_type . ( (int) $row->object_id ? ' #' . (int) $row->object_id : '' ) ) . '</td><td><code style="white-space:pre-wrap;word-break:break-word">' . esc_html( self::details_text( $row->details ) ) . '</code></td></tr>';
 		}
 		echo '</tbody></table>';
 		Forms::pagination( $data['total'], $page, self::PER_PAGE, $base );

@@ -46,14 +46,14 @@ final class Credentials {
 		}
 		$wwdr = self::material( \PassCaptain\Secrets::get( 'apple_wwdr_cert' ) );
 		if ( '' === $cert || '' === $key || '' === $wwdr ) {
-			return new \WP_Error( 'wpcap_wallet_apple_credentials', __( 'Apple-Zertifikat, privater Schlüssel oder WWDR-Zertifikat fehlen.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_wallet_apple_credentials', __( 'Apple-Zertifikat, privater Schlüssel oder WWDR-Zertifikat fehlen.', 'pass-captain' ) );
 		}
 		if ( ! openssl_x509_read( $cert ) || ! openssl_x509_read( $wwdr ) ) {
-			return new \WP_Error( 'wpcap_wallet_apple_cert_invalid', __( 'Ein Apple-Zertifikat konnte nicht gelesen werden.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_wallet_apple_cert_invalid', __( 'Ein Apple-Zertifikat konnte nicht gelesen werden.', 'pass-captain' ) );
 		}
 		$pkey = openssl_pkey_get_private( $key, $password );
 		if ( ! $pkey || ! openssl_x509_check_private_key( $cert, $pkey ) ) {
-			return new \WP_Error( 'wpcap_wallet_apple_key_invalid', __( 'Der private Schlüssel passt nicht zum Pass-Type-ID-Zertifikat oder das Passwort ist falsch.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_wallet_apple_key_invalid', __( 'Der private Schlüssel passt nicht zum Pass-Type-ID-Zertifikat oder das Passwort ist falsch.', 'pass-captain' ) );
 		}
 		return array( 'cert' => $cert, 'key' => $key, 'password' => (string) $password, 'wwdr' => $wwdr );
 	}
@@ -66,10 +66,10 @@ final class Credentials {
 	public static function google() {
 		$json = json_decode( self::material( \PassCaptain\Secrets::get( 'google_wallet_service_account' ) ), true );
 		if ( ! is_array( $json ) || empty( $json['client_email'] ) || empty( $json['private_key'] ) ) {
-			return new \WP_Error( 'wpcap_wallet_google_credentials', __( 'Das Google-Servicekonto (JSON) fehlt oder ist ungültig.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_wallet_google_credentials', __( 'Das Google-Servicekonto (JSON) fehlt oder ist ungültig.', 'pass-captain' ) );
 		}
 		if ( ! openssl_pkey_get_private( $json['private_key'] ) ) {
-			return new \WP_Error( 'wpcap_wallet_google_key', __( 'Der private Schlüssel des Google-Servicekontos ist ungültig.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_wallet_google_key', __( 'Der private Schlüssel des Google-Servicekontos ist ungültig.', 'pass-captain' ) );
 		}
 		return array( 'client_email' => (string) $json['client_email'], 'private_key' => (string) $json['private_key'], 'token_uri' => (string) ( $json['token_uri'] ?? 'https://oauth2.googleapis.com/token' ) );
 	}

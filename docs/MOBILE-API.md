@@ -5,7 +5,7 @@
 REST-Schnittstelle für native Einlass-Apps (iOS/Android) und andere Scanner-Clients. Basis-URL:
 
 ```
-https://<site>/wp-json/wp-pass-captain/v1/app/
+https://<site>/wp-json/pass-captain/v1/app/
 ```
 
 Die Web-Scanner-Seite (Shortcode `[wp_pass_captain_scanner]`) und die App nutzen denselben Check-in-Dienst (`PassCaptain\Checkin`). Ein Ticket kann deshalb nie über zwei Kanäle doppelt eingelassen werden.
@@ -15,7 +15,7 @@ Die Web-Scanner-Seite (Shortcode `[wp_pass_captain_scanner]`) und die App nutzen
 1. Eine Person mit Einlassrecht (`wpcap_checkin`) öffnet **Pass Captain → Scanner-Geräte**. Dort wählt sie die Events, optional einen festen **Einlassbereich** (siehe Abschnitt 3), einen Gerätenamen und die Gültigkeit in Stunden (höchstens `device_max_hours`, Standard 24) und klickt **Kopplungs-QR erstellen**.
 2. Die Seite zeigt einen QR-Code und den Code zum Abtippen. Beide sind 10 Minuten und nur einmal gültig. Der QR enthält:
    ```json
-   {"type":"wpcap-pair","v":1,"api":"https://example.org/wp-json/wp-pass-captain/v1/app/","code":"K7M2Q9X4..."}
+   {"type":"wpcap-pair","v":1,"api":"https://example.org/wp-json/pass-captain/v1/app/","code":"K7M2Q9X4..."}
    ```
 3. Die App scannt den QR (oder der Code wird eingetippt) und ruft auf:
 
@@ -165,7 +165,7 @@ Optional: Einlassfenster in Minuten vor Beginn/nach Ende sowie tägliche Einlass
 - Fehlerantworten enthalten nur `result`, Status und Meldung, keine internen IDs.
 - Der Web-Scanner speichert Offline-Scans (Ticket-Code, Schlüssel, Zeit, Bereich, Richtung) im `localStorage` des Browsers, ohne Mengenbegrenzung, und lädt sie in Blöcken zu 100 hoch. Entfernt werden nur vom Server bestätigte Einträge (per `idempotency_key`). Die Warteschlange gehört dem angemeldeten WordPress-Benutzer (Schlüssel aus einem HMAC der Benutzer-ID, nicht die ID selbst). Öffnet ein anderer Benutzer den Scanner im selben Browser, werden fremde und ältere gemeinsame Warteschlangen gelöscht – auch noch nicht synchronisierte Scans. Vor einem Schichtwechsel deshalb synchronisieren. Einträge älter als 24 Stunden (Filter `wpcap_scanner_queue_max_hours`) werden mit Hinweis ohne Upload verworfen. Eine Abmeldung kann den Browserspeicher nicht selbst leeren: Auf geteilten Geräten nach Schichtende den Browser schließen bzw. die Website-Daten löschen.
 - **Scanner-Geräte** zeigt pro Gerät zuletzt aktiv, letzte Synchronisierung und offene Konflikte.
-- Der Web-Scanner synchronisiert über `POST /wp-pass-captain/v1/admission/offline-sync` (Cookie + REST-Nonce) mit denselben Regeln; Einlass/Auslass mit Bereich über `/admission/check-in` und `/admission/check-out`.
+- Der Web-Scanner synchronisiert über `POST /pass-captain/v1/admission/offline-sync` (Cookie + REST-Nonce) mit denselben Regeln; Einlass/Auslass mit Bereich über `/admission/check-in` und `/admission/check-out`.
 - **Offline-Betrieb kann keine globale Einmaligkeit garantieren** (siehe CONCEPT.md, Abschnitt 7). Für streng begrenzte Einlässe nur online scannen.
 
 ## 5. Empfehlungen für App-Umsetzung

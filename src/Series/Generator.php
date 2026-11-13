@@ -65,25 +65,25 @@ final class Generator {
 		global $wpdb;
 		$event_id = absint( $in['event_id'] ?? 0 );
 		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) );
-		if ( ! $event ) { return self::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
-		if ( 'cancelled' === $event->status ) { return self::error( 'wpcap_event_cancelled', __( 'Abgesagte Events können nicht mehr bearbeitet werden.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $event ) { return self::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
+		if ( 'cancelled' === $event->status ) { return self::error( 'wpcap_event_cancelled', __( 'Abgesagte Events können nicht mehr bearbeitet werden.', 'pass-captain' ), 409 ); }
 		$rule = Rules::normalize( $in );
 		if ( is_wp_error( $rule ) ) { return $rule; }
 		$template_id = absint( $in['template_occurrence_id'] ?? 0 );
 		if ( $template_id ) {
 			$template = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $template_id ) );
-			if ( ! $template || (int) $template->event_id !== $event_id ) { return self::error( 'wpcap_series_template', __( 'Der Vorlagentermin gehört nicht zu diesem Event.', 'wp-pass-captain' ) ); }
+			if ( ! $template || (int) $template->event_id !== $event_id ) { return self::error( 'wpcap_series_template', __( 'Der Vorlagentermin gehört nicht zu diesem Event.', 'pass-captain' ) ); }
 		}
 		$sales_start = self::optional_int( $in['sales_start_days_before'] ?? '' );
 		$sales_end = self::optional_int( $in['sales_end_minutes_before'] ?? '' );
 		if ( false === $sales_start || false === $sales_end || ( null !== $sales_start && $sales_start > 730 ) || ( null !== $sales_end && $sales_end > 60 * 24 * 60 ) ) {
-			return self::error( 'wpcap_series_sales', __( 'Der Verkaufszeitraum ist ungültig.', 'wp-pass-captain' ) );
+			return self::error( 'wpcap_series_sales', __( 'Der Verkaufszeitraum ist ungültig.', 'pass-captain' ) );
 		}
 		$seat_version = absint( $in['seat_version_id'] ?? 0 );
 		if ( $seat_version ) {
 			$version_event = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_seating_versions WHERE version_id=%d", $seat_version ) );
-			if ( $version_event !== $event_id ) { return self::error( 'wpcap_series_seat_map', __( 'Die Saalplan-Version gehört nicht zu diesem Event.', 'wp-pass-captain' ) ); }
+			if ( $version_event !== $event_id ) { return self::error( 'wpcap_series_seat_map', __( 'Die Saalplan-Version gehört nicht zu diesem Event.', 'pass-captain' ) ); }
 		}
 		$definition = array(
 			'event_id' => $event_id,
@@ -177,7 +177,7 @@ final class Generator {
 			$wpdb->query( 'COMMIT' );
 		} catch ( \Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_series_failed', __( 'Die Serientermine konnten nicht angelegt werden; es wurde nichts gespeichert.', 'wp-pass-captain' ), 500 );
+			return self::error( 'wpcap_series_failed', __( 'Die Serientermine konnten nicht angelegt werden; es wurde nichts gespeichert.', 'pass-captain' ), 500 );
 		}
 		$seat_links = self::link_seat_maps( $definition, $type_maps );
 		foreach ( $created as $occurrence_id ) {
@@ -205,11 +205,11 @@ final class Generator {
 		$notes = array();
 		if ( $gap ) {
 			/* translators: 1: timezone, 2: list of dates with the time used */
-			$notes[] = sprintf( __( 'Zeitumstellung (%1$s): Die Uhrzeit gibt es an diesen Tagen nicht, die Termine wurden auf die erste gültige Zeit danach verschoben: %2$s.', 'wp-pass-captain' ), $timezone, implode( ', ', $gap ) );
+			$notes[] = sprintf( __( 'Zeitumstellung (%1$s): Die Uhrzeit gibt es an diesen Tagen nicht, die Termine wurden auf die erste gültige Zeit danach verschoben: %2$s.', 'pass-captain' ), $timezone, implode( ', ', $gap ) );
 		}
 		if ( $ambiguous ) {
 			/* translators: 1: timezone, 2: list of dates with the UTC offset used */
-			$notes[] = sprintf( __( 'Zeitumstellung (%1$s): Die Uhrzeit kommt an diesen Tagen zweimal vor; verwendet wurde jeweils die erste (Sommerzeit): %2$s.', 'wp-pass-captain' ), $timezone, implode( ', ', $ambiguous ) );
+			$notes[] = sprintf( __( 'Zeitumstellung (%1$s): Die Uhrzeit kommt an diesen Tagen zweimal vor; verwendet wurde jeweils die erste (Sommerzeit): %2$s.', 'pass-captain' ), $timezone, implode( ', ', $ambiguous ) );
 		}
 		return $notes;
 	}
@@ -379,7 +379,7 @@ final class Generator {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$series = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_series WHERE series_id=%d", absint( $series_id ) ) );
-		if ( ! $series ) { return self::error( 'wpcap_series_missing', __( 'Serie nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $series ) { return self::error( 'wpcap_series_missing', __( 'Serie nicht gefunden.', 'pass-captain' ), 404 ); }
 		$in['event_id'] = (int) $series->event_id;
 		$definition = self::definition( $in );
 		if ( is_wp_error( $definition ) ) { return $definition; }
@@ -389,7 +389,7 @@ final class Generator {
 		$rule = $definition['rule'];
 		$hash = self::definition_hash( $definition );
 		if ( (int) $wpdb->get_var( $wpdb->prepare( "SELECT series_id FROM {$p}wpcap_series WHERE event_id=%d AND definition_hash=%s AND series_id<>%d", (int) $series->event_id, $hash, (int) $series->series_id ) ) ) {
-			return self::error( 'wpcap_series_duplicate', __( 'Eine andere Serie dieses Events hat bereits genau diese Definition.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_series_duplicate', __( 'Eine andere Serie dieses Events hat bereits genau diese Definition.', 'pass-captain' ), 409 );
 		}
 		$items = Rules::expand( $rule );
 		if ( is_wp_error( $items ) ) { return $items; }
@@ -516,7 +516,7 @@ final class Generator {
 		$plan = self::plan_update( $series_id, $in, $options );
 		if ( is_wp_error( $plan ) ) { return $plan; }
 		if ( ! is_string( $fingerprint ) || ! hash_equals( $plan['fingerprint'], $fingerprint ) ) {
-			return self::error( 'wpcap_series_plan_stale', __( 'Die Termine haben sich seit der Vorschau geändert. Bitte prüfe die Vorschau erneut.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_series_plan_stale', __( 'Die Termine haben sich seit der Vorschau geändert. Bitte prüfe die Vorschau erneut.', 'pass-captain' ), 409 );
 		}
 		$definition = $plan['definition'];
 		$series_id = (int) $plan['series']->series_id;
@@ -598,7 +598,7 @@ final class Generator {
 			$wpdb->query( 'COMMIT' );
 		} catch ( \Throwable $e ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_series_failed', __( 'Die Serie konnte nicht geändert werden; es wurde nichts gespeichert.', 'wp-pass-captain' ), 500 );
+			return self::error( 'wpcap_series_failed', __( 'Die Serie konnte nicht geändert werden; es wurde nichts gespeichert.', 'pass-captain' ), 500 );
 		}
 		if ( class_exists( '\\PassCaptain\\Seating\\Layouts' ) ) { \PassCaptain\Seating\Layouts::flush_links(); }
 		self::link_seat_maps( $definition, $type_maps );
@@ -622,7 +622,7 @@ final class Generator {
 		Audit::record( 'series_updated', 'series', $series_id, array( 'event_id' => $event_id, 'series_id' => $series_id, 'changes' => $plan['changes'], 'effects' => $effects, 'options' => $plan['options'] ) );
 		if ( $result['seat_failed'] ) {
 			/* translators: %d: number of occurrences */
-			$result['warning'] = sprintf( __( 'Bei %d Terminen konnte der Saalplan nicht umgestellt werden (z. B. weil verkaufte Plätze in der neuen Version fehlen). Bitte prüfe sie unter Saalpläne.', 'wp-pass-captain' ), count( $result['seat_failed'] ) );
+			$result['warning'] = sprintf( __( 'Bei %d Terminen konnte der Saalplan nicht umgestellt werden (z. B. weil verkaufte Plätze in der neuen Version fehlen). Bitte prüfe sie unter Saalpläne.', 'pass-captain' ), count( $result['seat_failed'] ) );
 		}
 		/**
 		 * After a series definition change was applied (A128).

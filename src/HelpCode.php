@@ -146,7 +146,7 @@ final class HelpCode {
 
 	/** Caption in front of the help code (ticket page, PDF). */
 	public static function caption() {
-		return __( 'Hilfscode für den Einlass, falls der QR-Code nicht lesbar ist:', 'wp-pass-captain' );
+		return __( 'Hilfscode für den Einlass, falls der QR-Code nicht lesbar ist:', 'pass-captain' );
 	}
 
 	/** Caption and code in one line (mails). */
@@ -186,7 +186,7 @@ final class HelpCode {
 			&& RateLimit::allow( 'help-code|client|' . RateLimit::client(), $limits['client'], $limits['window'] );
 		if ( ! $allowed ) {
 			Audit::record( 'help_code_rate_limited', 'user', $user, array() );
-			return new \WP_Error( 'wpcap_help_code_rate_limited', __( 'Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den langen Ticket-Code verwenden.', 'wp-pass-captain' ), array( 'status' => 429, 'result' => 'rate_limited' ) );
+			return new \WP_Error( 'wpcap_help_code_rate_limited', __( 'Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den langen Ticket-Code verwenden.', 'pass-captain' ), array( 'status' => 429, 'result' => 'rate_limited' ) );
 		}
 		global $wpdb;
 		$ticket_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE help_hash=%s LIMIT 1", self::lookup_hash( $code ) ) );

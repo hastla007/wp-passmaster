@@ -13,7 +13,7 @@ use PassCaptain\Refunds;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Menu {
-	const SLUG = 'wp-pass-captain';
+	const SLUG = 'pass-captain';
 
 	/** admin-post action => handler. */
 	public static function handlers() {
@@ -76,14 +76,14 @@ final class Menu {
 	public static function schema_error_notice() {
 		$error = get_option( 'wpcap_schema_error' );
 		if ( ! is_array( $error ) || ! current_user_can( 'manage_options' ) ) { return; }
-		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'WP Pass Captain: Das Datenbank-Update ist unvollständig.', 'wp-pass-captain' ) . '</strong> ' . esc_html__( 'Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren.', 'wp-pass-captain' ) . '</p><p><code>' . esc_html( implode( ', ', array_slice( (array) ( $error['missing'] ?? array() ), 0, 10 ) ) ) . '</code>' . ( ! empty( $error['db_error'] ) ? ' – ' . esc_html( (string) $error['db_error'] ) : '' ) . '</p></div>';
+		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Das Datenbank-Update ist unvollständig.', 'pass-captain' ) . '</strong> ' . esc_html__( 'Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren.', 'pass-captain' ) . '</p><p><code>' . esc_html( implode( ', ', array_slice( (array) ( $error['missing'] ?? array() ), 0, 10 ) ) ) . '</code>' . ( ! empty( $error['db_error'] ) ? ' – ' . esc_html( (string) $error['db_error'] ) : '' ) . '</p></div>';
 	}
 
 	/** Area headings of the menu (every admin page); small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */
 	public static function admin_styles() {
 		echo '<style>#adminmenu li.wpcap-menu-heading{margin-top:6px;padding-top:4px;border-top:1px solid rgba(240,246,252,.15)}#adminmenu li.wpcap-menu-heading a,#adminmenu li.wpcap-menu-heading .wpcap-menu-heading-label{display:block;padding:5px 12px 1px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#c3c4c7;pointer-events:none;cursor:default}</style>';
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects CSS.
-		if ( ! str_starts_with( $page, 'wpcap' ) && 'wp-pass-captain' !== $page ) { return; }
+		if ( ! str_starts_with( $page, 'wpcap' ) && 'pass-captain' !== $page ) { return; }
 		echo '<style>#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}#wpbody-content .wpcap-admin details>summary{min-height:24px;padding:2px 0;line-height:24px;cursor:pointer}</style>';
 	}
 
@@ -98,8 +98,8 @@ final class Menu {
 	public static function add_menus() {
 		$top_cap = self::first_cap( array( EventsPage::CAP, OrdersPage::CAP, 'wpcap_checkin', 'wpcap_view_reports', Refunds::APPROVE_CAP, SettingsPage::CAP ) );
 		add_menu_page(
-			__( 'WP Pass Captain', 'wp-pass-captain' ),
-			__( 'Pass Captain', 'wp-pass-captain' ),
+			__( 'Pass Captain', 'pass-captain' ),
+			__( 'Pass Captain', 'pass-captain' ),
 			$top_cap,
 			self::SLUG,
 			array( EventsPage::class, 'render' ),
@@ -124,12 +124,12 @@ final class Menu {
 	/** Menu areas in display order: key => heading. */
 	public static function groups() {
 		return array(
-			'events'        => __( 'Events & Programm', 'wp-pass-captain' ),
-			'sales'         => __( 'Verkauf', 'wp-pass-captain' ),
-			'admission'     => __( 'Einlass', 'wp-pass-captain' ),
-			'finance'       => __( 'Finanzen & Auswertung', 'wp-pass-captain' ),
-			'communication' => __( 'Kommunikation', 'wp-pass-captain' ),
-			'settings'      => __( 'Einstellungen & Integrationen', 'wp-pass-captain' ),
+			'events'        => __( 'Events & Programm', 'pass-captain' ),
+			'sales'         => __( 'Verkauf', 'pass-captain' ),
+			'admission'     => __( 'Einlass', 'pass-captain' ),
+			'finance'       => __( 'Finanzen & Auswertung', 'pass-captain' ),
+			'communication' => __( 'Kommunikation', 'pass-captain' ),
+			'settings'      => __( 'Einstellungen & Integrationen', 'pass-captain' ),
 		);
 	}
 
@@ -192,31 +192,31 @@ final class Menu {
 	 */
 	public static function entries() {
 		$pending = current_user_can( Refunds::APPROVE_CAP ) ? count( Queries::pending_refunds( Queries::event_ids_for( OrdersPage::CAP ) ) ) : 0;
-		$refund_title = __( 'Erstattungen', 'wp-pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
+		$refund_title = __( 'Erstattungen', 'pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
 		$entries = array(
-			array( self::SLUG, __( 'Events', 'wp-pass-captain' ), __( 'Events', 'wp-pass-captain' ), EventsPage::CAP, array( EventsPage::class, 'render' ), '' ),
-			array( OrdersPage::SLUG, __( 'Bestellungen', 'wp-pass-captain' ), __( 'Bestellungen', 'wp-pass-captain' ), OrdersPage::CAP, array( OrdersPage::class, 'render' ), '' ),
-			array( TicketsPage::SLUG, __( 'Tickets', 'wp-pass-captain' ), __( 'Tickets', 'wp-pass-captain' ), TicketsPage::menu_cap(), array( TicketsPage::class, 'render' ), '' ),
-			array( CheckinsPage::SLUG, __( 'Check-ins', 'wp-pass-captain' ), __( 'Check-ins', 'wp-pass-captain' ), CheckinsPage::menu_cap(), array( CheckinsPage::class, 'render' ), '' ),
-			array( RefundsPage::SLUG, __( 'Erstattungen', 'wp-pass-captain' ), $refund_title, RefundsPage::menu_cap(), array( RefundsPage::class, 'render' ), '' ),
-			array( CampaignsPage::SLUG, __( 'Rabattcodes', 'wp-pass-captain' ), __( 'Rabattcodes', 'wp-pass-captain' ), CampaignsPage::CAP, array( CampaignsPage::class, 'render' ), '' ),
-			array( DevicesPage::SLUG, __( 'Scanner-Geräte', 'wp-pass-captain' ), __( 'Scanner-Geräte', 'wp-pass-captain' ), DevicesPage::CAP, array( DevicesPage::class, 'render' ), '' ),
-			array( TaxPage::SLUG, __( 'Steuerprüfung', 'wp-pass-captain' ), __( 'Steuerprüfung', 'wp-pass-captain' ), TaxPage::CAP, array( TaxPage::class, 'render' ), '' ),
-			array( ServiceSlotsPage::SLUG, __( 'Service-Zeitfenster', 'wp-pass-captain' ), __( 'Service-Zeitfenster', 'wp-pass-captain' ), ServiceSlotsPage::CAP, array( ServiceSlotsPage::class, 'render' ), '' ),
+			array( self::SLUG, __( 'Events', 'pass-captain' ), __( 'Events', 'pass-captain' ), EventsPage::CAP, array( EventsPage::class, 'render' ), '' ),
+			array( OrdersPage::SLUG, __( 'Bestellungen', 'pass-captain' ), __( 'Bestellungen', 'pass-captain' ), OrdersPage::CAP, array( OrdersPage::class, 'render' ), '' ),
+			array( TicketsPage::SLUG, __( 'Tickets', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), TicketsPage::menu_cap(), array( TicketsPage::class, 'render' ), '' ),
+			array( CheckinsPage::SLUG, __( 'Check-ins', 'pass-captain' ), __( 'Check-ins', 'pass-captain' ), CheckinsPage::menu_cap(), array( CheckinsPage::class, 'render' ), '' ),
+			array( RefundsPage::SLUG, __( 'Erstattungen', 'pass-captain' ), $refund_title, RefundsPage::menu_cap(), array( RefundsPage::class, 'render' ), '' ),
+			array( CampaignsPage::SLUG, __( 'Rabattcodes', 'pass-captain' ), __( 'Rabattcodes', 'pass-captain' ), CampaignsPage::CAP, array( CampaignsPage::class, 'render' ), '' ),
+			array( DevicesPage::SLUG, __( 'Scanner-Geräte', 'pass-captain' ), __( 'Scanner-Geräte', 'pass-captain' ), DevicesPage::CAP, array( DevicesPage::class, 'render' ), '' ),
+			array( TaxPage::SLUG, __( 'Steuerprüfung', 'pass-captain' ), __( 'Steuerprüfung', 'pass-captain' ), TaxPage::CAP, array( TaxPage::class, 'render' ), '' ),
+			array( ServiceSlotsPage::SLUG, __( 'Service-Zeitfenster', 'pass-captain' ), __( 'Service-Zeitfenster', 'pass-captain' ), ServiceSlotsPage::CAP, array( ServiceSlotsPage::class, 'render' ), '' ),
 		);
 		foreach ( \PassCaptain\Modules::admin_pages() as $page ) {
 			$page = array_values( (array) $page );
 			list( $slug, $title, $cap, $callback ) = $page;
 			$entries[] = array( $slug, $title, $title, $cap, $callback, (string) ( $page[4] ?? '' ) );
 		}
-		$entries[] = array( SettingsPage::SLUG, __( 'Einstellungen', 'wp-pass-captain' ), __( 'Einstellungen', 'wp-pass-captain' ), SettingsPage::CAP, array( SettingsPage::class, 'render' ), '' );
-		$entries[] = array( DeveloperKeysPage::SLUG, __( 'Entwickler-API', 'wp-pass-captain' ), __( 'Entwickler-API', 'wp-pass-captain' ), DeveloperKeysPage::CAP, array( DeveloperKeysPage::class, 'render' ), '' );
-		$entries[] = array( AuditLogPage::SLUG, __( 'Audit-Log', 'wp-pass-captain' ), __( 'Audit-Log', 'wp-pass-captain' ), AuditLogPage::CAP, array( AuditLogPage::class, 'render' ), '' );
-		$entries[] = array( OperationsPage::SLUG, __( 'Betrieb', 'wp-pass-captain' ), __( 'Betrieb', 'wp-pass-captain' ), OperationsPage::CAP, array( OperationsPage::class, 'render' ), '' );
+		$entries[] = array( SettingsPage::SLUG, __( 'Einstellungen', 'pass-captain' ), __( 'Einstellungen', 'pass-captain' ), SettingsPage::CAP, array( SettingsPage::class, 'render' ), '' );
+		$entries[] = array( DeveloperKeysPage::SLUG, __( 'Entwickler-API', 'pass-captain' ), __( 'Entwickler-API', 'pass-captain' ), DeveloperKeysPage::CAP, array( DeveloperKeysPage::class, 'render' ), '' );
+		$entries[] = array( AuditLogPage::SLUG, __( 'Audit-Log', 'pass-captain' ), __( 'Audit-Log', 'pass-captain' ), AuditLogPage::CAP, array( AuditLogPage::class, 'render' ), '' );
+		$entries[] = array( OperationsPage::SLUG, __( 'Betrieb', 'pass-captain' ), __( 'Betrieb', 'pass-captain' ), OperationsPage::CAP, array( OperationsPage::class, 'render' ), '' );
 		if ( \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) {
 			// Links into Voucher Captain's own menu (both plugins keep their menus, CONCEPT 15.7).
-			$entries[] = array( 'admin.php?page=vcap-scanner', __( 'Gemeinsamer Scanner', 'wp-pass-captain' ), __( 'Gemeinsamer Scanner ↗', 'wp-pass-captain' ), 'wpcap_checkin', null, '' );
-			$entries[] = array( 'admin.php?page=vcap-vouchers', __( 'WP Voucher Captain', 'wp-pass-captain' ), __( 'WP Voucher Captain ↗', 'wp-pass-captain' ), 'manage_woocommerce', null, '' );
+			$entries[] = array( 'admin.php?page=vcap-scanner', __( 'Gemeinsamer Scanner', 'pass-captain' ), __( 'Gemeinsamer Scanner ↗', 'pass-captain' ), 'wpcap_checkin', null, '' );
+			$entries[] = array( 'admin.php?page=vcap-vouchers', __( 'Voucher Captain', 'pass-captain' ), __( 'Voucher Captain ↗', 'pass-captain' ), 'manage_woocommerce', null, '' );
 		}
 		return $entries;
 	}

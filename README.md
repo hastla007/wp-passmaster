@@ -1,4 +1,4 @@
-# WP Pass Captain
+# Pass Captain
 
 Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwaltung. WooCommerce und Voucher Captain sind optionale Integrationen und keine Voraussetzung für den Kern.
 
@@ -51,21 +51,21 @@ Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaSc
 
 ## Module (P2)
 
-Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks, Offline-Scanner, Veranstalter und Veranstalter-Abrechnungen sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]`. Dokumentation: [docs/WALLET.md](docs/WALLET.md), [docs/WEBHOOKS.md](docs/WEBHOOKS.md), [docs/HOOKS.md](docs/HOOKS.md), [docs/MOBILE-API.md](docs/MOBILE-API.md), [docs/OFFLINE-SCANNER.md](docs/OFFLINE-SCANNER.md), [docs/PARTNER-API.md](docs/PARTNER-API.md), [docs/TESTING.md](docs/TESTING.md), [docs/MAIL-TEMPLATES.md](docs/MAIL-TEMPLATES.md), [docs/SERIES.md](docs/SERIES.md).
+Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks, Offline-Scanner, Veranstalter und Veranstalter-Abrechnungen sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wpcap_events]`, `[wpcap_calendar]`, `[wpcap_scanner]` (ältere Namen `[wp_pass_captain_…]` funktionieren weiter). Umbenennung von „WP Pass Captain“: [docs/RENAME.md](docs/RENAME.md). Dokumentation: [docs/WALLET.md](docs/WALLET.md), [docs/WEBHOOKS.md](docs/WEBHOOKS.md), [docs/HOOKS.md](docs/HOOKS.md), [docs/MOBILE-API.md](docs/MOBILE-API.md), [docs/OFFLINE-SCANNER.md](docs/OFFLINE-SCANNER.md), [docs/PARTNER-API.md](docs/PARTNER-API.md), [docs/TESTING.md](docs/TESTING.md), [docs/MAIL-TEMPLATES.md](docs/MAIL-TEMPLATES.md), [docs/SERIES.md](docs/SERIES.md).
 
 ## Scanner und Mobile-App
 
 - Web-Scanner per Shortcode `[wp_pass_captain_scanner]`. Die Kamera nutzt die native BarcodeDetector-API und fällt sonst (iOS/Safari, Firefox) auf das mitgelieferte jsQR (Apache-2.0, `assets/vendor/jsqr/`) zurück.
-- Native Scanner-Apps koppeln sich per QR-Code unter **Pass Captain → Scanner-Geräte** und nutzen die REST-API unter `/wp-json/wp-pass-captain/v1/app/` mit ablaufenden, eventgebundenen und widerrufbaren Gerätetokens. Spezifikation: [docs/MOBILE-API.md](docs/MOBILE-API.md).
+- Native Scanner-Apps koppeln sich per QR-Code unter **Pass Captain → Scanner-Geräte** und nutzen die REST-API unter `/wp-json/pass-captain/v1/app/` mit ablaufenden, eventgebundenen und widerrufbaren Gerätetokens. Spezifikation: [docs/MOBILE-API.md](docs/MOBILE-API.md).
 
 ## Sprachen
 
 Rechtstexte (AGB/Teilnahmebedingungen, Verbraucherinformationen) werden unter **Einstellungen → Rechtstexte** je Sprache gepflegt: die Standardsprache (Website-Sprache bzw. Standardsprache von Polylang/WPML) und beliebig viele weitere Locales. Checkout und Mails verwenden die Sprache des Käufers und fallen je Text auf die Standardsprache zurück; die mit der Bestellung gespeicherte AGB-Version ist die der angezeigten Fassung. Die Einstellungen sind in Reiter gegliedert (Allgemein, Einlass, Zahlungsarten, Rechtstexte, Rechnungen); jede Zahlungsart hat im Reiter **Zahlungsarten** einen eigenen Unterbereich.
 
-Ausgangssprache ist Deutsch. Vollständige Übersetzungen liegen für Englisch (en_US), Französisch (fr_FR), Italienisch (it_IT), Spanisch (es_ES) und Niederländisch (nl_NL) in `languages/`. Weitere Sprachen entstehen aus der Vorlage `languages/wp-pass-captain.pot`. Kompilieren ohne gettext-Tools:
+Ausgangssprache ist Deutsch. Vollständige Übersetzungen liegen für Englisch (en_US), Französisch (fr_FR), Italienisch (it_IT), Spanisch (es_ES) und Niederländisch (nl_NL) in `languages/`. Weitere Sprachen entstehen aus der Vorlage `languages/pass-captain.pot`. Kompilieren ohne gettext-Tools:
 
 ```sh
-php build/compile-mo.php languages/wp-pass-captain-xx_XX.po
+php build/compile-mo.php languages/pass-captain-xx_XX.po
 ```
 
 ## Noch offen

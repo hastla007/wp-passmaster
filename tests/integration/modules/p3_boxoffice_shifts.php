@@ -54,7 +54,7 @@ if ( ! function_exists( 'check' ) ) {
 global $wpdb;
 $p = $wpdb->prefix;
 if ( ! function_exists( 'esc_js' ) ) { function esc_js( $s ) { return addslashes( (string) $s ); } }
-if ( ! function_exists( 'plugins_url' ) ) { function plugins_url( $path = '', $file = '' ) { return 'https://example.test/wp-content/plugins/wp-pass-captain/' . ltrim( $path, '/' ); } }
+if ( ! function_exists( 'plugins_url' ) ) { function plugins_url( $path = '', $file = '' ) { return 'https://example.test/wp-content/plugins/pass-captain/' . ltrim( $path, '/' ); } }
 if ( ! function_exists( 'nocache_headers' ) ) { function nocache_headers() {} }
 // Same stubs as partners.php / zz_phase1_ux.php (admin screens, fiscal notice reads user meta).
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return htmlspecialchars( (string) $u, ENT_QUOTES ); } }

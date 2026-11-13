@@ -74,7 +74,7 @@ final class Wallet {
 	}
 
 	public static function admin_pages() {
-		return array( array( AdminPage::SLUG, __( 'Wallet', 'wp-pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render' ) ) );
+		return array( array( AdminPage::SLUG, __( 'Wallet', 'pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render' ) ) );
 	}
 
 	public static function admin_handlers() {

@@ -141,7 +141,7 @@ if ( isset( $argv[1] ) && '--worker' === $argv[1] ) {
 				}
 				break;
 			case 'webhook':
-				$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/payments/stripe/webhook' );
+				$req = new WP_REST_Request( 'POST', '/pass-captain/v1/payments/stripe/webhook' );
 				$req->set_body( $op['body'] );
 				$t = time();
 				$req->set_header( 'Stripe-Signature', "t=$t,v1=" . hash_hmac( 'sha256', $t . '.' . $op['body'], WPCAP_LOAD_WEBHOOK_SECRET ) );
@@ -226,7 +226,7 @@ if ( $cfg['workers'] > $max_conn - 5 ) {
 	$cfg['workers'] = $max_conn - 5;
 }
 
-echo "WP Pass Captain load test – PHP " . PHP_VERSION . ", DB " . $wpdb->get_var( 'SELECT VERSION()' ) . ", prefix $p\n";
+echo "Pass Captain load test – PHP " . PHP_VERSION . ", DB " . $wpdb->get_var( 'SELECT VERSION()' ) . ", prefix $p\n";
 echo 'Config: ' . json_encode( $cfg ) . "\n";
 wpcap_test_install();
 load_settings();

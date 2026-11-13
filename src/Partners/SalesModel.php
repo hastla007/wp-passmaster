@@ -32,13 +32,13 @@ final class SalesModel {
 
 	public static function labels() {
 		return array(
-			self::OWN_NAME => __( 'Eigenhändler (Verkauf im eigenen Namen, Gutschrift an Veranstalter)', 'wp-pass-captain' ),
-			self::AGENT => __( 'Vermittler (Verkauf im Namen des Veranstalters, Provisionsrechnung)', 'wp-pass-captain' ),
+			self::OWN_NAME => __( 'Eigenhändler (Verkauf im eigenen Namen, Gutschrift an Veranstalter)', 'pass-captain' ),
+			self::AGENT => __( 'Vermittler (Verkauf im Namen des Veranstalters, Provisionsrechnung)', 'pass-captain' ),
 		);
 	}
 
 	public static function short_labels() {
-		return array( self::OWN_NAME => __( 'Eigenhändler', 'wp-pass-captain' ), self::AGENT => __( 'Vermittler', 'wp-pass-captain' ) );
+		return array( self::OWN_NAME => __( 'Eigenhändler', 'pass-captain' ), self::AGENT => __( 'Vermittler', 'pass-captain' ) );
 	}
 
 	/** Model of a partner row (unknown/missing = own_name). */
@@ -50,13 +50,13 @@ final class SalesModel {
 	/** Default note for small businesses by country (DE § 19 UStG, AT § 6 Abs. 1 Z 27 UStG); an own text always wins. */
 	public static function default_small_business_note( $country = 'DE' ) {
 		if ( 'AT' === self::country( $country ) ) {
-			return __( 'Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.', 'wp-pass-captain' );
+			return __( 'Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.', 'pass-captain' );
 		}
-		return __( 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).', 'wp-pass-captain' );
+		return __( 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).', 'pass-captain' );
 	}
 
 	public static function reverse_charge_note() {
-		return __( 'Steuerschuldnerschaft des Leistungsempfängers / Reverse Charge', 'wp-pass-captain' );
+		return __( 'Steuerschuldnerschaft des Leistungsempfängers / Reverse Charge', 'pass-captain' );
 	}
 
 	/** Two-letter country code or ''. */
@@ -128,8 +128,8 @@ final class SalesModel {
 	/** Labels of the seller fields an organizer still lacks to act as supplier on invoices/Gutschriften. */
 	public static function missing_supplier_fields( $partner ) {
 		$missing = array();
-		if ( '' === trim( (string) $partner->billing_address ) ) { $missing[] = __( 'Rechnungsanschrift', 'wp-pass-captain' ); }
-		if ( '' === trim( (string) $partner->vat_id ) && '' === trim( (string) ( $partner->tax_number ?? '' ) ) ) { $missing[] = __( 'USt-IdNr. oder Steuernummer', 'wp-pass-captain' ); }
+		if ( '' === trim( (string) $partner->billing_address ) ) { $missing[] = __( 'Rechnungsanschrift', 'pass-captain' ); }
+		if ( '' === trim( (string) $partner->vat_id ) && '' === trim( (string) ( $partner->tax_number ?? '' ) ) ) { $missing[] = __( 'USt-IdNr. oder Steuernummer', 'pass-captain' ); }
 		return $missing;
 	}
 
@@ -171,7 +171,7 @@ final class SalesModel {
 			$names = array_map( static function ( $pa ) { return (string) $pa->name; }, $agents );
 			return new \WP_Error( 'wpcap_invoice_mixed_sellers', sprintf(
 				/* translators: %s: organizer names */
-				__( 'Diese Bestellung enthält Tickets verschiedener Rechnungssteller (Vermittler-Veranstalter: %s, dazu weitere Veranstalter oder Plattform-Events). Eine gemeinsame Rechnung ist nicht zulässig; bitte die Rechnungen außerhalb des Plugins je Veranstalter erstellen oder die Bestellung stornieren und getrennt neu anlegen.', 'wp-pass-captain' ),
+				__( 'Diese Bestellung enthält Tickets verschiedener Rechnungssteller (Vermittler-Veranstalter: %s, dazu weitere Veranstalter oder Plattform-Events). Eine gemeinsame Rechnung ist nicht zulässig; bitte die Rechnungen außerhalb des Plugins je Veranstalter erstellen oder die Bestellung stornieren und getrennt neu anlegen.', 'pass-captain' ),
 				implode( ', ', $names )
 			), array( 'status' => 409, 'partner_ids' => array_keys( $agents ) ) );
 		}
@@ -206,7 +206,7 @@ final class SalesModel {
 			if ( ! empty( $context['seller']['small_business'] ) ) {
 				foreach ( $items as $item ) {
 					if ( (int) $item->tax_minor > 0 ) {
-						return new \WP_Error( 'wpcap_invoice_small_business_vat', __( 'Die Plattform ist als Kleinunternehmer eingestellt, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 % anlegen oder die Einstellung „Kleinunternehmer“ prüfen.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+						return new \WP_Error( 'wpcap_invoice_small_business_vat', __( 'Die Plattform ist als Kleinunternehmer eingestellt, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 % anlegen oder die Einstellung „Kleinunternehmer“ prüfen.', 'pass-captain' ), array( 'status' => 409 ) );
 					}
 				}
 			}
@@ -216,7 +216,7 @@ final class SalesModel {
 		if ( $missing ) {
 			return new \WP_Error( 'wpcap_invoice_organizer_incomplete', sprintf(
 				/* translators: 1: organizer, 2: missing fields */
-				__( 'Rechnung im Namen des Veranstalters „%1$s“ nicht möglich – es fehlen: %2$s. Bitte unter Veranstalter ergänzen.', 'wp-pass-captain' ),
+				__( 'Rechnung im Namen des Veranstalters „%1$s“ nicht möglich – es fehlen: %2$s. Bitte unter Veranstalter ergänzen.', 'pass-captain' ),
 				$context['seller']['name'], implode( ', ', $missing )
 			), array( 'status' => 409 ) );
 		}
@@ -225,7 +225,7 @@ final class SalesModel {
 				if ( (int) $item->tax_minor > 0 ) {
 					return new \WP_Error( 'wpcap_invoice_small_business_vat', sprintf(
 						/* translators: %s: organizer */
-						__( 'Der Veranstalter „%s“ ist Kleinunternehmer, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 %% anlegen.', 'wp-pass-captain' ),
+						__( 'Der Veranstalter „%s“ ist Kleinunternehmer, die Bestellung enthält aber Umsatzsteuer. Ein Steuerausweis wäre unzulässig (§ 14c UStG). Bitte die Ticketarten mit 0 %% anlegen.', 'pass-captain' ),
 						$context['seller']['name']
 					), array( 'status' => 409 ) );
 				}
@@ -246,7 +246,7 @@ final class SalesModel {
 
 	public static function checkout_messages( $messages ) {
 		$messages = (array) $messages;
-		$messages['mixed_sellers'] = __( 'Tickets dieser Veranstalter können nicht in einer gemeinsamen Bestellung gekauft werden. Bitte für jeden Veranstalter separat bestellen.', 'wp-pass-captain' );
+		$messages['mixed_sellers'] = __( 'Tickets dieser Veranstalter können nicht in einer gemeinsamen Bestellung gekauft werden. Bitte für jeden Veranstalter separat bestellen.', 'pass-captain' );
 		return $messages;
 	}
 }

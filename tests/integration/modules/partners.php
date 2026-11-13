@@ -297,11 +297,11 @@ check( 'repeated failures lock the client address out (valid keys too), other ad
 $GLOBALS['wpcap_test_transients'] = array();
 
 PartnerApi::register_routes();
-$routes = array_filter( array_keys( $GLOBALS['wpcap_test_routes'] ?? array() ), static fn( $r ) => str_starts_with( $r, 'wp-pass-captain/v1/partner/' ) );
+$routes = array_filter( array_keys( $GLOBALS['wpcap_test_routes'] ?? array() ), static fn( $r ) => str_starts_with( $r, 'pass-captain/v1/partner/' ) );
 // Read routes are GET only; write endpoints (selling, see p3_partner_sales.php) are separate POST endpoints.
 $pa_methods = static fn( $r ) => array_map( static fn( $e ) => $e['methods'], isset( $GLOBALS['wpcap_test_routes'][ $r ]['methods'] ) ? array( $GLOBALS['wpcap_test_routes'][ $r ] ) : $GLOBALS['wpcap_test_routes'][ $r ] );
 $pa_read = array( 'me', 'events', 'events/(?P<event_id>\\d+)', 'tickets', 'checkins', 'reports', 'settlements', 'settlements/(?P<settlement_id>\\d+)' );
-check( 'read-only routes registered under /partner/', ! array_filter( $pa_read, static fn( $r ) => array( 'GET' ) !== $pa_methods( 'wp-pass-captain/v1/partner/' . $r ) ) && array( 'GET', 'POST' ) === $pa_methods( 'wp-pass-captain/v1/partner/orders' ) );
+check( 'read-only routes registered under /partner/', ! array_filter( $pa_read, static fn( $r ) => array( 'GET' ) !== $pa_methods( 'pass-captain/v1/partner/' . $r ) ) && array( 'GET', 'POST' ) === $pa_methods( 'pass-captain/v1/partner/orders' ) );
 $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['wpcap_test_user_id'] = 1;
 

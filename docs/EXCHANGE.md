@@ -100,7 +100,7 @@ Einstellungen global (Admin → Umtausch) und pro Event überschreibbar (`wpcap_
 | `fee_minor` | 0 | Umtauschgebühr brutto (USt.-Satz der Ziel-Ticketart) |
 | `allow_series` | 1 | Mitarbeitende dürfen innerhalb der Serie tauschen (nur global) |
 
-REST: `POST /wp-pass-captain/v1/orders/{public_id}/exchange` mit `access_token`, `ticket_public_id`,
+REST: `POST /pass-captain/v1/orders/{public_id}/exchange` mit `access_token`, `ticket_public_id`,
 `ticket_type_id`, `idempotency_key`, optional `provider`. Antwort: `status` (`completed` |
 `pending_payment`), Beträge, `message`, bei Aufpreis `payment` (`redirect_url` bzw. `instructions`).
 Rate-Limit 10/h je Bestellung (`wpcap_exchange_portal_rate_limit`). Kulanz und Regel-Overrides sind im

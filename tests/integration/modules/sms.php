@@ -13,7 +13,7 @@ use PassCaptain\Sms\HttpProvider;
 use PassCaptain\Sms\Service;
 use PassCaptain\Sms\TwilioProvider;
 
-if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/wp-pass-captain/' ); }
+if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/pass-captain/' ); }
 if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ...$a ) {} }
 if ( ! function_exists( 'wp_localize_script' ) ) { function wp_localize_script( ...$a ) {} }
 
@@ -59,7 +59,7 @@ $sent = Service::process_due();
 $req = http_requests( 'api.twilio.com' )[0] ?? array( 'url' => '', 'headers' => array(), 'body' => '' );
 $form = form_body( $req );
 check( 'Twilio Messages API called with Basic auth and form encoding', 1 === $sent && 'https://api.twilio.com/2010-04-01/Accounts/' . $sid . '/Messages.json' === $req['url'] && 'Basic ' . base64_encode( $sid . ':' . $token ) === $req['headers']['Authorization'] && 'application/x-www-form-urlencoded' === $req['headers']['Content-Type'] );
-check( 'To, From, Body and StatusCallback sent', '+491511111111' === ( $form['To'] ?? '' ) && '+4915100000000' === ( $form['From'] ?? '' ) && false !== strpos( $form['Body'] ?? '', 'Konzert' ) && 'https://example.test/wp-json/wp-pass-captain/v1/sms/twilio/status' === ( $form['StatusCallback'] ?? '' ) );
+check( 'To, From, Body and StatusCallback sent', '+491511111111' === ( $form['To'] ?? '' ) && '+4915100000000' === ( $form['From'] ?? '' ) && false !== strpos( $form['Body'] ?? '', 'Konzert' ) && 'https://example.test/wp-json/pass-captain/v1/sms/twilio/status' === ( $form['StatusCallback'] ?? '' ) );
 $row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_sms_messages WHERE occurrence_id=$occ" );
 check( 'message marked sent with provider reference', 'sent' === $row->status && 'twilio' === $row->provider && 'SM' . str_repeat( 'b', 32 ) === $row->provider_ref );
 
@@ -67,12 +67,12 @@ echo "SMS: Twilio delivery status callback\n";
 $params = array( 'MessageSid' => $row->provider_ref, 'MessageStatus' => 'delivered', 'AccountSid' => $sid, 'To' => '+491511111111' );
 $sign = static function ( $params, $key ) {
 	ksort( $params );
-	$data = 'https://example.test/wp-json/wp-pass-captain/v1/sms/twilio/status';
+	$data = 'https://example.test/wp-json/pass-captain/v1/sms/twilio/status';
 	foreach ( $params as $k => $v ) { $data .= $k . $v; }
 	return base64_encode( hash_hmac( 'sha1', $data, $key, true ) );
 };
 $callback = static function ( $params, $signature ) {
-	$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/sms/twilio/status' );
+	$req = new WP_REST_Request( 'POST', '/pass-captain/v1/sms/twilio/status' );
 	$req->set_body( http_build_query( $params ) );
 	if ( null !== $signature ) { $req->set_header( 'X-Twilio-Signature', $signature ); }
 	return Service::twilio_status( $req );
@@ -166,9 +166,9 @@ $GLOBALS['wpcap_test_transients'] = array();
 $st = Orders::create( array( 'email' => 'sms-stop@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-stop', 'sms_consent' => 1, 'sms_phone' => '+4915199999999' ) );
 $inbound = static function ( $params, $key ) {
 	ksort( $params );
-	$data = 'https://example.test/wp-json/wp-pass-captain/v1/sms/twilio/inbound';
+	$data = 'https://example.test/wp-json/pass-captain/v1/sms/twilio/inbound';
 	foreach ( $params as $k => $v ) { $data .= $k . $v; }
-	$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/sms/twilio/inbound' );
+	$req = new WP_REST_Request( 'POST', '/pass-captain/v1/sms/twilio/inbound' );
 	$req->set_body( http_build_query( $params ) );
 	$req->set_header( 'X-Twilio-Signature', base64_encode( hash_hmac( 'sha1', $data, $key, true ) ) );
 	return Service::twilio_inbound( $req );
@@ -187,7 +187,7 @@ check( 'exporter lists number, purpose, text version and timestamps', 1 === coun
 add_filter( 'wp_privacy_personal_data_erasers', array( PassCaptain\Privacy::class, 'register_eraser' ) );
 $erasers = apply_filters( 'wp_privacy_personal_data_erasers', array() );
 $keys = array_keys( $erasers );
-check( 'SMS eraser runs before the core eraser', false !== array_search( 'wpcap-sms', $keys, true ) && array_search( 'wpcap-sms', $keys, true ) < array_search( 'wp-pass-captain-orders', $keys, true ) );
+check( 'SMS eraser runs before the core eraser', false !== array_search( 'wpcap-sms', $keys, true ) && array_search( 'wpcap-sms', $keys, true ) < array_search( 'pass-captain-orders', $keys, true ) );
 foreach ( $erasers as $eraser ) { call_user_func( $eraser['callback'], 'sms-erase@example.com', 1 ); }
 check( 'erasure (in WordPress order) removes the number', '' === $wpdb->get_var( "SELECT phone FROM {$p}wpcap_sms_consents WHERE order_id=" . (int) $er['order_id'] ) );
 $er2 = Orders::create( array( 'email' => 'sms-erase2@example.com', 'items' => array( array( 'ticket_type_id' => $type2, 'quantity' => 1 ) ), 'idempotency_key' => 'sms-erase2', 'sms_consent' => 1, 'sms_phone' => '+4915113131313' ) );

@@ -33,7 +33,7 @@ if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ..
 if ( ! function_exists( 'wp_enqueue_style' ) ) { function wp_enqueue_style( ...$a ) {} }
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $u ) { return (string) $u; } }
 if ( ! function_exists( 'admin_url' ) ) { function admin_url( $p = '' ) { return 'https://example.test/wp-admin/' . $p; } }
-if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/wp-pass-captain/' ); }
+if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/pass-captain/' ); }
 
 ExchangeModule::register();
 Seating::register();

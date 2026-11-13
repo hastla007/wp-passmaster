@@ -191,7 +191,7 @@ check( 'export: service bookings', false !== strpos( $txt, 'Ressource=Workshopra
 $aexp = Privacy::export( 'p1p-ada@example.com' );
 $atxt = p1p_export_values( $aexp );
 $groups = array_unique( array_map( static fn( $i ) => $i['group_id'], $aexp['data'] ) );
-check( 'export: an attendee gets only their own ticket, not the buyer order', array( 'wp-pass-captain-tickets' ) === array_values( $groups ) && 1 === count( $aexp['data'] ) && false !== strpos( $atxt, 'Analytical' ) && false === strpos( $atxt, 'Initech' ) && false === strpos( $atxt, 'Bestellreferenz' ) );
+check( 'export: an attendee gets only their own ticket, not the buyer order', array( 'pass-captain-tickets' ) === array_values( $groups ) && 1 === count( $aexp['data'] ) && false !== strpos( $atxt, 'Analytical' ) && false === strpos( $atxt, 'Initech' ) && false === strpos( $atxt, 'Bestellreferenz' ) );
 
 echo "Privacy: eraser\n";
 // Attendee-only erasure: buyer's tickets stay valid.
@@ -254,7 +254,7 @@ check( 'policy: enabled services, third-country transfers and consent (lit. a) a
 $wpdb->query( "UPDATE {$p}wpcap_partners SET status='active' WHERE status='p1p_inactive'" );
 $wpdb->query( "UPDATE {$p}wpcap_webhook_subscriptions SET status='active' WHERE status='p1p_inactive'" );
 PolicyText::add();
-check( 'policy: registered through wp_add_privacy_policy_content', ! isset( $GLOBALS['p1p_policy'] ) || isset( $GLOBALS['p1p_policy']['WP Pass Captain'] ) );
+check( 'policy: registered through wp_add_privacy_policy_content', ! isset( $GLOBALS['p1p_policy'] ) || isset( $GLOBALS['p1p_policy']['Pass Captain'] ) );
 Settings::update( array( 'enabled_providers' => array( 'manual' ), 'wallet_apple_enabled' => 0, 'wallet_google_enabled' => 0, 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'provider' => '' ) ), 'attendee_retention_days' => 0 ) );
 
 echo "Privacy: affiliate referral cookie needs consent\n";

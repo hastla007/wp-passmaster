@@ -115,7 +115,7 @@ $stripe = Registry::get( 'stripe' );
 check( 'fail closed: wrong key makes the gateway "not configured"', '' === Secrets::get( 'stripe_secret_key' ) && ! $stripe->is_available( 'EUR' ) && in_array( 'stripe_secret_key', Secrets::undecryptable(), true ) );
 $a191_body = json_encode( array( 'id' => 'evt_a191', 'type' => 'checkout.session.completed', 'data' => array( 'object' => array() ) ) );
 $a191_t = time();
-$a191_req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/payments/stripe/webhook' );
+$a191_req = new WP_REST_Request( 'POST', '/pass-captain/v1/payments/stripe/webhook' );
 $a191_req->set_body( $a191_body );
 $a191_req->set_header( 'Stripe-Signature', "t=$a191_t,v1=" . hash_hmac( 'sha256', $a191_t . '.' . $a191_body, 'whsec_FAILCLOSED_0006' ) );
 $a191_verified = $stripe->verify_webhook( $a191_req );
@@ -219,7 +219,7 @@ check( 'module pages show the masked status too', false !== strpos( $a192_html['
 
 echo "A192: diagnostics, REST, privacy export, errors\n";
 $a192_debug = Secrets::debug_information( array() );
-check( 'Site Health info lists the source of each secret, no values', isset( $a192_debug['wp-pass-captain-secrets']['fields']['stripe_secret_key'] ) && ! $a192_leaks( $a192_debug ) );
+check( 'Site Health info lists the source of each secret, no values', isset( $a192_debug['pass-captain-secrets']['fields']['stripe_secret_key'] ) && ! $a192_leaks( $a192_debug ) );
 check( 'wallet status (diagnostics) contains no secret', ! $a192_leaks( json_encode( PassCaptain\WalletPasses\AdminPage::status() ) ) );
 // Every REST route of the plugin (source scan: register_rest_route( ns, '/route' ... )).
 $a192_routes = array();

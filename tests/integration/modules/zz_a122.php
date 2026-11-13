@@ -183,22 +183,22 @@ check( 'billing correction: audit lists changed fields with masked values, count
 // ---------------------------------------------------------------------------------------- privacy tools
 $a122_req = 912210;
 $a122_resp = array( 'data' => array( array( 'group_id' => 'x', 'item_id' => 'y', 'data' => array() ) ), 'done' => false );
-$a122_out = AccessLog::privacy_export_page( $a122_resp, 1, 'privacy@example.com', 1, $a122_req, false, 'wp-pass-captain-orders' );
-AccessLog::privacy_export_page( array( 'data' => array(), 'done' => true ), 1, 'privacy@example.com', 2, $a122_req, false, 'wp-pass-captain-orders' );
+$a122_out = AccessLog::privacy_export_page( $a122_resp, 1, 'privacy@example.com', 1, $a122_req, false, 'pass-captain-orders' );
+AccessLog::privacy_export_page( array( 'data' => array(), 'done' => true ), 1, 'privacy@example.com', 2, $a122_req, false, 'pass-captain-orders' );
 AccessLog::privacy_export_page( $a122_resp, 2, 'privacy@example.com', 1, $a122_req, false, 'woocommerce-customer' );
 $a122_pe = $a122_last( 'privacy_export_run' );
-check( 'privacy export: plugin exporter page logged with request, exporter, items and masked e-mail; response unchanged', $a122_out === $a122_resp && 1 === $a122_count( 'privacy_export_run', 'privacy_request', $a122_req ) && 'wp-pass-captain-orders' === ( $a122_pe->data['exporter'] ?? '' ) && 1 === ( $a122_pe->data['items'] ?? 0 ) && 'p***@e***.com' === ( $a122_pe->data['email'] ?? '' ) );
+check( 'privacy export: plugin exporter page logged with request, exporter, items and masked e-mail; response unchanged', $a122_out === $a122_resp && 1 === $a122_count( 'privacy_export_run', 'privacy_request', $a122_req ) && 'pass-captain-orders' === ( $a122_pe->data['exporter'] ?? '' ) && 1 === ( $a122_pe->data['items'] ?? 0 ) && 'p***@e***.com' === ( $a122_pe->data['email'] ?? '' ) );
 check( 'privacy export: empty follow-up pages and foreign exporters are not logged', 1 === $a122_count( 'privacy_export_run', 'privacy_request', $a122_req ) );
-AccessLog::privacy_erasure_page( array( 'items_removed' => true, 'items_retained' => true, 'messages' => array(), 'done' => true ), 1, 'privacy@example.com', 1, $a122_req, 'wp-pass-captain-guestlists' );
+AccessLog::privacy_erasure_page( array( 'items_removed' => true, 'items_retained' => true, 'messages' => array(), 'done' => true ), 1, 'privacy@example.com', 1, $a122_req, 'pass-captain-guestlists' );
 AccessLog::privacy_erasure_page( array( 'items_removed' => true, 'items_retained' => false, 'messages' => array(), 'done' => true ), 1, 'privacy@example.com', 1, $a122_req, 'other-plugin' );
 $a122_pr = $a122_last( 'privacy_erasure_run' );
-check( 'privacy erasure: plugin eraser page logged with removed/retained flags', 1 === $a122_count( 'privacy_erasure_run', 'privacy_request', $a122_req ) && true === ( $a122_pr->data['items_removed'] ?? null ) && true === ( $a122_pr->data['items_retained'] ?? null ) && 'wp-pass-captain-guestlists' === ( $a122_pr->data['eraser'] ?? '' ) );
+check( 'privacy erasure: plugin eraser page logged with removed/retained flags', 1 === $a122_count( 'privacy_erasure_run', 'privacy_request', $a122_req ) && true === ( $a122_pr->data['items_removed'] ?? null ) && true === ( $a122_pr->data['items_retained'] ?? null ) && 'pass-captain-guestlists' === ( $a122_pr->data['eraser'] ?? '' ) );
 AccessLog::privacy_exported( $a122_req );
 AccessLog::privacy_erased( $a122_req );
 check( 'privacy tools: export file and completed erasure are logged per request', 1 === $a122_count( 'privacy_export_completed', 'privacy_request', $a122_req ) && 1 === $a122_count( 'privacy_erasure_completed', 'privacy_request', $a122_req ) );
-check( 'privacy tools: plugin exporter keys recognised (core and module exporters)', AccessLog::is_plugin_privacy_key( 'wp-pass-captain-orders' ) && AccessLog::is_plugin_privacy_key( 'wpcap-sms' ) && ! AccessLog::is_plugin_privacy_key( 'woocommerce-customer' ) );
+check( 'privacy tools: plugin exporter keys recognised (core and module exporters)', AccessLog::is_plugin_privacy_key( 'pass-captain-orders' ) && AccessLog::is_plugin_privacy_key( 'wpcap-sms' ) && ! AccessLog::is_plugin_privacy_key( 'woocommerce-customer' ) );
 // Through the filter as WordPress core calls it.
-$a122_flt = apply_filters( 'wp_privacy_personal_data_export_page', $a122_resp, 1, 'privacy@example.com', 1, $a122_req + 1, false, 'wp-pass-captain-orders' );
+$a122_flt = apply_filters( 'wp_privacy_personal_data_export_page', $a122_resp, 1, 'privacy@example.com', 1, $a122_req + 1, false, 'pass-captain-orders' );
 check( 'privacy export: runs through the WordPress filter', $a122_flt === $a122_resp && 1 === $a122_count( 'privacy_export_run', 'privacy_request', $a122_req + 1 ) );
 
 // ---------------------------------------------------------------------------------------- roles and caps
@@ -238,18 +238,18 @@ $a122_request = static function ( $method, $route, array $params = array() ) {
 };
 $GLOBALS['wpcap_test_user_id'] = 4125;
 $a122_rows = array( array( 'email' => 'w@example.com' ), array( 'email' => 'v@example.com' ) );
-$a122_res = AccessLog::rest_read( $a122_rows, null, $a122_request( 'GET', '/wp-pass-captain/v1/events/912230/waitlist/entries' ) );
-AccessLog::rest_read( $a122_rows, null, $a122_request( 'GET', '/wp-pass-captain/v1/events/912230/waitlist/entries' ) );
+$a122_res = AccessLog::rest_read( $a122_rows, null, $a122_request( 'GET', '/pass-captain/v1/events/912230/waitlist/entries' ) );
+AccessLog::rest_read( $a122_rows, null, $a122_request( 'GET', '/pass-captain/v1/events/912230/waitlist/entries' ) );
 $a122_rr = $a122_last( 'pii_api_read' );
 check( 'REST: staff read of waitlist entries logged once within the window, response untouched', $a122_res === $a122_rows && 1 === $a122_count( 'pii_api_read', 'event', 912230 ) && 'waitlist_entries' === ( $a122_rr->data['view'] ?? '' ) && 2 === ( $a122_rr->data['rows'] ?? 0 ) && 4125 === (int) $a122_rr->user_id );
-AccessLog::rest_read( $a122_rows, null, $a122_request( 'GET', '/wp-pass-captain/v1/guestlists/search', array( 'occurrence_id' => 912231, 'q' => 'Erika' ) ) );
+AccessLog::rest_read( $a122_rows, null, $a122_request( 'GET', '/pass-captain/v1/guestlists/search', array( 'occurrence_id' => 912231, 'q' => 'Erika' ) ) );
 $a122_rg = $a122_last( 'pii_api_read' );
 check( 'REST: guest list search logged per occurrence with masked query', 1 === $a122_count( 'pii_api_read', 'occurrence', 912231 ) && 'E***' === ( $a122_rg->data['params']['q'] ?? '' ) );
-AccessLog::rest_read( $a122_rows, null, $a122_request( 'POST', '/wp-pass-captain/v1/events/912232/waitlist/entries' ) );
-AccessLog::rest_read( new WP_Error( 'x', 'y', array( 'status' => 403 ) ), null, $a122_request( 'GET', '/wp-pass-captain/v1/events/912232/waitlist/entries' ) );
-AccessLog::rest_read( $a122_rows, null, $a122_request( 'GET', '/wp-pass-captain/v1/events' ) );
+AccessLog::rest_read( $a122_rows, null, $a122_request( 'POST', '/pass-captain/v1/events/912232/waitlist/entries' ) );
+AccessLog::rest_read( new WP_Error( 'x', 'y', array( 'status' => 403 ) ), null, $a122_request( 'GET', '/pass-captain/v1/events/912232/waitlist/entries' ) );
+AccessLog::rest_read( $a122_rows, null, $a122_request( 'GET', '/pass-captain/v1/events' ) );
 check( 'REST: writes, errors and routes without personal data are not logged', 0 === $a122_count( 'pii_api_read', 'event', 912232 ) );
-check( 'REST: offline package and partner API reads are covered', isset( AccessLog::rest_routes()['#^/wp-pass-captain/v1/app/offline/package$#'] ) && isset( AccessLog::rest_routes()['#^/wp-pass-captain/v1/partner/orders$#'] ) );
+check( 'REST: offline package and partner API reads are covered', isset( AccessLog::rest_routes()['#^/pass-captain/v1/app/offline/package$#'] ) && isset( AccessLog::rest_routes()['#^/pass-captain/v1/partner/orders$#'] ) );
 $GLOBALS['wpcap_test_user_id'] = 1;
 
 // ---------------------------------------------------------------------------------------- viewer

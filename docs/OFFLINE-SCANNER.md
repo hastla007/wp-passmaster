@@ -40,7 +40,7 @@ A device gets a package only if **all** of these hold:
 Otherwise the server returns `403 wpcap_offline_not_assigned`. Revoked devices get `401`. The PWA
 deletes stored packages that the server no longer lists or refuses with 403.
 
-## REST (device bearer token, namespace `wp-pass-captain/v1`)
+## REST (device bearer token, namespace `pass-captain/v1`)
 
 | Route | Description |
 |---|---|

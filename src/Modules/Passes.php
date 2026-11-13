@@ -95,7 +95,7 @@ final class Passes {
 	}
 
 	public static function admin_pages() {
-		return array( array( AdminPage::SLUG, __( 'Pässe', 'wp-pass-captain' ), Definitions::CAP, array( AdminPage::class, 'render' ) ) );
+		return array( array( AdminPage::SLUG, __( 'Pässe', 'pass-captain' ), Definitions::CAP, array( AdminPage::class, 'render' ) ) );
 	}
 
 	public static function admin_handlers() {

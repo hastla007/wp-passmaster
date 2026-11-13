@@ -30,7 +30,7 @@ final class AdmissionChecks {
 	public static function parse( array $in ) {
 		$age = trim( (string) ( $in['min_age'] ?? '' ) );
 		if ( '' !== $age && ( ! preg_match( '/^\d{1,2}$/', $age ) || (int) $age > self::MAX_AGE ) ) {
-			return new \WP_Error( 'wpcap_type_min_age', __( 'Das Mindestalter muss zwischen 0 und 99 Jahren liegen (leer oder 0 = keines).', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_type_min_age', __( 'Das Mindestalter muss zwischen 0 und 99 Jahren liegen (leer oder 0 = keines).', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		return array(
 			'id_check' => empty( $in['id_check'] ) ? 0 : 1,
@@ -59,9 +59,9 @@ final class AdmissionChecks {
 	/** Hint for scanning staff ("Ausweis prüfen · Mindestalter 18 · note"), '' when nothing is set. */
 	public static function staff_hint( array $checks ) {
 		$parts = array();
-		if ( $checks['id_check'] ) { $parts[] = __( 'Ausweis prüfen', 'wp-pass-captain' ); }
+		if ( $checks['id_check'] ) { $parts[] = __( 'Ausweis prüfen', 'pass-captain' ); }
 		/* translators: %d: minimum age in years */
-		if ( $checks['min_age'] > 0 ) { $parts[] = sprintf( __( 'Mindestalter %d', 'wp-pass-captain' ), $checks['min_age'] ); }
+		if ( $checks['min_age'] > 0 ) { $parts[] = sprintf( __( 'Mindestalter %d', 'pass-captain' ), $checks['min_age'] ); }
 		if ( '' !== $checks['staff_note'] ) { $parts[] = $checks['staff_note']; }
 		return implode( ' · ', $parts );
 	}
@@ -70,8 +70,8 @@ final class AdmissionChecks {
 	public static function buyer_notice( array $checks ) {
 		$parts = array();
 		/* translators: %d: minimum age in years */
-		if ( $checks['min_age'] > 0 ) { $parts[] = sprintf( __( 'ab %d Jahren', 'wp-pass-captain' ), $checks['min_age'] ); }
-		if ( $checks['id_check'] ) { $parts[] = __( 'Ausweis erforderlich', 'wp-pass-captain' ); }
+		if ( $checks['min_age'] > 0 ) { $parts[] = sprintf( __( 'ab %d Jahren', 'pass-captain' ), $checks['min_age'] ); }
+		if ( $checks['id_check'] ) { $parts[] = __( 'Ausweis erforderlich', 'pass-captain' ); }
 		return implode( ', ', $parts );
 	}
 

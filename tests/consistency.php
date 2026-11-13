@@ -4,7 +4,7 @@
  * changelogs must agree. Run: php tests/consistency.php (exit code 1 on a mismatch).
  */
 $root = dirname( __DIR__ );
-$main = (string) file_get_contents( $root . '/wp-pass-captain.php' );
+$main = (string) file_get_contents( $root . '/pass-captain.php' );
 $readme = (string) file_get_contents( $root . '/readme.txt' );
 $changelog = (string) file_get_contents( $root . '/CHANGELOG.md' );
 $composer = json_decode( (string) file_get_contents( $root . '/composer.json' ), true );
@@ -22,7 +22,7 @@ $check( 'composer require php matches Requires PHP', '>=' . $header( $main, 'Req
 $check( 'composer platform php matches Requires PHP', 0 === strpos( (string) ( $composer['config']['platform']['php'] ?? '' ), $header( $main, 'Requires PHP' ) ) );
 $check( "CHANGELOG.md has a section for $version", (bool) preg_match( '/^## ' . preg_quote( $version, '/' ) . '\b/m', $changelog ) );
 $check( "readme.txt changelog has an entry for $version", false !== strpos( $readme, '= ' . $version . ' =' ) );
-$check( 'Text Domain is wp-pass-captain', 'wp-pass-captain' === $header( $main, 'Text Domain' ) );
+$check( 'Text Domain is pass-captain', 'pass-captain' === $header( $main, 'Text Domain' ) );
 // Every released version in CHANGELOG.md also appears in the readme changelog.
 preg_match_all( '/^## (\d+\.\d+\.\d+)/m', $changelog, $released );
 $missing = array_filter( $released[1], static fn( $v ) => version_compare( $v, '1.1.0', '>=' ) && false === strpos( $readme, '= ' . $v . ' =' ) );

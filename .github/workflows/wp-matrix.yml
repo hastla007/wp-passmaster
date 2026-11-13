@@ -63,17 +63,24 @@ jobs:
         run: |
           prev="$(git tag --list 'v*' --sort=-v:refname | head -n1)"
           echo "Previous release: $prev"
-          WPCAP_BUILD_REF="$prev" bash build/release.sh && mkdir -p "$RUNNER_TEMP/old" && unzip -q build/dist/wp-pass-captain.zip -d "$RUNNER_TEMP/old"
-          bash build/release.sh && mkdir -p "$RUNNER_TEMP/new" && unzip -q build/dist/wp-pass-captain.zip -d "$RUNNER_TEMP/new"
+          # The previous release may still carry the old folder name (renamed for WordPress.org): use whatever ZIP it built.
+          rm -rf build/dist && WPCAP_BUILD_REF="$prev" bash build/release.sh && cp build/dist/*.zip "$RUNNER_TEMP/old.zip"
+          mkdir -p "$RUNNER_TEMP/old" && unzip -q "$RUNNER_TEMP/old.zip" -d "$RUNNER_TEMP/old"
+          echo "OLD_PLUGIN_DIR=$(ls -d "$RUNNER_TEMP"/old/*/ | head -n1)" >> "$GITHUB_ENV"
+          rm -rf build/dist && bash build/release.sh && mkdir -p "$RUNNER_TEMP/new" && unzip -q build/dist/pass-captain.zip -d "$RUNNER_TEMP/new"
       - name: Release ZIP installed in a fresh WordPress ${{ matrix.wp }} (contents, install, activate, uninstall)
         # A178: the built artefact itself, not the checkout; fails on development files in the ZIP.
         env:
           WPCAP_ZIP_WP_VERSION: ${{ matrix.wp }}
-        run: bash tests/wp-matrix/zip-install.sh build/dist/wp-pass-captain.zip "$RUNNER_TEMP/zip-install"
+        run: bash tests/wp-matrix/zip-install.sh build/dist/pass-captain.zip "$RUNNER_TEMP/zip-install"
       - name: Upgrade / rollback / restore drill with real data
         run: |
           mkdir -p "$RUNNER_TEMP/drill"
-          bash tests/restore/drill.sh "$RUNNER_TEMP/wp" "$RUNNER_TEMP/old/wp-pass-captain" "$RUNNER_TEMP/new/wp-pass-captain" "$RUNNER_TEMP/drill"
+          bash tests/restore/drill.sh "$RUNNER_TEMP/wp" "${OLD_PLUGIN_DIR%/}" "$RUNNER_TEMP/new/pass-captain" "$RUNNER_TEMP/drill"
+      - name: Switch from the previous release in a real site (rename to pass-captain, old copy taken over)
+        env:
+          WPCAP_ZIP_WP_VERSION: ${{ matrix.wp }}
+        run: bash tests/wp-matrix/rename-takeover.sh "$RUNNER_TEMP/old.zip" build/dist/pass-captain.zip "$RUNNER_TEMP/rename"
 
   woocommerce:
     # A127: the WooCommerce adapter against installed WooCommerce versions, HPOS and posts storage.
@@ -116,8 +123,8 @@ jobs:
           wp core install --url=http://localhost:8080 --title=Woo --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
           if [ "${{ matrix.wc }}" = "latest" ]; then wp plugin install woocommerce --activate; else wp plugin install woocommerce --version=${{ matrix.wc }} --activate; fi
           wp option update woocommerce_currency EUR
-          ln -s "$GITHUB_WORKSPACE" wp-content/plugins/wp-pass-captain
-          wp plugin activate wp-pass-captain
+          ln -s "$GITHUB_WORKSPACE" wp-content/plugins/pass-captain
+          wp plugin activate pass-captain
           echo "WooCommerce $(wp plugin get woocommerce --field=version)"
       - name: Order storage ${{ matrix.storage }}
         run: |
@@ -170,8 +177,8 @@ jobs:
           wp config set WP_AUTO_UPDATE_CORE false --raw
           wp core install --url=http://localhost:8080 --title=A11y --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
           wp language core install de_DE --activate || true
-          ln -s "$GITHUB_WORKSPACE" wp-content/plugins/wp-pass-captain
-          wp plugin activate wp-pass-captain
+          ln -s "$GITHUB_WORKSPACE" wp-content/plugins/pass-captain
+          wp plugin activate pass-captain
           wp rewrite structure '/%postname%/'
           (PHP_CLI_SERVER_WORKERS=4 nohup php -S localhost:8080 >/dev/null 2>&1 &)
       - name: Install axe-core and Playwright

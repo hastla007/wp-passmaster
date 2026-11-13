@@ -74,7 +74,7 @@ final class Sales {
 
 	public static function error_messages( $messages ) {
 		return array_merge( (array) $messages, array(
-			'partner_contingent_exhausted' => __( 'Das Kontingent dieses Veranstalters für diesen Termin reicht nicht aus.', 'wp-pass-captain' ),
+			'partner_contingent_exhausted' => __( 'Das Kontingent dieses Veranstalters für diesen Termin reicht nicht aus.', 'pass-captain' ),
 		), self::$messages );
 	}
 
@@ -124,7 +124,7 @@ final class Sales {
 				if ( null === $used ) { throw new \RuntimeException( 'db_busy' ); }
 				if ( $used + $demand > (int) $c->quantity ) {
 					/* translators: %d: remaining units */
-					self::$messages['partner_contingent_exhausted'] = sprintf( _n( 'Im Kontingent dieses Veranstalters ist nur noch %d Ticket frei.', 'Im Kontingent dieses Veranstalters sind nur noch %d Tickets frei.', max( 0, (int) $c->quantity - $used ), 'wp-pass-captain' ), max( 0, (int) $c->quantity - $used ));
+					self::$messages['partner_contingent_exhausted'] = sprintf( _n( 'Im Kontingent dieses Veranstalters ist nur noch %d Ticket frei.', 'Im Kontingent dieses Veranstalters sind nur noch %d Tickets frei.', max( 0, (int) $c->quantity - $used ), 'pass-captain' ), max( 0, (int) $c->quantity - $used ));
 					throw new \RuntimeException( 'partner_contingent_exhausted' );
 				}
 			}
@@ -287,13 +287,13 @@ final class Sales {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$partner = Repository::get( $partner_id );
-		if ( ! $partner ) { return self::error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $partner ) { return self::error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), 404 ); }
 		$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", absint( $ticket_type_id ) ) );
-		if ( ! $event_id ) { return self::error( 'wpcap_partner_price_type', __( 'Ticketart nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $event_id ) { return self::error( 'wpcap_partner_price_type', __( 'Ticketart nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( Repository::ROLE_ORGANIZER === Repository::role_of( $partner ) && ! in_array( $event_id, Repository::event_ids( $partner->partner_id ), true ) ) {
-			return self::error( 'wpcap_partner_price_type', __( 'Veranstalter können nur Ticketarten ihrer eigenen Events verkaufen. Für fremde Events die Rolle „Wiederverkäufer“ verwenden.', 'wp-pass-captain' ) );
+			return self::error( 'wpcap_partner_price_type', __( 'Veranstalter können nur Ticketarten ihrer eigenen Events verkaufen. Für fremde Events die Rolle „Wiederverkäufer“ verwenden.', 'pass-captain' ) );
 		}
-		if ( null !== $price_minor && (int) $price_minor < 0 ) { return self::error( 'wpcap_partner_price', __( 'Der Preis darf nicht negativ sein.', 'wp-pass-captain' ) ); }
+		if ( null !== $price_minor && (int) $price_minor < 0 ) { return self::error( 'wpcap_partner_price', __( 'Der Preis darf nicht negativ sein.', 'pass-captain' ) ); }
 		$now = current_time( 'mysql', true );
 		$wpdb->query( $wpdb->prepare(
 			"INSERT INTO {$p}wpcap_partner_prices (partner_id,ticket_type_id,price_minor,price_is_net,created_at,updated_at) VALUES (%d,%d," . ( null === $price_minor ? 'NULL' : (int) $price_minor ) . ',%d,%s,%s) ON DUPLICATE KEY UPDATE price_minor=VALUES(price_minor),price_is_net=VALUES(price_is_net),updated_at=VALUES(updated_at)', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer.
@@ -335,31 +335,31 @@ final class Sales {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$partner = Repository::get( $partner_id );
-		if ( ! $partner ) { return self::error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $partner ) { return self::error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), 404 ); }
 		$occurrence_id = absint( $data['occurrence_id'] ?? 0 );
 		$type_id = absint( $data['ticket_type_id'] ?? 0 );
 		$quantity = (int) ( $data['quantity'] ?? 0 );
 		$allocation_id = absint( $data['allocation_id'] ?? 0 );
 		if ( ! $occurrence_id || ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", $occurrence_id ) ) ) {
-			return self::error( 'wpcap_partner_contingent', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), 404 );
+			return self::error( 'wpcap_partner_contingent', __( 'Termin nicht gefunden.', 'pass-captain' ), 404 );
 		}
 		if ( $type_id && $occurrence_id !== (int) $wpdb->get_var( $wpdb->prepare( "SELECT occurrence_id FROM {$p}wpcap_ticket_types WHERE ticket_type_id=%d", $type_id ) ) ) {
-			return self::error( 'wpcap_partner_contingent', __( 'Die Ticketart gehört nicht zu diesem Termin.', 'wp-pass-captain' ) );
+			return self::error( 'wpcap_partner_contingent', __( 'Die Ticketart gehört nicht zu diesem Termin.', 'pass-captain' ) );
 		}
-		if ( $quantity < 0 || $quantity > 1000000 ) { return self::error( 'wpcap_partner_contingent', __( 'Ungültige Kontingentgröße.', 'wp-pass-captain' ) ); }
+		if ( $quantity < 0 || $quantity > 1000000 ) { return self::error( 'wpcap_partner_contingent', __( 'Ungültige Kontingentgröße.', 'pass-captain' ) ); }
 		if ( $allocation_id ) {
 			$hold = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_alloc_holds WHERE hold_id=%d", $allocation_id ) );
 			if ( ! $hold || 'hold' !== $hold->kind || (int) $hold->occurrence_id !== $occurrence_id || ( (int) $hold->ticket_type_id && $type_id && (int) $hold->ticket_type_id !== $type_id ) ) {
-				return self::error( 'wpcap_partner_contingent_hold', __( 'Das Kontingent (Allocations) passt nicht zu diesem Termin bzw. dieser Ticketart.', 'wp-pass-captain' ) );
+				return self::error( 'wpcap_partner_contingent_hold', __( 'Das Kontingent (Allocations) passt nicht zu diesem Termin bzw. dieser Ticketart.', 'pass-captain' ) );
 			}
 		}
-		if ( ! $quantity && ! $allocation_id ) { return self::error( 'wpcap_partner_contingent', __( 'Bitte eine Menge oder ein Kontingent (Allocations) angeben.', 'wp-pass-captain' ) ); }
+		if ( ! $quantity && ! $allocation_id ) { return self::error( 'wpcap_partner_contingent', __( 'Bitte eine Menge oder ein Kontingent (Allocations) angeben.', 'pass-captain' ) ); }
 		$now = current_time( 'mysql', true );
 		$wpdb->query( $wpdb->prepare(
 			"INSERT INTO {$p}wpcap_partner_contingents (partner_id,occurrence_id,ticket_type_id,quantity,allocation_id,created_at,updated_at) VALUES (%d,%d,%d,%d,%d,%s,%s) ON DUPLICATE KEY UPDATE quantity=VALUES(quantity),allocation_id=VALUES(allocation_id),updated_at=VALUES(updated_at)",
 			(int) $partner->partner_id, $occurrence_id, $type_id, $quantity, $allocation_id, $now, $now
 		) );
-		if ( '' !== $wpdb->last_error ) { return self::error( 'wpcap_partner_contingent_save', __( 'Kontingent konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		if ( '' !== $wpdb->last_error ) { return self::error( 'wpcap_partner_contingent_save', __( 'Kontingent konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT contingent_id FROM {$p}wpcap_partner_contingents WHERE partner_id=%d AND occurrence_id=%d AND ticket_type_id=%d", (int) $partner->partner_id, $occurrence_id, $type_id ) );
 		Audit::record( 'partner_contingent_saved', 'partner', (int) $partner->partner_id, array( 'contingent_id' => $id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $type_id, 'quantity' => $quantity, 'allocation_id' => $allocation_id ) );
 		return $id;
@@ -368,7 +368,7 @@ final class Sales {
 	public static function delete_contingent( $contingent_id ) {
 		global $wpdb;
 		$c = self::contingent( $contingent_id );
-		if ( ! $c ) { return self::error( 'wpcap_partner_contingent', __( 'Kontingent nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $c ) { return self::error( 'wpcap_partner_contingent', __( 'Kontingent nicht gefunden.', 'pass-captain' ), 404 ); }
 		$wpdb->delete( self::t( 'partner_contingents' ), array( 'contingent_id' => (int) $c->contingent_id ) );
 		Audit::record( 'partner_contingent_deleted', 'partner', (int) $c->partner_id, array( 'contingent_id' => (int) $c->contingent_id ) );
 		return array( 'contingent_id' => (int) $c->contingent_id );
@@ -443,7 +443,7 @@ final class Sales {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$public_id = strtolower( (string) $public_id );
-		$missing = self::error( 'wpcap_partner_order_missing', __( 'Bestellung nicht gefunden.', 'wp-pass-captain' ), 404 );
+		$missing = self::error( 'wpcap_partner_order_missing', __( 'Bestellung nicht gefunden.', 'pass-captain' ), 404 );
 		if ( ! preg_match( '/^[a-f0-9]{32}$/', $public_id ) ) { return $missing; }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT ord.* FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_partner_orders po ON po.order_id=ord.order_id WHERE ord.public_id=%s AND po.partner_id=%d", $public_id, (int) $ctx['partner']->partner_id ) );
 		if ( ! $order ) { return $missing; }
@@ -462,11 +462,11 @@ final class Sales {
 	/** Strict body check: only the listed fields are accepted. */
 	private static function unknown_fields( $body, array $allowed ) {
 		if ( null === $body || array() === $body ) { return null; }
-		if ( ! is_array( $body ) ) { return self::error( 'wpcap_partner_invalid_body', __( 'Der Request-Body muss ein JSON-Objekt sein.', 'wp-pass-captain' ) ); }
+		if ( ! is_array( $body ) ) { return self::error( 'wpcap_partner_invalid_body', __( 'Der Request-Body muss ein JSON-Objekt sein.', 'pass-captain' ) ); }
 		$unknown = array_diff( array_map( 'strval', array_keys( $body ) ), $allowed );
 		if ( $unknown ) {
 			/* translators: %s: field names */
-			return self::error( 'wpcap_partner_invalid_field', sprintf( __( 'Unbekannte Felder: %s', 'wp-pass-captain' ), implode( ', ', array_map( 'sanitize_key', $unknown ) ) ), 400, array( 'fields' => array_values( array_map( 'sanitize_key', $unknown ) ) ) );
+			return self::error( 'wpcap_partner_invalid_field', sprintf( __( 'Unbekannte Felder: %s', 'pass-captain' ), implode( ', ', array_map( 'sanitize_key', $unknown ) ) ), 400, array( 'fields' => array_values( array_map( 'sanitize_key', $unknown ) ) ) );
 		}
 		return null;
 	}
@@ -487,64 +487,64 @@ final class Sales {
 	 */
 	public static function validate_create( array $ctx, $body, $idempotency_key ) {
 		if ( ! self::valid_idempotency_key( $idempotency_key ) ) {
-			return self::error( 'wpcap_partner_idempotency_key', __( 'Der Header Idempotency-Key ist erforderlich (8–100 Zeichen: Buchstaben, Ziffern, . _ : -).', 'wp-pass-captain' ) );
+			return self::error( 'wpcap_partner_idempotency_key', __( 'Der Header Idempotency-Key ist erforderlich (8–100 Zeichen: Buchstaben, Ziffern, . _ : -).', 'pass-captain' ) );
 		}
-		if ( ! is_array( $body ) ) { return self::error( 'wpcap_partner_invalid_body', __( 'Der Request-Body muss ein JSON-Objekt sein.', 'wp-pass-captain' ) ); }
+		if ( ! is_array( $body ) ) { return self::error( 'wpcap_partner_invalid_body', __( 'Der Request-Body muss ein JSON-Objekt sein.', 'pass-captain' ) ); }
 		$unknown = self::unknown_fields( $body, array( 'mode', 'items', 'buyer', 'anonymous_buyer', 'attendees', 'external_reference', 'payment_reference', 'billing' ) );
 		if ( $unknown ) { return $unknown; }
 		$mode = $body['mode'] ?? 'reserve';
-		if ( ! in_array( $mode, self::MODES, true ) ) { return self::error( 'wpcap_partner_invalid_mode', __( 'mode muss "reserve" oder "sell" sein.', 'wp-pass-captain' ), 400, array( 'field' => 'mode' ) ); }
+		if ( ! in_array( $mode, self::MODES, true ) ) { return self::error( 'wpcap_partner_invalid_mode', __( 'mode muss "reserve" oder "sell" sein.', 'pass-captain' ), 400, array( 'field' => 'mode' ) ); }
 		$items = $body['items'] ?? null;
 		if ( ! is_array( $items ) || ! $items || count( $items ) > self::MAX_ITEMS || array_keys( $items ) !== range( 0, count( $items ) - 1 ) ) {
 			/* translators: %d: maximum lines */
-			return self::error( 'wpcap_partner_invalid_items', sprintf( __( 'items muss eine Liste mit 1 bis %d Positionen sein.', 'wp-pass-captain' ), self::MAX_ITEMS ), 400, array( 'field' => 'items' ) );
+			return self::error( 'wpcap_partner_invalid_items', sprintf( __( 'items muss eine Liste mit 1 bis %d Positionen sein.', 'pass-captain' ), self::MAX_ITEMS ), 400, array( 'field' => 'items' ) );
 		}
 		$sellable = self::sellable_types( $ctx['partner'], $ctx['key'] );
 		$clean = array();
 		foreach ( $items as $item ) {
 			if ( ! is_array( $item ) || array_diff( array_keys( $item ), array( 'ticket_type_id', 'quantity' ) ) || ! is_int( $item['ticket_type_id'] ?? null ) || ! is_int( $item['quantity'] ?? null ) || $item['ticket_type_id'] < 1 || $item['quantity'] < 1 || $item['quantity'] > 100 ) {
-				return self::error( 'wpcap_partner_invalid_items', __( 'Jede Position braucht ticket_type_id (Ganzzahl) und quantity (1–100).', 'wp-pass-captain' ), 400, array( 'field' => 'items' ) );
+				return self::error( 'wpcap_partner_invalid_items', __( 'Jede Position braucht ticket_type_id (Ganzzahl) und quantity (1–100).', 'pass-captain' ), 400, array( 'field' => 'items' ) );
 			}
 			if ( ! isset( $sellable[ $item['ticket_type_id'] ] ) ) {
-				return self::error( 'wpcap_partner_type_forbidden', __( 'Diese Ticketart darf mit diesem API-Key nicht verkauft werden.', 'wp-pass-captain' ), 403, array( 'ticket_type_id' => $item['ticket_type_id'] ) );
+				return self::error( 'wpcap_partner_type_forbidden', __( 'Diese Ticketart darf mit diesem API-Key nicht verkauft werden.', 'pass-captain' ), 403, array( 'ticket_type_id' => $item['ticket_type_id'] ) );
 			}
 			$clean[ $item['ticket_type_id'] ] = ( $clean[ $item['ticket_type_id'] ] ?? 0 ) + $item['quantity'];
 		}
 		ksort( $clean );
 		$anonymous = $body['anonymous_buyer'] ?? false;
-		if ( ! is_bool( $anonymous ) ) { return self::error( 'wpcap_partner_invalid_buyer', __( 'anonymous_buyer muss true oder false sein.', 'wp-pass-captain' ), 400, array( 'field' => 'anonymous_buyer' ) ); }
+		if ( ! is_bool( $anonymous ) ) { return self::error( 'wpcap_partner_invalid_buyer', __( 'anonymous_buyer muss true oder false sein.', 'pass-captain' ), 400, array( 'field' => 'anonymous_buyer' ) ); }
 		$buyer = $body['buyer'] ?? array();
 		if ( ! is_array( $buyer ) || array_diff( array_keys( $buyer ), array( 'email' ) ) ) {
-			return self::error( 'wpcap_partner_invalid_buyer', __( 'buyer darf nur das Feld email enthalten.', 'wp-pass-captain' ), 400, array( 'field' => 'buyer' ) );
+			return self::error( 'wpcap_partner_invalid_buyer', __( 'buyer darf nur das Feld email enthalten.', 'pass-captain' ), 400, array( 'field' => 'buyer' ) );
 		}
 		$email = isset( $buyer['email'] ) && is_string( $buyer['email'] ) ? sanitize_email( $buyer['email'] ) : '';
 		if ( $anonymous ) {
 			if ( empty( $ctx['partner']->anonymous_buyer ) ) {
-				return self::error( 'wpcap_partner_anonymous_forbidden', __( 'Verkäufe ohne Käufer-E-Mail sind für diesen Veranstalter nicht freigegeben.', 'wp-pass-captain' ), 403 );
+				return self::error( 'wpcap_partner_anonymous_forbidden', __( 'Verkäufe ohne Käufer-E-Mail sind für diesen Veranstalter nicht freigegeben.', 'pass-captain' ), 403 );
 			}
 			if ( ! in_array( 'tickets:issue', $ctx['scopes'], true ) ) {
-				return self::error( 'wpcap_partner_anonymous_forbidden', __( 'Verkäufe ohne Käufer-E-Mail erfordern den Scope tickets:issue (die Tickets werden an den Veranstalter übergeben).', 'wp-pass-captain' ), 403 );
+				return self::error( 'wpcap_partner_anonymous_forbidden', __( 'Verkäufe ohne Käufer-E-Mail erfordern den Scope tickets:issue (die Tickets werden an den Veranstalter übergeben).', 'pass-captain' ), 403 );
 			}
-			if ( isset( $buyer['email'] ) ) { return self::error( 'wpcap_partner_invalid_buyer', __( 'Bei anonymous_buyer darf keine Käufer-E-Mail angegeben werden.', 'wp-pass-captain' ), 400, array( 'field' => 'buyer.email' ) ); }
+			if ( isset( $buyer['email'] ) ) { return self::error( 'wpcap_partner_invalid_buyer', __( 'Bei anonymous_buyer darf keine Käufer-E-Mail angegeben werden.', 'pass-captain' ), 400, array( 'field' => 'buyer.email' ) ); }
 		} elseif ( ! is_email( $email ) || self::is_placeholder_email( $email ) || substr( strtolower( $email ), -strlen( self::PLACEHOLDER_DOMAIN ) ) === self::PLACEHOLDER_DOMAIN ) {
-			return self::error( 'wpcap_partner_invalid_buyer', __( 'buyer.email ist erforderlich und muss eine gültige E-Mail-Adresse sein.', 'wp-pass-captain' ), 400, array( 'field' => 'buyer.email' ) );
+			return self::error( 'wpcap_partner_invalid_buyer', __( 'buyer.email ist erforderlich und muss eine gültige E-Mail-Adresse sein.', 'pass-captain' ), 400, array( 'field' => 'buyer.email' ) );
 		}
 		$attendees = $body['attendees'] ?? array();
 		if ( ! is_array( $attendees ) || count( $attendees ) > array_sum( $clean ) ) {
-			return self::error( 'wpcap_partner_invalid_attendees', __( 'attendees muss eine Liste mit höchstens so vielen Einträgen wie Tickets sein.', 'wp-pass-captain' ), 400, array( 'field' => 'attendees' ) );
+			return self::error( 'wpcap_partner_invalid_attendees', __( 'attendees muss eine Liste mit höchstens so vielen Einträgen wie Tickets sein.', 'pass-captain' ), 400, array( 'field' => 'attendees' ) );
 		}
 		foreach ( $attendees as $a ) {
 			if ( ! is_array( $a ) || array_diff( array_keys( $a ), array( 'ticket_type_id', 'name', 'email', 'answers' ) ) || ! isset( $clean[ absint( $a['ticket_type_id'] ?? 0 ) ] ) ) {
-				return self::error( 'wpcap_partner_invalid_attendees', __( 'Jeder Teilnehmende braucht eine ticket_type_id aus items und darf nur name, email und answers enthalten.', 'wp-pass-captain' ), 400, array( 'field' => 'attendees' ) );
+				return self::error( 'wpcap_partner_invalid_attendees', __( 'Jeder Teilnehmende braucht eine ticket_type_id aus items und darf nur name, email und answers enthalten.', 'pass-captain' ), 400, array( 'field' => 'attendees' ) );
 			}
 		}
 		$reference = $body['external_reference'] ?? '';
 		if ( '' !== $reference && ! self::valid_reference( $reference ) ) {
-			return self::error( 'wpcap_partner_invalid_reference', __( 'external_reference: höchstens 100 Zeichen (Buchstaben, Ziffern, Leerzeichen, . _ : / # + -).', 'wp-pass-captain' ), 400, array( 'field' => 'external_reference' ) );
+			return self::error( 'wpcap_partner_invalid_reference', __( 'external_reference: höchstens 100 Zeichen (Buchstaben, Ziffern, Leerzeichen, . _ : / # + -).', 'pass-captain' ), 400, array( 'field' => 'external_reference' ) );
 		}
 		$payment_reference = $body['payment_reference'] ?? '';
 		if ( '' !== $payment_reference && ( 'sell' !== $mode || ! self::valid_reference( $payment_reference ) ) ) {
-			return self::error( 'wpcap_partner_invalid_reference', __( 'payment_reference ist nur bei mode "sell" erlaubt (höchstens 100 Zeichen).', 'wp-pass-captain' ), 400, array( 'field' => 'payment_reference' ) );
+			return self::error( 'wpcap_partner_invalid_reference', __( 'payment_reference ist nur bei mode "sell" erlaubt (höchstens 100 Zeichen).', 'pass-captain' ), 400, array( 'field' => 'payment_reference' ) );
 		}
 		// Optional buyer billing data (name/company/address/VAT ID) – required above the billing threshold.
 		$billing = isset( $body['billing'] ) ? \PassCaptain\Billing::validate( array( 'enabled' => true ) + (array) $body['billing'] ) : array();
@@ -591,7 +591,7 @@ final class Sales {
 			}
 		}
 		if ( count( $allocations ) > 1 ) {
-			$error = self::error( 'wpcap_partner_allocation_mixed', __( 'Die Positionen stammen aus verschiedenen Kontingenten. Bitte je Kontingent eine eigene Bestellung anlegen.', 'wp-pass-captain' ) );
+			$error = self::error( 'wpcap_partner_allocation_mixed', __( 'Die Positionen stammen aus verschiedenen Kontingenten. Bitte je Kontingent eine eigene Bestellung anlegen.', 'pass-captain' ) );
 			self::audit( $ctx, 'create', 0, $error );
 			return $error;
 		}
@@ -626,7 +626,7 @@ final class Sales {
 		self::$messages = array();
 		$result = Orders::create( $payload, $internal );
 		if ( is_wp_error( $result ) && 'wpcap_billing_required' === $result->get_error_code() ) {
-			$result = self::error( 'wpcap_partner_billing_required', __( 'Für diesen Bestellbetrag braucht die Rechnung Name und Anschrift des Käufers: bitte das Objekt "billing" mitsenden (first_name, last_name, street, postcode, city, country; optional company, vat_id, po_number).', 'wp-pass-captain' ), 422, array( 'field' => 'billing' ) );
+			$result = self::error( 'wpcap_partner_billing_required', __( 'Für diesen Bestellbetrag braucht die Rechnung Name und Anschrift des Käufers: bitte das Objekt "billing" mitsenden (first_name, last_name, street, postcode, city, country; optional company, vat_id, po_number).', 'pass-captain' ), 422, array( 'field' => 'billing' ) );
 			self::audit( $ctx, 'create', 0, $result );
 			return $result;
 		}
@@ -644,12 +644,12 @@ final class Sales {
 		$reused = ! empty( $result['reused'] );
 		if ( ! $sale || (int) $sale->partner_id !== (int) $partner->partner_id ) {
 			// Cannot happen with the per-partner key namespace; never expose a foreign order.
-			$error = self::error( 'wpcap_partner_idempotency_conflict', __( 'Dieser Idempotency-Key wurde bereits verwendet.', 'wp-pass-captain' ), 409 );
+			$error = self::error( 'wpcap_partner_idempotency_conflict', __( 'Dieser Idempotency-Key wurde bereits verwendet.', 'pass-captain' ), 409 );
 			self::audit( $ctx, 'create', 0, $error );
 			return $error;
 		}
 		if ( $reused && ! hash_equals( (string) $sale->request_hash, $req['hash'] ) ) {
-			$error = self::error( 'wpcap_partner_idempotency_mismatch', __( 'Dieser Idempotency-Key wurde bereits für eine andere Anfrage verwendet.', 'wp-pass-captain' ), 422 );
+			$error = self::error( 'wpcap_partner_idempotency_mismatch', __( 'Dieser Idempotency-Key wurde bereits für eine andere Anfrage verwendet.', 'pass-captain' ), 422 );
 			self::audit( $ctx, 'create', $order_id, $error );
 			return $error;
 		}
@@ -672,7 +672,7 @@ final class Sales {
 		if ( $unknown ) { self::audit( $ctx, 'confirm', $order_id, $unknown ); return $unknown; }
 		$reference = is_array( $body ) ? ( $body['payment_reference'] ?? '' ) : '';
 		if ( '' !== $reference && ! self::valid_reference( $reference ) ) {
-			$error = self::error( 'wpcap_partner_invalid_reference', __( 'payment_reference: höchstens 100 Zeichen (Buchstaben, Ziffern, Leerzeichen, . _ : / # + -).', 'wp-pass-captain' ), 400, array( 'field' => 'payment_reference' ) );
+			$error = self::error( 'wpcap_partner_invalid_reference', __( 'payment_reference: höchstens 100 Zeichen (Buchstaben, Ziffern, Leerzeichen, . _ : / # + -).', 'pass-captain' ), 400, array( 'field' => 'payment_reference' ) );
 			self::audit( $ctx, 'confirm', $order_id, $error );
 			return $error;
 		}
@@ -690,13 +690,13 @@ final class Sales {
 		$order = $found['order'];
 		$order_id = (int) $order->order_id;
 		if ( 'pending' !== $order->payment_status ) {
-			return self::error( 'wpcap_partner_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'wp-pass-captain' ), 409, array( 'order_status' => $order->status ) );
+			return self::error( 'wpcap_partner_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'pass-captain' ), 409, array( 'order_status' => $order->status ) );
 		}
 		// Extend first (only active holds are extended), then require an active hold: an expired
 		// reservation is never revived through the API (no late recovery, contingents stay exact).
 		Orders::extend_hold( $order_id, 5 );
 		if ( ! self::has_active_hold( $order_id ) ) {
-			return self::error( 'wpcap_partner_hold_expired', __( 'Die Reservierung ist abgelaufen. Bitte eine neue Bestellung anlegen.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_partner_hold_expired', __( 'Die Reservierung ist abgelaufen. Bitte eine neue Bestellung anlegen.', 'pass-captain' ), 409 );
 		}
 		$result = Orders::confirm_external_payment( $order_id, 'partner:' . (int) $ctx['partner']->partner_id . ( '' !== $reference ? ':' . $reference : '' ) );
 		if ( is_wp_error( $result ) ) {
@@ -739,7 +739,7 @@ final class Sales {
 			return $done( array( 'released' => true ) );
 		}
 		if ( 'paid' !== $order->payment_status ) {
-			$error = self::error( 'wpcap_partner_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'wp-pass-captain' ), 409, array( 'order_status' => $order->status ) );
+			$error = self::error( 'wpcap_partner_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'pass-captain' ), 409, array( 'order_status' => $order->status ) );
 			self::audit( $ctx, 'cancel', $order_id, $error );
 			return $error;
 		}
@@ -747,18 +747,18 @@ final class Sales {
 		$since = $found['sale']->confirmed_at ?: $order->created_at;
 		$error = null;
 		if ( $window <= 0 ) {
-			$error = self::error( 'wpcap_partner_cancel_not_allowed', __( 'Bezahlte Bestellungen können über die API nicht storniert werden (kein Stornofenster vereinbart).', 'wp-pass-captain' ), 409 );
+			$error = self::error( 'wpcap_partner_cancel_not_allowed', __( 'Bezahlte Bestellungen können über die API nicht storniert werden (kein Stornofenster vereinbart).', 'pass-captain' ), 409 );
 		} elseif ( strtotime( $since . ' UTC' ) + $window * HOUR_IN_SECONDS < time() ) {
-			$error = self::error( 'wpcap_partner_cancel_window_closed', __( 'Das Stornofenster für diese Bestellung ist abgelaufen.', 'wp-pass-captain' ), 409 );
+			$error = self::error( 'wpcap_partner_cancel_window_closed', __( 'Das Stornofenster für diese Bestellung ist abgelaufen.', 'pass-captain' ), 409 );
 		} elseif ( self::order_started( $order_id, $now ) ) {
-			$error = self::error( 'wpcap_partner_cancel_started', __( 'Die Veranstaltung hat bereits begonnen; eine Stornierung ist nicht mehr möglich.', 'wp-pass-captain' ), 409 );
+			$error = self::error( 'wpcap_partner_cancel_started', __( 'Die Veranstaltung hat bereits begonnen; eine Stornierung ist nicht mehr möglich.', 'pass-captain' ), 409 );
 		} elseif ( Orders::used_ticket_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) ) ) ) {
-			$error = self::error( 'wpcap_partner_cancel_checked_in', __( 'Mindestens ein Ticket wurde bereits eingecheckt; die Bestellung kann nicht storniert werden.', 'wp-pass-captain' ), 409 );
+			$error = self::error( 'wpcap_partner_cancel_checked_in', __( 'Mindestens ein Ticket wurde bereits eingecheckt; die Bestellung kann nicht storniert werden.', 'pass-captain' ), 409 );
 		}
 		if ( $error ) { self::audit( $ctx, 'cancel', $order_id, $error ); return $error; }
 		$ticket_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0 ORDER BY ticket_id", $order_id ) ) );
 		$amount = max( 0, (int) $order->total_minor - (int) $order->refunded_minor );
-		$refund = Refunds::record_external( $order_id, $ticket_ids, $amount, __( 'Storno durch Veranstalter-API', 'wp-pass-captain' ) . ( '' !== $reason ? ': ' . $reason : '' ), 'partner-cancel-' . $order_id, array( 'source' => self::SOURCE, 'provider_reference' => 'partner:' . (int) $ctx['partner']->partner_id ) );
+		$refund = Refunds::record_external( $order_id, $ticket_ids, $amount, __( 'Storno durch Veranstalter-API', 'pass-captain' ) . ( '' !== $reason ? ': ' . $reason : '' ), 'partner-cancel-' . $order_id, array( 'source' => self::SOURCE, 'provider_reference' => 'partner:' . (int) $ctx['partner']->partner_id ) );
 		if ( is_wp_error( $refund ) ) { self::audit( $ctx, 'cancel', $order_id, $refund ); return $refund; }
 		if ( ! $ticket_ids ) {
 			$marked = Orders::mark_refunded( $order_id, 'partner_api' );

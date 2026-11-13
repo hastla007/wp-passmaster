@@ -1,6 +1,6 @@
 <?php
 /**
- * Partner REST API under wp-pass-captain/v1/partner/…, authenticated with
+ * Partner REST API under pass-captain/v1/partner/…, authenticated with
  * "Authorization: Bearer wpcap_pk_…" (see Keys). Read endpoints (this class) are limited to the key's
  * effective events; e-mail addresses are only included with the attendees:read scope. Write endpoints
  * for selling (orders:write, orders:cancel, tickets:issue) live in SalesApi. Reference:
@@ -13,7 +13,7 @@ use PassCaptain\Reports\Data;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Api {
-	const NS = 'wp-pass-captain/v1';
+	const NS = 'pass-captain/v1';
 	const VERSION = '1';
 	const MAX_PER_PAGE = 100;
 
@@ -111,7 +111,7 @@ final class Api {
 		if ( ! $requested ) { return $allowed; }
 		if ( ! in_array( $requested, $allowed, true ) ) {
 			Keys::audit_failure( 'event_not_allowed', self::$context['key'] ?? null, Keys::client_ip(), method_exists( $request, 'get_route' ) ? $request->get_route() : '', array( 'event_id' => $requested ) );
-			return new \WP_Error( 'wpcap_partner_event_forbidden', __( 'Dieser API-Key hat keinen Zugriff auf dieses Event.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_partner_event_forbidden', __( 'Dieser API-Key hat keinen Zugriff auf dieses Event.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		return array( $requested );
 	}
@@ -158,10 +158,10 @@ final class Api {
 		$id = absint( $request->get_param( 'event_id' ) );
 		if ( ! in_array( $id, self::$context['event_ids'], true ) ) {
 			Keys::audit_failure( 'event_not_allowed', self::$context['key'], Keys::client_ip(), method_exists( $request, 'get_route' ) ? $request->get_route() : '', array( 'event_id' => $id ) );
-			return new \WP_Error( 'wpcap_partner_event_forbidden', __( 'Dieser API-Key hat keinen Zugriff auf dieses Event.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_partner_event_forbidden', __( 'Dieser API-Key hat keinen Zugriff auf dieses Event.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$events = self::event_payloads( array( $id ) );
-		return $events ? self::respond( $events[0] ) : new \WP_Error( 'wpcap_partner_event_missing', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+		return $events ? self::respond( $events[0] ) : new \WP_Error( 'wpcap_partner_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 	}
 
 	private static function event_payloads( array $ids ) {
@@ -332,7 +332,7 @@ final class Api {
 	private static function settlement_guard( $request ) {
 		if ( '' === (string) self::$context['key']->event_ids ) { return true; }
 		Keys::audit_failure( 'event_restricted_settlements', self::$context['key'], Keys::client_ip(), method_exists( $request, 'get_route' ) ? $request->get_route() : '' );
-		return new \WP_Error( 'wpcap_partner_settlements_restricted', __( 'Abrechnungen sind nur mit API-Keys ohne Event-Einschränkung abrufbar.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		return new \WP_Error( 'wpcap_partner_settlements_restricted', __( 'Abrechnungen sind nur mit API-Keys ohne Event-Einschränkung abrufbar.', 'pass-captain' ), array( 'status' => 403 ) );
 	}
 
 	/** Finalized and paid settlements of the partner (drafts are internal). */
@@ -348,7 +348,7 @@ final class Api {
 		if ( is_wp_error( $guard ) ) { return $guard; }
 		$s = Settlements::get( absint( $request->get_param( 'settlement_id' ) ) );
 		if ( ! $s || (int) $s->partner_id !== (int) self::$context['partner']->partner_id || 'draft' === $s->status ) {
-			return new \WP_Error( 'wpcap_partner_settlement_missing', __( 'Abrechnung nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_partner_settlement_missing', __( 'Abrechnung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		return self::respond( self::settlement_payload( $s, true ) );
 	}

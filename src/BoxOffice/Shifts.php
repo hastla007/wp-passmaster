@@ -179,12 +179,12 @@ final class Shifts {
 	 */
 	public static function open( $register_id, array $args = array() ) {
 		global $wpdb;
-		if ( ! current_user_can( Service::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! current_user_can( Service::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$register = Registers::get( $register_id );
-		if ( ! $register || 'active' !== $register->status ) { return self::error( 'wpcap_pos_register', __( 'Kasse nicht gefunden oder deaktiviert.', 'wp-pass-captain' ), 404 ); }
-		if ( (int) $register->event_id && ! \PassCaptain\Reports\Scope::can_event( (int) $register->event_id, Service::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für diese Kasse.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $register || 'active' !== $register->status ) { return self::error( 'wpcap_pos_register', __( 'Kasse nicht gefunden oder deaktiviert.', 'pass-captain' ), 404 ); }
+		if ( (int) $register->event_id && ! \PassCaptain\Reports\Scope::can_event( (int) $register->event_id, Service::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für diese Kasse.', 'pass-captain' ), 403 ); }
 		$user_id = get_current_user_id();
-		if ( self::current_for_user( $user_id ) ) { return self::error( 'wpcap_pos_shift_active', __( 'Du arbeitest bereits in einer offenen Schicht. Bitte schließe diese zuerst ab.', 'wp-pass-captain' ), 409 ); }
+		if ( self::current_for_user( $user_id ) ) { return self::error( 'wpcap_pos_shift_active', __( 'Du arbeitest bereits in einer offenen Schicht. Bitte schließe diese zuerst ab.', 'pass-captain' ), 409 ); }
 		$float_in = $args['float_minor'] ?? ( empty( $args['denominations'] ) ? 0 : null );
 		$resolved = Cash::resolve( $float_in, $args['denominations'] ?? null, $register->currency );
 		if ( is_wp_error( $resolved ) ) { return $resolved; }
@@ -198,16 +198,16 @@ final class Shifts {
 		// Plain reads after the register lock (no gap locks: they could deadlock opens of other registers).
 		if ( $wpdb->get_row( $wpdb->prepare( "SELECT session_id FROM {$p}sessions WHERE open_register=%d", $register->register_id ) ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_pos_register_busy', __( 'Auf dieser Kasse ist bereits eine Schicht offen.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_register_busy', __( 'Auf dieser Kasse ist bereits eine Schicht offen.', 'pass-captain' ), 409 );
 		}
 		$pending = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}handovers WHERE register_id=%d AND status='pending' ORDER BY handover_id DESC LIMIT 1", $register->register_id ) );
 		if ( $pending && (int) $pending->handover_id !== $handover_id ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_pos_handover_pending', __( 'Für diese Kasse wartet eine Übergabe. Die nächste Schicht wird durch Annahme der Übergabe geöffnet.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_handover_pending', __( 'Für diese Kasse wartet eine Übergabe. Die nächste Schicht wird durch Annahme der Übergabe geöffnet.', 'pass-captain' ), 409 );
 		}
 		if ( $handover_id && ! $pending ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_pos_handover', __( 'Diese Übergabe wartet nicht mehr auf Annahme.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_handover', __( 'Diese Übergabe wartet nicht mehr auf Annahme.', 'pass-captain' ), 409 );
 		}
 		$inserted = $wpdb->insert( "{$p}sessions", array(
 			'register_id' => (int) $register->register_id,
@@ -224,7 +224,7 @@ final class Shifts {
 		) );
 		if ( false === $inserted ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_pos_shift_active', __( 'Die Schicht konnte nicht geöffnet werden (bereits eine offene Schicht?).', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_shift_active', __( 'Die Schicht konnte nicht geöffnet werden (bereits eine offene Schicht?).', 'pass-captain' ), 409 );
 		}
 		$shift_id = (int) $wpdb->insert_id;
 		$wpdb->insert( "{$p}shift_cashiers", array( 'shift_id' => $shift_id, 'user_id' => $user_id, 'role' => 'opener', 'added_by' => $user_id, 'added_at' => $now ) );
@@ -241,7 +241,7 @@ final class Shifts {
 			), array( 'handover_id' => (int) $pending->handover_id, 'status' => 'pending' ) );
 			if ( ! $updated ) {
 				$wpdb->query( 'ROLLBACK' );
-				return self::error( 'wpcap_pos_handover', __( 'Diese Übergabe wartet nicht mehr auf Annahme.', 'wp-pass-captain' ), 409 );
+				return self::error( 'wpcap_pos_handover', __( 'Diese Übergabe wartet nicht mehr auf Annahme.', 'pass-captain' ), 409 );
 			}
 		}
 		$wpdb->query( 'COMMIT' );
@@ -259,11 +259,11 @@ final class Shifts {
 		global $wpdb;
 		$shift = self::get( $shift_id );
 		$user_id = absint( $user_id );
-		if ( ! $shift || ! in_array( $shift->status, self::ACTIVE, true ) ) { return self::error( 'wpcap_pos_session_closed', __( 'Die Schicht ist nicht offen.', 'wp-pass-captain' ), 409 ); }
-		if ( ! self::can_operate( $shift ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
-		if ( ! $user_id || ( function_exists( 'user_can' ) && ! user_can( $user_id, Service::CAP ) ) ) { return self::error( 'wpcap_pos_cashier', __( 'Dieser Benutzer darf nicht kassieren.', 'wp-pass-captain' ) ); }
+		if ( ! $shift || ! in_array( $shift->status, self::ACTIVE, true ) ) { return self::error( 'wpcap_pos_session_closed', __( 'Die Schicht ist nicht offen.', 'pass-captain' ), 409 ); }
+		if ( ! self::can_operate( $shift ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		if ( ! $user_id || ( function_exists( 'user_can' ) && ! user_can( $user_id, Service::CAP ) ) ) { return self::error( 'wpcap_pos_cashier', __( 'Dieser Benutzer darf nicht kassieren.', 'pass-captain' ) ); }
 		if ( self::is_cashier( $shift, $user_id ) ) { return $shift; }
-		if ( self::current_for_user( $user_id ) ) { return self::error( 'wpcap_pos_shift_active', __( 'Dieser Benutzer arbeitet bereits in einer anderen offenen Schicht.', 'wp-pass-captain' ), 409 ); }
+		if ( self::current_for_user( $user_id ) ) { return self::error( 'wpcap_pos_shift_active', __( 'Dieser Benutzer arbeitet bereits in einer anderen offenen Schicht.', 'pass-captain' ), 409 ); }
 		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::t( 'shift_cashiers' ) . " (shift_id,user_id,role,added_by,added_at) VALUES (%d,%d,'cashier',%d,%s)", $shift->session_id, $user_id, get_current_user_id(), self::now() ) );
 		Audit::record( 'pos_cashier_added', 'pos_session', (int) $shift->session_id, array( 'user_id' => $user_id ) );
 		return self::get( $shift->session_id );
@@ -285,12 +285,12 @@ final class Shifts {
 		global $wpdb;
 		Service::reset_rejected_stornos( $shift->session_id );
 		if ( self::pending_stornos( $shift->session_id ) ) {
-			return self::error( 'wpcap_pos_storno_pending', __( 'Ein Storno wartet noch auf Freigabe. Bitte freigeben oder ablehnen lassen, dann die Kasse abschließen.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_storno_pending', __( 'Ein Storno wartet noch auf Freigabe. Bitte freigeben oder ablehnen lassen, dann die Kasse abschließen.', 'pass-captain' ), 409 );
 		}
 		$p = $wpdb->prefix;
 		$unbooked = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_sales s INNER JOIN {$p}wpcap_orders ord ON ord.order_id=s.order_id WHERE s.session_id=%d AND s.status='pending' AND ord.payment_status='paid'", $shift->session_id ) );
 		if ( $unbooked ) {
-			return self::error( 'wpcap_pos_unbooked', __( 'Ein bezahlter Verkauf ist noch nicht gebucht. Bitte zuerst „Nachbuchen“ ausführen.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_unbooked', __( 'Ein bezahlter Verkauf ist noch nicht gebucht. Bitte zuerst „Nachbuchen“ ausführen.', 'pass-captain' ), 409 );
 		}
 		return true;
 	}
@@ -307,25 +307,25 @@ final class Shifts {
 	public static function submit_count( $shift_id, array $args ) {
 		global $wpdb;
 		$shift = self::get( $shift_id );
-		if ( ! $shift ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! self::can_operate( $shift ) ) { return self::error( 'wpcap_forbidden', __( 'Nur die eigene Kassensitzung kann geschlossen werden.', 'wp-pass-captain' ), 403 ); }
-		if ( ! in_array( $shift->status, self::ACTIVE, true ) ) { return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $shift ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! self::can_operate( $shift ) ) { return self::error( 'wpcap_forbidden', __( 'Nur die eigene Kassensitzung kann geschlossen werden.', 'pass-captain' ), 403 ); }
+		if ( ! in_array( $shift->status, self::ACTIVE, true ) ) { return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'pass-captain' ), 409 ); }
 		$blocked = self::close_blockers( $shift );
 		if ( is_wp_error( $blocked ) ) { return $blocked; }
 		$resolved = Cash::resolve( $args['cash_minor'] ?? null, $args['denominations'] ?? null, $shift->currency );
 		if ( is_wp_error( $resolved ) ) { return $resolved; }
 		list( $cash, $denoms ) = $resolved;
 		$card = isset( $args['card_minor'] ) && null !== $args['card_minor'] && '' !== $args['card_minor'] ? (int) $args['card_minor'] : null;
-		if ( null !== $card && $card < 0 ) { return self::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'wp-pass-captain' ) ); }
+		if ( null !== $card && $card < 0 ) { return self::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'pass-captain' ) ); }
 		$p = self::t( '' );
 		$blind = (bool) (int) $shift->blind_count && ! self::supervises();
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}sessions WHERE session_id=%d FOR UPDATE", $shift->session_id ) );
-		if ( ! $locked || ! in_array( $locked->status, self::ACTIVE, true ) ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $locked || ! in_array( $locked->status, self::ACTIVE, true ) ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'pass-captain' ), 409 ); }
 		// Blind count: one count by the cashiers; a recount only by a register manager / finance.
 		if ( $blind && 'counting' === $locked->status ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_pos_recount_forbidden', __( 'Bei Blindzählung ist nur eine Zählung möglich. Eine Nachzählung muss die Kassenverwaltung durchführen.', 'wp-pass-captain' ), 403 );
+			return self::error( 'wpcap_pos_recount_forbidden', __( 'Bei Blindzählung ist nur eine Zählung möglich. Eine Nachzählung muss die Kassenverwaltung durchführen.', 'pass-captain' ), 403 );
 		}
 		$totals = ZReport::compute( $shift->session_id );
 		$wpdb->insert( "{$p}counts", array(
@@ -377,22 +377,22 @@ final class Shifts {
 	public static function close( $shift_id, array $args = array() ) {
 		global $wpdb;
 		$shift = self::get( $shift_id );
-		if ( ! $shift ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! self::can_operate( $shift ) ) { return self::error( 'wpcap_forbidden', __( 'Nur die eigene Kassensitzung kann geschlossen werden.', 'wp-pass-captain' ), 403 ); }
-		if ( 'closed' === $shift->status ) { return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $shift ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! self::can_operate( $shift ) ) { return self::error( 'wpcap_forbidden', __( 'Nur die eigene Kassensitzung kann geschlossen werden.', 'pass-captain' ), 403 ); }
+		if ( 'closed' === $shift->status ) { return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'pass-captain' ), 409 ); }
 		$count = self::latest_count( $shift->session_id );
-		if ( 'counting' !== $shift->status || ! $count ) { return self::error( 'wpcap_pos_count_missing', __( 'Bitte zuerst den Kassenbestand zählen.', 'wp-pass-captain' ), 409 ); }
+		if ( 'counting' !== $shift->status || ! $count ) { return self::error( 'wpcap_pos_count_missing', __( 'Bitte zuerst den Kassenbestand zählen.', 'pass-captain' ), 409 ); }
 		$reason = mb_substr( sanitize_text_field( (string) ( $args['reason'] ?? '' ) ), 0, 255 );
 		$note = mb_substr( sanitize_text_field( (string) ( $args['note'] ?? $reason ) ), 0, 255 );
 		$to_user = absint( $args['handover_to'] ?? 0 );
 		$handover_amount = 0;
 		$handover_denoms = array();
 		if ( $to_user ) {
-			if ( function_exists( 'user_can' ) && ! user_can( $to_user, Service::CAP ) ) { return self::error( 'wpcap_pos_cashier', __( 'Dieser Benutzer darf nicht kassieren.', 'wp-pass-captain' ) ); }
+			if ( function_exists( 'user_can' ) && ! user_can( $to_user, Service::CAP ) ) { return self::error( 'wpcap_pos_cashier', __( 'Dieser Benutzer darf nicht kassieren.', 'pass-captain' ) ); }
 			$resolved = Cash::resolve( $args['handover_minor'] ?? null, $args['handover_denominations'] ?? null, $shift->currency );
 			if ( is_wp_error( $resolved ) ) { return $resolved; }
 			list( $handover_amount, $handover_denoms ) = $resolved;
-			if ( $handover_amount > (int) $count->cash_minor ) { return self::error( 'wpcap_pos_handover_amount', __( 'Der übergebene Betrag ist höher als der gezählte Bargeldbestand.', 'wp-pass-captain' ) ); }
+			if ( $handover_amount > (int) $count->cash_minor ) { return self::error( 'wpcap_pos_handover_amount', __( 'Der übergebene Betrag ist höher als der gezählte Bargeldbestand.', 'pass-captain' ) ); }
 		}
 		$veto = apply_filters( 'wpcap_boxoffice_can_close_shift', true, $shift, $count );
 		if ( is_wp_error( $veto ) ) { return $veto; }
@@ -406,14 +406,14 @@ final class Shifts {
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}sessions WHERE session_id=%d FOR UPDATE", $shift->session_id ) );
 		if ( ! $register || ! $locked || 'counting' !== $locked->status ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'pass-captain' ), 409 );
 		}
 		$count = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}counts WHERE shift_id=%d AND kind='closing' ORDER BY count_id DESC LIMIT 1", $shift->session_id ) );
 		$unfinished = $wpdb->get_results( $wpdb->prepare( "SELECT s.sale_id,ord.payment_status FROM {$p}sales s LEFT JOIN {$wp}wpcap_orders ord ON ord.order_id=s.order_id WHERE s.session_id=%d AND s.status='pending' FOR UPDATE", $shift->session_id ) );
 		foreach ( $unfinished as $row ) {
 			if ( 'paid' === $row->payment_status ) {
 				$wpdb->query( 'ROLLBACK' );
-				return self::error( 'wpcap_pos_unbooked', __( 'Ein bezahlter Verkauf ist noch nicht gebucht. Bitte zuerst „Nachbuchen“ ausführen.', 'wp-pass-captain' ), 409 );
+				return self::error( 'wpcap_pos_unbooked', __( 'Ein bezahlter Verkauf ist noch nicht gebucht. Bitte zuerst „Nachbuchen“ ausführen.', 'pass-captain' ), 409 );
 			}
 		}
 		foreach ( $unfinished as $row ) {
@@ -426,7 +426,7 @@ final class Shifts {
 		// Blind count: the cashier does not know the difference, so no reason can be asked for.
 		if ( ( 0 !== $cash_diff || ( null !== $card_diff && 0 !== $card_diff ) ) && '' === $reason && ( ! (int) $locked->blind_count || self::supervises() ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_pos_difference_reason', __( 'Es gibt eine Kassendifferenz. Bitte einen Grund angeben.', 'wp-pass-captain' ) );
+			return self::error( 'wpcap_pos_difference_reason', __( 'Es gibt eine Kassendifferenz. Bitte einen Grund angeben.', 'pass-captain' ) );
 		}
 		$now = self::now();
 		$totals['register'] = array( 'register_id' => (int) $register->register_id, 'name' => $register->name, 'location' => $register->location );
@@ -476,7 +476,7 @@ final class Shifts {
 		if ( $to_user ) {
 			$wpdb->insert( "{$p}handovers", array( 'register_id' => (int) $register->register_id, 'from_shift_id' => (int) $locked->session_id, 'from_user' => get_current_user_id(), 'to_user' => $to_user, 'amount_minor' => $handover_amount, 'denominations' => $handover_denoms ? wp_json_encode( $handover_denoms ) : null, 'status' => 'pending', 'created_at' => $now ) );
 			$handover_id = (int) $wpdb->insert_id;
-			if ( ! $handover_id ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_handover', __( 'Die Übergabe konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+			if ( ! $handover_id ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_handover', __( 'Die Übergabe konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		}
 		$wpdb->query( 'COMMIT' );
 		$z = ZReport::get( $z_id );
@@ -503,14 +503,14 @@ final class Shifts {
 	 */
 	public static function accept_handover( $handover_id, array $args ) {
 		$handover = self::handover( $handover_id );
-		if ( ! $handover || 'pending' !== $handover->status ) { return self::error( 'wpcap_pos_handover', __( 'Diese Übergabe wartet nicht mehr auf Annahme.', 'wp-pass-captain' ), 409 ); }
-		if ( (int) $handover->to_user !== get_current_user_id() && ! current_user_can( Registers::MANAGE_CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Diese Übergabe ist an eine andere Person gerichtet.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $handover || 'pending' !== $handover->status ) { return self::error( 'wpcap_pos_handover', __( 'Diese Übergabe wartet nicht mehr auf Annahme.', 'pass-captain' ), 409 ); }
+		if ( (int) $handover->to_user !== get_current_user_id() && ! current_user_can( Registers::MANAGE_CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Diese Übergabe ist an eine andere Person gerichtet.', 'pass-captain' ), 403 ); }
 		$register = Registers::get( $handover->register_id );
 		$resolved = Cash::resolve( $args['cash_minor'] ?? null, $args['denominations'] ?? null, $register ? $register->currency : 'EUR' );
 		if ( is_wp_error( $resolved ) ) { return $resolved; }
 		$reason = trim( sanitize_text_field( (string) ( $args['reason'] ?? '' ) ) );
 		if ( $resolved[0] !== (int) $handover->amount_minor && '' === $reason ) {
-			return self::error( 'wpcap_pos_difference_reason', __( 'Der gezählte Betrag weicht vom übergebenen Betrag ab. Bitte einen Grund angeben.', 'wp-pass-captain' ) );
+			return self::error( 'wpcap_pos_difference_reason', __( 'Der gezählte Betrag weicht vom übergebenen Betrag ab. Bitte einen Grund angeben.', 'pass-captain' ) );
 		}
 		return self::open( (int) $handover->register_id, array( 'float_minor' => $resolved[0], 'denominations' => $resolved[1], 'note' => $args['note'] ?? '', 'handover_id' => (int) $handover->handover_id, 'handover_reason' => $reason ) );
 	}
@@ -519,10 +519,10 @@ final class Shifts {
 	public static function cancel_handover( $handover_id, $reason = '' ) {
 		global $wpdb;
 		$handover = self::handover( $handover_id );
-		if ( ! $handover || 'pending' !== $handover->status ) { return self::error( 'wpcap_pos_handover', __( 'Diese Übergabe wartet nicht mehr auf Annahme.', 'wp-pass-captain' ), 409 ); }
-		if ( (int) $handover->from_user !== get_current_user_id() && ! current_user_can( Registers::MANAGE_CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $handover || 'pending' !== $handover->status ) { return self::error( 'wpcap_pos_handover', __( 'Diese Übergabe wartet nicht mehr auf Annahme.', 'pass-captain' ), 409 ); }
+		if ( (int) $handover->from_user !== get_current_user_id() && ! current_user_can( Registers::MANAGE_CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$reason = mb_substr( sanitize_text_field( (string) $reason ), 0, 255 );
-		if ( '' === $reason ) { return self::error( 'wpcap_pos_reason', __( 'Bitte einen Grund angeben.', 'wp-pass-captain' ) ); }
+		if ( '' === $reason ) { return self::error( 'wpcap_pos_reason', __( 'Bitte einen Grund angeben.', 'pass-captain' ) ); }
 		$wpdb->update( self::t( 'handovers' ), array( 'status' => 'cancelled', 'reason' => $reason, 'decided_at' => self::now(), 'decided_by' => get_current_user_id() ), array( 'handover_id' => (int) $handover->handover_id, 'status' => 'pending' ) );
 		Audit::record( 'pos_handover_cancelled', 'pos_register', (int) $handover->register_id, array( 'handover_id' => (int) $handover->handover_id, 'reason' => $reason ) );
 		return self::handover( $handover->handover_id );
@@ -538,13 +538,13 @@ final class Shifts {
 	 */
 	public static function cash_movement( $shift_id, $kind, $amount_minor, $reason ) {
 		$shift = self::get( $shift_id );
-		if ( ! in_array( $kind, array( 'cash_in', 'cash_out' ), true ) ) { return self::error( 'wpcap_pos_movement', __( 'Unbekannte Buchungsart.', 'wp-pass-captain' ) ); }
-		if ( ! $shift ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! self::can_operate( $shift ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! in_array( $kind, array( 'cash_in', 'cash_out' ), true ) ) { return self::error( 'wpcap_pos_movement', __( 'Unbekannte Buchungsart.', 'pass-captain' ) ); }
+		if ( ! $shift ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! self::can_operate( $shift ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$amount = (int) $amount_minor;
-		if ( $amount <= 0 ) { return self::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'wp-pass-captain' ) ); }
+		if ( $amount <= 0 ) { return self::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'pass-captain' ) ); }
 		$reason = mb_substr( trim( sanitize_text_field( (string) $reason ) ), 0, 255 );
-		if ( '' === $reason ) { return self::error( 'wpcap_pos_reason', __( 'Bitte einen Grund angeben.', 'wp-pass-captain' ) ); }
+		if ( '' === $reason ) { return self::error( 'wpcap_pos_reason', __( 'Bitte einen Grund angeben.', 'pass-captain' ) ); }
 		return self::insert_movement( $shift, array( 'kind' => $kind, 'method' => 'cash', 'amount_minor' => 'cash_in' === $kind ? $amount : -$amount, 'reason' => $reason ) );
 	}
 
@@ -555,15 +555,15 @@ final class Shifts {
 	 * @param int $amount_minor Signed cash correction (+ more cash, - less cash).
 	 */
 	public static function correction( $z_id, $amount_minor, $reason ) {
-		if ( ! Registers::can_manage() ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! Registers::can_manage() ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$z = ZReport::get( $z_id );
-		if ( ! $z ) { return self::error( 'wpcap_pos_z', __( 'Z-Bericht nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $z ) { return self::error( 'wpcap_pos_z', __( 'Z-Bericht nicht gefunden.', 'pass-captain' ), 404 ); }
 		$reason = mb_substr( trim( sanitize_text_field( (string) $reason ) ), 0, 255 );
-		if ( '' === $reason || 0 === (int) $amount_minor ) { return self::error( 'wpcap_pos_reason', __( 'Bitte Betrag und Grund der Korrektur angeben.', 'wp-pass-captain' ) ); }
+		if ( '' === $reason || 0 === (int) $amount_minor ) { return self::error( 'wpcap_pos_reason', __( 'Bitte Betrag und Grund der Korrektur angeben.', 'pass-captain' ) ); }
 		$shift = self::open_for_register( $z->register_id );
-		if ( ! $shift || 'open' !== $shift->status ) { return self::error( 'wpcap_pos_no_shift', __( 'Korrekturen werden in die offene Schicht der Kasse gebucht. Bitte zuerst eine Schicht öffnen.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $shift || 'open' !== $shift->status ) { return self::error( 'wpcap_pos_no_shift', __( 'Korrekturen werden in die offene Schicht der Kasse gebucht. Bitte zuerst eine Schicht öffnen.', 'pass-captain' ), 409 ); }
 		/* translators: %d: Z number */
-		return self::insert_movement( $shift, array( 'kind' => 'correction', 'method' => 'cash', 'amount_minor' => (int) $amount_minor, 'z_id' => (int) $z->z_id, 'reason' => sprintf( __( 'Korrektur zu Z %d: ', 'wp-pass-captain' ), (int) $z->z_number ) . $reason ) );
+		return self::insert_movement( $shift, array( 'kind' => 'correction', 'method' => 'cash', 'amount_minor' => (int) $amount_minor, 'z_id' => (int) $z->z_id, 'reason' => sprintf( __( 'Korrektur zu Z %d: ', 'pass-captain' ), (int) $z->z_number ) . $reason ) );
 	}
 
 	/** Inserts a movement into an open shift under the shift lock. */
@@ -574,7 +574,7 @@ final class Shifts {
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}sessions WHERE session_id=%d FOR UPDATE", $shift->session_id ) );
 		if ( ! $locked || 'open' !== $locked->status ) {
 			$wpdb->query( 'ROLLBACK' );
-			return self::error( 'wpcap_pos_session_closed', __( 'Buchungen sind nur in einer offenen Schicht möglich (nicht während der Zählung).', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_session_closed', __( 'Buchungen sind nur in einer offenen Schicht möglich (nicht während der Zählung).', 'pass-captain' ), 409 );
 		}
 		if ( ! empty( $data['refund_id'] ) ) {
 			$dup = $wpdb->get_row( $wpdb->prepare( "SELECT movement_id FROM {$p}movements WHERE refund_id=%d", (int) $data['refund_id'] ) );
@@ -599,7 +599,7 @@ final class Shifts {
 				$dup = $wpdb->get_row( $wpdb->prepare( "SELECT movement_id FROM {$p}movements WHERE refund_id=%d", (int) $data['refund_id'] ) );
 				if ( $dup ) { return self::movement( $dup->movement_id ); }
 			}
-			return self::error( 'wpcap_pos_movement', __( 'Die Buchung konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 );
+			return self::error( 'wpcap_pos_movement', __( 'Die Buchung konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
 		}
 		$movement_id = (int) $wpdb->insert_id;
 		$wpdb->query( 'COMMIT' );
@@ -654,7 +654,7 @@ final class Shifts {
 		$target = $shift && 'open' === $shift->status && $shift->currency === $sale->currency ? $shift : self::target_shift_for_sale( $sale );
 		if ( ! $target ) {
 			if ( $require_shift && self::needs_shift( $sale->payment_method ) ) {
-				return self::error( 'wpcap_pos_no_shift', __( 'Für die Auszahlung einer Kassenbestellung (bar oder Karte) muss eine Kassenschicht geöffnet sein. Bitte eine Schicht öffnen und die Erstattung erneut ausführen.', 'wp-pass-captain' ), 409 );
+				return self::error( 'wpcap_pos_no_shift', __( 'Für die Auszahlung einer Kassenbestellung (bar oder Karte) muss eine Kassenschicht geöffnet sein. Bitte eine Schicht öffnen und die Erstattung erneut ausführen.', 'pass-captain' ), 409 );
 			}
 			// Invoice/free sale: no money at the till, but the storno belongs into the journal and the
 			// grand total – booked into the next shift that opens (book_deferred()).

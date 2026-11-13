@@ -27,7 +27,7 @@ if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return '
 if ( ! function_exists( 'wp_enqueue_script' ) ) { function wp_enqueue_script( ...$a ) { $GLOBALS['wpcap_test_enqueued'][] = $a[0]; } }
 if ( ! function_exists( 'wp_enqueue_style' ) ) { function wp_enqueue_style( ...$a ) { $GLOBALS['wpcap_test_enqueued'][] = $a[0]; } }
 if ( ! function_exists( 'register_rest_route' ) ) { function register_rest_route( $ns, $route, $args ) { $GLOBALS['wpcap_test_routes'][ $ns . $route ] = $args; return true; } }
-if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/wp-pass-captain/' ); }
+if ( ! defined( 'WPCAP_URL' ) ) { define( 'WPCAP_URL', 'https://example.test/wp-content/plugins/pass-captain/' ); }
 
 Seating::register();
 global $wpdb;

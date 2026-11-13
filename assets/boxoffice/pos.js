@@ -1,4 +1,4 @@
-/* WP Pass Captain box office: running total, change, participant fields and live availability (no dependencies). */
+/* Pass Captain box office: running total, change, participant fields and live availability (no dependencies). */
 (function () {
 	'use strict';
 	var form = document.getElementById('wpcap-pos-form');

@@ -43,11 +43,11 @@ final class Reservations {
 
 	public static function error_messages( $messages ) {
 		return array_merge( (array) $messages, array(
-			'seat_unavailable' => __( 'Mindestens ein gewählter Sitzplatz ist nicht mehr verfügbar. Bitte wähle andere Plätze.', 'wp-pass-captain' ),
-			'seat_zone_mismatch' => __( 'Ein gewählter Sitzplatz passt nicht zur Ticketart (anderer Bereich bzw. andere Kategorie).', 'wp-pass-captain' ),
-			'seat_quantity_mismatch' => __( 'Die Anzahl der gewählten Sitzplätze muss je Ticketart der bestellten Menge entsprechen.', 'wp-pass-captain' ),
-			'seat_selection_invalid' => __( 'Die Sitzplatzauswahl ist ungültig.', 'wp-pass-captain' ),
-			'seat_sold_out' => __( 'Für diese Ticketart sind keine passenden Sitzplätze mehr frei.', 'wp-pass-captain' ),
+			'seat_unavailable' => __( 'Mindestens ein gewählter Sitzplatz ist nicht mehr verfügbar. Bitte wähle andere Plätze.', 'pass-captain' ),
+			'seat_zone_mismatch' => __( 'Ein gewählter Sitzplatz passt nicht zur Ticketart (anderer Bereich bzw. andere Kategorie).', 'pass-captain' ),
+			'seat_quantity_mismatch' => __( 'Die Anzahl der gewählten Sitzplätze muss je Ticketart der bestellten Menge entsprechen.', 'pass-captain' ),
+			'seat_selection_invalid' => __( 'Die Sitzplatzauswahl ist ungültig.', 'pass-captain' ),
+			'seat_sold_out' => __( 'Für diese Ticketart sind keine passenden Sitzplätze mehr frei.', 'pass-captain' ),
 		) );
 	}
 
@@ -290,7 +290,7 @@ final class Reservations {
 		}
 		if ( 0 !== $missing_total ) {
 			Audit::record( 'seat_recovery_failed', 'order', $order_id, array( 'missing_seats' => $missing_total ) );
-			wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Sitzplätze nach verspäteter Zahlung fehlen', 'wp-pass-captain' ), sprintf( /* translators: %d: order id */ __( 'Für Bestellung #%d ist die Zahlung nach Ablauf der Reservierung eingegangen; nicht alle Sitzplätze konnten erneut zugewiesen werden. Bitte manuell klären.', 'wp-pass-captain' ), $order_id ) );
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Sitzplätze nach verspäteter Zahlung fehlen', 'pass-captain' ), sprintf( /* translators: %d: order id */ __( 'Für Bestellung #%d ist die Zahlung nach Ablauf der Reservierung eingegangen; nicht alle Sitzplätze konnten erneut zugewiesen werden. Bitte manuell klären.', 'pass-captain' ), $order_id ) );
 		} else {
 			Audit::record( 'seats_recovered', 'order', $order_id );
 		}
@@ -408,7 +408,7 @@ final class Reservations {
 				$lines[] = sprintf( '- %s — %s: %s', $ticket['event'] ?? '', $ticket['ticket'] ?? '', $labels[ $id ] );
 			}
 		}
-		$mail['body'] = rtrim( (string) ( $mail['body'] ?? '' ) ) . "\n\n" . __( 'Deine Sitzplätze:', 'wp-pass-captain' ) . "\n" . implode( "\n", $lines ) . "\n";
+		$mail['body'] = rtrim( (string) ( $mail['body'] ?? '' ) ) . "\n\n" . __( 'Deine Sitzplätze:', 'pass-captain' ) . "\n" . implode( "\n", $lines ) . "\n";
 		return $mail;
 	}
 

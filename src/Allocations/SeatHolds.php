@@ -86,11 +86,11 @@ final class SeatHolds {
 	 */
 	public static function add( $hold_id, array $seat_ids ) {
 		global $wpdb;
-		if ( ! self::available() ) { return new \WP_Error( 'wpcap_alloc_seating', __( 'Das Saalplan-Modul ist nicht verfügbar.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! self::available() ) { return new \WP_Error( 'wpcap_alloc_seating', __( 'Das Saalplan-Modul ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$seat_ids = array_values( array_unique( array_filter( array_map( 'absint', $seat_ids ) ) ) );
 		$hold = Holds::get( $hold_id );
-		if ( ! $hold || 'active' !== $hold->status ) { return new \WP_Error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
-		if ( ! $seat_ids || count( $seat_ids ) > 500 ) { return new \WP_Error( 'wpcap_alloc_seats', __( 'Bitte Sitzplätze auswählen.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $hold || 'active' !== $hold->status ) { return new \WP_Error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $seat_ids || count( $seat_ids ) > 500 ) { return new \WP_Error( 'wpcap_alloc_seats', __( 'Bitte Sitzplätze auswählen.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$now = current_time( 'mysql', true );
 		$occurrence_id = (int) $hold->occurrence_id;
 		$wpdb->query( 'START TRANSACTION' );
@@ -100,23 +100,23 @@ final class SeatHolds {
 		};
 		$locked = Holds::lock_occurrence( $occurrence_id );
 		$hold = $locked['holds'][ (int) $hold->hold_id ] ?? null;
-		if ( ! $hold ) { return $fail( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $hold ) { return $fail( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), 404 ); }
 		$link = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . Layouts::table( 'links' ) . ' WHERE occurrence_id=%d FOR UPDATE', $occurrence_id ) );
-		if ( ! $link ) { return $fail( 'wpcap_alloc_seating', __( 'Dieser Termin hat keinen Saalplan.', 'wp-pass-captain' ), 400 ); }
+		if ( ! $link ) { return $fail( 'wpcap_alloc_seating', __( 'Dieser Termin hat keinen Saalplan.', 'pass-captain' ), 400 ); }
 		$seats = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . Layouts::table( 'seats' ) . ' WHERE version_id=%d AND seat_id IN (' . implode( ',', $seat_ids ) . ') ORDER BY seat_id FOR UPDATE', (int) $link->version_id ) );
-		if ( count( (array) $seats ) !== count( $seat_ids ) ) { return $fail( 'wpcap_alloc_seats', __( 'Mindestens ein Sitzplatz gehört nicht zum Saalplan dieses Termins.', 'wp-pass-captain' ), 400 ); }
+		if ( count( (array) $seats ) !== count( $seat_ids ) ) { return $fail( 'wpcap_alloc_seats', __( 'Mindestens ein Sitzplatz gehört nicht zum Saalplan dieses Termins.', 'pass-captain' ), 400 ); }
 		if ( (int) $hold->ticket_type_id ) {
 			$zones = Layouts::type_zones( $occurrence_id )[ (int) $hold->ticket_type_id ] ?? array();
 			foreach ( $seats as $seat ) {
 				if ( ! in_array( $seat->zone, $zones, true ) && ! in_array( $seat->category, $zones, true ) ) {
-					return $fail( 'wpcap_alloc_seat_zone', __( 'Ein Sitzplatz passt nicht zur Ticketart des Kontingents.', 'wp-pass-captain' ), 400 );
+					return $fail( 'wpcap_alloc_seat_zone', __( 'Ein Sitzplatz passt nicht zur Ticketart des Kontingents.', 'pass-captain' ), 400 );
 				}
 			}
 		}
 		Reservations::release_stale( $occurrence_id );
 		$keys = array_map( static function ( $seat ) { return $seat->seat_key; }, $seats );
 		$busy = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::claims() . ' WHERE occurrence_id=%d AND active_key IN (' . implode( ',', array_fill( 0, count( $keys ), '%s' ) ) . ') FOR UPDATE', array_merge( array( $occurrence_id ), $keys ) ) );
-		if ( $busy ) { return $fail( 'wpcap_alloc_seat_taken', __( 'Mindestens ein Sitzplatz ist bereits reserviert, verkauft oder gesperrt.', 'wp-pass-captain' ) ); }
+		if ( $busy ) { return $fail( 'wpcap_alloc_seat_taken', __( 'Mindestens ein Sitzplatz ist bereits reserviert, verkauft oder gesperrt.', 'pass-captain' ) ); }
 		$held_after = count( self::held( (int) $hold->hold_id, true ) ) + count( $seats );
 		$grow = max( 0, $held_after - Capacity::open( $hold ) );
 		if ( $grow ) {
@@ -124,16 +124,16 @@ final class SeatHolds {
 			$free = Capacity::public_remaining( $type, $locked['occurrence'], $locked['holds'], $now );
 			if ( null !== $free && $grow > $free ) {
 				/* translators: %d: free units */
-				return $fail( 'wpcap_alloc_capacity', sprintf( __( 'Es sind nur noch %d Plätze im freien Verkauf, die zurückgehalten werden können.', 'wp-pass-captain' ), $free ) );
+				return $fail( 'wpcap_alloc_capacity', sprintf( __( 'Es sind nur noch %d Plätze im freien Verkauf, die zurückgehalten werden können.', 'pass-captain' ), $free ) );
 			}
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . Holds::table( 'holds' ) . ' SET quantity=quantity+%d,updated_at=%s WHERE hold_id=%d', $grow, $now, (int) $hold->hold_id ) );
 		}
 		foreach ( $seats as $seat ) {
 			$claim_id = self::block( $occurrence_id, $seat, (int) $hold->ticket_type_id, $now );
-			if ( ! $claim_id ) { return $fail( 'wpcap_alloc_seat_taken', __( 'Mindestens ein Sitzplatz ist bereits reserviert, verkauft oder gesperrt.', 'wp-pass-captain' ) ); }
+			if ( ! $claim_id ) { return $fail( 'wpcap_alloc_seat_taken', __( 'Mindestens ein Sitzplatz ist bereits reserviert, verkauft oder gesperrt.', 'pass-captain' ) ); }
 			$wpdb->insert( Holds::table( 'hold_seats' ), array( 'hold_id' => (int) $hold->hold_id, 'occurrence_id' => $occurrence_id, 'claim_id' => $claim_id, 'seat_id' => (int) $seat->seat_id, 'seat_key' => $seat->seat_key, 'status' => 'held', 'order_id' => 0, 'created_at' => $now, 'updated_at' => $now ) );
 		}
-		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { return $fail( 'wpcap_alloc_save', __( 'Die Sitzplätze konnten nicht gesperrt werden.', 'wp-pass-captain' ), 500 ); }
+		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { return $fail( 'wpcap_alloc_save', __( 'Die Sitzplätze konnten nicht gesperrt werden.', 'pass-captain' ), 500 ); }
 		Audit::record( 'allocation_seats_added', 'allocation', (int) $hold->hold_id, array( 'seats' => count( $seats ), 'grown' => $grow ) );
 		return array( 'blocked' => count( $seats ), 'labels' => array_map( static function ( $seat ) { return $seat->label; }, $seats ) );
 	}
@@ -146,14 +146,14 @@ final class SeatHolds {
 	public static function remove( $hold_id, array $seat_ids ) {
 		global $wpdb;
 		$hold = Holds::get( $hold_id );
-		if ( ! $hold || 'active' !== $hold->status ) { return new \WP_Error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $hold || 'active' !== $hold->status ) { return new \WP_Error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$seat_ids = array_values( array_unique( array_filter( array_map( 'absint', $seat_ids ) ) ) );
-		if ( ! $seat_ids ) { return new \WP_Error( 'wpcap_alloc_seats', __( 'Bitte Sitzplätze auswählen.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $seat_ids ) { return new \WP_Error( 'wpcap_alloc_seats', __( 'Bitte Sitzplätze auswählen.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$now = current_time( 'mysql', true );
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = Holds::lock_occurrence( (int) $hold->occurrence_id );
 		$hold = $locked['holds'][ (int) $hold->hold_id ] ?? null;
-		if ( ! $hold ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $hold ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_id FROM ' . Layouts::table( 'links' ) . ' WHERE occurrence_id=%d FOR UPDATE', (int) $hold->occurrence_id ) );
 		$rows = array_values( array_filter( self::held( (int) $hold->hold_id, true ), static function ( $row ) use ( $seat_ids ) { return in_array( (int) $row->seat_id, $seat_ids, true ); } ) );
 		$count = self::unblock( $rows, 'released', $now );
@@ -161,7 +161,7 @@ final class SeatHolds {
 		if ( $shrink ) {
 			$wpdb->query( $wpdb->prepare( 'UPDATE ' . Holds::table( 'holds' ) . ' SET quantity=GREATEST(0, CAST(quantity AS SIGNED) - %d),updated_at=%s WHERE hold_id=%d', $shrink, $now, (int) $hold->hold_id ) );
 		}
-		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_alloc_save', __( 'Die Sitzplätze konnten nicht freigegeben werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_alloc_save', __( 'Die Sitzplätze konnten nicht freigegeben werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( 'allocation_seats_released', 'allocation', (int) $hold->hold_id, array( 'seats' => $count ) );
 		if ( $count ) { Holds::notify_capacity_increased( $hold ); }
 		return array( 'released' => $count );

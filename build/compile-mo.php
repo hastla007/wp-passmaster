@@ -2,7 +2,7 @@
 /**
  * Dependency-free .po -> .mo compiler.
  *
- * Usage: php build/compile-mo.php languages/wp-pass-captain-en_US.po languages/wp-pass-captain-en_US.mo
+ * Usage: php build/compile-mo.php languages/pass-captain-en_US.po languages/pass-captain-en_US.mo
  *
  * - Supports multi-line strings, escapes (\" \\ \n \t \r \0 octal/hex), msgctxt and plural forms.
  * - Skips fuzzy entries (except the header), obsolete (#~) entries and untranslated entries.

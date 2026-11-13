@@ -85,8 +85,8 @@ jobs:
           wp core download --version=latest
           wp config create --dbname=wp --dbuser=wp --dbpass=wp --dbhost=127.0.0.1
           wp core install --url=http://127.0.0.1:8091 --title=Load --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
-          ln -s "$GITHUB_WORKSPACE" wp-content/plugins/wp-pass-captain
-          wp plugin activate wp-pass-captain
+          ln -s "$GITHUB_WORKSPACE" wp-content/plugins/pass-captain
+          wp plugin activate pass-captain
       - name: REST load test
         run: php tests/load/http.php --wp="$RUNNER_TEMP/wp" --json=load-http.json
       - name: Compare with baseline

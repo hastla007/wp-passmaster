@@ -34,7 +34,7 @@ jobs:
         run: node --check assets/checkout.js && node --check assets/scanner.js && node --check src/blocks/events/editor.js && node --check assets/offline-scanner/app.js && node --check assets/offline-scanner/i18n.js && node --check assets/offline-scanner/sw.js
       - name: Translations consistent, .pot and .mo up to date (completeness is a release gate)
         run: |
-          wp i18n make-pot . "$RUNNER_TEMP/fresh.pot" --domain=wp-pass-captain --exclude=vendor,tests,build,.claude,node_modules --skip-audit --skip-block-json --skip-theme-json
+          wp i18n make-pot . "$RUNNER_TEMP/fresh.pot" --domain=pass-captain --exclude=vendor,tests,build,.claude,node_modules --skip-audit --skip-block-json --skip-theme-json
           php tests/i18n-check.php --allow-incomplete --fresh-pot="$RUNNER_TEMP/fresh.pot"
       - uses: actions/setup-node@v4
         with:
@@ -135,11 +135,11 @@ jobs:
       - name: Build installable plugin ZIP
         run: bash build/release.sh
       - name: Package gate - secret scan of every file in the ZIP, including bundled vendor code
-        run: php tests/secret-scan.php --zip=build/dist/wp-pass-captain.zip
+        run: php tests/secret-scan.php --zip=build/dist/pass-captain.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: wp-pass-captain
+          name: pass-captain
           path: |
-            build/dist/wp-pass-captain.zip
-            build/dist/wp-pass-captain.zip.sha256
+            build/dist/pass-captain.zip
+            build/dist/pass-captain.zip.sha256
             build/dist/build-info.txt

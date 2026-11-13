@@ -32,7 +32,7 @@ final class PayPalGateway implements GatewayInterface {
 
 	public function id() { return 'paypal'; }
 
-	public function title() { return __( 'PayPal', 'wp-pass-captain' ); }
+	public function title() { return __( 'PayPal', 'pass-captain' ); }
 
 	public function is_available( $currency ) {
 		return '' !== Settings::secret( 'paypal_client_id' )
@@ -53,7 +53,7 @@ final class PayPalGateway implements GatewayInterface {
 		$currency = strtoupper( (string) ( $order['currency'] ?? '' ) );
 		$total = (int) ( $order['total_minor'] ?? 0 );
 		if ( '' === $public_id || $total <= 0 || ! in_array( $currency, self::CURRENCIES, true ) ) {
-			return new \WP_Error( 'wpcap_paypal_order', __( 'Die Bestellung kann nicht mit PayPal bezahlt werden.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_paypal_order', __( 'Die Bestellung kann nicht mit PayPal bezahlt werden.', 'pass-captain' ) );
 		}
 		$value = self::format_amount( $total, $currency );
 		if ( is_wp_error( $value ) ) { return $value; }
@@ -88,7 +88,7 @@ final class PayPalGateway implements GatewayInterface {
 			}
 		}
 		if ( empty( $result['id'] ) || '' === $redirect ) {
-			return new \WP_Error( 'wpcap_paypal_response', __( 'Unerwartete Antwort von PayPal.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_paypal_response', __( 'Unerwartete Antwort von PayPal.', 'pass-captain' ) );
 		}
 		return array(
 			'provider' => 'paypal',
@@ -127,22 +127,22 @@ final class PayPalGateway implements GatewayInterface {
 		$paypal_order_id = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) $paypal_order_id );
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,payment_status,provider_reference FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='paypal'", $public_id ) );
 		if ( ! $order || '' === $paypal_order_id ) {
-			return new \WP_Error( 'wpcap_paypal_return', __( 'Bestellung nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_paypal_return', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		if ( 'paid' === $order->payment_status ) { return 'paid'; }
 		if ( (string) $order->provider_reference !== $paypal_order_id ) {
-			return new \WP_Error( 'wpcap_paypal_return', __( 'Die PayPal-Zahlung gehört nicht zu dieser Bestellung.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_paypal_return', __( 'Die PayPal-Zahlung gehört nicht zu dieser Bestellung.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$event = self::capture( $paypal_order_id );
 		if ( is_wp_error( $event ) ) { return $event; }
 		if ( 'pending' === $event['type'] ) { return 'pending'; }
 		if ( 'paid' !== $event['type'] || $event['order_public_id'] !== $public_id ) {
-			return new \WP_Error( 'wpcap_paypal_capture', __( 'Die PayPal-Zahlung wurde nicht abgeschlossen.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_paypal_capture', __( 'Die PayPal-Zahlung wurde nicht abgeschlossen.', 'pass-captain' ) );
 		}
 		$full = \PassCaptain\Orders::get( (int) $order->order_id );
 		if ( (int) $event['amount_minor'] !== (int) $full->total_minor || $event['currency'] !== strtoupper( (string) $full->currency ) ) {
 			Audit::record( 'payment_amount_mismatch', 'order', (int) $order->order_id, array( 'provider' => 'paypal', 'amount_minor' => (int) $event['amount_minor'] ) );
-			return new \WP_Error( 'wpcap_paypal_amount', __( 'Der bezahlte Betrag stimmt nicht mit der Bestellung überein.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_paypal_amount', __( 'Der bezahlte Betrag stimmt nicht mit der Bestellung überein.', 'pass-captain' ) );
 		}
 		return Webhooks::process( 'paypal', $event );
 	}
@@ -157,7 +157,7 @@ final class PayPalGateway implements GatewayInterface {
 			$headers[ $field ] = (string) $request->get_header( $header );
 		}
 		if ( '' === $webhook_id || in_array( '', $headers, true ) || ! is_array( $event ) || empty( $event['id'] ) ) {
-			return new \WP_Error( 'wpcap_paypal_signature', __( 'Ungültige PayPal-Signatur.', 'wp-pass-captain' ), array( 'status' => 401 ) );
+			return new \WP_Error( 'wpcap_paypal_signature', __( 'Ungültige PayPal-Signatur.', 'pass-captain' ), array( 'status' => 401 ) );
 		}
 		// The event is embedded verbatim: re-encoding it could change the bytes PayPal signed.
 		$payload = '{';
@@ -169,7 +169,7 @@ final class PayPalGateway implements GatewayInterface {
 			return new \WP_Error( 'wpcap_paypal_verify', $result->get_error_message(), array( 'status' => 503 ) );
 		}
 		if ( 'SUCCESS' !== ( $result['verification_status'] ?? '' ) ) {
-			return new \WP_Error( 'wpcap_paypal_signature', __( 'Ungültige PayPal-Signatur.', 'wp-pass-captain' ), array( 'status' => 401 ) );
+			return new \WP_Error( 'wpcap_paypal_signature', __( 'Ungültige PayPal-Signatur.', 'pass-captain' ), array( 'status' => 401 ) );
 		}
 		return self::normalize( $event );
 	}
@@ -189,7 +189,7 @@ final class PayPalGateway implements GatewayInterface {
 		$result = self::api( 'POST', '/v2/payments/captures/' . rawurlencode( $capture_id ) . '/refund', $body, (string) $idempotency_key );
 		if ( is_wp_error( $result ) ) { return $result; }
 		if ( empty( $result['id'] ) || in_array( $result['status'] ?? '', array( 'CANCELLED', 'FAILED' ), true ) ) {
-			return new \WP_Error( 'wpcap_paypal_refund_failed', __( 'PayPal hat die Erstattung abgelehnt.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_paypal_refund_failed', __( 'PayPal hat die Erstattung abgelehnt.', 'pass-captain' ) );
 		}
 		return (string) $result['id'];
 	}
@@ -212,7 +212,7 @@ final class PayPalGateway implements GatewayInterface {
 		$unit = $result['purchase_units'][0] ?? array();
 		$capture = $unit['payments']['captures'][0] ?? null;
 		if ( ! is_array( $capture ) || empty( $capture['id'] ) ) {
-			return new \WP_Error( 'wpcap_paypal_capture', __( 'Die PayPal-Zahlung wurde nicht abgeschlossen.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_paypal_capture', __( 'Die PayPal-Zahlung wurde nicht abgeschlossen.', 'pass-captain' ) );
 		}
 		$event = self::capture_event( $capture, (string) ( $unit['custom_id'] ?? ( $unit['reference_id'] ?? '' ) ) );
 		$status = (string) ( $capture['status'] ?? '' );
@@ -323,12 +323,12 @@ final class PayPalGateway implements GatewayInterface {
 	/** The order's provider_reference is the capture id after payment, else the PayPal order id. */
 	private static function capture_id_for( $reference ) {
 		if ( '' === $reference ) {
-			return new \WP_Error( 'wpcap_paypal_refund_reference', __( 'Für diese Bestellung ist keine PayPal-Zahlung bekannt.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_paypal_refund_reference', __( 'Für diese Bestellung ist keine PayPal-Zahlung bekannt.', 'pass-captain' ) );
 		}
 		$paypal_order = self::api( 'GET', '/v2/checkout/orders/' . rawurlencode( $reference ) );
 		if ( ! is_wp_error( $paypal_order ) ) {
 			$capture_id = (string) ( $paypal_order['purchase_units'][0]['payments']['captures'][0]['id'] ?? '' );
-			return '' !== $capture_id ? $capture_id : new \WP_Error( 'wpcap_paypal_refund_reference', __( 'Die PayPal-Zahlung wurde noch nicht abgeschlossen.', 'wp-pass-captain' ) );
+			return '' !== $capture_id ? $capture_id : new \WP_Error( 'wpcap_paypal_refund_reference', __( 'Die PayPal-Zahlung wurde noch nicht abgeschlossen.', 'pass-captain' ) );
 		}
 		$data = (array) $paypal_order->get_error_data();
 		return 404 === (int) ( $data['status'] ?? 0 ) ? $reference : $paypal_order;
@@ -339,7 +339,7 @@ final class PayPalGateway implements GatewayInterface {
 		$client_id = Settings::secret( 'paypal_client_id' );
 		$secret = \PassCaptain\Secrets::get( 'paypal_client_secret' );
 		if ( '' === $client_id || '' === $secret ) {
-			return new \WP_Error( 'wpcap_paypal_config', __( 'PayPal ist nicht konfiguriert.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_paypal_config', __( 'PayPal ist nicht konfiguriert.', 'pass-captain' ) );
 		}
 		$cache_key = 'wpcap_paypal_token_' . substr( hash( 'sha256', self::base() . '|' . $client_id . '|' . $secret ), 0, 20 );
 		$cached = $force ? false : get_transient( $cache_key );
@@ -355,13 +355,13 @@ final class PayPalGateway implements GatewayInterface {
 		) );
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'wp-pass-captain' ), $response->get_error_message() ) );
+			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), $response->get_error_message() ) );
 		}
 		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( $code < 200 || $code >= 300 || empty( $body['access_token'] ) ) {
 			/* translators: %s: HTTP status */
-			return new \WP_Error( 'wpcap_paypal_auth', sprintf( __( 'PayPal-Anmeldung fehlgeschlagen (%s). Bitte Client-ID und Secret prüfen.', 'wp-pass-captain' ), (string) ( $body['error_description'] ?? 'HTTP ' . $code ) ) );
+			return new \WP_Error( 'wpcap_paypal_auth', sprintf( __( 'PayPal-Anmeldung fehlgeschlagen (%s). Bitte Client-ID und Secret prüfen.', 'pass-captain' ), (string) ( $body['error_description'] ?? 'HTTP ' . $code ) ) );
 		}
 		$ttl = (int) ( $body['expires_in'] ?? 0 ) - 60;
 		if ( $ttl > 0 ) { set_transient( $cache_key, (string) $body['access_token'], $ttl ); }
@@ -390,7 +390,7 @@ final class PayPalGateway implements GatewayInterface {
 		}
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'wp-pass-captain' ), $response->get_error_message() ) );
+			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), $response->get_error_message() ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( 401 === $code && $retry ) {
@@ -403,7 +403,7 @@ final class PayPalGateway implements GatewayInterface {
 			$issue = (string) ( $decoded['details'][0]['issue'] ?? '' );
 			$message = (string) ( $decoded['details'][0]['description'] ?? ( $decoded['message'] ?? 'HTTP ' . $code ) );
 			/* translators: %s: error message from PayPal */
-			return new \WP_Error( 'wpcap_paypal_api', sprintf( __( 'PayPal-Fehler: %s', 'wp-pass-captain' ), trim( $issue . ' ' . $message ) ), array( 'status' => $code, 'issue' => $issue ) );
+			return new \WP_Error( 'wpcap_paypal_api', sprintf( __( 'PayPal-Fehler: %s', 'pass-captain' ), trim( $issue . ' ' . $message ) ), array( 'status' => $code, 'issue' => $issue ) );
 		}
 		return $decoded;
 	}
@@ -421,7 +421,7 @@ final class PayPalGateway implements GatewayInterface {
 		if ( $iso > $target ) {
 			$factor = 10 ** ( $iso - $target );
 			if ( 0 !== $minor % $factor ) {
-				return new \WP_Error( 'wpcap_paypal_amount', __( 'PayPal unterstützt in dieser Währung keine Nachkommastellen.', 'wp-pass-captain' ) );
+				return new \WP_Error( 'wpcap_paypal_amount', __( 'PayPal unterstützt in dieser Währung keine Nachkommastellen.', 'pass-captain' ) );
 			}
 			$minor = intdiv( $minor, $factor );
 		}
@@ -448,7 +448,7 @@ final class PayPalGateway implements GatewayInterface {
 		foreach ( $items as $item ) {
 			$parts[] = trim( (string) ( $item['event_name'] ?? '' ) . ' – ' . (string) ( $item['name'] ?? '' ), ' –' ) . ' × ' . (int) ( $item['quantity'] ?? 1 );
 		}
-		$summary = $parts ? implode( ', ', $parts ) : __( 'Tickets', 'wp-pass-captain' );
+		$summary = $parts ? implode( ', ', $parts ) : __( 'Tickets', 'pass-captain' );
 		return function_exists( 'mb_substr' ) ? mb_substr( $summary, 0, 127 ) : substr( $summary, 0, 127 );
 	}
 

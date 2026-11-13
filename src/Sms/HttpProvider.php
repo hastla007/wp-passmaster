@@ -16,7 +16,7 @@ final class HttpProvider implements ProviderInterface {
 
 	public function id() { return 'http'; }
 
-	public function title() { return __( 'Generischer HTTP-Anbieter', 'wp-pass-captain' ); }
+	public function title() { return __( 'Generischer HTTP-Anbieter', 'pass-captain' ); }
 
 	private static function config() {
 		$s = (array) Settings::get( 'sms' );
@@ -44,7 +44,7 @@ final class HttpProvider implements ProviderInterface {
 	public function send( $to, $body, $reference ) {
 		$c = self::config();
 		if ( ! $this->is_configured() ) {
-			return new \WP_Error( 'wpcap_sms_config', __( 'Der HTTP-SMS-Anbieter ist nicht konfiguriert (HTTPS-Endpunkt erforderlich).', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_sms_config', __( 'Der HTTP-SMS-Anbieter ist nicht konfiguriert (HTTPS-Endpunkt erforderlich).', 'pass-captain' ) );
 		}
 		$headers = array( 'Content-Type' => 'form' === $c['content_type'] ? 'application/x-www-form-urlencoded' : 'application/json', 'Idempotency-Key' => (string) $reference );
 		$secret = \PassCaptain\Secrets::get( 'sms_http_secret' );

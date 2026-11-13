@@ -54,7 +54,7 @@ PartnerApi::register_routes();
 
 /** Calls a registered partner route like the REST server: permission callback, then callback. */
 function ps_req( $method, $route, $token, $body = null, array $params = array(), array $headers = array() ) {
-	$def = $GLOBALS['wpcap_test_routes'][ 'wp-pass-captain/v1' . $route ] ?? null;
+	$def = $GLOBALS['wpcap_test_routes'][ 'pass-captain/v1' . $route ] ?? null;
 	if ( ! $def ) { return new WP_Error( 'no_route', $route, array( 'status' => 404 ) ); }
 	$endpoints = isset( $def['methods'] ) ? array( $def ) : $def;
 	$endpoint = null;

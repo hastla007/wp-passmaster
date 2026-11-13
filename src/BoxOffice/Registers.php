@@ -48,20 +48,20 @@ final class Registers {
 	 */
 	public static function save( array $data, $register_id = 0 ) {
 		global $wpdb;
-		if ( ! self::can_manage() ) { return new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		if ( ! self::can_manage() ) { return new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$register_id = absint( $register_id );
 		$existing = $register_id ? self::get( $register_id ) : null;
-		if ( $register_id && ! $existing ) { return new \WP_Error( 'wpcap_pos_register', __( 'Kasse nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( $register_id && ! $existing ) { return new \WP_Error( 'wpcap_pos_register', __( 'Kasse nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$name = mb_substr( trim( sanitize_text_field( (string) ( $data['name'] ?? '' ) ) ), 0, 100 );
-		if ( '' === $name ) { return new \WP_Error( 'wpcap_pos_register_name', __( 'Bitte einen Namen für die Kasse angeben.', 'wp-pass-captain' ) ); }
+		if ( '' === $name ) { return new \WP_Error( 'wpcap_pos_register_name', __( 'Bitte einen Namen für die Kasse angeben.', 'pass-captain' ) ); }
 		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $data['currency'] ?? ( $existing ? $existing->currency : 'EUR' ) ) ) );
 		$currency = 3 === strlen( $currency ) ? $currency : 'EUR';
 		$status = 'inactive' === ( $data['status'] ?? 'active' ) ? 'inactive' : 'active';
 		if ( $existing && $existing->currency !== $currency && Shifts::open_for_register( $register_id ) ) {
-			return new \WP_Error( 'wpcap_pos_register_busy', __( 'Die Währung kann nicht geändert werden, solange eine Schicht offen ist.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_pos_register_busy', __( 'Die Währung kann nicht geändert werden, solange eine Schicht offen ist.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		if ( $existing && 'inactive' === $status && Shifts::open_for_register( $register_id ) ) {
-			return new \WP_Error( 'wpcap_pos_register_busy', __( 'Eine Kasse mit offener Schicht kann nicht deaktiviert werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_pos_register_busy', __( 'Eine Kasse mit offener Schicht kann nicht deaktiviert werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$row = array(
 			'name' => $name,
@@ -78,7 +78,7 @@ final class Registers {
 		} else {
 			$row['created_at'] = $row['updated_at'];
 			$row['created_by'] = get_current_user_id();
-			if ( false === $wpdb->insert( self::table(), $row ) ) { return new \WP_Error( 'wpcap_pos_register_save', __( 'Die Kasse konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+			if ( false === $wpdb->insert( self::table(), $row ) ) { return new \WP_Error( 'wpcap_pos_register_save', __( 'Die Kasse konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 			$register_id = (int) $wpdb->insert_id;
 			Audit::record( 'pos_register_created', 'pos_register', $register_id, array( 'name' => $name ) );
 		}
@@ -103,7 +103,7 @@ final class Registers {
 		if ( $first ) {
 			$id = (int) $first[0]->register_id;
 		} else {
-			$id = self::insert_system( __( 'Hauptkasse', 'wp-pass-captain' ), $currency );
+			$id = self::insert_system( __( 'Hauptkasse', 'pass-captain' ), $currency );
 		}
 		if ( $id ) { update_option( self::DEFAULT_OPTION, $id ); }
 		return $id;
@@ -150,7 +150,7 @@ final class Registers {
 				$register_id = $default;
 				if ( $open_seen ) {
 					/* translators: %d: running number */
-					$register_id = self::insert_system( sprintf( __( 'Kasse %d (übernommen)', 'wp-pass-captain' ), ++$extra ), (string) $s->currency ?: 'EUR' );
+					$register_id = self::insert_system( sprintf( __( 'Kasse %d (übernommen)', 'pass-captain' ), ++$extra ), (string) $s->currency ?: 'EUR' );
 				}
 				$open_seen = $open_seen || $register_id === $default;
 				// One transaction per open shift: register assignment and opener row together, or neither.

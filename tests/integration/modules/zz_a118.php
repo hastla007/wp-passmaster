@@ -174,7 +174,7 @@ $b_portal = A118::portal_html( Orders::get( $b_o ), $b_tok, A118::tickets( Order
 check( 'portal shows the open request and offers only the remaining ticket', false !== strpos( $b_portal, 'Angefragt – wird geprüft' ) && false !== strpos( $b_portal, 'wpcap-refund-form' ) && 1 === substr_count( $b_portal, 'name="ticket_public_ids[]"' ) && false !== strpos( $b_portal, 'value="' . a118_public( $b_t[2] ) . '"' ) );
 
 // REST: nonce required.
-$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/orders/' . $b_pub . '/refund-request' );
+$req = new WP_REST_Request( 'POST', '/pass-captain/v1/orders/' . $b_pub . '/refund-request' );
 $req->set_param( 'public_id', $b_pub );
 $req->set_body( wp_json_encode( array( 'access_token' => $b_tok, 'nonce' => 'bad', 'idempotency_key' => 'k' . bin2hex( random_bytes( 12 ) ), 'ticket_public_ids' => array( a118_public( $b_t[2] ) ) ) ) );
 $rest = A118::rest_refund_request( $req );

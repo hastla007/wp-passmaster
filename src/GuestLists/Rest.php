@@ -3,16 +3,16 @@
  * Guest list lookup for check-in staff (cookie authentication + REST nonce, capability
  * wpcap_checkin; event scope is checked per occurrence/entry in Service).
  *
- *   GET  /wp-pass-captain/v1/guestlists/search?occurrence_id=…&q=…   name/company/short-code lookup
- *   POST /wp-pass-captain/v1/guestlists/entries/{id}/arrive {count?} check in the entry's tickets
- *   GET  /wp-pass-captain/v1/guestlists/will-call?occurrence_id=…     alphabetical will-call list
+ *   GET  /pass-captain/v1/guestlists/search?occurrence_id=…&q=…   name/company/short-code lookup
+ *   POST /pass-captain/v1/guestlists/entries/{id}/arrive {count?} check in the entry's tickets
+ *   GET  /pass-captain/v1/guestlists/will-call?occurrence_id=…     alphabetical will-call list
  */
 namespace PassCaptain\GuestLists;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Rest {
-	const NS = 'wp-pass-captain/v1';
+	const NS = 'pass-captain/v1';
 
 	public static function routes() {
 		$perm = array( __CLASS__, 'permission' );

@@ -39,16 +39,16 @@ final class Reminders {
 			'reminders' => array(
 				'enabled' => 0,
 				'offsets' => array( 24 ),
-				'subject' => __( 'Erinnerung: {event} am {date}', 'wp-pass-captain' ),
-				'body' => __( "Hallo,\n\nin {hours} Stunden geht es los: „{event}“ am {date} um {time} Uhr ({timezone}).\nOrt: {location}\nTickets: {tickets}\n\nTermin in den Kalender übernehmen: {ics_url}\n\nBitte bring dein Ticket (ausgedruckt oder auf dem Smartphone) mit.\n\n{site}", 'wp-pass-captain' ),
+				'subject' => __( 'Erinnerung: {event} am {date}', 'pass-captain' ),
+				'body' => __( "Hallo,\n\nin {hours} Stunden geht es los: „{event}“ am {date} um {time} Uhr ({timezone}).\nOrt: {location}\nTickets: {tickets}\n\nTermin in den Kalender übernehmen: {ics_url}\n\nBitte bring dein Ticket (ausgedruckt oder auf dem Smartphone) mit.\n\n{site}", 'pass-captain' ),
 				'sms' => 0,
-				'sms_body' => __( 'Erinnerung: {event} am {date} um {time}, {location}.', 'wp-pass-captain' ),
+				'sms_body' => __( 'Erinnerung: {event} am {date} um {time}, {location}.', 'pass-captain' ),
 			),
 		);
 	}
 
 	public static function admin_pages() {
-		return array( array( self::PAGE, __( 'Erinnerungen', 'wp-pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
+		return array( array( self::PAGE, __( 'Erinnerungen', 'pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
 	}
 
 	public static function admin_handlers() {
@@ -168,7 +168,7 @@ final class Reminders {
 			'sms_body' => Forms::textarea( $in, 'sms_body', 640 ),
 		);
 		if ( $values['enabled'] && ( ! $values['offsets'] || '' === $values['subject'] || '' === $values['body'] ) ) {
-			return Forms::error( 'wpcap_reminders_invalid', __( 'Bitte mindestens einen Zeitpunkt (1–720 Stunden), einen Betreff und einen Text angeben.', 'wp-pass-captain' ) );
+			return Forms::error( 'wpcap_reminders_invalid', __( 'Bitte mindestens einen Zeitpunkt (1–720 Stunden), einen Betreff und einen Text angeben.', 'pass-captain' ) );
 		}
 		Settings::update( array( 'reminders' => $values ) );
 		return array( 'saved' => $values );
@@ -176,25 +176,25 @@ final class Reminders {
 
 	public static function handle_save() {
 		Forms::verify( 'wpcap_reminders_save' );
-		Forms::finish( self::save( Forms::post() ), __( 'Einstellungen gespeichert.', 'wp-pass-captain' ), Forms::page_url( self::PAGE ) );
+		Forms::finish( self::save( Forms::post() ), __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::PAGE ) );
 	}
 
 	public static function render_admin() {
-		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$c = self::config();
-		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Erinnerungen', 'wp-pass-captain' ) . '</h1>';
+		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Erinnerungen', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
 		Forms::open_form( 'wpcap_reminders_save' );
 		echo '<table class="form-table"><tbody>';
-		echo '<tr><th scope="row">' . esc_html__( 'Aktiv', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="enabled" value="1"' . checked( ! empty( $c['enabled'] ), true, false ) . '> ' . esc_html__( 'Erinnerungs-E-Mails an Ticketinhaber:innen senden', 'wp-pass-captain' ) . '</label></td></tr>';
-		echo '<tr><th scope="row"><label for="wpcap-rem-offsets">' . esc_html__( 'Zeitpunkte (Stunden vor Beginn)', 'wp-pass-captain' ) . '</label></th><td><input type="text" id="wpcap-rem-offsets" name="offsets" value="' . esc_attr( implode( ', ', $c['offsets'] ) ) . '"><p class="description">' . esc_html__( 'Kommagetrennt, z. B. 48, 2 (max. 5 Werte). Pro Termin und Zeitpunkt erhält jede Person höchstens eine Nachricht.', 'wp-pass-captain' ) . '</p></td></tr>';
-		echo '<tr><th scope="row"><label for="wpcap-rem-subject">' . esc_html__( 'Betreff', 'wp-pass-captain' ) . '</label></th><td><input type="text" id="wpcap-rem-subject" name="subject" class="large-text" value="' . esc_attr( $c['subject'] ) . '"></td></tr>';
-		echo '<tr><th scope="row"><label for="wpcap-rem-body">' . esc_html__( 'Text', 'wp-pass-captain' ) . '</label></th><td><textarea id="wpcap-rem-body" name="body" class="large-text" rows="10">' . esc_textarea( $c['body'] ) . '</textarea></td></tr>';
-		echo '<tr><th scope="row">' . esc_html__( 'SMS', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="sms" value="1"' . checked( ! empty( $c['sms'] ), true, false ) . '> ' . esc_html__( 'Zusätzlich per SMS erinnern (nur mit Einwilligung, siehe SMS-Einstellungen; kostenpflichtig)', 'wp-pass-captain' ) . '</label><textarea name="sms_body" class="large-text" rows="2" aria-label="' . esc_attr__( 'SMS-Text', 'wp-pass-captain' ) . '">' . esc_textarea( $c['sms_body'] ) . '</textarea></td></tr>';
-		echo '</tbody></table><h2>' . esc_html__( 'Platzhalter', 'wp-pass-captain' ) . '</h2><ul>';
+		echo '<tr><th scope="row">' . esc_html__( 'Aktiv', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="enabled" value="1"' . checked( ! empty( $c['enabled'] ), true, false ) . '> ' . esc_html__( 'Erinnerungs-E-Mails an Ticketinhaber:innen senden', 'pass-captain' ) . '</label></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-rem-offsets">' . esc_html__( 'Zeitpunkte (Stunden vor Beginn)', 'pass-captain' ) . '</label></th><td><input type="text" id="wpcap-rem-offsets" name="offsets" value="' . esc_attr( implode( ', ', $c['offsets'] ) ) . '"><p class="description">' . esc_html__( 'Kommagetrennt, z. B. 48, 2 (max. 5 Werte). Pro Termin und Zeitpunkt erhält jede Person höchstens eine Nachricht.', 'pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-rem-subject">' . esc_html__( 'Betreff', 'pass-captain' ) . '</label></th><td><input type="text" id="wpcap-rem-subject" name="subject" class="large-text" value="' . esc_attr( $c['subject'] ) . '"></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-rem-body">' . esc_html__( 'Text', 'pass-captain' ) . '</label></th><td><textarea id="wpcap-rem-body" name="body" class="large-text" rows="10">' . esc_textarea( $c['body'] ) . '</textarea></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'SMS', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="sms" value="1"' . checked( ! empty( $c['sms'] ), true, false ) . '> ' . esc_html__( 'Zusätzlich per SMS erinnern (nur mit Einwilligung, siehe SMS-Einstellungen; kostenpflichtig)', 'pass-captain' ) . '</label><textarea name="sms_body" class="large-text" rows="2" aria-label="' . esc_attr__( 'SMS-Text', 'pass-captain' ) . '">' . esc_textarea( $c['sms_body'] ) . '</textarea></td></tr>';
+		echo '</tbody></table><h2>' . esc_html__( 'Platzhalter', 'pass-captain' ) . '</h2><ul>';
 		foreach ( Placeholders::available() as $placeholder => $label ) { echo '<li><code>' . esc_html( $placeholder ) . '</code> – ' . esc_html( $label ) . '</li>'; }
 		echo '</ul>';
-		submit_button( __( 'Speichern', 'wp-pass-captain' ) );
+		submit_button( __( 'Speichern', 'pass-captain' ) );
 		echo '</form></div>';
 	}
 }

@@ -3,9 +3,9 @@
  * Web scanner endpoints with area selection, check-out and idempotent offline sync
  * (cookie authentication + REST nonce, capability wpcap_checkin; event scope in Checkin).
  *
- *   POST /wp-pass-captain/v1/admission/check-in     {token, area_id?, idempotency_key?}
- *   POST /wp-pass-captain/v1/admission/check-out    {token, area_id?, idempotency_key?}
- *   POST /wp-pass-captain/v1/admission/offline-sync {scans: [{token, idempotency_key, scanned_at, area_id?, direction?}]}
+ *   POST /pass-captain/v1/admission/check-in     {token, area_id?, idempotency_key?}
+ *   POST /pass-captain/v1/admission/check-out    {token, area_id?, idempotency_key?}
+ *   POST /pass-captain/v1/admission/offline-sync {scans: [{token, idempotency_key, scanned_at, area_id?, direction?}]}
  */
 namespace PassCaptain\Admission;
 
@@ -14,7 +14,7 @@ use PassCaptain\Checkin;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Rest {
-	const NS = 'wp-pass-captain/v1';
+	const NS = 'pass-captain/v1';
 
 	public static function routes() {
 		$perm = array( __CLASS__, 'permission' );
@@ -55,7 +55,7 @@ final class Rest {
 	public static function offline_sync( \WP_REST_Request $request ) {
 		$scans = $request->get_param( 'scans' );
 		if ( ! is_array( $scans ) || ! $scans || count( $scans ) > 100 ) {
-			return new \WP_Error( 'wpcap_offline_batch_invalid', __( 'Der Offline-Scanbatch muss 1 bis 100 Codes enthalten.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_offline_batch_invalid', __( 'Der Offline-Scanbatch muss 1 bis 100 Codes enthalten.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$now = Checkin::now();
 		$results = array();
@@ -91,13 +91,13 @@ final class Rest {
 			'offlineSyncUrl' => esc_url_raw( rest_url( self::NS . '/admission/offline-sync' ) ),
 			'areas' => $areas,
 			'i18n' => array(
-				'area' => __( 'Einlassbereich', 'wp-pass-captain' ),
-				'noArea' => __( 'Kein Bereich', 'wp-pass-captain' ),
-				'modeIn' => __( 'Einlass', 'wp-pass-captain' ),
-				'modeOut' => __( 'Auslass (Check-out)', 'wp-pass-captain' ),
-				'checkedOut' => __( 'Ausgecheckt', 'wp-pass-captain' ),
+				'area' => __( 'Einlassbereich', 'pass-captain' ),
+				'noArea' => __( 'Kein Bereich', 'pass-captain' ),
+				'modeIn' => __( 'Einlass', 'pass-captain' ),
+				'modeOut' => __( 'Auslass (Check-out)', 'pass-captain' ),
+				'checkedOut' => __( 'Ausgecheckt', 'pass-captain' ),
 				/* translators: %d: number of discarded offline scans */
-				'expired' => __( '%d Offline-Scan(s) älter als 7 Tage wurden ohne Upload verworfen.', 'wp-pass-captain' ),
+				'expired' => __( '%d Offline-Scan(s) älter als 7 Tage wurden ohne Upload verworfen.', 'pass-captain' ),
 			),
 		) );
 	}

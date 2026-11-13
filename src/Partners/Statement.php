@@ -168,19 +168,19 @@ final class Statement {
 		$s = self::compute( $partner, $period );
 		$tz = Scope::site_timezone();
 		$money = static function ( $minor ) { return number_format( (int) $minor / 100, 2, ',', '' ); };
-		$rows = array( array( __( 'Art', 'wp-pass-captain' ), __( 'Datum', 'wp-pass-captain' ), __( 'Bestellung', 'wp-pass-captain' ), __( 'Externe Referenz', 'wp-pass-captain' ), __( 'Event', 'wp-pass-captain' ), __( 'Tickets', 'wp-pass-captain' ), __( 'USt-Satz %', 'wp-pass-captain' ), __( 'Brutto', 'wp-pass-captain' ), __( 'USt', 'wp-pass-captain' ), __( 'Netto', 'wp-pass-captain' ), __( 'Provision', 'wp-pass-captain' ), __( 'Gebühr', 'wp-pass-captain' ) ) );
-		$kinds = array( 'sale' => __( 'Verkauf', 'wp-pass-captain' ), 'refund' => __( 'Erstattung', 'wp-pass-captain' ) );
+		$rows = array( array( __( 'Art', 'pass-captain' ), __( 'Datum', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Externe Referenz', 'pass-captain' ), __( 'Event', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), __( 'USt-Satz %', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Netto', 'pass-captain' ), __( 'Provision', 'pass-captain' ), __( 'Gebühr', 'pass-captain' ) ) );
+		$kinds = array( 'sale' => __( 'Verkauf', 'pass-captain' ), 'refund' => __( 'Erstattung', 'pass-captain' ) );
 		foreach ( $s['lines'] as $l ) {
 			$rows[] = array( $kinds[ $l['kind'] ] ?? $l['kind'], Scope::local( $l['occurred_at'], $tz, 'd.m.Y H:i' ), substr( $l['order'], 0, 8 ), $l['external_reference'], $l['event_name'], $l['tickets'], number_format( $l['tax_rate_bp'] / 100, 2, ',', '' ), $money( $l['gross_minor'] ), $money( $l['tax_minor'] ), $money( $l['net_minor'] ), $money( $l['commission_minor'] ), $money( $l['fee_minor'] ) );
 		}
 		$t = $s['totals'];
 		$rows[] = array();
-		$rows[] = array( __( 'Vereinnahmt brutto nach Erstattungen', 'wp-pass-captain' ), $money( $t['gross'] ) );
-		$rows[] = array( __( 'Vergütung netto (Provision + Gebühren)', 'wp-pass-captain' ), $money( $t['remuneration_net'] ) );
-		$rows[] = array( __( 'USt auf Vergütung', 'wp-pass-captain' ), $money( $t['remuneration_tax'] ) );
-		if ( '' !== $t['remuneration_note'] ) { $rows[] = array( __( 'Hinweis Vergütung', 'wp-pass-captain' ), $t['remuneration_note'] ); }
-		$rows[] = array( __( 'Beleg der Vergütung', 'wp-pass-captain' ), 'self_billing' === $t['remuneration_document'] ? __( 'Gutschrift der Plattform', 'wp-pass-captain' ) : __( 'Rechnung des Wiederverkäufers (eigene Rechnungsnummer)', 'wp-pass-captain' ) );
-		$rows[] = array( $t['netted_in_settlement'] ? __( 'Wird mit der Veranstalter-Abrechnung verrechnet', 'wp-pass-captain' ) : __( 'An die Plattform abzuführen', 'wp-pass-captain' ), $money( $t['due_to_platform'] ) );
+		$rows[] = array( __( 'Vereinnahmt brutto nach Erstattungen', 'pass-captain' ), $money( $t['gross'] ) );
+		$rows[] = array( __( 'Vergütung netto (Provision + Gebühren)', 'pass-captain' ), $money( $t['remuneration_net'] ) );
+		$rows[] = array( __( 'USt auf Vergütung', 'pass-captain' ), $money( $t['remuneration_tax'] ) );
+		if ( '' !== $t['remuneration_note'] ) { $rows[] = array( __( 'Hinweis Vergütung', 'pass-captain' ), $t['remuneration_note'] ); }
+		$rows[] = array( __( 'Beleg der Vergütung', 'pass-captain' ), 'self_billing' === $t['remuneration_document'] ? __( 'Gutschrift der Plattform', 'pass-captain' ) : __( 'Rechnung des Wiederverkäufers (eigene Rechnungsnummer)', 'pass-captain' ) );
+		$rows[] = array( $t['netted_in_settlement'] ? __( 'Wird mit der Veranstalter-Abrechnung verrechnet', 'pass-captain' ) : __( 'An die Plattform abzuführen', 'pass-captain' ), $money( $t['due_to_platform'] ) );
 		return $rows;
 	}
 }

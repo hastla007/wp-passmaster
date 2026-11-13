@@ -44,7 +44,7 @@ final class Campaigns {
 		sort( $codes, SORT_STRING );
 		$max_codes = max( 1, min( 5, (int) Settings::get( 'campaign_max_codes', 3 ) ) );
 		if ( count( $codes ) > $max_codes ) {
-			return new \WP_Error( 'wpcap_campaign_limit', 1 === $max_codes ? __( 'Pro Bestellung kann nur ein Rabattcode verwendet werden.', 'wp-pass-captain' ) : sprintf( /* translators: %d: maximum number of discount codes */ __( 'Es können höchstens %d Rabattcodes verwendet werden.', 'wp-pass-captain' ), $max_codes ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_campaign_limit', 1 === $max_codes ? __( 'Pro Bestellung kann nur ein Rabattcode verwendet werden.', 'pass-captain' ) : sprintf( /* translators: %d: maximum number of discount codes */ __( 'Es können höchstens %d Rabattcodes verwendet werden.', 'pass-captain' ), $max_codes ), array( 'status' => 400 ) );
 		}
 		$campaigns = array();
 		$table = $wpdb->prefix . 'wpcap_campaigns';
@@ -52,7 +52,7 @@ final class Campaigns {
 		foreach ( $codes as $code ) {
 			$campaign = $wpdb->get_row( $wpdb->prepare( "SELECT *,discount_value AS value FROM $table WHERE code=%s AND status='active'" . ( $lock ? ' FOR UPDATE' : '' ), $code ) );
 			if ( ! $campaign || ( $campaign->starts_at && $campaign->starts_at > $now ) || ( $campaign->ends_at && $campaign->ends_at < $now ) || ( $campaign->usage_limit > 0 && (int) $campaign->used_count >= (int) $campaign->usage_limit ) || strtoupper( $campaign->currency ) !== strtoupper( $currency ) ) {
-				return new \WP_Error( 'wpcap_campaign_unavailable', __( 'Ein Kampagnencode ist ungültig, abgelaufen oder nicht mehr verfügbar.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+				return new \WP_Error( 'wpcap_campaign_unavailable', __( 'Ein Kampagnencode ist ungültig, abgelaufen oder nicht mehr verfügbar.', 'pass-captain' ), array( 'status' => 409 ) );
 			}
 			$campaigns[] = $campaign;
 		}
@@ -61,7 +61,7 @@ final class Campaigns {
 			foreach ( $campaigns as $campaign ) {
 				if ( 'exclusive' === ( $campaign->stacking ?? 'combinable' ) ) {
 					/* translators: %s: discount code */
-					return new \WP_Error( 'wpcap_campaign_not_combinable', sprintf( __( 'Der Rabattcode %s kann nicht mit anderen Codes kombiniert werden.', 'wp-pass-captain' ), $campaign->code ), array( 'status' => 409 ) );
+					return new \WP_Error( 'wpcap_campaign_not_combinable', sprintf( __( 'Der Rabattcode %s kann nicht mit anderen Codes kombiniert werden.', 'pass-captain' ), $campaign->code ), array( 'status' => 409 ) );
 				}
 			}
 			$mode = (string) apply_filters( 'wpcap_campaign_stacking', 'best' === Settings::get( 'campaign_stacking', 'cumulative' ) ? 'best' : 'cumulative', $campaigns, $selected );
@@ -74,7 +74,7 @@ final class Campaigns {
 					$amount = (int) $single[0]['amount_minor'];
 					if ( $amount > $best_amount ) { $best = $single; $best_amount = $amount; }
 				}
-				return $best ?? new \WP_Error( 'wpcap_campaign_no_match', __( 'Ein Kampagnencode passt nicht zu den ausgewählten Tickets.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+				return $best ?? new \WP_Error( 'wpcap_campaign_no_match', __( 'Ein Kampagnencode passt nicht zu den ausgewählten Tickets.', 'pass-captain' ), array( 'status' => 409 ) );
 			}
 		}
 		return self::calculate_sequence( $selected, $campaigns );
@@ -96,7 +96,7 @@ final class Campaigns {
 				if ( $type_match && $event_match ) { $eligible += $remaining[ $index ]; }
 			}
 			$discount = 'percent' === $campaign->kind ? (int) floor( $eligible * min( 10000, (int) $campaign->value ) / 10000 ) : min( $eligible, (int) $campaign->value );
-			if ( $discount < 1 ) { return new \WP_Error( 'wpcap_campaign_no_match', __( 'Ein Kampagnencode passt nicht zu den ausgewählten Tickets.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+			if ( $discount < 1 ) { return new \WP_Error( 'wpcap_campaign_no_match', __( 'Ein Kampagnencode passt nicht zu den ausgewählten Tickets.', 'pass-captain' ), array( 'status' => 409 ) ); }
 			// Only the eligible lines carry the discount (VAT per rate and per organizer stay right),
 			// proportionally to what is left of them; the last eligible line takes the remainder.
 			$targets = array();
@@ -152,9 +152,9 @@ final class Campaigns {
 		foreach ( $adjustments as $adjustment ) {
 			$campaign = $adjustment['campaign'];
 			$inserted = $wpdb->insert( $uses, array( 'campaign_id' => (int) $campaign->campaign_id, 'order_id' => (int) $order_id, 'code' => $campaign->code, 'discount_minor' => (int) $adjustment['amount_minor'], 'status' => 'reserved', 'created_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%s', '%d', '%s', '%s' ) );
-			if ( false === $inserted ) { return new \WP_Error( 'wpcap_campaign_use_failed', __( 'Kampagnennutzung konnte nicht gespeichert werden.', 'wp-pass-captain' ) ); }
+			if ( false === $inserted ) { return new \WP_Error( 'wpcap_campaign_use_failed', __( 'Kampagnennutzung konnte nicht gespeichert werden.', 'pass-captain' ) ); }
 			$updated = $wpdb->query( $wpdb->prepare( "UPDATE $campaigns SET used_count=used_count+1 WHERE campaign_id=%d AND (usage_limit=0 OR used_count<usage_limit)", $campaign->campaign_id ) );
-			if ( 1 !== $updated ) { return new \WP_Error( 'wpcap_campaign_exhausted', __( 'Das Kampagnenlimit wurde während des Checkouts erreicht.', 'wp-pass-captain' ) ); }
+			if ( 1 !== $updated ) { return new \WP_Error( 'wpcap_campaign_exhausted', __( 'Das Kampagnenlimit wurde während des Checkouts erreicht.', 'pass-captain' ) ); }
 		}
 		return true;
 	}
@@ -183,7 +183,7 @@ final class Campaigns {
 		$value = absint( $data['value'] ?? 0 );
 		$currency = strtoupper( sanitize_text_field( $data['currency'] ?? 'EUR' ) );
 		if ( strlen( $code ) < 3 || strlen( $code ) > 32 || ! in_array( $kind, array( 'percent', 'fixed' ), true ) || ! preg_match( '/^[A-Z]{3}$/', $currency ) || ! $value || ( 'percent' === $kind && $value > 10000 ) ) {
-			return new \WP_Error( 'wpcap_campaign_invalid', __( 'Kampagnencode, Währung oder Rabattwert ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_campaign_invalid', __( 'Kampagnencode, Währung oder Rabattwert ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$inserted = $wpdb->insert( $wpdb->prefix . 'wpcap_campaigns', array(
 			'event_id' => absint( $data['event_id'] ?? 0 ), 'ticket_type_id' => absint( $data['ticket_type_id'] ?? 0 ), 'code' => $code,
@@ -193,7 +193,7 @@ final class Campaigns {
 			'status' => 'active', 'created_at' => current_time( 'mysql', true ),
 			'stacking' => 'exclusive' === ( $data['stacking'] ?? '' ) ? 'exclusive' : 'combinable',
 		), array( '%d', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%s' ) );
-		if ( false === $inserted ) { return new \WP_Error( 'wpcap_campaign_save', __( 'Kampagne konnte nicht angelegt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( false === $inserted ) { return new \WP_Error( 'wpcap_campaign_save', __( 'Kampagne konnte nicht angelegt werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$campaign_id = (int) $wpdb->insert_id; // Before the audit insert changes insert_id.
 		self::flush();
 		Audit::record( 'campaign_created', 'campaign', $campaign_id, array( 'code' => $code, 'kind' => $kind, 'stacking' => 'exclusive' === ( $data['stacking'] ?? '' ) ? 'exclusive' : 'combinable' ) );
@@ -250,9 +250,9 @@ final class Campaigns {
 	/** Activates or deactivates a code (orders keep their discount). @return true|\WP_Error */
 	public static function set_status( $campaign_id, $status ) {
 		global $wpdb;
-		if ( ! in_array( $status, array( 'active', 'inactive' ), true ) ) { return new \WP_Error( 'wpcap_campaign_status', __( 'Ungültiger Status.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! in_array( $status, array( 'active', 'inactive' ), true ) ) { return new \WP_Error( 'wpcap_campaign_status', __( 'Ungültiger Status.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_campaigns', array( 'status' => $status ), array( 'campaign_id' => absint( $campaign_id ) ), array( '%s' ), array( '%d' ) );
-		if ( false === $updated ) { return new \WP_Error( 'wpcap_campaign_save', __( 'Kampagne konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( false === $updated ) { return new \WP_Error( 'wpcap_campaign_save', __( 'Kampagne konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		self::flush();
 		Audit::record( 'campaign_status', 'campaign', absint( $campaign_id ), array( 'status' => $status ) );
 		return true;
@@ -285,10 +285,10 @@ final class Campaigns {
 			$subtotal += $line_total;
 			$selected[] = array( 'type' => $type, 'event_id' => (int) $type->event_id, 'quantity' => $qty, 'line_total' => $line_total );
 		}
-		if ( ! $selected ) { return new \WP_Error( 'wpcap_campaign_preview', __( 'Bitte wähle mindestens ein Ticket.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $selected ) { return new \WP_Error( 'wpcap_campaign_preview', __( 'Bitte wähle mindestens ein Ticket.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$adjustments = self::calculate( $selected, array( (string) $code ), $currency, false );
 		if ( is_wp_error( $adjustments ) ) {
-			return new \WP_Error( 'wpcap_campaign_invalid', __( 'Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_campaign_invalid', __( 'Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$discount = array_sum( array_map( static function ( $a ) { return (int) $a['amount_minor']; }, $adjustments ) );
 		return array( 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => max( 0, $subtotal - $discount ), 'currency' => $currency );

@@ -15,7 +15,7 @@ final class Errors {
 	 * @param array  $data    Extra error data (status/retryable cannot be overridden).
 	 */
 	public static function busy( $message = '', $code = 'wpcap_db_busy', array $data = array() ) {
-		$message = '' !== (string) $message ? (string) $message : __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'wp-pass-captain' );
+		$message = '' !== (string) $message ? (string) $message : __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' );
 		return new \WP_Error( (string) $code, $message, array_merge( $data, array( 'status' => 503, 'retryable' => true ) ) );
 	}
 

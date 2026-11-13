@@ -10,133 +10,133 @@ final class PublicEvents {
 		$providers = array();
 		foreach ( Payments\Registry::enabled( 'EUR' ) as $id => $gateway ) { $providers[] = array( 'id' => $id, 'title' => $gateway->title() ); }
 		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', array(
-			'url' => esc_url_raw( rest_url( 'wp-pass-captain/v1/checkout' ) ),
+			'url' => esc_url_raw( rest_url( 'pass-captain/v1/checkout' ) ),
 			// Waitlist join: …/events/{event_id}/waitlist.
-			'eventsUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/events/' ) ),
-			'previewUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/campaigns/preview' ) ),
+			'eventsUrl' => esc_url_raw( rest_url( 'pass-captain/v1/events/' ) ),
+			'previewUrl' => esc_url_raw( rest_url( 'pass-captain/v1/campaigns/preview' ) ),
 			'money' => Frontend\Format::js_config(),
 			'i18n' => array(
-				'selectTickets' => __( 'Bitte wähle mindestens ein Ticket.', 'wp-pass-captain' ),
+				'selectTickets' => __( 'Bitte wähle mindestens ein Ticket.', 'pass-captain' ),
 				/* translators: 1: subtotal, 2: discount, 3: total */
-				'estimateDiscount' => __( 'Summe: %1$s − Rabatt %2$s = %3$s (vorläufig; der endgültige Preis wird bei der Bestellung berechnet)', 'wp-pass-captain' ),
-				'codeInvalid' => __( 'Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets.', 'wp-pass-captain' ),
-				'waitlistJoining' => __( 'Wird eingetragen …', 'wp-pass-captain' ),
-				'waitlistJoined' => __( 'Du stehst auf der Warteliste. Wir melden uns per E-Mail, sobald ein Platz frei wird.', 'wp-pass-captain' ),
-				'waitlistFailed' => __( 'Eintragen fehlgeschlagen.', 'wp-pass-captain' ),
-				'waitlistEmail' => __( 'Bitte gib eine gültige E-Mail-Adresse ein.', 'wp-pass-captain' ),
-				'tooMany' => __( 'Für eine Ticketart wurde die Höchstmenge überschritten.', 'wp-pass-captain' ),
-				'creating' => __( 'Bestellung wird angelegt …', 'wp-pass-captain' ),
-				'failed' => __( 'Bestellung fehlgeschlagen.', 'wp-pass-captain' ),
-				'complete' => __( 'Bestellung abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet.', 'wp-pass-captain' ),
-				'redirecting' => __( 'Weiterleitung zur Zahlung …', 'wp-pass-captain' ),
+				'estimateDiscount' => __( 'Summe: %1$s − Rabatt %2$s = %3$s (vorläufig; der endgültige Preis wird bei der Bestellung berechnet)', 'pass-captain' ),
+				'codeInvalid' => __( 'Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets.', 'pass-captain' ),
+				'waitlistJoining' => __( 'Wird eingetragen …', 'pass-captain' ),
+				'waitlistJoined' => __( 'Du stehst auf der Warteliste. Wir melden uns per E-Mail, sobald ein Platz frei wird.', 'pass-captain' ),
+				'waitlistFailed' => __( 'Eintragen fehlgeschlagen.', 'pass-captain' ),
+				'waitlistEmail' => __( 'Bitte gib eine gültige E-Mail-Adresse ein.', 'pass-captain' ),
+				'tooMany' => __( 'Für eine Ticketart wurde die Höchstmenge überschritten.', 'pass-captain' ),
+				'creating' => __( 'Bestellung wird angelegt …', 'pass-captain' ),
+				'failed' => __( 'Bestellung fehlgeschlagen.', 'pass-captain' ),
+				'complete' => __( 'Bestellung abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet.', 'pass-captain' ),
+				'redirecting' => __( 'Weiterleitung zur Zahlung …', 'pass-captain' ),
 				/* translators: %d: hold minutes */
-				'pending' => __( 'Bestellung angelegt; deine Tickets sind %d Minuten reserviert.', 'wp-pass-captain' ), // n>1: checkout.js uses pendingOne for 1
-				'pendingOne' => __( 'Bestellung angelegt; deine Tickets sind 1 Minute reserviert.', 'wp-pass-captain' ),
+				'pending' => __( 'Bestellung angelegt; deine Tickets sind %d Minuten reserviert.', 'pass-captain' ), // n>1: checkout.js uses pendingOne for 1
+				'pendingOne' => __( 'Bestellung angelegt; deine Tickets sind 1 Minute reserviert.', 'pass-captain' ),
 				/* translators: %d: hold hours */
-				'pendingHours' => __( 'Bestellung angelegt; deine Tickets sind %d Stunden reserviert.', 'wp-pass-captain' ), // n>1: only for 2+ hours (checkout.js)
+				'pendingHours' => __( 'Bestellung angelegt; deine Tickets sind %d Stunden reserviert.', 'pass-captain' ), // n>1: only for 2+ hours (checkout.js)
 				/* translators: %d: hold days */
-				'pendingDays' => __( 'Bestellung angelegt; deine Tickets sind %d Tage reserviert.', 'wp-pass-captain' ), // n>1: only for 2+ days (checkout.js)
+				'pendingDays' => __( 'Bestellung angelegt; deine Tickets sind %d Tage reserviert.', 'pass-captain' ), // n>1: only for 2+ days (checkout.js)
 				/* translators: %d: ticket number */
-				'attendee' => __( 'Teilnehmer:in %d', 'wp-pass-captain' ),
-				'name' => __( 'Name', 'wp-pass-captain' ),
-				'email' => __( 'E-Mail der Teilnehmer:in (optional, für ein eigenes Ticket)', 'wp-pass-captain' ),
+				'attendee' => __( 'Teilnehmer:in %d', 'pass-captain' ),
+				'name' => __( 'Name', 'pass-captain' ),
+				'email' => __( 'E-Mail der Teilnehmer:in (optional, für ein eigenes Ticket)', 'pass-captain' ),
 				/* translators: %s: formatted amount */
-				'estimate' => __( 'Summe: %s (vorbehaltlich Rabatt; der endgültige Preis wird bei der Bestellung berechnet)', 'wp-pass-captain' ),
+				'estimate' => __( 'Summe: %s (vorbehaltlich Rabatt; der endgültige Preis wird bei der Bestellung berechnet)', 'pass-captain' ),
 				/* translators: %s: formatted amount */
-				'orderTotal' => __( 'Gesamtbetrag: %s.', 'wp-pass-captain' ),
+				'orderTotal' => __( 'Gesamtbetrag: %s.', 'pass-captain' ),
 				// Error summary and inline field errors.
-				'errorSummary' => __( 'Bitte prüfe deine Angaben', 'wp-pass-captain' ),
+				'errorSummary' => __( 'Bitte prüfe deine Angaben', 'pass-captain' ),
 				/* translators: %d: number of problems */
-				'errorCount' => __( 'Es gibt %d Problem(e). Wähle einen Eintrag, um zum Feld zu springen.', 'wp-pass-captain' ),
+				'errorCount' => __( 'Es gibt %d Problem(e). Wähle einen Eintrag, um zum Feld zu springen.', 'pass-captain' ),
 				/* translators: %s: field label */
-				'errRequired' => __( 'Bitte fülle „%s“ aus.', 'wp-pass-captain' ),
+				'errRequired' => __( 'Bitte fülle „%s“ aus.', 'pass-captain' ),
 				/* translators: %s: field label */
-				'errEmail' => __( '„%s“: Bitte gib eine gültige E-Mail-Adresse ein, z. B. name@example.com.', 'wp-pass-captain' ),
+				'errEmail' => __( '„%s“: Bitte gib eine gültige E-Mail-Adresse ein, z. B. name@example.com.', 'pass-captain' ),
 				/* translators: %s: field label */
-				'errInvalid' => __( '„%s“ ist ungültig.', 'wp-pass-captain' ),
-				'errTerms' => __( 'Bitte bestätige die Bedingungen, um zu bestellen.', 'wp-pass-captain' ),
+				'errInvalid' => __( '„%s“ ist ungültig.', 'pass-captain' ),
+				'errTerms' => __( 'Bitte bestätige die Bedingungen, um zu bestellen.', 'pass-captain' ),
 				/* translators: 1: ticket type, 2: maximum quantity */
-				'errTooMany' => __( '„%1$s“: Es sind höchstens %2$d Tickets möglich.', 'wp-pass-captain' ),
+				'errTooMany' => __( '„%1$s“: Es sind höchstens %2$d Tickets möglich.', 'pass-captain' ),
 				// Confirmation panel.
-				'thanks' => __( 'Vielen Dank für deine Bestellung!', 'wp-pass-captain' ),
-				'thanksComplete' => __( 'Bestellung abgeschlossen', 'wp-pass-captain' ),
+				'thanks' => __( 'Vielen Dank für deine Bestellung!', 'pass-captain' ),
+				'thanksComplete' => __( 'Bestellung abgeschlossen', 'pass-captain' ),
 				/* translators: %s: short order number */
-				'orderNumber' => __( 'Bestellnummer: %s', 'wp-pass-captain' ),
+				'orderNumber' => __( 'Bestellnummer: %s', 'pass-captain' ),
 				/* translators: %s: e-mail address */
-				'sentTo' => __( 'Wir haben die Bestätigung mit deinem persönlichen Bestelllink an %s gesendet.', 'wp-pass-captain' ),
+				'sentTo' => __( 'Wir haben die Bestätigung mit deinem persönlichen Bestelllink an %s gesendet.', 'pass-captain' ),
 				/* translators: %s: e-mail address */
-				'ticketsSentTo' => __( 'Die Tickets und die Bestätigung haben wir an %s gesendet.', 'wp-pass-captain' ),
-				'spamHint' => __( 'Keine E-Mail erhalten? Sieh bitte auch im Spam-Ordner nach.', 'wp-pass-captain' ),
-				'payNow' => __( 'Bitte überweise den Betrag mit diesen Angaben:', 'wp-pass-captain' ),
+				'ticketsSentTo' => __( 'Die Tickets und die Bestätigung haben wir an %s gesendet.', 'pass-captain' ),
+				'spamHint' => __( 'Keine E-Mail erhalten? Sieh bitte auch im Spam-Ordner nach.', 'pass-captain' ),
+				'payNow' => __( 'Bitte überweise den Betrag mit diesen Angaben:', 'pass-captain' ),
 				/* translators: %s: date and time */
-				'payUntil' => __( 'Deine Tickets sind bis %s reserviert. Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung.', 'wp-pass-captain' ),
-				'afterPayment' => __( 'Nach Zahlungseingang erhältst du deine Tickets per E-Mail.', 'wp-pass-captain' ),
-				'amount' => __( 'Betrag', 'wp-pass-captain' ),
-				'recipient' => __( 'Empfänger', 'wp-pass-captain' ),
-				'iban' => __( 'IBAN', 'wp-pass-captain' ),
-				'bic' => __( 'BIC', 'wp-pass-captain' ),
-				'remittance' => __( 'Verwendungszweck', 'wp-pass-captain' ),
-				'dueDate' => __( 'Zahlbar bis', 'wp-pass-captain' ),
-				'orderAgain' => __( 'Weitere Tickets bestellen', 'wp-pass-captain' ),
+				'payUntil' => __( 'Deine Tickets sind bis %s reserviert. Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung.', 'pass-captain' ),
+				'afterPayment' => __( 'Nach Zahlungseingang erhältst du deine Tickets per E-Mail.', 'pass-captain' ),
+				'amount' => __( 'Betrag', 'pass-captain' ),
+				'recipient' => __( 'Empfänger', 'pass-captain' ),
+				'iban' => __( 'IBAN', 'pass-captain' ),
+				'bic' => __( 'BIC', 'pass-captain' ),
+				'remittance' => __( 'Verwendungszweck', 'pass-captain' ),
+				'dueDate' => __( 'Zahlbar bis', 'pass-captain' ),
+				'orderAgain' => __( 'Weitere Tickets bestellen', 'pass-captain' ),
 				// Quantity stepper (−/+ around the number field).
 				/* translators: %s: ticket type */
-				'stepDown' => __( '%s: ein Ticket weniger', 'wp-pass-captain' ),
+				'stepDown' => __( '%s: ein Ticket weniger', 'pass-captain' ),
 				/* translators: %s: ticket type */
-				'stepUp' => __( '%s: ein Ticket mehr', 'wp-pass-captain' ),
+				'stepUp' => __( '%s: ein Ticket mehr', 'pass-captain' ),
 				/* translators: %s: ticket type */
-				'qtyNone' => __( '%s: keine Tickets', 'wp-pass-captain' ),
+				'qtyNone' => __( '%s: keine Tickets', 'pass-captain' ),
 				/* translators: %s: ticket type */
-				'qtyOne' => __( '%s: 1 Ticket', 'wp-pass-captain' ),
+				'qtyOne' => __( '%s: 1 Ticket', 'pass-captain' ),
 				/* translators: 1: ticket type, 2: quantity (2 or more) */
-				'qtyMany' => __( '%1$s: %2$d Tickets', 'wp-pass-captain' ), // n>1: qtyOne / qtyNone otherwise
-				'qtyLimit' => __( 'Höchstmenge erreicht.', 'wp-pass-captain' ),
+				'qtyMany' => __( '%1$s: %2$d Tickets', 'pass-captain' ), // n>1: qtyOne / qtyNone otherwise
+				'qtyLimit' => __( 'Höchstmenge erreicht.', 'pass-captain' ),
 				/* translators: %d: maximum tickets per order (2 or more) */
-				'errTotal' => __( 'Es sind höchstens %d Tickets pro Person möglich.', 'wp-pass-captain' ), // n>1: checkout.js uses errTotalOne for 1
-				'errTotalOne' => __( 'Es ist höchstens 1 Ticket pro Person möglich.', 'wp-pass-captain' ),
+				'errTotal' => __( 'Es sind höchstens %d Tickets pro Person möglich.', 'pass-captain' ), // n>1: checkout.js uses errTotalOne for 1
+				'errTotalOne' => __( 'Es ist höchstens 1 Ticket pro Person möglich.', 'pass-captain' ),
 			),
 		) );
 		wp_register_style( 'wpcap-public', WPCAP_URL . 'assets/public.css', array(), WPCAP_VERSION );
 		wp_register_script( 'wpcap-scanner', WPCAP_URL . 'assets/scanner.js', array(), WPCAP_VERSION, true );
-		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'wp-pass-captain/v1/tickets/offline-sync' ) ), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
-			'syncButton' => __( 'Offline-Scans synchronisieren', 'wp-pass-captain' ),
+		wp_localize_script( 'wpcap-scanner', 'WPCAP_SCANNER', array( 'validateUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/validate' ) ), 'checkinUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/check-in' ) ), 'offlineSyncUrl' => esc_url_raw( rest_url( 'pass-captain/v1/tickets/offline-sync' ) ), 'jsqrUrl' => esc_url_raw( WPCAP_URL . 'assets/vendor/jsqr/jsQR.js?ver=1.4.0' ), 'nonce' => wp_create_nonce( 'wp_rest' ), 'i18n' => array(
+			'syncButton' => __( 'Offline-Scans synchronisieren', 'pass-captain' ),
 			/* translators: %d: number of queued scans */
-			'syncCount' => __( '%d Offline-Scan(s) synchronisieren', 'wp-pass-captain' ),
-			'syncFailed' => __( 'Synchronisierung fehlgeschlagen.', 'wp-pass-captain' ),
+			'syncCount' => __( '%d Offline-Scan(s) synchronisieren', 'pass-captain' ),
+			'syncFailed' => __( 'Synchronisierung fehlgeschlagen.', 'pass-captain' ),
 			/* translators: 1: synced scans, 2: conflicts */
-			'synced' => __( '%1$d Offline-Scan(s) synchronisiert; Konflikte: %2$d.', 'wp-pass-captain' ),
-			'queued' => __( 'Offline gespeichert. Der Einlass wird erst nach der Synchronisierung serverseitig bestätigt.', 'wp-pass-captain' ),
-			'unchecked' => __( 'NICHT GEPRÜFT (offline): Das Ticket kann ohne Verbindung nicht geprüft werden. Nur nach Sichtprüfung einlassen; für geprüften Offline-Einlass die Offline-Scanner-App verwenden.', 'wp-pass-captain' ),
-			'admitUnchecked' => __( 'Nach Sichtprüfung einlassen (wird später geprüft)', 'wp-pass-captain' ),
-			'checking' => __( 'Ticket wird geprüft …', 'wp-pass-captain' ),
-			'invalid' => __( 'Ticket nicht gültig.', 'wp-pass-captain' ),
-			'noCamera' => __( 'Kamera-QR-Scan wird von diesem Browser nicht unterstützt. Nutze die manuelle Eingabe.', 'wp-pass-captain' ),
-			'cameraError' => __( 'Kamerazugriff nicht möglich:', 'wp-pass-captain' ),
-			'ok' => __( 'Einlass', 'wp-pass-captain' ),
-			'refused' => __( 'Kein Einlass', 'wp-pass-captain' ),
-			'attention' => __( 'Achtung', 'wp-pass-captain' ),
+			'synced' => __( '%1$d Offline-Scan(s) synchronisiert; Konflikte: %2$d.', 'pass-captain' ),
+			'queued' => __( 'Offline gespeichert. Der Einlass wird erst nach der Synchronisierung serverseitig bestätigt.', 'pass-captain' ),
+			'unchecked' => __( 'NICHT GEPRÜFT (offline): Das Ticket kann ohne Verbindung nicht geprüft werden. Nur nach Sichtprüfung einlassen; für geprüften Offline-Einlass die Offline-Scanner-App verwenden.', 'pass-captain' ),
+			'admitUnchecked' => __( 'Nach Sichtprüfung einlassen (wird später geprüft)', 'pass-captain' ),
+			'checking' => __( 'Ticket wird geprüft …', 'pass-captain' ),
+			'invalid' => __( 'Ticket nicht gültig.', 'pass-captain' ),
+			'noCamera' => __( 'Kamera-QR-Scan wird von diesem Browser nicht unterstützt. Nutze die manuelle Eingabe.', 'pass-captain' ),
+			'cameraError' => __( 'Kamerazugriff nicht möglich:', 'pass-captain' ),
+			'ok' => __( 'Einlass', 'pass-captain' ),
+			'refused' => __( 'Kein Einlass', 'pass-captain' ),
+			'attention' => __( 'Achtung', 'pass-captain' ),
 			/* translators: %s: scanner mode, e.g. "Einlass" */
-			'modeBanner' => __( 'Modus: %s', 'wp-pass-captain' ),
-			'modeIn' => __( 'Einlass', 'wp-pass-captain' ),
-			'systemError' => __( 'Systemfehler – das Ticket wurde nicht geprüft. Bitte erneut scannen.', 'wp-pass-captain' ),
-			'sessionExpired' => __( 'Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen.', 'wp-pass-captain' ),
-			'admitted' => __( 'EINLASS', 'wp-pass-captain' ),
-			'notAdmitted' => __( 'KEIN EINLASS', 'wp-pass-captain' ),
-			'checkedOutTitle' => __( 'AUSLASS', 'wp-pass-captain' ),
-			'firstAdmission' => __( 'Erstmals eingelassen', 'wp-pass-captain' ),
+			'modeBanner' => __( 'Modus: %s', 'pass-captain' ),
+			'modeIn' => __( 'Einlass', 'pass-captain' ),
+			'systemError' => __( 'Systemfehler – das Ticket wurde nicht geprüft. Bitte erneut scannen.', 'pass-captain' ),
+			'sessionExpired' => __( 'Sitzung abgelaufen – bitte die Seite neu laden und erneut scannen.', 'pass-captain' ),
+			'admitted' => __( 'EINLASS', 'pass-captain' ),
+			'notAdmitted' => __( 'KEIN EINLASS', 'pass-captain' ),
+			'checkedOutTitle' => __( 'AUSLASS', 'pass-captain' ),
+			'firstAdmission' => __( 'Erstmals eingelassen', 'pass-captain' ),
 			/* translators: 1: number of admissions, 2: time of the first admission */
-			'reentry' => __( 'Einlass Nr. %1$s – zuerst eingelassen um %2$s', 'wp-pass-captain' ),
+			'reentry' => __( 'Einlass Nr. %1$s – zuerst eingelassen um %2$s', 'pass-captain' ),
 			/* translators: %s: date/time of the first admission */
-			'alreadyAt' => __( 'Bereits eingelassen um %s', 'wp-pass-captain' ),
+			'alreadyAt' => __( 'Bereits eingelassen um %s', 'pass-captain' ),
 			/* translators: %s: date/time of the latest admission */
-			'lastAt' => __( 'zuletzt um %s', 'wp-pass-captain' ),
+			'lastAt' => __( 'zuletzt um %s', 'pass-captain' ),
 			/* translators: %s: name of the entrance area */
-			'atArea' => __( 'Bereich: %s', 'wp-pass-captain' ),
-			'viaHelpCode' => __( 'Per Hilfscode geprüft – Ticketinhaber ggf. mit Ausweis abgleichen.', 'wp-pass-captain' ),
-			'helpOffline' => __( 'Hilfscodes können nur online geprüft werden. Bitte QR-Code scannen oder den langen Ticket-Code eingeben.', 'wp-pass-captain' ),
-			'rateLimited' => __( 'Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den langen Ticket-Code verwenden.', 'wp-pass-captain' ),
-			'soundOn' => __( 'Ton an', 'wp-pass-captain' ),
-			'soundOff' => __( 'Ton aus', 'wp-pass-captain' ),
-			'dismiss' => __( 'Antippen zum Schließen', 'wp-pass-captain' ),
+			'atArea' => __( 'Bereich: %s', 'pass-captain' ),
+			'viaHelpCode' => __( 'Per Hilfscode geprüft – Ticketinhaber ggf. mit Ausweis abgleichen.', 'pass-captain' ),
+			'helpOffline' => __( 'Hilfscodes können nur online geprüft werden. Bitte QR-Code scannen oder den langen Ticket-Code eingeben.', 'pass-captain' ),
+			'rateLimited' => __( 'Zu viele Hilfscode-Eingaben. Bitte kurz warten oder den QR-Code bzw. den langen Ticket-Code verwenden.', 'pass-captain' ),
+			'soundOn' => __( 'Ton an', 'pass-captain' ),
+			'soundOff' => __( 'Ton aus', 'pass-captain' ),
+			'dismiss' => __( 'Antippen zum Schließen', 'pass-captain' ),
 		) ) );
 	}
 
@@ -164,7 +164,7 @@ final class PublicEvents {
 		ob_start();
 		?>
 		<div class="wpcap-events">
-			<?php if ( ! $rows ) : ?><p><?php esc_html_e( 'Aktuell sind keine Veranstaltungen verfügbar.', 'wp-pass-captain' ); ?></p><?php endif; ?>
+			<?php if ( ! $rows ) : ?><p><?php esc_html_e( 'Aktuell sind keine Veranstaltungen verfügbar.', 'pass-captain' ); ?></p><?php endif; ?>
 			<?php foreach ( $rows as $event ) :
 				$types = $listing[ (int) $event->occurrence_id ] ?? array();
 				if ( ! $types ) { continue; }
@@ -176,7 +176,7 @@ final class PublicEvents {
 				<?php
 				// Badges, seats left, price and the event's other dates (theme templates may ignore it).
 				$card = Frontend\EventCard::context( $event, $types, $card_listing );
-				$template = locate_template( 'wp-pass-captain/event-card.php' );
+				$template = locate_template( 'pass-captain/event-card.php' );
 				if ( ! $template ) { $template = WPCAP_PATH . 'templates/event-card.php'; }
 				ob_start();
 				include $template;
@@ -376,13 +376,13 @@ final class PublicEvents {
 
 	public static function render_scanner_shortcode() {
 		if ( ! is_user_logged_in() || ! current_user_can( 'wpcap_checkin' ) ) {
-			return '<p>' . esc_html__( 'Für den Scanner ist eine Anmeldung mit Einlassberechtigung erforderlich.', 'wp-pass-captain' ) . '</p>';
+			return '<p>' . esc_html__( 'Für den Scanner ist eine Anmeldung mit Einlassberechtigung erforderlich.', 'pass-captain' ) . '</p>';
 		}
 		wp_enqueue_script( 'wpcap-scanner' );
 		wp_enqueue_style( 'wpcap-public' );
 		$occurrences = 'window.WPCAP_SCANNER_OCCURRENCES=' . wp_json_encode( array(
-			'label' => __( 'Termin', 'wp-pass-captain' ),
-			'all' => __( 'Alle Termine (keine Terminprüfung)', 'wp-pass-captain' ),
+			'label' => __( 'Termin', 'pass-captain' ),
+			'all' => __( 'Alle Termine (keine Terminprüfung)', 'pass-captain' ),
 			'items' => self::scanner_occurrences(),
 		) ) . ';';
 		// Block themes render the content before wp_enqueue_scripts registers the script: attach later then.
@@ -391,6 +391,6 @@ final class PublicEvents {
 		} else {
 			add_action( 'wp_enqueue_scripts', static function () use ( $occurrences ) { wp_add_inline_script( 'wpcap-scanner', $occurrences, 'before' ); }, 99 );
 		}
-		return '<section class="wpcap-scanner"><h2>' . esc_html__( 'Pass Captain Check-in', 'wp-pass-captain' ) . '</h2><p>' . esc_html__( 'Scanne den Ticketcode oder gib ihn manuell ein.', 'wp-pass-captain' ) . '</p><p class="wpcap-scan-mode" hidden></p><video class="wpcap-camera" playsinline hidden></video><div class="wpcap-camera-controls"><button type="button" class="wpcap-camera-start">' . esc_html__( 'Kamera starten', 'wp-pass-captain' ) . '</button><button type="button" class="wpcap-camera-stop" hidden>' . esc_html__( 'Kamera stoppen', 'wp-pass-captain' ) . '</button><button type="button" class="wpcap-camera-torch" aria-pressed="false" hidden>' . esc_html__( 'Licht', 'wp-pass-captain' ) . '</button><button type="button" class="wpcap-sound-toggle" aria-pressed="true">' . esc_html__( 'Ton', 'wp-pass-captain' ) . '</button></div><form class="wpcap-scan-form"><label>' . esc_html__( 'Ticket-Code oder Hilfscode', 'wp-pass-captain' ) . ' <input name="token" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="wpcap-scan-help" required></label><p id="wpcap-scan-help" class="wpcap-scan-help">' . esc_html__( 'Ist der QR-Code nicht lesbar, den 8-stelligen Hilfscode unter dem QR-Code eintippen (z. B. K7QM-4XWA).', 'wp-pass-captain' ) . '</p><button type="submit">' . esc_html__( 'Ticket prüfen und einchecken', 'wp-pass-captain' ) . '</button></form><div class="wpcap-scan-result"></div><p class="wpcap-scan-live wpcap-sr-only" role="status" aria-live="assertive" aria-atomic="true"></p><div class="wpcap-scan-overlay" aria-hidden="true" hidden></div></section>';
+		return '<section class="wpcap-scanner"><h2>' . esc_html__( 'Pass Captain Check-in', 'pass-captain' ) . '</h2><p>' . esc_html__( 'Scanne den Ticketcode oder gib ihn manuell ein.', 'pass-captain' ) . '</p><p class="wpcap-scan-mode" hidden></p><video class="wpcap-camera" playsinline hidden></video><div class="wpcap-camera-controls"><button type="button" class="wpcap-camera-start">' . esc_html__( 'Kamera starten', 'pass-captain' ) . '</button><button type="button" class="wpcap-camera-stop" hidden>' . esc_html__( 'Kamera stoppen', 'pass-captain' ) . '</button><button type="button" class="wpcap-camera-torch" aria-pressed="false" hidden>' . esc_html__( 'Licht', 'pass-captain' ) . '</button><button type="button" class="wpcap-sound-toggle" aria-pressed="true">' . esc_html__( 'Ton', 'pass-captain' ) . '</button></div><form class="wpcap-scan-form"><label>' . esc_html__( 'Ticket-Code oder Hilfscode', 'pass-captain' ) . ' <input name="token" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="wpcap-scan-help" required></label><p id="wpcap-scan-help" class="wpcap-scan-help">' . esc_html__( 'Ist der QR-Code nicht lesbar, den 8-stelligen Hilfscode unter dem QR-Code eintippen (z. B. K7QM-4XWA).', 'pass-captain' ) . '</p><button type="submit">' . esc_html__( 'Ticket prüfen und einchecken', 'pass-captain' ) . '</button></form><div class="wpcap-scan-result"></div><p class="wpcap-scan-live wpcap-sr-only" role="status" aria-live="assertive" aria-atomic="true"></p><div class="wpcap-scan-overlay" aria-hidden="true" hidden></div></section>';
 	}
 }

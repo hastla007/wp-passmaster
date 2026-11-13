@@ -246,10 +246,10 @@ final class Consents {
 		$ticket = self::ticket( $ticket_id );
 		$field = self::fields_by_id( array( $field_id ) )[ absint( $field_id ) ] ?? null;
 		if ( ! $ticket || ! $field || (int) $field->ticket_type_id !== (int) $ticket->ticket_type_id ) {
-			return new \WP_Error( 'wpcap_consent_invalid', __( 'Diese Einwilligung gibt es für dieses Ticket nicht.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_consent_invalid', __( 'Diese Einwilligung gibt es für dieses Ticket nicht.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		if ( 'active' !== $field->status || ! in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) ) {
-			return new \WP_Error( 'wpcap_consent_closed', __( 'Diese Einwilligung kann für dieses Ticket nicht mehr erteilt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_consent_closed', __( 'Diese Einwilligung kann für dieses Ticket nicht mehr erteilt werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		return self::append( $ticket, $field, self::GRANTED, $source, $ctx );
 	}
@@ -265,7 +265,7 @@ final class Consents {
 		$ticket = self::ticket( $ticket_id );
 		$field = self::fields_by_id( array( $field_id ) )[ absint( $field_id ) ] ?? null;
 		if ( ! $ticket || ! $field || (int) $field->ticket_type_id !== (int) $ticket->ticket_type_id ) {
-			return new \WP_Error( 'wpcap_consent_invalid', __( 'Diese Einwilligung gibt es für dieses Ticket nicht.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_consent_invalid', __( 'Diese Einwilligung gibt es für dieses Ticket nicht.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		return self::append( $ticket, $field, self::WITHDRAWN, $source, $ctx );
 	}
@@ -297,8 +297,8 @@ final class Consents {
 		) );
 		if ( 1 !== (int) $inserted ) {
 			return self::GRANTED === $action
-				? new \WP_Error( 'wpcap_consent_unchanged', __( 'Diese Einwilligung ist bereits erteilt.', 'wp-pass-captain' ), array( 'status' => 409 ) )
-				: new \WP_Error( 'wpcap_consent_unchanged', __( 'Diese Einwilligung ist nicht erteilt und kann daher nicht widerrufen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+				? new \WP_Error( 'wpcap_consent_unchanged', __( 'Diese Einwilligung ist bereits erteilt.', 'pass-captain' ), array( 'status' => 409 ) )
+				: new \WP_Error( 'wpcap_consent_unchanged', __( 'Diese Einwilligung ist nicht erteilt und kann daher nicht widerrufen werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$log_id = (int) $wpdb->insert_id;
 		// The answer mirrors the state, so attendee lists and exports show the current consent.
@@ -423,12 +423,12 @@ final class Consents {
 	public static function handle_self_service( array $tickets, array $post, $scope, $source ) {
 		$nonce = sanitize_text_field( (string) ( $post['_wpcap_consent_nonce'] ?? '' ) );
 		if ( '' === $nonce || ! wp_verify_nonce( $nonce, self::nonce_action( $scope ) ) ) {
-			return new \WP_Error( 'wpcap_consent_nonce', __( 'Die Sitzung ist abgelaufen. Bitte lade die Seite neu und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_consent_nonce', __( 'Die Sitzung ist abgelaufen. Bitte lade die Seite neu und versuche es erneut.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$op = sanitize_key( (string) ( $post['wpcap_consent_op'] ?? '' ) );
 		$ticket = $tickets[ sanitize_text_field( (string) ( $post['wpcap_consent_ticket'] ?? '' ) ) ] ?? null;
 		if ( ! $ticket || ! in_array( $op, array( 'grant', 'withdraw' ), true ) ) {
-			return new \WP_Error( 'wpcap_consent_invalid', __( 'Diese Einwilligung gibt es für dieses Ticket nicht.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_consent_invalid', __( 'Diese Einwilligung gibt es für dieses Ticket nicht.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		$key = sanitize_key( (string) ( $post['wpcap_consent_field'] ?? '' ) );
 		$field_id = 0;
@@ -449,9 +449,9 @@ final class Consents {
 	/** Notice text for the result flag after a self-service redirect ('' for none). */
 	public static function result_notice( $flag ) {
 		$flag = sanitize_key( (string) $flag );
-		if ( 'withdrawn' === $flag ) { return __( 'Deine Einwilligung wurde widerrufen. Der Widerruf gilt ab jetzt.', 'wp-pass-captain' ); }
-		if ( 'granted' === $flag ) { return __( 'Deine Einwilligung wurde gespeichert. Du kannst sie hier jederzeit widerrufen.', 'wp-pass-captain' ); }
-		if ( 'error' === $flag ) { return __( 'Die Einwilligung konnte nicht geändert werden. Bitte lade die Seite neu und versuche es erneut.', 'wp-pass-captain' ); }
+		if ( 'withdrawn' === $flag ) { return __( 'Deine Einwilligung wurde widerrufen. Der Widerruf gilt ab jetzt.', 'pass-captain' ); }
+		if ( 'granted' === $flag ) { return __( 'Deine Einwilligung wurde gespeichert. Du kannst sie hier jederzeit widerrufen.', 'pass-captain' ); }
+		if ( 'error' === $flag ) { return __( 'Die Einwilligung konnte nicht geändert werden. Bitte lade die Seite neu und versuche es erneut.', 'pass-captain' ); }
 		return '';
 	}
 
@@ -481,12 +481,12 @@ final class Consents {
 				$granted = $row && self::GRANTED === $row->action;
 				if ( $granted ) {
 					/* translators: %s: date and time */
-					$state = sprintf( __( 'Erteilt am %s', 'wp-pass-captain' ), Frontend\Format::site_datetime( $row->created_at ) );
+					$state = sprintf( __( 'Erteilt am %s', 'pass-captain' ), Frontend\Format::site_datetime( $row->created_at ) );
 				} elseif ( $row ) {
 					/* translators: %s: date and time */
-					$state = sprintf( __( 'Widerrufen am %s', 'wp-pass-captain' ), Frontend\Format::site_datetime( $row->created_at ) );
+					$state = sprintf( __( 'Widerrufen am %s', 'pass-captain' ), Frontend\Format::site_datetime( $row->created_at ) );
 				} else {
-					$state = __( 'Nicht erteilt', 'wp-pass-captain' );
+					$state = __( 'Nicht erteilt', 'pass-captain' );
 				}
 				$cards .= '<li><strong>' . esc_html( (string) $field->label ) . '</strong>';
 				if ( '' !== (string) $field->purpose ) { $cards .= '<br><small>' . esc_html( (string) $field->purpose ) . '</small>'; }
@@ -494,15 +494,15 @@ final class Consents {
 				$op = $granted ? 'withdraw' : ( $open && empty( $field->inactive ) ? 'grant' : '' );
 				if ( '' !== $op ) {
 					$cards .= '<form method="post" class="wpcap-consent-form"><input type="hidden" name="_wpcap_consent_nonce" value="' . esc_attr( $nonce ) . '"><input type="hidden" name="wpcap_consent_op" value="' . esc_attr( $op ) . '"><input type="hidden" name="wpcap_consent_ticket" value="' . esc_attr( (string) $ticket->public_id ) . '"><input type="hidden" name="wpcap_consent_field" value="' . esc_attr( (string) $field->field_key ) . '">';
-					$cards .= '<button type="submit"' . ( 'withdraw' === $op ? ' class="danger"' : '' ) . '>' . esc_html( 'withdraw' === $op ? __( 'Einwilligung widerrufen', 'wp-pass-captain' ) : __( 'Einwilligung erteilen', 'wp-pass-captain' ) ) . '</button></form>';
+					$cards .= '<button type="submit"' . ( 'withdraw' === $op ? ' class="danger"' : '' ) . '>' . esc_html( 'withdraw' === $op ? __( 'Einwilligung widerrufen', 'pass-captain' ) : __( 'Einwilligung erteilen', 'pass-captain' ) ) . '</button></form>';
 				}
 				$cards .= '</li>';
 			}
 			$cards .= '</ul>';
 		}
 		if ( '' === $cards ) { return ''; }
-		$html = '<section class="card" id="wpcap-consents" aria-labelledby="wpcap-consents-title"><h2 id="wpcap-consents-title">' . esc_html__( 'Einwilligungen', 'wp-pass-captain' ) . '</h2>';
-		$html .= '<p class="muted"><small>' . esc_html__( 'Du kannst jede Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen. Was bis dahin auf ihrer Grundlage geschehen ist, bleibt rechtmäßig.', 'wp-pass-captain' ) . '</small></p>';
+		$html = '<section class="card" id="wpcap-consents" aria-labelledby="wpcap-consents-title"><h2 id="wpcap-consents-title">' . esc_html__( 'Einwilligungen', 'pass-captain' ) . '</h2>';
+		$html .= '<p class="muted"><small>' . esc_html__( 'Du kannst jede Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen. Was bis dahin auf ihrer Grundlage geschehen ist, bleibt rechtmäßig.', 'pass-captain' ) . '</small></p>';
 		if ( '' !== $notice ) { $html .= '<p role="status"><strong>' . esc_html( $notice ) . '</strong></p>'; }
 		return $html . $cards . '</section>';
 	}
@@ -519,19 +519,19 @@ final class Consents {
 		$public = array();
 		foreach ( (array) $tickets as $t ) { $public[ (int) $t->ticket_id ] = (string) $t->public_id; }
 		$tz = function_exists( 'wp_timezone_string' ) ? wp_timezone_string() : 'UTC';
-		echo '<h2 id="wpcap-consents">' . esc_html__( 'Einwilligungen', 'wp-pass-captain' ) . '</h2>';
-		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Ticket', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Einwilligung', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Stand', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Verlauf', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Aktion', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		echo '<h2 id="wpcap-consents">' . esc_html__( 'Einwilligungen', 'pass-captain' ) . '</h2>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Ticket', 'pass-captain' ) . '</th><th>' . esc_html__( 'Einwilligung', 'pass-captain' ) . '</th><th>' . esc_html__( 'Stand', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verlauf', 'pass-captain' ) . '</th><th>' . esc_html__( 'Aktion', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $by_ticket as $ticket_id => $fields ) {
 			foreach ( $fields as $field_id => $rows ) {
 				$last = end( $rows );
 				$granted = self::GRANTED === $last->action;
 				echo '<tr><td><code>' . esc_html( $public[ $ticket_id ] ?? (string) $ticket_id ) . '</code></td>';
 				echo '<td><strong>' . esc_html( (string) $last->label ) . '</strong>' . ( '' !== (string) $last->purpose ? '<br><span class="description">' . esc_html( (string) $last->purpose ) . '</span>' : '' ) . '</td>';
-				echo '<td>' . esc_html( $granted ? __( 'Erteilt', 'wp-pass-captain' ) : __( 'Widerrufen', 'wp-pass-captain' ) ) . '</td><td><ul style="margin:0">';
+				echo '<td>' . esc_html( $granted ? __( 'Erteilt', 'pass-captain' ) : __( 'Widerrufen', 'pass-captain' ) ) . '</td><td><ul style="margin:0">';
 				foreach ( $rows as $row ) {
-					$label = self::GRANTED === $row->action ? __( 'erteilt', 'wp-pass-captain' ) : __( 'widerrufen', 'wp-pass-captain' );
+					$label = self::GRANTED === $row->action ? __( 'erteilt', 'pass-captain' ) : __( 'widerrufen', 'pass-captain' );
 					/* translators: 1: date and time, 2: granted/withdrawn, 3: source, 4: short text version */
-					echo '<li>' . esc_html( sprintf( __( '%1$s: %2$s (Quelle: %3$s, Textversion %4$s)', 'wp-pass-captain' ), Admin\Forms::datetime( $row->created_at, $tz ), $label, self::source_label( $row->source ), substr( (string) $row->text_version, 0, 12 ) ) ) . ( '' !== (string) $row->note && 0 !== strpos( (string) $row->note, 'log:' ) ? ' – ' . esc_html( (string) $row->note ) : '' ) . '</li>';
+					echo '<li>' . esc_html( sprintf( __( '%1$s: %2$s (Quelle: %3$s, Textversion %4$s)', 'pass-captain' ), Admin\Forms::datetime( $row->created_at, $tz ), $label, self::source_label( $row->source ), substr( (string) $row->text_version, 0, 12 ) ) ) . ( '' !== (string) $row->note && 0 !== strpos( (string) $row->note, 'log:' ) ? ' – ' . esc_html( (string) $row->note ) : '' ) . '</li>';
 				}
 				echo '</ul></td><td>';
 				if ( $granted ) {
@@ -539,8 +539,8 @@ final class Consents {
 					Admin\Forms::hidden( 'order_id', (int) $order->order_id );
 					Admin\Forms::hidden( 'ticket_id', (int) $ticket_id );
 					Admin\Forms::hidden( 'field_id', (int) $field_id );
-					echo '<label class="screen-reader-text" for="wpcap-cw-' . (int) $last->log_id . '">' . esc_html__( 'Notiz zum Widerruf', 'wp-pass-captain' ) . '</label><input id="wpcap-cw-' . (int) $last->log_id . '" type="text" name="note" maxlength="190" placeholder="' . esc_attr__( 'z. B. per E-Mail vom 3. 5.', 'wp-pass-captain' ) . '"> ';
-					echo '<button class="button" type="submit">' . esc_html__( 'Widerruf erfassen', 'wp-pass-captain' ) . '</button></form>';
+					echo '<label class="screen-reader-text" for="wpcap-cw-' . (int) $last->log_id . '">' . esc_html__( 'Notiz zum Widerruf', 'pass-captain' ) . '</label><input id="wpcap-cw-' . (int) $last->log_id . '" type="text" name="note" maxlength="190" placeholder="' . esc_attr__( 'z. B. per E-Mail vom 3. 5.', 'pass-captain' ) . '"> ';
+					echo '<button class="button" type="submit">' . esc_html__( 'Widerruf erfassen', 'pass-captain' ) . '</button></form>';
 				} else {
 					echo '—';
 				}
@@ -553,17 +553,17 @@ final class Consents {
 	/** Readable source label. */
 	public static function source_label( $source ) {
 		$labels = array(
-			'checkout' => __( 'Checkout', 'wp-pass-captain' ),
-			'woocommerce' => __( 'WooCommerce-Checkout', 'wp-pass-captain' ),
-			'box_office' => __( 'Abendkasse', 'wp-pass-captain' ),
-			'api' => __( 'API', 'wp-pass-captain' ),
-			'portal' => __( 'Bestellübersicht', 'wp-pass-captain' ),
-			'ticket_page' => __( 'Ticketseite', 'wp-pass-captain' ),
-			'admin' => __( 'Verwaltung', 'wp-pass-captain' ),
-			'exchange' => __( 'Ticketumtausch', 'wp-pass-captain' ),
-			'transfer' => __( 'Ticketübertragung', 'wp-pass-captain' ),
-			'holder_change' => __( 'Inhaberwechsel', 'wp-pass-captain' ),
-			'privacy_erasure' => __( 'Datenlöschung', 'wp-pass-captain' ),
+			'checkout' => __( 'Checkout', 'pass-captain' ),
+			'woocommerce' => __( 'WooCommerce-Checkout', 'pass-captain' ),
+			'box_office' => __( 'Abendkasse', 'pass-captain' ),
+			'api' => __( 'API', 'pass-captain' ),
+			'portal' => __( 'Bestellübersicht', 'pass-captain' ),
+			'ticket_page' => __( 'Ticketseite', 'pass-captain' ),
+			'admin' => __( 'Verwaltung', 'pass-captain' ),
+			'exchange' => __( 'Ticketumtausch', 'pass-captain' ),
+			'transfer' => __( 'Ticketübertragung', 'pass-captain' ),
+			'holder_change' => __( 'Inhaberwechsel', 'pass-captain' ),
+			'privacy_erasure' => __( 'Datenlöschung', 'pass-captain' ),
 		);
 		return $labels[ (string) $source ] ?? (string) $source;
 	}
@@ -575,9 +575,9 @@ final class Consents {
 	 */
 	public static function admin_withdraw( array $in ) {
 		$order_id = Admin\Forms::int( $in, 'order_id' );
-		if ( ! Admin\Queries::can_access_order( $order_id, Admin\OrdersPage::CAP ) ) { return Admin\Forms::forbidden( __( 'Keine Berechtigung für diese Bestellung.', 'wp-pass-captain' ) ); }
+		if ( ! Admin\Queries::can_access_order( $order_id, Admin\OrdersPage::CAP ) ) { return Admin\Forms::forbidden( __( 'Keine Berechtigung für diese Bestellung.', 'pass-captain' ) ); }
 		$ticket = self::ticket( Admin\Forms::int( $in, 'ticket_id' ) );
-		if ( ! $ticket || (int) $ticket->order_id !== $order_id ) { return Admin\Forms::error( 'wpcap_consent_invalid', __( 'Diese Einwilligung gibt es für dieses Ticket nicht.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $ticket || (int) $ticket->order_id !== $order_id ) { return Admin\Forms::error( 'wpcap_consent_invalid', __( 'Diese Einwilligung gibt es für dieses Ticket nicht.', 'pass-captain' ), 404 ); }
 		$result = self::withdraw( (int) $ticket->ticket_id, Admin\Forms::int( $in, 'field_id' ), 'admin', array( 'note' => Admin\Forms::text( $in, 'note' ) ) );
 		return is_wp_error( $result ) ? $result : array( 'order_id' => $order_id );
 	}
@@ -586,7 +586,7 @@ final class Consents {
 		$in = Admin\Forms::post();
 		$order_id = Admin\Forms::int( $in, 'order_id' );
 		Admin\Forms::verify( 'wpcap_consent_withdraw_' . $order_id );
-		Admin\Forms::finish( self::admin_withdraw( $in ), __( 'Widerruf erfasst.', 'wp-pass-captain' ), Admin\OrdersPage::order_url( $order_id ) . '#wpcap-consents' );
+		Admin\Forms::finish( self::admin_withdraw( $in ), __( 'Widerruf erfasst.', 'pass-captain' ), Admin\OrdersPage::order_url( $order_id ) . '#wpcap-consents' );
 	}
 
 	/**
@@ -600,7 +600,7 @@ final class Consents {
 		$p = $wpdb->prefix;
 		$event_id = absint( $event_id );
 		if ( ! $event_id || ! Access::can_access_event( $event_id, Admin\OrdersPage::CAP ) ) {
-			return new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$rows = (array) $wpdb->get_results( $wpdb->prepare(
 			"SELECT l.*,t.public_id AS ticket_public_id,t.status AS ticket_status,ord.public_id AS order_public_id,tt.name AS ticket_name,o.starts_at,COALESCE(ct.label,f.label,l.field_key) AS label,COALESCE(ct.purpose,f.purpose,'') AS purpose FROM {$p}wpcap_consent_log l INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=l.ticket_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_consent_texts ct ON ct.text_id=l.text_id LEFT JOIN {$p}wpcap_participant_fields f ON f.field_id=l.field_id WHERE o.event_id=%d ORDER BY l.ticket_id,l.field_id,l.log_id",
@@ -608,7 +608,7 @@ final class Consents {
 		) );
 		$latest = array();
 		foreach ( $rows as $row ) { $latest[ (int) $row->ticket_id . ':' . (int) $row->field_id ] = (int) $row->log_id; }
-		$out = array( array( __( 'Zeitpunkt (UTC)', 'wp-pass-captain' ), __( 'Bestellung', 'wp-pass-captain' ), __( 'Ticket', 'wp-pass-captain' ), __( 'Ticketstatus', 'wp-pass-captain' ), __( 'Termin (UTC)', 'wp-pass-captain' ), __( 'Ticketart', 'wp-pass-captain' ), __( 'Feld', 'wp-pass-captain' ), __( 'Einwilligungstext', 'wp-pass-captain' ), __( 'Zweck', 'wp-pass-captain' ), __( 'Textversion', 'wp-pass-captain' ), __( 'Aktion', 'wp-pass-captain' ), __( 'Quelle', 'wp-pass-captain' ), __( 'Sprache', 'wp-pass-captain' ), __( 'Personenbezug (Hash)', 'wp-pass-captain' ), __( 'Aktueller Stand', 'wp-pass-captain' ) ) );
+		$out = array( array( __( 'Zeitpunkt (UTC)', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Ticket', 'pass-captain' ), __( 'Ticketstatus', 'pass-captain' ), __( 'Termin (UTC)', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Feld', 'pass-captain' ), __( 'Einwilligungstext', 'pass-captain' ), __( 'Zweck', 'pass-captain' ), __( 'Textversion', 'pass-captain' ), __( 'Aktion', 'pass-captain' ), __( 'Quelle', 'pass-captain' ), __( 'Sprache', 'pass-captain' ), __( 'Personenbezug (Hash)', 'pass-captain' ), __( 'Aktueller Stand', 'pass-captain' ) ) );
 		foreach ( $rows as $row ) {
 			$is_latest = $latest[ (int) $row->ticket_id . ':' . (int) $row->field_id ] === (int) $row->log_id;
 			$out[] = array( (string) $row->created_at, (string) $row->order_public_id, (string) $row->ticket_public_id, (string) $row->ticket_status, (string) $row->starts_at, (string) $row->ticket_name, (string) $row->field_key, (string) $row->label, (string) $row->purpose, (string) $row->text_version, (string) $row->action, (string) $row->source, (string) $row->locale, '' !== (string) $row->subject_hash ? substr( (string) $row->subject_hash, 0, 16 ) : '', $is_latest ? (string) $row->action : '' );

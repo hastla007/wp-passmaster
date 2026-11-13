@@ -72,7 +72,7 @@ final class OfflineScanner {
 	}
 
 	public static function admin_pages() {
-		return array( array( AdminPage::SLUG, __( 'Offline-Scanner', 'wp-pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render' ) ) );
+		return array( array( AdminPage::SLUG, __( 'Offline-Scanner', 'pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render' ) ) );
 	}
 
 	public static function admin_handlers() {

@@ -28,9 +28,9 @@ final class DeveloperKeys {
 	/** Supported scopes => label. */
 	public static function scopes() {
 		return array(
-			'events.read' => __( 'Eventdaten lesen (Name, Beschreibung, Status)', 'wp-pass-captain' ),
-			'reports.read' => __( 'Eventbericht lesen (Umsatz je Währung, Check-ins)', 'wp-pass-captain' ),
-			'slots.read' => __( 'Service-Zeitfenster lesen (Kapazität und Belegung, ohne Kundendaten)', 'wp-pass-captain' ),
+			'events.read' => __( 'Eventdaten lesen (Name, Beschreibung, Status)', 'pass-captain' ),
+			'reports.read' => __( 'Eventbericht lesen (Umsatz je Währung, Check-ins)', 'pass-captain' ),
+			'slots.read' => __( 'Service-Zeitfenster lesen (Kapazität und Belegung, ohne Kundendaten)', 'pass-captain' ),
 		);
 	}
 
@@ -51,7 +51,7 @@ final class DeveloperKeys {
 		$expires_at = trim( (string) $expires_at );
 		if ( '' === $expires_at ) { return ''; }
 		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $expires_at ) || strtotime( $expires_at . ' UTC' ) <= time() ) {
-			return new \WP_Error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		return $expires_at;
 	}
@@ -61,7 +61,7 @@ final class DeveloperKeys {
 		$rate_limit = is_scalar( $rate_limit ) ? (int) $rate_limit : 0;
 		if ( $rate_limit < 0 || $rate_limit > self::MAX_RATE_LIMIT ) {
 			/* translators: %d: maximum requests per minute */
-			return new \WP_Error( 'wpcap_api_key_rate', sprintf( __( 'Das Ratenlimit muss zwischen 1 und %d Anfragen pro Minute liegen (leer = Standard).', 'wp-pass-captain' ), self::MAX_RATE_LIMIT ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_api_key_rate', sprintf( __( 'Das Ratenlimit muss zwischen 1 und %d Anfragen pro Minute liegen (leer = Standard).', 'pass-captain' ), self::MAX_RATE_LIMIT ), array( 'status' => 400 ) );
 		}
 		return $rate_limit;
 	}
@@ -79,9 +79,9 @@ final class DeveloperKeys {
 		global $wpdb;
 		$event_id = absint( $event_id );
 		$scopes = self::clean_scopes( $scopes );
-		if ( ! $event_id || ! $scopes ) { return new \WP_Error( 'wpcap_api_key_invalid', __( 'Event und mindestens ein unterstützter Scope sind erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
-		if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) ) ) { return new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
-		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		if ( ! $event_id || ! $scopes ) { return new \WP_Error( 'wpcap_api_key_invalid', __( 'Event und mindestens ein unterstützter Scope sind erforderlich.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) ) ) { return new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$expires_at = self::clean_expiry( $expires_at );
 		if ( is_wp_error( $expires_at ) ) { return $expires_at; }
 		$rate_limit = self::clean_rate_limit( $rate_limit );
@@ -96,7 +96,7 @@ final class DeveloperKeys {
 			$formats[] = '%d';
 		}
 		$inserted = $wpdb->insert( $wpdb->prefix . 'wpcap_api_keys', $row, $formats );
-		if ( false === $inserted ) { return new \WP_Error( 'wpcap_api_key_save', __( 'API-Key konnte nicht angelegt werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( false === $inserted ) { return new \WP_Error( 'wpcap_api_key_save', __( 'API-Key konnte nicht angelegt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$key_id = (int) $wpdb->insert_id;
 		Audit::record( 'developer_key_issued', 'api_key', $key_id, array( 'event_id' => $event_id, 'scopes' => $scopes, 'prefix' => $prefix, 'label' => $label, 'expires_at' => '' !== $expires_at ? $expires_at : null, 'rate_limit' => $rate_limit ) );
 		return array( 'api_key_id' => $key_id, 'key' => $prefix . '.' . $secret, 'prefix' => $prefix, 'scopes' => $scopes, 'expires_at' => '' !== $expires_at ? $expires_at : null, 'rate_limit' => self::rate_limit( (object) array( 'api_key_id' => $key_id, 'rate_limit' => $rate_limit ) ), 'shown_once' => true );
@@ -131,7 +131,7 @@ final class DeveloperKeys {
 		if ( ! self::$rate_limited ) { return false; }
 		$retry = max( 1, 60 - (int) gmdate( 's' ) );
 		self::$retry_after = $retry;
-		return new \WP_Error( 'wpcap_rate_limited', __( 'Ratenlimit des API-Keys erreicht. Bitte warte bis zur nächsten Minute.', 'wp-pass-captain' ), array( 'status' => 429, 'retry_after' => $retry ) );
+		return new \WP_Error( 'wpcap_rate_limited', __( 'Ratenlimit des API-Keys erreicht. Bitte warte bis zur nächsten Minute.', 'pass-captain' ), array( 'status' => 429, 'retry_after' => $retry ) );
 	}
 
 	/** Seconds for the Retry-After header of the current 429 response (0 = none). */
@@ -186,7 +186,7 @@ final class DeveloperKeys {
 	public static function revoke( $key_id ) {
 		global $wpdb;
 		$key = self::manageable( $key_id );
-		if ( ! $key ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'API-Key nicht gefunden oder keine Berechtigung.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $key ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'API-Key nicht gefunden oder keine Berechtigung.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $key->revoked_at ) { return true; }
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_api_keys SET revoked_at=%s WHERE api_key_id=%d AND revoked_at IS NULL", current_time( 'mysql', true ), (int) $key->api_key_id ) );
 		Audit::record( 'developer_key_revoked', 'api_key', absint( $key_id ), array( 'prefix' => $key->public_prefix, 'event_id' => (int) $key->event_id ) );
@@ -204,8 +204,8 @@ final class DeveloperKeys {
 	public static function update( $key_id, $expires_at, $rate_limit = 0 ) {
 		global $wpdb;
 		$key = self::manageable( $key_id );
-		if ( ! $key ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'API-Key nicht gefunden oder keine Berechtigung.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
-		if ( $key->revoked_at ) { return new \WP_Error( 'wpcap_api_key_revoked', __( 'Ein widerrufener API-Key kann nicht mehr geändert werden. Lege einen neuen an.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( ! $key ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'API-Key nicht gefunden oder keine Berechtigung.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		if ( $key->revoked_at ) { return new \WP_Error( 'wpcap_api_key_revoked', __( 'Ein widerrufener API-Key kann nicht mehr geändert werden. Lege einen neuen an.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$expires_at = self::clean_expiry( $expires_at );
 		if ( is_wp_error( $expires_at ) ) { return $expires_at; }
 		$rate_limit = self::clean_rate_limit( $rate_limit );

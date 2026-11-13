@@ -52,7 +52,7 @@ $a088_sig_out = array_map( static fn( $r ) => $r[1][0] . '|' . $r[1][3], $a088_p
 sort( $a088_sig_in );
 sort( $a088_sig_out );
 check( 'every page keeps its slug and capability (nothing added, nothing lost)', $a088_sig_in === $a088_sig_out && count( $a088_sig_in ) >= 25 );
-check( 'events overview stays the first entry (top-level link target)', 'wp-pass-captain' === $a088_layout[0][1][0] && 'page' === $a088_layout[0][0] );
+check( 'events overview stays the first entry (top-level link target)', 'pass-captain' === $a088_layout[0][1][0] && 'page' === $a088_layout[0][0] );
 check( 'all module pages are in the menu exactly once', ! array_diff( array_map( static fn( $pg ) => $pg[0], PassCaptain\Modules::admin_pages() ), $a088_slugs ) && count( $a088_slugs ) === count( array_unique( $a088_slugs ) ) );
 check( 'headings for the further areas in order, none in front of the first area', array( 'sales', 'admission', 'finance', 'communication', 'settings' ) === array_map( static fn( $h ) => $h[1], $a088_heads ) && 'Verkauf' === $a088_heads[0][2] );
 $a088_pos = array_flip( $a088_slugs );
@@ -77,9 +77,9 @@ $GLOBALS['wpcap_test_denied_caps'] = array();
 $GLOBALS['submenu'] = array();
 $GLOBALS['a088_menu'] = array();
 Menu::add_menus();
-$a088_sub = $GLOBALS['submenu']['wp-pass-captain'] ?? array();
+$a088_sub = $GLOBALS['submenu']['pass-captain'] ?? array();
 $a088_sub_heads = array_values( array_filter( $a088_sub, static fn( $s ) => 'wpcap-menu-heading' === ( $s[4] ?? '' ) ) );
-check( 'add_menus registers the top level page and the grouped submenu with heading rows', 'wp-pass-captain' === ( $GLOBALS['a088_menu'][0][2] ?? '' ) && 'wp-pass-captain' === $a088_sub[0][2] && 5 === count( $a088_sub_heads ) && '#wpcap-menu-sales' === $a088_sub_heads[0][2] && count( $a088_sub ) === count( $a088_layout ) );
+check( 'add_menus registers the top level page and the grouped submenu with heading rows', 'pass-captain' === ( $GLOBALS['a088_menu'][0][2] ?? '' ) && 'pass-captain' === $a088_sub[0][2] && 5 === count( $a088_sub_heads ) && '#wpcap-menu-sales' === $a088_sub_heads[0][2] && count( $a088_sub ) === count( $a088_layout ) );
 check( 'old URLs/slugs remain registered with the same capabilities', in_array( array( 'Bestellungen', 'wpcap_manage_orders', 'wpcap-orders', 'Bestellungen' ), $a088_sub, true ) && in_array( 'wpcap-settings', array_column( $a088_sub, 2 ), true ) && in_array( 'wpcap-devices', array_column( $a088_sub, 2 ), true ) );
 ob_start(); Menu::menu_heading_script(); $a088_js = ob_get_clean();
 check( 'headings become plain text in the menu (no dead link)', false !== strpos( $a088_js, 'li.wpcap-menu-heading > a' ) && false !== strpos( $a088_js, 'textContent' ) );
@@ -134,7 +134,7 @@ $_POST = array( 'action' => 'wpcap_getting_started', 'mode' => 'hide', '_wpnonce
 $GLOBALS['wpcap_test_nonce_checks'] = array();
 $a088_redirect = '';
 try { GettingStarted::handle_toggle(); } catch ( Wpcap_Test_Redirect $e ) { $a088_redirect = $e->getMessage(); }
-check( 'hiding is stored per user with nonce check and redirects to the events page', GettingStarted::hidden() && in_array( 'wpcap_getting_started', $GLOBALS['wpcap_test_nonce_checks'], true ) && false !== strpos( $a088_redirect, 'page=wp-pass-captain' ) );
+check( 'hiding is stored per user with nonce check and redirects to the events page', GettingStarted::hidden() && in_array( 'wpcap_getting_started', $GLOBALS['wpcap_test_nonce_checks'], true ) && false !== strpos( $a088_redirect, 'page=pass-captain' ) );
 $GLOBALS['wpcap_test_user_id'] = 2;
 check( 'another user still sees the checklist', ! GettingStarted::hidden() );
 $GLOBALS['wpcap_test_user_id'] = 1;
@@ -202,7 +202,7 @@ add_filter( 'wpcap_event_figures', $a088_ff = static function ( $figs ) { foreac
 check( 'wpcap_event_figures adjusts the figures in bulk', 102 === Queries::event_figures( array( $a088_event ) )[ $a088_event ]['sold'] );
 remove_filter( 'wpcap_event_figures', $a088_ff );
 
-$_GET = array( 'page' => 'wp-pass-captain' );
+$_GET = array( 'page' => 'pass-captain' );
 $GLOBALS['p1u_user_meta'][1][ GettingStarted::META ] = 0;
 ob_start();
 try { EventsPage::render(); } catch ( Throwable $e ) { echo 'EXCEPTION ' . $e->getMessage(); }

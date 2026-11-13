@@ -18,6 +18,7 @@ final class Plugin {
 		$upgrade_hook = 'admin' === Installer::context() ? 'admin_init' : 'init';
 		add_action( $upgrade_hook, array( __CLASS__, 'maybe_upgrade' ), 0, 0 );
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
+		LegacySlug::register();
 		Settings::register();
 		Secrets::register();
 		Jobs\TimeBudget::register();
@@ -160,7 +161,7 @@ final class Plugin {
 			foreach ( self::cron_hooks() as $hook ) {
 				wp_unschedule_hook( $hook );
 			}
-			if ( function_exists( 'as_unschedule_all_actions' ) ) { as_unschedule_all_actions( '', array(), 'wp-pass-captain' ); }
+			if ( function_exists( 'as_unschedule_all_actions' ) ) { as_unschedule_all_actions( '', array(), 'pass-captain' ); }
 			if ( is_multisite() && $network_wide ) { restore_current_blog(); }
 		}
 	}

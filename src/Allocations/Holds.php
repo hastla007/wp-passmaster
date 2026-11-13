@@ -52,9 +52,9 @@ final class Holds {
 	public static function error_messages() {
 		return array_merge(
 			array(
-				'allocation_invalid' => __( 'Das gewählte Kontingent passt nicht zu dieser Bestellung.', 'wp-pass-captain' ),
-				'allocation_forbidden' => __( 'Kontingente können über diesen Verkaufskanal nicht genutzt werden.', 'wp-pass-captain' ),
-				'allocation_exhausted' => __( 'Das gewählte Kontingent reicht für diese Bestellung nicht aus.', 'wp-pass-captain' ),
+				'allocation_invalid' => __( 'Das gewählte Kontingent passt nicht zu dieser Bestellung.', 'pass-captain' ),
+				'allocation_forbidden' => __( 'Kontingente können über diesen Verkaufskanal nicht genutzt werden.', 'pass-captain' ),
+				'allocation_exhausted' => __( 'Das gewählte Kontingent reicht für diese Bestellung nicht aus.', 'pass-captain' ),
 			),
 			self::$messages
 		);
@@ -247,7 +247,7 @@ final class Holds {
 			$open = Capacity::open( $hold, $stale[ $hold_id ] ?? 0 );
 			if ( $covered > $open ) {
 				/* translators: 1: hold name, 2: remaining units */
-				self::set_message( 'allocation_exhausted', sprintf( __( 'Im Kontingent „%1$s“ sind nur noch %2$d Plätze frei.', 'wp-pass-captain' ), $hold->name, $open ) );
+				self::set_message( 'allocation_exhausted', sprintf( __( 'Im Kontingent „%1$s“ sind nur noch %2$d Plätze frei.', 'pass-captain' ), $hold->name, $open ) );
 				throw new \RuntimeException( 'allocation_exhausted' );
 			}
 			$consumed[ $hold_id ] = $covered;
@@ -372,19 +372,19 @@ final class Holds {
 		$quantity = absint( $data['quantity'] ?? 0 );
 		$hours = isset( $data['release_hours'] ) && '' !== $data['release_hours'] ? absint( $data['release_hours'] ) : absint( Module::config()['auto_release_hours'] );
 		if ( 'kill' === $kind ) { $hours = 0; }
-		if ( '' === $name ) { return self::error( 'wpcap_alloc_name', __( 'Bitte einen Namen für das Kontingent angeben.', 'wp-pass-captain' ) ); }
-		if ( $quantity < 1 || $quantity > 100000 ) { return self::error( 'wpcap_alloc_quantity', __( 'Bitte eine Anzahl ab 1 angeben.', 'wp-pass-captain' ) ); }
+		if ( '' === $name ) { return self::error( 'wpcap_alloc_name', __( 'Bitte einen Namen für das Kontingent angeben.', 'pass-captain' ) ); }
+		if ( $quantity < 1 || $quantity > 100000 ) { return self::error( 'wpcap_alloc_quantity', __( 'Bitte eine Anzahl ab 1 angeben.', 'pass-captain' ) ); }
 		$now = current_time( 'mysql', true );
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = self::lock_occurrence( $occurrence_id );
-		if ( ! $locked['occurrence'] ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_occurrence', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $locked['occurrence'] ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_occurrence', __( 'Termin nicht gefunden.', 'pass-captain' ), 404 ); }
 		$type = $type_id ? ( $locked['types'][ $type_id ] ?? null ) : null;
-		if ( $type_id && ! $type ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_type', __( 'Die Ticketart gehört nicht zu diesem Termin.', 'wp-pass-captain' ) ); }
+		if ( $type_id && ! $type ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_type', __( 'Die Ticketart gehört nicht zu diesem Termin.', 'pass-captain' ) ); }
 		$free = Capacity::public_remaining( $type, $locked['occurrence'], $locked['holds'], $now );
 		if ( null !== $free && $quantity > $free ) {
 			$wpdb->query( 'ROLLBACK' );
 			/* translators: %d: free units */
-			return self::error( 'wpcap_alloc_capacity', sprintf( __( 'Es sind nur noch %d Plätze im freien Verkauf, die zurückgehalten werden können.', 'wp-pass-captain' ), $free ), 409 );
+			return self::error( 'wpcap_alloc_capacity', sprintf( __( 'Es sind nur noch %d Plätze im freien Verkauf, die zurückgehalten werden können.', 'pass-captain' ), $free ), 409 );
 		}
 		$ok = $wpdb->insert( self::table( 'holds' ), array(
 			'occurrence_id' => $occurrence_id,
@@ -401,7 +401,7 @@ final class Holds {
 			'updated_at' => $now,
 		) );
 		$hold_id = (int) $wpdb->insert_id;
-		if ( ! $ok || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_save', __( 'Das Kontingent konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		if ( ! $ok || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_save', __( 'Das Kontingent konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		Audit::record( 'allocation_created', 'allocation', $hold_id, array( 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $type_id, 'kind' => $kind, 'quantity' => $quantity ) );
 		return self::get( $hold_id );
 	}
@@ -414,12 +414,12 @@ final class Holds {
 	public static function update( $hold_id, array $data ) {
 		global $wpdb;
 		$hold = self::get( $hold_id );
-		if ( ! $hold || 'active' !== $hold->status ) { return self::error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $hold || 'active' !== $hold->status ) { return self::error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), 404 ); }
 		$now = current_time( 'mysql', true );
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = self::lock_occurrence( (int) $hold->occurrence_id );
 		$hold = $locked['holds'][ (int) $hold->hold_id ] ?? null;
-		if ( ! $hold ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $hold ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), 404 ); }
 		$fields = array( 'updated_at' => $now );
 		if ( isset( $data['name'] ) && '' !== trim( (string) $data['name'] ) ) { $fields['name'] = mb_substr( sanitize_text_field( (string) $data['name'] ), 0, 100 ); }
 		if ( isset( $data['note'] ) ) { $fields['note'] = mb_substr( sanitize_text_field( (string) $data['note'] ), 0, 255 ); }
@@ -432,12 +432,12 @@ final class Holds {
 			if ( null !== $free && $add > $free ) {
 				$wpdb->query( 'ROLLBACK' );
 				/* translators: %d: free units */
-				return self::error( 'wpcap_alloc_capacity', sprintf( __( 'Es sind nur noch %d Plätze im freien Verkauf, die zurückgehalten werden können.', 'wp-pass-captain' ), $free ), 409 );
+				return self::error( 'wpcap_alloc_capacity', sprintf( __( 'Es sind nur noch %d Plätze im freien Verkauf, die zurückgehalten werden können.', 'pass-captain' ), $free ), 409 );
 			}
 			$fields['quantity'] = (int) $hold->quantity + $add;
 		}
 		$wpdb->update( self::table( 'holds' ), $fields, array( 'hold_id' => (int) $hold->hold_id ) );
-		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_save', __( 'Das Kontingent konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_save', __( 'Das Kontingent konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		Audit::record( 'allocation_updated', 'allocation', (int) $hold->hold_id, array_diff_key( $fields, array( 'updated_at' => 1 ) ) );
 		return self::get( $hold->hold_id );
 	}
@@ -453,17 +453,17 @@ final class Holds {
 	public static function release( $hold_id, $units = null, $reason = 'manual' ) {
 		global $wpdb;
 		$hold = self::get( $hold_id );
-		if ( ! $hold || 'active' !== $hold->status ) { return self::error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $hold || 'active' !== $hold->status ) { return self::error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), 404 ); }
 		$now = current_time( 'mysql', true );
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = self::lock_occurrence( (int) $hold->occurrence_id );
 		$hold = $locked['holds'][ (int) $hold->hold_id ] ?? null;
-		if ( ! $hold ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $hold ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_missing', __( 'Kontingent nicht gefunden oder bereits freigegeben.', 'pass-captain' ), 404 ); }
 		// Lapsed consumption is not released here: it returns via the expiry job (or is recovered).
 		$open = Capacity::open( $hold );
 		$full = null === $units || absint( $units ) >= $open;
 		$release = $full ? $open : absint( $units );
-		if ( ! $full && $release < 1 ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_units', __( 'Bitte eine Anzahl ab 1 angeben.', 'wp-pass-captain' ) ); }
+		if ( ! $full && $release < 1 ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_units', __( 'Bitte eine Anzahl ab 1 angeben.', 'pass-captain' ) ); }
 		$fields = array( 'quantity' => max( 0, (int) $hold->quantity - $release ), 'updated_at' => $now );
 		if ( $full && null === $units ) {
 			$fields['status'] = 'released';
@@ -472,7 +472,7 @@ final class Holds {
 		$wpdb->update( self::table( 'holds' ), $fields, array( 'hold_id' => (int) $hold->hold_id ) );
 		$hold = (object) array_merge( (array) $hold, $fields );
 		$seats = SeatHolds::sync( $hold, $now );
-		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_save', __( 'Das Kontingent konnte nicht freigegeben werden.', 'wp-pass-captain' ), 500 ); }
+		if ( '' !== $wpdb->last_error || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_alloc_save', __( 'Das Kontingent konnte nicht freigegeben werden.', 'pass-captain' ), 500 ); }
 		Audit::record( 'allocation_released', 'allocation', (int) $hold->hold_id, array( 'units' => $release, 'seats' => $seats, 'reason' => sanitize_key( $reason ), 'closed' => isset( $fields['status'] ) ) );
 		/** A hold released units back to public sale. */
 		do_action( 'wpcap_allocation_released', (int) $hold->hold_id, $release, (string) $reason );

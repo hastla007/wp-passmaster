@@ -14,14 +14,14 @@ final class ServiceBookings {
 		$email = sanitize_email( $email );
 		$quantity = min( 20, max( 1, absint( $quantity ) ) );
 		$idempotency_key = sanitize_text_field( $idempotency_key );
-		if ( ! $slot_id || ! is_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'wp-pass-captain' ) ); }
+		if ( ! $slot_id || ! is_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
 		$rate_key = 'wpcap_servicebook_' . hash( 'sha256', strtolower( $email ) );
 		$rate = (int) get_transient( $rate_key );
-		if ( $rate >= 20 ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'wp-pass-captain' ), array( 'status' => 429 ) ); }
+		if ( $rate >= 20 ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $rate_key, $rate + 1, HOUR_IN_SECONDS );
 		$ip_key = 'wpcap_servicebook_ip_' . hash( 'sha256', sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) ) );
 		$ip_rate = (int) get_transient( $ip_key );
-		if ( $ip_rate >= (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ) ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'wp-pass-captain' ), array( 'status' => 429 ) ); }
+		if ( $ip_rate >= (int) apply_filters( 'wpcap_service_booking_ip_limit', 40 ) ) { return new \WP_Error( 'wpcap_booking_rate', __( 'Zu viele Buchungsversuche; bitte warte kurz.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $ip_key, $ip_rate + 1, HOUR_IN_SECONDS );
 		$idempotency_key = hash( 'sha256', $idempotency_key );
 		$wpdb->query( 'START TRANSACTION' );
@@ -29,19 +29,19 @@ final class ServiceBookings {
 		$bookings = $wpdb->prefix . 'wpcap_service_bookings';
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT booking_id,slot_id,customer_email,quantity,expires_at,status FROM $bookings WHERE idempotency_key=%s", $idempotency_key ) );
 		if ( $existing ) {
-			if ( (int) $existing->slot_id !== $slot_id || strtolower( $existing->customer_email ) !== strtolower( $email ) || (int) $existing->quantity !== $quantity ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_idempotency_conflict', __( 'Idempotency-Key wurde für eine andere Buchung verwendet.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+			if ( (int) $existing->slot_id !== $slot_id || strtolower( $existing->customer_email ) !== strtolower( $email ) || (int) $existing->quantity !== $quantity ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_idempotency_conflict', __( 'Idempotency-Key wurde für eine andere Buchung verwendet.', 'pass-captain' ), array( 'status' => 409 ) ); }
 			$wpdb->query( 'COMMIT' );
 			return array( 'booking_id' => (int) $existing->booking_id, 'expires_at' => $existing->expires_at, 'status' => $existing->status, 'reused' => true );
 		}
 		$now = current_time( 'mysql', true );
 		$slot = $wpdb->get_row( $wpdb->prepare( "SELECT s.* FROM $slots s INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=r.event_id WHERE s.slot_id=%d AND r.status='active' AND e.status='published' FOR UPDATE", $slot_id ) );
-		if ( ! $slot || 'open' !== $slot->status || $slot->starts_at <= $now ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_slot_unavailable', __( 'Dieses Zeitfenster ist nicht verfügbar.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( ! $slot || 'open' !== $slot->status || $slot->starts_at <= $now ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_slot_unavailable', __( 'Dieses Zeitfenster ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->query( $wpdb->prepare( "UPDATE $bookings SET status='expired' WHERE slot_id=%d AND status='held' AND expires_at <= %s", $slot_id, $now ) );
 		$used = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM $bookings WHERE slot_id=%d AND status IN ('held','confirmed') AND (expires_at IS NULL OR expires_at > %s)", $slot_id, $now ) );
-		if ( $used + $quantity > (int) $slot->capacity ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_slot_full', __( 'Für dieses Zeitfenster sind nicht genügend Plätze frei.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( $used + $quantity > (int) $slot->capacity ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_slot_full', __( 'Für dieses Zeitfenster sind nicht genügend Plätze frei.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$expires = gmdate( 'Y-m-d H:i:s', time() + min( 15, max( 1, absint( $minutes ) ) ) * MINUTE_IN_SECONDS );
 		$wpdb->insert( $bookings, array( 'slot_id' => $slot_id, 'order_id' => absint( $order_id ), 'customer_email' => $email, 'idempotency_key' => $idempotency_key, 'quantity' => $quantity, 'expires_at' => $expires, 'status' => 'held', 'created_at' => $now ), array( '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s' ) );
-		if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_failed', __( 'Zeitfenster konnte nicht reserviert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_failed', __( 'Zeitfenster konnte nicht reserviert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$id = (int) $wpdb->insert_id;
 		$wpdb->query( 'COMMIT' );
 		return array( 'booking_id' => $id, 'expires_at' => $expires );
@@ -63,11 +63,11 @@ final class ServiceBookings {
 	}
 
 	private static function forbidden() {
-		return new \WP_Error( 'wpcap_resource_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		return new \WP_Error( 'wpcap_resource_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), array( 'status' => 403 ) );
 	}
 
 	private static function not_found() {
-		return new \WP_Error( 'wpcap_service_not_found', __( 'Ressource oder Zeitfenster nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+		return new \WP_Error( 'wpcap_service_not_found', __( 'Ressource oder Zeitfenster nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 	}
 
 	/** Places held or confirmed in a slot (expired holds excluded). */
@@ -80,7 +80,7 @@ final class ServiceBookings {
 	/** Resource input → validated columns (name, capacity 1–100, buffers 0–1440 minutes). */
 	private static function resource_data( array $data ) {
 		$name = mb_substr( sanitize_text_field( (string) ( $data['name'] ?? '' ) ), 0, 190 );
-		if ( '' === $name ) { return new \WP_Error( 'wpcap_resource_invalid', __( 'Ressourcenname fehlt.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( '' === $name ) { return new \WP_Error( 'wpcap_resource_invalid', __( 'Ressourcenname fehlt.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		return array( 'name' => $name, 'capacity' => min( 100, max( 1, absint( $data['capacity'] ?? 1 ) ) ), 'buffer_before' => min( 1440, absint( $data['buffer_before'] ?? 0 ) ), 'buffer_after' => min( 1440, absint( $data['buffer_after'] ?? 0 ) ) );
 	}
 
@@ -89,11 +89,11 @@ final class ServiceBookings {
 		global $wpdb;
 		$event_id = absint( $event_id );
 		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return self::forbidden(); }
-		if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) ) ) { return new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) ) ) { return new \WP_Error( 'wpcap_event_not_found', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$row = self::resource_data( $data );
 		if ( is_wp_error( $row ) ) { return $row; }
 		$wpdb->insert( $wpdb->prefix . 'wpcap_resources', array( 'event_id' => $event_id ) + $row + array( 'status' => 'active' ), array( '%d', '%s', '%d', '%d', '%d', '%s' ) );
-		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_resource_save', __( 'Ressource konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_resource_save', __( 'Ressource konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$id = (int) $wpdb->insert_id;
 		Audit::record( 'service_resource_created', 'resource', $id, array( 'event_id' => $event_id ) + $row );
 		return $id;
@@ -120,7 +120,7 @@ final class ServiceBookings {
 		if ( ! $resource ) { return self::not_found(); }
 		if ( ! Access::can_access_event( (int) $resource->event_id, 'wpcap_manage_events' ) ) { return self::forbidden(); }
 		$bookings = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_service_bookings b INNER JOIN {$wpdb->prefix}wpcap_service_slots s ON s.slot_id=b.slot_id WHERE s.resource_id=%d", (int) $resource->resource_id ) );
-		if ( $bookings ) { return new \WP_Error( 'wpcap_resource_has_bookings', __( 'Die Ressource hat Buchungen und kann nicht gelöscht werden. Deaktiviere sie stattdessen.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( $bookings ) { return new \WP_Error( 'wpcap_resource_has_bookings', __( 'Die Ressource hat Buchungen und kann nicht gelöscht werden. Deaktiviere sie stattdessen.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$slots = (int) $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_service_slots WHERE resource_id=%d", (int) $resource->resource_id ) );
 		$wpdb->delete( $wpdb->prefix . 'wpcap_resources', array( 'resource_id' => (int) $resource->resource_id ), array( '%d' ) );
 		Audit::record( 'service_resource_deleted', 'resource', (int) $resource->resource_id, array( 'event_id' => (int) $resource->event_id, 'name' => $resource->name, 'slots_deleted' => $slots ) );
@@ -138,7 +138,7 @@ final class ServiceBookings {
 	private static function slot_times( array $data ) {
 		$start = self::utc_time( $data['starts_at'] ?? '' );
 		$end = self::utc_time( $data['ends_at'] ?? '' );
-		if ( ! $start || ! $end || $end <= $start ) { return new \WP_Error( 'wpcap_service_slot_invalid', __( 'Zeitfenster ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $start || ! $end || $end <= $start ) { return new \WP_Error( 'wpcap_service_slot_invalid', __( 'Zeitfenster ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		return array( 'starts_at' => gmdate( 'Y-m-d H:i:s', $start ), 'ends_at' => gmdate( 'Y-m-d H:i:s', $end ) );
 	}
 
@@ -146,13 +146,13 @@ final class ServiceBookings {
 	public static function create_slot( $resource_id, array $data ) {
 		global $wpdb;
 		$resource = self::resource( $resource_id );
-		if ( ! $resource || 'active' !== $resource->status || ! Access::can_access_event( (int) $resource->event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_resource_forbidden', __( 'Keine Berechtigung für diese Ressource.', 'wp-pass-captain' ), array( 'status' => 403 ) ); }
+		if ( ! $resource || 'active' !== $resource->status || ! Access::can_access_event( (int) $resource->event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_resource_forbidden', __( 'Keine Berechtigung für diese Ressource.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		$times = self::slot_times( $data );
 		if ( is_wp_error( $times ) ) { return $times; }
 		$capacity = isset( $data['capacity'] ) && '' !== (string) $data['capacity'] ? absint( $data['capacity'] ) : (int) $resource->capacity;
 		$row = array( 'resource_id' => (int) $resource->resource_id ) + $times + array( 'capacity' => min( 100, max( 1, $capacity ) ), 'status' => 'open' );
 		$wpdb->insert( $wpdb->prefix . 'wpcap_service_slots', $row, array( '%d', '%s', '%s', '%d', '%s' ) );
-		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_service_slot_save', __( 'Zeitfenster konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_service_slot_save', __( 'Zeitfenster konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$id = (int) $wpdb->insert_id;
 		Audit::record( 'service_slot_created', 'service_slot', $id, array( 'event_id' => (int) $resource->event_id ) + $row );
 		return $id;
@@ -179,7 +179,7 @@ final class ServiceBookings {
 			return new \WP_Error(
 				'wpcap_service_slot_capacity',
 				/* translators: %d: number of booked places */
-				sprintf( __( 'Die Kapazität darf nicht unter die bereits gebuchten Plätze (%d) sinken.', 'wp-pass-captain' ), $booked ),
+				sprintf( __( 'Die Kapazität darf nicht unter die bereits gebuchten Plätze (%d) sinken.', 'pass-captain' ), $booked ),
 				array( 'status' => 409 )
 			);
 		}
@@ -187,7 +187,7 @@ final class ServiceBookings {
 		$moved = substr( $times['starts_at'], 0, 16 ) !== substr( (string) $slot->starts_at, 0, 16 ) || substr( $times['ends_at'], 0, 16 ) !== substr( (string) $slot->ends_at, 0, 16 );
 		if ( $booked && $moved ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_service_slot_booked', __( 'Das Zeitfenster hat Buchungen; die Uhrzeit kann nicht mehr geändert werden. Schließe es und lege ein neues an.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_service_slot_booked', __( 'Das Zeitfenster hat Buchungen; die Uhrzeit kann nicht mehr geändert werden. Schließe es und lege ein neues an.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		if ( ! $moved ) { $times = array( 'starts_at' => (string) $slot->starts_at, 'ends_at' => (string) $slot->ends_at ); }
 		$row = $times + array( 'capacity' => $capacity, 'status' => $status );
@@ -204,7 +204,7 @@ final class ServiceBookings {
 		if ( ! $slot ) { return self::not_found(); }
 		if ( ! Access::can_access_event( (int) $slot->event_id, 'wpcap_manage_events' ) ) { return self::forbidden(); }
 		if ( (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_service_bookings WHERE slot_id=%d", (int) $slot->slot_id ) ) ) {
-			return new \WP_Error( 'wpcap_service_slot_has_bookings', __( 'Das Zeitfenster hat Buchungen und kann nicht gelöscht werden. Schließe es stattdessen.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_service_slot_has_bookings', __( 'Das Zeitfenster hat Buchungen und kann nicht gelöscht werden. Schließe es stattdessen.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$wpdb->delete( $wpdb->prefix . 'wpcap_service_slots', array( 'slot_id' => (int) $slot->slot_id ), array( '%d' ) );
 		Audit::record( 'service_slot_deleted', 'service_slot', (int) $slot->slot_id, array( 'event_id' => (int) $slot->event_id, 'starts_at' => $slot->starts_at, 'ends_at' => $slot->ends_at ) );

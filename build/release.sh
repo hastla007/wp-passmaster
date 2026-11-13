@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds the installable plugin ZIP (build/dist/wp-pass-captain.zip) from a committed tree.
+# Builds the installable plugin ZIP (build/dist/pass-captain.zip) from a committed tree.
 #
 # - Exports the git tree (default HEAD; override with WPCAP_BUILD_REF=<ref>) with `git archive`,
 #   so uncommitted or untracked files in the working copy never end up in a release.
@@ -8,7 +8,7 @@
 # - Reproducible (A112): file times are set to the commit time (SOURCE_DATE_EPOCH, default: commit date
 #   of the ref), permissions are normalised (644/755), entries are added in sorted order without extra
 #   attributes, and the autoloader suffix is fixed. The same commit therefore gives a byte-identical ZIP.
-#   Next to the ZIP the build writes `wp-pass-captain.zip.sha256` and `build-info.txt` (commit, epoch,
+#   Next to the ZIP the build writes `pass-captain.zip.sha256` and `build-info.txt` (commit, epoch,
 #   checksum). Check a published ZIP with: WPCAP_BUILD_REF=<tag> bash build/release.sh && sha256sum -c.
 set -euo pipefail
 export LC_ALL=C TZ=UTC
@@ -16,7 +16,7 @@ export LC_ALL=C TZ=UTC
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REF="${WPCAP_BUILD_REF:-HEAD}"
 DIST_DIR="${ROOT}/build/dist"
-SLUG="wp-pass-captain"
+SLUG="pass-captain"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/wpcap-build.XXXXXX")"
 trap 'rm -rf "${WORK}"' EXIT
 
@@ -36,6 +36,12 @@ if [ -f "${WORK}/src/composer.json" ]; then
 	# Fixed autoloader class suffix (otherwise derived from a random value in some Composer versions).
 	composer config --working-dir="${WORK}/src" autoloader-suffix "WpcapRelease" >/dev/null
 	COMPOSER_ALLOW_SUPERUSER=1 composer install --working-dir="${WORK}/src" --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress
+fi
+
+# Releases up to 1.4 were called "WP Pass Captain" with folder/main file wp-pass-captain (legacy-slug):
+# an older ref (e.g. the previous release for the upgrade drill) is packaged under its own name.
+if [ ! -f "${WORK}/src/${SLUG}.php" ] && [ -f "${WORK}/src/wp-pass-captain.php" ]; then # legacy-slug
+	SLUG="wp-pass-captain" # legacy-slug
 fi
 
 DISTIGNORE="${WORK}/src/.distignore"

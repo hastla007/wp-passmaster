@@ -53,12 +53,12 @@ final class Cancellation {
 			if ( ! $config || ! $type ) { continue; }
 			$tickets = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_type_id=%d AND status IN ('valid','checked_in') AND refunded=0", $type_id ) );
 			if ( 'revoke' === $config->on_cancel ) {
-				$effect = Settings::get( 'auto_refund_cancelled' ) ? __( 'der ganze Pass wird widerrufen und erstattet', 'wp-pass-captain' ) : __( 'der ganze Pass wird widerrufen; Erstattung offen (manuell)', 'wp-pass-captain' );
+				$effect = Settings::get( 'auto_refund_cancelled' ) ? __( 'der ganze Pass wird widerrufen und erstattet', 'pass-captain' ) : __( 'der ganze Pass wird widerrufen; Erstattung offen (manuell)', 'pass-captain' );
 			} elseif ( (int) $config->refund_per_day_minor > 0 ) {
 				/* translators: %s: amount per pass */
-				$effect = sprintf( __( 'bleibt für die übrigen Termine gültig; Teilerstattung %s je Pass', 'wp-pass-captain' ), \PassCaptain\Frontend\Format::money( (int) $config->refund_per_day_minor, (string) $type->currency ) );
+				$effect = sprintf( __( 'bleibt für die übrigen Termine gültig; Teilerstattung %s je Pass', 'pass-captain' ), \PassCaptain\Frontend\Format::money( (int) $config->refund_per_day_minor, (string) $type->currency ) );
 			} else {
-				$effect = __( 'bleibt für die übrigen Termine gültig, keine Erstattung', 'wp-pass-captain' );
+				$effect = __( 'bleibt für die übrigen Termine gültig, keine Erstattung', 'pass-captain' );
 			}
 			$items[] = array( 'name' => (string) $type->name, 'tickets' => $tickets, 'effect' => $effect );
 		}
@@ -128,7 +128,7 @@ final class Cancellation {
 					$result = 'woocommerce' === $row->payment_provider
 						? new \WP_Error( 'wpcap_refund_woocommerce', 'woocommerce' )
 						/* translators: 1: pass name, 2: event name, 3: date */
-						: Refunds::request_amount( (int) $row->order_id, $per_day * (int) $row->n, sprintf( __( 'Pass „%1$s“: Termin %2$s am %3$s abgesagt', 'wp-pass-captain' ), $type->name, $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ) ), 'pass-day-' . $occurrence_id . '-' . $type_id, array( 'system' => true, 'tax_minor' => self::pass_tax( (int) $row->order_id, $type_id, $per_day * (int) $row->n ) ) );
+						: Refunds::request_amount( (int) $row->order_id, $per_day * (int) $row->n, sprintf( __( 'Pass „%1$s“: Termin %2$s am %3$s abgesagt', 'pass-captain' ), $type->name, $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ) ), 'pass-day-' . $occurrence_id . '-' . $type_id, array( 'system' => true, 'tax_minor' => self::pass_tax( (int) $row->order_id, $type_id, $per_day * (int) $row->n ) ) );
 					if ( is_wp_error( $result ) || ! in_array( $result['status'] ?? '', array( 'completed', 'pending_approval' ), true ) ) {
 						++$summary['refund_errors'];
 						Audit::record( 'pass_day_refund_pending', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $type_id, 'error' => is_wp_error( $result ) ? $result->get_error_code() : ( $result['status'] ?? '' ) ) );
@@ -162,7 +162,7 @@ final class Cancellation {
 		foreach ( (array) $orders as $row ) {
 			$refunded = false;
 			if ( $auto && 'woocommerce' !== $row->payment_provider ) {
-				$result = Refunds::request( (int) $row->order_id, array_map( 'absint', explode( ',', (string) $row->ticket_ids ) ), __( 'Pass: Termin abgesagt', 'wp-pass-captain' ), 'pass-cancelled-' . $occurrence_id . '-' . $type_id );
+				$result = Refunds::request( (int) $row->order_id, array_map( 'absint', explode( ',', (string) $row->ticket_ids ) ), __( 'Pass: Termin abgesagt', 'pass-captain' ), 'pass-cancelled-' . $occurrence_id . '-' . $type_id );
 				if ( is_wp_error( $result ) || ! in_array( $result['status'] ?? '', array( 'completed', 'pending_approval' ), true ) ) { ++$summary['refund_errors']; } else { $refunded = true; }
 			}
 			if ( 'woocommerce' === $row->payment_provider ) {
@@ -185,9 +185,9 @@ final class Cancellation {
 		if ( $open && $type && $occ ) {
 			wp_mail(
 				get_option( 'admin_email' ),
-				__( 'WP Pass Captain: Erstattungen für abgesagte Pässe offen', 'wp-pass-captain' ),
+				__( 'Pass Captain: Erstattungen für abgesagte Pässe offen', 'pass-captain' ),
 				/* translators: 1: pass name, 2: event name, 3: date, 4: number of orders, 5: order ids */
-				sprintf( __( 'Der Pass „%1$s“ wurde wegen der Absage von %2$s am %3$s widerrufen. Für %4$d bezahlte Bestellungen ist noch keine Erstattung erfolgt (Bestellungen: %5$s). Die widerrufenen Pässe bleiben in der Bestellansicht erstattbar.', 'wp-pass-captain' ), $type->name, $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ), count( $open ), implode( ', ', array_map( static function ( $id ) { $o = Orders::get( $id ); return $o ? $o->public_id : (string) $id; }, $open ) ) )
+				sprintf( __( 'Der Pass „%1$s“ wurde wegen der Absage von %2$s am %3$s widerrufen. Für %4$d bezahlte Bestellungen ist noch keine Erstattung erfolgt (Bestellungen: %5$s). Die widerrufenen Pässe bleiben in der Bestellansicht erstattbar.', 'pass-captain' ), $type->name, $occ->event_name, Display::date( $occ->starts_at, $occ->timezone ), count( $open ), implode( ', ', array_map( static function ( $id ) { $o = Orders::get( $id ); return $o ? $o->public_id : (string) $id; }, $open ) ) )
 			);
 		}
 		return $summary;
@@ -227,8 +227,8 @@ final class Cancellation {
 			'timezone' => (string) $occ->timezone,
 			'refund_note' => static function () use ( $type, $refunded ) {
 				/* translators: %s: pass name */
-				$note = sprintf( __( 'Dein Pass „%s“ ist deshalb nicht mehr gültig.', 'wp-pass-captain' ), $type->name );
-				return $note . ' ' . ( $refunded ? __( 'Der Ticketpreis wird automatisch erstattet.', 'wp-pass-captain' ) : __( 'Der Veranstalter informiert dich über Erstattung oder Ersatztermin.', 'wp-pass-captain' ) );
+				$note = sprintf( __( 'Dein Pass „%s“ ist deshalb nicht mehr gültig.', 'pass-captain' ), $type->name );
+				return $note . ' ' . ( $refunded ? __( 'Der Ticketpreis wird automatisch erstattet.', 'pass-captain' ) : __( 'Der Veranstalter informiert dich über Erstattung oder Ersatztermin.', 'pass-captain' ) );
 			},
 		);
 		return \PassCaptain\Mail\Mailer::send( 'occurrence_cancelled', $row->customer_email, $vars, array(), (string) $row->locale ) ? 1 : 0;
@@ -246,10 +246,10 @@ final class Cancellation {
 			'timezone' => (string) $occ->timezone,
 			'refund_note' => static function () use ( $type, $refund_minor, $currency ) {
 				/* translators: %s: pass name */
-				$note = sprintf( __( 'Dein Pass „%s“ bleibt für die übrigen Termine gültig.', 'wp-pass-captain' ), $type->name );
+				$note = sprintf( __( 'Dein Pass „%s“ bleibt für die übrigen Termine gültig.', 'pass-captain' ), $type->name );
 				if ( $refund_minor > 0 ) {
 					/* translators: %s: amount */
-					$note .= ' ' . sprintf( __( 'Für den abgesagten Termin erstatten wir dir %s.', 'wp-pass-captain' ), \PassCaptain\Frontend\Format::money( $refund_minor, $currency ) );
+					$note .= ' ' . sprintf( __( 'Für den abgesagten Termin erstatten wir dir %s.', 'pass-captain' ), \PassCaptain\Frontend\Format::money( $refund_minor, $currency ) );
 				}
 				return $note;
 			},

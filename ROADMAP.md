@@ -1,10 +1,10 @@
-# WP Pass Captain – nächste 10 Umsetzungsschritte
+# Pass Captain – nächste 10 Umsetzungsschritte
 
 Ziel ist ein eigenständig nutzbarer MVP für Events, Tickets und Online-Einlass. WooCommerce und Voucher Captain bleiben optionale Integrationen. Statusangaben beschreiben den aktuellen Branch; WordPress-Abnahme steht noch aus.
 
 ## 1. Plugin-Grundgerüst — umgesetzt, WP-Abnahme offen
 
-Plugin-Einstieg, Composer-Namespace, Aktivierungs-/Deaktivierungshooks und Admin-Menü sind angelegt. Plugin-Name und Textdomain lauten **WP Pass Captain** beziehungsweise `wp-pass-captain`.
+Plugin-Einstieg, Composer-Namespace, Aktivierungs-/Deaktivierungshooks und Admin-Menü sind angelegt. Plugin-Name und Textdomain lauten **Pass Captain** beziehungsweise `pass-captain`.
 
 ## 2. Datenbankbasis und Berechtigungen — MVP angelegt
 

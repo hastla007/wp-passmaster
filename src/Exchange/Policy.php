@@ -83,7 +83,7 @@ final class Policy {
 		global $wpdb;
 		$event_id = absint( $event_id );
 		if ( ! $event_id || ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) ) ) {
-			return new \WP_Error( 'wpcap_exchange_event', __( 'Event nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_exchange_event', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		$row = array( 'event_id' => $event_id, 'updated_at' => current_time( 'mysql', true ) );
 		$clean = self::sanitize( array_merge( self::defaults(), array_filter( $in, static function ( $v ) { return null !== $v && '' !== $v; } ) ) );

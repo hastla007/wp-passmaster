@@ -30,9 +30,9 @@ final class AttendeeList {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$tickets = Templates::tickets_for_occurrence( $occurrence_id, array( 'valid', 'checked_in' ) );
-		$status_labels = array( 'valid' => __( 'Gültig', 'wp-pass-captain' ), 'checked_in' => __( 'Eingecheckt', 'wp-pass-captain' ) );
+		$status_labels = array( 'valid' => __( 'Gültig', 'pass-captain' ), 'checked_in' => __( 'Eingecheckt', 'pass-captain' ) );
 		if ( 'full' !== $level ) {
-			$rows = array( array( __( 'Name', 'wp-pass-captain' ), __( 'Ticketart', 'wp-pass-captain' ), __( 'Status', 'wp-pass-captain' ) ) );
+			$rows = array( array( __( 'Name', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Status', 'pass-captain' ) ) );
 			foreach ( $tickets as $t ) {
 				$rows[] = array( \PassCaptain\Pii::show( 'attendee_name', $t->attendee_name ), $t->ticket_name, $status_labels[ $t->status ] ?? $t->status );
 			}
@@ -46,7 +46,7 @@ final class AttendeeList {
 				$answers[ (int) $a->ticket_id ][ (int) $a->field_id ] = $a->answer;
 			}
 		}
-		$header = array( __( 'Ticket', 'wp-pass-captain' ), __( 'Name', 'wp-pass-captain' ), __( 'Ticketart', 'wp-pass-captain' ), __( 'Status', 'wp-pass-captain' ), __( 'E-Mail Teilnehmer', 'wp-pass-captain' ), __( 'E-Mail Besteller', 'wp-pass-captain' ), __( 'Bestellung', 'wp-pass-captain' ) );
+		$header = array( __( 'Ticket', 'pass-captain' ), __( 'Name', 'pass-captain' ), __( 'Ticketart', 'pass-captain' ), __( 'Status', 'pass-captain' ), __( 'E-Mail Teilnehmer', 'pass-captain' ), __( 'E-Mail Besteller', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ) );
 		foreach ( $fields as $f ) { $header[] = $f->label; }
 		$rows = array( $header );
 		foreach ( $tickets as $t ) {
@@ -66,9 +66,9 @@ final class AttendeeList {
 		$rows = self::rows( $occurrence_id, $level );
 		$header = array_shift( $rows );
 		$title = ( $occ ? $occ->event_name . ' – ' . Scope::local( $occ->starts_at, $occ->timezone ) : '' );
-		$html = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( __( 'Teilnehmerliste', 'wp-pass-captain' ) ) . '</title>'
+		$html = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( __( 'Teilnehmerliste', 'pass-captain' ) ) . '</title>'
 			. '<style>@page{size:A4;margin:12mm}body{font:11px/1.35 system-ui,sans-serif;color:#000}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}th{background:#eee}td.box{width:14px}@media print{button{display:none}}</style></head><body>';
-		$html .= '<h1>' . esc_html( __( 'Teilnehmerliste', 'wp-pass-captain' ) ) . '</h1><p>' . esc_html( $title ) . ' · ' . esc_html( sprintf( /* translators: %d: count */ _n( '%d Ticket', '%d Tickets', count( $rows ), 'wp-pass-captain' ), count( $rows )) ) . '</p>';
+		$html .= '<h1>' . esc_html( __( 'Teilnehmerliste', 'pass-captain' ) ) . '</h1><p>' . esc_html( $title ) . ' · ' . esc_html( sprintf( /* translators: %d: count */ _n( '%d Ticket', '%d Tickets', count( $rows ), 'pass-captain' ), count( $rows )) ) . '</p>';
 		$html .= '<table><thead><tr><th></th>';
 		foreach ( $header as $cell ) { $html .= '<th>' . esc_html( $cell ) . '</th>'; }
 		$html .= '</tr></thead><tbody>';
@@ -77,7 +77,7 @@ final class AttendeeList {
 			foreach ( $row as $cell ) { $html .= '<td>' . esc_html( $cell ) . '</td>'; }
 			$html .= '</tr>';
 		}
-		$html .= '</tbody></table><p><button onclick="window.print()">' . esc_html( __( 'Drucken', 'wp-pass-captain' ) ) . '</button></p></body></html>';
+		$html .= '</tbody></table><p><button onclick="window.print()">' . esc_html( __( 'Drucken', 'pass-captain' ) ) . '</button></p></body></html>';
 		return $html;
 	}
 }

@@ -601,7 +601,7 @@ foreach ( $a49b_it as $a49b_file ) {
 	}
 }
 check( 'A049b: no "%d Stunden/Tage/Minuten/Tickets" without _n() (no "1 Stunden")' . ( $a49b_bad ? ' – ' . implode( ', ', $a49b_bad ) : '' ), ! $a49b_bad );
-check( 'A049b: one hour reads "1 Stunde"', '1 Stunde' === sprintf( _n( '%d Stunde', '%d Stunden', 1, 'wp-pass-captain' ), 1 ) );
+check( 'A049b: one hour reads "1 Stunde"', '1 Stunde' === sprintf( _n( '%d Stunde', '%d Stunden', 1, 'pass-captain' ), 1 ) );
 
 echo "Audit 3: same-named events are distinguishable in selects (A049c)\n";
 $a49c_t1 = make_type( 10, 5, 1000 );

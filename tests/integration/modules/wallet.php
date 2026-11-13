@@ -151,7 +151,7 @@ check( 'pass.json: QR barcode carries the plaintext ticket code', 'PKBarcodeForm
 check( 'pass.json: date in occurrence timezone (Vienna, +01:00)', '2027-03-01T19:30:00+01:00' === $pj['relevantDate'] && '2027-03-01T19:30:00+01:00' === $pj['eventTicket']['secondaryFields'][0]['value'] && true === $pj['eventTicket']['secondaryFields'][0]['ignoresTimeZone'] );
 $aux = array_column( $pj['eventTicket']['auxiliaryFields'], 'value', 'key' );
 check( 'pass.json: event, category and seat from wpcap_ticket_seat_label', 'Konzert' === $pj['eventTicket']['primaryFields'][0]['value'] && 'Standard' === $aux['category'] && 'Reihe 3, Platz 7' === $aux['seat'] );
-check( 'pass.json: web service URL and auth token', 'https://example.test/wp-json/wp-pass-captain/v1/wallet/apple' === $pj['webServiceURL'] && strlen( $pj['authenticationToken'] ) >= 16 && 'rgb(16,32,48)' === $pj['backgroundColor'] );
+check( 'pass.json: web service URL and auth token', 'https://example.test/wp-json/pass-captain/v1/wallet/apple' === $pj['webServiceURL'] && strlen( $pj['authenticationToken'] ) >= 16 && 'rgb(16,32,48)' === $pj['backgroundColor'] );
 $state = Store::state( $ticket->ticket_id );
 check( 'wallet storage: code encrypted (secretbox), auth token only hashed', $state && false === strpos( $state->secret, $code ) && hash( 'sha256', $code ) === $state->code_hash && hash( 'sha256', $pj['authenticationToken'] ) === $state->auth_token_hash && $code === Store::secrets( $state )['code'] );
 $tampered = clone $state; $tampered->secret = substr( $state->secret, 0, -4 ) . 'AAAA';
@@ -289,7 +289,7 @@ $old = wpw_pass_json( WebService::latest_pass( wpw_rest( 'GET', array( 'pass_typ
 check( 'rotation: old auth token gets a voided pass without the new code', true === ( $old['voided'] ?? false ) && ! isset( $old['barcodes'] ) && $auth2 === $old['authenticationToken'] );
 check( 'rotation: old token can no longer register', 401 === wpw_status( WebService::register_device( wpw_rest( 'POST', array( 'device' => 'devD', 'pass_type' => 'pass.test.wpcap', 'serial' => $ticket2->public_id ), $auth2, array( 'pushToken' => 'abcdefabcdef1234' ) ) ) ) );
 check( 'rotation: unregister with old token still works', 200 === wpw_status( WebService::unregister_device( wpw_rest( 'DELETE', array( 'device' => 'devC', 'pass_type' => 'pass.test.wpcap', 'serial' => $ticket2->public_id ), $auth2 ) ) ) );
-preg_match( '#(https://example\.test/wp-json/wp-pass-captain/v1/wallet/apple/download/\S+)#', $filtered['message'], $dm );
+preg_match( '#(https://example\.test/wp-json/pass-captain/v1/wallet/apple/download/\S+)#', $filtered['message'], $dm );
 parse_str( (string) parse_url( $dm[1] ?? '', PHP_URL_QUERY ), $dq );
 $new_pass = wpw_pass_json( WebService::download( wpw_rest( 'GET', array( 'serial' => $ticket2->public_id, 'sig' => $dq['sig'] ?? '' ) ) ) );
 check( 'rotation: new download link serves the new code', $new_code === ( $new_pass['barcodes'][0]['message'] ?? '' ) && $auth2 !== $new_pass['authenticationToken'] );

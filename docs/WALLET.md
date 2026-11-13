@@ -84,7 +84,7 @@ Wird ein Code erneuert, ohne dass das Modul ihn sieht, passt der gespeicherte Co
 
 ## PassKit-Webservice
 
-Basis: `https://example.com/wp-json/wp-pass-captain/v1/wallet/apple` (= `webServiceURL`). Geräte authentifizieren sich mit `Authorization: ApplePass <authenticationToken>`; Tokens sind zufällig (40 Hex-Zeichen) pro Pass-Generation und werden als SHA-256 gespeichert.
+Basis: `https://example.com/wp-json/pass-captain/v1/wallet/apple` (= `webServiceURL`). Geräte authentifizieren sich mit `Authorization: ApplePass <authenticationToken>`; Tokens sind zufällig (40 Hex-Zeichen) pro Pass-Generation und werden als SHA-256 gespeichert.
 
 | Methode | Pfad | Antwort |
 |---|---|---|

@@ -31,7 +31,7 @@ final class MailTemplates {
 	}
 
 	public static function admin_pages() {
-		return array( array( Admin::PAGE, __( 'E-Mail-Vorlagen', 'wp-pass-captain' ), Admin::CAP, array( Admin::class, 'render' ) ) );
+		return array( array( Admin::PAGE, __( 'E-Mail-Vorlagen', 'pass-captain' ), Admin::CAP, array( Admin::class, 'render' ) ) );
 	}
 
 	public static function admin_handlers() {

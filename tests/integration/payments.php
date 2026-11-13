@@ -83,7 +83,7 @@ function stripe_request( array $event, $secret = 'whsec_test', $timestamp = null
 	$body = json_encode( $event );
 	$t = $timestamp ?? time();
 	$sig = hash_hmac( 'sha256', $t . '.' . $body, $secret );
-	$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/payments/stripe/webhook' );
+	$req = new WP_REST_Request( 'POST', '/pass-captain/v1/payments/stripe/webhook' );
 	$req->set_body( $tamper ? str_replace( '"amount_total":', '"amount_total":1', $body ) : $body );
 	$req->set_header( 'Stripe-Signature', "t=$t,v1=" . str_repeat( '0', 64 ) . ",v1=$sig" );
 	$req['provider'] = 'stripe';
@@ -102,7 +102,7 @@ function stripe_deliver( $gateway, array $event, ...$args ) {
 }
 
 function paypal_request( array $event, $with_headers = true ) {
-	$req = new WP_REST_Request( 'POST', '/wp-pass-captain/v1/payments/paypal/webhook' );
+	$req = new WP_REST_Request( 'POST', '/pass-captain/v1/payments/paypal/webhook' );
 	$req->set_body( json_encode( $event ) );
 	if ( $with_headers ) {
 		foreach ( array( 'PAYPAL-TRANSMISSION-ID' => 'tid-1', 'PAYPAL-TRANSMISSION-TIME' => gmdate( 'c' ), 'PAYPAL-TRANSMISSION-SIG' => 'sig==', 'PAYPAL-CERT-URL' => 'https://api.sandbox.paypal.com/v1/notifications/certs/CERT', 'PAYPAL-AUTH-ALGO' => 'SHA256withRSA' ) as $h => $v ) { $req->set_header( $h, $v ); }

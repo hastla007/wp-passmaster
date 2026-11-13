@@ -33,17 +33,17 @@ final class TwilioProvider implements ProviderInterface {
 
 	/** URL Twilio posts delivery reports to (also the URL the signature is computed over). */
 	public static function status_callback_url() {
-		return rest_url( 'wp-pass-captain/v1/sms/twilio/status' );
+		return rest_url( 'pass-captain/v1/sms/twilio/status' );
 	}
 
 	/** URL configured as "A message comes in" webhook of the Twilio number (opt-out via STOP). */
 	public static function inbound_url() {
-		return rest_url( 'wp-pass-captain/v1/sms/twilio/inbound' );
+		return rest_url( 'pass-captain/v1/sms/twilio/inbound' );
 	}
 
 	public function send( $to, $body, $reference ) {
 		if ( ! $this->is_configured() ) {
-			return new \WP_Error( 'wpcap_sms_config', __( 'Twilio ist nicht konfiguriert.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_sms_config', __( 'Twilio ist nicht konfiguriert.', 'pass-captain' ) );
 		}
 		$sid = Settings::secret( 'twilio_account_sid' );
 		$params = array( 'To' => (string) $to, 'Body' => (string) $body, 'StatusCallback' => self::status_callback_url() );

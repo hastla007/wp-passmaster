@@ -60,18 +60,18 @@ final class Pools {
 	public static function create( $series_id, array $in ) {
 		global $wpdb;
 		$series = $wpdb->get_row( $wpdb->prepare( "SELECT series_id,event_id FROM {$wpdb->prefix}wpcap_series WHERE series_id=%d", absint( $series_id ) ) );
-		if ( ! $series ) { return self::error( 'wpcap_series_missing', __( 'Serie nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! \PassCaptain\Access::can_access_event( (int) $series->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $series ) { return self::error( 'wpcap_series_missing', __( 'Serie nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! \PassCaptain\Access::can_access_event( (int) $series->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$capacity = is_scalar( $in['capacity'] ?? null ) && preg_match( '/^\d{1,7}$/', trim( (string) $in['capacity'] ) ) ? (int) $in['capacity'] : 0;
-		if ( $capacity < 1 ) { return self::error( 'wpcap_series_pool_capacity', __( 'Bitte ein Kontingent von mindestens 1 angeben.', 'wp-pass-captain' ) ); }
+		if ( $capacity < 1 ) { return self::error( 'wpcap_series_pool_capacity', __( 'Bitte ein Kontingent von mindestens 1 angeben.', 'pass-captain' ) ); }
 		$name = mb_substr( sanitize_text_field( (string) ( $in['name'] ?? '' ) ), 0, 190 );
 		$type_name = mb_substr( sanitize_text_field( (string) ( $in['type_name'] ?? '' ) ), 0, 190 );
 		$now = current_time( 'mysql', true );
-		$ok = $wpdb->insert( "{$wpdb->prefix}wpcap_series_pools", array( 'series_id' => (int) $series->series_id, 'name' => '' !== $name ? $name : __( 'Serienkontingent', 'wp-pass-captain' ), 'type_name' => $type_name, 'capacity' => $capacity, 'status' => 'active', 'created_at' => $now, 'updated_at' => $now ) );
-		if ( ! $ok ) { return self::error( 'wpcap_series_pool_save', __( 'Das Kontingent konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		$ok = $wpdb->insert( "{$wpdb->prefix}wpcap_series_pools", array( 'series_id' => (int) $series->series_id, 'name' => '' !== $name ? $name : __( 'Serienkontingent', 'pass-captain' ), 'type_name' => $type_name, 'capacity' => $capacity, 'status' => 'active', 'created_at' => $now, 'updated_at' => $now ) );
+		if ( ! $ok ) { return self::error( 'wpcap_series_pool_save', __( 'Das Kontingent konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$pool_id = (int) $wpdb->insert_id;
 		// A114: series-scoped entry (change history of the series).
-		\PassCaptain\Audit::record( 'series_pool_created', 'series', (int) $series->series_id, array( 'event_id' => (int) $series->event_id, 'series_id' => (int) $series->series_id, 'pool_id' => $pool_id, 'name' => '' !== $name ? $name : __( 'Serienkontingent', 'wp-pass-captain' ), 'type_name' => $type_name, 'capacity' => $capacity ) );
+		\PassCaptain\Audit::record( 'series_pool_created', 'series', (int) $series->series_id, array( 'event_id' => (int) $series->event_id, 'series_id' => (int) $series->series_id, 'pool_id' => $pool_id, 'name' => '' !== $name ? $name : __( 'Serienkontingent', 'pass-captain' ), 'type_name' => $type_name, 'capacity' => $capacity ) );
 		return $pool_id;
 	}
 
@@ -81,7 +81,7 @@ final class Pools {
 		$pool = self::pool_with_event( $pool_id );
 		if ( is_wp_error( $pool ) ) { return $pool; }
 		$capacity = absint( $capacity );
-		if ( $capacity < 1 ) { return self::error( 'wpcap_series_pool_capacity', __( 'Bitte ein Kontingent von mindestens 1 angeben.', 'wp-pass-captain' ) ); }
+		if ( $capacity < 1 ) { return self::error( 'wpcap_series_pool_capacity', __( 'Bitte ein Kontingent von mindestens 1 angeben.', 'pass-captain' ) ); }
 		$wpdb->update( "{$wpdb->prefix}wpcap_series_pools", array( 'capacity' => $capacity, 'updated_at' => current_time( 'mysql', true ) ), array( 'pool_id' => (int) $pool->pool_id ) );
 		\PassCaptain\Audit::record( 'series_pool_updated', 'series', (int) $pool->series_id, array( 'event_id' => (int) $pool->event_id, 'series_id' => (int) $pool->series_id, 'pool_id' => (int) $pool->pool_id, 'capacity' => $capacity, 'changes' => \PassCaptain\Admin\ChangeHistory::diff( array( 'name' => $pool->name, 'capacity' => (int) $pool->capacity ), array( 'name' => $pool->name, 'capacity' => $capacity ) ) ) );
 		return true;
@@ -100,8 +100,8 @@ final class Pools {
 	private static function pool_with_event( $pool_id ) {
 		global $wpdb;
 		$pool = $wpdb->get_row( $wpdb->prepare( "SELECT p.*,s.event_id FROM {$wpdb->prefix}wpcap_series_pools p INNER JOIN {$wpdb->prefix}wpcap_series s ON s.series_id=p.series_id WHERE p.pool_id=%d AND p.status='active'", absint( $pool_id ) ) );
-		if ( ! $pool ) { return self::error( 'wpcap_series_pool_missing', __( 'Kontingent nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! \PassCaptain\Access::can_access_event( (int) $pool->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $pool ) { return self::error( 'wpcap_series_pool_missing', __( 'Kontingent nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! \PassCaptain\Access::can_access_event( (int) $pool->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		return $pool;
 	}
 
@@ -187,7 +187,7 @@ final class Pools {
 			$used = self::used( self::member_type_ids( $pool ), $now, (int) ( $context['order_id'] ?? 0 ) );
 			if ( $used + $need > (int) $pool->capacity ) {
 				/* translators: 1: pool name, 2: remaining units */
-				return self::error( 'series_pool_sold_out', sprintf( __( 'Das gemeinsame Kontingent „%1$s“ hat nur noch %2$d Tickets frei.', 'wp-pass-captain' ), $pool->name, max( 0, (int) $pool->capacity - $used ) ), 409 );
+				return self::error( 'series_pool_sold_out', sprintf( __( 'Das gemeinsame Kontingent „%1$s“ hat nur noch %2$d Tickets frei.', 'pass-captain' ), $pool->name, max( 0, (int) $pool->capacity - $used ) ), 409 );
 			}
 		}
 		return $result;

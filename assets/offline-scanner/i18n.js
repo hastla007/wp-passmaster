@@ -11,7 +11,7 @@
 	var CATALOGS = {
 		en: {
 			'Offline-Scanner': 'Offline scanner',
-			'Offline-Scanner · WP Pass Captain': 'Offline scanner · WP Pass Captain',
+			'Offline-Scanner · Pass Captain': 'Offline scanner · Pass Captain',
 			'Noch nicht hochgeladene Offline-Scans': 'Offline scans not yet uploaded',
 			'%1 offen': '%1 pending',
 			'Gerät koppeln': 'Pair device',

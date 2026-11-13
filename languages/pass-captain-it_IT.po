@@ -1,8 +1,8 @@
 msgid ""
 msgstr ""
-"Project-Id-Version: WP Pass Captain 1.4.0\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
-"POT-Creation-Date: 2026-11-13T21:38:14+00:00\n"
+"Project-Id-Version: Pass Captain 1.4.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/pass-captain\n"
+"POT-Creation-Date: 2026-11-13T22:00:48+00:00\n"
 "PO-Revision-Date: 2026-11-11 22:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: Italian\n"
@@ -11,32 +11,32 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Domain: wp-pass-captain\n"
+"X-Domain: pass-captain\n"
 
 #. Plugin Name of the plugin
-#: wp-pass-captain.php src/Admin/Menu.php:101
+#: pass-captain.php src/Admin/Menu.php:101 src/Admin/Menu.php:102
 #: src/Integrations/WooCommerce/CartPricing.php:83
 #: src/Operations/SiteHealth.php:72 src/Operations/SiteHealth.php:101
-msgid "WP Pass Captain"
-msgstr "WP Pass Captain"
+msgid "Pass Captain"
+msgstr "Pass Captain"
 
 #. Plugin URI of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "https://github.com/hastla007/wp-passmaster"
 msgstr "https://github.com/hastla007/wp-passmaster"
 
 #. Description of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "Eigenständige Event-, Ticket- und Passverwaltung für WordPress."
 msgstr "Gestione autonoma di eventi, biglietti e pass per WordPress."
 
 #. Author of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "hastla007"
 msgstr "hastla007"
 
 #. Author URI of the plugin
-#: wp-pass-captain.php
+#: pass-captain.php
 msgid "https://github.com/hastla007"
 msgstr "https://github.com/hastla007"
 
@@ -59,7 +59,7 @@ msgstr "https://github.com/hastla007"
 #: src/BoxOffice/Shifts.php:523 src/BoxOffice/Shifts.php:543
 #: src/BoxOffice/Shifts.php:558 src/Exchange/AdminPage.php:76
 #: src/Exchange/AdminPage.php:97 src/Exchange/AdminPage.php:151
-#: src/GuestLists/Page.php:173 src/Invoices.php:520 src/Invoices.php:556
+#: src/GuestLists/Page.php:173 src/Invoices.php:572 src/Invoices.php:609
 #: src/Mail/Admin.php:187 src/Modules/Calendar.php:302
 #: src/Modules/Mollie.php:178 src/Modules/Reminders.php:183
 #: src/Modules/Sms.php:325 src/Modules/Webhooks.php:287
@@ -69,7 +69,7 @@ msgstr "https://github.com/hastla007"
 #: src/Printing/InvoicePdf.php:234 src/Printing/InvoicePdf.php:249
 #: src/Printing/Page.php:56 src/Printing/Page.php:128 src/Printing/Page.php:155
 #: src/Printing/Page.php:177 src/Printing/Templates.php:254 src/Refunds.php:251
-#: src/Reports/Page.php:59 src/Reports/Page.php:153
+#: src/Reports/Page.php:59 src/Reports/Page.php:173
 #: src/Reports/Settlement.php:358 src/Seating/AdminPage.php:91
 #: src/Series/AdminPage.php:72 src/Waitlists/AdminPage.php:81
 #: src/WalletPasses/AdminPage.php:154
@@ -267,7 +267,7 @@ msgid "Gilt für"
 msgstr "Vale per"
 
 #: src/Admin/CampaignsPage.php:112 src/Admin/OrdersPage.php:447
-#: src/BoxOffice/Service.php:746 src/Invoices.php:492
+#: src/BoxOffice/Service.php:746 src/Invoices.php:544
 #: src/Printing/InvoicePdf.php:115
 msgid "Rabatt"
 msgstr "Sconto"
@@ -399,7 +399,7 @@ msgstr "Valore"
 #: src/Admin/CampaignsPage.php:138 src/Admin/ChangeHistory.php:94
 #: src/Admin/EventsPage.php:802 src/BoxOffice/ShiftPage.php:396
 #: src/BoxOffice/ShiftPage.php:424 src/Partners/AdminPage.php:300
-#: src/Passes/AdminPage.php:175
+#: src/Passes/AdminPage.php:175 src/Reports/Data.php:452
 msgid "Währung"
 msgstr "Valuta"
 
@@ -416,7 +416,7 @@ msgstr "Valuta"
 #: src/Mail/Types.php:366 src/Mail/Types.php:386 src/Mail/Types.php:406
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:811
 #: src/Partners/Settlements.php:821 src/Partners/Statement.php:171
-#: src/Privacy.php:186 src/Reports/Data.php:393 src/Reports/Page.php:98
+#: src/Privacy.php:186 src/Reports/Data.php:437 src/Reports/Page.php:110
 #: src/Seating/AdminPage.php:110 src/Seating/AdminPage.php:122
 #: src/Series/AdminPage.php:103 src/Waitlists.php:828 src/Waitlists.php:1045
 #: src/Waitlists/AdminPage.php:87 src/blocks/events/editor.js:16
@@ -708,7 +708,7 @@ msgstr "Etichetta"
 #: src/Partners/AdminPage.php:401 src/Partners/AdminPage.php:414
 #: src/Printing/AttendeeList.php:35 src/Printing/AttendeeList.php:49
 #: src/Printing/NoShowList.php:39 src/Printing/NoShowList.php:43
-#: src/Privacy.php:188 src/Reports/Data.php:393 src/Reports/Page.php:98
+#: src/Privacy.php:188 src/Reports/Data.php:437 src/Reports/Page.php:110
 #: src/Reports/Settlement.php:247 src/Reports/Settlement.php:311
 #: src/Reports/Settlement.php:329 src/Seating/AdminPage.php:239
 #: src/Seating/Picker.php:25 src/Series/AdminPage.php:482
@@ -923,9 +923,9 @@ msgstr "Attualmente presenti"
 #: src/GuestLists/Service.php:677 src/OfflineScanner/AdminPage.php:153
 #: src/OfflineScanner/AdminPage.php:168 src/Partners/AdminPage.php:401
 #: src/Partners/AdminPage.php:412 src/Passes/AdminPage.php:242
-#: src/Printing/Page.php:70 src/PublicEvents.php:384 src/Reports/Data.php:393
-#: src/Reports/Data.php:407 src/Reports/Page.php:98 src/Reports/Page.php:106
-#: src/Reports/Page.php:134 src/Series/AdminPage.php:297
+#: src/Printing/Page.php:70 src/PublicEvents.php:384 src/Reports/Data.php:437
+#: src/Reports/Data.php:458 src/Reports/Page.php:110 src/Reports/Page.php:118
+#: src/Reports/Page.php:154 src/Series/AdminPage.php:297
 #: src/Series/AdminPage.php:616 templates/event-card.php:33
 #: src/blocks/events/editor.js:17
 msgid "Termin"
@@ -1690,7 +1690,7 @@ msgstr "Prossima data"
 msgid "Termine"
 msgstr "Date"
 
-#: src/Admin/EventsPage.php:743 src/Reports/Page.php:106
+#: src/Admin/EventsPage.php:743 src/Reports/Page.php:118
 msgid "Verkauft / Kapazität"
 msgstr "Venduti / Capienza"
 
@@ -2188,7 +2188,7 @@ msgid "Abgeschlossen"
 msgstr "Completato"
 
 #: src/Admin/Forms.php:494 src/Admin/OrdersPage.php:455
-#: src/PortalSelfService.php:348 src/Reports/Page.php:143
+#: src/PortalSelfService.php:348 src/Reports/Page.php:163
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Erstattet"
 msgstr "Rimborsato"
@@ -2216,7 +2216,7 @@ msgstr "Valido"
 
 #: src/Admin/Forms.php:501 src/GuestLists/Page.php:324
 #: src/GuestLists/Service.php:677 src/Printing/AttendeeList.php:33
-#: src/Reports/Data.php:407 src/Reports/Settlement.php:268
+#: src/Reports/Data.php:458 src/Reports/Settlement.php:268
 #: src/Reports/Settlement.php:337
 msgid "Eingecheckt"
 msgstr "Check-in effettuato"
@@ -2407,16 +2407,12 @@ msgid "Checkliste ausblenden"
 msgstr "Nascondi checklist"
 
 #: src/Admin/Menu.php:79
-msgid "WP Pass Captain: Das Datenbank-Update ist unvollständig."
-msgstr "WP Pass Captain: l'aggiornamento del database è incompleto."
+msgid "Pass Captain: Das Datenbank-Update ist unvollständig."
+msgstr "Pass Captain: l'aggiornamento del database è incompleto."
 
 #: src/Admin/Menu.php:79
 msgid "Es fehlen Tabellen oder Spalten; das Plugin arbeitet weiter mit dem alten Schema. Bitte Datenbankrechte prüfen und das Plugin deaktivieren und wieder aktivieren."
 msgstr "Mancano tabelle o colonne; il plugin continua a funzionare con lo schema precedente. Controlla i permessi del database, quindi disattiva e riattiva il plugin."
-
-#: src/Admin/Menu.php:102
-msgid "Pass Captain"
-msgstr "Pass Captain"
 
 #: src/Admin/Menu.php:127
 msgid "Events & Programm"
@@ -2465,8 +2461,8 @@ msgstr "Ordini"
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:804
 #: src/Partners/Settlements.php:811 src/Partners/Settlements.php:821
 #: src/Partners/Statement.php:171 src/Payments/PayPalGateway.php:451
-#: src/Payments/StripeGateway.php:311 src/Reports/Data.php:390
-#: src/Reports/Page.php:78 src/Reports/Page.php:143
+#: src/Payments/StripeGateway.php:311 src/Reports/Data.php:434
+#: src/Reports/Page.php:78 src/Reports/Page.php:163
 #: src/Reports/Settlement.php:261 src/Reports/Settlement.php:329
 #: templates/event-card.php:53
 msgid "Tickets"
@@ -2501,12 +2497,12 @@ msgstr "Scanner condiviso ↗"
 
 #: src/Admin/Menu.php:219 src/Integrations/Vouchers/IntegrationStatus.php:22
 #: src/Integrations/Vouchers/IntegrationStatus.php:30
-msgid "WP Voucher Captain"
-msgstr "WP Voucher Captain"
+msgid "Voucher Captain"
+msgstr "Voucher Captain"
 
 #: src/Admin/Menu.php:219
-msgid "WP Voucher Captain ↗"
-msgstr "WP Voucher Captain ↗"
+msgid "Voucher Captain ↗"
+msgstr "Voucher Captain ↗"
 
 #: src/Admin/OperationsPage.php:35 src/Operations/Queues.php:207
 #: src/Operations/Queues.php:241
@@ -2841,8 +2837,8 @@ msgstr "Apri ordine WooCommerce #%d"
 #. translators: 1: amount, 2: error code
 #: src/Admin/OrdersPage.php:348
 #, php-format
-msgid "Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten."
-msgstr "Pagato, ma non è stato possibile addebitare il buono di %1$s (errore: %2$s). I biglietti sono validi. Richiedi l’importo separatamente o addebita il buono manualmente in WP Voucher Captain."
+msgid "Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in Voucher Captain manuell belasten."
+msgstr "Pagato, ma non è stato possibile addebitare il buono di %1$s (errore: %2$s). I biglietti sono validi. Richiedi l’importo separatamente o addebita il buono manualmente in Voucher Captain."
 
 #: src/Admin/OrdersPage.php:353
 msgid "Zusatzbestellung zu einem Ticketumtausch (Aufpreis/Gebühr). Das Ticket wird in der ursprünglichen Bestellung geführt."
@@ -2894,7 +2890,7 @@ msgid "Noch nicht angegeben (Käufer:in kann sie in der Bestellübersicht eintra
 msgstr "Non ancora indicate (l'acquirente può inserirle nel riepilogo dell'ordine)."
 
 #: src/Admin/OrdersPage.php:384 src/BoxOffice/Service.php:37
-#: src/Invoices.php:488 src/Printing/InvoicePdf.php:105
+#: src/Invoices.php:540 src/Printing/InvoicePdf.php:105
 msgid "Rechnung"
 msgstr "Fattura"
 
@@ -2928,12 +2924,12 @@ msgstr "Versione condizioni generali/informativa al consumatore"
 msgid "Positionen"
 msgstr "Voci"
 
-#: src/Admin/OrdersPage.php:414 src/Invoices.php:492
+#: src/Admin/OrdersPage.php:414 src/Invoices.php:544
 #: src/Partners/AdminPage.php:401 src/Printing/InvoicePdf.php:115
 msgid "Menge"
 msgstr "Quantità"
 
-#: src/Admin/OrdersPage.php:415 src/Invoices.php:492
+#: src/Admin/OrdersPage.php:415 src/Invoices.php:544
 #: src/Printing/InvoicePdf.php:115
 msgid "Einzelpreis"
 msgstr "Prezzo unitario"
@@ -2954,7 +2950,7 @@ msgstr "Trasferiti (pz.)"
 msgid "Zwischensumme"
 msgstr "Subtotale"
 
-#: src/Admin/OrdersPage.php:449 src/Invoices.php:492
+#: src/Admin/OrdersPage.php:449 src/Invoices.php:544
 msgid "Gesamt (brutto)"
 msgstr "Totale (lordo)"
 
@@ -3538,8 +3534,8 @@ msgid "Nein – Einzweckgutschein (USt bereits beim Gutscheinverkauf)"
 msgstr "No – buono monouso (IVA già dovuta al momento della vendita del buono)"
 
 #: src/Admin/SettingsPage.php:139
-msgid "Gilt nur, wenn WP Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md)."
-msgstr "Vale solo se WP Voucher Captain non comunica alcun tipo per il buono. Buono multiuso: i biglietti mantengono il prezzo e l’IVA per intero e il buono compare in fattura come pagamento. Buono monouso (luogo della prestazione e aliquota erano noti al momento della vendita, ad es. buono per un determinato evento nazionale): l’IVA è già stata versata con la vendita del buono e il riscatto riduce il prezzo. In caso di dubbio chiarisci con il tuo consulente fiscale (vedi docs/VOUCHERS.md)."
+msgid "Gilt nur, wenn Voucher Captain zum Gutschein keine Art meldet. Mehrzweckgutschein: Tickets behalten den vollen Preis und die volle Umsatzsteuer, der Gutschein erscheint auf der Rechnung als Zahlung. Einzweckgutschein (Ort der Leistung und Steuersatz standen beim Verkauf fest, z. B. Gutschein für eine bestimmte Veranstaltung im Inland): die Umsatzsteuer wurde schon beim Gutscheinverkauf abgeführt, die Einlösung mindert den Preis. Im Zweifel mit der Steuerberatung klären (siehe docs/VOUCHERS.md)."
+msgstr "Vale solo se Voucher Captain non comunica alcun tipo per il buono. Buono multiuso: i biglietti mantengono il prezzo e l’IVA per intero e il buono compare in fattura come pagamento. Buono monouso (luogo della prestazione e aliquota erano noti al momento della vendita, ad es. buono per un determinato evento nazionale): l’IVA è già stata versata con la vendita del buono e il riscatto riduce il prezzo. In caso di dubbio chiarisci con il tuo consulente fiscale (vedi docs/VOUCHERS.md)."
 
 #: src/Admin/SettingsPage.php:144
 msgid "Datenschutz"
@@ -3874,7 +3870,7 @@ msgstr "Profili fiscali"
 msgid "Noch keine Steuerprofile."
 msgstr "Nessun profilo fiscale ancora presente."
 
-#: src/Admin/TaxPage.php:101 src/Reports/Page.php:104
+#: src/Admin/TaxPage.php:101 src/Reports/Page.php:96 src/Reports/Page.php:116
 msgid "Satz"
 msgstr "Aliquota"
 
@@ -4391,7 +4387,7 @@ msgid "Name des Bereichs"
 msgstr "Nome dell'area"
 
 #: src/Admission/RulesPage.php:209 src/Admission/RulesPage.php:223
-#: src/Allocations/AdminPage.php:202 src/Reports/Data.php:407
+#: src/Allocations/AdminPage.php:202 src/Reports/Data.php:458
 #: src/Reports/Settlement.php:266 src/Reports/Settlement.php:335
 #: src/Seating/AdminPage.php:168
 msgid "Kapazität"
@@ -4721,7 +4717,7 @@ msgid "Nutzung der Kontingente"
 msgstr "Utilizzo dei contingenti"
 
 #: src/Allocations/AdminPage.php:331 src/Exchange/AdminPage.php:127
-#: src/Reports/Data.php:403 src/Reports/Settlement.php:247
+#: src/Reports/Data.php:447 src/Reports/Settlement.php:247
 #: src/Reports/Settlement.php:251 src/Reports/Settlement.php:311
 #: src/Reports/Settlement.php:316
 msgid "Kanal"
@@ -4745,8 +4741,8 @@ msgstr "Impossibile salvare il limite."
 
 #: src/Allocations/BuyerLimits.php:184 src/Modules/Allocations.php:44
 #: src/Modules/Allocations.php:48
-msgid "WP Pass Captain Käuferlimit"
-msgstr "Limite per acquirente WP Pass Captain"
+msgid "Pass Captain Käuferlimit"
+msgstr "Limite per acquirente Pass Captain"
 
 #: src/Allocations/BuyerLimits.php:186
 msgid "Gezählte Bestellungen (Bestell-ID => Ticketart => Menge)"
@@ -5564,7 +5560,7 @@ msgid "Bediener %d"
 msgstr "Operatore %d"
 
 #. translators: %s: platform name
-#: src/BoxOffice/Service.php:738 src/Invoices.php:380 src/Invoices.php:394
+#: src/BoxOffice/Service.php:738 src/Invoices.php:432 src/Invoices.php:446
 #: src/Partners/Settlements.php:756
 msgid "USt-IdNr.:"
 msgstr "Partita IVA:"
@@ -5909,12 +5905,12 @@ msgstr "Aperto"
 #. translators: 1: invoice number, 2: date
 #. translators: 1: period, 2: date
 #: src/BoxOffice/ShiftPage.php:329 src/BoxOffice/ZReport.php:368
-#: src/BoxOffice/ZReport.php:373 src/Invoices.php:495 src/Invoices.php:506
+#: src/BoxOffice/ZReport.php:373 src/Invoices.php:547 src/Invoices.php:558
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:694
 #: src/Partners/Settlements.php:811 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:859 src/Partners/Statement.php:171
 #: src/Printing/InvoicePdf.php:148 src/Printing/InvoicePdf.php:195
-#: src/Reports/Data.php:390 src/Reports/Page.php:143
+#: src/Reports/Data.php:434 src/Reports/Page.php:163
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Netto"
 msgstr "Netto"
@@ -5927,7 +5923,7 @@ msgstr "Grand Total"
 msgid "Differenz bar / Karte"
 msgstr "Differenza contanti / carta"
 
-#: src/BoxOffice/ShiftPage.php:329 src/Reports/Data.php:392
+#: src/BoxOffice/ShiftPage.php:329 src/Reports/Data.php:436
 msgid "Bericht"
 msgstr "Report"
 
@@ -6206,22 +6202,22 @@ msgid "USt-Sätze"
 msgstr "Aliquote IVA"
 
 #. translators: 1: invoice number, 2: date
-#: src/BoxOffice/ZReport.php:374 src/Invoices.php:492 src/Invoices.php:495
-#: src/Invoices.php:506 src/Printing/InvoicePdf.php:115
+#: src/BoxOffice/ZReport.php:374 src/Invoices.php:544 src/Invoices.php:547
+#: src/Invoices.php:558 src/Printing/InvoicePdf.php:115
 #: src/Printing/InvoicePdf.php:149 src/Printing/InvoicePdf.php:196
 msgid "USt."
 msgstr "IVA"
 
 #. translators: 1: invoice number, 2: date
 #. translators: 1: period, 2: date
-#: src/BoxOffice/ZReport.php:375 src/Invoices.php:495 src/Invoices.php:506
+#: src/BoxOffice/ZReport.php:375 src/Invoices.php:547 src/Invoices.php:558
 #: src/Partners/AdminPage.php:568 src/Partners/Settlements.php:688
 #: src/Partners/Settlements.php:694 src/Partners/Settlements.php:804
 #: src/Partners/Settlements.php:811 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:821 src/Partners/Settlements.php:859
 #: src/Partners/Statement.php:171 src/Printing/InvoicePdf.php:150
-#: src/Printing/InvoicePdf.php:197 src/Reports/Data.php:390
-#: src/Reports/Page.php:143 src/Reports/Settlement.php:243
+#: src/Printing/InvoicePdf.php:197 src/Reports/Data.php:434
+#: src/Reports/Page.php:163 src/Reports/Settlement.php:243
 #: src/Reports/Settlement.php:292
 msgid "Brutto"
 msgstr "Lordo"
@@ -6436,8 +6432,8 @@ msgid "Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Ticket
 msgstr "Il codice sconto non è valido o non corrisponde ai biglietti selezionati."
 
 #: src/CapacityCounters.php:558
-msgid "WP Pass Captain: Kontingentzähler korrigiert"
-msgstr "WP Pass Captain: contatori dei contingenti corretti"
+msgid "Pass Captain: Kontingentzähler korrigiert"
+msgstr "Pass Captain: contatori dei contingenti corretti"
 
 #. translators: 1: number of orders, 2: number of occurrences, 3: order ids
 #: src/CapacityCounters.php:561
@@ -6516,8 +6512,8 @@ msgid "Ticket wurde bereits verwendet oder ist widerrufen."
 msgstr "Il biglietto è già stato utilizzato oppure è stato revocato."
 
 #: src/Communications.php:9
-msgid "Alle fünf Minuten (WP Pass Captain)"
-msgstr "Ogni cinque minuti (WP Pass Captain)"
+msgid "Alle fünf Minuten (Pass Captain)"
+msgstr "Ogni cinque minuti (Pass Captain)"
 
 #: src/Communications.php:18
 msgid "Nachrichtendaten ungültig."
@@ -7237,8 +7233,8 @@ msgid "Umtausch nicht gefunden."
 msgstr "Cambio non trovato."
 
 #: src/Exchange/Service.php:1105
-msgid "WP Pass Captain: Umtausch bezahlt, aber nicht durchführbar"
-msgstr "WP Pass Captain: cambio pagato, ma non eseguibile"
+msgid "Pass Captain: Umtausch bezahlt, aber nicht durchführbar"
+msgstr "Pass Captain: cambio pagato, ma non eseguibile"
 
 #. translators: 1: exchange id, 2: order id
 #: src/Exchange/Service.php:1105
@@ -7896,8 +7892,8 @@ msgstr "Codice partner (facoltativo)"
 
 #: src/Integrations/Vouchers/Bridge.php:21
 #: src/Integrations/Vouchers/Bridge.php:31
-msgid "Es ist kein kompatibler WP Voucher Captain Anbieter aktiv."
-msgstr "Nessun provider WP Voucher Captain compatibile è attivo."
+msgid "Es ist kein kompatibler Voucher Captain Anbieter aktiv."
+msgstr "Nessun provider Voucher Captain compatibile è attivo."
 
 #: src/Integrations/Vouchers/CheckinService.php:68
 msgid "Du darfst keine Pass-Captain-Tickets einchecken."
@@ -7921,19 +7917,19 @@ msgid "Der Gutschein deckt den ursprünglichen Betrag nicht mehr."
 msgstr "Il buono non copre più l’importo originale."
 
 #: src/Integrations/Vouchers/Checkout.php:257
-msgid "WP Pass Captain: Gutschein konnte nicht belastet werden"
-msgstr "WP Pass Captain: impossibile addebitare il buono"
+msgid "Pass Captain: Gutschein konnte nicht belastet werden"
+msgstr "Pass Captain: impossibile addebitare il buono"
 
 #. translators: 1: order id, 2: amount with currency, 3: last code characters, 4: error code
 #: src/Integrations/Vouchers/Checkout.php:260
 #, php-format
-msgid "Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in WP Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten."
-msgstr "L’ordine %1$s è pagato e i biglietti sono stati emessi, ma non è stato possibile addebitare il buono (…%3$s, %2$s) in WP Voucher Captain (errore: %4$s). Richiedi l’importo al cliente o addebita il buono manualmente."
+msgid "Bestellung %1$s ist bezahlt und die Tickets wurden ausgestellt, aber der Gutschein (…%3$s, %2$s) konnte in Voucher Captain nicht belastet werden (Fehler: %4$s). Bitte den Betrag beim Kunden nachfordern oder den Gutschein manuell belasten."
+msgstr "L’ordine %1$s è pagato e i biglietti sono stati emessi, ma non è stato possibile addebitare il buono (…%3$s, %2$s) in Voucher Captain (errore: %4$s). Richiedi l’importo al cliente o addebita il buono manualmente."
 
 #. translators: 1: order, 2: amount in minor units, 3: error
 #: src/Integrations/Vouchers/Checkout.php:336
-msgid "WP Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
-msgstr "WP Pass Captain: riaccredito del buono non riuscito"
+msgid "Pass Captain: Gutschein-Rückbuchung fehlgeschlagen"
+msgstr "Pass Captain: riaccredito del buono non riuscito"
 
 #. translators: 1: order, 2: amount in minor units, 3: error
 #: src/Integrations/Vouchers/Checkout.php:336
@@ -7998,12 +7994,12 @@ msgid "Der Voucher-Captain-Scanner erkennt auch Pass-Captain-Tickets (Recht „w
 msgstr "Lo scanner di Voucher Captain riconosce anche i biglietti Pass Captain (serve il permesso «wpcap_checkin»)."
 
 #: src/Integrations/Vouchers/IntegrationStatus.php:38
-msgid "Integration WP Voucher Captain"
-msgstr "Integrazione WP Voucher Captain"
+msgid "Integration Voucher Captain"
+msgstr "Integrazione Voucher Captain"
 
 #: src/Integrations/Vouchers/IntegrationStatus.php:44
-msgid "Zu WP Voucher Captain"
-msgstr "Vai a WP Voucher Captain"
+msgid "Zu Voucher Captain"
+msgstr "Vai a Voucher Captain"
 
 #: src/Integrations/Vouchers/TicketService.php:143
 msgid "Ticketart, Anzahl, Schlüssel und eine gültige E-Mail-Adresse sind erforderlich."
@@ -8267,7 +8263,7 @@ msgstr "Riceverai i tuoi biglietti via e-mail dopo la conferma del pagamento."
 msgid "Die Ticket-Links mit QR-Code haben wir dir per E-Mail gesendet."
 msgstr "Ti abbiamo inviato via e-mail i link ai biglietti con il QR code."
 
-#: src/Integrations/WooCommerce/OrderAdapter.php:976
+#: src/Integrations/WooCommerce/OrderAdapter.php:976 src/Privacy.php:256
 msgid "Pass Captain Tickets"
 msgstr "Biglietti Pass Captain"
 
@@ -8332,130 +8328,130 @@ msgstr "Impossibile creare la fattura."
 msgid "Rechnungsposition konnte nicht gespeichert werden."
 msgstr "Impossibile salvare la voce di fattura."
 
-#: src/Invoices.php:381
+#: src/Invoices.php:433
 msgid "Steuernummer:"
 msgstr "Codice fiscale:"
 
 #. translators: %s: platform name
-#: src/Invoices.php:394
+#: src/Invoices.php:446
 #, php-format
 msgid "Vermittelt durch %s"
 msgstr "Intermediato da %s"
 
 #. translators: %s: organizer name
-#: src/Invoices.php:396
+#: src/Invoices.php:448
 #, php-format
 msgid "Die Leistung wird von %s erbracht. Die Plattform handelt im Namen und für Rechnung des Veranstalters."
 msgstr "La prestazione è erogata da %s. La piattaforma agisce in nome e per conto dell’organizzatore."
 
 #. translators: %s: organizer
-#: src/Invoices.php:406
+#: src/Invoices.php:458
 #, php-format
 msgid "Vermittler – Rechnungssteller: %s"
 msgstr "Intermediario – emittente della fattura: %s"
 
-#: src/Invoices.php:408
+#: src/Invoices.php:460
 msgid "Eigenhändler – Rechnungssteller: Plattform"
 msgstr "Venditore in proprio – emittente della fattura: piattaforma"
 
-#: src/Invoices.php:423 src/Invoices.php:426
+#: src/Invoices.php:475 src/Invoices.php:478
 msgid "Rechnungsnummer konnte nicht reserviert werden."
 msgstr "Impossibile riservare il numero di fattura."
 
-#: src/Invoices.php:464
+#: src/Invoices.php:516
 msgid "Belegnummer konnte nicht reserviert werden."
 msgstr "Impossibile riservare il numero del documento."
 
-#: src/Invoices.php:489 src/Printing/InvoicePdf.php:107
+#: src/Invoices.php:541 src/Printing/InvoicePdf.php:107
 msgid "Rechnungsdatum:"
 msgstr "Data della fattura:"
 
-#: src/Invoices.php:489 src/Invoices.php:490 src/Printing/InvoicePdf.php:66
+#: src/Invoices.php:541 src/Invoices.php:542 src/Printing/InvoicePdf.php:66
 #: src/Printing/InvoicePdf.php:112
 msgid "Rechnungsempfänger:"
 msgstr "Destinatario della fattura:"
 
-#: src/Invoices.php:492 src/Printing/InvoicePdf.php:115
+#: src/Invoices.php:544 src/Printing/InvoicePdf.php:115
 msgid "Leistung"
 msgstr "Prestazione"
 
 #. translators: 1: invoice number, 2: date
-#: src/Invoices.php:495 src/Invoices.php:506 src/Printing/InvoicePdf.php:147
+#: src/Invoices.php:547 src/Invoices.php:558 src/Printing/InvoicePdf.php:147
 #: src/Printing/InvoicePdf.php:194
 msgid "Aufstellung nach Steuersätzen"
 msgstr "Riepilogo per aliquota"
 
 #. translators: 1: invoice number, 2: date
 #. translators: 1: period, 2: date
-#: src/Invoices.php:495 src/Invoices.php:506 src/Partners/Settlements.php:816
+#: src/Invoices.php:547 src/Invoices.php:558 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:821 src/Partners/Settlements.php:859
 #: src/Printing/InvoicePdf.php:153 src/Printing/InvoicePdf.php:200
-#: src/Reports/Data.php:400 src/Reports/Settlement.php:255
-#: src/Reports/Settlement.php:320
+#: src/Reports/Data.php:444 src/Reports/Data.php:452
+#: src/Reports/Settlement.php:255 src/Reports/Settlement.php:320
 msgid "USt-Satz"
 msgstr "Aliquota IVA"
 
 #. translators: %s: fee per ticket
-#: src/Invoices.php:499 src/Invoices.php:509 src/Partners/Settlements.php:889
+#: src/Invoices.php:551 src/Invoices.php:561 src/Partners/Settlements.php:889
 #: src/Printing/InvoicePdf.php:160 src/Printing/InvoicePdf.php:206
 msgid "Nettobetrag"
 msgstr "Importo netto"
 
 #. translators: %s: rate
 #. translators: %s: VAT rate
-#: src/Invoices.php:500 src/Invoices.php:510 src/Printing/InvoicePdf.php:164
+#: src/Invoices.php:552 src/Invoices.php:562 src/Printing/InvoicePdf.php:164
 #: src/Printing/InvoicePdf.php:208
 #, php-format
 msgid "Umsatzsteuer %s %%"
 msgstr "IVA %s %%"
 
 #. translators: %s: rate
-#: src/Invoices.php:501 src/Partners/Settlements.php:895
+#: src/Invoices.php:553 src/Partners/Settlements.php:895
 #: src/Printing/InvoicePdf.php:168
 msgid "Rechnungsbetrag"
 msgstr "Totale fattura"
 
-#: src/Invoices.php:505 src/Printing/InvoicePdf.php:183
+#: src/Invoices.php:557 src/Printing/InvoicePdf.php:183
 msgid "Rechnungskorrektur"
 msgstr "Rettifica fattura"
 
 #. translators: 1: invoice number, 2: date
 #. translators: 1: invoice number, 2: invoice date
-#: src/Invoices.php:505 src/Printing/InvoicePdf.php:185
+#: src/Invoices.php:557 src/Printing/InvoicePdf.php:185
 #, php-format
 msgid "Korrektur zu Rechnung %1$s vom %2$s"
 msgstr "Rettifica della fattura %1$s del %2$s"
 
 #. translators: %s: rate
-#: src/Invoices.php:511 src/Printing/InvoicePdf.php:210
+#: src/Invoices.php:563 src/Printing/InvoicePdf.php:210
 msgid "Korrekturbetrag"
 msgstr "Importo della rettifica"
 
-#: src/Invoices.php:512 src/Partners/Settlements.php:826 src/TicketPage.php:58
+#: src/Invoices.php:564 src/Partners/Settlements.php:826 src/TicketPage.php:58
 msgid "Drucken oder als PDF speichern"
 msgstr "Stampa o salva come PDF"
 
 #. translators: %s: masked voucher code
-#: src/Invoices.php:710
+#: src/Invoices.php:944
 #, php-format
 msgid "Bezahlt mit Gutschein %s (Mehrzweckgutschein)"
 msgstr "Pagato con il buono %s (buono multiuso)"
 
 #. translators: %s: masked voucher code
-#: src/Invoices.php:713
+#: src/Invoices.php:947
 #, php-format
 msgid "Eingelöster Einzweckgutschein %s: Die Umsatzsteuer wurde bereits beim Verkauf des Gutscheins abgerechnet; der Gutscheinwert ist als Preisnachlass berücksichtigt."
 msgstr "Buono monouso %s riscattato: l’IVA è già stata liquidata al momento della vendita del buono; il valore del buono è considerato come riduzione di prezzo."
 
-#: src/Invoices.php:717
+#: src/Invoices.php:951
 msgid "Restbetrag (bezahlt)"
 msgstr "Importo residuo (pagato)"
 
-#: src/Invoices.php:718
+#: src/Invoices.php:952
 msgid "Der Gutschein ist ein Zahlungsmittel (Mehrzweckgutschein); die Umsatzsteuer ist auf den vollen Rechnungsbetrag ausgewiesen."
 msgstr "Il buono è un mezzo di pagamento (buono multiuso); l’IVA è esposta sull’intero importo della fattura."
 
-#: src/Invoices.php:727 src/Printing/InvoicePdf.php:345
+#: src/Invoices.php:961 src/Printing/InvoicePdf.php:345
 msgid "Zahlungen"
 msgstr "Pagamenti"
 
@@ -8466,6 +8462,16 @@ msgstr "Chiave o tipo del job non valido."
 #: src/Jobs.php:14
 msgid "Job konnte nicht eingeplant werden."
 msgstr "Impossibile pianificare il job."
+
+#. translators: %s: folder name of the old plugin copy
+#: src/LegacySlug.php:182
+#, php-format
+msgid "Die frühere Version von Pass Captain (Ordner „%s“) ist noch installiert. Sie wurde deaktiviert und kann unter „Plugins“ gelöscht werden – Bestellungen, Tickets und Einstellungen bleiben erhalten, Pass Captain nutzt dieselben Daten weiter."
+msgstr "La versione precedente di Pass Captain (cartella «%s») è ancora installata. È stata disattivata e può essere eliminata in «Plugin»: ordini, biglietti e impostazioni vengono mantenuti, Pass Captain continua a usare gli stessi dati."
+
+#: src/LegacySlug.php:187
+msgid "„Beim Löschen des Plugins alle Daten entfernen“ ist so lange pausiert und wird danach automatisch wieder eingeschaltet."
+msgstr "«Rimuovi tutti i dati quando il plugin viene eliminato» resta sospeso fino ad allora e poi viene riattivato automaticamente."
 
 #: src/Mail/Admin.php:46
 msgid "Unbekannter E-Mail-Typ."
@@ -9541,8 +9547,8 @@ msgid "Bitte eine vollständige URL angeben."
 msgstr "Inserisci un URL completo."
 
 #: src/Modules/Calendar.php:306
-msgid "Shortcode: [wp_pass_captain_calendar view=\"month\"] oder view=\"list\"; alternativ der Block „WP Pass Captain Kalender“."
-msgstr "Shortcode: [wp_pass_captain_calendar view=\"month\"] oppure view=\"list\"; in alternativa il blocco «WP Pass Captain Calendario»."
+msgid "Shortcode: [wp_pass_captain_calendar view=\"month\"] oder view=\"list\"; alternativ der Block „Pass Captain Kalender“."
+msgstr "Shortcode: [wp_pass_captain_calendar view=\"month\"] oppure view=\"list\"; in alternativa il blocco «Pass Captain Calendario»."
 
 #: src/Modules/Calendar.php:309
 msgid "Seite mit dem Ticket-Shortcode"
@@ -9572,8 +9578,8 @@ msgstr "Allega un file di calendario (.ics) per ogni data"
 
 #: src/Modules/GuestLists.php:33 src/Modules/GuestLists.php:37
 #: src/Modules/GuestLists.php:92
-msgid "WP Pass Captain Gästelisten"
-msgstr "Liste ospiti di WP Pass Captain"
+msgid "Pass Captain Gästelisten"
+msgstr "Liste ospiti di Pass Captain"
 
 #: src/Modules/GuestLists.php:59 src/Modules/GuestLists.php:62
 #: src/Modules/GuestLists.php:116
@@ -9657,8 +9663,8 @@ msgid "Offline-Scanner"
 msgstr "Scanner offline"
 
 #: src/Modules/Partners.php:35 src/Modules/Partners.php:39
-msgid "WP Pass Captain Veranstalter-Kontakte"
-msgstr "Contatti degli organizzatori di WP Pass Captain"
+msgid "Pass Captain Veranstalter-Kontakte"
+msgstr "Contatti degli organizzatori di Pass Captain"
 
 #: src/Modules/Partners.php:256 src/Partners/AdminPage.php:544
 msgid "Veranstalter-Abrechnungen"
@@ -9783,8 +9789,8 @@ msgid "Mobilnummer"
 msgstr "Numero di cellulare"
 
 #: src/Modules/Sms.php:245 src/Modules/Sms.php:249 src/Modules/Sms.php:277
-msgid "WP Pass Captain SMS-Einwilligungen"
-msgstr "Consensi SMS di WP Pass Captain"
+msgid "Pass Captain SMS-Einwilligungen"
+msgstr "Consensi SMS di Pass Captain"
 
 #: src/Modules/Sms.php:278
 msgid "(gelöscht)"
@@ -9945,8 +9951,8 @@ msgid "Wallet"
 msgstr "Wallet"
 
 #: src/Modules/Webhooks.php:40
-msgid "WP Pass Captain Webhook-Protokoll"
-msgstr "Registro webhook di WP Pass Captain"
+msgid "Pass Captain Webhook-Protokoll"
+msgstr "Registro webhook di Pass Captain"
 
 #: src/Modules/Webhooks.php:90 src/Modules/Webhooks.php:288
 msgid "Webhooks"
@@ -10315,8 +10321,8 @@ msgstr[0] "%d ora"
 msgstr[1] "%d ore"
 
 #: src/Operations/SiteHealth.php:134
-msgid "Zur Betriebsübersicht von WP Pass Captain"
-msgstr "Vai alla panoramica operativa di WP Pass Captain"
+msgid "Zur Betriebsübersicht von Pass Captain"
+msgstr "Vai alla panoramica operativa di Pass Captain"
 
 #. translators: 1: cron hook name, 2: duration, e.g. "20 Minuten"
 #: src/Operations/SiteHealth.php:183
@@ -10355,16 +10361,16 @@ msgid "Externen Cronjob einrichten"
 msgstr "Configura un cron job esterno"
 
 #: src/Operations/SiteHealth.php:201
-msgid "WP Pass Captain: geplante Aufgaben laufen nicht"
-msgstr "WP Pass Captain: le attività pianificate non vengono eseguite"
+msgid "Pass Captain: geplante Aufgaben laufen nicht"
+msgstr "Pass Captain: le attività pianificate non vengono eseguite"
 
 #: src/Operations/SiteHealth.php:204
-msgid "WP Pass Captain: geplante Aufgaben verspätet"
-msgstr "WP Pass Captain: attività pianificate in ritardo"
+msgid "Pass Captain: geplante Aufgaben verspätet"
+msgstr "Pass Captain: attività pianificate in ritardo"
 
 #: src/Operations/SiteHealth.php:206
-msgid "WP Pass Captain: geplante Aufgaben laufen pünktlich"
-msgstr "WP Pass Captain: le attività pianificate vengono eseguite puntualmente"
+msgid "Pass Captain: geplante Aufgaben laufen pünktlich"
+msgstr "Pass Captain: le attività pianificate vengono eseguite puntualmente"
 
 #. translators: 1: queue name, 2: number of due items, 3: waiting time of the oldest due item, e.g. "40 Minuten", 4: number of failed items
 #: src/Operations/SiteHealth.php:225
@@ -10373,20 +10379,20 @@ msgid "%1$s: fällig %2$d (ältester wartet seit %3$s), fehlgeschlagen %4$d."
 msgstr "%1$s: in scadenza %2$d (la più vecchia è in attesa da %3$s), non riuscite %4$d."
 
 #: src/Operations/SiteHealth.php:229
-msgid "WP Pass Captain: keine Rückstände in den Warteschlangen"
-msgstr "WP Pass Captain: nessun arretrato nelle code"
+msgid "Pass Captain: keine Rückstände in den Warteschlangen"
+msgstr "Pass Captain: nessun arretrato nelle code"
 
 #: src/Operations/SiteHealth.php:229
 msgid "Hintergrundjobs, E-Mails und Webhooks werden zeitnah verarbeitet; es gibt keine endgültig fehlgeschlagenen Einträge."
 msgstr "Job in background, e-mail e webhook vengono elaborati tempestivamente; non ci sono voci definitivamente non riuscite."
 
 #: src/Operations/SiteHealth.php:231
-msgid "WP Pass Captain: große Rückstände oder viele fehlgeschlagene Einträge"
-msgstr "WP Pass Captain: grandi arretrati o molte voci non riuscite"
+msgid "Pass Captain: große Rückstände oder viele fehlgeschlagene Einträge"
+msgstr "Pass Captain: grandi arretrati o molte voci non riuscite"
 
 #: src/Operations/SiteHealth.php:231
-msgid "WP Pass Captain: Rückstände oder fehlgeschlagene Einträge in den Warteschlangen"
-msgstr "WP Pass Captain: arretrati o voci non riuscite nelle code"
+msgid "Pass Captain: Rückstände oder fehlgeschlagene Einträge in den Warteschlangen"
+msgstr "Pass Captain: arretrati o voci non riuscite nelle code"
 
 #: src/Operations/SiteHealth.php:232
 msgid "Prüfe die Einträge und versuche sie erneut oder verwirf sie."
@@ -10399,8 +10405,8 @@ msgid "Innerhalb von %s ist kein Versand einer Plugin-E-Mail fehlgeschlagen."
 msgstr "Nell'arco di %s nessun invio di e-mail del plugin è fallito."
 
 #: src/Operations/SiteHealth.php:245
-msgid "WP Pass Captain: E-Mail-Versand ohne Fehler"
-msgstr "WP Pass Captain: invio e-mail senza errori"
+msgid "Pass Captain: E-Mail-Versand ohne Fehler"
+msgstr "Pass Captain: invio e-mail senza errori"
 
 #. translators: 1: number of failed mails, 2: period, e.g. "24 Stunden"
 #: src/Operations/SiteHealth.php:249
@@ -10417,8 +10423,8 @@ msgid "Letzter Fehler: Typ %1$s, Code %2$s %3$s"
 msgstr "Ultimo errore: tipo %1$s, codice %2$s %3$s"
 
 #: src/Operations/SiteHealth.php:253
-msgid "WP Pass Captain: E-Mails werden nicht zugestellt"
-msgstr "WP Pass Captain: le e-mail non vengono consegnate"
+msgid "Pass Captain: E-Mails werden nicht zugestellt"
+msgstr "Pass Captain: le e-mail non vengono consegnate"
 
 #: src/Operations/SiteHealth.php:253
 msgid "Prüfe die SMTP-Einstellungen bzw. das Mail-Plugin der Website."
@@ -10431,8 +10437,8 @@ msgid "Innerhalb von %s hat der SMS-Anbieter keinen Fehler gemeldet."
 msgstr "Nell'arco di %s il fornitore SMS non ha segnalato alcun errore."
 
 #: src/Operations/SiteHealth.php:273
-msgid "WP Pass Captain: SMS-Versand ohne Fehler"
-msgstr "WP Pass Captain: invio SMS senza errori"
+msgid "Pass Captain: SMS-Versand ohne Fehler"
+msgstr "Pass Captain: invio SMS senza errori"
 
 #. translators: 1: number of SMS, 2: period, e.g. "24 Stunden"
 #: src/Operations/SiteHealth.php:277
@@ -10443,8 +10449,8 @@ msgstr[0] "Nell'arco di %2$s %1$d SMS non è riuscito o non è stato consegnato.
 msgstr[1] "Nell'arco di %2$s %1$d SMS non sono riusciti o non sono stati consegnati."
 
 #: src/Operations/SiteHealth.php:278
-msgid "WP Pass Captain: SMS-Versand fehlerhaft"
-msgstr "WP Pass Captain: errori nell'invio SMS"
+msgid "Pass Captain: SMS-Versand fehlerhaft"
+msgstr "Pass Captain: errori nell'invio SMS"
 
 #: src/Operations/SiteHealth.php:278
 msgid "Prüfe Zugangsdaten und Guthaben beim SMS-Anbieter."
@@ -10467,24 +10473,24 @@ msgid "%1$s: Bestellungen innerhalb von %3$s: %2$d, letzte Webhook-Benachrichtig
 msgstr "%1$s: ordini nell'arco di %3$s: %2$d, ultima notifica webhook il %4$s (UTC)."
 
 #: src/Operations/SiteHealth.php:321
-msgid "WP Pass Captain: keine aktuellen Zahlungs-Webhooks"
-msgstr "WP Pass Captain: nessun webhook di pagamento recente"
+msgid "Pass Captain: keine aktuellen Zahlungs-Webhooks"
+msgstr "Pass Captain: nessun webhook di pagamento recente"
 
 #: src/Operations/SiteHealth.php:321
 msgid "Zahlungen werden über Webhooks des Zahlungsanbieters bestätigt. Prüfe die Webhook-URL und das Signatur-Secret im Dashboard des Anbieters."
 msgstr "I pagamenti vengono confermati tramite i webhook del fornitore di pagamento. Controlla l'URL del webhook e il signing secret nella dashboard del fornitore."
 
 #: src/Operations/SiteHealth.php:323
-msgid "WP Pass Captain: Zahlungs-Webhooks kommen an"
-msgstr "WP Pass Captain: i webhook di pagamento arrivano"
+msgid "Pass Captain: Zahlungs-Webhooks kommen an"
+msgstr "Pass Captain: i webhook di pagamento arrivano"
 
 #: src/Operations/SiteHealth.php:323
 msgid "Für alle aktiven Zahlungsanbieter mit aktuellen Bestellungen sind Webhook-Benachrichtigungen eingegangen."
 msgstr "Per tutti i fornitori di pagamento attivi con ordini recenti sono arrivate notifiche webhook."
 
 #: src/Operations/SiteHealth.php:353
-msgid "WP Pass Captain: Der Betrieb ist gestört."
-msgstr "WP Pass Captain: l'operatività è compromessa."
+msgid "Pass Captain: Der Betrieb ist gestört."
+msgstr "Pass Captain: l'operatività è compromessa."
 
 #: src/Operations/SiteHealth.php:353
 msgid "Betriebsübersicht öffnen"
@@ -10535,8 +10541,8 @@ msgid "Letzter Zahlungs-Webhook %s"
 msgstr "Ultimo webhook di pagamento %s"
 
 #: src/Operations/SiteHealth.php:414
-msgid "WP Pass Captain – Betrieb"
-msgstr "WP Pass Captain – Operatività"
+msgid "Pass Captain – Betrieb"
+msgstr "Pass Captain – Operatività"
 
 #: src/OrderPortal.php:85
 msgid "Abbrechen"
@@ -10818,8 +10824,8 @@ msgid "Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen."
 msgstr "Al momento non è stato possibile registrare il pagamento. Riprova."
 
 #: src/Orders.php:1066
-msgid "WP Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
-msgstr "WP Pass Captain: ordine pagato senza contingente disponibile"
+msgid "Pass Captain: Bezahlte Bestellung ohne freies Kontingent"
+msgstr "Pass Captain: ordine pagato senza contingente disponibile"
 
 #. translators: 1: order id, 2: buyer e-mail
 #: src/Orders.php:1066
@@ -11574,8 +11580,8 @@ msgid "Provision und Ticketgebühr bleiben bei Erstattungen bestehen"
 msgstr "Provvigione e commissione per biglietto restano in caso di rimborso"
 
 #: src/Partners/Repository.php:84
-msgid "WP Pass Captain Veranstalter (Ansprechperson)"
-msgstr "Organizzatore WP Pass Captain (referente)"
+msgid "Pass Captain Veranstalter (Ansprechperson)"
+msgstr "Organizzatore Pass Captain (referente)"
 
 #: src/Partners/Repository.php:85
 msgid "Organisation"
@@ -11986,7 +11992,7 @@ msgstr "Aliquota IVA %"
 #: src/Partners/Settlements.php:688 src/Partners/Settlements.php:694
 #: src/Partners/Settlements.php:804 src/Partners/Settlements.php:816
 #: src/Partners/Settlements.php:859 src/Partners/Statement.php:171
-#: src/Reports/Data.php:390 src/Reports/Page.php:143
+#: src/Reports/Data.php:434 src/Reports/Page.php:163
 msgid "USt"
 msgstr "IVA"
 
@@ -12003,7 +12009,7 @@ msgstr "Commissione per biglietto"
 msgid "Verkaufte Tickets"
 msgstr "Biglietti venduti"
 
-#: src/Partners/Settlements.php:700 src/Reports/Data.php:390
+#: src/Partners/Settlements.php:700 src/Reports/Data.php:434
 msgid "Erstattete Tickets"
 msgstr "Biglietti rimborsati"
 
@@ -12354,7 +12360,7 @@ msgstr "Venduto su"
 msgid "Gültig für"
 msgstr "Valido per"
 
-#: src/Passes/AdminPage.php:140 src/Reports/Data.php:407
+#: src/Passes/AdminPage.php:140 src/Reports/Data.php:458
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Verkauft"
 msgstr "Venduti"
@@ -12530,8 +12536,8 @@ msgid "Pass: Termin abgesagt"
 msgstr "Pass: data annullata"
 
 #: src/Passes/Cancellation.php:188
-msgid "WP Pass Captain: Erstattungen für abgesagte Pässe offen"
-msgstr "WP Pass Captain: rimborsi in sospeso per pass annullati"
+msgid "Pass Captain: Erstattungen für abgesagte Pässe offen"
+msgstr "Pass Captain: rimborsi in sospeso per pass annullati"
 
 #. translators: 1: pass name, 2: event name, 3: date, 4: number of orders, 5: order ids
 #: src/Passes/Cancellation.php:190
@@ -12824,8 +12830,8 @@ msgstr "È arrivato un pagamento per un ordine annullato o rimborsato. Non sono 
 
 #. translators: 1: order id, 2: provider, 3: reference, 4: message
 #: src/Payments/Webhooks.php:180
-msgid "WP Pass Captain: Zahlung prüfen"
-msgstr "WP Pass Captain: verifica pagamento"
+msgid "Pass Captain: Zahlung prüfen"
+msgstr "Pass Captain: verifica pagamento"
 
 #. translators: 1: order id, 2: provider, 3: reference, 4: message
 #: src/Payments/Webhooks.php:180
@@ -13161,11 +13167,11 @@ msgstr "Stampa con QR code: genera nuovi codici dei biglietti per tutti i biglie
 msgid "PDF erzeugen"
 msgstr "Genera PDF"
 
-#: src/Printing/Page.php:81 src/Reports/Page.php:138
+#: src/Printing/Page.php:81 src/Reports/Page.php:158
 msgid "Druckansicht"
 msgstr "Anteprima di stampa"
 
-#: src/Printing/Page.php:82 src/Reports/Page.php:70 src/Reports/Page.php:138
+#: src/Printing/Page.php:82 src/Reports/Page.php:70 src/Reports/Page.php:158
 #: src/Reports/Settlement.php:307
 msgid "CSV-Export"
 msgstr "Esportazione CSV"
@@ -13287,8 +13293,8 @@ msgid "Diese Vorlage gehört zu einem anderen Event."
 msgstr "Questo modello appartiene a un altro evento."
 
 #: src/Privacy.php:36 src/Privacy.php:41
-msgid "WP Pass Captain Bestellungen und Tickets"
-msgstr "Ordini e biglietti di WP Pass Captain"
+msgid "Pass Captain Bestellungen und Tickets"
+msgstr "Ordini e biglietti di Pass Captain"
 
 #. translators: %d: number of discarded scans
 #: src/Privacy.php:98
@@ -13343,12 +13349,12 @@ msgid "Käuferangaben auf der Rechnung"
 msgstr "Dati dell'acquirente in fattura"
 
 #: src/Privacy.php:161
-msgid "WP Pass Captain Bestellungen"
-msgstr "Ordini di WP Pass Captain"
+msgid "Pass Captain Bestellungen"
+msgstr "Ordini di Pass Captain"
 
 #: src/Privacy.php:177
-msgid "WP Pass Captain Pässe"
-msgstr "Pass di WP Pass Captain"
+msgid "Pass Captain Pässe"
+msgstr "Pass di Pass Captain"
 
 #: src/Privacy.php:178
 msgid "Passreferenz"
@@ -13359,8 +13365,8 @@ msgid "Gültig von/bis (UTC)"
 msgstr "Valido dal/fino al (UTC)"
 
 #: src/Privacy.php:185
-msgid "WP Pass Captain Warteliste"
-msgstr "Lista d'attesa di WP Pass Captain"
+msgid "Pass Captain Warteliste"
+msgstr "Lista d'attesa di Pass Captain"
 
 #: src/Privacy.php:187
 msgid "alle Termine"
@@ -13379,8 +13385,8 @@ msgid "Angebotsbestellung"
 msgstr "Ordine dell'offerta"
 
 #: src/Privacy.php:197
-msgid "WP Pass Captain Terminbuchungen"
-msgstr "Prenotazioni di appuntamenti WP Pass Captain"
+msgid "Pass Captain Terminbuchungen"
+msgstr "Prenotazioni di appuntamenti Pass Captain"
 
 #: src/Privacy.php:199
 msgid "Termin von/bis (UTC)"
@@ -13426,10 +13432,6 @@ msgstr "Cambio (da/a, differenza, commissione, stato, ora UTC)"
 msgid "Wallet-Pässe"
 msgstr "Pass wallet"
 
-#: src/Privacy.php:256
-msgid "WP Pass Captain Tickets"
-msgstr "Biglietti WP Pass Captain"
-
 #. translators: %d: number of tickets
 #: src/Privacy.php:284
 #, php-format
@@ -13437,8 +13439,8 @@ msgid "Hinweis: %d Ticket(s) anderer Käufer für bevorstehende Termine bleiben 
 msgstr "Nota: %d biglietto/i di altri acquirenti per date future restano validi; sono stati rimossi solo nome, e-mail e dati di questa persona come partecipante."
 
 #: src/Privacy.php:315
-msgid "WP Pass Captain: Löschanfrage zurückgestellt"
-msgstr "WP Pass Captain: richiesta di cancellazione rinviata"
+msgid "Pass Captain: Löschanfrage zurückgestellt"
+msgstr "Pass Captain: richiesta di cancellazione rinviata"
 
 #. translators: %d: number of orders
 #: src/Privacy.php:317
@@ -13509,8 +13511,8 @@ msgstr[0] "dopo il termine indicato per ciascun campo (nome ed e-mail dei partec
 msgstr[1] "dopo il termine indicato per ciascun campo (nome ed e-mail dei partecipanti: %d giorni) dalla fine dell'evento"
 
 #: src/Privacy/PolicyText.php:74
-msgid "Vorschlag von WP Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind."
-msgstr "Proposta di WP Pass Captain. Controllala e adattala alla tua azienda, ai tuoi contratti e ai tuoi processi effettivi; il testo non sostituisce una consulenza legale. Le sezioni sui fornitori di servizi compaiono solo se sono attivati nelle impostazioni."
+msgid "Vorschlag von Pass Captain. Bitte prüfen und an Ihr Unternehmen, Ihre Verträge und Ihre tatsächlichen Abläufe anpassen; der Text ersetzt keine Rechtsberatung. Abschnitte zu Dienstleistern erscheinen nur, wenn diese in den Einstellungen aktiviert sind."
+msgstr "Proposta di Pass Captain. Controllala e adattala alla tua azienda, ai tuoi contratti e ai tuoi processi effettivi; il testo non sostituisce una consulenza legale. Le sezioni sui fornitori di servizi compaiono solo se sono attivati nelle impostazioni."
 
 #: src/Privacy/PolicyText.php:76
 msgid "Ticketkauf, Tickets und Einlass"
@@ -13601,8 +13603,8 @@ msgid "Angebundene Systeme (Webhooks), z. B. Buchhaltung, CRM oder Newsletter-Di
 msgstr "Sistemi collegati (webhook), ad es. contabilità, CRM o servizio newsletter: eventi di ordini e biglietti; indirizzi e-mail solo se ciò è espressamente attivato per il sistema in questione."
 
 #: src/Privacy/PolicyText.php:105
-msgid "Affiliate-Programm (WP Affiliate Captain, auf diesem Server): Wenn Sie über einen Partnerlink kommen oder einen Partnercode eingeben, ordnen wir die Bestellung dem Partner zu, um dessen Provision abzurechnen. Den Empfehlungs-Cookie werten wir nur mit Ihrer Einwilligung aus (Art. 6 Abs. 1 lit. a DSGVO, § 165 Abs. 3 TKG 2021 bzw. § 25 TDDDG); bei einem selbst eingegebenen Code auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Ihre E-Mail-Adresse wird nur zur Prüfung von Eigenempfehlungen verwendet und dort nicht gespeichert."
-msgstr "Programma di affiliazione (WP Affiliate Captain, su questo server): se arrivi tramite un link partner o inserisci un codice partner, assegniamo l'ordine al partner per calcolare la sua commissione. Valutiamo il cookie di segnalazione solo con il tuo consenso (art. 6, par. 1, lett. a GDPR, § 165 comma 3 TKG 2021 o § 25 TDDDG); per un codice inserito da te, sulla base dell'art. 6, par. 1, lett. f GDPR. Il tuo indirizzo e-mail viene usato solo per verificare le auto-segnalazioni e non viene salvato lì."
+msgid "Affiliate-Programm (Affiliate Captain, auf diesem Server): Wenn Sie über einen Partnerlink kommen oder einen Partnercode eingeben, ordnen wir die Bestellung dem Partner zu, um dessen Provision abzurechnen. Den Empfehlungs-Cookie werten wir nur mit Ihrer Einwilligung aus (Art. 6 Abs. 1 lit. a DSGVO, § 165 Abs. 3 TKG 2021 bzw. § 25 TDDDG); bei einem selbst eingegebenen Code auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Ihre E-Mail-Adresse wird nur zur Prüfung von Eigenempfehlungen verwendet und dort nicht gespeichert."
+msgstr "Programma di affiliazione (Affiliate Captain, su questo server): se arrivi tramite un link partner o inserisci un codice partner, assegniamo l'ordine al partner per calcolare la sua commissione. Valutiamo il cookie di segnalazione solo con il tuo consenso (art. 6, par. 1, lett. a GDPR, § 165 comma 3 TKG 2021 o § 25 TDDDG); per un codice inserito da te, sulla base dell'art. 6, par. 1, lett. f GDPR. Il tuo indirizzo e-mail viene usato solo per verificare le auto-segnalazioni e non viene salvato lì."
 
 #: src/Privacy/PolicyText.php:106
 msgid "Unser Hosting- und E-Mail-Dienstleister als Auftragsverarbeiter."
@@ -14061,8 +14063,8 @@ msgid "Die Erstattung konnte nicht gespeichert werden."
 msgstr "Impossibile salvare il rimborso."
 
 #: src/Refunds.php:131
-msgid "WP Pass Captain: Stornierungsanfrage wartet auf Freigabe"
-msgstr "WP Pass Captain: richiesta di annullamento in attesa di approvazione"
+msgid "Pass Captain: Stornierungsanfrage wartet auf Freigabe"
+msgstr "Pass Captain: richiesta di annullamento in attesa di approvazione"
 
 #. translators: 1: order id, 2: amount
 #: src/Refunds.php:131
@@ -14071,8 +14073,8 @@ msgid "Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal 
 msgstr "Per l'ordine %1$s l'acquirente ha richiesto dal portale ordini un annullamento con rimborso di %2$s. Approva o rifiuta la richiesta in «Rimborsi da approvare»."
 
 #: src/Refunds.php:135 src/Refunds.php:220
-msgid "WP Pass Captain: Erstattung wartet auf Freigabe"
-msgstr "WP Pass Captain: rimborso in attesa di approvazione"
+msgid "Pass Captain: Erstattung wartet auf Freigabe"
+msgstr "Pass Captain: rimborso in attesa di approvazione"
 
 #. translators: 1: order id, 2: amount
 #: src/Refunds.php:135 src/Refunds.php:220
@@ -14152,54 +14154,58 @@ msgstr "Negozio WooCommerce"
 msgid "Online/sonstige"
 msgstr "Online/altro"
 
-#: src/Reports/Data.php:390 src/Reports/Settlement.php:243
+#: src/Reports/Data.php:434 src/Reports/Settlement.php:243
 #: src/Reports/Settlement.php:292
 msgid "Erstattet brutto"
 msgstr "Rimborsato lordo"
 
-#: src/Reports/Data.php:390
+#: src/Reports/Data.php:434
 msgid "Erstattet USt"
 msgstr "IVA rimborsata"
 
-#: src/Reports/Data.php:390 src/Reports/Page.php:143
+#: src/Reports/Data.php:434 src/Reports/Page.php:163
 #: src/Reports/Settlement.php:243 src/Reports/Settlement.php:292
 msgid "Umsatz nach Erstattung"
 msgstr "Ricavi dopo i rimborsi"
 
-#: src/Reports/Data.php:390
+#: src/Reports/Data.php:434
 msgid "USt nach Erstattung"
 msgstr "IVA dopo i rimborsi"
 
-#: src/Reports/Data.php:393 src/Reports/Page.php:98
+#: src/Reports/Data.php:434
+msgid "Netto nach Erstattung"
+msgstr "Netto dopo i rimborsi"
+
+#: src/Reports/Data.php:437 src/Reports/Page.php:110
 msgid "Zahlungsanbieter"
 msgstr "Fornitore di pagamenti"
 
-#: src/Reports/Data.php:393
+#: src/Reports/Data.php:437
 msgid "Tag"
 msgstr "Giorno"
 
-#: src/Reports/Data.php:407
+#: src/Reports/Data.php:458
 msgid "Auslastung %"
 msgstr "Occupazione %"
 
-#: src/Reports/Data.php:407
+#: src/Reports/Data.php:458
 msgid "Gültige Tickets"
 msgstr "Biglietti validi"
 
-#: src/Reports/Data.php:407
+#: src/Reports/Data.php:458
 msgid "Check-in-Quote %"
 msgstr "Tasso di check-in %"
 
-#: src/Reports/Data.php:412
+#: src/Reports/Data.php:463
 msgid "Rechnungskorrekturen"
 msgstr "Rettifiche fattura"
 
-#: src/Reports/Data.php:414 src/Reports/Page.php:83
+#: src/Reports/Data.php:465 src/Reports/Page.php:83
 #: src/Reports/Settlement.php:261 src/Reports/Settlement.php:329
 msgid "Freikarten (nicht im Umsatz)"
 msgstr "Biglietti omaggio (non inclusi nel fatturato)"
 
-#: src/Reports/Data.php:418 src/Reports/Page.php:115
+#: src/Reports/Data.php:469 src/Reports/Page.php:127
 msgid "Check-ins pro Stunde"
 msgstr "Check-in all'ora"
 
@@ -14234,85 +14240,107 @@ msgstr "di cui IVA"
 msgid "Rechnungskorrekturen (Belege)"
 msgstr "Rettifiche fattura (documenti)"
 
-#: src/Reports/Page.php:91
+#: src/Reports/Page.php:89
+msgid "Die Summen des Berichts stimmen nicht überein:"
+msgstr "I totali del report non corrispondono:"
+
+#: src/Reports/Page.php:93
+msgid "Umsatz nach Währung"
+msgstr "Fatturato per valuta"
+
+#: src/Reports/Page.php:93
+msgid "Im Zeitraum wurde in mehreren Währungen verkauft. Die Gesamtsummen oben sind nicht addierbar; maßgeblich sind die Summen je Währung."
+msgstr "Nel periodo si è venduto in più valute. I totali qui sopra non sono sommabili; fanno fede i totali per valuta."
+
+#: src/Reports/Page.php:103
 msgid "Kasse vs. online"
 msgstr "Cassa e online"
 
-#: src/Reports/Page.php:92
+#: src/Reports/Page.php:104
 msgid "Umsatz nach Kanal"
 msgstr "Ricavi per canale"
 
-#: src/Reports/Page.php:96
+#: src/Reports/Page.php:108
 msgid "Umsatz pro Tag"
 msgstr "Ricavi al giorno"
 
-#: src/Reports/Page.php:96
+#: src/Reports/Page.php:108
 msgid "Umsatz nach Erstattungen pro Tag"
 msgstr "Ricavi dopo i rimborsi al giorno"
 
 #. translators: %s: grouping (e.g. ticket type, channel)
-#: src/Reports/Page.php:100
+#: src/Reports/Page.php:112
 #, php-format
 msgid "Umsatz nach %s"
 msgstr "Ricavi per %s"
 
-#: src/Reports/Page.php:103 src/Reports/Settlement.php:320
+#: src/Reports/Page.php:115 src/Reports/Settlement.php:320
 msgid "Umsatzsteuer nach Satz"
 msgstr "IVA per aliquota"
 
-#: src/Reports/Page.php:106
+#: src/Reports/Page.php:118
 msgid "Auslastung und Check-in"
 msgstr "Occupazione e check-in"
 
-#: src/Reports/Page.php:106
+#: src/Reports/Page.php:118
 msgid "Eingecheckt / gültig"
 msgstr "Check-in effettuati / validi"
 
-#: src/Reports/Page.php:109
+#: src/Reports/Page.php:121
 msgid "Freikarten"
 msgstr "Biglietti omaggio"
 
-#: src/Reports/Page.php:109
+#: src/Reports/Page.php:121
 msgid "Einlass pro Stunde"
 msgstr "Ingressi all'ora"
 
-#: src/Reports/Page.php:121
+#: src/Reports/Page.php:133
 msgid "Buchhaltungsexport"
 msgstr "Esportazione contabile"
 
 #. translators: 1: from, 2: to
-#: src/Reports/Page.php:121
+#: src/Reports/Page.php:133
 #, php-format
 msgid "Buchhaltungsexport %1$s bis %2$s (CSV)"
 msgstr "Esportazione contabile dal %1$s al %2$s (CSV)"
 
 #. translators: 1: from, 2: to
-#: src/Reports/Page.php:122
+#: src/Reports/Page.php:135
+#, php-format
+msgid "Buchungsstapel %1$s bis %2$s (DATEV-Format, CSV)"
+msgstr "Lotto di registrazioni dal %1$s al %2$s (formato DATEV, CSV)"
+
+#. translators: 1: from, 2: to
+#: src/Reports/Page.php:136
 msgid "Rechnungen, Rechnungskorrekturen sowie Verkäufe und Erstattungen ohne Rechnung (z. B. Kasse, Partner-API, automatische Rechnungen aus). Tagesgrenzen in der Zeitzone der Website."
 msgstr "Fatture, rettifiche fattura nonché vendite e rimborsi senza fattura (ad es. cassa, API partner, fatture automatiche disattivate). Limiti giornalieri nel fuso orario del sito web."
 
-#: src/Reports/Page.php:130
+#: src/Reports/Page.php:141
+msgid "Lücken in den Belegnummern:"
+msgstr "Lacune nella numerazione dei documenti:"
+
+#: src/Reports/Page.php:150
 msgid "Abrechnungsblatt pro Termin (Door Deal)"
 msgstr "Foglio di rendiconto per data (door deal)"
 
-#: src/Reports/Page.php:131
+#: src/Reports/Page.php:151
 msgid "Keine Termine im Zugriff."
 msgstr "Nessuna data accessibile."
 
-#: src/Reports/Page.php:136 src/Reports/Settlement.php:305
+#: src/Reports/Page.php:156 src/Reports/Settlement.php:305
 msgid "Fixbetrag"
 msgstr "Importo fisso"
 
-#: src/Reports/Page.php:137 src/Reports/Settlement.php:276
+#: src/Reports/Page.php:157 src/Reports/Settlement.php:276
 #: src/Reports/Settlement.php:306
 msgid "Anteil %"
 msgstr "Quota %"
 
-#: src/Reports/Page.php:139
+#: src/Reports/Page.php:159
 msgid "Alle Verkäufe und Erstattungen des Termins nach Ticketart und Kanal, Freikarten, USt je Satz, Kasse nach Zahlungsart, Check-ins und No-Shows. Deal: vom Netto-Umsatz nach Erstattungen wird zuerst der Fixbetrag abgezogen, vom Rest erhält der Künstler/Veranstalter den Anteil. Die Deal-Werte werden nicht gespeichert."
 msgstr "Tutte le vendite e i rimborsi della data per tipo di biglietto e canale, biglietti omaggio, IVA per aliquota, cassa per metodo di pagamento, check-in e no-show. Deal: dal fatturato netto al netto dei rimborsi viene detratto prima l'importo fisso; del resto l'artista/organizzatore riceve la quota. I valori del deal non vengono salvati."
 
-#: src/Reports/Page.php:147
+#: src/Reports/Page.php:167
 msgid "Keine Daten im Zeitraum."
 msgstr "Nessun dato nel periodo."
 
@@ -14975,8 +15003,8 @@ msgid "Für diese Ticketart sind keine passenden Sitzplätze mehr frei."
 msgstr "Per questo tipo di biglietto non ci sono più posti adatti liberi."
 
 #: src/Seating/Reservations.php:293
-msgid "WP Pass Captain: Sitzplätze nach verspäteter Zahlung fehlen"
-msgstr "WP Pass Captain: posti mancanti dopo pagamento tardivo"
+msgid "Pass Captain: Sitzplätze nach verspäteter Zahlung fehlen"
+msgstr "Pass Captain: posti mancanti dopo pagamento tardivo"
 
 #. translators: %d: order id
 #: src/Seating/Reservations.php:293
@@ -15096,16 +15124,16 @@ msgid "Wird verschlüsselt gespeichert. Alternativ als Konstante %s in wp-config
 msgstr "Viene salvato in forma cifrata. In alternativa definiscilo come costante %s in wp-config.php."
 
 #: src/Secrets.php:428
-msgid "WP Pass Captain: Gespeicherte Zugangsdaten können nicht entschlüsselt werden."
-msgstr "WP Pass Captain: impossibile decifrare le credenziali di accesso salvate."
+msgid "Pass Captain: Gespeicherte Zugangsdaten können nicht entschlüsselt werden."
+msgstr "Pass Captain: impossibile decifrare le credenziali di accesso salvate."
 
 #: src/Secrets.php:430
 msgid "Die betroffenen Zahlungsarten und Dienste gelten bis zur Behebung als nicht eingerichtet. Ursache ist meist ein geänderter WPCAP_SECRETS_KEY oder geänderte WordPress-Salts: den bisherigen Schlüssel als WPCAP_SECRETS_KEY_PREVIOUS in wp-config.php eintragen oder die Werte in den Einstellungen neu eingeben."
 msgstr "I metodi di pagamento e i servizi interessati sono considerati non configurati finché il problema non viene risolto. La causa è di solito una WPCAP_SECRETS_KEY modificata o salt di WordPress modificati: inserisci la chiave precedente come WPCAP_SECRETS_KEY_PREVIOUS in wp-config.php oppure inserisci di nuovo i valori nelle impostazioni."
 
 #: src/Secrets.php:434
-msgid "WP Pass Captain: Zugangsdaten (z. B. Stripe, PayPal) werden mit einem aus den WordPress-Salts abgeleiteten Schlüssel verschlüsselt. Empfohlen: einen eigenen Schlüssel als Konstante WPCAP_SECRETS_KEY in wp-config.php festlegen (mindestens 32 zufällige Zeichen) – sonst werden die Zugangsdaten unlesbar, wenn die Salts erneuert werden."
-msgstr "WP Pass Captain: le credenziali di accesso (ad es. Stripe, PayPal) vengono cifrate con una chiave derivata dai salt di WordPress. Consigliato: definisci una chiave propria come costante WPCAP_SECRETS_KEY in wp-config.php (almeno 32 caratteri casuali); altrimenti le credenziali diventano illeggibili quando i salt vengono rinnovati."
+msgid "Pass Captain: Zugangsdaten (z. B. Stripe, PayPal) werden mit einem aus den WordPress-Salts abgeleiteten Schlüssel verschlüsselt. Empfohlen: einen eigenen Schlüssel als Konstante WPCAP_SECRETS_KEY in wp-config.php festlegen (mindestens 32 zufällige Zeichen) – sonst werden die Zugangsdaten unlesbar, wenn die Salts erneuert werden."
+msgstr "Pass Captain: le credenziali di accesso (ad es. Stripe, PayPal) vengono cifrate con una chiave derivata dai salt di WordPress. Consigliato: definisci una chiave propria come costante WPCAP_SECRETS_KEY in wp-config.php (almeno 32 caratteri casuali); altrimenti le credenziali diventano illeggibili quando i salt vengono rinnovati."
 
 #: src/Secrets.php:445
 msgid "aus WordPress-Salts abgeleitet"
@@ -15132,8 +15160,8 @@ msgid "nicht gesetzt"
 msgstr "non impostato"
 
 #: src/Secrets.php:452
-msgid "WP Pass Captain – Zugangsdaten"
-msgstr "WP Pass Captain – credenziali di accesso"
+msgid "Pass Captain – Zugangsdaten"
+msgstr "Pass Captain – credenziali di accesso"
 
 #. translators: 1: created, 2: skipped existing, 3: skipped past
 #: src/Series/AdminPage.php:47
@@ -15887,7 +15915,7 @@ msgstr "La fascia oraria ha delle prenotazioni e non può essere eliminata. Chiu
 msgid "Der HTTP-SMS-Anbieter ist nicht konfiguriert (HTTPS-Endpunkt erforderlich)."
 msgstr "Il provider SMS HTTP non è configurato (è richiesto un endpoint HTTPS)."
 
-#: src/Sms/Service.php:238 src/Sms/Service.php:258
+#: src/Sms/Service.php:239 src/Sms/Service.php:259
 msgid "Ungültige Signatur."
 msgstr "Firma non valida."
 
@@ -16614,8 +16642,8 @@ msgstr "Impossibile salvare il webhook."
 
 #. translators: 1: webhook id, 2: failure count
 #: src/Webhooks/Dispatcher.php:268
-msgid "WP Pass Captain: Webhook deaktiviert"
-msgstr "WP Pass Captain: webhook disattivato"
+msgid "Pass Captain: Webhook deaktiviert"
+msgstr "Pass Captain: webhook disattivato"
 
 #. translators: 1: webhook id, 2: failure count
 #: src/Webhooks/Dispatcher.php:268

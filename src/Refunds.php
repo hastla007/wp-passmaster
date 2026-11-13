@@ -45,10 +45,10 @@ final class Refunds {
 		}
 		$order = Orders::get( $order_id );
 		if ( ! $order || 'paid' !== $order->payment_status ) {
-			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		if ( 'woocommerce' === $order->payment_provider ) {
-			return new \WP_Error( 'wpcap_refund_woocommerce', __( 'WooCommerce-Bestellungen bitte in WooCommerce erstatten; die Tickets werden automatisch widerrufen.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_refund_woocommerce', __( 'WooCommerce-Bestellungen bitte in WooCommerce erstatten; die Tickets werden automatisch widerrufen.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		// Serialise refund requests per order: overlap and approval checks below must see every
 		// refund that is already pending or running for this order.
@@ -56,7 +56,7 @@ final class Refunds {
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
 		if ( $existing ) { $wpdb->query( 'ROLLBACK' ); return $existing; }
@@ -64,7 +64,7 @@ final class Refunds {
 		$requested = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
 		if ( $requested && array_intersect( $requested, $open['ticket_ids'] ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_refund_overlap', __( 'Für mindestens eines der gewählten Tickets läuft bereits eine Erstattung oder sie wartet auf Freigabe.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_refund_overlap', __( 'Für mindestens eines der gewählten Tickets läuft bereits eine Erstattung oder sie wartet auf Freigabe.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$calc = self::calculate( $order, $requested, $open['ticket_ids'], $open['amount_minor'] );
 		if ( is_wp_error( $calc ) ) { $wpdb->query( 'ROLLBACK' ); return $calc; }
@@ -81,15 +81,15 @@ final class Refunds {
 					'wpcap_refund_used_tickets',
 					current_user_can( self::APPROVE_CAP )
 						/* translators: %d: number of tickets */
-						? sprintf( _n( '%d gewähltes Ticket wurde bereits zum Einlass genutzt. Für eine Erstattung bitte eine Ausnahme mit Begründung angeben.', '%d gewählte Tickets wurden bereits zum Einlass genutzt. Für eine Erstattung bitte eine Ausnahme mit Begründung angeben.', count( $used ), 'wp-pass-captain' ), count( $used ) )
+						? sprintf( _n( '%d gewähltes Ticket wurde bereits zum Einlass genutzt. Für eine Erstattung bitte eine Ausnahme mit Begründung angeben.', '%d gewählte Tickets wurden bereits zum Einlass genutzt. Für eine Erstattung bitte eine Ausnahme mit Begründung angeben.', count( $used ), 'pass-captain' ), count( $used ) )
 						/* translators: %d: number of tickets */
-						: sprintf( _n( '%d gewähltes Ticket wurde bereits zum Einlass genutzt und kann nur mit Freigabeberechtigung erstattet werden.', '%d gewählte Tickets wurden bereits zum Einlass genutzt und können nur mit Freigabeberechtigung erstattet werden.', count( $used ), 'wp-pass-captain' ), count( $used ) ),
+						: sprintf( _n( '%d gewähltes Ticket wurde bereits zum Einlass genutzt und kann nur mit Freigabeberechtigung erstattet werden.', '%d gewählte Tickets wurden bereits zum Einlass genutzt und können nur mit Freigabeberechtigung erstattet werden.', count( $used ), 'pass-captain' ), count( $used ) ),
 					array( 'status' => 409, 'used_ticket_ids' => $used )
 				);
 			}
 			$args['require_approval'] = true;
 			/* translators: %s: reason for the exception */
-			$reason = trim( $reason . ' ' . sprintf( __( '[eingelassen, Ausnahme: %s]', 'wp-pass-captain' ), $used_override ) );
+			$reason = trim( $reason . ' ' . sprintf( __( '[eingelassen, Ausnahme: %s]', 'pass-captain' ), $used_override ) );
 		}
 
 		// The threshold applies to everything refunded or pending for this order, so splitting a
@@ -119,20 +119,20 @@ final class Refunds {
 		if ( false === $inserted ) {
 			$wpdb->query( 'ROLLBACK' );
 			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
-			return $existing ? $existing : new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+			return $existing ? $existing : new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
 		$refund_id = (int) $wpdb->insert_id;
 		if ( false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			return new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		}
 		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval, 'source' => '' !== $source ? $source : 'admin' ) );
 		if ( $needs_approval && 'portal' === $source ) {
-			wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Stornierungsanfrage wartet auf Freigabe', 'wp-pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal eine Stornierung mit Erstattung über %2$s angefragt. Bitte unter „Erstattungen zur Freigabe“ freigeben oder ablehnen.', 'wp-pass-captain' ), $order->public_id, number_format_i18n( $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Stornierungsanfrage wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal eine Stornierung mit Erstattung über %2$s angefragt. Bitte unter „Erstattungen zur Freigabe“ freigeben oder ablehnen.', 'pass-captain' ), $order->public_id, number_format_i18n( $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
 			return self::get( $refund_id );
 		}
 		if ( $needs_approval ) {
-			wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Erstattung wartet auf Freigabe', 'wp-pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'wp-pass-captain' ), $order->public_id, number_format_i18n( $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, number_format_i18n( $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
 			return self::get( $refund_id );
 		}
 		return self::execute( $refund_id );
@@ -166,17 +166,17 @@ final class Refunds {
 			if ( is_wp_error( $check ) ) { return $check; }
 		}
 		if ( $amount_minor < 1 ) {
-			return new \WP_Error( 'wpcap_refund_amount', __( 'Der Erstattungsbetrag muss größer als 0 sein.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_refund_amount', __( 'Der Erstattungsbetrag muss größer als 0 sein.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$wpdb->query( 'START TRANSACTION' );
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		if ( 'woocommerce' === $order->payment_provider ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_refund_woocommerce', __( 'WooCommerce-Bestellungen bitte in WooCommerce erstatten; die Tickets werden automatisch widerrufen.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_refund_woocommerce', __( 'WooCommerce-Bestellungen bitte in WooCommerce erstatten; die Tickets werden automatisch widerrufen.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
 		if ( $existing ) { $wpdb->query( 'ROLLBACK' ); return $existing; }
@@ -184,7 +184,7 @@ final class Refunds {
 		$remaining = (int) $order->total_minor - (int) $order->refunded_minor - $open['amount_minor'];
 		if ( $amount_minor > $remaining ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_refund_amount', __( 'Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_refund_amount', __( 'Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$tax = isset( $args['tax_minor'] ) ? min( $amount_minor, absint( $args['tax_minor'] ) ) : self::tax_for( $order, null, $amount_minor );
 		$threshold = (int) Settings::get( 'refund_approval_threshold' );
@@ -208,16 +208,16 @@ final class Refunds {
 		if ( false === $inserted ) {
 			$wpdb->query( 'ROLLBACK' );
 			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
-			return $existing ? $existing : new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+			return $existing ? $existing : new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
 		$refund_id = (int) $wpdb->insert_id;
 		if ( false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			return new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		}
 		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $amount_minor, 'needs_approval' => $needs_approval, 'amount_only' => true ) );
 		if ( $needs_approval ) {
-			wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Erstattung wartet auf Freigabe', 'wp-pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'wp-pass-captain' ), $order->public_id, number_format_i18n( $amount_minor / 100, 2 ) . ' ' . $order->currency ) );
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, number_format_i18n( $amount_minor / 100, 2 ) . ' ' . $order->currency ) );
 			return self::get( $refund_id );
 		}
 		return self::execute( $refund_id );
@@ -227,10 +227,10 @@ final class Refunds {
 	public static function approve( $refund_id ) {
 		$refund = self::get( $refund_id );
 		if ( ! $refund || 'pending_approval' !== $refund['status'] ) {
-			return new \WP_Error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		if ( ! current_user_can( self::APPROVE_CAP ) || (int) $refund['requested_by'] === get_current_user_id() ) {
-			return new \WP_Error( 'wpcap_refund_approver', __( 'Die Freigabe muss durch eine andere berechtigte Person erfolgen.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_refund_approver', __( 'Die Freigabe muss durch eine andere berechtigte Person erfolgen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$check = self::check_actor();
 		if ( is_wp_error( $check ) ) { return $check; }
@@ -238,7 +238,7 @@ final class Refunds {
 		$approved = $wpdb->update( $wpdb->prefix . 'wpcap_refunds', array( 'status' => 'approved', 'approved_by' => get_current_user_id(), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => absint( $refund_id ), 'status' => 'pending_approval' ) );
 		if ( 1 !== (int) $approved ) {
 			// Approved/rejected by someone else meanwhile, or a database error: never execute twice.
-			return new \WP_Error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		Audit::record( 'refund_approved', 'order', (int) $refund['order_id'], array( 'refund_id' => absint( $refund_id ) ) );
 		return self::execute( $refund_id );
@@ -248,7 +248,7 @@ final class Refunds {
 	public static function reject( $refund_id, $reason = '' ) {
 		global $wpdb;
 		if ( ! current_user_can( self::APPROVE_CAP ) ) {
-			return new \WP_Error( 'wpcap_refund_approver', __( 'Keine Berechtigung.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_refund_approver', __( 'Keine Berechtigung.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_refunds', array( 'status' => 'rejected', 'error_message' => substr( sanitize_text_field( $reason ), 0, 255 ), 'approved_by' => get_current_user_id(), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => absint( $refund_id ), 'status' => 'pending_approval' ) );
 		if ( $updated ) {
@@ -258,7 +258,7 @@ final class Refunds {
 			do_action( 'wpcap_refund_rejected', absint( $refund_id ), (int) $rejected['order_id'] );
 			return $rejected;
 		}
-		return new \WP_Error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+		return new \WP_Error( 'wpcap_refund_not_pending', __( 'Diese Erstattung wartet nicht auf Freigabe.', 'pass-captain' ), array( 'status' => 409 ) );
 	}
 
 	/**
@@ -276,7 +276,7 @@ final class Refunds {
 		$resume = $refund && 'processing' === $refund['status'] && '' !== (string) $refund['provider_reference'];
 		if ( ! $refund || ( ! $resume && ! in_array( $refund['status'], array( 'approved', 'failed' ), true ) ) ) {
 			$wpdb->query( 'COMMIT' );
-			return $refund ? $refund : new \WP_Error( 'wpcap_refund_missing', __( 'Erstattung nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+			return $refund ? $refund : new \WP_Error( 'wpcap_refund_missing', __( 'Erstattung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		if ( $resume ) {
 			$wpdb->query( 'COMMIT' );
@@ -296,7 +296,7 @@ final class Refunds {
 		if ( false === $moved || false === $wpdb->query( 'COMMIT' ) ) {
 			// Nothing paid out yet: safe to retry.
 			$wpdb->query( 'ROLLBACK' );
-			return Errors::busy( __( 'Die Erstattung konnte gerade nicht gestartet werden. Bitte erneut versuchen.', 'wp-pass-captain' ) );
+			return Errors::busy( __( 'Die Erstattung konnte gerade nicht gestartet werden. Bitte erneut versuchen.', 'pass-captain' ) );
 		}
 
 		$order = Orders::get( (int) $refund['order_id'] );
@@ -352,7 +352,7 @@ final class Refunds {
 			// Stays "processing" with its provider reference: repair_stuck() finishes it later.
 			$wpdb->query( 'ROLLBACK' );
 			Audit::record( 'refund_bookkeeping_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id ) );
-			return Errors::busy( __( 'Die Erstattung wurde ausgezahlt, konnte aber noch nicht verbucht werden; sie wird automatisch nachgebucht.', 'wp-pass-captain' ) );
+			return Errors::busy( __( 'Die Erstattung wurde ausgezahlt, konnte aber noch nicht verbucht werden; sie wird automatisch nachgebucht.', 'pass-captain' ) );
 		}
 		if ( ! empty( $revoked_ids ) ) {
 			Orders::fire_revoked( $revoked_ids, 'refund_' . $refund_id );
@@ -423,7 +423,7 @@ final class Refunds {
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( ! $order || ! in_array( $order->payment_status, array( 'paid', 'refunded' ), true ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$ticket_ids = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
 		if ( $ticket_ids ) {
@@ -456,7 +456,7 @@ final class Refunds {
 		if ( false === $inserted ) {
 			$wpdb->query( 'ROLLBACK' );
 			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
-			return $existing ? $existing : new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+			return $existing ? $existing : new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
 		$refund_id = (int) $wpdb->insert_id;
 		$revoked_ids = array();
@@ -472,7 +472,7 @@ final class Refunds {
 		if ( false === $total_ok || false === $wpdb->query( 'COMMIT' ) ) {
 			// Nothing recorded: the adapter may retry with the same idempotency key.
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			return new \WP_Error( 'wpcap_refund_save', __( 'Die Erstattung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		}
 		if ( $ticket_ids ) { CapacityCounters::sync_order_now( $order_id ); }
 		Orders::fire_revoked( $revoked_ids, 'refund_' . $refund_id );
@@ -513,7 +513,7 @@ final class Refunds {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		if ( ! $order || ! in_array( $order->payment_status, array( 'paid', 'refunded' ), true ) ) {
-			return __( 'Die Bestellung kann nicht mehr erstattet werden.', 'wp-pass-captain' );
+			return __( 'Die Bestellung kann nicht mehr erstattet werden.', 'pass-captain' );
 		}
 		$ticket_ids = array_values( array_filter( array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) ) ) );
 		if ( $ticket_ids ) {
@@ -521,14 +521,14 @@ final class Refunds {
 			$open = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND order_id=%d AND refunded=0 FOR UPDATE", (int) $refund['order_id'] ) );
 			$running = self::open_refunds( (int) $refund['order_id'], array( 'processing' ), (int) $refund['refund_id'] );
 			if ( $open !== count( $ticket_ids ) || array_intersect( $ticket_ids, $running['ticket_ids'] ) ) {
-				return __( 'Mindestens eines der Tickets wurde bereits erstattet; die Erstattung wurde nicht ausgeführt.', 'wp-pass-captain' );
+				return __( 'Mindestens eines der Tickets wurde bereits erstattet; die Erstattung wurde nicht ausgeführt.', 'pass-captain' );
 			}
 		} else {
 			$running = self::open_refunds( (int) $refund['order_id'], array( 'processing' ), (int) $refund['refund_id'] );
 		}
 		$remaining = (int) $order->total_minor - (int) $order->refunded_minor - $running['amount_minor'];
 		if ( (int) $refund['amount_minor'] > $remaining ) {
-			return __( 'Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag; die Erstattung wurde nicht ausgeführt.', 'wp-pass-captain' );
+			return __( 'Der Erstattungsbetrag übersteigt den noch offenen Bestellbetrag; die Erstattung wurde nicht ausgeführt.', 'pass-captain' );
 		}
 		return '';
 	}
@@ -582,7 +582,7 @@ final class Refunds {
 		$open_ids = array_values( array_diff( array_map( static function ( $t ) { return (int) $t->ticket_id; }, $open ), array_map( 'intval', $reserved_ids ) ) );
 		$ticket_ids = $ticket_ids ? array_values( array_unique( array_map( 'absint', $ticket_ids ) ) ) : $open_ids;
 		if ( ! $ticket_ids || array_diff( $ticket_ids, $open_ids ) ) {
-			return new \WP_Error( 'wpcap_refund_tickets', __( 'Die gewählten Tickets gehören nicht zur Bestellung oder wurden bereits erstattet.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_refund_tickets', __( 'Die gewählten Tickets gehören nicht zur Bestellung oder wurden bereits erstattet.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$remaining_total = max( 0, (int) $order->total_minor - (int) $order->refunded_minor - max( 0, (int) $reserved_minor ) );
 		if ( count( $ticket_ids ) === count( $open_ids ) ) {
@@ -613,10 +613,10 @@ final class Refunds {
 	/** Optional enforcement of two-factor authentication for refund actions. */
 	private static function check_actor() {
 		if ( ! current_user_can( self::REFUND_CAP ) && ! current_user_can( self::APPROVE_CAP ) ) {
-			return new \WP_Error( 'wpcap_refund_forbidden', __( 'Keine Berechtigung für Erstattungen.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_refund_forbidden', __( 'Keine Berechtigung für Erstattungen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		if ( Settings::get( 'require_2fa_for_refunds' ) && ! self::user_has_2fa( get_current_user_id() ) ) {
-			return new \WP_Error( 'wpcap_refund_2fa', __( 'Für Erstattungen ist eine aktivierte Zwei-Faktor-Anmeldung erforderlich.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_refund_2fa', __( 'Für Erstattungen ist eine aktivierte Zwei-Faktor-Anmeldung erforderlich.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		return true;
 	}

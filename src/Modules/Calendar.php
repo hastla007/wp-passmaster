@@ -37,7 +37,7 @@ final class Calendar {
 	}
 
 	public static function admin_pages() {
-		return array( array( self::PAGE, __( 'Kalender', 'wp-pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
+		return array( array( self::PAGE, __( 'Kalender', 'pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
 	}
 
 	public static function admin_handlers() {
@@ -62,7 +62,7 @@ final class Calendar {
 		if ( null === $body ) {
 			status_header( 404 );
 			nocache_headers();
-			echo esc_html__( 'Kalendereintrag nicht gefunden.', 'wp-pass-captain' );
+			echo esc_html__( 'Kalendereintrag nicht gefunden.', 'pass-captain' );
 			exit;
 		}
 		header( 'Content-Type: text/calendar; charset=utf-8' );
@@ -197,7 +197,7 @@ final class Calendar {
 		$rows = self::occurrences( current_time( 'mysql', true ), '9999-12-31 00:00:00', $event_id, $limit ?: 50, self::show_cancelled() );
 		$out = '<div class="wpcap-calendar wpcap-calendar-list">';
 		if ( ! $rows ) {
-			return $out . '<p>' . esc_html__( 'Aktuell sind keine Termine geplant.', 'wp-pass-captain' ) . '</p></div>';
+			return $out . '<p>' . esc_html__( 'Aktuell sind keine Termine geplant.', 'pass-captain' ) . '</p></div>';
 		}
 		$badges = self::badges_for( $rows );
 		$out .= '<ul class="wpcap-cal-items">';
@@ -209,7 +209,7 @@ final class Calendar {
 			if ( '' !== (string) $row->location ) { $out .= ' <span class="wpcap-cal-location">' . esc_html( $row->location ) . '</span>'; }
 			$out .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() );
 			/* translators: %s: event name */
-			$out .= $cancelled ? '' : ' <a class="wpcap-cal-ics" href="' . esc_url( Ics::occurrence_url( $row->occurrence_id ) ) . '" aria-label="' . esc_attr( sprintf( __( '%s zum Kalender hinzufügen (.ics)', 'wp-pass-captain' ), $row->event_name ) ) . '">' . esc_html__( 'Zum Kalender (.ics)', 'wp-pass-captain' ) . '</a>';
+			$out .= $cancelled ? '' : ' <a class="wpcap-cal-ics" href="' . esc_url( Ics::occurrence_url( $row->occurrence_id ) ) . '" aria-label="' . esc_attr( sprintf( __( '%s zum Kalender hinzufügen (.ics)', 'pass-captain' ), $row->event_name ) ) . '">' . esc_html__( 'Zum Kalender (.ics)', 'pass-captain' ) . '</a>';
 			$out .= '</li>';
 		}
 		return $out . '</ul></div>';
@@ -239,14 +239,14 @@ final class Calendar {
 			$dt->setTimezone( $tz );
 			$by_day[ $dt->format( 'Y-m-d' ) ][] = $row;
 		}
-		$months = array( 1 => __( 'Januar', 'wp-pass-captain' ), __( 'Februar', 'wp-pass-captain' ), __( 'März', 'wp-pass-captain' ), __( 'April', 'wp-pass-captain' ), __( 'Mai', 'wp-pass-captain' ), __( 'Juni', 'wp-pass-captain' ), __( 'Juli', 'wp-pass-captain' ), __( 'August', 'wp-pass-captain' ), __( 'September', 'wp-pass-captain' ), __( 'Oktober', 'wp-pass-captain' ), __( 'November', 'wp-pass-captain' ), __( 'Dezember', 'wp-pass-captain' ) );
-		$days = array( __( 'Montag', 'wp-pass-captain' ), __( 'Dienstag', 'wp-pass-captain' ), __( 'Mittwoch', 'wp-pass-captain' ), __( 'Donnerstag', 'wp-pass-captain' ), __( 'Freitag', 'wp-pass-captain' ), __( 'Samstag', 'wp-pass-captain' ), __( 'Sonntag', 'wp-pass-captain' ) );
+		$months = array( 1 => __( 'Januar', 'pass-captain' ), __( 'Februar', 'pass-captain' ), __( 'März', 'pass-captain' ), __( 'April', 'pass-captain' ), __( 'Mai', 'pass-captain' ), __( 'Juni', 'pass-captain' ), __( 'Juli', 'pass-captain' ), __( 'August', 'pass-captain' ), __( 'September', 'pass-captain' ), __( 'Oktober', 'pass-captain' ), __( 'November', 'pass-captain' ), __( 'Dezember', 'pass-captain' ) );
+		$days = array( __( 'Montag', 'pass-captain' ), __( 'Dienstag', 'pass-captain' ), __( 'Mittwoch', 'pass-captain' ), __( 'Donnerstag', 'pass-captain' ), __( 'Freitag', 'pass-captain' ), __( 'Samstag', 'pass-captain' ), __( 'Sonntag', 'pass-captain' ) );
 		$title = $months[ (int) $first->format( 'n' ) ] . ' ' . $first->format( 'Y' );
 		$base = function_exists( 'get_permalink' ) ? (string) get_permalink() : home_url( '/' );
 		$out = '<div class="wpcap-calendar wpcap-calendar-month">';
-		$out .= '<nav class="wpcap-cal-nav" aria-label="' . esc_attr__( 'Monat wechseln', 'wp-pass-captain' ) . '">';
-		$out .= '<a href="' . esc_url( add_query_arg( 'wpcap_month', $prev->format( 'Y-m' ), $base ) ) . '" rel="prev">' . esc_html__( '← Vorheriger Monat', 'wp-pass-captain' ) . '</a> ';
-		$out .= '<a href="' . esc_url( add_query_arg( 'wpcap_month', $next->format( 'Y-m' ), $base ) ) . '" rel="next">' . esc_html__( 'Nächster Monat →', 'wp-pass-captain' ) . '</a></nav>';
+		$out .= '<nav class="wpcap-cal-nav" aria-label="' . esc_attr__( 'Monat wechseln', 'pass-captain' ) . '">';
+		$out .= '<a href="' . esc_url( add_query_arg( 'wpcap_month', $prev->format( 'Y-m' ), $base ) ) . '" rel="prev">' . esc_html__( '← Vorheriger Monat', 'pass-captain' ) . '</a> ';
+		$out .= '<a href="' . esc_url( add_query_arg( 'wpcap_month', $next->format( 'Y-m' ), $base ) ) . '" rel="next">' . esc_html__( 'Nächster Monat →', 'pass-captain' ) . '</a></nav>';
 		$out .= '<table class="wpcap-cal-grid"><caption>' . esc_html( $title ) . '</caption><thead><tr>';
 		foreach ( $days as $day ) {
 			$out .= '<th scope="col"><abbr title="' . esc_attr( $day ) . '">' . esc_html( function_exists( 'mb_substr' ) ? mb_substr( $day, 0, 2 ) : substr( $day, 0, 2 ) ) . '</abbr></th>';
@@ -263,7 +263,7 @@ final class Calendar {
 				$out .= '<ul>';
 				foreach ( $items as $row ) {
 					/* translators: 1: event name, 2: time */
-					$label = sprintf( __( '%1$s um %2$s', 'wp-pass-captain' ), $row->event_name, self::local( $row, 'H:i' ) );
+					$label = sprintf( __( '%1$s um %2$s', 'pass-captain' ), $row->event_name, self::local( $row, 'H:i' ) );
 					$text = esc_html( self::local( $row, 'H:i' ) . ' ' . $row->event_name );
 					$out .= 'cancelled' === $row->status ? '<li class="wpcap-cal-cancelled"><span>' . $text . '</span>' : '<li><a href="' . esc_url( self::link_for( $row ) ) . '" aria-label="' . esc_attr( $label . ', ' . self::local( $row, 'd.m.Y' ) ) . '">' . $text . '</a>';
 					$out .= EventCard::render_badges( $badges[ (int) $row->occurrence_id ] ?? array() ) . '</li>';
@@ -276,7 +276,7 @@ final class Calendar {
 		$rest = ( 7 - ( $offset + $count ) % 7 ) % 7;
 		for ( $i = 0; $i < $rest; $i++ ) { $out .= '<td class="wpcap-cal-empty" aria-hidden="true"></td>'; }
 		$out .= '</tr></tbody></table>';
-		if ( ! $by_day ) { $out .= '<p>' . esc_html__( 'In diesem Monat sind keine Termine geplant.', 'wp-pass-captain' ) . '</p>'; }
+		if ( ! $by_day ) { $out .= '<p>' . esc_html__( 'In diesem Monat sind keine Termine geplant.', 'pass-captain' ) . '</p>'; }
 		return $out . '</div>';
 	}
 
@@ -286,7 +286,7 @@ final class Calendar {
 		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
 		$url = esc_url_raw( trim( (string) ( $in['checkout_url'] ?? '' ) ) );
 		if ( '' !== $url && ! preg_match( '#^https?://#i', $url ) ) {
-			return Forms::error( 'wpcap_calendar_url', __( 'Bitte eine vollständige URL angeben.', 'wp-pass-captain' ) );
+			return Forms::error( 'wpcap_calendar_url', __( 'Bitte eine vollständige URL angeben.', 'pass-captain' ) );
 		}
 		$values = array( 'checkout_url' => $url, 'attach_ics' => Forms::flag( $in, 'attach_ics' ) ? 1 : 0 );
 		Settings::update( array( 'calendar' => $values ) );
@@ -295,21 +295,21 @@ final class Calendar {
 
 	public static function handle_save() {
 		Forms::verify( 'wpcap_calendar_save' );
-		Forms::finish( self::save( Forms::post() ), __( 'Einstellungen gespeichert.', 'wp-pass-captain' ), Forms::page_url( self::PAGE ) );
+		Forms::finish( self::save( Forms::post() ), __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::PAGE ) );
 	}
 
 	public static function render_admin() {
-		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$s = (array) Settings::get( 'calendar' );
-		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Kalender', 'wp-pass-captain' ) . '</h1>';
+		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Kalender', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
-		echo '<p>' . esc_html__( 'Shortcode: [wp_pass_captain_calendar view="month"] oder view="list"; alternativ der Block „WP Pass Captain Kalender“.', 'wp-pass-captain' ) . '</p>';
+		echo '<p>' . esc_html__( 'Shortcode: [wp_pass_captain_calendar view="month"] oder view="list"; alternativ der Block „Pass Captain Kalender“.', 'pass-captain' ) . '</p>';
 		Forms::open_form( 'wpcap_calendar_save' );
 		echo '<table class="form-table"><tbody>';
-		echo '<tr><th scope="row"><label for="wpcap-cal-url">' . esc_html__( 'Seite mit dem Ticket-Shortcode', 'wp-pass-captain' ) . '</label></th><td><input type="url" id="wpcap-cal-url" name="checkout_url" class="regular-text" value="' . esc_attr( (string) ( $s['checkout_url'] ?? '' ) ) . '"><p class="description">' . esc_html( sprintf( /* translators: %s: anchor format, e.g. #wpcap-occ-{Termin-ID} */ __( 'Kalendereinträge verlinken auf diese Seite (Anker %s). Leer: nur Anker auf derselben Seite.', 'wp-pass-captain' ), '#wpcap-occ-{' . _x( 'Termin-ID', 'placeholder name for the numeric occurrence ID in an anchor', 'wp-pass-captain' ) . '}' ) ) . '</p></td></tr>';
-		echo '<tr><th scope="row">' . esc_html__( 'Ticket-E-Mail', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="attach_ics" value="1"' . checked( ! empty( $s['attach_ics'] ), true, false ) . '> ' . esc_html__( 'Kalenderdatei (.ics) je Termin anhängen', 'wp-pass-captain' ) . '</label></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-cal-url">' . esc_html__( 'Seite mit dem Ticket-Shortcode', 'pass-captain' ) . '</label></th><td><input type="url" id="wpcap-cal-url" name="checkout_url" class="regular-text" value="' . esc_attr( (string) ( $s['checkout_url'] ?? '' ) ) . '"><p class="description">' . esc_html( sprintf( /* translators: %s: anchor format, e.g. #wpcap-occ-{Termin-ID} */ __( 'Kalendereinträge verlinken auf diese Seite (Anker %s). Leer: nur Anker auf derselben Seite.', 'pass-captain' ), '#wpcap-occ-{' . _x( 'Termin-ID', 'placeholder name for the numeric occurrence ID in an anchor', 'pass-captain' ) . '}' ) ) . '</p></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'Ticket-E-Mail', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="attach_ics" value="1"' . checked( ! empty( $s['attach_ics'] ), true, false ) . '> ' . esc_html__( 'Kalenderdatei (.ics) je Termin anhängen', 'pass-captain' ) . '</label></td></tr>';
 		echo '</tbody></table>';
-		submit_button( __( 'Speichern', 'wp-pass-captain' ) );
+		submit_button( __( 'Speichern', 'pass-captain' ) );
 		echo '</form></div>';
 	}
 }

@@ -27,7 +27,7 @@ final class Waitlist {
 	}
 
 	public static function admin_pages() {
-		return array( array( AdminPage::PAGE, __( 'Warteliste', 'wp-pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render' ) ) );
+		return array( array( AdminPage::PAGE, __( 'Warteliste', 'pass-captain' ), AdminPage::CAP, array( AdminPage::class, 'render' ) ) );
 	}
 
 	public static function admin_handlers() {

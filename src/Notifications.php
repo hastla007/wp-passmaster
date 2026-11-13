@@ -160,13 +160,13 @@ final class Notifications {
 	/** One line per changed detail: "Label: old → new". */
 	public static function change_lines( $occ, array $notify ) {
 		$labels = array(
-			'starts_at' => __( 'Beginn', 'wp-pass-captain' ),
-			'ends_at' => __( 'Ende', 'wp-pass-captain' ),
-			'doors_open_at' => __( 'Einlass', 'wp-pass-captain' ),
-			'location' => __( 'Ort', 'wp-pass-captain' ),
-			'venue_country' => __( 'Veranstaltungsland', 'wp-pass-captain' ),
+			'starts_at' => __( 'Beginn', 'pass-captain' ),
+			'ends_at' => __( 'Ende', 'pass-captain' ),
+			'doors_open_at' => __( 'Einlass', 'pass-captain' ),
+			'location' => __( 'Ort', 'pass-captain' ),
+			'venue_country' => __( 'Veranstaltungsland', 'pass-captain' ),
 		);
-		$empty = __( 'nicht angegeben', 'wp-pass-captain' );
+		$empty = __( 'nicht angegeben', 'pass-captain' );
 		$lines = array();
 		foreach ( $labels as $field => $label ) {
 			if ( ! isset( $notify[ $field ] ) ) { continue; }
@@ -178,7 +178,7 @@ final class Notifications {
 			$old = '' === (string) $old ? $empty : (string) $old;
 			$new = '' === (string) $new ? $empty : (string) $new;
 			/* translators: 1: changed detail (e.g. "Ort"), 2: previous value, 3: new value */
-			$lines[] = sprintf( __( '%1$s: %2$s → %3$s', 'wp-pass-captain' ), $label, $old, $new );
+			$lines[] = sprintf( __( '%1$s: %2$s → %3$s', 'pass-captain' ), $label, $old, $new );
 		}
 		return implode( "\n", $lines );
 	}

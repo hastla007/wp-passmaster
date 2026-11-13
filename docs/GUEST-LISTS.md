@@ -124,9 +124,9 @@ REST (Cookie-Anmeldung + REST-Nonce, Recht `wpcap_checkin` oder `wpcap_manage_ev
 wird je Termin/Eintrag geprüft):
 
 ```
-GET  /wp-json/wp-pass-captain/v1/guestlists/search?occurrence_id=12&q=muster
-POST /wp-json/wp-pass-captain/v1/guestlists/entries/{entry_id}/arrive   {"count": 2}
-GET  /wp-json/wp-pass-captain/v1/guestlists/will-call?occurrence_id=12
+GET  /wp-json/pass-captain/v1/guestlists/search?occurrence_id=12&q=muster
+POST /wp-json/pass-captain/v1/guestlists/entries/{entry_id}/arrive   {"count": 2}
+GET  /wp-json/pass-captain/v1/guestlists/will-call?occurrence_id=12
 ```
 
 ## CSV

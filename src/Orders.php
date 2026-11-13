@@ -25,7 +25,7 @@ final class Orders {
 		$email = sanitize_email( $payload['email'] ?? '' );
 		$lines = $payload['items'] ?? array();
 		if ( ! is_email( $email ) || ! is_array( $lines ) || empty( $lines ) || count( $lines ) > 10 ) {
-			return new \WP_Error( 'wpcap_invalid_checkout', __( 'Bitte eine gültige E-Mail-Adresse und Tickets auswählen.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_invalid_checkout', __( 'Bitte eine gültige E-Mail-Adresse und Tickets auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 
 		$key = sanitize_text_field( $payload['idempotency_key'] ?? '' );
@@ -41,7 +41,7 @@ final class Orders {
 		$line_taxes = ( $external && is_array( $internal['line_taxes'] ?? null ) ) ? array_map( 'absint', $internal['line_taxes'] ) : array();
 		$payment_provider = sanitize_key( $internal['payment_provider'] ?? ( $external ? ( $internal['source'] ?? 'external' ) : 'manual' ) );
 		if ( ! $external && Settings::get( 'require_terms' ) && empty( $payload['accept_terms'] ) ) {
-			return new \WP_Error( 'wpcap_terms_required', __( 'Bitte bestätige die Bedingungen und Verbraucherinformationen.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_terms_required', __( 'Bitte bestätige die Bedingungen und Verbraucherinformationen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		// Buyer language: the locale the checkout form was rendered in (legal texts, mails), else the request locale.
 		$order_locale = Mail\Mailer::normalize_locale( is_string( $payload['locale'] ?? null ) ? $payload['locale'] : '' );
@@ -60,7 +60,7 @@ final class Orders {
 		// The form names the version it showed: accepting texts that changed meanwhile is no valid consent.
 		$shown_version = is_string( $payload['terms_version'] ?? null ) ? $payload['terms_version'] : '';
 		if ( ! $external && Settings::get( 'require_terms' ) && '' !== $shown_version && $shown_version !== $terms_version ) {
-			return new \WP_Error( 'wpcap_terms_changed', __( 'Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_terms_changed', __( 'Die Bedingungen wurden inzwischen geändert. Bitte lade die Seite neu und bestätige die aktuelle Fassung.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 
 		// The per-type limit is the ticket type's max_per_order (checked under lock below); this is
@@ -71,11 +71,11 @@ final class Orders {
 			$type_id = absint( $line['ticket_type_id'] ?? 0 );
 			$quantity = absint( $line['quantity'] ?? 0 );
 			if ( ! $type_id || $quantity < 1 || $quantity > $line_cap ) {
-				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 			$clean_lines[ $type_id ] = ( $clean_lines[ $type_id ] ?? 0 ) + $quantity;
 			if ( $clean_lines[ $type_id ] > $line_cap ) {
-				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 		}
 		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array() );
@@ -98,7 +98,7 @@ final class Orders {
 			$ip_key = 'wpcap_checkout_ip_' . self::rate_hash( $ip );
 			$ip_count = (int) get_transient( $ip_key );
 			if ( $count >= 8 || $ip_count >= (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ) ) {
-				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 			}
 			set_transient( $rate_key, $count + 1, HOUR_IN_SECONDS );
 			set_transient( $ip_key, $ip_count + 1, HOUR_IN_SECONDS );
@@ -325,16 +325,16 @@ final class Orders {
 		} catch ( \Throwable $error ) {
 			$wpdb->query( 'ROLLBACK' );
 			$messages = array(
-				'ticket_type_unavailable' => __( 'Diese Ticketart ist nicht verfügbar.', 'wp-pass-captain' ),
-				'quantity_limit' => __( 'Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich.', 'wp-pass-captain' ),
-				'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'wp-pass-captain' ),
-				'occurrence_unavailable' => __( 'Dieser Termin ist nicht mehr verfügbar.', 'wp-pass-captain' ),
-				'sales_closed' => __( 'Der Verkauf für diese Ticketart ist geschlossen.', 'wp-pass-captain' ),
-				'mixed_currency' => __( 'Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden.', 'wp-pass-captain' ),
-				'sold_out' => __( 'Für diese Ticketart sind nicht mehr genügend Tickets verfügbar.', 'wp-pass-captain' ),
-				'occurrence_sold_out' => __( 'Für diesen Termin sind nicht mehr genügend Plätze verfügbar.', 'wp-pass-captain' ),
-				'campaign_invalid' => __( 'Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung.', 'wp-pass-captain' ),
-				'campaign_redeem_failed' => __( 'Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden.', 'wp-pass-captain' ),
+				'ticket_type_unavailable' => __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ),
+				'quantity_limit' => __( 'Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich.', 'pass-captain' ),
+				'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ),
+				'occurrence_unavailable' => __( 'Dieser Termin ist nicht mehr verfügbar.', 'pass-captain' ),
+				'sales_closed' => __( 'Der Verkauf für diese Ticketart ist geschlossen.', 'pass-captain' ),
+				'mixed_currency' => __( 'Tickets mit unterschiedlichen Währungen können nicht gemeinsam bestellt werden.', 'pass-captain' ),
+				'sold_out' => __( 'Für diese Ticketart sind nicht mehr genügend Tickets verfügbar.', 'pass-captain' ),
+				'occurrence_sold_out' => __( 'Für diesen Termin sind nicht mehr genügend Plätze verfügbar.', 'pass-captain' ),
+				'campaign_invalid' => __( 'Ein Kampagnencode ist ungültig oder passt nicht zur Bestellung.', 'pass-captain' ),
+				'campaign_redeem_failed' => __( 'Der Rabatt konnte nicht sicher auf die Bestellung angewendet werden.', 'pass-captain' ),
 			);
 			$code = $error->getMessage();
 			if ( 'order_insert_failed' === $code ) {
@@ -345,10 +345,10 @@ final class Orders {
 				}
 			}
 			if ( 'billing_required' === $code ) {
-				return new \WP_Error( 'wpcap_billing_required', __( 'Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus.', 'wp-pass-captain' ), array( 'status' => 400, 'field' => 'billing_enabled' ) );
+				return new \WP_Error( 'wpcap_billing_required', __( 'Für diesen Bestellbetrag brauchen wir für die Rechnung deinen Namen und deine Anschrift. Bitte aktiviere „Ich brauche eine Rechnung auf Firma/Adresse“ und fülle die Felder aus.', 'pass-captain' ), array( 'status' => 400, 'field' => 'billing_enabled' ) );
 			}
 			$messages = apply_filters( 'wpcap_checkout_error_messages', $messages );
-			$fallback = $custom_error instanceof \WP_Error && '' !== $custom_error->get_error_message() ? $custom_error->get_error_message() : __( 'Die Bestellung konnte nicht angelegt werden.', 'wp-pass-captain' );
+			$fallback = $custom_error instanceof \WP_Error && '' !== $custom_error->get_error_message() ? $custom_error->get_error_message() : __( 'Die Bestellung konnte nicht angelegt werden.', 'pass-captain' );
 			$message = $messages[ $code ] ?? $fallback;
 			// `reason`: machine-readable cause (sold_out, occurrence_sold_out, sales_closed, …) – the message is translated.
 			return new \WP_Error( 'wpcap_checkout_failed', $message, array( 'status' => 'db_busy' === $code ? 503 : 409, 'retryable' => 'db_busy' === $code, 'reason' => isset( $messages[ $code ] ) ? $code : 'checkout_failed' ) );
@@ -486,7 +486,7 @@ final class Orders {
 			$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( $skip_consent ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $type_id ) );
 			$given = array_values( array_filter( $attendees, static function ( $a ) use ( $type_id ) { return is_array( $a ) && absint( $a['ticket_type_id'] ?? 0 ) === (int) $type_id; } ) );
 			if ( count( $given ) > $quantity ) {
-				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 			$needs_all = (bool) array_filter( $fields, static function ( $f ) { return (int) $f->required; } );
 			for ( $i = 0; $i < $quantity; $i++ ) {
@@ -504,11 +504,11 @@ final class Orders {
 					else { $value = sanitize_text_field( $value ); }
 					if ( (int) $field->required && '' === $value ) {
 						/* translators: %s: field label */
-						return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für jedes Ticket ausfüllen.', 'wp-pass-captain' ), $field->label ), array( 'status' => 400 ) );
+						return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für jedes Ticket ausfüllen.', 'pass-captain' ), $field->label ), array( 'status' => 400 ) );
 					}
 					if ( 'email' === $field->field_type && '' !== $value && ! is_email( $value ) ) {
 						/* translators: %s: field label */
-						return new \WP_Error( 'wpcap_attendee_field_invalid', sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'wp-pass-captain' ), $field->label ), array( 'status' => 400 ) );
+						return new \WP_Error( 'wpcap_attendee_field_invalid', sprintf( __( '„%s“ ist keine gültige E-Mail-Adresse.', 'pass-captain' ), $field->label ), array( 'status' => 400 ) );
 					}
 					if ( '' !== $value ) { $clean[ (int) $field->field_id ] = mb_substr( $value, 0, 2000 ); }
 				}
@@ -536,7 +536,7 @@ final class Orders {
 	private static function payment_busy() {
 		global $wpdb;
 		$wpdb->query( 'ROLLBACK' );
-		return Errors::busy( __( 'Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen.', 'wp-pass-captain' ) );
+		return Errors::busy( __( 'Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen.', 'pass-captain' ) );
 	}
 
 	/**
@@ -776,9 +776,9 @@ final class Orders {
 		$code = '' !== $code ? $code : self::capacity_error( $type, $occurrence, $quantity );
 		if ( '' === $code ) { return null; }
 		$messages = apply_filters( 'wpcap_checkout_error_messages', array(
-			'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'wp-pass-captain' ),
-			'sold_out' => __( 'Für diese Ticketart sind nicht mehr genügend Tickets verfügbar.', 'wp-pass-captain' ),
-			'occurrence_sold_out' => __( 'Für diesen Termin sind nicht mehr genügend Plätze verfügbar.', 'wp-pass-captain' ),
+			'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ),
+			'sold_out' => __( 'Für diese Ticketart sind nicht mehr genügend Tickets verfügbar.', 'pass-captain' ),
+			'occurrence_sold_out' => __( 'Für diesen Termin sind nicht mehr genügend Plätze verfügbar.', 'pass-captain' ),
 		) );
 		return new \WP_Error( $code, (string) ( $messages[ $code ] ?? $code ), array( 'status' => 'db_busy' === $code ? 503 : 409, 'retryable' => 'db_busy' === $code ) );
 	}
@@ -988,7 +988,7 @@ final class Orders {
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( ! $order ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_order_missing', __( 'Bestellung nicht gefunden.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_order_missing', __( 'Bestellung nicht gefunden.', 'pass-captain' ) );
 		}
 		if ( 'paid' === $order->payment_status ) {
 			$wpdb->query( 'COMMIT' );
@@ -997,7 +997,7 @@ final class Orders {
 		}
 		if ( in_array( $order->status, array( 'refunded', 'cancelled' ), true ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'pass-captain' ) );
 		}
 		// Capacity locks first (the paid units enter the sold counters in this transaction, and a
 		// late payment re-checks capacity): ticket types, then occurrences (same order as
@@ -1063,8 +1063,8 @@ final class Orders {
 				self::flush_availability_cache();
 				self::capacity_released( $order_id, 'payment_unallocated' );
 				Audit::record( 'payment_unallocated', 'order', $order_id, array( 'reason' => $error, 'reference' => sanitize_text_field( $reference ) ) );
-				wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Bezahlte Bestellung ohne freies Kontingent', 'wp-pass-captain' ), sprintf( /* translators: 1: order id, 2: buyer e-mail */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten).', 'wp-pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
-				return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden.', 'wp-pass-captain' ) );
+				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne freies Kontingent', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: buyer e-mail */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
+				return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ) );
 			}
 			$recovered = true;
 		}
@@ -1138,7 +1138,7 @@ final class Orders {
 				// cancellation, but only while the payment status is still the one seen here.
 				Jobs::enqueue( 'order-cancel-retry|' . $order_id . '|' . $order->payment_status, 'order_cancel_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason, 'payment_status' => (string) $order->payment_status ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
 			}
-			return Errors::busy( __( 'Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen.', 'wp-pass-captain' ) );
+			return Errors::busy( __( 'Die Bestellung konnte gerade nicht storniert werden. Bitte erneut versuchen.', 'pass-captain' ) );
 		};
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
 			return $busy();
@@ -1204,7 +1204,7 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			Audit::record( 'order_refund_mark_failed', 'order', $order_id, array() );
 			Jobs::enqueue( 'order-refund-mark-retry|' . $order_id, 'order_refund_mark_retry', array( 'order_id' => $order_id, 'reason' => (string) $reason ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
-			return Errors::busy( __( 'Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt.', 'wp-pass-captain' ) );
+			return Errors::busy( __( 'Die Bestellung konnte gerade nicht als erstattet markiert werden; das wird automatisch nachgeholt.', 'pass-captain' ) );
 		};
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
@@ -1313,14 +1313,14 @@ final class Orders {
 		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
 		$recipient_email = sanitize_email( $recipient_email );
 		if ( 32 !== strlen( $public_id ) || 64 !== strlen( $access_token ) || ! is_email( $recipient_email ) ) {
-			return new \WP_Error( 'wpcap_transfer_invalid', __( 'Die Übertragungsdaten sind ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_transfer_invalid', __( 'Die Übertragungsdaten sind ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) {
-			return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		if ( 'paid' !== $order->payment_status ) {
-			return new \WP_Error( 'wpcap_order_not_paid', __( 'Tickets können erst nach bestätigter Zahlung übertragen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_order_not_paid', __( 'Tickets können erst nach bestätigter Zahlung übertragen werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$tickets_table = $wpdb->prefix . 'wpcap_tickets';
 		$wpdb->query( 'START TRANSACTION' );
@@ -1331,12 +1331,12 @@ final class Orders {
 		) );
 		if ( ! $ticket || 'valid' !== $ticket->status || (int) $ticket->transfer_count >= 1 || strtotime( $ticket->starts_at . ' UTC' ) <= time() ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_transfer_not_allowed', __( 'Dieses Ticket kann nicht mehr übertragen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_transfer_not_allowed', __( 'Dieses Ticket kann nicht mehr übertragen werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		// A holder change by assignment counts against the same limit as a transfer.
 		if ( method_exists( TicketAssignments::class, 'holder_changes' ) && TicketAssignments::holder_changes( (int) $ticket->ticket_id ) >= (int) apply_filters( 'wpcap_max_holder_changes', 1, (int) $ticket->ticket_id ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_transfer_holder_changed', __( 'Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_transfer_holder_changed', __( 'Für dieses Ticket wurde der Inhaber bereits geändert; eine weitere Übertragung ist nicht möglich.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$previous_holder = Consents::holder_email_of( (int) $ticket->ticket_id );
 		$token = bin2hex( random_bytes( 32 ) );
@@ -1347,7 +1347,7 @@ final class Orders {
 		), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'valid', 'transfer_count' => (int) $ticket->transfer_count ), array( '%s', '%s', '%d' ), array( '%d', '%s', '%d' ) );
 		if ( false === $updated ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_transfer_failed', __( 'Die Ticketübertragung konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+			return new \WP_Error( 'wpcap_transfer_failed', __( 'Die Ticketübertragung konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
 		// The previous holder's name and custom answers must not stay on the transferred ticket.
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_ticket_assignments SET attendee_name='',attendee_email=%s WHERE ticket_id=%d", $recipient_email, (int) $ticket->ticket_id ) );
@@ -1370,7 +1370,7 @@ final class Orders {
 		);
 		// The recipient's language is unknown; the order's locale is the best available guess.
 		if ( ! Mail\Mailer::send( 'ticket_transfer_recipient', $recipient_email, $vars, array(), (string) $order->locale ) ) {
-			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'wp-pass-captain' ), array( 'status' => 502 ) );
+			return new \WP_Error( 'wpcap_transfer_mail_failed', __( 'Die Ticketübertragung wurde gespeichert, aber die E-Mail konnte nicht zugestellt werden. Bitte kontaktiere den Veranstalter für einen erneuten Versand.', 'pass-captain' ), array( 'status' => 502 ) );
 		}
 		Mail\Mailer::send( 'ticket_transfer_sender', $order->customer_email, $vars, array(), (string) $order->locale );
 		Audit::record( 'ticket_transferred', 'ticket', $ticket->ticket_id, array( 'order_id' => (int) $order->order_id ) );
@@ -1393,7 +1393,7 @@ final class Orders {
 		$event_id = absint( $event_id );
 		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name,status FROM {$p}wpcap_events WHERE event_id=%d", $event_id ) );
 		if ( ! $event || 'published' !== $event->status ) {
-			return new \WP_Error( 'wpcap_event_not_cancellable', __( 'Dieses Event kann nicht abgesagt werden.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_event_not_cancellable', __( 'Dieses Event kann nicht abgesagt werden.', 'pass-captain' ) );
 		}
 		$order_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT oi.order_id FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d", $event_id ) ) );
 		// Only buyers with a paid or open order are notified, not abandoned/expired/refunded attempts.
@@ -1410,7 +1410,7 @@ final class Orders {
 		if ( 1 !== (int) $changed ) {
 			// A concurrent request cancelled (or changed) the event first.
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_event_not_cancellable', __( 'Dieses Event kann nicht abgesagt werden.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_event_not_cancellable', __( 'Dieses Event kann nicht abgesagt werden.', 'pass-captain' ) );
 		}
 		$occurrence_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$p}wpcap_occurrences WHERE event_id=%d AND status<>'cancelled' ORDER BY occurrence_id FOR UPDATE", $event_id ) ) );
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences SET status='cancelled' WHERE event_id=%d", $event_id ) );
@@ -1486,7 +1486,7 @@ final class Orders {
 	public static function confirm_manual_payment( $order_id ) {
 		$order = self::get( $order_id );
 		if ( ! $order || 'paid' === $order->payment_status || in_array( $order->status, array( 'refunded', 'cancelled' ), true ) ) {
-			return new \WP_Error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'pass-captain' ) );
 		}
 		$result = self::confirm_external_payment( $order_id, 'manual:user-' . get_current_user_id() );
 		if ( ! is_wp_error( $result ) ) {
@@ -1630,7 +1630,7 @@ final class Orders {
 				$pdf_dir = self::private_temp_dir();
 				if ( $pdf_dir ) {
 					$file = $pdf_dir . '/tickets-' . $order->public_id . '.pdf';
-					if ( false !== file_put_contents( $file, TicketPdf::render( $pdf_tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'wp-pass-captain' ) ) ) ) ) {
+					if ( false !== file_put_contents( $file, TicketPdf::render( $pdf_tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) ) ) ) {
 						@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 						$attachments[] = $file;
 					}
@@ -1682,7 +1682,7 @@ final class Orders {
 	 */
 	private static function issue_failed( $order_id, $step ) {
 		Audit::record( 'ticket_issue_failed', 'order', absint( $order_id ), array( 'step' => (string) $step ) );
-		return Errors::busy( __( 'Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen.', 'wp-pass-captain' ) );
+		return Errors::busy( __( 'Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen.', 'pass-captain' ) );
 	}
 
 	/** Creates a fresh directory (0700, random name) in the temp dir; null on failure. */
@@ -1754,11 +1754,11 @@ final class Orders {
 		$tx = $wpdb->query( 'START TRANSACTION' );
 		$order = false === $tx ? null : $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( false === $tx ) {
-			return Errors::busy( __( 'Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen.', 'wp-pass-captain' ) );
+			return Errors::busy( __( 'Die Tickets konnten gerade nicht erneuert werden. Bitte erneut versuchen.', 'pass-captain' ) );
 		}
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_order_unpaid', __( 'Tickets können erst nach bestätigter Zahlung erneut gesendet werden.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_order_unpaid', __( 'Tickets können erst nach bestätigter Zahlung erneut gesendet werden.', 'pass-captain' ) );
 		}
 		$tickets = $wpdb->get_results( $wpdb->prepare(
 			"SELECT t.ticket_id,t.status,t.attendee_email,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status='valid'" . ( empty( $args['skip_transferred'] ) ? '' : ' AND t.transfer_count=0' ) . " ORDER BY t.ticket_id FOR UPDATE",
@@ -1768,7 +1768,7 @@ final class Orders {
 		// holder's admission history link.
 		if ( ! $tickets ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_no_resendable_tickets', __( 'Keine gültigen Tickets für den erneuten Versand gefunden.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_no_resendable_tickets', __( 'Keine gültigen Tickets für den erneuten Versand gefunden.', 'pass-captain' ) );
 		}
 		$entries = array();
 		$rotated = array();
@@ -1778,7 +1778,7 @@ final class Orders {
 			if ( 1 !== (int) $updated ) {
 				// All or nothing: no old code becomes invalid without the new one being mailed.
 				$wpdb->query( 'ROLLBACK' );
-				return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+				return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 			}
 			$rotated[ (int) $ticket->ticket_id ] = $token;
 			$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
@@ -1786,7 +1786,7 @@ final class Orders {
 		}
 		if ( false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 		}
 		foreach ( $rotated as $rotated_id => $rotated_token ) {
 			do_action( 'wpcap_ticket_code_rotated', $rotated_id, $rotated_token, 'resend' );
@@ -1808,7 +1808,7 @@ final class Orders {
 			if ( empty( $args['from_job'] ) ) {
 				Jobs::enqueue( 'ticket-mail-retry|' . $order_id . '|' . time(), 'ticket_mail_retry', array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
 			}
-			return new \WP_Error( 'wpcap_mail_failed', __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; der Versand wird automatisch wiederholt.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_mail_failed', __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; der Versand wird automatisch wiederholt.', 'pass-captain' ) );
 		}
 		Audit::record( 'tickets_resent', 'order', $order_id, array( 'ticket_count' => count( $tickets ) ) );
 		return true;
@@ -1834,17 +1834,17 @@ final class Orders {
 		$order = $ticket ? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d", (int) $ticket->order_id ) ) : null;
 		if ( ! $ticket || ! $order ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
 		if ( 'valid' !== $ticket->status || 'paid' !== $order->payment_status ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_ticket_not_reissuable', __( 'Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_ticket_not_reissuable', __( 'Nur gültige, nicht eingecheckte Tickets bezahlter Bestellungen können neu ausgestellt werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$token = bin2hex( random_bytes( 32 ) );
 		$updated = $wpdb->update( "{$p}wpcap_tickets", array( 'token_hash' => hash( 'sha256', $token ) ), array( 'ticket_id' => $ticket_id, 'status' => 'valid' ), array( '%s' ), array( '%d', '%s' ) );
 		if ( 1 !== (int) $updated ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+			return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
 		$wpdb->query( 'COMMIT' );
 		/** A ticket received a new code; the old one is invalid. $token is plaintext – never store it. */

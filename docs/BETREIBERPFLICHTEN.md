@@ -1,7 +1,7 @@
 # Betreiberpflichten: Vorlagen und Leitfäden
 
 > **Keine Rechtsberatung – Vorlagen zur Prüfung durch Datenschutz-/Rechtsberatung.**
-> Die folgenden Texte, Checklisten und Tabellen sind Arbeitsvorlagen. Sie beschreiben, was WP Pass Captain
+> Die folgenden Texte, Checklisten und Tabellen sind Arbeitsvorlagen. Sie beschreiben, was Pass Captain
 > technisch tatsächlich speichert und weitergibt (Stand des Codes zum Zeitpunkt dieses Dokuments), damit
 > der Betreiber seine eigenen Pflichten erfüllen kann. Ob eine Rechtsgrundlage trägt, welche Rolle ein
 > Vertragspartner hat, welche Fristen gelten und ob eine Betriebsvereinbarung nötig ist, entscheidet der
@@ -50,7 +50,7 @@ E-Mail-Adressen aus), Freigebende mit `wpcap_approve_comps`. Der CSV-Export enth
 und Notiz; Platzhalteradressen werden nicht exportiert.
 
 Auskunft und Löschung: Die WordPress-Werkzeuge finden Gästelisten-Einträge über die E-Mail-Adresse
-(Exporter/Eraser „WP Pass Captain Gästelisten“). Einträge **ohne** E-Mail-Adresse findet das Werkzeug nicht –
+(Exporter/Eraser „Pass Captain Gästelisten“). Einträge **ohne** E-Mail-Adresse findet das Werkzeug nicht –
 dafür gilt der manuelle Ablauf in [Abschnitt 4.3](#43-manueller-auskunftsablauf-für-bestellungen-ohne-e-mail-adresse).
 
 ### 1.2 Vorlage: Information für Gäste (Art. 14 DSGVO)
@@ -155,7 +155,7 @@ Der Löschlauf leert den Gästelisten-Eintrag und die Teilnehmerangaben der Tick
 Käufer-E-Mail der zugehörigen 0-€-Bestellung (bezahlte Bestellungen sind vom automatischen Löschen
 ausgenommen, weil sie Buchungsdaten sein können). Optionen: (a) Freikarten-Bestellungen nach dem Event
 gesammelt über *Werkzeuge → Personenbezogene Daten löschen* mit der Gast-Adresse anonymisieren
-(der Eraser „WP Pass Captain Gästelisten“ und der Bestell-Eraser laufen dabei gemeinsam), oder (b) im
+(der Eraser „Pass Captain Gästelisten“ und der Bestell-Eraser laufen dabei gemeinsam), oder (b) im
 Informationstext eine längere Speicherdauer nennen und begründen.
 
 ---
@@ -384,7 +384,7 @@ automatisch gelöscht** (Aufbewahrungspflicht, siehe 3.5). Das Audit-Log wird na
 
 ### 3.3 Vorlage: Checkliste für eine Betriebsvereinbarung „Kassensystem“
 
-1. **Geltungsbereich:** Kasse in WP Pass Captain (Kassen, Schichten, Zählungen, Übergaben, Z-Berichte),
+1. **Geltungsbereich:** Kasse in Pass Captain (Kassen, Schichten, Zählungen, Übergaben, Z-Berichte),
    betroffene Standorte und Beschäftigtengruppen (auch Aushilfen, Ehrenamtliche, Fremdpersonal).
 2. **Zweck:** ordnungsgemäße Kassenführung, Erfüllung steuerlicher Aufzeichnungs- und
    Aufbewahrungspflichten, Klärung von Kassendifferenzen, Missbrauchsschutz bei Freikarten/Stornos.

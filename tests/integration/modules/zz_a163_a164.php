@@ -223,7 +223,7 @@ remove_filter( 'site_status_tests', array( SiteHealth::class, 'register_tests' )
 remove_filter( 'debug_information', array( SiteHealth::class, 'debug_information' ) );
 remove_action( 'admin_notices', array( SiteHealth::class, 'admin_notice' ) );
 $a164_info = SiteHealth::debug_information( array() );
-$a164_fields = $a164_info['wp-pass-captain-operations']['fields'] ?? array();
+$a164_fields = $a164_info['pass-captain-operations']['fields'] ?? array();
 check( 'A164: info tab section with cron, queues, mail failures and payment webhooks', isset( $a164_fields['disable_wp_cron'], $a164_fields['queue_jobs'], $a164_fields['queue_messages'], $a164_fields['mail_failures'], $a164_fields['payment_webhook_a164pay'] ) && '10' === $a164_fields['mail_failures']['value'] );
 $_GET['page'] = 'wpcap-operations';
 ob_start();

@@ -96,23 +96,23 @@ final class Waitlists {
 		$ticket_type_id = absint( $ticket_type_id );
 		$quantity = max( 1, absint( $quantity ) );
 		$email = sanitize_email( $email );
-		if ( ! $event_id || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $event_id || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$rate_key = 'wpcap_waitlist_' . hash( 'sha256', $email . '|' . $event_id );
 		$attempts = (int) get_transient( $rate_key );
-		if ( $attempts >= 5 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) ); }
+		if ( $attempts >= 5 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
 		$ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
 		$ip_key = 'wpcap_waitlist_ip_' . hash( 'sha256', $ip . '|' . $event_id );
 		$ip_attempts = (int) get_transient( $ip_key );
-		if ( $ip_attempts >= 20 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) ); }
+		if ( $ip_attempts >= 20 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $ip_key, $ip_attempts + 1, HOUR_IN_SECONDS );
 		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.event_id=%d AND e.status='published' AND o.occurrence_id=%d AND o.status='scheduled'", $event_id, $occurrence_id ) );
-		if ( ! $valid ) { return new \WP_Error( 'wpcap_waitlist_event', __( 'Diese Veranstaltung ist nicht verfügbar.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $valid ) { return new \WP_Error( 'wpcap_waitlist_event', __( 'Diese Veranstaltung ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$type = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_type_id,max_per_order FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d AND occurrence_id=%d AND status='active'", $ticket_type_id, $occurrence_id ) );
-		if ( ! $type ) { return new \WP_Error( 'wpcap_waitlist_ticket', __( 'Diese Ticketart ist nicht verfügbar.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $type ) { return new \WP_Error( 'wpcap_waitlist_ticket', __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $quantity > max( 1, (int) $type->max_per_order ) ) {
 			/* translators: %d: maximum number of tickets per order */
-			return new \WP_Error( 'wpcap_waitlist_quantity', sprintf( _n( 'Auf der Warteliste ist höchstens %d Ticket pro Eintrag möglich.', 'Auf der Warteliste sind höchstens %d Tickets pro Eintrag möglich.', max( 1, (int) $type->max_per_order ), 'wp-pass-captain' ), max( 1, (int) $type->max_per_order )), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_waitlist_quantity', sprintf( _n( 'Auf der Warteliste ist höchstens %d Ticket pro Eintrag möglich.', 'Auf der Warteliste sind höchstens %d Tickets pro Eintrag möglich.', max( 1, (int) $type->max_per_order ), 'pass-captain' ), max( 1, (int) $type->max_per_order )), array( 'status' => 400 ) );
 		}
 		$table = $wpdb->prefix . 'wpcap_waitlist';
 		$now = current_time( 'mysql', true );
@@ -149,7 +149,7 @@ final class Waitlists {
 	}
 
 	private static function join_failed() {
-		return new \WP_Error( 'wpcap_waitlist_join', __( 'Der Wartelistenplatz konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+		return new \WP_Error( 'wpcap_waitlist_join', __( 'Der Wartelistenplatz konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 	}
 
 	/** Event and ticket names for waitlist mail placeholders. */
@@ -161,7 +161,7 @@ final class Waitlists {
 
 	/** Uniform public response for waitlist sign-ups. */
 	private static function join_response() {
-		return array( 'status' => 'received', 'message' => __( 'Danke! Falls die Adresse noch nicht eingetragen war, bekommst du eine Bestätigung per E-Mail.', 'wp-pass-captain' ) );
+		return array( 'status' => 'received', 'message' => __( 'Danke! Falls die Adresse noch nicht eingetragen war, bekommst du eine Bestätigung per E-Mail.', 'pass-captain' ) );
 	}
 
 	/* ---------------------------------------------------------------------------------------------
@@ -292,14 +292,14 @@ final class Waitlists {
 		global $wpdb;
 		self::sync_lapsed();
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_waitlist WHERE event_id=%d AND ticket_type_id=%d AND status='waiting' ORDER BY priority DESC,position,waitlist_id LIMIT 1", absint( $event_id ), absint( $ticket_type_id ) ) );
-		if ( ! $row ) { return new \WP_Error( 'wpcap_waitlist_empty', __( 'Für diese Ticketart gibt es keinen wartenden Eintrag.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $row ) { return new \WP_Error( 'wpcap_waitlist_empty', __( 'Für diese Ticketart gibt es keinen wartenden Eintrag.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		return self::offer_entry( $row );
 	}
 
 	/** Offers one entry by id (staff action). */
 	public static function offer( $waitlist_id ) {
 		$row = self::get( $waitlist_id );
-		if ( ! $row || 'waiting' !== $row->status ) { return new \WP_Error( 'wpcap_waitlist_state', __( 'Dieser Eintrag wartet nicht (mehr) auf ein Angebot.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( ! $row || 'waiting' !== $row->status ) { return new \WP_Error( 'wpcap_waitlist_state', __( 'Dieser Eintrag wartet nicht (mehr) auf ein Angebot.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		return self::offer_entry( $row );
 	}
 
@@ -318,13 +318,13 @@ final class Waitlists {
 		$starts = (string) $wpdb->get_var( $wpdb->prepare( "SELECT o.starts_at FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", (int) $row->ticket_type_id ) );
 		if ( '' !== $starts ) { $expires_ts = min( $expires_ts, (int) strtotime( $starts . ' UTC' ) ); }
 		if ( $expires_ts - $now_ts < 15 * MINUTE_IN_SECONDS ) {
-			return new \WP_Error( 'wpcap_waitlist_too_late', __( 'Für diesen Termin ist kein Wartelistenangebot mehr möglich.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_waitlist_too_late', __( 'Für diesen Termin ist kein Wartelistenangebot mehr möglich.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$token = bin2hex( random_bytes( 32 ) );
 		$hash = hash( 'sha256', $token );
 		$now = current_time( 'mysql', true );
 		$claimed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET status='offered',offer_token_hash=%s,offer_expires_at=%s,offered_at=%s,order_id=0,updated_at=%s WHERE waitlist_id=%d AND status='waiting'", $hash, gmdate( 'Y-m-d H:i:s', $expires_ts ), $now, $now, (int) $row->waitlist_id ) );
-		if ( 1 !== (int) $claimed ) { return new \WP_Error( 'wpcap_waitlist_offer', __( 'Das Angebot konnte nicht erstellt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( 1 !== (int) $claimed ) { return new \WP_Error( 'wpcap_waitlist_offer', __( 'Das Angebot konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$quantity = max( 1, (int) $row->quantity );
 		$order = Orders::create(
 			array( 'email' => $row->email, 'items' => array( array( 'ticket_type_id' => (int) $row->ticket_type_id, 'quantity' => $quantity ) ), 'idempotency_key' => 'offer-' . (int) $row->waitlist_id . '-' . substr( $hash, 0, 16 ) ),
@@ -342,7 +342,7 @@ final class Waitlists {
 		$linked = $wpdb->update( $table, array( 'order_id' => $order_id, 'offer_expires_at' => $expires ), array( 'waitlist_id' => (int) $row->waitlist_id, 'offer_token_hash' => $hash, 'status' => 'offered' ) );
 		if ( 1 !== (int) $linked ) {
 			self::release_offer_order( $order_id, 'waitlist_offer_withdrawn' );
-			return new \WP_Error( 'wpcap_waitlist_offer', __( 'Das Angebot konnte nicht erstellt werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_waitlist_offer', __( 'Das Angebot konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$accept_url = add_query_arg( array( 'wpcap_waitlist_accept' => (int) $row->waitlist_id, 'token' => $token ), home_url( '/' ) );
 		$sent = self::send_mail( 'waitlist_offer', $row->email, array_merge( self::mail_names( $row->event_id, $row->ticket_type_id ), array( 'offer_expires' => wp_date( 'd.m.Y H:i T', strtotime( $expires . ' UTC' ) ), 'accept_link' => Mail\Mailer::link( $accept_url ), 'position' => (int) $row->position, 'quantity' => $quantity ) ), (int) $row->waitlist_id, self::ensure_unsubscribe_token( $row ) );
@@ -350,7 +350,7 @@ final class Waitlists {
 			// Back to the queue first, so the release below does not mark the entry expired.
 			self::revert_claim( (int) $row->waitlist_id, $hash );
 			Orders::cancel_order( $order_id, 'waitlist_offer_mail_failed' );
-			return new \WP_Error( 'wpcap_waitlist_mail', __( 'Das Angebot konnte nicht per E-Mail gesendet werden und wurde zurückgenommen.', 'wp-pass-captain' ), array( 'status' => 502 ) );
+			return new \WP_Error( 'wpcap_waitlist_mail', __( 'Das Angebot konnte nicht per E-Mail gesendet werden und wurde zurückgenommen.', 'pass-captain' ), array( 'status' => 502 ) );
 		}
 		// Process the queue again right after the deadline (the hold lapses then).
 		self::queue( array( (int) $row->ticket_type_id ), (int) strtotime( $expires . ' UTC' ) + MINUTE_IN_SECONDS );
@@ -472,7 +472,7 @@ final class Waitlists {
 	}
 
 	private static function invalid_offer() {
-		return new \WP_Error( 'wpcap_waitlist_offer_invalid', __( 'Wartelistenangebot ist ungültig oder abgelaufen.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		return new \WP_Error( 'wpcap_waitlist_offer_invalid', __( 'Wartelistenangebot ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) );
 	}
 
 	/**
@@ -490,7 +490,7 @@ final class Waitlists {
 		if ( ! $order || 'pending' !== $order->payment_status ) { return self::invalid_offer(); }
 		$paid = (int) $order->total_minor > 0;
 		if ( $paid && Settings::get( 'require_terms' ) && empty( $args['accept_terms'] ) ) {
-			return new \WP_Error( 'wpcap_terms_required', __( 'Bitte bestätige die Bedingungen und Verbraucherinformationen.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_terms_required', __( 'Bitte bestätige die Bedingungen und Verbraucherinformationen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$gateway = null;
 		// Free offers keep their hold a little longer while the order is completed; paid offers for
@@ -500,13 +500,13 @@ final class Waitlists {
 			$enabled = Payments\Registry::enabled( $order->currency );
 			$wanted = sanitize_key( $args['provider'] ?? '' );
 			$gateway = $enabled[ $wanted ] ?? ( $enabled['manual'] ?? ( $enabled ? reset( $enabled ) : null ) );
-			if ( ! $gateway ) { return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+			if ( ! $gateway ) { return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400 ) ); }
 			$minutes = max( 30, (int) Settings::get( 'hold_minutes' ) );
 			if ( 'manual' === $gateway->id() ) {
 				// Bank transfer: never beyond the start (and not offered within manual_cutoff_hours).
 				$minutes = Orders::manual_hold_minutes( array_map( static function ( $item ) { return (int) $item->ticket_type_id; }, Orders::items_for_order( (int) $order->order_id ) ) );
 				if ( null === $minutes ) {
-					return new \WP_Error( 'wpcap_manual_too_late', __( 'Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+					return new \WP_Error( 'wpcap_manual_too_late', __( 'Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart.', 'pass-captain' ), array( 'status' => 400 ) );
 				}
 			}
 		}
@@ -576,7 +576,7 @@ final class Waitlists {
 		$now = current_time( 'mysql', true );
 		$busy = static function () use ( $wpdb ) {
 			$wpdb->query( 'ROLLBACK' );
-			return Errors::busy( __( 'Das Angebot konnte gerade nicht angenommen werden. Bitte versuche es gleich noch einmal.', 'wp-pass-captain' ) );
+			return Errors::busy( __( 'Das Angebot konnte gerade nicht angenommen werden. Bitte versuche es gleich noch einmal.', 'pass-captain' ) );
 		};
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,payment_status,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
@@ -592,7 +592,7 @@ final class Waitlists {
 			&& (string) $locked->offer_expires_at > $now;
 		if ( ! $open ) {
 			$wpdb->query( 'ROLLBACK' );
-			return new \WP_Error( 'wpcap_waitlist_offer_invalid', __( 'Wartelistenangebot konnte nicht angenommen werden.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_waitlist_offer_invalid', __( 'Wartelistenangebot konnte nicht angenommen werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$claimed = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_waitlist SET status='accepted',offer_token_hash='',updated_at=%s WHERE waitlist_id=%d AND status='offered'", $now, (int) $row->waitlist_id ) );
 		$until = gmdate( 'Y-m-d H:i:s', time() + max( 1, (int) $minutes ) * MINUTE_IN_SECONDS );
@@ -690,11 +690,11 @@ final class Waitlists {
 	}
 
 	private static function unsubscribe_rate_error() {
-		return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+		return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 	}
 
 	private static function unsubscribe_invalid() {
-		return new \WP_Error( 'wpcap_waitlist_unsubscribe_invalid', __( 'Dieser Link zum Austragen ist ungültig.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		return new \WP_Error( 'wpcap_waitlist_unsubscribe_invalid', __( 'Dieser Link zum Austragen ist ungültig.', 'pass-captain' ), array( 'status' => 403 ) );
 	}
 
 	/** Entry for id + unsubscribe token (constant-time hash compare) or null. */
@@ -737,7 +737,7 @@ final class Waitlists {
 		$table = $p . 'wpcap_waitlist';
 		$busy = static function () use ( $wpdb ) {
 			$wpdb->query( 'ROLLBACK' );
-			return Errors::busy( __( 'Das Austragen hat gerade nicht geklappt. Bitte versuche es gleich noch einmal.', 'wp-pass-captain' ) );
+			return Errors::busy( __( 'Das Austragen hat gerade nicht geklappt. Bitte versuche es gleich noch einmal.', 'pass-captain' ) );
 		};
 		$row = null;
 		$order = null;
@@ -769,7 +769,7 @@ final class Waitlists {
 		$previous = (string) $row->status;
 		if ( 'accepted' === $previous ) {
 			$wpdb->query( 'COMMIT' );
-			return new \WP_Error( 'wpcap_waitlist_unsubscribe_accepted', __( 'Du hast das Angebot bereits angenommen; die Bestellung wartet auf deine Zahlung. Zahlst du nicht, verfällt die Reservierung automatisch und der Platz geht an die nächste Person.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_waitlist_unsubscribe_accepted', __( 'Du hast das Angebot bereits angenommen; die Bestellung wartet auf deine Zahlung. Zahlst du nicht, verfällt die Reservierung automatisch und der Platz geht an die nächste Person.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		if ( ! in_array( $previous, array( 'waiting', 'offered' ), true ) ) {
 			$wpdb->query( 'COMMIT' );
@@ -806,7 +806,7 @@ final class Waitlists {
 	 */
 	public static function unsubscribe_page( $waitlist_id, $token ) {
 		$waitlist_id = absint( $waitlist_id );
-		$title = '<h1>' . esc_html__( 'Von der Warteliste austragen', 'wp-pass-captain' ) . '</h1>';
+		$title = '<h1>' . esc_html__( 'Von der Warteliste austragen', 'pass-captain' ) . '</h1>';
 		if ( ! self::unsubscribe_allowed( $waitlist_id ) ) {
 			return array( 429, $title . '<p>' . esc_html( self::unsubscribe_rate_error()->get_error_message() ) . '</p>' );
 		}
@@ -815,27 +815,27 @@ final class Waitlists {
 			return array( 410, $title . '<p>' . esc_html( self::unsubscribe_invalid()->get_error_message() ) . '</p>' );
 		}
 		if ( 'removed' === $row->status ) {
-			return array( 200, $title . '<p>' . esc_html__( 'Du bist bereits von dieser Warteliste ausgetragen.', 'wp-pass-captain' ) . '</p>' );
+			return array( 200, $title . '<p>' . esc_html__( 'Du bist bereits von dieser Warteliste ausgetragen.', 'pass-captain' ) . '</p>' );
 		}
 		if ( 'accepted' === $row->status ) {
-			return array( 409, $title . '<p>' . esc_html__( 'Du hast das Angebot bereits angenommen; die Bestellung wartet auf deine Zahlung. Zahlst du nicht, verfällt die Reservierung automatisch und der Platz geht an die nächste Person.', 'wp-pass-captain' ) . '</p>' );
+			return array( 409, $title . '<p>' . esc_html__( 'Du hast das Angebot bereits angenommen; die Bestellung wartet auf deine Zahlung. Zahlst du nicht, verfällt die Reservierung automatisch und der Platz geht an die nächste Person.', 'pass-captain' ) . '</p>' );
 		}
 		if ( ! in_array( $row->status, array( 'waiting', 'offered' ), true ) ) {
-			return array( 200, $title . '<p>' . esc_html__( 'Du stehst nicht mehr auf dieser Warteliste.', 'wp-pass-captain' ) . '</p>' );
+			return array( 200, $title . '<p>' . esc_html__( 'Du stehst nicht mehr auf dieser Warteliste.', 'pass-captain' ) . '</p>' );
 		}
 		$names = self::mail_names( $row->event_id, $row->ticket_type_id );
 		$html = $title . '<dl>';
-		$html .= '<dt>' . esc_html__( 'Event', 'wp-pass-captain' ) . '</dt><dd>' . esc_html( $names['event_name'] ) . '</dd>';
-		$html .= '<dt>' . esc_html__( 'Ticketart', 'wp-pass-captain' ) . '</dt><dd>' . esc_html( $names['ticket_name'] ) . '</dd>';
-		$html .= '<dt>' . esc_html__( 'Anzahl', 'wp-pass-captain' ) . '</dt><dd>' . esc_html( (string) (int) $row->quantity ) . '</dd>';
-		$html .= '<dt>' . esc_html__( 'Status', 'wp-pass-captain' ) . '</dt><dd>' . esc_html( self::status_label( $row->status ) ) . '</dd></dl>';
+		$html .= '<dt>' . esc_html__( 'Event', 'pass-captain' ) . '</dt><dd>' . esc_html( $names['event_name'] ) . '</dd>';
+		$html .= '<dt>' . esc_html__( 'Ticketart', 'pass-captain' ) . '</dt><dd>' . esc_html( $names['ticket_name'] ) . '</dd>';
+		$html .= '<dt>' . esc_html__( 'Anzahl', 'pass-captain' ) . '</dt><dd>' . esc_html( (string) (int) $row->quantity ) . '</dd>';
+		$html .= '<dt>' . esc_html__( 'Status', 'pass-captain' ) . '</dt><dd>' . esc_html( self::status_label( $row->status ) ) . '</dd></dl>';
 		$note = 'offered' === $row->status
-			? __( 'Für dich sind gerade Tickets reserviert. Wenn du dich austrägst, verfällt dieses Angebot sofort und die Tickets gehen an die nächste Person auf der Warteliste.', 'wp-pass-captain' )
-			: __( 'Wenn du dich austrägst, bekommst du für diese Ticketart kein Angebot mehr. Deine E-Mail-Adresse wird aus dem Eintrag gelöscht.', 'wp-pass-captain' );
+			? __( 'Für dich sind gerade Tickets reserviert. Wenn du dich austrägst, verfällt dieses Angebot sofort und die Tickets gehen an die nächste Person auf der Warteliste.', 'pass-captain' )
+			: __( 'Wenn du dich austrägst, bekommst du für diese Ticketart kein Angebot mehr. Deine E-Mail-Adresse wird aus dem Eintrag gelöscht.', 'pass-captain' );
 		$html .= '<p>' . esc_html( $note ) . '</p>';
 		$html .= '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="_wpnonce" value="' . esc_attr( wp_create_nonce( self::UNSUBSCRIBE_ACTION . '_' . $waitlist_id ) ) . '">';
 		$html .= '<input type="hidden" name="action" value="' . esc_attr( self::UNSUBSCRIBE_ACTION ) . '"><input type="hidden" name="waitlist_id" value="' . esc_attr( (string) $waitlist_id ) . '"><input type="hidden" name="token" value="' . esc_attr( strtolower( (string) $token ) ) . '">';
-		$html .= '<p><button type="submit">' . esc_html__( 'Jetzt von der Warteliste austragen', 'wp-pass-captain' ) . '</button></p></form>';
+		$html .= '<p><button type="submit">' . esc_html__( 'Jetzt von der Warteliste austragen', 'pass-captain' ) . '</button></p></form>';
 		return array( 200, $html );
 	}
 
@@ -849,7 +849,7 @@ final class Waitlists {
 		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
 		list( $code, $html ) = self::unsubscribe_page( $waitlist_id, $token );
 		status_header( $code );
-		self::page_head( __( 'Von der Warteliste austragen', 'wp-pass-captain' ) );
+		self::page_head( __( 'Von der Warteliste austragen', 'pass-captain' ) );
 		echo $html . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in unsubscribe_page().
 		exit;
 	}
@@ -866,7 +866,7 @@ final class Waitlists {
 		$result = self::unsubscribe( $waitlist_id, $token, 'link' );
 		nocache_headers();
 		status_header( is_wp_error( $result ) ? (int) ( $result->get_error_data()['status'] ?? 409 ) : 200 );
-		self::page_head( __( 'Von der Warteliste austragen', 'wp-pass-captain' ) );
+		self::page_head( __( 'Von der Warteliste austragen', 'pass-captain' ) );
 		echo self::unsubscribe_result_html( $result ) . '</main></body></html>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in unsubscribe_result_html().
 		exit;
 	}
@@ -874,15 +874,15 @@ final class Waitlists {
 	/** Result message of an unsubscribe (escaped HTML). */
 	public static function unsubscribe_result_html( $result ) {
 		if ( is_wp_error( $result ) ) {
-			return '<h1>' . esc_html__( 'Austragen nicht möglich', 'wp-pass-captain' ) . '</h1><p>' . esc_html( $result->get_error_message() ) . '</p>';
+			return '<h1>' . esc_html__( 'Austragen nicht möglich', 'pass-captain' ) . '</h1><p>' . esc_html( $result->get_error_message() ) . '</p>';
 		}
 		if ( ! empty( $result['already'] ) ) {
-			return '<h1>' . esc_html__( 'Nicht mehr auf der Warteliste', 'wp-pass-captain' ) . '</h1><p>' . esc_html__( 'Du stehst nicht mehr auf dieser Warteliste. Es ist nichts weiter zu tun.', 'wp-pass-captain' ) . '</p>';
+			return '<h1>' . esc_html__( 'Nicht mehr auf der Warteliste', 'pass-captain' ) . '</h1><p>' . esc_html__( 'Du stehst nicht mehr auf dieser Warteliste. Es ist nichts weiter zu tun.', 'pass-captain' ) . '</p>';
 		}
 		$text = ! empty( $result['released_offer'] )
-			? __( 'Du bist von der Warteliste ausgetragen. Die für dich reservierten Tickets gehen an die nächste Person auf der Warteliste.', 'wp-pass-captain' )
-			: __( 'Du bist von der Warteliste ausgetragen und bekommst dafür keine E-Mails mehr.', 'wp-pass-captain' );
-		return '<h1>' . esc_html__( 'Ausgetragen', 'wp-pass-captain' ) . '</h1><p>' . esc_html( $text ) . '</p>';
+			? __( 'Du bist von der Warteliste ausgetragen. Die für dich reservierten Tickets gehen an die nächste Person auf der Warteliste.', 'pass-captain' )
+			: __( 'Du bist von der Warteliste ausgetragen und bekommst dafür keine E-Mails mehr.', 'pass-captain' );
+		return '<h1>' . esc_html__( 'Ausgetragen', 'pass-captain' ) . '</h1><p>' . esc_html( $text ) . '</p>';
 	}
 
 	/** Open entries (waiting, offered) with the buyer address of an order, for the order portal. */
@@ -907,7 +907,7 @@ final class Waitlists {
 	public static function handle_portal_request( $order, array $post ) {
 		$nonce = sanitize_text_field( (string) ( $post['_wpcap_waitlist_nonce'] ?? '' ) );
 		if ( '' === $nonce || ! wp_verify_nonce( $nonce, self::portal_nonce_action( $order ) ) ) {
-			return new \WP_Error( 'wpcap_waitlist_nonce', __( 'Die Sitzung ist abgelaufen. Bitte lade die Seite neu und versuche es erneut.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_waitlist_nonce', __( 'Die Sitzung ist abgelaufen. Bitte lade die Seite neu und versuche es erneut.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$waitlist_id = absint( $post['waitlist_id'] ?? 0 );
 		if ( 'unsubscribe' !== sanitize_key( (string) ( $post['wpcap_waitlist_op'] ?? '' ) ) || ! $waitlist_id ) { return self::unsubscribe_invalid(); }
@@ -922,21 +922,21 @@ final class Waitlists {
 		$entries = self::portal_entries( $order );
 		$flag = sanitize_key( (string) $result_flag );
 		if ( ! $entries && '' === $flag ) { return ''; }
-		$html = '<section class="card" id="wpcap-waitlist" aria-labelledby="wpcap-waitlist-title"><h2 id="wpcap-waitlist-title">' . esc_html__( 'Deine Wartelisten', 'wp-pass-captain' ) . '</h2>';
+		$html = '<section class="card" id="wpcap-waitlist" aria-labelledby="wpcap-waitlist-title"><h2 id="wpcap-waitlist-title">' . esc_html__( 'Deine Wartelisten', 'pass-captain' ) . '</h2>';
 		if ( 'removed' === $flag ) {
-			$html .= '<p role="status">' . esc_html__( 'Du bist von der Warteliste ausgetragen.', 'wp-pass-captain' ) . '</p>';
+			$html .= '<p role="status">' . esc_html__( 'Du bist von der Warteliste ausgetragen.', 'pass-captain' ) . '</p>';
 		} elseif ( 'error' === $flag ) {
-			$html .= '<p role="alert">' . esc_html__( 'Das Austragen hat nicht geklappt. Bitte lade die Seite neu und versuche es erneut.', 'wp-pass-captain' ) . '</p>';
+			$html .= '<p role="alert">' . esc_html__( 'Das Austragen hat nicht geklappt. Bitte lade die Seite neu und versuche es erneut.', 'pass-captain' ) . '</p>';
 		}
 		if ( ! $entries ) { return $html . '</section>'; }
-		$html .= '<p class="muted">' . esc_html__( 'Mit deiner E-Mail-Adresse stehst du auf diesen Wartelisten.', 'wp-pass-captain' ) . '</p><ul>';
+		$html .= '<p class="muted">' . esc_html__( 'Mit deiner E-Mail-Adresse stehst du auf diesen Wartelisten.', 'pass-captain' ) . '</p><ul>';
 		$nonce = wp_create_nonce( self::portal_nonce_action( $order ) );
 		foreach ( $entries as $entry ) {
 			$when = $entry->starts_at ? Frontend\Format::event_start( $entry->starts_at, (string) $entry->timezone ) : '';
 			$html .= '<li><strong>' . esc_html( $entry->event_name . ' — ' . $entry->ticket_name ) . '</strong>' . ( '' !== $when ? '<br>' . esc_html( $when ) : '' );
-			$html .= '<br>' . esc_html( __( 'Anzahl', 'wp-pass-captain' ) . ': ' . (int) $entry->quantity . ' · ' . self::status_label( $entry->status ) );
+			$html .= '<br>' . esc_html( __( 'Anzahl', 'pass-captain' ) . ': ' . (int) $entry->quantity . ' · ' . self::status_label( $entry->status ) );
 			$html .= '<form method="post"><input type="hidden" name="wpcap_waitlist_op" value="unsubscribe"><input type="hidden" name="waitlist_id" value="' . esc_attr( (string) (int) $entry->waitlist_id ) . '"><input type="hidden" name="_wpcap_waitlist_nonce" value="' . esc_attr( $nonce ) . '">';
-			$html .= '<button type="submit">' . esc_html__( 'Von der Warteliste austragen', 'wp-pass-captain' ) . '</button></form></li>';
+			$html .= '<button type="submit">' . esc_html__( 'Von der Warteliste austragen', 'pass-captain' ) . '</button></form></li>';
 		}
 		return $html . '</ul></section>';
 	}
@@ -954,10 +954,10 @@ final class Waitlists {
 		$status = 'removed' === $status ? 'removed' : 'skipped';
 		$row = self::get( $waitlist_id );
 		if ( ! $row || ! in_array( $row->status, array( 'waiting', 'offered', 'accepted' ), true ) ) {
-			return new \WP_Error( 'wpcap_waitlist_state', __( 'Dieser Eintrag ist bereits abgeschlossen.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_waitlist_state', __( 'Dieser Eintrag ist bereits abgeschlossen.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_waitlist SET status=%s,offer_token_hash='',updated_at=%s WHERE waitlist_id=%d AND status=%s", $status, current_time( 'mysql', true ), (int) $row->waitlist_id, $row->status ) );
-		if ( 1 !== (int) $changed ) { return new \WP_Error( 'wpcap_waitlist_state', __( 'Der Eintrag wurde gerade geändert. Bitte neu laden.', 'wp-pass-captain' ), array( 'status' => 409 ) ); }
+		if ( 1 !== (int) $changed ) { return new \WP_Error( 'wpcap_waitlist_state', __( 'Der Eintrag wurde gerade geändert. Bitte neu laden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		if ( (int) $row->order_id && in_array( $row->status, self::OPEN_OFFER, true ) ) {
 			$order = Orders::get( (int) $row->order_id );
 			if ( $order && 'pending' === $order->payment_status ) { self::release_offer_order( (int) $row->order_id, 'waitlist_' . $status ); }
@@ -1007,14 +1007,14 @@ final class Waitlists {
 	/** Customer-facing label of an entry status. */
 	public static function status_label( $status ) {
 		$labels = array(
-			'waiting' => __( 'Wartet', 'wp-pass-captain' ),
-			'offered' => __( 'Angebot offen', 'wp-pass-captain' ),
-			'accepted' => __( 'Angenommen, Zahlung offen', 'wp-pass-captain' ),
-			'paid' => __( 'Bezahlt', 'wp-pass-captain' ),
-			'expired' => __( 'Abgelaufen', 'wp-pass-captain' ),
-			'declined' => __( 'Abgelehnt', 'wp-pass-captain' ),
-			'skipped' => __( 'Übersprungen', 'wp-pass-captain' ),
-			'removed' => __( 'Entfernt', 'wp-pass-captain' ),
+			'waiting' => __( 'Wartet', 'pass-captain' ),
+			'offered' => __( 'Angebot offen', 'pass-captain' ),
+			'accepted' => __( 'Angenommen, Zahlung offen', 'pass-captain' ),
+			'paid' => __( 'Bezahlt', 'pass-captain' ),
+			'expired' => __( 'Abgelaufen', 'pass-captain' ),
+			'declined' => __( 'Abgelehnt', 'pass-captain' ),
+			'skipped' => __( 'Übersprungen', 'pass-captain' ),
+			'removed' => __( 'Entfernt', 'pass-captain' ),
 		);
 		return $labels[ $status ] ?? (string) $status;
 	}
@@ -1035,23 +1035,23 @@ final class Waitlists {
 		$order = $row ? Orders::get( (int) $row->order_id ) : null;
 		$names = $row ? self::mail_names( $row->event_id, $row->ticket_type_id ) : array();
 		$gateways = $order && (int) $order->total_minor > 0 ? Payments\Registry::enabled( $order->currency ) : array();
-		self::page_head( __( 'Wartelistenangebot annehmen', 'wp-pass-captain' ) );
-		echo '<h1>' . esc_html__( 'Wartelistenangebot annehmen', 'wp-pass-captain' ) . '</h1>';
+		self::page_head( __( 'Wartelistenangebot annehmen', 'pass-captain' ) );
+		echo '<h1>' . esc_html__( 'Wartelistenangebot annehmen', 'pass-captain' ) . '</h1>';
 		if ( ! $row || ! $order ) {
-			echo '<p>' . esc_html__( 'Wartelistenangebot ist ungültig oder abgelaufen.', 'wp-pass-captain' ) . '</p></main></body></html>';
+			echo '<p>' . esc_html__( 'Wartelistenangebot ist ungültig oder abgelaufen.', 'pass-captain' ) . '</p></main></body></html>';
 			exit;
 		}
-		echo '<p>' . esc_html__( 'Für dich sind Tickets reserviert. Nimm das Angebot bis zum angegebenen Zeitpunkt an, sonst geht es an die nächste Person auf der Warteliste.', 'wp-pass-captain' ) . '</p><dl>';
-		echo '<dt>' . esc_html__( 'Event', 'wp-pass-captain' ) . '</dt><dd>' . esc_html( $names['event_name'] ) . '</dd>';
-		echo '<dt>' . esc_html__( 'Ticketart', 'wp-pass-captain' ) . '</dt><dd>' . esc_html( $names['ticket_name'] ) . '</dd>';
-		echo '<dt>' . esc_html__( 'Anzahl', 'wp-pass-captain' ) . '</dt><dd>' . esc_html( (string) (int) $row->quantity ) . '</dd>';
-		echo '<dt>' . esc_html__( 'Preis', 'wp-pass-captain' ) . '</dt><dd>' . esc_html( Frontend\Format::money( (int) $order->total_minor, $order->currency ) ) . '</dd>';
-		echo '<dt>' . esc_html__( 'Reserviert bis', 'wp-pass-captain' ) . '</dt><dd>' . esc_html( wp_date( 'd.m.Y H:i T', strtotime( $row->offer_expires_at . ' UTC' ) ) ) . '</dd></dl>';
+		echo '<p>' . esc_html__( 'Für dich sind Tickets reserviert. Nimm das Angebot bis zum angegebenen Zeitpunkt an, sonst geht es an die nächste Person auf der Warteliste.', 'pass-captain' ) . '</p><dl>';
+		echo '<dt>' . esc_html__( 'Event', 'pass-captain' ) . '</dt><dd>' . esc_html( $names['event_name'] ) . '</dd>';
+		echo '<dt>' . esc_html__( 'Ticketart', 'pass-captain' ) . '</dt><dd>' . esc_html( $names['ticket_name'] ) . '</dd>';
+		echo '<dt>' . esc_html__( 'Anzahl', 'pass-captain' ) . '</dt><dd>' . esc_html( (string) (int) $row->quantity ) . '</dd>';
+		echo '<dt>' . esc_html__( 'Preis', 'pass-captain' ) . '</dt><dd>' . esc_html( Frontend\Format::money( (int) $order->total_minor, $order->currency ) ) . '</dd>';
+		echo '<dt>' . esc_html__( 'Reserviert bis', 'pass-captain' ) . '</dt><dd>' . esc_html( wp_date( 'd.m.Y H:i T', strtotime( $row->offer_expires_at . ' UTC' ) ) ) . '</dd></dl>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'wpcap_accept_waitlist_' . $waitlist_id );
 		echo '<input type="hidden" name="action" value="wpcap_accept_waitlist"><input type="hidden" name="waitlist_id" value="' . esc_attr( (string) $waitlist_id ) . '"><input type="hidden" name="token" value="' . esc_attr( $token ) . '">';
 		if ( count( $gateways ) > 1 ) {
-			echo '<fieldset><legend>' . esc_html__( 'Zahlungsart', 'wp-pass-captain' ) . '</legend>';
+			echo '<fieldset><legend>' . esc_html__( 'Zahlungsart', 'pass-captain' ) . '</legend>';
 			$first = true;
 			foreach ( $gateways as $id => $gateway ) {
 				echo '<label><input type="radio" name="provider" value="' . esc_attr( $id ) . '"' . ( $first ? ' checked' : '' ) . '> ' . esc_html( $gateway->title() ) . '</label><br>';
@@ -1060,9 +1060,9 @@ final class Waitlists {
 			echo '</fieldset>';
 		}
 		if ( $gateways && Settings::get( 'require_terms' ) ) {
-			echo '<p><label><input type="checkbox" name="accept_terms" value="1" required> ' . esc_html__( 'Ich akzeptiere die Bedingungen und Verbraucherinformationen.', 'wp-pass-captain' ) . '</label></p>';
+			echo '<p><label><input type="checkbox" name="accept_terms" value="1" required> ' . esc_html__( 'Ich akzeptiere die Bedingungen und Verbraucherinformationen.', 'pass-captain' ) . '</label></p>';
 		}
-		echo '<p><button type="submit" name="decision" value="accept">' . esc_html__( 'Angebot annehmen', 'wp-pass-captain' ) . '</button> <button type="submit" name="decision" value="decline" formnovalidate>' . esc_html__( 'Angebot ablehnen', 'wp-pass-captain' ) . '</button></p></form></main></body></html>';
+		echo '<p><button type="submit" name="decision" value="accept">' . esc_html__( 'Angebot annehmen', 'pass-captain' ) . '</button> <button type="submit" name="decision" value="decline" formnovalidate>' . esc_html__( 'Angebot ablehnen', 'pass-captain' ) . '</button></p></form></main></body></html>';
 		exit;
 	}
 
@@ -1079,25 +1079,25 @@ final class Waitlists {
 		nocache_headers();
 		status_header( is_wp_error( $result ) ? 409 : 200 );
 		/* translators: %s: site name */
-		self::page_head( sprintf( __( 'Warteliste – %s', 'wp-pass-captain' ), Orders::site_name() ) );
+		self::page_head( sprintf( __( 'Warteliste – %s', 'pass-captain' ), Orders::site_name() ) );
 		if ( is_wp_error( $result ) ) {
-			echo '<h1>' . esc_html__( 'Angebot nicht verfügbar', 'wp-pass-captain' ) . '</h1><p>' . esc_html( $result->get_error_message() ) . '</p>';
+			echo '<h1>' . esc_html__( 'Angebot nicht verfügbar', 'pass-captain' ) . '</h1><p>' . esc_html( $result->get_error_message() ) . '</p>';
 		} elseif ( $decline ) {
-			echo '<h1>' . esc_html__( 'Angebot abgelehnt', 'wp-pass-captain' ) . '</h1><p>' . esc_html__( 'Danke für deine Rückmeldung. Die Tickets gehen an die nächste Person auf der Warteliste.', 'wp-pass-captain' ) . '</p>';
+			echo '<h1>' . esc_html__( 'Angebot abgelehnt', 'pass-captain' ) . '</h1><p>' . esc_html__( 'Danke für deine Rückmeldung. Die Tickets gehen an die nächste Person auf der Warteliste.', 'pass-captain' ) . '</p>';
 		} else {
-			echo '<h1>' . esc_html__( 'Angebot angenommen', 'wp-pass-captain' ) . '</h1>';
+			echo '<h1>' . esc_html__( 'Angebot angenommen', 'pass-captain' ) . '</h1>';
 			if ( 'complete' === ( $result['order']['status'] ?? '' ) ) {
-				echo '<p>' . esc_html__( 'Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet.', 'wp-pass-captain' ) . '</p>';
+				echo '<p>' . esc_html__( 'Deine Bestellung ist abgeschlossen. Die Tickets wurden an deine E-Mail-Adresse gesendet.', 'pass-captain' ) . '</p>';
 			} else {
-				echo '<p>' . esc_html__( 'Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung. Den Link zu deiner Bestellung und die Zahlungsinformationen haben wir dir per E-Mail gesendet.', 'wp-pass-captain' ) . '</p>';
+				echo '<p>' . esc_html__( 'Dein Ticket ist reserviert und die Bestellung wartet auf die Zahlung. Den Link zu deiner Bestellung und die Zahlungsinformationen haben wir dir per E-Mail gesendet.', 'pass-captain' ) . '</p>';
 				$payment = $result['payment'] ?? array();
 				if ( ! empty( $payment['redirect_url'] ) ) {
-					echo '<p><a href="' . esc_url( $payment['redirect_url'] ) . '">' . esc_html__( 'Jetzt bezahlen', 'wp-pass-captain' ) . '</a></p>';
+					echo '<p><a href="' . esc_url( $payment['redirect_url'] ) . '">' . esc_html__( 'Jetzt bezahlen', 'pass-captain' ) . '</a></p>';
 				}
 				if ( ! empty( $payment['bank_transfer'] ) && is_array( $payment['bank_transfer'] ) ) {
 					$bank = $payment['bank_transfer'];
 					echo '<dl>';
-					foreach ( array( 'amount' => __( 'Betrag', 'wp-pass-captain' ), 'recipient' => __( 'Empfänger', 'wp-pass-captain' ), 'iban' => 'IBAN', 'bic' => 'BIC', 'remittance' => __( 'Verwendungszweck', 'wp-pass-captain' ), 'due_date' => __( 'Zahlbar bis', 'wp-pass-captain' ) ) as $key => $label ) {
+					foreach ( array( 'amount' => __( 'Betrag', 'pass-captain' ), 'recipient' => __( 'Empfänger', 'pass-captain' ), 'iban' => 'IBAN', 'bic' => 'BIC', 'remittance' => __( 'Verwendungszweck', 'pass-captain' ), 'due_date' => __( 'Zahlbar bis', 'pass-captain' ) ) as $key => $label ) {
 						if ( '' !== (string) ( $bank[ $key ] ?? '' ) ) { echo '<dt>' . esc_html( $label ) . '</dt><dd>' . esc_html( (string) $bank[ $key ] ) . '</dd>'; }
 					}
 					echo '</dl>';

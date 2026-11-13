@@ -1,13 +1,13 @@
 <?php
 /**
- * Optional adapter for WP Affiliate Captain (integration contract v1).
+ * Optional adapter for Affiliate Captain (integration contract v1).
  *
  * Reports paid Pass Captain orders (online checkout, POS, box office, waiting list) as sales and
  * reverses the commission on refunds (also partial ones and those of cancelled dates) and on
- * cancellations. Orders that came in through WooCommerce are skipped: WP Affiliate Captain records
+ * cancellations. Orders that came in through WooCommerce are skipped: Affiliate Captain records
  * the WooCommerce order itself, so reporting them here would pay commission twice.
  *
- * Uses only Pass Captain's documented hooks and the public functions of WP Affiliate Captain; never
+ * Uses only Pass Captain's documented hooks and the public functions of Affiliate Captain; never
  * reads Affiliate Captain tables and never sends payment data. The customer e-mail is passed only for
  * Affiliate Captain's self-referral check and is not stored there.
  *
@@ -38,7 +38,7 @@ final class Adapter {
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'on_cancelled' ) );
 	}
 
-	/** True if WP Affiliate Captain is active with a contract of the same major version. */
+	/** True if Affiliate Captain is active with a contract of the same major version. */
 	public static function available() {
 		if ( ! function_exists( 'wpac_record_sale' ) || ! function_exists( 'wpac_contract_version' ) ) { return false; }
 		return strtok( (string) wpac_contract_version(), '.' ) === strtok( self::CONTRACT, '.' );
@@ -46,7 +46,7 @@ final class Adapter {
 
 	public static function register_integration( $list ) {
 		$list = is_array( $list ) ? $list : array();
-		$list[ self::SOURCE ] = array( 'name' => 'WP Pass Captain', 'version' => defined( 'WPCAP_VERSION' ) ? WPCAP_VERSION : '', 'contract' => self::CONTRACT, 'active' => true );
+		$list[ self::SOURCE ] = array( 'name' => 'Pass Captain', 'version' => defined( 'WPCAP_VERSION' ) ? WPCAP_VERSION : '', 'contract' => self::CONTRACT, 'active' => true );
 		return $list;
 	}
 
@@ -64,14 +64,14 @@ final class Adapter {
 
 	public static function error_messages( $messages ) {
 		$messages = (array) $messages;
-		$messages['partner_code_invalid'] = __( 'Dieser Partnercode ist ungültig oder nicht mehr aktiv.', 'wp-pass-captain' );
-		$messages['partner_code_rate_limited'] = __( 'Zu viele ungültige Partnercodes. Bitte warte etwas und versuche es erneut.', 'wp-pass-captain' );
+		$messages['partner_code_invalid'] = __( 'Dieser Partnercode ist ungültig oder nicht mehr aktiv.', 'pass-captain' );
+		$messages['partner_code_rate_limited'] = __( 'Zu viele ungültige Partnercodes. Bitte warte etwas und versuche es erneut.', 'pass-captain' );
 		return $messages;
 	}
 
 	public static function form_field() {
 		if ( ! self::partner_field_enabled() ) { return; }
-		echo '<label>' . esc_html__( 'Partnercode (optional)', 'wp-pass-captain' ) . ' <input name="partner_code" type="text" autocomplete="off" maxlength="64" pattern="[A-Za-z0-9_\-]*"></label>';
+		echo '<label>' . esc_html__( 'Partnercode (optional)', 'pass-captain' ) . ' <input name="partner_code" type="text" autocomplete="off" maxlength="64" pattern="[A-Za-z0-9_\-]*"></label>';
 	}
 
 	/** Adds the partner code to the checkout request through the checkout's payload event. */
@@ -188,7 +188,7 @@ final class Adapter {
 		 */
 		$hold = (int) apply_filters( 'wpcap_affiliate_hold_until', $latest_end, $order );
 		if ( $hold > 0 ) { $payload['hold_until'] = gmdate( 'Y-m-d H:i:s', $hold ); }
-		/** Final sale payload sent to WP Affiliate Captain. */
+		/** Final sale payload sent to Affiliate Captain. */
 		$payload = apply_filters( 'wpcap_affiliate_sale_payload', $payload, $order );
 		$result  = self::call( 'wpac_record_sale', $payload, $order->order_id, 'affiliate_sale' );
 		if ( ! is_wp_error( $result ) || 'wpac_queued' === $result->get_error_code() ) {

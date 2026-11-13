@@ -39,7 +39,7 @@ Das Datenbank-Upgrade (`dbDelta` für alle Kern- und Modultabellen) läuft nicht
 
 ## Hintergrundverarbeitung (WP-Cron)
 
-E-Mail-Warteschlange (`wpcap_process_messages`, zusammen mit SMS), Jobs und Webhooks (`wpcap_process_jobs`, `wpcap_webhooks_dispatch`) laufen alle fünf Minuten. Jeder Lauf arbeitet mit einem gemeinsamen **Zeitbudget von 20 Sekunden** (höchstens `max_execution_time` − 15 s; Filter `wpcap_cron_time_budget`) und bis zu 500 E-Mails (Filter `wpcap_message_batch_size`). Das Budget wird vor jeder Entnahme geprüft, sodass kein Eintrag reserviert und dann liegen gelassen wird; bricht PHP während eines Eintrags ab, wird die Reservierung beim Beenden freigegeben. Bleibt ein Rückstand, plant der Lauf sofort einen Folgelauf ein – über Action Scheduler (`as_enqueue_async_action`, Gruppe `wp-pass-captain`), wenn vorhanden (z. B. mit WooCommerce), sonst als einzelnes WP-Cron-Ereignis.
+E-Mail-Warteschlange (`wpcap_process_messages`, zusammen mit SMS), Jobs und Webhooks (`wpcap_process_jobs`, `wpcap_webhooks_dispatch`) laufen alle fünf Minuten. Jeder Lauf arbeitet mit einem gemeinsamen **Zeitbudget von 20 Sekunden** (höchstens `max_execution_time` − 15 s; Filter `wpcap_cron_time_budget`) und bis zu 500 E-Mails (Filter `wpcap_message_batch_size`). Das Budget wird vor jeder Entnahme geprüft, sodass kein Eintrag reserviert und dann liegen gelassen wird; bricht PHP während eines Eintrags ab, wird die Reservierung beim Beenden freigegeben. Bleibt ein Rückstand, plant der Lauf sofort einen Folgelauf ein – über Action Scheduler (`as_enqueue_async_action`, Gruppe `pass-captain`), wenn vorhanden (z. B. mit WooCommerce), sonst als einzelnes WP-Cron-Ereignis.
 
 WP-Cron startet nur bei Seitenaufrufen. Für verlässliche Zustellung (Ticketmails, Erinnerungen, Webhooks) WP-Cron durch einen System-Cronjob ersetzen:
 
@@ -61,7 +61,7 @@ Prüfen, ob der externe Cronjob greift: Unter **Werkzeuge → Website-Zustand** 
 
 ## Betriebsüberwachung (Website-Zustand)
 
-Das Plugin trägt eigene Prüfungen in **Werkzeuge → Website-Zustand** ein (Site Health, A164), Abzeichen „WP Pass Captain“. Ist eine Prüfung **kritisch**, zeigt jede Pass-Captain-Admin-Seite Administratorinnen zusätzlich einen Hinweis mit Link zur Betriebsübersicht (Ergebnis fünf Minuten zwischengespeichert, Transient `wpcap_health_critical`).
+Das Plugin trägt eigene Prüfungen in **Werkzeuge → Website-Zustand** ein (Site Health, A164), Abzeichen „Pass Captain“. Ist eine Prüfung **kritisch**, zeigt jede Pass-Captain-Admin-Seite Administratorinnen zusätzlich einen Hinweis mit Link zur Betriebsübersicht (Ergebnis fünf Minuten zwischengespeichert, Transient `wpcap_health_critical`).
 
 | Prüfung | empfohlen | kritisch |
 |---|---|---|
@@ -88,7 +88,7 @@ add_filter( 'wpcap_health_thresholds', static function ( $t ) {
 - *SMS*: Status der Tabelle `wpcap_sms_messages` (Rückmeldungen des Anbieters).
 - *Zahlungs-Webhooks*: Zeitpunkt des letzten Eintrags je Anbieter in `wpcap_payment_events`.
 
-Der Reiter **Bericht** des Website-Zustands enthält den Abschnitt „WP Pass Captain – Betrieb“ (DISABLE_WP_CRON, letzter und nächster Lauf der Cron-Hooks, Einträge je Status und Rückstand der Warteschlangen, Mail-/SMS-Fehler, letzter Zahlungs-Webhook je Anbieter) – praktisch für Support-Anfragen.
+Der Reiter **Bericht** des Website-Zustands enthält den Abschnitt „Pass Captain – Betrieb“ (DISABLE_WP_CRON, letzter und nächster Lauf der Cron-Hooks, Einträge je Status und Rückstand der Warteschlangen, Mail-/SMS-Fehler, letzter Zahlungs-Webhook je Anbieter) – praktisch für Support-Anfragen.
 
 ### Betriebsübersicht: Rückstände und Dead Letters (A163)
 
@@ -138,7 +138,7 @@ Vorrang beim Lesen: Konstante `WPCAP_<NAME>` (z. B. `WPCAP_STRIPE_SECRET_KEY`) >
 
 **Migration:** Nach dem Update verschiebt der erste Aufruf (Frontend, Admin, Cron oder WP-CLI) vorhandene Klartextwerte hinter der Upgrade-Sperre (`GET_LOCK`, wie das Schema-Upgrade) in den verschlüsselten Speicher und entfernt sie aus `wpcap_settings` (Audit-Eintrag `secrets_migrated`, nur Namen). Der Schritt ist idempotent und unabhängig von der Schema-Version (Option `wpcap_secrets_version`). Taucht später erneut ein Klartextwert in `wpcap_settings` auf (z. B. nach einem Downgrade auf eine ältere Plugin-Version und erneutem Speichern), wird er beim nächsten Aufruf wieder übernommen und entfernt. Ältere Datenbanksicherungen enthalten die Zugangsdaten weiterhin im Klartext – Sicherungen von vor dem Update entsprechend schützen oder Zugangsdaten beim Anbieter erneuern.
 
-**Fail closed:** Lässt sich ein gespeicherter Wert nicht entschlüsseln (Schlüssel geändert oder fehlt, Salts erneuert, Datenbank manipuliert), gilt der Dienst als nicht eingerichtet (z. B. erscheint Stripe nicht im Checkout, Webhooks werden mangels Signaturgeheimnis abgelehnt). Ein Admin-Hinweis nennt die betroffenen Einstellungen; die Felder zeigen „nicht entschlüsselbar – bitte neu eingeben“. Werte werden dabei nie protokolliert. Website-Zustand → Info zeigt im Abschnitt „WP Pass Captain – Zugangsdaten“ je Einstellung nur die Quelle (Konstante, verschlüsselt gespeichert, nicht entschlüsselbar, nicht gesetzt).
+**Fail closed:** Lässt sich ein gespeicherter Wert nicht entschlüsseln (Schlüssel geändert oder fehlt, Salts erneuert, Datenbank manipuliert), gilt der Dienst als nicht eingerichtet (z. B. erscheint Stripe nicht im Checkout, Webhooks werden mangels Signaturgeheimnis abgelehnt). Ein Admin-Hinweis nennt die betroffenen Einstellungen; die Felder zeigen „nicht entschlüsselbar – bitte neu eingeben“. Werte werden dabei nie protokolliert. Website-Zustand → Info zeigt im Abschnitt „Pass Captain – Zugangsdaten“ je Einstellung nur die Quelle (Konstante, verschlüsselt gespeichert, nicht entschlüsselbar, nicht gesetzt).
 
 **Schlüsselwechsel (Rotation) ohne WP-CLI:**
 
@@ -183,14 +183,14 @@ Regeln für den Betrieb:
 - Den Drill vor einem Release selbst wiederholen:
 
 ```bash
-bash tests/restore/drill.sh /pfad/zu/wordpress /pfad/alt/wp-pass-captain /pfad/neu/wp-pass-captain /tmp/drill
+bash tests/restore/drill.sh /pfad/zu/wordpress /pfad/alt/pass-captain /pfad/neu/pass-captain /tmp/drill
 ```
 
 Das Skript sichert die Datenbank vorher, arbeitet mit WP-CLI und `mariadb-dump` und stellt Datenbank und Plugin-Link am Ende wieder her – **nur auf einer Test-Installation ausführen**, es löscht während des Laufs alle Plugin-Tabellen.
 
 ## Release-Kandidat
 
-Vor einer stabilen Version müssen Upgrade und Restore mit realistischen Datenbankständen, Eventänderungen, doppelten Webhooks, E-Mail-Ausfällen, hoher Scanrate und Multisite geprüft werden. Der ZIP-Build (`bash build/release.sh`) exportiert den committeten Stand per `git archive` (Standard `HEAD`, anders mit `WPCAP_BUILD_REF=<ref>`), installiert dort die Composer-Abhängigkeiten ohne Dev-Pakete und lässt alles weg, was in `.distignore` steht (Tests, Doku, Markdown außer `readme.txt`, `.po`-Quellen, Test-/CI-Dateien der Abhängigkeiten). Nicht committete Änderungen landen also nie im Paket. Der Build ist reproduzierbar: Dateizeiten werden auf die Commit-Zeit gesetzt (`SOURCE_DATE_EPOCH`), Rechte vereinheitlicht (644/755), Einträge sortiert und ohne Zusatzattribute gepackt, der Autoloader-Suffix ist fest. Neben dem ZIP entstehen `wp-pass-captain.zip.sha256` und `build-info.txt` (Commit, Zeitstempel, Prüfsumme, Prüfsumme der `composer.lock`); beide hängen auch am GitHub-Release. CI prüft mit `tests/reproducible-build.sh`, dass zwei Builds identisch sind.
+Vor einer stabilen Version müssen Upgrade und Restore mit realistischen Datenbankständen, Eventänderungen, doppelten Webhooks, E-Mail-Ausfällen, hoher Scanrate und Multisite geprüft werden. Der ZIP-Build (`bash build/release.sh`) exportiert den committeten Stand per `git archive` (Standard `HEAD`, anders mit `WPCAP_BUILD_REF=<ref>`), installiert dort die Composer-Abhängigkeiten ohne Dev-Pakete und lässt alles weg, was in `.distignore` steht (Tests, Doku, Markdown außer `readme.txt`, `.po`-Quellen, Test-/CI-Dateien der Abhängigkeiten). Nicht committete Änderungen landen also nie im Paket. Der Build ist reproduzierbar: Dateizeiten werden auf die Commit-Zeit gesetzt (`SOURCE_DATE_EPOCH`), Rechte vereinheitlicht (644/755), Einträge sortiert und ohne Zusatzattribute gepackt, der Autoloader-Suffix ist fest. Neben dem ZIP entstehen `pass-captain.zip.sha256` und `build-info.txt` (Commit, Zeitstempel, Prüfsumme, Prüfsumme der `composer.lock`); beide hängen auch am GitHub-Release. CI prüft mit `tests/reproducible-build.sh`, dass zwei Builds identisch sind.
 
 **Abgleich veröffentlichtes ZIP ↔ Commit:** Release-ZIP und `.sha256` herunterladen, dann im Repository
 
@@ -199,7 +199,7 @@ WPCAP_BUILD_REF=v1.5.0 bash build/release.sh
 ```
 
 ```bash
-sha256sum build/dist/wp-pass-captain.zip
+sha256sum build/dist/pass-captain.zip
 ```
 
 ausführen und die Summe mit der veröffentlichten `.sha256` bzw. `build-info.txt` vergleichen. Gleiche Summe = das ZIP stammt genau aus diesem Commit (gleiche Composer-Version vorausgesetzt; die CI nutzt Composer 2 aus `shivammathur/setup-php`). Der Release-Workflow veröffentlicht nur nach erfolgreicher CI auf `main` (genau der getestete Commit), bei Tags `v*` oder manuell von `main`.
@@ -236,7 +236,7 @@ Für Bar- und Kartenzahlungen vor Ort deshalb eine zertifizierte Kasse verwenden
 
 Alle Fristen stehen unter **Einstellungen → Allgemein → Datenschutz** (0 = Schritt aus, bei Partner-Ticketcodes: direkt nach dem Termin) und lassen sich zusätzlich mit `wpcap_privacy_retention_days` ändern (siehe [HOOKS.md](HOOKS.md)) (A123). Das Audit-Log erhält je Lauf nur die Anzahlen (`privacy_retention`). Nicht erfasst: Bestellungen, Positionen und Erstattungen (Rechnungen/Korrekturen nur mit eingestellter Belegfrist, siehe oben), Bestellungen in WooCommerce (eigene Fristen des Shops), Daten bei Zahlungsanbietern, Partnern und Webhook-Empfängern. Webhook-Zustellungen haben eine eigene Frist (Modul Webhooks).
 
-**Auskunft und Löschung** (Werkzeuge → Personenbezogene Daten exportieren/löschen): Der Export enthält Bestellungen (mit Rechnung und Käuferangaben der Rechnung), alle Tickets der Person als Käufer oder Teilnehmer mit Name, Zusatzangaben, Einlassprotokoll (Zeit, Bereich) und Wallet-Pässen, Pässe, Warteliste und Terminbuchungen. Teilnehmende erhalten nur ihre eigenen Tickets, nicht die Bestellung des Käufers. Die Löschung widerruft gültige Tickets über den Ticketdienst (Wallet, Sitzplätze, Offline-Pakete und Webhooks werden informiert), entfernt Teilnehmerdaten, Antworten, Offline-Namen, Nachrichten und Terminbuchungen und löscht Apple-Wallet-Registrierungen eine Stunde später (nach der Sperr-Push-Nachricht). Rechnungen bleiben samt Käuferangaben bis zum Ende der Aufbewahrungsfrist erhalten (Art. 17 Abs. 3 lit. b DSGVO). Bestellungen mit Tickets für kommende Termine werden zurückgestellt (`wpcap_privacy_defer_upcoming`, Standard an): Die Tickets bleiben gültig, die Bestellung wird automatisch nach dem letzten Termin anonymisiert; die Löschung meldet die Anzahl. Soll sofort widerrufen werden, den Filter auf `false` setzen bzw. vorher erstatten/stornieren. Eigener Export/Löschung zusätzlich: Käuferlimit-Zähler (`wp-pass-captain-buyer-limits`).
+**Auskunft und Löschung** (Werkzeuge → Personenbezogene Daten exportieren/löschen): Der Export enthält Bestellungen (mit Rechnung und Käuferangaben der Rechnung), alle Tickets der Person als Käufer oder Teilnehmer mit Name, Zusatzangaben, Einlassprotokoll (Zeit, Bereich) und Wallet-Pässen, Pässe, Warteliste und Terminbuchungen. Teilnehmende erhalten nur ihre eigenen Tickets, nicht die Bestellung des Käufers. Die Löschung widerruft gültige Tickets über den Ticketdienst (Wallet, Sitzplätze, Offline-Pakete und Webhooks werden informiert), entfernt Teilnehmerdaten, Antworten, Offline-Namen, Nachrichten und Terminbuchungen und löscht Apple-Wallet-Registrierungen eine Stunde später (nach der Sperr-Push-Nachricht). Rechnungen bleiben samt Käuferangaben bis zum Ende der Aufbewahrungsfrist erhalten (Art. 17 Abs. 3 lit. b DSGVO). Bestellungen mit Tickets für kommende Termine werden zurückgestellt (`wpcap_privacy_defer_upcoming`, Standard an): Die Tickets bleiben gültig, die Bestellung wird automatisch nach dem letzten Termin anonymisiert; die Löschung meldet die Anzahl. Soll sofort widerrufen werden, den Filter auf `false` setzen bzw. vorher erstatten/stornieren. Eigener Export/Löschung zusätzlich: Käuferlimit-Zähler (`pass-captain-buyer-limits`).
 
 **Pflichten des Betreibers:**
 

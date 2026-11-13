@@ -7,11 +7,11 @@ Italienisch (it_IT), Niederländisch (nl_NL) in `languages/` (`.po` Quelle, `.mo
 ## Ablauf bei neuen oder geänderten Texten
 
 ```bash
-wp i18n make-pot . languages/wp-pass-captain.pot --domain=wp-pass-captain --exclude=vendor,tests,build,.claude,node_modules --skip-audit --skip-block-json --skip-theme-json
+wp i18n make-pot . languages/pass-captain.pot --domain=pass-captain --exclude=vendor,tests,build,.claude,node_modules --skip-audit --skip-block-json --skip-theme-json
 ```
 
 ```bash
-for l in en_US es_ES fr_FR it_IT nl_NL; do msgmerge -q --no-wrap -U --backup=off languages/wp-pass-captain-$l.po languages/wp-pass-captain.pot; msgattrib --no-wrap --no-obsolete -o languages/wp-pass-captain-$l.po languages/wp-pass-captain-$l.po; done
+for l in en_US es_ES fr_FR it_IT nl_NL; do msgmerge -q --no-wrap -U --backup=off languages/pass-captain-$l.po languages/pass-captain.pot; msgattrib --no-wrap --no-obsolete -o languages/pass-captain-$l.po languages/pass-captain-$l.po; done
 ```
 
 Danach die neuen und als `fuzzy` markierten Einträge übersetzen bzw. prüfen (Fuzzy-Vorschläge sind

@@ -104,7 +104,7 @@ final class Queries {
 		$out = array();
 		foreach ( $upcoming as $id => $item ) { $out[ $id ] = $item[1]; }
 		/* translators: %s: occurrence label */
-		foreach ( $past as $id => $item ) { $out[ $id ] = sprintf( __( '%s (vergangen)', 'wp-pass-captain' ), $item[1] ); }
+		foreach ( $past as $id => $item ) { $out[ $id ] = sprintf( __( '%s (vergangen)', 'pass-captain' ), $item[1] ); }
 		return $out;
 	}
 
@@ -383,7 +383,7 @@ final class Queries {
 		$ids = implode( ',', array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets ) );
 		$answers = array();
 		foreach ( $wpdb->get_results( "SELECT a.ticket_id,a.answer,f.label,f.field_type FROM {$p}wpcap_participant_answers a INNER JOIN {$p}wpcap_participant_fields f ON f.field_id=a.field_id WHERE a.ticket_id IN ($ids) ORDER BY f.position,f.field_id" ) as $answer ) {
-			$value = 'checkbox' === $answer->field_type ? ( '1' === (string) $answer->answer ? __( 'Ja', 'wp-pass-captain' ) : __( 'Nein', 'wp-pass-captain' ) ) : $answer->answer;
+			$value = 'checkbox' === $answer->field_type ? ( '1' === (string) $answer->answer ? __( 'Ja', 'pass-captain' ) : __( 'Nein', 'pass-captain' ) ) : $answer->answer;
 			$answers[ (int) $answer->ticket_id ][ $answer->label ] = $value;
 		}
 		foreach ( $tickets as $ticket ) {

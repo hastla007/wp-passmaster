@@ -160,59 +160,59 @@ final class Service {
 	 * @return true|\WP_Error
 	 */
 	public static function validate( $ticket, $target, $channel, array $policy ) {
-		if ( ! $ticket ) { return self::error( 'wpcap_exchange_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( empty( $policy['enabled'] ) ) { return self::error( 'wpcap_exchange_disabled', __( 'Für dieses Event ist kein Umtausch möglich.', 'wp-pass-captain' ), 403 ); }
-		if ( 'paid' !== $ticket->payment_status ) { return self::error( 'wpcap_exchange_order_unpaid', __( 'Nur Tickets bezahlter Bestellungen können umgetauscht werden.', 'wp-pass-captain' ) ); }
+		if ( ! $ticket ) { return self::error( 'wpcap_exchange_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( empty( $policy['enabled'] ) ) { return self::error( 'wpcap_exchange_disabled', __( 'Für dieses Event ist kein Umtausch möglich.', 'pass-captain' ), 403 ); }
+		if ( 'paid' !== $ticket->payment_status ) { return self::error( 'wpcap_exchange_order_unpaid', __( 'Nur Tickets bezahlter Bestellungen können umgetauscht werden.', 'pass-captain' ) ); }
 		if ( (int) $ticket->refunded || self::was_admitted( $ticket ) || 'valid' !== $ticket->status ) {
-			return self::error( 'wpcap_exchange_ticket_state', __( 'Nur gültige, nicht eingecheckte und nicht erstattete Tickets können umgetauscht werden.', 'wp-pass-captain' ) );
+			return self::error( 'wpcap_exchange_ticket_state', __( 'Nur gültige, nicht eingecheckte und nicht erstattete Tickets können umgetauscht werden.', 'pass-captain' ) );
 		}
 		if ( ! $target || 'active' !== $target->status || 'scheduled' !== $target->occurrence_status || 'published' !== $target->event_status ) {
-			return self::error( 'wpcap_exchange_target_unavailable', __( 'Die gewählte Ticketart ist nicht verfügbar.', 'wp-pass-captain' ) );
+			return self::error( 'wpcap_exchange_target_unavailable', __( 'Die gewählte Ticketart ist nicht verfügbar.', 'pass-captain' ) );
 		}
 		if ( (int) $target->ticket_type_id === (int) $ticket->ticket_type_id ) {
-			return self::error( 'wpcap_exchange_same_type', __( 'Bitte einen anderen Termin oder eine andere Ticketart wählen.', 'wp-pass-captain' ), 400 );
+			return self::error( 'wpcap_exchange_same_type', __( 'Bitte einen anderen Termin oder eine andere Ticketart wählen.', 'pass-captain' ), 400 );
 		}
 		if ( strtoupper( (string) $target->currency ) !== strtoupper( (string) $ticket->currency ) ) {
-			return self::error( 'wpcap_exchange_currency', __( 'Ein Umtausch ist nur innerhalb derselben Währung möglich.', 'wp-pass-captain' ), 400 );
+			return self::error( 'wpcap_exchange_currency', __( 'Ein Umtausch ist nur innerhalb derselben Währung möglich.', 'pass-captain' ), 400 );
 		}
 		// A different VAT rate would change the invoiced service after the fact (invoice correction
 		// and a new document needed): refund the ticket and sell the new one instead.
 		if ( (int) $target->tax_rate_bp !== (int) $ticket->tax_rate_bp ) {
-			return self::error( 'wpcap_exchange_tax_rate', __( 'Ein Umtausch ist nur zwischen Ticketarten mit demselben Steuersatz möglich. Bitte das Ticket erstatten und das neue Ticket neu verkaufen.', 'wp-pass-captain' ), 400 );
+			return self::error( 'wpcap_exchange_tax_rate', __( 'Ein Umtausch ist nur zwischen Ticketarten mit demselben Steuersatz möglich. Bitte das Ticket erstatten und das neue Ticket neu verkaufen.', 'pass-captain' ), 400 );
 		}
 		if ( strtotime( $target->starts_at . ' UTC' ) <= time() && 'pos' !== $channel ) {
-			return self::error( 'wpcap_exchange_target_started', __( 'Der gewählte Termin hat bereits begonnen.', 'wp-pass-captain' ) );
+			return self::error( 'wpcap_exchange_target_started', __( 'Der gewählte Termin hat bereits begonnen.', 'pass-captain' ) );
 		}
 		$same_event = (int) $target->event_id === (int) $ticket->event_id;
 		if ( ! $same_event ) {
 			$shared = array_intersect( self::series_of( (int) $ticket->occurrence_id ), self::series_of( (int) $target->occurrence_id ) );
 			if ( 'portal' === $channel || empty( $policy['allow_series'] ) || ! $shared ) {
-				return self::error( 'wpcap_exchange_other_event', __( 'Ein Umtausch ist nur innerhalb desselben Events möglich.', 'wp-pass-captain' ), 400 );
+				return self::error( 'wpcap_exchange_other_event', __( 'Ein Umtausch ist nur innerhalb desselben Events möglich.', 'pass-captain' ), 400 );
 			}
 			// Another organizer or sales model would invoice a service of someone else (mixed sellers):
 			// only within the same seller.
 			if ( self::seller_key( (int) $ticket->event_id ) !== self::seller_key( (int) $target->event_id ) ) {
-				return self::error( 'wpcap_exchange_other_seller', __( 'Ein Umtausch zwischen Events verschiedener Veranstalter oder Verkaufsmodelle ist nicht möglich. Bitte erstatten und neu verkaufen.', 'wp-pass-captain' ), 400 );
+				return self::error( 'wpcap_exchange_other_seller', __( 'Ein Umtausch zwischen Events verschiedener Veranstalter oder Verkaufsmodelle ist nicht möglich. Bitte erstatten und neu verkaufen.', 'pass-captain' ), 400 );
 			}
 		}
 		if ( 'portal' === $channel ) {
 			// A transferred ticket belongs to its recipient: the original buyer must not swap it (and
 			// collect the refund of a downgrade) through the order link. Staff can still exchange it.
 			if ( (int) $ticket->transfer_count > 0 ) {
-				return self::error( 'wpcap_exchange_transferred', __( 'Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht werden.', 'wp-pass-captain' ), 403 );
+				return self::error( 'wpcap_exchange_transferred', __( 'Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht werden.', 'pass-captain' ), 403 );
 			}
 			$now = current_time( 'mysql', true );
 			if ( ( $target->sales_start && $target->sales_start > $now ) || ( $target->sales_end && $target->sales_end < $now ) ) {
-				return self::error( 'wpcap_exchange_sales_closed', __( 'Der Verkauf für diese Ticketart ist geschlossen.', 'wp-pass-captain' ) );
+				return self::error( 'wpcap_exchange_sales_closed', __( 'Der Verkauf für diese Ticketart ist geschlossen.', 'pass-captain' ) );
 			}
-			if ( empty( $policy['portal_enabled'] ) ) { return self::error( 'wpcap_exchange_portal_disabled', __( 'Ein Umtausch ist hier nicht möglich. Bitte wende dich an den Veranstalter.', 'wp-pass-captain' ), 403 ); }
+			if ( empty( $policy['portal_enabled'] ) ) { return self::error( 'wpcap_exchange_portal_disabled', __( 'Ein Umtausch ist hier nicht möglich. Bitte wende dich an den Veranstalter.', 'pass-captain' ), 403 ); }
 			$limit = time() + max( 0, (int) $policy['portal_hours'] ) * HOUR_IN_SECONDS;
 			if ( strtotime( $ticket->starts_at . ' UTC' ) <= $limit || strtotime( $target->starts_at . ' UTC' ) <= $limit ) {
 				/* translators: %d: hours */
-				return self::error( 'wpcap_exchange_too_late', sprintf( _n( 'Ein Umtausch ist nur bis %d Stunde vor Beginn möglich.', 'Ein Umtausch ist nur bis %d Stunden vor Beginn möglich.', (int) $policy['portal_hours'], 'wp-pass-captain' ), (int) $policy['portal_hours']) );
+				return self::error( 'wpcap_exchange_too_late', sprintf( _n( 'Ein Umtausch ist nur bis %d Stunde vor Beginn möglich.', 'Ein Umtausch ist nur bis %d Stunden vor Beginn möglich.', (int) $policy['portal_hours'], 'pass-captain' ), (int) $policy['portal_hours']) );
 			}
 			if ( self::exchange_count( (int) $ticket->ticket_id ) >= max( 0, (int) $policy['portal_max_per_ticket'] ) ) {
-				return self::error( 'wpcap_exchange_limit', __( 'Dieses Ticket wurde bereits so oft wie erlaubt umgetauscht.', 'wp-pass-captain' ) );
+				return self::error( 'wpcap_exchange_limit', __( 'Dieses Ticket wurde bereits so oft wie erlaubt umgetauscht.', 'pass-captain' ) );
 			}
 		}
 		return true;
@@ -413,7 +413,7 @@ final class Service {
 		// A free upgrade (goodwill) or a box office "free" supplement is a comp: same right as the
 		// guest list approval (four-eyes principle there), not just order management.
 		if ( ( ! empty( $args['waive'] ) || ( 'pos' === $channel && 'free' === ( $args['pos_method'] ?? '' ) ) ) && ! current_user_can( self::COMP_CAP ) ) {
-			return self::error( 'wpcap_exchange_waive_forbidden', __( 'Für einen Umtausch ohne Aufpreis (Kulanz/Freikarte) fehlt die Berechtigung zur Freigabe von Freikarten.', 'wp-pass-captain' ), 403 );
+			return self::error( 'wpcap_exchange_waive_forbidden', __( 'Für einen Umtausch ohne Aufpreis (Kulanz/Freikarte) fehlt die Berechtigung zur Freigabe von Freikarten.', 'pass-captain' ), 403 );
 		}
 		$key = sanitize_text_field( (string) ( $args['idempotency_key'] ?? '' ) );
 		$key_hash = '' !== $key ? hash( 'sha256', 'exchange|' . absint( $ticket_id ) . '|' . $key ) : null;
@@ -569,17 +569,17 @@ final class Service {
 			return new \WP_Error( 'wpcap_exchange_failed', $error->get_error_message(), array( 'status' => (int) ( $data['status'] ?? 409 ), 'reason' => $error->get_error_code(), 'retryable' => ! empty( $data['retryable'] ) ) );
 		}
 		$messages = apply_filters( 'wpcap_checkout_error_messages', array(
-			'ticket_state' => __( 'Nur gültige, nicht eingecheckte und nicht erstattete Tickets können umgetauscht werden.', 'wp-pass-captain' ),
-			'exchange_pending' => __( 'Für dieses Ticket läuft bereits ein Umtausch, der auf Zahlung wartet.', 'wp-pass-captain' ),
-			'target_unavailable' => __( 'Die gewählte Ticketart ist nicht verfügbar.', 'wp-pass-captain' ),
-			'transferred' => __( 'Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht werden.', 'wp-pass-captain' ),
-			'refund_offline' => __( 'Bei diesem Umtausch würde Geld erstattet, das bei der Verkaufsstelle (Kasse oder Vertriebspartner) bezahlt wurde. Bitte wende dich für den Umtausch an die Verkaufsstelle oder den Veranstalter.', 'wp-pass-captain' ),
-			'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'wp-pass-captain' ),
-			'insert_failed' => __( 'Der Umtausch konnte nicht gespeichert werden.', 'wp-pass-captain' ),
-			'billing_invalid' => __( 'Die Rechnungsdaten sind unvollständig: Vorname, Nachname, Straße, PLZ, Ort und Land angeben.', 'wp-pass-captain' ),
-			'billing_required' => __( 'Für diesen Aufpreis braucht die Rechnung Name und Anschrift. Bitte Rechnungsdaten angeben oder den Veranstalter kontaktieren.', 'wp-pass-captain' ),
+			'ticket_state' => __( 'Nur gültige, nicht eingecheckte und nicht erstattete Tickets können umgetauscht werden.', 'pass-captain' ),
+			'exchange_pending' => __( 'Für dieses Ticket läuft bereits ein Umtausch, der auf Zahlung wartet.', 'pass-captain' ),
+			'target_unavailable' => __( 'Die gewählte Ticketart ist nicht verfügbar.', 'pass-captain' ),
+			'transferred' => __( 'Dieses Ticket wurde übertragen und kann nur vom Veranstalter umgetauscht werden.', 'pass-captain' ),
+			'refund_offline' => __( 'Bei diesem Umtausch würde Geld erstattet, das bei der Verkaufsstelle (Kasse oder Vertriebspartner) bezahlt wurde. Bitte wende dich für den Umtausch an die Verkaufsstelle oder den Veranstalter.', 'pass-captain' ),
+			'db_busy' => __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ),
+			'insert_failed' => __( 'Der Umtausch konnte nicht gespeichert werden.', 'pass-captain' ),
+			'billing_invalid' => __( 'Die Rechnungsdaten sind unvollständig: Vorname, Nachname, Straße, PLZ, Ort und Land angeben.', 'pass-captain' ),
+			'billing_required' => __( 'Für diesen Aufpreis braucht die Rechnung Name und Anschrift. Bitte Rechnungsdaten angeben oder den Veranstalter kontaktieren.', 'pass-captain' ),
 		) );
-		$message = $messages[ $code ] ?? __( 'Der Umtausch konnte nicht durchgeführt werden.', 'wp-pass-captain' );
+		$message = $messages[ $code ] ?? __( 'Der Umtausch konnte nicht durchgeführt werden.', 'pass-captain' );
 		return new \WP_Error( 'wpcap_exchange_failed', $message, array( 'status' => 'db_busy' === $code ? 503 : 409, 'reason' => (string) $code, 'retryable' => 'db_busy' === $code ) );
 	}
 
@@ -770,12 +770,12 @@ final class Service {
 				(int) $order->order_id,
 				(int) $row['refund_minor'],
 				/* translators: 1: old ticket type, 2: new ticket type */
-				sprintf( __( 'Umtausch %1$s → %2$s', 'wp-pass-captain' ), $old->ticket_name, $done['type']->name ),
+				sprintf( __( 'Umtausch %1$s → %2$s', 'pass-captain' ), $old->ticket_name, $done['type']->name ),
 				'exchange-' . $exchange_id,
 				array( 'system' => in_array( $channel, array( 'portal', 'api' ), true ), 'tax_minor' => Orders::gross_tax( (int) $row['refund_minor'], (int) $old->tax_rate_bp ) )
 			);
 			if ( is_wp_error( $refund ) ) {
-				$warning = sprintf( /* translators: %s: error */ __( 'Der Umtausch ist erfolgt, die Erstattung der Differenz konnte aber nicht ausgelöst werden: %s', 'wp-pass-captain' ), $refund->get_error_message() );
+				$warning = sprintf( /* translators: %s: error */ __( 'Der Umtausch ist erfolgt, die Erstattung der Differenz konnte aber nicht ausgelöst werden: %s', 'pass-captain' ), $refund->get_error_message() );
 				$wpdb->update( self::table(), array( 'refund_status' => 'error', 'updated_at' => current_time( 'mysql', true ) ), array( 'exchange_id' => $exchange_id ) );
 				Audit::record( 'ticket_exchange_refund_failed', 'order', (int) $order->order_id, array( 'exchange_id' => $exchange_id, 'error' => $refund->get_error_code() ) );
 				$price_note = array( 'refund_pending', $money( (int) $row['refund_minor'] ) );
@@ -843,7 +843,7 @@ final class Service {
 			'old_ticket_name' => (string) $old->ticket_name,
 			'old_event_date' => Orders::format_start( $old->starts_at, $old->timezone ),
 			'seat' => $seat,
-			'seat_note' => static function () use ( $seat ) { return '' !== $seat ? __( 'Sitzplatz:', 'wp-pass-captain' ) . ' ' . $seat . "\n" : ''; },
+			'seat_note' => static function () use ( $seat ) { return '' !== $seat ? __( 'Sitzplatz:', 'pass-captain' ) . ' ' . $seat . "\n" : ''; },
 			'price_note' => static function () use ( $kind, $amount ) { return Mail\Types::exchange_price_note( $kind, $amount ); },
 			'ticket_link' => Mail\Mailer::link( add_query_arg( 'wpcap_ticket', $done['token'], home_url( '/' ) ) ),
 			'ticket_extras' => Mail\Blocks::extra( (string) apply_filters( 'wpcap_ticket_code_mail_section', '', $new_id ) ),
@@ -986,7 +986,7 @@ final class Service {
 		$supp = Orders::get( $supp_id );
 		$gateway = Registry::get( $data['provider'] );
 		if ( $gateway && 'portal' === $channel ) {
-			$items = array( array( 'name' => sprintf( /* translators: 1: old type, 2: new type */ __( 'Umtausch %1$s → %2$s', 'wp-pass-captain' ), $data['ticket']->ticket_name, $data['type']->name ), 'event_name' => (string) $data['ticket']->event_name, 'quantity' => 1, 'unit_price_minor' => (int) $supp->total_minor, 'line_total_minor' => (int) $supp->total_minor ) );
+			$items = array( array( 'name' => sprintf( /* translators: 1: old type, 2: new type */ __( 'Umtausch %1$s → %2$s', 'pass-captain' ), $data['ticket']->ticket_name, $data['type']->name ), 'event_name' => (string) $data['ticket']->event_name, 'quantity' => 1, 'unit_price_minor' => (int) $supp->total_minor, 'line_total_minor' => (int) $supp->total_minor ) );
 			$started = $gateway->create_payment( (array) $supp, $items );
 			if ( is_wp_error( $started ) ) {
 				Orders::cancel_order( $supp_id, 'payment_start_failed' );
@@ -1032,7 +1032,7 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$exchange = self::get( $exchange_id );
-		if ( ! $exchange ) { return self::error( 'wpcap_exchange_missing', __( 'Umtausch nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $exchange ) { return self::error( 'wpcap_exchange_missing', __( 'Umtausch nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( self::COMPLETED === $exchange['status'] || self::REVIEW === $exchange['status'] ) { return $exchange; }
 		$ticket = self::ticket( (int) $exchange['old_ticket_id'] );
 		$done = null;
@@ -1102,7 +1102,7 @@ final class Service {
 		}
 		if ( $review ) {
 			Audit::record( 'ticket_exchange_review', 'order', (int) $exchange['order_id'], array( 'exchange_id' => absint( $exchange_id ), 'reason' => $review, 'supplementary_order_id' => (int) $exchange['supplementary_order_id'] ) );
-			wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Umtausch bezahlt, aber nicht durchführbar', 'wp-pass-captain' ), sprintf( /* translators: 1: exchange id, 2: order id */ __( 'Der Aufpreis für Umtausch #%1$d (Bestellung #%2$d) wurde bezahlt, das ursprüngliche Ticket ist aber nicht mehr gültig (eingecheckt, widerrufen oder erstattet). Bitte manuell klären und den Aufpreis gegebenenfalls erstatten.', 'wp-pass-captain' ), absint( $exchange_id ), (int) $exchange['order_id'] ) );
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Umtausch bezahlt, aber nicht durchführbar', 'pass-captain' ), sprintf( /* translators: 1: exchange id, 2: order id */ __( 'Der Aufpreis für Umtausch #%1$d (Bestellung #%2$d) wurde bezahlt, das ursprüngliche Ticket ist aber nicht mehr gültig (eingecheckt, widerrufen oder erstattet). Bitte manuell klären und den Aufpreis gegebenenfalls erstatten.', 'pass-captain' ), absint( $exchange_id ), (int) $exchange['order_id'] ) );
 			return self::get( $exchange_id );
 		}
 		return self::after_complete( $done );
@@ -1171,7 +1171,7 @@ final class Service {
 					$fee = apply_filters( 'wpcap_exchange_refund_fee', false, $exchange ) ? 0 : (int) $exchange['fee_minor'];
 					$amount = min( (int) $supp->total_minor - (int) $supp->refunded_minor, max( 0, (int) $exchange['due_minor'] - $fee ) );
 					if ( $amount > 0 ) {
-						$result = Refunds::request_amount( (int) $supp->order_id, $amount, __( 'Erstattung Aufpreis (Umtausch)', 'wp-pass-captain' ), 'exchange-supplement-' . (int) $exchange['exchange_id'], array( 'system' => true, 'tax_minor' => Orders::gross_tax( $amount, (int) $wpdb->get_var( $wpdb->prepare( "SELECT tax_rate_bp FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d ORDER BY item_id LIMIT 1", (int) $supp->order_id ) ) ) ) );
+						$result = Refunds::request_amount( (int) $supp->order_id, $amount, __( 'Erstattung Aufpreis (Umtausch)', 'pass-captain' ), 'exchange-supplement-' . (int) $exchange['exchange_id'], array( 'system' => true, 'tax_minor' => Orders::gross_tax( $amount, (int) $wpdb->get_var( $wpdb->prepare( "SELECT tax_rate_bp FROM {$wpdb->prefix}wpcap_order_items WHERE order_id=%d ORDER BY item_id LIMIT 1", (int) $supp->order_id ) ) ) ) );
 						Audit::record( 'ticket_exchange_supplement_refund', 'order', (int) $supp->order_id, array( 'exchange_id' => (int) $exchange['exchange_id'], 'refund_id' => absint( $refund_id ), 'result' => is_wp_error( $result ) ? $result->get_error_code() : (string) $result['status'] ) );
 					}
 				}
@@ -1191,10 +1191,10 @@ final class Service {
 			$item = clone $item;
 			if ( 0 === (int) $item->quantity ) {
 				$item->quantity = 1;
-				$item->name = __( 'Umtauschgebühr', 'wp-pass-captain' );
+				$item->name = __( 'Umtauschgebühr', 'pass-captain' );
 			} else {
 				/* translators: 1: previous ticket type, 2: new ticket type */
-				$item->name = sprintf( __( 'Aufpreis Umtausch %1$s → %2$s', 'wp-pass-captain' ), $from, (string) $item->name );
+				$item->name = sprintf( __( 'Aufpreis Umtausch %1$s → %2$s', 'pass-captain' ), $from, (string) $item->name );
 			}
 			$items[ $index ] = $item;
 		}
@@ -1223,9 +1223,9 @@ final class Service {
 	public static function box_office_exchange( $ticket, $target_type_id, array $args = array() ) {
 		$ticket_id = self::resolve_ticket( $ticket );
 		$row = $ticket_id ? self::ticket( $ticket_id ) : null;
-		if ( ! $row ) { return self::error( 'wpcap_exchange_ticket_missing', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $row ) { return self::error( 'wpcap_exchange_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! \PassCaptain\Access::can_access_event( (int) $row->event_id, 'wpcap_manage_orders' ) ) {
-			return self::error( 'wpcap_exchange_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 );
+			return self::error( 'wpcap_exchange_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 );
 		}
 		$args['channel'] = 'pos';
 		$method = sanitize_key( (string) ( $args['pos_method'] ?? 'cash' ) );
@@ -1234,7 +1234,7 @@ final class Service {
 		$pos = class_exists( \PassCaptain\BoxOffice\Service::class );
 		// Money at the counter is booked into the cashier's open shift (receipt, Z report).
 		if ( $pos && \PassCaptain\BoxOffice\Shifts::needs_shift( $method ) && ! \PassCaptain\BoxOffice\Service::open_session_for( get_current_user_id() ) ) {
-			return self::error( 'wpcap_pos_no_session', __( 'Für einen Umtausch mit Aufpreis an der Kasse muss eine Kassenschicht geöffnet sein.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_no_session', __( 'Für einen Umtausch mit Aufpreis an der Kasse muss eine Kassenschicht geöffnet sein.', 'pass-captain' ), 409 );
 		}
 		$result = self::request( $ticket_id, $target_type_id, $args );
 		if ( is_wp_error( $result ) || ! $pos || empty( $result['supplementary_order_id'] ) ) { return $result; }

@@ -66,8 +66,8 @@ final class TimeBudget {
 	public static function continue_later( $hook ) {
 		$args = array( 'continue' );
 		if ( function_exists( 'as_enqueue_async_action' ) ) {
-			if ( ! function_exists( 'as_has_scheduled_action' ) || ! as_has_scheduled_action( $hook, $args, 'wp-pass-captain' ) ) {
-				as_enqueue_async_action( $hook, $args, 'wp-pass-captain' );
+			if ( ! function_exists( 'as_has_scheduled_action' ) || ! as_has_scheduled_action( $hook, $args, 'pass-captain' ) ) {
+				as_enqueue_async_action( $hook, $args, 'pass-captain' );
 			}
 			return true;
 		}

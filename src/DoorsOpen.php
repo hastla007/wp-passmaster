@@ -44,13 +44,13 @@ final class DoorsOpen {
 		if ( '' === $raw ) { return null; }
 		$utc = Admin\Forms::local_to_utc( $raw, $timezone );
 		if ( null === $utc ) {
-			return new \WP_Error( 'wpcap_occurrence_doors', __( 'Die Einlasszeit ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_occurrence_doors', __( 'Die Einlasszeit ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		if ( $utc > $starts_utc ) {
-			return new \WP_Error( 'wpcap_occurrence_doors', __( 'Die Einlasszeit muss vor oder zum Beginn liegen.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_occurrence_doors', __( 'Die Einlasszeit muss vor oder zum Beginn liegen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		if ( strtotime( $starts_utc . ' UTC' ) - strtotime( $utc . ' UTC' ) > 2 * DAY_IN_SECONDS ) {
-			return new \WP_Error( 'wpcap_occurrence_doors', __( 'Die Einlasszeit darf höchstens zwei Tage vor dem Beginn liegen.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_occurrence_doors', __( 'Die Einlasszeit darf höchstens zwei Tage vor dem Beginn liegen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		return $utc;
 	}
@@ -81,6 +81,6 @@ final class DoorsOpen {
 		$same_day = '' !== (string) $starts_utc && Admin\Forms::utc_to_local( $doors_utc, $timezone, 'Y-m-d' ) === Admin\Forms::utc_to_local( $starts_utc, $timezone, 'Y-m-d' );
 		$when = Admin\Forms::utc_to_local( $doors_utc, $timezone, $same_day ? 'H:i' : 'd.m.Y H:i' );
 		/* translators: %s: doors-open time (local time of the occurrence) */
-		return sprintf( __( 'Einlass ab %s', 'wp-pass-captain' ), $when );
+		return sprintf( __( 'Einlass ab %s', 'pass-captain' ), $when );
 	}
 }

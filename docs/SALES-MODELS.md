@@ -1,6 +1,6 @@
 # Verkaufsmodelle: Eigenhändler und Vermittler
 
-WP Pass Captain unterstützt je Veranstalter eines von zwei Verkaufsmodellen. Das Modell entscheidet,
+Pass Captain unterstützt je Veranstalter eines von zwei Verkaufsmodellen. Das Modell entscheidet,
 **wer** gegenüber den Ticketkäufern leistet und Rechnungen ausstellt und **welche Belege** die Plattform
 monatlich mit dem Veranstalter austauscht.
 
@@ -181,7 +181,7 @@ und Steuerklasse kommen statt aus dem Feld „Steuersatz“ der Ticketart.
   Veranstalterabrechnungen lesen ausschließlich den gespeicherten Satz der Position: Ein späteres
   Außerkraftsetzen oder eine neue Profilversion ändert verkaufte Bestellungen nicht.
 - **Steuerprüfung (Menü Finanzen & Auswertung → Steuerprüfung):** Profile entstehen als **Entwurf**
-  (Admin-Seite oder `POST /wp-pass-captain/v1/tax-profiles`). Aktivieren kann nur, wer Finanzrechte
+  (Admin-Seite oder `POST /pass-captain/v1/tax-profiles`). Aktivieren kann nur, wer Finanzrechte
   hat (`wpcap_view_finance`, z. B. Rolle „Finanzbuchhaltung“, oder Administration), nach Bestätigung
   der Prüfung und mit optionalem Prüfvermerk. **Vier-Augen-Prinzip** (Einstellung
   „Vier-Augen-Prinzip für Steuerprofile“, Standard an): Wer den Entwurf angelegt oder zuletzt

@@ -2,7 +2,7 @@
 /**
  * Operations monitoring through WordPress Site Health (A164): tests for WP-Cron, queue backlogs and
  * dead letters, plugin mail failures, SMS provider failures and payment webhook freshness, the
- * "WP Pass Captain – Betrieb" section of the Site Health info tab, and an admin notice on plugin pages
+ * "Pass Captain – Betrieb" section of the Site Health info tab, and an admin notice on plugin pages
  * while a test is critical. Thresholds: filter wpcap_health_thresholds (docs/OPERATIONS.md).
  *
  * @package PassCaptain
@@ -51,7 +51,7 @@ final class SiteHealth {
 			'payment_webhook_hours'    => 48,
 		);
 		/**
-		 * Thresholds of the WP Pass Captain Site Health checks.
+		 * Thresholds of the Pass Captain Site Health checks.
 		 *
 		 * @param array $thresholds Key => number (minutes, hours or item counts, see docs/OPERATIONS.md).
 		 */
@@ -69,7 +69,7 @@ final class SiteHealth {
 		$tests = is_array( $tests ) ? $tests : array();
 		foreach ( self::test_callbacks() as $key => $callback ) {
 			$tests['direct'][ 'wpcap_' . $key ] = array(
-				'label' => __( 'WP Pass Captain', 'wp-pass-captain' ),
+				'label' => __( 'Pass Captain', 'pass-captain' ),
 				'test'  => $callback,
 			);
 		}
@@ -98,7 +98,7 @@ final class SiteHealth {
 			'label'       => $label,
 			'status'      => $status,
 			'badge'       => array(
-				'label' => __( 'WP Pass Captain', 'wp-pass-captain' ),
+				'label' => __( 'Pass Captain', 'pass-captain' ),
 				'color' => 'critical' === $status ? 'red' : ( 'recommended' === $status ? 'orange' : 'blue' ),
 			),
 			'description' => $description,
@@ -112,7 +112,7 @@ final class SiteHealth {
 		$minutes = max( 0, (int) $minutes );
 		if ( $minutes < 120 ) {
 			/* translators: %d: number of minutes */
-			return sprintf( _n( '%d Minute', '%d Minuten', $minutes, 'wp-pass-captain' ), $minutes );
+			return sprintf( _n( '%d Minute', '%d Minuten', $minutes, 'pass-captain' ), $minutes );
 		}
 		return self::hours( intdiv( $minutes, 60 ) );
 	}
@@ -121,7 +121,7 @@ final class SiteHealth {
 	public static function hours( $hours ) {
 		$hours = max( 0, (int) $hours );
 		/* translators: %d: number of hours */
-		return sprintf( _n( '%d Stunde', '%d Stunden', $hours, 'wp-pass-captain' ), $hours );
+		return sprintf( _n( '%d Stunde', '%d Stunden', $hours, 'pass-captain' ), $hours );
 	}
 
 	private static function p( $text ) { return '<p>' . esc_html( $text ) . '</p>'; }
@@ -131,7 +131,7 @@ final class SiteHealth {
 	}
 
 	private static function operations_link() {
-		return '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\OperationsPage::SLUG ) ) . '">' . esc_html__( 'Zur Betriebsübersicht von WP Pass Captain', 'wp-pass-captain' ) . '</a></p>';
+		return '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\OperationsPage::SLUG ) ) . '">' . esc_html__( 'Zur Betriebsübersicht von Pass Captain', 'pass-captain' ) . '</a></p>';
 	}
 
 	/* ------------------------------------------------------------------ WP-Cron */
@@ -180,30 +180,30 @@ final class SiteHealth {
 		$lines = array();
 		foreach ( $late as $hook => $minutes ) {
 			/* translators: 1: cron hook name, 2: duration, e.g. "20 Minuten" */
-			$lines[] = sprintf( __( '%1$s ist seit %2$s überfällig.', 'wp-pass-captain' ), $hook, self::duration( $minutes ) );
+			$lines[] = sprintf( __( '%1$s ist seit %2$s überfällig.', 'pass-captain' ), $hook, self::duration( $minutes ) );
 		}
 		foreach ( $state['missing'] as $hook ) {
 			/* translators: %s: cron hook name */
-			$lines[] = sprintf( __( '%s ist nicht eingeplant.', 'wp-pass-captain' ), $hook );
+			$lines[] = sprintf( __( '%s ist nicht eingeplant.', 'pass-captain' ), $hook );
 		}
 		$silent = $state['disabled'] && null !== $state['since'] && $state['since'] >= $t['cron_critical_minutes'];
 		if ( $silent ) {
 			/* translators: %s: duration, e.g. "3 Stunden" */
-			$lines[] = sprintf( __( 'DISABLE_WP_CRON ist gesetzt und die Warteschlangen liefen seit %s nicht mehr – offenbar löst kein externer Cronjob WP-Cron aus.', 'wp-pass-captain' ), self::duration( $state['since'] ) );
+			$lines[] = sprintf( __( 'DISABLE_WP_CRON ist gesetzt und die Warteschlangen liefen seit %s nicht mehr – offenbar löst kein externer Cronjob WP-Cron aus.', 'pass-captain' ), self::duration( $state['since'] ) );
 		}
-		$intro = $state['disabled'] ? __( 'WP-Cron ist per DISABLE_WP_CRON abgeschaltet; ein System-Cronjob muss wp-cron.php regelmäßig aufrufen.', 'wp-pass-captain' ) : __( 'WP-Cron läuft bei Seitenaufrufen. Für verlässliche Ticketmails, Erinnerungen und Webhooks empfehlen wir einen System-Cronjob.', 'wp-pass-captain' );
+		$intro = $state['disabled'] ? __( 'WP-Cron ist per DISABLE_WP_CRON abgeschaltet; ein System-Cronjob muss wp-cron.php regelmäßig aufrufen.', 'pass-captain' ) : __( 'WP-Cron läuft bei Seitenaufrufen. Für verlässliche Ticketmails, Erinnerungen und Webhooks empfehlen wir einen System-Cronjob.', 'pass-captain' );
 		if ( null !== $state['since'] ) {
 			/* translators: %s: duration, e.g. "4 Minuten" */
-			$intro .= ' ' . sprintf( __( 'Letzter Lauf der Warteschlangen vor %s.', 'wp-pass-captain' ), self::duration( $state['since'] ) );
+			$intro .= ' ' . sprintf( __( 'Letzter Lauf der Warteschlangen vor %s.', 'pass-captain' ), self::duration( $state['since'] ) );
 		}
-		$actions = '<p><a href="https://developer.wordpress.org/plugins/cron/hooking-wp-cron-into-the-system-task-scheduler/" target="_blank" rel="noopener">' . esc_html__( 'Externen Cronjob einrichten', 'wp-pass-captain' ) . '</a></p>';
+		$actions = '<p><a href="https://developer.wordpress.org/plugins/cron/hooking-wp-cron-into-the-system-task-scheduler/" target="_blank" rel="noopener">' . esc_html__( 'Externen Cronjob einrichten', 'pass-captain' ) . '</a></p>';
 		if ( $critical || $silent ) {
-			return self::result( 'cron', 'critical', __( 'WP Pass Captain: geplante Aufgaben laufen nicht', 'wp-pass-captain' ), self::p( $intro ) . self::list_html( $lines ), $actions );
+			return self::result( 'cron', 'critical', __( 'Pass Captain: geplante Aufgaben laufen nicht', 'pass-captain' ), self::p( $intro ) . self::list_html( $lines ), $actions );
 		}
 		if ( $lines ) {
-			return self::result( 'cron', 'recommended', __( 'WP Pass Captain: geplante Aufgaben verspätet', 'wp-pass-captain' ), self::p( $intro ) . self::list_html( $lines ), $actions );
+			return self::result( 'cron', 'recommended', __( 'Pass Captain: geplante Aufgaben verspätet', 'pass-captain' ), self::p( $intro ) . self::list_html( $lines ), $actions );
 		}
-		return self::result( 'cron', 'good', __( 'WP Pass Captain: geplante Aufgaben laufen pünktlich', 'wp-pass-captain' ), self::p( $intro ) );
+		return self::result( 'cron', 'good', __( 'Pass Captain: geplante Aufgaben laufen pünktlich', 'pass-captain' ), self::p( $intro ) );
 	}
 
 	/* ------------------------------------------------------------------ Queues */
@@ -222,14 +222,14 @@ final class SiteHealth {
 			if ( $crit ) { $status = 'critical'; } elseif ( $warn && 'good' === $status ) { $status = 'recommended'; }
 			if ( $crit || $warn ) {
 				/* translators: 1: queue name, 2: number of due items, 3: waiting time of the oldest due item, e.g. "40 Minuten", 4: number of failed items */
-				$lines[] = sprintf( __( '%1$s: fällig %2$d (ältester wartet seit %3$s), fehlgeschlagen %4$d.', 'wp-pass-captain' ), $labels[ $queue ] ?? $queue, $s['due'], self::duration( $age ), $s['failed'] );
+				$lines[] = sprintf( __( '%1$s: fällig %2$d (ältester wartet seit %3$s), fehlgeschlagen %4$d.', 'pass-captain' ), $labels[ $queue ] ?? $queue, $s['due'], self::duration( $age ), $s['failed'] );
 			}
 		}
 		if ( 'good' === $status ) {
-			return self::result( 'queues', 'good', __( 'WP Pass Captain: keine Rückstände in den Warteschlangen', 'wp-pass-captain' ), self::p( __( 'Hintergrundjobs, E-Mails und Webhooks werden zeitnah verarbeitet; es gibt keine endgültig fehlgeschlagenen Einträge.', 'wp-pass-captain' ) ) );
+			return self::result( 'queues', 'good', __( 'Pass Captain: keine Rückstände in den Warteschlangen', 'pass-captain' ), self::p( __( 'Hintergrundjobs, E-Mails und Webhooks werden zeitnah verarbeitet; es gibt keine endgültig fehlgeschlagenen Einträge.', 'pass-captain' ) ) );
 		}
-		$label = 'critical' === $status ? __( 'WP Pass Captain: große Rückstände oder viele fehlgeschlagene Einträge', 'wp-pass-captain' ) : __( 'WP Pass Captain: Rückstände oder fehlgeschlagene Einträge in den Warteschlangen', 'wp-pass-captain' );
-		return self::result( 'queues', $status, $label, self::p( __( 'Prüfe die Einträge und versuche sie erneut oder verwirf sie.', 'wp-pass-captain' ) ) . self::list_html( $lines ), self::operations_link() );
+		$label = 'critical' === $status ? __( 'Pass Captain: große Rückstände oder viele fehlgeschlagene Einträge', 'pass-captain' ) : __( 'Pass Captain: Rückstände oder fehlgeschlagene Einträge in den Warteschlangen', 'pass-captain' );
+		return self::result( 'queues', $status, $label, self::p( __( 'Prüfe die Einträge und versuche sie erneut oder verwirf sie.', 'pass-captain' ) ) . self::list_html( $lines ), self::operations_link() );
 	}
 
 	/* ------------------------------------------------------------------ Mail */
@@ -241,16 +241,16 @@ final class SiteHealth {
 		$count = count( $failures );
 		if ( 0 === $count || ( $t['mail_failures'] > 0 && $count < $t['mail_failures'] ) ) {
 			/* translators: %s: period, e.g. "24 Stunden" */
-			$text = sprintf( __( 'Innerhalb von %s ist kein Versand einer Plugin-E-Mail fehlgeschlagen.', 'wp-pass-captain' ), self::hours( $t['mail_window_hours'] ) );
-			return self::result( 'mail', 'good', __( 'WP Pass Captain: E-Mail-Versand ohne Fehler', 'wp-pass-captain' ), self::p( $text ) );
+			$text = sprintf( __( 'Innerhalb von %s ist kein Versand einer Plugin-E-Mail fehlgeschlagen.', 'pass-captain' ), self::hours( $t['mail_window_hours'] ) );
+			return self::result( 'mail', 'good', __( 'Pass Captain: E-Mail-Versand ohne Fehler', 'pass-captain' ), self::p( $text ) );
 		}
 		$last = $failures[0];
 		/* translators: 1: number of failed mails, 2: period, e.g. "24 Stunden" */
-		$text = sprintf( _n( 'Innerhalb von %2$s ist %1$d Plugin-E-Mail nicht versendet worden (wp_mail() meldete einen Fehler).', 'Innerhalb von %2$s sind %1$d Plugin-E-Mails nicht versendet worden (wp_mail() meldete einen Fehler).', $count, 'wp-pass-captain' ), $count, self::hours( $t['mail_window_hours'] ) );
+		$text = sprintf( _n( 'Innerhalb von %2$s ist %1$d Plugin-E-Mail nicht versendet worden (wp_mail() meldete einen Fehler).', 'Innerhalb von %2$s sind %1$d Plugin-E-Mails nicht versendet worden (wp_mail() meldete einen Fehler).', $count, 'pass-captain' ), $count, self::hours( $t['mail_window_hours'] ) );
 		/* translators: 1: mail type, 2: error code, 3: error message */
-		$detail = sprintf( __( 'Letzter Fehler: Typ %1$s, Code %2$s %3$s', 'wp-pass-captain' ), (string) $last['type'], (string) $last['code'], (string) $last['error'] );
+		$detail = sprintf( __( 'Letzter Fehler: Typ %1$s, Code %2$s %3$s', 'pass-captain' ), (string) $last['type'], (string) $last['code'], (string) $last['error'] );
 		$status = $t['mail_failures_critical'] > 0 && $count >= $t['mail_failures_critical'] ? 'critical' : 'recommended';
-		return self::result( 'mail', $status, __( 'WP Pass Captain: E-Mails werden nicht zugestellt', 'wp-pass-captain' ), self::p( $text ) . self::p( trim( $detail ) ) . self::p( __( 'Prüfe die SMTP-Einstellungen bzw. das Mail-Plugin der Website.', 'wp-pass-captain' ) ), self::operations_link() );
+		return self::result( 'mail', $status, __( 'Pass Captain: E-Mails werden nicht zugestellt', 'pass-captain' ), self::p( $text ) . self::p( trim( $detail ) ) . self::p( __( 'Prüfe die SMTP-Einstellungen bzw. das Mail-Plugin der Website.', 'pass-captain' ) ), self::operations_link() );
 	}
 
 	/* ------------------------------------------------------------------ SMS */
@@ -269,13 +269,13 @@ final class SiteHealth {
 		$count = self::sms_failures( $now );
 		if ( 0 === $count || ( $t['sms_failures'] > 0 && $count < $t['sms_failures'] ) ) {
 			/* translators: %s: period, e.g. "24 Stunden" */
-			$text = sprintf( __( 'Innerhalb von %s hat der SMS-Anbieter keinen Fehler gemeldet.', 'wp-pass-captain' ), self::hours( $t['mail_window_hours'] ) );
-			return self::result( 'sms', 'good', __( 'WP Pass Captain: SMS-Versand ohne Fehler', 'wp-pass-captain' ), self::p( $text ) );
+			$text = sprintf( __( 'Innerhalb von %s hat der SMS-Anbieter keinen Fehler gemeldet.', 'pass-captain' ), self::hours( $t['mail_window_hours'] ) );
+			return self::result( 'sms', 'good', __( 'Pass Captain: SMS-Versand ohne Fehler', 'pass-captain' ), self::p( $text ) );
 		}
 		$status = $t['sms_failures_critical'] > 0 && $count >= $t['sms_failures_critical'] ? 'critical' : 'recommended';
 		/* translators: 1: number of SMS, 2: period, e.g. "24 Stunden" */
-		$text = sprintf( _n( 'Innerhalb von %2$s ist %1$d SMS fehlgeschlagen oder nicht zugestellt worden.', 'Innerhalb von %2$s sind %1$d SMS fehlgeschlagen oder nicht zugestellt worden.', $count, 'wp-pass-captain' ), $count, self::hours( $t['mail_window_hours'] ) );
-		return self::result( 'sms', $status, __( 'WP Pass Captain: SMS-Versand fehlerhaft', 'wp-pass-captain' ), self::p( $text ) . self::p( __( 'Prüfe Zugangsdaten und Guthaben beim SMS-Anbieter.', 'wp-pass-captain' ) ), '<p><a href="' . esc_url( Forms::page_url( 'wpcap-sms' ) ) . '">' . esc_html__( 'SMS-Einstellungen', 'wp-pass-captain' ) . '</a></p>' );
+		$text = sprintf( _n( 'Innerhalb von %2$s ist %1$d SMS fehlgeschlagen oder nicht zugestellt worden.', 'Innerhalb von %2$s sind %1$d SMS fehlgeschlagen oder nicht zugestellt worden.', $count, 'pass-captain' ), $count, self::hours( $t['mail_window_hours'] ) );
+		return self::result( 'sms', $status, __( 'Pass Captain: SMS-Versand fehlerhaft', 'pass-captain' ), self::p( $text ) . self::p( __( 'Prüfe Zugangsdaten und Guthaben beim SMS-Anbieter.', 'pass-captain' ) ), '<p><a href="' . esc_url( Forms::page_url( 'wpcap-sms' ) ) . '">' . esc_html__( 'SMS-Einstellungen', 'pass-captain' ) . '</a></p>' );
 	}
 
 	/* ------------------------------------------------------------------ Payment webhooks */
@@ -312,15 +312,15 @@ final class SiteHealth {
 			if ( $info['orders'] > 0 && ! $fresh ) {
 				$lines[] = '' === $info['last']
 					/* translators: 1: payment provider id, 2: number of orders, 3: period, e.g. "48 Stunden" */
-					? sprintf( __( '%1$s: Bestellungen innerhalb von %3$s: %2$d, aber noch nie eine Webhook-Benachrichtigung erhalten.', 'wp-pass-captain' ), $provider, $info['orders'], self::hours( $t['payment_webhook_hours'] ) )
+					? sprintf( __( '%1$s: Bestellungen innerhalb von %3$s: %2$d, aber noch nie eine Webhook-Benachrichtigung erhalten.', 'pass-captain' ), $provider, $info['orders'], self::hours( $t['payment_webhook_hours'] ) )
 					/* translators: 1: payment provider id, 2: number of orders, 3: period, e.g. "48 Stunden", 4: date and time (UTC) */
-					: sprintf( __( '%1$s: Bestellungen innerhalb von %3$s: %2$d, letzte Webhook-Benachrichtigung am %4$s (UTC).', 'wp-pass-captain' ), $provider, $info['orders'], self::hours( $t['payment_webhook_hours'] ), $info['last'] );
+					: sprintf( __( '%1$s: Bestellungen innerhalb von %3$s: %2$d, letzte Webhook-Benachrichtigung am %4$s (UTC).', 'pass-captain' ), $provider, $info['orders'], self::hours( $t['payment_webhook_hours'] ), $info['last'] );
 			}
 		}
 		if ( $lines ) {
-			return self::result( 'payment_webhooks', 'recommended', __( 'WP Pass Captain: keine aktuellen Zahlungs-Webhooks', 'wp-pass-captain' ), self::p( __( 'Zahlungen werden über Webhooks des Zahlungsanbieters bestätigt. Prüfe die Webhook-URL und das Signatur-Secret im Dashboard des Anbieters.', 'wp-pass-captain' ) ) . self::list_html( $lines ) );
+			return self::result( 'payment_webhooks', 'recommended', __( 'Pass Captain: keine aktuellen Zahlungs-Webhooks', 'pass-captain' ), self::p( __( 'Zahlungen werden über Webhooks des Zahlungsanbieters bestätigt. Prüfe die Webhook-URL und das Signatur-Secret im Dashboard des Anbieters.', 'pass-captain' ) ) . self::list_html( $lines ) );
 		}
-		return self::result( 'payment_webhooks', 'good', __( 'WP Pass Captain: Zahlungs-Webhooks kommen an', 'wp-pass-captain' ), self::p( __( 'Für alle aktiven Zahlungsanbieter mit aktuellen Bestellungen sind Webhook-Benachrichtigungen eingegangen.', 'wp-pass-captain' ) ) );
+		return self::result( 'payment_webhooks', 'good', __( 'Pass Captain: Zahlungs-Webhooks kommen an', 'pass-captain' ), self::p( __( 'Für alle aktiven Zahlungsanbieter mit aktuellen Bestellungen sind Webhook-Benachrichtigungen eingegangen.', 'pass-captain' ) ) );
 	}
 
 	/* ------------------------------------------------------------------ Summary, notice, info tab */
@@ -347,10 +347,10 @@ final class SiteHealth {
 	/** Admin notice on plugin pages while a test is critical (administrators only). */
 	public static function admin_notice() {
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects the screen.
-		if ( ( ! str_starts_with( $page, 'wpcap' ) && 'wp-pass-captain' !== $page ) || ! current_user_can( 'manage_options' ) ) { return; }
+		if ( ( ! str_starts_with( $page, 'wpcap' ) && 'pass-captain' !== $page ) || ! current_user_can( 'manage_options' ) ) { return; }
 		$labels = self::critical_labels();
 		if ( ! $labels ) { return; }
-		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'WP Pass Captain: Der Betrieb ist gestört.', 'wp-pass-captain' ) . '</strong></p>' . self::list_html( $labels ) . '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\OperationsPage::SLUG ) ) . '">' . esc_html__( 'Betriebsübersicht öffnen', 'wp-pass-captain' ) . '</a> · <a href="' . esc_url( admin_url( 'site-health.php' ) ) . '">' . esc_html__( 'Website-Zustand', 'wp-pass-captain' ) . '</a></p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- list_html escapes.
+		echo '<div class="notice notice-error"><p><strong>' . esc_html__( 'Pass Captain: Der Betrieb ist gestört.', 'pass-captain' ) . '</strong></p>' . self::list_html( $labels ) . '<p><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\OperationsPage::SLUG ) ) . '">' . esc_html__( 'Betriebsübersicht öffnen', 'pass-captain' ) . '</a> · <a href="' . esc_url( admin_url( 'site-health.php' ) ) . '">' . esc_html__( 'Website-Zustand', 'pass-captain' ) . '</a></p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- list_html escapes.
 	}
 
 	/** Section of the Site Health info tab (filter debug_information). */
@@ -359,14 +359,14 @@ final class SiteHealth {
 		$fields = array();
 		$fields['disable_wp_cron'] = array(
 			'label' => 'DISABLE_WP_CRON',
-			'value' => defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ? __( 'ja', 'wp-pass-captain' ) : __( 'nein', 'wp-pass-captain' ),
+			'value' => defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON ? __( 'ja', 'pass-captain' ) : __( 'nein', 'pass-captain' ),
 		);
 		foreach ( Monitor::HEARTBEAT_HOOKS as $hook ) {
 			$beat = Monitor::last_heartbeat( $hook );
 			$fields[ 'heartbeat_' . $hook ] = array(
 				/* translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time */
-				'label' => sprintf( __( 'Letzter Lauf %s', 'wp-pass-captain' ), $hook ),
-				'value' => $beat ? gmdate( 'Y-m-d H:i:s', $beat ) . ' UTC' : __( 'nie', 'wp-pass-captain' ),
+				'label' => sprintf( __( 'Letzter Lauf %s', 'pass-captain' ), $hook ),
+				'value' => $beat ? gmdate( 'Y-m-d H:i:s', $beat ) . ' UTC' : __( 'nie', 'pass-captain' ),
 			);
 		}
 		if ( function_exists( 'wp_next_scheduled' ) ) {
@@ -374,8 +374,8 @@ final class SiteHealth {
 				$next = wp_next_scheduled( $hook );
 				$fields[ 'next_' . $hook ] = array(
 					/* translators: %s: name of the background job (WP-Cron hook, e.g. wpcap_cron); the value column shows the time */
-					'label' => sprintf( __( 'Nächster Lauf %s', 'wp-pass-captain' ), $hook ),
-					'value' => $next ? gmdate( 'Y-m-d H:i:s', (int) $next ) . ' UTC' : __( 'nicht eingeplant', 'wp-pass-captain' ),
+					'label' => sprintf( __( 'Nächster Lauf %s', 'pass-captain' ), $hook ),
+					'value' => $next ? gmdate( 'Y-m-d H:i:s', (int) $next ) . ' UTC' : __( 'nicht eingeplant', 'pass-captain' ),
 				);
 			}
 		}
@@ -387,31 +387,31 @@ final class SiteHealth {
 			$fields[ 'queue_' . $queue ] = array(
 				'label' => $labels[ $queue ] ?? $queue,
 				/* translators: 1: counts per status, 2: due items, 3: age of the oldest due item in minutes */
-				'value' => sprintf( __( '%1$s; fällig %2$d, ältester seit %3$d Min.', 'wp-pass-captain' ), $counts ? implode( ', ', $counts ) : '–', $s['due'], (int) floor( $s['oldest_due_seconds'] / 60 ) ),
+				'value' => sprintf( __( '%1$s; fällig %2$d, ältester seit %3$d Min.', 'pass-captain' ), $counts ? implode( ', ', $counts ) : '–', $s['due'], (int) floor( $s['oldest_due_seconds'] / 60 ) ),
 			);
 		}
 		$t = self::thresholds();
 		$fields['mail_failures'] = array(
 			/* translators: %d: hours */
-			'label' => sprintf( __( 'Fehlgeschlagene Plugin-E-Mails (%d h)', 'wp-pass-captain' ), $t['mail_window_hours'] ),
+			'label' => sprintf( __( 'Fehlgeschlagene Plugin-E-Mails (%d h)', 'pass-captain' ), $t['mail_window_hours'] ),
 			'value' => (string) count( Monitor::mail_failures( time() - $t['mail_window_hours'] * HOUR_IN_SECONDS ) ),
 		);
 		if ( self::sms_active() ) {
 			$fields['sms_failures'] = array(
 				/* translators: %d: hours */
-				'label' => sprintf( __( 'Fehlgeschlagene SMS (%d h)', 'wp-pass-captain' ), $t['mail_window_hours'] ),
+				'label' => sprintf( __( 'Fehlgeschlagene SMS (%d h)', 'pass-captain' ), $t['mail_window_hours'] ),
 				'value' => (string) self::sms_failures(),
 			);
 		}
 		foreach ( self::payment_webhooks() as $provider => $data ) {
 			$fields[ 'payment_webhook_' . $provider ] = array(
 				/* translators: %s: payment provider id */
-				'label' => sprintf( __( 'Letzter Zahlungs-Webhook %s', 'wp-pass-captain' ), $provider ),
-				'value' => '' !== $data['last'] ? $data['last'] . ' UTC' : __( 'nie', 'wp-pass-captain' ),
+				'label' => sprintf( __( 'Letzter Zahlungs-Webhook %s', 'pass-captain' ), $provider ),
+				'value' => '' !== $data['last'] ? $data['last'] . ' UTC' : __( 'nie', 'pass-captain' ),
 			);
 		}
-		$info['wp-pass-captain-operations'] = array(
-			'label'  => __( 'WP Pass Captain – Betrieb', 'wp-pass-captain' ),
+		$info['pass-captain-operations'] = array(
+			'label'  => __( 'Pass Captain – Betrieb', 'pass-captain' ),
 			'fields' => $fields,
 		);
 		return $info;

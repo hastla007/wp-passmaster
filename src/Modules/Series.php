@@ -33,7 +33,7 @@ final class Series {
 	}
 
 	public static function admin_pages() {
-		return array( array( AdminPage::SLUG, __( 'Serientermine', 'wp-pass-captain' ), Generator::CAP, array( AdminPage::class, 'render' ) ) );
+		return array( array( AdminPage::SLUG, __( 'Serientermine', 'pass-captain' ), Generator::CAP, array( AdminPage::class, 'render' ) ) );
 	}
 
 	public static function admin_handlers() {

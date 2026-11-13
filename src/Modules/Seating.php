@@ -34,7 +34,7 @@ final class Seating {
 	}
 
 	public static function admin_pages() {
-		return array( array( AdminPage::SLUG, __( 'Saalpläne', 'wp-pass-captain' ), Layouts::CAP, array( AdminPage::class, 'render' ) ) );
+		return array( array( AdminPage::SLUG, __( 'Saalpläne', 'pass-captain' ), Layouts::CAP, array( AdminPage::class, 'render' ) ) );
 	}
 
 	public static function admin_handlers() {

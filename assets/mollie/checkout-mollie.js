@@ -1,4 +1,4 @@
-/* Mollie payment method choice for the WP Pass Captain checkout. */
+/* Mollie payment method choice for the Pass Captain checkout. */
 ( function () {
 	'use strict';
 	function sync( form ) {

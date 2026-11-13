@@ -1,4 +1,4 @@
-/* WP Pass Captain box office: sums denomination counts into the amount field (no dependencies). */
+/* Pass Captain box office: sums denomination counts into the amount field (no dependencies). */
 (function () {
 	'use strict';
 	function money(minor) {

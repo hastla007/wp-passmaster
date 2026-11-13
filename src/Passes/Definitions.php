@@ -185,10 +185,10 @@ final class Definitions {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$anchor = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", absint( $in['occurrence_id'] ?? 0 ) ) );
-		if ( ! $anchor ) { return self::error( 'wpcap_pass_anchor', __( 'Bitte einen Termin wählen, auf dem der Pass verkauft wird.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( (int) $anchor->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $anchor ) { return self::error( 'wpcap_pass_anchor', __( 'Bitte einen Termin wählen, auf dem der Pass verkauft wird.', 'pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( (int) $anchor->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$name = mb_substr( sanitize_text_field( (string) ( $in['name'] ?? '' ) ), 0, 190 );
-		if ( '' === $name ) { return self::error( 'wpcap_pass_name', __( 'Bitte einen Namen für den Pass angeben.', 'wp-pass-captain' ) ); }
+		if ( '' === $name ) { return self::error( 'wpcap_pass_name', __( 'Bitte einen Namen für den Pass angeben.', 'pass-captain' ) ); }
 		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $in['currency'] ?? 'EUR' ) ) );
 		$wpdb->insert( "{$p}wpcap_ticket_types", array(
 			'occurrence_id' => (int) $anchor->occurrence_id,
@@ -201,7 +201,7 @@ final class Definitions {
 			'status' => 'active',
 		) );
 		$type_id = (int) $wpdb->insert_id;
-		if ( ! $type_id || '' !== $wpdb->last_error ) { return self::error( 'wpcap_pass_save', __( 'Der Pass konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		if ( ! $type_id || '' !== $wpdb->last_error ) { return self::error( 'wpcap_pass_save', __( 'Der Pass konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$saved = self::save( $type_id, $in );
 		if ( is_wp_error( $saved ) ) {
 			$wpdb->delete( "{$p}wpcap_ticket_types", array( 'ticket_type_id' => $type_id ) );
@@ -222,8 +222,8 @@ final class Definitions {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$type = self::type_row( $type_id );
-		if ( ! $type ) { return self::error( 'wpcap_pass_type', __( 'Ticketart nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( (int) $type->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $type ) { return self::error( 'wpcap_pass_type', __( 'Ticketart nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( (int) $type->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$previous = self::get( $type_id );
 		if ( $previous ) {
 			// Options not given keep their current value.
@@ -233,36 +233,36 @@ final class Definitions {
 		$ids = is_array( $raw ) ? $raw : preg_split( '/[\s,;]+/', (string) $raw );
 		$ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $ids ) ) ) );
 		sort( $ids );
-		if ( ! $ids ) { return self::error( 'wpcap_pass_occurrences', __( 'Bitte mindestens einen Termin für den Pass wählen.', 'wp-pass-captain' ) ); }
-		if ( count( $ids ) > self::MAX_OCCURRENCES ) { return self::error( 'wpcap_pass_occurrences', __( 'Zu viele Termine (höchstens 366).', 'wp-pass-captain' ) ); }
+		if ( ! $ids ) { return self::error( 'wpcap_pass_occurrences', __( 'Bitte mindestens einen Termin für den Pass wählen.', 'pass-captain' ) ); }
+		if ( count( $ids ) > self::MAX_OCCURRENCES ) { return self::error( 'wpcap_pass_occurrences', __( 'Zu viele Termine (höchstens 366).', 'pass-captain' ) ); }
 		$occurrences = array();
 		foreach ( (array) $wpdb->get_results( "SELECT occurrence_id,event_id,capacity,status FROM {$p}wpcap_occurrences WHERE occurrence_id IN (" . implode( ',', $ids ) . ')' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			$occurrences[ (int) $row->occurrence_id ] = $row;
 		}
 		$event_ids = array();
 		foreach ( $ids as $id ) {
-			if ( ! isset( $occurrences[ $id ] ) ) { return self::error( 'wpcap_pass_occurrences', __( 'Ein gewählter Termin existiert nicht.', 'wp-pass-captain' ), 404 ); }
+			if ( ! isset( $occurrences[ $id ] ) ) { return self::error( 'wpcap_pass_occurrences', __( 'Ein gewählter Termin existiert nicht.', 'pass-captain' ), 404 ); }
 			$event_ids[ (int) $occurrences[ $id ]->event_id ] = true;
 		}
 		foreach ( array_keys( $event_ids ) as $event_id ) {
-			if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für ein Event der gewählten Termine.', 'wp-pass-captain' ), 403 ); }
+			if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für ein Event der gewählten Termine.', 'pass-captain' ), 403 ); }
 		}
 		$mode = (string) ( $in['entry_mode'] ?? 'once' );
 		$mode = in_array( $mode, self::MODES, true ) ? $mode : 'once';
 		$max = absint( $in['max_occurrences'] ?? 0 );
-		if ( $max > count( $ids ) ) { return self::error( 'wpcap_pass_limit', __( 'Die Anzahl der nutzbaren Termine darf nicht größer sein als die Anzahl der gewählten Termine.', 'wp-pass-captain' ) ); }
+		if ( $max > count( $ids ) ) { return self::error( 'wpcap_pass_limit', __( 'Die Anzahl der nutzbaren Termine darf nicht größer sein als die Anzahl der gewählten Termine.', 'pass-captain' ) ); }
 		if ( $max === count( $ids ) ) { $max = 0; }
 		$areas_raw = $in['area_ids'] ?? array();
 		$area_ids = array_values( array_unique( array_filter( array_map( 'absint', is_array( $areas_raw ) ? $areas_raw : preg_split( '/[\s,;]+/', (string) $areas_raw ) ) ) ) );
 		if ( $area_ids ) {
 			$valid = array_map( 'intval', $wpdb->get_col( "SELECT area_id FROM {$p}wpcap_admission_areas WHERE area_id IN (" . implode( ',', $area_ids ) . ') AND event_id IN (' . implode( ',', array_keys( $event_ids ) ) . ')' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer lists.
-			if ( count( $valid ) !== count( $area_ids ) ) { return self::error( 'wpcap_pass_areas', __( 'Einlassbereiche müssen zu den Events der gewählten Termine gehören.', 'wp-pass-captain' ) ); }
+			if ( count( $valid ) !== count( $area_ids ) ) { return self::error( 'wpcap_pass_areas', __( 'Einlassbereiche müssen zu den Events der gewählten Termine gehören.', 'pass-captain' ) ); }
 			sort( $area_ids );
 		}
 		$on_cancel = (string) ( $in['on_cancel'] ?? 'keep' );
 		$on_cancel = in_array( $on_cancel, self::ON_CANCEL, true ) ? $on_cancel : 'keep';
 		$refund = absint( $in['refund_per_day_minor'] ?? 0 );
-		if ( $refund > (int) $type->price_minor ) { return self::error( 'wpcap_pass_refund', __( 'Die Teilerstattung pro Tag darf den Passpreis nicht übersteigen.', 'wp-pass-captain' ) ); }
+		if ( $refund > (int) $type->price_minor ) { return self::error( 'wpcap_pass_refund', __( 'Die Teilerstattung pro Tag darf den Passpreis nicht übersteigen.', 'pass-captain' ) ); }
 
 		// Occurrences added to a pass that is already sold must have room for the sold passes.
 		$sold = self::sold_units( $type_id );
@@ -273,7 +273,7 @@ final class Definitions {
 				if ( (int) $occ->capacity < 1 || (int) $occ->occurrence_id === (int) $type->occurrence_id ) { continue; }
 				$used = Capacity::core_used( $id, 0, $now ) + Capacity::pass_used( $id, 0, $now, true );
 				if ( $used + $sold > (int) $occ->capacity ) {
-					return self::error( 'wpcap_pass_capacity', __( 'Ein neu gewählter Termin hat nicht genug freie Plätze für die bereits verkauften Pässe.', 'wp-pass-captain' ), 409 );
+					return self::error( 'wpcap_pass_capacity', __( 'Ein neu gewählter Termin hat nicht genug freie Plätze für die bereits verkauften Pässe.', 'pass-captain' ), 409 );
 				}
 			}
 		}
@@ -286,7 +286,7 @@ final class Definitions {
 			'INSERT INTO ' . self::table( 'types' ) . ' (type_id,entry_mode,max_occurrences,area_ids,refund_per_day_minor,on_cancel,created_at,updated_at) VALUES (%d,%s,%d,%s,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE entry_mode=VALUES(entry_mode),max_occurrences=VALUES(max_occurrences),area_ids=VALUES(area_ids),refund_per_day_minor=VALUES(refund_per_day_minor),on_cancel=VALUES(on_cancel),updated_at=VALUES(updated_at)', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
 			(int) $type->ticket_type_id, $mode, $max, wp_json_encode( $area_ids ), $refund, $on_cancel, $now, $now
 		) );
-		if ( '' !== $wpdb->last_error ) { return self::error( 'wpcap_pass_save', __( 'Der Pass konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		if ( '' !== $wpdb->last_error ) { return self::error( 'wpcap_pass_save', __( 'Der Pass konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$links = self::table( 'occurrences' );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM $links WHERE type_id=%d AND occurrence_id NOT IN (" . implode( ',', $ids ) . ')', (int) $type->ticket_type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name, integer list.
 		foreach ( $ids as $id ) {
@@ -301,9 +301,9 @@ final class Definitions {
 	public static function remove( $type_id ) {
 		global $wpdb;
 		$type = self::type_row( $type_id );
-		if ( ! $type || ! self::is_pass( $type_id ) ) { return self::error( 'wpcap_pass_type', __( 'Pass nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( (int) $type->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
-		if ( self::sold_units( $type_id ) > 0 ) { return self::error( 'wpcap_pass_sold', __( 'Der Pass wurde bereits verkauft; die verknüpften Termine können nur geändert, nicht entfernt werden.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $type || ! self::is_pass( $type_id ) ) { return self::error( 'wpcap_pass_type', __( 'Pass nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( (int) $type->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
+		if ( self::sold_units( $type_id ) > 0 ) { return self::error( 'wpcap_pass_sold', __( 'Der Pass wurde bereits verkauft; die verknüpften Termine können nur geändert, nicht entfernt werden.', 'pass-captain' ), 409 ); }
 		$wpdb->delete( self::table( 'occurrences' ), array( 'type_id' => absint( $type_id ) ) );
 		$wpdb->delete( self::table( 'types' ), array( 'type_id' => absint( $type_id ) ) );
 		self::flush();
@@ -316,8 +316,8 @@ final class Definitions {
 		global $wpdb;
 		$occurrence_id = absint( $occurrence_id );
 		$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $occurrence_id ) );
-		if ( ! $event_id ) { return self::error( 'wpcap_pass_occurrences', __( 'Termin nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $event_id ) { return self::error( 'wpcap_pass_occurrences', __( 'Termin nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$gates = self::table( 'gates' );
 		$wpdb->query( $wpdb->prepare( "INSERT INTO $gates (occurrence_id,pass_quota,updated_at) VALUES (%d,%d,%s) ON DUPLICATE KEY UPDATE pass_quota=VALUES(pass_quota),updated_at=VALUES(updated_at)", $occurrence_id, absint( $quota ), current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name.
 		Audit::record( 'pass_quota_saved', 'occurrence', $occurrence_id, array( 'pass_quota' => absint( $quota ) ) );
