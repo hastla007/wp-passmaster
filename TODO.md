@@ -369,8 +369,8 @@ Diese Funktionen sind im Branch implementiert und getestet, aber noch nicht geme
 - [x] Alters-/Ausweispflicht pro Ticketart mit Hinweis im Scanner.
 - [x] No-Show-Liste/Export pro Termin.
 - [x] Getrennte Kontingente pro Verkaufskanal (online, Kasse, WooCommerce, Partner) und Kanal-Auswertung.
-- [ ] Abrechnungsblatt pro Vorstellung für Spielstätte/Künstler (Kapazität, Freikarten, Besucher, Door Deal).
-- [ ] Buchhaltungsexport um nicht fakturierte Online-/Kassenverkäufe ergänzen und Tagesgrenzen in Ortszeit statt UTC.
+- [x] Abrechnungsblatt pro Vorstellung für Spielstätte/Künstler (Kapazität, Freikarten, Besucher, Door Deal).
+- [x] Buchhaltungsexport um nicht fakturierte Online-/Kassenverkäufe ergänzen und Tagesgrenzen in Ortszeit statt UTC.
 - [ ] Einstellungsseite in Tabs aufteilen; Online- und Kassen-Zahlarten trennen; Rechtstexte mit Editor und je Sprache.
 - [ ] Eventkarte kompakt (Zusammenfassung + „Tickets“-Button), Mengen-Stepper, Kalender mit Verfügbarkeits-Badges und Link zum nächsten Termin.
 - [x] HTML-Mail-Layout als Standard passend zu WooCommerce prüfen.
