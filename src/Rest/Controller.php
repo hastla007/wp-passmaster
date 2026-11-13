@@ -768,22 +768,13 @@ final class Controller {
 		return rest_ensure_response( array( 'event_id' => $event_id, 'locale' => $locale, 'status' => 'saved' ) );
 	}
 
+	/** POST /tax-profiles: creates a draft (A115: activation only through the review step in the admin, Tax\Profiles::activate()). */
 	public static function save_tax_profile( \WP_REST_Request $request ) {
-		global $wpdb;
 		$data = (array) $request->get_json_params();
-		$country = strtoupper( sanitize_text_field( $data['country_code'] ?? '' ) );
-		$class = sanitize_key( $data['tax_class'] ?? 'standard' );
-		$rate = absint( $data['rate_basis_points'] ?? 0 );
-		$from = sanitize_text_field( $data['effective_from'] ?? '' );
-		$until = sanitize_text_field( $data['effective_until'] ?? '' );
-		$version = sanitize_text_field( $data['version'] ?? '' );
-		$from_parts = array_map( 'intval', explode( '-', $from ) );
-		$until_parts = $until ? array_map( 'intval', explode( '-', $until ) ) : array();
-		$valid_from = 3 === count( $from_parts ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) && checkdate( $from_parts[1], $from_parts[2], $from_parts[0] );
-		$valid_until = ! $until || ( 3 === count( $until_parts ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $until ) && checkdate( $until_parts[1], $until_parts[2], $until_parts[0] ) && $until >= $from );
-		if ( ! preg_match( '/^[A-Z]{2}$/', $country ) || ! $valid_from || ! $valid_until || ! preg_match( '/^[A-Za-z0-9._-]{1,32}$/', $version ) || $rate > 10000 ) { return new \WP_Error( 'wpcap_tax_profile_invalid', __( 'Steuerprofil ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
-		$inserted = $wpdb->insert( $wpdb->prefix . 'wpcap_tax_profiles', array( 'country_code' => $country, 'tax_class' => $class, 'rate_basis_points' => $rate, 'version' => $version, 'effective_from' => $from, 'effective_until' => $until ?: null, 'status' => 'draft', 'created_at' => current_time( 'mysql', true ) ), array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s' ) );
-		return false !== $inserted ? new \WP_REST_Response( array( 'tax_profile_id' => (int) $wpdb->insert_id, 'status' => 'draft', 'requires_review' => true ), 201 ) : new \WP_Error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) );
+		unset( $data['tax_profile_id'] ); // Creates only; drafts are edited in the admin.
+		$id = \PassCaptain\Tax\Profiles::save_draft( $data );
+		if ( is_wp_error( $id ) ) { return $id; }
+		return new \WP_REST_Response( array( 'tax_profile_id' => (int) $id, 'status' => 'draft', 'requires_review' => true ), 201 );
 	}
 
 	public static function create_seat_map( \WP_REST_Request $request ) {

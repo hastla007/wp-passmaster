@@ -216,9 +216,16 @@ final class Orders {
 			foreach ( $selected as $index => $line ) {
 				$line_discount = min( (int) $line['line_total'], max( 0, (int) ( $line_discounts[ $index ] ?? 0 ) ) );
 				$selected[ $index ]['discount_minor'] = $line_discount;
-				$rate = (int) ( $line['type']->tax_rate_bp ?? 0 );
 				$type_id_for_tax = (int) $line['type']->ticket_type_id;
+				// A115: rate from the active country tax profile (venue country, tax class, sale date) or
+				// the ticket type's own rate; a VAT amount fixed by the channel keeps the type's rate.
+				$tax_occurrence = $occurrences[ (int) $line['type']->occurrence_id ] ?? null;
+				$tax_info = array_key_exists( $type_id_for_tax, $line_taxes )
+					? array( 'rate_bp' => (int) ( $line['type']->tax_rate_bp ?? 0 ), 'source' => Tax\Profiles::SOURCE_EXTERNAL, 'profile_id' => 0, 'version' => '', 'country' => Tax\Profiles::venue_country( $tax_occurrence ) )
+					: Tax\Profiles::resolve( $line['type'], $tax_occurrence, $now, $capacity_context['source'] );
+				$rate = (int) $tax_info['rate_bp'];
 				$selected[ $index ]['tax_rate_bp'] = $rate;
+				$selected[ $index ]['tax_info'] = $tax_info;
 				$selected[ $index ]['tax_minor'] = array_key_exists( $type_id_for_tax, $line_taxes ) ? (int) $line_taxes[ $type_id_for_tax ] : self::gross_tax( $line['line_total'] - $line_discount, $rate );
 				$tax_total += $selected[ $index ]['tax_minor'];
 			}
@@ -279,6 +286,7 @@ final class Orders {
 				);
 				if ( $counted ) { $item['counted_qty'] = $pending_order ? 0 : (int) $line['quantity']; }
 				if ( OrderLines::ready() ) { $item['discount_minor'] = (int) ( $line['discount_minor'] ?? 0 ); }
+				$item += Tax\Profiles::line_columns( $line['tax_info'] );
 				$wpdb->insert( $items_table, $item );
 				if ( '' !== $wpdb->last_error ) {
 					throw new \RuntimeException( 'order_item_insert_failed' );

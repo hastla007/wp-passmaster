@@ -257,6 +257,12 @@ Berichts) bzw. `admin-post.php?action=wpcap_export_accounting&from=YYYY-MM-DD&to
 CSV mit Semikolon, UTF-8 mit BOM, Beträge mit Punkt als Dezimaltrennzeichen. Jeder Export wird
 protokolliert (`accounting_exported`).
 
+**Steuersätze**: Rechnungen, Rechnungskorrekturen, Export und Berichte verwenden den Satz, der beim Verkauf
+auf der Bestellposition gespeichert wurde – aus der Ticketart oder aus einem geprüften Länder-Steuerprofil
+(Pass Captain → Steuerprüfung, Schema 3.9.2). Profiländerungen wirken nur auf neue Bestellungen; die
+Bestellansicht zeigt je Position Quelle, Profilversion und Leistungsort. Details: docs/SALES-MODELS.md,
+Abschnitt „Länder-Steuerprofile“.
+
 **Tagesgrenzen**: `from`/`to` sind Kalendertage in der **Zeitzone der Website** (Einstellungen → Allgemein,
 `timezone_string`; ohne Angabe UTC), jeweils von 00:00 bis 24:00 Ortszeit. Auch `Belegdatum` ist das
 Datum in Ortszeit. Eine Rechnung von 00:30 Uhr am 1. eines Monats (MEZ) gehört damit in den neuen Monat,

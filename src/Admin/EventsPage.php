@@ -197,6 +197,15 @@ final class EventsPage {
 			$data['doors_open_at'] = $doors;
 			$formats[] = '%s';
 		}
+		if ( array_key_exists( 'venue_country', $in ) && \PassCaptain\Tax\Profiles::ready() ) {
+			// Place of supply for admission (A115); empty = seller country from the settings.
+			$venue_country = trim( Forms::text( $in, 'venue_country', 10 ) );
+			if ( '' !== $venue_country && '' === \PassCaptain\Tax\Profiles::country( $venue_country ) ) {
+				return Forms::error( 'wpcap_occurrence_country', __( 'Das Veranstaltungsland muss ein ISO-Ländercode sein, z. B. DE oder AT.', 'wp-pass-captain' ) );
+			}
+			$data['venue_country'] = \PassCaptain\Tax\Profiles::country( $venue_country );
+			$formats[] = '%s';
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_occurrences';
 		$rescheduled = false;
@@ -210,7 +219,7 @@ final class EventsPage {
 			}
 			// A114: field-by-field diff (old → new) for the occurrence's change history.
 			$changes = ChangeHistory::diff( (array) $old, $data );
-			Audit::record( 'occurrence_updated', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'old_starts_at' => $old->starts_at, 'new_starts_at' => $starts, 'status' => $status, 'rescheduled' => $rescheduled, 'changes' => $changes ) );
+			Audit::record( 'occurrence_updated', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'old_starts_at' => $old->starts_at, 'new_starts_at' => $starts, 'status' => $status, 'rescheduled' => $rescheduled, 'changes' => $changes ) + ( isset( $data['venue_country'] ) && (string) ( $old->venue_country ?? '' ) !== $data['venue_country'] ? array( 'old_venue_country' => (string) ( $old->venue_country ?? '' ), 'venue_country' => $data['venue_country'] ) : array() ) );
 			if ( 'cancelled' === $status && 'cancelled' !== $old->status ) {
 				do_action( 'wpcap_occurrence_cancelled', $occurrence_id, $issued );
 			} elseif ( self::capacity_grew( (int) $old->capacity, (int) $capacity ) ) {
@@ -349,6 +358,11 @@ final class EventsPage {
 			'status' => $status,
 		);
 		$formats = array( '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s' );
+		if ( array_key_exists( 'tax_class', $in ) ) {
+			// Tax class (A115): with an active country tax profile for it, sales use the profile's rate.
+			$data['tax_class'] = substr( sanitize_key( (string) $in['tax_class'] ), 0, 64 );
+			$formats[] = '%s';
+		}
 		if ( \PassCaptain\AdmissionChecks::ready() ) {
 			$data += $checks;
 			array_push( $formats, '%d', '%d', '%s' );
@@ -371,10 +385,10 @@ final class EventsPage {
 			$type_id = (int) $wpdb->insert_id;
 			if ( ! $type_id ) { return Forms::error( 'wpcap_type_save', __( 'Die Ticketkategorie konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
 		}
-		$details = array( 'occurrence_id' => (int) $occ->occurrence_id, 'price_minor' => $price, 'tax_rate_bp' => $tax_bp, 'status' => $status, 'currency' => $currency, 'type_name' => $name );
+		$details = array( 'occurrence_id' => (int) $occ->occurrence_id, 'price_minor' => $price, 'tax_rate_bp' => $tax_bp, 'status' => $status, 'currency' => $currency, 'type_name' => $name, 'tax_class' => (string) ( $data['tax_class'] ?? ( $old->tax_class ?? '' ) ) );
 		if ( $old ) {
 			// A114: price, capacity and sales window changes (old → new) for the occurrence's history.
-			$details['changes'] = ChangeHistory::diff( (array) $old, array_intersect_key( $data, array_flip( array( 'name', 'price_minor', 'currency', 'tax_rate_bp', 'capacity', 'max_per_order', 'sales_start', 'sales_end', 'status' ) ) ) );
+			$details['changes'] = ChangeHistory::diff( (array) $old, array_intersect_key( $data, array_flip( array( 'name', 'price_minor', 'currency', 'tax_rate_bp', 'tax_class', 'capacity', 'max_per_order', 'sales_start', 'sales_end', 'status' ) ) ) );
 			if ( isset( $details['changes']['currency'] ) ) { $details['currency'] = (string) $old->currency; }
 		}
 		Audit::record( $old ? 'ticket_type_updated' : 'ticket_type_created', 'ticket_type', $type_id, $details );
@@ -878,6 +892,9 @@ final class EventsPage {
 			<tr><th><label for="wpcap-occ-doors"><?php esc_html_e( 'Einlass ab (optional)', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-occ-doors" name="doors_open_at" type="datetime-local" aria-describedby="wpcap-occ-doors-help" value="<?php echo esc_attr( $occ && ! empty( $occ->doors_open_at ) ? Forms::utc_to_local( $occ->doors_open_at, $tz ) : '' ); ?>"> <span class="description" id="wpcap-occ-doors-help"><?php esc_html_e( 'Ortszeit. Vorher wird am Einlass niemand eingelassen, auch wenn eine Einlassregel früher öffnet. Leer = kein eigener Einlassbeginn.', 'wp-pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-occ-tz"><?php esc_html_e( 'Zeitzone', 'wp-pass-captain' ); ?></label></th><td><?php Forms::timezone_select( 'timezone', $tz, 'wpcap-occ-tz' ); ?></td></tr>
 			<tr><th><label for="wpcap-occ-loc"><?php esc_html_e( 'Ort', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-occ-loc" name="location" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $occ ? $occ->location : '' ); ?>"></td></tr>
+			<?php if ( \PassCaptain\Tax\Profiles::ready() ) : ?>
+			<tr><th><label for="wpcap-occ-country"><?php esc_html_e( 'Veranstaltungsland', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-occ-country" name="venue_country" type="text" size="3" maxlength="2" pattern="[A-Za-z]{2}" style="text-transform:uppercase" aria-describedby="wpcap-occ-country-help" value="<?php echo esc_attr( $occ ? (string) ( $occ->venue_country ?? '' ) : '' ); ?>"> <span class="description" id="wpcap-occ-country-help"><?php echo esc_html( sprintf( /* translators: %s: seller country code from the settings */ __( 'ISO-Code, z. B. AT. Leistungsort für die Umsatzsteuer auf Eintrittskarten (Steuerprofile). Leer = Land des Rechnungsstellers (%s).', 'wp-pass-captain' ), \PassCaptain\Tax\Profiles::seller_country() ) ); ?></span></td></tr>
+			<?php endif; ?>
 			<tr><th><label for="wpcap-occ-cap"><?php esc_html_e( 'Kontingent', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-occ-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( $occ ? (int) $occ->capacity : 0 ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'wp-pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-occ-status"><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></label></th><td><?php Forms::select( 'status', array( 'scheduled' => __( 'Geplant', 'wp-pass-captain' ), 'cancelled' => __( 'Abgesagt', 'wp-pass-captain' ) ), $occ ? $occ->status : 'scheduled', 'wpcap-occ-status' ); ?></td></tr>
 		</tbody></table>
@@ -982,6 +999,7 @@ final class EventsPage {
 			<tr><th><label for="wpcap-tt-name"><?php esc_html_e( 'Name', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-tt-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $type ? $type->name : '' ); ?>"></td></tr>
 			<tr><th><label for="wpcap-tt-price"><?php esc_html_e( 'Preis (brutto)', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-tt-price" name="price" type="text" inputmode="decimal" required size="10" value="<?php echo esc_attr( Forms::money_input( $type ? $type->price_minor : 0, Forms::currency_decimals( $currency ) ) ); ?>"> <?php Forms::select( 'currency', array_combine( Localization::currencies(), Localization::currencies() ), $currency ); ?> <span class="description"><?php esc_html_e( 'z. B. 12,50', 'wp-pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-tax"><?php esc_html_e( 'Steuersatz in %', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-tt-tax" name="tax_rate" type="text" inputmode="decimal" size="6" value="<?php echo esc_attr( Forms::percent_input( $type ? $type->tax_rate_bp : 0 ) ); ?>"> <span class="description"><?php esc_html_e( 'Im Preis enthaltene Umsatzsteuer, z. B. 19 oder 7,7', 'wp-pass-captain' ); ?></span></td></tr>
+			<tr><th><label for="wpcap-tt-taxclass"><?php esc_html_e( 'Steuerklasse (optional)', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-tt-taxclass" name="tax_class" type="text" size="16" maxlength="64" pattern="[a-z0-9_-]*" aria-describedby="wpcap-tt-taxclass-help" value="<?php echo esc_attr( $type ? (string) ( $type->tax_class ?? '' ) : '' ); ?>"> <span class="description" id="wpcap-tt-taxclass-help"><?php esc_html_e( 'z. B. culture. Gibt es für das Veranstaltungsland ein aktives Steuerprofil dieser Klasse, gilt dessen Satz; sonst der Steuersatz oben.', 'wp-pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-cap"><?php esc_html_e( 'Kontingent', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-tt-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( $type ? (int) $type->capacity : 0 ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'wp-pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-max"><?php esc_html_e( 'Max. pro Bestellung', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-tt-max" name="max_per_order" type="number" min="1" max="100" value="<?php echo esc_attr( $type ? (int) $type->max_per_order : 10 ); ?>"></td></tr>
 			<tr><th><label for="wpcap-tt-ss"><?php esc_html_e( 'Verkaufsstart', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-tt-ss" name="sales_start" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_start, $occ->timezone ) : '' ); ?>"> <span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = sofort', 'wp-pass-captain' ), $occ->timezone ) ); ?></span></td></tr>

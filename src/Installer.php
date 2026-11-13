@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.9.6';
+	const DB_VERSION = '3.9.7';
 
 	public static function install() {
 		global $wpdb;
@@ -80,6 +80,7 @@ final class Installer {
 				doors_open_at datetime NULL,
 				timezone varchar(64) NOT NULL,
 				location varchar(190) NOT NULL DEFAULT '',
+				venue_country char(2) NOT NULL DEFAULT '',
 				capacity int(10) unsigned NOT NULL DEFAULT 0,
 				sold_qty int(11) NOT NULL DEFAULT 0,
 				held_qty int(11) NOT NULL DEFAULT 0,
@@ -162,6 +163,10 @@ final class Installer {
 				orig_line_total_minor bigint(20) unsigned DEFAULT NULL,
 				orig_tax_minor bigint(20) unsigned DEFAULT NULL,
 				discount_minor bigint(20) unsigned DEFAULT NULL,
+				tax_source varchar(16) NOT NULL DEFAULT '',
+				tax_profile_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				tax_profile_version varchar(32) NOT NULL DEFAULT '',
+				tax_country char(2) NOT NULL DEFAULT '',
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),
@@ -611,6 +616,14 @@ final class Installer {
 				effective_until date NULL,
 				status varchar(20) NOT NULL DEFAULT 'draft',
 				created_at datetime NOT NULL,
+				created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				updated_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				updated_at datetime NULL,
+				reviewed_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				reviewed_at datetime NULL,
+				review_note varchar(190) NOT NULL DEFAULT '',
+				retired_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				retired_at datetime NULL,
 				PRIMARY KEY  (tax_profile_id),
 				KEY country_effective (country_code,tax_class,effective_from,effective_until),
 				KEY status (status)
@@ -748,6 +761,7 @@ final class Installer {
 		update_option( 'wpcap_db_version', self::version() );
 		self::remember_max_version( (string) get_option( 'wpcap_db_version_max', '' ) );
 		OrderLines::flush();
+		Tax\Profiles::flush();
 		update_option( 'wpcap_version', WPCAP_VERSION );
 		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );
 	}

@@ -46,6 +46,9 @@ final class Menu {
 			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),
 			'wpcap_campaign_create' => array( CampaignsPage::class, 'handle_create' ),
 			'wpcap_campaign_status' => array( CampaignsPage::class, 'handle_status' ),
+			'wpcap_tax_profile_save' => array( TaxPage::class, 'handle_save' ),
+			'wpcap_tax_profile_activate' => array( TaxPage::class, 'handle_activate' ),
+			'wpcap_tax_profile_retire' => array( TaxPage::class, 'handle_retire' ),
 			'wpcap_getting_started' => array( GettingStarted::class, 'handle_toggle' ),
 		) +\PassCaptain\Modules::admin_handlers();
 	}
@@ -148,6 +151,7 @@ final class Menu {
 			RefundsPage::SLUG              => 'finance',
 			'wpcap-reports'                => 'finance',
 			'wpcap-partner-settlements'    => 'finance',
+			TaxPage::SLUG                  => 'finance',
 			'wpcap-mail-templates'         => 'communication',
 			'wpcap-reminders'              => 'communication',
 			'wpcap-sms'                    => 'communication',
@@ -185,6 +189,7 @@ final class Menu {
 			array( RefundsPage::SLUG, __( 'Erstattungen', 'wp-pass-captain' ), $refund_title, RefundsPage::menu_cap(), array( RefundsPage::class, 'render' ), '' ),
 			array( CampaignsPage::SLUG, __( 'Rabattcodes', 'wp-pass-captain' ), __( 'Rabattcodes', 'wp-pass-captain' ), CampaignsPage::CAP, array( CampaignsPage::class, 'render' ), '' ),
 			array( DevicesPage::SLUG, __( 'Scanner-Geräte', 'wp-pass-captain' ), __( 'Scanner-Geräte', 'wp-pass-captain' ), DevicesPage::CAP, array( DevicesPage::class, 'render' ), '' ),
+			array( TaxPage::SLUG, __( 'Steuerprüfung', 'wp-pass-captain' ), __( 'Steuerprüfung', 'wp-pass-captain' ), TaxPage::CAP, array( TaxPage::class, 'render' ), '' ),
 		);
 		foreach ( \PassCaptain\Modules::admin_pages() as $page ) {
 			$page = array_values( (array) $page );

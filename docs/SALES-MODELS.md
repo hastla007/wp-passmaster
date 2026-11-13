@@ -160,6 +160,44 @@ unverändert („Veranstalter-Abrechnung“, `document_type` leer).
 
 Die Spalte `series` der Tabelle `wpcap_document_sequences` wurde auf 40 Zeichen erweitert (Schema 3.5.0).
 
+## Länder-Steuerprofile (Steuerprüfung)
+
+Seit Schema 3.9.2 (A115) kann der Umsatzsteuersatz eines Tickets aus einem **Steuerprofil** je Land
+und Steuerklasse kommen statt aus dem Feld „Steuersatz“ der Ticketart.
+
+- **Leistungsort:** Für Eintrittsberechtigungen ist das Land der Veranstaltung maßgeblich
+  (Art. 53/54 MwStSystRL, § 3a Abs. 3 Nr. 5 UStG). Jeder Termin hat dafür das Feld
+  **„Veranstaltungsland“** (ISO-Code); leer = Land des Rechnungsstellers (Einstellungen →
+  Rechnungssteller → Land).
+- **Auflösung je Bestellposition:** Hat die Ticketart eine **Steuerklasse** (z. B. `culture`) und gibt
+  es für (Veranstaltungsland, Steuerklasse) ein **aktives** Profil, dessen Gültigkeit
+  (`gültig ab`/`gültig bis`, einschließlich, Datum in der Zeitzone der Website) den Verkaufstag
+  enthält, gilt dessen Satz. Sonst gilt wie bisher der Satz der Ticketart – bestehende Installationen
+  ändern sich also erst, wenn Ticketarten eine Steuerklasse bekommen und ein Profil aktiviert wird.
+- **Nachvollziehbarkeit:** Die Bestellposition speichert neben `tax_rate_bp` die Quelle
+  (`tax_source`: `profile`, `ticket_type` oder `external` für vom Kanal vorgegebene Steuer), Profil-ID,
+  Profilversion und Land. Die Bestellansicht zeigt das unter dem Steuersatz. Rechnungen,
+  Rechnungskorrekturen (Aufstellung je Steuersatz), Buchhaltungsexport, Berichte, Z-Bericht und
+  Veranstalterabrechnungen lesen ausschließlich den gespeicherten Satz der Position: Ein späteres
+  Außerkraftsetzen oder eine neue Profilversion ändert verkaufte Bestellungen nicht.
+- **Steuerprüfung (Menü Finanzen & Auswertung → Steuerprüfung):** Profile entstehen als **Entwurf**
+  (Admin-Seite oder `POST /wp-pass-captain/v1/tax-profiles`). Aktivieren kann nur, wer Finanzrechte
+  hat (`wpcap_view_finance`, z. B. Rolle „Finanzbuchhaltung“, oder Administration), nach Bestätigung
+  der Prüfung und mit optionalem Prüfvermerk. **Vier-Augen-Prinzip** (Einstellung
+  „Vier-Augen-Prinzip für Steuerprofile“, Standard an): Wer den Entwurf angelegt oder zuletzt
+  bearbeitet hat, darf ihn nicht selbst aktivieren; Administratoren sind ausgenommen (wie bei der
+  Gästeliste). Ein zweites aktives Profil für dasselbe Land und dieselbe Steuerklasse mit
+  überlappendem Zeitraum wird abgelehnt. Aktive Profile werden nicht bearbeitet, sondern außer Kraft
+  gesetzt und durch eine neue Version ersetzt. Anlegen, Bearbeiten, Aktivieren, abgelehnte Prüfungen
+  und Außerkraftsetzen stehen im Audit-Log (`tax_profile_*`).
+- **Geltungsbereich:** eigener Checkout, Abendkasse (auch Katalog), Partner-API (auch Netto-Preislisten
+  und Katalog), Wartelisten-Angebote, Ticketumtausch und Gutscheineinlösungen.
+  **WooCommerce-Bestellungen** verwenden die Steuereinstellungen von WooCommerce; die Profile gelten
+  dort nicht (Position mit dem Satz der Ticketart). Andere Kanäle können über den Filter
+  `wpcap_tax_profiles_apply` ausgenommen werden (docs/HOOKS.md).
+- Die Seite zeigt außerdem, welche Steuerklassen kommende Termine verwenden und ob heute ein Profil
+  greift – ohne Profil gilt der Satz der Ticketart.
+
 ## Pflichten des Betreibers
 
 1. **Verträge mit Veranstaltern**, die das gewählte Modell eindeutig festlegen (Kommissions- bzw.
@@ -178,7 +216,8 @@ Die Spalte `series` der Tabelle `wpcap_document_sequences` wurde auf 40 Zeichen 
    Format; Reverse Charge wird angewendet, sobald das Format zum Land passt.
 5. **Stammdaten aktuell halten** (rechtlicher Name, Anschrift, Steuernummer/USt-IdNr.,
    Kleinunternehmerstatus) – Belege übernehmen die Daten als unveränderlichen Schnappschuss.
-6. **Steuersätze der Ticketarten** passend zum Modell und Veranstalter pflegen (Kleinunternehmer: 0 %).
+6. **Steuersätze der Ticketarten** passend zum Modell und Veranstalter pflegen (Kleinunternehmer: 0 %);
+   bei Steuerprofilen Satzänderungen rechtzeitig als neue Version anlegen und prüfen lassen.
 7. **Zusammenfassende Meldung** und Umsatzsteuer-Voranmeldung für Reverse-Charge-Leistungen;
    Buchung der Vermittler-Erlöse als fremde Gelder.
 8. **E-Rechnung:** Ab 2025/2027/2028 gelten in DE gestaffelte Pflichten zur E-Rechnung im B2B-Bereich

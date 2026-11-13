@@ -159,7 +159,7 @@ final class Service {
 	 */
 	public static function ticket_types( $occurrence_id ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name,price_minor,currency,max_per_order,tax_rate_bp,status,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id", absint( $occurrence_id ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,max_per_order,tax_rate_bp,tax_class,status,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id", absint( $occurrence_id ) ) );
 		$seated = self::seated_types( $occurrence_id );
 		$out = array();
 		foreach ( $rows as $r ) {
@@ -169,7 +169,8 @@ final class Service {
 				// Effective server-side price (series price tiers); sales without a price override charge it.
 				'price_minor' => Orders::unit_price( (int) $r->ticket_type_id, null, 1, array( 'source' => 'pos' ) ),
 				'currency' => $r->currency,
-				'tax_rate_bp' => (int) $r->tax_rate_bp,
+				// Rate a sale now gets (country tax profile or the ticket type's own rate, A115).
+				'tax_rate_bp' => (int) \PassCaptain\Tax\Profiles::resolve( $r, null, '', 'pos' )['rate_bp'],
 				'max_per_order' => (int) $r->max_per_order,
 				'available' => Orders::availability( $r->ticket_type_id ),
 				'fields' => self::participant_fields( $r->ticket_type_id ),

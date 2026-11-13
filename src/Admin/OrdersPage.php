@@ -434,7 +434,7 @@ final class OrdersPage {
 					<td><?php echo esc_html( Forms::datetime( $item->starts_at, $item->timezone ) ); ?></td>
 					<td><?php echo esc_html( (string) $paid_qty ); ?></td>
 					<td><?php echo esc_html( Forms::money( $item->unit_price_minor, $currency ) ); ?></td>
-					<td><?php echo esc_html( Forms::percent_input( $item->tax_rate_bp ) . ' %' ); ?></td>
+					<td><?php echo esc_html( Forms::percent_input( $item->tax_rate_bp ) . ' %' ); ?><br><small class="wpcap-tax-source"><?php echo esc_html( \PassCaptain\Tax\Profiles::source_label( $item ) ); ?></small></td>
 					<td><?php echo esc_html( Forms::money( $paid_tax, $currency ) ); ?></td>
 					<td><?php echo esc_html( Forms::money( $paid_total, $currency ) ); ?></td>
 					<td><?php echo esc_html( (string) $refunded_units ); ?></td>

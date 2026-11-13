@@ -630,14 +630,15 @@ final class Service {
 	private static function add_unit( $order_id, $target_type, $carried_gross, $price ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$rate = (int) $target_type->tax_rate_bp;
+		$tax_info = \PassCaptain\Tax\Profiles::resolve( $target_type, null, '', 'exchange' );
+		$rate = (int) $tax_info['rate_bp'];
 		$tax = Orders::gross_tax( $carried_gross, $rate );
 		$item = $wpdb->get_row( $wpdb->prepare( "SELECT item_id FROM {$p}wpcap_order_items WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1 FOR UPDATE", (int) $order_id, (int) $target_type->ticket_type_id ) );
 		if ( $item ) {
 			if ( ! \PassCaptain\OrderLines::freeze( (int) $item->item_id ) ) { throw new \RuntimeException( 'db_busy' ); }
 			$ok = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET quantity=quantity+1,line_total_minor=line_total_minor+%d,tax_minor=tax_minor+%d WHERE item_id=%d", (int) $carried_gross, $tax, (int) $item->item_id ) );
 		} else {
-			$ok = $wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => (int) $order_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 1, 'unit_price_minor' => (int) $price, 'line_total_minor' => (int) $carried_gross, 'tax_rate_bp' => $rate, 'tax_minor' => $tax, 'refunded_quantity' => 0 ) + ( \PassCaptain\OrderLines::ready() ? array( 'orig_quantity' => 0, 'orig_line_total_minor' => 0, 'orig_tax_minor' => 0 ) : array() ) );
+			$ok = $wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => (int) $order_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 1, 'unit_price_minor' => (int) $price, 'line_total_minor' => (int) $carried_gross, 'tax_rate_bp' => $rate, 'tax_minor' => $tax, 'refunded_quantity' => 0 ) + ( \PassCaptain\OrderLines::ready() ? array( 'orig_quantity' => 0, 'orig_line_total_minor' => 0, 'orig_tax_minor' => 0 ) : array() ) + \PassCaptain\Tax\Profiles::line_columns( $tax_info ) );
 		}
 		if ( ! $ok ) { throw new \RuntimeException( 'db_busy' ); }
 	}
@@ -874,7 +875,8 @@ final class Service {
 		} else {
 			$hold = max( 1, (int) Settings::get( 'hold_minutes' ) );
 		}
-		$rate = (int) $target_type->tax_rate_bp;
+		$tax_info = \PassCaptain\Tax\Profiles::resolve( $target_type, null, '', 'exchange' );
+		$rate = (int) $tax_info['rate_bp'];
 		$supplement = (int) $money['supplement_minor'];
 		$fee = (int) $money['fee_minor'];
 		$total = (int) $money['due_minor'];
@@ -925,10 +927,10 @@ final class Service {
 		if ( ! $wpdb->insert( "{$p}wpcap_orders", $order_row ) ) { throw new \RuntimeException( 'insert_failed' ); }
 		$supp_id = (int) $wpdb->insert_id;
 		// Target line: one unit of the target (holds/counts capacity until the unit moves to the original order).
-		$ok = $wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => $supp_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 1, 'unit_price_minor' => $supplement, 'line_total_minor' => $supplement, 'tax_rate_bp' => $rate, 'tax_minor' => $tax_line, 'refunded_quantity' => 0 ) );
+		$ok = $wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => $supp_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 1, 'unit_price_minor' => $supplement, 'line_total_minor' => $supplement, 'tax_rate_bp' => $rate, 'tax_minor' => $tax_line, 'refunded_quantity' => 0 ) + \PassCaptain\Tax\Profiles::line_columns( $tax_info ) );
 		if ( $ok && $fee > 0 ) {
 			// Fee line: quantity 0 (no inventory); invoices show it as "Umtauschgebühr" (wpcap_invoice_items).
-			$ok = $wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => $supp_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 0, 'unit_price_minor' => $fee, 'line_total_minor' => $fee, 'tax_rate_bp' => $rate, 'tax_minor' => $tax_fee, 'refunded_quantity' => 0 ) );
+			$ok = $wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => $supp_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 0, 'unit_price_minor' => $fee, 'line_total_minor' => $fee, 'tax_rate_bp' => $rate, 'tax_minor' => $tax_fee, 'refunded_quantity' => 0 ) + \PassCaptain\Tax\Profiles::line_columns( $tax_info ) );
 		}
 		if ( ! $ok ) { throw new \RuntimeException( 'insert_failed' ); }
 		$ok = $wpdb->insert( "{$p}wpcap_reservations", array( 'order_id' => $supp_id, 'ticket_type_id' => (int) $target_type->ticket_type_id, 'quantity' => 1, 'expires_at' => gmdate( 'Y-m-d H:i:s', time() + $hold * MINUTE_IN_SECONDS ), 'status' => 'active' ) );

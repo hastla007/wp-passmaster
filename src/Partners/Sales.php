@@ -267,12 +267,13 @@ final class Sales {
 		return $out;
 	}
 
-	/** Gross unit price of a price list entry (net prices get the ticket type's VAT, half up). */
+	/** Gross unit price of a price list entry (net prices get the VAT rate of the sale, half up: country tax profile or the ticket type's rate, A115). */
 	public static function gross_price( array $entry, $type ) {
 		if ( null === $entry['price_minor'] ) { return null; }
 		$price = (int) $entry['price_minor'];
 		if ( ! empty( $entry['price_is_net'] ) ) {
-			$price += intdiv( 2 * $price * (int) $type->tax_rate_bp + 10000, 20000 );
+			$rate = (int) \PassCaptain\Tax\Profiles::resolve( $type, null, '', self::SOURCE )['rate_bp'];
+			$price += intdiv( 2 * $price * $rate + 10000, 20000 );
 		}
 		return max( 0, $price );
 	}
@@ -405,7 +406,7 @@ final class Sales {
 				'currency' => $tt->currency,
 				'price_minor' => null !== $override ? $override : Orders::unit_price( $tt, null, 1, array( 'source' => self::SOURCE ) ),
 				'price_source' => null !== $override ? 'partner' : 'core',
-				'tax_rate_bp' => (int) $tt->tax_rate_bp,
+				'tax_rate_bp' => (int) \PassCaptain\Tax\Profiles::resolve( $tt, null, '', self::SOURCE )['rate_bp'],
 				'max_per_order' => (int) $tt->max_per_order,
 				'available' => null === $remaining ? null : (int) $remaining,
 				'on_sale' => 'active' === $tt->status && 'published' === $tt->event_status && 'scheduled' === $tt->occurrence_status,

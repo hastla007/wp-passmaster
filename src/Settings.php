@@ -88,6 +88,8 @@ final class Settings {
 			'seller_vat_id'             => '',
 			'seller_tax_number'         => '',
 			'seller_country'            => 'DE',
+			// A115: whoever created/last edited a tax profile draft may not activate it (administrators exempt).
+			'tax_profile_four_eyes'     => 1,
 			// Platform operator is a small business (DE § 19 UStG / AT § 6 Abs. 1 Z 27 UStG): no VAT on its invoices.
 			'seller_small_business'     => 0,
 			'seller_small_business_note' => '',
