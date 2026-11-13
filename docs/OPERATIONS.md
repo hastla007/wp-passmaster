@@ -601,3 +601,43 @@ austauschbar. Regeln bei der Zeitumstellung:
 
 Die Tests dazu (`tests/integration/modules/zz_a199.php`) stellen die Uhr über `wpcap_now` auf die
 Umstellungen in Europe/Vienna und America/New_York, statt zu warten.
+
+## Geldbeträge, Rundung und Währungen (A200)
+
+Beträge werden als Ganzzahlen in der **Nebeneinheit der Bestellwährung** gespeichert (EUR: Cent, JPY: Yen
+ohne Nachkommastellen, KWD/BHD: Fils = 1/1000). Die Nachkommastellen je Währung liefert
+`PassCaptain\Money::decimals()` nach ISO 4217 (Filter `wpcap_currency_decimals`); alle Umrechnungen für
+Anzeige (Mails, PDFs, Belege, Admin), CSV, DATEV-Buchungsstapel, Fiskal-Schnittstellen und
+Zahlungsanbieter laufen über `Money::to_decimal()`, `Money::to_minor()`, `Money::number()` und
+`Money::format()` – nie über ein festes „/100“. Die Währungsliste ist über `wpcap_currencies` erweiterbar.
+Im Preisfeld der Ticketart gilt bei Währungen mit drei Nachkommastellen „12,345“ als 12,345 (nicht 12.345).
+
+Rundungsregeln (alle in Ganzzahlen, ohne Gleitkomma):
+
+- **Zeile**: Bruttobetrag = Preis × Menge (oder der vom Kanal gelieferte Zeilenbetrag); Summe der Zeilen =
+  Zwischensumme.
+- **Rabatt**: Jeder Rabattcode verteilt seinen Betrag anteilig (abgerundet) auf die passenden Zeilen; den
+  Rundungsrest nimmt die letzte passende Zeile, was sie nicht aufnehmen kann, die ersten Zeilen mit Platz.
+  Die Zeilenrabatte ergeben genau den Rabatt; eine Zeile wird nie negativ. Für ältere Bestellungen ohne
+  gespeicherten Zeilenrabatt gilt dieselbe Verteilung (`OrderLines::after_discount()`).
+- **Umsatzsteuer**: je Zeile aus dem Brutto nach Rabatt, kaufmännisch gerundet
+  (`Orders::gross_tax()`: Brutto × Satz / (10000 + Satz), ab ,5 aufgerundet). Die Summe der Zeilen ergibt
+  die Steuer der Bestellung, je Steuersatz und insgesamt.
+- **Erstattung**: Ticket-Erstattungen nehmen den Anteil der Tickets am bezahlten Betrag, eine Erstattung des
+  Rests den ganzen offenen Betrag und die ganze offene Steuer; Teilbeträge in beliebig vielen Schritten
+  enden daher genau bei 0. Mehr als der offene Betrag wird abgelehnt.
+- **Aufteilung von Erstattungen** auf Steuersätze und Zeilen (Rechnungskorrekturen, Umsatzbericht,
+  Abrechnungsblatt; `Invoices::refund_line_parts()`): größter Rest, Gleichstand an die frühere Zeile.
+  Frühere Erstattungen derselben Bestellung werden zuerst verteilt; keine Zeile erhält über alle
+  Erstattungen mehr Brutto oder Steuer, als sie bezahlt bzw. getragen hat, und die Teile ergeben immer
+  genau Betrag und Steuer der Erstattung.
+- **Berichte mit mehreren Währungen**: Beträge verschiedener Währungen werden nicht addiert; maßgeblich ist
+  der Abschnitt je Währung. Die gemeinsamen Abschnitte im CSV verwenden die Nachkommastellen der ersten
+  Währung.
+
+Hinweis: Der Schwellenwert „Name und Anschrift ab Bestellbetrag“ (`billing_required_threshold_minor`) ist
+ein Betrag in Nebeneinheiten und wird nicht umgerechnet; für Währungen mit anderer Nebeneinheit über den
+Filter `wpcap_billing_required_threshold` je Währung setzen.
+
+Die Eigenschaftstests (`tests/integration/modules/zz_a200.php`, fester Seed) prüfen diese Regeln mit
+zufälligen Bestellungen, Rabatten, Steuersätzen und Erstattungsschritten in EUR, JPY, KWD und BHD.

@@ -105,6 +105,14 @@ final class OrderLines {
 			$left -= $share;
 			$out[ $i ] = (int) $line->line_total_minor - $share;
 		}
+		// Rounding remainder the last line could not take (it is smaller than its share): earlier
+		// lines with room take it, so the lines always add up to subtotal − discount (A200).
+		foreach ( $out as $i => $after ) {
+			if ( $left < 1 ) { break; }
+			$extra = min( max( 0, $after ), $left );
+			$out[ $i ] -= $extra;
+			$left -= $extra;
+		}
 		return $out;
 	}
 

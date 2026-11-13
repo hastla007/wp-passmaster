@@ -564,10 +564,7 @@ final class OrderAdapter {
 
 	/** ISO 4217 minor unit digits for the currencies WooCommerce commonly uses. */
 	public static function currency_decimals( $currency ) {
-		$zero  = array( 'BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' );
-		$three = array( 'BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND' );
-		$currency = strtoupper( (string) $currency );
-		return in_array( $currency, $zero, true ) ? 0 : ( in_array( $currency, $three, true ) ? 3 : 2 );
+		return \PassCaptain\Money::decimals( $currency );
 	}
 
 	/** Ticket quantities per ticket type of a WooCommerce order. */
@@ -961,7 +958,7 @@ final class OrderAdapter {
 		$wc_order = $orders ? $orders[0] : null;
 		if ( ! $wc_order ) { return false; }
 		/* translators: 1: amount, 2: currency, 3: exchange id */
-		$wc_order->add_order_note( sprintf( __( 'Pass Captain: Ticket umgetauscht (Umtausch #%3$d). Bitte die Differenz von %1$s %2$s hier in WooCommerce erstatten (Erstattung ohne Ticketauswahl).', 'pass-captain' ), number_format_i18n( absint( $amount_minor ) / 100, 2 ), (string) $currency, absint( $exchange_id ) ) );
+		$wc_order->add_order_note( sprintf( __( 'Pass Captain: Ticket umgetauscht (Umtausch #%3$d). Bitte die Differenz von %1$s %2$s hier in WooCommerce erstatten (Erstattung ohne Ticketauswahl).', 'pass-captain' ), \PassCaptain\Money::number( absint( $amount_minor ), (string) $currency ), (string) $currency, absint( $exchange_id ) ) );
 		return true;
 	}
 

@@ -757,7 +757,7 @@ final class Service {
 		$warning = '';
 		$price_note = array( 'none', '' );
 		$row = self::get( $exchange_id );
-		$money = static function ( $minor ) use ( $order ) { return number_format_i18n( $minor / 100, 2 ) . ' ' . $order->currency; };
+		$money = static function ( $minor ) use ( $order ) { return \PassCaptain\Money::format( $minor, $order->currency ); };
 		if ( (int) $row['refund_minor'] > 0 && 'woocommerce' === (string) $order->payment_provider ) {
 			// WooCommerce collected the money: the difference is refunded there (refund in WooCommerce →
 			// the adapter books it). Tracked as refund_status "woocommerce" with a note on the WC order.

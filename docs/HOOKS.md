@@ -166,7 +166,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_event_card_quantity_max` | `int $max, object $type, object $event` | Höchstmenge einer Ticketart im Mengenfeld/Stepper der Eventkarte (kann nur gesenkt werden; das Kontingent-Modul setzt das Käuferlimit je Ticketart). |
 | `wpcap_event_card_max_total` | `int $max` (0 = ohne), `object $event, array $types` | Höchstmenge aller Ticketarten zusammen auf der Eventkarte (`data-max-total`, vom Stepper und der Formularprüfung beachtet; das Kontingent-Modul setzt das Käuferlimit je Event). |
 | `wpcap_calendar_show_cancelled` | `bool $show` (Standard `true`) | Kalender-Shortcode/-Block: abgesagte kommende Termine ohne Link mit Badge „Abgesagt“ anzeigen. |
-| `wpcap_currencies` | `string[] $currencies` | Wählbare Währungen. |
+| `wpcap_currencies` | `string[] $currencies` | Wählbare Währungen (Standard EUR, USD, CHF, GBP, CAD, AUD); auch Währungen ohne (JPY) oder mit drei Nachkommastellen (KWD, BHD) sind möglich, siehe `PassCaptain\Money`. |
+| `wpcap_currency_decimals` | `int $decimals` (ISO 4217: 0, 2 oder 3), `string $currency` | Nachkommastellen der Nebeneinheit einer Währung (`Money::decimals()`, 0–4) für Eingabe, Anzeige, CSV/DATEV, Fiskal- und Zahlungsbeträge. Nur für Währungen ändern, die die ISO-Liste nicht kennt, nie für Währungen mit Daten (A200). |
 | `wpcap_sender_name` | `string $name` | Name in der Kundenkommunikation (Website-Titel, sonst der Hostname). |
 | `wpcap_currency_symbols` | `array $symbols` (ISO-Code → Symbol) | Währungssymbole für die Anzeige; unbekannte Währungen erscheinen als ISO-Code. |
 | `wpcap_order_portal_ticket_html` | `string $html` (`''`), `object $ticket, object $order, string $token` | Zusätzliches HTML je Ticket im Bestellportal (z. B. Umtausch-Formular); der Callback muss selbst escapen. |

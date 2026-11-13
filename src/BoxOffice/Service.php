@@ -732,7 +732,7 @@ final class Service {
 		if ( ! $r ) { return ''; }
 		$storno = $storno && '' !== $r['storno_number'];
 		$sign = $storno ? '-' : '';
-		$m = static function ( $minor ) use ( $r ) { return number_format_i18n( $minor / 100, 2 ) . ' ' . $r['currency']; };
+		$m = static function ( $minor ) use ( $r ) { return \PassCaptain\Money::format( $minor, $r['currency'] ); };
 		$h = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( $storno ? $r['storno_number'] : $r['number'] ) . '</title>'
 			. '<style>@page{size:80mm auto;margin:0}*{box-sizing:border-box}body{width:80mm;margin:0;padding:3mm 4mm;font:12px/1.3 "DejaVu Sans Mono",monospace;color:#000}h1{font-size:15px;margin:0 0 2mm;text-align:center}p{margin:0 0 1.5mm}.c{text-align:center}table{width:100%;border-collapse:collapse}td{padding:.4mm 0;vertical-align:top}td.n{text-align:right;white-space:nowrap}.sep{border-top:1px dashed #000;margin:2mm 0}.big td{font-size:15px;font-weight:bold}.small{font-size:10px}@media print{.noprint{display:none}}</style></head><body onload="window.print()">';
 		$h .= '<p class="c"><strong>' . esc_html( $r['seller']['name'] ) . '</strong><br>' . nl2br( esc_html( $r['seller']['address'] ) ) . ( $r['seller']['vat_id'] ? '<br>' . esc_html( __( 'USt-IdNr.:', 'pass-captain' ) . ' ' . $r['seller']['vat_id'] ) : '' ) . '</p>';

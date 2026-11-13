@@ -430,7 +430,7 @@ final class ZReport {
 		global $wpdb;
 		$sale = Service::sale( $mv->sale_id );
 		$cur = $mv->currency;
-		$m = static function ( $minor ) use ( $cur ) { return number_format_i18n( $minor / 100, 2 ) . ' ' . $cur; };
+		$m = static function ( $minor ) use ( $cur ) { return \PassCaptain\Money::format( $minor, $cur ); };
 		$items = array();
 		$ids = array_filter( array_map( 'absint', (array) json_decode( (string) $mv->ticket_ids, true ) ) );
 		if ( $ids ) {

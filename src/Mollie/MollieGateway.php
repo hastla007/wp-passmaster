@@ -59,17 +59,15 @@ final class MollieGateway implements GatewayInterface {
 
 	/** Plugin minor units → Mollie value string ("45.00", "1500" for JPY). */
 	public static function format_amount( $minor, $currency ) {
-		$minor = (int) $minor;
-		if ( in_array( strtoupper( $currency ), self::ZERO_DECIMAL, true ) ) { return (string) $minor; }
-		return intdiv( $minor, 100 ) . '.' . str_pad( (string) ( $minor % 100 ), 2, '0', STR_PAD_LEFT );
+		return \PassCaptain\Money::to_decimal( (int) $minor, $currency );
 	}
 
 	/** Mollie value string → plugin minor units (no floating point). */
 	public static function parse_amount( $value, $currency ) {
 		$value = (string) $value;
-		if ( ! preg_match( '/^(\d+)(?:\.(\d{1,2}))?$/', $value, $m ) ) { return -1; }
-		if ( in_array( strtoupper( $currency ), self::ZERO_DECIMAL, true ) ) { return (int) $m[1]; }
-		return (int) $m[1] * 100 + (int) str_pad( $m[2] ?? '0', 2, '0' );
+		if ( ! preg_match( '/^\d+(?:\.\d{1,3})?$/', $value ) ) { return -1; }
+		$minor = \PassCaptain\Money::to_minor( $value, $currency );
+		return null === $minor ? -1 : $minor;
 	}
 
 	public static function webhook_url() {

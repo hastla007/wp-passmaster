@@ -432,9 +432,12 @@ final class Data {
 
 	/** CSV rows of a report (amounts as decimals). */
 	public static function csv_rows( array $report ) {
-		$m = static function ( $minor ) { return number_format( $minor / 100, 2, '.', '' ); };
+		// Mixed currencies are listed as "EUR/USD": the combined sections use the first currency's minor
+		// unit; the per-currency section below uses each currency's own.
+		$cur = strtok( (string) $report['currency'], '/' );
+		$m = static function ( $minor, $currency = null ) use ( $cur ) { return \PassCaptain\Money::to_decimal( $minor, $currency ?? $cur ); };
 		$head = array( __( 'Tickets', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'Netto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Erstattete Tickets', 'pass-captain' ), __( 'Erstattet brutto', 'pass-captain' ), __( 'Erstattet USt', 'pass-captain' ), __( 'Umsatz nach Erstattung', 'pass-captain' ), __( 'USt nach Erstattung', 'pass-captain' ), __( 'Netto nach Erstattung', 'pass-captain' ) );
-		$vals = static function ( $b ) use ( $m ) { return array( $b['tickets'], $m( $b['gross'] ), $m( $b['net'] ), $m( $b['tax'] ), $b['refunded_tickets'], $m( $b['refunded'] ), $m( $b['refunded_tax'] ), $m( $b['revenue'] ), $m( $b['revenue_tax'] ), $m( $b['revenue_net'] ?? ( $b['revenue'] - $b['revenue_tax'] ) ) ); };
+		$vals = static function ( $b, $currency = null ) use ( $m ) { return array( $b['tickets'], $m( $b['gross'], $currency ), $m( $b['net'], $currency ), $m( $b['tax'], $currency ), $b['refunded_tickets'], $m( $b['refunded'], $currency ), $m( $b['refunded_tax'], $currency ), $m( $b['revenue'], $currency ), $m( $b['revenue_tax'], $currency ), $m( $b['revenue_net'] ?? ( $b['revenue'] - $b['revenue_tax'] ), $currency ) ); };
 		$rows = array( array( __( 'Bericht', 'pass-captain' ), $report['from'], $report['to'], $report['timezone'], $report['currency'] ) );
 		$sections = array( 'event' => __( 'Event', 'pass-captain' ), 'occurrence' => __( 'Termin', 'pass-captain' ), 'ticket_type' => __( 'Ticketart', 'pass-captain' ), 'provider' => __( 'Zahlungsanbieter', 'pass-captain' ), 'day' => __( 'Tag', 'pass-captain' ) );
 		foreach ( $sections as $dim => $label ) {
@@ -453,8 +456,8 @@ final class Data {
 		$rows[] = array();
 		$rows[] = array_merge( array( __( 'Währung', 'pass-captain' ), __( 'USt-Satz', 'pass-captain' ) ), $head );
 		foreach ( (array) ( $report['currencies'] ?? array() ) as $cur => $c ) {
-			foreach ( $c['rates'] as $b ) { $rows[] = array_merge( array( $cur, $b['label'] ), $vals( $b ) ); }
-			$rows[] = array_merge( array( $cur, $report['total']['label'] ), $vals( $c['total'] ) );
+			foreach ( $c['rates'] as $b ) { $rows[] = array_merge( array( $cur, $b['label'] ), $vals( $b, $cur ) ); }
+			$rows[] = array_merge( array( $cur, $report['total']['label'] ), $vals( $c['total'], $cur ) );
 		}
 		$rows[] = array();
 		$rows[] = array( __( 'Termin', 'pass-captain' ), __( 'Kapazität', 'pass-captain' ), __( 'Verkauft', 'pass-captain' ), __( 'Auslastung %', 'pass-captain' ), __( 'Gültige Tickets', 'pass-captain' ), __( 'Eingecheckt', 'pass-captain' ), __( 'Check-in-Quote %', 'pass-captain' ) );

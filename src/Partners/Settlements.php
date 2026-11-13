@@ -672,8 +672,8 @@ final class Settlements {
 		return __( 'Veranstalter-Abrechnung', 'pass-captain' );
 	}
 
-	private static function m( $minor ) {
-		return number_format( (int) $minor / 100, 2, '.', '' );
+	private static function m( $minor, $currency = 'EUR' ) {
+		return \PassCaptain\Money::to_decimal( $minor, $currency );
 	}
 
 	/** CSV rows (amounts as decimals, lines included). */
@@ -688,18 +688,18 @@ final class Settlements {
 			array( __( 'Art', 'pass-captain' ), __( 'Datum (UTC)', 'pass-captain' ), __( 'Event', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Erstattung', 'pass-captain' ), __( 'Ursprungsperiode', 'pass-captain' ), __( 'USt-Satz %', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Netto', 'pass-captain' ), __( 'Provision', 'pass-captain' ), __( 'Ticketgebühr', 'pass-captain' ) ),
 		);
 		foreach ( self::lines( $s->settlement_id ) as $l ) {
-			$rows[] = array( $kinds[ $l->kind ] ?? $l->kind, $l->occurred_at, $l->event_name, (int) $l->order_id, (int) $l->refund_id ?: '', $l->origin_period, number_format( (int) $l->tax_rate_bp / 100, 2, '.', '' ), (int) $l->tickets, self::m( $l->gross_minor ), self::m( $l->tax_minor ), self::m( $l->net_minor ), self::m( $l->commission_minor ), self::m( $l->fee_minor ) );
+			$rows[] = array( $kinds[ $l->kind ] ?? $l->kind, $l->occurred_at, $l->event_name, (int) $l->order_id, (int) $l->refund_id ?: '', $l->origin_period, number_format( (int) $l->tax_rate_bp / 100, 2, '.', '' ), (int) $l->tickets, self::m( $l->gross_minor, $s->currency ), self::m( $l->tax_minor, $s->currency ), self::m( $l->net_minor, $s->currency ), self::m( $l->commission_minor, $s->currency ), self::m( $l->fee_minor, $s->currency ) );
 		}
 		$rows[] = array();
 		$rows[] = array( __( 'USt-Satz %', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Netto', 'pass-captain' ) );
 		foreach ( (array) ( $t['rates'] ?? array() ) as $bp => $r ) {
-			$rows[] = array( number_format( (int) $bp / 100, 2, '.', '' ), self::m( $r['gross'] ), self::m( $r['tax'] ), self::m( $r['net'] ) );
+			$rows[] = array( number_format( (int) $bp / 100, 2, '.', '' ), self::m( $r['gross'], $s->currency ), self::m( $r['tax'], $s->currency ), self::m( $r['net'], $s->currency ) );
 		}
 		$rows[] = array();
 		$rows[] = array( __( 'Verkaufte Tickets', 'pass-captain' ), (int) $s->tickets_sold );
 		$rows[] = array( __( 'Erstattete Tickets', 'pass-captain' ), (int) $s->tickets_refunded );
 		if ( ! empty( $t['comp_tickets'] ) ) { $rows[] = array( __( 'Freikarten (nicht abgerechnet)', 'pass-captain' ), (int) $t['comp_tickets'] ); }
-		foreach ( self::summary( $s ) as $label => $minor ) { $rows[] = array( $label, self::m( $minor ) ); }
+		foreach ( self::summary( $s ) as $label => $minor ) { $rows[] = array( $label, self::m( $minor, $s->currency ) ); }
 		return $rows;
 	}
 

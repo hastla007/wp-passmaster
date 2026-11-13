@@ -47,7 +47,7 @@ final class HttpClient {
 		return $base . '/' . ltrim( $path, '/' );
 	}
 
-	public static function minor_to_major( $amount ) {
-		return number_format( (int) $amount / 100, 2, '.', '' );
+	public static function minor_to_major( $amount, $currency = 'EUR' ) {
+		return \PassCaptain\Money::to_decimal( $amount, $currency );
 	}
 }

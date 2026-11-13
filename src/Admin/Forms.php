@@ -17,11 +17,11 @@ final class Forms {
 	const MAX_MAJOR_DIGITS = 10;
 
 	/** ISO 4217 currencies without minor unit. */
-	const ZERO_DECIMAL_CURRENCIES = array( 'BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' );
+	const ZERO_DECIMAL_CURRENCIES = \PassCaptain\Money::ZERO_DECIMALS;
 
-	/** Number of decimals of a currency's minor unit. */
+	/** Number of decimals of a currency's minor unit (0 JPY, 2 EUR, 3 KWD; see PassCaptain\Money). */
 	public static function currency_decimals( $currency ) {
-		return in_array( strtoupper( (string) $currency ), self::ZERO_DECIMAL_CURRENCIES, true ) ? 0 : 2;
+		return \PassCaptain\Money::decimals( $currency );
 	}
 
 	/**
@@ -29,7 +29,8 @@ final class Forms {
 	 *
 	 * Accepts "12,50", "12.50", "12", "1.234,56", "1,234.56", "1 234,56", "1'234.50", "€ 12,50", "12,5".
 	 * A single separator followed by exactly three digits is read as a thousands separator
-	 * ("1.234" = 1234), otherwise as the decimal separator. Negative values are rejected.
+	 * ("1.234" = 1234), otherwise as the decimal separator; for three-decimal currencies
+	 * (decimals = 3) it is the decimal separator ("12,345" = 12345 fils). Negative values are rejected.
 	 *
 	 * @param mixed $input    Raw input.
 	 * @param int   $decimals Minor unit decimals (2 for EUR).
@@ -53,7 +54,8 @@ final class Forms {
 		} elseif ( false !== $last_dot || false !== $last_comma ) {
 			$sep = false !== $last_dot ? '.' : ',';
 			$after = strlen( $s ) - strrpos( $s, $sep ) - 1;
-			if ( 1 === substr_count( $s, $sep ) && 3 !== $after ) {
+			// Three-decimal currencies (KWD, BHD …): "12,345" is 12.345, not 12345.
+			if ( 1 === substr_count( $s, $sep ) && ( 3 !== $after || 3 === $decimals ) ) {
 				$decimal_sep = $sep;
 			}
 		}
@@ -100,8 +102,7 @@ final class Forms {
 
 	/** Display string for an amount, e.g. "1.234,50 EUR". */
 	public static function money( $minor, $currency ) {
-		$decimals = self::currency_decimals( $currency );
-		return number_format_i18n( (int) $minor / ( 10 ** $decimals ), $decimals ) . ' ' . strtoupper( (string) $currency );
+		return \PassCaptain\Money::format( $minor, $currency );
 	}
 
 	/**

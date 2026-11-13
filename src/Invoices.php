@@ -213,6 +213,11 @@ final class Invoices {
 	 * remainder; VAT by line VAT, so 0 % lines get none) and then onto the lines of each rate. The
 	 * parts add up exactly to $total / $tax.
 	 *
+	 * Earlier completed refunds of the order (lower refund_id) are split first: a line never receives
+	 * more gross or VAT over all refunds than it was paid (after discount) or carried as VAT, amount-only
+	 * refunds are weighted by what is left of each line, and a final refund of the rest empties every
+	 * line exactly (A200). Without refund_id/order_id the refund is split on its own.
+	 *
 	 * @param array|object $refund   Refund row (order_id, ticket_ids).
 	 * @param object[]     $items    Paid order lines in item order (ticket_type_id, tax_rate_bp, quantity,
 	 *                               line_total_minor, tax_minor, discount_minor; OrderLines::paid_columns()).
@@ -226,10 +231,40 @@ final class Invoices {
 		global $wpdb;
 		$refund = (array) $refund;
 		$items = array_values( $items );
-		$total = (int) $total;
-		$tax = (int) $tax;
 		if ( ! $items ) { return array(); }
+		$used_gross = array_fill( 0, count( $items ), 0 );
+		$used_tax = $used_gross;
+		$order_id = (int) ( $refund['order_id'] ?? 0 );
+		$refund_id = (int) ( $refund['refund_id'] ?? 0 );
+		if ( $order_id && $refund_id ) {
+			$earlier = (array) $wpdb->get_results( $wpdb->prepare( "SELECT refund_id,order_id,amount_minor,tax_minor,ticket_ids FROM {$wpdb->prefix}wpcap_refunds WHERE order_id=%d AND refund_id<%d AND status='completed' ORDER BY refund_id", $order_id, $refund_id ), ARRAY_A );
+			foreach ( $earlier as $previous ) {
+				$amounts = Integrations\Vouchers\Checkout::refund_amounts( $previous );
+				foreach ( self::line_parts( $previous, $items, $discount, (int) $amounts['amount_minor'], (int) $amounts['tax_minor'], $used_gross, $used_tax ) as $part ) {
+					$used_gross[ $part['index'] ] += $part['gross'];
+					$used_tax[ $part['index'] ] += $part['tax'];
+				}
+			}
+		}
+		return self::line_parts( $refund, $items, $discount, (int) $total, (int) $tax, $used_gross, $used_tax );
+	}
+
+	/**
+	 * refund_line_parts() for one refund, given what earlier refunds already took per line.
+	 *
+	 * @param int[] $used_gross Line index => gross already refunded.
+	 * @param int[] $used_tax   Line index => VAT already refunded.
+	 */
+	private static function line_parts( array $refund, array $items, $discount, $total, $tax, array $used_gross, array $used_tax ) {
+		global $wpdb;
 		$after_discount = OrderLines::after_discount( $items, (int) $discount );
+		// What is left of each line (caps of this refund's parts).
+		$left_gross = array();
+		$left_tax = array();
+		foreach ( $items as $i => $item ) {
+			$left_gross[ $i ] = max( 0, (int) $after_discount[ $i ] - (int) ( $used_gross[ $i ] ?? 0 ) );
+			$left_tax[ $i ] = max( 0, (int) $item->tax_minor - (int) ( $used_tax[ $i ] ?? 0 ) );
+		}
 		// Line weights: [tickets, gross after discount, VAT] of the refunded part of each line.
 		$weights = array();
 		$ids = array_filter( array_map( 'absint', (array) json_decode( (string) ( $refund['ticket_ids'] ?? '' ), true ) ) );
@@ -260,8 +295,15 @@ final class Invoices {
 			}
 		}
 		if ( ! array_filter( array_column( $weights, 1 ) ) ) {
+			// Amount-only refund: weighted by what is left of each line (all paid lines when nothing is left).
 			$weights = array();
-			foreach ( $items as $i => $item ) { $weights[ $i ] = array( 0, (int) $after_discount[ $i ], (int) $item->tax_minor ); }
+			$any_left = (bool) array_filter( $left_gross );
+			foreach ( $items as $i => $item ) { $weights[ $i ] = $any_left ? array( 0, $left_gross[ $i ], $left_tax[ $i ] ) : array( 0, (int) $after_discount[ $i ], (int) $item->tax_minor ); }
+		}
+		// Lines without weight take part with 0, so a rounding rest that the weighted lines have no room
+		// for (e.g. the VAT residue a final ticket refund takes) lands on a line that still has it.
+		foreach ( array_keys( $items ) as $i ) {
+			if ( ! isset( $weights[ $i ] ) ) { $weights[ $i ] = array( 0, 0, 0 ); }
 		}
 		ksort( $weights, SORT_NUMERIC );
 		$groups = array(); // rate => [line index => [gross weight, VAT weight]]
@@ -271,26 +313,68 @@ final class Invoices {
 		ksort( $groups, SORT_NUMERIC );
 		$gross_weights = array_map( static function ( $lines ) { return array_sum( array_column( $lines, 0 ) ); }, $groups );
 		if ( ! array_filter( $gross_weights ) ) { return array(); }
-		$gross_by_rate = self::apportion( $total, $gross_weights );
+		$rate_cap = static function ( array $caps ) use ( $groups ) {
+			$out = array();
+			foreach ( $groups as $rate => $lines ) { $out[ $rate ] = array_sum( array_intersect_key( $caps, $lines ) ); }
+			return $out;
+		};
+		$gross_by_rate = self::apportion_capped( $total, $gross_weights, $rate_cap( $left_gross ) );
 		// VAT follows the line VAT (0 % lines get none); without any line VAT it follows the gross of rates > 0.
 		$tax_weights = array_map( static function ( $lines ) { return array_sum( array_column( $lines, 1 ) ); }, $groups );
 		if ( ! array_filter( $tax_weights ) ) {
 			foreach ( $gross_weights as $rate => $g ) { $tax_weights[ $rate ] = $rate > 0 ? $g : 0; }
 			if ( ! array_filter( $tax_weights ) ) { $tax_weights = $gross_weights; }
 		}
-		$tax_by_rate = self::apportion( $tax, $tax_weights );
+		$tax_by_rate = self::apportion_capped( $tax, $tax_weights, $rate_cap( $left_tax ) );
 		$out = array();
 		foreach ( $groups as $rate => $lines ) {
 			$line_gross = array_map( static function ( $w ) { return $w[0]; }, $lines );
 			$line_tax = array_map( static function ( $w ) { return $w[1]; }, $lines );
 			if ( ! array_filter( $line_tax ) ) { $line_tax = $line_gross; }
-			$gross_parts = self::apportion( (int) $gross_by_rate[ $rate ], $line_gross );
-			$tax_parts = self::apportion( (int) $tax_by_rate[ $rate ], $line_tax );
+			$gross_parts = self::apportion_capped( (int) $gross_by_rate[ $rate ], $line_gross, array_intersect_key( $left_gross, $lines ) );
+			$tax_parts = self::apportion_capped( (int) $tax_by_rate[ $rate ], $line_tax, array_intersect_key( $left_tax, $lines ) );
 			foreach ( array_keys( $lines ) as $i ) {
 				$out[] = array( 'index' => (int) $i, 'rate_bp' => (int) $rate, 'tickets' => (int) $weights[ $i ][0], 'gross' => (int) $gross_parts[ $i ], 'tax' => (int) $tax_parts[ $i ] );
 			}
 		}
 		return $out;
+	}
+
+	/**
+	 * apportion() with an upper bound per key: parts above their cap give the excess to keys with room
+	 * (largest weight first, ties to the earlier key). Only an amount above all caps together exceeds
+	 * them (on the largest weight), so the parts always add up to $amount.
+	 *
+	 * @param int   $amount  Amount in minor units (≥ 0).
+	 * @param int[] $weights Key => weight (≥ 0).
+	 * @param int[] $caps    Key => maximum part.
+	 * @return int[] Key => part.
+	 */
+	public static function apportion_capped( $amount, array $weights, array $caps ) {
+		$parts = self::apportion( $amount, $weights );
+		if ( ! $parts ) { return $parts; }
+		$over = 0;
+		foreach ( $parts as $key => $part ) {
+			$cap = max( 0, (int) ( $caps[ $key ] ?? $part ) );
+			if ( $part > $cap ) {
+				$over += $part - $cap;
+				$parts[ $key ] = $cap;
+			}
+		}
+		if ( $over < 1 ) { return $parts; }
+		$order = array_keys( $weights );
+		$position = array_flip( $order );
+		usort( $order, static function ( $a, $b ) use ( $weights, $position ) { return (int) $weights[ $b ] <=> (int) $weights[ $a ] ?: $position[ $a ] <=> $position[ $b ]; } );
+		foreach ( $order as $key ) {
+			$room = max( 0, (int) ( $caps[ $key ] ?? 0 ) ) - $parts[ $key ];
+			if ( $room < 1 ) { continue; }
+			$take = min( $room, $over );
+			$parts[ $key ] += $take;
+			$over -= $take;
+			if ( $over < 1 ) { return $parts; }
+		}
+		$parts[ $order[0] ] += $over;
+		return $parts;
 	}
 
 	/**
@@ -530,7 +614,7 @@ final class Invoices {
 		$credits = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE invoice_id=%d ORDER BY credit_note_id", $invoice->invoice_id ) );
 		$snapshot = (array) json_decode( (string) $invoice->buyer_snapshot, true );
 		$seller = (array) ( $snapshot['seller'] ?? self::seller() );
-		$money = static function ( $minor ) use ( $invoice ) { return number_format_i18n( $minor / 100, 2 ) . ' ' . $invoice->currency; };
+		$money = static function ( $minor ) use ( $invoice ) { return Money::format( $minor, $invoice->currency ); };
 		$rates = self::rate_summary( $lines );
 		ob_start();
 		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( $invoice->invoice_number ); ?></title><style>body{font:14px/1.45 system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem;color:#1d2327}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border-bottom:1px solid #dcdcde;padding:.4rem;text-align:left}td.n,th.n{text-align:right}caption{text-align:left;font-weight:600;padding:.25rem 0}.seller,.buyer{white-space:pre-line}.buyer{margin:1rem 0}@media print{button{display:none}}</style></head><body>
@@ -663,7 +747,7 @@ final class Invoices {
 		list( $from_utc, $to_utc ) = Reports\Data::bounds( $from, $to, $tz );
 		$local_day = static function ( $utc ) use ( $tz ) { return Reports\Scope::local( $utc, $tz, 'Y-m-d' ); };
 		$rows = array( self::EXPORT_COLUMNS );
-		$money = static function ( $minor ) { return number_format( $minor / 100, 2, '.', '' ); };
+		$money = static function ( $minor, $currency ) { return Money::to_decimal( $minor, $currency ); };
 		$safe = static function ( $text ) { $text = (string) $text; return preg_match( '/^[=+\-@\t\r]/', $text ) ? "'" . $text : $text; };
 		// Seller columns: agent-model documents are issued in the organizer's name (not platform revenue).
 		$seller_cols = static function ( $snapshot_json ) use ( $safe ) {
@@ -673,13 +757,13 @@ final class Invoices {
 		};
 		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT i.invoice_number,i.issued_at,i.currency,i.buyer_snapshot,o.public_id,o.payment_provider,l.description,l.quantity,l.tax_rate,l.tax_minor,l.total_minor FROM {$p}wpcap_invoices i INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id INNER JOIN {$p}wpcap_invoice_lines l ON l.invoice_id=i.invoice_id WHERE i.issued_at >= %s AND i.issued_at < %s ORDER BY i.invoice_id,l.invoice_line_id", $from_utc, $to_utc ) );
 		foreach ( $lines as $l ) {
-			$rows[] = array( self::EXPORT_KIND_INVOICE, $l->invoice_number, $local_day( $l->issued_at ), $l->public_id, '', $safe( $l->description ), (int) $l->quantity, $money( (int) $l->total_minor - (int) $l->tax_minor ), number_format( (float) $l->tax_rate, 2, '.', '' ), $money( (int) $l->tax_minor ), $money( (int) $l->total_minor ), $l->currency, $safe( $l->payment_provider ), ...$seller_cols( $l->buyer_snapshot ) );
+			$rows[] = array( self::EXPORT_KIND_INVOICE, $l->invoice_number, $local_day( $l->issued_at ), $l->public_id, '', $safe( $l->description ), (int) $l->quantity, $money( (int) $l->total_minor - (int) $l->tax_minor, $l->currency ), number_format( (float) $l->tax_rate, 2, '.', '' ), $money( (int) $l->tax_minor, $l->currency ), $money( (int) $l->total_minor, $l->currency ), $l->currency, $safe( $l->payment_provider ), ...$seller_cols( $l->buyer_snapshot ) );
 		}
 		$credits = $wpdb->get_results( $wpdb->prepare( "SELECT c.*,i.invoice_number,i.buyer_snapshot,o.public_id,o.payment_provider FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id WHERE c.issued_at >= %s AND c.issued_at < %s ORDER BY c.credit_note_id", $from_utc, $to_utc ) );
 		// Corrections ("Rechnungskorrektur", not "Gutschrift": that term means self-billing): one row per VAT rate.
 		foreach ( $credits as $c ) {
 			foreach ( self::credit_rates( $c ) as $r ) {
-				$rows[] = array( self::EXPORT_KIND_CREDIT, $c->credit_note_number, $local_day( $c->issued_at ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( $r['net'] ), number_format( $r['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $r['tax'] ), '-' . $money( $r['gross'] ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
+				$rows[] = array( self::EXPORT_KIND_CREDIT, $c->credit_note_number, $local_day( $c->issued_at ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( $r['net'], $c->currency ), number_format( $r['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $r['tax'], $c->currency ), '-' . $money( $r['gross'], $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
 			}
 		}
 		return array_merge( $rows, self::uninvoiced_rows( $from_utc, $to_utc, $local_day, $money, $safe ) );
@@ -726,7 +810,7 @@ final class Invoices {
 			ksort( $by_rate, SORT_NUMERIC );
 			$description = 'Tickets ohne Rechnung (' . $channels[ Reports\Data::channel_of( $o->payment_provider ) ] . ')';
 			foreach ( $by_rate as $rate => $r ) {
-				$rows[] = array( self::EXPORT_KIND_SALE_UNINVOICED, '', $local_day( $o->created_at ), $o->public_id, '', $safe( $description ), $r['quantity'], $money( $r['gross'] - $r['tax'] ), number_format( $rate / 100, 2, '.', '' ), $money( $r['tax'] ), $money( $r['gross'] ), $o->currency, $safe( $o->payment_provider ), ...$seller_cols( (int) $o->order_id ) );
+				$rows[] = array( self::EXPORT_KIND_SALE_UNINVOICED, '', $local_day( $o->created_at ), $o->public_id, '', $safe( $description ), $r['quantity'], $money( $r['gross'] - $r['tax'], $o->currency ), number_format( $rate / 100, 2, '.', '' ), $money( $r['tax'], $o->currency ), $money( $r['gross'], $o->currency ), $o->currency, $safe( $o->payment_provider ), ...$seller_cols( (int) $o->order_id ) );
 			}
 		}
 		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,o.currency,o.public_id,o.payment_provider,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) );
@@ -736,7 +820,7 @@ final class Invoices {
 			$amounts = Integrations\Vouchers\Checkout::refund_amounts( $r );
 			$description = 'Erstattung ohne Rechnung (' . $channels[ Reports\Data::channel_of( $r->payment_provider ) ] . ')';
 			foreach ( self::credit_note_rates( array( 'order_id' => (int) $r->order_id, 'ticket_ids' => $r->ticket_ids ), (int) $amounts['amount_minor'], (int) $amounts['tax_minor'] ) as $rate ) {
-				$rows[] = array( self::EXPORT_KIND_REFUND_UNINVOICED, '', $local_day( $r->updated_at ), $r->public_id, '', $safe( $description ), '', '-' . $money( $rate['net'] ), number_format( $rate['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $rate['tax'] ), '-' . $money( $rate['gross'] ), $r->currency, $safe( $r->payment_provider ), ...$seller_cols( (int) $r->order_id ) );
+				$rows[] = array( self::EXPORT_KIND_REFUND_UNINVOICED, '', $local_day( $r->updated_at ), $r->public_id, '', $safe( $description ), '', '-' . $money( $rate['net'], $r->currency ), number_format( $rate['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $rate['tax'], $r->currency ), '-' . $money( $rate['gross'], $r->currency ), $r->currency, $safe( $r->payment_provider ), ...$seller_cols( (int) $r->order_id ) );
 			}
 		}
 		return $rows;
@@ -744,12 +828,9 @@ final class Invoices {
 
 	/* ------------------------------------------------------------------ Journal totals, DATEV booking batch, number gaps */
 
-	/** Converts a decimal string of the export ("-12.34") into minor units (exact, no float). */
-	public static function decimal_to_minor( $value ) {
-		$value = trim( (string) $value );
-		if ( ! preg_match( '/^(-?)(\d+)(?:\.(\d{1,2}))?$/', $value, $m ) ) { return 0; }
-		$minor = (int) $m[2] * 100 + (int) str_pad( $m[3] ?? '', 2, '0' );
-		return '-' === $m[1] ? -$minor : $minor;
+	/** Converts a decimal string of the export ("-12.34", "1500" JPY, "1.250" KWD) into minor units (exact, no float). */
+	public static function decimal_to_minor( $value, $currency = 'EUR' ) {
+		return (int) Money::to_minor( $value, $currency );
 	}
 
 	/**
@@ -764,7 +845,7 @@ final class Invoices {
 			if ( ! is_array( $row ) || count( $row ) < 12 || self::EXPORT_COLUMNS[0] === $row[0] ) { continue; }
 			$cur = (string) $row[11];
 			$rate = (string) $row[8];
-			$amounts = array( 'net' => self::decimal_to_minor( $row[7] ), 'tax' => self::decimal_to_minor( $row[9] ), 'gross' => self::decimal_to_minor( $row[10] ) );
+			$amounts = array( 'net' => self::decimal_to_minor( $row[7], $cur ), 'tax' => self::decimal_to_minor( $row[9], $cur ), 'gross' => self::decimal_to_minor( $row[10], $cur ) );
 			$out[ $cur ] = $out[ $cur ] ?? array( 'rates' => array(), 'total' => array( 'net' => 0, 'tax' => 0, 'gross' => 0 ) );
 			$out[ $cur ]['rates'][ $rate ] = $out[ $cur ]['rates'][ $rate ] ?? array( 'net' => 0, 'tax' => 0, 'gross' => 0 );
 			foreach ( $amounts as $k => $v ) {
@@ -834,13 +915,13 @@ final class Invoices {
 					'text' => $row[0] . ' ' . str_replace( '.', ',', (string) $row[8] ) . ' %',
 				);
 			}
-			$bookings[ $key ]['gross'] += self::decimal_to_minor( $row[10] );
+			$bookings[ $key ]['gross'] += self::decimal_to_minor( $row[10], (string) $row[11] );
 		}
 		$out = array( self::DATEV_COLUMNS );
 		foreach ( $bookings as $b ) {
 			if ( 0 === $b['gross'] ) { continue; }
 			$out[] = array(
-				number_format( abs( $b['gross'] ) / 100, 2, ',', '' ),
+				Money::to_decimal( abs( $b['gross'] ), $b['currency'], ',' ),
 				$b['gross'] > 0 ? 'S' : 'H',
 				$b['currency'],
 				$b['contra'],

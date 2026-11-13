@@ -439,7 +439,7 @@ final class PortalSelfService {
 				'order_id' => Frontend\Format::order_reference( (string) $order->public_id ),
 				'ticket_count' => count( $ticket_ids ),
 				'ticket_list' => implode( "\n", $lines ),
-				'refund_amount' => static function () use ( $amount_minor, $currency ) { return number_format_i18n( $amount_minor / 100, 2 ) . ' ' . $currency; },
+				'refund_amount' => static function () use ( $amount_minor, $currency ) { return Money::format( $amount_minor, $currency ); },
 				'reason' => $reason,
 				'portal_link' => Mail\Mailer::link( self::portal_url( (string) $order->public_id, strtolower( (string) $token ) ) ),
 			), array(), (string) ( $order->locale ?? '' ) );

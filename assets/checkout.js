@@ -68,15 +68,18 @@
 			}
 		});
 	}
-	// Same output as PHP Frontend\Format::money(): number_format_i18n( amount, 2 ) . ' ' . symbol.
+	// Same output as PHP Frontend\Format::money(): Money::number() (minor unit decimals per currency) . ' ' . symbol.
 	function money(minor, currency) {
 		const m = config.money || {};
-		const value = Math.abs(Number(minor) || 0) / 100;
-		const parts = value.toFixed(2).split('.');
+		const configured = (m.decimals || {})[currency];
+		const decimals = Number.isInteger(configured) ? configured : 2;
+		const value = Math.abs(Number(minor) || 0) / Math.pow(10, decimals);
+		const parts = value.toFixed(decimals).split('.');
 		const thousands = typeof m.thousands === 'string' ? m.thousands : '.';
 		const integer = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousands);
 		const symbol = (m.symbols || {})[currency] || currency || '';
-		return (minor < 0 ? '-' : '') + integer + (typeof m.decimal === 'string' ? m.decimal : ',') + parts[1] + (symbol ? ' ' + symbol : '');
+		const fraction = decimals ? (typeof m.decimal === 'string' ? m.decimal : ',') + parts[1] : '';
+		return (minor < 0 ? '-' : '') + integer + fraction + (symbol ? ' ' + symbol : '');
 	}
 	// Display only: the server recalculates every price at checkout.
 	function renderEstimate(form) {

@@ -95,7 +95,9 @@ $a85_r3 = Refunds::request_amount( $a85_o, 1001, 'Kulanz', 'a85-r3', array( 'sys
 if ( ! is_wp_error( $a85_r3 ) && 'completed' !== ( Refunds::get( $a85_r3['refund_id'] )['status'] ?? '' ) ) { Refunds::approve( $a85_r3['refund_id'] ); }
 $a85_cn3 = is_wp_error( $a85_r3 ) ? null : Invoices::credit_note_for_refund( $a85_r3['refund_id'] );
 $a85_rates3 = $a85_cn3 ? Invoices::credit_rates( $a85_cn3 ) : array();
-check( 'amount-only refund: both rates, rows add up to the document totals (odd cent)', is_array( $a85_cn3 ) && 2 === count( $a85_rates3 ) && 1001 === (int) $a85_cn3['total_minor'] && $a85_sum_ok( $a85_cn3, $a85_rates3 ) && $a85_rates3[1]['gross'] > $a85_rates3[0]['gross'] );
+// Both 7 % tickets are refunded already: the goodwill amount lands on what is left (19 %, A200),
+// with the VAT of that rate (10,01 gross → 1,60 VAT).
+check( 'amount-only refund: spread over what is left (19 %), rows add up to the document totals (odd cent)', is_array( $a85_cn3 ) && array( array( 'rate_bp' => 1900, 'net' => 841, 'tax' => 160, 'gross' => 1001 ) ) === $a85_rates3 && 1001 === (int) $a85_cn3['total_minor'] && $a85_sum_ok( $a85_cn3, $a85_rates3 ) );
 check( 'breakdown is deterministic (same result on recomputation)', $a85_rates3 === Invoices::credit_note_rates( Refunds::get( $a85_r3['refund_id'] ), (int) $a85_cn3['total_minor'], (int) $a85_cn3['tax_minor'] ) );
 
 // Legacy document (before schema 3.8.3, no stored breakdown): computed identically on display.

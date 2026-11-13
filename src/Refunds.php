@@ -138,11 +138,11 @@ final class Refunds {
 		if ( (int) $saved !== $refund_id ) { return self::busy(); }
 		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval, 'source' => '' !== $source ? $source : 'admin' ) );
 		if ( $needs_approval && 'portal' === $source ) {
-			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Stornierungsanfrage wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal eine Stornierung mit Erstattung über %2$s angefragt. Bitte unter „Erstattungen zur Freigabe“ freigeben oder ablehnen.', 'pass-captain' ), $order->public_id, number_format_i18n( $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Stornierungsanfrage wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s hat die Käuferin bzw. der Käufer im Bestellportal eine Stornierung mit Erstattung über %2$s angefragt. Bitte unter „Erstattungen zur Freigabe“ freigeben oder ablehnen.', 'pass-captain' ), $order->public_id, Money::format( $calc['amount_minor'], $order->currency ) ) );
 			return self::get( $refund_id );
 		}
 		if ( $needs_approval ) {
-			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, number_format_i18n( $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, Money::format( $calc['amount_minor'], $order->currency ) ) );
 			return self::get( $refund_id );
 		}
 		return self::execute( $refund_id );
@@ -227,7 +227,7 @@ final class Refunds {
 		}
 		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $amount_minor, 'needs_approval' => $needs_approval, 'amount_only' => true ) );
 		if ( $needs_approval ) {
-			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, number_format_i18n( $amount_minor / 100, 2 ) . ' ' . $order->currency ) );
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, Money::format( $amount_minor, $order->currency ) ) );
 			return self::get( $refund_id );
 		}
 		return self::execute( $refund_id );
@@ -731,8 +731,8 @@ final class Refunds {
 			// The short order number the buyer knows (portal, bank reference), not the 32-character id.
 			'order_id' => $reference,
 			// Callables run in the recipient's locale (number format, translated notes).
-			'refund_amount' => static function () use ( $amount_minor, $currency ) { return number_format_i18n( $amount_minor / 100, 2 ) . ' ' . $currency; },
-			'refund_intro' => static function () use ( $order, $reference, $amount_minor, $currency ) { return PayoutAccount::refund_intro( $order, $reference, number_format_i18n( $amount_minor / 100, 2 ) . ' ' . $currency ); },
+			'refund_amount' => static function () use ( $amount_minor, $currency ) { return Money::format( $amount_minor, $currency ); },
+			'refund_intro' => static function () use ( $order, $reference, $amount_minor, $currency ) { return PayoutAccount::refund_intro( $order, $reference, Money::format( $amount_minor, $currency ) ); },
 			'refund_method_note' => static function () use ( $order ) { return PayoutAccount::refund_note( $order ); },
 			'revoked_count' => (int) $revoked,
 			'revoked_note' => static function () use ( $revoked ) { return Mail\Types::revoked_note( (int) $revoked ); },
@@ -809,6 +809,11 @@ final class Refunds {
 			return min( $amount, $remaining_tax );
 		}
 		if ( ! $ticket_ids ) {
+			// Amount-only: pro rata over what is still open (A200), so after ticket refunds of one rate
+			// the VAT follows the rates that are left (Invoices::refund_line_parts() splits the same way).
+			if ( $gross === $total && $remaining_total > 0 ) {
+				return min( $remaining_tax, $amount, (int) round( $remaining_tax * $amount / $remaining_total ) );
+			}
 			return min( $remaining_tax, $amount, (int) round( (int) $order->tax_minor * $amount / $gross ) );
 		}
 		list( , $tax, $base ) = self::line_shares( $order, $ticket_ids );

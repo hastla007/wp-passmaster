@@ -46,13 +46,15 @@ final class Settlement {
 	/**
 	 * Deal inputs from a request: fixed amount (decimal, "1.500,00" or "1500.00") and share in percent.
 	 *
+	 * @param array  $in       Request values (fixed, share).
+	 * @param string $currency Currency of the occurrence (minor unit of the fixed amount, A200).
 	 * @return array{fixed:int,share_bp:int} Fixed amount in minor units, share in basis points (0–10000).
 	 */
-	public static function parse_deal( array $in ) {
+	public static function parse_deal( array $in, $currency = 'EUR' ) {
 		$fixed = is_scalar( $in['fixed'] ?? '' ) ? trim( (string) ( $in['fixed'] ?? '' ) ) : '';
 		$share = is_scalar( $in['share'] ?? '' ) ? trim( (string) ( $in['share'] ?? '' ) ) : '';
 		return array(
-			'fixed' => max( 0, (int) round( self::decimal( $fixed ) * 100 ) ),
+			'fixed' => (int) \PassCaptain\Admin\Forms::parse_money( $fixed, \PassCaptain\Money::decimals( $currency ) ),
 			'share_bp' => min( 10000, max( 0, (int) round( self::decimal( $share ) * 100 ) ) ),
 		);
 	}
@@ -237,7 +239,9 @@ final class Settlement {
 
 	/** CSV rows (amounts as decimals with a dot). */
 	public static function csv_rows( array $sheet ) {
-		$m = static function ( $minor ) { return number_format( (int) $minor / 100, 2, '.', '' ); };
+		// Mixed currencies are listed as "EUR/USD": amounts use the first currency's minor unit.
+		$cur = strtok( (string) $sheet['currency'], '/' );
+		$m = static function ( $minor ) use ( $cur ) { return \PassCaptain\Money::to_decimal( $minor, $cur ); };
 		$o = $sheet['occurrence'];
 		$fig = static function ( array $b ) use ( $m ) { return array( $b['tickets'], $b['refunded_tickets'], $b['net_tickets'], $m( $b['gross'] ), $m( $b['refunded'] ), $m( $b['revenue'] ), $m( $b['revenue_tax'] ), $m( $b['revenue_net'] ) ); };
 		$head = array( __( 'Verkauft', 'pass-captain' ), __( 'Erstattet', 'pass-captain' ), __( 'Tickets netto', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'Erstattet brutto', 'pass-captain' ), __( 'Umsatz nach Erstattung', 'pass-captain' ), __( 'davon USt', 'pass-captain' ), __( 'Netto', 'pass-captain' ) );
@@ -356,7 +360,9 @@ final class Settlement {
 		$in = wp_unslash( $_GET ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified above.
 		$occurrence_id = absint( $in['occurrence_id'] ?? 0 );
 		if ( ! self::can_view( $occurrence_id ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
-		$deal = self::parse_deal( $in );
+		global $wpdb;
+		$currency = (string) $wpdb->get_var( $wpdb->prepare( "SELECT currency FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d ORDER BY ticket_type_id LIMIT 1", $occurrence_id ) );
+		$deal = self::parse_deal( $in, '' !== $currency ? $currency : 'EUR' );
 		$sheet = self::build( $occurrence_id, $deal );
 		if ( ! $sheet ) { wp_die( esc_html__( 'Termin nicht gefunden.', 'pass-captain' ), 404 ); }
 		$format = 'csv' === ( $in['format'] ?? '' ) ? 'csv' : 'html';

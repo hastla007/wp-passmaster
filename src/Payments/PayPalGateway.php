@@ -422,7 +422,7 @@ final class PayPalGateway implements GatewayInterface {
 	public static function format_amount( $minor, $currency ) {
 		$currency = strtoupper( $currency );
 		$minor = (int) $minor;
-		$iso = in_array( $currency, self::ISO_ZERO_DECIMAL, true ) ? 0 : 2;
+		$iso = \PassCaptain\Money::decimals( $currency );
 		$target = in_array( $currency, self::NO_DECIMALS, true ) ? 0 : $iso;
 		if ( $iso > $target ) {
 			$factor = 10 ** ( $iso - $target );
@@ -439,7 +439,7 @@ final class PayPalGateway implements GatewayInterface {
 	/** PayPal decimal string → plugin minor units (string arithmetic, no floats). */
 	public static function parse_amount( $value, $currency ) {
 		$currency = strtoupper( $currency );
-		$iso = in_array( $currency, self::ISO_ZERO_DECIMAL, true ) ? 0 : 2;
+		$iso = \PassCaptain\Money::decimals( $currency );
 		if ( ! preg_match( '/^(\d+)(?:\.(\d+))?$/', trim( (string) $value ), $m ) ) { return -1; }
 		$fraction = str_pad( $m[2] ?? '', $iso, '0' );
 		if ( strlen( $fraction ) > $iso ) {

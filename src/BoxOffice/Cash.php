@@ -20,8 +20,8 @@ final class Cash {
 	}
 
 	/** Display label of a denomination ("50,00" / "0,20"). */
-	public static function label( $minor ) {
-		return number_format_i18n( absint( $minor ) / 100, 2 );
+	public static function label( $minor, $currency = 'EUR' ) {
+		return \PassCaptain\Money::number( absint( $minor ), $currency );
 	}
 
 	/**

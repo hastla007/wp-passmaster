@@ -167,7 +167,7 @@ final class Statement {
 	public static function csv_rows( $partner, $period ) {
 		$s = self::compute( $partner, $period );
 		$tz = Scope::site_timezone();
-		$money = static function ( $minor ) { return number_format( (int) $minor / 100, 2, ',', '' ); };
+		$money = static function ( $minor ) use ( $s ) { return \PassCaptain\Money::to_decimal( $minor, $s['currency'], ',' ); };
 		$rows = array( array( __( 'Art', 'pass-captain' ), __( 'Datum', 'pass-captain' ), __( 'Bestellung', 'pass-captain' ), __( 'Externe Referenz', 'pass-captain' ), __( 'Event', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), __( 'USt-Satz %', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Netto', 'pass-captain' ), __( 'Provision', 'pass-captain' ), __( 'Gebühr', 'pass-captain' ) ) );
 		$kinds = array( 'sale' => __( 'Verkauf', 'pass-captain' ), 'refund' => __( 'Erstattung', 'pass-captain' ) );
 		foreach ( $s['lines'] as $l ) {
