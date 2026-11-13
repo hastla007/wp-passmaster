@@ -153,3 +153,7 @@ Audit-Ereignisse: `guestlist_created`, `guestlist_updated`, `guestlist_archived`
 
 Datenschutz: Gästedaten (Name, E-Mail, Firma) liegen in `wpcap_guest_entries` und – nach der
 Ausstellung – wie bei jeder Bestellung an Bestellung und Tickets.
+
+## Vier-Augen-Prinzip
+
+Einstellung `guestlist_four_eyes` (Standard: an, unter Einstellungen → Allgemein): Wer einen Eintrag beantragt hat, kann ihn nicht selbst freigeben (`wpcap_guestlist_four_eyes`, 403). Site-Administratoren (`manage_options`) sind ausgenommen; „Hinzufügen und sofort freigeben“ legt den Eintrag dann nur als Antrag an.

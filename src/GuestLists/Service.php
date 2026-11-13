@@ -97,6 +97,12 @@ final class Service {
 		return ! $approver || get_current_user_id() === $approver || current_user_can( 'manage_options' );
 	}
 
+	/** Whether the current user requested this entry and may therefore not approve it (setting guestlist_four_eyes). */
+	public static function self_approval_blocked( $entry ) {
+		if ( ! (int) \PassCaptain\Settings::get( 'guestlist_four_eyes' ) || current_user_can( 'manage_options' ) ) { return false; }
+		return (int) $entry->requested_by && (int) $entry->requested_by === get_current_user_id();
+	}
+
 	public static function can_checkin( $event_id ) {
 		return Scope::can_event( $event_id, self::CHECKIN_CAP );
 	}
@@ -262,7 +268,7 @@ final class Service {
 		if ( ! $wpdb->insert( "{$p}wpcap_guest_entries", $row ) ) { return self::error( 'wpcap_guestlist_save', __( 'Der Eintrag konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
 		$entry_id = (int) $wpdb->insert_id;
 		Audit::record( 'guestlist_entry_requested', 'event', (int) $list->event_id, array( 'list_id' => (int) $list->list_id, 'entry_id' => $entry_id, 'quantity' => $quantity ) );
-		if ( ! empty( $in['approve'] ) && self::can_approve( $list ) ) {
+		if ( ! empty( $in['approve'] ) && self::can_approve( $list ) && ! self::self_approval_blocked( self::get_entry( $entry_id ) ) ) {
 			$approved = self::approve( $entry_id );
 			if ( is_wp_error( $approved ) ) { return $approved; }
 		}
@@ -309,6 +315,9 @@ final class Service {
 		$list = $entry ? self::get_list( $entry->list_id ) : null;
 		if ( ! $entry || ! $list ) { return self::error( 'wpcap_guestlist_entry_missing', __( 'Eintrag nicht gefunden.', 'wp-pass-captain' ), 404 ); }
 		if ( ! self::can_approve( $list ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung, Freikarten freizugeben.', 'wp-pass-captain' ), 403 ); }
+		if ( self::self_approval_blocked( $entry ) ) {
+			return self::error( 'wpcap_guestlist_four_eyes', __( 'Vier-Augen-Prinzip: Eine Freikarte kann nicht von der Person freigegeben werden, die sie beantragt hat.', 'wp-pass-captain' ), 403 );
+		}
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT quota FROM {$p}wpcap_guest_lists WHERE list_id=%d FOR UPDATE", (int) $list->list_id ) );
 		$current = $wpdb->get_row( $wpdb->prepare( "SELECT status,quantity FROM {$p}wpcap_guest_entries WHERE entry_id=%d FOR UPDATE", (int) $entry->entry_id ) );

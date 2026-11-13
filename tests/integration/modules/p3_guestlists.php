@@ -129,6 +129,10 @@ check( 'approval requires wpcap_approve_comps (requests stay possible)', is_wp_e
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );
 check( 'event scope: unassigned users cannot manage, approve or look up guests', is_wp_error( Gl::add_entry( $artists->list_id, array( 'name' => 'X', 'ticket_type_id' => $type ) ) ) && is_wp_error( Gl::save_list( array( 'event_id' => $event, 'name' => 'Y' ) ) ) && is_wp_error( Gl::approve( $a1->entry_id ) ) && is_wp_error( Gl::search( $occ, 'Zoe' ) ) && is_wp_error( Gl::arrive( $e1->entry_id ) ) && is_wp_error( Gl::will_call( $occ ) ) && is_wp_error( Gl::export_rows( $event ) ) );
 $wpdb->insert( "{$p}wpcap_event_staff", array( 'event_id' => $event, 'user_id' => 1, 'capability' => 'wpcap_manage_events' ) );
+PassCaptain\Settings::update( array( 'guestlist_four_eyes' => 1 ) );
+$a69_self = Gl::approve( $a1->entry_id );
+check( 'A069: four-eyes principle – the requester cannot approve their own entry (not a site admin)', is_wp_error( $a69_self ) && 'wpcap_guestlist_four_eyes' === $a69_self->get_error_code() && 'requested' === Gl::get_entry( $a1->entry_id )->status );
+$wpdb->update( "{$p}wpcap_guest_entries", array( 'requested_by' => 999 ), array( 'entry_id' => (int) $a1->entry_id ) ); // Requested by a colleague.
 check( 'assigned event manager with the approve capability may approve', 'approved' === gl_status( Gl::approve( $a1->entry_id ) ) );
 $vip = Gl::save_list( array( 'event_id' => $event, 'occurrence_id' => $occ, 'name' => 'Sponsor', 'reason' => 'sponsor', 'approver_id' => 99 ) );
 $v1 = Gl::add_entry( $vip->list_id, array( 'name' => 'Viktor Sponsor', 'quantity' => 1, 'ticket_type_id' => $type ) );

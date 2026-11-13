@@ -16,6 +16,11 @@ final class GuestLists {
 	/** Version of the capability grant (option wpcap_guestlists_caps). */
 	const CAPS_VERSION = 1;
 
+	public static function settings_defaults() {
+		// Four-eyes principle: whoever requested a comp entry cannot approve it (site admins excepted).
+		return array( 'guestlist_four_eyes' => 1 );
+	}
+
 	public static function register() {
 		add_action( 'wpcap_order_creating', array( Service::class, 'annotate_order' ), 10, 4 );
 		add_action( 'wpcap_order_cancelled', array( Service::class, 'on_order_ended' ), 10, 1 );

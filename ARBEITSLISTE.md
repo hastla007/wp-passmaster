@@ -157,7 +157,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Rest/Controller.php` `pos_sale` — 
 - [x] **A068** [VERDACHT] Portal-Nachsendung erneuert auch Codes übertragener Tickets (Käufer kann QR-Code der Empfängerin ungültig machen). — _OFFEN_ (TODO L404; Sicherheit (Prüfung 1))
   - `src/Orders.php:1500ff` — 
-- [ ] **A069** [VERDACHT] Freikarten-Antrag und Freigabe durch dieselbe Person möglich. — _OFFEN_ (TODO L405; Sicherheit (Prüfung 1))
+- [x] **A069** [VERDACHT] Freikarten-Antrag und Freigabe durch dieselbe Person möglich. — _OFFEN_ (TODO L405; Sicherheit (Prüfung 1))
   - `src/GuestLists/Service.php:93–98,305` — 
 - [ ] **A070** [VERDACHT] Pass mit zwei Terminen am selben Tag: Web-Scanner bindet an Betriebstag, zweiter Scan „Tageskontingent erreicht“ – Abendshow vermutlich nicht betretbar. — _OFFEN_ (TODO L427; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
 - [ ] **A071** [VERDACHT] Blindzählung wirkt nur für Kassierer ohne Manager-/Finanzrecht; UI erklärt das nicht. — _OFFEN_ (TODO L428; Abläufe Ende-zu-Ende (Prüfung 2, Browser/WP-CLI/REST auf WP 7.1 + WC 11.3))
