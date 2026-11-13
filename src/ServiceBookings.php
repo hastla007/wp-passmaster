@@ -711,7 +711,7 @@ final class ServiceBookings {
 		if ( is_wp_error( $locked ) ) { return $locked; }
 		if ( 'no_show' === $locked->status ) { $wpdb->query( 'ROLLBACK' ); return true; }
 		if ( 'confirmed' !== $locked->status ) { $wpdb->query( 'ROLLBACK' ); return self::state_error( __( 'Nicht erschienen kann nur für eine bestätigte Buchung markiert werden.', 'pass-captain' ) ); }
-		if ( (string) $locked->starts_at > current_time( 'mysql', true ) ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_not_started', __( 'Nicht erschienen kann erst ab Beginn des Zeitfensters markiert werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
+		if ( (string) $locked->starts_at > Clock::mysql() ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_booking_not_started', __( 'Nicht erschienen kann erst ab Beginn des Zeitfensters markiert werden.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', array( 'status' => 'no_show' ) + self::touched(), array( 'booking_id' => (int) $locked->booking_id ) );
 		$committed = self::commit();
 		if ( is_wp_error( $committed ) ) { return $committed; }
@@ -748,7 +748,7 @@ final class ServiceBookings {
 		if ( ! $resource_ids ) { return array(); }
 		$since = '' !== (string) $since ? (string) $since : '1970-01-01 00:00:00';
 		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- ACTIVE_SQL is a constant with placeholders, ids are integers.
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT s.*,r.name AS resource_name,r.event_id,(SELECT COALESCE(SUM(b.quantity),0) FROM {$wpdb->prefix}wpcap_service_bookings b WHERE b.slot_id=s.slot_id AND " . self::ACTIVE_SQL . ") AS booked FROM {$wpdb->prefix}wpcap_service_slots s INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id WHERE s.resource_id IN (" . implode( ',', $resource_ids ) . ') AND s.ends_at >= %s ORDER BY s.starts_at,s.slot_id LIMIT %d', current_time( 'mysql', true ), $since, max( 1, min( 2000, absint( $limit ) ) ) ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT s.*,r.name AS resource_name,r.event_id,(SELECT COALESCE(SUM(b.quantity),0) FROM {$wpdb->prefix}wpcap_service_bookings b WHERE b.slot_id=s.slot_id AND " . self::ACTIVE_SQL . ") AS booked FROM {$wpdb->prefix}wpcap_service_slots s INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id WHERE s.resource_id IN (" . implode( ',', $resource_ids ) . ') AND s.ends_at >= %s ORDER BY s.starts_at,s.slot_id LIMIT %d', Clock::mysql(), $since, max( 1, min( 2000, absint( $limit ) ) ) ) );
 	}
 
 	/** Bookings of the given services (optionally of one slot) whose slot ends at or after $since, by slot start. */
