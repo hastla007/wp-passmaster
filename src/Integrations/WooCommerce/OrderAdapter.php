@@ -42,6 +42,12 @@ final class OrderAdapter {
 	const ITEM_META     = '_wpcap_ticket_type_id';
 	const ATTENDEE_META = '_wpcap_attendees';
 	const DEFER_NOTE    = '_wpcap_deferred_note';
+	/**
+	 * Version of the "wpcap_woocommerce_hold_fulfilment" contract (since 1.4): a filter returning true keeps the
+	 * tickets of a paid order reserved until the order is set to processing/completed again. Integrations
+	 * (Voucher Captain) check this constant before relying on the hold.
+	 */
+	const HOLD_FULFILMENT = 1;
 
 	/** Declares HPOS and Cart/Checkout Blocks compatibility. */
 	public static function declare_compatibility() {

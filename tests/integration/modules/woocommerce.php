@@ -106,6 +106,7 @@ check( 'issued tickets carry the participant answers', array( 'ACME', 'Globex', 
 check( 'participant data is removed from the WooCommerce order after issuance', '' === $wc->get_meta( Woo::ATTENDEE_META ) );
 
 echo "WooCommerce: another plugin can hold the ticket issuance\n";
+check( 'the hold contract is versioned for integrations', 1 <= Woo::HOLD_FULFILMENT );
 $held_type = make_type( 5 );
 $held = woo_t_order( 7351, array( array( $held_type, 1, '25.00' ) ) );
 $held_core = Woo::reserve( $held );
