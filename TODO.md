@@ -179,15 +179,41 @@ Der seller-aware Fiskalisierungskern liegt derzeit in [Draft-PR #14](https://git
 - [ ] Refunds, Teilrefunds, Eventabsagen und gebrauchte Tickets providerseitig ausführen; im Draft werden die meisten Fälle noch manuell abgeglichen. Der efsta-AT/DE-Einmal-Vollstorno-Pfad ist eng begrenzt und braucht Sandbox-Abnahme.
 - [ ] Gesetzliche Länderanforderungen wie Signatur/TSE, Belegausgabe, vorgeschriebene Exporte und Hardwaretopologie fachlich prüfen. Adapter-Routing ist keine Zertifizierung oder Rechtsfreigabe.
 
-## Kommerzielle Lizenzierung und Updates — offene PRs
+## Kern-Plugin frei, Premium als getrenntes Add-on (Entscheidung 13.11.2026)
 
-Diese Änderungen liegen ebenfalls in offenen PRs und sind noch nicht Teil von `main`.
+**Entscheidung:** WP Pass Captain bleibt als Kern-Plugin vollständig kostenlos, ohne Lizenzprüfung und ohne gesperrte Funktionen, und wird so für WordPress.org geeignet. Premiumfunktionen kommen in ein getrenntes Add-on-Plugin, das über den eigenen Shop verkauft und aktualisiert wird. Nur das Add-on spricht mit dem Lizenzserver WP License Captain.
 
-- [ ] WP License Captain Aktivierung für WP Pass Captain integrieren (PR #20).
-- [ ] Premium-Updates mit Prüfsummenprüfung integrieren (PR #21).
-- [ ] Fail-closed Entitlement-Prüfung integrieren (PR #22).
-- [ ] Signierten Offline-Entitlement-Cache integrieren (PR #23).
-- [ ] PRs gegen den aktuellen `main`-Stand zusammenführen, End-to-End testen und erst danach als Lizenz-/Updatefunktion ausweisen.
+**Folge für die offenen Lizenz-PRs #20–#23:** Sie bauen Lizenzclient, Rechteprüfung und eigenen Updater in dieses Plugin ein. Das ist für WordPress.org unzulässig (Richtlinie 5: keine gesperrten Funktionen oder Trialware; Richtlinie 8: keine Updates von fremden Servern). Die PRs werden deshalb **nicht** nach `main` gemergt; ihr Code wandert ins Add-on.
+
+Stand in `main` am 13.11.2026: kein Lizenzcode vorhanden (per Suche nach `LicenseClient`, `wplc`, `allows_entitlement` und Update-Transient-Hooks geprüft).
+
+### A. Kern-Plugin (dieses Repository)
+
+- [ ] **A1 · Lizenz-PRs schließen.** PR #20 (Aktivierung), #21 (Updater), #22 (Rechte-Helfer) und #23 (Offline-Cache) nach dem Übertrag ins Add-on (B2) schließen, die Branches `codex/wplc-*` löschen.
+- [ ] **A2 · Wächtertest in CI.** Ein Test schlägt fehl, sobald im Kern-Plugin Lizenzcode auftaucht: Klassen oder Aufrufe mit `LicenseClient`, die Route `wplc/v1`, ein Header `Update URI`, eigene Filter auf `pre_set_site_transient_update_plugins` oder `plugins_api`, Abfragen wie `allows_entitlement`.
+- [ ] **A3 · Funktionsinventar festschreiben.** Jede vorhandene Funktion als „Kern, dauerhaft frei“ dokumentieren (`docs/FREE-PREMIUM.md`). Bereits ausgelieferte Funktionen werden nie nachträglich gesperrt oder ins Add-on verschoben.
+- [ ] **A4 · Erweiterungspunkte für das Add-on.** Hooks für Admin-Navigation, Einstellungen, Zahlungs- und Scanner-Adapter, Berichte und Exporte festlegen; die bestehenden Adapter-Verträge als Andockpunkte nutzen. Jeden Hook dokumentieren, als öffentliche API versionieren und mit einem Test absichern.
+- [ ] **A5 · Kern funktioniert allein.** Automatischer Test: alle Kernabläufe laufen ohne installiertes Add-on und ohne Netzwerkzugriff; das Kern-Plugin ruft den Lizenzserver nie auf.
+- [ ] **A6 · Hinweise auf das Add-on.** Höchstens dezent, wegklickbar und nur auf den eigenen Adminseiten (Richtlinie 11). Keine Menüpunkte, Schalter oder Felder, die sichtbar sind und erst nach Kauf funktionieren.
+- [ ] **A7 · readme.txt für WordPress.org.** Abschnitt `== External services ==` für jeden externen Aufruf des Kerns, korrekte Header (`Tested up to`, `Stable tag`, Lizenz GPL-2.0-or-later), keine Aussage, die eine Lizenz voraussetzt.
+- [ ] **A7b · Name und Slug prüfen.** Vor der Einreichung Namen „WP Pass Captain“, Slug `wp-passmaster` und Textdomain `wp-pass-captain` gegen die Marken- und Namensregeln von WordPress.org prüfen. Affiliate Captain hat aus diesem Grund das „WP“-Präfix entfernt; Slug und Textdomain sollten außerdem übereinstimmen.
+- [ ] **A8 · Plugin Check.** Das offizielle Prüfwerkzeug „Plugin Check“ ohne Fehler durchlaufen lassen und als CI-Schritt aufnehmen.
+- [ ] **A9 · Einreichung.** Plugin bei WordPress.org einreichen, Rückfragen des Review-Teams abarbeiten, danach Veröffentlichung per SVN-Deploy aus der CI einrichten.
+- [ ] **A10 · Doku angleichen.** README, ROADMAP und Release-Checkliste von „Lizenzaktivierung im Plugin“ auf „Kern frei, Premium im Add-on“ umstellen.
+
+### B. Premium-Add-on (neues, eigenes Repository)
+
+- [ ] **B1 · Repository und Plugin-Grundgerüst.** Neues Repository (Arbeitstitel `wp-pass-captain-pro`) mit eigenem Slug, eigener Textdomain und eigenem Namespace. Plugin-Header: `Requires Plugins: wp-passmaster`, `Update URI` auf den eigenen Shop (damit WordPress das Add-on nie mit einem WordPress.org-Plugin verwechselt), `Requires PHP: 8.2`. Beim Laden die Mindestversion des Kern-Plugins prüfen und sonst mit Admin-Hinweis sauber aussteigen.
+- [ ] **B2 · Code aus den PRs #20–#23 übertragen.** Lizenzseite mit Aktivierung und Deaktivierung, Rechte-Helfer, Offline-Cache und Updater ins Add-on übernehmen. Die zugehörigen Auditbefunde aus dieser Datei ziehen mit um.
+- [ ] **B3 · Client auf den aktuellen Serverstand bringen.** `LicenseClient` aus `hastla007/wp-license`, Datei `src/Client/LicenseClient.php`, neu übernehmen. Die PR-Fassungen sind älter als der Server: Antworten tragen jetzt zusätzlich `payload` und `payload_signature`, die der Client über den rohen String prüft; `activate()` liefert eine bestehende gültige Aktivierung zurück, statt eine neue anzulegen (neuer optionaler vierter Parameter `force` erzwingt eine neue). Namespace mit Add-on-Präfix versehen und die Textdomain `wp-license` durch die des Add-ons ersetzen.
+- [ ] **B4 · `product_key` festlegen.** Der Wert muss exakt dem Produktschlüssel im Katalog des Lizenzservers entsprechen (Vorschlag `pass`). Tarife: Pro 1, Business 5, Agency 25 Live-Websites.
+- [ ] **B5 · Premiumfunktionen und Rechte.** Premiumfunktionen im Add-on neu bauen, nicht aus dem Kern herausschneiden. Jede Funktion an genau einen Rechteschlüssel mit Präfix `pass.` binden und die Liste mit `docs/ENTITLEMENTS.md` im Lizenzserver-Repository abgleichen. Fehlt ein Recht, ist nur diese Add-on-Funktion aus (fail-closed); der Kern bleibt unberührt.
+- [ ] **B6 · Verhalten bei Ablauf, Sperre und Serverausfall.** Abgelaufene oder widerrufene Lizenz schaltet nur Add-on-Funktionen ab; bereits erzeugte Daten bleiben les- und nutzbar. Bei Serverausfall gilt der signierte Offline-Cache höchstens 14 Tage. Der Server gewährt bei laufender Verlängerung zusätzlich 14 Tage Kulanz; der Client übernimmt die Antwort des Servers und rechnet nicht selbst.
+- [ ] **B7 · Updater.** Updates nur im Add-on: Abfrage über `/wplc/v1/updates/check`, einmaliger Download, SHA-256-Prüfung vor der Installation, Größenlimit für das ZIP, Abbruch ohne Schaden bei Fehlern. Die Update-Erkennung darf nicht von einem angemeldeten Admin abhängen.
+- [ ] **B8 · Deaktivierung und Deinstallation.** Beim Deinstallieren des Add-ons die Aktivierung beim Server freigeben und die gespeicherten Zugangsdaten löschen. Daten des Kern-Plugins nicht anfassen.
+- [ ] **B9 · Datenschutz.** Dokumentieren, was das Add-on an den Lizenzserver sendet (Lizenzschlüssel, Site-URL, Plugin-, WordPress- und PHP-Version) und was nie gesendet wird (Bestellungen, Kundendaten).
+- [ ] **B10 · Tests.** Gemeinsame Client-Fixtures gegen den Lizenzserver, Tests für abgelaufene, widerrufene und fremde Lizenz, manipulierten Cache, Serverfehler und fehlgeschlagenes Update. CI auf der PHP-Mindestversion 8.2.
+- [ ] **B11 · Release.** ZIP in CI bauen, Version und SHA-256 erzeugen und als Release im Lizenzserver unter „WooCommerce → License releases“ einstellen. Erst danach Kauf, Aktivierung, Rechteprüfung und Update einmal vollständig im Testshop durchspielen.
 
 ## Zusätzlich entdeckte offene Aufgaben aus Code, Roadmaps und Betriebsdokumentation
 
@@ -228,9 +254,8 @@ Diese Punkte waren im vorherigen Abgleich noch nicht als eigene Aufgaben erfasst
 
 ### Lizenzserver und Premium-Updates
 
-- [ ] Lizenz-PRs #20–23 einzeln und gemeinsam testen: Aktivierung/Deaktivierung, falsches Produkt oder Site, abgelaufene/widerrufene Lizenz, API-Ausfall, Cache-Manipulation und erneute Aktivierung.
-- [ ] Feature-Gates tatsächlich mit signierten Entitlements verbinden; ein vorhandener Prüfhelfer oder Cache schaltet noch keine Premium-Funktion frei.
-- [ ] Premium-Updatepakete nur von erlaubten HTTPS-Hosts annehmen, SHA-256 vor Installation prüfen und Ablauf/Wiederholung des Download-Grants testen.
+Diese Aufgaben gehören seit der Entscheidung vom 13.11.2026 ins Premium-Add-on, nicht mehr in dieses Plugin. Sie sind oben im Abschnitt „Kern-Plugin frei, Premium als getrenntes Add-on“ unter B5 (Rechte), B6 (Ablauf und Ausfall), B7 (Updater) und B10 (Tests) aufgegangen.
+
 ## Technische Abnahmekriterien für eine nahezu vollständige 1.0
 
 Diese Punkte zielen auf technische Robustheit und reproduzierbare Releasequalität. Sie ergänzen die Feature-Arbeiten oben; offene Rechts-/Steuerfreigaben und Anbieter-Zertifizierungen bleiben separate Freigaben.
