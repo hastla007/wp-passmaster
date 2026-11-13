@@ -1,7 +1,8 @@
 <?php
 /**
  * Module "Serientermine": recurring occurrence series (daily, weekly, monthly, date lists) with
- * preview, idempotent generation, ticket type copies and optional seat-map link; price tiers
+ * preview, idempotent generation, ticket type copies and optional seat-map link; editing a stored
+ * series with a preview of its effects on future occurrences (A128); price tiers
  * (early bird, last minute, demand steps, weekday/time slots) and shared quota pools across the
  * occurrences of a series.
  *
@@ -38,7 +39,9 @@ final class Series {
 	public static function admin_handlers() {
 		return array(
 			'wpcap_series_create' => array( AdminPage::class, 'handle_create' ),
+			'wpcap_series_update' => array( AdminPage::class, 'handle_update' ),
 			'wpcap_series_rule_save' => array( AdminPage::class, 'handle_rule_save' ),
+			'wpcap_series_rule_update' => array( AdminPage::class, 'handle_rule_update' ),
 			'wpcap_series_rule_delete' => array( AdminPage::class, 'handle_rule_delete' ),
 			'wpcap_series_pool_save' => array( AdminPage::class, 'handle_pool_save' ),
 			'wpcap_series_pool_update' => array( AdminPage::class, 'handle_pool_update' ),

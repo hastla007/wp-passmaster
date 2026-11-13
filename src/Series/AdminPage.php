@@ -1,8 +1,13 @@
 <?php
-/** Admin screen "Serientermine": define a recurrence, preview it and generate occurrences. */
+/**
+ * Admin screen "Serientermine": define a recurrence, preview it and generate occurrences; edit a
+ * stored series with a preview of the effects (A128); price rules, pools and the series' change
+ * history (A114).
+ */
 namespace PassCaptain\Series;
 
 use PassCaptain\Access;
+use PassCaptain\Admin\ChangeHistory;
 use PassCaptain\Admin\Forms;
 use PassCaptain\Admin\Queries;
 
@@ -44,6 +49,25 @@ final class AdminPage {
 		Forms::finish( $result, $message, self::url( array( 'event_id' => absint( $in['event_id'] ?? 0 ) ) ) );
 	}
 
+	/** Edit options (A128): apply to sold-out / cancelled occurrences only when chosen explicitly. */
+	private static function edit_options( array $in ) {
+		return array( 'include_sold_out' => Forms::flag( $in, 'include_sold_out' ), 'include_cancelled' => Forms::flag( $in, 'include_cancelled' ) );
+	}
+
+	public static function handle_update() {
+		Forms::verify( self::NONCE );
+		$post = Forms::post();
+		$series_id = Forms::int( $post, 'series_id' );
+		$in = self::input( $post );
+		$result = Generator::update( $series_id, $in, self::edit_options( $post ), is_scalar( $post['fingerprint'] ?? null ) ? (string) $post['fingerprint'] : '' );
+		$message = '';
+		if ( ! is_wp_error( $result ) ) {
+			/* translators: 1: added, 2: changed, 3: deleted, 4: kept and flagged, 5: skipped */
+			$message = sprintf( __( 'Serie geändert: %1$d Termine hinzugefügt, %2$d geändert, %3$d entfernt, %4$d mit Verkäufen behalten und markiert, %5$d übersprungen.', 'wp-pass-captain' ), count( $result['added'] ), count( $result['changed'] ), count( $result['deleted'] ), count( $result['flagged'] ), $result['skipped'] );
+		}
+		Forms::finish( $result, $message, self::rules_url( $series_id ), self::url( array( 'event_id' => self::series_event( $series_id ), 'series_id' => $series_id, 'edit' => 1 ) ) . '#wpcap-series-edit' );
+	}
+
 	public static function render() {
 		if ( ! current_user_can( Generator::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		echo '<div class="wrap wpcap-admin wpcap-series-admin"><h1>' . esc_html__( 'Serientermine', 'wp-pass-captain' ) . '</h1>';
@@ -51,21 +75,49 @@ final class AdminPage {
 		$events = Queries::event_options( Queries::event_ids_for( Generator::CAP ) );
 		$in = array();
 		$preview = null;
+		$plan = null;
+		$edit_id = 0;
+		$options = array();
 		if ( 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) && isset( $_POST['wpcap_series_preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified below.
 			check_admin_referer( self::NONCE );
 			$in = self::input( Forms::post() );
 			$preview = Generator::preview( $in );
+		} elseif ( 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) && isset( $_POST['wpcap_series_edit_preview'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification -- verified below.
+			check_admin_referer( self::NONCE );
+			$post = Forms::post();
+			$edit_id = Forms::int( $post, 'series_id' );
+			$in = self::input( $post );
+			$in['event_id'] = (string) self::series_event( $edit_id );
+			$options = self::edit_options( $post );
+			$plan = Generator::plan_update( $edit_id, $in, $options );
+		} elseif ( Forms::query_arg( 'edit' ) && absint( $_GET['series_id'] ?? 0 ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			$series = Pricing::series( absint( $_GET['series_id'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+			if ( $series ) {
+				$edit_id = (int) $series->series_id;
+				$definition = json_decode( (string) $series->definition, true );
+				$in = Generator::definition_input( is_array( $definition ) ? $definition : array() );
+				$in['event_id'] = (string) (int) $series->event_id;
+			}
 		}
 		$event_id = absint( $in['event_id'] ?? ( $_GET['event_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><label for="wpcap-series-event">' . esc_html__( 'Event', 'wp-pass-captain' ) . '</label> ';
 		Forms::select( 'event_id', array( '' => '—' ) + $events, $event_id, 'wpcap-series-event' );
 		echo ' <button class="button">' . esc_html__( 'Auswählen', 'wp-pass-captain' ) . '</button></form>';
 		if ( ! $event_id || ! isset( $events[ $event_id ] ) || ! Access::can_access_event( $event_id, Generator::CAP ) ) { echo '</div>'; return; }
-		if ( is_wp_error( $preview ) ) {
-			echo '<div class="notice notice-error"><p>' . esc_html( $preview->get_error_message() ) . '</p></div>';
+		foreach ( array( $preview, $plan ) as $maybe_error ) {
+			if ( is_wp_error( $maybe_error ) ) { echo '<div class="notice notice-error"><p>' . esc_html( $maybe_error->get_error_message() ) . '</p></div>'; }
 		}
-		self::render_form( $event_id, $in );
-		if ( is_array( $preview ) ) { self::render_preview( $preview, $in ); }
+		if ( $edit_id ) {
+			/* translators: %d: series number */
+			echo '<h2 id="wpcap-series-edit">' . esc_html( sprintf( __( 'Serie #%d bearbeiten', 'wp-pass-captain' ), $edit_id ) ) . '</h2>';
+			echo '<p class="description">' . esc_html__( 'Änderungen gelten nur für künftige Termine. Vergangene Termine bleiben unverändert, ausverkaufte und abgesagte nur, wenn du sie unten ausdrücklich einbeziehst. Termine mit verkauften Tickets werden nie gelöscht: Fallen sie aus der Regel, bleiben sie bestehen und werden markiert – absagen kannst du sie über „Termin absagen“. Vor dem Speichern siehst du eine Vorschau.', 'wp-pass-captain' ) . '</p>';
+			echo '<p><a href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => $edit_id ) ) . '#wpcap-series-rules' ) . '">' . esc_html__( 'Bearbeiten abbrechen', 'wp-pass-captain' ) . '</a></p>';
+			self::render_form( $event_id, $in, $edit_id, $options );
+			if ( is_array( $plan ) ) { self::render_edit_preview( $plan, $in ); }
+		} else {
+			self::render_form( $event_id, $in );
+			if ( is_array( $preview ) ) { self::render_preview( $preview, $in ); }
+		}
 		self::render_existing( $event_id );
 		$series_id = absint( $_GET['series_id'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification
 		if ( $series_id ) { self::render_rules( $event_id, $series_id ); }
@@ -80,10 +132,12 @@ final class AdminPage {
 		return array( 1 => __( 'Montag', 'wp-pass-captain' ), 2 => __( 'Dienstag', 'wp-pass-captain' ), 3 => __( 'Mittwoch', 'wp-pass-captain' ), 4 => __( 'Donnerstag', 'wp-pass-captain' ), 5 => __( 'Freitag', 'wp-pass-captain' ), 6 => __( 'Samstag', 'wp-pass-captain' ), 7 => __( 'Sonntag', 'wp-pass-captain' ) );
 	}
 
-	private static function render_form( $event_id, array $in ) {
-		echo '<form method="post" action="' . esc_url( self::url( array( 'event_id' => $event_id ) ) ) . '" class="wpcap-series-form">';
+	private static function render_form( $event_id, array $in, $series_id = 0, array $options = array() ) {
+		$action_args = $series_id ? array( 'event_id' => $event_id, 'series_id' => $series_id, 'edit' => 1 ) : array( 'event_id' => $event_id );
+		echo '<form method="post" action="' . esc_url( self::url( $action_args ) . ( $series_id ? '#wpcap-series-edit-preview' : '' ) ) . '" class="wpcap-series-form">';
 		wp_nonce_field( self::NONCE );
 		Forms::hidden( 'event_id', $event_id );
+		if ( $series_id ) { Forms::hidden( 'series_id', (int) $series_id ); }
 		$occurrences = array( '0' => __( '— keine Ticketarten kopieren —', 'wp-pass-captain' ) );
 		foreach ( Queries::occurrences_for_event( $event_id ) as $occ ) {
 			$count = count( Queries::ticket_types_for_occurrence( $occ->occurrence_id ) );
@@ -137,8 +191,142 @@ final class AdminPage {
 		$row( 'wpcap-series-sales-start', __( 'Verkaufsstart: Tage vor Beginn', 'wp-pass-captain' ), static function () use ( $text, $in ) { $text( 'wpcap-series-sales-start', 'sales_start_days_before', self::value( $in, 'sales_start_days_before' ), 'number', 'min="0"' ); }, __( 'Leer = relativ wie in der Vorlage.', 'wp-pass-captain' ) );
 		$row( 'wpcap-series-sales-end', __( 'Verkaufsende: Minuten vor Beginn', 'wp-pass-captain' ), static function () use ( $text, $in ) { $text( 'wpcap-series-sales-end', 'sales_end_minutes_before', self::value( $in, 'sales_end_minutes_before' ), 'number', 'min="0"' ); }, __( 'Z. B. 120 = Verkaufsende 2 Stunden vor Beginn. Leer = relativ wie in der Vorlage.', 'wp-pass-captain' ) );
 		$row( 'wpcap-series-seats', __( 'Saalplan', 'wp-pass-captain' ), static function () use ( $versions, $in ) { Forms::select( 'seat_version_id', $versions, self::value( $in, 'seat_version_id', '0' ), 'wpcap-series-seats' ); }, __( 'Bereichszuordnung der Ticketarten wird von der Vorlage übernommen.', 'wp-pass-captain' ) );
+		if ( $series_id ) {
+			echo '<tr><th scope="row">' . esc_html__( 'Ausnahmen beim Übernehmen', 'wp-pass-captain' ) . '</th><td><fieldset><legend class="screen-reader-text">' . esc_html__( 'Ausnahmen beim Übernehmen', 'wp-pass-captain' ) . '</legend>';
+			echo '<label><input type="checkbox" name="include_sold_out" value="1"' . checked( ! empty( $options['include_sold_out'] ), true, false ) . '> ' . esc_html__( 'Ausverkaufte Termine einbeziehen', 'wp-pass-captain' ) . '</label><br>';
+			echo '<label><input type="checkbox" name="include_cancelled" value="1"' . checked( ! empty( $options['include_cancelled'] ), true, false ) . '> ' . esc_html__( 'Abgesagte Termine einbeziehen (sie bleiben abgesagt, nur ihre Daten werden angepasst)', 'wp-pass-captain' ) . '</label>';
+			echo '<p class="description">' . esc_html__( 'Ohne Häkchen bleiben ausverkaufte und abgesagte Termine unverändert.', 'wp-pass-captain' ) . '</p></fieldset></td></tr>';
+		}
 		echo '</tbody></table>';
+		if ( $series_id ) {
+			echo '<p class="submit"><button type="submit" class="button button-primary" name="wpcap_series_edit_preview" value="1">' . esc_html__( 'Auswirkungen prüfen', 'wp-pass-captain' ) . '</button></p></form>';
+			return;
+		}
 		echo '<p class="submit"><button type="submit" class="button button-primary" name="wpcap_series_preview" value="1">' . esc_html__( 'Vorschau anzeigen', 'wp-pass-captain' ) . '</button></p></form>';
+	}
+
+	/** Labels of the planned actions of a series change. */
+	private static function edit_action_labels() {
+		return array(
+			'add' => __( 'Neu – wird angelegt', 'wp-pass-captain' ),
+			'change' => __( 'Wird geändert', 'wp-pass-captain' ),
+			'delete' => __( 'Nicht mehr in der Regel – wird gelöscht (keine Verkäufe, keine Verknüpfungen)', 'wp-pass-captain' ),
+			'flag' => __( 'Nicht mehr in der Regel – bleibt bestehen und wird markiert', 'wp-pass-captain' ),
+			'unflag' => __( 'Wieder in der Regel – Markierung wird aufgehoben', 'wp-pass-captain' ),
+			'skip' => __( 'Übersprungen', 'wp-pass-captain' ),
+			'conflict' => __( 'Konflikt – wird nicht geändert', 'wp-pass-captain' ),
+		);
+	}
+
+	/** Explanation of a planned row (reason, changes old → new, side effects). */
+	public static function edit_row_lines( array $row, $timezone ) {
+		$lines = array();
+		switch ( $row['reason'] ?? '' ) {
+			case 'cancelled':
+				$lines[] = __( 'Abgesagt – nur mit „Abgesagte Termine einbeziehen“.', 'wp-pass-captain' );
+				break;
+			case 'sold_out':
+				$lines[] = __( 'Ausverkauft – nur mit „Ausverkaufte Termine einbeziehen“.', 'wp-pass-captain' );
+				break;
+			case 'capacity_below_sold':
+				/* translators: %d: sold tickets */
+				$lines[] = sprintf( _n( 'Das neue Kontingent liegt unter dem bereits verkauften %d Ticket.', 'Das neue Kontingent liegt unter den bereits verkauften %d Tickets.', (int) ( $row['sold'] ?? 0 ), 'wp-pass-captain' ), (int) ( $row['sold'] ?? 0 ) );
+				break;
+			case 'exists':
+				$lines[] = __( 'Zu dieser Zeit gibt es bereits einen Termin dieses Events.', 'wp-pass-captain' );
+				break;
+			case 'cancelled_outside':
+				$lines[] = __( 'Abgesagt und nicht mehr in der Regel – bleibt unverändert.', 'wp-pass-captain' );
+				break;
+			case 'sold':
+				$sold = max( (int) ( $row['sold'] ?? 0 ), (int) ( $row['issued'] ?? 0 ) );
+				/* translators: %d: sold tickets */
+				$lines[] = sprintf( _n( '%d verkauftes Ticket. Der Termin wird nicht gelöscht; absagen kannst du ihn über „Termin absagen“ (mit Erstattung und Benachrichtigung).', '%d verkaufte Tickets. Der Termin wird nicht gelöscht; absagen kannst du ihn über „Termin absagen“ (mit Erstattung und Benachrichtigung).', $sold, 'wp-pass-captain' ), $sold );
+				break;
+			case 'linked':
+				/* translators: %s: list of data tables */
+				$lines[] = sprintf( __( 'Verknüpfte Daten vorhanden (%s) – der Termin wird nicht gelöscht.', 'wp-pass-captain' ), implode( ', ', (array) ( $row['references'] ?? array() ) ) );
+				break;
+		}
+		$labels = ChangeHistory::field_labels();
+		foreach ( $row['changes'] as $field => $pair ) {
+			if ( 'add' === $row['action'] ) {
+				/* translators: 1: field, 2: value */
+				$lines[] = sprintf( __( '%1$s: %2$s', 'wp-pass-captain' ), $labels[ $field ] ?? $field, ChangeHistory::format_value( $field, $pair[1], array( 'timezone' => $timezone ) ) );
+				continue;
+			}
+			/* translators: 1: field, 2: old value, 3: new value */
+			$lines[] = sprintf( __( '%1$s: %2$s → %3$s', 'wp-pass-captain' ), $labels[ $field ] ?? $field, ChangeHistory::format_value( $field, $pair[0], array( 'timezone' => $timezone ) ), ChangeHistory::format_value( $field, $pair[1], array( 'timezone' => $timezone ) ) );
+		}
+		if ( in_array( $row['action'], array( 'change', 'skip', 'conflict' ), true ) ) {
+			if ( ! empty( $row['sales'] ) ) { $lines[] = __( 'Verkaufszeitraum der Ticketarten wird angepasst.', 'wp-pass-captain' ); }
+			if ( ! empty( $row['seat'] ) ) { $lines[] = __( 'Saalplan-Verknüpfung wird umgestellt (verkaufte Plätze bleiben geschützt).', 'wp-pass-captain' ); }
+		}
+		if ( ! empty( $row['reschedule'] ) ) {
+			/* translators: %d: issued tickets */
+			$lines[] = sprintf( _n( 'Terminverschiebung: Die Inhaber von %d Ticket werden benachrichtigt.', 'Terminverschiebung: Die Inhaber von %d Tickets werden benachrichtigt.', (int) $row['issued'], 'wp-pass-captain' ), (int) $row['issued'] );
+		}
+		if ( in_array( $row['action'], array( 'add', 'change' ), true ) ) {
+			if ( 'gap' === ( $row['item']['dst'] ?? '' ) ) { $lines[] = __( 'wegen Zeitumstellung verschoben (die Uhrzeit gibt es an diesem Tag nicht)', 'wp-pass-captain' ); }
+			if ( 'ambiguous' === ( $row['item']['dst'] ?? '' ) ) { $lines[] = __( 'Uhrzeit wegen Zeitumstellung doppelt – erste (Sommerzeit) verwendet', 'wp-pass-captain' ); }
+		}
+		return $lines;
+	}
+
+	/** A128: preview of a series change and the confirmation form. */
+	private static function render_edit_preview( array $plan, array $in ) {
+		$timezone = (string) $plan['definition']['rule']['timezone'];
+		$counts = $plan['counts'];
+		echo '<h2 id="wpcap-series-edit-preview">' . esc_html__( 'Vorschau der Änderungen', 'wp-pass-captain' ) . '</h2>';
+		echo '<h3>' . esc_html__( 'Seriendefinition (alt → neu)', 'wp-pass-captain' ) . '</h3>';
+		if ( $plan['changes'] ) {
+			$labels = ChangeHistory::field_labels();
+			echo '<ul style="list-style:disc;margin-left:2em">';
+			foreach ( $plan['changes'] as $field => $pair ) {
+				/* translators: 1: field, 2: old value, 3: new value */
+				echo '<li>' . esc_html( sprintf( __( '%1$s: %2$s → %3$s', 'wp-pass-captain' ), $labels[ $field ] ?? $field, ChangeHistory::format_value( $field, $pair[0], array( 'timezone' => $timezone ) ), ChangeHistory::format_value( $field, $pair[1], array( 'timezone' => $timezone ) ) ) ) . '</li>';
+			}
+			echo '</ul>';
+		} else {
+			echo '<p>' . esc_html__( 'Die Definition ist unverändert.', 'wp-pass-captain' ) . '</p>';
+		}
+		/* translators: 1: added, 2: changed, 3: deleted, 4: kept and flagged, 5: skipped or conflicts, 6: past, 7: unchanged */
+		echo '<p><strong>' . esc_html( sprintf( __( 'Auswirkung: %1$d neue, %2$d geänderte und %3$d gelöschte Termine; %4$d Termine mit Verkäufen oder Verknüpfungen bleiben bestehen und werden markiert; %5$d übersprungen. %6$d vergangene und %7$d unveränderte Termine bleiben unberührt.', 'wp-pass-captain' ), $counts['add'], $counts['change'], $counts['delete'], $counts['flag'], $counts['skip'] + $counts['conflict'], $counts['past'], $counts['unchanged'] ) ) . '</strong></p>';
+		if ( $plan['rows'] ) {
+			$actions = self::edit_action_labels();
+			echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Datum', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Termin', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktion', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Details', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+			foreach ( $plan['rows'] as $row ) {
+				$lines = self::edit_row_lines( $row, $timezone );
+				$when = strtotime( $row['date'] );
+				echo '<tr><td>' . esc_html( gmdate( 'd.m.Y', $when ) . ' (' . self::weekday_names()[ (int) gmdate( 'N', $when ) ] . ')' ) . '</td><td>';
+				if ( $row['occurrence_id'] ) {
+					echo '<a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\EventsPage::SLUG, array( 'view' => 'occurrence', 'occurrence_id' => (int) $row['occurrence_id'] ) ) ) . '">#' . (int) $row['occurrence_id'] . '</a>';
+				} else {
+					echo '—';
+				}
+				echo '</td><td>' . esc_html( $actions[ $row['action'] ] ?? $row['action'] ) . '</td><td>';
+				echo $lines ? '<ul style="margin:0">' . implode( '', array_map( static function ( $line ) { return '<li>' . esc_html( $line ) . '</li>'; }, $lines ) ) . '</ul>' : '—'; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped per line.
+				echo '</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
+		foreach ( $plan['dst_notes'] as $note ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( $note ) . '</p></div>';
+		}
+		if ( ! $plan['changes'] && ! array_sum( array_intersect_key( $counts, array_flip( array( 'add', 'change', 'delete', 'flag', 'unflag' ) ) ) ) ) { return; }
+		Forms::open_form( 'wpcap_series_update', self::NONCE );
+		Forms::hidden( 'series_id', (int) $plan['series']->series_id );
+		Forms::hidden( 'fingerprint', $plan['fingerprint'] );
+		foreach ( $plan['options'] as $key => $on ) {
+			if ( $on ) { Forms::hidden( $key, '1' ); }
+		}
+		foreach ( $in as $key => $value ) {
+			foreach ( (array) $value as $single ) {
+				echo '<input type="hidden" name="' . esc_attr( is_array( $value ) ? $key . '[]' : $key ) . '" value="' . esc_attr( (string) $single ) . '">';
+			}
+		}
+		submit_button( __( 'Änderungen übernehmen', 'wp-pass-captain' ) );
+		echo '</form>';
 	}
 
 	private static function render_preview( array $preview, array $in ) {
@@ -173,12 +361,12 @@ final class AdminPage {
 	private static function render_existing( $event_id ) {
 		$series = Generator::for_event( $event_id );
 		if ( ! $series ) { return; }
-		echo '<h2>' . esc_html__( 'Gespeicherte Serien', 'wp-pass-captain' ) . '</h2><table class="widefat striped"><thead><tr><th>#</th><th>' . esc_html__( 'Bezeichnung', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Regel', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Termine', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Zuletzt ausgeführt', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Preise & Kontingente', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+		echo '<h2>' . esc_html__( 'Gespeicherte Serien', 'wp-pass-captain' ) . '</h2><table class="widefat striped"><thead><tr><th>#</th><th>' . esc_html__( 'Bezeichnung', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Regel', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Termine', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Zuletzt ausgeführt', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Aktionen', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $series as $row ) {
 			$definition = json_decode( $row->definition, true );
 			$rule = $definition['rule'] ?? array();
 			$summary = ( $rule['freq'] ?? '' ) . ' · ' . ( $rule['time'] ?? '' ) . ' ' . ( $rule['timezone'] ?? '' ) . ( isset( $rule['until'] ) ? ' · ≤ ' . $rule['until'] : '' ) . ( isset( $rule['count'] ) ? ' · ' . $rule['count'] . '×' : '' );
-			echo '<tr><td>' . (int) $row->series_id . '</td><td>' . esc_html( $row->name ) . '</td><td>' . esc_html( $summary ) . '</td><td>' . (int) $row->occurrences . '</td><td>' . esc_html( Forms::datetime( $row->updated_at, 'UTC' ) ) . '</td><td><a href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => (int) $row->series_id ) ) . '#wpcap-series-rules' ) . '">' . esc_html__( 'Preisstufen und Kontingente', 'wp-pass-captain' ) . '</a></td></tr>';
+			echo '<tr><td>' . (int) $row->series_id . '</td><td>' . esc_html( $row->name ) . '</td><td>' . esc_html( $summary ) . '</td><td>' . (int) $row->occurrences . '</td><td>' . esc_html( Forms::datetime( $row->updated_at, 'UTC' ) ) . '</td><td><a href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => (int) $row->series_id ) ) . '#wpcap-series-rules' ) . '">' . esc_html__( 'Preisstufen, Kontingente und Verlauf', 'wp-pass-captain' ) . '</a> | <a href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => (int) $row->series_id, 'edit' => 1 ) ) . '#wpcap-series-edit' ) . '">' . esc_html__( 'Serie bearbeiten', 'wp-pass-captain' ) . '</a></td></tr>';
 		}
 		echo '</tbody></table>';
 	}
@@ -199,6 +387,19 @@ final class AdminPage {
 		$series_id = Forms::int( $in, 'series_id' );
 		$result = Pricing::create( $series_id, $in );
 		Forms::finish( $result, __( 'Preisregel gespeichert.', 'wp-pass-captain' ), self::rules_url( $series_id ) );
+	}
+
+	public static function handle_rule_update() {
+		Forms::verify( self::NONCE );
+		$in = Forms::post();
+		$series_id = Forms::int( $in, 'series_id' );
+		$result = Pricing::update( Forms::int( $in, 'rule_id' ), $in );
+		Forms::finish( $result, __( 'Preisregel geändert.', 'wp-pass-captain' ), self::rules_url( $series_id ), self::url( array( 'event_id' => self::series_event( $series_id ), 'series_id' => $series_id, 'edit_rule' => Forms::int( $in, 'rule_id' ) ) ) . '#wpcap-rule-form' );
+	}
+
+	private static function series_event( $series_id ) {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_series WHERE series_id=%d", absint( $series_id ) ) );
 	}
 
 	public static function handle_rule_delete() {
@@ -270,26 +471,55 @@ final class AdminPage {
 		echo '<h2 id="wpcap-series-rules">' . esc_html( sprintf( __( 'Preisstufen und Kontingente: %s', 'wp-pass-captain' ), '' !== (string) $series->name ? $series->name : '#' . (int) $series->series_id ) ) . '</h2>';
 		echo '<p class="description">' . esc_html__( 'Preisregeln gelten serverseitig für alle Termine dieser Serie (Online-Checkout und Kasse). Von mehreren passenden Regeln gewinnt die mit der höchsten Priorität. WooCommerce verwendet weiterhin seine eigenen Produktpreise; Kontingente gelten dort trotzdem.', 'wp-pass-captain' ) . '</p>';
 
+		echo '<p><a class="button" href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => (int) $series_id, 'edit' => 1 ) ) . '#wpcap-series-edit' ) . '">' . esc_html__( 'Seriendefinition bearbeiten', 'wp-pass-captain' ) . '</a> <a href="#wpcap-series-history">' . esc_html__( 'Änderungsverlauf', 'wp-pass-captain' ) . '</a></p>';
+		self::render_flagged( $series_id );
+
 		echo '<h3>' . esc_html__( 'Preisregeln', 'wp-pass-captain' ) . '</h3>';
 		$rules = Pricing::for_series( $series_id );
+		$edit_rule = null;
+		$edit_rule_id = absint( $_GET['edit_rule'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification
 		if ( $rules ) {
 			echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Bezeichnung', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Art', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Ticketart', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Bedingung', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Preis', 'wp-pass-captain' ) . '</th><th>' . esc_html__( 'Priorität', 'wp-pass-captain' ) . '</th><th><span class="screen-reader-text">' . esc_html__( 'Aktionen', 'wp-pass-captain' ) . '</span></th></tr></thead><tbody>';
 			foreach ( $rules as $rule ) {
+				if ( (int) $rule->rule_id === $edit_rule_id ) { $edit_rule = $rule; }
+				$rule_name = '' !== (string) $rule->label ? $rule->label : ( $kinds[ $rule->kind ] ?? '' );
 				echo '<tr><td>' . esc_html( $rule->label ) . '</td><td>' . esc_html( $kinds[ $rule->kind ] ?? $rule->kind ) . '</td><td>' . esc_html( '' !== (string) $rule->type_name ? $rule->type_name : __( 'Alle', 'wp-pass-captain' ) ) . '</td><td>' . esc_html( self::rule_condition( $rule, $timezone ) ) . '</td><td>' . esc_html( self::rule_price( $rule, $currency ) ) . '</td><td>' . (int) $rule->priority . '</td><td>';
-				Forms::open_form( 'wpcap_series_rule_delete', self::NONCE );
+				/* translators: %s: rule label or kind */
+				echo '<a href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => (int) $series_id, 'edit_rule' => (int) $rule->rule_id ) ) . '#wpcap-rule-form' ) . '" aria-label="' . esc_attr( sprintf( __( 'Preisregel „%s“ bearbeiten', 'wp-pass-captain' ), $rule_name ) ) . '">' . esc_html__( 'Bearbeiten', 'wp-pass-captain' ) . '</a> ';
+				Forms::open_form( 'wpcap_series_rule_delete', self::NONCE, 'style="display:inline"' );
 				Forms::hidden( 'rule_id', (int) $rule->rule_id );
 				Forms::hidden( 'series_id', (int) $series_id );
 				/* translators: %s: rule label or kind */
-				echo '<button type="submit" class="button-link-delete" aria-label="' . esc_attr( sprintf( __( 'Preisregel „%s“ entfernen', 'wp-pass-captain' ), '' !== (string) $rule->label ? $rule->label : ( $kinds[ $rule->kind ] ?? '' ) ) ) . '">' . esc_html__( 'Entfernen', 'wp-pass-captain' ) . '</button></form></td></tr>';
+				echo '<button type="submit" class="button-link-delete" aria-label="' . esc_attr( sprintf( __( 'Preisregel „%s“ entfernen', 'wp-pass-captain' ), $rule_name ) ) . '">' . esc_html__( 'Entfernen', 'wp-pass-captain' ) . '</button></form></td></tr>';
 			}
 			echo '</tbody></table>';
 		} else {
 			echo '<p>' . esc_html__( 'Noch keine Preisregeln – es gilt der Preis der Ticketart.', 'wp-pass-captain' ) . '</p>';
 		}
 
-		echo '<h4>' . esc_html__( 'Preisregel hinzufügen', 'wp-pass-captain' ) . '</h4>';
-		Forms::open_form( 'wpcap_series_rule_save', self::NONCE, 'class="wpcap-series-rule-form"' );
+		// A128: the same form edits an existing rule (prefilled); the change is logged with old → new.
+		$v = array( 'label' => '', 'kind' => 'early_bird', 'type_name' => '', 'price_mode' => 'fixed', 'amount' => '', 'until' => '', 'hours_before' => '', 'sold_pct' => '', 'weekdays' => array(), 'time_from' => '', 'time_to' => '', 'priority' => '' );
+		if ( $edit_rule ) {
+			$v = array(
+				'label' => (string) $edit_rule->label,
+				'kind' => (string) $edit_rule->kind,
+				'type_name' => (string) $edit_rule->type_name,
+				'price_mode' => (string) $edit_rule->price_mode,
+				'amount' => 'percent' === $edit_rule->price_mode ? ( (int) $edit_rule->amount < 0 ? '-' : '' ) . Forms::percent_input( abs( (int) $edit_rule->amount ) ) : Forms::money_input( (int) $edit_rule->amount, Forms::currency_decimals( $currency ) ),
+				'until' => $edit_rule->until_at ? Forms::utc_to_local( $edit_rule->until_at, $timezone ) : '',
+				'hours_before' => (int) $edit_rule->hours_before ? (string) (int) $edit_rule->hours_before : '',
+				'sold_pct' => (int) $edit_rule->sold_pct ? (string) (int) $edit_rule->sold_pct : '',
+				'weekdays' => '' === (string) $edit_rule->weekdays ? array() : array_map( 'intval', explode( ',', (string) $edit_rule->weekdays ) ),
+				'time_from' => (string) $edit_rule->time_from,
+				'time_to' => (string) $edit_rule->time_to,
+				'priority' => (string) (int) $edit_rule->priority,
+			);
+			if ( ! isset( $type_names[ $v['type_name'] ] ) ) { $type_names[ $v['type_name'] ] = $v['type_name']; }
+		}
+		echo '<h4 id="wpcap-rule-form">' . esc_html( $edit_rule ? __( 'Preisregel bearbeiten', 'wp-pass-captain' ) : __( 'Preisregel hinzufügen', 'wp-pass-captain' ) ) . '</h4>';
+		Forms::open_form( $edit_rule ? 'wpcap_series_rule_update' : 'wpcap_series_rule_save', self::NONCE, 'class="wpcap-series-rule-form"' );
 		Forms::hidden( 'series_id', (int) $series_id );
+		if ( $edit_rule ) { Forms::hidden( 'rule_id', (int) $edit_rule->rule_id ); }
 		$row = static function ( $id, $label, $callback, $help = '' ) {
 			echo '<tr><th scope="row"><label for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label></th><td>';
 			$callback();
@@ -297,28 +527,29 @@ final class AdminPage {
 			echo '</td></tr>';
 		};
 		echo '<table class="form-table" role="presentation"><tbody>';
-		$row( 'wpcap-rule-label', __( 'Bezeichnung (öffentlich, optional)', 'wp-pass-captain' ), static function () { echo '<input id="wpcap-rule-label" name="label" type="text" class="regular-text" maxlength="190">'; }, __( 'Wird neben dem Preis angezeigt, z. B. „Frühbucher“.', 'wp-pass-captain' ) );
-		$row( 'wpcap-rule-kind', __( 'Art', 'wp-pass-captain' ), static function () use ( $kinds ) { Forms::select( 'kind', $kinds, 'early_bird', 'wpcap-rule-kind' ); } );
-		$row( 'wpcap-rule-type', __( 'Ticketart', 'wp-pass-captain' ), static function () use ( $type_names ) { Forms::select( 'type_name', $type_names, '', 'wpcap-rule-type' ); } );
-		$row( 'wpcap-rule-mode', __( 'Preis', 'wp-pass-captain' ), static function () use ( $currency ) {
-			Forms::select( 'price_mode', array( 'fixed' => sprintf( /* translators: %s: currency */ __( 'Fester Preis (brutto, %s)', 'wp-pass-captain' ), $currency ), 'percent' => __( 'Prozentuale Änderung', 'wp-pass-captain' ) ), 'fixed', 'wpcap-rule-mode' );
-			echo ' <label class="screen-reader-text" for="wpcap-rule-amount">' . esc_html__( 'Betrag oder Prozent', 'wp-pass-captain' ) . '</label><input id="wpcap-rule-amount" name="amount" type="text" inputmode="decimal" size="10" required aria-describedby="wpcap-rule-mode-help">';
+		$row( 'wpcap-rule-label', __( 'Bezeichnung (öffentlich, optional)', 'wp-pass-captain' ), static function () use ( $v ) { echo '<input id="wpcap-rule-label" name="label" type="text" class="regular-text" maxlength="190" value="' . esc_attr( $v['label'] ) . '">'; }, __( 'Wird neben dem Preis angezeigt, z. B. „Frühbucher“.', 'wp-pass-captain' ) );
+		$row( 'wpcap-rule-kind', __( 'Art', 'wp-pass-captain' ), static function () use ( $kinds, $v ) { Forms::select( 'kind', $kinds, $v['kind'], 'wpcap-rule-kind' ); } );
+		$row( 'wpcap-rule-type', __( 'Ticketart', 'wp-pass-captain' ), static function () use ( $type_names, $v ) { Forms::select( 'type_name', $type_names, $v['type_name'], 'wpcap-rule-type' ); } );
+		$row( 'wpcap-rule-mode', __( 'Preis', 'wp-pass-captain' ), static function () use ( $currency, $v ) {
+			Forms::select( 'price_mode', array( 'fixed' => sprintf( /* translators: %s: currency */ __( 'Fester Preis (brutto, %s)', 'wp-pass-captain' ), $currency ), 'percent' => __( 'Prozentuale Änderung', 'wp-pass-captain' ) ), $v['price_mode'], 'wpcap-rule-mode' );
+			echo ' <label class="screen-reader-text" for="wpcap-rule-amount">' . esc_html__( 'Betrag oder Prozent', 'wp-pass-captain' ) . '</label><input id="wpcap-rule-amount" name="amount" type="text" inputmode="decimal" size="10" required aria-describedby="wpcap-rule-mode-help" value="' . esc_attr( $v['amount'] ) . '">';
 		}, __( 'Fester Preis z. B. 19,90; prozentual z. B. -20 (20 % günstiger) oder 15 (15 % teurer).', 'wp-pass-captain' ) );
 		/* translators: %s: timezone */
-		$row( 'wpcap-rule-until', __( 'Frühbucher bis', 'wp-pass-captain' ), static function () { echo '<input id="wpcap-rule-until" name="until" type="datetime-local">'; }, sprintf( __( 'Nur für Frühbucher. Ortszeit %s; gilt für Buchungen vor diesem Zeitpunkt.', 'wp-pass-captain' ), $timezone ) );
-		$row( 'wpcap-rule-hours', __( 'Last-Minute ab Stunden vor Beginn', 'wp-pass-captain' ), static function () { echo '<input id="wpcap-rule-hours" name="hours_before" type="number" min="1" max="1440">'; } );
-		$row( 'wpcap-rule-pct', __( 'Nachfragestufe ab % verkauft', 'wp-pass-captain' ), static function () { echo '<input id="wpcap-rule-pct" name="sold_pct" type="number" min="1" max="100">'; }, __( 'Verkauft = bezahlte und aktuell reservierte Tickets der Ticketart (bzw. des Termins, wenn die Ticketart kein eigenes Kontingent hat). Mehrere Stufen sind möglich; die höchste erreichte gilt.', 'wp-pass-captain' ) );
+		$row( 'wpcap-rule-until', __( 'Frühbucher bis', 'wp-pass-captain' ), static function () use ( $v ) { echo '<input id="wpcap-rule-until" name="until" type="datetime-local" value="' . esc_attr( $v['until'] ) . '">'; }, sprintf( __( 'Nur für Frühbucher. Ortszeit %s; gilt für Buchungen vor diesem Zeitpunkt.', 'wp-pass-captain' ), $timezone ) );
+		$row( 'wpcap-rule-hours', __( 'Last-Minute ab Stunden vor Beginn', 'wp-pass-captain' ), static function () use ( $v ) { echo '<input id="wpcap-rule-hours" name="hours_before" type="number" min="1" max="1440" value="' . esc_attr( $v['hours_before'] ) . '">'; } );
+		$row( 'wpcap-rule-pct', __( 'Nachfragestufe ab % verkauft', 'wp-pass-captain' ), static function () use ( $v ) { echo '<input id="wpcap-rule-pct" name="sold_pct" type="number" min="1" max="100" value="' . esc_attr( $v['sold_pct'] ) . '">'; }, __( 'Verkauft = bezahlte und aktuell reservierte Tickets der Ticketart (bzw. des Termins, wenn die Ticketart kein eigenes Kontingent hat). Mehrere Stufen sind möglich; die höchste erreichte gilt.', 'wp-pass-captain' ) );
 		echo '<tr><th scope="row">' . esc_html__( 'Wochentage', 'wp-pass-captain' ) . '</th><td><fieldset><legend class="screen-reader-text">' . esc_html__( 'Wochentage', 'wp-pass-captain' ) . '</legend>';
 		foreach ( self::weekday_names() as $num => $name ) {
-			echo '<label style="margin-right:1em"><input type="checkbox" name="weekdays[]" value="' . (int) $num . '"> ' . esc_html( $name ) . '</label>';
+			echo '<label style="margin-right:1em"><input type="checkbox" name="weekdays[]" value="' . (int) $num . '"' . checked( in_array( (int) $num, $v['weekdays'], true ), true, false ) . '> ' . esc_html( $name ) . '</label>';
 		}
 		echo '<p class="description">' . esc_html__( 'Nur für Wochentags-/Zeitfensterpreise; maßgeblich ist der Beginn des Termins in Ortszeit.', 'wp-pass-captain' ) . '</p></fieldset></td></tr>';
-		$row( 'wpcap-rule-from', __( 'Zeitfenster Beginn von–bis', 'wp-pass-captain' ), static function () {
-			echo '<input id="wpcap-rule-from" name="time_from" type="time"> – <label class="screen-reader-text" for="wpcap-rule-to">' . esc_html__( 'bis', 'wp-pass-captain' ) . '</label><input id="wpcap-rule-to" name="time_to" type="time">';
+		$row( 'wpcap-rule-from', __( 'Zeitfenster Beginn von–bis', 'wp-pass-captain' ), static function () use ( $v ) {
+			echo '<input id="wpcap-rule-from" name="time_from" type="time" value="' . esc_attr( $v['time_from'] ) . '"> – <label class="screen-reader-text" for="wpcap-rule-to">' . esc_html__( 'bis', 'wp-pass-captain' ) . '</label><input id="wpcap-rule-to" name="time_to" type="time" value="' . esc_attr( $v['time_to'] ) . '">';
 		}, __( '„von“ inklusive, „bis“ exklusive. Leer = ganzer Tag.', 'wp-pass-captain' ) );
-		$row( 'wpcap-rule-priority', __( 'Priorität (optional)', 'wp-pass-captain' ), static function () { echo '<input id="wpcap-rule-priority" name="priority" type="number" min="-9999" max="9999">'; }, __( 'Leer = Standard (Last-Minute 40, Nachfrage 30, Frühbucher 20, Wochentag 10).', 'wp-pass-captain' ) );
+		$row( 'wpcap-rule-priority', __( 'Priorität (optional)', 'wp-pass-captain' ), static function () use ( $v ) { echo '<input id="wpcap-rule-priority" name="priority" type="number" min="-9999" max="9999" value="' . esc_attr( $v['priority'] ) . '">'; }, __( 'Leer = Standard (Last-Minute 40, Nachfrage 30, Frühbucher 20, Wochentag 10).', 'wp-pass-captain' ) );
 		echo '</tbody></table>';
-		submit_button( __( 'Preisregel hinzufügen', 'wp-pass-captain' ) );
+		submit_button( $edit_rule ? __( 'Preisregel speichern', 'wp-pass-captain' ) : __( 'Preisregel hinzufügen', 'wp-pass-captain' ) );
+		if ( $edit_rule ) { echo '<p><a href="' . esc_url( self::url( array( 'event_id' => $event_id, 'series_id' => (int) $series_id ) ) . '#wpcap-series-rules' ) . '">' . esc_html__( 'Bearbeiten abbrechen', 'wp-pass-captain' ) . '</a></p>'; }
 		echo '</form>';
 
 		echo '<h3>' . esc_html__( 'Gemeinsame Kontingente', 'wp-pass-captain' ) . '</h3>';
@@ -354,6 +585,27 @@ final class AdminPage {
 		echo '</form>';
 
 		self::render_price_preview( $series_id, $currency );
+		ChangeHistory::render( ChangeHistory::for_series( $series_id ), $timezone, 'wpcap-series-history' );
+	}
+
+	/** A128: occurrences kept although they fell out of the rule (sold tickets or linked data). */
+	private static function render_flagged( $series_id ) {
+		$flagged = Generator::flagged( $series_id );
+		if ( ! $flagged ) { return; }
+		echo '<div class="notice notice-warning inline"><p><strong>' . esc_html__( 'Termine außerhalb der Serienregel', 'wp-pass-captain' ) . '</strong></p>';
+		echo '<p>' . esc_html__( 'Diese Termine passen nach einer Änderung nicht mehr zur Regel. Sie wurden nicht gelöscht, weil es Verkäufe oder verknüpfte Daten gibt. Prüfe sie und sage sie bei Bedarf über „Termin absagen“ ab (mit Erstattung und Benachrichtigung).', 'wp-pass-captain' ) . '</p><ul style="list-style:disc;margin-left:2em">';
+		foreach ( $flagged as $occ ) {
+			$sold = Queries::sold_for_occurrence( $occ->occurrence_id );
+			/* translators: 1: date, 2: sold tickets */
+			echo '<li><a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\EventsPage::SLUG, array( 'view' => 'occurrence', 'occurrence_id' => (int) $occ->occurrence_id ) ) ) . '">' . esc_html( sprintf( __( '%1$s (%2$d verkauft)', 'wp-pass-captain' ), Forms::datetime( $occ->starts_at, $occ->timezone ), $sold ) ) . '</a>';
+			if ( 'cancelled' !== $occ->status ) {
+				echo ' – <a href="' . esc_url( Forms::page_url( \PassCaptain\Admin\EventsPage::SLUG, array( 'view' => 'cancel_occurrence', 'occurrence_id' => (int) $occ->occurrence_id ) ) ) . '">' . esc_html__( 'Termin absagen', 'wp-pass-captain' ) . '</a>';
+			} else {
+				echo ' – ' . esc_html__( 'abgesagt', 'wp-pass-captain' );
+			}
+			echo '</li>';
+		}
+		echo '</ul></div>';
 	}
 
 	/** Effective prices and availability of the next occurrences right now. */

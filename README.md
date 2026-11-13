@@ -51,7 +51,7 @@ Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaSc
 
 ## Module (P2)
 
-Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks, Offline-Scanner, Veranstalter und Veranstalter-Abrechnungen sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]`. Dokumentation: [docs/WALLET.md](docs/WALLET.md), [docs/WEBHOOKS.md](docs/WEBHOOKS.md), [docs/HOOKS.md](docs/HOOKS.md), [docs/MOBILE-API.md](docs/MOBILE-API.md), [docs/OFFLINE-SCANNER.md](docs/OFFLINE-SCANNER.md), [docs/PARTNER-API.md](docs/PARTNER-API.md), [docs/TESTING.md](docs/TESTING.md), [docs/MAIL-TEMPLATES.md](docs/MAIL-TEMPLATES.md).
+Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks, Offline-Scanner, Veranstalter und Veranstalter-Abrechnungen sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]`. Dokumentation: [docs/WALLET.md](docs/WALLET.md), [docs/WEBHOOKS.md](docs/WEBHOOKS.md), [docs/HOOKS.md](docs/HOOKS.md), [docs/MOBILE-API.md](docs/MOBILE-API.md), [docs/OFFLINE-SCANNER.md](docs/OFFLINE-SCANNER.md), [docs/PARTNER-API.md](docs/PARTNER-API.md), [docs/TESTING.md](docs/TESTING.md), [docs/MAIL-TEMPLATES.md](docs/MAIL-TEMPLATES.md), [docs/SERIES.md](docs/SERIES.md).
 
 ## Scanner und Mobile-App
 

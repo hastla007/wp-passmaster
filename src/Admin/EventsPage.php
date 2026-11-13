@@ -208,7 +208,9 @@ final class EventsPage {
 				$rescheduled = true;
 				do_action( 'wpcap_occurrence_rescheduled', $occurrence_id, $old->starts_at, $starts );
 			}
-			Audit::record( 'occurrence_updated', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'old_starts_at' => $old->starts_at, 'new_starts_at' => $starts, 'status' => $status, 'rescheduled' => $rescheduled ) );
+			// A114: field-by-field diff (old → new) for the occurrence's change history.
+			$changes = ChangeHistory::diff( (array) $old, $data );
+			Audit::record( 'occurrence_updated', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'old_starts_at' => $old->starts_at, 'new_starts_at' => $starts, 'status' => $status, 'rescheduled' => $rescheduled, 'changes' => $changes ) );
 			if ( 'cancelled' === $status && 'cancelled' !== $old->status ) {
 				do_action( 'wpcap_occurrence_cancelled', $occurrence_id, $issued );
 			} elseif ( self::capacity_grew( (int) $old->capacity, (int) $capacity ) ) {
@@ -270,7 +272,7 @@ final class EventsPage {
 		global $wpdb;
 		$wpdb->update( $wpdb->prefix . 'wpcap_occurrences', array( 'status' => 'cancelled' ), array( 'occurrence_id' => (int) $occ->occurrence_id ), array( '%s' ), array( '%d' ) );
 		$issued = Queries::issued_ticket_count_for_occurrence( $occ->occurrence_id );
-		Audit::record( 'occurrence_cancelled', 'occurrence', (int) $occ->occurrence_id, array( 'event_id' => (int) $occ->event_id, 'issued_tickets' => $issued, 'reason' => $reason ) );
+		Audit::record( 'occurrence_cancelled', 'occurrence', (int) $occ->occurrence_id, array( 'event_id' => (int) $occ->event_id, 'issued_tickets' => $issued, 'reason' => $reason, 'changes' => array( 'status' => array( $occ->status, 'cancelled' ) ) ) );
 		do_action( 'wpcap_occurrence_cancelled', (int) $occ->occurrence_id, $issued );
 		$result = array( 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id, 'issued' => $issued );
 		// Summary of what happened (core + passes), shown after the redirect.
@@ -369,7 +371,13 @@ final class EventsPage {
 			$type_id = (int) $wpdb->insert_id;
 			if ( ! $type_id ) { return Forms::error( 'wpcap_type_save', __( 'Die Ticketkategorie konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
 		}
-		Audit::record( $old ? 'ticket_type_updated' : 'ticket_type_created', 'ticket_type', $type_id, array( 'occurrence_id' => (int) $occ->occurrence_id, 'price_minor' => $price, 'tax_rate_bp' => $tax_bp, 'status' => $status ) );
+		$details = array( 'occurrence_id' => (int) $occ->occurrence_id, 'price_minor' => $price, 'tax_rate_bp' => $tax_bp, 'status' => $status, 'currency' => $currency, 'type_name' => $name );
+		if ( $old ) {
+			// A114: price, capacity and sales window changes (old → new) for the occurrence's history.
+			$details['changes'] = ChangeHistory::diff( (array) $old, array_intersect_key( $data, array_flip( array( 'name', 'price_minor', 'currency', 'tax_rate_bp', 'capacity', 'max_per_order', 'sales_start', 'sales_end', 'status' ) ) ) );
+			if ( isset( $details['changes']['currency'] ) ) { $details['currency'] = (string) $old->currency; }
+		}
+		Audit::record( $old ? 'ticket_type_updated' : 'ticket_type_created', 'ticket_type', $type_id, $details );
 		return array( 'ticket_type_id' => $type_id, 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id );
 	}
 
@@ -961,6 +969,7 @@ final class EventsPage {
 			<?php self::ticket_type_form( null, $occ ); ?>
 		<?php endif; ?>
 		<?php
+		ChangeHistory::render( ChangeHistory::for_occurrence( (int) $occ->occurrence_id ), (string) $occ->timezone, 'wpcap-occurrence-history' );
 	}
 
 	private static function ticket_type_form( $type, $occ ) {
