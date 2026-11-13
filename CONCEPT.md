@@ -428,7 +428,7 @@ Die vorgeschlagenen Filter- und Action-Namen können als Integrations-Events gen
 
 ## 16. Test- und Release-Gates
 
-Diese Gates gelten für ein Release; sie ergänzen die MVP-Abnahmekriterien und sind noch von einem konkreten CI-System umzusetzen.
+Diese Gates gelten für ein Release; sie ergänzen die MVP-Abnahmekriterien. Umgesetzt und verbindlich gemacht sind sie in [docs/RELEASE.md](docs/RELEASE.md): automatische Gates per CI, alle übrigen über das Abnahmeprotokoll `docs/release-acceptance/v<Version>.md`, ohne das der Release-Workflow nicht veröffentlicht. Die Kästchen unten beschreiben den Anforderungsumfang; abgehakt wird je Release im Protokoll.
 
 ### Testebenen
 

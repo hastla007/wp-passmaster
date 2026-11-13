@@ -279,7 +279,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - ci.yml enthält nur Lint, Integration, Lasttest-CI-Profil, ZIP; keine PWA-/Sandbox-/E2E-Jobs
 - [ ] **A125** Aktivierung/Update/Restore/Deinstallation in realen WP-Versionen — _OFFEN_ (TODO L62; P0 – Datenschutz und Releasefähigkeit)
   - Kein Test gegen echte WP-Installationen; tests/integration/wp nur Stub, keine Versionsmatrix in CI
-- [ ] **A126** Verbindliche Release-Gates, manuelle Mobile/Desktop-Abnahme dokumentieren — _TEILWEISE_ (TODO L63; P0 – Datenschutz und Releasefähigkeit)
+- [x] **A126** Verbindliche Release-Gates, manuelle Mobile/Desktop-Abnahme dokumentieren — _TEILWEISE_ (TODO L63; P0 – Datenschutz und Releasefähigkeit)
   - Automatische Prüfungen in ci.yml; Gates in CONCEPT.md:443-450 alle offen, keine Abnahmedokumentation
 - [ ] **A127** Echte WooCommerce-Version-/HPOS-Matrix — _OFFEN_ (TODO L81; P1 – Optionaler WooCommerce-Adapter)
   - Nur Tests mit WooCommerce-Attrappen (tests/integration/modules/woocommerce.php); keine Matrix gegen installiertes WooCommerce in CI

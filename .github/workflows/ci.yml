@@ -32,6 +32,8 @@ jobs:
         run: php tests/consistency.php
       - name: Release guard tests
         run: bash tests/release-guard.sh
+      - name: Release acceptance gate tests
+        run: bash tests/release-acceptance.sh
 
   integration:
     runs-on: ubuntu-latest
