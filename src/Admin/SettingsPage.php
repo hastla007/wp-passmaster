@@ -145,6 +145,14 @@ final class SettingsPage {
 				'fields' => array(
 					'attendee_retention_days' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten nach dem Event löschen nach (Tagen)', 'wp-pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = Feldeinstellung verwenden.', 'wp-pass-captain' ) ),
 					'attendee_edit_hours' => array( 'type' => 'int', 'label' => __( 'Teilnehmerdaten änderbar bis (Stunden vor Beginn)', 'wp-pass-captain' ), 'min' => 0, 'max' => 720 ),
+					'retention_unpaid_customer_email_days' => array( 'type' => 'int', 'label' => __( 'E-Mail-Adressen nie bezahlter Bestellungen pseudonymisieren nach (Tagen)', 'wp-pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = nie.', 'wp-pass-captain' ) ),
+					'retention_message_content_days' => array( 'type' => 'int', 'label' => __( 'Inhalt und Empfänger versendeter Nachrichten löschen nach (Tagen)', 'wp-pass-captain' ), 'min' => 0, 'max' => 3650 ),
+					'retention_message_rows_days' => array( 'type' => 'int', 'label' => __( 'Versandprotokoll der Nachrichten löschen nach (Tagen)', 'wp-pass-captain' ), 'min' => 0, 'max' => 3650 ),
+					'retention_checkin_staff_days' => array( 'type' => 'int', 'label' => __( 'Personal und Gerät an Check-ins entfernen nach (Tagen)', 'wp-pass-captain' ), 'min' => 0, 'max' => 3650 ),
+					'retention_audit_logs_days' => array( 'type' => 'int', 'label' => __( 'Protokolleinträge (Audit-Log) löschen nach (Tagen)', 'wp-pass-captain' ), 'min' => 0, 'max' => 3650 ),
+					'retention_waitlist_days' => array( 'type' => 'int', 'label' => __( 'Wartelisteneinträge löschen (Tage nach dem Termin)', 'wp-pass-captain' ), 'min' => 0, 'max' => 3650 ),
+					'retention_partner_codes_days' => array( 'type' => 'int', 'label' => __( 'Ticketcodes von Partnerverkäufen löschen (Tage nach dem Termin)', 'wp-pass-captain' ), 'min' => 0, 'max' => 3650, 'description' => __( '0 = direkt nach Ende des Termins.', 'wp-pass-captain' ) ),
+					'retention_financial_years' => array( 'type' => 'int', 'label' => __( 'Rechnungen und Rechnungskorrekturen löschen nach (Jahren)', 'wp-pass-captain' ), 'min' => 0, 'max' => 30, 'description' => __( '0 = nie löschen. Die Frist beginnt mit Ende des Ausstellungsjahres. Gesetzliche Aufbewahrungsfristen beachten (z. B. Österreich 7 Jahre, Deutschland 8 bzw. 10 Jahre) und die Belege vorher im Buchhaltungssystem archivieren. Käuferdaten der betroffenen Bestellungen werden dabei pseudonymisiert.', 'wp-pass-captain' ) ),
 				),
 			),
 			'seller' => array(

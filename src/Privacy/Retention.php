@@ -12,7 +12,14 @@
  * Further: attendee_data of unpaid orders is cleared, buyer e-mails of never-paid orders are
  * pseudonymised after 90 days, sent/failed queue messages lose recipient and content after 30 days
  * (rows deleted after a year), check-ins lose staff user/device after 365 days and audit log
- * entries are deleted after 730 days. All periods are filterable; 0 disables a step.
+ * entries are deleted after 730 days. All periods are settings (Einstellungen → Allgemein → Datenschutz,
+ * A123) and filterable; 0 disables a step.
+ *
+ * Financial records (A123, setting retention_financial_years, default 0 = keep): invoices with their
+ * lines and correction documents are deleted once their calendar year plus N years has ended (the
+ * statutory period starts at the end of the year of issue); the buyer data of the orders concerned is
+ * pseudonymised at the same time (amounts stay for the statistics). Modules add their own documents
+ * (box office Z reports) via wpcap_privacy_retention_steps and financial_cutoff().
  *
  * Work runs in batches of 500 rows within a time budget (~20 s); the next run continues. Only
  * counts are written to the audit log.
@@ -36,7 +43,18 @@ final class Retention {
 		}
 	}
 
-	/** Days of one step, filterable (wpcap_privacy_retention_days, $days, $step); 0 = off. */
+	/** Step => setting key with the configurable period in days (A123). */
+	const SETTINGS = array(
+		'unpaid_customer_email' => 'retention_unpaid_customer_email_days',
+		'message_content' => 'retention_message_content_days',
+		'message_rows' => 'retention_message_rows_days',
+		'checkin_staff' => 'retention_checkin_staff_days',
+		'audit_logs' => 'retention_audit_logs_days',
+		'waitlist' => 'retention_waitlist_days',
+		'partner_ticket_codes' => 'retention_partner_codes_days',
+	);
+
+	/** Days of one step: setting (A123), then filter (wpcap_privacy_retention_days, $days, $step); 0 = off. */
 	public static function days( $step ) {
 		$defaults = array(
 			'unpaid_attendee_data' => 1,
@@ -45,8 +63,32 @@ final class Retention {
 			'message_rows' => 365,
 			'checkin_staff' => 365,
 			'audit_logs' => 730,
+			'waitlist' => 30,
+			'partner_ticket_codes' => 30,
 		);
-		return max( 0, (int) apply_filters( 'wpcap_privacy_retention_days', $defaults[ $step ] ?? 0, $step ) );
+		$days = $defaults[ $step ] ?? 0;
+		if ( isset( self::SETTINGS[ $step ] ) ) {
+			$configured = Settings::get( self::SETTINGS[ $step ], null );
+			if ( null !== $configured && '' !== $configured ) { $days = (int) $configured; }
+		}
+		return max( 0, (int) apply_filters( 'wpcap_privacy_retention_days', $days, $step ) );
+	}
+
+	/** Years financial records are kept (setting retention_financial_years, filterable); 0 = forever. */
+	public static function financial_years() {
+		return max( 0, min( 30, (int) apply_filters( 'wpcap_financial_retention_years', (int) Settings::get( 'retention_financial_years', 0 ) ) ) );
+	}
+
+	/**
+	 * Documents issued before this UTC time may be deleted ('' = keep everything). With N years, a
+	 * document from year Y may go once Y + N has ended: cutoff = 1 January (current year - N).
+	 *
+	 * @param int $now Reference time (UNIX).
+	 */
+	public static function financial_cutoff( $now ) {
+		$years = self::financial_years();
+		if ( ! $years ) { return ''; }
+		return sprintf( '%04d-01-01 00:00:00', (int) gmdate( 'Y', (int) $now ) - $years );
 	}
 
 	/** Global attendee retention (setting); 0 = per-field setting for answers, default for names. */
@@ -70,7 +112,7 @@ final class Retention {
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_privacy_retention_budget', 20.0 ) : (float) $budget;
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		$counts = array();
-		foreach ( array( 'answers', 'attendees', 'unpaid_attendee_data', 'unpaid_customer_email', 'messages', 'checkin_staff', 'audit_logs' ) as $step ) {
+		foreach ( array( 'answers', 'attendees', 'unpaid_attendee_data', 'unpaid_customer_email', 'messages', 'checkin_staff', 'audit_logs', 'financial_records' ) as $step ) {
 			$counts[ $step ] = microtime( true ) < $deadline ? (int) call_user_func( array( __CLASS__, 'step_' . $step ), $now, $deadline ) : 0;
 		}
 		/**
@@ -196,6 +238,44 @@ final class Retention {
 	}
 
 	/** Never-paid orders (no ticket, no invoice): buyer e-mail replaced by the erasure placeholder. */
+	/**
+	 * Financial records past the statutory period (A123): invoice lines, invoices and correction
+	 * documents; the orders' buyer data (e-mail, billing address, access link) is pseudonymised.
+	 */
+	private static function step_financial_records( $now, $deadline ) {
+		$cutoff = self::financial_cutoff( $now );
+		if ( '' === $cutoff ) { return 0; }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$credit = self::loop(
+			$deadline,
+			static function () use ( $wpdb, $p, $cutoff ) {
+				return $wpdb->get_col( $wpdb->prepare( "SELECT credit_note_id FROM {$p}wpcap_credit_notes WHERE issued_at<%s LIMIT %d", $cutoff, self::BATCH ) );
+			},
+			static function ( $ids ) use ( $wpdb, $p ) {
+				return (int) $wpdb->query( "DELETE FROM {$p}wpcap_credit_notes WHERE credit_note_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			}
+		);
+		$invoices = self::loop(
+			$deadline,
+			static function () use ( $wpdb, $p, $cutoff ) {
+				// Only invoices whose corrections are gone too (a later correction keeps its invoice).
+				return $wpdb->get_col( $wpdb->prepare( "SELECT i.invoice_id FROM {$p}wpcap_invoices i WHERE i.issued_at<%s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_credit_notes c WHERE c.invoice_id=i.invoice_id) LIMIT %d", $cutoff, self::BATCH ) );
+			},
+			static function ( $ids ) use ( $wpdb, $p ) {
+				$list = self::in_list( $ids );
+				$orders = array_map( 'absint', (array) $wpdb->get_col( "SELECT order_id FROM {$p}wpcap_invoices WHERE invoice_id IN ($list)" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$wpdb->query( "DELETE FROM {$p}wpcap_invoice_lines WHERE invoice_id IN ($list)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$deleted = (int) $wpdb->query( "DELETE FROM {$p}wpcap_invoices WHERE invoice_id IN ($list)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,customer_email FROM ' . $p . 'wpcap_orders WHERE order_id IN (' . self::in_list( $orders ) . ') AND customer_email NOT LIKE %s', '%' . Privacy::PLACEHOLDER_DOMAIN ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+					$wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => Privacy::replacement_email( (string) $row->customer_email, (int) $row->order_id ), 'billing' => null, 'access_token_hash' => hash( 'sha256', wp_generate_password( 64, true, true ) ), 'access_expires_at' => null ), array( 'order_id' => (int) $row->order_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+				}
+				return $deleted;
+			}
+		);
+		return $credit + $invoices;
+	}
+
 	private static function step_unpaid_customer_email( $now, $deadline ) {
 		$days = self::days( 'unpaid_customer_email' );
 		if ( ! $days ) { return 0; }

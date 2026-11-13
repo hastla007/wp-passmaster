@@ -49,7 +49,7 @@ final class Waitlists {
 	public static function retention_step( $counts, $now, $deadline ) {
 		global $wpdb;
 		if ( microtime( true ) >= $deadline ) { return $counts; }
-		$days = max( 0, (int) apply_filters( 'wpcap_privacy_retention_days', 30, 'waitlist' ) );
+		$days = max( 0, (int) \PassCaptain\Privacy\Retention::days( 'waitlist' ) );
 		if ( ! $days ) { $counts['waitlist'] = 0; return $counts; }
 		$p = $wpdb->prefix;
 		$cutoff = gmdate( 'Y-m-d H:i:s', (int) $now - $days * DAY_IN_SECONDS );

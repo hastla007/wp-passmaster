@@ -287,7 +287,8 @@ Checkliste Art. 28 Abs. 3 DSGVO (für beide Richtungen):
 - [ ] Unterstützung bei Betroffenenrechten (Export/Löschung über die WordPress-Werkzeuge, manueller Ablauf
       nach 4.3) und bei Art. 32–36 DSGVO.
 - [ ] Löschung oder Rückgabe nach Vertragsende (Hinweis: Rechnungen und Buchungsdaten unterliegen
-      Aufbewahrungspflichten; das Plugin löscht sie nicht automatisch).
+      Aufbewahrungspflichten; das Plugin löscht Rechnungen, Korrekturen und Kassenschichten nur, wenn unter
+      Einstellungen → Datenschutz eine Belegfrist in Jahren gesetzt ist – Standard: nie).
 - [ ] Nachweis- und Kontrollrechte.
 
 Vorlage Anlage TOM (Auszug, aus dem Plugin belegbar; um Hosting-Maßnahmen ergänzen):

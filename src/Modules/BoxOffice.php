@@ -30,6 +30,37 @@ final class BoxOffice {
 		add_action( 'add_option_wpcap_db_version', array( __CLASS__, 'migrate' ), 10, 0 );
 		add_action( 'update_option_wpcap_db_version', array( __CLASS__, 'migrate' ), 10, 0 );
 		add_action( 'init', array( __CLASS__, 'maybe_migrate' ), 5, 0 );
+		add_filter( 'wpcap_privacy_retention_steps', array( __CLASS__, 'retention_step' ), 10, 3 );
+	}
+
+	/**
+	 * Financial retention (A123): closed shifts whose closing year plus the configured number of years
+	 * (setting retention_financial_years, 0 = keep) has ended are deleted with their Z report, counts,
+	 * cash movements, handovers, cashier list and sale receipts. Orders stay (core retention).
+	 *
+	 * @param array      $counts   Counts so far.
+	 * @param int        $now      Reference time.
+	 * @param float|null $deadline microtime() limit.
+	 */
+	public static function retention_step( $counts, $now = null, $deadline = null ) {
+		$counts = (array) $counts;
+		$cutoff = \PassCaptain\Privacy\Retention::financial_cutoff( null === $now ? time() : (int) $now );
+		if ( '' === $cutoff || ! \PassCaptain\Privacy::has_table( 'wpcap_boxoffice_sessions' ) ) { return $counts; }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$done = 0;
+		while ( null === $deadline || microtime( true ) < $deadline ) {
+			$ids = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT session_id FROM {$p}wpcap_boxoffice_sessions WHERE status<>'open' AND closed_at IS NOT NULL AND closed_at<%s LIMIT 200", $cutoff ) ) );
+			if ( ! $ids ) { break; }
+			$list = implode( ',', $ids );
+			foreach ( array( 'zreports' => 'shift_id', 'counts' => 'shift_id', 'movements' => 'shift_id', 'shift_cashiers' => 'shift_id', 'handovers' => 'from_shift_id', 'sales' => 'session_id' ) as $table => $column ) {
+				$wpdb->query( "DELETE FROM {$p}wpcap_boxoffice_{$table} WHERE {$column} IN ($list)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ints, fixed names.
+			}
+			$done += (int) $wpdb->query( "DELETE FROM {$p}wpcap_boxoffice_sessions WHERE session_id IN ($list)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( count( $ids ) < 200 ) { break; }
+		}
+		$counts['boxoffice_shifts'] = (int) ( $counts['boxoffice_shifts'] ?? 0 ) + $done;
+		return $counts;
 	}
 
 	/** Version of the box office data migrations (option wpcap_boxoffice_migration). */

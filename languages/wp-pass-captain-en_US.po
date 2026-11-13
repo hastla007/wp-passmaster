@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: WP Pass Captain 1.4.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/wp-pass-captain\n"
-"POT-Creation-Date: 2026-11-13T20:22:23+00:00\n"
+"POT-Creation-Date: 2026-11-13T20:29:20+00:00\n"
 "PO-Revision-Date: 2026-11-11 12:00+0000\n"
 "Last-Translator: \n"
 "Language-Team: English (United States)\n"
@@ -90,7 +90,7 @@ msgstr "Status saved."
 #: src/Admin/CampaignsPage.php:100 src/Admin/CheckinsPage.php:55
 #: src/Admin/DevicesPage.php:50 src/Admin/EventsPage.php:611
 #: src/Admin/Forms.php:338 src/Admin/OrdersPage.php:238
-#: src/Admin/RefundsPage.php:24 src/Admin/SettingsPage.php:424
+#: src/Admin/RefundsPage.php:24 src/Admin/SettingsPage.php:432
 #: src/Admin/TicketsPage.php:147 src/Admission/ConflictsPage.php:54
 #: src/Admission/RulesPage.php:174 src/Allocations/AdminPage.php:182
 #: src/BoxOffice/Page.php:60 src/BoxOffice/Page.php:384
@@ -1274,7 +1274,7 @@ msgid "Wird beim Scannen (Web-Scanner, App, Offline-Scanner) angezeigt; Mindesta
 msgstr "Shown when scanning (web scanner, app, offline scanner); buyers also see the minimum age and ID requirement when buying tickets. The scan is not rejected because of this."
 
 #: src/Admin/EventsPage.php:969 src/Admin/Forms.php:488
-#: src/Admin/SettingsPage.php:552 src/Allocations/AdminPage.php:262
+#: src/Admin/SettingsPage.php:560 src/Allocations/AdminPage.php:262
 #: src/BoxOffice/ShiftPage.php:425 src/Modules/Reminders.php:189
 #: src/WalletPasses/AdminPage.php:178 src/WalletPasses/AdminPage.php:193
 msgid "Aktiv"
@@ -1690,7 +1690,7 @@ msgstr "Events & Program"
 msgid "Verkauf"
 msgstr "Sale"
 
-#: src/Admin/Menu.php:114 src/Admin/SettingsPage.php:211
+#: src/Admin/Menu.php:114 src/Admin/SettingsPage.php:219
 #: src/Admission/Rest.php:96 src/Passes/AdminPage.php:140
 #: src/PublicEvents.php:114 src/PublicEvents.php:119
 #: templates/event-card.php:35
@@ -2334,7 +2334,7 @@ msgstr "Entry from (minutes before start)"
 msgid "Einlass bis (Minuten nach Ende; ohne Ende: nach Ende des Veranstaltungstags)"
 msgstr "Entry until (minutes after the end; without an end: until the end of the event day)"
 
-#: src/Admin/SettingsPage.php:68 src/Admin/SettingsPage.php:475
+#: src/Admin/SettingsPage.php:68 src/Admin/SettingsPage.php:483
 msgid "Übersicht"
 msgstr "Overview"
 
@@ -2430,7 +2430,7 @@ msgstr "Client secret"
 msgid "Webhook-ID"
 msgstr "Webhook ID"
 
-#: src/Admin/SettingsPage.php:111 src/Admin/SettingsPage.php:213
+#: src/Admin/SettingsPage.php:111 src/Admin/SettingsPage.php:221
 msgid "Rechtstexte"
 msgstr "Legal texts"
 
@@ -2438,11 +2438,11 @@ msgstr "Legal texts"
 msgid "Zustimmung im Checkout verlangen"
 msgstr "Require consent at checkout"
 
-#: src/Admin/SettingsPage.php:115 src/Admin/SettingsPage.php:522
+#: src/Admin/SettingsPage.php:115 src/Admin/SettingsPage.php:530
 msgid "AGB / Teilnahmebedingungen"
 msgstr "Terms and conditions / Terms of participation"
 
-#: src/Admin/SettingsPage.php:116 src/Admin/SettingsPage.php:522
+#: src/Admin/SettingsPage.php:116 src/Admin/SettingsPage.php:530
 msgid "Verbraucherinformationen (z. B. Widerrufshinweis)"
 msgstr "Consumer information (e.g. cancellation policy)"
 
@@ -2494,111 +2494,155 @@ msgstr "0 = use the field setting."
 msgid "Teilnehmerdaten änderbar bis (Stunden vor Beginn)"
 msgstr "Attendee data editable until (hours before start)"
 
-#: src/Admin/SettingsPage.php:151 src/Partners/Settlements.php:881
+#: src/Admin/SettingsPage.php:148
+msgid "E-Mail-Adressen nie bezahlter Bestellungen pseudonymisieren nach (Tagen)"
+msgstr "Pseudonymize e-mail addresses of never-paid orders after (days)"
+
+#: src/Admin/SettingsPage.php:148
+msgid "0 = nie."
+msgstr "0 = never."
+
+#: src/Admin/SettingsPage.php:149
+msgid "Inhalt und Empfänger versendeter Nachrichten löschen nach (Tagen)"
+msgstr "Delete content and recipient of sent messages after (days)"
+
+#: src/Admin/SettingsPage.php:150
+msgid "Versandprotokoll der Nachrichten löschen nach (Tagen)"
+msgstr "Delete the message sending log after (days)"
+
+#: src/Admin/SettingsPage.php:151
+msgid "Personal und Gerät an Check-ins entfernen nach (Tagen)"
+msgstr "Remove staff and device from check-ins after (days)"
+
+#: src/Admin/SettingsPage.php:152
+msgid "Protokolleinträge (Audit-Log) löschen nach (Tagen)"
+msgstr "Delete audit log entries after (days)"
+
+#: src/Admin/SettingsPage.php:153
+msgid "Wartelisteneinträge löschen (Tage nach dem Termin)"
+msgstr "Delete waitlist entries (days after the date)"
+
+#: src/Admin/SettingsPage.php:154
+msgid "Ticketcodes von Partnerverkäufen löschen (Tage nach dem Termin)"
+msgstr "Delete ticket codes of partner sales (days after the date)"
+
+#: src/Admin/SettingsPage.php:154
+msgid "0 = direkt nach Ende des Termins."
+msgstr "0 = right after the date has ended."
+
+#: src/Admin/SettingsPage.php:155
+msgid "Rechnungen und Rechnungskorrekturen löschen nach (Jahren)"
+msgstr "Delete invoices and invoice corrections after (years)"
+
+#: src/Admin/SettingsPage.php:155
+msgid "0 = nie löschen. Die Frist beginnt mit Ende des Ausstellungsjahres. Gesetzliche Aufbewahrungsfristen beachten (z. B. Österreich 7 Jahre, Deutschland 8 bzw. 10 Jahre) und die Belege vorher im Buchhaltungssystem archivieren. Käuferdaten der betroffenen Bestellungen werden dabei pseudonymisiert."
+msgstr "0 = never delete. The period starts at the end of the year of issue. Observe the statutory retention periods (e.g. Austria 7 years, Germany 8 or 10 years) and archive the documents in your accounting system first. Buyer data of the orders concerned is pseudonymized at the same time."
+
+#: src/Admin/SettingsPage.php:159 src/Partners/Settlements.php:881
 msgid "Rechnungssteller"
 msgstr "Invoice issuer"
 
-#: src/Admin/SettingsPage.php:154
+#: src/Admin/SettingsPage.php:162
 msgid "Name / Firma"
 msgstr "Name / Company"
 
-#: src/Admin/SettingsPage.php:155
+#: src/Admin/SettingsPage.php:163
 msgid "Anschrift"
 msgstr "Address"
 
-#: src/Admin/SettingsPage.php:156 src/Partners/AdminPage.php:283
+#: src/Admin/SettingsPage.php:164 src/Partners/AdminPage.php:283
 msgid "USt-IdNr."
 msgstr "VAT ID"
 
-#: src/Admin/SettingsPage.php:157 src/Partners/AdminPage.php:474
+#: src/Admin/SettingsPage.php:165 src/Partners/AdminPage.php:474
 msgid "Steuernummer"
 msgstr "Tax number"
 
-#: src/Admin/SettingsPage.php:157
+#: src/Admin/SettingsPage.php:165
 msgid "Pflichtangabe auf Rechnungen, wenn keine USt-IdNr. angegeben ist."
 msgstr "Mandatory information on invoices if no VAT ID is provided."
 
-#: src/Admin/SettingsPage.php:158
+#: src/Admin/SettingsPage.php:166
 msgid "Land (ISO-Code, z. B. DE oder AT)"
 msgstr "Country (ISO code, e.g. DE or AT)"
 
-#: src/Admin/SettingsPage.php:158
+#: src/Admin/SettingsPage.php:166
 msgid "Wird für die Reverse-Charge-Prüfung bei Veranstaltern im EU-Ausland verwendet (siehe docs/SALES-MODELS.md)."
 msgstr "Used for the reverse charge check for organizers in other EU countries (see docs/SALES-MODELS.md)."
 
-#: src/Admin/SettingsPage.php:159
+#: src/Admin/SettingsPage.php:167
 msgid "Kleinunternehmer (keine Umsatzsteuer auf eigenen Rechnungen)"
 msgstr "Small business (no VAT on own invoices)"
 
-#: src/Admin/SettingsPage.php:159
+#: src/Admin/SettingsPage.php:167
 msgid "Rechnungen der Plattform tragen dann den Kleinunternehmer-Hinweis und werden verweigert, solange Ticketarten Umsatzsteuer enthalten (Ticketarten mit 0 % anlegen)."
 msgstr "The platform's invoices then carry the small-business note and are refused while ticket types contain VAT (create ticket types with 0 %)."
 
-#: src/Admin/SettingsPage.php:160
+#: src/Admin/SettingsPage.php:168
 msgid "Kleinunternehmer-Hinweis (leer = Standardtext für das Land)"
 msgstr "Small-business note (empty = default text for the country)"
 
-#: src/Admin/SettingsPage.php:160
+#: src/Admin/SettingsPage.php:168
 msgid "DE: „Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.“ – AT: „Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.“"
 msgstr "DE: “Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.” – AT: “Umsatzsteuerfrei aufgrund der Kleinunternehmerregelung gemäß § 6 Abs. 1 Z 27 UStG.”"
 
-#: src/Admin/SettingsPage.php:161
+#: src/Admin/SettingsPage.php:169
 msgid "Präfix Rechnungsnummer"
 msgstr "Invoice number prefix"
 
-#: src/Admin/SettingsPage.php:162
+#: src/Admin/SettingsPage.php:170
 msgid "Name und Anschrift im Checkout verlangen ab Bestellbetrag (0 = nie; DE: 250 €, AT: 400 €)"
 msgstr "Require name and address at checkout from an order amount of (0 = never; DE: €250, AT: €400)"
 
-#: src/Admin/SettingsPage.php:163
+#: src/Admin/SettingsPage.php:171
 msgid "Präfix Rechnungskorrektur (Storno-/Korrekturbeleg)"
 msgstr "Invoice correction prefix (cancellation / correction document)"
 
-#: src/Admin/SettingsPage.php:164
+#: src/Admin/SettingsPage.php:172
 msgid "Rechnung nach Zahlung automatisch erstellen"
 msgstr "Automatically create invoice after payment"
 
-#: src/Admin/SettingsPage.php:168
+#: src/Admin/SettingsPage.php:176
 msgid "Deinstallation"
 msgstr "Uninstall"
 
-#: src/Admin/SettingsPage.php:171
+#: src/Admin/SettingsPage.php:179
 msgid "Beim Löschen des Plugins alle Daten entfernen"
 msgstr "Remove all data when deleting the plugin"
 
-#: src/Admin/SettingsPage.php:171
+#: src/Admin/SettingsPage.php:179
 msgid "Achtung: Events, Bestellungen, Tickets und Rechnungen werden unwiderruflich gelöscht. Gesetzliche Aufbewahrungspflichten beachten."
 msgstr "Warning: Events, orders, tickets, and invoices will be permanently deleted. Observe statutory retention requirements."
 
-#: src/Admin/SettingsPage.php:202
+#: src/Admin/SettingsPage.php:210
 msgid "Weitere Einstellungen"
 msgstr "More settings"
 
-#: src/Admin/SettingsPage.php:210 src/WalletPasses/AdminPage.php:172
+#: src/Admin/SettingsPage.php:218 src/WalletPasses/AdminPage.php:172
 msgid "Allgemein"
 msgstr "General"
 
-#: src/Admin/SettingsPage.php:212
+#: src/Admin/SettingsPage.php:220
 msgid "Zahlungsarten"
 msgstr "Payment methods"
 
-#: src/Admin/SettingsPage.php:214
+#: src/Admin/SettingsPage.php:222
 msgid "Rechnungen"
 msgstr "Invoices"
 
 #. translators: %s: field label
-#: src/Admin/SettingsPage.php:296
+#: src/Admin/SettingsPage.php:304
 #, php-format
 msgid "„%s“ muss eine ganze Zahl sein."
 msgstr "“%s” must be a whole number."
 
 #. translators: %s: field label
-#: src/Admin/SettingsPage.php:321
+#: src/Admin/SettingsPage.php:329
 #, php-format
 msgid "„%s“ ist kein gültiger Betrag."
 msgstr "“%s” is not a valid amount."
 
-#: src/Admin/SettingsPage.php:400 src/Admission/RulesPage.php:126
+#: src/Admin/SettingsPage.php:408 src/Admission/RulesPage.php:126
 #: src/Allocations/AdminPage.php:174 src/BoxOffice/Page.php:419
 #: src/Modules/Calendar.php:296 src/Modules/Mollie.php:174
 #: src/Modules/Reminders.php:179 src/Modules/Sms.php:321
@@ -2606,88 +2650,88 @@ msgstr "“%s” is not a valid amount."
 msgid "Einstellungen gespeichert."
 msgstr "Settings saved."
 
-#: src/Admin/SettingsPage.php:436
+#: src/Admin/SettingsPage.php:444
 msgid "Pass Captain Einstellungen"
 msgstr "Pass Captain Settings"
 
-#: src/Admin/SettingsPage.php:439
+#: src/Admin/SettingsPage.php:447
 msgid "Einstellungsbereiche"
 msgstr "Settings sections"
 
-#: src/Admin/SettingsPage.php:452
+#: src/Admin/SettingsPage.php:460
 msgid "Webhook-URL:"
 msgstr "Webhook URL:"
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:455
+#: src/Admin/SettingsPage.php:463
 #, php-format
 msgid "Die folgenden Texte gelten für die Standardsprache (%s) und für jede Sprache ohne eigene Fassung."
 msgstr "The following texts apply to the default language (%s) and to every language without its own version."
 
-#: src/Admin/SettingsPage.php:467 src/Partners/AdminPage.php:261
+#: src/Admin/SettingsPage.php:475 src/Partners/AdminPage.php:261
 msgid "Einstellungen speichern"
 msgstr "Save settings"
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:503
+#: src/Admin/SettingsPage.php:511
 #, php-format
 msgid "%s im Checkout anbieten"
 msgstr "Offer %s at checkout"
 
-#: src/Admin/SettingsPage.php:505 src/Admin/SettingsPage.php:562
+#: src/Admin/SettingsPage.php:513 src/Admin/SettingsPage.php:570
 msgid "(nicht vollständig konfiguriert)"
 msgstr "(not fully configured)"
 
-#: src/Admin/SettingsPage.php:515
+#: src/Admin/SettingsPage.php:523
 msgid "Rechtstexte je Sprache"
 msgstr "Legal texts per language"
 
-#: src/Admin/SettingsPage.php:516
+#: src/Admin/SettingsPage.php:524
 msgid "Käufer sehen die Texte ihrer Sprache (Sprache der Seite bzw. von WPML/Polylang). Leere Felder übernehmen den Text der Standardsprache. Jede Sprache hat eine eigene Version, die mit der Bestellung gespeichert wird."
 msgstr "Buyers see the texts in their language (the language of the page or from WPML/Polylang). Empty fields use the text of the default language. Each language has its own version, which is saved with the order."
 
 #. translators: %s: locale code
-#: src/Admin/SettingsPage.php:528
+#: src/Admin/SettingsPage.php:536
 #, php-format
 msgid "Leer: es gilt der Text von %s."
 msgstr "Empty: the text for %s applies."
 
 #. translators: 1: locale code, 2: version hash
-#: src/Admin/SettingsPage.php:535
+#: src/Admin/SettingsPage.php:543
 #, php-format
 msgid "Aktuelle Version für %1$s: %2$s"
 msgstr "Current version for %1$s: %2$s"
 
-#: src/Admin/SettingsPage.php:540
+#: src/Admin/SettingsPage.php:548
 msgid "Weitere Sprache hinzufügen (Locale, z. B. en_US):"
 msgstr "Add another language (locale, e.g. en_US):"
 
 #. translators: %s: payment method
-#: src/Admin/SettingsPage.php:568
+#: src/Admin/SettingsPage.php:576
 #, php-format
 msgid "%s einrichten"
 msgstr "Set up %s"
 
 #. translators: %s: version hash
-#: src/Admin/SettingsPage.php:580
+#: src/Admin/SettingsPage.php:588
 #, php-format
 msgid "Aktuelle Version: %s (wird mit jeder Bestellung gespeichert)"
 msgstr "Current version: %s (saved with every order)"
 
-#: src/Admin/SettingsPage.php:596
+#: src/Admin/SettingsPage.php:604
 msgid "Gespeichert – leer lassen, um beizubehalten"
 msgstr "Saved – leave empty to keep"
 
-#: src/Admin/SettingsPage.php:596 src/Secrets.php:407
+#: src/Admin/SettingsPage.php:604 src/Secrets.php:407
 msgid "Nicht gesetzt"
 msgstr "Not set"
 
-#: src/Admin/SettingsPage.php:598 src/Secrets.php:415
+#: src/Admin/SettingsPage.php:606 src/Secrets.php:415
 msgid "Gespeicherten Wert löschen"
 msgstr "Delete saved value"
 
 #. translators: %s: constant name
-#: src/Admin/SettingsPage.php:606
+#: src/Admin/SettingsPage.php:614
 #, php-format
 msgid "Wird durch %s (wp-config.php oder Umgebungsvariable) überschrieben; der hier gespeicherte Wert wird nicht verwendet."
 msgstr "Overridden by %s (wp-config.php or environment variable); the value saved here is not used."
@@ -3834,7 +3878,7 @@ msgstr "Registers"
 
 #: src/BoxOffice/Page.php:64 src/BoxOffice/ShiftPage.php:105
 #: src/BoxOffice/ShiftPage.php:309 src/BoxOffice/ShiftPage.php:329
-#: src/BoxOffice/ZReport.php:355 src/Modules/BoxOffice.php:268
+#: src/BoxOffice/ZReport.php:355 src/Modules/BoxOffice.php:299
 #: src/Reports/Data.php:78 src/Reports/Settlement.php:258
 #: src/Reports/Settlement.php:259
 msgid "Kasse"

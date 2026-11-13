@@ -53,7 +53,7 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 ## P0 – Datenschutz und Releasefähigkeit
 
 - [x] WordPress-Datenschutzexport und Löschschnittstellen einbinden.
-- [ ] Datenschutzexport/-löschung ist vorhanden; konfigurierbare Fristen je Datenart und getrennte Behandlung von Teilnehmerdaten/Finanzbelegen fehlen.
+- [x] Datenschutzexport/-löschung ist vorhanden; konfigurierbare Fristen je Datenart und getrennte Behandlung von Teilnehmerdaten/Finanzbelegen fehlen.
 - [x] Nonces, Capabilities, REST-Validierung, Escaping, Rate-Limits und Bereinigung sensibler Logdaten sind im Code abgedeckt.
 - [ ] Unabhängigen Sicherheitsreview/Penetrationstest durchführen.
 - [x] Datenbank-/Integrationstests für Checkout, Zahlungs-Webhooks, Refunds, WooCommerce, REST und Scanner-Grundabläufe sowie Last- und A11y-Testwerkzeuge einrichten.

@@ -273,7 +273,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Profile tests/load/run.php:155-156, tests/load/http.php; CI führt nur --profile=ci aus (ci.yml), kein Zeitplan, keine Regressionsdoku
 - [ ] **A122** Audit für PII-Zugriffe, Exporte, Rollenänderungen, Korrekturen — _TEILWEISE_ (TODO L50; P0 – QR-Ticket und Online-Check-in)
   - Staff/Export-Audits (EventsPage.php:386, Invoices.php:371); fehlen Audit für PII-Ansicht, Datenschutzexport und WP-Rollenänderungen
-- [ ] **A123** Fristen je Datenart, Teilnehmerdaten/Finanzbelege getrennt — _TEILWEISE_ (TODO L56; P0 – Datenschutz und Releasefähigkeit)
+- [x] **A123** Fristen je Datenart, Teilnehmerdaten/Finanzbelege getrennt — _TEILWEISE_ (TODO L56; P0 – Datenschutz und Releasefähigkeit)
   - Getrennt: Privacy.php:320, Retention.php:39; nur Teilnehmerfrist im UI (SettingsPage.php:109), übrige nur per Filter; keine Löschung von Belegen nach Frist
 - [ ] **A124** PWA-, PSP-Sandbox-, Refund-E2E in CI/Release-Gates — _OFFEN_ (TODO L60; P0 – Datenschutz und Releasefähigkeit)
   - ci.yml enthält nur Lint, Integration, Lasttest-CI-Profil, ZIP; keine PWA-/Sandbox-/E2E-Jobs

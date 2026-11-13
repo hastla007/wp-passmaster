@@ -125,6 +125,7 @@
 - Neue CI-Matrix gegen echtes WordPress 6.4, 6.8 und die neueste Version: Aktivierung, Admin-Seiten, REST, Deaktivierung, erneute Aktivierung, Deinstallation mit/ohne Datenlöschung, keine PHP-Meldungen des Plugins, dazu Upgrade-/Rollback-/Restore-Drill gegen das vorherige Release (A125).
 - WooCommerce-Adapter gegen echt installiertes WooCommerce getestet (8.2.0 und neueste Version, jeweils HPOS und klassischer Bestellspeicher): Reservierung, Ticketausgabe, Teilerstattung, Stornierung, Ausverkauft (A127).
 - Rabattcodes: einstellbare Stapelregeln – höchstens 1–5 Codes je Bestellung (Standard 3), „nacheinander anwenden“ (bisheriges Verhalten) oder „nur den günstigsten Code“, einzelne Codes als „nicht kombinierbar“ anlegbar (Schema 3.9.1); Filter `wpcap_campaign_stacking` (A117).
+- Datenschutz-Fristen je Datenart einstellbar (Einstellungen → Allgemein → Datenschutz): Pseudonymisierung unbezahlter Bestellungen, Nachrichteninhalte und -protokoll, Personal an Check-ins, Audit-Log, Warteliste, Partner-Ticketcodes. Neu und optional (Standard: nie): Löschfrist für Rechnungen, Rechnungskorrekturen und Kassenschichten (Z-Bericht, Buchungen, Belege) in Jahren ab Ende des Ausstellungsjahres; Käuferdaten der betroffenen Bestellungen werden pseudonymisiert, eine Rechnung bleibt, solange eine Korrektur noch in der Frist ist; Filter `wpcap_financial_retention_years` (A123).
 - Übersetzungsprüfung: CI verlangt aktuelle POT und konsistente Platzhalter, vollständige Übersetzungen sind Release-Gate.
 
 ### Kasse und Zahlungen (Experten-Review)
