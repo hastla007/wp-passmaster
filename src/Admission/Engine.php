@@ -58,8 +58,13 @@ final class Engine {
 		return max( 0, min( 12, $hour ) );
 	}
 
-	/** '' when inside the entry window, otherwise 'outside_entry_window'. */
+	/**
+	 * '' when inside the entry window, otherwise 'outside_entry_window'. The doors-open time of the
+	 * occurrence (DoorsOpen) is a hard lower bound, also when the policy opens earlier.
+	 */
 	public static function window_block( array $policy, array $found, $at ) {
+		$doors = \PassCaptain\DoorsOpen::block( $found, $at );
+		if ( $doors ) { return $doors; }
 		$start = strtotime( $found['starts_at'] . ' UTC' );
 		$end = ! empty( $found['ends_at'] ) ? strtotime( $found['ends_at'] . ' UTC' ) : $start;
 		if ( null !== $policy['opens_before_minutes'] && $at < $start - $policy['opens_before_minutes'] * 60 ) { return 'outside_entry_window'; }
@@ -75,9 +80,12 @@ final class Engine {
 	 * Default entry window for ticket types without their own admission policy (settings
 	 * `default_entry_window`, `entry_opens_before_minutes`, `entry_closes_after_minutes`): from N minutes
 	 * before the start until the end of the occurrence (without an end: the end of its local start day)
-	 * plus M minutes. '' when inside, otherwise 'outside_entry_window'.
+	 * plus M minutes. '' when inside, otherwise 'outside_entry_window'. The doors-open time of the
+	 * occurrence applies even when the default window is switched off.
 	 */
 	public static function default_window_block( array $found, $at ) {
+		$doors = \PassCaptain\DoorsOpen::block( $found, $at );
+		if ( $doors ) { return $doors; }
 		if ( ! \PassCaptain\Settings::get( 'default_entry_window' ) ) { return ''; }
 		$start = strtotime( $found['starts_at'] . ' UTC' );
 		if ( ! empty( $found['ends_at'] ) ) {

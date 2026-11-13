@@ -167,6 +167,8 @@ final class EventsPage {
 			$ends = Forms::local_to_utc( $in['ends_at'], $timezone );
 			if ( null === $ends || $ends <= $starts ) { return Forms::error( 'wpcap_occurrence_end', __( 'Das Ende muss nach dem Beginn liegen.', 'wp-pass-captain' ) ); }
 		}
+		$doors = \PassCaptain\DoorsOpen::parse( $in['doors_open_at'] ?? '', $timezone, $starts );
+		if ( is_wp_error( $doors ) ) { return Forms::error( $doors->get_error_code(), $doors->get_error_message() ); }
 		$capacity = Forms::int( $in, 'capacity' );
 		$status = Forms::choice( $in, 'status', array( 'scheduled', 'cancelled' ), $old ? $old->status : 'scheduled' );
 		if ( $old && $capacity > 0 ) {
@@ -184,11 +186,16 @@ final class EventsPage {
 			'capacity' => $capacity,
 			'status' => $status,
 		);
+		$formats = array( '%s', '%s', '%s', '%s', '%d', '%s' );
+		if ( \PassCaptain\DoorsOpen::ready() ) {
+			$data['doors_open_at'] = $doors;
+			$formats[] = '%s';
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_occurrences';
 		$rescheduled = false;
 		if ( $old ) {
-			$wpdb->update( $table, $data, array( 'occurrence_id' => (int) $old->occurrence_id ), array( '%s', '%s', '%s', '%s', '%d', '%s' ), array( '%d' ) );
+			$wpdb->update( $table, $data, array( 'occurrence_id' => (int) $old->occurrence_id ), $formats, array( '%d' ) );
 			$occurrence_id = (int) $old->occurrence_id;
 			$issued = Queries::issued_ticket_count_for_occurrence( $occurrence_id );
 			if ( $old->starts_at !== $starts && $issued > 0 ) {
@@ -204,7 +211,8 @@ final class EventsPage {
 			}
 		} else {
 			$data['event_id'] = (int) $event->event_id;
-			$wpdb->insert( $table, $data, array( '%s', '%s', '%s', '%s', '%d', '%s', '%d' ) );
+			$formats[] = '%d';
+			$wpdb->insert( $table, $data, $formats );
 			$occurrence_id = (int) $wpdb->insert_id;
 			if ( ! $occurrence_id ) { return Forms::error( 'wpcap_occurrence_save', __( 'Der Termin konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
 			Audit::record( 'occurrence_created', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'starts_at' => $starts ) );
@@ -771,7 +779,7 @@ final class EventsPage {
 			<?php if ( ! $occurrences ) : ?><tr><td colspan="6"><?php esc_html_e( 'Keine Termine.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
 			<?php foreach ( $occurrences as $occ ) : ?>
 				<tr>
-					<td><?php echo esc_html( Forms::datetime( $occ->starts_at, $occ->timezone ) ); ?></td>
+					<td><?php echo esc_html( Forms::datetime( $occ->starts_at, $occ->timezone ) ); ?><?php $doors = \PassCaptain\DoorsOpen::label( $occ->doors_open_at ?? null, $occ->timezone, $occ->starts_at ); ?><?php if ( '' !== $doors ) : ?><br><span class="description"><?php echo esc_html( $doors ); ?></span><?php endif; ?></td>
 					<td><?php echo esc_html( $occ->ends_at ? Forms::datetime( $occ->ends_at, $occ->timezone, false ) : '—' ); ?></td>
 					<td><?php echo esc_html( $occ->location ); ?></td>
 					<td><?php echo esc_html( Queries::sold_for_occurrence( $occ->occurrence_id ) . ' / ' . ( (int) $occ->capacity ? (int) $occ->capacity : '∞' ) ); ?></td>
@@ -805,6 +813,7 @@ final class EventsPage {
 		<table class="form-table"><tbody>
 			<tr><th><label for="wpcap-occ-start"><?php esc_html_e( 'Beginn (Ortszeit)', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-occ-start" name="starts_at" type="datetime-local" required value="<?php echo esc_attr( $occ ? Forms::utc_to_local( $occ->starts_at, $tz ) : '' ); ?>"></td></tr>
 			<tr><th><label for="wpcap-occ-end"><?php esc_html_e( 'Ende (optional)', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-occ-end" name="ends_at" type="datetime-local" value="<?php echo esc_attr( $occ ? Forms::utc_to_local( $occ->ends_at, $tz ) : '' ); ?>"></td></tr>
+			<tr><th><label for="wpcap-occ-doors"><?php esc_html_e( 'Einlass ab (optional)', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-occ-doors" name="doors_open_at" type="datetime-local" aria-describedby="wpcap-occ-doors-help" value="<?php echo esc_attr( $occ && ! empty( $occ->doors_open_at ) ? Forms::utc_to_local( $occ->doors_open_at, $tz ) : '' ); ?>"> <span class="description" id="wpcap-occ-doors-help"><?php esc_html_e( 'Ortszeit. Vorher wird am Einlass niemand eingelassen, auch wenn eine Einlassregel früher öffnet. Leer = kein eigener Einlassbeginn.', 'wp-pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-occ-tz"><?php esc_html_e( 'Zeitzone', 'wp-pass-captain' ); ?></label></th><td><?php Forms::timezone_select( 'timezone', $tz, 'wpcap-occ-tz' ); ?></td></tr>
 			<tr><th><label for="wpcap-occ-loc"><?php esc_html_e( 'Ort', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-occ-loc" name="location" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $occ ? $occ->location : '' ); ?>"></td></tr>
 			<tr><th><label for="wpcap-occ-cap"><?php esc_html_e( 'Kontingent', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-occ-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( $occ ? (int) $occ->capacity : 0 ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'wp-pass-captain' ); ?></span></td></tr>

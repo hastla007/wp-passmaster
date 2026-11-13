@@ -69,7 +69,7 @@ Signed payload (`v` = package format version 1):
 ```json
 { "format": "wpcap-offline-package", "v": 1, "kind": "full", "site": "https://…/",
   "device_id": "<public device id>", "key_id": "…",
-  "event": {"id": 1, "name": "…"}, "occurrence": {"id": 2, "starts_at": "…", "ends_at": null, "timezone": "Europe/Vienna", "status": "scheduled"},
+  "event": {"id": 1, "name": "…"}, "occurrence": {"id": 2, "starts_at": "…", "ends_at": null, "timezone": "Europe/Vienna", "status": "scheduled", "doors_open_at": null},
   "issued_at": "…", "expires_at": "…", "since": null, "cursor": "a1b2c3d4e5f60718.7",
   "rules": {"max_offline_hours": 12, "duplicate_policy": "review", "attendee_names": false},
   "device_area_id": null, "hash": "sha256",
@@ -88,6 +88,8 @@ What the package contains:
 - Every package (including an empty delta) renews `expires_at`.
 - Hashes are `sha256` of the 64-hex ticket code (the same as `wpcap_tickets.token_hash`).
 - Ticket codes, e-mails and order data are never included.
+- `occurrence.doors_open_at` is the doors-open time ("Einlass ab", ISO 8601) or null; the app refuses
+  scans before it with `outside_entry_window`, like the server.
 
 Change tracking works without core hooks. `wpcap_offline_entries` keeps a snapshot (hash, status,
 type, name fingerprint, version) per occurrence. Each request compares it with the live tickets, at

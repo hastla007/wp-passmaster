@@ -22,7 +22,7 @@ $wpcap_waitlist = $wpcap_soldout && (bool) apply_filters( 'wpcap_waitlist_public
 <article class="wpcap-event">
 	<<?php echo $wpcap_heading; // phpcs:ignore WordPress.Security.EscapeOutput -- fixed tag name. ?>><?php echo esc_html( $event->name ); ?></<?php echo $wpcap_heading; // phpcs:ignore WordPress.Security.EscapeOutput -- fixed tag name. ?>>
 	<?php if ( $event->description ) : ?><div class="wpcap-description"><?php echo wp_kses_post( wpautop( $event->description ) ); ?></div><?php endif; ?>
-	<p><?php echo esc_html( \PassCaptain\Frontend\Format::event_start( $event->starts_at, $event->timezone ) ); ?><?php if ( $event->location ) : ?> · <?php echo esc_html( $event->location ); ?><?php endif; ?></p>
+	<p><?php echo esc_html( \PassCaptain\Frontend\Format::event_start( $event->starts_at, $event->timezone ) ); ?><?php if ( $event->location ) : ?> · <?php echo esc_html( $event->location ); ?><?php endif; ?><?php if ( ! empty( $event->doors_open_at ) ) : ?> · <?php echo esc_html( \PassCaptain\DoorsOpen::label( $event->doors_open_at, $event->timezone, $event->starts_at ) ); ?><?php endif; ?></p>
 	<form class="wpcap-checkout-form" id="<?php echo esc_attr( $form_id ); ?>" data-heading-level="<?php echo esc_attr( min( 6, $wpcap_level + 1 ) ); ?>" novalidate>
 		<fieldset class="wpcap-types">
 			<legend><?php esc_html_e( 'Tickets', 'wp-pass-captain' ); ?></legend>

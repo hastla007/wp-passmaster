@@ -160,7 +160,7 @@ final class Package {
 			'device_id' => (string) $device->public_id,
 			'key_id' => $kid,
 			'event' => array( 'id' => $event_id, 'name' => (string) $occurrence->event_name ),
-			'occurrence' => array( 'id' => (int) $occurrence->occurrence_id, 'starts_at' => gmdate( 'c', strtotime( $occurrence->starts_at . ' UTC' ) ), 'ends_at' => $occurrence->ends_at ? gmdate( 'c', strtotime( $occurrence->ends_at . ' UTC' ) ) : null, 'timezone' => (string) $occurrence->timezone, 'status' => (string) $occurrence->status ),
+			'occurrence' => array( 'id' => (int) $occurrence->occurrence_id, 'starts_at' => gmdate( 'c', strtotime( $occurrence->starts_at . ' UTC' ) ), 'ends_at' => $occurrence->ends_at ? gmdate( 'c', strtotime( $occurrence->ends_at . ' UTC' ) ) : null, 'timezone' => (string) $occurrence->timezone, 'status' => (string) $occurrence->status, 'doors_open_at' => self::iso( \PassCaptain\DoorsOpen::for_occurrence( (int) $occurrence->occurrence_id ) ) ),
 			'issued_at' => gmdate( 'c', $issued ),
 			'expires_at' => gmdate( 'c', $expires ),
 			'since' => 'delta' === $kind ? (string) $since : null,
@@ -190,6 +190,11 @@ final class Package {
 			'count' => count( $tickets ),
 			'expires_at' => gmdate( 'c', $expires ),
 		);
+	}
+
+	/** UTC datetime to ISO 8601, null stays null. */
+	private static function iso( $utc ) {
+		return null === $utc ? null : gmdate( 'c', strtotime( $utc . ' UTC' ) );
 	}
 
 	/**

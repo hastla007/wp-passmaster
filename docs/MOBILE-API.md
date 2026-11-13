@@ -61,7 +61,7 @@ Authorization: Bearer wpcapd_<device>_<secret>
 |---|---|---|
 | POST | `/app/pair` | Kopplung (ohne Token) |
 | GET | `/app/me` | Person, Gerät, Ablauf, freigegebene Events, Gerätebereich (`area`), Feature-Flags (`check_out`, `areas`), Serverzeit |
-| GET | `/app/occurrences` | Termine der freigegebenen Events ab gestern (max. 100), je Termin mit `areas` (aktive Einlassbereiche des Events) |
+| GET | `/app/occurrences` | Termine der freigegebenen Events ab gestern (max. 100), je Termin mit `areas` (aktive Einlassbereiche des Events) und `doors_open_at` (Einlassbeginn, ISO 8601, oder `null`) |
 | GET | `/app/occurrences/{id}/stats` | Tickets gesamt, eingecheckt, offen, von diesem Gerät eingecheckt, aktuell anwesend, Einlässe/Auslässe, Werte pro Bereich |
 | POST | `/app/scan/validate` | Vorschau ohne Einlass |
 | POST | `/app/scan/check-in` | Einlass (benötigt `idempotency_key`) |
@@ -121,7 +121,7 @@ Ein Scan-Ergebnis ist kein Transportfehler. Es kommt als HTTP 200 mit `ok: false
 | `wrong_occurrence` | Ticket für einen anderen Termin | gelb |
 | `cancelled_event` | Termin/Event abgesagt | rot |
 | `out_of_window` | Termin liegt weit außerhalb (Plausibilitätsprüfung) | gelb |
-| `outside_entry_window` | außerhalb des Einlassfensters der Einlassregel (z. B. vor „1 h vor Beginn“, nach Ende, außerhalb der täglichen Einlasszeit) | gelb |
+| `outside_entry_window` | außerhalb des Einlassfensters der Einlassregel (z. B. vor „1 h vor Beginn“, nach Ende, außerhalb der täglichen Einlasszeit) oder vor der Einlasszeit des Termins (`doors_open_at`) | gelb |
 | `not_valid_today` | Ticket gilt heute nicht (Tages-/Mehrtagesticket, Tag in der Zeitzone des Termins) | gelb |
 | `daily_limit_reached` | heute bereits eingelassen (Tages-/Mehrtagesticket) | rot |
 | `entry_limit_reached` | maximale Anzahl Einlässe erreicht (Mehrfach-/Wiedereinlass) | rot |

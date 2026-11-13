@@ -82,7 +82,8 @@ final class Api {
 			if ( ! isset( $areas[ $row->event_id ] ) ) {
 				$areas[ $row->event_id ] = array_map( static function ( $a ) { return array( 'id' => (int) $a->area_id, 'name' => $a->name ); }, Areas::for_event( (int) $row->event_id ) );
 			}
-			$out[] = array( 'occurrence_id' => (int) $row->occurrence_id, 'event_id' => (int) $row->event_id, 'event' => $row->event_name, 'starts_at' => gmdate( 'c', strtotime( $row->starts_at . ' UTC' ) ), 'ends_at' => $row->ends_at ? gmdate( 'c', strtotime( $row->ends_at . ' UTC' ) ) : null, 'timezone' => $row->timezone, 'location' => $row->location, 'status' => $row->status, 'areas' => $areas[ $row->event_id ] );
+			$doors = \PassCaptain\DoorsOpen::for_occurrence( (int) $row->occurrence_id );
+			$out[] = array( 'occurrence_id' => (int) $row->occurrence_id, 'event_id' => (int) $row->event_id, 'event' => $row->event_name, 'starts_at' => gmdate( 'c', strtotime( $row->starts_at . ' UTC' ) ), 'ends_at' => $row->ends_at ? gmdate( 'c', strtotime( $row->ends_at . ' UTC' ) ) : null, 'timezone' => $row->timezone, 'location' => $row->location, 'status' => $row->status, 'areas' => $areas[ $row->event_id ], 'doors_open_at' => null === $doors ? null : gmdate( 'c', strtotime( $doors . ' UTC' ) ) );
 		}
 		return rest_ensure_response( array( 'occurrences' => $out ) );
 	}

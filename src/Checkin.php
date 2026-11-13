@@ -384,6 +384,8 @@ final class Checkin {
 		if ( in_array( $result, array( 'outside_entry_window', 'not_valid_today' ), true ) ) {
 			$message = self::with_validity( $message, $found );
 		}
+		$doors = 'outside_entry_window' === $result ? DoorsOpen::label( DoorsOpen::for_occurrence( (int) $found['occurrence_id'] ), (string) ( $found['timezone'] ?? '' ), (string) ( $found['starts_at'] ?? '' ) ) : '';
+		if ( '' !== $doors ) { $message .= ' ' . $doors . '.'; }
 		return new \WP_Error( $codes[ $result ] ?? 'wpcap_ticket_not_valid', $message, array( 'status' => 409, 'ticket_status' => $result, 'result' => $result, 'event' => $found['event_name'], 'ticket' => $found['ticket_name'], 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'], 'checkin_id' => (int) $checkin_id ) );
 	}
 
@@ -399,6 +401,8 @@ final class Checkin {
 			'starts_at' => gmdate( 'c', strtotime( $found['starts_at'] . ' UTC' ) ),
 			'timezone' => $found['timezone'],
 		);
+		$doors = DoorsOpen::for_occurrence( (int) $found['occurrence_id'] );
+		if ( null !== $doors ) { $view['doors_open_at'] = gmdate( 'c', strtotime( $doors . ' UTC' ) ); }
 		if ( Settings::get( 'scanner_show_attendee' ) && '' !== $found['attendee_name'] ) {
 			$view['attendee_name'] = $found['attendee_name'];
 		}

@@ -364,6 +364,9 @@
 		if ('revoked' === t.s) { return { ok: false, result: 'revoked' }; }
 		var type = null;
 		entry.meta.ticket_types.forEach(function (tt) { if (tt.id === t.t) { type = tt; } });
+		// Doors-open time of the occurrence: nobody is admitted before it.
+		var doors = entry.meta.occurrence && entry.meta.occurrence.doors_open_at ? Date.parse(entry.meta.occurrence.doors_open_at) : NaN;
+		if (!isNaN(doors) && now() < doors) { return { ok: false, result: 'outside_entry_window', ticket: t, type: type }; }
 		var multi = !!(type && type.multi);
 		var admitted = state.admitted[entry.record.occurrence_id];
 		if (!multi && ('checked_in' === t.s || (admitted && admitted.has(hash)))) { return { ok: false, result: 'already_checked_in', ticket: t, type: type }; }

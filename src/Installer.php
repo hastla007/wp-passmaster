@@ -77,6 +77,7 @@ final class Installer {
 				event_id bigint(20) unsigned NOT NULL,
 				starts_at datetime NOT NULL,
 				ends_at datetime NULL,
+				doors_open_at datetime NULL,
 				timezone varchar(64) NOT NULL,
 				location varchar(190) NOT NULL DEFAULT '',
 				capacity int(10) unsigned NOT NULL DEFAULT 0,
