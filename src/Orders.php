@@ -1527,13 +1527,30 @@ final class Orders {
 				// Legacy filter: receives and may change subject/body/attachments of the rendered template.
 				$mail = apply_filters( 'wpcap_ticket_mail', array( 'subject' => $message['subject'], 'body' => $message['body'], 'attachments' => $attachments ), $order, $issued );
 				$mail = is_array( $mail ) ? $mail : array( 'attachments' => $attachments );
-				Mail\Mailer::deliver( $order->customer_email, Mail\Mailer::apply_filtered( $message, $mail ) );
+				$delivered = Mail\Mailer::deliver( $order->customer_email, Mail\Mailer::apply_filtered( $message, $mail ) );
+				if ( ! $delivered ) {
+					// The codes exist only in this mail: a retry sends new codes (resend), with backoff
+					// up to the job's dead letter; the order page shows the open retry.
+					Audit::record( 'ticket_mail_failed', 'order', (int) $order_id, array( 'tickets' => count( $issued ) ) );
+					Jobs::enqueue( 'ticket-mail-retry|' . (int) $order_id . '|' . time(), 'ticket_mail_retry', array( 'order_id' => (int) $order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
+				}
 			} finally {
 				$attachments = array_unique( array_merge( $attachments, (array) ( $mail['attachments'] ?? array() ) ) );
 				foreach ( $attachments as $file ) { wp_delete_file( $file ); }
 				if ( ! empty( $pdf_dir ) && is_dir( $pdf_dir ) ) { @rmdir( $pdf_dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			}
 		}
+	}
+
+	/** Job handler (wp_pass_captain_process_job_v1): retry of a failed ticket mail (new codes). */
+	public static function handle_job( $handled, $type, $payload = array() ) {
+		if ( 'ticket_mail_retry' !== $type ) { return $handled; }
+		$order_id = absint( $payload['order_id'] ?? 0 );
+		$order = self::get( $order_id );
+		if ( ! $order || 'paid' !== $order->payment_status ) { return true; } // Nothing (more) to send.
+		$result = self::resend_tickets( $order_id );
+		if ( is_wp_error( $result ) && 'wpcap_no_resendable_tickets' === $result->get_error_code() ) { return true; }
+		return true === $result;
 	}
 
 	/**

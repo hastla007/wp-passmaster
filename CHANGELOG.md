@@ -42,6 +42,7 @@
 - Installation/Update: Nach `dbDelta` wird geprüft, ob alle Tabellen und Spalten existieren; sonst bleiben Versionsstand und Fingerprint unverändert, der Fehler wird protokolliert und Administratoren sehen einen Hinweis.
 - Zahlungs-Webhooks: Ein Datenbankfehler beim Annehmen eines Ereignisses gilt nicht mehr als „Duplikat“, sondern führt zu 503 (der Anbieter stellt erneut zu).
 - Ticketausgabe: Datenbankfehler beim Sperren, Anlegen, Teilnehmerdaten-Leeren oder COMMIT rollen die Ausgabe zurück (keine Ticketmail ohne Tickets, Teilnehmerdaten bleiben für den nächsten Versuch erhalten).
+- Ticketmail: Scheitert der Versand, wird ein Wiederholungsjob (neue Codes, Backoff) geplant; die Bestellansicht zeigt den offenen bzw. endgültig gescheiterten Versand.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

@@ -91,7 +91,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - src/Payments/Webhooks.php:46-49: `if ( ! $claimed ) return 'duplicate'` unterscheidet 0 und false weiterhin nicht
 - [x] **A038** [P1] Ticketausgabe: DB-Schreibfehler/Transaktion ungeprüft, Teilnehmerdaten gelöscht — _OFFEN_ (TODO L294; Bestätigte Befunde)
   - src/Orders.php:1363-1412: START TRANSACTION/insert/update/COMMIT ungeprüft; attendee_data wird bei `$issued` gelöscht (1407-1410)
-- [ ] **A039** [P2] Mailer::deliver-Rückgabe ignoriert, kein Versand-Retry/Outbox — _OFFEN_ (TODO L295; Bestätigte Befunde)
+- [x] **A039** [P2] Mailer::deliver-Rückgabe ignoriert, kein Versand-Retry/Outbox — _OFFEN_ (TODO L295; Bestätigte Befunde)
   - src/Orders.php:1440: Rückgabewert von Mailer::deliver() verworfen; keine Outbox/kein Zustellstatus
 - [ ] **A040** [P2] Refunds: DB-Operationen ungeprüft, keine Refund-Reconciliation — _OFFEN_ (TODO L296; Bestätigte Befunde)
   - src/Refunds.php:177,185-186: COMMIT bzw. approve-Update ungeprüft; keine persistente Zustandsmaschine/Reparatur nach Provider-Erfolg gefunden

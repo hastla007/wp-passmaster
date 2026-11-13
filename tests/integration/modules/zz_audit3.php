@@ -468,3 +468,14 @@ $a38_order = Orders::get( $a38['order_id'] );
 check( 'A038: failed ticket insert: no tickets, no ticket mail, attendee data kept, retryable error', is_wp_error( $a38_direct ) && 0 === count( tickets( $a38['order_id'] ) ) && ! array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => str_starts_with( (string) $m['subject'], 'Deine Tickets' ) && 'a38@example.com' === $m['to'] ) && ! empty( $a38_order->attendee_data ) );
 Orders::issue_and_email( $a38['order_id'] );
 check( 'A038: a retry issues the ticket with the attendee name', 1 === count( tickets( $a38['order_id'], 'valid' ) ) && 'Ada Muster' === $wpdb->get_var( $wpdb->prepare( "SELECT ta.attendee_name FROM {$p}wpcap_ticket_assignments ta INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=ta.ticket_id WHERE t.order_id=%d", $a38['order_id'] ) ) );
+
+echo "Audit 3: failed ticket mails are retried (A039)\n";
+$a39_block = static function ( $message ) { return false; }; // Mail transport fails.
+add_filter( 'wpcap_mail', $a39_block );
+list( $a39_o ) = ex_buy( $a4_std, 1, 'a39@example.com' );
+remove_filter( 'wpcap_mail', $a39_block );
+$a39_job = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_jobs WHERE job_type='ticket_mail_retry' AND payload=%s", wp_json_encode( array( 'order_id' => $a39_o ) ) ) );
+check( 'A039: a failed ticket mail schedules a retry job', $a39_job && 'queued' === $a39_job->status );
+$GLOBALS['wpcap_test_mails'] = array();
+$a39_ok = Orders::handle_job( false, 'ticket_mail_retry', array( 'order_id' => $a39_o ) );
+check( 'A039: the retry sends the tickets (new codes)', true === $a39_ok && 1 === count( array_filter( $GLOBALS['wpcap_test_mails'], static fn( $m ) => 'a39@example.com' === $m['to'] ) ) );

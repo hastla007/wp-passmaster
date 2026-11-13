@@ -350,6 +350,13 @@ final class OrdersPage {
 			<div class="notice notice-info inline"><p><?php esc_html_e( 'Zusatzbestellung zu einem Ticketumtausch (Aufpreis/Gebühr). Das Ticket wird in der ursprünglichen Bestellung geführt.', 'wp-pass-captain' ); ?>
 			<?php if ( $exchange_row ) : ?> <a href="<?php echo esc_url( self::order_url( (int) $exchange_row['order_id'] ) ); ?>"><?php esc_html_e( 'Ursprüngliche Bestellung öffnen', 'wp-pass-captain' ); ?></a><?php endif; ?></p></div>
 		<?php endif; ?>
+		<?php
+		global $wpdb;
+		$mail_retry = $wpdb->get_row( $wpdb->prepare( "SELECT status,attempts FROM {$wpdb->prefix}wpcap_jobs WHERE job_type='ticket_mail_retry' AND payload=%s AND status IN ('queued','running','dead_letter') ORDER BY job_id DESC LIMIT 1", wp_json_encode( array( 'order_id' => (int) $order_id ) ) ) );
+		if ( $mail_retry ) :
+			?>
+			<div class="notice notice-<?php echo 'dead_letter' === $mail_retry->status ? 'error' : 'warning'; ?> inline"><p><?php echo esc_html( 'dead_letter' === $mail_retry->status ? __( 'Die Ticket-E-Mail konnte auch nach mehreren Versuchen nicht zugestellt werden. Bitte E-Mail-Adresse und Mailversand prüfen und „Tickets erneut senden“ verwenden.', 'wp-pass-captain' ) : __( 'Die Ticket-E-Mail konnte nicht zugestellt werden; ein neuer Versuch (mit neuen Ticketcodes) ist geplant.', 'wp-pass-captain' ) ); ?></p></div>
+		<?php endif; ?>
 		<?php if ( 'needs_review' === $order->status ) : ?>
 			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben und die Zuteilung erneut versuchen oder die Zahlung außerhalb des Plugins zurückerstatten.', 'wp-pass-captain' ); ?></p>
 			<?php if ( 'paid_unallocated' === $order->payment_status && ! $is_woo ) : ?><p><?php Forms::open_form( 'wpcap_retry_allocation', 'wpcap_retry_allocation_' . $order_id, 'style="display:inline"' ); Forms::hidden( 'order_id', $order_id ); ?><button class="button" type="submit"><?php esc_html_e( 'Zuteilung erneut versuchen', 'wp-pass-captain' ); ?></button></form></p><?php endif; ?></div>
