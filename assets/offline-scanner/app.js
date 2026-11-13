@@ -400,7 +400,7 @@
 			return attempt.then(function (res) {
 				var ok = !!res.ok;
 				if (ok) { markAdmitted(occurrenceId, hash); }
-				showResult(ok ? 'ok' : 'bad', resultText(res.result), [res.ticket, res.attendee_name, 'online'].filter(Boolean).join(' · '));
+				showResult(ok ? 'ok' : 'bad', resultText(res.result), [res.ticket, res.attendee_name, res.staff_hint ? '⚠ ' + res.staff_hint : '', 'online'].filter(Boolean).join(' · '));
 				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'online', decision: res.result, ok: ok, synced: 1 });
 			}, function (err) {
 				// Network errors, timeouts and server outages fall back to the offline decision.
@@ -411,10 +411,11 @@
 				}
 				var d = decideOffline(entry, hash);
 				var typeName = d.type ? d.type.name : '';
+				var hint = d.type && d.type.hint ? '⚠ ' + d.type.hint : '';
 				var name = d.ticket && d.ticket.n ? d.ticket.n : '';
 				if (d.ok) {
 					markAdmitted(occurrenceId, hash);
-					showResult('ok', t('Einlass OK (offline)'), [typeName, name, d.multi ? t('Mehrfachticket – Prüfung beim Sync') : ''].filter(Boolean).join(' · '));
+					showResult('ok', t('Einlass OK (offline)'), [typeName, name, hint, d.multi ? t('Mehrfachticket – Prüfung beim Sync') : ''].filter(Boolean).join(' · '));
 				} else {
 					showResult('bad', resultText(d.result), [typeName, name, t('offline')].filter(Boolean).join(' · '));
 				}

@@ -187,7 +187,7 @@ final class PublicEvents {
 		$occ_in = implode( ',', $occ_ids );
 		$by_occurrence = array();
 		$all_types = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp FROM {$p}wpcap_ticket_types WHERE occurrence_id IN ($occ_in) AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", $now, $now ) ) as $type ) {
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp" . ( AdmissionChecks::ready() ? ',id_check,min_age' : '' ) . " FROM {$p}wpcap_ticket_types WHERE occurrence_id IN ($occ_in) AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", $now, $now ) ) as $type ) {
 			$by_occurrence[ (int) $type->occurrence_id ][] = $type;
 			$all_types[ (int) $type->ticket_type_id ] = $type;
 		}

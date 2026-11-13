@@ -10,6 +10,7 @@
 // phpcs:ignoreFile
 
 use PassCaptain\Admin\EventsPage;
+use PassCaptain\AdmissionChecks;
 use PassCaptain\Admission\Areas;
 use PassCaptain\Admission\RulesPage;
 use PassCaptain\Admission\Policies;
@@ -97,3 +98,32 @@ check( 'A093 offline uploads (already admitted on the device) are not refused fo
 $GLOBALS['wpcap_test_filters']['wpcap_admission_area_capacity'] = 10;
 check( 'A093 capacity is filterable (wpcap_admission_area_capacity)', 'checked_in' === adm_in( $c['codes'][0], $c_t + 80, $c_ctx ) );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_admission_area_capacity'] );
+
+/* ---------------------------------------------------------------------------------------------
+ * A094: ID/age check per ticket type with scanner hint
+ * ------------------------------------------------------------------------------------------- */
+echo "A094: ID/age check per ticket type shown to scanning staff\n";
+$a = adm_setup( $vie, '2027-07-01 20:00', '2027-07-01 23:00', 3 );
+$a_type = $wpdb->get_row( "SELECT * FROM {$p}wpcap_ticket_types WHERE ticket_type_id=" . $a['type'] );
+$a_base = array( 'ticket_type_id' => $a['type'], 'name' => $a_type->name, 'price' => '0', 'currency' => $a_type->currency, 'tax_rate' => '0', 'capacity' => (string) $a_type->capacity, 'max_per_order' => (string) $a_type->max_per_order, 'status' => 'active' );
+check( 'A094 schema: columns on ticket types, DB version >= 3.8.4', null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_ticket_types LIKE 'min_age'" ) && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_ticket_types LIKE 'staff_note'" ) && version_compare( PassCaptain\Installer::DB_VERSION, '3.8.4', '>=' ) && AdmissionChecks::ready() );
+$a_bad = EventsPage::save_ticket_type( $a_base + array( 'min_age' => '120' ) );
+check( 'A094 implausible minimum age is refused', is_wp_error( $a_bad ) && 'wpcap_type_min_age' === $a_bad->get_error_code() );
+$a_plain = adm_in( $a['codes'][0], adm_ts( '2027-07-01 19:30', $vie ) );
+adm_now( adm_ts( '2027-07-01 19:31', $vie ) );
+$a_plain_view = Checkin::preview( $a['codes'][1] );
+adm_now( null );
+check( 'A094 without settings the scan result carries no hint', 'checked_in' === $a_plain && ! is_wp_error( $a_plain_view ) && ! isset( $a_plain_view['staff_hint'] ) );
+$a_saved = EventsPage::save_ticket_type( $a_base + array( 'id_check' => '1', 'min_age' => '18', 'staff_note' => 'Bändchen ausgeben <b>' ) );
+$a_checks = AdmissionChecks::for_type( $a['type'] );
+check( 'A094 ID check, minimum age and note are stored (note sanitised)', ! is_wp_error( $a_saved ) && true === $a_checks['id_check'] && 18 === $a_checks['min_age'] && 'Bändchen ausgeben' === $a_checks['staff_note'] );
+adm_now( adm_ts( '2027-07-01 19:40', $vie ) );
+$a_prev = Checkin::preview( $a['codes'][1] );
+$a_in = Checkin::perform( $a['codes'][1], array( 'idempotency_key' => 'a094-in' ) );
+adm_now( null );
+$a_hint = 'Ausweis prüfen · Mindestalter 18 · Bändchen ausgeben';
+check( 'A094 preview and check-in show the hint to staff (web scanner and app)', ! is_wp_error( $a_prev ) && $a_hint === $a_prev['staff_hint'] && 18 === $a_prev['min_age'] && true === $a_prev['id_check'] && ! is_wp_error( $a_in ) && 'checked_in' === $a_in['status'] && $a_hint === $a_in['staff_hint'] );
+check( 'A094 buyer notice on the event card', 'ab 18 Jahren, Ausweis erforderlich' === AdmissionChecks::buyer_notice( $a_checks ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'templates/event-card.php' ), 'AdmissionChecks::buyer_notice' ) );
+check( 'A094 web scanner, offline app and package show the hint', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'assets/scanner.js' ), 'data.staff_hint' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'assets/offline-scanner/app.js' ), 'd.type.hint' ) && false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/OfflineScanner/Package.php' ), "'hint' => \\PassCaptain\\AdmissionChecks::staff_hint" ) );
+$a_off = EventsPage::save_ticket_type( $a_base + array( 'min_age' => '' ) );
+check( 'A094 clearing the fields removes the hint', ! is_wp_error( $a_off ) && array() === AdmissionChecks::scan_fields( $a['type'] ) );

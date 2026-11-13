@@ -134,6 +134,8 @@ Ein Scan-Ergebnis ist kein Transportfehler. Es kommt als HTTP 200 mit `ok: false
 
 HTTP-Fehler gibt es nur bei Authentifizierung (401), Berechtigung oder Rate-Limit (403/429) und ungültigen Anfragen (400).
 
+Hat die Ticketart eine Einlasskontrolle (Ausweispflicht, Mindestalter, Hinweis fürs Personal), enthält das Ergebnis zusätzlich `id_check` (bool), `min_age` (Jahre, 0 = keines) und `staff_hint` (fertiger Anzeigetext, z. B. „Ausweis prüfen · Mindestalter 18“). Die App muss `staff_hint` deutlich anzeigen; der Scan wird dadurch nicht abgelehnt.
+
 `attendee_name` wird nur mitgeliefert, wenn die Einstellung „Teilnehmername im Scanner anzeigen“ (`scanner_show_attendee`) aktiv ist. E-Mail- und Zahlungsdaten liefert die API nie aus.
 
 ## 3. Einlassregeln und Einlassbereiche

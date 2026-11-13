@@ -413,6 +413,8 @@ final class Checkin {
 		);
 		$doors = DoorsOpen::for_occurrence( (int) $found['occurrence_id'] );
 		if ( null !== $doors ) { $view['doors_open_at'] = gmdate( 'c', strtotime( $doors . ' UTC' ) ); }
+		// ID/age check of the ticket type: shown to staff with every result of a known ticket.
+		$view += AdmissionChecks::scan_fields( (int) ( $found['ticket_type_id'] ?? 0 ) );
 		if ( Settings::get( 'scanner_show_attendee' ) && '' !== $found['attendee_name'] ) {
 			$view['attendee_name'] = $found['attendee_name'];
 		}

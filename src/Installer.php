@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.8.3';
+	const DB_VERSION = '3.8.4';
 
 	public static function install() {
 		global $wpdb;
@@ -104,6 +104,9 @@ final class Installer {
 				status varchar(20) NOT NULL DEFAULT 'active',
 				sold_qty int(11) NOT NULL DEFAULT 0,
 				held_qty int(11) NOT NULL DEFAULT 0,
+				id_check tinyint(1) unsigned NOT NULL DEFAULT 0,
+				min_age tinyint(3) unsigned NOT NULL DEFAULT 0,
+				staff_note varchar(190) NOT NULL DEFAULT '',
 				PRIMARY KEY  (ticket_type_id),
 				KEY occurrence_id (occurrence_id),
 				KEY status (status)

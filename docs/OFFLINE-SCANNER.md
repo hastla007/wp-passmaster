@@ -73,7 +73,7 @@ Signed payload (`v` = package format version 1):
   "issued_at": "…", "expires_at": "…", "since": null, "cursor": "a1b2c3d4e5f60718.7",
   "rules": {"max_offline_hours": 12, "duplicate_policy": "review", "attendee_names": false},
   "device_area_id": null, "hash": "sha256",
-  "ticket_types": [{"id": 5, "name": "Standard", "areas": [], "policy": "single", "multi": false}],
+  "ticket_types": [{"id": 5, "name": "Standard", "areas": [], "policy": "single", "multi": false, "id_check": false, "min_age": 0, "hint": ""}],
   "areas": [{"id": 3, "name": "Eingang Nord"}],
   "tickets": [{"h": "<sha256(code) hex>", "s": "valid|checked_in|revoked", "t": 5, "n": "Name (optional)"}] }
 ```
@@ -88,6 +88,8 @@ What the package contains:
 - Every package (including an empty delta) renews `expires_at`.
 - Hashes are `sha256` of the 64-hex ticket code (the same as `wpcap_tickets.token_hash`).
 - Ticket codes, e-mails and order data are never included.
+- `ticket_types[].id_check`, `min_age` and `hint` carry the ID/age check of the ticket type; the app
+  shows `hint` (e.g. "Ausweis prüfen · Mindestalter 18") with every result of such a ticket.
 - `occurrence.doors_open_at` is the doors-open time ("Einlass ab", ISO 8601) or null; the app refuses
   scans before it with `outside_entry_window`, like the server.
 

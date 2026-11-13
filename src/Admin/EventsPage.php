@@ -315,6 +315,8 @@ final class EventsPage {
 		if ( $sales['sales_start'] && $sales['sales_end'] && $sales['sales_end'] <= $sales['sales_start'] ) {
 			return Forms::error( 'wpcap_type_sales', __( 'Das Verkaufsende muss nach dem Verkaufsstart liegen.', 'wp-pass-captain' ) );
 		}
+		$checks = \PassCaptain\AdmissionChecks::parse( $in );
+		if ( is_wp_error( $checks ) ) { return Forms::error( $checks->get_error_code(), $checks->get_error_message() ); }
 		$capacity = Forms::int( $in, 'capacity' );
 		$status = Forms::choice( $in, 'status', array( 'active', 'paused' ), 'active' );
 		if ( $old ) {
@@ -339,6 +341,10 @@ final class EventsPage {
 			'status' => $status,
 		);
 		$formats = array( '%s', '%d', '%s', '%d', '%d', '%d', '%s', '%s', '%s' );
+		if ( \PassCaptain\AdmissionChecks::ready() ) {
+			$data += $checks;
+			array_push( $formats, '%d', '%d', '%s' );
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_ticket_types';
 		if ( $old ) {
@@ -923,6 +929,13 @@ final class EventsPage {
 			<tr><th><label for="wpcap-tt-max"><?php esc_html_e( 'Max. pro Bestellung', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-tt-max" name="max_per_order" type="number" min="1" max="100" value="<?php echo esc_attr( $type ? (int) $type->max_per_order : 10 ); ?>"></td></tr>
 			<tr><th><label for="wpcap-tt-ss"><?php esc_html_e( 'Verkaufsstart', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-tt-ss" name="sales_start" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_start, $occ->timezone ) : '' ); ?>"> <span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = sofort', 'wp-pass-captain' ), $occ->timezone ) ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-se"><?php esc_html_e( 'Verkaufsende', 'wp-pass-captain' ); ?></label></th><td><input id="wpcap-tt-se" name="sales_end" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_end, $occ->timezone ) : '' ); ?>"> <span class="description"><?php esc_html_e( 'leer = bis Terminbeginn', 'wp-pass-captain' ); ?></span></td></tr>
+			<?php $checks = \PassCaptain\AdmissionChecks::for_type( $type ? $type : 0 ); ?>
+			<tr><th><?php esc_html_e( 'Einlasskontrolle', 'wp-pass-captain' ); ?></th><td>
+				<label><input type="checkbox" name="id_check" value="1" <?php echo $checks['id_check'] ? 'checked' : ''; ?>> <?php esc_html_e( 'Ausweis prüfen', 'wp-pass-captain' ); ?></label><br>
+				<label><?php esc_html_e( 'Mindestalter', 'wp-pass-captain' ); ?> <input name="min_age" type="number" min="0" max="99" class="small-text" value="<?php echo esc_attr( $checks['min_age'] ? (string) $checks['min_age'] : '' ); ?>"></label><br>
+				<label><?php esc_html_e( 'Hinweis für das Einlasspersonal', 'wp-pass-captain' ); ?> <input name="staff_note" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( $checks['staff_note'] ); ?>"></label>
+				<p class="description"><?php esc_html_e( 'Wird beim Scannen (Web-Scanner, App, Offline-Scanner) angezeigt; Mindestalter und Ausweispflicht sehen Käufer auch beim Ticketkauf. Der Scan wird dadurch nicht abgelehnt.', 'wp-pass-captain' ); ?></p>
+			</td></tr>
 			<tr><th><label for="wpcap-tt-status"><?php esc_html_e( 'Status', 'wp-pass-captain' ); ?></label></th><td><?php Forms::select( 'status', array( 'active' => __( 'Aktiv', 'wp-pass-captain' ), 'paused' => __( 'Pausiert', 'wp-pass-captain' ) ), $type ? $type->status : 'active', 'wpcap-tt-status' ); ?></td></tr>
 		</tbody></table>
 		<?php submit_button( $type ? __( 'Ticketart speichern', 'wp-pass-captain' ) : __( 'Ticketart hinzufügen', 'wp-pass-captain' ) ); ?>

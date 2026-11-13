@@ -141,7 +141,8 @@ final class Package {
 		$types = array();
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d ORDER BY ticket_type_id", (int) $occurrence->occurrence_id ) ) as $type ) {
 			$policy = Policies::for_type( (int) $type->ticket_type_id );
-			$types[] = array( 'id' => (int) $type->ticket_type_id, 'name' => (string) $type->name, 'areas' => Areas::type_area_ids( (int) $type->ticket_type_id ), 'policy' => $policy ? $policy['policy'] : 'single', 'multi' => $policy && 'single' !== $policy['policy'] );
+			$checks = \PassCaptain\AdmissionChecks::for_type( (int) $type->ticket_type_id );
+			$types[] = array( 'id' => (int) $type->ticket_type_id, 'name' => (string) $type->name, 'areas' => Areas::type_area_ids( (int) $type->ticket_type_id ), 'policy' => $policy ? $policy['policy'] : 'single', 'multi' => $policy && 'single' !== $policy['policy'], 'id_check' => $checks['id_check'], 'min_age' => $checks['min_age'], 'hint' => \PassCaptain\AdmissionChecks::staff_hint( $checks ) );
 		}
 		// [Passes] Ticket type descriptors of the package (id, name, areas, policy, multi); modules add
 		// types of tickets they ship via `wpcap_offline_live_tickets`.

@@ -303,7 +303,8 @@
 				return;
 			}
 			if (!response.ok) throw new Error(data.message || t.invalid || 'Invalid ticket.');
-			show('success', (data.status === 'checked_out' ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + data.event + ' — ' + data.ticket);
+			// ID/age check of the ticket type ("Ausweis prüfen · Mindestalter 18") for the staff.
+			show('success', (data.status === 'checked_out' ? ((adm && adm.i18n && adm.i18n.checkedOut) || 'Checked out') + ': ' : '') + data.event + ' — ' + data.ticket + (data.staff_hint && data.status !== 'checked_out' ? ' — ⚠ ' + data.staff_hint : ''));
 			input.value = '';
 		} catch (error) {
 			show('error', error.message);
