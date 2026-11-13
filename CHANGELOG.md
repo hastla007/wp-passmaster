@@ -43,6 +43,7 @@
 - Zahlungs-Webhooks: Ein Datenbankfehler beim Annehmen eines Ereignisses gilt nicht mehr als „Duplikat“, sondern führt zu 503 (der Anbieter stellt erneut zu).
 - Ticketausgabe: Datenbankfehler beim Sperren, Anlegen, Teilnehmerdaten-Leeren oder COMMIT rollen die Ausgabe zurück (keine Ticketmail ohne Tickets, Teilnehmerdaten bleiben für den nächsten Versuch erhalten).
 - Ticketmail: Scheitert der Versand, wird ein Wiederholungsjob (neue Codes, Backoff) geplant; die Bestellansicht zeigt den offenen bzw. endgültig gescheiterten Versand.
+- Erstattungen: Datenbankschritte (Anlage, Freigabe, Start, Verbuchung, externe Erstattungen) werden geprüft; nach erfolgreicher Auszahlung wird zuerst die Provider-Referenz gespeichert und die Verbuchung in einer Transaktion abgeschlossen. Scheitert sie, bleibt die Erstattung „processing“ und ein Reparaturjob bucht sie ohne zweite Auszahlung nach; hängende Erstattungen ohne Referenz werden zur manuellen Prüfung markiert.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.
