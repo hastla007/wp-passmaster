@@ -285,7 +285,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Nur Tests mit WooCommerce-Attrappen (tests/integration/modules/woocommerce.php); keine Matrix gegen installiertes WooCommerce in CI
 - [x] **A128** Terminserien: Kapazitäten/Preisfenster, Editierbarkeit, Sitzplanverknüpfung — _TEILWEISE_ (TODO L86; P2 – Erweiterte Eventfunktionen)
   - Frequenzen Rules.php:26, Kapazität AdminPage.php:136, Preisregeln Pricing.php:30, Sitzplan Generator.php:231; Seriendefinition nach Anlage nicht editierbar
-- [ ] **A129** Berichte, Buchhaltungsexporte, Korrekturbelege — _TEILWEISE_ (TODO L89; P2 – Erweiterte Eventfunktionen)
+- [x] **A129** Berichte, Buchhaltungsexporte, Korrekturbelege — _TEILWEISE_ (TODO L89; P2 – Erweiterte Eventfunktionen)
   - Export Invoices.php:365, Gutschriften Invoices.php:113, Berichte Reports/Data.php:73; fachliche Abnahme der Berichte/Exportformate fehlt
 - [ ] **A130** Release-Gates aus Konzept bestanden und dokumentiert — _OFFEN_ (TODO L108; Abnahmekriterien)
   - Alle Gates in CONCEPT.md:443-450 unerledigt; teils Rechtsfreigaben nötig
