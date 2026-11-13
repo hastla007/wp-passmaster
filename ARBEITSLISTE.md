@@ -22,7 +22,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Exchange/Service.php:580–591`; `src/Invoices.php:70,318` — Maßnahme: Steuersatzwechsel nur mit Rechnungskorrektur + neuem Beleg oder sperren; `tax_minor` konsistent; Rechnungskopf aus Zeilen.
 - [x] **A007** [P1] Zielgerichtete Kampagnenrabatte (Ticketart/Event) werden anteilig auf alle Positionen verteilt (Beispiel: USt 1.932 statt 1.742 Cent, fremde Position um 25 € gekürzt). — _OFFEN_ (TODO L438; Steuer und Finanzen (Prüfung 3))
   - `src/Orders.php:196–212` vs. `src/Campaigns.php:31–51` — Maßnahme: Zeilenverteilung aus `Campaigns::calculate()` übernehmen und je Position (`discount_minor`) speichern.
-- [ ] **A008** [P1] Kassen-Umtausch bestätigt Zusatzbestellung ohne Kassenverkauf, Beleg und Schichtbuchung; spätere Erstattungen werden nicht gebucht. — _OFFEN_ (TODO L439; Steuer und Finanzen (Prüfung 3))
+- [x] **A008** [P1] Kassen-Umtausch bestätigt Zusatzbestellung ohne Kassenverkauf, Beleg und Schichtbuchung; spätere Erstattungen werden nicht gebucht. — _OFFEN_ (TODO L439; Steuer und Finanzen (Prüfung 3))
   - `src/Exchange/Service.php:879–890`; `src/BoxOffice/Shifts.php:611–620` — Maßnahme: Aufpreis/Gebühr als Kassenverkauf mit Belegnummer in offene Schicht buchen; Erstattungen ebenso.
 
 ## Phase 2 – Wichtige Fehler (P2, Audit Runde 3)

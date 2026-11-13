@@ -1149,7 +1149,26 @@ final class Service {
 			return self::error( 'wpcap_exchange_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 );
 		}
 		$args['channel'] = 'pos';
-		return self::request( $ticket_id, $target_type_id, $args );
+		$method = sanitize_key( (string) ( $args['pos_method'] ?? 'cash' ) );
+		$method = in_array( $method, array( 'cash', 'card', 'free', 'invoice' ), true ) ? $method : 'cash';
+		$args['pos_method'] = $method;
+		$pos = class_exists( \PassCaptain\BoxOffice\Service::class );
+		// Money at the counter is booked into the cashier's open shift (receipt, Z report).
+		if ( $pos && \PassCaptain\BoxOffice\Shifts::needs_shift( $method ) && ! \PassCaptain\BoxOffice\Service::open_session_for( get_current_user_id() ) ) {
+			return self::error( 'wpcap_pos_no_session', __( 'Für einen Umtausch mit Aufpreis an der Kasse muss eine Kassenschicht geöffnet sein.', 'wp-pass-captain' ), 409 );
+		}
+		$result = self::request( $ticket_id, $target_type_id, $args );
+		if ( is_wp_error( $result ) || ! $pos || empty( $result['supplementary_order_id'] ) ) { return $result; }
+		$supp = Orders::get( (int) $result['supplementary_order_id'] );
+		if ( ! $supp || 'paid' !== $supp->payment_status ) { return $result; }
+		$target = self::target( (int) $target_type_id );
+		$booked = \PassCaptain\BoxOffice\Service::book_order( (int) $supp->order_id, $method, 'exchange-' . (int) $result['exchange_id'], $target ? (int) $target->occurrence_id : 0 );
+		if ( is_wp_error( $booked ) ) {
+			Audit::record( 'ticket_exchange_pos_unbooked', 'order', (int) $supp->order_id, array( 'exchange_id' => (int) $result['exchange_id'], 'error' => $booked->get_error_code() ) );
+			return $result + array( 'warning' => $booked->get_error_message() );
+		}
+		if ( is_array( $booked ) ) { $result['receipt_number'] = (string) $booked['sale']->receipt_number; }
+		return $result;
 	}
 
 	/** Ticket id from an id or a 32-character public id. */

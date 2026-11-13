@@ -121,6 +121,14 @@ PassCaptain\Exchange\Service::box_office_exchange( $ticket_id_or_public_id, $tar
 Ein Aufpreis wird an der Kasse kassiert und sofort bestätigt (`Orders::confirm_external_payment()`);
 das neue Ticket entsteht im selben Aufruf. Kapazitätsquelle `pos` (vertrauenswürdig für Kontingente).
 
+Die Zusatzbestellung wird als **Kassenverkauf der offenen Schicht** der Kassierkraft gebucht
+(`BoxOffice\Service::book_order()`: Belegnummer aus dem Belegnummernkreis, Z-Bericht, spätere
+Stornos/Erstattungen als Auszahlung der Schicht); das Ergebnis enthält `receipt_number`. Bar und
+Karte brauchen eine geöffnete Schicht (sonst `wpcap_pos_no_session`, es wird nichts umgetauscht);
+`free`/`invoice` werden gebucht, wenn eine Schicht offen ist. Eine Herabstufung erstattet die
+Differenz über den Zahlungsweg der ursprünglichen Bestellung (bei einem Kassenverkauf als Auszahlung
+der Schicht).
+
 ## Idempotenz und Nebenläufigkeit
 
 - `idempotency_key` je Ticket (eindeutiger Index); eine Wiederholung liefert denselben Umtausch

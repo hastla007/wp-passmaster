@@ -337,12 +337,55 @@ final class Service {
 		return self::finalize( $sale_id );
 	}
 
+	/**
+	 * Books an already created order (e.g. the supplement of a box office exchange) as a sale of the
+	 * current user's open shift: receipt number, Z report, later refunds/stornos. Idempotent per
+	 * $key. Cash and card need an open shift; without one a WP_Error is returned.
+	 *
+	 * @param int    $order_id      Paid (or pending POS) order.
+	 * @param string $method        cash|card|free|invoice.
+	 * @param string $key           Idempotency key (e.g. 'exchange-<id>').
+	 * @param int    $occurrence_id Occurrence shown on the receipt.
+	 * @return array|\WP_Error|null ['sale' => row, 'reused' => bool]; null when not needed (free/invoice without shift).
+	 */
+	public static function book_order( $order_id, $method, $key, $occurrence_id = 0 ) {
+		global $wpdb;
+		$key_hash = hash( 'sha256', 'pos-order|' . (string) $key );
+		$existing = self::sale_by_key( $key_hash );
+		if ( $existing ) { return 'pending' === $existing->status ? self::finalize( $existing->sale_id ) : array( 'sale' => $existing, 'reused' => true ); }
+		$session = self::open_session_for( get_current_user_id() );
+		if ( ! $session || 'open' !== $session->status ) {
+			return Shifts::needs_shift( $method ) ? self::error( 'wpcap_pos_no_session', __( 'Bitte zuerst eine Kassensitzung öffnen.', 'wp-pass-captain' ), 409 ) : null;
+		}
+		$order = Orders::get( $order_id );
+		if ( ! $order ) { return self::error( 'wpcap_pos_sale', __( 'Verkauf nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		$saved = $wpdb->insert( "{$wpdb->prefix}wpcap_boxoffice_sales", array(
+			'session_id' => (int) $session->session_id,
+			'order_id' => (int) $order_id,
+			'form_key_hash' => $key_hash,
+			'payment_method' => $method,
+			'currency' => (string) $order->currency,
+			'tendered_minor' => null,
+			'occurrence_id' => absint( $occurrence_id ),
+			'cashier_id' => get_current_user_id(),
+			'status' => 'pending',
+			'created_at' => current_time( 'mysql', true ),
+		) );
+		if ( false === $saved ) {
+			$existing = self::sale_by_key( $key_hash );
+			return $existing ? self::finalize( $existing->sale_id ) : self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 );
+		}
+		return self::finalize( (int) $wpdb->insert_id );
+	}
+
 	/** Paid order with all tickets issued? Re-issues missing tickets once (idempotent core issuance). */
 	private static function order_ready( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order = Orders::get( $order_id );
 		if ( ! $order || 'paid' !== $order->payment_status || 'complete' !== $order->status ) { return false; }
+		// Exchange supplement: money only, its ticket is issued on the original order.
+		if ( \PassCaptain\Exchange\Service::is_supplement( (int) $order_id ) ) { return true; }
 		$expected = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_order_items WHERE order_id=%d", $order_id ) );
 		$count = static function () use ( $wpdb, $p, $order_id ) { return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) ); };
 		if ( $count() < $expected ) { Orders::issue_and_email( $order_id ); }

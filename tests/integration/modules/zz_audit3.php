@@ -142,3 +142,23 @@ $a7_inv = $wpdb->get_col( $wpdb->prepare( "SELECT l.total_minor FROM {$p}wpcap_i
 check( 'A007: invoice lines 75,00 and 100,00 (the other event keeps its full price)', array( 7500, 10000 ) === array_map( 'intval', $a7_inv ) );
 $a7_gross = PassCaptain\Reports\Data::allocate_discount( array_values( $a7_lines ), 2500 );
 check( 'A007: reports/settlements use the stored line discount', array( 7500, 10000 ) === array_values( $a7_gross ) );
+
+echo "Audit 3: box office exchange is booked into the shift (A008)\n";
+$a8_type = ex_type( $a4_occ, 'Kasse Steh', 3000 );
+$a8_vip = ex_type( $a4_occ, 'Kasse VIP', 4500 );
+list( $a8_o, $a8_i ) = ex_buy( $a8_type, 1, 'a8@example.com' );
+$GLOBALS['wpcap_test_user_id'] = 4242; // A cashier without an open shift.
+$a8_none = Exchange::box_office_exchange( ex_ticket( $a8_i[0] )->public_id, $a8_vip, array( 'pos_method' => 'cash' ) );
+$GLOBALS['wpcap_test_user_id'] = 1;
+check( 'A008: cash exchange at the counter needs an open shift', is_wp_error( $a8_none ) && 'wpcap_pos_no_session' === $a8_none->get_error_code() && 'valid' === ex_ticket( $a8_i[0] )->status );
+$a8_shift = PassCaptain\BoxOffice\Service::open_session( 0 );
+$a8 = Exchange::box_office_exchange( ex_ticket( $a8_i[0] )->public_id, $a8_vip, array( 'pos_method' => 'cash', 'idempotency_key' => 'a8-1' ) );
+$a8_sale = ! is_wp_error( $a8 ) ? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_boxoffice_sales WHERE order_id=%d", (int) $a8['supplementary_order_id'] ) ) : null;
+check( 'A008: supplement 15,00 is a completed box office sale with receipt number in the open shift', $a8_sale && 'completed' === $a8_sale->status && '' !== (string) $a8_sale->receipt_number && 1500 === (int) $a8_sale->total_minor && (int) $a8_sale->session_id === (int) $a8_shift->session_id && ! empty( $a8['receipt_number'] ) );
+$a8_z = PassCaptain\BoxOffice\ZReport::compute( (int) $a8_shift->session_id );
+check( 'A008: Z report counts the supplement as cash sale', (int) ( $a8_z['methods']['cash']['sales_gross'] ?? 0 ) >= 1500 );
+$a8_new = (int) $a8['new_ticket_id'];
+PassCaptain\Refunds::request( $a8_o, array( $a8_new ), 'Absage', 'a8-refund' );
+$a8_supp_refund = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE order_id=%d", (int) $a8['supplementary_order_id'] ) );
+$a8_mv = $a8_supp_refund ? $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_movements WHERE refund_id=%d", (int) $a8_supp_refund->refund_id ) ) : 0;
+check( 'A008: a later refund of the supplement is booked as payout of the shift', $a8_supp_refund && 'completed' === $a8_supp_refund->status && 1 === (int) $a8_mv );
