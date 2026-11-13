@@ -52,6 +52,21 @@ function expire_holds_of( $core_id ) {
 	$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_reservations SET expires_at=%s WHERE order_id=%d", gmdate( 'Y-m-d H:i:s', time() - 60 ), $core_id ) );
 }
 
+if ( in_array( '--service-child', $argv, true ) ) {
+	// Service booking worker (A135): `--service-child reserve <slot> <email> <start_ts> [lock_wait]` or
+	// `--service-child rebook <booking> <slot> <start_ts> [lock_wait]`; waits until start_ts (float) so
+	// the workers hit the database together, prints OK or the error code.
+	list( , , $mode, $id, $arg, $start ) = array_pad( $argv, 6, '' );
+	if ( isset( $argv[6] ) ) { $GLOBALS['wpdb']->query( 'SET SESSION innodb_lock_wait_timeout=' . max( 1, (int) $argv[6] ) ); }
+	while ( microtime( true ) < (float) $start ) { usleep( 2000 ); }
+	$_SERVER['REMOTE_ADDR'] = '198.51.100.' . ( getmypid() % 250 );
+	$r = 'rebook' === $mode
+		? PassCaptain\ServiceBookings::rebook( (int) $id, (int) $arg )
+		: PassCaptain\ServiceBookings::reserve( (int) $id, $arg, 1, 0, 10, 'svc-child-' . getmypid() . '-' . uniqid() );
+	echo is_wp_error( $r ) ? $r->get_error_code() : 'OK';
+	exit;
+}
+
 if ( in_array( '--child', $argv, true ) ) {
 	// Concurrency worker: buy one ticket of the given type and print the result.
 	$type = (int) $argv[2];

@@ -142,13 +142,23 @@ zugestellt werden konnte. Die Endzustände sind `expired`, `declined`, `skipped`
 
 ## Servicebuchung (`wpcap_service_bookings.status`)
 
+Alle Übergänge laufen unter den Sperren aus `ServiceBookings::lock()` (Ressourcen → Leistungserbringer →
+Zeitfenster → Buchung) und als bedingtes Update auf den erwarteten Ausgangsstatus.
+
 | Von → nach | Auslöser |
 |---|---|
-| (neu) → `held` | Buchung eines Zeitfensters mit Ablaufzeit, idempotent je Schlüssel. |
-| `held` → `expired` | Wird bei der nächsten Buchung desselben Zeitfensters nachgezogen, wenn `expires_at` überschritten ist. |
+| (neu) → `held` | `reserve()`: Zeitfenster mit Ablaufzeit, idempotent je Schlüssel; Kapazität, Puffer, Leistungserbringer, Buchungsschluss/-vorlauf und Höchstzahl je Person geprüft. |
+| `held` → `expired` | Ablaufzeit überschritten (nachgezogen bei der nächsten Buchung des Zeitfensters). |
+| `held` → `confirmed` | `confirm()` einer kostenlosen Buchung (Kund:in mit Buchungstoken oder Team). |
+| `held` → `pending_payment` | `confirm()` einer kostenpflichtigen Buchung: Bestellung über den regulären Checkout, in derselben Transaktion verknüpft (nie zwei Bestellungen). |
+| `pending_payment`/`held`/`expired` → `confirmed` | Bestellung bezahlt (`confirm_paid_order()`); bei verspäteter Zahlung nach erneuter Prüfung von Kapazität, Puffern und Leistungserbringern. |
+| `pending_payment`/`held`/`expired` → `unallocated` | Bestellung bezahlt, das Zeitfenster ist inzwischen belegt; die Bestellung wird nach Ausstellung der Tickets automatisch erstattet (`refund_unallocated()`). |
+| `held`/`pending_payment` → `expired` | Bestellung abgelaufen. |
+| `held`/`pending_payment`/`confirmed` → `cancelled` | Bestellung storniert oder anderweitig erstattet; `cancel()` durch Kund:in (innerhalb der Stornofrist) oder Team, bezahlt mit voller Erstattung über `Refunds` (Quelle `service_booking`). |
+| `confirmed` → `confirmed` (anderes Zeitfenster) | `rebook()`: atomar, beide Ressourcen und Zeitfenster gesperrt; innerhalb der Umbuchungsfrist, bei Bestellungen nur auf eine Ressource mit derselben Ticketart. |
 
-`confirmed` belegt einen Platz ohne Ablaufzeit. Der Kern setzt diesen Status nicht selbst; er ist für
-Integrationen reserviert. `expired` und `confirmed` sind **Endzustände**.
+**Endzustände:** `cancelled`, `expired` (eine abgelaufene Buchung wird nur noch durch eine verspätete Zahlung
+`confirmed` oder `unallocated`) und `unallocated`. Fristen, Limits und Benachrichtigungen: OPERATIONS.md.
 
 ## Doppelte und in falscher Reihenfolge eintreffende Zahlungsereignisse
 

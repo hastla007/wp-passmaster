@@ -30,6 +30,12 @@ final class OrderPortal {
 			wp_safe_redirect( add_query_arg( array( 'wpcap_order' => $public_id, 'wpcap_access' => $token, 'wpcap_waitlist_result' => is_wp_error( $result ) ? 'error' : 'removed' ), home_url( '/' ) ) . '#wpcap-waitlist' );
 			exit;
 		}
+		// Service bookings (A135): cancel/rebook bookings with the order's e-mail address, same pattern.
+		if ( \PassCaptain\Http::is_post() && isset( $_POST['wpcap_service_op'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in ServiceBookingFlow::handle_portal_request().
+			$result = ServiceBookingFlow::handle_portal_request( $order, wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			wp_safe_redirect( add_query_arg( array( 'wpcap_order' => $public_id, 'wpcap_access' => $token, 'wpcap_service_result' => ServiceBookingFlow::result_flag( $result ) ), home_url( '/' ) ) . '#wpcap-service-bookings' );
+			exit;
+		}
 		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ) );
 		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
 		header( 'Referrer-Policy: no-referrer' );
@@ -125,6 +131,7 @@ final class OrderPortal {
 <?php if ( 'valid' === $ticket->status && 0 === (int) $ticket->transfer_count && strtotime( $ticket->starts_at . ' UTC' ) > time() ) : ?><form class="wpcap-transfer-form"><input type="hidden" name="ticket_public_id" value="<?php echo esc_attr( $ticket->public_id ); ?>"><label><?php esc_html_e( 'An E-Mail übertragen', 'pass-captain' ); ?><input name="recipient_email" type="email" autocomplete="email" required></label><button type="submit"><?php esc_html_e( 'Ticket einmalig übertragen', 'pass-captain' ); ?></button><p class="message" aria-live="polite"></p></form><?php endif; ?><?php echo (string) apply_filters( 'wpcap_order_portal_ticket_html', '', $ticket, $order, $token ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- modules escape their own markup (e.g. Exchange\Portal). ?></section><?php endforeach; endif; ?>
 <?php echo Consents::self_service_html( self::consent_tickets( $order ), (string) $order->public_id, Consents::result_notice( isset( $_GET['wpcap_consent_result'] ) ? sanitize_key( wp_unslash( $_GET['wpcap_consent_result'] ) ) : '' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in self_service_html; display flag only. ?>
 <?php echo Waitlists::portal_html( $order, isset( $_GET['wpcap_waitlist_result'] ) ? sanitize_key( wp_unslash( $_GET['wpcap_waitlist_result'] ) ) : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in portal_html; display flag only. ?>
+<?php echo ServiceBookingFlow::portal_html( $order, isset( $_GET['wpcap_service_result'] ) ? sanitize_key( wp_unslash( $_GET['wpcap_service_result'] ) ) : '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.Security.NonceVerification.Recommended -- escaped in portal_html; display flag only. ?>
 <?php echo self::billing_section( $billing, $has_invoice ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in billing_section. ?>
 <?php echo self::payout_section( $order ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in payout_section. ?>
 <?php if ( $has_invoice ) : ?><p><a href="<?php echo esc_url( add_query_arg( array( 'wpcap_invoice' => $public_id, 'wpcap_access' => $token ), home_url( '/' ) ) ); ?>"><?php esc_html_e( 'Rechnung anzeigen', 'pass-captain' ); ?></a></p><?php endif; ?>

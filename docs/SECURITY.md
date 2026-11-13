@@ -103,6 +103,11 @@ Scanner-App-Kopplung (`/app/pair`, einmaliger Kopplungscode) und der öffentlich
 `tests/integration/modules/zz_a119.php` zählt alle registrierten Routen auf und schlägt fehl, wenn eine neue
 Route `__return_true` nutzt, ohne in dieser Liste zu stehen.
 
+Die Selbstbedienung für Servicebuchungen (`GET /service-bookings/{id}`, `POST /service-bookings/{id}/confirm|rebook|cancel`, A135)
+ist ohne Anmeldung erreichbar, aber nur mit dem persönlichen Buchungstoken aus der Reservierung (Prüfung im
+`permission_callback` `ServiceBookingFlow::token_permission`, Hash-Vergleich in konstanter Zeit, 10 Fehlversuche je Buchung
+und Stunde, danach 429). Die Antworten enthalten keine Daten anderer Kund:innen.
+
 ## Entwickler-API-Schlüssel
 
 Verwaltung unter **Pass Captain → Entwickler-API** (Bereich „Einstellungen & Integrationen“, nur `manage_options`):

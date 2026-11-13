@@ -58,6 +58,10 @@ final class Menu {
 			'wpcap_service_resource_delete' => array( ServiceSlotsPage::class, 'handle_delete_resource' ),
 			'wpcap_service_slot_save' => array( ServiceSlotsPage::class, 'handle_save_slot' ),
 			'wpcap_service_slot_delete' => array( ServiceSlotsPage::class, 'handle_delete_slot' ),
+			'wpcap_service_slots_generate' => array( ServiceSlotsPage::class, 'handle_generate_slots' ),
+			'wpcap_service_provider_save' => array( ServiceSlotsPage::class, 'handle_save_provider' ),
+			'wpcap_service_resource_providers' => array( ServiceSlotsPage::class, 'handle_assign_providers' ),
+			'wpcap_service_booking_action' => array( ServiceSlotsPage::class, 'handle_booking_action' ),
 		) +\PassCaptain\Modules::admin_handlers();
 	}
 

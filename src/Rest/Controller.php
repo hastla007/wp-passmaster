@@ -139,6 +139,19 @@ final class Controller {
 			'callback' => array( __CLASS__, 'book_service_slot' ),
 			'permission_callback' => '__return_true',
 		) );
+		// Service booking self-service (A135): personal booking token from the reservation.
+		register_rest_route( 'pass-captain/v1', '/service-bookings/(?P<booking_id>\d+)', array(
+			'methods' => \WP_REST_Server::READABLE,
+			'callback' => array( \PassCaptain\ServiceBookingFlow::class, 'rest_get' ),
+			'permission_callback' => array( \PassCaptain\ServiceBookingFlow::class, 'token_permission' ),
+		) );
+		foreach ( array( 'confirm', 'rebook', 'cancel' ) as $service_op ) {
+			register_rest_route( 'pass-captain/v1', '/service-bookings/(?P<booking_id>\d+)/' . $service_op, array(
+				'methods' => \WP_REST_Server::CREATABLE,
+				'callback' => array( \PassCaptain\ServiceBookingFlow::class, 'rest_' . $service_op ),
+				'permission_callback' => array( \PassCaptain\ServiceBookingFlow::class, 'token_permission' ),
+			) );
+		}
 		register_rest_route( 'pass-captain/v1', '/occurrences/(?P<occurrence_id>\d+)/admission-days', array(
 			'methods' => \WP_REST_Server::CREATABLE,
 			'callback' => array( __CLASS__, 'set_admission_days' ),
@@ -280,7 +293,14 @@ final class Controller {
 		return rest_ensure_response( $output );
 	}
 
-	public static function checkout( \WP_REST_Request $request ) {
+	/**
+	 * Public checkout. $context is for trusted internal callers only (never reachable from REST,
+	 * which passes the request alone), e.g. service bookings (A135): `internal` (extra
+	 * Orders::create() options; payment_provider/hold_minutes cannot be overridden) and
+	 * `manual_start_ts` (start the bank-transfer hold is capped at, instead of the ticket type's
+	 * occurrence start).
+	 */
+	public static function checkout( \WP_REST_Request $request, array $context = array() ) {
 		$params = $request->get_json_params() ?: $request->get_params();
 		$params = is_array( $params ) ? $params : array();
 		// Only customer fields; trusted adapter options must never come from a public request.
@@ -304,7 +324,9 @@ final class Controller {
 		$hold = max( 30, (int) \PassCaptain\Settings::get( 'hold_minutes' ) ); // Hosted payment pages (e.g. Stripe) live at least 30 minutes.
 		if ( 'manual' === $provider_id ) {
 			// Bank transfer: hold ends at the latest with the start; refused within manual_cutoff_hours.
-			$hold = Orders::manual_hold_minutes( array_map( static function ( $item ) { return absint( is_array( $item ) ? ( $item['ticket_type_id'] ?? 0 ) : 0 ); }, (array) ( $payload['items'] ?? array() ) ) );
+			$hold = isset( $context['manual_start_ts'] )
+				? Orders::manual_hold_until( (int) $context['manual_start_ts'] )
+				: Orders::manual_hold_minutes( array_map( static function ( $item ) { return absint( is_array( $item ) ? ( $item['ticket_type_id'] ?? 0 ) : 0 ); }, (array) ( $payload['items'] ?? array() ) ) );
 			if ( null === $hold ) {
 				return new \WP_Error( 'wpcap_manual_too_late', __( 'Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart.', 'pass-captain' ), array( 'status' => 400, 'field' => 'provider' ) );
 			}
@@ -318,7 +340,7 @@ final class Controller {
 			return $messages;
 		};
 		add_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
-		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold ) );
+		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold ) + (array) ( $context['internal'] ?? array() ) );
 		remove_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
 		if ( is_wp_error( $result ) ) { return self::with_error_field( $result, $campaign_messages( array() ) ); }
 		// A retry of an attempt that was cancelled (voucher rejected, payment start failed) or expired must not look like a new order.
@@ -871,10 +893,8 @@ final class Controller {
 	}
 
 	public static function service_slots( \WP_REST_Request $request ) {
-		global $wpdb;
-		$event_id = absint( $request['event_id'] );
-		$slots = $wpdb->get_results( $wpdb->prepare( "SELECT s.slot_id,s.starts_at,s.ends_at,s.capacity,r.name AS resource_name FROM {$wpdb->prefix}wpcap_service_slots s INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=r.event_id WHERE r.event_id=%d AND r.status='active' AND e.status='published' AND s.status='open' AND s.starts_at>%s ORDER BY s.starts_at LIMIT 100", $event_id, current_time( 'mysql', true ) ), ARRAY_A );
-		return rest_ensure_response( $slots );
+		// Only slots a customer can book now (free places, no resource/provider conflict incl. buffers).
+		return rest_ensure_response( ServiceBookings::public_slots( absint( $request['event_id'] ) ) );
 	}
 
 	public static function book_service_slot( \WP_REST_Request $request ) {

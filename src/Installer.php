@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.4';
+	const DB_VERSION = '3.10.5';
 
 	public static function install() {
 		global $wpdb;
@@ -37,6 +37,8 @@ final class Installer {
 		$resources = $wpdb->prefix . 'wpcap_resources';
 		$service_slots = $wpdb->prefix . 'wpcap_service_slots';
 		$service_bookings = $wpdb->prefix . 'wpcap_service_bookings';
+		$service_providers = $wpdb->prefix . 'wpcap_service_providers';
+		$resource_providers = $wpdb->prefix . 'wpcap_resource_providers';
 		$occurrence_days = $wpdb->prefix . 'wpcap_occurrence_days';
 		$scanner_devices = $wpdb->prefix . 'wpcap_scanner_devices';
 		$wallet_passes = $wpdb->prefix . 'wpcap_wallet_passes';
@@ -296,9 +298,33 @@ final class Installer {
 				capacity smallint(5) unsigned NOT NULL DEFAULT 1,
 				buffer_before smallint(5) unsigned NOT NULL DEFAULT 0,
 				buffer_after smallint(5) unsigned NOT NULL DEFAULT 0,
+				duration_minutes smallint(5) unsigned NOT NULL DEFAULT 60,
+				lead_minutes int(10) unsigned NOT NULL DEFAULT 0,
+				advance_days smallint(5) unsigned NOT NULL DEFAULT 0,
+				max_per_customer smallint(5) unsigned NOT NULL DEFAULT 0,
+				rebook_hours smallint(5) unsigned NOT NULL DEFAULT 0,
+				cancel_hours smallint(5) unsigned NOT NULL DEFAULT 0,
+				ticket_type_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'active',
 				PRIMARY KEY  (resource_id),
 				KEY event_status (event_id,status)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE $service_providers (
+				provider_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				name varchar(190) NOT NULL,
+				email varchar(190) NOT NULL DEFAULT '',
+				user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				partner_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				status varchar(20) NOT NULL DEFAULT 'active',
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (provider_id),
+				KEY status (status)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE $resource_providers (
+				resource_id bigint(20) unsigned NOT NULL,
+				provider_id bigint(20) unsigned NOT NULL,
+				PRIMARY KEY  (resource_id,provider_id),
+				KEY provider (provider_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $service_slots (
 				slot_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -320,10 +346,13 @@ final class Installer {
 				quantity smallint(5) unsigned NOT NULL DEFAULT 1,
 				expires_at datetime NULL,
 				status varchar(20) NOT NULL DEFAULT 'held',
+				token_hash char(64) NOT NULL DEFAULT '',
 				created_at datetime NOT NULL,
+				updated_at datetime NULL,
 				PRIMARY KEY  (booking_id),
 				KEY slot_state (slot_id,status),
 				KEY email (customer_email),
+				KEY order_id (order_id),
 				UNIQUE KEY idempotency_key (idempotency_key)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $occurrence_days (

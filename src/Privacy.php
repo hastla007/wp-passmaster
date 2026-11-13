@@ -320,7 +320,10 @@ final class Privacy {
 
 		// 3) Records keyed by the address only.
 		$hash = substr( hash( 'sha256', $email ), 0, 24 );
-		$bookings = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_service_bookings SET customer_email=%s WHERE customer_email=%s", 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, $email ) );
+		// The personal booking token (A135) goes with the address.
+		$token_sql = ServiceBookings::flow_ready() ? ",token_hash=''" : '';
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $token_sql is a literal.
+		$bookings = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_service_bookings SET customer_email=%s$token_sql WHERE customer_email=%s", 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, $email ) );
 		$messages_removed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_message_queue SET recipient=%s,payload='{}',status=IF(status IN ('queued','sending'),'cancelled',status),locked_at=NULL,last_error='privacy_erasure' WHERE recipient=%s", 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, $email ) );
 		$passes_removed = $wpdb->update( $p . 'wpcap_member_passes', array( 'member_email' => 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, 'token_hash' => self::random_hash(), 'status' => 'revoked' ), array( 'member_email' => $email ), array( '%s', '%s', '%s' ), array( '%s' ) );
 		// Running offers hold places through a pending placeholder order: release them right away.
