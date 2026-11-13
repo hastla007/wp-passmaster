@@ -328,13 +328,19 @@ final class Refunds {
 		$gateway = Registry::get( $order->payment_provider ?: 'manual' );
 		$provider_reference = 'manual';
 		if ( $gateway && $gateway->supports_refunds() && (int) $refund['amount_minor'] > 0 ) {
-			$result = $gateway->refund( (array) $order, (int) $refund['amount_minor'], 'wpcap-refund-' . $refund_id );
+			$result = $gateway->refund( (array) $order, (int) $refund['amount_minor'], self::key_for( $refund_id ) );
+			if ( is_wp_error( $result ) && self::is_unknown_outcome( $result ) ) {
+				// A272: timeout, transport error, 5xx or 409 – the provider may have paid out. The refund stays
+				// "processing" without a reference (never retried as "failed") and is reconciled with the
+				// provider (job refund_reconcile, webhooks, admin lookup or manual confirmation).
+				return self::mark_outcome_unknown( $refund, $result );
+			}
 			if ( is_wp_error( $result ) ) {
 				StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => substr( Redact::text( $result->get_error_message(), false ), 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing' ) );
 				Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => $result->get_error_code() ) );
 				return $result;
 			}
-			$provider_reference = (string) $result;
+			$provider_reference = is_array( $result ) ? (string) ( $result['reference'] ?? '' ) : (string) $result;
 		}
 		// The money has moved: record it first, so a failure below is repaired without a second payout.
 		$wpdb->update( "{$p}wpcap_refunds", array( 'provider_reference' => substr( '' !== $provider_reference ? $provider_reference : 'manual', 0, 191 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id, 'status' => 'processing' ) );
@@ -438,8 +444,9 @@ final class Refunds {
 
 	/**
 	 * Cron (wpcap_cleanup_reservations): finishes refunds stuck in "processing" after the provider paid
-	 * out (provider_reference stored) and flags those stuck without a reference (crash during the
-	 * provider call) for a manual check — they are never paid out a second time automatically.
+	 * out (provider_reference stored). Those stuck without a reference (crash during the provider call)
+	 * get the outcome "unknown" and are reconciled with the provider (job refund_reconcile) — they are
+	 * never paid out a second time automatically (A272, A350).
 	 *
 	 * @return int Number of refunds finished.
 	 */
@@ -447,7 +454,7 @@ final class Refunds {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$cutoff = gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS );
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE status='processing' AND updated_at < %s ORDER BY refund_id LIMIT 50", $cutoff ), ARRAY_A );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE status='processing' AND updated_at < %s AND (provider_reference<>'' OR error_message<>%s) ORDER BY refund_id LIMIT 50", $cutoff, self::OUTCOME_UNKNOWN ), ARRAY_A );
 		$done = 0;
 		foreach ( (array) $rows as $row ) {
 			if ( '' !== (string) $row['provider_reference'] ) {
@@ -455,12 +462,360 @@ final class Refunds {
 				if ( ! is_wp_error( $result ) ) {
 					++$done;
 				}
-			} elseif ( '' === (string) $row['error_message'] ) {
-				$wpdb->update( "{$p}wpcap_refunds", array( 'error_message' => 'needs_manual_check' ), array( 'refund_id' => (int) $row['refund_id'], 'status' => 'processing' ) );
+				continue;
+			}
+			// Crash during the provider call, or flagged by an older version ("needs_manual_check").
+			$flagged = $wpdb->update( "{$p}wpcap_refunds", array( 'error_message' => self::OUTCOME_UNKNOWN ), array( 'refund_id' => (int) $row['refund_id'], 'status' => 'processing', 'provider_reference' => '' ) );
+			if ( 1 === (int) $flagged ) {
 				Audit::record( 'refund_stuck', 'order', (int) $row['order_id'], array( 'refund_id' => (int) $row['refund_id'] ) );
+				self::schedule_reconcile( (int) $row['refund_id'], 0 );
 			}
 		}
 		return $done;
+	}
+
+	/* ------------------------------------------------------------------ Unknown outcome (A272, A350) */
+
+	/** error_message of a refund whose provider call ended without a clear answer (A272). */
+	const OUTCOME_UNKNOWN = 'outcome_unknown';
+
+	/** Runs of the job refund_reconcile before the refund is left to a manual decision (about 2 days). */
+	const RECONCILE_ATTEMPTS = 8;
+
+	/** Minutes until the next reconciliation run, per attempt. */
+	const RECONCILE_DELAYS = array( 2, 10, 30, 60, 180, 360, 720, 1440 );
+
+	/** Key of a plugin refund at the provider (idempotency key, metadata wpcap_refund, PayPal custom_id). */
+	public static function key_for( $refund_id ) {
+		return 'wpcap-refund-' . absint( $refund_id );
+	}
+
+	/** Refund id of a key from key_for(), 0 for anything else. */
+	public static function id_from_key( $key ) {
+		return preg_match( '/^wpcap-refund-(\d+)$/', (string) $key, $m ) ? (int) $m[1] : 0;
+	}
+
+	/**
+	 * Outcome of a write call (POST) that failed with an HTTP status: "unknown" when the provider may
+	 * have executed it (2xx without a readable body, 409 conflict, 5xx), else "definitive".
+	 */
+	public static function outcome_for_status( $code ) {
+		$code = (int) $code;
+		return ( $code < 300 || 409 === $code || $code >= 500 ) ? 'unknown' : 'definitive';
+	}
+
+	/** Marks an adapter error as a clear "nothing was paid out" (raised before the provider was called). */
+	public static function definitive( \WP_Error $error ) {
+		$data = $error->get_error_data();
+		$data = is_array( $data ) ? $data : array();
+		$data['outcome'] = 'definitive';
+		return new \WP_Error( $error->get_error_code(), $error->get_error_message(), $data );
+	}
+
+	/**
+	 * Whether a refund call may have paid out although it failed: the adapter says so (data.outcome),
+	 * or – adapters without that flag – a transport error, 409 or a 5xx status.
+	 */
+	public static function is_unknown_outcome( \WP_Error $error ) {
+		$data = $error->get_error_data();
+		$data = is_array( $data ) ? $data : array();
+		if ( isset( $data['outcome'] ) ) {
+			return 'unknown' === $data['outcome'];
+		}
+		if ( 'http_request_failed' === $error->get_error_code() ) {
+			return true;
+		}
+		$status = (int) ( $data['status'] ?? 0 );
+		return 409 === $status || $status >= 500;
+	}
+
+	/** Of two provider states of the same refund key the more advanced one (succeeded > pending > failed). */
+	public static function better_state( $a, $b ) {
+		$rank = array(
+			'failed'    => 1,
+			'pending'   => 2,
+			'succeeded' => 3,
+		);
+		if ( ! is_array( $a ) ) { return $b; }
+		if ( ! is_array( $b ) ) { return $a; }
+		return ( $rank[ $b['status'] ?? '' ] ?? 0 ) > ( $rank[ $a['status'] ?? '' ] ?? 0 ) ? $b : $a;
+	}
+
+	/** Keeps a refund whose payout is unclear in "processing" and starts the reconciliation. */
+	private static function mark_outcome_unknown( array $refund, \WP_Error $error ) {
+		global $wpdb;
+		$refund_id = (int) $refund['refund_id'];
+		// A failed update leaves the marker empty: repair_stuck() sets it and schedules the job later.
+		$wpdb->update( "{$wpdb->prefix}wpcap_refunds", array( 'error_message' => self::OUTCOME_UNKNOWN, 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id, 'status' => 'processing', 'provider_reference' => '' ) );
+		Audit::record( 'refund_outcome_unknown', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => $error->get_error_code() ) );
+		self::schedule_reconcile( $refund_id, 0 );
+		return new \WP_Error(
+			'wpcap_refund_outcome_unknown',
+			__( 'Der Zahlungsanbieter hat nicht eindeutig geantwortet; die Erstattung ist eventuell schon ausgezahlt. Sie wird automatisch beim Anbieter abgeglichen und nicht erneut ausgezahlt. Bitte nicht noch einmal auslösen.', 'pass-captain' ),
+			array(
+				'status'    => 202,
+				'refund_id' => $refund_id,
+			)
+		);
+	}
+
+	/** Plans run $attempt of the job refund_reconcile (idempotent per refund and attempt). */
+	public static function schedule_reconcile( $refund_id, $attempt ) {
+		$attempt = max( 0, (int) $attempt );
+		$delay = self::RECONCILE_DELAYS[ min( $attempt, count( self::RECONCILE_DELAYS ) - 1 ) ];
+		return Jobs::enqueue( 'refund-reconcile|' . absint( $refund_id ) . '|' . $attempt, 'refund_reconcile', array( 'refund_id' => absint( $refund_id ), 'attempt' => $attempt ), gmdate( 'Y-m-d H:i:s', time() + $delay * MINUTE_IN_SECONDS ) );
+	}
+
+	/**
+	 * Job handler (wpcap_process_job) of refund_reconcile: asks the provider about a refund with an unknown
+	 * outcome. Still open (no answer, lookup failed, provider not sure yet): next run with a longer wait;
+	 * after RECONCILE_ATTEMPTS runs – or at once for an adapter without lookup – the admin is asked to
+	 * decide (operations page / order page).
+	 */
+	public static function handle_job( $handled, $type, $payload = array(), $job_id = 0 ) {
+		if ( 'refund_reconcile' !== $type ) { return $handled; }
+		$refund_id = absint( $payload['refund_id'] ?? 0 );
+		$attempt = absint( $payload['attempt'] ?? 0 );
+		$result = self::reconcile( $refund_id, 'job' );
+		if ( ! is_wp_error( $result ) && 'waiting' !== $result ) { return true; }
+		if ( is_wp_error( $result ) && 'wpcap_refund_missing' === $result->get_error_code() ) { return true; }
+		if ( ( is_wp_error( $result ) && 'wpcap_refund_lookup_unsupported' === $result->get_error_code() ) || $attempt + 1 >= self::RECONCILE_ATTEMPTS ) {
+			self::needs_manual_decision( $refund_id, $result );
+			return true;
+		}
+		$scheduled = self::schedule_reconcile( $refund_id, $attempt + 1 );
+		return is_wp_error( $scheduled ) ? $scheduled : true;
+	}
+
+	/** The reconciliation gave up: audit and admin mail (the refund stays visible as unresolved). */
+	private static function needs_manual_decision( $refund_id, $result ) {
+		$refund = self::get( $refund_id );
+		if ( ! $refund || 'processing' !== $refund['status'] || '' !== (string) $refund['provider_reference'] ) { return; }
+		$order = Orders::get( (int) $refund['order_id'] );
+		Audit::record( 'refund_reconcile_exhausted', 'order', (int) $refund['order_id'], array( 'refund_id' => (int) $refund_id, 'error' => is_wp_error( $result ) ? $result->get_error_code() : (string) $result ) );
+		$reference = $order ? Frontend\Format::order_reference( (string) $order->public_id ) : (string) $refund['order_id'];
+		wp_mail(
+			get_option( 'admin_email' ),
+			__( 'Pass Captain: Erstattung mit unklarem Ausgang', 'pass-captain' ),
+			/* translators: 1: refund id, 2: order reference, 3: amount, 4: payment provider */
+			sprintf( __( "Die Erstattung #%1\$d zu Bestellung %2\$s über %3\$s (%4\$s) konnte nicht automatisch mit dem Zahlungsanbieter abgeglichen werden. Sie wird nicht erneut ausgezahlt.\n\nBitte im Konto des Zahlungsanbieters prüfen und unter Pass Captain → Betrieb → „Erstattungen mit unklarem Ausgang“ oder in der Bestellung klären (erneut beim Anbieter prüfen oder manuell bestätigen).", 'pass-captain' ), (int) $refund_id, $reference, Money::format( (int) $refund['amount_minor'], (string) $refund['currency'] ), $order ? (string) $order->payment_provider : '' )
+		);
+	}
+
+	/**
+	 * Asks the provider about a refund whose payout is unclear (processing without provider reference)
+	 * and settles it: paid out (or pending at the provider) → booked like any refund, without a second
+	 * payout; failed, or conclusively unknown at the provider 10 minutes after the call → "failed"
+	 * (nothing was paid out, a new refund may be requested).
+	 *
+	 * @param int    $refund_id Refund.
+	 * @param string $source    job, admin, cli.
+	 * @return string|\WP_Error completed, failed, waiting (provider has nothing yet), nothing (no unclear
+	 *                          refund) or WP_Error (lookup failed or not possible).
+	 */
+	public static function reconcile( $refund_id, $source = 'job' ) {
+		global $wpdb;
+		$refund = self::get( $refund_id );
+		if ( ! $refund ) {
+			return '' !== $wpdb->last_error ? self::busy() : new \WP_Error( 'wpcap_refund_missing', __( 'Erstattung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
+		}
+		if ( 'processing' !== $refund['status'] || '' !== (string) $refund['provider_reference'] ) {
+			return 'nothing';
+		}
+		$order = Orders::get( (int) $refund['order_id'] );
+		if ( ! $order ) { return self::busy(); }
+		$gateway = Registry::get( $order->payment_provider ?: 'manual' );
+		if ( ! $gateway instanceof Payments\RefundLookupInterface ) {
+			return new \WP_Error( 'wpcap_refund_lookup_unsupported', __( 'Dieser Zahlungsanbieter unterstützt keinen automatischen Abgleich. Bitte im Konto des Anbieters prüfen und die Erstattung manuell bestätigen.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		$found = $gateway->find_refund( (array) $order, self::key_for( $refund_id ) );
+		if ( is_wp_error( $found ) ) {
+			Audit::record( 'refund_lookup_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => (int) $refund_id, 'error' => $found->get_error_code(), 'source' => sanitize_key( $source ) ) );
+			return $found;
+		}
+		if ( null === $found ) {
+			// The call may still be on its way: "not found" counts only 10 minutes after it.
+			if ( strtotime( $refund['updated_at'] . ' UTC' ) > time() - 10 * MINUTE_IN_SECONDS ) { return 'waiting'; }
+			$found = array(
+				'status'    => 'not_found',
+				'reference' => '',
+			);
+		}
+		return self::apply_state( $refund, $found, $source );
+	}
+
+	/**
+	 * Applies provider states of plugin refunds reported by a webhook (event field refund_states:
+	 * key, status, reference). Idempotent; only refunds of orders paid with $provider are touched.
+	 *
+	 * @return true|\WP_Error WP_Error on a database error (the provider redelivers).
+	 */
+	public static function apply_provider_states( $provider, array $states ) {
+		foreach ( $states as $state ) {
+			$refund_id = is_array( $state ) ? self::id_from_key( $state['key'] ?? '' ) : 0;
+			if ( ! $refund_id || ! in_array( $state['status'] ?? '', array( 'succeeded', 'pending', 'failed' ), true ) ) { continue; }
+			$refund = self::get( $refund_id );
+			if ( ! $refund ) { continue; }
+			$order = Orders::get( (int) $refund['order_id'] );
+			if ( ! $order || (string) $order->payment_provider !== (string) $provider ) { continue; }
+			$applied = self::apply_state( $refund, $state, 'webhook' );
+			if ( is_wp_error( $applied ) ) { return $applied; }
+		}
+		return true;
+	}
+
+	/**
+	 * Settles a refund with a provider state (succeeded, pending, failed, not_found).
+	 *
+	 * @return string|\WP_Error completed, failed, nothing or WP_Error.
+	 */
+	private static function apply_state( array $refund, array $state, $source ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$refund_id = (int) $refund['refund_id'];
+		$status = (string) ( $state['status'] ?? '' );
+		$reference = substr( sanitize_text_field( (string) ( $state['reference'] ?? '' ) ), 0, 191 );
+		$paid = in_array( $status, array( 'succeeded', 'pending' ), true ) && '' !== $reference;
+		if ( 'processing' === $refund['status'] && '' === (string) $refund['provider_reference'] ) {
+			if ( $paid ) {
+				$set = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_refunds SET provider_reference=%s,error_message='' WHERE refund_id=%d AND status='processing' AND provider_reference=''", $reference, $refund_id ) );
+				if ( false === $set ) { return self::busy(); }
+				Audit::record( 'refund_reconciled', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'result' => 'paid_out', 'provider_status' => $status, 'reference' => $reference, 'source' => sanitize_key( $source ) ) );
+				$row = self::get( $refund_id );
+				$done = $row ? self::finish_locally( $row, (string) $row['provider_reference'] ) : self::busy();
+				return is_wp_error( $done ) ? $done : 'completed';
+			}
+			if ( in_array( $status, array( 'failed', 'not_found' ), true ) ) {
+				$note = 'failed' === $status
+					? __( 'Abgleich: Der Zahlungsanbieter hat die Erstattung abgelehnt; es wurde nichts ausgezahlt.', 'pass-captain' )
+					: __( 'Abgleich: Beim Zahlungsanbieter gibt es diese Erstattung nicht; es wurde nichts ausgezahlt.', 'pass-captain' );
+				$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => substr( $note, 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing', 'provider_reference' => '' ) );
+				if ( false === $moved ) { return self::busy(); }
+				if ( 1 === $moved ) {
+					Audit::record( 'refund_reconciled', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'result' => 'not_paid_out', 'provider_status' => $status, 'source' => sanitize_key( $source ) ) );
+				}
+				return 'failed';
+			}
+			return 'nothing';
+		}
+		if ( 'failed' === $refund['status'] && $paid ) {
+			return self::paid_after_failure( $refund, $reference, $source );
+		}
+		return 'nothing';
+	}
+
+	/**
+	 * The provider paid out a refund recorded here as failed (e.g. confirmed as "not paid out" by hand).
+	 * It is booked after all if its tickets and amount are still open; otherwise money left twice and
+	 * the admin has to claim it back. Both cases are audited and mailed to the admin.
+	 */
+	private static function paid_after_failure( array $refund, $reference, $source ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$refund_id = (int) $refund['refund_id'];
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
+		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE refund_id=%d FOR UPDATE", $refund_id ), ARRAY_A );
+		$order = $locked ? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", (int) $locked['order_id'] ) ) : null;
+		if ( '' !== $wpdb->last_error ) { return self::busy(); }
+		if ( ! $locked || 'failed' !== $locked['status'] ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 'nothing';
+		}
+		$conflict = self::execution_conflict( $locked, $order );
+		if ( self::CONFLICT_UNKNOWN === $conflict ) { return self::busy(); }
+		$booked = '' === $conflict && 1 === StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'processing', array( 'provider_reference' => $reference, 'error_message' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'failed' ) );
+		if ( ! $booked || false === $wpdb->query( 'COMMIT' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			$booked = false;
+		}
+		$public = $order ? Frontend\Format::order_reference( (string) $order->public_id ) : (string) $refund['order_id'];
+		Audit::record( 'refund_paid_after_failure', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'reference' => $reference, 'booked' => $booked, 'source' => sanitize_key( $source ) ) );
+		wp_mail(
+			get_option( 'admin_email' ),
+			__( 'Pass Captain: Erstattung doch ausgezahlt', 'pass-captain' ),
+			$booked
+				/* translators: 1: refund id, 2: order reference, 3: provider reference */
+				? sprintf( __( 'Die Erstattung #%1$d zu Bestellung %2$s galt als fehlgeschlagen, wurde vom Zahlungsanbieter aber ausgezahlt (Referenz %3$s). Sie wird jetzt nachträglich verbucht.', 'pass-captain' ), $refund_id, $public, $reference )
+				/* translators: 1: refund id, 2: order reference, 3: provider reference */
+				: sprintf( __( 'Die Erstattung #%1$d zu Bestellung %2$s galt als fehlgeschlagen, wurde vom Zahlungsanbieter aber ausgezahlt (Referenz %3$s). Die Tickets bzw. der Betrag wurden inzwischen anders erstattet: Es wurde vermutlich doppelt ausgezahlt. Bitte beim Zahlungsanbieter prüfen und den Betrag zurückfordern.', 'pass-captain' ), $refund_id, $public, $reference )
+		);
+		if ( ! $booked ) { return 'nothing'; }
+		$row = self::get( $refund_id );
+		$done = $row ? self::finish_locally( $row, $reference ) : self::busy();
+		return is_wp_error( $done ) ? $done : 'completed';
+	}
+
+	/**
+	 * Manual decision about a refund with an unknown outcome (A350), after a check in the provider's
+	 * account: "paid" books it (provider reference optional), "not_paid" marks it failed. Needs the
+	 * approval capability and a note; audited.
+	 *
+	 * @param int    $refund_id Refund.
+	 * @param string $decision  paid or not_paid.
+	 * @param string $note      How the outcome was checked (required).
+	 * @param string $reference Provider refund id (optional, decision "paid").
+	 * @return array|\WP_Error Refund row.
+	 */
+	public static function resolve_manually( $refund_id, $decision, $note, $reference = '' ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( ! current_user_can( self::APPROVE_CAP ) ) {
+			return new \WP_Error( 'wpcap_refund_approver', __( 'Nur Personen mit Freigabeberechtigung dürfen den Ausgang einer Erstattung bestätigen.', 'pass-captain' ), array( 'status' => 403 ) );
+		}
+		$check = self::check_actor();
+		if ( is_wp_error( $check ) ) { return $check; }
+		$note = substr( trim( sanitize_text_field( (string) $note ) ), 0, 200 );
+		if ( '' === $note ) {
+			return new \WP_Error( 'wpcap_refund_note', __( 'Bitte angeben, wie der Ausgang geprüft wurde (z. B. „im Stripe-Dashboard gesehen“).', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		$refund = self::get( $refund_id );
+		if ( ! $refund || 'processing' !== $refund['status'] || '' !== (string) $refund['provider_reference'] ) {
+			return new \WP_Error( 'wpcap_refund_not_unresolved', __( 'Der Ausgang dieser Erstattung ist nicht offen.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		$refund_id = (int) $refund['refund_id'];
+		if ( 'paid' === $decision ) {
+			$reference = substr( sanitize_text_field( (string) $reference ), 0, 150 );
+			$stored = '' !== $reference ? $reference : 'manual-confirmed-' . $refund_id;
+			$set = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_refunds SET provider_reference=%s,error_message='' WHERE refund_id=%d AND status='processing' AND provider_reference=''", $stored, $refund_id ) );
+			if ( false === $set ) { return self::busy(); }
+			if ( 1 !== (int) $set ) {
+				return new \WP_Error( 'wpcap_refund_not_unresolved', __( 'Der Ausgang dieser Erstattung ist nicht offen.', 'pass-captain' ), array( 'status' => 409 ) );
+			}
+			Audit::record( 'refund_resolved_manually', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'decision' => 'paid', 'reference' => $stored, 'note' => $note ) );
+			$row = self::get( $refund_id );
+			return $row ? self::finish_locally( $row, $stored ) : self::busy();
+		}
+		if ( 'not_paid' !== $decision ) {
+			return new \WP_Error( 'wpcap_refund_decision', __( 'Unbekannte Entscheidung.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		/* translators: %s: note of the person who checked the outcome */
+		$message = sprintf( __( 'Manuell geklärt: nicht ausgezahlt (%s)', 'pass-captain' ), $note );
+		$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => substr( $message, 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing', 'provider_reference' => '' ) );
+		if ( false === $moved ) { return self::busy(); }
+		if ( 1 !== $moved ) {
+			return new \WP_Error( 'wpcap_refund_not_unresolved', __( 'Der Ausgang dieser Erstattung ist nicht offen.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		Audit::record( 'refund_resolved_manually', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'decision' => 'not_paid', 'note' => $note ) );
+		return self::get( $refund_id );
+	}
+
+	/** Whether a refund row waits for its outcome to be cleared up (processing without provider reference). */
+	public static function is_unresolved( array $refund ) {
+		if ( 'processing' !== ( $refund['status'] ?? '' ) || '' !== (string) ( $refund['provider_reference'] ?? '' ) ) { return false; }
+		return in_array( (string) ( $refund['error_message'] ?? '' ), array( self::OUTCOME_UNKNOWN, 'needs_manual_check' ), true )
+			|| strtotime( (string) ( $refund['updated_at'] ?? '' ) . ' UTC' ) < time() - 10 * MINUTE_IN_SECONDS;
+	}
+
+	/**
+	 * Refunds whose outcome is unclear (operations page): processing without provider reference, marked
+	 * "unknown" or older than 10 minutes. Oldest first, with order number and provider.
+	 *
+	 * @return array[]
+	 */
+	public static function unresolved( $limit = 100 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id AS order_public_id,o.payment_provider,o.customer_email FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='processing' AND r.provider_reference='' AND (r.error_message IN (%s,'needs_manual_check') OR r.updated_at < %s) ORDER BY r.refund_id LIMIT %d", self::OUTCOME_UNKNOWN, gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS ), max( 1, (int) $limit ) ), ARRAY_A );
 	}
 
 	/** Returns a refund row as array or null. */

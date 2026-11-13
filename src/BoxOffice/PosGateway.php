@@ -42,7 +42,8 @@ final class PosGateway implements GatewayInterface {
 	public function refund( array $order, $amount_minor, $idempotency_key ) {
 		if ( preg_match( '/^wpcap-refund-(\d+)$/', (string) $idempotency_key, $m ) ) {
 			$booked = Shifts::book_refund( (int) $m[1], true );
-			if ( is_wp_error( $booked ) ) { return $booked; }
+			// A local check (e.g. no open shift): nothing was paid out, a clear failure (A272).
+			if ( is_wp_error( $booked ) ) { return \PassCaptain\Refunds::definitive( $booked ); }
 		}
 		return substr( $this->id . ':' . preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $idempotency_key ), 0, 191 );
 	}

@@ -106,7 +106,7 @@ Prüfen, ob der externe Cronjob greift: Unter **Werkzeuge → Website-Zustand** 
 | Endgültig gescheitert | Nach 8 Läufen (`Jobs::MAX_ATTEMPTS`) Status `dead_letter`: Audit `job_dead_letter`, Hook `wpcap_job_dead_letter`, Liste unter **Betrieb** (erneut versuchen/verwerfen) und Warnung im Website-Zustand. Ein Dead Letter läuft nie von selbst wieder. |
 | Worker stirbt während eines Jobs (Fatal Error, Zeitlimit) | Die Zuteilung wird beim Beenden des PHP-Prozesses zurückgegeben – mit Backoff und dem Vermerk „Worker … beendet“ –, nicht sofort erneut gestartet. |
 | Worker wird hart beendet (kill, Server-Neustart) | Nach 15 Minuten holt der nächste Lauf die Zuteilung zurück (Backoff, Vermerk „zurückgeholt“). Ein Job, dessen letzter erlaubter Lauf so endete, wird beim nächsten Lauf zum Dead Letter statt endlos neu zu starten. |
-| Worker stirbt nach der Wirkung, vor „erledigt“ | Der Job läuft erneut: Ausführung ist **mindestens einmal**. Die eingebauten Jobs sind idempotent: `ticket_mail_retry` erkennt eine seit dem Einplanen erfolgreich versendete Ticket-Mail (Audit `tickets_resent`) und sendet nicht noch einmal (die versendeten Codes bleiben gültig); `ticket_issue_retry`, `order_cancel_retry`, `order_refund_mark_retry`, `voucher_commit` und `wallet_sync` prüfen den aktuellen Zustand. Eigene Handler (Hook `wpcap_process_job`) müssen ebenso idempotent sein; `$job_id` hilft, eine Wiederholung zu erkennen. Geht nur die Datenbankverbindung beim Abschluss verloren, wird der Abschluss einmal auf der neuen Verbindung wiederholt. |
+| Worker stirbt nach der Wirkung, vor „erledigt“ | Der Job läuft erneut: Ausführung ist **mindestens einmal**. Die eingebauten Jobs sind idempotent: `ticket_mail_retry` erkennt eine seit dem Einplanen erfolgreich versendete Ticket-Mail (Audit `tickets_resent`) und sendet nicht noch einmal (die versendeten Codes bleiben gültig); `ticket_issue_retry`, `order_cancel_retry`, `order_refund_mark_retry`, `refund_reconcile`, `voucher_commit` und `wallet_sync` prüfen den aktuellen Zustand. Eigene Handler (Hook `wpcap_process_job`) müssen ebenso idempotent sein; `$job_id` hilft, eine Wiederholung zu erkennen. Geht nur die Datenbankverbindung beim Abschluss verloren, wird der Abschluss einmal auf der neuen Verbindung wiederholt. |
 | E-Mail-Warteschlange | Ebenfalls mindestens einmal: stirbt der Worker zwischen `wp_mail()` und dem Vermerk „gesendet“, wird die Mail erneut versendet (inhaltsgleich). |
 | Webhook-Zustellungen | Mindestens einmal; Empfänger erkennen Wiederholungen an `X-WPCAP-Event-Id` bzw. `X-WPCAP-Delivery` (siehe [WEBHOOKS.md](WEBHOOKS.md)). |
 
@@ -263,6 +263,16 @@ Aktionen je Zeile oder als Mehrfachaktion (ausgewählte oder alle fehlgeschlagen
 - **Verwerfen**: Status `cancelled` (endgültig; wird mit den normalen Aufbewahrungsfristen entfernt).
 
 Beide Aktionen sind nonce-geschützt und landen im Audit-Log (`operations_retry`, `operations_discard`, Objekttyp `queue_jobs`/`queue_messages`/`queue_webhooks`, Details: Warteschlange, Anzahl, IDs).
+
+### Erstattungen mit unklarem Ausgang (A350)
+
+Die Seite **Betrieb** listet Erstattungen, deren Anbieter-Aufruf ohne eindeutige Antwort endete
+(Zeitüberschreitung, Verbindungs- oder Serverfehler, 409) oder abbrach. Sie werden automatisch beim
+Zahlungsanbieter abgeglichen (Job `refund_reconcile`, Webhooks) und nie ein zweites Mal ausgezahlt.
+Je Zeile: **Beim Anbieter prüfen** (sofortiger Abgleich) und **Manuell bestätigen** (ausgezahlt /
+nicht ausgezahlt, Begründung Pflicht, Recht `wpcap_approve_refunds`). Dieselben Aktionen stehen in der
+Erstattungstabelle der Bestellung. Alles wird im Audit-Log protokolliert. Ablauf und Zustände:
+[STATE-MACHINES.md](STATE-MACHINES.md#erstattung-mit-unklarem-ausgang-a272-a350).
 
 ### Datenkonsistenz: Diagnose und Reparatur (A204)
 

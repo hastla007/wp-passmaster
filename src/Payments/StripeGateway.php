@@ -12,7 +12,7 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-final class StripeGateway implements GatewayInterface {
+final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 	const API = 'https://api.stripe.com/v1/';
 
 	/** Maximum age (and clock skew) of a webhook signature in seconds. */
@@ -114,29 +114,85 @@ final class StripeGateway implements GatewayInterface {
 	public function refund( array $order, $amount_minor, $idempotency_key ) {
 		$reference = (string) ( $order['provider_reference'] ?? '' );
 		$currency = strtoupper( (string) ( $order['currency'] ?? '' ) );
+		$params = $this->payment_params( $reference );
+		// Nothing was sent to Stripe yet: a failure here is a clear "not refunded".
+		if ( is_wp_error( $params ) ) { return \PassCaptain\Refunds::definitive( $params ); }
+		$amount = self::to_stripe_amount( (int) $amount_minor, $currency );
+		$params['amount'] = $amount;
+		// Marks refunds made by the plugin so their charge.refunded webhook is not treated as a dashboard
+		// refund, and lets Refunds find the refund again after an unclear answer (find_refund()).
+		$params['metadata'] = array( 'wpcap_order' => (string) ( $order['public_id'] ?? '' ), 'wpcap_refund' => (string) $idempotency_key );
+		// Transport errors, timeouts, 5xx and 409 come back marked as "outcome unknown" (api()).
+		$refund = $this->api( 'POST', 'refunds', $params, (string) $idempotency_key );
+		if ( is_wp_error( $refund ) ) { return $refund; }
+		if ( empty( $refund['id'] ) ) {
+			return new \WP_Error( 'wpcap_stripe_response', __( 'Unerwartete Antwort von Stripe.', 'pass-captain' ), array( 'outcome' => 'unknown' ) );
+		}
+		if ( in_array( $refund['status'] ?? '', array( 'failed', 'canceled' ), true ) ) {
+			return new \WP_Error( 'wpcap_stripe_refund_failed', __( 'Stripe hat die Erstattung abgelehnt.', 'pass-captain' ) );
+		}
+		$state = self::refund_state( $refund, $currency );
+		return 'pending' === $state['status'] ? $state : (string) $refund['id'];
+	}
+
+	/** Looks up a plugin refund by its id or its metadata wpcap_refund (see RefundLookupInterface). */
+	public function find_refund( array $order, $key, $reference = '' ) {
+		$currency = strtoupper( (string) ( $order['currency'] ?? '' ) );
+		if ( 0 === strpos( (string) $reference, 're_' ) || 0 === strpos( (string) $reference, 'pyr_' ) ) {
+			$refund = $this->api( 'GET', 'refunds/' . rawurlencode( (string) $reference ) );
+			if ( is_wp_error( $refund ) ) { return $refund; }
+			return self::refund_state( $refund, $currency );
+		}
+		$params = $this->payment_params( (string) ( $order['provider_reference'] ?? '' ) );
+		if ( is_wp_error( $params ) ) { return $params; }
+		$found = null;
+		$after = '';
+		for ( $page = 0; $page < 10; $page++ ) {
+			$query = array_merge( $params, array( 'limit' => 100 ) );
+			if ( '' !== $after ) { $query['starting_after'] = $after; }
+			$list = $this->api( 'GET', 'refunds?' . http_build_query( $query ) );
+			if ( is_wp_error( $list ) ) { return $list; }
+			$data = is_array( $list['data'] ?? null ) ? $list['data'] : array();
+			foreach ( $data as $refund ) {
+				if ( ! is_array( $refund ) || (string) ( $refund['metadata']['wpcap_refund'] ?? '' ) !== (string) $key ) { continue; }
+				$state = self::refund_state( $refund, $currency );
+				$found = \PassCaptain\Refunds::better_state( $found, $state );
+			}
+			$last = end( $data );
+			if ( empty( $list['has_more'] ) || ! is_array( $last ) || empty( $last['id'] ) ) { return $found; }
+			$after = (string) $last['id'];
+		}
+		return new \WP_Error( 'wpcap_stripe_refund_list', __( 'Die Erstattungen der Stripe-Zahlung konnten nicht vollständig gelesen werden.', 'pass-captain' ) );
+	}
+
+	/** Refund parameters naming the order's payment (payment_intent or charge); a session is resolved. */
+	private function payment_params( $reference ) {
 		if ( 0 === strpos( $reference, 'cs_' ) ) {
 			$session = $this->api( 'GET', 'checkout/sessions/' . rawurlencode( $reference ) );
 			if ( is_wp_error( $session ) ) { return $session; }
 			$reference = self::id_of( $session['payment_intent'] ?? '' );
 		}
-		$params = array();
 		if ( 0 === strpos( $reference, 'pi_' ) ) {
-			$params['payment_intent'] = $reference;
-		} elseif ( 0 === strpos( $reference, 'ch_' ) || 0 === strpos( $reference, 'py_' ) ) {
-			$params['charge'] = $reference;
+			return array( 'payment_intent' => $reference );
+		}
+		if ( 0 === strpos( $reference, 'ch_' ) || 0 === strpos( $reference, 'py_' ) ) {
+			return array( 'charge' => $reference );
+		}
+		return new \WP_Error( 'wpcap_stripe_refund_reference', __( 'Für diese Bestellung ist keine Stripe-Zahlung bekannt.', 'pass-captain' ) );
+	}
+
+	/** Normalized state of a Stripe refund object. */
+	private static function refund_state( array $refund, $currency = '' ) {
+		$status = (string) ( $refund['status'] ?? '' );
+		if ( in_array( $status, array( 'failed', 'canceled' ), true ) ) {
+			$status = 'failed';
+		} elseif ( in_array( $status, array( 'pending', 'requires_action' ), true ) ) {
+			$status = 'pending';
 		} else {
-			return new \WP_Error( 'wpcap_stripe_refund_reference', __( 'Für diese Bestellung ist keine Stripe-Zahlung bekannt.', 'pass-captain' ) );
+			$status = 'succeeded';
 		}
-		$amount = self::to_stripe_amount( (int) $amount_minor, $currency );
-		$params['amount'] = $amount;
-		// Marks refunds made by the plugin so their charge.refunded webhook is not treated as a dashboard refund.
-		$params['metadata'] = array( 'wpcap_order' => (string) ( $order['public_id'] ?? '' ), 'wpcap_refund' => (string) $idempotency_key );
-		$refund = $this->api( 'POST', 'refunds', $params, (string) $idempotency_key );
-		if ( is_wp_error( $refund ) ) { return $refund; }
-		if ( empty( $refund['id'] ) || in_array( $refund['status'] ?? '', array( 'failed', 'canceled' ), true ) ) {
-			return new \WP_Error( 'wpcap_stripe_refund_failed', __( 'Stripe hat die Erstattung abgelehnt.', 'pass-captain' ) );
-		}
-		return (string) $refund['id'];
+		$currency = '' !== $currency ? $currency : strtoupper( (string) ( $refund['currency'] ?? '' ) );
+		return array( 'status' => $status, 'reference' => (string) ( $refund['id'] ?? '' ), 'amount_minor' => self::from_stripe_amount( (int) ( $refund['amount'] ?? 0 ), $currency ) );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -200,6 +256,18 @@ final class StripeGateway implements GatewayInterface {
 			case 'charge.refunded':
 				return $this->normalize_refund( $base, $object );
 
+			case 'charge.refund.updated':
+			case 'refund.created':
+			case 'refund.updated':
+			case 'refund.failed':
+				// A single refund changed. Only the plugin's own refunds matter here (A272, A348): their state
+				// settles a refund with an unknown outcome or a pending one. External refunds are booked
+				// through charge.refunded.
+				if ( ! empty( $object['metadata']['wpcap_refund'] ) ) {
+					$base['refund_states'] = array( array_merge( self::refund_state( $object ), array( 'key' => (string) $object['metadata']['wpcap_refund'] ) ) );
+				}
+				return $base;
+
 			case 'charge.dispute.funds_withdrawn':
 				return $this->normalize_dispute( $base, $object );
 		}
@@ -225,7 +293,13 @@ final class StripeGateway implements GatewayInterface {
 		if ( is_wp_error( $refunds ) ) { return self::retry_error( $refunds ); }
 		$external = 0;
 		foreach ( $refunds as $refund ) {
-			if ( ! is_array( $refund ) || ! empty( $refund['metadata']['wpcap_refund'] ) || in_array( (string) ( $refund['status'] ?? '' ), array( 'failed', 'canceled' ), true ) ) { continue; }
+			if ( ! is_array( $refund ) ) { continue; }
+			if ( ! empty( $refund['metadata']['wpcap_refund'] ) ) {
+				// The plugin's own refund: its state settles an unknown or pending outcome (A272, A348).
+				$base['refund_states'][] = array_merge( self::refund_state( $refund, $base['currency'] ), array( 'key' => (string) $refund['metadata']['wpcap_refund'] ) );
+				continue;
+			}
+			if ( in_array( (string) ( $refund['status'] ?? '' ), array( 'failed', 'canceled' ), true ) ) { continue; }
 			$external += max( 0, (int) ( $refund['amount'] ?? 0 ) );
 		}
 		if ( $external <= 0 ) { return $base; }
@@ -307,15 +381,18 @@ final class StripeGateway implements GatewayInterface {
 		}
 		$response = \PassCaptain\OutboundHttp::request( self::API . $path, $args, array( 'context' => 'stripe', 'hosts' => array( 'api.stripe.com' ) ) );
 		if ( is_wp_error( $response ) ) {
+			// A POST that timed out or lost its connection may have been executed (A272).
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_stripe_http', sprintf( __( 'Stripe ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Redact::text( $response->get_error_message() ) ) );
+			return new \WP_Error( 'wpcap_stripe_http', sprintf( __( 'Stripe ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Redact::text( $response->get_error_message() ) ), 'POST' === $method ? array( 'outcome' => 'unknown' ) : array() );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		if ( $code < 200 || $code >= 300 || ! is_array( $body ) ) {
 			$message = is_array( $body ) && ! empty( $body['error']['message'] ) ? (string) $body['error']['message'] : 'HTTP ' . $code;
+			$data = array( 'status' => $code );
+			if ( 'POST' === $method ) { $data['outcome'] = \PassCaptain\Refunds::outcome_for_status( $code ); }
 			/* translators: %s: error message from Stripe */
-			return new \WP_Error( 'wpcap_stripe_api', sprintf( __( 'Stripe-Fehler: %s', 'pass-captain' ), \PassCaptain\Redact::text( $message ) ), array( 'status' => $code ) );
+			return new \WP_Error( 'wpcap_stripe_api', sprintf( __( 'Stripe-Fehler: %s', 'pass-captain' ), \PassCaptain\Redact::text( $message ) ), $data );
 		}
 		return $body;
 	}

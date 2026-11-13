@@ -118,6 +118,7 @@ final class OperationsPage {
 		Forms::render_notices();
 		echo '<p class="description">' . esc_html__( 'Zustand der Hintergrundverarbeitung: Hier siehst du Rückstände und endgültig fehlgeschlagene Einträge und kannst sie erneut versuchen oder verwerfen. Inhalte werden nicht angezeigt, nur die Namen der enthaltenen Felder.', 'pass-captain' ) . '</p>';
 		self::render_health();
+		self::render_unresolved_refunds();
 		self::render_doctor();
 		$labels = Queues::labels();
 		foreach ( Queues::available() as $queue => $def ) {
@@ -140,6 +141,32 @@ final class OperationsPage {
 			echo '<tr><td style="width:9em"><strong style="color:' . esc_attr( $color ) . '">' . esc_html( $names[ $result['status'] ] ?? $result['status'] ) . '</strong></td><td><strong>' . esc_html( $result['label'] ) . '</strong>' . wp_kses_post( $result['description'] ) . '</td></tr>';
 		}
 		echo '</tbody></table><p><a href="' . esc_url( admin_url( 'site-health.php' ) ) . '">' . esc_html__( 'Alle Prüfungen im Website-Zustand ansehen', 'pass-captain' ) . '</a></p>';
+	}
+
+	/**
+	 * Section "Erstattungen mit unklarem Ausgang" (A350): refunds whose provider call ended without a clear
+	 * answer (or crashed). They are reconciled automatically (job refund_reconcile) and never paid out a
+	 * second time; here they can be checked at the provider or confirmed by hand (audited).
+	 */
+	public static function render_unresolved_refunds() {
+		$rows = \PassCaptain\Refunds::unresolved( self::PER_QUEUE );
+		echo '<h2 id="wpcap-refunds-unresolved">' . esc_html__( 'Erstattungen mit unklarem Ausgang', 'pass-captain' ) . '</h2>';
+		if ( ! $rows ) {
+			echo '<p>' . esc_html__( 'Keine Erstattungen mit unklarem Ausgang.', 'pass-captain' ) . '</p>';
+			return;
+		}
+		echo '<p class="description">' . esc_html__( 'Der Zahlungsanbieter hat bei diesen Erstattungen nicht eindeutig geantwortet (Zeitüberschreitung, Verbindungs- oder Serverfehler). Sie werden automatisch beim Anbieter abgeglichen und nie ein zweites Mal ausgezahlt. Bleibt der Abgleich ohne Ergebnis, bitte im Konto des Anbieters prüfen und hier bestätigen.', 'pass-captain' ) . '</p>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Erstattung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Bestellung', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Betrag', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Zahlungsanbieter', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Seit', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktionen', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			echo '<tr><td>#' . esc_html( (string) $row['refund_id'] ) . '<br><small><code>' . esc_html( \PassCaptain\Refunds::key_for( (int) $row['refund_id'] ) ) . '</code></small></td>';
+			echo '<td><a href="' . esc_url( OrdersPage::order_url( (int) $row['order_id'] ) ) . '">' . esc_html( \PassCaptain\Frontend\Format::order_reference( (string) $row['order_public_id'] ) ) . '</a></td>';
+			echo '<td>' . esc_html( Forms::money( (int) $row['amount_minor'], (string) $row['currency'] ) ) . '</td>';
+			echo '<td>' . esc_html( (string) $row['payment_provider'] ) . '</td>';
+			echo '<td>' . esc_html( Forms::datetime( (string) $row['updated_at'], wp_timezone_string(), false ) ) . '</td><td>';
+			OrdersPage::render_refund_resolution( $row, 'operations' );
+			echo '</td></tr>';
+		}
+		echo '</tbody></table>';
 	}
 
 	/**

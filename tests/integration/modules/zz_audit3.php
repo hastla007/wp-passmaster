@@ -498,7 +498,7 @@ $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_refunds (order_id,currency,
 $a40_stuck = (int) $wpdb->insert_id;
 PassCaptain\Refunds::repair_stuck();
 $a40_s = PassCaptain\Refunds::get( $a40_stuck );
-check( 'A040: a refund stuck without provider reference is flagged for a manual check, never paid twice', 'processing' === $a40_s['status'] && 'needs_manual_check' === $a40_s['error_message'] );
+check( 'A040: a refund stuck without provider reference is flagged (outcome unknown, reconciled at the provider, A272), never paid twice', 'processing' === $a40_s['status'] && PassCaptain\Refunds::OUTCOME_UNKNOWN === $a40_s['error_message'] );
 
 echo "Audit 3: queue workers run nothing without a durable claim (A041)\n";
 $a41_runs = 0;

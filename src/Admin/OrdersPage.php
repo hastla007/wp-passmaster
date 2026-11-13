@@ -160,9 +160,56 @@ final class OrdersPage {
 		return array( 'order_id' => (int) $refund['order_id'], 'refund' => $result );
 	}
 
+	/**
+	 * Clears up a refund whose outcome at the provider is unknown (A350): "lookup" asks the provider
+	 * (Refunds::reconcile()), "paid"/"not_paid" record a manual decision after a check in the provider's
+	 * account (approval capability, note required). Every action is audited.
+	 *
+	 * @return array|\WP_Error ['order_id', 'do', 'result' (string or refund row)].
+	 */
+	public static function resolve_refund( array $in ) {
+		$refund = Refunds::get( Forms::int( $in, 'refund_id' ) );
+		if ( ! $refund ) { return Forms::error( 'wpcap_refund_missing', __( 'Erstattung nicht gefunden.', 'pass-captain' ), 404 ); }
+		$admin = current_user_can( OperationsPage::CAP );
+		if ( ! $admin && ! Queries::can_access_order( $refund['order_id'], self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für diese Bestellung.', 'pass-captain' ) ); }
+		if ( ! $admin && ! self::can_request_refunds() ) { return Forms::forbidden( __( 'Keine Berechtigung für Erstattungen.', 'pass-captain' ) ); }
+		$do = Forms::choice( $in, 'do', array( 'lookup', 'paid', 'not_paid' ), '' );
+		if ( '' === $do ) { return Forms::error( 'wpcap_refund_decision', __( 'Bitte eine Aktion wählen.', 'pass-captain' ) ); }
+		if ( 'lookup' === $do ) {
+			$result = Refunds::reconcile( (int) $refund['refund_id'], 'admin' );
+			\PassCaptain\Audit::record( 'refund_lookup_requested', 'order', (int) $refund['order_id'], array( 'refund_id' => (int) $refund['refund_id'], 'result' => is_wp_error( $result ) ? $result->get_error_code() : (string) $result ) );
+		} else {
+			$result = Refunds::resolve_manually( (int) $refund['refund_id'], $do, Forms::text( $in, 'note', 200 ), Forms::text( $in, 'reference', 150 ) );
+		}
+		if ( is_wp_error( $result ) ) { return $result; }
+		return array( 'order_id' => (int) $refund['order_id'], 'do' => $do, 'result' => $result );
+	}
+
+	/** Success message of resolve_refund(). */
+	private static function resolve_message( array $result ) {
+		if ( 'lookup' !== $result['do'] ) {
+			return 'paid' === $result['do'] ? __( 'Als ausgezahlt bestätigt; die Erstattung wurde verbucht.', 'pass-captain' ) : __( 'Als nicht ausgezahlt bestätigt; die Erstattung ist fehlgeschlagen und kann neu angefordert werden.', 'pass-captain' );
+		}
+		$messages = array(
+			'completed' => __( 'Der Zahlungsanbieter hat die Erstattung ausgezahlt; sie wurde verbucht.', 'pass-captain' ),
+			'failed'    => __( 'Beim Zahlungsanbieter wurde nichts ausgezahlt; die Erstattung ist fehlgeschlagen und kann neu angefordert werden.', 'pass-captain' ),
+			'waiting'   => __( 'Der Zahlungsanbieter kennt die Erstattung noch nicht. Bitte in einigen Minuten erneut prüfen.', 'pass-captain' ),
+		);
+		return $messages[ (string) $result['result'] ] ?? __( 'Der Ausgang dieser Erstattung ist bereits geklärt.', 'pass-captain' );
+	}
+
 	/* =============================================================================================
 	 * admin-post wrappers
 	 * =========================================================================================== */
+
+	public static function handle_resolve_refund() {
+		$in = Forms::post();
+		Forms::verify( 'wpcap_resolve_refund_' . Forms::int( $in, 'refund_id' ) );
+		$result = self::resolve_refund( $in );
+		$order_id = is_wp_error( $result ) ? Forms::int( $in, 'order_id' ) : $result['order_id'];
+		$url = 'operations' === ( $in['return'] ?? '' ) ? Forms::page_url( OperationsPage::SLUG ) . '#wpcap-refunds-unresolved' : self::order_url( $order_id );
+		Forms::finish( $result, is_wp_error( $result ) ? '' : self::resolve_message( $result ), $url );
+	}
 
 	public static function order_url( $order_id ) {
 		return Forms::page_url( self::SLUG, array( 'order_id' => absint( $order_id ) ) );
@@ -559,6 +606,34 @@ final class OrdersPage {
 	}
 
 	/**
+	 * Controls for a refund with an unknown outcome (A350): provider lookup and – with the approval
+	 * capability – manual confirmation "paid out" / "not paid out" with a required note.
+	 *
+	 * @param array  $refund Refund row.
+	 * @param string $return Redirect target after the action: '' (order page) or 'operations'.
+	 */
+	public static function render_refund_resolution( array $refund, $return = '' ) {
+		$id = (int) $refund['refund_id'];
+		Forms::open_form( 'wpcap_resolve_refund', 'wpcap_resolve_refund_' . $id, 'style="display:inline"' );
+		Forms::hidden( 'refund_id', $id );
+		Forms::hidden( 'order_id', (int) $refund['order_id'] );
+		Forms::hidden( 'do', 'lookup' );
+		if ( 'operations' === $return ) { Forms::hidden( 'return', 'operations' ); }
+		echo '<button class="button button-small" type="submit">' . esc_html__( 'Beim Anbieter prüfen', 'pass-captain' ) . '</button></form>';
+		if ( ! current_user_can( Refunds::APPROVE_CAP ) ) { return; }
+		$note_id = 'wpcap-resolve-note-' . $id . ( 'operations' === $return ? '-ops' : '' );
+		echo '<details style="margin-top:.4em"><summary>' . esc_html__( 'Manuell bestätigen', 'pass-captain' ) . '</summary>';
+		Forms::open_form( 'wpcap_resolve_refund', 'wpcap_resolve_refund_' . $id );
+		Forms::hidden( 'refund_id', $id );
+		Forms::hidden( 'order_id', (int) $refund['order_id'] );
+		if ( 'operations' === $return ) { Forms::hidden( 'return', 'operations' ); }
+		echo '<p><label for="' . esc_attr( $note_id ) . '">' . esc_html__( 'Wie wurde der Ausgang geprüft?', 'pass-captain' ) . '</label><br><input type="text" id="' . esc_attr( $note_id ) . '" name="note" required maxlength="200" class="regular-text"></p>';
+		echo '<p><label for="' . esc_attr( $note_id . '-ref' ) . '">' . esc_html__( 'Erstattungs-ID beim Anbieter (falls ausgezahlt)', 'pass-captain' ) . '</label><br><input type="text" id="' . esc_attr( $note_id . '-ref' ) . '" name="reference" maxlength="150"></p>';
+		echo '<p><button class="button" type="submit" name="do" value="paid" onclick="return window.confirm(\'' . esc_js( __( 'Bestätigen, dass der Zahlungsanbieter diese Erstattung ausgezahlt hat? Sie wird dann verbucht (Tickets, Gutschrift).', 'pass-captain' ) ) . '\')">' . esc_html__( 'Ausgezahlt', 'pass-captain' ) . '</button> ';
+		echo '<button class="button" type="submit" name="do" value="not_paid" onclick="return window.confirm(\'' . esc_js( __( 'Bestätigen, dass beim Zahlungsanbieter nichts ausgezahlt wurde? Die Erstattung gilt dann als fehlgeschlagen und kann neu angefordert werden.', 'pass-captain' ) ) . '\')">' . esc_html__( 'Nicht ausgezahlt', 'pass-captain' ) . '</button></p></form></details>';
+	}
+
+	/**
 	 * Refund table with approve/reject controls for pending refunds.
 	 *
 	 * @param array[] $refunds  Refund rows (arrays; may contain order_public_id/event_names).
@@ -595,9 +670,12 @@ final class OrdersPage {
 					<td><?php echo esc_html( Forms::money( $refund['amount_minor'], $refund['currency'] ?: $currency ) ); ?><br><small><?php echo esc_html( sprintf( /* translators: %s: tax amount */ __( 'davon Steuer %s', 'pass-captain' ), Forms::money( $refund['tax_minor'], $refund['currency'] ?: $currency ) ) ); ?></small></td>
 					<td><?php echo esc_html( (string) $ticket_count ); ?></td>
 					<td><?php echo esc_html( $refund['reason'] ); ?></td>
-					<td><?php echo esc_html( Forms::status_label( $refund['status'] ) ); ?><?php if ( '' !== (string) $refund['error_message'] ) : ?><br><small><?php echo esc_html( $refund['error_message'] ); ?></small><?php endif; ?><?php if ( '' !== (string) $refund['provider_reference'] ) : ?><br><small><?php echo esc_html( $refund['provider_reference'] ); ?></small><?php endif; ?></td>
+					<td><?php echo esc_html( Refunds::is_unresolved( $refund ) ? __( 'Ausgang unklar', 'pass-captain' ) : Forms::status_label( $refund['status'] ) ); ?><?php if ( Refunds::is_unresolved( $refund ) ) : ?><br><small><?php esc_html_e( 'Der Zahlungsanbieter hat nicht eindeutig geantwortet. Die Erstattung wird automatisch abgeglichen und nicht erneut ausgezahlt.', 'pass-captain' ); ?></small><?php elseif ( '' !== (string) $refund['error_message'] ) : ?><br><small><?php echo esc_html( $refund['error_message'] ); ?></small><?php endif; ?><?php if ( '' !== (string) $refund['provider_reference'] ) : ?><br><small><?php echo esc_html( $refund['provider_reference'] ); ?></small><?php endif; ?></td>
 					<td><?php echo esc_html( ( 'portal' === (string) ( $refund['source'] ?? '' ) ? __( 'Käufer:in (Stornierungsanfrage im Bestellportal)', 'pass-captain' ) : Forms::user_label( $refund['requested_by'] ) ) . ' / ' . Forms::user_label( $refund['approved_by'] ) ); ?></td>
 					<td>
+						<?php if ( Refunds::is_unresolved( $refund ) ) : ?>
+							<?php self::render_refund_resolution( $refund ); ?>
+						<?php endif; ?>
 						<?php if ( 'pending_approval' === $refund['status'] ) : ?>
 							<?php if ( ! $can_approve ) : ?>
 								<?php esc_html_e( 'Wartet auf Freigabe', 'pass-captain' ); ?>

@@ -14,7 +14,7 @@ use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-final class PayPalGateway implements GatewayInterface {
+final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 	const SANDBOX = 'https://api-m.sandbox.paypal.com';
 	const LIVE = 'https://api-m.paypal.com';
 
@@ -178,20 +178,75 @@ final class PayPalGateway implements GatewayInterface {
 	public function refund( array $order, $amount_minor, $idempotency_key ) {
 		$currency = strtoupper( (string) ( $order['currency'] ?? '' ) );
 		$capture_id = self::capture_id_for( (string) ( $order['provider_reference'] ?? '' ) );
-		if ( is_wp_error( $capture_id ) ) { return $capture_id; }
+		// Nothing was sent to PayPal yet: a failure here is a clear "not refunded".
+		if ( is_wp_error( $capture_id ) ) { return \PassCaptain\Refunds::definitive( $capture_id ); }
 		$value = self::format_amount( (int) $amount_minor, $currency );
-		if ( is_wp_error( $value ) ) { return $value; }
+		if ( is_wp_error( $value ) ) { return \PassCaptain\Refunds::definitive( $value ); }
 		$body = array(
 			'amount' => array( 'value' => $value, 'currency_code' => $currency ),
-			// Marks plugin refunds so their PAYMENT.CAPTURE.REFUNDED webhook is not booked a second time.
-			'custom_id' => substr( self::REFUND_PREFIX . (string) ( $order['public_id'] ?? '' ), 0, 127 ),
+			// Marks plugin refunds ("wpcap-refund-{id}") so their PAYMENT.CAPTURE.REFUNDED webhook is not booked
+			// a second time, and lets Refunds find the refund again after an unclear answer (find_refund()).
+			'custom_id' => substr( (string) $idempotency_key, 0, 127 ),
 		);
+		// Transport errors, timeouts, 5xx and 409 come back marked as "outcome unknown" (api()).
 		$result = self::api( 'POST', '/v2/payments/captures/' . rawurlencode( $capture_id ) . '/refund', $body, (string) $idempotency_key );
 		if ( is_wp_error( $result ) ) { return $result; }
-		if ( empty( $result['id'] ) || in_array( $result['status'] ?? '', array( 'CANCELLED', 'FAILED' ), true ) ) {
+		if ( empty( $result['id'] ) ) {
+			return new \WP_Error( 'wpcap_paypal_response', __( 'Unerwartete Antwort von PayPal.', 'pass-captain' ), array( 'outcome' => 'unknown' ) );
+		}
+		if ( in_array( $result['status'] ?? '', array( 'CANCELLED', 'FAILED' ), true ) ) {
 			return new \WP_Error( 'wpcap_paypal_refund_failed', __( 'PayPal hat die Erstattung abgelehnt.', 'pass-captain' ) );
 		}
-		return (string) $result['id'];
+		$state = self::refund_state( $result, $currency );
+		return 'pending' === $state['status'] ? $state : (string) $result['id'];
+	}
+
+	/**
+	 * Looks up a plugin refund (see RefundLookupInterface): by its id, else among the refunds of the
+	 * PayPal order (custom_id = refund key). "Not found" is only conclusive while the capture shows no
+	 * refund at all (status COMPLETED); otherwise the answer stays open for a manual check.
+	 */
+	public function find_refund( array $order, $key, $reference = '' ) {
+		$currency = strtoupper( (string) ( $order['currency'] ?? '' ) );
+		if ( '' !== (string) $reference ) {
+			$refund = self::api( 'GET', '/v2/payments/refunds/' . rawurlencode( (string) $reference ) );
+			return is_wp_error( $refund ) ? $refund : self::refund_state( $refund, $currency );
+		}
+		$capture_id = self::capture_id_for( (string) ( $order['provider_reference'] ?? '' ) );
+		if ( is_wp_error( $capture_id ) ) { return $capture_id; }
+		$capture = self::api( 'GET', '/v2/payments/captures/' . rawurlencode( $capture_id ) );
+		if ( is_wp_error( $capture ) ) { return $capture; }
+		$paypal_order = '';
+		foreach ( (array) ( $capture['links'] ?? array() ) as $link ) {
+			if ( 'up' === ( $link['rel'] ?? '' ) && preg_match( '#/v2/checkout/orders/([A-Za-z0-9\-]+)#', (string) ( $link['href'] ?? '' ), $m ) ) { $paypal_order = $m[1]; }
+		}
+		$found = null;
+		if ( '' !== $paypal_order ) {
+			$details = self::api( 'GET', '/v2/checkout/orders/' . rawurlencode( $paypal_order ) );
+			if ( is_wp_error( $details ) ) { return $details; }
+			foreach ( (array) ( $details['purchase_units'][0]['payments']['refunds'] ?? array() ) as $refund ) {
+				if ( ! is_array( $refund ) || (string) ( $refund['custom_id'] ?? '' ) !== (string) $key ) { continue; }
+				$found = \PassCaptain\Refunds::better_state( $found, self::refund_state( $refund, $currency ) );
+			}
+		}
+		if ( $found || 'COMPLETED' === (string) ( $capture['status'] ?? '' ) ) {
+			return $found;
+		}
+		return new \WP_Error( 'wpcap_paypal_refund_lookup', __( 'PayPal hat Erstattungen zu dieser Zahlung, aber keine lässt sich dieser Erstattung sicher zuordnen. Bitte im PayPal-Konto prüfen.', 'pass-captain' ) );
+	}
+
+	/** Normalized state of a PayPal refund (PENDING = pending, CANCELLED/FAILED = failed). */
+	private static function refund_state( array $refund, $currency ) {
+		$status = strtoupper( (string) ( $refund['status'] ?? '' ) );
+		if ( in_array( $status, array( 'CANCELLED', 'FAILED' ), true ) ) {
+			$status = 'failed';
+		} elseif ( 'PENDING' === $status ) {
+			$status = 'pending';
+		} else {
+			$status = 'succeeded';
+		}
+		$value = (string) ( $refund['amount']['value'] ?? '' );
+		return array( 'status' => $status, 'reference' => (string) ( $refund['id'] ?? '' ), 'amount_minor' => '' !== $value ? self::parse_amount( $value, $currency ) : 0 );
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -301,7 +356,12 @@ final class PayPalGateway implements GatewayInterface {
 	 */
 	private static function normalize_refund( array $base, array $refund ) {
 		$custom_id = (string) ( $refund['custom_id'] ?? '' );
-		if ( 0 === strpos( $custom_id, self::REFUND_PREFIX ) ) { return $base; }
+		if ( 0 === strpos( $custom_id, self::REFUND_PREFIX ) ) {
+			// The plugin's own refund: never booked here; its state settles an unclear or pending refund.
+			$currency = strtoupper( (string) ( $refund['amount']['currency_code'] ?? '' ) );
+			$base['refund_states'] = array( array_merge( self::refund_state( $refund, $currency ), array( 'key' => $custom_id ) ) );
+			return $base;
+		}
 		$currency = strtoupper( (string) ( $refund['amount']['currency_code'] ?? '' ) );
 		$base['type'] = 'refunded';
 		$base['provider_reference'] = (string) ( $refund['id'] ?? '' );
@@ -394,8 +454,9 @@ final class PayPalGateway implements GatewayInterface {
 		}
 		$response = \PassCaptain\OutboundHttp::request( self::base() . $path, $args, self::http_policy() );
 		if ( is_wp_error( $response ) ) {
+			// A POST that timed out or lost its connection may have been executed (A272).
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Redact::text( $response->get_error_message() ) ) );
+			return new \WP_Error( 'wpcap_paypal_http', sprintf( __( 'PayPal ist nicht erreichbar: %s', 'pass-captain' ), \PassCaptain\Redact::text( $response->get_error_message() ) ), 'POST' === $method ? array( 'outcome' => 'unknown' ) : array() );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		if ( 401 === $code && $retry ) {
@@ -407,8 +468,10 @@ final class PayPalGateway implements GatewayInterface {
 			$decoded = is_array( $decoded ) ? $decoded : array();
 			$issue = (string) ( $decoded['details'][0]['issue'] ?? '' );
 			$message = (string) ( $decoded['details'][0]['description'] ?? ( $decoded['message'] ?? 'HTTP ' . $code ) );
+			$data = array( 'status' => $code, 'issue' => $issue );
+			if ( 'POST' === $method ) { $data['outcome'] = \PassCaptain\Refunds::outcome_for_status( $code ); }
 			/* translators: %s: error message from PayPal */
-			return new \WP_Error( 'wpcap_paypal_api', sprintf( __( 'PayPal-Fehler: %s', 'pass-captain' ), \PassCaptain\Redact::text( trim( $issue . ' ' . $message ) ) ), array( 'status' => $code, 'issue' => $issue ) );
+			return new \WP_Error( 'wpcap_paypal_api', sprintf( __( 'PayPal-Fehler: %s', 'pass-captain' ), \PassCaptain\Redact::text( trim( $issue . ' ' . $message ) ) ), $data );
 		}
 		return $decoded;
 	}

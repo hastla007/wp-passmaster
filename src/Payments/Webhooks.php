@@ -47,6 +47,13 @@ final class Webhooks {
 		if ( '' === $event_id ) {
 			return new \WP_Error( 'wpcap_webhook_event_id', 'Missing event id.' );
 		}
+		if ( ! empty( $event['refund_states'] ) && is_array( $event['refund_states'] ) ) {
+			// States of the plugin's own refunds (A272, A348): settle refunds with an unknown outcome or pending
+			// at the provider. Idempotent, so also applied for a repeated event (Mollie posts the same payment
+			// id for every refund change); a database error makes the provider redeliver.
+			$applied = Refunds::apply_provider_states( $provider, $event['refund_states'] );
+			if ( is_wp_error( $applied ) ) { return $applied; }
+		}
 		$now = current_time( 'mysql', true );
 		// A claim left in "processing" by a crashed request may be taken over after 10 minutes.
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_payment_events WHERE provider=%s AND provider_event_id=%s AND status='processing' AND updated_at < %s", $provider, $event_id, gmdate( 'Y-m-d H:i:s', time() - 10 * MINUTE_IN_SECONDS ) ) );

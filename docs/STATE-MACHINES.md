@@ -95,8 +95,37 @@ Anbieter-Ereignis wird in `wpcap_payment_events` genau einmal angewendet:
 | `pending_approval` → `approved`/`rejected` | Zweite berechtigte Person (Vier-Augen-Prinzip). |
 | `approved`/`failed` → `processing` | `Refunds::execute()` direkt vor dem Anbieter-Aufruf. |
 | `approved`/`failed` → `failed` | Erneute Prüfung unter Sperre schlägt fehl, zum Beispiel weil die Tickets schon erstattet sind. |
-| `processing` → `failed` | Der Anbieter lehnt ab; es wurde nichts ausgezahlt. Ein Neuversuch ist möglich. |
-| `processing` → `completed` | Lokale Buchung nach der Auszahlung. Hängt sie, schließt Cron `repair_stuck()` sie ab, ohne ein zweites Mal auszuzahlen. |
+| `processing` → `failed` | Der Anbieter lehnt eindeutig ab (zum Beispiel 4xx); es wurde nichts ausgezahlt. Ein Neuversuch ist möglich. |
+| `processing` (Ausgang unklar) | Zeitüberschreitung, Verbindungsfehler, 5xx oder 409 beim Anbieter-Aufruf (A272): Die Erstattung bleibt `processing` ohne `provider_reference` (`error_message` = `outcome_unknown`), wird **nie** als `failed` gewertet und nie erneut ausgezahlt. Abgleich über das Anbieter-Merkmal `wpcap_refund` (siehe unten). |
+| `processing` → `completed` | Lokale Buchung nach der Auszahlung. Hängt sie, schließt Cron `repair_stuck()` sie ab, ohne ein zweites Mal auszuzahlen. Ebenso nach einem Abgleich, der die Auszahlung beim Anbieter findet, oder einer manuellen Bestätigung „ausgezahlt“. |
+| `processing` → `failed` (Abgleich) | Der Anbieter meldet die Erstattung als fehlgeschlagen, kennt sie 10 Minuten nach dem Aufruf nicht, oder eine berechtigte Person bestätigt „nicht ausgezahlt“. |
+| `failed` → `processing` → `completed` | Der Anbieter meldet eine als fehlgeschlagen geführte Erstattung doch als ausgezahlt: Sie wird nachgebucht, wenn Tickets und Betrag noch offen sind; sonst nur Admin-Mail (vermutlich doppelt ausgezahlt). |
+
+### Erstattung mit unklarem Ausgang (A272, A350)
+
+Jede Erstattung des Plugins trägt beim Anbieter ihren Schlüssel `wpcap-refund-{refund_id}` (Stripe und
+Mollie: Metadatum `wpcap_refund`, PayPal: `custom_id`; zugleich Idempotenz-Schlüssel). Endet der
+Aufruf ohne eindeutige Antwort, wird die Erstattung so abgeglichen:
+
+- **Webhook:** Stripe (`charge.refunded`, `charge.refund.updated`, `refund.created`/`updated`/`failed`),
+  PayPal (`PAYMENT.CAPTURE.REFUNDED` der eigenen Erstattung) und Mollie (Zahlungsabruf mit
+  `_embedded.refunds`) melden den Zustand der eigenen Erstattungen (Feld `refund_states` des
+  normalisierten Ereignisses). Ausgezahlt oder beim Anbieter ausstehend → verbucht; fehlgeschlagen →
+  `failed`.
+- **Job `refund_reconcile`:** sucht die Erstattung beim Anbieter (`RefundLookupInterface::find_refund()`)
+  nach 2, 10, 30 Minuten, 1, 3, 6, 12 und 24 Stunden. „Nicht vorhanden“ zählt erst 10 Minuten nach dem
+  Aufruf; bei PayPal nur, solange die Zahlung gar keine Erstattung hat (sonst manuelle Prüfung). Ohne
+  Ergebnis nach dem letzten Lauf (oder sofort bei Anbietern ohne Abfrage) Audit
+  `refund_reconcile_exhausted` und Admin-Mail.
+- **Hängengebliebene Aufrufe** (Absturz während des Anbieter-Aufrufs) markiert Cron `repair_stuck()`
+  nach 10 Minuten ebenso als `outcome_unknown` und plant den Abgleich.
+- **Sichtbar und auflösbar:** Betrieb → „Erstattungen mit unklarem Ausgang“ und die Erstattungstabelle
+  der Bestellung („Ausgang unklar“) bieten „Beim Anbieter prüfen“ (Audit `refund_lookup_requested`)
+  und – nur mit `wpcap_approve_refunds` und Begründung – „Manuell bestätigen: ausgezahlt / nicht
+  ausgezahlt“ (Audit `refund_resolved_manually`, optional mit Erstattungs-ID des Anbieters).
+
+Solange der Ausgang offen ist, bleiben Tickets und Betrag an die Erstattung gebunden: Eine neue
+Erstattung derselben Tickets wird abgelehnt (`wpcap_refund_overlap`), ein Betrag nur bis zum Rest.
 
 `completed` und `rejected` sind **Endzustände**. Gutschriften (Credit Notes) entstehen nur für
 `completed`.

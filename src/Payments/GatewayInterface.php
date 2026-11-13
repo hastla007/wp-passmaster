@@ -36,7 +36,9 @@ interface GatewayInterface {
 	 *                         optional 'related_references'=>string[], 'chargeback'=>bool (a "refunded" event caused by a
 	 *                         chargeback/dispute), 'cumulative'=>bool (amount_minor is the provider's running total of
 	 *                         external refunds for provider_reference; only the unbooked rest is booked), 'redeliver'=>bool (answer 503 after applying it, so the provider
-	 *                         delivers again and a follow-up change in the same provider state is applied)]. 'payment_pending': the buyer chose a delayed method, the hold is extended (A577). How each type is applied in each order state: docs/STATE-MACHINES.md.
+	 *                         delivers again and a follow-up change in the same provider state is applied), 'refund_states'=>array[]
+	 *                         (states of the plugin's own refunds: 'key' = refund key, 'status' = succeeded|pending|failed,
+	 *                         'reference'; applied by Refunds::apply_provider_states(), A272)]. 'payment_pending': the buyer chose a delayed method, the hold is extended (A577). How each type is applied in each order state: docs/STATE-MACHINES.md.
 	 */
 	public function verify_webhook( \WP_REST_Request $request );
 
@@ -44,9 +46,15 @@ interface GatewayInterface {
 	public function supports_refunds();
 
 	/**
-	 * Request a refund at the provider.
+	 * Request a refund at the provider. $idempotency_key is the refund key ("wpcap-refund-{id}"); adapters
+	 * should store it at the provider so the refund can be found again (RefundLookupInterface).
 	 *
-	 * @return string|\WP_Error Provider refund reference.
+	 * @return string|array|\WP_Error Provider refund reference, or ['reference' => string, 'status' => 'pending']
+	 *                                for a refund the provider has accepted but not completed yet. A WP_Error
+	 *                                whose data has 'outcome' => 'unknown' (or, without that key, status 409/5xx
+	 *                                or code http_request_failed) means the refund may have been executed: it is
+	 *                                reconciled, never retried as failed (A272). 'outcome' => 'definitive' means
+	 *                                nothing was paid out.
 	 */
 	public function refund( array $order, $amount_minor, $idempotency_key );
 }
