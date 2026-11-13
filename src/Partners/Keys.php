@@ -26,13 +26,13 @@ final class Keys {
 
 	public static function scope_labels() {
 		return array(
-			'events:read' => __( 'Events, Termine und Ticketarten lesen', 'wp-pass-captain' ),
-			'orders:read' => __( 'Bestellungen lesen (ohne E-Mail-Adressen)', 'wp-pass-captain' ),
-			'tickets:read' => __( 'Tickets lesen (ohne E-Mail-Adressen)', 'wp-pass-captain' ),
-			'checkins:read' => __( 'Check-ins lesen', 'wp-pass-captain' ),
-			'reports:read' => __( 'Berichte (Umsatz, Auslastung) lesen', 'wp-pass-captain' ),
-			'settlements:read' => __( 'Abgeschlossene Abrechnungen lesen', 'wp-pass-captain' ),
-			'attendees:read' => __( 'Personenbezogene Daten: E-Mail-Adressen von Käufer:innen und Teilnehmenden', 'wp-pass-captain' ),
+			'events:read' => __( 'Events, Termine und Ticketarten lesen', 'pass-captain' ),
+			'orders:read' => __( 'Bestellungen lesen (ohne E-Mail-Adressen)', 'pass-captain' ),
+			'tickets:read' => __( 'Tickets lesen (ohne E-Mail-Adressen)', 'pass-captain' ),
+			'checkins:read' => __( 'Check-ins lesen', 'pass-captain' ),
+			'reports:read' => __( 'Berichte (Umsatz, Auslastung) lesen', 'pass-captain' ),
+			'settlements:read' => __( 'Abgeschlossene Abrechnungen lesen', 'pass-captain' ),
+			'attendees:read' => __( 'Personenbezogene Daten: E-Mail-Adressen von Käufer:innen und Teilnehmenden', 'pass-captain' ),
 		);
 	}
 
@@ -46,18 +46,18 @@ final class Keys {
 	public static function issue( $partner_id, array $scopes, array $args = array() ) {
 		global $wpdb;
 		$partner = Repository::get( $partner_id );
-		if ( ! $partner ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $partner ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$scopes = array_values( array_intersect( self::SCOPES, array_map( 'strval', $scopes ) ) );
-		if ( ! $scopes ) { return new \WP_Error( 'wpcap_partner_key_scopes', __( 'Mindestens ein unterstützter Scope ist erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! $scopes ) { return new \WP_Error( 'wpcap_partner_key_scopes', __( 'Mindestens ein unterstützter Scope ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$events = array_values( array_unique( array_filter( array_map( 'absint', (array) ( $args['event_ids'] ?? array() ) ) ) ) );
 		if ( array_diff( $events, Repository::event_ids( $partner->partner_id ) ) ) {
-			return new \WP_Error( 'wpcap_partner_key_events', __( 'Ein Key kann nur auf Events dieses Veranstalters beschränkt werden.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_partner_key_events', __( 'Ein Key kann nur auf Events dieses Veranstalters beschränkt werden.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$allow = self::parse_allowlist( $args['ip_allowlist'] ?? '' );
 		if ( is_wp_error( $allow ) ) { return $allow; }
 		$expires = (string) ( $args['expires_at'] ?? '' );
 		if ( '' !== $expires && ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $expires ) || $expires <= current_time( 'mysql', true ) ) ) {
-			return new \WP_Error( 'wpcap_partner_key_expiry', __( 'Das Ablaufdatum muss in der Zukunft liegen.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_partner_key_expiry', __( 'Das Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$prefix = bin2hex( random_bytes( 6 ) );
 		$secret = bin2hex( random_bytes( 32 ) );
@@ -74,7 +74,7 @@ final class Keys {
 			'created_by' => get_current_user_id(),
 			'created_at' => current_time( 'mysql', true ),
 		) );
-		if ( false === $saved ) { return new \WP_Error( 'wpcap_partner_key_save', __( 'API-Key konnte nicht angelegt werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( false === $saved ) { return new \WP_Error( 'wpcap_partner_key_save', __( 'API-Key konnte nicht angelegt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		$key_id = (int) $wpdb->insert_id;
 		Audit::record( 'partner_key_created', 'partner_key', $key_id, array( 'partner_id' => (int) $partner->partner_id, 'scopes' => $scopes, 'event_ids' => $events, 'ip_allowlist' => (bool) $allow, 'expires_at' => $expires ) );
 		return array( 'key_id' => $key_id, 'key' => self::TOKEN_PREFIX . $prefix . '_' . $secret, 'prefix' => $prefix, 'scopes' => $scopes, 'shown_once' => true );
@@ -94,7 +94,7 @@ final class Keys {
 	public static function revoke( $key_id ) {
 		global $wpdb;
 		$key = self::get( $key_id );
-		if ( ! $key ) { return new \WP_Error( 'wpcap_partner_key_missing', __( 'API-Key nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $key ) { return new \WP_Error( 'wpcap_partner_key_missing', __( 'API-Key nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $key->revoked_at ) { return array( 'key_id' => (int) $key->key_id, 'already_revoked' => true ); }
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_partner_keys SET revoked_at=%s, revoked_by=%d WHERE key_id=%d AND revoked_at IS NULL", current_time( 'mysql', true ), get_current_user_id(), (int) $key->key_id ) );
 		Audit::record( 'partner_key_revoked', 'partner_key', (int) $key->key_id, array( 'partner_id' => (int) $key->partner_id ) );
@@ -132,7 +132,7 @@ final class Keys {
 			$max = false === $bin ? 0 : strlen( $bin ) * 8;
 			if ( false === $bin || ( isset( $parts[1] ) && ( ! ctype_digit( $parts[1] ) || (int) $parts[1] > $max ) ) ) {
 				/* translators: %s: entry */
-				return new \WP_Error( 'wpcap_partner_key_ip', sprintf( __( 'Ungültiger IP-Eintrag: %s', 'wp-pass-captain' ), $entry ), array( 'status' => 400 ) );
+				return new \WP_Error( 'wpcap_partner_key_ip', sprintf( __( 'Ungültiger IP-Eintrag: %s', 'pass-captain' ), $entry ), array( 'status' => 400 ) );
 			}
 			$out[] = inet_ntop( $bin ) . ( isset( $parts[1] ) ? '/' . (int) $parts[1] : '' );
 		}
@@ -189,7 +189,7 @@ final class Keys {
 		$ip = self::client_ip();
 		$route = is_object( $request ) && method_exists( $request, 'get_route' ) ? (string) $request->get_route() : '';
 		if ( get_transient( self::lock_key( $ip ) ) ) {
-			return new \WP_Error( 'wpcap_partner_locked', __( 'Zu viele fehlgeschlagene Anmeldungen. Bitte später erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+			return new \WP_Error( 'wpcap_partner_locked', __( 'Zu viele fehlgeschlagene Anmeldungen. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
 		$header = (string) $request->get_header( 'authorization' );
 		if ( ! preg_match( '/^Bearer\s+' . self::TOKEN_PREFIX . '([a-f0-9]{12})_([a-f0-9]{64})$/', trim( $header ), $m ) ) {
@@ -213,7 +213,7 @@ final class Keys {
 				set_transient( $flag, 1, MINUTE_IN_SECONDS );
 				self::audit_failure( 'rate_limited', $key, $ip, $route );
 			}
-			return new \WP_Error( 'wpcap_partner_rate_limited', __( 'Ratenlimit überschritten. Bitte später erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+			return new \WP_Error( 'wpcap_partner_rate_limited', __( 'Ratenlimit überschritten. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
 		$scopes = self::scopes( $key );
 		if ( null !== $scope && ! in_array( $scope, $scopes, true ) ) {
@@ -233,8 +233,8 @@ final class Keys {
 		}
 		self::audit_failure( $reason, $key, $ip, $route, $extra );
 		$messages = array(
-			401 => __( 'Ungültiger, abgelaufener oder widerrufener API-Key.', 'wp-pass-captain' ),
-			403 => __( 'Dieser API-Key ist für diese Anfrage nicht berechtigt.', 'wp-pass-captain' ),
+			401 => __( 'Ungültiger, abgelaufener oder widerrufener API-Key.', 'pass-captain' ),
+			403 => __( 'Dieser API-Key ist für diese Anfrage nicht berechtigt.', 'pass-captain' ),
 		);
 		return new \WP_Error( 401 === $status ? 'wpcap_partner_unauthorized' : 'wpcap_partner_forbidden', $messages[ $status ], array( 'status' => $status, 'reason' => $reason ) );
 	}

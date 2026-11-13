@@ -1,6 +1,6 @@
 'use strict';
 /*
- * axe-core scan of the public pages and the main admin screens of WP Pass Captain.
+ * axe-core scan of the public pages and the main admin screens of Pass Captain.
  *
  *   WPCAP_A11Y_WP_PATH=/path/to/wp node run.js [--fail-on=critical|serious|moderate|minor|none] [--only=public|admin]
  *

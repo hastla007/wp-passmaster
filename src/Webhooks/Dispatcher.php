@@ -103,16 +103,16 @@ final class Dispatcher {
 		$url = esc_url_raw( trim( (string) $url ) );
 		$events = array_values( array_intersect( self::EVENTS, $events ) );
 		if ( ! self::valid_url( $url ) ) {
-			return new \WP_Error( 'wpcap_webhook_url', __( 'Bitte eine öffentlich erreichbare HTTPS-URL angeben.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_webhook_url', __( 'Bitte eine öffentlich erreichbare HTTPS-URL angeben.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		if ( ! $events ) {
-			return new \WP_Error( 'wpcap_webhook_events', __( 'Bitte mindestens ein Ereignis auswählen.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_webhook_events', __( 'Bitte mindestens ein Ereignis auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$secret = self::generate_secret();
 		$now = current_time( 'mysql', true );
 		$wpdb->insert( self::t( 'subscriptions' ), array( 'url' => $url, 'description' => mb_substr( sanitize_text_field( $description ), 0, 190 ), 'events' => implode( ',', $events ), 'secret' => $secret, 'include_pii' => $include_pii ? 1 : 0, 'status' => 'active', 'consecutive_failures' => 0, 'created_at' => $now, 'updated_at' => $now ) );
 		$id = (int) $wpdb->insert_id;
-		if ( ! $id ) { return new \WP_Error( 'wpcap_webhook_save', __( 'Der Webhook konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( ! $id ) { return new \WP_Error( 'wpcap_webhook_save', __( 'Der Webhook konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( 'webhook_subscription_created', 'webhook', $id, array( 'events' => $events, 'include_pii' => (bool) $include_pii ) );
 		return array( 'subscription_id' => $id, 'secret' => $secret );
 	}
@@ -265,7 +265,7 @@ final class Dispatcher {
 			Audit::record( 'webhook_subscription_auto_disabled', 'webhook', (int) $sub->subscription_id, array( 'consecutive_failures' => $failures ) );
 			if ( function_exists( 'get_option' ) && is_email( get_option( 'admin_email' ) ) ) {
 				/* translators: 1: webhook id, 2: failure count */
-				wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Webhook deaktiviert', 'wp-pass-captain' ), sprintf( __( 'Der Webhook #%1$d wurde nach %2$d fehlgeschlagenen Zustellversuchen in Folge deaktiviert. Ausstehende Zustellungen werden nach der Reaktivierung fortgesetzt.', 'wp-pass-captain' ), (int) $sub->subscription_id, $failures ) );
+				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Webhook deaktiviert', 'pass-captain' ), sprintf( __( 'Der Webhook #%1$d wurde nach %2$d fehlgeschlagenen Zustellversuchen in Folge deaktiviert. Ausstehende Zustellungen werden nach der Reaktivierung fortgesetzt.', 'pass-captain' ), (int) $sub->subscription_id, $failures ) );
 			}
 		}
 		$wpdb->update( self::t( 'subscriptions' ), $update, array( 'subscription_id' => (int) $sub->subscription_id ) );
@@ -280,11 +280,11 @@ final class Dispatcher {
 		$d = self::t( 'deliveries' );
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $d WHERE delivery_id=%d AND status<>'delivering'", absint( $delivery_id ) ) );
 		$sub = $row ? self::subscription( $row->subscription_id ) : null;
-		if ( ! $row || ! $sub ) { return new \WP_Error( 'wpcap_webhook_redeliver', __( 'Zustellung nicht gefunden oder gerade in Bearbeitung.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $row || ! $sub ) { return new \WP_Error( 'wpcap_webhook_redeliver', __( 'Zustellung nicht gefunden oder gerade in Bearbeitung.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$payload = $row->payload;
 		$data = json_decode( (string) $payload, true );
 		if ( ! is_array( $data ) || ! isset( $data['data']['object'] ) ) {
-			return new \WP_Error( 'wpcap_webhook_redeliver_purged', __( 'Der Inhalt dieser Zustellung ist nicht mehr vorhanden.', 'wp-pass-captain' ), array( 'status' => 410 ) );
+			return new \WP_Error( 'wpcap_webhook_redeliver_purged', __( 'Der Inhalt dieser Zustellung ist nicht mehr vorhanden.', 'pass-captain' ), array( 'status' => 410 ) );
 		}
 		list( $payload ) = self::strip_pii( $payload );
 		if ( (int) $sub->include_pii ) {

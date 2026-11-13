@@ -1,4 +1,4 @@
-/* WP Pass Captain – graphical seat-map editor (no build step, no dependencies). */
+/* Pass Captain – graphical seat-map editor (no build step, no dependencies). */
 (function () {
 	'use strict';
 	const root = document.getElementById('wpcap-seat-editor');

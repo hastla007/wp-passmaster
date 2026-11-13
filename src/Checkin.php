@@ -69,22 +69,22 @@ final class Checkin {
 	 */
 	public static function lookup( $code, $at = null, $strict = true ) {
 		$code = self::normalize_code( $code );
-		if ( '' === $code ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
+		if ( '' === $code ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$row = $wpdb->get_row( $wpdb->prepare(
 			"SELECT t.ticket_id,t.public_id,t.status,t.ticket_type_id,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
 			hash( 'sha256', $code )
 		) );
-		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
+		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
 		$found = array( 'ticket_id' => (int) $row->ticket_id, 'public_id' => $row->public_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'ends_at' => $row->ends_at, 'timezone' => $row->timezone, 'attendee_name' => (string) $row->attendee_name );
 		if ( ! $strict ) { return $found; }
 		$internal = array( 'event_id' => (int) $row->event_id, 'ticket_id' => (int) $row->ticket_id, 'occurrence_id' => (int) $row->occurrence_id );
-		if ( 'cancelled' === $row->occurrence_status || 'cancelled' === $row->event_status ) { return new \WP_Error( 'wpcap_ticket_cancelled_event', __( 'Dieser Termin wurde abgesagt; das Ticket berechtigt nicht zum Einlass.', 'wp-pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'cancelled_event' ), $internal ) ); }
+		if ( 'cancelled' === $row->occurrence_status || 'cancelled' === $row->event_status ) { return new \WP_Error( 'wpcap_ticket_cancelled_event', __( 'Dieser Termin wurde abgesagt; das Ticket berechtigt nicht zum Einlass.', 'pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'cancelled_event' ), $internal ) ); }
 		$at = null === $at ? self::now() : (int) $at;
 		$start = strtotime( $row->starts_at . ' UTC' );
 		$last = Policies::last_valid_ts( (int) $row->ticket_type_id, $found );
-		if ( $last < $at - DAY_IN_SECONDS || $start > $at + 365 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_ticket_out_of_window', __( 'Das Ticket liegt außerhalb des Einlasszeitraums.', 'wp-pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'out_of_window' ), $internal ) ); }
+		if ( $last < $at - DAY_IN_SECONDS || $start > $at + 365 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_ticket_out_of_window', __( 'Das Ticket liegt außerhalb des Einlasszeitraums.', 'pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'out_of_window' ), $internal ) ); }
 		return $found;
 	}
 
@@ -262,7 +262,7 @@ final class Checkin {
 	private static function abort() {
 		global $wpdb;
 		$wpdb->query( 'ROLLBACK' );
-		return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen.', 'wp-pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 	}
 
 	private static function key_hash( array $context ) {
@@ -326,16 +326,16 @@ final class Checkin {
 	private static function deny( array $found, array $context, $direction = 'in' ) {
 		$internal = array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'] );
 		if ( ! Access::can_access_event( $found['event_id'], 'wpcap_checkin' ) ) {
-			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ), array_merge( $internal, array( 'status' => 403, 'result' => 'forbidden' ) ) );
+			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array_merge( $internal, array( 'status' => 403, 'result' => 'forbidden' ) ) );
 		}
 		if ( isset( $context['event_ids'] ) && is_array( $context['event_ids'] ) && $context['event_ids'] && ! in_array( (int) $found['event_id'], array_map( 'intval', $context['event_ids'] ), true ) ) {
-			return new \WP_Error( 'wpcap_device_event', __( 'Dieses Gerät ist für ein anderes Event freigegeben.', 'wp-pass-captain' ), array_merge( $internal, array( 'status' => 403, 'result' => 'wrong_event' ) ) );
+			return new \WP_Error( 'wpcap_device_event', __( 'Dieses Gerät ist für ein anderes Event freigegeben.', 'pass-captain' ), array_merge( $internal, array( 'status' => 403, 'result' => 'wrong_event' ) ) );
 		}
 		if ( ! empty( $context['occurrence_id'] ) && (int) $context['occurrence_id'] !== (int) $found['occurrence_id'] ) {
-			return new \WP_Error( 'wpcap_wrong_occurrence', __( 'Das Ticket gilt für einen anderen Termin.', 'wp-pass-captain' ), array_merge( $internal, array( 'status' => 409, 'result' => 'wrong_occurrence' ) ) );
+			return new \WP_Error( 'wpcap_wrong_occurrence', __( 'Das Ticket gilt für einen anderen Termin.', 'pass-captain' ), array_merge( $internal, array( 'status' => 409, 'result' => 'wrong_occurrence' ) ) );
 		}
 		if ( Areas::check( $found, absint( $context['area_id'] ?? 0 ), $direction ) ) {
-			return new \WP_Error( 'wpcap_wrong_area', __( 'Das Ticket gilt nicht für diesen Einlassbereich (oder du bist hier nicht eingeteilt).', 'wp-pass-captain' ), array_merge( $internal, array( 'status' => 409, 'result' => 'wrong_area', 'event' => $found['event_name'], 'ticket' => $found['ticket_name'] ) ) );
+			return new \WP_Error( 'wpcap_wrong_area', __( 'Das Ticket gilt nicht für diesen Einlassbereich (oder du bist hier nicht eingeteilt).', 'pass-captain' ), array_merge( $internal, array( 'status' => 409, 'result' => 'wrong_area', 'event' => $found['event_name'], 'ticket' => $found['ticket_name'] ) ) );
 		}
 		return null;
 	}
@@ -343,14 +343,14 @@ final class Checkin {
 	/** Stable error per result code. */
 	private static function result_error( $result, array $found, $checkin_id = 0 ) {
 		$messages = array(
-			'already_checked_in' => __( 'Ticket wurde bereits verwendet.', 'wp-pass-captain' ),
-			'revoked' => __( 'Ticket ist widerrufen.', 'wp-pass-captain' ),
-			'not_valid_today' => __( 'Ticket ist heute nicht gültig.', 'wp-pass-captain' ),
-			'daily_limit_reached' => __( 'Das Tageskontingent für dieses Ticket ist erreicht.', 'wp-pass-captain' ),
-			'entry_limit_reached' => __( 'Die maximale Anzahl an Einlässen für dieses Ticket ist erreicht.', 'wp-pass-captain' ),
-			'outside_entry_window' => __( 'Einlass mit diesem Ticket ist zu dieser Uhrzeit nicht möglich.', 'wp-pass-captain' ),
-			'already_inside' => __( 'Ticket ist bereits eingecheckt; für einen Wiedereinlass zuerst auschecken.', 'wp-pass-captain' ),
-			'not_checked_in' => __( 'Das Ticket ist nicht eingecheckt.', 'wp-pass-captain' ),
+			'already_checked_in' => __( 'Ticket wurde bereits verwendet.', 'pass-captain' ),
+			'revoked' => __( 'Ticket ist widerrufen.', 'pass-captain' ),
+			'not_valid_today' => __( 'Ticket ist heute nicht gültig.', 'pass-captain' ),
+			'daily_limit_reached' => __( 'Das Tageskontingent für dieses Ticket ist erreicht.', 'pass-captain' ),
+			'entry_limit_reached' => __( 'Die maximale Anzahl an Einlässen für dieses Ticket ist erreicht.', 'pass-captain' ),
+			'outside_entry_window' => __( 'Einlass mit diesem Ticket ist zu dieser Uhrzeit nicht möglich.', 'pass-captain' ),
+			'already_inside' => __( 'Ticket ist bereits eingecheckt; für einen Wiedereinlass zuerst auschecken.', 'pass-captain' ),
+			'not_checked_in' => __( 'Das Ticket ist nicht eingecheckt.', 'pass-captain' ),
 		);
 		$codes = array(
 			'not_valid_today' => 'wpcap_ticket_day_rule',
@@ -360,7 +360,7 @@ final class Checkin {
 			'already_inside' => 'wpcap_ticket_already_inside',
 			'not_checked_in' => 'wpcap_ticket_not_checked_in',
 		);
-		return new \WP_Error( $codes[ $result ] ?? 'wpcap_ticket_not_valid', $messages[ $result ] ?? __( 'Ticket wurde bereits verwendet oder ist widerrufen.', 'wp-pass-captain' ), array( 'status' => 409, 'ticket_status' => $result, 'result' => $result, 'event' => $found['event_name'], 'ticket' => $found['ticket_name'], 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'], 'checkin_id' => (int) $checkin_id ) );
+		return new \WP_Error( $codes[ $result ] ?? 'wpcap_ticket_not_valid', $messages[ $result ] ?? __( 'Ticket wurde bereits verwendet oder ist widerrufen.', 'pass-captain' ), array( 'status' => 409, 'ticket_status' => $result, 'result' => $result, 'event' => $found['event_name'], 'ticket' => $found['ticket_name'], 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'], 'checkin_id' => (int) $checkin_id ) );
 	}
 
 	/** Data shown to scanning staff (no buyer e-mail, no payment data). */

@@ -17,9 +17,9 @@ final class Repository {
 
 	public static function refund_policy_labels() {
 		return array(
-			'reverse_all' => __( 'Provision und Ticketgebühr werden bei Erstattungen storniert', 'wp-pass-captain' ),
-			'keep_fixed_fee' => __( 'Provision wird storniert, Ticketgebühr bleibt bestehen', 'wp-pass-captain' ),
-			'keep_all' => __( 'Provision und Ticketgebühr bleiben bei Erstattungen bestehen', 'wp-pass-captain' ),
+			'reverse_all' => __( 'Provision und Ticketgebühr werden bei Erstattungen storniert', 'pass-captain' ),
+			'keep_fixed_fee' => __( 'Provision wird storniert, Ticketgebühr bleibt bestehen', 'pass-captain' ),
+			'keep_all' => __( 'Provision und Ticketgebühr bleiben bei Erstattungen bestehen', 'pass-captain' ),
 		);
 	}
 
@@ -47,20 +47,20 @@ final class Repository {
 		global $wpdb;
 		$partner_id = absint( $partner_id );
 		$existing = $partner_id ? self::get( $partner_id ) : null;
-		if ( $partner_id && ! $existing ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( $partner_id && ! $existing ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$name = substr( sanitize_text_field( (string) ( $data['name'] ?? '' ) ), 0, 190 );
-		if ( '' === $name ) { return new \WP_Error( 'wpcap_partner_name', __( 'Bitte einen Namen angeben.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( '' === $name ) { return new \WP_Error( 'wpcap_partner_name', __( 'Bitte einen Namen angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$email = sanitize_email( (string) ( $data['contact_email'] ?? '' ) );
-		if ( '' !== $email && ! is_email( $email ) ) { return new \WP_Error( 'wpcap_partner_email', __( 'Die Kontakt-E-Mail-Adresse ist ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( '' !== $email && ! is_email( $email ) ) { return new \WP_Error( 'wpcap_partner_email', __( 'Die Kontakt-E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $data['currency'] ?? 'EUR' ) ) );
-		if ( 3 !== strlen( $currency ) ) { return new \WP_Error( 'wpcap_partner_currency', __( 'Die Währung muss ein dreistelliger ISO-Code sein.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( 3 !== strlen( $currency ) ) { return new \WP_Error( 'wpcap_partner_currency', __( 'Die Währung muss ein dreistelliger ISO-Code sein.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$commission = (int) ( $data['commission_bp'] ?? 0 );
 		$fee_tax = (int) ( $data['fee_tax_rate_bp'] ?? 0 );
-		if ( $commission < 0 || $commission > 10000 || $fee_tax < 0 || $fee_tax > 10000 ) { return new \WP_Error( 'wpcap_partner_percent', __( 'Prozentwerte müssen zwischen 0 und 100 liegen.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( $commission < 0 || $commission > 10000 || $fee_tax < 0 || $fee_tax > 10000 ) { return new \WP_Error( 'wpcap_partner_percent', __( 'Prozentwerte müssen zwischen 0 und 100 liegen.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$fee = (int) ( $data['fee_per_ticket_minor'] ?? 0 );
-		if ( $fee < 0 ) { return new \WP_Error( 'wpcap_partner_fee', __( 'Die Ticketgebühr darf nicht negativ sein.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( $fee < 0 ) { return new \WP_Error( 'wpcap_partner_fee', __( 'Die Ticketgebühr darf nicht negativ sein.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$start = (string) ( $data['settlement_start'] ?? '' );
-		if ( '' !== $start && ! \PassCaptain\Reports\Data::valid_date( $start ) ) { return new \WP_Error( 'wpcap_partner_start', __( 'Ungültiges Abrechnungsbeginn-Datum.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( '' !== $start && ! \PassCaptain\Reports\Data::valid_date( $start ) ) { return new \WP_Error( 'wpcap_partner_start', __( 'Ungültiges Abrechnungsbeginn-Datum.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$seller = self::seller_fields( $data, $existing, $partner_id );
 		if ( is_wp_error( $seller ) ) { return $seller; }
 		$now = current_time( 'mysql', true );
@@ -89,7 +89,7 @@ final class Repository {
 			$ok = $wpdb->insert( "{$wpdb->prefix}wpcap_partners", $row );
 			$partner_id = (int) $wpdb->insert_id;
 		}
-		if ( false === $ok ) { return new \WP_Error( 'wpcap_partner_save', __( 'Veranstalter konnte nicht gespeichert werden.', 'wp-pass-captain' ), array( 'status' => 500 ) ); }
+		if ( false === $ok ) { return new \WP_Error( 'wpcap_partner_save', __( 'Veranstalter konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( $existing ? 'partner_updated' : 'partner_created', 'partner', $partner_id, array( 'commission_bp' => $commission, 'fee_per_ticket_minor' => $fee, 'refund_policy' => $row['refund_policy'], 'status' => $row['status'], 'sales_model' => $row['sales_model'], 'sales_model_changed' => $existing && SalesModel::model_of( $existing ) !== $row['sales_model'] ) );
 		return $partner_id;
 	}
@@ -105,24 +105,24 @@ final class Repository {
 			return $existing && isset( $existing->$key ) ? $existing->$key : $default;
 		};
 		$model = (string) $pick( 'sales_model', SalesModel::OWN_NAME );
-		if ( ! in_array( $model, SalesModel::MODELS, true ) ) { return new \WP_Error( 'wpcap_partner_sales_model', __( 'Unbekanntes Verkaufsmodell.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( ! in_array( $model, SalesModel::MODELS, true ) ) { return new \WP_Error( 'wpcap_partner_sales_model', __( 'Unbekanntes Verkaufsmodell.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$country_raw = trim( (string) $pick( 'country', '' ) );
 		$country = SalesModel::country( $country_raw );
-		if ( '' !== $country_raw && '' === $country ) { return new \WP_Error( 'wpcap_partner_country', __( 'Das Land muss als zweistelliger ISO-Code angegeben werden (z. B. DE, AT).', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( '' !== $country_raw && '' === $country ) { return new \WP_Error( 'wpcap_partner_country', __( 'Das Land muss als zweistelliger ISO-Code angegeben werden (z. B. DE, AT).', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$prefix_raw = trim( (string) $pick( 'invoice_prefix', '' ) );
 		$prefix = preg_replace( '/[^A-Za-z0-9]/', '', $prefix_raw );
-		if ( $prefix !== $prefix_raw || strlen( $prefix ) > 10 ) { return new \WP_Error( 'wpcap_partner_prefix', __( 'Das Rechnungsnummern-Präfix darf nur Buchstaben und Ziffern enthalten (höchstens 10 Zeichen).', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( $prefix !== $prefix_raw || strlen( $prefix ) > 10 ) { return new \WP_Error( 'wpcap_partner_prefix', __( 'Das Rechnungsnummern-Präfix darf nur Buchstaben und Ziffern enthalten (höchstens 10 Zeichen).', 'pass-captain' ), array( 'status' => 400 ) ); }
 		if ( '' !== $prefix ) {
 			global $wpdb;
 			$reserved = array( (string) \PassCaptain\Settings::get( 'invoice_prefix' ), (string) \PassCaptain\Settings::get( 'credit_note_prefix' ), (string) ( \PassCaptain\Settings::get( 'partners' )['settlement_prefix'] ?? 'PA' ), (string) ( \PassCaptain\Settings::get( 'partners' )['self_billing_prefix'] ?? 'GU' ) );
 			$taken = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_partners WHERE invoice_prefix=%s AND partner_id<>%d", $prefix, absint( $partner_id ) ) );
 			if ( $taken || in_array( strtoupper( $prefix ), array_map( 'strtoupper', $reserved ), true ) || preg_match( '/^V\d+$/i', $prefix ) ) {
-				return new \WP_Error( 'wpcap_partner_prefix_taken', __( 'Dieses Rechnungsnummern-Präfix wird bereits verwendet (Plattform oder anderer Veranstalter). Jeder Veranstalter braucht einen eigenen Nummernkreis.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+				return new \WP_Error( 'wpcap_partner_prefix_taken', __( 'Dieses Rechnungsnummern-Präfix wird bereits verwendet (Plattform oder anderer Veranstalter). Jeder Veranstalter braucht einen eigenen Nummernkreis.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 		}
 		$checked = trim( (string) $pick( 'vat_id_checked_at', '' ) );
 		$checked = substr( $checked, 0, 10 );
-		if ( '' !== $checked && ! \PassCaptain\Reports\Data::valid_date( $checked ) ) { return new \WP_Error( 'wpcap_partner_vat_checked', __( 'Ungültiges Datum der USt-IdNr.-Prüfung.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( '' !== $checked && ! \PassCaptain\Reports\Data::valid_date( $checked ) ) { return new \WP_Error( 'wpcap_partner_vat_checked', __( 'Ungültiges Datum der USt-IdNr.-Prüfung.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		return array(
 			'sales_model' => $model,
 			'legal_name' => substr( sanitize_text_field( (string) $pick( 'legal_name', '' ) ), 0, 190 ),
@@ -155,7 +155,7 @@ final class Repository {
 	public static function set_events( $partner_id, array $event_ids ) {
 		global $wpdb;
 		$partner_id = absint( $partner_id );
-		if ( ! self::get( $partner_id ) ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! self::get( $partner_id ) ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$event_ids = array_values( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ) );
 		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_events WHERE partner_id=%d", $partner_id ) );
 		$linked = array();

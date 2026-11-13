@@ -48,7 +48,7 @@ final class Api {
 
 	public static function pair( \WP_REST_Request $request ) {
 		if ( ! RateLimit::allow( 'pair_' . RateLimit::client(), 10, HOUR_IN_SECONDS ) ) {
-			return new \WP_Error( 'wpcap_pair_rate', __( 'Zu viele Kopplungsversuche. Bitte später erneut versuchen.', 'wp-pass-captain' ), array( 'status' => 429 ) );
+			return new \WP_Error( 'wpcap_pair_rate', __( 'Zu viele Kopplungsversuche. Bitte später erneut versuchen.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
 		$result = Devices::pair( $request->get_param( 'code' ), (string) $request->get_param( 'device_label' ), (string) $request->get_param( 'platform' ), (string) $request->get_param( 'app_version' ) );
 		return is_wp_error( $result ) ? $result : new \WP_REST_Response( $result, 201 );
@@ -93,7 +93,7 @@ final class Api {
 		$p = $wpdb->prefix;
 		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", absint( $request['occurrence_id'] ) ) );
 		if ( ! $occ || ! in_array( (int) $occ->event_id, Devices::event_ids( Devices::current() ), true ) || ! \PassCaptain\Access::can_access_event( (int) $occ->event_id, 'wpcap_checkin' ) ) {
-			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$counts = array();
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT t.status, COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d GROUP BY t.status", (int) $occ->occurrence_id ) ) as $row ) {
@@ -122,7 +122,7 @@ final class Api {
 	public static function check_in( \WP_REST_Request $request ) {
 		$key = sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) );
 		if ( '' === $key ) {
-			return new \WP_Error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$context = self::context( $request );
 		$context['idempotency_key'] = 'app:' . $key;
@@ -134,7 +134,7 @@ final class Api {
 	public static function check_out( \WP_REST_Request $request ) {
 		$key = sanitize_text_field( (string) $request->get_param( 'idempotency_key' ) );
 		if ( '' === $key ) {
-			return new \WP_Error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_idempotency_required', __( 'idempotency_key ist erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$context = self::context( $request );
 		$context['idempotency_key'] = 'app:' . $key;
@@ -146,12 +146,12 @@ final class Api {
 		$found = Checkin::lookup( $request->get_param( 'code' ) );
 		if ( is_wp_error( $found ) ) { return self::scan_response( $found ); }
 		if ( ! in_array( (int) $found['event_id'], Devices::event_ids( Devices::current() ), true ) ) {
-			return self::scan_response( new \WP_Error( 'wpcap_device_event', __( 'Dieses Gerät ist für ein anderes Event freigegeben.', 'wp-pass-captain' ), array( 'result' => 'wrong_event' ) ) );
+			return self::scan_response( new \WP_Error( 'wpcap_device_event', __( 'Dieses Gerät ist für ein anderes Event freigegeben.', 'pass-captain' ), array( 'result' => 'wrong_event' ) ) );
 		}
 		$policy = Policies::for_type( $found['ticket_type_id'] );
 		if ( $policy && 'single' !== $policy['policy'] ) {
 			if ( ! \PassCaptain\Access::can_access_event( $found['event_id'], 'wpcap_checkin' ) ) {
-				return self::scan_response( new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'wp-pass-captain' ), array( 'status' => 403, 'result' => 'forbidden' ) ) );
+				return self::scan_response( new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403, 'result' => 'forbidden' ) ) );
 			}
 			$result = Engine::undo_last( $found, (string) $request->get_param( 'reason' ) );
 		} else {
@@ -168,7 +168,7 @@ final class Api {
 	public static function sync( \WP_REST_Request $request ) {
 		$scans = $request->get_param( 'scans' );
 		if ( ! is_array( $scans ) || ! $scans || count( $scans ) > 200 ) {
-			return new \WP_Error( 'wpcap_sync_invalid', __( 'Es müssen 1 bis 200 Scans übertragen werden.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_sync_invalid', __( 'Es müssen 1 bis 200 Scans übertragen werden.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$results = array();
 		$device = Devices::current();

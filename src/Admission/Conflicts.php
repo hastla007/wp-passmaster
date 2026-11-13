@@ -19,10 +19,10 @@ final class Conflicts {
 
 	public static function resolutions() {
 		return array(
-			'accepted' => __( 'Einlass nachträglich akzeptiert', 'wp-pass-captain' ),
-			'duplicate_scan' => __( 'Doppelscan derselben Person', 'wp-pass-captain' ),
-			'misuse' => __( 'Missbrauch (Ticket weitergegeben/kopiert)', 'wp-pass-captain' ),
-			'other' => __( 'Sonstiges', 'wp-pass-captain' ),
+			'accepted' => __( 'Einlass nachträglich akzeptiert', 'pass-captain' ),
+			'duplicate_scan' => __( 'Doppelscan derselben Person', 'pass-captain' ),
+			'misuse' => __( 'Missbrauch (Ticket weitergegeben/kopiert)', 'pass-captain' ),
+			'other' => __( 'Sonstiges', 'pass-captain' ),
 		);
 	}
 
@@ -109,20 +109,20 @@ final class Conflicts {
 	public static function resolve( $conflict_id, $resolution, $note ) {
 		global $wpdb;
 		$conflict = self::get( $conflict_id );
-		if ( ! $conflict ) { return new \WP_Error( 'wpcap_conflict_missing', __( 'Konflikt nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+		if ( ! $conflict ) { return new \WP_Error( 'wpcap_conflict_missing', __( 'Konflikt nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! Access::can_access_event( (int) $conflict->event_id, self::RESOLVE_CAP ) ) {
-			return new \WP_Error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung, Einlass-Konflikte dieses Events zu klären.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+			return new \WP_Error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung, Einlass-Konflikte dieses Events zu klären.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		if ( ! array_key_exists( (string) $resolution, self::resolutions() ) ) {
-			return new \WP_Error( 'wpcap_conflict_resolution', __( 'Bitte eine Klärung auswählen.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_conflict_resolution', __( 'Bitte eine Klärung auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$note = mb_substr( sanitize_textarea_field( (string) $note ), 0, 2000 );
 		if ( 'other' === $resolution && '' === $note ) {
-			return new \WP_Error( 'wpcap_conflict_note', __( 'Bei „Sonstiges“ ist eine Notiz erforderlich.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_conflict_note', __( 'Bei „Sonstiges“ ist eine Notiz erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_admission_conflicts SET status='resolved', resolution=%s, resolution_note=%s, resolved_by=%d, resolved_at=%s WHERE conflict_id=%d AND status='open'", $resolution, $note, get_current_user_id(), current_time( 'mysql', true ), (int) $conflict->conflict_id ) );
 		if ( ! $updated ) {
-			return new \WP_Error( 'wpcap_conflict_resolved', __( 'Dieser Konflikt wurde bereits geklärt.', 'wp-pass-captain' ), array( 'status' => 409 ) );
+			return new \WP_Error( 'wpcap_conflict_resolved', __( 'Dieser Konflikt wurde bereits geklärt.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		Audit::record( 'admission_conflict_resolved', 'admission_conflict', (int) $conflict->conflict_id, array( 'event_id' => (int) $conflict->event_id, 'ticket_id' => (int) $conflict->ticket_id, 'resolution' => $resolution ) );
 		return array( 'conflict_id' => (int) $conflict->conflict_id, 'resolution' => $resolution );

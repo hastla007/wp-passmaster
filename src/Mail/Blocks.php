@@ -18,11 +18,11 @@ final class Blocks {
 		$html = '';
 		foreach ( $tickets as $t ) {
 			$text .= sprintf( "%s — %s\n%s\n%s\n\n", $t['event'], $t['ticket'], $t['when'], $t['location'] );
-			$text .= __( 'Ticket öffnen oder drucken:', 'wp-pass-captain' ) . ' ' . esc_url_raw( $t['url'] ) . "\n";
-			$text .= __( 'Ticket-Code:', 'wp-pass-captain' ) . ' ' . $t['token'] . "\n\n";
+			$text .= __( 'Ticket öffnen oder drucken:', 'pass-captain' ) . ' ' . esc_url_raw( $t['url'] ) . "\n";
+			$text .= __( 'Ticket-Code:', 'pass-captain' ) . ' ' . $t['token'] . "\n\n";
 			$html .= '<p style="margin:0 0 16px"><strong>' . esc_html( $t['event'] . ' — ' . $t['ticket'] ) . '</strong><br>' . esc_html( $t['when'] ) . '<br>' . esc_html( $t['location'] ) . '<br>'
-				. esc_html__( 'Ticket öffnen oder drucken:', 'wp-pass-captain' ) . ' ' . Mailer::link( $t['url'] )['html'] . '<br>'
-				. esc_html__( 'Ticket-Code:', 'wp-pass-captain' ) . ' <code>' . esc_html( $t['token'] ) . '</code></p>';
+				. esc_html__( 'Ticket öffnen oder drucken:', 'pass-captain' ) . ' ' . Mailer::link( $t['url'] )['html'] . '<br>'
+				. esc_html__( 'Ticket-Code:', 'pass-captain' ) . ' <code>' . esc_html( $t['token'] ) . '</code></p>';
 		}
 		return Mailer::block( $text, $html );
 	}
@@ -58,7 +58,7 @@ final class Blocks {
 	 */
 	public static function payment_instructions( $details ) {
 		if ( ! is_array( $details ) || ! $details ) { return Mailer::block( '', '' ); }
-		$title = __( 'Zahlungsinformationen', 'wp-pass-captain' );
+		$title = __( 'Zahlungsinformationen', 'pass-captain' );
 		$rows = \PassCaptain\Payments\BankTransfer::rows( $details );
 		$instructions = trim( (string) ( $details['instructions'] ?? '' ) );
 		$text = $title . "\n";
@@ -73,7 +73,7 @@ final class Blocks {
 			$html .= '<p style="margin:0 0 16px">' . Mailer::text_to_html( $instructions ) . '</p>';
 		}
 		if ( ! empty( $details['due_date'] ) ) {
-			$note = __( 'Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung.', 'wp-pass-captain' );
+			$note = __( 'Geht die Zahlung bis dahin nicht ein, verfällt die Reservierung.', 'pass-captain' );
 			$text .= $note . "\n";
 			$html .= '<p style="margin:0 0 16px">' . esc_html( $note ) . '</p>';
 		}

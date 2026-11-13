@@ -77,7 +77,7 @@ final class OccurrenceCancellation {
 			'event_location' => (string) $occ->location,
 			'timezone' => (string) $occ->timezone,
 			// Translated in the recipient's locale.
-			'refund_note' => static function () use ( $auto_refund ) { return $auto_refund ? __( 'Der Ticketpreis wird automatisch erstattet.', 'wp-pass-captain' ) : __( 'Der Veranstalter informiert dich über Erstattung oder Ersatztermin.', 'wp-pass-captain' ); },
+			'refund_note' => static function () use ( $auto_refund ) { return $auto_refund ? __( 'Der Ticketpreis wird automatisch erstattet.', 'pass-captain' ) : __( 'Der Veranstalter informiert dich über Erstattung oder Ersatztermin.', 'pass-captain' ); },
 		);
 		foreach ( self::$event_batch ? array() : $recipients as $recipient ) {
 			if ( is_email( $recipient->email ) && Mail\Mailer::send( 'occurrence_cancelled', $recipient->email, $vars, array(), (string) $recipient->locale ) ) { ++$summary['notified']; }
@@ -110,7 +110,7 @@ final class OccurrenceCancellation {
 				continue;
 			}
 			if ( ! Settings::get( 'auto_refund_cancelled' ) ) { continue; }
-			$result = Refunds::request( (int) $row->order_id, array_map( 'absint', explode( ',', $row->ticket_ids ) ), __( 'Termin abgesagt', 'wp-pass-captain' ), $key );
+			$result = Refunds::request( (int) $row->order_id, array_map( 'absint', explode( ',', $row->ticket_ids ) ), __( 'Termin abgesagt', 'pass-captain' ), $key );
 			if ( is_wp_error( $result ) || 'completed' !== ( $result['status'] ?? '' ) ) {
 				++$counts['refund_errors'];
 				Audit::record( 'occurrence_auto_refund_pending', 'order', (int) $row->order_id, array( 'occurrence_id' => $occurrence_id, 'error' => is_wp_error( $result ) ? $result->get_error_code() : ( $result['status'] ?? '' ) ) );

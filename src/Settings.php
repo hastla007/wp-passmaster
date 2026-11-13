@@ -33,7 +33,7 @@ final class Settings {
 		add_action(
 			'load_textdomain',
 			static function ( $domain ) {
-				if ( 'wp-pass-captain' === $domain ) { self::flush(); }
+				if ( 'pass-captain' === $domain ) { self::flush(); }
 			},
 			0,
 			1

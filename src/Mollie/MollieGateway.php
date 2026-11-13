@@ -40,7 +40,7 @@ final class MollieGateway implements GatewayInterface {
 
 	public function id() { return 'mollie'; }
 
-	public function title() { return __( 'Mollie (iDEAL, Kreditkarte, Bancontact u. a.)', 'wp-pass-captain' ); }
+	public function title() { return __( 'Mollie (iDEAL, Kreditkarte, Bancontact u. a.)', 'pass-captain' ); }
 
 	public function is_available( $currency ) {
 		return 1 === preg_match( '/^(test|live)_[A-Za-z0-9]{20,}$/', Settings::secret( 'mollie_api_key' ) )
@@ -81,7 +81,7 @@ final class MollieGateway implements GatewayInterface {
 		$currency = strtoupper( (string) ( $order['currency'] ?? '' ) );
 		$total = (int) ( $order['total_minor'] ?? 0 );
 		if ( '' === $public_id || $total <= 0 || ! in_array( $currency, self::CURRENCIES, true ) ) {
-			return new \WP_Error( 'wpcap_mollie_order', __( 'Die Bestellung kann nicht mit Mollie bezahlt werden.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_mollie_order', __( 'Die Bestellung kann nicht mit Mollie bezahlt werden.', 'pass-captain' ) );
 		}
 		// A retried checkout reuses a still open payment.
 		$existing = (string) ( $order['provider_reference'] ?? '' );
@@ -98,7 +98,7 @@ final class MollieGateway implements GatewayInterface {
 		$body = array(
 			'amount' => array( 'currency' => $currency, 'value' => $value ),
 			/* translators: %s: order number */
-			'description' => mb_substr( sprintf( __( 'Bestellung %s', 'wp-pass-captain' ), $public_id ), 0, 255 ),
+			'description' => mb_substr( sprintf( __( 'Bestellung %s', 'pass-captain' ), $public_id ), 0, 255 ),
 			'redirectUrl' => add_query_arg( array( 'wpcap_mollie_return' => '1', 'order' => $public_id ), home_url( '/' ) ),
 			'webhookUrl' => self::webhook_url(),
 			'metadata' => array( 'order' => $public_id ),
@@ -111,7 +111,7 @@ final class MollieGateway implements GatewayInterface {
 		$payment = self::api( 'POST', 'payments', $body, 'wpcap-mollie-' . $public_id . $key_suffix );
 		if ( is_wp_error( $payment ) ) { return $payment; }
 		if ( empty( $payment['id'] ) || empty( $payment['_links']['checkout']['href'] ) ) {
-			return new \WP_Error( 'wpcap_mollie_response', __( 'Unerwartete Antwort von Mollie.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_mollie_response', __( 'Unerwartete Antwort von Mollie.', 'pass-captain' ) );
 		}
 		self::remember( $payment['id'], $order );
 		return self::payment_result( $payment );
@@ -185,7 +185,7 @@ final class MollieGateway implements GatewayInterface {
 			$id = (string) ( $form['id'] ?? '' );
 		}
 		if ( ! preg_match( '/^tr_[A-Za-z0-9]{4,64}$/', $id ) ) {
-			return new \WP_Error( 'wpcap_mollie_id', __( 'Ungültige Mollie-Zahlungs-ID.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_mollie_id', __( 'Ungültige Mollie-Zahlungs-ID.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		if ( ! self::known_payment( $id ) ) {
 			// Not created by this site: acknowledge (200) without calling the API.
@@ -271,18 +271,18 @@ final class MollieGateway implements GatewayInterface {
 		$reference = (string) ( $order['provider_reference'] ?? '' );
 		$currency = strtoupper( (string) ( $order['currency'] ?? '' ) );
 		if ( 0 !== strpos( $reference, 'tr_' ) ) {
-			return new \WP_Error( 'wpcap_mollie_refund_reference', __( 'Für diese Bestellung ist keine Mollie-Zahlung bekannt.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_mollie_refund_reference', __( 'Für diese Bestellung ist keine Mollie-Zahlung bekannt.', 'pass-captain' ) );
 		}
 		$body = array(
 			'amount' => array( 'currency' => $currency, 'value' => self::format_amount( (int) $amount_minor, $currency ) ),
 			/* translators: %s: order number */
-			'description' => mb_substr( sprintf( __( 'Erstattung %s', 'wp-pass-captain' ), (string) ( $order['public_id'] ?? '' ) ), 0, 140 ),
+			'description' => mb_substr( sprintf( __( 'Erstattung %s', 'pass-captain' ), (string) ( $order['public_id'] ?? '' ) ), 0, 140 ),
 			'metadata' => array( 'order' => (string) ( $order['public_id'] ?? '' ), 'wpcap_refund' => (string) $idempotency_key ),
 		);
 		$refund = self::api( 'POST', 'payments/' . rawurlencode( $reference ) . '/refunds', $body, (string) $idempotency_key );
 		if ( is_wp_error( $refund ) ) { return $refund; }
 		if ( empty( $refund['id'] ) || in_array( $refund['status'] ?? '', array( 'failed', 'canceled' ), true ) ) {
-			return new \WP_Error( 'wpcap_mollie_refund_failed', __( 'Mollie hat die Erstattung abgelehnt.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_mollie_refund_failed', __( 'Mollie hat die Erstattung abgelehnt.', 'pass-captain' ) );
 		}
 		return (string) $refund['id'];
 	}
@@ -296,7 +296,7 @@ final class MollieGateway implements GatewayInterface {
 	private static function api( $method, $path, $body = null, $idempotency_key = '' ) {
 		$key = Settings::secret( 'mollie_api_key' );
 		if ( '' === $key ) {
-			return new \WP_Error( 'wpcap_mollie_config', __( 'Mollie ist nicht konfiguriert.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_mollie_config', __( 'Mollie ist nicht konfiguriert.', 'pass-captain' ) );
 		}
 		$args = array( 'method' => $method, 'timeout' => 15, 'headers' => array( 'Authorization' => 'Bearer ' . $key, 'Accept' => 'application/json' ) );
 		if ( 'POST' === $method ) {
@@ -309,14 +309,14 @@ final class MollieGateway implements GatewayInterface {
 		}
 		if ( is_wp_error( $response ) ) {
 			/* translators: %s: error message */
-			return new \WP_Error( 'wpcap_mollie_http', sprintf( __( 'Mollie ist nicht erreichbar: %s', 'wp-pass-captain' ), $response->get_error_message() ) );
+			return new \WP_Error( 'wpcap_mollie_http', sprintf( __( 'Mollie ist nicht erreichbar: %s', 'pass-captain' ), $response->get_error_message() ) );
 		}
 		$code = (int) wp_remote_retrieve_response_code( $response );
 		$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		if ( $code < 200 || $code >= 300 || ! is_array( $data ) ) {
 			$message = is_array( $data ) && ! empty( $data['detail'] ) ? (string) $data['detail'] : 'HTTP ' . $code;
 			/* translators: %s: error message from Mollie */
-			return new \WP_Error( 'wpcap_mollie_api', sprintf( __( 'Mollie-Fehler: %s', 'wp-pass-captain' ), $message ), array( 'status' => $code ) );
+			return new \WP_Error( 'wpcap_mollie_api', sprintf( __( 'Mollie-Fehler: %s', 'pass-captain' ), $message ), array( 'status' => $code ) );
 		}
 		return $data;
 	}

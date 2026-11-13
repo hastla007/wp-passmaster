@@ -11,29 +11,29 @@ final class Picker {
 
 	public static function i18n() {
 		return array(
-			'title' => __( 'Sitzplätze wählen', 'wp-pass-captain' ),
-			'loading' => __( 'Saalplan wird geladen …', 'wp-pass-captain' ),
-			'loadFailed' => __( 'Der Saalplan konnte nicht geladen werden. Bitte lade die Seite neu.', 'wp-pass-captain' ),
-			'free' => __( 'frei', 'wp-pass-captain' ),
-			'taken' => __( 'belegt', 'wp-pass-captain' ),
-			'selected' => __( 'ausgewählt', 'wp-pass-captain' ),
-			'accessible' => __( 'rollstuhlgerecht', 'wp-pass-captain' ),
-			'listToggle' => __( 'Plätze als Liste anzeigen', 'wp-pass-captain' ),
-			'yourSeats' => __( 'Deine Plätze', 'wp-pass-captain' ),
-			'none' => __( 'Noch keine Plätze gewählt.', 'wp-pass-captain' ),
-			'remove' => __( 'Entfernen', 'wp-pass-captain' ),
-			'ticketType' => __( 'Ticketart', 'wp-pass-captain' ),
-			'noType' => __( 'Für diesen Platz ist keine der gewählten Ticketarten erhältlich.', 'wp-pass-captain' ),
+			'title' => __( 'Sitzplätze wählen', 'pass-captain' ),
+			'loading' => __( 'Saalplan wird geladen …', 'pass-captain' ),
+			'loadFailed' => __( 'Der Saalplan konnte nicht geladen werden. Bitte lade die Seite neu.', 'pass-captain' ),
+			'free' => __( 'frei', 'pass-captain' ),
+			'taken' => __( 'belegt', 'pass-captain' ),
+			'selected' => __( 'ausgewählt', 'pass-captain' ),
+			'accessible' => __( 'rollstuhlgerecht', 'pass-captain' ),
+			'listToggle' => __( 'Plätze als Liste anzeigen', 'pass-captain' ),
+			'yourSeats' => __( 'Deine Plätze', 'pass-captain' ),
+			'none' => __( 'Noch keine Plätze gewählt.', 'pass-captain' ),
+			'remove' => __( 'Entfernen', 'pass-captain' ),
+			'ticketType' => __( 'Ticketart', 'pass-captain' ),
+			'noType' => __( 'Für diesen Platz ist keine der gewählten Ticketarten erhältlich.', 'pass-captain' ),
 			/* translators: 1: ticket type, 2: selected seats, 3: ordered quantity */
-			'countMismatch' => __( 'Für „%1$s“ hast du %2$d Plätze gewählt, aber %3$d Tickets bestellt.', 'wp-pass-captain' ),
-			'seatTaken' => __( 'Ein gewählter Platz wurde inzwischen vergeben und entfernt. Bitte wähle neu.', 'wp-pass-captain' ),
+			'countMismatch' => __( 'Für „%1$s“ hast du %2$d Plätze gewählt, aber %3$d Tickets bestellt.', 'pass-captain' ),
+			'seatTaken' => __( 'Ein gewählter Platz wurde inzwischen vergeben und entfernt. Bitte wähle neu.', 'pass-captain' ),
 			/* translators: %s: seat label */
-			'added' => __( '%s ausgewählt.', 'wp-pass-captain' ),
+			'added' => __( '%s ausgewählt.', 'pass-captain' ),
 			/* translators: %s: seat label */
-			'removed' => __( '%s entfernt.', 'wp-pass-captain' ),
-			'help' => __( 'Mit den Pfeiltasten zwischen Plätzen wechseln, mit Leertaste oder Enter auswählen.', 'wp-pass-captain' ),
-			'legend' => __( 'Legende', 'wp-pass-captain' ),
-			'standing' => __( 'Stehplatz', 'wp-pass-captain' ),
+			'removed' => __( '%s entfernt.', 'pass-captain' ),
+			'help' => __( 'Mit den Pfeiltasten zwischen Plätzen wechseln, mit Leertaste oder Enter auswählen.', 'pass-captain' ),
+			'legend' => __( 'Legende', 'pass-captain' ),
+			'standing' => __( 'Stehplatz', 'pass-captain' ),
 		);
 	}
 
@@ -47,9 +47,9 @@ final class Picker {
 		$url = rest_url( Rest::NS . '/seating/occurrences/' . $occurrence_id );
 		$id = 'wpcap-seats-' . $occurrence_id;
 		echo '<fieldset class="wpcap-seating" id="' . esc_attr( $id ) . '" data-occurrence="' . esc_attr( (string) $occurrence_id ) . '" data-url="' . esc_attr( esc_url_raw( $url ) ) . '" data-i18n="' . esc_attr( wp_json_encode( self::i18n() ) ) . '">';
-		echo '<legend>' . esc_html__( 'Sitzplätze wählen', 'wp-pass-captain' ) . '</legend>';
-		echo '<p class="wpcap-seating-status" role="status" aria-live="polite">' . esc_html__( 'Saalplan wird geladen …', 'wp-pass-captain' ) . '</p>';
-		echo '<noscript><p>' . esc_html__( 'Für die Sitzplatzwahl wird JavaScript benötigt.', 'wp-pass-captain' ) . '</p></noscript>';
+		echo '<legend>' . esc_html__( 'Sitzplätze wählen', 'pass-captain' ) . '</legend>';
+		echo '<p class="wpcap-seating-status" role="status" aria-live="polite">' . esc_html__( 'Saalplan wird geladen …', 'pass-captain' ) . '</p>';
+		echo '<noscript><p>' . esc_html__( 'Für die Sitzplatzwahl wird JavaScript benötigt.', 'pass-captain' ) . '</p></noscript>';
 		echo '</fieldset>';
 	}
 }

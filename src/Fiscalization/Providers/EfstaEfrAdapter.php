@@ -20,7 +20,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		$headers = $auth ? array( 'Authorization' => 'Bearer ' . $auth ) : array();
 		$response = HttpClient::request( HttpClient::endpoint( $configuration, 'http://127.0.0.1:5618', 'state' ), 'GET', $headers );
 		if ( is_wp_error( $response ) ) { return $response; }
-		if ( 200 !== $response['status'] ) { return new \WP_Error( 'efsta_health_failed', __( 'efsta EFR-Verbindungstest wurde abgelehnt.', 'wp-pass-captain' ) ); }
+		if ( 200 !== $response['status'] ) { return new \WP_Error( 'efsta_health_failed', __( 'efsta EFR-Verbindungstest wurde abgelehnt.', 'pass-captain' ) ); }
 		return array( 'ok' => true );
 	}
 
@@ -36,7 +36,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		$url = HttpClient::endpoint( $configuration, 'http://127.0.0.1:5618', 'find?' . $query );
 		$response = HttpClient::request( $url, 'GET', $headers );
 		if ( is_wp_error( $response ) ) { return $response; }
-		if ( 200 !== $response['status'] ) { return new \WP_Error( 'efsta_status_unknown', __( 'efsta-Journalstatus konnte nicht sicher abgefragt werden.', 'wp-pass-captain' ) ); }
+		if ( 200 !== $response['status'] ) { return new \WP_Error( 'efsta_status_unknown', __( 'efsta-Journalstatus konnte nicht sicher abgefragt werden.', 'pass-captain' ) ); }
 		$matches = $this->transactions( $response['data'] );
 		foreach ( $matches as $transaction ) {
 			$esr = (array) ( $transaction['Tra']['ESR'] ?? $transaction['ESR'] ?? array() );
@@ -57,7 +57,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 			$rate = (string) (int) ( $item['tax_rate_bp'] ?? -1 );
 			$group = sanitize_text_field( (string) ( $tax_groups[ $rate ] ?? '' ) );
 			if ( '' === $group || ! preg_match( '/^[A-Z0-9]{1,4}$/', $group ) ) {
-				return new \WP_Error( 'efsta_tax_mapping_missing', __( 'Ein Steuersatz ist keiner efsta-Steuergruppe zugeordnet.', 'wp-pass-captain' ) );
+				return new \WP_Error( 'efsta_tax_mapping_missing', __( 'Ein Steuersatz ist keiner efsta-Steuergruppe zugeordnet.', 'pass-captain' ) );
 			}
 			$gross = (int) ( $item['gross_minor'] ?? 0 );
 			$tax = (int) ( $item['tax_minor'] ?? 0 );
@@ -76,12 +76,12 @@ final class EfstaEfrAdapter implements AdapterInterface {
 			$tax_totals[ $group ]['tax'] += $tax;
 			$tax_totals[ $group ]['gross'] += $gross;
 		}
-		if ( ! $positions ) { return new \WP_Error( 'efsta_lines_missing', __( 'Der Fiskalbeleg enthält keine Positionen.', 'wp-pass-captain' ) ); }
+		if ( ! $positions ) { return new \WP_Error( 'efsta_lines_missing', __( 'Der Fiskalbeleg enthält keine Positionen.', 'pass-captain' ) ); }
 		$payment_method = sanitize_key( $document['payment_method'] ?? 'other' );
 		$payment_groups = (array) ( $configuration['payment_groups'] ?? array() );
 		$pay_group = sanitize_key( $payment_groups[ $payment_method ] ?? $payment_groups['default'] ?? '' );
 		if ( ! in_array( $pay_group, array( 'cash', 'cashless', 'voucher', 'change', 'other' ), true ) ) {
-			return new \WP_Error( 'efsta_payment_mapping_missing', __( 'Zahlungsart ist keiner efsta-Zahlungsgruppe zugeordnet.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'efsta_payment_mapping_missing', __( 'Zahlungsart ist keiner efsta-Zahlungsgruppe zugeordnet.', 'pass-captain' ) );
 		}
 		$taxes = array();
 		foreach ( $tax_totals as $group => $amounts ) {
@@ -103,11 +103,11 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		if ( $auth ) { $headers['Authorization'] = 'Bearer ' . $auth; }
 		$response = HttpClient::request( HttpClient::endpoint( $configuration, 'http://127.0.0.1:5618', 'register' ), 'POST', $headers, array( 'Tra' => array( 'ESR' => $esr ) ) );
 		if ( is_wp_error( $response ) ) { return $response; }
-		if ( ! in_array( $response['status'], array( 200, 201 ), true ) ) { return new \WP_Error( 'efsta_submit_failed', __( 'efsta hat den Beleg nicht bestätigt.', 'wp-pass-captain' ) ); }
+		if ( ! in_array( $response['status'], array( 200, 201 ), true ) ) { return new \WP_Error( 'efsta_submit_failed', __( 'efsta hat den Beleg nicht bestätigt.', 'pass-captain' ) ); }
 		$data = $response['data'];
 		$tra_c = $data['TraC'] ?? $data['Tra']['TraC'] ?? null;
 		if ( is_array( $tra_c ) && in_array( strtoupper( (string) ( $tra_c['RC'] ?? '' ) ), array( 'BAD', 'NO' ), true ) ) {
-			return new \WP_Error( 'efsta_register_rejected', __( 'efsta hat die Transaktion abgelehnt oder zur Wiederholung markiert.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'efsta_register_rejected', __( 'efsta hat die Transaktion abgelehnt oder zur Wiederholung markiert.', 'pass-captain' ) );
 		}
 		return $this->result( $data, $document );
 	}
@@ -117,15 +117,15 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		$credentials = (array) ( $configuration['credentials'] ?? array() );
 		$key = (string) ( $credentials['api_key'] ?? '' );
 		$secret = (string) ( $credentials['api_secret'] ?? '' );
-		if ( '' === $key || '' === $secret ) { return new \WP_Error( 'efsta_credentials_missing', __( 'efsta Cloud API-Key und Secret fehlen.', 'wp-pass-captain' ) ); }
+		if ( '' === $key || '' === $secret ) { return new \WP_Error( 'efsta_credentials_missing', __( 'efsta Cloud API-Key und Secret fehlen.', 'pass-captain' ) ); }
 		$tax_id = preg_replace( '/[^A-Za-z0-9]/', '', (string) ( $configuration['cloud_tax_id'] ?? $seller['tax_number'] ?? $seller['vat_id'] ?? '' ) );
-		if ( '' === $tax_id ) { return new \WP_Error( 'efsta_tax_id_missing', __( 'Für efsta Cloud ist die Verkäufer-Steuernummer erforderlich.', 'wp-pass-captain' ) ); }
+		if ( '' === $tax_id ) { return new \WP_Error( 'efsta_tax_id_missing', __( 'Für efsta Cloud ist die Verkäufer-Steuernummer erforderlich.', 'pass-captain' ) ); }
 		$base = untrailingslashit( (string) ( $configuration['base_url'] ?? '' ) );
 		$body = http_build_query( array( 'grant_type' => 'client_credentials', 'TaxId' => $tax_id, 'TL' => (string) ( $configuration['transaction_location'] ?? '001' ), 'TT' => (string) ( $configuration['transaction_terminal'] ?? '1' ) ) );
 		$headers = array( 'Content-Type' => 'application/x-www-form-urlencoded', 'Authorization' => 'Basic ' . base64_encode( $key . ':' . $secret ) );
 		$token = HttpClient::request( $base . '/auth/token', 'POST', $headers, $body );
 		if ( is_wp_error( $token ) || ! in_array( (int) ( $token['status'] ?? 0 ), array( 200, 201 ), true ) || empty( $token['data']['access_token'] ) ) {
-			return new \WP_Error( 'efsta_auth_failed', __( 'efsta Cloud-Zugang konnte nicht authentifiziert werden.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'efsta_auth_failed', __( 'efsta Cloud-Zugang konnte nicht authentifiziert werden.', 'pass-captain' ) );
 		}
 		return sanitize_text_field( (string) $token['data']['access_token'] );
 	}

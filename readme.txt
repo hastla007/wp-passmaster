@@ -1,4 +1,4 @@
-=== WP Pass Captain ===
+=== Pass Captain ===
 Contributors: hastla007
 Tags: events, tickets, check-in, booking, woocommerce
 Requires at least: 6.4
@@ -14,7 +14,7 @@ Eigenständige Event-, Ticket- und Einlassverwaltung für WordPress – mit opti
 
 == Description ==
 
-WP Pass Captain verwaltet Veranstaltungen, Termine, Ticketarten, Bestellungen, Tickets und den Einlass direkt in WordPress. WooCommerce ist optional und keine Voraussetzung für den Kern.
+Pass Captain verwaltet Veranstaltungen, Termine, Ticketarten, Bestellungen, Tickets und den Einlass direkt in WordPress. WooCommerce ist optional und keine Voraussetzung für den Kern.
 
 * Events als Einzeltermin oder Serie, Ausgabe per Shortcode `[wp_pass_captain_events]` oder Block.
 * Bestellungen mit zeitlich begrenzter Reservierung; kostenlose Bestellungen stellen Tickets sofort aus.

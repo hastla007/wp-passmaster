@@ -11,7 +11,7 @@
 // phpcs:ignoreFile
 
 define( 'ABSPATH', __DIR__ . '/wp/' );
-define( 'WPCAP_FILE', dirname( __DIR__, 2 ) . '/wp-pass-captain.php' );
+define( 'WPCAP_FILE', dirname( __DIR__, 2 ) . '/pass-captain.php' );
 define( 'WPCAP_PATH', dirname( __DIR__, 2 ) . '/' );
 define( 'WPCAP_VERSION', 'test' );
 define( 'MINUTE_IN_SECONDS', 60 );

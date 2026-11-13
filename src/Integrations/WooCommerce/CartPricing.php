@@ -80,14 +80,14 @@ final class CartPricing {
 			return $settings;
 		}
 		$settings[] = array(
-			'title' => __( 'WP Pass Captain', 'wp-pass-captain' ),
+			'title' => __( 'Pass Captain', 'pass-captain' ),
 			'type'  => 'title',
 			'id'    => 'wpcap_woocommerce_options',
 		);
 		$settings[] = array(
-			'title'    => __( 'Ticketpreise', 'wp-pass-captain' ),
-			'desc'     => __( 'Pass-Captain-Preise (z. B. Serien-Preisstufen) im WooCommerce-Warenkorb verwenden', 'wp-pass-captain' ),
-			'desc_tip' => __( 'Ticketprodukte kosten dann den Preis der Pass-Captain-Ticketkategorie inklusive aktiver Preisstufe statt des WooCommerce-Produktpreises. Der Preis wird im Warenkorb und an der Kasse laufend neu berechnet.', 'wp-pass-captain' ),
+			'title'    => __( 'Ticketpreise', 'pass-captain' ),
+			'desc'     => __( 'Pass-Captain-Preise (z. B. Serien-Preisstufen) im WooCommerce-Warenkorb verwenden', 'pass-captain' ),
+			'desc_tip' => __( 'Ticketprodukte kosten dann den Preis der Pass-Captain-Ticketkategorie inklusive aktiver Preisstufe statt des WooCommerce-Produktpreises. Der Preis wird im Warenkorb und an der Kasse laufend neu berechnet.', 'pass-captain' ),
 			'id'       => self::OPTION,
 			'type'     => 'checkbox',
 			'default'  => 'no',
@@ -328,13 +328,13 @@ final class CartPricing {
 		}
 		$message = sprintf(
 			/* translators: 1: product name, 2: new price (with tier label), 3: previous price */
-			__( 'Der Ticketpreis für „%1$s“ hat sich geändert: jetzt %2$s statt bisher %3$s.', 'wp-pass-captain' ),
+			__( 'Der Ticketpreis für „%1$s“ hat sich geändert: jetzt %2$s statt bisher %3$s.', 'pass-captain' ),
 			$change['name'],
 			$new,
 			self::format_minor( $change['old'], $change['type'] )
 		);
 		if ( $submitting ) {
-			$message .= ' ' . __( 'Bitte prüfe die neue Summe und sende die Bestellung erneut ab.', 'wp-pass-captain' );
+			$message .= ' ' . __( 'Bitte prüfe die neue Summe und sende die Bestellung erneut ab.', 'pass-captain' );
 		}
 		return $message;
 	}
@@ -423,7 +423,7 @@ final class CartPricing {
 		if ( $quote && '' !== $quote['label'] ) {
 			$data   = is_array( $data ) ? $data : array();
 			$data[] = array(
-				'key'   => __( 'Preisstufe', 'wp-pass-captain' ),
+				'key'   => __( 'Preisstufe', 'pass-captain' ),
 				'value' => $quote['label'],
 			);
 		}
@@ -451,7 +451,7 @@ final class CartPricing {
 		}
 		if ( $show_regular ) {
 			/* translators: %s: regular price HTML */
-			$out .= ' <span class="wpcap-price__regular">' . sprintf( esc_html__( 'statt %s', 'wp-pass-captain' ), '<del>' . self::money( $regular ) . '</del>' ) . '</span>';
+			$out .= ' <span class="wpcap-price__regular">' . sprintf( esc_html__( 'statt %s', 'pass-captain' ), '<del>' . self::money( $regular ) . '</del>' ) . '</span>';
 		}
 		return $out . '</span>';
 	}

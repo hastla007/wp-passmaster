@@ -63,14 +63,14 @@ final class Rules {
 	 */
 	public static function normalize( array $in ) {
 		$freq = in_array( $in['freq'] ?? '', self::FREQS, true ) ? $in['freq'] : '';
-		if ( '' === $freq ) { return self::error( 'wpcap_series_freq', __( 'Bitte eine Wiederholungsart wählen.', 'wp-pass-captain' ) ); }
+		if ( '' === $freq ) { return self::error( 'wpcap_series_freq', __( 'Bitte eine Wiederholungsart wählen.', 'pass-captain' ) ); }
 		$timezone = is_string( $in['timezone'] ?? null ) ? $in['timezone'] : '';
-		if ( ! in_array( $timezone, timezone_identifiers_list(), true ) ) { return self::error( 'wpcap_series_timezone', __( 'Die Zeitzone ist ungültig.', 'wp-pass-captain' ) ); }
+		if ( ! in_array( $timezone, timezone_identifiers_list(), true ) ) { return self::error( 'wpcap_series_timezone', __( 'Die Zeitzone ist ungültig.', 'pass-captain' ) ); }
 		$time = trim( (string) ( $in['time'] ?? '' ) );
-		if ( ! preg_match( '/^([01]?\d|2[0-3]):([0-5]\d)$/', $time, $tm ) ) { return self::error( 'wpcap_series_time', __( 'Die Uhrzeit ist ungültig (HH:MM).', 'wp-pass-captain' ) ); }
+		if ( ! preg_match( '/^([01]?\d|2[0-3]):([0-5]\d)$/', $time, $tm ) ) { return self::error( 'wpcap_series_time', __( 'Die Uhrzeit ist ungültig (HH:MM).', 'pass-captain' ) ); }
 		$time = sprintf( '%02d:%02d', $tm[1], $tm[2] );
 		$duration = absint( $in['duration_minutes'] ?? 0 );
-		if ( $duration > 60 * 24 * 14 ) { return self::error( 'wpcap_series_duration', __( 'Die Dauer ist zu lang.', 'wp-pass-captain' ) ); }
+		if ( $duration > 60 * 24 * 14 ) { return self::error( 'wpcap_series_duration', __( 'Die Dauer ist zu lang.', 'pass-captain' ) ); }
 		$invalid = array();
 		$exclusions = self::parse_dates( $in['exclusions'] ?? array(), $invalid );
 		$rule = array(
@@ -85,50 +85,50 @@ final class Rules {
 			$rule['dates'] = self::parse_dates( $in['dates'] ?? array(), $invalid );
 			if ( $invalid ) {
 				/* translators: %s: invalid dates */
-				return self::error( 'wpcap_series_invalid_date', sprintf( __( 'Ungültige Datumsangaben: %s', 'wp-pass-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) ) );
+				return self::error( 'wpcap_series_invalid_date', sprintf( __( 'Ungültige Datumsangaben: %s', 'pass-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) ) );
 			}
-			if ( ! $rule['dates'] ) { return self::error( 'wpcap_series_dates', __( 'Bitte mindestens ein Datum angeben.', 'wp-pass-captain' ) ); }
+			if ( ! $rule['dates'] ) { return self::error( 'wpcap_series_dates', __( 'Bitte mindestens ein Datum angeben.', 'pass-captain' ) ); }
 			if ( count( $rule['dates'] ) > self::MAX ) {
 				/* translators: %d: maximum */
-				return self::error( 'wpcap_series_too_many', sprintf( __( 'Höchstens %d Termine pro Serie.', 'wp-pass-captain' ), self::MAX ) );
+				return self::error( 'wpcap_series_too_many', sprintf( __( 'Höchstens %d Termine pro Serie.', 'pass-captain' ), self::MAX ) );
 			}
 		} else {
 			$start = self::parse_date( $in['start_date'] ?? '' );
-			if ( null === $start ) { return self::error( 'wpcap_series_start', __( 'Das Startdatum ist ungültig.', 'wp-pass-captain' ) ); }
+			if ( null === $start ) { return self::error( 'wpcap_series_start', __( 'Das Startdatum ist ungültig.', 'pass-captain' ) ); }
 			$rule['start_date'] = $start;
 			$until = trim( (string) ( $in['until'] ?? '' ) );
 			$count = absint( $in['count'] ?? 0 );
 			if ( '' !== $until ) {
 				$rule['until'] = self::parse_date( $until );
-				if ( null === $rule['until'] || $rule['until'] < $start ) { return self::error( 'wpcap_series_until', __( 'Das Enddatum ist ungültig oder liegt vor dem Start.', 'wp-pass-captain' ) ); }
+				if ( null === $rule['until'] || $rule['until'] < $start ) { return self::error( 'wpcap_series_until', __( 'Das Enddatum ist ungültig oder liegt vor dem Start.', 'pass-captain' ) ); }
 			}
 			if ( $count ) {
 				if ( $count > self::MAX ) {
 					/* translators: %d: maximum */
-					return self::error( 'wpcap_series_too_many', sprintf( __( 'Höchstens %d Termine pro Serie.', 'wp-pass-captain' ), self::MAX ) );
+					return self::error( 'wpcap_series_too_many', sprintf( __( 'Höchstens %d Termine pro Serie.', 'pass-captain' ), self::MAX ) );
 				}
 				$rule['count'] = $count;
 			}
-			if ( empty( $rule['until'] ) && empty( $rule['count'] ) ) { return self::error( 'wpcap_series_end', __( 'Bitte ein Enddatum oder eine Anzahl angeben.', 'wp-pass-captain' ) ); }
+			if ( empty( $rule['until'] ) && empty( $rule['count'] ) ) { return self::error( 'wpcap_series_end', __( 'Bitte ein Enddatum oder eine Anzahl angeben.', 'pass-captain' ) ); }
 			if ( 'weekly' === $freq ) {
 				$days = array_values( array_unique( array_filter( array_map( 'absint', (array) ( $in['weekdays'] ?? array() ) ), static function ( $d ) { return $d >= 1 && $d <= 7; } ) ) );
 				sort( $days );
 				$rule['weekdays'] = $days ? $days : array( (int) ( new \DateTimeImmutable( $start ) )->format( 'N' ) );
 			} elseif ( 'monthly_day' === $freq ) {
 				$day = absint( $in['month_day'] ?? 0 );
-				if ( $day < 1 || $day > 31 ) { return self::error( 'wpcap_series_month_day', __( 'Der Tag im Monat muss zwischen 1 und 31 liegen.', 'wp-pass-captain' ) ); }
+				if ( $day < 1 || $day > 31 ) { return self::error( 'wpcap_series_month_day', __( 'Der Tag im Monat muss zwischen 1 und 31 liegen.', 'pass-captain' ) ); }
 				$rule['month_day'] = $day;
 			} elseif ( 'monthly_nth' === $freq ) {
 				$nth = (int) ( $in['nth'] ?? 0 );
 				$weekday = absint( $in['nth_weekday'] ?? 0 );
-				if ( ! in_array( $nth, array( 1, 2, 3, 4, 5, -1 ), true ) || $weekday < 1 || $weekday > 7 ) { return self::error( 'wpcap_series_nth', __( 'Bitte Woche im Monat und Wochentag angeben.', 'wp-pass-captain' ) ); }
+				if ( ! in_array( $nth, array( 1, 2, 3, 4, 5, -1 ), true ) || $weekday < 1 || $weekday > 7 ) { return self::error( 'wpcap_series_nth', __( 'Bitte Woche im Monat und Wochentag angeben.', 'pass-captain' ) ); }
 				$rule['nth'] = $nth;
 				$rule['nth_weekday'] = $weekday;
 			}
 		}
 		if ( $invalid ) {
 			/* translators: %s: invalid dates */
-			return self::error( 'wpcap_series_invalid_date', sprintf( __( 'Ungültige Datumsangaben: %s', 'wp-pass-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) ) );
+			return self::error( 'wpcap_series_invalid_date', sprintf( __( 'Ungültige Datumsangaben: %s', 'pass-captain' ), implode( ', ', array_slice( $invalid, 0, 5 ) ) ) );
 		}
 		ksort( $rule );
 		return $rule;
@@ -181,7 +181,7 @@ final class Rules {
 				$dates[] = $date;
 				if ( count( $dates ) > self::MAX ) {
 					/* translators: %d: maximum */
-					return new \WP_Error( 'wpcap_series_too_many', sprintf( __( 'Die Regel ergibt mehr als %d Termine; bitte Enddatum oder Anzahl verringern.', 'wp-pass-captain' ), self::MAX ), array( 'status' => 400 ) );
+					return new \WP_Error( 'wpcap_series_too_many', sprintf( __( 'Die Regel ergibt mehr als %d Termine; bitte Enddatum oder Anzahl verringern.', 'pass-captain' ), self::MAX ), array( 'status' => 400 ) );
 				}
 			}
 		}

@@ -32,12 +32,12 @@ final class Privacy {
 	}
 
 	public static function register_exporter( $exporters ) {
-		$exporters['wp-pass-captain-orders'] = array( 'exporter_friendly_name' => __( 'WP Pass Captain Bestellungen und Tickets', 'wp-pass-captain' ), 'callback' => array( __CLASS__, 'export' ) );
+		$exporters['wp-pass-captain-orders'] = array( 'exporter_friendly_name' => __( 'Pass Captain Bestellungen und Tickets', 'pass-captain' ), 'callback' => array( __CLASS__, 'export' ) );
 		return $exporters;
 	}
 
 	public static function register_eraser( $erasers ) {
-		$erasers['wp-pass-captain-orders'] = array( 'eraser_friendly_name' => __( 'WP Pass Captain Bestellungen und Tickets', 'wp-pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) );
+		$erasers['wp-pass-captain-orders'] = array( 'eraser_friendly_name' => __( 'Pass Captain Bestellungen und Tickets', 'pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) );
 		return $erasers;
 	}
 
@@ -94,7 +94,7 @@ final class Privacy {
 			'maxAgeHours' => self::scanner_queue_hours(),
 			'i18n' => array(
 				/* translators: %d: number of discarded scans */
-				'expired' => sprintf( __( '%%d Offline-Scan(s) älter als %d Stunden wurden ohne Upload verworfen.', 'wp-pass-captain' ), self::scanner_queue_hours() ),
+				'expired' => sprintf( __( '%%d Offline-Scan(s) älter als %d Stunden wurden ohne Upload verworfen.', 'pass-captain' ), self::scanner_queue_hours() ),
 			),
 		);
 		wp_add_inline_script( 'wpcap-scanner', 'window.WPCAP_SCANNER_PRIVACY=' . wp_json_encode( $data ) . ';', 'before' );
@@ -126,28 +126,28 @@ final class Privacy {
 			$items = $wpdb->get_results( $wpdb->prepare( "SELECT tt.name,oi.quantity,oi.unit_price_minor,oi.line_total_minor FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d", $order['order_id'] ), ARRAY_A );
 			$tickets = $wpdb->get_results( $wpdb->prepare( "SELECT t.public_id,t.attendee_email,ta.attendee_name,ta.attendee_email AS assigned_email,t.status,t.transfer_count FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.order_id=%d ORDER BY t.ticket_id", $order['order_id'] ), ARRAY_A );
 			$rows = array(
-				array( 'name' => __( 'Bestellreferenz', 'wp-pass-captain' ), 'value' => $order['public_id'] ),
-				array( 'name' => __( 'Status', 'wp-pass-captain' ), 'value' => $order['status'] . ' / ' . $order['payment_status'] ),
-				array( 'name' => __( 'Gesamtbetrag in kleinster Währungseinheit', 'wp-pass-captain' ), 'value' => $order['total_minor'] . ' ' . $order['currency'] ),
-				array( 'name' => __( 'Zwischensumme und Rabatt in kleinster Währungseinheit', 'wp-pass-captain' ), 'value' => $order['subtotal_minor'] . ' / ' . $order['discount_minor'] . ' ' . $order['currency'] ),
-				array( 'name' => __( 'Preis-Snapshot', 'wp-pass-captain' ), 'value' => $order['price_snapshot'] ),
-				array( 'name' => __( 'Erstellt (UTC)', 'wp-pass-captain' ), 'value' => $order['created_at'] ),
-				array( 'name' => __( 'Positionen', 'wp-pass-captain' ), 'value' => wp_json_encode( $items ) ),
-				array( 'name' => __( 'Tickets und Teilnehmerdaten', 'wp-pass-captain' ), 'value' => wp_json_encode( $tickets ) ),
+				array( 'name' => __( 'Bestellreferenz', 'pass-captain' ), 'value' => $order['public_id'] ),
+				array( 'name' => __( 'Status', 'pass-captain' ), 'value' => $order['status'] . ' / ' . $order['payment_status'] ),
+				array( 'name' => __( 'Gesamtbetrag in kleinster Währungseinheit', 'pass-captain' ), 'value' => $order['total_minor'] . ' ' . $order['currency'] ),
+				array( 'name' => __( 'Zwischensumme und Rabatt in kleinster Währungseinheit', 'pass-captain' ), 'value' => $order['subtotal_minor'] . ' / ' . $order['discount_minor'] . ' ' . $order['currency'] ),
+				array( 'name' => __( 'Preis-Snapshot', 'pass-captain' ), 'value' => $order['price_snapshot'] ),
+				array( 'name' => __( 'Erstellt (UTC)', 'pass-captain' ), 'value' => $order['created_at'] ),
+				array( 'name' => __( 'Positionen', 'pass-captain' ), 'value' => wp_json_encode( $items ) ),
+				array( 'name' => __( 'Tickets und Teilnehmerdaten', 'pass-captain' ), 'value' => wp_json_encode( $tickets ) ),
 			);
 			if ( ! empty( $order['attendee_data'] ) ) {
-				$rows[] = array( 'name' => __( 'Noch nicht zugeordnete Teilnehmerangaben', 'wp-pass-captain' ), 'value' => $order['attendee_data'] );
+				$rows[] = array( 'name' => __( 'Noch nicht zugeordnete Teilnehmerangaben', 'pass-captain' ), 'value' => $order['attendee_data'] );
 			}
 			$billing = Billing::for_order( (object) $order );
 			if ( $billing ) {
-				$rows[] = array( 'name' => __( 'Rechnungsdaten (Firma, Name, Anschrift, UID, Referenz)', 'wp-pass-captain' ), 'value' => wp_json_encode( $billing ) );
+				$rows[] = array( 'name' => __( 'Rechnungsdaten (Firma, Name, Anschrift, UID, Referenz)', 'pass-captain' ), 'value' => wp_json_encode( $billing ) );
 			}
 			$invoice = $wpdb->get_row( $wpdb->prepare( "SELECT invoice_number,issued_at,status,buyer_snapshot FROM {$p}wpcap_invoices WHERE order_id=%d", $order['order_id'] ), ARRAY_A );
 			if ( $invoice ) {
-				$rows[] = array( 'name' => __( 'Rechnung (Nummer, Datum UTC, Status)', 'wp-pass-captain' ), 'value' => $invoice['invoice_number'] . ' / ' . $invoice['issued_at'] . ' / ' . $invoice['status'] );
-				$rows[] = array( 'name' => __( 'Käuferangaben auf der Rechnung', 'wp-pass-captain' ), 'value' => $invoice['buyer_snapshot'] );
+				$rows[] = array( 'name' => __( 'Rechnung (Nummer, Datum UTC, Status)', 'pass-captain' ), 'value' => $invoice['invoice_number'] . ' / ' . $invoice['issued_at'] . ' / ' . $invoice['status'] );
+				$rows[] = array( 'name' => __( 'Käuferangaben auf der Rechnung', 'pass-captain' ), 'value' => $invoice['buyer_snapshot'] );
 			}
-			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'WP Pass Captain Bestellungen', 'wp-pass-captain' ), 'item_id' => 'order-' . $order['public_id'], 'data' => $rows );
+			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'Pass Captain Bestellungen', 'pass-captain' ), 'item_id' => 'order-' . $order['public_id'], 'data' => $rows );
 		}
 
 		// Every ticket of this person: bought by them or assigned to them as attendee.
@@ -163,28 +163,28 @@ final class Privacy {
 
 		$passes = $wpdb->get_results( $wpdb->prepare( "SELECT public_id,valid_from,valid_until,status FROM {$p}wpcap_member_passes WHERE member_email=%s ORDER BY pass_id LIMIT 50 OFFSET %d", $email, $offset ), ARRAY_A );
 		foreach ( $passes as $pass ) {
-			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'WP Pass Captain Pässe', 'wp-pass-captain' ), 'item_id' => 'pass-' . $pass['public_id'], 'data' => array(
-				array( 'name' => __( 'Passreferenz', 'wp-pass-captain' ), 'value' => $pass['public_id'] ),
-				array( 'name' => __( 'Gültig von/bis (UTC)', 'wp-pass-captain' ), 'value' => $pass['valid_from'] . ' / ' . $pass['valid_until'] ),
-				array( 'name' => __( 'Status', 'wp-pass-captain' ), 'value' => $pass['status'] ),
+			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'Pass Captain Pässe', 'pass-captain' ), 'item_id' => 'pass-' . $pass['public_id'], 'data' => array(
+				array( 'name' => __( 'Passreferenz', 'pass-captain' ), 'value' => $pass['public_id'] ),
+				array( 'name' => __( 'Gültig von/bis (UTC)', 'pass-captain' ), 'value' => $pass['valid_from'] . ' / ' . $pass['valid_until'] ),
+				array( 'name' => __( 'Status', 'pass-captain' ), 'value' => $pass['status'] ),
 			) );
 		}
 		$waitlist = $wpdb->get_results( $wpdb->prepare( "SELECT event_id,ticket_type_id,position,status,created_at,offer_expires_at FROM {$p}wpcap_waitlist WHERE email=%s ORDER BY waitlist_id LIMIT 50 OFFSET %d", $email, $offset ), ARRAY_A );
 		foreach ( $waitlist as $entry ) {
-			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'WP Pass Captain Warteliste', 'wp-pass-captain' ), 'item_id' => 'waitlist-' . $entry['event_id'] . '-' . $entry['ticket_type_id'], 'data' => array(
-				array( 'name' => __( 'Event', 'wp-pass-captain' ), 'value' => $entry['event_id'] ),
-				array( 'name' => __( 'Ticketart', 'wp-pass-captain' ), 'value' => $entry['ticket_type_id'] ),
-				array( 'name' => __( 'Position und Status', 'wp-pass-captain' ), 'value' => $entry['position'] . ' / ' . $entry['status'] ),
-				array( 'name' => __( 'Erstellt / Angebotsablauf', 'wp-pass-captain' ), 'value' => $entry['created_at'] . ' / ' . ( $entry['offer_expires_at'] ?? '' ) ),
+			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'Pass Captain Warteliste', 'pass-captain' ), 'item_id' => 'waitlist-' . $entry['event_id'] . '-' . $entry['ticket_type_id'], 'data' => array(
+				array( 'name' => __( 'Event', 'pass-captain' ), 'value' => $entry['event_id'] ),
+				array( 'name' => __( 'Ticketart', 'pass-captain' ), 'value' => $entry['ticket_type_id'] ),
+				array( 'name' => __( 'Position und Status', 'pass-captain' ), 'value' => $entry['position'] . ' / ' . $entry['status'] ),
+				array( 'name' => __( 'Erstellt / Angebotsablauf', 'pass-captain' ), 'value' => $entry['created_at'] . ' / ' . ( $entry['offer_expires_at'] ?? '' ) ),
 			) );
 		}
 		$bookings = $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,b.quantity,b.status,b.created_at,s.starts_at,s.ends_at,r.name AS resource_name FROM {$p}wpcap_service_bookings b LEFT JOIN {$p}wpcap_service_slots s ON s.slot_id=b.slot_id LEFT JOIN {$p}wpcap_resources r ON r.resource_id=s.resource_id WHERE b.customer_email=%s ORDER BY b.booking_id LIMIT 50 OFFSET %d", $email, $offset ), ARRAY_A );
 		foreach ( $bookings as $booking ) {
-			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'WP Pass Captain Terminbuchungen', 'wp-pass-captain' ), 'item_id' => 'booking-' . $booking['booking_id'], 'data' => array(
-				array( 'name' => __( 'Ressource', 'wp-pass-captain' ), 'value' => (string) $booking['resource_name'] ),
-				array( 'name' => __( 'Termin von/bis (UTC)', 'wp-pass-captain' ), 'value' => $booking['starts_at'] . ' / ' . $booking['ends_at'] ),
-				array( 'name' => __( 'Anzahl und Status', 'wp-pass-captain' ), 'value' => $booking['quantity'] . ' / ' . $booking['status'] ),
-				array( 'name' => __( 'Erstellt (UTC)', 'wp-pass-captain' ), 'value' => $booking['created_at'] ),
+			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'Pass Captain Terminbuchungen', 'pass-captain' ), 'item_id' => 'booking-' . $booking['booking_id'], 'data' => array(
+				array( 'name' => __( 'Ressource', 'pass-captain' ), 'value' => (string) $booking['resource_name'] ),
+				array( 'name' => __( 'Termin von/bis (UTC)', 'pass-captain' ), 'value' => $booking['starts_at'] . ' / ' . $booking['ends_at'] ),
+				array( 'name' => __( 'Anzahl und Status', 'pass-captain' ), 'value' => $booking['quantity'] . ' / ' . $booking['status'] ),
+				array( 'name' => __( 'Erstellt (UTC)', 'pass-captain' ), 'value' => $booking['created_at'] ),
 			) );
 		}
 		$done = count( $orders ) < 50 && count( $tickets ) < 50 && count( $passes ) < 50 && count( $waitlist ) < 50 && count( $bookings ) < 50;
@@ -197,16 +197,16 @@ final class Privacy {
 		$p = $wpdb->prefix;
 		$id = (int) $ticket->ticket_id;
 		$rows = array(
-			array( 'name' => __( 'Ticketreferenz', 'wp-pass-captain' ), 'value' => $ticket->public_id ),
-			array( 'name' => __( 'Event und Beginn (UTC)', 'wp-pass-captain' ), 'value' => $ticket->event_name . ' / ' . $ticket->starts_at ),
-			array( 'name' => __( 'Status', 'wp-pass-captain' ), 'value' => $ticket->status ),
-			array( 'name' => __( 'Rolle', 'wp-pass-captain' ), 'value' => 0 === strcasecmp( (string) $ticket->customer_email, $email ) ? __( 'Käufer', 'wp-pass-captain' ) : __( 'Teilnehmer', 'wp-pass-captain' ) ),
+			array( 'name' => __( 'Ticketreferenz', 'pass-captain' ), 'value' => $ticket->public_id ),
+			array( 'name' => __( 'Event und Beginn (UTC)', 'pass-captain' ), 'value' => $ticket->event_name . ' / ' . $ticket->starts_at ),
+			array( 'name' => __( 'Status', 'pass-captain' ), 'value' => $ticket->status ),
+			array( 'name' => __( 'Rolle', 'pass-captain' ), 'value' => 0 === strcasecmp( (string) $ticket->customer_email, $email ) ? __( 'Käufer', 'pass-captain' ) : __( 'Teilnehmer', 'pass-captain' ) ),
 		);
 		$attendee_email = '' !== (string) $ticket->assigned_email ? $ticket->assigned_email : $ticket->attendee_email;
-		if ( '' !== (string) $ticket->attendee_name ) { $rows[] = array( 'name' => __( 'Name des Teilnehmers', 'wp-pass-captain' ), 'value' => $ticket->attendee_name ); }
-		if ( '' !== (string) $attendee_email ) { $rows[] = array( 'name' => __( 'E-Mail des Teilnehmers', 'wp-pass-captain' ), 'value' => $attendee_email ); }
+		if ( '' !== (string) $ticket->attendee_name ) { $rows[] = array( 'name' => __( 'Name des Teilnehmers', 'pass-captain' ), 'value' => $ticket->attendee_name ); }
+		if ( '' !== (string) $attendee_email ) { $rows[] = array( 'name' => __( 'E-Mail des Teilnehmers', 'pass-captain' ), 'value' => $attendee_email ); }
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT a.answer,f.label,f.purpose FROM {$p}wpcap_participant_answers a LEFT JOIN {$p}wpcap_participant_fields f ON f.field_id=a.field_id WHERE a.ticket_id=%d ORDER BY a.field_id", $id ) ) as $answer ) {
-			$label = '' !== (string) $answer->label ? $answer->label : __( 'Teilnehmerangabe', 'wp-pass-captain' );
+			$label = '' !== (string) $answer->label ? $answer->label : __( 'Teilnehmerangabe', 'pass-captain' );
 			$rows[] = array( 'name' => $label . ( '' !== (string) $answer->purpose ? ' (' . $answer->purpose . ')' : '' ), 'value' => $answer->answer );
 		}
 		$checkins = array();
@@ -222,7 +222,7 @@ final class Privacy {
 				$checkins[] = array( 'time_utc' => $e->entered_at, 'direction' => $e->direction, 'area' => (string) $e->area, 'undone' => (bool) $e->undone );
 			}
 		}
-		if ( $checkins ) { $rows[] = array( 'name' => __( 'Einlassprotokoll (Zeit UTC, Bereich)', 'wp-pass-captain' ), 'value' => wp_json_encode( $checkins ) ); }
+		if ( $checkins ) { $rows[] = array( 'name' => __( 'Einlassprotokoll (Zeit UTC, Bereich)', 'pass-captain' ), 'value' => wp_json_encode( $checkins ) ); }
 		$wallet = $wpdb->get_results( $wpdb->prepare( "SELECT provider,serial_number,status,updated_at FROM {$p}wpcap_wallet_passes WHERE ticket_id=%d ORDER BY wallet_pass_id", $id ), ARRAY_A );
 		if ( $wallet ) {
 			if ( self::has_table( 'wpcap_wallet_registrations' ) ) {
@@ -230,9 +230,9 @@ final class Privacy {
 					$wallet[ $i ]['registered_devices'] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_wallet_registrations WHERE serial_number=%s", $w['serial_number'] ) );
 				}
 			}
-			$rows[] = array( 'name' => __( 'Wallet-Pässe', 'wp-pass-captain' ), 'value' => wp_json_encode( $wallet ) );
+			$rows[] = array( 'name' => __( 'Wallet-Pässe', 'pass-captain' ), 'value' => wp_json_encode( $wallet ) );
 		}
-		return array( 'group_id' => 'wp-pass-captain-tickets', 'group_label' => __( 'WP Pass Captain Tickets', 'wp-pass-captain' ), 'item_id' => 'ticket-' . $ticket->public_id, 'data' => $rows );
+		return array( 'group_id' => 'wp-pass-captain-tickets', 'group_label' => __( 'Pass Captain Tickets', 'pass-captain' ), 'item_id' => 'ticket-' . $ticket->public_id, 'data' => $rows );
 	}
 
 	/* ------------------------------------------------------------------ Erasure */
@@ -260,7 +260,7 @@ final class Privacy {
 			$removed += self::erase_ticket_details( $attendee_ids, true );
 			if ( $upcoming ) {
 				/* translators: %d: number of tickets */
-				$messages[] = sprintf( __( 'Hinweis: %d Ticket(s) anderer Käufer für bevorstehende Termine bleiben gültig; nur Name, E-Mail und Angaben der Person als Teilnehmer wurden entfernt.', 'wp-pass-captain' ), $upcoming );
+				$messages[] = sprintf( __( 'Hinweis: %d Ticket(s) anderer Käufer für bevorstehende Termine bleiben gültig; nur Name, E-Mail und Angaben der Person als Teilnehmer wurden entfernt.', 'pass-captain' ), $upcoming );
 			}
 		}
 
@@ -291,9 +291,9 @@ final class Privacy {
 		if ( $deferred ) {
 			wp_mail(
 				get_option( 'admin_email' ),
-				__( 'WP Pass Captain: Löschanfrage zurückgestellt', 'wp-pass-captain' ),
+				__( 'Pass Captain: Löschanfrage zurückgestellt', 'pass-captain' ),
 				/* translators: %d: number of orders */
-				sprintf( __( 'Eine Löschanfrage betrifft %d Bestellung(en) mit Tickets für kommende Termine. Die Tickets bleiben bis nach dem letzten Termin gültig; danach werden die Bestellungen automatisch anonymisiert.', 'wp-pass-captain' ), $deferred )
+				sprintf( __( 'Eine Löschanfrage betrifft %d Bestellung(en) mit Tickets für kommende Termine. Die Tickets bleiben bis nach dem letzten Termin gültig; danach werden die Bestellungen automatisch anonymisiert.', 'pass-captain' ), $deferred )
 			);
 		}
 
@@ -308,23 +308,23 @@ final class Privacy {
 		$retained = (bool) $orders;
 		if ( $deferred ) {
 			/* translators: %d: number of orders */
-			$messages[] = sprintf( __( '%d Bestellung(en) mit Tickets für bevorstehende Termine werden zur Vertragserfüllung (Art. 17 Abs. 3 DSGVO) bis nach dem letzten Termin aufbewahrt und danach automatisch anonymisiert; die Tickets bleiben gültig.', 'wp-pass-captain' ), $deferred );
+			$messages[] = sprintf( __( '%d Bestellung(en) mit Tickets für bevorstehende Termine werden zur Vertragserfüllung (Art. 17 Abs. 3 DSGVO) bis nach dem letzten Termin aufbewahrt und danach automatisch anonymisiert; die Tickets bleiben gültig.', 'pass-captain' ), $deferred );
 		}
 		if ( $orders ) {
-			$messages[] = __( 'Bestellbeträge, Positionen, Steuern, Zahlungs- und Erstattungsreferenzen bleiben wegen gesetzlicher Aufbewahrungspflichten (Art. 17 Abs. 3 lit. b DSGVO) erhalten. Entfernt bzw. anonymisiert wurden: Käufer-E-Mail in Bestellungen, Ticketzugänge, Teilnehmernamen, -E-Mails und -angaben, Offline-Scannerdaten, Wallet-Registrierungen, Terminbuchungen, Wartelisteneinträge, Passzugänge und geplante Nachrichten.', 'wp-pass-captain' );
+			$messages[] = __( 'Bestellbeträge, Positionen, Steuern, Zahlungs- und Erstattungsreferenzen bleiben wegen gesetzlicher Aufbewahrungspflichten (Art. 17 Abs. 3 lit. b DSGVO) erhalten. Entfernt bzw. anonymisiert wurden: Käufer-E-Mail in Bestellungen, Ticketzugänge, Teilnehmernamen, -E-Mails und -angaben, Offline-Scannerdaten, Wallet-Registrierungen, Terminbuchungen, Wartelisteneinträge, Passzugänge und geplante Nachrichten.', 'pass-captain' );
 		} elseif ( $removed ) {
-			$messages[] = __( 'Teilnehmerdaten, Wartelisteneinträge, Passzugänge, Terminbuchungen bzw. geplante Nachrichten dieser Person wurden entfernt oder anonymisiert.', 'wp-pass-captain' );
+			$messages[] = __( 'Teilnehmerdaten, Wartelisteneinträge, Passzugänge, Terminbuchungen bzw. geplante Nachrichten dieser Person wurden entfernt oder anonymisiert.', 'pass-captain' );
 		}
 		if ( $invoices ) {
 			/* translators: %d: number of invoices */
-			$messages[] = sprintf( __( '%d Rechnung(en) bleiben unverändert gespeichert, einschließlich der darauf angegebenen Käuferangaben (E-Mail-Adresse): Rechnungen unterliegen der gesetzlichen Aufbewahrungspflicht (7 Jahre nach § 132 BAO, 10 Jahre nach § 147 AO/§ 257 HGB; Art. 17 Abs. 3 lit. b DSGVO). Die Käuferangaben auf Rechnungen wurden nicht entfernt.', 'wp-pass-captain' ), $invoices );
+			$messages[] = sprintf( __( '%d Rechnung(en) bleiben unverändert gespeichert, einschließlich der darauf angegebenen Käuferangaben (E-Mail-Adresse): Rechnungen unterliegen der gesetzlichen Aufbewahrungspflicht (7 Jahre nach § 132 BAO, 10 Jahre nach § 147 AO/§ 257 HGB; Art. 17 Abs. 3 lit. b DSGVO). Die Käuferangaben auf Rechnungen wurden nicht entfernt.', 'pass-captain' ), $invoices );
 		}
 		if ( $billing_erased ) {
-			$messages[] = __( 'Die Rechnungsdaten der Bestellungen (Firma, Name, Anschrift, UID, Referenz) wurden entfernt. Bereits ausgestellte Rechnungen behalten die darauf angegebenen Empfängerangaben (gesetzliche Aufbewahrungspflicht, Art. 17 Abs. 3 lit. b DSGVO).', 'wp-pass-captain' );
+			$messages[] = __( 'Die Rechnungsdaten der Bestellungen (Firma, Name, Anschrift, UID, Referenz) wurden entfernt. Bereits ausgestellte Rechnungen behalten die darauf angegebenen Empfängerangaben (gesetzliche Aufbewahrungspflicht, Art. 17 Abs. 3 lit. b DSGVO).', 'pass-captain' );
 		}
 		if ( $upcoming ) {
 			/* translators: %d: number of tickets */
-			$messages[] = sprintf( __( 'Achtung: %d Ticket(s) für bevorstehende Termine wurden durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', 'wp-pass-captain' ), $upcoming );
+			$messages[] = sprintf( __( 'Achtung: %d Ticket(s) für bevorstehende Termine wurden durch die Löschung ungültig. Bitte klären Sie mit der Person eine Erstattung oder Stornierung; diese wird nicht automatisch ausgelöst.', 'pass-captain' ), $upcoming );
 		}
 		return array(
 			'items_removed' => $removed > 0,

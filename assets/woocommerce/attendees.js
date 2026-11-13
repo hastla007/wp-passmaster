@@ -1,5 +1,5 @@
 /**
- * WP Pass Captain – participant fields in the WooCommerce checkout block.
+ * Pass Captain – participant fields in the WooCommerce checkout block.
  *
  * Renders one fieldset per ticket for ticket types with participant fields (cart extension data
  * `extensions.wpcap.attendee_types`), blocks "Place order" through the checkout validation store

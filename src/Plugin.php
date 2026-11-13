@@ -40,6 +40,17 @@ final class Plugin {
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		add_action( 'wpcap_process_messages', array( Communications::class, 'process_due' ) );
 		add_action( 'wpcap_process_jobs', array( Jobs::class, 'process_due' ) );
+		// Self-healing schedule: e.g. deleting the old "wp-pass-captain" copy runs its uninstall.php, which clears the
+		// recurring events this copy relies on.
+		add_action(
+			'init',
+			static function () {
+				if ( function_exists( 'wp_next_scheduled' ) && ! wp_next_scheduled( 'wpcap_process_jobs' ) ) {
+					self::schedule_events();
+				}
+			},
+			20
+		);
 		add_action( 'init', array( $this, 'register_blocks' ) );
 		Integrations\WooCommerce\OrderAdapter::register();
 		Invoices::register();

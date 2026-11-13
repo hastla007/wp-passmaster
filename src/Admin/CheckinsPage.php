@@ -42,8 +42,8 @@ final class CheckinsPage {
 	private static function render_presence( $event_id, array $occurrences ) {
 		$areas = \PassCaptain\Admission\Areas::for_event( $event_id, true );
 		?>
-		<h2><?php esc_html_e( 'Aktuell anwesend', 'wp-pass-captain' ); ?></h2>
-		<table class="widefat striped" style="margin-bottom:1em"><thead><tr><th><?php esc_html_e( 'Termin', 'wp-pass-captain' ); ?></th><th><?php esc_html_e( 'Anwesend', 'wp-pass-captain' ); ?></th><?php foreach ( $areas as $area ) : ?><th><?php echo esc_html( $area->name ); ?></th><?php endforeach; ?></tr></thead><tbody>
+		<h2><?php esc_html_e( 'Aktuell anwesend', 'pass-captain' ); ?></h2>
+		<table class="widefat striped" style="margin-bottom:1em"><thead><tr><th><?php esc_html_e( 'Termin', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Anwesend', 'pass-captain' ); ?></th><?php foreach ( $areas as $area ) : ?><th><?php echo esc_html( $area->name ); ?></th><?php endforeach; ?></tr></thead><tbody>
 		<?php foreach ( array_slice( $occurrences, 0, 50 ) as $occ ) : $presence = \PassCaptain\Admission\Engine::presence( (int) $occ->occurrence_id ); ?>
 			<tr><td><?php echo esc_html( Forms::datetime( $occ->starts_at, $occ->timezone ) ); ?></td><td><?php echo esc_html( (string) $presence['present'] ); ?></td><?php foreach ( $areas as $area ) : ?><td><?php echo esc_html( (string) ( $presence['by_area'][ (int) $area->area_id ] ?? 0 ) ); ?></td><?php endforeach; ?></tr>
 		<?php endforeach; ?>
@@ -52,7 +52,7 @@ final class CheckinsPage {
 	}
 
 	public static function render() {
-		if ( ! array_filter( self::VIEW_CAPS, 'current_user_can' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! array_filter( self::VIEW_CAPS, 'current_user_can' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$scope = Queries::event_ids_for( self::VIEW_CAPS );
 		$events = Queries::event_options( $scope );
 		$event_id = absint( Forms::query_arg( 'event_id', 0 ) );
@@ -70,32 +70,32 @@ final class CheckinsPage {
 		$page = Forms::current_page();
 		$per_page = 50;
 		$data = Queries::checkin_log( array( 'event_id' => $event_id, 'result' => $result, 'date_from' => $from_utc, 'date_to' => $to_utc ), $scope, $page, $per_page );
-		$result_options = array( '' => __( 'Alle Ergebnisse', 'wp-pass-captain' ) );
+		$result_options = array( '' => __( 'Alle Ergebnisse', 'pass-captain' ) );
 		foreach ( $results as $r ) { $result_options[ $r ] = \PassCaptain\Admission\ConflictsPage::result_label( $r ); }
 		$base = Forms::page_url( self::SLUG, array_filter( array( 'event_id' => $event_id, 'result' => $result, 'date_from' => $date_from, 'date_to' => $date_to ) ) );
 		?>
 		<div class="wrap wpcap-admin">
-		<h1><?php esc_html_e( 'Check-ins', 'wp-pass-captain' ); ?></h1>
+		<h1><?php esc_html_e( 'Check-ins', 'pass-captain' ); ?></h1>
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
-			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'wp-pass-captain' ) ) + $events, $event_id, '', 'aria-label="' . esc_attr__( 'Event', 'wp-pass-captain' ) . '"' ); ?>
-			<?php Forms::select( 'result', $result_options, $result, '', 'aria-label="' . esc_attr__( 'Ergebnis', 'wp-pass-captain' ) . '"' ); ?>
-			<label><?php esc_html_e( 'von', 'wp-pass-captain' ); ?> <input type="date" name="date_from" value="<?php echo esc_attr( $date_from ); ?>"></label>
-			<label><?php esc_html_e( 'bis', 'wp-pass-captain' ); ?> <input type="date" name="date_to" value="<?php echo esc_attr( $date_to ); ?>"></label>
-			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'wp-pass-captain' ); ?></button>
-			<span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Datum und Uhrzeit in %s', 'wp-pass-captain' ), $timezone ) ); ?></span>
+			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $event_id, '', 'aria-label="' . esc_attr__( 'Event', 'pass-captain' ) . '"' ); ?>
+			<?php Forms::select( 'result', $result_options, $result, '', 'aria-label="' . esc_attr__( 'Ergebnis', 'pass-captain' ) . '"' ); ?>
+			<label><?php esc_html_e( 'von', 'pass-captain' ); ?> <input type="date" name="date_from" value="<?php echo esc_attr( $date_from ); ?>"></label>
+			<label><?php esc_html_e( 'bis', 'pass-captain' ); ?> <input type="date" name="date_to" value="<?php echo esc_attr( $date_to ); ?>"></label>
+			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
+			<span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Datum und Uhrzeit in %s', 'pass-captain' ), $timezone ) ); ?></span>
 		</form>
 		<?php if ( $event_id && ! empty( $occurrences ) ) { self::render_presence( $event_id, $occurrences ); } ?>
 		<table class="widefat striped">
 			<thead><tr>
-				<th><?php esc_html_e( 'Zeitpunkt', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Event', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Ticket', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Ergebnis', 'wp-pass-captain' ); ?></th>
-				<th><?php esc_html_e( 'Personal', 'wp-pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Zeitpunkt', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Event', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Ticket', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Ergebnis', 'pass-captain' ); ?></th>
+				<th><?php esc_html_e( 'Personal', 'pass-captain' ); ?></th>
 			</tr></thead>
 			<tbody>
-			<?php if ( ! $data['rows'] ) : ?><tr><td colspan="5"><?php esc_html_e( 'Keine Check-ins gefunden.', 'wp-pass-captain' ); ?></td></tr><?php endif; ?>
+			<?php if ( ! $data['rows'] ) : ?><tr><td colspan="5"><?php esc_html_e( 'Keine Check-ins gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 			<?php foreach ( $data['rows'] as $row ) : ?>
 				<tr>
 					<td><?php echo esc_html( Forms::datetime( $row->created_at, $timezone, false ) ); ?></td>

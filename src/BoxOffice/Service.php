@@ -29,10 +29,10 @@ final class Service {
 	/** Payment methods: key => provider id and label. */
 	public static function methods() {
 		return array(
-			'cash'    => array( 'provider' => 'pos_cash', 'label' => __( 'Bar', 'wp-pass-captain' ) ),
-			'card'    => array( 'provider' => 'pos_card', 'label' => __( 'Karte (Terminal)', 'wp-pass-captain' ) ),
-			'free'    => array( 'provider' => 'pos_free', 'label' => __( 'Freikarte', 'wp-pass-captain' ) ),
-			'invoice' => array( 'provider' => 'pos_invoice', 'label' => __( 'Rechnung', 'wp-pass-captain' ) ),
+			'cash'    => array( 'provider' => 'pos_cash', 'label' => __( 'Bar', 'pass-captain' ) ),
+			'card'    => array( 'provider' => 'pos_card', 'label' => __( 'Karte (Terminal)', 'pass-captain' ) ),
+			'free'    => array( 'provider' => 'pos_free', 'label' => __( 'Freikarte', 'pass-captain' ) ),
+			'invoice' => array( 'provider' => 'pos_invoice', 'label' => __( 'Rechnung', 'pass-captain' ) ),
 		);
 	}
 
@@ -78,7 +78,7 @@ final class Service {
 	/** Opens the cash session of the current user (one open session per cashier). */
 	public static function open_session( $float_minor, $currency = 'EUR', $note = '' ) {
 		global $wpdb;
-		if ( ! current_user_can( self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! current_user_can( self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$user_id = get_current_user_id();
 		$existing = self::open_session_for( $user_id );
 		if ( $existing ) { return $existing; }
@@ -96,7 +96,7 @@ final class Service {
 		if ( $session ) {
 			Audit::record( 'pos_session_opened', 'pos_session', (int) $session->session_id, array( 'float_minor' => (int) $session->opening_float_minor ) );
 		}
-		return $session ? $session : self::error( 'wpcap_pos_session', __( 'Die Kassensitzung konnte nicht geöffnet werden.', 'wp-pass-captain' ), 500 );
+		return $session ? $session : self::error( 'wpcap_pos_session', __( 'Die Kassensitzung konnte nicht geöffnet werden.', 'pass-captain' ), 500 );
 	}
 
 	/** Sale states that count in session totals (pending/failed rows have no receipt yet). */
@@ -152,20 +152,20 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$session = self::session( $session_id );
-		if ( ! $session ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( (int) $session->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) { return self::error( 'wpcap_forbidden', __( 'Nur die eigene Kassensitzung kann geschlossen werden.', 'wp-pass-captain' ), 403 ); }
-		if ( 'open' !== $session->status ) { return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $session ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( (int) $session->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) ) { return self::error( 'wpcap_forbidden', __( 'Nur die eigene Kassensitzung kann geschlossen werden.', 'pass-captain' ), 403 ); }
+		if ( 'open' !== $session->status ) { return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'pass-captain' ), 409 ); }
 		self::reset_rejected_stornos( $session->session_id );
 		$pending = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_boxoffice_sales WHERE session_id=%d AND status='storno_pending'", $session->session_id ) );
-		if ( $pending ) { return self::error( 'wpcap_pos_storno_pending', __( 'Ein Storno wartet noch auf Freigabe. Bitte freigeben oder ablehnen lassen, dann die Kasse abschließen.', 'wp-pass-captain' ), 409 ); }
+		if ( $pending ) { return self::error( 'wpcap_pos_storno_pending', __( 'Ein Storno wartet noch auf Freigabe. Bitte freigeben oder ablehnen lassen, dann die Kasse abschließen.', 'pass-captain' ), 409 ); }
 		$wpdb->query( 'START TRANSACTION' );
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", $session->session_id ) );
-		if ( ! $locked || 'open' !== $locked->status ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $locked || 'open' !== $locked->status ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung ist bereits geschlossen.', 'pass-captain' ), 409 ); }
 		$unfinished = $wpdb->get_results( $wpdb->prepare( "SELECT s.sale_id,ord.payment_status FROM {$p}wpcap_boxoffice_sales s LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=s.order_id WHERE s.session_id=%d AND s.status='pending' FOR UPDATE", $session->session_id ) );
 		foreach ( $unfinished as $row ) {
 			if ( 'paid' === $row->payment_status ) {
 				$wpdb->query( 'ROLLBACK' );
-				return self::error( 'wpcap_pos_unbooked', __( 'Ein bezahlter Verkauf ist noch nicht gebucht. Bitte zuerst „Nachbuchen“ ausführen.', 'wp-pass-captain' ), 409 );
+				return self::error( 'wpcap_pos_unbooked', __( 'Ein bezahlter Verkauf ist noch nicht gebucht. Bitte zuerst „Nachbuchen“ ausführen.', 'pass-captain' ), 409 );
 			}
 		}
 		foreach ( $unfinished as $row ) {
@@ -275,12 +275,12 @@ final class Service {
 
 	/** Result for a form key that already has a sale row (replay, resume or failure). */
 	private static function existing_result( $existing ) {
-		if ( (int) $existing->cashier_id !== get_current_user_id() ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'wp-pass-captain' ) ); }
+		if ( (int) $existing->cashier_id !== get_current_user_id() ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'pass-captain' ) ); }
 		if ( 'pending' === $existing->status ) {
-			if ( ! $existing->order_id ) { return self::error( 'wpcap_pos_in_progress', __( 'Dieser Verkauf wird gerade verarbeitet.', 'wp-pass-captain' ), 409 ); }
+			if ( ! $existing->order_id ) { return self::error( 'wpcap_pos_in_progress', __( 'Dieser Verkauf wird gerade verarbeitet.', 'pass-captain' ), 409 ); }
 			return self::finalize( $existing->sale_id );
 		}
-		if ( 'failed' === $existing->status ) { return self::error( 'wpcap_pos_sale_failed', __( 'Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen.', 'wp-pass-captain' ), 409 ); }
+		if ( 'failed' === $existing->status ) { return self::error( 'wpcap_pos_sale_failed', __( 'Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen.', 'pass-captain' ), 409 ); }
 		return array( 'sale' => $existing, 'reused' => true );
 	}
 
@@ -301,21 +301,21 @@ final class Service {
 	public static function sell( array $input ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		if ( ! current_user_can( self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! current_user_can( self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$form_key = (string) ( $input['form_key'] ?? '' );
-		if ( ! preg_match( '/^[A-Za-z0-9-]{16,64}$/', $form_key ) ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'wp-pass-captain' ) ); }
+		if ( ! preg_match( '/^[A-Za-z0-9-]{16,64}$/', $form_key ) ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'pass-captain' ) ); }
 		$key_hash = hash( 'sha256', 'pos-sale|' . $form_key );
 		$existing = self::sale_by_key( $key_hash );
 		if ( $existing ) { return self::existing_result( $existing ); }
 		$session = self::open_session_for( get_current_user_id() );
-		if ( ! $session || 'open' !== $session->status ) { return self::error( 'wpcap_pos_no_session', __( 'Bitte zuerst eine Kassensitzung öffnen.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $session || 'open' !== $session->status ) { return self::error( 'wpcap_pos_no_session', __( 'Bitte zuerst eine Kassensitzung öffnen.', 'pass-captain' ), 409 ); }
 
 		$occurrence_id = absint( $input['occurrence_id'] ?? 0 );
 		$event_id = Scope::occurrence_event( $occurrence_id );
-		if ( ! $event_id || ! Scope::can_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $event_id || ! Scope::can_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$methods = self::methods();
 		$method = (string) ( $input['method'] ?? '' );
-		if ( ! isset( $methods[ $method ] ) ) { return self::error( 'wpcap_pos_method', __( 'Bitte eine Zahlart wählen.', 'wp-pass-captain' ) ); }
+		if ( ! isset( $methods[ $method ] ) ) { return self::error( 'wpcap_pos_method', __( 'Bitte eine Zahlart wählen.', 'pass-captain' ) ); }
 
 		$types = array();
 		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,currency,price_minor FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d", $occurrence_id ) ) as $t ) { $types[ (int) $t->ticket_type_id ] = $t; }
@@ -327,16 +327,16 @@ final class Service {
 			$type_id = absint( $type_id );
 			$qty = absint( $qty );
 			if ( ! $qty ) { continue; }
-			if ( ! isset( $types[ $type_id ] ) ) { return self::error( 'wpcap_pos_item', __( 'Eine Ticketart gehört nicht zu diesem Termin.', 'wp-pass-captain' ) ); }
-			if ( strtoupper( $types[ $type_id ]->currency ) !== $session->currency ) { return self::error( 'wpcap_pos_currency', __( 'Die Währung der Ticketart passt nicht zur Kassensitzung.', 'wp-pass-captain' ) ); }
+			if ( ! isset( $types[ $type_id ] ) ) { return self::error( 'wpcap_pos_item', __( 'Eine Ticketart gehört nicht zu diesem Termin.', 'pass-captain' ) ); }
+			if ( strtoupper( $types[ $type_id ]->currency ) !== $session->currency ) { return self::error( 'wpcap_pos_currency', __( 'Die Währung der Ticketart passt nicht zur Kassensitzung.', 'pass-captain' ) ); }
 			$items[] = array( 'ticket_type_id' => $type_id, 'quantity' => $qty );
 			$attendees = array_merge( $attendees, self::build_attendees( $type_id, $qty, $attendees_in, $names_in ) );
 		}
-		if ( ! $items ) { return self::error( 'wpcap_pos_empty', __( 'Bitte mindestens ein Ticket wählen.', 'wp-pass-captain' ) ); }
+		if ( ! $items ) { return self::error( 'wpcap_pos_empty', __( 'Bitte mindestens ein Ticket wählen.', 'pass-captain' ) ); }
 
 		$email = sanitize_email( (string) ( $input['email'] ?? '' ) );
-		if ( '' !== $email && ( ! is_email( $email ) || self::is_placeholder_email( $email ) ) ) { return self::error( 'wpcap_pos_email', __( 'Die E-Mail-Adresse ist ungültig.', 'wp-pass-captain' ) ); }
-		if ( 'invoice' === $method && '' === $email ) { return self::error( 'wpcap_pos_email', __( 'Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich.', 'wp-pass-captain' ) ); }
+		if ( '' !== $email && ( ! is_email( $email ) || self::is_placeholder_email( $email ) ) ) { return self::error( 'wpcap_pos_email', __( 'Die E-Mail-Adresse ist ungültig.', 'pass-captain' ) ); }
+		if ( 'invoice' === $method && '' === $email ) { return self::error( 'wpcap_pos_email', __( 'Für Zahlung auf Rechnung ist die E-Mail-Adresse des Käufers erforderlich.', 'pass-captain' ) ); }
 		$buyer_email = '' !== $email ? $email : 'boxoffice+' . substr( $key_hash, 0, 16 ) . self::PLACEHOLDER_DOMAIN;
 		// Optional "Rechnung auf Firma": company, name, address, VAT ID for the invoice.
 		$billing = \PassCaptain\Billing::validate( $input['billing'] ?? null );
@@ -363,7 +363,7 @@ final class Service {
 		}
 		if ( false === $saved ) {
 			$existing = self::sale_by_key( $key_hash );
-			return $existing ? self::existing_result( $existing ) : self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 );
+			return $existing ? self::existing_result( $existing ) : self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
 		}
 		$sale_id = (int) $wpdb->insert_id;
 
@@ -423,17 +423,17 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$sale = self::sale( $sale_id );
-		if ( ! $sale ) { return self::error( 'wpcap_pos_sale', __( 'Verkauf nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( 'pending' !== $sale->status ) { return 'failed' === $sale->status ? self::error( 'wpcap_pos_sale_failed', __( 'Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen.', 'wp-pass-captain' ), 409 ) : array( 'sale' => $sale, 'reused' => true ); }
+		if ( ! $sale ) { return self::error( 'wpcap_pos_sale', __( 'Verkauf nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( 'pending' !== $sale->status ) { return 'failed' === $sale->status ? self::error( 'wpcap_pos_sale_failed', __( 'Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen.', 'pass-captain' ), 409 ) : array( 'sale' => $sale, 'reused' => true ); }
 		$order = $sale->order_id ? Orders::get( $sale->order_id ) : null;
-		if ( ! $order ) { return self::error( 'wpcap_pos_in_progress', __( 'Dieser Verkauf wird gerade verarbeitet.', 'wp-pass-captain' ), 409 ); }
+		if ( ! $order ) { return self::error( 'wpcap_pos_in_progress', __( 'Dieser Verkauf wird gerade verarbeitet.', 'pass-captain' ), 409 ); }
 		if ( 'pending' === $order->payment_status ) {
 			$confirmed = Orders::confirm_external_payment( $order->order_id, 'pos:' . $sale->payment_method );
 			if ( is_wp_error( $confirmed ) ) { return $confirmed; }
 		}
 		if ( ! self::order_ready( $order->order_id ) ) {
 			Audit::record( 'pos_sale_unbooked', 'order', (int) $order->order_id, array( 'sale_id' => (int) $sale->sale_id ) );
-			return self::error( 'wpcap_pos_not_ready', __( 'Die Bestellung ist nicht bezahlt oder es wurden nicht alle Tickets ausgestellt. Der Verkauf wurde nicht gebucht; bitte die Bestellung prüfen.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_not_ready', __( 'Die Bestellung ist nicht bezahlt oder es wurden nicht alle Tickets ausgestellt. Der Verkauf wurde nicht gebucht; bitte die Bestellung prüfen.', 'pass-captain' ), 409 );
 		}
 		$order = Orders::get( $order->order_id );
 
@@ -449,7 +449,7 @@ final class Service {
 			$wpdb->query( 'COMMIT' );
 			Orders::cancel_order( $order->order_id, 'pos_session_closed' );
 			Audit::record( 'pos_sale_failed', 'order', (int) $order->order_id, array( 'sale_id' => (int) $sale->sale_id, 'reason' => 'session_closed' ) );
-			return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung wurde inzwischen geschlossen. Der Verkauf wurde nicht gebucht und die Tickets wurden storniert.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung wurde inzwischen geschlossen. Der Verkauf wurde nicht gebucht und die Tickets wurden storniert.', 'pass-captain' ), 409 );
 		}
 		$number = Invoices::next_document_number( 'receipt', self::receipt_prefix(), true );
 		if ( is_wp_error( $number ) ) { $wpdb->query( 'ROLLBACK' ); return $number; }
@@ -460,7 +460,7 @@ final class Service {
 			'tax_minor' => (int) $order->tax_minor,
 			'status' => 'completed',
 		), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'pending' ) );
-		if ( ! $updated ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'wp-pass-captain' ), 500 ); }
+		if ( ! $updated ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		$wpdb->query( 'COMMIT' );
 		if ( 'invoice' === $sale->payment_method ) { Invoices::issue_for_order( $order->order_id ); }
 		if ( ! self::is_placeholder_email( $order->customer_email ) ) { Orders::rotate_access_link( $order->order_id ); }
@@ -488,18 +488,18 @@ final class Service {
 	 */
 	public static function storno( $sale_id, $reason = '' ) {
 		$sale = self::sale( $sale_id );
-		if ( ! $sale || ! $sale->order_id || in_array( $sale->status, array( 'pending', 'failed' ), true ) ) { return self::error( 'wpcap_pos_sale', __( 'Verkauf nicht gefunden.', 'wp-pass-captain' ), 404 ); }
+		if ( ! $sale || ! $sale->order_id || in_array( $sale->status, array( 'pending', 'failed' ), true ) ) { return self::error( 'wpcap_pos_sale', __( 'Verkauf nicht gefunden.', 'pass-captain' ), 404 ); }
 		$session = self::session( $sale->session_id );
-		if ( ! $session ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'wp-pass-captain' ), 404 ); }
-		if ( ! Scope::can_order( $sale->order_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
-		if ( (int) $session->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) && ! current_user_can( Refunds::APPROVE_CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Nur Verkäufe der eigenen Kassensitzung können storniert werden.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $session ) { return self::error( 'wpcap_pos_session', __( 'Kassensitzung nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! Scope::can_order( $sale->order_id, self::CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		if ( (int) $session->user_id !== get_current_user_id() && ! current_user_can( 'manage_options' ) && ! current_user_can( Refunds::APPROVE_CAP ) ) { return self::error( 'wpcap_forbidden', __( 'Nur Verkäufe der eigenen Kassensitzung können storniert werden.', 'pass-captain' ), 403 ); }
 		if ( 'voided' === $sale->status ) { return $sale; }
 		if ( 'storno_pending' === $sale->status ) {
 			self::reset_rejected_stornos( $sale->session_id );
 			$sale = self::sale( $sale->sale_id );
 			if ( 'storno_pending' === $sale->status ) { return $sale; }
 		}
-		if ( 'open' !== $session->status ) { return self::error( 'wpcap_pos_session_closed', __( 'Storno ist nur bis zum Kassenabschluss möglich. Danach bitte eine Erstattung über die Bestellung anlegen.', 'wp-pass-captain' ), 409 ); }
+		if ( 'open' !== $session->status ) { return self::error( 'wpcap_pos_session_closed', __( 'Storno ist nur bis zum Kassenabschluss möglich. Danach bitte eine Erstattung über die Bestellung anlegen.', 'pass-captain' ), 409 ); }
 		$refund = Refunds::request( (int) $sale->order_id, array(), 'POS-Storno ' . $sale->receipt_number . ( '' !== (string) $reason ? ': ' . $reason : '' ), self::storno_key( $sale->sale_id, (int) $sale->storno_attempt ) );
 		if ( is_wp_error( $refund ) ) { return $refund; }
 		global $wpdb;
@@ -510,7 +510,7 @@ final class Service {
 		} else {
 			// Rejected/failed refund for this key: allow a fresh attempt next time.
 			$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_boxoffice_sales SET storno_attempt=storno_attempt+1,storno_refund_id=0 WHERE sale_id=%d AND status='completed'", $sale->sale_id ) );
-			return self::error( 'wpcap_pos_storno_failed', __( 'Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_pos_storno_failed', __( 'Der Storno wurde abgelehnt oder ist fehlgeschlagen. Bitte erneut versuchen.', 'pass-captain' ), 409 );
 		}
 		return self::sale( $sale->sale_id );
 	}
@@ -540,8 +540,8 @@ final class Service {
 	/** Approver rejects a pending storno (e.g. to close the session). */
 	public static function reject_storno( $sale_id, $reason = '' ) {
 		$sale = self::sale( $sale_id );
-		if ( ! $sale || 'storno_pending' !== $sale->status ) { return self::error( 'wpcap_pos_sale', __( 'Für diesen Verkauf wartet kein Storno.', 'wp-pass-captain' ), 409 ); }
-		if ( ! Scope::can_order( $sale->order_id, self::CAP ) && ! current_user_can( 'manage_options' ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! $sale || 'storno_pending' !== $sale->status ) { return self::error( 'wpcap_pos_sale', __( 'Für diesen Verkauf wartet kein Storno.', 'pass-captain' ), 409 ); }
+		if ( ! Scope::can_order( $sale->order_id, self::CAP ) && ! current_user_can( 'manage_options' ) ) { return self::error( 'wpcap_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$result = Refunds::reject( (int) $sale->storno_refund_id, '' !== (string) $reason ? $reason : 'POS-Storno verworfen' );
 		if ( is_wp_error( $result ) ) {
 			// Already decided elsewhere: resync with the refund state.
@@ -636,26 +636,26 @@ final class Service {
 		$m = static function ( $minor ) use ( $r ) { return number_format_i18n( $minor / 100, 2 ) . ' ' . $r['currency']; };
 		$h = '<!doctype html><html lang="de"><head><meta charset="utf-8"><title>' . esc_html( $storno ? $r['storno_number'] : $r['number'] ) . '</title>'
 			. '<style>@page{size:80mm auto;margin:0}*{box-sizing:border-box}body{width:80mm;margin:0;padding:3mm 4mm;font:12px/1.3 "DejaVu Sans Mono",monospace;color:#000}h1{font-size:15px;margin:0 0 2mm;text-align:center}p{margin:0 0 1.5mm}.c{text-align:center}table{width:100%;border-collapse:collapse}td{padding:.4mm 0;vertical-align:top}td.n{text-align:right;white-space:nowrap}.sep{border-top:1px dashed #000;margin:2mm 0}.big td{font-size:15px;font-weight:bold}.small{font-size:10px}@media print{.noprint{display:none}}</style></head><body onload="window.print()">';
-		$h .= '<p class="c"><strong>' . esc_html( $r['seller']['name'] ) . '</strong><br>' . nl2br( esc_html( $r['seller']['address'] ) ) . ( $r['seller']['vat_id'] ? '<br>' . esc_html( __( 'USt-IdNr.:', 'wp-pass-captain' ) . ' ' . $r['seller']['vat_id'] ) : '' ) . '</p>';
-		$h .= '<h1>' . esc_html( $storno ? __( 'STORNOBELEG', 'wp-pass-captain' ) : __( 'Beleg', 'wp-pass-captain' ) ) . '</h1>';
-		$h .= '<p>' . esc_html( __( 'Beleg-Nr.:', 'wp-pass-captain' ) . ' ' . ( $storno ? $r['storno_number'] : $r['number'] ) ) . '<br>';
-		if ( $storno ) { $h .= esc_html( __( 'Storno zu Beleg', 'wp-pass-captain' ) . ' ' . $r['number'] ) . '<br>'; }
-		$h .= esc_html( __( 'Datum:', 'wp-pass-captain' ) . ' ' . ( $storno ? $r['voided_date'] : $r['date'] ) ) . '<br>' . esc_html( __( 'Kasse/Bediener:', 'wp-pass-captain' ) . ' ' . $r['session_id'] . ' / ' . $r['cashier'] ) . '</p><div class="sep"></div><table>';
+		$h .= '<p class="c"><strong>' . esc_html( $r['seller']['name'] ) . '</strong><br>' . nl2br( esc_html( $r['seller']['address'] ) ) . ( $r['seller']['vat_id'] ? '<br>' . esc_html( __( 'USt-IdNr.:', 'pass-captain' ) . ' ' . $r['seller']['vat_id'] ) : '' ) . '</p>';
+		$h .= '<h1>' . esc_html( $storno ? __( 'STORNOBELEG', 'pass-captain' ) : __( 'Beleg', 'pass-captain' ) ) . '</h1>';
+		$h .= '<p>' . esc_html( __( 'Beleg-Nr.:', 'pass-captain' ) . ' ' . ( $storno ? $r['storno_number'] : $r['number'] ) ) . '<br>';
+		if ( $storno ) { $h .= esc_html( __( 'Storno zu Beleg', 'pass-captain' ) . ' ' . $r['number'] ) . '<br>'; }
+		$h .= esc_html( __( 'Datum:', 'pass-captain' ) . ' ' . ( $storno ? $r['voided_date'] : $r['date'] ) ) . '<br>' . esc_html( __( 'Kasse/Bediener:', 'pass-captain' ) . ' ' . $r['session_id'] . ' / ' . $r['cashier'] ) . '</p><div class="sep"></div><table>';
 		foreach ( $r['items'] as $i ) {
 			$h .= '<tr><td colspan="2">' . esc_html( $i['event'] ) . '<br>' . esc_html( $i['name'] ) . '</td></tr><tr><td>' . esc_html( $i['quantity'] . ' x ' . $m( $i['unit_minor'] ) . ' (' . number_format_i18n( $i['tax_rate_bp'] / 100, 2 ) . ' %)' ) . '</td><td class="n">' . esc_html( $sign . $m( $i['total_minor'] ) ) . '</td></tr>';
 		}
-		if ( $r['discount_minor'] ) { $h .= '<tr><td>' . esc_html__( 'Rabatt', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( ( $storno ? '' : '-' ) . $m( $r['discount_minor'] ) ) . '</td></tr>'; }
-		$h .= '</table><div class="sep"></div><table class="big"><tr><td>' . esc_html__( 'SUMME', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $sign . $m( $r['total_minor'] ) ) . '</td></tr></table><table class="small">';
+		if ( $r['discount_minor'] ) { $h .= '<tr><td>' . esc_html__( 'Rabatt', 'pass-captain' ) . '</td><td class="n">' . esc_html( ( $storno ? '' : '-' ) . $m( $r['discount_minor'] ) ) . '</td></tr>'; }
+		$h .= '</table><div class="sep"></div><table class="big"><tr><td>' . esc_html__( 'SUMME', 'pass-captain' ) . '</td><td class="n">' . esc_html( $sign . $m( $r['total_minor'] ) ) . '</td></tr></table><table class="small">';
 		foreach ( $r['vat'] as $rate => $v ) {
-			$h .= '<tr><td>' . esc_html( sprintf( __( 'USt %1$s %%: Netto %2$s', 'wp-pass-captain' ), number_format_i18n( $rate / 100, 2 ), $sign . $m( $v['net'] ) ) ) . '</td><td class="n">' . esc_html( $sign . $m( $v['tax'] ) ) . '</td></tr>';
+			$h .= '<tr><td>' . esc_html( sprintf( __( 'USt %1$s %%: Netto %2$s', 'pass-captain' ), number_format_i18n( $rate / 100, 2 ), $sign . $m( $v['net'] ) ) ) . '</td><td class="n">' . esc_html( $sign . $m( $v['tax'] ) ) . '</td></tr>';
 		}
-		$h .= '</table><div class="sep"></div><p>' . esc_html( __( 'Zahlart:', 'wp-pass-captain' ) . ' ' . $r['method_label'] ) . '</p>';
+		$h .= '</table><div class="sep"></div><p>' . esc_html( __( 'Zahlart:', 'pass-captain' ) . ' ' . $r['method_label'] ) . '</p>';
 		if ( ! $storno && null !== $r['tendered_minor'] ) {
-			$h .= '<table><tr><td>' . esc_html__( 'Gegeben', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['tendered_minor'] ) ) . '</td></tr><tr><td>' . esc_html__( 'Rückgeld', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['change_minor'] ) ) . '</td></tr></table>';
+			$h .= '<table><tr><td>' . esc_html__( 'Gegeben', 'pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['tendered_minor'] ) ) . '</td></tr><tr><td>' . esc_html__( 'Rückgeld', 'pass-captain' ) . '</td><td class="n">' . esc_html( $m( $r['change_minor'] ) ) . '</td></tr></table>';
 		}
-		$h .= '<p class="small">' . esc_html( __( 'Bestellung:', 'wp-pass-captain' ) . ' ' . substr( $r['order'], 0, 12 ) ) . '</p>';
+		$h .= '<p class="small">' . esc_html( __( 'Bestellung:', 'pass-captain' ) . ' ' . substr( $r['order'], 0, 12 ) ) . '</p>';
 		if ( '' !== $r['footer'] ) { $h .= '<p class="c small">' . nl2br( esc_html( $r['footer'] ) ) . '</p>'; }
-		$h .= '<p class="noprint c"><button onclick="window.print()">' . esc_html__( 'Drucken', 'wp-pass-captain' ) . '</button></p></body></html>';
+		$h .= '<p class="noprint c"><button onclick="window.print()">' . esc_html__( 'Drucken', 'pass-captain' ) . '</button></p></body></html>';
 		return $h;
 	}
 }

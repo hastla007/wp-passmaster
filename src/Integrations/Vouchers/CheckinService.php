@@ -65,6 +65,6 @@ final class CheckinService {
 	}
 
 	private static function forbidden() {
-		return new \WP_Error( 'wpcap_checkin_forbidden', __( 'Du darfst keine Pass-Captain-Tickets einchecken.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+		return new \WP_Error( 'wpcap_checkin_forbidden', __( 'Du darfst keine Pass-Captain-Tickets einchecken.', 'pass-captain' ), array( 'status' => 403 ) );
 	}
 }

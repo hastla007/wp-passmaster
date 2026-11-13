@@ -15,7 +15,7 @@ use PassCaptain\Settings;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Ics {
-	const PRODID = '-//WP Pass Captain//Event Calendar//DE';
+	const PRODID = '-//Pass Captain//Event Calendar//DE';
 
 	/** Escapes a TEXT property value (RFC 5545 3.3.11). */
 	public static function escape_text( $value ) {

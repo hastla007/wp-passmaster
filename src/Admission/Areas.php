@@ -32,10 +32,10 @@ final class Areas {
 	public static function save( $event_id, $name, $area_id = 0 ) {
 		global $wpdb;
 		$name = mb_substr( sanitize_text_field( (string) $name ), 0, 190 );
-		if ( '' === $name ) { return new \WP_Error( 'wpcap_area_invalid', __( 'Bitte einen Namen für den Bereich angeben.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
+		if ( '' === $name ) { return new \WP_Error( 'wpcap_area_invalid', __( 'Bitte einen Namen für den Bereich angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		if ( $area_id ) {
 			$area = self::get( $area_id );
-			if ( ! $area || (int) $area->event_id !== (int) $event_id ) { return new \WP_Error( 'wpcap_area_missing', __( 'Bereich nicht gefunden.', 'wp-pass-captain' ), array( 'status' => 404 ) ); }
+			if ( ! $area || (int) $area->event_id !== (int) $event_id ) { return new \WP_Error( 'wpcap_area_missing', __( 'Bereich nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 			$wpdb->update( "{$wpdb->prefix}wpcap_admission_areas", array( 'name' => $name ), array( 'area_id' => (int) $area_id ) );
 			return (int) $area_id;
 		}
@@ -144,12 +144,12 @@ final class Areas {
 		if ( ! $area_id ) { return null; }
 		$area = self::get( $area_id );
 		if ( ! $area || 'active' !== $area->status || ! in_array( (int) $area->event_id, array_map( 'intval', $event_ids ), true ) ) {
-			return new \WP_Error( 'wpcap_pairing_area', __( 'Der Einlassbereich gehört zu keinem der gewählten Events.', 'wp-pass-captain' ), array( 'status' => 400 ) );
+			return new \WP_Error( 'wpcap_pairing_area', __( 'Der Einlassbereich gehört zu keinem der gewählten Events.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		if ( ! current_user_can( 'manage_options' ) ) {
 			$mine = self::user_area_ids( get_current_user_id(), $area->event_id );
 			if ( $mine && ! in_array( (int) $area_id, $mine, true ) ) {
-				return new \WP_Error( 'wpcap_pairing_area_forbidden', __( 'Für diesen Einlassbereich bist du nicht eingeteilt.', 'wp-pass-captain' ), array( 'status' => 403 ) );
+				return new \WP_Error( 'wpcap_pairing_area_forbidden', __( 'Für diesen Einlassbereich bist du nicht eingeteilt.', 'pass-captain' ), array( 'status' => 403 ) );
 			}
 		}
 		return null;

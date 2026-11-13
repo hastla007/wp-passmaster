@@ -55,7 +55,7 @@ final class Mollie {
 	}
 
 	public static function admin_pages() {
-		return array( array( self::PAGE, __( 'Mollie', 'wp-pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
+		return array( array( self::PAGE, __( 'Mollie', 'pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
 	}
 
 	public static function admin_handlers() {
@@ -101,8 +101,8 @@ final class Mollie {
 		if ( count( $methods ) < 2 ) { return; }
 		if ( function_exists( 'wp_enqueue_script' ) ) { wp_enqueue_script( 'wpcap-mollie-checkout', WPCAP_URL . 'assets/mollie/checkout-mollie.js', array(), WPCAP_VERSION, true ); }
 		$id = 'wpcap-mollie-' . ( is_object( $event ) ? (int) $event->occurrence_id : 0 );
-		echo '<fieldset class="wpcap-providers wpcap-mollie-methods" hidden><legend>' . esc_html__( 'Zahlungsmethode bei Mollie', 'wp-pass-captain' ) . '</legend>';
-		echo '<label><input type="radio" name="mollie_method" value="" checked> ' . esc_html__( 'Auf der Zahlungsseite wählen', 'wp-pass-captain' ) . '</label>';
+		echo '<fieldset class="wpcap-providers wpcap-mollie-methods" hidden><legend>' . esc_html__( 'Zahlungsmethode bei Mollie', 'pass-captain' ) . '</legend>';
+		echo '<label><input type="radio" name="mollie_method" value="" checked> ' . esc_html__( 'Auf der Zahlungsseite wählen', 'pass-captain' ) . '</label>';
 		foreach ( $methods as $method => $label ) {
 			echo '<label for="' . esc_attr( $id . '-' . $method ) . '"><input type="radio" id="' . esc_attr( $id . '-' . $method ) . '" name="mollie_method" value="' . esc_attr( $method ) . '"> ' . esc_html( $label ) . '</label>';
 		}
@@ -155,7 +155,7 @@ final class Mollie {
 		} elseif ( '' !== trim( (string) ( $in['mollie_api_key'] ?? '' ) ) ) {
 			$key = trim( sanitize_text_field( (string) $in['mollie_api_key'] ) );
 			if ( ! preg_match( '/^(test|live)_[A-Za-z0-9]{20,}$/', $key ) ) {
-				return Forms::error( 'wpcap_mollie_key', __( 'Der Mollie-API-Schlüssel muss mit test_ oder live_ beginnen.', 'wp-pass-captain' ) );
+				return Forms::error( 'wpcap_mollie_key', __( 'Der Mollie-API-Schlüssel muss mit test_ oder live_ beginnen.', 'pass-captain' ) );
 			}
 			$update['mollie_api_key'] = $key;
 		}
@@ -165,30 +165,30 @@ final class Mollie {
 
 	public static function handle_save() {
 		Forms::verify( 'wpcap_mollie_save' );
-		Forms::finish( self::save( Forms::post() ), __( 'Einstellungen gespeichert.', 'wp-pass-captain' ), Forms::page_url( self::PAGE ) );
+		Forms::finish( self::save( Forms::post() ), __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::PAGE ) );
 	}
 
 	public static function render_admin() {
-		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$c = MollieGateway::config();
 		$stored = '' !== Settings::secret( 'mollie_api_key' );
 		echo '<div class="wrap wpcap-admin"><h1>Mollie</h1>';
 		Forms::render_notices();
-		echo '<p>' . esc_html__( 'Webhook-URL (wird pro Zahlung automatisch übergeben):', 'wp-pass-captain' ) . ' <code>' . esc_html( MollieGateway::webhook_url() ) . '</code></p>';
-		echo '<p>' . esc_html__( 'Aktiviere „Mollie“ zusätzlich unter Einstellungen → Zahlungsarten.', 'wp-pass-captain' ) . '</p>';
+		echo '<p>' . esc_html__( 'Webhook-URL (wird pro Zahlung automatisch übergeben):', 'pass-captain' ) . ' <code>' . esc_html( MollieGateway::webhook_url() ) . '</code></p>';
+		echo '<p>' . esc_html__( 'Aktiviere „Mollie“ zusätzlich unter Einstellungen → Zahlungsarten.', 'pass-captain' ) . '</p>';
 		Forms::open_form( 'wpcap_mollie_save' );
 		echo '<table class="form-table"><tbody>';
-		echo '<tr><th scope="row"><label for="wpcap-mollie-key">' . esc_html__( 'API-Schlüssel', 'wp-pass-captain' ) . '</label></th><td><input type="password" id="wpcap-mollie-key" name="mollie_api_key" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( $stored ? __( 'Gespeichert – leer lassen, um beizubehalten', 'wp-pass-captain' ) : 'test_… / live_…' ) . '">';
-		if ( $stored ) { echo ' <label><input type="checkbox" name="mollie_api_key__clear" value="1"> ' . esc_html__( 'Entfernen', 'wp-pass-captain' ) . '</label>'; }
-		echo '<p class="description">' . esc_html__( 'Empfohlen: Konstante WPCAP_MOLLIE_API_KEY in wp-config.php.', 'wp-pass-captain' ) . '</p></td></tr>';
-		echo '<tr><th scope="row">' . esc_html__( 'Zahlungsmethoden', 'wp-pass-captain' ) . '</th><td><fieldset><legend class="screen-reader-text">' . esc_html__( 'Zahlungsmethoden', 'wp-pass-captain' ) . '</legend>';
+		echo '<tr><th scope="row"><label for="wpcap-mollie-key">' . esc_html__( 'API-Schlüssel', 'pass-captain' ) . '</label></th><td><input type="password" id="wpcap-mollie-key" name="mollie_api_key" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( $stored ? __( 'Gespeichert – leer lassen, um beizubehalten', 'pass-captain' ) : 'test_… / live_…' ) . '">';
+		if ( $stored ) { echo ' <label><input type="checkbox" name="mollie_api_key__clear" value="1"> ' . esc_html__( 'Entfernen', 'pass-captain' ) . '</label>'; }
+		echo '<p class="description">' . esc_html__( 'Empfohlen: Konstante WPCAP_MOLLIE_API_KEY in wp-config.php.', 'pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'Zahlungsmethoden', 'pass-captain' ) . '</th><td><fieldset><legend class="screen-reader-text">' . esc_html__( 'Zahlungsmethoden', 'pass-captain' ) . '</legend>';
 		foreach ( self::KNOWN_METHODS as $method ) {
 			echo '<label style="display:inline-block;min-width:11rem"><input type="checkbox" name="methods[]" value="' . esc_attr( $method ) . '"' . checked( in_array( $method, $c['methods'], true ), true, false ) . '> ' . esc_html( $method ) . '</label>';
 		}
-		echo '<p class="description">' . esc_html__( 'Leer = alle in deinem Mollie-Profil aktiven Methoden. Angezeigt werden nur Methoden, die Mollie für Betrag, Währung und Land anbietet (Abfrage wird eine Stunde zwischengespeichert).', 'wp-pass-captain' ) . '</p></fieldset></td></tr>';
-		echo '<tr><th scope="row"><label for="wpcap-mollie-country">' . esc_html__( 'Rechnungsland für die Methodenauswahl', 'wp-pass-captain' ) . '</label></th><td><input type="text" id="wpcap-mollie-country" name="billing_country" maxlength="2" size="3" value="' . esc_attr( $c['billing_country'] ) . '"> <span class="description">' . esc_html__( 'ISO-Code, z. B. DE, NL, BE (optional).', 'wp-pass-captain' ) . '</span></td></tr>';
+		echo '<p class="description">' . esc_html__( 'Leer = alle in deinem Mollie-Profil aktiven Methoden. Angezeigt werden nur Methoden, die Mollie für Betrag, Währung und Land anbietet (Abfrage wird eine Stunde zwischengespeichert).', 'pass-captain' ) . '</p></fieldset></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-mollie-country">' . esc_html__( 'Rechnungsland für die Methodenauswahl', 'pass-captain' ) . '</label></th><td><input type="text" id="wpcap-mollie-country" name="billing_country" maxlength="2" size="3" value="' . esc_attr( $c['billing_country'] ) . '"> <span class="description">' . esc_html__( 'ISO-Code, z. B. DE, NL, BE (optional).', 'pass-captain' ) . '</span></td></tr>';
 		echo '</tbody></table>';
-		submit_button( __( 'Speichern', 'wp-pass-captain' ) );
+		submit_button( __( 'Speichern', 'pass-captain' ) );
 		echo '</form></div>';
 	}
 }

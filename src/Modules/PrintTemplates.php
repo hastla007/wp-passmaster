@@ -44,7 +44,7 @@ final class PrintTemplates {
 	}
 
 	public static function admin_pages() {
-		return array( array( Page::SLUG, __( 'Druck & Listen', 'wp-pass-captain' ), Page::menu_cap(), array( Page::class, 'render' ) ) );
+		return array( array( Page::SLUG, __( 'Druck & Listen', 'pass-captain' ), Page::menu_cap(), array( Page::class, 'render' ) ) );
 	}
 
 	public static function admin_handlers() {

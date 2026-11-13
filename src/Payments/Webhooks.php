@@ -97,14 +97,14 @@ final class Webhooks {
 			if ( (int) ( $event['amount_minor'] ?? -1 ) !== (int) $order->total_minor || strtoupper( (string) ( $event['currency'] ?? '' ) ) !== strtoupper( $order->currency ) ) {
 				// Never issue tickets for a payment that does not match the order.
 				Audit::record( 'payment_amount_mismatch', 'order', $order_id, array( 'provider' => $provider, 'amount_minor' => (int) ( $event['amount_minor'] ?? 0 ) ) );
-				self::alert( $order, __( 'Eine Zahlung passt nicht zum Bestellbetrag; es wurden keine Tickets ausgestellt.', 'wp-pass-captain' ), $provider, $event );
+				self::alert( $order, __( 'Eine Zahlung passt nicht zum Bestellbetrag; es wurden keine Tickets ausgestellt.', 'pass-captain' ), $provider, $event );
 				return 'amount_mismatch';
 			}
 			if ( 'paid' === $order->payment_status ) {
 				if ( ! self::is_current_attempt( $order, $event ) ) {
 					// A second payment attempt also succeeded: the buyer paid twice.
 					Audit::record( 'payment_double', 'order', $order_id, array( 'provider' => $provider, 'reference' => (string) ( $event['provider_reference'] ?? '' ) ) );
-					self::alert( $order, __( 'Für eine bereits bezahlte Bestellung ist eine zweite Zahlung eingegangen. Bitte die doppelte Zahlung beim Zahlungsanbieter erstatten.', 'wp-pass-captain' ), $provider, $event );
+					self::alert( $order, __( 'Für eine bereits bezahlte Bestellung ist eine zweite Zahlung eingegangen. Bitte die doppelte Zahlung beim Zahlungsanbieter erstatten.', 'pass-captain' ), $provider, $event );
 					return 'double_payment';
 				}
 				Orders::issue_and_email( $order_id );
@@ -112,7 +112,7 @@ final class Webhooks {
 			}
 			if ( in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) {
 				Audit::record( 'payment_for_closed_order', 'order', $order_id, array( 'provider' => $provider, 'status' => $order->status, 'reference' => (string) ( $event['provider_reference'] ?? '' ) ) );
-				self::alert( $order, __( 'Für eine stornierte oder erstattete Bestellung ist eine Zahlung eingegangen. Es wurden keine Tickets ausgestellt; bitte erstatten oder die Bestellung manuell klären.', 'wp-pass-captain' ), $provider, $event );
+				self::alert( $order, __( 'Für eine stornierte oder erstattete Bestellung ist eine Zahlung eingegangen. Es wurden keine Tickets ausgestellt; bitte erstatten oder die Bestellung manuell klären.', 'pass-captain' ), $provider, $event );
 				return 'paid_for_closed_order';
 			}
 			if ( ! empty( $event['provider_reference'] ) ) {
@@ -152,6 +152,6 @@ final class Webhooks {
 	/** Mails the site admin about a payment that needs manual action. */
 	private static function alert( $order, $message, $provider, array $event ) {
 		/* translators: 1: order id, 2: provider, 3: reference, 4: message */
-		wp_mail( get_option( 'admin_email' ), __( 'WP Pass Captain: Zahlung prüfen', 'wp-pass-captain' ), sprintf( __( "Bestellung %1\$s (%2\$s, Referenz %3\$s):\n\n%4\$s", 'wp-pass-captain' ), $order->public_id, $provider, (string) ( $event['provider_reference'] ?? '' ), $message ) );
+		wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Zahlung prüfen', 'pass-captain' ), sprintf( __( "Bestellung %1\$s (%2\$s, Referenz %3\$s):\n\n%4\$s", 'pass-captain' ), $order->public_id, $provider, (string) ( $event['provider_reference'] ?? '' ), $message ) );
 	}
 }

@@ -62,20 +62,20 @@ class AppleProvider implements WalletProvider {
 		$start = self::local_iso( $ticket['starts_at'], $ticket['timezone'] );
 		$end_utc = $ticket['ends_at'] ?: gmdate( 'Y-m-d H:i:s', strtotime( $ticket['starts_at'] . ' UTC' ) + 6 * HOUR_IN_SECONDS );
 		$voided = ! empty( $ticket['voided'] ) || '' === (string) ( $ticket['code'] ?? '' );
-		$secondary = array( array( 'key' => 'date', 'label' => __( 'Datum', 'wp-pass-captain' ), 'value' => $start, 'dateStyle' => 'PKDateStyleMedium', 'timeStyle' => 'PKDateStyleShort', 'ignoresTimeZone' => true ) );
-		if ( '' !== (string) $ticket['location'] ) { $secondary[] = array( 'key' => 'location', 'label' => __( 'Ort', 'wp-pass-captain' ), 'value' => (string) $ticket['location'] ); }
-		$auxiliary = array( array( 'key' => 'category', 'label' => __( 'Ticket', 'wp-pass-captain' ), 'value' => (string) $ticket['ticket_name'] ) );
-		if ( '' !== (string) ( $ticket['seat'] ?? '' ) ) { $auxiliary[] = array( 'key' => 'seat', 'label' => __( 'Platz', 'wp-pass-captain' ), 'value' => (string) $ticket['seat'] ); }
-		if ( '' !== (string) ( $ticket['attendee_name'] ?? '' ) ) { $auxiliary[] = array( 'key' => 'attendee', 'label' => __( 'Name', 'wp-pass-captain' ), 'value' => (string) $ticket['attendee_name'] ); }
+		$secondary = array( array( 'key' => 'date', 'label' => __( 'Datum', 'pass-captain' ), 'value' => $start, 'dateStyle' => 'PKDateStyleMedium', 'timeStyle' => 'PKDateStyleShort', 'ignoresTimeZone' => true ) );
+		if ( '' !== (string) $ticket['location'] ) { $secondary[] = array( 'key' => 'location', 'label' => __( 'Ort', 'pass-captain' ), 'value' => (string) $ticket['location'] ); }
+		$auxiliary = array( array( 'key' => 'category', 'label' => __( 'Ticket', 'pass-captain' ), 'value' => (string) $ticket['ticket_name'] ) );
+		if ( '' !== (string) ( $ticket['seat'] ?? '' ) ) { $auxiliary[] = array( 'key' => 'seat', 'label' => __( 'Platz', 'pass-captain' ), 'value' => (string) $ticket['seat'] ); }
+		if ( '' !== (string) ( $ticket['attendee_name'] ?? '' ) ) { $auxiliary[] = array( 'key' => 'attendee', 'label' => __( 'Name', 'pass-captain' ), 'value' => (string) $ticket['attendee_name'] ); }
 		$back = array(
-			array( 'key' => 'ticket_id', 'label' => __( 'Ticketnummer', 'wp-pass-captain' ), 'value' => (string) $ticket['public_id'] ),
-			array( 'key' => 'timezone', 'label' => __( 'Zeitzone', 'wp-pass-captain' ), 'value' => (string) $ticket['timezone'] ),
-			array( 'key' => 'note', 'label' => __( 'Hinweis', 'wp-pass-captain' ), 'value' => $voided ? __( 'Dieser Pass ist nicht mehr gültig. Bitte verwende das zuletzt per E-Mail erhaltene Ticket.', 'wp-pass-captain' ) : __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'wp-pass-captain' ) ),
+			array( 'key' => 'ticket_id', 'label' => __( 'Ticketnummer', 'pass-captain' ), 'value' => (string) $ticket['public_id'] ),
+			array( 'key' => 'timezone', 'label' => __( 'Zeitzone', 'pass-captain' ), 'value' => (string) $ticket['timezone'] ),
+			array( 'key' => 'note', 'label' => __( 'Hinweis', 'pass-captain' ), 'value' => $voided ? __( 'Dieser Pass ist nicht mehr gültig. Bitte verwende das zuletzt per E-Mail erhaltene Ticket.', 'pass-captain' ) : __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ),
 		);
 		if ( 'cancelled' === ( $ticket['occurrence_status'] ?? '' ) || 'cancelled' === ( $ticket['event_status'] ?? '' ) ) {
-			array_unshift( $back, array( 'key' => 'status', 'label' => __( 'Status', 'wp-pass-captain' ), 'value' => __( 'Die Veranstaltung wurde abgesagt.', 'wp-pass-captain' ), 'changeMessage' => '%@' ) );
+			array_unshift( $back, array( 'key' => 'status', 'label' => __( 'Status', 'pass-captain' ), 'value' => __( 'Die Veranstaltung wurde abgesagt.', 'pass-captain' ), 'changeMessage' => '%@' ) );
 		}
-		$secondary[0]['changeMessage'] = __( 'Neuer Termin: %@', 'wp-pass-captain' );
+		$secondary[0]['changeMessage'] = __( 'Neuer Termin: %@', 'pass-captain' );
 		$json = array(
 			'formatVersion' => 1,
 			'passTypeIdentifier' => $this->pass_type_id(),
@@ -83,7 +83,7 @@ class AppleProvider implements WalletProvider {
 			'serialNumber' => (string) $ticket['public_id'],
 			'organizationName' => self::organization(),
 			/* translators: %s: event name */
-			'description' => sprintf( __( 'Ticket: %s', 'wp-pass-captain' ), $ticket['event_name'] ),
+			'description' => sprintf( __( 'Ticket: %s', 'pass-captain' ), $ticket['event_name'] ),
 			'logoText' => self::organization(),
 			'foregroundColor' => self::color( 'wallet_foreground_color', '#ffffff' ),
 			'backgroundColor' => self::color( 'wallet_background_color', '#1d2327' ),
@@ -92,7 +92,7 @@ class AppleProvider implements WalletProvider {
 			'expirationDate' => self::local_iso( gmdate( 'Y-m-d H:i:s', strtotime( $end_utc . ' UTC' ) + 12 * HOUR_IN_SECONDS ), $ticket['timezone'] ),
 			'sharingProhibited' => true,
 			'eventTicket' => array(
-				'primaryFields' => array( array( 'key' => 'event', 'label' => __( 'Veranstaltung', 'wp-pass-captain' ), 'value' => (string) $ticket['event_name'] ) ),
+				'primaryFields' => array( array( 'key' => 'event', 'label' => __( 'Veranstaltung', 'pass-captain' ), 'value' => (string) $ticket['event_name'] ) ),
 				'secondaryFields' => $secondary,
 				'auxiliaryFields' => $auxiliary,
 				'backFields' => $back,

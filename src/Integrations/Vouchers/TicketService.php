@@ -105,7 +105,7 @@ final class TicketService {
 		$quantity = absint( $target['quantity'] ?? 1 );
 		$email = sanitize_email( (string) ( $recipient['email'] ?? '' ) );
 		if ( '' === $key || strlen( $key ) > 191 || ! $type_id || $quantity < 1 || $quantity > 10 || ! is_email( $email ) ) {
-			return self::error( 'wpcap_ticket_request_invalid', __( 'Ticketart, Anzahl, Schlüssel und eine gültige E-Mail-Adresse sind erforderlich.', 'wp-pass-captain' ), 400 );
+			return self::error( 'wpcap_ticket_request_invalid', __( 'Ticketart, Anzahl, Schlüssel und eine gültige E-Mail-Adresse sind erforderlich.', 'pass-captain' ), 400 );
 		}
 		$existing = self::order_for_key( $key );
 		if ( $existing ) {
@@ -114,7 +114,7 @@ final class TicketService {
 		if ( ! empty( $target['event_id'] ) ) {
 			$allowed = array_column( $this->targets( array( 'event_id' => $target['event_id'], 'ticket_name' => $target['ticket_name'] ?? '' ) ), 'ticket_type_id' );
 			if ( ! in_array( $type_id, $allowed, true ) ) {
-				return self::error( 'wpcap_ticket_choice_invalid', __( 'Dieser Termin kann für den Gutschein nicht gewählt werden.', 'wp-pass-captain' ), 400 );
+				return self::error( 'wpcap_ticket_choice_invalid', __( 'Dieser Termin kann für den Gutschein nicht gewählt werden.', 'pass-captain' ), 400 );
 			}
 		}
 		$purpose = Checkout::purpose( $source, array( 'source' => 'ticket_service', 'ticket_type_id' => $type_id, 'quantity' => $quantity ) );
@@ -150,7 +150,7 @@ final class TicketService {
 		if ( is_wp_error( $order ) ) { return $order; }
 		self::record_voucher( (int) $order['order_id'], $purpose, $value, $source, $type_id, $quantity );
 		$row = Orders::get( (int) $order['order_id'] );
-		return $row ? self::complete( $row, $source, ! empty( $order['reused'] ) ) : self::error( 'wpcap_ticket_issue_failed', __( 'Die Tickets konnten nicht ausgestellt werden.', 'wp-pass-captain' ), 503, true );
+		return $row ? self::complete( $row, $source, ! empty( $order['reused'] ) ) : self::error( 'wpcap_ticket_issue_failed', __( 'Die Tickets konnten nicht ausgestellt werden.', 'pass-captain' ), 503, true );
 	}
 
 	/** Current state of an exchange (null when the key is unknown). */
@@ -205,10 +205,10 @@ final class TicketService {
 				'event_id' => (int) $row->event_id,
 				'occurrence_id' => (int) $row->occurrence_id,
 				/* translators: 1: date, 2: ticket type */
-				'date_label' => sprintf( __( '%1$s – %2$s', 'wp-pass-captain' ), $local->format( 'd.m.Y H:i' ), $row->name ),
+				'date_label' => sprintf( __( '%1$s – %2$s', 'pass-captain' ), $local->format( 'd.m.Y H:i' ), $row->name ),
 				'name' => (string) $row->name,
 				/* translators: 1: event, 2: date, 3: ticket type */
-				'label' => sprintf( __( '%1$s – %2$s – %3$s', 'wp-pass-captain' ), $row->event_name, $local->format( 'd.m.Y H:i' ), $row->name ),
+				'label' => sprintf( __( '%1$s – %2$s – %3$s', 'pass-captain' ), $row->event_name, $local->format( 'd.m.Y H:i' ), $row->name ),
 				'event' => (string) $row->event_name,
 				'starts_at' => (string) $row->starts_at,
 				'currency' => (string) $row->currency,
@@ -272,7 +272,7 @@ final class TicketService {
 	/** Confirms the free order (issues and mails the tickets) and answers with the order data. */
 	private static function complete( $order, array $source, $reused ) {
 		if ( in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) {
-			return self::error( 'wpcap_ticket_exchange_revoked', __( 'Die Tickets dieser Einlösung wurden bereits widerrufen.', 'wp-pass-captain' ), 409 );
+			return self::error( 'wpcap_ticket_exchange_revoked', __( 'Die Tickets dieser Einlösung wurden bereits widerrufen.', 'pass-captain' ), 409 );
 		}
 		if ( 'paid' !== $order->payment_status ) {
 			$reference = 'voucher:' . sanitize_text_field( (string) ( $source['redemption_key'] ?? ( $source['voucher_id'] ?? '' ) ) );

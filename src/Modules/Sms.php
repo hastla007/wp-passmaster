@@ -85,7 +85,7 @@ final class Sms {
 		return array(
 			'sms' => array(
 				'provider' => '',
-				'consent_text' => __( 'Ja, ich möchte Erinnerungen und Informationen zu Terminänderungen und Absagen dieser Bestellung per SMS erhalten. Die Einwilligung kann jederzeit widerrufen werden.', 'wp-pass-captain' ),
+				'consent_text' => __( 'Ja, ich möchte Erinnerungen und Informationen zu Terminänderungen und Absagen dieser Bestellung per SMS erhalten. Die Einwilligung kann jederzeit widerrufen werden.', 'pass-captain' ),
 				'default_country_code' => '+49',
 				// Only numbers of these countries (and, for AT/DE/CH, only mobile ranges) are accepted.
 				'allowed_prefixes' => '+43,+49,+41',
@@ -94,8 +94,8 @@ final class Sms {
 				'http_auth_header' => 'Authorization',
 				'http_content_type' => 'json',
 				'http_body_template' => HttpProvider::DEFAULT_TEMPLATE,
-				'cancel_body' => __( 'Abgesagt: {event} am {date} um {time}. Dein Ticket ist ungültig; Infos zur Erstattung per E-Mail.', 'wp-pass-captain' ),
-				'reschedule_body' => __( 'Neuer Termin: {event} findet am {date} um {time} ({timezone}) statt (bisher {old_date}). Dein Ticket bleibt gültig.', 'wp-pass-captain' ),
+				'cancel_body' => __( 'Abgesagt: {event} am {date} um {time}. Dein Ticket ist ungültig; Infos zur Erstattung per E-Mail.', 'pass-captain' ),
+				'reschedule_body' => __( 'Neuer Termin: {event} findet am {date} um {time} ({timezone}) statt (bisher {old_date}). Dein Ticket bleibt gültig.', 'pass-captain' ),
 			),
 			// Scalar secrets so that constants/env vars (WPCAP_TWILIO_AUTH_TOKEN …) work via Settings::secret().
 			'twilio_account_sid' => '',
@@ -105,7 +105,7 @@ final class Sms {
 	}
 
 	public static function admin_pages() {
-		return array( array( self::PAGE, __( 'SMS', 'wp-pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
+		return array( array( self::PAGE, __( 'SMS', 'pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
 	}
 
 	public static function admin_handlers() {
@@ -153,9 +153,9 @@ final class Sms {
 	}
 
 	public static function error_messages( $messages ) {
-		$messages['sms_phone_not_allowed'] = __( 'SMS-Benachrichtigungen sind nur für Mobilnummern aus den unterstützten Ländern möglich. Bitte deaktiviere die SMS-Benachrichtigung oder nutze eine andere Nummer.', 'wp-pass-captain' );
-		$messages['sms_rate_limited'] = __( 'Für diese Mobilnummer wurden zu viele SMS-Anmeldungen erstellt. Bitte versuche es später erneut oder bestelle ohne SMS-Benachrichtigung.', 'wp-pass-captain' );
-		$messages['sms_phone_invalid'] = __( 'Bitte gib eine gültige Mobilnummer an (z. B. +49 151 23456789) oder deaktiviere die SMS-Benachrichtigung.', 'wp-pass-captain' );
+		$messages['sms_phone_not_allowed'] = __( 'SMS-Benachrichtigungen sind nur für Mobilnummern aus den unterstützten Ländern möglich. Bitte deaktiviere die SMS-Benachrichtigung oder nutze eine andere Nummer.', 'pass-captain' );
+		$messages['sms_rate_limited'] = __( 'Für diese Mobilnummer wurden zu viele SMS-Anmeldungen erstellt. Bitte versuche es später erneut oder bestelle ohne SMS-Benachrichtigung.', 'pass-captain' );
+		$messages['sms_phone_invalid'] = __( 'Bitte gib eine gültige Mobilnummer an (z. B. +49 151 23456789) oder deaktiviere die SMS-Benachrichtigung.', 'pass-captain' );
 		return $messages;
 	}
 
@@ -164,13 +164,13 @@ final class Sms {
 		static $enqueued = false;
 		if ( ! $enqueued && function_exists( 'wp_enqueue_script' ) ) {
 			wp_enqueue_script( 'wpcap-sms-checkout', WPCAP_URL . 'assets/sms/checkout-sms.js', array(), WPCAP_VERSION, true );
-			wp_localize_script( 'wpcap-sms-checkout', 'WPCAP_SMS', array( 'phoneRequired' => __( 'Bitte gib für SMS-Benachrichtigungen eine Mobilnummer an.', 'wp-pass-captain' ) ) );
+			wp_localize_script( 'wpcap-sms-checkout', 'WPCAP_SMS', array( 'phoneRequired' => __( 'Bitte gib für SMS-Benachrichtigungen eine Mobilnummer an.', 'pass-captain' ) ) );
 			$enqueued = true;
 		}
 		$id = 'wpcap-sms-' . ( is_object( $event ) ? (int) $event->occurrence_id : 0 );
-		echo '<fieldset class="wpcap-sms"><legend>' . esc_html__( 'SMS-Benachrichtigung (optional)', 'wp-pass-captain' ) . '</legend>';
+		echo '<fieldset class="wpcap-sms"><legend>' . esc_html__( 'SMS-Benachrichtigung (optional)', 'pass-captain' ) . '</legend>';
 		echo '<label for="' . esc_attr( $id ) . '-consent" class="wpcap-terms"><input type="checkbox" id="' . esc_attr( $id ) . '-consent" name="sms_consent" value="1"> ' . esc_html( Service::consent_text() ) . '</label>';
-		echo '<label for="' . esc_attr( $id ) . '-phone">' . esc_html__( 'Mobilnummer', 'wp-pass-captain' ) . ' <input type="tel" id="' . esc_attr( $id ) . '-phone" name="sms_phone" autocomplete="tel" inputmode="tel" maxlength="20"></label>';
+		echo '<label for="' . esc_attr( $id ) . '-phone">' . esc_html__( 'Mobilnummer', 'pass-captain' ) . ' <input type="tel" id="' . esc_attr( $id ) . '-phone" name="sms_phone" autocomplete="tel" inputmode="tel" maxlength="20"></label>';
 		echo '</fieldset>';
 	}
 
@@ -242,11 +242,11 @@ final class Sms {
 
 	/** Listed first (WordPress runs erasers in array order), so it sees the original buyer e-mail. */
 	public static function register_eraser( $erasers ) {
-		return array_merge( array( 'wpcap-sms' => array( 'eraser_friendly_name' => __( 'WP Pass Captain SMS-Einwilligungen', 'wp-pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) ) ), (array) $erasers );
+		return array_merge( array( 'wpcap-sms' => array( 'eraser_friendly_name' => __( 'Pass Captain SMS-Einwilligungen', 'pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) ) ), (array) $erasers );
 	}
 
 	public static function register_exporter( $exporters ) {
-		$exporters['wpcap-sms'] = array( 'exporter_friendly_name' => __( 'WP Pass Captain SMS-Einwilligungen', 'wp-pass-captain' ), 'callback' => array( __CLASS__, 'export' ) );
+		$exporters['wpcap-sms'] = array( 'exporter_friendly_name' => __( 'Pass Captain SMS-Einwilligungen', 'pass-captain' ), 'callback' => array( __CLASS__, 'export' ) );
 		return $exporters;
 	}
 
@@ -274,12 +274,12 @@ final class Sms {
 	public static function export( $email, $page = 1 ) {
 		$data = array();
 		foreach ( self::consents_for_email( $email ) as $c ) {
-			$data[] = array( 'group_id' => 'wpcap-sms', 'group_label' => __( 'WP Pass Captain SMS-Einwilligungen', 'wp-pass-captain' ), 'item_id' => 'sms-consent-' . (int) $c->consent_id, 'data' => array(
-				array( 'name' => __( 'Mobilnummer', 'wp-pass-captain' ), 'value' => '' !== $c->phone ? $c->phone : __( '(gelöscht)', 'wp-pass-captain' ) ),
-				array( 'name' => __( 'Zweck', 'wp-pass-captain' ), 'value' => $c->purpose ),
-				array( 'name' => __( 'Version des Einwilligungstexts', 'wp-pass-captain' ), 'value' => $c->text_version ),
-				array( 'name' => __( 'Eingewilligt (UTC)', 'wp-pass-captain' ), 'value' => $c->consented_at ),
-				array( 'name' => __( 'Widerrufen / beendet (UTC)', 'wp-pass-captain' ), 'value' => (string) ( $c->withdrawn_at ?? '' ) . ' / ' . (string) ( $c->retired_at ?? '' ) ),
+			$data[] = array( 'group_id' => 'wpcap-sms', 'group_label' => __( 'Pass Captain SMS-Einwilligungen', 'pass-captain' ), 'item_id' => 'sms-consent-' . (int) $c->consent_id, 'data' => array(
+				array( 'name' => __( 'Mobilnummer', 'pass-captain' ), 'value' => '' !== $c->phone ? $c->phone : __( '(gelöscht)', 'pass-captain' ) ),
+				array( 'name' => __( 'Zweck', 'pass-captain' ), 'value' => $c->purpose ),
+				array( 'name' => __( 'Version des Einwilligungstexts', 'pass-captain' ), 'value' => $c->text_version ),
+				array( 'name' => __( 'Eingewilligt (UTC)', 'pass-captain' ), 'value' => $c->consented_at ),
+				array( 'name' => __( 'Widerrufen / beendet (UTC)', 'pass-captain' ), 'value' => (string) ( $c->withdrawn_at ?? '' ) . ' / ' . (string) ( $c->retired_at ?? '' ) ),
 			) );
 		}
 		return array( 'data' => $data, 'done' => true );
@@ -291,7 +291,7 @@ final class Sms {
 		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
 		$endpoint = trim( (string) ( $in['http_endpoint'] ?? '' ) );
 		if ( '' !== $endpoint && 0 !== stripos( $endpoint, 'https://' ) ) {
-			return Forms::error( 'wpcap_sms_endpoint', __( 'Der SMS-Endpunkt muss HTTPS verwenden.', 'wp-pass-captain' ) );
+			return Forms::error( 'wpcap_sms_endpoint', __( 'Der SMS-Endpunkt muss HTTPS verwenden.', 'pass-captain' ) );
 		}
 		$prefix = trim( (string) ( $in['default_country_code'] ?? '' ) );
 		$values = array(
@@ -318,11 +318,11 @@ final class Sms {
 
 	public static function handle_save() {
 		Forms::verify( 'wpcap_sms_save' );
-		Forms::finish( self::save( Forms::post() ), __( 'Einstellungen gespeichert.', 'wp-pass-captain' ), Forms::page_url( self::PAGE ) );
+		Forms::finish( self::save( Forms::post() ), __( 'Einstellungen gespeichert.', 'pass-captain' ), Forms::page_url( self::PAGE ) );
 	}
 
 	public static function render_admin() {
-		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		global $wpdb;
 		$s = (array) Settings::get( 'sms' );
 		$row = static function ( $label, $html, $desc = '' ) {
@@ -336,40 +336,40 @@ final class Sms {
 		};
 		$secret = static function ( $key ) {
 			$stored = '' !== Settings::secret( $key );
-			return '<input type="password" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( $stored ? __( 'Gespeichert – leer lassen, um beizubehalten', 'wp-pass-captain' ) : __( 'Nicht gesetzt', 'wp-pass-captain' ) ) . '">' . ( $stored ? ' <label><input type="checkbox" name="' . esc_attr( $key . '__clear' ) . '" value="1"> ' . esc_html__( 'Entfernen', 'wp-pass-captain' ) . '</label>' : '' ) . '<p class="description">' . esc_html( sprintf( /* translators: %s: constant */ __( 'Empfohlen: Konstante %s in wp-config.php.', 'wp-pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
+			return '<input type="password" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( $stored ? __( 'Gespeichert – leer lassen, um beizubehalten', 'pass-captain' ) : __( 'Nicht gesetzt', 'pass-captain' ) ) . '">' . ( $stored ? ' <label><input type="checkbox" name="' . esc_attr( $key . '__clear' ) . '" value="1"> ' . esc_html__( 'Entfernen', 'pass-captain' ) . '</label>' : '' ) . '<p class="description">' . esc_html( sprintf( /* translators: %s: constant */ __( 'Empfohlen: Konstante %s in wp-config.php.', 'pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
 		};
-		$providers = array( '' => __( 'Deaktiviert', 'wp-pass-captain' ) );
-		foreach ( Service::providers() as $id => $provider ) { $providers[ $id ] = $provider->title() . ( $provider->is_configured() ? '' : ' ' . __( '(nicht konfiguriert)', 'wp-pass-captain' ) ); }
-		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'SMS-Benachrichtigungen', 'wp-pass-captain' ) . '</h1>';
+		$providers = array( '' => __( 'Deaktiviert', 'pass-captain' ) );
+		foreach ( Service::providers() as $id => $provider ) { $providers[ $id ] = $provider->title() . ( $provider->is_configured() ? '' : ' ' . __( '(nicht konfiguriert)', 'pass-captain' ) ); }
+		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'SMS-Benachrichtigungen', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
-		echo '<div class="notice notice-warning inline"><p><strong>' . esc_html__( 'Kostenhinweis:', 'wp-pass-captain' ) . '</strong> ' . esc_html__( 'Jede SMS wird vom Anbieter berechnet (je Segment von 160 GSM- bzw. 70 Unicode-Zeichen, Preise je Zielland). Erinnerungen, Verschiebungen und Absagen erzeugen pro einwilligender Bestellung je eine SMS. Prüfe die Preise deines Anbieters, bevor du SMS aktivierst.', 'wp-pass-captain' ) . '</p></div>';
-		echo '<p>' . esc_html__( 'SMS werden nur an Käufer:innen gesendet, die im Checkout ausdrücklich eingewilligt haben (Nummer, Zweck, Textversion und Zeitpunkt werden gespeichert).', 'wp-pass-captain' ) . '</p>';
+		echo '<div class="notice notice-warning inline"><p><strong>' . esc_html__( 'Kostenhinweis:', 'pass-captain' ) . '</strong> ' . esc_html__( 'Jede SMS wird vom Anbieter berechnet (je Segment von 160 GSM- bzw. 70 Unicode-Zeichen, Preise je Zielland). Erinnerungen, Verschiebungen und Absagen erzeugen pro einwilligender Bestellung je eine SMS. Prüfe die Preise deines Anbieters, bevor du SMS aktivierst.', 'pass-captain' ) . '</p></div>';
+		echo '<p>' . esc_html__( 'SMS werden nur an Käufer:innen gesendet, die im Checkout ausdrücklich eingewilligt haben (Nummer, Zweck, Textversion und Zeitpunkt werden gespeichert).', 'pass-captain' ) . '</p>';
 		Forms::open_form( 'wpcap_sms_save' );
 		echo '<table class="form-table"><tbody>';
-		ob_start(); Forms::select( 'provider', $providers, (string) ( $s['provider'] ?? '' ) ); $row( __( 'Anbieter', 'wp-pass-captain' ), ob_get_clean() );
-		$row( __( 'Einwilligungstext im Checkout', 'wp-pass-captain' ), $area( 'consent_text', $s['consent_text'] ?? '' ), sprintf( /* translators: %s: version */ __( 'Aktuelle Textversion: %s – Änderungen erzeugen eine neue Version.', 'wp-pass-captain' ), Service::consent_version() ) );
-		$row( __( 'Standard-Ländervorwahl', 'wp-pass-captain' ), $text( 'default_country_code', $s['default_country_code'] ?? '' ), __( 'Für Nummern mit führender 0, z. B. +49.', 'wp-pass-captain' ) );
-		$row( __( 'Erlaubte Ländervorwahlen', 'wp-pass-captain' ), $text( 'allowed_prefixes', $s['allowed_prefixes'] ?? '+43,+49,+41' ), __( 'Kommagetrennt. Für +43, +49 und +41 werden nur Mobilfunkbereiche akzeptiert (keine Premium-/Sonderrufnummern). Je Nummer höchstens 3 Einwilligungen pro Tag, je IP 10 pro Stunde. Eine Bestätigung per SMS-Code (OTP) ist nicht implementiert.', 'wp-pass-captain' ) );
-		$row( __( 'Text bei Absage', 'wp-pass-captain' ), $area( 'cancel_body', $s['cancel_body'] ?? '' ) );
-		$row( __( 'Text bei Verschiebung', 'wp-pass-captain' ), $area( 'reschedule_body', $s['reschedule_body'] ?? '' ), __( 'Platzhalter: ', 'wp-pass-captain' ) . implode( ' ', array_keys( Placeholders::available() ) ) );
+		ob_start(); Forms::select( 'provider', $providers, (string) ( $s['provider'] ?? '' ) ); $row( __( 'Anbieter', 'pass-captain' ), ob_get_clean() );
+		$row( __( 'Einwilligungstext im Checkout', 'pass-captain' ), $area( 'consent_text', $s['consent_text'] ?? '' ), sprintf( /* translators: %s: version */ __( 'Aktuelle Textversion: %s – Änderungen erzeugen eine neue Version.', 'pass-captain' ), Service::consent_version() ) );
+		$row( __( 'Standard-Ländervorwahl', 'pass-captain' ), $text( 'default_country_code', $s['default_country_code'] ?? '' ), __( 'Für Nummern mit führender 0, z. B. +49.', 'pass-captain' ) );
+		$row( __( 'Erlaubte Ländervorwahlen', 'pass-captain' ), $text( 'allowed_prefixes', $s['allowed_prefixes'] ?? '+43,+49,+41' ), __( 'Kommagetrennt. Für +43, +49 und +41 werden nur Mobilfunkbereiche akzeptiert (keine Premium-/Sonderrufnummern). Je Nummer höchstens 3 Einwilligungen pro Tag, je IP 10 pro Stunde. Eine Bestätigung per SMS-Code (OTP) ist nicht implementiert.', 'pass-captain' ) );
+		$row( __( 'Text bei Absage', 'pass-captain' ), $area( 'cancel_body', $s['cancel_body'] ?? '' ) );
+		$row( __( 'Text bei Verschiebung', 'pass-captain' ), $area( 'reschedule_body', $s['reschedule_body'] ?? '' ), __( 'Platzhalter: ', 'pass-captain' ) . implode( ' ', array_keys( Placeholders::available() ) ) );
 		echo '</tbody></table><h2>Twilio</h2><table class="form-table"><tbody>';
-		$row( __( 'Account SID', 'wp-pass-captain' ), $text( 'twilio_account_sid', Settings::get( 'twilio_account_sid' ) ), __( 'Alternativ Konstante WPCAP_TWILIO_ACCOUNT_SID.', 'wp-pass-captain' ) );
-		$row( __( 'Auth Token', 'wp-pass-captain' ), $secret( 'twilio_auth_token' ) );
-		$row( __( 'Absender (Nummer, Name oder Messaging Service SID)', 'wp-pass-captain' ), $text( 'twilio_from', $s['twilio_from'] ?? '' ) );
-		$row( __( 'Eingehende SMS (Abmeldung mit STOP)', 'wp-pass-captain' ), '<code>' . esc_html( TwilioProvider::inbound_url() ) . '</code>', __( 'Bei der Twilio-Nummer als Webhook für „A message comes in“ eintragen; STOP, STOPP oder ABMELDEN widerruft alle Einwilligungen der Nummer.', 'wp-pass-captain' ) );
-		$row( __( 'Status-Callback', 'wp-pass-captain' ), '<code>' . esc_html( TwilioProvider::status_callback_url() ) . '</code>', __( 'Wird automatisch pro Nachricht übergeben; Signatur (X-Twilio-Signature) wird geprüft.', 'wp-pass-captain' ) );
-		echo '</tbody></table><h2>' . esc_html__( 'Generischer HTTP-Anbieter', 'wp-pass-captain' ) . '</h2><table class="form-table"><tbody>';
-		$row( __( 'Endpunkt (HTTPS)', 'wp-pass-captain' ), $text( 'http_endpoint', $s['http_endpoint'] ?? '', 'url' ) );
-		$row( __( 'Auth-Header-Name', 'wp-pass-captain' ), $text( 'http_auth_header', $s['http_auth_header'] ?? '' ) );
-		$row( __( 'Auth-Header-Wert', 'wp-pass-captain' ), $secret( 'sms_http_secret' ) );
-		ob_start(); Forms::select( 'http_content_type', array( 'json' => 'application/json', 'form' => 'application/x-www-form-urlencoded' ), (string) ( $s['http_content_type'] ?? 'json' ) ); $row( __( 'Content-Type', 'wp-pass-captain' ), ob_get_clean() );
-		$row( __( 'Body-Vorlage', 'wp-pass-captain' ), $area( 'http_body_template', $s['http_body_template'] ?? '' ), __( 'Platzhalter {to}, {body}, {reference} werden passend zum Content-Type maskiert.', 'wp-pass-captain' ) );
+		$row( __( 'Account SID', 'pass-captain' ), $text( 'twilio_account_sid', Settings::get( 'twilio_account_sid' ) ), __( 'Alternativ Konstante WPCAP_TWILIO_ACCOUNT_SID.', 'pass-captain' ) );
+		$row( __( 'Auth Token', 'pass-captain' ), $secret( 'twilio_auth_token' ) );
+		$row( __( 'Absender (Nummer, Name oder Messaging Service SID)', 'pass-captain' ), $text( 'twilio_from', $s['twilio_from'] ?? '' ) );
+		$row( __( 'Eingehende SMS (Abmeldung mit STOP)', 'pass-captain' ), '<code>' . esc_html( TwilioProvider::inbound_url() ) . '</code>', __( 'Bei der Twilio-Nummer als Webhook für „A message comes in“ eintragen; STOP, STOPP oder ABMELDEN widerruft alle Einwilligungen der Nummer.', 'pass-captain' ) );
+		$row( __( 'Status-Callback', 'pass-captain' ), '<code>' . esc_html( TwilioProvider::status_callback_url() ) . '</code>', __( 'Wird automatisch pro Nachricht übergeben; Signatur (X-Twilio-Signature) wird geprüft.', 'pass-captain' ) );
+		echo '</tbody></table><h2>' . esc_html__( 'Generischer HTTP-Anbieter', 'pass-captain' ) . '</h2><table class="form-table"><tbody>';
+		$row( __( 'Endpunkt (HTTPS)', 'pass-captain' ), $text( 'http_endpoint', $s['http_endpoint'] ?? '', 'url' ) );
+		$row( __( 'Auth-Header-Name', 'pass-captain' ), $text( 'http_auth_header', $s['http_auth_header'] ?? '' ) );
+		$row( __( 'Auth-Header-Wert', 'pass-captain' ), $secret( 'sms_http_secret' ) );
+		ob_start(); Forms::select( 'http_content_type', array( 'json' => 'application/json', 'form' => 'application/x-www-form-urlencoded' ), (string) ( $s['http_content_type'] ?? 'json' ) ); $row( __( 'Content-Type', 'pass-captain' ), ob_get_clean() );
+		$row( __( 'Body-Vorlage', 'pass-captain' ), $area( 'http_body_template', $s['http_body_template'] ?? '' ), __( 'Platzhalter {to}, {body}, {reference} werden passend zum Content-Type maskiert.', 'pass-captain' ) );
 		echo '</tbody></table>';
-		submit_button( __( 'Speichern', 'wp-pass-captain' ) );
+		submit_button( __( 'Speichern', 'pass-captain' ) );
 		echo '</form>';
 		$stats = $wpdb->get_results( "SELECT status,COUNT(*) AS n FROM {$wpdb->prefix}wpcap_sms_messages GROUP BY status" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		if ( $stats ) {
-			echo '<h2>' . esc_html__( 'Versandstatus', 'wp-pass-captain' ) . '</h2><ul>';
+			echo '<h2>' . esc_html__( 'Versandstatus', 'pass-captain' ) . '</h2><ul>';
 			foreach ( $stats as $stat ) { echo '<li>' . esc_html( $stat->status . ': ' . (int) $stat->n ) . '</li>'; }
 			echo '</ul>';
 		}

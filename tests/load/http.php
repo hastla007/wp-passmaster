@@ -91,7 +91,7 @@ for ( $i = 0; $i < 50; $i++ ) {
 	if ( 200 === curl_getinfo( $ch, CURLINFO_HTTP_CODE ) ) { break; }
 }
 
-echo 'WP Pass Captain HTTP load test – ' . get_bloginfo( 'version' ) . ' / PHP ' . PHP_VERSION . ", server $base with {$cfg['server_workers']} workers, client concurrency {$cfg['concurrency']}\n";
+echo 'Pass Captain HTTP load test – ' . get_bloginfo( 'version' ) . ' / PHP ' . PHP_VERSION . ", server $base with {$cfg['server_workers']} workers, client concurrency {$cfg['concurrency']}\n";
 
 function load_event( $name, array $types ) {
 	global $wpdb, $created_events;

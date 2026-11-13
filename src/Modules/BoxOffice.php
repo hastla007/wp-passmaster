@@ -117,7 +117,7 @@ final class BoxOffice {
 	}
 
 	public static function admin_pages() {
-		return array( array( Page::SLUG, __( 'Kasse', 'wp-pass-captain' ), Service::CAP, array( Page::class, 'render' ) ) );
+		return array( array( Page::SLUG, __( 'Kasse', 'pass-captain' ), Service::CAP, array( Page::class, 'render' ) ) );
 	}
 
 	public static function admin_handlers() {

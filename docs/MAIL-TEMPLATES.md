@@ -84,7 +84,7 @@ Mailer::send( 'order_access', $email, array(
 Mailer::block( $text, $sicheres_html );
 
 // Werte, die übersetzt werden müssen: Closure, läuft in der Sprache der Empfänger:in
-'refund_note' => static function () { return __( '…', 'wp-pass-captain' ); },
+'refund_note' => static function () { return __( '…', 'pass-captain' ); },
 
 // Rendern ohne Versand, dann ggf. filtern und senden
 $message = Mailer::compose( 'tickets', $vars, $locale );

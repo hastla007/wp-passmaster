@@ -14,7 +14,7 @@ final class HttpClient {
 		$url = esc_url_raw( $url, array( 'http', 'https' ) );
 		$parts = wp_parse_url( $url );
 		if ( ! $url || ! is_array( $parts ) || empty( $parts['host'] ) || ! in_array( strtolower( $parts['scheme'] ?? '' ), array( 'http', 'https' ), true ) || isset( $parts['user'] ) || isset( $parts['pass'] ) ) {
-			return new \WP_Error( 'provider_endpoint_invalid', __( 'Der Fiskal-Anbieter-Endpunkt ist ungültig.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'provider_endpoint_invalid', __( 'Der Fiskal-Anbieter-Endpunkt ist ungültig.', 'pass-captain' ) );
 		}
 		$args = array(
 			'method' => strtoupper( $method ),
@@ -28,16 +28,16 @@ final class HttpClient {
 		}
 		$response = wp_remote_request( $url, $args );
 		if ( is_wp_error( $response ) ) {
-			return new \WP_Error( 'provider_transport_error', __( 'Der Fiskal-Anbieter ist nicht erreichbar.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'provider_transport_error', __( 'Der Fiskal-Anbieter ist nicht erreichbar.', 'pass-captain' ) );
 		}
 		$status = (int) wp_remote_retrieve_response_code( $response );
 		$raw = wp_remote_retrieve_body( $response );
 		if ( strlen( $raw ) > 524288 ) {
-			return new \WP_Error( 'provider_response_too_large', __( 'Die Antwort des Fiskal-Anbieters ist zu groß.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'provider_response_too_large', __( 'Die Antwort des Fiskal-Anbieters ist zu groß.', 'pass-captain' ) );
 		}
 		$data = '' === $raw ? array() : json_decode( $raw, true );
 		if ( ! is_array( $data ) && '' !== $raw ) {
-			return new \WP_Error( 'provider_response_invalid', __( 'Die Antwort des Fiskal-Anbieters ist kein gültiges JSON.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'provider_response_invalid', __( 'Die Antwort des Fiskal-Anbieters ist kein gültiges JSON.', 'pass-captain' ) );
 		}
 		return array( 'status' => $status, 'data' => is_array( $data ) ? $data : array(), 'raw' => $raw );
 	}

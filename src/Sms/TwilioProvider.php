@@ -43,7 +43,7 @@ final class TwilioProvider implements ProviderInterface {
 
 	public function send( $to, $body, $reference ) {
 		if ( ! $this->is_configured() ) {
-			return new \WP_Error( 'wpcap_sms_config', __( 'Twilio ist nicht konfiguriert.', 'wp-pass-captain' ) );
+			return new \WP_Error( 'wpcap_sms_config', __( 'Twilio ist nicht konfiguriert.', 'pass-captain' ) );
 		}
 		$sid = Settings::secret( 'twilio_account_sid' );
 		$params = array( 'To' => (string) $to, 'Body' => (string) $body, 'StatusCallback' => self::status_callback_url() );

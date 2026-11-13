@@ -36,7 +36,7 @@ final class Webhooks {
 	}
 
 	public static function register_eraser( $erasers ) {
-		return array_merge( array( 'wpcap-webhooks' => array( 'eraser_friendly_name' => __( 'WP Pass Captain Webhook-Protokoll', 'wp-pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) ) ), (array) $erasers );
+		return array_merge( array( 'wpcap-webhooks' => array( 'eraser_friendly_name' => __( 'Pass Captain Webhook-Protokoll', 'pass-captain' ), 'callback' => array( __CLASS__, 'erase' ) ) ), (array) $erasers );
 	}
 
 	public static function erase( $email, $page = 1 ) {
@@ -86,7 +86,7 @@ final class Webhooks {
 	}
 
 	public static function admin_pages() {
-		return array( array( self::PAGE, __( 'Webhooks', 'wp-pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
+		return array( array( self::PAGE, __( 'Webhooks', 'pass-captain' ), self::CAP, array( __CLASS__, 'render_admin' ) ) );
 	}
 
 	public static function admin_handlers() {
@@ -241,13 +241,13 @@ final class Webhooks {
 				$r = Dispatcher::redeliver( $id );
 				return is_wp_error( $r ) ? $r : array( 'delivery_id' => $id );
 		}
-		return Forms::error( 'wpcap_webhook_action', __( 'Unbekannte Aktion oder Webhook nicht gefunden.', 'wp-pass-captain' ), 404 );
+		return Forms::error( 'wpcap_webhook_action', __( 'Unbekannte Aktion oder Webhook nicht gefunden.', 'pass-captain' ), 404 );
 	}
 
 	public static function handle_action() {
 		Forms::verify( 'wpcap_webhook_action' );
 		$result = self::admin_action( Forms::post() );
-		Forms::finish( $result, __( 'Gespeichert.', 'wp-pass-captain' ), Forms::page_url( self::PAGE ) );
+		Forms::finish( $result, __( 'Gespeichert.', 'pass-captain' ), Forms::page_url( self::PAGE ) );
 	}
 
 	private static function action_button( $do, $id, $label, $confirm = '' ) {
@@ -258,53 +258,53 @@ final class Webhooks {
 	}
 
 	public static function render_admin() {
-		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
-		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Webhooks', 'wp-pass-captain' ) . '</h1>';
+		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Webhooks', 'pass-captain' ) . '</h1>';
 		Forms::render_notices();
-		echo '<p>' . esc_html( sprintf( /* translators: %s: api version */ __( 'Ereignisse werden als signierte JSON-POSTs (API-Version %s) an HTTPS-Endpunkte gesendet. Signatur: Header X-WPCAP-Signature = t={Zeit},v1=HMAC-SHA256(Secret, "{t}.{Body}"). Fehlgeschlagene Zustellungen werden mit wachsendem Abstand wiederholt; nach wiederholten Fehlern wird der Webhook deaktiviert.', 'wp-pass-captain' ), Dispatcher::API_VERSION ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( /* translators: %s: api version */ __( 'Ereignisse werden als signierte JSON-POSTs (API-Version %s) an HTTPS-Endpunkte gesendet. Signatur: Header X-WPCAP-Signature = t={Zeit},v1=HMAC-SHA256(Secret, "{t}.{Body}"). Fehlgeschlagene Zustellungen werden mit wachsendem Abstand wiederholt; nach wiederholten Fehlern wird der Webhook deaktiviert.', 'pass-captain' ), Dispatcher::API_VERSION ) ) . '</p>';
 		$subs = Dispatcher::subscriptions();
-		echo '<h2>' . esc_html__( 'Abonnements', 'wp-pass-captain' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Abonnements', 'pass-captain' ) . '</h2>';
 		if ( ! $subs ) {
-			echo '<p>' . esc_html__( 'Noch keine Webhooks.', 'wp-pass-captain' ) . '</p>';
+			echo '<p>' . esc_html__( 'Noch keine Webhooks.', 'pass-captain' ) . '</p>';
 		} else {
-			echo '<table class="widefat striped"><thead><tr><th scope="col">ID</th><th scope="col">' . esc_html__( 'URL', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Ereignisse', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Secret', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktionen', 'wp-pass-captain' ) . '</th></tr></thead><tbody>';
+			echo '<table class="widefat striped"><thead><tr><th scope="col">ID</th><th scope="col">' . esc_html__( 'URL', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Ereignisse', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Secret', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Aktionen', 'pass-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $subs as $sub ) {
-				$status = 'active' === $sub->status ? __( 'aktiv', 'wp-pass-captain' ) : ( 'failures' === $sub->disabled_reason ? __( 'deaktiviert (Fehler)', 'wp-pass-captain' ) : __( 'deaktiviert', 'wp-pass-captain' ) );
-				echo '<tr><td>' . (int) $sub->subscription_id . '</td><td><code>' . esc_html( $sub->url ) . '</code>' . ( '' !== $sub->description ? '<br>' . esc_html( $sub->description ) : '' ) . ( (int) $sub->include_pii ? '<br><em>' . esc_html__( 'mit personenbezogenen Daten (E-Mail)', 'wp-pass-captain' ) . '</em>' : '' ) . '</td><td>' . esc_html( str_replace( ',', ', ', $sub->events ) ) . '</td><td>' . esc_html( $status ) . ( (int) $sub->consecutive_failures ? '<br>' . esc_html( sprintf( /* translators: %d: count */ __( '%d Fehler in Folge', 'wp-pass-captain' ), (int) $sub->consecutive_failures ) ) : '' ) . '</td>';
-				echo '<td><details><summary>' . esc_html__( 'Anzeigen', 'wp-pass-captain' ) . '</summary><code>' . esc_html( $sub->secret ) . '</code></details></td><td>';
-				self::action_button( 'active' === $sub->status ? 'disable' : 'enable', $sub->subscription_id, 'active' === $sub->status ? __( 'Deaktivieren', 'wp-pass-captain' ) : __( 'Aktivieren', 'wp-pass-captain' ) );
-				self::action_button( 'rotate', $sub->subscription_id, __( 'Secret erneuern', 'wp-pass-captain' ), __( 'Neues Secret erzeugen? Der Empfänger muss es übernehmen.', 'wp-pass-captain' ) );
-				self::action_button( 'delete', $sub->subscription_id, __( 'Löschen', 'wp-pass-captain' ), __( 'Webhook und Zustellprotokoll löschen?', 'wp-pass-captain' ) );
+				$status = 'active' === $sub->status ? __( 'aktiv', 'pass-captain' ) : ( 'failures' === $sub->disabled_reason ? __( 'deaktiviert (Fehler)', 'pass-captain' ) : __( 'deaktiviert', 'pass-captain' ) );
+				echo '<tr><td>' . (int) $sub->subscription_id . '</td><td><code>' . esc_html( $sub->url ) . '</code>' . ( '' !== $sub->description ? '<br>' . esc_html( $sub->description ) : '' ) . ( (int) $sub->include_pii ? '<br><em>' . esc_html__( 'mit personenbezogenen Daten (E-Mail)', 'pass-captain' ) . '</em>' : '' ) . '</td><td>' . esc_html( str_replace( ',', ', ', $sub->events ) ) . '</td><td>' . esc_html( $status ) . ( (int) $sub->consecutive_failures ? '<br>' . esc_html( sprintf( /* translators: %d: count */ __( '%d Fehler in Folge', 'pass-captain' ), (int) $sub->consecutive_failures ) ) : '' ) . '</td>';
+				echo '<td><details><summary>' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</summary><code>' . esc_html( $sub->secret ) . '</code></details></td><td>';
+				self::action_button( 'active' === $sub->status ? 'disable' : 'enable', $sub->subscription_id, 'active' === $sub->status ? __( 'Deaktivieren', 'pass-captain' ) : __( 'Aktivieren', 'pass-captain' ) );
+				self::action_button( 'rotate', $sub->subscription_id, __( 'Secret erneuern', 'pass-captain' ), __( 'Neues Secret erzeugen? Der Empfänger muss es übernehmen.', 'pass-captain' ) );
+				self::action_button( 'delete', $sub->subscription_id, __( 'Löschen', 'pass-captain' ), __( 'Webhook und Zustellprotokoll löschen?', 'pass-captain' ) );
 				echo '</td></tr>';
 			}
 			echo '</tbody></table>';
 		}
-		echo '<h2>' . esc_html__( 'Neuer Webhook', 'wp-pass-captain' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Neuer Webhook', 'pass-captain' ) . '</h2>';
 		Forms::open_form( 'wpcap_webhook_action' );
 		Forms::hidden( 'do', 'create' );
-		echo '<table class="form-table"><tbody><tr><th scope="row"><label for="wpcap-wh-url">' . esc_html__( 'Endpunkt-URL (HTTPS)', 'wp-pass-captain' ) . '</label></th><td><input type="url" id="wpcap-wh-url" name="url" class="large-text" required pattern="https://.+"></td></tr>';
-		echo '<tr><th scope="row"><label for="wpcap-wh-desc">' . esc_html__( 'Beschreibung', 'wp-pass-captain' ) . '</label></th><td><input type="text" id="wpcap-wh-desc" name="description" class="regular-text" maxlength="190"></td></tr>';
-		echo '<tr><th scope="row">' . esc_html__( 'Ereignisse', 'wp-pass-captain' ) . '</th><td><fieldset><legend class="screen-reader-text">' . esc_html__( 'Ereignisse', 'wp-pass-captain' ) . '</legend>';
+		echo '<table class="form-table"><tbody><tr><th scope="row"><label for="wpcap-wh-url">' . esc_html__( 'Endpunkt-URL (HTTPS)', 'pass-captain' ) . '</label></th><td><input type="url" id="wpcap-wh-url" name="url" class="large-text" required pattern="https://.+"></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-wh-desc">' . esc_html__( 'Beschreibung', 'pass-captain' ) . '</label></th><td><input type="text" id="wpcap-wh-desc" name="description" class="regular-text" maxlength="190"></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'Ereignisse', 'pass-captain' ) . '</th><td><fieldset><legend class="screen-reader-text">' . esc_html__( 'Ereignisse', 'pass-captain' ) . '</legend>';
 		foreach ( Dispatcher::EVENTS as $event ) { echo '<label style="display:block"><input type="checkbox" name="events[]" value="' . esc_attr( $event ) . '"> <code>' . esc_html( $event ) . '</code></label>'; }
-		echo '</fieldset></td></tr><tr><th scope="row">' . esc_html__( 'Personenbezogene Daten', 'wp-pass-captain' ) . '</th><td><label><input type="checkbox" name="include_pii" value="1"> ' . esc_html__( 'E-Mail-Adressen (Käufer:in, Teilnehmer:in) mitsenden – nur mit Rechtsgrundlage und Auftragsverarbeitungsvertrag', 'wp-pass-captain' ) . '</label></td></tr></tbody></table>';
-		submit_button( __( 'Webhook anlegen', 'wp-pass-captain' ) );
+		echo '</fieldset></td></tr><tr><th scope="row">' . esc_html__( 'Personenbezogene Daten', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="include_pii" value="1"> ' . esc_html__( 'E-Mail-Adressen (Käufer:in, Teilnehmer:in) mitsenden – nur mit Rechtsgrundlage und Auftragsverarbeitungsvertrag', 'pass-captain' ) . '</label></td></tr></tbody></table>';
+		submit_button( __( 'Webhook anlegen', 'pass-captain' ) );
 		echo '</form>';
-		echo '<h2>' . esc_html__( 'Aufbewahrung', 'wp-pass-captain' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Aufbewahrung', 'pass-captain' ) . '</h2>';
 		Forms::open_form( 'wpcap_webhook_action' );
 		Forms::hidden( 'do', 'settings' );
-		echo '<p><label for="wpcap-wh-retention">' . esc_html__( 'Abgeschlossene Zustellungen löschen nach (Tagen)', 'wp-pass-captain' ) . '</label> <input type="number" id="wpcap-wh-retention" name="retention_days" min="1" max="365" value="' . (int) Dispatcher::retention_days() . '"> ';
-		submit_button( __( 'Speichern', 'wp-pass-captain' ), 'secondary', 'submit', false );
-		echo '</p><p class="description">' . esc_html__( 'Personenbezogene Daten (opt-in) werden nach der letzten Zustellung aus dem Protokoll entfernt; „Erneut senden“ verwendet dann die aktuellen Daten.', 'wp-pass-captain' ) . '</p></form>';
+		echo '<p><label for="wpcap-wh-retention">' . esc_html__( 'Abgeschlossene Zustellungen löschen nach (Tagen)', 'pass-captain' ) . '</label> <input type="number" id="wpcap-wh-retention" name="retention_days" min="1" max="365" value="' . (int) Dispatcher::retention_days() . '"> ';
+		submit_button( __( 'Speichern', 'pass-captain' ), 'secondary', 'submit', false );
+		echo '</p><p class="description">' . esc_html__( 'Personenbezogene Daten (opt-in) werden nach der letzten Zustellung aus dem Protokoll entfernt; „Erneut senden“ verwendet dann die aktuellen Daten.', 'pass-captain' ) . '</p></form>';
 		$deliveries = Dispatcher::deliveries( 0, 50 );
-		echo '<h2>' . esc_html__( 'Zustellprotokoll (letzte 50)', 'wp-pass-captain' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Zustellprotokoll (letzte 50)', 'pass-captain' ) . '</h2>';
 		if ( ! $deliveries ) {
-			echo '<p>' . esc_html__( 'Noch keine Zustellungen.', 'wp-pass-captain' ) . '</p></div>';
+			echo '<p>' . esc_html__( 'Noch keine Zustellungen.', 'pass-captain' ) . '</p></div>';
 			return;
 		}
-		echo '<table class="widefat striped"><thead><tr><th scope="col">#</th><th scope="col">Webhook</th><th scope="col">' . esc_html__( 'Ereignis', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Versuche', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'HTTP-Code', 'wp-pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Nächster Versuch / Zugestellt', 'wp-pass-captain' ) . '</th><th scope="col"></th></tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">#</th><th scope="col">Webhook</th><th scope="col">' . esc_html__( 'Ereignis', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Status', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Versuche', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'HTTP-Code', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Nächster Versuch / Zugestellt', 'pass-captain' ) . '</th><th scope="col"></th></tr></thead><tbody>';
 		foreach ( $deliveries as $d ) {
 			echo '<tr><td>' . (int) $d->delivery_id . '</td><td>' . (int) $d->subscription_id . '</td><td><code>' . esc_html( $d->event_type ) . '</code><br><small>' . esc_html( $d->event_id ) . '</small></td><td>' . esc_html( $d->status ) . ( '' !== $d->last_error ? '<br><small>' . esc_html( $d->last_error ) . '</small>' : '' ) . '</td><td>' . (int) $d->attempts . '</td><td>' . ( (int) $d->response_code ? (int) $d->response_code : '–' ) . '</td><td>' . esc_html( 'succeeded' === $d->status ? (string) $d->delivered_at : ( 'pending' === $d->status ? (string) $d->next_attempt_at : '' ) ) . ' UTC</td><td>';
-			if ( 'delivering' !== $d->status ) { self::action_button( 'redeliver', $d->delivery_id, __( 'Erneut senden', 'wp-pass-captain' ) ); }
+			if ( 'delivering' !== $d->status ) { self::action_button( 'redeliver', $d->delivery_id, __( 'Erneut senden', 'pass-captain' ) ); }
 			echo '</td></tr>';
 		}
 		echo '</tbody></table></div>';
