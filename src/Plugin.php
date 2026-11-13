@@ -19,6 +19,7 @@ final class Plugin {
 		add_action( $upgrade_hook, array( __CLASS__, 'maybe_upgrade' ), 0, 0 );
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
 		Settings::register();
+		Secrets::register();
 		Jobs\TimeBudget::register();
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_site_tables' ), 10, 2 );
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
@@ -65,6 +66,9 @@ final class Plugin {
 
 	/** Runs a pending schema upgrade for the current request context; re-schedules events after it. */
 	public static function maybe_upgrade( $context = null ) {
+		// Provider secrets: plaintext from wpcap_settings into the encrypted store, re-encryption
+		// after a key change (own option, independent of the schema version; behind the upgrade lock).
+		Secrets::maybe_upgrade( $context ?? Installer::context() );
 		if ( Installer::maybe_upgrade( $context ) ) {
 			self::schedule_events();
 			return true;

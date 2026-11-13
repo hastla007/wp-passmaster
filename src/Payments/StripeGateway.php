@@ -30,8 +30,8 @@ final class StripeGateway implements GatewayInterface {
 
 	public function is_available( $currency ) {
 		// Without the webhook secret payments could never be confirmed, so both are required.
-		return '' !== Settings::secret( 'stripe_secret_key' )
-			&& '' !== Settings::secret( 'stripe_webhook_secret' )
+		return '' !== \PassCaptain\Secrets::get( 'stripe_secret_key' )
+			&& '' !== \PassCaptain\Secrets::get( 'stripe_webhook_secret' )
 			&& 1 === preg_match( '/^[A-Za-z]{3}$/', (string) $currency );
 	}
 
@@ -98,7 +98,7 @@ final class StripeGateway implements GatewayInterface {
 
 	/** Verifies the Stripe-Signature header and maps the event. */
 	public function verify_webhook( \WP_REST_Request $request ) {
-		$secret = Settings::secret( 'stripe_webhook_secret' );
+		$secret = \PassCaptain\Secrets::get( 'stripe_webhook_secret' );
 		$payload = (string) $request->get_body();
 		if ( '' === $secret || ! self::signature_valid( $payload, (string) $request->get_header( 'stripe-signature' ), $secret ) ) {
 			return new \WP_Error( 'wpcap_stripe_signature', __( 'Ungültige Stripe-Signatur.', 'wp-pass-captain' ), array( 'status' => 401 ) );
@@ -238,7 +238,7 @@ final class StripeGateway implements GatewayInterface {
 
 	/** Stripe API call; returns the decoded body or WP_Error with Stripe's message. */
 	private function api( $method, $path, array $params = array(), $idempotency_key = '' ) {
-		$secret = Settings::secret( 'stripe_secret_key' );
+		$secret = \PassCaptain\Secrets::get( 'stripe_secret_key' );
 		if ( '' === $secret ) {
 			return new \WP_Error( 'wpcap_stripe_config', __( 'Stripe ist nicht konfiguriert.', 'wp-pass-captain' ) );
 		}

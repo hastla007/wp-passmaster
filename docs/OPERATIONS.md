@@ -44,6 +44,52 @@ Auf Multisite-Netzwerken muss der Cronjob jede Site auslösen, z. B. `wp site li
 - Wird eine Site im Netzwerk gelöscht, entfernt WordPress auch deren `*_wpcap_*`-Tabellen (Filter `wpmu_drop_tables`). Tabellen anderer Sites sind nicht betroffen.
 - Beim Deinstallieren entscheidet jede Site über „Daten beim Löschen entfernen“. Netzwerkweite Benutzer-Metadaten (`wpcap_*` ohne Site-Präfix) werden nur gelöscht, wenn alle Sites zugestimmt haben; Site-bezogene Benutzeroptionen (`{präfix}wpcap_*`) und Rollen/Berechtigungen nur auf zustimmenden Sites.
 
+## Zugangsdaten / Secrets
+
+Zugangsdaten von Zahlungs- und Versanddiensten liegen **nicht** im Klartext in der allgemeinen Option `wpcap_settings`, sondern verschlüsselt in der Option `wpcap_secrets` (nicht autoloaded). Betroffen sind:
+
+| Einstellung | Dienst |
+|---|---|
+| `stripe_secret_key`, `stripe_webhook_secret` | Stripe |
+| `paypal_client_secret` | PayPal |
+| `mollie_api_key` | Mollie |
+| `twilio_auth_token`, `sms_http_secret` | SMS (Twilio, HTTP-Anbieter) |
+| `apple_pass_cert`, `apple_pass_key`, `apple_pass_key_password`, `apple_wwdr_cert`, `google_wallet_service_account` | Wallet |
+
+Kennungen ohne Geheimnischarakter (PayPal-Client-ID und Webhook-ID, Twilio Account SID) bleiben in `wpcap_settings`. Webhook-Signaturgeheimnisse der ausgehenden Webhooks stehen in der eigenen Tabelle `*_wpcap_webhook_subscriptions`, nicht in den Einstellungen.
+
+**Verschlüsselung:** `sodium_crypto_secretbox` (XSalsa20-Poly1305, authentifiziert), je Wert eine zufällige Nonce; der Name der Einstellung ist mitverschlüsselt, Werte lassen sich also nicht zwischen Einstellungen vertauschen. Der Schlüssel steht nicht in der Datenbank:
+
+```php
+// wp-config.php – empfohlen: eigener Schlüssel, mindestens 32 zufällige Zeichen
+define( 'WPCAP_SECRETS_KEY', '…' ); // z. B. erzeugt mit: php -r 'echo bin2hex(random_bytes(32));'
+```
+
+Ohne `WPCAP_SECRETS_KEY` wird der Schlüssel aus den WordPress-Salts abgeleitet (`wp_salt('auth')` und `AUTH_KEY`); Administrator:innen sehen dann einen Hinweis. Nachteil: Werden die Salts erneuert (z. B. nach einem Sicherheitsvorfall), sind die gespeicherten Zugangsdaten nicht mehr lesbar. Wird `WPCAP_SECRETS_KEY` nachträglich gesetzt, bleiben die bisherigen Werte lesbar und werden beim nächsten Admin-/Cron-Aufruf automatisch mit dem neuen Schlüssel neu verschlüsselt.
+
+Vorrang beim Lesen: Konstante `WPCAP_<NAME>` (z. B. `WPCAP_STRIPE_SECRET_KEY`) > gleichnamige Umgebungsvariable > verschlüsselter Wert. Wer Zugangsdaten ganz außerhalb der Datenbank halten will, setzt die Konstanten; das Formular zeigt sie dann nur als „gesetzt über …“ an.
+
+**Formulare:** Gespeicherte Werte werden nie angezeigt, nur „Gespeichert (verschlüsselt), endet auf …abcd“ (letzte vier Zeichen, nur bei Werten ab 12 Zeichen). Leeres Feld = Wert bleibt unverändert, die Checkbox „Gespeicherten Wert löschen“ entfernt ihn. Das Audit-Protokoll enthält nur die Namen geänderter Einstellungen, nie Werte.
+
+**Migration:** Nach dem Update verschiebt der erste Aufruf (Frontend, Admin, Cron oder WP-CLI) vorhandene Klartextwerte hinter der Upgrade-Sperre (`GET_LOCK`, wie das Schema-Upgrade) in den verschlüsselten Speicher und entfernt sie aus `wpcap_settings` (Audit-Eintrag `secrets_migrated`, nur Namen). Der Schritt ist idempotent und unabhängig von der Schema-Version (Option `wpcap_secrets_version`). Taucht später erneut ein Klartextwert in `wpcap_settings` auf (z. B. nach einem Downgrade auf eine ältere Plugin-Version und erneutem Speichern), wird er beim nächsten Aufruf wieder übernommen und entfernt. Ältere Datenbanksicherungen enthalten die Zugangsdaten weiterhin im Klartext – Sicherungen von vor dem Update entsprechend schützen oder Zugangsdaten beim Anbieter erneuern.
+
+**Fail closed:** Lässt sich ein gespeicherter Wert nicht entschlüsseln (Schlüssel geändert oder fehlt, Salts erneuert, Datenbank manipuliert), gilt der Dienst als nicht eingerichtet (z. B. erscheint Stripe nicht im Checkout, Webhooks werden mangels Signaturgeheimnis abgelehnt). Ein Admin-Hinweis nennt die betroffenen Einstellungen; die Felder zeigen „nicht entschlüsselbar – bitte neu eingeben“. Werte werden dabei nie protokolliert. Website-Zustand → Info zeigt im Abschnitt „WP Pass Captain – Zugangsdaten“ je Einstellung nur die Quelle (Konstante, verschlüsselt gespeichert, nicht entschlüsselbar, nicht gesetzt).
+
+**Schlüsselwechsel (Rotation) ohne WP-CLI:**
+
+1. Neuen Schlüssel erzeugen und in `wp-config.php` als `WPCAP_SECRETS_KEY` eintragen, den bisherigen Wert gleichzeitig als `WPCAP_SECRETS_KEY_PREVIOUS`:
+   ```php
+   define( 'WPCAP_SECRETS_KEY', '…neu…' );
+   define( 'WPCAP_SECRETS_KEY_PREVIOUS', '…alt…' );
+   ```
+   Beim Wechsel von den Salts auf einen eigenen Schlüssel ist kein `…_PREVIOUS` nötig.
+2. Eine Admin-Seite aufrufen (oder auf den nächsten Cron-Lauf warten): alle Werte werden mit dem neuen Schlüssel neu verschlüsselt (Audit-Eintrag `secrets_rewrapped`). Bis dahin bleiben sie mit dem alten Schlüssel lesbar.
+3. Kontrollieren, dass kein Hinweis „nicht entschlüsselbar“ mehr erscheint, dann `WPCAP_SECRETS_KEY_PREVIOUS` entfernen.
+
+Ist der alte Schlüssel verloren, die betroffenen Zugangsdaten beim Anbieter neu erzeugen (widerrufen) und in den Einstellungen neu eingeben. Bei Verdacht auf Abfluss von Datenbank **und** `wp-config.php` reicht ein Schlüsselwechsel nicht: die Zugangsdaten beim Anbieter widerrufen und neu eintragen.
+
+**Wiederherstellung:** Eine Datenbanksicherung ist nur zusammen mit demselben `WPCAP_SECRETS_KEY` (bzw. denselben Salts) nutzbar. Den Schlüssel getrennt von der Datenbanksicherung, aber mit ihr auffindbar aufbewahren (z. B. Passwortmanager).
+
 ## Wiederherstellung
 
 Dateien und Datenbank als zusammengehörigen Stand wiederherstellen. Ein Datenbank-Restore allein kann mit neuerem Plugin-Code inkompatibel sein. Für eine Netzwerksite gehören auch Netzwerkaktivierung und Site-Präfixe in den Wiederherstellungsplan. Nach einem Restore Cron-Ereignisse kontrollieren; WordPress-Cron benötigt Seitenaufrufe oder einen externen Cron-Trigger.

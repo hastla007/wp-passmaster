@@ -97,7 +97,7 @@ final class Sms {
 				'cancel_body' => __( 'Abgesagt: {event} am {date} um {time}. Dein Ticket ist ungültig; Infos zur Erstattung per E-Mail.', 'wp-pass-captain' ),
 				'reschedule_body' => __( 'Neuer Termin: {event} findet am {date} um {time} ({timezone}) statt (bisher {old_date}). Dein Ticket bleibt gültig.', 'wp-pass-captain' ),
 			),
-			// Scalar secrets so that constants/env vars (WPCAP_TWILIO_AUTH_TOKEN …) work via Settings::secret().
+			// Scalar secrets so that constants/env vars (WPCAP_TWILIO_AUTH_TOKEN …) work; the values are kept in the encrypted store (Secrets).
 			'twilio_account_sid' => '',
 			'twilio_auth_token' => '',
 			'sms_http_secret' => '',
@@ -335,8 +335,9 @@ final class Sms {
 			return '<textarea name="' . esc_attr( $name ) . '" class="large-text" rows="3">' . esc_textarea( (string) $value ) . '</textarea>';
 		};
 		$secret = static function ( $key ) {
-			$stored = '' !== Settings::secret( $key );
-			return '<input type="password" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( $stored ? __( 'Gespeichert – leer lassen, um beizubehalten', 'wp-pass-captain' ) : __( 'Nicht gesetzt', 'wp-pass-captain' ) ) . '">' . ( $stored ? ' <label><input type="checkbox" name="' . esc_attr( $key . '__clear' ) . '" value="1"> ' . esc_html__( 'Entfernen', 'wp-pass-captain' ) . '</label>' : '' ) . '<p class="description">' . esc_html( sprintf( /* translators: %s: constant */ __( 'Empfohlen: Konstante %s in wp-config.php.', 'wp-pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
+			ob_start();
+			\PassCaptain\Secrets::render_field( $key, 'wpcap-sms-' . $key );
+			return ob_get_clean();
 		};
 		$providers = array( '' => __( 'Deaktiviert', 'wp-pass-captain' ) );
 		foreach ( Service::providers() as $id => $provider ) { $providers[ $id ] = $provider->title() . ( $provider->is_configured() ? '' : ' ' . __( '(nicht konfiguriert)', 'wp-pass-captain' ) ); }

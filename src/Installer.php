@@ -698,6 +698,8 @@ final class Installer {
 		// from the source tables and verify them before capacity decisions rely on them.
 		CapacityCounters::after_install();
 		self::pin_legacy_credit_prefix( $previous_version );
+		// Provider secrets leave wpcap_settings (encrypted store, idempotent; see Secrets).
+		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
 
 		// Role names are translated; before init that would load the text domain too early.
 		if ( did_action( 'init' ) || ! function_exists( 'add_action' ) ) {

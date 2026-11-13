@@ -36,7 +36,7 @@ final class PayPalGateway implements GatewayInterface {
 
 	public function is_available( $currency ) {
 		return '' !== Settings::secret( 'paypal_client_id' )
-			&& '' !== Settings::secret( 'paypal_client_secret' )
+			&& '' !== \PassCaptain\Secrets::get( 'paypal_client_secret' )
 			&& '' !== Settings::secret( 'paypal_webhook_id' )
 			&& in_array( strtoupper( (string) $currency ), self::CURRENCIES, true );
 	}
@@ -337,7 +337,7 @@ final class PayPalGateway implements GatewayInterface {
 	/** OAuth access token, cached until shortly before expiry. */
 	private static function token( $force = false ) {
 		$client_id = Settings::secret( 'paypal_client_id' );
-		$secret = Settings::secret( 'paypal_client_secret' );
+		$secret = \PassCaptain\Secrets::get( 'paypal_client_secret' );
 		if ( '' === $client_id || '' === $secret ) {
 			return new \WP_Error( 'wpcap_paypal_config', __( 'PayPal ist nicht konfiguriert.', 'wp-pass-captain' ) );
 		}

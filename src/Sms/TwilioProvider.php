@@ -2,7 +2,7 @@
 /**
  * Twilio Programmable Messaging adapter (Messages API, form-encoded, HTTP Basic auth).
  *
- * Credentials: Settings::secret('twilio_account_sid') / Settings::secret('twilio_auth_token'), i.e.
+ * Credentials: Settings::secret('twilio_account_sid') / Secrets::get('twilio_auth_token'), i.e.
  * the constants WPCAP_TWILIO_ACCOUNT_SID / WPCAP_TWILIO_AUTH_TOKEN, environment variables or stored
  * settings. Delivery reports arrive at the status callback, signed with X-Twilio-Signature.
  */
@@ -21,7 +21,7 @@ final class TwilioProvider implements ProviderInterface {
 
 	public function is_configured() {
 		return 1 === preg_match( '/^AC[0-9a-fA-F]{32}$/', Settings::secret( 'twilio_account_sid' ) )
-			&& '' !== Settings::secret( 'twilio_auth_token' )
+			&& '' !== \PassCaptain\Secrets::get( 'twilio_auth_token' )
 			&& '' !== self::sender();
 	}
 
@@ -52,7 +52,7 @@ final class TwilioProvider implements ProviderInterface {
 		$response = wp_remote_post( self::API . rawurlencode( $sid ) . '/Messages.json', array(
 			'timeout' => 15,
 			'headers' => array(
-				'Authorization' => 'Basic ' . base64_encode( $sid . ':' . Settings::secret( 'twilio_auth_token' ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
+				'Authorization' => 'Basic ' . base64_encode( $sid . ':' . \PassCaptain\Secrets::get( 'twilio_auth_token' ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 				'Content-Type' => 'application/x-www-form-urlencoded',
 			),
 			'body' => http_build_query( $params, '', '&' ),

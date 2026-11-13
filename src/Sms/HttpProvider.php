@@ -3,7 +3,7 @@
  * Generic HTTP SMS gateway: POST to a configurable HTTPS endpoint with a configurable auth header and
  * body template. Placeholders {to}, {body}, {reference} are escaped for the content type
  * (JSON string content or URL encoding). The auth header value is a secret:
- * Settings::secret('sms_http_secret') (constant WPCAP_SMS_HTTP_SECRET).
+ * Secrets::get('sms_http_secret') (encrypted store) (constant WPCAP_SMS_HTTP_SECRET).
  */
 namespace PassCaptain\Sms;
 
@@ -47,7 +47,7 @@ final class HttpProvider implements ProviderInterface {
 			return new \WP_Error( 'wpcap_sms_config', __( 'Der HTTP-SMS-Anbieter ist nicht konfiguriert (HTTPS-Endpunkt erforderlich).', 'wp-pass-captain' ) );
 		}
 		$headers = array( 'Content-Type' => 'form' === $c['content_type'] ? 'application/x-www-form-urlencoded' : 'application/json', 'Idempotency-Key' => (string) $reference );
-		$secret = Settings::secret( 'sms_http_secret' );
+		$secret = \PassCaptain\Secrets::get( 'sms_http_secret' );
 		$header = preg_replace( '/[^A-Za-z0-9\-]/', '', $c['header'] );
 		if ( '' !== $secret && '' !== $header ) { $headers[ $header ] = $secret; }
 		$args = array( 'timeout' => 15, 'redirection' => 0, 'headers' => $headers, 'body' => self::render_body( $c['template'], $c['content_type'], array( 'to' => $to, 'body' => $body, 'reference' => $reference ) ) );

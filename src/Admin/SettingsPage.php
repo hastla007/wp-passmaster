@@ -3,9 +3,10 @@
  * Settings screen (manage_options). Covers every key of Settings::defaults(); keys added later
  * without a definition here are rendered generically under "Weitere Einstellungen".
  *
- * Secrets are never echoed back: the form shows only whether a value is stored, an empty input
- * keeps the stored value, and a checkbox removes it. WPCAP_* constants/environment variables
- * override stored values and are shown as such.
+ * Secrets are never echoed back: they are kept encrypted (PassCaptain\Secrets), the form shows
+ * only whether a value is stored (with its last four characters), an empty input keeps the stored
+ * value, and a checkbox deletes it. WPCAP_* constants/environment variables override stored values
+ * and are shown as such.
  *
  * @package PassCaptain
  */
@@ -243,15 +244,22 @@ final class SettingsPage {
 				}
 			}
 		}
-		Settings::update( $values );
 		$changed = array();
 		foreach ( $values as $key => $value ) {
-			if ( ( $current[ $key ] ?? null ) != $value ) { $changed[] = $key; } // phpcs:ignore Universal.Operators.StrictComparisons -- stored types may differ.
+			// Secrets are compared with the encrypted store (Settings::all() never contains them).
+			$before = \PassCaptain\Secrets::is_secret( $key ) ? \PassCaptain\Secrets::stored( $key ) : ( $current[ $key ] ?? null );
+			if ( $before != $value ) { $changed[] = $key; } // phpcs:ignore Universal.Operators.StrictComparisons -- stored types may differ.
 		}
+		Settings::update( $values );
 		if ( $changed ) {
+			// Only key names are logged, never values.
 			Audit::record( 'settings_updated', 'settings', 0, array( 'keys' => $changed ) );
 		}
-		return array( 'saved' => $values, 'errors' => $errors );
+		// The result never carries secret values back (only which secrets were written).
+		$secrets = array_intersect_key( $values, array_flip( \PassCaptain\Secrets::KEYS ) );
+		$saved = array_diff_key( $values, $secrets );
+		$saved['secrets_updated'] = array_keys( $secrets );
+		return array( 'saved' => $saved, 'errors' => $errors );
 	}
 
 	public static function handle_save() {
@@ -299,7 +307,8 @@ final class SettingsPage {
 
 	private static function render_field( $key, array $def, $value ) {
 		$id = 'wpcap-set-' . $key;
-		$override = ( 'secret' === $def['type'] || ! empty( $def['overridable'] ) ) ? self::override_source( $key ) : '';
+		// Secrets show their own source/status line (Secrets::render_field()).
+		$override = ( 'secret' !== $def['type'] && ! empty( $def['overridable'] ) ) ? self::override_source( $key ) : '';
 		switch ( $def['type'] ) {
 			case 'int':
 				echo '<input type="number" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" min="' . esc_attr( $def['min'] ) . '"' . ( PHP_INT_MAX !== $def['max'] ? ' max="' . esc_attr( $def['max'] ) . '"' : '' ) . ' value="' . esc_attr( (int) $value ) . '">';
@@ -336,11 +345,15 @@ final class SettingsPage {
 				echo '<input type="text" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" maxlength="10" size="10" pattern="[A-Za-z0-9\-]+" value="' . esc_attr( (string) $value ) . '">';
 				break;
 			case 'secret':
-				$stored = '' !== (string) $value;
-				echo '<input type="password" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( $stored ? __( 'Gespeichert – leer lassen, um beizubehalten', 'wp-pass-captain' ) : __( 'Nicht gesetzt', 'wp-pass-captain' ) ) . '">';
-				echo ' <strong>' . ( $stored ? esc_html__( 'Wert gespeichert', 'wp-pass-captain' ) : esc_html__( 'Kein Wert gespeichert', 'wp-pass-captain' ) ) . '</strong>';
-				if ( $stored ) {
-					echo ' <label><input type="checkbox" name="' . esc_attr( $key . '__clear' ) . '" value="1"> ' . esc_html__( 'Gespeicherten Wert entfernen', 'wp-pass-captain' ) . '</label>';
+				// Masked: status with the last four characters, empty input keeps the value (Secrets).
+				if ( \PassCaptain\Secrets::is_secret( $key ) ) {
+					\PassCaptain\Secrets::render_field( $key, $id );
+					break;
+				}
+				// Secret-like key of an extension that is not in the encrypted store: still never echoed.
+				echo '<input type="password" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( '' !== (string) $value ? __( 'Gespeichert – leer lassen, um beizubehalten', 'wp-pass-captain' ) : __( 'Nicht gesetzt', 'wp-pass-captain' ) ) . '">';
+				if ( '' !== (string) $value ) {
+					echo ' <label><input type="checkbox" name="' . esc_attr( $key . '__clear' ) . '" value="1"> ' . esc_html__( 'Gespeicherten Wert löschen', 'wp-pass-captain' ) . '</label>';
 				}
 				break;
 			default:
@@ -349,9 +362,6 @@ final class SettingsPage {
 		if ( '' !== $override ) {
 			/* translators: %s: constant name */
 			echo '<p class="description"><strong>' . esc_html( sprintf( __( 'Wird durch %s (wp-config.php oder Umgebungsvariable) überschrieben; der hier gespeicherte Wert wird nicht verwendet.', 'wp-pass-captain' ), $override ) ) . '</strong></p>';
-		} elseif ( 'secret' === $def['type'] ) {
-			/* translators: %s: constant name */
-			echo '<p class="description">' . esc_html( sprintf( __( 'Empfohlen: als Konstante %s in wp-config.php definieren.', 'wp-pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
 		}
 		if ( ! empty( $def['description'] ) ) {
 			echo '<p class="description">' . esc_html( $def['description'] ) . '</p>';

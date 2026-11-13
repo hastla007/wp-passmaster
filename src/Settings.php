@@ -1,5 +1,9 @@
 <?php
-/** Plugin settings. Secrets are preferably defined as constants in wp-config.php. */
+/**
+ * Plugin settings (option wpcap_settings). Provider secrets (Secrets::KEYS) are never stored here:
+ * Settings::update() routes them into the encrypted store (Secrets), all()/get() return their
+ * empty defaults. Read secrets with Secrets::get().
+ */
 namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -93,7 +97,8 @@ final class Settings {
 	/** All settings merged with defaults. */
 	public static function all() {
 		$stored = get_option( self::OPTION, array() );
-		$stored = is_array( $stored ) ? $stored : array();
+		// Secrets are never exposed through the general settings (legacy plaintext before migration included).
+		$stored = is_array( $stored ) ? array_diff_key( $stored, array_flip( Secrets::KEYS ) ) : array();
 		// The option is re-read every time (another site, direct update_option), the merge is reused.
 		if ( null === self::$all || self::$all[0] !== $stored ) {
 			self::$all = array( $stored, array_merge( self::defaults(), $stored ) );
@@ -107,19 +112,33 @@ final class Settings {
 		return $all[ $key ] ?? null;
 	}
 
-	/** Persist already sanitised values (unknown keys are ignored). */
+	/**
+	 * Persist already sanitised values (unknown keys are ignored). Secret keys are encrypted into
+	 * the credential store ('' removes them) and never written to wpcap_settings.
+	 */
 	public static function update( array $values ) {
 		$values = array_intersect_key( $values, self::defaults() );
-		update_option( self::OPTION, array_merge( self::all(), $values ), false );
+		// Plaintext from before the vault would otherwise be dropped below without being moved.
+		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
+		foreach ( Secrets::KEYS as $key ) {
+			if ( array_key_exists( $key, $values ) ) {
+				Secrets::set( $key, is_scalar( $values[ $key ] ) ? (string) $values[ $key ] : '' );
+				unset( $values[ $key ] );
+			}
+		}
+		$stored = array_diff_key( self::all(), array_flip( Secrets::KEYS ) );
+		update_option( self::OPTION, array_merge( $stored, $values ), false );
 		self::$all = null;
 	}
 
 	/**
-	 * Secret lookup: constant (e.g. WPCAP_STRIPE_SECRET_KEY) > environment variable > stored option.
+	 * Lookup for values that may be overridden: constant (e.g. WPCAP_PAYPAL_CLIENT_ID) > environment
+	 * variable > stored option. Secrets (Secrets::KEYS) are delegated to Secrets::get().
 	 *
-	 * @param string $key Settings key, e.g. "stripe_secret_key".
+	 * @param string $key Settings key, e.g. "paypal_client_id".
 	 */
 	public static function secret( $key ) {
+		if ( Secrets::is_secret( $key ) ) { return Secrets::get( $key ); }
 		$constant = 'WPCAP_' . strtoupper( $key );
 		if ( defined( $constant ) && '' !== (string) constant( $constant ) ) { return (string) constant( $constant ); }
 		$env = getenv( $constant );

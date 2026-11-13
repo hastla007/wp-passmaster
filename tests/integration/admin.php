@@ -298,7 +298,7 @@ $saved = SettingsPage::save( array(
 ) );
 $all = Settings::all();
 check( 'settings are sanitised and clamped', ! is_wp_error( $saved ) && 120 === $all['hold_minutes'] && 48 === $all['manual_hold_hours'] && array( 'manual' ) === $all['enabled_providers'] && 'live' === $all['stripe_mode'] && 'sandbox' === $all['paypal_mode'] && 15000 === $all['refund_approval_threshold'] && 1 === $all['require_terms'] && 0 === $all['delete_data_on_uninstall'] && 'Verein' === $all['seller_name'] );
-check( 'empty secret keeps the stored value, new secret is stored, clear removes', 'sk_test_old' === $all['stripe_secret_key'] && 'whsec_new' === $all['stripe_webhook_secret'] && '' === $all['paypal_client_secret'] );
+check( 'empty secret keeps the stored value, new secret is stored, clear removes', 'sk_test_old' === PassCaptain\Secrets::stored( 'stripe_secret_key' ) && 'whsec_new' === PassCaptain\Secrets::stored( 'stripe_webhook_secret' ) && '' === PassCaptain\Secrets::stored( 'paypal_client_secret' ) && '' === $all['stripe_secret_key'] );
 check( 'invalid numbers are reported, prefixes normalised', 1 === count( $saved['errors'] ) && 'RE-2026X' === $all['invoice_prefix'] && ( ! isset( $all['credit_note_prefix'] ) || 'RK' === $all['credit_note_prefix'] ) );
 $defined = array();
 foreach ( SettingsPage::field_definitions() as $section ) { $defined += $section['fields']; }

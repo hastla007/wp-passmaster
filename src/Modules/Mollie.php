@@ -171,16 +171,15 @@ final class Mollie {
 	public static function render_admin() {
 		if ( ! current_user_can( self::CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'wp-pass-captain' ), 403 ); }
 		$c = MollieGateway::config();
-		$stored = '' !== Settings::secret( 'mollie_api_key' );
 		echo '<div class="wrap wpcap-admin"><h1>Mollie</h1>';
 		Forms::render_notices();
 		echo '<p>' . esc_html__( 'Webhook-URL (wird pro Zahlung automatisch übergeben):', 'wp-pass-captain' ) . ' <code>' . esc_html( MollieGateway::webhook_url() ) . '</code></p>';
 		echo '<p>' . esc_html__( 'Aktiviere „Mollie“ zusätzlich unter Einstellungen → Zahlungsarten.', 'wp-pass-captain' ) . '</p>';
 		Forms::open_form( 'wpcap_mollie_save' );
 		echo '<table class="form-table"><tbody>';
-		echo '<tr><th scope="row"><label for="wpcap-mollie-key">' . esc_html__( 'API-Schlüssel', 'wp-pass-captain' ) . '</label></th><td><input type="password" id="wpcap-mollie-key" name="mollie_api_key" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( $stored ? __( 'Gespeichert – leer lassen, um beizubehalten', 'wp-pass-captain' ) : 'test_… / live_…' ) . '">';
-		if ( $stored ) { echo ' <label><input type="checkbox" name="mollie_api_key__clear" value="1"> ' . esc_html__( 'Entfernen', 'wp-pass-captain' ) . '</label>'; }
-		echo '<p class="description">' . esc_html__( 'Empfohlen: Konstante WPCAP_MOLLIE_API_KEY in wp-config.php.', 'wp-pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th scope="row"><label for="wpcap-mollie-key">' . esc_html__( 'API-Schlüssel', 'wp-pass-captain' ) . '</label></th><td>';
+		\PassCaptain\Secrets::render_field( 'mollie_api_key', 'wpcap-mollie-key' );
+		echo '<p class="description">' . esc_html__( 'Format: test_… oder live_…', 'wp-pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Zahlungsmethoden', 'wp-pass-captain' ) . '</th><td><fieldset><legend class="screen-reader-text">' . esc_html__( 'Zahlungsmethoden', 'wp-pass-captain' ) . '</legend>';
 		foreach ( self::KNOWN_METHODS as $method ) {
 			echo '<label style="display:inline-block;min-width:11rem"><input type="checkbox" name="methods[]" value="' . esc_attr( $method ) . '"' . checked( in_array( $method, $c['methods'], true ), true, false ) . '> ' . esc_html( $method ) . '</label>';

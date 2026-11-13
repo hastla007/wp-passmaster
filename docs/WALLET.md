@@ -18,7 +18,7 @@ define( 'WPCAP_APPLE_PASS_KEY_PASSWORD', '…' );
 define( 'WPCAP_APPLE_WWDR_CERT', '/pfad/AppleWWDRCAG4.pem' );
 ```
 
-   Alternativ Umgebungsvariablen gleichen Namens oder die Felder auf der Wallet-Seite (dann in der Option `wpcap_settings` gespeichert).
+   Alternativ Umgebungsvariablen gleichen Namens oder die Felder auf der Wallet-Seite (dann verschlüsselt in der Option `wpcap_secrets` gespeichert, siehe docs/OPERATIONS.md „Zugangsdaten / Secrets“).
 3. Auf der Wallet-Seite Pass Type ID, Team-ID (10 Zeichen) eintragen und „Apple Wallet aktiv“ setzen. Die Statusübersicht zeigt Gültigkeit von Pass- und WWDR-Zertifikat, ob Schlüssel und Zertifikat zusammenpassen und ob die Pass Type ID zum Zertifikat gehört. „Test-Pass herunterladen“ erzeugt einen signierten Beispielpass.
 4. Versand: als `.pkpass`-Anhang (Standard) oder als signierter Download-Link.
 

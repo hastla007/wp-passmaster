@@ -29,8 +29,8 @@ final class Credentials {
 	 * @return array{cert:string,key:string,password:string,wwdr:string}|\WP_Error
 	 */
 	public static function apple() {
-		$cert_source = trim( Settings::secret( 'apple_pass_cert' ) );
-		$password = Settings::secret( 'apple_pass_key_password' );
+		$cert_source = trim( \PassCaptain\Secrets::get( 'apple_pass_cert' ) );
+		$password = \PassCaptain\Secrets::get( 'apple_pass_key_password' );
 		$cert = '';
 		$key = '';
 		if ( preg_match( '/\.(p12|pfx)$/i', $cert_source ) && is_readable( $cert_source ) ) {
@@ -42,9 +42,9 @@ final class Credentials {
 			}
 		} else {
 			$cert = self::material( $cert_source );
-			$key = self::material( Settings::secret( 'apple_pass_key' ) );
+			$key = self::material( \PassCaptain\Secrets::get( 'apple_pass_key' ) );
 		}
-		$wwdr = self::material( Settings::secret( 'apple_wwdr_cert' ) );
+		$wwdr = self::material( \PassCaptain\Secrets::get( 'apple_wwdr_cert' ) );
 		if ( '' === $cert || '' === $key || '' === $wwdr ) {
 			return new \WP_Error( 'wpcap_wallet_apple_credentials', __( 'Apple-Zertifikat, privater Schlüssel oder WWDR-Zertifikat fehlen.', 'wp-pass-captain' ) );
 		}
@@ -64,7 +64,7 @@ final class Credentials {
 	 * @return array{client_email:string,private_key:string,token_uri:string}|\WP_Error
 	 */
 	public static function google() {
-		$json = json_decode( self::material( Settings::secret( 'google_wallet_service_account' ) ), true );
+		$json = json_decode( self::material( \PassCaptain\Secrets::get( 'google_wallet_service_account' ) ), true );
 		if ( ! is_array( $json ) || empty( $json['client_email'] ) || empty( $json['private_key'] ) ) {
 			return new \WP_Error( 'wpcap_wallet_google_credentials', __( 'Das Google-Servicekonto (JSON) fehlt oder ist ungültig.', 'wp-pass-captain' ) );
 		}

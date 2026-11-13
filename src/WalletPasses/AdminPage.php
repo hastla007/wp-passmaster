@@ -13,12 +13,13 @@ final class AdminPage {
 	const CAP = 'manage_options';
 	const SECRETS = array( 'apple_pass_cert', 'apple_pass_key', 'apple_pass_key_password', 'apple_wwdr_cert', 'google_wallet_service_account' );
 
-	/** Where a secret comes from: 'constant', 'env', 'settings' or ''. */
+	/**
+	 * Where a secret comes from: 'constant', 'env', 'settings' (encrypted store), 'undecryptable'
+	 * (stored but unreadable with the configured key) or ''.
+	 */
 	public static function secret_source( $key ) {
-		$constant = 'WPCAP_' . strtoupper( $key );
-		if ( defined( $constant ) && '' !== (string) constant( $constant ) ) { return 'constant'; }
-		if ( is_string( getenv( $constant ) ) && '' !== getenv( $constant ) ) { return 'env'; }
-		return '' !== (string) Settings::get( $key ) ? 'settings' : '';
+		$source = \PassCaptain\Secrets::source( $key );
+		return 'vault' === $source ? 'settings' : $source;
 	}
 
 	/** Validates and stores the form. */
@@ -144,17 +145,8 @@ final class AdminPage {
 	}
 
 	private static function secret_row( $key, $label ) {
-		$source = self::secret_source( $key );
 		echo '<tr><th><label for="wpcap-' . esc_attr( $key ) . '">' . esc_html( $label ) . '</label></th><td>';
-		if ( in_array( $source, array( 'constant', 'env' ), true ) ) {
-			/* translators: %s: constant name */
-			echo esc_html( sprintf( __( 'Gesetzt über %s.', 'wp-pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) );
-		} else {
-			echo '<textarea class="large-text code" rows="3" id="wpcap-' . esc_attr( $key ) . '" name="' . esc_attr( $key ) . '" placeholder="' . esc_attr( 'settings' === $source ? __( 'gespeichert – leer lassen, um den Wert zu behalten', 'wp-pass-captain' ) : __( 'Dateipfad oder PEM/JSON-Inhalt', 'wp-pass-captain' ) ) . '"></textarea>';
-			if ( 'settings' === $source ) { echo '<label><input type="checkbox" name="' . esc_attr( $key ) . '_clear" value="1"> ' . esc_html__( 'Wert entfernen', 'wp-pass-captain' ) . '</label>'; }
-			/* translators: %s: constant name */
-			echo '<p class="description">' . esc_html( sprintf( __( 'Empfohlen: Konstante %s in wp-config.php.', 'wp-pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
-		}
+		\PassCaptain\Secrets::render_field( $key, 'wpcap-' . $key, $key . '_clear', true );
 		echo '</td></tr>';
 	}
 

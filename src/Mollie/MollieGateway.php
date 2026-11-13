@@ -17,7 +17,7 @@
  *   the API; unknown ids are acknowledged without an API call, and lookups are throttled per IP.
  * - Methods: GET /v2/methods for amount/currency (and optional billing country), cached 1 h.
  *
- * API key: Settings::secret('mollie_api_key') (constant WPCAP_MOLLIE_API_KEY), "test_…" or "live_…".
+ * API key: Secrets::get('mollie_api_key') (constant WPCAP_MOLLIE_API_KEY), "test_…" or "live_…".
  */
 namespace PassCaptain\Mollie;
 
@@ -43,7 +43,7 @@ final class MollieGateway implements GatewayInterface {
 	public function title() { return __( 'Mollie (iDEAL, Kreditkarte, Bancontact u. a.)', 'wp-pass-captain' ); }
 
 	public function is_available( $currency ) {
-		return 1 === preg_match( '/^(test|live)_[A-Za-z0-9]{20,}$/', Settings::secret( 'mollie_api_key' ) )
+		return 1 === preg_match( '/^(test|live)_[A-Za-z0-9]{20,}$/', \PassCaptain\Secrets::get( 'mollie_api_key' ) )
 			&& in_array( strtoupper( (string) $currency ), self::CURRENCIES, true );
 	}
 
@@ -156,7 +156,7 @@ final class MollieGateway implements GatewayInterface {
 		$query = array( 'amount' => array( 'value' => (string) $value, 'currency' => strtoupper( $currency ) ), 'sequenceType' => 'oneoff' );
 		$country = self::config()['billing_country'];
 		if ( '' !== $country ) { $query['billingCountry'] = $country; }
-		$cache_key = 'wpcap_mollie_methods_' . substr( hash( 'sha256', wp_json_encode( $query ) . '|' . substr( Settings::secret( 'mollie_api_key' ), 0, 5 ) ), 0, 20 );
+		$cache_key = 'wpcap_mollie_methods_' . substr( hash( 'sha256', wp_json_encode( $query ) . '|' . substr( \PassCaptain\Secrets::get( 'mollie_api_key' ), 0, 5 ) ), 0, 20 );
 		$cached = get_transient( $cache_key );
 		if ( is_array( $cached ) ) { return $cached; }
 		$result = self::api( 'GET', 'methods?' . http_build_query( $query, '', '&' ) );
@@ -294,7 +294,7 @@ final class MollieGateway implements GatewayInterface {
 
 	/** API call; returns decoded body or WP_Error (data.status = HTTP code). */
 	private static function api( $method, $path, $body = null, $idempotency_key = '' ) {
-		$key = Settings::secret( 'mollie_api_key' );
+		$key = \PassCaptain\Secrets::get( 'mollie_api_key' );
 		if ( '' === $key ) {
 			return new \WP_Error( 'wpcap_mollie_config', __( 'Mollie ist nicht konfiguriert.', 'wp-pass-captain' ) );
 		}
