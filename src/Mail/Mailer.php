@@ -188,10 +188,14 @@ final class Mailer {
 			self::$alt_body = $alt;
 			add_action( 'phpmailer_init', array( __CLASS__, 'apply_alt_body' ), 10, 1 );
 		}
+		$sent = false;
 		try {
 			do_action( 'wpcap_mail_before_send', $prepared, $message );
+			\PassCaptain\Operations\Monitor::mail_begin();
 			$sent = wp_mail( $prepared['to'], $prepared['subject'], $prepared['body'], $prepared['headers'], $prepared['attachments'] );
 		} finally {
+			// Failure counter for the Site Health check (A164): type and error code only, no recipient.
+			\PassCaptain\Operations\Monitor::mail_end( (bool) $sent, (string) ( $message['type'] ?? '' ) );
 			if ( null !== $alt ) {
 				remove_action( 'phpmailer_init', array( __CLASS__, 'apply_alt_body' ), 10 );
 				self::$alt_body = null;

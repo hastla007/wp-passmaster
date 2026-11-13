@@ -50,6 +50,7 @@ final class Menu {
 			'wpcap_tax_profile_activate' => array( TaxPage::class, 'handle_activate' ),
 			'wpcap_tax_profile_retire' => array( TaxPage::class, 'handle_retire' ),
 			'wpcap_getting_started' => array( GettingStarted::class, 'handle_toggle' ),
+			OperationsPage::ACTION => array( OperationsPage::class, 'handle_action' ),
 		) +\PassCaptain\Modules::admin_handlers();
 	}
 
@@ -158,6 +159,7 @@ final class Menu {
 			'wpcap-sms'                    => 'communication',
 			SettingsPage::SLUG             => 'settings',
 			AuditLogPage::SLUG             => 'settings',
+			OperationsPage::SLUG           => 'settings',
 			'wpcap-mollie'                 => 'settings',
 			'wpcap-wallet'                 => 'settings',
 			'wpcap-webhooks'               => 'settings',
@@ -199,6 +201,7 @@ final class Menu {
 		}
 		$entries[] = array( SettingsPage::SLUG, __( 'Einstellungen', 'wp-pass-captain' ), __( 'Einstellungen', 'wp-pass-captain' ), SettingsPage::CAP, array( SettingsPage::class, 'render' ), '' );
 		$entries[] = array( AuditLogPage::SLUG, __( 'Audit-Log', 'wp-pass-captain' ), __( 'Audit-Log', 'wp-pass-captain' ), AuditLogPage::CAP, array( AuditLogPage::class, 'render' ), '' );
+		$entries[] = array( OperationsPage::SLUG, __( 'Betrieb', 'wp-pass-captain' ), __( 'Betrieb', 'wp-pass-captain' ), OperationsPage::CAP, array( OperationsPage::class, 'render' ), '' );
 		if ( \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) {
 			// Links into Voucher Captain's own menu (both plugins keep their menus, CONCEPT 15.7).
 			$entries[] = array( 'admin.php?page=vcap-scanner', __( 'Gemeinsamer Scanner', 'wp-pass-captain' ), __( 'Gemeinsamer Scanner ↗', 'wp-pass-captain' ), 'wpcap_checkin', null, '' );

@@ -39,6 +39,53 @@ define( 'DISABLE_WP_CRON', true );
 
 Auf Multisite-Netzwerken muss der Cronjob jede Site auslösen, z. B. `wp site list --field=url | xargs -I{} wp cron event run --due-now --url={}`.
 
+Prüfen, ob der externe Cronjob greift: Unter **Werkzeuge → Website-Zustand** meldet die Prüfung „geplante Aufgaben“ den letzten Lauf der Warteschlangen; mit `wp cron event list --fields=hook,next_run_relative | grep wpcap_` sind überfällige Ereignisse sofort zu sehen.
+
+## Betriebsüberwachung (Website-Zustand)
+
+Das Plugin trägt eigene Prüfungen in **Werkzeuge → Website-Zustand** ein (Site Health, A164), Abzeichen „WP Pass Captain“. Ist eine Prüfung **kritisch**, zeigt jede Pass-Captain-Admin-Seite Administratorinnen zusätzlich einen Hinweis mit Link zur Betriebsübersicht (Ergebnis fünf Minuten zwischengespeichert, Transient `wpcap_health_critical`).
+
+| Prüfung | empfohlen | kritisch |
+|---|---|---|
+| WP-Cron (`wpcap_cron`) | ein Plugin-Cron-Ereignis (z. B. `wpcap_process_jobs`, `wpcap_process_messages`, `wpcap_privacy_retention`) ist ≥ `cron_late_minutes` (15) überfällig; ein wiederkehrender Hook ist gar nicht eingeplant (Plugin einmal deaktivieren/aktivieren) | ein Ereignis ist ≥ `cron_critical_minutes` (60) überfällig; oder `DISABLE_WP_CRON` ist gesetzt und die Warteschlangen liefen seit ≥ 60 Minuten nicht (Heuristik: kein externer Cronjob) |
+| Warteschlangen (`wpcap_queues`) | Jobs, E-Mails oder Webhook-Zustellungen: ≥ `dead_letters` (1) endgültig fehlgeschlagen, ≥ `backlog_items` (200) fällig oder ältester fälliger Eintrag ≥ `backlog_age_minutes` (30) | ≥ `dead_letters_critical` (25) fehlgeschlagen oder ältester fälliger Eintrag ≥ `backlog_critical_minutes` (120) |
+| E-Mail (`wpcap_mail`) | ≥ `mail_failures` (1) fehlgeschlagene Plugin-Mails in `mail_window_hours` (24) | ≥ `mail_failures_critical` (10) |
+| SMS (`wpcap_sms`, nur mit aktivem SMS-Modul und Anbieter) | ≥ `sms_failures` (1) SMS mit Status `failed`/`undelivered` in 24 h | ≥ `sms_failures_critical` (10) |
+| Zahlungs-Webhooks (`wpcap_payment_webhooks`) | ein aktiver Zahlungsanbieter mit Webhooks (ohne `manual`) hatte in `payment_webhook_hours` (48) Bestellungen, aber keine Webhook-Benachrichtigung (Tabelle `wpcap_payment_events`) | – |
+
+Alle Schwellwerte ändert der Filter `wpcap_health_thresholds` (Array, siehe [HOOKS.md](HOOKS.md)); `0` schaltet eine Anzahl-Schwelle ab:
+
+```php
+add_filter( 'wpcap_health_thresholds', static function ( $t ) {
+	$t['cron_late_minutes']  = 30;  // Hosting mit 15-Minuten-Cron
+	$t['dead_letters']       = 5;   // einzelne Fehlschläge nicht melden
+	return $t;
+} );
+```
+
+**Woher die Signale kommen:**
+
+- *Cron-Lauf*: `wpcap_process_jobs` und `wpcap_process_messages` vermerken ihren Start in der Option `wpcap_ops_heartbeat` (höchstens ein Schreibzugriff pro Minute). Überfällige Ereignisse stammen aus der WP-Cron-Liste (`_get_cron_array()`).
+- *Mail-Fehler*: Der zentrale Mailer (`Mail\Mailer::deliver()`, alle Kunden-Mails und die E-Mail-Warteschlange) zählt Fälle, in denen `wp_mail()` `false` liefert, in der Option `wpcap_ops_mail_failures` (7 Tage, höchstens 100 Einträge). Gespeichert werden nur Zeit, Mail-Typ, Fehlercode und die Fehlermeldung mit maskierten E-Mail-Adressen – keine Empfänger, keine Inhalte. Mails anderer Plugins zählen nicht.
+- *SMS*: Status der Tabelle `wpcap_sms_messages` (Rückmeldungen des Anbieters).
+- *Zahlungs-Webhooks*: Zeitpunkt des letzten Eintrags je Anbieter in `wpcap_payment_events`.
+
+Der Reiter **Bericht** des Website-Zustands enthält den Abschnitt „WP Pass Captain – Betrieb“ (DISABLE_WP_CRON, letzter und nächster Lauf der Cron-Hooks, Einträge je Status und Rückstand der Warteschlangen, Mail-/SMS-Fehler, letzter Zahlungs-Webhook je Anbieter) – praktisch für Support-Anfragen.
+
+### Betriebsübersicht: Rückstände und Dead Letters (A163)
+
+**Pass Captain → Einstellungen & Integrationen → Betrieb** (nur `manage_options`) zeigt die Ergebnisse der Prüfungen und je Warteschlange – Hintergrundjobs (`wpcap_jobs`), E-Mail-Warteschlange (`wpcap_message_queue`), Webhook-Zustellungen (`wpcap_webhook_deliveries`, falls das Modul installiert ist) –:
+
+- Einträge je Status, Anzahl fälliger Einträge und Wartezeit des ältesten,
+- die endgültig fehlgeschlagenen Einträge (Jobs `dead_letter`, E-Mails und Webhooks `failed`, neueste 50) mit Typ, Versuchen, letztem Fehler (E-Mail-Adressen maskiert) und nur den **Feldnamen** des Inhalts (bei Webhooks die von `data.object`); E-Mail-Empfänger erscheinen maskiert. Inhalte, Betreffzeilen und Secrets werden nie angezeigt.
+
+Aktionen je Zeile oder als Mehrfachaktion (ausgewählte oder alle fehlgeschlagenen Einträge, höchstens 500):
+
+- **Erneut versuchen**: Status wieder wartend, Versuche 0, fällig sofort, letzter Fehler gelöscht; danach wird die Verarbeitung angestoßen (sofortiger Folgelauf über Action Scheduler bzw. WP-Cron, ohne dass die Admin-Seite selbst wartet). Webhooks laufen über die normale erneute Zustellung (personenbezogene Daten werden aus aktuellen Daten neu aufgebaut). E-Mails, deren Inhalt der Datenschutz-Löschlauf bereits entfernt hat, werden nicht erneut versendet.
+- **Verwerfen**: Status `cancelled` (endgültig; wird mit den normalen Aufbewahrungsfristen entfernt).
+
+Beide Aktionen sind nonce-geschützt und landen im Audit-Log (`operations_retry`, `operations_discard`, Objekttyp `queue_jobs`/`queue_messages`/`queue_webhooks`, Details: Warteschlange, Anzahl, IDs).
+
 ## Multisite: Site löschen und Plugin deinstallieren
 
 - Wird eine Site im Netzwerk gelöscht, entfernt WordPress auch deren `*_wpcap_*`-Tabellen (Filter `wpmu_drop_tables`). Tabellen anderer Sites sind nicht betroffen.

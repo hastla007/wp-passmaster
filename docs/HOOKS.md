@@ -330,6 +330,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_cron_time_budget` | `float $seconds` (20) | Zeitbudget der Cron-Läufe `wpcap_process_messages`, `wpcap_process_jobs`, `wpcap_webhooks_dispatch` und `wpcap_waitlist_process` (begrenzt auf `max_execution_time` − 15 s, mindestens 1 s); Rückstände laufen sofort weiter. |
 | `wpcap_message_batch_size` | `int $size` (500) | Nachrichten aus der Queue je Lauf von `wpcap_process_messages`. |
 | `wpcap_waitlist_process_delay` | `int $seconds` (60) | Verzögerung, bevor freigewordene Plätze der Warteliste angeboten werden (mehrere Freigaben in einem Lauf). |
+| `wpcap_health_thresholds` | `array $thresholds` | Schwellwerte der Website-Zustand-Prüfungen (A164): `cron_late_minutes` (15), `cron_critical_minutes` (60), `backlog_items` (200), `backlog_age_minutes` (30), `backlog_critical_minutes` (120), `dead_letters` (1), `dead_letters_critical` (25), `mail_window_hours` (24), `mail_failures` (1), `mail_failures_critical` (10), `sms_failures` (1), `sms_failures_critical` (10), `payment_webhook_hours` (48). `0` schaltet eine Anzahl-Schwelle ab. Siehe [OPERATIONS.md](OPERATIONS.md#betriebsüberwachung-website-zustand). |
 
 ## Cron-Hooks
 
