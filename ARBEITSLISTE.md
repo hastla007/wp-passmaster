@@ -255,7 +255,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - build/release.sh:23 git archive, composer.lock vorhanden; fehlen feste Zeitstempel (SOURCE_DATE_EPOCH), Prüfsummen und dokumentierter Abgleich Commit/veröffentlichtes ZIP
 - [x] **A113** Rollback/Restore mit echten DB-Ständen erproben — _OFFEN_ (TODO L13; P0 – Repository und Plugin-Grundlage)
   - Kein Restore-/Downgrade-Test oder -Code; docs/OPERATIONS.md:51 nennt Prüfung nur als ausstehend
-- [ ] **A114** Terminserien mit Kapazität, Preisfenstern, getrennten Änderungsverläufen — _TEILWEISE_ (TODO L19; P0 – Event- und Verkaufsgrundlage)
+- [x] **A114** Terminserien mit Kapazität, Preisfenstern, getrennten Änderungsverläufen — _TEILWEISE_ (TODO L19; P0 – Event- und Verkaufsgrundlage)
   - Kapazität EventsPage.php:170, Preisregeln Series/Pricing.php:38, Pools; Audit occurrence_updated (EventsPage.php:198) ohne Kapazitäts-/Preisdiff, Seriendefinition nicht editierbar
 - [ ] **A115** Steuerklassen/länderspezifische Steuerregeln an Bestellungen anbinden — _TEILWEISE_ (TODO L21; P0 – Event- und Verkaufsgrundlage)
   - Steuersatz je Ticketart Orders.php:207; Länderprofile Installer.php:559/Controller.php:693 nur als Draft, nicht an Bestellungen angebunden; Steuerprüfung fehlt
@@ -283,7 +283,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - Automatische Prüfungen in ci.yml; Gates in CONCEPT.md:443-450 alle offen, keine Abnahmedokumentation
 - [x] **A127** Echte WooCommerce-Version-/HPOS-Matrix — _OFFEN_ (TODO L81; P1 – Optionaler WooCommerce-Adapter)
   - Nur Tests mit WooCommerce-Attrappen (tests/integration/modules/woocommerce.php); keine Matrix gegen installiertes WooCommerce in CI
-- [ ] **A128** Terminserien: Kapazitäten/Preisfenster, Editierbarkeit, Sitzplanverknüpfung — _TEILWEISE_ (TODO L86; P2 – Erweiterte Eventfunktionen)
+- [x] **A128** Terminserien: Kapazitäten/Preisfenster, Editierbarkeit, Sitzplanverknüpfung — _TEILWEISE_ (TODO L86; P2 – Erweiterte Eventfunktionen)
   - Frequenzen Rules.php:26, Kapazität AdminPage.php:136, Preisregeln Pricing.php:30, Sitzplan Generator.php:231; Seriendefinition nach Anlage nicht editierbar
 - [ ] **A129** Berichte, Buchhaltungsexporte, Korrekturbelege — _TEILWEISE_ (TODO L89; P2 – Erweiterte Eventfunktionen)
   - Export Invoices.php:365, Gutschriften Invoices.php:113, Berichte Reports/Data.php:73; fachliche Abnahme der Berichte/Exportformate fehlt
