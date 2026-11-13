@@ -132,7 +132,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Privacy.php:172–180` — Maßnahme: Exporter ergänzen.
 - [x] **A057** [P3] Begleittickets tragen den Namen des Gastes („Begleitung von …“). — _OFFEN_ (TODO L469; Datenschutz (Prüfung 4))
   - `src/GuestLists/Service.php:390` — Maßnahme: Neutral „Begleitung“ oder per Filter abschaltbar.
-- [ ] **A058** [P3] Kundenbelege zeigen den Klarnamen der Kassierkraft. — _OFFEN_ (TODO L470; Datenschutz (Prüfung 4))
+- [x] **A058** [P3] Kundenbelege zeigen den Klarnamen der Kassierkraft. — _OFFEN_ (TODO L470; Datenschutz (Prüfung 4))
   - `src/BoxOffice/Service.php:624` — Maßnahme: Kürzel/Bediener-ID, Klarname per Einstellung.
 - [ ] **A059** [P3] Kontaktpersonen und IBAN der Partner im Klartext, dauerhaft, nicht exportiert/gelöscht. — _OFFEN_ (TODO L471; Datenschutz (Prüfung 4))
   - `src/Partners/Repository.php:58–97`; `src/Partners/Settlements.php:472` — Maßnahme: In Exporter/Eraser aufnehmen (Snapshot ausgenommen), IBAN maskiert anzeigen.

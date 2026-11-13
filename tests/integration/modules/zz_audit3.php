@@ -692,3 +692,16 @@ check( 'A056: waitlist export has quantity and date', false !== strpos( $a56_jso
 check( 'A056: ticket export lists exchanges', false !== strpos( $a56_json, 'Umtausch (von\/nach' ) && false !== strpos( $a56_json, 'VIP A56' ) );
 check( 'A056: order export names the partner sale (channel, reference)', ! PassCaptain\Privacy::has_table( 'wpcap_partner_orders' ) || ( false !== strpos( $a56_json, 'Shop A56' ) && false !== strpos( $a56_json, 'REF-A56' ) ) );
 $wpdb->query( "DELETE FROM {$p}wpcap_partner_orders WHERE order_id=" . (int) $a56_o );
+
+echo "Audit 3: customer receipts do not show the cashier's full name by default (A058)\n";
+$a58_before = PassCaptain\Settings::get( 'boxoffice_receipt_cashier' );
+PassCaptain\Settings::update( array( 'boxoffice_receipt_cashier' => 'id' ) );
+$a58_id = PassCaptain\BoxOffice\Service::receipt_cashier( 4711 );
+PassCaptain\Settings::update( array( 'boxoffice_receipt_cashier' => 'initials' ) );
+$a58_ini = PassCaptain\BoxOffice\Service::receipt_cashier( 4711 );
+PassCaptain\Settings::update( array( 'boxoffice_receipt_cashier' => 'name' ) );
+$a58_name = PassCaptain\BoxOffice\Service::receipt_cashier( 4711 );
+PassCaptain\Settings::update( array( 'boxoffice_receipt_cashier' => $a58_before ) );
+$a58_full = PassCaptain\BoxOffice\Service::user_name( 4711 );
+check( 'A058: default is the operator number (no full name on customer receipts)', 'Bediener 4711' === $a58_id && 'id' === ( PassCaptain\Modules\BoxOffice::settings_defaults()['boxoffice_receipt_cashier'] ?? '' ) );
+check( 'A058: initials or the full name only when chosen', '' !== $a58_ini && $a58_ini !== $a58_full && mb_strlen( $a58_ini ) < mb_strlen( $a58_full ) && $a58_full === $a58_name );

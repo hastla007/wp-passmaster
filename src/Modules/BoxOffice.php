@@ -250,6 +250,8 @@ final class BoxOffice {
 		return array(
 			'boxoffice_receipt_prefix' => 'BON',
 			'boxoffice_receipt_footer' => '',
+			// How customer receipts name the cashier: operator number (default), initials or full name.
+			'boxoffice_receipt_cashier' => 'id',
 			// Cash/card without a certified fiscal solution (DE KassenSichV/TSE, AT RKSV) only after this explicit
 			// confirmation (e.g. the sales are recorded in a separate certified cash register).
 			'boxoffice_cash_confirmed' => 0,

@@ -206,7 +206,7 @@ final class Page {
 		if ( current_user_can( 'manage_options' ) ) {
 			echo '<h3>' . esc_html__( 'Belegeinstellungen', 'wp-pass-captain' ) . '</h3>';
 			Forms::open_form( 'wpcap_pos_settings' );
-			echo '<p><label>' . esc_html__( 'Präfix Belegnummer', 'wp-pass-captain' ) . ' <input type="text" name="boxoffice_receipt_prefix" size="6" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_prefix' ) ) . '"></label> <label>' . esc_html__( 'Fußzeile', 'wp-pass-captain' ) . ' <input type="text" name="boxoffice_receipt_footer" size="50" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_footer' ) ) . '"></label> </p><p><label><input type="checkbox" name="boxoffice_cash_confirmed" value="1"' . checked( (bool) Settings::get( 'boxoffice_cash_confirmed' ), true, false ) . '> ' . esc_html__( 'Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben', 'wp-pass-captain' ) . '</label></p><p><button class="button">' . esc_html__( 'Speichern', 'wp-pass-captain' ) . '</button></p></form>';
+			echo '<p><label>' . esc_html__( 'Präfix Belegnummer', 'wp-pass-captain' ) . ' <input type="text" name="boxoffice_receipt_prefix" size="6" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_prefix' ) ) . '"></label> <label>' . esc_html__( 'Fußzeile', 'wp-pass-captain' ) . ' <input type="text" name="boxoffice_receipt_footer" size="50" value="' . esc_attr( (string) Settings::get( 'boxoffice_receipt_footer' ) ) . '"></label> <label>' . esc_html__( 'Bediener auf Kundenbelegen', 'wp-pass-captain' ) . ' <select name="boxoffice_receipt_cashier">' . implode( '', array_map( static function ( $value, $label ) { return '<option value="' . esc_attr( $value ) . '"' . selected( (string) Settings::get( 'boxoffice_receipt_cashier' ), $value, false ) . '>' . esc_html( $label ) . '</option>'; }, array( 'id', 'initials', 'name' ), array( __( 'Bedienernummer', 'wp-pass-captain' ), __( 'Initialen', 'wp-pass-captain' ), __( 'Vollständiger Name', 'wp-pass-captain' ) ) ) ) . '</select></label> </p><p><label><input type="checkbox" name="boxoffice_cash_confirmed" value="1"' . checked( (bool) Settings::get( 'boxoffice_cash_confirmed' ), true, false ) . '> ' . esc_html__( 'Bar- und Kartenverkäufe werden zusätzlich in einer eigenen zertifizierten Kasse (TSE/RKSV) erfasst – Bar und Karte hier freigeben', 'wp-pass-captain' ) . '</label></p><p><button class="button">' . esc_html__( 'Speichern', 'wp-pass-captain' ) . '</button></p></form>';
 		}
 	}
 
@@ -412,6 +412,7 @@ final class Page {
 		Settings::update( array(
 			'boxoffice_receipt_prefix' => preg_replace( '/[^A-Za-z0-9_-]/', '', Forms::text( $in, 'boxoffice_receipt_prefix', 10 ) ) ?: 'BON',
 			'boxoffice_receipt_footer' => Forms::text( $in, 'boxoffice_receipt_footer', 300 ),
+			'boxoffice_receipt_cashier' => Forms::choice( $in, 'boxoffice_receipt_cashier', array( 'id', 'initials', 'name' ), 'id' ),
 			'boxoffice_cash_confirmed' => Forms::flag( $in, 'boxoffice_cash_confirmed' ) ? 1 : 0,
 		) );
 		Audit::record( 'boxoffice_settings_saved', 'settings', 0, array( 'cash_confirmed' => (bool) Settings::get( 'boxoffice_cash_confirmed' ) ) );

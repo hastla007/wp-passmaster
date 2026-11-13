@@ -645,6 +645,22 @@ final class Service {
 
 	/* ------------------------------------------------------------------ receipt */
 
+	/**
+	 * Cashier as printed on customer receipts (setting boxoffice_receipt_cashier): operator number
+	 * "Bediener 12" (default – no full name on paper handed to customers), initials or the full name.
+	 */
+	public static function receipt_cashier( $user_id ) {
+		$mode = (string) Settings::get( 'boxoffice_receipt_cashier' );
+		if ( 'name' === $mode ) { return self::user_name( $user_id ); }
+		if ( 'initials' === $mode ) {
+			$parts = preg_split( '/\s+/u', trim( self::user_name( $user_id ) ) );
+			$initials = implode( '', array_map( static function ( $part ) { return mb_strtoupper( mb_substr( (string) $part, 0, 1 ) ); }, array_filter( (array) $parts, static function ( $part ) { return '' !== $part && '#' !== $part[0]; } ) ) );
+			if ( '' !== $initials ) { return $initials; }
+		}
+		/* translators: %d: user ID */
+		return sprintf( __( 'Bediener %d', 'wp-pass-captain' ), absint( $user_id ) );
+	}
+
 	public static function user_name( $user_id ) {
 		$user = function_exists( 'get_userdata' ) ? get_userdata( absint( $user_id ) ) : null;
 		return $user && ! empty( $user->display_name ) ? $user->display_name : '#' . absint( $user_id );
@@ -700,7 +716,7 @@ final class Service {
 			'method_label' => self::method_label( $sale->payment_method ),
 			'tendered_minor' => null === $sale->tendered_minor ? null : (int) $sale->tendered_minor,
 			'change_minor' => null === $sale->tendered_minor ? null : max( 0, (int) $sale->tendered_minor - (int) $sale->total_minor ),
-			'cashier' => self::user_name( $sale->cashier_id ),
+			'cashier' => self::receipt_cashier( $sale->cashier_id ),
 			'session_id' => (int) $sale->session_id,
 			'register' => self::register_label( $sale->session_id ),
 			'order' => $order ? $order->public_id : '',

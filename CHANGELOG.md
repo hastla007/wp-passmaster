@@ -64,6 +64,7 @@
 - Datenschutz: gespeicherte Partner-Ticketcodes werden beim Widerruf eines Tickets, bei der Anonymisierung der Bestellung (neue Action `wpcap_privacy_order_anonymized`) und 30 Tage nach Terminende (Löschlauf, Schritt `partner_ticket_codes`) gelöscht.
 - Datenschutz-Export: Warteliste mit Event-/Terminname, Anzahl, Angebot und Angebotsbestellung; Tickets mit Umtauschverlauf (von/nach, Differenz, Gebühr, Status); Bestellungen mit Verkaufskanal des Veranstalters/Wiederverkäufers (Name, Kanal, Referenz).
 - Gästelisten: Begleittickets tragen neutral „Begleitung“ statt „Begleitung von <Name des Gastes>“ (Filter `wpcap_guestlist_companion_name`).
+- Kassenbelege (Verkauf, Storno/Auszahlung) nennen die Kassierkraft standardmäßig als „Bediener <Nr.>“; Initialen oder vollständiger Name sind in den Kasseneinstellungen wählbar (`boxoffice_receipt_cashier`). Z-Berichte (intern) behalten den Namen.
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

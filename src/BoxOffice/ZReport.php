@@ -441,7 +441,7 @@ final class ZReport {
 		$h .= '<p class="c"><strong>' . esc_html( (string) Settings::get( 'seller_name' ) ) . '</strong><br>' . nl2br( esc_html( (string) Settings::get( 'seller_address' ) ) ) . '</p>';
 		$h .= '<h1>' . esc_html( 'storno' === $mv->kind ? __( 'STORNOBELEG', 'wp-pass-captain' ) : __( 'AUSZAHLUNGSBELEG', 'wp-pass-captain' ) ) . '</h1>';
 		$h .= '<p>' . esc_html( __( 'Beleg-Nr.:', 'wp-pass-captain' ) . ' ' . $mv->receipt_number ) . '<br>' . ( $sale ? esc_html( __( 'zu Beleg', 'wp-pass-captain' ) . ' ' . $sale->receipt_number ) . '<br>' : '' );
-		$h .= esc_html( __( 'Datum:', 'wp-pass-captain' ) . ' ' . Scope::local( $mv->created_at, Scope::site_timezone(), 'd.m.Y H:i' ) ) . '<br>' . esc_html( __( 'Kasse/Schicht/Bediener:', 'wp-pass-captain' ) . ' ' . Service::register_label( $mv->shift_id ) . ' / ' . (int) $mv->shift_id . ' / ' . Service::user_name( $mv->created_by ) ) . '</p><div class="sep"></div><table>';
+		$h .= esc_html( __( 'Datum:', 'wp-pass-captain' ) . ' ' . Scope::local( $mv->created_at, Scope::site_timezone(), 'd.m.Y H:i' ) ) . '<br>' . esc_html( __( 'Kasse/Schicht/Bediener:', 'wp-pass-captain' ) . ' ' . Service::register_label( $mv->shift_id ) . ' / ' . (int) $mv->shift_id . ' / ' . Service::receipt_cashier( $mv->created_by ) ) . '</p><div class="sep"></div><table>';
 		foreach ( $items as $i ) { $h .= '<tr><td>' . esc_html( (int) $i->n . ' x ' . $i->name ) . '</td></tr>'; }
 		$h .= '</table><table class="big"><tr><td>' . esc_html__( 'AUSZAHLUNG', 'wp-pass-captain' ) . '</td><td class="n">' . esc_html( $m( (int) $mv->amount_minor ) ) . '</td></tr></table><table class="small">';
 		foreach ( (array) json_decode( (string) $mv->vat, true ) as $rate => $v ) {
