@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.6';
+	const DB_VERSION = '3.10.7';
 
 	public static function install() {
 		global $wpdb;
@@ -723,7 +723,8 @@ final class Installer {
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (refund_id),
 				UNIQUE KEY idempotency_key (idempotency_key),
-				KEY order_status (order_id,status)
+				KEY order_status (order_id,status),
+				KEY status_updated (status,updated_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$wpdb->prefix}wpcap_credit_notes (
 				credit_note_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -739,7 +740,8 @@ final class Installer {
 				PRIMARY KEY  (credit_note_id),
 				UNIQUE KEY refund_id (refund_id),
 				UNIQUE KEY credit_note_number (credit_note_number),
-				KEY invoice_id (invoice_id)
+				KEY invoice_id (invoice_id),
+				KEY issued_at (issued_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$wpdb->prefix}wpcap_document_sequences (
 				series varchar(40) NOT NULL,

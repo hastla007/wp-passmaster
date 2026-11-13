@@ -55,6 +55,8 @@ final class Plugin {
 		add_action( 'switch_blog', array( Orders::class, 'site_switched' ), 10, 0 );
 		add_filter( 'wpcap_process_job', array( Orders::class, 'handle_job' ), 10, 4 );
 		CapacityCounters::register();
+		// Report caches: generation keys bumped by every write to the report tables (A201).
+		Reports\Cache::register();
 		add_action( 'wpcap_cleanup_reservations', array( Privacy::class, 'process_deferred' ), 30, 0 );
 		add_action( 'wpcap_cleanup_reservations', array( Refunds::class, 'repair_stuck' ), 40, 0 );
 		add_action( 'wpcap_cleanup_reservations', array( RateLimit::class, 'purge' ), 50, 0 );

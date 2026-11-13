@@ -524,6 +524,58 @@ Bei mehreren Währungen im Zeitraum zeigt die Seite zusätzlich „Umsatz nach W
 die Gesamtsummen sind dann nicht addierbar. Der CSV-Export des Berichts enthält die Spalte
 „Netto nach Erstattung“ und den Abschnitt „Währung / USt-Satz“.
 
+### Berichts-Caches und Invalidierung (A201)
+
+**Bestand** (alle Caches mit Berichts- oder Summenwerten):
+
+| Cache | Wo | Regel |
+|---|---|---|
+| REST `GET /reports/events/{id}` (Verkäufe je Währung, Check-ins) | Transient `wpcap_rep_<hash>` über `Reports\Cache::remember()` | Generationsschlüssel je Site und Event (unten), TTL 5 Min. nur als Sicherheitsnetz |
+| Berichtsseite (`Reports\Data::build()`), Abrechnungsblatt (`Reports\Settlement`), CSV/DATEV-Exporte | – | **nicht gecacht**, jede Anzeige rechnet frisch |
+| Verfügbarkeitsanzeige (`Orders::availability()`) | Request-Memo + 10 s Objekt-Cache | siehe [Kontingentzähler](#kontingentzähler-große-vorverkäufe): Memo verfällt bei jedem Schreibzugriff, Kaufentscheidungen nutzen nie den Cache |
+| Kontingentzähler (`sold_qty`/`held_qty`) | Tabellenspalten | kein Cache, transaktional gepflegt und abgeglichen |
+| Website-Zustand-Hinweis | Transient, 5 Min. | Betriebsstatus, keine Berichtszahlen; „Erneut prüfen“ verwirft ihn |
+| Statische Memos (`Secrets`, `Passes\Definitions`, `Series\Pricing`, `Mail\Types`, `Privacy`) | pro Request | Konfiguration, keine Summen |
+
+**Schlüssel**: `wpcap_rep_` + Hash aus Tabellenpräfix (Site), Blog-ID, Berichtsname, Event-ID, Parametern
+(Zeitraum) und zwei Generations-Tokens: der Site-Generation und der Event-Generation (Event-Berichte) bzw.
+der „alle Events“-Generation (siteweite Berichte). Ein Token ist ein Zufallswert in einem eigenen Transient
+(`wpcap_rgen_site`, `wpcap_rgen_e<ID>`, `wpcap_rgen_all`, 1 Tag); eine Änderung setzt einen neuen Token, alte
+Einträge werden nie mehr gelesen und laufen über ihre TTL aus. Ein verdrängter Token führt nur zu Cache-Misses.
+
+**Invalidierung**: Der `query`-Filter sieht jeden Schreibzugriff (INSERT/UPDATE/DELETE/REPLACE) auf die
+Berichtstabellen `events`, `occurrences`, `ticket_types`, `orders`, `order_items`, `refunds`, `checkins`,
+`tickets`, `invoices`, `credit_notes` – unabhängig davon, welcher Code schreibt (Checkout, Zahlung, Erstattung,
+Check-in, Kasse, Admin-Bearbeitung, Module):
+
+- Die IDs der Anweisung (`event_id`, `occurrence_id`, `ticket_type_id`, `order_id`, `item_id`, `ticket_id`,
+  `refund_id`, `invoice_id`, `checkin_id`, `credit_note_id` in SET/WHERE bzw. in den VALUES-Zeilen) werden
+  **vor** der Ausführung auf Event-IDs aufgelöst – gelöschte Zeilen und verschobene Ticketarten zählen damit
+  für das alte *und* das neue Event.
+- Ohne bestimmbare Zeilen (keine ID, Unterabfrage, `OR`, `INSERT … SELECT`) wird die **Site-Generation**
+  erhöht (alle Berichte der Site).
+- Ein bloßes INSERT in `orders`, `invoices` oder `events` ändert keine Zahl (erst Bestellzeilen, Gutschriften,
+  Termine tun das) und erhöht nichts.
+- Erhöht wird **nach dem COMMIT** (bzw. nach einem Autocommit-Schreibzugriff): beim nächsten Statement, vor
+  einem gecachten Lesen und spätestens bei `shutdown`. Ein paralleler Request kann so keinen noch nicht
+  festgeschriebenen Stand unter dem neuen Token cachen.
+- Wer außerhalb von `$wpdb` oder in eigene Tabellen schreibt, ruft `Reports\Cache::invalidate_event( $id )`
+  (0 = Site) oder die Action `wpcap_report_cache_invalidate` auf.
+- Lebensdauer: Filter `wpcap_report_cache_ttl` (300 s, höchstens 900 s, 0 = kein Cache).
+
+Ergebnis: Nach einer Bestellung, Zahlung, Erstattung, einem Check-in oder einer Änderung an Ticketart, Termin
+oder Event liefert der nächste Abruf frische Zahlen; Änderungen an Event A lassen den Cache von Event B stehen.
+
+**Abfragepläne** (EXPLAIN mit 500 Events, 2 000 Terminen, 6 000 Ticketarten, 300 000 Bestellungen, 400 000
+Zeilen, 600 000 Tickets, 480 000 Check-ins, 15 000 Erstattungen, 7 500 Gutschriften): REST-Verkäufe
+(`occurrences.event_id` → `ticket_types.occurrence_id` → `order_items.ticket_type_id` → `orders` PK, ~4 ms),
+REST-Check-ins (`event_result_created`), Bestellungen je Zeitraum (`paid_created`), Zeilen je Bestellung,
+Termin-Auslastung, Einlass-Histogramm und Abrechnungsblatt nutzen vorhandene Indizes. Erstattungen je
+Zeitraum (`status='completed' AND updated_at …`) und Gutschriften je Zeitraum (`issued_at …`) lasen dagegen die
+ganze Tabelle; Schema 3.10.7 ergänzt `wpcap_refunds.status_updated (status,updated_at)` und
+`wpcap_credit_notes.issued_at` (gelesene Zeilen 14 546 → 638 bzw. 7 471 → 638 für einen Monat). Die Indizes
+legt das Upgrade über `dbDelta` an; `Installer::upgrade_indexes()` gleicht sie bei späteren Änderungen ab.
+
 ## Kontingentzähler (große Vorverkäufe)
 
 Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht erstattete Einheiten) und
