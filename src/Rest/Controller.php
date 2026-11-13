@@ -544,7 +544,7 @@ final class Controller {
 		$items = $payload['items'] ?? array();
 		$key = sanitize_text_field( (string) ( $payload['idempotency_key'] ?? '' ) );
 		if ( ! is_array( $items ) || ! $items || count( $items ) > 10 || '' === $key ) { return new \WP_Error( 'wpcap_pos_items', __( 'POS-Verkaufspositionen oder Idempotency-Key sind ungültig.', 'wp-pass-captain' ), array( 'status' => 400 ) ); }
-		if ( ! in_array( \PassCaptain\Modules\BoxOffice::class, \PassCaptain\Modules::classes(), true ) ) {
+		if ( ! \PassCaptain\Modules::enabled( \PassCaptain\Modules\BoxOffice::class ) ) {
 			return new \WP_Error( 'wpcap_pos_route_gone', __( 'Kassenverkäufe laufen über das Kassenmodul (Schicht, Belegnummer, Z-Bericht).', 'wp-pass-captain' ), array( 'status' => 410 ) );
 		}
 		global $wpdb;

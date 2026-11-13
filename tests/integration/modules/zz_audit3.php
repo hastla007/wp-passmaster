@@ -895,3 +895,14 @@ add_filter( 'wpcap_privacy_defer_upcoming', $a76_now );
 PassCaptain\Privacy::erase( $a76_mail );
 remove_filter( 'wpcap_privacy_defer_upcoming', $a76_now );
 check( 'A076: immediately erased upcoming tickets are revoked and their places are free again', 0 === count( tickets( $a76['order_id'], 'valid' ) ) && $a76_before + 2 === Orders::availability( $a76_type ) );
+
+echo "Audit 3: single modules can be switched off (A077)\n";
+$a77_off = static function ( $on, $short ) { return 'Sms' === $short ? false : $on; };
+$a77_pages_on = count( PassCaptain\Modules::admin_pages() );
+add_filter( 'wpcap_module_enabled', $a77_off, 10, 2 );
+$a77_enabled = PassCaptain\Modules::enabled( PassCaptain\Modules\Sms::class );
+$a77_other = PassCaptain\Modules::enabled( PassCaptain\Modules\Wallet::class );
+$a77_pages_off = count( PassCaptain\Modules::admin_pages() );
+$a77_schema = count( PassCaptain\Modules::schema( $p, '' ) );
+remove_filter( 'wpcap_module_enabled', $a77_off, 10 );
+check( 'A077: a module can be disabled via wpcap_module_enabled; others stay on; its schema stays (no data loss)', false === $a77_enabled && true === $a77_other && $a77_pages_off <= $a77_pages_on && $a77_schema === count( PassCaptain\Modules::schema( $p, '' ) ) );

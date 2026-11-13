@@ -170,7 +170,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Partners/Statement.php` vs. `src/Partners/Settlements.php` — 
   - Geprüft 13.11.: hängt an der offenen Entscheidung „selbst vereinnahmte API-Verkäufe automatisch von der Auszahlung abziehen?“ – die Abrechnung weist sie bereits informativ aus (Teil „vereinnahmte Ticketerlöse“). Umsetzung erst nach Entscheidung.
 - [x] **A076** [VERDACHT] Datenschutz-Löschung widerruft Tickets ohne Kontingentfreigabe (anders als `Orders::revoke_tickets`). — _OFFEN_ (TODO L491; Architektur und QA (Prüfung 5))
-- [ ] **A077** [VERDACHT] Module nicht einzeln abschaltbar; Filterlast auch ohne Nutzung. — _OFFEN_ (TODO L492; Architektur und QA (Prüfung 5))
+- [x] **A077** [VERDACHT] Module nicht einzeln abschaltbar; Filterlast auch ohne Nutzung. — _OFFEN_ (TODO L492; Architektur und QA (Prüfung 5))
   - `Modules::register_all` — 
 
 ## Phase 6 – Nacharbeiten Phase 3, UX, Barrierefreiheit, Architektur
