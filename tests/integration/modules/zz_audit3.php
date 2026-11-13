@@ -906,3 +906,19 @@ $a77_pages_off = count( PassCaptain\Modules::admin_pages() );
 $a77_schema = count( PassCaptain\Modules::schema( $p, '' ) );
 remove_filter( 'wpcap_module_enabled', $a77_off, 10 );
 check( 'A077: a module can be disabled via wpcap_module_enabled; others stay on; its schema stays (no data loss)', false === $a77_enabled && true === $a77_other && $a77_pages_off <= $a77_pages_on && $a77_schema === count( PassCaptain\Modules::schema( $p, '' ) ) );
+
+echo "Audit 3: exchange carries participant answers over (A081a)\n";
+$a81_from = ex_type( $a4_occ, 'Steh A81', 5000, 3 );
+$a81_to = ex_type( $a4_occ, 'Sitz A81', 5000, 3 );
+foreach ( array( $a81_from, $a81_to ) as $a81_t ) {
+	$wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $a81_t, 'field_key' => 'diet_a81', 'label' => 'Ernährung', 'field_type' => 'text', 'required' => 0, 'position' => 1 ) );
+}
+$wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $a81_from, 'field_key' => 'only_old_a81', 'label' => 'Nur alt', 'field_type' => 'text', 'required' => 0, 'position' => 2 ) );
+list( $a81_o, $a81_ids ) = ex_buy( $a81_from, 1, 'a81@example.com' );
+foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT field_id FROM {$p}wpcap_participant_fields WHERE ticket_type_id=%d", $a81_from ) ) as $a81_f ) {
+	$wpdb->insert( "{$p}wpcap_participant_answers", array( 'ticket_id' => $a81_ids[0], 'field_id' => (int) $a81_f->field_id, 'answer' => 'vegan', 'created_at' => gmdate( 'Y-m-d H:i:s' ), 'updated_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+}
+$a81_x = Exchange::request( $a81_ids[0], $a81_to, array( 'channel' => 'admin', 'idempotency_key' => 'a81-x' ) );
+$a81_new = is_wp_error( $a81_x ) ? 0 : (int) $a81_x['new_ticket_id'];
+$a81_answers = $wpdb->get_results( $wpdb->prepare( "SELECT f.field_key,a.answer FROM {$p}wpcap_participant_answers a INNER JOIN {$p}wpcap_participant_fields f ON f.field_id=a.field_id WHERE a.ticket_id=%d", $a81_new ) );
+check( 'A081a: answers of fields the new type also has carry over; others do not', $a81_new && 1 === count( $a81_answers ) && 'diet_a81' === $a81_answers[0]->field_key && 'vegan' === $a81_answers[0]->answer );

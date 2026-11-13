@@ -689,8 +689,13 @@ final class Service {
 		) );
 		$new_id = (int) $wpdb->insert_id;
 		if ( ! $inserted || ! $new_id ) { throw new \RuntimeException( 'insert_failed' ); }
-		// The holder stays the holder (name/e-mail); type-specific answers do not carry over.
+		// The holder stays the holder (name/e-mail).
 		$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) SELECT %d,buyer_email,attendee_email,attendee_name,status,%s FROM {$p}wpcap_ticket_assignments WHERE ticket_id=%d", $new_id, $now, (int) $ticket->ticket_id ) );
+		// Answers to participant fields carry over where the target type asks the same field (same key).
+		$wpdb->query( $wpdb->prepare(
+			"INSERT IGNORE INTO {$p}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) SELECT %d,nf.field_id,a.answer,%s,%s FROM {$p}wpcap_participant_answers a INNER JOIN {$p}wpcap_participant_fields of ON of.field_id=a.field_id INNER JOIN {$p}wpcap_participant_fields nf ON nf.field_key=of.field_key AND nf.ticket_type_id=%d WHERE a.ticket_id=%d",
+			$new_id, $now, $now, (int) $target_type->ticket_type_id, (int) $ticket->ticket_id
+		) );
 		$line = (object) array(
 			'order_id' => (int) $order->order_id,
 			'ticket_type_id' => (int) $target_type->ticket_type_id,
