@@ -45,11 +45,21 @@ final class BuyerLimits {
 	/** Limits of an event: ticket_type_id (0 = whole event) => max per buyer. */
 	public static function for_event( $event_id ) {
 		global $wpdb;
-		$out = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,max_per_buyer FROM ' . Holds::table( 'limits' ) . ' WHERE event_id=%d AND max_per_buyer>0', absint( $event_id ) ) ) as $row ) {
-			$out[ (int) $row->ticket_type_id ] = (int) $row->max_per_buyer;
+		if ( null === self::$limits ) {
+			// All limits in one query per request (the event card asks per card).
+			self::$limits = array();
+			foreach ( (array) $wpdb->get_results( 'SELECT event_id,ticket_type_id,max_per_buyer FROM ' . Holds::table( 'limits' ) . ' WHERE max_per_buyer>0' ) as $row ) {
+				self::$limits[ (int) $row->event_id ][ (int) $row->ticket_type_id ] = (int) $row->max_per_buyer;
+			}
 		}
-		return $out;
+		return self::$limits[ absint( $event_id ) ] ?? array();
+	}
+
+	/** Request cache of limits (event id => type id => max); reset by flush(). */
+	private static $limits = null;
+
+	public static function flush() {
+		self::$limits = null;
 	}
 
 	/**

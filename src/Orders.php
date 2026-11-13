@@ -743,6 +743,8 @@ final class Orders {
 	public static function flush_availability_cache() {
 		self::$availability_memo = array();
 		self::$wrote = true;
+		/** Request caches of modules (holds, passes, seat links, limits) are stale after a write. */
+		do_action( 'wpcap_availability_flushed' );
 	}
 
 	/** Filter `query`: a write to a plugin table (or a rollback) invalidates the availability memo. */

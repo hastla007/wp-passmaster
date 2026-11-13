@@ -34,6 +34,8 @@ final class Allocations {
 		add_action( 'wpcap_order_creating', array( Holds::class, 'on_order_creating' ), 4, 4 );
 		add_action( 'wpcap_order_creating', array( BuyerLimits::class, 'on_order_creating' ), 6, 4 );
 		add_filter( 'wpcap_reserve_capacity', array( BuyerLimits::class, 'reserve_exchange' ), 25, 3 );
+		add_action( 'wpcap_availability_flushed', array( Holds::class, 'flush' ), 10, 0 );
+		add_action( 'wpcap_availability_flushed', array( BuyerLimits::class, 'flush' ), 10, 0 );
 		// Keyed buyer hashes: migrated once with the schema install/upgrade (not on every request).
 		add_action( 'add_option_wpcap_db_version', array( BuyerLimits::class, 'maybe_migrate_keys' ), 10, 0 );
 		add_action( 'update_option_wpcap_db_version', array( BuyerLimits::class, 'maybe_migrate_keys' ), 10, 0 );

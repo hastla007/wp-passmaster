@@ -77,7 +77,25 @@ final class Holds {
 	/** Holds of an occurrence (active only unless $all). */
 	public static function for_occurrence( $occurrence_id, $all = false ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'holds' ) . ' WHERE occurrence_id=%d' . ( $all ? '' : " AND status='active'" ) . ' ORDER BY hold_id', absint( $occurrence_id ) ) );
+		if ( $all ) {
+			return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'holds' ) . ' WHERE occurrence_id=%d ORDER BY hold_id', absint( $occurrence_id ) ) );
+		}
+		if ( null === self::$active ) {
+			// Active holds of all occurrences in one query per request (listings ask per card/type).
+			self::$active = array();
+			foreach ( (array) $wpdb->get_results( 'SELECT * FROM ' . self::table( 'holds' ) . " WHERE status='active' ORDER BY hold_id" ) as $hold ) {
+				self::$active[ (int) $hold->occurrence_id ][] = $hold;
+			}
+		}
+		return self::$active[ absint( $occurrence_id ) ] ?? array();
+	}
+
+	/** Request cache of active holds (occurrence id => rows); reset by flush(). */
+	private static $active = null;
+
+	/** Resets the request cache (any write to the plugin tables, see Orders::flush_availability_cache()). */
+	public static function flush() {
+		self::$active = null;
 	}
 
 	/** Units a hold still blocks right now (lapsed consumption excluded). */

@@ -45,7 +45,15 @@ final class Definitions {
 
 	public static function flush() {
 		self::$cache = array();
+		self::$all = null;
+		self::$by_occurrence = null;
 	}
+
+	/** Request cache: all pass type ids (null = not loaded). */
+	private static $all = null;
+
+	/** Request cache: occurrence id => pass type ids (null = not loaded). */
+	private static $by_occurrence = null;
 
 	private static function error( $code, $message, $status = 400 ) {
 		return new \WP_Error( $code, $message, array( 'status' => $status ) );
@@ -64,6 +72,8 @@ final class Definitions {
 	public static function get( $type_id ) {
 		$type_id = absint( $type_id );
 		if ( ! $type_id ) { return null; }
+		// Most ticket types are no passes: answered from the (cached) id list without a query.
+		if ( ! in_array( $type_id, self::all_ids(), true ) ) { return null; }
 		if ( ! array_key_exists( $type_id, self::$cache ) ) {
 			global $wpdb;
 			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'types' ) . ' WHERE type_id=%d', $type_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
@@ -106,13 +116,25 @@ final class Definitions {
 	/** Pass type ids linked to an occurrence. */
 	public static function pass_ids_for_occurrence( $occurrence_id ) {
 		global $wpdb;
-		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT type_id FROM ' . self::table( 'occurrences' ) . ' WHERE occurrence_id=%d ORDER BY type_id', absint( $occurrence_id ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
+		if ( null === self::$by_occurrence ) {
+			// One query per request for all links (listings ask for every occurrence).
+			self::$by_occurrence = array();
+			if ( self::all_ids() ) {
+				foreach ( (array) $wpdb->get_results( 'SELECT occurrence_id,type_id FROM ' . self::table( 'occurrences' ) . ' ORDER BY type_id' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
+					self::$by_occurrence[ (int) $row->occurrence_id ][] = (int) $row->type_id;
+				}
+			}
+		}
+		return self::$by_occurrence[ absint( $occurrence_id ) ] ?? array();
 	}
 
-	/** All pass type ids. */
+	/** All pass type ids (cached per request; flush() after changes). */
 	public static function all_ids() {
 		global $wpdb;
-		return array_map( 'intval', $wpdb->get_col( 'SELECT type_id FROM ' . self::table( 'types' ) . ' ORDER BY type_id' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
+		if ( null === self::$all ) {
+			self::$all = array_map( 'intval', $wpdb->get_col( 'SELECT type_id FROM ' . self::table( 'types' ) . ' ORDER BY type_id' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
+		}
+		return self::$all;
 	}
 
 	/** Pass quota of an occurrence (0 = none). */

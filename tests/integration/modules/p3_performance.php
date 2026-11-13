@@ -284,7 +284,7 @@ if ( $req ) {
 }
 foreach ( $module_hooks as $hook => $callbacks ) { if ( null !== $callbacks ) { $GLOBALS['wpcap_test_hooks'][ $hook ] = $callbacks; } }
 list( $qm, $html_m ) = $count( array( PublicEvents::class, 'render_shortcode' ) );
-echo "  info listing with all registered module filters: $qm queries for 12 dates (core: $q12)\n";
+check( "listing with all module filters: bounded queries ($qm for 12 dates, core $q12) – audit 3", $qm <= $q12 + 6 );
 check( 'module filters keep the listing (same ticket inputs and availability)', substr_count( $html_m, 'class="wpcap-qty"' ) === substr_count( $html12, 'class="wpcap-qty"' ) && substr_count( $html_m, 'max="10"' ) === substr_count( $html12, 'max="10"' ) );
 $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='pf_listed' WHERE occurrence_id IN (" . implode( ',', $listing_occ ) . ')' );
 if ( $hidden ) { $wpdb->query( "UPDATE {$p}wpcap_occurrences SET status='scheduled' WHERE occurrence_id IN (" . implode( ',', $hidden ) . ')' ); }

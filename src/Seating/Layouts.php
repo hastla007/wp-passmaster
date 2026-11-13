@@ -365,7 +365,19 @@ final class Layouts {
 
 	public static function link( $occurrence_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'links' ) . ' WHERE occurrence_id=%d', absint( $occurrence_id ) ) );
+		if ( null === self::$links ) {
+			// All links in one query per request (listings check every occurrence).
+			self::$links = array();
+			foreach ( (array) $wpdb->get_results( 'SELECT * FROM ' . self::table( 'links' ) ) as $row ) { self::$links[ (int) $row->occurrence_id ] = $row; }
+		}
+		return self::$links[ absint( $occurrence_id ) ] ?? null;
+	}
+
+	/** Request cache of seat map links; reset after writes (wpcap_availability_flushed). */
+	private static $links = null;
+
+	public static function flush_links() {
+		self::$links = null;
 	}
 
 	/** ticket_type_id => list of zone/category keys for an occurrence. */

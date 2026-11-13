@@ -25,6 +25,7 @@ final class Seating {
 		Reservations::register();
 		Picker::register();
 		add_action( 'rest_api_init', array( Rest::class, 'register_routes' ) );
+		add_action( 'wpcap_availability_flushed', array( \PassCaptain\Seating\Layouts::class, 'flush_links' ), 10, 0 );
 		add_action( 'admin_enqueue_scripts', array( AdminPage::class, 'enqueue' ) );
 	}
 
