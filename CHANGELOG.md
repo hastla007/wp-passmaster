@@ -26,6 +26,7 @@
 - Betragserstattung bei Mehrzweckgutschein: Die USt wird anteilig zur vollen Gegenleistung (Bar + Gutschein) berechnet, nicht gegen den Barrest.
 - Rechnung nach Teilerstattung: Erstattungen, die vor der Rechnung abgeschlossen wurden, erhalten beim Ausstellen ihre Rechnungskorrektur.
 - Wiederverkäufer-Abrechnung: keine USt auf die Vergütung bei Kleinunternehmer-Wiederverkäufern (mit Hinweis) und Reverse Charge bei Sitz in einem anderen EU-Staat; der Beleg ist standardmäßig die Rechnung des Wiederverkäufers (Filter `wpcap_reseller_statement_document` für eine Gutschrift der Plattform – Entscheidung offen, siehe Steuerfragen).
+- Serien-Umtausch nur zwischen Events desselben Verkäufers (Plattform bzw. derselbe Veranstalter mit demselben Verkaufsmodell).
 
 ### Kasse und Zahlungen (Experten-Review)
 - Abendkasse: In Deutschland und Österreich sind Bar und Karte gesperrt, solange keine zertifizierte Kassenlösung (TSE/RKSV) angebunden ist; Administratoren können bestätigen, dass diese Verkäufe in einer eigenen zertifizierten Kasse erfasst werden.

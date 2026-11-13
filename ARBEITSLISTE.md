@@ -57,7 +57,7 @@ Status beim Anlegen (Abgleich mit dem Code, 2026-11-13): **OFFEN** = nicht umges
   - `src/Invoices.php:18,31–91` — Maßnahme: Beim Ausstellen Korrekturbelege für frühere Erstattungen erzeugen oder Rechnung auf Entgelt nach Erstattungen begrenzen.
 - [x] **A023** [P2] Wiederverkäufer-Abrechnung ignoriert Reverse Charge und Kleinunternehmer, ohne Belegnummer. — _OFFEN_ (TODO L443; Steuer und Finanzen (Prüfung 3))
   - `src/Partners/Statement.php:124–133` — Maßnahme: Logik aus `SalesModel::reverse_charge()`/`small_business`; Beleg festlegen (Gutschrift mit Nummernkreis oder Rechnung des Wiederverkäufers).
-- [ ] **A024** [P2] Serien-Umtausch prüft nicht denselben Veranstalter/dasselbe Verkaufsmodell. — _OFFEN_ (TODO L444; Steuer und Finanzen (Prüfung 3))
+- [x] **A024** [P2] Serien-Umtausch prüft nicht denselben Veranstalter/dasselbe Verkaufsmodell. — _OFFEN_ (TODO L444; Steuer und Finanzen (Prüfung 3))
   - `src/Exchange/Service.php:170–175` — Maßnahme: Umtausch zwischen verschiedenen Partnern/Verkaufsmodellen sperren.
 - [ ] **A025** [P2] Einzweckgutschein im Checkout als `discount_minor` gebucht → Veranstalter-Abrechnung/Gutschrift sinken um den Gutscheinwert. — _OFFEN_ (TODO L445; Steuer und Finanzen (Prüfung 3))
   - `src/Integrations/Vouchers/Checkout.php:121–131` — Maßnahme: Gutscheinwert getrennt führen, in Abrechnung als Forderung gegen den Gutscheinverkäufer ausweisen.

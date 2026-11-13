@@ -123,6 +123,15 @@ final class Service {
 		) );
 	}
 
+	/** Seller of an event for exchange purposes: organizer partner + sales model, or the platform. */
+	private static function seller_key( $event_id ) {
+		if ( ! class_exists( \PassCaptain\Partners\Repository::class ) ) { return 'platform'; }
+		$partner = \PassCaptain\Partners\Repository::partner_of_event( $event_id );
+		if ( ! $partner ) { return 'platform'; }
+		$partner = is_object( $partner ) ? $partner : \PassCaptain\Partners\Repository::get( (int) $partner );
+		return $partner ? 'partner-' . (int) $partner->partner_id . '-' . \PassCaptain\Partners\SalesModel::model_of( $partner ) : 'platform';
+	}
+
 	/** Series ids of an occurrence (series module; empty without it). */
 	private static function series_of( $occurrence_id ) {
 		global $wpdb;
@@ -180,6 +189,11 @@ final class Service {
 			$shared = array_intersect( self::series_of( (int) $ticket->occurrence_id ), self::series_of( (int) $target->occurrence_id ) );
 			if ( 'portal' === $channel || empty( $policy['allow_series'] ) || ! $shared ) {
 				return self::error( 'wpcap_exchange_other_event', __( 'Ein Umtausch ist nur innerhalb desselben Events möglich.', 'wp-pass-captain' ), 400 );
+			}
+			// Another organizer or sales model would invoice a service of someone else (mixed sellers):
+			// only within the same seller.
+			if ( self::seller_key( (int) $ticket->event_id ) !== self::seller_key( (int) $target->event_id ) ) {
+				return self::error( 'wpcap_exchange_other_seller', __( 'Ein Umtausch zwischen Events verschiedener Veranstalter oder Verkaufsmodelle ist nicht möglich. Bitte erstatten und neu verkaufen.', 'wp-pass-captain' ), 400 );
 			}
 		}
 		if ( 'portal' === $channel ) {

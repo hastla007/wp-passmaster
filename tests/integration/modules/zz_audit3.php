@@ -315,3 +315,22 @@ $a22_r = PassCaptain\Refunds::request( $a22_o, array( $a22_i[0] ), 'Teil', 'a22-
 $a22_inv = PassCaptain\Invoices::issue_for_order( $a22_o );
 $a22_cn = $wpdb->get_row( $wpdb->prepare( "SELECT c.* FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id WHERE i.order_id=%d", $a22_o ) );
 check( 'A022: the earlier partial refund (50,00) gets a credit note when the invoice is issued', ! is_wp_error( $a22_r ) && 'completed' === $a22_r['status'] && ! is_wp_error( $a22_inv ) && $a22_cn && 5000 === (int) $a22_cn->total_minor && (int) $a22_cn->refund_id === (int) $a22_r['refund_id'] );
+
+echo "Audit 3: series exchange only within the same seller (A024)\n";
+$a24_e1 = ex_event( 'Serie Plattform' );
+$a24_e2 = ex_event( 'Serie Veranstalter' );
+$a24_e3 = ex_event( 'Serie Plattform 2' );
+$a24_o1 = ex_occ( $a24_e1 ); $a24_o2 = ex_occ( $a24_e2, 0, 200 ); $a24_o3 = ex_occ( $a24_e3, 0, 220 );
+$a24_t1 = ex_type( $a24_o1, 'A', 3000 ); $a24_t2 = ex_type( $a24_o2, 'B', 3000 ); $a24_t3 = ex_type( $a24_o3, 'C', 3000 );
+$now24 = gmdate( 'Y-m-d H:i:s' );
+foreach ( array( $a24_o1, $a24_o2, $a24_o3 ) as $o ) { $wpdb->insert( "{$p}wpcap_series_occurrences", array( 'series_id' => 990024, 'occurrence_id' => $o, 'starts_at' => $now24, 'created_at' => $now24 ) ); }
+$a24_partner = PassCaptain\Partners\Repository::save( array( 'name' => 'Fremder Veranstalter', 'commission_bp' => 1000, 'settlement_start' => gmdate( 'Y-m' ) . '-01' ) );
+PassCaptain\Partners\Repository::set_events( $a24_partner, array( $a24_e2 ) );
+ex_policy( array( 'allow_series' => 1 ) );
+list( , $a24_i ) = ex_buy( $a24_t1, 2, 'a24@example.com' );
+$a24_x = Exchange::request( $a24_i[0], $a24_t2, array( 'channel' => 'admin' ) );
+check( 'A024: series exchange into an event of another organizer is refused', is_wp_error( $a24_x ) && 'wpcap_exchange_other_seller' === $a24_x->get_error_code() );
+$a24_ok = Exchange::request( $a24_i[1], $a24_t3, array( 'channel' => 'admin' ) );
+check( 'A024: series exchange between events of the same seller still works', ! is_wp_error( $a24_ok ) && 'completed' === $a24_ok['status'] );
+ex_policy( array() );
+$wpdb->query( "DELETE FROM {$p}wpcap_series_occurrences WHERE series_id=990024" );
