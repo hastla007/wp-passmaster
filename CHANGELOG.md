@@ -2,9 +2,90 @@
 
 ## Unveröffentlicht
 
+### Wichtige Verhaltensänderungen beim Update
+- **Datenbankschema 3.9.0** (über 3.6.0–3.8.0): neue Tabellen für Service-Warteliste, Preisregeln, Käuferlimits, Einwilligungen, Terminpersonal und Supportzugriffe sowie neue Spalten (u. a. Steuerprofil je Bestellposition, Ratenlimit je API-Key, Zeitzone und Regeln je Ressource). Die Aktualisierung läuft automatisch; schlägt sie fehl, wird sie mit wachsendem Abstand (1, 5, 15, 60 Minuten) wiederholt und kann unter „Pass Captain → Systemstatus“ oder mit `wp pass-captain diagnose --repair` sofort neu gestartet werden.
+- **Zugangsdaten werden verschlüsselt gespeichert** (libsodium, Präfix `pcv1:`): Anbieter-Secrets (Stripe, PayPal, Mollie, Twilio, SMS, Wallet) und Webhook-Signing-Secrets werden beim Update migriert. Empfohlen ist eine eigene Konstante `PASS_CAPTAIN_SECRET_KEY` (32 zufällige Bytes, hex) in `wp-config.php`; ohne sie wird der Schlüssel aus `AUTH_KEY`/`SECURE_AUTH_KEY` abgeleitet – werden diese Salts erneuert, müssen alle Zugangsdaten neu eingegeben werden. Secrets werden im Admin nur noch maskiert angezeigt („gespeichert ••••1234“), Webhook-Secrets nur einmal nach dem Anlegen bzw. Erneuern.
+- **WooCommerce: negative Gebühren** (z. B. Rabatte als Gebühr) mindern jetzt den Betrag der Pass-Captain-Bestellung – auch bei nur einem Rechnungssteller.
+- **Käuferlimits** begrenzen auf Wunsch die Tickets pro Person (E-Mail oder Kundenkonto) über alle Bestellungen – im Online-Checkout und in WooCommerce, nicht an der Kasse. Ohne angelegte Limits ändert sich nichts.
+- **Erstattung eingecheckter Tickets** folgt der neuen Einstellung `refund_after_checkin` (Standard „Erlauben“, alternativ „Nur mit Zweitfreigabe“ oder „Nicht erlauben“); sie gilt für manuelle Erstattungen, Terminabsagen und WooCommerce-Erstattungen und hat Vorrang vor der WooCommerce-Option „Eingecheckte Tickets erstatten“.
+- **MySQL 8.0 und 8.4 werden unterstützt** (neben MariaDB 10.6–11.4): Ein serverseitiger Rollback in der Bestelltransaktion (Deadlock-Opfer) wird über eine Markierungszeile in einer verbindungslokalen Temporärtabelle erkannt, da MySQL kein `@@in_transaction` kennt. Siehe `docs/COMPATIBILITY.md`.
+
+### Robustheit bei Datenbankfehlern, Zustandsautomaten und Randfälle
+- Datenbankfehler (Deadlock, Lock-Timeout, Verbindungsabbruch, fehlgeschlagener Commit) führen in keinem kritischen Ablauf mehr zu einer Erfolgsantwort ohne gespeicherten Zustand oder zu halben Buchungen: Zahlungs-Webhooks antworten bei fehlgeschlagener Bestellsuche bzw. noch laufender Verarbeitung mit 5xx statt „ignored“/„duplicate“; Zahlungsbestätigung ohne Transaktion kann keine bezahlte Bestellung ohne Tickets mehr hinterlassen; fehlende Tickets bezahlter Bestellungen werden per Job-Queue nachgeholt; Check-in behandelt Lesefehler nicht mehr als „unbekanntes Ticket“, „keine Regel“ oder „keine Einlässe“; Offline-Scans mit vorübergehendem Serverfehler bleiben in der Scanner-App und werden erneut hochgeladen.
+- Kasse: Ein Lesefehler storniert keinen bezahlten Verkauf mehr; hängende Verkäufe werden beim erneuten Absenden fortgesetzt. Beleg-/Rechnungsnummern werden nie doppelt vergeben (blockierte vorher alle weiteren Kassenverkäufe).
+- Erstattungen: Lesefehler erzeugen keine 0,00-Erstattung, keinen „fehlgeschlagen“-Status und keine Verbuchung ohne Auszahlung (kein Rückfall auf „manuell“); Teil-Erstattungen rabattierter Bestellungen buchen die richtige Umsatzsteuer.
+- Warteschlangen (Jobs, E-Mails, Webhooks, SMS): Einträge, die den Worker bei jedem Versuch abstürzen lassen, landen nach den erlaubten Versuchen im Fehler-/Dead-Letter-Status statt endlos wiederholt zu werden; Webhook- und SMS-Versand erst nach dauerhaftem Claim (keine Doppelzustellung).
+- Rückgängig gemachter Check-in macht erstattete oder stornierte Tickets nicht mehr wieder gültig.
+- Rabatte werden exakt und nur auf die Positionen verteilt, für die der Code gilt (Steuerbasis bei gemischten Steuersätzen); Rechnungen, Erstattungen, Berichte und Abrechnungen nutzen dieselbe Aufteilung.
+- Währungen mit 0 und 3 Nachkommastellen (JPY, KWD, BHD …) werden im Admin, im Checkout, in Mails, Belegen, Rechnungen und Berichten richtig eingegeben und angezeigt.
+- Verkaufsbeginn „N Tage vorher“ und aus der Vorlage übernommene Verkaufsfenster einer Terminserie beachten die Sommerzeit (lokale Uhrzeit bleibt gleich).
+- Multisite: Serien-Preisregeln und Absage-Zusammenfassungen werden je Site gecacht.
+- Der Event-Bericht (REST) wird bei Zahlung, Check-in, Erstattung, Storno und Eventänderungen sofort aktualisiert statt bis zu 5 Minuten veraltet zu sein.
+- Gutschein-Anbieter: Zeitüberschreitungen und Antworten außerhalb des Vertrags werden sauber als Fehler behandelt; eine Bestellung wird nie ohne reservierten Gutschein reduziert.
+- Seating: Eine fehlgeschlagene Saalplanabfrage legt keine Bestellung ohne Sitzplätze mehr an.
+- Neue Tests (`docs/TESTING.md`, `docs/STATE-MACHINES.md`): Fault-Injection-Matrix, Zustandsautomaten, Worker-Neustarts, Upgrades von 1.0/1.2/1.3, Präfix-Isolation, Sommerzeit, Geld-Eigenschaftstests, Berichts-Cache, Vertragskompatibilität, Datenschutz mit großen Datenmengen; erweiterter Lauf `tests/integration/run-slow.sh`.
+
+### Systemstatus und Diagnose
+- Neue Seite „Pass Captain → Systemstatus“ (Recht `manage_options`): Rückstände und Fehler der Warteschlangen (Jobs, E-Mails, Webhooks, SMS), überfällige und hängende Einträge, E-Mail-Versandfehler, WP-Cron-Zustand je Aufgabe (inkl. `DISABLE_WP_CRON` ohne externen Cron) mit Worker-Heartbeats; fehlgeschlagene Einträge lassen sich protokolliert wiederholen oder verwerfen. Bei kritischem Rückstand erscheint ein Admin-Hinweis und eine Zahl am Menüpunkt.
+- Diagnose und Abgleich (nur lesend, Reparatur nur wo gefahrlos wiederholbar und protokolliert): abgelaufene offene Reservierungen, bezahlte Bestellungen ohne Tickets, gültige Tickets ohne gültige Bestellung, doppelte Erstattungen, hängende Queue-Claims, ausgezahlte aber nicht verbuchte Erstattungen, Erstattungen ohne Anbieter-Referenz (manuell als erledigt/fehlgeschlagen markierbar) und Schemafehler.
+- WP-CLI: `wp pass-captain status` und `wp pass-captain diagnose [--repair|--repair-all] [--strict]` für Monitoring; Hinweise zum Alarmieren in `docs/OPERATIONS.md`.
+
+### Neue Admin-Seiten
+- „Entwickler-API-Keys“: lesende Keys je Event mit Berechtigungen, Ablauf und eigenem Ratenlimit (Standard 600 Anfragen/Minute); der Key wird genau einmal angezeigt, gespeichert wird nur ein Hash.
+- „Ressourcen & Zeitfenster“, „Wartelisten“ (Angebot an die nächste Person, Entfernen, protokollierter CSV-Export), „Kampagnen“ (Rabattcodes anlegen, bearbeiten, (de)aktivieren) und „Mitgliedspässe“ (ausstellen, Gültigkeit und Passregeln bearbeiten, widerrufen) – jeweils mit Nonce-, Rechte- und Eventprüfung sowie Audit-Einträgen.
+
+### Servicebuchungen und Wartelisten
+- Buchungsregeln je Ressource: Buchungsschluss, Vorlauf, Höchstplätze pro Person und Zeitraum, Puffer vor/nach Zeitfenstern (keine Überschneidungen derselben Ressource), Standarddauer, Wochengenerator, eigene Zeitzone und Veranstalter-Zuordnung (Partner sehen nur ihre Ressourcen).
+- Umbuchung und Stornierung durch Kund:innen mit Fristen und automatischer Erstattung; Umbuchung bei Preisunterschied wahlweise nur zum gleichen Preis oder mit Erstattung der Differenz. Optionale manuelle Bestätigung durch den Anbieter mit Frist (Ablehnung oder Fristablauf = automatische Erstattung).
+- No-Show-Regel (Markieren, Anspruch verfällt, Gebühr vermerken) mit Karenzzeit und optionaler Buchungssperre nach wiederholten No-Shows.
+- Warteliste für ausgebuchte Zeitfenster mit befristeten Angeboten, die die Plätze bis zum Ablauf reservieren.
+- Event-Warteliste mit Automatik: Wird Kapazität frei, erhält die nächste Person automatisch ein Angebot mit Reservierung (24 Stunden, Filter `wpcap_waitlist_offer_hours`) samt Ablehnungs- und Austragelink; die Annahme übernimmt die Reservierung in derselben Transaktion (keine falschen „ausverkauft“-Anzeigen bei parallelen Annahmen).
+- Service-Pässe: Passregeln mit Geltungsbereich (Eventeinlass, Service-Ressourcen oder beides), terminfrei oder terminpflichtig, Ablauf je Regel.
+- Neue Mailvorlagen (Bestätigung, wartet auf Bestätigung, Anfrage an den Anbieter, abgelehnt, storniert, umgebucht, nicht erschienen, Warteliste Eintragung/Platzangebot), REST-Endpunkte und öffentliche Buchungs-/Wartelistenseiten. Dokumentation: `docs/SERVICE-BOOKINGS.md`.
+
+### Sicherheit
+- Ausgehende Verbindungen zu konfigurierbaren Zielen (Webhooks, generischer SMS-Anbieter, Fiskaldienste) nur noch per HTTPS an öffentliche Adressen: private, Link-local- und Metadaten-Adressen werden nach DNS-Auflösung blockiert, Weiterleitungen nicht verfolgt, Zeit und Antwortgröße begrenzt. Ein lokaler Fiskaldienst (z. B. efsta EFR) kann ausdrücklich freigegeben werden.
+- Vertrauenswürdige Proxys/CDN für Rate-Limits: Client-Adressen aus Headern werden nur noch von konfigurierten Proxys übernommen (Einstellung, Konstante `WPCAP_TRUSTED_PROXIES`, Filter `wpcap_trusted_proxies`).
+- Zentrale Schwärzung von Secrets, Codes und E-Mail-Adressen in Audit-Details, Fehlerprotokollen und Anbieterfehlern; strengere Prüfung von Mengen und Tokens.
+- Tests für die Berechtigungsmatrix aller REST-Routen und Admin-Aktionen, Schwärzung, SSRF und Proxys. Dokumentation: `docs/SECURITY.md`.
+
+### Betrieb, Konnektoren und Erweiterungen
+- Zentraler Logger (`wpcap_log`, Audit-Tabelle, PHP-Fehlerprotokoll nur mit `WP_DEBUG_LOG` oder Filter `wpcap_log_to_error_log`) und private Temporärdateien statt direkter Dateisystemaufrufe.
+- Fehler beim Markieren erstatteter Bestellungen und bei extern ausgeführten Erstattungen werden erkannt, vollständig zurückgerollt und automatisch wiederholt; ein Zustellmarker verhindert eine zweite Ticket-Mail mit neuen Codes.
+- Domänenereignisse (Bestellung bezahlt/erstattet/storniert, Tickets ausgestellt, Check-in, Termin verschoben/abgesagt) werden über die Job-Warteschlange an aktivierte Konnektoren zugestellt, mit Wiederholung je Konnektor.
+- Versionierte Erweiterungspunkte für Add-ons (`wp_pass_captain_settings_defaults_v1`, `_settings_sections_v1`, `_admin_menu_v1`, `_report_*_v1`, `_export_*_v1`, `_scanner_adapters_v1`) mit Vertragstest; ein Integrationstest stellt sicher, dass der Kern ohne Add-on und ohne Netzwerkzugriff vollständig funktioniert. Dokumentation: `docs/EXTENSIONS.md`, `docs/HOOKS.md`.
+
+### Steuerprofile, Einwilligungen, Käuferlimits, Preisregeln, Berichte
+- Steuerprofile: versionierte Profile je Land und Steuerklasse (Entwurf → aktiv → archiviert, aktive Versionen unveränderlich). Je Bestellposition werden Steuersatz, Profil und Version gespeichert; Rechnungen, Gutschriften und Erstattungen verwenden diesen Stand. Steuerland je Event (Leistungsort), optionaler Rechnungshinweis. Profile sind technische Vorlagen und müssen steuerlich geprüft werden (`docs/TAX-PROFILES.md`).
+- Einwilligungsfelder: Text, Version, Zeitpunkt und Quelle werden je Ticket protokolliert; Käufer können im Bestellportal widerrufen; CSV-Export „Pass Captain Einwilligungen“.
+- Käuferlimits je Event, Termin oder Ticketart (siehe oben).
+- Automatische Preisregeln (Frühbucher, Last-Minute, Nachfrage, Wochentag/Zeitfenster) für alle Termine eines Events; die Regel mit der höchsten Priorität gewinnt, Käufer sehen den Grund, die angewendete Regel wird in der Bestellposition gespeichert.
+- Kampagnen: bis zu drei Codes pro Bestellung nach Priorität, nicht kombinierbare Codes, optionaler Höchstrabatt je Bestellung und maximaler Gesamtrabatt über Preisregeln und Codes; Code, Rabattart und Währung sind nach der ersten Einlösung gesperrt.
+- Berichte: Vergleich mit Vorperiode oder Vorjahreszeitraum, Aufschlüsselung nach Kampagne; Rollen ohne Finanzrechte sehen keine Zahlungsdaten (auch nicht im CSV).
+
+### Audit, Rollen, Zwei-Faktor und Supportzugriff
+- Audit-Log-Ansicht mit Filtern und protokolliertem CSV-Export; protokolliert werden zusätzlich Rollen- und Capability-Änderungen, Exporte und (zusammengefasst, begrenzt je Stunde) lesende Zugriffe auf personenbezogene Daten.
+- Einlasspersonal je Termin (ohne eventweiten Zugriff); Datenminimierung je Rolle: Einlass und Veranstalter sehen keine Zahlungsdaten, Finanzbuchhaltung keine Teilnehmerangaben, Support sieht personenbezogene Daten maskiert (Freigabe je Fall für 15 Minuten, protokolliert).
+- Gleichzeitige Anmeldungen von Einlass-/Kassenkonten werden erkannt und protokolliert; optional nur eine aktive Anmeldung.
+- Zwei-Faktor-Pflicht je Kategorie einstellbar (Einstellungen, Zugangsdaten, Exporte, Rollen, Massenaktionen, API-Keys), zentral vor der Aktion durchgesetzt.
+- Supportzugriff: Administratoren vergeben zeitlich begrenzte Rechte mit Pflichtgrund; Vergabe, Widerruf und Ablauf stehen im Audit-Log.
+- Check-out optional nur für bestimmte Rollen; Wiedereinlass nach Check-out mit Höchstzahl je Ticket (für Ticketarten ohne eigene Einlassregel).
+- Sprachauswahl für Käufer im Checkout und im Bestellportal; E-Mails und Tickets folgen der gewählten Sprache.
+- Multisite: Netzwerkübersicht (Events, Bestellungen, Umsatz 30 Tage, Systemzustand je Website) mit protokolliertem CSV-Bericht; Daten verschiedener Websites werden nie gemeinsam abgefragt.
+
+### Barrierefreiheit und Tests
+- Admin-Barrierefreiheit: zugängliche Namen für Auswahl- und Textfelder, Screenreader-Texte für leere Spaltenköpfe, größere Klickflächen und AA-Kontraste; axe-Prüfung aller Admin-Seiten als Release-Gate.
+- Unit-Tests für alle Browser-Skripte (`node --test`) und Playwright-E2E-Tests für Checkout, Bestellportal, Web-Scanner, Offline-PWA und den WooCommerce-Block-Checkout (`docs/TESTING.md`).
+
+### CI und Release
+- Blockierende statische Analyse: PHP_CodeSniffer (WPCS 3, PHPCompatibilityWP) und PHPStan Level 5 gegen Baselines, `composer audit`, Versionskonsistenz-Prüfung.
+- Testmatrix PHP 8.2/8.3/8.4 × MariaDB 10.6/11.4 und MySQL 8.0/8.4; Installationstest des gebauten ZIP in frischem WordPress (aktuell und 6.4) und mit WooCommerce (HPOS an/aus).
+- Reproduzierbares Release-ZIP mit SHA-256-Prüfsumme; Releases veröffentlichen nur das in der CI getestete ZIP. Secret-Scan (gitleaks) für Historie und ZIP, wöchentliche Lasttests.
+- Übersetzungen: alle neuen Texte in Englisch, Spanisch, Französisch, Italienisch und Niederländisch; neue Prüfung `build/check-i18n.php` (fehlende Übersetzungen, Platzhalter, veraltete `.mo`) und `build/merge-po.php`.
+
 ### WooCommerce: mehrere Rechnungssteller
 - Warenkörbe mit Tickets verschiedener Rechnungssteller (Vermittler-Veranstalter/Plattform) werden standardmäßig schon beim Hinzufügen, im Warenkorb und an der Kasse abgelehnt – klassisch und im Block-Checkout (Store API). Alternativ (Einstellung „Gemischte Warenkörbe → Je Rechnungssteller aufteilen“) entsteht je Rechnungssteller eine eigene Pass-Captain-Bestellung mit eigener Rechnung; verbindliche Regeln für Gutscheine, negative/positive Gebühren, Versand und Rundung (größte Reste) in `docs/WOOCOMMERCE.md`.
-- WooCommerce-Erstattungen (Position, Teilmenge, nur Betrag, vollständig, nach Terminabsage) werden den Teilbestellungen und ihren Tickets zugeordnet; Erstattungen eingecheckter Tickets werden standardmäßig vor der Auszahlung abgelehnt (Einstellung „Eingecheckte Tickets erstatten“). Negative Gebühren mindern jetzt auch bei einem Rechnungssteller den Betrag der Pass-Captain-Bestellung.
+- WooCommerce-Erstattungen (Position, Teilmenge, nur Betrag, vollständig, nach Terminabsage) werden den Teilbestellungen und ihren Tickets zugeordnet; ob eingecheckte Tickets erstattet werden dürfen, entscheidet die Einstellung `refund_after_checkin` (Standard „Erlauben“; bei „Nicht erlauben“ werden solche Erstattungen vor der Auszahlung abgelehnt), ohne sie die WooCommerce-Option „Eingecheckte Tickets erstatten“. Negative Gebühren mindern jetzt auch bei einem Rechnungssteller den Betrag der Pass-Captain-Bestellung.
 - `docs/SALES-MODELS.md`: technisches Auszahlungsmodell (Belege, Geldfluss, Auszahlung außerhalb des Plugins).
 
 ### Robustheit bei Datenbankfehlern (Auditbefunde)
@@ -18,6 +99,7 @@
 
 ### Offline-Scanner
 - Die Scanner-App ist übersetzbar: Texte kommen in der Sprache der Website (auch offline verfügbar), Datumsangaben und `lang` folgen der Sprache. Neuer öffentlicher Endpunkt `GET /wp-pass-captain/v1/app/offline/i18n`, Filter `wpcap_offline_scanner_strings` und `wpcap_offline_scanner_locale`.
+- Die App fordert die Texte in der Gerätesprache an (`?locale=` aus `navigator.languages`); verfügbar sind Deutsch, alle mitgelieferten Übersetzungen, installierte Sprachpakete und die Website-Sprache. Das Manifest ist sprachneutral.
 
 ### Release und WordPress.org
 - Releases werden nur noch gebaut, wenn der Tag zur Version passt, der Commit auf `main` liegt und die CI für genau diesen Commit grün war.

@@ -8,49 +8,100 @@ Pass Captain ist als Kern-Plugin vollständig kostenlos (GPL-2.0-or-later) und f
 
 ## Funktionen
 
-- Events als Einzeltermin oder wöchentliche Serie mit bis zu 12 getrennten Terminen im Admin anlegen.
-- Events als Shortcode `[wp_pass_captain_events]` oder Gutenberg-Block ausgeben.
-- Bestellungen mit zehnminütiger Reservierung anlegen; kostenlose Bestellungen stellen Tickets direkt aus.
-- Bezahlte Bestellungen können manuell bestätigt oder über den optionalen WooCommerce-Adapter synchronisiert werden.
-- Ticketlink enthält einen zufälligen 256-Bit-Code; nur dessen SHA-256-Hash wird für die Prüfung gespeichert.
-- Einlasspersonal eventbezogen zuweisen und den Scanner über `[wp_pass_captain_scanner]` bereitstellen.
-- WordPress-Datenschutzexport/-löschung und ein CI-/ZIP-Build sind vorbereitet.
-- Käuferlinks verfallen nach 30 Tagen; ein gültiges Ticket kann vor Veranstaltungsbeginn einmalig übertragen werden.
-- Ein versionierter Voucher-Captain-Provider-Vertrag ist vorhanden; Voucher-Reservierung und Einlösung sind noch nicht im Checkout orchestriert.
-- WooCommerce bleibt optional und wird nur über CRUD-APIs angebunden (HPOS und klassischer Bestellspeicher). Ticketprodukte reservieren Kontingent bereits beim Woo-Checkout (Classic und Blocks), stellen nach Zahlung genau ein Ticket je Einheit aus und widerrufen Tickets bei Storno und (Teil-)Erstattung. Details: [docs/WOOCOMMERCE.md](docs/WOOCOMMERCE.md).
-- Veröffentliche Events können abgesagt werden; Käufer werden benachrichtigt und unbezahlte Reservierungen aufgehoben.
-- REST-Grundlagen für Sitzpläne, Service-Slots, POS-Verkäufe, Offline-Scan-Synchronisierung, Einlassregeln pro Tag und Teilnehmerzuweisung sind enthalten.
-- Transaktionale Rechnungsnummern, geplanter Mailversand und Mitgliedspässe mit Nutzungslimits sind als Basismodule verfügbar.
-- Eventkarten können über `templates/event-card.php` im Theme überschrieben werden. Währungen und Wallet-Provider sind erweiterbar.
-- Kampagnencodes können Prozent- oder Festbetragsrabatte mit Event-/Ticketbereich und atomarem globalem Nutzungsmaximum anwenden; angewandte Preiswerte werden im Auftrag gespeichert.
-- Wartelisten nehmen Einträge auf (ohne zu verraten, ob eine Adresse schon eingetragen ist) und senden zeitlich begrenzte Angebote. Wer ein Angebot annimmt, bekommt direkt eine Bestellung mit Reservierung, sofern das Ticket noch verfügbar ist.
-- Rollenbeschränkte Veranstaltungsberichte zeigen bezahlte Bestellungen, verkaufte Tickets, Bruttosummen pro Währung und Einlasszahlen.
-- Eventgebundene Read-only-API-Schlüssel, übersetzte Eventkarten, site-getrennte Multisite-Migrationen und ein generischer Job-Queue-Grundbaustein sind verfügbar.
-- Länder-/Steuerprofile werden ausschließlich als Entwürfe gespeichert. Eine geprüfte Steuerberechnung ist nicht enthalten.
+**Events, Tickets, Checkout**
+
+- Events als Einzeltermin oder Serie (Serientermine mit eigenen Preisstufen), Ausgabe per Shortcode
+  `[wp_pass_captain_events]` bzw. Block, Kalender per `[wp_pass_captain_calendar]`, Block und iCal-Feed.
+- Bestellungen mit Reservierung (Standard 10 Minuten, einstellbar) und Idempotency-Key; kostenlose
+  Bestellungen stellen Tickets direkt aus. Zahlung per Überweisung/manueller Bestätigung, Stripe, PayPal,
+  Mollie oder über WooCommerce.
+- Tickets mit zufälligem 256-Bit-Code (gespeichert wird nur der SHA-256-Hash), QR-Code, PDF, Apple/Google
+  Wallet; Bestellportal für Käufer (Teilnehmerzuweisung, einmalige Übertragung, erneuter Versand, Rechnungsdaten,
+  Widerruf von Einwilligungen).
+- Saalpläne mit Platzwahl, Teilnehmerfelder (auch protokollierte Einwilligungen), Kasse vor Ort (keine
+  Registrierkasse, siehe [docs/OPERATIONS.md](docs/OPERATIONS.md)), Druck & Listen.
+- **Verkaufsregeln:** automatische Preisregeln (Frühbucher, Last-Minute, Nachfrage, Wochentag/Zeitfenster),
+  Kampagnencodes mit Stapelregeln und Gesamtrabatt-Deckel, **Käuferlimits** je Person atomar über alle
+  Bestellungen ([docs/SALES-MODELS.md](docs/SALES-MODELS.md#verkaufsregeln-im-checkout)).
+- **Steuerprofile:** versionierte Länder-/Steuerklassen-Profile (Entwurf → aktiv → archiviert), Auswahl je
+  Bestellposition nach Steuerland des Events, Snapshot in der Position für Rechnung und Erstattung
+  ([docs/TAX-PROFILES.md](docs/TAX-PROFILES.md)). Steuersätze liefert das Plugin nicht mit; sie sind fachlich zu
+  prüfen.
+- Rechnungen und Gutschriften mit Nummernkreisen, Verkaufsmodelle Eigenhändler/Vermittler je Veranstalter mit
+  Monatsabrechnung ([docs/SALES-MODELS.md](docs/SALES-MODELS.md)); Gutscheine von WP Voucher Captain im
+  Checkout und als Ticketumtausch, Einzweck-/Mehrzweckgutscheine ([docs/VOUCHERS.md](docs/VOUCHERS.md)).
+- Erstattungen (auch Teilerstattungen) mit optionaler Zweitfreigabe und 2FA, Regel für Erstattung nach Check-in,
+  Terminabsage mit automatischer Erstattung.
+
+**Wartelisten und Servicebuchungen**
+
+- Event-Wartelisten mit **Automatik**: frei werdende Plätze werden der Reihe nach als zeitlich begrenzte
+  Angebote vergeben; wer annimmt, erhält direkt eine Bestellung mit Reservierung. Eintragen verrät nicht, ob eine
+  Adresse schon eingetragen ist.
+- **Servicebuchungen** (Kurse, Verleih, Bootsschule): Ressourcen mit Zeitfenstern, Dauer/Puffer/Kollisionen,
+  **Buchungsregeln** je Ressource, Umbuchung, Stornierung mit Fristen, No-Show, Bestätigung durch den Anbieter, Warteliste
+  für ausgebuchte Zeitfenster und Service-Pässe ([docs/SERVICE-BOOKINGS.md](docs/SERVICE-BOOKINGS.md)).
+- Mitgliedspässe mit Nutzungslimits.
+
+**Einlass**
+
+- Web-Scanner `[wp_pass_captain_scanner]`, Scanner-Apps über die Mobile-API mit Gerätekopplung, installierbarer
+  Offline-Scanner mit signierten Paketen ([docs/MOBILE-API.md](docs/MOBILE-API.md),
+  [docs/OFFLINE-SCANNER.md](docs/OFFLINE-SCANNER.md)).
+- Einlassregeln je Tag/Bereich, Check-out und Wiedereinlass, Einlass-Konflikte; Einlasspersonal je Event oder
+  nur für einen Termin.
+
+**WooCommerce (optional)**
+
+- Anbindung nur über CRUD-APIs (HPOS und klassischer Bestellspeicher), Classic- und Blocks-Checkout:
+  Kontingent wird beim Woo-Checkout reserviert, nach Zahlung genau ein Ticket je Einheit, Widerruf bei Storno
+  und (Teil-)Erstattung.
+- **Mehrere Rechnungssteller** im Warenkorb: Richtlinie „ablehnen“ oder „aufteilen“ (eine Pass-Captain-Bestellung
+  je Rechnungssteller, Erstattung je Rechnungssteller und Position) ([docs/WOOCOMMERCE.md](docs/WOOCOMMERCE.md)).
+
+**Kommunikation und Integrationen**
+
+- E-Mail-Vorlagen je Sprache, Erinnerungen per E-Mail und SMS (Twilio, generischer HTTP-Anbieter), signierte
+  Webhooks, Partner-API für Veranstalter, eventgebundene Read-only-Entwickler-Schlüssel, Berichte und
+  CSV-Exporte, WP Affiliate Captain.
+
+**Sicherheit, Datenschutz, Betrieb**
+
+- **Secrets-Vault:** Anbieter-Zugangsdaten verschlüsselt (libsodium) in der Datenbank, Schlüssel außerhalb
+  der Datenbank (`wp-config.php` oder Umgebung), Schlüsselwechsel ohne Datenverlust; zentrale Redaktion von Logs und Fehlern; SSRF-Schutz für
+  ausgehende Verbindungen ([docs/SECURITY.md](docs/SECURITY.md)).
+- Rollen mit Eventscoping und Datenminimierung je Rolle, Step-up-2FA je Kategorie, zeitlich begrenzter
+  Supportzugriff, **Audit-Log** mit Ansicht, Filtern und CSV-Export.
+- **Systemstatus und Diagnose:** Cron-/Worker-Heartbeats, Warteschlangen, fehlgeschlagene Einträge mit
+  „Erneut versuchen“/„Verwerfen“, hängende Erstattungen, Schemafehler mit Backoff; Abgleichsprüfungen mit sicheren
+  Reparaturen; WP-CLI `wp pass-captain status|diagnose` ([docs/OPERATIONS.md](docs/OPERATIONS.md)).
+- **Multisite:** Daten je Site getrennt, Netzwerkübersicht mit Kennzahlen und Zustand aller Sites.
+- Datenschutzexport/-löschung über die WordPress-Werkzeuge, automatische Löschfristen, Vorschlag für die
+  Datenschutzerklärung.
+- Datenbanken: **MariaDB 10.6/11.4 und MySQL 8.0/8.4** ([docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)).
+
+Eventkarten lassen sich über `templates/event-card.php` im Theme überschreiben; Währungen, Zahlungs-, SMS-,
+Wallet- und Gutscheinanbieter sind über dokumentierte Hooks erweiterbar ([docs/EXTENSIONS.md](docs/EXTENSIONS.md),
+[docs/HOOKS.md](docs/HOOKS.md)).
 
 ## Entwicklung
 
 PHP 8.2+, Composer und WordPress erforderlich. `composer install` lädt die QR-Code-Abhängigkeit. Das Plugin kann ohne generierten Composer-Autoloader gestartet werden; QR-Bilder erscheinen erst mit installierten Abhängigkeiten.
 
-Das aktuelle Datenbankschema ist `3.5.0` (plus Modul-Schemata; Plugin-Version `1.4.0` nutzt `3.5.0`). Das Upgrade erfolgt über `dbDelta` im Admin-Bereich, per WP-Cron oder WP-CLI hinter einer Datenbanksperre, nicht bei jedem Frontend-Aufruf (Details und System-Cron-Empfehlung: [docs/OPERATIONS.md](docs/OPERATIONS.md)). Neue REST-Routen decken Kampagnen, Wartelisten, Eventberichte, Übersetzungen und eventgebundene Entwickler-Schlüssel ab. WordPress-Schreibzugriffe brauchen eine eingeloggte WP-Session mit REST-Nonce; Entwickler-Schlüssel sind nur für dokumentierte Read-only-Scopes vorgesehen.
+Das aktuelle Kern-Datenbankschema ist `3.9.0` (plus Modul-Schemata). Das Upgrade erfolgt über `dbDelta` im Admin-Bereich, per WP-Cron oder WP-CLI hinter einer Datenbanksperre, nicht bei jedem Frontend-Aufruf (Details, Backup/Restore und System-Cron-Empfehlung: [docs/OPERATIONS.md](docs/OPERATIONS.md)). WordPress-Schreibzugriffe über REST brauchen eine eingeloggte WP-Session mit REST-Nonce; Entwickler-Schlüssel sind nur für dokumentierte Read-only-Scopes vorgesehen.
 
 ```sh
 composer install
 bash build/release.sh
 ```
 
-Integrationstests für Bestellungen, Reservierungen und den WooCommerce-Adapter laufen gegen eine echte, wegwerfbare MySQL-/MariaDB-Datenbank (Zugang über `WPCAP_TEST_DB_HOST`, `WPCAP_TEST_DB_USER`, `WPCAP_TEST_DB_PASS`, `WPCAP_TEST_DB_NAME`; Standard `127.0.0.1`/`wp`/`wp`/`wp`). Die Tests legen die Tabellen mit dem Präfix `wptest_` neu an:
+Integrationstests laufen gegen eine echte, wegwerfbare MySQL-/MariaDB-Datenbank (Zugang über `WPCAP_TEST_DB_HOST`, `WPCAP_TEST_DB_USER`, `WPCAP_TEST_DB_PASS`, `WPCAP_TEST_DB_NAME`; Standard `127.0.0.1`/`wp`/`wp`/`wp`). Die Tests legen die Tabellen mit dem Präfix `wptest_` neu an:
 
 ```sh
 php tests/integration/run.php
 ```
 
-Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung, JavaScript-Syntaxprüfung, Integrations- und Lasttests sowie den Lizenz-Wächtertest aus, erzeugt ein installierbares ZIP als Workflow-Artefakt und prüft genau dieses ZIP mit dem offiziellen WordPress.org-Werkzeug [Plugin Check](https://github.com/WordPress/plugin-check-action). Den Wächtertest lokal ausführen:
-
-```sh
-php tests/guard/no-license-code.php --self-test
-php tests/guard/no-license-code.php
-```
+Die CI (`.github/workflows/ci.yml`) prüft Syntax, Coding-Standard und PHPStan gegen Baselines, `composer audit`, Secrets, den Lizenz-Wächter, die Integrationssuite und einen Last-Smoke-Test auf PHP 8.2–8.4 × MariaDB/MySQL, baut ein reproduzierbares ZIP, installiert es in echtem WordPress (mit und ohne WooCommerce) und prüft es mit dem offiziellen [Plugin Check](https://github.com/WordPress/plugin-check-action). Alle Testebenen, auch Lasttests, Barrierefreiheit und Browser-E2E: [docs/TESTING.md](docs/TESTING.md). Release-Gates: [docs/RELEASE.md](docs/RELEASE.md); Support- und Versionsregeln: [docs/SUPPORT.md](docs/SUPPORT.md).
 
 ## Roadmaps und Entwurfsdokumente
 
@@ -59,9 +110,11 @@ php tests/guard/no-license-code.php
 - [Schritte 31–50](ROADMAP_31_50.md)
 - [Kern frei, Premium im Add-on](docs/FREE-PREMIUM.md)
 
-## Module (P2)
+## Module
 
-Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks, Offline-Scanner, Veranstalter und Veranstalter-Abrechnungen sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]`. Dokumentation: [docs/WALLET.md](docs/WALLET.md), [docs/WEBHOOKS.md](docs/WEBHOOKS.md), [docs/HOOKS.md](docs/HOOKS.md), [docs/MOBILE-API.md](docs/MOBILE-API.md), [docs/OFFLINE-SCANNER.md](docs/OFFLINE-SCANNER.md), [docs/PARTNER-API.md](docs/PARTNER-API.md), [docs/TESTING.md](docs/TESTING.md), [docs/MAIL-TEMPLATES.md](docs/MAIL-TEMPLATES.md).
+Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Serientermine, Einlassregeln, Einlass-Konflikte, Kasse, Druck & Listen, Berichte, Wallet, Webhooks, Offline-Scanner, Servicebuchungen, Steuerprofile, Veranstalter und Veranstalter-Abrechnungen, Systemstatus, Audit-Log, Supportzugriff sowie Einstellungen für Kalender, Erinnerungen, SMS und Mollie. Shortcodes: `[wp_pass_captain_events]`, `[wp_pass_captain_calendar]`, `[wp_pass_captain_scanner]`.
+
+Dokumentation: [WALLET](docs/WALLET.md), [WEBHOOKS](docs/WEBHOOKS.md), [HOOKS](docs/HOOKS.md), [EXTENSIONS](docs/EXTENSIONS.md), [MOBILE-API](docs/MOBILE-API.md), [OFFLINE-SCANNER](docs/OFFLINE-SCANNER.md), [PARTNER-API](docs/PARTNER-API.md), [MAIL-TEMPLATES](docs/MAIL-TEMPLATES.md), [SERVICE-BOOKINGS](docs/SERVICE-BOOKINGS.md), [SALES-MODELS](docs/SALES-MODELS.md), [TAX-PROFILES](docs/TAX-PROFILES.md), [VOUCHERS](docs/VOUCHERS.md), [WOOCOMMERCE](docs/WOOCOMMERCE.md), [SECURITY](docs/SECURITY.md), [OPERATIONS](docs/OPERATIONS.md), [ACCESSIBILITY](docs/ACCESSIBILITY.md), [TESTING](docs/TESTING.md), [COMPATIBILITY](docs/COMPATIBILITY.md), [RELEASE](docs/RELEASE.md), [SUPPORT](docs/SUPPORT.md).
 
 ## Scanner und Mobile-App
 
@@ -73,13 +126,20 @@ Unter **Pass Captain** stehen zusätzlich: E-Mail-Vorlagen, Saalpläne, Seriente
 Ausgangssprache ist Deutsch. Vollständige Übersetzungen liegen für Englisch (en_US), Französisch (fr_FR), Italienisch (it_IT), Spanisch (es_ES) und Niederländisch (nl_NL) in `languages/`. Weitere Sprachen entstehen aus der Vorlage `languages/pass-captain.pot`. Kompilieren ohne gettext-Tools:
 
 ```sh
+# Vorlage neu erzeugen (WP-CLI)
+wp i18n make-pot . languages/pass-captain.pot --slug=pass-captain --domain=pass-captain --exclude=vendor,tests,assets/vendor,node_modules,build,docs,languages --skip-block-json
+# Vorlage in eine Sprache übernehmen (ersetzt msgmerge), übersetzen, kompilieren
+php build/merge-po.php languages/pass-captain.pot languages/pass-captain-xx_XX.po
 php build/compile-mo.php languages/pass-captain-xx_XX.po
+# Vollständigkeit und Platzhalter prüfen (läuft auch in der CI)
+php build/check-i18n.php
 ```
 
 ## Noch offen
 
-- Abnahme in einer echten WordPress-/WooCommerce-Installation sowie gegen die echten Stripe- und PayPal-Sandboxes (getestet ist gegen MariaDB mit nachgebauter WordPress-, WooCommerce- und Anbieter-API).
-- Rechtliche und steuerliche Prüfung von Rechnungen, Gutschriften, Verbraucherinformationen und Steuersätzen je Land.
-- Native Scanner-Apps selbst (die Server-API ist fertig, siehe docs/MOBILE-API.md, inkl. geplanter Erweiterungen).
-- Abnahme der P2-Module gegen echte Dienste (Apple/Google Wallet, Twilio, Mollie) und im Browser (Saalplan-Editor, Platzwahl, Kasse).
-- P3 laut Konzept: echtes Offline-Prüfpaket, externe Scanner-Apps, Veranstalter-Abrechnungen; Last-, Sicherheits- und Barrierefreiheitstests.
+- Abnahme gegen die echten Sandboxes von Stripe, PayPal und Mollie sowie in einem echten WooCommerce-Shop (Classic und Blocks); getestet ist gegen nachgebaute WordPress-, WooCommerce- und Anbieter-APIs, die Browser-Tests laufen gegen eine Wegwerf-WordPress-Seite.
+- Browser-Tests mit Firefox, WebKit und echten iOS-/Android-Geräten; Screenreader-Prüfung ([docs/TESTING.md](docs/TESTING.md#ausstehend)).
+- Rechtliche und steuerliche Prüfung von Rechnungen, Gutschriften, Verbraucherinformationen, Steuerprofilen und Verkaufsmodellen je Land.
+- Native Scanner-Apps selbst (die Server-API ist fertig, siehe [docs/MOBILE-API.md](docs/MOBILE-API.md)).
+- Abnahme gegen echte Dienste: Apple/Google Wallet, Twilio, Fiskaldienste.
+- Unabhängige Sicherheitsprüfung ([docs/SECURITY.md](docs/SECURITY.md)).

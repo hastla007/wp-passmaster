@@ -15,12 +15,22 @@ Standalone event, ticket and admission management for WordPress, with optional W
 Pass Captain manages events, dates, ticket types, orders, tickets and admission directly in WordPress. WooCommerce is optional and not required for any core feature. Every feature in this plugin is free: there is no licence key, no trial period and no locked functionality.
 
 * Events as single dates or recurring series, displayed with the shortcode `[wp_pass_captain_events]` or a block; calendar via `[wp_pass_captain_calendar]`, block and iCal feed.
-* Orders with a time-limited reservation; free orders issue tickets immediately.
-* Payments by bank transfer/manual confirmation, Stripe, PayPal, Mollie or the WooCommerce adapter (HPOS and block checkout).
-* Tickets with QR code, PDF and Apple/Google Wallet passes; web scanner via `[wp_pass_captain_scanner]`, a mobile scanner API and an installable offline scanner.
-* Seating plans, admission rules, box office, waiting lists, campaign codes, memberships, invoices and credit notes, refunds with approval, reports and CSV exports.
-* Email templates per language, reminders by email and SMS, signed webhooks for external systems.
-* Privacy export and erasure through the WordPress privacy tools, retention periods and a privacy policy suggestion; multisite compatible (data kept separate per site).
+* Orders with a time-limited reservation and idempotent checkout; free orders issue tickets immediately.
+* Payments by bank transfer/manual confirmation, Stripe, PayPal, Mollie or the WooCommerce adapter.
+* Tickets with QR code, PDF and Apple/Google Wallet passes; order portal for buyers (attendee assignment, one-time transfer, resend).
+* Admission: web scanner via `[wp_pass_captain_scanner]`, a mobile scanner API with device pairing and an installable offline scanner with signed packages; admission rules, check-out and re-entry, staff per event or per date.
+* Sales rules: automatic price rules (early bird, last minute, demand, weekday/time window), campaign codes with stacking rules, per-buyer ticket limits enforced across orders.
+* Versioned tax profiles per country and tax class, frozen on each order line for invoices and refunds (rates must be reviewed by the site owner; none are shipped).
+* Waiting lists with automatic offers and reservation when capacity frees up.
+* Service bookings for courses, rentals and similar resources: time slots, booking rules (cut-off, lead time, per-customer limits, rebooking and cancellation deadlines), provider confirmation, no-show handling, slot waiting lists and service passes.
+* Seating plans, box office, memberships, invoices and credit notes, merchant and agent sales models per organizer, vouchers from WP Voucher Captain, refunds with approval, reports and CSV exports.
+* WooCommerce (optional): HPOS and legacy order storage, classic and block checkout, capacity reserved at checkout, tickets after payment, revocation on cancellation and refunds; carts with tickets from several sellers can be rejected or split into one order per seller.
+* Email templates per language, reminders by email and SMS, signed webhooks, partner API and read-only developer keys.
+* Security: provider credentials encrypted at rest (libsodium) with the key kept outside the database, role-based event scoping and data minimisation, step-up two-factor checks, time-limited support access and an audit log with viewer and CSV export.
+* Operations: system status page with cron and worker health, queues and retry/discard actions, consistency checks with safe repairs, and WP-CLI commands `wp pass-captain status` and `wp pass-captain diagnose`.
+* Privacy export and erasure through the WordPress privacy tools, retention periods and a privacy policy suggestion.
+* Multisite: data kept separate per site, plus a network overview of all sites.
+* Runs on MariaDB 10.6+ and MySQL 8.0+.
 
 The plugin's user interface is written in German and fully translated into English, French, Italian, Spanish and Dutch.
 

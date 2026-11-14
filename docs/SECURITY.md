@@ -93,10 +93,70 @@ Die Plugin-Limits (Checkout pro IP und E-Mail, Servicebuchungen, Warteliste, Sit
 
 `tests/integration/modules/zz_w5_permissions.php` enthält eine Tabelle aller REST-Routen und aller admin-post/admin-ajax-Aktionen. Jede Route ist als `public` (mit Begründung), `token` (Handler verlangt Geheimnis/Signatur), Capability, Gerät, Entwickler- oder Partner-Key deklariert. Der Test schlägt fehl, wenn eine Route fehlt oder wenn Gast, Abonnent, Mitarbeitende eines anderen Events, widerrufene/abgelaufene/fremde Entwickler-Keys, widerrufene Geräte oder Partner-Keys eines anderen Veranstalters Erfolg haben oder Daten ändern.
 
-## Offenlegung
+## Sicherheitsprozess
 
-Sicherheitsprobleme bitte über GitHubs private Meldemöglichkeit des Repositorys melden, sofern sie aktiviert ist. Keine Ticketcodes, Kundendaten, API-Schlüssel oder funktionsfähigen Exploits in öffentlichen Issues posten. Eine unabhängige Prüfung und ein formeller Incident-Prozess stehen noch aus.
+### Schwachstellen melden
 
-## Release-Gate
+- Meldungen ausschließlich **privat über GitHub Security Advisories des Repositories** („Security“ →
+  „Report a vulnerability“). Entscheidung offen: zusätzlicher privater Kanal (z. B. Sicherheits-Postfach)
+  – bis dahin gibt es keinen.
+- Keine Ticketcodes, Kundendaten, API-Schlüssel oder funktionsfähigen Exploits in öffentlichen Issues,
+  Foren oder Pull Requests. Öffentliche Issues mit solchen Inhalten werden ausgeblendet und als Advisory
+  weitergeführt.
+- Hilfreich: betroffene Version, Konfiguration (WooCommerce, Module), Reproduktionsschritte, Auswirkung.
 
-Vor 1.0 müssen Bedrohungsmodell, Rollen-/Nonce-Prüfung, SQL-Transaktionen, Datenschutzexport und -löschung, Offline-Konflikte, Abhängigkeitsprüfung und Wiederherstellung extern oder durch eine dokumentierte unabhängige Prüfung bewertet werden. Dieses Dokument ist keine Sicherheitszertifizierung.
+### Reaktionszeiten (Zielwerte)
+
+| Schritt | Ziel |
+|---|---|
+| Eingangsbestätigung | 3 Werktage |
+| Erste Bewertung (Schweregrad nach CVSS, betroffene Versionen) | 7 Werktage |
+| Fix kritisch/hoch | Patch-Release innerhalb von 14 Tagen |
+| Fix mittel/niedrig | mit dem nächsten regulären Release, spätestens 90 Tage |
+| Veröffentlichung | Advisory (mit CVE, sofern vergeben) nach Verfügbarkeit des Fixes, abgestimmt mit der meldenden Person |
+
+Fixes erhalten die aktuelle und die vorherige Minor-Version ([SUPPORT.md](SUPPORT.md)). Entscheidung offen:
+die Zielwerte sind Vorschläge und vom Betreiber zu bestätigen.
+
+### Incident-Handling
+
+1. **Eindämmen:** betroffene Funktion abschalten (Zahlungsart, Modul, Webhook-Abonnement, Partner-/
+   Entwickler-Key, Gerätekopplung widerrufen), bei aktivem Missbrauch Site in den Wartungsmodus; Logs,
+   Audit-Log (*Pass Captain → Audit-Log*, CSV-Export) und Datenbankstand sichern, bevor etwas geändert wird.
+2. **Geheimnisse rotieren:** Anbieter-Schlüssel (Stripe, PayPal, Mollie, Twilio, Wallet, Webhook-Secrets)
+   beim Anbieter neu erzeugen und eintragen; den Vault-Schlüssel wechseln (`PASS_CAPTAIN_SECRET_KEY_PREVIOUS`
+   + neuer `PASS_CAPTAIN_SECRET_KEY`, Admin-Seite aufrufen, alte Konstante entfernen – siehe
+   „Schlüsselwechsel“ oben); Entwickler-/Partner-Keys und Gerätetokens widerrufen; bei Verdacht auf
+   `wp-config.php`-Abfluss auch WordPress-Salts erneuern (Sitzungen enden, gespeicherte Secrets ohne eigene
+   Vault-Konstante müssen neu eingegeben werden).
+3. **Bereinigen und prüfen:** Ursache beheben (Patch-Release), `wp pass-captain diagnose --strict`
+   ausführen, Zahlungen und Erstattungen beim Anbieter abgleichen, betroffene Tickets widerrufen und neu
+   ausstellen.
+4. **Benachrichtigen:** Bei Verletzung personenbezogener Daten Meldung an die Aufsichtsbehörde binnen 72
+   Stunden (Art. 33 DSGVO) und gegebenenfalls Betroffene (Art. 34) – Aufgabe des Betreibers als
+   Verantwortlicher. Nutzer des Plugins über GitHub Security Advisory und Release-Notes informieren.
+5. **Nachbereiten:** Postmortem innerhalb von 14 Tagen (Zeitleiste, Ursache, Auswirkung, Maßnahmen,
+   Tests, die den Fehler künftig finden); Maßnahmen als Issues verfolgen.
+
+### Abhängigkeiten
+
+- CI (`ci.yml`, Job `static`) führt bei jedem Push `composer audit --locked` aus (Laufzeit- und
+  Dev-Pakete); bekannte Schwachstellen lassen den Build scheitern. Pull Requests prüft zusätzlich
+  `actions/dependency-review-action` (ab „moderate“), gitleaks scannt Historie und ZIP.
+- Mitgelieferte Fremdbibliotheken ohne Composer (`assets/vendor/`, z. B. jsQR) werden bei jedem Minor-
+  Release auf neue Versionen und Advisories geprüft.
+- Kadenz: monatlich Composer- und GitHub-Actions-Abhängigkeiten aktualisieren (Pinning beibehalten,
+  `composer.lock` committen, reproduzierbaren Build prüfen), Sicherheitsupdates sofort. Ein automatischer
+  Update-Bot (Dependabot o. ä.) ist nicht eingerichtet – Entscheidung offen.
+
+### Kompatibilitätsprüfungen
+
+- Zu jeder neuen WordPress- und WooCommerce-Hauptversion (inkl. Release Candidates) Installationstest und
+  Integrationssuite gegen die neue Version laufen lassen, `Tested up to`/`WC tested up to` erst nach grüner
+  Prüfung anheben ([COMPATIBILITY.md](COMPATIBILITY.md)).
+- Mindestens monatlich die CI-Matrix mit „latest“ neu ausführen (ein Lauf ohne Codeänderung reicht), damit
+  Brüche durch neue Upstream-Versionen auffallen.
+
+## Unabhängige Prüfung (ausstehend)
+
+Noch ausstehend (ursprünglich „vor 1.0“ geplant, die aktuelle Version ist bereits 1.x): Bedrohungsmodell, Rollen-/Nonce-Prüfung, SQL-Transaktionen, Datenschutzexport und -löschung, Offline-Konflikte, Abhängigkeitsprüfung und Wiederherstellung müssen extern oder durch eine dokumentierte unabhängige Prüfung bewertet werden. Die technischen Release-Gates stehen in [RELEASE.md](RELEASE.md). Dieses Dokument ist keine Sicherheitszertifizierung.
