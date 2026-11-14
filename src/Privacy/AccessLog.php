@@ -80,7 +80,7 @@ final class AccessLog {
 			'pii' => array( self::ACTION_VIEW, self::ACTION_LIST, self::ACTION_REST ),
 			'export' => array( self::ACTION_EXPORT, 'attendee_list_csv', 'attendee_list_html', 'no_show_list_csv', 'no_show_list_html', 'print_batch', 'report_exported', 'accounting_exported', 'settlement_sheet_csv', 'settlement_sheet_html' ),
 			'privacy' => array( self::ACTION_PRIVACY_EXPORT, self::ACTION_PRIVACY_ERASE, self::ACTION_PRIVACY_EXPORTED, self::ACTION_PRIVACY_ERASED, 'privacy_erasure', 'privacy_erasure_deferred', 'privacy_retention' ),
-			'roles' => array( self::ACTION_ROLE_SET, self::ACTION_ROLE_ADDED, self::ACTION_ROLE_REMOVED, self::ACTION_CAP_ADDED, self::ACTION_CAP_REMOVED, 'staff_assigned', 'staff_removed', 'admission_area_staff_added', 'admission_area_staff_removed', 'partner_users_set', 'pos_cashier_added', 'service_provider_created', 'service_provider_updated', 'service_resource_providers_set', 'staff_assignment_added', 'staff_assignment_removed' ),
+			'roles' => array( self::ACTION_ROLE_SET, self::ACTION_ROLE_ADDED, self::ACTION_ROLE_REMOVED, self::ACTION_CAP_ADDED, self::ACTION_CAP_REMOVED, 'staff_assigned', 'staff_removed', 'admission_area_staff_added', 'admission_area_staff_removed', 'partner_users_set', 'pos_cashier_added', 'service_provider_created', 'service_provider_updated', 'service_resource_providers_set', 'staff_assignment_added', 'staff_assignment_removed', 'user_access_revoked' ),
 			'corrections' => array( self::ACTION_CORRECTED, 'billing_updated', 'ticket_holder_changed', 'ticket_assigned', 'ticket_reissued' ),
 		);
 	}

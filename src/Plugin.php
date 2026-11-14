@@ -41,6 +41,8 @@ final class Plugin {
 		add_action( 'admin_post_nopriv_' . Waitlists::UNSUBSCRIBE_ACTION, array( Waitlists::class, 'handle_unsubscribe_request' ) );
 		add_action( 'template_redirect', array( Waitlists::class, 'maybe_render_unsubscribe_page' ) );
 		Privacy::register();
+		// A277/A278: role removal or deletion takes event teams, scanner devices and API keys back.
+		UserAccess::register();
 		Consents::register();
 		ServiceBookingFlow::register();
 		// Public booking page for service slots: [wpcap_service_booking] / block pass-captain/service-booking (A268).

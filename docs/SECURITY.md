@@ -165,6 +165,17 @@ bzw. `service_booking_no_show` ins Audit-Log und löst `wpcap_service_booking_st
 Andere Events, Bestellungen, Tickets, Berichte oder fremde Ressourcen erreicht die Rolle nicht; die Verknüpfung
 vergibt nie selbst ein Recht (die Rolle muss vorhanden sein), ein deaktivierter Datensatz entzieht den Zugang.
 
+**Rollenentzug und Löschen von Benutzern (A277):** Einlasspersonal ohne Plugin-Rolle bekommt `wpcap_checkin`
+mit der Team-Zuweisung als Benutzer-Capability. Damit Zugänge eine Rollenänderung nicht überleben, nimmt
+`UserAccess` beim Entzug einer Rolle (`set_user_role` mit einer wegfallenden Rolle, `remove_user_role`) diese
+Benutzer-Capability zurück, löscht Event-Team-Einträge (samt Terminzuweisungen) für Rechte, die die Person
+danach nicht mehr hat, und widerruft ohne `wpcap_checkin` alle Scanner-Geräte, offene Kopplungscodes und
+Einlassbereichs-Zuweisungen. Was eine verbleibende Rolle weiter erlaubt, bleibt erhalten; das Hinzufügen einer
+Rolle ändert nichts. Wird ein Benutzer gelöscht (bzw. in Multisite aus der Site entfernt), wird alles davon
+zurückgenommen. Nach einem Rollenwechsel (auch z. B. von „Abonnent“ zu „Kunde“) muss die Einlass-Zuweisung
+also neu vergeben werden. Jede Rücknahme steht als `user_access_revoked` im Audit-Log; Filter
+`wpcap_revoke_access_on_role_change`.
+
 ## Rollen, Zugriffsbereiche und Prüfreihenfolge
 
 Jede Admin-Seite, jeder admin-post-Handler und jede authentifizierte REST-Route prüft in dieser Reihenfolge

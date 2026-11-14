@@ -532,6 +532,7 @@ final class EventsPage {
 		}
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		if ( 'wpcap_checkin' === $capability ) {
+			// Taken back with the last check-in assignment and on every role removal (UserAccess, A277).
 			$user->add_cap( 'wpcap_checkin' );
 		} elseif ( ! user_can( $user, $capability ) ) {
 			// Event scope never grants a role capability implicitly; the user needs a matching role.
