@@ -573,7 +573,7 @@ Gesamt: 262 Aufgaben.
   - src/LegacySlug.php (watch_legacy_copy), alte uninstall.php: Pause von delete_data_on_uninstall nur für aktuelle Site; alte uninstall.php läuft über alle Sites. Behoben 13.11. (82f927d): netzwerkweite Pause bei jedem Laden, Plugin::ensure_events, Test rename-takeover-ms.sh
 - [ ] **A264** [KRITISCH] Volle externe Erstattung bei Fehler im Erstattungsbuch trotzdem als verarbeitet markiert — _R1 Core_ (TODO L570; Audit Runde 4)
   - src/Payments/Webhooks.php ~213–229 (apply, refunded): WP_Error aus Refunds::record_external() bei $full ignoriert → refunded ohne wpcap_refunds-Zeile, keine Gutschrift, keine Neuzustellung. Retryable Fehler nach mark_refunded zurückgeben (prüfen, ob A183 das schon abdeckt)
-- [ ] **A265** [KRITISCH] Werkseinstellung „Überweisung“ ohne Bankverbindung verkauft — _R1 UX_ (TODO L571; Audit Runde 4)
+- [x] **A265** [KRITISCH] Werkseinstellung „Überweisung“ ohne Bankverbindung verkauft — _R1 UX_ (TODO L571; Audit Runde 4)
   - src/Settings.php:54, src/Payments/ManualGateway.php:14, BankTransfer.php:56, assets/checkout.js:384: manual standardmäßig aktiv, is_available() immer true; Käufer sieht Überweisungsaufforderung ohne Empfänger/IBAN, Plätze 72 h blockiert. Nur mit IBAN/Zahlungshinweis verfügbar, nicht standardmäßig aktiv, „nicht vollständig konfiguriert“ anzeigen
 - [ ] **A266** [KRITISCH] Terminabsage über Status-Dropdown umgeht Bestätigungsseite — _R1 UX_ (TODO L572; Audit Runde 4)
   - src/Admin/EventsPage.php:915, :189, :235 (save_occurrence → wpcap_occurrence_cancelled): Tickets widerrufen, Mails/Auto-Erstattung ohne Grund, Vorschau, Bestätigung. „Abgesagt“ aus dem Formular entfernen, nur über view=cancel_occurrence
@@ -581,9 +581,9 @@ Gesamt: 262 Aufgaben.
   - src/Admin/EventsPage.php:778–781, handle_cancel_event :638: Fehlklick sagt alle Termine ab, widerruft Tickets, benachrichtigt Käufer. Bestätigungsseite mit Folgen, Grund, Pflicht-Checkbox wie bei Terminen
 - [ ] **A268** [KRITISCH] Service-Zeitfenster für Kunden nicht buchbar (kein Shortcode/Block) — _R1 UX_ (TODO L574; Audit Runde 4)
   - src/Admin/ServiceSlotsPage.php:330, Rest/Controller.php:122–149, Plugin.php:73: Nur REST-Routen; Bootsschule kann ohne Entwickler nicht verkaufen. Shortcode/Block „Zeitfenster buchen“ mit Checkout-Anbindung
-- [ ] **A269** [KRITISCH] readme.txt ohne Abschnitt „External services“ — _R1 Release_ (TODO L575; Audit Runde 4)
+- [x] **A269** [KRITISCH] readme.txt ohne Abschnitt „External services“ — _R1 Release_ (TODO L575; Audit Runde 4)
   - readme.txt: Pflicht für WordPress.org: Stripe, PayPal, Mollie, Twilio, APNs, Google Wallet, fiskaltrust, SMS-HTTP, Webhooks, Affiliate Captain mit Zweck, Daten, ToS-/Privacy-Link
-- [ ] **A270** [KRITISCH] Minifiziertes tweetnacl ohne mitgelieferten Quellverweis — _R1 Release_ (TODO L576; Audit Runde 4)
+- [x] **A270** [KRITISCH] Minifiziertes tweetnacl ohne mitgelieferten Quellverweis — _R1 Release_ (TODO L576; Audit Runde 4)
   - assets/vendor/tweetnacl/nacl-fast.min.js, .distignore:43 (*.md): Guideline 4: Quelle oder Verweis muss im Paket liegen; README.md wird ausgefiltert. nacl-fast.js beilegen oder Verweis in readme.txt/.txt
 - [x] **A271** [KRITISCH] Web-Scanner hängt nächsten Scan an alten Code an – Einlass für falsches Ticket — _R2 Frontend_ (TODO L577; Audit Runde 4)
   - assets/scanner.js:381, 413–419, 426, 430 (submitToken): Feld nur nach Erfolg geleert; Tastatur-Scanner sendet T1T2, normalize_code nimmt T1 (mit Playwright nachgestellt). Feld nach jedem Ergebnis leeren, Sperr-Treffer verwerfen und melden

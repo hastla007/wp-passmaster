@@ -3,7 +3,7 @@ import js from '@eslint/js';
 import globals from 'globals';
 
 export default [
-	{ ignores: [ 'vendor/**', 'assets/vendor/**', 'node_modules/**', 'tests/a11y/node_modules/**', 'build/**', '.claude/**' ] },
+	{ ignores: [ 'vendor/**', 'assets/vendor/**', 'node_modules/**', 'tests/a11y/node_modules/**', 'build/**', '.claude/**', 'tests/upgrade/.wordpress/**', 'tests/upgrade/.cache/**' ] },
 	js.configs.recommended,
 	{
 		files: [ 'assets/**/*.js', 'src/blocks/**/*.js' ],
