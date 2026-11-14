@@ -412,9 +412,15 @@ final class ServiceBookings {
 		if ( 1 !== (int) $updated || false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		Audit::record( $declined ? 'service_booking_declined' : 'service_booking_cancelled', 'service_booking', (int) $booking->booking_id, array( 'actor' => $actor, 'reason' => $stored_reason, 'slot_id' => (int) $booking->slot_id, 'order_id' => (int) $booking->order_id, 'quantity' => (int) $booking->quantity, 'user_id' => get_current_user_id() ) );
 		$refund = null;
-		if ( $was_paid && $refund_wanted && (int) $booking->order_id ) {
+		if ( $was_paid && (int) $booking->order_id ) {
 			self::fill_tickets( (int) $booking->booking_id );
-			$refund = self::refund( (int) $booking->booking_id, $actor );
+			if ( $refund_wanted ) {
+				$refund = self::refund( (int) $booking->booking_id, $actor );
+			} else {
+				// Cancelled without refund (e.g. forfeited): the booking's tickets must not admit anybody.
+				$revoked = Orders::revoke_ids( array_map( 'absint', (array) json_decode( (string) self::get( $booking->booking_id )->ticket_ids, true ) ) );
+				Orders::fire_revoked( $revoked, 'service_booking_' . (int) $booking->booking_id );
+			}
 		}
 		if ( (int) $booking->pass_use_id ) { Memberships::release_use( (int) $booking->pass_use_id ); }
 		$fresh = self::get( $booking->booking_id );
@@ -437,8 +443,9 @@ final class ServiceBookings {
 		$ticket_ids = array_map( 'absint', (array) json_decode( (string) $booking->ticket_ids, true ) );
 		if ( ! $ticket_ids ) { return null; }
 		$result = Refunder::refund( (int) $booking->order_id, $ticket_ids, null, sprintf( /* translators: %d: booking id */ __( 'Servicebuchung #%d storniert', 'pass-captain' ), (int) $booking->booking_id ), 'service-booking-' . (int) $booking->booking_id, $actor );
-		if ( is_array( $result ) && ! empty( $result['refund_id'] ) && ! (int) $booking->refund_id ) {
-			$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', array( 'refund_id' => (int) $result['refund_id'] ), array( 'booking_id' => (int) $booking->booking_id ) );
+		$row = is_array( $result ) && ! empty( $result['refund_id'] ) ? $result : Refunder::find( (int) $booking->order_id, 'service-booking-' . (int) $booking->booking_id );
+		if ( $row && ! (int) $booking->refund_id ) {
+			$wpdb->update( $wpdb->prefix . 'wpcap_service_bookings', array( 'refund_id' => (int) $row['refund_id'] ), array( 'booking_id' => (int) $booking->booking_id ) );
 		}
 		if ( is_wp_error( $result ) || ! Refunder::settled( $result ) ) {
 			Audit::record( 'service_booking_refund_failed', 'service_booking', (int) $booking->booking_id, array( 'error' => is_wp_error( $result ) ? $result->get_error_code() : (string) ( $result['status'] ?? '' ) ) );

@@ -109,6 +109,12 @@ final class Refunder {
 		return Refunds::execute( $refund_id );
 	}
 
+	/** Refund row written for an idempotency key (also when the provider call failed), or null. */
+	public static function find( $order_id, $key ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_refunds WHERE idempotency_key=%s", hash( 'sha256', 'refund|' . absint( $order_id ) . '|' . sanitize_text_field( $key ) ) ), ARRAY_A );
+	}
+
 	/** Continues an existing refund row: approved/failed ones are (re-)executed, others returned as they are. */
 	private static function resume( array $row ) {
 		if ( in_array( $row['status'], array( 'approved', 'failed' ), true ) ) { return Refunds::execute( (int) $row['refund_id'] ); }
