@@ -22,6 +22,9 @@ $GLOBALS['wpcap_test_http_requests'] = array();
 
 if ( ! function_exists( 'wp_remote_request' ) ) {
 	function wp_remote_request( $url, $args = array() ) {
+		// Like WP_Http::request(): a pre_http_request filter can short-circuit (A5 blocks all outbound HTTP).
+		$pre = apply_filters( 'pre_http_request', false, $args, $url );
+		if ( false !== $pre ) { return $pre; }
 		$method = strtoupper( $args['method'] ?? 'GET' );
 		$GLOBALS['wpcap_test_http_requests'][] = array( 'method' => $method, 'url' => $url, 'headers' => $args['headers'] ?? array(), 'body' => $args['body'] ?? '', 'timeout' => $args['timeout'] ?? null );
 		foreach ( $GLOBALS['wpcap_test_http_queue'] as $i => $entry ) {
@@ -35,6 +38,7 @@ if ( ! function_exists( 'wp_remote_request' ) ) {
 	}
 }
 if ( ! function_exists( 'wp_remote_post' ) ) { function wp_remote_post( $url, $args = array() ) { $args['method'] = $args['method'] ?? 'POST'; return wp_remote_request( $url, $args ); } }
+if ( ! function_exists( 'wp_safe_remote_post' ) ) { function wp_safe_remote_post( $url, $args = array() ) { $args['method'] = $args['method'] ?? 'POST'; return wp_remote_request( $url, $args ); } }
 if ( ! function_exists( 'wp_remote_get' ) ) { function wp_remote_get( $url, $args = array() ) { $args['method'] = $args['method'] ?? 'GET'; return wp_remote_request( $url, $args ); } }
 if ( ! function_exists( 'wp_remote_retrieve_body' ) ) { function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? (string) ( $r['body'] ?? '' ) : ''; } }
 if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? (int) ( $r['response']['code'] ?? 0 ) : ''; } }
