@@ -177,7 +177,8 @@ jobs:
         with:
           node-version: '22'
       - name: Download WooCommerce (Blocks checkout E2E)
-        run: curl -fsSL --retry 3 https://downloads.wordpress.org/plugin/woocommerce.latest-stable.zip -o "$RUNNER_TEMP/woocommerce.zip"
+        # Pinned to the "WC tested up to" version (plugin header); the GitHub release ZIP is the same package.
+        run: curl -fsSL --retry 3 https://github.com/woocommerce/woocommerce/releases/download/11.3.0/woocommerce.zip -o "$RUNNER_TEMP/woocommerce.zip"
       - name: Accessibility gate + browser E2E (Chromium, incl. WooCommerce Blocks)
         env:
           WPCAP_DB_HOST: 127.0.0.1

@@ -8,7 +8,7 @@
 # Env:
 #   WPCAP_WP_DIR      WordPress directory to use/create   (default: ${TMPDIR:-/tmp}/wpcap-browser-wp)
 #   WPCAP_WP_CORE     existing WordPress core to copy from (otherwise: git clone of WordPress, tag WPCAP_WP_VERSION)
-#   WPCAP_WP_VERSION  WordPress tag to clone               (default: 6.8.3)
+#   WPCAP_WP_VERSION  WordPress tag to clone               (default: 7.1.4)
 #   WPCAP_DB_HOST/_USER/_PASS/_NAME  disposable database   (default: 127.0.0.1 / wp / wp / wp_browser)
 #   WPCAP_DB_PREFIX   table prefix                         (default: wpbt_)
 #   WPCAP_WP_PORT     port of the PHP built-in server      (default: 8890)
@@ -41,7 +41,7 @@ if [ ! -f "$WP/wp-load.php" ]; then
 		cp -a "$WPCAP_WP_CORE/." "$WP/"
 	else
 		rmdir "$WP" 2>/dev/null || true
-		git clone --quiet --depth 1 --branch "${WPCAP_WP_VERSION:-6.8.3}" https://github.com/WordPress/WordPress.git "$WP" >&2
+		git clone --quiet --depth 1 --branch "${WPCAP_WP_VERSION:-7.1.4}" https://github.com/WordPress/WordPress.git "$WP" >&2
 	fi
 	rm -rf "$WP/.git"
 fi
