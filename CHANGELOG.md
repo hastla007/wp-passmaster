@@ -2,6 +2,23 @@
 
 ## Unveröffentlicht
 
+### Robustheit bei Datenbankfehlern (Auditbefunde)
+- Zahlungs-Webhooks: Ein Datenbankfehler beim Beanspruchen eines Ereignisses wird nicht mehr als Duplikat bestätigt, sondern mit HTTP 500 beantwortet, damit der Anbieter erneut zustellt. Storno und Vollerstattung per Webhook prüfen jeden Schritt, rollen bei Fehlern zurück und lassen den Webhook wiederholen.
+- Ticketausgabe: alle Schreibvorgänge werden geprüft und bei Fehlern vollständig zurückgerollt; ein Wiederholungsjob gibt die Tickets später aus. Teilnehmerdaten der Bestellung werden erst gelöscht, wenn alle Zuordnungen gespeichert sind.
+- Ticketzustellung: fehlgeschlagene Ticket-Mails werden automatisch wiederholt (neue Links per Nachsende-Vorlage); der Zustellstatus erscheint in der Bestellansicht.
+- Nachsendung: Codes werden pro Empfänger erst nach erfolgreichem Versand ersetzt; parallele Nachsendungen können keine veralteten Links mehr zustellen.
+- Erstattungen: Bearbeitung kann nur einmal beansprucht werden; die lokale Verbuchung läuft in einer Transaktion. Vom Anbieter ausgezahlte, aber lokal nicht verbuchte Erstattungen werden automatisch nachgebucht, ohne den Anbieter erneut aufzurufen.
+- Job- und Nachrichten-Warteschlange: Einträge werden nur nach erfolgreicher Reservierung und Commit verarbeitet; keine doppelten Mails bei parallelen Workern.
+- Schema-Upgrade: Version und Fingerprint werden erst gespeichert, wenn alle Tabellen und Spalten tatsächlich existieren; sonst Admin-Hinweis und automatische Wiederholung.
+
+### Offline-Scanner
+- Die Scanner-App ist übersetzbar: Texte kommen in der Sprache der Website (auch offline verfügbar), Datumsangaben und `lang` folgen der Sprache. Neuer öffentlicher Endpunkt `GET /wp-pass-captain/v1/app/offline/i18n`, Filter `wpcap_offline_scanner_strings` und `wpcap_offline_scanner_locale`.
+
+### Release und WordPress.org
+- Releases werden nur noch gebaut, wenn der Tag zur Version passt, der Commit auf `main` liegt und die CI für genau diesen Commit grün war.
+- CI: Wächtertest gegen Lizenz-/Update-Code im Kern-Plugin und offizieller Plugin Check gegen das gebaute ZIP.
+- readme.txt auf Englisch mit Abschnitt „External services“; neue Dokumentation `docs/FREE-PREMIUM.md`, erweiterte `docs/EXTENSIONS.md` und `docs/HOOKS.md`.
+
 ### Neuer Name: Pass Captain
 - Das Plugin heißt jetzt „Pass Captain“ (WordPress.org erlaubt kein „WP“ im Plugin-Namen). Hauptdatei `pass-captain.php`, Plugin-Ordner und ZIP `pass-captain`, Textdomain `pass-captain`, Übersetzungsdateien `languages/pass-captain-*.po/.mo`.
 - Umstieg: die neue Version installieren und aktivieren. Ist die alte Kopie `wp-pass-captain/wp-pass-captain.php` noch aktiv, übernimmt die neue Kopie deren Aktivierung (auf Multisite auch die Netzwerkaktivierung) – ohne Deaktivierungs- oder Deinstallationsroutine der alten Kopie. Daten, Einstellungen und Zeitpläne bleiben erhalten. Danach kann die alte Kopie gelöscht werden: Ihre Deinstallation entfernt dabei nie Daten, auch wenn „Daten beim Löschen entfernen“ aktiv ist, und die dabei gelöschten Zeitpläne legt die neue Kopie beim nächsten Seitenaufruf neu an.

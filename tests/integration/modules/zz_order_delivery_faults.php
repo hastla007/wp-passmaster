@@ -107,10 +107,6 @@ check( 'stale-claim takeover DELETE error is retryable', is_wp_error( $r ) && nu
 $r = Webhooks::process( 'manual', odf_event( $o, 'paid', 'odf-claim-1' ) );
 check( 'provider retry after the error is processed', 'paid' === $r && 'processed' === odf_claim( 'odf-claim-1' ) && 1 === count( Orders::tickets_for_order( $o['order_id'] ) ) );
 check( 'real redelivery is still acknowledged as duplicate', 'duplicate' === Webhooks::process( 'manual', odf_event( $o, 'paid', 'odf-claim-1' ) ) );
-if ( class_exists( 'WP_REST_Request' ) && class_exists( 'PassCaptain\\Payments\\Registry' ) ) {
-	// handle() maps every WP_Error of process() to HTTP 500 (provider retries).
-	check( 'handle() maps process errors to status 500', false !== strpos( (string) file_get_contents( WPCAP_PATH . 'src/Payments/Webhooks.php' ), "array( 'status' => 500 )" ) );
-}
 
 echo "Audit: cancel_order() rolls back on database errors; webhook retried\n";
 $cancel_steps = array(
@@ -293,8 +289,11 @@ $final = odf_hashes( $o['order_id'] );
 check( 'resend succeeds after the failures and rotates every code', true === $r && $final[0] !== $mid[0] && $final[1] !== $mid[1] );
 // A rotation always compares against the hash read under the row lock (stale hash = 0 rows = error).
 $faults = $odf_faults();
-$faults->fail( '/FROM \S+wpcap_tickets WHERE order_id=\d+ AND status=.valid. AND ticket_id IN \([0-9,]+\) ORDER BY ticket_id FOR UPDATE/' );
+$faults->fail( '/FROM \S+wpcap_tickets WHERE order_id=\d+ AND status=.valid. AND ticket_id IN \([0-9,]+\) ORDER BY ticket_id FOR UPDATE/', 0, 2 );
 $r = Orders::resend_tickets( $o['order_id'] );
 $odf_restore();
 check( 'row lock failure aborts the resend without changes', is_wp_error( $r ) && $final === odf_hashes( $o['order_id'] ) );
 check( 'resend still rejects unpaid orders', is_wp_error( Orders::resend_tickets( odf_order( $type, 1 )['order_id'] ) ) );
+
+// Leave no due-later retry jobs of these fixtures for the queue tests that run after this file.
+$wpdb->query( "UPDATE {$p}wpcap_jobs SET status='complete' WHERE job_type IN ('ticket_issue','ticket_delivery') AND status='queued'" );

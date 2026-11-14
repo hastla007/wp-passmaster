@@ -20,6 +20,7 @@ final class Plugin {
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
 		Settings::register();
 		Jobs\TimeBudget::register();
+		Orders::register(); // Job handler for ticket issuance retries and the delivery outbox.
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_site_tables' ), 10, 2 );
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
 		Admin\Menu::register();

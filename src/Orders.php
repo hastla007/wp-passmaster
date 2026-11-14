@@ -1167,8 +1167,8 @@ final class Orders {
 	private static $registered = false;
 
 	/**
-	 * Registers the job handler for issuance retries and the ticket delivery outbox. Called when this
-	 * file is loaded; Plugin::run() should call it as well so the handler is present in every cron
+	 * Registers the job handler for issuance retries and the ticket delivery outbox. Called from
+	 * Plugin::run() and when this file is loaded, so the handler is present in every cron
 	 * request that runs Jobs::process_due().
 	 */
 	public static function register() {
