@@ -30,6 +30,7 @@ $pm_registrars = array(
 	'src/Seating/Rest.php' => array( \PassCaptain\Seating\Rest::class, 'register_routes' ),
 	'src/WalletPasses/WebService.php' => array( \PassCaptain\WalletPasses\WebService::class, 'routes' ),
 	'src/Modules/Sms.php' => array( \PassCaptain\Modules\Sms::class, 'register_routes' ),
+	'src/Services/Api.php' => array( \PassCaptain\Services\Api::class, 'register_routes' ),
 );
 
 /*
@@ -96,6 +97,26 @@ $pm_routes = array(
 	'GET wp-pass-captain/v1/app/offline/occurrences' => 'device',
 	'GET wp-pass-captain/v1/app/offline/package' => 'device',
 	'GET wp-pass-captain/v1/app/offline/i18n' => 'public:static UI strings for the scanner app, no data',
+	// Service bookings and waitlists (W4).
+	'GET wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings' => 'token:order access token required',
+	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/cancel' => 'token:order access token required',
+	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook' => 'token:order access token required',
+	'GET wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/rebook-options' => 'token:order access token required',
+	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/attach-order' => 'token:booking manage token and order access token required',
+	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/confirm' => 'token:booking manage token required',
+	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/cancel' => 'token:booking manage token required',
+	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/rebook' => 'token:booking manage token required',
+	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/decide' => 'cap:wpcap_manage_events',
+	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/check-in' => 'cap:wpcap_manage_events',
+	'POST wp-pass-captain/v1/service-bookings/(?P<booking_id>\d+)/no-show' => 'cap:wpcap_manage_events',
+	'POST wp-pass-captain/v1/service-slots/(?P<slot_id>\d+)/waitlist' => 'public:slot waitlist sign-up; rate limited per e-mail and IP, response reveals no other entries',
+	'GET wp-pass-captain/v1/service-waitlist/(?P<entry_id>\d+)' => 'token:waitlist manage token required',
+	'POST wp-pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/accept' => 'token:waitlist manage token required',
+	'POST wp-pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/decline' => 'token:waitlist manage token required',
+	'POST wp-pass-captain/v1/service-waitlist/(?P<entry_id>\d+)/leave' => 'token:waitlist manage token required',
+	'POST wp-pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/decline' => 'token:offer token from the e-mail required',
+	'POST wp-pass-captain/v1/waitlist/(?P<waitlist_id>\d+)/unsubscribe' => 'token:waitlist manage token required',
+	'POST wp-pass-captain/v1/member-passes/redeem-service' => 'token:member pass code required; rate limited per IP',
 	'GET wp-pass-captain/v1/partner/me' => 'partner:',
 	'GET wp-pass-captain/v1/partner/events' => 'partner:events:read',
 	'GET wp-pass-captain/v1/partner/events/(?P<event_id>\d+)' => 'partner:events:read',
@@ -154,6 +175,7 @@ $pm_admin = array(
 	// Registered outside Menu::handlers().
 	'wpcap_print_invoice' => 'wpcap_view_finance', 'wpcap_export_accounting' => 'wpcap_view_finance',
 	'wpcap_accept_waitlist' => 'token:waitlist offer token from the e-mail (admin_post_nopriv)',
+	'wpcap_service_portal' => 'token:order access token (service booking portal forms, admin_post and admin_post_nopriv)',
 	'ajax:wpcap_mail_template_preview' => 'manage_options',
 );
 
@@ -211,6 +233,8 @@ $wpdb->insert( "{$p}wpcap_resources", array( 'event_id' => $pm_event_a, 'name' =
 $pm_resource = (int) $wpdb->insert_id;
 $wpdb->insert( "{$p}wpcap_service_slots", array( 'resource_id' => $pm_resource, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 86400 ), 'ends_at' => gmdate( 'Y-m-d H:i:s', time() + 90000 ), 'capacity' => 2, 'status' => 'open' ) );
 $pm_slot = (int) $wpdb->insert_id;
+$wpdb->insert( "{$p}wpcap_service_bookings", array( 'slot_id' => $pm_slot, 'customer_email' => 'pm-book@example.com', 'idempotency_key' => hash( 'sha256', 'pm-booking' ), 'quantity' => 1, 'status' => 'confirmed', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+$pm_booking = (int) $wpdb->insert_id;
 $pm_pass = \PassCaptain\Memberships::issue( 'pm-pass@example.com', gmdate( 'Y-m-d' ), gmdate( 'Y-m-d', time() + 30 * 86400 ), array( array( 'event_id' => $pm_event_a, 'ticket_type_id' => $pm_type_a, 'max_redemptions' => 5 ) ) );
 $pm_pass_id = is_array( $pm_pass ) ? (int) $pm_pass['pass_id'] : 0;
 $pm_devkey = \PassCaptain\DeveloperKeys::issue( $pm_event_a, array( 'events.read', 'reports.read' ), 'pm' );
@@ -294,13 +318,13 @@ function pm_changed( $before, $after ) {
 }
 
 function pm_request( $key, array $headers = array() ) {
-	global $pm_event_a, $pm_occ_a, $pm_type_a, $pm_public_id, $pm_codes, $pm_ticket, $pm_resource, $pm_slot, $pm_pass_id, $pm_devkey, $pm_order_id;
+	global $pm_event_a, $pm_occ_a, $pm_type_a, $pm_public_id, $pm_codes, $pm_ticket, $pm_resource, $pm_slot, $pm_pass_id, $pm_devkey, $pm_order_id, $pm_booking;
 	list( $method, $route ) = explode( ' ', $key, 2 );
 	$r = new WP_REST_Request( explode( ',', $method )[0], $route );
 	$params = array(
 		'event_id' => $pm_event_a, 'occurrence_id' => $pm_occ_a, 'ticket_type_id' => $pm_type_a, 'public_id' => $pm_public_id,
 		'resource_id' => $pm_resource, 'slot_id' => $pm_slot, 'pass_id' => $pm_pass_id, 'key_id' => (int) $pm_devkey['api_key_id'],
-		'waitlist_id' => 1, 'settlement_id' => 1, 'provider' => 'stripe', 'token' => $pm_codes[0] ?? '', 'ticket_public_id' => $pm_ticket->public_id,
+		'waitlist_id' => 1, 'booking_id' => $pm_booking, 'entry_id' => 1, 'settlement_id' => 1, 'provider' => 'stripe', 'token' => $pm_codes[0] ?? '', 'ticket_public_id' => $pm_ticket->public_id,
 		'serial' => 'PMSERIAL1', 'pass_type' => 'pass.test.wpcap', 'device' => 'pmdevice1', 'access_token' => str_repeat( '0', 64 ), 'sig' => 'x', 'code' => 'NOTAVALIDCODE0000000',
 	);
 	foreach ( $params as $k => $v ) { $r->set_param( $k, $v ); }
@@ -413,6 +437,7 @@ $pm_handlers = \PassCaptain\Admin\Menu::handlers() + array(
 	'wpcap_print_invoice' => array( \PassCaptain\Invoices::class, 'handle_admin_print' ),
 	'wpcap_export_accounting' => array( \PassCaptain\Invoices::class, 'handle_export' ),
 	'wpcap_accept_waitlist' => array( \PassCaptain\Waitlists::class, 'handle_accept_request' ),
+	'wpcap_service_portal' => array( \PassCaptain\Services\Portal::class, 'handle_post' ),
 	'ajax:' . \PassCaptain\Mail\Admin::ACTION_PREVIEW => array( \PassCaptain\Mail\Admin::class, 'handle_preview_ajax' ),
 );
 $src_actions = array();

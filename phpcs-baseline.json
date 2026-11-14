@@ -140,7 +140,7 @@
     },
     "src/Memberships.php": {
         "Generic.CodeAnalysis.RequireExplicitBooleanOperatorPrecedence.MissingParentheses": 2,
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 8
     },
     "src/Mobile/Api.php": {
         "Generic.CodeAnalysis.UnusedFunctionParameter.Found": 3,
@@ -247,7 +247,7 @@
     },
     "src/Privacy.php": {
         "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1,
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 32
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 36
     },
     "src/Privacy/Retention.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 9,
@@ -321,10 +321,24 @@
         "WordPress.DB.PreparedSQL.NotPrepared": 8
     },
     "src/ServiceBookings.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.resourceFound": 6,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 25
     },
     "src/ServiceResources.php": {
-        "Universal.NamingConventions.NoReservedKeywordParameterNames.resourceFound": 1
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound": 1,
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.resourceFound": 5
+    },
+    "src/ServiceWaitlist.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.doFound": 1,
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.resourceFound": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 13
+    },
+    "src/Services/Portal.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.classFound": 1,
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.doFound": 1
+    },
+    "src/Services/Refunder.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
     },
     "src/Sms/Service.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 16
@@ -336,7 +350,8 @@
         "Generic.CodeAnalysis.ForLoopWithTestFunctionCall.NotAllowed": 2
     },
     "src/Waitlists.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 9,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 20,
+        "WordPress.DB.PreparedSQL.NotPrepared": 1,
         "WordPress.Security.NonceVerification.Recommended": 2,
         "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1
     },
