@@ -281,13 +281,12 @@ final class InvoicePdf {
 		// Unguessable private directory per mail (the attachment keeps its readable file name). The core
 		// deletes the attachment after wp_mail(); the directory (and the file, should sending abort) is
 		// removed at shutdown at the latest.
-		$dir = trailingslashit( get_temp_dir() ) . 'wpcap-' . bin2hex( random_bytes( 16 ) );
-		if ( ! @mkdir( $dir, 0700 ) ) { return $mail; } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
+		$dir = \PassCaptain\TempFiles::private_dir();
+		if ( ! $dir ) { return $mail; }
 		$file = $dir . '/' . self::filename( $invoice_id, 0 );
 		self::$temp_files[] = array( $file, $dir );
 		if ( 1 === count( self::$temp_files ) ) { register_shutdown_function( array( __CLASS__, 'cleanup_temp_files' ) ); }
-		if ( false !== file_put_contents( $file, self::render( $invoice_id ) ) ) {
-			@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		if ( \PassCaptain\TempFiles::put( $file, self::render( $invoice_id ) ) ) {
 			$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), array( $file ) );
 		} else {
 			self::cleanup_temp_files();
@@ -302,8 +301,7 @@ final class InvoicePdf {
 	public static function cleanup_temp_files() {
 		foreach ( self::$temp_files as $entry ) {
 			list( $file, $dir ) = $entry;
-			if ( is_file( $file ) ) { @unlink( $file ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
-			if ( is_dir( $dir ) ) { @rmdir( $dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
+			\PassCaptain\TempFiles::remove_with_dir( $file, $dir );
 		}
 		self::$temp_files = array();
 	}

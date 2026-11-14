@@ -1294,8 +1294,7 @@ final class Orders {
 				$pdf_dir = self::private_temp_dir();
 				if ( $pdf_dir ) {
 					$file = $pdf_dir . '/tickets-' . $order->public_id . '.pdf';
-					if ( false !== file_put_contents( $file, TicketPdf::render( $pdf_tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) ) ) ) {
-						@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+					if ( TempFiles::put( $file, TicketPdf::render( $pdf_tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) ) ) ) {
 						$attachments[] = $file;
 					}
 				}
@@ -1310,7 +1309,7 @@ final class Orders {
 			} finally {
 				$attachments = array_unique( array_merge( $attachments, (array) ( $mail['attachments'] ?? array() ) ) );
 				foreach ( $attachments as $file ) { wp_delete_file( $file ); }
-				if ( ! empty( $pdf_dir ) && is_dir( $pdf_dir ) ) { @rmdir( $pdf_dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				if ( ! empty( $pdf_dir ) ) { TempFiles::remove_dir( $pdf_dir ); }
 			}
 			self::finish_delivery( $delivery_key, $order_id, (bool) $delivered, count( $issued ) );
 		}
@@ -1401,18 +1400,7 @@ final class Orders {
 
 	/** Creates a fresh directory (0700, random name) in the temp dir; null on failure. */
 	private static function private_temp_dir() {
-		$base = rtrim( (string) get_temp_dir(), '/\\' );
-		for ( $i = 0; $i < 3; $i++ ) {
-			$dir = $base . '/wpcap-' . bin2hex( random_bytes( 12 ) );
-			$old_umask = umask( 0077 );
-			$made = @mkdir( $dir, 0700 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- an existing name is retried.
-			umask( $old_umask );
-			if ( $made ) {
-				@chmod( $dir, 0700 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-				return $dir;
-			}
-		}
-		return null;
+		return TempFiles::private_dir();
 	}
 
 	/**

@@ -138,14 +138,13 @@ final class Service {
 			if ( $use_file ) {
 				// Unguessable private directory per attachment (the pass is a valid ticket); removed at
 				// shutdown at the latest, like InvoicePdf::attach_to_ticket_mail().
-				$dir = trailingslashit( get_temp_dir() ) . 'wpcap-' . bin2hex( random_bytes( 16 ) );
+				$dir = \PassCaptain\TempFiles::private_dir();
 				$file = $dir . '/ticket-' . preg_replace( '/[^A-Za-z0-9_-]/', '', substr( (string) $passes['apple']['serial_number'], 0, 12 ) ) . '.pkpass';
-				if ( @mkdir( $dir, 0700 ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
+				if ( $dir ) {
 					self::$temp_files[] = array( $file, $dir );
 					if ( 1 === count( self::$temp_files ) ) { register_shutdown_function( array( __CLASS__, 'cleanup_temp_files' ) ); }
 				}
-				if ( is_dir( $dir ) && false !== file_put_contents( $file, $passes['apple']['bundle'] ) ) {
-					@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+				if ( $dir && \PassCaptain\TempFiles::put( $file, $passes['apple']['bundle'] ) ) {
 					$files[] = $file;
 					/* translators: %s: file name */
 					$text .= sprintf( __( 'Zu Apple Wallet hinzufügen: Anhang %s öffnen', 'pass-captain' ), basename( $file ) ) . "\n";
@@ -171,8 +170,7 @@ final class Service {
 	public static function cleanup_temp_files() {
 		foreach ( self::$temp_files as $entry ) {
 			list( $file, $dir ) = $entry;
-			if ( is_file( $file ) ) { @unlink( $file ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
-			if ( is_dir( $dir ) ) { @rmdir( $dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors,WordPress.WP.AlternativeFunctions
+			\PassCaptain\TempFiles::remove_with_dir( $file, $dir );
 		}
 		self::$temp_files = array();
 	}
