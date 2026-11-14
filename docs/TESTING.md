@@ -19,20 +19,27 @@ grün sein müssen, steht in [RELEASE.md](RELEASE.md); die unterstützten Plattf
 | Lasttest über REST | `tests/load/http.php` | ja (Wegwerf-WordPress) | nein |
 | Reproduzierbares ZIP, Paketinhalt | `build/release.sh`, `build/ci-install-test.sh` (statisch) | ja | `ci.yml` `package`, blockierend |
 | Installationstest des ZIPs | `build/ci-install-test.sh <zip>` + `build/ci-smoke.php` | ja (Wegwerf-DB) | `ci.yml` `install-test` (WP aktuell/6.4, WooCommerce aktuell/8.2), blockierend |
+| Update von 1.4.0 mit Daten | `WPCAP_IT_UPGRADE_FROM=<commit> build/ci-install-test.sh <zip>` + `build/ci-data.php` | ja (Wegwerf-DB) | `ci.yml` `install-test`, Bein „Update from 1.4.0“, blockierend |
+| Deinstallation (Daten behalten / entfernen) | `build/ci-install-test.sh` (Schritt 5) | ja (Wegwerf-DB) | `ci.yml` `install-test`, alle Beine, blockierend |
+| Restore-Probe (Backup → Zerstörung → Restore → Diagnose) | `tests/drills/restore-drill.sh` | ja (Wegwerf-DB) | `drills.yml` wöchentlich + manuell, MariaDB 11.4 / MySQL 8.0 / 8.4 |
 | WordPress.org Plugin Check | `wordpress/plugin-check-action` | – | `ci.yml` `plugin-check`, blockierend |
 | Release-Gate-Skript | `tests/release/verify-release.test.sh` | ja | **nein** (nur das Skript selbst läuft in `release.yml`) |
-| JS-Unit-Tests | `tests/js` (`npm test`) | ja | **nein** (Einstieg `tests/ci/browser-tests.sh js` vorhanden) |
-| Barrierefreiheit (Gate) | `tests/a11y/gate.sh` | ja (Wegwerf-WordPress) | **nein** (Einstieg `tests/ci/browser-tests.sh a11y` vorhanden) |
-| Browser-E2E (Chromium) | `tests/e2e/run.sh` | ja (Wegwerf-WordPress) | **nein** (Einstieg `tests/ci/browser-tests.sh e2e` vorhanden) |
+| JS-Unit-Tests | `tests/js` (`npm test`) | ja | `ci.yml` `php` (Bein PHP 8.4), blockierend |
+| Barrierefreiheit (Gate) | `tests/a11y/gate.sh` | ja (Wegwerf-WordPress) | `ci.yml` `browser` (Bein chromium), blockierend |
+| Browser-E2E Desktop | `tests/e2e/run.sh` (`WPCAP_E2E_BROWSER`) | ja (Wegwerf-WordPress) | `ci.yml` `browser`: Chromium (+ WooCommerce Blocks), Firefox, WebKit, blockierend |
+| Browser-E2E Mobil-Emulation | `WPCAP_E2E_DEVICE="Pixel 7"` / `"iPhone 14"` | ja | `ci.yml` `browser`: Pixel 7 (Chromium), iPhone 14 (WebKit) – Checkout, Portal, Offline-Kopplung, blockierend |
 
-**Wichtig:** Die Browser-Suiten (JS, a11y, E2E) und der Shell-Test des Release-Gates sind derzeit in keinem
-Workflow eingebunden. Sie sind deshalb vor jedem Release manuell auszuführen und im Freigabeprotokoll zu
-vermerken ([RELEASE.md](RELEASE.md)). Ein CI-Job mit `tests/ci/browser-tests.sh all` ist vorbereitet, aber
-noch nicht angelegt.
+Nicht in CI: der Shell-Test des Release-Gates (`tests/release/verify-release.test.sh`), der erweiterte Lauf
+`run-slow.sh` und alles mit echten Geräten, Zahlungsanbietern oder Screenreadern ([RELEASE.md](RELEASE.md)).
 
 Stand 14.11.2026 (lokal, PHP 8.3, MariaDB 10.11): Integration **2303/2303**, JS **56/56**, E2E **11/11**
 (Chromium, WooCommerce 11.3 für den Blocks-Test), Release-Gate-Test **28/28**, a11y-Gate bestanden (53 Seiten,
 0 Verstöße), Lizenz-Wächter: 235 ausgelieferte Dateien ohne Befund.
+
+Stand 14.11.2026, Browser-Matrix und Betriebsproben (lokal, WordPress 7.1, Playwright 1.63; Firefox 155 und
+WebKit 26 aus dem offiziellen Playwright-Image über `playwright run-server`): E2E Chromium/Firefox/WebKit je
+**10/10** (ohne WooCommerce-Blocks), Pixel 7 und iPhone 14 je **8/8**; Installationstest mit Update von 1.4.0
+und Deinstallation bestanden; Restore-Probe bestanden auf MariaDB 10.11, MySQL 8.0 und 8.4.
 
 ## Gemeinsame Voraussetzungen
 
@@ -230,8 +237,23 @@ Repository einer Organisation, braucht die gitleaks-Action das Secret `GITLEAKS_
   `GET /wp-pass-captain/v1/events`, QR-Code; mit WooCommerce HPOS-Kompatibilität und eine Woo-Bestellung über den
   aktiven Speicher – mit HPOS an und aus, danach Deaktivieren/Aktivieren und erneuter Smoke-Check.
   CI-Matrix: WordPress aktuell (PHP 8.4) und 6.4 (PHP 8.2), WooCommerce aktuell (PHP 8.4) und 8.2.0 (PHP 8.2),
-  Datenbank MariaDB 11.4. Variablen: `WPCAP_IT_DB_*`, `WPCAP_IT_WP_VERSION`, `WPCAP_IT_WC_VERSION`,
-  `WPCAP_IT_WP_CORE_DIR`/`WPCAP_IT_WC_ZIP` (lokale Quellen), `WPCAP_IT_KEEP=1`.
+  Update von 1.4.0 (PHP 8.4), Datenbank MariaDB 11.4. Variablen: `WPCAP_IT_DB_*`, `WPCAP_IT_WP_VERSION`,
+  `WPCAP_IT_WC_VERSION`, `WPCAP_IT_WP_CORE_DIR`/`WPCAP_IT_WC_ZIP` (lokale Quellen), `WPCAP_IT_UPGRADE_FROM`/
+  `WPCAP_IT_UPGRADE_FROM_ZIP`, `WPCAP_IT_SKIP_UNINSTALL=1`, `WPCAP_IT_KEEP=1`.
+- **Update-Pfad** (`WPCAP_IT_UPGRADE_FROM=<git-ref>`, in CI der Release-Commit von 1.4.0 `90c972a`): das ZIP der
+  Vorversion wird aus diesem Commit gebaut (wie dessen `release.sh`: `git archive`, `composer --no-dev`,
+  `.distignore`; bis 1.4 als `wp-pass-captain/wp-pass-captain.php`), installiert und aktiviert;
+  `build/ci-data.php seed` legt mit der alten Version Daten an (kostenlose und bezahlte Bestellung, Tickets,
+  Check-in, externe Erstattung, offene Reservierung, geplanter Job), „Daten beim Löschen entfernen“ wird
+  eingeschaltet. Danach `wp plugin install <neues zip> --activate`: die neue Kopie übernimmt die Aktivierung (genau
+  ein Eintrag in `active_plugins`, Deaktivieren funktioniert), Schema auf aktueller `DB_VERSION` (Smoke-Check),
+  keine PHP-Fehler, Geschäftsdaten unverändert (Snapshot von zehn Tabellen) und konsistent (`invariants`);
+  das Löschen der alten Kopie entfernt keine Daten.
+- **Deinstallation** (jedes Bein): mit Standardeinstellungen `wp plugin deactivate` + `wp plugin uninstall` →
+  alle Tabellen, Einstellungen, Schema-Version und Rollen bleiben, nur die Cron-Ereignisse sind weg; erneutes
+  Installieren findet die Daten unverändert wieder. Mit `delete_data_on_uninstall=1` bleiben keine Tabellen,
+  Optionen/Transients `wpcap_*`, Rollen, Administrator-Rechte, User-Meta oder Cron-Ereignisse übrig
+  (`uninstall.php`).
 - **Plugin Check:** das offizielle WordPress.org-Werkzeug (`wordpress/plugin-check-action@v1`) prüft genau die
   Dateien des CI-ZIPs.
 
@@ -308,27 +330,100 @@ eine Fake-Zahlungsseite (Cookie `wpcap_e2e=1`).
 ```bash
 tests/e2e/run.sh                                        # startet die Testseite selbst
 WPCAP_WOO_ZIP=/pfad/woocommerce.zip tests/e2e/run.sh    # + WooCommerce-Blocks auf einer zweiten Testseite
-WPCAP_E2E_BROWSER=firefox tests/e2e/run.sh              # andere Engine (Browser vorher installieren)
+WPCAP_E2E_BROWSER=firefox tests/e2e/run.sh              # andere Engine (npx playwright install --with-deps firefox)
+WPCAP_E2E_BROWSER=webkit WPCAP_E2E_DEVICE="iPhone 14" tests/e2e/run.sh checkout.test.js portal.test.js offline-scanner.test.js
 ```
+
+**Engines und Geräte.** `WPCAP_E2E_BROWSER=chromium|firefox|webkit`; `WPCAP_E2E_DEVICE` übernimmt einen
+Playwright-Geräteeintrag (Viewport, User-Agent, Touch, `isMobile`, Pixeldichte) und muss zur Engine passen
+(„Pixel 7“ → chromium, „iPhone 14“ → webkit). Unter Mobil-Emulation prüfen Checkout, Portal und PWA zusätzlich,
+dass die Seite bei Gerätebreite nicht horizontal scrollt (`assertFitsViewport`). Emulation ersetzt keine echten
+Geräte (Kamera, PWA-Installation, Hintergrund-Sync bleiben manuell).
+
+**Fake-Kamera je Engine** (Scanner-Test „Kamera erlaubt“ läuft auf allen drei):
+
+| Engine | ohne Berechtigung | „erlaubt“ |
+|---|---|---|
+| Chromium | `--use-fake-device-for-media-stream`, ohne Freigabe `NotAllowedError` | `grantPermissions(['camera'])` |
+| WebKit | Mock-Kamera vorhanden, ohne Freigabe `NotAllowedError` | `grantPermissions(['camera'])` |
+| Firefox | keine Kamera (`NotFoundError` → Meldung „keine Kamera“); `grantPermissions('camera')` wird nicht unterstützt | zweite Firefox-Instanz mit `media.navigator.streams.fake` + `media.navigator.permission.disabled` (browserweit, daher eigene Instanz) |
+
+**Browser aus einem Container** (wenn `npx playwright install` lokal nicht möglich ist): Die Tests laufen auf
+dem Host (PHP-Helfer, Testseite), nur der Browser im offiziellen Image, das sich per Host-Netz mit der Testseite
+verbindet. `--unsafe` erlaubt die Startoptionen der Tests (Chromium-Flags, Firefox-Prefs); nur lokal verwenden:
+
+```bash
+docker run --rm --network host mcr.microsoft.com/playwright:v1.63.0-noble \
+  npx -y playwright@1.63.0 run-server --port 3000 --host 127.0.0.1 --unsafe
+WPCAP_E2E_WS_ENDPOINT=ws://127.0.0.1:3000/ WPCAP_E2E_BROWSER=webkit tests/e2e/run.sh
+```
+
+**CI** (`ci.yml`, Job `browser`, Matrix): `chromium` (a11y-Gate + alle E2E inkl. WooCommerce-Blocks gegen
+echtes WooCommerce), `firefox`, `webkit` (alle E2E außer WooCommerce-Blocks, der ohne `WPCAP_WOO_ZIP`
+übersprungen wird), `Pixel 7, chromium` und `iPhone 14, webkit` (Checkout, Portal, Offline-Kopplung).
+Playwright ist gepinnt (`PLAYWRIGHT_VERSION`), Browser kommen aus `npx playwright install --with-deps <browser>`.
+Screenshots fehlgeschlagener Tests als Artefakt `e2e-artifacts-<bein>`.
 
 | Datei | Ablauf |
 |---|---|
 | `checkout.test.js` | Bezahlte Bestellung über Fake-Zahlung → 2 Tickets, Namen im Portal; kostenlose Bestellung; Fehlerzusammenfassung |
 | `portal.test.js` | Teilnehmerzuweisung, erneuter Versand mit Dialog, einmalige Übertragung |
-| `scanner.test.js` | Kamera verweigert → Meldung, manueller Code checkt ein, zweiter Scan abgelehnt; Fake-Kamera → Video läuft |
+| `scanner.test.js` | Video vor dem Start verborgen; Kamera verweigert/fehlt → Meldung, manueller Code checkt ein, zweiter Scan abgelehnt; Fake-Kamera → Video läuft (alle Engines) |
 | `offline-scanner.test.js` | PWA: Kopplung, signiertes Paket, Scan offline → lokale Entscheidung + Warteschlange, Doppelscan abgelehnt, Sync nach Reconnect |
 | `woocommerce-blocks.test.js` | Blocks-Checkout mit Teilnehmer-Fieldset, ungültige E-Mail blockiert, Angaben am Woo-Auftrag (ohne `WPCAP_WOO_ZIP` übersprungen) |
+
+## Restore-Probe (`tests/drills/restore-drill.sh`)
+
+Automatisierte Backup/Restore-Probe aus [OPERATIONS.md](OPERATIONS.md#backuprestore-und-upgrade) gegen eine
+Wegwerf-WordPress-Installation mit dem Plugin aus dem Arbeitsverzeichnis (Symlink, WP-CLI). **Alle Tabellen der
+angegebenen Datenbank werden gelöscht.**
+
+1. Daten: `build/ci-data.php seed` (Bestellungen, Tickets, Check-in, Erstattung, offene Reservierung, Job) und
+   `tests/drills/drill.php inflight` – Arbeit, die beim Backup „unterwegs“ ist: bezahlte Bestellung, deren
+   Ausstellung nach dem Zahlungs-Commit abbrach (Ausstellungs-Job wartet), eine mit abgebrochenem Worker
+   (hängender Claim), eine abgelaufene, nicht bereinigte Reservierung. Diagnose meldet genau diese Befunde.
+2. Backup: Dump der ganzen Datenbank (`--single-transaction`) und Snapshot der Geschäftsdaten.
+3. Schreibvorgänge nach dem Backup (Bestellung, Erstattung, Check-in, Job-Lauf), dann Zerstörung (`DROP TABLE`
+   Tickets, `TRUNCATE` Bestellungen, Schema-Version gelöscht).
+4. Restore in die geleerte Datenbank: Snapshot gleich, Ticketcodes von vor dem Backup gültig, Diagnose wie vor
+   dem Backup.
+5. Wiederherstellung wie dokumentiert: `wp pass-captain diagnose --repair-all`, Cron (`wpcap_process_jobs`,
+   `wpcap_cleanup_reservations`), `wp pass-captain diagnose --strict` ohne Befund, Invarianten
+   (`build/ci-data.php invariants`: keine doppelten Codes/Einlässe/Erstattungen/Job-Schlüssel, keine Waisen,
+   keine bezahlte Bestellung ohne Tickets, keine gültigen Tickets unbezahlter Bestellungen, kein Überverkauf).
+6. Idempotenz: Reparatur und Cron erneut, und nach einem zweiten Restore desselben Dumps zweimal – keine
+   Datenänderung, keine weitere Mail (Mails werden per mu-plugin gezählt, nie verschickt), jede abgebrochene
+   Bestellung hat genau ihre Ticketzahl.
+
+```bash
+WPCAP_DRILL_DB_NAME=wp_drill tests/drills/restore-drill.sh                 # lokaler Server, mariadb-dump/mysqldump
+WPCAP_DRILL_DB_PORT=3391 WPCAP_DRILL_CLIENT_PORT=3306 \
+WPCAP_DRILL_DUMP="docker exec -i mysql84 mysqldump" WPCAP_DRILL_MYSQL="docker exec -i mysql84 mysql" \
+  tests/drills/restore-drill.sh                                              # Werkzeuge aus dem DB-Container
+```
+
+Variablen: `WPCAP_DRILL_DB_HOST/_PORT/_USER/_PASS/_NAME`, `WPCAP_DRILL_DUMP`, `WPCAP_DRILL_MYSQL`,
+`WPCAP_DRILL_CLIENT_HOST/_PORT` (Sicht aus dem Container), `WPCAP_DRILL_WP_CORE` oder `WPCAP_DRILL_WP_VERSION`,
+`WPCAP_DRILL_WP_CLI`, `WPCAP_DRILL_WORK`, `WPCAP_DRILL_KEEP=1`. Laufzeit lokal etwa eine Minute.
+
+**CI:** `drills.yml` montags 04:41 UTC und manuell auf MariaDB 11.4, MySQL 8.0 und 8.4; Dump und Import mit den
+Werkzeugen des Datenbank-Containers (Client = Server-Version). Bei Fehlschlag Protokoll, Snapshots und
+`debug.log` als Artefakt.
 
 ## Ausstehend
 
 - **Nächtlicher erweiterter Lauf** `tests/integration/run-slow.sh` (W6) ist in keinem Workflow eingebunden.
-- **CI-Einbindung** von `tests/ci/browser-tests.sh all` (JS, a11y, E2E) und `tests/release/verify-release.test.sh`.
-- **Browser:** E2E läuft nur mit **Chromium**. Firefox und WebKit (`WPCAP_E2E_BROWSER`; Fake-Kamera-Prüfung
-  dort übersprungen) sowie echte Geräte **iOS Safari** und **Android Chrome** (Kamera-Berechtigung,
-  BarcodeDetector vs. jsQR, PWA-Installation, Offline-Modus, Hintergrund-Sync) – manuell oder über einen
-  Gerätedienst.
+- **CI-Einbindung** von `tests/release/verify-release.test.sh`.
+- **Echte Geräte:** E2E läuft in Chromium, Firefox und WebKit sowie mit Pixel-7-/iPhone-14-Emulation; echte
+  Geräte **iOS Safari** und **Android Chrome** (Kamera mit echtem QR-Code, BarcodeDetector vs. jsQR,
+  PWA-Installation, Hintergrund-Sync) bleiben manuell oder über einen Gerätedienst. Der QR-Decoder selbst wird
+  in keiner Engine mit einem echten Kamerabild geprüft (Fake-Kameras liefern ein Testbild).
+- **a11y-Gate** nur in Chromium (axe-Ergebnisse sind engine-unabhängig; Tastaturverhalten in Firefox/Safari
+  deckt die Screenreader-Abnahme ab).
 - **Echte Zahlungsanbieter:** Stripe, PayPal und Mollie sind nur gegen nachgebaute APIs getestet; Abnahme gegen
   die Sandboxes (Zahlung, Webhook, Teil-/Vollerstattung) ist manuell ([RELEASE.md](RELEASE.md)).
-- **WooCommerce-Checkout E2E in CI:** Der Blocks-Test läuft nur lokal mit `WPCAP_WOO_ZIP`; der klassische
-  Checkout und ein Durchlauf in einem echten Shop (Theme, Zahlungs-Plugins) fehlen.
+- **WooCommerce-Checkout E2E:** Der Blocks-Test läuft in CI (Bein chromium) gegen das aktuelle WooCommerce; der
+  klassische Checkout und ein Durchlauf in einem echten Shop (Theme, Zahlungs-Plugins) fehlen.
+- **Update-Pfad** nur von 1.4.0 ohne WooCommerce und ohne Multisite; Updates mit WooCommerce-Bestellungen und
+  über mehrere Versionen deckt die Integrationssuite mit Schema-Fixtures ab (`zzzz_w6_upgrade.php`).
 - **Weitere Dienste:** Apple/Google Wallet, Twilio, Fiskaldienste nur mit Fakes getestet.

@@ -51,6 +51,26 @@ Das Plugin legt keine eigenen Dateien im Upload-Verzeichnis ab.
 Die Restore-Probe ist Teil der Release-Abnahme ([RELEASE.md](RELEASE.md)) und sollte auch im Betrieb
 regelmäßig (z. B. vierteljährlich) auf einer Staging-Site geübt werden.
 
+**Automatisierte Restore-Probe** (`tests/drills/restore-drill.sh`, wöchentlich in `.github/workflows/drills.yml`
+auf MariaDB 11.4, MySQL 8.0 und 8.4; Details in [TESTING.md](TESTING.md#restore-probe-testsdrillsrestore-drillsh)):
+Sie spielt genau diesen Ablauf in einer Wegwerf-Installation durch – Daten inklusive Arbeit, die beim Backup
+„unterwegs“ ist (bezahlte Bestellung, deren Ticketausstellung abbrach; hängender Job-Claim; nicht bereinigte
+Reservierung), Dump mit `--single-transaction`, Schreibvorgänge nach dem Backup, Zerstörung, Restore, dann
+Schritt 4 (`diagnose --repair-all`, Cron, `diagnose --strict`) – und prüft, dass
+
+- der Datenstand exakt dem Backup entspricht und Ticketcodes von vor dem Backup wieder gelten,
+- die Diagnose nach dem Restore dieselben Befunde wie vor dem Backup zeigt und nach der Reparatur keine mehr,
+- keine doppelten Tickets, Einlässe, Erstattungen oder Job-Schlüssel, keine verwaisten Reservierungen, keine
+  bezahlte Bestellung ohne Tickets und keine gültigen Tickets unbezahlter Bestellungen entstehen,
+- ein erneuter Lauf der wartenden Jobs und Reparaturen (auch nach einem zweiten Restore desselben Dumps)
+  nichts mehr ändert und niemandem eine zweite Mail schickt.
+
+Für die eigene Staging-Probe eignet sich dasselbe Skript gegen eine **leere Wegwerf-Datenbank**
+(`WPCAP_DRILL_DB_NAME=…`; es löscht alle Tabellen darin); `wp pass-captain diagnose --strict` und
+`wp eval-file build/ci-data.php invariants` (aus dem Repository, nicht im Plugin-ZIP) lassen sich auch nach einem
+echten Restore auf Staging ausführen. Was die automatische Probe nicht ersetzt: Restore der Plugin-Dateien und von
+`wp-config.php`/Vault-Schlüssel, Abgleich mit dem Zahlungsanbieter (Schritt 5) und Offline-Scanner.
+
 ## Schema-Upgrade nach einem Update
 
 Das Datenbank-Upgrade (`dbDelta` für alle Kern- und Modultabellen) läuft nicht mehr bei jedem Seitenaufruf:

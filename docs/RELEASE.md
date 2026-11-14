@@ -10,7 +10,9 @@ Versionsregeln: [SUPPORT.md](SUPPORT.md).
 1. **Vorbereiten** (Release-Branch oder PR auf `main`): Version in Plugin-Header (`Version`), `WPCAP_VERSION`,
    `readme.txt` (`Stable tag`, `Changelog`, `Upgrade Notice`) und neuester Abschnitt in `CHANGELOG.md`
    setzen; `Tested up to` / `WC tested up to` und die Basislinie in [COMPATIBILITY.md](COMPATIBILITY.md)
-   aktualisieren. Lokal: `bash build/check-versions.sh vX.Y.Z`.
+   aktualisieren. Lokal: `bash build/check-versions.sh vX.Y.Z`. Nach jeder Veröffentlichung im Bein
+   „Update from …“ des Jobs `install-test` (`ci.yml`, `upgrade_from`) den Release-Commit der gerade
+   veröffentlichten Version eintragen, damit das nächste Release den Update-Pfad von seiner Vorgängerversion prüft.
 2. **Manuelle Gates** (unten) gegen genau den Commit ausführen, der veröffentlicht werden soll, und im
    Freigabeprotokoll festhalten.
 3. **Merge auf `main`**. `ci.yml` läuft für den Merge-Commit.
@@ -42,32 +44,45 @@ Der Release-Workflow bricht ab, wenn eines davon nicht erfüllt ist:
   MySQL 8.0/8.4;
 - Paketinhalt und **Installationstest** des ZIPs (WordPress aktuell und 6.4, WooCommerce aktuell und 8.2,
   HPOS an/aus);
+- **Update von der Vorgängerversion** (derzeit 1.4.0, aus ihrem Release-Commit gebaut) mit Daten: Übernahme der
+  Aktivierung, Schema-Upgrade auf die aktuelle `DB_VERSION`, Daten unverändert und konsistent, keine PHP-Fehler,
+  Löschen der alten Kopie entfernt keine Daten (`install-test`, Bein „Update from 1.4.0“);
+- **Deinstallation**: Daten bleiben mit Standardeinstellungen erhalten und werden nach Neuinstallation
+  wiedergefunden; mit „Daten beim Löschen entfernen“ bleibt nichts übrig (alle `install-test`-Beine);
+- **JS-Unit-Tests** (`php`, PHP 8.4), **a11y-Gate** (axe über alle Admin-Screens + Tastatur, Chromium) und
+  **Browser-E2E** in Chromium, Firefox und WebKit (Checkout, Portal, Web-Scanner inkl. Fake-Kamera,
+  Offline-PWA; WooCommerce Blocks in Chromium) sowie Mobil-Emulation Pixel 7 und iPhone 14 für Checkout,
+  Portal und Offline-Kopplung (`browser`);
 - **Plugin Check** (WordPress.org) gegen die ZIP-Dateien.
 
-## Manuelle Gates (nicht in CI, Pflicht vor jedem Release)
+## Geplante und manuelle Gates (nicht im CI-Lauf des Commits, Pflicht vor jedem Release)
 
-Diese Suiten existieren, laufen aber in keinem Workflow (Stand 14.11.2026). Ergebnis mit Commit-SHA im
-Protokoll festhalten:
+Ergebnis mit Commit-SHA bzw. Lauf-URL im Protokoll festhalten:
 
-- [ ] **a11y-Gate**: `tests/a11y/gate.sh` – 0 Verstöße, alle Seiten HTTP 200, Tastaturprüfung bestanden.
-- [ ] **Browser-E2E** (Chromium): `WPCAP_WOO_ZIP=… tests/e2e/run.sh` – alle Tests grün, inkl.
-      WooCommerce-Blocks.
-- [ ] **JS-Unit-Tests**: `cd tests/js && npm test`.
-- [ ] **Release-Gate-Test**: `bash tests/release/verify-release.test.sh` (nur bei Änderungen an
-      `build/verify-release.sh` oder `release.yml` zwingend).
 - [ ] **Lasttest** `default` (bei Änderungen an Checkout, Einlass, Webhooks oder Schema zusätzlich `heavy`):
       letzter Lauf von `load.yml` nicht älter als eine Woche und grün, oder manuell auslösen; Latenzen mit den
       Referenzwerten in [TESTING.md](TESTING.md) vergleichen.
+- [ ] **Restore-Probe**: letzter Lauf von `drills.yml` (MariaDB 11.4, MySQL 8.0/8.4) nicht älter als eine Woche
+      und grün, bei Änderungen an Schema, Jobs, Ausstellung oder Diagnose für den Release-Commit manuell
+      auslösen (`workflow_dispatch`); lokal `tests/drills/restore-drill.sh`.
+- [ ] **Release-Gate-Test**: `bash tests/release/verify-release.test.sh` (nur bei Änderungen an
+      `build/verify-release.sh` oder `release.yml` zwingend).
+
+Seit 14.11.2026 automatisch in `ci.yml` und daher nicht mehr manuell: a11y-Gate, Browser-E2E (jetzt drei
+Engines + Mobil-Emulation, inkl. WooCommerce Blocks), JS-Unit-Tests, Update von der Vorgängerversion,
+Deinstallation.
 
 ## Manuelle Abnahme
 
 Gegen ein Staging-System mit dem Release-ZIP (nicht dem Arbeitsverzeichnis):
 
-**Browser und Geräte**
+**Browser und Geräte** (Engines Chromium/Firefox/WebKit und Mobil-Emulation laufen automatisch, siehe oben)
 
-- [ ] Desktop: aktuelles Chrome, Firefox, Safari, Edge – Checkout, Bestellportal, Ticketseite, Admin.
-- [ ] Mobil: iOS Safari und Android Chrome – Checkout, Ticketseite/Wallet, Web-Scanner (Kamera-Berechtigung,
-      BarcodeDetector bzw. jsQR-Fallback), Offline-Scanner-PWA (Installation, Offline-Scan, Sync).
+- [ ] Desktop-Stichprobe in echten Browsern, die CI nicht abdeckt: Safari (macOS) und Edge – Checkout,
+      Ticketseite und Admin-Screens (Admin wird automatisch nur in Chromium geprüft).
+- [ ] Mobil, echte Geräte: iOS Safari und Android Chrome – Checkout, Ticketseite/Wallet, Web-Scanner mit
+      echter Kamera und echtem QR-Code (Kamera-Berechtigung, BarcodeDetector bzw. jsQR-Fallback),
+      Offline-Scanner-PWA (Installation, Offline-Scan, Sync, Hintergrund).
 - [ ] Scanner-Hardware: mindestens ein Handscanner (Tastatur-Emulation) und ein Gerät mit Kopplung über
       die Mobile-API; Offline-Konflikt mit zwei Geräten.
 
@@ -88,14 +103,12 @@ Gegen ein Staging-System mit dem Release-ZIP (nicht dem Arbeitsverzeichnis):
       Storno, (Teil-)Erstattung; HPOS an und aus.
 - [ ] Gemischter Warenkorb mehrerer Rechnungssteller (Richtlinie `reject` und `split`).
 
-**Upgrade und Wiederherstellung**
+**Upgrade und Wiederherstellung** (Update von der Vorgängerversion, Deinstallation und Restore-Probe laufen
+automatisch, siehe oben)
 
-- [ ] Upgrade von der **vorherigen veröffentlichten Version** mit realistischem Datenbestand (Bestellungen,
-      Tickets, Einlässe, Servicebuchungen, Wartelisten): Schema-Upgrade ohne Fehler (Systemstatus →
+- [ ] Staging-Upgrade mit einer Kopie des Produktionsbestands (Datenvolumen, Servicebuchungen, Wartelisten,
+      WooCommerce-Bestellungen, eigene Template-Überschreibungen): Schema-Upgrade ohne Fehler (Systemstatus →
       Datenbankschema), Queues laufen, Checkout und Check-in funktionieren.
-- [ ] **Backup/Restore-Probe**: Sicherung vor dem Upgrade zurückspielen (Dateien + Datenbank als ein Stand,
-      [OPERATIONS.md](OPERATIONS.md#backuprestore-und-upgrade)), danach erneut upgraden;
-      `wp pass-captain diagnose --strict` ohne Befund.
 - [ ] Multisite: Netzwerkaktivierung, Netzwerkübersicht, Upgrade aller Sites.
 - [ ] Übersetzungen: `.mo`-Dateien aktuell, Stichprobe en_US.
 
@@ -108,13 +121,14 @@ CI-Lauf (URL):      ________________________________________
 ZIP sha256:         ________________________________________
 Vorgängerversion für Upgrade-Test: vX.Y.Z
 
-Automatische Gates (CI grün für SHA):            [ ] ja
-a11y-Gate / E2E / JS / Lasttest:                 [ ] / [ ] / [ ] / [ ]   (Datum, Ausführende)
-Browser Desktop / Mobil / Scanner:               [ ] / [ ] / [ ]
+Automatische Gates (CI grün für SHA, inkl. a11y,
+  E2E-Browsermatrix, Update, Deinstallation):     [ ] ja
+Lasttest / Restore-Probe (Lauf-URL, Datum):      [ ] / [ ]
+Browser Safari+Edge / echte Mobilgeräte / Scanner: [ ] / [ ] / [ ]
 Screenreader:                                    [ ]
 PSP-Sandbox Stripe / PayPal / Mollie:            [ ] / [ ] / [ ]
 WooCommerce Classic / Blocks (echter Shop):      [ ] / [ ]
-Upgrade + Backup/Restore-Probe:                  [ ]
+Staging-Upgrade mit Produktionskopie:            [ ]
 
 Bekannte Einschränkungen / Abweichungen:
 - ...
