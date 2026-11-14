@@ -589,7 +589,7 @@ Gesamt: 262 Aufgaben.
   - assets/scanner.js:381, 413–419, 426, 430 (submitToken): Feld nur nach Erfolg geleert; Tastatur-Scanner sendet T1T2, normalize_code nimmt T1 (mit Playwright nachgestellt). Feld nach jedem Ergebnis leeren, Sperr-Treffer verwerfen und melden
 - [ ] **A272** [KRITISCH] Unklarer Ausgang eines Erstattungsaufrufs als „fehlgeschlagen“ gespeichert → doppelte Erstattung — _R2 API_ (TODO L578; Audit Runde 4)
   - src/Refunds.php:305–311 (execute), StripeGateway.php:114–140, PayPalGateway.php:178–195, MollieGateway.php:278–296: Timeout/5xx/409 als „unbekannt“ (processing ohne Referenz) behandeln, über Metadatum wpcap_refund per Webhook/GET abgleichen
-- [ ] **A273** [KRITISCH] Späte Zahlung stellt gültige Tickets für abgesagte oder vergangene Termine aus — _R2 Eigen_ (TODO L579; Audit Runde 4)
+- [x] **A273** [KRITISCH] Späte Zahlung stellt gültige Tickets für abgesagte oder vergangene Termine aus — _R2 Eigen_ (TODO L579; Audit Runde 4)
   - src/Orders.php:1031–1078 (confirm_external_payment), OccurrenceCancellation.php:54: Nur Kontingent geprüft; Absage storniert nur pending. Termin-/Eventstatus und Ende prüfen → needs_review + Alarm; Absage auch für expired-Bestellungen (mit Skript belegt)
 - [ ] **A274** [WICHTIG] Einstellung „Stripe-Modus Test/Live“ wirkungslos — _R1 Core_ (TODO L580; Audit Runde 4)
   - src/Settings.php:58, SettingsPage.php:110, StripeGateway.php: Live + sk_test_ → Tickets ohne echte Zahlung. Key-Präfix gegen Modus prüfen (Speichern, is_available), Webhook livemode abgleichen; PayPal-Sandbox-Standard; Testmodus im Admin/Checkout kennzeichnen
@@ -609,7 +609,7 @@ Gesamt: 262 Aufgaben.
   - src/HelpCode.php:184–186 (resolve): Site-Bucket wird vor User-Limit gezählt. Erst User/Client prüfen, Site-Bucket nur bei erlaubten Requests oder je Event
 - [ ] **A282** [WICHTIG] Mollie-API-Aufruf beim Rendern der öffentlichen Eventliste — _R1 Architektur_ (TODO L588; Audit Runde 4)
   - src/Modules/Mollie.php:94–106, MollieGateway.php:155–169, :309: Synchroner wp_remote_get je Karte/Betrag, 15 s Timeout, kein Negativ-Cache. Methoden je Währung im Hintergrund laden, Fehler kurz cachen
-- [ ] **A283** [WICHTIG] Ticketseite und Bestellportal ohne DONOTCACHEPAGE/nocache_headers — _R1 Architektur_ (TODO L589; Audit Runde 4)
+- [x] **A283** [WICHTIG] Ticketseite und Bestellportal ohne DONOTCACHEPAGE/nocache_headers — _R1 Architektur_ (TODO L589; Audit Runde 4)
   - src/TicketPage.php:50–53, OrderPortal.php:38–41: Seitencaches liefern alte Tickets/Portaldaten/Nonces. DONOTCACHEPAGE + nocache_headers() (auch 404-Zweig)
 - [ ] **A284** [WICHTIG] uninstall.php entfernt WooCommerce-_wpcap_*-Metadaten nicht — _R1 Architektur_ (TODO L590; Audit Runde 4)
   - uninstall.php:17–50, OrderAdapter.php:38–44, :721–760: Nach Neuinstallation zeigen alte WC-Bestellungen auf fremde neue Bestellungen (Storno/Erstattung falsch). Meta per CRUD löschen, Rückreferenz beim Sync prüfen
@@ -749,15 +749,15 @@ Gesamt: 262 Aufgaben.
   - src/Modules/Mollie.php:22, MollieGateway.php:222–251: authorized per Capture-API behandeln oder Methoden entfernen
 - [ ] **A352** [WICHTIG] Kein Abgleich-Job Anbieter ↔ lokaler Stand (processing/failed/pending) — _R2 API_ (TODO L658; Audit Runde 4)
   - Payments/*, Refunds.php: Reconciliation je Anbieter über wpcap_refund/wpcap_order-Metadaten (blinder Fleck)
-- [ ] **A353** [WICHTIG] Rabattcode-Limit durch späte Zahlung umgangen — _R2 Eigen_ (TODO L659; Audit Runde 4)
+- [x] **A353** [WICHTIG] Rabattcode-Limit durch späte Zahlung umgangen — _R2 Eigen_ (TODO L659; Audit Runde 4)
   - src/Orders.php:1559 (expire_holds → release_for_order), Campaigns.php:162 (commit_for_order): Bei später Zahlung Code unter Sperre neu einlösen, sonst needs_review (belegt)
 - [ ] **A354** [WICHTIG] Auto-Erstattung bei Terminabsage scheitert bei jedem eingecheckten Ticket bzw. Rolle ohne Recht/2FA — _R2 Eigen_ (TODO L660; Audit Runde 4)
   - src/OccurrenceCancellation.php:122, Passes/Cancellation.php:165: system/allow_used übergeben, Wiederholungsjob (belegt)
-- [ ] **A355** [WICHTIG] DSGVO-Löschung anonymisiert Bestellung mit offener Zahlung – spätere Tickets an Platzhalter — _R2 Eigen_ (TODO L661; Audit Runde 4)
+- [x] **A355** [WICHTIG] DSGVO-Löschung anonymisiert Bestellung mit offener Zahlung – spätere Tickets an Platzhalter — _R2 Eigen_ (TODO L661; Audit Runde 4)
   - src/Privacy.php:296–307, :403: Offene Bestellungen vorher stornieren oder Löschung zurückstellen (belegt)
 - [ ] **A356** [WICHTIG] Abgesagter Termin lässt sich wieder auf „Geplant“ setzen; widerrufene Tickets blockieren Kontingent — _R2 Eigen_ (TODO L662; Audit Runde 4)
   - src/Admin/EventsPage.php:190, :918: cancelled → scheduled serverseitig ablehnen; eigener Reaktivierungsablauf (belegt)
-- [ ] **A357** [WICHTIG] Nach Widerruf/Umtausch zahlt Erstattung zu viel aus, Bestellung wird nie „erstattet“ — _R2 Eigen_ (TODO L663; Audit Runde 4)
+- [x] **A357** [WICHTIG] Nach Widerruf/Umtausch zahlt Erstattung zu viel aus, Bestellung wird nie „erstattet“ — _R2 Eigen_ (TODO L663; Audit Runde 4)
   - src/Refunds.php:587–589 (calculate), :357–360, :486: Vollständigkeit über Ticketwert; mark_refunded nur valid/checked_in zählen (belegt)
 - [ ] **A358** [WICHTIG] „Bezahlt, ohne Kontingent“ weder erstattbar noch abschließbar — _R2 Eigen_ (TODO L664; Audit Runde 4)
   - src/Refunds.php:48/172, Admin/OrdersPage.php:80: Admin-Aktion „Extern erstattet / abschließen“
@@ -941,7 +941,7 @@ Gesamt: 262 Aufgaben.
 
 ### Audit Runde 5 – Lifecycle, Editor, Multisite/i18n, Caching/CDN, QA, Eigen-Audit (13.11.2026, Snapshot ccf2530)
 
-- [ ] **A446** [KRITISCH] Vorverkaufsstart und Eventänderungen werden nie aus dem Seitencache entfernt (kein Purge) — _R3 Caching_ (TODO L758; Audit Runde 4)
+- [x] **A446** [KRITISCH] Vorverkaufsstart und Eventänderungen werden nie aus dem Seitencache entfernt (kein Purge) — _R3 Caching_ (TODO L758; Audit Runde 4)
   - src/PublicEvents.php:154, :244, Modules/Calendar.php:153/219: Aktion wpcap_purge_page_cache bei allen Event-/Termin-/Ticketart-Änderungen mit Adaptern (WP Rocket, LiteSpeed, W3TC, Cloudflare, Varnish), Cron-Purge zu sales_start/sales_end, Doku
 - [x] **A447** [KRITISCH] Speichern eines Veranstalters löst still alle Event-Verknüpfungen jenseits der ersten 500 Events — _R3 Multisite/i18n/Skalierung_ (TODO L759; Audit Runde 4)
   - src/Partners/AdminPage.php:313–317, Admin/Queries.php:288–292 (LIMIT 500), Partners/Repository.php:263–276 (set_events): Falsches Verkaufsmodell/Rechnungssteller, Aussperrung, fehlende Abrechnung; N+1. AJAX-Suche/Paginierung, set_events als Diff; alle Filter-Dropdowns mit 500er-Grenze prüfen
@@ -1015,7 +1015,7 @@ Gesamt: 262 Aufgaben.
   - src/Rest/Controller.php:630, :566: wpcap_approve_comps + Vier-Augen-Prinzip, Admin-Liste zum Ansehen/Widerrufen
 - [ ] **A482** [WICHTIG] Mitgliedspass-Einlösung ignoriert Kapazität, Terminstatus, Einlassstatistik — _R3 Eigen (Deep Dive 2)_ (TODO L794; Audit Runde 4)
   - src/Memberships.php:51: An Termin binden, scheduled prüfen, Admission-Eintrag, optional Kontingent
-- [ ] **A483** [WICHTIG] Käuferlimit mit verspäteter Zahlung umgehbar (erweitert A353) — _R3 Eigen (Deep Dive 2)_ (TODO L795; Audit Runde 4)
+- [x] **A483** [WICHTIG] Käuferlimit mit verspäteter Zahlung umgehbar (erweitert A353) — _R3 Eigen (Deep Dive 2)_ (TODO L795; Audit Runde 4)
   - src/Allocations/BuyerLimits.php:217, :375: Im recover-Pfad Limit unter Sperre prüfen, sonst needs_review (belegt t3)
 - [ ] **A484** [WICHTIG] Käuferlimit per Plus-Adresse umgehbar — _R3 Eigen (Deep Dive 2)_ (TODO L796; Audit Runde 4)
   - src/Allocations/BuyerLimits.php:96 (normalize_email): +Zusatz für alle Domains entfernen (abschaltbar), Gmail-Punkte als Einstellung (belegt t3)
@@ -1065,9 +1065,9 @@ Gesamt: 262 Aufgaben.
   - assets/offline-scanner/sw.js:8, index.html:13/80–82: Cache-Namen/Asset-URLs an WPCAP_VERSION, fetch no-cache
 - [ ] **A507** [OPTIMIERUNG] Einmalige Geheimnisse (API-Key, Kopplungscode) hängen an Transient zwischen POST und Redirect — _R3 Caching_ (TODO L819; Audit Runde 4)
   - src/Admin/DeveloperKeysPage.php:51/107, Partners/AdminPage.php:113/487, Admin/DevicesPage.php:28/54: Direkt in POST-Antwort rendern oder DB-Zeile mit Löschen-bei-Lesen
-- [ ] **A508** [OPTIMIERUNG] Web-Scanner-Shortcode-Seite ohne DONOTCACHEPAGE — _R3 Caching_ (TODO L820; Audit Runde 4)
+- [x] **A508** [OPTIMIERUNG] Web-Scanner-Shortcode-Seite ohne DONOTCACHEPAGE — _R3 Caching_ (TODO L820; Audit Runde 4)
   - src/PublicEvents.php:378–394: DONOTCACHEPAGE + nocache_headers
-- [ ] **A509** [OPTIMIERUNG] Betriebsdoku ohne CDN-/WAF-/Seitencache-Ausnahmeregeln — _R3 Caching_ (TODO L821; Audit Runde 4)
+- [x] **A509** [OPTIMIERUNG] Betriebsdoku ohne CDN-/WAF-/Seitencache-Ausnahmeregeln — _R3 Caching_ (TODO L821; Audit Runde 4)
   - docs/OPERATIONS.md, SECURITY.md:66, readme.txt: Abschnitt Caching/CDN mit Ausnahmen je Produkt und Webhook-/Wallet-Bot-Ausnahmen
 - [ ] **A510** [OPTIMIERUNG] Deaktivierung verwirft geplante DSGVO-Löschung von Wallet-Registrierungen — _R3 Lifecycle_ (TODO L822; Audit Runde 4)
   - src/Privacy.php:482–484, Plugin.php:169–178: Ausstehende Purges in Tabelle/Option, im Retention-Lauf abarbeiten
@@ -1126,9 +1126,9 @@ Gesamt: 262 Aufgaben.
   - src/Orders.php:152–154, PublicEvents.php:156/362–364, Mobile/Api.php:77: Überall COALESCE(ends_at, starts_at) für „läuft noch“, sales_end bis ends_at; Einlass Tag 2/3 sonst ohne Terminprüfung (belegt)
 - [ ] **A536** [KRITISCH] Warteliste bietet bei Ticketarten mit Pflicht-Teilnehmerfeld nie etwas an — _R4 Eigen (Deep Dive 3)_ (TODO L851; Audit Runde 4)
   - src/Waitlists.php:324, :269, Orders.php:87: Teilnehmerdaten erst auf der Annahmeseite erfassen, Pflichtfelder bei Angebotsanlage überspringen (belegt t1)
-- [ ] **A537** [KRITISCH] Freigegebene Erstattung nach Umtausch: Geld zurück, neues Ticket gültig, Ticketart überverkauft — _R4 Transaktionen/Concurrency_ (TODO L852; Audit Runde 4)
+- [x] **A537** [KRITISCH] Freigegebene Erstattung nach Umtausch: Geld zurück, neues Ticket gültig, Ticketart überverkauft — _R4 Transaktionen/Concurrency_ (TODO L852; Audit Runde 4)
   - src/Refunds.php:602–616 (execution_conflict), :380–391, Exchange/Service.php:167/459: execution_conflict verlangt valid/checked_in; Umtausch/Widerruf/Übertragung bei offener Erstattung sperren (belegt t2)
-- [ ] **A538** [KRITISCH] Widerruf mit Kapazitätsfreigabe und anschließende Erstattung geben den Platz doppelt frei — _R4 Transaktionen/Concurrency_ (TODO L853; Audit Runde 4)
+- [x] **A538** [KRITISCH] Widerruf mit Kapazitätsfreigabe und anschließende Erstattung geben den Platz doppelt frei — _R4 Transaktionen/Concurrency_ (TODO L853; Audit Runde 4)
   - src/Admin/TicketsPage.php:52–54, Refunds.php:388–390, Orders.php:1332: Freigegebene widerrufene Units markieren, in Refunds nur nicht freigegebene abziehen (belegt t3)
 - [x] **A539** [WICHTIG] PWA-Kamera meldet nach 3 s „Bereits verwendet“ für gerade eingelassenen Gast — _R4 Käufer-UX/Einlass_ (TODO L854; Audit Runde 4)
   - assets/offline-scanner/app.js:466/476, tick() :647ff.: lastScan.at bei jedem gleichen Code nachziehen (wie scanner.js:539)
@@ -1202,15 +1202,15 @@ Gesamt: 262 Aufgaben.
   - src/Printing/Templates.php:289, NoShowList.php:27, Reports/Data.php:320–362: Über admission_entries.occurrence_id bzw. Pass-Verknüpfungen bilden
 - [ ] **A574** [WICHTIG] Partner-API: since-Abruf übersieht Widerruf/Erstattung/Übertragung; keine Namen/Antworten — _R4 Eigen (Deep Dive 3)_ (TODO L889; Audit Runde 4)
   - src/Partners/Api.php:238, Installer.php:195–217: updated_at an Tickets, since darauf; Namen/Antworten mit eigenem Scope
-- [ ] **A575** [WICHTIG] Umtausch eines Tickets gibt das gesamte Kontingent der Bestellung zurück — _R4 Transaktionen/Concurrency_ (TODO L890; Audit Runde 4)
+- [x] **A575** [WICHTIG] Umtausch eines Tickets gibt das gesamte Kontingent der Bestellung zurück — _R4 Transaktionen/Concurrency_ (TODO L890; Audit Runde 4)
   - src/Exchange/Service.php:754, Allocations/Holds.php:300–303: Jeden Grund mit ticket_type_id/quantity als Teilfreigabe (belegt t4c)
 - [ ] **A576** [WICHTIG] Checkout ohne Preisprüfung: Käufer zahlt mehr als angezeigt — _R4 Transaktionen/Concurrency_ (TODO L891; Audit Runde 4)
   - src/Orders.php:191–200, Series/Pricing.php:270ff., assets/checkout.js:84: Preis-Snapshot mitsenden, 409 price_changed (belegt t5; vgl. Caching-Befund)
-- [ ] **A577** [WICHTIG] Stripe-Sitzung lebt 10 min länger als die Reservierung → bezahlt ohne Ticket — _R4 Transaktionen/Concurrency_ (TODO L892; Audit Runde 4)
+- [x] **A577** [WICHTIG] Stripe-Sitzung lebt 10 min länger als die Reservierung → bezahlt ohne Ticket — _R4 Transaktionen/Concurrency_ (TODO L892; Audit Runde 4)
   - src/Payments/StripeGateway.php:319–325, Rest/Controller.php:324: Sitzungsende = Reservierungsende, verzögerte Zahlarten nur mit langer Reservierung (belegt t7)
-- [ ] **A578** [WICHTIG] Teilerstattung und Admin-Widerruf informieren Warteliste und Kontingente nicht — _R4 Transaktionen/Concurrency_ (TODO L893; Audit Runde 4)
+- [x] **A578** [WICHTIG] Teilerstattung und Admin-Widerruf informieren Warteliste und Kontingente nicht — _R4 Transaktionen/Concurrency_ (TODO L893; Audit Runde 4)
   - src/Refunds.php:418–428, Admin/TicketsPage.php:56–60: Nach Commit capacity_released(tickets_revoked, type, qty) (belegt t4a/b)
-- [ ] **A579** [WICHTIG] Keine Invariante „pro Ticket höchstens einmal freigegeben“; drift() erkennt falsche Bestellzeilen nicht — _R4 Transaktionen/Concurrency_ (TODO L894; Audit Runde 4)
+- [x] **A579** [WICHTIG] Keine Invariante „pro Ticket höchstens einmal freigegeben“; drift() erkennt falsche Bestellzeilen nicht — _R4 Transaktionen/Concurrency_ (TODO L894; Audit Runde 4)
   - src/Refunds.php, Exchange, TicketsPage, CapacityCounters::drift: Zentrale Freigabe je Ticket, Abgleich gegen gültige Tickets, Kombinationstests Erstattung×Umtausch×Widerruf×Absage
 - [ ] **A580** [WICHTIG] Ticketmail ohne Größengrenze: 26–40 MB bei 1.000 Tickets, Gmail kürzt ab ~22 Tickets mit Wallet — _R4 Dokumente/Mail/Wallet_ (TODO L895; Audit Runde 4)
   - src/Orders.php:1797–1823, WalletPasses/Service.php:183–199, TicketPdf.php:86–113: Ab Schwelle Portal-Link/geteilte PDFs, ein „Alle hinzufügen“-Wallet-Link (gemessen)
