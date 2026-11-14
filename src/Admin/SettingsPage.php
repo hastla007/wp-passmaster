@@ -38,6 +38,7 @@ final class SettingsPage {
 				'title' => __( 'Einlass / Scanner-Geräte', 'pass-captain' ),
 				'fields' => array(
 					'scanner_show_attendee' => array( 'type' => 'bool', 'label' => __( 'Teilnehmernamen beim Scannen anzeigen', 'pass-captain' ) ),
+					'signed_qr' => array( 'type' => 'bool', 'label' => __( 'Signierte QR-Codes ausgeben (PC1, Ed25519)', 'pass-captain' ), 'description' => __( 'Neue QR-Codes enthalten statt des Ticketcodes eine signierte Angabe (Ticket-ID, Termin, Gültigkeitszeitraum, Code-Version) ohne personenbezogene Daten; Scanner können die Signatur offline prüfen. Klassische Codes bleiben gültig. Standard aus, damit fremde Scanner-Systeme weiter den Ticketcode lesen können.', 'pass-captain' ) ),
 					'device_max_hours' => array( 'type' => 'int', 'label' => __( 'Maximale Gültigkeit einer Gerätekopplung (Stunden)', 'pass-captain' ), 'min' => 1, 'max' => 720 ),
 					'admission_day_cutoff_hour' => array( 'type' => 'int', 'label' => __( 'Einlass-Tageswechsel (Uhrzeit, volle Stunde)', 'pass-captain' ), 'min' => 0, 'max' => 12, 'description' => __( '0 = Mitternacht. Beispiel 6: Scans bis 05:59 Uhr zählen noch zum Vortag (Festivals, Nachtveranstaltungen). Gilt für Tagestickets und Tageslimits.', 'pass-captain' ) ),
 					'default_entry_window' => array( 'type' => 'bool', 'label' => __( 'Standard-Einlassfenster für Ticketarten ohne eigene Einlassregel', 'pass-captain' ) ),

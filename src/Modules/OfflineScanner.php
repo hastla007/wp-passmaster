@@ -81,6 +81,7 @@ final class OfflineScanner {
 			'wpcap_offline_assign' => array( AdminPage::class, 'handle_assign' ),
 			'wpcap_offline_unassign' => array( AdminPage::class, 'handle_unassign' ),
 			'wpcap_offline_rotate_key' => array( AdminPage::class, 'handle_rotate_key' ),
+			'wpcap_qr_rotate_key' => array( AdminPage::class, 'handle_rotate_qr_key' ),
 		);
 	}
 }

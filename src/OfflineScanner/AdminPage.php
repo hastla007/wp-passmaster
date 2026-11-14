@@ -8,6 +8,7 @@ namespace PassCaptain\OfflineScanner;
 use PassCaptain\Access;
 use PassCaptain\Admin\Forms;
 use PassCaptain\Admin\Queries;
+use PassCaptain\Security\SignedQr;
 use PassCaptain\Settings;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -62,6 +63,12 @@ final class AdminPage {
 		return Keys::rotate( 'manual' );
 	}
 
+	/** Rotates the signing key of signed QR codes (manage_options); `revoke` drops the previous key at once. */
+	public static function rotate_qr_key( array $in = array() ) {
+		if ( ! current_user_can( 'manage_options' ) ) { return Forms::forbidden(); }
+		return SignedQr::rotate( Forms::flag( $in, 'revoke' ), 'manual' );
+	}
+
 	/* ---- admin-post wrappers ---- */
 
 	private static function back( $result, array $in ) {
@@ -94,6 +101,15 @@ final class AdminPage {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_offline_rotate_key' );
 		Forms::finish( self::rotate_key( $in ), __( 'Neuer Signaturschlüssel erzeugt. Der bisherige öffentliche Schlüssel bleibt bis zum Ablauf seiner Pakete gültig.', 'pass-captain' ), Forms::page_url( self::SLUG, array( 'event_id' => Forms::int( $in, 'event_id' ) ) ) );
+	}
+
+	public static function handle_rotate_qr_key() {
+		$in = Forms::post();
+		Forms::verify( 'wpcap_qr_rotate_key' );
+		$message = Forms::flag( $in, 'revoke' )
+			? __( 'Neuer QR-Signaturschlüssel erzeugt. Der bisherige Schlüssel wurde sofort gesperrt; damit signierte QR-Codes werden abgewiesen.', 'pass-captain' )
+			: __( 'Neuer QR-Signaturschlüssel erzeugt. Der bisherige Schlüssel bleibt gültig, bis die damit signierten QR-Codes ablaufen.', 'pass-captain' );
+		Forms::finish( self::rotate_qr_key( $in ), $message, Forms::page_url( self::SLUG, array( 'event_id' => Forms::int( $in, 'event_id' ) ) ) );
 	}
 
 	/* ---- rendering ---- */
@@ -182,6 +198,24 @@ final class AdminPage {
 		</tbody></table>
 		<?php Forms::open_form( 'wpcap_offline_rotate_key', 'wpcap_offline_rotate_key', 'onsubmit="return confirm(\'' . esc_js( __( 'Neuen Signaturschlüssel erzeugen?', 'pass-captain' ) ) . '\')"' ); Forms::hidden( 'event_id', $event_id ); ?>
 			<p><button class="button"><?php esc_html_e( 'Schlüssel rotieren', 'pass-captain' ); ?></button></p>
+		</form>
+		<?php self::render_qr_keys( $event_id ); ?>
+		<?php
+	}
+
+	private static function render_qr_keys( $event_id ) {
+		$keys = SignedQr::public_keys();
+		?>
+		<h2><?php esc_html_e( 'Signierte QR-Codes (Ed25519)', 'pass-captain' ); ?></h2>
+		<p class="description"><?php echo esc_html( SignedQr::enabled() ? __( 'Signierte QR-Codes sind aktiv: neue QR-Codes enthalten eine signierte Angabe ohne personenbezogene Daten. Klassische Ticketcodes werden weiter angenommen.', 'pass-captain' ) : __( 'Signierte QR-Codes sind aus (Einstellungen → Einlass / Scanner-Geräte). Bereits ausgegebene signierte QR-Codes werden weiter angenommen.', 'pass-captain' ) ); ?></p>
+		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Schlüssel-ID', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Öffentlicher Schlüssel', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Gültig bis', 'pass-captain' ); ?></th></tr></thead><tbody>
+		<?php foreach ( $keys as $key ) : ?>
+			<tr><td><code><?php echo esc_html( $key['key_id'] ); ?></code></td><td><code style="font-size:11px"><?php echo esc_html( $key['public_key'] ); ?></code></td><td><?php echo esc_html( 'active' === $key['status'] ? __( 'aktiv', 'pass-captain' ) : __( 'in Übergangsfrist', 'pass-captain' ) ); ?></td><td><?php echo esc_html( $key['valid_until'] ? Forms::datetime( gmdate( 'Y-m-d H:i:s', strtotime( $key['valid_until'] ) ), wp_timezone_string() ) : '—' ); ?></td></tr>
+		<?php endforeach; ?>
+		</tbody></table>
+		<?php Forms::open_form( 'wpcap_qr_rotate_key', 'wpcap_qr_rotate_key', 'onsubmit="return confirm(\'' . esc_js( __( 'Neuen QR-Signaturschlüssel erzeugen?', 'pass-captain' ) ) . '\')"' ); Forms::hidden( 'event_id', $event_id ); ?>
+			<p><label><input type="checkbox" name="revoke" value="1"> <?php esc_html_e( 'Bisherigen Schlüssel sofort sperren (bei Verdacht auf Kompromittierung; alle damit signierten QR-Codes werden ungültig und müssen neu versendet werden)', 'pass-captain' ); ?></label></p>
+			<p><button class="button"><?php esc_html_e( 'QR-Schlüssel rotieren', 'pass-captain' ); ?></button></p>
 		</form>
 		<?php
 	}

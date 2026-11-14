@@ -8,6 +8,9 @@
  * - Scans: online first (POST /app/scan/check-in); without network the scan is decided locally
  *   against the package (sha256 of the code via WebCrypto) and written to a local log with an
  *   idempotency key. Pending scans are uploaded via POST /app/scan/sync; conflicts are shown.
+ * - Signed QR codes (PC1.<base64url JSON>.<base64url Ed25519>, see docs/OFFLINE-SCANNER.md) are
+ *   pre-validated offline: signature against the QR keys (qr_keys), validity window, occurrence, and the
+ *   code version (first 16 hex of the code hash) is looked up in the package. Online the server decides.
  *
  * i18n: t() looks UI texts up by their German source text in a table from GET /app/offline/i18n
  * (locale + translations via the plugin's text domain). The app asks for the device languages
@@ -29,7 +32,7 @@
 	var nacl = window.nacl;
 
 	var state = {
-		api: '', token: '', deviceId: '', keys: {}, clockOffset: 0,
+		api: '', token: '', deviceId: '', keys: {}, qrKeys: {}, clockOffset: 0,
 		occurrences: [], selected: 0, areaId: 0,
 		packages: {}, // occurrence_id -> { record, index: Map, meta, error }
 		admitted: {}, // occurrence_id -> Set of hashes admitted on this device
@@ -90,6 +93,18 @@
 	function sha256Hex(text) {
 		return crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then(hex);
 	}
+	function b64uToBytes(text) {
+		var s = String(text).replace(/-/g, '+').replace(/_/g, '/');
+		if (s.length % 4 === 1) { throw new Error('base64url'); }
+		while (s.length % 4) { s += '='; }
+		return b64ToBytes(s);
+	}
+	var SIGNED_QR = /PC1\.[A-Za-z0-9_-]{16,700}\.[A-Za-z0-9_-]{86}/;
+	/** Signed QR payload contained in a scanned value, or ''. */
+	function signedCode(value) {
+		var m = String(value || '').match(SIGNED_QR);
+		return m ? m[0] : '';
+	}
 	/** Same rule as PassCaptain\Checkin::normalize_code(): first 64-hex run, lowercase. */
 	function normalizeCode(value) {
 		var m = String(value || '').match(/[a-f0-9]{64}/i);
@@ -146,7 +161,7 @@
 		cancelled_event: 'Termin abgesagt', out_of_window: 'Außerhalb des Einlasszeitraums', not_valid_today: 'Heute nicht gültig',
 		daily_limit_reached: 'Tageskontingent erreicht', entry_limit_reached: 'Einlasslimit erreicht', outside_entry_window: 'Außerhalb des Einlassfensters',
 		already_inside: 'Bereits drinnen', forbidden: 'Kein Einlasszugriff', package_expired: 'Prüfpaket abgelaufen', no_package: 'Kein gültiges Prüfpaket',
-		invalid_code: 'Kein Ticketcode erkannt'
+		invalid_code: 'Kein Ticketcode erkannt', invalid_signature: 'QR-Signatur ungültig'
 	};
 	function resultText(code) { return Object.prototype.hasOwnProperty.call(RESULT_TEXT, code) ? t(RESULT_TEXT[code]) : code; }
 
@@ -223,6 +238,48 @@
 		return kvSet('keys', keys);
 	}
 
+	function setQrKeys(list) {
+		var keys = {};
+		(list || []).forEach(function (k) {
+			if (k && 'Ed25519' === k.alg && k.key_id && k.public_key) {
+				keys[k.key_id] = { public_key: k.public_key, status: k.status, valid_until: k.valid_until };
+			}
+		});
+		state.qrKeys = keys;
+		return kvSet('qr_keys', keys);
+	}
+
+	/**
+	 * Offline pre-validation of a signed QR code (mirrors PassCaptain\Security\SignedQr::verify()):
+	 * Ed25519 signature over the ASCII bytes "PC1.<claims>" with a trusted QR key (retired keys only
+	 * until valid_until), claim types and the validity window at atMs. The ticket state is decided by the
+	 * package (and finally by the server on sync).
+	 *
+	 * @return {{ok: boolean, result: string, claims: (Object|null)}}
+	 */
+	function verifySignedQr(code, atMs) {
+		var bad = { ok: false, result: 'invalid_signature', claims: null };
+		var parts = String(code || '').split('.');
+		if (3 !== parts.length || 'PC1' !== parts[0] || !SIGNED_QR.test(code)) { return bad; }
+		var claims;
+		try {
+			claims = JSON.parse(new TextDecoder().decode(b64uToBytes(parts[1])));
+		} catch (e) { return bad; }
+		var key = claims && typeof claims.k === 'string' && Object.prototype.hasOwnProperty.call(state.qrKeys, claims.k) ? state.qrKeys[claims.k] : null;
+		if (!key || (key.valid_until && Date.parse(key.valid_until) < now())) { return bad; }
+		var ok = false;
+		try {
+			ok = nacl.sign.detached.verify(new TextEncoder().encode(parts[0] + '.' + parts[1]), b64uToBytes(parts[2]), b64ToBytes(key.public_key));
+		} catch (e) { ok = false; }
+		if (!ok) { return bad; }
+		var valid = typeof claims.t === 'string' && Number.isInteger(claims.o) && claims.o > 0 && Array.isArray(claims.v) && 2 === claims.v.length &&
+			Number.isInteger(claims.v[0]) && Number.isInteger(claims.v[1]) && typeof claims.c === 'string' && /^[a-f0-9]{16}$/.test(claims.c);
+		if (!valid) { return bad; }
+		var at = Math.floor((atMs === undefined ? now() : atMs) / 1000);
+		if (at < claims.v[0] || at > claims.v[1]) { return { ok: false, result: 'out_of_window', claims: claims }; }
+		return { ok: true, result: 'valid', claims: claims };
+	}
+
 	/**
 	 * Verifies a signed package document and returns its payload, or throws.
 	 * Checks: known key (retired keys only until valid_until), Ed25519 signature over the exact
@@ -249,24 +306,26 @@
 		var full = verifyDoc(record.full);
 		if ('full' !== full.kind || full.occurrence.id !== record.occurrence_id) { throw new Error(t('Paket passt nicht zum Termin')); }
 		var index = new Map();
-		full.tickets.forEach(function (t) { index.set(t.h, t); });
+		var prefix = new Map(); // code version (first 16 hex of the hash) -> hash, for signed QR codes
+		full.tickets.forEach(function (t) { index.set(t.h, t); prefix.set(t.h.slice(0, 16), t.h); });
 		var meta = full;
 		var cursor = full.cursor;
 		(record.deltas || []).forEach(function (doc) {
 			var d = verifyDoc(doc);
 			if ('delta' !== d.kind || d.since !== cursor || d.occurrence.id !== record.occurrence_id) { throw new Error(t('Delta-Kette unterbrochen')); }
-			d.tickets.forEach(function (t) { index.set(t.h, t); });
+			d.tickets.forEach(function (t) { index.set(t.h, t); prefix.set(t.h.slice(0, 16), t.h); });
 			cursor = d.cursor;
 			meta = d;
 		});
-		return { index: index, meta: meta, cursor: cursor };
+		return { index: index, prefix: prefix, meta: meta, cursor: cursor };
 	}
 
 	function loadPackage(record) {
-		var entry = { record: record, index: null, meta: null, error: '' };
+		var entry = { record: record, index: null, prefix: null, meta: null, error: '' };
 		try {
 			var built = buildIndex(record);
 			entry.index = built.index;
+			entry.prefix = built.prefix;
 			entry.meta = built.meta;
 		} catch (e) {
 			entry.error = e.message;
@@ -406,6 +465,25 @@
 		return { ok: true, result: 'checked_in', ticket: t, type: type, multi: multi };
 	}
 
+	/**
+	 * Offline decision for a signed QR code: signature + window (verifySignedQr), occurrence of the
+	 * package, then the ticket entry whose hash starts with the code version (a reissued ticket has a new
+	 * hash, so QR codes of the old code are unknown/revoked here too). Returns decideOffline()'s shape plus
+	 * the matched hash.
+	 */
+	function decideSigned(entry, code, atMs) {
+		var status = packageStatus(entry);
+		if (!status.ok) { return { ok: false, result: status.code, hash: '' }; }
+		var v = verifySignedQr(code, atMs);
+		if (!v.ok) { return { ok: false, result: v.result, hash: '' }; }
+		if (v.claims.o !== entry.record.occurrence_id) { return { ok: false, result: 'wrong_occurrence', hash: '' }; }
+		var hash = entry.prefix ? entry.prefix.get(v.claims.c) : '';
+		if (!hash) { return { ok: false, result: 'unknown', hash: '' }; }
+		var d = decideOffline(entry, hash);
+		d.hash = hash;
+		return d;
+	}
+
 	function markAdmitted(occurrenceId, hash) {
 		if (!state.admitted[occurrenceId]) { state.admitted[occurrenceId] = new Set(); }
 		state.admitted[occurrenceId].add(hash);
@@ -413,7 +491,8 @@
 
 	var lastScan = { code: '', at: 0 };
 	function handleScan(raw) {
-		var code = normalizeCode(raw);
+		var signed = signedCode(raw);
+		var code = signed || normalizeCode(raw);
 		if (!code) { showResult('bad', resultText('invalid_code')); return Promise.resolve(); }
 		if (code === lastScan.code && Date.now() - lastScan.at < 3000) { return Promise.resolve(); }
 		lastScan = { code: code, at: Date.now() };
@@ -423,7 +502,12 @@
 		var key = uuid();
 		var scannedAt = new Date(now()).toISOString();
 		var area = (entry && entry.meta && entry.meta.device_area_id) || state.areaId || 0;
-		return sha256Hex(code).then(function (hash) {
+		var signedHash = '';
+		if (signed && entry && entry.prefix) {
+			var pre = verifySignedQr(code);
+			if (pre.ok && pre.claims.o === occurrenceId) { signedHash = entry.prefix.get(pre.claims.c) || ''; }
+		}
+		return (signedHash ? Promise.resolve(signedHash) : sha256Hex(code)).then(function (hash) {
 			var online = navigator.onLine !== false;
 			var attempt = online
 				? api('POST', 'scan/check-in', { code: code, idempotency_key: key, occurrence_id: occurrenceId, area_id: area }, null, 5000)
@@ -440,7 +524,8 @@
 					showResult('bad', t('Fehler'), err && err.message);
 					return;
 				}
-				var d = decideOffline(entry, hash);
+				var d = signed ? decideSigned(entry, code) : decideOffline(entry, hash);
+				if (signed && d.hash) { hash = d.hash; }
 				var typeName = d.type ? d.type.name : '';
 				var name = d.ticket && d.ticket.n ? d.ticket.n : '';
 				if (d.ok) {
@@ -519,7 +604,7 @@
 		state.busy = true;
 		return api('GET', 'offline/keys').then(function (res) {
 			if (res.server_time) { state.clockOffset = Date.parse(res.server_time) - Date.now(); kvSet('clock_offset', state.clockOffset); }
-			return setKeys(res.keys);
+			return Promise.all([setKeys(res.keys), setQrKeys(res.qr_keys)]);
 		}).then(function () {
 			return api('GET', 'offline/occurrences');
 		}).then(function (res) {
@@ -630,7 +715,7 @@
 			state.deviceId = res.device_id;
 			return Promise.all([
 				kvSet('api', state.api), kvSet('token', res.token), kvSet('device_id', res.device_id),
-				setKeys(res.offline && res.offline.keys)
+				setKeys(res.offline && res.offline.keys), setQrKeys(res.offline && res.offline.qr_keys)
 			]);
 		});
 	}
@@ -703,7 +788,7 @@
 		}
 		if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {}); }
 		var param = new URLSearchParams(location.search).get('api');
-		Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log'), kvGet('i18n')]).then(function (v) {
+		Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log'), kvGet('i18n'), kvGet('qr_keys')]).then(function (v) {
 			// Stored translations first, so everything below (incl. package errors) is translated offline.
 			if (validI18n(v[7])) { state.i18n = v[7]; }
 			applyI18n();
@@ -714,6 +799,7 @@
 			state.token = v[1] || '';
 			state.deviceId = v[2] || '';
 			state.keys = v[3] || {};
+			state.qrKeys = v[8] || {};
 			state.clockOffset = v[4] || 0;
 			if (param && sameOrigin(param) && param !== stored) { kvSet('api', param); }
 			v[5].forEach(loadPackage);
@@ -760,7 +846,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { t: t, fmtTime: fmtTime, normalizeCode: normalizeCode, verifyDoc: verifyDoc, buildIndex: buildIndex, loadPackage: loadPackage, packageStatus: packageStatus, decideOffline: decideOffline, validI18n: validI18n, applyI18n: applyI18n, handleScan: handleScan, pair: pair, state: state, syncNow: syncNow, refreshAll: refreshAll };
+	window.wpcapOffline = { t: t, fmtTime: fmtTime, normalizeCode: normalizeCode, signedCode: signedCode, verifySignedQr: verifySignedQr, decideSigned: decideSigned, verifyDoc: verifyDoc, buildIndex: buildIndex, loadPackage: loadPackage, packageStatus: packageStatus, decideOffline: decideOffline, validI18n: validI18n, applyI18n: applyI18n, handleScan: handleScan, pair: pair, state: state, syncNow: syncNow, refreshAll: refreshAll };
 
 	boot();
 }());

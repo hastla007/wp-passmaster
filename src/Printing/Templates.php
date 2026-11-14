@@ -151,7 +151,7 @@ final class Templates {
 				$qx = 'center' === $align ? $x + ( $w - $q ) / 2 : $x + ( $w - $q ) / 2;
 				if ( $pdf->qr( $qx, $cursor - $q, $q, $item['qr'] ) ) {
 					$cursor -= $q + 6;
-					$pdf->text( $x + $w / 2, $cursor - 8, 7, substr( (string) $item['qr'], 0, 16 ) . '…', false, 'center' );
+					$pdf->text( $x + $w / 2, $cursor - 8, 7, substr( (string) ( $item['code'] ?? $item['qr'] ), 0, 16 ) . '…', false, 'center' );
 					$cursor -= 14;
 				}
 				continue;
@@ -304,7 +304,8 @@ final class Templates {
 			'attendee_name'   => (string) ( $row->attendee_name ?? '' ),
 			'seat_label'      => $seat,
 			'order'           => substr( (string) ( $row->order_public_id ?? '' ), 0, 8 ),
-			'qr'              => (string) $token,
+			'qr'              => \PassCaptain\Security\SignedQr::qr_value( (string) $token ),
+			'code'            => (string) $token,
 		);
 	}
 

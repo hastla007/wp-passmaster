@@ -218,6 +218,90 @@ test('decideOffline mirrors the local admission rules', async () => {
 	assert.equal(decideOffline(expired, sha(CODE_OK)).result, 'package_expired');
 });
 
+/* ---- signed QR codes (PC1) ---- */
+
+const QR_KEY = nacl.sign.keyPair.fromSeed(new Uint8Array(32).fill(11));
+const QR_OTHER = nacl.sign.keyPair.fromSeed(new Uint8Array(32).fill(12));
+const QR_KEYS = { q1: { public_key: b64(QR_KEY.publicKey), status: 'active' }, q0: { public_key: b64(QR_OTHER.publicKey), status: 'retired', valid_until: new Date(Date.now() - 1000).toISOString() } };
+const b64u = (bytes) => Buffer.from(bytes).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const nowS = () => Math.floor(Date.now() / 1000);
+/** Builds a signed QR code like PassCaptain\Security\SignedQr::sign(). */
+function qr(claims, keypair) {
+	const c = Object.assign({ t: 'a'.repeat(32), o: 7, v: [nowS() - 3600, nowS() + 3600], k: 'q1', c: sha(CODE_OK).slice(0, 16) }, claims || {});
+	const body = 'PC1.' + b64u(Buffer.from(JSON.stringify(c)));
+	return body + '.' + b64u(nacl.sign.detached(Buffer.from(body), (keypair || QR_KEY).secretKey));
+}
+
+test('verifySignedQr: valid, tampered, wrong key id, expired key, window', async () => {
+	const env = await boot({ indexedDB: await pairedDb({ qr_keys: QR_KEYS }), navigator: { onLine: false } });
+	const { verifySignedQr, signedCode } = env.app;
+	const good = qr();
+	assert.equal(signedCode('Ticket: ' + good + ' '), good, 'signed payload is found in a scanned value');
+	assert.equal(signedCode(CODE_OK), '');
+	const ok = verifySignedQr(good);
+	assert.equal(ok.ok, true);
+	assert.equal(ok.claims.o, 7);
+	// Tampered claims (occurrence changed, signature kept).
+	const parts = good.split('.');
+	const forged = 'PC1.' + b64u(Buffer.from(JSON.stringify(Object.assign(JSON.parse(Buffer.from(parts[1], 'base64').toString()), { o: 8 })))) + '.' + parts[2];
+	assert.equal(verifySignedQr(forged).result, 'invalid_signature', 'tampered payload');
+	assert.equal(verifySignedQr(parts[0] + '.' + parts[1] + '.' + b64u(new Uint8Array(64))).result, 'invalid_signature', 'zero signature');
+	assert.equal(verifySignedQr(qr({ k: 'zz' })).result, 'invalid_signature', 'unknown key id');
+	assert.equal(verifySignedQr(qr({}, QR_OTHER)).result, 'invalid_signature', 'signed with another key under key id q1');
+	assert.equal(verifySignedQr(qr({ k: 'q0' }, QR_OTHER)).result, 'invalid_signature', 'retired key after its grace period');
+	assert.equal(verifySignedQr(qr({ v: [nowS() - 7200, nowS() - 60] })).result, 'out_of_window', 'expired window');
+	assert.equal(verifySignedQr(qr({ v: [nowS() + 3600, nowS() + 7200] })).result, 'out_of_window', 'not yet valid');
+	assert.equal(verifySignedQr(qr({ c: 'XYZ' })).result, 'invalid_signature', 'malformed code version');
+	assert.equal(verifySignedQr('PC1.abc.def').result, 'invalid_signature', 'garbage');
+});
+
+test('decideSigned: package lookup by code version, occurrence, revoked and rotated codes', async () => {
+	const env = await boot({ indexedDB: await pairedDb({ qr_keys: QR_KEYS }), navigator: { onLine: false } });
+	const { loadPackage, decideSigned } = env.app;
+	const entry = loadPackage({ occurrence_id: 7, full: sign(payload()), deltas: [] });
+	const d = decideSigned(entry, qr());
+	assert.equal(d.result, 'checked_in');
+	assert.equal(d.hash, sha(CODE_OK), 'the matched package hash is used for the local log');
+	assert.equal(decideSigned(entry, qr({ o: 8 })).result, 'wrong_occurrence');
+	assert.equal(decideSigned(entry, qr({ c: sha(CODE_REVOKED).slice(0, 16) })).result, 'revoked');
+	assert.equal(decideSigned(entry, qr({ c: sha('8'.repeat(64)).slice(0, 16) })).result, 'unknown', 'code version of a reissued (old) code');
+	assert.equal(decideSigned(entry, qr({ v: [nowS() - 7200, nowS() - 60] })).result, 'out_of_window');
+	assert.equal(decideSigned(null, qr()).result, 'no_package');
+});
+
+test('offline scan of a signed QR is admitted locally and uploaded with the signed code', async () => {
+	const indexedDB = await pairedDb({ qr_keys: QR_KEYS });
+	const env0 = await boot({ indexedDB, navigator: { onLine: false } });
+	env0.db.stores.packages.data.set(7, { occurrence_id: 7, full: sign(payload()), deltas: [] });
+	const env = await boot({ indexedDB, navigator: { onLine: false } });
+	const code = qr();
+	await env.app.handleScan(code);
+	await flush();
+	assert.equal(text(env, 'result-title'), 'Einlass OK (offline)');
+	const log = env.db.dump('log').map(([, v]) => v);
+	assert.equal(log[0].code, code, 'signed code kept for the upload');
+	assert.equal(log[0].hash, sha(CODE_OK));
+	// The classic code of the same ticket is now refused locally too (same package entry).
+	await env.app.handleScan(CODE_OK);
+	await flush();
+	assert.equal(text(env, 'result-title'), 'Bereits verwendet');
+	await env.app.handleScan(qr({}, QR_OTHER));
+	await flush();
+	assert.equal(text(env, 'result-title'), 'QR-Signatur ungültig');
+});
+
+test('keys endpoint: qr_keys are stored for offline verification', async () => {
+	const indexedDB = await pairedDb();
+	const routes = {
+		'offline/keys': () => ({ json: { keys: KEYS, qr_keys: [{ alg: 'Ed25519', key_id: 'q1', public_key: b64(QR_KEY.publicKey), status: 'active' }] } }),
+		'offline/occurrences': () => ({ json: { occurrences: [] } }), 'scan/sync': () => ({ json: { results: [] } }), 'offline/i18n': () => ({ status: 404 }),
+	};
+	const env = await boot({ indexedDB, routes });
+	await flush(40);
+	assert.deepEqual(Object.keys(env.app.state.qrKeys), ['q1']);
+	assert.ok(env.db.stores.kv.data.get('qr_keys').q1);
+});
+
 test('offline scan goes to the IndexedDB queue with the code; sync uploads it, clears the code and shows conflicts', async () => {
 	const indexedDB = await pairedDb();
 	const record = { occurrence_id: 7, full: sign(payload()), deltas: [] };

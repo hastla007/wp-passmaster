@@ -163,7 +163,7 @@ $pm_admin = array(
 	'wpcap_calendar_save' => 'manage_options', 'wpcap_mail_template_save' => 'manage_options', 'wpcap_mail_template_reset' => 'manage_options',
 	'wpcap_mail_template_test' => 'manage_options', 'wpcap_mail_layout_save' => 'manage_options', 'wpcap_mollie_save' => 'manage_options',
 	'wpcap_offline_save_rules' => 'wpcap_manage_events', 'wpcap_offline_assign' => 'wpcap_manage_events', 'wpcap_offline_unassign' => 'wpcap_manage_events',
-	'wpcap_offline_rotate_key' => 'manage_options',
+	'wpcap_offline_rotate_key' => 'manage_options', 'wpcap_qr_rotate_key' => 'manage_options',
 	'wpcap_partner_action' => 'manage_options', 'wpcap_partner_settlement_doc' => 'wpcap_view_finance',
 	'wpcap_print_save_template' => 'manage_options', 'wpcap_print_assign' => 'wpcap_manage_events', 'wpcap_print_batch' => 'wpcap_manage_orders',
 	'wpcap_attendee_list' => 'wpcap_manage_orders', 'wpcap_print_settings' => 'manage_options', 'wpcap_invoice_pdf' => 'wpcap_view_finance',

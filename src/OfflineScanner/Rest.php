@@ -2,7 +2,7 @@
 /**
  * REST endpoints of the offline scanner for paired devices (device bearer token of the mobile API):
  *
- *   GET /app/offline/keys                            – trusted Ed25519 public keys
+ *   GET /app/offline/keys                            – trusted Ed25519 public keys (packages: keys, signed QR codes: qr_keys)
  *   GET /app/offline/occurrences                     – occurrences this device may hold packages for
  *   GET /app/offline/package?occurrence_id=&since=   – signed full/delta package
  *   GET /app/offline/i18n?locale=fr-CH,fr,en         – public: locale + translated UI texts of the PWA
@@ -15,6 +15,7 @@ namespace PassCaptain\OfflineScanner;
 use PassCaptain\Access;
 use PassCaptain\Mobile\Api;
 use PassCaptain\Mobile\Devices;
+use PassCaptain\Security\SignedQr;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -30,7 +31,7 @@ final class Rest {
 	}
 
 	public static function keys( \WP_REST_Request $request ) {
-		return rest_ensure_response( array( 'keys' => Keys::public_keys(), 'server_time' => gmdate( 'c' ) ) );
+		return rest_ensure_response( array( 'keys' => Keys::public_keys(), 'qr_keys' => SignedQr::public_keys(), 'server_time' => gmdate( 'c' ) ) );
 	}
 
 	/**
@@ -105,7 +106,7 @@ final class Rest {
 		$data = $response->get_data();
 		if ( ! is_array( $data ) ) { return $response; }
 		if ( $base . 'pair' === $route && ! empty( $data['token'] ) ) {
-			$data['offline'] = array( 'keys' => Keys::public_keys(), 'package_format' => Package::VERSION );
+			$data['offline'] = array( 'keys' => Keys::public_keys(), 'qr_keys' => SignedQr::public_keys(), 'package_format' => Package::VERSION );
 		} elseif ( $base . 'me' === $route && isset( $data['features'] ) ) {
 			$data['features']['offline_packages'] = true;
 		} elseif ( $base . 'scan/sync' === $route && isset( $data['results'] ) && Devices::current() ) {

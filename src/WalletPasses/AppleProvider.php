@@ -105,7 +105,7 @@ class AppleProvider implements WalletProvider {
 		if ( $voided ) {
 			$json['voided'] = true;
 		} else {
-			$json['barcodes'] = array( array( 'format' => 'PKBarcodeFormatQR', 'message' => (string) $ticket['code'], 'messageEncoding' => 'iso-8859-1', 'altText' => substr( (string) $ticket['public_id'], 0, 8 ) ) );
+			$json['barcodes'] = array( array( 'format' => 'PKBarcodeFormatQR', 'message' => \PassCaptain\Security\SignedQr::qr_value( (string) $ticket['code'] ), 'messageEncoding' => 'iso-8859-1', 'altText' => substr( (string) $ticket['public_id'], 0, 8 ) ) );
 		}
 		/** Optional geo relevance: list of ['latitude'=>…, 'longitude'=>…, 'relevantText'=>…]. */
 		$locations = apply_filters( 'wpcap_wallet_apple_locations', array(), $ticket );
