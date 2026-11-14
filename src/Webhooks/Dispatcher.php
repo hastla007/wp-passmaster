@@ -196,7 +196,9 @@ final class Dispatcher {
 		$d = self::t( 'deliveries' );
 		$s = self::t( 'subscriptions' );
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 20;
-		$wpdb->query( $wpdb->prepare( "UPDATE $d SET status='pending',locked_at=NULL WHERE status='delivering' AND locked_at<%s", gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
+		// Claims of crashed workers go back to the queue; attempts are counted at claim time, so a
+		// delivery that kills the worker every time ends as failed instead of being retried forever.
+		$wpdb->query( $wpdb->prepare( "UPDATE $d SET status=IF(attempts>=%d,'failed','pending'),locked_at=NULL WHERE status='delivering' AND locked_at<%s", self::max_attempts(), gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
 		$done = 0;
 		// Shared cron time budget: checked before each claim, so a claimed delivery is always attempted.
 		$deadline = \PassCaptain\Jobs\TimeBudget::deadline();
@@ -204,12 +206,22 @@ final class Dispatcher {
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( \PassCaptain\Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
 			$now = current_time( 'mysql', true );
-			$wpdb->query( 'START TRANSACTION' );
+			// The HTTP request is only sent once the claim is durable: transaction started, exactly this row
+			// moved from pending to delivering (attempt counted), commit succeeded. Otherwise a second worker
+			// could deliver the same event again. On a database error the run ends; the next run retries.
+			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; }
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT d.* FROM $d d INNER JOIN $s s ON s.subscription_id=d.subscription_id WHERE d.status='pending' AND s.status='active' AND d.next_attempt_at<=%s ORDER BY d.next_attempt_at,d.delivery_id LIMIT 1 FOR UPDATE", $now ) );
-			if ( ! $row ) { $wpdb->query( 'COMMIT' ); $drained = true; break; }
-			$wpdb->update( $d, array( 'status' => 'delivering', 'locked_at' => $now, 'updated_at' => $now ), array( 'delivery_id' => (int) $row->delivery_id ) );
-			$wpdb->query( 'COMMIT' );
-			\PassCaptain\Jobs\TimeBudget::claimed( $d, 'delivery_id', (int) $row->delivery_id, 'delivering', 'pending' );
+			if ( ! $row ) {
+				if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); break; }
+				$wpdb->query( 'COMMIT' );
+				$drained = true;
+				break;
+			}
+			$claimed = $wpdb->update( $d, array( 'status' => 'delivering', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'delivery_id' => (int) $row->delivery_id, 'status' => 'pending' ) );
+			if ( false === $claimed ) { $wpdb->query( 'ROLLBACK' ); break; }
+			if ( 1 !== (int) $claimed ) { $wpdb->query( 'ROLLBACK' ); continue; }
+			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); break; }
+			\PassCaptain\Jobs\TimeBudget::claimed( $d, 'delivery_id', (int) $row->delivery_id, 'delivering', 'pending', 'failed', self::max_attempts() );
 			self::attempt( $row );
 			\PassCaptain\Jobs\TimeBudget::finished( $d, (int) $row->delivery_id );
 			++$done;

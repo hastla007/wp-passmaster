@@ -25,7 +25,7 @@ final class TimeBudget {
 	/** Shared deadline (microtime) while a cron hook runs; null otherwise. */
 	private static $deadline = null;
 
-	/** Claims in flight: key => [table, id column, id, claimed status, release status]. */
+	/** Claims in flight: key => [table, id column, id, claimed status, release status, final status, max attempts]. */
 	private static $claims = array();
 
 	private static $shutdown_registered = false;
@@ -78,9 +78,15 @@ final class TimeBudget {
 		return false;
 	}
 
-	/** Remembers an item claimed by this request until it is finished. */
-	public static function claimed( $table, $id_column, $id, $claimed_status, $release_status ) {
-		self::$claims[ $table . '#' . (int) $id ] = array( $table, $id_column, (int) $id, $claimed_status, $release_status );
+	/**
+	 * Remembers an item claimed by this request until it is finished.
+	 *
+	 * With $final_status and $max_attempts, an item whose attempts (counted at claim time) are used up
+	 * goes to $final_status instead of back to the queue: an item that kills the worker every time
+	 * (fatal error, time limit) must not be retried forever.
+	 */
+	public static function claimed( $table, $id_column, $id, $claimed_status, $release_status, $final_status = '', $max_attempts = 0 ) {
+		self::$claims[ $table . '#' . (int) $id ] = array( $table, $id_column, (int) $id, $claimed_status, $release_status, (string) $final_status, (int) $max_attempts );
 		if ( ! self::$shutdown_registered ) {
 			self::$shutdown_registered = true;
 			register_shutdown_function( array( __CLASS__, 'release_claims' ) );
@@ -93,8 +99,12 @@ final class TimeBudget {
 	/** Returns claims of items this request could not finish to the queue. */
 	public static function release_claims() {
 		global $wpdb;
-		foreach ( self::$claims as $key => list( $table, $column, $id, $claimed, $release ) ) {
-			$wpdb->query( $wpdb->prepare( "UPDATE $table SET status=%s,locked_at=NULL WHERE $column=%d AND status=%s", $release, $id, $claimed ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table/column names.
+		foreach ( self::$claims as $key => list( $table, $column, $id, $claimed, $release, $final, $max ) ) {
+			if ( '' !== $final && $max > 0 ) {
+				$wpdb->query( $wpdb->prepare( "UPDATE $table SET status=IF(attempts>=%d,%s,%s),locked_at=NULL WHERE $column=%d AND status=%s", $max, $final, $release, $id, $claimed ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table/column names.
+			} else {
+				$wpdb->query( $wpdb->prepare( "UPDATE $table SET status=%s,locked_at=NULL WHERE $column=%d AND status=%s", $release, $id, $claimed ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- internal table/column names.
+			}
 			unset( self::$claims[ $key ] );
 		}
 	}

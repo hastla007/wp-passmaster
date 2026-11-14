@@ -25,6 +25,9 @@ final class Communications {
 	/** Maximum messages per run (filter: wpcap_message_batch_size); the time budget usually ends a run first. */
 	const BATCH_SIZE = 500;
 
+	/** Send attempts (counted when a worker claims the message) before a message fails for good. */
+	const MAX_ATTEMPTS = 5;
+
 	/**
 	 * Sends due messages until the time budget (Jobs\TimeBudget, ~20 s) or the batch size is used up.
 	 * When due messages remain, an immediate follow-up run is scheduled instead of waiting for the
@@ -35,7 +38,8 @@ final class Communications {
 		$table = $wpdb->prefix . 'wpcap_message_queue';
 		$now = current_time( 'mysql', true );
 		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='queued',locked_at=NULL WHERE status='sending' AND locked_at<%s", $stale ) );
+		// A message whose attempts are used up (the worker died while sending it every time) fails for good.
+		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status=IF(attempts>=%d,'failed','queued'),locked_at=NULL WHERE status='sending' AND locked_at<%s", self::MAX_ATTEMPTS, $stale ) );
 		$limit = max( 1, (int) apply_filters( 'wpcap_message_batch_size', self::BATCH_SIZE ) );
 		$deadline = Jobs\TimeBudget::deadline();
 		$processed = 0;
@@ -58,7 +62,7 @@ final class Communications {
 			if ( false === $claimed ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
 			if ( 1 !== (int) $claimed ) { $wpdb->query( 'ROLLBACK' ); continue; }
 			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
-			Jobs\TimeBudget::claimed( $table, 'message_id', (int) $row->message_id, 'sending', 'queued' );
+			Jobs\TimeBudget::claimed( $table, 'message_id', (int) $row->message_id, 'sending', 'queued', 'failed', self::MAX_ATTEMPTS );
 			$payload = json_decode( $row->payload, true );
 			$template = apply_filters( 'wp_pass_captain_email_template_v1', null, $row->template_key, is_array( $payload ) ? $payload : array() );
 			$template = is_array( $template ) ? $template : ( is_array( $payload ) ? $payload : array() );
@@ -69,7 +73,7 @@ final class Communications {
 			if ( $sent ) { Jobs::update_with_retry( $table, array( 'status' => 'sent', 'locked_at' => null, 'last_error' => null ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s' ), array( '%d' ) ); }
 			else {
 				$tries = (int) $row->attempts + 1;
-				Jobs::update_with_retry( $table, array( 'status' => $tries >= 5 ? 'failed' : 'queued', 'send_at' => gmdate( 'Y-m-d H:i:s', time() + min( 3600, 60 * ( 2 ** $tries ) ) ), 'locked_at' => null, 'last_error' => __( 'Template fehlt oder wp_mail ist fehlgeschlagen.', 'pass-captain' ) ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+				Jobs::update_with_retry( $table, array( 'status' => $tries >= self::MAX_ATTEMPTS ? 'failed' : 'queued', 'send_at' => gmdate( 'Y-m-d H:i:s', time() + min( 3600, 60 * ( 2 ** $tries ) ) ), 'locked_at' => null, 'last_error' => __( 'Template fehlt oder wp_mail ist fehlgeschlagen.', 'pass-captain' ) ), array( 'message_id' => (int) $row->message_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
 			}
 			Jobs\TimeBudget::finished( $table, (int) $row->message_id );
 			++$processed;
