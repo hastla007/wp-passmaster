@@ -76,6 +76,8 @@ final class Checkin {
 			"SELECT t.ticket_id,t.public_id,t.status,t.ticket_type_id,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
 			hash( 'sha256', $code )
 		) );
+		// A failed query is not an unknown ticket: offline uploads would drop the admission for good.
+		if ( ! $row && '' !== (string) $wpdb->last_error ) { return self::retry_error(); }
 		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
 		$found = array( 'ticket_id' => (int) $row->ticket_id, 'public_id' => $row->public_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'ends_at' => $row->ends_at, 'timezone' => $row->timezone, 'attendee_name' => (string) $row->attendee_name );
 		if ( ! $strict ) { return $found; }
@@ -135,6 +137,7 @@ final class Checkin {
 		$at = self::eval_time( $context );
 		if ( $key ) {
 			$previous = $wpdb->get_row( $wpdb->prepare( "SELECT c.checkin_id,c.result,c.ticket_id FROM {$p}wpcap_checkins c WHERE c.user_id=%d AND c.idempotency_key=%s ORDER BY c.checkin_id DESC LIMIT 1", $user_id, $key ) );
+			if ( ! $previous && '' !== (string) $wpdb->last_error ) { return self::retry_error(); }
 			if ( $previous ) {
 				$found = self::lookup( $code, null, false );
 				if ( ! is_wp_error( $found ) && (int) $found['ticket_id'] === (int) $previous->ticket_id ) {
@@ -161,18 +164,25 @@ final class Checkin {
 			$wpdb->query( 'COMMIT' );
 			return self::offline_conflict( self::result_error( $result, $found, $id ), $found, $context, $key, $id );
 		}
+		// Every read that decides about admission is checked as well: a failed read must not turn into
+		// "no policy" (a multi-entry ticket consumed as single entry) or "no entries yet" (an extra entry).
 		$state = Engine::state_for_update( $ticket->ticket_id );
+		if ( false === $state ) { return self::abort(); }
 		$policy = Policies::for_type( $found['ticket_type_id'] );
+		if ( '' !== (string) $wpdb->last_error ) { return self::abort(); }
 		$day_id = 0;
 		if ( $policy ) {
 			$blocked = Engine::evaluate_in( $policy, $found, $state, $at );
+			if ( '' !== (string) $wpdb->last_error ) { return self::abort(); }
 			$repeatable = 'single' !== $policy['policy'];
 		} else {
 			// Legacy per-occurrence day rules.
 			$service_date = Engine::service_date( $at, $found['timezone'], $found );
 			$day_table = "{$p}wpcap_occurrence_days";
 			$day = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id,admission_policy,max_entries FROM $day_table WHERE occurrence_id=%d AND service_date=%s", $found['occurrence_id'], $service_date ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( '' !== (string) $wpdb->last_error ) { return self::abort(); }
 			$has_day_rules = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $day_table WHERE occurrence_id=%d", $found['occurrence_id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( '' !== (string) $wpdb->last_error ) { return self::abort(); }
 			$repeatable = $day && in_array( $day->admission_policy, array( 'daily', 'reentry' ), true );
 			$day_id = $day ? (int) $day->occurrence_day_id : 0;
 			$blocked = Engine::default_window_block( $found, $at );
@@ -180,6 +190,7 @@ final class Checkin {
 			if ( ! $blocked && $repeatable ) {
 				$entries_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE ticket_id=%d AND occurrence_day_id=%d AND result='checked_in'", $ticket->ticket_id, $day->occurrence_day_id ) );
 				$undone_today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE ticket_id=%d AND occurrence_day_id=%d AND result='undone'", $ticket->ticket_id, $day->occurrence_day_id ) );
+				if ( '' !== (string) $wpdb->last_error ) { return self::abort(); }
 				if ( $entries_today - $undone_today >= (int) $day->max_entries ) { $blocked = 'daily_limit_reached'; }
 			}
 		}
@@ -245,7 +256,10 @@ final class Checkin {
 		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", $found['ticket_id'] ) );
 		if ( '' !== $wpdb->last_error ) { return self::abort(); }
 		$state = Engine::state_for_update( $found['ticket_id'] );
-		if ( ! $ticket || ! Engine::is_inside( $state, $found['ticket_id'] ) ) {
+		if ( false === $state ) { return self::abort(); }
+		$inside = $ticket && Engine::is_inside( $state, $found['ticket_id'] );
+		if ( '' !== (string) $wpdb->last_error ) { return self::abort(); }
+		if ( ! $inside ) {
 			$id = $log( $found['ticket_id'], 'not_checked_in' );
 			$wpdb->query( 'COMMIT' );
 			return self::result_error( 'not_checked_in', $found, $id );
@@ -262,7 +276,12 @@ final class Checkin {
 	private static function abort() {
 		global $wpdb;
 		$wpdb->query( 'ROLLBACK' );
-		return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		return self::retry_error();
+	}
+
+	/** Retryable error for a scan that hit a database error (nothing was booked; scan again / upload again). */
+	private static function retry_error() {
+		return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'result' => 'retry' ) );
 	}
 
 	private static function key_hash( array $context ) {
@@ -301,7 +320,7 @@ final class Checkin {
 		$event_id = $found ? (int) $found['event_id'] : (int) ( $data['event_id'] ?? 0 );
 		// Only scans the uploader was allowed to make for this event can be conflicts; otherwise a
 		// scanner of event A could create open conflicts in event B.
-		if ( ! $ticket_id || ! $event_id || in_array( (string) ( $data['result'] ?? '' ), array( 'forbidden', 'wrong_event', 'unknown' ), true ) ) { return $error; }
+		if ( ! $ticket_id || ! $event_id || in_array( (string) ( $data['result'] ?? '' ), array( 'forbidden', 'wrong_event', 'unknown', 'retry' ), true ) ) { return $error; }
 		if ( ! Access::can_access_event( $event_id, 'wpcap_checkin' ) ) { return $error; }
 		if ( isset( $context['event_ids'] ) && is_array( $context['event_ids'] ) && $context['event_ids'] && ! in_array( $event_id, array_map( 'intval', $context['event_ids'] ), true ) ) { return $error; }
 		$dedupe = $key ? get_current_user_id() . '|' . $key : 'scan|' . get_current_user_id() . '|' . $ticket_id . '|' . (string) ( $context['scanned_at'] ?? '' ) . '|' . (string) $checkin_id;

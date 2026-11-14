@@ -306,7 +306,11 @@ final class Service {
 		if ( ! preg_match( '/^[A-Za-z0-9-]{16,64}$/', $form_key ) ) { return self::error( 'wpcap_pos_form_key', __( 'Das Formular ist ungültig. Bitte neu laden.', 'pass-captain' ) ); }
 		$key_hash = hash( 'sha256', 'pos-sale|' . $form_key );
 		$existing = self::sale_by_key( $key_hash );
-		if ( $existing ) { return self::existing_result( $existing ); }
+		// A pending claim without order (the order creation failed and the claim could not be released,
+		// e.g. connection lost) is resumed: the order is created with the same idempotency key, so a
+		// concurrent double submit still ends with one order.
+		$resume = $existing && 'pending' === $existing->status && ! $existing->order_id && (int) $existing->cashier_id === get_current_user_id();
+		if ( $existing && ! $resume ) { return self::existing_result( $existing ); }
 		$session = self::open_session_for( get_current_user_id() );
 		if ( ! $session || 'open' !== $session->status ) { return self::error( 'wpcap_pos_no_session', __( 'Bitte zuerst eine Kassensitzung öffnen.', 'pass-captain' ), 409 ); }
 
@@ -356,7 +360,7 @@ final class Service {
 			'status' => 'pending',
 			'created_at' => current_time( 'mysql', true ),
 		);
-		$saved = $wpdb->insert( "{$p}wpcap_boxoffice_sales", $row );
+		$saved = $resume ? 1 : $wpdb->insert( "{$p}wpcap_boxoffice_sales", $row );
 		if ( false === $saved && ! self::sale_by_key( $key_hash ) && \PassCaptain\Modules\BoxOffice::migrate() ) {
 			// Legacy schema (order_id NOT NULL, a stale row with order_id 0): repaired, try once more.
 			$saved = $wpdb->insert( "{$p}wpcap_boxoffice_sales", $row );
@@ -365,7 +369,7 @@ final class Service {
 			$existing = self::sale_by_key( $key_hash );
 			return $existing ? self::existing_result( $existing ) : self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'pass-captain' ), 500 );
 		}
-		$sale_id = (int) $wpdb->insert_id;
+		$sale_id = $resume ? (int) $existing->sale_id : (int) $wpdb->insert_id;
 
 		// 2. Order through the shared checkout path (same capacity locks as online).
 		$internal = array(
@@ -390,7 +394,11 @@ final class Service {
 			return $order;
 		}
 		$order_id = (int) $order['order_id'];
-		$wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'order_id' => $order_id ), array( 'sale_id' => $sale_id ) );
+		$linked = $wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'order_id' => $order_id ), array( 'sale_id' => $sale_id ) );
+		if ( false === $linked ) {
+			// Payment is only confirmed for an order the sale row points to; resubmitting the form resumes.
+			return self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden.', 'pass-captain' ), 503 );
+		}
 
 		// 3. Payment confirmation and issuance, then booking.
 		$reference = mb_substr( sanitize_text_field( (string) ( $input['reference'] ?? '' ) ), 0, 100 );
@@ -398,6 +406,13 @@ final class Service {
 		if ( is_wp_error( $confirmed ) ) { return $confirmed; }
 		if ( '' !== $reference ) { Orders::set_provider_reference( $order_id, $reference ); }
 		return self::finalize( $sale_id );
+	}
+
+	/** Rolls back and returns a retryable error; the sale stays pending and resubmitting/"Nachbuchen" resumes it. */
+	private static function busy() {
+		global $wpdb;
+		$wpdb->query( 'ROLLBACK' );
+		return self::error( 'wpcap_pos_busy', __( 'Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden.', 'pass-captain' ), 503 );
 	}
 
 	/** Paid order with all tickets issued? Re-issues missing tickets once (idempotent core issuance). */
@@ -427,7 +442,9 @@ final class Service {
 		if ( 'pending' !== $sale->status ) { return 'failed' === $sale->status ? self::error( 'wpcap_pos_sale_failed', __( 'Dieser Verkauf wurde nicht gebucht. Bitte neu erfassen.', 'pass-captain' ), 409 ) : array( 'sale' => $sale, 'reused' => true ); }
 		$order = $sale->order_id ? Orders::get( $sale->order_id ) : null;
 		if ( ! $order ) { return self::error( 'wpcap_pos_in_progress', __( 'Dieser Verkauf wird gerade verarbeitet.', 'pass-captain' ), 409 ); }
-		if ( 'pending' === $order->payment_status ) {
+		// "expired": the sale was interrupted before the payment was confirmed and the 15-minute hold
+		// lapsed meanwhile; confirm_external_payment() re-checks capacity under locks (late recovery).
+		if ( in_array( $order->payment_status, array( 'pending', 'expired' ), true ) ) {
 			$confirmed = Orders::confirm_external_payment( $order->order_id, 'pos:' . $sale->payment_method );
 			if ( is_wp_error( $confirmed ) ) { return $confirmed; }
 		}
@@ -437,16 +454,19 @@ final class Service {
 		}
 		$order = Orders::get( $order->order_id );
 
-		$wpdb->query( 'START TRANSACTION' );
+		if ( ! $order ) { return self::busy(); }
+		// A failed locking read must not look like "session closed" (that cancels the paid order).
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
 		$session = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sessions WHERE session_id=%d FOR UPDATE", $sale->session_id ) );
+		if ( '' !== (string) $wpdb->last_error ) { return self::busy(); }
 		$locked = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_boxoffice_sales WHERE sale_id=%d FOR UPDATE", $sale->sale_id ) );
+		if ( '' !== (string) $wpdb->last_error ) { return self::busy(); }
 		if ( ! $locked || 'pending' !== $locked->status ) {
 			$wpdb->query( 'COMMIT' );
 			return self::finalize( $sale->sale_id ); // Booked or failed by a concurrent request.
 		}
 		if ( ! $session || 'open' !== $session->status ) {
-			$wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'status' => 'failed' ), array( 'sale_id' => (int) $sale->sale_id ) );
-			$wpdb->query( 'COMMIT' );
+			if ( false === $wpdb->update( "{$p}wpcap_boxoffice_sales", array( 'status' => 'failed' ), array( 'sale_id' => (int) $sale->sale_id ) ) || false === $wpdb->query( 'COMMIT' ) ) { return self::busy(); }
 			Orders::cancel_order( $order->order_id, 'pos_session_closed' );
 			Audit::record( 'pos_sale_failed', 'order', (int) $order->order_id, array( 'sale_id' => (int) $sale->sale_id, 'reason' => 'session_closed' ) );
 			return self::error( 'wpcap_pos_session_closed', __( 'Die Kassensitzung wurde inzwischen geschlossen. Der Verkauf wurde nicht gebucht und die Tickets wurden storniert.', 'pass-captain' ), 409 );
@@ -461,7 +481,7 @@ final class Service {
 			'status' => 'completed',
 		), array( 'sale_id' => (int) $sale->sale_id, 'status' => 'pending' ) );
 		if ( ! $updated ) { $wpdb->query( 'ROLLBACK' ); return self::error( 'wpcap_pos_save', __( 'Der Verkauf konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
-		$wpdb->query( 'COMMIT' );
+		if ( false === $wpdb->query( 'COMMIT' ) ) { return self::busy(); }
 		if ( 'invoice' === $sale->payment_method ) { Invoices::issue_for_order( $order->order_id ); }
 		if ( ! self::is_placeholder_email( $order->customer_email ) ) { Orders::rotate_access_link( $order->order_id ); }
 		Audit::record( 'pos_sale', 'order', (int) $order->order_id, array( 'sale_id' => (int) $sale->sale_id, 'receipt' => $number, 'method' => $sale->payment_method, 'total_minor' => (int) $order->total_minor ) );

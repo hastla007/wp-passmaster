@@ -5,6 +5,9 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Jobs {
+	/** Attempts (counted when a worker claims the job) before a job is dead-lettered. */
+	const MAX_ATTEMPTS = 8;
+
 	public static function enqueue( $key, $type, array $payload, $run_after = '' ) {
 		global $wpdb;
 		$key = sanitize_text_field( $key );
@@ -24,10 +27,14 @@ final class Jobs {
 		global $wpdb;
 		// Refunds paid out at the provider but not booked locally are finished here (no provider call).
 		Refunds::reconcile();
+		// Paid orders whose ticket issuance failed without a queued retry (e.g. connection lost).
+		Orders::reconcile_issuance();
 		$table = $wpdb->prefix . 'wpcap_jobs';
 		$now = current_time( 'mysql', true );
 		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='queued',locked_at=NULL WHERE status='running' AND locked_at<%s", $stale ) );
+		// Claims of crashed workers go back to the queue; a job whose attempts are used up (it kills the
+		// worker every time) is dead-lettered instead of being retried forever.
+		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status=IF(attempts>=%d,'dead_letter','queued'),last_error=IF(attempts>=%d,'Worker stopped while running the job; attempts exhausted.',last_error),locked_at=NULL WHERE status='running' AND locked_at<%s", self::MAX_ATTEMPTS, self::MAX_ATTEMPTS, $stale ) );
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 20;
 		$deadline = Jobs\TimeBudget::deadline();
 		$processed = 0;
@@ -50,7 +57,7 @@ final class Jobs {
 			if ( false === $claimed ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
 			if ( 1 !== (int) $claimed ) { $wpdb->query( 'ROLLBACK' ); continue; }
 			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
-			Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued' );
+			Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued', 'dead_letter', self::MAX_ATTEMPTS );
 			++$processed;
 			$payload = json_decode( $row->payload, true );
 			$handled = apply_filters( 'wp_pass_captain_process_job_v1', false, $row->job_type, is_array( $payload ) ? $payload : array(), (int) $row->job_id );
@@ -60,7 +67,7 @@ final class Jobs {
 				continue;
 			}
 			$attempts = (int) $row->attempts + 1;
-			$status = $attempts >= 8 ? 'dead_letter' : 'queued';
+			$status = $attempts >= self::MAX_ATTEMPTS ? 'dead_letter' : 'queued';
 			self::update_with_retry( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
 		}
 		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s LIMIT 1", $now ) ) ) {

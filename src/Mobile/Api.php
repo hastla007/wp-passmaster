@@ -188,6 +188,13 @@ final class Api {
 			$row = self::scan_payload( $outcome );
 			$row['idempotency_key'] = $key;
 			$row['direction'] = $out ? 'out' : 'in';
+			// Transient server error (database): nothing was booked. The device keeps the scan and
+			// uploads it again instead of marking it synced (the admission happened offline already).
+			if ( is_wp_error( $outcome ) && ! empty( ( (array) $outcome->get_error_data() )['retryable'] ) ) {
+				$row['retryable'] = true;
+				$results[] = $row;
+				continue;
+			}
 			// Offline the device already let the person in; a rejection here is an admission conflict
 			// (recorded for review under "Einlass-Konflikte").
 			$data = is_wp_error( $outcome ) ? (array) $outcome->get_error_data() : (array) $outcome;

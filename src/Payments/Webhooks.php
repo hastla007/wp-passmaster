@@ -54,7 +54,17 @@ final class Webhooks {
 			return self::db_error( $provider, $event_id, 'claim' );
 		}
 		if ( 0 === (int) $claimed ) {
-			return 'duplicate';
+			// Only an event that was fully processed is a duplicate. A claim still "processing" belongs
+			// to a request that is running or crashed (its release may have failed with the connection):
+			// acknowledging it would make the provider stop retrying an event that was never applied.
+			$status = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$p}wpcap_payment_events WHERE provider=%s AND provider_event_id=%s", $provider, $event_id ) );
+			if ( 'processed' === $status ) {
+				return 'duplicate';
+			}
+			if ( '' !== (string) $wpdb->last_error ) {
+				return self::db_error( $provider, $event_id, 'claim_status' );
+			}
+			return new \WP_Error( 'wpcap_webhook_in_progress', 'Event is being processed; retry later.', array( 'status' => 409, 'retryable' => true ) );
 		}
 		$release = static function () use ( $wpdb, $p, $provider, $event_id ) {
 			$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_payment_events WHERE provider=%s AND provider_event_id=%s AND status='processing'", $provider, $event_id ) );
@@ -64,6 +74,11 @@ final class Webhooks {
 			$public_id = sanitize_text_field( (string) ( $event['order_public_id'] ?? '' ) );
 			if ( '' !== $public_id ) {
 				$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE public_id=%s AND payment_provider=%s", $public_id, $provider ) );
+				if ( '' !== (string) $wpdb->last_error ) {
+					// A failed lookup is not an unknown order: "ignored" would acknowledge a lost payment.
+					$release();
+					return self::db_error( $provider, $event_id, 'order_lookup' );
+				}
 			}
 			$result = self::apply( $provider, $event_id, $order_id, $event );
 		} catch ( \Throwable $error ) {
@@ -111,6 +126,9 @@ final class Webhooks {
 		$type = (string) ( $event['type'] ?? '' );
 		$order = $order_id ? Orders::get( $order_id ) : null;
 		if ( ! $order ) {
+			if ( $order_id && '' !== (string) $wpdb->last_error ) {
+				return new \WP_Error( 'wpcap_webhook_db_error', 'Database unavailable; retry later.', array( 'status' => 503, 'retryable' => true ) );
+			}
 			return 'ignored';
 		}
 		if ( 'paid' === $type ) {

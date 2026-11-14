@@ -275,13 +275,20 @@ final class Invoices {
 		$table = $wpdb->prefix . 'wpcap_document_sequences';
 		$series = sanitize_key( $series );
 		$year = self::local_year();
-		if ( ! $in_transaction ) { $wpdb->query( 'START TRANSACTION' ); }
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (series,year,next_number) VALUES (%s,%d,1)", $series, $year ) );
+		// Every step is checked: a number handed out without advancing the sequence (e.g. the UPDATE hit
+		// a deadlock, which also rolls back the caller's transaction) would be issued twice; the unique
+		// receipt/invoice number then blocks every later document of the series.
+		$failed = static function () use ( $wpdb, $in_transaction ) {
+			if ( ! $in_transaction ) { $wpdb->query( 'ROLLBACK' ); }
+			return new \WP_Error( 'wpcap_document_sequence', __( 'Belegnummer konnte nicht reserviert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		};
+		if ( ! $in_transaction && false === $wpdb->query( 'START TRANSACTION' ) ) { return $failed(); }
+		if ( false === $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (series,year,next_number) VALUES (%s,%d,1)", $series, $year ) ) ) { return $failed(); }
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT next_number FROM $table WHERE series=%s AND year=%d FOR UPDATE", $series, $year ) );
-		if ( ! $row ) { if ( ! $in_transaction ) { $wpdb->query( 'ROLLBACK' ); } return new \WP_Error( 'wpcap_document_sequence', __( 'Belegnummer konnte nicht reserviert werden.', 'pass-captain' ) ); }
+		if ( ! $row ) { return $failed(); }
 		$number = (int) $row->next_number;
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET next_number=%d WHERE series=%s AND year=%d", $number + 1, $series, $year ) );
-		if ( ! $in_transaction ) { $wpdb->query( 'COMMIT' ); }
+		if ( 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE $table SET next_number=%d WHERE series=%s AND year=%d AND next_number=%d", $number + 1, $series, $year, $number ) ) ) { return $failed(); }
+		if ( ! $in_transaction && false === $wpdb->query( 'COMMIT' ) ) { return $failed(); }
 		return sprintf( '%s-%d-%06d', preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $prefix ) ?: 'DOC', $year, $number );
 	}
 

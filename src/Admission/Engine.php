@@ -124,7 +124,10 @@ final class Engine {
 		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_admission_entries WHERE ticket_id=%d AND direction='in' AND undone=0", (int) $ticket_id ) );
 	}
 
-	/** State row of a ticket, locked and reconciled with later "undone" log rows. Null if none. */
+	/**
+	 * State row of a ticket, locked and reconciled with later "undone" log rows. Null if none, false
+	 * on a database error (callers abort: a failed read must not look like "never admitted").
+	 */
 	public static function state_for_update( $ticket_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
@@ -132,13 +135,16 @@ final class Engine {
 		// Locking a not-yet-existing state row took gap locks that deadlocked concurrent scans of
 		// different tickets against the later INSERT … ON DUPLICATE KEY.
 		$state = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_admission_state WHERE ticket_id=%d", (int) $ticket_id ) );
+		if ( '' !== (string) $wpdb->last_error ) { return false; }
 		if ( ! $state ) { return null; }
 		$undone = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS n, MAX(checkin_id) AS last_id FROM {$p}wpcap_checkins WHERE ticket_id=%d AND result='undone' AND checkin_id>%d", (int) $ticket_id, (int) $state->last_checkin_id ) );
+		if ( '' !== (string) $wpdb->last_error ) { return false; }
 		if ( $undone && (int) $undone->n > 0 ) {
 			$n = (int) $undone->n;
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_entries SET undone=1 WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT %d", (int) $ticket_id, $n ) );
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_state SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-%d,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d", $n, (int) $undone->last_id, current_time( 'mysql', true ), (int) $ticket_id ) );
+			if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_entries SET undone=1 WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT %d", (int) $ticket_id, $n ) ) ) { return false; }
+			if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_state SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-%d,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d", $n, (int) $undone->last_id, current_time( 'mysql', true ), (int) $ticket_id ) ) ) { return false; }
 			$state = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_admission_state WHERE ticket_id=%d", (int) $ticket_id ) );
+			if ( '' !== (string) $wpdb->last_error ) { return false; }
 		}
 		return $state;
 	}
@@ -203,20 +209,27 @@ final class Engine {
 	public static function undo_last( array $found, $reason = '' ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$wpdb->query( 'START TRANSACTION' );
+		// Every step is checked: an undo reported as done must really have freed the entry.
+		$busy = static function () use ( $wpdb ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_checkin_retry', __( 'Der Scan konnte gerade nicht gespeichert werden. Bitte erneut scannen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'result' => 'retry' ) );
+		};
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
 		$wpdb->get_row( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", (int) $found['ticket_id'] ) );
-		self::state_for_update( $found['ticket_id'] );
+		if ( '' !== (string) $wpdb->last_error || false === self::state_for_update( $found['ticket_id'] ) ) { return $busy(); }
 		$entry = $wpdb->get_row( $wpdb->prepare( "SELECT entry_id FROM {$p}wpcap_admission_entries WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT 1", (int) $found['ticket_id'] ) );
+		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }
 		if ( ! $entry ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_ticket_not_checked_in', __( 'Das Ticket ist nicht eingecheckt.', 'pass-captain' ), array( 'status' => 409, 'result' => 'not_checked_in' ) );
 		}
 		$now = current_time( 'mysql', true );
 		$wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_day_id' => 0, 'user_id' => get_current_user_id(), 'result' => 'undone', 'created_at' => $now ) );
-		$undo_id = (int) $wpdb->insert_id;
-		$wpdb->update( "{$p}wpcap_admission_entries", array( 'undone' => 1 ), array( 'entry_id' => (int) $entry->entry_id ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_state SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-1,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d", $undo_id, $now, (int) $found['ticket_id'] ) );
-		$wpdb->query( 'COMMIT' );
+		$undo_id = '' === (string) $wpdb->last_error ? (int) $wpdb->insert_id : 0;
+		if ( ! $undo_id ) { return $busy(); }
+		if ( 1 !== (int) $wpdb->update( "{$p}wpcap_admission_entries", array( 'undone' => 1 ), array( 'entry_id' => (int) $entry->entry_id ) ) ) { return $busy(); }
+		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_state SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-1,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d", $undo_id, $now, (int) $found['ticket_id'] ) ) ) { return $busy(); }
+		if ( false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		Audit::record( 'checkin_undone', 'ticket', (int) $found['ticket_id'], array( 'event_id' => (int) $found['event_id'], 'reason' => mb_substr( sanitize_text_field( (string) $reason ), 0, 255 ) ) );
 		return array( 'ticket_id' => (int) $found['ticket_id'], 'public_id' => $found['public_id'] );
 	}

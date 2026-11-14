@@ -682,8 +682,11 @@ final class Orders {
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
 		$now = current_time( 'mysql', true );
-		$wpdb->query( 'START TRANSACTION' );
+		// Without a transaction the status update below would autocommit and the in_transaction()
+		// check before COMMIT would then roll back nothing: a paid order without tickets.
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::payment_busy(); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return self::payment_busy(); }
 		if ( ! $order ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_order_missing', __( 'Bestellung nicht gefunden.', 'pass-captain' ) );
@@ -742,9 +745,10 @@ final class Orders {
 				}
 			}
 			if ( $error ) {
-				$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'needs_review', 'payment_status' => 'paid_unallocated', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
-				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='expired' WHERE order_id=%d AND status='active'", $order_id ) );
-				$wpdb->query( 'COMMIT' );
+				// needs_review is a final answer (webhooks acknowledge it): it must be persisted first.
+				if ( false === $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'needs_review', 'payment_status' => 'paid_unallocated', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) { return self::payment_busy(); }
+				if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='expired' WHERE order_id=%d AND status='active'", $order_id ) ) ) { return self::payment_busy(); }
+				if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) { return self::payment_busy(); }
 				self::capacity_released( $order_id, 'payment_unallocated' );
 				Audit::record( 'payment_unallocated', 'order', $order_id, array( 'reason' => $error, 'reference' => sanitize_text_field( $reference ) ) );
 				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne freies Kontingent', 'pass-captain' ), sprintf( __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
@@ -1260,6 +1264,9 @@ final class Orders {
 				}
 				/** Inside the issuance transaction, e.g. to assign a seat or area. Do not store $token. */
 				do_action( 'wpcap_ticket_created', $ticket_id, $order, $line, $i );
+				// A deadlock inside a hook rolls the whole transaction back; further inserts would autocommit
+				// and leave a partial issuance behind.
+				if ( false === self::in_transaction() ) { return self::issue_failed( $order_id, 'ticket_hook' ); }
 				$issued[] = array( 'ticket_id' => $ticket_id, 'ticket_type_id' => (int) $line->ticket_type_id, 'occurrence_id' => (int) ( $line->occurrence_id ?? 0 ), 'token' => $token, 'event' => $line->event_name, 'ticket' => $line->ticket_name, 'starts_at' => $line->starts_at, 'timezone' => $line->timezone, 'location' => $line->location );
 			}
 		}
@@ -1370,6 +1377,34 @@ final class Orders {
 		}
 		Audit::record( 'tickets_delivered_retry', 'order', $order_id, array( 'ticket_count' => (int) $result ) );
 		return true;
+	}
+
+	/**
+	 * Safety net for issuances whose retry job could not be queued (e.g. the database connection was
+	 * lost after the payment committed): issues the missing tickets of paid orders. Idempotent (the
+	 * issuance locks the order row and only creates what is missing); runs with the job queue (cron).
+	 *
+	 * @return int Number of orders whose tickets were issued.
+	 */
+	public static function reconcile_issuance( $limit = 20 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		// Orders of the last 30 days only (index paid_created), so the sweep stays cheap on large sites.
+		$ids = $wpdb->get_col( $wpdb->prepare(
+			"SELECT ord.order_id FROM {$p}wpcap_orders ord WHERE ord.payment_status='paid' AND ord.created_at>=%s AND ord.status='complete' AND (SELECT COALESCE(SUM(oi.quantity),0) FROM {$p}wpcap_order_items oi WHERE oi.order_id=ord.order_id) > (SELECT COUNT(*) FROM {$p}wpcap_tickets t WHERE t.order_id=ord.order_id) ORDER BY ord.order_id LIMIT %d",
+			gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ),
+			max( 1, absint( $limit ) )
+		) );
+		$done = 0;
+		foreach ( (array) $ids as $order_id ) {
+			self::$issuing_from_job = true; // No extra retry job: the next sweep retries.
+			try {
+				if ( true === self::issue_and_email( (int) $order_id ) && 0 === self::missing_tickets( (int) $order_id ) ) { ++$done; }
+			} finally {
+				self::$issuing_from_job = false;
+			}
+		}
+		return $done;
 	}
 
 	/**
