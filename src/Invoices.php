@@ -65,6 +65,9 @@ final class Invoices {
 		$snapshot = array_merge( $snapshot, Billing::snapshot( $order ) );
 		$payments = Integrations\Vouchers\Checkout::invoice_payments( $order );
 		if ( $payments ) { $snapshot['payments'] = $payments; }
+		// Place-of-supply notes from the tax profile snapshots of the order lines (Sales\TaxProfiles).
+		$tax_notes = Sales\TaxProfiles::invoice_notes( $items );
+		if ( $tax_notes ) { $snapshot['tax_notes'] = $tax_notes; }
 		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => $invoice_total, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ) );
 		$invoice_id = (int) $wpdb->insert_id;
 		if ( false === $saved || ! $invoice_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_create', __( 'Rechnung konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
@@ -212,6 +215,7 @@ final class Invoices {
 			/* translators: %s: organizer name */
 			$notes[] = sprintf( __( 'Die Leistung wird von %s erbracht. Die Plattform handelt im Namen und für Rechnung des Veranstalters.', 'pass-captain' ), (string) ( $seller['name'] ?? '' ) );
 		}
+		foreach ( (array) ( $snapshot['tax_notes'] ?? array() ) as $note ) { $notes[] = (string) $note; }
 		return $notes;
 	}
 

@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.6.0';
+	const DB_VERSION = '3.8.0';
 
 	public static function install() {
 		global $wpdb;
@@ -64,6 +64,7 @@ final class Installer {
 				slug varchar(190) NOT NULL,
 				description longtext NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'draft',
+				tax_country char(2) NOT NULL DEFAULT '',
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (event_id),
@@ -106,6 +107,7 @@ final class Installer {
 				public_id char(32) NOT NULL,
 				idempotency_key char(64) NOT NULL,
 				customer_email varchar(190) NOT NULL,
+				customer_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				access_token_hash char(64) NOT NULL DEFAULT '',
 				access_expires_at datetime NULL,
 				status varchar(24) NOT NULL DEFAULT 'pending_payment',
@@ -130,6 +132,7 @@ final class Installer {
 				UNIQUE KEY public_id (public_id),
 				UNIQUE KEY idempotency_key (idempotency_key),
 				KEY customer_email (customer_email),
+				KEY customer_user_id (customer_user_id),
 				KEY access_token_hash (access_token_hash),
 				KEY access_expires_at (access_expires_at),
 				KEY status (status),
@@ -146,6 +149,8 @@ final class Installer {
 				tax_rate_bp int(10) unsigned NOT NULL DEFAULT 0,
 				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				refunded_quantity smallint(5) unsigned NOT NULL DEFAULT 0,
+				tax_profile_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				line_snapshot longtext NULL,
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),
@@ -381,6 +386,8 @@ final class Installer {
 				retention_days smallint(5) unsigned NOT NULL DEFAULT 365,
 				position smallint(5) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				consent_text text NULL,
+				consent_version varchar(32) NOT NULL DEFAULT '',
 				PRIMARY KEY  (field_id),
 				UNIQUE KEY type_key (ticket_type_id,field_key),
 				KEY type_status (ticket_type_id,status)
@@ -475,6 +482,9 @@ final class Installer {
 				starts_at datetime NULL,
 				ends_at datetime NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				combinable tinyint(1) unsigned NOT NULL DEFAULT 1,
+				with_price_rules tinyint(1) unsigned NOT NULL DEFAULT 1,
+				max_discount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (campaign_id),
 				UNIQUE KEY code (code),
@@ -551,6 +561,9 @@ final class Installer {
 				effective_from date NOT NULL,
 				effective_until date NULL,
 				status varchar(20) NOT NULL DEFAULT 'draft',
+				label varchar(190) NOT NULL DEFAULT '',
+				place_of_supply_note text NULL,
+				activated_at datetime NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (tax_profile_id),
 				KEY country_effective (country_code,tax_class,effective_from,effective_until),
@@ -657,6 +670,8 @@ final class Installer {
 			) ENGINE=InnoDB $charset;",
 		);
 
+		// Price rules, buyer limits and logged consents (src/Sales, docs/SALES-MODELS.md, docs/TAX-PROFILES.md).
+		$queries = array_merge( $queries, Sales\Schema::statements( $wpdb->prefix, $charset ) );
 		$queries = array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) );
 		$errors = array();
 		foreach ( $queries as $query ) {
