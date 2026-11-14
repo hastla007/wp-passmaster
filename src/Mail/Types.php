@@ -395,6 +395,20 @@ final class Types {
 				},
 				'sample' => static function () { return array( 'position' => 3, 'quantity' => 2, 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'unsubscribe_link' => Mailer::link( home_url( '/?wpcap_waitlist_unsubscribe=12&token=' . str_repeat( 'a7', 32 ) ) ) ); },
 			),
+			'waitlist_closed' => array(
+				'label' => __( 'Warteliste: geschlossen', 'pass-captain' ),
+				'description' => __( 'Der Wartelistenplatz endet, weil der Termin abgesagt wurde, begonnen hat oder der Verkauf beendet ist.', 'pass-captain' ),
+				'placeholders' => array(
+					'event_name' => __( 'Event', 'pass-captain' ),
+					'ticket_name' => __( 'Ticketart', 'pass-captain' ),
+					'reason' => __( 'Grund (Absage oder Ende)', 'pass-captain' ),
+				),
+				/* translators: %s: event name placeholder */
+				'subject' => static function () { return sprintf( __( 'Warteliste beendet: %s', 'pass-captain' ), '{event_name}' ); },
+				/* translators: 1: event, 2: ticket type, 3: reason */
+				'body' => static function () { return sprintf( __( "Dein Platz auf der Warteliste für „%1\$s“ (%2\$s) ist beendet. %3\$s\n\nDu musst nichts weiter tun; wir schreiben dir zu diesem Termin nicht mehr.", 'pass-captain' ), '{event_name}', '{ticket_name}', '{reason}' ); },
+				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'ticket_name' => 'Stehplatz', 'reason' => __( 'Der Termin wurde abgesagt.', 'pass-captain' ) ); },
+			),
 			'waitlist_offer' => array(
 				'label' => __( 'Warteliste: Platzangebot', 'pass-captain' ),
 				'description' => __( 'Angebot an die nächste Person auf der Warteliste; die Tickets sind bis zum Ablauf reserviert.', 'pass-captain' ),

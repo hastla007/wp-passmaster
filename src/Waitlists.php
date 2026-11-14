@@ -25,8 +25,8 @@ final class Waitlists {
 	/** Option with ticket types waiting for processing (type id => due timestamp). */
 	const QUEUE_OPTION = 'wpcap_waitlist_queue';
 
-	/** Entry states. Terminal: paid, expired, declined, skipped, removed. */
-	const STATUSES = array( 'waiting', 'offered', 'accepted', 'paid', 'expired', 'declined', 'skipped', 'removed' );
+	/** Entry states. Terminal: paid, expired, declined, skipped, removed, closed (date cancelled/over, A557). */
+	const STATUSES = array( 'waiting', 'offered', 'accepted', 'paid', 'expired', 'declined', 'skipped', 'removed', 'closed' );
 
 	/** States in which an entry holds inventory through its order. */
 	const OPEN_OFFER = array( 'offered', 'accepted' );
@@ -48,6 +48,8 @@ final class Waitlists {
 		add_action( self::HOOK, array( __CLASS__, 'run_due' ), 10, 0 );
 		add_action( 'wpcap_process_jobs', array( __CLASS__, 'run_due' ), 20, 0 );
 		add_action( 'wpcap_cleanup_reservations', array( __CLASS__, 'sweep' ), 30, 0 );
+		// A557: entries of a cancelled date are closed right away, past dates by the sweep.
+		add_action( 'wpcap_occurrence_cancelled', array( __CLASS__, 'on_occurrence_cancelled' ), 30, 1 );
 		add_filter( 'wpcap_privacy_retention_steps', array( __CLASS__, 'retention_step' ), 10, 3 );
 	}
 
@@ -77,8 +79,9 @@ final class Waitlists {
 	public static function config() {
 		$defaults = array( 'auto_offers' => 1, 'offer_hours' => 24, 'max_offers_per_run' => 10, 'strict_fifo' => 0 );
 		$stored = Settings::get( 'waitlist' );
-		$c = array_merge( $defaults, is_array( $stored ) ? $stored : array() );
+		$c = array_merge( $defaults + array( 'close_mail' => 1 ), is_array( $stored ) ? $stored : array() );
 		$c['auto_offers'] = (int) ! empty( $c['auto_offers'] );
+		$c['close_mail'] = (int) ! empty( $c['close_mail'] );
 		$c['strict_fifo'] = (int) ! empty( $c['strict_fifo'] );
 		$c['offer_hours'] = max( 1, min( 336, (int) $c['offer_hours'] ) );
 		$c['max_offers_per_run'] = max( 1, min( 100, (int) $c['max_offers_per_run'] ) );
@@ -225,6 +228,7 @@ final class Waitlists {
 	public static function sweep() {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		self::close_ended();
 		$types = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT w.ticket_type_id FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE w.status='waiting' AND o.status='scheduled' AND o.starts_at > %s LIMIT 500", Clock::mysql() ) );
 		if ( $types ) { self::queue( $types, Clock::now() ); }
 		return self::run_due();
@@ -912,13 +916,16 @@ final class Waitlists {
 		return '<h1>' . esc_html__( 'Ausgetragen', 'pass-captain' ) . '</h1><p>' . esc_html( $text ) . '</p>';
 	}
 
-	/** Open entries (waiting, offered) with the buyer address of an order, for the order portal. */
+	/**
+	 * Open entries (waiting, offered) with the buyer address of an order, for the order portal; only
+	 * dates that are still scheduled, in the future and on sale (A557).
+	 */
 	public static function portal_entries( $order ) {
 		global $wpdb;
 		$email = strtolower( trim( (string) ( $order->customer_email ?? '' ) ) );
 		if ( '' === $email || Mail\Mailer::is_placeholder( $email ) ) { return array(); }
 		$p = $wpdb->prefix;
-		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT w.waitlist_id,w.status,w.quantity,e.name AS event_name,tt.name AS ticket_name,o.starts_at,o.timezone FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_events e ON e.event_id=w.event_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id LEFT JOIN {$p}wpcap_occurrences o ON o.occurrence_id=w.occurrence_id WHERE w.email_hash=%s AND w.status IN ('waiting','offered') ORDER BY w.waitlist_id LIMIT 20", hash( 'sha256', $email ) ) );
+		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT w.waitlist_id,w.status,w.quantity,e.name AS event_name,tt.name AS ticket_name,o.starts_at,o.timezone FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_events e ON e.event_id=w.event_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE w.email_hash=%s AND w.status IN ('waiting','offered') AND o.status='scheduled' AND e.status='published' AND o.starts_at>%s AND ( tt.sales_end IS NULL OR tt.sales_end>%s ) ORDER BY w.waitlist_id LIMIT 20", hash( 'sha256', $email ), Clock::mysql(), Clock::mysql() ) );
 	}
 
 	private static function portal_nonce_action( $order ) {
@@ -993,6 +1000,65 @@ final class Waitlists {
 		return array( 'status' => $status );
 	}
 
+	/** wpcap_occurrence_cancelled: closes the open entries of the cancelled date (A557). */
+	public static function on_occurrence_cancelled( $occurrence_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT w.* FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id WHERE tt.occurrence_id=%d AND w.status IN ('waiting','offered') ORDER BY w.waitlist_id", absint( $occurrence_id ) ) );
+		return self::close_entries( (array) $rows, 'cancelled' );
+	}
+
+	/**
+	 * Closes open entries whose date can no longer be offered (A557): occurrence or event cancelled,
+	 * occurrence started, or the sales window of the ticket type ended. Runs in the sweep.
+	 *
+	 * @return int Entries closed.
+	 */
+	public static function close_ended( $limit = 200 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$now = Clock::mysql();
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT w.*,CASE WHEN o.status='cancelled' OR e.status='cancelled' THEN 'cancelled' ELSE 'ended' END AS close_reason FROM {$p}wpcap_waitlist w INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE w.status IN ('waiting','offered') AND ( o.status='cancelled' OR e.status='cancelled' OR o.starts_at<=%s OR ( tt.sales_end IS NOT NULL AND tt.sales_end<=%s ) ) ORDER BY w.waitlist_id LIMIT %d", $now, $now, max( 1, (int) $limit ) ) );
+		$closed = 0;
+		foreach ( array( 'cancelled', 'ended' ) as $reason ) {
+			$closed += self::close_entries( array_values( array_filter( (array) $rows, static function ( $row ) use ( $reason ) { return $reason === $row->close_reason; } ) ), $reason );
+		}
+		return $closed;
+	}
+
+	/**
+	 * Closes entries (status `closed`): an open offer is withdrawn and its hold released; with the
+	 * setting `close_mail` (default on) the person gets the `waitlist_closed` mail.
+	 *
+	 * @param object[] $rows   Waitlist rows (waiting/offered).
+	 * @param string   $reason cancelled|ended.
+	 * @return int Entries closed.
+	 */
+	private static function close_entries( array $rows, $reason ) {
+		global $wpdb;
+		$closed = 0;
+		$mail = (bool) self::config()['close_mail'];
+		foreach ( $rows as $row ) {
+			$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_waitlist SET status='closed',offer_token_hash='',updated_at=%s WHERE waitlist_id=%d AND status=%s", Clock::mysql(), (int) $row->waitlist_id, (string) $row->status ) );
+			if ( 1 !== (int) $changed ) { continue; }
+			++$closed;
+			if ( 'offered' === $row->status && (int) $row->order_id ) {
+				$order = Orders::get( (int) $row->order_id );
+				if ( $order && 'pending' === $order->payment_status ) { self::release_offer_order( (int) $row->order_id, 'waitlist_closed' ); }
+			}
+			Audit::record( 'waitlist_closed', 'waitlist', (int) $row->waitlist_id, array( 'previous' => (string) $row->status, 'reason' => $reason ) );
+			if ( $mail && is_email( (string) $row->email ) ) {
+				$names = self::mail_names( $row->event_id, $row->ticket_type_id );
+				Mail\Mailer::send( 'waitlist_closed', (string) $row->email, array(
+					'event_name' => (string) ( $names['event_name'] ?? '' ),
+					'ticket_name' => (string) ( $names['ticket_name'] ?? '' ),
+					'reason' => static function () use ( $reason ) { return 'cancelled' === $reason ? __( 'Der Termin wurde abgesagt.', 'pass-captain' ) : __( 'Der Termin hat begonnen bzw. der Verkauf ist beendet.', 'pass-captain' ); },
+				) );
+			}
+		}
+		return $closed;
+	}
+
 	/** Sets the priority of an entry (higher first; position decides within one priority). */
 	public static function set_priority( $waitlist_id, $priority ) {
 		global $wpdb;
@@ -1042,6 +1108,7 @@ final class Waitlists {
 			'declined' => __( 'Abgelehnt', 'pass-captain' ),
 			'skipped' => __( 'Übersprungen', 'pass-captain' ),
 			'removed' => __( 'Entfernt', 'pass-captain' ),
+			'closed' => __( 'Geschlossen (Termin abgesagt oder vorbei)', 'pass-captain' ),
 		);
 		return $labels[ $status ] ?? (string) $status;
 	}

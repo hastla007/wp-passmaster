@@ -11,7 +11,7 @@ dabei**, damit niemand anderes sie in der Zwischenzeit kaufen kann.
 | `quantity` | Gewünschte Anzahl (1 bis `max_per_order` der Ticketart). |
 | `position` | Reihenfolge der Eintragung (FIFO) je Event und Ticketart. |
 | `priority` | Optional, vom Team gesetzt (−1000 … 1000). Höhere Priorität kommt zuerst, innerhalb einer Priorität entscheidet die Position. |
-| `status` | `waiting` → `offered` → `accepted` → `paid`; Endzustände `expired`, `declined`, `skipped`, `removed`. |
+| `status` | `waiting` → `offered` → `accepted` → `paid`; Endzustände `expired`, `declined`, `skipped`, `removed`, `closed`. |
 | `order_id` | Bestellung, die das offene Angebot reserviert (0 ohne Angebot). |
 | `offer_expires_at` | Ende der Reservierung (UTC): beim Angebot die Annahmefrist, nach der Annahme das Zahlungsziel. |
 
@@ -26,6 +26,15 @@ Schlange); vom Team übersprungene oder entfernte Einträge nicht. Wer sich selb
 ein Wartelisten-Formular (Ticketart, Anzahl, E-Mail), das diesen Endpunkt aufruft. Ist der Termin ganz
 ausverkauft, entfällt das Bestellformular. Ausblenden: `add_filter( 'wpcap_waitlist_public_enabled',
 '__return_false' )` (zweiter Parameter: Termin-Zeile der Karte).
+
+**Abgesagte oder vergangene Termine (A557):** Wird ein Termin (oder das ganze Event) abgesagt, werden
+seine wartenden Einträge und offenen Angebote sofort geschlossen (`closed`, Audit `waitlist_closed`;
+ein offenes Angebot wird zurückgenommen und seine Reservierung freigegeben). Der stündliche Sweep
+(`wpcap_cleanup_reservations`) schließt außerdem Einträge, deren Termin begonnen hat oder deren
+Ticketart nicht mehr verkauft wird (`sales_end`). Die Betroffenen erhalten die Mail
+`waitlist_closed` mit dem Grund; abschalten mit der Einstellung `waitlist.close_mail = 0`. Das
+Bestellportal zeigt nur Wartelisteneinträge für Termine, die noch geplant, in der Zukunft und im
+Verkauf sind.
 
 ## Ablauf
 

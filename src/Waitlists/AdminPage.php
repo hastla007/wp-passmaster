@@ -67,6 +67,7 @@ final class AdminPage {
 			'offer_hours' => max( 1, min( 336, Forms::int( $in, 'offer_hours', 24 ) ) ),
 			'max_offers_per_run' => max( 1, min( 100, Forms::int( $in, 'max_offers_per_run', 10 ) ) ),
 			'strict_fifo' => Forms::flag( $in, 'strict_fifo' ) ? 1 : 0,
+			'close_mail' => Forms::flag( $in, 'close_mail' ) ? 1 : 0,
 		);
 		Settings::update( array( 'waitlist' => $values ) );
 		return array( 'saved' => $values );
@@ -143,6 +144,7 @@ final class AdminPage {
 		echo '<tr><th scope="row"><label for="wpcap-wl-hours">' . esc_html__( 'Gültigkeit eines Angebots (Stunden)', 'pass-captain' ) . '</label></th><td><input type="number" id="wpcap-wl-hours" name="offer_hours" min="1" max="336" value="' . esc_attr( (string) $c['offer_hours'] ) . '"><p class="description">' . esc_html__( 'So lange sind die Tickets für die Person reserviert (höchstens bis zum Beginn des Termins).', 'pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th scope="row"><label for="wpcap-wl-max">' . esc_html__( 'Höchstens Angebote pro Durchlauf', 'pass-captain' ) . '</label></th><td><input type="number" id="wpcap-wl-max" name="max_offers_per_run" min="1" max="100" value="' . esc_attr( (string) $c['max_offers_per_run'] ) . '"></td></tr>';
 		echo '<tr><th scope="row">' . esc_html__( 'Strikte Reihenfolge', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="strict_fifo" value="1"' . checked( ! empty( $c['strict_fifo'] ), true, false ) . '> ' . esc_html__( 'Nicht vorziehen: Passt die gewünschte Anzahl des nächsten Eintrags nicht, wird gewartet statt kleinere Einträge dahinter zu bedienen.', 'pass-captain' ) . '</label></td></tr>';
+		echo '<tr><th scope="row">' . esc_html__( 'Bei Absage oder Terminende', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="close_mail" value="1"' . checked( ! empty( $c['close_mail'] ), true, false ) . '> ' . esc_html__( 'Wartende per E-Mail informieren, dass ihr Wartelistenplatz endet', 'pass-captain' ) . '</label><p class="description">' . esc_html__( 'Einträge abgesagter, begonnener oder nicht mehr verkaufter Termine werden immer geschlossen.', 'pass-captain' ) . '</p></td></tr>';
 		echo '</tbody></table>';
 		submit_button( __( 'Speichern', 'pass-captain' ) );
 		echo '</form>';

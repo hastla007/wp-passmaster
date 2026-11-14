@@ -23,6 +23,7 @@ Admin-Benachrichtigungen (z. B. „Erstattung wartet auf Freigabe“, „Webhook
 | `occurrence_rescheduled` | Termin verschoben (nur die Zeit; aktualisierte .ics im Anhang) | `{event_name}`, `{old_date}`, `{event_date}`, `{timezone}`, `{event_location}`, `{ics_url}` |
 | `occurrence_changed` | Termindetails geändert (A140): Ort, Ende, Einlass oder Veranstaltungsland – auch zusammen mit einer neuen Zeit, dann statt `occurrence_rescheduled` (eine Mail je Speichern). Höchstens einmal je Revision des Termins; aktualisierte .ics im Anhang | `{event_name}`, `{changes}` (eine Zeile „Angabe: bisher → neu“ je Änderung), `{event_date}`, `{old_date}`, `{timezone}`, `{event_location}`, `{ics_url}` |
 | `waitlist_joined` | Eintragung in die Warteliste | `{position}`, `{quantity}`, `{event_name}`, `{ticket_name}` |
+| `waitlist_closed` | Wartelistenplatz beendet: Termin abgesagt, begonnen oder Verkauf beendet (A557) | `{event_name}`, `{ticket_name}`, `{reason}` |
 | `waitlist_offer` | Platzangebot aus der Warteliste (Tickets bis zum Ablauf reserviert) | `{offer_expires}`, `{accept_link}`, `{quantity}`, `{position}`, `{event_name}`, `{ticket_name}` |
 | `member_pass` | Mitgliedspass ausgestellt | `{pass_code}`, `{valid_from}`, `{valid_until}` |
 

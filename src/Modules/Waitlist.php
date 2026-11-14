@@ -22,6 +22,7 @@ final class Waitlist {
 				'offer_hours' => 24,
 				'max_offers_per_run' => 10,
 				'strict_fifo' => 0,
+				'close_mail' => 1,
 			),
 		);
 	}
