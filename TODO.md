@@ -9,7 +9,7 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 - [x] Plugin-Bootstrap, Composer-Autoloading, Aktivierungs-/Deaktivierungshooks, Capabilities, REST-Grundlage und Adminnavigation erstellen.
 - [x] Composer-Abhängigkeiten, Lizenzdokumentation und installierbares Release-ZIP einrichten (CI-Build vorhanden).
 - [x] Versioniertes Schema und Upgrade-Migrationen erstellen; Migration läuft kontrolliert im Admin, per Cron oder WP-CLI.
-- [ ] Rollback-/Restore-Verhalten mit echten Datenbankständen erproben und dokumentieren.
+- [ ] Rollback-/Restore-Verhalten mit echten Datenbankständen erproben und dokumentieren. *Stand 2026-11-15: automatisierte Restore-Übung mit Diagnose und idempotentem Wiederanlauf auf MariaDB/MySQL (`tests/drills/restore-drill.sh`, wöchentlich); Übung mit echten Produktionsdaten bleibt manuell.*
 - [x] Plugin muss ohne WooCommerce und ohne Voucher Captain aktivierbar und funktionsfähig sein; beide Integrationen bleiben optional.
 
 ## P0 – Event- und Verkaufsgrundlage
@@ -37,10 +37,10 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 
 ## P0 – QR-Ticket und Online-Check-in
 
-- [ ] Tickets verwenden zufällige 256-Bit-Codes; gespeichert wird nur deren Hash, und der QR enthält keine PII oder fortlaufende Datenbank-ID. Ein separates signiertes QR-Payload ist nicht umgesetzt; Sicherheits- und Interoperabilitätsentscheidung dafür dokumentieren.
+- [x] Tickets verwenden zufällige 256-Bit-Codes; gespeichert wird nur deren Hash, und der QR enthält keine PII oder fortlaufende Datenbank-ID. Ein separates signiertes QR-Payload ist nicht umgesetzt; Sicherheits- und Interoperabilitätsentscheidung dafür dokumentieren. **Erledigt (2026-11-15):** Optionales signiertes QR-Format `PC1` (Ed25519, Schlüssel im Vault, Rotation mit Schonfrist/sofortiger Sperre, Code-Version gegen Neuausgabe), offline in der PWA prüfbar; Entscheidung in `docs/SECURITY.md`.
 - [x] Ticketlink/QR, E-Mail-Zustellung, private Druckansicht, native Ticket-PDF als Mail-Anhang (`TicketPdf`, Filter `wpcap_attach_ticket_pdf`) und Bestell-/Ticketportal mit Teilnehmer-Selbstbedienung (`OrderPortal`) sind umgesetzt.
 - [x] Mobilfreundlichen Online-Scanner mit Kamera-QR-Scan und manueller Codeeingabe bereitstellen.
-- [ ] Vollständige installierbare PWA-Abnahme für Browser/Endgeräte dokumentieren.
+- [ ] Vollständige installierbare PWA-Abnahme für Browser/Endgeräte dokumentieren. *Stand 2026-11-15: Offline-Scanner-PWA automatisiert in Chromium, Firefox, WebKit sowie Pixel-7- und iPhone-14-Emulation; echte Geräte bleiben manuell.*
 - [x] Check-in-Nebenläufigkeitsfehler behoben: Ticketzeile wird gesperrt, sämtliche Schreibvorgänge/Commit werden geprüft und der Check-in-Lasttest ist ein verpflichtender CI-Schritt (zuletzt erfolgreicher main-CI-Lauf #492).
 - [x] Auditprotokolle für Check-ins, Bestellungen, Zahlungs-/Refund- und Adminaktionen sind implementiert.
 - [x] Audit-Log deckt bereits Exporte (Berichte, Buchhaltung, Teilnehmerlisten), Event-/Bereichspersonal-Zuweisungen, Ticketübertragungen, Teilnehmerzuweisungen, Check-in-Rücknahmen und Erstattungen ab. Offen: Änderungen an WordPress-Rollen/Capabilities, lesende PII-Zugriffe (Bestell-/Ticketdetailansichten) und eine Admin-Ansicht für das Audit-Log. **Erledigt (2026-11-14):** Rollen-/Capability-Änderungen und Lesezugriffe auf personenbezogene Daten (gedrosselt) werden protokolliert; Audit-Log-Ansicht mit Filtern und CSV-Export (`Security/AuditTrail`, `Admin/AuditLogPage`).
@@ -55,7 +55,7 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 - [x] Datenbank-/Integrationstests für Checkout, Zahlungs-Webhooks, Refunds, WooCommerce, REST und Scanner-Grundabläufe sowie Last- und A11y-Testwerkzeuge einrichten.
 - [ ] PWA-/Endgeräte-, reale PSP-Sandbox- und vollständige Refund-End-to-End-Abnahmen in CI/Release-Gates ergänzen.
 - [x] CI baut und prüft ein installierbares ZIP; Aktivierungs-/Deaktivierungshooks und Migrationen sind vorhanden.
-- [ ] Aktivierung, Update, Restore und Deinstallation in realen WordPress-Versionen durchtesten.
+- [x] Aktivierung, Update, Restore und Deinstallation in realen WordPress-Versionen durchtesten. **Erledigt (2026-11-15):** CI-Installationstest in echtem WordPress 6.4/7.1 (mit/ohne WooCommerce, HPOS an/aus), Update von 1.4.0 mit Daten, Deinstallation mit/ohne Datenlöschung; wöchentliche Restore-Übung (`drills.yml`).
 - [x] Automatisierte Integration-, Syntax-, Last- und A11y-Prüfungen existieren; verbindliche Release-Gates sowie manuelle Mobile-/Desktop-Abnahme sind noch nicht vollständig dokumentiert. **Erledigt (2026-11-14):** verbindliche automatische Gates und manuelle Abnahme-Checkliste mit Freigabevorlage in `docs/RELEASE.md`; Browser-/A11y-Job in CI.
 
 ## P1 – Voucher-Captain-Integration
@@ -222,7 +222,7 @@ Diese Punkte waren im vorherigen Abgleich noch nicht als eigene Aufgaben erfasst
 - [x] Job-Queue mit Idempotenz, Retry-Backoff und Dead-Letter (`Jobs`) hat Handler u. a. für Wallet-Synchronisierung und Voucher-Commit; Erinnerungen laufen über die Nachrichtenqueue. Offen: Admin-Ansicht für Rückstände, Fehlversuche und Dead-Letter-Jobs mit kontrolliertem Wiederholen. **Erledigt (2026-11-14):** Admin „Systemstatus“ mit Rückständen, Dead-Letter, Wiederholen/Verwerfen (auditiert) (`Admin/StatusPage`, `Ops/Status`).
 - [x] Betriebsüberwachung für WP-Cron/Action Scheduler, Mail-, SMS-, Webhook- und Job-Rückstände einrichten; ausbleibende Ausführung oder dauerhaft fehlerhafte Jobs müssen erkennbar sein. **Erledigt (2026-11-14):** Heartbeats je Worker, Cron-Zustand, kritische Hinweise im Admin, `wp pass-captain status|diagnose --strict` fürs Monitoring.
 - [x] Übersetzungen (en_US, es_ES, fr_FR, it_IT, nl_NL), E-Mails im bei der Bestellung erkannten Locale und übersetzte Eventinhalte sind vorhanden. Offen: ausdrückliche Käufer-Sprachauswahl, Übersetzungsverwaltung im Admin und automatische Vollständigkeitsprüfung der Strings für alle Sprachen. **Erledigt (2026-11-14):** Sprachauswahl im Checkout und Bestellportal, gespeichert an der Bestellung (`Frontend/Language`). Rest: Übersetzungsverwaltung im Admin.
-- [ ] Versionierte Connector-Verträge durch konkret unterstützte CRM-, Kalender- oder Buchhaltungsadapter, Mapping-Oberflächen und getestete Live-Synchronisierung ergänzen. *Stand 2026-11-14: Connectoren erhalten jetzt Ereignisse über die Job-Queue (`Integrations/ConnectorEvents`); konkrete CRM-/Buchhaltungsadapter fehlen weiterhin.*
+- [x] Versionierte Connector-Verträge durch konkret unterstützte CRM-, Kalender- oder Buchhaltungsadapter, Mapping-Oberflächen und getestete Live-Synchronisierung ergänzen. *Stand 2026-11-14: Connectoren erhalten jetzt Ereignisse über die Job-Queue (`Integrations/ConnectorEvents`); konkrete CRM-/Buchhaltungsadapter fehlen weiterhin.* **Erledigt (2026-11-15):** HTTP/JSON-Connector mit Feldzuordnung, PII-Opt-in, Zustellprotokoll und Wiederholung; tokenisierte iCalendar-Abo-Feeds (`src/Integrations/HttpJson`, `CalendarFeeds`).
 - [ ] Native Scanner-Apps selbst entwickeln oder explizit als separates Produkt/Projekt ausweisen; die Mobile-REST-API allein ist keine Scanner-App.
 
 ### Abnahme, Barrierefreiheit und Releasebetrieb
@@ -271,7 +271,7 @@ Diese Punkte zielen auf technische Robustheit und reproduzierbare Releasequalit�
 - [x] Default-/Heavy-Checkout-, Check-in- und Webhook-Lastprofile sowie REST-Lasttests als geplante CI-/Releaseprüfung regelmäßig auf MySQL und MariaDB ausführen und Referenzwerte für Latenz, Fehlerquote und Deadlocks sowie Regressionen dokumentieren. **Erledigt (2026-11-14):** Wöchentlicher Lasttest (`.github/workflows/load.yml`, Default/Heavy auf MariaDB und MySQL), Referenzwerte in `docs/TESTING.md`. Rest: REST-Lasttest braucht echtes WordPress.
 - [x] Job-/Mail-/Webhook-Worker durch Fehler- und Neustartszenarien prüfen: abgelaufene Claims, Retry-Backoff, Dead-Letter, doppelte Ausführung und Wiederaufnahme müssen idempotent bleiben. **Erledigt (2026-11-14):** abgelaufene Claims, Absturz im Handler, Poison-Items, Backoff, Dead-Letter für Jobs, Mails, Webhooks und SMS (`zzzz_w6_workers.php`).
 - [x] System-Cron-Ausfall, verzögerte Queue, E-Mail-Transportfehler und zu lange Jobs sichtbar machen; Admin muss Rückstand, letzten erfolgreichen Lauf und nächste Aktion erkennen können. **Erledigt (2026-11-14):** Systemstatus zeigt Cron-Ausfall, überfällige/zu lange Jobs, Mailfehler, letzten erfolgreichen Lauf.
-- [ ] Restore-/Upgrade- und Multisite-Notfallübung mit realistischen Ticket-, Bestell-, Check-in-, Refund- und Jobdaten durchführen; nach Restore Duplikate oder verwaiste Reservierungen ausschließen und Zahlungsanbieter sowie externe Integrationen auf konsistente Transaktionsstände abgleichen.
+- [ ] Restore-/Upgrade- und Multisite-Notfallübung mit realistischen Ticket-, Bestell-, Check-in-, Refund- und Jobdaten durchführen; nach Restore Duplikate oder verwaiste Reservierungen ausschließen und Zahlungsanbieter sowie externe Integrationen auf konsistente Transaktionsstände abgleichen. *Stand 2026-11-15: Restore- und Upgrade-Übung automatisiert (s. o.); Multisite-Notfallübung mit realen Daten bleibt manuell.*
 
 ### Sicherheit, Datenschutz und UI-Abnahme
 
@@ -281,7 +281,7 @@ Diese Punkte zielen auf technische Robustheit und reproduzierbare Releasequalit�
 - [x] Secret-Redaction und Eingabevalidierung unter Fehlerbedingungen testen; API-Schlüssel, Ticketcodes, PII und Providerantworten dürfen nicht in Logs, REST-Fehlern oder CI-Artefakten erscheinen. **Erledigt (2026-11-14):** Zentrale Schwärzung (`Security/Redact`) in Logs, Audit, Provider-Fehlern; Tests.
 - [x] Dependency-/Secret-Scanning und Prüfung des erzeugten Pakets auf bekannte Schwachstellen bzw. eingebettete Geheimnisse als CI-Gates ergänzen. **Erledigt (2026-11-14):** gitleaks auf Historie und ZIP, Dependency Review, `composer audit` in CI.
 - [x] Datenschutzexport, Löschung und Retention automatisiert mit großen Datenmengen, Multisite, kommenden Events, gültigen Tickets, Finanzbelegen und WooCommerce-Daten testen. **Erledigt (2026-11-14):** 400 (langsamer Lauf 5.000) Bestellungen inkl. Multisite, WooCommerce, Finanzbelegen (`zzzz_w6_privacy_volume.php`).
-- [ ] Browser-End-to-End-Matrix für aktuelle Chrome/Firefox/Safari sowie iOS/Android durchführen: Checkout, Kameraerlaubnis/Abbruch, QR-Fallback, Scanner, Bestellportal und WooCommerce Blocks.
+- [ ] Browser-End-to-End-Matrix für aktuelle Chrome/Firefox/Safari sowie iOS/Android durchführen: Checkout, Kameraerlaubnis/Abbruch, QR-Fallback, Scanner, Bestellportal und WooCommerce Blocks. *Stand 2026-11-15: Chromium, Firefox, WebKit und mobile Emulation laufen in CI (Checkout, Portal, Scanner inkl. Kamera, PWA, WooCommerce Blocks); echte iOS-/Android-Geräte und Safari/Edge-Stichprobe bleiben manuell.*
 - [x] A11y-Prüfungen als Release-Gate in den Releaseprozess integrieren und bekannte Admin-Befunde beheben (Labels an Filter-Selects, Kontrast von Code-/Linktexten, ausreichend große Checkbox-Ziele); danach Tastatur, 200%-Zoom, Screenreader, Kontrast und Fehlermeldungen manuell abnehmen. **Erledigt (2026-11-14):** axe-Gate über alle Admin-Seiten (0 Verstöße, `tests/a11y/gate.sh`), Befunde behoben. Rest: manuelle Screenreader-/Zoom-Abnahme.
 ### Technische Randfälle, die noch separat abgesichert werden müssen
 
