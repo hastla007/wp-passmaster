@@ -71,7 +71,10 @@ final class Credentials {
 		if ( ! openssl_pkey_get_private( $json['private_key'] ) ) {
 			return new \WP_Error( 'wpcap_wallet_google_key', __( 'Der private Schlüssel des Google-Servicekontos ist ungültig.', 'pass-captain' ) );
 		}
-		return array( 'client_email' => (string) $json['client_email'], 'private_key' => (string) $json['private_key'], 'token_uri' => (string) ( $json['token_uri'] ?? 'https://oauth2.googleapis.com/token' ) );
+		// The token endpoint is fixed: a token_uri in the JSON must not redirect signed assertions to other hosts (SSRF).
+		$allowed = (array) apply_filters( 'wpcap_wallet_google_token_uris', array( 'https://oauth2.googleapis.com/token' ) );
+		$token_uri = (string) ( $json['token_uri'] ?? '' );
+		return array( 'client_email' => (string) $json['client_email'], 'private_key' => (string) $json['private_key'], 'token_uri' => in_array( $token_uri, $allowed, true ) ? $token_uri : 'https://oauth2.googleapis.com/token' );
 	}
 
 	/** Subject + validity of a certificate for the status page. */

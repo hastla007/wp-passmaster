@@ -59,7 +59,14 @@ Webhook-Ereignissen).
 | `wpcap_affiliate_sale_payload` | `array $payload, object $order` | Verkaufsdaten an WP Affiliate Captain. |
 | `wpcap_affiliate_skip_channels` | `string[] $channels` (`woocommerce`) | Kanäle/Zahlungsanbieter, die nicht gemeldet werden. |
 | `wpcap_checkout_ip_limit` | `int $limit` (30) | Checkouts je IP und Stunde. |
-| `wpcap_client_ip` | `string $ip, array $server` | Client-IP für Ratenbegrenzungen (Standard `REMOTE_ADDR`). Nur hinter einem vertrauenswürdigen Proxy aus Headern wie `HTTP_CF_CONNECTING_IP` auflösen – sonst ist der Header fälschbar. Ungültige Rückgaben fallen auf `REMOTE_ADDR` zurück. |
+| `wpcap_client_ip` | `string $ip, array $server` | Client-IP für Ratenbegrenzungen (Standard `REMOTE_ADDR`, bzw. Header eines vertrauenswürdigen Proxys, siehe `wpcap_trusted_proxies`). Ungültige Rückgaben fallen auf die erkannte Adresse zurück. |
+| `wpcap_trusted_proxies` | `string[] $proxies` | Vertrauenswürdige Reverse Proxies/CDN (IP oder CIDR); nur von ihnen wird der eingestellte Client-IP-Header ausgewertet (docs/SECURITY.md). |
+| `wpcap_secret_settings` | `string[] $keys` | Einstellungen, die verschlüsselt gespeichert und nur über `Settings::secret()` gelesen werden. |
+| `wpcap_outbound_resolve` | `null $ips, string $host` | Liefert die Adressen eines Hosts für die SSRF-Prüfung (Tests/eigene Resolver); `null` = DNS. |
+| `wpcap_fiscal_allow_local_service` | `bool $allow, string $url` | Erlaubt HTTP zu lokalen Fiskaldiensten (Loopback/privat); Standard: Einstellung `fiscal_allow_local_service`. |
+| `wpcap_wallet_google_token_uris` | `string[] $uris` | Erlaubte OAuth-Token-Endpunkte für das Google-Wallet-Servicekonto. |
+| `wpcap_error_log` | `bool $send, string $line` | `false` unterdrückt die (bereits redigierte) Error-Log-Zeile. |
+| `wpcap_pre_send_download` | `null $pre, string $body, string $filename, string $type` | Nicht-`null` übernimmt die Auslieferung eines Admin-Downloads (CSV/PDF). |
 | `wpcap_max_line_quantity` | `int $cap` (100) | Absolute Obergrenze je Bestellzeile vor jeder Sperre (die eigentliche Grenze ist „Max. pro Bestellung“ der Ticketart). |
 | `wpcap_checkout_error_field` | `string $field, WP_Error $error` | Feld, dem eine Checkout-Fehlermeldung zugeordnet wird (barrierefreie Fehler am Feld; leer = allgemeine Meldung). |
 | `wpcap_checkout_billing_enabled` | `bool $enabled` (true), `object $event` | Ob die Eventkarte den Abschnitt „Rechnungsangaben“ zeigt (`templates/event-card.php`). |

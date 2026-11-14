@@ -11,8 +11,13 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 class ApnsClient {
 	/** @return int HTTP status (0 = transport error). */
+	/** The only APNs hosts the Pass Type certificate is presented to. */
+	const HOSTS = array( 'https://api.push.apple.com', 'https://api.sandbox.push.apple.com' );
+
 	public function send( $push_token, $topic, array $credentials, $host = 'https://api.push.apple.com' ) {
-		$url = rtrim( $host, '/' ) . '/3/device/' . rawurlencode( $push_token );
+		$host = rtrim( (string) $host, '/' );
+		if ( ! in_array( $host, self::HOSTS, true ) ) { $host = self::HOSTS[0]; } // Never an arbitrary (internal) host.
+		$url = $host . '/3/device/' . rawurlencode( $push_token );
 		$result = $this->request( $url, array( 'apns-topic: ' . $topic, 'apns-priority: 10', 'content-type: application/json' ), '{}', $credentials );
 		return (int) ( $result['status'] ?? 0 );
 	}
@@ -37,6 +42,8 @@ class ApnsClient {
 			CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_TIMEOUT => 10,
+			CURLOPT_CONNECTTIMEOUT => 5,
+			CURLOPT_FOLLOWLOCATION => false,
 			CURLOPT_SSLCERTTYPE => 'PEM',
 			CURLOPT_SSLKEYTYPE => 'PEM',
 		);
@@ -60,6 +67,7 @@ class ApnsClient {
 			}
 		}
 		if ( '' !== (string) ( $credentials['password'] ?? '' ) ) { $options[ CURLOPT_KEYPASSWD ] = $credentials['password']; }
+		if ( defined( 'CURLOPT_PROTOCOLS' ) && defined( 'CURLPROTO_HTTPS' ) ) { $options[ CURLOPT_PROTOCOLS ] = CURLPROTO_HTTPS; }
 		curl_setopt_array( $ch, $options );
 		$response = curl_exec( $ch );
 		$status = (int) curl_getinfo( $ch, CURLINFO_RESPONSE_CODE );

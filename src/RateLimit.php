@@ -17,9 +17,72 @@ final class RateLimit {
 		return true;
 	}
 
-	/** Anonymised client key (keyed hash of the remote address, site-specific secret). */
+	/** Anonymised client key (keyed hash of the client address, site-specific secret). */
 	public static function client() {
-		return hash_hmac( 'sha256', sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) ), self::secret() );
+		return hash_hmac( 'sha256', self::client_ip(), self::secret() );
+	}
+
+	/** Forwarding headers that can be trusted when the request comes from a trusted proxy. */
+	const PROXY_HEADERS = array(
+		'x_forwarded_for' => 'HTTP_X_FORWARDED_FOR',
+		'x_real_ip' => 'HTTP_X_REAL_IP',
+		'cf_connecting_ip' => 'HTTP_CF_CONNECTING_IP',
+		'true_client_ip' => 'HTTP_TRUE_CLIENT_IP',
+	);
+
+	/**
+	 * Trusted reverse proxies (IP addresses or CIDR ranges): setting "trusted_proxies", constant
+	 * WPCAP_TRUSTED_PROXIES (comma separated) and filter wpcap_trusted_proxies. Empty by default:
+	 * forwarding headers are then ignored, because any client can send them.
+	 */
+	public static function trusted_proxies() {
+		$raw = (string) Settings::get( 'trusted_proxies' );
+		if ( defined( 'WPCAP_TRUSTED_PROXIES' ) ) { $raw .= ',' . (string) constant( 'WPCAP_TRUSTED_PROXIES' ); }
+		$list = array_filter( array_map( 'trim', preg_split( '/[\s,;]+/', $raw ) ) );
+		$list = (array) apply_filters( 'wpcap_trusted_proxies', array_values( $list ) );
+		return array_values( array_filter( array_map( 'strval', $list ), static function ( $entry ) {
+			$ip = explode( '/', $entry, 2 )[0];
+			return false !== filter_var( $ip, FILTER_VALIDATE_IP );
+		} ) );
+	}
+
+	private static function is_trusted( $ip, array $trusted ) {
+		foreach ( $trusted as $entry ) {
+			if ( Security\OutboundHttp::ip_in_cidr( $ip, false === strpos( $entry, '/' ) ? $entry . ( false !== strpos( $entry, ':' ) ? '/128' : '/32' ) : $entry ) ) { return true; }
+		}
+		return false;
+	}
+
+	/**
+	 * Client address for rate limits. REMOTE_ADDR, unless REMOTE_ADDR is a trusted proxy: then the
+	 * configured header (setting "trusted_proxy_header": x_forwarded_for, x_real_ip,
+	 * cf_connecting_ip, true_client_ip) is used. For X-Forwarded-For the right-most address that is
+	 * not itself a trusted proxy is the client (left-most entries are client-controlled).
+	 * The filter wpcap_client_ip can still replace the result; invalid values fall back to REMOTE_ADDR.
+	 *
+	 * @param array|null $server $_SERVER (tests pass their own).
+	 */
+	public static function client_ip( $server = null ) {
+		$server = is_array( $server ) ? $server : $_SERVER;
+		$remote = trim( sanitize_text_field( wp_unslash( (string) ( $server['REMOTE_ADDR'] ?? '' ) ) ) );
+		$ip = $remote;
+		$trusted = self::trusted_proxies();
+		if ( $trusted && false !== filter_var( $remote, FILTER_VALIDATE_IP ) && self::is_trusted( $remote, $trusted ) ) {
+			$name = (string) Settings::get( 'trusted_proxy_header' );
+			$header = self::PROXY_HEADERS[ $name ] ?? self::PROXY_HEADERS['x_forwarded_for'];
+			$value = trim( (string) ( $server[ $header ] ?? '' ) );
+			if ( '' !== $value ) {
+				$hops = array_reverse( array_map( 'trim', explode( ',', $value ) ) );
+				foreach ( $hops as $hop ) {
+					$hop = trim( preg_replace( '/^\[([^\]]+)\](:\d+)?$/', '$1', $hop ) );
+					if ( false === filter_var( $hop, FILTER_VALIDATE_IP ) ) { break; }
+					$ip = $hop;
+					if ( ! self::is_trusted( $hop, $trusted ) ) { break; }
+				}
+			}
+		}
+		$filtered = trim( (string) apply_filters( 'wpcap_client_ip', $ip, $server ) );
+		return false !== filter_var( $filtered, FILTER_VALIDATE_IP ) ? $filtered : ( false !== filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : $remote );
 	}
 
 	/** Site secret from wp_salt(); a static key would make the hashes identical across all sites. */

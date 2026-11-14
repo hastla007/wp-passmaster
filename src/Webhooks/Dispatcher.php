@@ -102,7 +102,7 @@ final class Dispatcher {
 		global $wpdb;
 		$url = esc_url_raw( trim( (string) $url ) );
 		$events = array_values( array_intersect( self::EVENTS, $events ) );
-		if ( ! self::valid_url( $url ) ) {
+		if ( ! self::valid_url( $url ) || is_wp_error( \PassCaptain\Security\OutboundHttp::validate_url( $url ) ) ) {
 			return new \WP_Error( 'wpcap_webhook_url', __( 'Bitte eine öffentlich erreichbare HTTPS-URL angeben.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		if ( ! $events ) {
@@ -110,21 +110,29 @@ final class Dispatcher {
 		}
 		$secret = self::generate_secret();
 		$now = current_time( 'mysql', true );
-		$wpdb->insert( self::t( 'subscriptions' ), array( 'url' => $url, 'description' => mb_substr( sanitize_text_field( $description ), 0, 190 ), 'events' => implode( ',', $events ), 'secret' => $secret, 'include_pii' => $include_pii ? 1 : 0, 'status' => 'active', 'consecutive_failures' => 0, 'created_at' => $now, 'updated_at' => $now ) );
+		$wpdb->insert( self::t( 'subscriptions' ), array( 'url' => $url, 'description' => mb_substr( sanitize_text_field( $description ), 0, 190 ), 'events' => implode( ',', $events ), 'secret' => \PassCaptain\Security\Vault::encrypt( $secret, 'webhook_secret' ), 'include_pii' => $include_pii ? 1 : 0, 'status' => 'active', 'consecutive_failures' => 0, 'created_at' => $now, 'updated_at' => $now ) );
 		$id = (int) $wpdb->insert_id;
 		if ( ! $id ) { return new \WP_Error( 'wpcap_webhook_save', __( 'Der Webhook konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( 'webhook_subscription_created', 'webhook', $id, array( 'events' => $events, 'include_pii' => (bool) $include_pii ) );
 		return array( 'subscription_id' => $id, 'secret' => $secret );
 	}
 
+	/** Subscription row; ->secret is the decrypted signing secret ('' when it cannot be decrypted). */
 	public static function subscription( $id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'subscriptions' ) . ' WHERE subscription_id=%d', absint( $id ) ) );
+		return self::with_plain_secret( $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'subscriptions' ) . ' WHERE subscription_id=%d', absint( $id ) ) ) );
 	}
 
 	public static function subscriptions() {
 		global $wpdb;
-		return $wpdb->get_results( 'SELECT * FROM ' . self::t( 'subscriptions' ) . ' ORDER BY subscription_id' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return array_map( array( __CLASS__, 'with_plain_secret' ), (array) $wpdb->get_results( 'SELECT * FROM ' . self::t( 'subscriptions' ) . ' ORDER BY subscription_id' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+	}
+
+	private static function with_plain_secret( $row ) {
+		if ( $row && isset( $row->secret ) ) {
+			$row->secret = (string) \PassCaptain\Security\Vault::decrypt( (string) $row->secret, 'webhook_secret' );
+		}
+		return $row;
 	}
 
 	public static function set_status( $id, $active ) {
@@ -137,7 +145,7 @@ final class Dispatcher {
 	public static function rotate_secret( $id ) {
 		global $wpdb;
 		$secret = self::generate_secret();
-		$wpdb->update( self::t( 'subscriptions' ), array( 'secret' => $secret, 'updated_at' => current_time( 'mysql', true ) ), array( 'subscription_id' => absint( $id ) ) );
+		$wpdb->update( self::t( 'subscriptions' ), array( 'secret' => \PassCaptain\Security\Vault::encrypt( $secret, 'webhook_secret' ), 'updated_at' => current_time( 'mysql', true ) ), array( 'subscription_id' => absint( $id ) ) );
 		Audit::record( 'webhook_secret_rotated', 'webhook', absint( $id ), array() );
 		return $secret;
 	}
@@ -242,18 +250,22 @@ final class Dispatcher {
 			),
 			'body' => $row->payload,
 		);
-		$response = function_exists( 'wp_safe_remote_post' ) ? wp_safe_remote_post( $sub->url, $args ) : wp_remote_post( $sub->url, $args );
-		$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
+		$args['method'] = 'POST';
+		// Re-validated per attempt: the host's DNS may have changed to an internal address since creation.
+		$response = '' === (string) $sub->secret
+			? new \WP_Error( 'wpcap_webhook_secret_unavailable', __( 'Das Signing-Secret kann nicht entschlüsselt werden; bitte erneuern.', 'pass-captain' ) )
+			: \PassCaptain\Security\OutboundHttp::request( $sub->url, $args, array( 'max_bytes' => 65536 ) );
+		$code = is_wp_error( $response ) ? (int) ( $response->get_error_data()['response_code'] ?? 0 ) : (int) $response['code'];
 		$attempts = (int) $row->attempts + 1;
 		$now = current_time( 'mysql', true );
 		// Final deliveries keep no personal data in the log.
 		list( $stripped, $had_pii ) = self::strip_pii( $row->payload );
-		if ( $code >= 200 && $code < 300 ) {
+		if ( ! is_wp_error( $response ) && $code >= 200 && $code < 300 ) {
 			$wpdb->update( $d, array( 'status' => 'succeeded', 'attempts' => $attempts, 'response_code' => $code, 'last_error' => '', 'locked_at' => null, 'delivered_at' => $now, 'updated_at' => $now, 'payload' => $stripped, 'pii_purged' => $had_pii ? 1 : (int) $row->pii_purged ), array( 'delivery_id' => (int) $row->delivery_id ) );
 			$wpdb->update( self::t( 'subscriptions' ), array( 'consecutive_failures' => 0, 'last_success_at' => $now ), array( 'subscription_id' => (int) $sub->subscription_id ) );
 			return;
 		}
-		$error = is_wp_error( $response ) ? mb_substr( sanitize_text_field( $response->get_error_message() ), 0, 190 ) : 'HTTP ' . $code;
+		$error = is_wp_error( $response ) ? mb_substr( sanitize_text_field( \PassCaptain\Security\Redact::text( $response->get_error_message() ) ), 0, 190 ) : 'HTTP ' . $code;
 		$final = $attempts >= self::max_attempts();
 		$update_row = array( 'status' => $final ? 'failed' : 'pending', 'attempts' => $attempts, 'response_code' => $code, 'last_error' => $error, 'locked_at' => null, 'next_attempt_at' => gmdate( 'Y-m-d H:i:s', time() + self::backoff( $attempts ) ), 'updated_at' => $now );
 		if ( $final && $had_pii ) { $update_row['payload'] = $stripped; $update_row['pii_purged'] = 1; }

@@ -22,7 +22,7 @@ final class Orders {
 	 */
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
-		$email = sanitize_email( $payload['email'] ?? '' );
+		$email = is_scalar( $payload['email'] ?? '' ) ? sanitize_email( (string) ( $payload['email'] ?? '' ) ) : '';
 		$lines = $payload['items'] ?? array();
 		if ( ! is_email( $email ) || ! is_array( $lines ) || empty( $lines ) || count( $lines ) > 10 ) {
 			return new \WP_Error( 'wpcap_invalid_checkout', __( 'Bitte eine gültige E-Mail-Adresse und Tickets auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
@@ -59,8 +59,9 @@ final class Orders {
 		$line_cap = max( 1, (int) apply_filters( 'wpcap_max_line_quantity', 100 ) );
 		$clean_lines = array();
 		foreach ( $lines as $line ) {
-			$type_id = absint( $line['ticket_type_id'] ?? 0 );
-			$quantity = absint( $line['quantity'] ?? 0 );
+			// Strict: "-2", 1.5, arrays or non-array lines are rejected (absint() would turn -2 into 2).
+			$type_id = is_array( $line ) ? self::positive_int( $line['ticket_type_id'] ?? null ) : 0;
+			$quantity = is_array( $line ) ? self::positive_int( $line['quantity'] ?? null ) : 0;
 			if ( ! $type_id || $quantity < 1 || $quantity > $line_cap ) {
 				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
@@ -398,7 +399,8 @@ final class Orders {
 	}
 
 	/**
-	 * Client IP used for the anonymous checkout rate limit. Defaults to REMOTE_ADDR.
+	 * Client IP used for the anonymous checkout rate limit. Defaults to REMOTE_ADDR; behind a proxy
+	 * configure the setting "trusted_proxies" (Einstellungen → Sicherheit). The filter below still works.
 	 *
 	 * Behind a reverse proxy / CDN (e.g. Cloudflare) REMOTE_ADDR is the proxy, so every buyer would
 	 * share one limit. Sites that trust a proxy header can resolve the real client via the filter
@@ -415,9 +417,15 @@ final class Orders {
 	 * Invalid return values fall back to REMOTE_ADDR.
 	 */
 	public static function client_ip() {
-		$remote = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
-		$ip = trim( (string) apply_filters( 'wpcap_client_ip', $remote, $_SERVER ) );
-		return false !== filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : $remote;
+		// Trusted proxies are configured centrally (setting trusted_proxies, see RateLimit::client_ip()).
+		return RateLimit::client_ip();
+	}
+
+	/** Positive integer from an int or a digit-only string; 0 for anything else (negative, float, array). */
+	public static function positive_int( $value ) {
+		if ( is_int( $value ) ) { return $value > 0 ? $value : 0; }
+		if ( is_string( $value ) && preg_match( '/^\s*[0-9]{1,9}\s*$/', $value ) ) { return (int) $value; }
+		return 0;
 	}
 
 	/** Keyed hash for rate-limit transient keys, so stored keys cannot be reversed to IP addresses. */

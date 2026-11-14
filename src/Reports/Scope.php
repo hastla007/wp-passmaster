@@ -81,6 +81,8 @@ final class Scope {
 
 	/** Sends a download response (headers + body) and ends the request. */
 	public static function send_download( $body, $filename, $type ) {
+		// Filter wpcap_pre_send_download: a non-null return takes over delivery (e.g. storage, tests).
+		if ( null !== apply_filters( 'wpcap_pre_send_download', null, $body, $filename, $type ) ) { return; }
 		if ( function_exists( 'nocache_headers' ) ) { nocache_headers(); }
 		if ( ! headers_sent() ) {
 			header( 'Content-Type: ' . $type );

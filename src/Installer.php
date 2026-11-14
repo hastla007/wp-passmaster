@@ -679,6 +679,8 @@ final class Installer {
 			self::schema_failed( $errors, $missing );
 			return false;
 		}
+		// Encrypts provider secrets still stored in plaintext (idempotent, see Security\Vault).
+		Security\Vault::migrate();
 		update_option( 'wpcap_db_version', self::version() );
 		update_option( 'wpcap_version', WPCAP_VERSION );
 		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );

@@ -51,7 +51,7 @@ final class Webhooks {
 				url varchar(500) NOT NULL,
 				description varchar(190) NOT NULL DEFAULT '',
 				events varchar(500) NOT NULL,
-				secret varchar(80) NOT NULL,
+				secret varchar(255) NOT NULL,
 				include_pii tinyint(1) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'active',
 				disabled_reason varchar(32) NOT NULL DEFAULT '',
@@ -247,7 +247,24 @@ final class Webhooks {
 	public static function handle_action() {
 		Forms::verify( 'wpcap_webhook_action' );
 		$result = self::admin_action( Forms::post() );
+		if ( is_array( $result ) && ! empty( $result['secret'] ) ) {
+			// Shown once on the next page view; kept encrypted until then.
+			set_transient( self::reveal_key(), \PassCaptain\Security\Vault::encrypt( wp_json_encode( array( (int) $result['subscription_id'], (string) $result['secret'] ) ), 'webhook_reveal' ), 5 * MINUTE_IN_SECONDS );
+		}
 		Forms::finish( $result, __( 'Gespeichert.', 'pass-captain' ), Forms::page_url( self::PAGE ) );
+	}
+
+	private static function reveal_key() {
+		return 'wpcap_webhook_reveal_' . get_current_user_id();
+	}
+
+	/** Secret to show once after create/rotate: [subscription_id, secret] or null. */
+	private static function take_reveal() {
+		$stored = get_transient( self::reveal_key() );
+		if ( ! is_string( $stored ) || '' === $stored ) { return null; }
+		delete_transient( self::reveal_key() );
+		$data = json_decode( (string) \PassCaptain\Security\Vault::decrypt( $stored, 'webhook_reveal' ), true );
+		return is_array( $data ) && 2 === count( $data ) ? $data : null;
 	}
 
 	private static function action_button( $do, $id, $label, $confirm = '' ) {
@@ -263,6 +280,11 @@ final class Webhooks {
 		Forms::render_notices();
 		echo '<p>' . esc_html( sprintf( /* translators: %s: api version */ __( 'Ereignisse werden als signierte JSON-POSTs (API-Version %s) an HTTPS-Endpunkte gesendet. Signatur: Header X-WPCAP-Signature = t={Zeit},v1=HMAC-SHA256(Secret, "{t}.{Body}"). Fehlgeschlagene Zustellungen werden mit wachsendem Abstand wiederholt; nach wiederholten Fehlern wird der Webhook deaktiviert.', 'pass-captain' ), Dispatcher::API_VERSION ) ) . '</p>';
 		$subs = Dispatcher::subscriptions();
+		$reveal = self::take_reveal();
+		if ( $reveal ) {
+			/* translators: %d: webhook id */
+			echo '<div class="notice notice-warning"><p>' . esc_html( sprintf( __( 'Signing-Secret für Webhook #%d – jetzt beim Empfänger hinterlegen, es wird nicht noch einmal angezeigt:', 'pass-captain' ), (int) $reveal[0] ) ) . ' <code>' . esc_html( (string) $reveal[1] ) . '</code></p></div>';
+		}
 		echo '<h2>' . esc_html__( 'Abonnements', 'pass-captain' ) . '</h2>';
 		if ( ! $subs ) {
 			echo '<p>' . esc_html__( 'Noch keine Webhooks.', 'pass-captain' ) . '</p>';
@@ -271,7 +293,7 @@ final class Webhooks {
 			foreach ( $subs as $sub ) {
 				$status = 'active' === $sub->status ? __( 'aktiv', 'pass-captain' ) : ( 'failures' === $sub->disabled_reason ? __( 'deaktiviert (Fehler)', 'pass-captain' ) : __( 'deaktiviert', 'pass-captain' ) );
 				echo '<tr><td>' . (int) $sub->subscription_id . '</td><td><code>' . esc_html( $sub->url ) . '</code>' . ( '' !== $sub->description ? '<br>' . esc_html( $sub->description ) : '' ) . ( (int) $sub->include_pii ? '<br><em>' . esc_html__( 'mit personenbezogenen Daten (E-Mail)', 'pass-captain' ) . '</em>' : '' ) . '</td><td>' . esc_html( str_replace( ',', ', ', $sub->events ) ) . '</td><td>' . esc_html( $status ) . ( (int) $sub->consecutive_failures ? '<br>' . esc_html( sprintf( /* translators: %d: count */ __( '%d Fehler in Folge', 'pass-captain' ), (int) $sub->consecutive_failures ) ) : '' ) . '</td>';
-				echo '<td><details><summary>' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</summary><code>' . esc_html( $sub->secret ) . '</code></details></td><td>';
+				echo '<td>' . ( '' !== (string) $sub->secret ? '<code>' . esc_html( \PassCaptain\Security\Vault::mask( $sub->secret ) ) . '</code>' : '<em>' . esc_html__( 'nicht lesbar – bitte erneuern', 'pass-captain' ) . '</em>' ) . '</td><td>';
 				self::action_button( 'active' === $sub->status ? 'disable' : 'enable', $sub->subscription_id, 'active' === $sub->status ? __( 'Deaktivieren', 'pass-captain' ) : __( 'Aktivieren', 'pass-captain' ) );
 				self::action_button( 'rotate', $sub->subscription_id, __( 'Secret erneuern', 'pass-captain' ), __( 'Neues Secret erzeugen? Der Empfänger muss es übernehmen.', 'pass-captain' ) );
 				self::action_button( 'delete', $sub->subscription_id, __( 'Löschen', 'pass-captain' ), __( 'Webhook und Zustellprotokoll löschen?', 'pass-captain' ) );

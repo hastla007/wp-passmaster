@@ -128,7 +128,7 @@ class GoogleProvider implements WalletProvider {
 		if ( is_wp_error( $account ) ) { return ''; }
 		$now = time();
 		$assertion = Jwt::sign( array( 'iss' => $account['client_email'], 'scope' => self::SCOPE, 'aud' => $account['token_uri'], 'iat' => $now, 'exp' => $now + 3600 ), $account['private_key'] );
-		$res = wp_remote_post( $account['token_uri'], array( 'timeout' => 15, 'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ), 'body' => http_build_query( array( 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer', 'assertion' => $assertion ) ) ) );
+		$res = wp_remote_post( $account['token_uri'], array( 'timeout' => 15, 'redirection' => 0, 'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ), 'body' => http_build_query( array( 'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer', 'assertion' => $assertion ) ) ) );
 		if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) { return ''; }
 		$data = json_decode( wp_remote_retrieve_body( $res ), true );
 		$token = is_array( $data ) ? (string) ( $data['access_token'] ?? '' ) : '';
@@ -140,7 +140,7 @@ class GoogleProvider implements WalletProvider {
 	public function api( $method, $path, array $body ) {
 		$token = $this->access_token();
 		if ( '' === $token ) { return array( 'code' => 0, 'body' => null ); }
-		$res = wp_remote_request( self::API . $path, array( 'method' => $method, 'timeout' => 15, 'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ), 'body' => wp_json_encode( $body ) ) );
+		$res = wp_remote_request( self::API . $path, array( 'method' => $method, 'timeout' => 15, 'redirection' => 0, 'limit_response_size' => 1048576, 'headers' => array( 'Authorization' => 'Bearer ' . $token, 'Content-Type' => 'application/json' ), 'body' => wp_json_encode( $body ) ) );
 		if ( is_wp_error( $res ) ) { return array( 'code' => 0, 'body' => null ); }
 		$code = (int) wp_remote_retrieve_response_code( $res );
 		if ( 401 === $code ) { delete_transient( 'wpcap_wallet_google_token' ); }

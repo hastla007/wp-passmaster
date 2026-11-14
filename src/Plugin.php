@@ -19,6 +19,7 @@ final class Plugin {
 		add_action( $upgrade_hook, array( __CLASS__, 'maybe_upgrade' ), 0, 0 );
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
 		Settings::register();
+		Security\Vault::register();
 		Jobs\TimeBudget::register();
 		Orders::register(); // Job handler for ticket issuance retries and the delivery outbox.
 		Refunds::register(); // Job handler for order status retries after refunds.

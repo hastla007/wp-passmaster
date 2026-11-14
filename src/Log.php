@@ -52,12 +52,13 @@ final class Log {
 		self::$writing = true;
 		try {
 			$event = sanitize_key( (string) $event );
-			$message = (string) $message;
+			// Redacted before it leaves the plugin: DB errors can quote row values (e-mails), provider errors secrets.
+			$message = Security\Redact::text( (string) $message );
 			/** Every Pass Captain log entry (level `error`/`warning`). */
 			do_action( 'wpcap_log', $level, $event, $message, $context );
 			if ( self::to_error_log( $level, $event ) ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- only when the site enabled WP_DEBUG_LOG or the wpcap_log_to_error_log filter.
-				error_log( 'Pass Captain [' . $level . '] ' . $event . ': ' . $message );
+				// Security\Redact::log() is the single place that writes to the PHP error log.
+				Security\Redact::log( '[' . $level . '] ' . $event . ': ' . $message );
 			}
 			if ( ( $context['audit'] ?? true ) && self::audit_available() ) {
 				$details = (array) ( $context['details'] ?? array() );

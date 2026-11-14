@@ -356,7 +356,7 @@ final class Controller {
 	public static function order_status( \WP_REST_Request $request ) {
 		global $wpdb;
 		$public_id = sanitize_text_field( $request['public_id'] );
-		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $request->get_param( 'access_token' ) ) );
+		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', is_scalar( $request->get_param( 'access_token' ) ) ? (string) $request->get_param( 'access_token' ) : '' ) );
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT public_id,status,payment_status,currency,total_minor,created_at,access_token_hash,access_expires_at FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ), ARRAY_A );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_not_found', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! $order['access_expires_at'] || $order['access_expires_at'] <= current_time( 'mysql', true ) || 64 !== strlen( $access_token ) || ! hash_equals( $order['access_token_hash'], hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
@@ -379,7 +379,7 @@ final class Controller {
 	/** Order row when the public id and the access token match (null otherwise). */
 	private static function order_with_access( $public_id, $access_token ) {
 		global $wpdb;
-		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
+		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', is_scalar( $access_token ) ? (string) $access_token : '' ) );
 		if ( 64 !== strlen( $access_token ) ) { return null; }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", sanitize_text_field( (string) $public_id ) ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return null; }
@@ -746,7 +746,7 @@ final class Controller {
 
 	public static function book_service_slot( \WP_REST_Request $request ) {
 		$payload = $request->get_json_params();
-		$result = ServiceBookings::reserve( absint( $request['slot_id'] ), $payload['email'] ?? '', absint( $payload['quantity'] ?? 1 ), 0, 10, $payload['idempotency_key'] ?? '' );
+		$result = ServiceBookings::reserve( absint( $request['slot_id'] ), $payload['email'] ?? '', $payload['quantity'] ?? 1, 0, 10, is_scalar( $payload['idempotency_key'] ?? null ) ? (string) $payload['idempotency_key'] : '' );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 
