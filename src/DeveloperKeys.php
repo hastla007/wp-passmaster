@@ -2,7 +2,8 @@
 /**
  * Scoped, hashed API keys for read-only developer endpoints (A161: admin page, per-key rate limit,
  * expiry changes, route → scope map). A key belongs to one event and one WordPress user (its owner);
- * every request is checked against the owner's event assignment and location/partner scope (A119).
+ * every request is checked against the owner's event assignment and location/partner scope (A119), and the
+ * owner must still exist and hold the capability of that assignment (A278).
  */
 namespace PassCaptain;
 
@@ -159,7 +160,7 @@ final class DeveloperKeys {
 		$key = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_api_keys WHERE public_prefix=%s AND revoked_at IS NULL", $parts[0] ) );
 		if ( ! $key || ! hash_equals( $key->secret_hash, hash( 'sha256', $parts[1] ) ) || ( $key->expires_at && $key->expires_at <= current_time( 'mysql', true ) ) || (int) $key->event_id !== absint( $event_id ) ) { return false; }
 		$user_id = (int) $key->user_id;
-		if ( ! user_can( $user_id, 'manage_options' ) && ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_event_staff WHERE event_id=%d AND user_id=%d AND capability IN ('wpcap_manage_events','wpcap_view_reports') LIMIT 1", $event_id, $user_id ) ) ) { return false; }
+		if ( ! self::owner_may_read( $user_id, $event_id ) ) { return false; }
 		// Location/partner scope of the key owner (A119): event-wide data only when every occurrence is in scope.
 		if ( ! Access::event_fully_in_scope( $event_id, $user_id ) ) { return false; }
 		$scopes = json_decode( $key->scopes, true );
@@ -173,6 +174,44 @@ final class DeveloperKeys {
 		set_transient( $rate_key, $rate + 1, MINUTE_IN_SECONDS );
 		$wpdb->update( $wpdb->prefix . 'wpcap_api_keys', array( 'last_used_at' => current_time( 'mysql', true ) ), array( 'api_key_id' => (int) $key->api_key_id ), array( '%s' ), array( '%d' ) );
 		return (int) $key->user_id;
+	}
+
+	/**
+	 * Whether the key owner still exists and may read the event (A278): administrators (manage_options),
+	 * otherwise an event-team entry for wpcap_manage_events or wpcap_view_reports whose capability the owner
+	 * still holds through a role or user capability. A deleted or downgraded owner's keys stop working at
+	 * once (and UserAccess revokes them on role removal and deletion).
+	 */
+	public static function owner_may_read( $user_id, $event_id ) {
+		global $wpdb;
+		$owner = $user_id > 0 && function_exists( 'get_userdata' ) ? get_userdata( (int) $user_id ) : false;
+		if ( ! $owner ) { return false; }
+		if ( UserAccess::holds( $owner, 'manage_options' ) ) { return true; }
+		$caps = $wpdb->get_col( $wpdb->prepare( "SELECT capability FROM {$wpdb->prefix}wpcap_event_staff WHERE event_id=%d AND user_id=%d AND capability IN ('wpcap_manage_events','wpcap_view_reports')", absint( $event_id ), (int) $user_id ) );
+		foreach ( $caps as $cap ) {
+			if ( UserAccess::holds( $owner, (string) $cap ) ) { return true; }
+		}
+		return false;
+	}
+
+	/**
+	 * Revokes the active keys of a user that the owner can no longer use (A278): all keys when $user is
+	 * null (deleted user), otherwise those whose event the owner may no longer read.
+	 *
+	 * @return int[] Revoked key ids.
+	 */
+	public static function revoke_for_user( $user_id, $user = null ) {
+		global $wpdb;
+		if ( ! Privacy::has_table( 'wpcap_api_keys' ) ) { return array(); }
+		$keys = $wpdb->get_results( $wpdb->prepare( "SELECT api_key_id,event_id,public_prefix FROM {$wpdb->prefix}wpcap_api_keys WHERE user_id=%d AND revoked_at IS NULL", (int) $user_id ) );
+		$revoked = array();
+		foreach ( $keys as $key ) {
+			if ( $user && self::owner_may_read( (int) $user_id, (int) $key->event_id ) ) { continue; }
+			$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_api_keys SET revoked_at=%s WHERE api_key_id=%d AND revoked_at IS NULL", current_time( 'mysql', true ), (int) $key->api_key_id ) );
+			Audit::record( 'developer_key_revoked', 'api_key', (int) $key->api_key_id, array( 'prefix' => $key->public_prefix, 'event_id' => (int) $key->event_id, 'reason' => $user ? 'owner_access_lost' : 'owner_deleted' ) );
+			$revoked[] = (int) $key->api_key_id;
+		}
+		return $revoked;
 	}
 
 	/** Key row the current user may manage (owner or administrator), or null. */

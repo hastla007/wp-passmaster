@@ -1,6 +1,6 @@
 <?php
 /**
- * Takes plugin access back when a WordPress user loses a role or is deleted (A277).
+ * Takes plugin access back when a WordPress user loses a role or is deleted (A277, A278).
  *
  * The event team (wpcap_event_staff) only narrows what a role allows, but check-in helpers without a
  * plugin role get wpcap_checkin as a user capability from the staff assignment (EventsPage::assign_staff()).
@@ -11,6 +11,7 @@
  *   occurrence assignments) for capabilities the user no longer holds are deleted; without
  *   wpcap_checkin the user's scanner devices are revoked, open pairing codes deleted and entry-area
  *   assignments removed. A user whose remaining roles still grant a capability keeps its entries.
+ *   Developer API keys (DeveloperKeys) whose event the owner may no longer read are revoked (A278).
  *   Adding a role (or creating the user) changes nothing.
  * - The user is deleted or removed from the site (multisite): all of the above for every capability.
  *
@@ -102,6 +103,9 @@ final class UserAccess {
 			}
 			if ( ! empty( $done['staff'] ) ) { StaffAssignments::flush(); }
 		}
+		// Developer API keys (A278): checked after the team entries, which they depend on.
+		$keys = DeveloperKeys::revoke_for_user( $user_id, $user );
+		if ( $keys ) { $done['api_keys'] = $keys; }
 		if ( $user && self::holds( $user, self::CHECKIN_CAP ) ) { return $done; }
 		if ( Privacy::has_table( 'wpcap_scanner_devices' ) ) {
 			$devices = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT device_id FROM {$p}wpcap_scanner_devices WHERE user_id=%d AND revoked_at IS NULL", $user_id ) ) );

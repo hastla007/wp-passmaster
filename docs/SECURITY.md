@@ -165,12 +165,13 @@ bzw. `service_booking_no_show` ins Audit-Log und löst `wpcap_service_booking_st
 Andere Events, Bestellungen, Tickets, Berichte oder fremde Ressourcen erreicht die Rolle nicht; die Verknüpfung
 vergibt nie selbst ein Recht (die Rolle muss vorhanden sein), ein deaktivierter Datensatz entzieht den Zugang.
 
-**Rollenentzug und Löschen von Benutzern (A277):** Einlasspersonal ohne Plugin-Rolle bekommt `wpcap_checkin`
+**Rollenentzug und Löschen von Benutzern (A277, A278):** Einlasspersonal ohne Plugin-Rolle bekommt `wpcap_checkin`
 mit der Team-Zuweisung als Benutzer-Capability. Damit Zugänge eine Rollenänderung nicht überleben, nimmt
 `UserAccess` beim Entzug einer Rolle (`set_user_role` mit einer wegfallenden Rolle, `remove_user_role`) diese
 Benutzer-Capability zurück, löscht Event-Team-Einträge (samt Terminzuweisungen) für Rechte, die die Person
 danach nicht mehr hat, und widerruft ohne `wpcap_checkin` alle Scanner-Geräte, offene Kopplungscodes und
-Einlassbereichs-Zuweisungen. Was eine verbleibende Rolle weiter erlaubt, bleibt erhalten; das Hinzufügen einer
+Einlassbereichs-Zuweisungen; Entwickler-API-Schlüssel für Events, die die Person nicht mehr lesen darf, werden
+widerrufen. Was eine verbleibende Rolle weiter erlaubt, bleibt erhalten; das Hinzufügen einer
 Rolle ändert nichts. Wird ein Benutzer gelöscht (bzw. in Multisite aus der Site entfernt), wird alles davon
 zurückgenommen. Nach einem Rollenwechsel (auch z. B. von „Abonnent“ zu „Kunde“) muss die Einlass-Zuweisung
 also neu vergeben werden. Jede Rücknahme steht als `user_access_revoked` im Audit-Log; Filter
@@ -277,11 +278,16 @@ eigene (`POST /developer/keys/{id}/revoke`).
 
 Jede Anfrage sendet `X-WPCAP-Key: <präfix>.<geheimnis>`. Geprüft werden: Schlüssel gültig, nicht widerrufen,
 nicht abgelaufen; Event der Anfrage = Event des Schlüssels; die Person, die den Schlüssel angelegt hat, ist
-Administrator oder im Event-Team (`wpcap_manage_events`/`wpcap_view_reports`) und hat alle Termine des Events
-in ihrem Standort-/Partnerbereich (A119); der Scope der Route ist im Schlüssel enthalten; das Ratenlimit des
+Administrator oder im Event-Team (`wpcap_manage_events`/`wpcap_view_reports`), existiert noch und hat das Recht
+dieses Team-Eintrags weiterhin über ihre Rolle (A278: ein Team-Eintrag allein genügt nicht) und hat alle Termine
+des Events in ihrem Standort-/Partnerbereich (A119); der Scope der Route ist im Schlüssel enthalten; das Ratenlimit des
 Schlüssels (Standard 600 Anfragen/Minute, je Schlüssel 1–10000, Filter `wpcap_developer_key_rate_limit`) ist
 nicht überschritten. Sonst lehnt WordPress die Anfrage ab (401/403); ist nur das Ratenlimit erreicht, antwortet
 die API mit 429 `wpcap_rate_limited` und `Retry-After` (Sekunden bis zur nächsten Minute).
+
+Verliert die Person eine Rolle oder wird sie gelöscht, widerruft `UserAccess` ihre Schlüssel, deren Event sie
+danach nicht mehr lesen dürfte (beim Löschen alle; Audit `developer_key_revoked` mit `reason`
+`owner_access_lost` bzw. `owner_deleted`, siehe „Rollenentzug und Löschen von Benutzern“).
 
 | Route (Namensraum `pass-captain/v1`) | Scope | Inhalt |
 |---|---|---|

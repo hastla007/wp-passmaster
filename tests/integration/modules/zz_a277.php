@@ -25,6 +25,7 @@ final class Q1_User {
 		'administrator' => array( 'manage_options', 'wpcap_manage_events', 'wpcap_checkin', 'wpcap_view_reports' ),
 	);
 	public array $caps = array();
+	public string $display_name = 'Q1';
 	public function __construct( public int $ID, public array $roles, public string $user_login = '', public string $user_email = '' ) {
 		$this->user_login = $this->user_login ?: 'q1-' . $ID;
 		$this->user_email = $this->user_email ?: 'q1-' . $ID . '@example.com';

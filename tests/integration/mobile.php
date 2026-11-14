@@ -10,7 +10,15 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
 }
 if ( ! function_exists( 'rest_ensure_response' ) ) { function rest_ensure_response( $r ) { return $r instanceof WP_REST_Response ? $r : new WP_REST_Response( $r ); } }
 if ( ! function_exists( 'wp_set_current_user' ) ) { function wp_set_current_user( $id ) { $GLOBALS['wpcap_test_user_id'] = (int) $id; } }
-if ( ! function_exists( 'get_userdata' ) ) { function get_userdata( $id ) { return (object) array( 'ID' => $id, 'display_name' => 'Staff ' . $id ); } }
+if ( ! function_exists( 'get_userdata' ) ) {
+	// Registered test users with capabilities (has_cap(), e.g. zz_a277.php) are returned as they are;
+	// ids in wpcap_test_deleted_users do not exist.
+	function get_userdata( $id ) {
+		if ( in_array( (int) $id, $GLOBALS['wpcap_test_deleted_users'] ?? array(), true ) ) { return false; }
+		foreach ( $GLOBALS['wpcap_test_users'] ?? array() as $user ) { if ( (int) $user->ID === (int) $id && method_exists( $user, 'has_cap' ) ) { return $user; } }
+		return (object) array( 'ID' => $id, 'display_name' => 'Staff ' . $id );
+	}
+}
 if ( ! function_exists( 'wp_get_current_user' ) ) { function wp_get_current_user() { return get_userdata( get_current_user_id() ); } }
 if ( ! function_exists( 'rest_url' ) ) { function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . ltrim( $p, '/' ); } }
 
