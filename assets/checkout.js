@@ -396,4 +396,6 @@
 			if (!done && hadFocus && (!document.activeElement || document.activeElement === document.body)) button.focus();
 		}
 	});
+	// Test hook for tests/js (node:test); `module` does not exist in the browser, so this is a no-op there.
+	if (typeof module === 'object' && module && module.exports) { module.exports = { holdText: holdText, fill: fill, money: money, renderAttendees: renderAttendees, renderEstimate: renderEstimate, labelText: labelText, validate: validate, showErrors: showErrors, clearErrors: clearErrors, serverErrorField: serverErrorField, billingPayload: billingPayload }; }
 })();
