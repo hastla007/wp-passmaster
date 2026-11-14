@@ -2,7 +2,7 @@
 /* Public checkout: ticket selection, buyer data, attendee fields, fake hosted payment, order portal. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { BASE, installMuPlugin, fixture, helper, launch, context, withPage } = require('./lib');
+const { BASE, installMuPlugin, fixture, helper, launch, context, withPage, assertFitsViewport } = require('./lib');
 
 let browser, ctx, fx;
 test.before(async () => {
@@ -26,6 +26,7 @@ test('paid order: tickets, buyer data and attendees → fake payment page → pa
 	const form = eventForm(p);
 	await form.locator(`.wpcap-qty[data-type="${fx.ticket_types.Standard}"]`).fill('2');
 	await assert.doesNotReject(form.locator('.wpcap-attendee').nth(1).waitFor());
+	await assertFitsViewport(p, 'checkout with attendee fields');
 	assert.equal(await form.locator('.wpcap-attendee').count(), 2, 'one attendee fieldset per ticket');
 	assert.match(await form.locator('.wpcap-estimate').innerText(), /50[,.]00/);
 	const sold = form.locator(`.wpcap-qty[data-type="${fx.ticket_types.Ausverkauft}"]`);
@@ -82,6 +83,7 @@ test('validation: empty submit shows a focused error summary linking to the fiel
 	await form.locator('button[type="submit"]').click();
 	const summary = form.locator('.wpcap-error-summary');
 	await summary.waitFor();
+	await assertFitsViewport(p, 'checkout error summary');
 	assert.equal(await summary.getAttribute('role'), 'alert');
 	assert.ok(await summary.evaluate((el) => el === document.activeElement));
 	assert.ok(await summary.locator('a').count() >= 2);

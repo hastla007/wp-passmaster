@@ -5,7 +5,7 @@
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { BASE, fixture, helper, launch, context, withPage } = require('./lib');
+const { BASE, fixture, helper, launch, context, withPage, assertFitsViewport } = require('./lib');
 
 // Same URL as the admin link (OfflineScanner\AdminPage::app_url()): the REST base is passed as ?api= (the test
 // site uses plain permalinks, so it is the ?rest_route= form).
@@ -42,6 +42,7 @@ test('pairing screen is translated with the site locale (table from /app/offline
 	assert.equal(table.v, 1);
 	await p.locator('#pair-view').waitFor({ state: 'visible' });
 	assert.ok(await p.locator('#main-view').isHidden());
+	await assertFitsViewport(p, 'PWA pairing screen');
 	const expected = table.strings['Gerät koppeln'];
 	await p.waitForFunction((t) => document.querySelector('#pair-view h1').textContent === t, expected);
 	assert.equal(await p.evaluate(() => document.documentElement.lang), table.lang);
@@ -69,6 +70,7 @@ test('pair, load the signed package, scan offline into the IndexedDB queue, sync
 	await p.click('#pair-form button[type="submit"]');
 	await p.locator('#main-view').waitFor({ state: 'visible' });
 	assert.ok(await p.locator('#pair-view').isHidden());
+	await assertFitsViewport(p, 'PWA main view');
 	assert.ok(await idbGet(p, 'token'), 'device token stored in IndexedDB');
 	const keys = await idbGet(p, 'keys');
 	assert.ok(Object.keys(keys).length >= 1, 'Ed25519 public keys stored');

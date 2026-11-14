@@ -149,10 +149,24 @@ jobs:
         run: php tests/load/run.php --profile=ci
 
   browser:
-    # Release gates in the browser (docs/RELEASE.md): axe accessibility gate over all admin screens plus keyboard
-    # walkthrough, and Playwright E2E in Chromium (checkout, order portal, web scanner, offline PWA).
+    # Release gates in the browser (docs/RELEASE.md): Playwright E2E (checkout, order portal, web scanner, offline
+    # PWA) in Chromium, Firefox and WebKit, plus mobile emulation (Pixel 7 on Chromium, iPhone 14 on WebKit) for
+    # checkout, portal and offline-scanner pairing. The axe accessibility gate (all admin screens + keyboard
+    # walkthrough) and the WooCommerce Blocks E2E run only in the Chromium desktop leg.
+    name: browser (${{ matrix.label }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: 'chromium', slug: 'chromium', browser: 'chromium', a11y: true, woo: true }
+          - { label: 'firefox', slug: 'firefox', browser: 'firefox' }
+          - { label: 'webkit', slug: 'webkit', browser: 'webkit' }
+          - { label: 'Pixel 7, chromium', slug: 'pixel-7', browser: 'chromium', device: 'Pixel 7', files: 'checkout.test.js portal.test.js offline-scanner.test.js' }
+          - { label: 'iPhone 14, webkit', slug: 'iphone-14', browser: 'webkit', device: 'iPhone 14', files: 'checkout.test.js portal.test.js offline-scanner.test.js' }
+    env:
+      PLAYWRIGHT_VERSION: '1.63.0'
     services:
       db:
         image: mariadb:11.4
@@ -176,20 +190,37 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install Playwright ${{ env.PLAYWRIGHT_VERSION }} + ${{ matrix.browser }}
+        run: |
+          cd tests/a11y
+          npm ci --no-audit --no-fund
+          npm i --no-save --no-audit --no-fund "playwright@${PLAYWRIGHT_VERSION}"
+          npx playwright install --with-deps ${{ matrix.browser }}
+          echo "NODE_PATH=$PWD/node_modules" >> "$GITHUB_ENV"
       - name: Download WooCommerce (Blocks checkout E2E)
+        if: matrix.woo
         run: curl -fsSL --retry 3 https://downloads.wordpress.org/plugin/woocommerce.latest-stable.zip -o "$RUNNER_TEMP/woocommerce.zip"
-      - name: Accessibility gate + browser E2E (Chromium, incl. WooCommerce Blocks)
+      - name: Accessibility gate (Chromium)
+        if: matrix.a11y
         env:
           WPCAP_DB_HOST: 127.0.0.1
           WPCAP_DB_NAME: wp_browser
+        run: tests/ci/browser-tests.sh a11y
+      - name: Browser E2E (${{ matrix.label }})
+        env:
+          WPCAP_DB_HOST: 127.0.0.1
+          WPCAP_DB_NAME: wp_browser
+          WPCAP_E2E_BROWSER: ${{ matrix.browser }}
+          WPCAP_E2E_DEVICE: ${{ matrix.device }}
         run: |
-          export WPCAP_WOO_ZIP="$RUNNER_TEMP/woocommerce.zip"
-          tests/ci/browser-tests.sh a11y && tests/ci/browser-tests.sh e2e
+          if [ -n "${{ matrix.woo }}" ]; then export WPCAP_WOO_ZIP="$RUNNER_TEMP/woocommerce.zip"; fi
+          # shellcheck disable=SC2086 # word splitting intended: list of test files (empty = all)
+          tests/ci/browser-tests.sh e2e ${{ matrix.files }}
       - name: Upload E2E failure screenshots
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-artifacts
+          name: e2e-artifacts-${{ matrix.slug }}
           path: tests/e2e/artifacts/
           if-no-files-found: ignore
 
