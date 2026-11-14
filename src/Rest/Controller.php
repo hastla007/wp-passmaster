@@ -321,7 +321,8 @@ final class Controller {
 		if ( ! $gateway || ! in_array( $provider_id, $enabled, true ) ) {
 			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$hold = max( 30, (int) \PassCaptain\Settings::get( 'hold_minutes' ) ); // Hosted payment pages (e.g. Stripe) live at least 30 minutes.
+		// Hosted payment pages (Stripe Checkout lives at least 30 minutes) end with the hold (A577).
+		$hold = max( Orders::HOSTED_HOLD_MINUTES, (int) \PassCaptain\Settings::get( 'hold_minutes' ) );
 		if ( 'manual' === $provider_id && ! $gateway->is_available( '' ) ) {
 			// Enabled but without bank account or payment instructions (A265): no order, no blocked seats.
 			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400, 'field' => 'provider' ) );

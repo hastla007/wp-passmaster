@@ -189,8 +189,11 @@ final class StripeGateway implements GatewayInterface {
 				if ( 'checkout.session.async_payment_failed' === $type || 'checkout.session.expired' === $type ) {
 					$base['type'] = 'failed';
 				} elseif ( 'paid' === ( $object['payment_status'] ?? '' ) ) {
-					// "completed" with payment_status "unpaid" = delayed method (SEPA etc.); wait for async_payment_succeeded.
 					$base['type'] = 'paid';
+				} elseif ( 'checkout.session.completed' === $type && 'unpaid' === ( $object['payment_status'] ?? '' ) ) {
+					// Delayed method (SEPA Direct Debit etc.): the buyer finished, the money follows with
+					// async_payment_succeeded – the hold is extended meanwhile (A577).
+					$base['type'] = 'payment_pending';
 				}
 				return $base;
 
@@ -313,16 +316,24 @@ final class StripeGateway implements GatewayInterface {
 	}
 
 	/**
-	 * Stripe requires 30 min – 24 h. Derived from the order creation time so that a concurrent
-	 * retry sends identical parameters for the same Idempotency-Key.
+	 * Session end = end of the order's hold (A577): Stripe accepts no payment after the hold, so no
+	 * payment arrives for units that were released meanwhile. Stripe requires 30 min – 24 h after
+	 * creation: a hold that ends sooner is extended to the session end (checkouts hold at least
+	 * Orders::HOSTED_HOLD_MINUTES, so this only happens on a late retry); a longer hold (e.g. a
+	 * waitlist offer) is cut to 24 h – the session then ends before the hold. Derived from the stored
+	 * hold, so a concurrent retry sends identical parameters for the same Idempotency-Key.
 	 */
 	private static function session_expiry( array $order ) {
-		$created = ! empty( $order['created_at'] ) ? (int) strtotime( $order['created_at'] . ' UTC' ) : 0;
-		$expires = $created ? $created + 40 * MINUTE_IN_SECONDS : 0;
-		if ( $expires < time() + 31 * MINUTE_IN_SECONDS ) {
-			$expires = (int) ( ceil( ( time() + 31 * MINUTE_IN_SECONDS ) / 60 ) * 60 );
+		$order_id = (int) ( $order['order_id'] ?? 0 );
+		$now = \PassCaptain\Clock::now();
+		$min = (int) ( ceil( ( $now + 30 * MINUTE_IN_SECONDS + 30 ) / 60 ) * 60 );
+		$max = $now + DAY_IN_SECONDS - 5 * MINUTE_IN_SECONDS;
+		$expires = $order_id ? \PassCaptain\Orders::hold_end( $order_id ) : 0;
+		if ( $expires < $min ) {
+			$expires = $min;
+			if ( $order_id ) { \PassCaptain\Orders::extend_hold_to( $order_id, $expires ); }
 		}
-		return $expires;
+		return min( $expires, $max );
 	}
 
 	/** Line item name such as "Konzert – Standard × 2". */

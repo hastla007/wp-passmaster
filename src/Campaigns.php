@@ -164,6 +164,37 @@ final class Campaigns {
 		return $wpdb->update( $wpdb->prefix . 'wpcap_campaign_uses', array( 'status' => 'committed' ), array( 'order_id' => absint( $order_id ), 'status' => 'reserved' ), array( '%s' ), array( '%d', '%s' ) );
 	}
 
+	/**
+	 * Late payment (A353): discount codes the order released when its hold lapsed are redeemed again
+	 * in the caller's transaction – campaign rows locked FOR UPDATE by id, then the usage limit is
+	 * checked atomically. Uses still `reserved` keep their unit. Call after the capacity locks (lock
+	 * order of Orders::create(): ticket types, occurrences, modules, campaigns).
+	 *
+	 * @return true|\WP_Error `campaign_exhausted` when a limit is used up meanwhile; Errors::busy() on a database error.
+	 */
+	public static function recover_for_order( $order_id ) {
+		global $wpdb;
+		$uses = $wpdb->prefix . 'wpcap_campaign_uses';
+		$campaigns = $wpdb->prefix . 'wpcap_campaigns';
+		$order_id = absint( $order_id );
+		// Locking read: a concurrent release (expire_holds) waits for this transaction.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT campaign_id,status FROM $uses WHERE order_id=%d ORDER BY campaign_id FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return Errors::busy(); }
+		foreach ( (array) $rows as $row ) {
+			if ( 'released' !== $row->status ) { continue; }
+			$wpdb->get_var( $wpdb->prepare( "SELECT campaign_id FROM $campaigns WHERE campaign_id=%d FOR UPDATE", (int) $row->campaign_id ) );
+			if ( '' !== $wpdb->last_error ) { return Errors::busy(); }
+			$taken = $wpdb->query( $wpdb->prepare( "UPDATE $campaigns SET used_count=used_count+1 WHERE campaign_id=%d AND (usage_limit=0 OR used_count<usage_limit)", (int) $row->campaign_id ) );
+			if ( false === $taken ) { return Errors::busy(); }
+			if ( 1 !== (int) $taken ) {
+				return new \WP_Error( 'campaign_exhausted', __( 'Das Nutzungslimit des Rabattcodes ist ausgeschöpft.', 'pass-captain' ), array( 'status' => 409, 'campaign_id' => (int) $row->campaign_id ) );
+			}
+			$back = $wpdb->query( $wpdb->prepare( "UPDATE $uses SET status='reserved' WHERE campaign_id=%d AND order_id=%d AND status='released'", (int) $row->campaign_id, $order_id ) );
+			if ( 1 !== (int) $back ) { return Errors::busy(); }
+		}
+		return true;
+	}
+
 	public static function release_for_order( $order_id ) {
 		global $wpdb;
 		$uses = $wpdb->prefix . 'wpcap_campaign_uses';

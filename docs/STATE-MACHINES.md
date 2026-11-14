@@ -29,7 +29,7 @@ Die beiden Spalten wechseln immer gemeinsam:
 |---|---|---|
 | `pending_payment` | `pending` | Angelegt, Kontingent durch eine Reservierung gehalten, Zahlung offen. |
 | `complete` | `paid` | Bezahlt (oder kostenlos), Tickets ausgestellt. Teilerstattungen ändern nur `refunded_minor`. |
-| `needs_review` | `paid_unallocated` | Zahlung kam nach Ablauf der Reservierung, und es ist kein Kontingent mehr frei. Es gibt keine Tickets; ein Admin muss den Fall klären. |
+| `needs_review` | `paid_unallocated` | Zahlung kam nach Ablauf der Reservierung, und die erneute Prüfung schlug fehl (Termin/Event abgesagt oder nicht mehr veröffentlicht, Termin vorbei, kein Kontingent, Rabattcode-Limit oder Käuferlimit ausgeschöpft). Es gibt keine Tickets; ein Admin muss den Fall klären (oder die Zahlung wird mit `late_payment_auto_refund` automatisch erstattet). |
 | `expired` | `expired` | Die Reservierung ist abgelaufen, ohne dass eine Zahlung kam. |
 | `cancelled` | `cancelled` | Storniert. Reservierungen sind freigegeben, gültige Tickets widerrufen. |
 | `refunded` | `refunded` | Vollständig erstattet, gültige Tickets widerrufen. **Endzustand.** |
@@ -37,9 +37,9 @@ Die beiden Spalten wechseln immer gemeinsam:
 | Von → nach | Auslöser |
 |---|---|
 | `pending_payment` → `complete` | Zahlungsbestätigung: Webhook `paid` (Stripe, PayPal, Mollie), PayPal-/Mollie-Rückkehr, manuelle Zahlungsbestätigung im Admin, WooCommerce `processing`/`completed`, Kasse, Partner-API. Kostenlose Bestellungen entstehen direkt als `complete`. |
-| `pending_payment`/`expired` → `needs_review` | Späte Zahlung ohne freies Kontingent (`Orders::confirm_external_payment()`). Der Admin bekommt eine Mail. |
+| `pending_payment`/`expired` → `needs_review` | Späte Zahlung, deren erneute Prüfung fehlschlägt (`Orders::confirm_external_payment()`, siehe „Späte Zahlung“ unten). Der Admin bekommt eine Mail mit dem Grund. |
 | `pending_payment` → `expired` | Cron `wpcap_cleanup_reservations` (`Orders::expire_holds()`): Die Reservierung ist abgelaufen, und die Zahlung ist noch offen. |
-| `expired` → `complete` | Späte Zahlung, und das Kontingent reicht noch (erneute Prüfung unter Sperre). |
+| `expired` → `complete` | Späte Zahlung, und die erneute Prüfung unter Sperre besteht. |
 | `needs_review` → `complete` | Admin-Aktion „Tickets erneut ausstellen“ (WooCommerce) oder manuelle Bestätigung, nachdem Kontingent frei geworden ist. Wiederholte Zahlungs-Webhooks lösen das nie aus. |
 | `pending_payment`/`expired`/`needs_review`/`complete` → `cancelled` | Fehlgeschlagene Zahlung (nur solange `pending`), Storno im Admin, WooCommerce `cancelled` (oder `failed`, solange unbezahlt), Neuversuch im WooCommerce-Checkout, Umtausch (ersetzter oder geschlossener Aufpreis), Job `order_cancel_retry`. |
 | `complete`/`needs_review`/`cancelled` → `refunded` | Volle Erstattung: native Erstattung (`Refunds`), externe Erstattung (Anbieter-Dashboard, Chargeback, WooCommerce, Partner-API), Job `order_refund_mark_retry`. |
@@ -161,9 +161,39 @@ Zeitfenster → Buchung) und als bedingtes Update auf den erwarteten Ausgangssta
 **Endzustände:** `cancelled`, `no_show`, `expired` (eine abgelaufene Buchung wird nur noch durch eine verspätete Zahlung
 `confirmed` oder `unallocated`) und `unallocated`. Fristen, Limits und Benachrichtigungen: OPERATIONS.md.
 
+## Späte Zahlung (Reservierung abgelaufen)
+
+Kommt eine Zahlung, nachdem die Reservierung abgelaufen ist (`pending_payment` ohne aktive Reservierung
+oder `expired`), prüft `Orders::confirm_external_payment()` unter den Sperren von `Orders::create()`
+(Ticketarten, Termine mit Event, Modul-Ressourcen, Rabattcodes, Käuferlimit) alles erneut, was sich seit
+dem Ablauf geändert haben kann (A273, A353, A483):
+
+1. Termin `scheduled` und Event `published` (sonst Grund `occurrence_unavailable`);
+2. Termin nicht vorbei: Ende = `COALESCE(ends_at, starts_at + 6 h)` (`Orders::occurrence_end()`; sonst
+   `occurrence_ended`). Laufende mehrtägige Termine bekommen ihre Tickets;
+3. Modul-Ressourcen (`wpcap_reserve_capacity`, Phase `recover`) und Kontingent von Ticketart und Termin;
+4. Rabattcodes: beim Ablauf freigegebene Codes werden unter Sperre der Kampagne neu eingelöst, nur
+   innerhalb des Nutzungslimits (`Campaigns::recover_for_order()`; sonst `campaign_exhausted`);
+5. `wpcap_order_recovering`, z. B. Käuferlimit je E-Mail-Adresse (sonst `allocation_buyer_limit`).
+
+Schlägt ein Schritt fehl, wird die Bestellung `needs_review`/`paid_unallocated`: keine Tickets, noch
+reservierte Rabattcodes werden freigegeben, Audit `payment_unallocated` mit Grund, Admin-Mail mit dem
+Grund. Mit der Einstellung **„Verspätete Zahlungen … automatisch erstatten“** (`late_payment_auto_refund`,
+Standard aus) erstattet der Job `late_payment_refund` die volle Zahlung beim Anbieter (fester
+Idempotenzschlüssel `wpcap-late-refund-{order_id}`, bei Fehlern erneute Versuche) und setzt die
+Bestellung auf `refunded` mit `refunded_minor = total_minor` (keine Erstattungszeile, keine Gutschrift –
+es gab weder Tickets noch Rechnung; die Erstattungs-Webhooks des Anbieters buchen nichts mehr). Das gilt
+auch für eine Zahlung zu einer stornierten Bestellung (`paid_for_closed_order`, gleicher
+Zahlungsversuch). Ohne die Option bleibt der Fall beim Admin („Zuteilung erneut versuchen“ prüft alles
+noch einmal, oder erstatten). WooCommerce-Bestellungen und Zahlarten ohne Erstattungsschnittstelle
+werden nie automatisch erstattet.
+
+Eine Terminabsage (auch eine Eventabsage) storniert neben offenen auch **abgelaufene** unbezahlte
+Bestellungen; eine danach eintreffende Zahlung trifft auf `cancelled` und stellt keine Tickets aus.
+
 ## Doppelte und in falscher Reihenfolge eintreffende Zahlungsereignisse
 
-Die Adapter übersetzen Anbieter-Ereignisse in ein normalisiertes Ereignis (`paid`, `failed`,
+Die Adapter übersetzen Anbieter-Ereignisse in ein normalisiertes Ereignis (`paid`, `payment_pending`, `failed`,
 `refunded`, `ignored`; Felder siehe `GatewayInterface::verify_webhook()`). `Webhooks::process()` wendet
 es abhängig vom aktuellen Zahlungszustand der Bestellung an:
 
@@ -177,6 +207,22 @@ es abhängig vom aktuellen Zahlungszustand der Bestellung an:
 | gleiche Ereignis-ID erneut | `duplicate` | `duplicate` | `duplicate` | `duplicate` | `duplicate` | `duplicate` |
 
 Zu einzelnen Fällen:
+
+- **Verzögerte Zahlarten (A577).** Stripe meldet `checkout.session.completed` mit `payment_status`
+  `unpaid`, wenn der Käufer eine verzögerte Zahlart gewählt hat (SEPA-Lastschrift u. a.); das wird
+  `payment_pending`: Ist die Bestellung noch `pending` und der Zahlungsversuch aktuell, wird die
+  Reservierung wie bei Überweisung verlängert (`manual_hold_hours`, höchstens bis zum Beginn, nicht
+  innerhalb `manual_cutoff_hours`; Ergebnis `hold_extended`, sonst `hold_not_extended` – eine spätere
+  Zahlung läuft dann durch die Prüfung oben). Mollie-Überweisung (`banktransfer`) wird nur angeboten,
+  wenn der Käufer sie im Checkout ausdrücklich wählt; dann wird die Reservierung ebenso verlängert und
+  `dueDate` auf ihr Ende gesetzt (frühestens morgen). In einer Methodenliste (Auswahl auf der
+  Mollie-Seite, auch ohne konfigurierte Methoden) fehlt Überweisung; ist sie die einzige Methode und der
+  Beginn zu nah, wird die Zahlung nicht gestartet.
+- **Stripe-Sitzung = Reservierung (A577).** Gehostete Zahlungsseiten reservieren mindestens 31 Minuten
+  (`Orders::HOSTED_HOLD_MINUTES`); die Stripe Checkout Session endet genau mit der Reservierung
+  (`expires_at` = Ende der Reservierung). Ist die Reservierung kürzer als das Stripe-Minimum (30 Minuten ab
+  Erstellung, z. B. bei einem späten Neuversuch), wird sie auf das Sitzungsende verlängert; länger als
+  24 Stunden wird die Sitzung nicht (sie endet dann vor der Reservierung).
 
 - **Ein Betrag passt nicht** zu Summe oder Währung der Bestellung: Ergebnis `amount_mismatch`, keine
   Tickets, Admin-Mail.

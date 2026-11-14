@@ -104,7 +104,12 @@ final class MollieGateway implements GatewayInterface {
 		$locale = (string) ( $order['locale'] ?? '' );
 		if ( in_array( $locale, self::LOCALES, true ) ) { $body['locale'] = $locale; }
 		$method = self::method_for_order( $order, $value, $currency );
+		if ( is_wp_error( $method ) ) { return $method; }
 		if ( '' !== $method && array() !== $method ) { $body['method'] = $method; }
+		if ( 'banktransfer' === $method ) {
+			// Bank transfer stays open no longer than the (extended) hold; Mollie's earliest due date is tomorrow.
+			$body['dueDate'] = gmdate( 'Y-m-d', max( \PassCaptain\Orders::hold_end( (int) ( $order['order_id'] ?? 0 ) ), \PassCaptain\Clock::now() + DAY_IN_SECONDS ) );
+		}
 		$body = apply_filters( 'wpcap_mollie_payment_body', $body, $order, $items );
 		$payment = self::api( 'POST', 'payments', $body, 'wpcap-mollie-' . $public_id . $key_suffix );
 		if ( is_wp_error( $payment ) ) { return $payment; }
@@ -133,16 +138,41 @@ final class MollieGateway implements GatewayInterface {
 	 * Method parameter: the buyer's choice when it is enabled and offered for this amount, otherwise
 	 * the enabled methods Mollie offers (array), or '' when no restriction is configured.
 	 *
-	 * @return string|array
+	 * Bank transfer (a delayed method: paid days later) only as the buyer's explicit choice, and then
+	 * the hold is extended like a bank transfer hold (Orders::extend_hold_for_delayed_payment(), A577);
+	 * it is never part of a method list (the checkout hold would end long before the money arrives).
+	 * Without configured methods the list Mollie offers is passed without bank transfer. When bank
+	 * transfer is the only method left, it is used with the extended hold (or refused close to the start).
+	 *
+	 * @return string|array|\WP_Error
 	 */
 	private static function method_for_order( array $order, $value, $currency ) {
 		$enabled = self::config()['methods'];
-		if ( ! $enabled ) { return ''; }
+		$order_id = (int) ( $order['order_id'] ?? 0 );
+		if ( ! $enabled ) {
+			$offered = self::available_methods( $value, $currency );
+			if ( is_wp_error( $offered ) || ! isset( $offered[ self::DELAYED_METHOD ] ) ) { return ''; }
+			$rest = array_values( array_diff( array_keys( $offered ), array( self::DELAYED_METHOD ) ) );
+			return $rest ? $rest : self::delayed_only( $order_id );
+		}
 		$offered = self::available_methods( $value, $currency );
 		$allowed = is_wp_error( $offered ) ? $enabled : array_values( array_intersect( $enabled, array_keys( $offered ) ) );
-		$chosen = \PassCaptain\Modules\Mollie::chosen_method( (int) ( $order['order_id'] ?? 0 ) );
-		if ( '' !== $chosen && in_array( $chosen, $allowed, true ) ) { return $chosen; }
-		return $allowed ? $allowed : '';
+		$chosen = \PassCaptain\Modules\Mollie::chosen_method( $order_id );
+		if ( '' !== $chosen && in_array( $chosen, $allowed, true ) ) {
+			if ( self::DELAYED_METHOD !== $chosen || ( $order_id && null !== \PassCaptain\Orders::extend_hold_for_delayed_payment( $order_id ) ) ) { return $chosen; }
+		}
+		$rest = array_values( array_diff( $allowed, array( self::DELAYED_METHOD ) ) );
+		if ( $rest ) { return $rest; }
+		return $allowed ? self::delayed_only( $order_id ) : '';
+	}
+
+	/** Mollie method that confirms days later (see method_for_order()). */
+	const DELAYED_METHOD = 'banktransfer';
+
+	/** Bank transfer is the only method left: offered with an extended hold, refused when the start is too close. */
+	private static function delayed_only( $order_id ) {
+		if ( $order_id && null !== \PassCaptain\Orders::extend_hold_for_delayed_payment( $order_id ) ) { return self::DELAYED_METHOD; }
+		return new \WP_Error( 'wpcap_manual_too_late', __( 'Eine Zahlung per Überweisung ist so kurz vor Beginn nicht mehr möglich. Bitte wähle eine andere Zahlungsart.', 'pass-captain' ), array( 'status' => 400 ) );
 	}
 
 	/**

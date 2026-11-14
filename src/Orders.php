@@ -8,6 +8,26 @@ final class Orders {
 	const HOLD_MINUTES = 10;
 
 	/**
+	 * Minimum hold for hosted payment pages (Stripe, Mollie, PayPal). Stripe Checkout Sessions live
+	 * at least 30 minutes and end exactly with the hold (A577), so the hold is one minute longer.
+	 */
+	const HOSTED_HOLD_MINUTES = 31;
+
+	/** Assumed duration of an occurrence without end time (hours), see occurrence_end(). */
+	const DEFAULT_OCCURRENCE_HOURS = 6;
+
+	/**
+	 * End of an occurrence (UTC, Y-m-d H:i:s): its ends_at, else starts_at plus
+	 * DEFAULT_OCCURRENCE_HOURS – in SQL: COALESCE(ends_at, starts_at + INTERVAL 6 HOUR).
+	 *
+	 * @param object $occurrence Row with starts_at and ends_at.
+	 */
+	public static function occurrence_end( $occurrence ) {
+		if ( ! empty( $occurrence->ends_at ) ) { return (string) $occurrence->ends_at; }
+		return gmdate( 'Y-m-d H:i:s', strtotime( (string) $occurrence->starts_at . ' UTC' ) + self::DEFAULT_OCCURRENCE_HOURS * HOUR_IN_SECONDS );
+	}
+
+	/**
 	 * Creates an order with inventory holds.
 	 *
 	 * @param array $payload  Customer input: email, items, idempotency_key, campaign_codes,
@@ -148,7 +168,7 @@ final class Orders {
 				$occurrence = $occurrences[ (int) $type->occurrence_id ];
 				// Door sales (box office) may sell after the start and outside the online sales window,
 				// but never for an occurrence that has ended.
-				$ended = $occurrence && ( $occurrence->ends_at ? $occurrence->ends_at : gmdate( 'Y-m-d H:i:s', strtotime( $occurrence->starts_at . ' UTC' ) + 6 * HOUR_IN_SECONDS ) ) < $now;
+				$ended = $occurrence && self::occurrence_end( $occurrence ) < $now;
 				$started = $occurrence && strtotime( $occurrence->starts_at . ' UTC' ) < Clock::now();
 				if ( ! $occurrence || 'published' !== $occurrence->event_status || 'scheduled' !== $occurrence->status || ( $door_sale ? $ended : $started ) ) {
 					throw new \RuntimeException( 'occurrence_unavailable' );
@@ -1067,9 +1087,12 @@ final class Orders {
 	/**
 	 * Confirms a payment reported by an external system (e.g. WooCommerce). Idempotent.
 	 *
-	 * Active holds are converted. If the hold has lapsed, capacity is re-checked under row locks
-	 * (late payment recovery). If it is no longer available, the order is flagged `needs_review`
-	 * with payment status `paid_unallocated` – no tickets are issued and nothing is overbooked.
+	 * Active holds are converted. If the hold has lapsed (late payment recovery), everything that may
+	 * have changed since is checked again under row locks: occurrence and event status, the
+	 * occurrence end, module resources, capacity, discount code limits and `wpcap_order_recovering`
+	 * (buyer limits). If any check fails, the order is flagged `needs_review` with payment status
+	 * `paid_unallocated` – no tickets are issued, nothing is overbooked, the admin is alerted and,
+	 * with the setting `late_payment_auto_refund`, the payment is refunded automatically.
 	 *
 	 * @return true|\WP_Error
 	 */
@@ -1118,7 +1141,8 @@ final class Orders {
 		$occurrences = array();
 		foreach ( $occ_ids as $occ_id ) {
 			if ( $occ_id ) {
-				$occurrences[ $occ_id ] = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", $occ_id ) );
+				// With the event status (late payment re-check), locked like in Orders::create().
+				$occurrences[ $occ_id ] = $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.status AS event_status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d FOR UPDATE", $occ_id ) );
 				$lock_failed = $lock_failed || '' !== $wpdb->last_error;
 			}
 		}
@@ -1129,7 +1153,10 @@ final class Orders {
 		if ( '' !== $active_error || '' !== $wpdb->last_error ) { return self::payment_busy( $order_id ); }
 		$recovered = false;
 		if ( ! $active ) {
-			// Late payment: module resources (`wpcap_reserve_capacity`), then re-check capacity.
+			// Late payment: everything that may have changed since the hold lapsed is checked again, in
+			// the lock order of Orders::create(): occurrence/event status and end (A273), module
+			// resources (`wpcap_reserve_capacity`), capacity, discount code limits (A353) and
+			// `wpcap_order_recovering`, e.g. buyer limits (A483).
 			foreach ( $lines as $line ) {
 				if ( ! array_key_exists( (int) $line->ticket_type_id, $locked_types ) ) {
 					$locked_types[ (int) $line->ticket_type_id ] = null; // Not seen before the transaction: treated as unavailable.
@@ -1137,18 +1164,21 @@ final class Orders {
 			}
 			$demand = array();
 			foreach ( $lines as $line ) { $demand[ (int) $line->ticket_type_id ] = (int) $line->quantity; }
-			$reserve_error = in_array( null, $locked_types, true ) ? null : self::reserve_capacity( $demand, array( 'phase' => 'recover', 'order_id' => $order_id, 'types' => $locked_types, 'occurrences' => array_filter( $occurrences ), 'now' => $now, 'source' => (string) $order->payment_provider, 'email' => (string) $order->customer_email, 'user_id' => 0, 'internal' => array() ) );
-			$error = '';
+			$recover_context = array( 'phase' => 'recover', 'order_id' => $order_id, 'types' => $locked_types, 'occurrences' => array_filter( $occurrences ), 'now' => $now, 'source' => (string) $order->payment_provider, 'email' => (string) $order->customer_email, 'user_id' => 0, 'internal' => array() );
+			$error = self::recovery_error( $lines, $locked_types, $occurrences, $now );
+			$reserve_error = null;
 			$per_occurrence = array();
-			foreach ( $lines as $line ) {
-				$type = $locked_types[ (int) $line->ticket_type_id ] ?? null;
-				$occurrence = $type ? ( $occurrences[ (int) $type->occurrence_id ] ?? null ) : null;
-				if ( ! $type || ! $occurrence ) { $error = 'ticket_type_unavailable'; break; }
-				$check_occurrence = clone $occurrence;
-				$check_occurrence->capacity = 0; // Occurrence capacity is checked below for the summed quantity.
-				$error = self::capacity_error( $type, $check_occurrence, (int) $line->quantity, $order_id );
-				if ( $error ) { break; }
-				$per_occurrence[ (int) $occurrence->occurrence_id ] = ( $per_occurrence[ (int) $occurrence->occurrence_id ] ?? 0 ) + (int) $line->quantity;
+			if ( '' === $error ) {
+				$reserve_error = self::reserve_capacity( $demand, $recover_context );
+				foreach ( $lines as $line ) {
+					$type = $locked_types[ (int) $line->ticket_type_id ];
+					$occurrence = $occurrences[ (int) $type->occurrence_id ];
+					$check_occurrence = clone $occurrence;
+					$check_occurrence->capacity = 0; // Occurrence capacity is checked below for the summed quantity.
+					$error = self::capacity_error( $type, $check_occurrence, (int) $line->quantity, $order_id );
+					if ( $error ) { break; }
+					$per_occurrence[ (int) $occurrence->occurrence_id ] = ( $per_occurrence[ (int) $occurrence->occurrence_id ] ?? 0 ) + (int) $line->quantity;
+				}
 			}
 			// A transient lock problem (deadlock, lock wait timeout) is no "sold out": roll back so the
 			// payment provider redelivers the webhook (5xx) instead of flagging a paid order for review.
@@ -1164,20 +1194,49 @@ final class Orders {
 				}
 			}
 			if ( 'db_busy' === $error ) { return self::payment_busy( $order_id ); }
+			if ( ! $error ) {
+				// Discount codes released when the hold lapsed are redeemed again under the campaign lock,
+				// within their usage limit (A353).
+				$campaign_error = Campaigns::recover_for_order( $order_id );
+				if ( is_wp_error( $campaign_error ) ) {
+					if ( self::is_retryable_error( $campaign_error ) ) { return self::payment_busy( $order_id ); }
+					$error = $campaign_error->get_error_code();
+				}
+			}
+			if ( ! $error ) {
+				/**
+				 * Late payment recovery, inside the transaction after capacity and discount codes (like
+				 * `wpcap_order_creating` on checkout): modules re-check per-order rules that may have
+				 * changed since the hold lapsed (e.g. buyer limits) under their own row locks. Return a
+				 * WP_Error to flag the order for review instead of issuing tickets (a busy error –
+				 * Errors::busy() – rolls back so the provider redelivers).
+				 *
+				 * @param null|\WP_Error $result   Null to continue.
+				 * @param int            $order_id Order.
+				 * @param int[]          $demand   ticket_type_id => quantity of the order.
+				 * @param array          $context  As for `wpcap_reserve_capacity` (phase 'recover').
+				 */
+				$recovering = apply_filters( 'wpcap_order_recovering', null, $order_id, $demand, $recover_context );
+				if ( $recovering instanceof \WP_Error ) {
+					if ( self::is_retryable_error( $recovering ) ) { return self::payment_busy( $order_id ); }
+					$error = $recovering->get_error_code();
+				}
+			}
 			if ( $error ) {
 				// Guarded like every order transition (StateMachine); a repeated flag of a needs_review order
 				// changes nothing. Flagged only when every step is durable; otherwise the provider redelivers (A183).
+				// Discount codes still (or again) reserved by the order go back: it issues no tickets.
 				if ( false === StateMachine::transition( 'order', "{$p}wpcap_orders", 'order_id', $order_id, 'needs_review', array( 'payment_status' => 'paid_unallocated', 'updated_at' => $now ) )
 					|| false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='expired' WHERE order_id=%d AND status='active'", $order_id ) )
-					|| false === CapacityCounters::sync_order( $order_id ) ) {
+					|| false === CapacityCounters::sync_order( $order_id )
+					|| false === Campaigns::release_for_order( $order_id ) ) {
 					return self::payment_busy( $order_id );
 				}
 				if ( ! self::commit_probe( $order_id, 'paid_unallocated' ) ) { return self::payment_busy( $order_id ); }
 				self::flush_availability_cache();
 				self::capacity_released( $order_id, 'payment_unallocated' );
-				Audit::record( 'payment_unallocated', 'order', $order_id, array( 'reason' => $error, 'reference' => sanitize_text_field( $reference ) ) );
-				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne freies Kontingent', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: buyer e-mail */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
-				return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ) );
+				self::late_payment_unallocated( $order, $error, $reference );
+				return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und die Tickets können nicht mehr ausgestellt werden. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ), array( 'reason' => $error ) );
 			}
 			$recovered = true;
 		}
@@ -1195,6 +1254,111 @@ final class Orders {
 		// redelivered), and the repeated confirmation issues the tickets.
 		$issued = self::issue_and_email( $order_id );
 		return is_wp_error( $issued ) ? $issued : true;
+	}
+
+	/**
+	 * Late payment re-check of the order lines against the locked rows: ticket type and occurrence
+	 * still there, occurrence `scheduled`, event `published` and the occurrence not ended
+	 * (occurrence_end()). Returns an error code or ''.
+	 *
+	 * @param object[] $lines        ticket_type_id, quantity.
+	 * @param array    $types        Locked ticket types by id (null = missing).
+	 * @param array    $occurrences  Locked occurrences (with event_status) by id.
+	 * @param string   $now          UTC now.
+	 */
+	private static function recovery_error( array $lines, array $types, array $occurrences, $now ) {
+		foreach ( $lines as $line ) {
+			$type = $types[ (int) $line->ticket_type_id ] ?? null;
+			$occurrence = $type ? ( $occurrences[ (int) $type->occurrence_id ] ?? null ) : null;
+			if ( ! $type || ! $occurrence ) { return 'ticket_type_unavailable'; }
+			if ( 'scheduled' !== (string) $occurrence->status || 'published' !== (string) ( $occurrence->event_status ?? '' ) ) { return 'occurrence_unavailable'; }
+			if ( self::occurrence_end( $occurrence ) < $now ) { return 'occurrence_ended'; }
+		}
+		return '';
+	}
+
+	/** Admin text for the reason a late payment could not be allocated. */
+	public static function late_payment_reason( $code ) {
+		switch ( (string) $code ) {
+			case 'occurrence_unavailable':
+				return __( 'Der Termin oder das Event wurde inzwischen abgesagt bzw. ist nicht mehr im Verkauf.', 'pass-captain' );
+			case 'occurrence_ended':
+				return __( 'Der Termin ist bereits vorbei.', 'pass-captain' );
+			case 'ticket_type_unavailable':
+				return __( 'Die Ticketart ist nicht mehr vorhanden.', 'pass-captain' );
+			case 'campaign_exhausted':
+				return __( 'Das Nutzungslimit des Rabattcodes ist inzwischen ausgeschöpft.', 'pass-captain' );
+			case 'allocation_buyer_limit':
+				return __( 'Die maximale Anzahl an Tickets pro Person wäre überschritten.', 'pass-captain' );
+		}
+		return __( 'Es ist kein Kontingent mehr frei.', 'pass-captain' );
+	}
+
+	/**
+	 * After a late payment was flagged `needs_review`: audit entry, admin alert and – with the setting
+	 * `late_payment_auto_refund` – an automatic full refund through the payment provider (job
+	 * `late_payment_refund`, retried until it succeeds).
+	 */
+	private static function late_payment_unallocated( $order, $reason, $reference ) {
+		$auto = self::schedule_late_refund( $order, 'payment_unallocated' );
+		Audit::record( 'payment_unallocated', 'order', (int) $order->order_id, array( 'reason' => (string) $reason, 'reference' => sanitize_text_field( $reference ), 'auto_refund' => $auto ) );
+		$text = sprintf(
+			/* translators: 1: order number, 2: payment reference, 3: reason */
+			__( 'Die Zahlung für Bestellung %1$s (Referenz %2$s) ist nach Ablauf der Reservierung eingegangen. Es wurden keine Tickets ausgestellt: %3$s', 'pass-captain' ),
+			$order->public_id,
+			sanitize_text_field( $reference ),
+			self::late_payment_reason( $reason )
+		);
+		$text .= "\n\n" . ( $auto
+			? __( 'Die Zahlung wird automatisch erstattet.', 'pass-captain' )
+			: __( 'Bitte manuell klären (Zuteilung erneut versuchen oder erstatten).', 'pass-captain' ) );
+		wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne Tickets', 'pass-captain' ), $text );
+	}
+
+	/**
+	 * Queues the automatic refund of a payment that issued no tickets (late payment flagged for review,
+	 * payment for a cancelled order) when `late_payment_auto_refund` is enabled and the provider can
+	 * refund (not WooCommerce: refunds there happen in WooCommerce).
+	 *
+	 * @param object $order Order row.
+	 * @param string $why   Audit reason.
+	 * @return bool Whether a refund was queued.
+	 */
+	public static function schedule_late_refund( $order, $why ) {
+		if ( ! Settings::get( 'late_payment_auto_refund' ) || (int) $order->total_minor < 1 || 'woocommerce' === (string) $order->payment_provider ) { return false; }
+		$gateway = Payments\Registry::get( (string) $order->payment_provider );
+		if ( ! $gateway || ! $gateway->supports_refunds() ) { return false; }
+		return true === Jobs::enqueue( 'late-payment-refund|' . (int) $order->order_id, 'late_payment_refund', array( 'order_id' => (int) $order->order_id, 'reason' => sanitize_key( $why ) ) );
+	}
+
+	/**
+	 * Job `late_payment_refund`: refunds the full payment of an order that issued no tickets
+	 * (`needs_review`/`paid_unallocated` or `cancelled`) and marks it refunded. The provider call
+	 * uses a fixed idempotency key, so a repeated run never pays out twice. An order that was
+	 * allocated or refunded meanwhile is left alone.
+	 *
+	 * @return bool True when done (or nothing to do), false to retry.
+	 */
+	private static function run_late_refund( $order_id, $reason ) {
+		global $wpdb;
+		$order = self::get( $order_id );
+		if ( ! $order ) { return '' === $wpdb->last_error; }
+		$open = ( 'needs_review' === $order->status && 'paid_unallocated' === $order->payment_status ) || 'cancelled' === $order->status;
+		if ( ! $open || (int) $order->total_minor < 1 ) { return true; }
+		$gateway = Payments\Registry::get( (string) $order->payment_provider );
+		if ( ! $gateway || ! $gateway->supports_refunds() ) { return true; }
+		$result = $gateway->refund( (array) $order, (int) $order->total_minor, 'wpcap-late-refund-' . (int) $order_id );
+		if ( is_wp_error( $result ) ) {
+			Audit::record( 'late_payment_refund_failed', 'order', (int) $order_id, array( 'error' => $result->get_error_code() ) );
+			return false;
+		}
+		$marked = self::mark_refunded( $order_id, 'late_payment_auto_refund' );
+		if ( true !== $marked ) { return false; } // mark_refunded() queued its own repair; the provider call is idempotent.
+		// No tickets, no refund row: the order total is booked as refunded, so the provider's refund
+		// webhook finds nothing left to book.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_orders SET refunded_minor=total_minor WHERE order_id=%d AND status='refunded'", (int) $order_id ) );
+		Audit::record( 'late_payment_refunded', 'order', (int) $order_id, array( 'reason' => sanitize_key( $reason ), 'provider_reference' => substr( sanitize_text_field( (string) $result ), 0, 191 ), 'amount_minor' => (int) $order->total_minor ) );
+		return true;
 	}
 
 	/**
@@ -1246,9 +1410,41 @@ final class Orders {
 
 	/** Extends active holds of a pending order (e.g. WooCommerce "on-hold" bank transfers). */
 	public static function extend_hold( $order_id, $minutes ) {
+		return self::extend_hold_to( $order_id, Clock::now() + max( 1, absint( $minutes ) ) * MINUTE_IN_SECONDS );
+	}
+
+	/** Extends the active, unexpired holds of an order to at least $until_ts (never shortens). */
+	public static function extend_hold_to( $order_id, $until_ts ) {
 		global $wpdb;
-		$until = gmdate( 'Y-m-d H:i:s', Clock::now() + max( 1, absint( $minutes ) ) * MINUTE_IN_SECONDS );
+		$until = gmdate( 'Y-m-d H:i:s', (int) $until_ts );
 		return $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_reservations SET expires_at=GREATEST(expires_at,%s) WHERE order_id=%d AND status='active' AND expires_at > %s", $until, absint( $order_id ), Clock::mysql() ) );
+	}
+
+	/** End of the order's hold (earliest active, unexpired hold) as timestamp; 0 without one. */
+	public static function hold_end( $order_id ) {
+		global $wpdb;
+		$end = $wpdb->get_var( $wpdb->prepare( "SELECT MIN(expires_at) FROM {$wpdb->prefix}wpcap_reservations WHERE order_id=%d AND status='active' AND expires_at > %s", absint( $order_id ), Clock::mysql() ) );
+		return $end ? (int) strtotime( $end . ' UTC' ) : 0;
+	}
+
+	/**
+	 * Delayed payment methods (Stripe asynchronous methods such as SEPA Direct Debit, Mollie bank
+	 * transfer) confirm days after the buyer finished the payment page. When the buyer chose one,
+	 * the hold is extended like a bank transfer hold (`manual_hold_hours`, at most until the start,
+	 * not within `manual_cutoff_hours`; see manual_hold_minutes()), so the payment does not arrive
+	 * after the hold (A577).
+	 *
+	 * @return int|null New hold end (timestamp), or null when the start is too close (no extension:
+	 *                  a later payment goes through the late payment re-check).
+	 */
+	public static function extend_hold_for_delayed_payment( $order_id ) {
+		$type_ids = array_map( static function ( $item ) { return (int) $item->ticket_type_id; }, self::items_for_order( $order_id ) );
+		$minutes = self::manual_hold_minutes( $type_ids );
+		if ( null === $minutes ) { return null; }
+		$until = Clock::now() + $minutes * MINUTE_IN_SECONDS;
+		self::extend_hold_to( $order_id, $until );
+		Audit::record( 'hold_extended_delayed_payment', 'order', absint( $order_id ), array( 'minutes' => $minutes ) );
+		return max( $until, self::hold_end( $order_id ) );
 	}
 
 	/**
@@ -1548,7 +1744,7 @@ final class Orders {
 		// Only buyers with a paid or open order are notified, not abandoned/expired/refunded attempts.
 		// Read before the cancellation changes order and ticket states.
 		$notify_ids = $order_ids ? array_map( 'absint', $wpdb->get_col( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id IN (" . implode( ',', $order_ids ) . ") AND payment_status IN ('paid','pending','paid_unallocated')" ) ) : array();
-		$pending_before = $order_ids ? array_map( 'absint', $wpdb->get_col( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id IN (" . implode( ',', $order_ids ) . ") AND payment_status='pending'" ) ) : array();
+		$pending_before = $order_ids ? array_map( 'absint', $wpdb->get_col( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id IN (" . implode( ',', $order_ids ) . ") AND payment_status IN ('pending','expired')" ) ) : array();
 		$recipients = ! $notify_ids ? array() : $wpdb->get_results( $wpdb->prepare(
 			"SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_tickets t ON t.order_id=ord.order_id AND t.ticket_type_id=tt.ticket_type_id WHERE o.event_id=%d AND ord.order_id IN (" . implode( ',', $notify_ids ) . ") GROUP BY email",
 			$event_id
@@ -1581,7 +1777,7 @@ final class Orders {
 		}
 
 		// Safety net when the occurrence handler is unhooked: open orders and still valid tickets.
-		$still_pending = $order_ids ? array_map( 'absint', $wpdb->get_col( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id IN (" . implode( ',', $order_ids ) . ") AND payment_status='pending'" ) ) : array();
+		$still_pending = $order_ids ? array_map( 'absint', $wpdb->get_col( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id IN (" . implode( ',', $order_ids ) . ") AND payment_status IN ('pending','expired')" ) ) : array();
 		foreach ( $still_pending as $order_id ) {
 			if ( true === self::cancel_order( $order_id, 'event_cancelled' ) ) {
 				++$summary['cancelled_orders'];
@@ -1842,6 +2038,9 @@ final class Orders {
 			// Paid, refunded or cancelled meanwhile: the retry must not override that.
 			if ( ! $order || (string) $order->payment_status !== (string) ( $payload['payment_status'] ?? '' ) ) { return true; }
 			return true === self::cancel_order( (int) $order->order_id, (string) ( $payload['reason'] ?? '' ) );
+		}
+		if ( 'late_payment_refund' === $type ) {
+			return self::run_late_refund( absint( $payload['order_id'] ?? 0 ), (string) ( $payload['reason'] ?? '' ) );
 		}
 		if ( 'ticket_issue_retry' === $type ) {
 			$order = self::get( absint( $payload['order_id'] ?? 0 ) );

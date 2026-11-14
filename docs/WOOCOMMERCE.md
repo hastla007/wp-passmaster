@@ -17,7 +17,7 @@ Der Adapter ist optional und wird nur geladen, wenn WooCommerce aktiv ist. Er nu
 | Erneuter Checkout derselben offenen Bestellung | vorherige unbezahlte Reservierung wird storniert, neue angelegt |
 | `processing` / `completed` / `payment_complete` | Reservierung umwandeln, je Einheit genau ein Ticket ausstellen, Tickets und persönlichen Bestelllink mailen |
 | `processing` bei Nachnahme (`cod`) | noch keine Tickets; Reservierung auf 14 Tage verlängern (Filter `wpcap_woocommerce_deferred_hold_minutes`). Ausgestellt wird erst bei `completed`. Liste der Zahlarten: Filter `wpcap_woocommerce_issue_on_completed_gateways` (Standard `array( 'cod' )`) |
-| Zahlung nach Ablauf der Reservierung | Kontingent erneut prüfen; reicht es nicht, wird die Bestellung `needs_review` / `paid_unallocated`, es werden keine Tickets ausgestellt und der Admin wird per E-Mail informiert |
+| Zahlung nach Ablauf der Reservierung | Termin-/Eventstatus, Terminende, Kontingent, Rabattcode-Limit und Käuferlimit erneut prüfen (siehe STATE-MACHINES.md, „Späte Zahlung“); schlägt das fehl, wird die Bestellung `needs_review` / `paid_unallocated`, es werden keine Tickets ausgestellt und der Admin wird per E-Mail informiert (keine automatische Erstattung, die läuft in WooCommerce) |
 | `on-hold` (z. B. Überweisung) | Reservierung auf 3 Tage verlängern (Filter `wpcap_woocommerce_on_hold_minutes`) |
 | `cancelled` | Reservierung freigeben, gültige Tickets widerrufen. Kommt später doch eine Zahlung, wird neu reserviert |
 | `failed` | wie `cancelled`, aber nur solange die Bestellung unbezahlt ist; ein späteres `failed` nach der Zahlung lässt die Tickets gültig (Bestellnotiz) |

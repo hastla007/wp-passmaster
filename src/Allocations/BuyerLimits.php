@@ -278,6 +278,87 @@ final class BuyerLimits {
 		}
 	}
 
+	/** Channel of a pending order for the limit check on a late payment (staff providers map to their source). */
+	private static function recover_source( $provider ) {
+		$provider = sanitize_key( (string) $provider );
+		if ( 0 === strpos( $provider, 'pos_' ) ) { return 'pos'; }
+		if ( 'comp' === $provider ) { return 'guestlist'; }
+		return $provider;
+	}
+
+	/**
+	 * wpcap_order_recovering (A483): a payment that arrives after the hold lapsed is checked against the
+	 * buyer limits again – the lapsed order no longer counted, so the buyer may have bought up to the
+	 * limit meanwhile. Same locked buyer rows as on_order_creating() (e-mail identity; the WordPress
+	 * user of the original checkout is not known any more). Within the limit, the order is recorded
+	 * again; otherwise `allocation_buyer_limit` flags it for review.
+	 *
+	 * @return null|\WP_Error
+	 */
+	public static function on_order_recovering( $result, $order_id, $demand = array(), $context = array() ) {
+		global $wpdb;
+		if ( $result instanceof \WP_Error ) { return $result; }
+		$order_id = absint( $order_id );
+		$types = (array) ( $context['types'] ?? array() );
+		$occurrences = (array) ( $context['occurrences'] ?? array() );
+		$by_event = array();
+		$names = array();
+		foreach ( (array) $demand as $type_id => $quantity ) {
+			$type = $types[ (int) $type_id ] ?? null;
+			$occurrence = $type ? ( $occurrences[ (int) $type->occurrence_id ] ?? null ) : null;
+			if ( ! $occurrence ) { continue; }
+			$by_event[ (int) $occurrence->event_id ][ (int) $type_id ] = (int) $quantity;
+			$names[ (int) $type_id ] = (string) $type->name;
+		}
+		ksort( $by_event, SORT_NUMERIC );
+		$limits = array();
+		foreach ( array_keys( $by_event ) as $event_id ) {
+			$event_limits = self::for_event( $event_id );
+			if ( $event_limits ) { $limits[ $event_id ] = $event_limits; }
+		}
+		if ( ! $limits || ! $order_id ) { return $result; }
+		$source = self::recover_source( (string) ( $context['source'] ?? '' ) );
+		$internal = array( 'phase' => 'recover', 'order_id' => $order_id );
+		/** Whether the buyer limit applies to this order (default: not for exempt sources). */
+		if ( ! apply_filters( 'wpcap_allocation_buyer_limit_applies', ! in_array( $source, self::exempt_sources(), true ), $source, array(), $internal ) ) { return $result; }
+		$keys = self::keys( (string) ( $context['email'] ?? '' ) );
+		if ( ! $keys ) { return $result; }
+		$now = (string) ( $context['now'] ?? current_time( 'mysql', true ) );
+		$table = Holds::table( 'buyers' );
+		foreach ( $limits as $event_id => $event_limits ) {
+			$ordered = $by_event[ $event_id ];
+			foreach ( $keys as $key ) {
+				$wpdb->query( $wpdb->prepare( "INSERT INTO $table (event_id,buyer_key,holdings,updated_at) VALUES (%d,%s,'{}',%s) ON DUPLICATE KEY UPDATE updated_at=VALUES(updated_at)", $event_id, $key, $now ) );
+				$row = '' === $wpdb->last_error ? $wpdb->get_row( $wpdb->prepare( "SELECT buyer_id,holdings FROM $table WHERE event_id=%d AND buyer_key=%s FOR UPDATE", $event_id, $key ) ) : null;
+				if ( ! $row ) { return \PassCaptain\Errors::busy( '', 'db_busy' ); }
+				$holdings = json_decode( (string) $row->holdings, true );
+				$holdings = is_array( $holdings ) ? $holdings : array();
+				// The order itself counts with nothing (its hold lapsed): only the other orders.
+				unset( $holdings[ (string) $order_id ] );
+				$current = self::current( $holdings, $now );
+				if ( null === $current ) { return \PassCaptain\Errors::busy( '', 'db_busy' ); }
+				$had_total = array_sum( $current['types'] );
+				if ( isset( $event_limits[0] ) && $had_total + array_sum( $ordered ) > $event_limits[0] ) {
+					/* translators: 1: maximum tickets per person, 2: tickets the buyer already has */
+					return new \WP_Error( 'allocation_buyer_limit', sprintf( __( 'Pro Person sind höchstens %1$d Tickets für dieses Event möglich; du hast bereits %2$d.', 'pass-captain' ), $event_limits[0], $had_total ), array( 'status' => 409 ) );
+				}
+				foreach ( $ordered as $type_id => $quantity ) {
+					$max = $event_limits[ $type_id ] ?? 0;
+					$had = (int) ( $current['types'][ $type_id ] ?? 0 );
+					if ( $max && $had + $quantity > $max ) {
+						/* translators: 1: maximum tickets per person, 2: ticket type, 3: tickets the buyer already has */
+						return new \WP_Error( 'allocation_buyer_limit', sprintf( __( 'Pro Person sind höchstens %1$d Tickets der Ticketart „%2$s“ möglich; du hast bereits %3$d.', 'pass-captain' ), $max, $names[ $type_id ] ?? '', $had ), array( 'status' => 409 ) );
+					}
+				}
+				$holdings = $current['holdings'];
+				$holdings[ (string) $order_id ] = array_map( 'intval', $ordered );
+				$wpdb->query( $wpdb->prepare( "UPDATE $table SET holdings=%s,updated_at=%s WHERE buyer_id=%d", wp_json_encode( $holdings ), $now, (int) $row->buyer_id ) );
+				if ( '' !== $wpdb->last_error ) { return \PassCaptain\Errors::busy( '', 'db_busy' ); }
+			}
+		}
+		return $result;
+	}
+
 	/**
 	 * wpcap_reserve_capacity (priority 25), phase 'exchange': a ticket exchange into another type is
 	 * one more ticket of the target type for the buyer of the original order (the exchanged unit has

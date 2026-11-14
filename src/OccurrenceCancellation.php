@@ -1,7 +1,7 @@
 <?php
 /**
  * Consequences of cancelling a single occurrence (wpcap_occurrence_cancelled):
- * open orders are cancelled and their holds released, valid tickets are revoked, ticket holders
+ * open and expired unpaid orders are cancelled and their holds released, valid tickets are revoked, ticket holders
  * are informed, and – when `auto_refund_cancelled` is enabled – paid native orders are refunded
  * for the affected tickets. WooCommerce orders get an order note; the refund happens in WooCommerce.
  * Without automatic refund, paid tickets are revoked but stay refundable natively
@@ -50,8 +50,10 @@ final class OccurrenceCancellation {
 		// Recipients first, while tickets are still valid.
 		$recipients = $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", $occurrence_id ) );
 
-		// 1. Unpaid orders touching this occurrence: cancel (releases holds, campaigns, vouchers).
-		$pending = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ord.order_id FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status='pending'", $occurrence_id ) );
+		// 1. Unpaid orders touching this occurrence: cancel (releases holds, campaigns, vouchers). Expired
+		// orders too (A273): a payment that still arrives for them (hosted page left open, delayed method)
+		// then meets a cancelled order and issues no tickets (webhook result `paid_for_closed_order`).
+		$pending = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ord.order_id FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status IN ('pending','expired')", $occurrence_id ) );
 		foreach ( $pending as $order_id ) {
 			if ( true === Orders::cancel_order( (int) $order_id, 'occurrence_cancelled' ) ) {
 				++$summary['cancelled_orders'];

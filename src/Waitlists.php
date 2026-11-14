@@ -501,7 +501,7 @@ final class Waitlists {
 			$wanted = sanitize_key( $args['provider'] ?? '' );
 			$gateway = $enabled[ $wanted ] ?? ( $enabled['manual'] ?? ( $enabled ? reset( $enabled ) : null ) );
 			if ( ! $gateway ) { return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400 ) ); }
-			$minutes = max( 30, (int) Settings::get( 'hold_minutes' ) );
+			$minutes = max( Orders::HOSTED_HOLD_MINUTES, (int) Settings::get( 'hold_minutes' ) ); // Hosted pages end with the hold (A577).
 			if ( 'manual' === $gateway->id() ) {
 				// Bank transfer: never beyond the start (and not offered within manual_cutoff_hours).
 				$minutes = Orders::manual_hold_minutes( array_map( static function ( $item ) { return (int) $item->ticket_type_id; }, Orders::items_for_order( (int) $order->order_id ) ) );

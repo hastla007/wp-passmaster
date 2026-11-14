@@ -147,8 +147,11 @@ final class Webhooks {
 				return 'needs_review';
 			}
 			if ( in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) {
-				Audit::record( 'payment_for_closed_order', 'order', $order_id, array( 'provider' => $provider, 'status' => $order->status, 'reference' => (string) ( $event['provider_reference'] ?? '' ) ) );
-				self::alert( $order, __( 'Für eine stornierte oder erstattete Bestellung ist eine Zahlung eingegangen. Es wurden keine Tickets ausgestellt; bitte erstatten oder die Bestellung manuell klären.', 'pass-captain' ), $provider, $event );
+				// A273: with `late_payment_auto_refund` the payment of the current attempt for a cancelled order
+				// is refunded automatically (Orders::schedule_late_refund()).
+				$auto = 'cancelled' === $order->status && self::is_current_attempt( $order, $event ) && Orders::schedule_late_refund( $order, 'payment_for_closed_order' );
+				Audit::record( 'payment_for_closed_order', 'order', $order_id, array( 'provider' => $provider, 'status' => $order->status, 'reference' => (string) ( $event['provider_reference'] ?? '' ), 'auto_refund' => $auto ) );
+				self::alert( $order, $auto ? __( 'Für eine stornierte Bestellung ist eine Zahlung eingegangen. Es wurden keine Tickets ausgestellt; die Zahlung wird automatisch erstattet.', 'pass-captain' ) : __( 'Für eine stornierte oder erstattete Bestellung ist eine Zahlung eingegangen. Es wurden keine Tickets ausgestellt; bitte erstatten oder die Bestellung manuell klären.', 'pass-captain' ), $provider, $event );
 				return 'paid_for_closed_order';
 			}
 			if ( ! empty( $event['provider_reference'] ) ) {
@@ -160,6 +163,13 @@ final class Webhooks {
 				return 'wpcap_needs_review' === $confirmed->get_error_code() ? 'needs_review' : $confirmed;
 			}
 			return 'paid';
+		}
+		if ( 'payment_pending' === $type ) {
+			// The buyer finished the payment page with a delayed method (e.g. SEPA Direct Debit): the
+			// payment confirms days later, so the hold is extended like a bank transfer hold (A577).
+			if ( 'pending' !== $order->payment_status || ! self::is_current_attempt( $order, $event ) ) { return 'ignored'; }
+			$until = Orders::extend_hold_for_delayed_payment( $order_id );
+			return null === $until ? 'hold_not_extended' : 'hold_extended';
 		}
 		if ( 'failed' === $type ) {
 			if ( 'pending' !== $order->payment_status ) {

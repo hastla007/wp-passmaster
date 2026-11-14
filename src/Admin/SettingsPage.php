@@ -39,6 +39,7 @@ final class SettingsPage {
 				'fields' => array(
 					'hold_minutes' => array( 'type' => 'int', 'label' => __( 'Reservierungsdauer im Checkout (Minuten)', 'pass-captain' ), 'min' => 1, 'max' => 120 ),
 					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'pass-captain' ) ),
+					'late_payment_auto_refund' => array( 'type' => 'bool', 'label' => __( 'Verspätete Zahlungen, für die keine Tickets mehr ausgestellt werden können, automatisch erstatten', 'pass-captain' ), 'description' => __( 'Betrifft Zahlungen nach Ablauf der Reservierung (Termin abgesagt oder vorbei, Kontingent, Rabattcode-Limit oder Käuferlimit erschöpft) und Zahlungen für stornierte Bestellungen. Ohne diese Option bleibt die Bestellung zur manuellen Klärung stehen.', 'pass-captain' ) ),
 					'campaign_max_codes' => array( 'type' => 'int', 'label' => __( 'Rabattcodes je Bestellung (höchstens)', 'pass-captain' ), 'min' => 1, 'max' => 5 ),
 					'campaign_stacking' => array(
 						'type' => 'choice',

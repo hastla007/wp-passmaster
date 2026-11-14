@@ -84,6 +84,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 |---|---|---|
 | `wpcap_checkout_payload_keys` | `string[] $keys` | Zusätzliche öffentliche Checkout-Felder durchlassen (z. B. `sms_phone`, `sms_consent`, `mollie_method`). |
 | `wpcap_checkout_error_messages` | `array $messages` (Code → Text) | Meldungen zu Abbruch-Codes aus `wpcap_order_creating`. |
+| `wpcap_order_recovering` | `null|WP_Error $result, int $order_id, array $demand, array $context` | Späte Zahlung (`Orders::confirm_external_payment()`, Reservierung abgelaufen): läuft in der Transaktion nach Kontingent- und Rabattcode-Prüfung (Gegenstück zu `wpcap_order_creating`). Module prüfen Regeln je Bestellung erneut, die sich seit Ablauf geändert haben können (z. B. Käuferlimit), mit eigenen Zeilensperren. `$demand`: Ticketart-ID → Menge; `$context` wie bei `wpcap_reserve_capacity` (`phase` = `recover`). `WP_Error` → Bestellung `needs_review`/`paid_unallocated` (Code als Grund); `Errors::busy()` → Rollback, der Anbieter stellt erneut zu. |
 | `wpcap_legal_default_locale` | `string $locale` | Sprache der Standard-Rechtstexte (`terms_text`, `consumer_info_text`). Standard: Standardsprache von Polylang (`pll_default_language`) bzw. WPML (`wpml_default_language`), sonst `get_locale()`. Texte weiterer Sprachen stehen in `legal_texts`; Käufer ohne eigene Fassung sehen die Standardtexte. |
 | `wpcap_legal_locales` | `string[] $locales, string $default` | Sprachen, für die unter **Einstellungen → Rechtstexte** eigene Rechtstexte angeboten werden (Standard: Standardsprache, Sprachen von Polylang/WPML, installierte Sprachpakete, bereits gepflegte Sprachen). |
 | `wpcap_affiliate_partner_field` | `bool $show` (true) | Partnercode-Feld im Checkout (nur mit Affiliate Captain). |
@@ -246,7 +247,7 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | Hook | Wert, Argumente | Zweck |
 |---|---|---|
 | `wpcap_allocation_limit_exempt_sources` | `string[] $sources` (`pos`, `guestlist`, `admin`) | Bestellquellen, für die Käuferlimits nicht gelten. |
-| `wpcap_allocation_buyer_limit_applies` | `bool $applies, string $source, array $selected, array $internal` | Ob das Käuferlimit für diese Bestellung gilt (Standard: nicht für ausgenommene Quellen); läuft in `wpcap_order_creating`. |
+| `wpcap_allocation_buyer_limit_applies` | `bool $applies, string $source, array $selected, array $internal` | Ob das Käuferlimit für diese Bestellung gilt (Standard: nicht für ausgenommene Quellen); läuft in `wpcap_order_creating` und bei später Zahlung in `wpcap_order_recovering` (dann `$selected` leer, `$internal` = `phase` `recover`, `order_id`; `$source` aus der Zahlart, Kasse `pos_*` → `pos`, Gästeliste `comp` → `guestlist`). |
 | `wpcap_allocation_normalize_gmail` | `bool $normalize` (false) | Gmail-Adressen für die Käuferidentität normalisieren (Punkte und `+Zusatz` entfernen, `googlemail.com` → `gmail.com`). |
 | `wpcap_allocation_buyer_email` | `string $email` | Normalisierte E-Mail-Adresse, aus der der Käuferschlüssel für Limits gebildet wird. |
 | `wpcap_allocation_trusted_sources` | `string[] $sources` (`pos`, `guestlist`, `admin`) | Quellen, die reservierte Kontingente (Holds) verbrauchen dürfen und nicht an sie gebunden sind. |

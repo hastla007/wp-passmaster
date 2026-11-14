@@ -275,7 +275,7 @@ final class Privacy {
 		// messages and the deferral mail follow once on the last page (not once per batch of 50 orders).
 		$totals_key = self::ERASE_TOTALS . substr( hash( 'sha256', strtolower( $email ) ), 0, 32 );
 		$totals = absint( $page ) > 1 ? get_transient( $totals_key ) : false;
-		$totals = array_merge( array( 'attendee_upcoming' => 0, 'deferred' => 0, 'orders' => 0, 'removed' => 0, 'invoices' => 0, 'billing' => 0, 'upcoming' => 0 ), is_array( $totals ) ? $totals : array() );
+		$totals = array_merge( array( 'attendee_upcoming' => 0, 'deferred' => 0, 'open_payments' => 0, 'orders' => 0, 'removed' => 0, 'invoices' => 0, 'billing' => 0, 'upcoming' => 0 ), is_array( $totals ) ? $totals : array() );
 
 		// 1) Attendee-only matches: remove this person's data from other buyers' tickets. The tickets
 		// stay valid for the buyer. Rows are rewritten, so every batch starts at OFFSET 0.
@@ -300,8 +300,18 @@ final class Privacy {
 		$upcoming = 0;
 		$billing_erased = 0;
 		$deferred = 0;
+		$open_payments = 0;
 		foreach ( $orders as $order_id ) {
 			$replacement = self::replacement_email( $email, $order_id );
+			// A355: an open payment must not end in tickets for the placeholder address. Unpaid orders
+			// (pending or expired – a hosted payment page may still be paid) are cancelled first; a payment
+			// that arrives later meets a cancelled order (no tickets, admin alert). Paid orders awaiting
+			// review (paid_unallocated) and orders whose cancellation failed are deferred until settled.
+			if ( ! self::settle_open_payment( $order_id ) ) {
+				self::defer( $order_id, $replacement );
+				++$open_payments;
+				continue;
+			}
 			$ticket_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) ) );
 			// Art. 17(3)(b) GDPR: tickets for upcoming dates are still to be performed. The order is anonymised
 			// automatically after its last date (hourly run) instead of revoking tickets people will show at the door.
@@ -338,7 +348,7 @@ final class Privacy {
 
 		$retained = (bool) $orders;
 		$done = count( $orders ) < self::BATCH && count( $attendee_ids ) < self::ATTENDEE_BATCH;
-		foreach ( array( 'deferred' => $deferred, 'orders' => count( $orders ), 'removed' => $removed, 'invoices' => $invoices, 'billing' => $billing_erased, 'upcoming' => $upcoming ) as $key => $count ) {
+		foreach ( array( 'deferred' => $deferred, 'open_payments' => $open_payments, 'orders' => count( $orders ), 'removed' => $removed, 'invoices' => $invoices, 'billing' => $billing_erased, 'upcoming' => $upcoming ) as $key => $count ) {
 			$totals[ $key ] += (int) $count;
 		}
 		if ( ! $done ) {
@@ -362,6 +372,16 @@ final class Privacy {
 				/* translators: %d: number of orders */
 				sprintf( __( 'Eine Löschanfrage betrifft %d Bestellung(en) mit Tickets für kommende Termine. Die Tickets bleiben bis nach dem letzten Termin gültig; danach werden die Bestellungen automatisch anonymisiert.', 'pass-captain' ), $deferred )
 			);
+		}
+		if ( $totals['open_payments'] ) {
+			wp_mail(
+				get_option( 'admin_email' ),
+				__( 'Pass Captain: Löschanfrage wartet auf Zahlungsklärung', 'pass-captain' ),
+				/* translators: %d: number of orders */
+				sprintf( __( 'Eine Löschanfrage betrifft %d bezahlte Bestellung(en) ohne Tickets, die noch geklärt werden müssen (Zuteilung erneut versuchen oder erstatten). Sie werden nach der Klärung automatisch anonymisiert.', 'pass-captain' ), $totals['open_payments'] )
+			);
+			/* translators: %d: number of orders */
+			$messages[] = sprintf( __( '%d Bestellung(en) mit einer noch offenen Zahlungsklärung werden erst nach Zuteilung oder Erstattung automatisch anonymisiert.', 'pass-captain' ), $totals['open_payments'] );
 		}
 		if ( $deferred ) {
 			/* translators: %d: number of orders */
@@ -472,12 +492,30 @@ final class Privacy {
 		foreach ( $list as $order_id => $replacement ) {
 			$order = $wpdb->get_row( $wpdb->prepare( "SELECT customer_email FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", (int) $order_id ) );
 			$ticket_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d", (int) $order_id ) ) );
-			if ( $order && self::upcoming_count( $ticket_ids ) ) { continue; }
+			if ( $order && ( self::upcoming_count( $ticket_ids ) || ! self::settle_open_payment( (int) $order_id ) ) ) { continue; }
 			if ( $order ) { self::anonymize_order( (int) $order_id, (string) $replacement, (string) $order->customer_email ); }
 			unset( $list[ $order_id ] );
 			$changed = true;
 		}
 		if ( $changed ) { update_option( self::DEFERRED_OPTION, $list, false ); }
+	}
+
+	/**
+	 * Settles an open payment of an order before it is anonymised (A355): unpaid orders (`pending` or
+	 * `expired`) are cancelled; a paid order awaiting review (`needs_review`/`paid_unallocated`) is
+	 * not settled (an admin decides on allocation or refund first).
+	 *
+	 * @return bool True when the order has no open payment (any more).
+	 */
+	private static function settle_open_payment( $order_id ) {
+		global $wpdb;
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status,payment_status FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		if ( ! $order ) { return '' === $wpdb->last_error; }
+		if ( 'needs_review' === $order->status || 'paid_unallocated' === $order->payment_status ) { return false; }
+		if ( ! in_array( $order->payment_status, array( 'pending', 'expired' ), true ) ) { return true; }
+		// A payment that won the race keeps the order (it is then anonymised like any paid order).
+		$cancelled = Orders::cancel_order( (int) $order_id, 'privacy_erasure', array( 'pending', 'expired' ) );
+		return true === $cancelled || ( is_wp_error( $cancelled ) && 'wpcap_order_state' === $cancelled->get_error_code() );
 	}
 
 	/** Valid tickets whose occurrence has not ended yet. */
