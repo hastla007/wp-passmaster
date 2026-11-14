@@ -7,6 +7,12 @@
  * Sales are counted on the order creation day (paid or later refunded orders), refunds on their
  * completion day (wpcap_refunds.updated_at). Credit notes mirror refunds and are listed for reference
  * only (not subtracted twice). Discounts are allocated to lines like Orders::create().
+ *
+ * Campaign breakdown: orders, tickets, allocated discount and revenue (gross after discounts, before
+ * refunds) of the orders in the range per redeemed campaign code; orders without a code form their
+ * own row. An order with two codes counts for both. Only lines of events in the user's scope count.
+ * Comparison period (filter compare): "previous" = the same number of days directly before,
+ * "last_year" = the same dates one year earlier; same scope and event filter.
  */
 namespace PassCaptain\Reports;
 
@@ -14,6 +20,39 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class Data {
 	const DIMENSIONS = array( 'event', 'occurrence', 'ticket_type', 'provider', 'day' );
+	const COMPARE = array( 'previous', 'last_year' );
+
+	/**
+	 * Comparison range for a report range.
+	 *
+	 * @return string[]|null [from, to] (Y-m-d) or null for no comparison.
+	 */
+	public static function comparison_range( $from, $to, $mode ) {
+		if ( ! self::valid_date( $from ) || ! self::valid_date( $to ) ) { return null; }
+		$utc = new \DateTimeZone( 'UTC' );
+		if ( 'previous' === $mode ) {
+			$start = new \DateTimeImmutable( $from, $utc );
+			$days = (int) $start->diff( new \DateTimeImmutable( $to, $utc ) )->days + 1;
+			return array( $start->modify( '-' . $days . ' days' )->format( 'Y-m-d' ), $start->modify( '-1 day' )->format( 'Y-m-d' ) );
+		}
+		if ( 'last_year' === $mode ) {
+			$shift = static function ( $date ) {
+				list( $y, $m, $d ) = array_map( 'intval', explode( '-', $date ) );
+				$y--;
+				while ( ! checkdate( $m, $d, $y ) ) { $d--; } // 29 February → 28 February.
+				return sprintf( '%04d-%02d-%02d', $y, $m, $d );
+			};
+			return array( $shift( $from ), $shift( $to ) );
+		}
+		return null;
+	}
+
+	/** Change between two values: absolute difference and percentage (null when the base is 0). */
+	public static function delta( $current, $previous ) {
+		$current = (int) $current;
+		$previous = (int) $previous;
+		return array( 'diff' => $current - $previous, 'pct' => 0 !== $previous ? round( 100 * ( $current - $previous ) / abs( $previous ), 1 ) : null );
+	}
 
 	/**
 	 * Event scope of the current user for reports: finance and administrators see everything,
@@ -106,18 +145,26 @@ final class Data {
 		$order_map = array();
 		foreach ( $orders as $o ) { $order_map[ (int) $o->order_id ] = $o; }
 		$lines_by_order = self::lines_by_order( array_keys( $order_map ), $line_sql );
+		$order_scope = array(); // order id => in-scope [tickets, gross after discount, line total before discount, all lines before discount].
 		foreach ( $order_map as $order_id => $order ) {
 			$lines = $lines_by_order[ $order_id ] ?? array();
 			$gross_lines = self::allocate_discount( $lines, (int) $order->discount_minor );
 			$day = Scope::local( $order->created_at, $tz, 'Y-m-d' );
+			$share = array( 0, 0, 0, 0 );
 			foreach ( $lines as $i => $line ) {
+				$share[3] += (int) $line->line_total_minor;
 				if ( ! self::in_scope( $line->event_id, $scope ) ) { continue; }
 				$currencies[ $order->currency ] = true;
 				$gross = $gross_lines[ $i ];
 				$tax = (int) $line->tax_minor;
+				$share[0] += (int) $line->quantity;
+				$share[1] += $gross;
+				$share[2] += (int) $line->line_total_minor;
 				$add( $keys_for( $line, $order->payment_provider, $day ), array( 'tickets' => (int) $line->quantity, 'gross' => $gross, 'tax' => $tax, 'net' => $gross - $tax, 'revenue' => $gross, 'revenue_tax' => $tax ) );
 			}
+			if ( $share[0] ) { $order_scope[ $order_id ] = $share; }
 		}
+		$campaigns = self::campaign_breakdown( $order_scope );
 
 		// Completed refunds (netted on their completion day).
 		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $start, $end ) );
@@ -177,9 +224,29 @@ final class Data {
 		$histogram_occ = absint( $filters['occurrence_id'] ?? 0 );
 		if ( ! isset( $occurrences[ $histogram_occ ] ) ) { $histogram_occ = (int) array_key_first( $occurrences ); }
 
+		$comparison = null;
+		$compare = in_array( (string) ( $filters['compare'] ?? '' ), self::COMPARE, true ) ? (string) $filters['compare'] : '';
+		$range = $compare ? self::comparison_range( $from, $to, $compare ) : null;
+		if ( $range ) {
+			$base = self::build( array( 'from' => $range[0], 'to' => $range[1], 'event_id' => $event_filter, 'compare' => '' ), $scope );
+			$comparison = array(
+				'mode' => $compare,
+				'from' => $range[0],
+				'to' => $range[1],
+				'total' => $base['total'],
+				'campaigns' => $base['campaigns'],
+				'delta' => array(),
+			);
+			foreach ( array( 'tickets', 'gross', 'refunded', 'revenue', 'revenue_tax' ) as $field ) {
+				$comparison['delta'][ $field ] = self::delta( $total[ $field ], $base['total'][ $field ] );
+			}
+		}
+
 		$report = array(
 			'from' => $from,
 			'to' => $to,
+			'campaigns' => $campaigns,
+			'comparison' => $comparison,
 			'timezone' => $tz,
 			'currency' => 1 === count( $currencies ) ? (string) array_key_first( $currencies ) : ( $currencies ? implode( '/', array_keys( $currencies ) ) : 'EUR' ),
 			'total' => $total,
@@ -198,6 +265,46 @@ final class Data {
 		 */
 		$filtered = apply_filters( 'wp_pass_captain_report_data_v1', $report, $filters, $scope );
 		return is_array( $filtered ) ? $filtered + $report : $report;
+	}
+
+	/**
+	 * Campaign rows from the in-scope order shares: key = campaign id (0 = without code).
+	 *
+	 * @param array $order_scope order id => [tickets, gross after discount, in-scope line total, order line total].
+	 */
+	private static function campaign_breakdown( array $order_scope ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$out = array();
+		$row = static function ( $label ) { return array( 'label' => $label, 'orders' => 0, 'tickets' => 0, 'discount' => 0, 'revenue' => 0 ); };
+		$uses = array();
+		foreach ( array_chunk( array_map( 'absint', array_keys( $order_scope ) ), 500 ) as $chunk ) {
+			foreach ( $wpdb->get_results( "SELECT cu.order_id,cu.campaign_id,cu.code,cu.discount_minor,c.name FROM {$p}wpcap_campaign_uses cu LEFT JOIN {$p}wpcap_campaigns c ON c.campaign_id=cu.campaign_id WHERE cu.status IN ('reserved','committed') AND cu.order_id IN (" . implode( ',', $chunk ) . ') ORDER BY cu.campaign_use_id' ) as $use ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
+				$uses[ (int) $use->order_id ][] = $use;
+			}
+		}
+		foreach ( $order_scope as $order_id => $share ) {
+			list( $tickets, $gross, $in_scope_total, $order_total ) = $share;
+			$order_uses = $uses[ $order_id ] ?? array();
+			if ( ! $order_uses ) {
+				$out[0] = $out[0] ?? $row( __( 'Ohne Kampagnencode', 'pass-captain' ) );
+				$out[0]['orders']++;
+				$out[0]['tickets'] += $tickets;
+				$out[0]['revenue'] += $gross;
+				continue;
+			}
+			foreach ( $order_uses as $use ) {
+				$key = (int) $use->campaign_id;
+				$out[ $key ] = $out[ $key ] ?? $row( $use->code . ( '' !== (string) $use->name && $use->name !== $use->code ? ' – ' . $use->name : '' ) );
+				$out[ $key ]['orders']++;
+				$out[ $key ]['tickets'] += $tickets;
+				// Discount share of the in-scope lines (the code may have covered other events' lines too).
+				$out[ $key ]['discount'] += $order_total > 0 ? intdiv( (int) $use->discount_minor * $in_scope_total, $order_total ) : 0;
+				$out[ $key ]['revenue'] += $gross;
+			}
+		}
+		uasort( $out, static function ( $a, $b ) { return $b['revenue'] <=> $a['revenue'] ?: strcmp( $a['label'], $b['label'] ); } );
+		return $out;
 	}
 
 	/** Order lines grouped by order id (item order = Orders::create order). */
@@ -324,6 +431,23 @@ final class Data {
 		$rows[] = array( __( 'Termin', 'pass-captain' ), __( 'Kapazität', 'pass-captain' ), __( 'Verkauft', 'pass-captain' ), __( 'Auslastung %', 'pass-captain' ), __( 'Gültige Tickets', 'pass-captain' ), __( 'Eingecheckt', 'pass-captain' ), __( 'Check-in-Quote %', 'pass-captain' ) );
 		foreach ( $report['occurrences'] as $o ) {
 			$rows[] = array( $o['label'], $o['capacity'] ?: '∞', $o['sold'], null === $o['utilisation'] ? '' : number_format( $o['utilisation'], 1, '.', '' ), $o['issued'], $o['checked_in'], null === $o['checkin_rate'] ? '' : number_format( $o['checkin_rate'], 1, '.', '' ) );
+		}
+		$rows[] = array();
+		$rows[] = array( __( 'Kampagne', 'pass-captain' ), __( 'Bestellungen', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), __( 'Rabatt', 'pass-captain' ), __( 'Umsatz nach Rabatt', 'pass-captain' ) );
+		foreach ( (array) ( $report['campaigns'] ?? array() ) as $c ) {
+			$rows[] = array( $c['label'], $c['orders'], $c['tickets'], $m( $c['discount'] ), $m( $c['revenue'] ) );
+		}
+		if ( ! empty( $report['comparison'] ) ) {
+			$cmp = $report['comparison'];
+			$rows[] = array();
+			$rows[] = array( __( 'Vergleichszeitraum', 'pass-captain' ), $cmp['from'], $cmp['to'], 'previous' === $cmp['mode'] ? __( 'Vorperiode', 'pass-captain' ) : __( 'Vorjahreszeitraum', 'pass-captain' ) );
+			$rows[] = array( __( 'Kennzahl', 'pass-captain' ), __( 'Zeitraum', 'pass-captain' ), __( 'Vergleich', 'pass-captain' ), __( 'Differenz', 'pass-captain' ), __( 'Änderung %', 'pass-captain' ) );
+			$names = array( 'tickets' => __( 'Tickets', 'pass-captain' ), 'gross' => __( 'Brutto', 'pass-captain' ), 'refunded' => __( 'Erstattet brutto', 'pass-captain' ), 'revenue' => __( 'Umsatz nach Erstattung', 'pass-captain' ), 'revenue_tax' => __( 'USt nach Erstattung', 'pass-captain' ) );
+			foreach ( $names as $field => $label ) {
+				$money = 'tickets' !== $field;
+				$d = $cmp['delta'][ $field ];
+				$rows[] = array( $label, $money ? $m( $report['total'][ $field ] ) : $report['total'][ $field ], $money ? $m( $cmp['total'][ $field ] ) : $cmp['total'][ $field ], $money ? $m( $d['diff'] ) : $d['diff'], null === $d['pct'] ? '' : number_format( $d['pct'], 1, '.', '' ) );
+			}
 		}
 		$rows[] = array();
 		$rows[] = array( __( 'Gutschriften', 'pass-captain' ), $report['credit_notes']['count'], $m( $report['credit_notes']['total'] ), $m( $report['credit_notes']['tax'] ) );

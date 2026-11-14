@@ -134,6 +134,8 @@ $pm_admin = array(
 	// System status (W2) and add-on export types (W7).
 	'wpcap_ops_queue_action' => 'manage_options', 'wpcap_ops_diagnose' => 'manage_options', 'wpcap_ops_repair' => 'manage_options',
 	'wpcap_ops_refund_resolve' => 'manage_options', 'wpcap_ops_schema_retry' => 'manage_options', 'wpcap_reports_export' => 'wpcap_view_reports',
+	// Sales rules (W8): tax profiles, event sections (tax country, price rules, buyer limits).
+	'wpcap_tax_profile_action' => 'manage_options', 'wpcap_sales_event_action' => 'wpcap_manage_events',
 	'wpcap_pos_open' => 'wpcap_manage_orders', 'wpcap_pos_sell' => 'wpcap_manage_orders', 'wpcap_pos_storno' => 'wpcap_manage_orders', 'wpcap_pos_storno_reject' => 'wpcap_approve_refunds',
 	'wpcap_pos_finalize' => 'wpcap_manage_orders', 'wpcap_pos_close' => 'wpcap_manage_orders', 'wpcap_pos_receipt' => 'wpcap_manage_orders', 'wpcap_pos_tickets' => 'wpcap_manage_orders',
 	'wpcap_pos_availability' => 'wpcap_manage_orders', 'wpcap_pos_settings' => 'manage_options',

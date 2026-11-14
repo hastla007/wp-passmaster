@@ -18,7 +18,8 @@ final class Orders {
 	 *                        external (bool), unit_prices / line_totals / line_taxes (type_id => minor),
 	 *                        currency, hold_minutes, source, payment_provider, key_namespace
 	 *                        (separates idempotency keys per channel), skip_rate_limit (bool),
-	 *                        billing (external only: billing data already validated by the adapter).
+	 *                        billing (external only: billing data already validated by the adapter),
+	 *                        skip_buyer_limits (bool; door sales are never limited, see Sales\BuyerLimits).
 	 */
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
@@ -102,6 +103,18 @@ final class Orders {
 		$now = current_time( 'mysql', true );
 		$door_sale = ! empty( $internal['allow_door_sales'] ) || 'pos' === $namespace;
 		$custom_error = null;
+		// Logged-in customer of a native checkout (buyer limits per account; never staff/adapter orders).
+		$customer_user_id = ( $external || $door_sale || '' !== $namespace || ! empty( $internal['source'] ) ) ? 0 : absint( get_current_user_id() );
+		// Buyer limits across orders (Sales\BuyerLimits): orders of the same buyer are serialised by a
+		// lock taken before the transaction starts, so its snapshot contains all their committed orders.
+		$check_buyer_limits = ! $door_sale && empty( $internal['skip_buyer_limits'] ) && Sales\BuyerLimits::relevant( array_keys( $clean_lines ) );
+		$buyer_locks = array();
+		if ( $check_buyer_limits ) {
+			$buyer_locks = Sales\BuyerLimits::acquire( $email, $customer_user_id );
+			if ( false === $buyer_locks ) {
+				return new \WP_Error( 'wpcap_checkout_failed', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			}
+		}
 		self::begin();
 		try {
 			ksort( $clean_lines, SORT_NUMERIC );
@@ -155,6 +168,13 @@ final class Orders {
 				$custom_error = $reserve_error;
 				throw new \RuntimeException( $reserve_error->get_error_code() );
 			}
+			if ( $check_buyer_limits ) {
+				$limit_error = Sales\BuyerLimits::check( $clean_lines, $types, $occurrences, $email, $customer_user_id, $now );
+				if ( $limit_error ) {
+					$custom_error = $limit_error;
+					throw new \RuntimeException( 'buyer_limit' );
+				}
+			}
 
 			$selected = array();
 			$total = 0;
@@ -173,6 +193,8 @@ final class Orders {
 				// Price precedence: an explicit trusted unit price (adapters/staff, e.g. WooCommerce or
 				// free box office sales) wins; otherwise the stored price passes through the
 				// server-side `wpcap_ticket_unit_price` filter. Client input never reaches either.
+				$base_price = (int) $type->price_minor;
+				$price_rule = null;
 				if ( array_key_exists( $type_id, $unit_prices ) ) {
 					$unit_price = (int) $unit_prices[ $type_id ];
 				} else {
@@ -180,17 +202,28 @@ final class Orders {
 					if ( $unit_price !== (int) $type->price_minor ) {
 						$price_rules[ $type_id ] = array( 'base_minor' => (int) $type->price_minor, 'unit_minor' => $unit_price );
 					}
+					// Automatic price rule (Sales\PriceRules) frozen with the line: rule, explanation, prices.
+					$price_rule = Sales\PriceRules::applied( $type_id );
 				}
+				// Versioned tax profile (Sales\TaxProfiles) unless a trusted adapter passed the line tax.
+				$tax_profile = array_key_exists( $type_id, $line_taxes ) ? null : Sales\TaxProfiles::for_line( $type, $occurrence, $now );
 				$type->price_minor = $unit_price;
 				$line_total = array_key_exists( $type_id, $line_totals ) ? (int) $line_totals[ $type_id ] : $unit_price * $quantity;
 				$total += $line_total;
-				$selected[] = array( 'type' => $type, 'event_id' => (int) $occurrence->event_id, 'quantity' => $quantity, 'line_total' => $line_total );
+				$selected[] = array( 'type' => $type, 'event_id' => (int) $occurrence->event_id, 'quantity' => $quantity, 'line_total' => $line_total, 'base_minor' => $base_price, 'price_rule' => $price_rule, 'tax_profile' => $tax_profile );
 			}
 			$subtotal = $total;
 			$campaign_codes = $external ? array() : ( $payload['campaign_codes'] ?? array() );
 			if ( ! is_array( $campaign_codes ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
 			$adjustments = Campaigns::calculate( $selected, $campaign_codes, $currency );
-			if ( is_wp_error( $adjustments ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
+			if ( is_wp_error( $adjustments ) ) {
+				// Stacking rules (combinable, maximum discount) explain themselves; other errors stay generic.
+				if ( in_array( $adjustments->get_error_code(), array( 'wpcap_campaign_not_combinable', 'wpcap_campaign_max_discount' ), true ) ) {
+					$custom_error = $adjustments;
+					throw new \RuntimeException( $adjustments->get_error_code() );
+				}
+				throw new \RuntimeException( 'campaign_invalid' );
+			}
 			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
 			$total = max( 0, $subtotal - $discount );
 			if ( ! $external && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
@@ -202,7 +235,7 @@ final class Orders {
 				$line_discount = $index === $last ? $discount_left : ( $subtotal > 0 ? intdiv( $discount * $line['line_total'], $subtotal ) : 0 );
 				$line_discount = min( $line['line_total'], max( 0, $line_discount ) );
 				$discount_left -= $line_discount;
-				$rate = (int) ( $line['type']->tax_rate_bp ?? 0 );
+				$rate = $line['tax_profile'] ? (int) $line['tax_profile']['rate_bp'] : (int) ( $line['type']->tax_rate_bp ?? 0 );
 				$type_id_for_tax = (int) $line['type']->ticket_type_id;
 				$selected[ $index ]['tax_rate_bp'] = $rate;
 				$selected[ $index ]['tax_minor'] = array_key_exists( $type_id_for_tax, $line_taxes ) ? (int) $line_taxes[ $type_id_for_tax ] : self::gross_tax( $line['line_total'] - $line_discount, $rate );
@@ -241,13 +274,14 @@ final class Orders {
 			);
 			// Only written when given, so checkouts keep working while a deferred schema upgrade is pending.
 			if ( $billing ) { $order_row['billing'] = wp_json_encode( $billing ); }
+			if ( $customer_user_id ) { $order_row['customer_user_id'] = $customer_user_id; }
 			$inserted = $wpdb->insert( $orders_table, $order_row );
 			if ( ! $inserted ) {
 				throw new \RuntimeException( 'order_insert_failed' );
 			}
 			$order_id = (int) $wpdb->insert_id;
 			foreach ( $selected as $line ) {
-				$wpdb->insert( $items_table, array(
+				$item_row = array(
 					'order_id' => $order_id,
 					'ticket_type_id' => (int) $line['type']->ticket_type_id,
 					'quantity' => (int) $line['quantity'],
@@ -255,7 +289,12 @@ final class Orders {
 					'line_total_minor' => (int) $line['line_total'],
 					'tax_rate_bp' => (int) $line['tax_rate_bp'],
 					'tax_minor' => (int) $line['tax_minor'],
-				) );
+				);
+				// Line snapshot: applied tax profile version and price rule (written only when present).
+				$line_snapshot = array_filter( array( 'tax' => $line['tax_profile']['snapshot'] ?? null, 'price' => $line['price_rule'] ) );
+				if ( $line['tax_profile'] ) { $item_row['tax_profile_id'] = (int) $line['tax_profile']['tax_profile_id']; }
+				if ( $line_snapshot ) { $item_row['line_snapshot'] = wp_json_encode( $line_snapshot ); }
+				$wpdb->insert( $items_table, $item_row );
 				if ( '' !== $wpdb->last_error ) {
 					throw new \RuntimeException( 'order_item_insert_failed' );
 				}
@@ -284,6 +323,7 @@ final class Orders {
 			if ( false === $wpdb->query( 'COMMIT' ) ) { throw new \RuntimeException( 'db_busy' ); }
 		} catch ( \Throwable $error ) {
 			$wpdb->query( 'ROLLBACK' );
+			Sales\BuyerLimits::release( $buyer_locks );
 			$messages = array(
 				'ticket_type_unavailable' => __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ),
 				'quantity_limit' => __( 'Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich.', 'pass-captain' ),
@@ -312,6 +352,7 @@ final class Orders {
 			$message = $messages[ $code ] ?? $fallback;
 			return new \WP_Error( 'wpcap_checkout_failed', $message, array( 'status' => 'db_busy' === $code ? 503 : 409, 'retryable' => 'db_busy' === $code ) );
 		}
+		Sales\BuyerLimits::release( $buyer_locks );
 
 		$pending = $total || $external;
 		if ( ! $pending ) {
@@ -476,7 +517,7 @@ final class Orders {
 					$value = is_scalar( $value ) ? trim( (string) $value ) : '';
 					if ( 'email' === $field->field_type ) { $value = sanitize_email( $value ); }
 					elseif ( 'textarea' === $field->field_type ) { $value = sanitize_textarea_field( $value ); }
-					elseif ( 'checkbox' === $field->field_type ) { $value = $value && '0' !== $value ? '1' : ''; }
+					elseif ( 'checkbox' === $field->field_type || 'consent' === $field->field_type ) { $value = $value && '0' !== $value ? '1' : ''; }
 					else { $value = sanitize_text_field( $value ); }
 					if ( (int) $field->required && '' === $value ) {
 						/* translators: %s: field label */

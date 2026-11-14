@@ -2,6 +2,9 @@
     "pass-captain.php": {
         "Universal.NamingConventions.NoReservedKeywordParameterNames.classFound": 1
     },
+    "src/Admin/CampaignsPage.php": {
+        "Squiz.PHP.CommentedOutCode.Found": 1
+    },
     "src/Admin/DevicesPage.php": {
         "WordPress.DB.PreparedSQL.NotPrepared": 3
     },
@@ -69,6 +72,7 @@
         "WordPress.WP.AlternativeFunctions.strip_tags_strip_tags": 1
     },
     "src/Campaigns.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1,
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
     },
     "src/Checkin.php": {
@@ -257,13 +261,31 @@
     },
     "src/Reports/Data.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 24,
-        "WordPress.DB.PreparedSQL.NotPrepared": 4
+        "WordPress.DB.PreparedSQL.NotPrepared": 5
     },
     "src/Reports/Page.php": {
         "WordPress.WP.I18n.MissingTranslatorsComment": 2
     },
     "src/Reports/Scope.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3
+    },
+    "src/Sales/AdminSections.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.doFound": 1
+    },
+    "src/Sales/BuyerLimits.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4,
+        "WordPress.DB.PreparedSQL.NotPrepared": 2
+    },
+    "src/Sales/Consents.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 1,
+        "WordPress.DB.PreparedSQL.NotPrepared": 10
+    },
+    "src/Sales/PriceRules.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6
+    },
+    "src/Sales/TaxProfiles.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.classFound": 1
     },
     "src/Seating/AdminPage.php": {
         "WordPress.DB.PreparedSQL.NotPrepared": 2

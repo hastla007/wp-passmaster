@@ -22,6 +22,7 @@ final class Page {
 			'to' => Data::valid_date( $in['to'] ?? '' ) ? $in['to'] : gmdate( 'Y-m-d' ),
 			'event_id' => absint( $in['event_id'] ?? 0 ),
 			'occurrence_id' => absint( $in['occurrence_id'] ?? 0 ),
+			'compare' => in_array( (string) ( $in['compare'] ?? '' ), Data::COMPARE, true ) ? (string) $in['compare'] : '',
 		);
 	}
 
@@ -81,7 +82,10 @@ final class Page {
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><p>';
 		echo '<label>' . esc_html__( 'Von', 'pass-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $report['from'] ) . '"></label> ';
 		echo '<label>' . esc_html__( 'Bis', 'pass-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $report['to'] ) . '"></label> ';
-		Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'] );
+		Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'], '', 'aria-label="' . esc_attr__( 'Event', 'pass-captain' ) . '"' );
+		echo ' <label>' . esc_html__( 'Vergleich', 'pass-captain' ) . ' ';
+		Forms::select( 'compare', array( '' => __( 'kein Vergleich', 'pass-captain' ), 'previous' => __( 'Vorperiode', 'pass-captain' ), 'last_year' => __( 'Vorjahreszeitraum', 'pass-captain' ) ), $filters['compare'] );
+		echo '</label>';
 		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button> <a class="button" href="' . esc_url( $csv_url ) . '">' . esc_html__( 'CSV-Export', 'pass-captain' ) . '</a>';
 		foreach ( Exports::types() as $type_id => $type ) {
 			echo ' <a class="button" href="' . esc_url( Exports::url( $type_id, $filters ) ) . '">' . esc_html( $type['label'] ) . '</a>';
@@ -102,6 +106,29 @@ final class Page {
 		$summary = self::metrics( $summary, $report, $filters );
 		foreach ( $summary as $k => $v ) { echo '<tr><th>' . esc_html( $k ) . '</th><td>' . esc_html( $v ) . '</td></tr>'; }
 		echo '</tbody></table>';
+
+		$cmp = $report['comparison'];
+		if ( $cmp ) {
+			/* translators: 1: from, 2: to */
+			echo '<h2>' . esc_html( sprintf( __( 'Vergleich mit %1$s bis %2$s', 'pass-captain' ), $cmp['from'], $cmp['to'] ) ) . '</h2>';
+			echo '<table class="widefat striped" style="max-width:52rem"><thead><tr><th scope="col">' . esc_html__( 'Kennzahl', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Zeitraum', 'pass-captain' ) . '</th><th scope="col">' . esc_html( 'previous' === $cmp['mode'] ? __( 'Vorperiode', 'pass-captain' ) : __( 'Vorjahreszeitraum', 'pass-captain' ) ) . '</th><th scope="col">' . esc_html__( 'Änderung', 'pass-captain' ) . '</th></tr></thead><tbody>';
+			$names = array( 'tickets' => __( 'Verkaufte Tickets', 'pass-captain' ), 'gross' => __( 'Umsatz brutto', 'pass-captain' ), 'refunded' => __( 'Erstattungen', 'pass-captain' ), 'revenue' => __( 'Umsatz nach Erstattungen', 'pass-captain' ) );
+			foreach ( $names as $field => $label ) {
+				$fmt = 'tickets' === $field ? 'strval' : $money;
+				$d = $cmp['delta'][ $field ];
+				$change = ( $d['diff'] > 0 ? '+' : '' ) . $fmt( $d['diff'] ) . ( null !== $d['pct'] ? ' (' . ( $d['pct'] > 0 ? '+' : '' ) . number_format_i18n( $d['pct'], 1 ) . ' %)' : '' );
+				echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>' . esc_html( $fmt( $t[ $field ] ) ) . '</td><td>' . esc_html( $fmt( $cmp['total'][ $field ] ) ) . '</td><td>' . esc_html( $change ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
+
+		echo '<h2>' . esc_html__( 'Kampagnen', 'pass-captain' ) . '</h2>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Kampagne', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Bestellungen', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Tickets', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Rabatt', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Umsatz nach Rabatt', 'pass-captain' ) . '</th>' . ( $cmp ? '<th scope="col">' . esc_html__( 'Umsatz Vergleich', 'pass-captain' ) . '</th>' : '' ) . '</tr></thead><tbody>';
+		foreach ( $report['campaigns'] as $key => $c ) {
+			echo '<tr><td>' . esc_html( $c['label'] ) . '</td><td>' . (int) $c['orders'] . '</td><td>' . (int) $c['tickets'] . '</td><td>' . esc_html( $money( $c['discount'] ) ) . '</td><td>' . esc_html( $money( $c['revenue'] ) ) . '</td>' . ( $cmp ? '<td>' . esc_html( $money( $cmp['campaigns'][ $key ]['revenue'] ?? 0 ) ) . '</td>' : '' ) . '</tr>';
+		}
+		if ( ! $report['campaigns'] ) { echo '<tr><td colspan="' . ( $cmp ? 6 : 5 ) . '">' . esc_html__( 'Keine Daten im Zeitraum.', 'pass-captain' ) . '</td></tr>'; }
+		echo '</tbody></table><p class="description">' . esc_html__( 'Bestellungen mit mehreren Codes zählen bei jedem Code. Umsatz vor Erstattungen.', 'pass-captain' ) . '</p>';
 
 		$share = array();
 		foreach ( $report['channels'] as $c ) { $share[ $c['label'] ] = $c['revenue']; }
@@ -178,13 +205,28 @@ final class Page {
 		echo '</tbody></table>';
 	}
 
-	public static function handle_csv() {
+	/**
+	 * CSV export for the current user (testable without a request): the same role scope as the
+	 * screen (finance/administrators all events, wpcap_view_reports only assigned events), applied to
+	 * every section including campaigns and the comparison period. An event filter outside the
+	 * scope yields an empty report.
+	 *
+	 * @return array|\WP_Error {csv, filename, report}
+	 */
+	public static function csv_for_current_user( array $in ) {
 		$scope = Data::scope();
-		if ( false === $scope ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
-		check_admin_referer( 'wpcap_reports_csv' );
-		$filters = self::filters( wp_unslash( $_GET ) );
+		if ( false === $scope ) { return new \WP_Error( 'wpcap_reports_forbidden', __( 'Keine Berechtigung.', 'pass-captain' ), array( 'status' => 403 ) ); }
+		$filters = self::filters( $in );
 		$report = Data::build( $filters, $scope );
-		Audit::record( 'report_exported', 'report', 0, array( 'from' => $report['from'], 'to' => $report['to'], 'event_id' => $filters['event_id'] ) );
-		Scope::send_download( Scope::csv( Data::csv_rows( $report ) ), 'wp-pass-captain-bericht-' . $report['from'] . '-' . $report['to'] . '.csv', 'text/csv; charset=utf-8' );
+		Audit::record( 'report_exported', 'report', 0, array( 'from' => $report['from'], 'to' => $report['to'], 'event_id' => $filters['event_id'], 'compare' => $filters['compare'], 'scoped' => null !== $scope ) );
+		return array( 'csv' => Scope::csv( Data::csv_rows( $report ) ), 'filename' => 'wp-pass-captain-bericht-' . $report['from'] . '-' . $report['to'] . '.csv', 'report' => $report );
+	}
+
+	public static function handle_csv() {
+		if ( false === Data::scope() ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		check_admin_referer( 'wpcap_reports_csv' );
+		$result = self::csv_for_current_user( wp_unslash( $_GET ) );
+		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 403 ); }
+		Scope::send_download( $result['csv'], $result['filename'], 'text/csv; charset=utf-8' );
 	}
 }
