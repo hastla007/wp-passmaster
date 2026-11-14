@@ -43,6 +43,13 @@ function svc_resource( $event_id, array $data = array() ) {
 	return is_wp_error( $id ) ? 0 : (int) $id;
 }
 /** Slot starting $hours from now (UTC, whole minutes); returns slot id or WP_Error. */
+/** Slot at a fixed local time (resource timezone Europe/Vienna) $days from today: independent of the time of day the suite runs. */
+function svc_slot_at( $resource_id, $days, $local_time, $minutes = 60, $capacity = 0 ) {
+	$tz = new DateTimeZone( 'Europe/Vienna' );
+	$local = new DateTimeImmutable( 'today ' . $local_time, $tz );
+	$start = $local->modify( '+' . (int) $days . ' days' )->setTimezone( new DateTimeZone( 'UTC' ) );
+	return ServiceResources::create_slot( $resource_id, $start->format( 'Y-m-d H:i:s' ), $start->modify( '+' . (int) $minutes . ' minutes' )->format( 'Y-m-d H:i:s' ), $capacity );
+}
 function svc_slot( $resource_id, $hours, $minutes = 60, $capacity = 0 ) {
 	$start = (int) ( floor( ( time() + (int) round( $hours * 3600 ) ) / 60 ) * 60 );
 	return ServiceResources::create_slot( $resource_id, gmdate( 'Y-m-d H:i:s', $start ), gmdate( 'Y-m-d H:i:s', $start + $minutes * 60 ), $capacity );
@@ -116,13 +123,13 @@ check( 'staff bookings are not bound by the cutoff', ! is_wp_error( $admin_late 
 $far = svc_slot( $sr_res, 40 * 24, 30 );
 $far_booking = svc_book( $far, 'rule@svc.test' );
 check( 'Vorlauf: booking 40 days ahead with a 30-day window is refused', is_wp_error( $far_booking ) && 'wpcap_booking_too_early' === $far_booking->get_error_code() );
-$day_a = svc_slot( $sr_res, 5 * 24, 30 );
-$day_b = svc_slot( $sr_res, 5 * 24 + 2, 30 );
+$day_a = svc_slot_at( $sr_res, 5, '10:00', 30 );
+$day_b = svc_slot_at( $sr_res, 5, '12:00', 30 );
 $ok_two = svc_book( $day_a, 'Limit@svc.test', 2 );
 $over = svc_book( $day_b, 'limit@svc.test', 2 );
 $ok_one = svc_book( $day_b, 'limit@svc.test', 1 );
 check( 'per-customer limit per day counts across slots of the resource (case-insensitive e-mail)', ! is_wp_error( $ok_two ) && is_wp_error( $over ) && 'wpcap_booking_limit' === $over->get_error_code() && ! is_wp_error( $ok_one ) );
-$other_day = svc_slot( $sr_res, 7 * 24, 30 );
+$other_day = svc_slot_at( $sr_res, 7, '10:00', 30 );
 check( 'the limit resets on another day', ! is_wp_error( svc_book( $other_day, 'limit@svc.test', 3 ) ) );
 // Expired holds do not count.
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_service_bookings SET expires_at=%s WHERE booking_id=%d", gmdate( 'Y-m-d H:i:s', time() - 60 ), (int) $ok_two['booking_id'] ) );
