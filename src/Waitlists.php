@@ -16,7 +16,7 @@ final class Waitlists {
 		$attempts = (int) get_transient( $rate_key );
 		if ( $attempts >= 5 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) ); }
 		set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
-		$ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
+		$ip = RateLimit::client_ip();
 		$ip_key = 'wpcap_waitlist_ip_' . hash( 'sha256', $ip . '|' . $event_id );
 		$ip_attempts = (int) get_transient( $ip_key );
 		if ( $ip_attempts >= 20 ) { return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) ); }

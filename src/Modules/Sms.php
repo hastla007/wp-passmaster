@@ -293,6 +293,10 @@ final class Sms {
 		if ( '' !== $endpoint && 0 !== stripos( $endpoint, 'https://' ) ) {
 			return Forms::error( 'wpcap_sms_endpoint', __( 'Der SMS-Endpunkt muss HTTPS verwenden.', 'pass-captain' ) );
 		}
+		if ( '' !== $endpoint ) {
+			$valid = \PassCaptain\Security\OutboundHttp::validate_url( $endpoint );
+			if ( is_wp_error( $valid ) ) { return Forms::error( 'wpcap_sms_endpoint', $valid->get_error_message() ); }
+		}
 		$prefix = trim( (string) ( $in['default_country_code'] ?? '' ) );
 		$values = array(
 			'provider' => Forms::choice( $in, 'provider', array_merge( array( '' ), array_keys( Service::providers() ) ), '' ),
@@ -335,8 +339,12 @@ final class Sms {
 			return '<textarea name="' . esc_attr( $name ) . '" class="large-text" rows="3">' . esc_textarea( (string) $value ) . '</textarea>';
 		};
 		$secret = static function ( $key ) {
-			$stored = '' !== Settings::secret( $key );
-			return '<input type="password" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( $stored ? __( 'Gespeichert – leer lassen, um beizubehalten', 'pass-captain' ) : __( 'Nicht gesetzt', 'pass-captain' ) ) . '">' . ( $stored ? ' <label><input type="checkbox" name="' . esc_attr( $key . '__clear' ) . '" value="1"> ' . esc_html__( 'Entfernen', 'pass-captain' ) . '</label>' : '' ) . '<p class="description">' . esc_html( sprintf( /* translators: %s: constant */ __( 'Empfohlen: Konstante %s in wp-config.php.', 'pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
+			$override = Settings::override_source( $key );
+			if ( '' !== $override ) {
+				/* translators: %s: constant */
+				return '<p class="description"><strong>' . esc_html( sprintf( __( 'Gesetzt über %s.', 'pass-captain' ), $override ) ) . '</strong></p>';
+			}
+			return \PassCaptain\Admin\SettingsPage::secret_input( $key, 'wpcap-sms-' . $key ) . '<p class="description">' . esc_html( sprintf( /* translators: %s: constant */ __( 'Empfohlen: Konstante %s in wp-config.php.', 'pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
 		};
 		$providers = array( '' => __( 'Deaktiviert', 'pass-captain' ) );
 		foreach ( Service::providers() as $id => $provider ) { $providers[ $id ] = $provider->title() . ( $provider->is_configured() ? '' : ' ' . __( '(nicht konfiguriert)', 'pass-captain' ) ); }

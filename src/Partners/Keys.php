@@ -162,7 +162,7 @@ final class Keys {
 
 	/** Client address (REMOTE_ADDR; proxies must be resolved via the wpcap_partner_client_ip filter). */
 	public static function client_ip() {
-		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$ip = \PassCaptain\RateLimit::client_ip();
 		return (string) apply_filters( 'wpcap_partner_client_ip', $ip );
 	}
 

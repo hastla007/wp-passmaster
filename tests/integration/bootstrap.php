@@ -115,7 +115,7 @@ function wp_unslash( $v ) { return $v; }
 function sanitize_textarea_field( $t ) { return trim( strip_tags( (string) $t ) ); }
 function wp_kses_post( $t ) { return (string) $t; }
 function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, $d, ",", "." ); }
-function user_can( $u, $c ) { return true; }
+function user_can( $u, $c ) { return isset( $GLOBALS['wpcap_test_user_can'] ) ? (bool) call_user_func( $GLOBALS['wpcap_test_user_can'], $u, $c ) : true; }
 function wp_json_encode( $v, $flags = 0, $depth = 512 ) { return json_encode( $v, $flags, $depth ); }
 if ( ! function_exists( 'wp_print_inline_script_tag' ) ) { function wp_print_inline_script_tag( $js, $attributes = array() ) { echo '<script>' . $js . "</script>\n"; } }
 if ( ! function_exists( 'plugins_url' ) ) { function plugins_url( $path = '', $plugin = '' ) { return 'https://example.test/wp-content/plugins/pass-captain/' . ltrim( (string) $path, '/' ); } }
@@ -162,6 +162,9 @@ function wpcap_test_run_hooks( $hook, array $args, $is_filter ) {
 	return $value;
 }
 function current_filter() { return 'test_filter'; }
+/* Outbound DNS is faked (Security\OutboundHttp): every host resolves to a public address unless tests map it in $GLOBALS['wpcap_test_dns']. */
+$GLOBALS['wpcap_test_dns'] = array();
+add_filter( 'wpcap_outbound_resolve', static function ( $ips, $host ) { return $GLOBALS['wpcap_test_dns'][ $host ] ?? array( '93.184.215.14' ); }, 10, 2 );
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 function get_role( $r ) { return null; }
 function add_role() {}

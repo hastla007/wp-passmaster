@@ -150,8 +150,10 @@ final class AdminPage {
 			/* translators: %s: constant name */
 			echo esc_html( sprintf( __( 'Gesetzt über %s.', 'pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) );
 		} else {
-			echo '<textarea class="large-text code" rows="3" id="wpcap-' . esc_attr( $key ) . '" name="' . esc_attr( $key ) . '" placeholder="' . esc_attr( 'settings' === $source ? __( 'gespeichert – leer lassen, um den Wert zu behalten', 'pass-captain' ) : __( 'Dateipfad oder PEM/JSON-Inhalt', 'pass-captain' ) ) . '"></textarea>';
-			if ( 'settings' === $source ) { echo '<label><input type="checkbox" name="' . esc_attr( $key ) . '_clear" value="1"> ' . esc_html__( 'Wert entfernen', 'pass-captain' ) . '</label>'; }
+			$input = \PassCaptain\Admin\SettingsPage::secret_input( $key, 'wpcap-' . $key, 'apple_pass_key_password' !== $key );
+			// This screen uses "<key>_clear" for the remove checkbox.
+			echo str_replace( 'name="' . esc_attr( $key . '__clear' ) . '"', 'name="' . esc_attr( $key . '_clear' ) . '"', $input ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+			echo '<p class="description">' . esc_html__( 'Dateipfad oder PEM/JSON-Inhalt.', 'pass-captain' ) . '</p>';
 			/* translators: %s: constant name */
 			echo '<p class="description">' . esc_html( sprintf( __( 'Empfohlen: Konstante %s in wp-config.php.', 'pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
 		}

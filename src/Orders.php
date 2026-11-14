@@ -398,7 +398,8 @@ final class Orders {
 	}
 
 	/**
-	 * Client IP used for the anonymous checkout rate limit. Defaults to REMOTE_ADDR.
+	 * Client IP used for the anonymous checkout rate limit. Defaults to REMOTE_ADDR; behind a proxy
+	 * configure the setting "trusted_proxies" (Einstellungen → Sicherheit). The filter below still works.
 	 *
 	 * Behind a reverse proxy / CDN (e.g. Cloudflare) REMOTE_ADDR is the proxy, so every buyer would
 	 * share one limit. Sites that trust a proxy header can resolve the real client via the filter
@@ -415,9 +416,8 @@ final class Orders {
 	 * Invalid return values fall back to REMOTE_ADDR.
 	 */
 	public static function client_ip() {
-		$remote = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
-		$ip = trim( (string) apply_filters( 'wpcap_client_ip', $remote, $_SERVER ) );
-		return false !== filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : $remote;
+		// Trusted proxies are configured centrally (setting trusted_proxies, see RateLimit::client_ip()).
+		return RateLimit::client_ip();
 	}
 
 	/** Keyed hash for rate-limit transient keys, so stored keys cannot be reversed to IP addresses. */
