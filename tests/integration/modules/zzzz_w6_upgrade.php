@@ -139,7 +139,15 @@ function w6u_decode( $out ) {
 	return (string) $out;
 }
 
-$w6u_fresh = w6u_columns( $w6u_real_prefix ); // Schema of a fresh install by the current code.
+// Schema of a fresh install by the current code (own prefix: the shared test tables may contain more).
+w6u_drop( 'w6ufresh_' );
+$wpdb->prefix = 'w6ufresh_';
+PassCaptain\Installer::flush_version_cache();
+wpcap_test_install();
+$w6u_fresh = w6u_columns( 'w6ufresh_' );
+w6u_drop( 'w6ufresh_' );
+$wpdb->prefix = $w6u_real_prefix;
+PassCaptain\Installer::flush_version_cache();
 $w6u_cases = array(
 	array( 'schema-1.0.0.sql', '3.3.0', '1.0.0/1.2.0', 'w6u10_', true ),
 	array( 'schema-1.3.0.sql', '3.4.0', '1.3.0', 'w6u13_', false ),

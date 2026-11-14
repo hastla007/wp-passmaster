@@ -185,7 +185,7 @@ for ( $c = 0; $c < $cases; $c++ ) {
 				$t = (int) $wpdb->get_var( "SELECT ticket_type_id FROM {$p}wpcap_tickets WHERE ticket_id=$tid" );
 				foreach ( $items as $item ) { if ( (int) $item->ticket_type_id === $t ) { $expected += ( (int) $item->line_total_minor - (int) ( $split[ $t ] ?? 0 ) ) / (int) $item->quantity; } }
 			}
-			if ( abs( (int) $r['amount_minor'] - $expected ) > 0.5 ) { $v[] = "partial refund {$r['amount_minor']} != discounted ticket price " . round( $expected, 2 ); }
+			if ( abs( (int) $r['amount_minor'] - $expected ) > 1 ) { /* one rounding step */ $v[] = "partial refund {$r['amount_minor']} != discounted ticket price " . round( $expected, 2 ); }
 		}
 	}
 	$order = Orders::get( $oid );
