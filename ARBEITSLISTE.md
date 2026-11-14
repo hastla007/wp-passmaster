@@ -571,7 +571,7 @@ Gesamt: 262 Aufgaben.
 
 - [x] **A263** [KRITISCH] Umstieg auf Multisite konnte Subsite-Daten löschen und Cron abschalten — _R1 Produkt/Core_ (TODO L569; Audit Runde 4)
   - src/LegacySlug.php (watch_legacy_copy), alte uninstall.php: Pause von delete_data_on_uninstall nur für aktuelle Site; alte uninstall.php läuft über alle Sites. Behoben 13.11. (82f927d): netzwerkweite Pause bei jedem Laden, Plugin::ensure_events, Test rename-takeover-ms.sh
-- [ ] **A264** [KRITISCH] Volle externe Erstattung bei Fehler im Erstattungsbuch trotzdem als verarbeitet markiert — _R1 Core_ (TODO L570; Audit Runde 4)
+- [x] **A264** [KRITISCH] Volle externe Erstattung bei Fehler im Erstattungsbuch trotzdem als verarbeitet markiert — _R1 Core_ (TODO L570; Audit Runde 4)
   - src/Payments/Webhooks.php ~213–229 (apply, refunded): WP_Error aus Refunds::record_external() bei $full ignoriert → refunded ohne wpcap_refunds-Zeile, keine Gutschrift, keine Neuzustellung. Retryable Fehler nach mark_refunded zurückgeben (prüfen, ob A183 das schon abdeckt)
 - [x] **A265** [KRITISCH] Werkseinstellung „Überweisung“ ohne Bankverbindung verkauft — _R1 UX_ (TODO L571; Audit Runde 4)
   - src/Settings.php:54, src/Payments/ManualGateway.php:14, BankTransfer.php:56, assets/checkout.js:384: manual standardmäßig aktiv, is_available() immer true; Käufer sieht Überweisungsaufforderung ohne Empfänger/IBAN, Plätze 72 h blockiert. Nur mit IBAN/Zahlungshinweis verfügbar, nicht standardmäßig aktiv, „nicht vollständig konfiguriert“ anzeigen
@@ -587,7 +587,7 @@ Gesamt: 262 Aufgaben.
   - assets/vendor/tweetnacl/nacl-fast.min.js, .distignore:43 (*.md): Guideline 4: Quelle oder Verweis muss im Paket liegen; README.md wird ausgefiltert. nacl-fast.js beilegen oder Verweis in readme.txt/.txt
 - [x] **A271** [KRITISCH] Web-Scanner hängt nächsten Scan an alten Code an – Einlass für falsches Ticket — _R2 Frontend_ (TODO L577; Audit Runde 4)
   - assets/scanner.js:381, 413–419, 426, 430 (submitToken): Feld nur nach Erfolg geleert; Tastatur-Scanner sendet T1T2, normalize_code nimmt T1 (mit Playwright nachgestellt). Feld nach jedem Ergebnis leeren, Sperr-Treffer verwerfen und melden
-- [ ] **A272** [KRITISCH] Unklarer Ausgang eines Erstattungsaufrufs als „fehlgeschlagen“ gespeichert → doppelte Erstattung — _R2 API_ (TODO L578; Audit Runde 4)
+- [x] **A272** [KRITISCH] Unklarer Ausgang eines Erstattungsaufrufs als „fehlgeschlagen“ gespeichert → doppelte Erstattung — _R2 API_ (TODO L578; Audit Runde 4)
   - src/Refunds.php:305–311 (execute), StripeGateway.php:114–140, PayPalGateway.php:178–195, MollieGateway.php:278–296: Timeout/5xx/409 als „unbekannt“ (processing ohne Referenz) behandeln, über Metadatum wpcap_refund per Webhook/GET abgleichen
 - [x] **A273** [KRITISCH] Späte Zahlung stellt gültige Tickets für abgesagte oder vergangene Termine aus — _R2 Eigen_ (TODO L579; Audit Runde 4)
   - src/Orders.php:1031–1078 (confirm_external_payment), OccurrenceCancellation.php:54: Nur Kontingent geprüft; Absage storniert nur pending. Termin-/Eventstatus und Ende prüfen → needs_review + Alarm; Absage auch für expired-Bestellungen (mit Skript belegt)
@@ -735,15 +735,15 @@ Gesamt: 262 Aufgaben.
   - src/Integrations/WooCommerce/OrderAdapter.php:669–674, :797–803: Retry-Jobs paid-sync/refund-sync je Woo-Refund-ID
 - [ ] **A345** [WICHTIG] Offline-Scanner: Serverfehler löscht offline erfolgten Einlass endgültig — _R2 API_ (TODO L651; Audit Runde 4)
   - src/Mobile/Api.php:188–199 (sync), assets/offline-scanner/app.js:529–535, Checkin.php:295: retryable an Client, nicht als synchronisiert markieren bzw. Konflikt erfassen
-- [ ] **A346** [WICHTIG] Stripe: Vollerstattungs-Webhook während eigener Erstattung → Erstattung über 0 € mit Gutschrift — _R2 API_ (TODO L652; Audit Runde 4)
+- [x] **A346** [WICHTIG] Stripe: Vollerstattungs-Webhook während eigener Erstattung → Erstattung über 0 € mit Gutschrift — _R2 API_ (TODO L652; Audit Runde 4)
   - src/Payments/StripeGateway.php:218–221, Webhooks.php:212–229, Refunds.php:436–455: Auch bei refunded=true wpcap_refund prüfen/kumulativ abgleichen, 0 € nicht buchen
-- [ ] **A347** [WICHTIG] Stripe-Teilerstattungen über „neueste Erstattung“ statt Ereignis-Erstattung — _R2 API_ (TODO L653; Audit Runde 4)
+- [x] **A347** [WICHTIG] Stripe-Teilerstattungen über „neueste Erstattung“ statt Ereignis-Erstattung — _R2 API_ (TODO L653; Audit Runde 4)
   - src/Payments/StripeGateway.php:223–233: Kumulativ abgleichen (amount_refunded − gebucht) oder refund.created auswerten
-- [ ] **A348** [WICHTIG] Später scheiternde Erstattungen beim Anbieter nie erkannt — _R2 API_ (TODO L654; Audit Runde 4)
+- [x] **A348** [WICHTIG] Später scheiternde Erstattungen beim Anbieter nie erkannt — _R2 API_ (TODO L654; Audit Runde 4)
   - src/Payments/StripeGateway.php:136, :197–203; MollieGateway.php:255–263; PayPalGateway.php:191: pending als eigener Zustand, Status-Events auswerten, Alarm + Gutschrift-Storno
 - [ ] **A349** [WICHTIG] PayPal-Rückkehr meldet „nichts abgebucht“, obwohl abgebucht sein kann — _R2 API_ (TODO L655; Audit Runde 4)
   - src/Payments/PayPalGateway.php:108–116, :136–147, ReturnNotice.php:17: Nach erfolgreichem/unbekanntem Capture auf „pending“, failed nur bei eindeutiger Ablehnung
-- [ ] **A350** [WICHTIG] Hängende Erstattungen ohne Referenz weder sichtbar noch auflösbar — _R2 API_ (TODO L656; Audit Runde 4)
+- [x] **A350** [WICHTIG] Hängende Erstattungen ohne Referenz weder sichtbar noch auflösbar — _R2 API_ (TODO L656; Audit Runde 4)
   - src/Refunds.php:276–280, :389–391 (repair_stuck), Operations/Queues.php, OrdersPage.php:465: Anzeige in Betrieb/Bestellseite, Auflösung per Anbieter-Lookup oder manueller Bestätigung mit Audit
 - [ ] **A351** [WICHTIG] Mollie Klarna/Riverty: authorized wird nie gecaptured (PLAUSIBEL) — _R2 API_ (TODO L657; Audit Runde 4)
   - src/Modules/Mollie.php:22, MollieGateway.php:222–251: authorized per Capture-API behandeln oder Methoden entfernen
@@ -900,13 +900,13 @@ Gesamt: 262 Aufgaben.
 
 ### Audit Runde 4 – Nachtrag Datenbank & Performance (13.11.2026)
 
-- [ ] **A427** [KRITISCH] Massen-PDF „mit neuen Codes“ entwertet Tickets bei Timeout/Speichermangel — _R2 DB/Performance_ (TODO L736; Audit Runde 4)
+- [x] **A427** [KRITISCH] Massen-PDF „mit neuen Codes“ entwertet Tickets bei Timeout/Speichermangel — _R2 DB/Performance_ (TODO L736; Audit Runde 4)
   - src/Printing/Templates.php:318–348, PdfWriter.php:119, Printing/Page.php:143: Codes werden vor dem Rendern ohne Transaktion rotiert, neue Codes nie gespeichert; ab ~2.500 Tickets Abbruch → alle ungültig. Erst rendern, dann rotieren; Hintergrundjob in Blöcken, Datei streamen, Obergrenze
 - [ ] **A428** [KRITISCH] Termin-/Eventabsage und Verschiebung synchron im Admin-Request, nicht wiederaufnehmbar — _R2 DB/Performance_ (TODO L737; Audit Runde 4)
   - src/OccurrenceCancellation.php:42–134, Admin/EventsPage.php:283–298, Passes/Cancellation.php:105–150, Notifications.php:72–82/190–205: Refunds per HTTP und Mails je Bestellung im Request; Abbruch lässt Rest gültig/unbenachrichtigt, erneuter Klick endet sofort. Statuswechsel + Widerruf batchen, Refunds/Mails als idempotente Jobs mit Fortschritt (ersetzt den älteren TODO-Punkt „Absage als Hintergrundjob“)
-- [ ] **A429** [KRITISCH] Checkout-Kapazitätsprüfung scannt alle historischen Reservierungen unter Kapazitäts-Locks — _R2 DB/Performance_ (TODO L738; Audit Runde 4)
+- [x] **A429** [KRITISCH] Checkout-Kapazitätsprüfung scannt alle historischen Reservierungen unter Kapazitäts-Locks — _R2 DB/Performance_ (TODO L738; Audit Runde 4)
   - src/Orders.php:600, :613 (capacity_error_counted), CapacityCounters.php:132: type=ALL; 524k Reservierungen → 0,7 s je Prüfung, Checkouts serialisiert. Index (ticket_type_id, counted_qty)/indexfähige Bedingung, alte Reservierungen löschen
-- [ ] **A430** [WICHTIG] Kapazitäts-Reconcile-Cron alle 5 min über gesamte Reservierungshistorie — _R2 DB/Performance_ (TODO L739; Audit Runde 4)
+- [x] **A430** [WICHTIG] Kapazitäts-Reconcile-Cron alle 5 min über gesamte Reservierungshistorie — _R2 DB/Performance_ (TODO L739; Audit Runde 4)
   - src/CapacityCounters.php:486–516: Full Scan + doppelte korrelierte SUMs (~2 s/Lauf). Aufräumen, indexieren, nur counted_qty>0
 - [ ] **A431** [WICHTIG] Mollie-Webhook macht vor dem Rate-Limit einen Full Scan auf wpcap_orders — _R2 DB/Performance_ (TODO L740; Audit Runde 4)
   - src/Mollie/MollieGateway.php:128–131, :190–194: Erst RateLimit, nur wpcap_mollie_payments per PK; oder Index (payment_provider, provider_reference)
@@ -934,7 +934,7 @@ Gesamt: 262 Aufgaben.
   - src/OrderPortal.php:76–83: Eine IN()-Query
 - [ ] **A443** [OPTIMIERUNG] Offline-Paket: Throttle-Prüfung vor dem Lock — _R2 DB/Performance_ (TODO L752; Audit Runde 4)
   - src/OfflineScanner/Package.php:57–100: refreshed_at nach dem Lock erneut prüfen
-- [ ] **A444** [OPTIMIERUNG] Tabellen ohne Aufräumung (reservations, jobs, seat_holds, payment_events) — _R2 DB/Performance_ (TODO L753; Audit Runde 4)
+- [x] **A444** [OPTIMIERUNG] Tabellen ohne Aufräumung (reservations, jobs, seat_holds, payment_events) — _R2 DB/Performance_ (TODO L753; Audit Runde 4)
   - src/Privacy/Retention.php: Abgeschlossene Zeilen nach N Tagen batchweise löschen
 - [ ] **A445** [OPTIMIERUNG] WooCommerce-Absagenotiz sucht je Bestellung per meta_value (PLAUSIBEL O(n²)) — _R2 DB/Performance_ (TODO L754; Audit Runde 4)
   - src/Integrations/WooCommerce/OrderAdapter.php:948–953: WC-Order-ID an der Kernbestellung speichern
@@ -1312,7 +1312,7 @@ Gesamt: 262 Aufgaben.
   - src/WalletPasses/Archive.php:285, AppleProvider.php:87/125, GoogleProvider.php:43–58: Logo ohne Text, UTF-8, Google-Logo
 - [ ] **A629** [OPTIMIERUNG] Lost Update bei Offline-Signaturschlüsseln — _R4 Ticket-Sicherheit_ (TODO L944; Audit Runde 4)
   - src/OfflineScanner/Keys.php:178–233: GET_LOCK/Versionsprüfung, max_expires getrennt
-- [ ] **A630** [OPTIMIERUNG] Massendruck mit neuen Codes entwertet übertragene/zugewiesene Tickets ohne Nachricht (erweitert A335/A427) — _R4 Ticket-Sicherheit_ (TODO L945; Audit Runde 4)
+- [x] **A630** [OPTIMIERUNG] Massendruck mit neuen Codes entwertet übertragene/zugewiesene Tickets ohne Nachricht (erweitert A335/A427) — _R4 Ticket-Sicherheit_ (TODO L945; Audit Runde 4)
   - src/Printing/Templates.php:318–348: Ausnehmen oder Inhaber benachrichtigen
 - [ ] **A631** [OPTIMIERUNG] Abfotografierter QR-Code kann Bestelllink des Käufers rotieren — _R4 Ticket-Sicherheit_ (TODO L946; Audit Runde 4)
   - src/TicketPage.php:34–39, PortalSelfService.php:588–606: Alten Link bis Klick auf neuen gültig lassen oder E-Mail-Bestätigung
