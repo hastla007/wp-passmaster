@@ -84,15 +84,27 @@ final class TicketsPage {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
-		$wpdb->query( 'START TRANSACTION' );
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", (int) $ticket->ticket_id ) );
+		$busy = static function () use ( $wpdb ) {
+			$wpdb->query( 'ROLLBACK' );
+			return Forms::error( 'wpcap_db_busy', __( 'Die Änderung konnte gerade nicht gespeichert werden. Bitte erneut versuchen.', 'pass-captain' ), 503 );
+		};
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $busy(); }
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.status,t.refunded,ord.status AS order_status,ord.payment_status FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE t.ticket_id=%d FOR UPDATE", (int) $ticket->ticket_id ) );
+		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }
 		if ( ! $row || 'checked_in' !== $row->status ) {
 			$wpdb->query( 'ROLLBACK' );
 			return Forms::error( 'wpcap_ticket_not_checked_in', __( 'Das Ticket ist nicht eingecheckt.', 'pass-captain' ), 409 );
 		}
+		// A checked-in ticket keeps its status when it is refunded or its order is cancelled/refunded;
+		// undoing the check-in must not turn it back into a valid (admissible) ticket.
+		if ( (int) $row->refunded || 'paid' !== $row->payment_status || 'complete' !== $row->order_status ) {
+			$wpdb->query( 'ROLLBACK' );
+			return Forms::error( 'wpcap_ticket_not_undoable', __( 'Der Check-in eines erstatteten oder stornierten Tickets kann nicht zurückgenommen werden.', 'pass-captain' ), 409 );
+		}
 		$last = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id FROM {$p}wpcap_checkins WHERE ticket_id=%d AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", (int) $ticket->ticket_id ) );
-		$wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'valid' ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'checked_in' ), array( '%s' ), array( '%d', '%s' ) );
-		$wpdb->insert( "{$p}wpcap_checkins", array(
+		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }
+		if ( 1 !== (int) $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'valid' ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'checked_in' ), array( '%s' ), array( '%d', '%s' ) ) ) { return $busy(); }
+		$logged = $wpdb->insert( "{$p}wpcap_checkins", array(
 			'ticket_id' => (int) $ticket->ticket_id,
 			'event_id' => (int) $ticket->event_id,
 			'occurrence_day_id' => $last ? (int) $last->occurrence_day_id : 0,
@@ -100,7 +112,7 @@ final class TicketsPage {
 			'result' => 'undone',
 			'created_at' => $now,
 		), array( '%d', '%d', '%d', '%d', '%s', '%s' ) );
-		$wpdb->query( 'COMMIT' );
+		if ( false === $logged || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		Audit::record( 'checkin_undone', 'ticket', (int) $ticket->ticket_id, array( 'event_id' => (int) $ticket->event_id, 'reason' => Forms::text( $in, 'reason', 255 ) ) );
 		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id );
 	}
