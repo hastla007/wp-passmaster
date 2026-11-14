@@ -44,7 +44,8 @@ final class ServiceBookings {
 		$email = sanitize_email( $email );
 		$quantity = min( 20, max( 1, absint( $quantity ) ) );
 		$idempotency_key = sanitize_text_field( $idempotency_key );
-		$actor = in_array( $args['actor'] ?? 'customer', array( 'customer', 'admin', 'system' ), true ) ? $args['actor'] : 'customer';
+		$actor = (string) ( $args['actor'] ?? 'customer' );
+		$actor = in_array( $actor, array( 'customer', 'admin', 'system' ), true ) ? $actor : 'customer';
 		if ( ! $slot_id || ! is_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
 		if ( empty( $args['skip_rate_limit'] ) ) {
 			$rate_key = 'wpcap_servicebook_' . hash( 'sha256', strtolower( $email ) );
@@ -375,7 +376,8 @@ final class ServiceBookings {
 	public static function cancel( $booking_id, array $ctx = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$actor = in_array( $ctx['actor'] ?? 'customer', array( 'customer', 'admin', 'partner', 'system' ), true ) ? $ctx['actor'] : 'customer';
+		$actor = (string) ( $ctx['actor'] ?? 'customer' );
+		$actor = in_array( $actor, array( 'customer', 'admin', 'partner', 'system' ), true ) ? $actor : 'customer';
 		$reason = sanitize_key( $ctx['reason'] ?? ( 'customer' === $actor ? 'customer' : 'admin' ) );
 		$refund_wanted = ! array_key_exists( 'refund', $ctx ) || ! empty( $ctx['refund'] );
 		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
@@ -460,7 +462,8 @@ final class ServiceBookings {
 	public static function rebook( $booking_id, $new_slot_id, array $ctx = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$actor = in_array( $ctx['actor'] ?? 'customer', array( 'customer', 'admin', 'partner' ), true ) ? $ctx['actor'] : 'customer';
+		$actor = (string) ( $ctx['actor'] ?? 'customer' );
+		$actor = in_array( $actor, array( 'customer', 'admin', 'partner' ), true ) ? $actor : 'customer';
 		$key = sanitize_text_field( (string) ( $ctx['idempotency_key'] ?? '' ) );
 		$key_hash = '' !== $key ? hash( 'sha256', 'rebook|' . absint( $booking_id ) . '|' . $key ) : '';
 		$booking = self::get( $booking_id );

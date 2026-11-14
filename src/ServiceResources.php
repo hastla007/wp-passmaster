@@ -162,7 +162,8 @@ final class ServiceResources {
 		$event_id = $existing ? (int) $existing->event_id : absint( $data['event_id'] ?? 0 );
 		$name = mb_substr( sanitize_text_field( (string) ( $data['name'] ?? '' ) ), 0, 190 );
 		$timezone = (string) ( $data['timezone'] ?? '' );
-		$status = in_array( (string) ( $data['status'] ?? 'active' ), self::RESOURCE_STATUSES, true ) ? (string) $data['status'] : 'active';
+		$status = (string) ( $data['status'] ?? ( $existing ? $existing->status : 'active' ) );
+		$status = in_array( $status, self::RESOURCE_STATUSES, true ) ? $status : 'active';
 		if ( '' === $name ) { return Forms::error( 'wpcap_resource_invalid', __( 'Ressourcenname fehlt.', 'pass-captain' ) ); }
 		if ( '' !== $timezone && ! Forms::is_valid_timezone( $timezone ) ) { return Forms::error( 'wpcap_resource_timezone', __( 'Ungültige Zeitzone.', 'pass-captain' ) ); }
 		if ( ! $existing && ( ! $event_id || ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) ) ) ) { return Forms::error( 'wpcap_resource_event', __( 'Bitte ein gültiges Event wählen.', 'pass-captain' ) ); }

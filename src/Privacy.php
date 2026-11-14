@@ -187,7 +187,15 @@ final class Privacy {
 				array( 'name' => __( 'Erstellt (UTC)', 'pass-captain' ), 'value' => $booking['created_at'] ),
 			) );
 		}
-		$done = count( $orders ) < 50 && count( $tickets ) < 50 && count( $passes ) < 50 && count( $waitlist ) < 50 && count( $bookings ) < 50;
+		$slot_waits = $wpdb->get_results( $wpdb->prepare( "SELECT w.entry_id,w.quantity,w.position,w.status,w.created_at,s.starts_at,r.name AS resource_name FROM {$p}wpcap_service_waitlist w LEFT JOIN {$p}wpcap_service_slots s ON s.slot_id=w.slot_id LEFT JOIN {$p}wpcap_resources r ON r.resource_id=s.resource_id WHERE w.email=%s ORDER BY w.entry_id LIMIT 50 OFFSET %d", $email, $offset ), ARRAY_A );
+		foreach ( (array) $slot_waits as $entry ) {
+			$data[] = array( 'group_id' => 'wp-pass-captain-orders', 'group_label' => __( 'Pass Captain Warteliste Termine', 'pass-captain' ), 'item_id' => 'service-waitlist-' . $entry['entry_id'], 'data' => array(
+				array( 'name' => __( 'Ressource / Termin (UTC)', 'pass-captain' ), 'value' => (string) $entry['resource_name'] . ' / ' . $entry['starts_at'] ),
+				array( 'name' => __( 'Plätze, Position und Status', 'pass-captain' ), 'value' => $entry['quantity'] . ' / ' . $entry['position'] . ' / ' . $entry['status'] ),
+				array( 'name' => __( 'Erstellt (UTC)', 'pass-captain' ), 'value' => $entry['created_at'] ),
+			) );
+		}
+		$done = count( $orders ) < 50 && count( $tickets ) < 50 && count( $passes ) < 50 && count( $waitlist ) < 50 && count( $bookings ) < 50 && count( (array) $slot_waits ) < 50;
 		return array( 'data' => $data, 'done' => $done );
 	}
 
@@ -303,7 +311,8 @@ final class Privacy {
 		$messages_removed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_message_queue SET recipient=%s,payload='{}',status=IF(status IN ('queued','sending'),'cancelled',status),locked_at=NULL,last_error='privacy_erasure' WHERE recipient=%s", 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, $email ) );
 		$passes_removed = $wpdb->update( $p . 'wpcap_member_passes', array( 'member_email' => 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, 'token_hash' => self::random_hash(), 'status' => 'revoked' ), array( 'member_email' => $email ), array( '%s', '%s', '%s' ), array( '%s' ) );
 		$waitlist_removed = $wpdb->update( $p . 'wpcap_waitlist', array( 'email' => 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, 'email_hash' => self::random_hash(), 'offer_token_hash' => '', 'status' => 'removed', 'updated_at' => $now ), array( 'email' => $email ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%s' ) );
-		$removed += $bookings + $messages_removed + (int) $passes_removed + (int) $waitlist_removed;
+		$slot_waits_removed = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_service_waitlist SET email=%s,email_hash=SHA2(CONCAT(entry_id,'|',RAND()),256),offer_token_hash='',manage_token_hash='',status=IF(status IN ('waiting','offered'),'removed',status),updated_at=%s WHERE email=%s", 'deleted+' . $hash . self::PLACEHOLDER_DOMAIN, $now, $email ) );
+		$removed += $bookings + $messages_removed + (int) $passes_removed + (int) $waitlist_removed + $slot_waits_removed;
 
 		$retained = (bool) $orders;
 		if ( $deferred ) {
