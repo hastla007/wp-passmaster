@@ -67,14 +67,15 @@ final class Scope {
 
 	/** CSV text (semicolon separated, UTF-8 BOM) from rows; every cell passes csv_cell(). */
 	public static function csv( array $rows ) {
-		$out = fopen( 'php://temp', 'w+' );
-		fwrite( $out, "\xEF\xBB\xBF" );
+		// In-memory stream for fputcsv() (no file on disk, so WP_Filesystem does not apply).
+		$out = fopen( 'php://temp', 'w+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
 		foreach ( $rows as $row ) {
 			fputcsv( $out, array_map( array( __CLASS__, 'csv_cell' ), (array) $row ), ';', '"', '\\' );
 		}
 		rewind( $out );
 		$csv = (string) stream_get_contents( $out );
-		fclose( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		return $csv;
 	}
 

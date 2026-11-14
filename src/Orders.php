@@ -1294,8 +1294,7 @@ final class Orders {
 				$pdf_dir = self::private_temp_dir();
 				if ( $pdf_dir ) {
 					$file = $pdf_dir . '/tickets-' . $order->public_id . '.pdf';
-					if ( false !== file_put_contents( $file, TicketPdf::render( $pdf_tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) ) ) ) {
-						@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+					if ( TempFiles::put( $file, TicketPdf::render( $pdf_tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) ) ) ) {
 						$attachments[] = $file;
 					}
 				}
@@ -1310,9 +1309,9 @@ final class Orders {
 			} finally {
 				$attachments = array_unique( array_merge( $attachments, (array) ( $mail['attachments'] ?? array() ) ) );
 				foreach ( $attachments as $file ) { wp_delete_file( $file ); }
-				if ( ! empty( $pdf_dir ) && is_dir( $pdf_dir ) ) { @rmdir( $pdf_dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				if ( ! empty( $pdf_dir ) ) { TempFiles::remove_dir( $pdf_dir ); }
 			}
-			self::finish_delivery( $delivery_key, $order_id, (bool) $delivered, count( $issued ) );
+			self::finish_delivery( $delivery_key, $order_id, (bool) $delivered, array_map( 'intval', array_column( $issued, 'ticket_id' ) ) );
 		}
 		return true;
 	}
@@ -1336,20 +1335,37 @@ final class Orders {
 	/**
 	 * Records the result of the inline ticket mail on its outbox job: completed when sent, otherwise
 	 * attempt counted, error noted and due again in five minutes (Jobs::process_due() retries it).
+	 *
+	 * Double-mail guard: after a successful mail a "delivered" marker (option, separate from the job row)
+	 * is written before the job is completed, and the completion is retried briefly. Should the job
+	 * still stay queued (e.g. lock timeouts on the queue table), retry_delivery() finds the marker and
+	 * completes the job without sending a second mail with rotated codes.
+	 *
+	 * @param int[] $ticket_ids Tickets of this delivery.
 	 */
-	private static function finish_delivery( $key, $order_id, $sent, $count ) {
+	private static function finish_delivery( $key, $order_id, $sent, array $ticket_ids ) {
 		global $wpdb;
 		if ( '' === $key ) { return; }
 		$table = $wpdb->prefix . 'wpcap_jobs';
 		$now = current_time( 'mysql', true );
 		if ( $sent ) {
-			// If this update fails the job retries after the grace period: the buyer then receives a
-			// second mail with rotated codes, which supersede the first ones. Nothing is lost.
-			$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='complete',attempts=attempts+1,locked_at=NULL,last_error=NULL,updated_at=%s WHERE idempotency_key=%s AND status='queued'", $now, hash( 'sha256', $key ) ) );
+			$marker = self::delivery_marker( $order_id, $ticket_ids );
+			update_option( $marker, time(), false );
+			$completed = Jobs::update_with_retry( $table, array( 'status' => 'complete', 'attempts' => 1, 'locked_at' => null, 'last_error' => null, 'updated_at' => $now ), array( 'idempotency_key' => hash( 'sha256', $key ), 'status' => 'queued' ), array( '%s', '%d', '%s', '%s', '%s' ), array( '%s', '%s' ) );
+			if ( $completed ) {
+				delete_option( $marker );
+			}
 			return;
 		}
 		$wpdb->query( $wpdb->prepare( "UPDATE $table SET attempts=attempts+1,run_after=%s,last_error=%s,updated_at=%s WHERE idempotency_key=%s AND status='queued'", gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ), 'Ticket mail could not be delivered.', $now, hash( 'sha256', $key ) ) );
-		Audit::record( 'ticket_delivery_failed', 'order', absint( $order_id ), array( 'ticket_count' => (int) $count, 'retry' => 'scheduled' ) );
+		Audit::record( 'ticket_delivery_failed', 'order', absint( $order_id ), array( 'ticket_count' => count( $ticket_ids ), 'retry' => 'scheduled' ) );
+	}
+
+	/** Option name of the "delivered" marker of one ticket delivery (order + its tickets). */
+	public static function delivery_marker( $order_id, array $ticket_ids ) {
+		$ids = array_values( array_unique( array_map( 'absint', $ticket_ids ) ) );
+		sort( $ids );
+		return 'wpcap_delivered_' . absint( $order_id ) . '_' . substr( hash( 'sha256', implode( ',', $ids ) ), 0, 16 );
 	}
 
 	/**
@@ -1358,6 +1374,13 @@ final class Orders {
 	 */
 	private static function retry_delivery( $order_id, array $ticket_ids ) {
 		global $wpdb;
+		$marker = self::delivery_marker( $order_id, $ticket_ids );
+		if ( $ticket_ids && get_option( $marker ) ) {
+			// The inline mail was sent; only completing the job had failed. No second mail.
+			delete_option( $marker );
+			Audit::record( 'ticket_delivery_retry_skipped', 'order', absint( $order_id ), array( 'ticket_count' => count( $ticket_ids ), 'reason' => 'already_delivered' ) );
+			return true;
+		}
 		$order = $order_id ? self::get( $order_id ) : null;
 		if ( '' !== $wpdb->last_error ) { return false; }
 		if ( ! $order || 'paid' !== $order->payment_status || ! $ticket_ids ) {
@@ -1401,18 +1424,7 @@ final class Orders {
 
 	/** Creates a fresh directory (0700, random name) in the temp dir; null on failure. */
 	private static function private_temp_dir() {
-		$base = rtrim( (string) get_temp_dir(), '/\\' );
-		for ( $i = 0; $i < 3; $i++ ) {
-			$dir = $base . '/wpcap-' . bin2hex( random_bytes( 12 ) );
-			$old_umask = umask( 0077 );
-			$made = @mkdir( $dir, 0700 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- an existing name is retried.
-			umask( $old_umask );
-			if ( $made ) {
-				@chmod( $dir, 0700 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-				return $dir;
-			}
-		}
-		return null;
+		return TempFiles::private_dir();
 	}
 
 	/**

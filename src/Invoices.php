@@ -370,10 +370,11 @@ final class Invoices {
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="wp-pass-captain-buchhaltung-' . $from . '-' . $to . '.csv"' );
-		$out = fopen( 'php://output', 'w' );
-		fwrite( $out, "\xEF\xBB\xBF" );
-		foreach ( $rows as $row ) { fputcsv( $out, $row, ';', '"', '' ); } // Explicit escape (PHP 8.4 deprecates the default); '' = RFC 4180 quoting only.
-		fclose( $out );
+		// Streams the CSV download to the response (php://output, no file on disk).
+		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+		foreach ( $rows as $row ) { fputcsv( $out, array_map( array( Reports\Scope::class, 'csv_cell' ), (array) $row ), ';', '"', '' ); } // Explicit escape (PHP 8.4 deprecates the default); '' = RFC 4180 quoting only.
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		exit;
 	}
 
@@ -400,7 +401,7 @@ final class Invoices {
 		foreach ( $credits as $c ) {
 			$rows[] = array( 'Gutschrift', $c->credit_note_number, substr( $c->issued_at, 0, 10 ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( (int) $c->net_minor ), '', '-' . $money( (int) $c->tax_minor ), '-' . $money( (int) $c->total_minor ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
 		}
-		return $rows;
+		return Reports\Exports::filter_rows( $rows, 'accounting', array( 'from' => $from, 'to' => $to ) );
 	}
 
 	/** Finance view permission for one order (global finance roles or event-scoped order managers). */

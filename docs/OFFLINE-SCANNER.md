@@ -48,6 +48,12 @@ deletes stored packages that the server no longer lists or refuses with 403.
 | `GET /app/offline/occurrences` | Occurrences this device may hold packages for, including their rules. |
 | `GET /app/offline/package?occurrence_id=&since=` | Signed package: a full package, or a delta when `since` is a valid cursor. |
 
+Public (no token, the pairing screen needs it before a device token exists; it only contains UI texts):
+
+| Route | Description |
+|---|---|
+| `GET /app/offline/i18n?locale=` | Translation table of the PWA: `{v, locale, lang, strings, supported}`. `strings` maps the German source text (the msgid in `languages/pass-captain.pot`) to its translation; `locale` is the WordPress locale served (e.g. `fr_FR`), `lang` its BCP 47 tag for `<html lang>` and `Intl` (e.g. `fr-FR`), `supported` the BCP 47 tags the server can serve. Optional `locale`: the device's preferred languages, comma separated, best first (the PWA sends `navigator.languages`, e.g. `fr-CH,fr,en`). The first one with a translation wins – exact locale first, then the language (`fr` → `fr_FR`); without a match the site locale is used. Supported: German (source texts), every bundled translation in `languages/`, installed language packs and the site locale (filter `wpcap_offline_scanner_locales`). Sent with `Cache-Control: no-cache`. Filters: `wpcap_offline_scanner_locale` (site locale), `wpcap_offline_scanner_strings` (table). |
+
 Existing responses are also extended:
 
 - `POST /app/pair` adds `offline: {keys, package_format}`, which delivers the public keys at pairing.
@@ -120,17 +126,21 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
 
 | File | Contents |
 |---|---|
-| `index.html` | App shell, German UI. Strict CSP with `connect-src 'self'`. |
+| `index.html` | App shell with the German source texts (`data-i18n*` attributes); translated at runtime. Strict CSP with `connect-src 'self'`. |
 | `app.js` | App logic. |
 | `app.css` | Styles. |
 | `sw.js` | Service worker that caches the app shell. API calls are never cached. |
-| `manifest.json`, icons | Makes the app installable. |
+| `manifest.json`, icons | Makes the app installable. Locale-neutral on purpose (product name only, no `lang`/description): a static file cannot follow the device language. |
 | `../vendor/tweetnacl/` | tweetnacl-js 1.0.3 (Unlicense), used for signature verification. |
 | `../vendor/jsqr/` | Camera fallback when `BarcodeDetector` is unavailable. |
 
 - **Start:** open the app from the admin button. The link passes `?api=<rest_url>`, which is stored.
   Only **same-origin** API bases are accepted. HTTPS (or localhost) is required for the service
   worker and WebCrypto.
+- **Language:** on every online start the app loads `GET /app/offline/i18n` with the device languages
+  (`navigator.languages`) and keeps the table in IndexedDB, so it stays translated offline. It sets
+  `<html lang>` and formats dates with `Intl` in the served language. Without a table (first start
+  offline) the German source texts are shown.
 - **Pairing:** enter the pairing code, or paste the JSON payload of the pairing QR. The device token
   and public keys are stored in IndexedDB.
 - **Packages:** the app stores one full package plus chained deltas per occurrence (at most 30, then

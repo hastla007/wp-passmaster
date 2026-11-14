@@ -735,8 +735,8 @@ final class Installer {
 			'next_retry' => time() + self::retry_delay( $attempts ),
 		);
 		update_option( self::ERROR_OPTION, $details );
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- a failed schema upgrade must reach the operator.
-		error_log( 'Pass Captain: database upgrade to ' . $details['version'] . ' failed (attempt ' . $attempts . '); next retry in ' . self::retry_delay( $attempts ) . 's. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ) );
+		// The admin notice (ERROR_OPTION) is the primary channel; the log reaches add-ons and, if enabled, the PHP error log.
+		Log::error( 'schema_upgrade_failed', 'database upgrade to ' . $details['version'] . ' failed (attempt ' . $attempts . '); next retry in ' . self::retry_delay( $attempts ) . 's. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ), array( 'details' => $details ) );
 	}
 
 	/** Seconds to wait after the n-th consecutive failed upgrade (1 min, 5 min, 15 min, then hourly). */

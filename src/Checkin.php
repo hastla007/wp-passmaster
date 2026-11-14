@@ -96,6 +96,8 @@ final class Checkin {
 	 * @param array $context ['event_ids' => int[]|null (device restriction), 'occurrence_id' => int, 'area_id' => int]
 	 */
 	public static function preview( $code, array $context = array() ) {
+		$adapter = ScannerAdapters::for_code( $code );
+		if ( '' !== $adapter ) { return ScannerAdapters::preview( $adapter, $code, $context ); }
 		$at = self::eval_time( $context );
 		$found = self::lookup( $code, $at );
 		if ( is_wp_error( $found ) ) { return self::public_error( $found ); }
@@ -124,6 +126,9 @@ final class Checkin {
 	 * @return array|\WP_Error Array with 'status' => 'checked_in' on success.
 	 */
 	public static function perform( $code, array $context = array() ) {
+		// Codes that are no Pass Captain ticket may belong to a registered scanner adapter (add-ons).
+		$adapter = ScannerAdapters::for_code( $code );
+		if ( '' !== $adapter ) { return ScannerAdapters::check_in( $adapter, $code, $context ); }
 		return self::publish( self::perform_internal( $code, $context ) );
 	}
 

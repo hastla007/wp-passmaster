@@ -63,11 +63,30 @@ final class Page {
 		$money = static function ( $minor ) use ( $cur ) { return Scope::money( $minor, $cur ); };
 		$csv_url = add_query_arg( array_merge( $filters, array( 'action' => 'wpcap_reports_csv', '_wpnonce' => wp_create_nonce( 'wpcap_reports_csv' ) ) ), admin_url( 'admin-post.php' ) );
 		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Berichte', 'pass-captain' ) . '</h1>';
+		$tabs = self::tabs();
+		$tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only view switch.
+		if ( $tabs ) {
+			echo '<nav class="nav-tab-wrapper" aria-label="' . esc_attr__( 'Berichte', 'pass-captain' ) . '">';
+			echo '<a class="nav-tab' . ( isset( $tabs[ $tab ] ) ? '' : ' nav-tab-active' ) . '" href="' . esc_url( Forms::page_url( self::SLUG, $filters ) ) . '">' . esc_html__( 'Übersicht', 'pass-captain' ) . '</a>';
+			foreach ( $tabs as $id => $def ) {
+				echo '<a class="nav-tab' . ( $id === $tab ? ' nav-tab-active' : '' ) . '" href="' . esc_url( Forms::page_url( self::SLUG, array_merge( $filters, array( 'tab' => $id ) ) ) ) . '">' . esc_html( $def['label'] ) . '</a>';
+			}
+			echo '</nav>';
+			if ( isset( $tabs[ $tab ] ) ) {
+				call_user_func( $tabs[ $tab ]['callback'], $report, $filters, $scope );
+				echo '</div>';
+				return;
+			}
+		}
 		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><p>';
 		echo '<label>' . esc_html__( 'Von', 'pass-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $report['from'] ) . '"></label> ';
 		echo '<label>' . esc_html__( 'Bis', 'pass-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $report['to'] ) . '"></label> ';
 		Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'] );
-		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button> <a class="button" href="' . esc_url( $csv_url ) . '">' . esc_html__( 'CSV-Export', 'pass-captain' ) . '</a></p></form>';
+		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button> <a class="button" href="' . esc_url( $csv_url ) . '">' . esc_html__( 'CSV-Export', 'pass-captain' ) . '</a>';
+		foreach ( Exports::types() as $type_id => $type ) {
+			echo ' <a class="button" href="' . esc_url( Exports::url( $type_id, $filters ) ) . '">' . esc_html( $type['label'] ) . '</a>';
+		}
+		echo '</p></form>';
 		echo '<p class="description">' . esc_html( sprintf( __( 'Verkäufe nach Bestelldatum, Erstattungen nach Abschlussdatum (Zeitzone %s). Beträge brutto inkl. USt.', 'pass-captain' ), $report['timezone'] ) ) . '</p>';
 
 		$t = $report['total'];
@@ -80,6 +99,7 @@ final class Page {
 			__( 'davon USt', 'pass-captain' ) => $money( $t['revenue_tax'] ),
 			__( 'Gutschriften (Belege)', 'pass-captain' ) => (int) $report['credit_notes']['count'] . ' / ' . $money( $report['credit_notes']['total'] ),
 		);
+		$summary = self::metrics( $summary, $report, $filters );
 		foreach ( $summary as $k => $v ) { echo '<tr><th>' . esc_html( $k ) . '</th><td>' . esc_html( $v ) . '</td></tr>'; }
 		echo '</tbody></table>';
 
@@ -113,6 +133,40 @@ final class Page {
 			echo '<h2>' . esc_html__( 'Check-ins pro Stunde', 'pass-captain' ) . '</h2>' . self::bar_chart( $hist, $report['occurrences'][ $report['histogram_occurrence'] ]['label'] ?? '' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		}
 		echo '</div>';
+	}
+
+	/**
+	 * Summary rows of the overview (label => display text), extendable with
+	 * wp_pass_captain_report_metrics_v1 ( array $rows, array $report, array $filters ). Values are escaped on output.
+	 */
+	public static function metrics( array $summary, array $report, array $filters ) {
+		$rows = apply_filters( 'wp_pass_captain_report_metrics_v1', $summary, $report, $filters );
+		if ( ! is_array( $rows ) ) { return $summary; }
+		$out = array();
+		foreach ( $rows as $label => $value ) {
+			if ( is_scalar( $value ) ) { $out[ (string) $label ] = (string) $value; }
+		}
+		return $out;
+	}
+
+	/**
+	 * Additional report tabs (filter wp_pass_captain_report_tabs_v1): id => [ 'label' => string,
+	 * 'callback' => callable( array $report, array $filters, $scope ), 'capability' => string (optional) ].
+	 * The callback prints the tab content (escaped). Tabs the current user lacks the capability for are hidden.
+	 *
+	 * @return array<string,array{label:string,callback:callable}>
+	 */
+	public static function tabs() {
+		$tabs = apply_filters( 'wp_pass_captain_report_tabs_v1', array() );
+		if ( ! is_array( $tabs ) ) { return array(); }
+		$out = array();
+		foreach ( $tabs as $id => $def ) {
+			$id = sanitize_key( (string) $id );
+			if ( '' === $id || 'overview' === $id || ! is_array( $def ) || ! isset( $def['callback'] ) || ! is_callable( $def['callback'] ) ) { continue; }
+			if ( ! empty( $def['capability'] ) && ! current_user_can( (string) $def['capability'] ) ) { continue; }
+			$out[ $id ] = array( 'label' => (string) ( $def['label'] ?? $id ), 'callback' => $def['callback'] );
+		}
+		return $out;
 	}
 
 	private static function table( $label, array $buckets, callable $money ) {

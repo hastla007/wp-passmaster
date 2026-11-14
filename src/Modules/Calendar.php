@@ -88,7 +88,7 @@ final class Calendar {
 			$ics = Ics::occurrence_calendar( $occ );
 			if ( null === $ics ) { continue; }
 			$file = trailingslashit( get_temp_dir() ) . 'termin-' . $occ . '-' . bin2hex( random_bytes( 8 ) ) . '.ics';
-			if ( false !== file_put_contents( $file, $ics ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+			if ( \PassCaptain\TempFiles::put( $file, $ics ) ) {
 				// Core (Orders::issue_and_email) deletes every file in $mail['attachments'] after wp_mail();
 				// the shutdown cleanup covers a later filter dropping the file from the list.
 				$mail['attachments'] = array_merge( (array) ( $mail['attachments'] ?? array() ), array( $file ) );
@@ -109,7 +109,7 @@ final class Calendar {
 	/** Removes .ics files of this request that still exist. */
 	public static function cleanup_temp_files() {
 		foreach ( self::$temp_files as $file ) {
-			if ( file_exists( $file ) ) { wp_delete_file( $file ); }
+			\PassCaptain\TempFiles::remove( $file );
 		}
 		self::$temp_files = array();
 	}

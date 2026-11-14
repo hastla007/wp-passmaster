@@ -16,7 +16,13 @@ final class Settings {
 	/** Default values for every setting (core plus modules); built once per request. */
 	public static function defaults() {
 		if ( null === self::$defaults ) {
-			self::$defaults = array_merge( self::core_defaults(), Modules::settings_defaults() );
+			$defaults = array_merge( self::core_defaults(), Modules::settings_defaults() );
+			/**
+			 * Add-on settings outside modules: key => default. Core and module keys cannot be replaced
+			 * (only new keys are taken over). Edit them through wp_pass_captain_settings_sections_v1.
+			 */
+			$extra = apply_filters( 'wp_pass_captain_settings_defaults_v1', array() );
+			self::$defaults = is_array( $extra ) ? $defaults + $extra : $defaults;
 		}
 		return self::$defaults;
 	}

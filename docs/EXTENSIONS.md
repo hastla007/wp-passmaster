@@ -27,15 +27,16 @@ Grundsätze für Add-ons:
 
 | Bereich | Andockpunkt | Art | Ort im Code |
 |---|---|---|---|
-| Admin-Navigation | `wpcap_modules` → Methode `admin_pages()` | Filter + Modulvertrag | `src/Modules.php`, `src/Admin/Menu.php` |
+| Admin-Navigation | `wpcap_modules` → Methode `admin_pages()` oder `wp_pass_captain_admin_menu_v1` | Filter + Modulvertrag / versionierter Filter | `src/Modules.php`, `src/Admin/Menu.php` |
 | Admin-Formulare | `wpcap_modules` → Methode `admin_handlers()` | Modulvertrag (`admin-post`-Aktionen) | `src/Admin/Menu.php` |
-| Einstellungen | `wpcap_modules` → Methode `settings_defaults()`, lesen über `PassCaptain\Settings::get()` | Modulvertrag | `src/Settings.php` |
+| Einstellungen | `wpcap_modules` → `settings_defaults()` oder `wp_pass_captain_settings_defaults_v1`; Felder auf der Kern-Einstellungsseite über `wp_pass_captain_settings_sections_v1`; lesen über `PassCaptain\Settings::get()` | Modulvertrag / versionierte Filter | `src/Settings.php`, `src/Admin/SettingsPage.php` |
 | Eigene Tabellen | `wpcap_modules` → Methode `schema( $prefix, $charset )` | Modulvertrag (dbDelta) | `src/Modules.php`, `src/Installer.php` |
 | Hooks registrieren | `wpcap_modules` → Methode `register()` | Modulvertrag | `src/Modules.php` |
 | Zahlungsadapter | `wpcap_payment_gateways` + `PassCaptain\Payments\GatewayInterface` | Filter + Interface | `src/Payments/Registry.php` |
 | SMS-Adapter | `wpcap_sms_providers` + `PassCaptain\Sms\ProviderInterface` | Filter + Interface | `src/Sms/Service.php` |
 | Wallet-Anbieter | `wp_pass_captain_wallet_provider_v1` + `PassCaptain\Wallet\ProviderInterface` | Versionierter Filter | `src/Wallet/Bridge.php` |
 | Gutschein-Anbieter | `wp_pass_captain_voucher_provider_v1` + `PassCaptain\Integrations\Vouchers\ProviderInterface` | Versionierter Filter | `src/Integrations/Vouchers/Bridge.php` |
+| Scanner-Adapter (fremde Codes im Kern-Scanner) | `wp_pass_captain_scanner_adapters_v1` | Versionierter Filter (Registry) | `src/ScannerAdapters.php`, `src/Checkin.php` |
 | Scanner (fremde Geräte/Apps) | `wp_pass_captain_checkin_service_v1` (Dienst abrufen), Mobile-REST-API | Versionierter Dienst | `src/Integrations/Vouchers/CheckinService.php`, [MOBILE-API.md](MOBILE-API.md) |
 | Ticketausgabe von außen | `wp_pass_captain_ticket_service_v1` (Dienst abrufen) | Versionierter Dienst | `src/Integrations/Vouchers/TicketService.php` |
 | Connectoren (CRM, Kalender, Buchhaltung) | `wp_pass_captain_connectors_v1` + `PassCaptain\Integrations\ConnectorInterface` | Versionierter Filter | `src/Integrations/ConnectorRegistry.php` |
@@ -45,8 +46,9 @@ Grundsätze für Add-ons:
 | Preise und Kontingente | `wpcap_ticket_unit_price`, `wpcap_ticket_price_label`, `wpcap_reserve_capacity`, `wpcap_ticket_availability` | Filter | `src/Orders.php` |
 | Lebenszyklus-Ereignisse | `wpcap_order_paid`, `wpcap_tickets_issued`, `wpcap_ticket_checked_in`, `wpcap_refund_completed` u. a. | Actions | siehe [HOOKS.md](HOOKS.md) |
 | Externe Systeme ohne PHP | Signierte ausgehende Webhooks | HTTP | [WEBHOOKS.md](WEBHOOKS.md) |
-| Berichte | eigene Seite über `admin_pages()`; Daten über `PassCaptain\Reports\Data` (intern, nicht versioniert) | – | `src/Reports/Data.php` |
-| Exporte | eigene Seite/Aktion über `admin_pages()`/`admin_handlers()` | – | – |
+| Berichte | `wp_pass_captain_report_data_v1`, `wp_pass_captain_report_metrics_v1`, `wp_pass_captain_report_tabs_v1` | Versionierte Filter | `src/Reports/Data.php`, `src/Reports/Page.php` |
+| Exporte | `wp_pass_captain_export_rows_v1` (Spalten/Zeilen), `wp_pass_captain_export_types_v1` (weitere Exporte) | Versionierte Filter | `src/Reports/Exports.php`, `src/Invoices.php` |
+| Protokoll | `wpcap_log` (Action), `wpcap_log_to_error_log` | Action/Filter | `src/Log.php` |
 
 ## Module: Admin-Navigation, Einstellungen, Tabellen
 
@@ -67,6 +69,37 @@ add_filter( 'wpcap_modules', static function ( array $classes ) {
 	return $classes;
 } );
 ```
+
+### Ohne Modulklasse: Menü und Einstellungen
+
+Für Add-ons ohne Modulklasse gibt es versionierte Filter:
+
+```php
+// Unterseite im Menü „Pass Captain“ (vor „Einstellungen“); Kern-Slugs werden ignoriert.
+add_filter( 'wp_pass_captain_admin_menu_v1', static function ( array $pages ) {
+	$pages[] = array( 'myaddon-dashboard', __( 'Pro-Übersicht', 'myaddon' ), 'manage_options', array( \MyAddon\Dashboard::class, 'render' ) );
+	return $pages;
+} );
+
+// Eigene Einstellungen: Standardwerte registrieren …
+add_filter( 'wp_pass_captain_settings_defaults_v1', static function ( array $defaults ) {
+	return $defaults + array( 'myaddon_mode' => 'basic', 'myaddon_limit' => 10 );
+} );
+// … und als Abschnitt auf der Kern-Einstellungsseite bearbeiten (gespeichert mit dem Kernformular).
+add_filter( 'wp_pass_captain_settings_sections_v1', static function ( array $sections ) {
+	$sections['myaddon'] = array(
+		'title'  => __( 'Mein Add-on', 'myaddon' ),
+		'fields' => array(
+			'myaddon_mode'  => array( 'type' => 'choice', 'label' => __( 'Modus', 'myaddon' ), 'options' => array( 'basic' => 'Basic', 'pro' => 'Pro' ) ),
+			'myaddon_limit' => array( 'type' => 'int', 'label' => __( 'Limit', 'myaddon' ), 'min' => 1, 'max' => 100, 'sanitize' => static fn( $v ) => $v > 50 ? new WP_Error( 'x', __( 'Höchstens 50.', 'myaddon' ) ) : $v ),
+		),
+	);
+	return $sections;
+} );
+```
+
+Feldtypen: `int`, `bool`, `choice`, `text`, `textarea`, `html`, `money`, `secret`. Ein Abschnitt mit der ID eines
+Kernabschnitts ergänzt dort nur neue Felder; Kernfelder können weder entfernt noch umtypisiert werden.
 
 Der Menü-Slug des Kerns ist `wp-pass-captain` (`PassCaptain\Admin\Menu::SLUG`). Seiten-Slugs des Add-ons
 sollten ein eigenes Präfix tragen; Präfix `wpcap` lädt die kleinen Admin-Stilkorrekturen des Kerns mit.
@@ -96,8 +129,30 @@ mit Modulen auch `mollie` und die Kassen-Zahlarten) und nimmt weitere Objekte mi
 
 ## Scanner
 
-Es gibt keine Registry für Scanner-Adapter. Ein Add-on, das einen eigenen Scanner mitbringt, nutzt den
-Check-in-Dienst des Kerns statt eigener Prüflogik:
+**Scanner-Adapter-Registry.** Codes, die kein Pass-Captain-Ticket sind (z. B. Karten eines fremden
+Zutrittssystems), kann ein Add-on in den Kern-Scannern (Web-Scanner, Mobile-API – alles, was über
+`Checkin::perform()`/`Checkin::preview()` läuft) selbst behandeln:
+
+```php
+add_filter( 'wp_pass_captain_scanner_adapters_v1', static function ( array $adapters ) {
+	$adapters['myaddon_cards'] = array(
+		'label'      => __( 'Mitgliedskarten', 'myaddon' ),
+		'recognizes' => static fn( string $code ) => str_starts_with( $code, 'MC-' ),
+		'check_in'   => static fn( string $code, array $context ) => array( 'status' => 'checked_in', 'label' => '…' ), // oder WP_Error
+		'preview'    => static fn( string $code, array $context ) => array( 'status' => 'valid' ),                   // optional
+		'capability' => 'wpcap_checkin',                                                                              // optional
+	);
+	return $adapters;
+} );
+```
+
+Kern-Tickets haben immer Vorrang: Ein Adapter wird nur für Codes gefragt, die kein Ticket sind; der erste
+Adapter, dessen `recognizes` `true` liefert, übernimmt. Rückgaben sind ein Array mit `status` oder ein
+`WP_Error`; Exceptions werden zu einem Fehler (`wpcap_scanner_adapter_failed`). Das Ergebnis trägt `adapter`
+(ID). Das Recht `capability` (Standard `wpcap_checkin`) prüft der Kern vor dem Aufruf.
+
+Ein Add-on, das einen eigenen Scanner mitbringt, nutzt umgekehrt den Check-in-Dienst des Kerns statt eigener
+Prüflogik:
 
 ```php
 $service = apply_filters( 'wp_pass_captain_checkin_service_v1', null, 1 );
@@ -117,9 +172,29 @@ Der Connector-Vertrag `PassCaptain\Integrations\ConnectorInterface` (`key()`, `v
 `wp_pass_captain_connectors_v1` registriert und nur ausgeführt, wenn ihr Schlüssel in der site-lokalen Option
 `wpcap_enabled_connectors` freigegeben wurde. Fehler meldet `wp_pass_captain_connector_error_v1`.
 
-Hinweis: `ConnectorRegistry::dispatch()` wird derzeit von keinem Kernablauf aufgerufen. Bis das verdrahtet
-ist, hängen sich Connectoren direkt an die Lebenszyklus-Actions (z. B. `wpcap_order_paid`) und rufen
-`ConnectorRegistry::dispatch()` dort selbst auf, oder sie nutzen die ausgehenden Webhooks.
+Der Kern liefert seine Domänenereignisse über die Job-Queue an alle freigegebenen Connectoren
+(`PassCaptain\Integrations\ConnectorEvents`, Jobtyp `connector_delivery`). Je Ereignis und Connector entsteht
+ein eigener Job: Ein ausfallender Connector wird mit Backoff wiederholt (nach acht Versuchen `dead_letter`),
+ohne dass die anderen das Ereignis doppelt erhalten. Solange kein Connector freigegeben ist, wird nichts
+eingeplant.
+
+| Ereignis (`$event_name`) | Auslöser (Action) | `data` |
+|---|---|---|
+| `order_paid` | `wpcap_order_paid` | Bestellung: `order_id`, `public_id`, `status`, `payment_status`, `payment_provider`, `currency`, `total_minor`, `refunded_minor`, `created_at` |
+| `order_refunded` | `wpcap_order_refunded` | Bestellung + `reason` |
+| `order_cancelled` | `wpcap_order_cancelled` | Bestellung |
+| `refund_completed` | `wpcap_refund_completed` | `refund_id`, `order_id`, `amount_minor`, `tax_minor`, `currency`, `ticket_ids` |
+| `tickets_issued` | `wpcap_tickets_issued` | Bestellung + `issued_count`, `tickets` (`ticket_id`, `public_id`, `ticket_type_id`, `status`) |
+| `ticket_checked_in` | `wpcap_ticket_checked_in` | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `source`, `device_id`, `area_id` |
+| `occurrence_rescheduled` | `wpcap_occurrence_rescheduled` | Termin (`occurrence_id`, `event_id`, `starts_at`, `timezone`, `status`) + `old_starts_at`, `new_starts_at` |
+| `occurrence_cancelled` | `wpcap_occurrence_cancelled` | Termin + `issued_tickets` |
+
+`$payload` = `[ 'version' => 1, 'event', 'occurred_at' (ISO 8601), 'site', 'data' ]`. Payloads enthalten nur
+Kennungen und Zustände – keine Namen, E-Mail-Adressen oder Ticketcodes. `$idempotency_key` ist je Ereignis und
+Connector stabil (`sha256( Ereignisschlüssel . '|' . Connector-Schlüssel )`) und bleibt bei Wiederholungen
+gleich; der Connector dedupliziert damit. `deliver()` gilt als erfolgreich, wenn es weder `false` noch ein
+`WP_Error` zurückgibt und keine Exception wirft; sonst wird der Job wiederholt und
+`wp_pass_captain_connector_error_v1` ausgelöst.
 
 ## Hintergrundjobs
 
@@ -130,10 +205,37 @@ als `dead_letter` markiert.
 
 ## Berichte und Exporte
 
-Für Berichte und Exporte gibt es noch keine eigenen Hooks. Ein Add-on legt dafür eine eigene Unterseite über
-`admin_pages()` und eigene Download-Aktionen über `admin_handlers()` an und prüft die Kernrechte
-(`wpcap_view_reports` für Berichte). `PassCaptain\Reports\Data` und `PassCaptain\Reports\Scope` sind interne
-Klassen ohne Versionszusage.
+```php
+// Eigene Kennzahl berechnen (Zeitraum/Event aus $filters, erlaubte Events aus $scope) …
+add_filter( 'wp_pass_captain_report_data_v1', static function ( array $report, array $filters, $scope ) {
+	$report['extra']['myaddon_upsells'] = \MyAddon\Stats::upsells( $filters, $scope );
+	return $report;
+}, 10, 3 );
+// … in der Übersichtstabelle anzeigen,
+add_filter( 'wp_pass_captain_report_metrics_v1', static function ( array $rows, array $report ) {
+	$rows[ __( 'Zusatzverkäufe', 'myaddon' ) ] = (string) ( $report['extra']['myaddon_upsells'] ?? 0 );
+	return $rows;
+}, 10, 2 );
+// … als eigener Reiter,
+add_filter( 'wp_pass_captain_report_tabs_v1', static function ( array $tabs ) {
+	$tabs['myaddon'] = array( 'label' => __( 'Pro', 'myaddon' ), 'capability' => 'wpcap_view_finance', 'callback' => array( \MyAddon\Reports::class, 'render_tab' ) );
+	return $tabs;
+} );
+// … als Spalte im Berichts-CSV oder Buchhaltungsexport,
+add_filter( 'wp_pass_captain_export_rows_v1', static function ( array $rows, string $type ) {
+	if ( 'accounting' === $type ) { foreach ( $rows as $i => $row ) { $rows[ $i ][] = 0 === $i ? 'Kostenstelle' : '4711'; } }
+	return $rows;
+}, 10, 2 );
+// … oder als eigener Export (Schaltfläche auf der Berichtsseite, Nonce und Recht prüft der Kern).
+add_filter( 'wp_pass_captain_export_types_v1', static function ( array $types ) {
+	$types['myaddon_attendees'] = array( 'label' => __( 'Teilnehmerliste (Pro)', 'myaddon' ), 'capability' => 'wpcap_view_reports', 'rows' => array( \MyAddon\Export::class, 'rows' ) );
+	return $types;
+} );
+```
+
+Alle CSV-Zellen laufen bei der Ausgabe durch den Formelschutz (`Reports\Scope::csv_cell()`).
+`PassCaptain\Reports\Data` und `PassCaptain\Reports\Scope` selbst bleiben interne Klassen ohne Versionszusage;
+Add-ons verwenden die Filter.
 
 ## WP Affiliate Captain
 

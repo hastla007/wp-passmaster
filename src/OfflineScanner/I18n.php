@@ -7,6 +7,11 @@
  * keeps the table in IndexedDB for offline use and looks texts up by their German source string
  * (= the msgid in languages/pass-captain.pot). Missing keys fall back to German.
  *
+ * Device language: the app sends its preferred languages (navigator.languages) as
+ * `?locale=fr-CH,fr,en`. The first one with a translation (bundled .mo file, installed language pack
+ * or the site locale) wins – exact locale first, then the language (fr → fr_FR); without a match the
+ * site locale is used.
+ *
  * Every key used by app.js (t('…')) and index.html (data-i18n*) must be listed here; the
  * integration test tests/integration/modules/offline_scanner.php enforces that.
  */
@@ -28,6 +33,55 @@ final class I18n {
 	public static function lang( $locale ) {
 		$tag = str_replace( '_', '-', (string) $locale );
 		return preg_match( '/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/', $tag ) ? $tag : 'de-DE';
+	}
+
+	/**
+	 * Locales the table can be served in: German (source texts), every bundled translation in
+	 * /languages, installed language packs and the site locale (filter wpcap_offline_scanner_locales).
+	 *
+	 * @return string[] WordPress locales, e.g. de_DE, en_US.
+	 */
+	public static function supported_locales() {
+		$locales = array( 'de_DE' );
+		$dirs = array( WPCAP_PATH . 'languages' );
+		if ( defined( 'WP_LANG_DIR' ) ) { $dirs[] = WP_LANG_DIR . '/plugins'; }
+		foreach ( $dirs as $dir ) {
+			foreach ( (array) glob( $dir . '/pass-captain-*.mo' ) as $file ) {
+				if ( preg_match( '/pass-captain-([a-z]{2,3}(?:_[A-Za-z0-9]{2,8}){0,2})\.mo$/', (string) $file, $m ) ) { $locales[] = $m[1]; }
+			}
+		}
+		$locales[] = self::locale();
+		$locales = apply_filters( 'wpcap_offline_scanner_locales', $locales );
+		$out = array();
+		foreach ( (array) $locales as $locale ) {
+			$locale = \PassCaptain\Mail\Mailer::normalize_locale( (string) $locale );
+			if ( '' !== $locale && ! in_array( $locale, $out, true ) ) { $out[] = $locale; }
+		}
+		return $out;
+	}
+
+	/**
+	 * First supported locale for a list of preferred languages (BCP 47 tags or WordPress locales,
+	 * comma separated, best first, optional ";q=" weights are ignored). '' when none matches.
+	 */
+	public static function match_locale( $requested ) {
+		$supported = self::supported_locales();
+		$by_language = array();
+		foreach ( $supported as $locale ) {
+			$language = strtolower( strtok( $locale, '_' ) );
+			if ( ! isset( $by_language[ $language ] ) ) { $by_language[ $language ] = $locale; }
+		}
+		foreach ( array_slice( explode( ',', substr( (string) $requested, 0, 200 ) ), 0, 10 ) as $tag ) {
+			$tag = trim( (string) preg_replace( '/;.*$/', '', $tag ) );
+			if ( ! preg_match( '/^([A-Za-z]{2,3})(?:[-_]([A-Za-z0-9]{2,8}))?(?:[-_][A-Za-z0-9]{2,8})*$/', $tag, $m ) ) { continue; }
+			$language = strtolower( $m[1] );
+			if ( ! empty( $m[2] ) ) {
+				$exact = $language . '_' . ( 2 === strlen( $m[2] ) ? strtoupper( $m[2] ) : $m[2] );
+				if ( in_array( $exact, $supported, true ) ) { return $exact; }
+			}
+			if ( isset( $by_language[ $language ] ) ) { return $by_language[ $language ]; }
+		}
+		return '';
 	}
 
 	/** German source string => translation (text domain pass-captain). */
@@ -136,15 +190,29 @@ final class I18n {
 	/**
 	 * Table served to the PWA.
 	 *
-	 * @return array{v:int,locale:string,lang:string,strings:array<string,string>}
+	 * @param string $requested Preferred languages of the device (see match_locale()); '' = site locale.
+	 * @return array{v:int,locale:string,lang:string,strings:array<string,string>,supported:string[]}
 	 */
-	public static function table() {
-		$locale = self::locale();
-		$strings = apply_filters( 'wpcap_offline_scanner_strings', self::strings(), $locale );
-		$out = array();
-		foreach ( (array) $strings as $key => $value ) {
-			if ( is_string( $key ) && is_scalar( $value ) && '' !== (string) $value ) { $out[ $key ] = (string) $value; }
-		}
-		return array( 'v' => self::VERSION, 'locale' => $locale, 'lang' => self::lang( $locale ), 'strings' => $out );
+	public static function table( $requested = '' ) {
+		$site = self::locale();
+		$matched = '' !== (string) $requested ? self::match_locale( $requested ) : '';
+		$locale = '' !== $matched ? $matched : $site;
+		$build = static function () use ( $locale ) {
+			$strings = apply_filters( 'wpcap_offline_scanner_strings', self::strings(), $locale );
+			$out = array();
+			foreach ( (array) $strings as $key => $value ) {
+				if ( is_string( $key ) && is_scalar( $value ) && '' !== (string) $value ) { $out[ $key ] = (string) $value; }
+			}
+			return $out;
+		};
+		// Another locale than the site's: translate in that locale (switch_to_locale), then restore.
+		$strings = $locale === $site ? $build() : \PassCaptain\Mail\Mailer::with_locale( $locale, $build );
+		return array(
+			'v'         => self::VERSION,
+			'locale'    => $locale,
+			'lang'      => self::lang( $locale ),
+			'strings'   => $strings,
+			'supported' => array_map( array( __CLASS__, 'lang' ), self::supported_locales() ),
+		);
 	}
 }

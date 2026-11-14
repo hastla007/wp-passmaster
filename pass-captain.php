@@ -105,6 +105,9 @@ register_deactivation_hook( WPCAP_FILE, array( PassCaptain\Plugin::class, 'deact
 add_action(
 	'plugins_loaded',
 	static function () {
+		// Kept on purpose: loads the translations bundled in /languages (de_DE source strings plus
+		// en_US, es_ES, fr_FR, it_IT, nl_NL). Language packs from translate.wordpress.org still take
+		// precedence when installed in WP_LANG_DIR/plugins.
 		load_plugin_textdomain( 'pass-captain', false, dirname( plugin_basename( WPCAP_FILE ) ) . '/languages' );
 		PassCaptain\TicketPage::register();
 		PassCaptain\Plugin::instance()->run();

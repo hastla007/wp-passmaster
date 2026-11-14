@@ -177,7 +177,7 @@ final class Data {
 		$histogram_occ = absint( $filters['occurrence_id'] ?? 0 );
 		if ( ! isset( $occurrences[ $histogram_occ ] ) ) { $histogram_occ = (int) array_key_first( $occurrences ); }
 
-		return array(
+		$report = array(
 			'from' => $from,
 			'to' => $to,
 			'timezone' => $tz,
@@ -190,7 +190,14 @@ final class Data {
 			'occurrences' => $occurrences,
 			'histogram_occurrence' => $histogram_occ,
 			'histogram' => $histogram_occ ? self::checkin_histogram( $histogram_occ ) : array(),
+			'extra' => array(),
 		);
+		/**
+		 * Report data (filters: from, to, event_id, occurrence_id; $scope: event ids or null = all).
+		 * Add-ons put their own figures under `extra` and show them with wp_pass_captain_report_metrics_v1.
+		 */
+		$filtered = apply_filters( 'wp_pass_captain_report_data_v1', $report, $filters, $scope );
+		return is_array( $filtered ) ? $filtered + $report : $report;
 	}
 
 	/** Order lines grouped by order id (item order = Orders::create order). */
@@ -325,6 +332,6 @@ final class Data {
 			$rows[] = array( __( 'Check-ins pro Stunde', 'pass-captain' ), $report['occurrences'][ $report['histogram_occurrence'] ]['label'] ?? '' );
 			foreach ( $report['histogram'] as $hour => $n ) { $rows[] = array( $hour, $n ); }
 		}
-		return $rows;
+		return Exports::filter_rows( $rows, 'report', array( 'report' => $report ) );
 	}
 }

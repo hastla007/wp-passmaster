@@ -8,7 +8,9 @@ Erweiterungspunkte. Externe Systeme sollten statt PHP-Hooks die signierten
 [ausgehenden Webhooks](WEBHOOKS.md) verwenden.
 
 Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
-`grep -rnE "(do_action|apply_filters)\(" src --include=*.php`.
+`grep -rnE "(do_action|apply_filters)\(" src --include=*.php`. Für die versionierten `_v1`-Hooks prüft der
+Vertragstest `tests/integration/modules/hooks_contract.php`, dass jeder hier dokumentierte Hook im Code
+vorkommt und umgekehrt.
 
 ## Actions
 
@@ -32,7 +34,8 @@ Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
 | `wpcap_occurrence_rescheduled` | `int $occurrence_id, string $old_starts_at, string $new_starts_at` | Admin: Startzeit eines Termins mit ausgegebenen Tickets geändert (UTC `Y-m-d H:i:s`). |
 | `wpcap_occurrence_cancelled` | `int $occurrence_id, int $issued` | Admin: Termin abgesagt (`$issued` = Anzahl ausgegebener Tickets). Kern-Folgen in `OccurrenceCancellation` (Priorität 10); das SMS-Modul hängt sich mit Priorität 5 davor. |
 | `wpcap_occurrence_cancelled_woocommerce_order` | `int $order_id, int $occurrence_id` | Je bezahlter WooCommerce-Bestellung eines abgesagten Termins (Erstattung erfolgt in WooCommerce). |
-| `wp_pass_captain_connector_error_v1` | `string $connector_key, string $event_name, string $message` | Ein Connector hat bei einem Ereignis eine Exception geworfen. |
+| `wp_pass_captain_connector_error_v1` | `string $connector_key, string $event_name, string $message` | Ein Connector hat bei einem Ereignis eine Exception geworfen oder `false`/`WP_Error` geliefert (die Zustellung wird über die Job-Queue wiederholt, siehe [EXTENSIONS.md](EXTENSIONS.md#connectoren)). |
+| `wpcap_log` | `string $level, string $event, string $message, array $context` | Jeder Eintrag des zentralen Loggers `PassCaptain\Log` (`error`/`warning`, z. B. `refund_db_error`, `order_refund_state_pending`, `queue_status_update_failed`, `schema_upgrade_failed`). Der Eintrag steht zusätzlich im Audit-Log (Aktion = `$event`). |
 | `wpcap_checkout_form_fields` | `object $event, array $types` | Template `templates/event-card.php` innerhalb des Checkout-Formulars (eigene Felder ausgeben; JS-Ereignis `wpcap:checkout-payload` ergänzt den Payload). |
 
 Cron-Actions, an die sich Module hängen: `wpcap_process_messages` (alle 5 Minuten, Nachrichten-Queue;
@@ -73,6 +76,9 @@ Webhook-Ereignissen).
 | `wpcap_expire_holds_batch` | `int $limit` (200) | Abgelaufene Reservierungen je Lauf von `expire_holds`. |
 | `wpcap_admission_day_cutoff_hour` | `int $hour, array $context` (`occurrence_id`, `event_id`) | Einlass-Tageswechsel (0–12 Uhr Ortszeit) für tägliche Einlassregeln; Standard aus der Einstellung `admission_day_cutoff_hour`. |
 | `wpcap_offline_refresh_interval` | `int $seconds` (10) | Mindestabstand zweier Snapshot-Aktualisierungen eines Termins für den Offline-Scanner. |
+| `wpcap_offline_scanner_locale` | `string $locale` | Website-Sprache, in der der Offline-Scanner seine Texte ausliefert, wenn das Gerät keine unterstützte Sprache anfragt (Standard `determine_locale()`). |
+| `wpcap_offline_scanner_locales` | `string[] $locales` | Sprachen, in denen `GET /app/offline/i18n?locale=` die Texte ausliefern kann (Standard: `de_DE`, mitgelieferte Übersetzungen in `languages/`, installierte Sprachpakete, Website-Sprache). |
+| `wpcap_offline_scanner_strings` | `array $strings` (deutscher Quelltext → Übersetzung), `string $locale` | Übersetzungstabelle des Offline-Scanners. |
 | `wpcap_partner_client_ip` | `string $ip` | Client-IP für Partner-API (IP-Allowlist, Ratenlimit); Proxies hier auflösen. |
 | `wpcap_woocommerce_billing` | `array $billing, WC_Order $wc_order` | Aus WooCommerce übernommene Rechnungsangaben. |
 | `wpcap_woocommerce_vat_meta_keys` | `string[] $keys, WC_Order $wc_order` | Meta-Felder, in denen die UID-Nummer einer Woo-Bestellung gesucht wird. |
@@ -175,3 +181,13 @@ Webhook-Ereignissen).
 | `wp_pass_captain_ticket_service_v1` | `TicketService|null $service, int $version` | Dienst für die Rückrichtung: ein eingelöster Gutschein wird in Tickets umgewandelt (`issue_tickets`, `revoke_tickets`, `get`, `targets`, `options`, `events`); Ziel ist eine feste Ticketart oder eine Veranstaltung mit frei wählbarem Termin. Idempotent pro Schlüssel; Fehler tragen `retryable`. |
 | `wp_pass_captain_checkin_service_v1` | `CheckinService|null $service, int $version` | Check-in-Dienst für einen fremden Scanner (gemeinsamer Scanner): `recognizes`, `preview`, `check_in`; prüft das Recht `wpcap_checkin`. |
 | `wp_pass_captain_wallet_provider_v1` | `ProviderInterface|null $provider, string $provider_key, int $version` | Wallet-Anbieter (Bridge). |
+| `wp_pass_captain_settings_defaults_v1` | `array $defaults` (Schlüssel → Standardwert) | Einstellungen eines Add-ons ohne Modulklasse. Nur neue Schlüssel werden übernommen; Kern- und Modulwerte bleiben. Lesen mit `Settings::get()`. |
+| `wp_pass_captain_settings_sections_v1` | `array $sections` (ID → `title`, `fields`) | Abschnitte und Felder der Kern-Einstellungsseite. Feldtypen `int` (`min`, `max`), `bool`, `choice` (`options`), `text`, `textarea`, `html`, `money`, `secret`; optional `description`, `sanitize` (callable `( $value, $current )` → Wert oder `WP_Error`). Der Schlüssel muss in den Standardwerten existieren. Kernfelder können nicht entfernt oder umtypisiert werden. |
+| `wp_pass_captain_admin_menu_v1` | `array $pages` (Einträge `[ slug, title, capability, callable ]`) | Unterseiten im Menü **Pass Captain** für Add-ons ohne Modulklasse (vor „Einstellungen“); Slugs des Kerns werden ignoriert. |
+| `wp_pass_captain_report_data_v1` | `array $report, array $filters, array|null $scope` | Daten des Berichts (`Reports\Data::build()`); eigene Kennzahlen unter `extra` ablegen. `$scope`: erlaubte Event-IDs oder `null` (alle). |
+| `wp_pass_captain_report_metrics_v1` | `array $rows` (Label → Text), `array $report, array $filters` | Zeilen der Übersichtstabelle im Bericht (werden escaped ausgegeben). |
+| `wp_pass_captain_report_tabs_v1` | `array $tabs` (ID → `label`, `callback`, optional `capability`) | Zusätzliche Reiter auf der Berichtsseite; `callback( $report, $filters, $scope )` gibt den Inhalt (escaped) aus. |
+| `wp_pass_captain_export_rows_v1` | `array $rows, string $type, array $context` | Zeilen jedes CSV-Exports (erste Zeile = Kopf) vor der Ausgabe, z. B. für zusätzliche Spalten. `$type`: `report` (Kontext `report`), `accounting` (Kontext `from`, `to`) oder die ID eines zusätzlichen Exports (Kontext `filters`). Zellen laufen bei der Ausgabe durch den Formelschutz. |
+| `wp_pass_captain_export_types_v1` | `array $types` (ID → `label`, `rows`, optional `capability`, `filename`) | Zusätzliche Exporte als Schaltflächen auf der Berichtsseite; `rows( $filters, $scope )` liefert die Zeilen. Standardrecht `wpcap_view_reports`. |
+| `wp_pass_captain_scanner_adapters_v1` | `array $adapters` (ID → `label`, `recognizes`, `check_in`, optional `preview`, `capability`) | Scanner-Adapter für Codes, die kein Pass-Captain-Ticket sind (siehe [EXTENSIONS.md](EXTENSIONS.md#scanner)). |
+| `wpcap_log_to_error_log` | `bool $enabled, string $level, string $event` | Ob Einträge von `PassCaptain\Log` zusätzlich ins PHP-Fehlerprotokoll gehen (Standard: nur mit `WP_DEBUG` und `WP_DEBUG_LOG`). |
