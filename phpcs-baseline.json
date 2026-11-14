@@ -1,0 +1,370 @@
+{
+    "pass-captain.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.classFound": 1
+    },
+    "src/Admin/DevicesPage.php": {
+        "WordPress.DB.PreparedSQL.NotPrepared": 3
+    },
+    "src/Admin/EventsPage.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+    },
+    "src/Admin/FeatureScreens.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.classFound": 1
+    },
+    "src/Admin/Forms.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound": 3,
+        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1,
+        "WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 1
+    },
+    "src/Admin/MembershipsPage.php": {
+        "WordPress.Security.EscapeOutput.OutputNotEscaped": 4
+    },
+    "src/Admin/Queries.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 59,
+        "WordPress.DB.PreparedSQL.NotPrepared": 11,
+        "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 3
+    },
+    "src/Admin/ServicesPage.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.resourceFound": 3
+    },
+    "src/Admin/TicketsPage.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+    },
+    "src/Admission/Areas.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+    },
+    "src/Admission/Conflicts.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4,
+        "WordPress.DB.PreparedSQL.NotPrepared": 10,
+        "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 2
+    },
+    "src/Admission/Engine.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 12
+    },
+    "src/Admission/Policies.php": {
+        "Squiz.PHP.DisallowSizeFunctionsInLoops.Found": 1
+    },
+    "src/Admission/RulesPage.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+    },
+    "src/BoxOffice/Page.php": {
+        "WordPress.WP.I18n.MissingTranslatorsComment": 4
+    },
+    "src/BoxOffice/PosGateway.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.listFound": 1
+    },
+    "src/BoxOffice/Service.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2,
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.returnFound": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 14,
+        "WordPress.WP.I18n.MissingTranslatorsComment": 1
+    },
+    "src/Calendar/Ics.php": {
+        "Universal.Files.SeparateFunctionsFromOO.Mixed": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 5,
+        "WordPress.WP.AlternativeFunctions.strip_tags_strip_tags": 1
+    },
+    "src/Campaigns.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+    },
+    "src/Checkin.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 11
+    },
+    "src/Communications.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3
+    },
+    "src/Fiscalization/Providers/EfstaEfrAdapter.php": {
+        "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 1
+    },
+    "src/Integrations/AffiliateCaptain/Adapter.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.functionFound": 1,
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.listFound": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6,
+        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1,
+        "WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 1
+    },
+    "src/Integrations/Vouchers/Bridge.php": {
+        "WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound": 1
+    },
+    "src/Integrations/Vouchers/Checkout.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.finalFound": 3,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3
+    },
+    "src/Integrations/Vouchers/TicketService.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4,
+        "WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound": 1
+    },
+    "src/Integrations/WooCommerce/Attendees.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1,
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
+    },
+    "src/Integrations/WooCommerce/CartPricing.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 3
+    },
+    "src/Integrations/WooCommerce/OrderAdapter.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6
+    },
+    "src/Invoices.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 26,
+        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 3,
+        "WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 2,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_fclose": 1,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_fwrite": 1
+    },
+    "src/Jobs.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3
+    },
+    "src/Mail/Layout.php": {
+        "WordPress.WP.AlternativeFunctions.strip_tags_strip_tags": 2
+    },
+    "src/Mail/Types.php": {
+        "WordPress.WP.I18n.MissingTranslatorsComment": 2
+    },
+    "src/Memberships.php": {
+        "Generic.CodeAnalysis.RequireExplicitBooleanOperatorPrecedence.MissingParentheses": 2,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+    },
+    "src/Mobile/Api.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.Found": 3,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4,
+        "WordPress.DB.PreparedSQL.NotPrepared": 2
+    },
+    "src/Mobile/Devices.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 1
+    },
+    "src/Modules/BoxOffice.php": {
+        "WordPress.DB.DirectDatabaseQuery.SchemaChange": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+    },
+    "src/Modules/Calendar.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
+    },
+    "src/Modules/Reminders.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 17
+    },
+    "src/Modules/Sms.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 5,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 13
+    },
+    "src/Modules/Webhooks.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2,
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.doFound": 1,
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.newFound": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6
+    },
+    "src/Mollie/MollieGateway.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+    },
+    "src/Notifications.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 5
+    },
+    "src/OccurrenceCancellation.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 15
+    },
+    "src/OfflineScanner/AdminPage.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1
+    },
+    "src/OfflineScanner/Assignments.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2,
+        "WordPress.DB.PreparedSQL.NotPrepared": 2
+    },
+    "src/OfflineScanner/Keys.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.publicFound": 1,
+        "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode": 2,
+        "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 3
+    },
+    "src/OfflineScanner/Package.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 11,
+        "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode": 1
+    },
+    "src/OfflineScanner/Rest.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.Found": 3,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+    },
+    "src/Orders.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.listFound": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 86,
+        "WordPress.DB.PreparedSQL.NotPrepared": 8,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 2,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_mkdir": 1,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_rmdir": 1,
+        "WordPress.WP.I18n.MissingTranslatorsComment": 1
+    },
+    "src/Partners/AdminPage.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound": 2,
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.doFound": 1
+    },
+    "src/Partners/Api.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.Found": 1
+    },
+    "src/Partners/Repository.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound": 1
+    },
+    "src/Partners/SalesModel.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+    },
+    "src/Partners/Settlements.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 5,
+        "WordPress.DB.PreparedSQL.NotPrepared": 1
+    },
+    "src/Payments/Webhooks.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+    },
+    "src/Plugin.php": {
+        "Squiz.PHP.CommentedOutCode.Found": 1,
+        "WordPress.WP.CronInterval.ChangeDetected": 2
+    },
+    "src/Printing/AttendeeList.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6
+    },
+    "src/Printing/InvoicePdf.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 1,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
+        "WordPress.WP.I18n.MissingTranslatorsComment": 6
+    },
+    "src/Printing/Page.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3,
+        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1,
+        "WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 1
+    },
+    "src/Printing/Templates.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 14
+    },
+    "src/Privacy.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 32
+    },
+    "src/Privacy/Retention.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 9,
+        "WordPress.DB.PreparedSQL.NotPrepared": 34
+    },
+    "src/QrCode.php": {
+        "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 1
+    },
+    "src/Refunds.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 40
+    },
+    "src/Reports/Data.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 24,
+        "WordPress.DB.PreparedSQL.NotPrepared": 4
+    },
+    "src/Reports/Page.php": {
+        "WordPress.WP.I18n.MissingTranslatorsComment": 2
+    },
+    "src/Reports/Scope.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_fclose": 1,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_fopen": 1,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_fwrite": 1
+    },
+    "src/Seating/AdminPage.php": {
+        "WordPress.DB.PreparedSQL.NotPrepared": 2
+    },
+    "src/Seating/Layouts.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 1,
+        "WordPress.DB.PreparedSQL.NotPrepared": 50
+    },
+    "src/Seating/Picker.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
+    },
+    "src/Seating/Reservations.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 20,
+        "WordPress.DB.PreparedSQL.NotPrepared": 28
+    },
+    "src/Seats.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+    },
+    "src/Series/AdminPage.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1,
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound": 1,
+        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1,
+        "WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 1
+    },
+    "src/Series/Generator.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 5,
+        "WordPress.DB.PreparedSQL.NotPrepared": 4
+    },
+    "src/Series/Pools.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 7,
+        "WordPress.DB.PreparedSQL.NotPrepared": 8
+    },
+    "src/ServiceBookings.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
+    },
+    "src/ServiceResources.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.resourceFound": 1
+    },
+    "src/Sms/Service.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 16
+    },
+    "src/TicketAssignments.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
+    },
+    "src/TicketPdf.php": {
+        "Generic.CodeAnalysis.ForLoopWithTestFunctionCall.NotAllowed": 2
+    },
+    "src/Waitlists.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 9,
+        "WordPress.Security.NonceVerification.Recommended": 2,
+        "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1
+    },
+    "src/WalletPasses/ApnsClient.php": {
+        "WordPress.WP.AlternativeFunctions.curl_curl_close": 1,
+        "WordPress.WP.AlternativeFunctions.curl_curl_exec": 1,
+        "WordPress.WP.AlternativeFunctions.curl_curl_getinfo": 1,
+        "WordPress.WP.AlternativeFunctions.curl_curl_init": 1,
+        "WordPress.WP.AlternativeFunctions.curl_curl_setopt_array": 1,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 1,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1
+    },
+    "src/WalletPasses/AppleProvider.php": {
+        "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode": 1,
+        "WordPress.Security.EscapeOutput.ExceptionNotEscaped": 1,
+        "WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 4,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 2,
+        "WordPress.WP.AlternativeFunctions.json_encode_json_encode": 2
+    },
+    "src/WalletPasses/Archive.php": {
+        "WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 1
+    },
+    "src/WalletPasses/Credentials.php": {
+        "WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 2
+    },
+    "src/WalletPasses/GoogleProvider.php": {
+        "WordPress.Security.EscapeOutput.ExceptionNotEscaped": 1
+    },
+    "src/WalletPasses/Jwt.php": {
+        "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode": 1,
+        "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 1
+    },
+    "src/WalletPasses/Service.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 13,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 1,
+        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1
+    },
+    "src/WalletPasses/Store.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2,
+        "WordPress.DB.PreparedSQL.NotPrepared": 22,
+        "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode": 1,
+        "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 1
+    },
+    "src/Webhooks/Dispatcher.php": {
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound": 2,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 9,
+        "WordPress.DB.PreparedSQL.NotPrepared": 8
+    },
+    "templates/event-card.php": {
+        "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound": 8,
+        "WordPress.WP.GlobalVariablesOverride.Prohibited": 1
+    },
+    "uninstall.php": {
+        "WordPress.DB.DirectDatabaseQuery.SchemaChange": 1,
+        "WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound": 1
+    }
+}

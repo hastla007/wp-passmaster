@@ -11,6 +11,9 @@ name: Release
 # must be on main (ancestor of origin/main), the CI workflow (ci.yml) must have succeeded for
 # exactly that commit (queried via the Actions API; running CI is waited for), and the tag must
 # match the plugin header Version, WPCAP_VERSION and the readme.txt Stable tag.
+# Then build/check-versions.sh (CHANGELOG, composer.json, requirements), a reproducible build whose
+# sha256 must equal the ZIP the CI run tested, and the release gets pass-captain.zip plus
+# pass-captain.zip.sha256 (verification: docs/COMPATIBILITY.md, "Release-Artefakt prüfen").
 on:
   push:
     tags:
@@ -82,13 +85,31 @@ jobs:
         if: env.SKIP == ''
         with:
           php-version: '8.2'
-          tools: composer:v2
+          # Same exact Composer version as ci.yml (COMPOSER_VERSION), so the ZIP is byte-identical.
+          tools: composer:2.8.12
           extensions: mbstring
           coverage: none
 
-      - name: Build ZIP
+      - name: Version, changelog and requirement consistency
+        if: env.SKIP == ''
+        run: bash build/check-versions.sh "$TAG"
+
+      - name: Build ZIP (reproducible, writes pass-captain.zip.sha256)
         if: env.SKIP == ''
         run: bash build/release.sh
+
+      - name: Compare with the ZIP CI built and tested for this commit
+        if: env.SKIP == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id="$(gh api -X GET "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs" -f head_sha="$RELEASE_SHA" -f status=success -f per_page=1 --jq '.workflow_runs[0].id // empty')"
+          test -n "$run_id" || { echo "::error::No successful CI run with an artifact for ${RELEASE_SHA}"; exit 1; }
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --name pass-captain --dir "$RUNNER_TEMP/ci-artifact"
+          ci="$(sha256sum "$RUNNER_TEMP/ci-artifact/pass-captain.zip" | cut -d' ' -f1)"
+          ours="$(cut -d' ' -f1 build/dist/pass-captain.zip.sha256)"
+          echo "CI run ${run_id}: ${ci}"; echo "release build:  ${ours}"
+          test "$ci" = "$ours" || { echo "::error::Release ZIP differs from the ZIP CI tested for ${RELEASE_SHA} (build not reproducible)"; exit 1; }
 
       - name: Extract release notes from CHANGELOG.md
         if: env.SKIP == ''
@@ -115,7 +136,7 @@ jobs:
           else
             target_args=(--target "$RELEASE_SHA")
           fi
-          gh release create "$TAG" build/dist/pass-captain.zip \
+          gh release create "$TAG" build/dist/pass-captain.zip build/dist/pass-captain.zip.sha256 \
             --title "Pass Captain ${TAG}" \
             --notes-file release-notes.md \
             "${target_args[@]}"
