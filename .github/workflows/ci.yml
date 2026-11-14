@@ -59,6 +59,8 @@ jobs:
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=2G --error-format=github
       - name: Composer security audit (runtime and dev packages)
         run: composer audit --locked --no-interaction
+      - name: Translations complete (POT vs. PO, placeholders, compiled MO)
+        run: php build/check-i18n.php
 
   license-guard:
     # Decision 13.11.2026 (TODO A2): the core plugin stays free for WordPress.org. Fails as soon as licence

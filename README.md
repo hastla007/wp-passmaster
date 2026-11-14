@@ -126,7 +126,13 @@ Dokumentation: [WALLET](docs/WALLET.md), [WEBHOOKS](docs/WEBHOOKS.md), [HOOKS](d
 Ausgangssprache ist Deutsch. Vollständige Übersetzungen liegen für Englisch (en_US), Französisch (fr_FR), Italienisch (it_IT), Spanisch (es_ES) und Niederländisch (nl_NL) in `languages/`. Weitere Sprachen entstehen aus der Vorlage `languages/pass-captain.pot`. Kompilieren ohne gettext-Tools:
 
 ```sh
+# Vorlage neu erzeugen (WP-CLI)
+wp i18n make-pot . languages/pass-captain.pot --slug=pass-captain --domain=pass-captain --exclude=vendor,tests,assets/vendor,node_modules,build,docs,languages --skip-block-json
+# Vorlage in eine Sprache übernehmen (ersetzt msgmerge), übersetzen, kompilieren
+php build/merge-po.php languages/pass-captain.pot languages/pass-captain-xx_XX.po
 php build/compile-mo.php languages/pass-captain-xx_XX.po
+# Vollständigkeit und Platzhalter prüfen (läuft auch in der CI)
+php build/check-i18n.php
 ```
 
 ## Noch offen

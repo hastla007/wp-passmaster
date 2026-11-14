@@ -6403,7 +6403,7 @@ msgid "WooCommerce-Erstattungen mit Menge dürfen bereits eingecheckte Tickets e
 msgstr ""
 
 #: src/Integrations/WooCommerce/SellerSplit.php:89
-msgid "Standard: aus. Erstattungen mit Mengenangabe, die eingecheckte Tickets betreffen würden, werden dann abgelehnt; eine reine Betragserstattung bleibt möglich."
+msgid "Gilt nur, solange die zentrale Einstellung „Erstattung nach Check-in“ (Pass Captain → Einstellungen) nicht gesetzt ist; diese hat Vorrang. Ohne Erlaubnis werden Erstattungen mit Mengenangabe, die eingecheckte Tickets betreffen würden, abgelehnt; eine reine Betragserstattung bleibt möglich."
 msgstr ""
 
 #. translators: 1: event and ticket name, 2: seller of the ticket, 3: sellers already in the cart

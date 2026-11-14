@@ -6402,8 +6402,8 @@ msgid "WooCommerce-Erstattungen mit Menge dürfen bereits eingecheckte Tickets e
 msgstr "Los reembolsos de WooCommerce con cantidad pueden reembolsar entradas que ya tienen check-in"
 
 #: src/Integrations/WooCommerce/SellerSplit.php:89
-msgid "Standard: aus. Erstattungen mit Mengenangabe, die eingecheckte Tickets betreffen würden, werden dann abgelehnt; eine reine Betragserstattung bleibt möglich."
-msgstr "Predeterminado: desactivado. En ese caso se rechazan los reembolsos con cantidad que afectarían a entradas con check-in; sigue siendo posible un reembolso solo de importe."
+msgid "Gilt nur, solange die zentrale Einstellung „Erstattung nach Check-in“ (Pass Captain → Einstellungen) nicht gesetzt ist; diese hat Vorrang. Ohne Erlaubnis werden Erstattungen mit Mengenangabe, die eingecheckte Tickets betreffen würden, abgelehnt; eine reine Betragserstattung bleibt möglich."
+msgstr "Solo se aplica mientras el ajuste central «Reembolso tras el check-in» (Pass Captain → Ajustes) no esté definido; ese ajuste tiene prioridad. Sin permiso, se rechazan los reembolsos con cantidad que afectarían a tickets con check-in; un reembolso solo de importe sigue siendo posible."
 
 #. translators: 1: event and ticket name, 2: seller of the ticket, 3: sellers already in the cart
 #: src/Integrations/WooCommerce/SellerSplit.php:132

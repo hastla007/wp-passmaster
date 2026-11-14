@@ -86,7 +86,7 @@ final class SellerSplit {
 		$settings[] = array(
 			'title'    => __( 'Eingecheckte Tickets erstatten', 'pass-captain' ),
 			'desc'     => __( 'WooCommerce-Erstattungen mit Menge dürfen bereits eingecheckte Tickets erstatten', 'pass-captain' ),
-			'desc_tip' => __( 'Standard: aus. Erstattungen mit Mengenangabe, die eingecheckte Tickets betreffen würden, werden dann abgelehnt; eine reine Betragserstattung bleibt möglich.', 'pass-captain' ),
+			'desc_tip' => __( 'Gilt nur, solange die zentrale Einstellung „Erstattung nach Check-in“ (Pass Captain → Einstellungen) nicht gesetzt ist; diese hat Vorrang. Ohne Erlaubnis werden Erstattungen mit Mengenangabe, die eingecheckte Tickets betreffen würden, abgelehnt; eine reine Betragserstattung bleibt möglich.', 'pass-captain' ),
 			'id'       => OrderAdapter::CHECKED_IN_OPTION,
 			'type'     => 'checkbox',
 			'default'  => 'no',
