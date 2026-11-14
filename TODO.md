@@ -56,7 +56,7 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 - [ ] PWA-/Endgeräte-, reale PSP-Sandbox- und vollständige Refund-End-to-End-Abnahmen in CI/Release-Gates ergänzen.
 - [x] CI baut und prüft ein installierbares ZIP; Aktivierungs-/Deaktivierungshooks und Migrationen sind vorhanden.
 - [ ] Aktivierung, Update, Restore und Deinstallation in realen WordPress-Versionen durchtesten.
-- [ ] Automatisierte Integration-, Syntax-, Last- und A11y-Prüfungen existieren; verbindliche Release-Gates sowie manuelle Mobile-/Desktop-Abnahme sind noch nicht vollständig dokumentiert.
+- [x] Automatisierte Integration-, Syntax-, Last- und A11y-Prüfungen existieren; verbindliche Release-Gates sowie manuelle Mobile-/Desktop-Abnahme sind noch nicht vollständig dokumentiert. **Erledigt (2026-11-14):** verbindliche automatische Gates und manuelle Abnahme-Checkliste mit Freigabevorlage in `docs/RELEASE.md`; Browser-/A11y-Job in CI.
 
 ## P1 – Voucher-Captain-Integration
 
@@ -99,7 +99,7 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 - [x] Pass Captain funktioniert ohne Voucher Captain; Voucher Captain funktioniert ohne Pass Captain. *(CI beider Plugins läuft ohne das andere)*
 - [x] Gemeinsame Installation aktiviert die definierte Bridge, ohne separate Plugin-Einträge oder Admin-Menüs zusammenzulegen.
 - [x] Gutschein-zu-Ticket-Einlösung und Ticket-Rückerstattung sind idempotent und revisionsfähig.
-- [ ] Release-Gates aus Konzept sind bestanden und dokumentiert.
+- [ ] Release-Gates aus Konzept sind bestanden und dokumentiert. *Stand 2026-11-14: Gates dokumentiert (`docs/RELEASE.md`), automatisiert in CI/Release-Workflow; Bestehen erst mit dem ersten echten CI-Lauf und der manuellen Abnahme.*
 
 ## P1 – Ticketverwaltung nach dem Kauf
 
@@ -152,7 +152,7 @@ Dieses Backlog beschreibt den Abgleich mit dem aktuellen Stand von `main` (Plugi
 - [ ] Länderbezogene Steuer-/Rechtsprofile fachlich prüfen und aktivieren.
 - [x] CI prüft PHP 8.2/8.4, Syntax, Composer, Integrationstests und ZIP-Build; Integration läuft mit MariaDB.
 - [x] Keine Yoast-Laufzeitabhängigkeit; optionale Kompatibilität kann separat geprüft werden.
-- [ ] Kompatibilitäts- und Test-Baseline pro Release dokumentieren und aktuell halten.
+- [x] Kompatibilitäts- und Test-Baseline pro Release dokumentieren und aktuell halten. **Erledigt (2026-11-14):** `docs/COMPATIBILITY.md` (Abschnitt „Test-Basislinie je Release“ mit Pflegeablauf).
 - [ ] EU-Steuerfälle, OSS, Leistungsort, gemischte Steuersätze, Währungen und Erstattungsbelege mit fachlicher Steuerberatung für die unterstützten Länder spezifizieren.
 - [ ] Zahlungsanbieter und Währungen sind konfigurierbar; verfügbare Zahlungsmethoden pro Land/PSP/Transaktionstyp sowie Live-Akzeptanz fehlen.
 - [ ] Verbraucherinformationen und Storno-/Erstattungsbedingungen je unterstütztem Land rechtlich prüfen lassen.
@@ -227,10 +227,10 @@ Diese Punkte waren im vorherigen Abgleich noch nicht als eigene Aufgaben erfasst
 
 ### Abnahme, Barrierefreiheit und Releasebetrieb
 
-- [ ] Veralteten Fehlerbericht in docs/TESTING.md aktualisieren: Der Bericht nennt noch den behobenen Check-in-Deadlock und continue-on-error, obwohl der aktuelle CI-Workflow den Lasttest verpflichtend ausführt.
-- [ ] Prozess für Sicherheitsmeldungen, Incident-Behandlung, Abhängigkeitsupdates und regelmäßige WordPress-/WooCommerce-Kompatibilitätsprüfungen festlegen.
-- [ ] Release- und Supportmodell für stabile Versionen festlegen: unterstützte PHP/WP/WooCommerce-Matrix, Rückwärtskompatibilität, Supportkanal, Patchfristen und Ende des Supports.
-- [ ] Plugin-Metadaten und Funktionsdokumentation vor jedem Release mit dem Code abgleichen. Aktuell widersprechen sich README und Backlog z. B. beim Stand der Voucher-Checkout-Integration und der Zahlungsanbieter.
+- [x] Veralteten Fehlerbericht in docs/TESTING.md aktualisieren: Der Bericht nennt noch den behobenen Check-in-Deadlock und continue-on-error, obwohl der aktuelle CI-Workflow den Lasttest verpflichtend ausführt. **Erledigt (2026-11-14):** `docs/TESTING.md` neu als zusammenhängendes Dokument.
+- [x] Prozess für Sicherheitsmeldungen, Incident-Behandlung, Abhängigkeitsupdates und regelmäßige WordPress-/WooCommerce-Kompatibilitätsprüfungen festlegen. **Erledigt (2026-11-14):** `docs/SECURITY.md` „Sicherheitsprozess“ (Meldung über GitHub Security Advisories, Incident-Schritte, Abhängigkeits- und Kompatibilitätsprüfungen). Mit „Entscheidung offen“ markiert: Reaktionszeiten, Update-Bot.
+- [x] Release- und Supportmodell für stabile Versionen festlegen: unterstützte PHP/WP/WooCommerce-Matrix, Rückwärtskompatibilität, Supportkanal, Patchfristen und Ende des Supports. **Erledigt (2026-11-14):** `docs/SUPPORT.md`. Mit „Entscheidung offen“ markiert: Mindest-WP-Regel, Supportkanäle, Sicherheitsfrist alter Major-Versionen, Release-Rhythmus.
+- [x] Plugin-Metadaten und Funktionsdokumentation vor jedem Release mit dem Code abgleichen. Aktuell widersprechen sich README und Backlog z. B. beim Stand der Voucher-Checkout-Integration und der Zahlungsanbieter. **Erledigt (2026-11-14):** README und readme.txt mit dem Code abgeglichen; Versionsabgleich automatisch (`build/check-versions.sh`); Abgleich bleibt Teil der Release-Checkliste.
 
 ### Multi-Seller-Geschäftsabläufe
 
@@ -336,3 +336,36 @@ Diese Befunde kamen aus der erneuten Prüfung mit fünf Perspektiven. Der neuest
 - [x] Plugin-Check-Restpunkte: `error_log()` (Installer, Refunds, Jobs) mit begründetem `phpcs:ignore`, `load_plugin_textdomain()` für die mitgelieferten Übersetzungen, direkte Dateisystemfunktionen/`@`-Unterdrückung (Calendar, InvoicePdf, Orders, WalletPasses) und Direkt-curl für APNs (HTTP/2) nach dem ersten echten Plugin-Check-Lauf bewerten. **Erledigt (2026-11-14):** Zentraler Logger (`Log`), `TempFiles` statt direkter Dateifunktionen, begründete Ausnahmen kommentiert.
 - [ ] Entscheiden: verwaiste Fiskal-Adapter (`src/Fiscalization/Providers/*`, ohne `AdapterInterface` in `main`) entfernen oder PR #14 übernehmen; `ConnectorRegistry::dispatch()` wird nirgends aufgerufen – Connectoren anbinden oder Vertrag als experimentell kennzeichnen.
 - [x] Fehlende Erweiterungspunkte für das Add-on ergänzen: Einstellungs-Abschnitte, Berichts-/Export-Hooks, Scanner-Adapter-Registry; öffentliche Hooks versionieren und per Test absichern (A4). **Erledigt (2026-11-14):** siehe A4.
+
+## Externe Abnahmen und offene Entscheidungen (Stand 2026-11-14)
+
+Diese Punkte lassen sich nicht im Code erledigen. Sie brauchen echte Umgebungen, Fachleute oder eine Entscheidung der Produktverantwortung.
+
+### Erster echter CI-Lauf
+- [ ] Workflows auf GitHub einmal vollständig laufen lassen und Fehler beheben: Testmatrix PHP × MariaDB/MySQL, ZIP-Installationstest (WordPress 6.4/aktuell, WooCommerce 8.2/aktuell, HPOS an/aus), Plugin Check, Browser-Job (axe-Gate + Playwright), gitleaks/Dependency Review, wöchentlicher Lasttest. Lokal sind alle Teile grün, in GitHub Actions noch nicht ausgeführt.
+- [ ] Für gitleaks ggf. Secret `GITLEAKS_LICENSE` (nur bei Organisations-Repositories) und den Dependency Graph aktivieren.
+
+### Abnahme in echten Umgebungen
+- [ ] Zahlungen und Erstattungen in den Sandboxes von Stripe, PayPal und Mollie inkl. verspäteter/doppelter Webhooks.
+- [ ] Echter WooCommerce-Shop: Classic- und Blocks-Checkout, gemischte Verkäufer (Ablehnen/Aufteilen), Erstattungsdialog mit eingecheckten Tickets.
+- [ ] Browser/Geräte: Firefox, Safari/WebKit, iOS, Android; Offline-Scanner-PWA auf echten Geräten; Kamera-Scanner mit realer Hardware.
+- [ ] Screenreader-, Tastatur- und 200-%-Zoom-Abnahme der Admin- und Käuferseiten.
+- [ ] Upgrade von 1.4.0 mit Backup/Restore-Übung auf einer Kopie realer Daten (`docs/OPERATIONS.md`), Multisite-Notfallübung.
+- [ ] Twilio/SMS und Apple-/Google-Wallet mit echten Betreiberkonten und Zertifikaten.
+
+### Fachliche Prüfungen
+- [ ] Unabhängiger Sicherheitsreview/Penetrationstest.
+- [ ] Rechtliche Prüfung von Verbraucherinformationen, Storno-/Erstattungsbedingungen und Datenschutztexten je Startland.
+- [ ] Steuerliche Prüfung und Aktivierung der Steuerprofile (OSS, Leistungsort, Gutschriften) je Startland.
+- [ ] Fiskalisierung: Zertifizierung/Abnahme mit fiskaly/efsta/fiskaltrust je Land (AT/DE/HU).
+
+### Entscheidungen der Produktverantwortung
+- [ ] Startländer festlegen (AT/DE/CH).
+- [ ] Verwaiste Fiskal-Adapter (`src/Fiscalization/Providers/*`): entfernen oder PR #14 übernehmen.
+- [ ] Seat Map im ersten marktfähigen Release stabil oder experimentell.
+- [ ] Offene Punkte in `docs/SUPPORT.md`, `docs/SECURITY.md` und `docs/RELEASE.md` („Entscheidung offen“): Release-Freigabe, Reaktionszeiten, Supportkanäle, Release-Rhythmus, Update-Bot.
+- [ ] Standard für `refund_after_checkin` (derzeit „erlauben“, gilt auch für WooCommerce).
+- [ ] Native Scanner-Apps als eigenes Produkt oder nicht.
+- [ ] WordPress.org: `Contributors`, `Tested up to`, Links zu AGB/Datenschutz der Anbieter in `readme.txt` prüfen; danach Einreichung (A9) und Lizenz-PRs #20–#23 schließen (A1).
+- [ ] Premium-Add-on (B1–B11) in einem eigenen Repository – außerhalb dieses Repositorys.
+
