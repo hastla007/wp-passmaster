@@ -40,12 +40,13 @@ final class Menu {
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
 			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
 			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),
-		) + \PassCaptain\Modules::admin_handlers();
+		) + StatusPage::handlers() + \PassCaptain\Modules::admin_handlers();
 	}
 
 	public static function register() {
 		add_action( 'admin_menu', array( self::class, 'add_menus' ) );
 		add_action( 'admin_head', array( self::class, 'admin_styles' ) );
+		StatusPage::register();
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
 		}
@@ -89,6 +90,7 @@ final class Menu {
 			list( $slug, $title, $cap, $callback ) = $page;
 			add_submenu_page( self::SLUG, $title, $title, $cap, $slug, $callback );
 		}
+		add_submenu_page( self::SLUG, __( 'Systemstatus', 'pass-captain' ), StatusPage::menu_title(), StatusPage::CAP, StatusPage::SLUG, array( StatusPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Einstellungen', 'pass-captain' ), __( 'Einstellungen', 'pass-captain' ), SettingsPage::CAP, SettingsPage::SLUG, array( SettingsPage::class, 'render' ) );
 		if ( \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) {
 			// Links into Voucher Captain's own menu (both plugins keep their menus, CONCEPT 15.7).
