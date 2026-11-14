@@ -189,7 +189,17 @@ final class EventsPage {
 		$doors = \PassCaptain\DoorsOpen::parse( $in['doors_open_at'] ?? '', $timezone, $starts );
 		if ( is_wp_error( $doors ) ) { return Forms::error( $doors->get_error_code(), $doors->get_error_message() ); }
 		$capacity = Forms::int( $in, 'capacity' );
-		$status = Forms::choice( $in, 'status', array( 'scheduled', 'cancelled' ), $old ? $old->status : 'scheduled' );
+		// A266/A356: the status is not edited here. Cancelling goes through the confirmation page
+		// (cancel_occurrence(): consequences, reason, confirmation); a cancelled occurrence stays
+		// cancelled (its tickets were revoked and the holders informed).
+		$status = $old ? (string) $old->status : 'scheduled';
+		$requested = isset( $in['status'] ) ? Forms::choice( $in, 'status', array( 'scheduled', 'cancelled' ), '' ) : '';
+		if ( 'cancelled' === $requested && 'cancelled' !== $status ) {
+			return Forms::error( 'wpcap_occurrence_cancel_flow', __( 'Termine werden nur über „Absagen …“ abgesagt: Dort stehen die Folgen (widerrufene Tickets, Erstattungen, Benachrichtigungen), der Grund und die Bestätigung.', 'pass-captain' ), 409 );
+		}
+		if ( 'scheduled' === $requested && 'cancelled' === $status ) {
+			return Forms::error( 'wpcap_occurrence_reactivate', self::reactivation_message(), 409 );
+		}
 		if ( $old && $capacity > 0 ) {
 			$sold = Queries::sold_for_occurrence( $old->occurrence_id );
 			if ( $capacity < $sold ) {
@@ -234,9 +244,7 @@ final class EventsPage {
 			// A114: field-by-field diff (old → new) for the occurrence's change history.
 			$changes = ChangeHistory::diff( (array) $old, $data );
 			Audit::record( 'occurrence_updated', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'old_starts_at' => $old->starts_at, 'new_starts_at' => $starts, 'status' => $status, 'rescheduled' => $rescheduled, 'changes' => $changes ) + ( isset( $data['venue_country'] ) && (string) ( $old->venue_country ?? '' ) !== $data['venue_country'] ? array( 'old_venue_country' => (string) ( $old->venue_country ?? '' ), 'venue_country' => $data['venue_country'] ) : array() ) );
-			if ( 'cancelled' === $status && 'cancelled' !== $old->status ) {
-				do_action( 'wpcap_occurrence_cancelled', $occurrence_id, $issued );
-			} elseif ( self::capacity_grew( (int) $old->capacity, (int) $capacity ) ) {
+			if ( 'scheduled' === $status && self::capacity_grew( (int) $old->capacity, (int) $capacity ) ) {
 				// More places: waitlist offers go out now instead of on the next hourly sweep.
 				do_action( 'wpcap_capacity_increased', 0, $occurrence_id );
 			}
@@ -250,6 +258,11 @@ final class EventsPage {
 		}
 		\PassCaptain\PageCache::event_changed( (int) $event->event_id, 'occurrence', $occurrence_id ); // A446.
 		return array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled ) + Forms::dst_warning( $dst_notes );
+	}
+
+	/** Why a cancelled occurrence cannot be scheduled again (A356). */
+	public static function reactivation_message() {
+		return __( 'Ein abgesagter Termin kann nicht wieder auf „Geplant“ gesetzt werden: Seine Tickets wurden widerrufen (bzw. erstattet) und die Inhaber über die Absage informiert. Lege bitte einen neuen Termin an und verkaufe dafür neue Tickets.', 'pass-captain' );
 	}
 
 	/** Whether a capacity change frees places (0 = unlimited). */
@@ -548,11 +561,41 @@ final class EventsPage {
 		return array( 'event_id' => $event_id );
 	}
 
-	/** Cancels a published event (revokes tickets, notifies buyers). */
+	/**
+	 * What cancelling a whole event would do (A267, shown before the irreversible action).
+	 *
+	 * @return array occurrences (not yet cancelled), tickets (valid), paid_orders (native),
+	 *               woo_orders, pending_orders, recipients (buyers/attendees of paid and open orders),
+	 *               auto_refund (bool).
+	 */
+	public static function event_cancellation_preview( $event_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$event_id = absint( $event_id );
+		$join = "FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE o.event_id=%d AND t.status='valid'";
+		$items = "FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_tickets t ON t.order_id=ord.order_id AND t.ticket_type_id=tt.ticket_type_id WHERE o.event_id=%d";
+		return array(
+			'occurrences' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_occurrences WHERE event_id=%d AND status<>'cancelled'", $event_id ) ),
+			'tickets' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) $join", $event_id ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed fragment.
+			'paid_orders' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT ord.order_id) $join AND ord.payment_status='paid' AND ord.payment_provider<>'woocommerce'", $event_id ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			'woo_orders' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT ord.order_id) $join AND ord.payment_status='paid' AND ord.payment_provider='woocommerce'", $event_id ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			'pending_orders' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT ord.order_id) $items AND ord.payment_status='pending'", $event_id ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			'recipients' => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email)) $items AND ord.payment_status IN ('paid','pending','paid_unallocated')", $event_id ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			'auto_refund' => (bool) \PassCaptain\Settings::get( 'auto_refund_cancelled' ),
+		);
+	}
+
+	/**
+	 * Cancels a published event (A267: only with a reason and the explicit confirmation of the
+	 * consequences shown on the confirmation page): all occurrences, tickets revoked, buyers informed.
+	 */
 	public static function cancel_event( array $in ) {
 		$event_id = Forms::int( $in, 'event_id' );
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
-		$result = Orders::cancel_event( $event_id );
+		$reason = Forms::text( $in, 'reason', 255 );
+		if ( '' === $reason ) { return Forms::error( 'wpcap_cancel_reason', __( 'Bitte einen Grund für die Absage angeben.', 'pass-captain' ) ); }
+		if ( ! Forms::flag( $in, 'confirm' ) ) { return Forms::error( 'wpcap_cancel_confirm', __( 'Bitte bestätigen, dass die Folgen der Absage geprüft wurden.', 'pass-captain' ) ); }
+		$result = Orders::cancel_event( $event_id, $reason );
 		return is_wp_error( $result ) ? Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ) : $result;
 	}
 
@@ -656,7 +699,8 @@ final class EventsPage {
 				? sprintf( __( '%1$d Bestellungen wurden automatisch erstattet, %2$d Erstattungen sind offen (siehe Erstattungen). WooCommerce-Bestellungen bitte in WooCommerce erstatten.', 'pass-captain' ), (int) $result['refunds'], (int) $result['refund_errors'] )
 				: __( 'Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten.', 'pass-captain' ) );
 		}
-		Forms::finish( $result, $message, self::url() );
+		$back = self::url( array( 'view' => 'cancel_event', 'event_id' => $event_id ) );
+		Forms::finish( $result, $message, is_wp_error( $result ) ? $back : self::event_url( $event_id ), $back );
 	}
 
 	/* =============================================================================================
@@ -673,6 +717,8 @@ final class EventsPage {
 			self::render_event( absint( $_GET['event_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		} elseif ( 'occurrence' === $view ) {
 			self::render_occurrence( absint( $_GET['occurrence_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		} elseif ( 'cancel_event' === $view ) {
+			self::render_cancel_event( absint( $_GET['event_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		} elseif ( 'cancel_occurrence' === $view ) {
 			self::render_cancel_occurrence( absint( $_GET['occurrence_id'] ?? 0 ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		} elseif ( 'ticket_type' === $view ) {
@@ -720,6 +766,46 @@ final class EventsPage {
 		echo '<table class="form-table"><tbody><tr><th><label for="wpcap-cancel-reason">' . esc_html__( 'Grund der Absage', 'pass-captain' ) . '</label></th><td><input id="wpcap-cancel-reason" name="reason" class="regular-text" maxlength="255" required> <p class="description">' . esc_html__( 'Wird im Protokoll gespeichert.', 'pass-captain' ) . '</p></td></tr>';
 		echo '<tr><th>' . esc_html__( 'Bestätigung', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="confirm" value="1" required> ' . esc_html__( 'Ich habe die Folgen geprüft und möchte den Termin absagen.', 'pass-captain' ) . '</label></td></tr></tbody></table>';
 		echo '<p><button class="button button-primary" type="submit">' . esc_html__( 'Termin endgültig absagen', 'pass-captain' ) . '</button></p></form>';
+	}
+
+	/** Confirmation page of an event cancellation (A267): consequences, reason, explicit confirmation. */
+	private static function render_cancel_event( $event_id ) {
+		$event = Queries::event( $event_id );
+		if ( ! $event || ! Access::can_access_event( (int) $event->event_id, self::CAP ) ) { self::denied(); return; }
+		echo '<p><a href="' . esc_url( self::event_url( (int) $event->event_id ) ) . '">' . esc_html__( '← Zum Event', 'pass-captain' ) . '</a></p>';
+		/* translators: %s: event name */
+		echo '<h1>' . esc_html( sprintf( __( 'Event absagen: %s', 'pass-captain' ), $event->name ) ) . '</h1>';
+		Forms::render_notices();
+		if ( 'published' !== $event->status ) {
+			echo '<p>' . esc_html( 'cancelled' === $event->status ? __( 'Dieses Event ist bereits abgesagt.', 'pass-captain' ) : __( 'Nur veröffentlichte Events können abgesagt werden.', 'pass-captain' ) ) . '</p>';
+			return;
+		}
+		$pv = self::event_cancellation_preview( (int) $event->event_id );
+		echo '<div class="notice notice-warning inline"><p><strong>' . esc_html__( 'Die Absage kann nicht rückgängig gemacht werden. Folgen:', 'pass-captain' ) . '</strong></p><ul style="list-style:disc;margin-left:2em">';
+		/* translators: %d: occurrences */
+		echo '<li>' . esc_html( sprintf( __( '%d Termine werden abgesagt.', 'pass-captain' ), $pv['occurrences'] ) ) . '</li>';
+		/* translators: %d: tickets */
+		echo '<li>' . esc_html( sprintf( __( '%d gültige Tickets werden widerrufen.', 'pass-captain' ), $pv['tickets'] ) ) . '</li>';
+		/* translators: %d: orders */
+		echo '<li>' . esc_html( sprintf( __( '%d unbezahlte Bestellungen werden storniert, ihre Reservierungen freigegeben.', 'pass-captain' ), $pv['pending_orders'] ) ) . '</li>';
+		echo '<li>' . esc_html( $pv['auto_refund']
+			/* translators: %d: orders */
+			? sprintf( __( '%d bezahlte Bestellungen werden automatisch erstattet (Freigaberegeln gelten).', 'pass-captain' ), $pv['paid_orders'] )
+			/* translators: %d: orders */
+			: sprintf( __( '%d bezahlte Bestellungen werden nicht automatisch erstattet; die Tickets bleiben erstattungsfähig (Bestellung → Erstatten).', 'pass-captain' ), $pv['paid_orders'] ) ) . '</li>';
+		if ( $pv['woo_orders'] ) {
+			/* translators: %d: orders */
+			echo '<li>' . esc_html( sprintf( __( '%d WooCommerce-Bestellungen müssen in WooCommerce erstattet werden.', 'pass-captain' ), $pv['woo_orders'] ) ) . '</li>';
+		}
+		/* translators: %d: recipients */
+		echo '<li>' . esc_html( sprintf( __( '%d Personen erhalten die Absage-Mail des Events.', 'pass-captain' ), $pv['recipients'] ) ) . '</li>';
+		echo '<li>' . esc_html__( 'Das Event kann danach nicht mehr bearbeitet werden.', 'pass-captain' ) . '</li>';
+		echo '</ul></div>';
+		Forms::open_form( 'wpcap_cancel_event', 'wpcap_cancel_event_' . (int) $event->event_id );
+		Forms::hidden( 'event_id', (int) $event->event_id );
+		echo '<table class="form-table"><tbody><tr><th><label for="wpcap-cancel-event-reason">' . esc_html__( 'Grund der Absage', 'pass-captain' ) . '</label></th><td><input id="wpcap-cancel-event-reason" name="reason" class="regular-text" maxlength="255" required> <p class="description">' . esc_html__( 'Wird im Protokoll gespeichert.', 'pass-captain' ) . '</p></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Bestätigung', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="confirm" value="1" required> ' . esc_html__( 'Ich habe die Folgen geprüft und möchte das ganze Event absagen.', 'pass-captain' ) . '</label></td></tr></tbody></table>';
+		echo '<p><button class="button button-primary" type="submit">' . esc_html__( 'Event endgültig absagen', 'pass-captain' ) . '</button></p></form>';
 	}
 
 	private static function denied() {
@@ -784,9 +870,7 @@ final class EventsPage {
 					<td>
 						<a class="button" href="<?php echo esc_url( self::event_url( $event->event_id ) ); ?>"><?php esc_html_e( 'Bearbeiten', 'pass-captain' ); ?></a>
 						<?php if ( 'published' === $event->status ) : ?>
-							<?php Forms::open_form( 'wpcap_cancel_event', 'wpcap_cancel_event_' . $event->event_id, 'style="display:inline"' ); Forms::hidden( 'event_id', $event->event_id ); ?>
-							<button class="button" type="submit" onclick="return window.confirm('<?php echo esc_js( __( 'Event absagen und betroffene Käufer benachrichtigen?', 'pass-captain' ) ); ?>')"><?php esc_html_e( 'Event absagen', 'pass-captain' ); ?></button>
-							</form>
+							<a class="button" href="<?php echo esc_url( self::url( array( 'view' => 'cancel_event', 'event_id' => $event->event_id ) ) ); ?>"><?php esc_html_e( 'Event absagen …', 'pass-captain' ); ?></a>
 						<?php endif; ?>
 					</td>
 				</tr>
@@ -857,6 +941,9 @@ final class EventsPage {
 			</tbody></table>
 			<?php submit_button( __( 'Event aktualisieren', 'pass-captain' ) ); ?>
 			</form>
+			<?php if ( 'published' === $event->status ) : ?>
+				<p><a class="button" href="<?php echo esc_url( self::url( array( 'view' => 'cancel_event', 'event_id' => $event->event_id ) ) ); ?>"><?php esc_html_e( 'Event absagen …', 'pass-captain' ); ?></a></p>
+			<?php endif; ?>
 		<?php else : ?>
 			<p><?php esc_html_e( 'Dieses Event wurde abgesagt und kann nicht mehr bearbeitet werden.', 'pass-captain' ); ?></p>
 		<?php endif; ?>
@@ -920,7 +1007,16 @@ final class EventsPage {
 			<tr><th><label for="wpcap-occ-country"><?php esc_html_e( 'Veranstaltungsland', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-country" name="venue_country" type="text" size="3" maxlength="2" pattern="[A-Za-z]{2}" style="text-transform:uppercase" aria-describedby="wpcap-occ-country-help" value="<?php echo esc_attr( $occ ? (string) ( $occ->venue_country ?? '' ) : '' ); ?>"> <span class="description" id="wpcap-occ-country-help"><?php echo esc_html( sprintf( /* translators: %s: seller country code from the settings */ __( 'ISO-Code, z. B. AT. Leistungsort für die Umsatzsteuer auf Eintrittskarten (Steuerprofile). Leer = Land des Rechnungsstellers (%s).', 'pass-captain' ), \PassCaptain\Tax\Profiles::seller_country() ) ); ?></span></td></tr>
 			<?php endif; ?>
 			<tr><th><label for="wpcap-occ-cap"><?php esc_html_e( 'Kontingent', 'pass-captain' ); ?></label></th><td><input id="wpcap-occ-cap" name="capacity" type="number" min="0" value="<?php echo esc_attr( $occ ? (int) $occ->capacity : 0 ); ?>"> <span class="description"><?php esc_html_e( '0 bedeutet unbegrenzt.', 'pass-captain' ); ?></span></td></tr>
-			<tr><th><label for="wpcap-occ-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', array( 'scheduled' => __( 'Geplant', 'pass-captain' ), 'cancelled' => __( 'Abgesagt', 'pass-captain' ) ), $occ ? $occ->status : 'scheduled', 'wpcap-occ-status' ); ?></td></tr>
+			<?php if ( $occ ) : ?>
+			<tr><th scope="row"><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $occ->status ) ); ?>
+				<?php if ( 'cancelled' === $occ->status ) : ?>
+					<p class="description"><?php echo esc_html( self::reactivation_message() ); ?></p>
+				<?php else : ?>
+					<a class="button" href="<?php echo esc_url( self::url( array( 'view' => 'cancel_occurrence', 'occurrence_id' => $occ->occurrence_id ) ) ); ?>"><?php esc_html_e( 'Termin absagen …', 'pass-captain' ); ?></a>
+					<p class="description"><?php esc_html_e( 'Absagen nur über die Bestätigungsseite: Sie zeigt die Folgen und fragt nach dem Grund.', 'pass-captain' ); ?></p>
+				<?php endif; ?>
+			</td></tr>
+			<?php endif; ?>
 		</tbody></table>
 		<?php if ( $occ && Queries::issued_ticket_count_for_occurrence( $occ->occurrence_id ) ) : ?>
 			<p class="description"><?php esc_html_e( 'Für diesen Termin sind bereits Tickets ausgestellt. Eine Änderung des Beginns wird als Terminverschiebung gemeldet.', 'pass-captain' ); ?></p>

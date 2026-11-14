@@ -870,6 +870,12 @@ A429; vorher Full Scan, bei 500.000 Reservierungen ≈ 300 ms je Prüfung unter 
 
 Tickets, die bereits zum Einlass genutzt wurden (Status „eingecheckt“, ein nicht zurückgenommener Check-in oder ein Eintritt im Einlassmodul), werden in der Bestellansicht nur erstattet, wenn eine Person mit `wpcap_approve_refunds` im Feld „Ausnahme für bereits eingelassene Tickets“ eine Begründung angibt. Die Erstattung landet dann immer in „Erstattungen zur Freigabe“ (Vier-Augen-Prinzip), Grund und Ausnahme stehen im Erstattungsgrund und im Audit-Log. Automatische Erstattungen bei Terminabsage sowie Kassen-Stornos (mit eigener Ausnahme an der Kasse) sind davon nicht betroffen; das Bestellportal bietet eingelassene Tickets gar nicht zur Stornierung an.
 
+### Termin- und Eventabsage (A266, A267, A356)
+
+Termine und ganze Events werden nur über eine **Bestätigungsseite** abgesagt: „Absagen …“ beim Termin (`view=cancel_occurrence`) bzw. „Event absagen …“ in der Eventliste und auf der Eventseite (`view=cancel_event`). Die Seite nennt die Folgen (Termine, zu widerrufende Tickets, zu stornierende offene Bestellungen, automatische oder offene Erstattungen, WooCommerce-Bestellungen, Empfänger der Absage-Mail), verlangt einen **Grund** (Audit-Log) und eine **Bestätigung per Checkbox**; ohne beides lehnt der Server ab (`wpcap_cancel_reason`, `wpcap_cancel_confirm`).
+
+Das Bearbeitungsformular eines Termins hat kein Statusfeld mehr. Ein Status „Abgesagt“ über `save_occurrence` wird abgelehnt (`wpcap_occurrence_cancel_flow`). Ein abgesagter Termin kann **nicht wieder auf „Geplant“** gesetzt werden (`wpcap_occurrence_reactivate`, HTTP 409): seine Tickets sind widerrufen bzw. erstattet und die Inhaber informiert. Stattdessen einen neuen Termin anlegen. Ort, Zeiten usw. eines abgesagten Termins lassen sich weiter korrigieren; der Status bleibt „Abgesagt“.
+
 ### Automatische Erstattung bei Absagen (A354, A436)
 
 Ist „Bei Absage automatisch erstatten“ (`auto_refund_cancelled`) aktiv, erstattet eine Termin- oder Eventabsage bezahlte native Bestellungen als **Systemerstattung**: unabhängig von Rechten und Zwei-Faktor-Anmeldung der Person, die absagt (bzw. des Cron-Workers), und einschließlich bereits eingelassener Tickets – die Käufer:innen haben für einen Termin bezahlt, der nicht stattfindet. Die Freigabeschwelle (`refund_approval_threshold`) gilt weiter; solche Erstattungen warten in „Erstattungen zur Freigabe“. Dasselbe gilt für Pässe mit `on_cancel = revoke` und die Teilerstattung pro Tag.

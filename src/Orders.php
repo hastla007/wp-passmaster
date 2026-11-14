@@ -1762,7 +1762,7 @@ final class Orders {
 	 *
 	 * @return array|\WP_Error {status, notified_count, occurrences, cancelled_orders, refunds, refund_errors, revoked, auto_refund}
 	 */
-	public static function cancel_event( $event_id ) {
+	public static function cancel_event( $event_id, $reason = '' ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$event_id = absint( $event_id );
@@ -1831,7 +1831,7 @@ final class Orders {
 			'occurrences' => count( $occurrence_ids ),
 			'auto_refund' => (bool) Settings::get( 'auto_refund_cancelled' ),
 		) );
-		Audit::record( 'event_cancelled', 'event', $event_id, $result );
+		Audit::record( 'event_cancelled', 'event', $event_id, $result + ( '' !== (string) $reason ? array( 'reason' => sanitize_text_field( (string) $reason ) ) : array() ) );
 		return $result;
 	}
 

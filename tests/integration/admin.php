@@ -148,7 +148,10 @@ check( 'a new occurrence is added in its own timezone', ! is_wp_error( $new_occ 
 $mark = count( $GLOBALS['wpcap_test_actions'] );
 $cancelled = EventsPage::cancel_occurrence( array( 'occurrence_id' => $occ->occurrence_id, 'reason' => 'Test', 'confirm' => 1 ) );
 check( 'cancelling an occurrence with tickets warns and fires wpcap_occurrence_cancelled', ! is_wp_error( $cancelled ) && 2 === $cancelled['issued'] && ! empty( $cancelled['warning'] ) && 'cancelled' === Queries::occurrence( $occ->occurrence_id )->status && in_array( 'wpcap_occurrence_cancelled', admin_actions_since( $mark ), true ) );
-EventsPage::save_occurrence( array( 'occurrence_id' => $occ->occurrence_id, 'starts_at' => $future . 'T20:00', 'timezone' => 'Europe/Berlin', 'capacity' => '100', 'status' => 'scheduled' ) );
+$reactivate = EventsPage::save_occurrence( array( 'occurrence_id' => $occ->occurrence_id, 'starts_at' => $future . 'T20:00', 'timezone' => 'Europe/Berlin', 'capacity' => '100', 'status' => 'scheduled' ) );
+check( 'a cancelled occurrence cannot be scheduled again (A356)', is_wp_error( $reactivate ) && 'wpcap_occurrence_reactivate' === $reactivate->get_error_code() && 'cancelled' === Queries::occurrence( $occ->occurrence_id )->status );
+// Fixture reset for the following tests (orders on this occurrence); not a product path.
+$wpdb->update( "{$p}wpcap_occurrences", array( 'status' => 'scheduled' ), array( 'occurrence_id' => (int) $occ->occurrence_id ) );
 
 echo "Admin: ticket types and participant fields\n";
 $tt = EventsPage::save_ticket_type( array( 'occurrence_id' => $new_occ['occurrence_id'], 'name' => 'VIP', 'price' => '1.234,56', 'currency' => 'EUR', 'tax_rate' => '7,7', 'capacity' => '20', 'max_per_order' => '4', 'sales_start' => $future . 'T08:00', 'sales_end' => '', 'status' => 'paused' ) );
