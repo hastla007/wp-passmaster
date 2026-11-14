@@ -80,7 +80,13 @@ final class ServiceBookings {
 			if ( $rule_error ) { $wpdb->query( 'ROLLBACK' ); return $rule_error; }
 		}
 		$wpdb->query( $wpdb->prepare( "UPDATE $bookings SET status='expired',updated_at=%s WHERE slot_id=%d AND status='held' AND expires_at <= %s", $now, $slot_id, $now ) );
-		$capacity_error = self::capacity_error( $resource, $slot, $quantity, 0, absint( $args['waitlist_entry_id'] ?? 0 ) );
+		$entry_id = absint( $args['waitlist_entry_id'] ?? 0 );
+		if ( $entry_id ) {
+			// Booking from a waitlist offer: the offer must still be open; it is consumed in this transaction.
+			$entry = $wpdb->get_row( $wpdb->prepare( "SELECT entry_id FROM {$wpdb->prefix}wpcap_service_waitlist WHERE entry_id=%d AND slot_id=%d AND status='offered' AND offer_expires_at>%s FOR UPDATE", $entry_id, $slot_id, $now ) );
+			if ( ! $entry ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_waitlist_offer_invalid', __( 'Wartelistenangebot ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
+		}
+		$capacity_error = self::capacity_error( $resource, $slot, $quantity, 0, $entry_id );
 		if ( $capacity_error ) { $wpdb->query( 'ROLLBACK' ); return $capacity_error; }
 		$status = 'confirmed' === ( $args['status'] ?? '' ) ? 'confirmed' : 'held';
 		$expires = null;
@@ -99,6 +105,10 @@ final class ServiceBookings {
 			return $won ? array( 'booking_id' => (int) $won->booking_id, 'expires_at' => $won->expires_at, 'status' => $won->status, 'reused' => true ) : new \WP_Error( 'wpcap_booking_failed', __( 'Zeitfenster konnte nicht reserviert werden.', 'pass-captain' ), array( 'status' => 500 ) );
 		}
 		$id = (int) $wpdb->insert_id;
+		if ( $entry_id && 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_service_waitlist SET status='accepted',booking_id=%d,updated_at=%s WHERE entry_id=%d AND status='offered'", $id, $now, $entry_id ) ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return self::busy();
+		}
 		if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); return self::busy(); }
 		Audit::record( 'service_booking_reserved', 'service_booking', $id, array( 'slot_id' => $slot_id, 'quantity' => $quantity, 'order_id' => absint( $order_id ), 'status' => $status, 'actor' => $actor ) );
 		return array( 'booking_id' => $id, 'expires_at' => $expires, 'status' => $status, 'manage_token' => $token );
@@ -223,7 +233,7 @@ final class ServiceBookings {
 				self::confirm( (int) $row->booking_id );
 			} elseif ( in_array( $row->status, array( 'confirmed', 'pending_confirmation', 'checked_in' ), true ) && '' === (string) $row->ticket_ids ) {
 				self::fill_tickets( (int) $row->booking_id );
-			} elseif ( in_array( $row->status, array( 'cancelled', 'declined' ), true ) && ! (int) $row->refund_id ) {
+			} elseif ( in_array( $row->status, array( 'cancelled', 'declined' ), true ) && ! (int) $row->refund_id && 'admin_no_refund' !== $row->cancel_reason ) {
 				// Cancelled while the payment was still open: the late payment is refunded.
 				self::fill_tickets( (int) $row->booking_id );
 				self::refund( (int) $row->booking_id );
@@ -626,8 +636,9 @@ final class ServiceBookings {
 			$r = self::cancel( $id, array( 'actor' => 'system', 'reason' => 'confirmation_timeout' ) );
 			if ( ! is_wp_error( $r ) ) { ++$out['confirmation_timeouts']; }
 		}
-		// Only resources with a no-show policy (rules JSON is written by ServiceResources::save_resource()).
-		$candidates = $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,s.ends_at,r.rules FROM {$p}wpcap_service_bookings b INNER JOIN {$p}wpcap_service_slots s ON s.slot_id=b.slot_id INNER JOIN {$p}wpcap_resources r ON r.resource_id=s.resource_id WHERE b.status='confirmed' AND s.ends_at<=%s AND (r.rules LIKE %s OR r.rules LIKE %s) ORDER BY s.ends_at LIMIT %d", $now, '%"noshow_policy":"mark"%', '%"noshow_policy":"forfeit"%', absint( $limit ) ) );
+		// Only resources with a no-show policy (rules JSON is written by ServiceResources::save_resource()),
+		// slots ended within the longest possible grace period (7 days) plus a day.
+		$candidates = $wpdb->get_results( $wpdb->prepare( "SELECT b.booking_id,s.ends_at,r.rules FROM {$p}wpcap_service_bookings b INNER JOIN {$p}wpcap_service_slots s ON s.slot_id=b.slot_id INNER JOIN {$p}wpcap_resources r ON r.resource_id=s.resource_id WHERE b.status='confirmed' AND s.ends_at<=%s AND s.ends_at>=%s AND (r.rules LIKE %s OR r.rules LIKE %s) ORDER BY s.ends_at LIMIT %d", $now, gmdate( 'Y-m-d H:i:s', time() - 8 * DAY_IN_SECONDS ), '%"noshow_policy":"mark"%', '%"noshow_policy":"forfeit"%', absint( $limit ) ) );
 		foreach ( (array) $candidates as $row ) {
 			$rules = ServiceResources::sanitize_rules( (array) json_decode( (string) $row->rules, true ) );
 			if ( 'none' === $rules['noshow_policy'] || strtotime( $row->ends_at . ' UTC' ) + $rules['noshow_grace_minutes'] * MINUTE_IN_SECONDS > time() ) { continue; }

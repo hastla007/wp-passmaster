@@ -210,7 +210,7 @@ final class ServiceWaitlist {
 		}
 		$booking = ServiceBookings::reserve( (int) $entry->slot_id, (string) $entry->email, (int) $entry->quantity, $order_id, 15, 'svcwl-' . (int) $entry->entry_id, array( 'actor' => 'system', 'skip_rate_limit' => true, 'waitlist_entry_id' => (int) $entry->entry_id ) );
 		if ( is_wp_error( $booking ) ) { return $booking; }
-		$wpdb->update( $wpdb->prefix . 'wpcap_service_waitlist', array( 'status' => 'accepted', 'booking_id' => (int) $booking['booking_id'], 'updated_at' => current_time( 'mysql', true ) ), array( 'entry_id' => (int) $entry->entry_id, 'status' => 'offered' ) );
+		// The booking consumed the offer in its own transaction (status accepted, booking_id set).
 		Audit::record( 'service_waitlist_accepted', 'service_waitlist', (int) $entry->entry_id, array( 'booking_id' => (int) $booking['booking_id'], 'order_id' => $order_id ) );
 		if ( $order_id ) {
 			$result = ServiceBookings::attach_order( (int) $booking['booking_id'], $order_id );
@@ -273,7 +273,7 @@ final class ServiceWaitlist {
 			self::offer_next( $slot_id );
 		}
 		// Slots with waiting entries and free places (e.g. capacity raised by staff).
-		$open = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT w.slot_id FROM {$p}wpcap_service_waitlist w INNER JOIN {$p}wpcap_service_slots s ON s.slot_id=w.slot_id WHERE w.status='waiting' AND s.status='open' AND s.starts_at>%s LIMIT %d", $now, absint( $limit ) ) ) );
+		$open = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT w.slot_id FROM {$p}wpcap_service_waitlist w INNER JOIN {$p}wpcap_service_slots s ON s.slot_id=w.slot_id WHERE w.status='waiting' AND s.status='open' AND s.starts_at>%s ORDER BY s.starts_at LIMIT %d", $now, absint( $limit ) ) ) );
 		foreach ( array_diff( $open, $slots ) as $slot_id ) { self::offer_next( $slot_id ); }
 		return count( $slots );
 	}

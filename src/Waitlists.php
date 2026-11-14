@@ -242,7 +242,7 @@ final class Waitlists {
 			}
 		}
 		// Expired offers and capacity raised by staff: offer what is free now.
-		$waiting = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ticket_type_id FROM $table WHERE status='waiting' LIMIT %d", absint( $limit ) ) ) );
+		$waiting = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT w.ticket_type_id FROM $table w INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE w.status='waiting' AND o.status='scheduled' AND o.starts_at>%s ORDER BY o.starts_at LIMIT %d", $now, absint( $limit ) ) ) );
 		foreach ( array_unique( array_merge( $types, $waiting ) ) as $type_id ) { self::auto_offer( $type_id ); }
 		return $expired;
 	}
@@ -380,22 +380,39 @@ final class Waitlists {
 		$table = $wpdb->prefix . 'wpcap_waitlist';
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,email,ticket_type_id,offer_token_hash,offer_expires_at,status FROM $table WHERE waitlist_id=%d", absint( $waitlist_id ) ) );
 		if ( ! $row || 'offered' !== $row->status || $row->offer_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $row->offer_token_hash, hash( 'sha256', $token ) ) ) { return self::invalid_offer(); }
-		self::$accepting = (int) $row->waitlist_id;
+		$waitlist_id = (int) $row->waitlist_id;
+		$converted = false;
+		// Inside the order transaction (ticket type locked): the offer's hold becomes the order's
+		// reservation in the same commit, so a parallel checkout or acceptance never counts both.
+		$convert = static function ( $order_id ) use ( $table, $waitlist_id, &$converted ) {
+			global $wpdb;
+			$changed = $wpdb->query( $wpdb->prepare( "UPDATE $table SET status='accepted',offer_token_hash='',hold_quantity=0,order_id=%d,updated_at=%s WHERE waitlist_id=%d AND status='offered'", absint( $order_id ), current_time( 'mysql', true ), $waitlist_id ) );
+			if ( false === $changed ) { throw new \RuntimeException( 'db_busy' ); }
+			if ( 1 !== (int) $changed ) { throw new \RuntimeException( 'waitlist_offer_taken' ); }
+			$converted = true;
+		};
+		self::$accepting = $waitlist_id;
+		add_action( 'wpcap_order_creating', $convert, 1, 1 );
 		try {
 			$order = Orders::create(
-				array( 'email' => $row->email, 'items' => array( array( 'ticket_type_id' => (int) $row->ticket_type_id, 'quantity' => 1 ) ), 'idempotency_key' => (string) (int) $row->waitlist_id, 'accept_terms' => 1 ),
+				array( 'email' => $row->email, 'items' => array( array( 'ticket_type_id' => (int) $row->ticket_type_id, 'quantity' => 1 ) ), 'idempotency_key' => (string) $waitlist_id, 'accept_terms' => 1 ),
 				array( 'key_namespace' => 'waitlist', 'skip_rate_limit' => true, 'source' => 'waitlist' )
 			);
 		} finally {
+			remove_action( 'wpcap_order_creating', $convert, 1 );
 			self::$accepting = 0;
 		}
 		if ( is_wp_error( $order ) ) {
+			$now_row = $wpdb->get_row( $wpdb->prepare( "SELECT status,order_id FROM $table WHERE waitlist_id=%d", $waitlist_id ) );
+			if ( $now_row && 'accepted' === $now_row->status ) {
+				// A parallel acceptance of the same offer won; its order holds the ticket.
+				return new \WP_Error( 'wpcap_waitlist_offer_invalid', __( 'Wartelistenangebot wurde bereits angenommen.', 'pass-captain' ), array( 'status' => 409, 'order_id' => (int) $now_row->order_id ) );
+			}
 			// Keep the offer open until it expires so the person can try again.
 			return new \WP_Error( 'wpcap_waitlist_sold_out', $order->get_error_message(), array( 'status' => 409 ) );
 		}
-		$updated = $wpdb->update( $table, array( 'status' => 'accepted', 'offer_token_hash' => '', 'hold_quantity' => 0, 'order_id' => (int) $order['order_id'], 'updated_at' => current_time( 'mysql', true ) ), array( 'waitlist_id' => (int) $row->waitlist_id, 'status' => 'offered' ), array( '%s', '%s', '%d', '%d', '%s' ), array( '%d', '%s' ) );
-		if ( 1 !== (int) $updated ) {
-			// A parallel acceptance of the same offer won: same order, reported once.
+		if ( ! $converted ) {
+			// A parallel acceptance of the same offer won (the order was reused): reported once.
 			return new \WP_Error( 'wpcap_waitlist_offer_invalid', __( 'Wartelistenangebot wurde bereits angenommen.', 'pass-captain' ), array( 'status' => 409, 'order_id' => (int) $order['order_id'] ) );
 		}
 		Audit::record( 'waitlist_offer_accepted', 'waitlist', (int) $row->waitlist_id, array( 'order_id' => (int) $order['order_id'] ) );

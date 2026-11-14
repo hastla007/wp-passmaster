@@ -169,8 +169,11 @@ ohne Erstattung) oder System:
   Tickets sind über die Filter `wpcap_ticket_availability` und `wpcap_reserve_capacity` für alle anderen
   gesperrt. Nur die Bestellung aus der Annahme dieses Angebots darf sie verwenden.
 - Mail mit Annahme-, Ablehnungs- und Austragelink; Annahmefrist 24 h (Filter `wpcap_waitlist_offer_hours`).
-- Annahme legt die Bestellung an (Hold der Bestellung ersetzt die Angebotsreservierung) – parallele Annahmen
-  desselben Angebots ergeben eine Bestellung; parallele Käufe anderer scheitern (getestet mit echten Prozessen).
+- Annahme legt die Bestellung an; in **derselben Transaktion** (Hook `wpcap_order_creating`) wird das Angebot auf
+  „angenommen“ gesetzt und seine Reservierung aufgelöst – die Reservierung der Bestellung ersetzt sie, ohne dass
+  ein Ticket kurzzeitig doppelt zählt. Parallele Annahmen verschiedener Angebote gelingen alle, parallele Annahmen
+  desselben Angebots ergeben eine Bestellung, parallele Käufe anderer scheitern (getestet mit echten Prozessen).
+  Dasselbe gilt für die Warteliste der Zeitfenster (die Buchung verbraucht das Angebot in ihrer Transaktion).
 - Ablehnen (`POST /waitlist/{id}/decline`, Seite `?wpcap_waitlist_decline=…`), Austragen
   (`POST /waitlist/{id}/unsubscribe`, Seite `?wpcap_waitlist_leave=…`, Link schon in der Eintragungsmail),
   Ablauf (Sweep) → nächster Eintrag.

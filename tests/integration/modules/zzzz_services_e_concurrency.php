@@ -32,6 +32,7 @@ function svc_parallel( array $jobs ) {
 	}
 	$out = array();
 	foreach ( $procs as $proc ) { $out[] = trim( (string) stream_get_contents( $proc ) ); pclose( $proc ); }
+	if ( getenv( 'WPCAP_SVC_DEBUG' ) ) { fwrite( STDERR, 'PAR ' . json_encode( $out ) . "\n" ); }
 	return $out;
 }
 function svc_ok( array $out ) { return count( array_filter( $out, static fn( $o ) => str_starts_with( $o, 'OK:' ) ) ); }
@@ -86,7 +87,8 @@ $out = svc_parallel( array(
 ) );
 $pw_orders = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT r.order_id) FROM {$p}wpcap_reservations r WHERE r.ticket_type_id=$pw_type AND r.status='active' AND r.expires_at>'" . gmdate( 'Y-m-d H:i:s' ) . "'" );
 $accept_a_orders = array_unique( array_filter( array( $out[0], $out[2] ), static fn( $o ) => str_starts_with( $o, 'OK:' ) ) );
-check( 'parallel: both offers accepted once each, the duplicate acceptance of A yields no second order', str_starts_with( $out[1], 'OK:' ) && 1 === count( $accept_a_orders ) && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders WHERE customer_email='pw-a@svc.test'" ) );
+$accept_a_errors = array_values( array_filter( array( $out[0], $out[2] ), static fn( $o ) => ! str_starts_with( $o, 'OK:' ) ) );
+check( 'parallel: both offers accepted once each (no false "sold out" from the other hold), the duplicate acceptance of A yields no second order', str_starts_with( $out[1], 'OK:' ) && 1 === count( $accept_a_orders ) && array( 'ERR:wpcap_waitlist_offer_invalid' ) === $accept_a_errors && 1 === (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_orders WHERE customer_email='pw-a@svc.test'" ) );
 check( 'public checkouts racing the acceptances all fail: never oversold (2 holds for 2 tickets)', 0 === svc_ok( array_slice( $out, 3 ) ) && 2 === $pw_orders && 0 === Orders::availability( $pw_type ) );
 // Parallel acceptance of the same slot waitlist offer → one booking.
 $sw_res = svc_resource( $cc_event, array( 'capacity' => 1 ) );
