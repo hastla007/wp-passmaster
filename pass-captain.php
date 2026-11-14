@@ -40,6 +40,9 @@ if ( function_exists( 'get_option' ) ) {
 			sort( $wpcap_kept );
 		}
 		update_option( 'active_plugins', $wpcap_kept );
+		// Taking over while this copy is being activated: activate_plugin() appends it again after loading it. A
+		// second entry would make the next deactivation fail ("Could not deactivate"), so keep only one.
+		add_filter( 'pre_update_option_active_plugins', static fn( $value ) => is_array( $value ) ? array_values( array_unique( $value ) ) : $value );
 	}
 	if ( is_multisite() ) {
 		$wpcap_network = (array) get_site_option( 'active_sitewide_plugins', array() );
