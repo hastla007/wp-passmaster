@@ -285,9 +285,9 @@ final class Waitlists {
 		$position = 1 + (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(MAX(position),0) FROM $table WHERE event_id=%d AND ticket_type_id=%d", $event_id, $ticket_type_id ) );
 		$manage = bin2hex( random_bytes( 32 ) );
 		$wpdb->insert( $table, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $ticket_type_id, 'email_hash' => $email_hash, 'email' => $email, 'position' => $position, 'status' => 'waiting', 'manage_token_hash' => hash( 'sha256', $manage ), 'created_at' => current_time( 'mysql', true ), 'updated_at' => current_time( 'mysql', true ) ), array( '%d', '%d', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s' ) );
-		if ( ! $wpdb->insert_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_waitlist_join', __( 'Der Wartelistenplatz konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
-		$wpdb->query( 'COMMIT' );
 		$waitlist_id = (int) $wpdb->insert_id;
+		if ( ! $waitlist_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_waitlist_join', __( 'Der Wartelistenplatz konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
+		$wpdb->query( 'COMMIT' );
 		Mail\Mailer::send( 'waitlist_joined', $email, array_merge( self::mail_names( $event_id, $ticket_type_id ), array( 'position' => (int) $position, 'leave_link' => Mail\Mailer::link( self::leave_url( $waitlist_id, $manage ) ) ) ) );
 		// A ticket may already be free (e.g. released while the person was signing up).
 		self::queue( array( $ticket_type_id ) );
