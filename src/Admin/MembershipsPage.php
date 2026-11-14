@@ -34,8 +34,21 @@ final class MembershipsPage {
 		return true;
 	}
 
-	/** Rule input (event, ticket type, quotas) → array or WP_Error. */
+	/** Rule input (scope, event/ticket type or resource, quotas, expiry) → array or WP_Error. */
 	private static function rule_from( array $in ) {
+		$scope = Forms::choice( $in, 'scope', Memberships::SCOPES, 'event' );
+		$expires = FeatureScreens::optional_local( $in, 'expires_at', FeatureScreens::site_timezone() );
+		if ( null === $expires ) { return Forms::error( 'wpcap_pass_rule_expiry', __( 'Ungültiges Ablaufdatum der Regel.', 'pass-captain' ) ); }
+		$extra = array( 'scope' => $scope, 'slot_mode' => Forms::choice( $in, 'slot_mode', Memberships::SLOT_MODES, 'slot_free' ), 'expires_at' => (string) $expires );
+		if ( 'service' === $scope ) {
+			// Service rules: one resource (managed by the user) or all resources (administrators only).
+			$resource_id = Forms::int( $in, 'resource_id' );
+			$resource = $resource_id ? \PassCaptain\ServiceResources::resource( $resource_id ) : null;
+			if ( $resource_id ? ! \PassCaptain\ServiceResources::can_manage( $resource ) : ! current_user_can( 'manage_options' ) ) {
+				return Forms::forbidden( __( 'Keine Berechtigung für eine Passregel dieser Ressource. Regeln für alle Ressourcen dürfen nur Administratoren anlegen.', 'pass-captain' ) );
+			}
+			return array( 'event_id' => 0, 'ticket_type_id' => 0, 'resource_id' => $resource_id, 'uses_total' => Forms::int( $in, 'uses_total' ), 'uses_per_day' => Forms::int( $in, 'uses_per_day', 1 ) ) + $extra;
+		}
 		$type_id = Forms::int( $in, 'ticket_type_id' );
 		$event_id = Forms::int( $in, 'event_id' );
 		if ( $type_id ) {
@@ -44,7 +57,17 @@ final class MembershipsPage {
 			$event_id = $type_event;
 		}
 		if ( ! self::can_rule_event( $event_id ) ) { return Forms::forbidden( __( 'Keine Berechtigung für eine Passregel. Regeln für alle Events dürfen nur Administratoren anlegen.', 'pass-captain' ) ); }
-		return array( 'event_id' => $event_id, 'ticket_type_id' => $type_id, 'uses_total' => Forms::int( $in, 'uses_total' ), 'uses_per_day' => Forms::int( $in, 'uses_per_day', 1 ) );
+		if ( 'any' === $scope && ! current_user_can( 'manage_options' ) ) { return Forms::forbidden( __( 'Regeln für Events und Ressourcen gemeinsam dürfen nur Administratoren anlegen.', 'pass-captain' ) ); }
+		return array( 'event_id' => $event_id, 'ticket_type_id' => $type_id, 'resource_id' => 0, 'uses_total' => Forms::int( $in, 'uses_total' ), 'uses_per_day' => Forms::int( $in, 'uses_per_day', 1 ) ) + $extra;
+	}
+
+	/** Label of a service/any rule: scope, resource, slot binding, expiry. */
+	private static function service_rule_label( $rule ) {
+		$resource = (int) $rule->resource_id ? \PassCaptain\ServiceResources::resource( (int) $rule->resource_id ) : null;
+		$label = ( 'any' === $rule->scope ? __( 'Events und Ressourcen', 'pass-captain' ) : __( 'Service', 'pass-captain' ) ) . ': ' . ( $resource ? $resource->name : __( 'Alle Ressourcen', 'pass-captain' ) );
+		$label .= ' · ' . ( 'slot_bound' === $rule->slot_mode ? __( 'terminpflichtig', 'pass-captain' ) : __( 'terminfrei', 'pass-captain' ) );
+		if ( ! empty( $rule->expires_at ) ) { $label .= ' · ' . sprintf( /* translators: %s: date */ __( 'bis %s', 'pass-captain' ), Forms::datetime( $rule->expires_at, FeatureScreens::site_timezone(), false ) ); }
+		return $label;
 	}
 
 	/** Validity inputs (local site time) → [from, until] in UTC or WP_Error. */
@@ -168,7 +191,13 @@ final class MembershipsPage {
 		$types = FeatureScreens::ticket_type_options( $scope );
 		FeatureScreens::row( $prefix . '-event', __( 'Event', 'pass-captain' ), static function () use ( $events, $prefix ) { Forms::select( 'event_id', $events, '', $prefix . '-event' ); } );
 		FeatureScreens::row( $prefix . '-type', __( 'Ticketart (optional)', 'pass-captain' ), static function () use ( $types, $prefix ) { Forms::select( 'ticket_type_id', array( '0' => __( 'Alle Ticketarten', 'pass-captain' ) ) + $types, '', $prefix . '-type' ); } );
-		FeatureScreens::input_row( $prefix . '-total', 'uses_total', __( 'Einlösungen gesamt', 'pass-captain' ), '0', 'number', 'min="0" max="65535"', __( '0 = unbegrenzt.', 'pass-captain' ) );
+		FeatureScreens::row( $prefix . '-scope', __( 'Geltungsbereich', 'pass-captain' ), static function () use ( $prefix ) { Forms::select( 'scope', array( 'event' => __( 'Eventeinlass (Ticketregeln)', 'pass-captain' ), 'service' => __( 'Service-Ressourcen (Termine/Verleih)', 'pass-captain' ), 'any' => __( 'Beides', 'pass-captain' ) ), 'event', $prefix . '-scope', 'aria-describedby="' . esc_attr( $prefix ) . '-scope-desc"' ); }, __( 'Service-Pässe gelten nicht für den Eventeinlass und umgekehrt – außer bei „Beides“.', 'pass-captain' ) );
+		$resources = array( '0' => __( 'Alle Ressourcen', 'pass-captain' ) );
+		foreach ( \PassCaptain\ServiceResources::resources( $scope, 0, \PassCaptain\ServiceResources::user_partner_ids() ) as $resource ) { $resources[ (string) (int) $resource->resource_id ] = $resource->event_name . ' – ' . $resource->name; }
+		FeatureScreens::row( $prefix . '-resource', __( 'Ressource (nur Service)', 'pass-captain' ), static function () use ( $resources, $prefix ) { Forms::select( 'resource_id', $resources, '', $prefix . '-resource' ); } );
+		FeatureScreens::row( $prefix . '-slot', __( 'Terminbindung (nur Service)', 'pass-captain' ), static function () use ( $prefix ) { Forms::select( 'slot_mode', array( 'slot_free' => __( 'Terminfrei (direkt an der Ressource)', 'pass-captain' ), 'slot_bound' => __( 'Terminpflichtig (bucht ein Zeitfenster)', 'pass-captain' ) ), 'slot_free', $prefix . '-slot' ); } );
+		FeatureScreens::input_row( $prefix . '-expires', 'expires_at', __( 'Regel gültig bis (optional)', 'pass-captain' ), '', 'datetime-local', '', __( 'Leer = bis zum Ende der Passlaufzeit.', 'pass-captain' ) );
+		FeatureScreens::input_row( $prefix . '-total', 'uses_total', __( 'Einlösungen gesamt', 'pass-captain' ), '0', 'number', 'min="0" max="65535"', __( '0 = unbegrenzt, 1 = Einmalnutzung.', 'pass-captain' ) );
 		FeatureScreens::input_row( $prefix . '-day', 'uses_per_day', __( 'Einlösungen pro Tag', 'pass-captain' ), '1', 'number', 'min="1" max="65535"' );
 	}
 
@@ -217,7 +246,8 @@ final class MembershipsPage {
 		foreach ( Memberships::rules( $pass->pass_id ) as $rule ) {
 			$rid = (int) $rule->rule_id;
 			$form = 'wpcap-mp-rule-form-' . $rid;
-			echo '<tr><td>' . esc_html( (int) $rule->event_id ? ( $events[ (int) $rule->event_id ] ?? '#' . (int) $rule->event_id ) : __( 'Alle Events', 'pass-captain' ) ) . '</td><td>' . esc_html( (int) $rule->ticket_type_id ? ( $types[ (int) $rule->ticket_type_id ] ?? '#' . (int) $rule->ticket_type_id ) : __( 'Alle Ticketarten', 'pass-captain' ) ) . '</td><td>' . (int) $rule->used . '</td>';
+			$scope_label = 'event' === (string) ( $rule->scope ?? 'event' ) ? ( (int) $rule->event_id ? ( $events[ (int) $rule->event_id ] ?? '#' . (int) $rule->event_id ) : __( 'Alle Events', 'pass-captain' ) ) : self::service_rule_label( $rule );
+			echo '<tr><td>' . esc_html( $scope_label ) . '</td><td>' . esc_html( (int) $rule->ticket_type_id ? ( $types[ (int) $rule->ticket_type_id ] ?? '#' . (int) $rule->ticket_type_id ) : __( 'Alle Ticketarten', 'pass-captain' ) ) . '</td><td>' . (int) $rule->used . '</td>';
 			if ( $active ) {
 				echo '<td><label class="screen-reader-text" for="wpcap-mp-r' . $rid . '-total">' . esc_html__( 'Einlösungen gesamt', 'pass-captain' ) . '</label><input form="' . esc_attr( $form ) . '" type="number" id="wpcap-mp-r' . $rid . '-total" name="uses_total" min="0" max="65535" value="' . (int) $rule->uses_total . '" style="width:6em"></td><td><label class="screen-reader-text" for="wpcap-mp-r' . $rid . '-day">' . esc_html__( 'Einlösungen pro Tag', 'pass-captain' ) . '</label><input form="' . esc_attr( $form ) . '" type="number" id="wpcap-mp-r' . $rid . '-day" name="uses_per_day" min="1" max="65535" value="' . (int) $rule->uses_per_day . '" style="width:6em"> ';
 				Forms::open_form( self::ACTION, null, 'id="' . esc_attr( $form ) . '" style="display:inline"' );
