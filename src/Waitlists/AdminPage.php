@@ -1,7 +1,8 @@
 <?php
 /**
  * Admin screen "Warteliste": entries per event with queue rank, status and offer deadline, staff
- * actions (offer, skip, remove, priority, process now) and the automatic offer settings.
+ * actions (offer, skip, remove, priority, unblock, process now) and the automatic offer settings.
+ * Blocked entries (A563) show the reason why they could not be offered.
  */
 namespace PassCaptain\Waitlists;
 
@@ -21,12 +22,12 @@ final class AdminPage {
 	const ACTION_SETTINGS = 'wpcap_waitlist_settings';
 
 	/**
-	 * Staff action on one entry (or the event): offer, skip, remove, priority, process.
+	 * Staff action on one entry (or the event): offer, skip, remove, priority, unblock, process.
 	 *
 	 * @return array|\WP_Error
 	 */
 	public static function entry_action( array $in ) {
-		$op = Forms::choice( $in, 'op', array( 'offer', 'skip', 'remove', 'priority', 'process' ), '' );
+		$op = Forms::choice( $in, 'op', array( 'offer', 'skip', 'remove', 'priority', 'unblock', 'process' ), '' );
 		$event_id = Forms::int( $in, 'event_id' );
 		if ( 'process' === $op ) {
 			if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return Forms::forbidden(); }
@@ -45,6 +46,9 @@ final class AdminPage {
 			case 'remove':
 				$result = Waitlists::close( (int) $entry->waitlist_id, 'remove' === $op ? 'removed' : 'skipped' );
 				return is_wp_error( $result ) ? $result : array( 'message' => 'remove' === $op ? __( 'Eintrag entfernt.', 'pass-captain' ) : __( 'Eintrag übersprungen.', 'pass-captain' ) );
+			case 'unblock':
+				$result = Waitlists::unblock( (int) $entry->waitlist_id );
+				return is_wp_error( $result ) ? $result : array( 'message' => __( 'Eintrag wieder in die Warteliste aufgenommen.', 'pass-captain' ) );
 			case 'priority':
 				Waitlists::set_priority( (int) $entry->waitlist_id, Forms::int( $in, 'priority' ) );
 				return array( 'message' => __( 'Priorität gespeichert.', 'pass-captain' ) );
@@ -119,12 +123,15 @@ final class AdminPage {
 		}
 		echo '</tr></thead><tbody>';
 		foreach ( $rows as $row ) {
-			$open = in_array( $row->status, array( 'waiting', 'offered', 'accepted' ), true );
-			echo '<tr><td>' . esc_html( $row->queue_rank ? (string) $row->queue_rank : '–' ) . '</td><td>' . esc_html( (string) (int) $row->position ) . '</td><td>' . esc_html( (string) $row->ticket_name ) . '</td><td>' . esc_html( (string) $row->email ) . '</td><td>' . esc_html( (string) (int) $row->quantity ) . '</td><td>' . esc_html( (string) (int) $row->priority ) . '</td><td>' . esc_html( Waitlists::status_label( $row->status ) ) . '</td><td>' . esc_html( in_array( $row->status, array( 'offered', 'accepted' ), true ) && $row->offer_expires_at ? Forms::datetime( $row->offer_expires_at, wp_timezone_string() ) : '–' ) . '</td><td>' . esc_html( $row->order_public_id ? substr( (string) $row->order_public_id, 0, 8 ) : '–' ) . '</td><td>';
+			$open = in_array( $row->status, array( 'waiting', 'offered', 'accepted', 'blocked' ), true );
+			echo '<tr><td>' . esc_html( $row->queue_rank ? (string) $row->queue_rank : '–' ) . '</td><td>' . esc_html( (string) (int) $row->position ) . '</td><td>' . esc_html( (string) $row->ticket_name ) . '</td><td>' . esc_html( (string) $row->email ) . '</td><td>' . esc_html( (string) (int) $row->quantity ) . '</td><td>' . esc_html( (string) (int) $row->priority ) . '</td><td>' . esc_html( Waitlists::status_label( $row->status ) ) . ( '' !== Waitlists::block_reason_label( $row->block_reason ?? '' ) ? '<br><small>' . esc_html( Waitlists::block_reason_label( $row->block_reason ?? '' ) ) . '</small>' : '' ) . '</td><td>' . esc_html( in_array( $row->status, array( 'offered', 'accepted' ), true ) && $row->offer_expires_at ? Forms::datetime( $row->offer_expires_at, wp_timezone_string() ) : '–' ) . '</td><td>' . esc_html( $row->order_public_id ? substr( (string) $row->order_public_id, 0, 8 ) : '–' ) . '</td><td>';
 			if ( 'waiting' === $row->status ) {
 				self::action_button( 'offer', $row, __( 'Jetzt anbieten', 'pass-captain' ) );
 				$field = '<input type="number" name="priority" value="' . esc_attr( (string) (int) $row->priority ) . '" min="-1000" max="1000" style="width:5em" aria-label="' . esc_attr__( 'Priorität', 'pass-captain' ) . '"> ';
 				self::action_button( 'priority', $row, __( 'Priorität setzen', 'pass-captain' ), $field );
+			}
+			if ( 'blocked' === $row->status ) {
+				self::action_button( 'unblock', $row, __( 'Wieder aufnehmen', 'pass-captain' ) );
 			}
 			if ( $open ) {
 				self::action_button( 'skip', $row, __( 'Überspringen', 'pass-captain' ) );

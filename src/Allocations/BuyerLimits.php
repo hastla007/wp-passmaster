@@ -477,6 +477,45 @@ final class BuyerLimits {
 		return $max;
 	}
 
+	/**
+	 * wpcap_waitlist_join_error (A563): a waitlist entry the buyer limit would never allow is refused
+	 * at sign-up (tickets the address already holds for the event/type plus the requested quantity),
+	 * instead of blocking the queue when it is offered. Non-locking; the binding check runs when the
+	 * offer order is created.
+	 *
+	 * @param \WP_Error|null $error   Earlier result.
+	 * @param array          $context event_id, ticket_type_id, email, quantity.
+	 * @return \WP_Error|null
+	 */
+	public static function waitlist_join_error( $error, $context = array() ) {
+		if ( is_wp_error( $error ) || in_array( 'waitlist', self::exempt_sources(), true ) ) { return $error; }
+		$context = (array) $context;
+		$event_id = absint( $context['event_id'] ?? 0 );
+		$type_id = absint( $context['ticket_type_id'] ?? 0 );
+		$quantity = max( 1, absint( $context['quantity'] ?? 1 ) );
+		$limits = self::for_event( $event_id );
+		if ( ! $limits || ( ! isset( $limits[0] ) && ! isset( $limits[ $type_id ] ) ) ) { return $error; }
+		global $wpdb;
+		$now = current_time( 'mysql', true );
+		$total = 0;
+		$of_type = 0;
+		foreach ( self::keys( (string) ( $context['email'] ?? '' ) ) as $key ) {
+			$raw = $wpdb->get_var( $wpdb->prepare( 'SELECT holdings FROM ' . Holds::table( 'buyers' ) . ' WHERE event_id=%d AND buyer_key=%s', $event_id, $key ) );
+			$holdings = json_decode( (string) $raw, true );
+			$current = self::current( is_array( $holdings ) ? $holdings : array(), $now );
+			if ( ! $current ) { continue; }
+			$total = max( $total, array_sum( $current['types'] ) );
+			$of_type = max( $of_type, (int) ( $current['types'][ $type_id ] ?? 0 ) );
+		}
+		$max = $limits[ $type_id ] ?? 0;
+		if ( ( isset( $limits[0] ) && $total + $quantity > $limits[0] ) || ( $max && $of_type + $quantity > $max ) ) {
+			$limit = isset( $limits[0] ) && $total + $quantity > $limits[0] ? $limits[0] : $max;
+			/* translators: %d: maximum tickets per person */
+			return new \WP_Error( 'wpcap_waitlist_buyer_limit', sprintf( _n( 'Pro Person ist höchstens %d Ticket möglich. Mit den Tickets, die du schon hast, kann dir die Warteliste nichts mehr anbieten.', 'Pro Person sind höchstens %d Tickets möglich. Mit den Tickets, die du schon hast, kann dir die Warteliste diese Anzahl nicht mehr anbieten.', $limit, 'pass-captain' ), $limit ), array( 'status' => 409 ) );
+		}
+		return $error;
+	}
+
 	/** wpcap_event_card_quantity_max: the card's stepper stops at the per-person limit of the type. */
 	public static function card_quantity_max( $max, $type = null, $event = null ) {
 		if ( ! is_object( $event ) || empty( $event->event_id ) || ! is_object( $type ) ) { return $max; }

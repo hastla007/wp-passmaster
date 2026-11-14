@@ -38,7 +38,9 @@ final class Orders {
 	 *                        external (bool), unit_prices / line_totals / line_taxes (type_id => minor),
 	 *                        currency, hold_minutes, source, payment_provider, key_namespace
 	 *                        (separates idempotency keys per channel), skip_rate_limit (bool),
-	 *                        billing (external only: billing data already validated by the adapter).
+	 *                        billing (external only: billing data already validated by the adapter),
+	 *                        defer_attendees (bool: required participant fields are not enforced yet –
+	 *                        waitlist offers collect them on acceptance, Waitlists::accept_offer()).
 	 */
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
@@ -104,7 +106,7 @@ final class Orders {
 				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
 		}
-		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array() );
+		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array(), array( 'defer_required' => ! empty( $internal['defer_attendees'] ) ) );
 		if ( is_wp_error( $attendees ) ) { return $attendees; }
 		// Consent proof (A116): text version shown, time, source, locale; recorded at issuance.
 		$consent_source = Consents::source_for_channel( $internal['source'] ?? $namespace );
@@ -491,7 +493,9 @@ final class Orders {
 	 *
 	 * Consent fields (A116) are checkboxes: a required consent must be ticked ('1') for every ticket.
 	 * With $options['skip_consent'] consent fields are neither checked nor returned (order portal
-	 * corrections; consents are granted/withdrawn there through Consents).
+	 * corrections; consents are granted/withdrawn there through Consents). With
+	 * $options['defer_required'] required fields may stay empty (waitlist offer orders: the data is
+	 * collected and fully validated when the offer is accepted, A536).
 	 *
 	 * @return array|\WP_Error Normalised list [{ticket_type_id, name, email, answers{field_id:value}}].
 	 */
@@ -500,13 +504,14 @@ final class Orders {
 		$attendees = is_array( $attendees ) ? array_values( $attendees ) : array();
 		$out = array();
 		$skip_consent = ! empty( $options['skip_consent'] ) && Consents::ready();
+		$defer_required = ! empty( $options['defer_required'] );
 		foreach ( $lines as $type_id => $quantity ) {
 			$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active'" . ( $skip_consent ? ' AND consent=0' : '' ) . ' ORDER BY position,field_id', $type_id ) );
 			$given = array_values( array_filter( $attendees, static function ( $a ) use ( $type_id ) { return is_array( $a ) && absint( $a['ticket_type_id'] ?? 0 ) === (int) $type_id; } ) );
 			if ( count( $given ) > $quantity ) {
 				return new \WP_Error( 'wpcap_attendees_invalid', __( 'Es wurden mehr Teilnehmende angegeben als Tickets bestellt.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
-			$needs_all = (bool) array_filter( $fields, static function ( $f ) { return (int) $f->required; } );
+			$needs_all = ! $defer_required && (bool) array_filter( $fields, static function ( $f ) { return (int) $f->required; } );
 			for ( $i = 0; $i < $quantity; $i++ ) {
 				$entry = $given[ $i ] ?? null;
 				if ( ! $entry && ! $needs_all ) { continue; }
@@ -520,7 +525,7 @@ final class Orders {
 					elseif ( 'textarea' === $field->field_type ) { $value = sanitize_textarea_field( $value ); }
 					elseif ( 'checkbox' === $field->field_type ) { $value = $value && '0' !== $value ? '1' : ''; }
 					else { $value = sanitize_text_field( $value ); }
-					if ( (int) $field->required && '' === $value ) {
+					if ( (int) $field->required && '' === $value && ! $defer_required ) {
 						/* translators: %s: field label */
 						return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für jedes Ticket ausfüllen.', 'pass-captain' ), $field->label ), array( 'status' => 400 ) );
 					}

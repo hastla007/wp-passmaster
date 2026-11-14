@@ -3,7 +3,11 @@
  * Waitlist per event/occurrence/ticket type with automatic offers that hold inventory.
  *
  * Lifecycle of an entry: waiting → offered → accepted → paid, or expired | declined | skipped |
- * removed. An offer creates a pending placeholder order (payment_provider `waitlist_offer`) whose
+ * removed | blocked. An entry that cannot be offered (buyer limit, quantity above the per-order
+ * maximum, attendee data) is `blocked` with a `block_reason` and the queue continues with the next
+ * entry (A563); staff can put it back with unblock(). Attendee data (required participant fields)
+ * is not needed for the offer: the offer page collects it and accept_offer() enforces it (A536).
+ * An offer creates a pending placeholder order (payment_provider `waitlist_offer`) whose
  * reservation holds the offered quantity until the offer expires, so core capacity counts it and
  * public buyers cannot take the unit. Accepting assigns a payment method to that order (free
  * orders are confirmed immediately); expiry, cancellation or a lapsed payment hold mark the entry
@@ -25,8 +29,24 @@ final class Waitlists {
 	/** Option with ticket types waiting for processing (type id => due timestamp). */
 	const QUEUE_OPTION = 'wpcap_waitlist_queue';
 
-	/** Entry states. Terminal: paid, expired, declined, skipped, removed, closed (date cancelled/over, A557). */
-	const STATUSES = array( 'waiting', 'offered', 'accepted', 'paid', 'expired', 'declined', 'skipped', 'removed', 'closed' );
+	/** Entry states. Terminal: paid, expired, declined, skipped, removed, closed (date cancelled/over, A557); blocked until staff unblock it. */
+	const STATUSES = array( 'waiting', 'offered', 'accepted', 'paid', 'expired', 'declined', 'skipped', 'removed', 'closed', 'blocked' );
+
+	/**
+	 * Offer failures that concern only one entry (Orders::create reason or error code => block reason):
+	 * the entry is blocked and the next entry gets the units (A563).
+	 */
+	const BLOCK_REASONS = array(
+		'allocation_buyer_limit' => 'buyer_limit',
+		'quantity_limit' => 'quantity_limit',
+		'wpcap_invalid_item' => 'quantity_limit',
+		'wpcap_attendee_field_required' => 'attendee_data',
+		'wpcap_attendee_field_invalid' => 'attendee_data',
+		'wpcap_attendees_invalid' => 'attendee_data',
+	);
+
+	/** Offer failures for this run only (not enough seats for the entry's quantity): skipped, noted as `seats`. */
+	const SKIP_REASONS = array( 'seat_sold_out', 'seat_unavailable' );
 
 	/** States in which an entry holds inventory through its order. */
 	const OPEN_OFFER = array( 'offered', 'accepted' );
@@ -112,6 +132,15 @@ final class Waitlists {
 			/* translators: %d: maximum number of tickets per order */
 			return new \WP_Error( 'wpcap_waitlist_quantity', sprintf( _n( 'Auf der Warteliste ist höchstens %d Ticket pro Eintrag möglich.', 'Auf der Warteliste sind höchstens %d Tickets pro Eintrag möglich.', max( 1, (int) $type->max_per_order ), 'pass-captain' ), max( 1, (int) $type->max_per_order )), array( 'status' => 400 ) );
 		}
+		/**
+		 * Refuses a waitlist sign-up that could never be offered (A563), e.g. the buyer limit
+		 * (Allocations module). Return a WP_Error to refuse, the given value otherwise.
+		 *
+		 * @param \WP_Error|null $error   null.
+		 * @param array          $context event_id, occurrence_id, ticket_type_id, email, quantity.
+		 */
+		$refused = apply_filters( 'wpcap_waitlist_join_error', null, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $ticket_type_id, 'email' => $email, 'quantity' => $quantity ) );
+		if ( is_wp_error( $refused ) ) { return $refused; }
 		$table = $wpdb->prefix . 'wpcap_waitlist';
 		$now = Clock::mysql();
 		$email_hash = hash( 'sha256', strtolower( $email ) );
@@ -120,16 +149,16 @@ final class Waitlists {
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,status FROM $table WHERE event_id=%d AND ticket_type_id=%d AND email_hash=%s FOR UPDATE", $event_id, $ticket_type_id, $email_hash ) );
 		$position = 1 + (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(MAX(position),0) FROM $table WHERE event_id=%d AND ticket_type_id=%d", $event_id, $ticket_type_id ) );
 		if ( $existing ) {
-			// Finished entries (offer expired/declined, earlier purchase) may join again at the end of the
-			// queue; open entries and entries skipped/removed by staff stay as they are. Same response
-			// either way so the endpoint does not reveal who is on a waitlist.
-			if ( ! in_array( $existing->status, array( 'expired', 'declined', 'paid' ), true ) ) {
+			// Finished entries (offer expired/declined, earlier purchase, blocked) may join again at the end
+			// of the queue; open entries and entries skipped/removed by staff stay as they are. Same
+			// response either way so the endpoint does not reveal who is on a waitlist.
+			if ( ! in_array( $existing->status, array( 'expired', 'declined', 'paid', 'blocked' ), true ) ) {
 				$wpdb->query( 'COMMIT' );
 				return self::join_response();
 			}
 			$waitlist_id = (int) $existing->waitlist_id;
 			$unsubscribe = self::unsubscribe_token( $waitlist_id, $email_hash );
-			$wpdb->update( $table, array( 'occurrence_id' => $occurrence_id, 'email' => $email, 'position' => $position, 'quantity' => $quantity, 'priority' => 0, 'status' => 'waiting', 'offer_token_hash' => '', 'unsubscribe_token_hash' => hash( 'sha256', $unsubscribe ), 'offer_expires_at' => null, 'offered_at' => null, 'order_id' => 0, 'created_at' => $now, 'updated_at' => $now ), array( 'waitlist_id' => $waitlist_id ) );
+			$wpdb->update( $table, array( 'occurrence_id' => $occurrence_id, 'email' => $email, 'position' => $position, 'quantity' => $quantity, 'priority' => 0, 'status' => 'waiting', 'offer_token_hash' => '', 'unsubscribe_token_hash' => hash( 'sha256', $unsubscribe ), 'offer_expires_at' => null, 'offered_at' => null, 'order_id' => 0, 'created_at' => $now, 'updated_at' => $now ) + ( self::block_ready() ? array( 'block_reason' => '' ) : array() ), array( 'waitlist_id' => $waitlist_id ) );
 			if ( '' !== $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return self::join_failed(); }
 		} else {
 			$wpdb->insert( $table, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id, 'ticket_type_id' => $ticket_type_id, 'email_hash' => $email_hash, 'email' => $email, 'position' => $position, 'quantity' => $quantity, 'status' => 'waiting', 'created_at' => $now, 'updated_at' => $now ) );
@@ -262,15 +291,33 @@ final class Waitlists {
 			foreach ( $entries as $entry ) {
 				if ( $made >= $c['max_offers_per_run'] || $available <= 0 ) { break; }
 				$quantity = max( 1, (int) $entry->quantity );
-				if ( $quantity > max( 1, (int) $type->max_per_order ) ) { continue; }
+				if ( $quantity > max( 1, (int) $type->max_per_order ) ) {
+					// Never offerable (maximum per order lowered after the sign-up): mark it, go on.
+					self::block_entry( $entry, 'quantity_limit' );
+					continue;
+				}
 				if ( $quantity > $available ) {
 					if ( $c['strict_fifo'] ) { break; }
 					continue;
 				}
 				$result = self::offer_entry( $entry );
 				if ( is_wp_error( $result ) ) {
-					// Capacity/sales state changed under the lock: stop; a mail failure only skips this entry.
+					// A mail failure only skips this entry.
 					if ( 'wpcap_waitlist_mail' === $result->get_error_code() ) { continue; }
+					// A563: a failure of this entry alone (buyer limit, attendee data …) must not stop the
+					// queue: the entry is blocked with its reason and the next one gets the units.
+					$reason = (string) ( $result->get_error_data()['reason'] ?? '' );
+					if ( isset( self::BLOCK_REASONS[ $reason ] ) ) {
+						self::block_entry( $entry, self::BLOCK_REASONS[ $reason ] );
+						continue;
+					}
+					// Not enough seats for this quantity: like a quantity above the free units.
+					if ( in_array( $reason, self::SKIP_REASONS, true ) ) {
+						self::note_entry( $entry, 'seats' );
+						if ( $c['strict_fifo'] ) { break; }
+						continue;
+					}
+					// Capacity/sales state changed under the lock: stop.
 					break;
 				}
 				$available -= $quantity;
@@ -328,18 +375,20 @@ final class Waitlists {
 		$quantity = max( 1, (int) $row->quantity );
 		$order = Orders::create(
 			array( 'email' => $row->email, 'items' => array( array( 'ticket_type_id' => (int) $row->ticket_type_id, 'quantity' => $quantity ) ), 'idempotency_key' => 'offer-' . (int) $row->waitlist_id . '-' . substr( $hash, 0, 16 ) ),
-			array( 'external' => true, 'payment_provider' => self::OFFER_PROVIDER, 'hold_minutes' => (int) ceil( ( $expires_ts - $now_ts ) / MINUTE_IN_SECONDS ), 'key_namespace' => 'waitlist', 'skip_rate_limit' => true, 'source' => 'waitlist' )
+			array( 'external' => true, 'payment_provider' => self::OFFER_PROVIDER, 'hold_minutes' => (int) ceil( ( $expires_ts - $now_ts ) / MINUTE_IN_SECONDS ), 'key_namespace' => 'waitlist', 'skip_rate_limit' => true, 'source' => 'waitlist', 'defer_attendees' => true )
 		);
 		if ( is_wp_error( $order ) ) {
 			self::revert_claim( (int) $row->waitlist_id, $hash );
-			return new \WP_Error( 'wpcap_waitlist_unavailable', $order->get_error_message(), array( 'status' => 409 ) );
+			$data = (array) $order->get_error_data();
+			// `reason`: machine-readable cause (sold_out, allocation_buyer_limit, seat_sold_out, …), see process_type().
+			return new \WP_Error( 'wpcap_waitlist_unavailable', $order->get_error_message(), array( 'status' => 409, 'reason' => (string) ( $data['reason'] ?? $order->get_error_code() ) ) );
 		}
 		$order_id = (int) $order['order_id'];
 		$held_until = (string) $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM {$wpdb->prefix}wpcap_reservations WHERE order_id=%d AND status='active'", $order_id ) );
 		$expires = '' !== $held_until ? $held_until : gmdate( 'Y-m-d H:i:s', $expires_ts );
 		// Linked only while the claim stands: an entry removed meanwhile (unsubscribe, staff, privacy
 		// erasure) no longer matches, and the hold just created must not outlive it.
-		$linked = $wpdb->update( $table, array( 'order_id' => $order_id, 'offer_expires_at' => $expires ), array( 'waitlist_id' => (int) $row->waitlist_id, 'offer_token_hash' => $hash, 'status' => 'offered' ) );
+		$linked = $wpdb->update( $table, array( 'order_id' => $order_id, 'offer_expires_at' => $expires ) + ( self::block_ready() ? array( 'block_reason' => '' ) : array() ), array( 'waitlist_id' => (int) $row->waitlist_id, 'offer_token_hash' => $hash, 'status' => 'offered' ) );
 		if ( 1 !== (int) $linked ) {
 			self::release_offer_order( $order_id, 'waitlist_offer_withdrawn' );
 			return new \WP_Error( 'wpcap_waitlist_offer', __( 'Das Angebot konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 409 ) );
@@ -362,6 +411,67 @@ final class Waitlists {
 	private static function revert_claim( $waitlist_id, $hash ) {
 		global $wpdb;
 		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_waitlist SET status='waiting',offer_token_hash='',offer_expires_at=NULL,offered_at=NULL,order_id=0,updated_at=%s WHERE waitlist_id=%d AND status='offered' AND offer_token_hash=%s", Clock::mysql(), absint( $waitlist_id ), $hash ) );
+	}
+
+	/** Whether the `block_reason` column exists (schema 3.10.14; deferred upgrades). */
+	public static function block_ready() {
+		return ServiceBookings::has_column( 'wpcap_waitlist', 'block_reason' );
+	}
+
+	/**
+	 * Marks a waiting entry that cannot be offered as `blocked` with its reason (A563): the queue
+	 * goes on with the next entry; staff see the reason and can unblock it.
+	 *
+	 * @param object $row    Entry.
+	 * @param string $reason buyer_limit | quantity_limit | attendee_data.
+	 */
+	private static function block_entry( $row, $reason ) {
+		global $wpdb;
+		$reason = sanitize_key( (string) $reason );
+		$set = self::block_ready() ? $wpdb->prepare( ',block_reason=%s', $reason ) : '';
+		$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_waitlist SET status='blocked'$set,updated_at=%s WHERE waitlist_id=%d AND status='waiting'", Clock::mysql(), (int) $row->waitlist_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
+		if ( 1 !== (int) $changed ) { return false; }
+		Audit::record( 'waitlist_blocked', 'waitlist', (int) $row->waitlist_id, array( 'reason' => $reason, 'ticket_type_id' => (int) $row->ticket_type_id, 'quantity' => (int) $row->quantity ) );
+		/**
+		 * A waitlist entry could not be offered and was blocked; the queue continues (A563).
+		 *
+		 * @param int    $waitlist_id Entry.
+		 * @param string $reason      buyer_limit | quantity_limit | attendee_data.
+		 */
+		do_action( 'wpcap_waitlist_blocked', (int) $row->waitlist_id, $reason );
+		return true;
+	}
+
+	/** Notes why a waiting entry was passed over in this run (status stays `waiting`). */
+	private static function note_entry( $row, $reason ) {
+		global $wpdb;
+		if ( ! self::block_ready() || (string) ( $row->block_reason ?? '' ) === $reason ) { return; }
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_waitlist SET block_reason=%s WHERE waitlist_id=%d AND status='waiting'", sanitize_key( $reason ), (int) $row->waitlist_id ) );
+	}
+
+	/** Staff: puts a blocked entry back into the queue (same position) and processes its ticket type. */
+	public static function unblock( $waitlist_id ) {
+		global $wpdb;
+		$row = self::get( $waitlist_id );
+		if ( ! $row || 'blocked' !== $row->status ) { return new \WP_Error( 'wpcap_waitlist_state', __( 'Dieser Eintrag ist nicht gesperrt.', 'pass-captain' ), array( 'status' => 409 ) ); }
+		$reset = self::block_ready() ? ",block_reason=''" : '';
+		$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_waitlist SET status='waiting'$reset,updated_at=%s WHERE waitlist_id=%d AND status='blocked'", Clock::mysql(), (int) $row->waitlist_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- literal fragment.
+		if ( 1 !== (int) $changed ) { return new \WP_Error( 'wpcap_waitlist_state', __( 'Der Eintrag wurde gerade geändert. Bitte neu laden.', 'pass-captain' ), array( 'status' => 409 ) ); }
+		Audit::record( 'waitlist_unblocked', 'waitlist', (int) $row->waitlist_id, array( 'previous_reason' => (string) ( $row->block_reason ?? '' ), 'user_id' => get_current_user_id() ) );
+		self::queue( array( (int) $row->ticket_type_id ) );
+		return array( 'status' => 'waiting' );
+	}
+
+	/** Admin label of a block reason ('' for none). */
+	public static function block_reason_label( $reason ) {
+		$labels = array(
+			'buyer_limit' => __( 'Käuferlimit erreicht (die Person hat schon Tickets für dieses Event)', 'pass-captain' ),
+			'quantity_limit' => __( 'Gewünschte Anzahl über dem Höchstwert pro Bestellung', 'pass-captain' ),
+			'attendee_data' => __( 'Teilnehmerdaten ungültig', 'pass-captain' ),
+			'seats' => __( 'Zuletzt übersprungen: nicht genug freie Sitzplätze für die gewünschte Anzahl', 'pass-captain' ),
+		);
+		$reason = (string) $reason;
+		return '' === $reason ? '' : ( $labels[ $reason ] ?? $reason );
 	}
 
 	/* ---------------------------------------------------------------------------------------------
@@ -482,7 +592,12 @@ final class Waitlists {
 	 * Accepts an offer. Free orders are completed (tickets issued); paid orders get the chosen
 	 * payment method and keep their hold for the payment window.
 	 *
-	 * @param array $args provider (payment gateway id), accept_terms (bool).
+	 * Attendee data is collected here (A536): the offer order was created without it, so required
+	 * participant fields of the offered ticket types are enforced now (Orders::validate_attendees())
+	 * and the data is stored on the order before payment/issuance.
+	 *
+	 * @param array $args provider (payment gateway id), accept_terms (bool), attendees (list of
+	 *                    {ticket_type_id, name, email, answers{field_key:value}} like the checkout).
 	 * @return array|\WP_Error status, order (order_id, public_id, status, payment_status, total_minor, currency), payment?, inventory_reserved.
 	 */
 	public static function accept_offer( $waitlist_id, $token, array $args = array() ) {
@@ -497,6 +612,8 @@ final class Waitlists {
 		if ( $paid && Settings::get( 'require_terms' ) && empty( $args['accept_terms'] ) ) {
 			return new \WP_Error( 'wpcap_terms_required', __( 'Bitte bestätige die Bedingungen und Verbraucherinformationen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
+		$attendee_data = self::accepted_attendees( (int) $order->order_id, $args['attendees'] ?? array() );
+		if ( is_wp_error( $attendee_data ) ) { return $attendee_data; }
 		$gateway = null;
 		// Free offers keep their hold a little longer while the order is completed; paid offers for
 		// the payment window of the chosen method (never shortened).
@@ -516,12 +633,12 @@ final class Waitlists {
 			}
 		}
 		$table = $wpdb->prefix . 'wpcap_waitlist';
-		$claimed = self::claim_offer( $row, $gateway ? $gateway->id() : '', $minutes );
+		$claimed = self::claim_offer( $row, $gateway ? $gateway->id() : '', $minutes, $attendee_data );
 		if ( Errors::is_busy( $claimed ) ) {
 			// Deadlock victim (e.g. against the expiry job at the deadline): everything was rolled
 			// back; one more try sees the winner's result.
 			usleep( 100000 );
-			$claimed = self::claim_offer( $row, $gateway ? $gateway->id() : '', $minutes );
+			$claimed = self::claim_offer( $row, $gateway ? $gateway->id() : '', $minutes, $attendee_data );
 		}
 		if ( is_wp_error( $claimed ) ) { return $claimed; }
 		$order_id = (int) $order->order_id;
@@ -572,6 +689,45 @@ final class Waitlists {
 		return $result;
 	}
 
+	/** Active participant fields of ticket types (ticket_type_id => rows), for the offer page. */
+	private static function attendee_fields( array $type_ids ) {
+		global $wpdb;
+		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
+		if ( ! $type_ids ) { return array(); }
+		$out = array();
+		foreach ( (array) $wpdb->get_results( "SELECT field_id,ticket_type_id,field_key,label,field_type,required,purpose FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id IN (" . implode( ',', $type_ids ) . ") AND status='active' ORDER BY position,field_id" ) as $field ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$out[ (int) $field->ticket_type_id ][] = $field;
+		}
+		return $out;
+	}
+
+	/** Ticket type => quantity of an offer order. */
+	private static function offer_lines( $order_id ) {
+		$lines = array();
+		foreach ( Orders::items_for_order( $order_id ) as $item ) {
+			$lines[ (int) $item->ticket_type_id ] = ( $lines[ (int) $item->ticket_type_id ] ?? 0 ) + (int) $item->quantity;
+		}
+		return $lines;
+	}
+
+	/**
+	 * Validates the attendee data sent with an acceptance against the offered ticket types (required
+	 * fields enforced, A536) and returns it as JSON for the order, null when there is nothing to store.
+	 *
+	 * @return string|null|\WP_Error
+	 */
+	private static function accepted_attendees( $order_id, $attendees ) {
+		$lines = self::offer_lines( $order_id );
+		$attendees = is_array( $attendees ) ? $attendees : array();
+		if ( ! $lines || ( ! $attendees && ! self::attendee_fields( array_keys( $lines ) ) ) ) { return null; }
+		$clean = Orders::validate_attendees( $lines, $attendees );
+		if ( is_wp_error( $clean ) ) { return $clean; }
+		if ( ! $clean ) { return null; }
+		$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : '';
+		$clean = Consents::annotate( $clean, 'waitlist', $locale, Consents::ip_hash( Orders::client_ip() ) );
+		return (string) wp_json_encode( $clean );
+	}
+
 	/**
 	 * Claims an open offer for acceptance in one transaction: the placeholder order, the entry and the
 	 * order's active holds are locked (order first, like Orders), then status, token, deadline and the
@@ -583,9 +739,10 @@ final class Waitlists {
 	 * @param object $row      Entry verified by open_offer() (its offer token hash is the expected one).
 	 * @param string $provider Payment method for paid offers, '' for free ones.
 	 * @param int    $minutes  Minimum remaining hold after the claim.
+	 * @param string|null $attendees Attendee data (JSON) for the order, null = unchanged.
 	 * @return true|\WP_Error
 	 */
-	private static function claim_offer( $row, $provider, $minutes ) {
+	private static function claim_offer( $row, $provider, $minutes, $attendees = null ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = (int) $row->order_id;
@@ -617,9 +774,13 @@ final class Waitlists {
 		$until = gmdate( 'Y-m-d H:i:s', Clock::now() + max( 1, (int) $minutes ) * MINUTE_IN_SECONDS );
 		$extended = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET expires_at=GREATEST(expires_at,%s) WHERE reservation_id IN (" . implode( ',', $held ) . ')', $until ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		$assigned = true;
+		$order_update = null === $attendees ? array() : array( 'attendee_data' => (string) $attendees );
 		if ( '' !== (string) $provider ) {
 			$locale = function_exists( 'determine_locale' ) ? (string) determine_locale() : '';
-			$assigned = $wpdb->update( $p . 'wpcap_orders', array( 'payment_provider' => (string) $provider, 'terms_version' => Settings::terms_version( $locale ), 'locale' => $locale, 'updated_at' => $now ), array( 'order_id' => $order_id ) );
+			$order_update += array( 'payment_provider' => (string) $provider, 'terms_version' => Settings::terms_version( $locale ), 'locale' => $locale );
+		}
+		if ( $order_update ) {
+			$assigned = $wpdb->update( $p . 'wpcap_orders', $order_update + array( 'updated_at' => $now ), array( 'order_id' => $order_id ) );
 		}
 		if ( 1 !== (int) $claimed || false === $extended || false === $assigned || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -988,7 +1149,7 @@ final class Waitlists {
 		global $wpdb;
 		$status = 'removed' === $status ? 'removed' : 'skipped';
 		$row = self::get( $waitlist_id );
-		if ( ! $row || ! in_array( $row->status, array( 'waiting', 'offered', 'accepted' ), true ) ) {
+		if ( ! $row || ! in_array( $row->status, array( 'waiting', 'offered', 'accepted', 'blocked' ), true ) ) {
 			return new \WP_Error( 'wpcap_waitlist_state', __( 'Dieser Eintrag ist bereits abgeschlossen.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$changed = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_waitlist SET status=%s,offer_token_hash='',updated_at=%s WHERE waitlist_id=%d AND status=%s", $status, Clock::mysql(), (int) $row->waitlist_id, $row->status ) );
@@ -1110,6 +1271,7 @@ final class Waitlists {
 			'skipped' => __( 'Übersprungen', 'pass-captain' ),
 			'removed' => __( 'Entfernt', 'pass-captain' ),
 			'closed' => __( 'Geschlossen (Termin abgesagt oder vorbei)', 'pass-captain' ),
+			'blocked' => __( 'Nicht anbietbar', 'pass-captain' ),
 		);
 		return $labels[ $status ] ?? (string) $status;
 	}
@@ -1147,6 +1309,7 @@ final class Waitlists {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'wpcap_accept_waitlist_' . $waitlist_id );
 		echo '<input type="hidden" name="action" value="wpcap_accept_waitlist"><input type="hidden" name="waitlist_id" value="' . esc_attr( (string) $waitlist_id ) . '"><input type="hidden" name="token" value="' . esc_attr( $token ) . '">';
+		echo self::attendee_form_html( (int) $order->order_id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in attendee_form_html().
 		if ( count( $gateways ) > 1 ) {
 			echo '<fieldset><legend>' . esc_html__( 'Zahlungsart', 'pass-captain' ) . '</legend>';
 			$first = true;
@@ -1163,6 +1326,46 @@ final class Waitlists {
 		exit;
 	}
 
+	/**
+	 * Attendee inputs of the offer page (A536): name and the participant fields of every offered
+	 * ticket, posted as `attendees[i][…]` like the checkout. '' when the ticket types have no fields.
+	 */
+	public static function attendee_form_html( $order_id ) {
+		$lines = self::offer_lines( $order_id );
+		$fields = self::attendee_fields( array_keys( $lines ) );
+		if ( ! $fields ) { return ''; }
+		$names = array();
+		foreach ( Orders::items_for_order( $order_id ) as $item ) { $names[ (int) $item->ticket_type_id ] = (string) $item->name; }
+		$html = '<fieldset><legend>' . esc_html__( 'Angaben zu den Teilnehmenden', 'pass-captain' ) . '</legend><p>' . esc_html__( 'Bitte für jedes Ticket ausfüllen; mit * markierte Felder sind Pflicht.', 'pass-captain' ) . '</p>';
+		$i = 0;
+		foreach ( $lines as $type_id => $quantity ) {
+			for ( $n = 1; $n <= $quantity; $n++, $i++ ) {
+				$prefix = 'attendees[' . $i . ']';
+				$id = 'wpcap-wl-att-' . $i;
+				/* translators: 1: ticket type, 2: number of the ticket */
+				$html .= '<fieldset><legend>' . esc_html( sprintf( __( '%1$s – Ticket %2$d', 'pass-captain' ), $names[ $type_id ] ?? '', $n ) ) . '</legend>';
+				$html .= '<input type="hidden" name="' . esc_attr( $prefix . '[ticket_type_id]' ) . '" value="' . esc_attr( (string) (int) $type_id ) . '">';
+				$html .= '<p><label for="' . esc_attr( $id . '-name' ) . '">' . esc_html__( 'Name', 'pass-captain' ) . '</label><br><input type="text" id="' . esc_attr( $id . '-name' ) . '" name="' . esc_attr( $prefix . '[name]' ) . '" maxlength="190" autocomplete="name"></p>';
+				foreach ( $fields[ $type_id ] ?? array() as $field ) {
+					$name = $prefix . '[answers][' . $field->field_key . ']';
+					$fid = $id . '-' . $field->field_key;
+					$required = (int) $field->required ? ' required aria-required="true"' : '';
+					$label = esc_html( $field->label . ( (int) $field->required ? ' *' : '' ) );
+					$hint = '' !== (string) $field->purpose ? '<br><small>' . esc_html( (string) $field->purpose ) . '</small>' : '';
+					if ( 'checkbox' === $field->field_type ) {
+						$html .= '<p><label><input type="checkbox" name="' . esc_attr( $name ) . '" value="1"' . $required . '> ' . $label . '</label>' . $hint . '</p>';
+					} elseif ( 'textarea' === $field->field_type ) {
+						$html .= '<p><label for="' . esc_attr( $fid ) . '">' . $label . '</label><br><textarea id="' . esc_attr( $fid ) . '" name="' . esc_attr( $name ) . '" maxlength="2000"' . $required . '></textarea>' . $hint . '</p>';
+					} else {
+						$html .= '<p><label for="' . esc_attr( $fid ) . '">' . $label . '</label><br><input type="' . ( 'email' === $field->field_type ? 'email' : 'text' ) . '" id="' . esc_attr( $fid ) . '" name="' . esc_attr( $name ) . '" maxlength="2000"' . $required . '>' . $hint . '</p>';
+					}
+				}
+				$html .= '</fieldset>';
+			}
+		}
+		return $html . '</fieldset>';
+	}
+
 	private static function page_head( $title ) {
 		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="<?php bloginfo( 'charset' ); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title><?php echo esc_html( $title ); ?></title></head><body><main><?php
 	}
@@ -1172,12 +1375,17 @@ final class Waitlists {
 		check_admin_referer( 'wpcap_accept_waitlist_' . $waitlist_id );
 		$token = preg_replace( '/[^a-f0-9]/', '', strtolower( sanitize_text_field( wp_unslash( (string) ( $_POST['token'] ?? '' ) ) ) ) );
 		$decline = 'decline' === sanitize_key( wp_unslash( $_POST['decision'] ?? '' ) );
-		$result = $decline ? self::decline_offer( $waitlist_id, $token ) : self::accept_offer( $waitlist_id, $token, array( 'provider' => sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) ), 'accept_terms' => ! empty( $_POST['accept_terms'] ) ) );
+		// Attendee data (A536) is sanitised field by field in Orders::validate_attendees().
+		$attendees = isset( $_POST['attendees'] ) && is_array( $_POST['attendees'] ) ? wp_unslash( $_POST['attendees'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- validated per configured field.
+		$result = $decline ? self::decline_offer( $waitlist_id, $token ) : self::accept_offer( $waitlist_id, $token, array( 'provider' => sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) ), 'accept_terms' => ! empty( $_POST['accept_terms'] ), 'attendees' => $attendees ) );
 		PageCache::no_store( 'waitlist_result' );
 		status_header( is_wp_error( $result ) ? 409 : 200 );
 		/* translators: %s: site name */
 		self::page_head( sprintf( __( 'Warteliste – %s', 'pass-captain' ), Orders::site_name() ) );
-		if ( is_wp_error( $result ) ) {
+		if ( is_wp_error( $result ) && in_array( $result->get_error_code(), array( 'wpcap_attendee_field_required', 'wpcap_attendee_field_invalid', 'wpcap_attendees_invalid', 'wpcap_terms_required', 'wpcap_provider_unavailable', 'wpcap_manual_too_late' ), true ) ) {
+			// Input problem: the offer stays open, back to the form.
+			echo '<h1>' . esc_html__( 'Bitte Angaben prüfen', 'pass-captain' ) . '</h1><p role="alert">' . esc_html( $result->get_error_message() ) . '</p><p><a href="' . esc_url( add_query_arg( array( 'wpcap_waitlist_accept' => $waitlist_id, 'token' => $token ), home_url( '/' ) ) ) . '">' . esc_html__( 'Zurück zum Angebot', 'pass-captain' ) . '</a></p>';
+		} elseif ( is_wp_error( $result ) ) {
 			echo '<h1>' . esc_html__( 'Angebot nicht verfügbar', 'pass-captain' ) . '</h1><p>' . esc_html( $result->get_error_message() ) . '</p>';
 		} elseif ( $decline ) {
 			echo '<h1>' . esc_html__( 'Angebot abgelehnt', 'pass-captain' ) . '</h1><p>' . esc_html__( 'Danke für deine Rückmeldung. Die Tickets gehen an die nächste Person auf der Warteliste.', 'pass-captain' ) . '</p>';

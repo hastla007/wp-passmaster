@@ -11,16 +11,23 @@ dabei**, damit niemand anderes sie in der Zwischenzeit kaufen kann.
 | `quantity` | Gewünschte Anzahl (1 bis `max_per_order` der Ticketart). |
 | `position` | Reihenfolge der Eintragung (FIFO) je Event und Ticketart. |
 | `priority` | Optional, vom Team gesetzt (−1000 … 1000). Höhere Priorität kommt zuerst, innerhalb einer Priorität entscheidet die Position. |
-| `status` | `waiting` → `offered` → `accepted` → `paid`; Endzustände `expired`, `declined`, `skipped`, `removed`, `closed`. |
+| `status` | `waiting` → `offered` → `accepted` → `paid`; Endzustände `expired`, `declined`, `skipped`, `removed`, `closed` (Termin abgesagt oder vorbei); `blocked` = nicht anbietbar (siehe unten), bis das Team den Eintrag wieder aufnimmt. |
+| `block_reason` | Grund für `blocked`: `buyer_limit` (Käuferlimit), `quantity_limit` (Anzahl über dem Höchstwert pro Bestellung), `attendee_data`; bei `waiting` ggf. `seats` (zuletzt mangels Sitzplätzen übersprungen). Schema 3.10.14. |
 | `order_id` | Bestellung, die das offene Angebot reserviert (0 ohne Angebot). |
 | `offer_expires_at` | Ende der Reservierung (UTC): beim Angebot die Annahmefrist, nach der Annahme das Zahlungsziel. |
 
 Eintragen: `POST /wp-json/pass-captain/v1/events/{event_id}/waitlist` mit `occurrence_id`,
 `ticket_type_id`, `email` und optional `quantity`. Die Antwort ist immer gleich und verrät nicht, ob
 die Adresse schon eingetragen war; die Position steht in der Bestätigungsmail (`waitlist_joined`).
-Einträge mit Status `expired`, `declined` oder `paid` dürfen sich erneut eintragen (am Ende der
+Einträge mit Status `expired`, `declined`, `paid` oder `blocked` dürfen sich erneut eintragen (am Ende der
 Schlange); vom Team übersprungene oder entfernte Einträge nicht. Wer sich selbst ausgetragen hat
 (siehe unten), kann sich später neu eintragen – der alte Eintrag ist anonymisiert.
+
+**Käuferlimit beim Eintragen (A563):** Hat das Event ein Limit pro Person (Modul Kontingente), wird ein
+Eintrag abgelehnt (`wpcap_waitlist_buyer_limit`, 409), wenn die Adresse mit ihren aktuellen Tickets plus
+der gewünschten Anzahl darüber läge – so ein Eintrag könnte nie ein Angebot bekommen. Diese Antwort
+weicht von der einheitlichen Antwort ab (die Adresse hält Tickets dieses Events); erweiterbar über den
+Filter `wpcap_waitlist_join_error`.
 
 **Auf der Eventkarte** (Shortcode/Block): Ausverkaufte Ticketarten zeigen unter dem Bestellformular
 ein Wartelisten-Formular (Ticketart, Anzahl, E-Mail), das diesen Endpunkt aufruft. Ist der Termin ganz
@@ -52,17 +59,30 @@ Verkauf sind.
    Eintrag erhält ein Angebot, wenn seine Anzahl in die freie Menge passt. Größere Einträge werden
    übersprungen, kleinere dahinter bedient – außer mit der Einstellung *Strikte Reihenfolge*. Höchstens
    *Angebote pro Durchlauf* je Lauf und Ticketart.
+   **Nicht anbietbare Einträge blockieren die Schlange nicht (A563):** Scheitert das Angebot nur an
+   diesem Eintrag – Käuferlimit (z. B. inzwischen anderweitig gekauft), gewünschte Anzahl über dem
+   (später gesenkten) Höchstwert pro Bestellung, Teilnehmerdaten –, wird er `blocked` mit
+   `block_reason`, im Audit-Log (`waitlist_blocked`) und per Aktion `wpcap_waitlist_blocked` gemeldet,
+   und der nächste Eintrag erhält die Plätze. Reichen die freien Sitzplätze (Saalplan) nicht für die
+   Anzahl, wird der Eintrag in diesem Lauf übersprungen (Hinweis `seats`, Status bleibt `waiting`).
+   Nur ausverkauft, Verkauf geschlossen oder Datenbankfehler beenden den Lauf.
 4. **Reservierung** – für das Angebot wird eine ausstehende Platzhalter-Bestellung angelegt
    (`Orders::create()` mit `payment_provider` `waitlist_offer`, Kanal `waitlist`) mit einer Reservierung
    über die angebotene Anzahl bis zum Ablauf der Annahmefrist (Einstellung, Standard 24 Stunden,
-   höchstens bis Terminbeginn). Das Kern-Kontingent zählt diese Reservierung; öffentliche Käufer:innen
+   höchstens bis zum Ende des Online-Verkaufs: Terminbeginn bzw. ein späteres Verkaufsende bei
+   mehrtägigen Terminen, A535). Teilnehmerdaten werden dafür nicht verlangt – Pflichtfelder der
+   Ticketart werden erst bei der Annahme geprüft (A536). Das Kern-Kontingent zählt diese Reservierung; öffentliche Käufer:innen
    können die Plätze nicht kaufen. Ein Eintrag hat höchstens ein offenes Angebot.
 5. **Mail** `waitlist_offer` mit Anzahl, Frist und Link zur Angebotsseite
    (`/?wpcap_waitlist_accept={id}&token=…`). Schlägt der Versand fehl, wird das Angebot zurückgenommen
    und der Eintrag wartet weiter.
 6. **Annahme** – die Angebotsseite zeigt Event, Ticketart, Anzahl, Preis und Frist und bietet
    *Annehmen* (mit Zahlungsart-Auswahl, falls mehrere aktiv sind, und ggf. Bestätigung der Bedingungen)
-   und *Ablehnen*.
+   und *Ablehnen*. Hat die Ticketart Teilnehmerfelder, fragt die Seite je Ticket Name und Felder ab
+   (`attendees[i][…]` wie im Checkout, auch über `POST /waitlist/{id}/accept` mit `attendees`). Fehlt ein
+   Pflichtfeld, wird die Annahme abgelehnt (`wpcap_attendee_field_required`), das Angebot bleibt offen
+   und die Seite verlinkt zurück zum Formular. Die Daten landen an der Bestellung und gehen bei der
+   Ausstellung an die Tickets (Einwilligungsnachweis mit Quelle `waitlist`).
    - Kostenlose Tickets: die Bestellung wird sofort abgeschlossen, die Tickets werden versendet
      (`paid`).
    - Kostenpflichtige Tickets: die Bestellung erhält die gewählte Zahlungsart, die Reservierung wird
@@ -150,6 +170,8 @@ Annahme gegen Ablehnung/Austragen, Annahmen rund um den Ablauf mit Ablauf-Job in
 - Aktionen: *Jetzt anbieten* (auch bei abgeschalteten automatischen Angeboten), *Priorität setzen*,
   *Überspringen* (`skipped`) und *Entfernen* (`removed`); ein offenes, unbezahltes Angebot wird dabei
   zurückgezogen und die Reservierung freigegeben.
+- Nicht anbietbare Einträge stehen als *Nicht anbietbar* mit Grund in der Liste; *Wieder aufnehmen*
+  setzt sie auf `waiting` (gleiche Position) und verarbeitet die Ticketart erneut.
 - *Freie Plätze jetzt anbieten* verarbeitet alle Ticketarten des Events sofort.
 - Einstellungen (nur Administrator:innen): automatische Angebote an/aus, Gültigkeit eines Angebots in
   Stunden (1–336), höchstens Angebote pro Durchlauf (1–100), strikte Reihenfolge.

@@ -56,6 +56,7 @@ final class Allocations {
 		add_action( 'wpcap_checkout_form_fields', array( BuyerLimits::class, 'render_notice' ), 5, 2 );
 		add_filter( 'wpcap_event_card_quantity_max', array( BuyerLimits::class, 'card_quantity_max' ), 10, 3 );
 		add_filter( 'wpcap_event_card_max_total', array( BuyerLimits::class, 'card_max_total' ), 10, 2 );
+		add_filter( 'wpcap_waitlist_join_error', array( BuyerLimits::class, 'waitlist_join_error' ), 10, 2 );
 	}
 
 	public static function schema( $prefix, $charset ) {
