@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.12';
+	const DB_VERSION = '3.10.13';
 
 	public static function install() {
 		global $wpdb;
@@ -788,6 +788,31 @@ final class Installer {
 				UNIQUE KEY idempotency_key (idempotency_key),
 				KEY due_jobs (status,run_after),
 				KEY job_type (job_type,status)
+			) ENGINE=InnoDB $charset;",
+			// Resumable cancellation/notification runs (schema 3.10.13, A428; see BulkRuns).
+			"CREATE TABLE {$wpdb->prefix}wpcap_bulk_runs (
+				run_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				run_key varchar(120) NOT NULL,
+				kind varchar(32) NOT NULL,
+				object_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				status varchar(20) NOT NULL DEFAULT 'running',
+				phase varchar(32) NOT NULL DEFAULT '',
+				cursor_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				payload longtext NOT NULL,
+				cancelled_orders int(10) unsigned NOT NULL DEFAULT 0,
+				revoked int(10) unsigned NOT NULL DEFAULT 0,
+				refunds int(10) unsigned NOT NULL DEFAULT 0,
+				refunds_open int(10) unsigned NOT NULL DEFAULT 0,
+				mails_queued int(10) unsigned NOT NULL DEFAULT 0,
+				locked_until datetime NULL,
+				created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				finished_at datetime NULL,
+				PRIMARY KEY  (run_id),
+				UNIQUE KEY run_key (run_key),
+				KEY object_runs (kind,object_id),
+				KEY open_runs (status,updated_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$wpdb->prefix}wpcap_rate_limits (
 				rl_key char(40) NOT NULL,

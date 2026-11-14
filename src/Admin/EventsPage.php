@@ -13,6 +13,7 @@ namespace PassCaptain\Admin;
 
 use PassCaptain\Access;
 use PassCaptain\Audit;
+use PassCaptain\BulkRuns;
 use PassCaptain\Calendar\Revisions;
 use PassCaptain\Localization;
 use PassCaptain\Orders;
@@ -301,7 +302,15 @@ final class EventsPage {
 		if ( ! $occ ) { return Forms::error( 'wpcap_occurrence_missing', __( 'Termin nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_occurrence( $occ->occurrence_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		if ( 'cancelled' === $occ->status ) {
-			return array( 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id, 'issued' => 0 );
+			// A428: a second click continues an unfinished cancellation instead of returning at once.
+			$run = BulkRuns::occurrence_run( (int) $occ->occurrence_id );
+			$result = array( 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id, 'issued' => 0, 'resumed' => (bool) $run, 'complete' => true );
+			if ( $run ) {
+				$run = BulkRuns::drive( $run );
+				$result['summary'] = BulkRuns::summary( $run );
+				$result['complete'] = ! empty( $result['summary']['complete'] );
+			}
+			return $result;
 		}
 		$reason = Forms::text( $in, 'reason', 255 );
 		if ( '' === $reason ) { return Forms::error( 'wpcap_cancel_reason', __( 'Bitte einen Grund für die Absage angeben.', 'pass-captain' ) ); }
@@ -316,6 +325,7 @@ final class EventsPage {
 		// Summary of what happened (core + passes), shown after the redirect.
 		$core = \PassCaptain\OccurrenceCancellation::last_summary( (int) $occ->occurrence_id );
 		$pass = class_exists( \PassCaptain\Passes\Cancellation::class ) ? \PassCaptain\Passes\Cancellation::last_summary( (int) $occ->occurrence_id ) : array();
+		$result['complete'] = ! array_key_exists( 'complete', $core ) || ! empty( $core['complete'] );
 		$result['summary'] = array(
 			'cancelled_orders' => (int) ( $core['cancelled_orders'] ?? 0 ),
 			'revoked' => (int) ( $core['revoked'] ?? 0 ) + (int) ( $pass['revoked'] ?? 0 ),
@@ -592,6 +602,12 @@ final class EventsPage {
 	public static function cancel_event( array $in ) {
 		$event_id = Forms::int( $in, 'event_id' );
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
+		$event = Queries::event( $event_id );
+		if ( $event && 'cancelled' === $event->status ) {
+			// A428: a second click continues an unfinished cancellation.
+			$result = Orders::resume_event_cancellation( $event_id );
+			return is_wp_error( $result ) ? Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ) : $result;
+		}
 		$reason = Forms::text( $in, 'reason', 255 );
 		if ( '' === $reason ) { return Forms::error( 'wpcap_cancel_reason', __( 'Bitte einen Grund für die Absage angeben.', 'pass-captain' ) ); }
 		if ( ! Forms::flag( $in, 'confirm' ) ) { return Forms::error( 'wpcap_cancel_confirm', __( 'Bitte bestätigen, dass die Folgen der Absage geprüft wurden.', 'pass-captain' ) ); }
@@ -645,8 +661,9 @@ final class EventsPage {
 			/* translators: 1: cancelled open orders, 2: revoked tickets, 3: refunds, 4: refunds open/failed, 5: notified holders */
 			$message = sprintf( __( 'Termin abgesagt: %1$d offene Bestellungen storniert, %2$d Tickets widerrufen, %3$d Erstattungen ausgeführt, %4$d Erstattungen offen, %5$d Personen benachrichtigt.', 'pass-captain' ), $s['cancelled_orders'], $s['revoked'], $s['refunds'], $s['refund_errors'], $s['notified'] );
 		}
+		if ( ! is_wp_error( $result ) ) { $message .= self::progress_note( $result ); }
 		$back = self::url( array( 'view' => 'cancel_occurrence', 'occurrence_id' => Forms::int( $in, 'occurrence_id' ) ) );
-		Forms::finish( $result, $message, is_wp_error( $result ) ? $back : self::event_url( $result['event_id'] ), $back );
+		Forms::finish( $result, $message, is_wp_error( $result ) ? $back : self::url( array( 'view' => 'occurrence', 'occurrence_id' => $result['occurrence_id'] ) ), $back );
 	}
 
 	public static function handle_save_ticket_type() {
@@ -699,8 +716,40 @@ final class EventsPage {
 				? sprintf( __( '%1$d Bestellungen wurden automatisch erstattet, %2$d Erstattungen sind offen (siehe Erstattungen). WooCommerce-Bestellungen bitte in WooCommerce erstatten.', 'pass-captain' ), (int) $result['refunds'], (int) $result['refund_errors'] )
 				: __( 'Bezahlte Tickets bleiben erstattungsfähig: bitte über Bestellung → Erstatten erstatten.', 'pass-captain' ) );
 		}
+		if ( ! is_wp_error( $result ) ) { $message .= self::progress_note( $result ); }
 		$back = self::url( array( 'view' => 'cancel_event', 'event_id' => $event_id ) );
 		Forms::finish( $result, $message, is_wp_error( $result ) ? $back : self::event_url( $event_id ), $back );
+	}
+
+	/** Note about an unfinished (background) or resumed cancellation run (A428). */
+	private static function progress_note( array $result ) {
+		if ( isset( $result['complete'] ) && ! $result['complete'] ) {
+			return ' ' . __( 'Die Absage ist noch nicht abgeschlossen und läuft im Hintergrund weiter; den Fortschritt siehst du unten. Ein erneuter Klick setzt sie sofort fort.', 'pass-captain' );
+		}
+		return ! empty( $result['resumed'] ) ? ' ' . __( 'Die Absage wurde fortgesetzt.', 'pass-captain' ) : '';
+	}
+
+	/** admin-post: continues a cancellation or notification run now (A428). */
+	public static function handle_resume_bulk_run() {
+		$in = Forms::post();
+		$run_id = Forms::int( $in, 'run_id' );
+		Forms::verify( 'wpcap_resume_bulk_run_' . $run_id );
+		$result = self::resume_bulk_run( $in );
+		$url = self::url();
+		if ( ! is_wp_error( $result ) ) {
+			$url = 'event_cancel' === $result['kind'] ? self::event_url( $result['object_id'] ) : self::url( array( 'view' => 'occurrence', 'occurrence_id' => $result['object_id'] ) );
+		}
+		Forms::finish( $result, ! is_wp_error( $result ) && $result['complete'] ? __( 'Vorgang abgeschlossen.', 'pass-captain' ) : __( 'Vorgang fortgesetzt; er läuft im Hintergrund weiter.', 'pass-captain' ), $url );
+	}
+
+	/** Continues a run (capability and event scope of its event/occurrence are checked). */
+	public static function resume_bulk_run( array $in ) {
+		$run = BulkRuns::get( Forms::int( $in, 'run_id' ) );
+		if ( ! $run ) { return Forms::error( 'wpcap_run_missing', __( 'Vorgang nicht gefunden.', 'pass-captain' ), 404 ); }
+		$allowed = 'event_cancel' === $run->kind ? Access::can_access_event( (int) $run->object_id, self::CAP ) : Access::can_access_occurrence( (int) $run->object_id, self::CAP );
+		if ( ! $allowed ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
+		$run = BulkRuns::drive( $run );
+		return array( 'run_id' => (int) $run->run_id, 'kind' => (string) $run->kind, 'object_id' => (int) $run->object_id, 'complete' => 'complete' === $run->status );
 	}
 
 	/* =============================================================================================
@@ -738,7 +787,11 @@ final class EventsPage {
 		/* translators: 1: event name, 2: date */
 		echo '<h1>' . esc_html( sprintf( __( 'Termin absagen: %1$s, %2$s', 'pass-captain' ), $event ? $event->name : '', Forms::datetime( $occ->starts_at, $occ->timezone ) ) ) . '</h1>';
 		Forms::render_notices();
-		if ( 'cancelled' === $occ->status ) { echo '<p>' . esc_html__( 'Dieser Termin ist bereits abgesagt.', 'pass-captain' ) . '</p>'; return; }
+		if ( 'cancelled' === $occ->status ) {
+			echo '<p>' . esc_html__( 'Dieser Termin ist bereits abgesagt.', 'pass-captain' ) . '</p>';
+			BulkRuns::render_progress( array( BulkRuns::occurrence_run( (int) $occ->occurrence_id ) ) );
+			return;
+		}
 		$pv = self::cancellation_preview( (int) $occ->occurrence_id );
 		echo '<div class="notice notice-warning inline"><p><strong>' . esc_html__( 'Die Absage kann nicht rückgängig gemacht werden. Folgen:', 'pass-captain' ) . '</strong></p><ul style="list-style:disc;margin-left:2em">';
 		/* translators: %d: tickets */
@@ -778,6 +831,7 @@ final class EventsPage {
 		Forms::render_notices();
 		if ( 'published' !== $event->status ) {
 			echo '<p>' . esc_html( 'cancelled' === $event->status ? __( 'Dieses Event ist bereits abgesagt.', 'pass-captain' ) : __( 'Nur veröffentlichte Events können abgesagt werden.', 'pass-captain' ) ) . '</p>';
+			BulkRuns::render_progress( array( BulkRuns::event_run( (int) $event->event_id ) ) );
 			return;
 		}
 		$pv = self::event_cancellation_preview( (int) $event->event_id );
@@ -987,8 +1041,19 @@ final class EventsPage {
 			<?php self::occurrence_form( null, (int) $event->event_id, $default_tz ); ?>
 		<?php endif; ?>
 
+		<?php self::render_runs_for_event( $event, $occurrences ); ?>
+
 		<?php self::render_staff( $event ); ?>
 		<?php
+	}
+
+	/** Progress of the event's cancellation run and of single occurrence cancellations (A428). */
+	private static function render_runs_for_event( $event, array $occurrences ) {
+		$runs = array( BulkRuns::event_run( (int) $event->event_id ) );
+		foreach ( $occurrences as $occ ) {
+			if ( 'cancelled' === $occ->status ) { $runs[] = BulkRuns::occurrence_run( (int) $occ->occurrence_id ); }
+		}
+		BulkRuns::render_progress( $runs );
 	}
 
 	private static function occurrence_form( $occ, $event_id, $default_tz ) {
@@ -1112,6 +1177,7 @@ final class EventsPage {
 			<?php self::ticket_type_form( null, $occ ); ?>
 		<?php endif; ?>
 		<?php
+		BulkRuns::render_progress( array_merge( array( BulkRuns::occurrence_run( (int) $occ->occurrence_id ) ), BulkRuns::for_object( 'notify', (int) $occ->occurrence_id, 5 ) ) );
 		ChangeHistory::render( ChangeHistory::for_occurrence( (int) $occ->occurrence_id ), (string) $occ->timezone, 'wpcap-occurrence-history' );
 	}
 

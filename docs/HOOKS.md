@@ -67,6 +67,8 @@ Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
 | `wpcap_occurrence_cancelled` | `int $occurrence_id, int $issued` | Admin: Termin abgesagt (`$issued` = Anzahl ausgegebener Tickets). Kern-Folgen in `OccurrenceCancellation` (Priorität 10); das SMS-Modul hängt sich mit Priorität 5 davor. |
 | `wpcap_occurrence_cancelled_woocommerce_order` | `int $order_id, int $occurrence_id` | Je bezahlter WooCommerce-Bestellung eines abgesagten Termins (Erstattung erfolgt in WooCommerce). |
 | `wpcap_cancellation_refund_retried` | `array $payload, string $outcome` | Eine fehlgeschlagene Absage-Erstattung (Termin- oder Pass-Absage) wurde im Hintergrundjob `cancellation_refund` erneut versucht und ist erledigt: `$outcome` `done` (ausgezahlt/beim Anbieter), `open` (wartet auf Freigabe bzw. abgelehnt) oder `final` (nichts mehr zu erstatten). `$payload` enthält `order_id`, `occurrence_id`, `mode` (`tickets`/`amount`) und `key`. |
+| `wpcap_occurrence_cancellation_step` | `int $occurrence_id, int $run_id` | Schritt der wiederaufnehmbaren Terminabsage (A428, `BulkRuns`) für Module, nachdem der Kern Tickets widerrufen und Erstattungen eingeplant hat (z. B. Pässe). Muss idempotent sein: Ein abgebrochener Lauf führt den Schritt erneut aus. Mails über `BulkRuns::queue_mail( $run_id, … )`. |
+| `wpcap_bulk_run_completed` | `int $run_id, string $kind, int $object_id, array $summary` | Ein Absage- oder Benachrichtigungslauf (`occurrence_cancel`, `event_cancel`, `notify`) hat alle Schritte erledigt (A428). `$summary`: `cancelled_orders`, `revoked`, `refunds`, `refund_errors`, `notified`, … |
 | `wp_pass_captain_connector_error_v1` | `string $connector_key, string $event_name, string $message` | Ein Connector hat bei einem Ereignis eine Exception geworfen. |
 
 Außerdem feuert das Template `templates/event-card.php` innerhalb des Checkout-Formulars die Action
@@ -240,6 +242,8 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 
 | Hook | Wert, Argumente | Zweck |
 |---|---|---|
+| `wpcap_bulk_run_batch_size` | `int $size` | Zeilen je Schritt eines Absage-/Benachrichtigungslaufs (Standard 200, 1–1000; A428). |
+| `wpcap_bulk_mail` | `array\|null $spec, array $payload` | Baut eine in einem Lauf (A428) eingereihte Mail eines Moduls beim Versand: `['type' => Mailtyp, 'vars' => Platzhalter]` (optional `ics` => Termin-ID). Das Pass-Modul baut so `pass_kept`/`pass_revoked`. |
 | `wpcap_admin_order_detail` (Action) | `object $order, array $tickets` | Zusätzliche Abschnitte auf der Bestelldetailseite im Admin vor den Erstattungen (z. B. Ticketumtausch). |
 | `wpcap_occurrence_sold` | `int $sold, int $occurrence_id` | Im Admin angezeigte verkaufte Einheiten eines Termins (bezahlt, nicht erstattet); Module zählen eigene Einheiten hinzu (z. B. an anderen Terminen verankerte Pässe). |
 | `wpcap_event_figures` | `array $figures, int[] $event_ids` | Kennzahlen der Eventliste im Admin, je Event `sold` (bezahlt, nicht erstattet), `capacity` (`null` = unbegrenzt) und `revenue` (Währung => Minor Units); Module passen sie gesammelt an (keine Abfrage pro Zeile). |

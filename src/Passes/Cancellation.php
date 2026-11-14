@@ -8,7 +8,9 @@
  * cancelled occurrence). Without a remaining date – or with on_cancel = 'revoke' – the core
  * handles the pass like any ticket of the cancelled occurrence (revocation, optional auto refund).
  *
- * after_core() (priority 20) for passes linked to the cancelled occurrence:
+ * after_core() (step `wpcap_occurrence_cancellation_step` of the cancellation run, A428; idempotent:
+ * refunds by key, mails through the run's message queue with one mail per order) for passes
+ * linked to the cancelled occurrence:
  *  - on_cancel 'keep' (default): the pass stays valid for the other dates; with a configured
  *    partial refund per day, each paid order receives refund_per_day_minor × pass tickets as an
  *    amount-only refund (Refunds::request_amount, idempotent per occurrence and pass type); holders
@@ -102,8 +104,8 @@ final class Cancellation {
 		return min( absint( $amount_minor ), (int) round( absint( $amount_minor ) * (int) $line->tax / (int) $line->gross ) );
 	}
 
-	/** Priority 20: keep/refund per day or revoke passes linked to the cancelled occurrence. */
-	public static function after_core( $occurrence_id ) {
+	/** Run step: keep/refund per day or revoke passes linked to the cancelled occurrence. */
+	public static function after_core( $occurrence_id, $run_id = 0 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$occurrence_id = absint( $occurrence_id );
@@ -118,7 +120,7 @@ final class Cancellation {
 			++$summary['passes'];
 			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT t.order_id,ord.payment_provider,ord.customer_email,ord.locale,COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE t.ticket_type_id=%d AND t.refunded=0 AND t.status IN ('valid','checked_in') AND ord.payment_status='paid' GROUP BY t.order_id,ord.payment_provider,ord.customer_email,ord.locale ORDER BY t.order_id", $type_id ) );
 			if ( 'revoke' === $config->on_cancel ) {
-				$summary = self::revoke_pass( $type_id, $orders, $occurrence_id, $summary );
+				$summary = self::revoke_pass( $type_id, $orders, $occurrence_id, $summary, $run_id );
 				continue;
 			}
 			++$summary['kept'];
@@ -150,7 +152,7 @@ final class Cancellation {
 						++$summary['day_refunds'];
 					}
 				}
-				$summary['notified'] += self::notify( $row, $occ, $type, $per_day * (int) $row->n );
+				$summary['notified'] += self::notify( $row, $occ, $type, $per_day * (int) $row->n, $run_id );
 			}
 		}
 		if ( $summary['passes'] ) { Audit::record( 'pass_occurrence_cancelled', 'occurrence', $occurrence_id, $summary ); }
@@ -165,7 +167,7 @@ final class Cancellation {
 	 * recorded as "refund open" (audit + one summary mail to the site admin) and the revoked pass
 	 * tickets stay refundable (filter refundable_tickets()). Every buyer gets the cancellation mail.
 	 */
-	private static function revoke_pass( $type_id, $orders, $occurrence_id, array $summary ) {
+	private static function revoke_pass( $type_id, $orders, $occurrence_id, array $summary, $run_id = 0 ) {
 		global $wpdb;
 		$auto = (bool) Settings::get( 'auto_refund_cancelled' );
 		$type = Definitions::type_row( $type_id );
@@ -199,7 +201,7 @@ final class Cancellation {
 		$summary['revoked'] += count( $revoked );
 		if ( $type && $occ ) {
 			foreach ( (array) $orders as $row ) {
-				$summary['notified'] += self::notify_revoked( $row, $occ, $type, $auto && ! in_array( (int) $row->order_id, $open, true ) );
+				$summary['notified'] += self::notify_revoked( $row, $occ, $type, $auto && ! in_array( (int) $row->order_id, $open, true ), $run_id );
 			}
 		}
 		$summary['refunds_open'] = ( $summary['refunds_open'] ?? 0 ) + count( $open );
@@ -237,9 +239,38 @@ final class Cancellation {
 		return $rows;
 	}
 
-	/** Cancellation mail for a revoked pass. @return int 1 when sent. */
-	private static function notify_revoked( $row, $occ, $type, $refunded ) {
+	/**
+	 * wpcap_bulk_mail: builds the queued pass mails (pass_kept, pass_revoked) when they are sent.
+	 *
+	 * @return array|null type, vars.
+	 */
+	public static function mail_spec( $spec, $payload ) {
+		global $wpdb;
+		$kind = (string) ( $payload['mail'] ?? '' );
+		if ( null !== $spec || ! in_array( $kind, array( 'pass_kept', 'pass_revoked' ), true ) ) { return $spec; }
+		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.name AS event_name FROM {$wpdb->prefix}wpcap_occurrences o INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", absint( $payload['occurrence_id'] ?? 0 ) ) );
+		$type = Definitions::type_row( absint( $payload['type_id'] ?? 0 ) );
+		if ( ! $occ || ! $type ) { return null; }
+		$vars = 'pass_kept' === $kind ? self::kept_vars( $occ, $type, absint( $payload['refund_minor'] ?? 0 ) ) : self::revoked_vars( $occ, $type, ! empty( $payload['refunded'] ) );
+		return array( 'type' => 'occurrence_cancelled', 'vars' => $vars );
+	}
+
+	/** Sends a pass mail now, or queues it in the cancellation run (one per order). @return int 1 when sent/queued. */
+	private static function deliver( $row, $occ, $type, array $spec, array $vars, $run_id ) {
 		if ( ! is_email( $row->customer_email ) ) { return 0; }
+		if ( $run_id ) {
+			$spec += array( 'occurrence_id' => (int) $occ->occurrence_id, 'type_id' => (int) $type->ticket_type_id );
+			return \PassCaptain\BulkRuns::queue_mail( (int) $run_id, (string) $row->customer_email, (string) $row->locale, $spec, 'pass|' . (int) $occ->occurrence_id . '|' . (int) $type->ticket_type_id . '|' . (int) $row->order_id ) ? 1 : 0;
+		}
+		return \PassCaptain\Mail\Mailer::send( 'occurrence_cancelled', $row->customer_email, $vars, array(), (string) $row->locale ) ? 1 : 0;
+	}
+
+	/** Cancellation mail for a revoked pass. @return int 1 when sent/queued. */
+	private static function notify_revoked( $row, $occ, $type, $refunded, $run_id = 0 ) {
+		return self::deliver( $row, $occ, $type, array( 'mail' => 'pass_revoked', 'refunded' => $refunded ? 1 : 0 ), self::revoked_vars( $occ, $type, $refunded ), $run_id );
+	}
+
+	private static function revoked_vars( $occ, $type, $refunded ) {
 		$tz = \PassCaptain\Admission\Engine::timezone( $occ->timezone );
 		$vars = array(
 			'event_name' => (string) $occ->event_name,
@@ -252,12 +283,15 @@ final class Cancellation {
 				return $note . ' ' . ( $refunded ? __( 'Der Ticketpreis wird automatisch erstattet.', 'pass-captain' ) : __( 'Der Veranstalter informiert dich über Erstattung oder Ersatztermin.', 'pass-captain' ) );
 			},
 		);
-		return \PassCaptain\Mail\Mailer::send( 'occurrence_cancelled', $row->customer_email, $vars, array(), (string) $row->locale ) ? 1 : 0;
+		return $vars;
 	}
 
-	/** Cancellation mail to the buyer of a pass that stays valid. @return int 1 when sent. */
-	private static function notify( $row, $occ, $type, $refund_minor ) {
-		if ( ! is_email( $row->customer_email ) ) { return 0; }
+	/** Cancellation mail to the buyer of a pass that stays valid. @return int 1 when sent/queued. */
+	private static function notify( $row, $occ, $type, $refund_minor, $run_id = 0 ) {
+		return self::deliver( $row, $occ, $type, array( 'mail' => 'pass_kept', 'refund_minor' => (int) $refund_minor ), self::kept_vars( $occ, $type, $refund_minor ), $run_id );
+	}
+
+	private static function kept_vars( $occ, $type, $refund_minor ) {
 		$tz = \PassCaptain\Admission\Engine::timezone( $occ->timezone );
 		$currency = (string) $type->currency;
 		$vars = array(
@@ -275,6 +309,6 @@ final class Cancellation {
 				return $note;
 			},
 		);
-		return \PassCaptain\Mail\Mailer::send( 'occurrence_cancelled', $row->customer_email, $vars, array(), (string) $row->locale ) ? 1 : 0;
+		return $vars;
 	}
 }

@@ -23,6 +23,7 @@ final class Menu {
 			'wpcap_cancel_event' => array( EventsPage::class, 'handle_cancel_event' ),
 			'wpcap_save_occurrence' => array( EventsPage::class, 'handle_save_occurrence' ),
 			'wpcap_cancel_occurrence' => array( EventsPage::class, 'handle_cancel_occurrence' ),
+			'wpcap_resume_bulk_run' => array( EventsPage::class, 'handle_resume_bulk_run' ),
 			'wpcap_save_ticket_type' => array( EventsPage::class, 'handle_save_ticket_type' ),
 			'wpcap_save_participant_field' => array( EventsPage::class, 'handle_save_participant_field' ),
 			'wpcap_participant_field_status' => array( EventsPage::class, 'handle_participant_field_status' ),

@@ -10,6 +10,9 @@
  *   the new revision. When the save path fires both actions, the reschedule mail is deferred to
  *   the change handler, so time + location changed in one save produce exactly one mail.
  * - Per-event opt-out: events.notify_changes = 0 suppresses both change mails (not cancellations).
+ * - A428: the mails go out through a resumable `notify` run (BulkRuns): every recipient is queued
+ *   in the message queue first, then sent; a request that dies while sending leaves the rest to
+ *   the queue worker and the run's background job, so every holder is still informed.
  */
 namespace PassCaptain;
 
@@ -75,7 +78,7 @@ final class Notifications {
 		$sent = 0;
 		$deferred = isset( self::$deferred[ absint( $occurrence_id ) ] );
 		if ( ! $deferred && Revisions::event_notifies( $occ->event_id ) ) {
-			$sent = self::send_all( $occ, 'occurrence_rescheduled', self::rescheduled_vars( $occ, $old_starts_at, $new_starts_at ), true );
+			$sent = self::send_all( $occ, 'notify|' . (int) $occ->occurrence_id . '|rescheduled|' . md5( $old_starts_at . '>' . $new_starts_at . '|' . uniqid( '', true ) ), array( 'mail' => 'occurrence_rescheduled', 'old' => (string) $old_starts_at, 'new' => (string) $new_starts_at ) );
 		}
 		Audit::record( 'occurrence_rescheduled', 'occurrence', absint( $occurrence_id ), array( 'old' => $old_starts_at, 'new' => $new_starts_at, 'notified' => $sent ) + ( $deferred ? array( 'combined' => true ) : array() ) );
 		return $sent;
@@ -96,14 +99,11 @@ final class Notifications {
 		if ( ! Revisions::claim_notification( $occ->occurrence_id, (int) $revision ) ) { return 0; }
 		// A pure time shift keeps the established reschedule text; anything else is one combined mail.
 		$time_only = isset( $notify['starts_at'] ) && ! array_diff_key( $notify, array_flip( array( 'starts_at', 'ends_at', 'doors_open_at' ) ) );
-		if ( $time_only ) {
-			$type = 'occurrence_rescheduled';
-			$vars = self::rescheduled_vars( $occ, (string) $notify['starts_at'][0], (string) $notify['starts_at'][1] );
-		} else {
-			$type = 'occurrence_changed';
-			$vars = self::changed_vars( $occ, $notify );
-		}
-		$sent = self::send_all( $occ, $type, $vars, true );
+		$type = $time_only ? 'occurrence_rescheduled' : 'occurrence_changed';
+		$spec = $time_only
+			? array( 'mail' => $type, 'old' => (string) $notify['starts_at'][0], 'new' => (string) $notify['starts_at'][1] )
+			: array( 'mail' => $type, 'notify' => $notify );
+		$sent = self::send_all( $occ, 'notify|' . (int) $occ->occurrence_id . '|changed|' . (int) $revision . '|' . md5( wp_json_encode( $notify ) ), $spec );
 		Audit::record( 'occurrence_change_notified', 'occurrence', (int) $occ->occurrence_id, array( 'revision' => (int) $revision, 'mail_type' => $type, 'fields' => array_keys( $notify ), 'notified' => $sent ) );
 		return $sent;
 	}
@@ -184,24 +184,33 @@ final class Notifications {
 	}
 
 	/**
-	 * Sends one mail type to all recipients of valid tickets, optionally with the current .ics of
-	 * the occurrence attached (one temporary file, removed afterwards).
+	 * Informs all holders of valid tickets through a resumable `notify` run (A428): one queued mail
+	 * per recipient (with the current .ics attached when it is sent), sent within this request's
+	 * time budget; the rest is sent in the background.
+	 *
+	 * @return int Mails sent so far.
 	 */
-	private static function send_all( $occ, $type, array $vars, $attach ) {
-		$recipients = self::recipients( $occ->occurrence_id );
-		if ( ! $recipients ) { return 0; }
-		$files = $attach ? self::ics_file( (int) $occ->occurrence_id ) : array();
-		$sent = 0;
-		try {
-			foreach ( $recipients as $recipient ) {
-				if ( is_email( $recipient->email ) && Mail\Mailer::send( $type, $recipient->email, $vars, $files, (string) $recipient->locale ) ) { ++$sent; }
-			}
-		} finally {
-			foreach ( $files as $file ) {
-				if ( file_exists( $file ) ) { wp_delete_file( $file ); }
-			}
+	private static function send_all( $occ, $key, array $spec ) {
+		if ( ! self::recipients( $occ->occurrence_id ) ) { return 0; }
+		$spec += array( 'occurrence_id' => (int) $occ->occurrence_id, 'ics' => 1 );
+		$run = BulkRuns::drive( BulkRuns::start( 'notify', (int) $occ->occurrence_id, $key, array( 'mail' => $spec ) ) );
+		return (int) ( BulkRuns::summary( $run )['notified'] ?? 0 );
+	}
+
+	/**
+	 * Mail type and placeholders of a queued change notice (BulkRuns), with the occurrence's data
+	 * at the time of sending.
+	 *
+	 * @param array $payload mail (occurrence_rescheduled|occurrence_changed), occurrence_id, old, new, notify.
+	 * @return array|null type, vars.
+	 */
+	public static function mail_spec( array $payload ) {
+		$occ = self::occurrence( absint( $payload['occurrence_id'] ?? 0 ) );
+		if ( ! $occ ) { return null; }
+		if ( 'occurrence_rescheduled' === ( $payload['mail'] ?? '' ) ) {
+			return array( 'type' => 'occurrence_rescheduled', 'vars' => self::rescheduled_vars( $occ, (string) ( $payload['old'] ?? '' ), (string) ( $payload['new'] ?? '' ) ) );
 		}
-		return $sent;
+		return array( 'type' => 'occurrence_changed', 'vars' => self::changed_vars( $occ, (array) ( $payload['notify'] ?? array() ) ) );
 	}
 
 	/**

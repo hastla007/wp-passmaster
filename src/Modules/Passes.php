@@ -58,7 +58,9 @@ final class Passes {
 		if ( function_exists( 'add_shortcode' ) ) { add_shortcode( 'wpcap_passes', array( Display::class, 'shortcode' ) ); }
 		// Cancellation of a linked occurrence.
 		add_action( 'wpcap_occurrence_cancelled', array( Cancellation::class, 'before_core' ), 5, 1 );
-		add_action( 'wpcap_occurrence_cancelled', array( Cancellation::class, 'after_core' ), 20, 1 );
+		// A428: a step of the resumable occurrence cancellation run (after the core revoked its tickets).
+		add_action( 'wpcap_occurrence_cancellation_step', array( Cancellation::class, 'after_core' ), 10, 2 );
+		add_filter( 'wpcap_bulk_mail', array( Cancellation::class, 'mail_spec' ), 10, 2 );
 		add_filter( 'wpcap_refundable_tickets', array( Cancellation::class, 'refundable_tickets' ), 10, 2 );
 		add_filter( 'wpcap_occurrence_cancellation_preview', array( Cancellation::class, 'preview' ), 10, 2 );
 		add_filter( 'wpcap_occurrence_sold', array( Capacity::class, 'sold_display' ), 10, 2 );

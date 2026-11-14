@@ -31,9 +31,23 @@ final class Communications {
 	 * next five-minute tick. Returns the number of messages processed.
 	 */
 	public static function process_due() {
+		return self::process( '' );
+	}
+
+	/**
+	 * Sends the due messages of one template key only (e.g. the mails of one cancellation run,
+	 * BulkRuns), with the same claim, retry and time-budget rules as process_due().
+	 */
+	public static function process_template( $template_key ) {
+		$template_key = sanitize_key( (string) $template_key );
+		return '' === $template_key ? 0 : self::process( $template_key );
+	}
+
+	private static function process( $only ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_message_queue';
 		$now = current_time( 'mysql', true );
+		$filter = '' === $only ? '' : $wpdb->prepare( ' AND template_key=%s', $only );
 		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
 		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='queued',locked_at=NULL WHERE status='sending' AND locked_at<%s", $stale ) );
 		$limit = max( 1, (int) apply_filters( 'wpcap_message_batch_size', self::BATCH_SIZE ) );
@@ -43,7 +57,7 @@ final class Communications {
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; } // No row lock without a transaction.
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND send_at<=%s ORDER BY send_at,message_id LIMIT 1 FOR UPDATE", $now ) );
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND send_at<=%s$filter ORDER BY send_at,message_id LIMIT 1 FOR UPDATE", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $filter is prepared above.
 			if ( ! $row ) { $wpdb->query( 'COMMIT' ); $drained = true; break; }
 			$claimed = $wpdb->update( $table, array( 'status' => 'sending', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now ), array( 'message_id' => (int) $row->message_id, 'status' => 'queued' ), array( '%s', '%d', '%s' ), array( '%d', '%s' ) );
 			if ( 1 !== (int) $claimed || false === $wpdb->query( 'COMMIT' ) ) {
@@ -60,7 +74,13 @@ final class Communications {
 			$subject = sanitize_text_field( $template['subject'] ?? '' );
 			$body = (string) ( $template['body'] ?? '' );
 			// Through the central mailer (layout for HTML bodies, `wpcap_mail` filter); reminders keep their own editor.
-			$sent = '' !== $subject && '' !== $body && Mail\Mailer::deliver( $row->recipient, array( 'type' => 'queue_' . $row->template_key, 'subject' => $subject, 'body' => $body, 'format' => 'html' === ( $template['format'] ?? 'text' ) ? 'html' : 'text', 'attachments' => array(), 'locale' => (string) ( $template['locale'] ?? '' ) ) );
+			// A fully composed message (e.g. BulkRuns: mail type, locale, attachments) is sent as it is.
+			$sent = isset( $template['message'] ) && is_array( $template['message'] )
+				? Mail\Mailer::deliver( $row->recipient, $template['message'] )
+				: '' !== $subject && '' !== $body && Mail\Mailer::deliver( $row->recipient, array( 'type' => 'queue_' . $row->template_key, 'subject' => $subject, 'body' => $body, 'format' => 'html' === ( $template['format'] ?? 'text' ) ? 'html' : 'text', 'attachments' => array(), 'locale' => (string) ( $template['locale'] ?? '' ) ) );
+			foreach ( (array) ( $template['temp_files'] ?? array() ) as $temp_file ) {
+				if ( is_string( $temp_file ) && file_exists( $temp_file ) ) { wp_delete_file( $temp_file ); }
+			}
 			if ( $sent ) {
 				$done = array( 'status' => 'sent', 'locked_at' => null, 'last_error' => null );
 				// Once more after a lost connection: an unmarked mail would be sent again (at-least-once).
@@ -75,7 +95,7 @@ final class Communications {
 			Jobs\TimeBudget::finished( $table, (int) $row->message_id );
 			++$processed;
 		}
-		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT message_id FROM $table WHERE status='queued' AND send_at<=%s LIMIT 1", $now ) ) ) {
+		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT message_id FROM $table WHERE status='queued' AND send_at<=%s$filter LIMIT 1", $now ) ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $filter is prepared above.
 			Jobs\TimeBudget::continue_later( 'wpcap_process_messages' );
 		}
 		return $processed;

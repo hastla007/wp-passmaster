@@ -88,7 +88,9 @@ if ( class_exists( Definitions::class ) && method_exists( Definitions::class, 'c
 	// A tiny group_concat_max_len makes a GROUP_CONCAT list unusable at once.
 	$wpdb->query( 'SET SESSION group_concat_max_len=4' );
 	$wpdb->update( "{$p}wpcap_occurrences", array( 'status' => 'cancelled' ), array( 'occurrence_id' => $a436_day ) );
+	add_action( 'wpcap_occurrence_cancelled', array( OccurrenceCancellation::class, 'handle' ), 10, 1 );
 	do_action( 'wpcap_occurrence_cancelled', $a436_day, 0 );
+	remove_action( 'wpcap_occurrence_cancelled', array( OccurrenceCancellation::class, 'handle' ), 10 );
 	$wpdb->query( 'SET SESSION group_concat_max_len=1048576' );
 	$a436_refunds = array_values( array_filter( Refunds::for_order( $a436_order ), static fn( $r ) => 'completed' === $r['status'] ) );
 	$a436_ids = $a436_refunds ? array_map( 'intval', (array) json_decode( (string) $a436_refunds[0]['ticket_ids'], true ) ) : array();

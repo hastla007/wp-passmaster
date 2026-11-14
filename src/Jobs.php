@@ -43,10 +43,13 @@ final class Jobs {
 	 * is checked before each claim, so no job is claimed that this request does not process. A
 	 * remaining backlog triggers an immediate follow-up run. Returns the number of jobs processed.
 	 */
-	public static function process_due( $limit = 20 ) {
+	public static function process_due( $limit = 20, $type = '' ) {
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_jobs';
 		$now = current_time( 'mysql', true );
+		// Optional: only jobs of one type (e.g. the refunds of a cancellation run, BulkRuns).
+		$type = is_string( $type ) ? sanitize_key( $type ) : '';
+		$filter = '' === $type ? '' : $wpdb->prepare( ' AND job_type=%s', $type );
 		self::recover_stale( $now );
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 20;
 		$deadline = Jobs\TimeBudget::deadline();
@@ -55,7 +58,7 @@ final class Jobs {
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; } // No row lock without a transaction.
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND run_after<=%s ORDER BY run_after,job_id LIMIT 1 FOR UPDATE", $now ) );
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND run_after<=%s$filter ORDER BY run_after,job_id LIMIT 1 FOR UPDATE", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $filter is prepared above.
 			if ( '' !== $wpdb->last_error ) {
 				// Lock wait timeout or lost connection: not "nothing due" (the follow-up run is kept).
 				$wpdb->query( 'ROLLBACK' );
@@ -119,7 +122,7 @@ final class Jobs {
 			Jobs\TimeBudget::finished( $table, (int) $row->job_id );
 			if ( $dead && 1 === $marked ) { self::dead_letter( $row, $failed['last_error'] ); }
 		}
-		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s LIMIT 1", $now ) ) ) {
+		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s$filter LIMIT 1", $now ) ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $filter is prepared above.
 			Jobs\TimeBudget::continue_later( 'wpcap_process_jobs' );
 		}
 		return $processed;

@@ -1771,14 +1771,7 @@ final class Orders {
 			return new \WP_Error( 'wpcap_event_not_cancellable', __( 'Dieses Event kann nicht abgesagt werden.', 'pass-captain' ) );
 		}
 		$order_ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT oi.order_id FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d", $event_id ) ) );
-		// Only buyers with a paid or open order are notified, not abandoned/expired/refunded attempts.
-		// Read before the cancellation changes order and ticket states.
-		$notify_ids = $order_ids ? array_map( 'absint', $wpdb->get_col( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id IN (" . implode( ',', $order_ids ) . ") AND payment_status IN ('paid','pending','paid_unallocated')" ) ) : array();
 		$pending_before = $order_ids ? array_map( 'absint', $wpdb->get_col( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id IN (" . implode( ',', $order_ids ) . ") AND payment_status IN ('pending','expired')" ) ) : array();
-		$recipients = ! $notify_ids ? array() : $wpdb->get_results( $wpdb->prepare(
-			"SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id LEFT JOIN {$p}wpcap_tickets t ON t.order_id=ord.order_id AND t.ticket_type_id=tt.ticket_type_id WHERE o.event_id=%d AND ord.order_id IN (" . implode( ',', $notify_ids ) . ") GROUP BY email",
-			$event_id
-		) );
 
 		$wpdb->query( 'START TRANSACTION' );
 		$changed = $wpdb->update( "{$p}wpcap_events", array( 'status' => 'cancelled', 'updated_at' => Clock::mysql() ), array( 'event_id' => $event_id, 'status' => 'published' ), array( '%s', '%s' ), array( '%d', '%s' ) );
@@ -1793,46 +1786,61 @@ final class Orders {
 		$wpdb->query( 'COMMIT' );
 		PageCache::event_changed( $event_id, 'event' ); // A446.
 
-		$summary = array( 'cancelled_orders' => 0, 'refunds' => 0, 'refund_errors' => 0, 'revoked' => 0 );
-		OccurrenceCancellation::begin_event_batch();
-		try {
-			foreach ( $occurrence_ids as $occurrence_id ) {
-				$issued = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status IN ('valid','checked_in')", $occurrence_id ) );
-				Audit::record( 'occurrence_cancelled', 'occurrence', $occurrence_id, array( 'event_id' => $event_id, 'issued_tickets' => $issued, 'via' => 'event_cancelled' ) );
-				do_action( 'wpcap_occurrence_cancelled', $occurrence_id, $issued );
-				foreach ( array_keys( $summary ) as $key ) { $summary[ $key ] += (int) ( OccurrenceCancellation::last_summary( $occurrence_id )[ $key ] ?? 0 ); }
-			}
-		} finally {
-			OccurrenceCancellation::end_event_batch();
-		}
-
-		// Safety net when the occurrence handler is unhooked: open orders and still valid tickets.
-		$still_pending = $order_ids ? array_map( 'absint', $wpdb->get_col( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id IN (" . implode( ',', $order_ids ) . ") AND payment_status IN ('pending','expired')" ) ) : array();
-		foreach ( $still_pending as $order_id ) {
-			if ( true === self::cancel_order( $order_id, 'event_cancelled' ) ) {
-				++$summary['cancelled_orders'];
-			}
-		}
-		$revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND t.status='valid'", $event_id ) ) );
-		$summary['revoked'] += count( $revoked_ids );
-		self::fire_revoked( $revoked_ids, 'event_cancelled' );
-
-		$emails = array();
-		foreach ( $recipients as $recipient ) {
-			if ( is_email( $recipient->email ) && Mail\Mailer::send( 'event_cancelled', $recipient->email, array( 'event_name' => (string) $event->name ), array(), (string) $recipient->locale ) ) {
-				$emails[] = $recipient->email;
-			}
-		}
-		// Open orders already reported their release through cancel_order().
-		foreach ( array_diff( $order_ids, $pending_before ) as $released_order_id ) { self::capacity_released( $released_order_id, 'event_cancelled' ); }
-		$result = array_merge( $summary, array(
-			'status' => 'cancelled',
-			'notified_count' => count( $emails ),
-			'occurrences' => count( $occurrence_ids ),
+		// A428: the consequences run as a resumable run (BulkRuns): event mails are queued first (while
+		// the orders are unchanged), then every occurrence is cancelled in its own run, refunds run as
+		// jobs, and the work that does not fit into this request continues in the background.
+		$run = BulkRuns::start( 'event_cancel', $event_id, 'event_cancel|' . $event_id, array(
+			'event_name' => (string) $event->name,
+			'occurrence_ids' => $occurrence_ids,
+			'pending_before' => $pending_before,
 			'auto_refund' => (bool) Settings::get( 'auto_refund_cancelled' ),
 		) );
-		Audit::record( 'event_cancelled', 'event', $event_id, $result + ( '' !== (string) $reason ? array( 'reason' => sanitize_text_field( (string) $reason ) ) : array() ) );
-		return $result;
+		Audit::record( 'event_cancelled', 'event', $event_id, array( 'occurrences' => count( $occurrence_ids ), 'run_id' => (int) $run->run_id ) + ( '' !== (string) $reason ? array( 'reason' => sanitize_text_field( (string) $reason ) ) : array() ) );
+		return self::event_cancellation_result( BulkRuns::drive( $run ) );
+	}
+
+	/**
+	 * Continues the cancellation of an already cancelled event (A428: "a second click resumes"):
+	 * works on its run, or starts the run if the request that cancelled the event died before.
+	 *
+	 * @return array|\WP_Error Same keys as cancel_event() plus resumed.
+	 */
+	public static function resume_event_cancellation( $event_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$event_id = absint( $event_id );
+		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,name,status FROM {$p}wpcap_events WHERE event_id=%d", $event_id ) );
+		if ( ! $event || 'cancelled' !== $event->status ) {
+			return new \WP_Error( 'wpcap_event_not_cancelled', __( 'Dieses Event ist nicht abgesagt.', 'pass-captain' ) );
+		}
+		$run = BulkRuns::event_run( $event_id );
+		if ( ! $run ) {
+			$pending = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ord.order_id FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND ord.payment_status='pending'", $event_id ) ) );
+			$run = BulkRuns::start( 'event_cancel', $event_id, 'event_cancel|' . $event_id, array(
+				'event_name' => (string) $event->name,
+				'occurrence_ids' => array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$p}wpcap_occurrences WHERE event_id=%d ORDER BY occurrence_id", $event_id ) ) ),
+				'pending_before' => $pending,
+				'auto_refund' => (bool) Settings::get( 'auto_refund_cancelled' ),
+			) );
+		}
+		return self::event_cancellation_result( BulkRuns::drive( $run ) ) + array( 'resumed' => true );
+	}
+
+	/** Result array of an event cancellation run. */
+	private static function event_cancellation_result( $run ) {
+		$summary = BulkRuns::summary( $run );
+		return array(
+			'cancelled_orders' => (int) ( $summary['cancelled_orders'] ?? 0 ),
+			'refunds' => (int) ( $summary['refunds'] ?? 0 ),
+			'refund_errors' => (int) ( $summary['refund_errors'] ?? 0 ),
+			'revoked' => (int) ( $summary['revoked'] ?? 0 ),
+			'status' => 'cancelled',
+			'notified_count' => (int) ( $summary['notified'] ?? 0 ),
+			'occurrences' => count( (array) ( $run->data['occurrence_ids'] ?? array() ) ),
+			'auto_refund' => ! empty( $run->data['auto_refund'] ),
+			'run_id' => (int) $run->run_id,
+			'complete' => ! empty( $summary['complete'] ),
+		);
 	}
 
 	/**
