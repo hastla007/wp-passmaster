@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.6.0';
+	const DB_VERSION = '3.7.0';
 
 	public static function install() {
 		global $wpdb;
@@ -267,9 +267,14 @@ final class Installer {
 				capacity smallint(5) unsigned NOT NULL DEFAULT 1,
 				buffer_before smallint(5) unsigned NOT NULL DEFAULT 0,
 				buffer_after smallint(5) unsigned NOT NULL DEFAULT 0,
+				default_duration smallint(5) unsigned NOT NULL DEFAULT 60,
+				partner_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				ticket_type_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				rules longtext NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
 				PRIMARY KEY  (resource_id),
-				KEY event_status (event_id,status)
+				KEY event_status (event_id,status),
+				KEY partner_id (partner_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $service_slots (
 				slot_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -290,11 +295,27 @@ final class Installer {
 				idempotency_key char(64) NOT NULL,
 				quantity smallint(5) unsigned NOT NULL DEFAULT 1,
 				expires_at datetime NULL,
-				status varchar(20) NOT NULL DEFAULT 'held',
+				status varchar(24) NOT NULL DEFAULT 'held',
+				ticket_ids varchar(500) NOT NULL DEFAULT '',
+				amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				currency char(3) NOT NULL DEFAULT '',
+				manage_token_hash char(64) NOT NULL DEFAULT '',
+				confirm_by datetime NULL,
+				cancel_reason varchar(64) NOT NULL DEFAULT '',
+				refund_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				rebook_count smallint(5) unsigned NOT NULL DEFAULT 0,
+				last_action_key char(64) NOT NULL DEFAULT '',
+				pass_use_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				checked_in_at datetime NULL,
+				noshow_at datetime NULL,
+				fee_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
+				updated_at datetime NULL,
 				PRIMARY KEY  (booking_id),
 				KEY slot_state (slot_id,status),
 				KEY email (customer_email),
+				KEY order_id (order_id),
+				KEY status_confirm (status,confirm_by),
 				UNIQUE KEY idempotency_key (idempotency_key)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $occurrence_days (
@@ -445,6 +466,10 @@ final class Installer {
 				ticket_type_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				uses_total smallint(5) unsigned NOT NULL DEFAULT 0,
 				uses_per_day smallint(5) unsigned NOT NULL DEFAULT 1,
+				scope varchar(16) NOT NULL DEFAULT 'event',
+				resource_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				slot_mode varchar(16) NOT NULL DEFAULT 'slot_free',
+				expires_at datetime NULL,
 				PRIMARY KEY  (rule_id),
 				KEY pass_scope (pass_id,event_id,ticket_type_id)
 			) ENGINE=InnoDB $charset;",
@@ -455,6 +480,9 @@ final class Installer {
 				service_date date NOT NULL,
 				user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				idempotency_key char(64) NOT NULL,
+				resource_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				slot_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				booking_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (pass_use_id),
 				UNIQUE KEY idempotency_key (idempotency_key),
@@ -504,11 +532,34 @@ final class Installer {
 				status varchar(20) NOT NULL DEFAULT 'waiting',
 				offer_token_hash char(64) NOT NULL DEFAULT '',
 				offer_expires_at datetime NULL,
+				hold_quantity smallint(5) unsigned NOT NULL DEFAULT 0,
+				manage_token_hash char(64) NOT NULL DEFAULT '',
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (waitlist_id),
 				UNIQUE KEY event_type_email (event_id,ticket_type_id,email_hash),
 				KEY queue_order (event_id,ticket_type_id,status,position),
+				KEY offer_expiry (status,offer_expires_at),
+				KEY type_hold (ticket_type_id,status,offer_expires_at)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_service_waitlist (
+				entry_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				slot_id bigint(20) unsigned NOT NULL,
+				email_hash char(64) NOT NULL,
+				email varchar(190) NOT NULL,
+				quantity smallint(5) unsigned NOT NULL DEFAULT 1,
+				position bigint(20) unsigned NOT NULL,
+				status varchar(20) NOT NULL DEFAULT 'waiting',
+				offer_token_hash char(64) NOT NULL DEFAULT '',
+				offer_expires_at datetime NULL,
+				manage_token_hash char(64) NOT NULL DEFAULT '',
+				booking_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (entry_id),
+				UNIQUE KEY slot_email (slot_id,email_hash),
+				KEY queue_order (slot_id,status,position),
 				KEY offer_expiry (status,offer_expires_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $api_keys (

@@ -684,9 +684,10 @@ final class Controller {
 		$payload = $request->get_json_params();
 		$name = sanitize_text_field( $payload['name'] ?? '' );
 		if ( ! $name ) { return new \WP_Error( 'wpcap_resource_invalid', __( 'Ressourcenname fehlt.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$wpdb->insert( $wpdb->prefix . 'wpcap_resources', array( 'event_id' => $event_id, 'name' => $name, 'capacity' => min( 100, max( 1, absint( $payload['capacity'] ?? 1 ) ) ), 'buffer_before' => min( 1440, absint( $payload['buffer_before'] ?? 0 ) ), 'buffer_after' => min( 1440, absint( $payload['buffer_after'] ?? 0 ) ), 'status' => 'active' ), array( '%d', '%s', '%d', '%d', '%d', '%s' ) );
-		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_resource_save', __( 'Ressource konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
-		return new \WP_REST_Response( array( 'resource_id' => (int) $wpdb->insert_id ), 201 );
+		// Buffers, default duration, price (ticket_type_id), organizer and booking rules: see ServiceResources::save_resource().
+		$saved = \PassCaptain\ServiceResources::save_resource( array_intersect_key( (array) $payload, array_flip( array( 'capacity', 'buffer_before', 'buffer_after', 'default_duration', 'timezone', 'ticket_type_id', 'rules' ) ) ) + array( 'event_id' => $event_id, 'name' => $name ) );
+		if ( is_wp_error( $saved ) ) { return $saved; }
+		return new \WP_REST_Response( array( 'resource_id' => (int) $saved ), 201 );
 	}
 
 	public static function create_service_slot( \WP_REST_Request $request ) {
@@ -698,9 +699,10 @@ final class Controller {
 		$start = strtotime( sanitize_text_field( $payload['starts_at'] ?? '' ) );
 		$end = strtotime( sanitize_text_field( $payload['ends_at'] ?? '' ) );
 		if ( ! $start || ! $end || $end <= $start ) { return new \WP_Error( 'wpcap_service_slot_invalid', __( 'Zeitfenster ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$wpdb->insert( $wpdb->prefix . 'wpcap_service_slots', array( 'resource_id' => $resource_id, 'starts_at' => gmdate( 'Y-m-d H:i:s', $start ), 'ends_at' => gmdate( 'Y-m-d H:i:s', $end ), 'capacity' => min( 100, max( 1, absint( $payload['capacity'] ?? $resource->capacity ) ) ), 'status' => 'open' ), array( '%d', '%s', '%s', '%d', '%s' ) );
-		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_service_slot_save', __( 'Zeitfenster konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
-		return new \WP_REST_Response( array( 'slot_id' => (int) $wpdb->insert_id ), 201 );
+		// Rejects slots that overlap another slot of the resource incl. buffers (409).
+		$slot_id = \PassCaptain\ServiceResources::create_slot( $resource_id, gmdate( 'Y-m-d H:i:s', $start ), gmdate( 'Y-m-d H:i:s', $end ), absint( $payload['capacity'] ?? 0 ) );
+		if ( is_wp_error( $slot_id ) ) { return $slot_id; }
+		return new \WP_REST_Response( array( 'slot_id' => (int) $slot_id ), 201 );
 	}
 
 	public static function set_admission_days( \WP_REST_Request $request ) {

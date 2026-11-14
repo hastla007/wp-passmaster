@@ -75,7 +75,7 @@ check( 'all feature admin-post handlers are registered', isset( $handlers['wpcap
 $pages = array();
 foreach ( FeatureScreens::pages() as $page ) { $pages[ $page[0] ] = $page[2]; }
 check( 'feature pages are registered with their capabilities', array( 'wpcap-campaigns' => 'wpcap_manage_events', 'wpcap-waitlists' => 'wpcap_manage_orders', 'wpcap-services' => 'wpcap_manage_events', 'wpcap-memberships' => 'wpcap_manage_orders', 'wpcap-api-keys' => 'wpcap_manage_events' ) === $pages );
-check( 'schema: rate_limit on api keys (default 600) and timezone on resources, DB version 3.6.0', '3.6.0' === PassCaptain\Installer::DB_VERSION && '600' === (string) ( $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_api_keys LIKE 'rate_limit'" )->Default ?? '' ) && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_resources LIKE 'timezone'" ) );
+check( 'schema: rate_limit on api keys (default 600) and timezone on resources, DB version >= 3.6.0', version_compare( PassCaptain\Installer::DB_VERSION, '3.6.0', '>=' ) && '600' === (string) ( $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_api_keys LIKE 'rate_limit'" )->Default ?? '' ) && null !== $wpdb->get_row( "SHOW COLUMNS FROM {$p}wpcap_resources LIKE 'timezone'" ) );
 
 echo "Admin screens: capability checks\n";
 $GLOBALS['wpcap_test_denied_caps'] = array( 'wpcap_manage_events', 'wpcap_manage_orders' );
