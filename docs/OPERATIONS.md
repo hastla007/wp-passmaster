@@ -496,7 +496,7 @@ Lauf setzt fort). Gelöscht wird nur, was kein Ablauf mehr liest; die Fristen ä
 | `wpcap_seat_holds` | `seat_holds` (30 nach `expires_at`) | `expired`/`released`; verkaufte Plätze (`sold`) bleiben |
 | `wpcap_payment_events` | `payment_events` (90 nach `updated_at`) | `processed` und liegengebliebene `processing`; Anbieter stellen nach wenigen Tagen nicht mehr zu, der Duplikatschutz braucht sie nicht mehr |
 
-Alle Abfragen sind Indexbereiche (`expiry`, `due_jobs`, `cleanup` auf `wpcap_payment_events` ab Schema 3.10.8).
+Alle Abfragen sind Indexbereiche (`expiry`, `due_jobs`, `cleanup` auf `wpcap_payment_events` ab Schema 3.10.12).
 Messung: 457.106 alte Reservierungen in zwei Läufen (≈ 23.000 Zeilen/s), siehe
 [TESTING.md](TESTING.md#historie-reservierungen-index-und-aufräumen-a429-a430-a444).
 
@@ -767,6 +767,39 @@ Ist die Liste gekürzt, erscheint ein Hinweis; ein gewähltes oder gespeichertes
 der Adresse) steht immer in der Liste, sodass ein Filter oder Formular nie still auf ein anderes Event
 springt. Die Veranstalterseite nutzt statt einer Liste eine Suche mit Seitenblättern (A447).
 
+## Stapeldruck mit neuen Ticketcodes (Hintergrundjob, A427)
+
+Ticketcodes sind nur als Hash gespeichert; ein Stapeldruck mit QR-Code braucht deshalb neue Codes. Früher wurden
+alle Codes eines Termins vor dem Rendern ersetzt und das PDF im Admin-Request im Speicher gebaut – ein Timeout
+oder Speichermangel (ab etwa 2.500 Tickets) machte alle Tickets ungültig, ohne dass es ein PDF mit den neuen Codes
+gab. Jetzt (`Printing\BatchJob`, Tabelle `wpcap_print_batches`):
+
+1. **Anlegen** (Druck & Listen → Stapeldruck): Reihenfolge, Ticket-IDs und der aktuelle Code-Hash werden in einer
+   privaten Datei festgehalten; an den Tickets ändert sich nichts. Höchstens 20.000 Tickets je Stapel
+   (`wpcap_print_batch_max`).
+2. **Rendern** im Job `print_batch` (WP-Cron `wpcap_process_jobs`, der erste Block noch im Request,
+   `wpcap_print_batch_inline_budget`, 3 s): je Lauf `wpcap_print_batch_block` Tickets (200, Vielfaches von 10)
+   mit frischen Codes; die Seiten werden an die Datei angehängt, der bestätigte Stand (Bytes, Seiten) steht in der
+   Tabelle – ein abgebrochener Lauf wird ab dort wiederholt. Die neuen Codes stehen nur im PDF und in einer
+   privaten Begleitdatei. Der letzte Lauf schreibt den PDF-Abschluss → Status „fertig“.
+3. **Herunterladen**: Der erste Download aktiviert die neuen Codes in einer Transaktion – nur für Tickets, die noch
+   gültig sind und denselben Code wie beim Anlegen haben (sonst „übersprungen“, der gedruckte Code gilt dann
+   nicht; die Liste zeigt die Anzahl) – und liefert dann die Datei. Erst ab hier sind die alten Codes ungültig.
+   Hilfscodes, Wallet-Pässe und Partner-Codes folgen per Job `print_batch_notify` (`wpcap_ticket_code_rotated`,
+   Grund `print`); der gedruckte Hilfscode gilt, sobald dieser Job gelaufen ist (in der Regel Sekunden).
+   Weitere Downloads liefern dieselbe Datei ohne Änderung.
+
+Abbrechen (Knopf in der Liste), Fehler oder ein nie heruntergeladener Stapel ändern **kein** Ticket. Tickets, die
+jemand anderes als der Käufer hält (übertragen oder einer anderen Teilnehmer-E-Mail zugeordnet), bekommen keinen
+neuen Code: Sie werden ohne QR-Code gedruckt, ihr Inhaber behält den gültigen Code (A630). Stapel ohne neue Codes
+bis 300 Tickets (`wpcap_print_batch_sync_limit`) werden wie bisher sofort geliefert, größere ebenfalls im
+Hintergrund. Dateien liegen in `uploads/pass-captain-private/` (zufällige Namen, `.htaccess` mit „Require all
+denied“; bei nginx eine eigene `deny`-Regel setzen oder per `wpcap_print_batch_dir` ein Verzeichnis außerhalb
+des Webroots wählen; bei mehreren Webservern ein gemeinsames Verzeichnis) und werden 7 Tage nach der letzten
+Änderung gelöscht (`wpcap_print_batch_keep_days`, stündlicher Cron); ein seit einem Tag hängender Stapel wird als
+fehlgeschlagen beendet. Audit: `print_batch_created`, `print_batch_delivered`, `ticket_codes_rotated`,
+`print_batch_cancelled`, `print_batch_failed`.
+
 ## Kontingentzähler (große Vorverkäufe)
 
 Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht erstattete Einheiten) und
@@ -774,7 +807,7 @@ Seit Schema 3.7.0 führen Ticketarten und Termine `sold_qty` (bezahlte, nicht er
 was sie beiträgt. Die Kapazitätsprüfung liest die gesperrten Zähler statt alle Bestellzeilen zu summieren;
 Reservierungen, die noch zählen, aber nicht mehr halten (abgelaufen, freigegeben oder umgewandelt und noch nicht
 synchronisiert), zieht sie über den Index `counted_type (ticket_type_id, counted_qty)` mit `counted_qty>0` ab –
-je Ticketart bzw. für die Ticketarten des Termins als Bereich, nie über die Reservierungshistorie (Schema 3.10.8,
+je Ticketart bzw. für die Ticketarten des Termins als Bereich, nie über die Reservierungshistorie (Schema 3.10.12,
 A429; vorher Full Scan, bei 500.000 Reservierungen ≈ 300 ms je Prüfung unter den Kapazitätssperren, siehe
 [TESTING.md](TESTING.md#historie-reservierungen-index-und-aufräumen-a429-a430-a444)).
 

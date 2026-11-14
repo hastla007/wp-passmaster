@@ -117,35 +117,76 @@ final class PdfWriter {
 
 	/** PDF bytes. A document without pages gets one empty A4 page (PDFs need at least one page). */
 	public function output( $title = '' ) {
-		if ( ! $this->pages ) { $this->add_page( 595.28, 841.89 ); }
-		$objects = array();
-		$objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
-		$objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
-		$objects[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
-		$objects[5] = '<< /Producer (Pass Captain)' . ( '' !== (string) $title ? ' /Title (' . self::escape( $title ) . ')' : '' ) . ' >>';
-		$kids = array();
-		$next = 6;
+		$pdf = self::header();
+		$body = $this->page_objects( 6, strlen( $pdf ) );
+		$pdf .= $body['bytes'];
+		return $pdf . self::trailer( $title, $body['offsets'], strlen( $pdf ) );
+	}
+
+	/** File header (PDF version and binary marker). */
+	public static function header() {
+		return "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
+	}
+
+	/**
+	 * The pages as objects (page, content stream) numbered from $first_id, for a file that already
+	 * has $base bytes. Used by output() and by the batch job that appends block after block (A427).
+	 *
+	 * @return array{bytes:string, offsets:array<int,int>} offsets: object id => byte offset.
+	 */
+	public function page_objects( $first_id, $base ) {
+		$bytes = '';
+		$offsets = array();
+		$next = (int) $first_id;
 		foreach ( $this->pages as $page ) {
 			$page_id = $next++;
 			$content_id = $next++;
 			$content = implode( "\n", $page['ops'] );
-			$kids[] = $page_id . ' 0 R';
-			$objects[ $page_id ] = sprintf( '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2F %.2F] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents %d 0 R >>', $page['w'], $page['h'], $content_id );
-			$objects[ $content_id ] = '<< /Length ' . strlen( $content ) . " >>\nstream\n" . $content . "\nendstream";
+			$offsets[ $page_id ] = (int) $base + strlen( $bytes );
+			$bytes .= $page_id . " 0 obj\n" . sprintf( '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2F %.2F] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents %d 0 R >>', $page['w'], $page['h'], $content_id ) . "\nendobj\n";
+			$offsets[ $content_id ] = (int) $base + strlen( $bytes );
+			$bytes .= $content_id . " 0 obj\n" . '<< /Length ' . strlen( $content ) . " >>\nstream\n" . $content . "\nendstream" . "\nendobj\n";
 		}
-		$objects[2] = '<< /Type /Pages /Kids [' . implode( ' ', $kids ) . '] /Count ' . count( $kids ) . ' >>';
-		ksort( $objects );
-		$pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
-		$offsets = array();
-		foreach ( $objects as $id => $body ) {
-			$offsets[ $id ] = strlen( $pdf );
-			$pdf .= $id . " 0 obj\n" . $body . "\nendobj\n";
+		return array( 'bytes' => $bytes, 'offsets' => $offsets );
+	}
+
+	/**
+	 * Closing part of a file whose page objects (ids 6, 7, … as written by page_objects(): page,
+	 * content, page, content …) end at byte $base: catalog, page tree, fonts, info, xref, trailer.
+	 * Without pages an empty A4 page is added (PDFs need at least one page).
+	 *
+	 * @param array<int,int> $offsets Object id => byte offset of the page objects.
+	 */
+	public static function trailer( $title, array $offsets, $base ) {
+		$bytes = '';
+		$base = (int) $base;
+		if ( ! $offsets ) {
+			$empty = ( new self() )->add_page( 595.28, 841.89 )->page_objects( 6, $base );
+			$bytes .= $empty['bytes'];
+			$offsets = $empty['offsets'];
 		}
-		$xref = strlen( $pdf );
-		$pdf .= "xref\n0 " . ( count( $objects ) + 1 ) . "\n0000000000 65535 f \n";
-		foreach ( $offsets as $offset ) { $pdf .= sprintf( "%010d 00000 n \n", $offset ); }
-		$pdf .= 'trailer << /Size ' . ( count( $objects ) + 1 ) . " /Root 1 0 R /Info 5 0 R >>\nstartxref\n" . $xref . "\n%%EOF";
-		return $pdf;
+		ksort( $offsets );
+		$kids = array();
+		foreach ( array_keys( $offsets ) as $i => $id ) {
+			if ( 0 === $i % 2 ) { $kids[] = $id . ' 0 R'; }
+		}
+		$fixed = array(
+			1 => '<< /Type /Catalog /Pages 2 0 R >>',
+			2 => '<< /Type /Pages /Kids [' . implode( ' ', $kids ) . '] /Count ' . count( $kids ) . ' >>',
+			3 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+			4 => '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
+			5 => '<< /Producer (Pass Captain)' . ( '' !== (string) $title ? ' /Title (' . self::escape( $title ) . ')' : '' ) . ' >>',
+		);
+		foreach ( $fixed as $id => $body ) {
+			$offsets[ $id ] = $base + strlen( $bytes );
+			$bytes .= $id . " 0 obj\n" . $body . "\nendobj\n";
+		}
+		ksort( $offsets );
+		$xref = $base + strlen( $bytes );
+		$bytes .= "xref\n0 " . ( count( $offsets ) + 1 ) . "\n0000000000 65535 f \n";
+		foreach ( $offsets as $offset ) { $bytes .= sprintf( "%010d 00000 n \n", $offset ); }
+		$bytes .= 'trailer << /Size ' . ( count( $offsets ) + 1 ) . " /Root 1 0 R /Info 5 0 R >>\nstartxref\n" . $xref . "\n%%EOF";
+		return $bytes;
 	}
 
 	/** UTF-8 to WinAnsi with PDF string escaping. */

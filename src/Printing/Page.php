@@ -37,9 +37,12 @@ final class Page {
 	}
 
 	/**
-	 * Permission and generation of a batch PDF.
+	 * Permission and generation of a batch PDF. Without new codes and up to BatchJob::sync_limit()
+	 * tickets the PDF is rendered at once ({pdf, filename}); otherwise a background batch is created
+	 * ({batch, status}) whose file is downloaded from the print page when it is ready (A427). New codes
+	 * are activated only by that download.
 	 *
-	 * @return array{pdf:string,filename:string}|\WP_Error
+	 * @return array{pdf:string,filename:string}|array{batch:int,status:string}|\WP_Error
 	 */
 	public static function batch_request( $occurrence_id, $kind, $with_codes ) {
 		$event_id = Scope::occurrence_event( $occurrence_id );
@@ -47,9 +50,15 @@ final class Page {
 		if ( ! $event_id || ! Scope::can_occurrence( $occurrence_id, array( 'wpcap_manage_events', 'wpcap_manage_orders' ) ) ) { return Forms::forbidden(); }
 		// New ticket codes invalidate the old ones: only order managers may do that.
 		if ( $with_codes && ! Scope::can_event( $event_id, array( 'wpcap_manage_orders' ) ) ) { return Forms::forbidden( __( 'Neue Ticketcodes dürfen nur Personen mit Bestellverwaltung erzeugen.', 'pass-captain' ) ); }
-		$pdf = Templates::batch_pdf( $occurrence_id, $kind, $with_codes );
-		Audit::record( 'print_batch', 'occurrence', $occurrence_id, array( 'kind' => $kind, 'codes' => (bool) $with_codes ) );
-		return array( 'pdf' => $pdf, 'filename' => $kind . '-' . $occurrence_id . '.pdf' );
+		if ( ! $with_codes && ( ! BatchJob::ready() || count( Templates::ticket_refs_for_occurrence( $occurrence_id, Templates::batch_statuses( $kind ) ) ) <= BatchJob::sync_limit() ) ) {
+			$pdf = Templates::batch_pdf( $occurrence_id, $kind );
+			Audit::record( 'print_batch', 'occurrence', $occurrence_id, array( 'kind' => $kind, 'codes' => false ) );
+			return array( 'pdf' => $pdf, 'filename' => $kind . '-' . $occurrence_id . '.pdf' );
+		}
+		$batch_id = BatchJob::create( $occurrence_id, $kind, $with_codes );
+		if ( is_wp_error( $batch_id ) ) { return $batch_id; }
+		$result = BatchJob::work( $batch_id, (float) apply_filters( 'wpcap_print_batch_inline_budget', 3.0 ) );
+		return array( 'batch' => $batch_id, 'status' => 'done' === $result ? 'ready' : 'rendering' );
 	}
 
 	public static function render() {
@@ -66,12 +75,13 @@ final class Page {
 
 		<?php if ( $print_occ ) : ?>
 		<h2><?php esc_html_e( 'Stapeldruck für einen Termin', 'pass-captain' ); ?></h2>
-		<?php Forms::open_form( 'wpcap_print_batch', null, 'target="_blank"' ); ?>
+		<?php Forms::open_form( 'wpcap_print_batch' ); ?>
 		<p><label><?php esc_html_e( 'Termin', 'pass-captain' ); ?> <?php Forms::select( 'occurrence_id', $print_occ, '' ); ?></label>
 		<label><?php esc_html_e( 'Layout', 'pass-captain' ); ?> <?php Forms::select( 'kind', $labels, 'badge' ); ?></label></p>
-		<p><label><input type="checkbox" name="with_codes" value="1"> <?php esc_html_e( 'Mit QR-Code drucken: erzeugt neue Ticketcodes für alle gültigen Tickets. Bereits versendete oder gedruckte Codes werden ungültig.', 'pass-captain' ); ?></label></p>
+		<p><label><input type="checkbox" name="with_codes" value="1"> <?php esc_html_e( 'Mit QR-Code drucken: erzeugt neue Ticketcodes für die gültigen Tickets der Käufer (weitergegebene oder anderen Teilnehmenden zugeordnete Tickets werden ohne QR-Code gedruckt). Mit dem ersten Herunterladen werden bereits versendete oder gedruckte Codes dieser Tickets ungültig.', 'pass-captain' ); ?></label></p>
 		<p><button class="button button-primary"><?php esc_html_e( 'PDF erzeugen', 'pass-captain' ); ?></button></p>
 		</form>
+		<?php self::render_batches(); ?>
 		<?php endif; ?>
 
 		<h2><?php esc_html_e( 'Teilnehmerliste', 'pass-captain' ); ?></h2>
@@ -144,8 +154,84 @@ final class Page {
 		Forms::verify( 'wpcap_print_batch' );
 		$in = Forms::post();
 		$result = self::batch_request( Forms::int( $in, 'occurrence_id' ), Forms::choice( $in, 'kind', Templates::KINDS, 'ticket' ), Forms::flag( $in, 'with_codes' ) );
-		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 403 ); }
-		Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' );
+		if ( is_wp_error( $result ) ) {
+			$data = $result->get_error_data();
+			if ( is_array( $data ) && 403 === (int) ( $data['status'] ?? 0 ) ) { wp_die( esc_html( $result->get_error_message() ), 403 ); }
+			Forms::finish( $result, '', Forms::page_url( self::SLUG ) );
+		}
+		if ( isset( $result['pdf'] ) ) { Scope::send_download( $result['pdf'], $result['filename'], 'application/pdf' ); }
+		Forms::finish(
+			true,
+			'ready' === $result['status']
+				? __( 'Die Druckdatei ist fertig und steht unten unter „Stapeldrucke“ zum Herunterladen bereit.', 'pass-captain' )
+				: __( 'Die Druckdatei wird im Hintergrund erstellt; sie erscheint unten unter „Stapeldrucke“, sobald sie fertig ist.', 'pass-captain' ),
+			Forms::page_url( self::SLUG ) . '#wpcap-print-batches'
+		);
+	}
+
+	/** Download of a finished batch; the first download activates its new codes (BatchJob::deliver()). */
+	public static function handle_batch_download() {
+		$batch_id = absint( $_GET['batch'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verified next.
+		check_admin_referer( 'wpcap_print_batch_download_' . $batch_id );
+		if ( ! BatchJob::can_access( BatchJob::get( $batch_id ) ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		$file = BatchJob::deliver( $batch_id );
+		if ( is_wp_error( $file ) ) { Forms::finish( $file, '', Forms::page_url( self::SLUG ) ); }
+		BatchJob::send( $file );
+	}
+
+	/** Cancels a batch that was not downloaded yet (no ticket changes). */
+	public static function handle_batch_cancel() {
+		Forms::verify( 'wpcap_print_batch_cancel' );
+		$batch_id = Forms::int( Forms::post(), 'batch' );
+		if ( ! BatchJob::can_access( BatchJob::get( $batch_id ) ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
+		Forms::finish( BatchJob::cancel( $batch_id ), __( 'Stapeldruck abgebrochen; an den Tickets wurde nichts geändert.', 'pass-captain' ), Forms::page_url( self::SLUG ) . '#wpcap-print-batches' );
+	}
+
+	/** List of recent background batches with progress, download and cancel. */
+	private static function render_batches() {
+		$batches = BatchJob::recent();
+		if ( ! $batches ) { return; }
+		$labels = Templates::kind_labels();
+		$states = array(
+			'rendering' => __( 'wird erstellt', 'pass-captain' ),
+			'ready'     => __( 'fertig', 'pass-captain' ),
+			'delivered' => __( 'heruntergeladen', 'pass-captain' ),
+			'failed'    => __( 'fehlgeschlagen', 'pass-captain' ),
+			'cancelled' => __( 'abgebrochen', 'pass-captain' ),
+		);
+		?>
+		<h3 id="wpcap-print-batches"><?php esc_html_e( 'Stapeldrucke', 'pass-captain' ); ?></h3>
+		<p class="description"><?php esc_html_e( 'Große Stapel und Stapel mit neuen Ticketcodes werden im Hintergrund erstellt. Neue Codes gelten erst ab dem ersten Herunterladen; bis dahin bleiben die bisherigen Codes gültig. Abgebrochene oder nicht heruntergeladene Stapel ändern keine Tickets. Dateien werden nach einigen Tagen gelöscht.', 'pass-captain' ); ?></p>
+		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Termin', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Layout', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Tickets', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th></th></tr></thead><tbody>
+		<?php foreach ( $batches as $b ) : ?>
+			<tr><td>#<?php echo (int) $b->occurrence_id; ?> · <?php echo esc_html( Scope::local( $b->created_at, 'UTC', 'd.m.Y H:i' ) ); ?></td>
+			<td><?php echo esc_html( ( $labels[ $b->kind ] ?? $b->kind ) . ( (int) $b->with_codes ? ' · ' . __( 'neue Codes', 'pass-captain' ) : '' ) ); ?></td>
+			<td><?php echo (int) $b->done . ' / ' . (int) $b->total; ?>
+			<?php if ( (int) $b->held_by_other ) : ?><br><small>
+				<?php
+				/* translators: %d: number of tickets */
+				echo esc_html( sprintf( _n( '%d weitergegebenes oder zugeordnetes Ticket ohne neuen Code (Inhaber behält den gültigen Code)', '%d weitergegebene oder zugeordnete Tickets ohne neuen Code (Inhaber behalten den gültigen Code)', (int) $b->held_by_other, 'pass-captain' ), (int) $b->held_by_other ) );
+				?>
+			</small><?php endif; ?>
+			<?php if ( (int) $b->skipped ) : ?><br><small>
+				<?php
+				/* translators: %d: number of tickets */
+				echo esc_html( sprintf( _n( '%d Ticket wurde seit dem Erstellen geändert; sein gedruckter Code gilt nicht.', '%d Tickets wurden seit dem Erstellen geändert; ihre gedruckten Codes gelten nicht.', (int) $b->skipped, 'pass-captain' ), (int) $b->skipped ) );
+				?>
+			</small><?php endif; ?></td>
+			<td><?php echo esc_html( $states[ $b->status ] ?? $b->status ); ?></td>
+			<td>
+			<?php if ( in_array( $b->status, array( 'ready', 'delivered' ), true ) ) : ?>
+				<a class="button button-primary" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wpcap_print_batch_download', 'batch' => (int) $b->batch_id ), admin_url( 'admin-post.php' ) ), 'wpcap_print_batch_download_' . (int) $b->batch_id ) ); ?>"><?php echo esc_html( 'ready' === $b->status && (int) $b->with_codes ? __( 'Herunterladen und Codes aktivieren', 'pass-captain' ) : __( 'Herunterladen', 'pass-captain' ) ); ?></a>
+			<?php endif; ?>
+			<?php if ( in_array( $b->status, array( 'rendering', 'ready' ), true ) ) : ?>
+				<?php Forms::open_form( 'wpcap_print_batch_cancel', null, 'style="display:inline"' ); Forms::hidden( 'batch', (int) $b->batch_id ); ?>
+				<button class="button"><?php esc_html_e( 'Abbrechen', 'pass-captain' ); ?></button></form>
+			<?php endif; ?>
+			</td></tr>
+		<?php endforeach; ?>
+		</tbody></table>
+		<?php
 	}
 
 	public static function handle_attendee_list() {

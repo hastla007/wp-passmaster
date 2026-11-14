@@ -116,9 +116,14 @@ check( 'printing needs event/order management; new codes need order management',
 $GLOBALS['wpp_rotated'] = array();
 add_action( 'wpcap_ticket_code_rotated', static function ( $ticket_id, $token, $context ) { $GLOBALS['wpp_rotated'][ $ticket_id ] = array( $token, $context ); }, 10, 3 );
 $with_codes = PrintPage::batch_request( $pocc, 'ticket', true );
+$before_dl = $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' );
+check( 'tickets with QR: background batch, ready at once, codes unchanged until the download (A427)', ! is_wp_error( $with_codes ) && 'ready' === $with_codes['status'] && $hashes === $before_dl && array() === $GLOBALS['wpp_rotated'] );
+$with_codes_file = PassCaptain\Printing\BatchJob::deliver( $with_codes['batch'] );
+PassCaptain\Printing\BatchJob::notify( $with_codes['batch'] );
+$with_codes_pdf = is_wp_error( $with_codes_file ) ? '' : (string) file_get_contents( $with_codes_file['path'] );
 $after = $wpdb->get_col( "SELECT token_hash FROM {$p}wpcap_tickets WHERE order_id=" . (int) $porder['order_id'] . ' ORDER BY ticket_id' );
-check( 'tickets with QR: new codes for valid tickets only, checked-in tickets untouched', ! is_wp_error( $with_codes ) && wpp_pdf_ok( $with_codes['pdf'], 2 ) && $after[0] !== $hashes[0] && $after[1] !== $hashes[1] && $after[2] === $hashes[2] );
-$rot_ok = 2 === count( $GLOBALS['wpp_rotated'] ) && ! isset( $GLOBALS['wpp_rotated'][ (int) $ptickets[2]->ticket_id ] );
+check( 'tickets with QR: new code only for the valid ticket the buyer holds; ticket assigned to another attendee and checked-in ticket untouched (A630)', wpp_pdf_ok( $with_codes_pdf, 2 ) && 1 === $with_codes_file['rotated'] && $after[0] === $hashes[0] && $after[1] !== $hashes[1] && $after[2] === $hashes[2] );
+$rot_ok = 1 === count( $GLOBALS['wpp_rotated'] ) && isset( $GLOBALS['wpp_rotated'][ (int) $ptickets[1]->ticket_id ] );
 foreach ( $GLOBALS['wpp_rotated'] as $rot_id => $rot ) { $rot_ok = $rot_ok && 'print' === $rot[1] && hash( 'sha256', $rot[0] ) === $wpdb->get_var( "SELECT token_hash FROM {$p}wpcap_tickets WHERE ticket_id=" . (int) $rot_id ); }
 check( 'wpcap_ticket_code_rotated fires once per new code (ticket id, new code, "print")', $rot_ok );
 

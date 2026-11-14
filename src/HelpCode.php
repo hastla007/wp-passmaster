@@ -127,6 +127,25 @@ final class HelpCode {
 		return '';
 	}
 
+	/**
+	 * Help code that for_ticket() will assign once $token becomes the ticket's code (first derivation
+	 * not used by another ticket); read-only. Used to print a code before it is activated (batch
+	 * print, A427). '' when the schema is not ready or no free code exists.
+	 */
+	public static function preview( $ticket_id, $token ) {
+		global $wpdb;
+		$ticket_id = absint( $ticket_id );
+		$token = Checkin::normalize_code( $token );
+		if ( ! $ticket_id || '' === $token || ! self::ready() ) { return ''; }
+		for ( $n = 0; $n < self::MAX_ATTEMPTS; $n++ ) {
+			$code = self::derive( $token, $n );
+			if ( ! (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE help_hash=%s AND ticket_id<>%d LIMIT 1", self::lookup_hash( $code ), $ticket_id ) ) ) {
+				return self::format( $code );
+			}
+		}
+		return '';
+	}
+
 	/** Action wpcap_ticket_code_rotated: the new code gets a new help code; the old one stops working. */
 	public static function on_code_rotated( $ticket_id, $token ) {
 		if ( ! self::ready() ) { return; }

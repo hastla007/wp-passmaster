@@ -206,6 +206,12 @@ Actions in diesen Tabellen sind mit „(Action)“ gekennzeichnet.
 | `wpcap_guestlist_companion_name` | `string $name, object $entry, int $index` | Name auf Begleittickets einer Gästeliste (Standard neutral „Begleitung“, z. B. `'Begleitung von ' . $entry->name`). |
 | `wpcap_privacy_order_anonymized` (Action) | `int $order_id` | Eine Bestellung wurde anonymisiert (Datenschutz-Löschung); Module löschen ihre Daten zur Bestellung (z. B. gespeicherte Partner-Ticketcodes). |
 | `wpcap_privacy_unpaid_attendee_data_cleared` (Action) | `int[] $order_ids` | Der Löschlauf (Schritt `unpaid_attendee_data`) hat die Teilnehmerangaben dieser nie bezahlten Bestellungen entfernt (ein Batch); Integrationen löschen ihre Kopien (z. B. `_wpcap_attendees` an der WooCommerce-Bestellung). |
+| `wpcap_print_batch_block` | `int $tickets` (200) | Tickets je Lauf des Stapeldruck-Jobs (A427; auf ein Vielfaches von 10 aufgerundet). |
+| `wpcap_print_batch_max` | `int $tickets` (20000) | Höchstzahl Tickets eines Stapeldrucks. |
+| `wpcap_print_batch_sync_limit` | `int $tickets` (300) | Stapel ohne neue Codes bis zu dieser Größe werden sofort geliefert, größere im Hintergrund. |
+| `wpcap_print_batch_inline_budget` | `float $seconds` (3) | Renderzeit im Admin-Request direkt nach dem Anlegen (kleine Stapel sind sofort fertig). |
+| `wpcap_print_batch_keep_days` | `int $days` (7) | Aufbewahrung von Stapeldrucken und ihren Dateien nach der letzten Änderung. |
+| `wpcap_print_batch_dir` | `string $dir` (`uploads/pass-captain-private`) | Privates Verzeichnis der Stapeldruck-Dateien. |
 | `wpcap_privacy_retention_budget` | `float $seconds` (20) | Zeitbudget eines Löschlaufs; der nächste Lauf setzt fort. |
 | `wpcap_cleanup_budget` | `float $seconds` (10) | Zeitbudget der stündlichen Aufräumung abgeschlossener Zeilen (`Privacy\Retention::housekeeping()`, A444); der nächste Lauf setzt fort. |
 | `wpcap_privacy_policy_recipients` | `array $recipients` | Welche Empfänger der Datenschutztext-Vorschlag nennt (`stripe`, `paypal`, `mollie`, `twilio`, `sms_http`, `apple`, `google`, `partners`, `webhooks`, `affiliate`, `woocommerce` → bool). |

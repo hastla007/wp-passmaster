@@ -180,7 +180,7 @@ final class Retention {
 				static fn( $in ) => "DELETE FROM {$p}wpcap_seat_holds WHERE hold_id IN ($in) AND status IN ('expired','released')",
 			),
 			'payment_events' => array(
-				// Range on cleanup (status, updated_at), schema 3.10.8.
+				// Range on cleanup (status, updated_at), schema 3.10.12.
 				static fn( $cutoff ) => $wpdb->prepare( "SELECT payment_event_id FROM {$p}wpcap_payment_events WHERE status IN ('processed','processing') AND updated_at<%s LIMIT %d", $cutoff, self::BATCH ),
 				static fn( $in ) => "DELETE FROM {$p}wpcap_payment_events WHERE payment_event_id IN ($in) AND status IN ('processed','processing')",
 			),

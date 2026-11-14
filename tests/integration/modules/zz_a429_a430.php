@@ -18,8 +18,8 @@ $p = $wpdb->prefix;
 
 echo "A429/A430: capacity check and reconcile at scale\n";
 $a429_cols = static fn( $table, $key ) => array_map( static fn( $r ) => $r->Column_name, (array) $wpdb->get_results( "SHOW INDEX FROM {$p}wpcap_$table WHERE Key_name='$key'" ) );
-check( 'schema 3.10.8: reservations (ticket_type_id, counted_qty), orders (updated_at), capacity_sum covers counted_qty',
-	version_compare( Installer::DB_VERSION, '3.10.8', '>=' )
+check( 'schema 3.10.12: reservations (ticket_type_id, counted_qty), orders (updated_at), capacity_sum covers counted_qty',
+	version_compare( Installer::DB_VERSION, '3.10.12', '>=' )
 	&& array( 'ticket_type_id', 'counted_qty' ) === $a429_cols( 'reservations', 'counted_type' )
 	&& array( 'updated_at' ) === $a429_cols( 'orders', 'updated' )
 	&& 'counted_qty' === ( $a429_cols( 'order_items', 'capacity_sum' )[4] ?? '' ) );

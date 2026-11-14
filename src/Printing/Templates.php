@@ -91,6 +91,20 @@ final class Templates {
 	 */
 	public static function render( $kind, array $items, $body = '' ) {
 		$kind = in_array( $kind, self::KINDS, true ) ? $kind : 'ticket';
+		return self::pages( $kind, $items, $body )->output( self::title( $kind ) );
+	}
+
+	/** Document title of a layout. */
+	public static function title( $kind ) {
+		return 'nametag' === $kind ? __( 'Namensschilder', 'pass-captain' ) : (string) ( self::kind_labels()[ $kind ] ?? '' );
+	}
+
+	/**
+	 * Lays out $items on pages (render() without the PDF file around them; the batch job appends
+	 * the pages block by block, A427). Name tags: 10 per page.
+	 */
+	public static function pages( $kind, array $items, $body = '' ) {
+		$kind = in_array( $kind, self::KINDS, true ) ? $kind : 'ticket';
 		$lines = self::parse( '' !== $body ? $body : self::default_body( $kind ) );
 		$pdf = new PdfWriter();
 		$mm = PdfWriter::MM;
@@ -107,7 +121,7 @@ final class Templates {
 				$pdf->rect( $x, $y, $w, $h, false, 0.8 );
 				self::cell( $pdf, $lines, $item, $x, $y, $w, $h, 'center', 'right' );
 			}
-			return $pdf->output( __( 'Namensschilder', 'pass-captain' ) );
+			return $pdf;
 		}
 		$sizes = array(
 			'ticket'    => array( 595.28, 841.89, 50, 'left', 'flow' ),
@@ -125,7 +139,7 @@ final class Templates {
 			}
 			self::cell( $pdf, $lines, $item, $pad, $pad, $pw - 2 * $pad, $ph - 2 * $pad, $align, $qr_mode, 0 );
 		}
-		return $pdf->output( self::kind_labels()[ $kind ] ?? '' );
+		return $pdf;
 	}
 
 	/** Lays out one item inside a box. $qr_mode: flow (below the text) or right (square at the right edge). */
@@ -291,8 +305,55 @@ final class Templates {
 		) );
 	}
 
-	/** Placeholder values for a ticket row (see tickets_for_occurrence / Orders::tickets_for_order). */
-	public static function values( $row, $token = '' ) {
+	/**
+	 * Print order of an occurrence's tickets without names or codes (batch job snapshot, A427):
+	 * ticket id, current code hash and whether someone other than the buyer holds the ticket
+	 * (transferred, or assigned/sent to an attendee e-mail other than the buyer's).
+	 *
+	 * @return object[] {ticket_id, token_hash, status, held_by_other}
+	 */
+	public static function ticket_refs_for_occurrence( $occurrence_id, array $statuses ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$statuses = array_values( array_intersect( $statuses, array( 'valid', 'checked_in', 'revoked' ) ) );
+		$in = $statuses ? "'" . implode( "','", $statuses ) . "'" : "'valid'";
+		return (array) $wpdb->get_results( $wpdb->prepare(
+			"SELECT t.ticket_id,t.token_hash,t.status,IF(t.transfer_count>0 OR (t.attendee_email<>'' AND t.attendee_email<>ord.customer_email),1,0) AS held_by_other
+			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
+			WHERE tt.occurrence_id=%d AND t.status IN ($in) ORDER BY COALESCE(NULLIF(a.attendee_name,''),'~'),t.ticket_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed status list.
+			absint( $occurrence_id )
+		) );
+	}
+
+	/**
+	 * Print rows (as tickets_for_occurrence()) of the given tickets, keyed by ticket id, with the
+	 * current token_hash.
+	 *
+	 * @param int[] $ticket_ids Tickets.
+	 * @return array<int,object>
+	 */
+	public static function tickets_by_ids( array $ticket_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ticket_ids = array_values( array_filter( array_map( 'absint', $ticket_ids ) ) );
+		if ( ! $ticket_ids ) { return array(); }
+		$out = array();
+		foreach ( (array) $wpdb->get_results(
+			"SELECT t.ticket_id,t.public_id,t.status,t.token_hash,t.order_id,t.ticket_type_id,t.attendee_email,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.public_id AS order_public_id,ord.customer_email,COALESCE(a.attendee_name,'') AS attendee_name
+			FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments a ON a.ticket_id=t.ticket_id
+			WHERE t.ticket_id IN (" . implode( ',', $ticket_ids ) . ')' // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		) as $row ) {
+			$out[ (int) $row->ticket_id ] = $row;
+		}
+		return $out;
+	}
+
+	/**
+	 * Placeholder values for a ticket row (see tickets_for_occurrence / Orders::tickets_for_order).
+	 *
+	 * @param string|null $help Help code to print; null derives it from $token (only for the ticket's current code).
+	 */
+	public static function values( $row, $token = '', $help = null ) {
 		$row = (object) $row;
 		$seat = (string) apply_filters( 'wpcap_ticket_seat_label', '', (int) ( $row->ticket_id ?? 0 ), (array) $row );
 		return array(
@@ -304,7 +365,7 @@ final class Templates {
 			'attendee_name'   => (string) ( $row->attendee_name ?? '' ),
 			'seat_label'      => $seat,
 			'order'           => substr( (string) ( $row->order_public_id ?? '' ), 0, 8 ),
-			'help_code'       => '' !== (string) $token ? \PassCaptain\HelpCode::for_ticket( (int) ( $row->ticket_id ?? 0 ), (string) $token ) : '',
+			'help_code'       => null !== $help ? (string) $help : ( '' !== (string) $token ? \PassCaptain\HelpCode::for_ticket( (int) ( $row->ticket_id ?? 0 ), (string) $token ) : '' ),
 			'qr'              => (string) $token,
 		);
 	}
@@ -334,16 +395,20 @@ final class Templates {
 	}
 
 	/**
-	 * Batch PDF for an occurrence.
-	 *
-	 * @param bool $with_codes Rotate codes of valid tickets and print QR codes.
+	 * Batch PDF for an occurrence without new codes (no QR code), rendered at once; Page::batch_request()
+	 * uses it only up to BatchJob::sync_limit() tickets. Batches with new codes always run as a
+	 * background job (BatchJob, A427): codes are rotated only when the finished file is downloaded.
 	 */
-	public static function batch_pdf( $occurrence_id, $kind, $with_codes = false ) {
-		$rows = self::tickets_for_occurrence( $occurrence_id, 'ticket' === $kind || 'wristband' === $kind ? array( 'valid' ) : array( 'valid', 'checked_in' ) );
-		$tokens = $with_codes ? self::rotate_codes( array_map( static function ( $r ) { return (int) $r->ticket_id; }, $rows ), 'batch_' . $kind ) : array();
+	public static function batch_pdf( $occurrence_id, $kind ) {
+		$rows = self::tickets_for_occurrence( $occurrence_id, self::batch_statuses( $kind ) );
 		$items = array();
-		foreach ( $rows as $row ) { $items[] = self::values( $row, $tokens[ (int) $row->ticket_id ] ?? '' ); }
+		foreach ( $rows as $row ) { $items[] = self::values( $row, '' ); }
 		$event_id = Scope::occurrence_event( $occurrence_id );
 		return self::render( $kind, $items, self::body_for_event( $event_id, $kind ) );
+	}
+
+	/** Ticket statuses printed by a layout: admission media only for valid tickets. */
+	public static function batch_statuses( $kind ) {
+		return 'ticket' === $kind || 'wristband' === $kind ? array( 'valid' ) : array( 'valid', 'checked_in' );
 	}
 }
