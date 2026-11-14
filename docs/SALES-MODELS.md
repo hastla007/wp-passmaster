@@ -83,10 +83,13 @@ Plattformdaten (Einstellungen → Rechnungssteller): Name, Anschrift, USt-IdNr.,
 - Der Beleg enthält „Vermittelt durch {Plattform}, {Anschrift} (USt-IdNr.)“ und den Hinweis, dass die
   Plattform im Namen und für Rechnung des Veranstalters handelt.
 - **Gemischte Bestellungen** (Vermittler-Veranstalter zusammen mit anderen Veranstaltern oder
-  Plattform-Events) werden **nicht aufgeteilt**:
-  - Der Checkout lehnt solche Warenkörbe ab („Bitte für jeden Veranstalter separat bestellen“), auch bei
-    WooCommerce-Bestellungen, die über das Plugin angelegt werden. Abschaltbar mit dem Filter
-    `wpcap_refuse_mixed_seller_orders` (nicht empfohlen).
+  Plattform-Events) werden im Plugin **nie zu einer Bestellung**:
+  - Der eigene Checkout lehnt solche Warenkörbe ab („Bitte für jeden Veranstalter separat bestellen“).
+    Abschaltbar mit dem Filter `wpcap_refuse_mixed_seller_orders` (nicht empfohlen).
+  - WooCommerce: Standard ist Ablehnen schon beim Hinzufügen zum Warenkorb (klassisch und Store API);
+    alternativ lässt sich einstellen, dass je Rechnungssteller eine eigene Pass-Captain-Bestellung mit
+    eigener Rechnung entsteht. Aufteilungsregeln für Gutscheine, Gebühren, Versand und Rundung:
+    docs/WOOCOMMERCE.md, „Mehrere Rechnungssteller im Warenkorb“.
   - Bestehende gemischte Bestellungen (z. B. vor dem Update oder vor einem Modellwechsel angelegt) werden
     bei der Rechnungsstellung mit einer klaren Fehlermeldung abgelehnt (`wpcap_invoice_mixed_sellers`,
     HTTP 409, Audit-Eintrag `invoice_refused`); die Bestellansicht zeigt den Hinweis. Keine Nummer wird
@@ -150,6 +153,63 @@ unverändert („Veranstalter-Abrechnung“, `document_type` leer).
 | `credit-self` | `GU-2026-000001` | Gutschrift (Gutschriftsverfahren) |
 
 Die Spalte `series` der Tabelle `wpcap_document_sequences` wurde auf 40 Zeichen erweitert (Schema 3.5.0).
+
+## Auszahlungsmodell: Belege, Geldfluss und Verantwortung (technisch)
+
+Dieser Abschnitt beschreibt, **was das Plugin technisch abbildet** – wer welchen Beleg erhält, über welches
+Konto das Geld läuft und wo das Plugin endet. Er trifft keine rechtliche oder steuerliche Aussage; ob ein
+Modell für einen konkreten Betrieb zulässig ist und wer wofür haftet, regeln die Verträge des Betreibers
+und die Beratung (siehe oben).
+
+### Wer stellt welche Belege aus
+
+| Beleg | Eigenhändler (`own_name`) | Vermittler (`agent`) |
+|---|---|---|
+| Kundenrechnung je Pass-Captain-Bestellung | Plattform (Serie der Plattform) | Veranstalter (Serie `invoice-org-{ID}`, ausgestellt durch die Plattform im Namen des Veranstalters) |
+| Rechnungskorrektur bei Erstattung | Plattform (`credit`) | Veranstalter (`credit-org-{ID}`) |
+| Monatsbeleg Plattform ↔ Veranstalter | Gutschrift (`credit-self`) + Gebührenrechnung (`partner`) | Provisionsrechnung (`partner`) + informative Aufstellung |
+| Gebühren/Versand einer WooCommerce-Bestellung | Shopbetreiber in WooCommerce (nicht Pass Captain) | Shopbetreiber in WooCommerce (nicht Pass Captain) |
+
+Eine Pass-Captain-Bestellung hat genau einen Rechnungssteller. Gemischte WooCommerce-Warenkörbe werden
+abgelehnt oder je Rechnungssteller aufgeteilt (docs/WOOCOMMERCE.md, „Mehrere Rechnungssteller im
+Warenkorb“); jede Teilbestellung erhält die Belege ihres Rechnungsstellers.
+
+### Geldfluss
+
+1. **Zahlung der Kundschaft:** Alle Zahlungen laufen über die Zahlungsanbieter-Konten, die der Betreiber im
+   Plugin bzw. in WooCommerce hinterlegt hat (Stripe, PayPal, Mollie, WooCommerce-Zahlarten, Kasse). Das
+   Plugin kennt **ein** Händlerkonto je Anbieter; es gibt keine Aufteilung der Zahlung auf mehrere
+   Empfänger (kein „Split Payment“, keine Marktplatz-Unterkonten). Auch bei Vermittler-Veranstaltern geht
+   der Kundenbetrag zunächst auf dem Konto des Betreibers ein (Inkasso für den Veranstalter).
+2. **Erfassung:** Je Pass-Captain-Bestellung werden Bruttobetrag, USt je Position und Erstattungen
+   gespeichert; bei aufgeteilten WooCommerce-Bestellungen je Teilbestellung nach den Aufteilungsregeln.
+3. **Erstattungen:** Die Auszahlung an die Kundschaft führt der Zahlungsanbieter bzw. WooCommerce aus. Das
+   Plugin bucht sie im Erstattungsjournal der betroffenen (Teil-)Bestellung, erzeugt die
+   Rechnungskorrektur des jeweiligen Rechnungsstellers und berücksichtigt sie in der Abrechnung des
+   Veranstalters (im selben Monat als „Erstattung“, nach einem abgeschlossenen Monat als „Korrektur
+   Erstattung (Vorperiode)“ im nächsten).
+4. **Monatsabrechnung:** Pro Veranstalter und Monat berechnet das Plugin Ticketumsatz nach Erstattungen,
+   Plattformgebühr (Provision + Ticketgebühren inkl. USt bzw. Reverse Charge) und den
+   **Auszahlungsbetrag** (= Ticketumsatz brutto − Plattformgebühr brutto; negativ = Forderung an den
+   Veranstalter). Der Beleg wird beim Abschließen nummeriert und eingefroren.
+5. **Auszahlung:** findet **außerhalb des Plugins** statt (Überweisung durch den Betreiber). Das Plugin
+   speichert nur den Status „Ausgezahlt“ mit Referenz (`Settlements::mark_paid()`); es löst keine
+   Zahlungen aus (das Feld „Auszahlung (z. B. IBAN, BIC, Kontoinhaber)“ am Veranstalter ist nur
+   Information für den Betreiber).
+
+### Verantwortung je Modell – was das Plugin abbildet
+
+| Thema | Eigenhändler | Vermittler |
+|---|---|---|
+| Vertragspartner der Kundschaft laut Belegen | Plattform | Veranstalter („Vermittelt durch …“) |
+| Steuerausweis auf Kundenrechnungen | Plattform (Satz der Ticketart) | Veranstalter (Satz der Ticketart; Kleinunternehmer 0 %) |
+| Erstattungsbeträge im Plugin | gebucht auf die Bestellung der Plattform, Weitergabe an den Veranstalter über die Abrechnung | gebucht auf die Bestellung des Veranstalters, Verrechnung über die Abrechnung |
+| Einbehalt der Plattform | Gebührenrechnung, verrechnet mit der Gutschrift | Provisionsrechnung, verrechnet mit dem vereinnahmten Betrag |
+| Rückforderungen (negativer Auszahlungsbetrag) | als Forderung ausgewiesen, Einzug außerhalb des Plugins | als Forderung ausgewiesen, Einzug außerhalb des Plugins |
+
+Nicht abgebildet und Sache des Betreibers: Vertragsgestaltung, Treuhand-/Kundengeldkonten,
+Zahlungsdienste-Aufsicht für das Inkasso fremder Gelder, Durchführung und Fristen der Auszahlungen,
+Mahnwesen, Buchhaltung außerhalb des Exports sowie fiskalische Belege.
 
 ## Pflichten des Betreibers
 
