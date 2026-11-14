@@ -273,7 +273,7 @@ final class ServiceWaitlist {
 			self::offer_next( $slot_id );
 		}
 		// Slots with waiting entries and free places (e.g. capacity raised by staff).
-		$open = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT w.slot_id FROM {$p}wpcap_service_waitlist w INNER JOIN {$p}wpcap_service_slots s ON s.slot_id=w.slot_id WHERE w.status='waiting' AND s.status='open' AND s.starts_at>%s ORDER BY s.starts_at LIMIT %d", $now, absint( $limit ) ) ) );
+		$open = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT w.slot_id FROM {$p}wpcap_service_waitlist w INNER JOIN {$p}wpcap_service_slots s ON s.slot_id=w.slot_id WHERE w.status='waiting' AND s.status='open' AND s.starts_at>%s GROUP BY w.slot_id ORDER BY MIN(s.starts_at) LIMIT %d", $now, absint( $limit ) ) ) );
 		foreach ( array_diff( $open, $slots ) as $slot_id ) { self::offer_next( $slot_id ); }
 		return count( $slots );
 	}

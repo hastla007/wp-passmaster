@@ -241,8 +241,9 @@ final class Waitlists {
 				Audit::record( 'waitlist_offer_expired', 'waitlist', (int) $row->waitlist_id, array( 'ticket_type_id' => (int) $row->ticket_type_id ) );
 			}
 		}
-		// Expired offers and capacity raised by staff: offer what is free now.
-		$waiting = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT w.ticket_type_id FROM $table w INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE w.status='waiting' AND o.status='scheduled' AND o.starts_at>%s ORDER BY o.starts_at LIMIT %d", $now, absint( $limit ) ) ) );
+		// Expired offers and capacity raised by staff: offer what is free now. GROUP BY + MIN() instead of
+		// DISTINCT … ORDER BY o.starts_at: MySQL rejects ordering a DISTINCT result by an unselected column (3065).
+		$waiting = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT w.ticket_type_id FROM $table w INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE w.status='waiting' AND o.status='scheduled' AND o.starts_at>%s GROUP BY w.ticket_type_id ORDER BY MIN(o.starts_at) LIMIT %d", $now, absint( $limit ) ) ) );
 		foreach ( array_unique( array_merge( $types, $waiting ) ) as $type_id ) { self::auto_offer( $type_id ); }
 		return $expired;
 	}

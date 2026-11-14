@@ -621,6 +621,9 @@ final class Orders {
 	/** @var bool|null Whether the transaction marker table is usable on this connection; null = not set up. */
 	private static $marker_ready = null;
 
+	/** @var bool Whether the current transaction wrote its marker row (MySQL path). */
+	private static $marker_active = false;
+
 	/**
 	 * Starts a transaction. On servers without @@in_transaction (MySQL) a marker row is written into a
 	 * connection-local InnoDB temporary table inside the transaction: a server-side rollback (deadlock
@@ -630,15 +633,18 @@ final class Orders {
 	 */
 	private static function begin() {
 		global $wpdb;
+		self::$marker_active = false;
 		$marker = self::uses_marker() ? self::marker_table() : '';
 		if ( '' !== $marker ) {
-			// Outside the transaction (autocommit): clear the marker of the previous transaction.
+			// Outside the transaction (autocommit): clear the marker of the previous transaction. If that fails
+			// (lost connection, temporary table gone), the table is set up again before the next transaction.
 			$cleared = $wpdb->query( "DELETE FROM {$marker}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix, no input.
-			if ( false === $cleared ) { self::$marker_ready = false; $marker = ''; }
+			if ( false === $cleared ) { self::$marker_ready = null; $marker = ''; }
 		}
 		$started = $wpdb->query( 'START TRANSACTION' );
-		if ( false !== $started && '' !== $marker && false === $wpdb->query( "INSERT INTO {$marker} (id) VALUES (1)" ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix, no input.
-			self::$marker_ready = false;
+		if ( false !== $started && '' !== $marker ) {
+			// Only this transaction depends on the marker: a failed write leaves in_transaction() undecided (null).
+			self::$marker_active = false !== $wpdb->query( "INSERT INTO {$marker} (id) VALUES (1)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix, no input.
 		}
 		return $started;
 	}
@@ -660,7 +666,14 @@ final class Orders {
 		$table = $wpdb->prefix . 'wpcap_trx_marker';
 		if ( null === self::$marker_ready ) {
 			// CREATE TEMPORARY TABLE does not commit implicitly; it is visible only to this connection.
-			self::$marker_ready = false !== $wpdb->query( "CREATE TEMPORARY TABLE IF NOT EXISTS {$table} (id tinyint unsigned NOT NULL) ENGINE=InnoDB" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- connection-local temporary marker table, name from $wpdb->prefix.
+			$created = false !== $wpdb->query( "CREATE TEMPORARY TABLE IF NOT EXISTS {$table} (id tinyint unsigned NOT NULL) ENGINE=InnoDB" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- connection-local temporary marker table, name from $wpdb->prefix.
+			if ( $created ) {
+				self::$marker_ready = true;
+			} elseif ( false !== stripos( (string) $wpdb->last_error, 'denied' ) ) {
+				// No CREATE TEMPORARY TABLES privilege: stop trying for this request. Transient errors (lost
+				// connection, lock timeout) are retried with the next transaction.
+				self::$marker_ready = false;
+			}
 		}
 		return self::$marker_ready ? $table : '';
 	}
@@ -672,7 +685,7 @@ final class Orders {
 	private static function in_transaction() {
 		global $wpdb;
 		if ( self::uses_marker() ) {
-			$marker = self::$marker_ready ? $wpdb->prefix . 'wpcap_trx_marker' : '';
+			$marker = ( self::$marker_ready && self::$marker_active ) ? $wpdb->prefix . 'wpcap_trx_marker' : '';
 			if ( '' === $marker ) { return null; }
 			$value = $wpdb->get_var( "SELECT COUNT(*) FROM {$marker}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix, no input.
 			if ( '' !== $wpdb->last_error || null === $value ) { return null; }
@@ -687,6 +700,7 @@ final class Orders {
 	public static function reset_transaction_tracking() {
 		self::$tracks_transactions = null;
 		self::$marker_ready = null;
+		self::$marker_active = false;
 	}
 
 	/** MariaDB reports its transaction state in @@in_transaction; MySQL does not. */
