@@ -63,6 +63,41 @@ final class ClientIp {
 		return $remote;
 	}
 
+	/**
+	 * Key of an address for rate limits (A280): IPv4 (also IPv4-mapped IPv6) as is, IPv6 reduced to its
+	 * network prefix (default /64, the smallest network a provider assigns; filter
+	 * `wpcap_rate_limit_ipv6_prefix`, 32–128), e.g. "2001:db8:1:2::/64". A client rotating addresses
+	 * inside its prefix stays one client. '' for an invalid address.
+	 *
+	 * @param string $ip     Address.
+	 * @param int    $prefix Prefix length for IPv6 (0 = filtered default).
+	 */
+	public static function limit_key( $ip, $prefix = 0 ) {
+		$ip = self::unmap( trim( (string) $ip ) );
+		$bin = '' !== $ip ? @inet_pton( $ip ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		if ( false === $bin ) { return ''; }
+		if ( 4 === strlen( $bin ) ) { return inet_ntop( $bin ); }
+		$bits = $prefix > 0 ? (int) $prefix : (int) apply_filters( 'wpcap_rate_limit_ipv6_prefix', 64 );
+		$bits = min( 128, max( 32, $bits ) );
+		return inet_ntop( self::mask( $bin, $bits ) ) . '/' . $bits;
+	}
+
+	/** Whether the address is IPv6 (not IPv4-mapped). */
+	public static function is_ipv6( $ip ) {
+		$bin = @inet_pton( self::unmap( trim( (string) $ip ) ) ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		return false !== $bin && 16 === strlen( $bin );
+	}
+
+	/** Binary address with every bit after $bits cleared. */
+	private static function mask( $bin, $bits ) {
+		$out = '';
+		for ( $i = 0, $n = strlen( $bin ); $i < $n; $i++ ) {
+			$keep = max( 0, min( 8, $bits - 8 * $i ) );
+			$out .= chr( ord( $bin[ $i ] ) & ( ( 0xff << ( 8 - $keep ) ) & 0xff ) );
+		}
+		return $out;
+	}
+
 	/** Trusted proxy entries (IP or CIDR), validated. */
 	public static function trusted_proxies() {
 		$list = preg_split( '/[\s,;]+/', Settings::secret( 'trusted_proxies' ) );

@@ -108,6 +108,16 @@ geht das über die Konstante oder Umgebungsvariable `WPCAP_TRUSTED_PROXIES` oder
 Die aufgelöste Adresse nutzen alle Ratenlimits, die Einwilligungsnachweise und die Partner-API. Der
 bisherige Filter `wpcap_client_ip` kann das Ergebnis weiterhin überschreiben.
 
+**IPv6-Clients (A280).** Ein Anschluss bekommt meist ein ganzes /64-Netz (oft /56 oder /48) und kann darin
+beliebig viele Adressen nutzen. Für Ratenlimits zählt deshalb nicht die einzelne IPv6-Adresse, sondern ihr
+/64-Präfix (`ClientIp::limit_key()`, `RateLimit::client()`; Filter `wpcap_rate_limit_ipv6_prefix`, 32–128;
+IPv4 und IPv4-gemappte Adressen bleiben unverändert). Anfragen, die Kontingent belegen – Checkout,
+Sitzplatz- und Service-Holds, Warteliste (`RateLimit::allow_client()`) – zählen bei IPv6 zusätzlich im
+/48-Netz mit dem Vierfachen des Limits (Filter `wpcap_rate_limit_ipv6_network_factor`), damit das Durchwechseln
+der /64-Netze eines Anschlusses das Limit nicht vervielfacht. Auch die Sperre der Partner-API nach
+Fehlanmeldungen gilt je /64. Einwilligungsnachweise und das Audit-Log verwenden weiter die volle bzw. die
+anonymisierte Adresse.
+
 **Empfehlungen fürs Hosting**
 
 - **Mehrere Webserver oder PHP-FPM-Worker:** einen persistenten Objekt-Cache mit Redis oder Memcached

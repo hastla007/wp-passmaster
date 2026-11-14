@@ -37,9 +37,29 @@ final class RateLimit {
 		return self::hit( $key, $window, ( $slot + 1 ) * $window ) <= (int) $limit;
 	}
 
-	/** Anonymised client key (keyed hash of the client address, see ClientIp; site-specific secret). */
-	public static function client() {
-		return hash_hmac( 'sha256', ClientIp::get(), self::secret() );
+	/**
+	 * Anonymised client key (keyed hash, site-specific secret) of the client address (Orders::client_ip():
+	 * ClientIp plus filter `wpcap_client_ip`). IPv6 clients count per network prefix, /64 by default
+	 * (ClientIp::limit_key(), A280), so rotating addresses inside one connection does not reset limits.
+	 *
+	 * @param int $ipv6_prefix Prefix length for IPv6 (0 = default /64; e.g. 48 for the wider network).
+	 */
+	public static function client( $ipv6_prefix = 0 ) {
+		return hash_hmac( 'sha256', ClientIp::limit_key( Orders::client_ip(), $ipv6_prefix ), self::secret() );
+	}
+
+	/**
+	 * Per-client limit for requests that hold inventory (checkout, seat/service holds, waitlist): counts
+	 * the client (IPv6: its /64) and, for IPv6, also its /48 network with `wpcap_rate_limit_ipv6_network_factor`
+	 * (default 4) times the limit, so a client with a whole /48 cannot multiply its limit by rotating /64s.
+	 *
+	 * @param string $bucket Bucket name; the client key is appended.
+	 */
+	public static function allow_client( $bucket, $limit, $window = 60 ) {
+		if ( ! self::allow( $bucket . '|' . self::client(), $limit, $window ) ) { return false; }
+		if ( ! ClientIp::is_ipv6( Orders::client_ip() ) ) { return true; }
+		$factor = max( 1, (int) apply_filters( 'wpcap_rate_limit_ipv6_network_factor', 4 ) );
+		return self::allow( $bucket . '|net|' . self::client( 48 ), (int) $limit * $factor, $window );
 	}
 
 	/** Active backend: cache | db | transient. */

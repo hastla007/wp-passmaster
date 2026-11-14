@@ -680,7 +680,7 @@ final class Controller {
 
 	/** Non-binding discount preview for the checkout estimate (Campaigns::preview()). */
 	public static function preview_campaign( \WP_REST_Request $request ) {
-		if ( ! \PassCaptain\RateLimit::allow( 'campaign-preview|' . Orders::client_ip(), (int) apply_filters( 'wpcap_campaign_preview_rate_limit', 30 ), 600 ) ) {
+		if ( ! \PassCaptain\RateLimit::allow( 'campaign-preview|' . \PassCaptain\RateLimit::client(), (int) apply_filters( 'wpcap_campaign_preview_rate_limit', 30 ), 600 ) ) {
 			return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
 		$params = $request->get_json_params() ?: $request->get_params();

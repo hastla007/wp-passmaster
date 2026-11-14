@@ -221,7 +221,7 @@ final class Keys {
 	}
 
 	private static function lock_key( $ip ) {
-		return 'wpcap_partner_lock_' . md5( (string) $ip );
+		return 'wpcap_partner_lock_' . md5( \PassCaptain\ClientIp::limit_key( $ip ) ); // IPv6: per /64 (A280).
 	}
 
 	/**
@@ -274,7 +274,7 @@ final class Keys {
 
 	/** Records a failed authentication/authorisation and returns the error. */
 	private static function fail( $reason, $key, $ip, $route, $status, $count_for_lockout, array $extra = array() ) {
-		if ( $count_for_lockout && ! RateLimit::allow( 'partner_auth_fail_' . md5( (string) $ip ), self::FAIL_LIMIT, self::FAIL_WINDOW ) ) {
+		if ( $count_for_lockout && ! RateLimit::allow( 'partner_auth_fail|' . \PassCaptain\ClientIp::limit_key( $ip ), self::FAIL_LIMIT, self::FAIL_WINDOW ) ) {
 			set_transient( self::lock_key( $ip ), 1, self::FAIL_WINDOW );
 		}
 		self::audit_failure( $reason, $key, $ip, $route, $extra );

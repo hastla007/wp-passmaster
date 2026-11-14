@@ -120,8 +120,9 @@ final class Orders {
 		// Keep anonymous checkout abuse bounded without retaining raw IP addresses (RateLimit: keyed hashes,
 		// atomic across workers). Per IP+email and per IP alone, so rotating email addresses cannot bypass it.
 		if ( ! $skip_rate_limit ) {
-			$ip = self::client_ip();
-			if ( ! RateLimit::allow( 'checkout|' . $ip . '|' . strtolower( $email ), 8, HOUR_IN_SECONDS ) || ! RateLimit::allow( 'checkout_ip|' . $ip, (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ), HOUR_IN_SECONDS ) ) {
+			// IPv6 clients count per /64 (plus their /48 network), see RateLimit::client() (A280).
+			$client = RateLimit::client();
+			if ( ! RateLimit::allow( 'checkout|' . $client . '|' . strtolower( $email ), 8, HOUR_IN_SECONDS ) || ! RateLimit::allow_client( 'checkout_ip', (int) apply_filters( 'wpcap_checkout_ip_limit', 30 ), HOUR_IN_SECONDS ) ) {
 				return new \WP_Error( 'wpcap_rate_limited', __( 'Bitte warte kurz und versuche es erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 			}
 		}

@@ -121,7 +121,7 @@ final class Waitlists {
 		$email = sanitize_email( Http::str( $email ) );
 		if ( ! $quantity ) { return new \WP_Error( 'wpcap_waitlist_quantity', __( 'Bitte eine gültige Anzahl angeben.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		if ( ! $event_id || ! is_email( $email ) ) { return new \WP_Error( 'wpcap_waitlist_invalid', __( 'Veranstaltung oder E-Mail-Adresse ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		if ( ! RateLimit::allow( 'waitlist|' . $email . '|' . $event_id, 5, HOUR_IN_SECONDS ) || ! RateLimit::allow( 'waitlist_ip|' . Orders::client_ip() . '|' . $event_id, 20, HOUR_IN_SECONDS ) ) {
+		if ( ! RateLimit::allow( 'waitlist|' . $email . '|' . $event_id, 5, HOUR_IN_SECONDS ) || ! RateLimit::allow_client( 'waitlist_ip|' . $event_id, 20, HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'wpcap_waitlist_rate', __( 'Zu viele Wartelistenanfragen. Bitte versuche es später erneut.', 'pass-captain' ), array( 'status' => 429 ) );
 		}
 		$valid = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_events e INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.event_id=e.event_id WHERE e.event_id=%d AND e.status='published' AND o.occurrence_id=%d AND o.status='scheduled'", $event_id, $occurrence_id ) );
