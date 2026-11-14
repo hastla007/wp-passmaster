@@ -122,6 +122,29 @@ If the salt changes and the secret can no longer be decrypted, a new key is gene
 Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_assigned` /
 `offline_device_unassigned`.
 
+## Signed QR codes (PC1)
+
+When the setting `signed_qr` is on, ticket QR codes carry
+`PC1.<base64url(JSON {t, o, v, k, c})>.<base64url(Ed25519 signature)>` instead of the 64-hex code (format,
+key handling and interop decision: [SECURITY.md](SECURITY.md#signierte-qr-codes-pc1)). The QR signing key is
+separate from the package signing key; its public keys are published as `qr_keys` next to `keys` in
+`GET /app/offline/keys` and in the pairing response (`offline.qr_keys`).
+
+Offline pre-validation in the PWA (`verifySignedQr()` / `decideSigned()` in `app.js`):
+
+1. Ed25519 signature over the ASCII bytes `PC1.<claims>` with a trusted QR key (retired keys only until
+   `valid_until`; unknown key id = `invalid_signature`).
+2. Claim types and the validity window `v` at the device time (corrected by the server clock offset);
+   outside = `out_of_window`.
+3. `o` must be the package's occurrence (`wrong_occurrence`).
+4. The code version `c` (first 16 hex of the code hash) is looked up in the package index. A reissued
+   ticket has a new hash, so a QR of the old code is `unknown` (or `revoked` once the snapshot lists the old
+   hash as revoked). Then the usual local rules apply (revoked, already used, area).
+
+Online the server decides (signature, code version, window, ticket state). Offline admissions upload the
+signed code unchanged through `/app/scan/sync`; the server verifies it again. Classic codes keep working
+everywhere, whatever the setting.
+
 ## PWA (`assets/offline-scanner/`)
 
 | File | Contents |
@@ -151,7 +174,8 @@ Audit actions: `offline_key_rotated`, `offline_rules_saved`, `offline_device_ass
 - **Scanning:**
   - Online, the app calls `POST /app/scan/check-in` with an idempotency key (5 s timeout).
   - On a network error or 5xx it decides offline. It normalizes the code like the server, computes
-    its SHA-256 with WebCrypto and looks the hash up in the package.
+    its SHA-256 with WebCrypto and looks the hash up in the package. Signed QR codes (PC1) are
+    verified locally first and matched by code version (see above).
   - A ticket is refused offline when it is unknown, revoked, already used (single entry: package
     status or the local log), in the wrong area (the type's area restriction against the device's or
     the selected area), or when the package is missing or expired.
@@ -178,6 +202,10 @@ Ship changed shell files by bumping `CACHE` in `sw.js`. Assets are also refreshe
 
 ## Tests
 
+- `tests/integration/modules/zzzzz_x4_signed_qr.php` covers signed QR codes on the server (valid,
+  tampered, unknown/foreign key, rotation with grace and revocation, window, reissued and revoked
+  tickets, classic codes, mobile API and offline sync); `tests/js/offline-scanner.test.js` covers the
+  offline verification in the PWA.
 - `tests/integration/modules/offline_scanner.php` covers opt-in, assignment, signatures (including
   `sodium_crypto_sign_verify_detached`), deltas with revocations, expiry, rotation and grace, and the
   sync rules.

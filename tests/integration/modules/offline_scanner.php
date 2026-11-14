@@ -276,7 +276,7 @@ $html_keys = array_map( 'html_entity_decode', $m[1] );
 $pwa_keys = array_unique( array_merge( $pwa_keys, $html_keys ) );
 $table_keys = array_keys( PassCaptain\OfflineScanner\I18n::strings() );
 $not_served = array_values( array_diff( $pwa_keys, $table_keys ) );
-check( 'app.js looks up its texts with t() and covers all 18 result codes', count( $pwa_keys ) > 60 && 18 === count( $result_keys ) );
+check( 'app.js looks up its texts with t() and covers all 19 result codes', count( $pwa_keys ) > 60 && 19 === count( $result_keys ) );
 check( 'every PWA text (t(), RESULT_TEXT, data-i18n*) is in the served table' . ( $not_served ? ' – missing: ' . implode( ' | ', $not_served ) : '' ), array() === $not_served && count( $html_keys ) >= 20 );
 check( 'app keeps the table in IndexedDB, sets <html lang> and formats dates with Intl in that locale', false !== strpos( $app_js, "kvSet('i18n', table)" ) && false !== strpos( $app_js, "kvGet('i18n')" ) && false !== strpos( $app_js, 'document.documentElement.lang = lang()' ) && false !== strpos( $app_js, 'new Intl.DateTimeFormat(lang()' ) && false === strpos( $app_js, "toLocaleString('de-DE'" ) );
 check( 'app asks for the device languages (navigator.languages → ?locale=)', false !== strpos( $app_js, 'navigator.languages' ) && false !== strpos( $app_js, "endpoint('offline/i18n', prefs ? 'locale=' + encodeURIComponent(prefs) : '')" ) );

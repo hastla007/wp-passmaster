@@ -69,6 +69,17 @@ test('offline: never admitted automatically, explicit "admit after visual check"
 	assert.equal(sync.textContent, '1 synchronisieren');
 });
 
+test('offline: a signed QR payload (PC1) is offered for the visual check like a classic code', () => {
+	const env = scanner({ navigator: { onLine: false } });
+	const signed = 'PC1.' + 'eyJ0IjoiYWJjIn0'.padEnd(40, 'A') + '.' + 'B'.repeat(86);
+	env.exports.offline(signed);
+	assert.match(result(env).textContent, /NICHT GEPRÜFT/);
+	result(env).querySelector('.wpcap-admit-unchecked').click();
+	assert.equal(env.exports.queue()[0].token, signed, 'the signed payload is queued unchanged for the server check');
+	env.exports.offline('PC1.kurz.x');
+	assert.equal(result(env).textContent, 'Ungültiges Ticket.');
+});
+
 test('network failure while "online" falls back to the offline flow', async () => {
 	const env = scanner({ fetch: mockFetch(() => { throw new TypeError('Failed to fetch'); }) });
 	await env.exports.submitToken(CODE);

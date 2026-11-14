@@ -82,6 +82,8 @@ final class Settings {
 			'voucher_default_purpose'   => 'multi',
 			'delete_data_on_uninstall'  => 0,
 			'scanner_show_attendee'     => 0,
+			// Signed QR payloads (PC1.…) instead of the plain ticket code in new QR codes; scanners accept both.
+			'signed_qr'                 => 0,
 			'device_max_hours'          => 24,
 			'admission_day_cutoff_hour' => 0,
 			'auto_refund_cancelled'     => 0,

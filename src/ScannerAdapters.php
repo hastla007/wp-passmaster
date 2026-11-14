@@ -59,6 +59,8 @@ final class ScannerAdapters {
 	public static function for_code( $code ) {
 		$adapters = self::all();
 		if ( ! $adapters || ! is_scalar( $code ) || '' === trim( (string) $code ) ) { return ''; }
+		// Signed Pass Captain QR codes are never handed to adapters, not even when the signature is invalid.
+		if ( Security\SignedQr::is_signed( $code ) ) { return ''; }
 		if ( ! is_wp_error( Checkin::lookup( (string) $code, null, false ) ) ) { return ''; }
 		foreach ( $adapters as $id => $adapter ) {
 			try {

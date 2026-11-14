@@ -37,7 +37,7 @@ final class TicketPdf {
 		if ( ! empty( $t['location'] ) ) { $ops[] = $text( (string) $t['location'], 12, 50, $y -= 18 ); }
 		if ( ! empty( $t['seat'] ) ) { $ops[] = $text( (string) $t['seat'], 14, 50, $y -= 20, true ); }
 		if ( ! empty( $t['attendee'] ) ) { $ops[] = $text( (string) $t['attendee'], 12, 50, $y -= 18 ); }
-		$matrix = self::qr_matrix( (string) ( $t['token'] ?? '' ) );
+		$matrix = self::qr_matrix( Security\SignedQr::qr_value( (string) ( $t['token'] ?? '' ) ) );
 		$top = $y - 40;
 		if ( $matrix ) {
 			$count = count( $matrix );

@@ -65,7 +65,7 @@ class GoogleProvider implements WalletProvider {
 			'ticketNumber' => (string) $ticket['public_id'],
 			'ticketType' => self::text( $ticket['ticket_name'] ),
 		);
-		if ( $active ) { $object['barcode'] = array( 'type' => 'QR_CODE', 'value' => (string) $ticket['code'], 'alternateText' => substr( (string) $ticket['public_id'], 0, 8 ) ); }
+		if ( $active ) { $object['barcode'] = array( 'type' => 'QR_CODE', 'value' => \PassCaptain\Security\SignedQr::qr_value( (string) $ticket['code'] ), 'alternateText' => substr( (string) $ticket['public_id'], 0, 8 ) ); }
 		if ( '' !== (string) ( $ticket['seat'] ?? '' ) ) { $object['seatInfo'] = array( 'seat' => self::text( $ticket['seat'] ) ); }
 		if ( '' !== (string) ( $ticket['attendee_name'] ?? '' ) ) { $object['ticketHolderName'] = (string) $ticket['attendee_name']; }
 		return apply_filters( 'wpcap_wallet_google_object', $object, $ticket );

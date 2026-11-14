@@ -28,9 +28,9 @@ final class CheckinService {
 		return new self();
 	}
 
-	/** Whether a scanned value looks like a Pass Captain ticket (64-hex code or ticket URL). Cheap, no lookup. */
+	/** Whether a scanned value looks like a Pass Captain ticket (64-hex code, ticket URL or signed QR payload). Cheap, no lookup. */
 	public function recognizes( $value ) {
-		return '' !== Checkin::normalize_code( (string) $value );
+		return '' !== Checkin::normalize_code( (string) $value ) || \PassCaptain\Security\SignedQr::is_signed( $value );
 	}
 
 	/** Whether the current user may check tickets in. */

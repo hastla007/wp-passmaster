@@ -45,7 +45,7 @@ Wer Datenbank und `wp-config.php` gemeinsam erbeutet, kann die Werte entschlüss
 
 ## Ausgehende Verbindungen (SSRF)
 
-Für vom Admin konfigurierbare Ziele – Webhooks, generischer SMS-Anbieter, Fiskaldienste – gilt `Security\OutboundHttp`:
+Für vom Admin konfigurierbare Ziele – Webhooks, HTTP/JSON-Connectors, generischer SMS-Anbieter, Fiskaldienste – gilt `Security\OutboundHttp`:
 
 - nur `https`; keine Zugangsdaten in der URL; nicht-kanonische IP-Schreibweisen (`0x7f.1`, `2130706433`) werden abgelehnt;
 - der Host wird aufgelöst, **jede** Adresse muss öffentlich sein: Loopback, RFC 1918, CGNAT (100.64/10), Link-Local inkl. Cloud-Metadaten (169.254.169.254), ULA (fc00::/7), fe80::/10, Multicast, reservierte und Dokumentationsnetze, IPv4-mapped und NAT64-IPv6 sowie `localhost`, `*.local`, `*.internal` sind gesperrt;
@@ -57,6 +57,43 @@ Für vom Admin konfigurierbare Ziele – Webhooks, generischer SMS-Anbieter, Fis
 - Zahlungsanbieter (Stripe, PayPal, Mollie, Twilio) verwenden feste Anbieter-Hosts.
 
 Restrisiko: Zwischen Prüfung und Verbindungsaufbau löst WordPress den Namen erneut auf; ein Angreifer mit TTL-0-DNS könnte theoretisch umschalten. Für Hochrisiko-Umgebungen ausgehenden Traffic zusätzlich per Egress-Firewall/Proxy beschränken.
+
+## Signierte QR-Codes (PC1)
+
+Tickets tragen standardmäßig einen zufälligen 256-Bit-Code (gespeichert wird nur `sha256`). Optional
+(Einstellung „Signierte QR-Codes ausgeben“, `signed_qr`, **Standard aus**) enthalten neu gerenderte QR-Codes
+(Ticketseite, PDF, Druckvorlagen, Apple/Google Wallet) stattdessen eine signierte Angabe:
+
+```
+PC1.<base64url(JSON {t, o, v, k, c})>.<base64url(Ed25519-Signatur)>
+```
+
+- `t` öffentliche Ticket-ID, `o` Termin-ID, `v` Gültigkeitszeitraum `[nicht vor, gültig bis]` (Unix-Sekunden,
+  Standard: ein Jahr vor Beginn bis einen Tag nach dem letzten gültigen Zeitpunkt, Filter
+  `wpcap_signed_qr_window`), `k` Schlüssel-ID, `c` Code-Version (erste 16 Hex-Zeichen des gespeicherten
+  Code-Hashes). **Keine personenbezogenen Daten**, kein Ticketcode. Signiert werden die ASCII-Bytes
+  `PC1.<Claims>` (Domänentrennung über das Präfix).
+- Schlüssel: Ed25519 (libsodium), Option `wpcap_qr_keys`; der geheime Schlüssel liegt im Vault (Kontext
+  `qr_signing_key`) und verlässt den Server nie. Schlüssel-ID = erste 16 Hex-Zeichen von `sha256(public)`.
+  Öffentliche Schlüssel erhalten gekoppelte Geräte über `GET /app/offline/keys` (`qr_keys`) und die
+  Kopplungsantwort.
+- Rotation (Offline-Scanner-Seite, `manage_options`, Audit `qr_key_rotated`): der bisherige Schlüssel bleibt
+  bis zum Ablauf der damit signierten QR-Codes gültig; mit „sofort sperren“ (Kompromittierung) wird er
+  entfernt und alle damit signierten QR-Codes werden abgewiesen (Tickets dann neu versenden).
+- Server: `Checkin::lookup()` prüft Format, Signatur und Schlüssel, lädt das Ticket über die öffentliche ID,
+  verlangt passende Code-Version und Termin (sonst `wpcap_qr_superseded`, Ergebnis `revoked` – eine
+  Neuausstellung macht alte QR-Codes ungültig wie den alten Code) und beim Einlass den Gültigkeitszeitraum
+  (`wpcap_qr_expired`). Danach gelten dieselben Prüfungen wie für klassische Codes (Status, Widerruf, Absage,
+  Einlassregeln, Idempotenz). Eine gültige Signatur allein lässt nie ein. Ungültige PC1-Codes werden nie an
+  Scanner-Adapter von Add-ons weitergereicht.
+- Interoperabilität: Alle Pass-Captain-Scanner (Web-Scanner, Offline-PWA, App-API, Offline-Sync, Check-in-Dienst
+  für fremde Scanner) nehmen **beide** Formate an – unabhängig von der Einstellung, damit bereits versendete
+  Tickets nach einem Umschalten gültig bleiben. Fremde Einlasssysteme, die den 64-stelligen Code lesen,
+  funktionieren nur mit dem klassischen Format; deshalb ist die Signatur Opt-in. Der Ticketcode bleibt als
+  Text auf Ticketseite/PDF für die manuelle Eingabe.
+- Restrisiken: Ein signierter QR-Code ist wie der klassische Code ein Inhaberberechtigungsnachweis (Kopien
+  sind bis zum ersten Einlass gleichwertig); die Signatur verhindert Fälschungen und erlaubt die
+  Offline-Vorprüfung, ersetzt aber nicht die Statusprüfung am Server bzw. im signierten Prüfpaket.
 
 ## Rate-Limits und Client-Adresse
 

@@ -68,17 +68,23 @@ final class Checkin {
 	 * @return array|\WP_Error
 	 */
 	public static function lookup( $code, $at = null, $strict = true ) {
-		$code = self::normalize_code( $code );
-		if ( '' === $code ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
+		// Signed QR payloads (Security\SignedQr): signature and key first, then the ticket by public id.
+		$claims = Security\SignedQr::is_signed( $code ) ? Security\SignedQr::verify( $code ) : null;
+		if ( is_wp_error( $claims ) ) { return $claims; }
+		$code = $claims ? '' : self::normalize_code( $code );
+		if ( ! $claims && '' === $code ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.public_id,t.status,t.ticket_type_id,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
-			hash( 'sha256', $code )
-		) );
+		$column = $claims ? 't.public_id' : 't.token_hash';
+		$sql = "SELECT t.ticket_id,t.public_id,t.token_hash,t.status,t.ticket_type_id,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE {$column}=%s LIMIT 1";
+		$row = $wpdb->get_row( $wpdb->prepare( $sql, $claims ? (string) $claims['t'] : hash( 'sha256', $code ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table prefix and column name from literals.
 		// A failed query is not an unknown ticket: offline uploads would drop the admission for good.
 		if ( ! $row && '' !== (string) $wpdb->last_error ) { return self::retry_error(); }
 		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
+		if ( $claims && ! Security\SignedQr::matches( $claims, (string) $row->token_hash, (int) $row->occurrence_id ) ) {
+			// The ticket was reissued (new code) or moved: QR codes of the previous code are void.
+			return new \WP_Error( 'wpcap_qr_superseded', __( 'Dieser QR-Code wurde ersetzt; das Ticket wurde neu ausgestellt.', 'pass-captain' ), array( 'status' => 409, 'result' => 'revoked', 'ticket_status' => 'revoked', 'ticket_id' => (int) $row->ticket_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id ) );
+		}
 		$found = array( 'ticket_id' => (int) $row->ticket_id, 'public_id' => $row->public_id, 'event_id' => (int) $row->event_id, 'occurrence_id' => (int) $row->occurrence_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'status' => $row->status, 'event_name' => $row->event_name, 'ticket_name' => $row->ticket_name, 'starts_at' => $row->starts_at, 'ends_at' => $row->ends_at, 'timezone' => $row->timezone, 'attendee_name' => (string) $row->attendee_name );
 		if ( ! $strict ) { return $found; }
 		$internal = array( 'event_id' => (int) $row->event_id, 'ticket_id' => (int) $row->ticket_id, 'occurrence_id' => (int) $row->occurrence_id );
@@ -87,6 +93,7 @@ final class Checkin {
 		$start = strtotime( $row->starts_at . ' UTC' );
 		$last = Policies::last_valid_ts( (int) $row->ticket_type_id, $found );
 		if ( $last < $at - DAY_IN_SECONDS || $start > $at + 365 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_ticket_out_of_window', __( 'Das Ticket liegt außerhalb des Einlasszeitraums.', 'pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'out_of_window' ), $internal ) ); }
+		if ( $claims && ! Security\SignedQr::in_window( $claims, $at ) ) { return new \WP_Error( 'wpcap_qr_expired', __( 'Der QR-Code liegt außerhalb seines Gültigkeitszeitraums.', 'pass-captain' ), array_merge( array( 'status' => 409, 'result' => 'out_of_window' ), $internal ) ); }
 		return $found;
 	}
 

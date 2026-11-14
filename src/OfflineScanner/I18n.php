@@ -131,6 +131,7 @@ final class I18n {
 			'Prüfpaket abgelaufen' => __( 'Prüfpaket abgelaufen', 'pass-captain' ),
 			'Kein gültiges Prüfpaket' => __( 'Kein gültiges Prüfpaket', 'pass-captain' ),
 			'Kein Ticketcode erkannt' => __( 'Kein Ticketcode erkannt', 'pass-captain' ),
+			'QR-Signatur ungültig' => __( 'QR-Signatur ungültig', 'pass-captain' ),
 			'Einlass OK (offline)' => __( 'Einlass OK (offline)', 'pass-captain' ),
 			'Mehrfachticket – Prüfung beim Sync' => __( 'Mehrfachticket – Prüfung beim Sync', 'pass-captain' ),
 			'Kein Termin gewählt' => __( 'Kein Termin gewählt', 'pass-captain' ),

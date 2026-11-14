@@ -112,8 +112,10 @@
 	// Offline the code cannot be checked: never shown as admitted. Only codes that look like a ticket are
 	// offered, and only after an explicit staff decision ("admit after a visual check") are they queued
 	// for the later server check. Reliable offline admission: the offline scanner app with a ticket package.
+	// Signed QR payload (PC1.<claims>.<signature>, setting "signed_qr"); verified by the server.
+	var SIGNED_QR = /PC1\.[A-Za-z0-9_-]{16,700}\.[A-Za-z0-9_-]{86}/;
 	function offline(token) {
-		if (!/(^|[^a-f0-9])[a-f0-9]{64}($|[^a-f0-9])/i.test(token)) {
+		if (!/(^|[^a-f0-9])[a-f0-9]{64}($|[^a-f0-9])/i.test(token) && !SIGNED_QR.test(token)) {
 			result.textContent = t.invalid || 'Invalid ticket.';
 			result.dataset.state = 'error';
 			return;
@@ -291,7 +293,7 @@
 					busy = true;
 					try {
 						const raw = await detect();
-						const match = raw.match(/[a-f0-9]{64}/i);
+						const match = raw.match(SIGNED_QR) || raw.match(/[a-f0-9]{64}/i);
 						const now = Date.now();
 						// The same QR stays in view after a scan; do not re-submit it immediately.
 						if (match && (match[0] !== lastToken || now - lastTokenAt > 5000)) {

@@ -163,7 +163,7 @@ $pm_admin = array(
 	'wpcap_calendar_save' => 'manage_options', 'wpcap_mail_template_save' => 'manage_options', 'wpcap_mail_template_reset' => 'manage_options',
 	'wpcap_mail_template_test' => 'manage_options', 'wpcap_mail_layout_save' => 'manage_options', 'wpcap_mollie_save' => 'manage_options',
 	'wpcap_offline_save_rules' => 'wpcap_manage_events', 'wpcap_offline_assign' => 'wpcap_manage_events', 'wpcap_offline_unassign' => 'wpcap_manage_events',
-	'wpcap_offline_rotate_key' => 'manage_options',
+	'wpcap_offline_rotate_key' => 'manage_options', 'wpcap_qr_rotate_key' => 'manage_options',
 	'wpcap_partner_action' => 'manage_options', 'wpcap_partner_settlement_doc' => 'wpcap_view_finance',
 	'wpcap_print_save_template' => 'manage_options', 'wpcap_print_assign' => 'wpcap_manage_events', 'wpcap_print_batch' => 'wpcap_manage_orders',
 	'wpcap_attendee_list' => 'wpcap_manage_orders', 'wpcap_print_settings' => 'manage_options', 'wpcap_invoice_pdf' => 'wpcap_view_finance',
@@ -172,6 +172,7 @@ $pm_admin = array(
 	'wpcap_series_create' => 'wpcap_manage_events', 'wpcap_series_rule_save' => 'wpcap_manage_events', 'wpcap_series_rule_delete' => 'wpcap_manage_events',
 	'wpcap_series_pool_save' => 'wpcap_manage_events', 'wpcap_series_pool_update' => 'wpcap_manage_events', 'wpcap_series_pool_delete' => 'wpcap_manage_events',
 	'wpcap_sms_save' => 'manage_options', 'wpcap_wallet_save' => 'manage_options', 'wpcap_wallet_test_pass' => 'manage_options', 'wpcap_webhook_action' => 'manage_options',
+	'wpcap_connector_action' => 'manage_options',
 	// Registered outside Menu::handlers().
 	'wpcap_print_invoice' => 'wpcap_view_finance', 'wpcap_export_accounting' => 'wpcap_view_finance',
 	'wpcap_accept_waitlist' => 'token:waitlist offer token from the e-mail (admin_post_nopriv)',

@@ -76,7 +76,7 @@
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
     },
     "src/Checkin.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 11
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6
     },
     "src/Communications.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3
