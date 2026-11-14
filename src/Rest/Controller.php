@@ -356,7 +356,7 @@ final class Controller {
 	public static function order_status( \WP_REST_Request $request ) {
 		global $wpdb;
 		$public_id = sanitize_text_field( $request['public_id'] );
-		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $request->get_param( 'access_token' ) ) );
+		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', is_scalar( $request->get_param( 'access_token' ) ) ? (string) $request->get_param( 'access_token' ) : '' ) );
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT public_id,status,payment_status,currency,total_minor,created_at,access_token_hash,access_expires_at FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ), ARRAY_A );
 		if ( ! $order ) { return new \WP_Error( 'wpcap_order_not_found', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! $order['access_expires_at'] || $order['access_expires_at'] <= current_time( 'mysql', true ) || 64 !== strlen( $access_token ) || ! hash_equals( $order['access_token_hash'], hash( 'sha256', $access_token ) ) ) { return new \WP_Error( 'wpcap_order_access_denied', __( 'Der Bestellzugriff ist ungültig oder abgelaufen.', 'pass-captain' ), array( 'status' => 403 ) ); }
@@ -379,7 +379,7 @@ final class Controller {
 	/** Order row when the public id and the access token match (null otherwise). */
 	private static function order_with_access( $public_id, $access_token ) {
 		global $wpdb;
-		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $access_token ) );
+		$access_token = strtolower( preg_replace( '/[^a-f0-9]/', '', is_scalar( $access_token ) ? (string) $access_token : '' ) );
 		if ( 64 !== strlen( $access_token ) ) { return null; }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", sanitize_text_field( (string) $public_id ) ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $access_token ) ) ) { return null; }
@@ -579,14 +579,16 @@ final class Controller {
 		if ( ! $valid_dates || $from > $to || strtotime( $to ) - strtotime( $from ) > 90 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_report_range', __( 'Berichtszeitraum muss gültig und höchstens 90 Tage lang sein.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		// Cached for a few minutes; orders, refunds, check-ins and event changes invalidate it (Reports\Cache).
 		$cached = \PassCaptain\Reports\Cache::get( $event_id, $from, $to );
-		if ( false !== $cached ) { return rest_ensure_response( $cached ); }
+		// Staff without access to payment data (check-in/partner roles) get no amounts; developer keys keep the full report.
+		$minimise = get_current_user_id() && ! \PassCaptain\Security\DataPolicy::can_view_payment();
+		if ( false !== $cached ) { return rest_ensure_response( $minimise ? \PassCaptain\Security\DataPolicy::strip_payment( (array) $cached ) : $cached ); }
 		$sales = $wpdb->get_results( $wpdb->prepare( "SELECT ord.currency,COUNT(DISTINCT ord.order_id) AS orders_count,COALESCE(SUM(oi.quantity),0) AS tickets_sold,COALESCE(SUM(oi.line_total_minor),0) AS gross_minor FROM {$wpdb->prefix}wpcap_orders ord INNER JOIN {$wpdb->prefix}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND ord.payment_status='paid' AND ord.status<>'refunded' AND ord.created_at >= %s AND ord.created_at < DATE_ADD(%s,INTERVAL 1 DAY) GROUP BY ord.currency", $event_id, $from . ' 00:00:00', $to . ' 00:00:00' ), ARRAY_A );
 		$checkins = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_checkins WHERE event_id=%d AND result='checked_in' AND created_at >= %s AND created_at < DATE_ADD(%s,INTERVAL 1 DAY)", $event_id, $from . ' 00:00:00', $to . ' 00:00:00' ) );
 		$currency_totals = array();
 		foreach ( $sales as $sale ) { $currency_totals[] = array( 'currency' => $sale['currency'], 'orders_count' => (int) $sale['orders_count'], 'tickets_sold' => (int) $sale['tickets_sold'], 'gross_minor' => (int) $sale['gross_minor'] ); }
 		$data = array( 'event_id' => $event_id, 'from' => $from, 'to' => $to, 'sales_by_currency' => $currency_totals, 'checkins' => $checkins, 'financial_basis' => 'gross_line_totals_before_order_discounts_tax_and_refunds' );
 		\PassCaptain\Reports\Cache::set( $event_id, $from, $to, $data );
-		return rest_ensure_response( $data );
+		return rest_ensure_response( $minimise ? \PassCaptain\Security\DataPolicy::strip_payment( $data ) : $data );
 	}
 
 	public static function create_developer_key( \WP_REST_Request $request ) {
@@ -594,7 +596,7 @@ final class Controller {
 		$event_id = absint( $payload['event_id'] ?? 0 );
 		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		if ( ! empty( $payload['expires_at'] ) && ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $payload['expires_at'] ) || strtotime( $payload['expires_at'] . ' UTC' ) <= time() ) ) { return new \WP_Error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$result = DeveloperKeys::issue( $event_id, (array) ( $payload['scopes'] ?? array() ), $payload['label'] ?? '', $payload['expires_at'] ?? '' );
+		$result = DeveloperKeys::issue( $event_id, (array) ( $payload['scopes'] ?? array() ), $payload['label'] ?? '', $payload['expires_at'] ?? '', $payload['rate_limit'] ?? DeveloperKeys::DEFAULT_RATE_LIMIT );
 		return is_wp_error( $result ) ? $result : new \WP_REST_Response( $result, 201 );
 	}
 
@@ -684,9 +686,10 @@ final class Controller {
 		$payload = $request->get_json_params();
 		$name = sanitize_text_field( $payload['name'] ?? '' );
 		if ( ! $name ) { return new \WP_Error( 'wpcap_resource_invalid', __( 'Ressourcenname fehlt.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$wpdb->insert( $wpdb->prefix . 'wpcap_resources', array( 'event_id' => $event_id, 'name' => $name, 'capacity' => min( 100, max( 1, absint( $payload['capacity'] ?? 1 ) ) ), 'buffer_before' => min( 1440, absint( $payload['buffer_before'] ?? 0 ) ), 'buffer_after' => min( 1440, absint( $payload['buffer_after'] ?? 0 ) ), 'status' => 'active' ), array( '%d', '%s', '%d', '%d', '%d', '%s' ) );
-		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_resource_save', __( 'Ressource konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
-		return new \WP_REST_Response( array( 'resource_id' => (int) $wpdb->insert_id ), 201 );
+		// Buffers, default duration, price (ticket_type_id), organizer and booking rules: see ServiceResources::save_resource().
+		$saved = \PassCaptain\ServiceResources::save_resource( array_intersect_key( (array) $payload, array_flip( array( 'capacity', 'buffer_before', 'buffer_after', 'default_duration', 'timezone', 'ticket_type_id', 'rules' ) ) ) + array( 'event_id' => $event_id, 'name' => $name ) );
+		if ( is_wp_error( $saved ) ) { return $saved; }
+		return new \WP_REST_Response( array( 'resource_id' => (int) $saved ), 201 );
 	}
 
 	public static function create_service_slot( \WP_REST_Request $request ) {
@@ -698,9 +701,10 @@ final class Controller {
 		$start = strtotime( sanitize_text_field( $payload['starts_at'] ?? '' ) );
 		$end = strtotime( sanitize_text_field( $payload['ends_at'] ?? '' ) );
 		if ( ! $start || ! $end || $end <= $start ) { return new \WP_Error( 'wpcap_service_slot_invalid', __( 'Zeitfenster ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$wpdb->insert( $wpdb->prefix . 'wpcap_service_slots', array( 'resource_id' => $resource_id, 'starts_at' => gmdate( 'Y-m-d H:i:s', $start ), 'ends_at' => gmdate( 'Y-m-d H:i:s', $end ), 'capacity' => min( 100, max( 1, absint( $payload['capacity'] ?? $resource->capacity ) ) ), 'status' => 'open' ), array( '%d', '%s', '%s', '%d', '%s' ) );
-		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_service_slot_save', __( 'Zeitfenster konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
-		return new \WP_REST_Response( array( 'slot_id' => (int) $wpdb->insert_id ), 201 );
+		// Rejects slots that overlap another slot of the resource incl. buffers (409).
+		$slot_id = \PassCaptain\ServiceResources::create_slot( $resource_id, gmdate( 'Y-m-d H:i:s', $start ), gmdate( 'Y-m-d H:i:s', $end ), absint( $payload['capacity'] ?? 0 ) );
+		if ( is_wp_error( $slot_id ) ) { return $slot_id; }
+		return new \WP_REST_Response( array( 'slot_id' => (int) $slot_id ), 201 );
 	}
 
 	public static function set_admission_days( \WP_REST_Request $request ) {
@@ -746,7 +750,7 @@ final class Controller {
 
 	public static function book_service_slot( \WP_REST_Request $request ) {
 		$payload = $request->get_json_params();
-		$result = ServiceBookings::reserve( absint( $request['slot_id'] ), $payload['email'] ?? '', absint( $payload['quantity'] ?? 1 ), 0, 10, $payload['idempotency_key'] ?? '' );
+		$result = ServiceBookings::reserve( absint( $request['slot_id'] ), $payload['email'] ?? '', $payload['quantity'] ?? 1, 0, 10, is_scalar( $payload['idempotency_key'] ?? null ) ? (string) $payload['idempotency_key'] : '' );
 		return is_wp_error( $result ) ? $result : rest_ensure_response( $result );
 	}
 

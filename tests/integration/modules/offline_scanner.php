@@ -244,6 +244,22 @@ $i18n_f = PassCaptain\OfflineScanner\I18n::table();
 unset( $GLOBALS['wpcap_test_filters']['wpcap_offline_scanner_strings'] );
 check( 'filtered string tables are sanitised (string keys, non-empty values only)', array( 'Bereit' => 'Ready' ) === $i18n_f['strings'] );
 
+// Device language (?locale= with navigator.languages): first supported locale wins.
+$i18n_cls = PassCaptain\OfflineScanner\I18n::class;
+$i18n_sup = $i18n_cls::supported_locales();
+check( 'supported locales: German source plus the bundled translations', in_array( 'de_DE', $i18n_sup, true ) && in_array( 'en_US', $i18n_sup, true ) && in_array( 'fr_FR', $i18n_sup, true ) && in_array( 'nl_NL', $i18n_sup, true ) );
+check( 'match_locale: exact locale, then language, best first', 'fr_FR' === $i18n_cls::match_locale( 'fr-CH,fr,en' ) && 'en_US' === $i18n_cls::match_locale( 'en-GB' ) && 'es_ES' === $i18n_cls::match_locale( 'pt-BR,es;q=0.8' ) && 'nl_NL' === $i18n_cls::match_locale( 'nl_NL' ) && 'de_DE' === $i18n_cls::match_locale( 'de-AT,en' ) );
+check( 'match_locale: unsupported or malformed tags give no match', '' === $i18n_cls::match_locale( 'ja,zh-CN' ) && '' === $i18n_cls::match_locale( '"><script>' ) && '' === $i18n_cls::match_locale( '' ) );
+$i18n_fr_res = Rest::i18n( app_request( 'GET', '', array( 'locale' => 'fr-CH,fr,en' ) ) );
+$i18n_fr = $i18n_fr_res instanceof WP_REST_Response ? $i18n_fr_res->get_data() : $i18n_fr_res;
+check( 'i18n endpoint serves the device language when a translation exists', 'fr_FR' === $i18n_fr['locale'] && 'fr-FR' === $i18n_fr['lang'] && count( $i18n_fr['strings'] ) === count( $i18n_cls::strings() ) && in_array( 'fr-FR', $i18n_fr['supported'], true ) );
+$i18n_ja_res = Rest::i18n( app_request( 'GET', '', array( 'locale' => 'ja-JP' ) ) );
+$i18n_ja = $i18n_ja_res instanceof WP_REST_Response ? $i18n_ja_res->get_data() : $i18n_ja_res;
+check( 'i18n endpoint falls back to the site locale without a matching translation', 'de_DE' === $i18n_ja['locale'] && 'de-DE' === $i18n_ja['lang'] );
+$GLOBALS['wpcap_test_filters']['wpcap_offline_scanner_locales'] = array( 'de_DE', 'pt_BR', 'bad locale' );
+check( 'wpcap_offline_scanner_locales extends the supported locales (sanitised)', 'pt_BR' === $i18n_cls::match_locale( 'pt-BR' ) && array( 'de_DE', 'pt_BR' ) === $i18n_cls::supported_locales() );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_offline_scanner_locales'] );
+
 // Static contract between the PWA and the table: every text the app looks up is served.
 $pwa_dir = dirname( __DIR__, 3 ) . '/assets/offline-scanner/';
 $app_js = (string) file_get_contents( $pwa_dir . 'app.js' );
@@ -263,6 +279,9 @@ $not_served = array_values( array_diff( $pwa_keys, $table_keys ) );
 check( 'app.js looks up its texts with t() and covers all 18 result codes', count( $pwa_keys ) > 60 && 18 === count( $result_keys ) );
 check( 'every PWA text (t(), RESULT_TEXT, data-i18n*) is in the served table' . ( $not_served ? ' – missing: ' . implode( ' | ', $not_served ) : '' ), array() === $not_served && count( $html_keys ) >= 20 );
 check( 'app keeps the table in IndexedDB, sets <html lang> and formats dates with Intl in that locale', false !== strpos( $app_js, "kvSet('i18n', table)" ) && false !== strpos( $app_js, "kvGet('i18n')" ) && false !== strpos( $app_js, 'document.documentElement.lang = lang()' ) && false !== strpos( $app_js, 'new Intl.DateTimeFormat(lang()' ) && false === strpos( $app_js, "toLocaleString('de-DE'" ) );
+check( 'app asks for the device languages (navigator.languages → ?locale=)', false !== strpos( $app_js, 'navigator.languages' ) && false !== strpos( $app_js, "endpoint('offline/i18n', prefs ? 'locale=' + encodeURIComponent(prefs) : '')" ) );
+$pwa_manifest = json_decode( (string) file_get_contents( $pwa_dir . 'manifest.json' ), true );
+check( 'manifest is locale-neutral (no lang, no German description)', is_array( $pwa_manifest ) && ! isset( $pwa_manifest['lang'] ) && ! isset( $pwa_manifest['description'] ) && 'Pass Captain Scanner' === $pwa_manifest['name'] );
 check( 'German fallback: index.html still contains the German source texts', false !== strpos( $index_html, '>Gerät koppeln<' ) && false !== strpos( $index_html, 'data-i18n="Gerät koppeln"' ) );
 
 // Catalogs: every table key is a msgid in the .pot and translated (same placeholders) in each .po/.mo.

@@ -18,10 +18,13 @@ final class TicketPage {
 		if ( 64 !== strlen( $token ) ) { status_header( 404 ); exit; }
 		global $wpdb;
 		$ticket = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.status,tt.name AS ticket_name,o.starts_at,o.timezone,o.location,e.name AS event_name FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
+			"SELECT t.ticket_id,t.status,tt.name AS ticket_name,o.starts_at,o.timezone,o.location,e.name AS event_name,ord.locale FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s LIMIT 1",
 			hash( 'sha256', $token )
 		) );
 		if ( ! $ticket ) { status_header( 404 ); exit; }
+		// The ticket page is shown in the language of the order (buyer's choice, W9); the request ends below.
+		$locale = Mail\Mailer::normalize_locale( (string) $ticket->locale );
+		if ( '' !== $locale && function_exists( 'switch_to_locale' ) ) { switch_to_locale( $locale ); }
 		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ) );
 		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
 		header( 'Referrer-Policy: no-referrer' );

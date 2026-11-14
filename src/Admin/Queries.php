@@ -30,6 +30,10 @@ final class Queries {
 		$caps = array_values( array_filter( (array) $caps, static function ( $cap ) { return current_user_can( $cap ); } ) );
 		if ( ! $caps ) { return array(); }
 		if ( self::is_global_admin() ) { return null; }
+		// Active time-limited support access (Security\SupportAccess) covers all events.
+		foreach ( $caps as $cap ) {
+			if ( \PassCaptain\Security\SupportAccess::covers( get_current_user_id(), $cap ) ) { return null; }
+		}
 		global $wpdb;
 		$placeholders = implode( ',', array_fill( 0, count( $caps ), '%s' ) );
 		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_event_staff WHERE user_id=%d AND capability IN ($placeholders)", array_merge( array( get_current_user_id() ), $caps ) ) );

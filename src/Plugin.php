@@ -19,9 +19,18 @@ final class Plugin {
 		add_action( $upgrade_hook, array( __CLASS__, 'maybe_upgrade' ), 0, 0 );
 		add_action( Installer::UPGRADE_HOOK, array( __CLASS__, 'run_deferred_upgrade' ), 10, 0 );
 		Settings::register();
+		Security\Policy::register(); // W9 settings (before anything reads Settings::defaults()).
+		Security\Vault::register();
+		Security\AuditTrail::register();
+		Security\StepUp::register();
+		Security\SupportAccess::register();
+		Security\Sessions::register();
+		Ops\Network::register();
+		Frontend\Language::register();
 		Jobs\TimeBudget::register();
 		Orders::register(); // Job handler for ticket issuance retries and the delivery outbox.
 		Reports\Cache::register(); // Invalidates cached event reports on orders, refunds, check-ins.
+		Refunds::register(); // Job handler for order status retries after refunds.
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_site_tables' ), 10, 2 );
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
 		Admin\Menu::register();
@@ -42,6 +51,8 @@ final class Plugin {
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		add_action( 'wpcap_process_messages', array( Communications::class, 'process_due' ) );
 		add_action( 'wpcap_process_jobs', array( Jobs::class, 'process_due' ) );
+		Ops\Heartbeat::register(); // Worker heartbeats for the system status page.
+		if ( defined( 'WP_CLI' ) && WP_CLI ) { Ops\Cli::register(); }
 		// Self-healing schedule: e.g. deleting the old "wp-pass-captain" copy runs its uninstall.php, which clears the
 		// recurring events this copy relies on.
 		add_action(
@@ -55,6 +66,7 @@ final class Plugin {
 		);
 		add_action( 'init', array( $this, 'register_blocks' ) );
 		Integrations\WooCommerce\OrderAdapter::register();
+		Integrations\ConnectorEvents::register(); // Domain events → enabled connectors (job queue).
 		Invoices::register();
 		Integrations\Vouchers\Checkout::register();
 		Integrations\Vouchers\TicketService::register();

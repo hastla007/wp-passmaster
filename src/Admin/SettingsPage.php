@@ -124,6 +124,14 @@ final class SettingsPage {
 					'auto_invoice' => array( 'type' => 'bool', 'label' => __( 'Rechnung nach Zahlung automatisch erstellen', 'pass-captain' ) ),
 				),
 			),
+			'security' => array(
+				'title' => __( 'Sicherheit', 'pass-captain' ),
+				'fields' => array(
+					'trusted_proxies' => array( 'type' => 'text', 'label' => __( 'Vertrauenswürdige Proxys / CDN (IP-Adressen oder CIDR, kommagetrennt)', 'pass-captain' ), 'description' => __( 'Nur wenn die Website hinter einem Reverse Proxy oder CDN läuft. Dann wird die Client-Adresse für Rate-Limits aus dem gewählten Header gelesen – aber nur, wenn die Anfrage von einer dieser Adressen kommt. Leer = REMOTE_ADDR (Header werden ignoriert). Auch per Konstante WPCAP_TRUSTED_PROXIES oder Filter wpcap_trusted_proxies.', 'pass-captain' ) ),
+					'trusted_proxy_header' => array( 'type' => 'choice', 'label' => __( 'Header mit der Client-Adresse', 'pass-captain' ), 'options' => array( 'x_forwarded_for' => 'X-Forwarded-For', 'x_real_ip' => 'X-Real-IP', 'cf_connecting_ip' => 'CF-Connecting-IP (Cloudflare)', 'true_client_ip' => 'True-Client-IP' ) ),
+					'fiscal_allow_local_service' => array( 'type' => 'bool', 'label' => __( 'Lokalen Fiskaldienst erlauben (HTTP an Loopback-/private Adressen)', 'pass-captain' ), 'description' => __( 'Nur für einen Fiskaldienst auf demselben Server bzw. im lokalen Netz (z. B. efsta EFR unter http://127.0.0.1:5618). Alle anderen ausgehenden Verbindungen zu konfigurierbaren Zielen müssen HTTPS zu öffentlichen Adressen verwenden.', 'pass-captain' ) ),
+				),
+			),
 			'uninstall' => array(
 				'title' => __( 'Deinstallation', 'pass-captain' ),
 				'fields' => array(
@@ -133,10 +141,47 @@ final class SettingsPage {
 		);
 	}
 
+	/**
+	 * Core sections plus add-on sections (filter wp_pass_captain_settings_sections_v1).
+	 *
+	 * Add-ons may add sections or fields; each field key must exist in Settings::defaults() (module
+	 * settings_defaults() or wp_pass_captain_settings_defaults_v1). Field types: int (min, max), bool,
+	 * choice (options), text, textarea, html, money, secret; optional description and sanitize (callable
+	 * receiving the raw value and the current value, returning the value to store or a WP_Error).
+	 * Core fields cannot be removed or retyped.
+	 */
+	public static function all_sections() {
+		$core = self::sections();
+		$sections = apply_filters( 'wp_pass_captain_settings_sections_v1', $core );
+		if ( ! is_array( $sections ) ) { return $core; }
+		$out = $core;
+		foreach ( $sections as $id => $section ) {
+			$id = sanitize_key( (string) $id );
+			if ( '' === $id || ! is_array( $section ) || empty( $section['fields'] ) || ! is_array( $section['fields'] ) ) { continue; }
+			$known_types = array( 'int', 'bool', 'choice', 'text', 'textarea', 'html', 'money', 'secret' );
+			$fields = array();
+			foreach ( $section['fields'] as $key => $def ) {
+				$key = sanitize_key( (string) $key );
+				if ( '' === $key || ! is_array( $def ) || ! in_array( $def['type'] ?? '', $known_types, true ) ) { continue; }
+				if ( 'int' === $def['type'] ) { $def += array( 'min' => 0, 'max' => PHP_INT_MAX ); }
+				if ( 'choice' === $def['type'] && ! is_array( $def['options'] ?? null ) ) { continue; }
+				$def['label'] = (string) ( $def['label'] ?? $key );
+				$fields[ $key ] = $def;
+			}
+			if ( isset( $core[ $id ] ) ) {
+				// Existing core section: only new fields are appended.
+				$out[ $id ]['fields'] += array_diff_key( $fields, $core[ $id ]['fields'] );
+			} elseif ( $fields ) {
+				$out[ $id ] = array( 'title' => (string) ( $section['title'] ?? $id ), 'fields' => $fields, 'addon' => true );
+			}
+		}
+		return $out;
+	}
+
 	/** Definitions for every key in Settings::defaults(), including generic ones for unknown keys. */
 	public static function field_definitions() {
 		$defaults = Settings::defaults();
-		$sections = self::sections();
+		$sections = self::all_sections();
 		foreach ( $sections as $id => $section ) {
 			$sections[ $id ]['fields'] = array_intersect_key( $section['fields'], $defaults );
 		}
@@ -165,10 +210,33 @@ final class SettingsPage {
 
 	/** Name of the constant/environment variable that overrides a key, or '' if none is set. */
 	public static function override_source( $key ) {
-		$constant = 'WPCAP_' . strtoupper( $key );
-		if ( defined( $constant ) && '' !== (string) constant( $constant ) ) { return $constant; }
-		$env = getenv( $constant );
-		return is_string( $env ) && '' !== $env ? $constant : '';
+		return Settings::override_source( $key );
+	}
+
+	/**
+	 * Markup of a secret input: never contains the value. Shows "gespeichert ••••1234" (last four
+	 * characters of long secrets), an empty replace field and a remove checkbox.
+	 */
+	public static function secret_input( $key, $id = '', $multiline = false ) {
+		$status = Settings::secret_status( $key );
+		$id = '' !== $id ? $id : 'wpcap-set-' . $key;
+		$stored = in_array( $status['state'], array( 'stored', 'undecryptable' ), true );
+		$placeholder = $stored ? __( 'Neuen Wert eingeben, um ihn zu ersetzen – leer lassen, um beizubehalten', 'pass-captain' ) : __( 'Nicht gesetzt', 'pass-captain' );
+		$html = $multiline
+			? '<textarea class="large-text code" rows="3" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" autocomplete="off" placeholder="' . esc_attr( $placeholder ) . '"></textarea>'
+			: '<input type="password" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( $placeholder ) . '">';
+		if ( 'stored' === $status['state'] ) {
+			/* translators: %s: masked value, e.g. ••••1234 */
+			$html .= ' <strong class="wpcap-secret-state">' . esc_html( sprintf( __( 'gespeichert %s', 'pass-captain' ), $status['hint'] ) ) . '</strong>';
+		} elseif ( 'undecryptable' === $status['state'] ) {
+			$html .= ' <strong class="wpcap-secret-state" style="color:#b32d2e">' . esc_html__( 'Gespeicherter Wert kann nicht entschlüsselt werden – bitte neu eingeben', 'pass-captain' ) . '</strong>';
+		} elseif ( 'empty' === $status['state'] ) {
+			$html .= ' <strong class="wpcap-secret-state">' . esc_html__( 'Kein Wert gespeichert', 'pass-captain' ) . '</strong>';
+		}
+		if ( $stored ) {
+			$html .= ' <label><input type="checkbox" name="' . esc_attr( $key . '__clear' ) . '" value="1"> ' . esc_html__( 'Gespeicherten Wert entfernen', 'pass-captain' ) . '</label>';
+		}
+		return $html;
 	}
 
 	/* =============================================================================================
@@ -235,7 +303,16 @@ final class SettingsPage {
 						}
 						break;
 					default:
-						$values[ $key ] = Forms::text( $in, $key, 190 );
+						$values[ $key ] = Forms::text( $in, $key, 'trusted_proxies' === $key ? 1000 : 190 );
+				}
+				if ( array_key_exists( $key, $values ) && isset( $def['sanitize'] ) && is_callable( $def['sanitize'] ) ) {
+					$clean = call_user_func( $def['sanitize'], $values[ $key ], $current[ $key ] ?? null );
+					if ( is_wp_error( $clean ) ) {
+						$errors[] = $clean->get_error_message();
+						unset( $values[ $key ] );
+					} else {
+						$values[ $key ] = $clean;
+					}
 				}
 			}
 		}
@@ -271,6 +348,8 @@ final class SettingsPage {
 		<div class="wrap wpcap-admin">
 		<h1><?php esc_html_e( 'Pass Captain Einstellungen', 'pass-captain' ); ?></h1>
 		<?php Forms::render_notices(); ?>
+		<?php list( $vault_type, $vault_message ) = \PassCaptain\Security\Vault::key_notice(); ?>
+		<div class="notice notice-<?php echo esc_attr( $vault_type ); ?> inline"><p><?php echo esc_html( $vault_message ); ?></p></div>
 		<?php \PassCaptain\Integrations\Vouchers\IntegrationStatus::render(); ?>
 		<?php Forms::open_form( 'wpcap_save_settings' ); ?>
 		<?php foreach ( self::field_definitions() as $id => $section ) : ?>
@@ -332,12 +411,7 @@ final class SettingsPage {
 				echo '<input type="text" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" maxlength="10" size="10" pattern="[A-Za-z0-9\-]+" value="' . esc_attr( (string) $value ) . '">';
 				break;
 			case 'secret':
-				$stored = '' !== (string) $value;
-				echo '<input type="password" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( $stored ? __( 'Gespeichert – leer lassen, um beizubehalten', 'pass-captain' ) : __( 'Nicht gesetzt', 'pass-captain' ) ) . '">';
-				echo ' <strong>' . ( $stored ? esc_html__( 'Wert gespeichert', 'pass-captain' ) : esc_html__( 'Kein Wert gespeichert', 'pass-captain' ) ) . '</strong>';
-				if ( $stored ) {
-					echo ' <label><input type="checkbox" name="' . esc_attr( $key . '__clear' ) . '" value="1"> ' . esc_html__( 'Gespeicherten Wert entfernen', 'pass-captain' ) . '</label>';
-				}
+				echo self::secret_input( $key, $id ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
 				break;
 			default:
 				echo '<input type="text" id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" class="regular-text" value="' . esc_attr( (string) $value ) . '">';

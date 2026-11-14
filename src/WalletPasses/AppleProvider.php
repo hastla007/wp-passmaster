@@ -150,15 +150,22 @@ class AppleProvider implements WalletProvider {
 
 	/** Detached PKCS#7 signature (DER) of the manifest incl. the WWDR intermediate. */
 	public static function sign( $manifest, array $credentials ) {
-		$dir = get_temp_dir();
-		$in = tempnam( $dir, 'wpcap-mf' );
-		$out = tempnam( $dir, 'wpcap-sig' );
-		$wwdr = tempnam( $dir, 'wpcap-wwdr' );
-		file_put_contents( $in, $manifest );
-		file_put_contents( $wwdr, $credentials['wwdr'] );
-		$ok = openssl_pkcs7_sign( $in, $out, $credentials['cert'], array( $credentials['key'], (string) $credentials['password'] ), array(), PKCS7_BINARY | PKCS7_DETACHED, $wwdr );
-		$smime = $ok ? (string) file_get_contents( $out ) : '';
-		foreach ( array( $in, $out, $wwdr ) as $file ) { wp_delete_file( $file ); }
+		// openssl_pkcs7_sign() only works with file paths: private directory (0700) and files (0600).
+		$dir = \PassCaptain\TempFiles::private_dir();
+		if ( ! $dir ) { throw new \RuntimeException( 'wallet_sign_failed' ); }
+		$in = $dir . '/manifest';
+		$out = $dir . '/signature';
+		$wwdr = $dir . '/wwdr.pem';
+		$smime = '';
+		try {
+			if ( \PassCaptain\TempFiles::put( $in, $manifest ) && \PassCaptain\TempFiles::put( $wwdr, $credentials['wwdr'] ) && \PassCaptain\TempFiles::put( $out, '' ) ) {
+				$ok = openssl_pkcs7_sign( $in, $out, $credentials['cert'], array( $credentials['key'], (string) $credentials['password'] ), array(), PKCS7_BINARY | PKCS7_DETACHED, $wwdr );
+				$smime = $ok ? \PassCaptain\TempFiles::get( $out ) : '';
+			}
+		} finally {
+			foreach ( array( $in, $out, $wwdr ) as $file ) { \PassCaptain\TempFiles::remove( $file ); }
+			\PassCaptain\TempFiles::remove_dir( $dir );
+		}
 		if ( ! preg_match( '/filename="?smime\.p7s"?\s*\r?\n\r?\n(.+?)\r?\n\r?\n?-{2,}/s', $smime, $m ) ) {
 			throw new \RuntimeException( 'wallet_sign_failed' );
 		}

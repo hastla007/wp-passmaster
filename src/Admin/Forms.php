@@ -325,6 +325,11 @@ final class Forms {
 		echo '</select>';
 	}
 
+	/** aria-label attribute for $extra of select()/inputs whose visible context is not a <label> (e.g. filter bars). */
+	public static function aria_label( $label ) {
+		return 'aria-label="' . esc_attr( $label ) . '"';
+	}
+
 	/** Timezone select. */
 	public static function timezone_select( $name, $selected, $id = '', $extra = '' ) {
 		$zones = timezone_identifiers_list();

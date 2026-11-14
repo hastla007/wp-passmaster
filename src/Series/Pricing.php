@@ -17,7 +17,8 @@
  * Weekday/time slots use the occurrence's local start time; a slot "from" is inclusive, "to"
  * exclusive, and a slot with from > to wraps midnight.
  *
- * Prices are applied server-side through the core filter `wpcap_ticket_unit_price`.
+ * Prices are applied server-side through the core filter `wpcap_ticket_unit_price` by the general
+ * engine Sales\PriceRules, which also applies event-level rules for occurrences outside series.
  *
  * @package PassCaptain
  */
@@ -59,9 +60,13 @@ final class Pricing {
 		);
 	}
 
+	/**
+	 * Series rules are applied by the general price rule engine (Sales\PriceRules), which selects
+	 * among event rules and the series rules of an occurrence in one pass; registering it here keeps
+	 * the series module self-sufficient.
+	 */
 	public static function register() {
-		add_filter( 'wpcap_ticket_unit_price', array( __CLASS__, 'filter_unit_price' ), 10, 3 );
-		add_filter( 'wpcap_ticket_price_label', array( __CLASS__, 'filter_price_label' ), 10, 3 );
+		\PassCaptain\Sales\PriceRules::register();
 	}
 
 	public static function flush_cache() {
@@ -310,10 +315,14 @@ final class Pricing {
 		return null;
 	}
 
-	/** Winning rule for a ticket type in context (null = stored price). */
+	/**
+	 * Winning rule for a ticket type in context (null = stored price). Delegates to the general
+	 * engine when the occurrence row carries its event (event rules compete with series rules).
+	 */
 	public static function rule_for( $type, array $context ) {
 		$occurrence = $context['occurrence'] ?? null;
 		if ( ! $occurrence ) { return null; }
+		if ( isset( $occurrence->event_id ) ) { return \PassCaptain\Sales\PriceRules::rule_for( $type, $context ); }
 		$series_id = self::series_of( $occurrence->occurrence_id );
 		if ( ! $series_id ) { return null; }
 		$rules = self::for_series( $series_id );

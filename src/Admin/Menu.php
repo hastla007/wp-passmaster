@@ -40,22 +40,29 @@ final class Menu {
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
 			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
 			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),
-		) + \PassCaptain\Modules::admin_handlers();
+		) + FeatureScreens::handlers() + StatusPage::handlers() + SecurityScreens::handlers() + \PassCaptain\Modules::admin_handlers();
 	}
 
 	public static function register() {
 		add_action( 'admin_menu', array( self::class, 'add_menus' ) );
 		add_action( 'admin_head', array( self::class, 'admin_styles' ) );
+		StatusPage::register();
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
 		}
 	}
 
-	/** Small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */
+	/**
+	 * Small accessibility fixes on plugin pages: readable code in links (contrast), delete links, and checkboxes/radios
+	 * with a 24×24 px target (WCAG 2.2 SC 2.5.8; core draws them 16 px wide on desktop).
+	 */
 	public static function admin_styles() {
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects CSS.
 		if ( ! str_starts_with( $page, 'wpcap' ) && 'wp-pass-captain' !== $page ) { return; }
-		echo '<style>#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}</style>';
+		echo '<style>#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}'
+			. '#wpbody-content input[type=checkbox],#wpbody-content input[type=radio]{width:1.5rem;height:1.5rem;margin-top:0}'
+			. '#wpbody-content input[type=checkbox]:checked::before{width:1.8rem;height:1.8rem;margin:-.15rem -.3rem}'
+			. '#wpbody-content input[type=radio]:checked::before{width:.5625rem;height:.5625rem;margin:.40625rem}</style>';
 	}
 
 	/** First capability of the list the current user holds (fallback: the first one). */
@@ -64,6 +71,31 @@ final class Menu {
 			if ( current_user_can( $cap ) ) { return $cap; }
 		}
 		return $caps[0];
+	}
+
+	/**
+	 * Submenu pages of add-ons that are not modules (filter wp_pass_captain_admin_menu_v1), same format
+	 * as a module's admin_pages(): [ slug, title, capability, callable ]. Invalid entries and slugs of
+	 * core pages are ignored. Listed before "Einstellungen".
+	 *
+	 * @return array<int,array{0:string,1:string,2:string,3:callable}>
+	 */
+	public static function extra_pages() {
+		$pages = apply_filters( 'wp_pass_captain_admin_menu_v1', array() );
+		if ( ! is_array( $pages ) ) { return array(); }
+		$reserved = array( self::SLUG, OrdersPage::SLUG, TicketsPage::SLUG, CheckinsPage::SLUG, RefundsPage::SLUG, DevicesPage::SLUG, SettingsPage::SLUG );
+		$reserved[] = StatusPage::SLUG;
+		foreach ( array_merge( FeatureScreens::pages(), SecurityScreens::pages(), \PassCaptain\Modules::admin_pages() ) as $page ) { $reserved[] = (string) $page[0]; }
+		$out = array();
+		foreach ( $pages as $page ) {
+			if ( ! is_array( $page ) || 4 !== count( $page ) ) { continue; }
+			list( $slug, $title, $cap, $callback ) = array_values( $page );
+			$slug = sanitize_key( (string) $slug );
+			if ( '' === $slug || in_array( $slug, $reserved, true ) || '' === (string) $cap || ! is_callable( $callback ) ) { continue; }
+			$reserved[] = $slug;
+			$out[] = array( $slug, (string) $title, (string) $cap, $callback );
+		}
+		return $out;
 	}
 
 	public static function add_menus() {
@@ -85,10 +117,12 @@ final class Menu {
 		$refund_title = __( 'Erstattungen', 'pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
 		add_submenu_page( self::SLUG, __( 'Erstattungen', 'pass-captain' ), $refund_title, RefundsPage::menu_cap(), RefundsPage::SLUG, array( RefundsPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Scanner-Geräte', 'pass-captain' ), __( 'Scanner-Geräte', 'pass-captain' ), DevicesPage::CAP, DevicesPage::SLUG, array( DevicesPage::class, 'render' ) );
-		foreach ( \PassCaptain\Modules::admin_pages() as $page ) {
+		foreach ( array_merge( FeatureScreens::pages(), \PassCaptain\Modules::admin_pages(), self::extra_pages() ) as $page ) {
 			list( $slug, $title, $cap, $callback ) = $page;
 			add_submenu_page( self::SLUG, $title, $title, $cap, $slug, $callback );
 		}
+		foreach ( SecurityScreens::pages() as $page ) { add_submenu_page( self::SLUG, $page[1], $page[1], $page[2], $page[0], $page[3] ); }
+		add_submenu_page( self::SLUG, __( 'Systemstatus', 'pass-captain' ), StatusPage::menu_title(), StatusPage::CAP, StatusPage::SLUG, array( StatusPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Einstellungen', 'pass-captain' ), __( 'Einstellungen', 'pass-captain' ), SettingsPage::CAP, SettingsPage::SLUG, array( SettingsPage::class, 'render' ) );
 		if ( \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) {
 			// Links into Voucher Captain's own menu (both plugins keep their menus, CONCEPT 15.7).

@@ -8,7 +8,9 @@ Erweiterungspunkte. Externe Systeme sollten statt PHP-Hooks die signierten
 [ausgehenden Webhooks](WEBHOOKS.md) verwenden.
 
 Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
-`grep -rnE "(do_action|apply_filters)\(" src --include=*.php`.
+`grep -rnE "(do_action|apply_filters)\(" src --include=*.php`. Für die versionierten `_v1`-Hooks prüft der
+Vertragstest `tests/integration/modules/hooks_contract.php`, dass jeder hier dokumentierte Hook im Code
+vorkommt und umgekehrt.
 
 ## Actions
 
@@ -32,7 +34,10 @@ Neue Hooks bitte hier ergänzen. Prüfen lässt sich die Liste mit
 | `wpcap_occurrence_rescheduled` | `int $occurrence_id, string $old_starts_at, string $new_starts_at` | Admin: Startzeit eines Termins mit ausgegebenen Tickets geändert (UTC `Y-m-d H:i:s`). |
 | `wpcap_occurrence_cancelled` | `int $occurrence_id, int $issued` | Admin: Termin abgesagt (`$issued` = Anzahl ausgegebener Tickets). Kern-Folgen in `OccurrenceCancellation` (Priorität 10); das SMS-Modul hängt sich mit Priorität 5 davor. |
 | `wpcap_occurrence_cancelled_woocommerce_order` | `int $order_id, int $occurrence_id` | Je bezahlter WooCommerce-Bestellung eines abgesagten Termins (Erstattung erfolgt in WooCommerce). |
-| `wp_pass_captain_connector_error_v1` | `string $connector_key, string $event_name, string $message` | Ein Connector hat bei einem Ereignis eine Exception geworfen. |
+| `wp_pass_captain_connector_error_v1` | `string $connector_key, string $event_name, string $message` | Ein Connector hat bei einem Ereignis eine Exception geworfen oder `false`/`WP_Error` geliefert (die Zustellung wird über die Job-Queue wiederholt, siehe [EXTENSIONS.md](EXTENSIONS.md#connectoren)). |
+| `wpcap_log` | `string $level, string $event, string $message, array $context` | Jeder Eintrag des zentralen Loggers `PassCaptain\Log` (`error`/`warning`, z. B. `refund_db_error`, `order_refund_state_pending`, `queue_status_update_failed`, `schema_upgrade_failed`). Der Eintrag steht zusätzlich im Audit-Log (Aktion = `$event`). |
+| `wpcap_admin_event_sections` | `object $event, bool $editable` | Admin „Events“ → Event bearbeiten, nach den Terminen: weitere Abschnitte (Steuerland, Preisregeln, Käuferlimits aus `Sales\AdminSections`). Callbacks prüfen ihre Rechte selbst. |
+| `wpcap_consent_withdrawn` | `int $consent_id, object $consent` | Eine protokollierte Einwilligung eines Teilnehmerfelds wurde widerrufen (`Sales\Consents::withdraw()`, Quelle z. B. `portal`); Datensatz bleibt mit Zeitpunkt erhalten, die Antwort ist gelöscht. |
 | `wpcap_checkout_form_fields` | `object $event, array $types` | Template `templates/event-card.php` innerhalb des Checkout-Formulars (eigene Felder ausgeben; JS-Ereignis `wpcap:checkout-payload` ergänzt den Payload). |
 
 Cron-Actions, an die sich Module hängen: `wpcap_process_messages` (alle 5 Minuten, Nachrichten-Queue;
@@ -56,7 +61,14 @@ Webhook-Ereignissen).
 | `wpcap_affiliate_sale_payload` | `array $payload, object $order` | Verkaufsdaten an WP Affiliate Captain. |
 | `wpcap_affiliate_skip_channels` | `string[] $channels` (`woocommerce`) | Kanäle/Zahlungsanbieter, die nicht gemeldet werden. |
 | `wpcap_checkout_ip_limit` | `int $limit` (30) | Checkouts je IP und Stunde. |
-| `wpcap_client_ip` | `string $ip, array $server` | Client-IP für Ratenbegrenzungen (Standard `REMOTE_ADDR`). Nur hinter einem vertrauenswürdigen Proxy aus Headern wie `HTTP_CF_CONNECTING_IP` auflösen – sonst ist der Header fälschbar. Ungültige Rückgaben fallen auf `REMOTE_ADDR` zurück. |
+| `wpcap_client_ip` | `string $ip, array $server` | Client-IP für Ratenbegrenzungen (Standard `REMOTE_ADDR`, bzw. Header eines vertrauenswürdigen Proxys, siehe `wpcap_trusted_proxies`). Ungültige Rückgaben fallen auf die erkannte Adresse zurück. |
+| `wpcap_trusted_proxies` | `string[] $proxies` | Vertrauenswürdige Reverse Proxies/CDN (IP oder CIDR); nur von ihnen wird der eingestellte Client-IP-Header ausgewertet (docs/SECURITY.md). |
+| `wpcap_secret_settings` | `string[] $keys` | Einstellungen, die verschlüsselt gespeichert und nur über `Settings::secret()` gelesen werden. |
+| `wpcap_outbound_resolve` | `null $ips, string $host` | Liefert die Adressen eines Hosts für die SSRF-Prüfung (Tests/eigene Resolver); `null` = DNS. |
+| `wpcap_fiscal_allow_local_service` | `bool $allow, string $url` | Erlaubt HTTP zu lokalen Fiskaldiensten (Loopback/privat); Standard: Einstellung `fiscal_allow_local_service`. |
+| `wpcap_wallet_google_token_uris` | `string[] $uris` | Erlaubte OAuth-Token-Endpunkte für das Google-Wallet-Servicekonto. |
+| `wpcap_error_log` | `bool $send, string $line` | `false` unterdrückt die (bereits redigierte) Error-Log-Zeile. |
+| `wpcap_pre_send_download` | `null $pre, string $body, string $filename, string $type` | Nicht-`null` übernimmt die Auslieferung eines Admin-Downloads (CSV/PDF). |
 | `wpcap_max_line_quantity` | `int $cap` (100) | Absolute Obergrenze je Bestellzeile vor jeder Sperre (die eigentliche Grenze ist „Max. pro Bestellung“ der Ticketart). |
 | `wpcap_checkout_error_field` | `string $field, WP_Error $error` | Feld, dem eine Checkout-Fehlermeldung zugeordnet wird (barrierefreie Fehler am Feld; leer = allgemeine Meldung). |
 | `wpcap_checkout_billing_enabled` | `bool $enabled` (true), `object $event` | Ob die Eventkarte den Abschnitt „Rechnungsangaben“ zeigt (`templates/event-card.php`). |
@@ -73,6 +85,9 @@ Webhook-Ereignissen).
 | `wpcap_expire_holds_batch` | `int $limit` (200) | Abgelaufene Reservierungen je Lauf von `expire_holds`. |
 | `wpcap_admission_day_cutoff_hour` | `int $hour, array $context` (`occurrence_id`, `event_id`) | Einlass-Tageswechsel (0–12 Uhr Ortszeit) für tägliche Einlassregeln; Standard aus der Einstellung `admission_day_cutoff_hour`. |
 | `wpcap_offline_refresh_interval` | `int $seconds` (10) | Mindestabstand zweier Snapshot-Aktualisierungen eines Termins für den Offline-Scanner. |
+| `wpcap_offline_scanner_locale` | `string $locale` | Website-Sprache, in der der Offline-Scanner seine Texte ausliefert, wenn das Gerät keine unterstützte Sprache anfragt (Standard `determine_locale()`). |
+| `wpcap_offline_scanner_locales` | `string[] $locales` | Sprachen, in denen `GET /app/offline/i18n?locale=` die Texte ausliefern kann (Standard: `de_DE`, mitgelieferte Übersetzungen in `languages/`, installierte Sprachpakete, Website-Sprache). |
+| `wpcap_offline_scanner_strings` | `array $strings` (deutscher Quelltext → Übersetzung), `string $locale` | Übersetzungstabelle des Offline-Scanners. |
 | `wpcap_partner_client_ip` | `string $ip` | Client-IP für Partner-API (IP-Allowlist, Ratenlimit); Proxies hier auflösen. |
 | `wpcap_woocommerce_billing` | `array $billing, WC_Order $wc_order` | Aus WooCommerce übernommene Rechnungsangaben. |
 | `wpcap_woocommerce_vat_meta_keys` | `string[] $keys, WC_Order $wc_order` | Meta-Felder, in denen die UID-Nummer einer Woo-Bestellung gesucht wird. |
@@ -80,11 +95,16 @@ Webhook-Ereignissen).
 | `wpcap_woocommerce_issue_on_completed_gateways` | `string[] $gateways` (`cod`), `WC_Order $wc_order` | Zahlarten, bei denen Tickets erst bei „Abgeschlossen“ statt „In Bearbeitung“ ausgestellt werden. |
 | `wpcap_woocommerce_deferred_hold_minutes` | `int $minutes` (14 Tage), `WC_Order $wc_order` | Reservierung für Woo-Bestellungen mit aufgeschobener Ausgabe (z. B. Nachnahme). |
 | `wpcap_privacy_defer_upcoming` | `bool $defer` (true), `int $order_id` | Löschanfragen für Bestellungen mit gültigen Tickets für kommende Termine zurückstellen (Art. 17 Abs. 3 DSGVO) statt Tickets sofort zu entwerten. |
-| `wpcap_ticket_unit_price` | `int $price_minor, object $type, array $context` | Brutto-Einzelpreis einer Ticketart, nur serverseitig (`Orders::unit_price()`). `$context`: `occurrence` (Zeile), `quantity` (Menge der Ticketart in der Bestellung, 1 zur Anzeige), `now` (UTC `Y-m-d H:i:s`), `phase` (`create`/`display`/`cart`), `source` (`woocommerce` im Woo-Warenkorb). In `Orders::create()` innerhalb der Bestell-Transaktion nach der Kontingentprüfung. **Vorrang:** vertrauenswürdige `unit_prices` aus `$internal` (WooCommerce, kostenlose Kassenverkäufe) ersetzen den Preis ohne Filter; sonst gilt gespeicherter Preis + Filter (öffentlicher Checkout, Warteliste, Kasse ohne Preisvorgabe). Kundeneingaben erreichen weder Filter noch Override. Geänderte Zeilen stehen im `price_snapshot` unter `unit_price_adjustments`. Serien-Preisstufen hängen sich hier ein. |
+| `wpcap_ticket_unit_price` | `int $price_minor, object $type, array $context` | Brutto-Einzelpreis einer Ticketart, nur serverseitig (`Orders::unit_price()`). `$context`: `occurrence` (Zeile), `quantity` (Menge der Ticketart in der Bestellung, 1 zur Anzeige), `now` (UTC `Y-m-d H:i:s`), `phase` (`create`/`display`/`cart`), `source` (`woocommerce` im Woo-Warenkorb). In `Orders::create()` innerhalb der Bestell-Transaktion nach der Kontingentprüfung. **Vorrang:** vertrauenswürdige `unit_prices` aus `$internal` (WooCommerce, kostenlose Kassenverkäufe) ersetzen den Preis ohne Filter; sonst gilt gespeicherter Preis + Filter (öffentlicher Checkout, Warteliste, Kasse ohne Preisvorgabe). Kundeneingaben erreichen weder Filter noch Override. Geänderte Zeilen stehen im `price_snapshot` unter `unit_price_adjustments`. Automatische Preisregeln (Event- und Serienregeln, `Sales\PriceRules`, Priorität 10) hängen sich hier ein; die siegreiche Regel steht zusätzlich im `line_snapshot.price` der Bestellposition. |
+| `wpcap_tax_profile_date` | `string $date, object $type, object $occurrence` | Stichtag (`Y-m-d`) für die Auswahl der Steuerprofil-Version einer Position; Standard: Bestelldatum UTC (docs/TAX-PROFILES.md). |
+| `wpcap_buyer_limit_email` | `string $email` | Normalisierte E-Mail für Käuferlimits (Standard: kleingeschrieben, getrimmt), z. B. um Plus-Adressen zusammenzufassen. |
+| `wpcap_buyer_limit_lock_wait` | `int $seconds` (10) | Wartezeit auf die Käufer-Sperre (`GET_LOCK`) parallel laufender Bestellungen derselben Person; danach 503 „Gerade ist sehr viel los“. |
 | `wpcap_woocommerce_use_core_prices` | `bool $enabled, WC_Product $product, int $ticket_type_id` | Ob Pass-Captain-Preise (inkl. `wpcap_ticket_unit_price`, z. B. Serien-Preisstufen) für dieses Ticketprodukt im Woo-Warenkorb gelten; nur wirksam, wenn die globale Option (WooCommerce → Einstellungen → Produkte) aktiv ist. Die Reservierung übernimmt weiterhin die Woo-Zeilensummen als vertrauenswürdigen Override. |
 | `wpcap_ticket_price_label` | `string $label, object $type, array $context` | Öffentliche Bezeichnung des aktuell geltenden Preises (z. B. „Frühbucher“), `Orders::price_label()`; Event-Karte und Serien-Admin. |
 | `wpcap_reserve_capacity` | `true|WP_Error $result, array $demand, array $context` | Zusätzliche gemeinsame Kontingente (z. B. Serien-Pools). Läuft in `Orders::create()` und bei verspäteter Zahlung (`confirm_external_payment`) in der Transaktion, **nachdem** Ticketarten und Termine (in dieser Reihenfolge, je nach ID) gesperrt sind und **bevor** der Kern erstmals konsistent liest. `$demand`: Ticketart-ID → Menge; `$context`: `phase` (`create`/`recover`), `order_id` (bei `recover` aus der Zählung auszunehmen, sonst 0), `types`/`occurrences` (gesperrte Zeilen nach ID), `now`, `source`. Eigene Zeilen zuerst mit sperrenden Lesezugriffen (`FOR UPDATE`/`LOCK IN SHARE MODE`, feste Reihenfolge) sperren, erst danach Belegung lesen – sonst ist der Snapshot veraltet. `WP_Error` lehnt ab (Code über `wpcap_checkout_error_messages`, sonst die Meldung des Fehlers; bei `recover` → `needs_review`). |
 | `wpcap_ticket_availability` | `int|null $remaining, object $type, object $occurrence` | Restmenge in `Orders::availability()` (Anzeige, Warenkorbprüfung, Kasse). Nur verkleinern; `null` = unbegrenzt. Serien-Pools hängen sich hier ein. |
+| `wpcap_order_portal_sections` | `string $html, object $order, string $access_token` | Zusätzliche Abschnitte im Bestellportal (vor den Rechnungsdaten); Rückgabe ist bereits escaptes HTML. Servicebuchungen (Umbuchen/Stornieren) hängen sich hier ein, siehe `docs/SERVICE-BOOKINGS.md`. |
+| `wpcap_waitlist_offer_hours` | `int $hours` (Standard 24) | Annahmefrist automatischer und manueller Event-Wartelistenangebote. |
 | `wpcap_service_booking_ip_limit` | `int $limit` (40) | Buchungsversuche je IP. |
 | `wpcap_seating_availability_limit` | `int $limit` (120) | Abrufe der Sitzplatzverfügbarkeit je Client und Minute. |
 | `wpcap_checkin_now` | `int $timestamp` | Zeitpunkt für Einlassentscheidungen (Tests/Simulation). |
@@ -92,6 +112,8 @@ Webhook-Ereignissen).
 | `wpcap_voucher_purpose` | `string|null $purpose, array $voucher, array $context` | Art eines Gutscheins: `single` (Einzweckgutschein, USt beim Gutscheinverkauf; Einlösung = Preisnachlass) oder `multi` (Mehrzweckgutschein, Einlösung = Zahlungsmittel, USt auf den vollen Preis). `$purpose` ist die Angabe aus den WP-Voucher-Captain-Daten (oder `null`); `$voucher`: Anbieterdaten (Checkout: `quote`, `reservation`; Ticketdienst: `$source`); `$context`: `source` (`checkout`/`ticket_service`), `order_id`, `code_hint`, `ticket_type_id`, `quantity`. Rückgabe `null`/unbekannt → Einstellung `voucher_default_purpose` (Standard `multi`). Siehe docs/VOUCHERS.md. |
 | `wpcap_woocommerce_hold_minutes` | `int $minutes` | Reservierung bei WooCommerce-Checkout. |
 | `wpcap_woocommerce_on_hold_minutes` | `int $minutes` (3 Tage) | Reservierung für WooCommerce-Bestellungen „in Wartestellung“. |
+| `wpcap_woocommerce_mixed_seller_policy` | `string $policy` (`reject`/`split`) | Umgang mit WooCommerce-Warenkörben mit Tickets verschiedener Rechnungssteller; Standard aus der Option `wpcap_woocommerce_mixed_sellers` (`reject`). Siehe docs/WOOCOMMERCE.md, „Mehrere Rechnungssteller“. |
+| `wpcap_woocommerce_refund_checked_in` | `bool $allowed, WC_Order|null $wc_order` | Ob WooCommerce-Erstattungen mit Menge eingecheckte Tickets erstatten dürfen; Standard aus der Kerneinstellung `refund_after_checkin` (falls vorhanden), sonst Option `wpcap_woocommerce_refund_checked_in` (`no`). |
 
 ### Zahlungen
 
@@ -175,3 +197,13 @@ Webhook-Ereignissen).
 | `wp_pass_captain_ticket_service_v1` | `TicketService|null $service, int $version` | Dienst für die Rückrichtung: ein eingelöster Gutschein wird in Tickets umgewandelt (`issue_tickets`, `revoke_tickets`, `get`, `targets`, `options`, `events`); Ziel ist eine feste Ticketart oder eine Veranstaltung mit frei wählbarem Termin. Idempotent pro Schlüssel; Fehler tragen `retryable`. |
 | `wp_pass_captain_checkin_service_v1` | `CheckinService|null $service, int $version` | Check-in-Dienst für einen fremden Scanner (gemeinsamer Scanner): `recognizes`, `preview`, `check_in`; prüft das Recht `wpcap_checkin`. |
 | `wp_pass_captain_wallet_provider_v1` | `ProviderInterface|null $provider, string $provider_key, int $version` | Wallet-Anbieter (Bridge). |
+| `wp_pass_captain_settings_defaults_v1` | `array $defaults` (Schlüssel → Standardwert) | Einstellungen eines Add-ons ohne Modulklasse. Nur neue Schlüssel werden übernommen; Kern- und Modulwerte bleiben. Lesen mit `Settings::get()`. |
+| `wp_pass_captain_settings_sections_v1` | `array $sections` (ID → `title`, `fields`) | Abschnitte und Felder der Kern-Einstellungsseite. Feldtypen `int` (`min`, `max`), `bool`, `choice` (`options`), `text`, `textarea`, `html`, `money`, `secret`; optional `description`, `sanitize` (callable `( $value, $current )` → Wert oder `WP_Error`). Der Schlüssel muss in den Standardwerten existieren. Kernfelder können nicht entfernt oder umtypisiert werden. |
+| `wp_pass_captain_admin_menu_v1` | `array $pages` (Einträge `[ slug, title, capability, callable ]`) | Unterseiten im Menü **Pass Captain** für Add-ons ohne Modulklasse (vor „Einstellungen“); Slugs des Kerns werden ignoriert. |
+| `wp_pass_captain_report_data_v1` | `array $report, array $filters, array|null $scope` | Daten des Berichts (`Reports\Data::build()`); eigene Kennzahlen unter `extra` ablegen. `$scope`: erlaubte Event-IDs oder `null` (alle). |
+| `wp_pass_captain_report_metrics_v1` | `array $rows` (Label → Text), `array $report, array $filters` | Zeilen der Übersichtstabelle im Bericht (werden escaped ausgegeben). |
+| `wp_pass_captain_report_tabs_v1` | `array $tabs` (ID → `label`, `callback`, optional `capability`) | Zusätzliche Reiter auf der Berichtsseite; `callback( $report, $filters, $scope )` gibt den Inhalt (escaped) aus. |
+| `wp_pass_captain_export_rows_v1` | `array $rows, string $type, array $context` | Zeilen jedes CSV-Exports (erste Zeile = Kopf) vor der Ausgabe, z. B. für zusätzliche Spalten. `$type`: `report` (Kontext `report`), `accounting` (Kontext `from`, `to`) oder die ID eines zusätzlichen Exports (Kontext `filters`). Zellen laufen bei der Ausgabe durch den Formelschutz. |
+| `wp_pass_captain_export_types_v1` | `array $types` (ID → `label`, `rows`, optional `capability`, `filename`) | Zusätzliche Exporte als Schaltflächen auf der Berichtsseite; `rows( $filters, $scope )` liefert die Zeilen. Standardrecht `wpcap_view_reports`. |
+| `wp_pass_captain_scanner_adapters_v1` | `array $adapters` (ID → `label`, `recognizes`, `check_in`, optional `preview`, `capability`) | Scanner-Adapter für Codes, die kein Pass-Captain-Ticket sind (siehe [EXTENSIONS.md](EXTENSIONS.md#scanner)). |
+| `wpcap_log_to_error_log` | `bool $enabled, string $level, string $event` | Ob Einträge von `PassCaptain\Log` zusätzlich ins PHP-Fehlerprotokoll gehen (Standard: nur mit `WP_DEBUG` und `WP_DEBUG_LOG`). |

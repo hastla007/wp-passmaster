@@ -26,14 +26,12 @@ use PassCaptain\Webhooks\Dispatcher;
 global $wpdb;
 $p = $wpdb->prefix;
 
-if ( ! function_exists( 'wp_safe_remote_post' ) ) {
-	function wp_safe_remote_post( $url, $args = array() ) {
-		$GLOBALS['w6_http'][] = array( 'url' => $url, 'event' => $args['headers']['X-WPCAP-Event-Id'] ?? '' );
-		$code = $GLOBALS['w6_http_code'] ?? 200;
-		return array( 'response' => array( 'code' => $code, 'message' => '' ), 'headers' => array(), 'body' => '' );
-	}
-}
-$GLOBALS['w6_http'] = array();
+// HTTP goes through Security\OutboundHttp and the scripted wp_remote_request() of payments.php.
+/** Requests sent for a webhook event id. */
+function w6_sent( $event_id ) { return count( array_filter( $GLOBALS['wpcap_test_http_requests'], static fn( $r ) => ( $r['headers']['X-WPCAP-Event-Id'] ?? '' ) === $event_id ) ); }
+/** Scripted receiver answers for the next requests to the test hosts. */
+function w6_answer( $code, $times = 1 ) { http_reset(); for ( $i = 0; $i < $times; $i++ ) { http_push( array(), $code, 'hooks.example' ); } }
+http_reset();
 
 /** Runs the crash worker child process and returns its output. */
 function w6_child( $mode ) {
@@ -178,35 +176,35 @@ $claim_faults = array(
 	'COMMIT of the claim lost' => array( '/^COMMIT/', 'gone' ),
 );
 foreach ( $claim_faults as $label => list( $pattern, $kind ) ) {
-	$GLOBALS['w6_http'] = array();
+	w6_answer( 200, 5 );
 	$f = wpcap_faults();
 	$f->fail( $pattern, 0, 'silent' === $kind ? 1000 : 1, $kind );
 	Dispatcher::process( 5 );
 	wpcap_faults_restore();
 	$row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_webhook_deliveries WHERE delivery_id=" . (int) $d->delivery_id );
-	check( "webhook $label: nothing sent, delivery stays pending without attempt", ! array_filter( $GLOBALS['w6_http'], static fn( $h ) => $h['event'] === $d->event_id ) && 'pending' === $row->status && 0 === (int) $row->attempts );
+	check( "webhook $label: nothing sent, delivery stays pending without attempt", 0 === w6_sent( $d->event_id ) && 'pending' === $row->status && 0 === (int) $row->attempts );
 }
-$GLOBALS['w6_http'] = array();
+w6_answer( 200, 5 );
 Dispatcher::process( 5 );
 Dispatcher::process( 5 );
 $row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_webhook_deliveries WHERE delivery_id=" . (int) $d->delivery_id );
-check( 'next run delivers it exactly once', 1 === count( array_filter( $GLOBALS['w6_http'], static fn( $h ) => $h['event'] === $d->event_id ) ) && 'succeeded' === $row->status && 1 === (int) $row->attempts );
+check( 'next run delivers it exactly once', 1 === w6_sent( $d->event_id ) && 'succeeded' === $row->status && 1 === (int) $row->attempts );
 
 // Expired and poison claims.
 Dispatcher::emit( 'order.paid', 'w6-stale-' . uniqid(), array( 'object' => 'order', 'id' => 'w6s' ) );
 $stale = w6_last( $w6_deliveries( $sid ) );
 $wpdb->update( "{$p}wpcap_webhook_deliveries", array( 'status' => 'delivering', 'attempts' => 1, 'locked_at' => w6_ago( 16 ) ), array( 'delivery_id' => (int) $stale->delivery_id ) );
-$GLOBALS['w6_http'] = array();
+w6_answer( 200, 5 );
 Dispatcher::process( 5 );
 $row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_webhook_deliveries WHERE delivery_id=" . (int) $stale->delivery_id );
-check( 'expired delivering claim is resumed and delivered once (attempts 2)', 'succeeded' === $row->status && 2 === (int) $row->attempts && 1 === count( array_filter( $GLOBALS['w6_http'], static fn( $h ) => $h['event'] === $stale->event_id ) ) );
+check( 'expired delivering claim is resumed and delivered once (attempts 2)', 'succeeded' === $row->status && 2 === (int) $row->attempts && 1 === w6_sent( $stale->event_id ) );
 Dispatcher::emit( 'order.paid', 'w6-poison-' . uniqid(), array( 'object' => 'order', 'id' => 'w6p' ) );
 $poison = w6_last( $w6_deliveries( $sid ) );
 $wpdb->update( "{$p}wpcap_webhook_deliveries", array( 'status' => 'delivering', 'attempts' => Dispatcher::max_attempts(), 'locked_at' => w6_ago( 16 ) ), array( 'delivery_id' => (int) $poison->delivery_id ) );
-$GLOBALS['w6_http'] = array();
+w6_answer( 200, 5 );
 Dispatcher::process( 5 );
 $row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_webhook_deliveries WHERE delivery_id=" . (int) $poison->delivery_id );
-check( 'stale delivery with exhausted attempts fails instead of looping', 'failed' === $row->status && ! $GLOBALS['w6_http'] );
+check( 'stale delivery with exhausted attempts fails instead of looping', 'failed' === $row->status && 0 === w6_sent( $poison->event_id ) );
 
 // Worker dies during the HTTP request (child process).
 $crash = Dispatcher::create_subscription( 'https://crash.hooks.example/in', array( 'order.paid' ) );
@@ -220,20 +218,70 @@ Dispatcher::set_status( (int) $crash['subscription_id'], false );
 // Backoff and final failure for a receiver that keeps answering 500.
 Dispatcher::emit( 'order.paid', 'w6-500-' . uniqid(), array( 'object' => 'order', 'id' => 'w6f' ) );
 $fd = w6_last( $w6_deliveries( $sid ) );
-$GLOBALS['w6_http_code'] = 500;
 $delays = array();
 for ( $i = 1; $i <= Dispatcher::max_attempts(); $i++ ) {
+	w6_answer( 500, 5 );
 	Dispatcher::process( 5 );
 	$row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_webhook_deliveries WHERE delivery_id=" . (int) $fd->delivery_id );
 	$delays[] = strtotime( $row->next_attempt_at . ' UTC' ) - time();
 	if ( 'pending' === $row->status ) { $wpdb->update( "{$p}wpcap_webhook_deliveries", array( 'next_attempt_at' => w6_ago( 1 ) ), array( 'delivery_id' => (int) $fd->delivery_id ) ); }
 }
-unset( $GLOBALS['w6_http_code'] );
 check( 'failing receiver: backoff 60 s, 120 s, 240 s ... and failed after ' . Dispatcher::max_attempts() . ' attempts', abs( $delays[0] - 60 ) <= 2 && abs( $delays[1] - 120 ) <= 2 && abs( $delays[2] - 240 ) <= 2 && 'failed' === $row->status && Dispatcher::max_attempts() === (int) $row->attempts );
 $redo = Dispatcher::redeliver( (int) $fd->delivery_id );
+w6_answer( 200, 5 );
 Dispatcher::process( 5 );
+http_reset();
 $row = $wpdb->get_row( "SELECT * FROM {$p}wpcap_webhook_deliveries WHERE delivery_id=" . (int) $fd->delivery_id );
 check( 'manual redelivery after the receiver recovered succeeds with a fresh budget', true === $redo && 'succeeded' === $row->status && 1 === (int) $row->attempts );
 Dispatcher::set_status( $sid, false );
+
+/* ------------------------------------------------------------------------------------------ */
+echo "W6 workers: SMS queue\n";
+final class W6_Sms_Provider implements PassCaptain\Sms\ProviderInterface {
+	public array $sent = array();
+	public function id() { return 'w6sms'; }
+	public function title() { return 'W6'; }
+	public function is_configured() { return true; }
+	public function send( $to, $body, $reference ) { $this->sent[] = $reference; return array( 'provider_ref' => 'w6-' . $reference ); }
+}
+$w6_sms = new W6_Sms_Provider();
+$w6_sms_filter = static function ( $list ) use ( $w6_sms ) { $list[] = $w6_sms; return $list; };
+add_filter( 'wpcap_sms_providers', $w6_sms_filter );
+$w6_sms_settings = PassCaptain\Settings::get( 'sms' );
+PassCaptain\Settings::update( array( 'sms' => array_merge( (array) $w6_sms_settings, array( 'provider' => 'w6sms' ) ) ) );
+$wpdb->query( "UPDATE {$p}wpcap_sms_messages SET status='skipped' WHERE status IN ('queued','sending')" ); // Only this test's messages.
+$now = gmdate( 'Y-m-d H:i:s' );
+$wpdb->insert( "{$p}wpcap_sms_consents", array( 'order_id' => 990000 + mt_rand( 1, 9999 ), 'phone' => '+4915100000000', 'purpose' => 'w6', 'text_version' => 'w6', 'consented_at' => $now ) );
+$w6_consent = (int) $wpdb->insert_id;
+/** Queued SMS row; returns its id. */
+$w6_sms_row = static function ( array $extra = array() ) use ( $wpdb, $p, $w6_consent, $now ) {
+	$wpdb->insert( "{$p}wpcap_sms_messages", array_merge( array( 'dedupe_key' => hash( 'sha256', uniqid( '', true ) ), 'consent_id' => $w6_consent, 'order_id' => 1, 'purpose' => 'w6', 'body' => 'Hallo', 'status' => 'queued', 'send_at' => '2000-01-01 00:00:00', 'created_at' => $now, 'updated_at' => $now ), $extra ) );
+	return (int) $wpdb->insert_id;
+};
+$w6_sms_status = static function ( $id ) use ( $wpdb, $p ) { return $wpdb->get_row( "SELECT status,attempts FROM {$p}wpcap_sms_messages WHERE message_id=" . (int) $id ); };
+$id = $w6_sms_row();
+$w6_sms_faults = array(
+	'START TRANSACTION fails' => array( '/^START TRANSACTION/', 'error' ),
+	'claim UPDATE 0 rows' => array( "/^UPDATE \S+wpcap_sms_messages SET status='sending'/", 'silent' ),
+	'COMMIT of the claim lost' => array( '/^COMMIT/', 'gone' ),
+);
+foreach ( $w6_sms_faults as $label => list( $pattern, $kind ) ) {
+	$w6_sms->sent = array();
+	$f = wpcap_faults();
+	$f->fail( $pattern, 0, 'silent' === $kind ? 1000 : 1, $kind );
+	PassCaptain\Sms\Service::process_due( 5 );
+	wpcap_faults_restore();
+	check( "sms $label: nothing sent, message stays queued without attempt", ! $w6_sms->sent && 'queued' === $w6_sms_status( $id )->status && 0 === (int) $w6_sms_status( $id )->attempts );
+}
+$w6_sms->sent = array();
+PassCaptain\Sms\Service::process_due( 5 );
+PassCaptain\Sms\Service::process_due( 5 );
+check( 'sms: next run sends it exactly once', array( 'wpcap-sms-' . $id ) === $w6_sms->sent && 'sent' === $w6_sms_status( $id )->status );
+$poison = $w6_sms_row( array( 'status' => 'sending', 'attempts' => PassCaptain\Sms\Service::MAX_ATTEMPTS, 'locked_at' => w6_ago( 16 ) ) );
+$w6_sms->sent = array();
+PassCaptain\Sms\Service::process_due( 5 );
+check( 'sms: stale claim with exhausted attempts fails instead of being re-sent', 'failed' === $w6_sms_status( $poison )->status && ! $w6_sms->sent );
+remove_filter( 'wpcap_sms_providers', $w6_sms_filter );
+PassCaptain\Settings::update( array( 'sms' => $w6_sms_settings ) );
 
 remove_filter( 'wp_pass_captain_process_job_v1', $w6_handler, 10 );

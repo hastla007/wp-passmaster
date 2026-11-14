@@ -25,7 +25,7 @@ $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
 				$base_price = isset( $type->base_price_minor ) && (int) $type->base_price_minor !== (int) $type->price_minor ? \PassCaptain\Frontend\Format::money( $type->base_price_minor, $type->currency ) : '';
 				?>
 				<div class="wpcap-type wpcap-field">
-					<label for="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>"><?php echo esc_html( $type->name ); ?> — <?php echo esc_html( $price ); ?><?php if ( ! empty( $type->price_label ) ) : ?> <span class="wpcap-price-label"><?php echo esc_html( $type->price_label ); ?></span><?php endif; ?><?php if ( '' !== $base_price ) : ?> <small class="wpcap-base-price"><?php echo esc_html( sprintf( /* translators: %s: regular price */ __( 'statt %s', 'pass-captain' ), $base_price ) ); ?></small><?php endif; ?><?php if ( (int) $type->tax_rate_bp ) : ?> <small><?php echo esc_html( sprintf( /* translators: %s: VAT rate */ __( 'inkl. %s %% USt.', 'pass-captain' ), number_format_i18n( $type->tax_rate_bp / 100, 2 ) ) ); ?></small><?php endif; ?></label>
+					<label for="<?php echo esc_attr( $form_id . '-' . $type->ticket_type_id ); ?>"><?php echo esc_html( $type->name ); ?> — <?php echo esc_html( $price ); ?><?php if ( ! empty( $type->price_label ) ) : ?> <span class="wpcap-price-label"><?php echo esc_html( $type->price_label ); ?></span><?php endif; ?><?php if ( '' !== $base_price ) : ?> <small class="wpcap-base-price"><?php echo esc_html( sprintf( /* translators: %s: regular price */ __( 'statt %s', 'pass-captain' ), $base_price ) ); ?></small><?php endif; ?><?php if ( ! empty( $type->price_explanation ) ) : ?> <small class="wpcap-price-explanation"><?php echo esc_html( $type->price_explanation ); ?></small><?php endif; ?><?php if ( (int) $type->tax_rate_bp ) : ?> <small><?php echo esc_html( sprintf( /* translators: %s: VAT rate */ __( 'inkl. %s %% USt.', 'pass-captain' ), number_format_i18n( $type->tax_rate_bp / 100, 2 ) ) ); ?></small><?php endif; ?></label>
 					<?php if ( $max < 1 ) : ?>
 						<span class="wpcap-soldout"><?php esc_html_e( 'Ausverkauft', 'pass-captain' ); ?></span>
 					<?php else : ?>
@@ -39,6 +39,7 @@ $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
 			<label for="<?php echo esc_attr( $form_id . '-email' ); ?>"><?php esc_html_e( 'Deine E-Mail-Adresse (für Tickets und Bestätigung)', 'pass-captain' ); ?> *</label>
 			<input id="<?php echo esc_attr( $form_id . '-email' ); ?>" name="email" type="email" autocomplete="email" required>
 		</div>
+		<?php echo \PassCaptain\Frontend\Language::checkout_field( $form_id ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in checkout_field. ?>
 		<div class="wpcap-attendees" aria-live="polite"></div>
 		<?php do_action( 'wpcap_checkout_form_fields', $event, $types ); ?>
 		<?php if ( apply_filters( 'wpcap_checkout_billing_enabled', true, $event ) ) :

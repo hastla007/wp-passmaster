@@ -21,6 +21,9 @@
  * 7. Participant fields: per-ticket attendee data is collected in the checkout (see Attendees).
  * 8. Optional (setting, default off): cart prices from Orders::unit_price(), e.g. series price
  *    tiers (see CartPricing). The hold still uses the WooCommerce line totals as trusted override.
+ * 9. Tickets of different invoice issuers (sellers): rejected in cart/checkout by default, or split into
+ *    one Pass Captain order per seller (see SellerSplit for the policy and the allocation rules).
+ *    Refunds are mapped to the seller orders and their tickets.
  *
  * @package PassCaptain
  */
@@ -29,6 +32,7 @@ namespace PassCaptain\Integrations\WooCommerce;
 
 use PassCaptain\Billing;
 use PassCaptain\Orders;
+use PassCaptain\Partners\SalesModel;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -42,6 +46,8 @@ final class OrderAdapter {
 	const ITEM_META     = '_wpcap_ticket_type_id';
 	const ATTENDEE_META = '_wpcap_attendees';
 	const DEFER_NOTE    = '_wpcap_deferred_note';
+	/** Option: WooCommerce refunds with quantities may refund checked-in tickets ('yes'/'no', default 'no'). */
+	const CHECKED_IN_OPTION = 'wpcap_woocommerce_refund_checked_in';
 
 	/** Declares HPOS and Cart/Checkout Blocks compatibility. */
 	public static function declare_compatibility() {
@@ -52,11 +58,15 @@ final class OrderAdapter {
 		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', WPCAP_FILE, true );
 	}
 
+	/** Job that retries mirroring a WooCommerce refund after a database error. */
+	const REFUND_SYNC_JOB = 'woocommerce_refund_sync';
+
 	/** Registers hooks when WooCommerce is active. */
 	public static function register() {
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			return;
 		}
+		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
 		// Product configuration.
 		add_action( 'woocommerce_product_options_general_product_data', array( __CLASS__, 'product_field' ) );
 		add_action( 'woocommerce_admin_process_product_object', array( __CLASS__, 'save_product_field' ) );
@@ -66,6 +76,9 @@ final class OrderAdapter {
 		add_filter( 'woocommerce_update_cart_validation', array( __CLASS__, 'validate_cart_update' ), 10, 4 );
 		add_action( 'woocommerce_check_cart_items', array( __CLASS__, 'check_cart_items' ) );
 		add_action( 'woocommerce_store_api_cart_errors', array( __CLASS__, 'store_api_cart_errors' ), 10, 2 );
+		// Mixed invoice issuers (sellers): Store API add-to-cart; settings for the policy.
+		add_action( 'woocommerce_store_api_validate_add_to_cart', array( __CLASS__, 'store_api_validate_add_to_cart' ) );
+		add_filter( 'woocommerce_get_settings_products', array( SellerSplit::class, 'settings' ), 20, 2 );
 		// Store API quantity limits (cart block quantity selector and update-item requests).
 		add_filter( 'woocommerce_store_api_product_quantity_maximum', array( __CLASS__, 'store_api_quantity_maximum' ), 10, 3 );
 		add_filter( 'woocommerce_store_api_cart_item_quantity_validation', array( __CLASS__, 'store_api_validate_quantity' ), 10, 4 );
@@ -88,6 +101,8 @@ final class OrderAdapter {
 		add_action( 'woocommerce_order_status_cancelled', array( __CLASS__, 'sync_cancelled_order' ), 20 );
 		add_action( 'woocommerce_order_status_failed', array( __CLASS__, 'sync_cancelled_order' ), 20 );
 		add_action( 'woocommerce_order_refunded', array( __CLASS__, 'sync_refund' ), 20, 2 );
+		// Refunds of checked-in tickets are refused before WooCommerce pays them out (unless allowed).
+		add_action( 'woocommerce_create_refund', array( __CLASS__, 'guard_refund' ), 10, 2 );
 		add_action( 'woocommerce_order_status_refunded', array( __CLASS__, 'sync_fully_refunded_order' ), 20 );
 
 		// Display and admin tools.
@@ -182,13 +197,33 @@ final class OrderAdapter {
 			return $passed;
 		}
 		$quantities             = self::cart_quantities();
+		$seller_error           = SellerSplit::add_to_cart_error( $type_id, array_keys( $quantities ) );
 		$quantities[ $type_id ] = ( $quantities[ $type_id ] ?? 0 ) + absint( $quantity );
-		$error                  = self::quantity_error( $type_id, $quantities[ $type_id ] );
+		$error                  = '' !== $seller_error ? $seller_error : self::quantity_error( $type_id, $quantities[ $type_id ] );
 		if ( $error ) {
 			wc_add_notice( $error, 'error' );
 			return false;
 		}
 		return $passed;
+	}
+
+	/**
+	 * Store API add-to-cart (cart/checkout blocks, mini cart): refuses a ticket of another seller with
+	 * the same message as the classic cart. Throwing aborts the request with an error notice.
+	 */
+	public static function store_api_validate_add_to_cart( $product ) {
+		$type_id = self::product_ticket_type_id( $product );
+		if ( ! $type_id ) {
+			return;
+		}
+		$error = SellerSplit::add_to_cart_error( $type_id, array_keys( self::cart_quantities() ) );
+		if ( '' === $error ) {
+			return;
+		}
+		if ( class_exists( '\\Automattic\\WooCommerce\\StoreApi\\Exceptions\\RouteException' ) ) {
+			throw new \Automattic\WooCommerce\StoreApi\Exceptions\RouteException( 'wpcap_mixed_sellers', esc_html( $error ), 400 );
+		}
+		throw new \Exception( esc_html( $error ) );
 	}
 
 	/** Validates quantity changes on the classic cart page. */
@@ -284,10 +319,15 @@ final class OrderAdapter {
 		}
 	}
 
-	/** Returns validation errors for all ticket lines in the cart. */
+	/** Returns validation errors for all ticket lines in the cart (including mixed sellers). */
 	private static function cart_errors() {
-		$errors = array();
-		foreach ( self::cart_quantities() as $type_id => $quantity ) {
+		$errors     = array();
+		$quantities = self::cart_quantities();
+		$mixed      = SellerSplit::mixed_error( array_keys( $quantities ) );
+		if ( '' !== $mixed ) {
+			$errors[] = $mixed;
+		}
+		foreach ( $quantities as $type_id => $quantity ) {
 			$error = self::quantity_error( $type_id, $quantity );
 			if ( $error ) {
 				$errors[] = $error;
@@ -412,69 +452,158 @@ final class OrderAdapter {
 	}
 
 	/**
-	 * Creates the Pass Captain order with an inventory hold for a WooCommerce order.
+	 * Creates the Pass Captain order(s) with an inventory hold for a WooCommerce order.
 	 *
 	 * WooCommerce re-uses a pending order when a customer retries checkout. Each attempt therefore
-	 * gets its own idempotency key and the previous unpaid Pass Captain order is cancelled first.
+	 * gets its own idempotency key and the previous unpaid Pass Captain orders are cancelled first.
 	 *
-	 * @return int|\WP_Error|null Core order ID, error, or null if the order has no ticket lines.
+	 * Tickets of different invoice issuers (sellers) are refused (policy "reject", default) or get one
+	 * Pass Captain order per seller (policy "split"): all of them are created or none (a failure cancels
+	 * the orders created so far). The first one is stored in ORDER_META, all of them in
+	 * SellerSplit::SPLIT_META, the allocation snapshot in SellerSplit::PLAN_META.
+	 *
+	 * @return int|\WP_Error|null First core order ID, error, or null if the order has no ticket lines.
 	 */
 	public static function reserve( $wc_order ) {
 		if ( ! $wc_order instanceof \WC_Order ) {
 			return null;
 		}
-		$lines = self::ticket_lines( $wc_order );
-		if ( ! $lines ) {
+		$allocation = self::allocation( $wc_order );
+		if ( ! $allocation['sellers'] ) {
 			return null;
 		}
-		$existing = absint( $wc_order->get_meta( self::ORDER_META, true ) );
-		if ( $existing ) {
+		$existing_ids = self::core_order_ids( $wc_order );
+		foreach ( $existing_ids as $existing ) {
 			$core = Orders::get( $existing );
 			if ( $core && 'paid' === $core->payment_status ) {
-				return $existing;
+				return $existing_ids[0];
 			}
+		}
+		foreach ( $existing_ids as $existing ) {
 			Orders::cancel_order( $existing, 'woocommerce_checkout_retry' );
 		}
 		$email = sanitize_email( $wc_order->get_billing_email() );
 		if ( ! is_email( $email ) ) {
 			return new \WP_Error( 'wpcap_missing_email', __( 'Für Tickets wird eine gültige E-Mail-Adresse benötigt.', 'pass-captain' ) );
 		}
-		$attempt = absint( $wc_order->get_meta( self::ATTEMPT_META, true ) ) + 1;
-		$unit_prices = array_map( static function ( $line ) {
-			return $line['unit_minor'];
-		}, $lines );
-		$line_totals = array_map( static function ( $line ) {
-			return $line['gross'];
-		}, $lines );
-		$result  = Orders::create(
-			array(
-				'email'           => $email,
-				'items'           => array_values( array_map( static function ( $line ) {
-					return array( 'ticket_type_id' => $line['ticket_type_id'], 'quantity' => $line['quantity'] );
-				}, $lines ) ),
-				'idempotency_key' => $wc_order->get_id() . '-' . $attempt,
-				'attendees'       => Attendees::for_order( $wc_order ),
-			),
-			array(
-				'external'      => true,
-				'currency'      => $wc_order->get_currency(),
-				'hold_minutes'  => self::hold_minutes(),
-				'source'        => 'woocommerce',
-				'key_namespace' => 'woocommerce',
-				'unit_prices'   => $unit_prices,
-				'line_totals'   => $line_totals,
-				'billing'       => self::billing_from_order( $wc_order ),
-			)
-		);
-		if ( is_wp_error( $result ) ) {
-			return $result;
+		$split = count( $allocation['sellers'] ) > 1;
+		if ( $split && SellerSplit::SPLIT !== SellerSplit::policy() ) {
+			$types = array();
+			foreach ( $allocation['sellers'] as $seller ) {
+				$types = array_merge( $types, array_keys( $seller['lines'] ) );
+			}
+			return new \WP_Error( 'wpcap_mixed_sellers', SellerSplit::mixed_error( $types ) );
 		}
+		$attempt   = absint( $wc_order->get_meta( self::ATTEMPT_META, true ) ) + 1;
+		$attendees = Attendees::for_order( $wc_order );
+		$created   = array();
+		$hold      = 0;
+		foreach ( $allocation['sellers'] as $key => $seller ) {
+			$lines  = $seller['lines'];
+			$types  = array_keys( $lines );
+			$result = Orders::create(
+				array(
+					'email'           => $email,
+					'items'           => array_values( array_map( static function ( $line ) {
+						return array( 'ticket_type_id' => $line['ticket_type_id'], 'quantity' => $line['quantity'] );
+					}, $lines ) ),
+					'idempotency_key' => $wc_order->get_id() . '-' . $attempt . ( $split ? '-' . $key : '' ),
+					'attendees'       => $split ? array_values( array_filter( $attendees, static function ( $a ) use ( $types ) {
+						return is_array( $a ) && in_array( absint( $a['ticket_type_id'] ?? 0 ), $types, true );
+					} ) ) : $attendees,
+				),
+				array(
+					'external'      => true,
+					'currency'      => $wc_order->get_currency(),
+					'hold_minutes'  => self::hold_minutes(),
+					'source'        => 'woocommerce',
+					'key_namespace' => 'woocommerce',
+					'unit_prices'   => array_map( static function ( $line ) {
+						return $line['unit_minor'];
+					}, $lines ),
+					'line_totals'   => array_map( static function ( $line ) {
+						return $line['gross'];
+					}, $lines ),
+					'billing'       => self::billing_from_order( $wc_order ),
+				)
+			);
+			if ( is_wp_error( $result ) ) {
+				// All or nothing: release the holds of the seller orders created for this attempt.
+				foreach ( $created as $core_id ) {
+					Orders::cancel_order( $core_id, 'woocommerce_split_failed' );
+				}
+				return $result;
+			}
+			$created[ $key ] = absint( $result['order_id'] );
+			$hold            = (int) $result['hold_minutes'];
+		}
+		$first = (int) reset( $created );
 		$wc_order->update_meta_data( self::ATTEMPT_META, $attempt );
-		$wc_order->update_meta_data( self::ORDER_META, absint( $result['order_id'] ) );
+		$wc_order->update_meta_data( self::ORDER_META, $first );
+		$wc_order->update_meta_data( SellerSplit::PLAN_META, $allocation );
+		if ( $split ) {
+			$wc_order->update_meta_data( SellerSplit::SPLIT_META, $created );
+			if ( is_callable( array( $wc_order, 'add_meta_data' ) ) ) {
+				// One non-unique meta row per seller order, so a seller order can be traced back (wc_get_orders).
+				$wc_order->delete_meta_data( SellerSplit::LOOKUP_META );
+				foreach ( $created as $core_id ) {
+					$wc_order->add_meta_data( SellerSplit::LOOKUP_META, (string) $core_id, false );
+				}
+			}
+		} else {
+			$wc_order->delete_meta_data( SellerSplit::SPLIT_META );
+		}
 		$wc_order->save();
-		/* translators: %d: hold minutes */
-		$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets für %d Minuten reserviert.', 'pass-captain' ), (int) $result['hold_minutes'] ) );
-		return absint( $result['order_id'] );
+		if ( $split ) {
+			$names = array();
+			foreach ( $created as $key => $core_id ) {
+				$names[] = sprintf( '#%d %s', $core_id, SalesModel::seller_name( $key ) );
+			}
+			/* translators: 1: hold minutes, 2: number of seller orders, 3: list of orders and sellers */
+			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets für %1$d Minuten reserviert, aufgeteilt auf %2$d Bestellungen je Rechnungssteller: %3$s.', 'pass-captain' ), $hold, count( $created ), implode( ', ', $names ) ) );
+		} else {
+			/* translators: %d: hold minutes */
+			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Tickets für %d Minuten reserviert.', 'pass-captain' ), $hold ) );
+		}
+		return $first;
+	}
+
+	/**
+	 * Per-seller allocation of a WooCommerce order (SellerSplit::allocate() with this adapter's ticket
+	 * type lookup).
+	 */
+	public static function allocation( $wc_order ) {
+		return SellerSplit::allocate(
+			$wc_order,
+			static function ( $item ) {
+				return self::item_ticket_type_id( $item );
+			}
+		);
+	}
+
+	/**
+	 * Pass Captain order IDs linked to a WooCommerce order (one, or one per seller when split).
+	 *
+	 * @param \WC_Order|int $wc_order Order or ID.
+	 * @return int[]
+	 */
+	public static function core_order_ids( $wc_order ) {
+		$wc_order = is_object( $wc_order ) ? $wc_order : wc_get_order( absint( $wc_order ) );
+		if ( ! $wc_order ) {
+			return array();
+		}
+		$map = $wc_order->get_meta( SellerSplit::SPLIT_META, true );
+		if ( is_array( $map ) && $map ) {
+			return array_values( array_filter( array_map( 'absint', $map ) ) );
+		}
+		$id = absint( $wc_order->get_meta( self::ORDER_META, true ) );
+		return $id ? array( $id ) : array();
+	}
+
+	/** Seller key => core order ID of a split WooCommerce order (empty if not split). */
+	public static function seller_orders( $wc_order ) {
+		$map = $wc_order ? $wc_order->get_meta( SellerSplit::SPLIT_META, true ) : array();
+		return is_array( $map ) ? array_map( 'absint', $map ) : array();
 	}
 
 	/**
@@ -525,35 +654,6 @@ final class OrderAdapter {
 		return (int) apply_filters( 'wpcap_woocommerce_hold_minutes', $minutes );
 	}
 
-	/**
-	 * Aggregates ticket lines of a WooCommerce order by ticket type.
-	 *
-	 * @return array<int, array{ticket_type_id:int, quantity:int, unit_minor:int}>
-	 */
-	private static function ticket_lines( \WC_Order $wc_order ) {
-		// Minor units follow the currency, not the shop's display decimals setting.
-		$factor   = 10 ** self::currency_decimals( $wc_order->get_currency() );
-		$lines    = array();
-		foreach ( $wc_order->get_items( 'line_item' ) as $item ) {
-			$type_id = self::item_ticket_type_id( $item );
-			$qty     = absint( $item->get_quantity() );
-			if ( ! $type_id || ! $qty ) {
-				continue;
-			}
-			// WooCommerce stores amounts as decimal strings; convert once at the adapter boundary.
-			$gross = (int) round( ( (float) $item->get_total() + (float) $item->get_total_tax() ) * $factor );
-			if ( ! isset( $lines[ $type_id ] ) ) {
-				$lines[ $type_id ] = array( 'ticket_type_id' => $type_id, 'quantity' => 0, 'gross' => 0 );
-			}
-			$lines[ $type_id ]['quantity'] += $qty;
-			$lines[ $type_id ]['gross']    += max( 0, $gross );
-		}
-		foreach ( $lines as $type_id => $line ) {
-			$lines[ $type_id ]['unit_minor'] = intdiv( $line['gross'], max( 1, $line['quantity'] ) );
-		}
-		return $lines;
-	}
-
 	/** ISO 4217 minor unit digits for the currencies WooCommerce commonly uses. */
 	public static function currency_decimals( $currency ) {
 		return \PassCaptain\Localization::currency_decimals( $currency );
@@ -590,14 +690,17 @@ final class OrderAdapter {
 	/* Payment and lifecycle                                               */
 	/* ------------------------------------------------------------------ */
 
-	/** Converts the hold and issues tickets once WooCommerce reports a paid order. */
+	/**
+	 * Converts the hold(s) and issues tickets once WooCommerce reports a paid order. A split order
+	 * confirms every seller order (each issues its own tickets, mail and invoice).
+	 */
 	public static function sync_paid_order( $wc_order_id, $force = false ) {
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
 		if ( ! $wc_order ) {
 			return;
 		}
-		$core_id = absint( $wc_order->get_meta( self::ORDER_META, true ) );
-		if ( ! $core_id ) {
+		$core_ids = self::core_order_ids( $wc_order );
+		if ( ! $core_ids ) {
 			// Orders created in the admin or before the adapter was active have no hold yet.
 			$core_id = self::reserve( $wc_order );
 			if ( is_wp_error( $core_id ) ) {
@@ -608,14 +711,23 @@ final class OrderAdapter {
 			if ( ! $core_id ) {
 				return;
 			}
+			$core_ids = self::core_order_ids( $wc_order );
 		}
-		$core = Orders::get( $core_id );
-		if ( $core && 'paid' === $core->payment_status && Orders::tickets_for_order( $core_id ) ) {
+		$cores = array();
+		foreach ( $core_ids as $core_id ) {
+			$cores[ $core_id ] = Orders::get( $core_id );
+		}
+		$open = array_filter( $cores, static function ( $core, $core_id ) {
+			return ! ( $core && 'paid' === $core->payment_status && Orders::tickets_for_order( $core_id ) );
+		}, ARRAY_FILTER_USE_BOTH );
+		if ( ! $open ) {
 			return;
 		}
 		if ( self::defers_issuance( $wc_order ) ) {
 			// Cash on delivery & co.: "processing" means "to be delivered", not "paid". Keep the hold.
-			Orders::extend_hold( $core_id, (int) apply_filters( 'wpcap_woocommerce_deferred_hold_minutes', 14 * DAY_IN_SECONDS / MINUTE_IN_SECONDS, $wc_order ) );
+			foreach ( array_keys( $open ) as $core_id ) {
+				Orders::extend_hold( $core_id, (int) apply_filters( 'wpcap_woocommerce_deferred_hold_minutes', 14 * DAY_IN_SECONDS / MINUTE_IN_SECONDS, $wc_order ) );
+			}
 			if ( ! $wc_order->get_meta( self::DEFER_NOTE, true ) ) {
 				$wc_order->update_meta_data( self::DEFER_NOTE, 1 );
 				$wc_order->save();
@@ -623,11 +735,13 @@ final class OrderAdapter {
 			}
 			return;
 		}
-		if ( $core && 'needs_review' === $core->status && ! $force ) {
-			// Already flagged and reported; only the explicit "re-issue" order action retries.
-			return;
-		}
-		if ( $core && 'cancelled' === $core->status ) {
+		$any_paid      = (bool) array_filter( $cores, static function ( $core ) {
+			return $core && 'paid' === $core->payment_status;
+		} );
+		$any_cancelled = (bool) array_filter( $open, static function ( $core ) {
+			return $core && 'cancelled' === $core->status;
+		} );
+		if ( $any_cancelled && ! $any_paid ) {
 			// A failed payment released the hold; the customer has paid on a later attempt.
 			$core_id = self::reserve( $wc_order );
 			if ( is_wp_error( $core_id ) || ! $core_id ) {
@@ -636,7 +750,36 @@ final class OrderAdapter {
 				$wc_order->add_order_note( sprintf( __( 'Pass Captain: Zahlung eingegangen, aber Tickets konnten nicht erneut reserviert werden – bitte manuell klären. %s', 'pass-captain' ), $message ) );
 				return;
 			}
+			$core_ids = self::core_order_ids( $wc_order );
 		}
+		$labels = array_flip( self::seller_orders( $wc_order ) );
+		$issued = 0;
+		foreach ( $core_ids as $core_id ) {
+			$issued += self::confirm_core( $wc_order, $core_id, $force, isset( $labels[ $core_id ] ) ? SalesModel::seller_name( $labels[ $core_id ] ) : '' );
+		}
+		if ( $issued && $wc_order->get_meta( self::ATTENDEE_META, true ) ) {
+			// Participant data now lives on the tickets; do not keep a second copy on the WooCommerce order.
+			$wc_order->delete_meta_data( self::ATTENDEE_META );
+			$wc_order->save();
+		}
+	}
+
+	/**
+	 * Confirms the payment of one Pass Captain order of a WooCommerce order and issues its tickets.
+	 *
+	 * @param string $seller Seller name for the order note of a split order ('' = not split).
+	 * @return int Number of tickets of the order after the call (0 when nothing was issued).
+	 */
+	private static function confirm_core( $wc_order, $core_id, $force, $seller = '' ) {
+		$core = Orders::get( $core_id );
+		if ( $core && 'paid' === $core->payment_status && Orders::tickets_for_order( $core_id ) ) {
+			return 0;
+		}
+		if ( $core && 'needs_review' === $core->status && ! $force ) {
+			// Already flagged and reported; only the explicit "re-issue" order action retries.
+			return 0;
+		}
+		$prefix      = '' !== $seller ? sprintf( '[#%d %s] ', $core_id, $seller ) : '';
 		$had_tickets = (bool) Orders::tickets_for_order( $core_id );
 		// The buyer may have changed the billing address after the hold; invoices use the paid state.
 		if ( ! Billing::invoice_issued( $core_id ) ) {
@@ -644,22 +787,18 @@ final class OrderAdapter {
 		}
 		$result = Orders::confirm_external_payment( $core_id, 'woocommerce:' . $wc_order->get_id() );
 		if ( is_wp_error( $result ) ) {
-			/* translators: %s: error message */
-			$wc_order->add_order_note( sprintf( __( 'Pass Captain: Keine Tickets ausgestellt – %s', 'pass-captain' ), $result->get_error_message() ) );
-			return;
+			/* translators: 1: seller order prefix (may be empty), 2: error message */
+			$wc_order->add_order_note( sprintf( __( 'Pass Captain: %1$sKeine Tickets ausgestellt – %2$s', 'pass-captain' ), $prefix, $result->get_error_message() ) );
+			return 0;
 		}
 		$count = count( Orders::tickets_for_order( $core_id ) );
-		/* translators: %d: ticket count */
-		$wc_order->add_order_note( sprintf( _n( 'Pass Captain: %d Ticket ausgestellt und per E-Mail versendet.', 'Pass Captain: %d Tickets ausgestellt und per E-Mail versendet.', $count, 'pass-captain' ), $count ) );
+		/* translators: 1: seller order prefix (may be empty), 2: ticket count */
+		$wc_order->add_order_note( sprintf( _n( 'Pass Captain: %1$s%2$d Ticket ausgestellt und per E-Mail versendet.', 'Pass Captain: %1$s%2$d Tickets ausgestellt und per E-Mail versendet.', $count, 'pass-captain' ), $prefix, $count ) );
 		if ( ! $had_tickets && $count ) {
 			// Personal link for ticket transfer/self-service, sent once with the first issuance.
 			Orders::rotate_access_link( $core_id );
 		}
-		if ( $count && $wc_order->get_meta( self::ATTENDEE_META, true ) ) {
-			// Participant data now lives on the tickets; do not keep a second copy on the WooCommerce order.
-			$wc_order->delete_meta_data( self::ATTENDEE_META );
-			$wc_order->save();
-		}
+		return $count;
 	}
 
 	/**
@@ -685,19 +824,17 @@ final class OrderAdapter {
 		return 'completed' !== $status;
 	}
 
-	/** Extends the hold while a manual payment (e.g. bank transfer) is outstanding. */
+	/** Extends the hold(s) while a manual payment (e.g. bank transfer) is outstanding. */
 	public static function sync_on_hold_order( $wc_order_id ) {
-		$core_id = self::core_order_id( $wc_order_id );
-		if ( $core_id ) {
-			$minutes = (int) apply_filters( 'wpcap_woocommerce_on_hold_minutes', 3 * DAY_IN_SECONDS / MINUTE_IN_SECONDS );
+		$minutes = (int) apply_filters( 'wpcap_woocommerce_on_hold_minutes', 3 * DAY_IN_SECONDS / MINUTE_IN_SECONDS );
+		foreach ( self::core_order_ids( $wc_order_id ) as $core_id ) {
 			Orders::extend_hold( $core_id, $minutes );
 		}
 	}
 
-	/** Releases the hold and revokes valid tickets for cancelled or failed orders. */
+	/** Releases the hold(s) and revokes valid tickets for cancelled or failed orders. */
 	public static function sync_cancelled_order( $wc_order_id ) {
-		$core_id = self::core_order_id( $wc_order_id );
-		if ( $core_id ) {
+		foreach ( self::core_order_ids( $wc_order_id ) as $core_id ) {
 			Orders::cancel_order( $core_id, 'woocommerce_' . current_filter() );
 		}
 	}
@@ -705,24 +842,26 @@ final class OrderAdapter {
 	/**
 	 * Mirrors a WooCommerce refund into Pass Captain. Idempotent per refund.
 	 *
-	 * With core support (Refunds::record_external) the refund goes through the core refund ledger:
-	 * wpcap_refunds row, order refunded amount, refunded/revoked tickets, released capacity, credit
-	 * note and the wpcap_refund_completed hook. Without it only the refunded tickets are revoked.
+	 * With core support (Refunds::record_external) the refund goes through the core refund ledger of
+	 * every affected seller order: wpcap_refunds row, order refunded amount, refunded/revoked tickets,
+	 * released capacity, credit note (by the seller that issued the invoice) and the
+	 * wpcap_refund_completed hook. Without it only the refunded tickets are revoked.
 	 */
 	public static function sync_refund( $wc_order_id, $refund_id ) {
-		$core_id = self::core_order_id( $wc_order_id );
-		$refund  = wc_get_order( absint( $refund_id ) );
-		if ( ! $core_id || ! $refund || $refund->get_meta( self::REFUND_META, true ) ) {
-			return;
+		$core_ids = self::core_order_ids( $wc_order_id );
+		$refund   = wc_get_order( absint( $refund_id ) );
+		if ( ! $core_ids || ! $refund || $refund->get_meta( self::REFUND_META, true ) ) {
+			return true;
 		}
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
 		if ( $wc_order && self::can_record_refunds() ) {
-			self::record_refund( $wc_order, $refund, $core_id );
-			return;
+			return self::record_refund( $wc_order, $refund, $core_ids );
 		}
 		$revoked = 0;
 		$kept    = 0;
+		$owners  = self::type_owners( $core_ids );
 		foreach ( self::refund_type_quantities( $refund ) as $type_id => $qty ) {
+			$core_id  = $owners[ $type_id ] ?? $core_ids[0];
 			$done     = Orders::revoke_tickets( $core_id, $type_id, $qty, 'woocommerce_refund_' . $refund->get_id() );
 			$revoked += $done;
 			$kept    += $qty - $done;
@@ -730,16 +869,42 @@ final class OrderAdapter {
 		$refund->update_meta_data( self::REFUND_META, 1 );
 		$refund->save();
 		self::note_refund( $wc_order, $revoked, $kept );
+		return true;
 	}
 
-	/** Records a WooCommerce refund through the core refund ledger. */
-	private static function record_refund( $wc_order, $refund, $core_id ) {
+	/**
+	 * Filter wp_pass_captain_process_job_v1: retries a WooCommerce refund whose recording failed with a
+	 * retryable database error (idempotent: the refund meta and the core idempotency key prevent doubles).
+	 */
+	public static function handle_job( $handled, $type, $payload = array() ) {
+		if ( self::REFUND_SYNC_JOB !== $type ) {
+			return $handled;
+		}
+		$payload = (array) $payload;
+		return true === self::sync_refund( absint( $payload['wc_order_id'] ?? 0 ), absint( $payload['refund_id'] ?? 0 ) );
+	}
+
+	/**
+	 * Records a WooCommerce refund through the core refund ledger, once per affected seller order.
+	 *
+	 * @param int[] $core_ids Pass Captain orders of the WooCommerce order.
+	 * @return bool True when recorded (or nothing to record); false when a retry was queued or it failed for good.
+	 */
+	private static function record_refund( $wc_order, $refund, $core_ids ) {
 		global $wpdb;
-		$plan = self::refund_plan( $wc_order, $refund, $core_id );
-		if ( $plan['ticket_ids'] || $plan['amount_minor'] > 0 ) {
-			$ids   = implode( ',', array_map( 'absint', $plan['ticket_ids'] ) );
-			$valid = $ids ? (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id IN ($ids) AND status='valid'" ) : 0; // phpcs:ignore WordPress.DB
-			$reason = is_callable( array( $refund, 'get_reason' ) ) ? (string) $refund->get_reason() : '';
+		$plans     = self::refund_plans( $wc_order, $refund, (array) $core_ids );
+		$labels    = array_flip( self::seller_orders( $wc_order ) );
+		$reason    = is_callable( array( $refund, 'get_reason' ) ) ? (string) $refund->get_reason() : '';
+		$valid_all = 0;
+		$requested = 0;
+		$denied    = 0;
+		foreach ( $plans as $core_id => $plan ) {
+			$denied += $plan['denied_checked_in'];
+			if ( ! $plan['ticket_ids'] && $plan['amount_minor'] <= 0 ) {
+				continue;
+			}
+			$ids    = implode( ',', array_map( 'absint', $plan['ticket_ids'] ) );
+			$valid  = $ids ? (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id IN ($ids) AND status='valid'" ) : 0; // phpcs:ignore WordPress.DB
 			$result = call_user_func(
 				array( '\\PassCaptain\\Refunds', 'record_external' ),
 				$core_id,
@@ -753,17 +918,54 @@ final class OrderAdapter {
 				)
 			);
 			if ( is_wp_error( $result ) ) {
-				if ( $wc_order ) {
-					/* translators: %s: error message */
-					$wc_order->add_order_note( sprintf( __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s', 'pass-captain' ), $result->get_error_message() ) );
+				$data      = (array) $result->get_error_data();
+				$retryable = ! empty( $data['retryable'] );
+				if ( $retryable ) {
+					// Temporary database error: this seller order recorded nothing; the job queue repeats the
+					// sync (seller orders already recorded are skipped by their idempotency key).
+					\PassCaptain\Jobs::enqueue(
+						'woocommerce-refund-sync-' . $refund->get_id() . '-' . gmdate( 'YmdHi' ),
+						self::REFUND_SYNC_JOB,
+						array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund->get_id() ),
+						gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS )
+					);
 				}
-				return;
+				$note = $retryable
+					/* translators: %s: error message */
+					? __( 'Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht.', 'pass-captain' )
+					/* translators: %s: error message */
+					: __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s', 'pass-captain' );
+				$wc_order->add_order_note( sprintf( $note, $result->get_error_message() ) );
+				return false;
 			}
-			$requested = $plan['final'] ? count( $plan['ticket_ids'] ) : array_sum( $plan['quantities'] );
-			self::note_refund( $wc_order, $valid, max( 0, $requested - $valid ) );
+			if ( isset( $labels[ $core_id ] ) ) {
+				$wc_order->add_order_note(
+					sprintf(
+						/* translators: 1: seller order ID, 2: seller name, 3: amount, 4: ticket count */
+						__( 'Pass Captain: Erstattung für Bestellung #%1$d (%2$s): %3$s, %4$d Ticket(s).', 'pass-captain' ),
+						$core_id,
+						SalesModel::seller_name( $labels[ $core_id ] ),
+						number_format_i18n( (int) ( $result['amount_minor'] ?? $plan['amount_minor'] ) / ( 10 ** self::currency_decimals( $wc_order->get_currency() ) ), self::currency_decimals( $wc_order->get_currency() ) ) . ' ' . $wc_order->get_currency(),
+						count( $plan['ticket_ids'] )
+					)
+				);
+			}
+			$valid_all += $valid;
+			$requested += $plan['final'] ? count( $plan['ticket_ids'] ) : array_sum( $plan['quantities'] ) - $plan['denied_checked_in'];
+		}
+		self::note_refund( $wc_order, $valid_all, max( 0, $requested - $valid_all ) );
+		if ( $denied ) {
+			$wc_order->add_order_note(
+				sprintf(
+					/* translators: %d: ticket count */
+					__( 'Pass Captain: %d erstattete(s) Ticket(s) waren bereits eingecheckt und wurden laut Einstellung nicht als erstattet markiert; der Betrag wurde gebucht.', 'pass-captain' ),
+					$denied
+				)
+			);
 		}
 		$refund->update_meta_data( self::REFUND_META, 1 );
 		$refund->save();
+		return true;
 	}
 
 	/** Whether the core can record refunds executed outside Pass Captain. */
@@ -772,56 +974,248 @@ final class OrderAdapter {
 	}
 
 	/**
-	 * Works out what a WooCommerce refund means for the Pass Captain order.
-	 *
-	 * - Refunded ticket quantities select that many not yet refunded tickets of the type (valid
-	 *   tickets first, newest first; checked-in tickets are refunded but stay checked in).
-	 * - The amount is the refunded gross of the ticket lines. A refund without any line (amount
-	 *   only) is attributed to tickets in proportion of the ticket share of the WooCommerce order.
-	 * - The refund that leaves the WooCommerce order fully refunded covers all remaining tickets and
-	 *   the remaining amount, so the core order ends up exactly refunded.
-	 *
-	 * @return array{ticket_ids:int[], amount_minor:int, quantities:array<int,int>, final:bool}
+	 * Whether WooCommerce refunds may refund checked-in tickets. Uses the core setting
+	 * `refund_after_checkin` when it exists, otherwise the WooCommerce option (default: no). Filter
+	 * `wpcap_woocommerce_refund_checked_in` (bool $allowed, WC_Order|null $wc_order).
 	 */
-	public static function refund_plan( $wc_order, $refund, $core_id ) {
-		global $wpdb;
-		$p          = $wpdb->prefix;
-		$core       = Orders::get( $core_id );
-		$plan       = array( 'ticket_ids' => array(), 'amount_minor' => 0, 'quantities' => array(), 'final' => false );
-		if ( ! $core ) {
-			return $plan;
+	public static function checked_in_refund_allowed( $wc_order = null ) {
+		$core    = \PassCaptain\Settings::get( 'refund_after_checkin' );
+		$allowed = null !== $core && '' !== $core
+			? in_array( $core, array( true, 1, '1', 'yes', 'allow' ), true )
+			: 'yes' === get_option( self::CHECKED_IN_OPTION, 'no' );
+		return (bool) apply_filters( 'wpcap_woocommerce_refund_checked_in', $allowed, $wc_order );
+	}
+
+	/**
+	 * Action woocommerce_create_refund (inside wc_create_refund(), before the refund is saved and before
+	 * the gateway pays out): refuses a refund whose quantities can only be served by checked-in tickets
+	 * while refunding checked-in tickets is not allowed. WooCommerce turns the exception into an error
+	 * shown in the refund dialog; nothing is refunded. Amount-only refunds are never refused.
+	 *
+	 * @param object $refund WC_Order_Refund being created.
+	 * @param array  $args   wc_create_refund() arguments (order_id, line_items[item_id][qty]).
+	 * @throws \Exception When the refund would need checked-in tickets.
+	 */
+	public static function guard_refund( $refund, $args = array() ) {
+		$args     = (array) $args;
+		$order_id = absint( $args['order_id'] ?? ( is_object( $refund ) && is_callable( array( $refund, 'get_parent_id' ) ) ? $refund->get_parent_id() : 0 ) );
+		$wc_order = $order_id ? wc_get_order( $order_id ) : null;
+		$core_ids = $wc_order ? self::core_order_ids( $wc_order ) : array();
+		if ( ! $core_ids || self::checked_in_refund_allowed( $wc_order ) ) {
+			return;
 		}
-		$factor     = 10 ** self::currency_decimals( $wc_order->get_currency() );
-		$remaining  = max( 0, (int) $core->total_minor - (int) $core->refunded_minor );
-		$quantities = self::refund_type_quantities( $refund );
-		$amount     = 0;
-		$has_lines  = false;
-		foreach ( $refund->get_items( array( 'line_item', 'fee', 'shipping' ) ) as $refund_item ) {
-			$has_lines = true;
-			if ( ! is_callable( array( $refund_item, 'get_total' ) ) || ! self::refund_item_type_id( $refund_item ) ) {
+		$quantities = array();
+		foreach ( (array) ( $args['line_items'] ?? array() ) as $item_id => $line ) {
+			$qty  = absint( is_array( $line ) ? ( $line['qty'] ?? 0 ) : 0 );
+			$item = $qty ? \WC_Order_Factory::get_order_item( absint( $item_id ) ) : null;
+			$type = $item ? self::item_ticket_type_id( $item ) : 0;
+			if ( $type ) {
+				$quantities[ $type ] = ( $quantities[ $type ] ?? 0 ) + $qty;
+			}
+		}
+		$owners = self::type_owners( $core_ids );
+		foreach ( $quantities as $type_id => $qty ) {
+			$core_id = $owners[ $type_id ] ?? 0;
+			if ( ! $core_id ) {
 				continue;
 			}
-			$amount += (int) round( abs( (float) $refund_item->get_total() + (float) $refund_item->get_total_tax() ) * $factor );
+			$open    = self::refundable_tickets( $core_id, $type_id );
+			$usable  = count( array_filter( $open, static function ( $t ) {
+				return 'checked_in' !== $t['status'];
+			} ) );
+			if ( $qty > $usable && count( $open ) > $usable ) {
+				$type = self::ticket_type( $type_id );
+				$name = $type ? sprintf( '%s – %s', $type->event_name, $type->name ) : '#' . $type_id;
+				throw new \Exception(
+					esc_html(
+						sprintf(
+							/* translators: 1: event and ticket name, 2: number of tickets that can be refunded */
+							__( 'Pass Captain: Für „%1$s“ können nur %2$d nicht eingecheckte Tickets erstattet werden. Eingecheckte Tickets werden laut Einstellung nicht erstattet. Erstatte nur einen Betrag ohne Menge oder erlaube die Erstattung eingecheckter Tickets unter WooCommerce → Einstellungen → Produkte → Pass Captain.', 'pass-captain' ),
+							$name,
+							$usable
+						)
+					)
+				);
+			}
+		}
+	}
+
+	/**
+	 * Works out what a WooCommerce refund means for one Pass Captain order of the WooCommerce order.
+	 * Kept for single-order callers; see refund_plans() for the rules.
+	 *
+	 * @return array{ticket_ids:int[], amount_minor:int, quantities:array<int,int>, final:bool, denied_checked_in:int}
+	 */
+	public static function refund_plan( $wc_order, $refund, $core_id ) {
+		$core_ids = self::core_order_ids( $wc_order );
+		$plans    = self::refund_plans( $wc_order, $refund, $core_ids ? $core_ids : array( $core_id ) );
+		return $plans[ absint( $core_id ) ] ?? array( 'ticket_ids' => array(), 'amount_minor' => 0, 'quantities' => array(), 'final' => false, 'denied_checked_in' => 0 );
+	}
+
+	/**
+	 * Maps a WooCommerce refund to the Pass Captain (seller) orders of the WooCommerce order.
+	 *
+	 * - Refund lines: each refunded ticket line belongs to the seller order that holds its ticket type.
+	 *   Its quantity selects that many not yet refunded tickets there (valid first, then tickets revoked
+	 *   by an event/occurrence cancellation, checked-in tickets last and only when allowed; newest first);
+	 *   its gross amount (total + tax) goes to that seller order. Fee and shipping refunds stay with the shop.
+	 * - Amount-only refund (no lines): the ticket share is refund × (sum of seller order totals / WooCommerce
+	 *   order total), distributed over the seller orders in proportion to their remaining refundable
+	 *   amount (largest remainder, seller order sequence breaks ties). No tickets are refunded.
+	 * - The refund that leaves the WooCommerce order fully refunded covers all remaining (allowed) tickets
+	 *   and the remaining amount of every seller order, so each ends up exactly refunded.
+	 * - Every amount is capped at the seller order's remaining amount. Checked-in tickets that a quantity
+	 *   would need while not allowed are counted in denied_checked_in (the amount is still booked).
+	 *
+	 * @param int[] $core_ids Pass Captain orders of the WooCommerce order.
+	 * @return array<int,array{ticket_ids:int[], amount_minor:int, quantities:array<int,int>, final:bool, denied_checked_in:int}>
+	 */
+	public static function refund_plans( $wc_order, $refund, array $core_ids ) {
+		$plans = array();
+		$cores = array();
+		foreach ( array_map( 'absint', $core_ids ) as $core_id ) {
+			$core = Orders::get( $core_id );
+			if ( $core ) {
+				$cores[ $core_id ] = $core;
+				$plans[ $core_id ] = array( 'ticket_ids' => array(), 'amount_minor' => 0, 'quantities' => array(), 'final' => false, 'denied_checked_in' => 0 );
+			}
+		}
+		if ( ! $cores ) {
+			return $plans;
+		}
+		$factor    = 10 ** self::currency_decimals( $wc_order->get_currency() );
+		$remaining = array();
+		foreach ( $cores as $core_id => $core ) {
+			$remaining[ $core_id ] = max( 0, (int) $core->total_minor - (int) $core->refunded_minor );
+		}
+		$owners  = self::type_owners( array_keys( $cores ) );
+		$allowed = self::checked_in_refund_allowed( $wc_order );
+		$amounts = array_fill_keys( array_keys( $cores ), 0 );
+		$lines   = false;
+		foreach ( $refund->get_items( array( 'line_item', 'fee', 'shipping' ) ) as $refund_item ) {
+			$lines = true;
+			if ( 'line_item' !== SellerSplit::item_kind( $refund_item ) || ! is_callable( array( $refund_item, 'get_total' ) ) ) {
+				continue;
+			}
+			$type_id = self::refund_item_type_id( $refund_item );
+			$core_id = $type_id ? ( $owners[ $type_id ] ?? 0 ) : 0;
+			if ( $core_id ) {
+				$amounts[ $core_id ] += (int) round( abs( (float) $refund_item->get_total() + (float) $refund_item->get_total_tax() ) * $factor );
+			}
 		}
 		if ( self::is_final_refund( $wc_order, $refund ) ) {
-			$plan['final']        = true;
-			$plan['ticket_ids']   = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0 AND status IN ('valid','checked_in') ORDER BY ticket_id", $core_id ) ) ); // phpcs:ignore WordPress.DB
-			$plan['amount_minor'] = $remaining;
-			$plan['quantities']   = $quantities;
-			return $plan;
+			foreach ( $cores as $core_id => $core ) {
+				$open = self::refundable_tickets( $core_id );
+				$plans[ $core_id ]['final'] = true;
+				foreach ( $open as $ticket ) {
+					if ( 'checked_in' === $ticket['status'] && ! $allowed ) {
+						++$plans[ $core_id ]['denied_checked_in'];
+						continue;
+					}
+					$plans[ $core_id ]['ticket_ids'][] = $ticket['ticket_id'];
+				}
+				sort( $plans[ $core_id ]['ticket_ids'] );
+				$plans[ $core_id ]['amount_minor'] = $remaining[ $core_id ];
+			}
+			foreach ( self::refund_type_quantities( $refund ) as $type_id => $qty ) {
+				$core_id = $owners[ $type_id ] ?? 0;
+				if ( $core_id ) {
+					$plans[ $core_id ]['quantities'][ $type_id ] = $qty;
+				}
+			}
+			return $plans;
 		}
-		if ( ! $has_lines ) {
+		if ( ! $lines ) {
 			$refunded = is_callable( array( $refund, 'get_amount' ) ) ? (int) round( abs( (float) $refund->get_amount() ) * $factor ) : 0;
 			$wc_total = is_callable( array( $wc_order, 'get_total' ) ) ? (int) round( (float) $wc_order->get_total() * $factor ) : 0;
-			$amount   = $wc_total > 0 ? (int) round( $refunded * min( 1, (int) $core->total_minor / $wc_total ) ) : 0;
+			$cores_total = array_sum( array_map( static function ( $core ) {
+				return (int) $core->total_minor;
+			}, $cores ) );
+			$share   = $wc_total > 0 ? (int) round( $refunded * min( 1, $cores_total / $wc_total ) ) : 0;
+			$amounts = SellerSplit::distribute_refund( $share, $remaining );
 		}
-		foreach ( $quantities as $type_id => $qty ) {
-			$ids = $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND ticket_type_id=%d AND refunded=0 AND status IN ('valid','checked_in') ORDER BY (status='valid') DESC, ticket_id DESC LIMIT %d", $core_id, $type_id, $qty ) ); // phpcs:ignore WordPress.DB
-			$plan['ticket_ids'] = array_merge( $plan['ticket_ids'], array_map( 'intval', $ids ) );
+		foreach ( self::refund_type_quantities( $refund ) as $type_id => $qty ) {
+			$core_id = $owners[ $type_id ] ?? 0;
+			if ( ! $core_id ) {
+				continue;
+			}
+			$plans[ $core_id ]['quantities'][ $type_id ] = $qty;
+			$picked = 0;
+			foreach ( self::refundable_tickets( $core_id, $type_id ) as $ticket ) {
+				if ( $picked >= $qty ) {
+					break;
+				}
+				if ( 'checked_in' === $ticket['status'] && ! $allowed ) {
+					++$plans[ $core_id ]['denied_checked_in'];
+					++$picked;
+					continue;
+				}
+				$plans[ $core_id ]['ticket_ids'][] = $ticket['ticket_id'];
+				++$picked;
+			}
 		}
-		$plan['quantities']   = $quantities;
-		$plan['amount_minor'] = min( $remaining, $amount );
-		return $plan;
+		foreach ( $cores as $core_id => $core ) {
+			$plans[ $core_id ]['amount_minor'] = min( $remaining[ $core_id ], (int) ( $amounts[ $core_id ] ?? 0 ) );
+		}
+		return $plans;
+	}
+
+	/**
+	 * Not yet refunded tickets of a Pass Captain order (Orders::refundable_tickets(): valid, checked in,
+	 * or revoked by a cancellation) with their status, in refund order: valid first, then revoked by a
+	 * cancellation, then checked in; newest first within each group.
+	 *
+	 * @return array<int,array{ticket_id:int,ticket_type_id:int,status:string}>
+	 */
+	private static function refundable_tickets( $core_id, $type_id = 0 ) {
+		global $wpdb;
+		$rows = Orders::refundable_tickets( $core_id );
+		$ids  = array();
+		foreach ( $rows as $row ) {
+			if ( ! $type_id || (int) $row->ticket_type_id === (int) $type_id ) {
+				$ids[ (int) $row->ticket_id ] = (int) $row->ticket_type_id;
+			}
+		}
+		if ( ! $ids ) {
+			return array();
+		}
+		$in       = implode( ',', array_keys( $ids ) );
+		$statuses = $wpdb->get_results( "SELECT ticket_id,status FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id IN ($in)" ); // phpcs:ignore WordPress.DB
+		$out      = array();
+		$rank     = array( 'valid' => 0, 'revoked' => 1, 'checked_in' => 2 );
+		foreach ( (array) $statuses as $row ) {
+			$out[] = array( 'ticket_id' => (int) $row->ticket_id, 'ticket_type_id' => $ids[ (int) $row->ticket_id ], 'status' => (string) $row->status );
+		}
+		usort( $out, static function ( $a, $b ) use ( $rank ) {
+			return array( $rank[ $a['status'] ] ?? 3, $b['ticket_id'] ) <=> array( $rank[ $b['status'] ] ?? 3, $a['ticket_id'] );
+		} );
+		return $out;
+	}
+
+	/**
+	 * Which Pass Captain order holds a ticket type (split orders have each type in exactly one order).
+	 *
+	 * @param int[] $core_ids Pass Captain orders.
+	 * @return array<int,int> ticket type ID => core order ID (first order wins).
+	 */
+	private static function type_owners( array $core_ids ) {
+		global $wpdb;
+		$core_ids = array_values( array_filter( array_map( 'absint', $core_ids ) ) );
+		if ( ! $core_ids ) {
+			return array();
+		}
+		$owners = array();
+		$rows   = $wpdb->get_results( "SELECT order_id,ticket_type_id FROM {$wpdb->prefix}wpcap_order_items WHERE order_id IN (" . implode( ',', $core_ids ) . ') ORDER BY item_id' ); // phpcs:ignore WordPress.DB
+		$order  = array_flip( $core_ids );
+		usort( $rows, static function ( $a, $b ) use ( $order ) {
+			return ( $order[ (int) $a->order_id ] ?? 0 ) <=> ( $order[ (int) $b->order_id ] ?? 0 );
+		} );
+		foreach ( (array) $rows as $row ) {
+			if ( ! isset( $owners[ (int) $row->ticket_type_id ] ) ) {
+				$owners[ (int) $row->ticket_type_id ] = (int) $row->order_id;
+			}
+		}
+		return $owners;
 	}
 
 	/** Refunded ticket quantities per ticket type of a WooCommerce refund. */
@@ -883,8 +1277,8 @@ final class OrderAdapter {
 	 * woocommerce_order_refunded), then mark the core order refunded and revoke remaining tickets.
 	 */
 	public static function sync_fully_refunded_order( $wc_order_id ) {
-		$core_id = self::core_order_id( $wc_order_id );
-		if ( ! $core_id ) {
+		$core_ids = self::core_order_ids( $wc_order_id );
+		if ( ! $core_ids ) {
 			return;
 		}
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
@@ -893,22 +1287,51 @@ final class OrderAdapter {
 				self::sync_refund( $wc_order_id, $refund->get_id() );
 			}
 		}
-		Orders::mark_refunded( $core_id, 'woocommerce_refunded' );
+		foreach ( $core_ids as $core_id ) {
+			$result = Orders::mark_refunded( $core_id, 'woocommerce_refunded' );
+			if ( is_wp_error( $result ) ) {
+				// Database error: nothing changed in Pass Captain; log it, queue a retry and tell the shop admin.
+				\PassCaptain\Refunds::schedule_order_state( $core_id, 'woocommerce_refunded', $result->get_error_message() );
+				if ( $wc_order ) {
+					$wc_order->add_order_note( __( 'Pass Captain: Die Tickets konnten wegen eines Datenbankfehlers noch nicht widerrufen werden. Der Vorgang wird automatisch wiederholt.', 'pass-captain' ) );
+				}
+			}
+		}
 	}
 
 	/** Adds a note to the WooCommerce order when one of its occurrences was cancelled. */
 	public static function note_cancelled_occurrence( $core_order_id, $occurrence_id ) {
-		if ( ! function_exists( 'wc_get_orders' ) ) { return; }
-		$orders = wc_get_orders( array( 'limit' => 1, 'meta_key' => self::ORDER_META, 'meta_value' => absint( $core_order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
-		if ( $orders ) {
-			$orders[0]->add_order_note( __( 'Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten.', 'pass-captain' ) );
+		$wc_order = self::wc_order_for_core( $core_order_id );
+		if ( ! $wc_order ) {
+			return;
 		}
+		$seller = array_search( absint( $core_order_id ), self::seller_orders( $wc_order ), true );
+		if ( false !== $seller ) {
+			$wc_order->add_order_note(
+				sprintf(
+					/* translators: 1: seller order ID, 2: seller name */
+					__( 'Pass Captain: Ein Termin der Bestellung #%1$d (%2$s) wurde abgesagt; die Tickets sind widerrufen. Bitte diese Positionen in WooCommerce mit Menge erstatten – die Erstattung wird dieser Bestellung zugeordnet.', 'pass-captain' ),
+					absint( $core_order_id ),
+					SalesModel::seller_name( $seller )
+				)
+			);
+			return;
+		}
+		$wc_order->add_order_note( __( 'Pass Captain: Ein Termin dieser Bestellung wurde abgesagt; die Tickets sind widerrufen. Bitte die Bestellung in WooCommerce erstatten.', 'pass-captain' ) );
 	}
 
-	/** Returns the linked core order ID. */
-	private static function core_order_id( $wc_order_id ) {
-		$wc_order = wc_get_order( absint( $wc_order_id ) );
-		return $wc_order ? absint( $wc_order->get_meta( self::ORDER_META, true ) ) : 0;
+	/** WooCommerce order of a Pass Captain order (single order or one seller order of a split order). */
+	public static function wc_order_for_core( $core_order_id ) {
+		if ( ! function_exists( 'wc_get_orders' ) ) {
+			return null;
+		}
+		foreach ( array( self::ORDER_META, SellerSplit::LOOKUP_META ) as $key ) {
+			$orders = wc_get_orders( array( 'limit' => 1, 'meta_key' => $key, 'meta_value' => absint( $core_order_id ) ) ); // phpcs:ignore WordPress.DB.SlowDBQuery
+			if ( $orders ) {
+				return $orders[0];
+			}
+		}
+		return null;
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -917,11 +1340,14 @@ final class OrderAdapter {
 
 	/** Lists tickets on the thank-you page and in "My Account → Orders". */
 	public static function render_customer_tickets( $wc_order ) {
-		$core_id = $wc_order instanceof \WC_Order ? absint( $wc_order->get_meta( self::ORDER_META, true ) ) : 0;
-		if ( ! $core_id ) {
+		$core_ids = $wc_order instanceof \WC_Order ? self::core_order_ids( $wc_order ) : array();
+		if ( ! $core_ids ) {
 			return;
 		}
-		$tickets = Orders::tickets_for_order( $core_id );
+		$tickets = array();
+		foreach ( $core_ids as $core_id ) {
+			$tickets = array_merge( $tickets, Orders::tickets_for_order( $core_id ) );
+		}
 		echo '<section class="wpcap-woo-tickets"><h2>' . esc_html__( 'Deine Tickets', 'pass-captain' ) . '</h2>';
 		if ( ! $tickets ) {
 			echo '<p>' . esc_html__( 'Deine Tickets werden nach bestätigter Zahlung per E-Mail zugestellt.', 'pass-captain' ) . '</p></section>';
@@ -946,22 +1372,30 @@ final class OrderAdapter {
 	/** Renders the admin meta box. */
 	public static function render_meta_box( $post_or_order ) {
 		$wc_order = $post_or_order instanceof \WC_Order ? $post_or_order : wc_get_order( $post_or_order->ID ?? 0 );
-		$core_id  = $wc_order ? absint( $wc_order->get_meta( self::ORDER_META, true ) ) : 0;
-		if ( ! $core_id ) {
+		$core_ids = $wc_order ? self::core_order_ids( $wc_order ) : array();
+		if ( ! $core_ids ) {
 			echo '<p>' . esc_html__( 'Keine Tickets in dieser Bestellung.', 'pass-captain' ) . '</p>';
 			return;
 		}
-		$core = Orders::get( $core_id );
-		if ( $core ) {
-			/* translators: 1: order ID, 2: status, 3: payment status */
-			echo '<p>' . esc_html( sprintf( __( 'Pass Captain Bestellung #%1$d: %2$s / %3$s', 'pass-captain' ), $core_id, $core->status, $core->payment_status ) ) . '</p>';
-			if ( 'needs_review' === $core->status ) {
-				echo '<p><strong>' . esc_html__( 'Zahlung eingegangen, aber kein Kontingent mehr frei. Bitte Platz freigeben und „Tickets erneut ausstellen“ wählen oder erstatten.', 'pass-captain' ) . '</strong></p>';
+		$sellers = array_flip( self::seller_orders( $wc_order ) );
+		foreach ( $core_ids as $core_id ) {
+			$core = Orders::get( $core_id );
+			if ( $core ) {
+				/* translators: 1: order ID, 2: status, 3: payment status */
+				echo '<p>' . esc_html( sprintf( __( 'Pass Captain Bestellung #%1$d: %2$s / %3$s', 'pass-captain' ), $core_id, $core->status, $core->payment_status ) );
+				if ( isset( $sellers[ $core_id ] ) ) {
+					/* translators: %s: seller name */
+					echo '<br>' . esc_html( sprintf( __( 'Rechnungssteller: %s', 'pass-captain' ), SalesModel::seller_name( $sellers[ $core_id ] ) ) );
+				}
+				echo '</p>';
+				if ( 'needs_review' === $core->status ) {
+					echo '<p><strong>' . esc_html__( 'Zahlung eingegangen, aber kein Kontingent mehr frei. Bitte Platz freigeben und „Tickets erneut ausstellen“ wählen oder erstatten.', 'pass-captain' ) . '</strong></p>';
+				}
 			}
-		}
-		$tickets = Orders::tickets_for_order( $core_id );
-		if ( $tickets ) {
-			self::render_ticket_table( $tickets );
+			$tickets = Orders::tickets_for_order( $core_id );
+			if ( $tickets ) {
+				self::render_ticket_table( $tickets );
+			}
 		}
 	}
 
@@ -979,7 +1413,11 @@ final class OrderAdapter {
 		if ( ! current_user_can( 'wpcap_manage_orders' ) ) {
 			return;
 		}
-		$result = Orders::resend_tickets( absint( $wc_order->get_meta( self::ORDER_META, true ) ) );
+		$result = true;
+		foreach ( self::core_order_ids( $wc_order ) as $core_id ) {
+			$sent   = Orders::resend_tickets( $core_id );
+			$result = is_wp_error( $sent ) ? $sent : $result;
+		}
 		$wc_order->add_order_note( is_wp_error( $result ) ? sprintf( /* translators: %s: error */ __( 'Pass Captain: Erneuter Versand fehlgeschlagen – %s', 'pass-captain' ), $result->get_error_message() ) : __( 'Pass Captain: Tickets mit neuen Codes erneut gesendet.', 'pass-captain' ) );
 	}
 

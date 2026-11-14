@@ -35,6 +35,8 @@ global $wpdb;
 $p = $wpdb->prefix;
 $GLOBALS['wpcap_test_user_id'] = 1;
 $GLOBALS['wpcap_test_denied_caps'] = array();
+// Claims left "processing" by an injected crash are retried at once here, not after the 3 s wait.
+$GLOBALS['wpcap_test_filters']['wpcap_webhook_claim_wait_ms'] = 0;
 
 /**
  * Runs a fault matrix over one flow.
@@ -418,3 +420,4 @@ $GLOBALS['wpcap_test_user_id'] = 1;
 
 // Leave nothing due for later queue tests.
 $wpdb->query( "UPDATE {$p}wpcap_jobs SET status='complete' WHERE job_type IN ('ticket_issue','ticket_delivery') AND status='queued'" );
+unset( $GLOBALS['wpcap_test_filters']['wpcap_webhook_claim_wait_ms'] );

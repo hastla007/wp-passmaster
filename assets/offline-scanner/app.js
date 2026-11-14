@@ -10,8 +10,10 @@
  *   idempotency key. Pending scans are uploaded via POST /app/scan/sync; conflicts are shown.
  *
  * i18n: t() looks UI texts up by their German source text in a table from GET /app/offline/i18n
- * (locale + translations via the plugin's text domain). The table is kept in IndexedDB so the app is
- * translated offline too; without a table the German source texts are shown.
+ * (locale + translations via the plugin's text domain). The app asks for the device languages
+ * (navigator.languages, ?locale=); the server answers with the first one it has a translation for,
+ * otherwise the site language. The table is kept in IndexedDB so the app is translated offline too;
+ * without a table the German source texts are shown.
  *
  * Security: the API must be same-origin (also enforced by the page CSP). All server/package text is
  * rendered with textContent. Ticket codes are kept only until the scan is synced.
@@ -658,13 +660,22 @@
 		setNet();
 	}
 
+	/** Preferred device languages as a comma separated list of BCP 47 tags (best first, max. 6). */
+	function preferredLocales() {
+		var list = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ''];
+		return Array.prototype.slice.call(list, 0, 6).filter(function (tag) {
+			return typeof tag === 'string' && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(tag);
+		}).join(',');
+	}
+
 	/**
-	 * Fetches the table (public endpoint, no token) and keeps it in IndexedDB for offline starts.
-	 * Offline or on errors the stored table (or the German source texts) stays in use.
+	 * Fetches the table in the device language (public endpoint, no token) and keeps it in IndexedDB
+	 * for offline starts. Offline or on errors the stored table (or the German source texts) stays in use.
 	 */
 	function loadI18n() {
 		if (navigator.onLine === false) { return Promise.resolve(); }
-		return fetch(endpoint('offline/i18n'), { headers: { 'Accept': 'application/json' }, credentials: 'omit', cache: 'no-cache' }).then(function (res) {
+		var prefs = preferredLocales();
+		return fetch(endpoint('offline/i18n', prefs ? 'locale=' + encodeURIComponent(prefs) : ''), { headers: { 'Accept': 'application/json' }, credentials: 'omit', cache: 'no-cache' }).then(function (res) {
 			return res.ok ? res.json() : null;
 		}).then(function (table) {
 			if (!validI18n(table) || JSON.stringify(table) === JSON.stringify(state.i18n)) { return; }
@@ -749,7 +760,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { t: t, fmtTime: fmtTime, normalizeCode: normalizeCode, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll };
+	window.wpcapOffline = { t: t, fmtTime: fmtTime, normalizeCode: normalizeCode, verifyDoc: verifyDoc, buildIndex: buildIndex, loadPackage: loadPackage, packageStatus: packageStatus, decideOffline: decideOffline, validI18n: validI18n, applyI18n: applyI18n, handleScan: handleScan, pair: pair, state: state, syncNow: syncNow, refreshAll: refreshAll };
 
 	boot();
 }());

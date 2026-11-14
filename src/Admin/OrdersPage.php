@@ -10,6 +10,8 @@ namespace PassCaptain\Admin;
 
 use PassCaptain\Orders;
 use PassCaptain\Refunds;
+use PassCaptain\Security\AuditTrail;
+use PassCaptain\Security\DataPolicy;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -265,7 +267,7 @@ final class OrdersPage {
 				<tr>
 					<td><a href="<?php echo esc_url( self::order_url( $order->order_id ) ); ?>"><code><?php echo esc_html( substr( $order->public_id, 0, 12 ) ); ?>…</code></a></td>
 					<td><?php echo esc_html( Forms::datetime( $order->created_at, wp_timezone_string(), false ) ); ?></td>
-					<td><?php echo esc_html( $order->customer_email ); ?></td>
+					<td><?php echo esc_html( DataPolicy::masks_pii( (int) $order->order_id ) ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ); ?></td>
 					<td><?php echo esc_html( (string) $order->event_names ); ?></td>
 					<td><?php echo esc_html( Forms::money( $order->total_minor, $order->currency ) ); ?><?php if ( (int) $order->refunded_minor ) : ?><br><small><?php echo esc_html( sprintf( /* translators: %s: amount */ __( 'erstattet: %s', 'pass-captain' ), Forms::money( $order->refunded_minor, $order->currency ) ) ); ?></small><?php endif; ?></td>
 					<td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td>
@@ -294,7 +296,10 @@ final class OrdersPage {
 			return;
 		}
 		$items = Queries::order_items( $order_id );
-		$tickets = Queries::order_tickets( $order_id );
+		// Data minimisation (support sees masked personal data until a per-case unmask) and read audit.
+		$masked = DataPolicy::masks_pii( $order_id );
+		$tickets = array_map( static function ( $ticket ) use ( $order_id ) { return DataPolicy::ticket_view( $ticket, $order_id ); }, Queries::order_tickets( $order_id ) );
+		AuditTrail::read( 'order_detail', 'order', $order_id, array( 'masked' => $masked ) );
 		$refunds = Refunds::for_order( $order_id );
 		$is_woo = 'woocommerce' === $order->payment_provider;
 		$currency = $order->currency;
@@ -327,9 +332,16 @@ final class OrdersPage {
 
 		<table class="form-table"><tbody>
 			<tr><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::status_label( $order->status ) . ' / ' . Forms::status_label( $order->payment_status ) ); ?></td></tr>
-			<tr><th><?php esc_html_e( 'Käufer', 'pass-captain' ); ?></th><td><?php echo esc_html( $order->customer_email ); ?></td></tr>
-			<?php $billing = \PassCaptain\Billing::for_order( $order ); ?>
-			<tr><th><?php esc_html_e( 'Rechnungsdaten', 'pass-captain' ); ?></th><td class="wpcap-order-billing"><?php echo $billing ? implode( '<br>', array_map( 'esc_html', array_merge( \PassCaptain\Billing::address_lines( $billing ), \PassCaptain\Billing::detail_lines( $billing ) ) ) ) : esc_html__( 'Keine (Rechnung nur mit E-Mail-Adresse)', 'pass-captain' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each line escaped. ?></td></tr>
+			<tr><th><?php esc_html_e( 'Käufer', 'pass-captain' ); ?></th><td><?php echo esc_html( $masked ? DataPolicy::mask_email( $order->customer_email ) : $order->customer_email ); ?>
+				<?php if ( $masked ) : ?>
+					<?php Forms::open_form( SecurityScreens::UNMASK_ACTION, SecurityScreens::UNMASK_ACTION . '_' . (int) $order_id, 'style="margin-top:.5em"' ); Forms::hidden( 'order_id', (int) $order_id ); ?>
+					<label><?php esc_html_e( 'Grund / Supportfall', 'pass-captain' ); ?> <input type="text" name="reason" required minlength="5" maxlength="190"></label>
+					<button class="button button-small" type="submit"><?php esc_html_e( 'Daten für diesen Fall anzeigen (wird protokolliert)', 'pass-captain' ); ?></button>
+					</form>
+				<?php endif; ?>
+			</td></tr>
+			<?php $billing = $masked ? array() : \PassCaptain\Billing::for_order( $order ); ?>
+			<tr><th><?php esc_html_e( 'Rechnungsdaten', 'pass-captain' ); ?></th><td class="wpcap-order-billing"><?php echo $masked ? esc_html__( 'Maskiert', 'pass-captain' ) : ( $billing ? implode( '<br>', array_map( 'esc_html', array_merge( \PassCaptain\Billing::address_lines( $billing ), \PassCaptain\Billing::detail_lines( $billing ) ) ) ) : esc_html__( 'Keine (Rechnung nur mit E-Mail-Adresse)', 'pass-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each line escaped. ?></td></tr>
 			<tr><th><?php esc_html_e( 'Angelegt', 'pass-captain' ); ?></th><td><?php echo esc_html( Forms::datetime( $order->created_at, $tz ) ); ?></td></tr>
 			<tr><th><?php esc_html_e( 'Zahlart / Referenz', 'pass-captain' ); ?></th><td><?php echo esc_html( $order->payment_provider . ( '' !== (string) $order->provider_reference ? ' / ' . $order->provider_reference : '' ) ); ?></td></tr>
 			<?php

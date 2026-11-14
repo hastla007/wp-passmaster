@@ -1,6 +1,8 @@
 /* Pass Captain box office: running total, change, participant fields and live availability (no dependencies). */
 (function () {
 	'use strict';
+	// Test hook for tests/js (node:test); `module` does not exist in the browser, so this is a no-op there.
+	if (typeof module === 'object' && module && module.exports) { module.exports = { money: money, parseMoney: parseMoney }; }
 	var form = document.getElementById('wpcap-pos-form');
 	if (!form) { return; }
 	var totalEl = document.getElementById('wpcap-pos-total');

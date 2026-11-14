@@ -48,10 +48,11 @@ final class TicketAssignments {
 		if ( $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_assignment_failed', __( 'Teilnehmerdaten konnten nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		if ( is_array( $answers ) ) {
 			$type_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", $ticket->ticket_id ) );
-			$valid = Orders::validate_attendees( array( $type_id => 1 ), array( array( 'ticket_type_id' => $type_id, 'answers' => $answers ) ) );
+			// Consent fields are not edited here (logged consent, withdrawal in the portal): Sales\Consents.
+			$valid = Orders::validate_attendees( array( $type_id => 1 ), array( array( 'ticket_type_id' => $type_id, 'answers' => Sales\Consents::portal_answers( $type_id, $answers ) ) ) );
 			if ( is_wp_error( $valid ) ) { $wpdb->query( 'ROLLBACK' ); return $valid; }
 			$now = current_time( 'mysql', true );
-			foreach ( (array) ( $valid[0]['answers'] ?? array() ) as $field_id => $value ) {
+			foreach ( Sales\Consents::without_consent_answers( $type_id, (array) ( $valid[0]['answers'] ?? array() ) ) as $field_id => $value ) {
 				$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE answer=VALUES(answer),updated_at=VALUES(updated_at)", $ticket->ticket_id, absint( $field_id ), (string) $value, $now, $now ) );
 			}
 		}

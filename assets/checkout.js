@@ -30,7 +30,7 @@
 		return node.id;
 	}
 	function fieldInput(field, id) {
-		const type = field.type === 'email' ? 'email' : (field.type === 'checkbox' ? 'checkbox' : 'text');
+		const type = field.type === 'email' ? 'email' : ((field.type === 'checkbox' || field.type === 'consent') ? 'checkbox' : 'text');
 		const input = field.type === 'textarea' ? el('textarea', { id: id, 'data-key': field.key }) : el('input', { id: id, type: type, 'data-key': field.key });
 		if (Number(field.required)) input.required = true;
 		if (type === 'checkbox') input.value = '1';
@@ -61,6 +61,7 @@
 					const id = base + '-f' + index;
 					fs.appendChild(el('label', { for: id }, field.label + (Number(field.required) ? ' *' : '')));
 					fs.appendChild(fieldInput(field, id));
+					if (field.type === 'consent' && field.consent_text) fs.appendChild(el('small', { class: 'wpcap-consent-text' }, field.consent_text + (field.consent_version ? ' (' + field.consent_version + ')' : '')));
 					if (field.purpose) fs.appendChild(el('small', {}, field.purpose));
 				});
 				box.appendChild(fs);
@@ -342,6 +343,8 @@
 		const extra = {};
 		const billing = billingPayload(form);
 		if (billing) extra.billing = billing;
+		const locale = form.querySelector('[name="locale"]');
+		if (locale && locale.value) extra.locale = locale.value;
 		// Modules (e.g. seat selection) add fields here; they may set detail.error (and detail.field) to block submission.
 		const hook = new CustomEvent('wpcap:checkout-payload', { detail: { form: form, items: items, payload: extra, error: '', field: null } });
 		document.dispatchEvent(hook);
@@ -399,4 +402,6 @@
 			if (!done && hadFocus && (!document.activeElement || document.activeElement === document.body)) button.focus();
 		}
 	});
+	// Test hook for tests/js (node:test); `module` does not exist in the browser, so this is a no-op there.
+	if (typeof module === 'object' && module && module.exports) { module.exports = { holdText: holdText, fill: fill, money: money, renderAttendees: renderAttendees, renderEstimate: renderEstimate, labelText: labelText, validate: validate, showErrors: showErrors, clearErrors: clearErrors, serverErrorField: serverErrorField, billingPayload: billingPayload }; }
 })();

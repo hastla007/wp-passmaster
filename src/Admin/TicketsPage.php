@@ -80,7 +80,7 @@ final class TicketsPage {
 	public static function undo_checkin( array $in ) {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
 		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_checkin' ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ) ); }
+		if ( ! Access::can_access_occurrence( (int) $ticket->occurrence_id, 'wpcap_checkin', (int) $ticket->event_id ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
@@ -166,6 +166,11 @@ final class TicketsPage {
 		$page = Forms::current_page();
 		$per_page = 30;
 		$data = $has_filter ? Queries::search_tickets( $filters, $scope, $page, $per_page ) : array( 'rows' => array(), 'total' => 0 );
+		if ( $has_filter ) {
+			// Data minimisation per role and read audit (no search terms in the log).
+			$data['rows'] = array_map( array( \PassCaptain\Security\DataPolicy::class, 'ticket_view' ), $data['rows'] );
+			\PassCaptain\Security\AuditTrail::read( 'ticket_search', 'event', (int) $filters['event_id'], array( 'results' => count( $data['rows'] ), 'page' => $page, 'scope' => md5( (string) $filters['search'] ) . $page ) );
+		}
 		$status_options = array( '' => __( 'Alle Status', 'pass-captain' ) );
 		foreach ( self::STATUSES as $s ) { $status_options[ $s ] = Forms::status_label( $s ); }
 		?>
@@ -175,8 +180,8 @@ final class TicketsPage {
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
 			<input type="search" name="s" class="regular-text" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, E-Mail oder Name', 'pass-captain' ); ?>">
-			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'] ); ?>
-			<?php Forms::select( 'status', $status_options, $filters['status'] ); ?>
+			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'], '', Forms::aria_label( __( 'Event', 'pass-captain' ) ) ); ?>
+			<?php Forms::select( 'status', $status_options, $filters['status'], '', Forms::aria_label( __( 'Status', 'pass-captain' ) ) ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Suchen', 'pass-captain' ); ?></button>
 		</form>
 		<?php if ( ! $has_filter ) : ?>
@@ -194,7 +199,7 @@ final class TicketsPage {
 				<tbody>
 				<?php if ( ! $data['rows'] ) : ?><tr><td colspan="6"><?php esc_html_e( 'Keine Tickets gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 				<?php foreach ( $data['rows'] as $ticket ) :
-					$email = '' !== (string) $ticket->assigned_email ? $ticket->assigned_email : $ticket->attendee_email;
+					$email = '' !== (string) ( $ticket->assigned_email ?? '' ) ? $ticket->assigned_email : ( $ticket->attendee_email ?? '' );
 					$can_orders = Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' );
 					$can_checkin = Access::can_access_event( $ticket->event_id, 'wpcap_checkin' );
 					?>

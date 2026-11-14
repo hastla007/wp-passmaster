@@ -57,13 +57,20 @@ final class Webhooks {
 			// Only an event that was fully processed is a duplicate. A claim still "processing" belongs
 			// to a request that is running or crashed (its release may have failed with the connection):
 			// acknowledging it would make the provider stop retrying an event that was never applied.
-			$status = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$p}wpcap_payment_events WHERE provider=%s AND provider_event_id=%s", $provider, $event_id ) );
-			if ( 'processed' === $status ) {
-				return 'duplicate';
-			}
-			if ( '' !== (string) $wpdb->last_error ) {
-				return self::db_error( $provider, $event_id, 'claim_status' );
-			}
+			// A concurrent delivery of the same event usually finishes within moments: wait briefly for it
+			// (filter wpcap_webhook_claim_wait_ms, default 3000) before asking the provider to retry.
+			$wait_until = microtime( true ) + max( 0, (int) apply_filters( 'wpcap_webhook_claim_wait_ms', 3000 ) ) / 1000;
+			do {
+				$status = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$p}wpcap_payment_events WHERE provider=%s AND provider_event_id=%s", $provider, $event_id ) );
+				if ( 'processed' === $status ) {
+					return 'duplicate';
+				}
+				if ( '' !== (string) $wpdb->last_error ) {
+					return self::db_error( $provider, $event_id, 'claim_status' );
+				}
+				if ( 'processing' !== $status || microtime( true ) >= $wait_until ) { break; }
+				usleep( 50000 );
+			} while ( true );
 			return new \WP_Error( 'wpcap_webhook_in_progress', 'Event is being processed; retry later.', array( 'status' => 409, 'retryable' => true ) );
 		}
 		$release = static function () use ( $wpdb, $p, $provider, $event_id ) {

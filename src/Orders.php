@@ -18,11 +18,12 @@ final class Orders {
 	 *                        external (bool), unit_prices / line_totals / line_taxes (type_id => minor),
 	 *                        currency, hold_minutes, source, payment_provider, key_namespace
 	 *                        (separates idempotency keys per channel), skip_rate_limit (bool),
-	 *                        billing (external only: billing data already validated by the adapter).
+	 *                        billing (external only: billing data already validated by the adapter),
+	 *                        skip_buyer_limits (bool; door sales are never limited, see Sales\BuyerLimits).
 	 */
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
-		$email = sanitize_email( $payload['email'] ?? '' );
+		$email = is_scalar( $payload['email'] ?? '' ) ? sanitize_email( (string) ( $payload['email'] ?? '' ) ) : '';
 		$lines = $payload['items'] ?? array();
 		if ( ! is_email( $email ) || ! is_array( $lines ) || empty( $lines ) || count( $lines ) > 10 ) {
 			return new \WP_Error( 'wpcap_invalid_checkout', __( 'Bitte eine gültige E-Mail-Adresse und Tickets auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
@@ -59,8 +60,9 @@ final class Orders {
 		$line_cap = max( 1, (int) apply_filters( 'wpcap_max_line_quantity', 100 ) );
 		$clean_lines = array();
 		foreach ( $lines as $line ) {
-			$type_id = absint( $line['ticket_type_id'] ?? 0 );
-			$quantity = absint( $line['quantity'] ?? 0 );
+			// Strict: "-2", 1.5, arrays or non-array lines are rejected (absint() would turn -2 into 2).
+			$type_id = is_array( $line ) ? self::positive_int( $line['ticket_type_id'] ?? null ) : 0;
+			$quantity = is_array( $line ) ? self::positive_int( $line['quantity'] ?? null ) : 0;
 			if ( ! $type_id || $quantity < 1 || $quantity > $line_cap ) {
 				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
@@ -101,7 +103,19 @@ final class Orders {
 		$now = current_time( 'mysql', true );
 		$door_sale = ! empty( $internal['allow_door_sales'] ) || 'pos' === $namespace;
 		$custom_error = null;
-		$wpdb->query( 'START TRANSACTION' );
+		// Logged-in customer of a native checkout (buyer limits per account; never staff/adapter orders).
+		$customer_user_id = ( $external || $door_sale || '' !== $namespace || ! empty( $internal['source'] ) ) ? 0 : absint( get_current_user_id() );
+		// Buyer limits across orders (Sales\BuyerLimits): orders of the same buyer are serialised by a
+		// lock taken before the transaction starts, so its snapshot contains all their committed orders.
+		$check_buyer_limits = ! $door_sale && empty( $internal['skip_buyer_limits'] ) && Sales\BuyerLimits::relevant( array_keys( $clean_lines ) );
+		$buyer_locks = array();
+		if ( $check_buyer_limits ) {
+			$buyer_locks = Sales\BuyerLimits::acquire( $email, $customer_user_id );
+			if ( false === $buyer_locks ) {
+				return new \WP_Error( 'wpcap_checkout_failed', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+			}
+		}
+		self::begin();
 		try {
 			ksort( $clean_lines, SORT_NUMERIC );
 			// Lock phase (locking reads only, so the transaction's consistent snapshot is taken after
@@ -154,6 +168,13 @@ final class Orders {
 				$custom_error = $reserve_error;
 				throw new \RuntimeException( $reserve_error->get_error_code() );
 			}
+			if ( $check_buyer_limits ) {
+				$limit_error = Sales\BuyerLimits::check( $clean_lines, $types, $occurrences, $email, $customer_user_id, $now );
+				if ( $limit_error ) {
+					$custom_error = $limit_error;
+					throw new \RuntimeException( 'buyer_limit' );
+				}
+			}
 
 			$selected = array();
 			$total = 0;
@@ -172,6 +193,8 @@ final class Orders {
 				// Price precedence: an explicit trusted unit price (adapters/staff, e.g. WooCommerce or
 				// free box office sales) wins; otherwise the stored price passes through the
 				// server-side `wpcap_ticket_unit_price` filter. Client input never reaches either.
+				$base_price = (int) $type->price_minor;
+				$price_rule = null;
 				if ( array_key_exists( $type_id, $unit_prices ) ) {
 					$unit_price = (int) $unit_prices[ $type_id ];
 				} else {
@@ -179,17 +202,28 @@ final class Orders {
 					if ( $unit_price !== (int) $type->price_minor ) {
 						$price_rules[ $type_id ] = array( 'base_minor' => (int) $type->price_minor, 'unit_minor' => $unit_price );
 					}
+					// Automatic price rule (Sales\PriceRules) frozen with the line: rule, explanation, prices.
+					$price_rule = Sales\PriceRules::applied( $type_id );
 				}
+				// Versioned tax profile (Sales\TaxProfiles) unless a trusted adapter passed the line tax.
+				$tax_profile = array_key_exists( $type_id, $line_taxes ) ? null : Sales\TaxProfiles::for_line( $type, $occurrence, $now );
 				$type->price_minor = $unit_price;
 				$line_total = array_key_exists( $type_id, $line_totals ) ? (int) $line_totals[ $type_id ] : $unit_price * $quantity;
 				$total += $line_total;
-				$selected[] = array( 'type' => $type, 'event_id' => (int) $occurrence->event_id, 'quantity' => $quantity, 'line_total' => $line_total );
+				$selected[] = array( 'type' => $type, 'event_id' => (int) $occurrence->event_id, 'quantity' => $quantity, 'line_total' => $line_total, 'base_minor' => $base_price, 'price_rule' => $price_rule, 'tax_profile' => $tax_profile );
 			}
 			$subtotal = $total;
 			$campaign_codes = $external ? array() : ( $payload['campaign_codes'] ?? array() );
 			if ( ! is_array( $campaign_codes ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
 			$adjustments = Campaigns::calculate( $selected, $campaign_codes, $currency );
-			if ( is_wp_error( $adjustments ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
+			if ( is_wp_error( $adjustments ) ) {
+				// Stacking rules (combinable, maximum discount) explain themselves; other errors stay generic.
+				if ( in_array( $adjustments->get_error_code(), array( 'wpcap_campaign_not_combinable', 'wpcap_campaign_max_discount' ), true ) ) {
+					$custom_error = $adjustments;
+					throw new \RuntimeException( $adjustments->get_error_code() );
+				}
+				throw new \RuntimeException( 'campaign_invalid' );
+			}
 			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
 			$total = max( 0, $subtotal - $discount );
 			if ( ! $external && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
@@ -200,7 +234,7 @@ final class Orders {
 			$tax_total = 0;
 			foreach ( $selected as $index => $line ) {
 				$line_discount = $line_discounts[ $index ];
-				$rate = (int) ( $line['type']->tax_rate_bp ?? 0 );
+				$rate = $line['tax_profile'] ? (int) $line['tax_profile']['rate_bp'] : (int) ( $line['type']->tax_rate_bp ?? 0 );
 				$type_id_for_tax = (int) $line['type']->ticket_type_id;
 				$selected[ $index ]['tax_rate_bp'] = $rate;
 				$selected[ $index ]['tax_minor'] = array_key_exists( $type_id_for_tax, $line_taxes ) ? (int) $line_taxes[ $type_id_for_tax ] : self::gross_tax( $line['line_total'] - $line_discount, $rate );
@@ -236,20 +270,21 @@ final class Orders {
 				'tax_minor' => $tax_total,
 				'payment_provider' => $payment_provider,
 				'terms_version' => $external ? '' : Settings::terms_version(),
-				'locale' => function_exists( 'determine_locale' ) ? determine_locale() : '',
+				'locale' => Localization::order_locale( $payload['locale'] ?? '' ), // Buyer's explicit language choice (W9) or request locale.
 				'attendee_data' => $attendees ? wp_json_encode( $attendees ) : null,
 				'created_at' => $now,
 				'updated_at' => $now,
 			);
 			// Only written when given, so checkouts keep working while a deferred schema upgrade is pending.
 			if ( $billing ) { $order_row['billing'] = wp_json_encode( $billing ); }
+			if ( $customer_user_id ) { $order_row['customer_user_id'] = $customer_user_id; }
 			$inserted = $wpdb->insert( $orders_table, $order_row );
 			if ( ! $inserted ) {
 				throw new \RuntimeException( 'order_insert_failed' );
 			}
 			$order_id = (int) $wpdb->insert_id;
 			foreach ( $selected as $line ) {
-				$wpdb->insert( $items_table, array(
+				$item_row = array(
 					'order_id' => $order_id,
 					'ticket_type_id' => (int) $line['type']->ticket_type_id,
 					'quantity' => (int) $line['quantity'],
@@ -257,7 +292,12 @@ final class Orders {
 					'line_total_minor' => (int) $line['line_total'],
 					'tax_rate_bp' => (int) $line['tax_rate_bp'],
 					'tax_minor' => (int) $line['tax_minor'],
-				) );
+				);
+				// Line snapshot: applied tax profile version and price rule (written only when present).
+				$line_snapshot = array_filter( array( 'tax' => $line['tax_profile']['snapshot'] ?? null, 'price' => $line['price_rule'] ) );
+				if ( $line['tax_profile'] ) { $item_row['tax_profile_id'] = (int) $line['tax_profile']['tax_profile_id']; }
+				if ( $line_snapshot ) { $item_row['line_snapshot'] = wp_json_encode( $line_snapshot ); }
+				$wpdb->insert( $items_table, $item_row );
 				if ( '' !== $wpdb->last_error ) {
 					throw new \RuntimeException( 'order_item_insert_failed' );
 				}
@@ -286,6 +326,7 @@ final class Orders {
 			if ( false === $wpdb->query( 'COMMIT' ) ) { throw new \RuntimeException( 'db_busy' ); }
 		} catch ( \Throwable $error ) {
 			$wpdb->query( 'ROLLBACK' );
+			Sales\BuyerLimits::release( $buyer_locks );
 			$messages = array(
 				'ticket_type_unavailable' => __( 'Diese Ticketart ist nicht verfügbar.', 'pass-captain' ),
 				'quantity_limit' => __( 'Für diese Ticketart sind pro Bestellung nicht so viele Tickets möglich.', 'pass-captain' ),
@@ -314,6 +355,7 @@ final class Orders {
 			$message = $messages[ $code ] ?? $fallback;
 			return new \WP_Error( 'wpcap_checkout_failed', $message, array( 'status' => 'db_busy' === $code ? 503 : 409, 'retryable' => 'db_busy' === $code ) );
 		}
+		Sales\BuyerLimits::release( $buyer_locks );
 
 		$pending = $total || $external;
 		if ( ! $pending ) {
@@ -454,7 +496,8 @@ final class Orders {
 	}
 
 	/**
-	 * Client IP used for the anonymous checkout rate limit. Defaults to REMOTE_ADDR.
+	 * Client IP used for the anonymous checkout rate limit. Defaults to REMOTE_ADDR; behind a proxy
+	 * configure the setting "trusted_proxies" (Einstellungen → Sicherheit). The filter below still works.
 	 *
 	 * Behind a reverse proxy / CDN (e.g. Cloudflare) REMOTE_ADDR is the proxy, so every buyer would
 	 * share one limit. Sites that trust a proxy header can resolve the real client via the filter
@@ -471,9 +514,15 @@ final class Orders {
 	 * Invalid return values fall back to REMOTE_ADDR.
 	 */
 	public static function client_ip() {
-		$remote = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
-		$ip = trim( (string) apply_filters( 'wpcap_client_ip', $remote, $_SERVER ) );
-		return false !== filter_var( $ip, FILTER_VALIDATE_IP ) ? $ip : $remote;
+		// Trusted proxies are configured centrally (setting trusted_proxies, see RateLimit::client_ip()).
+		return RateLimit::client_ip();
+	}
+
+	/** Positive integer from an int or a digit-only string; 0 for anything else (negative, float, array). */
+	public static function positive_int( $value ) {
+		if ( is_int( $value ) ) { return $value > 0 ? $value : 0; }
+		if ( is_string( $value ) && preg_match( '/^\s*[0-9]{1,9}\s*$/', $value ) ) { return (int) $value; }
+		return 0;
 	}
 
 	/** Keyed hash for rate-limit transient keys, so stored keys cannot be reversed to IP addresses. */
@@ -524,7 +573,7 @@ final class Orders {
 					$value = is_scalar( $value ) ? trim( (string) $value ) : '';
 					if ( 'email' === $field->field_type ) { $value = sanitize_email( $value ); }
 					elseif ( 'textarea' === $field->field_type ) { $value = sanitize_textarea_field( $value ); }
-					elseif ( 'checkbox' === $field->field_type ) { $value = $value && '0' !== $value ? '1' : ''; }
+					elseif ( 'checkbox' === $field->field_type || 'consent' === $field->field_type ) { $value = $value && '0' !== $value ? '1' : ''; }
 					else { $value = sanitize_text_field( $value ); }
 					if ( (int) $field->required && '' === $value ) {
 						/* translators: %s: field label */
@@ -566,14 +615,78 @@ final class Orders {
 	 * MySQL has no such variable: querying it there only writes "Unknown system variable" to the
 	 * error log on every order, so the server type is checked once per request instead.
 	 */
+	/** @var bool|null Whether the server reports @@in_transaction (MariaDB); null = not asked yet. */
+	private static $tracks_transactions = null;
+
+	/** @var bool|null Whether the transaction marker table is usable on this connection; null = not set up. */
+	private static $marker_ready = null;
+
+	/**
+	 * Starts a transaction. On servers without @@in_transaction (MySQL) a marker row is written into a
+	 * connection-local InnoDB temporary table inside the transaction: a server-side rollback (deadlock
+	 * victim) removes it, so in_transaction() can tell that the transaction is gone.
+	 *
+	 * @return int|bool Result of START TRANSACTION (false on error).
+	 */
+	private static function begin() {
+		global $wpdb;
+		$marker = self::uses_marker() ? self::marker_table() : '';
+		if ( '' !== $marker ) {
+			// Outside the transaction (autocommit): clear the marker of the previous transaction.
+			$cleared = $wpdb->query( "DELETE FROM {$marker}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix, no input.
+			if ( false === $cleared ) { self::$marker_ready = false; $marker = ''; }
+		}
+		$started = $wpdb->query( 'START TRANSACTION' );
+		if ( false !== $started && '' !== $marker && false === $wpdb->query( "INSERT INTO {$marker} (id) VALUES (1)" ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix, no input.
+			self::$marker_ready = false;
+		}
+		return $started;
+	}
+
+	/** True when the transaction state must be tracked with the marker table instead of @@in_transaction. */
+	private static function uses_marker() {
+		global $wpdb;
+		if ( null === self::$tracks_transactions ) {
+			$tracks = self::server_tracks_transactions( (string) $wpdb->get_var( 'SELECT VERSION()' ) );
+			/** Test seam: force the marker path (false) or the @@in_transaction path (true). */
+			self::$tracks_transactions = (bool) apply_filters( 'wpcap_db_tracks_in_transaction', $tracks );
+		}
+		return ! self::$tracks_transactions;
+	}
+
+	/** Name of the connection-local marker table ('' when it can't be created, e.g. no CREATE TEMPORARY TABLES privilege). */
+	private static function marker_table() {
+		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_trx_marker';
+		if ( null === self::$marker_ready ) {
+			// CREATE TEMPORARY TABLE does not commit implicitly; it is visible only to this connection.
+			self::$marker_ready = false !== $wpdb->query( "CREATE TEMPORARY TABLE IF NOT EXISTS {$table} (id tinyint unsigned NOT NULL) ENGINE=InnoDB" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- connection-local temporary marker table, name from $wpdb->prefix.
+		}
+		return self::$marker_ready ? $table : '';
+	}
+
+	/**
+	 * Whether the transaction started with begin() is still open: true/false, or null when the server
+	 * can't tell (then callers rely on the checked statements and COMMIT alone).
+	 */
 	private static function in_transaction() {
 		global $wpdb;
-		static $tracked = null;
-		if ( null === $tracked ) { $tracked = self::server_tracks_transactions( (string) $wpdb->get_var( 'SELECT VERSION()' ) ); }
-		if ( ! $tracked ) { return null; }
+		if ( self::uses_marker() ) {
+			$marker = self::$marker_ready ? $wpdb->prefix . 'wpcap_trx_marker' : '';
+			if ( '' === $marker ) { return null; }
+			$value = $wpdb->get_var( "SELECT COUNT(*) FROM {$marker}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix, no input.
+			if ( '' !== $wpdb->last_error || null === $value ) { return null; }
+			return (int) $value > 0;
+		}
 		$value = $wpdb->get_var( 'SELECT @@in_transaction' );
 		if ( '' !== $wpdb->last_error || null === $value ) { return null; }
 		return 1 === (int) $value;
+	}
+
+	/** Resets the cached server detection (tests). */
+	public static function reset_transaction_tracking() {
+		self::$tracks_transactions = null;
+		self::$marker_ready = null;
 	}
 
 	/** MariaDB reports its transaction state in @@in_transaction; MySQL does not. */
@@ -740,7 +853,7 @@ final class Orders {
 		$now = current_time( 'mysql', true );
 		// Without a transaction the status update below would autocommit and the in_transaction()
 		// check before COMMIT would then roll back nothing: a paid order without tickets.
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::payment_busy(); }
+		if ( false === self::begin() ) { return self::payment_busy(); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( '' !== $wpdb->last_error ) { return self::payment_busy(); }
 		if ( ! $order ) {
@@ -846,7 +959,7 @@ final class Orders {
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
 		$now = current_time( 'mysql', true );
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::state_busy( $order_id, 'cancel_start' ); }
+		if ( false === self::begin() ) { return self::state_busy( $order_id, 'cancel_start' ); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( '' !== $wpdb->last_error ) { return self::state_busy( $order_id, 'cancel_lock' ); }
 		if ( ! $order || in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) {
@@ -907,7 +1020,7 @@ final class Orders {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::state_busy( $order_id, 'refund_start' ); }
+		if ( false === self::begin() ) { return self::state_busy( $order_id, 'refund_start' ); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( '' !== $wpdb->last_error ) { return self::state_busy( $order_id, 'refund_lock' ); }
 		if ( ! $order || 'refunded' === $order->status ) {
@@ -1003,7 +1116,7 @@ final class Orders {
 			return new \WP_Error( 'wpcap_order_not_paid', __( 'Tickets können erst nach bestätigter Zahlung übertragen werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$tickets_table = $wpdb->prefix . 'wpcap_tickets';
-		$wpdb->query( 'START TRANSACTION' );
+		self::begin();
 		$ticket = $wpdb->get_row( $wpdb->prepare(
 			"SELECT t.ticket_id,t.status,t.transfer_count,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM $tickets_table t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.public_id=%s AND t.order_id=%d FOR UPDATE",
 			sanitize_text_field( $ticket_public_id ),
@@ -1082,7 +1195,7 @@ final class Orders {
 			$event_id
 		) );
 
-		$wpdb->query( 'START TRANSACTION' );
+		self::begin();
 		$changed = $wpdb->update( "{$p}wpcap_events", array( 'status' => 'cancelled', 'updated_at' => current_time( 'mysql', true ) ), array( 'event_id' => $event_id, 'status' => 'published' ), array( '%s', '%s' ), array( '%d', '%s' ) );
 		if ( 1 !== (int) $changed ) {
 			// A concurrent request cancelled (or changed) the event first.
@@ -1284,7 +1397,7 @@ final class Orders {
 		$order_id = absint( $order_id );
 		$orders = $wpdb->prefix . 'wpcap_orders';
 		// Serialise issuance per order so concurrent payment callbacks cannot create duplicates.
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::issue_failed( $order_id, 'start' ); }
+		if ( false === self::begin() ) { return self::issue_failed( $order_id, 'start' ); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		if ( '' !== $wpdb->last_error ) { return self::issue_failed( $order_id, 'lock' ); }
 		if ( ! $order || 'paid' !== $order->payment_status ) {
@@ -1357,8 +1470,7 @@ final class Orders {
 				$pdf_dir = self::private_temp_dir();
 				if ( $pdf_dir ) {
 					$file = $pdf_dir . '/tickets-' . $order->public_id . '.pdf';
-					if ( false !== file_put_contents( $file, TicketPdf::render( $pdf_tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) ) ) ) {
-						@chmod( $file, 0600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+					if ( TempFiles::put( $file, TicketPdf::render( $pdf_tickets, array( 'title' => get_bloginfo( 'name' ), 'footer' => __( 'Dieses Ticket ist nur einmal gültig. Code nicht weitergeben.', 'pass-captain' ) ) ) ) ) {
 						$attachments[] = $file;
 					}
 				}
@@ -1373,9 +1485,9 @@ final class Orders {
 			} finally {
 				$attachments = array_unique( array_merge( $attachments, (array) ( $mail['attachments'] ?? array() ) ) );
 				foreach ( $attachments as $file ) { wp_delete_file( $file ); }
-				if ( ! empty( $pdf_dir ) && is_dir( $pdf_dir ) ) { @rmdir( $pdf_dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+				if ( ! empty( $pdf_dir ) ) { TempFiles::remove_dir( $pdf_dir ); }
 			}
-			self::finish_delivery( $delivery_key, $order_id, (bool) $delivered, count( $issued ) );
+			self::finish_delivery( $delivery_key, $order_id, (bool) $delivered, array_map( 'intval', array_column( $issued, 'ticket_id' ) ) );
 		}
 		return true;
 	}
@@ -1399,20 +1511,37 @@ final class Orders {
 	/**
 	 * Records the result of the inline ticket mail on its outbox job: completed when sent, otherwise
 	 * attempt counted, error noted and due again in five minutes (Jobs::process_due() retries it).
+	 *
+	 * Double-mail guard: after a successful mail a "delivered" marker (option, separate from the job row)
+	 * is written before the job is completed, and the completion is retried briefly. Should the job
+	 * still stay queued (e.g. lock timeouts on the queue table), retry_delivery() finds the marker and
+	 * completes the job without sending a second mail with rotated codes.
+	 *
+	 * @param int[] $ticket_ids Tickets of this delivery.
 	 */
-	private static function finish_delivery( $key, $order_id, $sent, $count ) {
+	private static function finish_delivery( $key, $order_id, $sent, array $ticket_ids ) {
 		global $wpdb;
 		if ( '' === $key ) { return; }
 		$table = $wpdb->prefix . 'wpcap_jobs';
 		$now = current_time( 'mysql', true );
 		if ( $sent ) {
-			// If this update fails the job retries after the grace period: the buyer then receives a
-			// second mail with rotated codes, which supersede the first ones. Nothing is lost.
-			$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='complete',attempts=attempts+1,locked_at=NULL,last_error=NULL,updated_at=%s WHERE idempotency_key=%s AND status='queued'", $now, hash( 'sha256', $key ) ) );
+			$marker = self::delivery_marker( $order_id, $ticket_ids );
+			update_option( $marker, time(), false );
+			$completed = Jobs::update_with_retry( $table, array( 'status' => 'complete', 'attempts' => 1, 'locked_at' => null, 'last_error' => null, 'updated_at' => $now ), array( 'idempotency_key' => hash( 'sha256', $key ), 'status' => 'queued' ), array( '%s', '%d', '%s', '%s', '%s' ), array( '%s', '%s' ) );
+			if ( $completed ) {
+				delete_option( $marker );
+			}
 			return;
 		}
 		$wpdb->query( $wpdb->prepare( "UPDATE $table SET attempts=attempts+1,run_after=%s,last_error=%s,updated_at=%s WHERE idempotency_key=%s AND status='queued'", gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ), 'Ticket mail could not be delivered.', $now, hash( 'sha256', $key ) ) );
-		Audit::record( 'ticket_delivery_failed', 'order', absint( $order_id ), array( 'ticket_count' => (int) $count, 'retry' => 'scheduled' ) );
+		Audit::record( 'ticket_delivery_failed', 'order', absint( $order_id ), array( 'ticket_count' => count( $ticket_ids ), 'retry' => 'scheduled' ) );
+	}
+
+	/** Option name of the "delivered" marker of one ticket delivery (order + its tickets). */
+	public static function delivery_marker( $order_id, array $ticket_ids ) {
+		$ids = array_values( array_unique( array_map( 'absint', $ticket_ids ) ) );
+		sort( $ids );
+		return 'wpcap_delivered_' . absint( $order_id ) . '_' . substr( hash( 'sha256', implode( ',', $ids ) ), 0, 16 );
 	}
 
 	/**
@@ -1421,6 +1550,13 @@ final class Orders {
 	 */
 	private static function retry_delivery( $order_id, array $ticket_ids ) {
 		global $wpdb;
+		$marker = self::delivery_marker( $order_id, $ticket_ids );
+		if ( $ticket_ids && get_option( $marker ) ) {
+			// The inline mail was sent; only completing the job had failed. No second mail.
+			delete_option( $marker );
+			Audit::record( 'ticket_delivery_retry_skipped', 'order', absint( $order_id ), array( 'ticket_count' => count( $ticket_ids ), 'reason' => 'already_delivered' ) );
+			return true;
+		}
 		$order = $order_id ? self::get( $order_id ) : null;
 		if ( '' !== $wpdb->last_error ) { return false; }
 		if ( ! $order || 'paid' !== $order->payment_status || ! $ticket_ids ) {
@@ -1492,18 +1628,7 @@ final class Orders {
 
 	/** Creates a fresh directory (0700, random name) in the temp dir; null on failure. */
 	private static function private_temp_dir() {
-		$base = rtrim( (string) get_temp_dir(), '/\\' );
-		for ( $i = 0; $i < 3; $i++ ) {
-			$dir = $base . '/wpcap-' . bin2hex( random_bytes( 12 ) );
-			$old_umask = umask( 0077 );
-			$made = @mkdir( $dir, 0700 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- an existing name is retried.
-			umask( $old_umask );
-			if ( $made ) {
-				@chmod( $dir, 0700 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-				return $dir;
-			}
-		}
-		return null;
+		return TempFiles::private_dir();
 	}
 
 	/**
@@ -1635,7 +1760,7 @@ final class Orders {
 			return new \WP_Error( $code, $message, array( 'status' => 503, 'retryable' => true, 'step' => $step ) );
 		};
 		$rotation_failed = __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' );
-		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $fail( 'wpcap_ticket_rotation_failed', $rotation_failed, 'start' ); }
+		if ( false === self::begin() ) { return $fail( 'wpcap_ticket_rotation_failed', $rotation_failed, 'start' ); }
 		// Only the ticket rows are locked (not ticket types/occurrences), so checkouts are not blocked while the mail is sent.
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,token_hash,attendee_email FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' AND ticket_id IN (" . implode( ',', array_map( 'absint', $ids ) ) . ') ORDER BY ticket_id FOR UPDATE', (int) $order->order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		if ( '' !== $wpdb->last_error ) { return $fail( 'wpcap_ticket_rotation_failed', $rotation_failed, 'lock' ); }
@@ -1687,7 +1812,7 @@ final class Orders {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$ticket_id = absint( $ticket_id );
-		$wpdb->query( 'START TRANSACTION' );
+		self::begin();
 		$ticket = $wpdb->get_row( $wpdb->prepare(
 			"SELECT t.ticket_id,t.order_id,t.status,t.attendee_email,tt.name AS ticket_name,e.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.ticket_id=%d FOR UPDATE",
 			$ticket_id

@@ -65,6 +65,9 @@ final class Invoices {
 		$snapshot = array_merge( $snapshot, Billing::snapshot( $order ) );
 		$payments = Integrations\Vouchers\Checkout::invoice_payments( $order );
 		if ( $payments ) { $snapshot['payments'] = $payments; }
+		// Place-of-supply notes from the tax profile snapshots of the order lines (Sales\TaxProfiles).
+		$tax_notes = Sales\TaxProfiles::invoice_notes( $items );
+		if ( $tax_notes ) { $snapshot['tax_notes'] = $tax_notes; }
 		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => $invoice_total, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ) );
 		$invoice_id = (int) $wpdb->insert_id;
 		if ( false === $saved || ! $invoice_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_create', __( 'Rechnung konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
@@ -209,6 +212,7 @@ final class Invoices {
 			/* translators: %s: organizer name */
 			$notes[] = sprintf( __( 'Die Leistung wird von %s erbracht. Die Plattform handelt im Namen und für Rechnung des Veranstalters.', 'pass-captain' ), (string) ( $seller['name'] ?? '' ) );
 		}
+		foreach ( (array) ( $snapshot['tax_notes'] ?? array() ) as $note ) { $notes[] = (string) $note; }
 		return $notes;
 	}
 
@@ -374,10 +378,11 @@ final class Invoices {
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="wp-pass-captain-buchhaltung-' . $from . '-' . $to . '.csv"' );
-		$out = fopen( 'php://output', 'w' );
-		fwrite( $out, "\xEF\xBB\xBF" );
-		foreach ( $rows as $row ) { fputcsv( $out, $row, ';', '"', '' ); } // Explicit escape (PHP 8.4 deprecates the default); '' = RFC 4180 quoting only.
-		fclose( $out );
+		// Streams the CSV download to the response (php://output, no file on disk).
+		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+		foreach ( $rows as $row ) { fputcsv( $out, array_map( array( Reports\Scope::class, 'csv_cell' ), (array) $row ), ';', '"', '' ); } // Explicit escape (PHP 8.4 deprecates the default); '' = RFC 4180 quoting only.
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		exit;
 	}
 
@@ -404,7 +409,7 @@ final class Invoices {
 		foreach ( $credits as $c ) {
 			$rows[] = array( 'Gutschrift', $c->credit_note_number, substr( $c->issued_at, 0, 10 ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( (int) $c->net_minor ), '', '-' . $money( (int) $c->tax_minor ), '-' . $money( (int) $c->total_minor ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
 		}
-		return $rows;
+		return Reports\Exports::filter_rows( $rows, 'accounting', array( 'from' => $from, 'to' => $to ) );
 	}
 
 	/** Finance view permission for one order (global finance roles or event-scoped order managers). */

@@ -1,5 +1,5 @@
 <?php
-/** Minimal append-only audit helper. */
+/** Minimal append-only audit helper. Details are redacted (Security\Redact): no secrets, codes or plain e-mail addresses. */
 namespace PassCaptain;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -14,7 +14,7 @@ final class Audit {
 				'action' => sanitize_key( $action ),
 				'object_type' => sanitize_key( $object_type ),
 				'object_id' => absint( $object_id ),
-				'details' => wp_json_encode( $details ),
+				'details' => wp_json_encode( Security\Redact::data( $details ) ),
 				'created_at' => current_time( 'mysql', true ),
 			),
 			array( '%d', '%s', '%s', '%d', '%s', '%s' )

@@ -5,7 +5,7 @@
  *   GET /app/offline/keys                            – trusted Ed25519 public keys
  *   GET /app/offline/occurrences                     – occurrences this device may hold packages for
  *   GET /app/offline/package?occurrence_id=&since=   – signed full/delta package
- *   GET /app/offline/i18n                            – public: locale + translated UI texts of the PWA
+ *   GET /app/offline/i18n?locale=fr-CH,fr,en         – public: locale + translated UI texts of the PWA
  *
  * Also extends existing app responses (rest_request_after_callbacks): /app/pair returns the public
  * keys ("offline"), /app/me announces the feature, /app/scan/sync applies the event's offline rules.
@@ -33,9 +33,13 @@ final class Rest {
 		return rest_ensure_response( array( 'keys' => Keys::public_keys(), 'server_time' => gmdate( 'c' ) ) );
 	}
 
-	/** Locale and translated string table of the PWA (see I18n). */
+	/**
+	 * Locale and translated string table of the PWA (see I18n). Optional `locale`: the device's
+	 * preferred languages (comma separated BCP 47 tags); the first supported one is served.
+	 */
 	public static function i18n( \WP_REST_Request $request ) {
-		$response = rest_ensure_response( I18n::table() );
+		$requested = substr( (string) preg_replace( '/[^A-Za-z0-9_,;=.\- ]/', '', (string) $request->get_param( 'locale' ) ), 0, 200 );
+		$response = rest_ensure_response( I18n::table( $requested ) );
 		if ( method_exists( $response, 'header' ) ) { $response->header( 'Cache-Control', 'no-cache' ); }
 		return $response;
 	}
@@ -44,7 +48,7 @@ final class Rest {
 		$device = Devices::current();
 		$out = array();
 		foreach ( Assignments::occurrences_for_device( $device ) as $row ) {
-			if ( ! Access::can_access_event( (int) $row->event_id, 'wpcap_checkin' ) ) { continue; }
+			if ( ! Access::can_access_occurrence( (int) $row->occurrence_id, 'wpcap_checkin', (int) $row->event_id ) ) { continue; }
 			$rules = Rules::get( (int) $row->event_id );
 			$out[] = array(
 				'occurrence_id' => (int) $row->occurrence_id,
@@ -77,7 +81,7 @@ final class Rest {
 			return new \WP_Error( 'wpcap_offline_disabled', __( 'Offline-Scannen ist für dieses Event nicht freigegeben.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$assignment = Assignments::find( (int) $device->device_id, $event_id, (int) $occurrence->occurrence_id );
-		if ( ! $assignment || ! in_array( $event_id, Devices::event_ids( $device ), true ) || ! Access::can_access_event( $event_id, 'wpcap_checkin' ) ) {
+		if ( ! $assignment || ! in_array( $event_id, Devices::event_ids( $device ), true ) || ! Access::can_access_occurrence( (int) $occurrence->occurrence_id, 'wpcap_checkin', $event_id ) ) {
 			return new \WP_Error( 'wpcap_offline_not_assigned', __( 'Dieses Gerät ist für diesen Termin nicht zum Offline-Scannen zugewiesen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$since = $request->get_param( 'since' );

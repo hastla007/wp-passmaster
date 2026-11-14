@@ -83,10 +83,13 @@ Plattformdaten (Einstellungen → Rechnungssteller): Name, Anschrift, USt-IdNr.,
 - Der Beleg enthält „Vermittelt durch {Plattform}, {Anschrift} (USt-IdNr.)“ und den Hinweis, dass die
   Plattform im Namen und für Rechnung des Veranstalters handelt.
 - **Gemischte Bestellungen** (Vermittler-Veranstalter zusammen mit anderen Veranstaltern oder
-  Plattform-Events) werden **nicht aufgeteilt**:
-  - Der Checkout lehnt solche Warenkörbe ab („Bitte für jeden Veranstalter separat bestellen“), auch bei
-    WooCommerce-Bestellungen, die über das Plugin angelegt werden. Abschaltbar mit dem Filter
-    `wpcap_refuse_mixed_seller_orders` (nicht empfohlen).
+  Plattform-Events) werden im Plugin **nie zu einer Bestellung**:
+  - Der eigene Checkout lehnt solche Warenkörbe ab („Bitte für jeden Veranstalter separat bestellen“).
+    Abschaltbar mit dem Filter `wpcap_refuse_mixed_seller_orders` (nicht empfohlen).
+  - WooCommerce: Standard ist Ablehnen schon beim Hinzufügen zum Warenkorb (klassisch und Store API);
+    alternativ lässt sich einstellen, dass je Rechnungssteller eine eigene Pass-Captain-Bestellung mit
+    eigener Rechnung entsteht. Aufteilungsregeln für Gutscheine, Gebühren, Versand und Rundung:
+    docs/WOOCOMMERCE.md, „Mehrere Rechnungssteller im Warenkorb“.
   - Bestehende gemischte Bestellungen (z. B. vor dem Update oder vor einem Modellwechsel angelegt) werden
     bei der Rechnungsstellung mit einer klaren Fehlermeldung abgelehnt (`wpcap_invoice_mixed_sellers`,
     HTTP 409, Audit-Eintrag `invoice_refused`); die Bestellansicht zeigt den Hinweis. Keine Nummer wird
@@ -151,6 +154,63 @@ unverändert („Veranstalter-Abrechnung“, `document_type` leer).
 
 Die Spalte `series` der Tabelle `wpcap_document_sequences` wurde auf 40 Zeichen erweitert (Schema 3.5.0).
 
+## Auszahlungsmodell: Belege, Geldfluss und Verantwortung (technisch)
+
+Dieser Abschnitt beschreibt, **was das Plugin technisch abbildet** – wer welchen Beleg erhält, über welches
+Konto das Geld läuft und wo das Plugin endet. Er trifft keine rechtliche oder steuerliche Aussage; ob ein
+Modell für einen konkreten Betrieb zulässig ist und wer wofür haftet, regeln die Verträge des Betreibers
+und die Beratung (siehe oben).
+
+### Wer stellt welche Belege aus
+
+| Beleg | Eigenhändler (`own_name`) | Vermittler (`agent`) |
+|---|---|---|
+| Kundenrechnung je Pass-Captain-Bestellung | Plattform (Serie der Plattform) | Veranstalter (Serie `invoice-org-{ID}`, ausgestellt durch die Plattform im Namen des Veranstalters) |
+| Rechnungskorrektur bei Erstattung | Plattform (`credit`) | Veranstalter (`credit-org-{ID}`) |
+| Monatsbeleg Plattform ↔ Veranstalter | Gutschrift (`credit-self`) + Gebührenrechnung (`partner`) | Provisionsrechnung (`partner`) + informative Aufstellung |
+| Gebühren/Versand einer WooCommerce-Bestellung | Shopbetreiber in WooCommerce (nicht Pass Captain) | Shopbetreiber in WooCommerce (nicht Pass Captain) |
+
+Eine Pass-Captain-Bestellung hat genau einen Rechnungssteller. Gemischte WooCommerce-Warenkörbe werden
+abgelehnt oder je Rechnungssteller aufgeteilt (docs/WOOCOMMERCE.md, „Mehrere Rechnungssteller im
+Warenkorb“); jede Teilbestellung erhält die Belege ihres Rechnungsstellers.
+
+### Geldfluss
+
+1. **Zahlung der Kundschaft:** Alle Zahlungen laufen über die Zahlungsanbieter-Konten, die der Betreiber im
+   Plugin bzw. in WooCommerce hinterlegt hat (Stripe, PayPal, Mollie, WooCommerce-Zahlarten, Kasse). Das
+   Plugin kennt **ein** Händlerkonto je Anbieter; es gibt keine Aufteilung der Zahlung auf mehrere
+   Empfänger (kein „Split Payment“, keine Marktplatz-Unterkonten). Auch bei Vermittler-Veranstaltern geht
+   der Kundenbetrag zunächst auf dem Konto des Betreibers ein (Inkasso für den Veranstalter).
+2. **Erfassung:** Je Pass-Captain-Bestellung werden Bruttobetrag, USt je Position und Erstattungen
+   gespeichert; bei aufgeteilten WooCommerce-Bestellungen je Teilbestellung nach den Aufteilungsregeln.
+3. **Erstattungen:** Die Auszahlung an die Kundschaft führt der Zahlungsanbieter bzw. WooCommerce aus. Das
+   Plugin bucht sie im Erstattungsjournal der betroffenen (Teil-)Bestellung, erzeugt die
+   Rechnungskorrektur des jeweiligen Rechnungsstellers und berücksichtigt sie in der Abrechnung des
+   Veranstalters (im selben Monat als „Erstattung“, nach einem abgeschlossenen Monat als „Korrektur
+   Erstattung (Vorperiode)“ im nächsten).
+4. **Monatsabrechnung:** Pro Veranstalter und Monat berechnet das Plugin Ticketumsatz nach Erstattungen,
+   Plattformgebühr (Provision + Ticketgebühren inkl. USt bzw. Reverse Charge) und den
+   **Auszahlungsbetrag** (= Ticketumsatz brutto − Plattformgebühr brutto; negativ = Forderung an den
+   Veranstalter). Der Beleg wird beim Abschließen nummeriert und eingefroren.
+5. **Auszahlung:** findet **außerhalb des Plugins** statt (Überweisung durch den Betreiber). Das Plugin
+   speichert nur den Status „Ausgezahlt“ mit Referenz (`Settlements::mark_paid()`); es löst keine
+   Zahlungen aus (das Feld „Auszahlung (z. B. IBAN, BIC, Kontoinhaber)“ am Veranstalter ist nur
+   Information für den Betreiber).
+
+### Verantwortung je Modell – was das Plugin abbildet
+
+| Thema | Eigenhändler | Vermittler |
+|---|---|---|
+| Vertragspartner der Kundschaft laut Belegen | Plattform | Veranstalter („Vermittelt durch …“) |
+| Steuerausweis auf Kundenrechnungen | Plattform (Satz der Ticketart) | Veranstalter (Satz der Ticketart; Kleinunternehmer 0 %) |
+| Erstattungsbeträge im Plugin | gebucht auf die Bestellung der Plattform, Weitergabe an den Veranstalter über die Abrechnung | gebucht auf die Bestellung des Veranstalters, Verrechnung über die Abrechnung |
+| Einbehalt der Plattform | Gebührenrechnung, verrechnet mit der Gutschrift | Provisionsrechnung, verrechnet mit dem vereinnahmten Betrag |
+| Rückforderungen (negativer Auszahlungsbetrag) | als Forderung ausgewiesen, Einzug außerhalb des Plugins | als Forderung ausgewiesen, Einzug außerhalb des Plugins |
+
+Nicht abgebildet und Sache des Betreibers: Vertragsgestaltung, Treuhand-/Kundengeldkonten,
+Zahlungsdienste-Aufsicht für das Inkasso fremder Gelder, Durchführung und Fristen der Auszahlungen,
+Mahnwesen, Buchhaltung außerhalb des Exports sowie fiskalische Belege.
+
 ## Pflichten des Betreibers
 
 1. **Verträge mit Veranstaltern**, die das gewählte Modell eindeutig festlegen (Kommissions- bzw.
@@ -198,3 +258,76 @@ Die Spalte `series` der Tabelle `wpcap_document_sequences` wurde auf 40 Zeichen 
   (umgesetzt: Gutschrift = Netto-Umsatz ohne USt)?
 - Österreich: Formulierung der Hinweise (Kleinunternehmer § 6 Abs. 1 Z 27 UStG, Reverse Charge
   § 19 Abs. 1 UStG) und Anforderungen an Gutschriften nach § 11 Abs. 7, 8 UStG.
+
+## Verkaufsregeln im Checkout
+
+Unabhängig vom Verkaufsmodell gelten im Checkout (`Orders::create()`) die folgenden Regeln. Code:
+`src/Sales/`, Modul `Modules/SalesRules`, Tabellen `wpcap_price_rules`, `wpcap_buyer_limits`,
+`wpcap_consents` (Kernschema 3.8.0). Steuern: siehe [TAX-PROFILES.md](TAX-PROFILES.md).
+
+### Automatische Preisregeln
+
+*Event bearbeiten → „Automatische Preisregeln“* (Terminserien zusätzlich unter „Serientermine“).
+
+- Arten: **Frühbucher** (Buchung vor einem Zeitpunkt), **Last-Minute** (ab X Stunden vor Beginn),
+  **Nachfrage** (ab X % verkauft oder reserviert), **Wochentag/Zeitfenster** (Beginn des Termins in
+  Ortszeit). Preis fest (brutto) oder prozentual zum gespeicherten Preis (kaufmännisch gerundet).
+- Geltungsbereich: ganzes Event, ein Termin, eine Ticketart und/oder Ticketarten eines Namens.
+- Grenzen (UTC verglichen): Frühbucher gilt solange `jetzt < bis`; Last-Minute ab `Beginn − Stunden`
+  (inklusive); Nachfrage ab `verkauft % ≥ Schwelle` (bezahlte Einheiten + aktive Reservierungen
+  anderer Bestellungen gegen das Kontingent der Ticketart, sonst des Termins); Zeitfenster „von“
+  inklusive, „bis“ exklusive, `von > bis` geht über Mitternacht.
+- Von allen passenden Regeln – Event- und Serienregeln gemeinsam – gewinnt die **höchste Priorität**
+  (Standard: Last-Minute 40, Nachfrage 30, Frühbucher 20, Wochentag 10; Gleichstand: höhere
+  Nachfrageschwelle, dann ältere Regel).
+- Käufer sehen Bezeichnung, regulären Preis („statt …“) und eine **Erklärung** („Frühbucherpreis: gilt
+  bei Buchung bis 01.12.2026 18:00“). Die angewendete Regel wird mit Basis- und Einzelpreis,
+  Erklärung und Auswertungszeitpunkt in `wpcap_order_items.line_snapshot.price` gespeichert.
+- Regeln wirken serverseitig über `wpcap_ticket_unit_price` (Online-Checkout, Warteliste, Kasse ohne
+  Preisvorgabe; WooCommerce nur mit aktivierter Option „Pass-Captain-Preise verwenden“).
+
+### Kampagnencodes und Stapelregeln
+
+*Pass Captain → Kampagnen*. Höchstens drei Codes je Bestellung, angewendet nach Priorität (kleinere
+Zahl zuerst) jeweils auf den Restbetrag.
+
+- **Kombinierbar** (Standard ja): ein nicht kombinierbarer Code muss allein eingelöst werden; sonst
+  Meldung „Der Code … kann nicht mit anderen Codes kombiniert werden.“
+- **Auch auf Tickets mit automatischem Preis** (Standard ja): sonst ignoriert der Code Positionen, deren
+  Preis aus einer Preisregel stammt.
+- **Höchstrabatt je Bestellung** (optional, Betrag): deckelt den Rabatt eines Codes.
+- **Maximaler Gesamtrabatt** (Einstellung `max_total_discount_bp`, nur Administratoren, auf der
+  Kampagnenseite): Summe aus Preisregel-Ermäßigungen und Codes je Bestellung, bezogen auf die
+  regulären Preise; spätere Codes werden zuerst gekürzt, ein Code ohne verbleibenden Rabatt wird mit
+  Meldung abgelehnt.
+
+### Käuferlimits
+
+*Event bearbeiten → „Käuferlimits“*: höchstens N Tickets je Person für das Event, einen Termin oder
+eine Ticketart, über alle Bestellungen. Person = Bestell-E-Mail (ohne Groß-/Kleinschreibung), das
+angemeldete Kundenkonto (`orders.customer_user_id`, nur native Checkouts) oder beides.
+
+- Gezählt werden bezahlte, nicht erstattete Tickets (abzüglich erstatteter Einheiten) und aktive,
+  nicht abgelaufene Reservierungen offener Bestellungen.
+- Atomar: Bestellungen derselben Person werden über eine Datenbanksperre (`GET_LOCK` je E-Mail bzw.
+  Konto) vor Beginn der Bestell-Transaktion serialisiert; die Prüfung erfolgt in der Transaktion nach
+  allen Zeilensperren. Andere Käufer werden nicht ausgebremst (Integrationstest: 8 parallele
+  Bestellungen gegen ein Limit von 3 → genau 3 erfolgreich).
+- Nicht begrenzt: Abendkasse (Türverkauf) und verspätete Zahlungsbestätigungen abgelaufener
+  Reservierungen; Adapter können `skip_buyer_limits` setzen.
+
+### Einwilligungsfelder für Teilnehmer
+
+*Event → Termin → Ticketart → Teilnehmerfelder*, Typ **„Einwilligung (protokolliert)“** mit
+Einwilligungstext und Version.
+
+- Checkout: Checkbox mit Text; bei Pflichtfeldern ist die Einwilligung Voraussetzung. Bei der
+  Ticketausgabe entsteht je Ticket ein Datensatz in `wpcap_consents` mit Text, Version, SHA-256-Hash,
+  Quelle (`checkout`), betroffener E-Mail (Teilnehmer, sonst Käufer) und Zeitpunkt der Bestellung.
+- Ändert sich der Text, nachdem Einwilligungen erteilt wurden, muss die Version geändert werden;
+  bestehende Datensätze behalten ihre Fassung.
+- Widerruf im **Bestellportal** (Abschnitt „Einwilligungen“): Datensatz bleibt mit `withdrawn_at` und
+  Quelle erhalten, die Antwort wird gelöscht, Audit-Eintrag `consent_withdrawn`. Im Teilnehmerformular
+  des Portals sind Einwilligungsfelder nicht änderbar.
+- Datenschutz: eigener Exporter/Löscher („Pass Captain Einwilligungen“); Löschung mit den
+  Teilnehmerantworten nach Terminende + Aufbewahrungsdauer des Felds (bzw. der globalen Einstellung).

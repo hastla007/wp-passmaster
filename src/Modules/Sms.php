@@ -293,6 +293,10 @@ final class Sms {
 		if ( '' !== $endpoint && 0 !== stripos( $endpoint, 'https://' ) ) {
 			return Forms::error( 'wpcap_sms_endpoint', __( 'Der SMS-Endpunkt muss HTTPS verwenden.', 'pass-captain' ) );
 		}
+		if ( '' !== $endpoint ) {
+			$valid = \PassCaptain\Security\OutboundHttp::validate_url( $endpoint );
+			if ( is_wp_error( $valid ) ) { return Forms::error( 'wpcap_sms_endpoint', $valid->get_error_message() ); }
+		}
 		$prefix = trim( (string) ( $in['default_country_code'] ?? '' ) );
 		$values = array(
 			'provider' => Forms::choice( $in, 'provider', array_merge( array( '' ), array_keys( Service::providers() ) ), '' ),
@@ -326,17 +330,23 @@ final class Sms {
 		global $wpdb;
 		$s = (array) Settings::get( 'sms' );
 		$row = static function ( $label, $html, $desc = '' ) {
-			echo '<tr><th scope="row">' . esc_html( $label ) . '</th><td>' . $html . ( '' !== $desc ? '<p class="description">' . esc_html( $desc ) . '</p>' : '' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $html is built from escaped parts below.
+			// The first control with an id gets a real <label for> (screen readers, click target).
+			$label = preg_match( '/\sid="(wpcap-sms-[a-z0-9_-]+)"/', $html, $m ) ? '<label for="' . esc_attr( $m[1] ) . '">' . esc_html( $label ) . '</label>' : esc_html( $label );
+			echo '<tr><th scope="row">' . $label . '</th><td>' . $html . ( '' !== $desc ? '<p class="description">' . esc_html( $desc ) . '</p>' : '' ) . '</td></tr>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $html is built from escaped parts below.
 		};
 		$text = static function ( $name, $value, $type = 'text' ) {
-			return '<input type="' . esc_attr( $type ) . '" name="' . esc_attr( $name ) . '" class="regular-text" value="' . esc_attr( (string) $value ) . '"' . ( 'password' === $type ? ' autocomplete="new-password"' : '' ) . '>';
+			return '<input type="' . esc_attr( $type ) . '" name="' . esc_attr( $name ) . '" id="wpcap-sms-' . esc_attr( $name ) . '" class="regular-text" value="' . esc_attr( (string) $value ) . '"' . ( 'password' === $type ? ' autocomplete="new-password"' : '' ) . '>';
 		};
 		$area = static function ( $name, $value ) {
-			return '<textarea name="' . esc_attr( $name ) . '" class="large-text" rows="3">' . esc_textarea( (string) $value ) . '</textarea>';
+			return '<textarea name="' . esc_attr( $name ) . '" id="wpcap-sms-' . esc_attr( $name ) . '" class="large-text" rows="3">' . esc_textarea( (string) $value ) . '</textarea>';
 		};
 		$secret = static function ( $key ) {
-			$stored = '' !== Settings::secret( $key );
-			return '<input type="password" name="' . esc_attr( $key ) . '" class="regular-text" autocomplete="new-password" value="" placeholder="' . esc_attr( $stored ? __( 'Gespeichert – leer lassen, um beizubehalten', 'pass-captain' ) : __( 'Nicht gesetzt', 'pass-captain' ) ) . '">' . ( $stored ? ' <label><input type="checkbox" name="' . esc_attr( $key . '__clear' ) . '" value="1"> ' . esc_html__( 'Entfernen', 'pass-captain' ) . '</label>' : '' ) . '<p class="description">' . esc_html( sprintf( /* translators: %s: constant */ __( 'Empfohlen: Konstante %s in wp-config.php.', 'pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
+			$override = Settings::override_source( $key );
+			if ( '' !== $override ) {
+				/* translators: %s: constant */
+				return '<p class="description"><strong>' . esc_html( sprintf( __( 'Gesetzt über %s.', 'pass-captain' ), $override ) ) . '</strong></p>';
+			}
+			return \PassCaptain\Admin\SettingsPage::secret_input( $key, 'wpcap-sms-' . $key ) . '<p class="description">' . esc_html( sprintf( /* translators: %s: constant */ __( 'Empfohlen: Konstante %s in wp-config.php.', 'pass-captain' ), 'WPCAP_' . strtoupper( $key ) ) ) . '</p>';
 		};
 		$providers = array( '' => __( 'Deaktiviert', 'pass-captain' ) );
 		foreach ( Service::providers() as $id => $provider ) { $providers[ $id ] = $provider->title() . ( $provider->is_configured() ? '' : ' ' . __( '(nicht konfiguriert)', 'pass-captain' ) ); }
@@ -346,7 +356,7 @@ final class Sms {
 		echo '<p>' . esc_html__( 'SMS werden nur an Käufer:innen gesendet, die im Checkout ausdrücklich eingewilligt haben (Nummer, Zweck, Textversion und Zeitpunkt werden gespeichert).', 'pass-captain' ) . '</p>';
 		Forms::open_form( 'wpcap_sms_save' );
 		echo '<table class="form-table"><tbody>';
-		ob_start(); Forms::select( 'provider', $providers, (string) ( $s['provider'] ?? '' ) ); $row( __( 'Anbieter', 'pass-captain' ), ob_get_clean() );
+		ob_start(); Forms::select( 'provider', $providers, (string) ( $s['provider'] ?? '' ), 'wpcap-sms-provider' ); $row( __( 'Anbieter', 'pass-captain' ), ob_get_clean() );
 		$row( __( 'Einwilligungstext im Checkout', 'pass-captain' ), $area( 'consent_text', $s['consent_text'] ?? '' ), sprintf( /* translators: %s: version */ __( 'Aktuelle Textversion: %s – Änderungen erzeugen eine neue Version.', 'pass-captain' ), Service::consent_version() ) );
 		$row( __( 'Standard-Ländervorwahl', 'pass-captain' ), $text( 'default_country_code', $s['default_country_code'] ?? '' ), __( 'Für Nummern mit führender 0, z. B. +49.', 'pass-captain' ) );
 		$row( __( 'Erlaubte Ländervorwahlen', 'pass-captain' ), $text( 'allowed_prefixes', $s['allowed_prefixes'] ?? '+43,+49,+41' ), __( 'Kommagetrennt. Für +43, +49 und +41 werden nur Mobilfunkbereiche akzeptiert (keine Premium-/Sonderrufnummern). Je Nummer höchstens 3 Einwilligungen pro Tag, je IP 10 pro Stunde. Eine Bestätigung per SMS-Code (OTP) ist nicht implementiert.', 'pass-captain' ) );
@@ -362,7 +372,7 @@ final class Sms {
 		$row( __( 'Endpunkt (HTTPS)', 'pass-captain' ), $text( 'http_endpoint', $s['http_endpoint'] ?? '', 'url' ) );
 		$row( __( 'Auth-Header-Name', 'pass-captain' ), $text( 'http_auth_header', $s['http_auth_header'] ?? '' ) );
 		$row( __( 'Auth-Header-Wert', 'pass-captain' ), $secret( 'sms_http_secret' ) );
-		ob_start(); Forms::select( 'http_content_type', array( 'json' => 'application/json', 'form' => 'application/x-www-form-urlencoded' ), (string) ( $s['http_content_type'] ?? 'json' ) ); $row( __( 'Content-Type', 'pass-captain' ), ob_get_clean() );
+		ob_start(); Forms::select( 'http_content_type', array( 'json' => 'application/json', 'form' => 'application/x-www-form-urlencoded' ), (string) ( $s['http_content_type'] ?? 'json' ), 'wpcap-sms-http_content_type' ); $row( __( 'Content-Type', 'pass-captain' ), ob_get_clean() );
 		$row( __( 'Body-Vorlage', 'pass-captain' ), $area( 'http_body_template', $s['http_body_template'] ?? '' ), __( 'Platzhalter {to}, {body}, {reference} werden passend zum Content-Type maskiert.', 'pass-captain' ) );
 		echo '</tbody></table>';
 		submit_button( __( 'Speichern', 'pass-captain' ) );

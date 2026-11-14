@@ -16,7 +16,13 @@ final class Settings {
 	/** Default values for every setting (core plus modules); built once per request. */
 	public static function defaults() {
 		if ( null === self::$defaults ) {
-			self::$defaults = array_merge( self::core_defaults(), Modules::settings_defaults() );
+			$defaults = array_merge( self::core_defaults(), Modules::settings_defaults() );
+			/**
+			 * Add-on settings outside modules: key => default. Core and module keys cannot be replaced
+			 * (only new keys are taken over). Edit them through wp_pass_captain_settings_sections_v1.
+			 */
+			$extra = apply_filters( 'wp_pass_captain_settings_defaults_v1', array() );
+			self::$defaults = is_array( $extra ) ? $defaults + $extra : $defaults;
 		}
 		return self::$defaults;
 	}
@@ -83,6 +89,11 @@ final class Settings {
 			'default_entry_window'      => 1,
 			'entry_opens_before_minutes' => 120,
 			'entry_closes_after_minutes' => 0,
+			// Reverse proxies / CDN whose forwarded client address is trusted (IPs or CIDRs, comma separated).
+			'trusted_proxies'           => '',
+			'trusted_proxy_header'      => 'x_forwarded_for',
+			// Fiscal services on the local network (plain http, loopback/private addresses) are blocked unless enabled.
+			'fiscal_allow_local_service' => 0,
 		);
 	}
 
@@ -103,15 +114,50 @@ final class Settings {
 		return $all[ $key ] ?? null;
 	}
 
-	/** Persist already sanitised values (unknown keys are ignored). */
+	/**
+	 * Settings that hold provider secrets. They are stored encrypted (Security\Vault, "pcv1:" values);
+	 * get()/all() return the stored ciphertext, only secret() returns the plaintext.
+	 */
+	const SECRET_KEYS = array(
+		'stripe_secret_key', 'stripe_webhook_secret', 'paypal_client_secret',
+		'mollie_api_key', 'twilio_auth_token', 'sms_http_secret',
+		'apple_pass_cert', 'apple_pass_key', 'apple_pass_key_password', 'apple_wwdr_cert', 'google_wallet_service_account',
+	);
+
+	/** Secret setting keys (filter wpcap_secret_settings lets add-ons register their own). */
+	public static function secret_keys() {
+		$keys = function_exists( 'apply_filters' ) ? (array) apply_filters( 'wpcap_secret_settings', self::SECRET_KEYS ) : self::SECRET_KEYS;
+		return array_values( array_unique( array_map( 'strval', $keys ) ) );
+	}
+
+	public static function is_secret( $key ) {
+		return in_array( (string) $key, self::secret_keys(), true );
+	}
+
+	/** Persist already sanitised values (unknown keys are ignored); secrets are encrypted at rest. */
 	public static function update( array $values ) {
 		$values = array_intersect_key( $values, self::defaults() );
+		foreach ( self::secret_keys() as $key ) {
+			if ( isset( $values[ $key ] ) && is_string( $values[ $key ] ) && '' !== $values[ $key ] ) {
+				$values[ $key ] = Security\Vault::encrypt( $values[ $key ], $key );
+			}
+		}
 		update_option( self::OPTION, array_merge( self::all(), $values ), false );
 		self::$all = null;
+		Security\Redact::reset();
+	}
+
+	/** Name of the constant/environment variable (WPCAP_<KEY>) that overrides a key, or ''. */
+	public static function override_source( $key ) {
+		$constant = 'WPCAP_' . strtoupper( $key );
+		if ( defined( $constant ) && '' !== (string) constant( $constant ) ) { return $constant; }
+		$env = getenv( $constant );
+		return is_string( $env ) && '' !== $env ? $constant : '';
 	}
 
 	/**
-	 * Secret lookup: constant (e.g. WPCAP_STRIPE_SECRET_KEY) > environment variable > stored option.
+	 * Secret lookup: constant (e.g. WPCAP_STRIPE_SECRET_KEY) > environment variable > stored option
+	 * (decrypted). A stored value that cannot be decrypted (key lost) counts as empty.
 	 *
 	 * @param string $key Settings key, e.g. "stripe_secret_key".
 	 */
@@ -120,7 +166,24 @@ final class Settings {
 		if ( defined( $constant ) && '' !== (string) constant( $constant ) ) { return (string) constant( $constant ); }
 		$env = getenv( $constant );
 		if ( is_string( $env ) && '' !== $env ) { return $env; }
-		return (string) self::get( $key );
+		$stored = self::get( $key );
+		if ( ! is_string( $stored ) ) { return is_scalar( $stored ) ? (string) $stored : ''; }
+		return (string) Security\Vault::decrypt( $stored, $key );
+	}
+
+	/**
+	 * State of a secret for admin screens (never the value itself).
+	 *
+	 * @return array{state:string,hint:string,source:string} state: override|stored|undecryptable|empty.
+	 */
+	public static function secret_status( $key ) {
+		$override = self::override_source( $key );
+		if ( '' !== $override ) { return array( 'state' => 'override', 'hint' => '', 'source' => $override ); }
+		$stored = self::get( $key );
+		if ( ! is_string( $stored ) || '' === $stored ) { return array( 'state' => 'empty', 'hint' => '', 'source' => '' ); }
+		$plain = Security\Vault::decrypt( $stored, $key );
+		if ( null === $plain ) { return array( 'state' => 'undecryptable', 'hint' => '', 'source' => '' ); }
+		return array( 'state' => 'stored', 'hint' => Security\Vault::mask( $plain ), 'source' => '' );
 	}
 
 	/** Version hash of the legal texts currently shown in the checkout (stored with each order). */

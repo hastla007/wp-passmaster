@@ -17,6 +17,8 @@ final class AttendeeList {
 		if ( ! $event_id ) { return ''; }
 		if ( Scope::can_event( $event_id, array( 'wpcap_manage_events' ) ) ) { return 'full'; }
 		if ( Scope::can_event( $event_id, array( 'wpcap_checkin', 'wpcap_manage_orders' ) ) ) { return 'basic'; }
+		// Staff assigned to this date only (occurrence scope) get the basic list of that date.
+		if ( \PassCaptain\Access::has_occurrence_assignment( $occurrence_id, 'wpcap_checkin' ) ) { return 'basic'; }
 		return '';
 	}
 

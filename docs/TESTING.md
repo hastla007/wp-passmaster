@@ -1,4 +1,4 @@
-# Tests: Integration, Last/Nebenläufigkeit, Barrierefreiheit
+# Tests: Integration, Last/Nebenläufigkeit, Barrierefreiheit, Browser (JS, E2E)
 
 ## Integrationstests
 
@@ -128,9 +128,14 @@ node keyboard.js
 
 - `run.js` prüft mit den Regeln WCAG 2.0/2.1/2.2 A+AA und best-practice: Event-Liste mit Checkout-Formular
   (auch mit eingeblendeten Teilnehmerfeldern und Fehlermeldung), Ticketseite, Bestellportal,
-  Wartelistenangebot und Annahmeseite, Scanner (angemeldet, auch mit Ergebnis), Admin: Events, Event-Detail,
-  Bestellungen, Bestelldetail, Check-ins, Box Office, Einstellungen (nur `#wpbody-content`). Ausgabe nach
-  Impact, JSON-Bericht in `tests/a11y/report/`. Seiten mit HTTP ≠ 200 gelten als Fehler (nicht geprüft).
+  Wartelistenangebot und Annahmeseite, Scanner (angemeldet, auch mit Ergebnis) und im Admin **jede Unterseite
+  des Pass-Captain-Menüs** (nach dem Login aus dem Menü gelesen, Module eingeschlossen – neue Seiten sind
+  automatisch dabei) plus Detailansichten: Event, Bestellung, Kampagne (auch „neu“), Warteliste eines Events,
+  Ressource mit Zeitfenster, Mitgliedspass, Einlassregeln/Offline-Scanner/Berichte/Tickets/Serien eines Events,
+  Saalplan-Editor (nur `#wpbody-content`). `fixture.php` legt dafür zusätzlich einen API-Key, eine Ressource
+  mit Zeitfenster, eine Kampagne, einen Mitgliedspass, einen Saalplan-Entwurf und ein zweites Event an.
+  Ausgabe nach Impact, JSON-Bericht in `tests/a11y/report/`. Seiten mit HTTP ≠ 200 gelten als Fehler.
+  `--match=text` beschränkt den Lauf auf Seiten, deren Name den Text enthält.
 - `keyboard.js` geht den Checkout nur mit der Tastatur durch: Tab-Reihenfolge = DOM-Reihenfolge, jeder Tab-Stopp
   hat Namen und sichtbaren Fokus, ausverkaufte Ticketart ist kein Tab-Stopp, Fehlermeldung in `role=status`/
   `aria-live=polite`, Pfeiltaste erzeugt Teilnehmer-Fieldset mit Legende und Labels, ungültige E-Mail und fehlende
@@ -142,3 +147,170 @@ Template), Tastatur-Durchlauf 23/23 Prüfungen bestanden, Farbkontrast der öffe
 Seiten: 9 kritische und 48 ernste Knoten (fehlende Labels an Filter-Selects, Kontrast von `<code>`-Links,
 Zielgröße der Checkboxen) – siehe offene Punkte im Changelog/Report. Nicht in CI (braucht eine WordPress-Instanz).
 Automatische Prüfungen ersetzen keine Screenreader-Tests (siehe `docs/ACCESSIBILITY.md`).
+
+## CI-Qualitätstore, Paket- und Installationstests
+
+Alle Schritte laufen in `.github/workflows/ci.yml` bei jedem Push/PR und blockieren den Build
+(Ausnahme: MySQL-Matrixeinträge, siehe `docs/COMPATIBILITY.md`). Lokal reproduzierbar mit den Befehlen unten
+(`composer install` inkl. Dev-Paketen vorausgesetzt).
+
+### Statische Analyse (Job `static`)
+
+| Prüfung | Lokal | Konfiguration |
+|---|---|---|
+| Versions-/Anforderungskonsistenz | `bash build/check-versions.sh [vX.Y.Z]` | Header `Version`, `WPCAP_VERSION`, readme `Stable tag`, neueste CHANGELOG-Version, `composer.json` (`version` falls vorhanden, `require.php`, `config.platform.php`), `Requires at least`/`Requires PHP` |
+| PHP_CodeSniffer (WPCS 3 + PHPCompatibilityWP, PHP 8.2+, WP 6.4+) | `php build/phpcs-baseline.php` | `phpcs.xml.dist`, Baseline `phpcs-baseline.json` |
+| PHPStan Level 5 (szepeviktor/phpstan-wordpress, WooCommerce-Stubs) | `composer lint:phpstan` | `phpstan.neon.dist`, Baseline `phpstan-baseline.neon` |
+| Bekannte Schwachstellen in Composer-Paketen | `composer audit --locked` | – |
+
+**Baselines:** Bestehende Befunde sind eingefroren, jeder *neue* Befund lässt CI scheitern.
+Stand 14.11.2026: phpcs 951 Befunde in 93 Dateien (davon 779 `WordPress.DB.PreparedSQL.*`, meist Tabellennamen
+in SQL-Strings), PHPStan 90 Befunde (58 Einträge). Der phpcs-Ruleset erzwingt Sicherheit (Escaping, Nonces,
+Sanitizing, vorbereitete SQL-Statements), i18n (Textdomain `pass-captain`), WordPress-API-Regeln, Präfixe,
+Capabilities und PHP-Kompatibilität; reine Layout-Sniffs und Docblock-Regeln sind abgeschaltet (der Code nutzt
+einen kompakten Stil, Massenumformatierung würde nur Merge-Konflikte erzeugen).
+
+- phpcs zählt pro Datei und Sniff (zeilenunabhängig, übersteht Umbauten und Merges): steigt die Zahl für ein
+  Paar Datei/Sniff, werden dessen Fundstellen ausgegeben. Neue Dateien haben keine Baseline.
+- Befunde beheben statt Baseline vergrößern; nur begründet `// phpcs:ignore Sniff.Code -- Grund` bzw.
+  `@phpstan-ignore identifier (Grund)` an der Stelle.
+- Nach Korrekturen Baselines verkleinern: `php build/phpcs-baseline.php --update`, `composer phpstan:baseline`.
+  Nach einem Merge mehrerer Zweige mit Codeänderungen ebenfalls beide neu erzeugen und den Diff prüfen
+  (er darf nur Einträge entfernen oder bewusst akzeptierte hinzufügen).
+- Aus der PHPStan-Analyse ausgenommen: `src/Fiscalization/Providers/*Adapter.php` (implementieren das nicht
+  vorhandene Interface `PassCaptain\Fiscalization\AdapterInterface`, nicht baseline-fähig).
+
+### Secret-Scan (Job `secrets`, Schritt im Job `package`)
+
+gitleaks prüft die Git-Historie (`gitleaks/gitleaks-action`) und das entpackte Release-ZIP (`gitleaks dir`,
+Version gepinnt mit SHA-256). Regeln: Standardregeln plus `.gitleaks.toml` (Stripe-Testschlüssel `sk_test_…`
+und die Entropie-Regel `generic-api-key` unter `tests/` sind erlaubt; Live-Schlüssel werden überall gemeldet).
+Für Pull Requests prüft `actions/dependency-review-action` neue/geänderte Abhängigkeiten (ab Schweregrad
+„moderate“). Lokal: `gitleaks git --config .gitleaks.toml .` bzw. `gitleaks dir --config .gitleaks.toml <dir>`.
+Gehört das Repository einer Organisation, braucht die gitleaks-Action das Secret `GITLEAKS_LICENSE`.
+
+### Paket und Installation (Jobs `package`, `install-test`)
+
+- **Reproduzierbarkeit:** `build/release.sh` wird zweimal ausgeführt (zweiter Lauf mit leerem Composer-
+  Cache); die SHA-256-Summen müssen gleich sein. Details und Verifikation: `docs/COMPATIBILITY.md`.
+- **Paketinhalt** (`WPCAP_IT_STATIC_ONLY=1 bash build/ci-install-test.sh`): ein Ordner `pass-captain/`,
+  Hauptdatei, Readme, `uninstall.php`, Composer-Autoloader, alle versionierten Dateien aus `src/`,
+  `templates/`, `assets/` und `languages/*.mo`; keine Tests, Doku, Build-/CI-Dateien, Tool-Konfigurationen,
+  Baselines, Markdown, `.po`-Quellen oder Test-Ordner von Abhängigkeiten; keine privaten Schlüssel/Live-Keys.
+- **Installation in echtem WordPress** (`bash build/ci-install-test.sh build/dist/pass-captain.zip`, braucht
+  eine Wegwerf-Datenbank, WP-CLI wird geladen): WordPress herunterladen, konfigurieren (`WP_DEBUG_LOG`),
+  installieren, optional WooCommerce installieren, dann `wp plugin install <zip> --activate`. Fehlschlag bei
+  PHP-Fehlern/Warnungen/Deprecations aus Plugin-Dateien in WP-CLI-Ausgabe oder `debug.log`. Danach
+  Smoke-Check (`build/ci-smoke.php`): Tabellen, Schema-Version/-Fingerprint, Rollenrechte, Cron, REST-Routen
+  und `GET /wp-pass-captain/v1/events`, QR-Code (Laufzeitabhängigkeit), mit WooCommerce HPOS-Kompatibilität,
+  HPOS-Status und eine WooCommerce-Bestellung über den aktiven Speicher – einmal mit HPOS an, einmal aus,
+  danach Deaktivieren/Aktivieren und erneuter Smoke-Check. Matrix: WordPress aktuell und 6.4, WooCommerce
+  aktuell und 8.2. Variablen: `WPCAP_IT_DB_*`, `WPCAP_IT_WP_VERSION`, `WPCAP_IT_WC_VERSION`,
+  `WPCAP_IT_WP_CORE_DIR`/`WPCAP_IT_WC_ZIP` (lokale Quellen statt Download), `WPCAP_IT_KEEP=1`.
+
+Lokal geprüft (14.11.2026): WordPress 7.1.4 ohne WooCommerce, mit WooCommerce 11.3.0 und 8.2.0 (je HPOS an/aus),
+WordPress 6.4 – alle Prüfungen bestanden.
+
+## Geplante Lasttests (`.github/workflows/load.yml`)
+
+Wöchentlich (Montag 03:17 UTC) und manuell (`workflow_dispatch`, Profil wählbar): `tests/load/run.php` mit
+den Profilen `default` und `heavy` auf MariaDB 11.4 und MySQL 8.4, PHP 8.4. Der Job scheitert bei verletzter
+Invariante (Exit-Code 1: Überverkauf, doppelte Einlässe, doppelt angewendete Webhooks, unerwartete Fehler).
+Ausgabe und JSON (`--json`) werden 90 Tage als Artefakt `load-<profil>-<db>` aufbewahrt, die Tabelle steht in
+der Job-Zusammenfassung. Latenzen werden nicht automatisch bewertet (geteilte Runner schwanken stark); bei
+Abweichungen von mehr als etwa Faktor 2 gegenüber den Referenzwerten unten oder bei Deadlocks > 0 genauer
+hinsehen.
+
+### Referenzwerte (14.11.2026)
+
+Lokale VM mit 4 vCPU, 15 GB RAM, PHP 8.3, Datenbank im Docker-Container mit Standardkonfiguration
+(`max_connections=151`) auf derselben Maschine. Alle Invarianten erfüllt, 0 % Fehler.
+
+| DB | Profil | Szenario | Requests | Verb. | req/s | p50 ms | p95 ms | p99 ms | max ms | Deadlocks | Fehler |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| MariaDB 10.6 | default | checkout | 566 | 50 | 514 | 70.8 | 158.7 | 207.2 | 260 | 0 | 0 % |
+| MariaDB 10.6 | default | check-in | 1000 | 20 | 2722 | 4.9 | 19.7 | 31 | 55 | 0 | 0 % |
+| MariaDB 10.6 | default | webhook | 480 | 50 | 1303 | 3 | 256.7 | 311.7 | 319 | 0 | 0 % |
+| MariaDB 10.6 | heavy | checkout | 1150 | 100 | 583 | 140.9 | 276.6 | 376.3 | 446 | 0 | 0 % |
+| MariaDB 10.6 | heavy | check-in | 4000 | 40 | 3156 | 7.3 | 33.5 | 52.7 | 105 | 0 | 0 % |
+| MariaDB 10.6 | heavy | webhook | 1200 | 100 | 1384 | 5.1 | 508.3 | 678.2 | 787 | 0 | 0 % |
+| MySQL 8.4 | default | checkout | 566 | 50 | 574 | 63.2 | 175.4 | 211.1 | 252 | 0 | 0 % |
+| MySQL 8.4 | default | check-in | 1000 | 20 | 2083 | 5.5 | 24.2 | 41.3 | 54 | 0 | 0 % |
+| MySQL 8.4 | default | webhook | 480 | 50 | 1062 | 5.8 | 267.8 | 348 | 388 | 0 | 0 % |
+| MySQL 8.4 | heavy | checkout | 1150 | 100 | 471 | 134.6 | 461.5 | 631.9 | 715 | 0 | 0 % |
+| MySQL 8.4 | heavy | check-in | 4000 | 40 | 2648 | 6.8 | 43.1 | 77.7 | 215 | 0 | 0 % |
+| MySQL 8.4 | heavy | webhook | 1200 | 100 | 1122 | 7.9 | 584.4 | 889.2 | 1027 | 0 | 0 % |
+
+Stand 14.11.2026 (WordPress 7.1, Chromium): 53 Seiten, **0 Verstöße aller Stufen** (kritisch bis gering),
+Tastatur-Durchlauf bestanden. Behoben wurden u. a. fehlende Namen von Filter-/Einstellungs-Selects (Tickets,
+Einlassregeln/-konflikte, Offline-Scanner, Berichte, Druck, SMS, Wallet), ein unbeschriftetes Vorlagen-Textfeld,
+leere Tabellenköpfe, zu kleine bzw. überlappende Checkbox-Ziele (24 px, WCAG 2.5.8) und Kontrast der grünen
+Statusfarben. Die „contrast?“-Spalte zählt Knoten, die axe nicht automatisch bewerten kann (meist Selects mit
+Pfeil-Hintergrundbild aus dem WordPress-Core) – manuell prüfen. Automatische Prüfungen ersetzen keine
+Screenreader-Tests (siehe `docs/ACCESSIBILITY.md`).
+
+## Browser-Tests: a11y-Gate, JS-Unit-Tests, E2E
+
+Drei Suiten ergänzen die PHP-Tests. Die beiden Browser-Suiten laufen gegen eine **Wegwerf**-WordPress-Seite, die
+`tests/support/wp-env.sh` anlegt und mit `php -S` ausliefert (WordPress-Core per `git clone` oder aus
+`WPCAP_WP_CORE`, Plugin als Symlink, eigene DB/Tabellenpräfix, Mailversand und Gravatar abgeschaltet):
+
+```bash
+# Gemeinsame Umgebung (Defaults in Klammern)
+export WPCAP_DB_HOST=127.0.0.1 WPCAP_DB_USER=wp WPCAP_DB_PASS=wp WPCAP_DB_NAME=wp_browser   # Wegwerf-DB!
+export WPCAP_WP_DIR=/tmp/wpcap-browser-wp WPCAP_WP_PORT=8890      # optional; WPCAP_WP_CORE=/pfad/zu/wp-core
+tests/ci/browser-tests.sh all          # alles wie in CI: js, a11y, e2e (oder einzeln: js | a11y | e2e)
+```
+
+### Barrierefreiheit als Release-Gate: `tests/a11y/gate.sh`
+
+Startet die Testseite (wenn `WPCAP_A11Y_BASE`/`WPCAP_A11Y_WP_PATH` nicht gesetzt sind), führt `run.js` und
+`keyboard.js` aus und endet mit Exit-Code ≠ 0 bei **jedem** axe-Verstoß (`WPCAP_A11Y_FAIL_ON=minor`, änderbar auf
+`moderate|serious|critical`), bei HTTP ≠ 200 einer Seite oder einer fehlgeschlagenen Tastaturprüfung. Gehört vor
+jedes Release; in CI über `tests/ci/browser-tests.sh a11y`.
+
+### JS-Unit-Tests: `tests/js/` (`npm test`)
+
+`node --test` ohne Abhängigkeiten (Node ≥ 20). `lib/load.js` führt die Seiten-Skripte (IIFEs) in Node mit
+künstlichem `window`/`document` (Mini-DOM `lib/dom.js`), Fake-Timern und `fetch`-Mock aus, `lib/idb.js` ist ein
+In-Memory-IndexedDB. Interne Funktionen kommen über einen geschützten Test-Hook
+(`if (typeof module === 'object' && module && module.exports) module.exports = …`, im Browser wirkungslos) bzw.
+`window.wpcapOffline` (Offline-Scanner). 56 Tests:
+
+| Datei | Abgedeckt |
+|---|---|
+| `checkout.test.js` | Haltezeit-Texte, Platzhalter, `money()` wie `Format::money()`, Summe und Teilnehmer-Fieldsets bei Mengenänderung, Validierung mit Feldbezeichnungen, Fehlerzusammenfassung (Fokus, `aria-invalid`/`aria-describedby`), Server-Fehler → Feld, Rechnungsdaten, REST-Payload, Idempotency-Key (neu nach Serverantwort, gleich nach Netzwerkfehler) |
+| `pos.test.js` | Box Office: Betragsformat/-parser, Summe, Rückgeld (auch negativ), Karte/frei, Teilnehmerfelder, Doppel-Submit, Verfügbarkeits-Refresh |
+| `scanner.test.js` | Web-Scanner: Online-Check-in, Serverfehler, Offline nie automatisch eingelassen (nur nach Sichtprüfung in die Warteschlange), Warteschlange pro Benutzer, Altbestand v1, Ablauf nach 24 h, Sync in 100er-Blöcken (während des Syncs gescannte Codes bleiben), Einlassmodul (Bereich, Check-out), Kamera verweigert/nicht vorhanden |
+| `order-portal.test.js` | Übertragung mit Bestätigungsdialog (Abbrechen, Fokus zurück, `confirm()`-Fallback), Teilnehmerzuweisung, erneuter Versand, Rechnungsdaten mit Feldfehler |
+| `seating-picker.test.js` | Saalplan: Rollen/Labels, Listen-Fallback, Auswahl und Ticketart-Zuordnung, Tastatur (Pfeile, Home/End, Leertaste), Stehplätze, Neuladen mit vergebenem Platz, Mengenänderung, Payload-Prüfung |
+| `offline-scanner.test.js` | PWA: `t()` (Platzhalter, Tabellen-Lookup), i18n-Tabelle laden/prüfen/speichern/offline nutzen, Kopplung (fremder Server abgelehnt), Ed25519-Paketprüfung (Signatur, Schlüssel unbekannt/abgelaufen, Gerät, Format), Delta-Kette, Offline-Entscheidung (unbekannt, widerrufen, verwendet, Bereich, Mehrfachticket, abgelaufen), IndexedDB-Warteschlange und Sync mit Konflikten, Online-Scan, Serverausfall → offline, 401 |
+
+### Browser-E2E: `tests/e2e/` (`run.sh`)
+
+Playwright + `node:test`, eine Datei pro Ablauf, Screenshots nur bei Fehlschlag (`tests/e2e/artifacts/`).
+`helper.php` legt serverseitig Kopplungscodes, Zuweisungen und einen Termin im Einlassfenster an und liest
+Ticket-/Bestellstatus; `mu-plugin/wpcap-e2e.php` (nur Testseite) bietet eine Fake-Zahlungsseite als Zahlart
+„Testzahlung“ – nur für Browser mit Cookie `wpcap_e2e=1`, damit die a11y-Läufe den normalen Checkout sehen.
+
+```bash
+tests/e2e/run.sh                                  # startet die Testseite selbst
+WPCAP_WOO_ZIP=/pfad/woocommerce.zip tests/e2e/run.sh   # + WooCommerce-Blocks auf einer zweiten Testseite
+WPCAP_E2E_BROWSER=firefox tests/e2e/run.sh        # andere Engine (Browser vorher installieren)
+```
+
+| Datei | Ablauf |
+|---|---|
+| `checkout.test.js` | Bezahlte Bestellung: Ticketmenge, Teilnehmernamen, Käufer-E-Mail, AGB, Zahlart → Fake-Zahlungsseite → bezahlt, 2 Tickets ausgestellt, Namen im Bestellportal; kostenlose Bestellung (Fokus auf Bestätigung, „weitere bestellen“); Fehlerzusammenfassung |
+| `portal.test.js` | Teilnehmerzuweisung (Pflicht-E-Mail, Code rotiert/bleibt), erneuter Versand mit Dialog, einmalige Übertragung (Escape bricht ab, Fokus zurück, Bestätigen überträgt, danach nicht mehr angeboten) |
+| `scanner.test.js` | Kamera verweigert → Fehlermeldung, manueller Code checkt ein (serverseitig geprüft), zweiter Scan abgelehnt; Kamera erlaubt (Chromium-Fake-Kamera) → Video läuft |
+| `offline-scanner.test.js` | PWA wie aus dem Admin-Link (`?api=`): Kopplungsbildschirm übersetzt, Tabelle in IndexedDB und ohne Endpunkt genutzt; Kopplung, signiertes Paket, Scan bei `context.setOffline(true)` → lokale Entscheidung + IndexedDB-Warteschlange (Code bis zum Upload), Doppelscan offline abgelehnt, nach Reconnect synchronisiert und serverseitig eingecheckt |
+| `woocommerce-blocks.test.js` | WooCommerce-Blocks-Checkout (zweite Testseite, `woo-env.sh` + `woo-setup.php`): Teilnehmer-Fieldset mit Labels, ungültige Teilnehmer-E-Mail blockiert die Bestellung (`aria-invalid`, Fehlermeldung), Angaben landen am Woo-Auftrag. Ohne `WPCAP_WOO_ZIP` übersprungen |
+
+**Browser-Matrix:** lokal und in CI nur **Chromium** (Playwright, volle Chromium-Version wegen Kamera-Capture;
+Fallback Headless-Shell). **Ausstehend:** Firefox und WebKit (`WPCAP_E2E_BROWSER`, Browser in CI installieren –
+die Fake-Kamera-Prüfung wird dort übersprungen), echte Geräte **iOS Safari** und **Android Chrome** (Kamera-
+Berechtigung, BarcodeDetector vs. jsQR, PWA-Installation, Offline-Modus, Hintergrund-Sync) – manuell oder über
+einen Gerätedienst.
+
+Stand 14.11.2026: JS 56/56, E2E 11/11 (Chromium, WooCommerce 11.3 für den Blocks-Test), a11y-Gate bestanden.

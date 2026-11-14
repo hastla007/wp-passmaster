@@ -81,7 +81,7 @@ final class DevicesPage {
 			<?php submit_button( __( 'Kopplungs-QR erstellen', 'pass-captain' ), 'primary', 'submit', false ); ?>
 		</form>
 		<h2><?php esc_html_e( 'Gekoppelte Geräte', 'pass-captain' ); ?></h2>
-		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Person', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Events', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Bereich', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Zuletzt aktiv', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letzte Synchronisierung', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Offene Konflikte', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th></th></tr></thead><tbody>
+		<table class="widefat striped"><thead><tr><th><?php esc_html_e( 'Gerät', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Person', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Events', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Bereich', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Zuletzt aktiv', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Letzte Synchronisierung', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Offene Konflikte', 'pass-captain' ); ?></th><th><?php esc_html_e( 'Status', 'pass-captain' ); ?></th><th><span class="screen-reader-text"><?php esc_html_e( 'Aktionen', 'pass-captain' ); ?></span></th></tr></thead><tbody>
 		<?php foreach ( $devices as $device ) :
 			$active = ! $device->revoked_at && ( ! $device->expires_at || $device->expires_at > current_time( 'mysql', true ) );
 			$sync = $status[ (int) $device->device_id ];

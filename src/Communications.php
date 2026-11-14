@@ -81,6 +81,7 @@ final class Communications {
 		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT message_id FROM $table WHERE status='queued' AND send_at<=%s LIMIT 1", $now ) ) ) {
 			Jobs\TimeBudget::continue_later( 'wpcap_process_messages' );
 		}
+		Ops\Heartbeat::beat( 'messages', $processed ); // System status: last completed worker run.
 		return $processed;
 	}
 }

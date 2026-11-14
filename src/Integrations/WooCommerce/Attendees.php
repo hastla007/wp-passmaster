@@ -67,13 +67,14 @@ final class Attendees {
 			if ( ! $type_id || ! $quantity ) {
 				continue;
 			}
-			$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required,purpose FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $type_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required,purpose,consent_text FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $type_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$fields = array();
 			foreach ( $rows as $row ) {
 				$fields[] = array(
 					'key'      => (string) $row->field_key,
-					'label'    => (string) $row->label,
-					'type'     => in_array( $row->field_type, array( 'text', 'email', 'textarea', 'checkbox' ), true ) ? $row->field_type : 'text',
+					// Consent fields are a checkbox whose label carries the consent text (logged on issuance).
+					'label'    => 'consent' === $row->field_type && '' !== (string) $row->consent_text ? (string) $row->label . ': ' . (string) $row->consent_text : (string) $row->label,
+					'type'     => 'consent' === $row->field_type ? 'checkbox' : ( in_array( $row->field_type, array( 'text', 'email', 'textarea', 'checkbox' ), true ) ? $row->field_type : 'text' ),
 					'required' => (bool) (int) $row->required,
 					'purpose'  => (string) $row->purpose,
 				);

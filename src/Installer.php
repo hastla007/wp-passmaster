@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.5.0';
+	const DB_VERSION = '3.9.0';
 
 	public static function install() {
 		global $wpdb;
@@ -64,6 +64,7 @@ final class Installer {
 				slug varchar(190) NOT NULL,
 				description longtext NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'draft',
+				tax_country char(2) NOT NULL DEFAULT '',
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (event_id),
@@ -106,6 +107,7 @@ final class Installer {
 				public_id char(32) NOT NULL,
 				idempotency_key char(64) NOT NULL,
 				customer_email varchar(190) NOT NULL,
+				customer_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				access_token_hash char(64) NOT NULL DEFAULT '',
 				access_expires_at datetime NULL,
 				status varchar(24) NOT NULL DEFAULT 'pending_payment',
@@ -130,6 +132,7 @@ final class Installer {
 				UNIQUE KEY public_id (public_id),
 				UNIQUE KEY idempotency_key (idempotency_key),
 				KEY customer_email (customer_email),
+				KEY customer_user_id (customer_user_id),
 				KEY access_token_hash (access_token_hash),
 				KEY access_expires_at (access_expires_at),
 				KEY status (status),
@@ -146,6 +149,8 @@ final class Installer {
 				tax_rate_bp int(10) unsigned NOT NULL DEFAULT 0,
 				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				refunded_quantity smallint(5) unsigned NOT NULL DEFAULT 0,
+				tax_profile_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				line_snapshot longtext NULL,
 				PRIMARY KEY  (item_id),
 				KEY order_id (order_id),
 				KEY ticket_type_id (ticket_type_id),
@@ -219,7 +224,34 @@ final class Installer {
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (audit_id),
 				KEY object (object_type,object_id),
-				KEY created_at (created_at)
+				KEY created_at (created_at),
+				KEY action_created (action,created_at),
+				KEY user_created (user_id,created_at)
+			) ENGINE=InnoDB $charset;",
+			// W9: date-level staff assignments (Access::can_access_occurrence) and time-limited support access.
+			"CREATE TABLE {$wpdb->prefix}wpcap_occurrence_staff (
+				occurrence_id bigint(20) unsigned NOT NULL,
+				event_id bigint(20) unsigned NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				capability varchar(64) NOT NULL,
+				PRIMARY KEY  (occurrence_id,user_id,capability),
+				KEY event_user (event_id,user_id),
+				KEY user_id (user_id)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_support_grants (
+				grant_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				user_id bigint(20) unsigned NOT NULL,
+				granted_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				reason varchar(255) NOT NULL DEFAULT '',
+				capabilities varchar(255) NOT NULL DEFAULT '',
+				status varchar(20) NOT NULL DEFAULT 'active',
+				expires_at datetime NOT NULL,
+				revoked_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				ended_at datetime NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (grant_id),
+				KEY user_status (user_id,status),
+				KEY status_expires (status,expires_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $seat_maps (
 				map_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -263,12 +295,18 @@ final class Installer {
 				resource_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				event_id bigint(20) unsigned NOT NULL,
 				name varchar(190) NOT NULL,
+				timezone varchar(64) NOT NULL DEFAULT '',
 				capacity smallint(5) unsigned NOT NULL DEFAULT 1,
 				buffer_before smallint(5) unsigned NOT NULL DEFAULT 0,
 				buffer_after smallint(5) unsigned NOT NULL DEFAULT 0,
+				default_duration smallint(5) unsigned NOT NULL DEFAULT 60,
+				partner_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				ticket_type_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				rules longtext NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
 				PRIMARY KEY  (resource_id),
-				KEY event_status (event_id,status)
+				KEY event_status (event_id,status),
+				KEY partner_id (partner_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $service_slots (
 				slot_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -289,11 +327,27 @@ final class Installer {
 				idempotency_key char(64) NOT NULL,
 				quantity smallint(5) unsigned NOT NULL DEFAULT 1,
 				expires_at datetime NULL,
-				status varchar(20) NOT NULL DEFAULT 'held',
+				status varchar(24) NOT NULL DEFAULT 'held',
+				ticket_ids varchar(500) NOT NULL DEFAULT '',
+				amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				currency char(3) NOT NULL DEFAULT '',
+				manage_token_hash char(64) NOT NULL DEFAULT '',
+				confirm_by datetime NULL,
+				cancel_reason varchar(64) NOT NULL DEFAULT '',
+				refund_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				rebook_count smallint(5) unsigned NOT NULL DEFAULT 0,
+				last_action_key char(64) NOT NULL DEFAULT '',
+				pass_use_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				checked_in_at datetime NULL,
+				noshow_at datetime NULL,
+				fee_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
+				updated_at datetime NULL,
 				PRIMARY KEY  (booking_id),
 				KEY slot_state (slot_id,status),
 				KEY email (customer_email),
+				KEY order_id (order_id),
+				KEY status_confirm (status,confirm_by),
 				UNIQUE KEY idempotency_key (idempotency_key)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $occurrence_days (
@@ -380,6 +434,8 @@ final class Installer {
 				retention_days smallint(5) unsigned NOT NULL DEFAULT 365,
 				position smallint(5) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				consent_text text NULL,
+				consent_version varchar(32) NOT NULL DEFAULT '',
 				PRIMARY KEY  (field_id),
 				UNIQUE KEY type_key (ticket_type_id,field_key),
 				KEY type_status (ticket_type_id,status)
@@ -444,6 +500,10 @@ final class Installer {
 				ticket_type_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				uses_total smallint(5) unsigned NOT NULL DEFAULT 0,
 				uses_per_day smallint(5) unsigned NOT NULL DEFAULT 1,
+				scope varchar(16) NOT NULL DEFAULT 'event',
+				resource_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				slot_mode varchar(16) NOT NULL DEFAULT 'slot_free',
+				expires_at datetime NULL,
 				PRIMARY KEY  (rule_id),
 				KEY pass_scope (pass_id,event_id,ticket_type_id)
 			) ENGINE=InnoDB $charset;",
@@ -454,6 +514,9 @@ final class Installer {
 				service_date date NOT NULL,
 				user_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				idempotency_key char(64) NOT NULL,
+				resource_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				slot_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				booking_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (pass_use_id),
 				UNIQUE KEY idempotency_key (idempotency_key),
@@ -474,6 +537,9 @@ final class Installer {
 				starts_at datetime NULL,
 				ends_at datetime NULL,
 				status varchar(20) NOT NULL DEFAULT 'active',
+				combinable tinyint(1) unsigned NOT NULL DEFAULT 1,
+				with_price_rules tinyint(1) unsigned NOT NULL DEFAULT 1,
+				max_discount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (campaign_id),
 				UNIQUE KEY code (code),
@@ -503,11 +569,34 @@ final class Installer {
 				status varchar(20) NOT NULL DEFAULT 'waiting',
 				offer_token_hash char(64) NOT NULL DEFAULT '',
 				offer_expires_at datetime NULL,
+				hold_quantity smallint(5) unsigned NOT NULL DEFAULT 0,
+				manage_token_hash char(64) NOT NULL DEFAULT '',
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (waitlist_id),
 				UNIQUE KEY event_type_email (event_id,ticket_type_id,email_hash),
 				KEY queue_order (event_id,ticket_type_id,status,position),
+				KEY offer_expiry (status,offer_expires_at),
+				KEY type_hold (ticket_type_id,status,offer_expires_at)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_service_waitlist (
+				entry_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				slot_id bigint(20) unsigned NOT NULL,
+				email_hash char(64) NOT NULL,
+				email varchar(190) NOT NULL,
+				quantity smallint(5) unsigned NOT NULL DEFAULT 1,
+				position bigint(20) unsigned NOT NULL,
+				status varchar(20) NOT NULL DEFAULT 'waiting',
+				offer_token_hash char(64) NOT NULL DEFAULT '',
+				offer_expires_at datetime NULL,
+				manage_token_hash char(64) NOT NULL DEFAULT '',
+				booking_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (entry_id),
+				UNIQUE KEY slot_email (slot_id,email_hash),
+				KEY queue_order (slot_id,status,position),
 				KEY offer_expiry (status,offer_expires_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $api_keys (
@@ -518,6 +607,7 @@ final class Installer {
 				event_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				scopes varchar(255) NOT NULL,
 				label varchar(190) NOT NULL DEFAULT '',
+				rate_limit int(10) unsigned NOT NULL DEFAULT 600,
 				last_used_at datetime NULL,
 				expires_at datetime NULL,
 				revoked_at datetime NULL,
@@ -549,6 +639,9 @@ final class Installer {
 				effective_from date NOT NULL,
 				effective_until date NULL,
 				status varchar(20) NOT NULL DEFAULT 'draft',
+				label varchar(190) NOT NULL DEFAULT '',
+				place_of_supply_note text NULL,
+				activated_at datetime NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (tax_profile_id),
 				KEY country_effective (country_code,tax_class,effective_from,effective_until),
@@ -655,6 +748,8 @@ final class Installer {
 			) ENGINE=InnoDB $charset;",
 		);
 
+		// Price rules, buyer limits and logged consents (src/Sales, docs/SALES-MODELS.md, docs/TAX-PROFILES.md).
+		$queries = array_merge( $queries, Sales\Schema::statements( $wpdb->prefix, $charset ) );
 		$queries = array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) );
 		$errors = array();
 		foreach ( $queries as $query ) {
@@ -677,6 +772,8 @@ final class Installer {
 			self::schema_failed( $errors, $missing );
 			return false;
 		}
+		// Encrypts provider secrets still stored in plaintext (idempotent, see Security\Vault).
+		Security\Vault::migrate();
 		update_option( 'wpcap_db_version', self::version() );
 		update_option( 'wpcap_version', WPCAP_VERSION );
 		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );
@@ -716,17 +813,60 @@ final class Installer {
 		return $missing;
 	}
 
-	/** Records a failed schema upgrade: PHP error log plus an option that drives the admin notice. */
+	/**
+	 * Records a failed schema upgrade: PHP error log plus an option that drives the admin notice.
+	 * Consecutive failures of the same schema version back off (RETRY_DELAYS), so a broken database
+	 * does not run dbDelta on every admin/cron request; the system status page can force a retry.
+	 */
 	private static function schema_failed( array $errors, array $missing ) {
+		$previous = get_option( self::ERROR_OPTION );
+		$attempts = is_array( $previous ) && ( $previous['version'] ?? '' ) === self::version() ? (int) ( $previous['attempts'] ?? 1 ) + 1 : 1;
 		$details = array(
-			'time'    => time(),
-			'version' => self::version(),
-			'errors'  => array_slice( array_values( array_unique( $errors ) ), 0, 5 ),
-			'missing' => array_slice( $missing, 0, 20 ),
+			'time'       => time(),
+			'version'    => self::version(),
+			'errors'     => array_slice( array_values( array_unique( $errors ) ), 0, 5 ),
+			'missing'    => array_slice( $missing, 0, 20 ),
+			'attempts'   => $attempts,
+			'next_retry' => time() + self::retry_delay( $attempts ),
 		);
 		update_option( self::ERROR_OPTION, $details );
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- a failed schema upgrade must reach the operator.
-		error_log( 'Pass Captain: database upgrade to ' . $details['version'] . ' failed; will retry. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ) );
+		// The admin notice (ERROR_OPTION) is the primary channel; the log reaches add-ons and, if enabled, the PHP error log.
+		Log::error( 'schema_upgrade_failed', 'database upgrade to ' . $details['version'] . ' failed (attempt ' . $attempts . '); next retry in ' . self::retry_delay( $attempts ) . 's. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ), array( 'details' => $details ) );
+	}
+
+	/** Seconds to wait after the n-th consecutive failed upgrade (1 min, 5 min, 15 min, then hourly). */
+	const RETRY_DELAYS = array( 60, 300, 900, 3600 );
+
+	/** Backoff delay after $attempts consecutive failures. */
+	public static function retry_delay( $attempts ) {
+		$delays = self::RETRY_DELAYS;
+		return (int) $delays[ max( 0, min( count( $delays ), (int) $attempts ) - 1 ) ];
+	}
+
+	/**
+	 * Unix time before which no automatic upgrade retry runs; 0 when a retry is allowed now.
+	 * A newer plugin/schema version than the failed one is always tried at once.
+	 */
+	public static function retry_blocked_until( $now = null ) {
+		$error = get_option( self::ERROR_OPTION );
+		if ( ! is_array( $error ) || empty( $error['next_retry'] ) || ( $error['version'] ?? '' ) !== self::version() ) { return 0; }
+		return (int) $error['next_retry'] > ( $now ?? time() ) ? (int) $error['next_retry'] : 0;
+	}
+
+	/**
+	 * Runs the schema upgrade now, ignoring the backoff (system status page, WP-CLI). Behind the
+	 * upgrade lock like every upgrade.
+	 *
+	 * @return bool|null True on success, false when it failed again, null when another request holds the lock.
+	 */
+	public static function retry_now() {
+		$result = null;
+		$locked = self::run_locked(
+			static function () use ( &$result ) {
+				$result = self::install();
+			}
+		);
+		return $locked ? (bool) $result : null;
 	}
 
 	/** Admin notice while the last schema upgrade failed (registered by maybe_upgrade() on admin requests). */
@@ -736,7 +876,7 @@ final class Installer {
 		$detail = implode( ', ', array_merge( (array) ( $error['missing'] ?? array() ), (array) ( $error['errors'] ?? array() ) ) );
 		printf(
 			'<div class="notice notice-error"><p>%1$s</p><p><code>%2$s</code></p></div>',
-			esc_html__( 'Pass Captain: Die Datenbank-Aktualisierung ist fehlgeschlagen. Sie wird beim nächsten Seitenaufruf im Adminbereich automatisch wiederholt. Bitte das PHP-Fehlerprotokoll prüfen, falls die Meldung bleibt.', 'pass-captain' ),
+			esc_html__( 'Pass Captain: Die Datenbank-Aktualisierung ist fehlgeschlagen. Sie wird automatisch in zunehmenden Abständen wiederholt und kann unter „Pass Captain → Systemstatus“ sofort erneut gestartet werden. Bitte das PHP-Fehlerprotokoll prüfen, falls die Meldung bleibt.', 'pass-captain' ),
 			esc_html( substr( $detail, 0, 500 ) )
 		);
 	}
@@ -810,7 +950,8 @@ final class Installer {
 			if ( $fingerprint_ok ) { return false; }
 			$next = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( self::UPGRADE_HOOK ) : false;
 			if ( ! $next && function_exists( 'wp_schedule_single_event' ) ) {
-				wp_schedule_single_event( time(), self::UPGRADE_HOOK );
+				// After a failed upgrade the cron event waits for the backoff instead of firing at once.
+				wp_schedule_single_event( max( time(), self::retry_blocked_until() ), self::UPGRADE_HOOK );
 				return false;
 			}
 			if ( $next && (int) $next > time() - self::OVERDUE_AFTER ) { return false; }
@@ -820,6 +961,8 @@ final class Installer {
 			if ( ! $fingerprint_ok ) { update_option( 'wpcap_schema_fingerprint', self::fingerprint() ); }
 			return false;
 		}
+		// The last attempt for this version failed: wait for the backoff (retry_now() overrides it).
+		if ( self::retry_blocked_until() ) { return false; }
 		$ran = false;
 		self::run_locked(
 			static function () use ( &$ran ) {
@@ -846,7 +989,10 @@ final class Installer {
 	/** Name of the per-site upgrade lock (MySQL lock names are limited to 64 characters). */
 	public static function lock_name() {
 		global $wpdb;
-		return 'wpcap_upgrade_' . substr( md5( (string) $wpdb->prefix . '|' . ( defined( 'DB_NAME' ) ? DB_NAME : '' ) ), 0, 16 );
+		// GET_LOCK names are server-wide: include the database so installs sharing one server never block each other.
+		$database = defined( 'DB_NAME' ) ? (string) DB_NAME : (string) ( $wpdb->dbname ?? '' );
+		if ( '' === $database ) { $database = (string) $wpdb->get_var( 'SELECT DATABASE()' ); }
+		return 'wpcap_upgrade_' . substr( md5( (string) $wpdb->prefix . '|' . $database ), 0, 16 );
 	}
 
 	/**
@@ -903,6 +1049,7 @@ final class Installer {
 		$admin = get_role( 'administrator' );
 		if ( $admin ) {
 			foreach ( $all_caps as $cap ) { $admin->add_cap( $cap, true ); }
+			$admin->add_cap( 'wpcap_view_audit', true ); // Audit-Log viewer (W9); not part of any operational role.
 		}
 		$roles = array(
 			'wpcap_ticket_admin'   => array( __( 'Pass Captain Ticket-Administration', 'pass-captain' ), $all_caps ),

@@ -184,10 +184,12 @@ final class Service {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='queued',locked_at=NULL WHERE status='sending' AND locked_at<%s", gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
+		// Claims of crashed workers go back to the queue; attempts are counted at claim time, so a message
+		// that kills the worker every time ends as failed instead of being retried forever.
+		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status=IF(attempts>=%d,'failed','queued'),locked_at=NULL WHERE status='sending' AND locked_at<%s", self::MAX_ATTEMPTS, gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
 		self::retire_finished();
 		$provider = self::provider();
-		if ( ! $provider ) { self::erase_retired_numbers(); return 0; }
+		if ( ! $provider ) { self::erase_retired_numbers(); \PassCaptain\Ops\Heartbeat::beat( 'sms' ); return 0; }
 		$sent = 0;
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 25;
 		// Shared cron time budget: checked before each claim, so a claimed message is always processed.
@@ -198,13 +200,22 @@ final class Service {
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( \PassCaptain\Jobs\TimeBudget::exhausted( $deadline ) ) { $budget_hit = true; break; }
 			if ( $claimed ) { \PassCaptain\Jobs\TimeBudget::finished( $table, $claimed ); }
-			$wpdb->query( 'START TRANSACTION' );
+			$claimed = 0;
+			// The SMS is only sent once the claim is durable: transaction started, exactly this row moved
+			// from queued to sending (attempt counted), commit succeeded. Otherwise a parallel worker could
+			// send it again. On a database error the run ends; the next run retries.
+			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; }
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_sms_messages WHERE status='queued' AND send_at<=%s ORDER BY send_at,message_id LIMIT 1 FOR UPDATE", $now ) );
-			if ( ! $row ) { $wpdb->query( 'COMMIT' ); break; }
-			$wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'sending', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'message_id' => (int) $row->message_id ) );
-			$wpdb->query( 'COMMIT' );
+			if ( ! $row ) {
+				if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); } else { $wpdb->query( 'COMMIT' ); }
+				break;
+			}
+			$updated = $wpdb->update( "{$p}wpcap_sms_messages", array( 'status' => 'sending', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'message_id' => (int) $row->message_id, 'status' => 'queued' ) );
+			if ( false === $updated ) { $wpdb->query( 'ROLLBACK' ); break; }
+			if ( 1 !== (int) $updated ) { $wpdb->query( 'ROLLBACK' ); continue; }
+			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); break; }
 			$claimed = (int) $row->message_id;
-			\PassCaptain\Jobs\TimeBudget::claimed( $table, 'message_id', $claimed, 'sending', 'queued' );
+			\PassCaptain\Jobs\TimeBudget::claimed( $table, 'message_id', $claimed, 'sending', 'queued', 'failed', self::MAX_ATTEMPTS );
 			// Consent is re-checked at send time (it may have been withdrawn meanwhile).
 			$consent = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_sms_consents WHERE consent_id=%d AND withdrawn_at IS NULL AND phone<>''", (int) $row->consent_id ) );
 			$skip = ! $consent ? 'no_consent' : (string) apply_filters( 'wpcap_sms_skip_reason', '', $row );
@@ -226,6 +237,7 @@ final class Service {
 		if ( $claimed ) { \PassCaptain\Jobs\TimeBudget::finished( $table, $claimed ); }
 		if ( $budget_hit ) { \PassCaptain\Jobs\TimeBudget::continue_later( 'wpcap_process_messages' ); }
 		self::erase_retired_numbers();
+		\PassCaptain\Ops\Heartbeat::beat( 'sms', $sent ); // System status: last completed worker run.
 		return $sent;
 	}
 

@@ -16,13 +16,18 @@ require dirname( __DIR__ ) . '/bootstrap.php';
 
 $mode = $argv[1] ?? 'job';
 
-if ( ! function_exists( 'wp_safe_remote_post' ) ) {
-	function wp_safe_remote_post( $url, $args = array() ) {
+// Same salts as the parent run (tests/integration/affiliate.php), so the vault can decrypt webhook secrets.
+if ( ! function_exists( 'wp_salt' ) ) { function wp_salt( $scheme = 'auth' ) { return 'salt-' . $scheme; } }
+// Outgoing webhooks use Security\OutboundHttp -> wp_remote_request().
+if ( ! function_exists( 'wp_remote_request' ) ) {
+	function wp_remote_request( $url, $args = array() ) {
 		if ( false !== strpos( (string) $url, 'crash' ) ) { echo "CRASH\n"; exit( 3 ); }
 		return array( 'response' => array( 'code' => 200, 'message' => 'OK' ), 'headers' => array(), 'body' => '' );
 	}
 }
 if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? (int) ( $r['response']['code'] ?? 0 ) : ''; } }
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) { function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? (string) ( $r['body'] ?? '' ) : ''; } }
+if ( ! function_exists( 'wp_remote_retrieve_header' ) ) { function wp_remote_retrieve_header( $r, $h ) { return ''; } }
 
 add_filter(
 	'wp_pass_captain_process_job_v1',
