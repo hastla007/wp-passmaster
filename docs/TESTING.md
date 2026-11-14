@@ -123,3 +123,96 @@ Template), Tastatur-Durchlauf 23/23 Prüfungen bestanden, Farbkontrast der öffe
 Seiten: 9 kritische und 48 ernste Knoten (fehlende Labels an Filter-Selects, Kontrast von `<code>`-Links,
 Zielgröße der Checkboxen) – siehe offene Punkte im Changelog/Report. Nicht in CI (braucht eine WordPress-Instanz).
 Automatische Prüfungen ersetzen keine Screenreader-Tests (siehe `docs/ACCESSIBILITY.md`).
+
+## CI-Qualitätstore, Paket- und Installationstests
+
+Alle Schritte laufen in `.github/workflows/ci.yml` bei jedem Push/PR und blockieren den Build
+(Ausnahme: MySQL-Matrixeinträge, siehe `docs/COMPATIBILITY.md`). Lokal reproduzierbar mit den Befehlen unten
+(`composer install` inkl. Dev-Paketen vorausgesetzt).
+
+### Statische Analyse (Job `static`)
+
+| Prüfung | Lokal | Konfiguration |
+|---|---|---|
+| Versions-/Anforderungskonsistenz | `bash build/check-versions.sh [vX.Y.Z]` | Header `Version`, `WPCAP_VERSION`, readme `Stable tag`, neueste CHANGELOG-Version, `composer.json` (`version` falls vorhanden, `require.php`, `config.platform.php`), `Requires at least`/`Requires PHP` |
+| PHP_CodeSniffer (WPCS 3 + PHPCompatibilityWP, PHP 8.2+, WP 6.4+) | `php build/phpcs-baseline.php` | `phpcs.xml.dist`, Baseline `phpcs-baseline.json` |
+| PHPStan Level 5 (szepeviktor/phpstan-wordpress, WooCommerce-Stubs) | `composer lint:phpstan` | `phpstan.neon.dist`, Baseline `phpstan-baseline.neon` |
+| Bekannte Schwachstellen in Composer-Paketen | `composer audit --locked` | – |
+
+**Baselines:** Bestehende Befunde sind eingefroren, jeder *neue* Befund lässt CI scheitern.
+Stand 14.11.2026: phpcs 951 Befunde in 93 Dateien (davon 779 `WordPress.DB.PreparedSQL.*`, meist Tabellennamen
+in SQL-Strings), PHPStan 90 Befunde (58 Einträge). Der phpcs-Ruleset erzwingt Sicherheit (Escaping, Nonces,
+Sanitizing, vorbereitete SQL-Statements), i18n (Textdomain `pass-captain`), WordPress-API-Regeln, Präfixe,
+Capabilities und PHP-Kompatibilität; reine Layout-Sniffs und Docblock-Regeln sind abgeschaltet (der Code nutzt
+einen kompakten Stil, Massenumformatierung würde nur Merge-Konflikte erzeugen).
+
+- phpcs zählt pro Datei und Sniff (zeilenunabhängig, übersteht Umbauten und Merges): steigt die Zahl für ein
+  Paar Datei/Sniff, werden dessen Fundstellen ausgegeben. Neue Dateien haben keine Baseline.
+- Befunde beheben statt Baseline vergrößern; nur begründet `// phpcs:ignore Sniff.Code -- Grund` bzw.
+  `@phpstan-ignore identifier (Grund)` an der Stelle.
+- Nach Korrekturen Baselines verkleinern: `php build/phpcs-baseline.php --update`, `composer phpstan:baseline`.
+  Nach einem Merge mehrerer Zweige mit Codeänderungen ebenfalls beide neu erzeugen und den Diff prüfen
+  (er darf nur Einträge entfernen oder bewusst akzeptierte hinzufügen).
+- Aus der PHPStan-Analyse ausgenommen: `src/Fiscalization/Providers/*Adapter.php` (implementieren das nicht
+  vorhandene Interface `PassCaptain\Fiscalization\AdapterInterface`, nicht baseline-fähig).
+
+### Secret-Scan (Job `secrets`, Schritt im Job `package`)
+
+gitleaks prüft die Git-Historie (`gitleaks/gitleaks-action`) und das entpackte Release-ZIP (`gitleaks dir`,
+Version gepinnt mit SHA-256). Regeln: Standardregeln plus `.gitleaks.toml` (Stripe-Testschlüssel `sk_test_…`
+und die Entropie-Regel `generic-api-key` unter `tests/` sind erlaubt; Live-Schlüssel werden überall gemeldet).
+Für Pull Requests prüft `actions/dependency-review-action` neue/geänderte Abhängigkeiten (ab Schweregrad
+„moderate“). Lokal: `gitleaks git --config .gitleaks.toml .` bzw. `gitleaks dir --config .gitleaks.toml <dir>`.
+Gehört das Repository einer Organisation, braucht die gitleaks-Action das Secret `GITLEAKS_LICENSE`.
+
+### Paket und Installation (Jobs `package`, `install-test`)
+
+- **Reproduzierbarkeit:** `build/release.sh` wird zweimal ausgeführt (zweiter Lauf mit leerem Composer-
+  Cache); die SHA-256-Summen müssen gleich sein. Details und Verifikation: `docs/COMPATIBILITY.md`.
+- **Paketinhalt** (`WPCAP_IT_STATIC_ONLY=1 bash build/ci-install-test.sh`): ein Ordner `pass-captain/`,
+  Hauptdatei, Readme, `uninstall.php`, Composer-Autoloader, alle versionierten Dateien aus `src/`,
+  `templates/`, `assets/` und `languages/*.mo`; keine Tests, Doku, Build-/CI-Dateien, Tool-Konfigurationen,
+  Baselines, Markdown, `.po`-Quellen oder Test-Ordner von Abhängigkeiten; keine privaten Schlüssel/Live-Keys.
+- **Installation in echtem WordPress** (`bash build/ci-install-test.sh build/dist/pass-captain.zip`, braucht
+  eine Wegwerf-Datenbank, WP-CLI wird geladen): WordPress herunterladen, konfigurieren (`WP_DEBUG_LOG`),
+  installieren, optional WooCommerce installieren, dann `wp plugin install <zip> --activate`. Fehlschlag bei
+  PHP-Fehlern/Warnungen/Deprecations aus Plugin-Dateien in WP-CLI-Ausgabe oder `debug.log`. Danach
+  Smoke-Check (`build/ci-smoke.php`): Tabellen, Schema-Version/-Fingerprint, Rollenrechte, Cron, REST-Routen
+  und `GET /wp-pass-captain/v1/events`, QR-Code (Laufzeitabhängigkeit), mit WooCommerce HPOS-Kompatibilität,
+  HPOS-Status und eine WooCommerce-Bestellung über den aktiven Speicher – einmal mit HPOS an, einmal aus,
+  danach Deaktivieren/Aktivieren und erneuter Smoke-Check. Matrix: WordPress aktuell und 6.4, WooCommerce
+  aktuell und 8.2. Variablen: `WPCAP_IT_DB_*`, `WPCAP_IT_WP_VERSION`, `WPCAP_IT_WC_VERSION`,
+  `WPCAP_IT_WP_CORE_DIR`/`WPCAP_IT_WC_ZIP` (lokale Quellen statt Download), `WPCAP_IT_KEEP=1`.
+
+Lokal geprüft (14.11.2026): WordPress 7.1.4 ohne WooCommerce, mit WooCommerce 11.3.0 und 8.2.0 (je HPOS an/aus),
+WordPress 6.4 – alle Prüfungen bestanden.
+
+## Geplante Lasttests (`.github/workflows/load.yml`)
+
+Wöchentlich (Montag 03:17 UTC) und manuell (`workflow_dispatch`, Profil wählbar): `tests/load/run.php` mit
+den Profilen `default` und `heavy` auf MariaDB 11.4 und MySQL 8.4, PHP 8.4. Der Job scheitert bei verletzter
+Invariante (Exit-Code 1: Überverkauf, doppelte Einlässe, doppelt angewendete Webhooks, unerwartete Fehler).
+Ausgabe und JSON (`--json`) werden 90 Tage als Artefakt `load-<profil>-<db>` aufbewahrt, die Tabelle steht in
+der Job-Zusammenfassung. Latenzen werden nicht automatisch bewertet (geteilte Runner schwanken stark); bei
+Abweichungen von mehr als etwa Faktor 2 gegenüber den Referenzwerten unten oder bei Deadlocks > 0 genauer
+hinsehen.
+
+### Referenzwerte (14.11.2026)
+
+Lokale VM mit 4 vCPU, 15 GB RAM, PHP 8.3, Datenbank im Docker-Container mit Standardkonfiguration
+(`max_connections=151`) auf derselben Maschine. Alle Invarianten erfüllt, 0 % Fehler.
+
+| DB | Profil | Szenario | Requests | Verb. | req/s | p50 ms | p95 ms | p99 ms | max ms | Deadlocks | Fehler |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| MariaDB 10.6 | default | checkout | 566 | 50 | 514 | 70.8 | 158.7 | 207.2 | 260 | 0 | 0 % |
+| MariaDB 10.6 | default | check-in | 1000 | 20 | 2722 | 4.9 | 19.7 | 31 | 55 | 0 | 0 % |
+| MariaDB 10.6 | default | webhook | 480 | 50 | 1303 | 3 | 256.7 | 311.7 | 319 | 0 | 0 % |
+| MariaDB 10.6 | heavy | checkout | 1150 | 100 | 583 | 140.9 | 276.6 | 376.3 | 446 | 0 | 0 % |
+| MariaDB 10.6 | heavy | check-in | 4000 | 40 | 3156 | 7.3 | 33.5 | 52.7 | 105 | 0 | 0 % |
+| MariaDB 10.6 | heavy | webhook | 1200 | 100 | 1384 | 5.1 | 508.3 | 678.2 | 787 | 0 | 0 % |
+| MySQL 8.4 | default | checkout | 566 | 50 | 574 | 63.2 | 175.4 | 211.1 | 252 | 0 | 0 % |
+| MySQL 8.4 | default | check-in | 1000 | 20 | 2083 | 5.5 | 24.2 | 41.3 | 54 | 0 | 0 % |
+| MySQL 8.4 | default | webhook | 480 | 50 | 1062 | 5.8 | 267.8 | 348 | 388 | 0 | 0 % |
+| MySQL 8.4 | heavy | checkout | 1150 | 100 | 471 | 134.6 | 461.5 | 631.9 | 715 | 0 | 0 % |
+| MySQL 8.4 | heavy | check-in | 4000 | 40 | 2648 | 6.8 | 43.1 | 77.7 | 215 | 0 | 0 % |
+| MySQL 8.4 | heavy | webhook | 1200 | 100 | 1122 | 7.9 | 584.4 | 889.2 | 1027 | 0 | 0 % |

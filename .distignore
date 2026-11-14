@@ -24,6 +24,9 @@
 /phpunit.xml.dist
 /phpstan.neon
 /phpstan.neon.dist
+/phpstan-baseline.neon
+/phpcs-baseline.json
+/.gitleaks.toml
 /composer.json
 /composer.lock
 package.json

@@ -4,12 +4,19 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
+env:
+  # Exact Composer version: the vendor/composer files in the ZIP depend on it (reproducible build).
+  COMPOSER_VERSION: '2.8.12'
+
 jobs:
   php:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php: ['8.2', '8.4']
+        php: ['8.2', '8.3', '8.4']
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -27,6 +34,29 @@ jobs:
       - name: JavaScript syntax checks
         run: for f in $(git ls-files "assets/*.js" "src/*.js" | grep -v "^assets/vendor/"); do node --check "$f" || exit 1; done
 
+  static:
+    # Blocking quality gates (docs/TESTING.md, "Statische Analyse"): coding standard and PHPStan with
+    # frozen baselines (new findings fail), known vulnerabilities in Composer packages, version consistency.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:${{ env.COMPOSER_VERSION }}
+          extensions: mbstring
+          coverage: none
+      - name: Install dependencies (incl. dev tools)
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Version and requirement consistency
+        run: bash build/check-versions.sh
+      - name: PHP_CodeSniffer (WordPress Coding Standards, PHPCompatibilityWP) against phpcs-baseline.json
+        run: php build/phpcs-baseline.php
+      - name: PHPStan (level 5, WordPress + WooCommerce stubs) against phpstan-baseline.neon
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=2G --error-format=github
+      - name: Composer security audit (runtime and dev packages)
+        run: composer audit --locked --no-interaction
+
   license-guard:
     # Decision 13.11.2026 (TODO A2): the core plugin stays free for WordPress.org. Fails as soon as licence
     # client, entitlement checks, an "Update URI" header or own update hooks appear in the shipped files.
@@ -42,8 +72,139 @@ jobs:
       - name: No licence or self-update code in the core plugin
         run: php tests/guard/no-license-code.php
 
-  integration:
+  secrets:
+    # Secret scanning of the git history (gitleaks, rules + test allowlists in .gitleaks.toml) and,
+    # for pull requests, review of added/changed dependencies against known vulnerabilities.
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks (git history)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+          # Required by gitleaks-action for repositories owned by an organisation (free key on gitleaks.io).
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+      - name: Dependency review (pull requests)
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+
+  integration:
+    # DB integration suite and load smoke test on every supported PHP version x database server
+    # (support matrix: docs/COMPATIBILITY.md). Entries with experimental: true are tested but not
+    # released yet; their failures are shown but do not block.
+    name: integration (PHP ${{ matrix.php }}, ${{ matrix.db.name }})
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.db.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+        db:
+          - { name: 'MariaDB 10.6', image: 'mariadb:10.6', health: 'healthcheck.sh --connect --innodb_initialized', experimental: false }
+          - { name: 'MariaDB 11.4', image: 'mariadb:11.4', health: 'healthcheck.sh --connect --innodb_initialized', experimental: false }
+          - { name: 'MySQL 8.0', image: 'mysql:8.0', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot', experimental: true }
+          - { name: 'MySQL 8.4', image: 'mysql:8.4', health: 'mysqladmin ping -h 127.0.0.1 -uroot -proot', experimental: true }
+    services:
+      db:
+        image: ${{ matrix.db.image }}
+        env:
+          # MYSQL_* is understood by both the mysql and the mariadb images.
+          MYSQL_DATABASE: wp
+          MYSQL_USER: wp
+          MYSQL_PASSWORD: wp
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="${{ matrix.db.health }}"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, mysqli, gd, zip, sodium, openssl
+          coverage: none
+      - name: Integration tests
+        env:
+          WPCAP_TEST_DB_HOST: 127.0.0.1
+        run: php tests/integration/run.php
+      - name: Concurrency/load smoke test (200 buyers, 8 scanners, 100 webhook deliveries; ~10 s)
+        # Regression test for the check-in deadlock (false "admitted" responses, see docs/TESTING.md).
+        env:
+          WPCAP_TEST_DB_HOST: 127.0.0.1
+        run: php tests/load/run.php --profile=ci
+
+  package:
+    runs-on: ubuntu-latest
+    needs: [php, static, integration, license-guard, secrets]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:${{ env.COMPOSER_VERSION }}
+          extensions: mbstring
+          coverage: none
+      - name: Build installable plugin ZIP
+        run: bash build/release.sh
+      - name: Reproducible build (second build from a clean Composer cache must be byte-identical)
+        run: |
+          cp build/dist/pass-captain.zip "$RUNNER_TEMP/first.zip"
+          composer clear-cache
+          bash build/release.sh
+          first="$(sha256sum "$RUNNER_TEMP/first.zip" | cut -d' ' -f1)"
+          second="$(sha256sum build/dist/pass-captain.zip | cut -d' ' -f1)"
+          echo "first:  $first"; echo "second: $second"
+          if [ "$first" != "$second" ]; then
+            echo "::error::ZIP build is not reproducible"
+            diff <(unzip -Zv "$RUNNER_TEMP/first.zip") <(unzip -Zv build/dist/pass-captain.zip) | head -50 || true
+            exit 1
+          fi
+          sha256sum -c build/dist/pass-captain.zip.sha256
+      - name: Package contents (no tests/dev files, autoloader and assets present, no embedded keys)
+        run: WPCAP_IT_STATIC_ONLY=1 bash build/ci-install-test.sh build/dist/pass-captain.zip
+      - name: No licence or self-update code in the built package
+        run: |
+          rm -rf build/unpacked && mkdir -p build/unpacked
+          unzip -q build/dist/pass-captain.zip -d build/unpacked
+          php tests/guard/no-license-code.php build/unpacked/pass-captain
+      - name: Secret scan of the built package (gitleaks)
+        run: |
+          v=8.28.0
+          curl -fsSL -o "$RUNNER_TEMP/gitleaks.tgz" "https://github.com/gitleaks/gitleaks/releases/download/v${v}/gitleaks_${v}_linux_x64.tar.gz"
+          echo "a65b5253807a68ac0cafa4414031fd740aeb55f54fb7e55f386acb52e6a840eb  $RUNNER_TEMP/gitleaks.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" dir --no-banner --redact --config .gitleaks.toml build/unpacked
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pass-captain
+          path: |
+            build/dist/pass-captain.zip
+            build/dist/pass-captain.zip.sha256
+
+  install-test:
+    # The release ZIP in a fresh, real WordPress (WP-CLI), alone and with WooCommerce minimum/latest,
+    # HPOS on and off (build/ci-install-test.sh).
+    name: install-test (PHP ${{ matrix.php }}, ${{ matrix.label }})
+    runs-on: ubuntu-latest
+    needs: [package]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: 'WordPress latest', php: '8.4', wc: '' }
+          - { label: 'WordPress 6.4 (minimum)', php: '8.2', wc: '', wp: '6.4' }
+          - { label: 'WooCommerce latest', php: '8.4', wc: 'latest' }
+          - { label: 'WooCommerce 8.2 (minimum)', php: '8.2', wc: '8.2.0' }
     services:
       mariadb:
         image: mariadb:11.4
@@ -61,40 +222,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
-          extensions: mbstring, mysqli, gd, zip, sodium, openssl
+          php-version: ${{ matrix.php }}
+          extensions: mbstring, mysqli, gd, zip, sodium, openssl, intl
           coverage: none
-      - name: Orders and WooCommerce adapter integration tests
-        env:
-          WPCAP_TEST_DB_HOST: 127.0.0.1
-        run: php tests/integration/run.php
-      - name: Concurrency/load smoke test (200 buyers, 8 scanners, 100 webhook deliveries; ~10 s)
-        # Regression test for the check-in deadlock (false "admitted" responses, see docs/TESTING.md).
-        env:
-          WPCAP_TEST_DB_HOST: 127.0.0.1
-        run: php tests/load/run.php --profile=ci
-
-  package:
-    runs-on: ubuntu-latest
-    needs: [php, integration, license-guard]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          tools: composer:v2
-          extensions: mbstring
-      - name: Build installable plugin ZIP
-        run: bash build/release.sh
-      - name: No licence or self-update code in the built package
-        run: |
-          rm -rf build/unpacked && mkdir -p build/unpacked
-          unzip -q build/dist/pass-captain.zip -d build/unpacked
-          php tests/guard/no-license-code.php build/unpacked/pass-captain
-      - uses: actions/upload-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: pass-captain
-          path: build/dist/pass-captain.zip
+          path: build/dist
+      - name: Install and activate the release ZIP, smoke check
+        env:
+          WPCAP_IT_DB_HOST: 127.0.0.1
+          WPCAP_IT_WP_VERSION: ${{ matrix.wp || 'latest' }}
+          WPCAP_IT_WC_VERSION: ${{ matrix.wc }}
+        run: bash build/ci-install-test.sh build/dist/pass-captain.zip
 
   plugin-check:
     # Official WordPress.org Plugin Check (TODO A8) against exactly the files of the release ZIP.
