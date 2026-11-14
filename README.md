@@ -2,6 +2,10 @@
 
 Eigenständiges WordPress-Plugin für Event-, Termin-, Ticket- und Einlassverwaltung. WooCommerce und Voucher Captain sind optionale Integrationen und keine Voraussetzung für den Kern.
 
+## Kern frei, Premium im Add-on
+
+Pass Captain ist als Kern-Plugin vollständig kostenlos (GPL-2.0-or-later) und für WordPress.org vorgesehen: keine Lizenzaktivierung, kein Lizenzschlüssel, keine gesperrten Funktionen, Updates nur über WordPress.org. Bereits ausgelieferte Funktionen bleiben dauerhaft frei. Premiumfunktionen entstehen ausschließlich in einem getrennten Add-on-Plugin, das als einziges mit dem Lizenzserver spricht und über die dokumentierten Erweiterungspunkte andockt. Funktionsinventar und Regeln: [docs/FREE-PREMIUM.md](docs/FREE-PREMIUM.md); Andockpunkte für Add-ons: [docs/EXTENSIONS.md](docs/EXTENSIONS.md). Der Wächtertest `tests/guard/no-license-code.php` lässt die CI fehlschlagen, sobald Lizenz- oder Updatercode im Kern auftaucht.
+
 ## Funktionen
 
 - Events als Einzeltermin oder wöchentliche Serie mit bis zu 12 getrennten Terminen im Admin anlegen.
@@ -41,13 +45,19 @@ Integrationstests für Bestellungen, Reservierungen und den WooCommerce-Adapter 
 php tests/integration/run.php
 ```
 
-Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung und JavaScript-Syntaxprüfung aus und erzeugt ein installierbares ZIP als Workflow-Artefakt.
+Der CI-Workflow führt Composer-Metadatenprüfung, PHP-Syntaxprüfung, JavaScript-Syntaxprüfung, Integrations- und Lasttests sowie den Lizenz-Wächtertest aus, erzeugt ein installierbares ZIP als Workflow-Artefakt und prüft genau dieses ZIP mit dem offiziellen WordPress.org-Werkzeug [Plugin Check](https://github.com/WordPress/plugin-check-action). Den Wächtertest lokal ausführen:
+
+```sh
+php tests/guard/no-license-code.php --self-test
+php tests/guard/no-license-code.php
+```
 
 ## Roadmaps und Entwurfsdokumente
 
 - [Nächste 10 Schritte](ROADMAP.md)
 - [Schritte 11–30](ROADMAP_11_30.md)
 - [Schritte 31–50](ROADMAP_31_50.md)
+- [Kern frei, Premium im Add-on](docs/FREE-PREMIUM.md)
 
 ## Module (P2)
 
