@@ -594,7 +594,7 @@ final class Controller {
 		$event_id = absint( $payload['event_id'] ?? 0 );
 		if ( ! Access::can_access_event( $event_id, 'wpcap_manage_events' ) ) { return new \WP_Error( 'wpcap_api_key_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), array( 'status' => 403 ) ); }
 		if ( ! empty( $payload['expires_at'] ) && ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $payload['expires_at'] ) || strtotime( $payload['expires_at'] . ' UTC' ) <= time() ) ) { return new \WP_Error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$result = DeveloperKeys::issue( $event_id, (array) ( $payload['scopes'] ?? array() ), $payload['label'] ?? '', $payload['expires_at'] ?? '' );
+		$result = DeveloperKeys::issue( $event_id, (array) ( $payload['scopes'] ?? array() ), $payload['label'] ?? '', $payload['expires_at'] ?? '', $payload['rate_limit'] ?? DeveloperKeys::DEFAULT_RATE_LIMIT );
 		return is_wp_error( $result ) ? $result : new \WP_REST_Response( $result, 201 );
 	}
 

@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.5.0';
+	const DB_VERSION = '3.6.0';
 
 	public static function install() {
 		global $wpdb;
@@ -263,6 +263,7 @@ final class Installer {
 				resource_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				event_id bigint(20) unsigned NOT NULL,
 				name varchar(190) NOT NULL,
+				timezone varchar(64) NOT NULL DEFAULT '',
 				capacity smallint(5) unsigned NOT NULL DEFAULT 1,
 				buffer_before smallint(5) unsigned NOT NULL DEFAULT 0,
 				buffer_after smallint(5) unsigned NOT NULL DEFAULT 0,
@@ -518,6 +519,7 @@ final class Installer {
 				event_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				scopes varchar(255) NOT NULL,
 				label varchar(190) NOT NULL DEFAULT '',
+				rate_limit int(10) unsigned NOT NULL DEFAULT 600,
 				last_used_at datetime NULL,
 				expires_at datetime NULL,
 				revoked_at datetime NULL,
