@@ -326,4 +326,4 @@ $counts = array_count_values( $mails_seen );
 $complete = (int) $audit_real->get_var( "SELECT COUNT(*) FROM {$p}wpcap_jobs WHERE job_type='audit_parallel' AND status='complete'" );
 $sent = (int) $audit_real->get_var( "SELECT COUNT(*) FROM {$p}wpcap_message_queue WHERE template_key='audit_parallel' AND status='sent'" );
 check( 'parallel workers: each of 40 jobs handled exactly once (' . count( $jobs_seen ) . ' handled)', $expected_jobs === $jobs_seen && 40 === $complete );
-check( 'parallel workers: each of 40 messages sent exactly once (' . count( $mails_seen ) . ' sent)', 40 === count( $counts ) && array( 1 ) === array_values( array_unique( $counts ) ) && 40 === $sent );
+check( 'parallel workers: each of 40 messages sent exactly once (' . count( $mails_seen ) . '' . ' sent, ' . count( $counts ) . ' distinct, ' . $sent . ' marked sent)', 40 === count( $counts ) && array( 1 ) === array_values( array_unique( $counts ) ) && 40 === $sent );

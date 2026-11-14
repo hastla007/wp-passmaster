@@ -330,6 +330,9 @@ Diese Befunde kamen aus der erneuten Prüfung mit fünf Perspektiven. Der neuest
 
 - [ ] Zahlt der Anbieter aus und schlägt selbst das Speichern der Provider-Referenz fehl, bleibt der Refund in `processing` ohne Referenz und braucht manuelle Prüfung; Admin-Ansicht/Reconciliation dafür ergänzen.
 - [ ] Bei dauerhaftem Schemafehler wiederholt jede Admin-/Cron-Anfrage `dbDelta()` ohne Backoff; Backoff ergänzen.
-- [ ] `Refunds.php` und der WooCommerce-Adapter ignorieren den neuen Fehler-Rückgabewert von `Orders::mark_refunded()`; `Refunds::record_external()` und die abschließenden Statusupdates in Jobs/Communications sind noch ungeprüft (Fallback: 15-Minuten-Stale-Lock).
+- [ ] `Refunds.php` und der WooCommerce-Adapter ignorieren den neuen Fehler-Rückgabewert von `Orders::mark_refunded()`; `Refunds::record_external()` ist noch ungeprüft. (Abschließende Statusupdates in Jobs/Communications werden seit 2026-11-14 bei Deadlock kurz wiederholt.)
 - [ ] Seltener Fall: Schlägt das Abschließen des Outbox-Jobs nach erfolgreicher Mail fehl, versendet der Retry eine zweite Mail mit neuen Codes.
 - [ ] Offline-Scanner: `manifest.json` bleibt deutsch (statische Datei); PWA nutzt die Site-Sprache statt der Gerätesprache; `docs/OFFLINE-SCANNER.md` um den i18n-Endpunkt ergänzen.
+- [ ] Plugin-Check-Restpunkte: `error_log()` (Installer, Refunds, Jobs) mit begründetem `phpcs:ignore`, `load_plugin_textdomain()` für die mitgelieferten Übersetzungen, direkte Dateisystemfunktionen/`@`-Unterdrückung (Calendar, InvoicePdf, Orders, WalletPasses) und Direkt-curl für APNs (HTTP/2) nach dem ersten echten Plugin-Check-Lauf bewerten.
+- [ ] Entscheiden: verwaiste Fiskal-Adapter (`src/Fiscalization/Providers/*`, ohne `AdapterInterface` in `main`) entfernen oder PR #14 übernehmen; `ConnectorRegistry::dispatch()` wird nirgends aufgerufen – Connectoren anbinden oder Vertrag als experimentell kennzeichnen.
+- [ ] Fehlende Erweiterungspunkte für das Add-on ergänzen: Einstellungs-Abschnitte, Berichts-/Export-Hooks, Scanner-Adapter-Registry; öffentliche Hooks versionieren und per Test absichern (A4).

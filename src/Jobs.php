@@ -56,16 +56,34 @@ final class Jobs {
 			$handled = apply_filters( 'wp_pass_captain_process_job_v1', false, $row->job_type, is_array( $payload ) ? $payload : array(), (int) $row->job_id );
 			Jobs\TimeBudget::finished( $table, (int) $row->job_id );
 			if ( true === $handled ) {
-				$wpdb->update( $table, array( 'status' => 'complete', 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+				self::update_with_retry( $table, array( 'status' => 'complete', 'locked_at' => null, 'last_error' => null, 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
 				continue;
 			}
 			$attempts = (int) $row->attempts + 1;
 			$status = $attempts >= 8 ? 'dead_letter' : 'queued';
-			$wpdb->update( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
+			self::update_with_retry( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
 		}
 		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s LIMIT 1", $now ) ) ) {
 			Jobs\TimeBudget::continue_later( 'wpcap_process_jobs' );
 		}
 		return $processed;
+	}
+
+	/**
+	 * Final status update after a job/message was processed. Runs outside a transaction and can hit a
+	 * deadlock or lock timeout while parallel workers claim rows; it is retried briefly so the item is
+	 * not left in the processing state until the 15-minute stale-lock re-queue (which would run it again).
+	 *
+	 * @return bool True when the row was updated.
+	 */
+	public static function update_with_retry( $table, array $data, array $where, array $format, array $where_format, $tries = 4 ) {
+		global $wpdb;
+		for ( $attempt = 1; $attempt <= $tries; $attempt++ ) {
+			if ( false !== $wpdb->update( $table, $data, $where, $format, $where_format ) ) { return true; }
+			if ( $attempt < $tries ) { usleep( 20000 * $attempt ); }
+		}
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operators must see a stuck queue item.
+		error_log( sprintf( 'Pass Captain: final status update on %s failed: %s', $table, (string) $wpdb->last_error ) );
+		return false;
 	}
 }
