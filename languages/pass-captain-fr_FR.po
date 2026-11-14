@@ -14272,3 +14272,465 @@ msgstr "Le fournisseur de bons n’est pas joignable pour le moment. Veuillez r�
 #: src/Integrations/Vouchers/Bridge.php:42
 msgid "Der Gutscheinanbieter hat eine ungültige Antwort geliefert."
 msgstr "Le fournisseur de bons a renvoyé une réponse invalide."
+
+#: src/Admin/SettingsPage.php:41
+msgid "Signierte QR-Codes ausgeben (PC1, Ed25519)"
+msgstr "Émettre des QR codes signés (PC1, Ed25519)"
+
+#: src/Admin/SettingsPage.php:41
+msgid "Neue QR-Codes enthalten statt des Ticketcodes eine signierte Angabe (Ticket-ID, Termin, Gültigkeitszeitraum, Code-Version) ohne personenbezogene Daten; Scanner können die Signatur offline prüfen. Klassische Codes bleiben gültig. Standard aus, damit fremde Scanner-Systeme weiter den Ticketcode lesen können."
+msgstr "Les nouveaux QR codes contiennent, à la place du code du billet, une mention signée (ID du billet, date, période de validité, version du code) sans données personnelles ; les scanners peuvent vérifier la signature hors ligne. Les codes classiques restent valables. Désactivé par défaut pour que les systèmes de scan tiers puissent continuer à lire le code du billet."
+
+#: src/Checkin.php:86
+msgid "Dieser QR-Code wurde ersetzt; das Ticket wurde neu ausgestellt."
+msgstr "Ce QR code a été remplacé ; le billet a été réémis."
+
+#: src/Checkin.php:96
+msgid "Der QR-Code liegt außerhalb seines Gültigkeitszeitraums."
+msgstr "Le QR code est en dehors de sa période de validité."
+
+#: src/OfflineScanner/AdminPage.php:110
+msgid "Neuer QR-Signaturschlüssel erzeugt. Der bisherige Schlüssel wurde sofort gesperrt; damit signierte QR-Codes werden abgewiesen."
+msgstr "Nouvelle clé de signature QR créée. L'ancienne clé a été bloquée immédiatement ; les QR codes signés avec elle sont refusés."
+
+#: src/OfflineScanner/AdminPage.php:111
+msgid "Neuer QR-Signaturschlüssel erzeugt. Der bisherige Schlüssel bleibt gültig, bis die damit signierten QR-Codes ablaufen."
+msgstr "Nouvelle clé de signature QR créée. L'ancienne clé reste valable jusqu'à l'expiration des QR codes signés avec elle."
+
+#: src/OfflineScanner/AdminPage.php:209
+msgid "Signierte QR-Codes (Ed25519)"
+msgstr "QR codes signés (Ed25519)"
+
+#: src/OfflineScanner/AdminPage.php:210
+msgid "Signierte QR-Codes sind aktiv: neue QR-Codes enthalten eine signierte Angabe ohne personenbezogene Daten. Klassische Ticketcodes werden weiter angenommen."
+msgstr "Les QR codes signés sont actifs : les nouveaux QR codes contiennent une mention signée sans données personnelles. Les codes de billet classiques sont toujours acceptés."
+
+#: src/OfflineScanner/AdminPage.php:210
+msgid "Signierte QR-Codes sind aus (Einstellungen → Einlass / Scanner-Geräte). Bereits ausgegebene signierte QR-Codes werden weiter angenommen."
+msgstr "Les QR codes signés sont désactivés (Réglages → Entrée / appareils de scan). Les QR codes signés déjà émis sont toujours acceptés."
+
+#: src/OfflineScanner/AdminPage.php:216
+msgid "Neuen QR-Signaturschlüssel erzeugen?"
+msgstr "Créer une nouvelle clé de signature QR ?"
+
+#: src/OfflineScanner/AdminPage.php:217
+msgid "Bisherigen Schlüssel sofort sperren (bei Verdacht auf Kompromittierung; alle damit signierten QR-Codes werden ungültig und müssen neu versendet werden)"
+msgstr "Bloquer immédiatement l'ancienne clé (en cas de soupçon de compromission ; tous les QR codes signés avec elle deviennent invalides et doivent être renvoyés)"
+
+#: src/OfflineScanner/AdminPage.php:218
+msgid "QR-Schlüssel rotieren"
+msgstr "Renouveler la clé QR"
+
+#: src/OfflineScanner/I18n.php:134
+msgid "QR-Signatur ungültig"
+msgstr "Signature QR invalide"
+
+#: src/Security/SignedQr.php:273
+msgid "Der QR-Code ist ungültig oder nicht von diesem System signiert."
+msgstr "Le QR code est invalide ou n'a pas été signé par ce système."
+
+#: src/Integrations/CalendarFeeds.php:34
+msgid "Ein Event"
+msgstr "Un événement"
+
+#: src/Integrations/CalendarFeeds.php:35
+msgid "Ein Veranstalter (Partner)"
+msgstr "Un organisateur (partenaire)"
+
+#: src/Integrations/CalendarFeeds.php:65
+msgid "Unbekannter Umfang des Kalender-Abos."
+msgstr "Portée inconnue de l'abonnement au calendrier."
+
+#: src/Integrations/CalendarFeeds.php:74
+msgid "Kalender-Abo konnte nicht angelegt werden."
+msgstr "L'abonnement au calendrier n'a pas pu être créé."
+
+#: src/Integrations/CalendarFeeds.php:92
+#: src/Integrations/CalendarFeeds.php:215
+msgid "Kalender-Abo nicht gefunden oder widerrufen."
+msgstr "Abonnement au calendrier introuvable ou révoqué."
+
+#: src/Integrations/ConnectorsPage.php:53
+msgid "Personenbezogene Felder in der Zuordnung werden ohne Opt-in nicht gesendet."
+msgstr "Les champs de données personnelles du mappage ne sont pas envoyés sans consentement explicite (opt-in)."
+
+#: src/Integrations/ConnectorsPage.php:78
+msgid "Unbekannte Aktion oder Eintrag nicht gefunden."
+msgstr "Action inconnue ou entrée introuvable."
+
+#. translators: %d: HTTP status code
+#: src/Integrations/ConnectorsPage.php:94
+#, php-format
+msgid "Testereignis gesendet (HTTP %d)."
+msgstr "Événement de test envoyé (HTTP %d)."
+
+#. translators: %d: HTTP status code
+#: src/Integrations/ConnectorsPage.php:95
+msgid "Zustellung erfolgreich wiederholt."
+msgstr "Livraison relancée avec succès."
+
+#. translators: %d: HTTP status code
+#: src/Integrations/ConnectorsPage.php:96
+msgid "Kalender-Abo angelegt."
+msgstr "Abonnement au calendrier créé."
+
+#: src/Integrations/ConnectorsPage.php:97
+msgid "Neue Abo-URL erzeugt; die bisherige URL ist ungültig."
+msgstr "Nouvelle URL d'abonnement créée ; l'ancienne URL n'est plus valable."
+
+#: src/Integrations/ConnectorsPage.php:98
+msgid "Kalender-Abo widerrufen."
+msgstr "Abonnement au calendrier révoqué."
+
+#: src/Integrations/ConnectorsPage.php:112
+msgid "zugestellt"
+msgstr "livré"
+
+#: src/Integrations/ConnectorsPage.php:113
+msgid "wird wiederholt"
+msgstr "nouvelle tentative prévue"
+
+#: src/Integrations/ConnectorsPage.php:114
+msgid "fehlgeschlagen"
+msgstr "échoué"
+
+#: src/Integrations/ConnectorsPage.php:115
+msgid "ausstehend"
+msgstr "en attente"
+
+#: src/Integrations/ConnectorsPage.php:122
+#: src/Modules/Connectors.php:90
+msgid "Konnektoren"
+msgstr "Connecteurs"
+
+#: src/Integrations/ConnectorsPage.php:129
+msgid "Abo-URL – jetzt kopieren, sie wird nicht noch einmal angezeigt:"
+msgstr "URL d'abonnement – copiez-la maintenant, elle ne sera plus affichée :"
+
+#: src/Integrations/ConnectorsPage.php:141
+msgid "HTTP/JSON-Connectors"
+msgstr "Connecteurs HTTP/JSON"
+
+#: src/Integrations/ConnectorsPage.php:142
+msgid "Sendet gewählte Ereignisse als JSON-POST an einen HTTPS-Endpunkt (z. B. CRM, Zapier, Make, n8n). Zustellung über die Hintergrund-Warteschlange mit Wiederholungen; jede Zustellung trägt einen gleichbleibenden Idempotency-Key. Ohne Feldzuordnung werden nur IDs und Status gesendet."
+msgstr "Envoie les événements choisis en POST JSON à un point de terminaison HTTPS (p. ex. CRM, Zapier, Make, n8n). La livraison passe par la file d'attente en arrière-plan avec nouvelles tentatives ; chaque livraison porte une clé d'idempotence constante. Sans mappage des champs, seuls les ID et les statuts sont envoyés."
+
+#: src/Integrations/ConnectorsPage.php:144
+msgid "Ziel-URL"
+msgstr "URL cible"
+
+#: src/Integrations/ConnectorsPage.php:147
+msgid "mit personenbezogenen Daten"
+msgstr "avec données personnelles"
+
+#: src/Integrations/ConnectorsPage.php:149
+msgid "Test senden"
+msgstr "Envoyer un test"
+
+#: src/Integrations/ConnectorsPage.php:151
+msgid "Connector und Zustellprotokoll löschen?"
+msgstr "Supprimer le connecteur et son journal de livraison ?"
+
+#: src/Integrations/ConnectorsPage.php:161
+msgid "— Feld wählen —"
+msgstr "— Choisir un champ —"
+
+#: src/Integrations/ConnectorsPage.php:162
+msgid "(personenbezogen)"
+msgstr "(données personnelles)"
+
+#: src/Integrations/ConnectorsPage.php:163
+msgid "Connector bearbeiten"
+msgstr "Modifier le connecteur"
+
+#: src/Integrations/ConnectorsPage.php:163
+msgid "Neuer Connector"
+msgstr "Nouveau connecteur"
+
+#: src/Integrations/ConnectorsPage.php:169
+msgid "Ziel-URL (HTTPS)"
+msgstr "URL cible (HTTPS)"
+
+#: src/Integrations/ConnectorsPage.php:169
+msgid "Nur öffentliche HTTPS-Ziele; interne Adressen und Weiterleitungen werden abgelehnt."
+msgstr "Uniquement des cibles HTTPS publiques ; les adresses internes et les redirections sont refusées."
+
+#: src/Integrations/ConnectorsPage.php:170
+msgid "Auth-Header"
+msgstr "En-tête d'authentification"
+
+#: src/Integrations/ConnectorsPage.php:171
+msgid "Header-Wert"
+msgstr "Valeur de l'en-tête"
+
+#: src/Integrations/ConnectorsPage.php:171
+msgid "z. B. Bearer …"
+msgstr "p. ex. Bearer …"
+
+#: src/Integrations/ConnectorsPage.php:172
+msgid "Header-Wert entfernen"
+msgstr "Supprimer la valeur de l'en-tête"
+
+#: src/Integrations/ConnectorsPage.php:173
+msgid "Der Header-Wert wird verschlüsselt gespeichert und nicht wieder angezeigt; leer lassen, um ihn zu behalten."
+msgstr "La valeur de l'en-tête est enregistrée chiffrée et n'est plus affichée ; laissez vide pour la conserver."
+
+#: src/Integrations/ConnectorsPage.php:179
+msgid "Feldzuordnung"
+msgstr "Mappage des champs"
+
+#: src/Integrations/ConnectorsPage.php:179
+msgid "Welches Feld unter welchem JSON-Schlüssel in „data“ gesendet wird (Punkt für Verschachtelung, z. B. customer.email). Ticket- und Teilnehmerfelder landen je Ticket in „data.tickets“. Leer: nur IDs und Status."
+msgstr "Quel champ est envoyé sous quelle clé JSON dans « data » (point pour l'imbrication, p. ex. customer.email). Les champs de billet et de participant figurent par billet dans « data.tickets ». Vide : uniquement ID et statuts."
+
+#: src/Integrations/ConnectorsPage.php:180
+msgid "Feld"
+msgstr "Champ"
+
+#: src/Integrations/ConnectorsPage.php:180
+msgid "JSON-Schlüssel"
+msgstr "Clé JSON"
+
+#. translators: %d: row number
+#: src/Integrations/ConnectorsPage.php:187
+#, php-format
+msgid "Feld, Zeile %d"
+msgstr "Champ, ligne %d"
+
+#. translators: %d: row number
+#: src/Integrations/ConnectorsPage.php:189
+#, php-format
+msgid "JSON-Schlüssel, Zeile %d"
+msgstr "Clé JSON, ligne %d"
+
+#: src/Integrations/ConnectorsPage.php:192
+msgid "E-Mail-Adressen und Teilnehmernamen senden (Opt-in; Auftragsverarbeitung mit dem Empfänger prüfen)"
+msgstr "Envoyer les adresses e-mail et les noms des participants (opt-in ; vérifier le contrat de sous-traitance avec le destinataire)"
+
+#: src/Integrations/ConnectorsPage.php:195
+msgid "Connector speichern"
+msgstr "Enregistrer le connecteur"
+
+#: src/Integrations/ConnectorsPage.php:202
+msgid "Zustellprotokoll"
+msgstr "Journal de livraison"
+
+#: src/Integrations/ConnectorsPage.php:207
+msgid "Connector"
+msgstr "Connecteur"
+
+#: src/Integrations/ConnectorsPage.php:207
+msgid "Antwort"
+msgstr "Réponse"
+
+#: src/Integrations/ConnectorsPage.php:210
+msgid "Jetzt wiederholen"
+msgstr "Réessayer maintenant"
+
+#: src/Integrations/ConnectorsPage.php:224
+msgid "Kalender-Abos (iCalendar)"
+msgstr "Abonnements au calendrier (iCalendar)"
+
+#: src/Integrations/ConnectorsPage.php:225
+msgid "Geheime Abo-URLs für Kalender-Apps, CRM oder Intranet. Verschobene und abgesagte Termine werden beim nächsten Abruf aktualisiert. Enthält nur Eventdaten, keine Käufer- oder Teilnehmerdaten. Entwürfe werden nie ausgegeben."
+msgstr "URL d'abonnement secrètes pour applications de calendrier, CRM ou intranet. Les dates reportées ou annulées sont mises à jour lors de la prochaine récupération. Contient uniquement des données d'événement, aucune donnée d'acheteur ou de participant. Les brouillons ne sont jamais inclus."
+
+#: src/Integrations/ConnectorsPage.php:227
+#: src/Integrations/ConnectorsPage.php:245
+msgid "Umfang"
+msgstr "Portée"
+
+#: src/Integrations/ConnectorsPage.php:227
+msgid "Letzter Abruf"
+msgstr "Dernière récupération"
+
+#: src/Integrations/ConnectorsPage.php:234
+msgid "Neue URL"
+msgstr "Nouvelle URL"
+
+#: src/Integrations/ConnectorsPage.php:234
+msgid "Neue Abo-URL erzeugen? Die bisherige URL funktioniert dann nicht mehr."
+msgstr "Créer une nouvelle URL d'abonnement ? L'ancienne URL ne fonctionnera plus."
+
+#: src/Integrations/ConnectorsPage.php:235
+msgid "Kalender-Abo widerrufen?"
+msgstr "Révoquer l'abonnement au calendrier ?"
+
+#: src/Integrations/ConnectorsPage.php:241
+msgid "Neues Kalender-Abo"
+msgstr "Nouvel abonnement au calendrier"
+
+#: src/Integrations/ConnectorsPage.php:253
+msgid "Abo-URL erzeugen"
+msgstr "Créer l'URL d'abonnement"
+
+#: src/Integrations/HttpJson/Endpoints.php:69
+msgid "Bestellung: ID"
+msgstr "Commande : ID"
+
+#: src/Integrations/HttpJson/Endpoints.php:70
+msgid "Bestellung: Status"
+msgstr "Commande : statut"
+
+#: src/Integrations/HttpJson/Endpoints.php:71
+msgid "Bestellung: Zahlungsstatus"
+msgstr "Commande : statut du paiement"
+
+#: src/Integrations/HttpJson/Endpoints.php:72
+msgid "Bestellung: Zahlungsart"
+msgstr "Commande : moyen de paiement"
+
+#: src/Integrations/HttpJson/Endpoints.php:73
+msgid "Bestellung: Währung"
+msgstr "Commande : devise"
+
+#: src/Integrations/HttpJson/Endpoints.php:74
+msgid "Bestellung: Gesamtbetrag (Cent)"
+msgstr "Commande : montant total (centimes)"
+
+#: src/Integrations/HttpJson/Endpoints.php:75
+msgid "Bestellung: Erstattet (Cent)"
+msgstr "Commande : remboursé (centimes)"
+
+#: src/Integrations/HttpJson/Endpoints.php:76
+msgid "Bestellung: Sprache"
+msgstr "Commande : langue"
+
+#: src/Integrations/HttpJson/Endpoints.php:77
+msgid "Bestellung: Datum"
+msgstr "Commande : date"
+
+#: src/Integrations/HttpJson/Endpoints.php:78
+msgid "Bestellung: E-Mail-Adresse"
+msgstr "Commande : adresse e-mail"
+
+#: src/Integrations/HttpJson/Endpoints.php:79
+msgid "Event: ID"
+msgstr "Événement : ID"
+
+#: src/Integrations/HttpJson/Endpoints.php:80
+msgid "Event: Name"
+msgstr "Événement : nom"
+
+#: src/Integrations/HttpJson/Endpoints.php:81
+msgid "Termin: ID"
+msgstr "Date : ID"
+
+#: src/Integrations/HttpJson/Endpoints.php:82
+msgid "Termin: Beginn (ISO 8601)"
+msgstr "Date : début (ISO 8601)"
+
+#: src/Integrations/HttpJson/Endpoints.php:83
+msgid "Termin: Zeitzone"
+msgstr "Date : fuseau horaire"
+
+#: src/Integrations/HttpJson/Endpoints.php:84
+msgid "Termin: Ort"
+msgstr "Date : lieu"
+
+#: src/Integrations/HttpJson/Endpoints.php:85
+msgid "Termin: Status"
+msgstr "Date : statut"
+
+#: src/Integrations/HttpJson/Endpoints.php:86
+msgid "Ticket: ID"
+msgstr "Billet : ID"
+
+#: src/Integrations/HttpJson/Endpoints.php:87
+msgid "Ticket: Status"
+msgstr "Billet : statut"
+
+#: src/Integrations/HttpJson/Endpoints.php:88
+msgid "Ticket: Ticketart"
+msgstr "Billet : type de billet"
+
+#: src/Integrations/HttpJson/Endpoints.php:89
+msgid "Ticket: Ticketart-ID"
+msgstr "Billet : ID du type de billet"
+
+#: src/Integrations/HttpJson/Endpoints.php:90
+msgid "Teilnehmer: Name"
+msgstr "Participant : nom"
+
+#: src/Integrations/HttpJson/Endpoints.php:91
+msgid "Teilnehmer: E-Mail-Adresse"
+msgstr "Participant : adresse e-mail"
+
+#: src/Integrations/HttpJson/Endpoints.php:92
+msgid "Erstattung: Betrag (Cent)"
+msgstr "Remboursement : montant (centimes)"
+
+#: src/Integrations/HttpJson/Endpoints.php:93
+msgid "Erstattung: Währung"
+msgstr "Remboursement : devise"
+
+#: src/Integrations/HttpJson/Endpoints.php:94
+msgid "Check-in: Quelle"
+msgstr "Enregistrement : source"
+
+#: src/Integrations/HttpJson/Endpoints.php:95
+msgid "Check-in: Bereich"
+msgstr "Enregistrement : zone"
+
+#: src/Integrations/HttpJson/Endpoints.php:101
+msgid "Bestellung bezahlt"
+msgstr "Commande payée"
+
+#: src/Integrations/HttpJson/Endpoints.php:102
+msgid "Bestellung erstattet"
+msgstr "Commande remboursée"
+
+#: src/Integrations/HttpJson/Endpoints.php:103
+msgid "Bestellung storniert"
+msgstr "Commande annulée"
+
+#: src/Integrations/HttpJson/Endpoints.php:104
+msgid "Erstattung abgeschlossen"
+msgstr "Remboursement effectué"
+
+#: src/Integrations/HttpJson/Endpoints.php:105
+msgid "Tickets ausgestellt"
+msgstr "Billets émis"
+
+#: src/Integrations/HttpJson/Endpoints.php:106
+msgid "Ticket eingecheckt"
+msgstr "Billet enregistré"
+
+#: src/Integrations/HttpJson/Endpoints.php:107
+msgid "Termin verschoben"
+msgstr "Date reportée"
+
+#: src/Integrations/HttpJson/Endpoints.php:199
+#: src/Integrations/HttpJson/Endpoints.php:501
+msgid "Connector nicht gefunden."
+msgstr "Connecteur introuvable."
+
+#: src/Integrations/HttpJson/Endpoints.php:209
+msgid "Der Name des Auth-Headers ist ungültig oder reserviert."
+msgstr "Le nom de l'en-tête d'authentification est invalide ou réservé."
+
+#: src/Integrations/HttpJson/Endpoints.php:212
+msgid "Bitte mindestens ein Ereignis wählen."
+msgstr "Veuillez choisir au moins un événement."
+
+#: src/Integrations/HttpJson/Endpoints.php:215
+msgid "Der Header-Wert ist ungültig."
+msgstr "La valeur de l'en-tête est invalide."
+
+#: src/Integrations/HttpJson/Endpoints.php:239
+msgid "Connector konnte nicht gespeichert werden."
+msgstr "Le connecteur n'a pas pu être enregistré."
+
+#. translators: %d: HTTP status code
+#: src/Integrations/HttpJson/Endpoints.php:448
+#, php-format
+msgid "Der Empfänger antwortete mit HTTP %d."
+msgstr "Le destinataire a répondu avec HTTP %d."
+
+#: src/Integrations/HttpJson/Endpoints.php:470
+msgid "Zustellung konnte nicht protokolliert werden."
+msgstr "La livraison n'a pas pu être journalisée."
+
+#: src/Integrations/HttpJson/Endpoints.php:488
+msgid "Zustellung nicht gefunden."
+msgstr "Livraison introuvable."

@@ -154,6 +154,7 @@ Webhook-Ereignissen).
 |---|---|---|
 | `wpcap_calendar_checkout_url` | `string $url, int $occurrence_id` | Link eines Kalendereintrags (Standard: Einstellung „Seite mit dem Ticket-Shortcode“ + `#wpcap-occ-{id}`). |
 | `wpcap_calendar_default_duration` | `int $seconds` (7200), `object $occurrence` | Dauer für `DTEND`, wenn der Termin kein Ende hat. |
+| `wpcap_signed_qr_window` | `int[] $window` (`[nicht vor, gültig bis]`, Unix-Sekunden), `object $ticket` | Gültigkeitszeitraum signierter QR-Codes (Standard: ein Jahr vor Beginn bis einen Tag nach dem letzten gültigen Zeitpunkt). Siehe [SECURITY.md](SECURITY.md#signierte-qr-codes-pc1). |
 | `wpcap_sms_providers` | `ProviderInterface[] $providers` | Weitere SMS-Adapter (`PassCaptain\Sms\ProviderInterface`). |
 | `wpcap_sms_number_daily_limit` | `int $limit` (3) | SMS-Einwilligungen je Mobilnummer in 24 Stunden (Missbrauchsschutz; eine Bestätigung per SMS-Code ist nicht implementiert). |
 | `wpcap_sms_ip_hourly_limit` | `int $limit` (10) | SMS-Einwilligungen je Client-IP und Stunde. |
@@ -161,6 +162,8 @@ Webhook-Ereignissen).
 | `wpcap_webhook_payload_object` | `array $object, string $type` | `data.object` eines ausgehenden Webhooks (keine PII ergänzen). |
 | `wpcap_webhooks_max_attempts` | `int $attempts` (8) | Zustellversuche je Webhook-Ereignis. |
 | `wpcap_webhooks_disable_after` | `int $failures` (20) | Fehlversuche in Folge, nach denen ein Abonnement deaktiviert wird. |
+| `wp_pass_captain_http_connector_data_v1` | `array $data, int $endpoint_id, string $event, array $core_data` | `data` eines HTTP/JSON-Connectors nach der Feldzuordnung (nur wenn eine Zuordnung konfiguriert ist). Personenbezogene Felder sind ohne Opt-in bereits entfernt – hier keine ergänzen. Siehe [EXTENSIONS.md](EXTENSIONS.md#http-json-connector). |
+| `wpcap_connector_log_days` | `int $days` (30) | Aufbewahrung zugestellter/fehlgeschlagener Einträge im Zustellprotokoll der HTTP/JSON-Connectors. |
 
 ### Datenschutz
 

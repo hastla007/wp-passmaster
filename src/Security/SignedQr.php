@@ -80,8 +80,8 @@ final class SignedQr {
 		update_option( self::OPTION, $data, false );
 	}
 
-	private static function key_id( $public ) {
-		return substr( hash( 'sha256', $public ), 0, 16 );
+	private static function key_id( $public_key ) {
+		return substr( hash( 'sha256', $public_key ), 0, 16 );
 	}
 
 	/** Secret key (64 bytes) of a key entry, or null when it cannot be opened (retired, Vault key changed). */
@@ -240,7 +240,8 @@ final class SignedQr {
 	private static function ticket_row( $where, $value ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.public_id,t.token_hash,t.ticket_type_id,tt.occurrence_id,o.starts_at,o.ends_at,o.timezone FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE " . $where . ' LIMIT 1', $value ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $where is a literal from this class.
+		$sql = "SELECT t.ticket_id,t.public_id,t.token_hash,t.ticket_type_id,tt.occurrence_id,o.starts_at,o.ends_at,o.timezone FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE {$where} LIMIT 1";
+		return $wpdb->get_row( $wpdb->prepare( $sql, $value ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- prefix and $where are literals from this class.
 	}
 
 	/** Signed QR value of a ticket id ('' when the ticket has no code). Independent of the setting. */

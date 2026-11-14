@@ -45,7 +45,7 @@ Grundsätze für Add-ons:
 | Checkout-Felder | `wpcap_checkout_form_fields`, `wpcap_checkout_payload_keys`, `wpcap_order_creating` | Action/Filter | `templates/event-card.php`, `src/Orders.php` |
 | Preise und Kontingente | `wpcap_ticket_unit_price`, `wpcap_ticket_price_label`, `wpcap_reserve_capacity`, `wpcap_ticket_availability` | Filter | `src/Orders.php` |
 | Lebenszyklus-Ereignisse | `wpcap_order_paid`, `wpcap_tickets_issued`, `wpcap_ticket_checked_in`, `wpcap_refund_completed` u. a. | Actions | siehe [HOOKS.md](HOOKS.md) |
-| Externe Systeme ohne PHP | Signierte ausgehende Webhooks | HTTP | [WEBHOOKS.md](WEBHOOKS.md) |
+| Externe Systeme ohne PHP | Signierte ausgehende Webhooks; HTTP/JSON-Connector mit Feldzuordnung; Kalender-Abo-Feeds | HTTP | [WEBHOOKS.md](WEBHOOKS.md), [Mitgelieferte Connectoren](#mitgelieferte-connectoren) |
 | Berichte | `wp_pass_captain_report_data_v1`, `wp_pass_captain_report_metrics_v1`, `wp_pass_captain_report_tabs_v1` | Versionierte Filter | `src/Reports/Data.php`, `src/Reports/Page.php` |
 | Exporte | `wp_pass_captain_export_rows_v1` (Spalten/Zeilen), `wp_pass_captain_export_types_v1` (weitere Exporte) | Versionierte Filter | `src/Reports/Exports.php`, `src/Invoices.php` |
 | Protokoll | `wpcap_log` (Action), `wpcap_log_to_error_log` | Action/Filter | `src/Log.php` |
@@ -195,6 +195,69 @@ Connector stabil (`sha256( Ereignisschlüssel . '|' . Connector-Schlüssel )`) u
 gleich; der Connector dedupliziert damit. `deliver()` gilt als erfolgreich, wenn es weder `false` noch ein
 `WP_Error` zurückgibt und keine Exception wirft; sonst wird der Job wiederholt und
 `wp_pass_captain_connector_error_v1` ausgelöst.
+
+### Mitgelieferte Connectoren
+
+Das Modul `Connectors` (Admin-Seite **Konnektoren**, Recht `manage_options`, Aktion `wpcap_connector_action`)
+bringt zwei konkrete Adapter auf diesem Vertrag mit.
+
+#### HTTP/JSON-Connector
+
+Für CRM, Zapier, Make, n8n oder eigene Dienste; beliebig viele Endpunkte (`wpcap_connector_endpoints`). Jeder
+aktive Endpunkt ist ein eigener Connector mit dem Schlüssel `http_json_{id}`, wird über
+`wp_pass_captain_connectors_v1` registriert und beim Speichern in `wpcap_enabled_connectors` ein- bzw.
+ausgetragen. Zustellung also über die Job-Queue (ein Job je Ereignis und Endpunkt, Backoff, nach acht Versuchen
+`dead_letter`); nicht gewählte Ereignisse werden ohne Anfrage quittiert.
+
+- **Ziel:** nur HTTPS über `Security\OutboundHttp` (öffentliche Adressen, keine Weiterleitungen, Prüfung beim
+  Speichern und vor jedem Versand, Antwort max. 64 KB, Timeout 10 s). Erfolg = HTTP 2xx.
+- **Authentifizierung:** ein frei benannter Header (Standard `Authorization`, reservierte Header wie `Host`,
+  `Content-Type`, `Idempotency-Key` sind gesperrt); der Wert (z. B. `Bearer …`) liegt im Vault (Kontext
+  `connector_http_secret`) und wird nicht wieder angezeigt.
+- **Anfrage:** `POST` mit `Content-Type: application/json`, `Idempotency-Key`, `X-PassCaptain-Event` und dem Body
+
+  ```json
+  { "contract_version": 1, "event": "order_paid", "occurred_at": "2026-11-14T10:00:00+00:00",
+    "idempotency_key": "…64 hex…", "data": { … } }
+  ```
+
+- **Feldzuordnung:** ohne Zuordnung ist `data` die Kern-Payload (nur Kennungen und Zustände, siehe Tabelle oben).
+  Mit Zuordnung enthält `data` genau die gewählten Felder unter den gewählten JSON-Schlüsseln (Punkt =
+  Verschachtelung, z. B. `customer.email`; max. 50 Zeilen). Felder: Bestellung (`order.id`, `order.status`,
+  `order.payment_status`, `order.payment_provider`, `order.currency`, `order.total_minor`, `order.refunded_minor`,
+  `order.locale`, `order.created_at`, `order.customer_email`*), Event/Termin (`event.id`, `event.name`,
+  `occurrence.id`, `occurrence.starts_at`, `occurrence.timezone`, `occurrence.location`, `occurrence.status`),
+  Ticket/Teilnehmer (`ticket.id`, `ticket.status`, `ticket.type`, `ticket.type_id`, `attendee.name`*,
+  `attendee.email`*), Erstattung (`refund.amount_minor`, `refund.currency`) und Check-in (`checkin.source`,
+  `checkin.area_id`). Ticket- und Teilnehmerfelder stehen je Ticket in `data.tickets[]` (bei
+  `ticket_checked_in` nur das gescannte Ticket, bei `refund_completed` die erstatteten, sonst alle Tickets der
+  Bestellung); Event/Termin bei Bestellereignissen = Termin des ersten Tickets. Filter
+  `wp_pass_captain_http_connector_data_v1`.
+- **Personenbezogene Daten (*)** werden nur gesendet, wenn der Endpunkt das Opt-in „Personenbezogene Daten“ hat;
+  ohne Opt-in werden diese Zeilen beim Versand verworfen (die Admin-Seite weist beim Speichern darauf hin).
+- **Idempotenz und Protokoll:** `wpcap_connector_deliveries` je Endpunkt und Idempotency-Key mit Status
+  `delivered`, `retrying` (die Job-Queue wiederholt), `failed` (Versuche aufgebraucht), Versuchen, HTTP-Status und
+  redigierter Fehlermeldung. Ein bereits zugestelltes Ereignis wird ohne zweite Anfrage quittiert (Job-Neustart,
+  doppelte Einplanung). Das Protokoll speichert nur die Kern-Payload, nie den gemappten Body; „Jetzt wiederholen“
+  sendet erneut mit demselben Schlüssel. Aufbewahrung 30 Tage (Filter `wpcap_connector_log_days`).
+- **Test senden:** synthetisches Ereignis `test` (keine gespeicherten Daten, nur die Zuordnung als Beispiel),
+  ebenfalls protokolliert.
+
+#### Kalender-Abo-Feeds (iCalendar)
+
+Geheime Abo-URLs `?wpcap_ics=feed&token=…` (auch als `webcal://`) für **ein Event**, **einen Veranstalter**
+(Partner, alle seine Events) oder **alle Events** – für Kalender-Apps, CRM oder Intranet
+(`PassCaptain\Integrations\CalendarFeeds`, Tabellen `wpcap_calendar_feeds`, `wpcap_calendar_sequences`).
+
+- Token: 32 Zufallsbytes (64 Hex), gespeichert nur als SHA-256, einmalig angezeigt. „Neue URL“ (Rotation) und
+  „Widerrufen“ machen die bisherige URL sofort ungültig (404). Audit: `calendar_feed_created`, `_rotated`,
+  `_revoked`.
+- Inhalt: Termine veröffentlichter und abgesagter Events ab 30 Tagen in der Vergangenheit (max. 1000) als
+  `VEVENT` über `Calendar\Ics` (UTC, stabile UID je Termin, `REFRESH-INTERVAL` 60 Minuten). Entwürfe nie, keine
+  Käufer- oder Teilnehmerdaten.
+- Aktualisierung: jeder Eintrag hat `SEQUENCE` und `LAST-MODIFIED`. Die Sequenz steigt bei
+  `wpcap_occurrence_rescheduled`/`wpcap_occurrence_cancelled` und immer dann, wenn ein Abruf geänderte Daten
+  (Beginn, Ende, Ort, Status, Titel) erkennt; abgesagte Termine/Events erscheinen als `STATUS:CANCELLED`.
 
 ## Hintergrundjobs
 

@@ -57,8 +57,10 @@ final class Ics {
 	/**
 	 * Builds a VCALENDAR document.
 	 *
-	 * @param array $entries List of ['occurrence_id','start'(ts),'end'(ts),'summary','location','description','url','status'].
-	 * @param array $options ['name' => calendar name for feeds, 'now' => DTSTAMP timestamp].
+	 * @param array $entries List of ['occurrence_id','start'(ts),'end'(ts),'summary','location','description','url','status'],
+	 *                       optional 'sequence' (int, RFC 5545 SEQUENCE) and 'last_modified' (ts).
+	 * @param array $options ['name' => calendar name for feeds, 'now' => DTSTAMP timestamp, 'refresh' => suggested
+	 *                       refresh interval in minutes (REFRESH-INTERVAL / X-PUBLISHED-TTL)].
 	 */
 	public static function build( array $entries, array $options = array() ) {
 		$now = (int) ( $options['now'] ?? time() );
@@ -66,10 +68,17 @@ final class Ics {
 		if ( ! empty( $options['name'] ) ) {
 			$lines[] = 'X-WR-CALNAME:' . self::escape_text( $options['name'] );
 		}
+		if ( ! empty( $options['refresh'] ) ) {
+			$minutes = max( 15, (int) $options['refresh'] );
+			$lines[] = 'REFRESH-INTERVAL;VALUE=DURATION:PT' . $minutes . 'M';
+			$lines[] = 'X-PUBLISHED-TTL:PT' . $minutes . 'M';
+		}
 		foreach ( $entries as $entry ) {
 			$lines[] = 'BEGIN:VEVENT';
 			$lines[] = 'UID:' . self::uid( $entry['occurrence_id'] );
 			$lines[] = 'DTSTAMP:' . self::utc( $now );
+			if ( isset( $entry['sequence'] ) ) { $lines[] = 'SEQUENCE:' . max( 0, (int) $entry['sequence'] ); }
+			if ( ! empty( $entry['last_modified'] ) ) { $lines[] = 'LAST-MODIFIED:' . self::utc( (int) $entry['last_modified'] ); }
 			$lines[] = 'DTSTART:' . self::utc( $entry['start'] );
 			$lines[] = 'DTEND:' . self::utc( max( (int) $entry['end'], (int) $entry['start'] ) );
 			$lines[] = 'SUMMARY:' . self::escape_text( $entry['summary'] );

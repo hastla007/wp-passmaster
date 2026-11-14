@@ -6,7 +6,7 @@
  */
 'use strict';
 
-var CACHE = 'wpcap-offline-scanner-v3';
+var CACHE = 'wpcap-offline-scanner-v4';
 var SHELL = [
 	'./',
 	'index.html',

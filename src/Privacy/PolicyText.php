@@ -32,7 +32,8 @@ final class PolicyText {
 			'apple' => ! empty( $settings['wallet_apple_enabled'] ),
 			'google' => ! empty( $settings['wallet_google_enabled'] ),
 			'partners' => self::rows( 'wpcap_partners', "status='active'" ),
-			'webhooks' => self::rows( 'wpcap_webhook_subscriptions', "status='active'" ),
+			// Webhooks and HTTP/JSON connectors (Modules\Connectors) are both "connected systems".
+			'webhooks' => self::rows( 'wpcap_webhook_subscriptions', "status='active'" ) || self::rows( 'wpcap_connector_endpoints', "status='active'" ),
 			'affiliate' => class_exists( '\PassCaptain\Integrations\AffiliateCaptain\Adapter' ) && \PassCaptain\Integrations\AffiliateCaptain\Adapter::available(),
 			'woocommerce' => class_exists( 'WooCommerce' ),
 		);

@@ -75,10 +75,9 @@ final class Checkin {
 		if ( ! $claims && '' === $code ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$row = $wpdb->get_row( $wpdb->prepare(
-			"SELECT t.ticket_id,t.public_id,t.token_hash,t.status,t.ticket_type_id,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE " . ( $claims ? 't.public_id=%s' : 't.token_hash=%s' ) . ' LIMIT 1', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- column choice from literals.
-			$claims ? (string) $claims['t'] : hash( 'sha256', $code )
-		) );
+		$column = $claims ? 't.public_id' : 't.token_hash';
+		$sql = "SELECT t.ticket_id,t.public_id,t.token_hash,t.status,t.ticket_type_id,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,o.occurrence_id,o.event_id,o.starts_at,o.ends_at,o.timezone,o.status AS occurrence_status,e.status AS event_status,e.name AS event_name FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE {$column}=%s LIMIT 1";
+		$row = $wpdb->get_row( $wpdb->prepare( $sql, $claims ? (string) $claims['t'] : hash( 'sha256', $code ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table prefix and column name from literals.
 		// A failed query is not an unknown ticket: offline uploads would drop the admission for good.
 		if ( ! $row && '' !== (string) $wpdb->last_error ) { return self::retry_error(); }
 		if ( ! $row ) { return new \WP_Error( 'wpcap_ticket_not_found', __( 'Ticket nicht gefunden.', 'pass-captain' ), array( 'status' => 404, 'result' => 'unknown' ) ); }
