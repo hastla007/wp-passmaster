@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.6.0';
+	const DB_VERSION = '3.9.0';
 
 	public static function install() {
 		global $wpdb;
@@ -219,7 +219,34 @@ final class Installer {
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (audit_id),
 				KEY object (object_type,object_id),
-				KEY created_at (created_at)
+				KEY created_at (created_at),
+				KEY action_created (action,created_at),
+				KEY user_created (user_id,created_at)
+			) ENGINE=InnoDB $charset;",
+			// W9: date-level staff assignments (Access::can_access_occurrence) and time-limited support access.
+			"CREATE TABLE {$wpdb->prefix}wpcap_occurrence_staff (
+				occurrence_id bigint(20) unsigned NOT NULL,
+				event_id bigint(20) unsigned NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				capability varchar(64) NOT NULL,
+				PRIMARY KEY  (occurrence_id,user_id,capability),
+				KEY event_user (event_id,user_id),
+				KEY user_id (user_id)
+			) ENGINE=InnoDB $charset;",
+			"CREATE TABLE {$wpdb->prefix}wpcap_support_grants (
+				grant_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				user_id bigint(20) unsigned NOT NULL,
+				granted_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				reason varchar(255) NOT NULL DEFAULT '',
+				capabilities varchar(255) NOT NULL DEFAULT '',
+				status varchar(20) NOT NULL DEFAULT 'active',
+				expires_at datetime NOT NULL,
+				revoked_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				ended_at datetime NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (grant_id),
+				KEY user_status (user_id,status),
+				KEY status_expires (status,expires_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $seat_maps (
 				map_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -953,6 +980,7 @@ final class Installer {
 		$admin = get_role( 'administrator' );
 		if ( $admin ) {
 			foreach ( $all_caps as $cap ) { $admin->add_cap( $cap, true ); }
+			$admin->add_cap( 'wpcap_view_audit', true ); // Audit-Log viewer (W9); not part of any operational role.
 		}
 		$roles = array(
 			'wpcap_ticket_admin'   => array( __( 'Pass Captain Ticket-Administration', 'pass-captain' ), $all_caps ),

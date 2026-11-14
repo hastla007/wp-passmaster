@@ -152,6 +152,11 @@ $pm_admin = array(
 	// Registered outside Menu::handlers().
 	'wpcap_print_invoice' => 'wpcap_view_finance', 'wpcap_export_accounting' => 'wpcap_view_finance',
 	'wpcap_accept_waitlist' => 'token:waitlist offer token from the e-mail (admin_post_nopriv)',
+	// W9: audit log, per-case unmask, support access, date-level staff, buyer language.
+	'wpcap_audit_export' => 'wpcap_view_audit', 'wpcap_pii_unmask' => 'wpcap_manage_orders',
+	'wpcap_support_grant' => 'manage_options', 'wpcap_support_revoke' => 'manage_options',
+	'wpcap_assign_occurrence_staff' => 'wpcap_manage_events', 'wpcap_remove_occurrence_staff' => 'wpcap_manage_events',
+	'wpcap_portal_language' => 'token:order access token (capability link of the buyer portal; admin_post_nopriv)',
 	'ajax:wpcap_mail_template_preview' => 'manage_options',
 );
 
@@ -411,6 +416,7 @@ $pm_handlers = \PassCaptain\Admin\Menu::handlers() + array(
 	'wpcap_print_invoice' => array( \PassCaptain\Invoices::class, 'handle_admin_print' ),
 	'wpcap_export_accounting' => array( \PassCaptain\Invoices::class, 'handle_export' ),
 	'wpcap_accept_waitlist' => array( \PassCaptain\Waitlists::class, 'handle_accept_request' ),
+	'wpcap_portal_language' => array( \PassCaptain\Frontend\Language::class, 'handle_portal_language' ),
 	'ajax:' . \PassCaptain\Mail\Admin::ACTION_PREVIEW => array( \PassCaptain\Mail\Admin::class, 'handle_preview_ajax' ),
 );
 $src_actions = array();

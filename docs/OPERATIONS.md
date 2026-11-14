@@ -84,6 +84,12 @@ Mit `--strict` endet der Befehl mit Exit-Code 1, sobald ein kritisches Problem (
 
 Fehlgeschlagene Webhook-Zustellungen sind nur eine Warnung (externes Zielsystem); sie werden nach wiederholten Fehlern ohnehin automatisch deaktiviert.
 
+## Multisite: Netzwerkübersicht und Isolation
+
+- Bei Netzwerkaktivierung gibt es in der Netzwerkverwaltung die Seite *Pass Captain* (Capability `manage_network_options`): je Site Events, Bestellungen, bezahlte Bestellungen und Umsatz der letzten 30 Tage (abzüglich Erstattungen, je Währung) sowie der Zustand aus dem Systemstatus (Fehler/Warnungen, Link zur Statusseite der Site).
+- Der Netzwerkbericht (CSV, eine Zeile je Site und Währung) wird auf der Hauptsite protokolliert (`network_report_exported`) und fällt unter die 2FA-Kategorie „Exporte“.
+- Isolation: jede Zahl wird innerhalb von `switch_to_blog()` mit dem Präfix der Site gelesen; Tabellen verschiedener Sites werden nie gemeinsam abgefragt. Sites ohne Plugin-Tabellen erscheinen als „nicht installiert“. Große Netzwerke können die Site-Liste mit dem Filter `wpcap_network_site_ids` begrenzen.
+
 ## Multisite: Site löschen und Plugin deinstallieren
 
 - Wird eine Site im Netzwerk gelöscht, entfernt WordPress auch deren `*_wpcap_*`-Tabellen (Filter `wpmu_drop_tables`). Tabellen anderer Sites sind nicht betroffen.

@@ -127,7 +127,7 @@ final class Areas {
 		$out = array();
 		$mine = array();
 		foreach ( $rows as $row ) {
-			if ( ! Access::can_access_event( (int) $row->event_id, 'wpcap_checkin' ) ) { continue; }
+			if ( ! Access::can_access_event_any_date( (int) $row->event_id, 'wpcap_checkin' ) ) { continue; }
 			if ( ! $admin ) {
 				if ( ! isset( $mine[ $row->event_id ] ) ) { $mine[ $row->event_id ] = self::user_area_ids( get_current_user_id(), $row->event_id ); }
 				if ( $mine[ $row->event_id ] && ! in_array( (int) $row->area_id, $mine[ $row->event_id ], true ) ) { continue; }

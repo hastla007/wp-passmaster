@@ -234,7 +234,7 @@ final class Orders {
 				'tax_minor' => $tax_total,
 				'payment_provider' => $payment_provider,
 				'terms_version' => $external ? '' : Settings::terms_version(),
-				'locale' => function_exists( 'determine_locale' ) ? determine_locale() : '',
+				'locale' => Localization::order_locale( $payload['locale'] ?? '' ), // Buyer's explicit language choice (W9) or request locale.
 				'attendee_data' => $attendees ? wp_json_encode( $attendees ) : null,
 				'created_at' => $now,
 				'updated_at' => $now,

@@ -37,7 +37,7 @@ final class Devices {
 			return new \WP_Error( 'wpcap_pairing_events', __( 'Bitte mindestens ein Event für das Gerät auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		foreach ( $event_ids as $event_id ) {
-			if ( ! Access::can_access_event( $event_id, 'wpcap_checkin' ) ) {
+			if ( ! Access::can_access_event_any_date( $event_id, 'wpcap_checkin' ) ) {
 				return new \WP_Error( 'wpcap_pairing_event_forbidden', __( 'Für mindestens ein gewähltes Event fehlt die Einlassberechtigung.', 'pass-captain' ), array( 'status' => 403 ) );
 			}
 		}

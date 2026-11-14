@@ -80,7 +80,7 @@ final class TicketsPage {
 	public static function undo_checkin( array $in ) {
 		$ticket = Queries::ticket_context( Forms::int( $in, 'ticket_id' ) );
 		if ( ! $ticket ) { return Forms::error( 'wpcap_ticket_missing', __( 'Ticket nicht gefunden.', 'pass-captain' ), 404 ); }
-		if ( ! Access::can_access_event( $ticket->event_id, 'wpcap_checkin' ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ) ); }
+		if ( ! Access::can_access_occurrence( (int) $ticket->occurrence_id, 'wpcap_checkin', (int) $ticket->event_id ) ) { return Forms::forbidden( __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ) ); }
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
@@ -154,6 +154,11 @@ final class TicketsPage {
 		$page = Forms::current_page();
 		$per_page = 30;
 		$data = $has_filter ? Queries::search_tickets( $filters, $scope, $page, $per_page ) : array( 'rows' => array(), 'total' => 0 );
+		if ( $has_filter ) {
+			// Data minimisation per role and read audit (no search terms in the log).
+			$data['rows'] = array_map( array( \PassCaptain\Security\DataPolicy::class, 'ticket_view' ), $data['rows'] );
+			\PassCaptain\Security\AuditTrail::read( 'ticket_search', 'event', (int) $filters['event_id'], array( 'results' => count( $data['rows'] ), 'page' => $page, 'scope' => md5( (string) $filters['search'] ) . $page ) );
+		}
 		$status_options = array( '' => __( 'Alle Status', 'pass-captain' ) );
 		foreach ( self::STATUSES as $s ) { $status_options[ $s ] = Forms::status_label( $s ); }
 		?>
@@ -182,7 +187,7 @@ final class TicketsPage {
 				<tbody>
 				<?php if ( ! $data['rows'] ) : ?><tr><td colspan="6"><?php esc_html_e( 'Keine Tickets gefunden.', 'pass-captain' ); ?></td></tr><?php endif; ?>
 				<?php foreach ( $data['rows'] as $ticket ) :
-					$email = '' !== (string) $ticket->assigned_email ? $ticket->assigned_email : $ticket->attendee_email;
+					$email = '' !== (string) ( $ticket->assigned_email ?? '' ) ? $ticket->assigned_email : ( $ticket->attendee_email ?? '' );
 					$can_orders = Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' );
 					$can_checkin = Access::can_access_event( $ticket->event_id, 'wpcap_checkin' );
 					?>

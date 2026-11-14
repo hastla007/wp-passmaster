@@ -159,6 +159,21 @@ final class Checkin {
 		$wpdb->query( 'START TRANSACTION' );
 		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,status FROM {$p}wpcap_tickets WHERE ticket_id=%d FOR UPDATE", $found['ticket_id'] ) );
 		if ( '' !== $wpdb->last_error ) { return self::abort(); }
+		$reentry = $ticket && 'checked_in' === $ticket->status ? self::reentry_block( $found, $at ) : null;
+		if ( null !== $reentry ) {
+			// Re-entry after check-out (settings reentry_after_checkout / max_reentries) for ticket types without own policy.
+			if ( '' !== $reentry ) {
+				$id = $log( $ticket->ticket_id, $reentry );
+				$wpdb->query( 'COMMIT' );
+				return self::offline_conflict( self::result_error( $reentry, $found, $id ), $found, $context, $key, $id );
+			}
+			$checkin_id = $log( $ticket->ticket_id, 'checked_in' );
+			if ( ! $checkin_id || ! Engine::record_in( $found, $checkin_id, $context, $at, $user_id ) ) { return self::abort(); }
+			if ( false === $wpdb->query( 'COMMIT' ) ) { return self::abort(); }
+			Audit::record( 'ticket_reentered', 'ticket', $ticket->ticket_id, array( 'event_id' => $found['event_id'], 'device_id' => absint( $context['device_id'] ?? 0 ), 'source' => sanitize_key( $context['source'] ?? 'web' ) ) );
+			do_action( 'wpcap_ticket_checked_in', (int) $ticket->ticket_id, $context );
+			return array_merge( self::public_view( $found, 'checked_in' ), array( 'status' => 'checked_in', 'reentry' => true ) );
+		}
 		if ( ! $ticket || 'valid' !== $ticket->status ) {
 			// Never log a rejected scan as "checked_in" – reports count that value as admissions.
 			$result = ! $ticket ? 'unknown' : ( 'checked_in' === $ticket->status ? 'already_checked_in' : $ticket->status );
@@ -244,6 +259,7 @@ final class Checkin {
 			}
 		}
 		$denied = self::deny( $found, $context, 'out' );
+		if ( ! $denied ) { $denied = self::checkout_role_denied( $found ); }
 		if ( $denied ) { return $denied; }
 		$log = self::logger( $found, $context, $key, $user_id );
 		$wpdb->query( 'START TRANSACTION' );
@@ -261,6 +277,43 @@ final class Checkin {
 		Audit::record( 'ticket_checked_out', 'ticket', $found['ticket_id'], array( 'event_id' => $found['event_id'], 'device_id' => absint( $context['device_id'] ?? 0 ), 'source' => sanitize_key( $context['source'] ?? 'web' ), 'area_id' => absint( $context['area_id'] ?? 0 ) ) );
 		do_action( 'wpcap_ticket_checked_out', (int) $found['ticket_id'], $context );
 		return array_merge( self::public_view( $found, 'checked_out' ), array( 'status' => 'checked_out' ) );
+	}
+
+	/**
+	 * Re-entry of a checked-in ticket without own admission policy: null when the rules do not apply
+	 * (setting off, ticket type with policy, ticket still inside), '' when re-entry is allowed,
+	 * otherwise the blocking result (entry_limit_reached, outside_entry_window). Inside the transaction.
+	 */
+	private static function reentry_block( array $found, $at ) {
+		if ( ! Security\Policy::get( 'reentry_after_checkout' ) || Policies::for_type( $found['ticket_type_id'] ) ) { return null; }
+		global $wpdb;
+		// A refunded ticket keeps status checked_in as history but never grants another entry.
+		if ( (int) $wpdb->get_var( $wpdb->prepare( "SELECT refunded FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", (int) $found['ticket_id'] ) ) ) { return null; }
+		$state = Engine::state_for_update( $found['ticket_id'] );
+		if ( ! $state || (int) $state->inside || empty( $state->last_out_at ) ) { return null; }
+		$max = (int) Security\Policy::get( 'max_reentries' );
+		$reentries = max( 0, (int) $state->entries - 1 );
+		if ( $max > 0 && $reentries >= $max ) { return 'entry_limit_reached'; }
+		$window = Engine::default_window_block( $found, $at );
+		return $window ? $window : '';
+	}
+
+	/**
+	 * Role check of check-out (setting checkout_roles): with a role list, only users with one of these
+	 * roles (or administrators) may check out; event/date scope is checked before in deny().
+	 */
+	private static function checkout_role_denied( array $found ) {
+		$allowed = array_filter( array_map( 'trim', explode( ',', (string) Security\Policy::get( 'checkout_roles' ) ) ) );
+		if ( ! $allowed || current_user_can( 'manage_options' ) ) { return null; }
+		if ( array_intersect( $allowed, self::current_roles() ) ) { return null; }
+		return new \WP_Error( 'wpcap_checkout_forbidden', __( 'Check-out ist für deine Rolle nicht freigegeben.', 'pass-captain' ), array( 'status' => 403, 'result' => 'forbidden', 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'] ) );
+	}
+
+	/** Roles of the current user (filter wpcap_checkout_user_roles). */
+	private static function current_roles() {
+		$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
+		$roles = $user ? array_values( (array) $user->roles ) : array();
+		return array_map( 'strval', (array) apply_filters( 'wpcap_checkout_user_roles', $roles, get_current_user_id() ) );
 	}
 
 	/** Rolls back a failed check-in transaction and returns a retryable error (nothing was booked). */
@@ -307,7 +360,7 @@ final class Checkin {
 		// Only scans the uploader was allowed to make for this event can be conflicts; otherwise a
 		// scanner of event A could create open conflicts in event B.
 		if ( ! $ticket_id || ! $event_id || in_array( (string) ( $data['result'] ?? '' ), array( 'forbidden', 'wrong_event', 'unknown' ), true ) ) { return $error; }
-		if ( ! Access::can_access_event( $event_id, 'wpcap_checkin' ) ) { return $error; }
+		if ( ! Access::can_access_occurrence( $found ? (int) $found['occurrence_id'] : absint( $data['occurrence_id'] ?? 0 ), 'wpcap_checkin', $event_id ) ) { return $error; }
 		if ( isset( $context['event_ids'] ) && is_array( $context['event_ids'] ) && $context['event_ids'] && ! in_array( $event_id, array_map( 'intval', $context['event_ids'] ), true ) ) { return $error; }
 		$dedupe = $key ? get_current_user_id() . '|' . $key : 'scan|' . get_current_user_id() . '|' . $ticket_id . '|' . (string) ( $context['scanned_at'] ?? '' ) . '|' . (string) $checkin_id;
 		$conflict_id = Conflicts::record( array(
@@ -330,7 +383,8 @@ final class Checkin {
 	/** Event scope, device and area restrictions; returns WP_Error or null. */
 	private static function deny( array $found, array $context, $direction = 'in' ) {
 		$internal = array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_id' => (int) $found['occurrence_id'] );
-		if ( ! Access::can_access_event( $found['event_id'], 'wpcap_checkin' ) ) {
+		// Event-level assignment or an assignment for exactly this date (occurrence scope).
+		if ( ! Access::can_access_occurrence( $found['occurrence_id'], 'wpcap_checkin', $found['event_id'] ) ) {
 			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array_merge( $internal, array( 'status' => 403, 'result' => 'forbidden' ) ) );
 		}
 		if ( isset( $context['event_ids'] ) && is_array( $context['event_ids'] ) && $context['event_ids'] && ! in_array( (int) $found['event_id'], array_map( 'intval', $context['event_ids'] ), true ) ) {

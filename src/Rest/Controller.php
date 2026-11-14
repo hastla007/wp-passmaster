@@ -579,14 +579,16 @@ final class Controller {
 		if ( ! $valid_dates || $from > $to || strtotime( $to ) - strtotime( $from ) > 90 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_report_range', __( 'Berichtszeitraum muss gültig und höchstens 90 Tage lang sein.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$key = 'wpcap_report_' . $event_id . '_' . md5( $from . '|' . $to );
 		$cached = get_transient( $key );
-		if ( false !== $cached ) { return rest_ensure_response( $cached ); }
+		// Staff without access to payment data (check-in/partner roles) get no amounts; developer keys keep the full report.
+		$minimise = get_current_user_id() && ! \PassCaptain\Security\DataPolicy::can_view_payment();
+		if ( false !== $cached ) { return rest_ensure_response( $minimise ? \PassCaptain\Security\DataPolicy::strip_payment( (array) $cached ) : $cached ); }
 		$sales = $wpdb->get_results( $wpdb->prepare( "SELECT ord.currency,COUNT(DISTINCT ord.order_id) AS orders_count,COALESCE(SUM(oi.quantity),0) AS tickets_sold,COALESCE(SUM(oi.line_total_minor),0) AS gross_minor FROM {$wpdb->prefix}wpcap_orders ord INNER JOIN {$wpdb->prefix}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE o.event_id=%d AND ord.payment_status='paid' AND ord.status<>'refunded' AND ord.created_at >= %s AND ord.created_at < DATE_ADD(%s,INTERVAL 1 DAY) GROUP BY ord.currency", $event_id, $from . ' 00:00:00', $to . ' 00:00:00' ), ARRAY_A );
 		$checkins = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_checkins WHERE event_id=%d AND result='checked_in' AND created_at >= %s AND created_at < DATE_ADD(%s,INTERVAL 1 DAY)", $event_id, $from . ' 00:00:00', $to . ' 00:00:00' ) );
 		$currency_totals = array();
 		foreach ( $sales as $sale ) { $currency_totals[] = array( 'currency' => $sale['currency'], 'orders_count' => (int) $sale['orders_count'], 'tickets_sold' => (int) $sale['tickets_sold'], 'gross_minor' => (int) $sale['gross_minor'] ); }
 		$data = array( 'event_id' => $event_id, 'from' => $from, 'to' => $to, 'sales_by_currency' => $currency_totals, 'checkins' => $checkins, 'financial_basis' => 'gross_line_totals_before_order_discounts_tax_and_refunds' );
 		set_transient( $key, $data, 5 * MINUTE_IN_SECONDS );
-		return rest_ensure_response( $data );
+		return rest_ensure_response( $minimise ? \PassCaptain\Security\DataPolicy::strip_payment( $data ) : $data );
 	}
 
 	public static function create_developer_key( \WP_REST_Request $request ) {
