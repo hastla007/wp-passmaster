@@ -22,7 +22,9 @@ final class Jobs {
 	 */
 	public static function process_due( $limit = 20 ) {
 		global $wpdb;
-		// Refunds paid out at the provider but not booked locally are finished here (no provider call).
+		// Refunds paid out at the provider but not booked locally are finished here (no provider call);
+		// the order status retry job handler (order_mark_refunded) is registered for this run.
+		Refunds::register();
 		Refunds::reconcile();
 		$table = $wpdb->prefix . 'wpcap_jobs';
 		$now = current_time( 'mysql', true );

@@ -126,6 +126,7 @@ function current_user_can( $cap ) { return ! in_array( $cap, $GLOBALS['wpcap_tes
 function get_current_user_id() { return $GLOBALS['wpcap_test_user_id'] ?? 1; }
 function get_option( $k, $d = false ) { return $GLOBALS['wpcap_test_options'][ $k ] ?? $d; }
 function update_option( $k, $v ) { $GLOBALS['wpcap_test_options'][ $k ] = $v; return true; }
+if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { unset( $GLOBALS['wpcap_test_options'][ $k ] ); return true; } }
 function get_transient( $k ) { return $GLOBALS['wpcap_test_transients'][ $k ] ?? false; }
 function set_transient( $k, $v, $e = 0 ) { $GLOBALS['wpcap_test_transients'][ $k ] = $v; return true; }
 function add_query_arg( $args, $url, $u = null ) { if ( ! is_array( $args ) ) { $args = array( $args => $url ); $url = $u; } return $url . '?' . http_build_query( $args ); }

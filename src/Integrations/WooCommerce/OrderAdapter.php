@@ -52,11 +52,15 @@ final class OrderAdapter {
 		\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'cart_checkout_blocks', WPCAP_FILE, true );
 	}
 
+	/** Job that retries mirroring a WooCommerce refund after a database error. */
+	const REFUND_SYNC_JOB = 'woocommerce_refund_sync';
+
 	/** Registers hooks when WooCommerce is active. */
 	public static function register() {
 		if ( ! class_exists( '\\WooCommerce' ) ) {
 			return;
 		}
+		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
 		// Product configuration.
 		add_action( 'woocommerce_product_options_general_product_data', array( __CLASS__, 'product_field' ) );
 		add_action( 'woocommerce_admin_process_product_object', array( __CLASS__, 'save_product_field' ) );
@@ -716,12 +720,11 @@ final class OrderAdapter {
 		$core_id = self::core_order_id( $wc_order_id );
 		$refund  = wc_get_order( absint( $refund_id ) );
 		if ( ! $core_id || ! $refund || $refund->get_meta( self::REFUND_META, true ) ) {
-			return;
+			return true;
 		}
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
 		if ( $wc_order && self::can_record_refunds() ) {
-			self::record_refund( $wc_order, $refund, $core_id );
-			return;
+			return self::record_refund( $wc_order, $refund, $core_id );
 		}
 		$revoked = 0;
 		$kept    = 0;
@@ -733,9 +736,26 @@ final class OrderAdapter {
 		$refund->update_meta_data( self::REFUND_META, 1 );
 		$refund->save();
 		self::note_refund( $wc_order, $revoked, $kept );
+		return true;
 	}
 
-	/** Records a WooCommerce refund through the core refund ledger. */
+	/**
+	 * Filter wp_pass_captain_process_job_v1: retries a WooCommerce refund whose recording failed with a
+	 * retryable database error (idempotent: the refund meta and the core idempotency key prevent doubles).
+	 */
+	public static function handle_job( $handled, $type, $payload = array() ) {
+		if ( self::REFUND_SYNC_JOB !== $type ) {
+			return $handled;
+		}
+		$payload = (array) $payload;
+		return true === self::sync_refund( absint( $payload['wc_order_id'] ?? 0 ), absint( $payload['refund_id'] ?? 0 ) );
+	}
+
+	/**
+	 * Records a WooCommerce refund through the core refund ledger.
+	 *
+	 * @return bool True when recorded (or nothing to record); false when a retry was queued or it failed for good.
+	 */
 	private static function record_refund( $wc_order, $refund, $core_id ) {
 		global $wpdb;
 		$plan = self::refund_plan( $wc_order, $refund, $core_id );
@@ -756,17 +776,33 @@ final class OrderAdapter {
 				)
 			);
 			if ( is_wp_error( $result ) ) {
-				if ( $wc_order ) {
-					/* translators: %s: error message */
-					$wc_order->add_order_note( sprintf( __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s', 'pass-captain' ), $result->get_error_message() ) );
+				$data      = (array) $result->get_error_data();
+				$retryable = ! empty( $data['retryable'] );
+				if ( $retryable ) {
+					// Temporary database error: nothing was recorded; the job queue repeats the sync.
+					\PassCaptain\Jobs::enqueue(
+						'woocommerce-refund-sync-' . $refund->get_id() . '-' . gmdate( 'YmdHi' ),
+						self::REFUND_SYNC_JOB,
+						array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund->get_id() ),
+						gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS )
+					);
 				}
-				return;
+				if ( $wc_order ) {
+					$note = $retryable
+						/* translators: %s: error message */
+						? __( 'Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht.', 'pass-captain' )
+						/* translators: %s: error message */
+						: __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s', 'pass-captain' );
+					$wc_order->add_order_note( sprintf( $note, $result->get_error_message() ) );
+				}
+				return false;
 			}
 			$requested = $plan['final'] ? count( $plan['ticket_ids'] ) : array_sum( $plan['quantities'] );
 			self::note_refund( $wc_order, $valid, max( 0, $requested - $valid ) );
 		}
 		$refund->update_meta_data( self::REFUND_META, 1 );
 		$refund->save();
+		return true;
 	}
 
 	/** Whether the core can record refunds executed outside Pass Captain. */
@@ -896,7 +932,14 @@ final class OrderAdapter {
 				self::sync_refund( $wc_order_id, $refund->get_id() );
 			}
 		}
-		Orders::mark_refunded( $core_id, 'woocommerce_refunded' );
+		$result = Orders::mark_refunded( $core_id, 'woocommerce_refunded' );
+		if ( is_wp_error( $result ) ) {
+			// Database error: nothing changed in Pass Captain; log it, queue a retry and tell the shop admin.
+			\PassCaptain\Refunds::schedule_order_state( $core_id, 'woocommerce_refunded', $result->get_error_message() );
+			if ( $wc_order ) {
+				$wc_order->add_order_note( __( 'Pass Captain: Die Tickets konnten wegen eines Datenbankfehlers noch nicht widerrufen werden. Der Vorgang wird automatisch wiederholt.', 'pass-captain' ) );
+			}
+		}
 	}
 
 	/** Adds a note to the WooCommerce order when one of its occurrences was cancelled. */

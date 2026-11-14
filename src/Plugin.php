@@ -21,6 +21,7 @@ final class Plugin {
 		Settings::register();
 		Jobs\TimeBudget::register();
 		Orders::register(); // Job handler for ticket issuance retries and the delivery outbox.
+		Refunds::register(); // Job handler for order status retries after refunds.
 		add_filter( 'wpmu_drop_tables', array( __CLASS__, 'drop_site_tables' ), 10, 2 );
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
 		Admin\Menu::register();
