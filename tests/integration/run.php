@@ -16,9 +16,10 @@ use PassCaptain\Integrations\WooCommerce\OrderAdapter as Woo;
 
 $failures = 0;
 $passes   = 0;
+$failed_checks = array();
 function check( $name, $condition ) {
-	global $failures, $passes;
-	if ( $condition ) { $passes++; echo "  ok   $name\n"; } else { $failures++; echo "  FAIL $name\n"; }
+	global $failures, $passes, $failed_checks;
+	if ( $condition ) { $passes++; echo "  ok   $name\n"; } else { $failures++; $failed_checks[] = $name; echo "  FAIL $name\n"; }
 }
 
 function make_type( $capacity, $max = 10, $price = 2500, $occurrence_capacity = 0 ) {
@@ -318,5 +319,7 @@ require __DIR__ . '/admin.php';
 require __DIR__ . '/mobile.php';
 require __DIR__ . '/affiliate.php';
 foreach ( glob( __DIR__ . '/modules/*.php' ) as $module_test ) { require $module_test; }
+// Repeat the failures at the end so CI log tails show them.
+if ( $failed_checks ) { echo "\nFailed checks:\n"; foreach ( $failed_checks as $name ) { echo "  FAIL $name\n"; } }
 echo "\n$passes passed, $failures failed\n";
 exit( $failures ? 1 : 0 );
