@@ -30,7 +30,7 @@ final class Pricing {
 	const KINDS = array( 'early_bird', 'last_minute', 'demand', 'weekday' );
 	const DEFAULT_PRIORITY = array( 'last_minute' => 40, 'demand' => 30, 'early_bird' => 20, 'weekday' => 10 );
 
-	/** Per-request cache of rules by series id. */
+	/** Per-request cache of rules by table prefix and series id (multisite: switch_to_blog() changes the prefix). */
 	private static $cache = array();
 
 	public static function schema( $prefix, $charset ) {
@@ -80,10 +80,11 @@ final class Pricing {
 	public static function for_series( $series_id ) {
 		global $wpdb;
 		$series_id = absint( $series_id );
-		if ( ! isset( self::$cache[ $series_id ] ) ) {
-			self::$cache[ $series_id ] = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_series_price_rules WHERE series_id=%d AND status='active' ORDER BY rule_id", $series_id ) );
+		$key = $wpdb->prefix . '|' . $series_id;
+		if ( ! isset( self::$cache[ $key ] ) ) {
+			self::$cache[ $key ] = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_series_price_rules WHERE series_id=%d AND status='active' ORDER BY rule_id", $series_id ) );
 		}
-		return self::$cache[ $series_id ];
+		return self::$cache[ $key ];
 	}
 
 	/** Series row with its timezone and currency (from the generated ticket types). */
@@ -288,10 +289,12 @@ final class Pricing {
 		global $wpdb;
 		static $map = array();
 		$occurrence_id = absint( $occurrence_id );
-		if ( ! isset( $map[ $occurrence_id ] ) ) {
-			$map[ $occurrence_id ] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT series_id FROM {$wpdb->prefix}wpcap_series_occurrences WHERE occurrence_id=%d", $occurrence_id ) );
+		// Keyed by table prefix too: after switch_to_blog() the same id is another site's occurrence.
+		$key = $wpdb->prefix . '|' . $occurrence_id;
+		if ( ! isset( $map[ $key ] ) ) {
+			$map[ $key ] = (int) $wpdb->get_var( $wpdb->prepare( "SELECT series_id FROM {$wpdb->prefix}wpcap_series_occurrences WHERE occurrence_id=%d", $occurrence_id ) );
 		}
-		return $map[ $occurrence_id ];
+		return $map[ $key ];
 	}
 
 	/** Sold share (0–100) of a type: paid units + active holds against type, else occurrence capacity. */

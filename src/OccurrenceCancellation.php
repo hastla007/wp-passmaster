@@ -35,7 +35,8 @@ final class OccurrenceCancellation {
 
 	/** Summary counters of the last cancellation handled for an occurrence in this request. */
 	public static function last_summary( $occurrence_id ) {
-		return self::$summaries[ absint( $occurrence_id ) ] ?? array();
+		global $wpdb;
+		return self::$summaries[ $wpdb->prefix . '|' . absint( $occurrence_id ) ] ?? array();
 	}
 
 	/** @return array Summary counters. */
@@ -83,7 +84,7 @@ final class OccurrenceCancellation {
 			if ( is_email( $recipient->email ) && Mail\Mailer::send( 'occurrence_cancelled', $recipient->email, $vars, array(), (string) $recipient->locale ) ) { ++$summary['notified']; }
 		}
 		Audit::record( 'occurrence_cancellation_processed', 'occurrence', $occurrence_id, $summary );
-		self::$summaries[ $occurrence_id ] = $summary;
+		self::$summaries[ $wpdb->prefix . '|' . $occurrence_id ] = $summary;
 		return $summary;
 	}
 
