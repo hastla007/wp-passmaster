@@ -66,6 +66,30 @@ final class Menu {
 		return $caps[0];
 	}
 
+	/**
+	 * Submenu pages of add-ons that are not modules (filter wp_pass_captain_admin_menu_v1), same format
+	 * as a module's admin_pages(): [ slug, title, capability, callable ]. Invalid entries and slugs of
+	 * core pages are ignored. Listed before "Einstellungen".
+	 *
+	 * @return array<int,array{0:string,1:string,2:string,3:callable}>
+	 */
+	public static function extra_pages() {
+		$pages = apply_filters( 'wp_pass_captain_admin_menu_v1', array() );
+		if ( ! is_array( $pages ) ) { return array(); }
+		$reserved = array( self::SLUG, OrdersPage::SLUG, TicketsPage::SLUG, CheckinsPage::SLUG, RefundsPage::SLUG, DevicesPage::SLUG, SettingsPage::SLUG );
+		foreach ( \PassCaptain\Modules::admin_pages() as $page ) { $reserved[] = (string) $page[0]; }
+		$out = array();
+		foreach ( $pages as $page ) {
+			if ( ! is_array( $page ) || 4 !== count( $page ) ) { continue; }
+			list( $slug, $title, $cap, $callback ) = array_values( $page );
+			$slug = sanitize_key( (string) $slug );
+			if ( '' === $slug || in_array( $slug, $reserved, true ) || '' === (string) $cap || ! is_callable( $callback ) ) { continue; }
+			$reserved[] = $slug;
+			$out[] = array( $slug, (string) $title, (string) $cap, $callback );
+		}
+		return $out;
+	}
+
 	public static function add_menus() {
 		$top_cap = self::first_cap( array( EventsPage::CAP, OrdersPage::CAP, 'wpcap_checkin', 'wpcap_view_reports', Refunds::APPROVE_CAP, SettingsPage::CAP ) );
 		add_menu_page(
@@ -85,7 +109,7 @@ final class Menu {
 		$refund_title = __( 'Erstattungen', 'pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
 		add_submenu_page( self::SLUG, __( 'Erstattungen', 'pass-captain' ), $refund_title, RefundsPage::menu_cap(), RefundsPage::SLUG, array( RefundsPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Scanner-Geräte', 'pass-captain' ), __( 'Scanner-Geräte', 'pass-captain' ), DevicesPage::CAP, DevicesPage::SLUG, array( DevicesPage::class, 'render' ) );
-		foreach ( \PassCaptain\Modules::admin_pages() as $page ) {
+		foreach ( array_merge( \PassCaptain\Modules::admin_pages(), self::extra_pages() ) as $page ) {
 			list( $slug, $title, $cap, $callback ) = $page;
 			add_submenu_page( self::SLUG, $title, $title, $cap, $slug, $callback );
 		}

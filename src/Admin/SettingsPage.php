@@ -133,10 +133,47 @@ final class SettingsPage {
 		);
 	}
 
+	/**
+	 * Core sections plus add-on sections (filter wp_pass_captain_settings_sections_v1).
+	 *
+	 * Add-ons may add sections or fields; each field key must exist in Settings::defaults() (module
+	 * settings_defaults() or wp_pass_captain_settings_defaults_v1). Field types: int (min, max), bool,
+	 * choice (options), text, textarea, html, money, secret; optional description and sanitize (callable
+	 * receiving the raw value and the current value, returning the value to store or a WP_Error).
+	 * Core fields cannot be removed or retyped.
+	 */
+	public static function all_sections() {
+		$core = self::sections();
+		$sections = apply_filters( 'wp_pass_captain_settings_sections_v1', $core );
+		if ( ! is_array( $sections ) ) { return $core; }
+		$out = $core;
+		foreach ( $sections as $id => $section ) {
+			$id = sanitize_key( (string) $id );
+			if ( '' === $id || ! is_array( $section ) || empty( $section['fields'] ) || ! is_array( $section['fields'] ) ) { continue; }
+			$known_types = array( 'int', 'bool', 'choice', 'text', 'textarea', 'html', 'money', 'secret' );
+			$fields = array();
+			foreach ( $section['fields'] as $key => $def ) {
+				$key = sanitize_key( (string) $key );
+				if ( '' === $key || ! is_array( $def ) || ! in_array( $def['type'] ?? '', $known_types, true ) ) { continue; }
+				if ( 'int' === $def['type'] ) { $def += array( 'min' => 0, 'max' => PHP_INT_MAX ); }
+				if ( 'choice' === $def['type'] && ! is_array( $def['options'] ?? null ) ) { continue; }
+				$def['label'] = (string) ( $def['label'] ?? $key );
+				$fields[ $key ] = $def;
+			}
+			if ( isset( $core[ $id ] ) ) {
+				// Existing core section: only new fields are appended.
+				$out[ $id ]['fields'] += array_diff_key( $fields, $core[ $id ]['fields'] );
+			} elseif ( $fields ) {
+				$out[ $id ] = array( 'title' => (string) ( $section['title'] ?? $id ), 'fields' => $fields, 'addon' => true );
+			}
+		}
+		return $out;
+	}
+
 	/** Definitions for every key in Settings::defaults(), including generic ones for unknown keys. */
 	public static function field_definitions() {
 		$defaults = Settings::defaults();
-		$sections = self::sections();
+		$sections = self::all_sections();
 		foreach ( $sections as $id => $section ) {
 			$sections[ $id ]['fields'] = array_intersect_key( $section['fields'], $defaults );
 		}
@@ -236,6 +273,15 @@ final class SettingsPage {
 						break;
 					default:
 						$values[ $key ] = Forms::text( $in, $key, 190 );
+				}
+				if ( array_key_exists( $key, $values ) && isset( $def['sanitize'] ) && is_callable( $def['sanitize'] ) ) {
+					$clean = call_user_func( $def['sanitize'], $values[ $key ], $current[ $key ] ?? null );
+					if ( is_wp_error( $clean ) ) {
+						$errors[] = $clean->get_error_message();
+						unset( $values[ $key ] );
+					} else {
+						$values[ $key ] = $clean;
+					}
 				}
 			}
 		}

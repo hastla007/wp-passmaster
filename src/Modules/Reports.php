@@ -15,6 +15,9 @@ final class Reports {
 	}
 
 	public static function admin_handlers() {
-		return array( 'wpcap_reports_csv' => array( Page::class, 'handle_csv' ) );
+		return array(
+			'wpcap_reports_csv' => array( Page::class, 'handle_csv' ),
+			'wpcap_reports_export' => array( \PassCaptain\Reports\Exports::class, 'handle_export' ),
+		);
 	}
 }
