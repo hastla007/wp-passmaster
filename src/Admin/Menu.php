@@ -40,7 +40,7 @@ final class Menu {
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
 			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
 			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),
-		) + FeatureScreens::handlers() + StatusPage::handlers() + \PassCaptain\Modules::admin_handlers();
+		) + FeatureScreens::handlers() + StatusPage::handlers() + SecurityScreens::handlers() + \PassCaptain\Modules::admin_handlers();
 	}
 
 	public static function register() {
@@ -85,7 +85,7 @@ final class Menu {
 		if ( ! is_array( $pages ) ) { return array(); }
 		$reserved = array( self::SLUG, OrdersPage::SLUG, TicketsPage::SLUG, CheckinsPage::SLUG, RefundsPage::SLUG, DevicesPage::SLUG, SettingsPage::SLUG );
 		$reserved[] = StatusPage::SLUG;
-		foreach ( array_merge( FeatureScreens::pages(), \PassCaptain\Modules::admin_pages() ) as $page ) { $reserved[] = (string) $page[0]; }
+		foreach ( array_merge( FeatureScreens::pages(), SecurityScreens::pages(), \PassCaptain\Modules::admin_pages() ) as $page ) { $reserved[] = (string) $page[0]; }
 		$out = array();
 		foreach ( $pages as $page ) {
 			if ( ! is_array( $page ) || 4 !== count( $page ) ) { continue; }
@@ -121,6 +121,7 @@ final class Menu {
 			list( $slug, $title, $cap, $callback ) = $page;
 			add_submenu_page( self::SLUG, $title, $title, $cap, $slug, $callback );
 		}
+		foreach ( SecurityScreens::pages() as $page ) { add_submenu_page( self::SLUG, $page[1], $page[1], $page[2], $page[0], $page[3] ); }
 		add_submenu_page( self::SLUG, __( 'Systemstatus', 'pass-captain' ), StatusPage::menu_title(), StatusPage::CAP, StatusPage::SLUG, array( StatusPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Einstellungen', 'pass-captain' ), __( 'Einstellungen', 'pass-captain' ), SettingsPage::CAP, SettingsPage::SLUG, array( SettingsPage::class, 'render' ) );
 		if ( \PassCaptain\Integrations\Vouchers\IntegrationStatus::voucher_captain_active() ) {

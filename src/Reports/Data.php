@@ -410,6 +410,7 @@ final class Data {
 
 	/** CSV rows of a report (amounts as decimals). */
 	public static function csv_rows( array $report ) {
+		if ( ! \PassCaptain\Security\DataPolicy::can_view_payment() ) { return self::csv_rows_without_payment( $report ); }
 		$m = static function ( $minor ) { return number_format( $minor / 100, 2, '.', '' ); };
 		$head = array( __( 'Tickets', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'Netto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Erstattete Tickets', 'pass-captain' ), __( 'Erstattet brutto', 'pass-captain' ), __( 'Erstattet USt', 'pass-captain' ), __( 'Umsatz nach Erstattung', 'pass-captain' ), __( 'USt nach Erstattung', 'pass-captain' ) );
 		$vals = static function ( $b ) use ( $m ) { return array( $b['tickets'], $m( $b['gross'] ), $m( $b['net'] ), $m( $b['tax'] ), $b['refunded_tickets'], $m( $b['refunded'] ), $m( $b['refunded_tax'] ), $m( $b['revenue'] ), $m( $b['revenue_tax'] ) ); };
@@ -457,5 +458,21 @@ final class Data {
 			foreach ( $report['histogram'] as $hour => $n ) { $rows[] = array( $hour, $n ); }
 		}
 		return Exports::filter_rows( $rows, 'report', array( 'report' => $report ) );
+	}
+
+	/**
+	 * Report CSV for roles without access to payment data (check-in, partner/organiser view):
+	 * ticket counts and admission figures only, no amounts (Security\DataPolicy).
+	 */
+	public static function csv_rows_without_payment( array $report ) {
+		$rows = array( array( __( 'Bericht', 'pass-captain' ), $report['from'], $report['to'], $report['timezone'] ) );
+		$rows[] = array();
+		$rows[] = array( __( 'Termin', 'pass-captain' ), __( 'Kapazität', 'pass-captain' ), __( 'Verkauft', 'pass-captain' ), __( 'Auslastung %', 'pass-captain' ), __( 'Gültige Tickets', 'pass-captain' ), __( 'Eingecheckt', 'pass-captain' ), __( 'Check-in-Quote %', 'pass-captain' ) );
+		foreach ( $report['occurrences'] as $o ) {
+			$rows[] = array( $o['label'], $o['capacity'] ?: '∞', $o['sold'], null === $o['utilisation'] ? '' : number_format( $o['utilisation'], 1, '.', '' ), $o['issued'], $o['checked_in'], null === $o['checkin_rate'] ? '' : number_format( $o['checkin_rate'], 1, '.', '' ) );
+		}
+		$rows[] = array();
+		$rows[] = array( __( 'Verkaufte Tickets', 'pass-captain' ), (int) $report['total']['tickets'], __( 'Erstattete Tickets', 'pass-captain' ), (int) $report['total']['refunded_tickets'] );
+		return Exports::filter_rows( $rows, 'report', array( 'report' => $report, 'without_payment' => true ) );
 	}
 }

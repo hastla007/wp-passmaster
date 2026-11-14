@@ -21,7 +21,8 @@ final class OrderPortal {
 		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ) );
 		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
 		header( 'Referrer-Policy: no-referrer' );
-		echo self::render_page( $order, $token ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_page.
+		// Rendered in the order's language (buyer's choice in checkout or portal, Frontend\Language).
+		echo Mail\Mailer::with_locale( (string) $order->locale, static function () use ( $order, $token ) { return self::render_page( $order, $token ); } ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in render_page.
 		exit;
 	}
 
@@ -76,6 +77,7 @@ final class OrderPortal {
 <h1><?php echo esc_html( sprintf( /* translators: %s: short order number */ __( 'Bestellung %s', 'pass-captain' ), $reference ) ); ?></h1>
 <p class="muted"><?php echo esc_html( sprintf( /* translators: %s: order date */ __( 'Bestellt am %s', 'pass-captain' ), Frontend\Format::site_datetime( $order->created_at ) ) ); ?></p>
 <p class="status"><?php echo esc_html( Admin\Forms::status_label( $order->status ) . ( $order->status !== $order->payment_status ? ' · ' . Admin\Forms::status_label( $order->payment_status ) : '' ) ); ?></p>
+<?php echo Frontend\Language::portal_form( $order, $token ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in portal_form. ?>
 <?php $voucher_paid = class_exists( Integrations\Vouchers\Checkout::class ) ? Integrations\Vouchers\Checkout::voucher_payment_minor( $order ) : 0; ?>
 <p><?php echo esc_html( sprintf( /* translators: %s: formatted amount */ __( 'Gesamtbetrag: %s', 'pass-captain' ), Frontend\Format::money( (int) $order->total_minor + $voucher_paid, $order->currency ) ) ); ?><?php if ( $voucher_paid ) : ?><br><?php echo esc_html( sprintf( /* translators: 1: voucher amount, 2: amount to pay */ __( 'davon mit Gutschein bezahlt: %1$s · Zahlbetrag: %2$s', 'pass-captain' ), Frontend\Format::money( $voucher_paid, $order->currency ), Frontend\Format::money( $order->total_minor, $order->currency ) ) ); ?><?php endif; ?></p>
 <?php if ( $bank ) : ?><section class="card" aria-labelledby="wpcap-pay-title"><h2 id="wpcap-pay-title"><?php esc_html_e( 'Zahlungsinformationen', 'pass-captain' ); ?></h2><dl class="bank"><?php foreach ( Payments\BankTransfer::rows( $bank ) as $label => $value ) : ?><dt><?php echo esc_html( $label ); ?></dt><dd><?php echo esc_html( $value ); ?></dd><?php endforeach; ?></dl><?php if ( '' !== $bank['instructions'] ) : ?><p><?php echo nl2br( esc_html( $bank['instructions'] ) ); ?></p><?php endif; ?></section><?php endif; ?>

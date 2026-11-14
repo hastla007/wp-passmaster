@@ -340,6 +340,8 @@
 		const extra = {};
 		const billing = billingPayload(form);
 		if (billing) extra.billing = billing;
+		const locale = form.querySelector('[name="locale"]');
+		if (locale && locale.value) extra.locale = locale.value;
 		// Modules (e.g. seat selection) add fields here; they may set detail.error (and detail.field) to block submission.
 		const hook = new CustomEvent('wpcap:checkout-payload', { detail: { form: form, items: items, payload: extra, error: '', field: null } });
 		document.dispatchEvent(hook);

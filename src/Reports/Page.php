@@ -60,6 +60,10 @@ final class Page {
 		if ( false === $scope ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$filters = self::filters( wp_unslash( $_GET ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filters.
 		$report = Data::build( $filters, $scope );
+		if ( ! \PassCaptain\Security\DataPolicy::can_view_payment() ) {
+			self::render_without_payment( $report, $filters, $scope );
+			return;
+		}
 		$cur = $report['currency'];
 		$money = static function ( $minor ) use ( $cur ) { return Scope::money( $minor, $cur ); };
 		$csv_url = add_query_arg( array_merge( $filters, array( 'action' => 'wpcap_reports_csv', '_wpnonce' => wp_create_nonce( 'wpcap_reports_csv' ) ) ), admin_url( 'admin-post.php' ) );
@@ -203,6 +207,24 @@ final class Page {
 		}
 		if ( ! $buckets ) { echo '<tr><td colspan="7">' . esc_html__( 'Keine Daten im Zeitraum.', 'pass-captain' ) . '</td></tr>'; }
 		echo '</tbody></table>';
+	}
+
+	/** Report view without amounts for roles without access to payment data (Security\DataPolicy). */
+	private static function render_without_payment( array $report, array $filters, $scope ) {
+		$csv_url = add_query_arg( array_merge( $filters, array( 'action' => 'wpcap_reports_csv', '_wpnonce' => wp_create_nonce( 'wpcap_reports_csv' ) ) ), admin_url( 'admin-post.php' ) );
+		echo '<div class="wrap wpcap-admin"><h1>' . esc_html__( 'Berichte', 'pass-captain' ) . '</h1>';
+		echo '<form method="get"><input type="hidden" name="page" value="' . esc_attr( self::SLUG ) . '"><p>';
+		echo '<label>' . esc_html__( 'Von', 'pass-captain' ) . ' <input type="date" name="from" value="' . esc_attr( $report['from'] ) . '"></label> ';
+		echo '<label>' . esc_html__( 'Bis', 'pass-captain' ) . ' <input type="date" name="to" value="' . esc_attr( $report['to'] ) . '"></label> ';
+		Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'] );
+		echo ' <button class="button">' . esc_html__( 'Anzeigen', 'pass-captain' ) . '</button> <a class="button" href="' . esc_url( $csv_url ) . '">' . esc_html__( 'CSV-Export', 'pass-captain' ) . '</a></p></form>';
+		echo '<p class="description">' . esc_html__( 'Für deine Rolle werden keine Zahlungsdaten angezeigt (nur Ticket- und Einlasszahlen).', 'pass-captain' ) . '</p>';
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Termin', 'pass-captain' ) . '</th><th>' . esc_html__( 'Kapazität', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verkauft', 'pass-captain' ) . '</th><th>' . esc_html__( 'Gültige Tickets', 'pass-captain' ) . '</th><th>' . esc_html__( 'Eingecheckt', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $report['occurrences'] as $o ) {
+			echo '<tr><td>' . esc_html( $o['label'] ) . '</td><td>' . esc_html( $o['capacity'] ? (string) $o['capacity'] : '∞' ) . '</td><td>' . (int) $o['sold'] . '</td><td>' . (int) $o['issued'] . '</td><td>' . (int) $o['checked_in'] . '</td></tr>';
+		}
+		if ( ! $report['occurrences'] ) { echo '<tr><td colspan="5">' . esc_html__( 'Keine Daten im Zeitraum.', 'pass-captain' ) . '</td></tr>'; }
+		echo '</tbody></table></div>';
 	}
 
 	/**

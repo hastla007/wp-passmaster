@@ -39,6 +39,7 @@ $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
 			<label for="<?php echo esc_attr( $form_id . '-email' ); ?>"><?php esc_html_e( 'Deine E-Mail-Adresse (für Tickets und Bestätigung)', 'pass-captain' ); ?> *</label>
 			<input id="<?php echo esc_attr( $form_id . '-email' ); ?>" name="email" type="email" autocomplete="email" required>
 		</div>
+		<?php echo \PassCaptain\Frontend\Language::checkout_field( $form_id ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in checkout_field. ?>
 		<div class="wpcap-attendees" aria-live="polite"></div>
 		<?php do_action( 'wpcap_checkout_form_fields', $event, $types ); ?>
 		<?php if ( apply_filters( 'wpcap_checkout_billing_enabled', true, $event ) ) :

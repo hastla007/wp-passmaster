@@ -61,12 +61,21 @@ final class Refunds {
 		}
 		$calc = self::calculate( $order, $requested, $open['ticket_ids'], $open['amount_minor'] );
 		if ( is_wp_error( $calc ) ) { $wpdb->query( 'ROLLBACK' ); return $calc; }
+		// Policy for tickets that were already used for admission (setting refund_after_checkin).
+		$checked_in = self::checked_in_ids( $calc['ticket_ids'] );
+		$checkin_policy = $checked_in ? self::checkin_policy() : 'allow';
+		if ( 'deny' === $checkin_policy ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_refund_checked_in', __( 'Bereits eingecheckte Tickets können nach den Erstattungsregeln nicht erstattet werden.', 'pass-captain' ), array( 'status' => 409, 'checked_in_ticket_ids' => $checked_in ) );
+		}
 
 		// The threshold applies to everything refunded or pending for this order, so splitting a
 		// large refund into small requests does not avoid the second approval.
 		$threshold = (int) Settings::get( 'refund_approval_threshold' );
 		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $calc['amount_minor'];
 		$needs_approval = $threshold > 0 && $cumulative > $threshold && ! current_user_can( self::APPROVE_CAP );
+		// "allow with approval": a second person must approve, even when the requester could approve.
+		$needs_approval = $needs_approval || 'approval' === $checkin_policy;
 		$now = current_time( 'mysql', true );
 		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
 			'order_id' => $order_id,
@@ -89,7 +98,7 @@ final class Refunds {
 		}
 		$refund_id = (int) $wpdb->insert_id;
 		$wpdb->query( 'COMMIT' );
-		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval ) );
+		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval, 'checked_in_tickets' => count( $checked_in ), 'checkin_policy' => $checkin_policy ) );
 		if ( $needs_approval ) {
 			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, number_format_i18n( $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
 			return self::get( $refund_id );
@@ -603,6 +612,28 @@ final class Refunds {
 		}
 		$tax = self::tax_for( $order, count( $ticket_ids ) === count( $open_ids ) ? null : $ticket_ids, $amount );
 		return array( 'ticket_ids' => $ticket_ids, 'amount_minor' => $amount, 'tax_minor' => $tax );
+	}
+
+	/** Refund rule for checked-in tickets: allow | approval | deny (setting refund_after_checkin). */
+	public static function checkin_policy() {
+		$policy = (string) Security\Policy::get( 'refund_after_checkin' );
+		return in_array( $policy, array( 'allow', 'approval', 'deny' ), true ) ? $policy : 'allow';
+	}
+
+	/**
+	 * Tickets of the list that were used for admission: status checked_in (single entry) or at least
+	 * one effective entry in the admission state (repeatable policies keep status valid).
+	 *
+	 * @param int[] $ticket_ids Tickets.
+	 * @return int[]
+	 */
+	public static function checked_in_ids( array $ticket_ids ) {
+		$ticket_ids = array_values( array_filter( array_map( 'absint', $ticket_ids ) ) );
+		if ( ! $ticket_ids ) { return array(); }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ids = implode( ',', $ticket_ids );
+		return array_map( 'absint', $wpdb->get_col( "SELECT t.ticket_id FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_admission_state s ON s.ticket_id=t.ticket_id WHERE t.ticket_id IN ($ids) AND (t.status='checked_in' OR COALESCE(s.entries,0)>0) ORDER BY t.ticket_id" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 	}
 
 	/** Optional enforcement of two-factor authentication for refund actions. */

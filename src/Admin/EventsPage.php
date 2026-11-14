@@ -412,9 +412,11 @@ final class EventsPage {
 	 * assign_staff() grants wpcap_checkin as a user capability; take it back once the user has no
 	 * check-in assignment left. A capability granted by one of the user's roles is left alone.
 	 */
-	private static function maybe_revoke_checkin_cap( $user_id ) {
+	public static function maybe_revoke_checkin_cap( $user_id ) {
 		global $wpdb;
 		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_event_staff WHERE user_id=%d AND capability='wpcap_checkin'", $user_id ) );
+		// Date-level assignments (SecurityScreens, wpcap_occurrence_staff) keep the capability as well.
+		$remaining += (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_occurrence_staff WHERE user_id=%d AND capability='wpcap_checkin'", $user_id ) );
 		if ( $remaining ) { return; }
 		$user = get_user_by( 'id', $user_id );
 		if ( ! $user || ! method_exists( $user, 'remove_cap' ) ) { return; }
@@ -831,6 +833,7 @@ final class EventsPage {
 			<?php self::ticket_type_form( null, $occ ); ?>
 		<?php endif; ?>
 		<?php
+		SecurityScreens::render_occurrence_staff( $occ );
 	}
 
 	private static function ticket_type_form( $type, $occ ) {
