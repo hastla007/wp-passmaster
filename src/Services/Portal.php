@@ -58,6 +58,12 @@ final class Portal {
 		$in = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified below.
 		check_admin_referer( self::ACTION . '_' . sanitize_key( (string) ( $in['do'] ?? '' ) ) . '_' . absint( $in['id'] ?? 0 ) );
 		$result = self::perform( (array) $in );
+		$redirect = is_array( $result ) ? (string) ( $result['supplement']['payment']['redirect_url'] ?? '' ) : '';
+		if ( '' !== $redirect && wp_http_validate_url( $redirect ) ) {
+			// Hosted payment page of the gateway for the supplementary payment (URL from the gateway, not from the request).
+			wp_redirect( $redirect, 303 ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- payment provider host.
+			exit;
+		}
 		status_header( is_wp_error( $result ) ? 409 : 200 );
 		echo self::result_page( $result ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in result_page.
 		exit;
@@ -82,11 +88,18 @@ final class Portal {
 				$booking = ServiceBookings::with_token( $id, $token );
 				if ( ! $booking || (int) $booking->order_id ) { return self::denied(); }
 				return 'booking_cancel' === $do ? ServiceBookings::cancel( $id, array( 'actor' => 'customer' ) ) : ServiceBookings::rebook( $id, absint( $in['slot_id'] ?? 0 ), array( 'actor' => 'customer', 'idempotency_key' => $key ) );
+			case 'order_supplement_pay':
+				// Open supplementary payment of a dearer rebooking (card of the booking or of the supplement itself).
+				$booking = ServiceBookings::for_order_access( (string) ( $in['public_id'] ?? '' ), (string) ( $in['access_token'] ?? '' ), $id );
+				if ( ! $booking ) { return self::denied(); }
+				$supplement = (int) $booking->supplement_for ? $booking : ServiceBookings::open_supplement( (int) $booking->booking_id );
+				$payment = ServiceBookings::supplement_payment( $supplement );
+				return is_wp_error( $payment ) ? $payment : array( 'status' => 'supplement_pending', 'supplement' => array( 'amount_minor' => (int) $supplement->amount_minor, 'currency' => (string) $supplement->currency, 'expires_at' => (string) $supplement->expires_at, 'payment' => $payment ) );
 			case 'order_cancel':
 			case 'order_rebook':
 				$booking = ServiceBookings::for_order_access( (string) ( $in['public_id'] ?? '' ), (string) ( $in['access_token'] ?? '' ), $id );
 				if ( ! $booking ) { return self::denied(); }
-				return 'order_cancel' === $do ? ServiceBookings::cancel( $id, array( 'actor' => 'customer' ) ) : ServiceBookings::rebook( $id, absint( $in['slot_id'] ?? 0 ), array( 'actor' => 'customer', 'idempotency_key' => $key ) );
+				return 'order_cancel' === $do ? ServiceBookings::cancel( $id, array( 'actor' => 'customer' ) ) : ServiceBookings::rebook( $id, absint( $in['slot_id'] ?? 0 ), array( 'actor' => 'customer', 'idempotency_key' => $key, 'provider' => sanitize_key( (string) ( $in['provider'] ?? '' ) ) ) );
 			case 'waitlist_accept':
 				return ServiceWaitlist::accept( $id, $token );
 			case 'waitlist_decline':
@@ -138,12 +151,22 @@ final class Portal {
 			$options = ServiceBookings::rebook_options( $booking );
 			if ( $options ) {
 				$select = '<label>' . esc_html__( 'Neues Zeitfenster', 'pass-captain' ) . ' <select name="slot_id" required>';
-				foreach ( $options as $slot ) { $select .= '<option value="' . (int) $slot->slot_id . '">' . esc_html( $slot->resource_name . ' – ' . self::when( $slot->starts_at, $view['timezone'] ) ) . '</option>'; }
+				foreach ( $options as $slot ) {
+					/* translators: %s: formatted amount */
+					$extra_cost = ! empty( $slot->supplement_minor ) ? ' (' . sprintf( __( 'Zuzahlung %s', 'pass-captain' ), \PassCaptain\Frontend\Format::money( (int) $slot->supplement_minor, (string) $booking->currency ) ) . ')' : '';
+					$select .= '<option value="' . (int) $slot->slot_id . '">' . esc_html( $slot->resource_name . ' – ' . self::when( $slot->starts_at, $view['timezone'] ) . $extra_cost ) . '</option>';
+				}
 				$select .= '</select></label> ';
 				$html .= self::form( $fields + array( 'do' => $prefix . '_rebook' ), __( 'Umbuchen', 'pass-captain' ), $select );
 			}
 			/* translators: %s: deadline */
 			$html .= '<p><small>' . esc_html( sprintf( __( 'Umbuchen bis %s möglich.', 'pass-captain' ), self::when( $view['rebook_until'], $view['timezone'] ) ) ) . '</small></p>';
+		}
+		if ( $view['supplement'] && 'order' === $prefix ) {
+			$supplement = $view['supplement'];
+			/* translators: 1: amount, 2: new slot (resource and date), 3: deadline */
+			$html .= '<p><strong>' . esc_html( sprintf( __( 'Umbuchung vorgemerkt: Zuzahlung von %1$s für %2$s offen bis %3$s. Bis dahin bleibt deine bisherige Buchung bestehen.', 'pass-captain' ), \PassCaptain\Frontend\Format::money( $supplement['amount_minor'], $supplement['currency'] ), $supplement['resource_name'] . ' – ' . self::when( $supplement['starts_at'], $view['timezone'] ), self::when( $supplement['expires_at'], $view['timezone'] ) ) ) . '</strong></p>';
+			$html .= self::form( $fields + array( 'do' => 'order_supplement_pay' ), __( 'Zuzahlung jetzt bezahlen', 'pass-captain' ) );
 		}
 		if ( $view['can_cancel'] ) {
 			$html .= self::form( $fields + array( 'do' => $prefix . '_cancel' ), __( 'Buchung stornieren', 'pass-captain' ) );
@@ -200,6 +223,15 @@ final class Portal {
 			'left' => __( 'Du wurdest von der Warteliste ausgetragen.', 'pass-captain' ),
 			'unsubscribed' => __( 'Du wurdest von der Warteliste ausgetragen.', 'pass-captain' ),
 		);
+		if ( isset( $result['supplement'] ) ) {
+			$supplement = $result['supplement'];
+			$payment = (array) ( $supplement['payment'] ?? array() );
+			/* translators: 1: amount, 2: deadline (UTC date/time) */
+			$content = '<p>' . esc_html( sprintf( __( 'Das neue Zeitfenster ist teurer. Bitte bezahle die Zuzahlung von %1$s bis %2$s (UTC); danach wird deine Buchung automatisch umgebucht. Bis dahin bleibt deine bisherige Buchung bestehen.', 'pass-captain' ), \PassCaptain\Frontend\Format::money( (int) $supplement['amount_minor'], (string) $supplement['currency'] ), wp_date( 'd.m.Y H:i', strtotime( (string) $supplement['expires_at'] . ' UTC' ), new \DateTimeZone( 'UTC' ) ) ) ) . '</p>';
+			if ( ! empty( $payment['redirect_url'] ) ) { $content .= '<p><a href="' . esc_url( (string) $payment['redirect_url'] ) . '">' . esc_html__( 'Zuzahlung jetzt bezahlen', 'pass-captain' ) . '</a></p>'; }
+			if ( ! empty( $payment['instructions'] ) ) { $content .= '<p>' . nl2br( esc_html( (string) $payment['instructions'] ) ) . '</p>'; }
+			return self::page( __( 'Zuzahlung erforderlich', 'pass-captain' ), $content );
+		}
 		$text = isset( $result['difference_minor'] ) ? __( 'Die Buchung wurde umgebucht. Eine Bestätigung ist per E-Mail unterwegs.', 'pass-captain' ) : ( $messages[ $status ] ?? __( 'Erledigt.', 'pass-captain' ) );
 		return self::page( __( 'Erledigt', 'pass-captain' ), '<p>' . esc_html( $text ) . '</p>' );
 	}
@@ -216,7 +248,7 @@ final class Portal {
 	}
 
 	public static function status_label( $status ) {
-		$labels = array( 'held' => __( 'Reserviert (Zahlung offen)', 'pass-captain' ), 'pending_confirmation' => __( 'Wartet auf Bestätigung', 'pass-captain' ), 'confirmed' => __( 'Bestätigt', 'pass-captain' ), 'checked_in' => __( 'Eingecheckt', 'pass-captain' ), 'no_show' => __( 'Nicht erschienen', 'pass-captain' ), 'cancelled' => __( 'Storniert', 'pass-captain' ), 'declined' => __( 'Abgelehnt', 'pass-captain' ), 'expired' => __( 'Abgelaufen', 'pass-captain' ) );
+		$labels = array( 'held' => __( 'Reserviert (Zahlung offen)', 'pass-captain' ), 'pending_confirmation' => __( 'Wartet auf Bestätigung', 'pass-captain' ), 'confirmed' => __( 'Bestätigt', 'pass-captain' ), 'checked_in' => __( 'Eingecheckt', 'pass-captain' ), 'no_show' => __( 'Nicht erschienen', 'pass-captain' ), 'cancelled' => __( 'Storniert', 'pass-captain' ), 'declined' => __( 'Abgelehnt', 'pass-captain' ), 'expired' => __( 'Abgelaufen', 'pass-captain' ), 'merged' => __( 'Umbuchung übernommen', 'pass-captain' ) );
 		return $labels[ $status ] ?? (string) $status;
 	}
 }

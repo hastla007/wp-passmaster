@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.9.0';
+	const DB_VERSION = '3.10.1';
 
 	public static function install() {
 		global $wpdb;
@@ -341,10 +341,14 @@ final class Installer {
 				checked_in_at datetime NULL,
 				noshow_at datetime NULL,
 				fee_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				supplement_for bigint(20) unsigned NOT NULL DEFAULT 0,
+				origin_order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				origin_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				updated_at datetime NULL,
 				PRIMARY KEY  (booking_id),
 				KEY slot_state (slot_id,status),
+				KEY supplement_for (supplement_for),
 				KEY email (customer_email),
 				KEY order_id (order_id),
 				KEY status_confirm (status,confirm_by),
