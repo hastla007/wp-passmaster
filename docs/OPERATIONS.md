@@ -340,6 +340,26 @@ Installationen von vor Schema 3.10.9, die die Zahlungsarten nie gespeichert hatt
 Bankverbindung, zeigt der Zahlungen-Tab „(nicht vollständig konfiguriert)“ und Administratoren sehen auf
 dem Dashboard und den Plugin-Seiten einen Hinweis mit Link zur Einrichtung.
 
+## Zahlungsanbieter: Test- und Live-Modus (A274)
+
+- **Stripe**: Der Modus (Einstellungen → Zahlungen → Stripe, Standard „Test“) muss zum Secret Key passen:
+  „Live“ verlangt `sk_live_…`/`rk_live_…`, „Test“ verlangt `sk_test_…`/`rk_test_…`. Passt der Schlüssel nicht
+  (oder ist es kein Secret Key, z. B. `pk_…`), wird Stripe im Checkout **nicht** angeboten
+  (`StripeGateway::is_available()`); beim Speichern und im Stripe-Abschnitt erscheint eine Fehlermeldung.
+  So kann ein Testschlüssel bei „Live“ keine Tickets ohne echte Zahlung ausgeben.
+- **Stripe-Webhooks** tragen `livemode`. Ein Ereignis des anderen Modus (Testereignis im Live-Betrieb und
+  umgekehrt) wird bestätigt (200), bewirkt aber nichts und wird als `stripe_webhook_mode_mismatch` im
+  Audit-Log vermerkt.
+- **PayPal** läuft standardmäßig gegen die Sandbox (`paypal_mode` = „sandbox“); „Live“ nutzt die Live-API.
+- **Mollie** erkennt den Modus am API-Schlüssel (`test_…`/`live_…`).
+- Im **Testmodus** zeigt der Abschnitt des Anbieters einen Hinweis, und Käufer sehen den Zusatz
+  „– Testmodus“ (PayPal: „– Testmodus (Sandbox)“) am Namen der Zahlungsart im Checkout.
+
+Installationen von vor Schema 3.10.15 mit Live-Schlüssel und dem nie geänderten Standard „Test“ werden beim
+Upgrade auf „Live“ umgestellt (`Installer::align_legacy_stripe_mode()`, Audit `stripe_mode_aligned`), weil die
+Einstellung bis dahin wirkungslos war. Ein Testschlüssel bei „Live“ bleibt unverändert und wird als Fehler
+angezeigt.
+
 ## Multisite: Site löschen und Plugin deinstallieren
 
 - Wird eine Site im Netzwerk gelöscht, entfernt WordPress auch deren `*_wpcap_*`-Tabellen (Filter `wpmu_drop_tables`). Tabellen anderer Sites sind nicht betroffen.

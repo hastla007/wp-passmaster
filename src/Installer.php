@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.14';
+	const DB_VERSION = '3.10.15';
 
 	public static function install() {
 		global $wpdb;
@@ -848,6 +848,7 @@ final class Installer {
 		self::backfill_capacity_released( $previous_version );
 		// Provider secrets leave wpcap_settings (encrypted store, idempotent; see Secrets).
 		if ( Secrets::migration_pending() ) { Secrets::migrate(); }
+		self::align_legacy_stripe_mode( $previous_version );
 
 		// Role names are translated; before init that would load the text domain too early.
 		if ( did_action( 'init' ) || ! function_exists( 'add_action' ) ) {
@@ -950,6 +951,24 @@ final class Installer {
 		$stored['enabled_providers'] = array( 'manual' );
 		update_option( Settings::OPTION, $stored, false );
 		Settings::flush();
+		return true;
+	}
+
+	/**
+	 * Schema 3.10.15 (A274): the Stripe mode is enforced from now on (a key of the other mode makes
+	 * Stripe unavailable). Before, the setting had no effect and was left at its default "test" by
+	 * shops selling with a live key; they are switched to "live" so Stripe stays in their checkout.
+	 * A test key with "live" is left alone: that shop did not collect real payments and now sees
+	 * the mismatch in the settings.
+	 *
+	 * @param string $previous_version wpcap_db_version before this install run ('' = fresh install).
+	 */
+	public static function align_legacy_stripe_mode( $previous_version ) {
+		$previous = (string) strtok( (string) $previous_version, '+' );
+		if ( 1 !== preg_match( '/^\d+\.\d+/', $previous ) || ! version_compare( $previous, '3.10.15', '<' ) ) { return false; }
+		if ( 'live' !== Payments\StripeGateway::key_mode( Secrets::get( 'stripe_secret_key' ) ) || 'live' === Settings::get( 'stripe_mode' ) ) { return false; }
+		Settings::update( array( 'stripe_mode' => 'live' ) );
+		Audit::record( 'stripe_mode_aligned', 'settings', 0, array( 'mode' => 'live' ) );
 		return true;
 	}
 

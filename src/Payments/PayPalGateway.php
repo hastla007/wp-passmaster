@@ -32,7 +32,14 @@ final class PayPalGateway implements GatewayInterface, RefundLookupInterface {
 
 	public function id() { return 'paypal'; }
 
-	public function title() { return __( 'PayPal', 'pass-captain' ); }
+	public function title() {
+		return self::is_test_mode() ? __( 'PayPal – Testmodus (Sandbox)', 'pass-captain' ) : __( 'PayPal', 'pass-captain' );
+	}
+
+	/** Whether PayPal runs against the sandbox (setting `paypal_mode`, default "sandbox"): no real payments. */
+	public static function is_test_mode() {
+		return 'live' !== Settings::get( 'paypal_mode' );
+	}
 
 	public function is_available( $currency ) {
 		return '' !== Settings::secret( 'paypal_client_id' )

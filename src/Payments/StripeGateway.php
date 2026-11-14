@@ -26,13 +26,64 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 
 	public function id() { return 'stripe'; }
 
-	public function title() { return __( 'Kreditkarte & weitere Zahlarten (Stripe)', 'pass-captain' ); }
+	public function title() {
+		$title = __( 'Kreditkarte & weitere Zahlarten (Stripe)', 'pass-captain' );
+		/* translators: %s: payment method title */
+		return self::is_test_mode() ? sprintf( __( '%s – Testmodus', 'pass-captain' ), $title ) : $title;
+	}
 
 	public function is_available( $currency ) {
-		// Without the webhook secret payments could never be confirmed, so both are required.
+		// Without the webhook secret payments could never be confirmed, so both are required. A key of
+		// the other mode (e.g. sk_test_ while "Live" is set) would sell tickets without real payments
+		// (or fail every live payment): Stripe is then not offered at all (A274).
 		return '' !== \PassCaptain\Secrets::get( 'stripe_secret_key' )
 			&& '' !== \PassCaptain\Secrets::get( 'stripe_webhook_secret' )
+			&& self::key_matches_mode()
 			&& 1 === preg_match( '/^[A-Za-z]{3}$/', (string) $currency );
+	}
+
+	/** Configured mode: 'live' or 'test' (setting `stripe_mode`). */
+	public static function mode() {
+		return 'live' === Settings::get( 'stripe_mode' ) ? 'live' : 'test';
+	}
+
+	/** Whether the configured mode is the test mode (no real payments). */
+	public static function is_test_mode() {
+		return 'test' === self::mode();
+	}
+
+	/**
+	 * Mode of a secret or restricted key by its prefix: 'live' (sk_live_/rk_live_), 'test'
+	 * (sk_test_/rk_test_) or '' (no secret key, e.g. a publishable key pk_…).
+	 */
+	public static function key_mode( $key ) {
+		if ( preg_match( '/^(?:sk|rk)_(live|test)_/', (string) $key, $m ) ) { return $m[1]; }
+		return '';
+	}
+
+	/** Whether the stored secret key belongs to the configured mode. */
+	public static function key_matches_mode() {
+		return self::key_mode( \PassCaptain\Secrets::get( 'stripe_secret_key' ) ) === self::mode();
+	}
+
+	/**
+	 * Admin text when the secret key does not fit the configured mode ('' when it fits or no key is set).
+	 *
+	 * @param string $key  Secret key (default: the stored one).
+	 * @param string $mode Mode (default: the configured one).
+	 */
+	public static function mode_problem( $key = null, $mode = null ) {
+		$key = null === $key ? \PassCaptain\Secrets::get( 'stripe_secret_key' ) : (string) $key;
+		$mode = null === $mode ? self::mode() : ( 'live' === $mode ? 'live' : 'test' );
+		if ( '' === $key ) { return ''; }
+		$key_mode = self::key_mode( $key );
+		if ( '' === $key_mode ) {
+			return __( 'Der Stripe-Schlüssel ist kein Secret Key (sk_live_…/sk_test_… oder rk_live_…/rk_test_…). Stripe wird im Checkout nicht angeboten.', 'pass-captain' );
+		}
+		if ( $key_mode === $mode ) { return ''; }
+		return 'live' === $mode
+			? __( 'Stripe steht auf „Live“, der Secret Key ist aber ein Testschlüssel (sk_test_…). Es würden keine echten Zahlungen eingezogen – Stripe wird im Checkout erst wieder angeboten, wenn Modus und Schlüssel zusammenpassen.', 'pass-captain' )
+			: __( 'Stripe steht auf „Test“, der Secret Key ist aber ein Live-Schlüssel (sk_live_…). Stripe wird im Checkout erst wieder angeboten, wenn Modus und Schlüssel zusammenpassen.', 'pass-captain' );
 	}
 
 	public function supports_refunds() { return true; }
@@ -230,6 +281,12 @@ final class StripeGateway implements GatewayInterface, RefundLookupInterface {
 			'amount_minor' => 0,
 			'currency' => strtoupper( (string) ( $object['currency'] ?? '' ) ),
 		);
+		if ( array_key_exists( 'livemode', $event ) && (bool) $event['livemode'] !== ( 'live' === self::mode() ) ) {
+			// A test event at a live shop (or the other way round) never confirms or refunds anything:
+			// acknowledged without effect, so Stripe stops redelivering it (A274).
+			\PassCaptain\Audit::record( 'stripe_webhook_mode_mismatch', 'system', 0, array( 'event' => substr( (string) $event['id'], 0, 64 ), 'livemode' => (bool) $event['livemode'], 'mode' => self::mode() ) );
+			return $base;
+		}
 		$type = (string) $event['type'];
 		switch ( $type ) {
 			case 'checkout.session.completed':

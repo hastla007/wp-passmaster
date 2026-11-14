@@ -368,6 +368,15 @@ final class SettingsPage {
 				}
 			}
 		}
+		if ( array_key_exists( 'stripe_mode', $values ) || array_key_exists( 'stripe_secret_key', $values ) ) {
+			// A274: a key of the other mode is saved (the operator may be switching), but reported – Stripe is
+			// not offered until mode and key fit (StripeGateway::is_available()).
+			$problem = \PassCaptain\Payments\StripeGateway::mode_problem(
+				array_key_exists( 'stripe_secret_key', $values ) ? (string) $values['stripe_secret_key'] : null,
+				array_key_exists( 'stripe_mode', $values ) ? (string) $values['stripe_mode'] : (string) $current['stripe_mode']
+			);
+			if ( '' !== $problem ) { $errors[] = $problem; }
+		}
 		$changed = array();
 		foreach ( $values as $key => $value ) {
 			// Secrets are compared with the encrypted store (Settings::all() never contains them).
@@ -534,6 +543,14 @@ final class SettingsPage {
 			echo ' <em>' . esc_html__( '(nicht vollständig konfiguriert)', 'pass-captain' ) . '</em>';
 		}
 		echo '</p>';
+		$problem = 'stripe' === $provider_id ? \PassCaptain\Payments\StripeGateway::mode_problem() : '';
+		if ( '' !== $problem ) {
+			echo '<div class="notice notice-error inline"><p>' . esc_html( $problem ) . '</p></div>';
+		}
+		if ( is_callable( array( $gateway, 'is_test_mode' ) ) && $gateway->is_test_mode() ) {
+			// A274: test mode is visible to the operator (and in the checkout through the method title).
+			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Testmodus aktiv: Es werden keine echten Zahlungen eingezogen. Käufer sehen im Checkout den Hinweis „Testmodus“. Für den Verkauf auf „Live“ umstellen und Live-Zugangsdaten hinterlegen.', 'pass-captain' ) . '</p></div>';
+		}
 		if ( 'manual' === $provider_id && ! \PassCaptain\Payments\ManualGateway::configured() ) {
 			echo '<p class="description">' . esc_html__( 'Überweisung wird im Checkout erst angeboten, wenn Empfänger (oder Rechnungssteller) und IBAN oder ein Zahlungshinweis hinterlegt sind.', 'pass-captain' ) . '</p>';
 		}

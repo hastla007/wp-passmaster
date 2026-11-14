@@ -40,7 +40,16 @@ final class MollieGateway implements GatewayInterface, \PassCaptain\Payments\Ref
 
 	public function id() { return 'mollie'; }
 
-	public function title() { return __( 'Mollie (iDEAL, Kreditkarte, Bancontact u. a.)', 'pass-captain' ); }
+	public function title() {
+		$title = __( 'Mollie (iDEAL, Kreditkarte, Bancontact u. a.)', 'pass-captain' );
+		/* translators: %s: payment method title */
+		return self::is_test_mode() ? sprintf( __( '%s – Testmodus', 'pass-captain' ), $title ) : $title;
+	}
+
+	/** Whether the API key is a test key (test_…): Mollie then processes no real payments (A274). */
+	public static function is_test_mode() {
+		return 0 === strpos( \PassCaptain\Secrets::get( 'mollie_api_key' ), 'test_' );
+	}
 
 	public function is_available( $currency ) {
 		return 1 === preg_match( '/^(test|live)_[A-Za-z0-9]{20,}$/', \PassCaptain\Secrets::get( 'mollie_api_key' ) )
