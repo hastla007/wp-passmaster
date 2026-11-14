@@ -1,0 +1,9 @@
+{
+  "name": "wp-pass-captain-js-tests",
+  "private": true,
+  "description": "Unit tests for the plugin's browser scripts (node:test + assert, mini DOM, no dependencies).",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test --test-reporter=spec"
+  }
+}

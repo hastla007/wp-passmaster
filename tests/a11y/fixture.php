@@ -49,6 +49,11 @@ if ( ! $event ) {
 	$free_type = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d AND name='Freier Eintritt'", $occ ) );
 	$wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $free_type, 'field_key' => 'diet', 'label' => 'Ernährungshinweis', 'field_type' => 'text', 'required' => 0, 'purpose' => 'Nur für das Catering', 'position' => 0, 'status' => 'active' ) );
 }
+// Second event: lists of events in admin forms (e.g. device pairing checkboxes) have more than one row.
+if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_events WHERE slug=%s", $slug . '-2' ) ) ) {
+	$wpdb->insert( "{$p}wpcap_events", array( 'name' => 'Barrierefreiheit Lesung', 'slug' => $slug . '-2', 'description' => 'Lesung ohne Online-Verkauf.', 'status' => 'published', 'created_at' => $now, 'updated_at' => $now ) );
+	$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => (int) $wpdb->insert_id, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 40 * DAY_IN_SECONDS ), 'timezone' => 'Europe/Vienna', 'location' => 'Bibliothek', 'capacity' => 0, 'status' => 'scheduled' ) );
+}
 $occ = (int) $wpdb->get_var( $wpdb->prepare( "SELECT occurrence_id FROM {$p}wpcap_occurrences WHERE event_id=%d", $event ) );
 $types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d ORDER BY ticket_type_id", $occ ), OBJECT_K );
 $by_name = array();
@@ -76,6 +81,38 @@ foreach ( $mails as $mail ) {
 	if ( preg_match( '#https?://[^\s"\'<>]*wpcap_waitlist_accept=\d+[^\s"\'<>]*#', (string) ( $mail['message'] ?? '' ), $m ) ) { $waitlist_url = html_entity_decode( $m[0] ); }
 }
 
+// Data for the newer admin screens (API keys, resources/slots, campaigns, member passes), created once as the admin.
+$admin_user = get_users( array( 'role' => 'administrator', 'number' => 1, 'fields' => 'ID' ) );
+if ( $admin_user ) { wp_set_current_user( (int) $admin_user[0] ); }
+$local = static fn( $offset ) => wp_date( 'Y-m-d\TH:i', time() + $offset );
+if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_api_keys WHERE event_id=%d", $event ) ) ) {
+	\PassCaptain\Admin\ApiKeysPage::admin_action( array( 'do' => 'create', 'event_id' => $event, 'label' => 'Dashboard', 'scopes' => array( 'events.read' ), 'rate_limit' => 60 ) );
+}
+$resource_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT resource_id FROM {$p}wpcap_resources WHERE event_id=%d LIMIT 1", $event ) );
+if ( ! $resource_id ) {
+	$r = \PassCaptain\Admin\ServicesPage::admin_action( array( 'do' => 'save_resource', 'event_id' => $event, 'name' => 'Führung', 'capacity' => 10, 'timezone' => 'Europe/Vienna', 'status' => 'active' ) );
+	$resource_id = is_array( $r ) ? (int) $r['resource_id'] : 0;
+	if ( $resource_id ) {
+		\PassCaptain\Admin\ServicesPage::admin_action( array( 'do' => 'create_slot', 'resource_id' => $resource_id, 'starts_at' => $local( 20 * DAY_IN_SECONDS ), 'ends_at' => $local( 20 * DAY_IN_SECONDS + HOUR_IN_SECONDS ), 'capacity' => 8 ) );
+	}
+}
+$campaign_id = (int) $wpdb->get_var( "SELECT campaign_id FROM {$p}wpcap_campaigns WHERE code='A11Y10'" );
+if ( ! $campaign_id ) {
+	\PassCaptain\Admin\CampaignsPage::admin_action( array( 'do' => 'save', 'code' => 'A11Y10', 'name' => 'Frühbucher', 'kind' => 'percent', 'value' => '10', 'event_id' => $event, 'usage_limit' => 50 ) );
+	$campaign_id = (int) $wpdb->get_var( "SELECT campaign_id FROM {$p}wpcap_campaigns WHERE code='A11Y10'" );
+}
+$pass_id = (int) $wpdb->get_var( "SELECT pass_id FROM {$p}wpcap_member_passes WHERE member_email='a11y-member@example.com' LIMIT 1" );
+if ( ! $pass_id ) {
+	$r = \PassCaptain\Admin\MembershipsPage::admin_action( array( 'do' => 'issue', 'email' => 'a11y-member@example.com', 'event_id' => $event, 'uses_total' => 10, 'uses_per_day' => 1, 'valid_from' => $local( -DAY_IN_SECONDS ), 'valid_until' => $local( 365 * DAY_IN_SECONDS ) ) );
+	$pass_id = is_array( $r ) ? (int) $r['pass_id'] : 0;
+}
+$layout_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT layout_id FROM {$p}wpcap_seating_layouts WHERE event_id=%d LIMIT 1", $event ) );
+if ( ! $layout_id && class_exists( '\\PassCaptain\\Seating\\Layouts' ) ) {
+	$r = \PassCaptain\Seating\Layouts::create( $event, 'Großer Saal' ); // Draft only: not linked to the occurrence, the checkout stays seat-free.
+	$layout_id = is_array( $r ) ? (int) $r['layout_id'] : 0;
+}
+wp_set_current_user( 0 );
+
 $pages = $wpdb->get_results( "SELECT ID,post_content FROM {$wpdb->posts} WHERE post_type='page' AND post_status='publish' AND (post_content LIKE '%[wp_pass_captain_events%' OR post_content LIKE '%[wp_pass_captain_scanner%')" );
 $events_url = $scanner_url = '';
 foreach ( $pages as $page ) {
@@ -93,5 +130,9 @@ echo wp_json_encode( array(
 	'ticket_url' => $ticket_url,
 	'portal_url' => $portal_url,
 	'waitlist_url' => $waitlist_url,
+	'resource_id' => $resource_id,
+	'campaign_id' => $campaign_id,
+	'pass_id' => $pass_id,
+	'layout_id' => $layout_id,
 	'waitlist_offer' => is_wp_error( $offer ) ? $offer->get_error_message() : $offer,
 ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n";

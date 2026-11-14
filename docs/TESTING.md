@@ -1,4 +1,4 @@
-# Tests: Integration, Last/Nebenläufigkeit, Barrierefreiheit
+# Tests: Integration, Last/Nebenläufigkeit, Barrierefreiheit, Browser (JS, E2E)
 
 ## Integrationstests
 
@@ -109,9 +109,14 @@ node keyboard.js
 
 - `run.js` prüft mit den Regeln WCAG 2.0/2.1/2.2 A+AA und best-practice: Event-Liste mit Checkout-Formular
   (auch mit eingeblendeten Teilnehmerfeldern und Fehlermeldung), Ticketseite, Bestellportal,
-  Wartelistenangebot und Annahmeseite, Scanner (angemeldet, auch mit Ergebnis), Admin: Events, Event-Detail,
-  Bestellungen, Bestelldetail, Check-ins, Box Office, Einstellungen (nur `#wpbody-content`). Ausgabe nach
-  Impact, JSON-Bericht in `tests/a11y/report/`. Seiten mit HTTP ≠ 200 gelten als Fehler (nicht geprüft).
+  Wartelistenangebot und Annahmeseite, Scanner (angemeldet, auch mit Ergebnis) und im Admin **jede Unterseite
+  des Pass-Captain-Menüs** (nach dem Login aus dem Menü gelesen, Module eingeschlossen – neue Seiten sind
+  automatisch dabei) plus Detailansichten: Event, Bestellung, Kampagne (auch „neu“), Warteliste eines Events,
+  Ressource mit Zeitfenster, Mitgliedspass, Einlassregeln/Offline-Scanner/Berichte/Tickets/Serien eines Events,
+  Saalplan-Editor (nur `#wpbody-content`). `fixture.php` legt dafür zusätzlich einen API-Key, eine Ressource
+  mit Zeitfenster, eine Kampagne, einen Mitgliedspass, einen Saalplan-Entwurf und ein zweites Event an.
+  Ausgabe nach Impact, JSON-Bericht in `tests/a11y/report/`. Seiten mit HTTP ≠ 200 gelten als Fehler.
+  `--match=text` beschränkt den Lauf auf Seiten, deren Name den Text enthält.
 - `keyboard.js` geht den Checkout nur mit der Tastatur durch: Tab-Reihenfolge = DOM-Reihenfolge, jeder Tab-Stopp
   hat Namen und sichtbaren Fokus, ausverkaufte Ticketart ist kein Tab-Stopp, Fehlermeldung in `role=status`/
   `aria-live=polite`, Pfeiltaste erzeugt Teilnehmer-Fieldset mit Legende und Labels, ungültige E-Mail und fehlende
@@ -216,3 +221,77 @@ Lokale VM mit 4 vCPU, 15 GB RAM, PHP 8.3, Datenbank im Docker-Container mit Stan
 | MySQL 8.4 | heavy | checkout | 1150 | 100 | 471 | 134.6 | 461.5 | 631.9 | 715 | 0 | 0 % |
 | MySQL 8.4 | heavy | check-in | 4000 | 40 | 2648 | 6.8 | 43.1 | 77.7 | 215 | 0 | 0 % |
 | MySQL 8.4 | heavy | webhook | 1200 | 100 | 1122 | 7.9 | 584.4 | 889.2 | 1027 | 0 | 0 % |
+
+Stand 14.11.2026 (WordPress 7.1, Chromium): 53 Seiten, **0 Verstöße aller Stufen** (kritisch bis gering),
+Tastatur-Durchlauf bestanden. Behoben wurden u. a. fehlende Namen von Filter-/Einstellungs-Selects (Tickets,
+Einlassregeln/-konflikte, Offline-Scanner, Berichte, Druck, SMS, Wallet), ein unbeschriftetes Vorlagen-Textfeld,
+leere Tabellenköpfe, zu kleine bzw. überlappende Checkbox-Ziele (24 px, WCAG 2.5.8) und Kontrast der grünen
+Statusfarben. Die „contrast?“-Spalte zählt Knoten, die axe nicht automatisch bewerten kann (meist Selects mit
+Pfeil-Hintergrundbild aus dem WordPress-Core) – manuell prüfen. Automatische Prüfungen ersetzen keine
+Screenreader-Tests (siehe `docs/ACCESSIBILITY.md`).
+
+## Browser-Tests: a11y-Gate, JS-Unit-Tests, E2E
+
+Drei Suiten ergänzen die PHP-Tests. Die beiden Browser-Suiten laufen gegen eine **Wegwerf**-WordPress-Seite, die
+`tests/support/wp-env.sh` anlegt und mit `php -S` ausliefert (WordPress-Core per `git clone` oder aus
+`WPCAP_WP_CORE`, Plugin als Symlink, eigene DB/Tabellenpräfix, Mailversand und Gravatar abgeschaltet):
+
+```bash
+# Gemeinsame Umgebung (Defaults in Klammern)
+export WPCAP_DB_HOST=127.0.0.1 WPCAP_DB_USER=wp WPCAP_DB_PASS=wp WPCAP_DB_NAME=wp_browser   # Wegwerf-DB!
+export WPCAP_WP_DIR=/tmp/wpcap-browser-wp WPCAP_WP_PORT=8890      # optional; WPCAP_WP_CORE=/pfad/zu/wp-core
+tests/ci/browser-tests.sh all          # alles wie in CI: js, a11y, e2e (oder einzeln: js | a11y | e2e)
+```
+
+### Barrierefreiheit als Release-Gate: `tests/a11y/gate.sh`
+
+Startet die Testseite (wenn `WPCAP_A11Y_BASE`/`WPCAP_A11Y_WP_PATH` nicht gesetzt sind), führt `run.js` und
+`keyboard.js` aus und endet mit Exit-Code ≠ 0 bei **jedem** axe-Verstoß (`WPCAP_A11Y_FAIL_ON=minor`, änderbar auf
+`moderate|serious|critical`), bei HTTP ≠ 200 einer Seite oder einer fehlgeschlagenen Tastaturprüfung. Gehört vor
+jedes Release; in CI über `tests/ci/browser-tests.sh a11y`.
+
+### JS-Unit-Tests: `tests/js/` (`npm test`)
+
+`node --test` ohne Abhängigkeiten (Node ≥ 20). `lib/load.js` führt die Seiten-Skripte (IIFEs) in Node mit
+künstlichem `window`/`document` (Mini-DOM `lib/dom.js`), Fake-Timern und `fetch`-Mock aus, `lib/idb.js` ist ein
+In-Memory-IndexedDB. Interne Funktionen kommen über einen geschützten Test-Hook
+(`if (typeof module === 'object' && module && module.exports) module.exports = …`, im Browser wirkungslos) bzw.
+`window.wpcapOffline` (Offline-Scanner). 56 Tests:
+
+| Datei | Abgedeckt |
+|---|---|
+| `checkout.test.js` | Haltezeit-Texte, Platzhalter, `money()` wie `Format::money()`, Summe und Teilnehmer-Fieldsets bei Mengenänderung, Validierung mit Feldbezeichnungen, Fehlerzusammenfassung (Fokus, `aria-invalid`/`aria-describedby`), Server-Fehler → Feld, Rechnungsdaten, REST-Payload, Idempotency-Key (neu nach Serverantwort, gleich nach Netzwerkfehler) |
+| `pos.test.js` | Box Office: Betragsformat/-parser, Summe, Rückgeld (auch negativ), Karte/frei, Teilnehmerfelder, Doppel-Submit, Verfügbarkeits-Refresh |
+| `scanner.test.js` | Web-Scanner: Online-Check-in, Serverfehler, Offline nie automatisch eingelassen (nur nach Sichtprüfung in die Warteschlange), Warteschlange pro Benutzer, Altbestand v1, Ablauf nach 24 h, Sync in 100er-Blöcken (während des Syncs gescannte Codes bleiben), Einlassmodul (Bereich, Check-out), Kamera verweigert/nicht vorhanden |
+| `order-portal.test.js` | Übertragung mit Bestätigungsdialog (Abbrechen, Fokus zurück, `confirm()`-Fallback), Teilnehmerzuweisung, erneuter Versand, Rechnungsdaten mit Feldfehler |
+| `seating-picker.test.js` | Saalplan: Rollen/Labels, Listen-Fallback, Auswahl und Ticketart-Zuordnung, Tastatur (Pfeile, Home/End, Leertaste), Stehplätze, Neuladen mit vergebenem Platz, Mengenänderung, Payload-Prüfung |
+| `offline-scanner.test.js` | PWA: `t()` (Platzhalter, Tabellen-Lookup), i18n-Tabelle laden/prüfen/speichern/offline nutzen, Kopplung (fremder Server abgelehnt), Ed25519-Paketprüfung (Signatur, Schlüssel unbekannt/abgelaufen, Gerät, Format), Delta-Kette, Offline-Entscheidung (unbekannt, widerrufen, verwendet, Bereich, Mehrfachticket, abgelaufen), IndexedDB-Warteschlange und Sync mit Konflikten, Online-Scan, Serverausfall → offline, 401 |
+
+### Browser-E2E: `tests/e2e/` (`run.sh`)
+
+Playwright + `node:test`, eine Datei pro Ablauf, Screenshots nur bei Fehlschlag (`tests/e2e/artifacts/`).
+`helper.php` legt serverseitig Kopplungscodes, Zuweisungen und einen Termin im Einlassfenster an und liest
+Ticket-/Bestellstatus; `mu-plugin/wpcap-e2e.php` (nur Testseite) bietet eine Fake-Zahlungsseite als Zahlart
+„Testzahlung“ – nur für Browser mit Cookie `wpcap_e2e=1`, damit die a11y-Läufe den normalen Checkout sehen.
+
+```bash
+tests/e2e/run.sh                                  # startet die Testseite selbst
+WPCAP_WOO_ZIP=/pfad/woocommerce.zip tests/e2e/run.sh   # + WooCommerce-Blocks auf einer zweiten Testseite
+WPCAP_E2E_BROWSER=firefox tests/e2e/run.sh        # andere Engine (Browser vorher installieren)
+```
+
+| Datei | Ablauf |
+|---|---|
+| `checkout.test.js` | Bezahlte Bestellung: Ticketmenge, Teilnehmernamen, Käufer-E-Mail, AGB, Zahlart → Fake-Zahlungsseite → bezahlt, 2 Tickets ausgestellt, Namen im Bestellportal; kostenlose Bestellung (Fokus auf Bestätigung, „weitere bestellen“); Fehlerzusammenfassung |
+| `portal.test.js` | Teilnehmerzuweisung (Pflicht-E-Mail, Code rotiert/bleibt), erneuter Versand mit Dialog, einmalige Übertragung (Escape bricht ab, Fokus zurück, Bestätigen überträgt, danach nicht mehr angeboten) |
+| `scanner.test.js` | Kamera verweigert → Fehlermeldung, manueller Code checkt ein (serverseitig geprüft), zweiter Scan abgelehnt; Kamera erlaubt (Chromium-Fake-Kamera) → Video läuft |
+| `offline-scanner.test.js` | PWA wie aus dem Admin-Link (`?api=`): Kopplungsbildschirm übersetzt, Tabelle in IndexedDB und ohne Endpunkt genutzt; Kopplung, signiertes Paket, Scan bei `context.setOffline(true)` → lokale Entscheidung + IndexedDB-Warteschlange (Code bis zum Upload), Doppelscan offline abgelehnt, nach Reconnect synchronisiert und serverseitig eingecheckt |
+| `woocommerce-blocks.test.js` | WooCommerce-Blocks-Checkout (zweite Testseite, `woo-env.sh` + `woo-setup.php`): Teilnehmer-Fieldset mit Labels, ungültige Teilnehmer-E-Mail blockiert die Bestellung (`aria-invalid`, Fehlermeldung), Angaben landen am Woo-Auftrag. Ohne `WPCAP_WOO_ZIP` übersprungen |
+
+**Browser-Matrix:** lokal und in CI nur **Chromium** (Playwright, volle Chromium-Version wegen Kamera-Capture;
+Fallback Headless-Shell). **Ausstehend:** Firefox und WebKit (`WPCAP_E2E_BROWSER`, Browser in CI installieren –
+die Fake-Kamera-Prüfung wird dort übersprungen), echte Geräte **iOS Safari** und **Android Chrome** (Kamera-
+Berechtigung, BarcodeDetector vs. jsQR, PWA-Installation, Offline-Modus, Hintergrund-Sync) – manuell oder über
+einen Gerätedienst.
+
+Stand 14.11.2026: JS 56/56, E2E 11/11 (Chromium, WooCommerce 11.3 für den Blocks-Test), a11y-Gate bestanden.

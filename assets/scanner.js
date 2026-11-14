@@ -309,4 +309,6 @@
 			result.textContent = (t.cameraError || 'Camera error:') + ' ' + error.message;
 		}
 	});
+	// Test hook for tests/js (node:test); `module` does not exist in the browser, so this is a no-op there.
+	if (typeof module === 'object' && module && module.exports) { module.exports = { queueKey: queueKey, queue: queue, normalizeItem: normalizeItem, enqueue: enqueue, offline: offline, dropExpired: dropExpired, syncQueue: syncQueue, submitToken: submitToken }; }
 })();

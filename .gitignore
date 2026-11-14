@@ -7,3 +7,4 @@ tests/a11y/node_modules/
 tests/a11y/report/
 /.claude/worktrees/
 /build/.phpstan-cache/
+tests/e2e/artifacts/

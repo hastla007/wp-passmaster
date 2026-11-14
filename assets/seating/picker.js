@@ -270,4 +270,6 @@
 
 	function init() { document.querySelectorAll('.wpcap-seating[data-url]').forEach(function (box) { if (!box.dataset.ready) { box.dataset.ready = '1'; new Picker(box); } }); }
 	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+	// Test hook for tests/js (node:test); `module` does not exist in the browser, so this is a no-op there.
+	if (typeof module === 'object' && module && module.exports) { module.exports = { Picker: Picker, format: format, init: init }; }
 })();

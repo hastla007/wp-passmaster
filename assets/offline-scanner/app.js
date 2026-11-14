@@ -759,7 +759,7 @@
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { t: t, fmtTime: fmtTime, normalizeCode: normalizeCode, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll };
+	window.wpcapOffline = { t: t, fmtTime: fmtTime, normalizeCode: normalizeCode, verifyDoc: verifyDoc, buildIndex: buildIndex, loadPackage: loadPackage, packageStatus: packageStatus, decideOffline: decideOffline, validI18n: validI18n, applyI18n: applyI18n, handleScan: handleScan, pair: pair, state: state, syncNow: syncNow, refreshAll: refreshAll };
 
 	boot();
 }());
