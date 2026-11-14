@@ -193,14 +193,13 @@ final class Orders {
 			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
 			$total = max( 0, $subtotal - $discount );
 			if ( ! $external && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
-			// Allocate the discount proportionally to lines and compute VAT per line on the discounted gross amount.
+			// Allocate each campaign's discount to the lines it applies to (proportionally, exact to the
+			// minor unit) and compute VAT per line on the discounted gross amount. The per-line discounts
+			// are kept in the price snapshot so invoices and refunds use the same split.
+			$line_discounts = self::line_discounts( $selected, $adjustments );
 			$tax_total = 0;
-			$discount_left = $discount;
-			$last = count( $selected ) - 1;
 			foreach ( $selected as $index => $line ) {
-				$line_discount = $index === $last ? $discount_left : ( $subtotal > 0 ? intdiv( $discount * $line['line_total'], $subtotal ) : 0 );
-				$line_discount = min( $line['line_total'], max( 0, $line_discount ) );
-				$discount_left -= $line_discount;
+				$line_discount = $line_discounts[ $index ];
 				$rate = (int) ( $line['type']->tax_rate_bp ?? 0 );
 				$type_id_for_tax = (int) $line['type']->ticket_type_id;
 				$selected[ $index ]['tax_rate_bp'] = $rate;
@@ -208,6 +207,10 @@ final class Orders {
 				$tax_total += $selected[ $index ]['tax_minor'];
 			}
 			$snapshot = array( 'currency' => $currency, 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'campaigns' => array_map( static function ( $adjustment ) { return array( 'code' => $adjustment['campaign']->code, 'amount_minor' => (int) $adjustment['amount_minor'] ); }, $adjustments ) );
+			if ( $discount ) {
+				$snapshot['line_discounts'] = array();
+				foreach ( $selected as $index => $line ) { $snapshot['line_discounts'][ (int) $line['type']->ticket_type_id ] = (int) $line_discounts[ $index ]; }
+			}
 			if ( $price_rules ) {
 				// Lines whose unit price was changed by `wpcap_ticket_unit_price` (e.g. series price tiers).
 				$snapshot['unit_price_adjustments'] = $price_rules;
@@ -323,6 +326,59 @@ final class Orders {
 		}
 		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency, 'source' => sanitize_key( $internal['source'] ?? 'native' ) ) );
 		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
+	}
+
+	/**
+	 * Splits $total over $amounts proportionally, exact to the minor unit: cumulative rounding, so the
+	 * parts always add up to min($total, sum) and no part exceeds its amount (also for tiny lines).
+	 *
+	 * @param int[] $amounts Keyed amounts (minor units, >= 0).
+	 * @return int[] Parts with the same keys.
+	 */
+	public static function allocate( array $amounts, $total ) {
+		$sum = array_sum( array_map( 'intval', $amounts ) );
+		$total = max( 0, min( (int) $total, $sum ) );
+		$parts = array_fill_keys( array_keys( $amounts ), 0 );
+		if ( ! $sum || ! $total ) { return $parts; }
+		$running = 0;
+		$allocated = 0;
+		foreach ( $amounts as $key => $amount ) {
+			$running += (int) $amount;
+			$target = intdiv( $total * $running, $sum );
+			$parts[ $key ] = $target - $allocated;
+			$allocated = $target;
+		}
+		return $parts;
+	}
+
+	/**
+	 * Per-line discount of an order (same index as $selected): every campaign's amount is split over
+	 * the lines it applies to (ticket type / event restriction) in proportion to what is left of them.
+	 */
+	private static function line_discounts( array $selected, array $adjustments ) {
+		$remaining = array();
+		foreach ( $selected as $index => $line ) { $remaining[ $index ] = (int) $line['line_total']; }
+		$discounts = array_fill_keys( array_keys( $remaining ), 0 );
+		foreach ( $adjustments as $adjustment ) {
+			$campaign = $adjustment['campaign'] ?? null;
+			$eligible = array();
+			foreach ( $selected as $index => $line ) {
+				$type_match = ! $campaign || ! (int) $campaign->ticket_type_id || (int) $campaign->ticket_type_id === (int) $line['type']->ticket_type_id;
+				$event_match = ! $campaign || ! (int) $campaign->event_id || (int) $campaign->event_id === (int) $line['event_id'];
+				if ( $type_match && $event_match ) { $eligible[ $index ] = $remaining[ $index ]; }
+			}
+			foreach ( self::allocate( $eligible, (int) $adjustment['amount_minor'] ) as $index => $part ) {
+				$discounts[ $index ] += $part;
+				$remaining[ $index ] -= $part;
+			}
+		}
+		return $discounts;
+	}
+
+	/** Per-ticket-type discounts stored with the order (null for orders before they were recorded). */
+	public static function snapshot_line_discounts( $order ) {
+		$snapshot = json_decode( (string) ( $order->price_snapshot ?? '' ), true );
+		return is_array( $snapshot ) && isset( $snapshot['line_discounts'] ) && is_array( $snapshot['line_discounts'] ) ? array_map( 'intval', $snapshot['line_discounts'] ) : null;
 	}
 
 	/**

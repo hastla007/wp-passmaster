@@ -101,7 +101,7 @@ final class Refunds {
 		if ( false === $wpdb->query( 'COMMIT' ) ) { return self::request_db_error( $order_id, 'request_commit' ); }
 		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval ) );
 		if ( $needs_approval ) {
-			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, number_format_i18n( $calc['amount_minor'] / 100, 2 ) . ' ' . $order->currency ) );
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, Localization::money_number( $calc['amount_minor'], $order->currency ) . ' ' . $order->currency ) );
 			return self::get( $refund_id );
 		}
 		return self::execute( $refund_id );
@@ -544,6 +544,9 @@ final class Refunds {
 		$remaining_total = max( 0, (int) $order->total_minor - (int) $order->refunded_minor - max( 0, (int) $reserved_minor ) );
 		if ( count( $ticket_ids ) === count( $open_ids ) ) {
 			$amount = $remaining_total;
+		} elseif ( null !== Orders::snapshot_line_discounts( $order ) ) {
+			// Discount split per line known: each ticket refunds its own line's discounted price.
+			$amount = min( $remaining_total, self::discounted_share( $order, $ticket_ids ) );
 		} else {
 			list( $gross ) = self::line_shares( $order, $ticket_ids );
 			$subtotal = max( 1, (int) $order->subtotal_minor ?: (int) $order->total_minor );
@@ -581,7 +584,7 @@ final class Refunds {
 		$vars = array(
 			'order_id' => (string) $order->public_id,
 			// Callables run in the recipient's locale (number format, translated notes).
-			'refund_amount' => static function () use ( $amount_minor, $currency ) { return number_format_i18n( $amount_minor / 100, 2 ) . ' ' . $currency; },
+			'refund_amount' => static function () use ( $amount_minor, $currency ) { return Localization::money_number( $amount_minor, $currency ) . ' ' . $currency; },
 			'revoked_count' => (int) $revoked,
 			'revoked_note' => static function () use ( $revoked ) { return Mail\Types::revoked_note( (int) $revoked ); },
 			'credit_note_number' => $credit_note,
@@ -606,6 +609,24 @@ final class Refunds {
 	public static function gross_for_tickets( $order, array $ticket_ids ) {
 		list( $gross ) = self::line_shares( $order, $ticket_ids );
 		return $gross;
+	}
+
+	/** Discounted gross of the given tickets: (line total − line discount) / quantity per ticket, rounded once. */
+	private static function discounted_share( $order, array $ticket_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$discounts = (array) Orders::snapshot_line_discounts( $order );
+		$unit = array();
+		foreach ( self::checked( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,SUM(quantity) AS quantity,SUM(line_total_minor) AS line_total FROM {$p}wpcap_order_items WHERE order_id=%d GROUP BY ticket_type_id", (int) $order->order_id ) ) ) as $item ) {
+			$type = (int) $item->ticket_type_id;
+			$unit[ $type ] = max( 0, (int) $item->line_total - (int) ( $discounts[ $type ] ?? 0 ) ) / max( 1, (int) $item->quantity );
+		}
+		$ids = implode( ',', array_map( 'absint', $ticket_ids ) );
+		$sum = 0.0;
+		foreach ( $ids ? self::checked( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_tickets WHERE order_id=%d AND ticket_id IN ($ids)", (int) $order->order_id ) ) ) : array() as $type_id ) {
+			$sum += $unit[ (int) $type_id ] ?? 0;
+		}
+		return (int) round( $sum );
 	}
 
 	private static function line_shares( $order, array $ticket_ids ) {
@@ -649,7 +670,10 @@ final class Refunds {
 			return min( $remaining_tax, (int) round( (int) $order->tax_minor * $amount / $total ) );
 		}
 		list( $gross, $tax ) = self::line_shares( $order, $ticket_ids );
-		if ( $gross <= 0 ) { return min( $remaining_tax, (int) round( (int) $order->tax_minor * $amount / $total ) ); }
-		return min( $remaining_tax, $amount, (int) round( $tax * $amount / $gross ) );
+		// Line VAT was computed on the discounted line amount: scale it against the discounted gross of
+		// the tickets (not the list price), else a partial refund of a discounted order books too little VAT.
+		$discounted = null !== Orders::snapshot_line_discounts( $order ) ? self::discounted_share( $order, $ticket_ids ) : (int) round( $gross * $total / max( 1, (int) $order->subtotal_minor ?: $total ) );
+		if ( $discounted <= 0 ) { return min( $remaining_tax, (int) round( (int) $order->tax_minor * $amount / $total ) ); }
+		return min( $remaining_tax, $amount, (int) round( $tax * $amount / $discounted ) );
 	}
 }

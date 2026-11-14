@@ -27,7 +27,7 @@ final class InvoicePdf {
 	}
 
 	private static function money( $minor, $currency ) {
-		return number_format_i18n( (int) $minor / 100, 2 ) . ' ' . $currency;
+		return \PassCaptain\Localization::money_number( $minor, $currency ) . ' ' . $currency;
 	}
 
 	private static function date( $utc ) {
