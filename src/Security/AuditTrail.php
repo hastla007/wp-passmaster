@@ -161,7 +161,7 @@ final class AuditTrail {
 
 	public static function on_delete_user( $user_id ) {
 		$user = function_exists( 'get_userdata' ) ? get_userdata( $user_id ) : null;
-		$roles = $user ? array_values( array_filter( (array) $user->roles, array( __CLASS__, 'is_plugin_role' ) ) ) : array();
+		$roles = $user ? array_values( array_filter( (array) ( get_object_vars( $user )['roles'] ?? array() ), array( __CLASS__, 'is_plugin_role' ) ) ) : array();
 		if ( $roles ) {
 			Audit::record( 'user_deleted', 'user', $user_id, array( 'roles' => array_map( 'sanitize_key', $roles ) ) );
 		}

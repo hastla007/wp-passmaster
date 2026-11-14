@@ -156,7 +156,7 @@ final class StepUp {
 	public static function guard_profile_role( $errors, $update = false, $user = null ) {
 		if ( ! is_object( $user ) || empty( $user->role ) ) { return; }
 		$old = ( $update && ! empty( $user->ID ) && function_exists( 'get_userdata' ) ) ? get_userdata( (int) $user->ID ) : null;
-		$old_roles = $old ? (array) $old->roles : array();
+		$old_roles = $old ? (array) ( get_object_vars( $old )['roles'] ?? array() ) : array();
 		if ( in_array( $user->role, $old_roles, true ) ) { return; }
 		if ( ! AuditTrail::is_plugin_role( $user->role ) && ! array_filter( $old_roles, array( AuditTrail::class, 'is_plugin_role' ) ) ) { return; }
 		$check = self::check( array( 'roles' ), 'user_role_change' );

@@ -312,7 +312,7 @@ final class Checkin {
 	/** Roles of the current user (filter wpcap_checkout_user_roles). */
 	private static function current_roles() {
 		$user = function_exists( 'wp_get_current_user' ) ? wp_get_current_user() : null;
-		$roles = $user ? array_values( (array) $user->roles ) : array();
+		$roles = is_object( $user ) ? array_values( (array) ( get_object_vars( $user )['roles'] ?? array() ) ) : array();
 		return array_map( 'strval', (array) apply_filters( 'wpcap_checkout_user_roles', $roles, get_current_user_id() ) );
 	}
 
