@@ -329,5 +329,14 @@ Einwilligungstext und Version.
 - Widerruf im **Bestellportal** (Abschnitt „Einwilligungen“): Datensatz bleibt mit `withdrawn_at` und
   Quelle erhalten, die Antwort wird gelöscht, Audit-Eintrag `consent_withdrawn`. Im Teilnehmerformular
   des Portals sind Einwilligungsfelder nicht änderbar.
+- Kasse: dieselbe Checkbox mit Text und Version im Teilnehmerformular; Datensatz wie im Checkout mit
+  Quelle `box_office`.
+- **Inhaberwechsel** (Zuweisung an eine andere Person, Ticketübertragung): Aktive Einwilligungen anderer
+  Personen enden (`withdrawn_source = holder_changed`, Antwort gelöscht, Audit `consent_ended_holder_change`) –
+  sie gehen nie auf die neue Person über. Die neue Person erhält in der Ticket-Mail einen Link
+  `?wpcap_consent=<Ticketcode>` (Code = Berechtigung, nach erneuter Code-Rotation ungültig) und willigt dort
+  selbst ein (Quelle `attendee_link`). Hält die Käuferin das Ticket selbst, kann sie offene Einwilligungen im
+  Bestellportal erteilen (Quelle `portal`); für Tickets anderer Personen ist das nicht möglich. Eine bloße
+  Namenskorrektur derselben Person lässt die Einwilligung bestehen.
 - Datenschutz: eigener Exporter/Löscher („Pass Captain Einwilligungen“); Löschung mit den
   Teilnehmerantworten nach Terminende + Aufbewahrungsdauer des Felds (bzw. der globalen Einstellung).

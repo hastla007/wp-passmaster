@@ -14273,3 +14273,129 @@ msgstr "The voucher provider cannot be reached right now. Please try again."
 #: src/Integrations/Vouchers/Bridge.php:42
 msgid "Der Gutscheinanbieter hat eine ungültige Antwort geliefert."
 msgstr "The voucher provider returned an invalid response."
+
+#: src/Security/Policy.php:115
+msgid "Event-Warteliste: Annahmefrist eines Angebots (Stunden)"
+msgstr "Event waitlist: acceptance window of an offer (hours)"
+
+#: src/Security/Policy.php:115
+msgid "So lange ist ein freigewordenes Ticket für die Person auf der Warteliste reserviert, bevor es der nächsten angeboten wird (1–720 Stunden)."
+msgstr "How long a released ticket is reserved for the person on the waitlist before it is offered to the next one (1–720 hours)."
+
+#: src/ServiceBookings.php:596
+msgid "Für diese Buchung ist bereits eine Umbuchung mit offener Zuzahlung vorgemerkt. Bitte bezahle sie oder warte, bis sie abläuft."
+msgstr "A rebooking with an open additional payment is already pending for this booking. Please pay it or wait until it expires."
+
+#: src/ServiceBookings.php:729
+msgid "Für diese Umbuchung ist keine Zuzahlung (mehr) offen."
+msgstr "There is no (longer an) open additional payment for this rebooking."
+
+#: src/ServiceBookings.php:805
+msgid "Die Umbuchung war bei Eingang der Zuzahlung nicht mehr möglich. Deine bisherige Buchung bleibt unverändert; die Zuzahlung wird erstattet."
+msgstr "The rebooking was no longer possible when the additional payment arrived. Your existing booking stays unchanged; the additional payment will be refunded."
+
+#. translators: %d: booking id
+#: src/ServiceBookings.php:832
+#, php-format
+msgid "Zuzahlung Umbuchung #%d nicht verrechnet"
+msgstr "Additional payment for rebooking #%d not applied"
+
+#: src/Reports/Page.php:135
+msgid "Bestellungen mit mehreren Codes werden im Verhältnis der Rabatte auf die Codes aufgeteilt (nichts doppelt gezählt). Erstattungen des Zeitraums werden der Kampagne ihrer Bestellung zugeordnet."
+msgstr "Orders with several codes are split between the codes in proportion to their discounts (nothing is counted twice). Refunds of the period are attributed to the campaign of their order."
+
+#: src/Sales/Consents.php:184
+msgid "Für dieses Ticket wird deine eigene Einwilligung benötigt (Einwilligungen der vorherigen Person gelten nicht weiter):"
+msgstr "Your own consent is needed for this ticket (consents of the previous person no longer apply):"
+
+#: src/Sales/Consents.php:209 src/Sales/Consents.php:360
+msgid "Danke, deine Einwilligung wurde gespeichert."
+msgstr "Thank you, your consent has been saved."
+
+#: src/Sales/Consents.php:211
+msgid "Für dieses Ticket sind keine Einwilligungen offen."
+msgstr "There are no open consents for this ticket."
+
+#: src/Sales/Consents.php:220 src/Sales/Consents.php:366
+msgid "Einwilligung erteilen"
+msgstr "Give consent"
+
+#: src/Sales/Consents.php:333
+msgid "Nur die Person, der das Ticket gehört, kann hier einwilligen."
+msgstr "Only the person the ticket belongs to can consent here."
+
+#: src/Admin/StatusPage.php:46
+msgid "Pass Captain: Systemstatus"
+msgstr "Pass Captain: System status"
+
+#: src/Admin/StatusPage.php:54
+msgid "Keine kritischen Probleme im Hintergrundbetrieb."
+msgstr "No critical issues in background processing."
+
+#. translators: %d: number of critical issues
+#: src/Admin/StatusPage.php:57
+#, php-format
+msgid "%d kritisches Problem"
+msgid_plural "%d kritische Probleme"
+msgstr[0] "%d critical issue"
+msgstr[1] "%d critical issues"
+
+#. translators: 1: requeued items, 2: items still failed
+#: src/Admin/StatusPage.php:99
+#, php-format
+msgid "%1$d Einträge werden erneut versucht; %2$d weitere fehlgeschlagene Einträge bitte mit einem weiteren Klick erneut versuchen."
+msgstr "%1$d entries are being retried; please retry the %2$d further failed entries with another click."
+
+#. translators: %d: requeued items
+#: src/Admin/StatusPage.php:101
+#, php-format
+msgid "%d Einträge werden erneut versucht."
+msgstr "%d entries are being retried."
+
+#. translators: 1: number of failed items, 2: maximum per click
+#: src/Admin/StatusPage.php:300
+#, php-format
+msgid "Alle %1$d erneut versuchen (höchstens %2$d pro Klick)"
+msgstr "Retry all %1$d (at most %2$d per click)"
+
+#: src/Admin/StatusPage.php:300
+msgid "Alle fehlgeschlagenen Einträge dieser Warteschlange erneut versuchen?"
+msgstr "Retry all failed entries of this queue?"
+
+#: src/Admin/TicketsPage.php:158
+msgid "Letzter Einlass zurückgenommen; der frühere Einlass bleibt gezählt, das Ticket bleibt eingecheckt."
+msgstr "Last entry undone; the earlier entry still counts and the ticket stays checked in."
+
+#. translators: %s: formatted amount
+#: src/Services/Portal.php:156
+#, php-format
+msgid "Zuzahlung %s"
+msgstr "Additional payment %s"
+
+#. translators: 1: amount, 2: new slot (resource and date), 3: deadline
+#: src/Services/Portal.php:168
+#, php-format
+msgid "Umbuchung vorgemerkt: Zuzahlung von %1$s für %2$s offen bis %3$s. Bis dahin bleibt deine bisherige Buchung bestehen."
+msgstr "Rebooking pending: additional payment of %1$s for %2$s open until %3$s. Until then your existing booking stays in place."
+
+#: src/Services/Portal.php:169 src/Services/Portal.php:231
+msgid "Zuzahlung jetzt bezahlen"
+msgstr "Pay the additional amount now"
+
+#. translators: 1: amount, 2: deadline (UTC date/time)
+#: src/Services/Portal.php:230
+#, php-format
+msgid "Das neue Zeitfenster ist teurer. Bitte bezahle die Zuzahlung von %1$s bis %2$s (UTC); danach wird deine Buchung automatisch umgebucht. Bis dahin bleibt deine bisherige Buchung bestehen."
+msgstr "The new time slot is more expensive. Please pay the additional %1$s by %2$s (UTC); your booking will then be moved automatically. Until then your existing booking stays in place."
+
+#: src/Services/Portal.php:233
+msgid "Zuzahlung erforderlich"
+msgstr "Additional payment required"
+
+#: src/Services/Portal.php:251
+msgid "Umbuchung übernommen"
+msgstr "Rebooking applied"
+
+#: src/Ops/Status.php:179
+msgid "Unbekannte Warteschlange."
+msgstr "Unknown queue."

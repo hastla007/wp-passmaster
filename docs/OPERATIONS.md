@@ -88,8 +88,15 @@ Auf Multisite-Netzwerken muss der Cronjob jede Site auslösen, z. B. `wp site li
 - **Warteschlangen:** offene Einträge nach Status für Job-Queue (`wpcap_jobs`, zusätzlich nach Job-Typ), E-Mail-Queue, Webhook-Zustellungen und SMS-Queue; überfällige Einträge (fällig seit über 30 Minuten) und lang laufende Claims (`locked_at` älter als 5 Minuten). Die Worker geben Claims nach 15 Minuten selbst zurück – ältere Claims bedeuten, dass seither kein Worker lief.
 - **E-Mail-Versandfehler:** die häufigsten `last_error`-Werte der E-Mail-Queue.
 - **Fehlgeschlagene Einträge** (Jobs `dead_letter`, E-Mails/Webhooks/SMS `failed`) mit letztem Fehler und den Aktionen **„Erneut versuchen“** (Versuche zurückgesetzt, sofort fällig; Webhooks über die reguläre Neuzustellung) und **„Verwerfen“** (bleibt als `cancelled` bzw. `skipped` in der Historie). Beide Aktionen prüfen Nonce und Capability, wirken nur auf Einträge, die noch fehlgeschlagen sind (kein doppeltes Einreihen), und landen im Audit-Log (`ops_queue_retry`, `ops_queue_discard`). E-Mail-Empfänger werden maskiert angezeigt.
+  **„Alle erneut versuchen“** je Warteschlange reiht die fehlgeschlagenen Einträge (älteste zuerst) wie einzeln neu
+  ein – höchstens 100 pro Klick (Filter `wpcap_ops_bulk_retry_cap`, 1–500); der Hinweis nennt die noch
+  verbleibenden. Nonce je Warteschlange, `manage_options`, Audit je Eintrag plus Zusammenfassung
+  (`ops_queue_retry_bulk`).
 - **Erstattungen zur manuellen Prüfung:** Erstattungen, die seit über 15 Minuten in `processing` ohne Anbieter-Referenz stehen (Abbruch während des Anbieteraufrufs – unklar, ob ausgezahlt wurde). Im Konto des Zahlungsanbieters prüfen, dann **„Manuell als erledigt markieren“** (optional mit Anbieter-Referenz; die Erstattung wird ohne erneuten Anbieteraufruf verbucht, Tickets werden widerrufen) oder **„Als fehlgeschlagen markieren“** (nichts ausgezahlt; die Erstattung kann aus der Bestellung erneut ausgeführt werden). Audit-Eintrag `refund_manual_resolution`.
 - **Datenbankschema:** aktueller Stand, Fehlerdetails, Zahl der Fehlversuche und nächster automatischer Versuch; „Jetzt erneut versuchen“.
+
+Das **Dashboard-Widget** „Pass Captain: Systemstatus“ (nur für `manage_options`) listet die kritischen Probleme
+(dieselbe zwischengespeicherte Liste wie der Hinweis) mit Link zum Systemstatus.
 
 Solange kritische Probleme bestehen, erscheint auf den Plugin-Seiten und im Dashboard ein **Admin-Hinweis** (für `manage_options`, 5 Minuten zwischengespeichert, nach jeder Aktion neu berechnet) und der Menüpunkt zeigt ihre Anzahl.
 

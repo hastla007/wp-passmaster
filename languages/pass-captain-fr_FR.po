@@ -14272,3 +14272,129 @@ msgstr "Le fournisseur de bons n’est pas joignable pour le moment. Veuillez r�
 #: src/Integrations/Vouchers/Bridge.php:42
 msgid "Der Gutscheinanbieter hat eine ungültige Antwort geliefert."
 msgstr "Le fournisseur de bons a renvoyé une réponse invalide."
+
+#: src/Security/Policy.php:115
+msgid "Event-Warteliste: Annahmefrist eines Angebots (Stunden)"
+msgstr "Liste d'attente de l'événement : délai d'acceptation d'une offre (heures)"
+
+#: src/Security/Policy.php:115
+msgid "So lange ist ein freigewordenes Ticket für die Person auf der Warteliste reserviert, bevor es der nächsten angeboten wird (1–720 Stunden)."
+msgstr "Durée pendant laquelle un billet libéré est réservé à la personne de la liste d'attente avant d'être proposé à la suivante (1–720 heures)."
+
+#: src/ServiceBookings.php:596
+msgid "Für diese Buchung ist bereits eine Umbuchung mit offener Zuzahlung vorgemerkt. Bitte bezahle sie oder warte, bis sie abläuft."
+msgstr "Un changement de réservation avec un supplément à payer est déjà en attente pour cette réservation. Merci de le payer ou d’attendre son expiration."
+
+#: src/ServiceBookings.php:729
+msgid "Für diese Umbuchung ist keine Zuzahlung (mehr) offen."
+msgstr "Aucun supplément n'est (plus) à payer pour ce changement de réservation."
+
+#: src/ServiceBookings.php:805
+msgid "Die Umbuchung war bei Eingang der Zuzahlung nicht mehr möglich. Deine bisherige Buchung bleibt unverändert; die Zuzahlung wird erstattet."
+msgstr "Le changement de réservation n'était plus possible à la réception du supplément. Ta réservation actuelle reste inchangée ; le supplément sera remboursé."
+
+#. translators: %d: booking id
+#: src/ServiceBookings.php:832
+#, php-format
+msgid "Zuzahlung Umbuchung #%d nicht verrechnet"
+msgstr "Supplément du changement de réservation n° %d non imputé"
+
+#: src/Reports/Page.php:135
+msgid "Bestellungen mit mehreren Codes werden im Verhältnis der Rabatte auf die Codes aufgeteilt (nichts doppelt gezählt). Erstattungen des Zeitraums werden der Kampagne ihrer Bestellung zugeordnet."
+msgstr "Les commandes avec plusieurs codes sont réparties entre les codes au prorata de leurs remises (rien n’est compté deux fois). Les remboursements de la période sont attribués à la campagne de leur commande."
+
+#: src/Sales/Consents.php:184
+msgid "Für dieses Ticket wird deine eigene Einwilligung benötigt (Einwilligungen der vorherigen Person gelten nicht weiter):"
+msgstr "Ton propre consentement est nécessaire pour ce billet (les consentements de la personne précédente ne s’appliquent plus) :"
+
+#: src/Sales/Consents.php:209 src/Sales/Consents.php:360
+msgid "Danke, deine Einwilligung wurde gespeichert."
+msgstr "Merci, ton consentement a été enregistré."
+
+#: src/Sales/Consents.php:211
+msgid "Für dieses Ticket sind keine Einwilligungen offen."
+msgstr "Aucun consentement n'est en attente pour ce billet."
+
+#: src/Sales/Consents.php:220 src/Sales/Consents.php:366
+msgid "Einwilligung erteilen"
+msgstr "Donner mon consentement"
+
+#: src/Sales/Consents.php:333
+msgid "Nur die Person, der das Ticket gehört, kann hier einwilligen."
+msgstr "Seule la personne à qui appartient le billet peut donner son consentement ici."
+
+#: src/Admin/StatusPage.php:46
+msgid "Pass Captain: Systemstatus"
+msgstr "Pass Captain : état du système"
+
+#: src/Admin/StatusPage.php:54
+msgid "Keine kritischen Probleme im Hintergrundbetrieb."
+msgstr "Aucun problème critique dans le traitement en arrière-plan."
+
+#. translators: %d: number of critical issues
+#: src/Admin/StatusPage.php:57
+#, php-format
+msgid "%d kritisches Problem"
+msgid_plural "%d kritische Probleme"
+msgstr[0] "%d problème critique"
+msgstr[1] "%d problèmes critiques"
+
+#. translators: 1: requeued items, 2: items still failed
+#: src/Admin/StatusPage.php:99
+#, php-format
+msgid "%1$d Einträge werden erneut versucht; %2$d weitere fehlgeschlagene Einträge bitte mit einem weiteren Klick erneut versuchen."
+msgstr "%1$d entrées sont relancées ; merci de relancer les %2$d autres entrées en échec par un nouveau clic."
+
+#. translators: %d: requeued items
+#: src/Admin/StatusPage.php:101
+#, php-format
+msgid "%d Einträge werden erneut versucht."
+msgstr "%d entrées sont relancées."
+
+#. translators: 1: number of failed items, 2: maximum per click
+#: src/Admin/StatusPage.php:300
+#, php-format
+msgid "Alle %1$d erneut versuchen (höchstens %2$d pro Klick)"
+msgstr "Tout relancer (%1$d, au plus %2$d par clic)"
+
+#: src/Admin/StatusPage.php:300
+msgid "Alle fehlgeschlagenen Einträge dieser Warteschlange erneut versuchen?"
+msgstr "Relancer toutes les entrées en échec de cette file ?"
+
+#: src/Admin/TicketsPage.php:158
+msgid "Letzter Einlass zurückgenommen; der frühere Einlass bleibt gezählt, das Ticket bleibt eingecheckt."
+msgstr "Dernière entrée annulée ; l'entrée précédente reste comptée et le billet reste enregistré."
+
+#. translators: %s: formatted amount
+#: src/Services/Portal.php:156
+#, php-format
+msgid "Zuzahlung %s"
+msgstr "Supplément %s"
+
+#. translators: 1: amount, 2: new slot (resource and date), 3: deadline
+#: src/Services/Portal.php:168
+#, php-format
+msgid "Umbuchung vorgemerkt: Zuzahlung von %1$s für %2$s offen bis %3$s. Bis dahin bleibt deine bisherige Buchung bestehen."
+msgstr "Changement de réservation en attente : supplément de %1$s pour %2$s à payer jusqu’au %3$s. D’ici là, ta réservation actuelle est maintenue."
+
+#: src/Services/Portal.php:169 src/Services/Portal.php:231
+msgid "Zuzahlung jetzt bezahlen"
+msgstr "Payer le supplément maintenant"
+
+#. translators: 1: amount, 2: deadline (UTC date/time)
+#: src/Services/Portal.php:230
+#, php-format
+msgid "Das neue Zeitfenster ist teurer. Bitte bezahle die Zuzahlung von %1$s bis %2$s (UTC); danach wird deine Buchung automatisch umgebucht. Bis dahin bleibt deine bisherige Buchung bestehen."
+msgstr "Le nouveau créneau est plus cher. Merci de payer le supplément de %1$s avant le %2$s (UTC) ; ta réservation sera ensuite déplacée automatiquement. D’ici là, ta réservation actuelle est maintenue."
+
+#: src/Services/Portal.php:233
+msgid "Zuzahlung erforderlich"
+msgstr "Supplément requis"
+
+#: src/Services/Portal.php:251
+msgid "Umbuchung übernommen"
+msgstr "Changement de réservation appliqué"
+
+#: src/Ops/Status.php:179
+msgid "Unbekannte Warteschlange."
+msgstr "File inconnue."
