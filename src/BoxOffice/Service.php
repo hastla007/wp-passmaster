@@ -200,6 +200,7 @@ final class Service {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name,price_minor,currency,max_per_order,tax_rate_bp,status,sales_start,sales_end FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id", absint( $occurrence_id ) ) );
 		$seated = self::seated_types( $occurrence_id );
+		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
 		$out = array();
 		foreach ( $rows as $r ) {
 			$out[] = array(
@@ -213,6 +214,8 @@ final class Service {
 				'available' => Orders::availability( $r->ticket_type_id ),
 				'fields' => self::participant_fields( $r->ticket_type_id ),
 				'seated' => isset( $seated[ (int) $r->ticket_type_id ] ),
+				// Why this price applies (automatic price rule, same explanation as the online checkout); '' = stored price.
+				'price_rule' => class_exists( \PassCaptain\Sales\PriceRules::class ) ? \PassCaptain\Sales\PriceRules::explanation_for( $r, $occurrence, array( 'source' => 'pos' ) ) : '',
 			);
 		}
 		return $out;
@@ -221,9 +224,12 @@ final class Service {
 	/** Active participant fields of a ticket type in checkout order (same columns as the public checkout). */
 	public static function participant_fields( $ticket_type_id ) {
 		global $wpdb;
-		$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_key AS `key`,label,field_type AS type,required,purpose FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", absint( $ticket_type_id ) ), ARRAY_A );
+		$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_key AS `key`,label,field_type AS type,required,purpose,consent_text,consent_version FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", absint( $ticket_type_id ) ), ARRAY_A );
 		return array_map( static function ( $f ) {
-			return array( 'key' => (string) $f['key'], 'label' => (string) $f['label'], 'type' => (string) $f['type'], 'required' => (bool) (int) $f['required'], 'purpose' => (string) ( $f['purpose'] ?? '' ) );
+			$out = array( 'key' => (string) $f['key'], 'label' => (string) $f['label'], 'type' => (string) $f['type'], 'required' => (bool) (int) $f['required'], 'purpose' => (string) ( $f['purpose'] ?? '' ) );
+			// Consent fields: the text the attendee agrees to (shown next to the checkbox; logged by Sales\Consents).
+			if ( 'consent' === $out['type'] ) { $out += array( 'consent_text' => (string) ( $f['consent_text'] ?? '' ), 'consent_version' => (string) ( $f['consent_version'] ?? '' ) ); }
+			return $out;
 		}, (array) $fields );
 	}
 

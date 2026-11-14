@@ -9,6 +9,11 @@
  * - Withdrawal: buyers withdraw in the order portal (POST to the portal link, capability = access
  *   token). The record keeps withdrawn_at/withdrawn_source, the participant answer is deleted.
  *   Consent fields are not editable in the attendee form of the portal (no silent re-consent).
+ * - Holder change: when a ticket moves to another person (buyer assignment with a new holder, ticket
+ *   transfer), the previous person's active consents end (withdrawn_source "holder_changed", answer
+ *   deleted) – they never carry over. The new holder gives consent through the link in the ticket
+ *   mail (?wpcap_consent=<ticket code>, source "attendee_link") or, when the buyer holds the ticket,
+ *   in the order portal (source "portal").
  * - Privacy: own exporter and eraser (wp_privacy_personal_data_*) and deletion together with the
  *   participant answers after the retention period (Privacy\Retention::HOOK).
  *
@@ -31,6 +36,9 @@ final class Consents {
 		if ( self::$registered ) { return; }
 		self::$registered = true;
 		add_action( 'wpcap_ticket_created', array( __CLASS__, 'record_for_ticket' ), 10, 2 );
+		add_action( 'wpcap_ticket_code_rotated', array( __CLASS__, 'on_code_rotated' ), 5, 3 );
+		add_filter( 'wpcap_ticket_code_mail_section', array( __CLASS__, 'mail_section' ), 20, 2 );
+		add_action( 'template_redirect', array( __CLASS__, 'maybe_render_attendee_page' ) );
 		// Before the core eraser (priority 10), which pseudonymises the order e-mail.
 		add_filter( 'wp_privacy_personal_data_exporters', array( __CLASS__, 'register_exporter' ), 5 );
 		add_filter( 'wp_privacy_personal_data_erasers', array( __CLASS__, 'register_eraser' ), 5 );
@@ -73,8 +81,159 @@ final class Consents {
 			if ( '1' !== (string) $answer->answer ) { continue; }
 			$field = $fields[ (int) $answer->field_id ];
 			$subject = '' !== (string) $ticket->attendee_email ? (string) $ticket->attendee_email : (string) ( $order->customer_email ?? '' );
-			self::grant( (int) $ticket->ticket_id, (int) $ticket->order_id, $field, $subject, 'checkout', (string) ( $order->created_at ?? current_time( 'mysql', true ) ) );
+			// Box office sales (payment provider pos_*) log the source "box_office"; the record is otherwise identical.
+			$source = str_starts_with( (string) ( $order->payment_provider ?? '' ), 'pos_' ) ? 'box_office' : 'checkout';
+			self::grant( (int) $ticket->ticket_id, (int) $ticket->order_id, $field, $subject, $source, (string) ( $order->created_at ?? current_time( 'mysql', true ) ) );
 		}
+	}
+
+	/* ---------------------------------------------------------------------------------------------
+	 * Holder change (assignment to another person, transfer).
+	 * ------------------------------------------------------------------------------------------- */
+
+	/** Plain ticket codes of this request whose new holder still has to consent (for the mail link). */
+	private static $pending_codes = array();
+
+	/** Current holder of a ticket: attendee e-mail, else the buyer. */
+	private static function holder( $ticket_id ) {
+		global $wpdb;
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT t.attendee_email,ord.customer_email FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=t.order_id WHERE t.ticket_id=%d", absint( $ticket_id ) ) );
+		if ( ! $row ) { return ''; }
+		return '' !== (string) $row->attendee_email ? (string) $row->attendee_email : (string) $row->customer_email;
+	}
+
+	/**
+	 * Action wpcap_ticket_code_rotated: on a holder change (assign/transfer) the consents of other
+	 * people end; the new code is kept for the consent link in the ticket mail.
+	 */
+	public static function on_code_rotated( $ticket_id, $code, $reason = '' ) {
+		if ( ! in_array( (string) $reason, array( 'assign', 'transfer' ), true ) ) { return; }
+		$holder = self::holder( $ticket_id );
+		if ( '' === $holder ) { return; }
+		self::end_for_holder_change( (int) $ticket_id, $holder );
+		if ( self::missing_for_ticket( (int) $ticket_id ) ) { self::$pending_codes[ (int) $ticket_id ] = (string) $code; }
+	}
+
+	/**
+	 * Ends active consents of a ticket that were given by someone else than $holder (kept as proof,
+	 * withdrawn_source "holder_changed"); their participant answers are deleted.
+	 *
+	 * @return int Number of ended consents.
+	 */
+	public static function end_for_holder_change( $ticket_id, $holder ) {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE ticket_id=%d AND withdrawn_at IS NULL AND LOWER(subject_email)<>LOWER(%s)', absint( $ticket_id ), (string) $holder ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		$ended = 0;
+		foreach ( (array) $rows as $consent ) {
+			$updated = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET withdrawn_at=%s,withdrawn_source='holder_changed' WHERE consent_id=%d AND withdrawn_at IS NULL", current_time( 'mysql', true ), (int) $consent->consent_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+			if ( 1 !== (int) $updated ) { continue; }
+			++$ended;
+			$wpdb->delete( "{$wpdb->prefix}wpcap_participant_answers", array( 'ticket_id' => (int) $consent->ticket_id, 'field_id' => (int) $consent->field_id ) );
+			Audit::record( 'consent_ended_holder_change', 'order', (int) $consent->order_id, array( 'consent_id' => (int) $consent->consent_id, 'ticket_id' => (int) $consent->ticket_id, 'field_id' => (int) $consent->field_id, 'version' => $consent->text_version ) );
+			do_action( 'wpcap_consent_withdrawn', (int) $consent->consent_id, $consent );
+		}
+		return $ended;
+	}
+
+	/** Active consent fields of the ticket's type without an active consent for the ticket (field_id => field). */
+	public static function missing_for_ticket( $ticket_id ) {
+		global $wpdb;
+		$type_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d AND status IN ('valid','checked_in')", absint( $ticket_id ) ) );
+		if ( ! $type_id ) { return array(); }
+		$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,required,consent_text,consent_version FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND field_type='consent' AND status='active' ORDER BY position,field_id", $type_id ) );
+		$given = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT field_id FROM ' . self::table() . ' WHERE ticket_id=%d AND withdrawn_at IS NULL', absint( $ticket_id ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		$out = array();
+		foreach ( (array) $fields as $field ) {
+			if ( ! in_array( (int) $field->field_id, $given, true ) ) { $out[ (int) $field->field_id ] = $field; }
+		}
+		return $out;
+	}
+
+	/**
+	 * Records the current holder's consent for fields of a ticket (only fields that are missing).
+	 *
+	 * @param int[]  $field_ids Fields the holder ticked.
+	 * @param string $source    attendee_link|portal.
+	 * @return int[] New consent ids.
+	 */
+	public static function grant_for_holder( $ticket_id, array $field_ids, $source ) {
+		global $wpdb;
+		$ticket_id = absint( $ticket_id );
+		$missing = self::missing_for_ticket( $ticket_id );
+		$holder = self::holder( $ticket_id );
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", $ticket_id ) );
+		$now = current_time( 'mysql', true );
+		$ids = array();
+		foreach ( array_unique( array_map( 'absint', $field_ids ) ) as $field_id ) {
+			if ( ! isset( $missing[ $field_id ] ) || '' === $holder ) { continue; }
+			$id = self::grant( $ticket_id, $order_id, $missing[ $field_id ], $holder, $source, $now );
+			if ( ! $id ) { continue; }
+			$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,'1',%s,%s) ON DUPLICATE KEY UPDATE answer='1',updated_at=VALUES(updated_at)", $ticket_id, $field_id, $now, $now ) );
+			Audit::record( 'consent_granted', 'order', $order_id, array( 'consent_id' => $id, 'ticket_id' => $ticket_id, 'field_id' => $field_id, 'version' => (string) $missing[ $field_id ]->consent_version, 'source' => sanitize_key( $source ) ) );
+			$ids[] = $id;
+		}
+		return $ids;
+	}
+
+	/** Filter wpcap_ticket_code_mail_section: consent link for a new holder who still has to consent. */
+	public static function mail_section( $html, $ticket_id ) {
+		$code = self::$pending_codes[ (int) $ticket_id ] ?? '';
+		if ( '' === $code || ! self::missing_for_ticket( (int) $ticket_id ) ) { return $html; }
+		unset( self::$pending_codes[ (int) $ticket_id ] );
+		$url = add_query_arg( 'wpcap_consent', $code, home_url( '/' ) );
+		return (string) $html . "\n\n" . __( 'Für dieses Ticket wird deine eigene Einwilligung benötigt (Einwilligungen der vorherigen Person gelten nicht weiter):', 'pass-captain' ) . "\n" . $url;
+	}
+
+	/** Ticket of a plain ticket code (the holder's credential), or null. */
+	private static function ticket_for_code( $code ) {
+		global $wpdb;
+		$code = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $code ) );
+		if ( 64 !== strlen( $code ) ) { return null; }
+		return $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.order_id,t.status,tt.name AS ticket_name,e.name AS event_name FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s", hash( 'sha256', $code ) ) );
+	}
+
+	/**
+	 * Consent page of the ticket holder (GET shows the open consents, POST records the ticked ones).
+	 * The ticket code is the capability (like the ticket page); a rotated code no longer works.
+	 *
+	 * @param int[]|null $grant Field ids posted (null = only show).
+	 * @return string|null HTML, null for an unknown code.
+	 */
+	public static function attendee_page( $code, $grant = null ) {
+		$ticket = self::ticket_for_code( $code );
+		if ( ! $ticket || ! in_array( $ticket->status, array( 'valid', 'checked_in' ), true ) ) { return null; }
+		$granted = is_array( $grant ) ? self::grant_for_holder( (int) $ticket->ticket_id, $grant, 'attendee_link' ) : array();
+		$missing = self::missing_for_ticket( (int) $ticket->ticket_id );
+		$html = '<!doctype html><html lang="' . esc_attr( str_replace( '_', '-', determine_locale() ) ) . '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>' . esc_html__( 'Einwilligungen', 'pass-captain' ) . '</title><style>body{font:16px/1.5 system-ui,sans-serif;max-width:40rem;margin:2rem auto;padding:0 1rem;color:#1d2327}.card{border:1px solid #c3c4c7;border-radius:10px;padding:1rem;margin:1rem 0}button{padding:.55rem 1rem;min-height:2.75rem}:focus-visible{outline:3px solid #135e96;outline-offset:3px}</style></head><body><main>';
+		$html .= '<h1>' . esc_html__( 'Einwilligungen', 'pass-captain' ) . '</h1><p>' . esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ) . '</p>';
+		if ( $granted ) { $html .= '<p role="status">' . esc_html__( 'Danke, deine Einwilligung wurde gespeichert.', 'pass-captain' ) . '</p>'; }
+		if ( ! $missing ) {
+			$html .= '<p>' . esc_html__( 'Für dieses Ticket sind keine Einwilligungen offen.', 'pass-captain' ) . '</p>';
+		} else {
+			$html .= '<form method="post" action="' . esc_url( add_query_arg( 'wpcap_consent', strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $code ) ), home_url( '/' ) ) ) . '">';
+			foreach ( $missing as $field ) {
+				$id = 'wpcap-consent-' . (int) $field->field_id;
+				/* translators: %s: consent text version */
+				$version = sprintf( __( 'Version %s', 'pass-captain' ), $field->consent_version );
+				$html .= '<div class="card"><p id="' . esc_attr( $id ) . '-text">' . nl2br( esc_html( (string) $field->consent_text ) ) . ' <small>' . esc_html( $version ) . '</small></p><p><input type="checkbox" id="' . esc_attr( $id ) . '" name="wpcap_consent_fields[]" value="' . (int) $field->field_id . '" aria-describedby="' . esc_attr( $id ) . '-text"> <label for="' . esc_attr( $id ) . '">' . esc_html( $field->label . ( (int) $field->required ? ' *' : '' ) ) . '</label></p></div>';
+			}
+			$html .= '<p><button type="submit">' . esc_html__( 'Einwilligung erteilen', 'pass-captain' ) . '</button></p></form>';
+		}
+		return $html . '</main></body></html>';
+	}
+
+	/** template_redirect: ?wpcap_consent=<ticket code>. */
+	public static function maybe_render_attendee_page() {
+		$code = isset( $_GET['wpcap_consent'] ) ? sanitize_text_field( wp_unslash( (string) $_GET['wpcap_consent'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the ticket code is the capability.
+		if ( '' === $code || isset( $_GET['wpcap_order'] ) ) { return; } // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- the order portal uses wpcap_consent as status flag.
+		$post = 'POST' === strtoupper( sanitize_key( wp_unslash( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) ) );
+		$fields = $post ? array_map( 'absint', (array) wp_unslash( $_POST['wpcap_consent_fields'] ?? array() ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the ticket code is the capability.
+		$html = self::attendee_page( $code, $fields );
+		nocache_headers();
+		if ( ! headers_sent() ) { header( 'Referrer-Policy: no-referrer' ); }
+		status_header( null === $html ? 404 : 200 );
+		echo null === $html ? esc_html__( 'Der Link ist ungültig.', 'pass-captain' ) : $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from escaped parts.
+		exit;
 	}
 
 	/** Inserts an active consent record unless one exists for ticket and field. @return int consent id */
@@ -149,22 +308,66 @@ final class Consents {
 	 * verified). Redirects back to the portal (PRG) when a withdrawal was posted.
 	 */
 	public static function maybe_handle_portal_post( $order, $token ) {
-		if ( 'POST' !== strtoupper( sanitize_key( wp_unslash( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) ) ) || empty( $_POST['wpcap_consent_withdraw'] ) ) { return; } // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the emailed access token is the capability.
+		if ( 'POST' !== strtoupper( sanitize_key( wp_unslash( (string) ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) ) ) || ( empty( $_POST['wpcap_consent_withdraw'] ) && empty( $_POST['wpcap_consent_grant'] ) ) ) { return; } // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the emailed access token is the capability.
+		if ( ! empty( $_POST['wpcap_consent_grant'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			$granted = self::grant_for_order( $order, absint( wp_unslash( $_POST['wpcap_consent_grant'] ) ), absint( wp_unslash( $_POST['wpcap_consent_field'] ?? 0 ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+			wp_safe_redirect( add_query_arg( array( 'wpcap_order' => $order->public_id, 'wpcap_access' => $token, 'wpcap_consent' => is_wp_error( $granted ) ? 'error' : 'granted' ), home_url( '/' ) ), 303 );
+			exit;
+		}
 		$result = self::withdraw_for_order( $order, absint( wp_unslash( $_POST['wpcap_consent_withdraw'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$url = add_query_arg( array( 'wpcap_order' => $order->public_id, 'wpcap_access' => $token, 'wpcap_consent' => is_wp_error( $result ) ? 'error' : 'withdrawn' ), home_url( '/' ) );
 		wp_safe_redirect( $url, 303 );
 		exit;
 	}
 
-	/** Portal section listing the consents of the order with a withdraw button each ('' without consents). */
+	/**
+	 * Portal consent of the buyer for a ticket the buyer holds (no other attendee e-mail): only the
+	 * holder may consent, so tickets assigned or transferred to someone else are refused.
+	 *
+	 * @return int|\WP_Error Consent id.
+	 */
+	public static function grant_for_order( $order, $ticket_id, $field_id ) {
+		global $wpdb;
+		$ticket = $order ? $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,attendee_email FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d AND order_id=%d", absint( $ticket_id ), (int) $order->order_id ) ) : null;
+		if ( ! $ticket || 0 !== strcasecmp( self::holder( (int) $ticket->ticket_id ), (string) $order->customer_email ) ) {
+			return new \WP_Error( 'wpcap_consent_not_holder', __( 'Nur die Person, der das Ticket gehört, kann hier einwilligen.', 'pass-captain' ), array( 'status' => 403 ) );
+		}
+		$ids = self::grant_for_holder( (int) $ticket->ticket_id, array( absint( $field_id ) ), 'portal' );
+		return $ids ? (int) $ids[0] : new \WP_Error( 'wpcap_consent_missing', __( 'Einwilligung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
+	}
+
+	/** Open consents of tickets the buyer holds: [ticket_id => [field_id => field]]. */
+	private static function open_for_buyer( $order ) {
+		global $wpdb;
+		$out = array();
+		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND status IN ('valid','checked_in') AND (attendee_email='' OR LOWER(attendee_email)=LOWER(%s)) ORDER BY ticket_id LIMIT 100", (int) $order->order_id, (string) $order->customer_email ) ) as $ticket_id ) {
+			$missing = self::missing_for_ticket( (int) $ticket_id );
+			if ( $missing ) { $out[ (int) $ticket_id ] = $missing; }
+		}
+		return $out;
+	}
+
+	/** Portal section listing the consents of the order with a withdraw button each and open consents of buyer-held tickets ('' without any). */
 	public static function portal_section( $order ) {
 		$consents = self::for_order( (int) $order->order_id );
-		if ( ! $consents ) { return ''; }
+		$open = self::open_for_buyer( $order );
+		if ( ! $consents && ! $open ) { return ''; }
+
 		$state = sanitize_key( (string) ( $_GET['wpcap_consent'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
 		$html = '<section class="card" aria-labelledby="wpcap-consents-title"><h2 id="wpcap-consents-title">' . esc_html__( 'Einwilligungen', 'pass-captain' ) . '</h2>';
 		if ( 'withdrawn' === $state ) { $html .= '<p role="status">' . esc_html__( 'Die Einwilligung wurde widerrufen.', 'pass-captain' ) . '</p>'; }
 		if ( 'error' === $state ) { $html .= '<p role="alert">' . esc_html__( 'Die Einwilligung konnte nicht widerrufen werden.', 'pass-captain' ) . '</p>'; }
+		if ( 'granted' === $state ) { $html .= '<p role="status">' . esc_html__( 'Danke, deine Einwilligung wurde gespeichert.', 'pass-captain' ) . '</p>'; }
+		foreach ( $open as $ticket_id => $fields ) {
+			foreach ( $fields as $field ) {
+				/* translators: %s: consent text version */
+				$version = sprintf( __( 'Version %s', 'pass-captain' ), $field->consent_version );
+				$html .= '<div class="card"><p><strong>' . esc_html( $field->label ) . '</strong> <small class="muted">' . esc_html( $version ) . '</small></p><p>' . nl2br( esc_html( (string) $field->consent_text ) ) . '</p>';
+				$html .= '<form method="post"><input type="hidden" name="wpcap_consent_grant" value="' . (int) $ticket_id . '"><input type="hidden" name="wpcap_consent_field" value="' . (int) $field->field_id . '"><button type="submit">' . esc_html__( 'Einwilligung erteilen', 'pass-captain' ) . '</button></form></div>';
+			}
+		}
 		$html .= '<p class="muted"><small>' . esc_html__( 'Du kannst erteilte Einwilligungen jederzeit mit Wirkung für die Zukunft widerrufen.', 'pass-captain' ) . '</small></p>';
+
 		foreach ( $consents as $consent ) {
 			$html .= '<div class="card"><p><strong>' . esc_html( $consent->consent_label ) . '</strong>';
 			/* translators: %s: consent text version */

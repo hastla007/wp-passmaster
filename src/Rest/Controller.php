@@ -635,22 +635,43 @@ final class Controller {
 		return rest_ensure_response( array( 'event_id' => $event_id, 'locale' => $locale, 'status' => 'saved' ) );
 	}
 
+	/**
+	 * Tax profile versions (Sales\TaxProfiles, same rules as the admin page Sales\TaxProfilesPage):
+	 * creates a draft – or updates the draft tax_profile_id – with country_code, tax_class,
+	 * rate_basis_points (or rate in percent), version, effective_from/effective_until, label and
+	 * place_of_supply_note; activate=true activates it afterwards (no overlap with an active version
+	 * of the same country/class). Active and archived versions are frozen.
+	 */
 	public static function save_tax_profile( \WP_REST_Request $request ) {
-		global $wpdb;
-		$data = (array) $request->get_json_params();
-		$country = strtoupper( sanitize_text_field( $data['country_code'] ?? '' ) );
-		$class = sanitize_key( $data['tax_class'] ?? 'standard' );
-		$rate = absint( $data['rate_basis_points'] ?? 0 );
-		$from = sanitize_text_field( $data['effective_from'] ?? '' );
-		$until = sanitize_text_field( $data['effective_until'] ?? '' );
-		$version = sanitize_text_field( $data['version'] ?? '' );
-		$from_parts = array_map( 'intval', explode( '-', $from ) );
-		$until_parts = $until ? array_map( 'intval', explode( '-', $until ) ) : array();
-		$valid_from = 3 === count( $from_parts ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) && checkdate( $from_parts[1], $from_parts[2], $from_parts[0] );
-		$valid_until = ! $until || ( 3 === count( $until_parts ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $until ) && checkdate( $until_parts[1], $until_parts[2], $until_parts[0] ) && $until >= $from );
-		if ( ! preg_match( '/^[A-Z]{2}$/', $country ) || ! $valid_from || ! $valid_until || ! preg_match( '/^[A-Za-z0-9._-]{1,32}$/', $version ) || $rate > 10000 ) { return new \WP_Error( 'wpcap_tax_profile_invalid', __( 'Steuerprofil ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$inserted = $wpdb->insert( $wpdb->prefix . 'wpcap_tax_profiles', array( 'country_code' => $country, 'tax_class' => $class, 'rate_basis_points' => $rate, 'version' => $version, 'effective_from' => $from, 'effective_until' => $until ?: null, 'status' => 'draft', 'created_at' => current_time( 'mysql', true ) ), array( '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s' ) );
-		return false !== $inserted ? new \WP_REST_Response( array( 'tax_profile_id' => (int) $wpdb->insert_id, 'status' => 'draft', 'requires_review' => true ), 201 ) : new \WP_Error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
+		$data = $request->get_json_params();
+		$data = is_array( $data ) ? $data : (array) $request->get_params();
+		$id = absint( $data['tax_profile_id'] ?? 0 );
+		$fields = array_intersect_key( $data, array_flip( array( 'country_code', 'tax_class', 'rate_basis_points', 'rate', 'version', 'effective_from', 'effective_until', 'label', 'place_of_supply_note' ) ) );
+		$saved = \PassCaptain\Sales\TaxProfilesPage::admin_action( array( 'do' => 'save', 'id' => $id ) + $fields );
+		if ( is_wp_error( $saved ) ) { return $saved; }
+		$id = (int) $saved['tax_profile_id'];
+		if ( ! empty( $data['activate'] ) && ! in_array( $data['activate'], array( '0', 'false' ), true ) ) {
+			$activated = \PassCaptain\Sales\TaxProfilesPage::admin_action( array( 'do' => 'activate', 'id' => $id ) );
+			if ( is_wp_error( $activated ) ) {
+				// The draft is saved; only the activation was refused (e.g. overlapping active version).
+				$error_data = (array) $activated->get_error_data();
+				return new \WP_Error( $activated->get_error_code(), $activated->get_error_message(), array( 'status' => (int) ( $error_data['status'] ?? 409 ), 'tax_profile_id' => $id ) );
+			}
+		}
+		$profile = \PassCaptain\Sales\TaxProfiles::get( $id );
+		return new \WP_REST_Response( array(
+			'tax_profile_id' => $id,
+			'status' => (string) $profile->status,
+			'requires_review' => 'draft' === $profile->status,
+			'country_code' => (string) $profile->country_code,
+			'tax_class' => (string) $profile->tax_class,
+			'rate_basis_points' => (int) $profile->rate_basis_points,
+			'version' => (string) $profile->version,
+			'effective_from' => (string) $profile->effective_from,
+			'effective_until' => $profile->effective_until ? (string) $profile->effective_until : null,
+			'label' => (string) $profile->label,
+			'place_of_supply_note' => (string) $profile->place_of_supply_note,
+		), absint( $data['tax_profile_id'] ?? 0 ) ? 200 : 201 );
 	}
 
 	public static function create_seat_map( \WP_REST_Request $request ) {

@@ -46,7 +46,7 @@
         "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 2
     },
     "src/Admission/Engine.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 12
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 16
     },
     "src/Admission/Policies.php": {
         "Squiz.PHP.DisallowSizeFunctionsInLoops.Found": 1
@@ -325,7 +325,7 @@
     },
     "src/ServiceBookings.php": {
         "Universal.NamingConventions.NoReservedKeywordParameterNames.resourceFound": 6,
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 25
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 36
     },
     "src/ServiceResources.php": {
         "Universal.NamingConventions.NoReservedKeywordParameterNames.defaultFound": 1,

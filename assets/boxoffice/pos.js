@@ -85,9 +85,15 @@
 					var name = base + '[answers][' + field.key + ']';
 					var input;
 					if (field.type === 'textarea') { input = el('textarea', { id: id, name: name, rows: '2', cols: '40' }); }
-					else if (field.type === 'checkbox') { input = el('input', { id: id, name: name, type: 'checkbox', value: '1' }); }
+					else if (field.type === 'checkbox' || field.type === 'consent') { input = el('input', { id: id, name: name, type: 'checkbox', value: '1' }); }
 					else { input = el('input', { id: id, name: name, type: field.type === 'email' ? 'email' : 'text', size: '30' }); }
 					if (field.required) { input.required = true; }
+					if (field.type === 'consent' && field.consent_text) {
+						// Consent: the attendee agrees to this exact text (logged with its version, like the online checkout).
+						var textId = id + '-text';
+						input.setAttribute('aria-describedby', textId);
+						fs.appendChild(el('p', { id: textId, 'class': 'wpcap-pos-consent-text' }, field.consent_text + (field.consent_version ? ' (' + (cfg.consentVersion || 'Version') + ' ' + field.consent_version + ')' : '')));
+					}
 					labelled(fs, id, field.label + (field.required ? ' *' : ''), input);
 					if (field.purpose) { fs.appendChild(el('p', { 'class': 'description' }, field.purpose)); }
 				});

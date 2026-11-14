@@ -85,6 +85,7 @@ final class Page {
 				$any_seated = $any_seated || $t['seated'];
 				$required = array_values( array_filter( $t['fields'], static function ( $f ) { return $f['required']; } ) );
 				$hints = array();
+				if ( '' !== $t['price_rule'] ) { $hints[] = $t['price_rule']; }
 				if ( $t['seated'] ) { $hints[] = __( 'Saalplan: Sitzplätze werden automatisch zugewiesen (beste freie Plätze).', 'pass-captain' ); }
 				/* translators: %s: list of field labels */
 				if ( $required ) { $hints[] = sprintf( __( 'Pflichtangaben je Ticket: %s', 'pass-captain' ), implode( ', ', array_map( static function ( $f ) { return $f['label']; }, $required ) ) ); }
@@ -116,6 +117,7 @@ final class Page {
 				'name' => __( 'Name', 'pass-captain' ),
 				'email' => __( 'E-Mail (optional)', 'pass-captain' ),
 				'heading' => __( 'Teilnehmerangaben', 'pass-captain' ),
+				'consentVersion' => __( 'Version', 'pass-captain' ),
 			) ) . ';', 'before' );
 		}
 		self::render_session( $session );

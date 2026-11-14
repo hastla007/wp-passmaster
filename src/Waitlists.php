@@ -29,9 +29,9 @@ final class Waitlists {
 		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
 	}
 
-	/** Acceptance window of an offer in hours (filter wpcap_waitlist_offer_hours, default 24). */
+	/** Acceptance window of an offer in hours: setting waitlist_offer_hours (default 24), then filter wpcap_waitlist_offer_hours. */
 	public static function offer_hours() {
-		return min( 720, max( 1, (int) apply_filters( 'wpcap_waitlist_offer_hours', 24 ) ) );
+		return min( 720, max( 1, (int) apply_filters( 'wpcap_waitlist_offer_hours', (int) Security\Policy::get( 'waitlist_offer_hours' ) ) ) );
 	}
 
 	/**

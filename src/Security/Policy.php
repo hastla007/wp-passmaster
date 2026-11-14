@@ -1,8 +1,8 @@
 <?php
 /**
  * Settings of the access-protection features (W9): audit of read access, data minimisation, staff
- * sessions, MFA for sensitive actions, support access, check-out/re-entry, refunds after check-in and
- * the buyer language selection.
+ * sessions, MFA for sensitive actions, support access, check-out/re-entry, refunds after check-in,
+ * the buyer language selection and the event waitlist offer window.
  *
  * The keys are registered through the public settings filters (wp_pass_captain_settings_defaults_v1,
  * wp_pass_captain_settings_sections_v1), so they appear on the settings page next to the core fields.
@@ -38,6 +38,7 @@ final class Policy {
 		'max_reentries'              => 0,
 		'refund_after_checkin'       => 'allow',
 		'buyer_language_selector'    => 1,
+		'waitlist_offer_hours'       => 24,
 	);
 
 	private static $registered = false;
@@ -111,6 +112,7 @@ final class Policy {
 			'title' => __( 'Allgemein / Reservierung', 'pass-captain' ),
 			'fields' => array(
 				'buyer_language_selector' => array( 'type' => 'bool', 'label' => __( 'Sprachauswahl im Checkout und im Bestellportal anzeigen', 'pass-captain' ) ),
+				'waitlist_offer_hours' => array( 'type' => 'int', 'label' => __( 'Event-Warteliste: Annahmefrist eines Angebots (Stunden)', 'pass-captain' ), 'description' => __( 'So lange ist ein freigewordenes Ticket für die Person auf der Warteliste reserviert, bevor es der nächsten angeboten wird (1–720 Stunden).', 'pass-captain' ), 'min' => 1, 'max' => 720 ),
 			),
 		);
 		return $sections;

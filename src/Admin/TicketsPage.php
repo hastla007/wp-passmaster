@@ -103,7 +103,8 @@ final class TicketsPage {
 		}
 		$last = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_day_id FROM {$p}wpcap_checkins WHERE ticket_id=%d AND result='checked_in' ORDER BY checkin_id DESC LIMIT 1", (int) $ticket->ticket_id ) );
 		if ( '' !== (string) $wpdb->last_error ) { return $busy(); }
-		if ( 1 !== (int) $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'valid' ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'checked_in' ), array( '%s' ), array( '%d', '%s' ) ) ) { return $busy(); }
+		// Pending lazy undos are applied first, so the state below is current.
+		if ( false === \PassCaptain\Admission\Engine::state_for_update( (int) $ticket->ticket_id ) ) { return $busy(); }
 		$logged = $wpdb->insert( "{$p}wpcap_checkins", array(
 			'ticket_id' => (int) $ticket->ticket_id,
 			'event_id' => (int) $ticket->event_id,
@@ -112,9 +113,16 @@ final class TicketsPage {
 			'result' => 'undone',
 			'created_at' => $now,
 		), array( '%d', '%d', '%d', '%d', '%s', '%s' ) );
-		if ( false === $logged || false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
-		Audit::record( 'checkin_undone', 'ticket', (int) $ticket->ticket_id, array( 'event_id' => (int) $ticket->event_id, 'reason' => Forms::text( $in, 'reason', 255 ) ) );
-		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id );
+		$undo_id = false === $logged ? 0 : (int) $wpdb->insert_id;
+		if ( ! $undo_id ) { return $busy(); }
+		// Only the last entry is taken back; the ticket is valid again only when no entry remains
+		// (after a re-entry the first admission still counts and the ticket stays checked in).
+		$remaining = \PassCaptain\Admission\Engine::revert_last_entry( (int) $ticket->ticket_id, $undo_id );
+		if ( false === $remaining ) { return $busy(); }
+		if ( 0 === $remaining && 1 !== (int) $wpdb->update( "{$p}wpcap_tickets", array( 'status' => 'valid' ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => 'checked_in' ), array( '%s' ), array( '%d', '%s' ) ) ) { return $busy(); }
+		if ( false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
+		Audit::record( 'checkin_undone', 'ticket', (int) $ticket->ticket_id, array( 'event_id' => (int) $ticket->event_id, 'reason' => Forms::text( $in, 'reason', 255 ), 'remaining_entries' => $remaining ) );
+		return array( 'ticket_id' => (int) $ticket->ticket_id, 'public_id' => $ticket->public_id, 'status' => $remaining ? 'checked_in' : 'valid', 'remaining_entries' => $remaining );
 	}
 
 	/* =============================================================================================
@@ -145,18 +153,36 @@ final class TicketsPage {
 	public static function handle_undo_checkin() {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_undo_checkin_' . Forms::int( $in, 'ticket_id' ) );
-		Forms::finish( self::undo_checkin( $in ), __( 'Check-in zurückgenommen; das Ticket ist wieder gültig.', 'pass-captain' ), self::back_url( $in ) );
+		$result = self::undo_checkin( $in );
+		$message = ! is_wp_error( $result ) && ! empty( $result['remaining_entries'] )
+			? __( 'Letzter Einlass zurückgenommen; der frühere Einlass bleibt gezählt, das Ticket bleibt eingecheckt.', 'pass-captain' )
+			: __( 'Check-in zurückgenommen; das Ticket ist wieder gültig.', 'pass-captain' );
+		Forms::finish( $result, $message, self::back_url( $in ) );
 	}
 
 	/* =============================================================================================
 	 * Rendering
 	 * =========================================================================================== */
 
+	/**
+	 * Ticket search in the current user's scope: events with an event-level assignment plus – for
+	 * date-level staff (wpcap_occurrence_staff) – the tickets of their assigned dates only.
+	 *
+	 * @return array{rows: object[], total: int}
+	 */
+	public static function search( array $filters, $page = 1, $per_page = 30 ) {
+		$scope = Queries::event_ids_for( self::VIEW_CAPS );
+		$dates = null === $scope ? array() : Queries::occurrence_ids_for( self::VIEW_CAPS );
+		return Queries::search_tickets( $filters, $scope, $page, $per_page, $dates );
+	}
+
 	public static function render() {
 		$scope = Queries::event_ids_for( self::VIEW_CAPS );
 		if ( array() === $scope && ! array_filter( self::VIEW_CAPS, 'current_user_can' ) ) {
 			wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 );
 		}
+		// Events offered in the filter: event-level scope plus events of assigned dates.
+		$option_scope = null === $scope ? null : array_values( array_unique( array_merge( $scope, Access::occurrence_event_ids( 'wpcap_checkin' ), Access::occurrence_event_ids( 'wpcap_manage_orders' ) ) ) );
 		$filters = array(
 			'search' => Forms::query_arg( 's' ),
 			'event_id' => absint( Forms::query_arg( 'event_id', 0 ) ),
@@ -165,7 +191,7 @@ final class TicketsPage {
 		$has_filter = '' !== $filters['search'] || $filters['event_id'] || '' !== $filters['status'];
 		$page = Forms::current_page();
 		$per_page = 30;
-		$data = $has_filter ? Queries::search_tickets( $filters, $scope, $page, $per_page ) : array( 'rows' => array(), 'total' => 0 );
+		$data = $has_filter ? self::search( $filters, $page, $per_page ) : array( 'rows' => array(), 'total' => 0 );
 		if ( $has_filter ) {
 			// Data minimisation per role and read audit (no search terms in the log).
 			$data['rows'] = array_map( array( \PassCaptain\Security\DataPolicy::class, 'ticket_view' ), $data['rows'] );
@@ -180,7 +206,7 @@ final class TicketsPage {
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
 			<input type="search" name="s" class="regular-text" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, E-Mail oder Name', 'pass-captain' ); ?>">
-			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'], '', Forms::aria_label( __( 'Event', 'pass-captain' ) ) ); ?>
+			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $option_scope ), $filters['event_id'], '', Forms::aria_label( __( 'Event', 'pass-captain' ) ) ); ?>
 			<?php Forms::select( 'status', $status_options, $filters['status'], '', Forms::aria_label( __( 'Status', 'pass-captain' ) ) ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Suchen', 'pass-captain' ); ?></button>
 		</form>
@@ -201,7 +227,7 @@ final class TicketsPage {
 				<?php foreach ( $data['rows'] as $ticket ) :
 					$email = '' !== (string) ( $ticket->assigned_email ?? '' ) ? $ticket->assigned_email : ( $ticket->attendee_email ?? '' );
 					$can_orders = Access::can_access_event( $ticket->event_id, 'wpcap_manage_orders' );
-					$can_checkin = Access::can_access_event( $ticket->event_id, 'wpcap_checkin' );
+					$can_checkin = Access::can_access_occurrence( (int) $ticket->occurrence_id, 'wpcap_checkin', (int) $ticket->event_id );
 					?>
 					<tr>
 						<td><code><?php echo esc_html( $ticket->public_id ); ?></code><br><small><?php echo esc_html( $ticket->ticket_name ); ?></small></td>

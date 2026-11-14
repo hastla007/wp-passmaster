@@ -127,12 +127,12 @@ final class Page {
 		}
 
 		echo '<h2>' . esc_html__( 'Kampagnen', 'pass-captain' ) . '</h2>';
-		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Kampagne', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Bestellungen', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Tickets', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Rabatt', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Umsatz nach Rabatt', 'pass-captain' ) . '</th>' . ( $cmp ? '<th scope="col">' . esc_html__( 'Umsatz Vergleich', 'pass-captain' ) . '</th>' : '' ) . '</tr></thead><tbody>';
+		echo '<table class="widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Kampagne', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Bestellungen', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Tickets', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Rabatt', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Umsatz nach Rabatt', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Erstattet', 'pass-captain' ) . '</th><th scope="col">' . esc_html__( 'Umsatz nach Erstattung', 'pass-captain' ) . '</th>' . ( $cmp ? '<th scope="col">' . esc_html__( 'Umsatz Vergleich', 'pass-captain' ) . '</th>' : '' ) . '</tr></thead><tbody>';
 		foreach ( $report['campaigns'] as $key => $c ) {
-			echo '<tr><td>' . esc_html( $c['label'] ) . '</td><td>' . (int) $c['orders'] . '</td><td>' . (int) $c['tickets'] . '</td><td>' . esc_html( $money( $c['discount'] ) ) . '</td><td>' . esc_html( $money( $c['revenue'] ) ) . '</td>' . ( $cmp ? '<td>' . esc_html( $money( $cmp['campaigns'][ $key ]['revenue'] ?? 0 ) ) . '</td>' : '' ) . '</tr>';
+			echo '<tr><td>' . esc_html( $c['label'] ) . '</td><td>' . (int) $c['orders'] . '</td><td>' . (int) $c['tickets'] . '</td><td>' . esc_html( $money( $c['discount'] ) ) . '</td><td>' . esc_html( $money( $c['revenue'] ) ) . '</td><td>' . esc_html( $money( (int) ( $c['refunded'] ?? 0 ) ) ) . '</td><td>' . esc_html( $money( (int) ( $c['net_revenue'] ?? $c['revenue'] ) ) ) . '</td>' . ( $cmp ? '<td>' . esc_html( $money( $cmp['campaigns'][ $key ]['revenue'] ?? 0 ) ) . '</td>' : '' ) . '</tr>';
 		}
-		if ( ! $report['campaigns'] ) { echo '<tr><td colspan="' . ( $cmp ? 6 : 5 ) . '">' . esc_html__( 'Keine Daten im Zeitraum.', 'pass-captain' ) . '</td></tr>'; }
-		echo '</tbody></table><p class="description">' . esc_html__( 'Bestellungen mit mehreren Codes zählen bei jedem Code. Umsatz vor Erstattungen.', 'pass-captain' ) . '</p>';
+		if ( ! $report['campaigns'] ) { echo '<tr><td colspan="' . ( $cmp ? 8 : 7 ) . '">' . esc_html__( 'Keine Daten im Zeitraum.', 'pass-captain' ) . '</td></tr>'; }
+		echo '</tbody></table><p class="description">' . esc_html__( 'Bestellungen mit mehreren Codes werden im Verhältnis der Rabatte auf die Codes aufgeteilt (nichts doppelt gezählt). Erstattungen des Zeitraums werden der Kampagne ihrer Bestellung zugeordnet.', 'pass-captain' ) . '</p>';
 
 		$share = array();
 		foreach ( $report['channels'] as $c ) { $share[ $c['label'] ] = $c['revenue']; }
