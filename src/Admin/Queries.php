@@ -40,6 +40,21 @@ final class Queries {
 		return array_map( 'absint', $ids );
 	}
 
+	/**
+	 * Occurrence (date) ids the current user is assigned to with any of the capabilities
+	 * (wpcap_occurrence_staff; date-level staff without event access).
+	 *
+	 * @param string|string[] $caps Capabilities.
+	 * @return int[]
+	 */
+	public static function occurrence_ids_for( $caps ) {
+		$caps = array_values( array_filter( (array) $caps, static function ( $cap ) { return current_user_can( $cap ); } ) );
+		if ( ! $caps || ! get_current_user_id() ) { return array(); }
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $caps ), '%s' ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT occurrence_id FROM {$wpdb->prefix}wpcap_occurrence_staff WHERE user_id=%d AND capability IN ($placeholders)", array_merge( array( get_current_user_id() ), $caps ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders only.
+	}
+
 	/** SQL fragment restricting $column to the given scope (null = no restriction). */
 	public static function scope_sql( $event_ids, $column ) {
 		if ( null === $event_ids ) { return ''; }
@@ -287,14 +302,20 @@ final class Queries {
 	 * Ticket search.
 	 *
 	 * @param array      $filters   search (ticket/order public id prefix, buyer or attendee e-mail/name part), event_id, status.
-	 * @param int[]|null $event_ids Scope.
+	 * @param int[]|null $event_ids      Scope.
+	 * @param int[]      $occurrence_ids Additional single dates in scope (date-level staff); ignored when $event_ids is null.
 	 * @return array{rows: object[], total: int}
 	 */
-	public static function search_tickets( array $filters, $event_ids, $page = 1, $per_page = 30 ) {
+	public static function search_tickets( array $filters, $event_ids, $page = 1, $per_page = 30, array $occurrence_ids = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$from = "FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id";
-		$where = '1=1' . self::scope_sql( $event_ids, 'o.event_id' );
+		if ( null !== $event_ids && $occurrence_ids ) {
+			// Events in scope or one of the assigned dates.
+			$where = '1=1 AND (' . ( $event_ids ? 'o.event_id IN (' . implode( ',', array_map( 'absint', $event_ids ) ) . ') OR ' : '' ) . 'o.occurrence_id IN (' . implode( ',', array_map( 'absint', $occurrence_ids ) ) . '))';
+		} else {
+			$where = '1=1' . self::scope_sql( $event_ids, 'o.event_id' );
+		}
 		$args = array();
 		if ( isset( $filters['search'] ) && '' !== trim( (string) $filters['search'] ) ) {
 			$search = trim( (string) $filters['search'] );
@@ -308,7 +329,7 @@ final class Queries {
 		$count_sql = "SELECT COUNT(*) $from WHERE $where";
 		$total = (int) $wpdb->get_var( $args ? $wpdb->prepare( $count_sql, $args ) : $count_sql );
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.order_id,ord.public_id AS order_public_id,ord.customer_email,ta.attendee_name,ta.attendee_email AS assigned_email,tt.name AS ticket_name,o.event_id,o.starts_at,o.timezone,e.name AS event_name,(SELECT MAX(c.created_at) FROM {$p}wpcap_checkins c WHERE c.ticket_id=t.ticket_id AND c.result='checked_in') AS last_checkin_at $from WHERE $where ORDER BY t.ticket_id DESC LIMIT %d OFFSET %d",
+			"SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.order_id,ord.public_id AS order_public_id,ord.customer_email,ta.attendee_name,ta.attendee_email AS assigned_email,tt.name AS ticket_name,o.event_id,o.occurrence_id,o.starts_at,o.timezone,e.name AS event_name,(SELECT MAX(c.created_at) FROM {$p}wpcap_checkins c WHERE c.ticket_id=t.ticket_id AND c.result='checked_in') AS last_checkin_at $from WHERE $where ORDER BY t.ticket_id DESC LIMIT %d OFFSET %d",
 			array_merge( $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) )
 		) );
 		return array( 'rows' => $rows, 'total' => $total );

@@ -8,9 +8,11 @@
  * completion day (wpcap_refunds.updated_at). Credit notes mirror refunds and are listed for reference
  * only (not subtracted twice). Discounts are allocated to lines like Orders::create().
  *
- * Campaign breakdown: orders, tickets, allocated discount and revenue (gross after discounts, before
- * refunds) of the orders in the range per redeemed campaign code; orders without a code form their
- * own row. An order with two codes counts for both. Only lines of events in the user's scope count.
+ * Campaign breakdown: orders, tickets, allocated discount, revenue (gross after discounts) of the
+ * orders in the range and completed refunds of the range per redeemed campaign code (net revenue =
+ * revenue − refunds); orders without a code form their own row. An order with two codes is split
+ * between them proportionally to their discounts (deterministic, never counted twice), refunds
+ * follow their order's split. Only lines of events in the user's scope count.
  * Comparison period (filter compare): "previous" = the same number of days directly before,
  * "last_year" = the same dates one year earlier; same scope and event filter.
  */
@@ -164,11 +166,11 @@ final class Data {
 			}
 			if ( $share[0] ) { $order_scope[ $order_id ] = $share; }
 		}
-		$campaigns = self::campaign_breakdown( $order_scope );
 
 		// Completed refunds (netted on their completion day).
 		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $start, $end ) );
 		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
+		$refund_scope = array(); // order id => in-scope refunded amount (campaign attribution).
 		foreach ( $refunds as $refund ) {
 			$lines = $refund_lines[ (int) $refund->order_id ] ?? array();
 			if ( ! $lines ) { continue; }
@@ -200,9 +202,11 @@ final class Data {
 				$tax_left -= $tax;
 				$line = $lines[ $i ];
 				if ( ! self::in_scope( $line->event_id, $scope ) ) { continue; }
+				$refund_scope[ (int) $refund->order_id ] = ( $refund_scope[ (int) $refund->order_id ] ?? 0 ) + $amount;
 				$add( $keys_for( $line, $refund->payment_provider, $day ), array( 'refunded_tickets' => $weights[ $i ][0], 'refunded' => $amount, 'refunded_tax' => $tax, 'revenue' => -$amount, 'revenue_tax' => -$tax ) );
 			}
 		}
+		$campaigns = self::campaign_breakdown( $order_scope, $refund_scope );
 		foreach ( $dims as $d => $buckets ) {
 			if ( 'day' === $d ) { ksort( $buckets ); } else { uasort( $buckets, static function ( $a, $b ) { return strcmp( $a['label'], $b['label'] ); } ); }
 			$dims[ $d ] = $buckets;
@@ -270,40 +274,83 @@ final class Data {
 	/**
 	 * Campaign rows from the in-scope order shares: key = campaign id (0 = without code).
 	 *
-	 * @param array $order_scope order id => [tickets, gross after discount, in-scope line total, order line total].
+	 * An order with several codes is split between them proportionally to each code's discount
+	 * (equal parts when no code gave a discount), exact to the minor unit with cumulative rounding in
+	 * the order the codes were redeemed – deterministic, and the rows add up to the report totals
+	 * (nothing is counted twice). Completed refunds of the range are attributed to the campaigns of
+	 * their order in the same proportions (orders created before the range included).
+	 *
+	 * @param array $order_scope  order id => [tickets, gross after discount, in-scope line total, order line total].
+	 * @param array $refund_scope order id => in-scope refunded amount (completed refunds of the range).
 	 */
-	private static function campaign_breakdown( array $order_scope ) {
+	private static function campaign_breakdown( array $order_scope, array $refund_scope = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$out = array();
-		$row = static function ( $label ) { return array( 'label' => $label, 'orders' => 0, 'tickets' => 0, 'discount' => 0, 'revenue' => 0 ); };
+		$row = static function ( $label ) { return array( 'label' => $label, 'orders' => 0, 'tickets' => 0, 'discount' => 0, 'revenue' => 0, 'refunded' => 0, 'net_revenue' => 0 ); };
 		$uses = array();
-		foreach ( array_chunk( array_map( 'absint', array_keys( $order_scope ) ), 500 ) as $chunk ) {
-			foreach ( $wpdb->get_results( "SELECT cu.order_id,cu.campaign_id,cu.code,cu.discount_minor,c.name FROM {$p}wpcap_campaign_uses cu LEFT JOIN {$p}wpcap_campaigns c ON c.campaign_id=cu.campaign_id WHERE cu.status IN ('reserved','committed') AND cu.order_id IN (" . implode( ',', $chunk ) . ') ORDER BY cu.campaign_use_id' ) as $use ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
+		$ids = array_values( array_unique( array_merge( array_map( 'absint', array_keys( $order_scope ) ), array_map( 'absint', array_keys( $refund_scope ) ) ) ) );
+		foreach ( array_chunk( $ids, 500 ) as $chunk ) {
+			foreach ( $wpdb->get_results( "SELECT cu.campaign_use_id,cu.order_id,cu.campaign_id,cu.code,cu.discount_minor,c.name FROM {$p}wpcap_campaign_uses cu LEFT JOIN {$p}wpcap_campaigns c ON c.campaign_id=cu.campaign_id WHERE cu.status IN ('reserved','committed') AND cu.order_id IN (" . implode( ',', $chunk ) . ') ORDER BY cu.campaign_use_id' ) as $use ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- absint ids.
 				$uses[ (int) $use->order_id ][] = $use;
 			}
 		}
-		foreach ( $order_scope as $order_id => $share ) {
-			list( $tickets, $gross, $in_scope_total, $order_total ) = $share;
+		foreach ( $ids as $order_id ) {
+			list( $tickets, $gross, $in_scope_total, $order_total ) = $order_scope[ $order_id ] ?? array( 0, 0, 0, 0 );
+			$counted = isset( $order_scope[ $order_id ] ) ? 1 : 0;
+			$refunded = (int) ( $refund_scope[ $order_id ] ?? 0 );
 			$order_uses = $uses[ $order_id ] ?? array();
 			if ( ! $order_uses ) {
 				$out[0] = $out[0] ?? $row( __( 'Ohne Kampagnencode', 'pass-captain' ) );
-				$out[0]['orders']++;
+				$out[0]['orders'] += $counted;
 				$out[0]['tickets'] += $tickets;
 				$out[0]['revenue'] += $gross;
+				$out[0]['refunded'] += $refunded;
 				continue;
 			}
-			foreach ( $order_uses as $use ) {
+			$weights = array();
+			foreach ( $order_uses as $n => $use ) { $weights[ $n ] = max( 0, (int) $use->discount_minor ); }
+			$split = static function ( $total ) use ( $weights ) { return self::split_by_weight( (int) $total, $weights ); };
+			$parts = array( 'orders' => $split( $counted ), 'tickets' => $split( $tickets ), 'revenue' => $split( $gross ), 'refunded' => $split( $refunded ) );
+			foreach ( $order_uses as $n => $use ) {
 				$key = (int) $use->campaign_id;
 				$out[ $key ] = $out[ $key ] ?? $row( $use->code . ( '' !== (string) $use->name && $use->name !== $use->code ? ' – ' . $use->name : '' ) );
-				$out[ $key ]['orders']++;
-				$out[ $key ]['tickets'] += $tickets;
+				foreach ( $parts as $field => $values ) { $out[ $key ][ $field ] += $values[ $n ]; }
 				// Discount share of the in-scope lines (the code may have covered other events' lines too).
 				$out[ $key ]['discount'] += $order_total > 0 ? intdiv( (int) $use->discount_minor * $in_scope_total, $order_total ) : 0;
-				$out[ $key ]['revenue'] += $gross;
 			}
 		}
+		foreach ( $out as $key => $values ) { $out[ $key ]['net_revenue'] = $values['revenue'] - $values['refunded']; }
 		uasort( $out, static function ( $a, $b ) { return $b['revenue'] <=> $a['revenue'] ?: strcmp( $a['label'], $b['label'] ); } );
+		return $out;
+	}
+
+	/**
+	 * Splits $total over weights proportionally, exact to the unit (largest remainder method: the
+	 * parts add up to $total; leftover units go to the largest remainders, ties to the earlier key –
+	 * deterministic). Equal weights when all are zero. Keys are kept.
+	 *
+	 * @param int[] $weights
+	 * @return int[]
+	 */
+	public static function split_by_weight( $total, array $weights ) {
+		if ( ! $weights ) { return array(); }
+		$total = (int) $total;
+		$sum = array_sum( $weights );
+		if ( $sum <= 0 ) {
+			$weights = array_fill_keys( array_keys( $weights ), 1 );
+			$sum = count( $weights );
+		}
+		$out = array();
+		$remainders = array();
+		$position = 0;
+		foreach ( $weights as $key => $weight ) {
+			$out[ $key ] = intdiv( $total * (int) $weight, $sum );
+			$remainders[] = array( ( $total * (int) $weight ) % $sum, $position++, $key );
+		}
+		$left = $total - array_sum( $out );
+		usort( $remainders, static function ( $a, $b ) { return $b[0] <=> $a[0] ?: $a[1] <=> $b[1]; } );
+		for ( $i = 0; $i < $left; $i++ ) { ++$out[ $remainders[ $i % count( $remainders ) ][2] ]; }
 		return $out;
 	}
 
@@ -440,9 +487,9 @@ final class Data {
 			$rows[] = array( $o['label'], $o['capacity'] ?: '∞', $o['sold'], null === $o['utilisation'] ? '' : number_format( $o['utilisation'], 1, '.', '' ), $o['issued'], $o['checked_in'], null === $o['checkin_rate'] ? '' : number_format( $o['checkin_rate'], 1, '.', '' ) );
 		}
 		$rows[] = array();
-		$rows[] = array( __( 'Kampagne', 'pass-captain' ), __( 'Bestellungen', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), __( 'Rabatt', 'pass-captain' ), __( 'Umsatz nach Rabatt', 'pass-captain' ) );
+		$rows[] = array( __( 'Kampagne', 'pass-captain' ), __( 'Bestellungen', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), __( 'Rabatt', 'pass-captain' ), __( 'Umsatz nach Rabatt', 'pass-captain' ), __( 'Erstattet', 'pass-captain' ), __( 'Umsatz nach Erstattung', 'pass-captain' ) );
 		foreach ( (array) ( $report['campaigns'] ?? array() ) as $c ) {
-			$rows[] = array( $c['label'], $c['orders'], $c['tickets'], $m( $c['discount'] ), $m( $c['revenue'] ) );
+			$rows[] = array( $c['label'], $c['orders'], $c['tickets'], $m( $c['discount'] ), $m( $c['revenue'] ), $m( (int) ( $c['refunded'] ?? 0 ) ), $m( (int) ( $c['net_revenue'] ?? $c['revenue'] ) ) );
 		}
 		if ( ! empty( $report['comparison'] ) ) {
 			$cmp = $report['comparison'];

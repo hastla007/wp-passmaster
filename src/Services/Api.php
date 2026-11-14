@@ -79,7 +79,7 @@ final class Api {
 
 	public static function order_rebook( \WP_REST_Request $request ) {
 		$booking = ServiceBookings::for_order_access( $request['public_id'], $request->get_param( 'access_token' ), absint( $request['booking_id'] ) );
-		return $booking ? self::respond( ServiceBookings::rebook( (int) $booking->booking_id, absint( $request->get_param( 'slot_id' ) ), array( 'actor' => 'customer', 'idempotency_key' => (string) $request->get_param( 'idempotency_key' ) ) ) ) : self::denied();
+		return $booking ? self::respond( ServiceBookings::rebook( (int) $booking->booking_id, absint( $request->get_param( 'slot_id' ) ), array( 'actor' => 'customer', 'idempotency_key' => (string) $request->get_param( 'idempotency_key' ), 'provider' => sanitize_key( (string) $request->get_param( 'provider' ) ) ) ) ) : self::denied();
 	}
 
 	public static function order_rebook_options( \WP_REST_Request $request ) {
@@ -90,7 +90,7 @@ final class Api {
 
 	/** Public slot data (no booking details). */
 	public static function slot_view( $slot ) {
-		return array( 'slot_id' => (int) $slot->slot_id, 'resource_name' => (string) $slot->resource_name, 'starts_at' => (string) $slot->starts_at, 'ends_at' => (string) $slot->ends_at, 'free' => (int) $slot->free, 'unit_minor' => (int) $slot->unit_minor );
+		return array( 'slot_id' => (int) $slot->slot_id, 'resource_name' => (string) $slot->resource_name, 'starts_at' => (string) $slot->starts_at, 'ends_at' => (string) $slot->ends_at, 'free' => (int) $slot->free, 'unit_minor' => (int) $slot->unit_minor, 'supplement_minor' => (int) ( $slot->supplement_minor ?? 0 ) );
 	}
 
 	/* -------- Buyer via booking manage token */

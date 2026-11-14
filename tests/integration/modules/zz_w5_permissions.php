@@ -153,7 +153,7 @@ $pm_admin = array(
 	'wpcap_admission_add_staff' => 'wpcap_manage_events', 'wpcap_admission_remove_staff' => 'wpcap_manage_events', 'wpcap_admission_save_settings' => 'manage_options',
 	'wpcap_admission_resolve_conflict' => 'wpcap_manage_events',
 	// System status (W2) and add-on export types (W7).
-	'wpcap_ops_queue_action' => 'manage_options', 'wpcap_ops_diagnose' => 'manage_options', 'wpcap_ops_repair' => 'manage_options',
+	'wpcap_ops_queue_action' => 'manage_options', 'wpcap_ops_queue_bulk_retry' => 'manage_options', 'wpcap_ops_diagnose' => 'manage_options', 'wpcap_ops_repair' => 'manage_options',
 	'wpcap_ops_refund_resolve' => 'manage_options', 'wpcap_ops_schema_retry' => 'manage_options', 'wpcap_reports_export' => 'wpcap_view_reports',
 	// Sales rules (W8): tax profiles, event sections (tax country, price rules, buyer limits).
 	'wpcap_tax_profile_action' => 'manage_options', 'wpcap_sales_event_action' => 'wpcap_manage_events',

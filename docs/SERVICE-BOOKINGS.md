@@ -56,7 +56,7 @@ nehmen die Standardwerte an (`ServiceResources::default_rules()`).
 | `max_per_customer` / `max_period` | 0 / `day` | Höchstens X Plätze je E-Mail-Adresse und Tag/Woche/Monat (Ortszeit der Ressource) oder für alle künftigen Termine (`total`); 0 = unbegrenzt (`wpcap_booking_limit`). |
 | `rebook_deadline_minutes` | 1440 | Kund:innen können bis X Minuten vor Beginn umbuchen (`wpcap_rebook_deadline`). |
 | `cancel_deadline_minutes` | 1440 | Kund:innen können bis X Minuten vor Beginn stornieren – mit Erstattung (`wpcap_booking_cancel_deadline`). |
-| `price_policy` | `same_price` | Umbuchung nur zum gleichen Preis; `refund_difference` erlaubt günstigere Ziele und erstattet die Differenz. |
+| `price_policy` | `same_price` | Umbuchung nur zum gleichen Preis; `refund_difference` erlaubt günstigere Ziele (Differenz wird erstattet) und teurere Ziele mit Zuzahlung (siehe „Umbuchung mit Zuzahlung“). |
 | `requires_confirmation` / `confirmation_hours` | 0 / 24 | Bezahlte Buchungen warten auf die Bestätigung des Anbieters. |
 | `noshow_policy` / `noshow_grace_minutes` / `noshow_fee_minor` | `none` / 30 / 0 | No-Show-Regel (siehe unten). |
 | `noshow_block_after` / `noshow_block_days` | 0 / 180 | Nach N No-Shows im Rückblickzeitraum keine neuen Buchungen (`wpcap_booking_blocked`). |
@@ -119,10 +119,44 @@ ohne Erstattung) oder System:
 - **Atomar**: Ressourcen- und Zeitfensterzeilen werden in fester Reihenfolge gesperrt, Kapazität und Kollision
   des Ziels geprüft, die Buchung in einer Transaktion verschoben. Bei Fehlern bleibt alles, wie es war.
 - **Preis**: gleicher Preis immer; `price_policy = refund_difference` erlaubt günstigere Ziele und erstattet die
-  Differenz als Betragserstattung (Schlüssel `service-rebook-{id}-{n}`); teurere Ziele werden abgelehnt
-  (`wpcap_rebook_price_higher`, Hinweis: stornieren und neu buchen).
+  Differenz als Betragserstattung (Schlüssel `service-rebook-{id}-{n}`); teurere Ziele laufen über eine
+  Zuzahlung (unten). Mit `same_price`, für Pass-/Gratisbuchungen ohne Bestellung und für eine bereits mit
+  Zuzahlung umgebuchte Buchung werden teurere Ziele abgelehnt (`wpcap_rebook_price_higher`).
 - Idempotent je `idempotency_key`; Mail `service_booking_rebooked`; Audit-Log; frei gewordener Platz → Warteliste.
-- Mögliche Ziele: `ServiceBookings::rebook_options()` (REST `GET …/rebook-options`).
+- Mögliche Ziele: `ServiceBookings::rebook_options()` (REST `GET …/rebook-options`; teurere Ziele mit
+  `supplement_minor` = Zuzahlung).
+
+### Umbuchung mit Zuzahlung (teureres Zeitfenster)
+
+Bei `price_policy = refund_difference` und bezahlter Buchung:
+
+1. `rebook()` legt über `Orders::create()` eine **Zuzahlungsbestellung** an: Ticketart der Zielressource, Menge
+   der Buchung, vertrauenswürdige Zeilensumme = Preisdifferenz, Zahlart aus `provider` (REST/Portal-Feld) oder die
+   erste aktivierte Zahlart der Währung, Quelle `service_supplement`. Die Zahlung wird gestartet
+   (`create_payment()`), die Antwort enthält `supplement` mit `order_id`, `public_id`, `amount_minor`,
+   `expires_at` und `payment` (`redirect_url` bzw. `instructions`). Das Portal leitet beim Absenden direkt zum
+   Zahlungsanbieter weiter; die Käufer:in erhält außerdem den Portal-Link der Zuzahlungsbestellung.
+2. Unter den Sperren (Ressourcen, Zeitfenster, Buchung) hält eine **Zuzahlungszeile** (`status = held`,
+   `supplement_for` = Buchung, `order_id` = Zuzahlungsbestellung, Ablauf = Reservierungsende der Bestellung) den
+   Platz im Ziel. Die bisherige Buchung behält ihren Platz. Ist das Ziel voll, wird die Bestellung storniert
+   (`wpcap_slot_full`). Je Buchung ist nur eine Zuzahlung offen (`wpcap_rebook_supplement_open`; dasselbe Ziel
+   erneut → dieselbe Zuzahlung, Zahlung wird neu gestartet). Andere Umbuchungen sind solange gesperrt.
+3. **Zahlung** (`wpcap_order_paid` der Zuzahlungsbestellung) → `complete_supplement()`: beide Ressourcen,
+   Zeitfenster und Buchungszeilen gesperrt, Buchung atomar ins Ziel verschoben. Sie gehört danach zur
+   Zuzahlungsbestellung (deren Tickets der Zielressource ersetzen die alten, die widerrufen werden);
+   `origin_order_id`/`origin_minor` merken die erste Zahlung, `amount_minor` = beide Beträge. Die
+   Zuzahlungszeile wird `merged`. Mail `service_booking_rebooked`, Audit `service_booking_rebooked` mit
+   `supplement_order_id`.
+4. **Ablauf ohne Zahlung**: Die Bestellung läuft ab (`wpcap_order_cancelled`), die Zuzahlungszeile wird
+   `expired`, nur der Zielplatz wird frei (Warteliste); die Buchung bleibt unverändert.
+5. **Verspätete Zahlung**: Ist der Zielplatz noch frei, wird umgebucht; sonst (oder wenn die Buchung inzwischen
+   storniert ist bzw. das Ziel nicht mehr offen) wird die Zuzahlungszeile `cancelled`
+   (`supplement_capacity_lost`, `supplement_original_inactive`, `supplement_slot_unavailable`) und die
+   Zuzahlung vollständig erstattet (Schlüssel `service-supplement-{id}`, Wiederholung über
+   `service_booking_refund`). Nie überbucht.
+6. **Stornierung** einer so umgebuchten Buchung erstattet die Tickets der Zuzahlungsbestellung und die erste
+   Zahlung als Betrag aus der ursprünglichen Bestellung (Schlüssel `service-booking-{id}-origin`). Wird die
+   Buchung storniert, solange die Zuzahlung offen ist, endet diese mit, und ihre Bestellung wird storniert.
 
 ### Check-in und No-Show
 
@@ -168,7 +202,9 @@ ohne Erstattung) oder System:
 - Das Angebot wird unter derselben Zeilensperre (Ticketart, Termin) erstellt wie Bestellungen; reservierte
   Tickets sind über die Filter `wpcap_ticket_availability` und `wpcap_reserve_capacity` für alle anderen
   gesperrt. Nur die Bestellung aus der Annahme dieses Angebots darf sie verwenden.
-- Mail mit Annahme-, Ablehnungs- und Austragelink; Annahmefrist 24 h (Filter `wpcap_waitlist_offer_hours`).
+- Mail mit Annahme-, Ablehnungs- und Austragelink; Annahmefrist aus der Einstellung „Event-Warteliste:
+  Annahmefrist eines Angebots (Stunden)“ (`waitlist_offer_hours`, Standard 24, 1–720; Filter
+  `wpcap_waitlist_offer_hours`).
 - Annahme legt die Bestellung an; in **derselben Transaktion** (Hook `wpcap_order_creating`) wird das Angebot auf
   „angenommen“ gesetzt und seine Reservierung aufgelöst – die Reservierung der Bestellung ersetzt sie, ohne dass
   ein Ticket kurzzeitig doppelt zählt. Parallele Annahmen verschiedener Angebote gelingen alle, parallele Annahmen

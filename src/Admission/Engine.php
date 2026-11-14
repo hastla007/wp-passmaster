@@ -202,6 +202,44 @@ final class Engine {
 	}
 
 	/**
+	 * Whether the last database statement failed (every query resets/sets the error).
+	 *
+	 * @phpstan-impure
+	 */
+	private static function db_failed() {
+		global $wpdb;
+		return '' !== (string) $wpdb->last_error;
+	}
+
+	/**
+	 * Takes back the latest entry of a ticket inside the caller's transaction (ticket row locked, the
+	 * "undone" check-in row $undo_id already written): the newest entry that is not undone is marked
+	 * undone and the state is derived from the remaining entries – entries = remaining entries,
+	 * inside = whether the newest remaining movement is an entry (an undone re-entry after a
+	 * check-out leaves the person outside, an earlier entry stays counted).
+	 *
+	 * @return int|false Remaining entries of the ticket (tickets without entry rows: from the check-in log); false on a database error.
+	 */
+	public static function revert_last_entry( $ticket_id, $undo_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ticket_id = (int) $ticket_id;
+		$entry = $wpdb->get_row( $wpdb->prepare( "SELECT entry_id FROM {$p}wpcap_admission_entries WHERE ticket_id=%d AND direction='in' AND undone=0 ORDER BY entry_id DESC LIMIT 1", $ticket_id ) );
+		if ( self::db_failed() ) { return false; }
+		if ( ! $entry ) {
+			// Legacy ticket without entry rows: successful check-ins minus undos in the log (incl. this one).
+			$net = $wpdb->get_var( $wpdb->prepare( "SELECT SUM(CASE WHEN result='checked_in' THEN 1 WHEN result='undone' THEN -1 ELSE 0 END) FROM {$p}wpcap_checkins WHERE ticket_id=%d", $ticket_id ) );
+			return self::db_failed() ? false : max( 0, (int) $net );
+		}
+		if ( 1 !== (int) $wpdb->update( "{$p}wpcap_admission_entries", array( 'undone' => 1 ), array( 'entry_id' => (int) $entry->entry_id ) ) ) { return false; }
+		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_admission_entries WHERE ticket_id=%d AND direction='in' AND undone=0", $ticket_id ) );
+		$last = (string) $wpdb->get_var( $wpdb->prepare( "SELECT direction FROM {$p}wpcap_admission_entries WHERE ticket_id=%d AND undone=0 ORDER BY entry_id DESC LIMIT 1", $ticket_id ) );
+		if ( self::db_failed() ) { return false; }
+		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_state SET inside=%d, entries=%d, last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d", 'in' === $last ? 1 : 0, $remaining, (int) $undo_id, current_time( 'mysql', true ), $ticket_id ) ) ) { return false; }
+		return $remaining;
+	}
+
+	/**
 	 * Takes back the latest entry of a ticket with a repeatable policy (ticket status stays valid).
 	 *
 	 * @return array|\WP_Error
@@ -227,8 +265,7 @@ final class Engine {
 		$wpdb->insert( "{$p}wpcap_checkins", array( 'ticket_id' => (int) $found['ticket_id'], 'event_id' => (int) $found['event_id'], 'occurrence_day_id' => 0, 'user_id' => get_current_user_id(), 'result' => 'undone', 'created_at' => $now ) );
 		$undo_id = '' === (string) $wpdb->last_error ? (int) $wpdb->insert_id : 0;
 		if ( ! $undo_id ) { return $busy(); }
-		if ( 1 !== (int) $wpdb->update( "{$p}wpcap_admission_entries", array( 'undone' => 1 ), array( 'entry_id' => (int) $entry->entry_id ) ) ) { return $busy(); }
-		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_admission_state SET inside=0, entries=GREATEST(CAST(entries AS SIGNED)-1,0), last_checkin_id=%d, updated_at=%s WHERE ticket_id=%d", $undo_id, $now, (int) $found['ticket_id'] ) ) ) { return $busy(); }
+		if ( false === self::revert_last_entry( (int) $found['ticket_id'], $undo_id ) ) { return $busy(); }
 		if ( false === $wpdb->query( 'COMMIT' ) ) { return $busy(); }
 		Audit::record( 'checkin_undone', 'ticket', (int) $found['ticket_id'], array( 'event_id' => (int) $found['event_id'], 'reason' => mb_substr( sanitize_text_field( (string) $reason ), 0, 255 ) ) );
 		return array( 'ticket_id' => (int) $found['ticket_id'], 'public_id' => $found['public_id'] );

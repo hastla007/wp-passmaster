@@ -2,8 +2,9 @@
 /**
  * "Systemstatus": queue backlogs and failures (jobs, e-mails, webhooks, SMS), WP-Cron health with
  * worker heartbeats, refunds that need a manual decision, schema upgrade state and the
- * diagnose/reconciliation checks. Every action needs manage_options and a nonce and is audited.
- * Also prints an admin notice on plugin pages and the dashboard while the backlog is critical.
+ * diagnose/reconciliation checks. Every action needs manage_options and a nonce and is audited
+ * (bulk "retry all" per queue is capped per click). Also prints an admin notice on plugin pages and
+ * the dashboard while the backlog is critical, and adds a dashboard widget with the critical issues.
  *
  * @package PassCaptain
  */
@@ -25,6 +26,7 @@ final class StatusPage {
 	public static function handlers() {
 		return array(
 			'wpcap_ops_queue_action'   => array( self::class, 'handle_queue_action' ),
+			'wpcap_ops_queue_bulk_retry' => array( self::class, 'handle_queue_bulk_retry' ),
 			'wpcap_ops_diagnose'       => array( self::class, 'handle_diagnose' ),
 			'wpcap_ops_repair'         => array( self::class, 'handle_repair' ),
 			'wpcap_ops_refund_resolve' => array( self::class, 'handle_refund_resolve' ),
@@ -35,6 +37,28 @@ final class StatusPage {
 	/** Hooks of the page that are not admin-post handlers (called from Menu::register()). */
 	public static function register() {
 		add_action( 'admin_notices', array( self::class, 'render_backlog_notice' ) );
+		add_action( 'wp_dashboard_setup', array( self::class, 'register_dashboard_widget' ) );
+	}
+
+	/** Dashboard widget with the critical issues (users with the status capability only). */
+	public static function register_dashboard_widget() {
+		if ( ! current_user_can( self::CAP ) || ! function_exists( 'wp_add_dashboard_widget' ) ) { return; }
+		wp_add_dashboard_widget( 'wpcap_status_widget', __( 'Pass Captain: Systemstatus', 'pass-captain' ), array( self::class, 'render_dashboard_widget' ) );
+	}
+
+	/** Widget body: critical issues (cached like the menu bubble) and a link to the status page. */
+	public static function render_dashboard_widget() {
+		if ( ! current_user_can( self::CAP ) ) { return; }
+		$issues = Status::critical_issues();
+		if ( ! $issues ) {
+			echo '<p>' . esc_html__( 'Keine kritischen Probleme im Hintergrundbetrieb.', 'pass-captain' ) . '</p>';
+		} else {
+			/* translators: %d: number of critical issues */
+			echo '<p><strong>' . esc_html( sprintf( _n( '%d kritisches Problem', '%d kritische Probleme', count( $issues ), 'pass-captain' ), count( $issues ) ) ) . '</strong></p><ul>';
+			foreach ( array_slice( $issues, 0, 5 ) as $issue ) { echo '<li>' . esc_html( $issue['message'] ) . '</li>'; }
+			echo '</ul>';
+		}
+		echo '<p><a href="' . esc_url( self::url() ) . '">' . esc_html__( 'Systemstatus öffnen', 'pass-captain' ) . '</a></p>';
 	}
 
 	/** Menu title with a bubble counting critical issues. */
@@ -56,6 +80,26 @@ final class StatusPage {
 		$op = Forms::choice( $in, 'op', array( 'retry', 'discard' ), '' );
 		if ( '' === $queue || '' === $op ) { return Forms::error( 'wpcap_ops_invalid', __( 'Ungültige Aktion.', 'pass-captain' ) ); }
 		return 'retry' === $op ? Status::retry( $queue, Forms::int( $in, 'id' ) ) : Status::discard( $queue, Forms::int( $in, 'id' ) );
+	}
+
+	/** Retry all failed items of one queue (at most Status::bulk_retry_cap() per click). */
+	public static function queue_bulk_retry( array $in ) {
+		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
+		$queue = Forms::choice( $in, 'queue', array_keys( Status::queues() ), '' );
+		if ( '' === $queue ) { return Forms::error( 'wpcap_ops_invalid', __( 'Ungültige Aktion.', 'pass-captain' ) ); }
+		return Status::retry_all( $queue );
+	}
+
+	public static function handle_queue_bulk_retry() {
+		$in = Forms::post();
+		Forms::verify( 'wpcap_ops_queue_bulk_' . sanitize_key( (string) ( $in['queue'] ?? '' ) ) );
+		$result = self::queue_bulk_retry( $in );
+		$message = is_wp_error( $result ) ? '' : ( $result['remaining']
+			/* translators: 1: requeued items, 2: items still failed */
+			? sprintf( __( '%1$d Einträge werden erneut versucht; %2$d weitere fehlgeschlagene Einträge bitte mit einem weiteren Klick erneut versuchen.', 'pass-captain' ), $result['retried'], $result['remaining'] )
+			/* translators: %d: requeued items */
+			: sprintf( __( '%d Einträge werden erneut versucht.', 'pass-captain' ), $result['retried'] ) );
+		Forms::finish( $result, $message, self::url() . '#wpcap-failed' );
 	}
 
 	public static function handle_queue_action() {
@@ -250,7 +294,11 @@ final class StatusPage {
 			$rows = Status::failed_items( $queue, 50 );
 			if ( ! $rows ) { continue; }
 			$any = true;
-			echo '<h3>' . esc_html( $q['label'] ) . '</h3><table class="widefat striped"><thead><tr><th>ID</th><th>' . esc_html__( 'Typ', 'pass-captain' ) . '</th><th>' . esc_html__( 'Versuche', 'pass-captain' ) . '</th><th>' . esc_html__( 'Letzter Fehler', 'pass-captain' ) . '</th><th>' . esc_html__( 'Zeit', 'pass-captain' ) . '</th><th>' . esc_html__( 'Aktionen', 'pass-captain' ) . '</th></tr></thead><tbody>';
+			echo '<h3>' . esc_html( $q['label'] ) . '</h3>';
+			$total = Status::failed_count( $queue );
+			/* translators: 1: number of failed items, 2: maximum per click */
+			self::action_button( 'wpcap_ops_queue_bulk_retry', 'wpcap_ops_queue_bulk_' . $queue, array( 'queue' => $queue ), sprintf( __( 'Alle %1$d erneut versuchen (höchstens %2$d pro Klick)', 'pass-captain' ), $total, Status::bulk_retry_cap() ), 'button', __( 'Alle fehlgeschlagenen Einträge dieser Warteschlange erneut versuchen?', 'pass-captain' ) );
+			echo '<table class="widefat striped"><thead><tr><th>ID</th><th>' . esc_html__( 'Typ', 'pass-captain' ) . '</th><th>' . esc_html__( 'Versuche', 'pass-captain' ) . '</th><th>' . esc_html__( 'Letzter Fehler', 'pass-captain' ) . '</th><th>' . esc_html__( 'Zeit', 'pass-captain' ) . '</th><th>' . esc_html__( 'Aktionen', 'pass-captain' ) . '</th></tr></thead><tbody>';
 			foreach ( $rows as $row ) {
 				$detail = isset( $row->recipient ) ? ' (' . self::mask_email( $row->recipient ) . ')' : ( isset( $row->response_code ) && $row->response_code ? ' (HTTP ' . (int) $row->response_code . ')' : '' );
 				echo '<tr><td>' . (int) $row->id . '</td><td><code>' . esc_html( $row->type ) . '</code>' . esc_html( $detail ) . '</td><td>' . (int) $row->attempts . '</td><td>' . esc_html( (string) $row->last_error ) . '</td><td>' . self::time( $row->updated ) . '</td><td>'; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped helper.

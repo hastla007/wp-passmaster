@@ -150,6 +150,47 @@ final class Status {
 		return true;
 	}
 
+	/** Default cap of a bulk retry per click (filter wpcap_ops_bulk_retry_cap, 1–500). */
+	const BULK_RETRY_CAP = 100;
+
+	/** Maximum number of items one bulk retry requeues. */
+	public static function bulk_retry_cap() {
+		return min( 500, max( 1, (int) apply_filters( 'wpcap_ops_bulk_retry_cap', self::BULK_RETRY_CAP ) ) );
+	}
+
+	/** Number of failed (dead-letter) items of a queue. */
+	public static function failed_count( $queue ) {
+		global $wpdb;
+		$q = self::queues()[ $queue ] ?? null;
+		if ( ! $q || ! self::table_exists( $q['table'] ) ) { return 0; }
+		$t = $wpdb->prefix . $q['table'];
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $t WHERE status=%s", $q['failed'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+	}
+
+	/**
+	 * Requeues the failed items of a queue, oldest first, at most bulk_retry_cap() per call (each
+	 * item like retry(), audited per item, plus one summary audit entry).
+	 *
+	 * @return array|\WP_Error {retried, skipped, remaining, cap}
+	 */
+	public static function retry_all( $queue ) {
+		global $wpdb;
+		$q = self::queues()[ $queue ] ?? null;
+		if ( ! $q || ! self::table_exists( $q['table'] ) ) { return new \WP_Error( 'wpcap_ops_invalid', __( 'Unbekannte Warteschlange.', 'pass-captain' ), array( 'status' => 400 ) ); }
+		$t = $wpdb->prefix . $q['table'];
+		$cap = self::bulk_retry_cap();
+		$ids = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT {$q['id']} FROM $t WHERE status=%s ORDER BY {$q['id']} ASC LIMIT %d", $q['failed'], $cap ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$retried = 0;
+		$skipped = 0;
+		foreach ( $ids as $id ) {
+			if ( true === self::retry( $queue, $id ) ) { ++$retried; } else { ++$skipped; }
+		}
+		$remaining = self::failed_count( $queue );
+		Audit::record( 'ops_queue_retry_bulk', $queue, 0, array( 'retried' => $retried, 'skipped' => $skipped, 'remaining' => $remaining, 'cap' => $cap ) );
+		self::flush_issues();
+		return array( 'retried' => $retried, 'skipped' => $skipped, 'remaining' => $remaining, 'cap' => $cap );
+	}
+
 	/**
 	 * Discards a failed queue item ("verwerfen"): it stays as history with a final status. Audited.
 	 *

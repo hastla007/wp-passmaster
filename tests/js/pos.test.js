@@ -15,7 +15,7 @@ function pos(opts) {
 				h('td', name), h('td.wpcap-pos-avail', '∞'), h('td', [h('input.wpcap-pos-qty', { type: 'number', min: '0', value: '0' })]),
 			]);
 			doc.body.appendChild(h('form#wpcap-pos-form', [
-				h('table', [h('tbody', [row('1', '2500', 'Standard'), row('2', '1250', 'Kind', [{ key: 'age', label: 'Alter', type: 'text', required: true }])])]),
+				h('table', [h('tbody', [row('1', '2500', 'Standard'), row('2', '1250', 'Kind', [{ key: 'age', label: 'Alter', type: 'text', required: true }])].concat(opts.consent ? [row('3', '900', 'Foto', [{ key: 'photo', label: 'Fotoeinwilligung', type: 'consent', required: true, consent_text: 'Ich willige in Fotos ein.', consent_version: '2' }])] : []))]),
 				h('label', [h('input', { type: 'radio', name: 'method', value: 'cash', 'data-default-checked': '' }), 'Bar']),
 				h('label', [h('input', { type: 'radio', name: 'method', value: 'card' }), 'Karte']),
 				h('label', [h('input', { type: 'radio', name: 'method', value: 'free' }), 'Frei']),
@@ -119,4 +119,18 @@ test('availability refresh updates the max quantity', async () => {
 	assert.equal(rows[0].querySelector('.wpcap-pos-avail').textContent, '3');
 	assert.equal(rows[0].querySelector('.wpcap-pos-qty').max, '3');
 	assert.equal(rows[1].querySelector('.wpcap-pos-avail').textContent, '∞');
+});
+
+test('consent fields render as a checkbox with the consent text and version', () => {
+	const env = pos({ consent: true });
+	qty(env, 2, 1);
+	const set = env.document.querySelector('.wpcap-pos-attendee');
+	const box = set.querySelector('[name="attendees[3][0][answers][photo]"]');
+	assert.ok(box, 'consent input rendered');
+	assert.equal(box.type, 'checkbox');
+	assert.equal(box.value, '1');
+	assert.ok(box.required);
+	assert.equal(set.querySelector('label[for="' + box.id + '"]').textContent, 'Fotoeinwilligung *');
+	const text = set.querySelector('#' + box.getAttribute('aria-describedby'));
+	assert.equal(text.textContent, 'Ich willige in Fotos ein. (Version 2)');
 });

@@ -324,14 +324,21 @@ $ran = Installer::maybe_upgrade( 'admin' );
 check( 'within the backoff neither admin nor cron requests run dbDelta again', false === $ran && false === Installer::maybe_upgrade( 'cron' ) && false === Installer::maybe_upgrade( 'frontend' ) && 1 === get_option( Installer::ERROR_OPTION )['attempts'] && null === $wpdb->get_var( "SHOW TABLES LIKE 'wpops\\_wpcap\\_events'" ) );
 check( 'retry_blocked_until reports the backoff end', Installer::retry_blocked_until() === $err['next_retry'] && 0 === Installer::retry_blocked_until( $err['next_retry'] + 1 ) );
 $delays = array();
+$expected = array( 2 => 300, 3 => 900, 4 => 3600, 5 => 3600 );
+$within = true;
 for ( $i = 2; $i <= 5; $i++ ) {
 	$GLOBALS['wpcap_test_options'][ Installer::ERROR_OPTION ]['next_retry'] = time() - 1; // Backoff elapsed.
-	$t = time();
+	// The upgrade attempt itself can take seconds on a busy server (MySQL): next_retry must lie between
+	// "start + delay" and "end + delay" instead of within a fixed tolerance.
+	$t0 = time();
 	Installer::maybe_upgrade( 'cron' );
+	$t1 = time();
 	$e = get_option( Installer::ERROR_OPTION );
-	$delays[ $e['attempts'] ] = $e['next_retry'] - $t;
+	$delays[ $e['attempts'] ] = $e['next_retry'] - $t0;
+	$d = $expected[ $e['attempts'] ] ?? -1;
+	$within = $within && $e['next_retry'] >= $t0 + $d && $e['next_retry'] <= $t1 + $d;
 }
-check( 'each further failure backs off longer (5, 15, 60, 60 minutes)', array_keys( $delays ) === array( 2, 3, 4, 5 ) && abs( $delays[2] - 300 ) <= 2 && abs( $delays[3] - 900 ) <= 2 && abs( $delays[4] - 3600 ) <= 2 && abs( $delays[5] - 3600 ) <= 2 );
+check( 'each further failure backs off longer (5, 15, 60, 60 minutes)', array_keys( $delays ) === array( 2, 3, 4, 5 ) && $within );
 check( 'diagnostics report the schema error with attempts and next retry', 1 <= $diag( 'schema' )['count'] && 5 === $diag( 'schema' )['samples'][0]['attempts'] && $diag( 'schema' )['repairable'] );
 $forced = StatusPage::schema_retry();
 check( '"jetzt erneut versuchen" ignores the backoff (fails again here and counts the attempt)', is_wp_error( $forced ) && 'wpcap_diag_schema_failed' === $forced->get_error_code() && 6 === get_option( Installer::ERROR_OPTION )['attempts'] );
