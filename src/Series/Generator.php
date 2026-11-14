@@ -190,8 +190,8 @@ final class Generator {
 						'capacity' => (int) $type->capacity,
 						'max_per_order' => (int) $type->max_per_order,
 						'tax_rate_bp' => (int) $type->tax_rate_bp,
-						'sales_start' => self::sales_time( $item['starts_at'], $definition['sales_start_days_before'], 86400, $type->sales_start, $template ),
-						'sales_end' => self::sales_time( $item['starts_at'], $definition['sales_end_minutes_before'], 60, $type->sales_end, $template ),
+						'sales_start' => self::sales_time( $item['starts_at'], $definition['sales_start_days_before'], 86400, $type->sales_start, $template, $definition['rule']['timezone'] ),
+						'sales_end' => self::sales_time( $item['starts_at'], $definition['sales_end_minutes_before'], 60, $type->sales_end, $template, $definition['rule']['timezone'] ),
 						'status' => $type->status,
 					) );
 					if ( ! $ok ) { throw new \RuntimeException( 'type_insert' ); }
@@ -217,14 +217,49 @@ final class Generator {
 	/**
 	 * Sales window boundary for a new occurrence: explicit offset before start, else the template
 	 * type's offset relative to the template start, else none.
+	 *
+	 * Day offsets and template offsets are applied in local wall-clock time of the series timezone,
+	 * so "sales start 7 days before" a 20:00 show starts at 20:00 local even when a DST change lies in
+	 * between (with plain seconds it would start at 19:00 or 21:00). Minute offsets ("sales end
+	 * 60 minutes before") are elapsed time and stay absolute.
+	 *
+	 * @param string $timezone Series timezone (IANA); UTC when unknown.
 	 */
-	public static function sales_time( $starts_at, $offset, $unit, $template_value, $template ) {
+	public static function sales_time( $starts_at, $offset, $unit, $template_value, $template, $timezone = 'UTC' ) {
 		$start = strtotime( $starts_at . ' UTC' );
-		if ( null !== $offset ) { return gmdate( 'Y-m-d H:i:s', $start - $offset * $unit ); }
+		$tz = self::zone( $timezone );
+		$local = ( new \DateTimeImmutable( '@' . $start ) )->setTimezone( $tz );
+		if ( null !== $offset ) {
+			if ( 86400 === (int) $unit ) {
+				return self::utc( $local->modify( '-' . (int) $offset . ' days' ) );
+			}
+			return gmdate( 'Y-m-d H:i:s', $start - $offset * $unit );
+		}
 		if ( $template_value && $template ) {
-			return gmdate( 'Y-m-d H:i:s', $start - ( strtotime( $template->starts_at . ' UTC' ) - strtotime( $template_value . ' UTC' ) ) );
+			// Wall-clock distance between the template's start and its sales boundary, both local.
+			$template_zone = ! empty( $template->timezone ) ? self::zone( $template->timezone ) : $tz;
+			$wall = static function ( $utc ) use ( $template_zone ) {
+				return strtotime( ( new \DateTimeImmutable( $utc . ' UTC' ) )->setTimezone( $template_zone )->format( 'Y-m-d H:i:s' ) . ' UTC' );
+			};
+			$distance = $wall( $template->starts_at ) - $wall( $template_value );
+			$target = gmdate( 'Y-m-d H:i:s', strtotime( $local->format( 'Y-m-d H:i:s' ) . ' UTC' ) - $distance );
+			return self::utc( new \DateTimeImmutable( $target, $tz ) );
 		}
 		return null;
+	}
+
+	/** Timezone object for an IANA name (UTC when invalid). */
+	private static function zone( $name ) {
+		try {
+			return new \DateTimeZone( $name ? (string) $name : 'UTC' );
+		} catch ( \Exception $e ) {
+			return new \DateTimeZone( 'UTC' );
+		}
+	}
+
+	/** UTC MySQL datetime of a local time. */
+	private static function utc( \DateTimeImmutable $local ) {
+		return $local->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
 	}
 
 	/** Links created occurrences to a seat-map version, mapping zones like the template's types. */
