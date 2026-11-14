@@ -76,6 +76,9 @@ Webhook-Ereignissen).
 | `wpcap_expire_holds_batch` | `int $limit` (200) | Abgelaufene Reservierungen je Lauf von `expire_holds`. |
 | `wpcap_admission_day_cutoff_hour` | `int $hour, array $context` (`occurrence_id`, `event_id`) | Einlass-Tageswechsel (0–12 Uhr Ortszeit) für tägliche Einlassregeln; Standard aus der Einstellung `admission_day_cutoff_hour`. |
 | `wpcap_offline_refresh_interval` | `int $seconds` (10) | Mindestabstand zweier Snapshot-Aktualisierungen eines Termins für den Offline-Scanner. |
+| `wpcap_offline_scanner_locale` | `string $locale` | Website-Sprache, in der der Offline-Scanner seine Texte ausliefert, wenn das Gerät keine unterstützte Sprache anfragt (Standard `determine_locale()`). |
+| `wpcap_offline_scanner_locales` | `string[] $locales` | Sprachen, in denen `GET /app/offline/i18n?locale=` die Texte ausliefern kann (Standard: `de_DE`, mitgelieferte Übersetzungen in `languages/`, installierte Sprachpakete, Website-Sprache). |
+| `wpcap_offline_scanner_strings` | `array $strings` (deutscher Quelltext → Übersetzung), `string $locale` | Übersetzungstabelle des Offline-Scanners. |
 | `wpcap_partner_client_ip` | `string $ip` | Client-IP für Partner-API (IP-Allowlist, Ratenlimit); Proxies hier auflösen. |
 | `wpcap_woocommerce_billing` | `array $billing, WC_Order $wc_order` | Aus WooCommerce übernommene Rechnungsangaben. |
 | `wpcap_woocommerce_vat_meta_keys` | `string[] $keys, WC_Order $wc_order` | Meta-Felder, in denen die UID-Nummer einer Woo-Bestellung gesucht wird. |

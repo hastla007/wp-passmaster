@@ -5,7 +5,7 @@
  *   GET /app/offline/keys                            – trusted Ed25519 public keys
  *   GET /app/offline/occurrences                     – occurrences this device may hold packages for
  *   GET /app/offline/package?occurrence_id=&since=   – signed full/delta package
- *   GET /app/offline/i18n                            – public: locale + translated UI texts of the PWA
+ *   GET /app/offline/i18n?locale=fr-CH,fr,en         – public: locale + translated UI texts of the PWA
  *
  * Also extends existing app responses (rest_request_after_callbacks): /app/pair returns the public
  * keys ("offline"), /app/me announces the feature, /app/scan/sync applies the event's offline rules.
@@ -33,9 +33,13 @@ final class Rest {
 		return rest_ensure_response( array( 'keys' => Keys::public_keys(), 'server_time' => gmdate( 'c' ) ) );
 	}
 
-	/** Locale and translated string table of the PWA (see I18n). */
+	/**
+	 * Locale and translated string table of the PWA (see I18n). Optional `locale`: the device's
+	 * preferred languages (comma separated BCP 47 tags); the first supported one is served.
+	 */
 	public static function i18n( \WP_REST_Request $request ) {
-		$response = rest_ensure_response( I18n::table() );
+		$requested = substr( (string) preg_replace( '/[^A-Za-z0-9_,;=.\- ]/', '', (string) $request->get_param( 'locale' ) ), 0, 200 );
+		$response = rest_ensure_response( I18n::table( $requested ) );
 		if ( method_exists( $response, 'header' ) ) { $response->header( 'Cache-Control', 'no-cache' ); }
 		return $response;
 	}
