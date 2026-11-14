@@ -1,11 +1,55 @@
 # Betrieb und Wiederherstellung
 
-## Vor einem Upgrade
+## Backup/Restore und Upgrade
 
-1. Upgrade zuerst in einer Staging-Site mit derselben PHP-, WordPress-, Datenbank- und Integrationsversion einspielen.
-2. Dateien und vollständige WordPress-Datenbank unmittelbar vor dem Upgrade sichern. Die Präfix-Tabellen `*_wpcap_*` enthalten Aufträge, Reservierungen, Tickets, Einlassprotokolle und weitere Plugin-Daten.
-3. Sicherungszeitpunkt, Plugin-Version und Schema-Version notieren. Die Migration v3 nutzt `dbDelta` und ergänzt Tabellen und Spalten; sie löscht keine Plugin-Tabellen.
-4. Nach dem Upgrade Datenbankverbindung, öffentliche Events, Checkout, Ticketmail, Check-in und geplante Jobs in der Staging-Site prüfen.
+**Was gesichert werden muss** (immer als ein zusammengehöriger Stand):
+
+- die vollständige WordPress-Datenbank – Plugin-Daten liegen in den Tabellen `{präfix}wpcap_*` (Bestellungen,
+  Reservierungen, Tickets, Einlassprotokolle, Servicebuchungen, Wartelisten, Rechnungen, Audit-Log …) und in
+  Optionen `wpcap_*` (Einstellungen inkl. verschlüsselter Zugangsdaten, Schema-Version);
+- `wp-config.php` bzw. die Umgebung mit `PASS_CAPTAIN_SECRET_KEY` (und gegebenenfalls
+  `PASS_CAPTAIN_SECRET_KEY_PREVIOUS`) sowie den Salts `AUTH_KEY`/`SECURE_AUTH_KEY`: **ohne den Vault-Schlüssel
+  sind die gespeicherten Anbieter-Secrets im Backup nicht mehr lesbar** ([SECURITY.md](SECURITY.md#zugangsdaten-secrets-vault));
+  Schlüssel getrennt von den Datenbank-Backups aufbewahren;
+- Plugin- und Theme-Dateien (eigene Template-Überschreibungen), bei WooCommerce dessen Daten (gleiche Datenbank).
+
+Das Plugin legt keine eigenen Dateien im Upload-Verzeichnis ab.
+
+**Upgrade-Ablauf:**
+
+1. Upgrade zuerst in einer Staging-Site mit derselben PHP-, WordPress-, Datenbank- und Integrationsversion
+   einspielen ([COMPATIBILITY.md](COMPATIBILITY.md)).
+2. Vorher prüfen: *Pass Captain → Systemstatus* ohne kritische Probleme, `wp pass-captain diagnose --strict`
+   ohne Befund, Queues leer oder klein. Nicht während eines laufenden Einlasses oder Vorverkaufsstarts
+   upgraden; Offline-Scanner vorher synchronisieren.
+3. Unmittelbar vor dem Upgrade Datenbank und Dateien sichern (siehe oben); Zeitpunkt, Plugin-Version und
+   Schema-Version (Systemstatus → Datenbankschema bzw. Option `wpcap_db_version`) notieren.
+4. Plugin aktualisieren. Das Schema-Upgrade läuft beim nächsten Admin-Aufruf, per Cron oder sofort mit
+   `wp cron event run wpcap_run_upgrade` (Details im nächsten Abschnitt). Migrationen ergänzen nur Tabellen,
+   Spalten und Indizes (`dbDelta`), sie löschen keine Plugin-Daten.
+5. Danach prüfen: Systemstatus → Datenbankschema ohne Fehler, Worker-Heartbeats aktuell,
+   `wp pass-captain status --strict` und `wp pass-captain diagnose --strict` ohne Befund; Stichprobe
+   öffentliche Events, Checkout (kostenlos und bezahlt), Ticketmail, Check-in, bei WooCommerce eine
+   Testbestellung.
+6. Erst dann in Produktion wiederholen.
+
+**Restore** (z. B. fehlgeschlagenes Upgrade; ein Downgrade des Plugins ohne Restore ist nicht vorgesehen):
+
+1. Site in den Wartungsmodus, WP-Cron/System-Cron anhalten, damit keine Mails, Webhooks oder Erstattungen
+   aus einem Zwischenstand verschickt werden.
+2. Datenbank **und** Plugin-Dateien der gesicherten Version gemeinsam zurückspielen – ein Datenbank-Restore
+   allein kann mit neuerem Plugin-Code inkompatibel sein; dazu denselben Vault-Schlüssel in `wp-config.php`.
+   Auf Multisite gehören Netzwerkaktivierung und Site-Präfixe in den Plan.
+3. Auftrags- und Ticketdaten nicht selektiv aus mehreren Sicherungszeitpunkten zusammenführen.
+4. Cron wieder einschalten, `wp pass-captain diagnose --strict` ausführen, sichere Reparaturen mit
+   `--repair-all`, übrige Befunde manuell klären.
+5. Zahlungen, Erstattungen und Webhooks, die nach dem Sicherungszeitpunkt beim Anbieter eingegangen sind,
+   abgleichen (Anbieter-Dashboard; Webhooks erneut zustellen lassen); nach dem Sicherungszeitpunkt
+   ausgestellte Tickets sind im Restore nicht enthalten. Offline-Scanner neu synchronisieren bzw. Pakete neu
+   laden.
+
+Die Restore-Probe ist Teil der Release-Abnahme ([RELEASE.md](RELEASE.md)) und sollte auch im Betrieb
+regelmäßig (z. B. vierteljährlich) auf einer Staging-Site geübt werden.
 
 ## Schema-Upgrade nach einem Update
 
@@ -34,13 +78,13 @@ define( 'DISABLE_WP_CRON', true );
 * * * * * curl -fsS -o /dev/null "https://example.org/wp-cron.php?doing_wp_cron"
 ```
 
-Auf Multisite-Netzwerken muss der Cronjob jede Site auslösen, z. B. `wp site list --field=url | xargs -I{} wp cron event run --due-now --url={}`.
+Auf Multisite-Netzwerken muss der Cronjob jede Site auslösen, z. B. `wp site list --field=url | xargs -I{} wp cron event run --due-now --url={}`. Systemstatus und `wp pass-captain status`/`diagnose` arbeiten je Site (`--url=`); den Zustand aller Sites zeigt die Netzwerkübersicht (siehe „Multisite“).
 
 ## Systemstatus, Diagnose und Monitoring
 
 **Pass Captain → Systemstatus** (Capability `manage_options`) zeigt den Hintergrundbetrieb auf einen Blick:
 
-- **WP-Cron und Worker:** je Plugin-Hook (`wpcap_process_jobs`, `wpcap_process_messages`, `wpcap_cleanup_reservations`, `wpcap_privacy_retention`) den nächsten geplanten Lauf und den **letzten erfolgreichen Lauf**. Jeder Worker (Jobs, E-Mails, Webhooks, SMS, Reservierungs-Bereinigung) schreibt am Ende seines Laufs einen Heartbeat (Optionen `wpcap_heartbeat_<worker>`, Zeit und Anzahl verarbeiteter Einträge). Ein Heartbeat älter als vier Intervalle (20 Minuten bei den Fünf-Minuten-Queues, 4 Stunden bei der Bereinigung) gilt als veraltet; mit `DISABLE_WP_CRON` wird dann ausdrücklich auf den fehlenden externen Cron-Job hingewiesen. Nicht geplante oder um mehr als 10 Minuten überfällige Ereignisse werden ebenfalls markiert.
+- **WP-Cron und Worker:** je Plugin-Hook (`wpcap_process_jobs`, `wpcap_process_messages`, `wpcap_cleanup_reservations`, `wpcap_privacy_retention`) den nächsten geplanten Lauf und den **letzten erfolgreichen Lauf**. Der Webhook-Versand (`wpcap_webhooks_dispatch`) wird nicht als Cron-Ereignis gelistet, sondern über seinen Heartbeat und die Zustellungs-Queue überwacht. Jeder Worker (Jobs, E-Mails, Webhooks, SMS, Reservierungs-Bereinigung) schreibt am Ende seines Laufs einen Heartbeat (Optionen `wpcap_heartbeat_<worker>`, Zeit und Anzahl verarbeiteter Einträge). Ein Heartbeat älter als vier Intervalle (20 Minuten bei den Fünf-Minuten-Queues, 4 Stunden bei der Bereinigung) gilt als veraltet; mit `DISABLE_WP_CRON` wird dann ausdrücklich auf den fehlenden externen Cron-Job hingewiesen. Nicht geplante oder um mehr als 10 Minuten überfällige Ereignisse werden ebenfalls markiert.
 - **Warteschlangen:** offene Einträge nach Status für Job-Queue (`wpcap_jobs`, zusätzlich nach Job-Typ), E-Mail-Queue, Webhook-Zustellungen und SMS-Queue; überfällige Einträge (fällig seit über 30 Minuten) und lang laufende Claims (`locked_at` älter als 5 Minuten). Die Worker geben Claims nach 15 Minuten selbst zurück – ältere Claims bedeuten, dass seither kein Worker lief.
 - **E-Mail-Versandfehler:** die häufigsten `last_error`-Werte der E-Mail-Queue.
 - **Fehlgeschlagene Einträge** (Jobs `dead_letter`, E-Mails/Webhooks/SMS `failed`) mit letztem Fehler und den Aktionen **„Erneut versuchen“** (Versuche zurückgesetzt, sofort fällig; Webhooks über die reguläre Neuzustellung) und **„Verwerfen“** (bleibt als `cancelled` bzw. `skipped` in der Historie). Beide Aktionen prüfen Nonce und Capability, wirken nur auf Einträge, die noch fehlgeschlagen sind (kein doppeltes Einreihen), und landen im Audit-Log (`ops_queue_retry`, `ops_queue_discard`). E-Mail-Empfänger werden maskiert angezeigt.
@@ -95,15 +139,16 @@ Fehlgeschlagene Webhook-Zustellungen sind nur eine Warnung (externes Zielsystem)
 - Wird eine Site im Netzwerk gelöscht, entfernt WordPress auch deren `*_wpcap_*`-Tabellen (Filter `wpmu_drop_tables`). Tabellen anderer Sites sind nicht betroffen.
 - Beim Deinstallieren entscheidet jede Site über „Daten beim Löschen entfernen“. Netzwerkweite Benutzer-Metadaten (`wpcap_*` ohne Site-Präfix) werden nur gelöscht, wenn alle Sites zugestimmt haben; Site-bezogene Benutzeroptionen (`{präfix}wpcap_*`) und Rollen/Berechtigungen nur auf zustimmenden Sites.
 
-## Wiederherstellung
+## Release-Build
 
-Dateien und Datenbank als zusammengehörigen Stand wiederherstellen. Ein Datenbank-Restore allein kann mit neuerem Plugin-Code inkompatibel sein. Für eine Netzwerksite gehören auch Netzwerkaktivierung und Site-Präfixe in den Wiederherstellungsplan. Nach einem Restore Cron-Ereignisse kontrollieren; WordPress-Cron benötigt Seitenaufrufe oder einen externen Cron-Trigger.
-
-Auftrags- und Ticketdaten nicht selektiv aus mehreren Sicherungszeitpunkten zusammenführen. Zahlungsanbieter und optionale Integrationen müssen separat auf denselben externen Transaktionsstand abgeglichen werden.
-
-## Release-Kandidat
-
-Vor einer stabilen Version müssen Upgrade und Restore mit realistischen Datenbankständen, Eventänderungen, doppelten Webhooks, E-Mail-Ausfällen, hoher Scanrate und Multisite geprüft werden. Der ZIP-Build (`bash build/release.sh`) exportiert den committeten Stand per `git archive` (Standard `HEAD`, anders mit `WPCAP_BUILD_REF=<ref>`), installiert dort die Composer-Abhängigkeiten ohne Dev-Pakete und lässt alles weg, was in `.distignore` steht (Tests, Doku, Markdown außer `readme.txt`, `.po`-Quellen, Test-/CI-Dateien der Abhängigkeiten). Nicht committete Änderungen landen also nie im Paket. Der Release-Workflow veröffentlicht nur nach erfolgreicher CI auf `main` (genau der getestete Commit), bei Tags `v*` oder manuell von `main`. Der Build ist reproduzierbar; mit dem Release wird `pass-captain.zip.sha256` veröffentlicht (Prüfung und Nachbau: [COMPATIBILITY.md](COMPATIBILITY.md#release-artefakt-prüfen)).
+Der ZIP-Build (`bash build/release.sh`) exportiert den committeten Stand per `git archive` (Standard `HEAD`,
+anders mit `WPCAP_BUILD_REF=<ref>`), installiert die Composer-Abhängigkeiten ohne Dev-Pakete und lässt alles
+weg, was in `.distignore` steht (Tests, Doku, Markdown außer `readme.txt`, `.po`-Quellen, Test-/CI-Dateien der
+Abhängigkeiten). Nicht committete Änderungen landen nie im Paket. Der Build ist reproduzierbar; mit dem Release
+wird `pass-captain.zip.sha256` veröffentlicht (Prüfung und Nachbau:
+[COMPATIBILITY.md](COMPATIBILITY.md#release-artefakt-prüfen)). Freigabe-Gates und Abnahme (Upgrade/Restore
+mit realistischen Datenständen, doppelte Webhooks, E-Mail-Ausfälle, hohe Scanrate, Multisite):
+[RELEASE.md](RELEASE.md).
 
 ## Kasse: keine Registrierkasse
 
