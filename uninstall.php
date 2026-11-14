@@ -32,7 +32,7 @@ function wpcap_uninstall_site() {
 	foreach ( array( 'wpcap_ticket_admin', 'wpcap_event_manager', 'wpcap_box_office', 'wpcap_checkin_staff', 'wpcap_partner', 'wpcap_finance', 'wpcap_support' ) as $role ) {
 		remove_role( $role );
 	}
-	$caps = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance' );
+	$caps = array( 'wpcap_manage_events', 'wpcap_manage_orders', 'wpcap_checkin', 'wpcap_view_reports', 'wpcap_refund', 'wpcap_approve_refunds', 'wpcap_view_finance', 'wpcap_view_audit' ); // Installer::register_roles() also grants wpcap_view_audit to administrators.
 	foreach ( wp_roles()->role_objects as $role ) {
 		foreach ( $caps as $cap ) { $role->remove_cap( $cap ); }
 	}

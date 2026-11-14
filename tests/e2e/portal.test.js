@@ -2,7 +2,7 @@
 /* Order portal: attendee assignment, ticket transfer with confirm dialog, resend. */
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { fixture, launch, context, withPage } = require('./lib');
+const { fixture, launch, context, withPage, assertFitsViewport } = require('./lib');
 
 let browser, ctx, fx, fxTransfer;
 test.before(async () => {
@@ -17,6 +17,7 @@ const strings = (p) => p.evaluate(() => window.wpcapPortal.strings);
 
 test('assign attendee: a new e-mail rotates the code, a name change keeps it', page('portal assignment', async (p) => {
 	await p.goto(fx.portal_url);
+	await assertFitsViewport(p, 'order portal');
 	const s = await strings(p);
 	const form = p.locator('.wpcap-assignment-form').first();
 	const message = () => p.evaluate(() => document.querySelector('.wpcap-assignment-form .message').textContent);
@@ -42,6 +43,7 @@ test('resend tickets: confirm dialog, then success message', page('portal resend
 	await p.locator('.wpcap-resend-form button[type="submit"]').click();
 	const dialog = p.locator('#wpcap-confirm');
 	await dialog.waitFor({ state: 'visible' });
+	await assertFitsViewport(p, 'portal confirm dialog');
 	assert.equal(await p.locator('#wpcap-confirm-text').innerText(), s.resendConfirm);
 	await p.locator('#wpcap-confirm-ok').click();
 	const message = p.locator('.wpcap-resend-form .message');
