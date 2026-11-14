@@ -109,7 +109,8 @@ final class Refunds {
 		$check = self::check_actor();
 		if ( is_wp_error( $check ) ) { return $check; }
 		global $wpdb;
-		$wpdb->update( $wpdb->prefix . 'wpcap_refunds', array( 'status' => 'approved', 'approved_by' => get_current_user_id(), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => absint( $refund_id ), 'status' => 'pending_approval' ) );
+		$approved = $wpdb->update( $wpdb->prefix . 'wpcap_refunds', array( 'status' => 'approved', 'approved_by' => get_current_user_id(), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => absint( $refund_id ), 'status' => 'pending_approval' ) );
+		if ( false === $approved ) { return self::db_error( absint( $refund_id ), (int) $refund['order_id'], 'approve' ); }
 		Audit::record( 'refund_approved', 'order', (int) $refund['order_id'], array( 'refund_id' => absint( $refund_id ) ) );
 		return self::execute( $refund_id );
 	}
@@ -134,12 +135,21 @@ final class Refunds {
 	/**
 	 * Executes an approved (or previously failed) refund: provider refund, ticket revocation,
 	 * capacity release, order totals. Safe to retry after a provider failure.
+	 *
+	 * Money moves before the local booking, so the steps are separated by persisted states:
+	 * the refund is claimed (approved/failed → processing, exactly one row, committed) before the
+	 * provider is called; right after a provider success its reference is stored on the still
+	 * processing row. "processing" with a provider reference means "paid out, not yet booked":
+	 * finalize() books it in one transaction, and reconcile() finishes such refunds later (cron,
+	 * refund admin page) without calling the provider again.
 	 */
 	public static function execute( $refund_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$refund_id = absint( $refund_id );
-		$wpdb->query( 'START TRANSACTION' );
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+			return self::db_error( $refund_id, 0, 'start_transaction' );
+		}
 		$refund = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE refund_id=%d FOR UPDATE", $refund_id ), ARRAY_A );
 		if ( ! $refund || ! in_array( $refund['status'], array( 'approved', 'failed' ), true ) ) {
 			$wpdb->query( 'COMMIT' );
@@ -150,13 +160,23 @@ final class Refunds {
 		$locked_order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", (int) $refund['order_id'] ) );
 		$invalid = self::execution_conflict( $refund, $locked_order );
 		if ( '' !== $invalid ) {
-			$wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'failed', 'error_message' => substr( $invalid, 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id ) );
-			$wpdb->query( 'COMMIT' );
+			$failed = $wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'failed', 'error_message' => substr( $invalid, 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id ) );
+			if ( false === $failed || false === $wpdb->query( 'COMMIT' ) ) {
+				$error = (string) $wpdb->last_error;
+				$wpdb->query( 'ROLLBACK' );
+				return self::db_error( $refund_id, (int) $refund['order_id'], 'mark_failed', $error );
+			}
 			Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => 'wpcap_refund_conflict' ) );
 			return new \WP_Error( 'wpcap_refund_conflict', $invalid, array( 'status' => 409 ) );
 		}
-		$wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'processing', 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id ) );
-		$wpdb->query( 'COMMIT' );
+		// Claim: must move exactly this row out of approved/failed, and the commit must succeed,
+		// before any money moves. Otherwise nothing happened and the refund can simply be retried.
+		$claimed = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_refunds SET status='processing',provider_reference='',updated_at=%s WHERE refund_id=%d AND status IN ('approved','failed')", current_time( 'mysql', true ), $refund_id ) );
+		if ( 1 !== (int) $claimed || false === $wpdb->query( 'COMMIT' ) ) {
+			$error = (string) $wpdb->last_error;
+			$wpdb->query( 'ROLLBACK' );
+			return self::db_error( $refund_id, (int) $refund['order_id'], 'claim', $error );
+		}
 
 		$order = Orders::get( (int) $refund['order_id'] );
 		$gateway = Registry::get( $order->payment_provider ?: 'manual' );
@@ -164,36 +184,134 @@ final class Refunds {
 		if ( $gateway && $gateway->supports_refunds() && (int) $refund['amount_minor'] > 0 ) {
 			$result = $gateway->refund( (array) $order, (int) $refund['amount_minor'], 'wpcap-refund-' . $refund_id );
 			if ( is_wp_error( $result ) ) {
-				$wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'failed', 'error_message' => substr( $result->get_error_message(), 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id ) );
+				$failed = $wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'failed', 'error_message' => substr( $result->get_error_message(), 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id, 'status' => 'processing' ) );
+				if ( 1 !== (int) $failed ) {
+					// Stays "processing" without provider reference: needs a manual check, never an automatic retry.
+					self::log_problem( $refund_id, (int) $refund['order_id'], 'mark_failed_after_provider_error', (string) $wpdb->last_error );
+				}
 				Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => $result->get_error_code() ) );
 				return $result;
 			}
 			$provider_reference = (string) $result;
+			if ( '' === $provider_reference ) { $provider_reference = 'wpcap-refund-' . $refund_id; }
 		}
+		// Persist the payout first: from here on the refund must only be booked, never paid out again.
+		$stored = $wpdb->update( "{$p}wpcap_refunds", array( 'provider_reference' => substr( $provider_reference, 0, 191 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id, 'status' => 'processing' ) );
+		if ( false === $stored ) {
+			// The provider has paid out but the database refused the note: the refund stays "processing"
+			// (tickets and amount stay bound, it is never re-run automatically) and is logged for a manual booking.
+			self::log_problem( $refund_id, (int) $refund['order_id'], 'store_provider_reference', (string) $wpdb->last_error, array( 'provider_reference' => $provider_reference ) );
+			return new \WP_Error( 'wpcap_refund_booking', __( 'Die Erstattung wurde beim Zahlungsanbieter ausgeführt, konnte aber nicht verbucht werden. Bitte die Erstattung prüfen.', 'pass-captain' ), array( 'status' => 500, 'provider_reference' => $provider_reference ) );
+		}
+		return self::finalize( $refund_id );
+	}
 
+	/**
+	 * Books a refund that was paid out (status processing with provider reference): revokes and flags
+	 * the tickets, updates order item and order totals and marks the refund completed – all in one
+	 * transaction. Idempotent: does nothing unless the refund is still waiting for its booking. On a
+	 * database error everything is rolled back and the refund stays recoverable for reconcile().
+	 *
+	 * @return array|\WP_Error Refund row.
+	 */
+	private static function finalize( $refund_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$refund_id = absint( $refund_id );
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) {
+			return self::booking_error( $refund_id, 0, 'start_transaction' );
+		}
+		$refund = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_refunds WHERE refund_id=%d FOR UPDATE", $refund_id ), ARRAY_A );
+		if ( ! $refund || 'processing' !== $refund['status'] || '' === (string) $refund['provider_reference'] ) {
+			$wpdb->query( 'COMMIT' );
+			return $refund ? $refund : new \WP_Error( 'wpcap_refund_missing', __( 'Erstattung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
+		}
+		$order_id = (int) $refund['order_id'];
+		$ok = null !== $wpdb->get_row( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
 		$ticket_ids = array_map( 'absint', (array) json_decode( $refund['ticket_ids'], true ) );
-		$revoked = 0;
-		if ( $ticket_ids ) {
+		$revoked_ids = array();
+		if ( $ok && $ticket_ids ) {
 			$ids = implode( ',', $ticket_ids );
 			$per_type = $wpdb->get_results( "SELECT ticket_type_id, COUNT(*) AS n FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND refunded=0 AND status IN ('valid','checked_in','revoked') GROUP BY ticket_type_id" );
-			$revoked_ids = Orders::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND order_id=%d AND status='valid'", (int) $refund['order_id'] ) ) );
-			$revoked = count( $revoked_ids );
-			Orders::fire_revoked( $revoked_ids, 'refund_' . $refund_id );
-			foreach ( $per_type as $row ) {
-				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET refunded_quantity=LEAST(quantity,refunded_quantity+%d) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1", (int) $row->n, (int) $refund['order_id'], (int) $row->ticket_type_id ) );
+			$ok = '' === (string) $wpdb->last_error;
+			if ( $ok ) {
+				$revoked_ids = Orders::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND order_id=%d AND status='valid' FOR UPDATE", $order_id ) ) );
+				// revoke_ids() cannot report errors: verify that no ticket of this refund is still valid.
+				$still_valid = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE ticket_id IN ($ids) AND order_id=%d AND status='valid'", $order_id ) );
+				$ok = null !== $still_valid && 0 === (int) $still_valid;
 			}
-			$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE ticket_id IN ($ids) AND order_id=%d", (int) $refund['order_id'] ) );
+			foreach ( $ok ? $per_type : array() as $row ) {
+				if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_order_items SET refunded_quantity=LEAST(quantity,refunded_quantity+%d) WHERE order_id=%d AND ticket_type_id=%d ORDER BY item_id LIMIT 1", (int) $row->n, $order_id, (int) $row->ticket_type_id ) ) ) {
+					$ok = false;
+					break;
+				}
+			}
+			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET refunded=1 WHERE ticket_id IN ($ids) AND order_id=%d", $order_id ) );
 		}
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=LEAST(total_minor,refunded_minor+%d),updated_at=%s WHERE order_id=%d", (int) $refund['amount_minor'], current_time( 'mysql', true ), (int) $refund['order_id'] ) );
-		$wpdb->update( "{$p}wpcap_refunds", array( 'status' => 'completed', 'provider_reference' => substr( $provider_reference, 0, 191 ), 'error_message' => '', 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id ) );
-		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0", (int) $refund['order_id'] ) );
+		$ok = $ok && false !== $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=LEAST(total_minor,refunded_minor+%d),updated_at=%s WHERE order_id=%d", (int) $refund['amount_minor'], current_time( 'mysql', true ), $order_id ) );
+		$ok = $ok && 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_refunds SET status='completed',error_message='',updated_at=%s WHERE refund_id=%d AND status='processing'", current_time( 'mysql', true ), $refund_id ) );
+		if ( ! $ok || false === $wpdb->query( 'COMMIT' ) ) {
+			$error = (string) $wpdb->last_error;
+			$wpdb->query( 'ROLLBACK' );
+			return self::booking_error( $refund_id, $order_id, 'finalize', $error );
+		}
+		Orders::fire_revoked( $revoked_ids, 'refund_' . $refund_id );
+		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d AND refunded=0", $order_id ) );
 		if ( 0 === $remaining ) {
-			Orders::mark_refunded( (int) $refund['order_id'], 'native_refund_' . $refund_id );
+			Orders::mark_refunded( $order_id, 'native_refund_' . $refund_id );
 		}
-		Audit::record( 'refund_completed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'amount_minor' => (int) $refund['amount_minor'], 'revoked_tickets' => $revoked, 'provider' => $order->payment_provider ) );
-		do_action( 'wpcap_refund_completed', $refund_id, (int) $refund['order_id'] );
-		self::notify_buyer( $refund_id, $order, $revoked );
+		$order = Orders::get( $order_id );
+		Audit::record( 'refund_completed', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => (int) $refund['amount_minor'], 'revoked_tickets' => count( $revoked_ids ), 'provider' => $order->payment_provider ) );
+		do_action( 'wpcap_refund_completed', $refund_id, $order_id );
+		self::notify_buyer( $refund_id, $order, count( $revoked_ids ) );
 		return self::get( $refund_id );
+	}
+
+	/**
+	 * Finishes refunds that were paid out by the provider but not booked locally (status processing
+	 * with provider reference), e.g. after a database error. Never calls the provider. Idempotent;
+	 * runs with the job queue (cron) and when the refund admin page loads.
+	 *
+	 * @return int Number of refunds booked.
+	 */
+	public static function reconcile( $limit = 20 ) {
+		global $wpdb;
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT refund_id FROM {$wpdb->prefix}wpcap_refunds WHERE status='processing' AND provider_reference<>'' ORDER BY refund_id LIMIT %d", max( 1, absint( $limit ) ) ) );
+		$done = 0;
+		foreach ( (array) $ids as $id ) {
+			$result = self::finalize( (int) $id );
+			if ( is_array( $result ) && 'completed' === $result['status'] ) { ++$done; }
+		}
+		return $done;
+	}
+
+	/** Refunds paid out at the provider whose local booking is still pending (admin notice). */
+	public static function unbooked_count() {
+		global $wpdb;
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_refunds WHERE status='processing' AND provider_reference<>''" );
+	}
+
+	/** Database error before any money moved: the refund keeps its state and can be retried. */
+	private static function db_error( $refund_id, $order_id, $step, $error = '' ) {
+		global $wpdb;
+		self::log_problem( $refund_id, $order_id, $step, '' !== $error ? $error : (string) $wpdb->last_error );
+		return new \WP_Error( 'wpcap_refund_db', __( 'Die Erstattung konnte wegen eines Datenbankfehlers nicht gestartet werden. Es wurde nichts ausgezahlt; bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503 ) );
+	}
+
+	/** Database error after the payout: the booking is retried by reconcile(). */
+	private static function booking_error( $refund_id, $order_id, $step, $error = '' ) {
+		global $wpdb;
+		self::log_problem( $refund_id, $order_id, $step, '' !== $error ? $error : (string) $wpdb->last_error );
+		return new \WP_Error( 'wpcap_refund_booking_pending', __( 'Die Erstattung wurde beim Zahlungsanbieter ausgeführt; die Verbuchung wird automatisch nachgeholt.', 'pass-captain' ), array( 'status' => 202, 'refund_id' => absint( $refund_id ) ) );
+	}
+
+	/** Logs a refund database problem (PHP error log and – if the database accepts it – the audit log). */
+	private static function log_problem( $refund_id, $order_id, $step, $db_error, array $extra = array() ) {
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operators must see failed bookings.
+		error_log( sprintf( 'Pass Captain: refund %d (%s) database error: %s %s', absint( $refund_id ), $step, $db_error, $extra ? wp_json_encode( $extra ) : '' ) );
+		if ( $order_id ) {
+			Audit::record( 'refund_db_error', 'order', absint( $order_id ), array_merge( array( 'refund_id' => absint( $refund_id ), 'step' => $step, 'error' => substr( $db_error, 0, 190 ) ), $extra ) );
+		}
 	}
 
 	/** Returns a refund row as array or null. */

@@ -22,6 +22,8 @@ final class Jobs {
 	 */
 	public static function process_due( $limit = 20 ) {
 		global $wpdb;
+		// Refunds paid out at the provider but not booked locally are finished here (no provider call).
+		Refunds::reconcile();
 		$table = $wpdb->prefix . 'wpcap_jobs';
 		$now = current_time( 'mysql', true );
 		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
@@ -30,13 +32,24 @@ final class Jobs {
 		$deadline = Jobs\TimeBudget::deadline();
 		$processed = 0;
 		$drained = false;
+		$db_failed = false; // A database error ends the run; the regular schedule retries (no immediate follow-up).
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
-			$wpdb->query( 'START TRANSACTION' );
+			// The handler only runs once the claim is durable: transaction started, exactly this row moved
+			// from queued to running, commit succeeded. On any database error the claim is rolled back and
+			// the job stays queued for the next run.
+			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { $db_failed = true; break; }
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND run_after<=%s ORDER BY run_after,job_id LIMIT 1 FOR UPDATE", $now ) );
-			if ( ! $row ) { $wpdb->query( 'COMMIT' ); $drained = true; break; }
-			$wpdb->update( $table, array( 'status' => 'running', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'job_id' => (int) $row->job_id, 'status' => 'queued' ), array( '%s', '%d', '%s', '%s' ), array( '%d', '%s' ) );
-			$wpdb->query( 'COMMIT' );
+			if ( ! $row ) {
+				if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
+				$wpdb->query( 'COMMIT' );
+				$drained = true;
+				break;
+			}
+			$claimed = $wpdb->update( $table, array( 'status' => 'running', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now, 'updated_at' => $now ), array( 'job_id' => (int) $row->job_id, 'status' => 'queued' ), array( '%s', '%d', '%s', '%s' ), array( '%d', '%s' ) );
+			if ( false === $claimed ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
+			if ( 1 !== (int) $claimed ) { $wpdb->query( 'ROLLBACK' ); continue; }
+			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
 			Jobs\TimeBudget::claimed( $table, 'job_id', (int) $row->job_id, 'running', 'queued' );
 			++$processed;
 			$payload = json_decode( $row->payload, true );
@@ -50,7 +63,7 @@ final class Jobs {
 			$status = $attempts >= 8 ? 'dead_letter' : 'queued';
 			$wpdb->update( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
 		}
-		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s LIMIT 1", $now ) ) ) {
+		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s LIMIT 1", $now ) ) ) {
 			Jobs\TimeBudget::continue_later( 'wpcap_process_jobs' );
 		}
 		return $processed;

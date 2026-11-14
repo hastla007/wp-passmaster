@@ -40,13 +40,24 @@ final class Communications {
 		$deadline = Jobs\TimeBudget::deadline();
 		$processed = 0;
 		$drained = false;
+		$db_failed = false; // A database error ends the run; the regular schedule retries (no immediate follow-up).
 		for ( $i = 0; $i < $limit; $i++ ) {
 			if ( Jobs\TimeBudget::exhausted( $deadline ) ) { break; }
-			$wpdb->query( 'START TRANSACTION' );
+			// Mail is only sent once the claim is durable: transaction started, exactly this row moved from
+			// queued to sending, commit succeeded. On any database error the claim is rolled back and the
+			// message stays queued for the next run (never sent twice by parallel workers).
+			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { $db_failed = true; break; }
 			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND send_at<=%s ORDER BY send_at,message_id LIMIT 1 FOR UPDATE", $now ) );
-			if ( ! $row ) { $wpdb->query( 'COMMIT' ); $drained = true; break; }
-			$wpdb->update( $table, array( 'status' => 'sending', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now ), array( 'message_id' => (int) $row->message_id, 'status' => 'queued' ), array( '%s', '%d', '%s' ), array( '%d', '%s' ) );
-			$wpdb->query( 'COMMIT' );
+			if ( ! $row ) {
+				if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
+				$wpdb->query( 'COMMIT' );
+				$drained = true;
+				break;
+			}
+			$claimed = $wpdb->update( $table, array( 'status' => 'sending', 'attempts' => (int) $row->attempts + 1, 'locked_at' => $now ), array( 'message_id' => (int) $row->message_id, 'status' => 'queued' ), array( '%s', '%d', '%s' ), array( '%d', '%s' ) );
+			if ( false === $claimed ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
+			if ( 1 !== (int) $claimed ) { $wpdb->query( 'ROLLBACK' ); continue; }
+			if ( false === $wpdb->query( 'COMMIT' ) ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
 			Jobs\TimeBudget::claimed( $table, 'message_id', (int) $row->message_id, 'sending', 'queued' );
 			$payload = json_decode( $row->payload, true );
 			$template = apply_filters( 'wp_pass_captain_email_template_v1', null, $row->template_key, is_array( $payload ) ? $payload : array() );
@@ -63,7 +74,7 @@ final class Communications {
 			Jobs\TimeBudget::finished( $table, (int) $row->message_id );
 			++$processed;
 		}
-		if ( ! $drained && null !== $wpdb->get_var( $wpdb->prepare( "SELECT message_id FROM $table WHERE status='queued' AND send_at<=%s LIMIT 1", $now ) ) ) {
+		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT message_id FROM $table WHERE status='queued' AND send_at<=%s LIMIT 1", $now ) ) ) {
 			Jobs\TimeBudget::continue_later( 'wpcap_process_messages' );
 		}
 		return $processed;

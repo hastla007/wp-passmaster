@@ -9,6 +9,10 @@
  *   against the package (sha256 of the code via WebCrypto) and written to a local log with an
  *   idempotency key. Pending scans are uploaded via POST /app/scan/sync; conflicts are shown.
  *
+ * i18n: UI texts are looked up with t('<German source text>') in a table from GET /app/offline/i18n
+ * (locale + translations via the plugin's text domain). The table is kept in IndexedDB so the app is
+ * translated offline too; without a table the German source texts are shown.
+ *
  * Security: the API must be same-origin (also enforced by the page CSP). All server/package text is
  * rendered with textContent. Ticket codes are kept only until the scan is synced.
  */
@@ -27,7 +31,8 @@
 		occurrences: [], selected: 0, areaId: 0,
 		packages: {}, // occurrence_id -> { record, index: Map, meta, error }
 		admitted: {}, // occurrence_id -> Set of hashes admitted on this device
-		busy: false, lastRefresh: 0,
+		busy: false, lastRefresh: 0, pendingCount: 0,
+		i18n: null, // { v, locale, lang, strings } from GET /app/offline/i18n
 		forceFull: {} // occurrence_id -> true after a broken delta chain
 	};
 
@@ -93,9 +98,37 @@
 		var b = crypto.getRandomValues(new Uint8Array(16));
 		return hex(b.buffer);
 	}
+	/* ---------------- i18n ---------------- */
+
+	var I18N_VERSION = 1;
+	var dateFormat = null;
+
+	/** Translation of a German source text; printf-style %s/%d and %1$s placeholders. */
+	function t(key) {
+		var table = state.i18n && state.i18n.strings;
+		var text = table && Object.prototype.hasOwnProperty.call(table, key) && typeof table[key] === 'string' ? table[key] : key;
+		var args = Array.prototype.slice.call(arguments, 1);
+		if (!args.length) { return text; }
+		var next = 0;
+		return text.replace(/%(?:(\d+)\$)?([sd%])/g, function (m, pos, type) {
+			if ('%' === type) { return '%'; }
+			var v = args[pos ? Number(pos) - 1 : next++];
+			if (v === undefined || v === null) { return ''; }
+			return 'd' === type ? String(Math.trunc(Number(v)) || 0) : String(v);
+		});
+	}
+	function lang() { return (state.i18n && state.i18n.lang) || 'de-DE'; }
+	/** Accepts only well-formed tables of the known format version. */
+	function validI18n(table) {
+		return !!(table && I18N_VERSION === table.v && typeof table.lang === 'string' && table.strings && typeof table.strings === 'object');
+	}
 	function fmtTime(iso) {
 		var d = new Date(iso);
-		return isNaN(d) ? '—' : d.toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' });
+		if (isNaN(d)) { return '—'; }
+		if (!dateFormat) {
+			try { dateFormat = new Intl.DateTimeFormat(lang(), { dateStyle: 'short', timeStyle: 'short' }); } catch (e) { dateFormat = new Intl.DateTimeFormat('de-DE', { dateStyle: 'short', timeStyle: 'short' }); }
+		}
+		return dateFormat.format(d);
 	}
 	function el(tag, text, cls) {
 		var e = document.createElement(tag);
@@ -104,6 +137,7 @@
 		return e;
 	}
 
+	/** German source texts of the result codes (keys of the i18n table); translated on lookup. */
 	var RESULT_TEXT = {
 		checked_in: 'Einlass OK', already_checked_in: 'Bereits verwendet', revoked: 'Widerrufen', unknown: 'Unbekanntes Ticket',
 		wrong_event: 'Falsches Event', wrong_occurrence: 'Falscher Termin', wrong_area: 'Falscher Einlassbereich',
@@ -112,7 +146,7 @@
 		already_inside: 'Bereits drinnen', forbidden: 'Kein Einlasszugriff', package_expired: 'Prüfpaket abgelaufen', no_package: 'Kein gültiges Prüfpaket',
 		invalid_code: 'Kein Ticketcode erkannt'
 	};
-	function resultText(code) { return RESULT_TEXT[code] || code; }
+	function resultText(code) { return Object.prototype.hasOwnProperty.call(RESULT_TEXT, code) ? t(RESULT_TEXT[code]) : code; }
 
 	function showResult(kind, title, detail) {
 		var box = $('result');
@@ -168,7 +202,7 @@
 
 	function handleAuthError(err) {
 		if (err && 401 === err.status) {
-			showResult('bad', 'Gerät nicht mehr gekoppelt', 'Token abgelaufen oder widerrufen. Bitte neu koppeln.');
+			showResult('bad', t('Gerät nicht mehr gekoppelt'), t('Token abgelaufen oder widerrufen. Bitte neu koppeln.'));
 			return true;
 		}
 		return false;
@@ -194,31 +228,31 @@
 	 */
 	function verifyDoc(doc) {
 		var key = doc && state.keys[doc.key_id];
-		if (!key) { throw new Error('Unbekannter Signaturschlüssel'); }
-		if (key.valid_until && Date.parse(key.valid_until) < now()) { throw new Error('Signaturschlüssel abgelaufen'); }
+		if (!key) { throw new Error(t('Unbekannter Signaturschlüssel')); }
+		if (key.valid_until && Date.parse(key.valid_until) < now()) { throw new Error(t('Signaturschlüssel abgelaufen')); }
 		var ok = false;
 		try {
 			ok = nacl.sign.detached.verify(new TextEncoder().encode(doc.payload), b64ToBytes(doc.signature), b64ToBytes(key.public_key));
 		} catch (e) { ok = false; }
-		if (!ok) { throw new Error('Signatur ungültig'); }
+		if (!ok) { throw new Error(t('Signatur ungültig')); }
 		var payload = JSON.parse(doc.payload);
-		if ('wpcap-offline-package' !== payload.format || 1 !== payload.v) { throw new Error('Unbekanntes Paketformat'); }
-		if (payload.key_id !== doc.key_id) { throw new Error('Schlüssel-ID passt nicht'); }
-		if (payload.device_id !== state.deviceId) { throw new Error('Paket gehört zu einem anderen Gerät'); }
+		if ('wpcap-offline-package' !== payload.format || 1 !== payload.v) { throw new Error(t('Unbekanntes Paketformat')); }
+		if (payload.key_id !== doc.key_id) { throw new Error(t('Schlüssel-ID passt nicht')); }
+		if (payload.device_id !== state.deviceId) { throw new Error(t('Paket gehört zu einem anderen Gerät')); }
 		return payload;
 	}
 
 	/** Rebuilds the ticket index from a stored record (full + chained deltas), verifying every document. */
 	function buildIndex(record) {
 		var full = verifyDoc(record.full);
-		if ('full' !== full.kind || full.occurrence.id !== record.occurrence_id) { throw new Error('Paket passt nicht zum Termin'); }
+		if ('full' !== full.kind || full.occurrence.id !== record.occurrence_id) { throw new Error(t('Paket passt nicht zum Termin')); }
 		var index = new Map();
 		full.tickets.forEach(function (t) { index.set(t.h, t); });
 		var meta = full;
 		var cursor = full.cursor;
 		(record.deltas || []).forEach(function (doc) {
 			var d = verifyDoc(doc);
-			if ('delta' !== d.kind || d.since !== cursor || d.occurrence.id !== record.occurrence_id) { throw new Error('Delta-Kette unterbrochen'); }
+			if ('delta' !== d.kind || d.since !== cursor || d.occurrence.id !== record.occurrence_id) { throw new Error(t('Delta-Kette unterbrochen')); }
 			d.tickets.forEach(function (t) { index.set(t.h, t); });
 			cursor = d.cursor;
 			meta = d;
@@ -250,7 +284,7 @@
 			if ('full' === payload.kind) {
 				record = { occurrence_id: occurrenceId, full: doc, deltas: [] };
 			} else {
-				if (!usable || payload.since !== current.meta.cursor) { throw new Error('Delta passt nicht zum gespeicherten Paket'); }
+				if (!usable || payload.since !== current.meta.cursor) { throw new Error(t('Delta passt nicht zum gespeicherten Paket')); }
 				var deltas = current.record.deltas.slice();
 				var last = deltas[deltas.length - 1];
 				// Empty deltas only renew the expiry; keep at most one trailing empty delta.
@@ -291,7 +325,7 @@
 			}
 		});
 		if (!list.length) {
-			sel.appendChild(el('option', 'Keine zugewiesenen Termine', ''));
+			sel.appendChild(el('option', t('Keine zugewiesenen Termine'), ''));
 		}
 		list.forEach(function (o) {
 			var opt = el('option', o.event + ' – ' + fmtTime(o.starts_at));
@@ -304,9 +338,9 @@
 	}
 
 	function packageStatus(entry) {
-		if (!entry) { return { ok: false, code: 'no_package', text: 'Noch kein Prüfpaket geladen.' }; }
-		if (entry.error) { return { ok: false, code: 'no_package', text: 'Prüfpaket ungültig: ' + entry.error }; }
-		if (Date.parse(entry.meta.expires_at) <= now()) { return { ok: false, code: 'package_expired', text: 'Prüfpaket abgelaufen – bitte online aktualisieren.' }; }
+		if (!entry) { return { ok: false, code: 'no_package', text: t('Noch kein Prüfpaket geladen.') }; }
+		if (entry.error) { return { ok: false, code: 'no_package', text: t('Prüfpaket ungültig: %s', entry.error) }; }
+		if (Date.parse(entry.meta.expires_at) <= now()) { return { ok: false, code: 'package_expired', text: t('Prüfpaket abgelaufen – bitte online aktualisieren.') }; }
 		return { ok: true };
 	}
 
@@ -323,8 +357,8 @@
 			entry.index.forEach(function (t) { if ('revoked' !== t.s) { valid++; } });
 			var lines = [
 				m.event.name + ' · ' + fmtTime(m.occurrence.starts_at),
-				valid + ' Tickets im Paket · signiert (Ed25519, Schlüssel ' + m.key_id + ') · Stand ' + fmtTime(m.issued_at),
-				'Gültig bis ' + fmtTime(m.expires_at) + ' · Doppelscans: ' + ('first_sync_wins' === m.rules.duplicate_policy ? 'erste Synchronisierung gewinnt' : 'zur Prüfung')
+				t('%1$d Tickets im Paket · signiert (Ed25519, Schlüssel %2$s) · Stand %3$s', valid, m.key_id, fmtTime(m.issued_at)),
+				t('Gültig bis %1$s · Doppelscans: %2$s', fmtTime(m.expires_at), 'first_sync_wins' === m.rules.duplicate_policy ? t('erste Synchronisierung gewinnt') : t('zur Prüfung'))
 			];
 			lines.forEach(function (l) { box.appendChild(el('div', l)); });
 			renderAreas(m);
@@ -343,7 +377,7 @@
 		}
 		wrap.hidden = false;
 		sel.textContent = '';
-		var none = el('option', 'Kein Bereich');
+		var none = el('option', t('Kein Bereich'));
 		none.value = '0';
 		sel.appendChild(none);
 		meta.areas.forEach(function (a) { var o = el('option', a.name); o.value = String(a.id); sel.appendChild(o); });
@@ -383,7 +417,7 @@
 		lastScan = { code: code, at: Date.now() };
 		var occurrenceId = state.selected;
 		var entry = state.packages[occurrenceId];
-		if (!occurrenceId) { showResult('bad', 'Kein Termin gewählt'); return Promise.resolve(); }
+		if (!occurrenceId) { showResult('bad', t('Kein Termin gewählt')); return Promise.resolve(); }
 		var key = uuid();
 		var scannedAt = new Date(now()).toISOString();
 		var area = (entry && entry.meta && entry.meta.device_area_id) || state.areaId || 0;
@@ -395,13 +429,13 @@
 			return attempt.then(function (res) {
 				var ok = !!res.ok;
 				if (ok) { markAdmitted(occurrenceId, hash); }
-				showResult(ok ? 'ok' : 'bad', resultText(res.result), [res.ticket, res.attendee_name, 'online'].filter(Boolean).join(' · '));
+				showResult(ok ? 'ok' : 'bad', resultText(res.result), [res.ticket, res.attendee_name, t('online')].filter(Boolean).join(' · '));
 				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'online', decision: res.result, ok: ok, synced: 1 });
 			}, function (err) {
 				// Network errors, timeouts and server outages fall back to the offline decision.
 				if (!err || !(err.network || err.status >= 500)) {
 					if (handleAuthError(err)) { return; }
-					showResult('bad', 'Fehler', err && err.message);
+					showResult('bad', t('Fehler'), err && err.message);
 					return;
 				}
 				var d = decideOffline(entry, hash);
@@ -409,9 +443,9 @@
 				var name = d.ticket && d.ticket.n ? d.ticket.n : '';
 				if (d.ok) {
 					markAdmitted(occurrenceId, hash);
-					showResult('ok', 'Einlass OK (offline)', [typeName, name, d.multi ? 'Mehrfachticket – Prüfung beim Sync' : ''].filter(Boolean).join(' · '));
+					showResult('ok', t('Einlass OK (offline)'), [typeName, name, d.multi ? t('Mehrfachticket – Prüfung beim Sync') : ''].filter(Boolean).join(' · '));
 				} else {
-					showResult('bad', resultText(d.result), [typeName, name, 'offline'].filter(Boolean).join(' · '));
+					showResult('bad', resultText(d.result), [typeName, name, t('offline')].filter(Boolean).join(' · '));
 				}
 				// Only admitted scans are uploaded; the code is kept until the upload succeeded.
 				return put('log', { key: key, occurrence_id: occurrenceId, hash: hash, code: d.ok ? code : '', scanned_at: scannedAt, direction: 'in', area_id: area, mode: 'offline', decision: d.result, ok: d.ok, synced: d.ok ? 0 : 1 });
@@ -448,13 +482,14 @@
 		return allOf('log').then(function (entries) {
 			entries.sort(function (a, b) { return a.scanned_at < b.scanned_at ? 1 : -1; });
 			var pending = entries.filter(function (e) { return !e.synced; }).length;
-			$('pending').textContent = pending + ' offen';
+			state.pendingCount = pending;
+			$('pending').textContent = t('%d offen', pending);
 			var log = $('log');
 			log.textContent = '';
 			entries.slice(0, 25).forEach(function (e) {
 				var li = el('li');
 				li.appendChild(el('span', fmtTime(e.scanned_at) + ' · …' + e.hash.slice(-8) + ' · ' + resultText(e.decision)));
-				var tag = !e.synced ? el('span', 'wartet auf Sync', 'tag warn') : e.server ? el('span', e.server.conflict ? 'Konflikt' : 'synchronisiert', 'tag ' + (e.server.conflict ? 'bad' : 'ok')) : el('span', e.mode, 'tag');
+				var tag = !e.synced ? el('span', t('wartet auf Sync'), 'tag warn') : e.server ? el('span', e.server.conflict ? t('Konflikt') : t('synchronisiert'), 'tag ' + (e.server.conflict ? 'bad' : 'ok')) : el('span', 'offline' === e.mode ? t('offline') : t('online'), 'tag');
 				li.appendChild(tag);
 				log.appendChild(li);
 			});
@@ -464,12 +499,12 @@
 			withConflict.forEach(function (e) {
 				var li = el('li');
 				var text = fmtTime(e.scanned_at) + ' · …' + e.hash.slice(-8) + ' · ' + resultText(e.server.result);
-				if (e.server.offline_expired) { text += ' · Offline-Dauer überschritten'; }
+				if (e.server.offline_expired) { text += ' · ' + t('Offline-Dauer überschritten'); }
 				li.appendChild(el('span', text));
-				li.appendChild(el('span', e.server.auto_resolved ? 'automatisch geklärt' : 'zur Prüfung (#' + e.server.conflict_id + ')', 'tag ' + (e.server.auto_resolved ? 'ok' : 'bad')));
+				li.appendChild(el('span', e.server.auto_resolved ? t('automatisch geklärt') : t('zur Prüfung (#%d)', e.server.conflict_id), 'tag ' + (e.server.auto_resolved ? 'ok' : 'bad')));
 				conflicts.appendChild(li);
 			});
-			if (!withConflict.length) { conflicts.appendChild(el('li', 'Keine Konflikte.', 'small')); }
+			if (!withConflict.length) { conflicts.appendChild(el('li', t('Keine Konflikte.'), 'small')); }
 		});
 	}
 
@@ -508,7 +543,7 @@
 	function setNet() {
 		var on = navigator.onLine !== false;
 		var pill = $('net');
-		pill.textContent = on ? 'Online' : 'Offline';
+		pill.textContent = on ? t('Online') : t('Offline');
 		pill.className = 'pill' + (on ? '' : ' offline');
 	}
 
@@ -532,21 +567,21 @@
 			camera.stream = stream;
 			video.srcObject = stream;
 			video.hidden = false;
-			$('camera').textContent = 'Kamera stoppen';
+			$('camera').textContent = t('Kamera stoppen');
 			return video.play();
 		}).then(function () {
 			if ('BarcodeDetector' in window) {
 				try { camera.detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { camera.detector = null; }
 			}
 			return camera.detector ? null : loadJsQr();
-		}).then(tick).catch(function (e) { showResult('bad', 'Kamera nicht verfügbar', e && e.message); stopCamera(); });
+		}).then(tick).catch(function (e) { showResult('bad', t('Kamera nicht verfügbar'), e && e.message); stopCamera(); });
 	}
 	function stopCamera() {
 		if (camera.stream) { camera.stream.getTracks().forEach(function (t) { t.stop(); }); }
 		camera.stream = null;
 		clearTimeout(camera.timer);
 		$('video').hidden = true;
-		$('camera').textContent = 'Kamera starten';
+		$('camera').textContent = t('Kamera starten');
 	}
 	function tick() {
 		if (!camera.stream) { return; }
@@ -580,14 +615,14 @@
 			try {
 				var qr = JSON.parse(input);
 				if ('wpcap-pair' === qr.type && qr.code) {
-					if (qr.api && !sameOrigin(qr.api)) { throw new Error('Der Kopplungscode gehört zu einem anderen Server.'); }
+					if (qr.api && !sameOrigin(qr.api)) { throw new Error(t('Der Kopplungscode gehört zu einem anderen Server.')); }
 					if (qr.api) { state.api = qr.api; }
 					input = qr.code;
 				}
 			} catch (e) { return Promise.reject(e); }
 		}
 		state.token = '';
-		return api('POST', 'pair', { code: input, device_label: label || 'Offline-Scanner (PWA)', platform: 'pwa', app_version: APP_VERSION }).then(function (res) {
+		return api('POST', 'pair', { code: input, device_label: label || t('Offline-Scanner (PWA)'), platform: 'pwa', app_version: APP_VERSION }).then(function (res) {
 			state.token = res.token;
 			state.deviceId = res.device_id;
 			return Promise.all([
@@ -598,11 +633,45 @@
 	}
 
 	function unpair() {
-		if (!window.confirm('Gerät entkoppeln? Nicht synchronisierte Scans gehen verloren.')) { return; }
+		if (!window.confirm(t('Gerät entkoppeln? Nicht synchronisierte Scans gehen verloren.'))) { return; }
 		var logout = state.token ? api('POST', 'logout', {}).catch(function () {}) : Promise.resolve();
 		logout.then(function () {
 			return Promise.all(['kv', 'packages', 'log'].map(function (s) { return idb(s, 'readwrite', function (st) { st.clear(); }); }));
 		}).then(function () { location.reload(); });
+	}
+
+	/* ---------------- translations ---------------- */
+
+	/** Applies the current table to the static page (data-i18n*, lang, title) and live labels. */
+	function applyI18n() {
+		dateFormat = null;
+		document.documentElement.lang = lang();
+		document.title = t('Offline-Scanner') + ' · Pass Captain';
+		Array.prototype.forEach.call(document.querySelectorAll('[data-i18n]'), function (n) { n.textContent = t(n.getAttribute('data-i18n')); });
+		['placeholder', 'title'].forEach(function (attr) {
+			Array.prototype.forEach.call(document.querySelectorAll('[data-i18n-' + attr + ']'), function (n) { n.setAttribute(attr, t(n.getAttribute('data-i18n-' + attr))); });
+		});
+		if (/\bidle\b/.test($('result').className)) { $('result-title').textContent = t('Bereit'); }
+		$('camera').textContent = camera.stream ? t('Kamera stoppen') : t('Kamera starten');
+		$('pending').textContent = t('%d offen', state.pendingCount);
+		setNet();
+	}
+
+	/**
+	 * Fetches the table (public endpoint, no token) and keeps it in IndexedDB for offline starts.
+	 * Offline or on errors the stored table (or the German source texts) stays in use.
+	 */
+	function loadI18n() {
+		if (navigator.onLine === false) { return Promise.resolve(); }
+		return fetch(endpoint('offline/i18n'), { headers: { 'Accept': 'application/json' }, credentials: 'omit', cache: 'no-cache' }).then(function (res) {
+			return res.ok ? res.json() : null;
+		}).then(function (table) {
+			if (!validI18n(table) || JSON.stringify(table) === JSON.stringify(state.i18n)) { return; }
+			state.i18n = table;
+			applyI18n();
+			if (state.token) { renderOccurrences(); renderLog(); }
+			return kvSet('i18n', table);
+		}).catch(function () {});
 	}
 
 	/* ---------------- boot ---------------- */
@@ -617,12 +686,15 @@
 
 	function boot() {
 		if (!nacl || !window.crypto || !crypto.subtle || !window.indexedDB) {
-			showResult('bad', 'Browser nicht unterstützt', 'Benötigt HTTPS, WebCrypto und IndexedDB.');
+			showResult('bad', t('Browser nicht unterstützt'), t('Benötigt HTTPS, WebCrypto und IndexedDB.'));
 			return;
 		}
 		if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {}); }
 		var param = new URLSearchParams(location.search).get('api');
-		Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log')]).then(function (v) {
+		Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log'), kvGet('i18n')]).then(function (v) {
+			// Stored translations first, so everything below (incl. package errors) is translated offline.
+			if (validI18n(v[7])) { state.i18n = v[7]; }
+			applyI18n();
 			var stored = v[0];
 			var api = param && sameOrigin(param) ? param : (stored || deriveApi());
 			if (!sameOrigin(api)) { api = deriveApi(); }
@@ -642,6 +714,7 @@
 				renderLog();
 				refreshAll(true);
 			}
+			loadI18n();
 		});
 
 		$('pair-form').addEventListener('submit', function (ev) {
@@ -651,10 +724,10 @@
 			pair($('pair-code').value, $('pair-label').value.trim()).then(function () {
 				showView();
 				renderOccurrences();
-				showResult('ok', 'Gekoppelt', 'Jetzt im Admin unter „Offline-Scanner“ dem Event zuweisen.');
+				showResult('ok', t('Gekoppelt'), t('Jetzt im Admin unter „Offline-Scanner“ dem Event zuweisen.'));
 				return refreshAll(true);
 			}).catch(function (err) {
-				showResult('bad', 'Kopplung fehlgeschlagen', err && err.message);
+				showResult('bad', t('Kopplung fehlgeschlagen'), err && err.message);
 				$('main-view').hidden = true;
 			}).then(function () { btn.disabled = false; });
 		});
@@ -669,13 +742,13 @@
 			lastScan = { code: '', at: 0 };
 			handleScan($('manual-code').value).then(function () { $('manual-code').value = ''; });
 		});
-		window.addEventListener('online', function () { setNet(); refreshAll(true); });
+		window.addEventListener('online', function () { setNet(); refreshAll(true); loadI18n(); });
 		window.addEventListener('offline', setNet);
 		setInterval(function () { if (navigator.onLine !== false) { refreshAll(false); } renderPackage(); }, 30000);
 	}
 
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { normalizeCode: normalizeCode, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll };
+	window.wpcapOffline = { t: t, fmtTime: fmtTime, normalizeCode: normalizeCode, verifyDoc: verifyDoc, decideOffline: decideOffline, state: state, syncNow: syncNow, refreshAll: refreshAll };
 
 	boot();
 }());

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="de-DE">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -14,35 +14,35 @@
 </head>
 <body>
 <header class="bar">
-	<strong>Offline-Scanner</strong>
+	<strong data-i18n="Offline-Scanner">Offline-Scanner</strong>
 	<span id="net" class="pill" role="status" aria-live="polite">…</span>
-	<span id="pending" class="pill pill-muted" title="Noch nicht hochgeladene Offline-Scans">0 offen</span>
+	<span id="pending" class="pill pill-muted" title="Noch nicht hochgeladene Offline-Scans" data-i18n-title="Noch nicht hochgeladene Offline-Scans">0 offen</span>
 </header>
 
 <main>
 	<section id="pair-view" hidden>
-		<h1>Gerät koppeln</h1>
-		<p>Im WordPress-Admin unter <em>Pass Captain → Scanner-Geräte</em> einen Kopplungscode für die gewünschten Events erstellen und hier eingeben. Danach unter <em>Offline-Scanner</em> das Gerät dem Event zuweisen.</p>
+		<h1 data-i18n="Gerät koppeln">Gerät koppeln</h1>
+		<p data-i18n="Im WordPress-Admin unter „Pass Captain → Scanner-Geräte“ einen Kopplungscode für die gewünschten Events erstellen und hier eingeben. Danach unter „Offline-Scanner“ das Gerät dem Event zuweisen.">Im WordPress-Admin unter „Pass Captain → Scanner-Geräte“ einen Kopplungscode für die gewünschten Events erstellen und hier eingeben. Danach unter „Offline-Scanner“ das Gerät dem Event zuweisen.</p>
 		<form id="pair-form" autocomplete="off">
-			<label>Kopplungscode<input id="pair-code" name="code" required minlength="16" maxlength="40" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-…"></label>
-			<label>Gerätename<input id="pair-label" name="label" maxlength="190" placeholder="z. B. Einlass Nord"></label>
-			<button type="submit" class="primary">Koppeln</button>
+			<label><span data-i18n="Kopplungscode">Kopplungscode</span><input id="pair-code" name="code" required minlength="16" maxlength="40" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH-…"></label>
+			<label><span data-i18n="Gerätename">Gerätename</span><input id="pair-label" name="label" maxlength="190" placeholder="z. B. Einlass Nord" data-i18n-placeholder="z. B. Einlass Nord"></label>
+			<button type="submit" class="primary" data-i18n="Koppeln">Koppeln</button>
 		</form>
-		<p class="small">Server: <code id="api-base"></code></p>
+		<p class="small"><span data-i18n="Server:">Server:</span> <code id="api-base"></code></p>
 	</section>
 
 	<section id="main-view" hidden>
 		<div class="card">
-			<label>Termin
+			<label><span data-i18n="Termin">Termin</span>
 				<select id="occurrence"></select>
 			</label>
-			<label id="area-wrap" hidden>Einlassbereich
+			<label id="area-wrap" hidden><span data-i18n="Einlassbereich">Einlassbereich</span>
 				<select id="area"></select>
 			</label>
 			<div id="pkg" class="pkg small" aria-live="polite"></div>
 			<div class="row">
-				<button type="button" id="refresh">Paket aktualisieren</button>
-				<button type="button" id="sync">Jetzt synchronisieren</button>
+				<button type="button" id="refresh" data-i18n="Paket aktualisieren">Paket aktualisieren</button>
+				<button type="button" id="sync" data-i18n="Jetzt synchronisieren">Jetzt synchronisieren</button>
 			</div>
 		</div>
 
@@ -57,22 +57,22 @@
 			</div>
 			<video id="video" playsinline muted hidden></video>
 			<form id="manual" autocomplete="off">
-				<label>Ticketcode manuell<input id="manual-code" spellcheck="false" inputmode="text" placeholder="64-stelliger Code oder Ticket-Link"></label>
-				<button type="submit">Prüfen</button>
+				<label><span data-i18n="Ticketcode manuell">Ticketcode manuell</span><input id="manual-code" spellcheck="false" inputmode="text" placeholder="64-stelliger Code oder Ticket-Link" data-i18n-placeholder="64-stelliger Code oder Ticket-Link"></label>
+				<button type="submit" data-i18n="Prüfen">Prüfen</button>
 			</form>
 		</div>
 
 		<div class="card">
-			<h2>Konflikte nach Synchronisierung</h2>
+			<h2 data-i18n="Konflikte nach Synchronisierung">Konflikte nach Synchronisierung</h2>
 			<ul id="conflicts" class="list"></ul>
 		</div>
 
 		<div class="card">
-			<h2>Letzte Scans</h2>
+			<h2 data-i18n="Letzte Scans">Letzte Scans</h2>
 			<ul id="log" class="list"></ul>
 		</div>
 
-		<p class="small">Gerät <code id="device-id"></code> · <button type="button" id="unpair" class="link">Gerät entkoppeln</button></p>
+		<p class="small"><span data-i18n="Gerät">Gerät</span> <code id="device-id"></code> · <button type="button" id="unpair" class="link" data-i18n="Gerät entkoppeln">Gerät entkoppeln</button></p>
 	</section>
 </main>
 

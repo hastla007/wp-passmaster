@@ -655,8 +655,12 @@ final class Installer {
 			) ENGINE=InnoDB $charset;",
 		);
 
-		foreach ( array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) ) as $query ) {
+		$queries = array_merge( $queries, Modules::schema( $wpdb->prefix, $charset ) );
+		$errors = array();
+		foreach ( $queries as $query ) {
+			$wpdb->last_error = '';
 			dbDelta( $query );
+			if ( '' !== (string) $wpdb->last_error ) { $errors[] = (string) $wpdb->last_error; }
 		}
 
 		// Role names are translated; before init that would load the text domain too early.
@@ -665,9 +669,76 @@ final class Installer {
 		} else {
 			add_action( 'init', array( __CLASS__, 'register_roles' ), 1 );
 		}
+
+		// dbDelta() reports nothing: only advance the stored version when every table and column exists.
+		// Otherwise the old version stays, so the next admin/cron request (behind the lock) retries.
+		$missing = self::missing_schema( $queries );
+		if ( $errors || $missing ) {
+			self::schema_failed( $errors, $missing );
+			return false;
+		}
 		update_option( 'wpcap_db_version', self::version() );
 		update_option( 'wpcap_version', WPCAP_VERSION );
 		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );
+		if ( get_option( self::ERROR_OPTION ) ) { delete_option( self::ERROR_OPTION ); }
+		return true;
+	}
+
+	/** Option holding details of the last failed schema upgrade (shown as admin notice until an upgrade succeeds). */
+	const ERROR_OPTION = 'wpcap_schema_error';
+
+	/**
+	 * Tables and columns of the CREATE TABLE statements that do not exist in the database.
+	 *
+	 * @param string[] $queries dbDelta statements.
+	 * @return string[] "table" for a missing table, "table.column" for a missing column.
+	 */
+	public static function missing_schema( array $queries ) {
+		global $wpdb;
+		$missing = array();
+		foreach ( $queries as $query ) {
+			if ( ! preg_match( '/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_$]+)`?\s*\((.*)\)/is', (string) $query, $m ) ) { continue; }
+			$table = $m[1];
+			$expected = array();
+			foreach ( preg_split( '/\r?\n/', $m[2] ) as $line ) {
+				$line = trim( $line );
+				if ( '' === $line || ! preg_match( '/^`?([A-Za-z0-9_]+)`?\s/', $line, $c ) ) { continue; }
+				if ( in_array( strtoupper( $c[1] ), array( 'PRIMARY', 'KEY', 'UNIQUE', 'INDEX', 'FULLTEXT', 'SPATIAL', 'CONSTRAINT', 'FOREIGN', 'CHECK' ), true ) ) { continue; }
+				$expected[] = strtolower( $c[1] );
+			}
+			$columns = $wpdb->get_col( "SHOW COLUMNS FROM `$table`" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table name.
+			if ( ! $columns ) {
+				$missing[] = $table;
+				continue;
+			}
+			foreach ( array_diff( $expected, array_map( 'strtolower', (array) $columns ) ) as $column ) { $missing[] = $table . '.' . $column; }
+		}
+		return $missing;
+	}
+
+	/** Records a failed schema upgrade: PHP error log plus an option that drives the admin notice. */
+	private static function schema_failed( array $errors, array $missing ) {
+		$details = array(
+			'time'    => time(),
+			'version' => self::version(),
+			'errors'  => array_slice( array_values( array_unique( $errors ) ), 0, 5 ),
+			'missing' => array_slice( $missing, 0, 20 ),
+		);
+		update_option( self::ERROR_OPTION, $details );
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- a failed schema upgrade must reach the operator.
+		error_log( 'Pass Captain: database upgrade to ' . $details['version'] . ' failed; will retry. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ) );
+	}
+
+	/** Admin notice while the last schema upgrade failed (registered by maybe_upgrade() on admin requests). */
+	public static function render_schema_notice() {
+		$error = get_option( self::ERROR_OPTION );
+		if ( ! is_array( $error ) || ! $error || ! current_user_can( 'activate_plugins' ) ) { return; }
+		$detail = implode( ', ', array_merge( (array) ( $error['missing'] ?? array() ), (array) ( $error['errors'] ?? array() ) ) );
+		printf(
+			'<div class="notice notice-error"><p>%1$s</p><p><code>%2$s</code></p></div>',
+			esc_html__( 'Pass Captain: Die Datenbank-Aktualisierung ist fehlgeschlagen. Sie wird beim nächsten Seitenaufruf im Adminbereich automatisch wiederholt. Bitte das PHP-Fehlerprotokoll prüfen, falls die Meldung bleibt.', 'pass-captain' ),
+			esc_html( substr( $detail, 0, 500 ) )
+		);
 	}
 
 	/** Cron hook that performs a deferred upgrade (scheduled by frontend requests). */
@@ -725,6 +796,9 @@ final class Installer {
 	 */
 	public static function maybe_upgrade( $context = null ) {
 		$context = $context ?? self::context();
+		if ( 'admin' === $context && function_exists( 'add_action' ) && get_option( self::ERROR_OPTION ) ) {
+			add_action( 'admin_notices', array( __CLASS__, 'render_schema_notice' ) );
+		}
 		// Role names are translated: rename only once translations may load (init), never earlier.
 		if ( did_action( 'init' ) ) {
 			self::rename_legacy_roles();
@@ -751,8 +825,9 @@ final class Installer {
 			static function () use ( &$ran ) {
 				// Another request may have finished the upgrade while we waited for the lock.
 				if ( self::version() === self::stored_db_version() ) { return; }
-				self::install();
-				$ran = true;
+				// A failed install() keeps the old version: the lock is released (run_locked) and the next
+				// admin/cron request retries; frontend requests re-schedule the cron event.
+				$ran = self::install();
 			}
 		);
 		return $ran;

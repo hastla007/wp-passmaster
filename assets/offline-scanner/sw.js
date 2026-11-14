@@ -1,11 +1,12 @@
 /**
  * Service worker of the offline scanner: caches the app shell (cache-first, refreshed in the
- * background). API requests (wp-json) are never cached – packages live in IndexedDB, signed.
+ * background). API requests (wp-json) are never cached – packages (signed) and the translation
+ * table (GET /app/offline/i18n) live in IndexedDB, so both are available offline.
  * Bump CACHE when shipping changed shell files.
  */
 'use strict';
 
-var CACHE = 'wpcap-offline-scanner-v1';
+var CACHE = 'wpcap-offline-scanner-v2';
 var SHELL = [
 	'./',
 	'index.html',

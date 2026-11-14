@@ -325,7 +325,11 @@ final class Orders {
 		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
 	}
 
-	/** Stores attendee name/e-mail and custom field answers for one ticket. */
+	/**
+	 * Stores attendee name/e-mail and custom field answers for one ticket.
+	 *
+	 * @return bool False when a write failed (the caller rolls the issuance back).
+	 */
 	private static function store_attendee( $ticket_id, $order, array $attendee ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
@@ -333,14 +337,19 @@ final class Orders {
 		$name = sanitize_text_field( $attendee['name'] ?? '' );
 		$email = sanitize_email( $attendee['email'] ?? '' );
 		if ( $name || is_email( $email ) ) {
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", $ticket_id, $order->customer_email, is_email( $email ) ? $email : '', $name, $now ) );
-			if ( is_email( $email ) ) {
-				$wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => $ticket_id ) );
+			if ( false === $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_ticket_assignments (ticket_id,buyer_email,attendee_email,attendee_name,status,created_at) VALUES (%d,%s,%s,%s,'assigned',%s) ON DUPLICATE KEY UPDATE attendee_email=VALUES(attendee_email),attendee_name=VALUES(attendee_name)", $ticket_id, $order->customer_email, is_email( $email ) ? $email : '', $name, $now ) ) ) {
+				return false;
+			}
+			if ( is_email( $email ) && false === $wpdb->update( "{$p}wpcap_tickets", array( 'attendee_email' => $email ), array( 'ticket_id' => $ticket_id ) ) ) {
+				return false;
 			}
 		}
 		foreach ( (array) ( $attendee['answers'] ?? array() ) as $field_id => $value ) {
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE answer=VALUES(answer),updated_at=VALUES(updated_at)", $ticket_id, absint( $field_id ), (string) $value, $now, $now ) );
+			if ( false === $wpdb->query( $wpdb->prepare( "INSERT INTO {$p}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,%s,%s,%s) ON DUPLICATE KEY UPDATE answer=VALUES(answer),updated_at=VALUES(updated_at)", $ticket_id, absint( $field_id ), (string) $value, $now, $now ) ) ) {
+				return false;
+			}
 		}
+		return true;
 	}
 
 	/**
@@ -356,6 +365,36 @@ final class Orders {
 			}
 		}
 		return $changed;
+	}
+
+	/**
+	 * Like revoke_ids(), but reports database errors: returns the changed IDs, or false as soon as
+	 * an UPDATE fails (the caller rolls its transaction back). Callers lock the rows FOR UPDATE first.
+	 *
+	 * @return int[]|false
+	 */
+	private static function revoke_ids_checked( array $ticket_ids ) {
+		global $wpdb;
+		$changed = array();
+		foreach ( array_unique( array_map( 'absint', $ticket_ids ) ) as $id ) {
+			if ( ! $id ) { continue; }
+			$result = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET status='revoked' WHERE ticket_id=%d AND status='valid'", $id ) );
+			if ( false === $result ) { return false; }
+			if ( $result ) { $changed[] = $id; }
+		}
+		return $changed;
+	}
+
+	/**
+	 * Rolls back a state change that hit a database error (deadlock, lock wait timeout, lost
+	 * connection) and returns a retryable error; webhooks answer it with a 5xx so the provider retries.
+	 */
+	private static function state_busy( $order_id, $step ) {
+		global $wpdb;
+		$error = (string) $wpdb->last_error;
+		$wpdb->query( 'ROLLBACK' );
+		Audit::record( 'order_state_db_error', 'order', absint( $order_id ), array( 'step' => sanitize_key( $step ), 'error' => substr( $error, 0, 200 ) ) );
+		return new \WP_Error( 'wpcap_db_busy', __( 'Die Bestellung konnte gerade nicht aktualisiert werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'step' => (string) $step ) );
 	}
 
 	/**

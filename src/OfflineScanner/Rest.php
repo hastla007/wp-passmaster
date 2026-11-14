@@ -5,6 +5,7 @@
  *   GET /app/offline/keys                            – trusted Ed25519 public keys
  *   GET /app/offline/occurrences                     – occurrences this device may hold packages for
  *   GET /app/offline/package?occurrence_id=&since=   – signed full/delta package
+ *   GET /app/offline/i18n                            – public: locale + translated UI texts of the PWA
  *
  * Also extends existing app responses (rest_request_after_callbacks): /app/pair returns the public
  * keys ("offline"), /app/me announces the feature, /app/scan/sync applies the event's offline rules.
@@ -23,10 +24,20 @@ final class Rest {
 		register_rest_route( Api::NS, '/app/offline/keys', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'keys' ), 'permission_callback' => $auth ) );
 		register_rest_route( Api::NS, '/app/offline/occurrences', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'occurrences' ), 'permission_callback' => $auth ) );
 		register_rest_route( Api::NS, '/app/offline/package', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'package' ), 'permission_callback' => $auth ) );
+		// Public on purpose: the pairing screen needs its texts before a device token exists; the
+		// table only contains UI strings.
+		register_rest_route( Api::NS, '/app/offline/i18n', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'i18n' ), 'permission_callback' => '__return_true' ) );
 	}
 
 	public static function keys( \WP_REST_Request $request ) {
 		return rest_ensure_response( array( 'keys' => Keys::public_keys(), 'server_time' => gmdate( 'c' ) ) );
+	}
+
+	/** Locale and translated string table of the PWA (see I18n). */
+	public static function i18n( \WP_REST_Request $request ) {
+		$response = rest_ensure_response( I18n::table() );
+		if ( method_exists( $response, 'header' ) ) { $response->header( 'Cache-Control', 'no-cache' ); }
+		return $response;
 	}
 
 	public static function occurrences( \WP_REST_Request $request ) {
