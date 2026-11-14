@@ -524,6 +524,7 @@ final class Forms {
 			'completed'        => __( 'Durchgeführt', 'pass-captain' ),
 			'failed'           => __( 'Fehlgeschlagen', 'pass-captain' ),
 			'rejected'         => __( 'Abgelehnt', 'pass-captain' ),
+			'reversed'         => __( 'Beim Zahlungsanbieter gescheitert, storniert', 'pass-captain' ),
 			'undone'           => __( 'Check-in zurückgenommen', 'pass-captain' ),
 			'unknown'          => __( 'Unbekannt', 'pass-captain' ),
 			'outside_entry_window' => __( 'Außerhalb des Einlasszeitraums', 'pass-captain' ),

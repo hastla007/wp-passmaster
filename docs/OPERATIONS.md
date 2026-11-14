@@ -591,6 +591,8 @@ wie Rechnungsnummernjahr und Umsatzbericht. Ohne Parameter: aktueller Monat bis 
 | `Rechnungskorrektur` | eine Zeile je Steuersatz einer Rechnungskorrektur (negativ) | Ausstellung |
 | `Verkauf ohne Rechnung` | bezahlte Bestellungen ohne Rechnung (automatische Rechnungen aus, Kassenbelege, Partner-API, WooCommerce): eine Zeile je Bestellung und Steuersatz, Beträge nach Rabatt | Bestelldatum |
 | `Erstattung ohne Rechnung` | abgeschlossene Erstattungen solcher Bestellungen, eine Zeile je Steuersatz (negativ; Mehrzweckgutscheine mit Gutscheinanteil und voller USt wie im Bericht) | Abschluss der Erstattung |
+| `Rechnungskorrektur` (Beschreibung `Storno Erstattung`) | Storno-Beleg einer Rechnungskorrektur, deren Erstattung beim Zahlungsanbieter nachträglich scheiterte (A348): Belegnummer `reversal_number`, Bezug = Nummer der Korrektur, Beträge positiv | Storno |
+| `Erstattung ohne Rechnung` (Beschreibung `Storno Erstattung ohne Rechnung …`) | dasselbe für Bestellungen ohne Rechnung (positiv); die ursprüngliche Erstattungszeile bleibt an ihrem Tag | Storno |
 
 Freikarten (Zahlungsanbieter aus `wpcap_comp_payment_providers`, z. B. `comp`, `pos_free`) sind keine
 Verkäufe und erscheinen nicht. Eine Bestellung gilt als „ohne Rechnung“, solange für sie keine Rechnung

@@ -149,6 +149,47 @@ final class Invoices {
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE refund_id=%d", absint( $refund_id ) ), ARRAY_A );
 	}
 
+	/** Whether wpcap_credit_notes.reversal_number exists (schema 3.10.11; not yet during a deferred upgrade). */
+	public static function credit_reversal_ready() {
+		static $ready = array();
+		global $wpdb;
+		$key = (string) $wpdb->prefix;
+		if ( empty( $ready[ $key ] ) ) {
+			$ready[ $key ] = null !== $wpdb->get_row( "SHOW COLUMNS FROM {$wpdb->prefix}wpcap_credit_notes LIKE 'reversal_number'" );
+		}
+		return $ready[ $key ];
+	}
+
+	/**
+	 * Reverses the credit note of a refund that failed at the provider after it was booked (A348): the
+	 * correction gets a reversal document with its own number from the correction number range
+	 * (reversal_number, reversed_at). The credit note itself is never changed otherwise. Idempotent.
+	 *
+	 * @return array|null|\WP_Error Credit note row, null when the refund has none.
+	 */
+	public static function reverse_credit_note( $refund_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( ! self::credit_reversal_ready() ) { return null; }
+		$credit = $wpdb->get_row( $wpdb->prepare( "SELECT c.*,i.buyer_snapshot FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id WHERE c.refund_id=%d", absint( $refund_id ) ), ARRAY_A );
+		if ( ! $credit ) { return null; }
+		if ( '' !== (string) $credit['reversal_number'] ) { return $credit; }
+		$wpdb->query( 'START TRANSACTION' );
+		list( $series, $prefix ) = self::credit_series_for( (array) json_decode( (string) $credit['buyer_snapshot'], true ) );
+		$number = self::next_document_number( $series, $prefix, true );
+		if ( is_wp_error( $number ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return $number;
+		}
+		$set = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_credit_notes SET reversal_number=%s,reversed_at=%s WHERE credit_note_id=%d AND reversal_number=''", $number, current_time( 'mysql', true ), (int) $credit['credit_note_id'] ) );
+		if ( 1 !== (int) $set || false === $wpdb->query( 'COMMIT' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( 'wpcap_credit_reversal', __( 'Die Rechnungskorrektur konnte nicht storniert werden.', 'pass-captain' ), array( 'status' => 503 ) );
+		}
+		Audit::record( 'credit_note_reversed', 'invoice', (int) $credit['invoice_id'], array( 'refund_id' => absint( $refund_id ), 'number' => (string) $credit['credit_note_number'], 'reversal_number' => $number ) );
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE credit_note_id=%d", (int) $credit['credit_note_id'] ), ARRAY_A );
+	}
+
 	/* ------------------------------------------------------------------ Corrections per tax rate */
 
 	/** Whether wpcap_credit_notes.rates exists (schema 3.8.3; not yet during a deferred upgrade). */
@@ -644,7 +685,8 @@ final class Invoices {
 		</tbody></table>
 		<table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr>
 		<?php foreach ( $credit_rates as $r ) : ?><tr><td><?php echo esc_html( sprintf( /* translators: %s: rate */ __( 'Umsatzsteuer %s %%', 'pass-captain' ), number_format_i18n( $r['rate_bp'] / 100, 2 ) ) ); ?></td><td class="n">-<?php echo esc_html( $money( $r['tax'] ) ); ?></td></tr><?php endforeach; ?>
-		<tr><th><?php esc_html_e( 'Korrekturbetrag', 'pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
+		<tr><th><?php esc_html_e( 'Korrekturbetrag', 'pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table>
+		<?php if ( '' !== (string) ( $credit->reversal_number ?? '' ) ) : ?><p><strong><?php echo esc_html( sprintf( /* translators: 1: reversal document number, 2: date */ __( 'Storniert durch Beleg %1$s vom %2$s (Erstattung beim Zahlungsanbieter gescheitert)', 'pass-captain' ), $credit->reversal_number, wp_date( 'd.m.Y', strtotime( $credit->reversed_at . ' UTC' ) ) ) ); ?></strong></p><?php endif; ?><?php endforeach; ?>
 		<button onclick="window.print()"><?php esc_html_e( 'Drucken oder als PDF speichern', 'pass-captain' ); ?></button>
 		</body></html><?php
 		return (string) ob_get_clean();
@@ -767,6 +809,15 @@ final class Invoices {
 				$rows[] = array( self::EXPORT_KIND_CREDIT, $c->credit_note_number, $local_day( $c->issued_at ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( $r['net'], $c->currency ), number_format( $r['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $r['tax'], $c->currency ), '-' . $money( $r['gross'], $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
 			}
 		}
+		if ( self::credit_reversal_ready() ) {
+			// A348: reversal of a correction whose refund failed at the provider, on its own date and number.
+			$reversals = $wpdb->get_results( $wpdb->prepare( "SELECT c.*,i.invoice_number,i.buyer_snapshot,o.public_id,o.payment_provider FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id INNER JOIN {$p}wpcap_orders o ON o.order_id=i.order_id WHERE c.reversal_number<>'' AND c.reversed_at >= %s AND c.reversed_at < %s ORDER BY c.credit_note_id", $from_utc, $to_utc ) );
+			foreach ( $reversals as $c ) {
+				foreach ( self::credit_rates( $c ) as $r ) {
+					$rows[] = array( self::EXPORT_KIND_CREDIT, $c->reversal_number, $local_day( $c->reversed_at ), $c->public_id, $c->credit_note_number, 'Storno Erstattung', '', $money( $r['net'], $c->currency ), number_format( $r['rate_bp'] / 100, 2, '.', '' ), $money( $r['tax'], $c->currency ), $money( $r['gross'], $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
+				}
+			}
+		}
 		return array_merge( $rows, self::uninvoiced_rows( $from_utc, $to_utc, $local_day, $money, $safe ) );
 	}
 
@@ -814,14 +865,22 @@ final class Invoices {
 				$rows[] = array( self::EXPORT_KIND_SALE_UNINVOICED, '', $local_day( $o->created_at ), $o->public_id, '', $safe( $description ), $r['quantity'], $money( $r['gross'] - $r['tax'], $o->currency ), number_format( $rate / 100, 2, '.', '' ), $money( $r['tax'], $o->currency ), $money( $r['gross'], $o->currency ), $o->currency, $safe( $o->payment_provider ), ...$seller_cols( (int) $o->order_id ) );
 			}
 		}
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,o.currency,o.public_id,o.payment_provider,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) );
+		$reversal_ready = Refunds::provider_status_ready();
+		// A refund reversed later (A348) stays on its booking day; its reversal follows on its own day below.
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,o.currency,o.public_id,o.payment_provider,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status IN ('completed'" . ( $reversal_ready ? ",'reversed'" : '' ) . ") AND r.updated_at >= %s AND r.updated_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed status list.
+		if ( $reversal_ready ) {
+			$reversed = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.reversed_at AS updated_at,1 AS is_reversal,o.currency,o.public_id,o.payment_provider,(o.voucher_snapshot IS NOT NULL AND o.voucher_snapshot<>'') AS has_voucher FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders o ON o.order_id=r.order_id WHERE r.status='reversed' AND r.reversed_at >= %s AND r.reversed_at < %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=r.order_id) ORDER BY r.refund_id", $from_utc, $to_utc ) );
+			$refunds = array_merge( $refunds, $reversed );
+		}
 		foreach ( $refunds as $r ) {
 			if ( in_array( (string) $r->payment_provider, $comp, true ) ) { continue; }
 			// Same amounts as the sales report (multi-purpose vouchers: cash + voucher share, full VAT).
 			$amounts = Integrations\Vouchers\Checkout::refund_amounts( $r );
 			$description = 'Erstattung ohne Rechnung (' . $channels[ Reports\Data::channel_of( $r->payment_provider ) ] . ')';
+			$sign = empty( $r->is_reversal ) ? '-' : '';
+			if ( ! empty( $r->is_reversal ) ) { $description = 'Storno ' . $description; }
 			foreach ( self::credit_note_rates( array( 'order_id' => (int) $r->order_id, 'ticket_ids' => $r->ticket_ids ), (int) $amounts['amount_minor'], (int) $amounts['tax_minor'] ) as $rate ) {
-				$rows[] = array( self::EXPORT_KIND_REFUND_UNINVOICED, '', $local_day( $r->updated_at ), $r->public_id, '', $safe( $description ), '', '-' . $money( $rate['net'], $r->currency ), number_format( $rate['rate_bp'] / 100, 2, '.', '' ), '-' . $money( $rate['tax'], $r->currency ), '-' . $money( $rate['gross'], $r->currency ), $r->currency, $safe( $r->payment_provider ), ...$seller_cols( (int) $r->order_id ) );
+				$rows[] = array( self::EXPORT_KIND_REFUND_UNINVOICED, '', $local_day( $r->updated_at ), $r->public_id, '', $safe( $description ), '', $sign . $money( $rate['net'], $r->currency ), number_format( $rate['rate_bp'] / 100, 2, '.', '' ), $sign . $money( $rate['tax'], $r->currency ), $sign . $money( $rate['gross'], $r->currency ), $r->currency, $safe( $r->payment_provider ), ...$seller_cols( (int) $r->order_id ) );
 			}
 		}
 		return $rows;

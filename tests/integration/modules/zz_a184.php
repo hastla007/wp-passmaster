@@ -36,7 +36,7 @@ foreach ( StateMachine::TRANSITIONS as $entity => $map ) {
 	}
 }
 check( 'every state of every guarded entity is declared and documented', ! $a184_missing );
-check( 'terminal states have no way out', StateMachine::is_terminal( 'order', 'refunded' ) && StateMachine::is_terminal( 'refund', 'completed' ) && StateMachine::is_terminal( 'job', 'complete' ) && ! StateMachine::is_terminal( 'order', 'cancelled' ) );
+check( 'terminal states have no way out', StateMachine::is_terminal( 'order', 'refunded' ) && StateMachine::is_terminal( 'refund', 'reversed' ) && StateMachine::is_terminal( 'job', 'complete' ) && ! StateMachine::is_terminal( 'order', 'cancelled' ) );
 check( 'order transitions: never paid cannot become refunded, paid cannot expire', ! StateMachine::allowed( 'order', 'pending_payment', 'refunded' ) && ! StateMachine::allowed( 'order', 'expired', 'refunded' ) && ! StateMachine::allowed( 'order', 'complete', 'expired' ) && StateMachine::allowed( 'order', 'expired', 'complete' ) );
 check( 'source_sql lists exactly the allowed sources', "status IN ('pending_payment','expired','needs_review')" === StateMachine::source_sql( 'order', 'complete' ) && '1=0' === StateMachine::source_sql( 'order', 'pending_payment' ) );
 

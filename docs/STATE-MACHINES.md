@@ -99,6 +99,7 @@ Anbieter-Ereignis wird in `wpcap_payment_events` genau einmal angewendet:
 | `processing` (Ausgang unklar) | Zeitüberschreitung, Verbindungsfehler, 5xx oder 409 beim Anbieter-Aufruf (A272): Die Erstattung bleibt `processing` ohne `provider_reference` (`error_message` = `outcome_unknown`), wird **nie** als `failed` gewertet und nie erneut ausgezahlt. Abgleich über das Anbieter-Merkmal `wpcap_refund` (siehe unten). |
 | `processing` → `completed` | Lokale Buchung nach der Auszahlung. Hängt sie, schließt Cron `repair_stuck()` sie ab, ohne ein zweites Mal auszuzahlen. Ebenso nach einem Abgleich, der die Auszahlung beim Anbieter findet, oder einer manuellen Bestätigung „ausgezahlt“. |
 | `processing` → `failed` (Abgleich) | Der Anbieter meldet die Erstattung als fehlgeschlagen, kennt sie 10 Minuten nach dem Aufruf nicht, oder eine berechtigte Person bestätigt „nicht ausgezahlt“. |
+| `completed` → `reversed` | Der Anbieter meldet eine verbuchte Erstattung nachträglich als gescheitert (A348, siehe unten). |
 | `failed` → `processing` → `completed` | Der Anbieter meldet eine als fehlgeschlagen geführte Erstattung doch als ausgezahlt: Sie wird nachgebucht, wenn Tickets und Betrag noch offen sind; sonst nur Admin-Mail (vermutlich doppelt ausgezahlt). |
 
 ### Erstattung mit unklarem Ausgang (A272, A350)
@@ -127,12 +128,39 @@ Aufruf ohne eindeutige Antwort, wird die Erstattung so abgeglichen:
 Solange der Ausgang offen ist, bleiben Tickets und Betrag an die Erstattung gebunden: Eine neue
 Erstattung derselben Tickets wird abgelehnt (`wpcap_refund_overlap`), ein Betrag nur bis zum Rest.
 
-`completed` und `rejected` sind **Endzustände**. Gutschriften (Credit Notes) entstehen nur für
-`completed`.
+`rejected` und `reversed` sind **Endzustände**; `completed` kann nur noch zu `reversed` werden.
+Gutschriften (Credit Notes) entstehen nur für `completed`.
+
+### Ausstehende und später gescheiterte Erstattungen (A348)
+
+Meldet der Anbieter eine Erstattung als angenommen, aber noch nicht ausgeführt (Stripe `pending`/
+`requires_action`, Mollie `queued`/`pending`/`processing`, PayPal `PENDING`), wird sie wie bisher sofort
+verbucht (Tickets widerrufen, Gutschrift), aber mit `provider_status` = `pending` geführt (sonst
+`succeeded`). Der Job `refund_reconcile` fragt den Stand ab (nach etwa zwei Tagen ohne Ergebnis
+Admin-Mail, Audit `refund_provider_still_pending`); Webhooks (Stripe `refund.updated`/`refund.failed`/
+`charge.refund.updated`/`charge.refunded`, Mollie, PayPal) wirken ebenso.
+
+- **Ausgeführt:** `provider_status` = `succeeded` (Buchungsdatum `updated_at` bleibt).
+- **Gescheitert** (auch nach einem zunächst erfolgreichen Status): Die Erstattung wird `reversed`
+  (`reversed_at`; Buchungsdatum bleibt), der erstattete Betrag der Bestellung sinkt wieder, die
+  Rechnungskorrektur erhält einen Storno-Beleg mit eigener Nummer aus ihrem Nummernkreis
+  (`wpcap_credit_notes.reversal_number`, `reversed_at`; im Buchhaltungsexport als positive Zeile
+  „Storno Erstattung“ am Stornotag, bei Bestellungen ohne Rechnung „Storno Erstattung ohne Rechnung“).
+  Audit `refund_reversed` und `credit_note_reversed`, Hook `wpcap_refund_reversed`, Admin-Mail. Die
+  Tickets bleiben widerrufen. In der Bestellung zahlt **Erneut auszahlen** den Betrag als neue
+  Betragserstattung über den Anbieter aus (`Refunds::retry_reversed()`, auch bei vollständig
+  erstatteten Bestellungen; Freigaberegeln gelten).
+- Verkaufsberichte, Abrechnungen und Partnerauswertungen zählen nur `completed`: Eine stornierte
+  Erstattung fällt dort heraus, weil das Geld nie ausgezahlt wurde.
+- Nicht verbuchte Erstattungen, die noch `processing` sind, werden bei einem Fehlschlag einfach
+  `failed`.
+
+Externe Erstattungen (Anbieter-Dashboard), die später scheitern, werden nicht automatisch storniert.
 
 ## Gutschrift (`wpcap_credit_notes`)
 
-Gutschriften haben keinen Status. Sie werden nur angelegt, nie geändert: höchstens eine je Erstattung
+Gutschriften haben keinen Status. Sie werden nur angelegt und höchstens einmal storniert (Storno-Beleg,
+A348, siehe oben); höchstens eine je Erstattung
 (`UNIQUE refund_id`), mit einer fortlaufenden Nummer (`UNIQUE credit_note_number`). Sie entstehen,
 wenn die Erstattung `completed` ist und die Bestellung eine Rechnung hat. Ein doppeltes
 `wpcap_refund_completed` erzeugt keine zweite Gutschrift.

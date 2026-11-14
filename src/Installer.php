@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.10.10';
+	const DB_VERSION = '3.10.11';
 
 	public static function install() {
 		global $wpdb;
@@ -720,6 +720,8 @@ final class Installer {
 				error_message varchar(255) NOT NULL DEFAULT '',
 				credit_note_number varchar(40) NOT NULL DEFAULT '',
 				source varchar(20) NOT NULL DEFAULT '',
+				provider_status varchar(20) NOT NULL DEFAULT '',
+				reversed_at datetime NULL DEFAULT NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (refund_id),
@@ -738,6 +740,8 @@ final class Installer {
 				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				rates longtext NULL,
 				issued_at datetime NOT NULL,
+				reversal_number varchar(40) NOT NULL DEFAULT '',
+				reversed_at datetime NULL DEFAULT NULL,
 				PRIMARY KEY  (credit_note_id),
 				UNIQUE KEY refund_id (refund_id),
 				UNIQUE KEY credit_note_number (credit_note_number),

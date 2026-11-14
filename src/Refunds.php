@@ -180,7 +180,9 @@ final class Refunds {
 		}
 		$wpdb->query( 'START TRANSACTION' );
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
-		if ( ! $order || 'paid' !== $order->payment_status ) {
+		// A reversed refund of a fully refunded order is paid out again from a "refunded" order (A348).
+		$states = ! empty( $args['allow_refunded'] ) ? array( 'paid', 'refunded' ) : array( 'paid' );
+		if ( ! $order || ! in_array( $order->payment_status, $states, true ) ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
@@ -343,7 +345,17 @@ final class Refunds {
 			$provider_reference = is_array( $result ) ? (string) ( $result['reference'] ?? '' ) : (string) $result;
 		}
 		// The money has moved: record it first, so a failure below is repaired without a second payout.
-		$wpdb->update( "{$p}wpcap_refunds", array( 'provider_reference' => substr( '' !== $provider_reference ? $provider_reference : 'manual', 0, 191 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'refund_id' => $refund_id, 'status' => 'processing' ) );
+		$record = array( 'provider_reference' => substr( '' !== $provider_reference ? $provider_reference : 'manual', 0, 191 ), 'updated_at' => current_time( 'mysql', true ) );
+		$pending = isset( $result ) && is_array( $result ) && 'pending' === ( $result['status'] ?? '' );
+		if ( self::provider_status_ready() && isset( $result ) && ! is_wp_error( $result ) ) {
+			// A348: accepted but not completed by the provider yet – booked now, followed until it settles.
+			$record['provider_status'] = $pending ? 'pending' : 'succeeded';
+		}
+		$wpdb->update( "{$p}wpcap_refunds", $record, array( 'refund_id' => $refund_id, 'status' => 'processing' ) );
+		if ( $pending && self::provider_status_ready() ) {
+			Audit::record( 'refund_provider_pending', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'reference' => $provider_reference ) );
+			self::schedule_reconcile( $refund_id, 0 );
+		}
 		return self::finish_locally( $refund, $provider_reference );
 	}
 
@@ -590,6 +602,13 @@ final class Refunds {
 	/** The reconciliation gave up: audit and admin mail (the refund stays visible as unresolved). */
 	private static function needs_manual_decision( $refund_id, $result ) {
 		$refund = self::get( $refund_id );
+		if ( $refund && 'completed' === $refund['status'] && 'pending' === (string) ( $refund['provider_status'] ?? '' ) ) {
+			// A348: still pending after about two days. Later webhooks still settle it.
+			Audit::record( 'refund_provider_still_pending', 'order', (int) $refund['order_id'], array( 'refund_id' => (int) $refund_id ) );
+			/* translators: 1: refund id, 2: provider refund reference */
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung beim Zahlungsanbieter noch ausstehend', 'pass-captain' ), sprintf( __( 'Die Erstattung #%1$d (Referenz %2$s) ist beim Zahlungsanbieter seit zwei Tagen ausstehend. Bitte im Konto des Anbieters prüfen. Meldet der Anbieter sie später als gescheitert, wird die Buchung automatisch storniert.', 'pass-captain' ), (int) $refund_id, (string) $refund['provider_reference'] ) );
+			return;
+		}
 		if ( ! $refund || 'processing' !== $refund['status'] || '' !== (string) $refund['provider_reference'] ) { return; }
 		$order = Orders::get( (int) $refund['order_id'] );
 		Audit::record( 'refund_reconcile_exhausted', 'order', (int) $refund['order_id'], array( 'refund_id' => (int) $refund_id, 'error' => is_wp_error( $result ) ? $result->get_error_code() : (string) $result ) );
@@ -619,7 +638,8 @@ final class Refunds {
 		if ( ! $refund ) {
 			return '' !== $wpdb->last_error ? self::busy() : new \WP_Error( 'wpcap_refund_missing', __( 'Erstattung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}
-		if ( 'processing' !== $refund['status'] || '' !== (string) $refund['provider_reference'] ) {
+		$pending = 'completed' === $refund['status'] && 'pending' === (string) ( $refund['provider_status'] ?? '' );
+		if ( ! $pending && ( 'processing' !== $refund['status'] || '' !== (string) $refund['provider_reference'] ) ) {
 			return 'nothing';
 		}
 		$order = Orders::get( (int) $refund['order_id'] );
@@ -628,10 +648,15 @@ final class Refunds {
 		if ( ! $gateway instanceof Payments\RefundLookupInterface ) {
 			return new \WP_Error( 'wpcap_refund_lookup_unsupported', __( 'Dieser Zahlungsanbieter unterstützt keinen automatischen Abgleich. Bitte im Konto des Anbieters prüfen und die Erstattung manuell bestätigen.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
-		$found = $gateway->find_refund( (array) $order, self::key_for( $refund_id ) );
+		$found = $gateway->find_refund( (array) $order, self::key_for( $refund_id ), $pending ? (string) $refund['provider_reference'] : '' );
 		if ( is_wp_error( $found ) ) {
 			Audit::record( 'refund_lookup_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => (int) $refund_id, 'error' => $found->get_error_code(), 'source' => sanitize_key( $source ) ) );
 			return $found;
+		}
+		if ( $pending ) {
+			// A348: a booked refund still pending at the provider.
+			if ( null === $found || 'pending' === ( $found['status'] ?? '' ) ) { return 'waiting'; }
+			return self::apply_state( $refund, $found, $source );
 		}
 		if ( null === $found ) {
 			// The call may still be on its way: "not found" counts only 10 minutes after it.
@@ -701,7 +726,105 @@ final class Refunds {
 		if ( 'failed' === $refund['status'] && $paid ) {
 			return self::paid_after_failure( $refund, $reference, $source );
 		}
+		$same = '' === $reference || (string) $refund['provider_reference'] === $reference;
+		if ( 'processing' === $refund['status'] && 'failed' === $status && $same ) {
+			// Accepted as pending, failed before the local booking: nothing to book.
+			$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'failed', array( 'error_message' => substr( __( 'Der Zahlungsanbieter hat die Erstattung nachträglich abgelehnt; es wurde nichts ausgezahlt.', 'pass-captain' ), 0, 255 ), 'updated_at' => current_time( 'mysql', true ) ), array( 'status' => 'processing' ) );
+			if ( false === $moved ) { return self::busy(); }
+			if ( 1 === $moved ) { Audit::record( 'refund_failed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'error' => 'provider_failed', 'source' => sanitize_key( $source ) ) ); }
+			return 'failed';
+		}
+		if ( 'completed' === $refund['status'] && $same && self::provider_status_ready() ) {
+			if ( 'failed' === $status ) {
+				return self::reverse( $refund, $source );
+			}
+			if ( 'succeeded' === $status && 'succeeded' !== (string) ( $refund['provider_status'] ?? '' ) ) {
+				// Status only: the booking date (updated_at) of the completed refund stays as it is.
+				$set = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_refunds SET provider_status='succeeded',updated_at=updated_at WHERE refund_id=%d AND status='completed'", $refund_id ) );
+				if ( false === $set ) { return self::busy(); }
+				Audit::record( 'refund_provider_succeeded', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'source' => sanitize_key( $source ) ) );
+				return 'completed';
+			}
+		}
 		return 'nothing';
+	}
+
+	/** Whether wpcap_refunds.provider_status/reversed_at exist (schema 3.10.11; not yet during a deferred upgrade). */
+	public static function provider_status_ready() {
+		static $ready = array();
+		global $wpdb;
+		$key = (string) $wpdb->prefix;
+		if ( empty( $ready[ $key ] ) ) {
+			$ready[ $key ] = null !== $wpdb->get_row( "SHOW COLUMNS FROM {$wpdb->prefix}wpcap_refunds LIKE 'reversed_at'" );
+		}
+		return $ready[ $key ];
+	}
+
+	/**
+	 * A348: the provider reports a refund that is booked here (completed) as failed – the money stayed
+	 * with the seller. The booking is reversed: status "reversed" (its booking date stays), the order's
+	 * refunded total goes down, the credit note gets a reversal document (Invoices::reverse_credit_note()).
+	 * Tickets stay revoked. The admin is mailed; the amount can be paid out again (retry_reversed()).
+	 *
+	 * @return string|\WP_Error reversed, nothing or WP_Error.
+	 */
+	private static function reverse( array $refund, $source ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$refund_id = (int) $refund['refund_id'];
+		$now = current_time( 'mysql', true );
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::busy(); }
+		$moved = StateMachine::transition( 'refund', "{$p}wpcap_refunds", 'refund_id', $refund_id, 'reversed', array( 'provider_status' => 'failed', 'reversed_at' => $now ) );
+		if ( false === $moved ) { return self::busy(); }
+		if ( 1 !== $moved ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 'nothing';
+		}
+		$total = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET refunded_minor=GREATEST(0,CAST(refunded_minor AS SIGNED)-%d),updated_at=%s WHERE order_id=%d", (int) $refund['amount_minor'], $now, (int) $refund['order_id'] ) );
+		if ( false === $total || false === Orders::transaction_alive() || false === $wpdb->query( 'COMMIT' ) ) { return self::busy(); }
+		$credit = Invoices::reverse_credit_note( $refund_id );
+		Audit::record( 'refund_reversed', 'order', (int) $refund['order_id'], array( 'refund_id' => $refund_id, 'amount_minor' => (int) $refund['amount_minor'], 'credit_note_reversal' => is_array( $credit ) ? (string) $credit['reversal_number'] : '', 'source' => sanitize_key( $source ) ) );
+		/**
+		 * A booked refund failed at the provider and was reversed (A348): its amount counts as paid again.
+		 *
+		 * @param int $refund_id Refund.
+		 * @param int $order_id  Order.
+		 */
+		do_action( 'wpcap_refund_reversed', $refund_id, (int) $refund['order_id'] );
+		$order = Orders::get( (int) $refund['order_id'] );
+		$public = $order ? Frontend\Format::order_reference( (string) $order->public_id ) : (string) $refund['order_id'];
+		wp_mail(
+			get_option( 'admin_email' ),
+			__( 'Pass Captain: Erstattung beim Zahlungsanbieter gescheitert', 'pass-captain' ),
+			/* translators: 1: refund id, 2: order reference, 3: amount, 4: credit note reversal number or "–" */
+			sprintf( __( "Der Zahlungsanbieter meldet die Erstattung #%1\$d zu Bestellung %2\$s über %3\$s als gescheitert; das Geld wurde nicht an die Käuferin bzw. den Käufer ausgezahlt.\n\nDie Buchung wurde storniert: Der Betrag gilt wieder als bezahlt, die Rechnungskorrektur wurde storniert (Storno-Beleg: %4\$s). Die Tickets bleiben widerrufen.\n\nBitte in der Bestellung „Erneut auszahlen“ wählen oder den Betrag auf anderem Weg erstatten.", 'pass-captain' ), $refund_id, $public, Money::format( (int) $refund['amount_minor'], (string) $refund['currency'] ), is_array( $credit ) && '' !== (string) $credit['reversal_number'] ? (string) $credit['reversal_number'] : '–' )
+		);
+		return 'reversed';
+	}
+
+	/** The new refund created by retry_reversed() for a reversed refund, or null. */
+	public static function find_retry( $refund_id ) {
+		global $wpdb;
+		$refund = self::get( $refund_id );
+		if ( ! $refund ) { return null; }
+		$key_hash = hash( 'sha256', 'refund-amount|' . (int) $refund['order_id'] . '|reversed-retry-' . absint( $refund_id ) );
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_refunds WHERE idempotency_key=%s", $key_hash ), ARRAY_A );
+	}
+
+	/**
+	 * Pays out the amount of a reversed refund again (A348) as a new amount-only refund through the
+	 * provider, idempotent per reversed refund; same approval rules as request_amount().
+	 *
+	 * @return array|\WP_Error New refund row.
+	 */
+	public static function retry_reversed( $refund_id ) {
+		$refund = self::get( $refund_id );
+		if ( ! $refund || 'reversed' !== $refund['status'] ) {
+			return new \WP_Error( 'wpcap_refund_not_reversed', __( 'Diese Erstattung wurde nicht storniert.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		/* translators: %d: id of the reversed refund */
+		$reason = sprintf( __( 'Neue Auszahlung der beim Anbieter gescheiterten Erstattung #%d', 'pass-captain' ), (int) $refund['refund_id'] );
+		return self::request_amount( (int) $refund['order_id'], (int) $refund['amount_minor'], $reason, 'reversed-retry-' . (int) $refund['refund_id'], array( 'tax_minor' => (int) $refund['tax_minor'], 'allow_refunded' => true ) );
 	}
 
 	/**

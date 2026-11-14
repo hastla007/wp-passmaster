@@ -30,8 +30,10 @@ final class StateMachine {
 			'approved'         => array( 'processing', 'failed' ),
 			'failed'           => array( 'processing', 'failed' ),
 			'processing'       => array( 'completed', 'failed' ),
-			'completed'        => array(),
+			// A348: the provider reports a booked refund as failed later: booking and credit note reversed.
+			'completed'        => array( 'reversed' ),
 			'rejected'         => array(),
+			'reversed'         => array(),
 		),
 		'job'           => array(
 			'queued'      => array( 'running' ),
