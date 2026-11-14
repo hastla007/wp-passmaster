@@ -16,7 +16,17 @@ if [ -z "${WPCAP_A11Y_BASE:-}" ] || [ -z "${WPCAP_A11Y_WP_PATH:-}" ]; then
 	eval "$ENV_LINE"
 	STARTED=1
 fi
-cleanup() { if [ "$STARTED" = 1 ]; then "$HERE/../support/wp-env.sh" stop; fi; }
+WOO_STARTED=0
+if [ -n "${WPCAP_WOO_ZIP:-}" ] && [ -z "${WPCAP_E2E_WOO_BASE:-}" ]; then
+	# WooCommerce Blocks test: a second site with WooCommerce (skipped without WPCAP_WOO_ZIP).
+	WOO_LINE="$("$HERE/woo-env.sh" start)" || { echo "e2e: could not start the WooCommerce test site" >&2; exit 2; }
+	eval "$WOO_LINE"
+	WOO_STARTED=1
+fi
+cleanup() {
+	if [ "$STARTED" = 1 ]; then "$HERE/../support/wp-env.sh" stop; fi
+	if [ "$WOO_STARTED" = 1 ]; then "$HERE/woo-env.sh" stop; fi
+}
 trap cleanup EXIT
 
 rm -rf artifacts

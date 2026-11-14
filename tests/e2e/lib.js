@@ -50,7 +50,7 @@ async function launch() {
 	// Chromium: a fake camera, so a denied permission (not a missing device) is what the test sees.
 	// The full Chromium build ("new headless", channel "chromium") supports camera capture; the headless shell does not.
 	if (BROWSER === 'chromium') {
-		const args = ['--use-fake-device-for-media-stream'];
+		const args = ['--use-fake-device-for-media-stream', '--disable-background-networking', '--disable-component-update', '--disable-sync', '--no-pings'];
 		return type.launch({ args, channel: process.env.WPCAP_E2E_CHANNEL || 'chromium' }).catch(() => type.launch({ args }));
 	}
 	return type.launch();

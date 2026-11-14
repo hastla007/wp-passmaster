@@ -49,6 +49,11 @@ if ( ! $event ) {
 	$free_type = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d AND name='Freier Eintritt'", $occ ) );
 	$wpdb->insert( "{$p}wpcap_participant_fields", array( 'ticket_type_id' => $free_type, 'field_key' => 'diet', 'label' => 'Ernährungshinweis', 'field_type' => 'text', 'required' => 0, 'purpose' => 'Nur für das Catering', 'position' => 0, 'status' => 'active' ) );
 }
+// Second event: lists of events in admin forms (e.g. device pairing checkboxes) have more than one row.
+if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_events WHERE slug=%s", $slug . '-2' ) ) ) {
+	$wpdb->insert( "{$p}wpcap_events", array( 'name' => 'Barrierefreiheit Lesung', 'slug' => $slug . '-2', 'description' => 'Lesung ohne Online-Verkauf.', 'status' => 'published', 'created_at' => $now, 'updated_at' => $now ) );
+	$wpdb->insert( "{$p}wpcap_occurrences", array( 'event_id' => (int) $wpdb->insert_id, 'starts_at' => gmdate( 'Y-m-d H:i:s', time() + 40 * DAY_IN_SECONDS ), 'timezone' => 'Europe/Vienna', 'location' => 'Bibliothek', 'capacity' => 0, 'status' => 'scheduled' ) );
+}
 $occ = (int) $wpdb->get_var( $wpdb->prepare( "SELECT occurrence_id FROM {$p}wpcap_occurrences WHERE event_id=%d", $event ) );
 $types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,name FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d ORDER BY ticket_type_id", $occ ), OBJECT_K );
 $by_name = array();

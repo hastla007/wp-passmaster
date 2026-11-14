@@ -78,6 +78,10 @@ switch ( $cmd ) {
 		$tickets = $order ? $wpdb->get_results( $wpdb->prepare( "SELECT status,attendee_email FROM {$p}wpcap_tickets WHERE order_id=%d", $order->order_id ) ) : array();
 		echo wp_json_encode( array( 'order' => $order, 'tickets' => $tickets ) );
 		break;
+	case 'woo-order':
+		$wc = wc_get_order( (int) ( $argv[3] ?? 0 ) );
+		echo wp_json_encode( array( 'status' => $wc ? $wc->get_status() : null, 'attendees' => $wc ? $wc->get_meta( \PassCaptain\Integrations\WooCommerce\OrderAdapter::ATTENDEE_META ) : null ) );
+		break;
 	default:
 		fwrite( STDERR, "unknown command $cmd\n" );
 		exit( 2 );

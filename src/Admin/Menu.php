@@ -60,7 +60,7 @@ final class Menu {
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects CSS.
 		if ( ! str_starts_with( $page, 'wpcap' ) && 'wp-pass-captain' !== $page ) { return; }
 		echo '<style>#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}'
-			. '#wpbody-content input[type=checkbox],#wpbody-content input[type=radio]{width:1.5rem;height:1.5rem}'
+			. '#wpbody-content input[type=checkbox],#wpbody-content input[type=radio]{width:1.5rem;height:1.5rem;margin-top:0}'
 			. '#wpbody-content input[type=checkbox]:checked::before{width:1.8rem;height:1.8rem;margin:-.15rem -.3rem}'
 			. '#wpbody-content input[type=radio]:checked::before{width:.5625rem;height:.5625rem;margin:.40625rem}</style>';
 	}
