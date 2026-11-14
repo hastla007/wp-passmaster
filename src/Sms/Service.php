@@ -187,7 +187,7 @@ final class Service {
 		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_sms_messages SET status='queued',locked_at=NULL WHERE status='sending' AND locked_at<%s", gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
 		self::retire_finished();
 		$provider = self::provider();
-		if ( ! $provider ) { self::erase_retired_numbers(); return 0; }
+		if ( ! $provider ) { self::erase_retired_numbers(); \PassCaptain\Ops\Heartbeat::beat( 'sms' ); return 0; }
 		$sent = 0;
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 25;
 		// Shared cron time budget: checked before each claim, so a claimed message is always processed.
@@ -226,6 +226,7 @@ final class Service {
 		if ( $claimed ) { \PassCaptain\Jobs\TimeBudget::finished( $table, $claimed ); }
 		if ( $budget_hit ) { \PassCaptain\Jobs\TimeBudget::continue_later( 'wpcap_process_messages' ); }
 		self::erase_retired_numbers();
+		\PassCaptain\Ops\Heartbeat::beat( 'sms', $sent ); // System status: last completed worker run.
 		return $sent;
 	}
 

@@ -718,17 +718,60 @@ final class Installer {
 		return $missing;
 	}
 
-	/** Records a failed schema upgrade: PHP error log plus an option that drives the admin notice. */
+	/**
+	 * Records a failed schema upgrade: PHP error log plus an option that drives the admin notice.
+	 * Consecutive failures of the same schema version back off (RETRY_DELAYS), so a broken database
+	 * does not run dbDelta on every admin/cron request; the system status page can force a retry.
+	 */
 	private static function schema_failed( array $errors, array $missing ) {
+		$previous = get_option( self::ERROR_OPTION );
+		$attempts = is_array( $previous ) && ( $previous['version'] ?? '' ) === self::version() ? (int) ( $previous['attempts'] ?? 1 ) + 1 : 1;
 		$details = array(
-			'time'    => time(),
-			'version' => self::version(),
-			'errors'  => array_slice( array_values( array_unique( $errors ) ), 0, 5 ),
-			'missing' => array_slice( $missing, 0, 20 ),
+			'time'       => time(),
+			'version'    => self::version(),
+			'errors'     => array_slice( array_values( array_unique( $errors ) ), 0, 5 ),
+			'missing'    => array_slice( $missing, 0, 20 ),
+			'attempts'   => $attempts,
+			'next_retry' => time() + self::retry_delay( $attempts ),
 		);
 		update_option( self::ERROR_OPTION, $details );
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- a failed schema upgrade must reach the operator.
-		error_log( 'Pass Captain: database upgrade to ' . $details['version'] . ' failed; will retry. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ) );
+		error_log( 'Pass Captain: database upgrade to ' . $details['version'] . ' failed (attempt ' . $attempts . '); next retry in ' . self::retry_delay( $attempts ) . 's. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ) );
+	}
+
+	/** Seconds to wait after the n-th consecutive failed upgrade (1 min, 5 min, 15 min, then hourly). */
+	const RETRY_DELAYS = array( 60, 300, 900, 3600 );
+
+	/** Backoff delay after $attempts consecutive failures. */
+	public static function retry_delay( $attempts ) {
+		$delays = self::RETRY_DELAYS;
+		return (int) $delays[ max( 0, min( count( $delays ), (int) $attempts ) - 1 ) ];
+	}
+
+	/**
+	 * Unix time before which no automatic upgrade retry runs; 0 when a retry is allowed now.
+	 * A newer plugin/schema version than the failed one is always tried at once.
+	 */
+	public static function retry_blocked_until( $now = null ) {
+		$error = get_option( self::ERROR_OPTION );
+		if ( ! is_array( $error ) || empty( $error['next_retry'] ) || ( $error['version'] ?? '' ) !== self::version() ) { return 0; }
+		return (int) $error['next_retry'] > ( $now ?? time() ) ? (int) $error['next_retry'] : 0;
+	}
+
+	/**
+	 * Runs the schema upgrade now, ignoring the backoff (system status page, WP-CLI). Behind the
+	 * upgrade lock like every upgrade.
+	 *
+	 * @return bool|null True on success, false when it failed again, null when another request holds the lock.
+	 */
+	public static function retry_now() {
+		$result = null;
+		$locked = self::run_locked(
+			static function () use ( &$result ) {
+				$result = self::install();
+			}
+		);
+		return $locked ? (bool) $result : null;
 	}
 
 	/** Admin notice while the last schema upgrade failed (registered by maybe_upgrade() on admin requests). */
@@ -738,7 +781,7 @@ final class Installer {
 		$detail = implode( ', ', array_merge( (array) ( $error['missing'] ?? array() ), (array) ( $error['errors'] ?? array() ) ) );
 		printf(
 			'<div class="notice notice-error"><p>%1$s</p><p><code>%2$s</code></p></div>',
-			esc_html__( 'Pass Captain: Die Datenbank-Aktualisierung ist fehlgeschlagen. Sie wird beim nächsten Seitenaufruf im Adminbereich automatisch wiederholt. Bitte das PHP-Fehlerprotokoll prüfen, falls die Meldung bleibt.', 'pass-captain' ),
+			esc_html__( 'Pass Captain: Die Datenbank-Aktualisierung ist fehlgeschlagen. Sie wird automatisch in zunehmenden Abständen wiederholt und kann unter „Pass Captain → Systemstatus“ sofort erneut gestartet werden. Bitte das PHP-Fehlerprotokoll prüfen, falls die Meldung bleibt.', 'pass-captain' ),
 			esc_html( substr( $detail, 0, 500 ) )
 		);
 	}
@@ -812,7 +855,8 @@ final class Installer {
 			if ( $fingerprint_ok ) { return false; }
 			$next = function_exists( 'wp_next_scheduled' ) ? wp_next_scheduled( self::UPGRADE_HOOK ) : false;
 			if ( ! $next && function_exists( 'wp_schedule_single_event' ) ) {
-				wp_schedule_single_event( time(), self::UPGRADE_HOOK );
+				// After a failed upgrade the cron event waits for the backoff instead of firing at once.
+				wp_schedule_single_event( max( time(), self::retry_blocked_until() ), self::UPGRADE_HOOK );
 				return false;
 			}
 			if ( $next && (int) $next > time() - self::OVERDUE_AFTER ) { return false; }
@@ -822,6 +866,8 @@ final class Installer {
 			if ( ! $fingerprint_ok ) { update_option( 'wpcap_schema_fingerprint', self::fingerprint() ); }
 			return false;
 		}
+		// The last attempt for this version failed: wait for the backoff (retry_now() overrides it).
+		if ( self::retry_blocked_until() ) { return false; }
 		$ran = false;
 		self::run_locked(
 			static function () use ( &$ran ) {

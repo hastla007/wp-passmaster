@@ -215,6 +215,7 @@ final class Dispatcher {
 			++$done;
 		}
 		if ( ! $drained && $done > 0 ) { self::schedule_soon(); } // Backlog left (budget or limit): continue soon.
+		\PassCaptain\Ops\Heartbeat::beat( 'webhooks', $done ); // System status: last completed worker run.
 		return $done;
 	}
 

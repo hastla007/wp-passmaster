@@ -41,6 +41,8 @@ final class Plugin {
 		add_filter( 'cron_schedules', array( Communications::class, 'cron_schedule' ) );
 		add_action( 'wpcap_process_messages', array( Communications::class, 'process_due' ) );
 		add_action( 'wpcap_process_jobs', array( Jobs::class, 'process_due' ) );
+		Ops\Heartbeat::register(); // Worker heartbeats for the system status page.
+		if ( defined( 'WP_CLI' ) && WP_CLI ) { Ops\Cli::register(); }
 		// Self-healing schedule: e.g. deleting the old "wp-pass-captain" copy runs its uninstall.php, which clears the
 		// recurring events this copy relies on.
 		add_action(

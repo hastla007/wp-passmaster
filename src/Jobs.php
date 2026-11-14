@@ -66,6 +66,7 @@ final class Jobs {
 		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s LIMIT 1", $now ) ) ) {
 			Jobs\TimeBudget::continue_later( 'wpcap_process_jobs' );
 		}
+		Ops\Heartbeat::beat( 'jobs', $processed ); // System status: last completed worker run.
 		return $processed;
 	}
 

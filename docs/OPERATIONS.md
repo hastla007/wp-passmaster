@@ -14,6 +14,7 @@ Das Datenbank-Upgrade (`dbDelta` für alle Kern- und Modultabellen) läuft nicht
 - **Admin-Aufrufe** (`admin_init`), **WP-Cron** und **WP-CLI** vergleichen die gespeicherte Schema-Version (`wpcap_db_version`, Kernversion plus Hash der Modul-Schemata) und führen das Upgrade aus. Es läuft hinter einer Datenbanksperre (`GET_LOCK`, je Site); parallele Aufrufe ohne Sperre überspringen es und arbeiten mit dem bisherigen Schema weiter. Die Sperre endet automatisch, wenn der Prozess abbricht.
 - **Frontend- und REST-Aufrufe** prüfen nur einen günstigen Fingerabdruck (Schema-/Plugin-Version und Modulliste, Option `wpcap_schema_fingerprint`). Weicht er ab, wird einmalig das Cron-Ereignis `wpcap_run_upgrade` eingeplant. Nur wenn dieses Ereignis länger als fünf Minuten überfällig ist (WP-Cron läuft nicht), übernimmt ein einzelner Frontend-Aufruf das Upgrade hinter derselben Sperre.
 - Bis zum Upgrade läuft der neue Code gegen das alte Schema. Das ist unkritisch, weil Migrationen nur Tabellen, Spalten und Indizes ergänzen; nach einem Update trotzdem zeitnah den Admin-Bereich öffnen oder `wp cron event run wpcap_run_upgrade` ausführen.
+- **Fehlgeschlagenes Upgrade:** Version und Fingerabdruck werden nur nach vollständigem Erfolg gespeichert; die Fehlerdetails stehen in der Option `wpcap_schema_error`, im PHP-Fehlerprotokoll und als Admin-Hinweis. Wiederholungen laufen mit **Backoff** (1, 5, 15, danach alle 60 Minuten; Zähler `attempts`, Zeitpunkt `next_retry` in der Option), damit eine defekte Datenbank nicht bei jedem Admin- oder Cron-Aufruf erneut `dbDelta` ausführt. Eine neue Plugin-/Schema-Version wird sofort versucht. Nach Behebung der Ursache unter **Pass Captain → Systemstatus → Datenbankschema → „Jetzt erneut versuchen“** sofort wiederholen (ignoriert den Backoff, läuft hinter derselben Sperre) oder per `wp pass-captain diagnose --repair=schema`.
 
 ## Hintergrundverarbeitung (WP-Cron)
 
@@ -34,6 +35,54 @@ define( 'DISABLE_WP_CRON', true );
 ```
 
 Auf Multisite-Netzwerken muss der Cronjob jede Site auslösen, z. B. `wp site list --field=url | xargs -I{} wp cron event run --due-now --url={}`.
+
+## Systemstatus, Diagnose und Monitoring
+
+**Pass Captain → Systemstatus** (Capability `manage_options`) zeigt den Hintergrundbetrieb auf einen Blick:
+
+- **WP-Cron und Worker:** je Plugin-Hook (`wpcap_process_jobs`, `wpcap_process_messages`, `wpcap_cleanup_reservations`, `wpcap_privacy_retention`) den nächsten geplanten Lauf und den **letzten erfolgreichen Lauf**. Jeder Worker (Jobs, E-Mails, Webhooks, SMS, Reservierungs-Bereinigung) schreibt am Ende seines Laufs einen Heartbeat (Optionen `wpcap_heartbeat_<worker>`, Zeit und Anzahl verarbeiteter Einträge). Ein Heartbeat älter als vier Intervalle (20 Minuten bei den Fünf-Minuten-Queues, 4 Stunden bei der Bereinigung) gilt als veraltet; mit `DISABLE_WP_CRON` wird dann ausdrücklich auf den fehlenden externen Cron-Job hingewiesen. Nicht geplante oder um mehr als 10 Minuten überfällige Ereignisse werden ebenfalls markiert.
+- **Warteschlangen:** offene Einträge nach Status für Job-Queue (`wpcap_jobs`, zusätzlich nach Job-Typ), E-Mail-Queue, Webhook-Zustellungen und SMS-Queue; überfällige Einträge (fällig seit über 30 Minuten) und lang laufende Claims (`locked_at` älter als 5 Minuten). Die Worker geben Claims nach 15 Minuten selbst zurück – ältere Claims bedeuten, dass seither kein Worker lief.
+- **E-Mail-Versandfehler:** die häufigsten `last_error`-Werte der E-Mail-Queue.
+- **Fehlgeschlagene Einträge** (Jobs `dead_letter`, E-Mails/Webhooks/SMS `failed`) mit letztem Fehler und den Aktionen **„Erneut versuchen“** (Versuche zurückgesetzt, sofort fällig; Webhooks über die reguläre Neuzustellung) und **„Verwerfen“** (bleibt als `cancelled` bzw. `skipped` in der Historie). Beide Aktionen prüfen Nonce und Capability, wirken nur auf Einträge, die noch fehlgeschlagen sind (kein doppeltes Einreihen), und landen im Audit-Log (`ops_queue_retry`, `ops_queue_discard`). E-Mail-Empfänger werden maskiert angezeigt.
+- **Erstattungen zur manuellen Prüfung:** Erstattungen, die seit über 15 Minuten in `processing` ohne Anbieter-Referenz stehen (Abbruch während des Anbieteraufrufs – unklar, ob ausgezahlt wurde). Im Konto des Zahlungsanbieters prüfen, dann **„Manuell als erledigt markieren“** (optional mit Anbieter-Referenz; die Erstattung wird ohne erneuten Anbieteraufruf verbucht, Tickets werden widerrufen) oder **„Als fehlgeschlagen markieren“** (nichts ausgezahlt; die Erstattung kann aus der Bestellung erneut ausgeführt werden). Audit-Eintrag `refund_manual_resolution`.
+- **Datenbankschema:** aktueller Stand, Fehlerdetails, Zahl der Fehlversuche und nächster automatischer Versuch; „Jetzt erneut versuchen“.
+
+Solange kritische Probleme bestehen, erscheint auf den Plugin-Seiten und im Dashboard ein **Admin-Hinweis** (für `manage_options`, 5 Minuten zwischengespeichert, nach jeder Aktion neu berechnet) und der Menüpunkt zeigt ihre Anzahl.
+
+**Diagnose und Abgleich** („Diagnose ausführen“ auf der Statusseite oder `wp pass-captain diagnose`) prüft auf inkonsistente Daten und zeigt je Prüfung Anzahl, Beispiele und die empfohlene Maßnahme. Die Prüfung selbst ändert nichts (Vorschau); Reparaturen gibt es nur, wo sie gefahrlos wiederholbar sind, und jede wird im Audit-Log (`ops_diagnostics_repair`) protokolliert:
+
+| Prüfung | Automatische Reparatur |
+| --- | --- |
+| Abgelaufene, aber offene Reservierungen, Sitzplatz-Holds und offene Bestellungen (älter als 65 Minuten) | Ja: Kontingente freigeben, Bestellungen ablaufen lassen (wie die stündliche Bereinigung) |
+| Bezahlte Bestellungen ohne (alle) Tickets (älter als 10 Minuten) | Ja: je Bestellung ein `ticket_issue`-Job (nicht, solange einer offen ist); erzeugt nur fehlende Tickets |
+| Gültige Tickets ohne gültige (bezahlte) Bestellung | Nein: Bestellung prüfen, Tickets widerrufen |
+| Doppelte Erstattungen zur selben Anbieter-Referenz | Nein: beim Anbieter prüfen, manuell korrigieren |
+| Hängende Claims (Jobs, E-Mails, Webhooks, SMS, älter als 15 Minuten) | Ja: zurück in die Queue |
+| Ausgezahlte, aber nicht verbuchte Erstattungen | Ja: `Refunds::reconcile()` (kein Anbieteraufruf) |
+| Erstattungen in `processing` ohne Anbieter-Referenz | Nein: manuelle Entscheidung auf der Statusseite |
+| Schemafehler / nicht abgeschlossene Migration | Ja: Upgrade sofort wiederholen |
+
+WP-CLI:
+
+```sh
+wp pass-captain status [--format=json] [--strict]          # Queues, Cron-Health, Probleme
+wp pass-captain diagnose [--format=json] [--strict]        # alle Prüfungen (nur lesen)
+wp pass-captain diagnose --repair=stale_claims,expired_holds
+wp pass-captain diagnose --repair-all                      # alle sicheren Reparaturen
+```
+
+Mit `--strict` endet der Befehl mit Exit-Code 1, sobald ein kritisches Problem (status) bzw. ein Befund (diagnose) vorliegt – geeignet für einen Monitoring-Check oder eine Cron-Mail.
+
+**Worauf alarmieren** (z. B. `wp pass-captain status --strict` alle 15 Minuten):
+
+- Kein Worker-Heartbeat für Jobs oder E-Mails seit über 20 Minuten, insbesondere mit `DISABLE_WP_CRON` → externer Cron läuft nicht; Ticketmails und Erinnerungen bleiben liegen.
+- Überfällige Einträge (fällig seit über 30 Minuten) in Job- oder E-Mail-Queue → Worker kommen nicht nach oder brechen ab (PHP-Fehlerprotokoll, `max_execution_time`).
+- Neue `dead_letter`-Jobs oder `failed`-E-Mails → meist Mailversand (SMTP, Absender, Limits) oder Ticketzustellung (`ticket_delivery`) gescheitert.
+- Ausgezahlte, aber nicht verbuchte oder in `processing` hängende Erstattungen → Geld und Buchung laufen auseinander.
+- `wpcap_schema_error` gesetzt → Migration fehlgeschlagen.
+- Befunde der Diagnose „Bezahlte Bestellungen ohne Tickets“ oder „Gültige Tickets ohne gültige Bestellung“ (z. B. täglich `wp pass-captain diagnose --strict`).
+
+Fehlgeschlagene Webhook-Zustellungen sind nur eine Warnung (externes Zielsystem); sie werden nach wiederholten Fehlern ohnehin automatisch deaktiviert.
 
 ## Multisite: Site löschen und Plugin deinstallieren
 

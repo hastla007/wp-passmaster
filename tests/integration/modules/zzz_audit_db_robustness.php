@@ -105,6 +105,7 @@ check( 'upgrade lock is released after the failed attempt', '1' === (string) $au
 $audit_lock_db->query( "SELECT RELEASE_LOCK('$lock')" );
 
 unset( $GLOBALS['wpcap_test_hooks']['admin_notices'] );
+$GLOBALS['wpcap_test_options'][ Installer::ERROR_OPTION ]['next_retry'] = 0; // Backoff elapsed (see ops_status.php).
 $f->fail( '/^CREATE TABLE wpfault_wpcap_jobs\b/', 0, 1 );
 fwrite( STDERR, "(audit test: one injected 'Injected fault' schema error follows)\n" );
 $ran_admin = Installer::maybe_upgrade( 'admin' );
@@ -114,6 +115,7 @@ $notice = (string) ob_get_clean();
 check( 'admin request retries, still fails, and shows an admin notice', false === $ran_admin && 'old-version' === get_option( 'wpcap_db_version' ) && false !== strpos( $notice, 'Datenbank-Aktualisierung ist fehlgeschlagen' ) && false !== strpos( $notice, 'wpfault_wpcap_jobs' ) );
 
 $audit_restore();
+$GLOBALS['wpcap_test_options'][ Installer::ERROR_OPTION ]['next_retry'] = 0; // Backoff elapsed.
 $ran_ok = Installer::maybe_upgrade( 'cron' );
 check( 'retry without the fault completes and stores version and fingerprint', true === $ran_ok && Installer::version() === get_option( 'wpcap_db_version' ) && $fp === get_option( 'wpcap_schema_fingerprint' ) && ! get_option( Installer::ERROR_OPTION ) );
 check( 'retry created the previously missing tables', null !== $audit_real->get_var( "SHOW TABLES LIKE 'wpfault\\_wpcap\\_jobs'" ) && null !== $audit_real->get_var( "SHOW TABLES LIKE 'wpfault\\_wpcap\\_refunds'" ) );
