@@ -13,6 +13,16 @@
 # 3. Smoke check (build/ci-smoke.php via wp eval-file): tables, schema version, capabilities, cron,
 #    REST routes, QR code (runtime dependency), WooCommerce/HPOS state; with WooCommerce once with
 #    HPOS on and once off. Then deactivate/activate again and repeat the smoke check.
+# 4. Update path (only with WPCAP_IT_UPGRADE_FROM/_FROM_ZIP): before step 2 the previous release is installed
+#    and activated, realistic data is created with it (build/ci-data.php seed: orders, tickets, check-in,
+#    refund, hold, job) and "Daten beim Loeschen entfernen" is switched on. Step 2 then installs the new ZIP
+#    next to it. Checks: the new copy took over the activation (up to 1.4 the plugin was "wp-pass-captain/
+#    wp-pass-captain.php"), the schema was upgraded to the current version (smoke check), no PHP errors, data
+#    unchanged (snapshot) and consistent; deleting the old copy afterwards removes no data.
+# 5. Uninstall (always; skip with WPCAP_IT_SKIP_UNINSTALL=1): with default settings `wp plugin uninstall`
+#    keeps all tables and options (only the cron events are removed); reinstalling finds the data again;
+#    with delete_data_on_uninstall=1 tables, options, transients, roles, capabilities, user meta and cron
+#    events are gone (uninstall.php).
 #
 # Environment (defaults in brackets):
 #   WPCAP_IT_DB_HOST [127.0.0.1]  WPCAP_IT_DB_USER [wp]  WPCAP_IT_DB_PASS [wp]  WPCAP_IT_DB_NAME [wp]
@@ -23,6 +33,10 @@
 #   WPCAP_IT_WP_CLI               path to wp-cli.phar (downloaded if missing)
 #   WPCAP_IT_WORK                 working directory [mktemp]; kept when WPCAP_IT_KEEP=1
 #   WPCAP_IT_STATIC_ONLY=1        only run the package checks (step 1)
+#   WPCAP_IT_UPGRADE_FROM         git ref of the previous release to update from (its ZIP is built from that
+#                                 commit with Composer, honouring its .distignore), e.g. the 1.4.0 release commit
+#   WPCAP_IT_UPGRADE_FROM_ZIP     ZIP of the previous release instead of building it
+#   WPCAP_IT_SKIP_UNINSTALL=1     skip step 5
 set -euo pipefail
 export LC_ALL=C
 
@@ -155,10 +169,53 @@ if [ -n "${WC_VERSION}" ]; then
 	echo "WooCommerce $(wp plugin get woocommerce --field=version)"
 fi
 
+# Builds the installable ZIP of an older commit like its build/release.sh did (git archive, composer --no-dev,
+# .distignore). The plugin folder is named after the main file of that commit (wp-pass-captain up to 1.4).
+build_ref_zip() {
+	local ref="$1" out="$2" src="${WORK}/ref-src" pkg="${WORK}/ref-pkg" slug
+	rm -rf "${src}" "${pkg}" && mkdir -p "${src}" "${pkg}"
+	git -C "${ROOT}" archive --format=tar "${ref}" | tar -x -C "${src}"
+	slug="$(cd "${src}" && ls ./*pass-captain.php | head -n1 | sed 's|^\./||; s|\.php$||')"
+	[ -n "${slug}" ] || { echo "no main plugin file in ${ref}" >&2; return 1; }
+	composer install --working-dir="${src}" --no-dev --no-interaction --prefer-dist --optimize-autoloader --no-progress --quiet >&2
+	mkdir -p "${pkg}/${slug}"
+	rsync -a --exclude-from="${src}/.distignore" "${src}/" "${pkg}/${slug}/"
+	(cd "${pkg}" && zip -qr -X "${out}" "${slug}")
+	echo "${slug}"
+}
+
+DATA="${ROOT}/build/ci-data.php"
+UPGRADE_FROM="${WPCAP_IT_UPGRADE_FROM:-}"
+OLD_ZIP="${WPCAP_IT_UPGRADE_FROM_ZIP:-}"
+OLD_SLUG=""
+if [ -n "${UPGRADE_FROM}" ] && [ -z "${OLD_ZIP}" ]; then
+	section "Build previous release from ${UPGRADE_FROM}"
+	OLD_ZIP="${WORK}/previous.zip"
+	OLD_SLUG="$(build_ref_zip "${UPGRADE_FROM}" "${OLD_ZIP}")"
+	ok "built ${OLD_SLUG}.zip from $(git -C "${ROOT}" rev-parse --short "${UPGRADE_FROM}")"
+fi
+if [ -n "${OLD_ZIP}" ]; then
+	[ -n "${OLD_SLUG}" ] || OLD_SLUG="$(unzip -Z1 "${OLD_ZIP}" | head -n1 | cut -d/ -f1)"
+	section "Previous release: ${OLD_SLUG}"
+	wp_checked "previous release installed and activated" plugin install "${OLD_ZIP}" --activate
+	OLD_VERSION="$(wp plugin get "${OLD_SLUG}" --field=version)"
+	OLD_DB="$(wp option get wpcap_db_version)"
+	ok "previous release ${OLD_VERSION} active, schema ${OLD_DB}"
+	if wp eval-file "${DATA}" seed upgrade > "${WORK}/seed.json"; then ok "data created with ${OLD_VERSION}: $(head -c 300 "${WORK}/seed.json")"; else fail "seeding data with the previous release"; cat "${WORK}/seed.json"; fi
+	# The hardest case for the takeover: the operator opted in to data removal on uninstall.
+	wp eval '$s = get_option( "wpcap_settings", array() ); $s = is_array( $s ) ? $s : array(); $s["delete_data_on_uninstall"] = 1; update_option( "wpcap_settings", $s );'
+	wp eval-file "${DATA}" snapshot > "${WORK}/before-update.json"
+fi
+
 section "Install and activate ${SLUG}.zip"
 wp_checked "plugin installed and activated from the ZIP" plugin install "${ZIP}" --activate
 if wp plugin is-active "${SLUG}"; then ok "plugin is active"; else fail "plugin is not active"; fi
 [ -f "${WP_PATH}/wp-content/plugins/${SLUG}/${SLUG}.php" ] && ok "installed to wp-content/plugins/${SLUG}/" || fail "unexpected install folder"
+if [ -n "${OLD_ZIP}" ]; then
+	if wp plugin is-active "${OLD_SLUG}"; then fail "previous copy ${OLD_SLUG} is still active"; else ok "new copy took over the activation of ${OLD_SLUG}"; fi
+	active_count="$(wp option get active_plugins --format=json | php -r '$a = json_decode( stream_get_contents( STDIN ), true ); echo count( array_filter( (array) $a, static fn( $p ) => str_ends_with( $p, "pass-captain.php" ) ) );')"
+	[ "${active_count}" = "1" ] && ok "exactly one active Pass Captain entry in active_plugins" || fail "${active_count} Pass Captain entries in active_plugins: $(wp option get active_plugins --format=json)"
+fi
 
 smoke() {
 	local label="$1"; shift
@@ -184,8 +241,69 @@ fi
 
 section "Deactivate and activate again"
 wp_checked "plugin deactivated" plugin deactivate "${SLUG}"
+if wp plugin is-active "${SLUG}"; then fail "plugin still active after deactivation"; else ok "plugin is inactive"; fi
 wp_checked "plugin activated again" plugin activate "${SLUG}"
 if [ -n "${WC_VERSION}" ]; then smoke "after reactivation" on; else smoke "after reactivation"; fi
+
+verify_data() { # label snapshot-file
+	local label="$1"; shift
+	if wp eval-file "${DATA}" verify "$@" > "${WORK}/verify.txt" 2>&1; then ok "${label}: $(sed 's/^ok *//' "${WORK}/verify.txt")"; else fail "${label}: $(cat "${WORK}/verify.txt")"; fi
+	if wp eval-file "${DATA}" invariants > "${WORK}/inv.txt" 2>&1; then ok "${label}: invariants hold"; else fail "${label}: $(cat "${WORK}/inv.txt")"; fi
+}
+leftover() { # field of `build/ci-data.php leftovers` (arrays comma-separated)
+	wp eval-file "${DATA}" leftovers | php -r '$d = json_decode( stream_get_contents( STDIN ), true ); $v = $d[ $argv[1] ] ?? null; echo is_array( $v ) ? implode( ",", $v ) : (string) $v;' "$1"
+}
+set_delete_data() { # 1|0
+	wp eval "\$s = get_option( 'wpcap_settings', array() ); \$s = is_array( \$s ) ? \$s : array(); \$s['delete_data_on_uninstall'] = (int) '${1}'; update_option( 'wpcap_settings', \$s );"
+}
+
+if [ -n "${OLD_ZIP}" ]; then
+	section "Update from ${OLD_SLUG} ${OLD_VERSION}: data"
+	NEW_DB="$(wp option get wpcap_db_version)"
+	[ "${NEW_DB}" != "${OLD_DB}" ] && ok "schema upgraded ${OLD_DB} -> ${NEW_DB}" || fail "schema version unchanged (${OLD_DB})"
+	verify_data "after the update" "${WORK}/before-update.json"
+	wp_checked "previous copy ${OLD_SLUG} deleted (runs its uninstall.php with delete_data_on_uninstall=1)" plugin delete "${OLD_SLUG}"
+	[ ! -d "${WP_PATH}/wp-content/plugins/${OLD_SLUG}" ] && ok "folder of the previous copy removed" || fail "folder of the previous copy still there"
+	verify_data "after deleting the previous copy" "${WORK}/before-update.json"
+	if [ -n "${WC_VERSION}" ]; then smoke "after deleting the previous copy" on; else smoke "after deleting the previous copy"; fi
+fi
+
+if [ "${WPCAP_IT_SKIP_UNINSTALL:-}" != "1" ]; then
+	section "Uninstall with default settings (data is kept)"
+	if [ -z "${OLD_ZIP}" ]; then
+		if wp eval-file "${DATA}" seed uninstall > "${WORK}/seed.json"; then ok "data created: $(head -c 200 "${WORK}/seed.json")"; else fail "seeding data"; cat "${WORK}/seed.json"; fi
+	fi
+	set_delete_data 0
+	wp eval-file "${DATA}" snapshot > "${WORK}/before-uninstall.json"
+	tables_before="$(leftover tables)"
+	wp_checked "plugin deactivated" plugin deactivate "${SLUG}"
+	if wp plugin is-active "${SLUG}"; then fail "plugin still active after deactivation"; fi
+	wp_checked "plugin uninstalled (uninstall.php, files deleted)" plugin uninstall "${SLUG}"
+	[ ! -d "${WP_PATH}/wp-content/plugins/${SLUG}" ] && ok "plugin folder removed" || fail "plugin folder still there"
+	[ "$(leftover tables)" = "${tables_before}" ] && ok "all ${tables_before} plugin tables kept" || fail "plugin tables: $(leftover tables), before ${tables_before}"
+	options="$(leftover options)"
+	case ",${options}," in *,wpcap_settings,*) ok "settings kept" ;; *) fail "wpcap_settings removed: ${options}" ;; esac
+	case ",${options}," in *,wpcap_db_version,*) ok "schema version kept" ;; *) fail "wpcap_db_version removed" ;; esac
+	[ -n "$(leftover roles)" ] && ok "plugin roles kept" || fail "plugin roles removed"
+	[ -z "$(leftover cron)" ] && ok "cron events removed" || fail "cron events left: $(leftover cron)"
+
+	section "Reinstall after uninstall (data found again)"
+	wp_checked "plugin installed and activated again" plugin install "${ZIP}" --activate
+	verify_data "after reinstalling" "${WORK}/before-uninstall.json"
+	if [ -n "${WC_VERSION}" ]; then smoke "after reinstalling" on; else smoke "after reinstalling"; fi
+
+	section "Uninstall with delete_data_on_uninstall (all data removed)"
+	set_delete_data 1
+	wp_checked "plugin deactivated" plugin deactivate "${SLUG}"
+	if wp plugin is-active "${SLUG}"; then fail "plugin still active after deactivation"; fi
+	wp_checked "plugin uninstalled with data removal" plugin uninstall "${SLUG}"
+	[ "$(leftover tables)" = "0" ] && ok "no plugin tables left" || fail "$(leftover tables) plugin tables left"
+	[ -z "$(leftover options)" ] && ok "no wpcap_* options or transients left" || fail "options left: $(leftover options)"
+	[ -z "$(leftover roles)" ] && ok "plugin roles removed" || fail "roles left: $(leftover roles)"
+	[ -z "$(leftover admin_caps)" ] && ok "capabilities removed from administrator" || fail "administrator still has: $(leftover admin_caps)"
+	[ "$(leftover usermeta)" = "0" ] && ok "no wpcap_* user meta left" || fail "$(leftover usermeta) wpcap_* user meta rows left"
+	[ -z "$(leftover cron)" ] && ok "no cron events left" || fail "cron events left: $(leftover cron)"
+fi
 
 if [ -s "${DEBUG_LOG}" ] && grep -q "/plugins/${SLUG}/" "${DEBUG_LOG}"; then
 	echo; echo "debug.log entries mentioning the plugin:"; grep "/plugins/${SLUG}/" "${DEBUG_LOG}" | head -30
