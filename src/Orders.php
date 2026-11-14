@@ -858,12 +858,48 @@ final class Orders {
 	 * (late payment recovery). If it is no longer available, the order is flagged `needs_review`
 	 * with payment status `paid_unallocated` – no tickets are issued and nothing is overbooked.
 	 *
+	 * Buyer limits (Sales\BuyerLimits) are re-checked for such a late payment as well: the lapsed hold
+	 * no longer counted against the buyer, who may have bought up to the limit in the meantime. If the
+	 * payment would push the buyer past a limit, the order goes the same `needs_review` way (admin
+	 * alert; the operator refunds it or raises the limit and confirms again). The buyer locks are taken
+	 * before the transaction, in the same order as Orders::create().
+	 *
 	 * @return true|\WP_Error
 	 */
 	public static function confirm_external_payment( $order_id, $reference = '' ) {
 		global $wpdb;
-		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
+		$buyer = self::late_payment_buyer( $order_id );
+		$locks = array();
+		if ( $buyer ) {
+			$locks = Sales\BuyerLimits::acquire( $buyer->customer_email, (int) $buyer->customer_user_id );
+			if ( false === $locks ) { return self::payment_busy(); }
+		}
+		try {
+			return self::confirm_payment_locked( $order_id, $reference, (bool) $buyer );
+		} finally {
+			if ( $locks ) { Sales\BuyerLimits::release( $locks ); }
+		}
+	}
+
+	/**
+	 * Order row (e-mail, customer id) when a payment confirmation may need the buyer-limit re-check:
+	 * not paid yet, not closed, no door sale, and an active buyer limit covers one of its ticket types.
+	 * Unlocked pre-read; the decision is repeated under the row lock.
+	 */
+	private static function late_payment_buyer( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,customer_email,customer_user_id,status,payment_status,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix.
+		if ( ! $order || 'paid' === $order->payment_status || in_array( $order->status, array( 'refunded', 'cancelled' ), true ) || in_array( (string) $order->payment_provider, array( 'pos', 'boxoffice' ), true ) ) { return null; }
+		$types = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ticket_type_id FROM {$p}wpcap_order_items WHERE order_id=%d", $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix.
+		return $types && Sales\BuyerLimits::relevant( $types ) ? $order : null;
+	}
+
+	/** confirm_external_payment() with the buyer locks held (when $check_limits). */
+	private static function confirm_payment_locked( $order_id, $reference, $check_limits ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
 		// Without a transaction the status update below would autocommit and the in_transaction()
 		// check before COMMIT would then roll back nothing: a paid order without tickets.
@@ -927,6 +963,11 @@ final class Orders {
 					if ( $error ) { break; }
 				}
 			}
+			if ( ! $error && $check_limits ) {
+				// The lapsed hold no longer counted against the buyer: re-check the limits (buyer locks held).
+				$limit_error = Sales\BuyerLimits::check( $demand, $locked_types, array_filter( $occurrences ), (string) $order->customer_email, (int) $order->customer_user_id, $now, $order_id );
+				if ( $limit_error ) { $error = 'buyer_limit'; }
+			}
 			if ( $error ) {
 				// needs_review is a final answer (webhooks acknowledge it): it must be persisted first.
 				if ( false === $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'needs_review', 'payment_status' => 'paid_unallocated', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) { return self::payment_busy(); }
@@ -934,6 +975,11 @@ final class Orders {
 				if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) { return self::payment_busy(); }
 				self::capacity_released( $order_id, 'payment_unallocated' );
 				Audit::record( 'payment_unallocated', 'order', $order_id, array( 'reason' => $error, 'reference' => sanitize_text_field( $reference ) ) );
+				if ( 'buyer_limit' === $error ) {
+					/* translators: 1: order number, 2: payment reference */
+					wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung über dem Käuferlimit', 'pass-captain' ), sprintf( __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Mit dieser Bestellung würde die Person ein Käuferlimit überschreiten. Es wurden keine Tickets ausgestellt. Bitte manuell klären (erstatten oder Limit anpassen und die Zahlung erneut bestätigen).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
+					return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und die Bestellung würde ein Käuferlimit überschreiten. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ), array( 'reason' => 'buyer_limit' ) );
+				}
 				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne freies Kontingent', 'pass-captain' ), sprintf( __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
 				return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ) );
 			}
@@ -966,9 +1012,14 @@ final class Orders {
 	 * (nothing changed, no side effects fired) and a retryable WP_Error (`wpcap_db_busy`) is returned,
 	 * so a webhook answers 5xx and the provider retries.
 	 *
+	 * With $only_unpaid the order is only cancelled while it was never paid (payment status `pending`
+	 * or `expired`, checked under the row lock); otherwise nothing changes and `wpcap_order_paid_state`
+	 * is returned (used for provider refund events of unpaid orders, which must not cancel a payment
+	 * that was booked in the meantime).
+	 *
 	 * @return true|\WP_Error
 	 */
-	public static function cancel_order( $order_id, $reason = '' ) {
+	public static function cancel_order( $order_id, $reason = '', $only_unpaid = false ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
@@ -979,6 +1030,10 @@ final class Orders {
 		if ( ! $order || in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) {
 			$wpdb->query( 'COMMIT' );
 			return true;
+		}
+		if ( $only_unpaid && ! in_array( $order->payment_status, array( 'pending', 'expired' ), true ) ) {
+			$wpdb->query( 'COMMIT' );
+			return new \WP_Error( 'wpcap_order_paid_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'pass-captain' ), array( 'payment_status' => (string) $order->payment_status ) );
 		}
 		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) ) ) {
 			return self::state_busy( $order_id, 'cancel_release' );

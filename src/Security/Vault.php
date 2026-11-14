@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Vault {
 	const PREFIX = 'pcv1:';
 	const MIGRATED_OPTION = 'wpcap_vault_version';
-	const VERSION = 1;
+	const VERSION = 2;
 
 	/** Test seam / per-request cache of the master keys ([current, previous|null]). */
 	private static $keys = null;
@@ -184,10 +184,10 @@ final class Vault {
 	 * Encrypts plaintext secrets in wpcap_settings and in the webhook subscription table once, and
 	 * re-encrypts values that are only readable with the previous key. Idempotent.
 	 *
-	 * @return array{settings:int,webhooks:int} Number of values (re-)encrypted.
+	 * @return array{settings:int,webhooks:int,partners?:int} Number of values (re-)encrypted.
 	 */
 	public static function migrate() {
-		$done = array( 'settings' => 0, 'webhooks' => 0 );
+		$done = array( 'settings' => 0, 'webhooks' => 0, 'partners' => 0 );
 		if ( ! self::available() || null === self::keys()[0] ) { return $done; }
 		$stored = get_option( Settings::OPTION, array() );
 		if ( is_array( $stored ) ) {
@@ -207,8 +207,17 @@ final class Vault {
 			}
 		}
 		$done['webhooks'] = self::migrate_webhook_secrets();
+		// Partner payout details (IBAN etc.), also in finalized settlement snapshots (since vault version 2).
+		$done['partners'] = \PassCaptain\Partners\Repository::migrate_payout_details();
 		update_option( self::MIGRATED_OPTION, self::VERSION, false );
 		return $done;
+	}
+
+	/** True when an encrypted value is only readable with the previous master key (re-encrypt it). */
+	public static function needs_reencrypt_value( $stored, $context ) {
+		if ( ! self::is_encrypted( $stored ) ) { return false; }
+		$opened = self::open( (string) $stored, $context );
+		return $opened && $opened[1];
 	}
 
 	/** Plaintext when the stored value must be (re-)encrypted, null when it is fine or unreadable. */

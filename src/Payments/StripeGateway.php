@@ -24,6 +24,12 @@ final class StripeGateway implements GatewayInterface {
 	 */
 	const SCALED_ZERO_DECIMAL = array( 'ISK', 'UGX' );
 
+	/**
+	 * Three-decimal currencies Stripe supports (amounts in thousandths, like the plugin's minor
+	 * units), which Stripe only accepts as multiples of 10 (last digit 0).
+	 */
+	const THREE_DECIMAL = array( 'BHD', 'JOD', 'KWD', 'OMR', 'TND' );
+
 	public function id() { return 'stripe'; }
 
 	public function title() { return __( 'Kreditkarte & weitere Zahlarten (Stripe)', 'pass-captain' ); }
@@ -57,6 +63,8 @@ final class StripeGateway implements GatewayInterface {
 			$key_suffix = '-' . substr( hash( 'sha256', $existing ), 0, 12 );
 		}
 
+		$precision = self::amount_error( $total, $currency );
+		if ( $precision ) { return $precision; }
 		$amount = self::to_stripe_amount( $total, $currency );
 
 		$params = array(
@@ -127,6 +135,8 @@ final class StripeGateway implements GatewayInterface {
 		} else {
 			return new \WP_Error( 'wpcap_stripe_refund_reference', __( 'Für diese Bestellung ist keine Stripe-Zahlung bekannt.', 'pass-captain' ) );
 		}
+		$precision = self::amount_error( (int) $amount_minor, $currency );
+		if ( $precision ) { return $precision; }
 		$amount = self::to_stripe_amount( (int) $amount_minor, $currency );
 		$params['amount'] = $amount;
 		// Marks refunds made by the plugin so their charge.refunded webhook is not treated as a dashboard refund.
@@ -316,6 +326,24 @@ final class StripeGateway implements GatewayInterface {
 	public static function return_url( $status, $public_id ) {
 		$url = add_query_arg( array( 'wpcap_payment' => $status, 'order' => $public_id ), home_url( '/' ) );
 		return (string) apply_filters( 'wpcap_payment_return_url', $url, $status, $public_id, 'stripe' );
+	}
+
+	/**
+	 * Refuses amounts Stripe cannot charge or refund exactly instead of letting Stripe round them:
+	 * three-decimal currencies (BHD, JOD, KWD, OMR, TND) need a multiple of 10 thousandths. Silent
+	 * rounding would make the charged amount differ from the order total (the paid webhook would then
+	 * be an amount mismatch) or the refund differ from the refund ledger. Prices in these currencies
+	 * should therefore end in 0 (e.g. 12.340 KWD).
+	 *
+	 * @return \WP_Error|null
+	 */
+	public static function amount_error( $minor, $currency ) {
+		$currency = strtoupper( (string) $currency );
+		if ( in_array( $currency, self::THREE_DECIMAL, true ) && 0 !== (int) $minor % 10 ) {
+			/* translators: 1: amount, 2: currency */
+			return new \WP_Error( 'wpcap_stripe_amount_precision', sprintf( __( 'Stripe akzeptiert Beträge in %2$s nur in Schritten von 0,010 (letzte Nachkommastelle 0). Der Betrag %1$s kann nicht exakt abgerechnet werden; bitte Preis bzw. Erstattungsbetrag anpassen.', 'pass-captain' ), \PassCaptain\Localization::money_decimal( (int) $minor, $currency ), $currency ), array( 'status' => 400 ) );
+		}
+		return null;
 	}
 
 	/** Plugin minor units → Stripe amount. */

@@ -855,7 +855,13 @@ final class OrderAdapter {
 		}
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
 		if ( $wc_order && self::can_record_refunds() ) {
-			return self::record_refund( $wc_order, $refund, $core_ids );
+			try {
+				return self::record_refund( $wc_order, $refund, $core_ids );
+			} catch ( \Throwable $error ) {
+				// An exception (core, add-on hook, WooCommerce) must not lose the refund: the job queue repeats it.
+				self::refund_failed( $wc_order, (int) $refund->get_id(), $error->getMessage(), true );
+				return false;
+			}
 		}
 		$revoked = 0;
 		$kept    = 0;
@@ -881,7 +887,63 @@ final class OrderAdapter {
 			return $handled;
 		}
 		$payload = (array) $payload;
-		return true === self::sync_refund( absint( $payload['wc_order_id'] ?? 0 ), absint( $payload['refund_id'] ?? 0 ) );
+		self::$refund_job_running = true;
+		self::$refund_job_error   = '';
+		try {
+			$done = true === self::sync_refund( absint( $payload['wc_order_id'] ?? 0 ), absint( $payload['refund_id'] ?? 0 ) );
+		} finally {
+			self::$refund_job_running = false;
+		}
+		if ( $done ) {
+			return true;
+		}
+		// Not done: the job queue retries with backoff and finally dead-letters it (system status page).
+		$error = self::last_refund_job_error();
+		return new \WP_Error( 'wpcap_woocommerce_refund_sync', '' !== $error ? $error : 'WooCommerce refund could not be mirrored yet.' );
+	}
+
+	/** Error kept by refund_failed() during the running refund sync job. */
+	private static function last_refund_job_error() {
+		return (string) self::$refund_job_error;
+	}
+
+	/** Whether the refund sync job is running (no second job is queued from inside it). */
+	private static $refund_job_running = false;
+
+	/** Last error of the running refund sync job (kept as the job's last_error). */
+	private static $refund_job_error = '';
+
+	/**
+	 * A WooCommerce refund could not be mirrored: queues one retry job per WooCommerce refund (the
+	 * idempotency key is the refund id, so repeated failures never queue a second job), audits it and
+	 * tells the shop admin once. Inside the job run only the error is kept; the job queue retries it
+	 * with backoff and dead-letters it after Jobs::MAX_ATTEMPTS (listed on the system status page).
+	 */
+	private static function refund_failed( $wc_order, $refund_id, $message, $retryable ) {
+		$message = sanitize_text_field( (string) $message );
+		if ( self::$refund_job_running ) {
+			self::$refund_job_error = substr( $message, 0, 400 );
+			return;
+		}
+		$core_ids = self::core_order_ids( $wc_order->get_id() );
+		\PassCaptain\Jobs::enqueue(
+			self::refund_job_key( $refund_id ),
+			self::REFUND_SYNC_JOB,
+			array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id ),
+			gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS )
+		);
+		\PassCaptain\Audit::record( 'woocommerce_refund_sync_failed', 'order', (int) ( $core_ids[0] ?? 0 ), array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund_id, 'retryable' => (bool) $retryable, 'message' => substr( $message, 0, 190 ) ) );
+		$note = $retryable
+			/* translators: %s: error message */
+			? __( 'Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht.', 'pass-captain' )
+			/* translators: %s: error message */
+			: __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s. Sie wird automatisch erneut versucht; schlägt das dauerhaft fehl, erscheint der Auftrag auf der Seite Pass Captain → Systemstatus.', 'pass-captain' );
+		$wc_order->add_order_note( sprintf( $note, $message ) );
+	}
+
+	/** Idempotency key of the retry job of a WooCommerce refund (one job per refund). */
+	public static function refund_job_key( $refund_id ) {
+		return 'woocommerce-refund-sync-' . absint( $refund_id );
 	}
 
 	/**
@@ -918,24 +980,11 @@ final class OrderAdapter {
 				)
 			);
 			if ( is_wp_error( $result ) ) {
-				$data      = (array) $result->get_error_data();
-				$retryable = ! empty( $data['retryable'] );
-				if ( $retryable ) {
-					// Temporary database error: this seller order recorded nothing; the job queue repeats the
-					// sync (seller orders already recorded are skipped by their idempotency key).
-					\PassCaptain\Jobs::enqueue(
-						'woocommerce-refund-sync-' . $refund->get_id() . '-' . gmdate( 'YmdHi' ),
-						self::REFUND_SYNC_JOB,
-						array( 'wc_order_id' => (int) $wc_order->get_id(), 'refund_id' => (int) $refund->get_id() ),
-						gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS )
-					);
-				}
-				$note = $retryable
-					/* translators: %s: error message */
-					? __( 'Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht.', 'pass-captain' )
-					/* translators: %s: error message */
-					: __( 'Pass Captain: Erstattung konnte nicht übernommen werden – %s', 'pass-captain' );
-				$wc_order->add_order_note( sprintf( $note, $result->get_error_message() ) );
+				// This seller order recorded nothing; the job queue repeats the sync (seller orders already
+				// recorded are skipped by their idempotency key). Temporary database errors usually pass on
+				// the next attempt; other errors are retried as well and end up on the system status page.
+				$data = (array) $result->get_error_data();
+				self::refund_failed( $wc_order, (int) $refund->get_id(), $result->get_error_message(), ! empty( $data['retryable'] ) );
 				return false;
 			}
 			if ( isset( $labels[ $core_id ] ) ) {

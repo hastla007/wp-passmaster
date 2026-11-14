@@ -16,7 +16,8 @@ Code: `src/Modules/Partners.php`, `src/Partners/`.
 | Feld | Bedeutung |
 |---|---|
 | Name, Ansprechperson, Kontakt-E-Mail, Telefon | Kontaktdaten |
-| Rechnungsanschrift, USt-IdNr., Auszahlung | erscheinen auf der Abrechnung (beim Abschließen als Schnappschuss gespeichert) |
+| Rechnungsanschrift, USt-IdNr. | erscheinen auf der Abrechnung (beim Abschließen als Schnappschuss gespeichert) |
+| Auszahlung (IBAN, BIC, Kontoinhaber) | verschlüsselt gespeichert, im Admin nur gekürzt („•••• 3000“); beim Abschließen verschlüsselt im Schnappschuss abgelegt. Nur im CSV-Export der Abrechnung für Finanzen/Admins vollständig – nie im Druckbeleg und nie in dieser API. Leeres Feld beim Speichern behält den Wert, „Gespeicherte Auszahlungsdaten löschen“ entfernt ihn. |
 | Währung | Nur Bestellungen in dieser Währung werden abgerechnet. |
 | Provision in % | Prozentsatz vom **Netto**-Ticketumsatz (nach Rabatt, ohne USt). |
 | Feste Gebühr pro Ticket | Nettobetrag je verkauftem Ticket. |

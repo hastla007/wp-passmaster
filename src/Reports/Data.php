@@ -415,7 +415,9 @@ final class Data {
 	/** CSV rows of a report (amounts as decimals). */
 	public static function csv_rows( array $report ) {
 		if ( ! \PassCaptain\Security\DataPolicy::can_view_payment() ) { return self::csv_rows_without_payment( $report ); }
-		$m = static function ( $minor ) { return number_format( $minor / 100, 2, '.', '' ); };
+		// Decimal places of the report currency (JPY 0, KWD 3); a mixed-currency report ("EUR/USD") uses 2.
+		$currency = (string) ( $report['currency'] ?? 'EUR' );
+		$m = static function ( $minor ) use ( $currency ) { return \PassCaptain\Localization::money_decimal( (int) $minor, $currency ); };
 		$head = array( __( 'Tickets', 'pass-captain' ), __( 'Brutto', 'pass-captain' ), __( 'Netto', 'pass-captain' ), __( 'USt', 'pass-captain' ), __( 'Erstattete Tickets', 'pass-captain' ), __( 'Erstattet brutto', 'pass-captain' ), __( 'Erstattet USt', 'pass-captain' ), __( 'Umsatz nach Erstattung', 'pass-captain' ), __( 'USt nach Erstattung', 'pass-captain' ) );
 		$vals = static function ( $b ) use ( $m ) { return array( $b['tickets'], $m( $b['gross'] ), $m( $b['net'] ), $m( $b['tax'] ), $b['refunded_tickets'], $m( $b['refunded'] ), $m( $b['refunded_tax'] ), $m( $b['revenue'] ), $m( $b['revenue_tax'] ) ); };
 		$rows = array( array( __( 'Bericht', 'pass-captain' ), $report['from'], $report['to'], $report['timezone'], $report['currency'] ) );

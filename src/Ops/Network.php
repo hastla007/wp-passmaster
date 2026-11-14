@@ -108,7 +108,7 @@ final class Network {
 		foreach ( $overview as $site ) {
 			$revenue = $site['revenue_30d'] ? $site['revenue_30d'] : array( '' => 0 );
 			foreach ( $revenue as $currency => $minor ) {
-				$rows[] = array( $site['site_id'], $site['name'], $site['installed'] ? 'yes' : 'no', $site['events'], $site['orders'], $site['paid_orders_30d'], (string) $currency, number_format( (int) $minor / 100, 2, '.', '' ), $site['errors'], $site['warnings'] );
+				$rows[] = array( $site['site_id'], $site['name'], $site['installed'] ? 'yes' : 'no', $site['events'], $site['orders'], $site['paid_orders_30d'], (string) $currency, \PassCaptain\Localization::money_decimal( (int) $minor, (string) $currency ), $site['errors'], $site['warnings'] );
 			}
 		}
 		return $rows;

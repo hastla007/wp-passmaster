@@ -7,6 +7,7 @@
 namespace PassCaptain\Partners;
 
 use PassCaptain\Audit;
+use PassCaptain\Security\Vault;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -71,7 +72,6 @@ final class Repository {
 			'contact_phone' => substr( sanitize_text_field( (string) ( $data['contact_phone'] ?? '' ) ), 0, 64 ),
 			'billing_address' => substr( sanitize_textarea_field( (string) ( $data['billing_address'] ?? '' ) ), 0, 2000 ),
 			'vat_id' => substr( sanitize_text_field( (string) ( $data['vat_id'] ?? '' ) ), 0, 64 ),
-			'payout_details' => substr( sanitize_textarea_field( (string) ( $data['payout_details'] ?? '' ) ), 0, 2000 ),
 			'currency' => $currency,
 			'commission_bp' => $commission,
 			'fee_per_ticket_minor' => $fee,
@@ -82,16 +82,120 @@ final class Repository {
 			'notes' => substr( sanitize_textarea_field( (string) ( $data['notes'] ?? '' ) ), 0, 5000 ),
 			'updated_at' => $now,
 		) + $seller;
+		// Payout details (IBAN etc.) are encrypted at rest, bound to the partner row; a missing key keeps
+		// the stored value, an empty string clears it.
+		$payout = array_key_exists( 'payout_details', $data ) ? substr( sanitize_textarea_field( (string) $data['payout_details'] ), 0, 2000 ) : null;
 		if ( $existing ) {
+			if ( null !== $payout ) { $row['payout_details'] = self::seal_payout( $payout, $partner_id ); }
 			$ok = $wpdb->update( "{$wpdb->prefix}wpcap_partners", $row, array( 'partner_id' => $partner_id ) );
 		} else {
 			$row['created_at'] = $now;
+			$row['payout_details'] = ''; // The ciphertext is bound to the partner id, known after the insert.
 			$ok = $wpdb->insert( "{$wpdb->prefix}wpcap_partners", $row );
 			$partner_id = (int) $wpdb->insert_id;
+			if ( false !== $ok && null !== $payout && '' !== $payout ) {
+				$ok = $wpdb->update( "{$wpdb->prefix}wpcap_partners", array( 'payout_details' => self::seal_payout( $payout, $partner_id ) ), array( 'partner_id' => $partner_id ) );
+				if ( false === $ok ) { $wpdb->delete( "{$wpdb->prefix}wpcap_partners", array( 'partner_id' => $partner_id ) ); }
+			}
 		}
 		if ( false === $ok ) { return new \WP_Error( 'wpcap_partner_save', __( 'Veranstalter konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
 		Audit::record( $existing ? 'partner_updated' : 'partner_created', 'partner', $partner_id, array( 'commission_bp' => $commission, 'fee_per_ticket_minor' => $fee, 'refund_policy' => $row['refund_policy'], 'status' => $row['status'], 'sales_model' => $row['sales_model'], 'sales_model_changed' => $existing && SalesModel::model_of( $existing ) !== $row['sales_model'] ) );
 		return $partner_id;
+	}
+
+	/* ------------------------------------------------------------------ Payout details (encrypted) */
+
+	/** Vault context of a partner's payout details (bound to the row). */
+	public static function payout_context( $partner_id ) {
+		return 'partner_payout:' . absint( $partner_id );
+	}
+
+	/** Vault context of the payout details copied into a finalized settlement's partner snapshot. */
+	public static function snapshot_payout_context( $settlement_id ) {
+		return 'partner_settlement_payout:' . absint( $settlement_id );
+	}
+
+	/** Ciphertext of payout details for a partner row ('' stays ''). */
+	private static function seal_payout( $plaintext, $partner_id ) {
+		return '' === (string) $plaintext ? '' : Vault::encrypt( (string) $plaintext, self::payout_context( $partner_id ) );
+	}
+
+	/**
+	 * Decrypted payout details of a partner row (operator use only: admin form hint, settlement export
+	 * for finance). Null when the stored value cannot be decrypted (key lost or changed).
+	 *
+	 * @param object|null $partner Partner row.
+	 * @return string|null
+	 */
+	public static function payout_details( $partner ) {
+		if ( ! $partner ) { return ''; }
+		return Vault::decrypt( (string) ( $partner->payout_details ?? '' ), self::payout_context( (int) $partner->partner_id ) );
+	}
+
+	/**
+	 * Masked payout details for display: only the last 4 characters of the IBAN (or, without an
+	 * IBAN, of the account text), e.g. "•••• 3000". Short values show no characters.
+	 */
+	public static function mask_payout( $plaintext ) {
+		$plaintext = (string) $plaintext;
+		if ( '' === trim( $plaintext ) ) { return ''; }
+		// IBAN: country code, check digits, 11–30 characters, optionally grouped by single spaces.
+		if ( preg_match( '/\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]){11,30}\b/', strtoupper( $plaintext ), $m ) ) {
+			$account = str_replace( ' ', '', $m[0] );
+		} else {
+			$account = (string) preg_replace( '/\s+/', '', $plaintext );
+		}
+		return strlen( $account ) >= 8 ? '•••• ' . substr( $account, -4 ) : '••••';
+	}
+
+	/**
+	 * Encrypts payout details still stored in plaintext (partners and the partner snapshots of
+	 * finalized settlements) and re-encrypts values only readable with the previous key. Idempotent;
+	 * runs with Security\Vault::migrate() (plugin upgrade, admin requests until done).
+	 *
+	 * @return int Number of values (re-)encrypted.
+	 */
+	public static function migrate_payout_details() {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		if ( ! Vault::available() || ! self::table_present( 'wpcap_partners' ) ) { return 0; }
+		$count = 0;
+		foreach ( (array) $wpdb->get_results( "SELECT partner_id,payout_details FROM {$p}wpcap_partners WHERE payout_details<>''" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix.
+			$context = self::payout_context( (int) $row->partner_id );
+			$plain = self::plain_for_migration( (string) $row->payout_details, $context );
+			if ( null === $plain ) { continue; }
+			$sealed = Vault::encrypt( $plain, $context );
+			if ( ! Vault::is_encrypted( $sealed ) ) { break; } // No key: nothing can be encrypted.
+			if ( false !== $wpdb->update( "{$p}wpcap_partners", array( 'payout_details' => $sealed ), array( 'partner_id' => (int) $row->partner_id ) ) ) { ++$count; }
+		}
+		if ( ! self::table_present( 'wpcap_partner_settlements' ) ) { return $count; }
+		foreach ( (array) $wpdb->get_results( "SELECT settlement_id,partner_snapshot FROM {$p}wpcap_partner_settlements WHERE partner_snapshot LIKE '%payout_details%'" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix.
+			$snapshot = json_decode( (string) $row->partner_snapshot, true );
+			$stored = is_array( $snapshot ) ? (string) ( $snapshot['partner']['payout_details'] ?? '' ) : '';
+			if ( '' === $stored ) { continue; }
+			$context = self::snapshot_payout_context( (int) $row->settlement_id );
+			$plain = self::plain_for_migration( $stored, $context );
+			if ( null === $plain ) { continue; }
+			$sealed = Vault::encrypt( $plain, $context );
+			if ( ! Vault::is_encrypted( $sealed ) ) { break; }
+			$snapshot['partner']['payout_details'] = $sealed;
+			if ( false !== $wpdb->update( "{$p}wpcap_partner_settlements", array( 'partner_snapshot' => wp_json_encode( $snapshot ) ), array( 'settlement_id' => (int) $row->settlement_id ) ) ) { ++$count; }
+		}
+		return $count;
+	}
+
+	/** Whether a plugin table exists (uncached: also right after the schema upgrade created it). */
+	private static function table_present( $suffix ) {
+		global $wpdb;
+		$table = $wpdb->prefix . $suffix;
+		return $table === $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', addcslashes( $table, '_%\\' ) ) );
+	}
+
+	/** Plaintext when a stored value must be (re-)encrypted; null when it is fine or unreadable. */
+	private static function plain_for_migration( $stored, $context ) {
+		if ( ! Vault::is_encrypted( $stored ) ) { return $stored; }
+		if ( null !== Vault::decrypt( $stored, $context ) && Vault::needs_reencrypt_value( $stored, $context ) ) { return Vault::decrypt( $stored, $context ); }
+		return null;
 	}
 
 	/**

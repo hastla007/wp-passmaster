@@ -48,6 +48,8 @@ final class EfstaEfrAdapter implements AdapterInterface {
 	}
 
 	public function submit( array $document, array $seller, array $configuration ) {
+		// Decimal places of the amounts follow the document currency (default EUR).
+		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $document['currency'] ?? 'EUR' ) ) );
 		$auth = $this->authorization( $configuration, $seller );
 		if ( is_wp_error( $auth ) ) { return $auth; }
 		$tax_groups = (array) ( $configuration['tax_groups'] ?? array() );
@@ -68,7 +70,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 				'IN' => (string) absint( $item['ticket_type_id'] ?? 0 ),
 				'Dsc' => 'Ticket ' . absint( $item['ticket_type_id'] ?? 0 ),
 				'TaxG' => $group,
-				'Amt' => HttpClient::minor_to_major( $gross ),
+				'Amt' => HttpClient::minor_to_major( $gross, $currency ),
 				'Qty' => (string) max( 1, (int) ( $item['quantity'] ?? 1 ) ),
 			);
 			if ( ! isset( $tax_totals[ $group ] ) ) { $tax_totals[ $group ] = array( 'rate' => (int) $rate, 'net' => 0, 'tax' => 0, 'gross' => 0 ); }
@@ -85,7 +87,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		}
 		$taxes = array();
 		foreach ( $tax_totals as $group => $amounts ) {
-			$taxes[] = array( '_' => 'Tax', 'TaxG' => $group, 'Prc' => (string) ( $amounts['rate'] / 100 ), 'Net' => HttpClient::minor_to_major( $amounts['net'] ), 'TAmt' => HttpClient::minor_to_major( $amounts['tax'] ), 'Amt' => HttpClient::minor_to_major( $amounts['gross'] ) );
+			$taxes[] = array( '_' => 'Tax', 'TaxG' => $group, 'Prc' => (string) ( $amounts['rate'] / 100 ), 'Net' => HttpClient::minor_to_major( $amounts['net'], $currency ), 'TAmt' => HttpClient::minor_to_major( $amounts['tax'], $currency ), 'Amt' => HttpClient::minor_to_major( $amounts['gross'], $currency ) );
 		}
 		$tax_id = preg_replace( '/[^A-Za-z0-9]/', '', (string) ( $seller['tax_number'] ?? $seller['vat_id'] ?? '' ) );
 		$esr = array(
@@ -93,9 +95,9 @@ final class EfstaEfrAdapter implements AdapterInterface {
 			'TL' => sanitize_text_field( (string) ( $configuration['transaction_location'] ?? '001' ) ),
 			'TT' => sanitize_text_field( (string) ( $configuration['transaction_terminal'] ?? '1' ) ),
 			'TN' => (string) absint( $document['document_id'] ?? 0 ),
-			'T' => HttpClient::minor_to_major( (int) ( $document['gross_minor'] ?? 0 ) ),
+			'T' => HttpClient::minor_to_major( (int) ( $document['gross_minor'] ?? 0 ), $currency ),
 			'PosA' => $positions,
-			'PayA' => array( array( '_' => 'Pay', 'Dsc' => $payment_method, 'PayG' => $pay_group, 'Amt' => HttpClient::minor_to_major( (int) ( $document['gross_minor'] ?? 0 ) ) ) ),
+			'PayA' => array( array( '_' => 'Pay', 'Dsc' => $payment_method, 'PayG' => $pay_group, 'Amt' => HttpClient::minor_to_major( (int) ( $document['gross_minor'] ?? 0 ), $currency ) ) ),
 			'TaxA' => $taxes,
 		);
 		if ( '' !== $tax_id ) { $esr['TaxId'] = $tax_id; }
