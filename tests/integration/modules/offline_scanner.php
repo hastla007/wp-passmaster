@@ -223,3 +223,82 @@ check( 'expired-scan conflict is recorded once per scan', $ro['conflict_id'] ===
 check( 'conflict page labels the new result code', 'Offline-Dauer überschritten (Offline-Scanner)' === PassCaptain\Admission\ConflictsPage::result_label( 'offline_expired' ) );
 unset( $GLOBALS['wpcap_test_filters']['wpcap_offline_refresh_interval'] );
 $GLOBALS['wpcap_test_user_id'] = 1;
+
+echo "Offline scanner: PWA translations (locale + string table)\n";
+if ( ! function_exists( 'register_rest_route' ) ) { function register_rest_route( $ns, $route, $args ) { $GLOBALS['wpcap_test_routes'][ $ns . $route ] = $args; return true; } }
+Rest::routes();
+$i18n_route = $GLOBALS['wpcap_test_routes'][ Api::NS . '/app/offline/i18n' ] ?? null;
+check( 'i18n route is registered as a public GET endpoint (pairing screen has no token yet)', $i18n_route && 'GET' === $i18n_route['methods'] && '__return_true' === $i18n_route['permission_callback'] && array( Rest::class, 'i18n' ) === $i18n_route['callback'] );
+$i18n_res = Rest::i18n( app_request( 'GET', '' ) );
+$i18n = $i18n_res instanceof WP_REST_Response ? $i18n_res->get_data() : $i18n_res;
+check( 'i18n table carries format version, WordPress locale and BCP 47 tag', is_array( $i18n ) && PassCaptain\OfflineScanner\I18n::VERSION === $i18n['v'] && 'de_DE' === $i18n['locale'] && 'de-DE' === $i18n['lang'] );
+check( 'German site: strings map the German source texts to themselves', 'Einlass OK' === $i18n['strings']['Einlass OK'] && '%d offen' === $i18n['strings']['%d offen'] && count( $i18n['strings'] ) === count( PassCaptain\OfflineScanner\I18n::strings() ) );
+$GLOBALS['wpcap_test_filters']['wpcap_offline_scanner_locale'] = 'en_US';
+$i18n_en = PassCaptain\OfflineScanner\I18n::table();
+$GLOBALS['wpcap_test_filters']['wpcap_offline_scanner_locale'] = 'x"><script>';
+$i18n_bad = PassCaptain\OfflineScanner\I18n::table();
+unset( $GLOBALS['wpcap_test_filters']['wpcap_offline_scanner_locale'] );
+check( 'locale is converted for Intl/<html lang>; malformed locales fall back to de-DE', 'en_US' === $i18n_en['locale'] && 'en-US' === $i18n_en['lang'] && 'de-DE' === $i18n_bad['lang'] );
+$GLOBALS['wpcap_test_filters']['wpcap_offline_scanner_strings'] = array( 'Bereit' => 'Ready', 'Leer' => '', 7 => 'x' );
+$i18n_f = PassCaptain\OfflineScanner\I18n::table();
+unset( $GLOBALS['wpcap_test_filters']['wpcap_offline_scanner_strings'] );
+check( 'filtered string tables are sanitised (string keys, non-empty values only)', array( 'Bereit' => 'Ready' ) === $i18n_f['strings'] );
+
+// Static contract between the PWA and the table: every text the app looks up is served.
+$pwa_dir = dirname( __DIR__, 3 ) . '/assets/offline-scanner/';
+$app_js = (string) file_get_contents( $pwa_dir . 'app.js' );
+$index_html = (string) file_get_contents( $pwa_dir . 'index.html' );
+$pwa_keys = array();
+preg_match_all( "/\\bt\\('((?:[^'\\\\]|\\\\.)*)'/u", $app_js, $m );
+$pwa_keys = array_merge( $pwa_keys, $m[1] );
+preg_match( '/var RESULT_TEXT = \{(.*?)\};/s', $app_js, $rt );
+preg_match_all( "/:\\s*'((?:[^'\\\\]|\\\\.)*)'/u", $rt[1] ?? '', $m );
+$result_keys = $m[1];
+$pwa_keys = array_merge( $pwa_keys, $result_keys );
+preg_match_all( '/data-i18n(?:-[a-z]+)?="([^"]*)"/u', $index_html, $m );
+$html_keys = array_map( 'html_entity_decode', $m[1] );
+$pwa_keys = array_unique( array_merge( $pwa_keys, $html_keys ) );
+$table_keys = array_keys( PassCaptain\OfflineScanner\I18n::strings() );
+$not_served = array_values( array_diff( $pwa_keys, $table_keys ) );
+check( 'app.js looks up its texts with t() and covers all 18 result codes', count( $pwa_keys ) > 60 && 18 === count( $result_keys ) );
+check( 'every PWA text (t(), RESULT_TEXT, data-i18n*) is in the served table' . ( $not_served ? ' – missing: ' . implode( ' | ', $not_served ) : '' ), array() === $not_served && count( $html_keys ) >= 20 );
+check( 'app keeps the table in IndexedDB, sets <html lang> and formats dates with Intl in that locale', false !== strpos( $app_js, "kvSet('i18n', table)" ) && false !== strpos( $app_js, "kvGet('i18n')" ) && false !== strpos( $app_js, 'document.documentElement.lang = lang()' ) && false !== strpos( $app_js, 'new Intl.DateTimeFormat(lang()' ) && false === strpos( $app_js, "toLocaleString('de-DE'" ) );
+check( 'German fallback: index.html still contains the German source texts', false !== strpos( $index_html, '>Gerät koppeln<' ) && false !== strpos( $index_html, 'data-i18n="Gerät koppeln"' ) );
+
+// Catalogs: every table key is a msgid in the .pot and translated (same placeholders) in each .po/.mo.
+function off_po( $file ) {
+	$out = array();
+	$blocks = preg_split( "/\n\s*\n/", (string) file_get_contents( $file ) );
+	foreach ( $blocks as $b ) {
+		if ( false !== strpos( $b, "\nmsgctxt " ) || 0 === strpos( $b, 'msgctxt ' ) ) { continue; }
+		if ( ! preg_match( '/^msgid ((?:".*"\n?)+)/m', $b, $mi ) || ! preg_match( '/^msgstr ((?:".*"\n?)+)/m', $b, $ms ) ) { continue; }
+		$dec = static function ( $s ) { preg_match_all( '/"((?:[^"\\\\]|\\\\.)*)"/', $s, $p ); return stripcslashes( implode( '', $p[1] ) ); };
+		$out[ $dec( $mi[1] ) ] = $dec( $ms[1] );
+	}
+	return $out;
+}
+function off_mo( $file ) {
+	$d = (string) file_get_contents( $file );
+	$h = unpack( 'Vmagic/Vrev/Vn/Vo/Vt', substr( $d, 0, 20 ) );
+	$out = array();
+	for ( $i = 0; $i < $h['n']; $i++ ) {
+		$o = unpack( 'Vl/Vp', substr( $d, $h['o'] + 8 * $i, 8 ) );
+		$t = unpack( 'Vl/Vp', substr( $d, $h['t'] + 8 * $i, 8 ) );
+		$out[ substr( $d, $o['p'], $o['l'] ) ] = substr( $d, $t['p'], $t['l'] );
+	}
+	return $out;
+}
+function off_placeholders( $s ) { preg_match_all( '/%(?:\d+\$)?[sd]/', $s, $m ); sort( $m[0] ); return $m[0]; }
+$lang_dir = dirname( __DIR__, 3 ) . '/languages/';
+$pot = off_po( $lang_dir . 'pass-captain.pot' );
+check( 'every PWA string is a msgid in pass-captain.pot', array() === array_values( array_diff( $table_keys, array_keys( $pot ) ) ) );
+foreach ( array( 'en_US', 'es_ES', 'fr_FR', 'it_IT', 'nl_NL' ) as $loc ) {
+	$po = off_po( $lang_dir . "pass-captain-$loc.po" );
+	$mo = off_mo( $lang_dir . "pass-captain-$loc.mo" );
+	$bad = array();
+	foreach ( $table_keys as $k ) {
+		if ( ! isset( $po[ $k ] ) || '' === $po[ $k ] || off_placeholders( $k ) !== off_placeholders( $po[ $k ] ) || ( $mo[ $k ] ?? null ) !== $po[ $k ] ) { $bad[] = $k; }
+	}
+	check( "$loc: all PWA strings translated in .po (same placeholders) and compiled into .mo" . ( $bad ? ' – ' . implode( ' | ', array_slice( $bad, 0, 5 ) ) : '' ), array() === $bad );
+}
+check( 'en_US catalog actually translates the scanner (e.g. "Bereit" => "Ready")', 'Ready' === off_po( $lang_dir . 'pass-captain-en_US.po' )['Bereit'] );

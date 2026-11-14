@@ -774,23 +774,37 @@ final class Orders {
 	/**
 	 * Cancels an order: releases holds and campaign reservations; for paid orders all still valid
 	 * tickets are revoked (checked-in tickets stay as historical record). Idempotent.
+	 *
+	 * Every write and the commit are checked: on a database error the transaction is rolled back
+	 * (nothing changed, no side effects fired) and a retryable WP_Error (`wpcap_db_busy`) is returned,
+	 * so a webhook answers 5xx and the provider retries.
+	 *
+	 * @return true|\WP_Error
 	 */
 	public static function cancel_order( $order_id, $reason = '' ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
 		$now = current_time( 'mysql', true );
-		$wpdb->query( 'START TRANSACTION' );
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::state_busy( $order_id, 'cancel_start' ); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return self::state_busy( $order_id, 'cancel_lock' ); }
 		if ( ! $order || in_array( $order->status, array( 'cancelled', 'refunded' ), true ) ) {
 			$wpdb->query( 'COMMIT' );
 			return true;
 		}
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) );
-		$revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' FOR UPDATE", $order_id ) ) );
+		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) ) ) {
+			return self::state_busy( $order_id, 'cancel_release' );
+		}
+		$valid_ids = $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return self::state_busy( $order_id, 'cancel_tickets' ); }
+		$revoked_ids = self::revoke_ids_checked( $valid_ids );
+		if ( false === $revoked_ids ) { return self::state_busy( $order_id, 'cancel_revoke' ); }
 		$revoked = count( $revoked_ids );
-		$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'cancelled', 'payment_status' => 'cancelled', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
-		$wpdb->query( 'COMMIT' );
+		if ( 1 !== (int) $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'cancelled', 'payment_status' => 'cancelled', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) {
+			return self::state_busy( $order_id, 'cancel_order' );
+		}
+		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) { return self::state_busy( $order_id, 'cancel_commit' ); }
 		Campaigns::release_for_order( $order_id );
 		self::capacity_released( $order_id, 'cancelled', array( 'reason' => (string) $reason ) );
 		Audit::record( 'order_cancelled', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
@@ -819,17 +833,39 @@ final class Orders {
 		return $revoked;
 	}
 
-	/** Marks an order as fully refunded and revokes all still valid tickets. Idempotent. */
+	/**
+	 * Marks an order as fully refunded and revokes all still valid tickets. Idempotent: an order that
+	 * is already refunded is left alone, so repeated provider events change nothing.
+	 *
+	 * Runs in its own transaction with the order row locked; every write and the commit are checked.
+	 * On a database error nothing is changed and a retryable WP_Error (`wpcap_db_busy`) is returned.
+	 * Callers must not hold an open transaction (START TRANSACTION would commit it implicitly).
+	 *
+	 * @return true|\WP_Error
+	 */
 	public static function mark_refunded( $order_id, $reason = '' ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
-		if ( ! $order || 'refunded' === $order->status ) { return true; }
-		$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) );
-		$revoked_ids = self::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid'", $order_id ) ) );
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::state_busy( $order_id, 'refund_start' ); }
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT status FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return self::state_busy( $order_id, 'refund_lock' ); }
+		if ( ! $order || 'refunded' === $order->status ) {
+			$wpdb->query( 'COMMIT' );
+			return true;
+		}
+		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='released' WHERE order_id=%d AND status='active'", $order_id ) ) ) {
+			return self::state_busy( $order_id, 'refund_release' );
+		}
+		$valid_ids = $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return self::state_busy( $order_id, 'refund_tickets' ); }
+		$revoked_ids = self::revoke_ids_checked( $valid_ids );
+		if ( false === $revoked_ids ) { return self::state_busy( $order_id, 'refund_revoke' ); }
 		$revoked = count( $revoked_ids );
-		$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'refunded', 'payment_status' => 'refunded', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
+		if ( 1 !== (int) $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'refunded', 'payment_status' => 'refunded', 'updated_at' => current_time( 'mysql', true ) ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) {
+			return self::state_busy( $order_id, 'refund_order' );
+		}
+		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) { return self::state_busy( $order_id, 'refund_commit' ); }
 		self::capacity_released( $order_id, 'refunded', array( 'reason' => (string) $reason ) );
 		Audit::record( 'order_refunded', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
 		self::fire_revoked( $revoked_ids, $reason ?: 'refunded' );
@@ -1115,26 +1151,98 @@ final class Orders {
 		return $expired;
 	}
 
+	/** Job type of the ticket delivery outbox (see issue_and_email()). */
+	const DELIVERY_JOB = 'ticket_delivery';
+
+	/** Job type that retries a ticket issuance which hit a database error. */
+	const ISSUE_JOB = 'ticket_issue';
+
+	/** Minutes before the outbox job of an inline delivery becomes due (covers a crash after commit). */
+	const DELIVERY_GRACE_MINUTES = 10;
+
+	/** True while a queued issuance retry runs, so its failure does not queue yet another job. */
+	private static $issuing_from_job = false;
+
+	/** Whether the job handler is registered. */
+	private static $registered = false;
+
+	/**
+	 * Registers the job handler for issuance retries and the ticket delivery outbox. Called when this
+	 * file is loaded; Plugin::run() should call it as well so the handler is present in every cron
+	 * request that runs Jobs::process_due().
+	 */
+	public static function register() {
+		if ( self::$registered || ! function_exists( 'add_filter' ) ) { return; }
+		self::$registered = true;
+		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
+	}
+
+	/** Filter wp_pass_captain_process_job_v1: issuance retries and ticket delivery retries. */
+	public static function handle_job( $handled, $type, $payload = array() ) {
+		$order_id = absint( ( (array) $payload )['order_id'] ?? 0 );
+		if ( self::ISSUE_JOB === $type ) {
+			self::$issuing_from_job = true;
+			try {
+				return true === self::issue_and_email( $order_id );
+			} finally {
+				self::$issuing_from_job = false;
+			}
+		}
+		if ( self::DELIVERY_JOB === $type ) {
+			return self::retry_delivery( $order_id, array_map( 'absint', (array) ( ( (array) $payload )['ticket_ids'] ?? array() ) ) );
+		}
+		return $handled;
+	}
+
+	/**
+	 * Issues the missing tickets of a paid order and mails them to the buyer. Idempotent.
+	 *
+	 * Issuance: tickets, attendee assignments/answers and the cleanup of the order-level attendee
+	 * copy are written in one transaction with the order row locked, and every write as well as the
+	 * transaction start and commit is checked. On a database error everything is rolled back, a
+	 * `ticket_issue` job retries the issuance later and a retryable WP_Error (`wpcap_issue_failed`)
+	 * is returned (webhooks answer 5xx). The order-level attendee data is only removed once every
+	 * collected attendee has been stored on a ticket in this transaction.
+	 *
+	 * Delivery (outbox): the same transaction queues a `ticket_delivery` job for the new tickets,
+	 * due after DELIVERY_GRACE_MINUTES. A successful inline mail completes it; a failed mail (or a
+	 * request that dies after the commit) leaves it to the job queue, which retries with backoff and
+	 * dead-letters after the last attempt. The job row is the persisted delivery status
+	 * (see delivery_status(), shown on the admin order page).
+	 *
+	 * Retry design: ticket codes are only stored hashed, so a retry cannot send the original codes.
+	 * It goes through the resend path instead (rotate_and_send()): the still valid tickets of the
+	 * failed delivery get new codes under row locks and the new links are mailed to the buyer before
+	 * the rotation commits. The codes of the failed mail never reached anybody, so rotating them is
+	 * safe; a mail failure during the retry rolls the rotation back.
+	 *
+	 * @return true|\WP_Error True when nothing was missing or the issuance committed; a failed mail
+	 *                        does not make this fail (the outbox retries it).
+	 */
 	public static function issue_and_email( $order_id ) {
 		global $wpdb;
+		$order_id = absint( $order_id );
 		$orders = $wpdb->prefix . 'wpcap_orders';
 		// Serialise issuance per order so concurrent payment callbacks cannot create duplicates.
-		$wpdb->query( 'START TRANSACTION' );
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::issue_failed( $order_id, 'start' ); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return self::issue_failed( $order_id, 'lock' ); }
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			$wpdb->query( 'COMMIT' );
-			return;
+			return true;
 		}
 		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name AS ticket_name,tt.occurrence_id,o.event_id,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return self::issue_failed( $order_id, 'lines' ); }
 		$issued = array();
 		// Attendee data collected at checkout, applied once to the issued tickets.
 		$pending_attendees = $order->attendee_data ? (array) json_decode( $order->attendee_data, true ) : array();
 		foreach ( $lines as $line ) {
 			$existing = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND ticket_type_id=%d", $order_id, $line->ticket_type_id ) );
+			if ( '' !== $wpdb->last_error ) { return self::issue_failed( $order_id, 'count' ); }
 			for ( $i = $existing; $i < (int) $line->quantity; $i++ ) {
 				$token = bin2hex( random_bytes( 32 ) );
 				$public_id = bin2hex( random_bytes( 16 ) );
-				$wpdb->insert( $wpdb->prefix . 'wpcap_tickets', array(
+				$inserted = $wpdb->insert( $wpdb->prefix . 'wpcap_tickets', array(
 					'public_id' => $public_id,
 					'order_id' => $order_id,
 					'ticket_type_id' => (int) $line->ticket_type_id,
@@ -1142,25 +1250,34 @@ final class Orders {
 					'status' => 'valid',
 					'issued_at' => current_time( 'mysql', true ),
 				), array( '%s', '%d', '%d', '%s', '%s', '%s' ) );
-				if ( $wpdb->insert_id ) {
-					$ticket_id = (int) $wpdb->insert_id;
-					foreach ( $pending_attendees as $index => $attendee ) {
-						if ( (int) ( $attendee['ticket_type_id'] ?? 0 ) !== (int) $line->ticket_type_id ) { continue; }
-						unset( $pending_attendees[ $index ] );
-						self::store_attendee( $ticket_id, $order, $attendee );
-						break;
-					}
-					/** Inside the issuance transaction, e.g. to assign a seat or area. Do not store $token. */
-					do_action( 'wpcap_ticket_created', $ticket_id, $order, $line, $i );
-					$issued[] = array( 'ticket_id' => $ticket_id, 'ticket_type_id' => (int) $line->ticket_type_id, 'occurrence_id' => (int) ( $line->occurrence_id ?? 0 ), 'token' => $token, 'event' => $line->event_name, 'ticket' => $line->ticket_name, 'starts_at' => $line->starts_at, 'timezone' => $line->timezone, 'location' => $line->location );
+				$ticket_id = (int) $wpdb->insert_id;
+				if ( ! $inserted || ! $ticket_id ) { return self::issue_failed( $order_id, 'ticket_insert' ); }
+				foreach ( $pending_attendees as $index => $attendee ) {
+					if ( (int) ( $attendee['ticket_type_id'] ?? 0 ) !== (int) $line->ticket_type_id ) { continue; }
+					if ( ! self::store_attendee( $ticket_id, $order, (array) $attendee ) ) { return self::issue_failed( $order_id, 'attendee' ); }
+					unset( $pending_attendees[ $index ] );
+					break;
 				}
+				/** Inside the issuance transaction, e.g. to assign a seat or area. Do not store $token. */
+				do_action( 'wpcap_ticket_created', $ticket_id, $order, $line, $i );
+				$issued[] = array( 'ticket_id' => $ticket_id, 'ticket_type_id' => (int) $line->ticket_type_id, 'occurrence_id' => (int) ( $line->occurrence_id ?? 0 ), 'token' => $token, 'event' => $line->event_name, 'ticket' => $line->ticket_name, 'starts_at' => $line->starts_at, 'timezone' => $line->timezone, 'location' => $line->location );
 			}
 		}
-		if ( $issued && $order->attendee_data ) {
-			// Personal data now lives with the tickets; drop the order-level copy (data minimisation).
-			$wpdb->update( $orders, array( 'attendee_data' => null ), array( 'order_id' => (int) $order_id ) );
+		if ( $issued && $order->attendee_data && ! $pending_attendees ) {
+			// Every collected attendee is stored with a ticket (each write checked above): drop the
+			// order-level copy (data minimisation). Unassigned entries keep the copy for a later run.
+			if ( false === $wpdb->update( $orders, array( 'attendee_data' => null ), array( 'order_id' => $order_id ) ) ) { return self::issue_failed( $order_id, 'attendee_cleanup' ); }
 		}
-		$wpdb->query( 'COMMIT' );
+		$delivery_key = '';
+		if ( $issued ) {
+			$delivery_key = 'ticket-delivery-' . $order_id . '-' . bin2hex( random_bytes( 8 ) );
+			// order_id first: delivery_status() finds the job by its payload prefix.
+			$payload = array( 'order_id' => $order_id, 'ticket_ids' => array_map( 'intval', array_column( $issued, 'ticket_id' ) ) );
+			if ( true !== Jobs::enqueue( $delivery_key, self::DELIVERY_JOB, $payload, gmdate( 'Y-m-d H:i:s', time() + self::DELIVERY_GRACE_MINUTES * MINUTE_IN_SECONDS ) ) ) {
+				return self::issue_failed( $order_id, 'outbox' );
+			}
+		}
+		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) { return self::issue_failed( $order_id, 'commit' ); }
 		if ( $issued ) {
 			do_action( 'wpcap_tickets_issued', (int) $order_id, count( $issued ) );
 			$entries = array_map( static function ( $ticket ) {
@@ -1184,17 +1301,102 @@ final class Orders {
 				}
 			}
 			$mail = array( 'attachments' => $attachments );
+			$delivered = false;
 			try {
 				// Legacy filter: receives and may change subject/body/attachments of the rendered template.
 				$mail = apply_filters( 'wpcap_ticket_mail', array( 'subject' => $message['subject'], 'body' => $message['body'], 'attachments' => $attachments ), $order, $issued );
 				$mail = is_array( $mail ) ? $mail : array( 'attachments' => $attachments );
-				Mail\Mailer::deliver( $order->customer_email, Mail\Mailer::apply_filtered( $message, $mail ) );
+				$delivered = Mail\Mailer::deliver( $order->customer_email, Mail\Mailer::apply_filtered( $message, $mail ) );
 			} finally {
 				$attachments = array_unique( array_merge( $attachments, (array) ( $mail['attachments'] ?? array() ) ) );
 				foreach ( $attachments as $file ) { wp_delete_file( $file ); }
 				if ( ! empty( $pdf_dir ) && is_dir( $pdf_dir ) ) { @rmdir( $pdf_dir ); } // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 			}
+			self::finish_delivery( $delivery_key, $order_id, (bool) $delivered, count( $issued ) );
 		}
+		return true;
+	}
+
+	/**
+	 * Rolls back a failed issuance, queues a retry job (unless this already is one) and returns a
+	 * retryable error.
+	 */
+	private static function issue_failed( $order_id, $step ) {
+		global $wpdb;
+		$error = (string) $wpdb->last_error;
+		$wpdb->query( 'ROLLBACK' );
+		Audit::record( 'ticket_issue_failed', 'order', $order_id, array( 'step' => sanitize_key( $step ), 'error' => substr( $error, 0, 200 ) ) );
+		if ( ! self::$issuing_from_job && $order_id ) {
+			// One retry job per order and minute; the job queue retries it with backoff.
+			Jobs::enqueue( 'ticket-issue-' . $order_id . '-' . gmdate( 'YmdHi' ), self::ISSUE_JOB, array( 'order_id' => $order_id ), gmdate( 'Y-m-d H:i:s', time() + 2 * MINUTE_IN_SECONDS ) );
+		}
+		return new \WP_Error( 'wpcap_issue_failed', __( 'Die Tickets konnten gerade nicht ausgestellt werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'step' => (string) $step ) );
+	}
+
+	/**
+	 * Records the result of the inline ticket mail on its outbox job: completed when sent, otherwise
+	 * attempt counted, error noted and due again in five minutes (Jobs::process_due() retries it).
+	 */
+	private static function finish_delivery( $key, $order_id, $sent, $count ) {
+		global $wpdb;
+		if ( '' === $key ) { return; }
+		$table = $wpdb->prefix . 'wpcap_jobs';
+		$now = current_time( 'mysql', true );
+		if ( $sent ) {
+			// If this update fails the job retries after the grace period: the buyer then receives a
+			// second mail with rotated codes, which supersede the first ones. Nothing is lost.
+			$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='complete',attempts=attempts+1,locked_at=NULL,last_error=NULL,updated_at=%s WHERE idempotency_key=%s AND status='queued'", $now, hash( 'sha256', $key ) ) );
+			return;
+		}
+		$wpdb->query( $wpdb->prepare( "UPDATE $table SET attempts=attempts+1,run_after=%s,last_error=%s,updated_at=%s WHERE idempotency_key=%s AND status='queued'", gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ), 'Ticket mail could not be delivered.', $now, hash( 'sha256', $key ) ) );
+		Audit::record( 'ticket_delivery_failed', 'order', absint( $order_id ), array( 'ticket_count' => (int) $count, 'retry' => 'scheduled' ) );
+	}
+
+	/**
+	 * Outbox job: delivers tickets whose mail failed by rotating their codes and mailing new links to
+	 * the buyer (see issue_and_email()). Returns false to let the job queue retry.
+	 */
+	private static function retry_delivery( $order_id, array $ticket_ids ) {
+		global $wpdb;
+		$order = $order_id ? self::get( $order_id ) : null;
+		if ( '' !== $wpdb->last_error ) { return false; }
+		if ( ! $order || 'paid' !== $order->payment_status || ! $ticket_ids ) {
+			return true; // Nothing deliverable any more (cancelled, refunded).
+		}
+		$result = self::rotate_and_send( $order, $ticket_ids, 'delivery_retry', true );
+		if ( is_wp_error( $result ) ) {
+			// No valid ticket left (revoked, checked in, transferred with its own mail): done.
+			return 'wpcap_no_resendable_tickets' === $result->get_error_code();
+		}
+		Audit::record( 'tickets_delivered_retry', 'order', $order_id, array( 'ticket_count' => (int) $result ) );
+		return true;
+	}
+
+	/**
+	 * Number of tickets a paid order should have but does not (issuance failed or is still pending).
+	 *
+	 * @return int|null Null on a database error.
+	 */
+	public static function missing_tickets( $order_id ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$missing = $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(GREATEST(0, oi.qty - COALESCE(t.n,0))),0) FROM (SELECT ticket_type_id, SUM(quantity) AS qty FROM {$p}wpcap_order_items WHERE order_id=%d GROUP BY ticket_type_id) oi LEFT JOIN (SELECT ticket_type_id, COUNT(*) AS n FROM {$p}wpcap_tickets WHERE order_id=%d GROUP BY ticket_type_id) t ON t.ticket_type_id=oi.ticket_type_id", absint( $order_id ), absint( $order_id ) ) );
+		return '' !== $wpdb->last_error || null === $missing ? null : (int) $missing;
+	}
+
+	/**
+	 * Delivery status of the latest ticket mail of an order, from its outbox job.
+	 *
+	 * @return array|null {status: sent|pending|retrying|failed, attempts, last_error, next_attempt}; null when unknown.
+	 */
+	public static function delivery_status( $order_id ) {
+		global $wpdb;
+		$like = '{"order_id":' . absint( $order_id ) . ',%';
+		$job = $wpdb->get_row( $wpdb->prepare( "SELECT status,attempts,last_error,run_after FROM {$wpdb->prefix}wpcap_jobs WHERE job_type=%s AND payload LIKE %s ORDER BY job_id DESC LIMIT 1", self::DELIVERY_JOB, $like ) );
+		if ( ! $job ) { return null; }
+		$map = array( 'complete' => 'sent', 'dead_letter' => 'failed' );
+		$status = $map[ $job->status ] ?? ( (int) $job->attempts > 0 ? 'retrying' : 'pending' );
+		return array( 'status' => $status, 'attempts' => (int) $job->attempts, 'last_error' => (string) $job->last_error, 'next_attempt' => 'retrying' === $status ? (string) $job->run_after : '' );
 	}
 
 	/** Creates a fresh directory (0700, random name) in the temp dir; null on failure. */
@@ -1248,42 +1450,138 @@ final class Orders {
 		return (string) apply_filters( 'wpcap_sender_name', '' !== trim( $name ) ? $name : (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
 	}
 
+	/**
+	 * Resends all valid tickets of a paid order with new codes, one mail per holder (attendee e-mail,
+	 * else the buyer). Checked-in tickets are skipped: they are used, and rotating them would only
+	 * invalidate the holder's admission history link.
+	 *
+	 * Rotation and mail run per recipient in rotate_and_send(): row locks serialise concurrent
+	 * resends, each code is replaced by a compare-and-set on its previous hash, and the rotation only
+	 * commits after the mail was accepted. A failed mail or database error rolls that recipient's
+	 * rotation back, so no old code is invalidated without the new one being sent.
+	 *
+	 * @return true|\WP_Error
+	 */
 	public static function resend_tickets( $order_id ) {
 		global $wpdb;
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		$order_id = absint( $order_id );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", $order_id ) );
 		if ( ! $order || 'paid' !== $order->payment_status ) {
 			return new \WP_Error( 'wpcap_order_unpaid', __( 'Tickets können erst nach bestätigter Zahlung erneut gesendet werden.', 'pass-captain' ) );
 		}
-		$tickets = $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.ticket_id,t.status,t.attendee_email,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d AND t.status='valid' ORDER BY t.ticket_id",
-			$order_id
-		) );
-		// Codes are stored hashed, so a resend has to rotate them. Checked-in tickets are skipped:
-		// they are used, and rotating them would only invalidate the holder's admission history link.
-		if ( ! $tickets ) {
+		$result = self::rotate_and_send( $order, null, 'resend', false );
+		if ( is_wp_error( $result ) ) { return $result; }
+		Audit::record( 'tickets_resent', 'order', $order_id, array( 'ticket_count' => (int) $result ) );
+		return true;
+	}
+
+	/**
+	 * Rotates the codes of valid tickets of an order and mails the new links, per recipient.
+	 *
+	 * @param object     $order      Order row (paid).
+	 * @param int[]|null $ticket_ids Restrict to these tickets; null = all valid tickets of the order.
+	 * @param string     $reason     Passed to wpcap_ticket_code_rotated (resend, delivery_retry).
+	 * @param bool       $to_buyer   Mail every ticket to the buyer (initial delivery) instead of its holder.
+	 * @return int|\WP_Error Number of tickets rotated and mailed. On a partial failure the error
+	 *                       carries `sent` (tickets mailed to other recipients); the failed
+	 *                       recipient's codes are unchanged.
+	 */
+	private static function rotate_and_send( $order, $ticket_ids, $reason, $to_buyer ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$filter = '';
+		if ( null !== $ticket_ids ) {
+			$ticket_ids = array_values( array_filter( array_map( 'absint', (array) $ticket_ids ) ) );
+			$filter = $ticket_ids ? ' AND ticket_id IN (' . implode( ',', $ticket_ids ) . ')' : ' AND 1=0';
+		}
+		$candidates = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,attendee_email FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid'{$filter} ORDER BY ticket_id", (int) $order->order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		if ( '' !== $wpdb->last_error ) {
+			return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		}
+		if ( ! $candidates ) {
 			return new \WP_Error( 'wpcap_no_resendable_tickets', __( 'Keine gültigen Tickets für den erneuten Versand gefunden.', 'pass-captain' ) );
 		}
-		$entries = array();
-		foreach ( $tickets as $ticket ) {
-			$token = bin2hex( random_bytes( 32 ) );
-			$updated = $wpdb->update( $wpdb->prefix . 'wpcap_tickets', array( 'token_hash' => hash( 'sha256', $token ) ), array( 'ticket_id' => (int) $ticket->ticket_id, 'status' => $ticket->status ), array( '%s' ), array( '%d', '%s' ) );
-			if ( false === $updated ) {
-				return new \WP_Error( 'wpcap_ticket_rotation_failed', __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' ) );
+		$groups = array();
+		foreach ( $candidates as $ticket ) {
+			$groups[ self::code_recipient( $order, $ticket, $to_buyer ) ][] = (int) $ticket->ticket_id;
+		}
+		$sent = 0;
+		$error = null;
+		foreach ( $groups as $recipient => $ids ) {
+			$result = self::rotate_and_send_group( $order, (string) $recipient, $ids, $reason, $to_buyer );
+			if ( is_wp_error( $result ) ) {
+				$error = $error ?: $result;
+				continue;
 			}
-			do_action( 'wpcap_ticket_code_rotated', (int) $ticket->ticket_id, $token, 'resend' );
-			$recipient = is_email( $ticket->attendee_email ) ? $ticket->attendee_email : $order->customer_email;
-			$entries[ $recipient ][] = array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'extra' => (string) apply_filters( 'wpcap_ticket_code_mail_section', '', (int) $ticket->ticket_id ) );
+			$sent += $result;
 		}
-		$sent = true;
-		foreach ( $entries as $recipient => $list ) {
-			$vars = self::ticket_mail_vars( $order, $list, static function () use ( $list ) { return Mail\Blocks::code_tickets( $list ); } );
-			$sent = Mail\Mailer::send( 'tickets_resend', $recipient, $vars, array(), (string) $order->locale ) && $sent;
+		if ( $error ) {
+			$data = (array) $error->get_error_data();
+			$data['sent'] = $sent;
+			return new \WP_Error( $error->get_error_code(), $error->get_error_message(), $data );
 		}
-		if ( ! $sent ) {
-			return new \WP_Error( 'wpcap_mail_failed', __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Ticketcodes wurden erneuert; bitte versuche den Versand erneut.', 'pass-captain' ) );
+		return $sent;
+	}
+
+	/** Recipient of a ticket's code mail: the holder (attendee e-mail), else the buyer. */
+	private static function code_recipient( $order, $ticket, $to_buyer ) {
+		return ! $to_buyer && is_email( $ticket->attendee_email ) ? (string) $ticket->attendee_email : (string) $order->customer_email;
+	}
+
+	/**
+	 * One recipient of rotate_and_send(): locks the ticket rows, rotates each code by a conditional
+	 * UPDATE on its previous hash (exactly one row, else rollback), mails the new links and commits
+	 * only after the mail was accepted. wpcap_ticket_code_rotated fires inside the transaction so
+	 * listeners (wallet passes) can add their links to the mail; their writes roll back with it.
+	 *
+	 * @return int|\WP_Error Number of rotated and mailed tickets (0 when none is left for this recipient).
+	 */
+	private static function rotate_and_send_group( $order, $recipient, array $ids, $reason, $to_buyer ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$fail = static function ( $code, $message, $step ) use ( $wpdb ) {
+			$wpdb->query( 'ROLLBACK' );
+			return new \WP_Error( $code, $message, array( 'status' => 503, 'retryable' => true, 'step' => $step ) );
+		};
+		$rotation_failed = __( 'Ticketcode konnte nicht erneuert werden.', 'pass-captain' );
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return $fail( 'wpcap_ticket_rotation_failed', $rotation_failed, 'start' ); }
+		// Only the ticket rows are locked (not ticket types/occurrences), so checkouts are not blocked while the mail is sent.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,token_hash,attendee_email FROM {$p}wpcap_tickets WHERE order_id=%d AND status='valid' AND ticket_id IN (" . implode( ',', array_map( 'absint', $ids ) ) . ') ORDER BY ticket_id FOR UPDATE', (int) $order->order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		if ( '' !== $wpdb->last_error ) { return $fail( 'wpcap_ticket_rotation_failed', $rotation_failed, 'lock' ); }
+		$rotated = array();
+		foreach ( $rows as $row ) {
+			// The holder changed in the meantime (transfer/assignment mailed its own new code): skip.
+			if ( self::code_recipient( $order, $row, $to_buyer ) !== $recipient ) { continue; }
+			$token = bin2hex( random_bytes( 32 ) );
+			$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_tickets SET token_hash=%s WHERE ticket_id=%d AND status='valid' AND token_hash=%s", hash( 'sha256', $token ), (int) $row->ticket_id, (string) $row->token_hash ) );
+			if ( 1 !== (int) $updated ) { return $fail( 'wpcap_ticket_rotation_failed', $rotation_failed, 'rotate' ); }
+			$rotated[ (int) $row->ticket_id ] = $token;
 		}
-		Audit::record( 'tickets_resent', 'order', $order_id, array( 'ticket_count' => count( $tickets ) ) );
-		return true;
+		if ( ! $rotated ) {
+			$wpdb->query( 'COMMIT' );
+			return 0;
+		}
+		$info = array();
+		foreach ( $wpdb->get_results( "SELECT t.ticket_id,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone,o.location FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE t.ticket_id IN (" . implode( ',', array_keys( $rotated ) ) . ') ORDER BY t.ticket_id' ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+			$info[ (int) $row->ticket_id ] = $row;
+		}
+		if ( '' !== $wpdb->last_error || count( $info ) !== count( $rotated ) ) { return $fail( 'wpcap_ticket_rotation_failed', $rotation_failed, 'read' ); }
+		$entries = array();
+		foreach ( $rotated as $ticket_id => $token ) {
+			/** A ticket received a new code; the old one is invalid. $token is plaintext – never store it. */
+			do_action( 'wpcap_ticket_code_rotated', $ticket_id, $token, $reason );
+			$ticket = $info[ $ticket_id ];
+			$entries[] = array( 'event' => $ticket->event_name, 'ticket' => $ticket->ticket_name, 'when' => self::format_start( $ticket->starts_at, $ticket->timezone ), 'location' => $ticket->location, 'url' => add_query_arg( 'wpcap_ticket', $token, home_url( '/' ) ), 'extra' => (string) apply_filters( 'wpcap_ticket_code_mail_section', '', $ticket_id ) );
+		}
+		$vars = self::ticket_mail_vars( $order, $entries, static function () use ( $entries ) { return Mail\Blocks::code_tickets( $entries ); } );
+		if ( ! Mail\Mailer::send( 'tickets_resend', $recipient, $vars, array(), (string) $order->locale ) ) {
+			return $fail( 'wpcap_mail_failed', __( 'Mindestens eine E-Mail konnte nicht zugestellt werden. Die bisherigen Ticketcodes bleiben gültig; bitte versuche den Versand erneut.', 'pass-captain' ), 'mail' );
+		}
+		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) {
+			// The mail went out but its codes were not stored: the old codes stay valid; a retry sends working ones.
+			return $fail( 'wpcap_ticket_rotation_failed', $rotation_failed, 'commit' );
+		}
+		return count( $rotated );
 	}
 
 	/**
@@ -1332,3 +1630,6 @@ final class Orders {
 		return array( 'ticket_id' => $ticket_id, 'recipient' => $recipient, 'mailed' => $mailed );
 	}
 }
+
+// Job handler (issuance retries, ticket delivery outbox); see Orders::register().
+Orders::register();

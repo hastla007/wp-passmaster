@@ -9761,3 +9761,273 @@ msgstr "À partir d’un montant de commande supérieur à %s, nous avons besoin
 #: templates/event-card.php:85
 msgid "Mit Länderkennzeichen, z. B. ATU12345678 oder DE123456789."
 msgstr "Avec le préfixe du pays, p. ex. ATU12345678 ou DE123456789."
+
+#: src/OfflineScanner/I18n.php:38
+msgid "Noch nicht hochgeladene Offline-Scans"
+msgstr "Scans hors ligne pas encore envoyés"
+
+#. translators: %d: number of scans not uploaded yet
+#: src/OfflineScanner/I18n.php:40
+#, php-format
+msgid "%d offen"
+msgstr "%d en attente"
+
+#: src/OfflineScanner/I18n.php:42
+msgid "Im WordPress-Admin unter „Pass Captain → Scanner-Geräte“ einen Kopplungscode für die gewünschten Events erstellen und hier eingeben. Danach unter „Offline-Scanner“ das Gerät dem Event zuweisen."
+msgstr "Dans l’administration WordPress, créez un code d’appairage pour les événements souhaités sous « Pass Captain → Appareils de scan » et saisissez-le ici. Attribuez ensuite l’appareil à l’événement sous « Scanner hors ligne »."
+
+#: src/OfflineScanner/I18n.php:43
+msgid "Kopplungscode"
+msgstr "Code d’appairage"
+
+#: src/OfflineScanner/I18n.php:46
+msgid "Koppeln"
+msgstr "Appairer"
+
+#: src/OfflineScanner/I18n.php:47
+msgid "Server:"
+msgstr "Serveur :"
+
+#: src/OfflineScanner/I18n.php:50
+msgid "Paket aktualisieren"
+msgstr "Actualiser le paquet"
+
+#: src/OfflineScanner/I18n.php:51
+msgid "Jetzt synchronisieren"
+msgstr "Synchroniser maintenant"
+
+#: src/OfflineScanner/I18n.php:52
+msgid "Bereit"
+msgstr "Prêt"
+
+#: src/OfflineScanner/I18n.php:54
+msgid "Ticketcode manuell"
+msgstr "Code du billet (saisie manuelle)"
+
+#: src/OfflineScanner/I18n.php:55
+msgid "64-stelliger Code oder Ticket-Link"
+msgstr "Code à 64 caractères ou lien du billet"
+
+#: src/OfflineScanner/I18n.php:56
+msgid "Prüfen"
+msgstr "Vérifier"
+
+#: src/OfflineScanner/I18n.php:57
+msgid "Konflikte nach Synchronisierung"
+msgstr "Conflits après synchronisation"
+
+#: src/OfflineScanner/I18n.php:58
+msgid "Letzte Scans"
+msgstr "Derniers scans"
+
+#: src/OfflineScanner/I18n.php:60
+msgid "Gerät entkoppeln"
+msgstr "Dissocier l’appareil"
+
+#: src/OfflineScanner/I18n.php:62
+msgid "Einlass OK"
+msgstr "Entrée OK"
+
+#: src/OfflineScanner/I18n.php:63
+msgid "Bereits verwendet"
+msgstr "Déjà utilisé"
+
+#: src/OfflineScanner/I18n.php:65
+msgid "Unbekanntes Ticket"
+msgstr "Billet inconnu"
+
+#: src/OfflineScanner/I18n.php:72
+msgid "Tageskontingent erreicht"
+msgstr "Quota journalier atteint"
+
+#: src/OfflineScanner/I18n.php:77
+msgid "Prüfpaket abgelaufen"
+msgstr "Paquet de vérification expiré"
+
+#: src/OfflineScanner/I18n.php:78
+msgid "Kein gültiges Prüfpaket"
+msgstr "Aucun paquet de vérification valide"
+
+#: src/OfflineScanner/I18n.php:79
+msgid "Kein Ticketcode erkannt"
+msgstr "Aucun code de billet détecté"
+
+#: src/OfflineScanner/I18n.php:80
+msgid "Einlass OK (offline)"
+msgstr "Entrée OK (hors ligne)"
+
+#: src/OfflineScanner/I18n.php:81
+msgid "Mehrfachticket – Prüfung beim Sync"
+msgstr "Billet multi-entrées – vérifié à la synchronisation"
+
+#: src/OfflineScanner/I18n.php:82
+msgid "Kein Termin gewählt"
+msgstr "Aucune date sélectionnée"
+
+#: src/OfflineScanner/I18n.php:83
+msgid "Fehler"
+msgstr "Erreur"
+
+#: src/OfflineScanner/I18n.php:84
+msgid "online"
+msgstr "en ligne"
+
+#: src/OfflineScanner/I18n.php:85
+msgid "offline"
+msgstr "hors ligne"
+
+#: src/OfflineScanner/I18n.php:87
+msgid "Unbekannter Signaturschlüssel"
+msgstr "Clé de signature inconnue"
+
+#: src/OfflineScanner/I18n.php:88
+msgid "Signaturschlüssel abgelaufen"
+msgstr "Clé de signature expirée"
+
+#: src/OfflineScanner/I18n.php:89
+msgid "Signatur ungültig"
+msgstr "Signature invalide"
+
+#: src/OfflineScanner/I18n.php:90
+msgid "Unbekanntes Paketformat"
+msgstr "Format de paquet inconnu"
+
+#: src/OfflineScanner/I18n.php:91
+msgid "Schlüssel-ID passt nicht"
+msgstr "L’ID de clé ne correspond pas"
+
+#: src/OfflineScanner/I18n.php:92
+msgid "Paket gehört zu einem anderen Gerät"
+msgstr "Le paquet appartient à un autre appareil"
+
+#: src/OfflineScanner/I18n.php:93
+msgid "Paket passt nicht zum Termin"
+msgstr "Le paquet ne correspond pas à la date"
+
+#: src/OfflineScanner/I18n.php:94
+msgid "Delta-Kette unterbrochen"
+msgstr "Chaîne de deltas interrompue"
+
+#: src/OfflineScanner/I18n.php:95
+msgid "Delta passt nicht zum gespeicherten Paket"
+msgstr "Le delta ne correspond pas au paquet enregistré"
+
+#: src/OfflineScanner/I18n.php:97
+msgid "Keine zugewiesenen Termine"
+msgstr "Aucune date attribuée"
+
+#: src/OfflineScanner/I18n.php:98
+msgid "Noch kein Prüfpaket geladen."
+msgstr "Aucun paquet de vérification chargé pour l’instant."
+
+#. translators: %s: verification error
+#: src/OfflineScanner/I18n.php:100
+#, php-format
+msgid "Prüfpaket ungültig: %s"
+msgstr "Paquet de vérification invalide : %s"
+
+#: src/OfflineScanner/I18n.php:101
+msgid "Prüfpaket abgelaufen – bitte online aktualisieren."
+msgstr "Paquet de vérification expiré – veuillez l’actualiser en ligne."
+
+#. translators: 1: number of tickets, 2: signing key id, 3: date and time the package was issued
+#: src/OfflineScanner/I18n.php:103
+#, php-format
+msgid "%1$d Tickets im Paket · signiert (Ed25519, Schlüssel %2$s) · Stand %3$s"
+msgstr "%1$d billets dans le paquet · signé (Ed25519, clé %2$s) · état au %3$s"
+
+#. translators: 1: expiry date and time, 2: duplicate scan policy
+#: src/OfflineScanner/I18n.php:105
+#, php-format
+msgid "Gültig bis %1$s · Doppelscans: %2$s"
+msgstr "Valable jusqu’au %1$s · Scans en double : %2$s"
+
+#: src/OfflineScanner/I18n.php:106
+msgid "erste Synchronisierung gewinnt"
+msgstr "la première synchronisation l’emporte"
+
+#: src/OfflineScanner/I18n.php:107
+msgid "zur Prüfung"
+msgstr "à vérifier"
+
+#: src/OfflineScanner/I18n.php:110
+msgid "wartet auf Sync"
+msgstr "en attente de synchronisation"
+
+#: src/OfflineScanner/I18n.php:111
+msgid "Konflikt"
+msgstr "Conflit"
+
+#: src/OfflineScanner/I18n.php:112
+msgid "synchronisiert"
+msgstr "synchronisé"
+
+#: src/OfflineScanner/I18n.php:113
+msgid "Offline-Dauer überschritten"
+msgstr "Durée hors ligne dépassée"
+
+#: src/OfflineScanner/I18n.php:114
+msgid "automatisch geklärt"
+msgstr "résolu automatiquement"
+
+#. translators: %d: conflict id
+#: src/OfflineScanner/I18n.php:116
+#, php-format
+msgid "zur Prüfung (#%d)"
+msgstr "à vérifier (n° %d)"
+
+#: src/OfflineScanner/I18n.php:119
+msgid "Online"
+msgstr "En ligne"
+
+#: src/OfflineScanner/I18n.php:120
+msgid "Offline"
+msgstr "Hors ligne"
+
+#: src/OfflineScanner/I18n.php:121
+msgid "Kamera stoppen"
+msgstr "Arrêter la caméra"
+
+#: src/OfflineScanner/I18n.php:122
+msgid "Kamera nicht verfügbar"
+msgstr "Caméra indisponible"
+
+#: src/OfflineScanner/I18n.php:123
+msgid "Gerät nicht mehr gekoppelt"
+msgstr "Appareil plus appairé"
+
+#: src/OfflineScanner/I18n.php:124
+msgid "Token abgelaufen oder widerrufen. Bitte neu koppeln."
+msgstr "Jeton expiré ou révoqué. Veuillez appairer à nouveau."
+
+#: src/OfflineScanner/I18n.php:125
+msgid "Der Kopplungscode gehört zu einem anderen Server."
+msgstr "Le code d’appairage appartient à un autre serveur."
+
+#: src/OfflineScanner/I18n.php:126
+msgid "Offline-Scanner (PWA)"
+msgstr "Scanner hors ligne (PWA)"
+
+#: src/OfflineScanner/I18n.php:127
+msgid "Gerät entkoppeln? Nicht synchronisierte Scans gehen verloren."
+msgstr "Dissocier l’appareil ? Les scans non synchronisés seront perdus."
+
+#: src/OfflineScanner/I18n.php:128
+msgid "Browser nicht unterstützt"
+msgstr "Navigateur non pris en charge"
+
+#: src/OfflineScanner/I18n.php:129
+msgid "Benötigt HTTPS, WebCrypto und IndexedDB."
+msgstr "Nécessite HTTPS, WebCrypto et IndexedDB."
+
+#: src/OfflineScanner/I18n.php:130
+msgid "Gekoppelt"
+msgstr "Appairé"
+
+#: src/OfflineScanner/I18n.php:131
+msgid "Jetzt im Admin unter „Offline-Scanner“ dem Event zuweisen."
+msgstr "Attribuez-le maintenant à l’événement dans l’administration sous « Scanner hors ligne »."
+
+#: src/OfflineScanner/I18n.php:132
+msgid "Kopplung fehlgeschlagen"
+msgstr "Échec de l’appairage"

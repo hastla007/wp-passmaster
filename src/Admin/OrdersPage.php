@@ -315,6 +315,12 @@ final class OrdersPage {
 		<?php if ( $voucher && 'commit_failed' === ( $voucher['status'] ?? '' ) ) : ?>
 			<div class="notice notice-error inline"><p><?php echo esc_html( sprintf( /* translators: 1: amount, 2: error code */ __( 'Bezahlt, aber der Gutschein über %1$s konnte nicht belastet werden (Fehler: %2$s). Die Tickets sind gültig. Bitte den Betrag nachfordern oder den Gutschein in WP Voucher Captain manuell belasten.', 'pass-captain' ), Forms::money( (int) $voucher['amount_minor'], $order->currency ), (string) ( $voucher['error'] ?? '' ) ) ); ?></p></div>
 		<?php endif; ?>
+		<?php $delivery = 'paid' === $order->payment_status ? Orders::delivery_status( $order_id ) : null; ?>
+		<?php if ( $delivery && 'failed' === $delivery['status'] ) : ?>
+			<div class="notice notice-error inline"><p><?php echo esc_html( sprintf( /* translators: %d: attempts */ __( 'Die Ticket-E-Mail konnte nach %d Versuchen nicht zugestellt werden. Bitte die E-Mail-Adresse prüfen und die Tickets erneut senden.', 'pass-captain' ), (int) $delivery['attempts'] ) ); ?></p></div>
+		<?php elseif ( $delivery && 'retrying' === $delivery['status'] ) : ?>
+			<div class="notice notice-warning inline"><p><?php echo esc_html( sprintf( /* translators: 1: attempts, 2: UTC date/time */ __( 'Die Ticket-E-Mail konnte bisher nicht zugestellt werden (%1$d Versuche). Der Versand wird automatisch wiederholt (nächster Versuch: %2$s UTC).', 'pass-captain' ), (int) $delivery['attempts'], (string) $delivery['next_attempt'] ) ); ?></p></div>
+		<?php endif; ?>
 		<?php if ( 'needs_review' === $order->status ) : ?>
 			<div class="notice notice-warning inline"><p><?php esc_html_e( 'Die Zahlung ist nach Ablauf der Reservierung eingegangen und es war kein Kontingent mehr frei. Bitte Platz freigeben oder die Zahlung außerhalb des Plugins zurückerstatten.', 'pass-captain' ); ?></p></div>
 		<?php endif; ?>

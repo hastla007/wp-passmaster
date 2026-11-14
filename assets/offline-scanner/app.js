@@ -9,7 +9,7 @@
  *   against the package (sha256 of the code via WebCrypto) and written to a local log with an
  *   idempotency key. Pending scans are uploaded via POST /app/scan/sync; conflicts are shown.
  *
- * i18n: UI texts are looked up with t('<German source text>') in a table from GET /app/offline/i18n
+ * i18n: t() looks UI texts up by their German source text in a table from GET /app/offline/i18n
  * (locale + translations via the plugin's text domain). The table is kept in IndexedDB so the app is
  * translated offline too; without a table the German source texts are shown.
  *
