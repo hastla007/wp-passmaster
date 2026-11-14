@@ -117,9 +117,29 @@ Der Connector-Vertrag `PassCaptain\Integrations\ConnectorInterface` (`key()`, `v
 `wp_pass_captain_connectors_v1` registriert und nur ausgeführt, wenn ihr Schlüssel in der site-lokalen Option
 `wpcap_enabled_connectors` freigegeben wurde. Fehler meldet `wp_pass_captain_connector_error_v1`.
 
-Hinweis: `ConnectorRegistry::dispatch()` wird derzeit von keinem Kernablauf aufgerufen. Bis das verdrahtet
-ist, hängen sich Connectoren direkt an die Lebenszyklus-Actions (z. B. `wpcap_order_paid`) und rufen
-`ConnectorRegistry::dispatch()` dort selbst auf, oder sie nutzen die ausgehenden Webhooks.
+Der Kern liefert seine Domänenereignisse über die Job-Queue an alle freigegebenen Connectoren
+(`PassCaptain\Integrations\ConnectorEvents`, Jobtyp `connector_delivery`). Je Ereignis und Connector entsteht
+ein eigener Job: Ein ausfallender Connector wird mit Backoff wiederholt (nach acht Versuchen `dead_letter`),
+ohne dass die anderen das Ereignis doppelt erhalten. Solange kein Connector freigegeben ist, wird nichts
+eingeplant.
+
+| Ereignis (`$event_name`) | Auslöser (Action) | `data` |
+|---|---|---|
+| `order_paid` | `wpcap_order_paid` | Bestellung: `order_id`, `public_id`, `status`, `payment_status`, `payment_provider`, `currency`, `total_minor`, `refunded_minor`, `created_at` |
+| `order_refunded` | `wpcap_order_refunded` | Bestellung + `reason` |
+| `order_cancelled` | `wpcap_order_cancelled` | Bestellung |
+| `refund_completed` | `wpcap_refund_completed` | `refund_id`, `order_id`, `amount_minor`, `tax_minor`, `currency`, `ticket_ids` |
+| `tickets_issued` | `wpcap_tickets_issued` | Bestellung + `issued_count`, `tickets` (`ticket_id`, `public_id`, `ticket_type_id`, `status`) |
+| `ticket_checked_in` | `wpcap_ticket_checked_in` | `ticket_id`, `public_id`, `order_id`, `ticket_type_id`, `occurrence_id`, `source`, `device_id`, `area_id` |
+| `occurrence_rescheduled` | `wpcap_occurrence_rescheduled` | Termin (`occurrence_id`, `event_id`, `starts_at`, `timezone`, `status`) + `old_starts_at`, `new_starts_at` |
+| `occurrence_cancelled` | `wpcap_occurrence_cancelled` | Termin + `issued_tickets` |
+
+`$payload` = `[ 'version' => 1, 'event', 'occurred_at' (ISO 8601), 'site', 'data' ]`. Payloads enthalten nur
+Kennungen und Zustände – keine Namen, E-Mail-Adressen oder Ticketcodes. `$idempotency_key` ist je Ereignis und
+Connector stabil (`sha256( Ereignisschlüssel . '|' . Connector-Schlüssel )`) und bleibt bei Wiederholungen
+gleich; der Connector dedupliziert damit. `deliver()` gilt als erfolgreich, wenn es weder `false` noch ein
+`WP_Error` zurückgibt und keine Exception wirft; sonst wird der Job wiederholt und
+`wp_pass_captain_connector_error_v1` ausgelöst.
 
 ## Hintergrundjobs
 

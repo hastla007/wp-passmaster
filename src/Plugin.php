@@ -55,6 +55,7 @@ final class Plugin {
 		);
 		add_action( 'init', array( $this, 'register_blocks' ) );
 		Integrations\WooCommerce\OrderAdapter::register();
+		Integrations\ConnectorEvents::register(); // Domain events → enabled connectors (job queue).
 		Invoices::register();
 		Integrations\Vouchers\Checkout::register();
 		Integrations\Vouchers\TicketService::register();
