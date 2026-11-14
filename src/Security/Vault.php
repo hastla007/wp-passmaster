@@ -97,6 +97,8 @@ final class Vault {
 			// Values encrypted before a dedicated key was configured stay readable and get re-encrypted.
 			$previous = hash_hkdf( 'sha256', self::salt_material(), 32, 'pass-captain-vault-salts', 'pass-captain' );
 		}
+		// Not cached without key: wp_salt() is pluggable and may not exist yet early in the request.
+		if ( null === $current ) { return array( null, $previous ); }
 		self::$keys = array( $current, $previous );
 		return self::$keys;
 	}
