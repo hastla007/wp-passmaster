@@ -147,7 +147,10 @@ final class Reservations {
 		foreach ( $by_occurrence as $occurrence_id => $types ) {
 			global $wpdb;
 			$link = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'links' ) . ' WHERE occurrence_id=%d FOR UPDATE', $occurrence_id ) );
+			// A failed read is not "no seat map": the order would be created without seats.
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
 			$mapping = $link ? Layouts::type_zones( $occurrence_id ) : array();
+			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
 			$explicit = array();
 			$auto = array();
 			foreach ( $types as $type_id => $quantity ) {

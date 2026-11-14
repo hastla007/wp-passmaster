@@ -71,16 +71,13 @@ final class Invoices {
 		$saved = $wpdb->insert( $p . 'wpcap_invoices', array( 'order_id' => $order_id, 'invoice_number' => $number, 'currency' => $order->currency, 'subtotal_minor' => $order_subtotal, 'tax_minor' => (int) $order->tax_minor, 'total_minor' => $invoice_total, 'buyer_snapshot' => wp_json_encode( $snapshot ), 'issued_at' => current_time( 'mysql', true ), 'status' => 'issued' ) );
 		$invoice_id = (int) $wpdb->insert_id;
 		if ( false === $saved || ! $invoice_id ) { $wpdb->query( 'ROLLBACK' ); return new \WP_Error( 'wpcap_invoice_create', __( 'Rechnung konnte nicht erstellt werden.', 'pass-captain' ), array( 'status' => 500 ) ); }
-		$discount_left = (int) $order->discount_minor;
-		$subtotal = max( 1, $order_subtotal );
-		$gross_before = 0;
-		$discount_allocated = 0;
+		// The discount split the order's VAT was computed with (price snapshot); older orders: proportional.
+		$stored_discounts = Orders::snapshot_line_discounts( $order );
+		$amounts = array();
+		foreach ( $items as $index => $item ) { $amounts[ $index ] = (int) $item->line_total_minor; }
+		$split = Orders::allocate( $amounts, (int) $order->discount_minor );
 		foreach ( $items as $index => $item ) {
-			$gross_before += (int) $item->line_total_minor;
-			$should_be_allocated = (int) floor( (int) $order->discount_minor * $gross_before / $subtotal );
-			$line_discount = $index === count( $items ) - 1 ? min( (int) $item->line_total_minor, max( 0, $discount_left ) ) : max( 0, min( (int) $item->line_total_minor, $should_be_allocated - $discount_allocated ) );
-			$discount_allocated += $line_discount;
-			$discount_left -= $line_discount;
+			$line_discount = null !== $stored_discounts && isset( $stored_discounts[ (int) $item->ticket_type_id ] ) ? min( (int) $item->line_total_minor, $stored_discounts[ (int) $item->ticket_type_id ] ) : $split[ $index ];
 			$line_total = max( 0, (int) $item->line_total_minor - $line_discount );
 			$description = $item->event_name . ' – ' . $item->name . ' (' . wp_date( 'd.m.Y H:i', strtotime( $item->starts_at . ' UTC' ), new \DateTimeZone( $item->timezone ) ) . ')';
 			$line_saved = $wpdb->insert( $p . 'wpcap_invoice_lines', array( 'invoice_id' => $invoice_id, 'description' => mb_substr( $description, 0, 190 ), 'quantity' => $item->quantity, 'unit_minor' => $item->unit_price_minor, 'discount_minor' => $line_discount, 'tax_rate' => (int) $item->tax_rate_bp / 100, 'tax_minor' => (int) $item->tax_minor, 'total_minor' => $line_total ) );
@@ -279,13 +276,20 @@ final class Invoices {
 		$table = $wpdb->prefix . 'wpcap_document_sequences';
 		$series = sanitize_key( $series );
 		$year = self::local_year();
-		if ( ! $in_transaction ) { $wpdb->query( 'START TRANSACTION' ); }
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (series,year,next_number) VALUES (%s,%d,1)", $series, $year ) );
+		// Every step is checked: a number handed out without advancing the sequence (e.g. the UPDATE hit
+		// a deadlock, which also rolls back the caller's transaction) would be issued twice; the unique
+		// receipt/invoice number then blocks every later document of the series.
+		$failed = static function () use ( $wpdb, $in_transaction ) {
+			if ( ! $in_transaction ) { $wpdb->query( 'ROLLBACK' ); }
+			return new \WP_Error( 'wpcap_document_sequence', __( 'Belegnummer konnte nicht reserviert werden.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		};
+		if ( ! $in_transaction && false === $wpdb->query( 'START TRANSACTION' ) ) { return $failed(); }
+		if ( false === $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO $table (series,year,next_number) VALUES (%s,%d,1)", $series, $year ) ) ) { return $failed(); }
 		$row = $wpdb->get_row( $wpdb->prepare( "SELECT next_number FROM $table WHERE series=%s AND year=%d FOR UPDATE", $series, $year ) );
-		if ( ! $row ) { if ( ! $in_transaction ) { $wpdb->query( 'ROLLBACK' ); } return new \WP_Error( 'wpcap_document_sequence', __( 'Belegnummer konnte nicht reserviert werden.', 'pass-captain' ) ); }
+		if ( ! $row ) { return $failed(); }
 		$number = (int) $row->next_number;
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET next_number=%d WHERE series=%s AND year=%d", $number + 1, $series, $year ) );
-		if ( ! $in_transaction ) { $wpdb->query( 'COMMIT' ); }
+		if ( 1 !== (int) $wpdb->query( $wpdb->prepare( "UPDATE $table SET next_number=%d WHERE series=%s AND year=%d AND next_number=%d", $number + 1, $series, $year, $number ) ) ) { return $failed(); }
+		if ( ! $in_transaction && false === $wpdb->query( 'COMMIT' ) ) { return $failed(); }
 		return sprintf( '%s-%d-%06d', preg_replace( '/[^A-Za-z0-9_-]/', '', (string) $prefix ) ?: 'DOC', $year, $number );
 	}
 
@@ -299,7 +303,7 @@ final class Invoices {
 		$credits = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$p}wpcap_credit_notes WHERE invoice_id=%d ORDER BY credit_note_id", $invoice->invoice_id ) );
 		$snapshot = (array) json_decode( (string) $invoice->buyer_snapshot, true );
 		$seller = (array) ( $snapshot['seller'] ?? self::seller() );
-		$money = static function ( $minor ) use ( $invoice ) { return number_format_i18n( $minor / 100, 2 ) . ' ' . $invoice->currency; };
+		$money = static function ( $minor ) use ( $invoice ) { return Localization::money_number( $minor, $invoice->currency ) . ' ' . $invoice->currency; };
 		$rates = self::rate_summary( $lines );
 		ob_start();
 		?><!doctype html><html lang="<?php echo esc_attr( str_replace( '_', '-', determine_locale() ) ); ?>"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?php echo esc_html( $invoice->invoice_number ); ?></title><style>body{font:14px/1.45 system-ui,sans-serif;max-width:52rem;margin:2rem auto;padding:0 1rem;color:#1d2327}table{width:100%;border-collapse:collapse;margin:1rem 0}th,td{border-bottom:1px solid #dcdcde;padding:.4rem;text-align:left}td.n,th.n{text-align:right}caption{text-align:left;font-weight:600;padding:.25rem 0}.seller,.buyer{white-space:pre-line}.buyer{margin:1rem 0}@media print{button{display:none}}</style></head><body>

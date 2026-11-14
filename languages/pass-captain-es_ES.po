@@ -14248,3 +14248,27 @@ msgstr "Lista"
 #: src/blocks/calendar/editor.js:22
 msgid "Nur Event-ID (optional)"
 msgstr "Solo ID del evento (opcional)"
+
+#: src/Admin/TicketsPage.php:89
+msgid "Die Änderung konnte gerade nicht gespeichert werden. Bitte erneut versuchen."
+msgstr "No se ha podido guardar el cambio en este momento. Inténtalo de nuevo."
+
+#: src/Admin/TicketsPage.php:102
+msgid "Der Check-in eines erstatteten oder stornierten Tickets kann nicht zurückgenommen werden."
+msgstr "No se puede deshacer el check-in de una entrada reembolsada o cancelada."
+
+#: src/BoxOffice/Service.php:400
+msgid "Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden."
+msgstr "No se ha podido guardar la venta. Vuelve a enviarla."
+
+#: src/BoxOffice/Service.php:415
+msgid "Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden."
+msgstr "No se ha podido registrar la venta en este momento. Vuelve a enviarla."
+
+#: src/Integrations/Vouchers/Bridge.php:37
+msgid "Der Gutscheinanbieter ist gerade nicht erreichbar. Bitte erneut versuchen."
+msgstr "El proveedor de vales no está disponible en este momento. Inténtalo de nuevo."
+
+#: src/Integrations/Vouchers/Bridge.php:42
+msgid "Der Gutscheinanbieter hat eine ungültige Antwort geliefert."
+msgstr "El proveedor de vales ha devuelto una respuesta no válida."

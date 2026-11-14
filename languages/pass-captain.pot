@@ -14186,3 +14186,27 @@ msgstr ""
 #: src/blocks/calendar/editor.js:22
 msgid "Nur Event-ID (optional)"
 msgstr ""
+
+#: src/Admin/TicketsPage.php:89
+msgid "Die Änderung konnte gerade nicht gespeichert werden. Bitte erneut versuchen."
+msgstr ""
+
+#: src/Admin/TicketsPage.php:102
+msgid "Der Check-in eines erstatteten oder stornierten Tickets kann nicht zurückgenommen werden."
+msgstr ""
+
+#: src/BoxOffice/Service.php:400
+msgid "Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden."
+msgstr ""
+
+#: src/BoxOffice/Service.php:415
+msgid "Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden."
+msgstr ""
+
+#: src/Integrations/Vouchers/Bridge.php:37
+msgid "Der Gutscheinanbieter ist gerade nicht erreichbar. Bitte erneut versuchen."
+msgstr ""
+
+#: src/Integrations/Vouchers/Bridge.php:42
+msgid "Der Gutscheinanbieter hat eine ungültige Antwort geliefert."
+msgstr ""

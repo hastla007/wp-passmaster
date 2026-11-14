@@ -227,14 +227,13 @@ final class Orders {
 			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
 			$total = max( 0, $subtotal - $discount );
 			if ( ! $external && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }
-			// Allocate the discount proportionally to lines and compute VAT per line on the discounted gross amount.
+			// Allocate each campaign's discount to the lines it applies to (proportionally, exact to the
+			// minor unit) and compute VAT per line on the discounted gross amount. The per-line discounts
+			// are kept in the price snapshot so invoices and refunds use the same split.
+			$line_discounts = self::line_discounts( $selected, $adjustments );
 			$tax_total = 0;
-			$discount_left = $discount;
-			$last = count( $selected ) - 1;
 			foreach ( $selected as $index => $line ) {
-				$line_discount = $index === $last ? $discount_left : ( $subtotal > 0 ? intdiv( $discount * $line['line_total'], $subtotal ) : 0 );
-				$line_discount = min( $line['line_total'], max( 0, $line_discount ) );
-				$discount_left -= $line_discount;
+				$line_discount = $line_discounts[ $index ];
 				$rate = $line['tax_profile'] ? (int) $line['tax_profile']['rate_bp'] : (int) ( $line['type']->tax_rate_bp ?? 0 );
 				$type_id_for_tax = (int) $line['type']->ticket_type_id;
 				$selected[ $index ]['tax_rate_bp'] = $rate;
@@ -242,6 +241,10 @@ final class Orders {
 				$tax_total += $selected[ $index ]['tax_minor'];
 			}
 			$snapshot = array( 'currency' => $currency, 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'campaigns' => array_map( static function ( $adjustment ) { return array( 'code' => $adjustment['campaign']->code, 'amount_minor' => (int) $adjustment['amount_minor'] ); }, $adjustments ) );
+			if ( $discount ) {
+				$snapshot['line_discounts'] = array();
+				foreach ( $selected as $index => $line ) { $snapshot['line_discounts'][ (int) $line['type']->ticket_type_id ] = (int) $line_discounts[ $index ]; }
+			}
 			if ( $price_rules ) {
 				// Lines whose unit price was changed by `wpcap_ticket_unit_price` (e.g. series price tiers).
 				$snapshot['unit_price_adjustments'] = $price_rules;
@@ -365,6 +368,59 @@ final class Orders {
 		}
 		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency, 'source' => sanitize_key( $internal['source'] ?? 'native' ) ) );
 		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
+	}
+
+	/**
+	 * Splits $total over $amounts proportionally, exact to the minor unit: cumulative rounding, so the
+	 * parts always add up to min($total, sum) and no part exceeds its amount (also for tiny lines).
+	 *
+	 * @param int[] $amounts Keyed amounts (minor units, >= 0).
+	 * @return int[] Parts with the same keys.
+	 */
+	public static function allocate( array $amounts, $total ) {
+		$sum = array_sum( array_map( 'intval', $amounts ) );
+		$total = max( 0, min( (int) $total, $sum ) );
+		$parts = array_fill_keys( array_keys( $amounts ), 0 );
+		if ( ! $sum || ! $total ) { return $parts; }
+		$running = 0;
+		$allocated = 0;
+		foreach ( $amounts as $key => $amount ) {
+			$running += (int) $amount;
+			$target = intdiv( $total * $running, $sum );
+			$parts[ $key ] = $target - $allocated;
+			$allocated = $target;
+		}
+		return $parts;
+	}
+
+	/**
+	 * Per-line discount of an order (same index as $selected): every campaign's amount is split over
+	 * the lines it applies to (ticket type / event restriction) in proportion to what is left of them.
+	 */
+	private static function line_discounts( array $selected, array $adjustments ) {
+		$remaining = array();
+		foreach ( $selected as $index => $line ) { $remaining[ $index ] = (int) $line['line_total']; }
+		$discounts = array_fill_keys( array_keys( $remaining ), 0 );
+		foreach ( $adjustments as $adjustment ) {
+			$campaign = $adjustment['campaign'] ?? null;
+			$eligible = array();
+			foreach ( $selected as $index => $line ) {
+				$type_match = ! $campaign || ! (int) $campaign->ticket_type_id || (int) $campaign->ticket_type_id === (int) $line['type']->ticket_type_id;
+				$event_match = ! $campaign || ! (int) $campaign->event_id || (int) $campaign->event_id === (int) $line['event_id'];
+				if ( $type_match && $event_match ) { $eligible[ $index ] = $remaining[ $index ]; }
+			}
+			foreach ( self::allocate( $eligible, (int) $adjustment['amount_minor'] ) as $index => $part ) {
+				$discounts[ $index ] += $part;
+				$remaining[ $index ] -= $part;
+			}
+		}
+		return $discounts;
+	}
+
+	/** Per-ticket-type discounts stored with the order (null for orders before they were recorded). */
+	public static function snapshot_line_discounts( $order ) {
+		$snapshot = json_decode( (string) ( $order->price_snapshot ?? '' ), true );
+		return is_array( $snapshot ) && isset( $snapshot['line_discounts'] ) && is_array( $snapshot['line_discounts'] ) ? array_map( 'intval', $snapshot['line_discounts'] ) : null;
 	}
 
 	/**
@@ -795,8 +851,11 @@ final class Orders {
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
 		$now = current_time( 'mysql', true );
-		self::begin();
+		// Without a transaction the status update below would autocommit and the in_transaction()
+		// check before COMMIT would then roll back nothing: a paid order without tickets.
+		if ( false === self::begin() ) { return self::payment_busy(); }
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$p}wpcap_orders WHERE order_id=%d FOR UPDATE", $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return self::payment_busy(); }
 		if ( ! $order ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_order_missing', __( 'Bestellung nicht gefunden.', 'pass-captain' ) );
@@ -855,9 +914,10 @@ final class Orders {
 				}
 			}
 			if ( $error ) {
-				$wpdb->update( "{$p}wpcap_orders", array( 'status' => 'needs_review', 'payment_status' => 'paid_unallocated', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
-				$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='expired' WHERE order_id=%d AND status='active'", $order_id ) );
-				$wpdb->query( 'COMMIT' );
+				// needs_review is a final answer (webhooks acknowledge it): it must be persisted first.
+				if ( false === $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'needs_review', 'payment_status' => 'paid_unallocated', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) { return self::payment_busy(); }
+				if ( false === $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_reservations SET status='expired' WHERE order_id=%d AND status='active'", $order_id ) ) ) { return self::payment_busy(); }
+				if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) { return self::payment_busy(); }
 				self::capacity_released( $order_id, 'payment_unallocated' );
 				Audit::record( 'payment_unallocated', 'order', $order_id, array( 'reason' => $error, 'reference' => sanitize_text_field( $reference ) ) );
 				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne freies Kontingent', 'pass-captain' ), sprintf( __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
@@ -1373,6 +1433,9 @@ final class Orders {
 				}
 				/** Inside the issuance transaction, e.g. to assign a seat or area. Do not store $token. */
 				do_action( 'wpcap_ticket_created', $ticket_id, $order, $line, $i );
+				// A deadlock inside a hook rolls the whole transaction back; further inserts would autocommit
+				// and leave a partial issuance behind.
+				if ( false === self::in_transaction() ) { return self::issue_failed( $order_id, 'ticket_hook' ); }
 				$issued[] = array( 'ticket_id' => $ticket_id, 'ticket_type_id' => (int) $line->ticket_type_id, 'occurrence_id' => (int) ( $line->occurrence_id ?? 0 ), 'token' => $token, 'event' => $line->event_name, 'ticket' => $line->ticket_name, 'starts_at' => $line->starts_at, 'timezone' => $line->timezone, 'location' => $line->location );
 			}
 		}
@@ -1506,6 +1569,34 @@ final class Orders {
 		}
 		Audit::record( 'tickets_delivered_retry', 'order', $order_id, array( 'ticket_count' => (int) $result ) );
 		return true;
+	}
+
+	/**
+	 * Safety net for issuances whose retry job could not be queued (e.g. the database connection was
+	 * lost after the payment committed): issues the missing tickets of paid orders. Idempotent (the
+	 * issuance locks the order row and only creates what is missing); runs with the job queue (cron).
+	 *
+	 * @return int Number of orders whose tickets were issued.
+	 */
+	public static function reconcile_issuance( $limit = 20 ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		// Orders of the last 30 days only (index paid_created), so the sweep stays cheap on large sites.
+		$ids = $wpdb->get_col( $wpdb->prepare(
+			"SELECT ord.order_id FROM {$p}wpcap_orders ord WHERE ord.payment_status='paid' AND ord.created_at>=%s AND ord.status='complete' AND (SELECT COALESCE(SUM(oi.quantity),0) FROM {$p}wpcap_order_items oi WHERE oi.order_id=ord.order_id) > (SELECT COUNT(*) FROM {$p}wpcap_tickets t WHERE t.order_id=ord.order_id) ORDER BY ord.order_id LIMIT %d",
+			gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ),
+			max( 1, absint( $limit ) )
+		) );
+		$done = 0;
+		foreach ( (array) $ids as $order_id ) {
+			self::$issuing_from_job = true; // No extra retry job: the next sweep retries.
+			try {
+				if ( true === self::issue_and_email( (int) $order_id ) && 0 === self::missing_tickets( (int) $order_id ) ) { ++$done; }
+			} finally {
+				self::$issuing_from_job = false;
+			}
+		}
+		return $done;
 	}
 
 	/**

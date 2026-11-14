@@ -14,9 +14,9 @@ final class Format {
 		return (string) ( $symbols[ $currency ] ?? $currency );
 	}
 
-	/** "1.234,50 €": number_format_i18n plus currency symbol (the checkout script formats the same way). */
+	/** "1.234,50 €" / "1.500 JPY": number_format_i18n in the currency's minor unit plus symbol (checkout script formats the same way). */
 	public static function money( $minor, $currency ) {
-		return number_format_i18n( (int) $minor / 100, 2 ) . ' ' . self::symbol( $currency );
+		return \PassCaptain\Localization::money_number( $minor, $currency ) . ' ' . self::symbol( $currency );
 	}
 
 	/** Number format and symbols for assets/checkout.js, so prices look the same in PHP and JS. */
@@ -27,6 +27,8 @@ final class Format {
 			'decimal' => (string) ( $format['decimal_point'] ?? ',' ),
 			'thousands' => (string) ( $format['thousands_sep'] ?? '.' ),
 			'symbols' => (array) apply_filters( 'wpcap_currency_symbols', self::SYMBOLS ),
+			// Currencies whose minor unit is not 1/100 (JPY: 0, KWD: 3 decimals).
+			'decimals' => array_merge( array_fill_keys( \PassCaptain\Localization::ZERO_DECIMAL_CURRENCIES, 0 ), array_fill_keys( \PassCaptain\Localization::THREE_DECIMAL_CURRENCIES, 3 ) ),
 		);
 	}
 

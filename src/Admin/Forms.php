@@ -17,11 +17,11 @@ final class Forms {
 	const MAX_MAJOR_DIGITS = 10;
 
 	/** ISO 4217 currencies without minor unit. */
-	const ZERO_DECIMAL_CURRENCIES = array( 'BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' );
+	const ZERO_DECIMAL_CURRENCIES = \PassCaptain\Localization::ZERO_DECIMAL_CURRENCIES;
 
-	/** Number of decimals of a currency's minor unit. */
+	/** Number of decimals of a currency's minor unit (0 for JPY, 3 for KWD/BHD, else 2). */
 	public static function currency_decimals( $currency ) {
-		return in_array( strtoupper( (string) $currency ), self::ZERO_DECIMAL_CURRENCIES, true ) ? 0 : 2;
+		return \PassCaptain\Localization::currency_decimals( $currency );
 	}
 
 	/**
@@ -29,7 +29,8 @@ final class Forms {
 	 *
 	 * Accepts "12,50", "12.50", "12", "1.234,56", "1,234.56", "1 234,56", "1'234.50", "€ 12,50", "12,5".
 	 * A single separator followed by exactly three digits is read as a thousands separator
-	 * ("1.234" = 1234), otherwise as the decimal separator. Negative values are rejected.
+	 * ("1.234" = 1234), otherwise as the decimal separator; for three-decimal currencies (KWD, BHD)
+	 * it is the decimal separator. Negative values are rejected.
 	 *
 	 * @param mixed $input    Raw input.
 	 * @param int   $decimals Minor unit decimals (2 for EUR).
@@ -53,7 +54,9 @@ final class Forms {
 		} elseif ( false !== $last_dot || false !== $last_comma ) {
 			$sep = false !== $last_dot ? '.' : ',';
 			$after = strlen( $s ) - strrpos( $s, $sep ) - 1;
-			if ( 1 === substr_count( $s, $sep ) && 3 !== $after ) {
+			// Three digits after a single separator are thousands ("1.234") – except for currencies with
+			// three decimals (KWD "12,345" = 12.345), where money_input() writes exactly that.
+			if ( 1 === substr_count( $s, $sep ) && ( 3 !== $after || 3 === $decimals ) ) {
 				$decimal_sep = $sep;
 			}
 		}

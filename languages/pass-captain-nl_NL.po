@@ -14248,3 +14248,27 @@ msgstr "Lijst"
 #: src/blocks/calendar/editor.js:22
 msgid "Nur Event-ID (optional)"
 msgstr "Alleen evenement-ID (optioneel)"
+
+#: src/Admin/TicketsPage.php:89
+msgid "Die Änderung konnte gerade nicht gespeichert werden. Bitte erneut versuchen."
+msgstr "De wijziging kon nu niet worden opgeslagen. Probeer het opnieuw."
+
+#: src/Admin/TicketsPage.php:102
+msgid "Der Check-in eines erstatteten oder stornierten Tickets kann nicht zurückgenommen werden."
+msgstr "De check-in van een terugbetaald of geannuleerd ticket kan niet ongedaan worden gemaakt."
+
+#: src/BoxOffice/Service.php:400
+msgid "Der Verkauf konnte nicht gespeichert werden. Bitte erneut absenden."
+msgstr "De verkoop kon niet worden opgeslagen. Verstuur hem opnieuw."
+
+#: src/BoxOffice/Service.php:415
+msgid "Der Verkauf konnte gerade nicht gebucht werden. Bitte erneut absenden."
+msgstr "De verkoop kon nu niet worden geboekt. Verstuur hem opnieuw."
+
+#: src/Integrations/Vouchers/Bridge.php:37
+msgid "Der Gutscheinanbieter ist gerade nicht erreichbar. Bitte erneut versuchen."
+msgstr "De voucheraanbieder is op dit moment niet bereikbaar. Probeer het opnieuw."
+
+#: src/Integrations/Vouchers/Bridge.php:42
+msgid "Der Gutscheinanbieter hat eine ungültige Antwort geliefert."
+msgstr "De voucheraanbieder heeft een ongeldig antwoord gegeven."

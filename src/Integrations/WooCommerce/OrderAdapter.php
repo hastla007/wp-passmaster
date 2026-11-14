@@ -656,10 +656,7 @@ final class OrderAdapter {
 
 	/** ISO 4217 minor unit digits for the currencies WooCommerce commonly uses. */
 	public static function currency_decimals( $currency ) {
-		$zero  = array( 'BIF', 'CLP', 'DJF', 'GNF', 'ISK', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF' );
-		$three = array( 'BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND' );
-		$currency = strtoupper( (string) $currency );
-		return in_array( $currency, $zero, true ) ? 0 : ( in_array( $currency, $three, true ) ? 3 : 2 );
+		return \PassCaptain\Localization::currency_decimals( $currency );
 	}
 
 	/** Ticket quantities per ticket type of a WooCommerce order. */

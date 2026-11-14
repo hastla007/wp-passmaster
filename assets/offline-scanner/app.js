@@ -469,7 +469,8 @@
 				return idb('log', 'readwrite', function (s) {
 					batch.forEach(function (e) {
 						var r = byKey[e.key];
-						if (!r) { return; }
+						// Missing or retryable (transient server error): keep the scan for the next upload.
+						if (!r || r.retryable) { return; }
 						e.synced = 1;
 						e.code = '';
 						e.server = { ok: !!r.ok, result: r.result, conflict: !!r.conflict, conflict_id: r.conflict_id || 0, double_admission: !!r.double_admission, auto_resolved: !!r.auto_resolved, offline_expired: !!r.offline_expired, message: r.message || '' };

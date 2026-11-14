@@ -577,8 +577,8 @@ final class Controller {
 		$to_parts = array_map( 'intval', explode( '-', $to ) );
 		$valid_dates = 3 === count( $from_parts ) && 3 === count( $to_parts ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) && checkdate( $from_parts[1], $from_parts[2], $from_parts[0] ) && checkdate( $to_parts[1], $to_parts[2], $to_parts[0] );
 		if ( ! $valid_dates || $from > $to || strtotime( $to ) - strtotime( $from ) > 90 * DAY_IN_SECONDS ) { return new \WP_Error( 'wpcap_report_range', __( 'Berichtszeitraum muss gültig und höchstens 90 Tage lang sein.', 'pass-captain' ), array( 'status' => 400 ) ); }
-		$key = 'wpcap_report_' . $event_id . '_' . md5( $from . '|' . $to );
-		$cached = get_transient( $key );
+		// Cached for a few minutes; orders, refunds, check-ins and event changes invalidate it (Reports\Cache).
+		$cached = \PassCaptain\Reports\Cache::get( $event_id, $from, $to );
 		// Staff without access to payment data (check-in/partner roles) get no amounts; developer keys keep the full report.
 		$minimise = get_current_user_id() && ! \PassCaptain\Security\DataPolicy::can_view_payment();
 		if ( false !== $cached ) { return rest_ensure_response( $minimise ? \PassCaptain\Security\DataPolicy::strip_payment( (array) $cached ) : $cached ); }
@@ -587,7 +587,7 @@ final class Controller {
 		$currency_totals = array();
 		foreach ( $sales as $sale ) { $currency_totals[] = array( 'currency' => $sale['currency'], 'orders_count' => (int) $sale['orders_count'], 'tickets_sold' => (int) $sale['tickets_sold'], 'gross_minor' => (int) $sale['gross_minor'] ); }
 		$data = array( 'event_id' => $event_id, 'from' => $from, 'to' => $to, 'sales_by_currency' => $currency_totals, 'checkins' => $checkins, 'financial_basis' => 'gross_line_totals_before_order_discounts_tax_and_refunds' );
-		set_transient( $key, $data, 5 * MINUTE_IN_SECONDS );
+		\PassCaptain\Reports\Cache::set( $event_id, $from, $to, $data );
 		return rest_ensure_response( $minimise ? \PassCaptain\Security\DataPolicy::strip_payment( $data ) : $data );
 	}
 

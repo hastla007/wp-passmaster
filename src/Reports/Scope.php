@@ -95,7 +95,7 @@ final class Scope {
 
 	/** Money display "1.234,50 EUR". */
 	public static function money( $minor, $currency = 'EUR' ) {
-		return number_format_i18n( (int) $minor / 100, 2 ) . ' ' . strtoupper( (string) $currency );
+		return \PassCaptain\Localization::money_number( $minor, $currency ) . ' ' . strtoupper( (string) $currency );
 	}
 
 	/** Local display time for a UTC datetime. */
