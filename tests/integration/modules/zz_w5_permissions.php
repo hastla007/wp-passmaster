@@ -425,6 +425,7 @@ $pm_post_ids = array(
 	'ticket_id' => (int) $pm_ticket->ticket_id, 'pass_id' => $pm_pass_id, 'resource_id' => $pm_resource, 'slot_id' => $pm_slot, 'key_id' => (int) $pm_devkey['api_key_id'],
 	'id' => $pm_event_a, 'user_id' => 9902, 'user' => 'pm-staff', 'capability' => 'wpcap_manage_events', 'name' => 'PM changed', 'status' => 'cancelled', 'email' => 'pm-attack@example.com',
 	'quantity' => 1, 'amount' => '1,00', 'reason' => 'pm', 'starts_at' => gmdate( 'Y-m-d\TH:i', time() + 86400 ), 'capacity' => 5, 'price' => '1,00', 'scopes' => array( 'events.read' ),
+	'url' => 'https://pm-hook.example/in', 'events' => array( 'order.paid' ), 'retention_days' => 7, 'description' => 'pm',
 	'partner_id' => $pm_partner_a, 'stripe_secret_key' => 'sk_test_pmattack', 'hold_minutes' => 99, 'code' => 'PMCODE', 'kind' => 'percent', 'value' => 10, 'confirm' => '1',
 );
 register_shutdown_function( static function () {
