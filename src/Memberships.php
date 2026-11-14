@@ -60,4 +60,58 @@ final class Memberships {
 		Audit::record( 'member_pass_redeemed', 'member_pass', $pass->pass_id, array( 'ticket_type_id' => $ticket_type_id, 'pass_use_id' => (int) $wpdb->insert_id ) );
 		return array( 'status' => 'redeemed', 'pass_id' => (int) $pass->pass_id );
 	}
+
+	public static function get( $pass_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( "SELECT pass_id,public_id,member_email,valid_from,valid_until,status,created_at FROM {$wpdb->prefix}wpcap_member_passes WHERE pass_id=%d", absint( $pass_id ) ) );
+	}
+
+	/** Rules of a pass with their use counts. */
+	public static function rules( $pass_id ) {
+		global $wpdb;
+		return $wpdb->get_results( $wpdb->prepare( "SELECT r.*,(SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_pass_uses u WHERE u.rule_id=r.rule_id) AS used FROM {$wpdb->prefix}wpcap_pass_rules r WHERE r.pass_id=%d ORDER BY r.rule_id", absint( $pass_id ) ) );
+	}
+
+	/**
+	 * Changes the validity period of a pass (UTC datetimes).
+	 *
+	 * @return true|\WP_Error
+	 */
+	public static function update_validity( $pass_id, $valid_from, $valid_until ) {
+		global $wpdb;
+		$pass = self::get( $pass_id );
+		if ( ! $pass ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		$valid_from = sanitize_text_field( (string) $valid_from );
+		$valid_until = sanitize_text_field( (string) $valid_until );
+		if ( ! strtotime( $valid_from . ' UTC' ) || strtotime( $valid_until . ' UTC' ) <= strtotime( $valid_from . ' UTC' ) ) { return new \WP_Error( 'wpcap_pass_invalid', __( 'Passdaten ungültig.', 'pass-captain' ) ); }
+		$wpdb->update( $wpdb->prefix . 'wpcap_member_passes', array( 'valid_from' => $valid_from, 'valid_until' => $valid_until ), array( 'pass_id' => (int) $pass->pass_id ), array( '%s', '%s' ), array( '%d' ) );
+		Audit::record( 'member_pass_updated', 'member_pass', (int) $pass->pass_id, array( 'valid_from' => $valid_from, 'valid_until' => $valid_until, 'previous_from' => $pass->valid_from, 'previous_until' => $pass->valid_until ) );
+		return true;
+	}
+
+	/**
+	 * Adds a rule (rule_id 0) or changes the quotas of an existing rule. The scope (event, ticket
+	 * type) of an existing rule stays fixed so recorded uses keep their meaning.
+	 *
+	 * @return int|\WP_Error Rule id.
+	 */
+	public static function save_rule( $pass_id, $rule_id, array $rule ) {
+		global $wpdb;
+		$pass = self::get( $pass_id );
+		if ( ! $pass ) { return new \WP_Error( 'wpcap_pass_not_found', __( 'Pass nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		$values = array( 'uses_total' => min( 65535, absint( $rule['uses_total'] ?? 0 ) ), 'uses_per_day' => min( 65535, max( 1, absint( $rule['uses_per_day'] ?? 1 ) ) ) );
+		$table = $wpdb->prefix . 'wpcap_pass_rules';
+		if ( $rule_id ) {
+			$existing = $wpdb->get_row( $wpdb->prepare( "SELECT rule_id FROM $table WHERE rule_id=%d AND pass_id=%d", absint( $rule_id ), (int) $pass->pass_id ) );
+			if ( ! $existing ) { return new \WP_Error( 'wpcap_pass_rule_missing', __( 'Passregel nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+			$wpdb->update( $table, $values, array( 'rule_id' => (int) $existing->rule_id ), array( '%d', '%d' ), array( '%d' ) );
+			Audit::record( 'member_pass_rule_updated', 'member_pass', (int) $pass->pass_id, array( 'rule_id' => (int) $existing->rule_id ) + $values );
+			return (int) $existing->rule_id;
+		}
+		$wpdb->insert( $table, array( 'pass_id' => (int) $pass->pass_id, 'event_id' => absint( $rule['event_id'] ?? 0 ), 'ticket_type_id' => absint( $rule['ticket_type_id'] ?? 0 ) ) + $values, array( '%d', '%d', '%d', '%d', '%d' ) );
+		if ( ! $wpdb->insert_id ) { return new \WP_Error( 'wpcap_pass_rule_failed', __( 'Passregeln konnten nicht gespeichert werden.', 'pass-captain' ) ); }
+		$new_id = (int) $wpdb->insert_id;
+		Audit::record( 'member_pass_rule_added', 'member_pass', (int) $pass->pass_id, array( 'rule_id' => $new_id, 'event_id' => absint( $rule['event_id'] ?? 0 ), 'ticket_type_id' => absint( $rule['ticket_type_id'] ?? 0 ) ) + $values );
+		return $new_id;
+	}
 }

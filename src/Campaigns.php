@@ -105,4 +105,66 @@ final class Campaigns {
 		Audit::record( 'campaign_created', 'campaign', (int) $wpdb->insert_id, array( 'code' => $code, 'kind' => $kind ) );
 		return array( 'campaign_id' => (int) $wpdb->insert_id, 'code' => $code );
 	}
+
+	public static function get( $campaign_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_campaigns WHERE campaign_id=%d", absint( $campaign_id ) ) );
+	}
+
+	/**
+	 * Updates a campaign. Code, kind and currency stay fixed once the code was used; the usage
+	 * limit cannot drop below the uses so far (0 = unlimited).
+	 *
+	 * @return array|\WP_Error
+	 */
+	public static function update( $campaign_id, array $data ) {
+		global $wpdb;
+		$campaign = self::get( $campaign_id );
+		if ( ! $campaign ) { return new \WP_Error( 'wpcap_campaign_missing', __( 'Kampagne nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		$used = (int) $campaign->used_count > 0 || (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_campaign_uses WHERE campaign_id=%d", (int) $campaign->campaign_id ) ) > 0;
+		$code = strtoupper( preg_replace( '/[^A-Z0-9_-]/', '', strtoupper( sanitize_text_field( $data['code'] ?? $campaign->code ) ) ) );
+		$kind = sanitize_key( $data['kind'] ?? $campaign->kind );
+		$value = absint( $data['value'] ?? $campaign->discount_value );
+		$currency = strtoupper( sanitize_text_field( $data['currency'] ?? $campaign->currency ) );
+		if ( strlen( $code ) < 3 || strlen( $code ) > 32 || ! in_array( $kind, array( 'percent', 'fixed' ), true ) || ! preg_match( '/^[A-Z]{3}$/', $currency ) || ! $value || ( 'percent' === $kind && $value > 10000 ) ) {
+			return new \WP_Error( 'wpcap_campaign_invalid', __( 'Kampagnencode, Währung oder Rabattwert ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		if ( $used && ( $code !== $campaign->code || $kind !== $campaign->kind || $currency !== strtoupper( $campaign->currency ) ) ) {
+			return new \WP_Error( 'wpcap_campaign_used', __( 'Code, Rabattart und Währung können nach der ersten Einlösung nicht mehr geändert werden.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		$limit = absint( $data['usage_limit'] ?? $campaign->usage_limit );
+		if ( $limit > 0 && $limit < (int) $campaign->used_count ) {
+			return new \WP_Error( 'wpcap_campaign_limit_low', __( 'Das Nutzungslimit darf nicht unter der Zahl der bisherigen Einlösungen liegen.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		$starts = array_key_exists( 'starts_at', $data ) ? ( sanitize_text_field( (string) $data['starts_at'] ) ?: null ) : $campaign->starts_at;
+		$ends = array_key_exists( 'ends_at', $data ) ? ( sanitize_text_field( (string) $data['ends_at'] ) ?: null ) : $campaign->ends_at;
+		if ( $starts && $ends && $ends <= $starts ) {
+			return new \WP_Error( 'wpcap_campaign_window', __( 'Das Ende des Gültigkeitszeitraums muss nach dem Beginn liegen.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		$status = in_array( (string) ( $data['status'] ?? $campaign->status ), array( 'active', 'inactive' ), true ) ? (string) ( $data['status'] ?? $campaign->status ) : $campaign->status;
+		$values = array(
+			'event_id' => absint( $data['event_id'] ?? $campaign->event_id ), 'ticket_type_id' => absint( $data['ticket_type_id'] ?? $campaign->ticket_type_id ), 'code' => $code,
+			'name' => sanitize_text_field( $data['name'] ?? $campaign->name ) ?: $code, 'kind' => $kind, 'discount_value' => $value, 'currency' => $currency,
+			'usage_limit' => $limit, 'priority' => min( 1000, absint( $data['priority'] ?? $campaign->priority ) ), 'starts_at' => $starts, 'ends_at' => $ends, 'status' => $status,
+		);
+		$updated = $wpdb->update( $wpdb->prefix . 'wpcap_campaigns', $values, array( 'campaign_id' => (int) $campaign->campaign_id ), array( '%d', '%d', '%s', '%s', '%s', '%d', '%s', '%d', '%d', '%s', '%s', '%s' ), array( '%d' ) );
+		if ( false === $updated ) { return new \WP_Error( 'wpcap_campaign_save', __( 'Kampagne konnte nicht gespeichert werden (Code bereits vergeben?).', 'pass-captain' ), array( 'status' => 409 ) ); }
+		$changed = array();
+		foreach ( $values as $key => $new ) {
+			if ( (string) $new !== (string) $campaign->$key ) { $changed[ $key ] = $new; }
+		}
+		Audit::record( 'campaign_updated', 'campaign', (int) $campaign->campaign_id, array( 'changed' => $changed ) );
+		return array( 'campaign_id' => (int) $campaign->campaign_id, 'code' => $code );
+	}
+
+	/** Activates or deactivates a campaign; inactive codes are rejected at checkout. */
+	public static function set_status( $campaign_id, $status ) {
+		global $wpdb;
+		$campaign = self::get( $campaign_id );
+		if ( ! $campaign ) { return new \WP_Error( 'wpcap_campaign_missing', __( 'Kampagne nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		$status = 'active' === $status ? 'active' : 'inactive';
+		$wpdb->update( $wpdb->prefix . 'wpcap_campaigns', array( 'status' => $status ), array( 'campaign_id' => (int) $campaign->campaign_id ), array( '%s' ), array( '%d' ) );
+		Audit::record( 'active' === $status ? 'campaign_activated' : 'campaign_deactivated', 'campaign', (int) $campaign->campaign_id, array( 'code' => $campaign->code ) );
+		return array( 'campaign_id' => (int) $campaign->campaign_id, 'status' => $status );
+	}
 }

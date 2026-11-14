@@ -79,6 +79,34 @@ final class Waitlists {
 		return array( 'waitlist_id' => (int) $row->waitlist_id, 'position' => (int) $row->position, 'expires_at' => $expires, 'inventory_reserved' => false );
 	}
 
+	/**
+	 * Entries of an event (optionally one occurrence) in queue order: ticket type, then position.
+	 * Expired offers are marked first so the list shows the real state.
+	 */
+	public static function entries( $event_id, $occurrence_id = 0 ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_waitlist';
+		$now = current_time( 'mysql', true );
+		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status='expired',offer_token_hash='',updated_at=%s WHERE event_id=%d AND status='offered' AND offer_expires_at<=%s", $now, absint( $event_id ), $now ) );
+		$where = $occurrence_id ? $wpdb->prepare( ' AND w.occurrence_id=%d', absint( $occurrence_id ) ) : '';
+		return $wpdb->get_results( $wpdb->prepare( "SELECT w.waitlist_id,w.event_id,w.occurrence_id,w.ticket_type_id,w.email,w.position,w.status,w.offer_expires_at,w.created_at,tt.name AS ticket_name,o.starts_at,o.timezone FROM $table w LEFT JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=w.ticket_type_id LEFT JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=w.occurrence_id WHERE w.event_id=%d", absint( $event_id ) ) . $where . ' ORDER BY o.starts_at,w.occurrence_id,w.ticket_type_id,w.position,w.waitlist_id LIMIT 2000' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $where is prepared.
+	}
+
+	/**
+	 * Removes an entry from the waitlist (the person may sign up again later). Audited without the address.
+	 *
+	 * @return array|\WP_Error Removed entry ids.
+	 */
+	public static function remove( $waitlist_id ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_waitlist';
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,event_id,ticket_type_id,position,status FROM $table WHERE waitlist_id=%d", absint( $waitlist_id ) ) );
+		if ( ! $row ) { return new \WP_Error( 'wpcap_waitlist_missing', __( 'Wartelisteneintrag nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
+		$wpdb->delete( $table, array( 'waitlist_id' => (int) $row->waitlist_id ), array( '%d' ) );
+		Audit::record( 'waitlist_entry_removed', 'waitlist', (int) $row->waitlist_id, array( 'event_id' => (int) $row->event_id, 'ticket_type_id' => (int) $row->ticket_type_id, 'position' => (int) $row->position, 'status' => $row->status ) );
+		return array( 'waitlist_id' => (int) $row->waitlist_id, 'event_id' => (int) $row->event_id );
+	}
+
 	public static function maybe_render_offer_page() {
 		$waitlist_id = absint( $_GET['wpcap_waitlist_accept'] ?? 0 );
 		$token = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) );
