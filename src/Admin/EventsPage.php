@@ -141,6 +141,7 @@ final class EventsPage {
 			'updated_at' => current_time( 'mysql', true ),
 		), array( 'event_id' => (int) $event->event_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
 		Audit::record( 'event_updated', 'event', (int) $event->event_id, array( 'status' => $status, 'previous_status' => $event->status ) );
+		\PassCaptain\Reports\Cache::flush_event( (int) $event->event_id );
 		return array( 'event_id' => (int) $event->event_id );
 	}
 
@@ -206,6 +207,7 @@ final class EventsPage {
 			if ( ! $occurrence_id ) { return Forms::error( 'wpcap_occurrence_save', __( 'Der Termin konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 			Audit::record( 'occurrence_created', 'occurrence', $occurrence_id, array( 'event_id' => (int) $event->event_id, 'starts_at' => $starts ) );
 		}
+		\PassCaptain\Reports\Cache::flush_event( (int) $event->event_id );
 		return array( 'occurrence_id' => $occurrence_id, 'event_id' => (int) $event->event_id, 'rescheduled' => $rescheduled );
 	}
 
@@ -298,6 +300,7 @@ final class EventsPage {
 			if ( ! $type_id ) { return Forms::error( 'wpcap_type_save', __( 'Die Ticketkategorie konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
 		}
 		Audit::record( $old ? 'ticket_type_updated' : 'ticket_type_created', 'ticket_type', $type_id, array( 'occurrence_id' => (int) $occ->occurrence_id, 'price_minor' => $price, 'tax_rate_bp' => $tax_bp, 'status' => $status ) );
+		\PassCaptain\Reports\Cache::flush_event( (int) $occ->event_id );
 		return array( 'ticket_type_id' => $type_id, 'occurrence_id' => (int) $occ->occurrence_id, 'event_id' => (int) $occ->event_id );
 	}
 
@@ -424,6 +427,7 @@ final class EventsPage {
 		$event_id = Forms::int( $in, 'event_id' );
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return Forms::forbidden( __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ) ); }
 		$result = Orders::cancel_event( $event_id );
+		\PassCaptain\Reports\Cache::flush_event( $event_id );
 		return is_wp_error( $result ) ? Forms::error( $result->get_error_code(), $result->get_error_message(), 409 ) : $result;
 	}
 

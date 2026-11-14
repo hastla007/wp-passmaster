@@ -101,11 +101,11 @@ final class Settlements {
 			$lower_sql = '' !== $lower ? $wpdb->prepare( ' AND ord.created_at >= %s', $lower ) : '';
 
 			// Sales.
-			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.created_at,ord.discount_minor FROM {$p}wpcap_orders ord WHERE ord.payment_status IN ('paid','refunded') AND ord.currency=%s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY ord.order_id", $partner->currency, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list / prepared fragment.
+			$orders = $wpdb->get_results( $wpdb->prepare( "SELECT ord.order_id,ord.created_at,ord.discount_minor,ord.price_snapshot FROM {$p}wpcap_orders ord WHERE ord.payment_status IN ('paid','refunded') AND ord.currency=%s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY ord.order_id", $partner->currency, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list / prepared fragment.
 			$by_order = self::lines_by_order( array_map( static function ( $o ) { return (int) $o->order_id; }, $orders ), $line_sql );
 			foreach ( $orders as $order ) {
 				$order_lines = $by_order[ (int) $order->order_id ] ?? array();
-				$gross_lines = Data::allocate_discount( $order_lines, (int) $order->discount_minor );
+				$gross_lines = Data::allocate_discount( $order_lines, (int) $order->discount_minor, \PassCaptain\Orders::snapshot_line_discounts( $order ) );
 				foreach ( $order_lines as $i => $line ) {
 					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
 					$key = 'sale:' . (int) $line->item_id;

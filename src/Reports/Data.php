@@ -102,13 +102,13 @@ final class Data {
 		$line_sql = "SELECT oi.order_id,oi.item_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 
 		// Sales.
-		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor FROM {$p}wpcap_orders WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $start, $end ) );
+		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor,price_snapshot FROM {$p}wpcap_orders WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $start, $end ) );
 		$order_map = array();
 		foreach ( $orders as $o ) { $order_map[ (int) $o->order_id ] = $o; }
 		$lines_by_order = self::lines_by_order( array_keys( $order_map ), $line_sql );
 		foreach ( $order_map as $order_id => $order ) {
 			$lines = $lines_by_order[ $order_id ] ?? array();
-			$gross_lines = self::allocate_discount( $lines, (int) $order->discount_minor );
+			$gross_lines = self::allocate_discount( $lines, (int) $order->discount_minor, \PassCaptain\Orders::snapshot_line_discounts( $order ) );
 			$day = Scope::local( $order->created_at, $tz, 'Y-m-d' );
 			foreach ( $lines as $i => $line ) {
 				if ( ! self::in_scope( $line->event_id, $scope ) ) { continue; }
@@ -205,17 +205,21 @@ final class Data {
 		return $out;
 	}
 
-	/** Gross per line after the order discount (same allocation as Orders::create). */
-	public static function allocate_discount( array $lines, $discount ) {
-		$subtotal = array_sum( array_map( static function ( $l ) { return (int) $l->line_total_minor; }, $lines ) );
-		$left = (int) $discount;
+	/**
+	 * Gross per line after the order discount: the split stored with the order (per ticket type, the
+	 * one its VAT was computed with), else the same exact proportional split as Orders::allocate().
+	 *
+	 * @param int[]|null $split Per-ticket-type discounts from the price snapshot.
+	 */
+	public static function allocate_discount( array $lines, $discount, $split = null ) {
+		$lines = array_values( $lines );
+		$amounts = array();
+		foreach ( $lines as $i => $line ) { $amounts[ $i ] = (int) $line->line_total_minor; }
+		$parts = \PassCaptain\Orders::allocate( $amounts, (int) $discount );
 		$out = array();
-		$last = count( $lines ) - 1;
-		foreach ( array_values( $lines ) as $i => $line ) {
-			$share = $i === $last ? $left : ( $subtotal > 0 ? intdiv( (int) $discount * (int) $line->line_total_minor, $subtotal ) : 0 );
-			$share = min( (int) $line->line_total_minor, max( 0, $share ) );
-			$left -= $share;
-			$out[ $i ] = (int) $line->line_total_minor - $share;
+		foreach ( $lines as $i => $line ) {
+			$share = is_array( $split ) && isset( $split[ (int) ( $line->ticket_type_id ?? 0 ) ] ) ? min( $amounts[ $i ], (int) $split[ (int) $line->ticket_type_id ] ) : $parts[ $i ];
+			$out[ $i ] = $amounts[ $i ] - $share;
 		}
 		return $out;
 	}
