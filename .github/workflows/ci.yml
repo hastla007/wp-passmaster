@@ -33,6 +33,9 @@ jobs:
         run: find . -path './vendor' -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: JavaScript syntax checks
         run: for f in $(git ls-files "assets/*.js" "src/*.js" | grep -v "^assets/vendor/"); do node --check "$f" || exit 1; done
+      - name: JavaScript unit tests (node:test, tests/js)
+        if: matrix.php == '8.4'
+        run: cd tests/js && npm test
 
   static:
     # Blocking quality gates (docs/TESTING.md, "Statische Analyse"): coding standard and PHPStan with
@@ -143,9 +146,50 @@ jobs:
           WPCAP_TEST_DB_HOST: 127.0.0.1
         run: php tests/load/run.php --profile=ci
 
+  browser:
+    # Release gates in the browser (docs/RELEASE.md): axe accessibility gate over all admin screens plus keyboard
+    # walkthrough, and Playwright E2E in Chromium (checkout, order portal, web scanner, offline PWA).
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      db:
+        image: mariadb:11.4
+        env:
+          MYSQL_DATABASE: wp_browser
+          MYSQL_USER: wp
+          MYSQL_PASSWORD: wp
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, mysqli, gd, zip, sodium, openssl
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Accessibility gate + browser E2E (Chromium)
+        env:
+          WPCAP_DB_HOST: 127.0.0.1
+          WPCAP_DB_NAME: wp_browser
+        run: tests/ci/browser-tests.sh a11y && tests/ci/browser-tests.sh e2e
+      - name: Upload E2E failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: tests/e2e/artifacts/
+          if-no-files-found: ignore
+
   package:
     runs-on: ubuntu-latest
-    needs: [php, static, integration, license-guard, secrets]
+    needs: [php, static, integration, license-guard, secrets, browser]
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
