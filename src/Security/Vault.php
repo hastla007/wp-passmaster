@@ -70,7 +70,7 @@ final class Vault {
 		$material = trim( (string) $material );
 		if ( '' === $material ) { return null; }
 		if ( preg_match( '/^[a-f0-9]{64}$/i', $material ) ) { return hex2bin( $material ); }
-		$decoded = base64_decode( $material, true );
+		$decoded = base64_decode( $material, true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode, WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- binary key/ciphertext transport encoding.
 		if ( false !== $decoded && 32 === strlen( $decoded ) ) { return $decoded; }
 		return hash_hkdf( 'sha256', $material, 32, 'pass-captain-vault-key', 'pass-captain' );
 	}
@@ -121,7 +121,7 @@ final class Vault {
 		list( $key ) = self::keys();
 		if ( null === $key ) { return $plaintext; }
 		$nonce = random_bytes( SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
-		return self::PREFIX . base64_encode( $nonce . sodium_crypto_secretbox( $plaintext, $nonce, self::subkey( $key, $context ) ) );
+		return self::PREFIX . base64_encode( $nonce . sodium_crypto_secretbox( $plaintext, $nonce, self::subkey( $key, $context ) ) ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode, WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- binary key/ciphertext transport encoding.
 	}
 
 	/**
@@ -139,7 +139,7 @@ final class Vault {
 	/** @return array{0:string,1:bool}|null [plaintext, decrypted with the previous key]. */
 	private static function open( $stored, $context ) {
 		if ( ! self::available() ) { return null; }
-		$raw = base64_decode( substr( $stored, strlen( self::PREFIX ) ), true );
+		$raw = base64_decode( substr( $stored, strlen( self::PREFIX ) ), true ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode, WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode -- binary key/ciphertext transport encoding.
 		if ( false === $raw || strlen( $raw ) <= SODIUM_CRYPTO_SECRETBOX_NONCEBYTES + SODIUM_CRYPTO_SECRETBOX_MACBYTES ) { return null; }
 		$nonce = substr( $raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );
 		$box = substr( $raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES );

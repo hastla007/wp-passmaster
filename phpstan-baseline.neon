@@ -91,6 +91,12 @@ parameters:
 			path: src/BoxOffice/Service.php
 
 		-
+			message: '#^Strict comparison using \!\=\= between '''' and '''' will always evaluate to false\.$#'
+			identifier: notIdentical.alwaysFalse
+			count: 1
+			path: src/Diagnostics.php
+
+		-
 			message: '#^Left side of \|\| is always false\.$#'
 			identifier: booleanOr.leftAlwaysFalse
 			count: 1
@@ -285,6 +291,24 @@ parameters:
 		-
 			message: '#^Call to function method_exists\(\) with ''\\\\Two_Factor_Core'' and ''is_user_using_two…'' will always evaluate to false\.$#'
 			identifier: function.impossibleType
+			count: 1
+			path: src/Refunds.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between '''' and '''' will always evaluate to false\.$#'
+			identifier: notIdentical.alwaysFalse
+			count: 3
+			path: src/Refunds.php
+
+		-
+			message: '#^Strict comparison using \=\=\= between '''' and '''' will always evaluate to true\.$#'
+			identifier: identical.alwaysTrue
+			count: 1
+			path: src/Refunds.php
+
+		-
+			message: '#^Ternary operator condition is always true\.$#'
+			identifier: ternary.alwaysTrue
 			count: 1
 			path: src/Refunds.php
 

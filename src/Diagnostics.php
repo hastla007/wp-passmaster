@@ -94,7 +94,7 @@ final class Diagnostics {
 	/* ------------------------------------------------------------------ Checks */
 
 	/** Active reservations/seat holds past their expiry and pending orders whose hold ran out. */
-	private static function check_expired_holds() {
+	public static function check_expired_holds() {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$cutoff = self::gmt( self::HOLD_GRACE );
@@ -131,13 +131,13 @@ final class Diagnostics {
 		) );
 	}
 
-	private static function check_paid_without_tickets() {
+	public static function check_paid_without_tickets() {
 		$rows = self::orders_missing_tickets( 1000 );
 		return array( count( $rows ), $rows, 'error', __( 'Die Ticketausstellung ist fehlgeschlagen oder hängt. Reparatur plant pro Bestellung einen Ausstellungs-Job ein (idempotent: es werden nur fehlende Tickets erzeugt und per E-Mail versendet).', 'pass-captain' ) );
 	}
 
 	/** Valid tickets whose order is missing or not (or no longer) paid. */
-	private static function check_tickets_without_order() {
+	public static function check_tickets_without_order() {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$where = "FROM {$p}wpcap_tickets t LEFT JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE t.status='valid' AND (ord.order_id IS NULL OR ord.payment_status NOT IN ('paid','paid_unallocated'))";
@@ -147,13 +147,13 @@ final class Diagnostics {
 	}
 
 	/** Several completed/processing refunds share one real provider reference. */
-	private static function check_duplicate_refunds() {
+	public static function check_duplicate_refunds() {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT provider_reference, COUNT(*) AS refunds, GROUP_CONCAT(refund_id ORDER BY refund_id) AS refund_ids, GROUP_CONCAT(DISTINCT order_id) AS order_ids, SUM(amount_minor) AS amount_minor FROM {$wpdb->prefix}wpcap_refunds WHERE status IN ('completed','processing') AND provider_reference NOT IN ('','manual','external') GROUP BY provider_reference HAVING COUNT(*)>1 ORDER BY MIN(refund_id) LIMIT %d", 1000 ) );
 		return array( count( (array) $rows ), $rows, 'error', __( 'Mehrere Erstattungen verweisen auf dieselbe Rückzahlung beim Zahlungsanbieter. Beim Anbieter prüfen, ob doppelt ausgezahlt wurde, und die Buchungen manuell korrigieren.', 'pass-captain' ) );
 	}
 
-	private static function check_stale_claims() {
+	public static function check_stale_claims() {
 		$count = 0;
 		$samples = array();
 		foreach ( array_keys( Status::queues() ) as $queue ) {
@@ -166,7 +166,7 @@ final class Diagnostics {
 		return array( $count, $samples, 'warning', __( 'Einträge stecken seit über 15 Minuten in Bearbeitung; der Worker ist abgebrochen und seither nicht mehr gelaufen. Reparatur stellt sie zurück in die Queue (wie es der nächste Worker-Lauf auch täte).', 'pass-captain' ) );
 	}
 
-	private static function check_unbooked_refunds() {
+	public static function check_unbooked_refunds() {
 		global $wpdb;
 		$samples = $wpdb->get_results( $wpdb->prepare( "SELECT refund_id, order_id, amount_minor, currency, provider_reference, updated_at FROM {$wpdb->prefix}wpcap_refunds WHERE status='processing' AND provider_reference<>'' ORDER BY refund_id LIMIT %d", self::SAMPLES ) );
 		return array( Refunds::unbooked_count(), $samples, 'error', __( 'Der Zahlungsanbieter hat ausgezahlt, die lokale Verbuchung fehlt. Reparatur verbucht sie (ohne erneuten Anbieteraufruf).', 'pass-captain' ) );
@@ -178,12 +178,12 @@ final class Diagnostics {
 		return (array) $wpdb->get_results( $wpdb->prepare( "SELECT refund_id, order_id, amount_minor, currency, reason, error_message, updated_at FROM {$wpdb->prefix}wpcap_refunds WHERE status='processing' AND provider_reference='' AND updated_at<%s ORDER BY refund_id LIMIT %d", self::gmt( Status::STALE_CLAIM_AFTER ), max( 1, absint( $limit ) ) ) );
 	}
 
-	private static function check_stuck_refunds() {
+	public static function check_stuck_refunds() {
 		$rows = self::stuck_refunds( 1000 );
 		return array( count( $rows ), $rows, 'error', __( 'Unklar, ob der Zahlungsanbieter ausgezahlt hat (Abbruch während des Anbieteraufrufs). Beim Anbieter prüfen und die Erstattung im Systemstatus manuell als erledigt oder fehlgeschlagen markieren.', 'pass-captain' ) );
 	}
 
-	private static function check_schema() {
+	public static function check_schema() {
 		$error = get_option( Installer::ERROR_OPTION );
 		$stored = (string) get_option( 'wpcap_db_version' );
 		$samples = array();
@@ -216,7 +216,7 @@ final class Diagnostics {
 		return array( 'repaired' => (int) $repaired, 'report' => $after['checks'][ $key ] );
 	}
 
-	private static function repair_expired_holds() {
+	public static function repair_expired_holds() {
 		global $wpdb;
 		$released = (int) $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_seat_holds SET status='expired' WHERE status='active' AND expires_at<=%s", current_time( 'mysql', true ) ) );
 		$before = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_reservations WHERE status='active' AND expires_at<=%s", current_time( 'mysql', true ) ) );
@@ -229,7 +229,7 @@ final class Diagnostics {
 	}
 
 	/** Queues one ticket_issue job per affected order (skipped while one is still open). */
-	private static function repair_paid_without_tickets() {
+	public static function repair_paid_without_tickets() {
 		global $wpdb;
 		$queued = 0;
 		foreach ( self::orders_missing_tickets( 500 ) as $row ) {
@@ -242,7 +242,7 @@ final class Diagnostics {
 	}
 
 	/** Same re-queue statements the workers run for claims older than 15 minutes. */
-	private static function repair_stale_claims() {
+	public static function repair_stale_claims() {
 		global $wpdb;
 		$requeued = 0;
 		$stale = gmdate( 'Y-m-d H:i:s', time() - Status::STALE_CLAIM_AFTER );
@@ -254,11 +254,11 @@ final class Diagnostics {
 		return $requeued;
 	}
 
-	private static function repair_unbooked_refunds() {
+	public static function repair_unbooked_refunds() {
 		return Refunds::reconcile( 100 );
 	}
 
-	private static function repair_schema() {
+	public static function repair_schema() {
 		if ( ! get_option( Installer::ERROR_OPTION ) && Installer::version() === (string) get_option( 'wpcap_db_version' ) ) { return 0; } // Nothing to do.
 		$result = Installer::retry_now();
 		if ( null === $result ) {

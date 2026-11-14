@@ -27,6 +27,10 @@
     "src/Admin/ServicesPage.php": {
         "Universal.NamingConventions.NoReservedKeywordParameterNames.resourceFound": 3
     },
+    "src/Admin/StatusPage.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.Found": 2,
+        "Universal.NamingConventions.NoReservedKeywordParameterNames.classFound": 1
+    },
     "src/Admin/TicketsPage.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4
     },
@@ -73,6 +77,11 @@
     "src/Communications.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3
     },
+    "src/Diagnostics.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6,
+        "WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber": 1,
+        "WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare": 1
+    },
     "src/Fiscalization/Providers/EfstaEfrAdapter.php": {
         "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 1
     },
@@ -82,6 +91,9 @@
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6,
         "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1,
         "WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 1
+    },
+    "src/Integrations/ConnectorEvents.php": {
+        "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
     },
     "src/Integrations/Vouchers/Bridge.php": {
         "WordPress.NamingConventions.PrefixAllGlobals.DynamicHooknameFound": 1
@@ -108,12 +120,13 @@
     "src/Invoices.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 26,
         "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 3,
-        "WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 2,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_fclose": 1,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_fwrite": 1
+        "WordPress.Security.ValidatedSanitizedInput.MissingUnslash": 2
     },
     "src/Jobs.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3
+    },
+    "src/Log.php": {
+        "Squiz.PHP.CommentedOutCode.Found": 1
     },
     "src/Mail/Layout.php": {
         "WordPress.WP.AlternativeFunctions.strip_tags_strip_tags": 2
@@ -179,17 +192,13 @@
         "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode": 1
     },
     "src/OfflineScanner/Rest.php": {
-        "Generic.CodeAnalysis.UnusedFunctionParameter.Found": 3,
+        "Generic.CodeAnalysis.UnusedFunctionParameter.Found": 2,
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
     },
     "src/Orders.php": {
         "Universal.NamingConventions.NoReservedKeywordParameterNames.listFound": 1,
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 86,
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 85,
         "WordPress.DB.PreparedSQL.NotPrepared": 8,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 2,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_mkdir": 1,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_rmdir": 1,
         "WordPress.WP.I18n.MissingTranslatorsComment": 1
     },
     "src/Partners/AdminPage.php": {
@@ -222,8 +231,6 @@
     "src/Printing/InvoicePdf.php": {
         "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1,
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 4,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 1,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1,
         "WordPress.WP.I18n.MissingTranslatorsComment": 6
     },
     "src/Printing/Page.php": {
@@ -246,7 +253,7 @@
         "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 1
     },
     "src/Refunds.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 40
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 47
     },
     "src/Reports/Data.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 24,
@@ -256,10 +263,7 @@
         "WordPress.WP.I18n.MissingTranslatorsComment": 2
     },
     "src/Reports/Scope.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_fclose": 1,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_fopen": 1,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_fwrite": 1
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 3
     },
     "src/Seating/AdminPage.php": {
         "WordPress.DB.PreparedSQL.NotPrepared": 2
@@ -314,20 +318,10 @@
         "WordPress.Security.NonceVerification.Recommended": 2,
         "WordPress.Security.ValidatedSanitizedInput.InputNotSanitized": 1
     },
-    "src/WalletPasses/ApnsClient.php": {
-        "WordPress.WP.AlternativeFunctions.curl_curl_close": 1,
-        "WordPress.WP.AlternativeFunctions.curl_curl_exec": 1,
-        "WordPress.WP.AlternativeFunctions.curl_curl_getinfo": 1,
-        "WordPress.WP.AlternativeFunctions.curl_curl_init": 1,
-        "WordPress.WP.AlternativeFunctions.curl_curl_setopt_array": 1,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 1,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1
-    },
     "src/WalletPasses/AppleProvider.php": {
         "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode": 1,
         "WordPress.Security.EscapeOutput.ExceptionNotEscaped": 1,
-        "WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 4,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 2,
+        "WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents": 3,
         "WordPress.WP.AlternativeFunctions.json_encode_json_encode": 2
     },
     "src/WalletPasses/Archive.php": {
@@ -344,9 +338,7 @@
         "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 1
     },
     "src/WalletPasses/Service.php": {
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 13,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_chmod": 1,
-        "WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents": 1
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 13
     },
     "src/WalletPasses/Store.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2,

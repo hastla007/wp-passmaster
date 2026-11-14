@@ -18,6 +18,7 @@ parameters:
 	bootstrapFiles:
 		- build/phpstan-bootstrap.php
 	scanFiles:
+		- build/phpstan-stubs/wp-cli.php
 		- vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
 	excludePaths:
 		- vendor
