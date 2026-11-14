@@ -121,9 +121,11 @@ for ( $c = 0; $c < $cases; $c++ ) {
 	$codes = array();
 	$restricted_type = 0;
 	$kind = mt_rand( 0, 3 );
+	$percent = mt_rand( 100, 9000 );
+	if ( 1 === $kind && intdiv( $subtotal_expected * $percent, 10000 ) < 1 ) { $kind = 0; } // A discount below one minor unit is refused at checkout.
 	if ( $kind ) {
 		$code = 'W6M' . $c . strtoupper( substr( uniqid(), -5 ) );
-		$campaign = array( 'code' => $code, 'currency' => $cur, 'kind' => 1 === $kind ? 'percent' : 'fixed', 'value' => 1 === $kind ? mt_rand( 100, 9000 ) : mt_rand( 1, max( 1, $subtotal_expected ) ) );
+		$campaign = array( 'code' => $code, 'currency' => $cur, 'kind' => 1 === $kind ? 'percent' : 'fixed', 'value' => 1 === $kind ? $percent : mt_rand( 1, max( 1, $subtotal_expected ) ) );
 		if ( 3 === $kind && count( $types ) > 1 ) { $restricted_type = $types[ mt_rand( 0, count( $types ) - 1 ) ]; $campaign['ticket_type_id'] = $restricted_type; $campaign['value'] = 1; }
 		Campaigns::create( $campaign );
 		$codes[] = $code;

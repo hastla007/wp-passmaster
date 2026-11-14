@@ -4,7 +4,26 @@
 
 ```bash
 php tests/integration/run.php        # braucht eine Wegwerf-MariaDB/MySQL (WPCAP_TEST_DB_HOST/_USER/_PASS/_NAME)
+tests/integration/run-slow.sh        # erweiterter Lauf (WPCAP_TEST_SLOW=1), einige Minuten, z. B. nächtlich
 ```
+
+### Robustheit, Zustandsautomaten und Randfälle (`tests/integration/modules/zzzz_w6_*.php`)
+
+| Modul | Inhalt |
+|---|---|
+| `zzzz_w6_faults.php` | Fault-Matrix: jede SQL-Anweisung von Checkout, kostenlosem Checkout, Zahlungs-Webhook, manueller Zahlung, Storno, nativer/externer Erstattung, Check-in (Einfach-/Mehrfacheinlass), Offline-Sync und Kassenverkauf scheitert einmal – als Fehler, Deadlock 1213 (Server-Rollback), Lock-Wait-Timeout 1205 und Verbindungsabbruch 2013. Invarianten: keine Erfolgsantwort ohne persistierten Zustand, kein Halbzustand, sofortiger Retry bestätigt nichts Unpersistiertes, Recovery + Retry endet im fehlerfreien Ergebnis. Standard: 24 Positionen je Ablauf, `WPCAP_TEST_SLOW=1`: alle. |
+| `zzzz_w6_state_machines.php` | Zustandsautomaten aus [STATE-MACHINES.md](STATE-MACHINES.md): doppelte, verspätete und out-of-order Ereignisse; seeded Zufallsfolgen prüfen jeden Übergang gegen die erlaubten Übergänge. |
+| `zzzz_w6_workers.php` | Jobs, E-Mail-Queue, Webhook-Zustellung: abgelaufene Claims, Absturz im Handler (Kindprozess), Poison-Items, Backoff, Dead-Letter, Duplikate, dauerhafter Claim. |
+| `zzzz_w6_upgrade.php` | Upgrade von 1.0/1.2- und 1.3-Schema (`tests/integration/fixtures/schema-*.sql`) mit Daten: wiederholt, parallel (2 Prozesse), nach Prozessabbruch; WordPress-ähnliches `dbDelta()` im Kindprozess (`workers/w6_upgrade_child.php`). |
+| `zzzz_w6_isolation.php` | Statische Prüfung: keine direkten WooCommerce-/HPOS-/postmeta-Abfragen, kein fester oder netzwerkweiter Tabellenpräfix; zwei Sites mit eigenem Präfix ohne Übersprechen (auch Request-Caches). |
+| `zzzz_w6_time.php` | Europe/Vienna 29.03./25.10.2026 und Mitternacht: Serien, Verkaufsfenster, Hold-Ablauf, Einlass-Tagesgrenze, Erinnerungen, Service-Slots – mit PHP-Standardzeitzone UTC und Europe/Vienna. |
+| `zzzz_w6_money.php` | Seeded Eigenschaftstests: exakte Aufteilung, JPY/EUR/KWD, Rabatte (auch ticketartgebunden), Steuern, Rechnungen, Teil-Erstattungen, WooCommerce-Summen – centgenau. |
+| `zzzz_w6_report_cache.php` | Invalidierung des Berichts-Caches bei Zahlung, Check-in, Erstattung, Storno, Event-/Termin-/Ticketartänderung. |
+| `zzzz_w6_contracts.php` | Vertragskompatibilität: Voucher-Bridge v1, Affiliate-Adapter 1.x, Scanner-API (unbekannte/fehlende Felder, Versionen, Timeouts, Duplikate). |
+| `zzzz_w6_privacy_volume.php` | Export/Löschung/Retention mit 400 (langsam: 5.000) Bestellungen, kommenden Terminen, Rechnungen, WooCommerce-Bestellungen und zweiter Site; Zeitbudget, Finanzbelege bleiben. |
+
+Gemeinsamer Fehler-Proxy für `$wpdb`: `tests/integration/lib/fault_wpdb.php` (`wpcap_faults()`,
+`->fail( $regex, $skip, $times, $kind )`, `->fail_nth( $n, $kind )`, `wpcap_faults_restore()`).
 
 ## Last- und Nebenläufigkeitstests (`tests/load/`)
 
