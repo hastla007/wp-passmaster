@@ -307,8 +307,8 @@ final class Refunds {
 
 	/** Logs a refund database problem (PHP error log and – if the database accepts it – the audit log). */
 	private static function log_problem( $refund_id, $order_id, $step, $db_error, array $extra = array() ) {
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operators must see failed bookings.
-		error_log( sprintf( 'Pass Captain: refund %d (%s) database error: %s %s', absint( $refund_id ), $step, $db_error, $extra ? wp_json_encode( $extra ) : '' ) );
+		// Operators must see failed bookings (redacted: DB errors can quote row values).
+		Security\Redact::log( sprintf( 'refund %d (%s) database error: %s', absint( $refund_id ), $step, $db_error ), $extra );
 		if ( $order_id ) {
 			Audit::record( 'refund_db_error', 'order', absint( $order_id ), array_merge( array( 'refund_id' => absint( $refund_id ), 'step' => $step, 'error' => substr( $db_error, 0, 190 ) ), $extra ) );
 		}

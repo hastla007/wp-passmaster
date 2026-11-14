@@ -9,7 +9,8 @@ final class ServiceBookings {
 		global $wpdb;
 		$slot_id = absint( $slot_id );
 		$email = sanitize_email( $email );
-		$quantity = min( 20, max( 1, absint( $quantity ) ) );
+		$quantity = Orders::positive_int( $quantity );
+		if ( $quantity < 1 || $quantity > 20 ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ), array( 'status' => 400 ) ); }
 		$idempotency_key = sanitize_text_field( $idempotency_key );
 		if ( ! $slot_id || ! is_email( $email ) || '' === $idempotency_key ) { return new \WP_Error( 'wpcap_booking_invalid', __( 'Buchungsdaten oder Idempotency-Key ungültig.', 'pass-captain' ) ); }
 		$rate_key = 'wpcap_servicebook_' . hash( 'sha256', strtolower( $email ) );

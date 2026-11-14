@@ -22,7 +22,7 @@ final class Orders {
 	 */
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
-		$email = sanitize_email( $payload['email'] ?? '' );
+		$email = is_scalar( $payload['email'] ?? '' ) ? sanitize_email( (string) ( $payload['email'] ?? '' ) ) : '';
 		$lines = $payload['items'] ?? array();
 		if ( ! is_email( $email ) || ! is_array( $lines ) || empty( $lines ) || count( $lines ) > 10 ) {
 			return new \WP_Error( 'wpcap_invalid_checkout', __( 'Bitte eine gültige E-Mail-Adresse und Tickets auswählen.', 'pass-captain' ), array( 'status' => 400 ) );
@@ -59,8 +59,9 @@ final class Orders {
 		$line_cap = max( 1, (int) apply_filters( 'wpcap_max_line_quantity', 100 ) );
 		$clean_lines = array();
 		foreach ( $lines as $line ) {
-			$type_id = absint( $line['ticket_type_id'] ?? 0 );
-			$quantity = absint( $line['quantity'] ?? 0 );
+			// Strict: "-2", 1.5, arrays or non-array lines are rejected (absint() would turn -2 into 2).
+			$type_id = is_array( $line ) ? self::positive_int( $line['ticket_type_id'] ?? null ) : 0;
+			$quantity = is_array( $line ) ? self::positive_int( $line['quantity'] ?? null ) : 0;
 			if ( ! $type_id || $quantity < 1 || $quantity > $line_cap ) {
 				return new \WP_Error( 'wpcap_invalid_item', __( 'Eine Ticketposition ist ungültig.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
@@ -418,6 +419,13 @@ final class Orders {
 	public static function client_ip() {
 		// Trusted proxies are configured centrally (setting trusted_proxies, see RateLimit::client_ip()).
 		return RateLimit::client_ip();
+	}
+
+	/** Positive integer from an int or a digit-only string; 0 for anything else (negative, float, array). */
+	public static function positive_int( $value ) {
+		if ( is_int( $value ) ) { return $value > 0 ? $value : 0; }
+		if ( is_string( $value ) && preg_match( '/^\s*[0-9]{1,9}\s*$/', $value ) ) { return (int) $value; }
+		return 0;
 	}
 
 	/** Keyed hash for rate-limit transient keys, so stored keys cannot be reversed to IP addresses. */

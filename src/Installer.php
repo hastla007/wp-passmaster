@@ -729,8 +729,8 @@ final class Installer {
 			'missing' => array_slice( $missing, 0, 20 ),
 		);
 		update_option( self::ERROR_OPTION, $details );
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- a failed schema upgrade must reach the operator.
-		error_log( 'Pass Captain: database upgrade to ' . $details['version'] . ' failed; will retry. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ) );
+		// A failed schema upgrade must reach the operator (redacted: DB errors can quote row values).
+		Security\Redact::log( 'database upgrade to ' . $details['version'] . ' failed; will retry. Errors: ' . implode( ' | ', $details['errors'] ) . '; missing: ' . implode( ', ', $details['missing'] ) );
 	}
 
 	/** Admin notice while the last schema upgrade failed (registered by maybe_upgrade() on admin requests). */

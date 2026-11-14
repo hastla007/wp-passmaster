@@ -131,6 +131,10 @@ final class OutboundHttp {
 			return self::error( 'wpcap_outbound_https_required', __( 'Die Ziel-URL muss HTTPS verwenden.', 'pass-captain' ) );
 		}
 		$host_is_ip = false !== filter_var( $host, FILTER_VALIDATE_IP );
+		// Non-canonical IPv4 notations (0x7f.1, 2130706433, 0177.0.0.1) are resolved by some resolvers.
+		if ( ! $host_is_ip && preg_match( '/^(0x[0-9a-f]*|[0-9]+)(\.(0x[0-9a-f]*|[0-9]+)){0,3}\.?$/i', $host ) ) {
+			return self::error( 'wpcap_outbound_url_invalid', __( 'Die Ziel-URL ist ungültig.', 'pass-captain' ) );
+		}
 		if ( ! $host_is_ip ) {
 			if ( ! preg_match( '/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]*[a-z0-9])?)*\.?$/', $host ) ) {
 				return self::error( 'wpcap_outbound_url_invalid', __( 'Die Ziel-URL ist ungültig.', 'pass-captain' ) );

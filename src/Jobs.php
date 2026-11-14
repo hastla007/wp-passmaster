@@ -82,8 +82,8 @@ final class Jobs {
 			if ( false !== $wpdb->update( $table, $data, $where, $format, $where_format ) ) { return true; }
 			if ( $attempt < $tries ) { usleep( 20000 * $attempt ); }
 		}
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- operators must see a stuck queue item.
-		error_log( sprintf( 'Pass Captain: final status update on %s failed: %s', $table, (string) $wpdb->last_error ) );
+		// Operators must see a stuck queue item (redacted: DB errors can quote row values).
+		Security\Redact::log( sprintf( 'final status update on %s failed: %s', $table, (string) $wpdb->last_error ) );
 		return false;
 	}
 }
