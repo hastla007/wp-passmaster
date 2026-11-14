@@ -11,8 +11,10 @@
  * every committed order of that buyer, and checks inside the transaction after all row locks.
  * Concurrent orders of the same buyer are serialised; other buyers are not slowed down.
  *
- * Not covered: box office sales (door sales, staff-entered e-mail) and late payment confirmations
- * of expired holds (Orders::confirm_external_payment) – the money was already taken.
+ * Late payment confirmations of expired holds (Orders::confirm_external_payment) are re-checked
+ * under the same buyer locks; a payment that would exceed a limit is not turned into tickets but
+ * flagged `needs_review` (the money was already taken: the operator refunds it or raises the limit).
+ * Not covered: box office sales (door sales, staff-entered e-mail).
  *
  * @package PassCaptain
  */
@@ -168,9 +170,10 @@ final class BuyerLimits {
 	 * @param array    $lines       ticket_type_id => quantity.
 	 * @param object[] $types       ticket_type_id => row.
 	 * @param object[] $occurrences occurrence_id => row (event_id, event_name).
+	 * @param int      $exclude_order_id Order not counted as already used (the order being confirmed).
 	 * @return \WP_Error|null
 	 */
-	public static function check( array $lines, array $types, array $occurrences, $email, $user_id, $now ) {
+	public static function check( array $lines, array $types, array $occurrences, $email, $user_id, $now, $exclude_order_id = 0 ) {
 		$events = array();
 		foreach ( $occurrences as $occurrence ) { if ( $occurrence ) { $events[] = (int) $occurrence->event_id; } }
 		$limits = self::for_events( array_unique( $events ) );
@@ -185,7 +188,7 @@ final class BuyerLimits {
 				$requested += (int) $quantity;
 			}
 			if ( ! $requested ) { continue; }
-			$used = self::used( $limit, $email, $user_id, $now );
+			$used = self::used( $limit, $email, $user_id, $now, $exclude_order_id );
 			if ( $used + $requested > (int) $limit->max_quantity ) {
 				$left = max( 0, (int) $limit->max_quantity - $used );
 				$message = $left > 0

@@ -195,7 +195,11 @@ Warenkorb“); jede Teilbestellung erhält die Belege ihres Rechnungsstellers.
 5. **Auszahlung:** findet **außerhalb des Plugins** statt (Überweisung durch den Betreiber). Das Plugin
    speichert nur den Status „Ausgezahlt“ mit Referenz (`Settlements::mark_paid()`); es löst keine
    Zahlungen aus (das Feld „Auszahlung (z. B. IBAN, BIC, Kontoinhaber)“ am Veranstalter ist nur
-   Information für den Betreiber).
+   Information für den Betreiber). Es wird verschlüsselt gespeichert (`Security\Vault`, an den
+   Veranstalter gebunden), im Admin nur gekürzt angezeigt (letzte 4 Zeichen der IBAN) und nur im
+   CSV-Export der Abrechnung für Finanzen/Admins vollständig ausgegeben (Zeile „Auszahlungskonto“;
+   verknüpfte Veranstalter-Benutzer sehen dort nur die gekürzte Form). Nie im Druckbeleg, in der
+   Partner-API oder anderen Exporten, siehe `docs/SECURITY.md`.
 
 ### Verantwortung je Modell – was das Plugin abbildet
 
@@ -313,8 +317,13 @@ angemeldete Kundenkonto (`orders.customer_user_id`, nur native Checkouts) oder b
   Konto) vor Beginn der Bestell-Transaktion serialisiert; die Prüfung erfolgt in der Transaktion nach
   allen Zeilensperren. Andere Käufer werden nicht ausgebremst (Integrationstest: 8 parallele
   Bestellungen gegen ein Limit von 3 → genau 3 erfolgreich).
-- Nicht begrenzt: Abendkasse (Türverkauf) und verspätete Zahlungsbestätigungen abgelaufener
-  Reservierungen; Adapter können `skip_buyer_limits` setzen.
+- Verspätete Zahlungsbestätigungen abgelaufener Reservierungen (`Orders::confirm_external_payment()`,
+  Webhook, WooCommerce, manuelle Bestätigung) werden unter denselben Sperren erneut geprüft: Würde die
+  Person damit ein Limit überschreiten, werden keine Tickets ausgestellt; die Bestellung geht wie bei
+  fehlendem Kontingent auf „Prüfung nötig“ (`needs_review`/`paid_unallocated`, Admin-Mail „Bezahlte
+  Bestellung über dem Käuferlimit“, Audit `payment_unallocated` mit Grund `buyer_limit`). Der Betreiber
+  erstattet die Zahlung oder hebt das Limit an und bestätigt die Zahlung erneut.
+- Nicht begrenzt: Abendkasse (Türverkauf); Adapter können `skip_buyer_limits` setzen.
 
 ### Einwilligungsfelder für Teilnehmer
 

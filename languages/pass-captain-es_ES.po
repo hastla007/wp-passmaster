@@ -6247,12 +6247,6 @@ msgstr "Reembolso en WooCommerce"
 msgid "Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht."
 msgstr "Pass Captain: el reembolso aún no se ha podido aplicar (%s). Se reintentará automáticamente."
 
-#. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:940
-#, php-format
-msgid "Pass Captain: Erstattung konnte nicht übernommen werden – %s"
-msgstr "Pass Captain: no se ha podido aplicar el reembolso – %s"
-
 #. translators: 1: seller order ID, 2: seller name, 3: amount, 4: ticket count
 #: src/Integrations/WooCommerce/OrderAdapter.php:948
 #, php-format
@@ -14272,3 +14266,55 @@ msgstr "El proveedor de vales no está disponible en este momento. Inténtalo de
 #: src/Integrations/Vouchers/Bridge.php:42
 msgid "Der Gutscheinanbieter hat eine ungültige Antwort geliefert."
 msgstr "El proveedor de vales ha devuelto una respuesta no válida."
+
+#. translators: %s: error message
+#: src/Integrations/WooCommerce/OrderAdapter.php:917
+#, php-format
+msgid "Pass Captain: Erstattung konnte nicht übernommen werden – %s. Sie wird automatisch erneut versucht; schlägt das dauerhaft fehl, erscheint der Auftrag auf der Seite Pass Captain → Systemstatus."
+msgstr "Pass Captain: No se pudo aplicar el reembolso – %s. Se reintentará automáticamente; si sigue fallando, la tarea aparecerá en la página Pass Captain → Estado del sistema."
+
+#: src/Orders.php:960
+msgid "Pass Captain: Bezahlte Bestellung über dem Käuferlimit"
+msgstr "Pass Captain: Pedido pagado que supera el límite por comprador"
+
+#. translators: 1: order number, 2: payment reference
+#: src/Orders.php:960
+#, php-format
+msgid "Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Mit dieser Bestellung würde die Person ein Käuferlimit überschreiten. Es wurden keine Tickets ausgestellt. Bitte manuell klären (erstatten oder Limit anpassen und die Zahlung erneut bestätigen)."
+msgstr "El pago del pedido %1$s (%2$s) llegó después de que expirara la reserva. Con este pedido la persona superaría un límite por comprador. No se emitieron entradas. Resuélvelo manualmente (reembolsa, o ajusta el límite y vuelve a confirmar el pago)."
+
+#: src/Orders.php:961
+msgid "Die Reservierung war abgelaufen und die Bestellung würde ein Käuferlimit überschreiten. Die Bestellung muss manuell geklärt werden."
+msgstr "La reserva había expirado y el pedido superaría un límite por comprador. El pedido debe resolverse manualmente."
+
+#. translators: 1: amount, 2: currency
+#: src/Payments/StripeGateway.php:357
+#, php-format
+msgid "Stripe akzeptiert Beträge in %2$s nur in Schritten von 0,010 (letzte Nachkommastelle 0). Der Betrag %1$s kann nicht exakt abgerechnet werden; bitte Preis bzw. Erstattungsbetrag anpassen."
+msgstr "Stripe solo acepta importes en %2$s en pasos de 0,010 (último decimal 0). El importe %1$s no se puede cobrar con exactitud; ajusta el precio o el importe del reembolso."
+
+#: src/Partners/Settlements.php:567
+msgid "(nicht entschlüsselbar)"
+msgstr "(no se puede descifrar)"
+
+#: src/Partners/Settlements.php:598
+msgid "Auszahlungskonto"
+msgstr "Cuenta de pago"
+
+#: src/Partners/AdminPage.php:230
+msgid "Die gespeicherten Auszahlungsdaten können nicht entschlüsselt werden (Schlüssel geändert). Bitte neu eingeben."
+msgstr "Los datos de pago guardados no se pueden descifrar (clave cambiada). Vuelve a introducirlos."
+
+#. translators: %s: masked account, e.g. "•••• 3000"
+#: src/Partners/AdminPage.php:233
+#, php-format
+msgid "Gespeichert (verschlüsselt): %s. Leer lassen, um die Angaben zu behalten; eine Eingabe ersetzt sie."
+msgstr "Guardado (cifrado): %s. Déjalo vacío para conservar los datos; una nueva entrada los sustituye."
+
+#: src/Partners/AdminPage.php:234
+msgid "Gespeicherte Auszahlungsdaten löschen"
+msgstr "Eliminar los datos de pago guardados"
+
+#: src/Partners/AdminPage.php:236
+msgid "Wird verschlüsselt gespeichert und danach nur noch gekürzt angezeigt."
+msgstr "Se guarda cifrado y después solo se muestra abreviado."

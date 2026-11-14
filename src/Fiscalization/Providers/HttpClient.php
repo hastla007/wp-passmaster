@@ -59,7 +59,11 @@ final class HttpClient {
 		return $base . '/' . ltrim( $path, '/' );
 	}
 
-	public static function minor_to_major( $amount ) {
-		return number_format( (int) $amount / 100, 2, '.', '' );
+	/**
+	 * Amount in minor units as decimal string for the fiscal service ("12.50"; JPY "1500", KWD
+	 * "12.345"). Without currency two decimals are assumed (EUR, the fiscal countries' currency).
+	 */
+	public static function minor_to_major( $amount, $currency = 'EUR' ) {
+		return \PassCaptain\Localization::money_decimal( (int) $amount, '' !== (string) $currency ? (string) $currency : 'EUR' );
 	}
 }

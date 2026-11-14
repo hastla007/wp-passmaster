@@ -36,7 +36,14 @@ final class Adapter {
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'on_refund' ), 10, 2 );
 		add_action( 'wpcap_order_refunded', array( __CLASS__, 'on_refunded' ), 10, 2 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'on_cancelled' ) );
+		add_filter( 'wp_pass_captain_process_job_v1', array( __CLASS__, 'handle_job' ), 10, 3 );
 	}
+
+	/** Job that repeats reporting a paid order after Affiliate Captain failed or threw. */
+	const SALE_JOB = 'affiliate_sale_retry';
+
+	/** Whether the sale retry job is running (no second job is queued from inside it). */
+	private static $job_running = false;
 
 	/** True if WP Affiliate Captain is active with a contract of the same major version. */
 	public static function available() {
@@ -195,8 +202,39 @@ final class Adapter {
 			$lines = array();
 			foreach ( $payload['items'] as $item ) { $lines[ (string) $item['item_id'] ] = (int) $item['net_minor']; }
 			self::update_snapshot( $order->order_id, array( 'affiliate_lines' => $lines ) );
+		} elseif ( ! self::$job_running ) {
+			// Affiliate Captain failed or threw: one retry job per order (idempotency key = order id). The
+			// sale call is idempotent on the Affiliate Captain side and skipped here once reported.
+			\PassCaptain\Jobs::enqueue( 'affiliate-sale-' . (int) $order->order_id, self::SALE_JOB, array( 'order_id' => (int) $order->order_id ), gmdate( 'Y-m-d H:i:s', time() + 5 * MINUTE_IN_SECONDS ) );
 		}
 		return $result;
+	}
+
+	/**
+	 * Filter wp_pass_captain_process_job_v1: repeats reporting a paid order. Done when the sale was
+	 * recorded (or queued) by Affiliate Captain, was reported already, or the order is no longer
+	 * reportable (not paid, WooCommerce channel). While Affiliate Captain is inactive or keeps failing
+	 * the job answers an error: the queue retries with backoff and dead-letters it after
+	 * Jobs::MAX_ATTEMPTS (listed on the system status page, where it can be retried).
+	 */
+	public static function handle_job( $handled, $type, $payload = array() ) {
+		if ( self::SALE_JOB !== $type ) { return $handled; }
+		$order_id = absint( ( (array) $payload )['order_id'] ?? 0 );
+		if ( ! $order_id ) { return true; }
+		if ( ! self::available() ) {
+			return new \WP_Error( 'wpcap_affiliate_unavailable', 'WP Affiliate Captain is not active (contract v1).' );
+		}
+		self::$job_running = true;
+		try {
+			$result = self::on_paid( $order_id );
+		} catch ( \Throwable $error ) {
+			$result = new \WP_Error( 'wpcap_affiliate_exception', $error->getMessage() );
+		} finally {
+			self::$job_running = false;
+		}
+		if ( is_wp_error( $result ) && 'wpac_queued' !== $result->get_error_code() ) { return $result; }
+		Audit::record( 'affiliate_sale_retried', 'order', $order_id, array( 'reported' => null !== $result ) );
+		return true;
 	}
 
 	/* ---------------------------------------------------------------- Reversals */

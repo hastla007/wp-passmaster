@@ -458,6 +458,8 @@ final class Settlements {
 			'supplier' => SalesModel::organizer_seller( $partner ),
 			'sales_model' => $model,
 		);
+		// The snapshot keeps the payout account the settlement is paid to, encrypted for this settlement.
+		$snapshot['partner']['payout_details'] = \PassCaptain\Security\Vault::encrypt( (string) Repository::payout_details( $partner ), Repository::snapshot_payout_context( $settlement_id ) );
 		$now = current_time( 'mysql', true );
 		$sb_sql = null === $self_billing_number ? 'NULL' : $wpdb->prepare( '%s', $self_billing_number );
 		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_partner_settlements SET status='finalized', document_number=%s, self_billing_number=$sb_sql, partner_snapshot=%s, finalized_by=%d, finalized_at=%s, updated_at=%s WHERE settlement_id=%d AND status='draft'", $number, wp_json_encode( $snapshot ), get_current_user_id(), $now, $now, $settlement_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prepared fragment.
@@ -547,12 +549,33 @@ final class Settlements {
 		return __( 'Veranstalter-Abrechnung', 'pass-captain' );
 	}
 
+	/** Currency of the CSV being built (decimal places of the amounts). */
+	private static $csv_currency = 'EUR';
+
 	private static function m( $minor ) {
-		return number_format( (int) $minor / 100, 2, '.', '' );
+		return \PassCaptain\Localization::money_decimal( $minor, self::$csv_currency );
+	}
+
+	/**
+	 * Payout details of a settlement for the CSV export: the account stored (encrypted) in the
+	 * finalized snapshot, for drafts the partner's current one. Finance/admins (can_manage()) get the
+	 * full text they need for the transfer; linked partner users only the masked hint (last 4).
+	 * Never part of the printable document or the partner REST API.
+	 */
+	public static function payout_details_for_export( $s ) {
+		$snapshot = (array) json_decode( (string) $s->partner_snapshot, true );
+		if ( isset( $snapshot['partner']['payout_details'] ) ) {
+			$plain = \PassCaptain\Security\Vault::decrypt( (string) $snapshot['partner']['payout_details'], Repository::snapshot_payout_context( (int) $s->settlement_id ) );
+		} else {
+			$plain = Repository::payout_details( Repository::get( $s->partner_id ) );
+		}
+		if ( null === $plain ) { return __( '(nicht entschlüsselbar)', 'pass-captain' ); }
+		return self::can_manage() ? (string) $plain : Repository::mask_payout( (string) $plain );
 	}
 
 	/** CSV rows (amounts as decimals, lines included). */
 	public static function csv_rows( $s ) {
+		self::$csv_currency = (string) $s->currency;
 		$t = self::decoded_totals( $s );
 		$snapshot = (array) json_decode( (string) $s->partner_snapshot, true );
 		$partner_name = (string) ( $snapshot['partner']['name'] ?? ( Repository::get( $s->partner_id )->name ?? '' ) );
@@ -574,6 +597,11 @@ final class Settlements {
 		$rows[] = array( __( 'Verkaufte Tickets', 'pass-captain' ), (int) $s->tickets_sold );
 		$rows[] = array( __( 'Erstattete Tickets', 'pass-captain' ), (int) $s->tickets_refunded );
 		foreach ( self::summary( $s ) as $label => $minor ) { $rows[] = array( $label, self::m( $minor ) ); }
+		$payout = self::payout_details_for_export( $s );
+		if ( '' !== $payout ) {
+			// One cell, line breaks flattened (the operator copies it into the bank transfer).
+			$rows[] = array( __( 'Auszahlungskonto', 'pass-captain' ), trim( (string) preg_replace( '/\s*[\r\n]+\s*/', ' | ', $payout ) ) );
+		}
 		return $rows;
 	}
 

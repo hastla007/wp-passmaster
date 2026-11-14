@@ -6247,12 +6247,6 @@ msgstr "Remboursement dans WooCommerce"
 msgid "Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht."
 msgstr "Pass Captain : le remboursement n’a pas encore pu être pris en compte (%s). Il sera retenté automatiquement."
 
-#. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:940
-#, php-format
-msgid "Pass Captain: Erstattung konnte nicht übernommen werden – %s"
-msgstr "Pass Captain : le remboursement n’a pas pu être repris – %s"
-
 #. translators: 1: seller order ID, 2: seller name, 3: amount, 4: ticket count
 #: src/Integrations/WooCommerce/OrderAdapter.php:948
 #, php-format
@@ -14272,3 +14266,55 @@ msgstr "Le fournisseur de bons n’est pas joignable pour le moment. Veuillez r�
 #: src/Integrations/Vouchers/Bridge.php:42
 msgid "Der Gutscheinanbieter hat eine ungültige Antwort geliefert."
 msgstr "Le fournisseur de bons a renvoyé une réponse invalide."
+
+#. translators: %s: error message
+#: src/Integrations/WooCommerce/OrderAdapter.php:917
+#, php-format
+msgid "Pass Captain: Erstattung konnte nicht übernommen werden – %s. Sie wird automatisch erneut versucht; schlägt das dauerhaft fehl, erscheint der Auftrag auf der Seite Pass Captain → Systemstatus."
+msgstr "Pass Captain : le remboursement n’a pas pu être appliqué – %s. Il sera réessayé automatiquement ; en cas d’échec persistant, la tâche apparaît sur la page Pass Captain → État du système."
+
+#: src/Orders.php:960
+msgid "Pass Captain: Bezahlte Bestellung über dem Käuferlimit"
+msgstr "Pass Captain : commande payée au-delà de la limite par acheteur"
+
+#. translators: 1: order number, 2: payment reference
+#: src/Orders.php:960
+#, php-format
+msgid "Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Mit dieser Bestellung würde die Person ein Käuferlimit überschreiten. Es wurden keine Tickets ausgestellt. Bitte manuell klären (erstatten oder Limit anpassen und die Zahlung erneut bestätigen)."
+msgstr "Le paiement de la commande %1$s (%2$s) est arrivé après l’expiration de la réservation. Avec cette commande, la personne dépasserait une limite par acheteur. Aucun billet n’a été émis. Veuillez régler la situation manuellement (rembourser, ou ajuster la limite et confirmer à nouveau le paiement)."
+
+#: src/Orders.php:961
+msgid "Die Reservierung war abgelaufen und die Bestellung würde ein Käuferlimit überschreiten. Die Bestellung muss manuell geklärt werden."
+msgstr "La réservation avait expiré et la commande dépasserait une limite par acheteur. La commande doit être réglée manuellement."
+
+#. translators: 1: amount, 2: currency
+#: src/Payments/StripeGateway.php:357
+#, php-format
+msgid "Stripe akzeptiert Beträge in %2$s nur in Schritten von 0,010 (letzte Nachkommastelle 0). Der Betrag %1$s kann nicht exakt abgerechnet werden; bitte Preis bzw. Erstattungsbetrag anpassen."
+msgstr "Stripe n’accepte les montants en %2$s que par pas de 0,010 (dernière décimale 0). Le montant %1$s ne peut pas être facturé exactement ; veuillez ajuster le prix ou le montant du remboursement."
+
+#: src/Partners/Settlements.php:567
+msgid "(nicht entschlüsselbar)"
+msgstr "(impossible à déchiffrer)"
+
+#: src/Partners/Settlements.php:598
+msgid "Auszahlungskonto"
+msgstr "Compte de versement"
+
+#: src/Partners/AdminPage.php:230
+msgid "Die gespeicherten Auszahlungsdaten können nicht entschlüsselt werden (Schlüssel geändert). Bitte neu eingeben."
+msgstr "Les données de versement enregistrées ne peuvent pas être déchiffrées (clé modifiée). Veuillez les saisir à nouveau."
+
+#. translators: %s: masked account, e.g. "•••• 3000"
+#: src/Partners/AdminPage.php:233
+#, php-format
+msgid "Gespeichert (verschlüsselt): %s. Leer lassen, um die Angaben zu behalten; eine Eingabe ersetzt sie."
+msgstr "Enregistré (chiffré) : %s. Laisser vide pour conserver les données ; une nouvelle saisie les remplace."
+
+#: src/Partners/AdminPage.php:234
+msgid "Gespeicherte Auszahlungsdaten löschen"
+msgstr "Supprimer les données de versement enregistrées"
+
+#: src/Partners/AdminPage.php:236
+msgid "Wird verschlüsselt gespeichert und danach nur noch gekürzt angezeigt."
+msgstr "Enregistré chiffré, puis affiché uniquement sous forme abrégée."

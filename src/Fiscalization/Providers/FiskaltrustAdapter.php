@@ -47,6 +47,8 @@ final class FiskaltrustAdapter implements AdapterInterface {
 	}
 
 	public function submit( array $document, array $seller, array $configuration ) {
+		// Decimal places of the amounts follow the document currency (default EUR).
+		$currency = strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $document['currency'] ?? 'EUR' ) ) );
 		$cases = $this->validate_cases( $configuration, $document );
 		if ( is_wp_error( $cases ) ) { return $cases; }
 		$operation_id = $this->operation_id( (string) ( $document['idempotency_key'] ?? '' ) );
@@ -59,7 +61,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 			$lines[] = array(
 				'Quantity' => max( 1, (int) ( $item['quantity'] ?? 1 ) ),
 				'Description' => sanitize_text_field( (string) ( $item['description'] ?? __( 'Ticket', 'pass-captain' ) ) ),
-				'Amount' => (float) HttpClient::minor_to_major( (int) ( $item['gross_minor'] ?? 0 ) ),
+				'Amount' => (float) HttpClient::minor_to_major( (int) ( $item['gross_minor'] ?? 0 ), $currency ),
 				'VATRate' => $rate / 100,
 				'ftChargeItemCase' => $cases['charge'],
 			);
@@ -72,7 +74,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 			'cbReceiptReference' => substr( 'WPC-' . $reference, 0, 128 ),
 			'cbReceiptMoment' => gmdate( 'Y-m-d\TH:i:s\Z' ),
 			'cbChargeItems' => $lines,
-			'cbPayItems' => array( array( 'Description' => $payment_method, 'Amount' => (float) HttpClient::minor_to_major( (int) ( $document['gross_minor'] ?? 0 ) ), 'ftPayItemCase' => $pay_case ) ),
+			'cbPayItems' => array( array( 'Description' => $payment_method, 'Amount' => (float) HttpClient::minor_to_major( (int) ( $document['gross_minor'] ?? 0 ), $currency ), 'ftPayItemCase' => $pay_case ) ),
 			'ftReceiptCase' => $cases['receipt'],
 		);
 		$response = HttpClient::request( HttpClient::endpoint( $configuration, self::SANDBOX, 'sign' ), 'POST', $headers, $payload );

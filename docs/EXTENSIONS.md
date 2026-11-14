@@ -249,4 +249,4 @@ Add-ons verwenden die Filter.
 | `wpcap_order_refunded` / `wpcap_order_cancelled` | Umkehr des Rests (nur wenn ein Verkauf gemeldet wurde) |
 | Bestellungen über WooCommerce | werden nicht gemeldet – Affiliate Captain erfasst die Woo-Bestellung selbst |
 
-Ergebnisse stehen im Audit-Log (`affiliate_sale`, `affiliate_refund`, `…_queued`, `…_failed`). Filter siehe `docs/HOOKS.md`.
+Ergebnisse stehen im Audit-Log (`affiliate_sale`, `affiliate_refund`, `…_queued`, `…_failed`). Schlägt das Melden eines Verkaufs fehl (Fehler oder Exception von Affiliate Captain), plant der Adapter genau einen Job `affiliate_sale_retry` je Bestellung (Idempotenzschlüssel = Bestell-ID); Zahlung und Tickets bleiben unberührt. Der Job meldet den Verkauf erneut (doppelte Meldungen verhindern der gespeicherte `affiliate_lines`-Schnappschuss und die Idempotenz von Affiliate Captain) und ist erledigt, sobald gemeldet, bereits gemeldet oder nicht mehr meldbar; solange Affiliate Captain inaktiv ist oder weiter scheitert, wiederholt die Job-Queue mit Backoff und legt ihn nach 8 Versuchen als Dead-Letter auf die Systemstatus-Seite. Filter siehe `docs/HOOKS.md`.

@@ -6247,12 +6247,6 @@ msgstr "Rimborso in WooCommerce"
 msgid "Pass Captain: Erstattung konnte noch nicht übernommen werden (%s). Sie wird automatisch erneut versucht."
 msgstr "Pass Captain: il rimborso non è ancora stato applicato (%s). Verrà ritentato automaticamente."
 
-#. translators: %s: error message
-#: src/Integrations/WooCommerce/OrderAdapter.php:940
-#, php-format
-msgid "Pass Captain: Erstattung konnte nicht übernommen werden – %s"
-msgstr "Pass Captain: impossibile recepire il rimborso – %s"
-
 #. translators: 1: seller order ID, 2: seller name, 3: amount, 4: ticket count
 #: src/Integrations/WooCommerce/OrderAdapter.php:948
 #, php-format
@@ -14272,3 +14266,55 @@ msgstr "Il fornitore dei buoni non è raggiungibile al momento. Riprova."
 #: src/Integrations/Vouchers/Bridge.php:42
 msgid "Der Gutscheinanbieter hat eine ungültige Antwort geliefert."
 msgstr "Il fornitore dei buoni ha restituito una risposta non valida."
+
+#. translators: %s: error message
+#: src/Integrations/WooCommerce/OrderAdapter.php:917
+#, php-format
+msgid "Pass Captain: Erstattung konnte nicht übernommen werden – %s. Sie wird automatisch erneut versucht; schlägt das dauerhaft fehl, erscheint der Auftrag auf der Seite Pass Captain → Systemstatus."
+msgstr "Pass Captain: impossibile applicare il rimborso – %s. Verrà ritentato automaticamente; se continua a non riuscire, il job compare nella pagina Pass Captain → Stato del sistema."
+
+#: src/Orders.php:960
+msgid "Pass Captain: Bezahlte Bestellung über dem Käuferlimit"
+msgstr "Pass Captain: ordine pagato oltre il limite per acquirente"
+
+#. translators: 1: order number, 2: payment reference
+#: src/Orders.php:960
+#, php-format
+msgid "Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Mit dieser Bestellung würde die Person ein Käuferlimit überschreiten. Es wurden keine Tickets ausgestellt. Bitte manuell klären (erstatten oder Limit anpassen und die Zahlung erneut bestätigen)."
+msgstr "Il pagamento dell’ordine %1$s (%2$s) è arrivato dopo la scadenza della prenotazione. Con questo ordine la persona supererebbe un limite per acquirente. Non sono stati emessi biglietti. Risolvi manualmente (rimborsa, oppure modifica il limite e conferma di nuovo il pagamento)."
+
+#: src/Orders.php:961
+msgid "Die Reservierung war abgelaufen und die Bestellung würde ein Käuferlimit überschreiten. Die Bestellung muss manuell geklärt werden."
+msgstr "La prenotazione era scaduta e l’ordine supererebbe un limite per acquirente. L’ordine deve essere risolto manualmente."
+
+#. translators: 1: amount, 2: currency
+#: src/Payments/StripeGateway.php:357
+#, php-format
+msgid "Stripe akzeptiert Beträge in %2$s nur in Schritten von 0,010 (letzte Nachkommastelle 0). Der Betrag %1$s kann nicht exakt abgerechnet werden; bitte Preis bzw. Erstattungsbetrag anpassen."
+msgstr "Stripe accetta importi in %2$s solo in passi di 0,010 (ultima cifra decimale 0). L’importo %1$s non può essere addebitato esattamente; modifica il prezzo o l’importo del rimborso."
+
+#: src/Partners/Settlements.php:567
+msgid "(nicht entschlüsselbar)"
+msgstr "(non decifrabile)"
+
+#: src/Partners/Settlements.php:598
+msgid "Auszahlungskonto"
+msgstr "Conto di pagamento"
+
+#: src/Partners/AdminPage.php:230
+msgid "Die gespeicherten Auszahlungsdaten können nicht entschlüsselt werden (Schlüssel geändert). Bitte neu eingeben."
+msgstr "I dati di pagamento salvati non possono essere decifrati (chiave cambiata). Inseriscili di nuovo."
+
+#. translators: %s: masked account, e.g. "•••• 3000"
+#: src/Partners/AdminPage.php:233
+#, php-format
+msgid "Gespeichert (verschlüsselt): %s. Leer lassen, um die Angaben zu behalten; eine Eingabe ersetzt sie."
+msgstr "Salvato (cifrato): %s. Lascia vuoto per mantenere i dati; un nuovo inserimento li sostituisce."
+
+#: src/Partners/AdminPage.php:234
+msgid "Gespeicherte Auszahlungsdaten löschen"
+msgstr "Elimina i dati di pagamento salvati"
+
+#: src/Partners/AdminPage.php:236
+msgid "Wird verschlüsselt gespeichert und danach nur noch gekürzt angezeigt."
+msgstr "Viene salvato cifrato e in seguito mostrato solo abbreviato."

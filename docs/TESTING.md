@@ -91,6 +91,7 @@ Zustandsautomaten. Geeignet als nächtlicher Lauf; derzeit in keinem Workflow ei
 | `zzzz_w6_money.php` | Seeded Eigenschaftstests: exakte Aufteilung, JPY/EUR/KWD, Rabatte (auch ticketartgebunden), Steuern, Rechnungen, Teil-Erstattungen, WooCommerce-Summen – centgenau. |
 | `zzzz_w6_report_cache.php` | Invalidierung des Berichts-Caches bei Zahlung, Check-in, Erstattung, Storno, Event-/Termin-/Ticketartänderung. |
 | `zzzz_w6_contracts.php` | Vertragskompatibilität: Voucher-Bridge v1, Affiliate-Adapter 1.x, Scanner-API (unbekannte/fehlende Felder, Versionen, Timeouts, Duplikate). |
+| `zzzzz_x2_payments.php` | Zahlungs-/Erstattungs-Restpunkte: WooCommerce-Erstattungsspiegel und Affiliate-Verkauf mit Retry-Job (idempotent, Dead-Letter, Systemstatus), Währungen mit 0/3 Nachkommastellen in Berichts-, Buchhaltungs-CSV, Fiskal-Client und Stripe (3-stellige Beträge nur in Zehnerschritten), Käuferlimit-Prüfung bei verspäteter Zahlung, verschlüsselte Auszahlungsdaten der Veranstalter (Migration, Maskierung, Export nur für Finanzen). |
 | `zzzz_w6_privacy_volume.php` | Export/Löschung/Retention mit 400 (langsam: 5.000) Bestellungen, kommenden Terminen, Rechnungen, WooCommerce-Bestellungen und zweiter Site; Zeitbudget, Finanzbelege bleiben. |
 
 Gemeinsamer Fehler-Proxy für `$wpdb`: `tests/integration/lib/fault_wpdb.php` (`wpcap_faults()`,

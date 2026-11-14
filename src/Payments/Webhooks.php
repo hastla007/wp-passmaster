@@ -191,6 +191,25 @@ final class Webhooks {
 			return is_wp_error( $cancelled ) ? $cancelled : 'cancelled';
 		}
 		if ( 'refunded' === $type ) {
+			if ( in_array( $order->payment_status, array( 'pending', 'expired' ), true ) && (int) ( $event['amount_minor'] ?? 0 ) >= (int) $order->total_minor ) {
+				// Full refund/chargeback of an order that was never paid here (no refund ledger entry is
+				// possible): it cancels the order – holds released – and never marks it refunded. A `paid`
+				// event arriving later answers `paid_for_closed_order` (admin alert, no tickets). A payment
+				// booked in the meantime (checked under the row lock) falls through to the paid handling.
+				// Partial refund events of unpaid orders stay audit-only (below).
+				$cancelled = Orders::cancel_order( $order_id, $provider . '_refund_unpaid', true );
+				if ( true === $cancelled ) {
+					Audit::record( 'provider_refund_unpaid_cancelled', 'order', $order_id, array( 'provider' => $provider, 'previous_status' => (string) $order->status, 'amount_minor' => (int) ( $event['amount_minor'] ?? 0 ), 'reference' => substr( sanitize_text_field( (string) ( $event['provider_reference'] ?? '' ) ), 0, 100 ) ) );
+					return 'cancelled_unpaid';
+				}
+				if ( is_wp_error( $cancelled ) && 'wpcap_order_paid_state' !== $cancelled->get_error_code() ) {
+					return $cancelled; // Retryable database error: the provider redelivers.
+				}
+				$order = Orders::get( $order_id );
+				if ( ! $order ) {
+					return new \WP_Error( 'wpcap_webhook_db_error', 'Database unavailable; retry later.', array( 'status' => 503, 'retryable' => true ) );
+				}
+			}
 			// Full refund triggered outside the plugin (e.g. provider dashboard).
 			if ( (int) ( $event['amount_minor'] ?? 0 ) >= (int) $order->total_minor - (int) $order->refunded_minor ) {
 				$refunded = Orders::mark_refunded( $order_id, $provider . '_dashboard_refund' );

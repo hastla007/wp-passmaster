@@ -11,7 +11,14 @@ $GLOBALS['wpac_test_refunds'] = array();
 $GLOBALS['wpac_test_touch']   = null;
 if ( ! function_exists( 'wpac_contract_version' ) ) {
 	function wpac_contract_version() { return $GLOBALS['wpac_test_version']; }
-	function wpac_record_sale( array $payload ) { $GLOBALS['wpac_test_sales'][] = $payload; return array( 'status' => 'created' ); }
+	function wpac_record_sale( array $payload ) {
+		// Failure modes for the retry tests: 'throw' (exception), 'error' (WP_Error).
+		$fail = $GLOBALS['wpac_test_fail'] ?? '';
+		if ( 'throw' === $fail ) { throw new RuntimeException( 'Affiliate Captain database gone' ); }
+		if ( 'error' === $fail ) { return new WP_Error( 'wpac_storage', 'Affiliate Captain could not store the sale' ); }
+		$GLOBALS['wpac_test_sales'][] = $payload;
+		return array( 'status' => 'created' );
+	}
 	function wpac_record_refund( array $payload ) { $GLOBALS['wpac_test_refunds'][] = $payload; return array( 'status' => 'adjusted' ); }
 	function wpac_resolve_partner_code( $code, array $context = array() ) { return 'NORD-1' === strtoupper( $code ) ? array( 'affiliate_id' => 7, 'code_id' => 3, 'code' => 'NORD-1' ) : null; }
 	function wpac_current_touch() { return $GLOBALS['wpac_test_touch']; }

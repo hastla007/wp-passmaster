@@ -24,6 +24,21 @@ final class Localization {
 		return number_format_i18n( (int) $minor / ( 10 ** $decimals ), $decimals );
 	}
 
+	/**
+	 * Machine-readable decimal for an amount in minor units (CSV exports, provider APIs): dot as
+	 * separator, no grouping, exactly the currency's minor-unit digits ("1234.50" EUR, "1500" JPY,
+	 * "12.345" KWD). Integer arithmetic, so large amounts are exact.
+	 */
+	public static function money_decimal( $minor, $currency ) {
+		$decimals = self::currency_decimals( $currency );
+		$minor = (int) $minor;
+		$sign = $minor < 0 ? '-' : '';
+		$digits = (string) abs( $minor );
+		if ( 0 === $decimals ) { return $sign . $digits; }
+		$digits = str_pad( $digits, $decimals + 1, '0', STR_PAD_LEFT );
+		return $sign . substr( $digits, 0, -$decimals ) . '.' . substr( $digits, -$decimals );
+	}
+
 	public static function currencies() {
 		$currencies = apply_filters( 'wp_pass_captain_currencies', array( 'EUR', 'USD', 'CHF', 'GBP', 'CAD', 'AUD' ) );
 		if ( ! is_array( $currencies ) ) { return array( 'EUR' ); }

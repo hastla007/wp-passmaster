@@ -50,11 +50,12 @@ Allowed transitions:
 |---|---|---|
 | P | C | `paid` webhook, `confirm_external_payment()` (WooCommerce, box office), `confirm_manual_payment()` |
 | P | E | expiry sweep (only while still `pending` and without an active hold – conditional UPDATE) |
-| P | X | `failed` webhook of the current payment attempt, `cancel_order()` (admin, WooCommerce) |
-| P | R | full `refunded` webhook that arrives **before** the `paid` webhook (out of order) |
-| P, E | N | late payment whose capacity re-check under locks fails |
+| P | X | `failed` webhook of the current payment attempt, `cancel_order()` (admin, WooCommerce), full `refunded` webhook (refund or chargeback) for the never-paid order – e.g. out of order **before** the `paid` webhook (`cancelled_unpaid`, audit `provider_refund_unpaid_cancelled`) |
+| P | R | only a direct `mark_refunded()` call (never a provider webhook: an unpaid order has no refund ledger entry) |
+| P, E | N | late payment whose capacity re-check or buyer-limit re-check (`Sales\BuyerLimits`) under locks fails |
 | E | C | late payment / manual confirmation with free capacity (late recovery under locks) |
-| E | X, R | `cancel_order()`; provider refund of the late payment |
+| E | X | `cancel_order()`; full `refunded` webhook for the never-paid order (`cancelled_unpaid`) |
+| E | R | only a direct `mark_refunded()` call |
 | N | C | payment confirmed again after capacity was freed |
 | N | X, R | admin cancels / refunds the unallocated payment |
 | C | R | full refund (native refund of the last tickets, provider dashboard refund, WooCommerce full refund) |
@@ -84,7 +85,8 @@ Duplicate and out-of-order payment events (`Payments\Webhooks::process()`):
 | `paid` for an order already paid, same attempt | `already_paid` | missing tickets issued if an issuance failed, else nothing |
 | `paid` for an order already paid, other attempt | `double_payment` | admin alert |
 | `failed` for a non-pending order or an older attempt | `ignored` / `stale_attempt` | nothing |
-| `refunded` with amount < remaining total | `partial_refund_logged` | audit only |
+| `refunded` with amount < remaining total | `partial_refund_logged` | audit only (also for unpaid orders) |
+| full `refunded` for an order that was never paid (P or E) | `cancelled_unpaid` | order cancelled (X) under the row lock, holds released, no refund record, `refunded_minor` unchanged, audit `provider_refund_unpaid_cancelled`; a payment booked in the meantime is treated as a paid order (→ R) |
 | Booked payment, ticket issuance failed | retryable 5xx | redelivery (`already_paid`) or the `ticket_issue` job issues the tickets |
 
 Ticket issuance after a payment is idempotent (order row locked, only missing tickets are created,
