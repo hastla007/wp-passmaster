@@ -313,6 +313,12 @@ parameters:
 			path: src/Refunds.php
 
 		-
+			message: '#^Action callback returns int but should not return anything\.$#'
+			identifier: return.void
+			count: 1
+			path: src/Sales/Consents.php
+
+		-
 			message: '#^Call to function method_exists\(\) with WP_REST_Request and ''get_body_params'' will always evaluate to true\.$#'
 			identifier: function.alreadyNarrowedType
 			count: 2

@@ -123,6 +123,21 @@ $rb_orders = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpc
 check( 'lost transaction aborts the order with a retryable error and writes nothing', is_wp_error( $rb ) && 503 === ( $rb->get_error_data()['status'] ?? 0 ) && 0 === $rb_orders );
 $rb_ok = Orders::create( array( 'email' => 'rb@example.com', 'items' => array( array( 'ticket_type_id' => $rb_type, 'quantity' => 1 ) ), 'idempotency_key' => 'zz-rb-2' ) );
 check( 'the retry succeeds and the capacity is still available', ! is_wp_error( $rb_ok ) && 0 === Orders::availability( $rb_type ) );
+echo "Integration: server-side rollback detected without @@in_transaction (MySQL path: marker table)\n";
+$mk_force = static function () { return false; };
+add_filter( 'wpcap_db_tracks_in_transaction', $mk_force );
+Orders::reset_transaction_tracking();
+$mk_type = make_type( 1, 10, 1000 );
+add_filter( 'wpcap_reserve_capacity', $rb_hook, 10, 3 );
+$mk = Orders::create( array( 'email' => 'mk@example.com', 'items' => array( array( 'ticket_type_id' => $mk_type, 'quantity' => 1 ) ), 'idempotency_key' => 'zz-mk-1' ) );
+remove_filter( 'wpcap_reserve_capacity', $rb_hook, 10 );
+$mk_rows = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_order_items WHERE ticket_type_id=%d", $mk_type ) );
+check( 'marker path: lost transaction aborts the order with a retryable error and writes nothing', is_wp_error( $mk ) && 503 === ( $mk->get_error_data()['status'] ?? 0 ) && 0 === $mk_rows );
+$mk_ok = Orders::create( array( 'email' => 'mk@example.com', 'items' => array( array( 'ticket_type_id' => $mk_type, 'quantity' => 1 ) ), 'idempotency_key' => 'zz-mk-2' ) );
+$mk_ok2 = Orders::create( array( 'email' => 'mk2@example.com', 'items' => array( array( 'ticket_type_id' => make_type( 1, 10, 0 ), 'quantity' => 1 ) ), 'idempotency_key' => 'zz-mk-3' ) );
+check( 'marker path: normal orders still succeed one after another', ! is_wp_error( $mk_ok ) && 0 === Orders::availability( $mk_type ) && ! is_wp_error( $mk_ok2 ) );
+remove_filter( 'wpcap_db_tracks_in_transaction', $mk_force );
+Orders::reset_transaction_tracking();
 
 echo "Integration: voucher ledger edge cases (expert review)\n";
 final class ZZ_Voucher_Provider implements PassCaptain\Integrations\Vouchers\ProviderInterface {

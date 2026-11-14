@@ -2,6 +2,11 @@
 
 ## Unveröffentlicht
 
+### WooCommerce: mehrere Rechnungssteller
+- Warenkörbe mit Tickets verschiedener Rechnungssteller (Vermittler-Veranstalter/Plattform) werden standardmäßig schon beim Hinzufügen, im Warenkorb und an der Kasse abgelehnt – klassisch und im Block-Checkout (Store API). Alternativ (Einstellung „Gemischte Warenkörbe → Je Rechnungssteller aufteilen“) entsteht je Rechnungssteller eine eigene Pass-Captain-Bestellung mit eigener Rechnung; verbindliche Regeln für Gutscheine, negative/positive Gebühren, Versand und Rundung (größte Reste) in `docs/WOOCOMMERCE.md`.
+- WooCommerce-Erstattungen (Position, Teilmenge, nur Betrag, vollständig, nach Terminabsage) werden den Teilbestellungen und ihren Tickets zugeordnet; Erstattungen eingecheckter Tickets werden standardmäßig vor der Auszahlung abgelehnt (Einstellung „Eingecheckte Tickets erstatten“). Negative Gebühren mindern jetzt auch bei einem Rechnungssteller den Betrag der Pass-Captain-Bestellung.
+- `docs/SALES-MODELS.md`: technisches Auszahlungsmodell (Belege, Geldfluss, Auszahlung außerhalb des Plugins).
+
 ### Robustheit bei Datenbankfehlern (Auditbefunde)
 - Zahlungs-Webhooks: Ein Datenbankfehler beim Beanspruchen eines Ereignisses wird nicht mehr als Duplikat bestätigt, sondern mit HTTP 500 beantwortet, damit der Anbieter erneut zustellt. Storno und Vollerstattung per Webhook prüfen jeden Schritt, rollen bei Fehlern zurück und lassen den Webhook wiederholen.
 - Ticketausgabe: alle Schreibvorgänge werden geprüft und bei Fehlern vollständig zurückgerollt; ein Wiederholungsjob gibt die Tickets später aus. Teilnehmerdaten der Bestellung werden erst gelöscht, wenn alle Zuordnungen gespeichert sind.

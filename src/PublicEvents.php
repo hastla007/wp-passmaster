@@ -115,10 +115,12 @@ final class PublicEvents {
 					// Effective server-side price (e.g. series price tiers); the checkout charges the same.
 					$type->base_price_minor = (int) $type->price_minor;
 					$type->price_label = Orders::price_label( $type, $occurrence, array( 'now' => $now ) );
+					// Buyer-visible reason for an automatic price (Sales\PriceRules), e.g. "Frühbucherpreis: gilt bei Buchung bis …".
+					$type->price_explanation = Sales\PriceRules::explanation_for( $type, $occurrence, array( 'now' => $now ) );
 					$type->price_minor = Orders::unit_price( $type, $occurrence, 1, array( 'now' => $now ) );
 					$type->available = Orders::availability( $type->ticket_type_id );
 					// Only field definitions are exposed (no answers); used to render attendee inputs.
-					$type->fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_key AS `key`,label,field_type AS type,required,purpose FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $type->ticket_type_id ), ARRAY_A );
+					$type->fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_key AS `key`,label,field_type AS type,required,purpose,consent_text,consent_version FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $type->ticket_type_id ), ARRAY_A );
 				}
 				$providers = Payments\Registry::enabled( $types[0]->currency );
 				$legal = array(

@@ -30,7 +30,7 @@
 		return node.id;
 	}
 	function fieldInput(field, id) {
-		const type = field.type === 'email' ? 'email' : (field.type === 'checkbox' ? 'checkbox' : 'text');
+		const type = field.type === 'email' ? 'email' : ((field.type === 'checkbox' || field.type === 'consent') ? 'checkbox' : 'text');
 		const input = field.type === 'textarea' ? el('textarea', { id: id, 'data-key': field.key }) : el('input', { id: id, type: type, 'data-key': field.key });
 		if (Number(field.required)) input.required = true;
 		if (type === 'checkbox') input.value = '1';
@@ -61,6 +61,7 @@
 					const id = base + '-f' + index;
 					fs.appendChild(el('label', { for: id }, field.label + (Number(field.required) ? ' *' : '')));
 					fs.appendChild(fieldInput(field, id));
+					if (field.type === 'consent' && field.consent_text) fs.appendChild(el('small', { class: 'wpcap-consent-text' }, field.consent_text + (field.consent_version ? ' (' + field.consent_version + ')' : '')));
 					if (field.purpose) fs.appendChild(el('small', {}, field.purpose));
 				});
 				box.appendChild(fs);
