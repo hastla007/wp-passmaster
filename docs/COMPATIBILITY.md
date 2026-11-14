@@ -8,20 +8,20 @@
 | WordPress | 6.4 bis 7.1 | 6.4 (Minimum) und aktuelle Version (ZIP-Installationstest) | `Requires at least: 6.4`, `Tested up to: 7.1` |
 | WooCommerce (optional) | 8.2 bis 11.3 | 8.2 (Minimum) und aktuelle Version, jeweils HPOS an und aus | `WC requires at least` / `WC tested up to` im Plugin-Header |
 | MariaDB | 10.6, 11.4 | 10.6 und 11.4 × PHP 8.2/8.3/8.4 | Minimum 10.6 (älteste LTS mit Support) |
-| MySQL | – (noch nicht freigegeben) | 8.0 und 8.4 × PHP 8.2/8.3/8.4, *experimental* | siehe unten |
+| MySQL | 8.0, 8.4 | 8.0 und 8.4 × PHP 8.2/8.3/8.4 | siehe unten |
 
 **Freigegeben** heißt: Die Kombination läuft in jeder CI-Ausführung blockierend (Integrationssuite, Last-Smoke-
 Test `--profile=ci`, bei WordPress/WooCommerce zusätzlich der Installationstest des Release-ZIPs). Andere
 Versionen dazwischen werden erwartet zu funktionieren, sind aber nicht einzeln getestet.
 
-### MySQL: getestet, nicht freigegeben
+### MySQL: Transaktionsstatus ohne `@@in_transaction`
 
-MySQL 8.0 und 8.4 laufen in der Matrix mit `continue-on-error` (Ergebnis sichtbar, blockiert nicht). Stand
-14.11.2026 schlagen dort 2 von 1670 Integrationstests fehl: Nach einem serverseitigen Rollback innerhalb der
-Bestelltransaktion (Deadlock-Opfer, simuliert in `tests/integration/modules/zz_integration.php`) erkennt
-`Orders::in_transaction()` den Verlust nur unter MariaDB (`@@in_transaction`); unter MySQL laufen die
-restlichen Statements im Autocommit weiter. Last-Smoke-Test und alle übrigen Tests sind grün. MySQL wird
-freigegeben (Matrixeintrag `experimental: false`), sobald dieser Pfad auch unter MySQL erkannt wird.
+MySQL kennt `@@in_transaction` nicht. Damit ein serverseitiger Rollback innerhalb der Bestelltransaktion
+(Deadlock-Opfer) trotzdem erkannt wird, schreibt `Orders::begin()` unter MySQL eine Markierungszeile in eine
+verbindungslokale temporäre InnoDB-Tabelle (`{prefix}wpcap_trx_marker`); ein Rollback entfernt sie, und
+`Orders::in_transaction()` meldet die Transaktion als verloren. Ohne das Recht `CREATE TEMPORARY TABLES` fällt
+das Plugin auf die übrigen geprüften Statements und den COMMIT zurück. Stand 14.11.2026 laufen MySQL 8.0 und
+8.4 mit allen Integrationstests und dem Last-Smoke-Test grün und sind freigegeben.
 
 ### Matrix ändern
 
