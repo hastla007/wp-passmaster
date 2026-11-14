@@ -18,7 +18,8 @@ final class Orders {
 	 *                        external (bool), unit_prices / line_totals / line_taxes (type_id => minor),
 	 *                        currency, hold_minutes, source, payment_provider, key_namespace
 	 *                        (separates idempotency keys per channel), skip_rate_limit (bool),
-	 *                        billing (external only: billing data already validated by the adapter).
+	 *                        billing (external only: billing data already validated by the adapter),
+	 *                        skip_buyer_limits (bool; door sales are never limited, see Sales\BuyerLimits).
 	 */
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;

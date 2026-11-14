@@ -198,3 +198,76 @@ Die Spalte `series` der Tabelle `wpcap_document_sequences` wurde auf 40 Zeichen 
   (umgesetzt: Gutschrift = Netto-Umsatz ohne USt)?
 - Österreich: Formulierung der Hinweise (Kleinunternehmer § 6 Abs. 1 Z 27 UStG, Reverse Charge
   § 19 Abs. 1 UStG) und Anforderungen an Gutschriften nach § 11 Abs. 7, 8 UStG.
+
+## Verkaufsregeln im Checkout
+
+Unabhängig vom Verkaufsmodell gelten im Checkout (`Orders::create()`) die folgenden Regeln. Code:
+`src/Sales/`, Modul `Modules/SalesRules`, Tabellen `wpcap_price_rules`, `wpcap_buyer_limits`,
+`wpcap_consents` (Kernschema 3.8.0). Steuern: siehe [TAX-PROFILES.md](TAX-PROFILES.md).
+
+### Automatische Preisregeln
+
+*Event bearbeiten → „Automatische Preisregeln“* (Terminserien zusätzlich unter „Serientermine“).
+
+- Arten: **Frühbucher** (Buchung vor einem Zeitpunkt), **Last-Minute** (ab X Stunden vor Beginn),
+  **Nachfrage** (ab X % verkauft oder reserviert), **Wochentag/Zeitfenster** (Beginn des Termins in
+  Ortszeit). Preis fest (brutto) oder prozentual zum gespeicherten Preis (kaufmännisch gerundet).
+- Geltungsbereich: ganzes Event, ein Termin, eine Ticketart und/oder Ticketarten eines Namens.
+- Grenzen (UTC verglichen): Frühbucher gilt solange `jetzt < bis`; Last-Minute ab `Beginn − Stunden`
+  (inklusive); Nachfrage ab `verkauft % ≥ Schwelle` (bezahlte Einheiten + aktive Reservierungen
+  anderer Bestellungen gegen das Kontingent der Ticketart, sonst des Termins); Zeitfenster „von“
+  inklusive, „bis“ exklusive, `von > bis` geht über Mitternacht.
+- Von allen passenden Regeln – Event- und Serienregeln gemeinsam – gewinnt die **höchste Priorität**
+  (Standard: Last-Minute 40, Nachfrage 30, Frühbucher 20, Wochentag 10; Gleichstand: höhere
+  Nachfrageschwelle, dann ältere Regel).
+- Käufer sehen Bezeichnung, regulären Preis („statt …“) und eine **Erklärung** („Frühbucherpreis: gilt
+  bei Buchung bis 01.12.2026 18:00“). Die angewendete Regel wird mit Basis- und Einzelpreis,
+  Erklärung und Auswertungszeitpunkt in `wpcap_order_items.line_snapshot.price` gespeichert.
+- Regeln wirken serverseitig über `wpcap_ticket_unit_price` (Online-Checkout, Warteliste, Kasse ohne
+  Preisvorgabe; WooCommerce nur mit aktivierter Option „Pass-Captain-Preise verwenden“).
+
+### Kampagnencodes und Stapelregeln
+
+*Pass Captain → Kampagnen*. Höchstens drei Codes je Bestellung, angewendet nach Priorität (kleinere
+Zahl zuerst) jeweils auf den Restbetrag.
+
+- **Kombinierbar** (Standard ja): ein nicht kombinierbarer Code muss allein eingelöst werden; sonst
+  Meldung „Der Code … kann nicht mit anderen Codes kombiniert werden.“
+- **Auch auf Tickets mit automatischem Preis** (Standard ja): sonst ignoriert der Code Positionen, deren
+  Preis aus einer Preisregel stammt.
+- **Höchstrabatt je Bestellung** (optional, Betrag): deckelt den Rabatt eines Codes.
+- **Maximaler Gesamtrabatt** (Einstellung `max_total_discount_bp`, nur Administratoren, auf der
+  Kampagnenseite): Summe aus Preisregel-Ermäßigungen und Codes je Bestellung, bezogen auf die
+  regulären Preise; spätere Codes werden zuerst gekürzt, ein Code ohne verbleibenden Rabatt wird mit
+  Meldung abgelehnt.
+
+### Käuferlimits
+
+*Event bearbeiten → „Käuferlimits“*: höchstens N Tickets je Person für das Event, einen Termin oder
+eine Ticketart, über alle Bestellungen. Person = Bestell-E-Mail (ohne Groß-/Kleinschreibung), das
+angemeldete Kundenkonto (`orders.customer_user_id`, nur native Checkouts) oder beides.
+
+- Gezählt werden bezahlte, nicht erstattete Tickets (abzüglich erstatteter Einheiten) und aktive,
+  nicht abgelaufene Reservierungen offener Bestellungen.
+- Atomar: Bestellungen derselben Person werden über eine Datenbanksperre (`GET_LOCK` je E-Mail bzw.
+  Konto) vor Beginn der Bestell-Transaktion serialisiert; die Prüfung erfolgt in der Transaktion nach
+  allen Zeilensperren. Andere Käufer werden nicht ausgebremst (Integrationstest: 8 parallele
+  Bestellungen gegen ein Limit von 3 → genau 3 erfolgreich).
+- Nicht begrenzt: Abendkasse (Türverkauf) und verspätete Zahlungsbestätigungen abgelaufener
+  Reservierungen; Adapter können `skip_buyer_limits` setzen.
+
+### Einwilligungsfelder für Teilnehmer
+
+*Event → Termin → Ticketart → Teilnehmerfelder*, Typ **„Einwilligung (protokolliert)“** mit
+Einwilligungstext und Version.
+
+- Checkout: Checkbox mit Text; bei Pflichtfeldern ist die Einwilligung Voraussetzung. Bei der
+  Ticketausgabe entsteht je Ticket ein Datensatz in `wpcap_consents` mit Text, Version, SHA-256-Hash,
+  Quelle (`checkout`), betroffener E-Mail (Teilnehmer, sonst Käufer) und Zeitpunkt der Bestellung.
+- Ändert sich der Text, nachdem Einwilligungen erteilt wurden, muss die Version geändert werden;
+  bestehende Datensätze behalten ihre Fassung.
+- Widerruf im **Bestellportal** (Abschnitt „Einwilligungen“): Datensatz bleibt mit `withdrawn_at` und
+  Quelle erhalten, die Antwort wird gelöscht, Audit-Eintrag `consent_withdrawn`. Im Teilnehmerformular
+  des Portals sind Einwilligungsfelder nicht änderbar.
+- Datenschutz: eigener Exporter/Löscher („Pass Captain Einwilligungen“); Löschung mit den
+  Teilnehmerantworten nach Terminende + Aufbewahrungsdauer des Felds (bzw. der globalen Einstellung).
