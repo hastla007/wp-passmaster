@@ -125,7 +125,7 @@ final class AdminPage {
 	}
 
 	private static function yes_no( $flag ) {
-		return $flag ? '<span style="color:#008a20">' . esc_html__( 'ja', 'pass-captain' ) . '</span>' : '<span style="color:#d63638">' . esc_html__( 'nein', 'pass-captain' ) . '</span>';
+		return $flag ? '<span style="color:#007017">' . esc_html__( 'ja', 'pass-captain' ) . '</span>' : '<span style="color:#d63638">' . esc_html__( 'nein', 'pass-captain' ) . '</span>';
 	}
 
 	private static function cert_row( $label, $cert ) {
@@ -186,10 +186,10 @@ final class AdminPage {
 		echo '<tr><th>' . esc_html__( 'Aktiv', 'pass-captain' ) . '</th><td><label><input type="checkbox" name="wallet_apple_enabled" value="1"' . checked( (int) $s['wallet_apple_enabled'], 1, false ) . '> ' . esc_html__( '.pkpass für neue Tickets erzeugen', 'pass-captain' ) . '</label></td></tr>';
 		self::text_row( 'wallet_apple_pass_type_id', __( 'Pass Type ID', 'pass-captain' ), $s['wallet_apple_pass_type_id'], 'pass.com.example.tickets' );
 		self::text_row( 'wallet_apple_team_id', __( 'Team-ID', 'pass-captain' ), $s['wallet_apple_team_id'] );
-		echo '<tr><th>' . esc_html__( 'Versand', 'pass-captain' ) . '</th><td>';
-		Forms::select( 'wallet_apple_delivery', array( 'attachment' => __( 'Als Anhang (.pkpass)', 'pass-captain' ), 'link' => __( 'Als Download-Link', 'pass-captain' ) ), $s['wallet_apple_delivery'] );
-		echo '</td></tr><tr><th>' . esc_html__( 'APNs', 'pass-captain' ) . '</th><td>';
-		Forms::select( 'wallet_apns_host', array( 'https://api.push.apple.com' => __( 'Produktion', 'pass-captain' ), 'https://api.sandbox.push.apple.com' => __( 'Sandbox', 'pass-captain' ) ), $s['wallet_apns_host'] );
+		echo '<tr><th><label for="wpcap-wallet-apple-delivery">' . esc_html__( 'Versand', 'pass-captain' ) . '</label></th><td>';
+		Forms::select( 'wallet_apple_delivery', array( 'attachment' => __( 'Als Anhang (.pkpass)', 'pass-captain' ), 'link' => __( 'Als Download-Link', 'pass-captain' ) ), $s['wallet_apple_delivery'], 'wpcap-wallet-apple-delivery' );
+		echo '</td></tr><tr><th><label for="wpcap-wallet-apns-host">' . esc_html__( 'APNs', 'pass-captain' ) . '</label></th><td>';
+		Forms::select( 'wallet_apns_host', array( 'https://api.push.apple.com' => __( 'Produktion', 'pass-captain' ), 'https://api.sandbox.push.apple.com' => __( 'Sandbox', 'pass-captain' ) ), $s['wallet_apns_host'], 'wpcap-wallet-apns-host' );
 		echo '</td></tr>';
 		self::text_row( 'wallet_apple_icon_path', __( 'Eigenes Icon (PNG-Pfad, 29×29)', 'pass-captain' ), $s['wallet_apple_icon_path'], __( 'Optional; …@2x.png daneben wird mitverwendet. Ohne Angabe wird ein Icon erzeugt.', 'pass-captain' ) );
 		self::text_row( 'wallet_apple_logo_path', __( 'Eigenes Logo (PNG-Pfad, max. 160×50)', 'pass-captain' ), $s['wallet_apple_logo_path'] );

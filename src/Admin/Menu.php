@@ -52,11 +52,17 @@ final class Menu {
 		}
 	}
 
-	/** Small accessibility fixes on plugin pages: readable code in links (contrast), delete links. */
+	/**
+	 * Small accessibility fixes on plugin pages: readable code in links (contrast), delete links, and checkboxes/radios
+	 * with a 24×24 px target (WCAG 2.2 SC 2.5.8; core draws them 16 px wide on desktop).
+	 */
 	public static function admin_styles() {
 		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects CSS.
 		if ( ! str_starts_with( $page, 'wpcap' ) && 'wp-pass-captain' !== $page ) { return; }
-		echo '<style>#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}</style>';
+		echo '<style>#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}'
+			. '#wpbody-content input[type=checkbox],#wpbody-content input[type=radio]{width:1.5rem;height:1.5rem}'
+			. '#wpbody-content input[type=checkbox]:checked::before{width:1.8rem;height:1.8rem;margin:-.15rem -.3rem}'
+			. '#wpbody-content input[type=radio]:checked::before{width:.5625rem;height:.5625rem;margin:.40625rem}</style>';
 	}
 
 	/** First capability of the list the current user holds (fallback: the first one). */

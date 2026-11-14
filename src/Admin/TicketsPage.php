@@ -163,8 +163,8 @@ final class TicketsPage {
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
 			<input type="search" name="s" class="regular-text" value="<?php echo esc_attr( $filters['search'] ); ?>" placeholder="<?php esc_attr_e( 'Ticket-ID, Bestellnummer, E-Mail oder Name', 'pass-captain' ); ?>">
-			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'] ); ?>
-			<?php Forms::select( 'status', $status_options, $filters['status'] ); ?>
+			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + Queries::event_options( $scope ), $filters['event_id'], '', Forms::aria_label( __( 'Event', 'pass-captain' ) ) ); ?>
+			<?php Forms::select( 'status', $status_options, $filters['status'], '', Forms::aria_label( __( 'Status', 'pass-captain' ) ) ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Suchen', 'pass-captain' ); ?></button>
 		</form>
 		<?php if ( ! $has_filter ) : ?>

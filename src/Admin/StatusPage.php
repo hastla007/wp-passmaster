@@ -152,7 +152,7 @@ final class StatusPage {
 
 	private static function badge( $state ) {
 		$labels = array( 'ok' => __( 'OK', 'pass-captain' ), 'warning' => __( 'Warnung', 'pass-captain' ), 'error' => __( 'Fehler', 'pass-captain' ) );
-		$colors = array( 'ok' => '#00a32a', 'warning' => '#996800', 'error' => '#b32d2e' );
+		$colors = array( 'ok' => '#007017', 'warning' => '#996800', 'error' => '#b32d2e' );
 		$state = isset( $labels[ $state ] ) ? $state : 'warning';
 		return '<strong style="color:' . esc_attr( $colors[ $state ] ) . '">' . esc_html( $labels[ $state ] ) . '</strong>';
 	}

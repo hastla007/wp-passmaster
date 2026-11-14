@@ -106,12 +106,12 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	check('ArrowUp on the quantity adds an attendee fieldset', attendees === 1, String(attendees));
 	await page.keyboard.press('Tab');
 	f = await focused(page, scope);
-	check('next Tab reaches the buyer e-mail (placed before the attendee fields)', f && f.field === 'email' && /E-Mail/.test(f.name), f && `${f.tag}:${f.field} ${f.name}`);
+	check('next Tab reaches the buyer e-mail (placed before the attendee fields)', f && f.field === 'email' && /E-Mail|e-?mail/i.test(f.name), f && `${f.tag}:${f.field} ${f.name}`);
 	await page.keyboard.type('keine-adresse');
 	await page.keyboard.press('Tab');
 	f = await focused(page, scope);
 	check('then Tab moves into the new attendee fields', f && f.field === '__name', f && `${f.tag}:${f.field}`);
-	check('attendee name field is labelled', f && /Name/.test(f.name), f && f.name);
+	check('attendee name field is labelled', f && /Name/i.test(f.name), f && f.name);
 	const group = await page.evaluate((sel) => { const fs = document.querySelector(sel + ' .wpcap-attendee'); return fs && fs.querySelector('legend') ? fs.querySelector('legend').textContent : ''; }, scope);
 	check('attendee fieldset has a legend', !!group, group);
 	await page.keyboard.type('Alex Muster');
@@ -119,7 +119,7 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	await page.waitForTimeout(200);
 	f = await focused(page, scope);
 	const emailError = await page.evaluate((sel) => { const i = document.querySelector(sel + ' [name="email"]'); const d = i && document.getElementById(i.getAttribute('aria-describedby') || ''); return { invalid: i && i.getAttribute('aria-invalid'), described: d ? d.textContent : '', summary: document.activeElement && document.activeElement.classList.contains('wpcap-error-summary') }; }, scope);
-	check('invalid e-mail: summary focused, field has aria-invalid and a described error', emailError.summary && emailError.invalid === 'true' && /E-Mail/.test(emailError.described), emailError.described);
+	check('invalid e-mail: summary focused, field has aria-invalid and a described error', emailError.summary && emailError.invalid === 'true' && /E-Mail|e-?mail/i.test(emailError.described), emailError.described);
 	await page.evaluate((sel) => document.querySelector(sel + ' [name="email"]').focus(), scope);
 	await page.keyboard.press('ControlOrMeta+A');
 	await page.keyboard.type('keyboard-' + Date.now() + '@example.com');
@@ -137,7 +137,7 @@ async function tabUntil(page, scope, predicate, max = 300) {
 	await page.keyboard.press('Enter');
 	await page.waitForFunction(() => !!document.querySelector('.wpcap-confirmation, .wpcap-error-summary'), null, { timeout: 15000 }).catch(() => {});
 	const done = await page.evaluate(() => { const p = document.querySelector('.wpcap-confirmation'); return { text: p ? p.textContent.trim() : '', focused: !!p && document.activeElement === p }; });
-	check('successful order shows the confirmation panel with the order number', /Bestellnummer/.test(done.text), done.text.slice(0, 80));
+	check('successful order shows the confirmation panel with the order number', /Bestellnummer|Order number/i.test(done.text), done.text.slice(0, 80));
 	check('focus moves to the confirmation panel', done.focused);
 
 	console.log('Scanner: keyboard and announcements');

@@ -68,8 +68,8 @@ final class ConflictsPage {
 		<p class="description"><?php esc_html_e( 'Offline-Scans, die ein Gerät bereits eingelassen hat, die der Server aber abgelehnt hat (z. B. Ticket woanders schon verwendet). Bitte prüfen und mit Notiz klären.', 'pass-captain' ); ?></p>
 		<form method="get">
 			<input type="hidden" name="page" value="<?php echo esc_attr( self::SLUG ); ?>">
-			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $event_id ); ?>
-			<?php Forms::select( 'status', array( 'open' => __( 'Offen', 'pass-captain' ), 'resolved' => __( 'Geklärt', 'pass-captain' ), 'all' => __( 'Alle', 'pass-captain' ) ), $status ); ?>
+			<?php Forms::select( 'event_id', array( 0 => __( 'Alle Events', 'pass-captain' ) ) + $events, $event_id, '', Forms::aria_label( __( 'Event', 'pass-captain' ) ) ); ?>
+			<?php Forms::select( 'status', array( 'open' => __( 'Offen', 'pass-captain' ), 'resolved' => __( 'Geklärt', 'pass-captain' ), 'all' => __( 'Alle', 'pass-captain' ) ), $status, '', Forms::aria_label( __( 'Status', 'pass-captain' ) ) ); ?>
 			<button class="button" type="submit"><?php esc_html_e( 'Filtern', 'pass-captain' ); ?></button>
 		</form>
 		<table class="widefat striped"><thead><tr>
@@ -89,7 +89,7 @@ final class ConflictsPage {
 				<td>
 				<?php if ( 'open' === $row->status ) : ?>
 					<?php Forms::open_form( 'wpcap_admission_resolve_conflict', 'wpcap_admission_resolve_conflict_' . $row->conflict_id ); Forms::hidden( 'conflict_id', $row->conflict_id ); ?>
-						<?php Forms::select( 'resolution', array( '' => __( 'Klärung …', 'pass-captain' ) ) + $resolutions, '' ); ?>
+						<?php Forms::select( 'resolution', array( '' => __( 'Klärung …', 'pass-captain' ) ) + $resolutions, '', '', Forms::aria_label( __( 'Klärung', 'pass-captain' ) ) ); ?>
 						<input type="text" name="note" maxlength="2000" placeholder="<?php esc_attr_e( 'Notiz', 'pass-captain' ); ?>">
 						<button class="button"><?php esc_html_e( 'Klären', 'pass-captain' ); ?></button>
 					</form>
