@@ -191,6 +191,57 @@ final class SalesModel {
 		);
 	}
 
+	/** Seller key of the platform (events without organizer and own_name organizers). */
+	const PLATFORM_KEY = 'platform';
+
+	/**
+	 * Invoice issuer ("seller") per ticket type, with the same rule as order_context(): an event of an
+	 * agent organizer is sold by that organizer ("org-{partner_id}"), everything else by the platform
+	 * ("platform"). Used to keep one seller per order, e.g. in WooCommerce carts.
+	 *
+	 * @param int[] $type_ids Ticket type IDs.
+	 * @return array<int,string> ticket type ID => seller key (unknown types: platform).
+	 */
+	public static function seller_keys_for_types( array $type_ids ) {
+		global $wpdb;
+		$type_ids = array_values( array_unique( array_filter( array_map( 'absint', $type_ids ) ) ) );
+		$out = array_fill_keys( $type_ids, self::PLATFORM_KEY );
+		if ( ! $type_ids ) { return $out; }
+		$p = $wpdb->prefix;
+		$in = implode( ',', $type_ids );
+		$rows = $wpdb->get_results( "SELECT tt.ticket_type_id, pa.partner_id, pa.sales_model FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_partner_events pe ON pe.event_id=o.event_id INNER JOIN {$p}wpcap_partners pa ON pa.partner_id=pe.partner_id WHERE tt.ticket_type_id IN ($in)" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		foreach ( (array) $rows as $row ) {
+			if ( self::AGENT === self::model_of( $row ) ) {
+				$out[ (int) $row->ticket_type_id ] = 'org-' . (int) $row->partner_id;
+			}
+		}
+		return $out;
+	}
+
+	/** Sorts seller keys deterministically: platform first, then organizers by partner ID. */
+	public static function sort_seller_keys( array $keys ) {
+		$keys = array_values( array_unique( array_map( 'strval', $keys ) ) );
+		usort( $keys, static function ( $a, $b ) {
+			$na = self::PLATFORM_KEY === $a ? 0 : (int) substr( $a, 4 );
+			$nb = self::PLATFORM_KEY === $b ? 0 : (int) substr( $b, 4 );
+			return $na <=> $nb;
+		} );
+		return $keys;
+	}
+
+	/** Display name of a seller key (legal name of the organizer or the platform's seller name). */
+	public static function seller_name( $key ) {
+		if ( 0 === strpos( (string) $key, 'org-' ) ) {
+			$partner = Repository::get( (int) substr( (string) $key, 4 ) );
+			if ( $partner ) {
+				$legal = trim( (string) ( $partner->legal_name ?? '' ) );
+				return '' !== $legal ? $legal : (string) $partner->name;
+			}
+		}
+		$name = trim( (string) ( Invoices::seller()['name'] ?? '' ) );
+		return '' !== $name ? $name : __( 'Plattform', 'pass-captain' );
+	}
+
 	/**
 	 * Checks before an agent invoice is issued (organizer data complete, no VAT on lines of a small business).
 	 *
