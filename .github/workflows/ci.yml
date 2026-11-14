@@ -176,11 +176,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Accessibility gate + browser E2E (Chromium)
+      - name: Download WooCommerce (Blocks checkout E2E)
+        run: curl -fsSL --retry 3 https://downloads.wordpress.org/plugin/woocommerce.latest-stable.zip -o "$RUNNER_TEMP/woocommerce.zip"
+      - name: Accessibility gate + browser E2E (Chromium, incl. WooCommerce Blocks)
         env:
           WPCAP_DB_HOST: 127.0.0.1
           WPCAP_DB_NAME: wp_browser
-        run: tests/ci/browser-tests.sh a11y && tests/ci/browser-tests.sh e2e
+        run: |
+          export WPCAP_WOO_ZIP="$RUNNER_TEMP/woocommerce.zip"
+          tests/ci/browser-tests.sh a11y && tests/ci/browser-tests.sh e2e
       - name: Upload E2E failure screenshots
         if: failure()
         uses: actions/upload-artifact@v4
