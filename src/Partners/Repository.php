@@ -160,7 +160,7 @@ final class Repository {
 		$p = $wpdb->prefix;
 		if ( ! Vault::available() || ! self::table_present( 'wpcap_partners' ) ) { return 0; }
 		$count = 0;
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT partner_id,payout_details FROM %i WHERE payout_details<>''", $p . 'wpcap_partners' ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT partner_id,payout_details FROM %i WHERE payout_details<>''", $p . 'wpcap_partners' ) ) as $row ) {
 			$context = self::payout_context( (int) $row->partner_id );
 			$plain = self::plain_for_migration( (string) $row->payout_details, $context );
 			if ( null === $plain ) { continue; }
@@ -169,7 +169,7 @@ final class Repository {
 			if ( false !== $wpdb->update( "{$p}wpcap_partners", array( 'payout_details' => $sealed ), array( 'partner_id' => (int) $row->partner_id ) ) ) { ++$count; }
 		}
 		if ( ! self::table_present( 'wpcap_partner_settlements' ) ) { return $count; }
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT settlement_id,partner_snapshot FROM %i WHERE partner_snapshot LIKE '%%payout_details%%'", $p . 'wpcap_partner_settlements' ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT settlement_id,partner_snapshot FROM %i WHERE partner_snapshot LIKE '%%payout_details%%'", $p . 'wpcap_partner_settlements' ) ) as $row ) {
 			$snapshot = json_decode( (string) $row->partner_snapshot, true );
 			$stored = is_array( $snapshot ) ? (string) ( $snapshot['partner']['payout_details'] ?? '' ) : '';
 			if ( '' === $stored ) { continue; }

@@ -48,7 +48,7 @@ final class Assignments {
 		if ( $occurrence_id && $event_id !== (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $occurrence_id ) ) ) {
 			return new \WP_Error( 'wpcap_offline_occurrence', __( 'Der Termin gehört nicht zu diesem Event.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (device_id,event_id,occurrence_id,assigned_by,created_at) VALUES (%d,%d,%d,%d,%s)', self::table(), (int) $device->device_id, $event_id, $occurrence_id, get_current_user_id(), current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (device_id,event_id,occurrence_id,assigned_by,created_at) VALUES (%d,%d,%d,%d,%s)', self::table(), (int) $device->device_id, $event_id, $occurrence_id, get_current_user_id(), current_time( 'mysql', true ) ) );
 		Audit::record( 'offline_device_assigned', 'device', (int) $device->device_id, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id ) );
 		return array( 'device_id' => (int) $device->device_id, 'event_id' => $event_id, 'occurrence_id' => $occurrence_id );
 	}
@@ -63,7 +63,7 @@ final class Assignments {
 	/** Assignment row covering this occurrence (event-wide or exact), or null. */
 	public static function find( $device_id, $event_id, $occurrence_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE device_id=%d AND event_id=%d AND occurrence_id IN (0,%d) ORDER BY occurrence_id DESC LIMIT 1', self::table(), absint( $device_id ), absint( $event_id ), absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE device_id=%d AND event_id=%d AND occurrence_id IN (0,%d) ORDER BY occurrence_id DESC LIMIT 1', self::table(), absint( $device_id ), absint( $event_id ), absint( $occurrence_id ) ) );
 	}
 
 	public static function touch( $row ) {
@@ -74,7 +74,7 @@ final class Assignments {
 	/** All assignment rows of a device. */
 	public static function for_device( $device_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE device_id=%d ORDER BY event_id, occurrence_id', self::table(), absint( $device_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE device_id=%d ORDER BY event_id, occurrence_id', self::table(), absint( $device_id ) ) );
 	}
 
 	/** Assignment rows of an event with device info. */

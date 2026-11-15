@@ -50,7 +50,7 @@ echo "W7: record_external() checks its database writes\n";
 $record_faults = array(
 	'START TRANSACTION fails'      => array( '/^START TRANSACTION/', 0, 1, false ),
 	'order lock fails'             => array( '/FROM \S+wpcap_orders WHERE order_id=\d+ FOR UPDATE/', 0, 1, false ),
-	'ticket lock fails'            => array( '/FROM \S+wpcap_tickets WHERE ticket_id IN .* FOR UPDATE/', 0, 1, false ),
+	'ticket lock fails'            => array( '/FROM \S+wpcap_tickets WHERE .*\bticket_id IN .* FOR UPDATE/', 0, 1, false ),
 	'refund insert fails'          => array( '/^INSERT INTO \S+wpcap_refunds/', 0, 1, false ),
 	'order item update fails'      => array( '/UPDATE \S+wpcap_order_items SET refunded_quantity/', 0, 1, false ),
 	'ticket revocation fails'      => array( "/SET status='revoked' WHERE ticket_id/", 0, 1, false ),

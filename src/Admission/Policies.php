@@ -40,7 +40,7 @@ final class Policies {
 	/** Normalised policy of a ticket type, or null when none is configured (legacy behaviour). */
 	public static function for_type( $ticket_type_id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d', self::table(), absint( $ticket_type_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d', self::table(), absint( $ticket_type_id ) ) );
 		return $row ? self::normalize( $row ) : null;
 	}
 

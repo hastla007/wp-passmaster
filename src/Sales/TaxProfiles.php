@@ -52,19 +52,19 @@ final class TaxProfiles {
 
 	public static function get( $profile_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE tax_profile_id=%d', self::table(), absint( $profile_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE tax_profile_id=%d', self::table(), absint( $profile_id ) ) );
 	}
 
 	/** All profiles (admin list), newest version first per country/class. */
 	public static function all() {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY country_code,tax_class,effective_from DESC,tax_profile_id DESC LIMIT 1000', self::table() ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY country_code,tax_class,effective_from DESC,tax_profile_id DESC LIMIT 1000', self::table() ) );
 	}
 
 	/** Distinct tax classes of all profiles plus "standard" (ticket type select). */
 	public static function classes() {
 		global $wpdb;
-		$classes = array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tax_class FROM %i WHERE status<>'archived' ORDER BY tax_class", self::table() ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		$classes = array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tax_class FROM %i WHERE status<>'archived' ORDER BY tax_class", self::table() ) ) );
 		return array_values( array_unique( array_merge( array( 'standard' ), array_filter( $classes ) ) ) );
 	}
 
@@ -111,7 +111,7 @@ final class TaxProfiles {
 		global $wpdb;
 		$row = self::normalize( $in );
 		if ( is_wp_error( $row ) ) { return $row; }
-		$duplicate = $wpdb->get_var( $wpdb->prepare( 'SELECT tax_profile_id FROM %i WHERE country_code=%s AND tax_class=%s AND version=%s', self::table(), $row['country_code'], $row['tax_class'], $row['version'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		$duplicate = $wpdb->get_var( $wpdb->prepare( 'SELECT tax_profile_id FROM %i WHERE country_code=%s AND tax_class=%s AND version=%s', self::table(), $row['country_code'], $row['tax_class'], $row['version'] ) );
 		if ( $duplicate ) { return self::error( 'wpcap_tax_profile_duplicate', __( 'Diese Version existiert für Land und Steuerklasse bereits.', 'pass-captain' ), 409 ); }
 		$ok = $wpdb->insert( self::table(), $row + array( 'status' => 'draft', 'created_at' => current_time( 'mysql', true ) ) );
 		if ( ! $ok ) { return self::error( 'wpcap_tax_profile_save', __( 'Steuerprofil konnte nicht gespeichert werden.', 'pass-captain' ), 500 ); }
@@ -128,7 +128,7 @@ final class TaxProfiles {
 		if ( 'draft' !== $profile->status ) { return self::error( 'wpcap_tax_profile_frozen', __( 'Aktive oder archivierte Versionen können nicht geändert werden. Bitte eine neue Version anlegen.', 'pass-captain' ), 409 ); }
 		$row = self::normalize( $in );
 		if ( is_wp_error( $row ) ) { return $row; }
-		$duplicate = $wpdb->get_var( $wpdb->prepare( 'SELECT tax_profile_id FROM %i WHERE country_code=%s AND tax_class=%s AND version=%s AND tax_profile_id<>%d', self::table(), $row['country_code'], $row['tax_class'], $row['version'], (int) $profile->tax_profile_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		$duplicate = $wpdb->get_var( $wpdb->prepare( 'SELECT tax_profile_id FROM %i WHERE country_code=%s AND tax_class=%s AND version=%s AND tax_profile_id<>%d', self::table(), $row['country_code'], $row['tax_class'], $row['version'], (int) $profile->tax_profile_id ) );
 		if ( $duplicate ) { return self::error( 'wpcap_tax_profile_duplicate', __( 'Diese Version existiert für Land und Steuerklasse bereits.', 'pass-captain' ), 409 ); }
 		$wpdb->update( self::table(), $row, array( 'tax_profile_id' => (int) $profile->tax_profile_id ) );
 		Audit::record( 'tax_profile_updated', 'tax_profile', (int) $profile->tax_profile_id, array( 'version' => $row['version'], 'rate_bp' => $row['rate_basis_points'] ) );
@@ -146,7 +146,7 @@ final class TaxProfiles {
 		if ( ! $profile ) { return self::error( 'wpcap_tax_profile_missing', __( 'Steuerprofil nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( 'draft' !== $profile->status ) { return self::error( 'wpcap_tax_profile_state', __( 'Nur Entwürfe können aktiviert werden.', 'pass-captain' ), 409 ); }
 		$until = $profile->effective_until ? $profile->effective_until : '9999-12-31';
-		$overlap = $wpdb->get_row( $wpdb->prepare( "SELECT tax_profile_id,version FROM %i WHERE country_code=%s AND tax_class=%s AND status='active' AND effective_from<=%s AND COALESCE(effective_until,'9999-12-31')>=%s LIMIT 1", self::table(), $profile->country_code, $profile->tax_class, $until, $profile->effective_from ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		$overlap = $wpdb->get_row( $wpdb->prepare( "SELECT tax_profile_id,version FROM %i WHERE country_code=%s AND tax_class=%s AND status='active' AND effective_from<=%s AND COALESCE(effective_until,'9999-12-31')>=%s LIMIT 1", self::table(), $profile->country_code, $profile->tax_class, $until, $profile->effective_from ) );
 		if ( $overlap ) {
 			/* translators: %s: version of the overlapping profile */
 			return self::error( 'wpcap_tax_profile_overlap', sprintf( __( 'Der Gültigkeitszeitraum überschneidet sich mit der aktiven Version %s. Bitte deren „gültig bis“ zuerst über eine neue Version begrenzen oder sie archivieren.', 'pass-captain' ), $overlap->version ), 409 );
@@ -172,7 +172,7 @@ final class TaxProfiles {
 		$country = strtoupper( (string) $country );
 		$class = '' !== (string) $class ? (string) $class : 'standard';
 		if ( ! preg_match( '/^[A-Z]{2}$/', $country ) || ! self::valid_date( (string) $date ) ) { return null; }
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE country_code=%s AND tax_class=%s AND status='active' AND effective_from<=%s AND (effective_until IS NULL OR effective_until>=%s) ORDER BY effective_from DESC,tax_profile_id DESC LIMIT 1", self::table(), $country, $class, $date, $date ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE country_code=%s AND tax_class=%s AND status='active' AND effective_from<=%s AND (effective_until IS NULL OR effective_until>=%s) ORDER BY effective_from DESC,tax_profile_id DESC LIMIT 1", self::table(), $country, $class, $date, $date ) );
 		return $row ?: null;
 	}
 

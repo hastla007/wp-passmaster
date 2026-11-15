@@ -82,9 +82,6 @@ final class Retention {
 
 	private static function utc( $ts ) { return gmdate( 'Y-m-d H:i:s', (int) $ts ); }
 
-	/** SQL for the end of an occurrence (alias o). */
-	private static function end_sql() { return 'COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))'; }
-
 	/** Repeats $select (returns ids) / $apply (ids) until done or out of time. */
 	private static function loop( $deadline, callable $select, callable $apply ) {
 		$total = 0;
@@ -99,25 +96,24 @@ final class Retention {
 		return $total;
 	}
 
-
 	private static function step_answers( $now, $deadline ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$global = self::attendee_days();
-		$end = self::end_sql();
 		$now_sql = self::utc( $now );
-		$days = $global > 0 ? (string) (int) $global : 'COALESCE(f.retention_days, ' . (int) self::default_attendee_days() . ')';
+		$default_days = (int) self::default_attendee_days();
 		// Index-friendly pre-filter: an occurrence can only be due if it started before now - min(N).
 		$min = $global > 0 ? $global : (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(MIN(retention_days),0) FROM %i', $p . 'wpcap_participant_fields' ) );
 		$min = min( $min, $global > 0 ? $global : self::default_attendee_days() );
 		$start_before = self::utc( $now - $min * DAY_IN_SECONDS );
 		return self::loop(
 			$deadline,
-			static function () use ( $wpdb, $p, $end, $days, $now_sql, $start_before ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT a.answer_id FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id INNER JOIN {$p}wpcap_tickets t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN {$p}wpcap_participant_answers a ON a.ticket_id=t.ticket_id LEFT JOIN {$p}wpcap_participant_fields f ON f.field_id=a.field_id WHERE o.starts_at<%s AND DATE_ADD($end, INTERVAL $days DAY)<%s LIMIT %d", $start_before, $now_sql, self::BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer/static SQL.
+			static function () use ( $wpdb, $p, $global, $default_days, $now_sql, $start_before ) {
+				// A global retention period overrides the per-field one (which falls back to the default).
+				return $wpdb->get_col( $wpdb->prepare( 'SELECT a.answer_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN %i a ON a.ticket_id=t.ticket_id LEFT JOIN %i f ON f.field_id=a.field_id WHERE o.starts_at<%s AND DATE_ADD(COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY)), INTERVAL IF(%d>0, %d, COALESCE(f.retention_days, %d)) DAY)<%s LIMIT %d', $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $p . 'wpcap_participant_answers', $p . 'wpcap_participant_fields', $start_before, $global, $global, $default_days, $now_sql, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE answer_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_participant_answers', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE answer_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_participant_answers', ...$ids ) );
 			}
 		);
 	}
@@ -126,13 +122,12 @@ final class Retention {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$days = self::attendee_days() > 0 ? self::attendee_days() : self::default_attendee_days();
-		$end = self::end_sql();
 		$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
-		$from = "{$p}wpcap_occurrences o INNER JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id INNER JOIN {$p}wpcap_tickets t ON t.ticket_type_id=tt.ticket_type_id";
+		// Occurrences end at ends_at, or one day after the start when no end is set.
 		$count = self::loop(
 			$deadline,
-			static function () use ( $wpdb, $p, $from, $end, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT ta.assignment_id FROM $from INNER JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE o.starts_at<%s AND $end<%s AND (ta.attendee_name<>'' OR ta.attendee_email<>'') LIMIT %d", $cutoff, $cutoff, self::BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			static function () use ( $wpdb, $p, $cutoff ) {
+				return $wpdb->get_col( $wpdb->prepare( "SELECT ta.assignment_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE o.starts_at<%s AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s AND (ta.attendee_name<>'' OR ta.attendee_email<>'') LIMIT %d", $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $p . 'wpcap_ticket_assignments', $cutoff, $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_name='',attendee_email='' WHERE assignment_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_ticket_assignments', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -140,14 +135,14 @@ final class Retention {
 		);
 		$count += self::loop(
 			$deadline,
-			static function () use ( $wpdb, $from, $end, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM $from WHERE o.starts_at<%s AND $end<%s AND t.attendee_email<>'' LIMIT %d", $cutoff, $cutoff, self::BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			static function () use ( $wpdb, $p, $cutoff ) {
+				return $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id WHERE o.starts_at<%s AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s AND t.attendee_email<>'' LIMIT %d", $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $cutoff, $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET attendee_email='' WHERE ticket_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_tickets', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			}
 		);
-		$occurrences = $wpdb->get_col( $wpdb->prepare( "SELECT o.occurrence_id FROM {$p}wpcap_occurrences o WHERE o.starts_at<%s AND $end<%s", $cutoff, $cutoff ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$occurrences = $wpdb->get_col( $wpdb->prepare( 'SELECT o.occurrence_id FROM %i o WHERE o.starts_at<%s AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s', $p . 'wpcap_occurrences', $cutoff, $cutoff ) );
 		if ( $occurrences && Privacy::has_table( 'wpcap_offline_entries' ) ) {
 			foreach ( array_chunk( $occurrences, self::BATCH ) as $chunk ) {
 				if ( microtime( true ) >= $deadline ) { break; }
@@ -157,11 +152,11 @@ final class Retention {
 		if ( Privacy::has_table( 'wpcap_wallet_registrations' ) ) {
 			$count += self::loop(
 				$deadline,
-				static function () use ( $wpdb, $p, $from, $end, $cutoff ) {
-					return $wpdb->get_col( $wpdb->prepare( "SELECT r.registration_id FROM $from INNER JOIN {$p}wpcap_wallet_passes w ON w.ticket_id=t.ticket_id INNER JOIN {$p}wpcap_wallet_registrations r ON r.serial_number=w.serial_number WHERE o.starts_at<%s AND $end<%s LIMIT %d", $cutoff, $cutoff, self::BATCH ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				static function () use ( $wpdb, $p, $cutoff ) {
+					return $wpdb->get_col( $wpdb->prepare( 'SELECT r.registration_id FROM %i o INNER JOIN %i tt ON tt.occurrence_id=o.occurrence_id INNER JOIN %i t ON t.ticket_type_id=tt.ticket_type_id INNER JOIN %i w ON w.ticket_id=t.ticket_id INNER JOIN %i r ON r.serial_number=w.serial_number WHERE o.starts_at<%s AND COALESCE(o.ends_at, DATE_ADD(o.starts_at, INTERVAL 1 DAY))<%s LIMIT %d', $p . 'wpcap_occurrences', $p . 'wpcap_ticket_types', $p . 'wpcap_tickets', $p . 'wpcap_wallet_passes', $p . 'wpcap_wallet_registrations', $cutoff, $cutoff, self::BATCH ) );
 				},
 				static function ( $ids ) use ( $wpdb, $p ) {
-					return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE registration_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_wallet_registrations', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE registration_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_wallet_registrations', ...$ids ) );
 				}
 			);
 		}
@@ -181,7 +176,7 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM %i WHERE attendee_data IS NOT NULL AND payment_status IN ('expired','cancelled','failed') AND updated_at<%s LIMIT %d", $p . 'wpcap_orders', $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET attendee_data=NULL WHERE order_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_orders', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				return (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET attendee_data=NULL WHERE order_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_orders', ...$ids ) );
 			}
 		);
 	}
@@ -201,7 +196,7 @@ final class Retention {
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				$done = 0;
-				foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,customer_email FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_orders', ...$ids ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,customer_email FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_orders', ...$ids ) ) as $row ) {
 					$done += (int) $wpdb->update( $p . 'wpcap_orders', array( 'customer_email' => Privacy::replacement_email( (string) $row->customer_email, (int) $row->order_id ), 'access_token_hash' => hash( 'sha256', wp_generate_password( 64, true, true ) ), 'access_expires_at' => null, 'attendee_data' => null ), array( 'order_id' => (int) $row->order_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
 				}
 				return $done;
@@ -236,7 +231,7 @@ final class Retention {
 					return $wpdb->get_col( $wpdb->prepare( "SELECT message_id FROM %i WHERE status IN ('sent','failed','cancelled') AND send_at<%s AND created_at<%s LIMIT %d", $p . 'wpcap_message_queue', $cutoff, $cutoff, self::BATCH ) );
 				},
 				static function ( $ids ) use ( $wpdb, $p ) {
-					return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE message_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_message_queue', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE message_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_message_queue', ...$ids ) );
 				}
 			);
 		}
@@ -256,7 +251,7 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( 'SELECT checkin_id FROM %i WHERE created_at<%s AND (user_id<>0 OR device_id<>0) LIMIT %d', $p . 'wpcap_checkins', $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET user_id=0,device_id=0 WHERE checkin_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_checkins', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				return (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET user_id=0,device_id=0 WHERE checkin_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_checkins', ...$ids ) );
 			}
 		);
 	}
@@ -273,7 +268,7 @@ final class Retention {
 				return $wpdb->get_col( $wpdb->prepare( 'SELECT audit_id FROM %i WHERE created_at<%s ORDER BY audit_id LIMIT %d', $p . 'wpcap_audit_logs', $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
-				return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE audit_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_audit_logs', ...$ids ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE audit_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $p . 'wpcap_audit_logs', ...$ids ) );
 			}
 		);
 	}

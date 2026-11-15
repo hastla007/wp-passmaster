@@ -77,15 +77,15 @@ final class Status {
 		$t = $wpdb->prefix . $q['table'];
 		$finished = array( 'complete', 'sent', 'succeeded', 'cancelled', 'skipped', 'delivered' );
 		$counts = array();
-		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT status, COUNT(*) AS n FROM %i GROUP BY status', $t ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT status, COUNT(*) AS n FROM %i GROUP BY status', $t ) ) as $row ) {
 			if ( ! in_array( $row->status, $finished, true ) ) { $counts[ $row->status ] = (int) $row->n; }
 		}
 		return array(
 			'label'        => $q['label'],
 			'counts'       => $counts,
 			'overdue'      => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $t WHERE status=%s AND {$q['due']}<%s", $q['ready'], self::gmt( self::OVERDUE_AFTER, $now ) ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			'long_running' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE status=%s AND locked_at<%s', $t, $q['claimed'], self::gmt( self::LONG_RUNNING_AFTER, $now ) ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			'stale_claims' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE status=%s AND locked_at<%s', $t, $q['claimed'], self::gmt( self::STALE_CLAIM_AFTER, $now ) ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			'long_running' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE status=%s AND locked_at<%s', $t, $q['claimed'], self::gmt( self::LONG_RUNNING_AFTER, $now ) ) ),
+			'stale_claims' => (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE status=%s AND locked_at<%s', $t, $q['claimed'], self::gmt( self::STALE_CLAIM_AFTER, $now ) ) ),
 			'failed'       => $counts[ $q['failed'] ] ?? 0,
 		);
 	}
@@ -164,7 +164,7 @@ final class Status {
 		$q = self::queues()[ $queue ] ?? null;
 		if ( ! $q || ! self::table_exists( $q['table'] ) ) { return 0; }
 		$t = $wpdb->prefix . $q['table'];
-		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE status=%s', $t, $q['failed'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE status=%s', $t, $q['failed'] ) );
 	}
 
 	/**

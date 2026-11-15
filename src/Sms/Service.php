@@ -150,7 +150,7 @@ final class Service {
 	public static function erase_retired_numbers() {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i c SET c.phone='' WHERE c.retired_at IS NOT NULL AND c.phone<>'' AND NOT EXISTS (SELECT 1 FROM %i m WHERE m.consent_id=c.consent_id AND m.status IN ('queued','sending'))", $p . 'wpcap_sms_consents', $p . 'wpcap_sms_messages' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- no input.
+		return (int) $wpdb->query( $wpdb->prepare( "UPDATE %i c SET c.phone='' WHERE c.retired_at IS NOT NULL AND c.phone<>'' AND NOT EXISTS (SELECT 1 FROM %i m WHERE m.consent_id=c.consent_id AND m.status IN ('queued','sending'))", $p . 'wpcap_sms_consents', $p . 'wpcap_sms_messages' ) );
 	}
 
 	/** Retires consents of settled orders whose events are over (one day after the last start). */

@@ -149,7 +149,7 @@ final class Webhooks {
 		if ( ! $o ) { return 0; }
 		$r = $wpdb->get_row( $wpdb->prepare( 'SELECT refund_id,amount_minor,currency,ticket_ids FROM %i WHERE refund_id=%d', $wpdb->prefix . 'wpcap_refunds', absint( $refund_id ) ) );
 		$ids = $r ? array_map( 'absint', (array) json_decode( (string) $r->ticket_ids, true ) ) : array();
-		$public = $ids ? $wpdb->get_col( 'SELECT public_id FROM ' . $wpdb->prefix . 'wpcap_tickets WHERE ticket_id IN (' . implode( ',', $ids ) . ')' ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list.
+		$public = $ids ? $wpdb->get_col( $wpdb->prepare( 'SELECT public_id FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', $wpdb->prefix . 'wpcap_tickets', ...$ids ) ) : array();
 		$o[0]['refund'] = array( 'id' => (int) $refund_id, 'amount_minor' => $r ? (int) $r->amount_minor : 0, 'currency' => $r ? $r->currency : $o[0]['currency'], 'ticket_ids' => array_values( $public ) );
 		return Dispatcher::emit( 'order.refunded', 'refund|' . (int) $refund_id, $o[0], $o[1] );
 	}

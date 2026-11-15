@@ -179,7 +179,7 @@ final class Queries {
 		}
 		$occurrences = array();
 		if ( $occ_ids ) {
-			foreach ( $wpdb->get_results( "SELECT * FROM {$p}wpcap_occurrences WHERE occurrence_id IN (" . implode( ',', array_unique( $occ_ids ) ) . ')' ) as $occ ) {
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( array_unique( $occ_ids ) ), '%d' ) ) . ')', $p . 'wpcap_occurrences', ...array_unique( $occ_ids ) ) ) as $occ ) {
 				$occurrences[ (int) $occ->occurrence_id ] = $occ;
 			}
 		}

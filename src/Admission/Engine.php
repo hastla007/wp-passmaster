@@ -107,7 +107,7 @@ final class Engine {
 				$date = self::service_date( $at, $found['timezone'], $found );
 				$days = Policies::valid_days( $policy, $found );
 				if ( null !== $days && ! in_array( $date, $days, true ) ) { return 'not_valid_today'; }
-				$today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE ticket_id=%d AND service_date=%s AND direction='in' AND undone=0", $entries, $ticket_id, $date ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$today = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE ticket_id=%d AND service_date=%s AND direction='in' AND undone=0", $entries, $ticket_id, $date ) );
 				return $today >= 1 ? 'daily_limit_reached' : '';
 			case 'multi_entry':
 				return self::entry_count( $ticket_id ) >= max( 1, $policy['max_entries'] ) ? 'entry_limit_reached' : '';

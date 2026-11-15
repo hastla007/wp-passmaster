@@ -206,9 +206,9 @@ final class Checkin {
 			// Legacy per-occurrence day rules.
 			$service_date = Engine::service_date( $at, $found['timezone'], $found );
 			$day_table = "{$p}wpcap_occurrence_days";
-			$day = $wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_day_id,admission_policy,max_entries FROM %i WHERE occurrence_id=%d AND service_date=%s', $day_table, $found['occurrence_id'], $service_date ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$day = $wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_day_id,admission_policy,max_entries FROM %i WHERE occurrence_id=%d AND service_date=%s', $day_table, $found['occurrence_id'], $service_date ) );
 			if ( '' !== (string) $wpdb->last_error ) { return self::abort(); }
-			$has_day_rules = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE occurrence_id=%d', $day_table, $found['occurrence_id'] ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$has_day_rules = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE occurrence_id=%d', $day_table, $found['occurrence_id'] ) );
 			if ( '' !== (string) $wpdb->last_error ) { return self::abort(); }
 			$repeatable = $day && in_array( $day->admission_policy, array( 'daily', 'reentry' ), true );
 			$day_id = $day ? (int) $day->occurrence_day_id : 0;

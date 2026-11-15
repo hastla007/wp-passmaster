@@ -94,7 +94,7 @@ final class Waitlists {
 		global $wpdb;
 		$type_ids = array_values( array_filter( array_map( 'absint', $type_ids ) ) );
 		if ( ! $type_ids ) { return 0; }
-		$waiting = array_map( 'absint', $wpdb->get_col( "SELECT DISTINCT ticket_type_id FROM {$wpdb->prefix}wpcap_waitlist WHERE status='waiting' AND ticket_type_id IN (" . implode( ',', $type_ids ) . ')' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		$waiting = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ticket_type_id FROM %i WHERE status='waiting' AND ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ')', $wpdb->prefix . 'wpcap_waitlist', ...$type_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 		foreach ( $waiting as $type_id ) {
 			Jobs::enqueue( 'waitlist-freed-' . $type_id . '-' . wp_generate_uuid4(), self::JOB, array( 'ticket_type_id' => $type_id ) );
 		}
@@ -329,7 +329,7 @@ final class Waitlists {
 		$now = current_time( 'mysql', true );
 		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired',offer_token_hash='',hold_quantity=0,updated_at=%s WHERE event_id=%d AND status='offered' AND offer_expires_at<=%s", $table, $now, absint( $event_id ), $now ) );
 		$where = $occurrence_id ? $wpdb->prepare( ' AND w.occurrence_id=%d', absint( $occurrence_id ) ) : '';
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT w.waitlist_id,w.event_id,w.occurrence_id,w.ticket_type_id,w.email,w.position,w.status,w.offer_expires_at,w.hold_quantity,w.order_id,w.created_at,tt.name AS ticket_name,o.starts_at,o.timezone FROM %i w LEFT JOIN %i tt ON tt.ticket_type_id=w.ticket_type_id LEFT JOIN %i o ON o.occurrence_id=w.occurrence_id WHERE w.event_id=%d', $table, $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) . $where . ' ORDER BY o.starts_at,w.occurrence_id,w.ticket_type_id,w.position,w.waitlist_id LIMIT 2000' ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $where is prepared.
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT w.waitlist_id,w.event_id,w.occurrence_id,w.ticket_type_id,w.email,w.position,w.status,w.offer_expires_at,w.hold_quantity,w.order_id,w.created_at,tt.name AS ticket_name,o.starts_at,o.timezone FROM %i w LEFT JOIN %i tt ON tt.ticket_type_id=w.ticket_type_id LEFT JOIN %i o ON o.occurrence_id=w.occurrence_id WHERE w.event_id=%d', $table, $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) . $where . ' ORDER BY o.starts_at,w.occurrence_id,w.ticket_type_id,w.position,w.waitlist_id LIMIT 2000' );
 	}
 
 	/**

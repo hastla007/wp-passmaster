@@ -249,7 +249,7 @@ final class Diagnostics {
 		foreach ( Status::queues() as $q ) {
 			if ( ! Status::table_exists( $q['table'] ) ) { continue; }
 			$t = $wpdb->prefix . $q['table'];
-			$requeued += (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET status=%s,locked_at=NULL WHERE status=%s AND locked_at<%s', $t, $q['ready'], $q['claimed'], $stale ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
+			$requeued += (int) $wpdb->query( $wpdb->prepare( 'UPDATE %i SET status=%s,locked_at=NULL WHERE status=%s AND locked_at<%s', $t, $q['ready'], $q['claimed'], $stale ) );
 		}
 		return $requeued;
 	}

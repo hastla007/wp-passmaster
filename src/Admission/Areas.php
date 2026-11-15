@@ -199,7 +199,7 @@ final class Areas {
 		foreach ( $wpdb->get_results( "SELECT d.device_id,d.area_id,d.last_sync_at,d.last_sync_scans,a.name FROM {$p}wpcap_admission_devices d LEFT JOIN {$p}wpcap_admission_areas a ON a.area_id=d.area_id WHERE d.device_id IN ($list)" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			$out[ (int) $row->device_id ] = array_merge( $out[ (int) $row->device_id ], array( 'area_id' => (int) $row->area_id, 'area_name' => (string) $row->name, 'last_sync_at' => $row->last_sync_at, 'last_sync_scans' => (int) $row->last_sync_scans ) );
 		}
-		foreach ( $wpdb->get_results( "SELECT device_id, COUNT(*) AS n FROM {$p}wpcap_admission_conflicts WHERE status='open' AND device_id IN ($list) GROUP BY device_id" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
+		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT device_id, COUNT(*) AS n FROM %i WHERE status='open' AND device_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') GROUP BY device_id', $p . 'wpcap_admission_conflicts', ...$ids ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer list.
 			$out[ (int) $row->device_id ]['open_conflicts'] = (int) $row->n;
 		}
 		return $out;

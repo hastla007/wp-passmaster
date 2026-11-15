@@ -125,7 +125,7 @@ final class Dispatcher {
 
 	public static function subscriptions() {
 		global $wpdb;
-		return array_map( array( __CLASS__, 'with_plain_secret' ), (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY subscription_id', self::t( 'subscriptions' ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return array_map( array( __CLASS__, 'with_plain_secret' ), (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY subscription_id', self::t( 'subscriptions' ) ) ) );
 	}
 
 	private static function with_plain_secret( $row ) {

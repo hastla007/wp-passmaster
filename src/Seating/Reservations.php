@@ -387,7 +387,7 @@ final class Reservations {
 		$ticket_ids = array_filter( array_map( 'absint', $ticket_ids ) );
 		if ( ! $ticket_ids ) { return array(); }
 		$out = array();
-		foreach ( $wpdb->get_results( 'SELECT ticket_id,label FROM ' . self::t( 'ticket_seats' ) . " WHERE status='assigned' AND ticket_id IN (" . implode( ',', $ticket_ids ) . ') ORDER BY assignment_id' ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,label FROM %i WHERE status='assigned' AND ticket_id IN (" . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') ORDER BY assignment_id', self::t( 'ticket_seats' ), ...$ticket_ids ) ) as $row ) {
 			$out[ (int) $row->ticket_id ] = $row->label;
 		}
 		return $out;

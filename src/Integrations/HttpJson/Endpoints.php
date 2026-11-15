@@ -147,7 +147,7 @@ final class Endpoints {
 	public static function all() {
 		if ( null !== self::$cache ) { return self::$cache; }
 		global $wpdb;
-		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY endpoint_id', self::table( 'connector_endpoints' ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name only.
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY endpoint_id', self::table( 'connector_endpoints' ) ) );
 		if ( '' !== (string) $wpdb->last_error ) { return array(); }
 		$out = array();
 		foreach ( $rows as $row ) { $out[ (int) $row->endpoint_id ] = self::hydrate( $row ); }
@@ -280,7 +280,7 @@ final class Endpoints {
 		$ctx = array( 'order' => null, 'occurrence' => null, 'tickets' => array(), 'refund' => null, 'checkin' => null );
 		$order_id = absint( $data['order_id'] ?? 0 );
 		if ( $order_id ) {
-			$ctx['order'] = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,status,payment_status,payment_provider,currency,total_minor,refunded_minor,locale,created_at,customer_email FROM %i WHERE order_id=%d', $p . 'wpcap_orders', $order_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table prefix.
+			$ctx['order'] = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,status,payment_status,payment_provider,currency,total_minor,refunded_minor,locale,created_at,customer_email FROM %i WHERE order_id=%d', $p . 'wpcap_orders', $order_id ) );
 		}
 		$ticket_sql = "SELECT t.ticket_id,t.public_id,t.status,t.ticket_type_id,t.attendee_email,tt.name AS type_name,tt.occurrence_id,ta.attendee_name,ta.attendee_email AS assigned_email FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id";
 		if ( 'ticket_checked_in' === $event && ! empty( $data['ticket_id'] ) ) {
@@ -298,7 +298,7 @@ final class Endpoints {
 		$occurrence_id = absint( $data['occurrence_id'] ?? 0 );
 		if ( ! $occurrence_id && $ctx['tickets'] ) { $occurrence_id = (int) $ctx['tickets'][0]->occurrence_id; }
 		if ( $occurrence_id ) {
-			$ctx['occurrence'] = $wpdb->get_row( $wpdb->prepare( 'SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,o.status,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', $occurrence_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table prefix.
+			$ctx['occurrence'] = $wpdb->get_row( $wpdb->prepare( 'SELECT o.occurrence_id,o.event_id,o.starts_at,o.timezone,o.location,o.status,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', $occurrence_id ) );
 		}
 		return $ctx;
 	}
@@ -430,7 +430,7 @@ final class Endpoints {
 
 	private static function log_row( $endpoint_id, $idempotency_key ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE endpoint_id=%d AND idempotency_key=%s', self::table( 'connector_deliveries' ), absint( $endpoint_id ), (string) $idempotency_key ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name only.
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE endpoint_id=%d AND idempotency_key=%s', self::table( 'connector_deliveries' ), absint( $endpoint_id ), (string) $idempotency_key ) );
 	}
 
 	/** Sends one request (no log). @return array|\WP_Error OutboundHttp result. */
@@ -465,7 +465,7 @@ final class Endpoints {
 		if ( $row && 'delivered' === $row->status ) { return true; }
 		$now = current_time( 'mysql', true );
 		if ( ! $row ) {
-			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (endpoint_id,event,idempotency_key,payload,status,attempts,response_code,last_error,created_at,updated_at) VALUES (%d,%s,%s,%s,'pending',0,0,'',%s,%s)", $table, $id, $event, (string) $idempotency_key, (string) wp_json_encode( $payload ), $now, $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (endpoint_id,event,idempotency_key,payload,status,attempts,response_code,last_error,created_at,updated_at) VALUES (%d,%s,%s,%s,'pending',0,0,'',%s,%s)", $table, $id, $event, (string) $idempotency_key, (string) wp_json_encode( $payload ), $now, $now ) );
 			$row = self::log_row( $id, $idempotency_key );
 			if ( ! $row ) { return new \WP_Error( 'wpcap_connector_log', __( 'Zustellung konnte nicht protokolliert werden.', 'pass-captain' ) ); }
 		}
@@ -483,7 +483,7 @@ final class Endpoints {
 	/** Manual retry of a logged delivery (same payload and idempotency key). @return true|\WP_Error */
 	public static function retry( $delivery_id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE delivery_id=%d', self::table( 'connector_deliveries' ), absint( $delivery_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name only.
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE delivery_id=%d', self::table( 'connector_deliveries' ), absint( $delivery_id ) ) );
 		$endpoint = $row ? self::get( (int) $row->endpoint_id ) : null;
 		if ( ! $row || ! $endpoint ) { return new \WP_Error( 'wpcap_connector_delivery_missing', __( 'Zustellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( 'delivered' === $row->status ) { return true; }
@@ -520,15 +520,15 @@ final class Endpoints {
 		$table = self::table( 'connector_deliveries' );
 		$limit = max( 1, min( 500, (int) $limit ) );
 		if ( $endpoint_id ) {
-			return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT delivery_id,endpoint_id,event,status,attempts,response_code,last_error,created_at,updated_at,delivered_at FROM %i WHERE endpoint_id=%d ORDER BY delivery_id DESC LIMIT %d', $table, absint( $endpoint_id ), $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT delivery_id,endpoint_id,event,status,attempts,response_code,last_error,created_at,updated_at,delivered_at FROM %i WHERE endpoint_id=%d ORDER BY delivery_id DESC LIMIT %d', $table, absint( $endpoint_id ), $limit ) );
 		}
-		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT delivery_id,endpoint_id,event,status,attempts,response_code,last_error,created_at,updated_at,delivered_at FROM %i ORDER BY delivery_id DESC LIMIT %d', $table, $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT delivery_id,endpoint_id,event,status,attempts,response_code,last_error,created_at,updated_at,delivered_at FROM %i ORDER BY delivery_id DESC LIMIT %d', $table, $limit ) );
 	}
 
 	/** Removes log rows older than the retention (default 30 days, filter wpcap_connector_log_days). */
 	public static function purge_old() {
 		global $wpdb;
 		$days = max( 1, (int) apply_filters( 'wpcap_connector_log_days', 30 ) );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('delivered','failed') AND updated_at<%s LIMIT 1000", self::table( 'connector_deliveries' ), gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name only.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('delivered','failed') AND updated_at<%s LIMIT 1000", self::table( 'connector_deliveries' ), gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS ) ) );
 	}
 }
