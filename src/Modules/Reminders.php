@@ -103,9 +103,12 @@ final class Reminders {
 		$from = gmdate( 'Y-m-d H:i:s', $now );
 		$to = gmdate( 'Y-m-d H:i:s', $now + max( $c['offsets'] ) * HOUR_IN_SECONDS );
 		$saved = (string) get_option( self::CURSOR_OPTION, '' );
-		$start = '' !== $saved ? explode( '|', $saved, 2 ) + array( '', '0' ) : array( '', '0' );
+		// Start cursor: a valid DATETIME literal (MySQL 8 rejects comparing a DATETIME with '' – error 1525).
+		$origin = array( '1970-01-01 00:00:00', '0' );
+		$start = '' !== $saved ? explode( '|', $saved, 2 ) + $origin : $origin;
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', (string) $start[0] ) ) { $start = $origin; }
 		// Pass 1: from the saved cursor to the end; pass 2 (only after a saved cursor): from the start up to it.
-		$passes = '' !== $saved ? array( array( $start, null ), array( array( '', '0' ), $start ) ) : array( array( $start, null ) );
+		$passes = '' !== $saved ? array( array( $start, null ), array( $origin, $start ) ) : array( array( $start, null ) );
 		$queued = 0;
 		foreach ( $passes as list( $cursor, $until ) ) {
 			while ( true ) {
