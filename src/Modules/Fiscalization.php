@@ -1013,15 +1013,15 @@ final class Fiscalization {
 		// Orders without any fiscal seller mapping have no state row: unchanged behaviour, one cheap lookup.
 		// Database errors block issuance (fail closed); the core retries the issuance later.
 		$state = $wpdb->get_var( $wpdb->prepare( "SELECT fiscal_status FROM {$p}wpcap_fiscal_order_state WHERE order_id=%d", $order_id ) );
-		if ( '' !== (string) $wpdb->last_error ) { return false; }
+		if ( self::db_failed() ) { return false; }
 		if ( null === $state ) { return $ready; }
 		// Receipts are only submitted for paid orders (the core issues nothing for unpaid ones anyway).
 		$payment_status = (string) $wpdb->get_var( $wpdb->prepare( "SELECT payment_status FROM {$p}wpcap_orders WHERE order_id=%d", $order_id ) );
-		if ( '' !== (string) $wpdb->last_error ) { return false; }
+		if ( self::db_failed() ) { return false; }
 		if ( 'paid' !== $payment_status ) { return $ready; }
 		self::process_order( $order_id );
 		$counts = $wpdb->get_row( $wpdb->prepare( "SELECT COUNT(*) AS total, SUM(status <> 'submitted') AS blocked, SUM(status='failed') AS failed FROM {$p}wpcap_fiscal_documents WHERE order_id=%d", $order_id ) );
-		if ( ! $counts || '' !== (string) $wpdb->last_error ) { return false; }
+		if ( ! $counts || self::db_failed() ) { return false; }
 		$total = (int) ( $counts->total ?? 0 );
 		$blocked = (int) ( $counts->blocked ?? 0 );
 		$failed = (int) ( $counts->failed ?? 0 );
@@ -1031,6 +1031,16 @@ final class Fiscalization {
 			'updated_at' => current_time( 'mysql', true ),
 		), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) );
 		return $blocked ? false : $ready;
+	}
+
+	/**
+	 * Whether the last database statement failed (read fresh on each call).
+	 *
+	 * @phpstan-impure
+	 */
+	private static function db_failed() {
+		global $wpdb;
+		return '' !== (string) $wpdb->last_error;
 	}
 
 	/**
