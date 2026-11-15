@@ -426,7 +426,7 @@ final class PublicEvents {
 		$candidates = array();
 		if ( function_exists( 'get_posts' ) ) {
 			foreach ( array( 'wp_pass_captain_events', 'wp-pass-captain/events' ) as $needle ) {
-				foreach ( (array) get_posts( array( 'post_type' => array( 'page', 'post' ), 'post_status' => 'publish', 's' => $needle, 'numberposts' => 20, 'orderby' => 'ID', 'order' => 'ASC', 'suppress_filters' => true ) ) as $post ) {
+				foreach ( (array) get_posts( array( 'post_type' => array( 'page', 'post' ), 'post_status' => 'publish', 's' => $needle, 'numberposts' => 20, 'orderby' => 'ID', 'order' => 'ASC' ) ) as $post ) {
 					$content = (string) $post->post_content;
 					$shortcode = function_exists( 'has_shortcode' ) ? has_shortcode( $content, 'wp_pass_captain_events' ) : false !== strpos( $content, '[wp_pass_captain_events' );
 					$block = false !== strpos( $content, '<!-- wp:wp-pass-captain/events' );

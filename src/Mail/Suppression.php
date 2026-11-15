@@ -218,7 +218,7 @@ final class Suppression {
 			$add( $data['Email'] ?? '', 'SpamComplaint' === $data['RecordType'] ? 'complaint' : 'bounce' );
 			return $out;
 		}
-		if ( array_is_list( $data ) ) { // SendGrid: list of events.
+		if ( array_values( $data ) === $data ) { // SendGrid: list of events (plain list check; WordPress before 6.5 has no polyfill).
 			foreach ( $data as $e ) {
 				if ( is_array( $e ) ) { $add( $e['email'] ?? '', $e['event'] ?? '' ); }
 			}
