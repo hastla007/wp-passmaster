@@ -214,6 +214,8 @@ final class I18n {
 			'lang'      => self::lang( $locale ),
 			'strings'   => $strings,
 			'supported' => array_map( array( __CLASS__, 'lang' ), self::supported_locales() ),
+			// White label (wp_pass_captain_brand_name_v1 / _logo_v1, context offline_scanner): title, logo, manifest.
+			'brand'     => \PassCaptain\Brand::data( 'offline_scanner' ),
 		);
 	}
 }

@@ -5,7 +5,8 @@
  *   GET /app/offline/keys                            – trusted Ed25519 public keys (packages: keys, signed QR codes: qr_keys)
  *   GET /app/offline/occurrences                     – occurrences this device may hold packages for
  *   GET /app/offline/package?occurrence_id=&since=   – signed full/delta package
- *   GET /app/offline/i18n?locale=fr-CH,fr,en         – public: locale + translated UI texts of the PWA
+ *   GET /app/offline/i18n?locale=fr-CH,fr,en         – public: locale + translated UI texts of the PWA (+ brand)
+ *   GET /app/offline/manifest                        – public: web app manifest with the brand name (white label)
  *
  * Also extends existing app responses (rest_request_after_callbacks): /app/pair returns the public
  * keys ("offline"), /app/me announces the feature, /app/scan/sync applies the event's offline rules.
@@ -28,6 +29,40 @@ final class Rest {
 		// Public on purpose: the pairing screen needs its texts before a device token exists; the
 		// table only contains UI strings.
 		register_rest_route( Api::NS, '/app/offline/i18n', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'i18n' ), 'permission_callback' => '__return_true' ) );
+		// Public on purpose: web app manifest with the brand name (white label); contains no data.
+		register_rest_route( Api::NS, '/app/offline/manifest', array( 'methods' => 'GET', 'callback' => array( __CLASS__, 'manifest' ), 'permission_callback' => '__return_true' ) );
+	}
+
+	/**
+	 * Web app manifest of the PWA with the brand name (wp_pass_captain_brand_name_v1, context
+	 * offline_scanner). The app links it instead of the static manifest.json only when a brand is set.
+	 */
+	public static function manifest() {
+		$name = \PassCaptain\Brand::name( 'offline_scanner' );
+		$base = ( defined( 'WPCAP_URL' ) ? WPCAP_URL : '' ) . 'assets/offline-scanner/';
+		$short = \PassCaptain\Brand::DEFAULT_NAME === $name ? 'PC Scanner' : mb_substr( $name, 0, 12 );
+		$manifest = array(
+			'name' => $name . ' Scanner',
+			'short_name' => $short,
+			'start_url' => AdminPage::app_url(),
+			'scope' => $base,
+			'display' => 'standalone',
+			'orientation' => 'portrait',
+			'background_color' => '#f4f6f8',
+			'theme_color' => '#112e51',
+			'icons' => array(
+				array( 'src' => $base . 'icon-192.png', 'sizes' => '192x192', 'type' => 'image/png' ),
+				array( 'src' => $base . 'icon-512.png', 'sizes' => '512x512', 'type' => 'image/png' ),
+				array( 'src' => $base . 'icon-512.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable' ),
+				array( 'src' => $base . 'icon.svg', 'sizes' => 'any', 'type' => 'image/svg+xml' ),
+			),
+		);
+		$response = rest_ensure_response( $manifest );
+		if ( method_exists( $response, 'header' ) ) {
+			$response->header( 'Content-Type', 'application/manifest+json; charset=utf-8' );
+			$response->header( 'Cache-Control', 'no-cache' );
+		}
+		return $response;
 	}
 
 	public static function keys( \WP_REST_Request $request ) {

@@ -119,7 +119,7 @@
     },
     "src/Integrations/WooCommerce/OrderAdapter.php": {
         "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 2,
-        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 6
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 7
     },
     "src/Invoices.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 26,
@@ -156,6 +156,9 @@
     },
     "src/Modules/Calendar.php": {
         "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
+    },
+    "src/Modules/Fiscalization.php": {
+        "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 40
     },
     "src/Modules/Reminders.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 17

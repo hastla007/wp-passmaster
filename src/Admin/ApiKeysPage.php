@@ -23,11 +23,9 @@ final class ApiKeysPage {
 		return 'wpcap_api_key_new_' . get_current_user_id();
 	}
 
+	/** Core scopes plus the scopes of add-ons (wp_pass_captain_api_scopes_v1). */
 	public static function scope_labels() {
-		return array(
-			'events.read' => __( 'Event-Daten lesen (events.read)', 'pass-captain' ),
-			'reports.read' => __( 'Berichte lesen (reports.read)', 'pass-captain' ),
-		);
+		return DeveloperKeys::scopes();
 	}
 
 	/**
@@ -47,7 +45,7 @@ final class ApiKeysPage {
 				if ( null === $expires || ( '' !== $expires && $expires <= current_time( 'mysql', true ) ) ) {
 					return Forms::error( 'wpcap_api_key_expiry', __( 'Ablaufdatum muss in der Zukunft liegen.', 'pass-captain' ) );
 				}
-				$scopes = array_values( array_intersect( array_map( 'strval', array_filter( (array) ( $in['scopes'] ?? array() ), 'is_scalar' ) ), DeveloperKeys::SCOPES ) );
+				$scopes = array_values( array_intersect( array_map( 'strval', array_filter( (array) ( $in['scopes'] ?? array() ), 'is_scalar' ) ), array_keys( DeveloperKeys::scopes() ) ) );
 				$rate = Forms::int( $in, 'rate_limit', DeveloperKeys::DEFAULT_RATE_LIMIT );
 				if ( $rate < 1 || $rate > DeveloperKeys::MAX_RATE_LIMIT ) {
 					/* translators: %d: maximum */

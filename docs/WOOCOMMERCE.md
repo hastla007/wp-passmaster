@@ -90,6 +90,21 @@ Jede Teilbestellung bucht über `Refunds::record_external()` (idempotent je WooC
 
 **Veranstalter-Abrechnungen:** Da jede Teilbestellung nur einen Rechnungssteller hat, erscheinen Verkäufe und Erstattungen in der Abrechnung des jeweiligen Veranstalters (`Partners/Settlements`). Erstattungen nach einem abgeschlossenen Monat werden in der nächsten Abrechnung als Zeile „Korrektur Erstattung (Vorperiode)“ geführt.
 
+### Fiskalbelege je Verkäufer (Modul Fiscalization)
+
+Gilt nur, wenn eine Ticketart der Bestellung unter **Pass Captain → Fiskalisierung** einem Rechtsträger zugeordnet ist; ohne Zuordnung bleibt alles wie oben beschrieben. Details: [fiscalization-adapters.md](fiscalization-adapters.md).
+
+**Vorrangregeln (verbindlich):**
+
+1. **Rechnungssteller vor Rechtsträger.** Die Aufteilung in Pass-Captain-Bestellungen bestimmt allein der Rechnungssteller (`Partners\SalesModel`, Schlüssel `platform` / `org-{partner_id}`, Richtlinie Ablehnen/Aufteilen). Fiskalbelege entstehen danach **je Pass-Captain-Bestellung und Rechtsträger**.
+2. **Rechtsträger passt zum Verkaufsmodell.** Plattform-Tickets (Events ohne Veranstalter, Eigenhändler) brauchen die Rolle „Betreibergesellschaft ist Verkäufer“ (`platform_seller`), Tickets eines Vermittler-Veranstalters „Veranstalter ist Verkäufer“ (`organizer_seller`). Die Zuordnung wird beim Speichern und beim Checkout geprüft (`fiscal_seller_mode_mismatch`).
+3. **Ein Rechtsträger je Bestellung für Tickets.** Alle fiskalisch zugeordneten Ticketarten einer Pass-Captain-Bestellung gehören zu einem Rechtsträger (`fiscal_seller_mismatch`); zugeordnete und nicht zugeordnete Ticketarten werden nicht gemischt (`fiscal_ticket_unmapped`) – ein Beleg ohne bezahlte Positionen wäre falsch.
+4. **Weitere Positionen brauchen einen Rechtsträger.** Enthält die Bestellung fiskalisch zugeordnete Tickets, muss jedes Nicht-Ticket-Produkt, jede positive Gebühr und jeder Versand einen Rechtsträger haben (Produktfelder „Fiskalischer Verkäufer“/„Verkäuferrolle“, Positions-Meta `_wpcap_fiscal_seller_id`/`_wpcap_fiscal_seller_mode` oder Filter `wpcap_woocommerce_fiscal_item_seller`); sonst wird vor der Zahlung abgelehnt (`wpcap_fiscal_mixed_allocation_required`). Diese Positionen bleiben kaufmännisch beim Shop (Regel 3/4 oben), erscheinen aber mit ihren WooCommerce-Endbeträgen im Fiskalbeleg ihres Rechtsträgers. Sie werden der Teilbestellung angehängt, deren Tickets denselben Rechtsträger haben, sonst der ersten fiskalisch zugeordneten Teilbestellung.
+5. **Negative Gebühren** werden weiter nach Regel 2 verteilt. Der Anteil der Tickets steckt in den gekürzten Ticketzeilen und ist so im Beleg abgebildet. Fällt ein Anteil auf Nicht-Ticket-Produkte, kann er nicht abgebildet werden: Solange für die Tickets ein Fiskalbeleg nötig ist (aktives Produktivprofil, nicht „Geprüft: nicht erforderlich“), lehnt die Kasse die Bestellung mit einem Hinweis auf Gutscheine ab (`wpcap_fiscal_negative_fee`). Ohne erforderlichen Beleg gilt das bisherige Verhalten unverändert.
+6. **Erstattungen:** Ticketpositionen laufen wie oben über die Teilbestellungen; jede gebuchte Erstattung erzeugt am betroffenen Beleg eine Korrekturaufgabe `refund_adjustment / manual_required` (der Originalbeleg bleibt unverändert). Erstattete Nicht-Ticket-Positionen werden über ihren Positionsschlüssel dem ursprünglichen Beleg zugeordnet (über alle Teilbestellungen); Betragserstattungen ohne Position werden zur manuellen Verkäuferzuordnung markiert.
+
+Bezahlte Bestellungen, deren Beleg noch nicht bestätigt ist, erhalten eine Bestellnotiz; Tickets werden erst nach Bestätigung ausgestellt (Wiederholung automatisch mit wachsendem Abstand oder unter **Fiskalisierung → Erneut versuchen**). Die Kundenansicht zeigt die bestätigten Belege je Rechtsträger.
+
 ## Angaben zu Teilnehmenden und Saalpläne
 
 Hat eine Ticketkategorie Teilnehmerfelder, fragt der Checkout je Ticket Name, E-Mail (beide optional) und die Felder ab; Pflichtfelder werden geprüft, bevor reserviert wird.

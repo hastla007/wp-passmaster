@@ -100,13 +100,15 @@ final class Menu {
 
 	public static function add_menus() {
 		$top_cap = self::first_cap( array( EventsPage::CAP, OrdersPage::CAP, 'wpcap_checkin', 'wpcap_view_reports', Refunds::APPROVE_CAP, SettingsPage::CAP ) );
+		// White label: title and icon (wp_pass_captain_admin_menu_title_v1 / _icon_v1, PassCaptain\Brand).
+		$menu_title = \PassCaptain\Brand::menu_title();
 		add_menu_page(
-			__( 'Pass Captain', 'pass-captain' ),
-			__( 'Pass Captain', 'pass-captain' ),
+			$menu_title,
+			$menu_title,
 			$top_cap,
 			self::SLUG,
 			array( EventsPage::class, 'render' ),
-			'dashicons-tickets-alt',
+			\PassCaptain\Brand::menu_icon(),
 			58
 		);
 		add_submenu_page( self::SLUG, __( 'Events', 'pass-captain' ), __( 'Events', 'pass-captain' ), EventsPage::CAP, self::SLUG, array( EventsPage::class, 'render' ) );
@@ -129,5 +131,10 @@ final class Menu {
 			add_submenu_page( self::SLUG, __( 'Gemeinsamer Scanner', 'pass-captain' ), __( 'Gemeinsamer Scanner ↗', 'pass-captain' ), 'wpcap_checkin', 'admin.php?page=vcap-scanner' );
 			add_submenu_page( self::SLUG, __( 'WP Voucher Captain', 'pass-captain' ), __( 'WP Voucher Captain ↗', 'pass-captain' ), 'manage_woocommerce', 'admin.php?page=vcap-vouchers' );
 		}
+		/**
+		 * The core menu is complete: add-ons add their own submenu pages under $parent_slug here (they are
+		 * listed after the core pages). Independent of modules and of the order of admin_menu callbacks.
+		 */
+		do_action( 'wp_pass_captain_admin_menu_built_v1', self::SLUG );
 	}
 }

@@ -73,7 +73,7 @@ async function boot(opts) {
 		indexedDB,
 		navigator: Object.assign({ onLine: true }, opts.navigator || {}),
 		fetch,
-		setup: page,
+		setup: (doc, h) => { page(doc, h); if (opts.setup) opts.setup(doc, h); },
 	});
 	env.fetch = fetch;
 	env.app = env.window.wpcapOffline;
@@ -138,6 +138,26 @@ test('pairing screen when not paired; i18n table is fetched, applied and kept fo
 	const again = await boot({ indexedDB: env.idb, navigator: { onLine: false } });
 	assert.equal(again.fetch.calls.length, 0);
 	assert.equal(again.document.querySelector('h1').textContent, 'Pair device');
+});
+
+test('white label: brand from the i18n table sets title, manifest and logo; without brand nothing changes', async () => {
+	const withManifest = (doc, h) => { doc.head.appendChild(h('link', { rel: 'manifest', href: 'manifest.json' })); };
+	const plain = await boot({ setup: withManifest, routes: { 'offline/i18n': () => ({ json: { v: 1, lang: 'de-DE', strings: {}, brand: { name: 'Pass Captain', logo: '', custom: false } } }) } });
+	assert.equal(plain.document.title, 'Offline-Scanner · Pass Captain');
+	assert.equal(plain.document.querySelector('link[rel="manifest"]').getAttribute('href'), 'manifest.json');
+	assert.equal(plain.document.getElementById('brand-logo'), null);
+
+	const table = { v: 1, lang: 'de-DE', strings: {}, brand: { name: 'Tixx', logo: '/wp-content/uploads/tixx.png', custom: true } };
+	const env = await boot({ setup: withManifest, routes: { 'offline/i18n': () => ({ json: table }) } });
+	assert.equal(env.document.title, 'Offline-Scanner · Tixx');
+	assert.equal(env.document.querySelector('link[rel="manifest"]').getAttribute('href'), API + 'offline/manifest');
+	const logo = env.document.getElementById('brand-logo');
+	assert.ok(logo, 'logo shown in the header');
+	assert.equal(logo.getAttribute('src'), '/wp-content/uploads/tixx.png');
+	assert.equal(logo.getAttribute('alt'), 'Tixx');
+
+	const evil = await boot({ setup: withManifest, routes: { 'offline/i18n': () => ({ json: { v: 1, lang: 'de-DE', strings: {}, brand: { name: 'Tixx', logo: 'javascript:alert(1)', custom: true } } }) } });
+	assert.equal(evil.document.getElementById('brand-logo'), null, 'non-http(s) logos are ignored');
 });
 
 test('invalid i18n tables from the server are ignored', async () => {

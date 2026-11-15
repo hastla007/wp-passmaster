@@ -466,6 +466,7 @@ final class Settlements {
 		if ( 1 !== (int) $updated ) { return $fail( new \WP_Error( 'wpcap_settlement_save', __( 'Abrechnung konnte nicht abgeschlossen werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'partner_settlement_finalized', 'partner_settlement', $settlement_id, array( 'partner_id' => (int) $s->partner_id, 'period' => $s->period, 'number' => $number, 'self_billing_number' => $self_billing_number, 'sales_model' => $model ) );
+		\PassCaptain\Api\Invoices::created( $settlement_id, 'settlement', array( 'partner_id' => (int) $s->partner_id, 'period' => (string) $s->period, 'number' => $number, 'self_billing_number' => (string) $self_billing_number ) );
 		return self::get( $settlement_id );
 	}
 
@@ -725,7 +726,8 @@ final class Settlements {
 			$label = ( $kinds[ $l->kind ] ?? $l->kind ) . ( in_array( $l->kind, array( 'late_sale', 'correction' ), true ) ? ' ' . $l->origin_period : '' );
 			$h .= '<tr><td>' . esc_html( Scope::local( $l->occurred_at, Scope::site_timezone(), 'd.m.Y' ) ) . '</td><td>' . esc_html( $label ) . '</td><td>' . esc_html( $l->event_name ) . '</td><td class="n">' . (int) $l->order_id . '</td><td class="n">' . (int) $l->tickets . '</td><td class="n">' . esc_html( $pct( $l->tax_rate_bp ) ) . '</td><td class="n">' . esc_html( $money( $l->gross_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->commission_minor ) ) . '</td><td class="n">' . esc_html( $money( $l->fee_minor ) ) . '</td></tr>';
 		}
-		$h .= '</tbody></table>' . ( '' !== $type ? '</section>' : '' ) . '<button onclick="window.print()">' . esc_html__( 'Drucken oder als PDF speichern', 'pass-captain' ) . '</button></body></html>';
+		$extra_links = 'draft' === $s->status ? '' : \PassCaptain\Api\Invoices::links_html( (int) $s->settlement_id, 'settlement', array( 'audience' => 'admin', 'location' => 'settlement_view', 'partner_id' => (int) $s->partner_id ) );
+		$h .= '</tbody></table>' . ( '' !== $type ? '</section>' : '' ) . ( '' !== $extra_links ? '<p class="wpcap-invoice-extra">' . $extra_links . '</p>' : '' ) . '<button onclick="window.print()">' . esc_html__( 'Drucken oder als PDF speichern', 'pass-captain' ) . '</button></body></html>';
 		return $h;
 	}
 

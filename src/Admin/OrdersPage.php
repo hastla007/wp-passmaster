@@ -354,6 +354,8 @@ final class OrdersPage {
 				<?php if ( $invoice ) : ?>
 					<a href="<?php echo esc_url( $invoice_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( sprintf( /* translators: %s: invoice number */ __( 'Rechnung %s anzeigen', 'pass-captain' ), $invoice->invoice_number ) ); ?></a>
 					<?php if ( $credit_notes ) : ?><br><?php echo esc_html( sprintf( /* translators: %s: credit note numbers */ __( 'Gutschriften (in der Rechnungsansicht): %s', 'pass-captain' ), implode( ', ', $credit_notes ) ) ); ?><?php endif; ?>
+					<?php $invoice_links = \PassCaptain\Api\Invoices::links_html( (int) $invoice->invoice_id, 'invoice', array( 'audience' => 'admin', 'location' => 'admin_order', 'order_id' => (int) $order_id, 'order_public_id' => (string) $order->public_id ) ); ?>
+					<?php if ( '' !== $invoice_links ) : ?><br><?php echo $invoice_links; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in links_html(). ?><?php endif; ?>
 				<?php elseif ( 'paid' === $order->payment_status && current_user_can( 'wpcap_view_finance' ) ) : ?>
 					<a class="button" href="<?php echo esc_url( wp_nonce_url( $invoice_url, 'wpcap_issue_invoice_' . (int) $order_id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Rechnung erstellen', 'pass-captain' ); ?></a>
 				<?php else : ?>—<?php endif; ?>

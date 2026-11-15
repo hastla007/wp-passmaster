@@ -82,6 +82,10 @@ final class Test_WPDB {
 		$r = $this->query( $sql );
 		return false === $r ? false : 1;
 	}
+	public function replace( $table, $data, $format = null ) {
+		$r = $this->query( "REPLACE INTO $table (" . implode( ',', array_keys( $data ) ) . ') VALUES (' . implode( ',', array_map( array( $this, 'esc' ), $data ) ) . ')' );
+		return false === $r ? false : max( 1, (int) $this->rows_affected );
+	}
 	public function update( $table, $data, $where, $format = null, $where_format = null ) {
 		$set = array(); foreach ( $data as $k => $v ) { $set[] = "$k=" . $this->esc( $v ); }
 		$w = array(); foreach ( $where as $k => $v ) { $w[] = "$k=" . $this->esc( $v ); }

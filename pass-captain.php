@@ -100,6 +100,8 @@ if ( is_readable( $wpcap_autoload ) ) {
 	);
 }
 
+require_once WPCAP_PATH . 'src/functions.php'; // Global wrappers of the public add-on API (wpcap_get_invoice() …).
+
 add_action( 'before_woocommerce_init', array( PassCaptain\Integrations\WooCommerce\OrderAdapter::class, 'declare_compatibility' ) );
 
 register_activation_hook( WPCAP_FILE, array( PassCaptain\Plugin::class, 'activate' ) );
