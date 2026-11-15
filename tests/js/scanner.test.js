@@ -220,3 +220,101 @@ test('camera error after the stream was obtained stops the tracks (FE-6)', async
 	assert.ok(stream.tracks.every((t) => t.stopped), 'no camera left running');
 	assert.equal(video.hidden, true);
 });
+
+/* ---- audit R2 (2026-11-15), Experte #6: timeout, idempotency key of the online attempt, feedback ---- */
+
+const ADM = { areas: [], checkinUrl: '/adm-in', checkoutUrl: '/adm-out', offlineSyncUrl: '/adm-sync', i18n: {} };
+
+test('R2: a hanging check-in is aborted after 5 s (state pending meanwhile); the queued scan keeps the key of the online attempt', async () => {
+	let signal;
+	const calls = [];
+	const fetch = (url, init) => {
+		calls.push({ url, body: JSON.parse(init.body) });
+		signal = init.signal;
+		return new Promise((resolve, reject) => { init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' }))); });
+	};
+	const env = scanner({ fetch, window: { WPCAP_ADMISSION: ADM } });
+	const pending = env.exports.submitToken(CODE);
+	await flush(3);
+	assert.equal(result(env).dataset.state, 'pending', 'neutral state while the request runs');
+	assert.equal(result(env).textContent, '…');
+	assert.ok(signal, 'request carries an AbortSignal');
+	const timeout = [...env.timers.pending.values()].find((tm) => 5000 === tm.ms);
+	assert.ok(timeout, 'aborted after 5 s');
+	env.timers.run();
+	await pending;
+	assert.match(result(env).textContent, /NICHT GEPRÜFT/, 'falls back to the visual check');
+	result(env).querySelector('.wpcap-admit-unchecked').click();
+	const q = env.exports.queue();
+	assert.equal(q.length, 1);
+	assert.equal(q[0].idempotency_key, calls[0].body.idempotency_key, 'same key as the online attempt: a request that reached the server is replayed at sync, no false conflict');
+});
+
+test('R2: network failure keeps the key too; offline without any attempt gets a fresh key', async () => {
+	const fetch = mockFetch(() => { throw new TypeError('Failed to fetch'); });
+	const env = scanner({ fetch, window: { WPCAP_ADMISSION: ADM } });
+	await env.exports.submitToken(CODE);
+	result(env).querySelector('.wpcap-admit-unchecked').click();
+	assert.equal(env.exports.queue()[0].idempotency_key, fetch.calls[0].body.idempotency_key);
+	const off = scanner({ navigator: { onLine: false }, window: { WPCAP_ADMISSION: ADM } });
+	await off.exports.submitToken(CODE2);
+	result(off).querySelector('.wpcap-admit-unchecked').click();
+	assert.match(off.exports.queue()[0].idempotency_key, /^[0-9a-f-]{36}$/);
+});
+
+test('R2: the attendee name is shown when the server sends it', async () => {
+	const env = scanner({ fetch: mockFetch(() => ({ json: { status: 'checked_in', event: 'Konzert', ticket: 'Standard', attendee_name: 'Alex Muster' } })) });
+	await env.exports.submitToken(CODE);
+	assert.equal(result(env).textContent, '✓ Konzert — Standard · Alex Muster');
+	assert.equal(result(env).dataset.state, 'success');
+});
+
+test('R2: WebAudio tones (high = OK, low = error), switchable and remembered in the browser', async () => {
+	const tones = [];
+	class FakeAudio {
+		constructor() { this.currentTime = 0; this.destination = {}; this.state = 'running'; }
+		createOscillator() { const o = { type: '', frequency: { value: 0 }, connect() {}, start() { tones.push(o.frequency.value); }, stop() {} }; return o; }
+		createGain() { return { gain: { value: 0 }, connect() {} }; }
+	}
+	let ok = true;
+	const fetch = mockFetch(() => (ok ? { json: { status: 'checked_in', event: 'Konzert', ticket: 'Standard' } } : { status: 409, json: { message: 'Bereits eingecheckt' } }));
+	const env = scanner({ fetch, window: { AudioContext: FakeAudio } });
+	const toggle = env.document.querySelector('.wpcap-sound-toggle');
+	assert.ok(toggle, 'sound switch rendered');
+	assert.equal(toggle.getAttribute('aria-pressed'), 'true');
+	await env.exports.submitToken(CODE);
+	assert.deepEqual(tones, [880]);
+	env.timers.run(); // scanner lock
+	ok = false;
+	await env.exports.submitToken(CODE2);
+	assert.deepEqual(tones, [880, 220]);
+	toggle.click();
+	assert.equal(toggle.getAttribute('aria-pressed'), 'false');
+	assert.equal(JSON.parse(env.localStorage.getItem('wpcap-scanner-prefs-v1')).sound, false);
+	env.timers.run();
+	await env.exports.submitToken(CODE);
+	assert.equal(tones.length, 2, 'switched off: silent');
+	const again = scanner({ fetch, window: { AudioContext: FakeAudio }, localStorage: env.localStorage });
+	assert.equal(again.document.querySelector('.wpcap-sound-toggle').getAttribute('aria-pressed'), 'false', 'remembered');
+});
+
+test('R2: torch switch and continuous focus where the camera supports them', async () => {
+	const applied = [];
+	const track = { stop() {}, getCapabilities: () => ({ torch: true, focusMode: ['continuous'] }), applyConstraints: async (c) => { applied.push(c); } };
+	const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
+	const env = scanner({ navigator: { onLine: true, mediaDevices: { getUserMedia: () => Promise.resolve(stream) } }, window: { BarcodeDetector: class { static async getSupportedFormats() { return ['qr_code']; } async detect() { return []; } } } });
+	const video = env.document.querySelector('.wpcap-camera');
+	video.play = async () => {};
+	const torch = env.document.querySelector('.wpcap-torch-toggle');
+	assert.equal(torch.hidden, true, 'hidden before the camera runs');
+	env.document.querySelector('.wpcap-camera-start').click();
+	await flush();
+	assert.equal(torch.hidden, false, 'torch offered');
+	assert.deepEqual(applied[0], { advanced: [{ focusMode: 'continuous' }] });
+	torch.click();
+	await flush();
+	assert.deepEqual(applied[1], { advanced: [{ torch: true }] });
+	assert.equal(torch.getAttribute('aria-pressed'), 'true');
+	env.window.dispatchEvent(new Event('pagehide'));
+	assert.equal(torch.hidden, true, 'hidden again when the camera stops');
+});
