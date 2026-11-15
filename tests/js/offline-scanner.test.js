@@ -61,7 +61,7 @@ async function boot(opts) {
 	opts = opts || {};
 	const indexedDB = opts.indexedDB || fakeIndexedDB();
 	const routes = opts.routes || {};
-	const fetch = mockFetch((url, init, body) => {
+	const fetch = opts.rawFetch || mockFetch((url, init, body) => {
 		const route = url.replace(API, '').split('?')[0];
 		const handler = routes[route];
 		if (!handler) return { status: 404, json: { message: 'no route ' + route } };
@@ -69,9 +69,9 @@ async function boot(opts) {
 	});
 	const env = load('assets/offline-scanner/app.js', {
 		url: opts.url || PAGE,
-		window: { nacl, indexedDB, wpcapUnused: 1 },
 		indexedDB,
 		navigator: Object.assign({ onLine: true }, opts.navigator || {}),
+		window: Object.assign({ nacl, indexedDB, wpcapUnused: 1 }, opts.window || {}),
 		fetch,
 		setup: (doc, h) => { page(doc, h); if (opts.setup) opts.setup(doc, h); },
 	});
@@ -304,10 +304,12 @@ test('offline scan of a signed QR is admitted locally and uploaded with the sign
 	const log = env.db.dump('log').map(([, v]) => v);
 	assert.equal(log[0].code, code, 'signed code kept for the upload');
 	assert.equal(log[0].hash, sha(CODE_OK));
-	// The classic code of the same ticket is now refused locally too (same package entry).
+	// The classic code of the same ticket is now refused locally too (same package entry): admitted on
+	// this device a moment ago, so yellow instead of red (audit R2 #6).
 	await env.app.handleScan(CODE_OK);
 	await flush();
-	assert.equal(text(env, 'result-title'), 'Bereits verwendet');
+	assert.equal(text(env, 'result-title'), 'Eben hier eingelassen (vor 0 s)');
+	assert.match(text(env, 'result-detail'), /^Bereits verwendet/);
 	await env.app.handleScan(qr({}, QR_OTHER));
 	await flush();
 	assert.equal(text(env, 'result-title'), 'QR-Signatur ungültig');
@@ -356,10 +358,11 @@ test('offline scan goes to the IndexedDB queue with the code; sync uploads it, c
 	assert.equal(log.find((e) => !e.ok).code, '', 'rejected scans keep no code');
 	assert.equal(text(env, 'pending'), '1 offen');
 
-	// Same code again within the session: refused locally (admitted on this device).
+	// Same code again within the session: refused locally (admitted on this device just now: yellow).
 	await app.handleScan(CODE_OK);
 	await flush();
-	assert.equal(text(env, 'result-title'), 'Bereits verwendet');
+	assert.equal(text(env, 'result-title'), 'Eben hier eingelassen (vor 0 s)');
+	assert.ok(env.document.getElementById('result').className.includes('warn'));
 
 	// Back online: sync uploads only pending scans.
 	const routes = { 'scan/sync': (body) => ({ json: { results: body.scans.map((s) => ({ idempotency_key: s.idempotency_key, ok: false, result: 'already_checked_in', conflict: true, conflict_id: 42 })) } }) };
@@ -582,4 +585,262 @@ test('FE-8: the exposed state hides the device token', async () => {
 	s.token = 'evil';
 	assert.equal(s.token, undefined, 'not writable through the view');
 	assert.equal(s.deviceId, DEVICE, 'other fields readable');
+});
+
+/* ---- audit R2 (2026-11-15), Experte #6: scan feedback, retry, compact packages, local entry counters ---- */
+
+/** Paired device with the default package stored; returns the IndexedDB for boot(). */
+async function withPackage(p) {
+	const indexedDB = await pairedDb();
+	const env0 = await boot({ indexedDB, navigator: { onLine: false } });
+	env0.db.stores.packages.data.set(7, { occurrence_id: 7, full: sign(p || payload()), deltas: [] });
+	return indexedDB;
+}
+const ONLINE_ROUTES = { 'offline/keys': () => ({ status: 503 }), 'offline/i18n': () => ({ status: 404 }) };
+
+test('R2: a scan shows the neutral "Prüfe …" state at once, the result returns to "Bereit", the same code is locked for 10 s', async () => {
+	let release;
+	const gate = new Promise((r) => { release = r; });
+	const env = await boot({ indexedDB: await withPackage(), routes: Object.assign({ 'scan/check-in': () => gate.then(() => ({ json: { ok: true, result: 'checked_in', ticket: 'Standard' } })) }, ONLINE_ROUTES) });
+	await flush();
+	const done = env.app.handleScan(CODE_OK);
+	await flush(5);
+	assert.equal(text(env, 'result-title'), 'Prüfe …', 'neutral state while the request runs');
+	assert.ok(env.document.getElementById('result').className.includes('pending'));
+	release();
+	await done;
+	await flush();
+	assert.equal(text(env, 'result-title'), 'Einlass OK');
+	const hold = [...env.timers.pending.values()].find((tm) => 4000 === tm.ms);
+	assert.ok(hold, 'result is held for 4 s');
+	env.timers.run();
+	assert.equal(text(env, 'result-title'), 'Bereit', 'back to ready for the next guest');
+	assert.ok(env.document.getElementById('result').className.includes('idle'));
+	const calls = env.fetch.calls.filter((c) => c.url.endsWith('scan/check-in')).length;
+	await env.app.handleScan(CODE_OK);
+	await flush();
+	assert.equal(env.fetch.calls.filter((c) => c.url.endsWith('scan/check-in')).length, calls, 'same code within 10 s: not sent again');
+	assert.equal(text(env, 'result-title'), 'Bereit', 'and no red "already used" over the green result');
+});
+
+test('R2: server says "already used" for a code this device admitted a moment ago: yellow, not red', async () => {
+	let n = 0;
+	const routes = Object.assign({ 'scan/check-in': (body) => ({ json: body.code === CODE_OK && n++ > 0 ? { ok: false, result: 'already_checked_in', ticket: 'Standard' } : { ok: true, result: 'checked_in', ticket: 'Standard' } }) }, ONLINE_ROUTES);
+	const env = await boot({ indexedDB: await withPackage(), routes });
+	await env.app.handleScan(CODE_OK);
+	await env.app.handleScan(CODE_VIP);
+	await env.app.handleScan(CODE_OK);
+	await flush();
+	assert.equal(text(env, 'result-title'), 'Eben hier eingelassen (vor 0 s)');
+	assert.ok(env.document.getElementById('result').className.includes('warn'));
+	assert.match(text(env, 'result-detail'), /Bereits verwendet · Standard · online/);
+	// A code admitted elsewhere stays red.
+	routes['scan/check-in'] = () => ({ json: { ok: false, result: 'already_checked_in' } });
+	await env.app.handleScan(CODE_USED);
+	await flush();
+	assert.equal(text(env, 'result-title'), 'Bereits verwendet');
+	assert.ok(env.document.getElementById('result').className.includes('bad'));
+});
+
+test('R2: a database retry (HTTP 503, or HTTP 200 result "retry" of an older server) falls back to the offline decision', async () => {
+	for (const reply of [{ status: 503, json: { code: 'wpcap_checkin_retry', data: { status: 503, retryable: true, result: 'retry' } } }, { json: { ok: false, result: 'retry' } }]) {
+		const env = await boot({ indexedDB: await withPackage(), routes: Object.assign({ 'scan/check-in': () => reply }, ONLINE_ROUTES) });
+		await env.app.handleScan(CODE_OK);
+		await flush();
+		assert.equal(text(env, 'result-title'), 'Einlass OK (offline)');
+		const log = env.db.dump('log').map(([, v]) => v);
+		assert.equal(log.length, 1);
+		assert.deepEqual({ synced: log[0].synced, mode: log[0].mode, code: log[0].code }, { synced: 0, mode: 'offline', code: CODE_OK }, 'kept for the upload, not logged as synced');
+	}
+});
+
+/** Ticket types with admission policies for the local counters. */
+function policyPayload(extra) {
+	const today = new Date().toISOString().slice(0, 10);
+	return payload(Object.assign({
+		occurrence: { id: 7, starts_at: new Date().toISOString(), timezone: 'UTC' }, day_cutoff_hour: 0,
+		ticket_types: [
+			{ id: 1, name: 'Standard', multi: false, areas: [], policy: 'single', max_entries: 1, valid_days: null },
+			{ id: 4, name: 'Tagesticket', multi: true, areas: [], policy: 'daily', max_entries: 0, valid_days: [today] },
+			{ id: 5, name: '2x', multi: true, areas: [], policy: 'multi_entry', max_entries: 2, valid_days: null },
+			{ id: 6, name: 'Re-Entry', multi: true, areas: [], policy: 'reentry', max_entries: 0, valid_days: null },
+			{ id: 7, name: 'Gestern', multi: true, areas: [], policy: 'multi_day', max_entries: 0, valid_days: ['2001-01-01'] },
+		],
+		tickets: [
+			{ h: sha(CODE_OK), s: 'valid', t: 1 }, { h: sha('a'.repeat(64)), s: 'valid', t: 4 }, { h: sha('b'.repeat(64)), s: 'valid', t: 5 },
+			{ h: sha('c'.repeat(64)), s: 'valid', t: 6 }, { h: sha('d'.repeat(64)), s: 'valid', t: 7 },
+		],
+	}, extra || {}));
+}
+
+test('R2: offline multi-entry tickets are limited by local counters (daily once per day, multi_entry max, reentry inside)', async () => {
+	const env = await boot({ indexedDB: await withPackage(policyPayload()), navigator: { onLine: false } });
+	const scan = async (code) => { await env.app.handleScan(code); await flush(); return text(env, 'result-title'); };
+	const DAILY = 'a'.repeat(64), MULTI = 'b'.repeat(64), RE = 'c'.repeat(64), DAY = 'd'.repeat(64);
+	assert.equal(await scan(DAILY), 'Einlass OK (offline)');
+	assert.equal(await scan(CODE_OK), 'Einlass OK (offline)');
+	assert.equal(await scan(DAILY), 'Eben hier eingelassen (vor 0 s)', 'daily ticket: second entry today refused (yellow: just admitted here)');
+	assert.match(text(env, 'result-detail'), /^Tageskontingent erreicht/);
+	assert.equal(await scan(MULTI), 'Einlass OK (offline)');
+	assert.equal(await scan(DAILY), 'Eben hier eingelassen (vor 0 s)');
+	assert.equal(await scan(MULTI), 'Einlass OK (offline)', 'multi_entry: second of two entries');
+	assert.equal(await scan(DAILY), 'Eben hier eingelassen (vor 0 s)');
+	assert.equal(await scan(MULTI), 'Eben hier eingelassen (vor 0 s)', 'multi_entry: third entry refused');
+	assert.match(text(env, 'result-detail'), /^Einlasslimit erreicht/);
+	assert.equal(await scan(RE), 'Einlass OK (offline)');
+	assert.equal(await scan(MULTI), 'Eben hier eingelassen (vor 0 s)');
+	assert.equal(await scan(RE), 'Eben hier eingelassen (vor 0 s)', 'reentry: still inside (no check-out on this device)');
+	assert.match(text(env, 'result-detail'), /^Bereits drinnen/);
+	assert.equal(await scan(DAY), 'Heute nicht gültig', 'multi_day ticket outside its days: red');
+	const pending = env.db.dump('log').map(([, v]) => v).filter((e) => !e.synced);
+	assert.equal(pending.length, 5, 'only the five admissions are queued for upload');
+
+	// Counters survive a restart (rebuilt from the scan log); an older admission is red, not yellow.
+	const again = await boot({ indexedDB: env.idb, navigator: { onLine: false } });
+	const entry = again.app.state.packages[7];
+	assert.equal(again.app.decideOffline(entry, sha(DAILY)).result, 'daily_limit_reached');
+	assert.equal(again.app.decideOffline(entry, sha(MULTI)).result, 'entry_limit_reached');
+	again.app.state.local[7].get(sha(MULTI).slice(0, 32)).ins = [Date.now() - 3600e3, Date.now() - 3500e3];
+	const old = again.app.decideOffline(entry, sha(MULTI));
+	assert.equal(old.result, 'entry_limit_reached');
+	assert.equal(old.recent, undefined, 'admissions older than 5 minutes are not "just now"');
+});
+
+test('R2: service day honours the occurrence timezone and the day cutoff hour', async () => {
+	const { serviceDay } = (await boot({ navigator: { onLine: false } })).app;
+	const at = Date.parse('2026-12-01T23:30:00Z');
+	assert.equal(serviceDay(at, 'UTC', 0), '2026-12-01');
+	assert.equal(serviceDay(at, 'Europe/Vienna', 0), '2026-12-02', '00:30 local time is the next day');
+	assert.equal(serviceDay(at, 'Europe/Vienna', 6), '2026-12-01', 'before the cutoff (06:00) it still counts to the previous day');
+	assert.equal(serviceDay(at, 'Not/AZone', 0), '2026-12-01', 'invalid zone: UTC');
+});
+
+/** Format-2 payload: rows of 32-hex hash prefixes per type and status digit. */
+function compactPayload(extra) {
+	const p = payload(Object.assign({ v: 2, hash_prefix: 32 }, extra || {}));
+	delete p.tickets;
+	const pre = (code) => sha(code).slice(0, 32);
+	p.rows = p.rows || [[1, 1, pre(CODE_OK)], [1, 2, pre(CODE_USED)], [2, 1, pre(CODE_VIP)], [3, 2, pre(CODE_MULTI)], [0, 0, pre(CODE_REVOKED)]];
+	p.names = p.names || { [pre(CODE_OK)]: 'Alex' };
+	return p;
+}
+
+test('R2: compact package format 2 is verified and decided like format 1', async () => {
+	const env = await boot({ indexedDB: await pairedDb(), navigator: { onLine: false } });
+	const { loadPackage, decideOffline, verifyDoc } = env.app;
+	const doc = sign(compactPayload());
+	const parsed = verifyDoc(doc);
+	assert.equal(parsed.tickets.length, 5);
+	assert.deepEqual(parsed.tickets[0], { h: sha(CODE_OK).slice(0, 32), s: 'valid', t: 1, n: 'Alex' });
+	const entry = loadPackage({ occurrence_id: 7, full: doc, deltas: [] });
+	assert.equal(entry.error, '');
+	assert.equal(decideOffline(entry, sha(CODE_OK)).result, 'checked_in', 'looked up with the full sha256 of the scanned code');
+	assert.equal(decideOffline(entry, sha(CODE_OK)).ticket.n, 'Alex');
+	assert.equal(decideOffline(entry, sha(CODE_USED)).result, 'already_checked_in');
+	assert.equal(decideOffline(entry, sha(CODE_REVOKED)).result, 'revoked');
+	assert.equal(decideOffline(entry, sha('9'.repeat(64))).result, 'unknown');
+	// A v1 full package with a v2 delta (device updated meanwhile): the delta overrides by hash prefix.
+	const delta = sign(compactPayload({ kind: 'delta', since: 'c1', cursor: 'c2', rows: [[0, 0, sha(CODE_OK).slice(0, 32)]], names: {} }));
+	const mixed = loadPackage({ occurrence_id: 7, full: sign(payload()), deltas: [delta] });
+	assert.equal(mixed.error, '');
+	assert.equal(decideOffline(mixed, sha(CODE_OK)).result, 'revoked');
+	assert.throws(() => verifyDoc(sign(compactPayload({ rows: [[1, 1, 'xyz']] }))), /Paketformat/, 'malformed rows are refused');
+	assert.throws(() => verifyDoc(sign(compactPayload({ hash_prefix: 16 }))), /Paketformat/);
+});
+
+test('R2: package requests ask for format 2 with a 120 s timeout; after MAX_DELTAS one compact delta since the full package replaces the chain', async () => {
+	const indexedDB = await pairedDb();
+	const env0 = await boot({ indexedDB, navigator: { onLine: false } });
+	const full = payload({ cursor: 'ab12.1' });
+	const deltas = [];
+	let cursor = 'ab12.1';
+	for (let i = 2; i <= 31; i++) { const next = 'ab12.' + i; deltas.push(sign(payload({ kind: 'delta', since: cursor, cursor: next, tickets: [] }))); cursor = next; }
+	env0.db.stores.packages.data.set(7, { occurrence_id: 7, full: sign(full), deltas });
+	const seen = [];
+	const routes = {
+		'offline/package': (b, url) => { seen.push(url); return { json: sign(payload({ kind: 'delta', since: 'ab12.1', cursor: 'ab12.40', tickets: [{ h: sha(CODE_OK), s: 'checked_in', t: 1 }] })) }; },
+		'offline/i18n': () => ({ status: 404 }),
+	};
+	const env = await boot({ indexedDB, navigator: { onLine: false }, routes, window: { AbortController } });
+	assert.equal(env.app.state.packages[7].record.deltas.length, 30);
+	const pending = env.app.refreshPackage(7);
+	const timeout = [...env.timers.pending.values()].find((tm) => 120000 === tm.ms);
+	assert.ok(timeout, 'package download may take 120 s');
+	await pending;
+	await flush();
+	assert.match(seen[0], /format=2/);
+	assert.match(seen[0], /since=ab12\.1(&|$)/, 'compact delta since the full package cursor');
+	const stored = env.db.stores.packages.data.get(7);
+	assert.equal(stored.deltas.length, 1, 'chain replaced by the compact delta');
+	assert.equal(env.app.state.packages[7].index.get(sha(CODE_OK)).s, 'checked_in');
+	assert.equal(env.app.state.packages[7].meta.cursor, 'ab12.40');
+});
+
+test('R2: package download progress is shown while the body streams in', async () => {
+	const body = JSON.stringify(sign(payload()));
+	const bytes = Buffer.from(body);
+	const seen = [];
+	let env;
+	const rawFetch = async (url) => {
+		const route = url.replace(API, '').split('?')[0];
+		if ('offline/package' !== route) return { ok: false, status: 404, json: async () => ({}) };
+		let i = 0;
+		const size = Math.ceil(bytes.length / 3);
+		return { ok: true, status: 200, json: async () => JSON.parse(body), body: { getReader: () => ({ read: async () => {
+			if (i > 0) seen.push(text(env, 'pkg'));
+			if (i >= bytes.length) return { done: true };
+			const chunk = new Uint8Array(bytes.subarray(i, i + size));
+			i += size;
+			return { done: false, value: chunk };
+		} }) } };
+	};
+	env = await boot({ indexedDB: await pairedDb(), navigator: { onLine: false }, rawFetch });
+	env.app.state.selected = 7;
+	const entry = await env.app.refreshPackage(7);
+	assert.equal(entry.error, '');
+	assert.ok(seen.some((s) => /^Prüfpaket wird geladen … \d+ kB$/.test(s)), 'progress shown: ' + seen.join(' | '));
+});
+
+test('R2: result tones via WebAudio (high = OK, low = rejected), switchable and remembered', async () => {
+	const tones = [];
+	class FakeAudio {
+		constructor() { this.currentTime = 0; this.destination = {}; this.state = 'running'; }
+		createOscillator() { const o = { type: '', frequency: { value: 0 }, connect() {}, start() { tones.push(o.frequency.value); }, stop() {} }; return o; }
+		createGain() { return { gain: { value: 0 }, connect() {} }; }
+	}
+	const withSound = (doc, h) => { doc.getElementById('main-view').appendChild(h('button#sound')); doc.getElementById('main-view').appendChild(h('button#torch', { hidden: true })); };
+	const indexedDB = await withPackage();
+	const env = await boot({ indexedDB, navigator: { onLine: false }, window: { AudioContext: FakeAudio }, setup: withSound });
+	assert.equal(text(env, 'sound'), 'Ton an');
+	await env.app.handleScan(CODE_OK);
+	await flush();
+	assert.deepEqual(tones, [880], 'admitted: one high tone');
+	await env.app.handleScan(CODE_REVOKED);
+	await flush();
+	assert.deepEqual(tones, [880, 220], 'rejected: low tone');
+	env.document.getElementById('sound').click();
+	await flush();
+	assert.equal(text(env, 'sound'), 'Ton aus');
+	assert.equal(env.document.getElementById('sound').getAttribute('aria-pressed'), 'false');
+	await env.app.handleScan(CODE_VIP);
+	await flush();
+	assert.equal(tones.length, 2, 'switched off: silent');
+	assert.equal(env.db.stores.kv.data.get('sound'), false);
+	const again = await boot({ indexedDB, navigator: { onLine: false }, window: { AudioContext: FakeAudio }, setup: withSound });
+	assert.equal(again.app.state.sound, false, 'setting remembered');
+	assert.equal(text(again, 'sound'), 'Ton aus');
+});
+
+test('R2: torch switch and continuous focus where the camera supports them', async () => {
+	const applied = [];
+	const track = { getCapabilities: () => ({ torch: true, focusMode: ['manual', 'continuous'] }), applyConstraints: async (c) => { applied.push(c); } };
+	const env = await boot({ indexedDB: await pairedDb(), navigator: { onLine: false }, setup: (doc, h) => { doc.getElementById('main-view').appendChild(h('button#torch', { hidden: true })); } });
+	env.app.setupTrack({ getVideoTracks: () => [track] });
+	assert.equal(env.document.getElementById('torch').hidden, false, 'torch button shown');
+	assert.deepEqual(applied[0], { advanced: [{ focusMode: 'continuous' }] });
+	await env.app.toggleTorch();
+	assert.deepEqual(applied[1], { advanced: [{ torch: true }] });
+	assert.equal(env.document.getElementById('torch').getAttribute('aria-pressed'), 'true');
+	env.app.setupTrack({ getVideoTracks: () => [{ getCapabilities: () => ({}) }] });
+	assert.equal(env.document.getElementById('torch').hidden, true, 'no torch: hidden');
 });

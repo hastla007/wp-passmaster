@@ -133,6 +133,15 @@ final class I18n {
 			'Kein Ticketcode erkannt' => __( 'Kein Ticketcode erkannt', 'pass-captain' ),
 			'QR-Signatur ungültig' => __( 'QR-Signatur ungültig', 'pass-captain' ),
 			'Einlass OK (offline)' => __( 'Einlass OK (offline)', 'pass-captain' ),
+			'Bitte erneut scannen' => __( 'Bitte erneut scannen', 'pass-captain' ),
+			'Prüfe …' => __( 'Prüfe …', 'pass-captain' ),
+			/* translators: %d: seconds since this device admitted the ticket */
+			'Eben hier eingelassen (vor %d s)' => __( 'Eben hier eingelassen (vor %d s)', 'pass-captain' ),
+			/* translators: %d: kilobytes received so far */
+			'Prüfpaket wird geladen … %d kB' => __( 'Prüfpaket wird geladen … %d kB', 'pass-captain' ),
+			'Ton an' => __( 'Ton an', 'pass-captain' ),
+			'Ton aus' => __( 'Ton aus', 'pass-captain' ),
+			'Taschenlampe' => __( 'Taschenlampe', 'pass-captain' ),
 			'Mehrfachticket – Prüfung beim Sync' => __( 'Mehrfachticket – Prüfung beim Sync', 'pass-captain' ),
 			'Kein Termin gewählt' => __( 'Kein Termin gewählt', 'pass-captain' ),
 			'Fehler' => __( 'Fehler', 'pass-captain' ),

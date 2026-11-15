@@ -25,6 +25,7 @@ final class OfflineScanner {
 	public static function register() {
 		add_action( 'rest_api_init', array( Rest::class, 'routes' ) );
 		add_filter( 'rest_request_after_callbacks', array( Rest::class, 'after_callbacks' ), 10, 3 );
+		add_filter( 'rest_pre_serve_request', array( Rest::class, 'serve_gzip' ), 10, 3 );
 	}
 
 	public static function schema( $prefix, $charset ) {
