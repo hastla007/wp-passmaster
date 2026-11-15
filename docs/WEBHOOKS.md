@@ -26,9 +26,11 @@ Pass Captain kann Ereignisse als signierte HTTP-POST-Anfragen an externe Systeme
 | `occurrence.rescheduled` | `wpcap_occurrence_rescheduled` | Termin + `previous_starts_at` |
 | `occurrence.cancelled` | `wpcap_occurrence_cancelled` | Termin + `issued_tickets` |
 
-Hinweis: Eine Vollerstattung, die direkt im Dashboard eines Zahlungsanbieters ausgelöst wird
-(`Orders::mark_refunded()`), erzeugt `ticket.revoked` für die betroffenen Tickets, aber derzeit kein
-`order.refunded` (dafür fehlt im Kern ein Hook).
+Hinweis: Erstattungen, die direkt im Dashboard eines Zahlungsanbieters ausgelöst werden, sowie
+Chargebacks (Stripe-Dispute verloren bzw. Geld abgezogen, PayPal `PAYMENT.CAPTURE.REVERSED`, Mollie-Chargeback)
+werden über `Refunds::record_external()` als Erstattung verbucht (Gutschrift, Abrechnungsabzug); eine
+Vollerstattung (`Orders::mark_refunded()`) erzeugt zusätzlich `ticket.revoked` für die betroffenen Tickets,
+aber derzeit kein `order.refunded` (dafür fehlt im Kern ein Hook).
 
 ## Payload (API-Version `2026-11-01`)
 

@@ -50,9 +50,9 @@ final class Orders {
 		$external_currency = $external ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $internal['currency'] ?? '' ) ) ) : '';
 		$skip_rate_limit = $external || ! empty( $internal['skip_rate_limit'] );
 		$orders_table = $wpdb->prefix . 'wpcap_orders';
-		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,status,payment_status FROM %i WHERE idempotency_key = %s', $orders_table, $key_hash ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key = %s', $orders_table, $key_hash ) );
 		if ( $existing ) {
-			return array( 'order_id' => (int) $existing->order_id, 'public_id' => $existing->public_id, 'status' => $existing->status, 'payment_status' => $existing->payment_status, 'reused' => true );
+			return self::reused_result( $existing );
 		}
 
 		// The per-type limit is the ticket type's max_per_order (checked under lock below); this is
@@ -285,6 +285,9 @@ final class Orders {
 			// Only written when given, so checkouts keep working while a deferred schema upgrade is pending.
 			if ( $billing ) { $order_row['billing'] = wp_json_encode( $billing ); }
 			if ( $customer_user_id ) { $order_row['customer_user_id'] = $customer_user_id; }
+			// Fingerprint of the attempt (Orders::request_fingerprint()); a retry with the same key is compared against it.
+			// Not while a deferred schema upgrade (DB 3.12.0) is still pending: the column may not exist yet.
+			if ( ! empty( $internal['request_fingerprint'] ) && preg_match( '/^[a-f0-9]{64}$/', (string) $internal['request_fingerprint'] ) && version_compare( strtok( (string) get_option( 'wpcap_db_version' ), '+' ), '3.12.0', '>=' ) ) { $order_row['request_fingerprint'] = (string) $internal['request_fingerprint']; }
 			$inserted = $wpdb->insert( $orders_table, $order_row );
 			if ( ! $inserted ) {
 				throw new \RuntimeException( 'order_insert_failed' );
@@ -349,9 +352,9 @@ final class Orders {
 			$code = $error->getMessage();
 			if ( 'order_insert_failed' === $code ) {
 				// A concurrent request with the same idempotency key won the unique index.
-				$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,status,payment_status FROM %i WHERE idempotency_key = %s', $orders_table, $key_hash ) );
+				$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key = %s', $orders_table, $key_hash ) );
 				if ( $existing ) {
-					return array( 'order_id' => (int) $existing->order_id, 'public_id' => $existing->public_id, 'status' => $existing->status, 'payment_status' => $existing->payment_status, 'reused' => true );
+					return self::reused_result( $existing );
 				}
 			}
 			if ( 'billing_required' === $code ) {
@@ -375,6 +378,48 @@ final class Orders {
 		}
 		Audit::record( 'order_created', 'order', $order_id, array( 'total_minor' => $total, 'currency' => $currency, 'source' => sanitize_key( $internal['source'] ?? 'native' ) ) );
 		return array( 'order_id' => $order_id, 'public_id' => $public_id, 'status' => $pending ? 'pending_payment' : 'complete', 'payment_status' => $pending ? 'pending' : 'paid', 'subtotal_minor' => $subtotal, 'discount_minor' => $discount, 'total_minor' => $total, 'currency' => $currency, 'hold_minutes' => $pending ? $hold_minutes : 0 );
+	}
+
+	/** Result of create() for a request whose idempotency key already has an order. */
+	private static function reused_result( $existing ) {
+		return array(
+			'order_id' => (int) $existing->order_id,
+			'public_id' => $existing->public_id,
+			'status' => $existing->status,
+			'payment_status' => $existing->payment_status,
+			'payment_provider' => (string) $existing->payment_provider,
+			'request_fingerprint' => (string) ( $existing->request_fingerprint ?? '' ),
+			'reused' => true,
+		);
+	}
+
+	/**
+	 * Fingerprint of a public checkout attempt: payment provider, normalized items (ticket type =>
+	 * summed quantity), e-mail (lowercase), discount codes (uppercase, sorted) and voucher code. A retry
+	 * with the same idempotency key must carry the same fingerprint (Rest\Controller::checkout()).
+	 *
+	 * @param array  $payload  Checkout payload (email, items, campaign_codes, voucher_code).
+	 * @param string $provider Payment provider id.
+	 * @return string sha256 hex.
+	 */
+	public static function request_fingerprint( array $payload, $provider ) {
+		$items = array();
+		foreach ( is_array( $payload['items'] ?? null ) ? $payload['items'] : array() as $line ) {
+			$type_id = is_array( $line ) ? self::positive_int( $line['ticket_type_id'] ?? null ) : 0;
+			$quantity = is_array( $line ) ? self::positive_int( $line['quantity'] ?? null ) : 0;
+			if ( $type_id && $quantity ) { $items[ $type_id ] = ( $items[ $type_id ] ?? 0 ) + $quantity; }
+		}
+		ksort( $items, SORT_NUMERIC );
+		$codes = array();
+		foreach ( is_array( $payload['campaign_codes'] ?? null ) ? $payload['campaign_codes'] : array() as $code ) {
+			$code = is_scalar( $code ) ? strtoupper( trim( sanitize_text_field( (string) $code ) ) ) : '';
+			if ( '' !== $code ) { $codes[] = $code; }
+		}
+		$codes = array_values( array_unique( $codes ) );
+		sort( $codes, SORT_STRING );
+		$email = is_scalar( $payload['email'] ?? '' ) ? strtolower( sanitize_email( (string) ( $payload['email'] ?? '' ) ) ) : '';
+		$voucher = is_scalar( $payload['voucher_code'] ?? '' ) ? strtoupper( trim( sanitize_text_field( (string) ( $payload['voucher_code'] ?? '' ) ) ) ) : '';
+		return hash( 'sha256', (string) wp_json_encode( array( 'v' => 1, 'provider' => sanitize_key( (string) $provider ), 'items' => $items, 'email' => $email, 'codes' => $codes, 'voucher' => $voucher ) ) );
 	}
 
 	/**
@@ -975,6 +1020,14 @@ final class Orders {
 				$limit_error = Sales\BuyerLimits::check( $demand, $locked_types, array_filter( $occurrences ), (string) $order->customer_email, (int) $order->customer_user_id, $now, $order_id );
 				if ( $limit_error ) { $error = 'buyer_limit'; }
 			}
+			if ( ! $error ) {
+				// The lapsed hold also gave its discount codes back: take them again only below the usage limit (PAY-1).
+				$retaken = Campaigns::retake_for_order( $order_id );
+				if ( is_wp_error( $retaken ) ) {
+					if ( 'wpcap_db_busy' === $retaken->get_error_code() ) { return self::payment_busy(); }
+					$error = 'campaign_exhausted';
+				}
+			}
 			if ( $error ) {
 				// needs_review is a final answer (webhooks acknowledge it): it must be persisted first.
 				if ( false === $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'needs_review', 'payment_status' => 'paid_unallocated', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) { return self::payment_busy(); }
@@ -986,6 +1039,10 @@ final class Orders {
 					/* translators: 1: order number, 2: payment reference */
 					wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung über dem Käuferlimit', 'pass-captain' ), sprintf( /* translators: 1: order number, 2: payment reference */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Mit dieser Bestellung würde die Person ein Käuferlimit überschreiten. Es wurden keine Tickets ausgestellt. Bitte manuell klären (erstatten oder Limit anpassen und die Zahlung erneut bestätigen).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
 					return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und die Bestellung würde ein Käuferlimit überschreiten. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ), array( 'reason' => 'buyer_limit' ) );
+				}
+				if ( 'campaign_exhausted' === $error ) {
+					wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung mit ausgeschöpftem Rabattcode', 'pass-captain' ), sprintf( /* translators: 1: order number, 2: payment reference */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Der verwendete Rabattcode ist inzwischen ausgeschöpft (Nutzungslimit erreicht). Es wurden keine Tickets ausgestellt. Bitte manuell klären (erstatten, Differenz nachfordern oder das Limit anpassen und die Zahlung erneut bestätigen).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
+					return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und der Rabattcode ist inzwischen ausgeschöpft. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ), array( 'reason' => 'campaign_exhausted' ) );
 				}
 				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne freies Kontingent', 'pass-captain' ), sprintf( /* translators: 1: order number, 2: payment reference */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
 				return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ) );

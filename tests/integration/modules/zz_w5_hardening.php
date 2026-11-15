@@ -42,7 +42,7 @@ $a = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', $bod
 $b = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', $body ) );
 check( 'repeated checkout request reuses the order (201 then 200) and holds once', 201 === hd_status( $a ) && 200 === hd_status( $b ) && $a->get_data()['order_id'] === $b->get_data()['order_id'] && 18 === Orders::availability( $hd_type ) );
 $c = Controller::checkout( hd_json_request( '/wp-pass-captain/v1/checkout', array_merge( $body, array( 'items' => array( array( 'ticket_type_id' => $hd_type, 'quantity' => 4 ) ) ) ) ) );
-check( 'same idempotency key with a different body does not create a second order', ! is_wp_error( $c ) && $c->get_data()['order_id'] === $a->get_data()['order_id'] && 18 === Orders::availability( $hd_type ) );
+check( 'same idempotency key with a different body does not create a second order (409, audit QA-1)', is_wp_error( $c ) && 'wpcap_idempotency_mismatch' === $c->get_error_code() && 409 === hd_status( $c ) && 18 === Orders::availability( $hd_type ) );
 
 // Manipulated bodies.
 $before = hd_orders();

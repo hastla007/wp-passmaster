@@ -74,7 +74,7 @@ $pay = $mollie->create_payment( $order, order_items_array( $order['order_id'] ) 
 $cr = http_requests( '/v2/payments' )[0] ?? array( 'headers' => array(), 'body' => '', 'method' => '', 'url' => '' );
 $body = json_decode( $cr['body'], true );
 check( 'create returns the checkout redirect and payment id', ! is_wp_error( $pay ) && 'mollie' === $pay['provider'] && 'tr_Test1234' === $pay['provider_reference'] && 0 === strpos( $pay['redirect_url'], 'https://www.mollie.com/checkout/' ) );
-check( 'POST /v2/payments with bearer key and idempotency key', 'POST' === $cr['method'] && 'https://api.mollie.com/v2/payments' === $cr['url'] && 'Bearer ' . $api_key === $cr['headers']['Authorization'] && 'wpcap-mollie-' . $order['public_id'] === $cr['headers']['Idempotency-Key'] );
+check( 'POST /v2/payments with bearer key and idempotency key', 'POST' === $cr['method'] && 'https://api.mollie.com/v2/payments' === $cr['url'] && 'Bearer ' . $api_key === $cr['headers']['Authorization'] && 'wpcap-mollie-' . $order['public_id'] . '-' . (int) $order['total_minor'] . 'eur' === $cr['headers']['Idempotency-Key'] );
 check( 'amount string, description, metadata, method', array( 'currency' => 'EUR', 'value' => '50.00' ) === $body['amount'] && $order['public_id'] === $body['metadata']['order'] && 'ideal' === $body['method'] && false !== strpos( $body['description'], $order['public_id'] ) && 'de_DE' === $body['locale'] );
 check( 'webhookUrl and redirectUrl', 'https://example.test/wp-json/wp-pass-captain/v1/payments/mollie/webhook' === $body['webhookUrl'] && false !== strpos( $body['redirectUrl'], 'wpcap_mollie_return=1' ) && false !== strpos( $body['redirectUrl'], $order['public_id'] ) );
 Orders::set_provider_reference( $order['order_id'], 'tr_Test1234' );

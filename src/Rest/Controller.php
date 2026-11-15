@@ -248,7 +248,10 @@ final class Controller {
 		if ( ! $gateway || ! in_array( $provider_id, $enabled, true ) ) {
 			return new \WP_Error( 'wpcap_provider_unavailable', __( 'Diese Zahlungsart ist nicht verfügbar.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$hold = 'manual' === $provider_id ? max( 1, (int) \PassCaptain\Settings::get( 'manual_hold_hours' ) ) * 60 : max( 30, (int) \PassCaptain\Settings::get( 'hold_minutes' ) ); // Hosted payment pages (e.g. Stripe) live at least 30 minutes.
+		// Hosted payment pages must never outlive the hold (QA-6): a gateway may require a minimum hold
+		// (Stripe: its 30-minute session minimum plus a buffer, see StripeGateway::min_hold_minutes()).
+		$min_hold = method_exists( $gateway, 'min_hold_minutes' ) ? max( 0, (int) $gateway->min_hold_minutes() ) : 0;
+		$hold = 'manual' === $provider_id ? max( 1, (int) \PassCaptain\Settings::get( 'manual_hold_hours' ) ) * 60 : max( 30, $min_hold, (int) \PassCaptain\Settings::get( 'hold_minutes' ) );
 		// Same wording as the form field ("Rabattcode"); the field is derived from the message below.
 		$campaign_messages = static function ( $messages ) {
 			$messages['campaign_invalid'] = __( 'Der Rabattcode ist ungültig oder passt nicht zu den ausgewählten Tickets.', 'pass-captain' );
@@ -256,9 +259,19 @@ final class Controller {
 			return $messages;
 		};
 		add_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
-		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold, 'request' => $request ) );
+		$fingerprint = Orders::request_fingerprint( $payload, $provider_id );
+		$result = Orders::create( $payload, array( 'payment_provider' => $provider_id, 'hold_minutes' => $hold, 'request' => $request, 'request_fingerprint' => $fingerprint ) );
 		remove_filter( 'wpcap_checkout_error_messages', $campaign_messages, 5 );
 		if ( is_wp_error( $result ) ) { return self::with_error_field( $result, $campaign_messages( array() ) ); }
+		if ( ! empty( $result['reused'] ) ) {
+			// Same key, different attempt (provider, tickets, e-mail or codes changed): never hand out the old
+			// order – its payment would arrive for another provider or amount (paid without tickets).
+			$stored = (string) ( $result['request_fingerprint'] ?? '' );
+			if ( (string) ( $result['payment_provider'] ?? $provider_id ) !== $provider_id || ( '' !== $stored && ! hash_equals( $stored, $fingerprint ) ) ) {
+				return new \WP_Error( 'wpcap_idempotency_mismatch', __( 'Diese Bestellung wurde mit anderen Angaben begonnen. Bitte lade die Seite neu und sende das Formular erneut ab.', 'pass-captain' ), array( 'status' => 409 ) );
+			}
+		}
+		unset( $result['request_fingerprint'], $result['payment_provider'] );
 		// A retry of an attempt that was cancelled (voucher rejected, payment start failed) or expired must not look like a new order.
 		if ( ! empty( $result['reused'] ) && in_array( $result['payment_status'] ?? '', array( 'cancelled', 'expired' ), true ) ) {
 			return new \WP_Error( 'wpcap_checkout_closed', __( 'Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab.', 'pass-captain' ), array( 'status' => 409 ) );
@@ -284,6 +297,19 @@ final class Controller {
 				Orders::cancel_order( $result['order_id'], 'provider_unavailable_for_currency' );
 				return new \WP_Error( 'wpcap_provider_currency', __( 'Diese Zahlungsart unterstützt die Währung nicht.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
+			if ( $min_hold ) {
+				// A retry may come minutes later: stretch the hold so the new payment page still ends inside it.
+				$hold_until = self::hold_until( (int) $result['order_id'] );
+				if ( $hold_until && $hold_until < time() + $min_hold * MINUTE_IN_SECONDS ) {
+					Orders::extend_hold( (int) $result['order_id'], $min_hold );
+					$hold_until = self::hold_until( (int) $result['order_id'] );
+				}
+				if ( ! $hold_until ) {
+					// The hold already lapsed: no new payment page for an order without reserved tickets.
+					return new \WP_Error( 'wpcap_checkout_closed', __( 'Dieser Bestellversuch wurde abgebrochen. Bitte sende das Formular erneut ab.', 'pass-captain' ), array( 'status' => 409 ) );
+				}
+				$order['hold_expires_at'] = $hold_until;
+			}
 			$items = array_map( static function ( $row ) { return (array) $row; }, Orders::items_for_order( $result['order_id'] ) );
 			$payment = $gateway->create_payment( $order, $items );
 			if ( is_wp_error( $payment ) ) {
@@ -308,6 +334,13 @@ final class Controller {
 		// Short human-readable order number; the full id and the access link only travel by e-mail.
 		$result['reference'] = \PassCaptain\Frontend\Format::order_reference( $result['public_id'] ?? '' );
 		return new \WP_REST_Response( $result, empty( $result['reused'] ) ? 201 : 200 );
+	}
+
+	/** End of the order's active hold as Unix timestamp (earliest active reservation), 0 when none is left. */
+	private static function hold_until( $order_id ) {
+		global $wpdb;
+		$until = $wpdb->get_var( $wpdb->prepare( "SELECT MIN(expires_at) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), current_time( 'mysql', true ) ) );
+		return $until ? (int) strtotime( $until . ' UTC' ) : 0;
 	}
 
 	/**
