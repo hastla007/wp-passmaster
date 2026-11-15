@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.11.0';
+	const DB_VERSION = '3.14.0';
 
 	public static function install() {
 		global $wpdb;
@@ -778,6 +778,8 @@ final class Installer {
 		}
 		// Encrypts provider secrets still stored in plaintext (idempotent, see Security\Vault).
 		Security\Vault::migrate();
+		// Uninstall opt-in out of reach of the old copy's uninstall.php (INT-1, idempotent).
+		Settings::migrate_uninstall_policy();
 		update_option( 'wpcap_db_version', self::version() );
 		update_option( 'wpcap_version', WPCAP_VERSION );
 		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );

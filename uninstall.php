@@ -3,7 +3,9 @@
  * Uninstall handler.
  *
  * Data is kept by default (orders and invoices are subject to retention duties). Only when
- * "Daten beim Löschen entfernen" (delete_data_on_uninstall) is enabled, all plugin tables, options,
+ * "Daten beim Löschen entfernen" is enabled (stored as option wpcap_uninstall_policy = 'delete'; the old
+ * key wpcap_settings['delete_data_on_uninstall'] is no longer read, because the uninstall.php of the old
+ * "wp-pass-captain" copy reads it on every site of a network), all plugin tables, options,
  * transients, roles and capabilities are removed. On a multisite network this is decided per site:
  * each site's tables, options and per-site user options ({site prefix}wpcap_*) are removed only for
  * sites that opted in. Network-wide user meta (wpcap_*) is shared by all sites and is therefore
@@ -20,8 +22,7 @@ function wpcap_uninstall_site() {
 	foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_run_upgrade', 'wpcap_privacy_retention', 'wpcap_privacy_purge_wallet_registrations', 'wpcap_process_fiscal_order' ) as $hook ) {
 		wp_unschedule_hook( $hook ); // All events of the hook, including continuation runs with arguments.
 	}
-	$settings = get_option( 'wpcap_settings', array() );
-	if ( empty( $settings['delete_data_on_uninstall'] ) ) {
+	if ( 'delete' !== get_option( 'wpcap_uninstall_policy', 'keep' ) ) {
 		return false;
 	}
 	$like = $wpdb->esc_like( $wpdb->prefix . 'wpcap_' ) . '%';

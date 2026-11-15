@@ -70,7 +70,7 @@ echo "$(wc -l < "${LIST}") entries, $(du -h "${ZIP}" | cut -f1)"
 if grep -qv "^${SLUG}/" "${LIST}"; then fail "entries outside ${SLUG}/: $(grep -v "^${SLUG}/" "${LIST}" | head -5 | tr '\n' ' ')"; else ok "single top-level folder ${SLUG}/"; fi
 
 for required in "${SLUG}.php" readme.txt uninstall.php vendor/autoload.php vendor/composer/autoload_real.php \
-	vendor/composer/autoload_classmap.php vendor/endroid/qr-code/src/QrCode.php languages/pass-captain.pot; do
+	vendor/composer/autoload_classmap.php vendor/bacon/bacon-qr-code/src/Encoder/Encoder.php languages/pass-captain.pot; do
 	if grep -qxF "${SLUG}/${required}" "${LIST}"; then ok "contains ${required}"; else fail "missing ${required}"; fi
 done
 
@@ -254,7 +254,8 @@ leftover() { # field of `build/ci-data.php leftovers` (arrays comma-separated)
 	wp eval-file "${DATA}" leftovers | php -r '$d = json_decode( stream_get_contents( STDIN ), true ); $v = $d[ $argv[1] ] ?? null; echo is_array( $v ) ? implode( ",", $v ) : (string) $v;' "$1"
 }
 set_delete_data() { # 1|0
-	wp eval "\$s = get_option( 'wpcap_settings', array() ); \$s = is_array( \$s ) ? \$s : array(); \$s['delete_data_on_uninstall'] = (int) '${1}'; update_option( 'wpcap_settings', \$s );"
+	# Since 1.5 the opt-in lives in its own option (the old copy's uninstall.php reads wpcap_settings).
+	if [ "${1}" = "1" ]; then wp option update wpcap_uninstall_policy delete >/dev/null; else wp option update wpcap_uninstall_policy keep >/dev/null; fi
 }
 
 if [ -n "${OLD_ZIP}" ]; then
@@ -262,7 +263,11 @@ if [ -n "${OLD_ZIP}" ]; then
 	NEW_DB="$(wp option get wpcap_db_version)"
 	[ "${NEW_DB}" != "${OLD_DB}" ] && ok "schema upgraded ${OLD_DB} -> ${NEW_DB}" || fail "schema version unchanged (${OLD_DB})"
 	verify_data "after the update" "${WORK}/before-update.json"
-	wp_checked "previous copy ${OLD_SLUG} deleted (runs its uninstall.php with delete_data_on_uninstall=1)" plugin delete "${OLD_SLUG}"
+	policy="$(wp option get wpcap_uninstall_policy 2>/dev/null || true)"
+	[ "${policy}" = "delete" ] && ok "opt-in moved to wpcap_uninstall_policy by the upgrade" || fail "wpcap_uninstall_policy is '${policy}', expected 'delete'"
+	old_key="$(wp eval '$s = get_option( "wpcap_settings", array() ); echo (int) ( $s["delete_data_on_uninstall"] ?? 0 );')"
+	[ "${old_key}" = "0" ] && ok "old key delete_data_on_uninstall reset to 0" || fail "old key delete_data_on_uninstall is still ${old_key}"
+	wp_checked "previous copy ${OLD_SLUG} deleted (runs its uninstall.php; the opt-in is out of its reach)" plugin delete "${OLD_SLUG}"
 	[ ! -d "${WP_PATH}/wp-content/plugins/${OLD_SLUG}" ] && ok "folder of the previous copy removed" || fail "folder of the previous copy still there"
 	verify_data "after deleting the previous copy" "${WORK}/before-update.json"
 	if [ -n "${WC_VERSION}" ]; then smoke "after deleting the previous copy" on; else smoke "after deleting the previous copy"; fi

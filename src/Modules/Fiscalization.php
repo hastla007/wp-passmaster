@@ -164,6 +164,26 @@ final class Fiscalization {
 		);
 	}
 
+	/**
+	 * Re-creates the per-order retry events (wpcap_process_fiscal_order) for documents still waiting for a
+	 * retry; deactivation removes them (Plugin::CRON_HOOKS), activation calls this. Returns the count.
+	 */
+	public static function reschedule_retries() {
+		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_fiscal_documents';
+		if ( $table !== $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', addcslashes( $table, '_%\\' ) ) ) ) { return 0; }
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,MIN(next_attempt_at) AS due FROM %i WHERE status='retry' GROUP BY order_id LIMIT 1000", $table ) );
+		$count = 0;
+		foreach ( (array) $rows as $row ) {
+			$args = array( (int) $row->order_id );
+			if ( wp_next_scheduled( 'wpcap_process_fiscal_order', $args ) ) { continue; }
+			$due = $row->due ? (int) strtotime( $row->due . ' UTC' ) : 0;
+			wp_schedule_single_event( max( time() + 60, $due ), 'wpcap_process_fiscal_order', $args );
+			++$count;
+		}
+		return $count;
+	}
+
 	public static function register() {
 		add_filter( 'wpcap_fiscal_adapters', array( ProviderAdapters::class, 'register' ), 5, 1 );
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'snapshot_order' ), 20, 4 );

@@ -250,10 +250,11 @@ Repository einer Organisation, braucht die gitleaks-Action das Secret `GITLEAKS_
   eingeschaltet. Danach `wp plugin install <neues zip> --activate`: die neue Kopie übernimmt die Aktivierung (genau
   ein Eintrag in `active_plugins`, Deaktivieren funktioniert), Schema auf aktueller `DB_VERSION` (Smoke-Check),
   keine PHP-Fehler, Geschäftsdaten unverändert (Snapshot von zehn Tabellen) und konsistent (`invariants`);
-  das Löschen der alten Kopie entfernt keine Daten.
+  das Upgrade hat das Opt-in nach `wpcap_uninstall_policy` verschoben und den alten Schlüssel auf 0 gesetzt; das
+  Löschen der alten Kopie entfernt keine Daten.
 - **Deinstallation** (jedes Bein): mit Standardeinstellungen `wp plugin deactivate` + `wp plugin uninstall` →
   alle Tabellen, Einstellungen, Schema-Version und Rollen bleiben, nur die Cron-Ereignisse sind weg; erneutes
-  Installieren findet die Daten unverändert wieder. Mit `delete_data_on_uninstall=1` bleiben keine Tabellen,
+  Installieren findet die Daten unverändert wieder. Mit eingeschaltetem Daten-Opt-in (`wpcap_uninstall_policy=delete`, die Einstellung „Daten beim Löschen entfernen“) bleiben keine Tabellen,
   Optionen/Transients `wpcap_*`, Rollen, Administrator-Rechte, User-Meta oder Cron-Ereignisse übrig
   (`uninstall.php`).
 - **Plugin Check:** das offizielle WordPress.org-Werkzeug (`wordpress/plugin-check-action@v1`) prüft genau die
