@@ -113,6 +113,8 @@ final class Settings {
 			// Frontend\EventPage: event detail pages /{event_base}/{slug}/ with schema.org/Event.
 			'event_pages'               => 1,
 			'event_base'                => 'event',
+			// Admin\Dashboard: modules whose menu entries are hidden (they keep running).
+			'hidden_modules'            => array(),
 		);
 	}
 

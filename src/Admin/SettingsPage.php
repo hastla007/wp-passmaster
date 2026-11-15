@@ -34,6 +34,12 @@ final class SettingsPage {
 					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'pass-captain' ) ),
 				),
 			),
+			'features' => array(
+				'title' => __( 'Funktionen', 'pass-captain' ),
+				'fields' => array(
+					'hidden_modules' => array( 'type' => 'modules', 'label' => __( 'Im Menü ausblenden', 'pass-captain' ), 'description' => __( 'Nur die Menüeinträge werden ausgeblendet; die Funktionen laufen weiter, Daten bleiben erhalten und direkte Links funktionieren. Für Funktionen, die Sie nicht nutzen.', 'pass-captain' ), 'sanitize' => array( Dashboard::class, 'sanitize_hidden' ) ),
+				),
+			),
 			'event_pages' => array(
 				'title' => __( 'Eventseiten', 'pass-captain' ),
 				'fields' => array(
@@ -287,6 +293,9 @@ final class SettingsPage {
 						$available = array_keys( Registry::all() );
 						$values[ $key ] = array_values( array_intersect( $available, Forms::ids_or_keys( $in, $key ) ) );
 						break;
+					case 'modules':
+						$values[ $key ] = array_map( 'strval', is_array( $raw ) ? array_filter( $raw, 'is_scalar' ) : array() );
+						break;
 					case 'textarea':
 						$values[ $key ] = Forms::textarea( $in, $key, 5000 );
 						break;
@@ -410,6 +419,13 @@ final class SettingsPage {
 					}
 					echo '</label>';
 				}
+				break;
+			case 'modules':
+				echo '<fieldset><legend class="screen-reader-text">' . esc_html( $def['label'] ) . '</legend>';
+				foreach ( Dashboard::hideable_modules() as $module => $label ) {
+					echo '<label style="display:block;min-height:24px;padding:2px 0"><input type="checkbox" name="' . esc_attr( $key ) . '[]" value="' . esc_attr( $module ) . '"' . checked( in_array( $module, (array) $value, true ), true, false ) . '> ' . esc_html( $label ) . '</label>';
+				}
+				echo '</fieldset>';
 				break;
 			case 'textarea':
 				echo '<textarea id="' . esc_attr( $id ) . '" name="' . esc_attr( $key ) . '" class="large-text" rows="4">' . esc_textarea( (string) $value ) . '</textarea>';

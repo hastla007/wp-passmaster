@@ -46,6 +46,10 @@ Klasse in `src/Modules/`; Module sind Bestandteil des Kerns, nicht des Add-ons.
 | Übersetzte Eventinhalte | `Localization` | Kern, dauerhaft frei |
 | Ausgabe per Shortcode `[wp_pass_captain_events]` und Block; Eventkarte im Theme überschreibbar (`templates/event-card.php`) | `PublicEvents`, `src/blocks/events` | Kern, dauerhaft frei |
 | Kalender: Shortcode `[wp_pass_captain_calendar]`, Block, iCal-Download und -Feed, `.ics` in der Ticket-Mail | Modul `Calendar`, `Calendar/Ics`, `src/blocks/calendar` | Kern, dauerhaft frei |
+| Eventseite pro Event mit teilbarer Adresse `/{basis}/{slug}/`, Bild, Kategorie, Open Graph und schema.org/Event (JSON-LD mit Angeboten, Verfügbarkeit, Status) | `Frontend/EventPage`, `templates/event-single.php` | Kern, dauerhaft frei |
+| Event und Termin duplizieren (inkl. Ticketarten, Teilnehmerfelder, Verkäufer, Einlassregeln, Preisregeln, Käuferlimits); Serien übernehmen dieselben Angaben | `Admin/Duplicator`, `TicketTypeCopier`, `Series/Generator` | Kern, dauerhaft frei |
+| CSV-Import von Events, Terminen und Ticketarten (Prüflauf, Entwürfe) | `Admin/Import` | Kern, dauerhaft frei |
+| Startseite mit Kennzahlen und Einrichtungs-Checkliste, gruppiertes Menü, „Funktionen“ zum Ausblenden ungenutzter Menüpunkte | `Admin/Dashboard`, `Admin/Menu` | Kern, dauerhaft frei |
 
 ### Checkout, Bestellungen und Zahlungen
 
@@ -56,7 +60,12 @@ Klasse in `src/Modules/`; Module sind Bestandteil des Kerns, nicht des Add-ons.
 | Rechnungsangaben (Firma, Anschrift, UID-Prüfung, Pflicht ab Schwellenwert) | `Billing` | Kern, dauerhaft frei |
 | Zahlung manuell / per Überweisung (Bankdaten, Verwendungszweck, Zahlungsfrist) | `Payments/ManualGateway`, `Payments/BankTransfer` | Kern, dauerhaft frei |
 | Stripe Checkout, PayPal (Orders v2) und Mollie mit signierten, idempotenten Webhooks und Erstattung über den Anbieter | `Payments/StripeGateway`, `Payments/PayPalGateway`, Modul `Mollie` | Kern, dauerhaft frei |
-| Kampagnencodes (Prozent/Festbetrag, Bereich, atomares Nutzungslimit) | `Campaigns` | Kern, dauerhaft frei |
+| Kampagnencodes (Prozent/Festbetrag, Bereich, atomares Nutzungslimit, Mindestmenge/Gruppenrabatt, automatische Rabatte ohne Code, Limit je Käufer, Einzelcodes in Serie mit CSV-Export) | `Campaigns`, `Admin/CampaignsPage` | Kern, dauerhaft frei |
+| Versteckte Ticketarten und Freischaltcodes (öffentlich / nur mit Code / versteckt, serverseitig geprüft) | `Sales/Visibility`, `Orders` | Kern, dauerhaft frei |
+| Freikarten und Gästeliste ohne Kasse (Kontingent gilt, Audit, Berichtsfilter) | `Sales/Comps`, `Admin/OrganizerTools` | Kern, dauerhaft frei |
+| Stornoanfrage im Bestellportal nach Eventregel (Frist, Gebühr) mit Freigabe; Erstattungsvorschau, Abzug und Höchstbetrag | `Sales/SelfService`, `Refunds`, `Admin/OrdersPage` | Kern, dauerhaft frei |
+| Bestellsuche nach Nummer, E-Mail, Teilnehmer-/Rechnungsname und Ticket-ID; Bestellungs-CSV | `Admin/Queries`, `Admin/OrdersPage` | Kern, dauerhaft frei |
+| Datensparsame JS-Ereignisse für Conversion-Messung (ohne Tracker) und UTM-/Referrer-Herkunft an der Bestellung mit Löschfrist | `assets/tracking.js`, `Orders`, `Privacy/Retention` | Kern, dauerhaft frei |
 | Wartelisten mit befristeten Angeboten und direkter Bestellung bei Annahme | `Waitlists` | Kern, dauerhaft frei |
 | Bestellportal für Käufer: Tickets ansehen, erneut senden, übertragen, Teilnehmer zuweisen, Rechnungsdaten korrigieren | `OrderPortal`, `TicketPage`, `TicketAssignments` | Kern, dauerhaft frei |
 | Erstattungen positionsbezogen, idempotent, mit Zweitfreigabe ab Schwellenwert und optionaler Zwei-Faktor-Pflicht | `Refunds`, `Admin/RefundsPage` | Kern, dauerhaft frei |
@@ -127,3 +136,9 @@ Das Add-on (Arbeitstitel `wp-pass-captain-pro`, eigenes Repository) enthält aus
 Funktionen, die im Kern nie ausgeliefert wurden, dazu Lizenzseite, Rechteprüfung, Offline-Cache und
 Updater. Welche Funktionen das sind, wird im Add-on-Repository festgelegt (TODO B5) – nicht in dieser Datei.
 Bevor eine Funktion dort geplant wird, ist hier zu prüfen, dass sie nicht schon im Inventar oben steht.
+
+Aus dem Audit Runde 2 bewusst **nicht** im Kern gebaut (Kandidaten für das Add-on, Andockpunkte vorhanden):
+Embed-Widget/iFrame (dockt an `wpcap:track` und den Shortcode an), Migration bestehender Tickets mit
+Fremdcodes (eigener Importer neben `Admin/Import`), Kombi-/Paket-Tickets, Resale-Börse und Abos mit
+Platzbindung. Der Sonderfall „Erstattung bei verschobenem Termin“ nutzt
+`Sales\SelfService::request( …, array( 'waive_policy' => true ) )`.

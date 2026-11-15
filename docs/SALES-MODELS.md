@@ -313,6 +313,77 @@ Positionen nach den vorherigen Codes abziehen.
   `JJJJ-MM-TT HH:MM:SS` (UTC) oder ISO 8601 mit Offset (`2026-12-01T18:00:00+01:00`, `…Z`); andere
   Formate (`01.12.2026`, `tomorrow`) und ein Ende vor dem Beginn ergeben HTTP 400 mit Feldname
   (`wpcap_invalid_datetime` bzw. `wpcap_campaign_window`, `data.field`).
+- **Mindestmenge (Gruppenrabatt)** (`min_quantity`): der Code gilt erst ab so vielen Tickets auf den
+  Positionen, für die er gilt; darunter Meldung „Der Code … gilt ab N passenden Tickets.“
+- **Einlösungen je Käufer** (`per_buyer_limit`): je Bestell-E-Mail (reservierte und abgeschlossene
+  Nutzungen); gezählt mit sperrendem Lesen nach der Zeilensperre der Kampagne, parallele Bestellungen
+  derselben Person sehen sich also gegenseitig.
+- **Automatisch anwenden** (`auto_apply`): Kampagne ohne Codeeingabe. Passende aktive Kampagnen (Währung,
+  Zeitraum, Limit, Event/Ticketart, Mindestmenge, Käuferlimit) werden nach den eingegebenen Codes ergänzt,
+  höchstens drei, in Prioritätsreihenfolge; eine nicht passende wird still übergangen. Ein nicht
+  kombinierbarer eingegebener Code verhindert automatische Rabatte; eine nicht kombinierbare automatische
+  Kampagne gilt nur allein. Nie für WooCommerce/Adapter-Bestellungen und Freikarten. Die Aufteilung auf
+  die Positionen, Zeilen-USt, Rechnung und Erstattung laufen wie bei Codes (Geld-Invarianten-Test
+  `zzzzz_y3_money_invariants.php`).
+- **Einzelcodes** (Kampagne bearbeiten → „Einzelcodes erzeugen“): bis zu 5.000 einmal einlösbare Codes
+  (`PRÄFIX-XXXXXXXXXX`, ohne verwechselbare Zeichen) mit den Einstellungen der Vorlage; jede ist eine
+  eigene Kampagne mit `usage_limit` 1 und `batch_id` = Vorlage (in der Liste zusammengefasst). Export
+  „Codes als CSV“ (Code, Status, eingelöst; formelsicher).
+
+### Versteckte Ticketarten und Freischaltcodes
+
+Ticketart bearbeiten → **Sichtbarkeit** (`ticket_types.visibility`):
+
+- *Öffentlich* (Standard).
+- *Nur mit Freischaltcode* (Vorverkauf, Mitglieder, Presse): sichtbar und kaufbar nur mit einem Code aus
+  der **Codeliste** der Ticketart (`access_codes`, ein Code pro Zeile, reine Freischaltung ohne Rabatt)
+  oder mit einem aktiven Kampagnencode, der genau auf diese Ticketart beschränkt ist (Freischaltung mit
+  Rabatt). Käufer geben den Code im Rabattcode-Feld ein oder öffnen den Link `?wpcap_code=CODE`; die
+  Eventliste zeigt dann die freigeschalteten Ticketarten (Feld „Freischaltcode“ über der Liste, das
+  Rabattcode-Feld ist vorbelegt). REST: `GET /events?code=CODE`.
+- *Versteckt*: nie in Listen, nie im öffentlichen Checkout; nur Abendkasse, Freikarten, Wartelisten-Angebote
+  und Adapter.
+
+Der **Server prüft** die Freischaltung in jeder öffentlichen Bestellung (`Orders::create()`): versteckte
+Ticketarten und gesperrte ohne passenden Code werden als „nicht verfügbar“ abgelehnt. Die Codeliste wird
+ohne zusätzliche Abfrage in der Sperrphase geprüft, die Kampagnen-Freischaltung über die gesperrten
+Kampagnenzeilen nach der Rabattberechnung. Reine Freischaltcodes werden aus den Rabattcodes entfernt
+(auch wenn am Ende nur öffentliche Ticketarten des Termins bestellt werden). Ist ein Code zugleich in der
+Codeliste und eine Kampagne, gilt er nur als Freischaltcode.
+
+### Freikarten und Gästeliste
+
+Termin bearbeiten → **Tickets ausstellen** (`Sales\Comps`, Recht `wpcap_manage_orders` bzw. Event
+verwalten): Ticketart, Menge und Empfänger oder eine Gästeliste (CSV „Name,E-Mail[,Menge]“, auch `;` oder
+Tab, höchstens 500 Zeilen). Jede Person erhält eine eigene Bestellung über `Orders::create()` mit der
+vertrauenswürdigen Option `comp`: Preis 0, Zahlungsanbieter `comp`, sofortige Ausstellung mit Ticket-Mail;
+keine Kassensitzung, kein Bon, kein Fiskalbeleg (keine Gegenleistung), keine Bedingungen, Rabatte,
+Ratenbegrenzung, Käuferlimits, Höchstmenge je Bestellung und kein Online-Verkaufszeitraum (bis zum
+Terminende). **Das Kontingent gilt wie beim Verkauf**: eine erschöpfte Ticketart stoppt die übrigen Zeilen
+(Meldung mit Anzahl). Pflicht-Teilnehmerfelder dürfen leer bleiben und werden im Bestellportal ergänzt.
+Wiederholtes Absenden desselben Formulars stellt nichts doppelt aus (Schlüssel je Zeile). Audit
+`comp_tickets_issued`; Berichte filtern „Bestellungen: Verkäufe / Freikarten“ (`channel`).
+
+### Stornoanfragen im Bestellportal
+
+Event bearbeiten → **Stornoanfragen im Bestellportal** (`events.refund_policy`, `Sales\SelfService`):
+Frist in Stunden vor Beginn und Bearbeitungsgebühr in % des Ticketwerts. Käufer wählen im Portal gültige,
+nicht eingecheckte Tickets bezahlter Bestellungen (nicht WooCommerce, keine Freikarten) und senden die
+Anfrage. Sie wird eine normale Erstattung (`Refunds::request()` mit `self_service`), die **immer** auf die
+Freigabe unter „Erstattungen“ wartet; erst die Freigabe zahlt über den Anbieter aus, widerruft die Tickets
+und stellt die Rechnungskorrektur über den erstatteten Betrag aus. Die Gebühr bleibt einbehalten
+(`refunds.deducted_minor`) und wird bei späteren Erstattungen derselben Bestellung nicht ausgezahlt.
+
+Gemeinsamer Einstieg für Sonderfälle: `Sales\SelfService::request( $order, $ticket_ids, array( 'waive_policy' => true, 'reason' => … ) )`
+– ohne Frist, ohne Gebühr und ohne Eventregel (z. B. Button „verschobener Termin“).
+
+### Erstattungsvorschau, Abzug und Höchstbetrag
+
+Bestellung → Erstatten: **Betrag berechnen** zeigt vor dem Absenden Wert, Abzug, Erstattung und USt
+(`Refunds::preview()`, nichts wird gespeichert). Optional **Abzug** (z. B. Bearbeitungsgebühr) und
+**Höchstbetrag** (Kulanz): Erstattung = max(0, Wert − Abzug), gedeckelt auf den Höchstbetrag; die USt wird
+anteilig auf den erstatteten Betrag gerechnet, die Rechnungskorrektur weist genau ihn aus; der einbehaltene
+Teil steht in `refunds.deducted_minor` und zählt bei der Resterstattung nicht mit.
 
 ### Käuferlimits
 

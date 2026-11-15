@@ -618,6 +618,7 @@ final class EventsPage {
 		<h1 class="wp-heading-inline"><?php esc_html_e( 'Events', 'pass-captain' ); ?></h1>
 		<hr class="wp-header-end">
 		<?php Forms::render_notices(); ?>
+		<?php if ( 1 === $page ) { Dashboard::render_summary(); } ?>
 		<table class="widefat striped">
 			<thead><tr>
 				<th><?php esc_html_e( 'Event', 'pass-captain' ); ?></th>

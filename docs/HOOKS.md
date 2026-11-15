@@ -56,6 +56,13 @@ Erinnerungen planen sich mit Priorität 1 ein, Bereinigung mit 5, SMS-Versand mi
 `wpcap_cleanup_reservations` (stündlich) und `wpcap_webhooks_dispatch` (einmalig nach neuen
 Webhook-Ereignissen).
 
+### JavaScript-Ereignisse (Frontend)
+
+| Ereignis | Detail | Wann |
+|---|---|---|
+| `wpcap:track` (auf `document`) | `{ event, currency, value, items[{item_id, item_name, price, quantity}], transaction_id? }` | Datensparsame Commerce-Ereignisse `view_item`, `add_to_cart`, `remove_from_cart`, `begin_checkout`, `purchase` (assets/tracking.js, ohne personenbezogene Daten). Siehe [TRACKING.md](TRACKING.md). |
+| `wpcap:checkout-payload`, `wpcap:checkout-complete` | siehe assets/checkout.js | Vor dem Absenden (Module ergänzen Felder) bzw. nach erfolgreicher Bestellung ohne Weiterleitung. |
+
 ## Filter
 
 ### Checkout und Bestellungen
