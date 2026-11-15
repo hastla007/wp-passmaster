@@ -100,12 +100,51 @@ final class OrdersPage {
 		if ( ! $all && ! $ticket_ids ) {
 			return Forms::error( 'wpcap_refund_tickets', __( 'Bitte Tickets auswählen oder „Alle offenen Tickets“ wählen.', 'pass-captain' ) );
 		}
-		$result = Refunds::request( $order->order_id, $ticket_ids, $reason, $key );
+		$options = self::refund_options( $in, (string) $order->currency );
+		if ( is_wp_error( $options ) ) { return $options; }
+		$result = Refunds::request( $order->order_id, $ticket_ids, $reason, $key, $options );
 		if ( is_wp_error( $result ) ) {
 			$status = (int) ( ( $result->get_error_data()['status'] ?? 409 ) );
 			return Forms::error( $result->get_error_code(), $result->get_error_message(), 403 === $status ? 403 : 409 );
 		}
 		return array( 'order_id' => (int) $order->order_id, 'refund' => $result );
+	}
+
+	/**
+	 * Optional fee kept and goodwill cap from the refund form (money input in the order currency).
+	 *
+	 * @return array|\WP_Error deduct_minor, max_minor.
+	 */
+	public static function refund_options( array $in, $currency ) {
+		$out = array();
+		foreach ( array( 'deduct' => 'deduct_minor', 'max_amount' => 'max_minor' ) as $field => $key ) {
+			$raw = is_scalar( $in[ $field ] ?? null ) ? trim( (string) $in[ $field ] ) : '';
+			if ( '' === $raw ) { continue; }
+			$minor = Forms::parse_money( $raw, Forms::currency_decimals( $currency ) );
+			if ( null === $minor ) { return Forms::error( 'wpcap_refund_amount', __( 'Abzug oder Höchstbetrag ist ungültig. Beispiel: 5,00', 'pass-captain' ) ); }
+			if ( $minor > 0 ) { $out[ $key ] = $minor; }
+		}
+		return $out;
+	}
+
+	/**
+	 * Preview of a refund for the admin form (nothing is written): selected tickets or all open ones,
+	 * value, kept fee, refund and VAT.
+	 *
+	 * @return array|\WP_Error See Refunds::preview().
+	 */
+	public static function refund_preview( array $in ) {
+		$order = self::order_for_action( $in );
+		if ( is_wp_error( $order ) ) { return $order; }
+		if ( ! self::can_request_refunds() ) { return Forms::forbidden( __( 'Keine Berechtigung für Erstattungen.', 'pass-captain' ) ); }
+		$options = self::refund_options( $in, (string) $order->currency );
+		if ( is_wp_error( $options ) ) { return $options; }
+		$all = Forms::flag( $in, 'refund_all' );
+		$ticket_ids = $all ? array() : Forms::ids( $in, 'ticket_ids' );
+		if ( ! $all && ! $ticket_ids ) {
+			return Forms::error( 'wpcap_refund_tickets', __( 'Bitte Tickets auswählen oder „Alle offenen Tickets“ wählen.', 'pass-captain' ) );
+		}
+		return Refunds::preview( (int) $order->order_id, $ticket_ids, $options );
 	}
 
 	/** Loads a pending refund the current user may decide on. */
@@ -182,6 +221,11 @@ final class OrdersPage {
 		$in = Forms::post();
 		$order_id = Forms::int( $in, 'order_id' );
 		Forms::verify( 'wpcap_refund_order_' . $order_id );
+		if ( Forms::flag( $in, 'preview' ) ) {
+			// "Betrag berechnen": back to the order with the selection; the page shows the preview.
+			$args = array( 'refund_preview' => 1, 'refund_all' => Forms::flag( $in, 'refund_all' ) ? 1 : 0, 'tickets' => implode( ',', Forms::ids( $in, 'ticket_ids' ) ), 'deduct' => Forms::text( $in, 'deduct', 20 ), 'max_amount' => Forms::text( $in, 'max_amount', 20 ) );
+			Forms::redirect( add_query_arg( array_filter( $args, 'strlen' ), self::order_url( $order_id ) ) );
+		}
 		$result = self::refund( $in );
 		$message = '';
 		if ( ! is_wp_error( $result ) ) {
@@ -430,6 +474,20 @@ final class OrdersPage {
 		}
 		$refundable = array_filter( $tickets, static function ( $t ) use ( $in_progress ) { return ! (int) $t->refunded && in_array( $t->status, array( 'valid', 'checked_in' ), true ) && ! in_array( (int) $t->ticket_id, $in_progress, true ); } );
 		$can_refund = ! $is_woo && 'paid' === $order->payment_status && $refundable && self::can_request_refunds();
+		// Refund preview (query args from "Betrag berechnen"; read-only).
+		$preview_in = array();
+		$preview = null;
+		if ( $can_refund && Forms::query_arg( 'refund_preview' ) ) {
+			$preview_in = array(
+				'order_id' => (int) $order->order_id,
+				'refund_all' => Forms::query_arg( 'refund_all' ),
+				'ticket_ids' => array_filter( array_map( 'absint', explode( ',', (string) Forms::query_arg( 'tickets' ) ) ) ),
+				'deduct' => (string) Forms::query_arg( 'deduct' ),
+				'max_amount' => (string) Forms::query_arg( 'max_amount' ),
+			);
+			$preview = self::refund_preview( $preview_in );
+		}
+		$preselected = array_map( 'intval', (array) ( $preview_in['ticket_ids'] ?? array() ) );
 		if ( $can_refund ) {
 			Forms::open_form( 'wpcap_refund_order', 'wpcap_refund_order_' . $order->order_id );
 			Forms::hidden( 'order_id', $order->order_id );
@@ -452,7 +510,7 @@ final class OrdersPage {
 				?>
 				<tr>
 					<?php if ( $can_refund ) : ?>
-						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>" aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s erstatten', 'pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></th>
+						<th class="check-column"><?php if ( isset( $refundable[ $index ] ) ) : ?><input type="checkbox" name="ticket_ids[]" value="<?php echo esc_attr( $ticket->ticket_id ); ?>"<?php checked( in_array( (int) $ticket->ticket_id, $preselected, true ) ); ?> aria-label="<?php echo esc_attr( sprintf( /* translators: %s: ticket id */ __( 'Ticket %s erstatten', 'pass-captain' ), $ticket->public_id ) ); ?>"><?php endif; ?></th>
 					<?php endif; ?>
 					<td><a href="<?php echo esc_url( Forms::page_url( TicketsPage::SLUG, array( 's' => $ticket->public_id ) ) ); ?>"><code><?php echo esc_html( $ticket->public_id ); ?></code></a></td>
 					<td><?php echo esc_html( $ticket->event_name . ' — ' . $ticket->ticket_name ); ?></td>
@@ -470,9 +528,17 @@ final class OrdersPage {
 		<?php if ( $can_refund ) : ?>
 			<h3><?php esc_html_e( 'Erstatten', 'pass-captain' ); ?></h3>
 			<p>
-				<label><input type="checkbox" name="refund_all" value="1"> <?php esc_html_e( 'Alle offenen Tickets erstatten (Restbetrag der Bestellung)', 'pass-captain' ); ?></label><br>
+				<label><input type="checkbox" name="refund_all" value="1"<?php checked( ! empty( $preview_in['refund_all'] ) ); ?>> <?php esc_html_e( 'Alle offenen Tickets erstatten (Restbetrag der Bestellung)', 'pass-captain' ); ?></label><br>
+				<label><?php esc_html_e( 'Abzug (optional, z. B. Bearbeitungsgebühr)', 'pass-captain' ); ?> <input type="text" name="deduct" inputmode="decimal" style="width:7em" value="<?php echo esc_attr( (string) ( $preview_in['deduct'] ?? '' ) ); ?>"></label>
+				<label><?php esc_html_e( 'Höchstbetrag (optional, Kulanz)', 'pass-captain' ); ?> <input type="text" name="max_amount" inputmode="decimal" style="width:7em" value="<?php echo esc_attr( (string) ( $preview_in['max_amount'] ?? '' ) ); ?>"></label><br>
 				<label><?php esc_html_e( 'Grund', 'pass-captain' ); ?> <input type="text" name="reason" class="regular-text" required maxlength="255"></label>
 			</p>
+			<?php if ( is_array( $preview ) ) : ?>
+				<div class="notice notice-info inline" role="status"><p><?php echo esc_html( sprintf( /* translators: 1: tickets, 2: value, 3: fee, 4: refund, 5: VAT */ __( 'Vorschau: %1$d Tickets, Wert %2$s, Abzug %3$s → Erstattung %4$s (darin USt %5$s). Die Rechnungskorrektur weist den erstatteten Betrag aus.', 'pass-captain' ), count( $preview['ticket_ids'] ), Forms::money( (int) $preview['value_minor'], $currency ), Forms::money( (int) $preview['deducted_minor'], $currency ), Forms::money( (int) $preview['amount_minor'], $currency ), Forms::money( (int) $preview['tax_minor'], $currency ) ) ); ?></p></div>
+			<?php elseif ( is_wp_error( $preview ) ) : ?>
+				<div class="notice notice-error inline" role="alert"><p><?php echo esc_html( $preview->get_error_message() ); ?></p></div>
+			<?php endif; ?>
+			<p><button class="button" type="submit" name="preview" value="1" formnovalidate><?php esc_html_e( 'Betrag berechnen', 'pass-captain' ); ?></button></p>
 			<?php if ( 'manual' === $order->payment_provider ) : ?>
 				<p class="description"><?php esc_html_e( 'Manuelle Zahlungen: Der Betrag muss außerhalb des Plugins zurücküberwiesen werden. Die Tickets werden widerrufen.', 'pass-captain' ); ?></p>
 			<?php endif; ?>

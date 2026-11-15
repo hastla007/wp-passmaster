@@ -134,12 +134,24 @@ final class EventsPage {
 			return Forms::error( 'wpcap_event_invalid', __( 'Bitte prüfe die Eventdaten.', 'pass-captain' ) );
 		}
 		global $wpdb;
-		$wpdb->update( $wpdb->prefix . 'wpcap_events', array(
+		$data = array(
 			'name' => $name,
 			'description' => wp_kses_post( (string) ( $in['description'] ?? '' ) ),
 			'status' => $status,
 			'updated_at' => current_time( 'mysql', true ),
-		), array( 'event_id' => (int) $event->event_id ), array( '%s', '%s', '%s', '%s' ), array( '%d' ) );
+		);
+		// Optional event page fields (Frontend\EventPage) and the self-service cancellation rule (Sales\SelfService).
+		if ( array_key_exists( 'image_url', $in ) ) {
+			$image = esc_url_raw( trim( (string) $in['image_url'] ) );
+			$data['image_url'] = preg_match( '#^https?://#i', $image ) ? mb_substr( $image, 0, 500 ) : '';
+			$data['category'] = Forms::text( $in, 'category' );
+		}
+		if ( array_key_exists( 'refund_hours_before', $in ) ) {
+			$policy = \PassCaptain\Sales\SelfService::parse_policy( $in );
+			if ( is_wp_error( $policy ) ) { return $policy; }
+			$data['refund_policy'] = $policy ? wp_json_encode( $policy ) : null;
+		}
+		$wpdb->update( $wpdb->prefix . 'wpcap_events', $data, array( 'event_id' => (int) $event->event_id ) );
 		Audit::record( 'event_updated', 'event', (int) $event->event_id, array( 'status' => $status, 'previous_status' => $event->status ) );
 		\PassCaptain\Reports\Cache::flush_event( (int) $event->event_id );
 		return array( 'event_id' => (int) $event->event_id );
@@ -685,6 +697,8 @@ final class EventsPage {
 		?>
 		<p><a href="<?php echo esc_url( self::url() ); ?>"><?php esc_html_e( '← Zur Eventliste', 'pass-captain' ); ?></a></p>
 		<h1><?php echo esc_html( $event->name ); ?> <span class="subtitle"><?php echo esc_html( Forms::status_label( $event->status ) ); ?></span></h1>
+		<?php $wpcap_event_url = 'published' === $event->status ? \PassCaptain\Frontend\EventPage::url( $event->slug ) : ''; ?>
+		<?php if ( '' !== $wpcap_event_url ) : ?><p><?php esc_html_e( 'Eventseite:', 'pass-captain' ); ?> <a href="<?php echo esc_url( $wpcap_event_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $wpcap_event_url ); ?></a></p><?php endif; ?>
 		<?php Forms::render_notices(); ?>
 
 		<h2><?php esc_html_e( 'Eventdaten', 'pass-captain' ); ?></h2>
@@ -694,6 +708,15 @@ final class EventsPage {
 				<tr><th><label for="wpcap-ev-name"><?php esc_html_e( 'Eventname', 'pass-captain' ); ?></label></th><td><input id="wpcap-ev-name" name="name" type="text" class="regular-text" required maxlength="190" value="<?php echo esc_attr( $event->name ); ?>"></td></tr>
 				<tr><th><label for="wpcap-ev-desc"><?php esc_html_e( 'Beschreibung', 'pass-captain' ); ?></label></th><td><textarea id="wpcap-ev-desc" name="description" class="large-text" rows="5"><?php echo esc_textarea( $event->description ); ?></textarea></td></tr>
 				<tr><th><label for="wpcap-ev-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', self::status_options(), $event->status, 'wpcap-ev-status' ); ?></td></tr>
+				<tr><th><label for="wpcap-ev-image"><?php esc_html_e( 'Bild (URL, optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-ev-image" name="image_url" type="url" class="large-text" maxlength="500" value="<?php echo esc_attr( (string) ( $event->image_url ?? '' ) ); ?>" aria-describedby="wpcap-ev-image-desc"><p class="description" id="wpcap-ev-image-desc"><?php esc_html_e( 'Für die Eventseite, Vorschauen in sozialen Netzwerken und Suchmaschinen (mind. 1200 px breit empfohlen).', 'pass-captain' ); ?></p></td></tr>
+				<tr><th><label for="wpcap-ev-category"><?php esc_html_e( 'Kategorie (optional)', 'pass-captain' ); ?></label></th><td><input id="wpcap-ev-category" name="category" type="text" class="regular-text" maxlength="190" value="<?php echo esc_attr( (string) ( $event->category ?? '' ) ); ?>"></td></tr>
+				<?php $wpcap_policy = \PassCaptain\Sales\SelfService::policy( $event ); ?>
+				<tr><th><?php esc_html_e( 'Stornoanfragen im Bestellportal', 'pass-captain' ); ?></th><td><fieldset><legend class="screen-reader-text"><?php esc_html_e( 'Stornoanfragen im Bestellportal', 'pass-captain' ); ?></legend>
+					<label><input type="checkbox" name="refund_requests" value="1"<?php checked( ! empty( $wpcap_policy ) ); ?>> <?php esc_html_e( 'Käufer dürfen Tickets selbst zur Erstattung anfragen', 'pass-captain' ); ?></label><br>
+					<label><?php esc_html_e( 'bis Stunden vor Beginn', 'pass-captain' ); ?> <input name="refund_hours_before" type="number" min="0" max="8760" style="width:6em" value="<?php echo esc_attr( (string) ( $wpcap_policy['hours_before'] ?? 48 ) ); ?>"></label>
+					<label><?php esc_html_e( 'Bearbeitungsgebühr in % des Ticketwerts', 'pass-captain' ); ?> <input name="refund_fee_percent" type="text" inputmode="decimal" style="width:5em" value="<?php echo esc_attr( Forms::percent_input( (int) ( $wpcap_policy['fee_bp'] ?? 0 ) ) ); ?>"></label>
+					<p class="description"><?php esc_html_e( 'Die Anfrage läuft über die normale Erstattung (Freigabe ab Schwellenwert); die Gebühr wird vom Erstattungsbetrag abgezogen und in der Rechnungskorrektur ausgewiesen.', 'pass-captain' ); ?></p>
+				</fieldset></td></tr>
 			</tbody></table>
 			<?php submit_button( __( 'Event aktualisieren', 'pass-captain' ) ); ?>
 			</form>

@@ -28,6 +28,7 @@ final class OrderPortal {
 			Security\AccessCookie::exchange( 'order', (string) $order->public_id, $token, add_query_arg( array_filter( array( 'wpcap_order' => (string) $order->public_id, 'wpcap_consent' => sanitize_key( Security\Input::text( wp_unslash( $_GET['wpcap_consent'] ?? '' ) ) ) ) ), home_url( '/' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- read-only status flag, reduced by sanitize_key().
 		}
 		Sales\Consents::maybe_handle_portal_post( $order, $token ); // Consent withdrawal (POST, redirects back).
+		Sales\SelfService::maybe_handle_portal_post( $order, $token ); // Cancellation request (POST, redirects back).
 		Security\PrivatePage::send(); // No page cache, no framing, no indexing (secret link).
 		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ) );
 		// Rendered in the order's language (buyer's choice in checkout or portal, Frontend\Language).

@@ -24,9 +24,13 @@ final class Refunds {
 	 * @param int[]  $ticket_ids      Tickets to refund; empty = all tickets not yet refunded.
 	 * @param string $reason          Reason (stored in audit log and refund record).
 	 * @param string $idempotency_key Unique key for this refund request.
+	 * @param array  $options         deduct_minor (fixed fee kept), deduct_bp (fee in basis points of the
+	 *                                ticket value), max_minor (goodwill cap, 0 = none) – see quote();
+	 *                                self_service (trusted: buyer request from the order portal, no staff
+	 *                                capability, always waits for approval; Sales\SelfService).
 	 * @return array|\WP_Error Refund row as array.
 	 */
-	public static function request( $order_id, array $ticket_ids, $reason, $idempotency_key ) {
+	public static function request( $order_id, array $ticket_ids, $reason, $idempotency_key, array $options = array() ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
@@ -39,7 +43,8 @@ final class Refunds {
 			return $existing;
 		}
 
-		$check = self::check_actor();
+		$self_service = ! empty( $options['self_service'] );
+		$check = $self_service ? true : self::check_actor();
 		if ( is_wp_error( $check ) ) { return $check; }
 		$order = Orders::get( $order_id );
 		if ( ! $order || 'paid' !== $order->payment_status ) {
@@ -68,6 +73,7 @@ final class Refunds {
 		}
 		$calc = self::calculate( $order, $requested, $open['ticket_ids'], $open['amount_minor'] );
 		if ( is_wp_error( $calc ) ) { $wpdb->query( 'ROLLBACK' ); return $calc; }
+		$calc = self::apply_deduction( $calc, $options );
 		// A failed read while computing the amount must not produce a refund of the wrong amount
 		// (e.g. tickets revoked for 0.00 because the order lines could not be read).
 		if ( self::$read_failed ) { return self::request_db_error( $order_id, 'request_calculate' ); }
@@ -85,9 +91,9 @@ final class Refunds {
 		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $calc['amount_minor'];
 		$needs_approval = $threshold > 0 && $cumulative > $threshold && ! current_user_can( self::APPROVE_CAP );
 		// "allow with approval": a second person must approve, even when the requester could approve.
-		$needs_approval = $needs_approval || 'approval' === $checkin_policy;
+		$needs_approval = $needs_approval || 'approval' === $checkin_policy || $self_service;
 		$now = current_time( 'mysql', true );
-		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
+		$row = array(
 			'order_id' => $order_id,
 			'idempotency_key' => $key_hash,
 			'amount_minor' => $calc['amount_minor'],
@@ -96,11 +102,14 @@ final class Refunds {
 			'ticket_ids' => wp_json_encode( $calc['ticket_ids'] ),
 			'reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
 			'status' => $needs_approval ? 'pending_approval' : 'approved',
-			'requested_by' => get_current_user_id(),
+			'requested_by' => $self_service ? 0 : get_current_user_id(),
 			'approved_by' => $needs_approval ? 0 : get_current_user_id(),
 			'created_at' => $now,
 			'updated_at' => $now,
-		) );
+		);
+		// Only written when there is one, so refunds keep working while a deferred schema upgrade is pending.
+		if ( $calc['deducted_minor'] > 0 ) { $row['deducted_minor'] = $calc['deducted_minor']; }
+		$inserted = $wpdb->insert( "{$p}wpcap_refunds", $row );
 		if ( false === $inserted ) {
 			$wpdb->query( 'ROLLBACK' );
 			$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key=%s', $p . 'wpcap_refunds', $key_hash ), ARRAY_A );
@@ -108,7 +117,7 @@ final class Refunds {
 		}
 		$refund_id = (int) $wpdb->insert_id;
 		if ( false === $wpdb->query( 'COMMIT' ) ) { return self::request_db_error( $order_id, 'request_commit' ); }
-		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval, 'checked_in_tickets' => count( $checked_in ), 'checkin_policy' => $checkin_policy ) );
+		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'deducted_minor' => $calc['deducted_minor'], 'needs_approval' => $needs_approval, 'checked_in_tickets' => count( $checked_in ), 'checkin_policy' => $checkin_policy, 'self_service' => $self_service ) );
 		if ( $needs_approval ) {
 			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, Localization::money_number( $calc['amount_minor'], $order->currency ) . ' ' . $order->currency ) );
 			return self::get( $refund_id );
@@ -683,6 +692,54 @@ final class Refunds {
 	}
 
 	/**
+	 * Fee / goodwill cap on a calculated refund: amount = max(0, value − deduct_minor − value × deduct_bp)
+	 * capped at max_minor (> 0). The kept part is recorded as deducted_minor; VAT is recomputed on the
+	 * refunded amount, so the credit note covers exactly what goes back.
+	 *
+	 * @param array $calc calculate() result.
+	 * @return array $calc with amount_minor, tax_minor, deducted_minor and value_minor (before deduction).
+	 */
+	public static function apply_deduction( array $calc, array $options ) {
+		$value = (int) $calc['amount_minor'];
+		$fee = absint( $options['deduct_minor'] ?? 0 ) + intdiv( $value * min( 10000, absint( $options['deduct_bp'] ?? 0 ) ), 10000 );
+		$amount = max( 0, $value - $fee );
+		$max = absint( $options['max_minor'] ?? 0 );
+		if ( $max > 0 ) { $amount = min( $amount, $max ); }
+		$calc['value_minor'] = $value;
+		$calc['deducted_minor'] = $value - $amount;
+		if ( $amount !== $value ) {
+			$calc['amount_minor'] = $amount;
+			$calc['tax_minor'] = $value > 0 ? (int) round( (int) $calc['tax_minor'] * $amount / $value ) : 0;
+		}
+		return $calc;
+	}
+
+	/**
+	 * Preview for the admin form: amount, VAT and kept fee for the tickets without writing anything.
+	 *
+	 * @return array|\WP_Error {ticket_ids, value_minor, deducted_minor, amount_minor, tax_minor, currency}
+	 */
+	public static function preview( $order_id, array $ticket_ids, array $options = array() ) {
+		$order = Orders::get( absint( $order_id ) );
+		if ( ! $order || 'paid' !== $order->payment_status ) {
+			return new \WP_Error( 'wpcap_refund_state', __( 'Nur bezahlte Bestellungen können erstattet werden.', 'pass-captain' ), array( 'status' => 409 ) );
+		}
+		$open = self::open_refunds( (int) $order->order_id );
+		$requested = array_values( array_unique( array_filter( array_map( 'absint', $ticket_ids ) ) ) );
+		$calc = self::calculate( $order, $requested, $open['ticket_ids'], $open['amount_minor'] );
+		if ( is_wp_error( $calc ) ) { return $calc; }
+		return self::apply_deduction( $calc, $options ) + array( 'currency' => (string) $order->currency );
+	}
+
+	/** Fees kept by earlier or pending refunds of an order (deducted_minor). */
+	private static function deducted_total( $order_id ) {
+		global $wpdb;
+		$sum = $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(deducted_minor),0) FROM %i WHERE order_id=%d AND status IN ('completed','pending_approval','approved','processing')", $wpdb->prefix . 'wpcap_refunds', absint( $order_id ) ) );
+		if ( '' !== (string) $wpdb->last_error ) { $wpdb->last_error = ''; return 0; } // Column missing before the schema upgrade.
+		return (int) $sum;
+	}
+
+	/**
 	 * Calculates the refund amount for tickets (not yet refunded) from the order item snapshots.
 	 * The last remaining tickets receive the rounding remainder so a full refund equals the order total.
 	 */
@@ -699,7 +756,8 @@ final class Refunds {
 		if ( ! $ticket_ids || array_diff( $ticket_ids, $open_ids ) ) {
 			return new \WP_Error( 'wpcap_refund_tickets', __( 'Die gewählten Tickets gehören nicht zur Bestellung oder wurden bereits erstattet.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$remaining_total = max( 0, (int) $order->total_minor - (int) $order->refunded_minor - max( 0, (int) $reserved_minor ) );
+		// Fees kept by earlier refunds (apply_deduction()) are not refunded with the remaining tickets.
+		$remaining_total = max( 0, (int) $order->total_minor - (int) $order->refunded_minor - max( 0, (int) $reserved_minor ) - self::deducted_total( (int) $order->order_id ) );
 		if ( count( $ticket_ids ) === count( $open_ids ) ) {
 			$amount = $remaining_total;
 		} elseif ( null !== Orders::snapshot_line_discounts( $order ) ) {

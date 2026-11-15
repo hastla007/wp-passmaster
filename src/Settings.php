@@ -110,6 +110,9 @@ final class Settings {
 			'trusted_proxy_header'      => 'x_forwarded_for',
 			// Fiscal services on the local network (plain http, loopback/private addresses) are blocked unless enabled.
 			'fiscal_allow_local_service' => 0,
+			// Frontend\EventPage: event detail pages /{event_base}/{slug}/ with schema.org/Event.
+			'event_pages'               => 1,
+			'event_base'                => 'event',
 		);
 	}
 

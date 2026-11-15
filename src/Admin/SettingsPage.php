@@ -34,6 +34,13 @@ final class SettingsPage {
 					'auto_refund_cancelled' => array( 'type' => 'bool', 'label' => __( 'Bei Terminabsage bezahlte Bestellungen automatisch erstatten', 'pass-captain' ) ),
 				),
 			),
+			'event_pages' => array(
+				'title' => __( 'Eventseiten', 'pass-captain' ),
+				'fields' => array(
+					'event_pages' => array( 'type' => 'bool', 'label' => __( 'Eigene Seite pro Event mit teilbarer Adresse und strukturierten Daten (schema.org/Event)', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Frontend\EventPage::class, 'sanitize_switch' ) ),
+					'event_base' => array( 'type' => 'text', 'label' => __( 'Adress-Basis der Eventseiten', 'pass-captain' ), 'description' => __( 'Beispiel „event“ ergibt https://example.com/event/sommerfest-ab12cd/. Nur Kleinbuchstaben, Ziffern und Bindestrich; darf nicht wie eine vorhandene Seite heißen.', 'pass-captain' ), 'sanitize' => array( \PassCaptain\Frontend\EventPage::class, 'sanitize_base' ) ),
+				),
+			),
 			'scanner' => array(
 				'title' => __( 'Einlass / Scanner-Geräte', 'pass-captain' ),
 				'fields' => array(

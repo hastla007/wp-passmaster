@@ -37,6 +37,8 @@ final class Plugin {
 		Rest\Credentials::register(); // X-WPCAP-Access-Token for buyer REST routes (CORS allow-list).
 		Admin\Menu::register();
 		Admin\OrganizerTools::register(); // Freikarten/Gästeliste, Duplizieren, CSV-Import (event/occurrence screens).
+		Frontend\EventPage::register(); // Event detail pages /{base}/{slug}/ with schema.org/Event JSON-LD.
+		Sales\SelfService::register(); // Cancellation/refund requests in the order portal (event rule).
 		add_action( 'admin_post_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'admin_post_nopriv_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'template_redirect', array( Waitlists::class, 'maybe_render_offer_page' ) );
@@ -94,6 +96,7 @@ final class Plugin {
 	public static function maybe_upgrade( $context = null ) {
 		if ( Installer::maybe_upgrade( $context ) ) {
 			self::schedule_events();
+			Frontend\EventPage::schedule_flush(); // New or changed rewrite rules after an update (flushed once on init).
 			return true;
 		}
 		return false;
@@ -168,6 +171,7 @@ final class Plugin {
 
 	private static function activate_site() {
 		Installer::install();
+		Frontend\EventPage::schedule_flush();
 		self::schedule_events();
 		Modules\Fiscalization::reschedule_retries(); // Deactivation removed the per-order retry events.
 	}

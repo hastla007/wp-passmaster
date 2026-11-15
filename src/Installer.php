@@ -713,6 +713,7 @@ final class Installer {
 				error_message varchar(255) NOT NULL DEFAULT '',
 				credit_note_number varchar(40) NOT NULL DEFAULT '',
 				provider_attempt smallint(5) unsigned NOT NULL DEFAULT 0,
+				deducted_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
 				PRIMARY KEY  (refund_id),
