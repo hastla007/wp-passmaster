@@ -251,7 +251,7 @@ jobs:
             diff <(unzip -Zv "$RUNNER_TEMP/first.zip") <(unzip -Zv build/dist/pass-captain.zip) | head -50 || true
             exit 1
           fi
-          sha256sum -c build/dist/pass-captain.zip.sha256
+          (cd build/dist && sha256sum -c pass-captain.zip.sha256)
       - name: Package contents (no tests/dev files, autoloader and assets present, no embedded keys)
         run: WPCAP_IT_STATIC_ONLY=1 bash build/ci-install-test.sh build/dist/pass-captain.zip
       - name: No licence or self-update code in the built package
