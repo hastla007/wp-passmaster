@@ -92,7 +92,7 @@ final class Blocks {
 		if ( '' === $text ) { return Mailer::block( '', '' ); }
 		$title = 'terms_text' === $setting ? __( 'Bedingungen', 'pass-captain' ) : __( 'Verbraucherinformationen', 'pass-captain' );
 		$plain = trim( (string) preg_replace( "/\n{3,}/", "\n\n", wp_strip_all_tags( (string) preg_replace( '#<br\s*/?>|</p>#i', "\n", $text ) ) ) );
-		return Mailer::block( $title . "\n" . $plain . "\n\n", '<p style="margin:0 0 8px"><strong>' . esc_html( $title ) . '</strong></p><div style="margin:0 0 16px">' . wp_kses_post( wpautop( $text ) ) . '</div>' );
+		return Mailer::block( $title . "\n" . $plain . "\n\n", '<p style="margin:0 0 8px"><strong>' . esc_html( $title ) . '</strong></p><div style="margin:0 0 16px">' . wp_kses_post( function_exists( 'wpautop' ) ? wpautop( $text ) : nl2br( $text ) ) . '</div>' );
 	}
 
 	/** Extra text from filters such as wpcap_ticket_code_mail_section (wallet links). */

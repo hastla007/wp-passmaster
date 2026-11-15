@@ -70,7 +70,7 @@ final class LegalNotice {
 		$html = '';
 		$withdrawal = self::withdrawal( self::all_dated( $types, $occurrence ) );
 		if ( '' !== $withdrawal['kind'] ) {
-			$html .= '<div class="wpcap-legal-notice wpcap-withdrawal wpcap-withdrawal-' . esc_attr( $withdrawal['kind'] ) . '">' . wp_kses_post( wpautop( $withdrawal['text'] ) ) . '</div>';
+			$html .= '<div class="wpcap-legal-notice wpcap-withdrawal wpcap-withdrawal-' . esc_attr( $withdrawal['kind'] ) . '">' . wp_kses_post( function_exists( 'wpautop' ) ? wpautop( $withdrawal['text'] ) : nl2br( $withdrawal['text'] ) ) . '</div>';
 		}
 		$privacy = self::privacy_url();
 		if ( '' !== $privacy ) {
