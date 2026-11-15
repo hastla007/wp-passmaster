@@ -48,9 +48,11 @@ final class Test_WPDB {
 	public function prepare( $query, ...$args ) {
 		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
 		$i = 0;
-		return preg_replace_callback( '/%%|%[dsf]/', function ( $m ) use ( &$i, $args ) {
+		return preg_replace_callback( '/%%|%[dsfi]/', function ( $m ) use ( &$i, $args ) {
 			if ( '%%' === $m[0] ) { return '%'; }
 			$v = $args[ $i++ ] ?? '';
+			// %i (WordPress 6.2+): identifier, backtick-quoted with embedded backticks doubled.
+			if ( '%i' === $m[0] ) { return '`' . str_replace( '`', '``', (string) $v ) . '`'; }
 			if ( '%d' === $m[0] ) { return (string) (int) $v; }
 			if ( '%f' === $m[0] ) { return (string) (float) $v; }
 			return $this->esc( $v );

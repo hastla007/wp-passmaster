@@ -49,7 +49,7 @@ final class Svc_Fault_WPDB {
 	public function __call( $name, $args ) { return $this->inner->$name( ...$args ); }
 	private function hit( $sql ) {
 		foreach ( $this->rules as $i => $rule ) {
-			if ( $rule['times'] > 0 && preg_match( $rule['pattern'], (string) $sql ) ) { $this->rules[ $i ]['times']--; $this->inner->last_error = 'Injected fault'; return true; }
+			if ( $rule['times'] > 0 && preg_match( $rule['pattern'], str_replace( '`', '', (string) $sql ) ) ) { $this->rules[ $i ]['times']--; $this->inner->last_error = 'Injected fault'; return true; }
 		}
 		return false;
 	}

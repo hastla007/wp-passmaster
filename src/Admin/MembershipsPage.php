@@ -26,7 +26,7 @@ final class MembershipsPage {
 	/** Whether the current user may manage a pass: every rule's event must be accessible (as in REST). */
 	public static function can_manage_pass( $pass_id ) {
 		global $wpdb;
-		$events = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_pass_rules WHERE pass_id=%d", absint( $pass_id ) ) );
+		$events = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE pass_id=%d', $wpdb->prefix . 'wpcap_pass_rules', absint( $pass_id ) ) );
 		if ( ! $events ) { return current_user_can( 'manage_options' ); }
 		foreach ( $events as $event_id ) {
 			if ( ! self::can_rule_event( $event_id ) ) { return false; }

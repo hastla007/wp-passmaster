@@ -984,7 +984,7 @@ final class Installer {
 	private static function stored_db_version() {
 		global $wpdb;
 		if ( ! empty( $wpdb->options ) ) {
-			$value = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name=%s", 'wpcap_db_version' ) );
+			$value = $wpdb->get_var( $wpdb->prepare( 'SELECT option_value FROM %i WHERE option_name=%s', $wpdb->options, 'wpcap_db_version' ) );
 			return null === $value ? false : (string) $value;
 		}
 		return get_option( 'wpcap_db_version' );

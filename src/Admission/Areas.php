@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Areas {
 	public static function get( $area_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_admission_areas WHERE area_id=%d", absint( $area_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE area_id=%d', $wpdb->prefix . 'wpcap_admission_areas', absint( $area_id ) ) );
 	}
 
 	/** Areas of an event (active only unless $all). */
@@ -46,7 +46,7 @@ final class Areas {
 	/** Allowed area ids of a ticket type (empty = all areas). */
 	public static function type_area_ids( $ticket_type_id ) {
 		global $wpdb;
-		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT area_id FROM {$wpdb->prefix}wpcap_admission_type_areas WHERE ticket_type_id=%d", absint( $ticket_type_id ) ) ) );
+		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT area_id FROM %i WHERE ticket_type_id=%d', $wpdb->prefix . 'wpcap_admission_type_areas', absint( $ticket_type_id ) ) ) );
 	}
 
 	/** Replaces the area restriction of a ticket type; areas must belong to $event_id. */
@@ -65,17 +65,17 @@ final class Areas {
 	public static function user_area_ids( $user_id, $event_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT s.area_id FROM {$p}wpcap_admission_area_staff s INNER JOIN {$p}wpcap_admission_areas a ON a.area_id=s.area_id WHERE s.user_id=%d AND a.event_id=%d AND a.status='active'", absint( $user_id ), absint( $event_id ) ) ) );
+		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT s.area_id FROM %i s INNER JOIN %i a ON a.area_id=s.area_id WHERE s.user_id=%d AND a.event_id=%d AND a.status='active'", $p . 'wpcap_admission_area_staff', $p . 'wpcap_admission_areas', absint( $user_id ), absint( $event_id ) ) ) );
 	}
 
 	public static function staff( $area_id ) {
 		global $wpdb;
-		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT user_id FROM {$wpdb->prefix}wpcap_admission_area_staff WHERE area_id=%d ORDER BY user_id", absint( $area_id ) ) ) );
+		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT user_id FROM %i WHERE area_id=%d ORDER BY user_id', $wpdb->prefix . 'wpcap_admission_area_staff', absint( $area_id ) ) ) );
 	}
 
 	public static function add_staff( $area_id, $user_id ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->prefix}wpcap_admission_area_staff (area_id,user_id) VALUES (%d,%d)", absint( $area_id ), absint( $user_id ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (area_id,user_id) VALUES (%d,%d)', $wpdb->prefix . 'wpcap_admission_area_staff', absint( $area_id ), absint( $user_id ) ) );
 	}
 
 	public static function remove_staff( $area_id, $user_id ) {
@@ -158,28 +158,28 @@ final class Areas {
 	public static function set_pairing_area( $pairing_id, $area_id ) {
 		global $wpdb;
 		if ( ! $area_id ) { return; }
-		$wpdb->query( $wpdb->prepare( "REPLACE INTO {$wpdb->prefix}wpcap_admission_pairings (pairing_id,area_id) VALUES (%d,%d)", absint( $pairing_id ), absint( $area_id ) ) );
+		$wpdb->query( $wpdb->prepare( 'REPLACE INTO %i (pairing_id,area_id) VALUES (%d,%d)', $wpdb->prefix . 'wpcap_admission_pairings', absint( $pairing_id ), absint( $area_id ) ) );
 	}
 
 	public static function pairing_area( $pairing_id ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT area_id FROM {$wpdb->prefix}wpcap_admission_pairings WHERE pairing_id=%d", absint( $pairing_id ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT area_id FROM %i WHERE pairing_id=%d', $wpdb->prefix . 'wpcap_admission_pairings', absint( $pairing_id ) ) );
 	}
 
 	public static function set_device_area( $device_id, $area_id ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_admission_devices (device_id,area_id) VALUES (%d,%d) ON DUPLICATE KEY UPDATE area_id=VALUES(area_id)", absint( $device_id ), absint( $area_id ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (device_id,area_id) VALUES (%d,%d) ON DUPLICATE KEY UPDATE area_id=VALUES(area_id)', $wpdb->prefix . 'wpcap_admission_devices', absint( $device_id ), absint( $area_id ) ) );
 	}
 
 	public static function device_area( $device_id ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT area_id FROM {$wpdb->prefix}wpcap_admission_devices WHERE device_id=%d", absint( $device_id ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT area_id FROM %i WHERE device_id=%d', $wpdb->prefix . 'wpcap_admission_devices', absint( $device_id ) ) );
 	}
 
 	/** Remembers an offline sync upload of a device. */
 	public static function touch_device_sync( $device_id, $scans ) {
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_admission_devices (device_id,last_sync_at,last_sync_scans) VALUES (%d,%s,%d) ON DUPLICATE KEY UPDATE last_sync_at=VALUES(last_sync_at), last_sync_scans=VALUES(last_sync_scans)", absint( $device_id ), current_time( 'mysql', true ), absint( $scans ) ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT INTO %i (device_id,last_sync_at,last_sync_scans) VALUES (%d,%s,%d) ON DUPLICATE KEY UPDATE last_sync_at=VALUES(last_sync_at), last_sync_scans=VALUES(last_sync_scans)', $wpdb->prefix . 'wpcap_admission_devices', absint( $device_id ), current_time( 'mysql', true ), absint( $scans ) ) );
 	}
 
 	/**

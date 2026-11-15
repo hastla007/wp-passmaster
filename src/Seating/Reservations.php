@@ -62,8 +62,8 @@ final class Reservations {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		return $wpdb->prepare(
-			"( c.status='sold' OR ( COALESCE(o.status,'') NOT IN ('cancelled','expired','refunded') AND ( COALESCE(o.payment_status,'') IN ('paid','paid_unallocated') OR c.expires_at > %s OR EXISTS (SELECT 1 FROM {$p}wpcap_reservations r WHERE r.order_id=c.order_id AND r.status='active' AND r.expires_at > %s) ) ) )",
-			$now,
+			"( c.status='sold' OR ( COALESCE(o.status,'') NOT IN ('cancelled','expired','refunded') AND ( COALESCE(o.payment_status,'') IN ('paid','paid_unallocated') OR c.expires_at > %s OR EXISTS (SELECT 1 FROM %i r WHERE r.order_id=c.order_id AND r.status='active' AND r.expires_at > %s) ) ) )",
+			$now, $p . 'wpcap_reservations',
 			$now
 		);
 	}
@@ -119,7 +119,7 @@ final class Reservations {
 	/** Hold expiry for a new order: its inventory hold, else the configured hold minutes. */
 	private static function hold_expiry( $order_id ) {
 		global $wpdb;
-		$expires = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(expires_at) FROM {$wpdb->prefix}wpcap_reservations WHERE order_id=%d", absint( $order_id ) ) );
+		$expires = $wpdb->get_var( $wpdb->prepare( 'SELECT MAX(expires_at) FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_reservations', absint( $order_id ) ) );
 		return $expires ? $expires : gmdate( 'Y-m-d H:i:s', time() + max( 1, (int) Settings::get( 'hold_minutes' ) ) * MINUTE_IN_SECONDS );
 	}
 
@@ -146,7 +146,7 @@ final class Reservations {
 		$expires = null;
 		foreach ( $by_occurrence as $occurrence_id => $types ) {
 			global $wpdb;
-			$link = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'links' ) . ' WHERE occurrence_id=%d FOR UPDATE', $occurrence_id ) );
+			$link = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d FOR UPDATE', self::t( 'links' ), $occurrence_id ) );
 			// A failed read is not "no seat map": the order would be created without seats.
 			if ( '' !== (string) $wpdb->last_error ) { throw new \RuntimeException( 'db_busy' ); }
 			$mapping = $link ? Layouts::type_zones( $occurrence_id ) : array();
@@ -254,14 +254,14 @@ final class Reservations {
 		$wpdb->query( $wpdb->prepare( "UPDATE $claims SET status='sold',updated_at=%s WHERE order_id=%d AND status='held' AND active_key IS NOT NULL", $now, $order_id ) );
 		$recoverable = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $claims WHERE order_id=%d AND active_key IS NULL AND release_reason IN ('stale','expired') ORDER BY claim_id", $order_id ) );
 		if ( ! $recoverable ) { return; }
-		$lines = $wpdb->get_results( $wpdb->prepare( "SELECT oi.ticket_type_id,SUM(oi.quantity) AS quantity,tt.occurrence_id FROM {$wpdb->prefix}wpcap_order_items oi INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d GROUP BY oi.ticket_type_id,tt.occurrence_id ORDER BY tt.occurrence_id,oi.ticket_type_id", $order_id ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT oi.ticket_type_id,SUM(oi.quantity) AS quantity,tt.occurrence_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id WHERE oi.order_id=%d GROUP BY oi.ticket_type_id,tt.occurrence_id ORDER BY tt.occurrence_id,oi.ticket_type_id', $wpdb->prefix . 'wpcap_order_items', $wpdb->prefix . 'wpcap_ticket_types', $order_id ) );
 		$missing_total = 0;
 		$wpdb->query( 'START TRANSACTION' );
 		try {
 			foreach ( $lines as $line ) {
 				$occurrence_id = (int) $line->occurrence_id;
 				$type_id = (int) $line->ticket_type_id;
-				$link = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'links' ) . ' WHERE occurrence_id=%d FOR UPDATE', $occurrence_id ) );
+				$link = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d FOR UPDATE', self::t( 'links' ), $occurrence_id ) );
 				$mapping = $link ? Layouts::type_zones( $occurrence_id ) : array();
 				if ( empty( $mapping[ $type_id ] ) ) { continue; }
 				$have = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $claims WHERE order_id=%d AND ticket_type_id=%d AND active_key IS NOT NULL", $order_id, $type_id ) );
@@ -273,7 +273,7 @@ final class Reservations {
 				$keys = array();
 				foreach ( $previous as $claim ) {
 					if ( count( $plan ) >= $need ) { break; }
-					$seat = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'seats' ) . ' WHERE version_id=%d AND seat_key=%s FOR UPDATE', (int) $link->version_id, $claim->seat_key ) );
+					$seat = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE version_id=%d AND seat_key=%s FOR UPDATE', self::t( 'seats' ), (int) $link->version_id, $claim->seat_key ) );
 					$busy = $seat ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $claims WHERE occurrence_id=%d AND active_key=%s FOR UPDATE", $occurrence_id, $claim->seat_key ) ) : 1;
 					if ( $seat && ! $busy && ! in_array( $seat->seat_key, $keys, true ) ) { $plan[] = $seat; $keys[] = $seat->seat_key; }
 				}
@@ -317,7 +317,7 @@ final class Reservations {
 		}
 		$now = current_time( 'mysql', true );
 		$wpdb->query( $wpdb->prepare( "UPDATE $claims SET ticket_id=%d,status='sold',updated_at=%s WHERE claim_id=%d", $ticket_id, $now, (int) $claim->claim_id ) );
-		$label = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT label FROM ' . self::t( 'seats' ) . ' WHERE seat_id=%d', (int) $claim->seat_id ) );
+		$label = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT label FROM %i WHERE seat_id=%d', self::t( 'seats' ), (int) $claim->seat_id ) );
 		$wpdb->insert( self::t( 'ticket_seats' ), array(
 			'ticket_id' => $ticket_id,
 			'order_id' => $order_id,
@@ -340,7 +340,7 @@ final class Reservations {
 	public static function sync_order( $order_id ) {
 		global $wpdb;
 		$order_id = absint( $order_id );
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status,payment_status FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", $order_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,status,payment_status FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_orders', $order_id ) );
 		if ( ! $order ) { return; }
 		$claims = self::t( 'claims' );
 		$now = current_time( 'mysql', true );
@@ -363,7 +363,7 @@ final class Reservations {
 
 	public static function on_ticket_revoked( $ticket_id ) {
 		global $wpdb;
-		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', absint( $ticket_id ) ) );
 		if ( $order_id ) { self::sync_order( $order_id ); }
 	}
 
@@ -424,7 +424,7 @@ final class Reservations {
 	public static function availability( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT o.occurrence_id,o.status,e.status AS event_status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", absint( $occurrence_id ) ) );
+		$occurrence = $wpdb->get_row( $wpdb->prepare( 'SELECT o.occurrence_id,o.status,e.status AS event_status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $occurrence_id ) ) );
 		if ( ! $occurrence || 'published' !== $occurrence->event_status || 'scheduled' !== $occurrence->status ) { return null; }
 		$link = Layouts::link( $occurrence->occurrence_id );
 		$version = $link ? Layouts::version( $link->version_id ) : null;
@@ -449,7 +449,7 @@ final class Reservations {
 				'status' => isset( $taken[ $seat->seat_key ] ) ? 'taken' : 'free',
 			);
 		}
-		$active_types = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$p}wpcap_ticket_types WHERE occurrence_id=%d AND status='active'", (int) $occurrence->occurrence_id ) ) );
+		$active_types = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM %i WHERE occurrence_id=%d AND status='active'", $p . 'wpcap_ticket_types', (int) $occurrence->occurrence_id ) ) );
 		$types = array();
 		foreach ( Layouts::type_zones( $occurrence->occurrence_id ) as $type_id => $zones ) {
 			if ( in_array( (int) $type_id, $active_types, true ) ) { $types[ (string) $type_id ] = $zones; }

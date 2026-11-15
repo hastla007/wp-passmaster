@@ -15,7 +15,7 @@ final class OrderPortal {
 		$token = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) get_query_var( 'wpcap_access' ) ) );
 		if ( '' === $public_id || '' === $token ) { return; }
 		global $wpdb;
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( ! $order || ! $order->access_expires_at || $order->access_expires_at <= current_time( 'mysql', true ) || 64 !== strlen( $token ) || ! hash_equals( (string) $order->access_token_hash, hash( 'sha256', $token ) ) ) { status_header( 404 ); exit; }
 		Sales\Consents::maybe_handle_portal_post( $order, $token ); // Consent withdrawal (POST, redirects back).
 		header( 'Content-Type: text/html; charset=' . get_bloginfo( 'charset' ) );
@@ -31,7 +31,7 @@ final class OrderPortal {
 		global $wpdb;
 		$public_id = (string) $order->public_id;
 		$tickets = $wpdb->get_results( $wpdb->prepare(
-			"SELECT t.ticket_id,t.ticket_type_id,t.public_id,t.status,t.transfer_count,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone FROM {$wpdb->prefix}wpcap_tickets t LEFT JOIN {$wpdb->prefix}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.order_id=%d ORDER BY t.ticket_id",
+			'SELECT t.ticket_id,t.ticket_type_id,t.public_id,t.status,t.transfer_count,t.attendee_email,ta.attendee_name,tt.name AS ticket_name,e.name AS event_name,o.starts_at,o.timezone FROM %i t LEFT JOIN %i ta ON ta.ticket_id=t.ticket_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE t.order_id=%d ORDER BY t.ticket_id', $wpdb->prefix . 'wpcap_tickets', $wpdb->prefix . 'wpcap_ticket_assignments', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events',
 			$order->order_id
 		) );
 		$edit_hours = max( 0, (int) Settings::get( 'attendee_edit_hours' ) );
@@ -39,13 +39,13 @@ final class OrderPortal {
 		$answers = array();
 		foreach ( $tickets as $ticket ) {
 			if ( ! isset( $fields[ $ticket->ticket_type_id ] ) ) {
-				$fields[ $ticket->ticket_type_id ] = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' AND field_type<>'consent' ORDER BY position,field_id", $ticket->ticket_type_id ) );
+				$fields[ $ticket->ticket_type_id ] = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,field_type,required FROM %i WHERE ticket_type_id=%d AND status='active' AND field_type<>'consent' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $ticket->ticket_type_id ) );
 			}
-			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT field_id,answer FROM {$wpdb->prefix}wpcap_participant_answers WHERE ticket_id=%d", $ticket->ticket_id ) ) as $row ) {
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT field_id,answer FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_participant_answers', $ticket->ticket_id ) ) as $row ) {
 				$answers[ $ticket->ticket_id ][ (int) $row->field_id ] = $row->answer;
 			}
 		}
-		$has_invoice = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT invoice_id FROM {$wpdb->prefix}wpcap_invoices WHERE order_id=%d", $order->order_id ) );
+		$has_invoice = (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT invoice_id FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_invoices', $order->order_id ) );
 		$base = 'wp-pass-captain/v1/orders/' . rawurlencode( $public_id );
 		$reference = Frontend\Format::order_reference( $order->public_id );
 		$can_resend = 'paid' === $order->payment_status && (bool) array_filter( $tickets, static function ( $ticket ) { return in_array( $ticket->status, array( 'valid', 'checked_in' ), true ); } );

@@ -143,7 +143,7 @@ final class Data {
 		$line_sql = "SELECT oi.order_id,oi.item_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_rate_bp,oi.tax_minor,tt.name AS ticket_name,o.occurrence_id,o.starts_at,o.timezone,o.event_id,e.name AS event_name FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id";
 
 		// Sales.
-		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor,price_snapshot FROM {$p}wpcap_orders WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $start, $end ) );
+		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor,price_snapshot FROM %i WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $p . 'wpcap_orders', $start, $end ) );
 		$order_map = array();
 		foreach ( $orders as $o ) { $order_map[ (int) $o->order_id ] = $o; }
 		$lines_by_order = self::lines_by_order( array_keys( $order_map ), $line_sql );
@@ -168,7 +168,7 @@ final class Data {
 		}
 
 		// Completed refunds (netted on their completion day).
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $start, $end ) );
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) );
 		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
 		$refund_scope = array(); // order id => in-scope refunded amount (campaign attribution).
 		foreach ( $refunds as $refund ) {
@@ -214,7 +214,7 @@ final class Data {
 		ksort( $rates );
 
 		// Credit notes in the range (reference only).
-		$credit_rows = $wpdb->get_results( $wpdb->prepare( "SELECT c.credit_note_number,c.total_minor,c.tax_minor,i.order_id FROM {$p}wpcap_credit_notes c INNER JOIN {$p}wpcap_invoices i ON i.invoice_id=c.invoice_id WHERE c.issued_at >= %s AND c.issued_at < %s", $start, $end ) );
+		$credit_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT c.credit_note_number,c.total_minor,c.tax_minor,i.order_id FROM %i c INNER JOIN %i i ON i.invoice_id=c.invoice_id WHERE c.issued_at >= %s AND c.issued_at < %s', $p . 'wpcap_credit_notes', $p . 'wpcap_invoices', $start, $end ) );
 		$credit = array( 'count' => 0, 'total' => 0, 'tax' => 0 );
 		foreach ( $credit_rows as $c ) {
 			$events = Scope::order_events( $c->order_id );
@@ -391,7 +391,7 @@ final class Data {
 	public static function occurrence_stats( array $occurrence_ids, $start, $end, $scope ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$starting = $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$p}wpcap_occurrences WHERE starts_at >= %s AND starts_at < %s", $start, $end ) );
+		$starting = $wpdb->get_col( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE starts_at >= %s AND starts_at < %s', $p . 'wpcap_occurrences', $start, $end ) );
 		$ids = array_values( array_unique( array_merge( array_map( 'absint', $occurrence_ids ), array_map( 'absint', $starting ) ) ) );
 		if ( ! $ids ) { return array(); }
 		$in = implode( ',', $ids );
@@ -436,8 +436,8 @@ final class Data {
 	public static function checkin_histogram( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$tz = (string) $wpdb->get_var( $wpdb->prepare( "SELECT timezone FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
-		$times = $wpdb->get_col( $wpdb->prepare( "SELECT COALESCE(c.scanned_at,c.created_at) FROM {$p}wpcap_checkins c INNER JOIN {$p}wpcap_tickets t ON t.ticket_id=c.ticket_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND c.result='checked_in'", absint( $occurrence_id ) ) );
+		$tz = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT timezone FROM %i WHERE occurrence_id=%d', $p . 'wpcap_occurrences', absint( $occurrence_id ) ) );
+		$times = $wpdb->get_col( $wpdb->prepare( "SELECT COALESCE(c.scanned_at,c.created_at) FROM %i c INNER JOIN %i t ON t.ticket_id=c.ticket_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND c.result='checked_in'", $p . 'wpcap_checkins', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
 		$out = array();
 		foreach ( $times as $time ) {
 			$hour = Scope::local( $time, $tz ?: 'UTC', 'Y-m-d H:00' );

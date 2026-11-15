@@ -54,7 +54,7 @@ final class Consents {
 	public static function fields( $ticket_type_id ) {
 		global $wpdb;
 		$out = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,required,consent_text,consent_version FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND field_type='consent'", absint( $ticket_type_id ) ) ) as $field ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,required,consent_text,consent_version FROM %i WHERE ticket_type_id=%d AND field_type='consent'", $wpdb->prefix . 'wpcap_participant_fields', absint( $ticket_type_id ) ) ) as $field ) {
 			$out[ (int) $field->field_id ] = $field;
 		}
 		return $out;
@@ -72,7 +72,7 @@ final class Consents {
 	public static function record_for_ticket( $ticket_id, $order ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,order_id,ticket_type_id,attendee_email FROM {$p}wpcap_tickets WHERE ticket_id=%d", absint( $ticket_id ) ) );
+		$ticket = $wpdb->get_row( $wpdb->prepare( 'SELECT ticket_id,order_id,ticket_type_id,attendee_email FROM %i WHERE ticket_id=%d', $p . 'wpcap_tickets', absint( $ticket_id ) ) );
 		if ( ! $ticket ) { return; }
 		$fields = self::fields( (int) $ticket->ticket_type_id );
 		if ( ! $fields ) { return; }
@@ -97,7 +97,7 @@ final class Consents {
 	/** Current holder of a ticket: attendee e-mail, else the buyer. */
 	private static function holder( $ticket_id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT t.attendee_email,ord.customer_email FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_orders ord ON ord.order_id=t.order_id WHERE t.ticket_id=%d", absint( $ticket_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT t.attendee_email,ord.customer_email FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id WHERE t.ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', $wpdb->prefix . 'wpcap_orders', absint( $ticket_id ) ) );
 		if ( ! $row ) { return ''; }
 		return '' !== (string) $row->attendee_email ? (string) $row->attendee_email : (string) $row->customer_email;
 	}
@@ -122,10 +122,10 @@ final class Consents {
 	 */
 	public static function end_for_holder_change( $ticket_id, $holder ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE ticket_id=%d AND withdrawn_at IS NULL AND LOWER(subject_email)<>LOWER(%s)', absint( $ticket_id ), (string) $holder ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_id=%d AND withdrawn_at IS NULL AND LOWER(subject_email)<>LOWER(%s)', self::table(), absint( $ticket_id ), (string) $holder ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
 		$ended = 0;
 		foreach ( (array) $rows as $consent ) {
-			$updated = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . " SET withdrawn_at=%s,withdrawn_source='holder_changed' WHERE consent_id=%d AND withdrawn_at IS NULL", current_time( 'mysql', true ), (int) $consent->consent_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+			$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET withdrawn_at=%s,withdrawn_source='holder_changed' WHERE consent_id=%d AND withdrawn_at IS NULL", self::table(), current_time( 'mysql', true ), (int) $consent->consent_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
 			if ( 1 !== (int) $updated ) { continue; }
 			++$ended;
 			$wpdb->delete( "{$wpdb->prefix}wpcap_participant_answers", array( 'ticket_id' => (int) $consent->ticket_id, 'field_id' => (int) $consent->field_id ) );
@@ -138,10 +138,10 @@ final class Consents {
 	/** Active consent fields of the ticket's type without an active consent for the ticket (field_id => field). */
 	public static function missing_for_ticket( $ticket_id ) {
 		global $wpdb;
-		$type_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d AND status IN ('valid','checked_in')", absint( $ticket_id ) ) );
+		$type_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT ticket_type_id FROM %i WHERE ticket_id=%d AND status IN ('valid','checked_in')", $wpdb->prefix . 'wpcap_tickets', absint( $ticket_id ) ) );
 		if ( ! $type_id ) { return array(); }
-		$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,required,consent_text,consent_version FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND field_type='consent' AND status='active' ORDER BY position,field_id", $type_id ) );
-		$given = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT field_id FROM ' . self::table() . ' WHERE ticket_id=%d AND withdrawn_at IS NULL', absint( $ticket_id ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		$fields = $wpdb->get_results( $wpdb->prepare( "SELECT field_id,field_key,label,required,consent_text,consent_version FROM %i WHERE ticket_type_id=%d AND field_type='consent' AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $type_id ) );
+		$given = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT field_id FROM %i WHERE ticket_id=%d AND withdrawn_at IS NULL', self::table(), absint( $ticket_id ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
 		$out = array();
 		foreach ( (array) $fields as $field ) {
 			if ( ! in_array( (int) $field->field_id, $given, true ) ) { $out[ (int) $field->field_id ] = $field; }
@@ -161,14 +161,14 @@ final class Consents {
 		$ticket_id = absint( $ticket_id );
 		$missing = self::missing_for_ticket( $ticket_id );
 		$holder = self::holder( $ticket_id );
-		$order_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT order_id FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d", $ticket_id ) );
+		$order_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT order_id FROM %i WHERE ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', $ticket_id ) );
 		$now = current_time( 'mysql', true );
 		$ids = array();
 		foreach ( array_unique( array_map( 'absint', $field_ids ) ) as $field_id ) {
 			if ( ! isset( $missing[ $field_id ] ) || '' === $holder ) { continue; }
 			$id = self::grant( $ticket_id, $order_id, $missing[ $field_id ], $holder, $source, $now );
 			if ( ! $id ) { continue; }
-			$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->prefix}wpcap_participant_answers (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,'1',%s,%s) ON DUPLICATE KEY UPDATE answer='1',updated_at=VALUES(updated_at)", $ticket_id, $field_id, $now, $now ) );
+			$wpdb->query( $wpdb->prepare( "INSERT INTO %i (ticket_id,field_id,answer,created_at,updated_at) VALUES (%d,%d,'1',%s,%s) ON DUPLICATE KEY UPDATE answer='1',updated_at=VALUES(updated_at)", $wpdb->prefix . 'wpcap_participant_answers', $ticket_id, $field_id, $now, $now ) );
 			Audit::record( 'consent_granted', 'order', $order_id, array( 'consent_id' => $id, 'ticket_id' => $ticket_id, 'field_id' => $field_id, 'version' => (string) $missing[ $field_id ]->consent_version, 'source' => sanitize_key( $source ) ) );
 			$ids[] = $id;
 		}
@@ -189,7 +189,7 @@ final class Consents {
 		global $wpdb;
 		$code = strtolower( preg_replace( '/[^a-f0-9]/', '', (string) $code ) );
 		if ( 64 !== strlen( $code ) ) { return null; }
-		return $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.order_id,t.status,tt.name AS ticket_name,e.name AS event_name FROM {$wpdb->prefix}wpcap_tickets t INNER JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$wpdb->prefix}wpcap_events e ON e.event_id=o.event_id WHERE t.token_hash=%s", hash( 'sha256', $code ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT t.ticket_id,t.order_id,t.status,tt.name AS ticket_name,e.name AS event_name FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE t.token_hash=%s', $wpdb->prefix . 'wpcap_tickets', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $wpdb->prefix . 'wpcap_events', hash( 'sha256', $code ) ) );
 	}
 
 	/**
@@ -239,7 +239,7 @@ final class Consents {
 	/** Inserts an active consent record unless one exists for ticket and field. @return int consent id */
 	public static function grant( $ticket_id, $order_id, $field, $subject_email, $source, $granted_at ) {
 		global $wpdb;
-		$existing = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT consent_id FROM ' . self::table() . ' WHERE ticket_id=%d AND field_id=%d AND withdrawn_at IS NULL', absint( $ticket_id ), (int) $field->field_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		$existing = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT consent_id FROM %i WHERE ticket_id=%d AND field_id=%d AND withdrawn_at IS NULL', self::table(), absint( $ticket_id ), (int) $field->field_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
 		if ( $existing ) { return $existing; }
 		$text = (string) ( $field->consent_text ?? '' );
 		$version = (string) ( $field->consent_version ?? '' );
@@ -261,12 +261,12 @@ final class Consents {
 	/** Consent records of an order (portal, admin). */
 	public static function for_order( $order_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE order_id=%d ORDER BY consent_id', absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d ORDER BY consent_id', self::table(), absint( $order_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
 	}
 
 	public static function get( $consent_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE consent_id=%d', absint( $consent_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE consent_id=%d', self::table(), absint( $consent_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
 	}
 
 	/**
@@ -281,7 +281,7 @@ final class Consents {
 		if ( ! $consent ) { return new \WP_Error( 'wpcap_consent_missing', __( 'Einwilligung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( $consent->withdrawn_at ) { return new \WP_Error( 'wpcap_consent_withdrawn', __( 'Diese Einwilligung wurde bereits widerrufen.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$now = current_time( 'mysql', true );
-		$updated = $wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table() . ' SET withdrawn_at=%s,withdrawn_source=%s WHERE consent_id=%d AND withdrawn_at IS NULL', $now, sanitize_key( $source ), (int) $consent->consent_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		$updated = $wpdb->query( $wpdb->prepare( 'UPDATE %i SET withdrawn_at=%s,withdrawn_source=%s WHERE consent_id=%d AND withdrawn_at IS NULL', self::table(), $now, sanitize_key( $source ), (int) $consent->consent_id ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
 		if ( 1 !== (int) $updated ) { return new \WP_Error( 'wpcap_consent_withdrawn', __( 'Diese Einwilligung wurde bereits widerrufen.', 'pass-captain' ), array( 'status' => 409 ) ); }
 		$wpdb->delete( "{$wpdb->prefix}wpcap_participant_answers", array( 'ticket_id' => (int) $consent->ticket_id, 'field_id' => (int) $consent->field_id ) );
 		Audit::record( 'consent_withdrawn', 'order', (int) $consent->order_id, array( 'consent_id' => (int) $consent->consent_id, 'field_id' => (int) $consent->field_id, 'version' => $consent->text_version, 'source' => sanitize_key( $source ) ) );
@@ -328,7 +328,7 @@ final class Consents {
 	 */
 	public static function grant_for_order( $order, $ticket_id, $field_id ) {
 		global $wpdb;
-		$ticket = $order ? $wpdb->get_row( $wpdb->prepare( "SELECT ticket_id,attendee_email FROM {$wpdb->prefix}wpcap_tickets WHERE ticket_id=%d AND order_id=%d", absint( $ticket_id ), (int) $order->order_id ) ) : null;
+		$ticket = $order ? $wpdb->get_row( $wpdb->prepare( 'SELECT ticket_id,attendee_email FROM %i WHERE ticket_id=%d AND order_id=%d', $wpdb->prefix . 'wpcap_tickets', absint( $ticket_id ), (int) $order->order_id ) ) : null;
 		if ( ! $ticket || 0 !== strcasecmp( self::holder( (int) $ticket->ticket_id ), (string) $order->customer_email ) ) {
 			return new \WP_Error( 'wpcap_consent_not_holder', __( 'Nur die Person, der das Ticket gehört, kann hier einwilligen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
@@ -340,7 +340,7 @@ final class Consents {
 	private static function open_for_buyer( $order ) {
 		global $wpdb;
 		$out = array();
-		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d AND status IN ('valid','checked_in') AND (attendee_email='' OR LOWER(attendee_email)=LOWER(%s)) ORDER BY ticket_id LIMIT 100", (int) $order->order_id, (string) $order->customer_email ) ) as $ticket_id ) {
+		foreach ( (array) $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM %i WHERE order_id=%d AND status IN ('valid','checked_in') AND (attendee_email='' OR LOWER(attendee_email)=LOWER(%s)) ORDER BY ticket_id LIMIT 100", $wpdb->prefix . 'wpcap_tickets', (int) $order->order_id, (string) $order->customer_email ) ) as $ticket_id ) {
 			$missing = self::missing_for_ticket( (int) $ticket_id );
 			if ( $missing ) { $out[ (int) $ticket_id ] = $missing; }
 		}
@@ -418,7 +418,7 @@ final class Consents {
 	/** Records of a person: subject e-mail or buyer e-mail of the order. */
 	private static function ids_for_email( $email, $limit, $offset = 0 ) {
 		global $wpdb;
-		return $wpdb->get_col( $wpdb->prepare( 'SELECT c.consent_id FROM ' . self::table() . " c LEFT JOIN {$wpdb->prefix}wpcap_orders o ON o.order_id=c.order_id WHERE c.subject_email=%s OR o.customer_email=%s ORDER BY c.consent_id LIMIT %d OFFSET %d", $email, $email, $limit, $offset ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
+		return $wpdb->get_col( $wpdb->prepare( 'SELECT c.consent_id FROM %i c LEFT JOIN %i o ON o.order_id=c.order_id WHERE c.subject_email=%s OR o.customer_email=%s ORDER BY c.consent_id LIMIT %d OFFSET %d', self::table(), $wpdb->prefix . 'wpcap_orders', $email, $email, $limit, $offset ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- own table.
 	}
 
 	/** Personal data exporter: every consent with text, version, times and source. */

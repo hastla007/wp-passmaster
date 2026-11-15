@@ -26,12 +26,12 @@ final class Repository {
 
 	public static function get( $partner_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_partners WHERE partner_id=%d", absint( $partner_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE partner_id=%d', $wpdb->prefix . 'wpcap_partners', absint( $partner_id ) ) );
 	}
 
 	public static function all() {
 		global $wpdb;
-		return $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpcap_partners ORDER BY name, partner_id" );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY name, partner_id', $wpdb->prefix . 'wpcap_partners' ) );
 	}
 
 	/**
@@ -160,7 +160,7 @@ final class Repository {
 		$p = $wpdb->prefix;
 		if ( ! Vault::available() || ! self::table_present( 'wpcap_partners' ) ) { return 0; }
 		$count = 0;
-		foreach ( (array) $wpdb->get_results( "SELECT partner_id,payout_details FROM {$p}wpcap_partners WHERE payout_details<>''" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT partner_id,payout_details FROM %i WHERE payout_details<>''", $p . 'wpcap_partners' ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix.
 			$context = self::payout_context( (int) $row->partner_id );
 			$plain = self::plain_for_migration( (string) $row->payout_details, $context );
 			if ( null === $plain ) { continue; }
@@ -169,7 +169,7 @@ final class Repository {
 			if ( false !== $wpdb->update( "{$p}wpcap_partners", array( 'payout_details' => $sealed ), array( 'partner_id' => (int) $row->partner_id ) ) ) { ++$count; }
 		}
 		if ( ! self::table_present( 'wpcap_partner_settlements' ) ) { return $count; }
-		foreach ( (array) $wpdb->get_results( "SELECT settlement_id,partner_snapshot FROM {$p}wpcap_partner_settlements WHERE partner_snapshot LIKE '%payout_details%'" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix.
+		foreach ( (array) $wpdb->get_results( $wpdb->prepare( "SELECT settlement_id,partner_snapshot FROM %i WHERE partner_snapshot LIKE '%%payout_details%%'", $p . 'wpcap_partner_settlements' ) ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix.
 			$snapshot = json_decode( (string) $row->partner_snapshot, true );
 			$stored = is_array( $snapshot ) ? (string) ( $snapshot['partner']['payout_details'] ?? '' ) : '';
 			if ( '' === $stored ) { continue; }
@@ -219,7 +219,7 @@ final class Repository {
 		if ( '' !== $prefix ) {
 			global $wpdb;
 			$reserved = array( (string) \PassCaptain\Settings::get( 'invoice_prefix' ), (string) \PassCaptain\Settings::get( 'credit_note_prefix' ), (string) ( \PassCaptain\Settings::get( 'partners' )['settlement_prefix'] ?? 'PA' ), (string) ( \PassCaptain\Settings::get( 'partners' )['self_billing_prefix'] ?? 'GU' ) );
-			$taken = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_partners WHERE invoice_prefix=%s AND partner_id<>%d", $prefix, absint( $partner_id ) ) );
+			$taken = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE invoice_prefix=%s AND partner_id<>%d', $wpdb->prefix . 'wpcap_partners', $prefix, absint( $partner_id ) ) );
 			if ( $taken || in_array( strtoupper( $prefix ), array_map( 'strtoupper', $reserved ), true ) || preg_match( '/^V\d+$/i', $prefix ) ) {
 				return new \WP_Error( 'wpcap_partner_prefix_taken', __( 'Dieses Rechnungsnummern-Präfix wird bereits verwendet (Plattform oder anderer Veranstalter). Jeder Veranstalter braucht einen eigenen Nummernkreis.', 'pass-captain' ), array( 'status' => 400 ) );
 			}
@@ -242,13 +242,13 @@ final class Repository {
 	/** Event ids linked to the partner. */
 	public static function event_ids( $partner_id ) {
 		global $wpdb;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_partner_events WHERE partner_id=%d ORDER BY event_id", absint( $partner_id ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT event_id FROM %i WHERE partner_id=%d ORDER BY event_id', $wpdb->prefix . 'wpcap_partner_events', absint( $partner_id ) ) ) );
 	}
 
 	/** Partner id an event belongs to (0 = none). */
 	public static function partner_of_event( $event_id ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT partner_id FROM {$wpdb->prefix}wpcap_partner_events WHERE event_id=%d", absint( $event_id ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT partner_id FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_partner_events', absint( $event_id ) ) );
 	}
 
 	/**
@@ -261,11 +261,11 @@ final class Repository {
 		$partner_id = absint( $partner_id );
 		if ( ! self::get( $partner_id ) ) { return new \WP_Error( 'wpcap_partner_missing', __( 'Veranstalter nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$event_ids = array_values( array_unique( array_filter( array_map( 'absint', $event_ids ) ) ) );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_events WHERE partner_id=%d", $partner_id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE partner_id=%d', $wpdb->prefix . 'wpcap_partner_events', $partner_id ) );
 		$linked = array();
 		$skipped = array();
 		foreach ( $event_ids as $event_id ) {
-			if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) ) ) { continue; }
+			if ( ! $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', $event_id ) ) ) { continue; }
 			$owner = self::partner_of_event( $event_id );
 			if ( $owner && $owner !== $partner_id ) { $skipped[] = $event_id; continue; }
 			if ( false !== $wpdb->insert( "{$wpdb->prefix}wpcap_partner_events", array( 'event_id' => $event_id, 'partner_id' => $partner_id ) ) ) { $linked[] = $event_id; }
@@ -276,7 +276,7 @@ final class Repository {
 
 	public static function user_ids( $partner_id ) {
 		global $wpdb;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT user_id FROM {$wpdb->prefix}wpcap_partner_users WHERE partner_id=%d ORDER BY user_id", absint( $partner_id ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT user_id FROM %i WHERE partner_id=%d ORDER BY user_id', $wpdb->prefix . 'wpcap_partner_users', absint( $partner_id ) ) ) );
 	}
 
 	/** Replaces the WordPress users that may view the partner's settlements. */
@@ -284,7 +284,7 @@ final class Repository {
 		global $wpdb;
 		$partner_id = absint( $partner_id );
 		$user_ids = array_values( array_unique( array_filter( array_map( 'absint', $user_ids ) ) ) );
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}wpcap_partner_users WHERE partner_id=%d", $partner_id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE partner_id=%d', $wpdb->prefix . 'wpcap_partner_users', $partner_id ) );
 		foreach ( $user_ids as $user_id ) {
 			$wpdb->insert( "{$wpdb->prefix}wpcap_partner_users", array( 'partner_id' => $partner_id, 'user_id' => $user_id ) );
 		}
@@ -296,7 +296,7 @@ final class Repository {
 	public static function partners_of_user( $user_id ) {
 		global $wpdb;
 		if ( ! $user_id ) { return array(); }
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT partner_id FROM {$wpdb->prefix}wpcap_partner_users WHERE user_id=%d", absint( $user_id ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT partner_id FROM %i WHERE user_id=%d', $wpdb->prefix . 'wpcap_partner_users', absint( $user_id ) ) ) );
 	}
 
 	/** Resolves "12, alice, bob@example.com" to user ids (unknown entries are ignored). */

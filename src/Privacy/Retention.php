@@ -109,7 +109,7 @@ final class Retention {
 		$now_sql = self::utc( $now );
 		$days = $global > 0 ? (string) (int) $global : 'COALESCE(f.retention_days, ' . (int) self::default_attendee_days() . ')';
 		// Index-friendly pre-filter: an occurrence can only be due if it started before now - min(N).
-		$min = $global > 0 ? $global : (int) $wpdb->get_var( "SELECT COALESCE(MIN(retention_days),0) FROM {$p}wpcap_participant_fields" );
+		$min = $global > 0 ? $global : (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(MIN(retention_days),0) FROM %i', $p . 'wpcap_participant_fields' ) );
 		$min = min( $min, $global > 0 ? $global : self::default_attendee_days() );
 		$start_before = self::utc( $now - $min * DAY_IN_SECONDS );
 		return self::loop(
@@ -179,7 +179,7 @@ final class Retention {
 		return self::loop(
 			$deadline,
 			static function () use ( $wpdb, $p, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM {$p}wpcap_orders WHERE attendee_data IS NOT NULL AND payment_status IN ('expired','cancelled','failed') AND updated_at<%s LIMIT %d", $cutoff, self::BATCH ) );
+				return $wpdb->get_col( $wpdb->prepare( "SELECT order_id FROM %i WHERE attendee_data IS NOT NULL AND payment_status IN ('expired','cancelled','failed') AND updated_at<%s LIMIT %d", $p . 'wpcap_orders', $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				return (int) $wpdb->query( "UPDATE {$p}wpcap_orders SET attendee_data=NULL WHERE order_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -198,7 +198,7 @@ final class Retention {
 		return self::loop(
 			$deadline,
 			static function () use ( $wpdb, $p, $cutoff, $like ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT ord.order_id FROM {$p}wpcap_orders ord WHERE ord.payment_status IN ('expired','cancelled','failed') AND ord.updated_at<%s AND ord.created_at<%s AND ord.customer_email NOT LIKE %s AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_tickets t WHERE t.order_id=ord.order_id) AND NOT EXISTS (SELECT 1 FROM {$p}wpcap_invoices i WHERE i.order_id=ord.order_id) LIMIT %d", $cutoff, $cutoff, $like, self::BATCH ) );
+				return $wpdb->get_col( $wpdb->prepare( "SELECT ord.order_id FROM %i ord WHERE ord.payment_status IN ('expired','cancelled','failed') AND ord.updated_at<%s AND ord.created_at<%s AND ord.customer_email NOT LIKE %s AND NOT EXISTS (SELECT 1 FROM %i t WHERE t.order_id=ord.order_id) AND NOT EXISTS (SELECT 1 FROM %i i WHERE i.order_id=ord.order_id) LIMIT %d", $p . 'wpcap_orders', $cutoff, $cutoff, $like, $p . 'wpcap_tickets', $p . 'wpcap_invoices', self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				$done = 0;
@@ -221,7 +221,7 @@ final class Retention {
 			$count += self::loop(
 				$deadline,
 				static function () use ( $wpdb, $p, $cutoff ) {
-					return $wpdb->get_col( $wpdb->prepare( "SELECT message_id FROM {$p}wpcap_message_queue WHERE status IN ('sent','failed','cancelled') AND send_at<%s AND created_at<%s AND (recipient<>'' OR payload<>'{}') LIMIT %d", $cutoff, $cutoff, self::BATCH ) );
+					return $wpdb->get_col( $wpdb->prepare( "SELECT message_id FROM %i WHERE status IN ('sent','failed','cancelled') AND send_at<%s AND created_at<%s AND (recipient<>'' OR payload<>'{}') LIMIT %d", $p . 'wpcap_message_queue', $cutoff, $cutoff, self::BATCH ) );
 				},
 				static function ( $ids ) use ( $wpdb, $p ) {
 					return (int) $wpdb->query( "UPDATE {$p}wpcap_message_queue SET recipient='',payload='{}',last_error=NULL WHERE message_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -234,7 +234,7 @@ final class Retention {
 			$count += self::loop(
 				$deadline,
 				static function () use ( $wpdb, $p, $cutoff ) {
-					return $wpdb->get_col( $wpdb->prepare( "SELECT message_id FROM {$p}wpcap_message_queue WHERE status IN ('sent','failed','cancelled') AND send_at<%s AND created_at<%s LIMIT %d", $cutoff, $cutoff, self::BATCH ) );
+					return $wpdb->get_col( $wpdb->prepare( "SELECT message_id FROM %i WHERE status IN ('sent','failed','cancelled') AND send_at<%s AND created_at<%s LIMIT %d", $p . 'wpcap_message_queue', $cutoff, $cutoff, self::BATCH ) );
 				},
 				static function ( $ids ) use ( $wpdb, $p ) {
 					return (int) $wpdb->query( "DELETE FROM {$p}wpcap_message_queue WHERE message_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -254,7 +254,7 @@ final class Retention {
 		return self::loop(
 			$deadline,
 			static function () use ( $wpdb, $p, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT checkin_id FROM {$p}wpcap_checkins WHERE created_at<%s AND (user_id<>0 OR device_id<>0) LIMIT %d", $cutoff, self::BATCH ) );
+				return $wpdb->get_col( $wpdb->prepare( 'SELECT checkin_id FROM %i WHERE created_at<%s AND (user_id<>0 OR device_id<>0) LIMIT %d', $p . 'wpcap_checkins', $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				return (int) $wpdb->query( "UPDATE {$p}wpcap_checkins SET user_id=0,device_id=0 WHERE checkin_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -271,7 +271,7 @@ final class Retention {
 		return self::loop(
 			$deadline,
 			static function () use ( $wpdb, $p, $cutoff ) {
-				return $wpdb->get_col( $wpdb->prepare( "SELECT audit_id FROM {$p}wpcap_audit_logs WHERE created_at<%s ORDER BY audit_id LIMIT %d", $cutoff, self::BATCH ) );
+				return $wpdb->get_col( $wpdb->prepare( 'SELECT audit_id FROM %i WHERE created_at<%s ORDER BY audit_id LIMIT %d', $p . 'wpcap_audit_logs', $cutoff, self::BATCH ) );
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				return (int) $wpdb->query( "DELETE FROM {$p}wpcap_audit_logs WHERE audit_id IN (" . self::in_list( $ids ) . ')' ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

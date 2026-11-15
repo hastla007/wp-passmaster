@@ -39,9 +39,9 @@ final class Conflicts {
 		$ticket_id = absint( $data['ticket_id'] ?? 0 );
 		if ( ! $ticket_id ) { return 0; }
 		$dedupe = hash( 'sha256', (string) $data['dedupe'] );
-		$existing = (int) $wpdb->get_var( $wpdb->prepare( "SELECT conflict_id FROM {$p}wpcap_admission_conflicts WHERE dedupe_key=%s", $dedupe ) );
+		$existing = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT conflict_id FROM %i WHERE dedupe_key=%s', $p . 'wpcap_admission_conflicts', $dedupe ) );
 		if ( $existing ) { return $existing; }
-		$first = $wpdb->get_row( $wpdb->prepare( "SELECT checkin_id,device_id,user_id,COALESCE(scanned_at,created_at) AS at FROM {$p}wpcap_checkins WHERE ticket_id=%d AND result='checked_in' AND checkin_id<>%d ORDER BY checkin_id DESC LIMIT 1", $ticket_id, absint( $data['checkin_id'] ?? 0 ) ) );
+		$first = $wpdb->get_row( $wpdb->prepare( "SELECT checkin_id,device_id,user_id,COALESCE(scanned_at,created_at) AS at FROM %i WHERE ticket_id=%d AND result='checked_in' AND checkin_id<>%d ORDER BY checkin_id DESC LIMIT 1", $p . 'wpcap_checkins', $ticket_id, absint( $data['checkin_id'] ?? 0 ) ) );
 		$wpdb->query( $wpdb->prepare(
 			"INSERT IGNORE INTO {$p}wpcap_admission_conflicts (dedupe_key,ticket_id,event_id,occurrence_id,area_id,result,source,device_id,user_id,scanned_at,checkin_id,first_checkin_id,first_device_id,first_user_id,first_at,status,created_at) VALUES (%s,%d,%d,%d,%d,%s,%s,%d,%d," . ( empty( $data['scanned_at'] ) ? 'NULL' : '%s' ) . ',%d,%d,%d,%d,' . ( $first ? '%s' : 'NULL' ) . ",'open',%s)",
 			array_values( array_filter( array(
@@ -54,7 +54,7 @@ final class Conflicts {
 				current_time( 'mysql', true ),
 			), static function ( $v ) { return null !== $v; } ) )
 		) );
-		$id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT conflict_id FROM {$p}wpcap_admission_conflicts WHERE dedupe_key=%s", $dedupe ) );
+		$id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT conflict_id FROM %i WHERE dedupe_key=%s', $p . 'wpcap_admission_conflicts', $dedupe ) );
 		if ( $id && $id === (int) $wpdb->insert_id ) {
 			Audit::record( 'admission_conflict_recorded', 'admission_conflict', $id, array( 'ticket_id' => $ticket_id, 'result' => sanitize_key( (string) ( $data['result'] ?? '' ) ), 'device_id' => absint( $data['device_id'] ?? 0 ) ) );
 		}
@@ -63,13 +63,13 @@ final class Conflicts {
 
 	public static function get( $conflict_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_admission_conflicts WHERE conflict_id=%d", absint( $conflict_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE conflict_id=%d', $wpdb->prefix . 'wpcap_admission_conflicts', absint( $conflict_id ) ) );
 	}
 
 	/** Existing conflict of a scan (for replayed uploads). */
 	public static function find_by_dedupe( $dedupe ) {
 		global $wpdb;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT conflict_id FROM {$wpdb->prefix}wpcap_admission_conflicts WHERE dedupe_key=%s", hash( 'sha256', (string) $dedupe ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT conflict_id FROM %i WHERE dedupe_key=%s', $wpdb->prefix . 'wpcap_admission_conflicts', hash( 'sha256', (string) $dedupe ) ) );
 	}
 
 	/** Open conflicts in the current user's event scope (menu badge). */
@@ -120,7 +120,7 @@ final class Conflicts {
 		if ( 'other' === $resolution && '' === $note ) {
 			return new \WP_Error( 'wpcap_conflict_note', __( 'Bei „Sonstiges“ ist eine Notiz erforderlich.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_admission_conflicts SET status='resolved', resolution=%s, resolution_note=%s, resolved_by=%d, resolved_at=%s WHERE conflict_id=%d AND status='open'", $resolution, $note, get_current_user_id(), current_time( 'mysql', true ), (int) $conflict->conflict_id ) );
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='resolved', resolution=%s, resolution_note=%s, resolved_by=%d, resolved_at=%s WHERE conflict_id=%d AND status='open'", $wpdb->prefix . 'wpcap_admission_conflicts', $resolution, $note, get_current_user_id(), current_time( 'mysql', true ), (int) $conflict->conflict_id ) );
 		if ( ! $updated ) {
 			return new \WP_Error( 'wpcap_conflict_resolved', __( 'Dieser Konflikt wurde bereits geklärt.', 'pass-captain' ), array( 'status' => 409 ) );
 		}

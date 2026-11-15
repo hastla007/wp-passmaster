@@ -20,7 +20,7 @@ final class RulesPage {
 	private static function type_context( $ticket_type_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.name,tt.occurrence_id,o.event_id,o.timezone FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", absint( $ticket_type_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name,tt.occurrence_id,o.event_id,o.timezone FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', absint( $ticket_type_id ) ) );
 	}
 
 	private static function can( $event_id ) {

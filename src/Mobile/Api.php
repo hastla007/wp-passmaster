@@ -91,17 +91,17 @@ final class Api {
 	public static function stats( \WP_REST_Request $request ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", absint( $request['occurrence_id'] ) ) );
+		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_id,event_id FROM %i WHERE occurrence_id=%d', $p . 'wpcap_occurrences', absint( $request['occurrence_id'] ) ) );
 		if ( ! $occ || ! in_array( (int) $occ->event_id, Devices::event_ids( Devices::current() ), true ) || ! \PassCaptain\Access::can_access_occurrence( (int) $occ->occurrence_id, 'wpcap_checkin', (int) $occ->event_id ) ) {
 			return new \WP_Error( 'wpcap_forbidden_event', __( 'Für dieses Event ist kein Einlasszugriff zugewiesen.', 'pass-captain' ), array( 'status' => 403 ) );
 		}
 		$counts = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT t.status, COUNT(*) AS n FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d GROUP BY t.status", (int) $occ->occurrence_id ) ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT t.status, COUNT(*) AS n FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d GROUP BY t.status', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', (int) $occ->occurrence_id ) ) as $row ) {
 			$counts[ $row->status ] = (int) $row->n;
 		}
 		$valid = $counts['valid'] ?? 0;
 		$checked = $counts['checked_in'] ?? 0;
-		$device_scans = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_checkins WHERE device_id=%d AND result='checked_in' AND event_id=%d", (int) Devices::current()->device_id, (int) $occ->event_id ) );
+		$device_scans = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE device_id=%d AND result='checked_in' AND event_id=%d", $p . 'wpcap_checkins', (int) Devices::current()->device_id, (int) $occ->event_id ) );
 		$presence = Engine::presence( (int) $occ->occurrence_id );
 		$movement = Engine::movement( (int) $occ->occurrence_id );
 		$by_area = array();

@@ -99,9 +99,9 @@ final class Webhooks {
 	public static function order_object( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$o = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,customer_email,status,payment_status,currency,total_minor,refunded_minor,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		$o = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,customer_email,status,payment_status,currency,total_minor,refunded_minor,payment_provider FROM %i WHERE order_id=%d', $p . 'wpcap_orders', absint( $order_id ) ) );
 		if ( ! $o ) { return null; }
-		$count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d", (int) $o->order_id ) );
+		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE order_id=%d', $p . 'wpcap_tickets', (int) $o->order_id ) );
 		return array(
 			array( 'object' => 'order', 'id' => $o->public_id, 'status' => $o->status, 'payment_status' => $o->payment_status, 'currency' => $o->currency, 'total_minor' => (int) $o->total_minor, 'refunded_minor' => (int) $o->refunded_minor, 'payment_provider' => $o->payment_provider, 'ticket_count' => $count ),
 			array( 'customer_email' => $o->customer_email ),
@@ -112,7 +112,7 @@ final class Webhooks {
 	public static function ticket_object( $ticket_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$t = $wpdb->get_row( $wpdb->prepare( "SELECT t.public_id,t.status,t.refunded,t.attendee_email,t.ticket_type_id,ord.public_id AS order_public_id,tt.occurrence_id,o.event_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id=%d", absint( $ticket_id ) ) );
+		$t = $wpdb->get_row( $wpdb->prepare( 'SELECT t.public_id,t.status,t.refunded,t.attendee_email,t.ticket_type_id,ord.public_id AS order_public_id,tt.occurrence_id,o.event_id FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id=%d', $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', absint( $ticket_id ) ) );
 		if ( ! $t ) { return null; }
 		return array(
 			array( 'object' => 'ticket', 'id' => $t->public_id, 'order_id' => $t->order_public_id, 'ticket_type_id' => (int) $t->ticket_type_id, 'occurrence_id' => (int) $t->occurrence_id, 'event_id' => (int) $t->event_id, 'status' => $t->status, 'refunded' => (bool) $t->refunded ),
@@ -122,7 +122,7 @@ final class Webhooks {
 
 	public static function occurrence_object( $occurrence_id ) {
 		global $wpdb;
-		$o = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id,starts_at,ends_at,timezone,status FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
+		$o = $wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_id,event_id,starts_at,ends_at,timezone,status FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
 		if ( ! $o ) { return null; }
 		return array( 'object' => 'occurrence', 'id' => (int) $o->occurrence_id, 'event_id' => (int) $o->event_id, 'starts_at' => self::iso( $o->starts_at ), 'ends_at' => $o->ends_at ? self::iso( $o->ends_at ) : null, 'timezone' => $o->timezone, 'status' => $o->status );
 	}
@@ -147,7 +147,7 @@ final class Webhooks {
 		global $wpdb;
 		$o = self::order_object( $order_id );
 		if ( ! $o ) { return 0; }
-		$r = $wpdb->get_row( $wpdb->prepare( "SELECT refund_id,amount_minor,currency,ticket_ids FROM {$wpdb->prefix}wpcap_refunds WHERE refund_id=%d", absint( $refund_id ) ) );
+		$r = $wpdb->get_row( $wpdb->prepare( 'SELECT refund_id,amount_minor,currency,ticket_ids FROM %i WHERE refund_id=%d', $wpdb->prefix . 'wpcap_refunds', absint( $refund_id ) ) );
 		$ids = $r ? array_map( 'absint', (array) json_decode( (string) $r->ticket_ids, true ) ) : array();
 		$public = $ids ? $wpdb->get_col( 'SELECT public_id FROM ' . $wpdb->prefix . 'wpcap_tickets WHERE ticket_id IN (' . implode( ',', $ids ) . ')' ) : array(); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- integer list.
 		$o[0]['refund'] = array( 'id' => (int) $refund_id, 'amount_minor' => $r ? (int) $r->amount_minor : 0, 'currency' => $r ? $r->currency : $o[0]['currency'], 'ticket_ids' => array_values( $public ) );
@@ -168,7 +168,7 @@ final class Webhooks {
 
 	public static function tickets_issued( $order_id, $count = 0 ) {
 		global $wpdb;
-		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d ORDER BY ticket_id", absint( $order_id ) ) );
+		$ids = $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_id FROM %i WHERE order_id=%d ORDER BY ticket_id', $wpdb->prefix . 'wpcap_tickets', absint( $order_id ) ) );
 		$queued = 0;
 		foreach ( $ids as $ticket_id ) {
 			$t = self::ticket_object( $ticket_id );

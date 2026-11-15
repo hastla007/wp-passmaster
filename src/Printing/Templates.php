@@ -185,13 +185,13 @@ final class Templates {
 
 	public static function get_template( $template_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_print_templates WHERE template_id=%d", absint( $template_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE template_id=%d', $wpdb->prefix . 'wpcap_print_templates', absint( $template_id ) ) );
 	}
 
 	/** Events a template is selected for. */
 	public static function assigned_events( $template_id ) {
 		global $wpdb;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_print_event_templates WHERE template_id=%d", absint( $template_id ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE template_id=%d', $wpdb->prefix . 'wpcap_print_event_templates', absint( $template_id ) ) ) );
 	}
 
 	/**
@@ -260,7 +260,7 @@ final class Templates {
 				return new \WP_Error( 'wpcap_print_template_owner', __( 'Diese Vorlage gehört zu einem anderen Event.', 'pass-captain' ), array( 'status' => 403 ) );
 			}
 		}
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$p}wpcap_print_event_templates WHERE event_id=%d AND kind=%s", absint( $event_id ), $kind ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE event_id=%d AND kind=%s', $p . 'wpcap_print_event_templates', absint( $event_id ), $kind ) );
 		if ( $template_id ) {
 			$wpdb->insert( "{$p}wpcap_print_event_templates", array( 'event_id' => absint( $event_id ), 'kind' => $kind, 'template_id' => $template_id ) );
 		}
@@ -271,7 +271,7 @@ final class Templates {
 	public static function body_for_event( $event_id, $kind ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$body = $wpdb->get_var( $wpdb->prepare( "SELECT t.body FROM {$p}wpcap_print_event_templates et INNER JOIN {$p}wpcap_print_templates t ON t.template_id=et.template_id WHERE et.event_id=%d AND et.kind=%s AND t.status='active'", absint( $event_id ), $kind ) );
+		$body = $wpdb->get_var( $wpdb->prepare( "SELECT t.body FROM %i et INNER JOIN %i t ON t.template_id=et.template_id WHERE et.event_id=%d AND et.kind=%s AND t.status='active'", $p . 'wpcap_print_event_templates', $p . 'wpcap_print_templates', absint( $event_id ), $kind ) );
 		return $body ? (string) $body : self::default_body( $kind );
 	}
 
@@ -320,7 +320,7 @@ final class Templates {
 		$out = array();
 		foreach ( array_unique( array_map( 'absint', $ticket_ids ) ) as $ticket_id ) {
 			$token = bin2hex( random_bytes( 32 ) );
-			$updated = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->prefix}wpcap_tickets SET token_hash=%s WHERE ticket_id=%d AND status='valid'", hash( 'sha256', $token ), $ticket_id ) );
+			$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET token_hash=%s WHERE ticket_id=%d AND status='valid'", $wpdb->prefix . 'wpcap_tickets', hash( 'sha256', $token ), $ticket_id ) );
 			if ( $updated ) {
 				$out[ $ticket_id ] = $token;
 				/** The ticket got a new code (old one invalid), e.g. so wallet passes can be refreshed. */

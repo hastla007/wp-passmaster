@@ -109,7 +109,7 @@ final class Types {
 		global $wpdb;
 		$vars = array( 'order_reference' => \PassCaptain\Frontend\Format::order_reference( $public_id ), 'payment_instructions' => Blocks::payment_instructions( null ) );
 		if ( 32 !== strlen( $public_id ) ) { return $vars; }
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,payment_provider,payment_status,total_minor,currency FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s", $public_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,payment_provider,payment_status,total_minor,currency FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( $order && \PassCaptain\Payments\BankTransfer::applies( $order ) ) {
 			$vars['payment_instructions'] = Blocks::payment_instructions( \PassCaptain\Payments\BankTransfer::details( $order ) );
 		}

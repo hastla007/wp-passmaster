@@ -73,7 +73,7 @@ final class Rest {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$device = Devices::current();
-		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.name AS event_name,e.status AS event_status FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", absint( $request->get_param( 'occurrence_id' ) ) ) );
+		$occurrence = $wpdb->get_row( $wpdb->prepare( 'SELECT o.*,e.name AS event_name,e.status AS event_status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $request->get_param( 'occurrence_id' ) ) ) );
 		if ( ! $occurrence ) {
 			return new \WP_Error( 'wpcap_offline_occurrence', __( 'Termin nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}

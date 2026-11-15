@@ -335,44 +335,44 @@ final class Layouts {
 
 	public static function get( $layout_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'layouts' ) . ' WHERE layout_id=%d', absint( $layout_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE layout_id=%d', self::table( 'layouts' ), absint( $layout_id ) ) );
 	}
 
 	public static function for_event( $event_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT layout_id,event_id,name,draft_revision,published_version,updated_at FROM ' . self::table( 'layouts' ) . ' WHERE event_id=%d ORDER BY layout_id', absint( $event_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT layout_id,event_id,name,draft_revision,published_version,updated_at FROM %i WHERE event_id=%d ORDER BY layout_id', self::table( 'layouts' ), absint( $event_id ) ) );
 	}
 
 	public static function version( $version_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'versions' ) . ' WHERE version_id=%d', absint( $version_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE version_id=%d', self::table( 'versions' ), absint( $version_id ) ) );
 	}
 
 	public static function versions( $layout_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT version_id,layout_id,event_id,version,name,seat_count,created_by,created_at FROM ' . self::table( 'versions' ) . ' WHERE layout_id=%d ORDER BY version DESC', absint( $layout_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT version_id,layout_id,event_id,version,name,seat_count,created_by,created_at FROM %i WHERE layout_id=%d ORDER BY version DESC', self::table( 'versions' ), absint( $layout_id ) ) );
 	}
 
 	public static function versions_for_event( $event_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT version_id,layout_id,version,name,seat_count FROM ' . self::table( 'versions' ) . ' WHERE event_id=%d ORDER BY layout_id,version DESC', absint( $event_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT version_id,layout_id,version,name,seat_count FROM %i WHERE event_id=%d ORDER BY layout_id,version DESC', self::table( 'versions' ), absint( $event_id ) ) );
 	}
 
 	public static function seats( $version_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'seats' ) . ' WHERE version_id=%d ORDER BY sort_order,seat_id', absint( $version_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE version_id=%d ORDER BY sort_order,seat_id', self::table( 'seats' ), absint( $version_id ) ) );
 	}
 
 	public static function link( $occurrence_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'links' ) . ' WHERE occurrence_id=%d', absint( $occurrence_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', self::table( 'links' ), absint( $occurrence_id ) ) );
 	}
 
 	/** ticket_type_id => list of zone/category keys for an occurrence. */
 	public static function type_zones( $occurrence_id ) {
 		global $wpdb;
 		$out = array();
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,zone FROM ' . self::table( 'type_zones' ) . ' WHERE occurrence_id=%d ORDER BY ticket_type_id,zone', absint( $occurrence_id ) ) ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,zone FROM %i WHERE occurrence_id=%d ORDER BY ticket_type_id,zone', self::table( 'type_zones' ), absint( $occurrence_id ) ) ) as $row ) {
 			$out[ (int) $row->ticket_type_id ][] = $row->zone;
 		}
 		return $out;
@@ -385,7 +385,7 @@ final class Layouts {
 	public static function locked_seats( $layout_id ) {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			'SELECT c.seat_key,c.status,s.kind,s.group_key,s.row_label,s.seat_label,s.label,s.zone,s.category,s.is_accessible,s.pos_x,s.pos_y FROM ' . self::table( 'claims' ) . ' c INNER JOIN ' . self::table( 'links' ) . ' l ON l.occurrence_id=c.occurrence_id INNER JOIN ' . self::table( 'seats' ) . " s ON s.seat_id=c.seat_id WHERE l.layout_id=%d AND c.active_key IS NOT NULL ORDER BY c.claim_id",
+			'SELECT c.seat_key,c.status,s.kind,s.group_key,s.row_label,s.seat_label,s.label,s.zone,s.category,s.is_accessible,s.pos_x,s.pos_y FROM %i c INNER JOIN %i l ON l.occurrence_id=c.occurrence_id INNER JOIN %i s ON s.seat_id=c.seat_id WHERE l.layout_id=%d AND c.active_key IS NOT NULL ORDER BY c.claim_id', self::table( 'claims' ), self::table( 'links' ), self::table( 'seats' ),
 			absint( $layout_id )
 		) );
 		$out = array();
@@ -427,7 +427,7 @@ final class Layouts {
 	public static function create( $event_id, $name ) {
 		global $wpdb;
 		$event_id = absint( $event_id );
-		$event = $wpdb->get_row( $wpdb->prepare( "SELECT event_id,status FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) );
+		$event = $wpdb->get_row( $wpdb->prepare( 'SELECT event_id,status FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', $event_id ) );
 		if ( ! $event ) { return new \WP_Error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::forbidden(); }
 		$name = self::text( $name, 190 );
@@ -486,13 +486,13 @@ final class Layouts {
 		if ( ! Access::can_access_event( $layout->event_id, self::CAP ) ) { return self::forbidden(); }
 		$wpdb->query( 'START TRANSACTION' );
 		try {
-			$layout = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'layouts' ) . ' WHERE layout_id=%d FOR UPDATE', (int) $layout->layout_id ) );
+			$layout = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE layout_id=%d FOR UPDATE', self::table( 'layouts' ), (int) $layout->layout_id ) );
 			$normalized = self::normalize( $layout->draft );
 			if ( is_wp_error( $normalized ) ) { throw new SeatingException( $normalized ); }
 			$rows = self::expand( $normalized );
 			if ( ! $rows ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_empty', __( 'Ein leerer Saalplan kann nicht veröffentlicht werden.', 'pass-captain' ), array( 'status' => 400 ) ) ); }
 			// Lock the links first so no seat of a linked occurrence can be claimed while we check.
-			$links = $wpdb->get_results( $wpdb->prepare( 'SELECT occurrence_id,version_id FROM ' . self::table( 'links' ) . ' WHERE layout_id=%d ORDER BY occurrence_id FOR UPDATE', (int) $layout->layout_id ) );
+			$links = $wpdb->get_results( $wpdb->prepare( 'SELECT occurrence_id,version_id FROM %i WHERE layout_id=%d ORDER BY occurrence_id FOR UPDATE', self::table( 'links' ), (int) $layout->layout_id ) );
 			$violations = self::protection_violations( self::locked_seats( $layout->layout_id ), $rows );
 			if ( $violations ) { throw new SeatingException( self::violation_error( $violations ) ); }
 			$version = (int) $layout->published_version + 1;
@@ -508,11 +508,11 @@ final class Layouts {
 				$ok = $wpdb->query( 'INSERT INTO ' . self::table( 'seats' ) . ' (version_id,seat_key,kind,group_key,row_label,seat_label,label,zone,category,is_accessible,pos_x,pos_y,sort_order) VALUES ' . implode( ',', $values ) );
 				if ( false === $ok ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Sitzplätze konnten nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
 			}
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table( 'layouts' ) . ' SET published_version=%d,updated_at=%s WHERE layout_id=%d', $version, $now, (int) $layout->layout_id ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET published_version=%d,updated_at=%s WHERE layout_id=%d', self::table( 'layouts' ), $version, $now, (int) $layout->layout_id ) );
 			$upgraded = array();
 			if ( $upgrade_links ) {
 				foreach ( $links as $link ) {
-					$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table( 'links' ) . ' SET version_id=%d,updated_at=%s WHERE occurrence_id=%d', $version_id, $now, (int) $link->occurrence_id ) );
+					$wpdb->query( $wpdb->prepare( 'UPDATE %i SET version_id=%d,updated_at=%s WHERE occurrence_id=%d', self::table( 'links' ), $version_id, $now, (int) $link->occurrence_id ) );
 					$upgraded[] = (int) $link->occurrence_id;
 				}
 			}
@@ -532,7 +532,7 @@ final class Layouts {
 	 */
 	public static function link_occurrence( $occurrence_id, $version_id, array $type_zones ) {
 		global $wpdb;
-		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
+		$occurrence = $wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_id,event_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
 		$version = self::version( $version_id );
 		if ( ! $occurrence || ! $version ) { return new \WP_Error( 'wpcap_seating_missing', __( 'Termin oder Saalplan-Version nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! Access::can_access_event( $occurrence->event_id, self::CAP ) ) { return self::forbidden(); }
@@ -541,7 +541,7 @@ final class Layouts {
 		}
 		$definition = json_decode( $version->definition, true );
 		$known = array_merge( self::item_keys( $definition['zones'] ?? array() ), self::item_keys( $definition['categories'] ?? array() ) );
-		$type_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_type_id FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d", (int) $occurrence->occurrence_id ) ) );
+		$type_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_ticket_types', (int) $occurrence->occurrence_id ) ) );
 		$clean = array();
 		foreach ( $type_zones as $type_id => $zones ) {
 			$type_id = absint( $type_id );
@@ -559,10 +559,10 @@ final class Layouts {
 		}
 		$now = current_time( 'mysql', true );
 		$wpdb->query( 'START TRANSACTION' );
-		$wpdb->query( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", (int) $occurrence->occurrence_id ) );
-		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table( 'links' ) . ' WHERE occurrence_id=%d FOR UPDATE', (int) $occurrence->occurrence_id ) );
+		$wpdb->query( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE occurrence_id=%d FOR UPDATE', $wpdb->prefix . 'wpcap_occurrences', (int) $occurrence->occurrence_id ) );
+		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d FOR UPDATE', self::table( 'links' ), (int) $occurrence->occurrence_id ) );
 		// Claimed seats of this occurrence must exist unchanged in the target version.
-		$claimed = $wpdb->get_results( $wpdb->prepare( 'SELECT c.seat_key,s.kind,s.group_key,s.row_label,s.seat_label,s.label,s.zone,s.category,s.is_accessible,s.pos_x,s.pos_y FROM ' . self::table( 'claims' ) . ' c INNER JOIN ' . self::table( 'seats' ) . ' s ON s.seat_id=c.seat_id WHERE c.occurrence_id=%d AND c.active_key IS NOT NULL', (int) $occurrence->occurrence_id ) );
+		$claimed = $wpdb->get_results( $wpdb->prepare( 'SELECT c.seat_key,s.kind,s.group_key,s.row_label,s.seat_label,s.label,s.zone,s.category,s.is_accessible,s.pos_x,s.pos_y FROM %i c INNER JOIN %i s ON s.seat_id=c.seat_id WHERE c.occurrence_id=%d AND c.active_key IS NOT NULL', self::table( 'claims' ), self::table( 'seats' ), (int) $occurrence->occurrence_id ) );
 		if ( $claimed ) {
 			$locked = array();
 			foreach ( $claimed as $row ) { $locked[ $row->seat_key ] = $row; }
@@ -572,11 +572,11 @@ final class Layouts {
 			if ( $violations ) { $wpdb->query( 'ROLLBACK' ); return self::violation_error( $violations ); }
 		}
 		if ( $existing ) {
-			$wpdb->query( $wpdb->prepare( 'UPDATE ' . self::table( 'links' ) . ' SET layout_id=%d,version_id=%d,updated_at=%s WHERE occurrence_id=%d', (int) $version->layout_id, (int) $version->version_id, $now, (int) $occurrence->occurrence_id ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET layout_id=%d,version_id=%d,updated_at=%s WHERE occurrence_id=%d', self::table( 'links' ), (int) $version->layout_id, (int) $version->version_id, $now, (int) $occurrence->occurrence_id ) );
 		} else {
 			$wpdb->insert( self::table( 'links' ), array( 'occurrence_id' => (int) $occurrence->occurrence_id, 'layout_id' => (int) $version->layout_id, 'version_id' => (int) $version->version_id, 'updated_at' => $now ) );
 		}
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::table( 'type_zones' ) . ' WHERE occurrence_id=%d', (int) $occurrence->occurrence_id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE occurrence_id=%d', self::table( 'type_zones' ), (int) $occurrence->occurrence_id ) );
 		foreach ( $clean as $type_id => $zones ) {
 			foreach ( $zones as $zone ) {
 				$wpdb->insert( self::table( 'type_zones' ), array( 'occurrence_id' => (int) $occurrence->occurrence_id, 'ticket_type_id' => $type_id, 'zone' => $zone ) );
@@ -590,18 +590,18 @@ final class Layouts {
 	/** Removes the seat map from an occurrence (only while no seat is held or sold). */
 	public static function unlink_occurrence( $occurrence_id ) {
 		global $wpdb;
-		$occurrence = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
+		$occurrence = $wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_id,event_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
 		if ( ! $occurrence ) { return new \WP_Error( 'wpcap_seating_missing', __( 'Termin nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		if ( ! Access::can_access_event( $occurrence->event_id, self::CAP ) ) { return self::forbidden(); }
 		$wpdb->query( 'START TRANSACTION' );
-		$wpdb->query( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d FOR UPDATE", (int) $occurrence->occurrence_id ) );
-		$claimed = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . self::table( 'claims' ) . ' WHERE occurrence_id=%d AND active_key IS NOT NULL', (int) $occurrence->occurrence_id ) );
+		$wpdb->query( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE occurrence_id=%d FOR UPDATE', $wpdb->prefix . 'wpcap_occurrences', (int) $occurrence->occurrence_id ) );
+		$claimed = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE occurrence_id=%d AND active_key IS NOT NULL', self::table( 'claims' ), (int) $occurrence->occurrence_id ) );
 		if ( $claimed ) {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_seating_in_use', __( 'Für diesen Termin sind bereits Plätze reserviert oder verkauft; der Saalplan kann nicht entfernt werden.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::table( 'links' ) . ' WHERE occurrence_id=%d', (int) $occurrence->occurrence_id ) );
-		$wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::table( 'type_zones' ) . ' WHERE occurrence_id=%d', (int) $occurrence->occurrence_id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE occurrence_id=%d', self::table( 'links' ), (int) $occurrence->occurrence_id ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE occurrence_id=%d', self::table( 'type_zones' ), (int) $occurrence->occurrence_id ) );
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'seat_map_unlinked', 'occurrence', (int) $occurrence->occurrence_id );
 		return array( 'occurrence_id' => (int) $occurrence->occurrence_id, 'event_id' => (int) $occurrence->event_id );

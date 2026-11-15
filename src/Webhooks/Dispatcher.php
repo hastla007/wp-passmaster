@@ -48,10 +48,10 @@ final class Dispatcher {
 		$id = (string) ( $object['id'] ?? '' );
 		$pii = array();
 		if ( 'order' === ( $object['object'] ?? '' ) ) {
-			$email = (string) $wpdb->get_var( $wpdb->prepare( "SELECT customer_email FROM {$p}wpcap_orders WHERE public_id=%s", $id ) );
+			$email = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT customer_email FROM %i WHERE public_id=%s', $p . 'wpcap_orders', $id ) );
 			if ( is_email( $email ) && '@invalid.example' !== substr( $email, -16 ) ) { $pii['customer_email'] = $email; }
 		} elseif ( 'ticket' === ( $object['object'] ?? '' ) ) {
-			$email = (string) $wpdb->get_var( $wpdb->prepare( "SELECT attendee_email FROM {$p}wpcap_tickets WHERE public_id=%s", $id ) );
+			$email = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT attendee_email FROM %i WHERE public_id=%s', $p . 'wpcap_tickets', $id ) );
 			if ( is_email( $email ) ) { $pii['attendee_email'] = $email; }
 		}
 		return $pii;
@@ -120,12 +120,12 @@ final class Dispatcher {
 	/** Subscription row; ->secret is the decrypted signing secret ('' when it cannot be decrypted). */
 	public static function subscription( $id ) {
 		global $wpdb;
-		return self::with_plain_secret( $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::t( 'subscriptions' ) . ' WHERE subscription_id=%d', absint( $id ) ) ) );
+		return self::with_plain_secret( $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE subscription_id=%d', self::t( 'subscriptions' ), absint( $id ) ) ) );
 	}
 
 	public static function subscriptions() {
 		global $wpdb;
-		return array_map( array( __CLASS__, 'with_plain_secret' ), (array) $wpdb->get_results( 'SELECT * FROM ' . self::t( 'subscriptions' ) . ' ORDER BY subscription_id' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return array_map( array( __CLASS__, 'with_plain_secret' ), (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY subscription_id', self::t( 'subscriptions' ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	private static function with_plain_secret( $row ) {
@@ -172,7 +172,7 @@ final class Dispatcher {
 	public static function emit( $type, $dedupe, array $object, array $pii = array() ) {
 		global $wpdb;
 		if ( ! in_array( $type, self::EVENTS, true ) ) { return 0; }
-		$subs = $wpdb->get_results( $wpdb->prepare( 'SELECT subscription_id,events,include_pii FROM ' . self::t( 'subscriptions' ) . " WHERE status='active' AND FIND_IN_SET(%s,events)", $type ) );
+		$subs = $wpdb->get_results( $wpdb->prepare( "SELECT subscription_id,events,include_pii FROM %i WHERE status='active' AND FIND_IN_SET(%s,events)", self::t( 'subscriptions' ), $type ) );
 		if ( ! $subs ) { return 0; }
 		$event_id = 'evt_' . substr( hash( 'sha256', $type . '|' . $dedupe ), 0, 32 );
 		$object = apply_filters( 'wpcap_webhook_payload_object', $object, $type );
@@ -183,7 +183,7 @@ final class Dispatcher {
 			$data = $object;
 			if ( (int) $sub->include_pii && $pii ) { $data = array_merge( $data, $pii ); }
 			$payload = wp_json_encode( array( 'id' => $event_id, 'type' => $type, 'api_version' => self::API_VERSION, 'created' => $created, 'data' => array( 'object' => $data ) ) );
-			$queued += (int) $wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::t( 'deliveries' ) . " (subscription_id,event_id,event_type,payload,status,attempts,next_attempt_at,created_at,updated_at) VALUES (%d,%s,%s,%s,'pending',0,%s,%s,%s)", (int) $sub->subscription_id, $event_id, $type, $payload, $now, $now, $now ) );
+			$queued += (int) $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO %i (subscription_id,event_id,event_type,payload,status,attempts,next_attempt_at,created_at,updated_at) VALUES (%d,%s,%s,%s,'pending',0,%s,%s,%s)", self::t( 'deliveries' ), (int) $sub->subscription_id, $event_id, $type, $payload, $now, $now, $now ) );
 		}
 		if ( $queued ) { self::schedule_soon(); }
 		return $queued;
@@ -206,7 +206,7 @@ final class Dispatcher {
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 20;
 		// Claims of crashed workers go back to the queue; attempts are counted at claim time, so a
 		// delivery that kills the worker every time ends as failed instead of being retried forever.
-		$wpdb->query( $wpdb->prepare( "UPDATE $d SET status=IF(attempts>=%d,'failed','pending'),locked_at=NULL WHERE status='delivering' AND locked_at<%s", self::max_attempts(), gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status=IF(attempts>=%d,'failed','pending'),locked_at=NULL WHERE status='delivering' AND locked_at<%s", $d, self::max_attempts(), gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS ) ) );
 		$done = 0;
 		// Shared cron time budget: checked before each claim, so a claimed delivery is always attempted.
 		$deadline = \PassCaptain\Jobs\TimeBudget::deadline();
@@ -218,7 +218,7 @@ final class Dispatcher {
 			// moved from pending to delivering (attempt counted), commit succeeded. Otherwise a second worker
 			// could deliver the same event again. On a database error the run ends; the next run retries.
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { break; }
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT d.* FROM $d d INNER JOIN $s s ON s.subscription_id=d.subscription_id WHERE d.status='pending' AND s.status='active' AND d.next_attempt_at<=%s ORDER BY d.next_attempt_at,d.delivery_id LIMIT 1 FOR UPDATE", $now ) );
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT d.* FROM %i d INNER JOIN %i s ON s.subscription_id=d.subscription_id WHERE d.status='pending' AND s.status='active' AND d.next_attempt_at<=%s ORDER BY d.next_attempt_at,d.delivery_id LIMIT 1 FOR UPDATE", $d, $s, $now ) );
 			if ( ! $row ) {
 				if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); break; }
 				$wpdb->query( 'COMMIT' );
@@ -303,7 +303,7 @@ final class Dispatcher {
 	public static function redeliver( $delivery_id ) {
 		global $wpdb;
 		$d = self::t( 'deliveries' );
-		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $d WHERE delivery_id=%d AND status<>'delivering'", absint( $delivery_id ) ) );
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE delivery_id=%d AND status<>'delivering'", $d, absint( $delivery_id ) ) );
 		$sub = $row ? self::subscription( $row->subscription_id ) : null;
 		if ( ! $row || ! $sub ) { return new \WP_Error( 'wpcap_webhook_redeliver', __( 'Zustellung nicht gefunden oder gerade in Bearbeitung.', 'pass-captain' ), array( 'status' => 404 ) ); }
 		$payload = $row->payload;
@@ -327,7 +327,7 @@ final class Dispatcher {
 	/** Deletes final deliveries older than the retention period (cron). Returns deleted rows. */
 	public static function purge_old() {
 		global $wpdb;
-		return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM ' . self::t( 'deliveries' ) . " WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s", gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS ) ) );
+		return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('succeeded','failed','cancelled') AND updated_at<%s", self::t( 'deliveries' ), gmdate( 'Y-m-d H:i:s', time() - self::retention_days() * DAY_IN_SECONDS ) ) );
 	}
 
 	/** Privacy eraser: removes the e-mail address from all logged and pending payloads. */
@@ -338,7 +338,7 @@ final class Dispatcher {
 		if ( '' === $email ) { return 0; }
 		$needle = substr( (string) wp_json_encode( $email ), 1, -1 );
 		$like = '%' . ( method_exists( $wpdb, 'esc_like' ) ? $wpdb->esc_like( $needle ) : addcslashes( $needle, '_%\\' ) ) . '%';
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT delivery_id,payload FROM $d WHERE payload LIKE %s AND status<>'delivering'", $like ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT delivery_id,payload FROM %i WHERE payload LIKE %s AND status<>'delivering'", $d, $like ) );
 		$count = 0;
 		foreach ( $rows as $row ) {
 			list( $payload, $removed ) = self::strip_pii( $row->payload );
@@ -354,8 +354,8 @@ final class Dispatcher {
 		global $wpdb;
 		$d = self::t( 'deliveries' );
 		if ( $subscription_id ) {
-			return $wpdb->get_results( $wpdb->prepare( "SELECT delivery_id,subscription_id,event_id,event_type,status,attempts,response_code,last_error,next_attempt_at,delivered_at,created_at FROM $d WHERE subscription_id=%d ORDER BY delivery_id DESC LIMIT %d", absint( $subscription_id ), absint( $limit ) ) );
+			return $wpdb->get_results( $wpdb->prepare( 'SELECT delivery_id,subscription_id,event_id,event_type,status,attempts,response_code,last_error,next_attempt_at,delivered_at,created_at FROM %i WHERE subscription_id=%d ORDER BY delivery_id DESC LIMIT %d', $d, absint( $subscription_id ), absint( $limit ) ) );
 		}
-		return $wpdb->get_results( $wpdb->prepare( "SELECT delivery_id,subscription_id,event_id,event_type,status,attempts,response_code,last_error,next_attempt_at,delivered_at,created_at FROM $d ORDER BY delivery_id DESC LIMIT %d", absint( $limit ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT delivery_id,subscription_id,event_id,event_type,status,attempts,response_code,last_error,next_attempt_at,delivered_at,created_at FROM %i ORDER BY delivery_id DESC LIMIT %d', $d, absint( $limit ) ) );
 	}
 }

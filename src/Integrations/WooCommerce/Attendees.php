@@ -67,7 +67,7 @@ final class Attendees {
 			if ( ! $type_id || ! $quantity ) {
 				continue;
 			}
-			$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required,purpose,consent_text FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $type_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$rows   = $wpdb->get_results( $wpdb->prepare( "SELECT field_key,label,field_type,required,purpose,consent_text FROM %i WHERE ticket_type_id=%d AND status='active' ORDER BY position,field_id", $wpdb->prefix . 'wpcap_participant_fields', $type_id ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 			$fields = array();
 			foreach ( $rows as $row ) {
 				$fields[] = array(

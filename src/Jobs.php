@@ -36,7 +36,7 @@ final class Jobs {
 		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
 		// Claims of crashed workers go back to the queue; a job whose attempts are used up (it kills the
 		// worker every time) is dead-lettered instead of being retried forever.
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status=IF(attempts>=%d,'dead_letter','queued'),last_error=IF(attempts>=%d,'Worker stopped while running the job; attempts exhausted.',last_error),locked_at=NULL WHERE status='running' AND locked_at<%s", self::MAX_ATTEMPTS, self::MAX_ATTEMPTS, $stale ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status=IF(attempts>=%d,'dead_letter','queued'),last_error=IF(attempts>=%d,'Worker stopped while running the job; attempts exhausted.',last_error),locked_at=NULL WHERE status='running' AND locked_at<%s", $table, self::MAX_ATTEMPTS, self::MAX_ATTEMPTS, $stale ) );
 		$limit = is_numeric( $limit ) && (int) $limit > 0 ? (int) $limit : 20;
 		$deadline = Jobs\TimeBudget::deadline();
 		$processed = 0;
@@ -48,7 +48,7 @@ final class Jobs {
 			// from queued to running, commit succeeded. On any database error the claim is rolled back and
 			// the job stays queued for the next run.
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { $db_failed = true; break; }
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND run_after<=%s ORDER BY run_after,job_id LIMIT 1 FOR UPDATE", $now ) );
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE status='queued' AND run_after<=%s ORDER BY run_after,job_id LIMIT 1 FOR UPDATE", $table, $now ) );
 			if ( ! $row ) {
 				if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
 				$wpdb->query( 'COMMIT' );
@@ -74,7 +74,7 @@ final class Jobs {
 			$last_error = is_wp_error( $handled ) ? substr( sanitize_text_field( $handled->get_error_message() ), 0, 500 ) : '';
 			self::update_with_retry( $table, array( 'status' => $status, 'run_after' => gmdate( 'Y-m-d H:i:s', time() + min( DAY_IN_SECONDS, 60 * ( 2 ** min( $attempts, 10 ) ) ) ), 'locked_at' => null, 'last_error' => '' !== $last_error ? $last_error : 'No handler acknowledged the job.', 'updated_at' => current_time( 'mysql', true ) ), array( 'job_id' => (int) $row->job_id ), array( '%s', '%s', '%s', '%s', '%s' ), array( '%d' ) );
 		}
-		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM $table WHERE status='queued' AND run_after<=%s LIMIT 1", $now ) ) ) {
+		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT job_id FROM %i WHERE status='queued' AND run_after<=%s LIMIT 1", $table, $now ) ) ) {
 			Jobs\TimeBudget::continue_later( 'wpcap_process_jobs' );
 		}
 		Ops\Heartbeat::beat( 'jobs', $processed ); // System status: last completed worker run.

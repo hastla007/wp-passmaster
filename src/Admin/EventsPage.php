@@ -113,7 +113,7 @@ final class EventsPage {
 		}
 		if ( ! Queries::is_global_admin() ) {
 			// Creators without global rights keep access to their event through the event scope.
-			$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$p}wpcap_event_staff (event_id,user_id,capability) VALUES (%d,%d,%s)", $event_id, get_current_user_id(), self::CAP ) );
+			$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (event_id,user_id,capability) VALUES (%d,%d,%s)', $p . 'wpcap_event_staff', $event_id, get_current_user_id(), self::CAP ) );
 		}
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'event_created', 'event', $event_id, array( 'status' => $status, 'occurrences' => $repeat_count ) );
@@ -339,7 +339,7 @@ final class EventsPage {
 			if ( '' === $consent_text || ! preg_match( '/^[A-Za-z0-9._-]{1,32}$/', $consent_version ) ) {
 				return Forms::error( 'wpcap_field_consent', __( 'Für ein Einwilligungsfeld bitte Einwilligungstext und Version (z. B. 1 oder 2026-11) angeben.', 'pass-captain' ) );
 			}
-			if ( $old && (string) $old->consent_text !== $consent_text && (string) $old->consent_version === $consent_version && (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_consents WHERE field_id=%d", (int) $old->field_id ) ) ) {
+			if ( $old && (string) $old->consent_text !== $consent_text && (string) $old->consent_version === $consent_version && (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE field_id=%d', $wpdb->prefix . 'wpcap_consents', (int) $old->field_id ) ) ) {
 				return Forms::error( 'wpcap_field_consent_version', __( 'Der Einwilligungstext wurde geändert: Bitte auch die Version ändern, damit bestehende Einwilligungen ihrer Textfassung zugeordnet bleiben.', 'pass-captain' ) );
 			}
 			$data['consent_text'] = $consent_text;
@@ -355,7 +355,7 @@ final class EventsPage {
 			$key = substr( sanitize_key( (string) ( $in['field_key'] ?? '' ) ), 0, 64 );
 			$key = str_replace( '-', '_', $key );
 			if ( '' === $key ) { return Forms::error( 'wpcap_field_key', __( 'Bitte einen technischen Schlüssel angeben (a-z, 0-9, _).', 'pass-captain' ) ); }
-			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT field_id FROM $table WHERE ticket_type_id=%d AND field_key=%s", (int) $type->ticket_type_id, $key ) );
+			$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT field_id FROM %i WHERE ticket_type_id=%d AND field_key=%s', $table, (int) $type->ticket_type_id, $key ) );
 			if ( $exists ) { return Forms::error( 'wpcap_field_key_taken', __( 'Dieser Schlüssel ist für die Ticketart bereits vergeben.', 'pass-captain' ), 409 ); }
 			$data['ticket_type_id'] = (int) $type->ticket_type_id;
 			$data['field_key'] = $key;
@@ -406,7 +406,7 @@ final class EventsPage {
 			return Forms::error( 'wpcap_staff_role', __( 'Der Benutzer hat dieses Recht nicht über seine Rolle (z. B. Pass Captain Veranstaltungsleitung). Bitte zuerst die Rolle zuweisen.', 'pass-captain' ) );
 		}
 		global $wpdb;
-		$wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->prefix}wpcap_event_staff (event_id,user_id,capability) VALUES (%d,%d,%s)", $event_id, (int) $user->ID, $capability ) );
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (event_id,user_id,capability) VALUES (%d,%d,%s)', $wpdb->prefix . 'wpcap_event_staff', $event_id, (int) $user->ID, $capability ) );
 		Audit::record( 'staff_assigned', 'event', $event_id, array( 'user_id' => (int) $user->ID, 'capability' => $capability ) );
 		return array( 'event_id' => $event_id, 'user_id' => (int) $user->ID );
 	}
@@ -417,9 +417,9 @@ final class EventsPage {
 	 */
 	public static function maybe_revoke_checkin_cap( $user_id ) {
 		global $wpdb;
-		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_event_staff WHERE user_id=%d AND capability='wpcap_checkin'", $user_id ) );
+		$remaining = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE user_id=%d AND capability='wpcap_checkin'", $wpdb->prefix . 'wpcap_event_staff', $user_id ) );
 		// Date-level assignments (SecurityScreens, wpcap_occurrence_staff) keep the capability as well.
-		$remaining += (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_occurrence_staff WHERE user_id=%d AND capability='wpcap_checkin'", $user_id ) );
+		$remaining += (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE user_id=%d AND capability='wpcap_checkin'", $wpdb->prefix . 'wpcap_occurrence_staff', $user_id ) );
 		if ( $remaining ) { return; }
 		$user = get_user_by( 'id', $user_id );
 		if ( ! $user || ! method_exists( $user, 'remove_cap' ) ) { return; }

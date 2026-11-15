@@ -39,7 +39,7 @@ final class Communications {
 		$now = current_time( 'mysql', true );
 		$stale = gmdate( 'Y-m-d H:i:s', time() - 15 * MINUTE_IN_SECONDS );
 		// A message whose attempts are used up (the worker died while sending it every time) fails for good.
-		$wpdb->query( $wpdb->prepare( "UPDATE $table SET status=IF(attempts>=%d,'failed','queued'),locked_at=NULL WHERE status='sending' AND locked_at<%s", self::MAX_ATTEMPTS, $stale ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status=IF(attempts>=%d,'failed','queued'),locked_at=NULL WHERE status='sending' AND locked_at<%s", $table, self::MAX_ATTEMPTS, $stale ) );
 		$limit = max( 1, (int) apply_filters( 'wpcap_message_batch_size', self::BATCH_SIZE ) );
 		$deadline = Jobs\TimeBudget::deadline();
 		$processed = 0;
@@ -51,7 +51,7 @@ final class Communications {
 			// queued to sending, commit succeeded. On any database error the claim is rolled back and the
 			// message stays queued for the next run (never sent twice by parallel workers).
 			if ( false === $wpdb->query( 'START TRANSACTION' ) ) { $db_failed = true; break; }
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE status='queued' AND send_at<=%s ORDER BY send_at,message_id LIMIT 1 FOR UPDATE", $now ) );
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM %i WHERE status='queued' AND send_at<=%s ORDER BY send_at,message_id LIMIT 1 FOR UPDATE", $table, $now ) );
 			if ( ! $row ) {
 				if ( '' !== (string) $wpdb->last_error ) { $wpdb->query( 'ROLLBACK' ); $db_failed = true; break; }
 				$wpdb->query( 'COMMIT' );
@@ -78,7 +78,7 @@ final class Communications {
 			Jobs\TimeBudget::finished( $table, (int) $row->message_id );
 			++$processed;
 		}
-		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT message_id FROM $table WHERE status='queued' AND send_at<=%s LIMIT 1", $now ) ) ) {
+		if ( ! $drained && ! $db_failed && null !== $wpdb->get_var( $wpdb->prepare( "SELECT message_id FROM %i WHERE status='queued' AND send_at<=%s LIMIT 1", $table, $now ) ) ) {
 			Jobs\TimeBudget::continue_later( 'wpcap_process_messages' );
 		}
 		Ops\Heartbeat::beat( 'messages', $processed ); // System status: last completed worker run.

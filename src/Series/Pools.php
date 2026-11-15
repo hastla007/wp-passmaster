@@ -53,13 +53,13 @@ final class Pools {
 
 	public static function for_series( $series_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_series_pools WHERE series_id=%d AND status='active' ORDER BY pool_id", absint( $series_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE series_id=%d AND status='active' ORDER BY pool_id", $wpdb->prefix . 'wpcap_series_pools', absint( $series_id ) ) );
 	}
 
 	/** Creates a pool. Input: name, type_name ('' = all types), capacity (≥ 1). @return int|\WP_Error */
 	public static function create( $series_id, array $in ) {
 		global $wpdb;
-		$series = $wpdb->get_row( $wpdb->prepare( "SELECT series_id,event_id FROM {$wpdb->prefix}wpcap_series WHERE series_id=%d", absint( $series_id ) ) );
+		$series = $wpdb->get_row( $wpdb->prepare( 'SELECT series_id,event_id FROM %i WHERE series_id=%d', $wpdb->prefix . 'wpcap_series', absint( $series_id ) ) );
 		if ( ! $series ) { return self::error( 'wpcap_series_missing', __( 'Serie nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! \PassCaptain\Access::can_access_event( (int) $series->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$capacity = is_scalar( $in['capacity'] ?? null ) && preg_match( '/^\d{1,7}$/', trim( (string) $in['capacity'] ) ) ? (int) $in['capacity'] : 0;
@@ -98,7 +98,7 @@ final class Pools {
 
 	private static function pool_with_event( $pool_id ) {
 		global $wpdb;
-		$pool = $wpdb->get_row( $wpdb->prepare( "SELECT p.*,s.event_id FROM {$wpdb->prefix}wpcap_series_pools p INNER JOIN {$wpdb->prefix}wpcap_series s ON s.series_id=p.series_id WHERE p.pool_id=%d AND p.status='active'", absint( $pool_id ) ) );
+		$pool = $wpdb->get_row( $wpdb->prepare( "SELECT p.*,s.event_id FROM %i p INNER JOIN %i s ON s.series_id=p.series_id WHERE p.pool_id=%d AND p.status='active'", $wpdb->prefix . 'wpcap_series_pools', $wpdb->prefix . 'wpcap_series', absint( $pool_id ) ) );
 		if ( ! $pool ) { return self::error( 'wpcap_series_pool_missing', __( 'Kontingent nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! \PassCaptain\Access::can_access_event( (int) $pool->event_id, Generator::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		return $pool;
@@ -111,7 +111,7 @@ final class Pools {
 	/** All ticket type ids of a pool (every occurrence of the series, filtered by type name). */
 	public static function member_type_ids( $pool ) {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT tt.ticket_type_id,tt.name FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_series_occurrences so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d", (int) $pool->series_id ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT tt.ticket_type_id,tt.name FROM %i tt INNER JOIN %i so ON so.occurrence_id=tt.occurrence_id WHERE so.series_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_series_occurrences', (int) $pool->series_id ) );
 		$ids = array();
 		foreach ( $rows as $row ) {
 			if ( Pricing::name_matches( $pool->type_name, $row->name ) ) { $ids[] = (int) $row->ticket_type_id; }

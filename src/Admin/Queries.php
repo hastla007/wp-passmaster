@@ -79,73 +79,73 @@ final class Queries {
 
 	public static function event( $event_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", absint( $event_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', absint( $event_id ) ) );
 	}
 
 	public static function occurrence( $occurrence_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
 	}
 
 	public static function occurrences_for_event( $event_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d ORDER BY starts_at, occurrence_id", absint( $event_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE event_id=%d ORDER BY starts_at, occurrence_id', $wpdb->prefix . 'wpcap_occurrences', absint( $event_id ) ) );
 	}
 
 	/** Ticket type with occurrence context (event_id, timezone). */
 	public static function ticket_type( $ticket_type_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT tt.*,o.event_id,o.timezone,o.starts_at AS occurrence_starts_at FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", absint( $ticket_type_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT tt.*,o.event_id,o.timezone,o.starts_at AS occurrence_starts_at FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', absint( $ticket_type_id ) ) );
 	}
 
 	public static function ticket_types_for_occurrence( $occurrence_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_ticket_types WHERE occurrence_id=%d ORDER BY ticket_type_id", absint( $occurrence_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d ORDER BY ticket_type_id', $wpdb->prefix . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
 	}
 
 	/** Participant field with event context. */
 	public static function participant_field( $field_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT f.*,o.event_id FROM {$p}wpcap_participant_fields f INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=f.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE f.field_id=%d", absint( $field_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT f.*,o.event_id FROM %i f INNER JOIN %i tt ON tt.ticket_type_id=f.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE f.field_id=%d', $p . 'wpcap_participant_fields', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', absint( $field_id ) ) );
 	}
 
 	public static function participant_fields( $ticket_type_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_participant_fields WHERE ticket_type_id=%d ORDER BY position, field_id", absint( $ticket_type_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d ORDER BY position, field_id', $wpdb->prefix . 'wpcap_participant_fields', absint( $ticket_type_id ) ) );
 	}
 
 	public static function staff_for_event( $event_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_event_staff WHERE event_id=%d ORDER BY user_id, capability", absint( $event_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE event_id=%d ORDER BY user_id, capability', $wpdb->prefix . 'wpcap_event_staff', absint( $event_id ) ) );
 	}
 
 	/** Tickets issued (valid or checked in) for an occurrence. */
 	public static function issued_ticket_count_for_occurrence( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status IN ('valid','checked_in')", absint( $occurrence_id ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status IN ('valid','checked_in')", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
 	}
 
 	/** Sold units of an occurrence (paid, not refunded) – same basis as the capacity checks in Orders. */
 	public static function sold_for_occurrence( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", absint( $occurrence_id ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_orders', absint( $occurrence_id ) ) );
 	}
 
 	/** Sold units of a ticket type (paid, not refunded). */
 	public static function sold_for_type( $ticket_type_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_orders ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", absint( $ticket_type_id ) ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", $p . 'wpcap_order_items', $p . 'wpcap_orders', absint( $ticket_type_id ) ) );
 	}
 
 	/** Whether any order (in any state) references the ticket type. */
 	public static function type_has_orders( $ticket_type_id ) {
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_order_items WHERE ticket_type_id=%d LIMIT 1", absint( $ticket_type_id ) ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE ticket_type_id=%d LIMIT 1', $wpdb->prefix . 'wpcap_order_items', absint( $ticket_type_id ) ) );
 	}
 
 	/**
@@ -207,7 +207,7 @@ final class Queries {
 	public static function order_event_ids( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT o.event_id FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d", absint( $order_id ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT o.event_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', absint( $order_id ) ) ) );
 	}
 
 	/**
@@ -268,14 +268,14 @@ final class Queries {
 	public static function order_items( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT oi.*,tt.name,e.name AS event_name,o.starts_at,o.timezone FROM {$p}wpcap_order_items oi INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id", absint( $order_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT oi.*,tt.name,e.name AS event_name,o.starts_at,o.timezone FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id WHERE oi.order_id=%d ORDER BY oi.item_id', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $order_id ) ) );
 	}
 
 	/** Tickets of an order with attendee name/e-mail and participant answers (label => answer). */
 	public static function order_tickets( $order_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$tickets = $wpdb->get_results( $wpdb->prepare( "SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.ticket_type_id,tt.name AS ticket_name,e.name AS event_name,o.event_id,o.starts_at,o.timezone,ta.attendee_name,ta.attendee_email AS assigned_email FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id LEFT JOIN {$p}wpcap_ticket_assignments ta ON ta.ticket_id=t.ticket_id WHERE t.order_id=%d ORDER BY t.ticket_id", absint( $order_id ) ) );
+		$tickets = $wpdb->get_results( $wpdb->prepare( 'SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.ticket_type_id,tt.name AS ticket_name,e.name AS event_name,o.event_id,o.starts_at,o.timezone,ta.attendee_name,ta.attendee_email AS assigned_email FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id LEFT JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE t.order_id=%d ORDER BY t.ticket_id', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $p . 'wpcap_ticket_assignments', absint( $order_id ) ) );
 		if ( ! $tickets ) { return array(); }
 		$ids = implode( ',', array_map( static function ( $t ) { return (int) $t->ticket_id; }, $tickets ) );
 		$answers = array();
@@ -295,7 +295,7 @@ final class Queries {
 	public static function ticket_context( $ticket_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT t.*,tt.name AS ticket_name,tt.occurrence_id,o.event_id,o.starts_at,o.timezone,ord.public_id AS order_public_id,ord.customer_email FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id WHERE t.ticket_id=%d", absint( $ticket_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT t.*,tt.name AS ticket_name,tt.occurrence_id,o.event_id,o.starts_at,o.timezone,ord.public_id AS order_public_id,ord.customer_email FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i ord ON ord.order_id=t.order_id WHERE t.ticket_id=%d', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_orders', absint( $ticket_id ) ) );
 	}
 
 	/**
@@ -364,7 +364,7 @@ final class Queries {
 	/** Distinct check-in results present in the log. */
 	public static function checkin_results() {
 		global $wpdb;
-		$results = $wpdb->get_col( "SELECT DISTINCT result FROM {$wpdb->prefix}wpcap_checkins ORDER BY result" );
+		$results = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT result FROM %i ORDER BY result', $wpdb->prefix . 'wpcap_checkins' ) );
 		return array_values( array_unique( array_merge( array( 'checked_in', 'undone' ), $results ) ) );
 	}
 

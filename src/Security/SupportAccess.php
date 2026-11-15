@@ -81,7 +81,7 @@ final class SupportAccess {
 
 	public static function get( $grant_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE grant_id=%d', absint( $grant_id ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE grant_id=%d', self::table(), absint( $grant_id ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
 	}
 
 	/** @return array|\WP_Error */
@@ -106,7 +106,7 @@ final class SupportAccess {
 	public static function expire_due() {
 		global $wpdb;
 		$now = current_time( 'mysql', true );
-		$due = $wpdb->get_results( $wpdb->prepare( 'SELECT grant_id,user_id FROM ' . self::table() . " WHERE status='active' AND expires_at <= %s LIMIT 200", $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
+		$due = $wpdb->get_results( $wpdb->prepare( "SELECT grant_id,user_id FROM %i WHERE status='active' AND expires_at <= %s LIMIT 200", self::table(), $now ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
 		$count = 0;
 		foreach ( (array) $due as $row ) {
 			if ( $wpdb->update( self::table(), array( 'status' => 'expired', 'ended_at' => $now ), array( 'grant_id' => (int) $row->grant_id, 'status' => 'active' ), array( '%s', '%s' ), array( '%d', '%s' ) ) ) {
@@ -124,7 +124,7 @@ final class SupportAccess {
 		if ( ! $user_id ) { return array(); }
 		if ( ! isset( self::$cache[ $user_id ] ) ) {
 			global $wpdb;
-			$rows = $wpdb->get_col( $wpdb->prepare( 'SELECT capabilities FROM ' . self::table() . " WHERE user_id=%d AND status='active' AND expires_at > %s", $user_id, current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
+			$rows = $wpdb->get_col( $wpdb->prepare( "SELECT capabilities FROM %i WHERE user_id=%d AND status='active' AND expires_at > %s", self::table(), $user_id, current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
 			$caps = array();
 			foreach ( (array) $rows as $list ) { $caps = array_merge( $caps, explode( ',', (string) $list ) ); }
 			self::$cache[ $user_id ] = array_values( array_intersect( self::GRANTABLE, array_unique( $caps ) ) );
@@ -155,6 +155,6 @@ final class SupportAccess {
 	/** Grants for the admin list (newest first). */
 	public static function recent( $limit = 50 ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' ORDER BY grant_id DESC LIMIT %d', absint( $limit ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i ORDER BY grant_id DESC LIMIT %d', self::table(), absint( $limit ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
 	}
 }

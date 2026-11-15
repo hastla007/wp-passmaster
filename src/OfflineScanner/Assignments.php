@@ -21,7 +21,7 @@ final class Assignments {
 
 	public static function device( $device_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_scanner_devices WHERE device_id=%d", absint( $device_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE device_id=%d', $wpdb->prefix . 'wpcap_scanner_devices', absint( $device_id ) ) );
 	}
 
 	/** Device is usable: not revoked, not expired. */
@@ -45,10 +45,10 @@ final class Assignments {
 			return new \WP_Error( 'wpcap_offline_device_event', __( 'Das Gerät ist nicht für dieses Event gekoppelt.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$occurrence_id = absint( $occurrence_id );
-		if ( $occurrence_id && $event_id !== (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $occurrence_id ) ) ) {
+		if ( $occurrence_id && $event_id !== (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $occurrence_id ) ) ) {
 			return new \WP_Error( 'wpcap_offline_occurrence', __( 'Der Termin gehört nicht zu diesem Event.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
-		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO ' . self::table() . ' (device_id,event_id,occurrence_id,assigned_by,created_at) VALUES (%d,%d,%d,%d,%s)', (int) $device->device_id, $event_id, $occurrence_id, get_current_user_id(), current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		$wpdb->query( $wpdb->prepare( 'INSERT IGNORE INTO %i (device_id,event_id,occurrence_id,assigned_by,created_at) VALUES (%d,%d,%d,%d,%s)', self::table(), (int) $device->device_id, $event_id, $occurrence_id, get_current_user_id(), current_time( 'mysql', true ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 		Audit::record( 'offline_device_assigned', 'device', (int) $device->device_id, array( 'event_id' => $event_id, 'occurrence_id' => $occurrence_id ) );
 		return array( 'device_id' => (int) $device->device_id, 'event_id' => $event_id, 'occurrence_id' => $occurrence_id );
 	}
@@ -63,7 +63,7 @@ final class Assignments {
 	/** Assignment row covering this occurrence (event-wide or exact), or null. */
 	public static function find( $device_id, $event_id, $occurrence_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE device_id=%d AND event_id=%d AND occurrence_id IN (0,%d) ORDER BY occurrence_id DESC LIMIT 1', absint( $device_id ), absint( $event_id ), absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE device_id=%d AND event_id=%d AND occurrence_id IN (0,%d) ORDER BY occurrence_id DESC LIMIT 1', self::table(), absint( $device_id ), absint( $event_id ), absint( $occurrence_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	public static function touch( $row ) {
@@ -74,14 +74,14 @@ final class Assignments {
 	/** All assignment rows of a device. */
 	public static function for_device( $device_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE device_id=%d ORDER BY event_id, occurrence_id', absint( $device_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE device_id=%d ORDER BY event_id, occurrence_id', self::table(), absint( $device_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 	}
 
 	/** Assignment rows of an event with device info. */
 	public static function for_event( $event_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT a.*,d.label,d.platform,d.revoked_at,d.expires_at,d.last_seen_at FROM {$p}wpcap_offline_assignments a LEFT JOIN {$p}wpcap_scanner_devices d ON d.device_id=a.device_id WHERE a.event_id=%d ORDER BY a.device_id, a.occurrence_id", absint( $event_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT a.*,d.label,d.platform,d.revoked_at,d.expires_at,d.last_seen_at FROM %i a LEFT JOIN %i d ON d.device_id=a.device_id WHERE a.event_id=%d ORDER BY a.device_id, a.occurrence_id', $p . 'wpcap_offline_assignments', $p . 'wpcap_scanner_devices', absint( $event_id ) ) );
 	}
 
 	/**
@@ -106,7 +106,7 @@ final class Assignments {
 	public static function candidates( $event_id ) {
 		global $wpdb;
 		$out = array();
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT d.* FROM {$wpdb->prefix}wpcap_scanner_devices d WHERE d.revoked_at IS NULL AND (d.expires_at IS NULL OR d.expires_at>%s) ORDER BY d.device_id DESC LIMIT 500", current_time( 'mysql', true ) ) );
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT d.* FROM %i d WHERE d.revoked_at IS NULL AND (d.expires_at IS NULL OR d.expires_at>%s) ORDER BY d.device_id DESC LIMIT 500', $wpdb->prefix . 'wpcap_scanner_devices', current_time( 'mysql', true ) ) );
 		foreach ( $rows as $row ) {
 			if ( in_array( absint( $event_id ), Devices::event_ids( $row ), true ) ) { $out[] = $row; }
 		}

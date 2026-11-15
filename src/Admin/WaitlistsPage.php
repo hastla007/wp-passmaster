@@ -46,7 +46,7 @@ final class WaitlistsPage {
 				return $result;
 			case 'remove':
 				global $wpdb;
-				$row = $wpdb->get_row( $wpdb->prepare( "SELECT waitlist_id,event_id FROM {$wpdb->prefix}wpcap_waitlist WHERE waitlist_id=%d", Forms::int( $in, 'id' ) ) );
+				$row = $wpdb->get_row( $wpdb->prepare( 'SELECT waitlist_id,event_id FROM %i WHERE waitlist_id=%d', $wpdb->prefix . 'wpcap_waitlist', Forms::int( $in, 'id' ) ) );
 				if ( ! $row ) { return Forms::error( 'wpcap_waitlist_missing', __( 'Wartelisteneintrag nicht gefunden.', 'pass-captain' ), 404 ); }
 				if ( ! Access::can_access_event( (int) $row->event_id, self::CAP ) ) { return Forms::forbidden(); }
 				return Waitlists::remove( (int) $row->waitlist_id );

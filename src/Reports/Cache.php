@@ -85,7 +85,7 @@ final class Cache {
 	public static function flush_ticket( $ticket_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT o.event_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id=%d", absint( $ticket_id ) ) );
+		$event_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT o.event_id FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE t.ticket_id=%d', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', absint( $ticket_id ) ) );
 		self::flush_event( $event_id );
 	}
 

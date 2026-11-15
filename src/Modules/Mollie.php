@@ -77,12 +77,12 @@ final class Mollie {
 		if ( 'mollie' !== ( $internal['payment_provider'] ?? '' ) ) { return; }
 		$method = sanitize_key( is_scalar( $payload['mollie_method'] ?? null ) ? $payload['mollie_method'] : '' );
 		if ( '' === $method || ! in_array( $method, MollieGateway::config()['methods'], true ) ) { return; }
-		$wpdb->query( $wpdb->prepare( "REPLACE INTO {$wpdb->prefix}wpcap_mollie_choices (order_id,method,created_at) VALUES (%d,%s,%s)", absint( $order_id ), $method, current_time( 'mysql', true ) ) );
+		$wpdb->query( $wpdb->prepare( 'REPLACE INTO %i (order_id,method,created_at) VALUES (%d,%s,%s)', $wpdb->prefix . 'wpcap_mollie_choices', absint( $order_id ), $method, current_time( 'mysql', true ) ) );
 	}
 
 	public static function chosen_method( $order_id ) {
 		global $wpdb;
-		return (string) $wpdb->get_var( $wpdb->prepare( "SELECT method FROM {$wpdb->prefix}wpcap_mollie_choices WHERE order_id=%d", absint( $order_id ) ) );
+		return (string) $wpdb->get_var( $wpdb->prepare( 'SELECT method FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_mollie_choices', absint( $order_id ) ) );
 	}
 
 	public static function render_checkout_fields( $event = null, $types = null ) {
@@ -124,7 +124,7 @@ final class Mollie {
 	/** @return string success|pending|failed|cancel */
 	public static function handle_return( $public_id ) {
 		global $wpdb;
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,payment_status,provider_reference FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='mollie'", sanitize_text_field( (string) $public_id ) ) );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,payment_status,provider_reference FROM %i WHERE public_id=%s AND payment_provider='mollie'", $wpdb->prefix . 'wpcap_orders', sanitize_text_field( (string) $public_id ) ) );
 		if ( ! $order ) { return 'failed'; }
 		if ( 'paid' === $order->payment_status ) { return 'success'; }
 		if ( 0 !== strpos( (string) $order->provider_reference, 'tr_' ) ) { return 'pending'; }

@@ -44,15 +44,15 @@ final class OccurrenceCancellation {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$occurrence_id = absint( $occurrence_id );
-		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", $occurrence_id ) );
+		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT o.*,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', $occurrence_id ) );
 		if ( ! $occ ) { return array(); }
 		$summary = array( 'cancelled_orders' => 0, 'refunds' => 0, 'refund_errors' => 0, 'revoked' => 0, 'notified' => 0 );
 
 		// Recipients first, while tickets are still valid.
-		$recipients = $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", $occurrence_id ) );
+		$recipients = $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', $occurrence_id ) );
 
 		// 1. Unpaid orders touching this occurrence: cancel (releases holds, campaigns, vouchers).
-		$pending = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ord.order_id FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_order_items oi ON oi.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=oi.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status='pending'", $occurrence_id ) );
+		$pending = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT ord.order_id FROM %i ord INNER JOIN %i oi ON oi.order_id=ord.order_id INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status='pending'", $p . 'wpcap_orders', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $occurrence_id ) );
 		foreach ( $pending as $order_id ) {
 			Orders::cancel_order( (int) $order_id, 'occurrence_cancelled' );
 			++$summary['cancelled_orders'];
@@ -64,7 +64,7 @@ final class OccurrenceCancellation {
 		$summary['refund_errors'] = $refunded['refund_errors'];
 
 		// 3. Remaining valid tickets become invalid for admission.
-		$revoked_ids = Orders::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid'", $occurrence_id ) ) );
+		$revoked_ids = Orders::revoke_ids( $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid'", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $occurrence_id ) ) );
 		$summary['revoked'] = count( $revoked_ids );
 		Orders::fire_revoked( $revoked_ids, 'occurrence_cancelled' );
 
@@ -101,9 +101,9 @@ final class OccurrenceCancellation {
 		$occurrence_id = absint( $occurrence_id );
 		$counts = array( 'refunds' => 0, 'refund_errors' => 0 );
 		// Ticket ids are read per order (GROUP_CONCAT would be truncated for large orders).
-		$paid = $wpdb->get_results( $wpdb->prepare( "SELECT DISTINCT ord.order_id,ord.payment_provider FROM {$p}wpcap_orders ord INNER JOIN {$p}wpcap_tickets t ON t.order_id=ord.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND t.refunded=0 AND t.status IN ('valid','checked_in')", $occurrence_id ) );
+		$paid = $wpdb->get_results( $wpdb->prepare( "SELECT DISTINCT ord.order_id,ord.payment_provider FROM %i ord INNER JOIN %i t ON t.order_id=ord.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND t.refunded=0 AND t.status IN ('valid','checked_in')", $p . 'wpcap_orders', $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', $occurrence_id ) );
 		foreach ( $paid as $row ) {
-			$row->ticket_ids = implode( ',', $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE t.order_id=%d AND tt.occurrence_id=%d AND t.refunded=0 AND t.status IN ('valid','checked_in')", (int) $row->order_id, $occurrence_id ) ) );
+			$row->ticket_ids = implode( ',', $wpdb->get_col( $wpdb->prepare( "SELECT t.ticket_id FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE t.order_id=%d AND tt.occurrence_id=%d AND t.refunded=0 AND t.status IN ('valid','checked_in')", $p . 'wpcap_tickets', $p . 'wpcap_ticket_types', (int) $row->order_id, $occurrence_id ) ) );
 		}
 		foreach ( $paid as $row ) {
 			if ( 'woocommerce' === $row->payment_provider ) {

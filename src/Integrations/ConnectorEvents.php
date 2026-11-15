@@ -72,7 +72,7 @@ final class ConnectorEvents {
 
 	public static function refund_completed( $refund_id, $order_id = 0 ) {
 		global $wpdb;
-		$refund = $wpdb->get_row( $wpdb->prepare( "SELECT refund_id,order_id,amount_minor,tax_minor,currency,ticket_ids,status FROM {$wpdb->prefix}wpcap_refunds WHERE refund_id=%d", absint( $refund_id ) ) );
+		$refund = $wpdb->get_row( $wpdb->prepare( 'SELECT refund_id,order_id,amount_minor,tax_minor,currency,ticket_ids,status FROM %i WHERE refund_id=%d', $wpdb->prefix . 'wpcap_refunds', absint( $refund_id ) ) );
 		if ( ! $refund ) { return; }
 		self::queue( 'refund_completed', 'refund_completed|' . absint( $refund_id ), array(
 			'refund_id'    => (int) $refund->refund_id,
@@ -86,7 +86,7 @@ final class ConnectorEvents {
 
 	public static function tickets_issued( $order_id, $count = 0 ) {
 		global $wpdb;
-		$tickets = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_id,public_id,ticket_type_id,status FROM {$wpdb->prefix}wpcap_tickets WHERE order_id=%d ORDER BY ticket_id", absint( $order_id ) ) );
+		$tickets = $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_id,public_id,ticket_type_id,status FROM %i WHERE order_id=%d ORDER BY ticket_id', $wpdb->prefix . 'wpcap_tickets', absint( $order_id ) ) );
 		$list = array_map( static function ( $t ) {
 			return array( 'ticket_id' => (int) $t->ticket_id, 'public_id' => (string) $t->public_id, 'ticket_type_id' => (int) $t->ticket_type_id, 'status' => (string) $t->status );
 		}, (array) $tickets );
@@ -97,7 +97,7 @@ final class ConnectorEvents {
 	public static function ticket_checked_in( $ticket_id, $context = array() ) {
 		global $wpdb;
 		$context = (array) $context;
-		$ticket = $wpdb->get_row( $wpdb->prepare( "SELECT t.ticket_id,t.public_id,t.order_id,t.ticket_type_id,tt.occurrence_id FROM {$wpdb->prefix}wpcap_tickets t LEFT JOIN {$wpdb->prefix}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE t.ticket_id=%d", absint( $ticket_id ) ) );
+		$ticket = $wpdb->get_row( $wpdb->prepare( 'SELECT t.ticket_id,t.public_id,t.order_id,t.ticket_type_id,tt.occurrence_id FROM %i t LEFT JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE t.ticket_id=%d', $wpdb->prefix . 'wpcap_tickets', $wpdb->prefix . 'wpcap_ticket_types', absint( $ticket_id ) ) );
 		if ( ! $ticket ) { return; }
 		// Repeatable admissions check in the same ticket several times: one event per admission.
 		$scan = (string) ( $context['idempotency_key'] ?? '' );
@@ -183,7 +183,7 @@ final class ConnectorEvents {
 
 	private static function order_data( $order_id ) {
 		global $wpdb;
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,public_id,status,payment_status,payment_provider,currency,total_minor,refunded_minor,created_at FROM {$wpdb->prefix}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,status,payment_status,payment_provider,currency,total_minor,refunded_minor,created_at FROM %i WHERE order_id=%d', $wpdb->prefix . 'wpcap_orders', absint( $order_id ) ) );
 		if ( ! $order ) { return array( 'order_id' => absint( $order_id ) ); }
 		return array(
 			'order_id'         => (int) $order->order_id,
@@ -200,7 +200,7 @@ final class ConnectorEvents {
 
 	private static function occurrence_data( $occurrence_id ) {
 		global $wpdb;
-		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT occurrence_id,event_id,starts_at,timezone,status FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", absint( $occurrence_id ) ) );
+		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT occurrence_id,event_id,starts_at,timezone,status FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', absint( $occurrence_id ) ) );
 		if ( ! $occ ) { return array( 'occurrence_id' => absint( $occurrence_id ) ); }
 		return array(
 			'occurrence_id' => (int) $occ->occurrence_id,

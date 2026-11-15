@@ -125,7 +125,7 @@ final class PayPalGateway implements GatewayInterface {
 		global $wpdb;
 		$public_id = sanitize_text_field( (string) $public_id );
 		$paypal_order_id = preg_replace( '/[^A-Za-z0-9\-]/', '', (string) $paypal_order_id );
-		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,payment_status,provider_reference FROM {$wpdb->prefix}wpcap_orders WHERE public_id=%s AND payment_provider='paypal'", $public_id ) );
+		$order = $wpdb->get_row( $wpdb->prepare( "SELECT order_id,payment_status,provider_reference FROM %i WHERE public_id=%s AND payment_provider='paypal'", $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( ! $order || '' === $paypal_order_id ) {
 			return new \WP_Error( 'wpcap_paypal_return', __( 'Bestellung nicht gefunden.', 'pass-captain' ), array( 'status' => 404 ) );
 		}

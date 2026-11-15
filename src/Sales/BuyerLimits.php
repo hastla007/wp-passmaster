@@ -53,18 +53,18 @@ final class BuyerLimits {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$event_id = absint( $event_id );
-		if ( ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_events WHERE event_id=%d", $event_id ) ) ) { return self::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), 404 ); }
+		if ( ! $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE event_id=%d', $p . 'wpcap_events', $event_id ) ) ) { return self::error( 'wpcap_event_missing', __( 'Event nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( $event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$occurrence_id = absint( $in['occurrence_id'] ?? 0 );
 		$type_id = absint( $in['ticket_type_id'] ?? 0 );
 		$max = absint( $in['max_quantity'] ?? 0 );
 		$match = in_array( (string) ( $in['match_by'] ?? '' ), self::MATCH, true ) ? (string) $in['match_by'] : 'both';
 		if ( $max < 1 || $max > 10000 ) { return self::error( 'wpcap_buyer_limit_max', __( 'Bitte eine Höchstmenge zwischen 1 und 10000 angeben.', 'pass-captain' ) ); }
-		if ( $occurrence_id && (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$p}wpcap_occurrences WHERE occurrence_id=%d", $occurrence_id ) ) !== $event_id ) {
+		if ( $occurrence_id && (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE occurrence_id=%d', $p . 'wpcap_occurrences', $occurrence_id ) ) !== $event_id ) {
 			return self::error( 'wpcap_buyer_limit_scope', __( 'Der Termin gehört nicht zu diesem Event.', 'pass-captain' ) );
 		}
 		if ( $type_id ) {
-			$type = $wpdb->get_row( $wpdb->prepare( "SELECT tt.occurrence_id,o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d", $type_id ) );
+			$type = $wpdb->get_row( $wpdb->prepare( 'SELECT tt.occurrence_id,o.event_id FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $type_id ) );
 			if ( ! $type || (int) $type->event_id !== $event_id || ( $occurrence_id && (int) $type->occurrence_id !== $occurrence_id ) ) {
 				return self::error( 'wpcap_buyer_limit_scope', __( 'Die Ticketart gehört nicht zu diesem Event bzw. Termin.', 'pass-captain' ) );
 			}
@@ -80,7 +80,7 @@ final class BuyerLimits {
 	/** Deactivates a limit. */
 	public static function delete( $limit_id ) {
 		global $wpdb;
-		$limit = $wpdb->get_row( $wpdb->prepare( "SELECT limit_id,event_id FROM {$wpdb->prefix}wpcap_buyer_limits WHERE limit_id=%d", absint( $limit_id ) ) );
+		$limit = $wpdb->get_row( $wpdb->prepare( 'SELECT limit_id,event_id FROM %i WHERE limit_id=%d', $wpdb->prefix . 'wpcap_buyer_limits', absint( $limit_id ) ) );
 		if ( ! $limit ) { return self::error( 'wpcap_buyer_limit_missing', __( 'Käuferlimit nicht gefunden.', 'pass-captain' ), 404 ); }
 		if ( ! Access::can_access_event( (int) $limit->event_id, self::CAP ) ) { return self::error( 'wpcap_admin_forbidden', __( 'Keine Berechtigung für dieses Event.', 'pass-captain' ), 403 ); }
 		$wpdb->update( "{$wpdb->prefix}wpcap_buyer_limits", array( 'status' => 'deleted', 'updated_at' => current_time( 'mysql', true ) ), array( 'limit_id' => (int) $limit->limit_id ) );

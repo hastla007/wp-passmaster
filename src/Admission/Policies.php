@@ -40,7 +40,7 @@ final class Policies {
 	/** Normalised policy of a ticket type, or null when none is configured (legacy behaviour). */
 	public static function for_type( $ticket_type_id ) {
 		global $wpdb;
-		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . self::table() . ' WHERE ticket_type_id=%d', absint( $ticket_type_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d', self::table(), absint( $ticket_type_id ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- table name.
 		return $row ? self::normalize( $row ) : null;
 	}
 
@@ -182,7 +182,7 @@ final class Policies {
 		if ( 'multi_day' === $policy['policy'] ) { return $policy['valid_dates']; }
 		if ( 'daily' !== $policy['policy'] ) { return null; }
 		global $wpdb;
-		$days = $wpdb->get_col( $wpdb->prepare( "SELECT service_date FROM {$wpdb->prefix}wpcap_occurrence_days WHERE occurrence_id=%d ORDER BY service_date", (int) $found['occurrence_id'] ) );
+		$days = $wpdb->get_col( $wpdb->prepare( 'SELECT service_date FROM %i WHERE occurrence_id=%d ORDER BY service_date', $wpdb->prefix . 'wpcap_occurrence_days', (int) $found['occurrence_id'] ) );
 		if ( $days ) { return array_map( 'strval', $days ); }
 		// Service days (respecting the day cutoff), so a night that ends after midnight adds no extra day.
 		$start = strtotime( $found['starts_at'] . ' UTC' );

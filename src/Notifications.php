@@ -18,9 +18,9 @@ final class Notifications {
 	public static function occurrence_rescheduled( $occurrence_id, $old_starts_at, $new_starts_at ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$occ = $wpdb->get_row( $wpdb->prepare( "SELECT o.*,e.name AS event_name FROM {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id WHERE o.occurrence_id=%d", absint( $occurrence_id ) ) );
+		$occ = $wpdb->get_row( $wpdb->prepare( 'SELECT o.*,e.name AS event_name FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d', $p . 'wpcap_occurrences', $p . 'wpcap_events', absint( $occurrence_id ) ) );
 		if ( ! $occ || $old_starts_at === $new_starts_at ) { return 0; }
-		$recipients = $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM {$p}wpcap_tickets t INNER JOIN {$p}wpcap_orders ord ON ord.order_id=t.order_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", absint( $occurrence_id ) ) );
+		$recipients = $wpdb->get_results( $wpdb->prepare( "SELECT COALESCE(NULLIF(t.attendee_email,''),ord.customer_email) AS email,MAX(ord.locale) AS locale FROM %i t INNER JOIN %i ord ON ord.order_id=t.order_id INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id WHERE tt.occurrence_id=%d AND t.status='valid' GROUP BY email", $p . 'wpcap_tickets', $p . 'wpcap_orders', $p . 'wpcap_ticket_types', absint( $occurrence_id ) ) );
 		$tz = new \DateTimeZone( $occ->timezone ?: 'UTC' );
 		$old = wp_date( 'd.m.Y H:i', strtotime( $old_starts_at . ' UTC' ), $tz );
 		$new = wp_date( 'd.m.Y H:i', strtotime( $new_starts_at . ' UTC' ), $tz );

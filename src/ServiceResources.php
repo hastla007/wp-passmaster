@@ -81,7 +81,7 @@ final class ServiceResources {
 	public static function price_of( $resource ) {
 		if ( ! $resource || ! (int) ( $resource->ticket_type_id ?? 0 ) ) { return array( 0, '' ); }
 		global $wpdb;
-		$type = $wpdb->get_row( $wpdb->prepare( "SELECT price_minor,currency FROM {$wpdb->prefix}wpcap_ticket_types WHERE ticket_type_id=%d", (int) $resource->ticket_type_id ) );
+		$type = $wpdb->get_row( $wpdb->prepare( 'SELECT price_minor,currency FROM %i WHERE ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', (int) $resource->ticket_type_id ) );
 		return $type ? array( (int) $type->price_minor, (string) $type->currency ) : array( 0, '' );
 	}
 
@@ -117,12 +117,12 @@ final class ServiceResources {
 
 	public static function resource( $resource_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_resources WHERE resource_id=%d", absint( $resource_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE resource_id=%d', $wpdb->prefix . 'wpcap_resources', absint( $resource_id ) ) );
 	}
 
 	public static function slot( $slot_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT s.*,r.event_id,r.name AS resource_name FROM {$wpdb->prefix}wpcap_service_slots s INNER JOIN {$wpdb->prefix}wpcap_resources r ON r.resource_id=s.resource_id WHERE s.slot_id=%d", absint( $slot_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( 'SELECT s.*,r.event_id,r.name AS resource_name FROM %i s INNER JOIN %i r ON r.resource_id=s.resource_id WHERE s.slot_id=%d', $wpdb->prefix . 'wpcap_service_slots', $wpdb->prefix . 'wpcap_resources', absint( $slot_id ) ) );
 	}
 
 	/** Resources of the given events (null = all), newest first. */
@@ -143,7 +143,7 @@ final class ServiceResources {
 		if ( $resource && Forms::is_valid_timezone( (string) ( $resource->timezone ?? '' ) ) ) { return (string) $resource->timezone; }
 		if ( $resource ) {
 			global $wpdb;
-			$tz = (string) $wpdb->get_var( $wpdb->prepare( "SELECT timezone FROM {$wpdb->prefix}wpcap_occurrences WHERE event_id=%d ORDER BY starts_at LIMIT 1", (int) $resource->event_id ) );
+			$tz = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT timezone FROM %i WHERE event_id=%d ORDER BY starts_at LIMIT 1', $wpdb->prefix . 'wpcap_occurrences', (int) $resource->event_id ) );
 			if ( Forms::is_valid_timezone( $tz ) ) { return $tz; }
 		}
 		return Reports\Scope::site_timezone();
@@ -166,7 +166,7 @@ final class ServiceResources {
 		$status = in_array( $status, self::RESOURCE_STATUSES, true ) ? $status : 'active';
 		if ( '' === $name ) { return Forms::error( 'wpcap_resource_invalid', __( 'Ressourcenname fehlt.', 'pass-captain' ) ); }
 		if ( '' !== $timezone && ! Forms::is_valid_timezone( $timezone ) ) { return Forms::error( 'wpcap_resource_timezone', __( 'Ungültige Zeitzone.', 'pass-captain' ) ); }
-		if ( ! $existing && ( ! $event_id || ! $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_events WHERE event_id=%d", $event_id ) ) ) ) { return Forms::error( 'wpcap_resource_event', __( 'Bitte ein gültiges Event wählen.', 'pass-captain' ) ); }
+		if ( ! $existing && ( ! $event_id || ! $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE event_id=%d', $wpdb->prefix . 'wpcap_events', $event_id ) ) ) ) { return Forms::error( 'wpcap_resource_event', __( 'Bitte ein gültiges Event wählen.', 'pass-captain' ) ); }
 		// Keys missing in $data keep the stored value (or the default on create).
 		$pick = static function ( $key, $default ) use ( $data, $existing ) {
 			if ( array_key_exists( $key, $data ) ) { return $data[ $key ]; }
@@ -175,7 +175,7 @@ final class ServiceResources {
 		$duration = absint( $pick( 'default_duration', 60 ) );
 		if ( $duration < 5 || $duration > 1440 ) { return Forms::error( 'wpcap_resource_duration', __( 'Die Standarddauer muss zwischen 5 und 1440 Minuten liegen.', 'pass-captain' ) ); }
 		$ticket_type_id = absint( $pick( 'ticket_type_id', 0 ) );
-		if ( $ticket_type_id && ! $wpdb->get_var( $wpdb->prepare( "SELECT tt.ticket_type_id FROM {$wpdb->prefix}wpcap_ticket_types tt INNER JOIN {$wpdb->prefix}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d AND o.event_id=%d", $ticket_type_id, $event_id ) ) ) {
+		if ( $ticket_type_id && ! $wpdb->get_var( $wpdb->prepare( 'SELECT tt.ticket_type_id FROM %i tt INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=%d AND o.event_id=%d', $wpdb->prefix . 'wpcap_ticket_types', $wpdb->prefix . 'wpcap_occurrences', $ticket_type_id, $event_id ) ) ) {
 			return Forms::error( 'wpcap_resource_ticket_type', __( 'Die Ticketart (Preis) muss zum Event der Ressource gehören.', 'pass-captain' ) );
 		}
 		$partner_id = absint( $pick( 'partner_id', $existing ? 0 : self::default_partner( $event_id ) ) );
@@ -250,7 +250,7 @@ final class ServiceResources {
 	/** All bookings of a slot, newest first. */
 	public static function bookings( $slot_id ) {
 		global $wpdb;
-		return $wpdb->get_results( $wpdb->prepare( "SELECT booking_id,slot_id,order_id,customer_email,quantity,expires_at,status,amount_minor,currency,confirm_by,cancel_reason,refund_id,rebook_count,checked_in_at,noshow_at,fee_minor,created_at FROM {$wpdb->prefix}wpcap_service_bookings WHERE slot_id=%d ORDER BY created_at DESC,booking_id DESC LIMIT 500", absint( $slot_id ) ) );
+		return $wpdb->get_results( $wpdb->prepare( 'SELECT booking_id,slot_id,order_id,customer_email,quantity,expires_at,status,amount_minor,currency,confirm_by,cancel_reason,refund_id,rebook_count,checked_in_at,noshow_at,fee_minor,created_at FROM %i WHERE slot_id=%d ORDER BY created_at DESC,booking_id DESC LIMIT 500', $wpdb->prefix . 'wpcap_service_bookings', absint( $slot_id ) ) );
 	}
 
 	private static function valid_range( $starts_utc, $ends_utc ) {
@@ -320,7 +320,7 @@ final class ServiceResources {
 		$created = array();
 		$skipped = 0;
 		foreach ( $planned as list( $starts, $ends ) ) {
-			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT slot_id FROM {$wpdb->prefix}wpcap_service_slots WHERE resource_id=%d AND starts_at=%s LIMIT 1", (int) $resource->resource_id, $starts ) );
+			$exists = $wpdb->get_var( $wpdb->prepare( 'SELECT slot_id FROM %i WHERE resource_id=%d AND starts_at=%s LIMIT 1', $wpdb->prefix . 'wpcap_service_slots', (int) $resource->resource_id, $starts ) );
 			if ( $exists || self::conflicting_slot( $resource, $starts, $ends ) ) { $skipped++; continue; }
 			$id = self::create_slot( (int) $resource->resource_id, $starts, $ends, absint( $args['capacity'] ?? 0 ), false );
 			if ( is_wp_error( $id ) ) { return $id; }

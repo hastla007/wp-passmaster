@@ -101,7 +101,7 @@ final class Checkout {
 			// Means of payment: lines, discount and VAT keep the full consideration; only the amount due shrinks.
 			$snapshot['amount_paid_by_voucher'] = $amount;
 			$snapshot['amount_due_minor'] = $new_total;
-			$ok = false !== $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET total_minor=%d,voucher_snapshot=%s,updated_at=%s", $new_total, wp_json_encode( $snapshot ), current_time( 'mysql', true ) ) . $guard ) && 1 === (int) $wpdb->rows_affected; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $guard is prepared.
+			$ok = false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET total_minor=%d,voucher_snapshot=%s,updated_at=%s', $p . 'wpcap_orders', $new_total, wp_json_encode( $snapshot ), current_time( 'mysql', true ) ) . $guard ) && 1 === (int) $wpdb->rows_affected; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $guard is prepared.
 		} else {
 			// Single-purpose: VAT was paid when the voucher was sold; the redemption reduces price and VAT.
 			$new_tax = $old_total > 0 ? (int) round( (int) $order->tax_minor * $new_total / $old_total ) : 0;
@@ -115,7 +115,7 @@ final class Checkout {
 				$ok = $ok && false !== $wpdb->update( "{$p}wpcap_order_items", array( 'tax_minor' => $line_tax ), array( 'item_id' => (int) $item->item_id ) );
 			}
 			$snapshot['amount_paid_by_voucher'] = 0;
-			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_orders SET total_minor=%d,discount_minor=discount_minor+%d,tax_minor=%d,voucher_snapshot=%s,updated_at=%s", $new_total, $amount, $new_tax, wp_json_encode( $snapshot ), current_time( 'mysql', true ) ) . $guard ) && 1 === (int) $wpdb->rows_affected; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $guard is prepared.
+			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET total_minor=%d,discount_minor=discount_minor+%d,tax_minor=%d,voucher_snapshot=%s,updated_at=%s', $p . 'wpcap_orders', $new_total, $amount, $new_tax, wp_json_encode( $snapshot ), current_time( 'mysql', true ) ) . $guard ) && 1 === (int) $wpdb->rows_affected; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $guard is prepared.
 		}
 		if ( ! $ok ) {
 			$wpdb->query( 'ROLLBACK' );
@@ -220,7 +220,7 @@ final class Checkout {
 	public static function handle_job( $handled, $type, $payload = array(), $job_id = 0 ) {
 		if ( self::JOB !== $type ) { return $handled; }
 		global $wpdb;
-		$attempts = (int) $wpdb->get_var( $wpdb->prepare( "SELECT attempts FROM {$wpdb->prefix}wpcap_jobs WHERE job_id=%d", absint( $job_id ) ) );
+		$attempts = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT attempts FROM %i WHERE job_id=%d', $wpdb->prefix . 'wpcap_jobs', absint( $job_id ) ) );
 		return self::commit( absint( $payload['order_id'] ?? 0 ), $attempts >= self::FINAL_ATTEMPT );
 	}
 
@@ -346,7 +346,7 @@ final class Checkout {
 		$plans = (array) ( $snapshot['refund_plans'] ?? array() );
 		if ( isset( $plans[ (string) absint( $refund_id ) ] ) ) { return (array) $plans[ (string) absint( $refund_id ) ]; }
 		$ticket_ids = array_values( array_filter( array_map( 'absint', (array) json_decode( (string) $refund['ticket_ids'], true ) ) ) );
-		$items = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,quantity,line_total_minor,tax_minor FROM {$p}wpcap_order_items WHERE order_id=%d", $order_id ) );
+		$items = $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,quantity,line_total_minor,tax_minor FROM %i WHERE order_id=%d', $p . 'wpcap_order_items', $order_id ) );
 		$unit = array();
 		$all_value = 0;
 		$all_tickets = 0;

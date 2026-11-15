@@ -22,7 +22,7 @@ final class Access {
 		global $wpdb;
 		$assigned = (bool) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT 1 FROM {$wpdb->prefix}wpcap_event_staff WHERE event_id = %d AND user_id = %d AND capability = %s LIMIT 1",
+				'SELECT 1 FROM %i WHERE event_id = %d AND user_id = %d AND capability = %s LIMIT 1', $wpdb->prefix . 'wpcap_event_staff',
 				absint( $event_id ),
 				$user_id,
 				sanitize_key( $capability )
@@ -46,7 +46,7 @@ final class Access {
 		$occurrence_id = absint( $occurrence_id );
 		$event_id = absint( $event_id );
 		if ( ! $event_id ) {
-			$event_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT event_id FROM {$wpdb->prefix}wpcap_occurrences WHERE occurrence_id=%d", $occurrence_id ) );
+			$event_id = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT event_id FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $occurrence_id ) );
 		}
 		if ( $event_id && self::can_access_event( $event_id, $capability ) ) { return true; }
 		return self::has_occurrence_assignment( $occurrence_id, $capability );
@@ -58,7 +58,7 @@ final class Access {
 		$occurrence_id = absint( $occurrence_id );
 		if ( ! $user_id || ! $occurrence_id || ! current_user_can( $capability ) ) { return false; }
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_occurrence_staff WHERE occurrence_id=%d AND user_id=%d AND capability=%s LIMIT 1", $occurrence_id, $user_id, sanitize_key( $capability ) ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE occurrence_id=%d AND user_id=%d AND capability=%s LIMIT 1', $wpdb->prefix . 'wpcap_occurrence_staff', $occurrence_id, $user_id, sanitize_key( $capability ) ) );
 	}
 
 	/**
@@ -70,7 +70,7 @@ final class Access {
 		$user_id = get_current_user_id();
 		if ( ! $user_id || ! current_user_can( $capability ) ) { return false; }
 		global $wpdb;
-		return (bool) $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$wpdb->prefix}wpcap_occurrence_staff WHERE event_id=%d AND user_id=%d AND capability=%s LIMIT 1", absint( $event_id ), $user_id, sanitize_key( $capability ) ) );
+		return (bool) $wpdb->get_var( $wpdb->prepare( 'SELECT 1 FROM %i WHERE event_id=%d AND user_id=%d AND capability=%s LIMIT 1', $wpdb->prefix . 'wpcap_occurrence_staff', absint( $event_id ), $user_id, sanitize_key( $capability ) ) );
 	}
 
 	/**
@@ -83,7 +83,7 @@ final class Access {
 		$user_id = get_current_user_id();
 		if ( ! $user_id || ! current_user_can( $capability ) ) { return array(); }
 		global $wpdb;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT occurrence_id FROM {$wpdb->prefix}wpcap_occurrence_staff WHERE event_id=%d AND user_id=%d AND capability=%s", absint( $event_id ), $user_id, sanitize_key( $capability ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE event_id=%d AND user_id=%d AND capability=%s', $wpdb->prefix . 'wpcap_occurrence_staff', absint( $event_id ), $user_id, sanitize_key( $capability ) ) ) );
 	}
 
 	/** Event ids with at least one date assignment of the current user for the capability. */
@@ -91,6 +91,6 @@ final class Access {
 		$user_id = get_current_user_id();
 		if ( ! $user_id ) { return array(); }
 		global $wpdb;
-		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT event_id FROM {$wpdb->prefix}wpcap_occurrence_staff WHERE user_id=%d AND capability=%s", $user_id, sanitize_key( $capability ) ) ) );
+		return array_map( 'absint', $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT event_id FROM %i WHERE user_id=%d AND capability=%s', $wpdb->prefix . 'wpcap_occurrence_staff', $user_id, sanitize_key( $capability ) ) ) );
 	}
 }
