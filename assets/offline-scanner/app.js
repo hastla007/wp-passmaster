@@ -29,10 +29,16 @@
 	var MAX_DELTAS = 30;
 	var REFRESH_MS = 60000;
 	var SYNC_BATCH = 200;
+	var LOG_MAX_AGE_MS = 24 * 3600e3; // synced log entries are kept for a day ...
+	var LOG_MAX_ENTRIES = 500; // ... and at most this many (pending scans are always kept)
+	var DAY_S = 86400;
+	var API_SUFFIX = '/wp-pass-captain/v1/app/';
 	var nacl = window.nacl;
 
 	var state = {
 		api: '', token: '', deviceId: '', keys: {}, qrKeys: {}, clockOffset: 0,
+		serverTime: 0, // last known server time (ms): lower bound for now(), the device clock may be set back
+		hw: {}, // occurrence_id -> { cursor, issued_at } of the newest accepted package (rollback protection)
 		occurrences: [], selected: 0, areaId: 0,
 		packages: {}, // occurrence_id -> { record, index: Map, meta, error }
 		admitted: {}, // occurrence_id -> Set of hashes admitted on this device
@@ -42,7 +48,16 @@
 	};
 
 	function $(id) { return document.getElementById(id); }
-	function now() { return Date.now() + state.clockOffset; }
+	/** Current time: device clock corrected by the server offset, never earlier than the last known server time. */
+	function now() { return Math.max(Date.now() + state.clockOffset, state.serverTime || 0); }
+	/** Raises the server time floor (server_time of a response, issued_at of a verified package). */
+	function noteServerTime(ms, replace) {
+		if (!isFinite(ms) || ms <= 0) { return; }
+		var next = replace ? ms : Math.max(state.serverTime || 0, ms);
+		if (next === state.serverTime) { return; }
+		state.serverTime = next;
+		kvSet('server_time', next).catch(function () {});
+	}
 
 	/* ---------------- IndexedDB ---------------- */
 
@@ -76,6 +91,7 @@
 	}
 	function kvGet(key) { return idb('kv', 'readonly', function (s) { return s.get(key); }); }
 	function kvSet(key, value) { return idb('kv', 'readwrite', function (s) { s.put(value, key); }); }
+	function kvDel(keys) { return idb('kv', 'readwrite', function (s) { keys.forEach(function (k) { s.delete(k); }); }); }
 	function allOf(store) { return idb(store, 'readonly', function (s) { return s.getAll(); }); }
 	function put(store, value) { return idb(store, 'readwrite', function (s) { s.put(value); }); }
 
@@ -184,6 +200,19 @@
 	function sameOrigin(url) {
 		try { return new URL(url, location.href).origin === location.origin; } catch (e) { return false; }
 	}
+	/**
+	 * A usable API base: same origin and exactly the plugin's app namespace, either as a pretty REST path
+	 * (…/wp-pass-captain/v1/app/, any REST prefix) or as the only query parameter rest_route=/wp-pass-captain/v1/app/.
+	 */
+	function validApiBase(url) {
+		if (typeof url !== 'string' || !url || !sameOrigin(url)) { return false; }
+		var u;
+		try { u = new URL(url, location.href); } catch (e) { return false; }
+		if (u.hash || u.username || u.password) { return false; }
+		if (!u.search) { return u.pathname.length > API_SUFFIX.length && u.pathname.slice(-API_SUFFIX.length) === API_SUFFIX; }
+		var params = Array.from(u.searchParams.keys());
+		return 1 === params.length && API_SUFFIX === u.searchParams.get('rest_route') && url.slice(-('rest_route=' + API_SUFFIX).length) === 'rest_route=' + API_SUFFIX;
+	}
 	function endpoint(route, query) {
 		var base = state.api;
 		var url;
@@ -217,9 +246,45 @@
 			});
 	}
 
+	/** True for responses that mean the device token is no longer valid (expired, revoked device). */
+	function isAuthError(err) {
+		var code = err && err.body && typeof err.body.code === 'string' ? err.body.code : '';
+		return !!err && (401 === err.status || /device_revoked|device_unauthenticated/.test(code));
+	}
+
+	/**
+	 * Removes everything the device holds for its pairing: token, device id, keys, packages (attendee
+	 * names), the scan log (ticket codes of pending scans) and the rollback/time markers. Translations and
+	 * the API base stay so the device can be paired again. Used when the server rejects the token.
+	 */
+	function wipeDevice() {
+		state.token = '';
+		state.deviceId = '';
+		state.keys = {};
+		state.qrKeys = {};
+		state.packages = {};
+		state.admitted = {};
+		state.occurrences = [];
+		state.selected = 0;
+		state.hw = {};
+		state.forceFull = {};
+		state.pendingCount = 0;
+		return Promise.all([
+			kvDel(['token', 'device_id', 'keys', 'qr_keys', 'clock_offset', 'server_time', 'hw']),
+			idb('packages', 'readwrite', function (s) { s.clear(); }),
+			idb('log', 'readwrite', function (s) { s.clear(); })
+		]).catch(function () {});
+	}
+
 	function handleAuthError(err) {
-		if (err && 401 === err.status) {
+		if (isAuthError(err)) {
+			var wasPaired = !!state.token;
 			showResult('bad', t('Gerät nicht mehr gekoppelt'), t('Token abgelaufen oder widerrufen. Bitte neu koppeln.'));
+			if (wasPaired) {
+				stopCamera();
+				state.wiping = wipeDevice().then(function () { state.wiping = null; showView(); });
+				showView();
+			}
 			return true;
 		}
 		return false;
@@ -250,14 +315,33 @@
 	}
 
 	/**
+	 * Validity window [nbf, exp] (Unix seconds) of signed QR claims. With the current occurrence of the
+	 * package (same id as the claims) it is widened to [min(signed start, start - 365 days),
+	 * max(signed end, (end or start) + 1 day)], mirroring PassCaptain\Security\SignedQr::in_window(): a QR
+	 * code sent before the occurrence was moved stays valid for the new date (audit QA-2).
+	 */
+	function qrWindow(claims, occurrence) {
+		var nbf = claims.v[0], exp = claims.v[1];
+		if (occurrence && occurrence.id === claims.o) {
+			var start = Date.parse(occurrence.starts_at);
+			var end = occurrence.ends_at ? Date.parse(occurrence.ends_at) : start;
+			if (isFinite(start)) { nbf = Math.min(nbf, Math.floor(start / 1000) - 365 * DAY_S); }
+			if (isFinite(end)) { exp = Math.max(exp, Math.floor(end / 1000) + DAY_S); }
+		}
+		return [nbf, exp];
+	}
+
+	/**
 	 * Offline pre-validation of a signed QR code (mirrors PassCaptain\Security\SignedQr::verify()):
 	 * Ed25519 signature over the ASCII bytes "PC1.<claims>" with a trusted QR key (retired keys only
 	 * until valid_until), claim types and the validity window at atMs. The ticket state is decided by the
 	 * package (and finally by the server on sync).
 	 *
+	 * @param {Object} [occurrence] Current occurrence of the verified package ({id, starts_at, ends_at}):
+	 *   widens the window to the current dates like the server does (see qrWindow()).
 	 * @return {{ok: boolean, result: string, claims: (Object|null)}}
 	 */
-	function verifySignedQr(code, atMs) {
+	function verifySignedQr(code, atMs, occurrence) {
 		var bad = { ok: false, result: 'invalid_signature', claims: null };
 		var parts = String(code || '').split('.');
 		if (3 !== parts.length || 'PC1' !== parts[0] || !SIGNED_QR.test(code)) { return bad; }
@@ -275,8 +359,9 @@
 		var valid = typeof claims.t === 'string' && Number.isInteger(claims.o) && claims.o > 0 && Array.isArray(claims.v) && 2 === claims.v.length &&
 			Number.isInteger(claims.v[0]) && Number.isInteger(claims.v[1]) && typeof claims.c === 'string' && /^[a-f0-9]{16}$/.test(claims.c);
 		if (!valid) { return bad; }
-		var at = Math.floor((atMs === undefined ? now() : atMs) / 1000);
-		if (at < claims.v[0] || at > claims.v[1]) { return { ok: false, result: 'out_of_window', claims: claims }; }
+		var at = Math.floor((atMs === undefined || atMs === null ? now() : atMs) / 1000);
+		var win = qrWindow(claims, occurrence);
+		if (at < win[0] || at > win[1]) { return { ok: false, result: 'out_of_window', claims: claims }; }
 		return { ok: true, result: 'valid', claims: claims };
 	}
 
@@ -320,18 +405,86 @@
 		return { index: index, prefix: prefix, meta: meta, cursor: cursor };
 	}
 
+	/** Cursor "epoch.version" → {epoch, version}. */
+	function parseCursor(cursor) {
+		var m = /^([a-f0-9]+)\.(\d+)$/.exec(String(cursor || ''));
+		return m ? { epoch: m[1], version: Number(m[2]) } : null;
+	}
+
+	/**
+	 * True when a verified package is older than the newest one this device accepted for the occurrence
+	 * (older issued_at, or a lower cursor version of the same epoch): a replayed older package could
+	 * still list tickets as valid that were revoked or used since.
+	 */
+	function isRollback(occurrenceId, meta, cursor) {
+		var hw = state.hw[occurrenceId];
+		if (!hw) { return false; }
+		if (Date.parse(meta.issued_at) < Date.parse(hw.issued_at)) { return true; }
+		var a = parseCursor(cursor), b = parseCursor(hw.cursor);
+		return !!(a && b && a.epoch === b.epoch && a.version < b.version);
+	}
+
+	/** Records the newest accepted package of an occurrence (cursor, issued_at) and raises the time floor. */
+	function noteAccepted(occurrenceId, meta, cursor) {
+		noteServerTime(Date.parse(meta.issued_at));
+		var hw = state.hw[occurrenceId];
+		if (hw && hw.cursor === cursor && hw.issued_at === meta.issued_at) { return; }
+		state.hw[occurrenceId] = { cursor: cursor, issued_at: meta.issued_at };
+		kvSet('hw', state.hw).catch(function () {});
+	}
+
 	function loadPackage(record) {
 		var entry = { record: record, index: null, prefix: null, meta: null, error: '' };
 		try {
 			var built = buildIndex(record);
+			if (isRollback(record.occurrence_id, built.meta, built.cursor)) { throw new Error(t('Kein gültiges Prüfpaket')); }
 			entry.index = built.index;
 			entry.prefix = built.prefix;
 			entry.meta = built.meta;
+			noteAccepted(record.occurrence_id, built.meta, built.cursor);
 		} catch (e) {
 			entry.error = e.message;
 		}
 		state.packages[record.occurrence_id] = entry;
 		return entry;
+	}
+
+	/** Expiry (ms) of a stored package record: from the verified meta, else read from its newest document. */
+	function recordExpiry(entry) {
+		if (entry.meta) { return Date.parse(entry.meta.expires_at); }
+		var docs = [entry.record.full].concat(entry.record.deltas || []);
+		for (var i = docs.length - 1; i >= 0; i--) {
+			try { var exp = Date.parse(JSON.parse(docs[i].payload).expires_at); if (isFinite(exp)) { return exp; } } catch (e) { /* unreadable document */ }
+		}
+		return 0;
+	}
+
+	/**
+	 * Deletes expired packages (they carry attendee names and are useless for decisions) from memory and
+	 * IndexedDB. Runs at start and periodically; a fresh package is loaded on the next online refresh.
+	 */
+	function pruneExpired() {
+		var t0 = now();
+		var gone = Object.keys(state.packages).map(Number).filter(function (id) { return recordExpiry(state.packages[id]) <= t0; });
+		if (!gone.length) { return Promise.resolve(gone); }
+		gone.forEach(function (id) { delete state.packages[id]; });
+		return idb('packages', 'readwrite', function (s) { gone.forEach(function (id) { s.delete(id); }); }).then(function () { return gone; }, function () { return gone; });
+	}
+
+	/**
+	 * Shortens the local scan log: synced entries older than LOG_MAX_AGE_MS go, and of the rest only the
+	 * newest LOG_MAX_ENTRIES synced entries stay. Pending (not yet uploaded) scans are never removed.
+	 */
+	function pruneLog() {
+		var limit = new Date(now() - LOG_MAX_AGE_MS).toISOString();
+		return idb('log', 'readwrite', function (s) {
+			var req = s.getAll();
+			req.onsuccess = function () {
+				var synced = (req.result || []).filter(function (e) { return e.synced; });
+				synced.sort(function (a, b) { return a.scanned_at < b.scanned_at ? 1 : -1; });
+				synced.forEach(function (e, i) { if (i >= LOG_MAX_ENTRIES || e.scanned_at < limit) { s.delete(e.key); } });
+			};
+		}).catch(function () {});
 	}
 
 	/** Fetches and stores the package of an occurrence (delta when possible). */
@@ -474,7 +627,7 @@
 	function decideSigned(entry, code, atMs) {
 		var status = packageStatus(entry);
 		if (!status.ok) { return { ok: false, result: status.code, hash: '' }; }
-		var v = verifySignedQr(code, atMs);
+		var v = verifySignedQr(code, atMs, entry.meta.occurrence);
 		if (!v.ok) { return { ok: false, result: v.result, hash: '' }; }
 		if (v.claims.o !== entry.record.occurrence_id) { return { ok: false, result: 'wrong_occurrence', hash: '' }; }
 		var hash = entry.prefix ? entry.prefix.get(v.claims.c) : '';
@@ -504,7 +657,7 @@
 		var area = (entry && entry.meta && entry.meta.device_area_id) || state.areaId || 0;
 		var signedHash = '';
 		if (signed && entry && entry.prefix) {
-			var pre = verifySignedQr(code);
+			var pre = verifySignedQr(code, null, entry.meta && entry.meta.occurrence);
 			if (pre.ok && pre.claims.o === occurrenceId) { signedHash = entry.prefix.get(pre.claims.c) || ''; }
 		}
 		return (signedHash ? Promise.resolve(signedHash) : sha256Hex(code)).then(function (hash) {
@@ -563,7 +716,7 @@
 					});
 				}).then(function () { if (pending.length > SYNC_BATCH) { return syncNow(); } });
 			}, function (err) { if (!handleAuthError(err) && !err.network) { console.warn('sync', err); } });
-		}).then(renderLog);
+		}).then(pruneLog).then(renderLog);
 	}
 
 	function renderLog() {
@@ -603,7 +756,12 @@
 		if (!force && Date.now() - state.lastRefresh < REFRESH_MS) { return syncNow(); }
 		state.busy = true;
 		return api('GET', 'offline/keys').then(function (res) {
-			if (res.server_time) { state.clockOffset = Date.parse(res.server_time) - Date.now(); kvSet('clock_offset', state.clockOffset); }
+			var serverMs = res.server_time ? Date.parse(res.server_time) : NaN;
+			if (isFinite(serverMs)) {
+				state.clockOffset = serverMs - Date.now();
+				kvSet('clock_offset', state.clockOffset);
+				noteServerTime(serverMs, true);
+			}
 			return Promise.all([setKeys(res.keys), setQrKeys(res.qr_keys)]);
 		}).then(function () {
 			return api('GET', 'offline/occurrences');
@@ -615,7 +773,10 @@
 			stale.forEach(function (id) { delete state.packages[id]; });
 			if (stale.length) { idb('packages', 'readwrite', function (s) { stale.forEach(function (id) { s.delete(id); }); }); }
 			return ids.reduce(function (chain, id) {
-				return chain.then(function () { return refreshPackage(id).catch(function (e) { console.warn('package', id, e); }); });
+				return chain.then(function () {
+					if (!state.token) { return; }
+					return refreshPackage(id).catch(function (e) { if (!handleAuthError(e)) { console.warn('package', id, e); } });
+				});
 			}, Promise.resolve());
 		}).then(function () {
 			state.lastRefresh = Date.now();
@@ -703,7 +864,7 @@
 			try {
 				var qr = JSON.parse(input);
 				if ('wpcap-pair' === qr.type && qr.code) {
-					if (qr.api && !sameOrigin(qr.api)) { throw new Error(t('Der Kopplungscode gehört zu einem anderen Server.')); }
+					if (qr.api && !validApiBase(qr.api)) { throw new Error(t('Der Kopplungscode gehört zu einem anderen Server.')); }
 					if (qr.api) { state.api = qr.api; }
 					input = qr.code;
 				}
@@ -820,31 +981,38 @@
 		}
 		if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {}); }
 		var param = new URLSearchParams(location.search).get('api');
-		Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log'), kvGet('i18n'), kvGet('qr_keys')]).then(function (v) {
+		Promise.all([kvGet('api'), kvGet('token'), kvGet('device_id'), kvGet('keys'), kvGet('clock_offset'), allOf('packages'), allOf('log'), kvGet('i18n'), kvGet('qr_keys'), kvGet('server_time'), kvGet('hw')]).then(function (v) {
 			// Stored translations first, so everything below (incl. package errors) is translated offline.
 			if (validI18n(v[7])) { state.i18n = v[7]; }
 			applyI18n();
 			var stored = v[0];
-			var api = param && sameOrigin(param) ? param : (stored || deriveApi());
-			if (!sameOrigin(api)) { api = deriveApi(); }
+			var paired = !!v[1];
+			// ?api= only sets up a device that is not paired yet; a paired device keeps its API base, so a
+			// crafted link cannot redirect its token or scans (audit FE-3).
+			var useParam = !paired && validApiBase(param);
+			var api = useParam ? param : (validApiBase(stored) ? stored : deriveApi());
 			state.api = api;
 			state.token = v[1] || '';
 			state.deviceId = v[2] || '';
 			state.keys = v[3] || {};
 			state.qrKeys = v[8] || {};
 			state.clockOffset = v[4] || 0;
-			if (param && sameOrigin(param) && param !== stored) { kvSet('api', param); }
+			state.serverTime = Number(v[9]) || 0;
+			state.hw = v[10] && typeof v[10] === 'object' ? v[10] : {};
+			if (useParam && param !== stored) { kvSet('api', param); }
 			v[5].forEach(loadPackage);
 			v[6].forEach(function (e) { if (e.ok) { markAdmitted(e.occurrence_id, e.hash); } });
 			if (param) { history.replaceState(null, '', location.pathname); }
 			showView();
 			setNet();
-			if (state.token) {
-				renderOccurrences();
-				renderLog();
-				refreshAll(true);
-			}
-			loadI18n();
+			return Promise.all([pruneExpired(), pruneLog()]).then(function () {
+				if (state.token) {
+					renderOccurrences();
+					renderLog();
+					refreshAll(true);
+				}
+				loadI18n();
+			});
 		});
 
 		$('pair-form').addEventListener('submit', function (ev) {
@@ -874,11 +1042,31 @@
 		});
 		window.addEventListener('online', function () { setNet(); refreshAll(true); loadI18n(); });
 		window.addEventListener('offline', setNet);
-		setInterval(function () { if (navigator.onLine !== false) { refreshAll(false); } renderPackage(); }, 30000);
+		// The camera is released when the app is hidden or left (no running camera in the background).
+		window.addEventListener('pagehide', stopCamera);
+		document.addEventListener('visibilitychange', function () { if ('hidden' === document.visibilityState) { stopCamera(); } });
+		setInterval(function () {
+			if (navigator.onLine !== false) { refreshAll(false); }
+			Promise.all([pruneExpired(), pruneLog()]).then(function (r) {
+				if (r[0].length) { renderOccurrences(); } else { renderPackage(); }
+			});
+		}, 30000);
 	}
 
+	/**
+	 * Read view of the state for diagnostics and tests: the device token is hidden (not readable, not
+	 * listed, not writable through this view); all other fields pass through.
+	 */
+	var publicState = typeof Proxy === 'function' ? new Proxy(state, {
+		get: function (target, prop) { return 'token' === prop ? undefined : target[prop]; },
+		set: function (target, prop, value) { if ('token' !== prop) { target[prop] = value; } return true; },
+		has: function (target, prop) { return 'token' !== prop && prop in target; },
+		ownKeys: function (target) { return Reflect.ownKeys(target).filter(function (k) { return 'token' !== k; }); },
+		getOwnPropertyDescriptor: function (target, prop) { return 'token' === prop ? undefined : Object.getOwnPropertyDescriptor(target, prop); }
+	}) : {};
+
 	// Exposed for diagnostics/tests only (no secrets in here).
-	window.wpcapOffline = { t: t, fmtTime: fmtTime, normalizeCode: normalizeCode, signedCode: signedCode, verifySignedQr: verifySignedQr, decideSigned: decideSigned, verifyDoc: verifyDoc, buildIndex: buildIndex, loadPackage: loadPackage, packageStatus: packageStatus, decideOffline: decideOffline, validI18n: validI18n, applyI18n: applyI18n, handleScan: handleScan, pair: pair, state: state, syncNow: syncNow, refreshAll: refreshAll };
+	window.wpcapOffline = { t: t, fmtTime: fmtTime, normalizeCode: normalizeCode, signedCode: signedCode, verifySignedQr: verifySignedQr, decideSigned: decideSigned, verifyDoc: verifyDoc, buildIndex: buildIndex, loadPackage: loadPackage, packageStatus: packageStatus, decideOffline: decideOffline, validI18n: validI18n, applyI18n: applyI18n, handleScan: handleScan, pair: pair, state: publicState, syncNow: syncNow, refreshAll: refreshAll, validApiBase: validApiBase, pruneExpired: pruneExpired, pruneLog: pruneLog, qrWindow: qrWindow };
 
 	boot();
 }());
