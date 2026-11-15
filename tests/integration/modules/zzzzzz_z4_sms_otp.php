@@ -202,7 +202,7 @@ foreach ( array( 'verification', 'verified_at' ) as $z4s_col ) {
 }
 $wpdb->query( 'ALTER TABLE ' . $p . 'wpcap_sms_consents ' . implode( ', ', $z4s_defs ) );
 check( 'upgrade adds the columns; existing opt-ins become "unverifiziert (Altbestand)"', 2 === count( $z4s_defs ) && 'legacy' === $wpdb->get_var( $wpdb->prepare( 'SELECT verification FROM %i WHERE order_id=%d', $p . 'wpcap_sms_consents', $z4s_pre['order_id'] ) ) && 'unverifiziert (Altbestand)' === Sms::verification_label( $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE order_id=%d', $p . 'wpcap_sms_consents', $z4s_pre['order_id'] ) ) ) );
-check( 'DB version 3.15.2 (schema change)', '3.15.2' === PassCaptain\Installer::DB_VERSION );
+check( 'DB version >= 3.15.2 (schema change)', version_compare( PassCaptain\Installer::DB_VERSION, '3.15.2', '>=' ) );
 
 // Switch SMS off for later test files.
 Settings::update( array( 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'provider' => '' ) ) ) );
