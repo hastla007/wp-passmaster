@@ -39,7 +39,8 @@ if ( version_compare( PHP_VERSION, '8.2', '<' ) ) {
  * uninstall routine of the old copy, so data, settings and schedules stay as they are. Both copies use the same
  * tables, options and hooks.
  */
-$wpcap_self = plugin_basename( __FILE__ );
+$wpcap_self     = plugin_basename( __FILE__ );
+$wpcap_takeover = array(); // Old copies that WordPress still loads in this request (see PassCaptain\LegacyCopy).
 if ( function_exists( 'get_option' ) ) {
 	$wpcap_is_legacy = static function ( $basename ) use ( $wpcap_self ) {
 		return is_string( $basename ) && $basename !== $wpcap_self && 'wp-pass-captain.php' === basename( $basename );
@@ -54,6 +55,7 @@ if ( function_exists( 'get_option' ) ) {
 		)
 	);
 	if ( count( $wpcap_kept ) !== count( $wpcap_active ) ) {
+		$wpcap_takeover = array_values( array_diff( $wpcap_active, $wpcap_kept ) );
 		if ( ! in_array( $wpcap_self, $wpcap_kept, true ) ) {
 			$wpcap_kept[] = $wpcap_self;
 			sort( $wpcap_kept );
@@ -76,6 +78,7 @@ if ( function_exists( 'get_option' ) ) {
 				// Network-activated old copy: this copy becomes network-activated in its place.
 				$wpcap_network[ $wpcap_self ] = $wpcap_network[ $wpcap_self ] ?? $wpcap_network[ $wpcap_plugin ];
 				unset( $wpcap_network[ $wpcap_plugin ] );
+				$wpcap_takeover[] = $wpcap_plugin;
 				$wpcap_changed = true;
 			}
 		}
@@ -150,6 +153,7 @@ if ( function_exists( 'get_option' ) ) {
 unset( $wpcap_self );
 // The old copy was already loaded in this request: it serves this request, this copy takes over from the next one.
 if ( defined( 'WPCAP_VERSION' ) ) {
+	unset( $wpcap_takeover );
 	return;
 }
 
@@ -173,6 +177,13 @@ if ( is_readable( $wpcap_autoload ) ) {
 }
 
 require_once WPCAP_PATH . 'src/functions.php'; // Global wrappers of the public add-on API (wpcap_get_invoice() …).
+
+// This copy loaded first and took over: the old copy is still loaded later in this request. Its second bootstrap
+// is made harmless (no "Constant already defined" warnings; Plugin::run() is idempotent).
+if ( $wpcap_takeover ) {
+	PassCaptain\LegacyCopy::neutralize( $wpcap_takeover );
+}
+unset( $wpcap_takeover );
 
 add_action( 'before_woocommerce_init', array( PassCaptain\Integrations\WooCommerce\OrderAdapter::class, 'declare_compatibility' ) );
 

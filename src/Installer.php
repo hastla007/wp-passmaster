@@ -17,6 +17,10 @@ final class Installer {
 	public static function install() {
 		global $wpdb;
 
+		// Downgrade: the database was written by a newer plugin version. Installing would write the older
+		// version back while newer data (e.g. pcv1 secrets, new columns) stays – nothing is changed.
+		if ( self::schema_is_newer( self::stored_db_version() ) ) { return false; }
+
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		$charset = $wpdb->get_charset_collate();
 		$events = $wpdb->prefix . 'wpcap_events';
@@ -804,6 +808,46 @@ final class Installer {
 	/** Option holding details of the last failed schema upgrade (shown as admin notice until an upgrade succeeds). */
 	const ERROR_OPTION = 'wpcap_schema_error';
 
+	/** Option holding the newer core schema version found in the database (downgrade; removed once the code is current again). */
+	const NEWER_OPTION = 'wpcap_schema_newer';
+
+	/** Core schema version of a stored wpcap_db_version ("3.16.1+hash" -> "3.16.1"; '' when none). */
+	public static function core_version( $stored ) {
+		$core = strtok( (string) $stored, '+' );
+		return false === $core ? '' : trim( $core );
+	}
+
+	/**
+	 * Whether the stored schema comes from a newer plugin version than this code (version_compare, not
+	 * equality: an older copy must neither run install() nor write its version back). Keeps the option
+	 * wpcap_schema_newer in sync: set to the newer version, removed once the code is current again.
+	 *
+	 * @param string|false|null $stored wpcap_db_version (null: read the option).
+	 */
+	public static function schema_is_newer( $stored = null ) {
+		$stored = null === $stored ? get_option( 'wpcap_db_version' ) : $stored;
+		$core = self::core_version( $stored );
+		$newer = (bool) preg_match( '/^\d+(\.\d+)*$/', $core ) && version_compare( $core, self::DB_VERSION, '>' );
+		$flag = get_option( self::NEWER_OPTION );
+		if ( $newer && $flag !== $core ) {
+			update_option( self::NEWER_OPTION, $core, false );
+		} elseif ( ! $newer && false !== $flag ) {
+			delete_option( self::NEWER_OPTION );
+		}
+		return $newer;
+	}
+
+	/** Admin notice while the database is newer than the plugin code (downgrade). */
+	public static function render_newer_notice() {
+		$newer = get_option( self::NEWER_OPTION );
+		if ( ! $newer || ! current_user_can( 'activate_plugins' ) ) { return; }
+		printf(
+			'<div class="notice notice-error"><p>%s</p></div>',
+			/* translators: 1: schema version in the database, 2: schema version of the installed plugin */
+			esc_html( sprintf( __( 'Pass Captain: Die Datenbank stammt von einer neueren Plugin-Version (Schema %1$s, dieses Plugin kennt %2$s). Es wurde nichts verändert. Bitte die neuere Plugin-Version wieder installieren oder eine Datensicherung von vor dem Update wiederherstellen (Restore erforderlich) – mit älterem Code können neuere Daten (z. B. verschlüsselte Zugangsdaten) unlesbar sein.', 'pass-captain' ), (string) $newer, self::DB_VERSION ) )
+		);
+	}
+
 	/**
 	 * Tables and columns of the CREATE TABLE statements that do not exist in the database.
 	 *
@@ -958,6 +1002,14 @@ final class Installer {
 		$context = $context ?? self::context();
 		if ( 'admin' === $context && function_exists( 'add_action' ) && get_option( self::ERROR_OPTION ) ) {
 			add_action( 'admin_notices', array( __CLASS__, 'render_schema_notice' ) );
+		}
+		// Downgrade: never install over a newer schema (also no cron event from frontend requests).
+		if ( self::schema_is_newer() ) {
+			if ( 'admin' === $context && function_exists( 'add_action' ) ) {
+				add_action( 'admin_notices', array( __CLASS__, 'render_newer_notice' ) );
+				add_action( 'network_admin_notices', array( __CLASS__, 'render_newer_notice' ) );
+			}
+			return false;
 		}
 		// Role names are translated: rename only once translations may load (init), never earlier.
 		if ( did_action( 'init' ) ) {

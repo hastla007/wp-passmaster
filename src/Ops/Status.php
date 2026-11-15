@@ -287,6 +287,11 @@ final class Status {
 		if ( is_array( $error ) && $error ) {
 			$issues[] = array( 'severity' => 'error', 'message' => __( 'Die letzte Datenbank-Aktualisierung ist fehlgeschlagen.', 'pass-captain' ) );
 		}
+		$newer = get_option( Installer::NEWER_OPTION );
+		if ( $newer ) {
+			/* translators: %s: schema version in the database */
+			$issues[] = array( 'severity' => 'error', 'message' => sprintf( __( 'Die Datenbank stammt von einer neueren Plugin-Version (Schema %s) – Restore erforderlich: neuere Plugin-Version installieren oder Datensicherung wiederherstellen.', 'pass-captain' ), (string) $newer ) );
+		}
 		foreach ( array( 'jobs', 'messages', 'webhooks', 'sms' ) as $queue ) {
 			$s = self::queue_summary( $queue, $now );
 			if ( ! $s ) { continue; }

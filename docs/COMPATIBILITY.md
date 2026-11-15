@@ -46,7 +46,10 @@ das Plugin auf die übrigen geprüften Statements und den COMMIT zurück. Stand 
   `wpcap_uninstall_policy`; der alte Schlüssel `wpcap_settings[delete_data_on_uninstall]`, den die `uninstall.php` der
   Altkopie auf allen Sites liest, steht immer auf 0. Die Altkopie lässt sich neben „Pass Captain“ nicht mehr
   aktivieren (kein „Aktivieren“-Link, Aktivierungsanfrage wird vor dem Laden abgelehnt; per WP-CLI greift nur die
-  Übernahme beim nächsten Request).
+  Übernahme beim nächsten Request). Im Request der Übernahme lädt WordPress die Altkopie noch einmal nach dieser
+  Kopie (die Plugin-Liste wurde vorher gelesen): `PassCaptain\LegacyCopy` blendet genau die Warnungen „Constant
+  WPCAP_… already defined“ während des Ladens der Altdatei aus, `Plugin::run()` und `TicketPage::register()` sind
+  idempotent – Hooks und Cron-Callbacks werden nicht doppelt registriert.
 - **Netzwerkaktivierung:** höchstens 25 Sites bzw. 15 Sekunden werden in der Aktivierungsanfrage installiert, die
   übrigen per Upgrade-Cron-Ereignis auf der jeweiligen Site (ihr Daten-Opt-in wird sofort migriert).
 - **Audit auf fremden Sites:** Netzwerkweite Hooks (z. B. Rollenwechsel nach `switch_to_blog()`) schreiben kein
