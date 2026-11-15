@@ -1437,6 +1437,9 @@ final class OrderAdapter {
 				self::refund_failed( $wc_order, (int) $refund->get_id(), $result->get_error_message(), ! empty( $data['retryable'] ) );
 				return false;
 			}
+			if ( false === $result ) {
+				continue; // Nothing left to record for this seller order (no amount, no open ticket).
+			}
 			if ( isset( $labels[ $core_id ] ) ) {
 				$wc_order->add_order_note(
 					sprintf(

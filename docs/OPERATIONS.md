@@ -194,7 +194,9 @@ Pass Captain wertet nur die Ereignisse aus, die beim Anbieter für den Webhook-E
 | PayPal | `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DECLINED`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED`, `CUSTOMER.DISPUTE.CREATED` |
 | Mollie | keine Auswahl nötig: Mollie ruft den Webhook bei jeder Statusänderung einer Zahlung auf (inkl. Erstattung und Chargeback) |
 
-Erstattungen und Chargebacks, die beim Anbieter ausgelöst werden, verbucht Pass Captain über `Refunds::record_external()` (Gutschrift, Abrechnungsabzug, Fiskal-Korrekturaufgabe). Eine eröffnete Zahlungsanfechtung (Dispute) erzeugt eine Admin-Mail; gebucht wird erst, wenn das Geld tatsächlich abgezogen wird.
+Erstattungen und Chargebacks, die beim Anbieter ausgelöst werden, verbucht Pass Captain über `Refunds::record_external()` (Gutschrift, Abrechnungsabzug, Fiskal-Korrekturaufgabe). Ist unter der Bestellsperre kein Betrag (und kein Ticket) mehr offen, wird nichts geschrieben (keine Erstattung über 0,00).
+
+Lehnt der Anbieter eine im Plugin ausgelöste Erstattung endgültig ab (z. B. Stripe „Insufficient available balance“, HTTP 4xx), steht sie auf „fehlgeschlagen“; nach Behebung der Ursache (Guthaben aufgeladen) einfach erneut ausführen – der nächste Versuch nutzt einen neuen Idempotenzschlüssel (`wpcap-refund-{id}-{n}`). Bei Zeitüberschreitung oder 5xx bleibt der Schlüssel gleich, damit eine womöglich doch ausgeführte Erstattung nicht doppelt ausgezahlt wird. Eine eröffnete Zahlungsanfechtung (Dispute) erzeugt eine Admin-Mail; gebucht wird erst, wenn das Geld tatsächlich abgezogen wird.
 
 ## Kasse: keine Registrierkasse
 
@@ -204,6 +206,19 @@ Die Kasse (Menü **Pass Captain → Kasse**) bucht Verkäufe vor Ort als Bestell
 - **Deutschland (KassenSichV, § 146a AO):** Elektronische Aufzeichnungssysteme mit Kassenfunktion benötigen eine zertifizierte technische Sicherheitseinrichtung (TSE, BSI TR-03153) und sind dem Finanzamt zu melden; Belege müssen die TSE-Daten enthalten.
 
 Die Kasse des Plugins signiert selbst keine Belege und hat keine eigene TSE-/Signaturkarten-Anbindung. Optional kann das Modul **Fiskalisierung** (Pass Captain → Fiskalisierung, [fiscalization-adapters.md](fiscalization-adapters.md)) jeden Verkauf vor der Ticketausgabe über einen vom Betreiber gewählten Anbieter (fiskaly, efsta, fiskaltrust) belegen lassen: je Rechtsträger ein Länder-/Kanalprofil mit Prüfvermerk, Kassenregister unter „Kassen- und Belegeinstellungen“ (`Standort-ID|Kassen-ID|Anzeigename`); solange der Anbieter den Beleg nicht bestätigt, bleibt der Verkauf offen (keine Bonnummer, keine Tickets, „Nachbuchen“ nach Behebung). Das Modul ist kein zertifiziertes Produkt; Anbietervertrag, Sandbox-Abnahme und rechtliche Prüfung liegen beim Betreiber. Für Bar- und Kartenzahlungen vor Ort deshalb eine zertifizierte Kasse verwenden und das Plugin nur für Ticketausgabe und Einlass nutzen, oder die Rechtslage mit der Steuerberatung klären. Der Hinweis auf der Kassenseite kann pro Benutzer ausgeblendet werden; der Link lässt sich über den Filter `wpcap_boxoffice_fiscal_docs_url` ändern.
+
+### Erstattungen von Kassenverkäufen und Kassenbestand
+
+- **Storno** (Kasse, nur bis zum Kassenabschluss): mindert die Sitzung des Verkaufs um den Betrag der Storno-Erstattung (nach einer Teilerstattung nur den Rest).
+- **Erstattung über die Erstattungsseite** (z. B. ein Ticket eines Kassenverkaufs): wird einer Kassensitzung zugeordnet und mindert dort Netto-Umsatz der Zahlart und – bei Bar – den erwarteten Kassenbestand. Die Sitzungsübersicht zeigt die Spalte „Erstattet“ und die einzelnen Erstattungen mit Belegnummer.
+  - Ist die Sitzung des Verkaufs noch offen, wird die Erstattung dort verbucht.
+  - Ist sie bereits abgeschlossen, wird die Erstattung in der **aktuell offenen Sitzung desselben Kassenregisters** (gleiche Standort- und Kassen-ID) verbucht – das Bargeld wird also aus dieser Kasse ausgezahlt. Der Abschluss der alten Sitzung bleibt unverändert.
+  - Gibt es keine offene Sitzung dieses Registers (oder hatte der Verkauf kein Register), wird die Erstattung ohne Sitzung erfasst (Audit `pos_refund_unassigned`). Das Bargeld dann außerhalb der Kasse (z. B. aus dem Tresor, per Überweisung) auszahlen und im Kassenbuch vermerken; der erwartete Bestand keiner Sitzung ändert sich.
+- Erstattungen von Karten- und Terminalverkäufen erscheinen ebenfalls unter „Erstattet“, ändern aber den Bargeldbestand nicht.
+
+### Kartenterminal meldet einen anderen Betrag
+
+Meldet ein Terminal-Add-on (Vertrag 1.1) einen belasteten Betrag oder eine Währung, die nicht zur Bestellung passt, wird der Verkauf nicht gebucht (`amount_mismatch`, Bestellung storniert) und die Admin-Adresse erhält die Mail „Terminalzahlung prüfen“. Die Belastung am Terminal erstatten und den Verkauf neu erfassen.
 
 ## Datenschutz: Löschfristen, Auskunft und Löschung
 

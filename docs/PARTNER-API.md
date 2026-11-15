@@ -155,8 +155,11 @@ abgerechneten** Positionen der Veranstalter-Events bis zum Monatsende (ab „Abr
 | Korrektur Erstattung (`correction`) | abgeschlossene Erstattung einer Bestellung aus einem früheren Monat |
 
 Beträge stammen aus den Bestell-Schnappschüssen (brutto inkl. USt, Rabatt wie im Checkout auf die
-Positionen verteilt); Erstattungen werden wie im Berichtsmodul auf die Positionen verteilt (USt laut
-Erstattung). Bestellungen anderer Währungen werden ignoriert.
+Positionen verteilt); Erstattungen werden nach dem **rabattierten** Wert der Positionen verteilt
+(erstattete Tickets nach ihrem rabattierten Stückwert, reine Betragserstattungen nach dem rabattierten
+Positionswert – dieselben Werte wie bei den Verkäufen, inkl. Einzweckgutschein; USt laut Erstattung).
+So erhält bei einer Bestellung mit Tickets mehrerer Veranstalter jeder genau den Anteil zurückgebucht,
+den er verkauft hat. Bestellungen anderer Währungen werden ignoriert.
 
 ### Berechnung
 

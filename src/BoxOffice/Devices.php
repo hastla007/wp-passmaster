@@ -104,7 +104,7 @@ final class Devices {
 	/**
 	 * Calls poll() and normalizes the answer (status pending|succeeded|failed|cancelled).
 	 *
-	 * @return array{reference:string,status:string,provider_reference:string,message:string}|\WP_Error
+	 * @return array{reference:string,status:string,provider_reference:string,message:string,amount_minor:int|null,currency:string}|\WP_Error
 	 */
 	public static function poll( DeviceGatewayInterface $gateway, $reference ) {
 		$result = self::call( static function () use ( $gateway, $reference ) { return $gateway->poll( (string) $reference ); }, 'poll' );
@@ -140,7 +140,26 @@ final class Devices {
 			'status' => in_array( $status, $states, true ) ? $status : 'pending',
 			'provider_reference' => $clean( $result['provider_reference'] ?? '', 191 ),
 			'message' => $clean( $result['message'] ?? '', 255 ),
-		);
+		) + self::amount_of( $result );
+	}
+
+	/**
+	 * Optional charged amount of a device answer (contract 1.1): amount_minor (int ≥ 0, minor units of the
+	 * sale currency) and currency (ISO 4217). Missing or malformed values are null/'' (no check); a value
+	 * that is present but not a whole number ≥ 0 is reported as -1 so the check refuses it.
+	 *
+	 * @return array{amount_minor:int|null,currency:string}
+	 */
+	public static function amount_of( $result ) {
+		$result = is_array( $result ) ? $result : array();
+		$amount = null;
+		if ( array_key_exists( 'amount_minor', $result ) && null !== $result['amount_minor'] && '' !== $result['amount_minor'] ) {
+			$raw = $result['amount_minor'];
+			$amount = ( is_int( $raw ) || ( is_string( $raw ) && ctype_digit( $raw ) ) ) && (int) $raw >= 0 ? (int) $raw : -1;
+		}
+		$currency = is_string( $result['currency'] ?? null ) && preg_match( '/^[A-Za-z]{3}$/', $result['currency'] ) ? strtoupper( $result['currency'] ) : '';
+		if ( '' === $currency && is_scalar( $result['currency'] ?? null ) && '' !== (string) $result['currency'] ) { $currency = 'XXX'; } // Present but invalid: never matches.
+		return array( 'amount_minor' => $amount, 'currency' => $currency );
 	}
 
 	private static function log( $what, $message ) {

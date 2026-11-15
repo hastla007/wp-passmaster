@@ -230,6 +230,9 @@ check( 'receipt numbers (sales and stornos, incl. parallel sales) are gapless an
 
 $totals = Pos::session_totals( $session->session_id );
 $expected_cash = (int) $wpdb->get_var( "SELECT COALESCE(SUM(total_minor),0) FROM {$p}wpcap_boxoffice_sales WHERE session_id=" . (int) $session->session_id . " AND payment_method='cash' AND status<>'voided'" );
+// The partial cash refund ("Kulanz") of this open session is paid out of the till (PAY-V4).
+$expected_cash -= (int) $wpdb->get_var( "SELECT COALESCE(SUM(amount_minor),0) FROM {$p}wpcap_boxoffice_refunds WHERE session_id=" . (int) $session->session_id . " AND payment_method='cash'" );
+check( 'the partial cash refund of the open session is booked into it', (int) ( $refund_other['amount_minor'] ?? -1 ) === $totals['methods']['cash']['refunded'] && 1 === $totals['refunds'] );
 check( 'session totals per payment method net out stornos', 1 === $totals['methods']['card']['voided_count'] && 2140 === $totals['methods']['card']['net'] && 0 === $totals['methods']['free']['net'] && 2140 === $totals['methods']['invoice']['net'] && 10000 + $expected_cash === $totals['expected_cash'] && $expected_cash === $totals['methods']['cash']['net'] );
 $GLOBALS['wpcap_test_user_id'] = 2;
 $GLOBALS['wpcap_test_denied_caps'] = array( 'manage_options' );

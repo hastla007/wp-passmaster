@@ -478,15 +478,18 @@ nicht mehr nutzen darf (Audit `developer_key_revoked` mit `reason`).
 ### Kartenterminals an der Kasse (Box Office)
 
 Der Kern enthält **keinen** Terminal-Anbieter (Stripe Terminal, SumUp, …); ein Add-on registriert Geräte über einen
-versionierten Vertrag (Version 1). Ohne registriertes Gerät ist die Kasse unverändert.
+versionierten Vertrag (Version 1, Revision **1.1**; `DeviceGatewayInterface::VERSION` = 1, `::REVISION` = 1, die Nutzlast
+von `start()` enthält `version` = 1 und `contract` = `"1.1"`). Ohne registriertes Gerät ist die Kasse unverändert.
+Revision 1.1 ist rückwärtskompatibel: Add-ons nach 1.0 funktionieren unverändert.
 
 ```php
 final class PcPro_Terminal implements PassCaptain\BoxOffice\DeviceGatewayInterface {
 	public function label(): string { return 'Terminal Eingang'; }
 	// Startet die Zahlung; idempotent je $sale['sale_key'] (64 hex). Fehler nur, wenn nichts gestartet wurde.
 	public function start( array $sale ) { return array( 'reference' => 'pi_123', 'status' => 'pending' ); }
-	// pending|succeeded|failed|cancelled, optional provider_reference und message.
-	public function poll( string $reference ) { return array( 'status' => 'succeeded', 'provider_reference' => 'ch_456' ); }
+	// pending|succeeded|failed|cancelled, optional provider_reference und message;
+	// seit 1.1 optional amount_minor (int, Kleinsteinheiten) und currency (ISO 4217) = tatsächlich belastet.
+	public function poll( string $reference ) { return array( 'status' => 'succeeded', 'provider_reference' => 'ch_456', 'amount_minor' => 2500, 'currency' => 'EUR' ); }
 	// true oder WP_Error (z. B. Karte schon vorgelegt – der Verkauf bleibt dann offen).
 	public function cancel( string $reference ) { return true; }
 }
@@ -496,8 +499,9 @@ add_filter( 'wp_pass_captain_pos_payment_devices_v1', static function ( array $d
 }, 10, 2 );
 
 // Webhook des Anbieters (Signatur vorher selbst prüfen):
-$result = PassCaptain\BoxOffice\Service::confirm_device_payment( $sale_key_or_order_id, 'ch_456' );
-// gleichwertig: wpcap_confirm_pos_payment( $order_id, 'ch_456' ); → true|WP_Error
+$result = PassCaptain\BoxOffice\Service::confirm_device_payment( $sale_key_or_order_id, 'ch_456', array( 'amount_minor' => 2500, 'currency' => 'EUR' ) );
+// gleichwertig: wpcap_confirm_pos_payment( $order_id, 'ch_456', array( 'amount_minor' => 2500, 'currency' => 'EUR' ) ); → true|WP_Error
+// Der dritte Parameter ist optional (1.0: ohne Betrag, keine Prüfung).
 ```
 
 | Schritt | Verhalten |
@@ -506,13 +510,14 @@ $result = PassCaptain\BoxOffice\Service::confirm_device_payment( $sale_key_or_or
 | Start | Der Verkauf wird wie jeder Kassenverkauf als `pending` mit Bestellung und 15-Minuten-Reservierung angelegt (idempotent je Formularschlüssel), dann genau einmal `start()` aufgerufen; erneutes Absenden startet keine zweite Zahlung. Action `…_started_v1`. Antwortet `start()` sofort `succeeded`, wird direkt gebucht. |
 | Warten | Die Kasse zeigt „Am Terminal bezahlen …“ (Live-Region, Abbrechen-Knopf) und fragt alle 2 s `admin-ajax.php?action=wpcap_pos_device_status` ab (Nonce je Verkauf, Recht `wpcap_manage_orders`, nur Kassierer des Verkaufs oder Administrator). Ohne JavaScript: „Status aktualisieren“ und Abbrechen per admin-post. „Nachbuchen“ und Kassenabschluss sind gesperrt. |
 | Erfolg | `poll()` liefert `succeeded` oder das Add-on ruft `confirm_device_payment()`: genau ein Aufruf gewinnt den Übergang, die Bestellung wird mit `pos:card_device:<Referenz>` bestätigt (Referenz an der Bestellung) und über denselben Weg wie Bar/Karte gebucht. Action `…_completed_v1`. |
+| Betragsabgleich (1.1) | Liefert `start()`/`poll()` bei `succeeded` bzw. das Add-on beim Aufruf von `confirm_device_payment()` `amount_minor` und/oder `currency`, vergleicht der Kern sie vor der Bestätigung mit der Bestellung (`total_minor`, `currency`). Bei Abweichung (auch bei ungültigen Werten, z. B. negativ oder Dezimalzahl) wird **nicht** bestätigt: Verkauf `failed` mit Terminalstatus `amount_mismatch`, Bestellung storniert, Kontingent frei, E-Mail an die Admin-Adresse, Audit `pos_device_amount_mismatch`, Action `…_failed_v1` mit `$status` `amount_mismatch`, `confirm_device_payment()` liefert 409 `wpcap_pos_device_amount_mismatch`. Der belastete Betrag muss am Terminal erstattet werden. Ohne die Felder wird nichts verglichen. |
 | Fiskalisierung | Fiskalbelege entstehen erst nach der Zahlung (Zahlart `card`); Tickets und Bonnummer erst nach bestätigtem Fiskalbeleg („Verkauf stoppen“). Bis dahin meldet die Kasse „bezahlt, noch nicht gebucht“ und jede Abfrage bzw. „Nachbuchen“ versucht die Buchung erneut; die Sitzung lässt sich nicht abschließen. |
 | Fehler, Abbruch, Zeitüberschreitung | `failed`/`cancelled` vom Gerät, Abbrechen durch den Kassierer (`cancel()`) oder keine Antwort nach `wp_pass_captain_pos_device_timeout_v1` (Standard 180 s, 30–840 s; das Gerät wird dann abgebrochen): Verkauf `failed`, Bestellung storniert, Kontingent frei, der Kassierer erfasst den Verkauf neu (gleiche oder andere Zahlart). Action `…_failed_v1`. Fehler/Exceptions von `poll()` gelten als „noch offen“. |
 | Doppelte und späte Bestätigungen | Wiederholte Bestätigung mit bekannter Referenz (Start- oder Anbieterreferenz): `true`, keine zweite Buchung. Andere Referenz nach bestätigter Zahlung: `WP_Error` 409 `wpcap_pos_device_conflict` (zweite Zahlung am Terminal erstatten). Bestätigung nach Fehler/Abbruch/Zeitüberschreitung: 409 `wpcap_pos_device_not_pending`, nie gebucht (Zahlung am Terminal erstatten). Unbekannter Verkauf 404, leere Referenz 400. |
 | Storno | Wie bei Karte über den Zahlungsadapter `pos_card_device` (bleibt registriert, auch ohne Add-on); das Geld wird am Terminal gutgeschrieben. |
 
 Audit-Log: `pos_device_payment_started`, `…_confirmed` (mit Quelle `poll`, `webhook`, `start`), `…_failed`,
-`…_conflict`, `…_late`. `confirm_device_payment()` prüft keine Benutzerrechte (Webhook-Kontext) – das Add-on muss
+`…_conflict`, `…_late`, `pos_device_amount_mismatch`. `confirm_device_payment()` prüft keine Benutzerrechte (Webhook-Kontext) – das Add-on muss
 die Herkunft (Signatur) prüfen, bevor es bestätigt.
 
 ## WP Affiliate Captain

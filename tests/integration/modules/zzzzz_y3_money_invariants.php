@@ -8,7 +8,8 @@
  * - Σ invoice lines = invoice total (and the invoice total = the full consideration);
  * - a partial refund (cash + voucher share) is at most the paid value of the refunded ticket;
  * - after the full refund cash refunds = cash paid and voucher refunds = voucher amount;
- * - partner settlement = till − refunds (incl. the voucher part of a multi-purpose voucher).
+ * - partner settlement = till − refunds (incl. the voucher part of a multi-purpose voucher);
+ * - refunds are split over the lines by discounted value (two organizers in one order, Z2).
  *
  * Included from run.php (uses check(), make_type()).
  *
@@ -266,6 +267,33 @@ check( 'after upgrade (30 € + 20 €) a move to 10 € refunds 40 €: 20 € 
 $r9_cancel = PassCaptain\ServiceBookings::cancel( $r9b, array( 'actor' => 'admin' ) );
 check( 'a later cancellation refunds only what is left of the first payment (no double refund)', ! is_wp_error( $r9_cancel ) && 3000 === (int) Orders::get( $r9o )->refunded_minor && 2000 === (int) Orders::get( (int) $r9_supp->order_id )->refunded_minor );
 Settings::update( array( 'enabled_providers' => $y3_providers_before ) );
+
+echo "Z2: settlement refunds are split by discounted line values (two organizers in one order)\n";
+// Organizer 1 sells A (100.00, campaign −50.00 on A only), organizer 2 sells B (50.00): both received
+// 50.00. A full refund must take 50.00 back from each, not 66.67/33.33 by list price.
+$z2s_a = make_type( 50, 10, 10000 );
+$z2s_b = make_type( 50, 10, 5000 );
+$z2s_ev = static function ( $type ) use ( $wpdb, $p ) { return (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt INNER JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=" . (int) $type ); };
+$z2s_sfx = strtoupper( substr( md5( microtime() ), 0, 8 ) );
+Campaigns::create( array( 'code' => 'ZA' . $z2s_sfx, 'kind' => 'fixed', 'value' => 5000, 'currency' => 'EUR', 'priority' => 1, 'ticket_type_id' => $z2s_a ) );
+$z2s_r = Orders::create( array( 'email' => 'z2s@example.com', 'items' => array( array( 'ticket_type_id' => $z2s_a, 'quantity' => 1 ), array( 'ticket_type_id' => $z2s_b, 'quantity' => 1 ) ), 'campaign_codes' => array( 'ZA' . $z2s_sfx ), 'idempotency_key' => 'z2s-' . $z2s_sfx ), array( 'skip_rate_limit' => true ) );
+$z2s_oid = (int) $z2s_r['order_id'];
+Orders::confirm_manual_payment( $z2s_oid );
+$z2s_full = Refunds::request( $z2s_oid, array(), 'Alles', 'z2s-full-' . $z2s_sfx );
+$z2s_tt = array();
+foreach ( array( 'a' => $z2s_a, 'b' => $z2s_b ) as $z2s_k => $z2s_type ) {
+	$z2s_pid = Y3Partners::save( array( 'name' => 'Z2 ' . $z2s_k . $z2s_sfx, 'currency' => 'EUR', 'commission_bp' => 0, 'settlement_start' => $y3_month . '-01' ) );
+	$z2s_pid = is_array( $z2s_pid ) ? (int) $z2s_pid['partner_id'] : (int) $z2s_pid;
+	Y3Partners::set_events( $z2s_pid, array( $z2s_ev( $z2s_type ) ) );
+	$z2s_tt[ $z2s_k ] = Y3Settlements::compute( Y3Partners::get( $z2s_pid ), $y3_month )['totals'];
+}
+check( 'two organizers, campaign on one line: each settlement takes back exactly what it sold (5000/5000, net 0)', ! is_wp_error( $z2s_full ) && 10000 === (int) Orders::get( $z2s_oid )->total_minor && 5000 === (int) $z2s_tt['a']['sales_gross'] && 5000 === (int) $z2s_tt['a']['refunded'] && 0 === (int) $z2s_tt['a']['gross'] && 5000 === (int) $z2s_tt['b']['sales_gross'] && 5000 === (int) $z2s_tt['b']['refunded'] && 0 === (int) $z2s_tt['b']['gross'] );
+$z2s_lines = array( (object) array( 'ticket_type_id' => 1, 'quantity' => 1, 'line_total_minor' => 10000 ), (object) array( 'ticket_type_id' => 2, 'quantity' => 1, 'line_total_minor' => 5000 ) );
+$z2s_amount_only = (object) array( 'ticket_ids' => '[]', 'amount_minor' => 5000, 'tax_minor' => 0 );
+$z2s_new = Y3Settlements::allocate_refund( $z2s_amount_only, $z2s_lines, array( 5000, 5000 ) );
+$z2s_legacy = Y3Settlements::allocate_refund( $z2s_amount_only, $z2s_lines );
+$z2s_zero = Y3Settlements::allocate_refund( $z2s_amount_only, $z2s_lines, array( 0, 0 ) );
+check( 'allocate_refund: amount-only refunds by discounted line value; legacy list-price split without values; fully discounted → list price', 2500 === $z2s_new[0]['amount'] && 2500 === $z2s_new[1]['amount'] && 3333 === $z2s_legacy[0]['amount'] && 1667 === $z2s_legacy[1]['amount'] && $z2s_legacy === $z2s_zero );
 
 Settings::update( $y3_settings_before );
 $GLOBALS['wpcap_test_filters'][ Bridge::FILTER ] = $y3_provider_before;

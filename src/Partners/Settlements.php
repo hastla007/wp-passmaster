@@ -118,7 +118,7 @@ final class Settlements {
 			}
 
 			// Completed refunds.
-			$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.created_at AS order_created_at FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND ord.currency=%s AND r.updated_at < %s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY r.refund_id", $partner->currency, $end, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.created_at AS order_created_at,ord.discount_minor,ord.price_snapshot FROM {$p}wpcap_refunds r INNER JOIN {$p}wpcap_orders ord ON ord.order_id=r.order_id WHERE r.status='completed' AND ord.currency=%s AND r.updated_at < %s AND ord.created_at < %s{$lower_sql} AND $has_partner_item ORDER BY r.refund_id", $partner->currency, $end, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ), $line_sql );
 			foreach ( $refunds as $refund ) {
 				$order_lines = $refund_lines[ (int) $refund->order_id ] ?? array();
@@ -130,7 +130,10 @@ final class Settlements {
 					$refund->amount_minor = (int) $booked['total_minor'];
 					$refund->tax_minor = (int) $booked['tax_minor'];
 				}
-				foreach ( self::allocate_refund( $refund, $order_lines ) as $i => $share ) {
+				// Weighted by the discounted line values the sales above were booked with (campaign and
+				// single-purpose voucher discounts per line), not by list prices.
+				$discounted = Data::allocate_discount( $order_lines, (int) $refund->discount_minor, \PassCaptain\Orders::snapshot_line_discounts( $refund ) );
+				foreach ( self::allocate_refund( $refund, $order_lines, $discounted ) as $i => $share ) {
 					$line = $order_lines[ $i ];
 					if ( ! in_array( (int) $line->event_id, $events, true ) ) { continue; }
 					$key = 'refund:' . (int) $refund->refund_id . ':' . (int) $line->item_id;
@@ -175,14 +178,19 @@ final class Settlements {
 	}
 
 	/**
-	 * Splits a refund over the order lines (refunded tickets weighted by unit price; amount-only
-	 * refunds by line total). The last share receives the rounding remainder.
+	 * Splits a refund over the order lines (refunded tickets weighted by their discounted unit value;
+	 * amount-only refunds by the discounted line value). The last share receives the rounding remainder.
 	 *
+	 * @param int[]|null $discounted Line value after discounts per line index (Data::allocate_discount():
+	 *                               price_snapshot.line_discounts incl. single-purpose vouchers, else the
+	 *                               proportional split of the order discount). Null: list prices (legacy).
 	 * @return array<int,array{tickets:int,amount:int,tax:int}> line index => share.
 	 */
-	public static function allocate_refund( $refund, array $lines ) {
+	public static function allocate_refund( $refund, array $lines, $discounted = null ) {
 		global $wpdb;
 		if ( ! $lines ) { return array(); }
+		// Fully discounted order (nothing left to weight): fall back to list prices.
+		if ( is_array( $discounted ) && array_sum( array_map( 'intval', $discounted ) ) <= 0 ) { $discounted = null; }
 		$by_type = array();
 		foreach ( $lines as $i => $line ) {
 			if ( ! isset( $by_type[ (int) $line->ticket_type_id ] ) ) { $by_type[ (int) $line->ticket_type_id ] = $i; }
@@ -193,12 +201,12 @@ final class Settlements {
 			foreach ( $wpdb->get_col( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_tickets' ), $ids ) ) ) as $type_id ) {
 				$i = $by_type[ (int) $type_id ] ?? null;
 				if ( null === $i ) { continue; }
-				$unit = intdiv( (int) $lines[ $i ]->line_total_minor, max( 1, (int) $lines[ $i ]->quantity ) );
+				$unit = intdiv( self::line_value( $lines, $i, $discounted ), max( 1, (int) $lines[ $i ]->quantity ) );
 				$weights[ $i ] = array( ( $weights[ $i ][0] ?? 0 ) + 1, ( $weights[ $i ][1] ?? 0 ) + $unit );
 			}
 		}
 		if ( ! $weights ) {
-			foreach ( $lines as $i => $line ) { $weights[ $i ] = array( 0, (int) $line->line_total_minor ); }
+			foreach ( $lines as $i => $line ) { $weights[ $i ] = array( 0, self::line_value( $lines, $i, $discounted ) ); }
 		}
 		$sum = max( 1, array_sum( array_column( $weights, 1 ) ) );
 		$amount_left = (int) $refund->amount_minor;
@@ -214,6 +222,11 @@ final class Settlements {
 			$out[ $i ] = array( 'tickets' => (int) $weights[ $i ][0], 'amount' => $amount, 'tax' => $tax );
 		}
 		return $out;
+	}
+
+	/** Value of a line for the refund split: discounted when known, else the list price total. */
+	private static function line_value( array $lines, $i, $discounted ) {
+		return is_array( $discounted ) && isset( $discounted[ $i ] ) ? max( 0, (int) $discounted[ $i ] ) : (int) $lines[ $i ]->line_total_minor;
 	}
 
 	private static function lines_by_order( array $order_ids, $line_sql ) {
