@@ -107,6 +107,11 @@ final class Page {
 		foreach ( Exports::types() as $type_id => $type ) {
 			echo ' <a class="button" href="' . esc_url( Exports::url( $type_id, $filters ) ) . '">' . esc_html( $type['label'] ) . '</a>';
 		}
+		if ( current_user_can( 'manage_options' ) || current_user_can( \PassCaptain\Invoices::FINANCE_CAP ) ) {
+			// Accounting: invoice documents, and payments/refunds/chargebacks independent of invoices (with tax country).
+			echo ' <a class="button" href="' . esc_url( \PassCaptain\Invoices::export_url( $report['from'], $report['to'] ) ) . '">' . esc_html__( 'Buchhaltung: Belege', 'pass-captain' ) . '</a>';
+			echo ' <a class="button" href="' . esc_url( \PassCaptain\Invoices::export_url( $report['from'], $report['to'], 'ledger' ) ) . '">' . esc_html__( 'Buchhaltung: Zahlungen & Erstattungen', 'pass-captain' ) . '</a>';
+		}
 		echo '</p></form>';
 		if ( ! empty( $report['range_clamped'] ) ) {
 			/* translators: %d: maximum number of days */

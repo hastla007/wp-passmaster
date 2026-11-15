@@ -215,13 +215,82 @@ Pass Captain wertet nur die Ereignisse aus, die beim Anbieter für den Webhook-E
 
 | Anbieter | Zu abonnierende Ereignisse |
 |---|---|
-| Stripe | `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.funds_withdrawn`, `charge.dispute.funds_reinstated`, `charge.dispute.closed` |
-| PayPal | `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DECLINED`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED`, `CUSTOMER.DISPUTE.CREATED` |
+| Stripe | `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `checkout.session.expired`, `charge.refunded`, `charge.refund.updated` (bzw. `refund.updated`/`refund.failed`), `charge.dispute.created`, `charge.dispute.funds_withdrawn`, `charge.dispute.funds_reinstated`, `charge.dispute.closed` |
+| PayPal | `CHECKOUT.ORDER.APPROVED`, `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.PENDING`, `PAYMENT.CAPTURE.DECLINED`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED`, `CUSTOMER.DISPUTE.CREATED` |
 | Mollie | keine Auswahl nötig: Mollie ruft den Webhook bei jeder Statusänderung einer Zahlung auf (inkl. Erstattung und Chargeback) |
 
 Erstattungen und Chargebacks, die beim Anbieter ausgelöst werden, verbucht Pass Captain über `Refunds::record_external()` (Gutschrift, Abrechnungsabzug, Fiskal-Korrekturaufgabe). Ist unter der Bestellsperre kein Betrag (und kein Ticket) mehr offen, wird nichts geschrieben (keine Erstattung über 0,00).
 
+**Stripe-Teilerstattungen aus dem Dashboard:** Bei `charge.refunded` liest Pass Captain alle Erstattungen
+der Zahlung (seitenweise) und verbucht jede ohne Plugin-Kennzeichen (`metadata.wpcap_refund`) einzeln unter
+ihrer Erstattungs-ID – auch wenn Webhooks verspätet, in anderer Reihenfolge oder als Wiederholung ankommen.
+
+**Nachträglich fehlgeschlagene Erstattungen:** Stripe meldet eine Erstattung oft zuerst als `pending`
+(verbucht) und kann sie Tage später scheitern lassen (z. B. Karte gekündigt); Mollie führt Erstattungen
+mit Status `failed`. Diese Ereignisse werden als `refund_failed` normalisiert: Die Erstattung wird über die
+Anbieter-Referenz gefunden und auf „fehlgeschlagen“ gesetzt (`error_message=provider_refund_failed`, der
+nächste Versuch nutzt einen neuen Idempotenzschlüssel), der erstattete Betrag der Bestellung wird
+zurückgenommen (eine voll erstattete Bestellung wird wieder „bezahlt“), die Rechnungskorrektur wird als
+storniert gekennzeichnet (Druckansicht/PDF; Belegexport: Zeile „Storno Gutschrift“; Zahlungsexport:
+„Erstattung fehlgeschlagen“), die Admin-Adresse erhält eine Mail und der Fall steht unter *Systemstatus →
+Zahlungen zur Klärung*. Widerrufene Tickets bleiben gesperrt (Plätze können schon weiterverkauft sein).
+Grenze: Mollie-Erstattungen aus dem Dashboard werden kumulativ verbucht und sind keiner einzelnen
+Buchung zuzuordnen; scheitert eine solche, bitte manuell korrigieren.
+
+**Zahlungen zur Klärung (Systemstatus):** Doppelzahlungen (`double_payment`), Zahlungen auf stornierte oder
+abgelaufene Bestellungen (`paid_for_closed_order`) und fehlgeschlagene Anbieter-Erstattungen werden je
+Anbieter-Referenz einmal in `wpcap_payment_cases` erfasst (Diagnose `payment_cases`). Dort „Beim Anbieter
+erstatten“ (Idempotenzschlüssel `wpcap-case-{id}`) oder „Als erledigt markieren“. Mit der Einstellung
+*Erstattungen → Doppelzahlungen … automatisch erstatten* (Standard aus) erstattet ein Job solche Zahlungen
+sofort. Erstattungs-Webhooks zu einer solchen Zahlung werden nie auf der Bestellung verbucht.
+
+**Storno/Ablauf annulliert offene Zahlungen:** Wird eine unbezahlte Bestellung storniert oder läuft sie ab
+(`wpcap_order_cancelled`), plant `Payments\Reconcile` einen Job, der die offene Zahlung beim Anbieter
+annulliert: Stripe Checkout Session `expire`, Mollie `DELETE` (nur wenn `isCancelable`), PayPal nichts
+(eine geschlossene Bestellung wird nie eingezogen). Nicht bei Stornos, die der Anbieter selbst ausgelöst hat.
+
+**Verzögerte Zahlarten:** Mollie-Überweisung und SEPA-Lastschrift (`open`/`pending`) sowie PayPal-Captures
+im Status `PENDING` (`PAYMENT.CAPTURE.PENDING`, Rückkehr/Webhook mit ausstehendem Capture) gelten als
+`payment_pending`: Die Reservierung wird verlängert (Filter `wp_pass_captain_delayed_payment_hold_minutes_v1`,
+Standard 7 Tage). Bei der Mollie-Überweisung wird das Fälligkeitsdatum (`dueDate`, die von Mollie dafür
+vorgesehene Angabe; `expiresAt` ist bei Mollie nur ein Antwortfeld) auf das Ende der Reservierung gesetzt –
+bei vorab gewählter Überweisung schon beim Anlegen, sonst per `PATCH` nach dem `open`-Webhook.
+
+**Klarna/Riverty über Mollie:** Diese Methoden autorisieren nur. Meldet Mollie `authorized`, zieht Pass
+Captain den vollen Betrag sofort ein (`POST /v2/payments/{id}/captures`, Idempotenzschlüssel
+`wpcap-capture-{id}`); erst der folgende `paid`-Webhook bestätigt die Bestellung. Schlägt das Einziehen
+fehl, antwortet der Webhook mit 5xx und Mollie wiederholt ihn. Entfernen der Methoden aus der Auswahl
+allein würde nicht genügen: Ohne Methodenbeschränkung kann man sie auf der Mollie-Seite trotzdem wählen.
+
+**Status-Abfrage bei fehlendem Webhook:** Alle 5 Minuten (Job-Lauf) fragt `Payments\Reconcile` bis zu 20
+unbezahlte Bestellungen mit Anbieter-Referenz, die älter als `payment_poll_after_minutes` (Standard 15) und
+höchstens 2 Tage alt sind, beim Anbieter ab (Stripe Checkout Session/PaymentIntent, Mollie Payment, PayPal
+Order – eine freigegebene PayPal-Bestellung wird dabei eingezogen) und spielt das Ergebnis über
+`Webhooks::process()` ein (Stripe: synthetische Ereignis-ID `poll-{referenz}-{typ}`; Mollie/PayPal: dieselbe
+ID wie der Webhook). Ein später eintreffender Webhook ist dann wirkungslos (`already_paid`/`duplicate`).
+Einen Import von Auszahlungs-/Gebührenberichten (Settlements) gibt es bewusst nicht: Für den Ticketstatus
+reicht die Abfrage der einzelnen Zahlung; Gebühren und Auszahlungen sind Buchhaltungsdaten, die in den
+Berichten des Anbieters bleiben und über den Zahlungsexport (Bestell-ID, Zahlungsreferenz) abgeglichen werden.
+
 Lehnt der Anbieter eine im Plugin ausgelöste Erstattung endgültig ab (z. B. Stripe „Insufficient available balance“, HTTP 4xx), steht sie auf „fehlgeschlagen“; nach Behebung der Ursache (Guthaben aufgeladen) einfach erneut ausführen – der nächste Versuch nutzt einen neuen Idempotenzschlüssel (`wpcap-refund-{id}-{n}`). Bei Zeitüberschreitung oder 5xx bleibt der Schlüssel gleich, damit eine womöglich doch ausgeführte Erstattung nicht doppelt ausgezahlt wird. Eine eröffnete Zahlungsanfechtung (Dispute) erzeugt eine Admin-Mail; gebucht wird erst, wenn das Geld tatsächlich abgezogen wird.
+
+## Terminverschiebung: Erstattungsantrag im Bestellportal
+
+Wird ein Termin verschoben (`wpcap_occurrence_rescheduled`), merkt sich Pass Captain den Zeitpunkt
+(`wpcap_occurrences.rescheduled_at`). Käufer:innen, die **vor** der Verschiebung bestellt haben, sehen
+im Bestellportal den Kasten „Termin verschoben“ mit dem Button **„Erstattung beantragen“** – bis zur
+Frist (Beginn des neuen Termins minus *Einstellungen → Erstattungen → Antragsfrist*, Standard 0 Stunden).
+Der Antrag (`POST /wp-pass-captain/v1/orders/{id}/refund-request`, Token wie die übrigen Portal-Aktionen
+per `X-WPCAP-Access-Token`; je Client 10, je Bestellung 3 Anfragen pro Stunde) legt über
+`Refunds::request()` eine Erstattung an, die **immer** auf Freigabe wartet (*Erstattungen*); erst die
+Freigabe zahlt aus und sperrt die Tickets. Ein erneuter Antrag erzeugt keine zweite Erstattung.
+
+Die Verschiebungs-Mail enthält `{refund_note}` (Text unter *Einstellungen → Erstattungen*, Platzhalter
+`{refund_deadline}`), die SMS den Platzhalter `{refund_note}` (kurzer Hinweis mit Frist). Ist der Antrag
+ausgeschaltet (`reschedule_refund_request`), steht in der Mail wie bisher „Bei Fragen zu Rückgabe oder
+Erstattung wende dich bitte an den Veranstalter.“ und die SMS bleibt ohne Zusatz. Ob und wann bei einer
+Verschiebung ein Rücktritts- bzw. Erstattungsanspruch besteht, hängt vom Vertrag und vom anwendbaren Recht
+ab; die Texte sind Vorschläge und keine Rechtsberatung.
 
 ## Kasse: keine Registrierkasse
 

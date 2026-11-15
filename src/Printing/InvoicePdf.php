@@ -186,7 +186,28 @@ final class InvoicePdf {
 			$y -= 14;
 			$pdf->text( 50, $y, 10, __( 'Datum:', 'pass-captain' ) . ' ' . self::date( $credit->issued_at ) . ' · ' . __( 'Empfänger:', 'pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) );
 			if ( Billing::address_lines( $snapshot ) ) { $y = self::recipient( $pdf, $y - 20, $snapshot, false ); }
+			if ( 'voided' === ( $credit->status ?? '' ) ) {
+				$y -= 18;
+				$pdf->text( 50, $y, 10, sprintf( /* translators: %s: date */ __( 'Storniert am %s: Die Erstattung ist beim Zahlungsanbieter fehlgeschlagen; der Betrag wurde nicht zurückgezahlt.', 'pass-captain' ), self::date( (string) $credit->voided_at ) ), true );
+			}
 			$y -= 36;
+			// Split per VAT rate (credit notes from 3.17.4; older ones keep the single summary).
+			$credit_lines = \PassCaptain\Invoices::credit_note_lines( array( (int) $credit->credit_note_id ) )[ (int) $credit->credit_note_id ] ?? array();
+			if ( $credit_lines ) {
+				$pdf->text( 50, $y, 10, __( 'USt-Satz', 'pass-captain' ), true );
+				$pdf->text( 330, $y, 10, __( 'Netto', 'pass-captain' ), true, 'right' );
+				$pdf->text( 440, $y, 10, __( 'USt.', 'pass-captain' ), true, 'right' );
+				$pdf->text( 545, $y, 10, __( 'Brutto', 'pass-captain' ), true, 'right' );
+				$y -= 16;
+				foreach ( $credit_lines as $credit_line ) {
+					$pdf->text( 50, $y, 10, number_format_i18n( (int) $credit_line->tax_rate_bp / 100, 2 ) . ' %' );
+					$pdf->text( 330, $y, 10, '-' . self::money( $credit_line->net_minor, $credit->currency ), false, 'right' );
+					$pdf->text( 440, $y, 10, '-' . self::money( $credit_line->tax_minor, $credit->currency ), false, 'right' );
+					$pdf->text( 545, $y, 10, '-' . self::money( $credit_line->total_minor, $credit->currency ), false, 'right' );
+					$y -= 16;
+				}
+				$y -= 10;
+			}
 			$rows = array(
 				array( __( 'Nettobetrag', 'pass-captain' ), '-' . self::money( $credit->net_minor, $credit->currency ), false ),
 				array( __( 'Umsatzsteuer', 'pass-captain' ), '-' . self::money( $credit->tax_minor, $credit->currency ), false ),

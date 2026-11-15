@@ -47,8 +47,16 @@ selbst übergeben, z. B. WooCommerce):
    (Leistungsort)“). Eintrittsberechtigungen zu Veranstaltungen werden in der Regel am
    Veranstaltungsort besteuert; ohne Angabe gilt das Verkäuferland (Einstellung `seller_country`).
 2. **Klasse** = Steuerklasse der Ticketart (`wpcap_ticket_types.tax_class`, leer = `standard`).
-3. **Datum** = Bestelldatum (UTC), Filter `wpcap_tax_profile_date`
-   (`string $date, object $type, object $occurrence`), z. B. um auf das Veranstaltungsdatum umzustellen.
+3. **Datum** = Leistungszeitpunkt: das **lokale Datum des Terminbeginns** (`occurrence.starts_at`,
+   umgerechnet in die Zeitzone des Termins, sonst die Website-Zeitzone). Maßgeblich ist in der Regel
+   der Satz, der bei Ausführung der Leistung gilt (DE § 27 Abs. 1 UStG, AT § 28 UStG) – ein Satzwechsel
+   zwischen Kauf und Veranstaltung wirkt also auf bereits geplante Termine. Ein Termin am 1.1. um
+   00:30 Uhr Wiener Zeit (31.12. 23:30 UTC) gilt als Leistung am 1.1. Ohne Terminbeginn gilt das
+   lokale Bestelldatum. Filter `wpcap_tax_profile_date`
+   (`string $date, object $type, object $occurrence, string $order_date`): `$order_date` ist das
+   lokale Bestelldatum, z. B. um (nach steuerlicher Prüfung) auf das Bestelldatum zurückzustellen.
+   Der Stichtag steht im Positions-Snapshot (`line_snapshot.tax.date`). Bis Version 3.17.3 war der
+   Stichtag das Bestelldatum (UTC); bestehende Bestellungen behalten ihren eingefrorenen Satz.
 4. Die aktive Version, deren Gültigkeit das Datum enthält, liefert den Satz. **Ohne passende aktive
    Version** gilt wie bisher der Steuersatz der Ticketart (`tax_rate_bp`).
 
@@ -67,14 +75,39 @@ Erstattungen (`Refunds`) und Berichte verwenden ausschließlich diese Positionsw
 Satzwechsel (neue Version) wirkt nur auf neue Bestellungen; eine Erstattung einer älteren Bestellung
 verwendet den ursprünglichen Satz (Integrationstest „refund after the rate change …“).
 
+### Rechnungskorrekturen je Steuersatz
+
+Seit DB-Version 3.17.4 schreibt jede Rechnungskorrektur (`wpcap_credit_notes`) zusätzlich je
+Steuersatz eine Zeile in `wpcap_credit_note_lines` (`credit_note_id`, `tax_rate_bp`, `net_minor`,
+`tax_minor`, `total_minor`; `Invoices::credit_note_split()`): Bei Ticket-Erstattungen nach den
+erstatteten Positionen, bei reinen Betragserstattungen (z. B. Dashboard-Erstattung, Chargeback)
+anteilig nach den (rabattierten) Positionswerten je Satz. Die Zeilen ergeben immer genau die Summen
+des Korrekturbelegs. Druckansicht, PDF und Belegexport zeigen die Korrektur je Satz (mit
+Satzspalte). **Bestandsgutschriften** von vor 3.17.4 werden nicht nachträglich umgerechnet und weiter
+einzeilig (ohne Satz) dargestellt.
+
+### Buchhaltungsexport
+
+*Berichte → „Buchhaltung: Belege“* (`admin-post.php?action=wpcap_export_accounting&mode=invoices`)
+exportiert Rechnungszeilen und Rechnungskorrekturen (je Satz) mit der Spalte **Steuerland**.
+*„Buchhaltung: Zahlungen & Erstattungen“* (`mode=ledger`, `Invoices::ledger_export_rows()`) ist
+unabhängig von Rechnungen (auch bei `auto_invoice` aus): je Bestellposition eine Zeile „Zahlung“
+(Datum der Zahlungsbestätigung laut Protokoll, sonst Bestelldatum) und je abgeschlossener
+Erstattung bzw. Rückbuchung („Erstattung“/„Chargeback“) eine Zeile je Steuersatz, jeweils mit
+Belegnummer (Rechnung/Korrektur, falls vorhanden), Bestell- und Erstattungs-ID, Zahlungsreferenz und
+Steuerland (aus `line_snapshot.tax.country`, sonst Steuerland des Events, sonst Verkäuferland).
+Beide Exporte werden gestreamt (`Reports\Scope::send_csv`, Formelschutz je Zelle) und laufen durch
+`wp_pass_captain_export_rows_v1` (Typ `accounting` bzw. `accounting_ledger`). Der Export ersetzt
+keine Prüfung durch die Steuerberatung.
+
 Rechnungshinweis: Ist im Profil ein `place_of_supply_note` hinterlegt, wird er auf der Rechnung
 gedruckt (`buyer_snapshot.tax_notes`, `Invoices::seller_notes`). Ohne Text wird nur dann
 „Leistungsort: Veranstaltungsort (XX).“ gedruckt, wenn das Eventland vom Verkäuferland abweicht.
 
 ## Offene fachliche Punkte
 
-- Maßgeblicher Zeitpunkt bei Satzänderungen (Bestellung/Zahlung = Anzahlung vs. Veranstaltungstag);
-  umgesetzt: Bestelldatum, per Filter änderbar.
+- Maßgeblicher Zeitpunkt bei Satzänderungen und Anzahlungen (Mindest-Istversteuerung bei
+  Vorauszahlung); umgesetzt: Leistungszeitpunkt (lokaler Veranstaltungstag), per Filter änderbar.
 - Registrierungspflichten/OSS bei Events im Ausland, B2B-Fälle und Reverse Charge je Land.
 - Gemischte Steuersätze (z. B. Ticket mit Verpflegungsanteil) sind nur über getrennte Ticketarten
   abbildbar.

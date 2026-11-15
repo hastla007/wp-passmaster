@@ -24,9 +24,13 @@ final class Refunds {
 	 * @param int[]  $ticket_ids      Tickets to refund; empty = all tickets not yet refunded.
 	 * @param string $reason          Reason (stored in audit log and refund record).
 	 * @param string $idempotency_key Unique key for this refund request.
+	 * @param array  $options         `customer` => true: request by the buyer (order portal, e.g. after a
+	 *                                postponement). No staff capability is checked (the caller has verified
+	 *                                the order access token) and the refund always waits for a staff approval.
 	 * @return array|\WP_Error Refund row as array.
 	 */
-	public static function request( $order_id, array $ticket_ids, $reason, $idempotency_key ) {
+	public static function request( $order_id, array $ticket_ids, $reason, $idempotency_key, array $options = array() ) {
+		$customer = ! empty( $options['customer'] );
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$order_id = absint( $order_id );
@@ -35,11 +39,11 @@ final class Refunds {
 		if ( $existing ) {
 			// "approved" means the execution never got past its claim (e.g. a database error): a retry of
 			// the same request continues it. execute() claims the row, so it cannot pay out twice.
-			if ( 'approved' === $existing['status'] && true === self::check_actor() ) { return self::execute( (int) $existing['refund_id'] ); }
+			if ( ! $customer && 'approved' === $existing['status'] && true === self::check_actor() ) { return self::execute( (int) $existing['refund_id'] ); }
 			return $existing;
 		}
 
-		$check = self::check_actor();
+		$check = $customer ? true : self::check_actor();
 		if ( is_wp_error( $check ) ) { return $check; }
 		$order = Orders::get( $order_id );
 		if ( ! $order || 'paid' !== $order->payment_status ) {
@@ -85,7 +89,7 @@ final class Refunds {
 		$cumulative = (int) $order->refunded_minor + $open['amount_minor'] + $calc['amount_minor'];
 		$needs_approval = $threshold > 0 && $cumulative > $threshold && ! current_user_can( self::APPROVE_CAP );
 		// "allow with approval": a second person must approve, even when the requester could approve.
-		$needs_approval = $needs_approval || 'approval' === $checkin_policy;
+		$needs_approval = $needs_approval || 'approval' === $checkin_policy || $customer;
 		$now = current_time( 'mysql', true );
 		$inserted = $wpdb->insert( "{$p}wpcap_refunds", array(
 			'order_id' => $order_id,
@@ -96,7 +100,7 @@ final class Refunds {
 			'ticket_ids' => wp_json_encode( $calc['ticket_ids'] ),
 			'reason' => substr( sanitize_text_field( $reason ), 0, 255 ),
 			'status' => $needs_approval ? 'pending_approval' : 'approved',
-			'requested_by' => get_current_user_id(),
+			'requested_by' => $customer ? 0 : get_current_user_id(),
 			'approved_by' => $needs_approval ? 0 : get_current_user_id(),
 			'created_at' => $now,
 			'updated_at' => $now,
@@ -108,7 +112,7 @@ final class Refunds {
 		}
 		$refund_id = (int) $wpdb->insert_id;
 		if ( false === $wpdb->query( 'COMMIT' ) ) { return self::request_db_error( $order_id, 'request_commit' ); }
-		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval, 'checked_in_tickets' => count( $checked_in ), 'checkin_policy' => $checkin_policy ) );
+		Audit::record( 'refund_requested', 'order', $order_id, array( 'refund_id' => $refund_id, 'amount_minor' => $calc['amount_minor'], 'needs_approval' => $needs_approval, 'checked_in_tickets' => count( $checked_in ), 'checkin_policy' => $checkin_policy, 'by_customer' => $customer ) );
 		if ( $needs_approval ) {
 			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Erstattung wartet auf Freigabe', 'pass-captain' ), sprintf( /* translators: 1: order id, 2: amount */ __( 'Für Bestellung %1$s wurde eine Erstattung über %2$s angefordert, die eine zweite Freigabe benötigt.', 'pass-captain' ), $order->public_id, Localization::money_number( $calc['amount_minor'], $order->currency ) . ' ' . $order->currency ) );
 			return self::get( $refund_id );
@@ -345,6 +349,64 @@ final class Refunds {
 		do_action( 'wpcap_refund_completed', $refund_id, $order_id );
 		self::notify_buyer( $refund_id, $order, count( $revoked_ids ) );
 		return self::get( $refund_id );
+	}
+
+	/**
+	 * A refund booked as completed failed later at the provider (Stripe refund.failed /
+	 * charge.refund.updated, Mollie refund status failed): the money never reached the buyer. In one
+	 * transaction the refund rows with one of the references (plugin refund id or "ext:{provider}:{id}")
+	 * are set to `failed` (error_message `provider_refund_failed`, next attempt with a new idempotency
+	 * key), the order's refunded amount is reduced again and a fully refunded order goes back to
+	 * complete/paid. Revoked tickets stay revoked (seats may have been sold again); the credit note is
+	 * voided (Invoices::void_credit_note_for_refund()) and `wp_pass_captain_refund_failed_v1` fires.
+	 *
+	 * @param string[] $references Provider refund references.
+	 * @return array|\WP_Error Rows of the refunds that were reversed (empty: nothing booked under these references).
+	 */
+	public static function provider_failed( $order_id, array $references, $provider = '' ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = absint( $order_id );
+		$refs = array();
+		foreach ( array_filter( array_map( 'strval', $references ) ) as $ref ) {
+			$refs[] = substr( $ref, 0, 191 );
+			if ( '' !== (string) $provider ) { $refs[] = substr( 'ext:' . sanitize_key( (string) $provider ) . ':' . $ref, 0, 191 ); }
+		}
+		$refs = array_values( array_unique( $refs ) );
+		if ( ! $order_id || ! $refs ) { return array(); }
+		if ( false === $wpdb->query( 'START TRANSACTION' ) ) { return self::db_error( 0, $order_id, 'provider_failed_start' ); }
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,status,payment_status,refunded_minor,total_minor FROM %i WHERE order_id=%d FOR UPDATE', $p . 'wpcap_orders', $order_id ) );
+		$rows = $order ? (array) $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE order_id=%d AND status='completed' AND provider_reference IN (" . implode( ',', array_fill( 0, count( $refs ), '%s' ) ) . ') FOR UPDATE', array_merge( array( $p . 'wpcap_refunds', $order_id ), $refs ) ), ARRAY_A ) : array();
+		if ( '' !== (string) $wpdb->last_error ) {
+			$error = (string) $wpdb->last_error;
+			$wpdb->query( 'ROLLBACK' );
+			return self::db_error( 0, $order_id, 'provider_failed_lock', $error );
+		}
+		if ( ! $rows ) {
+			$wpdb->query( 'COMMIT' );
+			return array();
+		}
+		$amount = (int) array_sum( array_map( static function ( $row ) { return (int) $row['amount_minor']; }, $rows ) );
+		$ok = true;
+		foreach ( $rows as $row ) {
+			$ok = $ok && 1 === (int) $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='failed',error_message='provider_refund_failed',provider_attempt=provider_attempt+1,updated_at=%s WHERE refund_id=%d AND status='completed'", $p . 'wpcap_refunds', current_time( 'mysql', true ), (int) $row['refund_id'] ) );
+		}
+		$reopen = 'refunded' === (string) $order->status && (int) $order->refunded_minor - $amount < (int) $order->total_minor;
+		$ok = $ok && false !== $wpdb->query( $wpdb->prepare( 'UPDATE %i SET refunded_minor=GREATEST(0,CAST(refunded_minor AS SIGNED)-%d),updated_at=%s WHERE order_id=%d', $p . 'wpcap_orders', $amount, current_time( 'mysql', true ), $order_id ) );
+		if ( $reopen ) {
+			$ok = $ok && false !== $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='complete',payment_status='paid' WHERE order_id=%d AND status='refunded'", $p . 'wpcap_orders', $order_id ) );
+		}
+		if ( ! $ok || false === $wpdb->query( 'COMMIT' ) ) {
+			$error = (string) $wpdb->last_error;
+			$wpdb->query( 'ROLLBACK' );
+			return self::db_error( 0, $order_id, 'provider_failed_update', $error );
+		}
+		foreach ( $rows as $row ) {
+			Invoices::void_credit_note_for_refund( (int) $row['refund_id'] );
+			Audit::record( 'refund_provider_failed', 'order', $order_id, array( 'refund_id' => (int) $row['refund_id'], 'amount_minor' => (int) $row['amount_minor'], 'reference' => (string) $row['provider_reference'], 'order_reopened' => $reopen ) );
+			do_action( 'wp_pass_captain_refund_failed_v1', (int) $row['refund_id'], $order_id );
+		}
+		return $rows;
 	}
 
 	/**

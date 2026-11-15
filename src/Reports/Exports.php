@@ -4,7 +4,8 @@
  *
  * - wp_pass_captain_export_rows_v1 ( array $rows, string $type, array $context ): rows (first row =
  *   header) of every core CSV export before output, e.g. to append columns. Types: `report` (reports
- *   page, context `report`), `accounting` (accounting export, context `from`, `to`) and every
+ *   page, context `report`), `accounting` (accounting export, context `from`, `to`),
+ *   `accounting_ledger` (payments/refunds export independent of invoices, same context) and every
  *   additional type below. Cells are passed through Scope::csv_cell() on output (no formulas).
  * - wp_pass_captain_export_types_v1 ( array $types ): additional export types, shown as buttons on
  *   the reports page: id => [ 'label' => string, 'capability' => string (default wpcap_view_reports),
@@ -40,7 +41,7 @@ final class Exports {
 		$out = array();
 		foreach ( $types as $id => $def ) {
 			$id = sanitize_key( (string) $id );
-			if ( '' === $id || in_array( $id, array( 'report', 'accounting' ), true ) || ! is_array( $def ) || ! isset( $def['rows'] ) || ! is_callable( $def['rows'] ) ) { continue; }
+			if ( '' === $id || in_array( $id, array( 'report', 'accounting', 'accounting_ledger' ), true ) || ! is_array( $def ) || ! isset( $def['rows'] ) || ! is_callable( $def['rows'] ) ) { continue; }
 			$cap = (string) ( $def['capability'] ?? 'wpcap_view_reports' );
 			if ( ! current_user_can( $cap ) ) { continue; }
 			$out[ $id ] = array(

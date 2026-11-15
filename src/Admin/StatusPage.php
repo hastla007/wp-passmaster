@@ -31,6 +31,7 @@ final class StatusPage {
 			'wpcap_ops_repair'         => array( self::class, 'handle_repair' ),
 			'wpcap_ops_refund_resolve' => array( self::class, 'handle_refund_resolve' ),
 			'wpcap_ops_schema_retry'   => array( self::class, 'handle_schema_retry' ),
+			'wpcap_ops_payment_case'   => array( self::class, 'handle_payment_case' ),
 		);
 	}
 
@@ -144,6 +145,22 @@ final class StatusPage {
 		return Diagnostics::resolve_stuck_refund( Forms::int( $in, 'refund_id' ), Forms::choice( $in, 'resolution', array( 'completed', 'failed' ), '' ), Forms::text( $in, 'reference', 150 ) );
 	}
 
+	/** Payment case (Payments\Cases): refund at the provider or mark as resolved. */
+	public static function payment_case( array $in ) {
+		if ( ! current_user_can( self::CAP ) ) { return Forms::forbidden(); }
+		$case_id = Forms::int( $in, 'case_id' );
+		$action = Forms::choice( $in, 'case_action', array( 'refund', 'resolve' ), '' );
+		if ( 'refund' === $action ) { return \PassCaptain\Payments\Cases::refund( $case_id ); }
+		if ( 'resolve' === $action ) { return \PassCaptain\Payments\Cases::resolve( $case_id, Forms::text( $in, 'note', 200 ) ); }
+		return Forms::error( 'wpcap_payment_case_action', __( 'Unbekannte Aktion.', 'pass-captain' ) );
+	}
+
+	public static function handle_payment_case() {
+		$in = Forms::post();
+		Forms::verify( 'wpcap_ops_case_' . Forms::int( $in, 'case_id' ) );
+		Forms::finish( self::payment_case( $in ), __( 'Fall aktualisiert.', 'pass-captain' ), self::url() . '#wpcap-payment-cases' );
+	}
+
 	public static function handle_refund_resolve() {
 		$in = Forms::post();
 		Forms::verify( 'wpcap_ops_refund_' . Forms::int( $in, 'refund_id' ) );
@@ -222,6 +239,7 @@ final class StatusPage {
 		self::render_queues();
 		self::render_failed();
 		self::render_refunds();
+		self::render_payment_cases();
 		self::render_schema();
 		self::render_diagnostics();
 		echo '</div>';
@@ -329,6 +347,32 @@ final class StatusPage {
 			echo '<button type="submit" name="resolution" value="completed" class="button button-small" data-wpcap-confirm="' . esc_attr( __( 'Wurde die Erstattung beim Zahlungsanbieter wirklich ausgezahlt? Sie wird jetzt verbucht.', 'pass-captain' ) ) . '">' . esc_html__( 'Manuell als erledigt markieren', 'pass-captain' ) . '</button> ';
 			echo '<button type="submit" name="resolution" value="failed" class="button button-small" data-wpcap-confirm="' . esc_attr( __( 'Wurde beim Zahlungsanbieter sicher nichts ausgezahlt?', 'pass-captain' ) ) . '">' . esc_html__( 'Als fehlgeschlagen markieren', 'pass-captain' ) . '</button></form>';
 			echo '</td></tr>';
+		}
+		echo '</tbody></table>';
+	}
+
+	private static function render_payment_cases() {
+		$rows = \PassCaptain\Payments\Cases::open_cases( 50 );
+		echo '<h2 id="wpcap-payment-cases">' . esc_html__( 'Zahlungen zur Klärung', 'pass-captain' ) . '</h2>';
+		if ( ! $rows ) {
+			echo '<p>' . esc_html__( 'Keine offenen Fälle.', 'pass-captain' ) . '</p>';
+			return;
+		}
+		$kinds = array(
+			'paid_for_closed_order' => __( 'Zahlung auf stornierte/abgelaufene Bestellung', 'pass-captain' ),
+			'double_payment' => __( 'Doppelzahlung', 'pass-captain' ),
+			'refund_failed' => __( 'Erstattung beim Anbieter fehlgeschlagen', 'pass-captain' ),
+		);
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Fall', 'pass-captain' ) . '</th><th>' . esc_html__( 'Bestellung', 'pass-captain' ) . '</th><th>' . esc_html__( 'Anbieter / Referenz', 'pass-captain' ) . '</th><th>' . esc_html__( 'Betrag', 'pass-captain' ) . '</th><th>' . esc_html__( 'Aktion', 'pass-captain' ) . '</th></tr></thead><tbody>';
+		foreach ( $rows as $row ) {
+			echo '<tr><td>#' . (int) $row->case_id . '<br><small>' . esc_html( $kinds[ $row->kind ] ?? $row->kind ) . ( 'refund_failed' === $row->status ? ' · ' . esc_html__( 'automatische Erstattung fehlgeschlagen', 'pass-captain' ) : '' ) . '</small>' . ( '' !== (string) $row->note ? '<br><small>' . esc_html( $row->note ) . '</small>' : '' ) . '</td><td><a href="' . esc_url( Forms::page_url( OrdersPage::SLUG, array( 'order_id' => (int) $row->order_id ) ) ) . '">#' . (int) $row->order_id . '</a></td><td>' . esc_html( $row->provider . ' · ' . $row->reference ) . '</td><td>' . esc_html( Forms::money( (int) $row->amount_minor, $row->currency ) ) . '</td><td>';
+			Forms::open_form( 'wpcap_ops_payment_case', 'wpcap_ops_case_' . (int) $row->case_id, 'style="display:inline"' );
+			Forms::hidden( 'case_id', (int) $row->case_id );
+			if ( 'refund_failed' !== $row->kind ) {
+				echo '<button type="submit" name="case_action" value="refund" class="button button-small" data-wpcap-confirm="' . esc_attr( __( 'Betrag jetzt beim Zahlungsanbieter erstatten?', 'pass-captain' ) ) . '">' . esc_html__( 'Beim Anbieter erstatten', 'pass-captain' ) . '</button> ';
+			}
+			echo '<label class="screen-reader-text" for="wpcap-case-' . (int) $row->case_id . '">' . esc_html__( 'Notiz', 'pass-captain' ) . '</label><input type="text" id="wpcap-case-' . (int) $row->case_id . '" name="note" maxlength="200" placeholder="' . esc_attr__( 'Notiz', 'pass-captain' ) . '"> ';
+			echo '<button type="submit" name="case_action" value="resolve" class="button button-small">' . esc_html__( 'Als erledigt markieren', 'pass-captain' ) . '</button></form></td></tr>';
 		}
 		echo '</tbody></table>';
 	}

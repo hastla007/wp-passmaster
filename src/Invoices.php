@@ -133,6 +133,15 @@ final class Invoices {
 			// A concurrent call created it first.
 			return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE refund_id=%d', $p . 'wpcap_credit_notes', absint( $refund_id ) ), ARRAY_A );
 		}
+		$credit_note_id = (int) $wpdb->insert_id;
+		// Split per VAT rate (§ 14 Abs. 4 Nr. 8 UStG / § 11 UStG AT): one line per rate of the refunded positions.
+		foreach ( self::credit_note_split( $refund, (int) $credit_amounts['total_minor'], (int) $credit_amounts['tax_minor'] ) as $line ) {
+			$line_saved = $wpdb->insert( "{$p}wpcap_credit_note_lines", array( 'credit_note_id' => $credit_note_id, 'tax_rate_bp' => $line['tax_rate_bp'], 'net_minor' => $line['net_minor'], 'tax_minor' => $line['tax_minor'], 'total_minor' => $line['total_minor'] ) );
+			if ( false === $line_saved ) {
+				$wpdb->query( 'ROLLBACK' );
+				return new \WP_Error( 'wpcap_credit_note_line', __( 'Die Rechnungskorrektur konnte nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) );
+			}
+		}
 		$wpdb->update( "{$p}wpcap_refunds", array( 'credit_note_number' => $number ), array( 'refund_id' => absint( $refund_id ) ) );
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'credit_note_issued', 'invoice', (int) $invoice->invoice_id, array( 'refund_id' => absint( $refund_id ), 'number' => $number ) );
@@ -141,6 +150,91 @@ final class Invoices {
 			Api\Invoices::created( (int) $credit_note['credit_note_id'], 'correction', array( 'invoice_id' => (int) $invoice->invoice_id, 'refund_id' => absint( $refund_id ), 'order_id' => (int) $refund['order_id'], 'number' => $number ) );
 		}
 		return $credit_note;
+	}
+
+	/**
+	 * Voids the credit note of a refund that failed at the provider after it was booked (status
+	 * `voided`, voided_at). The document and its number stay; print view and PDF mark it as voided and
+	 * the accounting export adds a reversal row ("Storno Gutschrift") in the period of the voiding.
+	 */
+	public static function void_credit_note_for_refund( $refund_id ) {
+		global $wpdb;
+		$updated = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='voided',voided_at=%s WHERE refund_id=%d AND status='issued'", $wpdb->prefix . 'wpcap_credit_notes', current_time( 'mysql', true ), absint( $refund_id ) ) );
+		if ( $updated ) {
+			Audit::record( 'credit_note_voided', 'invoice', 0, array( 'refund_id' => absint( $refund_id ), 'reason' => 'provider_refund_failed' ) );
+		}
+		return (bool) $updated;
+	}
+
+	/**
+	 * Splits a credit note amount per VAT rate. The weights come from the refunded tickets (their
+	 * discounted order line value) or, for an amount-only refund, from all order lines. The gross is
+	 * distributed exactly (Orders::allocate) and the credit note's VAT in proportion to the VAT each
+	 * rate's share contains, so the lines always add up to the credit note header.
+	 *
+	 * @param array $refund Refund row (order_id, ticket_ids).
+	 * @return array[] [{tax_rate_bp, net_minor, tax_minor, total_minor}]
+	 */
+	public static function credit_note_split( array $refund, $total, $tax ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$total = max( 0, (int) $total );
+		$tax = max( 0, min( (int) $tax, $total ) );
+		$order = Orders::get( (int) ( $refund['order_id'] ?? 0 ) );
+		$items = $order ? (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id,quantity,line_total_minor,tax_rate_bp FROM %i WHERE order_id=%d ORDER BY item_id', $p . 'wpcap_order_items', (int) $order->order_id ) ) : array();
+		if ( ! $items ) {
+			return array( array( 'tax_rate_bp' => 0, 'net_minor' => $total - $tax, 'tax_minor' => $tax, 'total_minor' => $total ) );
+		}
+		$stored = Orders::snapshot_line_discounts( $order );
+		$amounts = array();
+		foreach ( $items as $index => $item ) { $amounts[ $index ] = (int) $item->line_total_minor; }
+		$split = Orders::allocate( $amounts, (int) $order->discount_minor );
+		$ticket_ids = array_values( array_filter( array_map( 'absint', (array) json_decode( (string) ( $refund['ticket_ids'] ?? '' ), true ) ) ) );
+		$counts = array();
+		if ( $ticket_ids ) {
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id, COUNT(*) AS n FROM %i WHERE order_id=%d AND ticket_id IN (' . implode( ',', array_fill( 0, count( $ticket_ids ), '%d' ) ) . ') GROUP BY ticket_type_id', array_merge( array( $p . 'wpcap_tickets', (int) $order->order_id ), $ticket_ids ) ) );
+			foreach ( $rows as $row ) { $counts[ (int) $row->ticket_type_id ] = (int) $row->n; }
+		}
+		$weights = array();
+		foreach ( $items as $index => $item ) {
+			$type = (int) $item->ticket_type_id;
+			$discount = null !== $stored && isset( $stored[ $type ] ) ? min( (int) $item->line_total_minor, $stored[ $type ] ) : $split[ $index ];
+			$line = max( 0, (int) $item->line_total_minor - $discount );
+			if ( $counts ) {
+				$used = min( (int) $item->quantity, $counts[ $type ] ?? 0 );
+				$counts[ $type ] = max( 0, ( $counts[ $type ] ?? 0 ) - $used );
+				$line = (int) round( $line * $used / max( 1, (int) $item->quantity ) );
+			}
+			$rate = max( 0, (int) $item->tax_rate_bp );
+			$weights[ $rate ] = ( $weights[ $rate ] ?? 0 ) + $line;
+		}
+		$weights = array_filter( $weights );
+		if ( count( $weights ) <= 1 ) {
+			$rate = $weights ? (int) array_key_first( $weights ) : (int) $items[0]->tax_rate_bp;
+			return array( array( 'tax_rate_bp' => $rate, 'net_minor' => $total - $tax, 'tax_minor' => $tax, 'total_minor' => $total ) );
+		}
+		ksort( $weights, SORT_NUMERIC );
+		$gross = Orders::allocate( $weights, $total );
+		$expected = array();
+		foreach ( $gross as $rate => $amount ) { $expected[ $rate ] = Orders::gross_tax( $amount, (int) $rate ); }
+		$taxes = array_sum( $expected ) > 0 ? Orders::allocate( $expected, $tax ) : array_fill_keys( array_keys( $gross ), 0 );
+		$lines = array();
+		foreach ( $gross as $rate => $amount ) {
+			$line_tax = min( (int) $taxes[ $rate ], (int) $amount );
+			$lines[] = array( 'tax_rate_bp' => (int) $rate, 'net_minor' => (int) $amount - $line_tax, 'tax_minor' => $line_tax, 'total_minor' => (int) $amount );
+		}
+		return $lines;
+	}
+
+	/** Per-rate lines of credit notes (credit_note_id => lines); notes issued before 3.17.4 have none. */
+	public static function credit_note_lines( array $credit_note_ids ) {
+		global $wpdb;
+		$ids = array_values( array_filter( array_map( 'absint', $credit_note_ids ) ) );
+		if ( ! $ids ) { return array(); }
+		$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM %i WHERE credit_note_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ') ORDER BY credit_note_id,tax_rate_bp,credit_note_line_id', array_merge( array( $wpdb->prefix . 'wpcap_credit_note_lines' ), $ids ) ) );
+		$by_note = array();
+		foreach ( $rows as $row ) { $by_note[ (int) $row->credit_note_id ][] = $row; }
+		return $by_note;
 	}
 
 	/** Platform seller data for documents (settings "Rechnungssteller"). */
@@ -344,7 +438,13 @@ final class Invoices {
 		</tbody></table>
 		<?php echo self::payments_html( $invoice, $snapshot, $money ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in payments_html(). ?>
 		<?php foreach ( self::seller_notes( $snapshot ) as $note ) : ?><p class="wpcap-seller-note"><?php echo esc_html( $note ); ?></p><?php endforeach; ?>
-		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Rechnungskorrektur', 'pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'pass-captain' ), $invoice->invoice_number, wp_date( 'd.m.Y', strtotime( $credit->issued_at . ' UTC' ) ) ) ); ?></p><table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr><tr><td><?php esc_html_e( 'Umsatzsteuer', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->tax_minor ) ); ?></td></tr><tr><th><?php esc_html_e( 'Korrekturbetrag', 'pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
+		<?php $credit_lines = self::credit_note_lines( array_map( static function ( $c ) { return (int) $c->credit_note_id; }, $credits ) ); ?>
+		<?php foreach ( $credits as $credit ) : ?><h2><?php echo esc_html( __( 'Rechnungskorrektur', 'pass-captain' ) . ' ' . $credit->credit_note_number ); ?></h2><p><?php echo esc_html( sprintf( /* translators: 1: invoice number, 2: date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'pass-captain' ), $invoice->invoice_number, wp_date( 'd.m.Y', strtotime( $credit->issued_at . ' UTC' ) ) ) ); ?></p>
+		<?php if ( ! empty( $credit_lines[ (int) $credit->credit_note_id ] ) ) : ?><table class="wpcap-credit-rates"><caption><?php esc_html_e( 'Korrektur nach Steuersätzen', 'pass-captain' ); ?></caption><thead><tr><th><?php esc_html_e( 'USt-Satz', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Netto', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'USt.', 'pass-captain' ); ?></th><th class="n"><?php esc_html_e( 'Brutto', 'pass-captain' ); ?></th></tr></thead><tbody>
+		<?php foreach ( $credit_lines[ (int) $credit->credit_note_id ] as $credit_line ) : ?><tr><td><?php echo esc_html( number_format_i18n( (int) $credit_line->tax_rate_bp / 100, 2 ) . ' %' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit_line->net_minor ) ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit_line->tax_minor ) ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit_line->total_minor ) ); ?></td></tr><?php endforeach; ?>
+		</tbody></table><?php endif; ?>
+		<?php if ( 'voided' === ( $credit->status ?? '' ) ) : ?><p class="wpcap-credit-voided"><strong><?php echo esc_html( sprintf( /* translators: %s: date */ __( 'Storniert am %s: Die Erstattung ist beim Zahlungsanbieter fehlgeschlagen; der Betrag wurde nicht zurückgezahlt.', 'pass-captain' ), wp_date( 'd.m.Y', strtotime( (string) $credit->voided_at . ' UTC' ) ) ) ); ?></strong></p><?php endif; ?>
+		<table><tbody><tr><td><?php esc_html_e( 'Nettobetrag', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->net_minor ) ); ?></td></tr><tr><td><?php esc_html_e( 'Umsatzsteuer', 'pass-captain' ); ?></td><td class="n">-<?php echo esc_html( $money( (int) $credit->tax_minor ) ); ?></td></tr><tr><th><?php esc_html_e( 'Korrekturbetrag', 'pass-captain' ); ?></th><th class="n">-<?php echo esc_html( $money( (int) $credit->total_minor ) ); ?></th></tr></tbody></table><?php endforeach; ?>
 		<?php $extra_links = Api\Invoices::links_html( (int) $invoice->invoice_id, 'invoice', array_merge( array( 'audience' => 'admin', 'order_id' => (int) $invoice->order_id ), $link_context, array( 'location' => 'invoice_view' ) ) ); ?>
 		<?php if ( '' !== $extra_links ) : ?><p class="wpcap-invoice-extra"><?php echo $extra_links; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in links_html(). ?></p><?php endif; ?>
 		<?php echo Frontend\PrintButton::html( __( 'Drucken oder als PDF speichern', 'pass-captain' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in html(). ?>
@@ -390,8 +490,11 @@ final class Invoices {
 	}
 
 	/**
-	 * Accounting export (CSV, one row per invoice line and credit note) for a date range.
-	 * admin-post.php?action=wpcap_export_accounting&from=YYYY-MM-DD&to=YYYY-MM-DD&_wpnonce=…
+	 * Accounting export (CSV) for a date range, streamed through Reports\Scope::send_csv():
+	 * - mode `invoices` (default): one row per invoice line and per credit note VAT rate;
+	 * - mode `ledger`: payments, refunds and chargebacks from order lines and the refund ledger,
+	 *   independent of invoices (ledger_export_rows()).
+	 * admin-post.php?action=wpcap_export_accounting&from=YYYY-MM-DD&to=YYYY-MM-DD[&mode=ledger]&_wpnonce=…
 	 */
 	public static function handle_export() {
 		if ( ! current_user_can( 'manage_options' ) && ! current_user_can( self::FINANCE_CAP ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
@@ -400,17 +503,15 @@ final class Invoices {
 		$from = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $from ) ? $from : gmdate( 'Y-m-01' );
 		$to = sanitize_text_field( wp_unslash( $_REQUEST['to'] ?? '' ) );
 		$to = preg_match( '/^\d{4}-\d{2}-\d{2}$/', $to ) ? $to : gmdate( 'Y-m-d' );
-		$rows = self::export_rows( $from, $to );
-		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => count( $rows ) ) );
-		nocache_headers();
-		header( 'Content-Type: text/csv; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename="wp-pass-captain-buchhaltung-' . $from . '-' . $to . '.csv"' );
-		// Streams the CSV download to the response (php://output, no file on disk).
-		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
-		fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
-		foreach ( $rows as $row ) { fputcsv( $out, array_map( array( Reports\Scope::class, 'csv_cell' ), (array) $row ), ';', '"', '' ); } // Explicit escape (PHP 8.4 deprecates the default); '' = RFC 4180 quoting only.
-		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
-		exit;
+		$ledger = 'ledger' === sanitize_key( wp_unslash( $_REQUEST['mode'] ?? '' ) );
+		$rows = $ledger ? self::ledger_export_rows( $from, $to ) : self::export_rows( $from, $to );
+		Audit::record( 'accounting_exported', 'invoice', 0, array( 'from' => $from, 'to' => $to, 'rows' => count( $rows ), 'mode' => $ledger ? 'ledger' : 'invoices' ) );
+		Reports\Scope::send_csv( $rows, 'wp-pass-captain-buchhaltung-' . ( $ledger ? 'zahlungen-' : '' ) . $from . '-' . $to . '.csv' ); // Ends the request unless wpcap_pre_send_download took over.
+	}
+
+	/** Download URL of the accounting export (mode invoices|ledger). */
+	public static function export_url( $from, $to, $mode = 'invoices' ) {
+		return add_query_arg( array( 'action' => 'wpcap_export_accounting', 'from' => $from, 'to' => $to, 'mode' => 'ledger' === $mode ? 'ledger' : 'invoices', '_wpnonce' => wp_create_nonce( 'wpcap_export_accounting' ) ), admin_url( 'admin-post.php' ) );
 	}
 
 	/** Builds export rows (first row = header). Amounts are decimal strings; text cells are CSV-injection safe. */
@@ -419,7 +520,7 @@ final class Invoices {
 		$p = $wpdb->prefix;
 		$from_utc = $from . ' 00:00:00';
 		$to_utc = gmdate( 'Y-m-d H:i:s', strtotime( $to . ' 00:00:00 UTC' ) + DAY_IN_SECONDS );
-		$rows = array( array( 'Belegart', 'Belegnummer', 'Belegdatum', 'Bestellung', 'Bezug', 'Beschreibung', 'Menge', 'Netto', 'USt-Satz', 'USt', 'Brutto', 'Waehrung', 'Zahlungsart', 'Verkaufsmodell', 'Rechnungssteller' ) );
+		$rows = array( array( 'Belegart', 'Belegnummer', 'Belegdatum', 'Bestellung', 'Bezug', 'Beschreibung', 'Menge', 'Netto', 'USt-Satz', 'USt', 'Brutto', 'Waehrung', 'Zahlungsart', 'Verkaufsmodell', 'Rechnungssteller', 'Steuerland' ) );
 		// Seller columns: agent-model documents are issued in the organizer's name (not platform revenue).
 		$seller_cols = static function ( $snapshot_json ) use ( &$safe ) {
 			$snapshot = (array) json_decode( (string) $snapshot_json, true );
@@ -428,15 +529,150 @@ final class Invoices {
 		};
 		$money = static function ( $minor, $currency = 'EUR' ) { return Localization::money_decimal( (int) $minor, $currency ); };
 		$safe = static function ( $text ) { $text = (string) $text; return preg_match( '/^[=+\-@\t\r]/', $text ) ? "'" . $text : $text; };
-		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT i.invoice_number,i.issued_at,i.currency,i.buyer_snapshot,o.public_id,o.payment_provider,l.description,l.quantity,l.tax_rate,l.tax_minor,l.total_minor FROM %i i INNER JOIN %i o ON o.order_id=i.order_id INNER JOIN %i l ON l.invoice_id=i.invoice_id WHERE i.issued_at >= %s AND i.issued_at < %s ORDER BY i.invoice_id,l.invoice_line_id', $p . 'wpcap_invoices', $p . 'wpcap_orders', $p . 'wpcap_invoice_lines', $from_utc, $to_utc ) );
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT i.invoice_id,i.order_id,i.invoice_number,i.issued_at,i.currency,i.buyer_snapshot,o.public_id,o.payment_provider,l.description,l.quantity,l.tax_rate,l.tax_minor,l.total_minor FROM %i i INNER JOIN %i o ON o.order_id=i.order_id INNER JOIN %i l ON l.invoice_id=i.invoice_id WHERE i.issued_at >= %s AND i.issued_at < %s ORDER BY i.invoice_id,l.invoice_line_id', $p . 'wpcap_invoices', $p . 'wpcap_orders', $p . 'wpcap_invoice_lines', $from_utc, $to_utc ) );
+		$credits = $wpdb->get_results( $wpdb->prepare( 'SELECT c.*,i.invoice_number,i.buyer_snapshot,i.order_id,o.public_id,o.payment_provider FROM %i c INNER JOIN %i i ON i.invoice_id=c.invoice_id INNER JOIN %i o ON o.order_id=i.order_id WHERE c.issued_at >= %s AND c.issued_at < %s ORDER BY c.credit_note_id', $p . 'wpcap_credit_notes', $p . 'wpcap_invoices', $p . 'wpcap_orders', $from_utc, $to_utc ) );
+		$countries = self::item_tax_countries( array_merge( array_map( static function ( $l ) { return (int) $l->order_id; }, (array) $lines ), array_map( static function ( $c ) { return (int) $c->order_id; }, (array) $credits ) ) );
+		$position = array();
 		foreach ( $lines as $l ) {
-			$rows[] = array( 'Rechnung', $l->invoice_number, substr( $l->issued_at, 0, 10 ), $l->public_id, '', $safe( $l->description ), (int) $l->quantity, $money( (int) $l->total_minor - (int) $l->tax_minor, $l->currency ), number_format( (float) $l->tax_rate, 2, '.', '' ), $money( (int) $l->tax_minor, $l->currency ), $money( (int) $l->total_minor, $l->currency ), $l->currency, $safe( $l->payment_provider ), ...$seller_cols( $l->buyer_snapshot ) );
+			// Invoice lines are written in order item order (issue_for_order()): the n-th line is the n-th item.
+			$position[ (int) $l->invoice_id ] = ( $position[ (int) $l->invoice_id ] ?? -1 ) + 1;
+			$items = $countries[ (int) $l->order_id ] ?? array();
+			$country = $items[ $position[ (int) $l->invoice_id ] ]['country'] ?? self::countries_label( $items );
+			$rows[] = array( 'Rechnung', $l->invoice_number, substr( $l->issued_at, 0, 10 ), $l->public_id, '', $safe( $l->description ), (int) $l->quantity, $money( (int) $l->total_minor - (int) $l->tax_minor, $l->currency ), number_format( (float) $l->tax_rate, 2, '.', '' ), $money( (int) $l->tax_minor, $l->currency ), $money( (int) $l->total_minor, $l->currency ), $l->currency, $safe( $l->payment_provider ), ...$seller_cols( $l->buyer_snapshot ), $country );
 		}
-		$credits = $wpdb->get_results( $wpdb->prepare( 'SELECT c.*,i.invoice_number,i.buyer_snapshot,o.public_id,o.payment_provider FROM %i c INNER JOIN %i i ON i.invoice_id=c.invoice_id INNER JOIN %i o ON o.order_id=i.order_id WHERE c.issued_at >= %s AND c.issued_at < %s ORDER BY c.credit_note_id', $p . 'wpcap_credit_notes', $p . 'wpcap_invoices', $p . 'wpcap_orders', $from_utc, $to_utc ) );
+		$credit_lines = self::credit_note_lines( array_map( static function ( $c ) { return (int) $c->credit_note_id; }, (array) $credits ) );
 		foreach ( $credits as $c ) {
-			$rows[] = array( 'Gutschrift', $c->credit_note_number, substr( $c->issued_at, 0, 10 ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( (int) $c->net_minor, $c->currency ), '', '-' . $money( (int) $c->tax_minor, $c->currency ), '-' . $money( (int) $c->total_minor, $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ) );
+			$items = $countries[ (int) $c->order_id ] ?? array();
+			// One row per VAT rate (3.17.4); older credit notes without lines stay a single row without rate.
+			$parts = $credit_lines[ (int) $c->credit_note_id ] ?? array( (object) array( 'tax_rate_bp' => null, 'net_minor' => $c->net_minor, 'tax_minor' => $c->tax_minor, 'total_minor' => $c->total_minor ) );
+			foreach ( $parts as $part ) {
+				$rate = null === $part->tax_rate_bp ? '' : number_format( (int) $part->tax_rate_bp / 100, 2, '.', '' );
+				$of_rate = null === $part->tax_rate_bp ? $items : array_filter( $items, static function ( $item ) use ( $part ) { return (int) $item['rate_bp'] === (int) $part->tax_rate_bp; } );
+				$rows[] = array( 'Gutschrift', $c->credit_note_number, substr( $c->issued_at, 0, 10 ), $c->public_id, $c->invoice_number, 'Erstattung', '', '-' . $money( (int) $part->net_minor, $c->currency ), $rate, '-' . $money( (int) $part->tax_minor, $c->currency ), '-' . $money( (int) $part->total_minor, $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ), self::countries_label( $of_rate ? $of_rate : $items ) );
+			}
+		}
+		// Credit notes voided in the period (provider refund failed): reversal rows with positive amounts.
+		$voided = (array) $wpdb->get_results( $wpdb->prepare( "SELECT c.*,i.invoice_number,i.buyer_snapshot,i.order_id,o.public_id,o.payment_provider FROM %i c INNER JOIN %i i ON i.invoice_id=c.invoice_id INNER JOIN %i o ON o.order_id=i.order_id WHERE c.status='voided' AND c.voided_at >= %s AND c.voided_at < %s ORDER BY c.credit_note_id", $p . 'wpcap_credit_notes', $p . 'wpcap_invoices', $p . 'wpcap_orders', $from_utc, $to_utc ) );
+		$voided_lines = self::credit_note_lines( array_map( static function ( $c ) { return (int) $c->credit_note_id; }, $voided ) );
+		$voided_countries = self::item_tax_countries( array_map( static function ( $c ) { return (int) $c->order_id; }, $voided ) );
+		foreach ( $voided as $c ) {
+			$items = $voided_countries[ (int) $c->order_id ] ?? array();
+			$parts = $voided_lines[ (int) $c->credit_note_id ] ?? array( (object) array( 'tax_rate_bp' => null, 'net_minor' => $c->net_minor, 'tax_minor' => $c->tax_minor, 'total_minor' => $c->total_minor ) );
+			foreach ( $parts as $part ) {
+				$rate = null === $part->tax_rate_bp ? '' : number_format( (int) $part->tax_rate_bp / 100, 2, '.', '' );
+				$rows[] = array( 'Storno Gutschrift', $c->credit_note_number, substr( (string) $c->voided_at, 0, 10 ), $c->public_id, $c->invoice_number, 'Erstattung beim Zahlungsanbieter fehlgeschlagen', '', $money( (int) $part->net_minor, $c->currency ), $rate, $money( (int) $part->tax_minor, $c->currency ), $money( (int) $part->total_minor, $c->currency ), $c->currency, $safe( $c->payment_provider ), ...$seller_cols( $c->buyer_snapshot ), self::countries_label( $items ) );
+			}
 		}
 		return Reports\Exports::filter_rows( $rows, 'accounting', array( 'from' => $from, 'to' => $to ) );
+	}
+
+	/**
+	 * Accounting export independent of invoices (GoBD / § 131 BAO): one row per order line for every
+	 * payment and per VAT rate for every completed refund or chargeback in the period – also for orders
+	 * without an invoice (setting auto_invoice off). Tax country from the line snapshot (place of supply,
+	 * OSS), document number = invoice/credit note number when one exists, else the order or refund id.
+	 *
+	 * Payment date: the confirmation recorded in the audit log, else the order date. Refund date: when
+	 * the refund was completed (updated_at). Amounts are decimal strings, refunds negative.
+	 *
+	 * @return array[] Rows, first row = header.
+	 */
+	public static function ledger_export_rows( $from, $to ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$from_utc = $from . ' 00:00:00';
+		$to_utc = gmdate( 'Y-m-d H:i:s', strtotime( $to . ' 00:00:00 UTC' ) + DAY_IN_SECONDS );
+		$rows = array( array( 'Buchungsart', 'Buchungsdatum', 'Belegnummer', 'Bestellung', 'Bestell-ID', 'Erstattungs-ID', 'Beschreibung', 'Menge', 'Netto', 'USt-Satz', 'USt', 'Brutto', 'Waehrung', 'Zahlungsart', 'Zahlungsreferenz', 'Steuerland' ) );
+		$money = static function ( $minor, $currency ) { return Localization::money_decimal( (int) $minor, $currency ); };
+		$rate = static function ( $bp ) { return number_format( (int) $bp / 100, 2, '.', '' ); };
+		// Payments: delayed methods can confirm days after the order, so candidates start 60 days earlier.
+		$orders = (array) $wpdb->get_results( $wpdb->prepare( "SELECT order_id,public_id,currency,total_minor,discount_minor,price_snapshot,payment_provider,provider_reference,created_at FROM %i WHERE payment_status IN ('paid','refunded') AND total_minor>0 AND created_at >= %s AND created_at < %s ORDER BY order_id", $p . 'wpcap_orders', gmdate( 'Y-m-d H:i:s', strtotime( $from_utc . ' UTC' ) - 60 * DAY_IN_SECONDS ), $to_utc ) );
+		$order_ids = array_map( static function ( $o ) { return (int) $o->order_id; }, $orders );
+		$paid_at = array();
+		foreach ( array_chunk( $order_ids, 500 ) as $chunk ) {
+			$confirmations = (array) $wpdb->get_results( $wpdb->prepare( "SELECT object_id, MIN(created_at) AS paid_at FROM %i WHERE object_type='order' AND action IN ('external_payment_confirmed','manual_payment_confirmed','pos_device_payment_confirmed') AND object_id IN (" . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') GROUP BY object_id', array_merge( array( $p . 'wpcap_audit_logs' ), $chunk ) ) );
+			foreach ( $confirmations as $row ) { $paid_at[ (int) $row->object_id ] = (string) $row->paid_at; }
+		}
+		$in_range = array();
+		foreach ( $orders as $order ) {
+			$date = $paid_at[ (int) $order->order_id ] ?? (string) $order->created_at;
+			if ( $date >= $from_utc && $date < $to_utc ) { $in_range[] = array( $order, $date ); }
+		}
+		$refunds = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id,o.payment_provider,o.provider_reference AS order_reference FROM %i r INNER JOIN %i o ON o.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $from_utc, $to_utc ) );
+		$all_ids = array_merge( array_map( static function ( $x ) { return (int) $x[0]->order_id; }, $in_range ), array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) );
+		$countries = self::item_tax_countries( $all_ids );
+		$numbers = array();
+		foreach ( array_chunk( array_values( array_unique( $all_ids ) ), 500 ) as $chunk ) {
+			$invoice_rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT order_id,invoice_number FROM %i WHERE order_id IN (' . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_invoices' ), $chunk ) ) );
+			foreach ( $invoice_rows as $row ) { $numbers[ (int) $row->order_id ] = (string) $row->invoice_number; }
+		}
+		foreach ( $in_range as $entry ) {
+			list( $order, $date ) = $entry;
+			$items = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT oi.item_id,oi.ticket_type_id,oi.quantity,oi.line_total_minor,oi.tax_minor,oi.tax_rate_bp,tt.name,e.name AS event_name FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i oc ON oc.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=oc.event_id WHERE oi.order_id=%d ORDER BY oi.item_id', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', (int) $order->order_id ) );
+			$stored = Orders::snapshot_line_discounts( $order );
+			$amounts = array();
+			foreach ( $items as $index => $item ) { $amounts[ $index ] = (int) $item->line_total_minor; }
+			$split = Orders::allocate( $amounts, (int) $order->discount_minor );
+			$item_countries = array_column( $countries[ (int) $order->order_id ] ?? array(), 'country', 'item_id' );
+			foreach ( $items as $index => $item ) {
+				$discount = null !== $stored && isset( $stored[ (int) $item->ticket_type_id ] ) ? min( (int) $item->line_total_minor, $stored[ (int) $item->ticket_type_id ] ) : $split[ $index ];
+				$gross = max( 0, (int) $item->line_total_minor - $discount );
+				$rows[] = array( 'Zahlung', substr( $date, 0, 10 ), $numbers[ (int) $order->order_id ] ?? '', (string) $order->public_id, (int) $order->order_id, '', $item->event_name . ' – ' . $item->name, (int) $item->quantity, $money( $gross - (int) $item->tax_minor, $order->currency ), $rate( $item->tax_rate_bp ), $money( (int) $item->tax_minor, $order->currency ), $money( $gross, $order->currency ), (string) $order->currency, (string) $order->payment_provider, (string) $order->provider_reference, $item_countries[ (int) $item->item_id ] ?? '' );
+			}
+		}
+		foreach ( $refunds as $refund ) {
+			$items = $countries[ (int) $refund->order_id ] ?? array();
+			$chargeback = false !== strpos( (string) $refund->reason, 'chargeback' );
+			$number = '' !== (string) $refund->credit_note_number ? (string) $refund->credit_note_number : '';
+			foreach ( self::credit_note_split( (array) $refund, (int) $refund->amount_minor, (int) $refund->tax_minor ) as $part ) {
+				$of_rate = array_filter( $items, static function ( $item ) use ( $part ) { return (int) $item['rate_bp'] === (int) $part['tax_rate_bp']; } );
+				$reference = '' !== (string) $refund->provider_reference ? (string) $refund->provider_reference : (string) $refund->order_reference;
+				$rows[] = array( $chargeback ? 'Chargeback' : 'Erstattung', substr( (string) $refund->updated_at, 0, 10 ), $number, (string) $refund->public_id, (int) $refund->order_id, (int) $refund->refund_id, (string) $refund->reason, '', '-' . $money( $part['net_minor'], $refund->currency ), $rate( $part['tax_rate_bp'] ), '-' . $money( $part['tax_minor'], $refund->currency ), '-' . $money( $part['total_minor'], $refund->currency ), (string) $refund->currency, (string) $refund->payment_provider, $reference, self::countries_label( $of_rate ? $of_rate : $items ) );
+			}
+		}
+		// Refunds that failed at the provider after booking (money stayed with the seller): reversal rows.
+		$failed = (array) $wpdb->get_results( $wpdb->prepare( "SELECT r.*,o.public_id,o.payment_provider,o.provider_reference AS order_reference FROM %i r INNER JOIN %i o ON o.order_id=r.order_id WHERE r.status='failed' AND r.error_message='provider_refund_failed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $from_utc, $to_utc ) );
+		$failed_countries = self::item_tax_countries( array_map( static function ( $r ) { return (int) $r->order_id; }, $failed ) );
+		foreach ( $failed as $refund ) {
+			$items = $failed_countries[ (int) $refund->order_id ] ?? array();
+			foreach ( self::credit_note_split( (array) $refund, (int) $refund->amount_minor, (int) $refund->tax_minor ) as $part ) {
+				$of_rate = array_filter( $items, static function ( $item ) use ( $part ) { return (int) $item['rate_bp'] === (int) $part['tax_rate_bp']; } );
+				$rows[] = array( 'Erstattung fehlgeschlagen', substr( (string) $refund->updated_at, 0, 10 ), (string) $refund->credit_note_number, (string) $refund->public_id, (int) $refund->order_id, (int) $refund->refund_id, (string) $refund->reason, '', $money( $part['net_minor'], $refund->currency ), $rate( $part['tax_rate_bp'] ), $money( $part['tax_minor'], $refund->currency ), $money( $part['total_minor'], $refund->currency ), (string) $refund->currency, (string) $refund->payment_provider, (string) $refund->provider_reference, self::countries_label( $of_rate ? $of_rate : $items ) );
+			}
+		}
+		return Reports\Exports::filter_rows( $rows, 'accounting_ledger', array( 'from' => $from, 'to' => $to ) );
+	}
+
+	/**
+	 * Tax country (place of supply) of every order item, in item order: the country frozen in the line
+	 * snapshot (Sales\TaxProfiles), else the event's tax country, else the seller country setting.
+	 *
+	 * @param int[] $order_ids Orders.
+	 * @return array order_id => [ {item_id, rate_bp, country} ]
+	 */
+	public static function item_tax_countries( array $order_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$ids = array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) );
+		$result = array();
+		$seller = Sales\TaxProfiles::seller_country();
+		foreach ( array_chunk( $ids, 500 ) as $chunk ) {
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( 'SELECT oi.order_id,oi.item_id,oi.tax_rate_bp,oi.line_snapshot,e.tax_country FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i oc ON oc.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=oc.event_id WHERE oi.order_id IN (' . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ') ORDER BY oi.order_id,oi.item_id', array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events' ), $chunk ) ) );
+			foreach ( $rows as $row ) {
+				$snapshot = json_decode( (string) $row->line_snapshot, true );
+				$country = is_array( $snapshot ) ? (string) ( $snapshot['tax']['country'] ?? '' ) : '';
+				if ( ! preg_match( '/^[A-Z]{2}$/', $country ) ) {
+					$country = preg_match( '/^[A-Z]{2}$/', (string) $row->tax_country ) ? (string) $row->tax_country : $seller;
+				}
+				$result[ (int) $row->order_id ][] = array( 'item_id' => (int) $row->item_id, 'rate_bp' => (int) $row->tax_rate_bp, 'country' => $country );
+			}
+		}
+		return $result;
+	}
+
+	/** Distinct countries of item rows, joined with "/" (usually one). */
+	public static function countries_label( array $items ) {
+		return implode( '/', array_values( array_unique( array_column( $items, 'country' ) ) ) );
 	}
 
 	/** Finance view permission for one order (global finance roles or event-scoped order managers). */

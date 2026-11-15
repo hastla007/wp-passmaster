@@ -116,7 +116,7 @@ final class Sms {
 				'http_content_type' => 'json',
 				'http_body_template' => HttpProvider::DEFAULT_TEMPLATE,
 				'cancel_body' => __( 'Abgesagt: {event} am {date} um {time}. Dein Ticket ist ungültig; Infos zur Erstattung per E-Mail.', 'pass-captain' ),
-				'reschedule_body' => __( 'Neuer Termin: {event} findet am {date} um {time} ({timezone}) statt (bisher {old_date}). Dein Ticket bleibt gültig.', 'pass-captain' ),
+				'reschedule_body' => __( 'Neuer Termin: {event} findet am {date} um {time} ({timezone}) statt (bisher {old_date}). Dein Ticket bleibt gültig.{refund_note}', 'pass-captain' ),
 			),
 			// Scalar secrets so that constants/env vars (WPCAP_TWILIO_AUTH_TOKEN …) work via Settings::secret().
 			'twilio_account_sid' => '',
@@ -306,6 +306,8 @@ final class Sms {
 		$old = (object) array( 'starts_at' => $old_starts_at, 'timezone' => $occ->timezone, 'location' => '', 'event_name' => '', 'occurrence_id' => $occ->occurrence_id );
 		$old_vars = Placeholders::occurrence_vars( $old );
 		$vars['old_date'] = $old_vars['date'] . ' ' . $old_vars['time'];
+		// Refund request in the order portal with deadline (RescheduleRefunds); '' when switched off.
+		$vars['refund_note'] = \PassCaptain\RescheduleRefunds::sms_note( (string) $occ->starts_at, (string) $occ->timezone );
 		$body = Placeholders::render( $s['reschedule_body'], $vars );
 		$count = 0;
 		foreach ( self::orders_for_occurrence( $occurrence_id ) as $order_id ) {

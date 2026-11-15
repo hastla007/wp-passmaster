@@ -55,6 +55,22 @@ final class Types {
 			'ticket_count' => __( 'Anzahl Tickets', 'pass-captain' ),
 			'ticket_list' => __( 'Ticketliste mit Datum, Ort, Link (und Code bzw. Wallet-Links)', 'pass-captain' ),
 			'ticket_links' => __( 'Nur die Ticket-Links, einer pro Zeile', 'pass-captain' ),
+		) + self::legal_placeholders();
+	}
+
+	/** Placeholders with the legal texts of the settings (ticket and access-link mails). */
+	private static function legal_placeholders() {
+		return array(
+			'consumer_info' => __( 'Verbraucherinformationen aus den Einstellungen (mit Überschrift); leer, wenn nicht gepflegt', 'pass-captain' ),
+			'terms' => __( 'AGB / Teilnahmebedingungen aus den Einstellungen (mit Überschrift); leer, wenn nicht gepflegt', 'pass-captain' ),
+		);
+	}
+
+	/** Values of the legal placeholders (evaluated when the mail is rendered). */
+	public static function legal_vars() {
+		return array(
+			'consumer_info' => static function () { return Blocks::legal_text( 'consumer_info_text' ); },
+			'terms' => static function () { return Blocks::legal_text( 'terms_text' ); },
 		);
 	}
 
@@ -107,7 +123,7 @@ final class Types {
 	 */
 	public static function order_access_vars( $public_id ) {
 		global $wpdb;
-		$vars = array( 'order_reference' => \PassCaptain\Frontend\Format::order_reference( $public_id ), 'payment_instructions' => Blocks::payment_instructions( null ) );
+		$vars = array( 'order_reference' => \PassCaptain\Frontend\Format::order_reference( $public_id ), 'payment_instructions' => Blocks::payment_instructions( null ) ) + self::legal_vars();
 		if ( 32 !== strlen( $public_id ) ) { return $vars; }
 		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,public_id,payment_provider,payment_status,total_minor,currency FROM %i WHERE public_id=%s', $wpdb->prefix . 'wpcap_orders', $public_id ) );
 		if ( $order && \PassCaptain\Payments\BankTransfer::applies( $order ) ) {
@@ -253,7 +269,8 @@ final class Types {
 				/* translators: %s: site name */
 				'subject' => static function () { return sprintf( __( 'Deine Tickets für %s', 'pass-captain' ), '{site_name}' ); },
 				/* translators: %s: site name */
-				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}"; },
+				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}{consumer_info}{terms}"; },
+				'vars' => static function () { return self::legal_vars(); },
 				'sample' => static function () { return self::sample_ticket_vars( false ); },
 			),
 			'tickets_resend' => array(
@@ -264,6 +281,7 @@ final class Types {
 				'subject' => static function () { return sprintf( __( 'Deine Tickets für %s', 'pass-captain' ), '{site_name}' ); },
 				/* translators: %s: site name */
 				'body' => static function () { return sprintf( __( 'Deine Tickets für %s:', 'pass-captain' ), '{site_name}' ) . "\n\n{ticket_list}"; },
+				'vars' => static function () { return self::legal_vars(); },
 				'sample' => static function () { return self::sample_ticket_vars( true ); },
 			),
 			'order_access' => array(
@@ -274,13 +292,13 @@ final class Types {
 					'order_reference' => __( 'Kurze Bestellnummer (z. B. 3F2A-9C1E, auch Verwendungszweck)', 'pass-captain' ),
 					'access_link' => __( 'Persönlicher Link zur Bestellung', 'pass-captain' ),
 					'payment_instructions' => __( 'Zahlungsinformationen bei offener Überweisung/manueller Zahlung (Betrag, IBAN, BIC, Empfänger, Verwendungszweck, Frist); sonst leer', 'pass-captain' ),
-				),
+				) + self::legal_placeholders(),
 				/* translators: %s: site name */
 				'subject' => static function () { return sprintf( __( 'Deine Bestellung bei %s', 'pass-captain' ), '{site_name}' ); },
 				'body' => static function () {
 					// {payment_instructions} is empty unless a manual payment is pending; it brings its own trailing blank line.
 					/* translators: %s: site name */
-					return sprintf( __( 'Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:', 'pass-captain' ), '{site_name}' ) . "\n\n{access_link}\n\n{payment_instructions}" . __( 'Bewahre diesen Link sicher auf und teile ihn nicht.', 'pass-captain' );
+					return sprintf( __( 'Über diesen persönlichen Link kannst du den Status deiner Bestellung bei %s ansehen und Tickets verwalten:', 'pass-captain' ), '{site_name}' ) . "\n\n{access_link}\n\n{payment_instructions}{consumer_info}{terms}" . __( 'Bewahre diesen Link sicher auf und teile ihn nicht.', 'pass-captain' );
 				},
 				// Values derived from the order when the caller does not pass them.
 				'vars' => static function ( array $vars ) { return self::order_access_vars( (string) ( $vars['order_id'] ?? '' ) ); },
@@ -402,12 +420,13 @@ final class Types {
 					'event_date' => __( 'Neues Datum und Uhrzeit', 'pass-captain' ),
 					'timezone' => __( 'Zeitzone', 'pass-captain' ),
 					'event_location' => __( 'Ort', 'pass-captain' ),
+					'refund_note' => __( 'Erstattungshinweis mit Frist (Einstellungen → Erstattungen); ohne Antragsmöglichkeit der Hinweis, sich an den Veranstalter zu wenden', 'pass-captain' ),
 				),
 				/* translators: %s: event */
 				'subject' => static function () { return sprintf( __( 'Terminänderung: %s', 'pass-captain' ), '{event_name}' ); },
-				/* translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location */
-				'body' => static function () { return sprintf( __( "Der Termin für „%1\$s“ wurde verschoben.\n\nBisher: %2\$s\nNeu: %3\$s (%4\$s)\nOrt: %5\$s\n\nDein Ticket bleibt gültig. Bei Fragen zu Rückgabe oder Erstattung wende dich bitte an den Veranstalter.", 'pass-captain' ), '{event_name}', '{old_date}', '{event_date}', '{timezone}', '{event_location}' ); },
-				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'old_date' => '15.01.2027 19:30', 'event_date' => '22.01.2027 20:00', 'timezone' => 'Europe/Vienna', 'event_location' => 'Stadthalle Wien' ); },
+				/* translators: 1: event, 2: old date, 3: new date, 4: timezone, 5: location, 6: refund note */
+				'body' => static function () { return sprintf( __( "Der Termin für „%1\$s“ wurde verschoben.\n\nBisher: %2\$s\nNeu: %3\$s (%4\$s)\nOrt: %5\$s\n\nDein Ticket bleibt gültig. %6\$s", 'pass-captain' ), '{event_name}', '{old_date}', '{event_date}', '{timezone}', '{event_location}', '{refund_note}' ); },
+				'sample' => static function () { return array( 'event_name' => 'Sommerkonzert', 'old_date' => '15.01.2027 19:30', 'event_date' => '22.01.2027 20:00', 'timezone' => 'Europe/Vienna', 'event_location' => 'Stadthalle Wien', 'refund_note' => str_replace( '{refund_deadline}', '22.01.2027 20:00', (string) \PassCaptain\Settings::get( 'reschedule_refund_note' ) ) ); },
 			),
 			'waitlist_confirm' => array(
 				'label' => __( 'Warteliste: Eintragung bestätigen (Double-Opt-in)', 'pass-captain' ),

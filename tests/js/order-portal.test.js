@@ -8,8 +8,9 @@ const STRINGS = {
 	assignedRotated: 'Gespeichert, neuer Code.', assignedKept: 'Gespeichert.', assignFailed: 'Fehler.',
 	resendConfirm: 'Tickets erneut senden?', resendConfirmButton: 'Senden', sending: 'Wird gesendet …', resent: 'Gesendet an %s.', resendFailed: 'Fehler.',
 	billingSaved: 'Rechnungsdaten gespeichert.', billingCleared: 'Entfernt.', billingFailed: 'Fehler.',
+	refundConfirm: 'Erstattung beantragen?', refundConfirmButton: 'Beantragen', refundRequested: 'Antrag eingegangen.', refundFailed: 'Antrag fehlgeschlagen.',
 };
-const URLS = { transfer: '/transfer', assign: '/assign', resend: '/resend', billing: '/billing' };
+const URLS = { transfer: '/transfer', assign: '/assign', resend: '/resend', billing: '/billing', refund: '/refund-request' };
 
 /** Order portal markup as rendered by OrderPortal::render(). */
 function portal(opts) {
@@ -20,6 +21,7 @@ function portal(opts) {
 		setup(doc, h) {
 			doc.body.appendChild(h('main', [
 				h('form.wpcap-resend-form', [h('button', { type: 'submit' }, 'Erneut senden'), h('p.message', { role: 'status' })]),
+				h('form.wpcap-refund-request-form', [h('button', { type: 'submit' }, 'Erstattung beantragen'), h('p.message', { role: 'status' })]),
 				h('form.wpcap-assignment-form', [
 					h('input', { type: 'hidden', name: 'ticket_public_id', value: 'T1' }),
 					h('label', ['Name', h('input', { name: 'attendee_name', value: 'Alex' })]),
@@ -142,6 +144,31 @@ test('resend: confirmation, progress text and masked target address', async () =
 	assert.deepEqual(fetch.calls[0].body, {});
 	assert.equal(form.querySelector('.message').textContent, 'Gesendet an a***@example.com.');
 	assert.equal(form.querySelector('button').disabled, false);
+});
+
+test('refund request after a postponement: confirmation, token header, button removed after success; errors shown', async () => {
+	let fail = false;
+	const fetch = mockFetch(() => (fail ? { status: 409, json: { message: 'Frist abgelaufen.' } } : { json: { status: 'pending_approval', refund_id: 7 } }));
+	const env = portal({ fetch });
+	const form = env.document.querySelector('.wpcap-refund-request-form');
+	submit(form);
+	await flush(2);
+	assert.equal(env.document.getElementById('wpcap-confirm-text').textContent, 'Erstattung beantragen?');
+	env.document.getElementById('wpcap-confirm').close('ok');
+	await flush();
+	assert.equal(fetch.calls[0].url, '/refund-request');
+	assert.equal(fetch.calls[0].init.headers['X-WPCAP-Access-Token'], 'tok123');
+	assert.equal(form.querySelector('.message').textContent, 'Antrag eingegangen.');
+	assert.equal(form.querySelector('button'), null);
+	fail = true;
+	const env2 = portal({ fetch });
+	const form2 = env2.document.querySelector('.wpcap-refund-request-form');
+	submit(form2);
+	await flush(2);
+	env2.document.getElementById('wpcap-confirm').close('ok');
+	await flush();
+	assert.equal(form2.querySelector('.message').textContent, 'Frist abgelaufen.');
+	assert.equal(form2.querySelector('button').disabled, false);
 });
 
 test('billing: toggle shows the fields; server field error marks and focuses the input', async () => {

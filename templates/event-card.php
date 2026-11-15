@@ -122,6 +122,7 @@ $wpcap_has_consumer_info = '' !== trim( $legal['consumer_info_text'] );
 			</div>
 		<?php endif; ?>
 		<button type="submit" class="wp-element-button wpcap-submit"><?php esc_html_e( 'Zahlungspflichtig bestellen', 'pass-captain' ); ?></button>
+		<?php echo \PassCaptain\Frontend\LegalNotice::checkout_html( $event ?? null, $types ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- withdrawal and privacy notices, escaped in checkout_html(). ?>
 		<p class="wpcap-message" role="status" aria-live="polite"></p>
 	</form>
 </article>

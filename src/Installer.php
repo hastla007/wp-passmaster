@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.17.3';
+	const DB_VERSION = '3.17.4';
 
 	public static function install() {
 		global $wpdb;
@@ -84,6 +84,7 @@ final class Installer {
 				location varchar(190) NOT NULL DEFAULT '',
 				capacity int(10) unsigned NOT NULL DEFAULT 0,
 				status varchar(20) NOT NULL DEFAULT 'scheduled',
+				rescheduled_at datetime NULL,
 				PRIMARY KEY  (occurrence_id),
 				KEY event_id (event_id),
 				KEY starts_at (starts_at),
@@ -721,10 +722,42 @@ final class Installer {
 				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
 				issued_at datetime NOT NULL,
+				status varchar(20) NOT NULL DEFAULT 'issued',
+				voided_at datetime NULL,
 				PRIMARY KEY  (credit_note_id),
 				UNIQUE KEY refund_id (refund_id),
 				UNIQUE KEY credit_note_number (credit_note_number),
 				KEY invoice_id (invoice_id)
+			) ENGINE=InnoDB $charset;",
+			// Credit note split per VAT rate (3.17.4). Credit notes issued before have no lines and keep
+			// their single net/tax/total presentation (no recalculation of issued documents).
+			"CREATE TABLE {$wpdb->prefix}wpcap_credit_note_lines (
+				credit_note_line_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				credit_note_id bigint(20) unsigned NOT NULL,
+				tax_rate_bp int(10) unsigned NOT NULL DEFAULT 0,
+				net_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				PRIMARY KEY  (credit_note_line_id),
+				KEY credit_note_id (credit_note_id)
+			) ENGINE=InnoDB $charset;",
+			// Payments that need a decision (Payments\Cases, 3.17.4).
+			"CREATE TABLE {$wpdb->prefix}wpcap_payment_cases (
+				case_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				provider varchar(32) NOT NULL,
+				kind varchar(32) NOT NULL,
+				reference varchar(191) NOT NULL DEFAULT '',
+				amount_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				currency char(3) NOT NULL DEFAULT '',
+				status varchar(20) NOT NULL DEFAULT 'open',
+				note varchar(255) NOT NULL DEFAULT '',
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (case_id),
+				UNIQUE KEY case_reference (provider,kind,reference),
+				KEY status (status),
+				KEY order_id (order_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$wpdb->prefix}wpcap_document_sequences (
 				series varchar(40) NOT NULL,

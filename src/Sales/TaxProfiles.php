@@ -11,7 +11,10 @@
  *   country = event's tax_country (place of supply for admission to events: where the event takes
  *             place), else the seller country setting;
  *   class   = ticket type tax_class, else "standard";
- *   date    = order date (UTC, filter `wpcap_tax_profile_date`).
+ *   date    = date of supply: local date of the occurrence start (occurrence time zone), because the
+ *             rate in force when the service is rendered applies (DE § 27 Abs. 1 UStG, AT § 28
+ *             UStG); without a start the local order date. Filter `wpcap_tax_profile_date` (it gets
+ *             the local order date as fourth argument, e.g. to keep the old order-date behaviour).
  * The applied profile id, version and rate are frozen on the order line (tax_profile_id,
  * tax_rate_bp, line_snapshot.tax). Invoices, credit notes and refunds only use these snapshots, so
  * a later rate change never affects existing orders. Without an active matching version the ticket
@@ -205,6 +208,27 @@ final class TaxProfiles {
 	}
 
 	/**
+	 * Local calendar date (Y-m-d) of a UTC timestamp in the occurrence time zone (fallback: site time
+	 * zone), '' for an empty/zero timestamp.
+	 */
+	public static function local_date( $utc, $occurrence = null ) {
+		$utc = trim( (string) $utc );
+		if ( '' === $utc || 0 === strpos( $utc, '0000-00-00' ) ) { return ''; }
+		try {
+			$zone_name = is_object( $occurrence ) ? (string) ( $occurrence->timezone ?? '' ) : '';
+			$zone = '' !== $zone_name ? new \DateTimeZone( $zone_name ) : \PassCaptain\Frontend\Format::site_timezone();
+		} catch ( \Exception $e ) {
+			$zone = \PassCaptain\Frontend\Format::site_timezone();
+		}
+		try {
+			$time = new \DateTimeImmutable( $utc, new \DateTimeZone( 'UTC' ) );
+		} catch ( \Exception $e ) {
+			return '';
+		}
+		return $time->setTimezone( $zone )->format( 'Y-m-d' );
+	}
+
+	/**
 	 * Profile to apply to an order line, or null (ticket type rate is used).
 	 *
 	 * @param object $type       Ticket type row (tax_class).
@@ -217,7 +241,9 @@ final class TaxProfiles {
 		$event_country = self::event_country( (int) $occurrence->event_id );
 		$country = '' !== $event_country ? $event_country : self::seller_country();
 		$class = '' !== (string) ( $type->tax_class ?? '' ) ? (string) $type->tax_class : 'standard';
-		$date = (string) apply_filters( 'wpcap_tax_profile_date', substr( (string) $now, 0, 10 ), $type, $occurrence );
+		$order_date = self::local_date( (string) $now, $occurrence );
+		$service_date = self::local_date( (string) ( $occurrence->starts_at ?? '' ), $occurrence );
+		$date = (string) apply_filters( 'wpcap_tax_profile_date', '' !== $service_date ? $service_date : $order_date, $type, $occurrence, $order_date );
 		$profile = self::resolve( $country, $class, $date );
 		if ( ! $profile ) { return null; }
 		return array(
