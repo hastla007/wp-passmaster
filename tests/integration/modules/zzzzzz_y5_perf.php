@@ -314,3 +314,85 @@ $y5r_resumed = PassCaptain\Modules\Reminders::schedule_due();
 check( 'next run continues and clears the cursor', 1 === $y5r_resumed && false === get_option( PassCaptain\Modules\Reminders::CURSOR_OPTION, false ) );
 PassCaptain\Settings::update( array( 'reminders' => array( 'enabled' => 0, 'offsets' => array( 24 ) ) ) );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_occurrences o INNER JOIN {$p}wpcap_events e ON e.event_id=o.event_id SET o.status='cancelled' WHERE e.name=%s", 'Y5R' ) );
+
+echo "Y5 PERF-10 / QA-12 / QA-7: report without N+1, voucher refunds, page cache, period limit, streamed exports\n";
+$GLOBALS['wpcap_test_user_id'] = 1;
+$GLOBALS['wpcap_test_denied_caps'] = array();
+/** Paid order with $n tickets (direct inserts) and one completed refund per ticket; returns [order, type, refund ids]. */
+function y5_refunded_order( $n, $refund_minor = 1000, $voucher_snapshot = null ) {
+	global $wpdb;
+	$p = $wpdb->prefix;
+	$now = gmdate( 'Y-m-d H:i:s' );
+	$type = make_type( 0, 50, 1000 );
+	$wpdb->insert( "{$p}wpcap_orders", array( 'public_id' => substr( md5( uniqid( '', true ) ), 0, 32 ), 'idempotency_key' => 'y5rep-' . uniqid( '', true ), 'customer_email' => 'y5rep@example.com', 'price_snapshot' => '{}', 'status' => 'completed', 'payment_status' => 'paid', 'currency' => 'EUR', 'total_minor' => 1000 * $n, 'subtotal_minor' => 1000 * $n, 'voucher_snapshot' => $voucher_snapshot, 'created_at' => $now, 'updated_at' => $now ) );
+	$order = (int) $wpdb->insert_id;
+	$wpdb->insert( "{$p}wpcap_order_items", array( 'order_id' => $order, 'ticket_type_id' => $type, 'quantity' => $n, 'unit_price_minor' => 1000, 'line_total_minor' => 1000 * $n ) );
+	$refunds = array();
+	for ( $i = 0; $i < $n; $i++ ) {
+		$wpdb->insert( "{$p}wpcap_tickets", array( 'public_id' => substr( md5( uniqid( 't', true ) ), 0, 32 ), 'order_id' => $order, 'ticket_type_id' => $type, 'token_hash' => hash( 'sha256', uniqid( 'tok', true ) ), 'status' => 'revoked', 'refunded' => 1, 'issued_at' => $now ) );
+		$ticket = (int) $wpdb->insert_id;
+		$wpdb->insert( "{$p}wpcap_refunds", array( 'order_id' => $order, 'idempotency_key' => hash( 'sha256', uniqid( 'r', true ) ), 'currency' => 'EUR', 'amount_minor' => $refund_minor, 'tax_minor' => 0, 'ticket_ids' => wp_json_encode( array( $ticket ) ), 'status' => 'completed', 'created_at' => $now, 'updated_at' => $now ) );
+		$refunds[] = (int) $wpdb->insert_id;
+	}
+	return array( $order, $type, $refunds );
+}
+$y5p_today = gmdate( 'Y-m-d' );
+y5_refunded_order( 3 );
+$y5p_before = $wpdb->num_queries;
+PassCaptain\Reports\Data::build( array( 'from' => $y5p_today, 'to' => $y5p_today ), null );
+$y5p_q1 = $wpdb->num_queries - $y5p_before;
+y5_refunded_order( 30 );
+$y5p_before = $wpdb->num_queries;
+PassCaptain\Reports\Data::build( array( 'from' => $y5p_today, 'to' => $y5p_today ), null );
+$y5p_q2 = $wpdb->num_queries - $y5p_before;
+check( "report: 30 more refunds need no query per refund ($y5p_q1 -> $y5p_q2)", $y5p_q2 <= $y5p_q1 + 2 );
+// Multi-purpose voucher order: 20 EUR paid with the voucher, 10 EUR cash; the refund pays out 10 EUR cash
+// but the credit note (and the report) take back the full 30 EUR.
+list( $y5v_order, $y5v_type, $y5v_refunds ) = y5_refunded_order( 1, 1000 );
+$wpdb->update( "{$p}wpcap_orders", array( 'voucher_snapshot' => wp_json_encode( array( 'status' => 'committed', 'purpose' => 'multi', 'refund_plans' => array( (string) $y5v_refunds[0] => array( 'purpose' => 'multi', 'cash_minor' => 1000, 'voucher_minor' => 2000, 'tax_minor' => 0 ) ) ) ) ), array( 'order_id' => $y5v_order ) );
+$y5v_event = (int) $wpdb->get_var( "SELECT o.event_id FROM {$p}wpcap_ticket_types tt JOIN {$p}wpcap_occurrences o ON o.occurrence_id=tt.occurrence_id WHERE tt.ticket_type_id=$y5v_type" );
+$y5v_report = PassCaptain\Reports\Data::build( array( 'from' => $y5p_today, 'to' => $y5p_today, 'event_id' => $y5v_event ), null );
+check( 'refund of a multi-purpose voucher order counts cash + voucher (credit note amounts)', 3000 === (int) $y5v_report['total']['refunded'] && 1 === (int) $y5v_report['total']['refunded_tickets'] );
+// QA-12: period limit.
+$y5p_long = PassCaptain\Reports\Data::build( array( 'from' => '2020-01-01', 'to' => '2026-11-15' ), null );
+$y5p_short = PassCaptain\Reports\Data::build( array( 'from' => '2026-01-01', 'to' => '2026-11-15' ), null );
+check( 'report period is limited to 366 days (with flag for the notice)', ! empty( $y5p_long['range_clamped'] ) && '2025-11-15' === $y5p_long['from'] && '2026-11-15' === $y5p_long['to'] && empty( $y5p_short['range_clamped'] ) && '2026-01-01' === $y5p_short['from'] );
+// Admin page through Reports\Cache, invalidated with any event.
+PassCaptain\Reports\Cache::register();
+$GLOBALS['wpcap_test_transients'] = array();
+$y5p_filters = array( 'from' => $y5p_today, 'to' => $y5p_today, 'event_id' => 0, 'occurrence_id' => 0, 'compare' => '' );
+PassCaptain\Reports\Page::cached_report( $y5p_filters, null );
+$y5p_before = $wpdb->num_queries;
+$y5p_cached = PassCaptain\Reports\Page::cached_report( $y5p_filters, null );
+$y5p_q = $wpdb->num_queries - $y5p_before;
+check( "report page: second view from the cache ($y5p_q queries)", 0 === $y5p_q && is_array( $y5p_cached ) );
+PassCaptain\Reports\Cache::flush_event( $y5v_event );
+$y5p_before = $wpdb->num_queries;
+PassCaptain\Reports\Page::cached_report( $y5p_filters, null );
+check( 'report page cache is dropped when any event changes', $wpdb->num_queries - $y5p_before > 0 );
+$GLOBALS['wpcap_test_transients'] = array();
+// QA-7 / streaming: audit export without the 50,000 row cap, delivered from a stream.
+$wpdb->insert( "{$p}wpcap_audit_logs", array( 'user_id' => 1, 'action' => 'y5_bulk', 'object_type' => 'test', 'object_id' => 0, 'details' => '{}', 'created_at' => gmdate( 'Y-m-d H:i:s' ) ) );
+for ( $i = 0; $i < 16; $i++ ) {
+	$wpdb->query( "INSERT INTO {$p}wpcap_audit_logs (user_id,action,object_type,object_id,details,created_at) SELECT user_id,action,object_type,object_id,details,created_at FROM {$p}wpcap_audit_logs WHERE action='y5_bulk'" );
+}
+$y5a_total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$p}wpcap_audit_logs WHERE action='y5_bulk'" );
+$y5a_lines = 0;
+$y5a_header = '';
+$y5a_capture = static function ( $pre, $body ) use ( &$y5a_lines, &$y5a_header ) {
+	if ( ! is_resource( $body ) ) { return $pre; }
+	$y5a_header = (string) fgets( $body );
+	while ( false !== fgets( $body ) ) { ++$y5a_lines; }
+	return true;
+};
+add_filter( 'wpcap_pre_send_download', $y5a_capture, 5, 2 );
+$y5a_mem = memory_get_usage();
+$y5a_export = PassCaptain\Admin\AuditLogPage::export( PassCaptain\Admin\AuditLogPage::filters( array( 'audit_action' => 'y5_bulk' ) ), true );
+PassCaptain\Reports\Scope::send_csv( $y5a_export['rows'], $y5a_export['filename'] );
+$y5a_grow = memory_get_usage() - $y5a_mem;
+remove_filter( 'wpcap_pre_send_download', $y5a_capture, 5 );
+check( "audit export streams all $y5a_total rows (> 50,000, no cap) with a header and BOM", $y5a_total > 50000 && $y5a_total === $y5a_lines && 0 === strpos( $y5a_header, "\xEF\xBB\xBFaudit_id" ) );
+check( 'streaming keeps memory flat (< 8 MB growth for ~5 MB of CSV)', $y5a_grow < 8 * 1024 * 1024 );
+$wpdb->query( "DELETE FROM {$p}wpcap_audit_logs WHERE action='y5_bulk'" );
+$y5f_rows = iterator_to_array( PassCaptain\Fiscalization\ArchiveExporter::rows( '2000-01-01 00:00:00', '2100-01-01 00:00:00' ), false );
+check( 'fiscal archive export rows come from a paged generator (header first)', 'document_id' === ( $y5f_rows[0][0] ?? '' ) );

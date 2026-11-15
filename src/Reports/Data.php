@@ -24,6 +24,9 @@ final class Data {
 	const DIMENSIONS = array( 'event', 'occurrence', 'ticket_type', 'provider', 'day' );
 	const COMPARE = array( 'previous', 'last_year' );
 
+	/** QA-12: longest report period in days (longer ranges are shortened to the last 366 days, with a notice). */
+	const MAX_RANGE_DAYS = 366;
+
 	/**
 	 * Comparison range for a report range.
 	 *
@@ -100,6 +103,12 @@ final class Data {
 		$from = self::valid_date( $filters['from'] ?? '' ) ? $filters['from'] : gmdate( 'Y-m-01' );
 		$to = self::valid_date( $filters['to'] ?? '' ) ? $filters['to'] : gmdate( 'Y-m-d' );
 		if ( $to < $from ) { list( $from, $to ) = array( $to, $from ); }
+		// QA-12: at most MAX_RANGE_DAYS per report (the comparison period has the same length).
+		$clamped = false;
+		if ( ( strtotime( $to . ' 00:00:00 UTC' ) - strtotime( $from . ' 00:00:00 UTC' ) ) / DAY_IN_SECONDS >= self::MAX_RANGE_DAYS ) {
+			$from = gmdate( 'Y-m-d', strtotime( $to . ' 00:00:00 UTC' ) - ( self::MAX_RANGE_DAYS - 1 ) * DAY_IN_SECONDS );
+			$clamped = true;
+		}
 		$event_filter = absint( $filters['event_id'] ?? 0 );
 		if ( $event_filter ) {
 			$scope = self::in_scope( $event_filter, $scope ) ? array( $event_filter ) : array();
@@ -167,19 +176,42 @@ final class Data {
 		}
 
 		// Completed refunds (netted on their completion day).
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) );
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) );
 		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ) );
+		// Ticket types of all refunded tickets in one query per 500 tickets (not one query per refund).
+		$refund_ticket_ids = array();
+		foreach ( $refunds as $refund ) {
+			foreach ( (array) json_decode( (string) $refund->ticket_ids, true ) as $id ) { $refund_ticket_ids[ absint( $id ) ] = true; }
+		}
+		unset( $refund_ticket_ids[0] );
+		$ticket_types = array();
+		foreach ( array_chunk( array_keys( $refund_ticket_ids ), 500 ) as $chunk ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_id,ticket_type_id FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_tickets' ), $chunk ) ) ) as $t ) {
+				$ticket_types[ (int) $t->ticket_id ] = (int) $t->ticket_type_id;
+			}
+		}
 		$refund_scope = array(); // order id => in-scope refunded amount (campaign attribution).
 		foreach ( $refunds as $refund ) {
 			$lines = $refund_lines[ (int) $refund->order_id ] ?? array();
 			if ( ! $lines ) { continue; }
 			$by_type = array();
 			foreach ( $lines as $i => $line ) { $by_type[ (int) $line->ticket_type_id ] = $i; }
+			// Sales count the full consideration (a multi-purpose voucher is a means of payment), so a
+			// refund takes back its voucher part as well: the amounts of its credit note (as Settlements).
+			if ( ! empty( $refund->has_voucher ) ) {
+				$booked = \PassCaptain\Integrations\Vouchers\Checkout::credit_note_amounts( (int) $refund->refund_id );
+				if ( $booked ) {
+					$refund->amount_minor = (int) $booked['total_minor'];
+					$refund->tax_minor = (int) $booked['tax_minor'];
+				}
+			}
 			$ids = array_filter( array_map( 'absint', (array) json_decode( (string) $refund->ticket_ids, true ) ) );
 			$weights = array(); // line index => [tickets, weight]
 			if ( $ids ) {
-				foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id FROM %i WHERE ticket_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_tickets' ), $ids ) ) ) as $t ) {
-					$i = $by_type[ (int) $t->ticket_type_id ] ?? null;
+				foreach ( $ids as $ticket_id ) {
+					if ( ! isset( $ticket_types[ $ticket_id ] ) ) { continue; }
+					$i = $by_type[ $ticket_types[ $ticket_id ] ] ?? null;
 					if ( null === $i ) { continue; }
 					$unit = intdiv( (int) $lines[ $i ]->line_total_minor, max( 1, (int) $lines[ $i ]->quantity ) );
 					$weights[ $i ] = array( ( $weights[ $i ][0] ?? 0 ) + 1, ( $weights[ $i ][1] ?? 0 ) + $unit );
@@ -215,8 +247,9 @@ final class Data {
 		// Credit notes in the range (reference only).
 		$credit_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT c.credit_note_number,c.total_minor,c.tax_minor,i.order_id FROM %i c INNER JOIN %i i ON i.invoice_id=c.invoice_id WHERE c.issued_at >= %s AND c.issued_at < %s', $p . 'wpcap_credit_notes', $p . 'wpcap_invoices', $start, $end ) );
 		$credit = array( 'count' => 0, 'total' => 0, 'tax' => 0 );
+		$credit_events = self::events_by_order( array_map( static function ( $c ) { return (int) $c->order_id; }, $credit_rows ) );
 		foreach ( $credit_rows as $c ) {
-			$events = Scope::order_events( $c->order_id );
+			$events = $credit_events[ (int) $c->order_id ] ?? array();
 			if ( null !== $scope && array_diff( $events, (array) $scope ) ) { continue; }
 			$credit['count']++;
 			$credit['total'] += (int) $c->total_minor;
@@ -248,6 +281,7 @@ final class Data {
 		$report = array(
 			'from' => $from,
 			'to' => $to,
+			'range_clamped' => $clamped,
 			'campaigns' => $campaigns,
 			'comparison' => $comparison,
 			'timezone' => $tz,
@@ -268,6 +302,25 @@ final class Data {
 		 */
 		$filtered = apply_filters( 'wp_pass_captain_report_data_v1', $report, $filters, $scope );
 		return is_array( $filtered ) ? $filtered + $report : $report;
+	}
+
+	/**
+	 * Event ids per order (Scope::order_events() for many orders, one query per 500 orders).
+	 *
+	 * @param int[] $order_ids Order ids.
+	 * @return int[][] order id => event ids
+	 */
+	private static function events_by_order( array $order_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$out = array();
+		foreach ( array_chunk( array_values( array_unique( array_filter( array_map( 'absint', $order_ids ) ) ) ), 500 ) as $chunk ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT DISTINCT oi.order_id,o.event_id FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id IN (' . implode( ',', array_fill( 0, count( $chunk ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences' ), $chunk ) ) ) as $row ) {
+				$out[ (int) $row->order_id ][] = (int) $row->event_id;
+			}
+		}
+		return $out;
 	}
 
 	/**

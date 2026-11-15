@@ -11,6 +11,9 @@
  *  - occurrence cancelled or rescheduled, event / occurrence / ticket type saved or cancelled
  *    (Admin\EventsPage calls flush_event()).
  *
+ * The admin report page (all events of the user's scope) is cached under event id 0; any event
+ * invalidation drops it as well.
+ *
  * The cached keys of an event are kept in an index transient, so an invalidation only writes when a
  * cached report exists (check-ins on a busy entrance do not write an option per scan).
  */
@@ -63,10 +66,18 @@ final class Cache {
 		set_transient( $key, $data, self::CACHE_SECONDS );
 	}
 
-	/** Drops every cached report range of an event. */
+	/**
+	 * Drops every cached report range of an event. Cross-event reports (admin report page) are kept
+	 * under event id 0 and are dropped with every event.
+	 */
 	public static function flush_event( $event_id ) {
 		$event_id = absint( $event_id );
 		if ( ! $event_id ) { return 0; }
+		self::flush_index( 0 );
+		return self::flush_index( $event_id );
+	}
+
+	private static function flush_index( $event_id ) {
 		$index = get_transient( self::index_key( $event_id ) );
 		if ( ! is_array( $index ) || ! $index ) { return 0; }
 		foreach ( array_keys( $index ) as $key ) { delete_transient( $key ); }

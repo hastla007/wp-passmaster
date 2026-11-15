@@ -79,6 +79,49 @@ final class Scope {
 		return $csv;
 	}
 
+	/**
+	 * Streams CSV rows as a download (PERF-10/QA-7): the rows (array or generator) are written one by
+	 * one into a temporary stream that spills to disk above 2 MB, so large exports neither build a
+	 * PHP string nor need a row limit. Each row goes through csv() (same quoting and cell rules).
+	 *
+	 * @param iterable $rows     Rows (header first).
+	 * @param string   $filename Download file name.
+	 */
+	public static function send_csv( $rows, $filename ) {
+		$out = fopen( 'php://temp/maxmemory:2097152', 'w+' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
+		fwrite( $out, "\xEF\xBB\xBF" ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+		foreach ( $rows as $row ) {
+			fwrite( $out, substr( self::csv( array( $row ) ), 3 ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- csv() of one row without its BOM.
+		}
+		self::send_stream( $out, $filename, 'text/csv; charset=utf-8' );
+	}
+
+	/**
+	 * Sends a download from an open stream and ends the request. The wpcap_pre_send_download filter
+	 * receives the stream (rewound) instead of a string body.
+	 *
+	 * @param resource $handle   Readable stream.
+	 */
+	public static function send_stream( $handle, $filename, $type ) {
+		rewind( $handle );
+		if ( null !== apply_filters( 'wpcap_pre_send_download', null, $handle, $filename, $type ) ) {
+			fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+			return;
+		}
+		if ( function_exists( 'nocache_headers' ) ) { nocache_headers(); }
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: ' . $type );
+			header( 'Content-Disposition: attachment; filename="' . preg_replace( '/[^A-Za-z0-9._-]/', '-', $filename ) . '"' );
+			header( 'X-Content-Type-Options: nosniff' );
+			$stat = fstat( $handle );
+			if ( ! empty( $stat['size'] ) ) { header( 'Content-Length: ' . (int) $stat['size'] ); }
+		}
+		rewind( $handle );
+		fpassthru( $handle );
+		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+		exit;
+	}
+
 	/** Sends a download response (headers + body) and ends the request. */
 	public static function send_download( $body, $filename, $type ) {
 		// Filter wpcap_pre_send_download: a non-null return takes over delivery (e.g. storage, tests).
