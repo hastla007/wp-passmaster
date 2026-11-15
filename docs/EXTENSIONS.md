@@ -58,7 +58,10 @@ Grundsätze für Add-ons:
 ## Module: Admin-Navigation, Einstellungen, Tabellen
 
 Ein Add-on bringt seine Funktionen als **Modulklasse** mit und hängt sie über den Filter `wpcap_modules`
-an die Liste der Kernmodule (`src/Modules/*.php`). Jede Methode ist optional:
+an die Liste der Kernmodule (statische Liste `Modules::MANIFEST`, eine Klasse je Datei in `src/Modules/`;
+Kernmodule werden erst geladen, wenn eine ihrer Methoden gebraucht wird). Add-on-Module werden mit
+`method_exists()` geprüft. `admin_handlers()` wird nur in Admin-Anfragen (`is_admin()`, z. B.
+`admin-post.php`) abgefragt. Jede Methode ist optional:
 
 | Methode | Rückgabe | Wirkung |
 |---|---|---|

@@ -47,6 +47,15 @@ final class Menu {
 		add_action( 'admin_menu', array( self::class, 'add_menus' ) );
 		add_action( 'admin_enqueue_scripts', array( self::class, 'admin_styles' ) );
 		StatusPage::register();
+		// admin_post_* only fires in wp-admin/admin-post.php (an admin request): frontend, REST and cron
+		// requests skip building the handler map, which loads every admin screen class (PERF-14).
+		if ( ! function_exists( 'is_admin' ) || is_admin() ) {
+			self::register_handlers();
+		}
+	}
+
+	/** Registers the admin-post handlers of all screens and modules. */
+	public static function register_handlers() {
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
 		}
