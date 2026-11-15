@@ -268,20 +268,44 @@
 		};
 	}
 
-	root.querySelector('.wpcap-camera-start').addEventListener('click', async function (event) {
+	const cameraButton = root.querySelector('.wpcap-camera-start');
+	/**
+	 * Stops the camera: every track of the stream is ended (the browser's camera indicator goes off),
+	 * the video is detached and hidden and the start button is usable again. Runs when the page is
+	 * hidden or left (pagehide, visibilitychange) and after camera errors (audit FE-6).
+	 */
+	function stopCamera() {
+		const current = stream;
+		stream = null;
+		if (current && current.getTracks) current.getTracks().forEach(function (track) { try { track.stop(); } catch (ignore) {} });
+		if (video) {
+			try { if (video.pause) video.pause(); } catch (ignore) {}
+			video.srcObject = null;
+			video.hidden = true;
+		}
+		if (cameraButton) cameraButton.disabled = false;
+	}
+	window.addEventListener('pagehide', stopCamera);
+	document.addEventListener('visibilitychange', function () { if ('hidden' === document.visibilityState) stopCamera(); });
+
+	cameraButton.addEventListener('click', async function (event) {
 		const button = event.currentTarget;
 		if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
 			result.textContent = t.noCamera || 'Camera scanning is not supported.';
 			return;
 		}
 		try {
-			stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+			const own = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+			if (stream) stopCamera(); // a second start while one is running: keep only the newest stream
+			stream = own;
 			video.srcObject = stream;
 			video.setAttribute('playsinline', '');
 			video.muted = true;
 			video.hidden = false;
 			await video.play();
 			const detect = await makeDetector();
+			// Stopped meanwhile (page hidden or left): do not restart the scan loop.
+			if (stream !== own) return;
 			const hadFocus = document.activeElement === button;
 			button.disabled = true;
 			// A disabled button loses keyboard focus; keep the manual input as the next stop.
@@ -308,6 +332,8 @@
 			};
 			scan();
 		} catch (error) {
+			// A stream obtained before the failure (e.g. QR decoder could not load) must not keep the camera on.
+			stopCamera();
 			result.textContent = (t.cameraError || 'Camera error:') + ' ' + error.message;
 		}
 	});
