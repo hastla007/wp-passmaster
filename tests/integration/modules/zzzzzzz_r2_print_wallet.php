@@ -216,13 +216,17 @@ r2p_order( $r2_mt, 1, 'bytes-r2@example.com' );
 $r2_bytes_mail = r2p_ticket_mail( $r2_m0 );
 unset( $GLOBALS['wpcap_test_hooks']['wp_pass_captain_ticket_pdf_limits_v1'] );
 check( 'R2 #5: PDF larger than the byte limit → no attachment (size check in the mail path)', ! array_filter( array_keys( $r2_bytes_mail['files'] ), static fn( $n ) => str_ends_with( $n, '.pdf' ) ) && false !== strpos( $r2_bytes_mail['body'], 'nicht als PDF angehängt' ) );
-check( 'R2 #5: temporary PDF directories are removed', ! glob( sys_get_temp_dir() . '/wpcap-*/tickets-*.pdf' ) );
 
 // Attendee name, /Title, /Lang, wrapping in the mail PDF.
+$r2_attachments = array();
+add_filter( 'wpcap_ticket_mail', static function ( $mail ) use ( &$r2_attachments ) { $r2_attachments = array_merge( $r2_attachments, array_filter( (array) ( $mail['attachments'] ?? array() ), static fn( $f ) => str_ends_with( (string) $f, '.pdf' ) ) ); return $mail; }, 99 );
 $r2_m0 = count( $GLOBALS['wpcap_test_mails'] );
 $wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_events e INNER JOIN {$p}wpcap_occurrences o ON o.event_id=e.event_id INNER JOIN {$p}wpcap_ticket_types tt ON tt.occurrence_id=o.occurrence_id SET e.name=%s WHERE tt.ticket_type_id=%d", 'Ein außergewöhnlich langer Veranstaltungsname für das große Sommerfestival der Stadtwerke mit Gästen aus aller Welt', $r2_mt ) );
 r2p_order( $r2_mt, 1, 'name-r2@example.com', array( 'attendees' => array( array( 'ticket_type_id' => $r2_mt, 'name' => 'Zoë Ćirić' ) ) ) );
 $r2_mail = r2p_ticket_mail( $r2_m0 );
+$r2_att_ok = (bool) $r2_attachments;
+foreach ( $r2_attachments as $r2_att ) { $r2_att_ok = $r2_att_ok && ! file_exists( $r2_att ) && ! is_dir( dirname( $r2_att ) ); }
+check( 'R2 #5: temporary ticket PDF and its private directory are removed after sending', $r2_att_ok );
 $r2_pdf_files = array_values( array_filter( $r2_mail['files'], static fn( $n ) => str_ends_with( $n, '.pdf' ), ARRAY_FILTER_USE_KEY ) );
 $r2_mpdf = $r2_pdf_files[0] ?? '';
 $r2_mplain = wpcap_test_pdf_plain( $r2_mpdf );
