@@ -1,7 +1,8 @@
 <?php
 /**
  * Generates occurrences for a series: preview, idempotent creation (no duplicate start times per
- * event), ticket type copies from a template occurrence and optional seat-map link.
+ * event), ticket type copies (with participant fields, seller, admission settings, price rules and
+ * buyer limits; TicketTypeCopier) from a template occurrence and optional seat-map link.
  *
  * @package PassCaptain
  */
@@ -10,6 +11,7 @@ namespace PassCaptain\Series;
 
 use PassCaptain\Access;
 use PassCaptain\Audit;
+use PassCaptain\TicketTypeCopier;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -186,21 +188,15 @@ final class Generator {
 				$existing[ $item['starts_at'] ] = true;
 				$type_maps[ $occurrence_id ] = array();
 				foreach ( $types as $type ) {
-					$ok = $wpdb->insert( "{$p}wpcap_ticket_types", array(
-						'occurrence_id' => $occurrence_id,
-						'name' => $type->name,
-						'price_minor' => (int) $type->price_minor,
-						'currency' => $type->currency,
-						'tax_class' => $type->tax_class,
-						'capacity' => (int) $type->capacity,
-						'max_per_order' => (int) $type->max_per_order,
-						'tax_rate_bp' => (int) $type->tax_rate_bp,
+					// Whole row (new columns such as visibility/description come along), own sales window.
+					$type_maps[ $occurrence_id ][ (int) $type->ticket_type_id ] = TicketTypeCopier::copy_type( $type, $occurrence_id, array(
 						'sales_start' => self::sales_time( $item['starts_at'], $definition['sales_start_days_before'], 86400, $type->sales_start, $template, $definition['rule']['timezone'] ),
 						'sales_end' => self::sales_time( $item['starts_at'], $definition['sales_end_minutes_before'], 60, $type->sales_end, $template, $definition['rule']['timezone'] ),
-						'status' => $type->status,
 					) );
-					if ( ! $ok ) { throw new \RuntimeException( 'type_insert' ); }
-					$type_maps[ $occurrence_id ][ (int) $type->ticket_type_id ] = (int) $wpdb->insert_id;
+				}
+				// Participant fields, seller assignment, admission policy/areas, type/occurrence price rules and limits.
+				if ( $type_maps[ $occurrence_id ] ) {
+					TicketTypeCopier::copy_dependents( $type_maps[ $occurrence_id ], (int) $definition['template_occurrence_id'], $occurrence_id, (int) $definition['event_id'] );
 				}
 				$wpdb->insert( "{$p}wpcap_series_occurrences", array( 'series_id' => $series_id, 'occurrence_id' => $occurrence_id, 'starts_at' => $item['starts_at'], 'created_at' => $now ) );
 				$created[] = $occurrence_id;
