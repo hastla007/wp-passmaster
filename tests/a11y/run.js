@@ -80,7 +80,7 @@ const ORDER = ['critical', 'serious', 'moderate', 'minor'];
 		pages.push({ name: 'Admin: ' + l.text.replace(/[↗]/g, '').trim(), group: 'admin', url: l.href, include: '#wpbody-content', auth: true });
 	}
 	const selected = pages.filter((p) => p.url && (!args.only || p.group === args.only) && (!args.match || p.name.toLowerCase().includes(args.match.toLowerCase())));
-	const anon = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'de-DE' });
+	const anon = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: 'de-DE', bypassCSP: true }); // axe injection vs. strict CSP on token pages
 	const results = [];
 	let failed = false;
 	for (const def of selected) {
