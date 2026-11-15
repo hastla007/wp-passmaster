@@ -122,6 +122,12 @@ final class Devices {
 	public static function authenticate( \WP_REST_Request $request ) {
 		global $wpdb;
 		$header = (string) $request->get_header( 'authorization' );
+		if ( '' === $header ) {
+			// Apache with PHP as CGI/FastCGI passes the header only as REDIRECT_HTTP_AUTHORIZATION (mod_rewrite
+			// rule in .htaccess); WP_REST_Server does not map that variable.
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- compared against a strict pattern below.
+			$header = isset( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) ? (string) wp_unslash( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) : '';
+		}
 		if ( ! preg_match( '/^Bearer\s+' . self::TOKEN_PREFIX . '_([a-f0-9]{32})_([a-f0-9]{64})$/', trim( $header ), $m ) ) {
 			return new \WP_Error( 'wpcap_device_unauthenticated', __( 'Gerätetoken fehlt oder ist ungültig.', 'pass-captain' ), array( 'status' => 401 ) );
 		}

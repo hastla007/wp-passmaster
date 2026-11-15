@@ -45,24 +45,35 @@ final class Menu {
 
 	public static function register() {
 		add_action( 'admin_menu', array( self::class, 'add_menus' ) );
-		add_action( 'admin_head', array( self::class, 'admin_styles' ) );
+		add_action( 'admin_enqueue_scripts', array( self::class, 'admin_styles' ) );
 		StatusPage::register();
 		foreach ( self::handlers() as $action => $handler ) {
 			add_action( 'admin_post_' . $action, $handler );
 		}
 	}
 
+	/** Whether the current admin request shows one of the plugin's own pages (admin.php?page=wpcap…). */
+	public static function is_plugin_page() {
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects output.
+		return str_starts_with( $page, 'wpcap' ) || 'wp-pass-captain' === $page;
+	}
+
+	/** Inline CSS of admin_styles() (handle wpcap-admin). */
+	const ADMIN_CSS = '#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}'
+		. '#wpbody-content input[type=checkbox],#wpbody-content input[type=radio]{width:1.5rem;height:1.5rem;margin-top:0}'
+		. '#wpbody-content input[type=checkbox]:checked::before{width:1.8rem;height:1.8rem;margin:-.15rem -.3rem}'
+		. '#wpbody-content input[type=radio]:checked::before{width:.5625rem;height:.5625rem;margin:.40625rem}';
+
 	/**
 	 * Small accessibility fixes on plugin pages: readable code in links (contrast), delete links, and checkboxes/radios
-	 * with a 24×24 px target (WCAG 2.2 SC 2.5.8; core draws them 16 px wide on desktop).
+	 * with a 24×24 px target (WCAG 2.2 SC 2.5.8; core draws them 16 px wide on desktop). Added with
+	 * wp_add_inline_style() to a source-less handle (no raw <style> in admin_head).
 	 */
 	public static function admin_styles() {
-		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- only selects CSS.
-		if ( ! str_starts_with( $page, 'wpcap' ) && 'wp-pass-captain' !== $page ) { return; }
-		echo '<style>#wpbody-content a code{color:inherit;background:transparent}#wpbody-content .button-link-delete{color:#b32d2e}'
-			. '#wpbody-content input[type=checkbox],#wpbody-content input[type=radio]{width:1.5rem;height:1.5rem;margin-top:0}'
-			. '#wpbody-content input[type=checkbox]:checked::before{width:1.8rem;height:1.8rem;margin:-.15rem -.3rem}'
-			. '#wpbody-content input[type=radio]:checked::before{width:.5625rem;height:.5625rem;margin:.40625rem}</style>';
+		if ( ! self::is_plugin_page() ) { return; }
+		wp_register_style( 'wpcap-admin', false, array(), WPCAP_VERSION );
+		wp_enqueue_style( 'wpcap-admin' );
+		wp_add_inline_style( 'wpcap-admin', self::ADMIN_CSS );
 	}
 
 	/** First capability of the list the current user holds (fallback: the first one). */

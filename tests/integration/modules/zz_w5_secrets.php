@@ -105,7 +105,9 @@ check( 're-encrypted values decrypt with the dedicated key', $w5_secrets['mollie
 Vault::set_keys_for_tests( random_bytes( 32 ) );
 $lost = Settings::secret( 'mollie_api_key' );
 $broken = Vault::undecryptable_settings();
+$w5_get = $_GET; $_GET = array( 'page' => 'wpcap-settings' ); // The notice is shown on plugin pages only (WPORG-5).
 ob_start(); Vault::render_notices(); $notice = ob_get_clean();
+$_GET = $w5_get;
 ob_start(); echo \PassCaptain\Admin\SettingsPage::secret_input( 'stripe_secret_key' ); $lost_field = ob_get_clean();
 check( 'key loss: undecryptable secret is treated as empty', '' === $lost && 'undecryptable' === Settings::secret_status( 'mollie_api_key' )['state'] );
 check( 'key loss: admin notice asks to re-enter the affected secrets', in_array( 'mollie_api_key', $broken, true ) && false !== strpos( $notice, 'erneut eingeben' ) && false !== strpos( $notice, 'mollie_api_key' ) );

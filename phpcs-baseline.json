@@ -136,9 +136,6 @@
     "src/Privacy.php": {
         "Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed": 1
     },
-    "src/QrCode.php": {
-        "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode": 1
-    },
     "src/Sales/AdminSections.php": {
         "Universal.NamingConventions.NoReservedKeywordParameterNames.doFound": 1
     },
@@ -182,9 +179,6 @@
     },
     "src/Sms/Service.php": {
         "WordPress.DB.PreparedSQL.InterpolatedNotPrepared": 2
-    },
-    "src/TicketPdf.php": {
-        "Generic.CodeAnalysis.ForLoopWithTestFunctionCall.NotAllowed": 2
     },
     "src/WalletPasses/AppleProvider.php": {
         "WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_decode": 1,
