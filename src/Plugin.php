@@ -36,6 +36,7 @@ final class Plugin {
 		add_action( 'rest_api_init', array( Rest\Controller::class, 'register_routes' ) );
 		Rest\Credentials::register(); // X-WPCAP-Access-Token for buyer REST routes (CORS allow-list).
 		Admin\Menu::register();
+		Admin\OrganizerTools::register(); // Freikarten/Gästeliste, Duplizieren, CSV-Import (event/occurrence screens).
 		add_action( 'admin_post_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'admin_post_nopriv_wpcap_accept_waitlist', array( Waitlists::class, 'handle_accept_request' ) );
 		add_action( 'template_redirect', array( Waitlists::class, 'maybe_render_offer_page' ) );

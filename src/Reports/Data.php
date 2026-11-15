@@ -23,6 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 final class Data {
 	const DIMENSIONS = array( 'event', 'occurrence', 'ticket_type', 'provider', 'day' );
 	const COMPARE = array( 'previous', 'last_year' );
+	/** Channel filter: '' = all orders, 'sales' = without complimentary tickets, 'comp' = only those (Sales\Comps). */
+	const CHANNELS = array( 'sales', 'comp' );
 
 	/** QA-12: longest report period in days (longer ranges are shortened to the last 366 days, with a notice). */
 	const MAX_RANGE_DAYS = 366;
@@ -93,7 +95,8 @@ final class Data {
 	}
 
 	/**
-	 * @param array $filters from, to (Y-m-d, local), event_id (0 = all), occurrence_id (histogram).
+	 * @param array $filters from, to (Y-m-d, local), event_id (0 = all), occurrence_id (histogram),
+	 *                       channel ('' | 'sales' | 'comp', see CHANNELS; sales and refunds only).
 	 * @param int[]|null $scope Event scope (see scope()).
 	 */
 	public static function build( array $filters, $scope ) {
@@ -114,6 +117,8 @@ final class Data {
 			$scope = self::in_scope( $event_filter, $scope ) ? array( $event_filter ) : array();
 		}
 		list( $start, $end ) = self::bounds( $from, $to, $tz );
+		$channel = in_array( (string) ( $filters['channel'] ?? '' ), self::CHANNELS, true ) ? (string) $filters['channel'] : '';
+		$provider_sql = 'comp' === $channel ? " AND payment_provider='comp'" : ( 'sales' === $channel ? " AND payment_provider<>'comp'" : '' );
 
 		$dims = array();
 		foreach ( self::DIMENSIONS as $d ) { $dims[ $d ] = array(); }
@@ -151,7 +156,7 @@ final class Data {
 		};
 
 		// Sales.
-		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor,price_snapshot FROM %i WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s ORDER BY order_id", $p . 'wpcap_orders', $start, $end ) );
+		$orders = $wpdb->get_results( $wpdb->prepare( "SELECT order_id,created_at,payment_provider,currency,subtotal_minor,discount_minor,price_snapshot FROM %i WHERE payment_status IN ('paid','refunded') AND created_at >= %s AND created_at < %s" . $provider_sql . ' ORDER BY order_id', $p . 'wpcap_orders', $start, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $provider_sql is a fixed literal.
 		$order_map = array();
 		foreach ( $orders as $o ) { $order_map[ (int) $o->order_id ] = $o; }
 		$lines_by_order = self::lines_by_order( array_keys( $order_map ) );
@@ -176,7 +181,7 @@ final class Data {
 		}
 
 		// Completed refunds (netted on their completion day).
-		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s ORDER BY r.refund_id", $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) );
+		$refunds = $wpdb->get_results( $wpdb->prepare( "SELECT r.refund_id,r.order_id,r.amount_minor,r.tax_minor,r.ticket_ids,r.updated_at,ord.payment_provider,ord.discount_minor,(ord.voucher_snapshot IS NOT NULL AND ord.voucher_snapshot<>'') AS has_voucher FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='completed' AND r.updated_at >= %s AND r.updated_at < %s" . str_replace( 'payment_provider', 'ord.payment_provider', $provider_sql ) . ' ORDER BY r.refund_id', $p . 'wpcap_refunds', $p . 'wpcap_orders', $start, $end ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- fixed literal.
 		$refund_lines = self::lines_by_order( array_unique( array_map( static function ( $r ) { return (int) $r->order_id; }, $refunds ) ) );
 		// Ticket types of all refunded tickets in one query per 500 tickets (not one query per refund).
 		$refund_ticket_ids = array();
@@ -264,7 +269,7 @@ final class Data {
 		$compare = in_array( (string) ( $filters['compare'] ?? '' ), self::COMPARE, true ) ? (string) $filters['compare'] : '';
 		$range = $compare ? self::comparison_range( $from, $to, $compare ) : null;
 		if ( $range ) {
-			$base = self::build( array( 'from' => $range[0], 'to' => $range[1], 'event_id' => $event_filter, 'compare' => '' ), $scope );
+			$base = self::build( array( 'from' => $range[0], 'to' => $range[1], 'event_id' => $event_filter, 'compare' => '', 'channel' => $channel ), $scope );
 			$comparison = array(
 				'mode' => $compare,
 				'from' => $range[0],
@@ -282,6 +287,7 @@ final class Data {
 			'from' => $from,
 			'to' => $to,
 			'range_clamped' => $clamped,
+			'channel' => $channel,
 			'campaigns' => $campaigns,
 			'comparison' => $comparison,
 			'timezone' => $tz,

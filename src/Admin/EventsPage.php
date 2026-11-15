@@ -847,6 +847,14 @@ final class EventsPage {
 			<?php self::ticket_type_form( null, $occ ); ?>
 		<?php endif; ?>
 		<?php
+		/**
+		 * Further sections of the occurrence screen (e.g. complimentary tickets, duplicate:
+		 * Admin\OrganizerTools). Callbacks check their own capabilities.
+		 *
+		 * @param object $occ      Occurrence row.
+		 * @param bool   $editable False for cancelled events.
+		 */
+		do_action( 'wp_pass_captain_admin_occurrence_sections_v1', $occ, $editable );
 		SecurityScreens::render_occurrence_staff( $occ );
 	}
 

@@ -40,7 +40,7 @@ final class Menu {
 			'wpcap_save_settings' => array( SettingsPage::class, 'handle_save' ),
 			'wpcap_create_pairing' => array( DevicesPage::class, 'handle_create_pairing' ),
 			'wpcap_revoke_device' => array( DevicesPage::class, 'handle_revoke_device' ),
-		) + FeatureScreens::handlers() + StatusPage::handlers() + SecurityScreens::handlers() + \PassCaptain\Modules::admin_handlers();
+		) + OrganizerTools::handlers() + FeatureScreens::handlers() + StatusPage::handlers() + SecurityScreens::handlers() + \PassCaptain\Modules::admin_handlers();
 	}
 
 	public static function register() {

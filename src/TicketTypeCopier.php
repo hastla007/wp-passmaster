@@ -61,9 +61,11 @@ final class TicketTypeCopier {
 	 * @param int            $from_occurrence Source occurrence (occurrence-scoped rules).
 	 * @param int            $to_occurrence   Target occurrence.
 	 * @param int            $to_event        Target event (price rules/limits; same event for series).
+	 * @param bool           $same_event      False when copying into another event: admission areas
+	 *                                        belong to the source event and are not linked.
 	 * @return array<string,int> Copied rows per kind.
 	 */
-	public static function copy_dependents( array $map, $from_occurrence, $to_occurrence, $to_event = 0 ) {
+	public static function copy_dependents( array $map, $from_occurrence, $to_occurrence, $to_event = 0, $same_event = true ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$counts = array( 'fields' => 0, 'sellers' => 0, 'admission' => 0, 'areas' => 0, 'price_rules' => 0, 'buyer_limits' => 0 );
@@ -86,6 +88,7 @@ final class TicketTypeCopier {
 			'admission' => $p . 'wpcap_admission_policies',
 			'areas' => $p . 'wpcap_admission_type_areas',
 		);
+		if ( ! $same_event ) { unset( $simple['areas'] ); }
 		foreach ( $simple as $kind => $table ) {
 			if ( ! self::table_exists( $table ) ) { continue; }
 			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE ticket_type_id IN ($in)", array_merge( array( $table ), $ids ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders.

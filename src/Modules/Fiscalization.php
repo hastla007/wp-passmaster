@@ -365,6 +365,8 @@ final class Fiscalization {
 	/** Create immutable seller-specific fiscal documents in the order transaction. */
 	public static function snapshot_order( $order_id, $selected, $payload, $internal ) {
 		global $wpdb;
+		// Complimentary tickets / guest list (Sales\Comps): no sale, no consideration – no fiscal receipt.
+		if ( 'comp' === sanitize_key( $internal['source'] ?? '' ) && ! empty( $internal['comp'] ) ) { return; }
 		$p = $wpdb->prefix;
 		$groups = array();
 		$has_mapping = false;

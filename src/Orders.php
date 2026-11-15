@@ -25,6 +25,10 @@ final class Orders {
 	 *                        attendees_deferred (external only: tickets without any attendee entry may be
 	 *                        issued although their type has required fields; the buyer completes them in
 	 *                        the order portal – WooCommerce orders created in the admin or over REST).
+	 *                        comp (bool; staff only, see Sales\Comps): complimentary tickets / guest list –
+	 *                        price 0, payment provider "comp", no campaigns, terms, rate limit, checkout gate,
+	 *                        buyer limits, max-per-order or online sales window, attendee data may follow in
+	 *                        the portal; capacity (types, occurrence, modules) applies as for every order.
 	 */
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
@@ -47,10 +51,22 @@ final class Orders {
 		$key_hash = '' === $namespace ? hash( 'sha256', $key ) : hash_hmac( 'sha256', $key, 'wpcap-channel-' . $namespace );
 		// Trusted adapter options (e.g. WooCommerce): the external system owns price and payment.
 		$external = ! empty( $internal['external'] );
+		$comp = ! $external && ! empty( $internal['comp'] );
+		if ( $comp ) {
+			$internal['payment_provider'] = 'comp';
+			$internal['source'] = 'comp';
+			$internal['skip_rate_limit'] = true;
+			$internal['skip_buyer_limits'] = true;
+			$internal['allow_door_sales'] = true;
+			$payload['campaign_codes'] = array();
+			// Own keyed idempotency namespace: a public caller can never claim a guest-list key.
+			$namespace = 'comp';
+			$key_hash = hash_hmac( 'sha256', $key, 'wpcap-channel-comp' );
+		}
 		$hold_minutes = max( 1, absint( $internal['hold_minutes'] ?? Settings::get( 'hold_minutes' ) ?? self::HOLD_MINUTES ) );
 		$line_taxes = ( $external && is_array( $internal['line_taxes'] ?? null ) ) ? array_map( 'absint', $internal['line_taxes'] ) : array();
 		$payment_provider = sanitize_key( $internal['payment_provider'] ?? ( $external ? ( $internal['source'] ?? 'external' ) : 'manual' ) );
-		if ( ! $external && Settings::get( 'require_terms' ) && empty( $payload['accept_terms'] ) ) {
+		if ( ! $external && ! $comp && Settings::get( 'require_terms' ) && empty( $payload['accept_terms'] ) ) {
 			return new \WP_Error( 'wpcap_terms_required', __( 'Bitte bestätige die Bedingungen und Verbraucherinformationen.', 'pass-captain' ), array( 'status' => 400 ) );
 		}
 		$unit_prices = ( $external && is_array( $internal['unit_prices'] ?? null ) ) ? array_map( 'absint', $internal['unit_prices'] ) : array();
@@ -86,7 +102,7 @@ final class Orders {
 			$gate = Sales\CheckoutGate::check( array( 'source' => $internal['source'] ?? 'native', 'phase' => 'checkout', 'items' => $clean_lines, 'email' => $email, 'idempotency_key' => $key, 'request' => $internal['request'] ?? null ) );
 			if ( is_wp_error( $gate ) ) { return $gate; }
 		}
-		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array(), $external && ! empty( $internal['attendees_deferred'] ) );
+		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array(), $comp || ( $external && ! empty( $internal['attendees_deferred'] ) ), $comp );
 		if ( is_wp_error( $attendees ) ) { return $attendees; }
 		// Buyer billing data (company/address/VAT ID). Trusted adapters (e.g. WooCommerce) pass data that
 		// their own checkout already validated as $internal['billing']; customer input is validated here.
@@ -139,7 +155,7 @@ final class Orders {
 				if ( ! $type || 'active' !== $type->status ) {
 					throw new \RuntimeException( 'ticket_type_unavailable' );
 				}
-				if ( $quantity > (int) $type->max_per_order ) {
+				if ( ! $comp && $quantity > (int) $type->max_per_order ) {
 					throw new \RuntimeException( 'quantity_limit' );
 				}
 				$types[ $type_id ] = $type;
@@ -207,7 +223,9 @@ final class Orders {
 				// server-side `wpcap_ticket_unit_price` filter. Client input never reaches either.
 				$base_price = (int) $type->price_minor;
 				$price_rule = null;
-				if ( array_key_exists( $type_id, $unit_prices ) ) {
+				if ( $comp ) {
+					$unit_price = 0;
+				} elseif ( array_key_exists( $type_id, $unit_prices ) ) {
 					$unit_price = (int) $unit_prices[ $type_id ];
 				} else {
 					$unit_price = self::unit_price( $type, $occurrence, $quantity, array( 'now' => $now, 'source' => $capacity_context['source'], 'phase' => 'create' ) );
@@ -218,7 +236,7 @@ final class Orders {
 					$price_rule = Sales\PriceRules::applied( $type_id );
 				}
 				// Versioned tax profile (Sales\TaxProfiles) unless a trusted adapter passed the line tax.
-				$tax_profile = array_key_exists( $type_id, $line_taxes ) ? null : Sales\TaxProfiles::for_line( $type, $occurrence, $now );
+				$tax_profile = ( $comp || array_key_exists( $type_id, $line_taxes ) ) ? null : Sales\TaxProfiles::for_line( $type, $occurrence, $now );
 				$type->price_minor = $unit_price;
 				$line_total = array_key_exists( $type_id, $line_totals ) ? (int) $line_totals[ $type_id ] : $unit_price * $quantity;
 				$total += $line_total;
@@ -282,7 +300,7 @@ final class Orders {
 				'price_snapshot' => $price_snapshot,
 				'tax_minor' => $tax_total,
 				'payment_provider' => $payment_provider,
-				'terms_version' => $external ? '' : Settings::terms_version(),
+				'terms_version' => ( $external || $comp ) ? '' : Settings::terms_version(),
 				'locale' => Localization::order_locale( $payload['locale'] ?? '' ), // Buyer's explicit language choice (W9) or request locale.
 				'attendee_data' => $attendees ? wp_json_encode( $attendees ) : null,
 				'created_at' => $now,
@@ -627,9 +645,11 @@ final class Orders {
 	 *
 	 * @param bool $allow_missing Tickets without any attendee entry are accepted even with required fields
 	 *                            (trusted adapters only; entries that are given are still validated).
+	 * @param bool $skip_required Given entries may leave required fields empty (complimentary tickets: staff
+	 *                            only know the guest's name; the guest completes the rest in the portal).
 	 * @return array|\WP_Error Normalised list [{ticket_type_id, name, email, answers{field_id:value}}].
 	 */
-	public static function validate_attendees( array $lines, $attendees, $allow_missing = false ) {
+	public static function validate_attendees( array $lines, $attendees, $allow_missing = false, $skip_required = false ) {
 		global $wpdb;
 		$attendees = is_array( $attendees ) ? array_values( $attendees ) : array();
 		$out = array();
@@ -653,7 +673,7 @@ final class Orders {
 					elseif ( 'textarea' === $field->field_type ) { $value = sanitize_textarea_field( $value ); }
 					elseif ( 'checkbox' === $field->field_type || 'consent' === $field->field_type ) { $value = $value && '0' !== $value ? '1' : ''; }
 					else { $value = sanitize_text_field( $value ); }
-					if ( (int) $field->required && '' === $value ) {
+					if ( (int) $field->required && '' === $value && ! $skip_required ) {
 						/* translators: %s: field label */
 						return new \WP_Error( 'wpcap_attendee_field_required', sprintf( __( 'Bitte „%s“ für jedes Ticket ausfüllen.', 'pass-captain' ), $field->label ), array( 'status' => 400 ) );
 					}
