@@ -118,7 +118,7 @@ check( 'credit note of an agent invoice follows the organizer (own correction se
 check( 'credit note view keeps the organizer as seller', false !== strpos( Invoices::render_html( $sm_i1['invoice_id'] ), $sm_cn['credit_note_number'] ) && false !== strpos( Invoices::render_html( $sm_i1['invoice_id'] ), 'Theater Agentur GmbH' ) );
 $sm_rows = Invoices::export_rows( gmdate( 'Y-m-d', time() - 86400 ), gmdate( 'Y-m-d' ) );
 $sm_export = array_filter( $sm_rows, static fn( $r ) => ( $r[1] ?? '' ) === $GLOBALS['sm_i1']['invoice_number'] );
-check( 'accounting export marks agent documents with the organizer as seller', 'Rechnungssteller' === end( $sm_rows[0] ) && $sm_export && 'Vermittler' === array_values( $sm_export )[0][13] && 'Theater Agentur GmbH' === array_values( $sm_export )[0][14] );
+check( 'accounting export marks agent documents with the organizer as seller', 'Rechnungssteller' === $sm_rows[0][14] && $sm_export && 'Vermittler' === array_values( $sm_export )[0][13] && 'Theater Agentur GmbH' === array_values( $sm_export )[0][14] );
 
 $sm_b = SmPartners::save( array( 'name' => 'Zweite Agentur', 'billing_address' => 'Weg 3, Graz', 'tax_number' => '12 345/6789', 'sales_model' => 'agent' ) );
 $sm_tb2 = sm_type( 1000, 1000 );

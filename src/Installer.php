@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 final class Installer {
-	const DB_VERSION = '3.16.1';
+	const DB_VERSION = '3.17.4';
 
 	public static function install() {
 		global $wpdb;
@@ -721,6 +721,18 @@ final class Installer {
 				UNIQUE KEY refund_id (refund_id),
 				UNIQUE KEY credit_note_number (credit_note_number),
 				KEY invoice_id (invoice_id)
+			) ENGINE=InnoDB $charset;",
+			// Credit note split per VAT rate (3.17.4). Credit notes issued before have no lines and keep
+			// their single net/tax/total presentation (no recalculation of issued documents).
+			"CREATE TABLE {$wpdb->prefix}wpcap_credit_note_lines (
+				credit_note_line_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				credit_note_id bigint(20) unsigned NOT NULL,
+				tax_rate_bp int(10) unsigned NOT NULL DEFAULT 0,
+				net_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				tax_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				total_minor bigint(20) unsigned NOT NULL DEFAULT 0,
+				PRIMARY KEY  (credit_note_line_id),
+				KEY credit_note_id (credit_note_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE {$wpdb->prefix}wpcap_document_sequences (
 				series varchar(40) NOT NULL,
