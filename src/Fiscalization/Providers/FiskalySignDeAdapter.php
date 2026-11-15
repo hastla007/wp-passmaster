@@ -3,6 +3,7 @@
 namespace PassCaptain\Fiscalization\Providers;
 
 use PassCaptain\Fiscalization\AdapterInterface;
+use PassCaptain\Fiscalization\Credentials;
 use PassCaptain\Fiscalization\ProviderHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -26,8 +27,8 @@ final class FiskalySignDeAdapter implements AdapterInterface {
 		$result = $this->request( 'GET', $this->transaction_path( $document, $configuration, $tx ), null, $seller, $configuration );
 		if ( is_wp_error( $result ) && 404 === ProviderHttp::status( $result ) ) { return array( 'status' => 'not_found' ); }
 		if ( is_wp_error( $result ) ) { return $result; }
-		if ( 'FINISHED' === strtoupper( (string) ( $result['state'] ?? '' ) ) ) { return $this->normalize( $result, $tx ); }
-		if ( 'ACTIVE' === strtoupper( (string) ( $result['state'] ?? '' ) ) ) { return $this->finish( $document, $seller, $configuration, $tx, max( 2, (int) ( $result['latest_revision'] ?? 1 ) + 1 ) ); }
+		if ( 'FINISHED' === strtoupper( (string) ( $result['state'] ?? '' ) ) ) { return self::submitted( $this->normalize( $result, $tx ) ); }
+		if ( 'ACTIVE' === strtoupper( (string) ( $result['state'] ?? '' ) ) ) { return self::submitted( $this->finish( $document, $seller, $configuration, $tx, max( 2, (int) ( $result['latest_revision'] ?? 1 ) + 1 ) ) ); }
 		return new \WP_Error( 'fiskaly_de_status_unknown', __( 'Der fiskaly-TSE-Transaktionsstatus ist nicht eindeutig.', 'pass-captain' ) );
 	}
 
@@ -53,6 +54,7 @@ final class FiskalySignDeAdapter implements AdapterInterface {
 	}
 
 	private function receipt_schema( array $document, array $configuration ) {
+		$currency = strtoupper( sanitize_text_field( (string) ( $document['currency'] ?? 'EUR' ) ) );
 		$vat_map = (array) ( $configuration['vat_rate_map'] ?? array() );
 		$payment_map = (array) ( $configuration['payment_type_map'] ?? array() );
 		$taxes = array(); $payments = array(); $total = 0; $tax_total = 0;
@@ -69,14 +71,18 @@ final class FiskalySignDeAdapter implements AdapterInterface {
 		$payment = sanitize_key( $payment_map[$method] ?? '' );
 		if ( '' === $payment || ! $taxes || $total !== (int) ( $document['gross_minor'] ?? -1 ) ) { return new \WP_Error( 'fiskaly_de_payment_map_missing', __( 'Die fiskaly SIGN DE Zahlungsart fehlt oder die Belegsummen stimmen nicht.', 'pass-captain' ) ); }
 		$vat = array();
-		foreach ( $taxes as $type => $gross ) { $vat[] = array( 'vat_rate' => strtoupper( $type ), 'amount' => ProviderHttp::decimal( $gross ) ); }
+		foreach ( $taxes as $type => $gross ) { $vat[] = array( 'vat_rate' => strtoupper( $type ), 'amount' => ProviderHttp::decimal( $gross, $currency ) ); }
 		$payments[$payment] = $total;
-		$currency = strtoupper( sanitize_text_field( (string) ( $document['currency'] ?? 'EUR' ) ) );
 		return array(
 			'receipt_type' => 'RECEIPT',
 			'amounts_per_vat_rate' => $vat,
-			'amounts_per_payment_type' => array( array( 'payment_type' => strtoupper( $payment ), 'amount' => ProviderHttp::decimal( $total ), 'currency_code' => $currency ) ),
+			'amounts_per_payment_type' => array( array( 'payment_type' => strtoupper( $payment ), 'amount' => ProviderHttp::decimal( $total, $currency ), 'currency_code' => $currency ) ),
 		);
+	}
+
+	/** Marks a successful replay/lookup result as submitted (contract of query_status()). */
+	private static function submitted( $result ) {
+		return is_array( $result ) && ! isset( $result['status'] ) ? array( 'status' => 'submitted' ) + $result : $result;
 	}
 
 	private function normalize( array $data, $fallback ) {
@@ -106,16 +112,16 @@ final class FiskalySignDeAdapter implements AdapterInterface {
 		$credentials = (array) ( $configuration['credentials'] ?? array() );
 		if ( empty( $credentials['api_key'] ) || empty( $credentials['api_secret'] ) ) { return new \WP_Error( 'fiskaly_credentials_missing', __( 'fiskaly API-Key und API-Secret fehlen.', 'pass-captain' ) ); }
 		$key = 'wpcap_fiskaly_de_token_' . absint( $seller['seller_id'] ?? 0 ) . '_' . substr( hash( 'sha256', (string) $credentials['api_key'] . "\0" . (string) $credentials['api_secret'] ), 0, 16 );
-		$token = get_transient( $key );
+		$token = Credentials::cached_token( $key );
 		if ( ! is_string( $token ) || '' === $token ) {
 			$auth = ProviderHttp::request( self::BASE_URL . '/auth', 'POST', array(), array( 'api_key' => $credentials['api_key'], 'api_secret' => $credentials['api_secret'] ) );
 			if ( is_wp_error( $auth ) ) { return $auth; }
 			$token = (string) ( $auth['data']['access_token'] ?? '' );
 			if ( '' === $token ) { return new \WP_Error( 'fiskaly_auth_response_invalid', __( 'fiskaly hat kein Zugriffstoken zurückgegeben.', 'pass-captain' ) ); }
-			set_transient( $key, $token, 20 * HOUR_IN_SECONDS );
+			Credentials::cache_token( $key, $token, 20 * HOUR_IN_SECONDS );
 		}
 		$result = ProviderHttp::request( self::BASE_URL . $path, $method, array( 'Authorization' => 'Bearer ' . $token ), $body, 8 );
-		if ( is_wp_error( $result ) && 401 === ProviderHttp::status( $result ) ) { delete_transient( $key ); return new \WP_Error( 'fiskaly_auth_expired', __( 'fiskaly-Zugriffstoken abgelaufen.', 'pass-captain' ) ); }
+		if ( is_wp_error( $result ) && 401 === ProviderHttp::status( $result ) ) { Credentials::forget_token( $key ); return new \WP_Error( 'fiskaly_auth_expired', __( 'fiskaly-Zugriffstoken abgelaufen.', 'pass-captain' ) ); }
 		return is_wp_error( $result ) ? $result : $result['data'];
 	}
 }

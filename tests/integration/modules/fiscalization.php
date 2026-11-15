@@ -70,13 +70,19 @@ $vault_update = Credentials::save( 73, 'test_fiscal_adapter', array( 'api_key' =
 $updated_config = Credentials::with_credentials( array(), 73, 'test_fiscal_adapter' );
 check( 'credential vault supports safe rotation and per-field deletion', true === $vault_update && 'rotated-key' === $updated_config['credentials']['api_key'] && ! isset( $updated_config['credentials']['api_secret'] ) );
 $vault_before_tamper = get_option( Credentials::OPTION, array() );
+check( 'fiscal credentials are stored with the plugin vault (pcv1 ciphertext, no second crypto scheme)', PassCaptain\Security\Vault::is_encrypted( $vault_before_tamper[73]['test_fiscal_adapter']['value'] ?? '' ) && ! isset( $vault_before_tamper[73]['test_fiscal_adapter']['ciphertext'] ) );
 $tampered_vault = $vault_before_tamper;
-$ciphertext = base64_decode( $tampered_vault[73]['test_fiscal_adapter']['ciphertext'], true );
-$ciphertext[0] = chr( ord( $ciphertext[0] ) ^ 1 );
-$tampered_vault[73]['test_fiscal_adapter']['ciphertext'] = base64_encode( $ciphertext );
+$fz_raw = base64_decode( substr( $tampered_vault[73]['test_fiscal_adapter']['value'], 5 ), true );
+$fz_raw[30] = chr( ord( $fz_raw[30] ) ^ 1 );
+$tampered_vault[73]['test_fiscal_adapter']['value'] = 'pcv1:' . base64_encode( $fz_raw );
 update_option( Credentials::OPTION, $tampered_vault, false );
 $tampered_config = Credentials::with_credentials( array(), 73, 'test_fiscal_adapter' );
 check( 'credential vault fails closed when authenticated ciphertext is tampered with', empty( $tampered_config['credentials'] ) );
+$copied_vault = $vault_before_tamper;
+$copied_vault[74]['test_fiscal_adapter'] = $vault_before_tamper[73]['test_fiscal_adapter'];
+update_option( Credentials::OPTION, $copied_vault, false );
+$copied_config = Credentials::with_credentials( array(), 74, 'test_fiscal_adapter' );
+check( 'a credential entry copied to another seller does not decrypt (vault context per seller/provider)', empty( $copied_config['credentials'] ) );
 update_option( Credentials::OPTION, $vault_before_tamper, false );
 Credentials::delete( 73, 'test_fiscal_adapter' );
 

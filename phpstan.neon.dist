@@ -22,11 +22,6 @@ parameters:
 		- vendor/php-stubs/woocommerce-stubs/woocommerce-stubs.php
 	excludePaths:
 		- vendor
-		# Orphaned adapters: they implement PassCaptain\Fiscalization\AdapterInterface, which does not
-		# exist in src/ (non-ignorable error, cannot go into the baseline). Remove once the interface
-		# is added or the adapters are deleted.
-		- src/Fiscalization/Providers/EfstaEfrAdapter.php
-		- src/Fiscalization/Providers/FiskaltrustAdapter.php
 	treatPhpDocTypesAsCertain: false
 	reportUnmatchedIgnoredErrors: false
 	tmpDir: build/.phpstan-cache

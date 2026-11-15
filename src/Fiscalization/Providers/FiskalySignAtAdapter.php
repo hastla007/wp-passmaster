@@ -3,6 +3,7 @@
 namespace PassCaptain\Fiscalization\Providers;
 
 use PassCaptain\Fiscalization\AdapterInterface;
+use PassCaptain\Fiscalization\Credentials;
 use PassCaptain\Fiscalization\ProviderHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -29,7 +30,7 @@ final class FiskalySignAtAdapter implements AdapterInterface {
 		$result = $this->request( 'GET', '/cash-register/' . rawurlencode( $cash ) . '/receipt/' . rawurlencode( $id ), null, $seller, $configuration );
 		if ( is_wp_error( $result ) && 404 === ProviderHttp::status( $result ) ) { return array( 'status' => 'not_found' ); }
 		if ( is_wp_error( $result ) ) { return $result; }
-		return $this->normalize( $result, $id );
+		return array( 'status' => 'submitted' ) + $this->normalize( $result, $id );
 	}
 
 	public function submit( array $document, array $seller, array $configuration ) {
@@ -78,17 +79,17 @@ final class FiskalySignAtAdapter implements AdapterInterface {
 		$credentials = (array) ( $configuration['credentials'] ?? array() );
 		if ( empty( $credentials['api_key'] ) || empty( $credentials['api_secret'] ) ) { return new \WP_Error( 'fiskaly_credentials_missing', __( 'fiskaly API-Key und API-Secret fehlen.', 'pass-captain' ) ); }
 		$key = 'wpcap_fiskaly_at_token_' . absint( $seller['seller_id'] ?? 0 ) . '_' . substr( hash( 'sha256', (string) $credentials['api_key'] . "\0" . (string) $credentials['api_secret'] ), 0, 16 );
-		$token = get_transient( $key );
+		$token = Credentials::cached_token( $key );
 		if ( ! is_string( $token ) || '' === $token ) {
 			$auth = ProviderHttp::request( self::BASE_URL . '/auth', 'POST', array(), array( 'api_key' => $credentials['api_key'], 'api_secret' => $credentials['api_secret'] ) );
 			if ( is_wp_error( $auth ) ) { return $auth; }
 			$token = (string) ( $auth['data']['access_token'] ?? '' );
 			if ( '' === $token ) { return new \WP_Error( 'fiskaly_auth_response_invalid', __( 'fiskaly hat kein Zugriffstoken zurückgegeben.', 'pass-captain' ) ); }
-			set_transient( $key, $token, 20 * HOUR_IN_SECONDS );
+			Credentials::cache_token( $key, $token, 20 * HOUR_IN_SECONDS );
 		}
 		$result = ProviderHttp::request( self::BASE_URL . $path, $method, array( 'Authorization' => 'Bearer ' . $token ), $body, 8 );
 		if ( is_wp_error( $result ) && 401 === ProviderHttp::status( $result ) ) {
-			delete_transient( $key );
+			Credentials::forget_token( $key );
 			return new \WP_Error( 'fiskaly_auth_expired', __( 'fiskaly-Zugriffstoken abgelaufen; Vorgang wird sicher wiederholt.', 'pass-captain' ) );
 		}
 		return is_wp_error( $result ) ? $result : $result['data'];

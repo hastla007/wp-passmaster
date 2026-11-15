@@ -465,6 +465,15 @@ final class Service {
 		}
 		if ( ! self::order_ready( $order->order_id ) ) {
 			Audit::record( 'pos_sale_unbooked', 'order', (int) $order->order_id, array( 'sale_id' => (int) $sale->sale_id ) );
+			// Fiscal gating (default outage policy stop_sale): no receipt number and no tickets until the
+			// provider confirmed the fiscal document. The sale stays pending; "Nachbuchen" resumes it.
+			$fiscal = class_exists( \PassCaptain\Modules\Fiscalization::class ) ? \PassCaptain\Modules\Fiscalization::blocking_status( (int) $order->order_id ) : '';
+			if ( 'failed' === $fiscal ) {
+				return self::error( 'wpcap_pos_fiscal_failed', __( 'Der Fiskalbeleg konnte nicht erstellt werden. Es wurden keine Tickets ausgegeben und der Verkauf wurde nicht gebucht. Bitte unter Fiskalisierung prüfen und erneut versuchen, dann „Nachbuchen“.', 'pass-captain' ), 409 );
+			}
+			if ( 'pending' === $fiscal ) {
+				return self::error( 'wpcap_pos_fiscal_pending', __( 'Der Fiskalbeleg ist noch nicht vom Anbieter bestätigt. Tickets werden erst danach ausgegeben; der Verkauf bleibt offen. Bitte später „Nachbuchen“.', 'pass-captain' ), 409 );
+			}
 			return self::error( 'wpcap_pos_not_ready', __( 'Die Bestellung ist nicht bezahlt oder es wurden nicht alle Tickets ausgestellt. Der Verkauf wurde nicht gebucht; bitte die Bestellung prüfen.', 'pass-captain' ), 409 );
 		}
 		$order = Orders::get( $order->order_id );

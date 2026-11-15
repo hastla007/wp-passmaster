@@ -526,6 +526,14 @@ final class OrderAdapter {
 			}
 			return new \WP_Error( 'wpcap_mixed_sellers', SellerSplit::mixed_error( $types ) );
 		}
+		// Fiscal documents (Modules\Fiscalization): non-ticket lines need a legal seller, negative fees that
+		// cannot be represented on a receipt block the checkout; extras are attached to one seller order each.
+		$fiscal_extra = self::fiscal_additional_items( $wc_order, $allocation );
+		if ( is_wp_error( $fiscal_extra ) ) {
+			return $fiscal_extra;
+		}
+		$fiscal_extra   = self::assign_fiscal_extras( $fiscal_extra, $allocation );
+		$payment_method = is_callable( array( $wc_order, 'get_payment_method' ) ) ? sanitize_key( (string) $wc_order->get_payment_method() ) : '';
 		$attempt   = absint( $wc_order->get_meta( self::ATTEMPT_META, true ) ) + 1;
 		$attendees = Attendees::for_order( $wc_order );
 		$created   = array();
@@ -557,6 +565,8 @@ final class OrderAdapter {
 						return $line['gross'];
 					}, $lines ),
 					'billing'       => self::billing_from_order( $wc_order ),
+					'fiscal_extra_items'    => $fiscal_extra[ $key ] ?? array(),
+					'fiscal_payment_method' => '' !== $payment_method ? $payment_method : 'unknown',
 				)
 			);
 			if ( is_wp_error( $result ) ) {
@@ -686,30 +696,82 @@ final class OrderAdapter {
 		return (int) apply_filters( 'wpcap_woocommerce_hold_minutes', $minutes );
 	}
 
-	/** Collect mapped WooCommerce goods, fees and shipping for seller-specific fiscal documents. */
-	private static function fiscal_additional_items( \WC_Order $wc_order, array $ticket_lines ) {
+	/**
+	 * Legal seller (wpcap_ticket_sellers) per fiscally mapped ticket type of an allocation.
+	 *
+	 * @return array<int,int> ticket type ID => legal seller ID (unmapped types are missing).
+	 */
+	private static function fiscal_ticket_sellers( array $allocation ) {
 		global $wpdb;
-		$type_ids = array_values( array_map( 'absint', array_keys( $ticket_lines ) ) );
-		if ( ! $type_ids ) { return array(); }
+		$type_ids = array();
+		foreach ( (array) ( $allocation['sellers'] ?? array() ) as $seller ) {
+			$type_ids = array_merge( $type_ids, array_map( 'absint', array_keys( (array) $seller['lines'] ) ) );
+		}
+		$type_ids = array_values( array_filter( array_unique( $type_ids ) ) );
+		if ( ! $type_ids ) {
+			return array();
+		}
 		$ids = implode( ',', $type_ids );
-		$has_fiscal_tickets = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpcap_ticket_sellers WHERE ticket_type_id IN ({$ids})" ); // phpcs:ignore WordPress.DB
-		if ( ! $has_fiscal_tickets ) { return array(); }
-		$items = array();
+		$out = array();
+		foreach ( (array) $wpdb->get_results( "SELECT ticket_type_id,seller_id FROM {$wpdb->prefix}wpcap_ticket_sellers WHERE ticket_type_id IN ({$ids})" ) as $row ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- integer list.
+			$out[ (int) $row->ticket_type_id ] = (int) $row->seller_id;
+		}
+		return $out;
+	}
+
+	/**
+	 * Collects mapped WooCommerce goods, positive fees and shipping for seller-specific fiscal documents.
+	 *
+	 * Only applies when the order contains fiscally mapped tickets. Rules (docs/WOOCOMMERCE.md, "Fiskalbelege"):
+	 * every non-ticket line needs a legal seller (product/item meta or the filter
+	 * `wpcap_woocommerce_fiscal_item_seller`); negative fees keep the W10 allocation. Their ticket share
+	 * reduces the ticket lines (represented on the receipt as reduced line amounts); a share that would
+	 * fall on non-ticket products cannot be represented, so the checkout is refused while a fiscal receipt
+	 * is required for the tickets (active profile). Without required receipts nothing changes.
+	 *
+	 * @return array|\WP_Error List of extra lines (with seller_id) or an error that aborts the checkout.
+	 */
+	private static function fiscal_additional_items( \WC_Order $wc_order, array $allocation ) {
+		$mapped = self::fiscal_ticket_sellers( $allocation );
+		if ( ! $mapped ) {
+			return array();
+		}
+		$items       = array();
 		$unallocated = false;
 		foreach ( $wc_order->get_items( 'line_item' ) as $item_id => $item ) {
-			if ( self::item_ticket_type_id( $item ) ) { continue; }
+			if ( self::item_ticket_type_id( $item ) ) {
+				continue;
+			}
 			$assignment = self::fiscal_item_assignment( $item, 'product', $wc_order );
-			if ( is_wp_error( $assignment ) ) { $unallocated = true; continue; }
+			if ( is_wp_error( $assignment ) ) {
+				$unallocated = true;
+				continue;
+			}
 			$line = self::fiscal_item_snapshot( $item, $assignment, $item_id, $wc_order );
-			if ( is_wp_error( $line ) ) { return $line; }
+			if ( is_wp_error( $line ) ) {
+				return $line;
+			}
 			$items[] = $line;
 		}
+		$factor = 10 ** self::currency_decimals( $wc_order->get_currency() );
 		foreach ( array( 'fee' => $wc_order->get_items( 'fee' ), 'shipping' => $wc_order->get_items( 'shipping' ) ) as $kind => $order_items ) {
 			foreach ( $order_items as $item_id => $item ) {
+				if ( 'fee' === $kind && (int) round( ( (float) $item->get_total() + (float) $item->get_total_tax() ) * $factor ) < 0 ) {
+					$error = self::negative_fee_fiscal_error( $allocation, array_keys( $mapped ) );
+					if ( $error ) {
+						return $error;
+					}
+					continue; // Allocated to the ticket lines by SellerSplit (or no receipt required).
+				}
 				$assignment = self::fiscal_item_assignment( $item, $kind, $wc_order );
-				if ( is_wp_error( $assignment ) ) { $unallocated = true; continue; }
+				if ( is_wp_error( $assignment ) ) {
+					$unallocated = true;
+					continue;
+				}
 				$line = self::fiscal_item_snapshot( $item, $assignment, $item_id, $wc_order );
-				if ( is_wp_error( $line ) ) { return $line; }
+				if ( is_wp_error( $line ) ) {
+					return $line;
+				}
 				$items[] = $line;
 			}
 		}
@@ -717,6 +779,52 @@ final class OrderAdapter {
 			return self::mixed_fiscal_allocation_error( true, true, false, false );
 		}
 		return $items;
+	}
+
+	/**
+	 * Error for a negative fee that cannot be represented on the fiscal receipts of this order, or null.
+	 *
+	 * Representable: the whole discount is allocated to ticket lines (SellerSplit rule 2 gives the shop
+	 * bucket nothing, i.e. there are no non-ticket products), or no ticket of the order needs a receipt.
+	 */
+	public static function negative_fee_fiscal_error( array $allocation, array $type_ids ) {
+		if ( (int) ( $allocation['shop']['fee_discount'] ?? 0 ) <= 0 ) {
+			return null;
+		}
+		if ( ! class_exists( '\\PassCaptain\\Modules\\Fiscalization' ) || ! \PassCaptain\Modules\Fiscalization::requires_receipts( $type_ids, 'woocommerce' ) ) {
+			return null;
+		}
+		return new \WP_Error( 'wpcap_fiscal_negative_fee', __( 'Ein Rabatt als negative Gebühr kann in dieser Bestellung nicht auf dem Fiskalbeleg abgebildet werden, weil er auch auf andere Produkte als Tickets entfällt. Bitte einen Gutschein (Coupon) verwenden oder die Tickets getrennt bestellen.', 'pass-captain' ) );
+	}
+
+	/**
+	 * Attaches each fiscal extra line to one seller order of the allocation: the order whose tickets have
+	 * the same legal seller, else the first fiscally mapped order, else the first order.
+	 *
+	 * @return array<string,array> seller key => extra lines.
+	 */
+	private static function assign_fiscal_extras( array $extras, array $allocation ) {
+		if ( ! $extras ) {
+			return array();
+		}
+		$mapped    = self::fiscal_ticket_sellers( $allocation );
+		$keys      = array_keys( (array) $allocation['sellers'] );
+		$legal     = array();
+		$fallback  = '';
+		foreach ( $allocation['sellers'] as $key => $seller ) {
+			foreach ( array_keys( (array) $seller['lines'] ) as $type_id ) {
+				if ( isset( $mapped[ (int) $type_id ] ) ) {
+					$legal[ $mapped[ (int) $type_id ] ] = $legal[ $mapped[ (int) $type_id ] ] ?? (string) $key;
+					$fallback = '' !== $fallback ? $fallback : (string) $key;
+				}
+			}
+		}
+		$fallback = '' !== $fallback ? $fallback : (string) reset( $keys );
+		$out      = array();
+		foreach ( $extras as $extra ) {
+			$out[ $legal[ (int) $extra['seller_id'] ] ?? $fallback ][] = $extra;
+		}
+		return $out;
 	}
 
 	/** Pure guard shared with tests and integrations: every non-ticket line and surcharge needs an owner. */
@@ -915,6 +1023,12 @@ final class OrderAdapter {
 			return 0;
 		}
 		$count = count( Orders::tickets_for_order( $core_id ) );
+		$fiscal = ! $count && class_exists( '\\PassCaptain\\Modules\\Fiscalization' ) ? \PassCaptain\Modules\Fiscalization::blocking_status( $core_id ) : '';
+		if ( '' !== $fiscal ) {
+			/* translators: %s: seller order prefix (may be empty) */
+			$wc_order->add_order_note( sprintf( __( 'Pass Captain: %sZahlung übernommen, Tickets warten noch auf die Fiskalisierung. Fiskalstatus unter Pass Captain → Fiskalisierung prüfen oder den Fiskal-Retry auslösen.', 'pass-captain' ), $prefix ) );
+			return 0;
+		}
 		/* translators: 1: seller order prefix (may be empty), 2: ticket count */
 		$wc_order->add_order_note( sprintf( _n( 'Pass Captain: %1$s%2$d Ticket ausgestellt und per E-Mail versendet.', 'Pass Captain: %1$s%2$d Tickets ausgestellt und per E-Mail versendet.', $count, 'pass-captain' ), $prefix, $count ) );
 		if ( ! $had_tickets && $count ) {
@@ -979,7 +1093,11 @@ final class OrderAdapter {
 		$wc_order = wc_get_order( absint( $wc_order_id ) );
 		if ( $wc_order && self::can_record_refunds() ) {
 			try {
-				return self::record_refund( $wc_order, $refund, $core_ids );
+				$recorded = self::record_refund( $wc_order, $refund, $core_ids );
+				if ( $recorded ) {
+					self::record_fiscal_extra_refund( $wc_order, $refund, $core_ids );
+				}
+				return $recorded;
 			} catch ( \Throwable $error ) {
 				// An exception (core, add-on hook, WooCommerce) must not lose the refund: the job queue repeats it.
 				self::refund_failed( $wc_order, (int) $refund->get_id(), $error->getMessage(), true );
@@ -997,7 +1115,9 @@ final class OrderAdapter {
 		}
 		$refund->update_meta_data( self::REFUND_META, 1 );
 		$refund->save();
-		self::record_fiscal_extra_refund( $wc_order, $refund, $core_id );
+		if ( $wc_order ) {
+			self::record_fiscal_extra_refund( $wc_order, $refund, $core_ids );
+		}
 		self::note_refund( $wc_order, $revoked, $kept );
 		return true;
 	}
@@ -1391,32 +1511,45 @@ final class OrderAdapter {
 		return $owners;
 	}
 
-	/** Append fiscal correction details for refunded non-ticket WooCommerce lines. */
-	private static function record_fiscal_extra_refund( $wc_order, $refund, $core_id ) {
-		if ( $refund->get_meta( '_wpcap_fiscal_extra_refund_processed', true ) ) { return; }
+	/**
+	 * Appends fiscal correction tasks for refunded non-ticket WooCommerce lines (goods, fees, shipping)
+	 * to the seller documents of the Pass Captain order(s) (action `wpcap_woocommerce_non_ticket_refund`).
+	 * Ticket refunds are recorded by the core refund ledger (wpcap_refund_completed). Idempotent per refund.
+	 *
+	 * @param int[] $core_ids Pass Captain orders of the WooCommerce order (one per seller when split).
+	 */
+	private static function record_fiscal_extra_refund( $wc_order, $refund, array $core_ids ) {
+		if ( $refund->get_meta( '_wpcap_fiscal_extra_refund_processed', true ) ) {
+			return;
+		}
 		$factor = 10 ** self::currency_decimals( $wc_order->get_currency() );
-		$lines = array();
+		$lines  = array();
 		foreach ( $refund->get_items( array( 'line_item', 'fee', 'shipping' ) ) as $refund_item ) {
-			if ( self::refund_item_type_id( $refund_item ) ) { continue; }
+			if ( self::refund_item_type_id( $refund_item ) ) {
+				continue;
+			}
 			$original_id = absint( $refund_item->get_meta( '_refunded_item_id', true ) );
-			$original = $original_id && class_exists( 'WC_Order_Factory' ) ? \WC_Order_Factory::get_order_item( $original_id ) : null;
-			$line_key = $original ? self::fiscal_line_key( $original_id, $original ) : '';
-			$total = is_callable( array( $refund_item, 'get_total' ) ) ? abs( (float) $refund_item->get_total() ) : 0;
-			$tax = is_callable( array( $refund_item, 'get_total_tax' ) ) ? abs( (float) $refund_item->get_total_tax() ) : 0;
-			$quantity = is_callable( array( $refund_item, 'get_quantity' ) ) ? abs( (int) $refund_item->get_quantity() ) : 1;
-			$lines[] = array(
-				'line_key' => $line_key,
-				'quantity' => max( 1, $quantity ),
+			$original    = $original_id && class_exists( 'WC_Order_Factory' ) ? \WC_Order_Factory::get_order_item( $original_id ) : null;
+			$line_key    = $original ? self::fiscal_line_key( $original_id, $original ) : '';
+			$total       = is_callable( array( $refund_item, 'get_total' ) ) ? abs( (float) $refund_item->get_total() ) : 0;
+			$tax         = is_callable( array( $refund_item, 'get_total_tax' ) ) ? abs( (float) $refund_item->get_total_tax() ) : 0;
+			$quantity    = is_callable( array( $refund_item, 'get_quantity' ) ) ? abs( (int) $refund_item->get_quantity() ) : 1;
+			$lines[]     = array(
+				'line_key'     => $line_key,
+				'quantity'     => max( 1, $quantity ),
 				'amount_minor' => (int) round( ( $total + $tax ) * $factor ),
-				'tax_minor' => (int) round( $tax * $factor ),
+				'tax_minor'    => (int) round( $tax * $factor ),
 			);
 		}
 		if ( ! $lines && is_callable( array( $refund, 'get_amount' ) ) ) {
-			$refund_minor = (int) round( abs( (float) $refund->get_amount() ) * $factor );
-			$core_order = Orders::get( absint( $core_id ) );
-			$wc_total_minor = (int) round( abs( (float) $wc_order->get_total() ) * $factor );
-			$core_total_minor = $core_order ? absint( $core_order->total_minor ) : 0;
-			$ticket_share = $wc_total_minor > 0 ? min( 1, $core_total_minor / $wc_total_minor ) : 0;
+			$refund_minor     = (int) round( abs( (float) $refund->get_amount() ) * $factor );
+			$core_total_minor = 0;
+			foreach ( $core_ids as $core_id ) {
+				$core_order        = Orders::get( absint( $core_id ) );
+				$core_total_minor += $core_order ? absint( $core_order->total_minor ) : 0;
+			}
+			$wc_total_minor     = (int) round( abs( (float) $wc_order->get_total() ) * $factor );
+			$ticket_share       = $wc_total_minor > 0 ? min( 1, $core_total_minor / $wc_total_minor ) : 0;
 			$extra_refund_minor = max( 0, $refund_minor - (int) round( $refund_minor * $ticket_share ) );
 			if ( $extra_refund_minor > 0 ) {
 				// Amount-only WooCommerce refunds lack a source line; flag the seller split for manual allocation.
@@ -1426,12 +1559,13 @@ final class OrderAdapter {
 		$refund->update_meta_data( '_wpcap_fiscal_extra_refund_processed', 1 );
 		$refund->save();
 		if ( $lines ) {
-			do_action( 'wpcap_woocommerce_non_ticket_refund', absint( $core_id ), absint( $refund->get_id() ), sanitize_text_field( $wc_order->get_currency() ), $lines );
+			do_action( 'wpcap_woocommerce_non_ticket_refund', array_values( array_map( 'absint', $core_ids ) ), absint( $refund->get_id() ), sanitize_text_field( $wc_order->get_currency() ), $lines );
 		}
 	}
 
 	/** Stable key shared by the sale snapshot and its WooCommerce refund line. */
 	private static function fiscal_line_key( $item_id, $item ) {
+		$item_id = is_callable( array( $item, 'get_id' ) ) && $item->get_id() ? $item->get_id() : $item_id;
 		return sanitize_key( 'woo_' . sanitize_key( get_class( $item ) ) . '_' . absint( $item_id ) );
 	}
 

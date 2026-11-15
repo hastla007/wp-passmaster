@@ -1463,8 +1463,9 @@ final class Orders {
 	 *                        does not make this fail (the outbox retries it).
 	 */
 	public static function issue_and_email( $order_id ) {
-		// Fiscal modules submit every seller-specific receipt before tickets can be issued.
-		if ( ! apply_filters( 'wpcap_order_fiscal_ready', true, absint( $order_id ) ) ) { return; }
+		// Fiscal modules submit every seller-specific receipt before tickets can be issued. A blocked order is
+		// not an issuance failure: the fiscal module retries and calls this again once its receipts are confirmed.
+		if ( ! apply_filters( 'wpcap_order_fiscal_ready', true, absint( $order_id ) ) ) { return true; }
 		global $wpdb;
 		$order_id = absint( $order_id );
 		$orders = $wpdb->prefix . 'wpcap_orders';

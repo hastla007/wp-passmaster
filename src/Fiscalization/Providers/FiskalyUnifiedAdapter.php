@@ -3,6 +3,7 @@
 namespace PassCaptain\Fiscalization\Providers;
 
 use PassCaptain\Fiscalization\AdapterInterface;
+use PassCaptain\Fiscalization\Credentials;
 use PassCaptain\Fiscalization\ProviderHttp;
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
@@ -29,7 +30,7 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 		if ( ! $created || $created < time() - ( 20 * HOUR_IN_SECONDS ) ) {
 			return new \WP_Error( 'fiskaly_unified_reconciliation_required', __( 'Der fiskaly Unified-Vorgang ist älter als das sichere Wiederholungsfenster. Bitte im fiskaly Dashboard abgleichen, bevor erneut signiert wird.', 'pass-captain' ) );
 		}
-		return $this->submit( $document, $seller, $configuration );
+		return self::submitted( $this->submit( $document, $seller, $configuration ) );
 	}
 
 	public function submit( array $document, array $seller, array $configuration ) {
@@ -63,6 +64,7 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 	}
 
 	private function transaction_content( array $document, array $configuration, $intention_id ) {
+		$currency = (string) ( $document['currency'] ?? 'EUR' );
 		$vat_map = (array) ( $configuration['vat_rate_map'] ?? array() );
 		$payment_map = (array) ( $configuration['payment_type_map'] ?? array() );
 		$breakdown = array(); $items = array(); $sums = array(); $taxes = array(); $total = 0;
@@ -76,13 +78,13 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 			$key = $code . ':' . $rate;
 			$sums[$key] = ( $sums[$key] ?? 0 ) + $gross;
 			$taxes[$key] = ( $taxes[$key] ?? 0 ) + $tax;
-			$items[] = array( 'text' => sanitize_text_field( (string) ( $item['description'] ?? ( 'Ticket ' . (int) ( $item['ticket_type_id'] ?? 0 ) ) ) ), 'quantity' => (string) $qty, 'unit_amount' => ProviderHttp::decimal( (int) round( $gross / $qty ) ), 'full_amount' => ProviderHttp::decimal( $gross ) );
+			$items[] = array( 'text' => sanitize_text_field( (string) ( $item['description'] ?? ( 'Ticket ' . (int) ( $item['ticket_type_id'] ?? 0 ) ) ) ), 'quantity' => (string) $qty, 'unit_amount' => ProviderHttp::decimal( (int) round( $gross / $qty ), $currency ), 'full_amount' => ProviderHttp::decimal( $gross, $currency ) );
 			$total += $gross;
 		}
 		foreach ( $sums as $key => $gross ) {
 			list( $code, $rate ) = explode( ':', $key, 2 );
 			$tax = (int) $taxes[$key];
-			$breakdown[] = array( 'type' => 'VAT_RATE', 'code' => strtoupper( $code ), 'percentage' => number_format( (int) $rate / 100, 2, '.', '' ), 'exclusive' => ProviderHttp::decimal( $gross - $tax ), 'inclusive' => ProviderHttp::decimal( $gross ), 'amount' => ProviderHttp::decimal( $tax ) );
+			$breakdown[] = array( 'type' => 'VAT_RATE', 'code' => strtoupper( $code ), 'percentage' => number_format( (int) $rate / 100, 2, '.', '' ), 'exclusive' => ProviderHttp::decimal( $gross - $tax, $currency ), 'inclusive' => ProviderHttp::decimal( $gross, $currency ), 'amount' => ProviderHttp::decimal( $tax, $currency ) );
 		}
 		$method = sanitize_key( $document['payment_method'] ?? 'other' );
 		$payment = strtoupper( sanitize_key( $payment_map[$method] ?? '' ) );
@@ -92,9 +94,14 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 			'document' => array( 'number' => (string) ( $document['order_id'] ?? '' ) ),
 			'items' => $items,
 			'breakdown' => $breakdown,
-			'payments' => array( array( 'type' => $payment, 'details' => array( 'amount' => ProviderHttp::decimal( $total ) ) ) ),
+			'payments' => array( array( 'type' => $payment, 'details' => array( 'amount' => ProviderHttp::decimal( $total, $currency ) ) ) ),
 		);
 		return array( 'content' => array( 'type' => 'TRANSACTION', 'record' => array( 'id' => $intention_id ), 'operation' => $operation ) );
+	}
+
+	/** Marks a successful replay/lookup result as submitted (contract of query_status()). */
+	private static function submitted( $result ) {
+		return is_array( $result ) && ! isset( $result['status'] ) ? array( 'status' => 'submitted' ) + $result : $result;
 	}
 
 	private function request( $method, $path, $body, array $seller, array $configuration, $idempotency_key = '', $version = '' ) {
@@ -106,17 +113,17 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 		if ( '' !== $idempotency_key ) { $headers['X-Idempotency-Key'] = $idempotency_key; }
 		$credentials = (array) ( $configuration['credentials'] ?? array() );
 		if ( empty( $credentials['api_key'] ) || empty( $credentials['api_secret'] ) ) { return new \WP_Error( 'fiskaly_credentials_missing', __( 'fiskaly API-Key und API-Secret fehlen.', 'pass-captain' ) ); }
-		$cache_key = 'wpcap_fiskaly_uapi_token_' . absint( $seller['seller_id'] ?? 0 );
-		$token = get_transient( $cache_key );
+		$cache_key = 'wpcap_fiskaly_uapi_token_' . absint( $seller['seller_id'] ?? 0 ) . '_' . sanitize_key( $configuration['environment'] ?? 'test' ) . '_' . substr( hash( 'sha256', (string) $credentials['api_key'] . "\0" . (string) $credentials['api_secret'] ), 0, 16 );
+		$token = Credentials::cached_token( $cache_key );
 		if ( ! is_string( $token ) || '' === $token ) {
 			$auth = ProviderHttp::request( $base . '/tokens', 'POST', array( 'X-Api-Version' => $headers['X-Api-Version'] ), array( 'api_key' => $credentials['api_key'], 'api_secret' => $credentials['api_secret'] ) );
 			if ( is_wp_error( $auth ) ) { return $auth; }
 			$token = (string) ( $auth['data']['access_token'] ?? '' );
 			if ( '' === $token ) { return new \WP_Error( 'fiskaly_auth_response_invalid', __( 'fiskaly hat kein Zugriffstoken zurückgegeben.', 'pass-captain' ) ); }
-			set_transient( $cache_key, $token, 20 * HOUR_IN_SECONDS );
+			Credentials::cache_token( $cache_key, $token, 20 * HOUR_IN_SECONDS );
 		}
 		$result = ProviderHttp::request( $base . $path, strtoupper( $method ), array_merge( $headers, array( 'Authorization' => 'Bearer ' . $token ) ), $body, 8 );
-		if ( is_wp_error( $result ) && 401 === (int) ( (array) $result->get_error_data() )['status'] ) { delete_transient( $cache_key ); return new \WP_Error( 'fiskaly_auth_expired', __( 'fiskaly-Zugriffstoken abgelaufen.', 'pass-captain' ) ); }
+		if ( is_wp_error( $result ) && 401 === (int) ( (array) $result->get_error_data() )['status'] ) { Credentials::forget_token( $cache_key ); return new \WP_Error( 'fiskaly_auth_expired', __( 'fiskaly-Zugriffstoken abgelaufen.', 'pass-captain' ) ); }
 		return is_wp_error( $result ) ? $result : $result['data'];
 	}
 

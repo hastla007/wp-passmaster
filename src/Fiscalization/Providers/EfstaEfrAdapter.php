@@ -30,7 +30,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 	 * registers a duplicate. The operation is therefore safe to replay with the frozen ESR identity.
 	 */
 	public function query_status( array $document, array $seller, array $configuration ) {
-		return $this->register( $document, $seller, $configuration, '/restart' );
+		return self::submitted( $this->register( $document, $seller, $configuration, '/restart' ) );
 	}
 
 	public function submit( array $document, array $seller, array $configuration ) {
@@ -114,6 +114,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 	}
 
 	private function payload( array $document, array $seller, array $configuration ) {
+		$currency = (string) ( $document['currency'] ?? 'EUR' );
 		$groups = (array) ( $configuration['tax_groups'] ?? array() );
 		$payments = (array) ( $configuration['payment_groups'] ?? array() );
 		$items = array();
@@ -128,7 +129,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 			$gross = max( 0, (int) ( $item['gross_minor'] ?? 0 ) );
 			$tax = min( $gross, max( 0, (int) ( $item['tax_minor'] ?? 0 ) ) );
 			$qty = max( 1, (int) ( $item['quantity'] ?? 1 ) );
-			$items[] = array( '_' => 'Pos', 'PN' => (string) ( $index + 1 ), 'IN' => (string) (int) ( $item['ticket_type_id'] ?? $item['product_id'] ?? 0 ), 'Dsc' => sanitize_text_field( (string) ( $item['description'] ?? ( 'Ticket ' . (int) ( $item['ticket_type_id'] ?? 0 ) ) ) ), 'Qty' => (string) $qty, 'TaxG' => $group, 'Amt' => ProviderHttp::decimal( $gross ) );
+			$items[] = array( '_' => 'Pos', 'PN' => (string) ( $index + 1 ), 'IN' => (string) (int) ( $item['ticket_type_id'] ?? $item['product_id'] ?? 0 ), 'Dsc' => sanitize_text_field( (string) ( $item['description'] ?? ( 'Ticket ' . (int) ( $item['ticket_type_id'] ?? 0 ) ) ) ), 'Qty' => (string) $qty, 'TaxG' => $group, 'Amt' => ProviderHttp::decimal( $gross, $currency ) );
 			$taxes[$group] = ( $taxes[$group] ?? 0 ) + $gross;
 			$tax_rates[$group] = $rate;
 			$tax_total += $tax;
@@ -139,7 +140,7 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		foreach ( $taxes as $group => $gross ) {
 			$tax = 0;
 			foreach ( (array) $document['items'] as $item ) { if ( (string) ( $groups[(string) (int) $item['tax_rate_bp']] ?? $groups[(int) $item['tax_rate_bp']] ?? '' ) === (string) $group ) { $tax += max( 0, (int) $item['tax_minor'] ); } }
-			$tax_rows[] = array( '_' => 'Tax', 'TaxG' => $group, 'Prc' => number_format( $tax_rates[$group] / 100, 2, '.', '' ), 'Net' => ProviderHttp::decimal( $gross - $tax ), 'TAmt' => ProviderHttp::decimal( $tax ), 'Amt' => ProviderHttp::decimal( $gross ) );
+			$tax_rows[] = array( '_' => 'Tax', 'TaxG' => $group, 'Prc' => number_format( $tax_rates[$group] / 100, 2, '.', '' ), 'Net' => ProviderHttp::decimal( $gross - $tax, $currency ), 'TAmt' => ProviderHttp::decimal( $tax, $currency ), 'Amt' => ProviderHttp::decimal( $gross, $currency ) );
 		}
 		$payment_method = sanitize_key( $document['payment_method'] ?? 'other' );
 		$payment_group = sanitize_text_field( (string) ( $payments[$payment_method] ?? '' ) );
@@ -149,12 +150,17 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		$tax_id = sanitize_text_field( (string) ( $seller['tax_number'] ?? $seller['vat_id'] ?? '' ) );
 		$esr = array(
 			'D' => $now, 'TL' => $register, 'TT' => '1', 'TN' => substr( (string) ( $document['order_id'] ?? 0 ), 0, 32 ),
-			'T' => ProviderHttp::decimal( $gross_total ), 'PosA' => $items,
-			'PayA' => array( array( '_' => 'Pay', 'Dsc' => $payment_method, 'PayG' => $payment_group, 'Amt' => ProviderHttp::decimal( $gross_total ) ) ),
+			'T' => ProviderHttp::decimal( $gross_total, $currency ), 'PosA' => $items,
+			'PayA' => array( array( '_' => 'Pay', 'Dsc' => $payment_method, 'PayG' => $payment_group, 'Amt' => ProviderHttp::decimal( $gross_total, $currency ) ) ),
 			'TaxA' => $tax_rows,
 		);
 		if ( '' !== $tax_id ) { $esr['TaxId'] = $tax_id; }
 		return array( 'Tra' => array( 'ESR' => $esr ) );
+	}
+
+	/** Marks a successful replay/lookup result as submitted (contract of query_status()). */
+	private static function submitted( $result ) {
+		return is_array( $result ) && ! isset( $result['status'] ) ? array( 'status' => 'submitted' ) + $result : $result;
 	}
 
 	private function endpoint( array $configuration, $path ) {

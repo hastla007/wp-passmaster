@@ -31,6 +31,7 @@ $pm_registrars = array(
 	'src/WalletPasses/WebService.php' => array( \PassCaptain\WalletPasses\WebService::class, 'routes' ),
 	'src/Modules/Sms.php' => array( \PassCaptain\Modules\Sms::class, 'register_routes' ),
 	'src/Services/Api.php' => array( \PassCaptain\Services\Api::class, 'register_routes' ),
+	'src/Modules/Fiscalization.php' => array( \PassCaptain\Modules\Fiscalization::class, 'register_routes' ),
 );
 
 /*
@@ -97,6 +98,16 @@ $pm_routes = array(
 	'GET wp-pass-captain/v1/app/offline/occurrences' => 'device',
 	'GET wp-pass-captain/v1/app/offline/package' => 'device',
 	'GET wp-pass-captain/v1/app/offline/i18n' => 'public:static UI strings for the scanner app, no data',
+	// Fiscalization (PR #14): legal sellers, profiles, providers, documents – administrators only.
+	'GET wp-pass-captain/v1/fiscal/sellers' => 'cap:manage_options',
+	'POST wp-pass-captain/v1/fiscal/sellers' => 'cap:manage_options',
+	'POST wp-pass-captain/v1/fiscal/sellers/(?P<seller_id>\d+)/profiles' => 'cap:manage_options',
+	'POST wp-pass-captain/v1/fiscal/sellers/(?P<seller_id>\d+)/health-check' => 'cap:manage_options',
+	'PUT wp-pass-captain/v1/fiscal/sellers/(?P<seller_id>\d+)/provider' => 'cap:manage_options',
+	'POST wp-pass-captain/v1/fiscal/documents/(?P<document_id>\d+)/reconcile' => 'cap:manage_options',
+	'POST wp-pass-captain/v1/fiscal/events/(?P<event_id>\d+)/manual-resolution' => 'cap:manage_options',
+	'POST wp-pass-captain/v1/fiscal/orders/(?P<order_id>\d+)/retry' => 'cap:manage_options',
+	'PUT wp-pass-captain/v1/fiscal/ticket-types/(?P<ticket_type_id>\d+)/seller' => 'cap:manage_options',
 	// Service bookings and waitlists (W4).
 	'GET wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings' => 'token:order access token required',
 	'POST wp-pass-captain/v1/orders/(?P<public_id>[a-f0-9]{32})/service-bookings/(?P<booking_id>\d+)/cancel' => 'token:order access token required',
@@ -183,6 +194,11 @@ $pm_admin = array(
 	'wpcap_assign_occurrence_staff' => 'wpcap_manage_events', 'wpcap_remove_occurrence_staff' => 'wpcap_manage_events',
 	'wpcap_portal_language' => 'token:order access token (capability link of the buyer portal; admin_post_nopriv)',
 	'ajax:wpcap_mail_template_preview' => 'manage_options',
+	// Fiscalization (PR #14).
+	'wpcap_fiscal_save_seller' => 'manage_options', 'wpcap_fiscal_save_provider' => 'manage_options', 'wpcap_fiscal_save_credentials' => 'manage_options',
+	'wpcap_fiscal_save_profile' => 'manage_options', 'wpcap_fiscal_assign_seller' => 'manage_options', 'wpcap_fiscal_retry_order' => 'manage_options',
+	'wpcap_fiscal_health_check' => 'manage_options', 'wpcap_fiscal_reconcile' => 'manage_options', 'wpcap_fiscal_export' => 'manage_options',
+	'wpcap_fiscal_manual_resolution' => 'manage_options', 'wpcap_fiscal_submit_efsta_void' => 'manage_options',
 );
 
 // Actions that are not bound to an event: any holder of the capability may use them for their own data.

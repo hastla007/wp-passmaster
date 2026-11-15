@@ -242,13 +242,13 @@ check( 'SMS send to a (now) private target is blocked permanently without a requ
 
 // Fiscal services.
 http_reset();
-$fiscal_local = \PassCaptain\Fiscalization\Providers\HttpClient::request( 'http://127.0.0.1:5618/state', 'GET' );
+$fiscal_local = \PassCaptain\Fiscalization\ProviderHttp::request( 'http://127.0.0.1:5618/state', 'GET' );
 Settings::update( array( 'fiscal_allow_local_service' => 1 ) );
 http_push( array( 'ok' => true ), 200, '127.0.0.1' );
-$fiscal_allowed = \PassCaptain\Fiscalization\Providers\HttpClient::request( 'http://127.0.0.1:5618/state', 'GET' );
-$fiscal_remote_http = \PassCaptain\Fiscalization\Providers\HttpClient::request( 'http://public.example/state', 'GET' );
+$fiscal_allowed = \PassCaptain\Fiscalization\ProviderHttp::request( 'http://127.0.0.1:5618/state', 'GET' );
+$fiscal_remote_http = \PassCaptain\Fiscalization\ProviderHttp::request( 'http://public.example/state', 'GET' );
 http_push( array( 'access_token' => 't' ), 200, 'public.example' );
-\PassCaptain\Fiscalization\Providers\HttpClient::request( 'https://public.example/auth/token', 'POST', array( 'Content-Type' => 'application/x-www-form-urlencoded' ), 'grant_type=client_credentials' );
+\PassCaptain\Fiscalization\ProviderHttp::request( 'https://public.example/auth/token', 'POST', array( 'Content-Type' => 'application/x-www-form-urlencoded' ), 'grant_type=client_credentials' );
 $form = http_requests( 'public.example/auth' );
 Settings::update( array( 'fiscal_allow_local_service' => 0 ) );
 check( 'fiscal: local http service only after opt-in, never plain http to the internet', is_wp_error( $fiscal_local ) && ! is_wp_error( $fiscal_allowed ) && is_wp_error( $fiscal_remote_http ) );

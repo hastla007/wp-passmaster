@@ -24,7 +24,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 
 	/** fiskaltrust's x-operation-id makes the /sign call safely replayable. */
 	public function query_status( array $document, array $seller, array $configuration ) {
-		return $this->sign( $document, $seller, $configuration );
+		return self::submitted( $this->sign( $document, $seller, $configuration ) );
 	}
 
 	public function submit( array $document, array $seller, array $configuration ) {
@@ -54,6 +54,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 	}
 
 	private function payload( array $document, array $configuration ) {
+		$currency = (string) ( $document['currency'] ?? 'EUR' );
 		$receipt_case = $this->case_value( $configuration['receipt_case'] ?? null );
 		$charge_case = $this->case_value( $configuration['charge_item_case'] ?? null );
 		$payment_cases = (array) ( $configuration['payment_cases'] ?? array() );
@@ -66,7 +67,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 			$charges[] = array(
 				'Quantity' => $qty,
 				'Description' => sanitize_text_field( (string) ( $item['description'] ?? ( 'Ticket ' . (int) ( $item['ticket_type_id'] ?? 0 ) ) ) ),
-				'Amount' => (float) ProviderHttp::decimal( $gross ) / $qty,
+				'Amount' => (float) ProviderHttp::decimal( $gross, $currency ) / $qty,
 				'VATRate' => (float) number_format( (int) ( $item['tax_rate_bp'] ?? 0 ) / 100, 2, '.', '' ),
 				'ftChargeItemCase' => $charge_case,
 			);
@@ -83,14 +84,19 @@ final class FiskaltrustAdapter implements AdapterInterface {
 			'cbReceiptReference' => (string) ( $document['idempotency_key'] ?? '' ),
 			'cbReceiptMoment' => gmdate( 'Y-m-d\TH:i:s\Z', strtotime( $moment ) ?: time() ),
 			'cbTerminalID' => $register,
-			'cbReceiptAmount' => (float) ProviderHttp::decimal( $sum ),
+			'cbReceiptAmount' => (float) ProviderHttp::decimal( $sum, $currency ),
 			'cbChargeItems' => $charges,
-			'cbPayItems' => array( array( 'ftPayItemID' => ProviderHttp::uuid_from_key( 'pay|' . ( $document['idempotency_key'] ?? '' ) ), 'Description' => $method, 'Amount' => (float) ProviderHttp::decimal( $sum ), 'ftPayItemCase' => $pay_case ) ),
+			'cbPayItems' => array( array( 'ftPayItemID' => ProviderHttp::uuid_from_key( 'pay|' . ( $document['idempotency_key'] ?? '' ) ), 'Description' => $method, 'Amount' => (float) ProviderHttp::decimal( $sum, $currency ), 'ftPayItemCase' => $pay_case ) ),
 			'ftReceiptCase' => $receipt_case,
 			'ftPosSystemId' => sanitize_text_field( (string) ( $configuration['pos_system_id'] ?? '' ) ),
 		);
 		if ( '' === $payload['ftPosSystemId'] ) { return new \WP_Error( 'fiskaltrust_possystem_missing', __( 'Die fiskaltrust-POS-System-ID fehlt.', 'pass-captain' ) ); }
 		return $payload;
+	}
+
+	/** Marks a successful replay/lookup result as submitted (contract of query_status()). */
+	private static function submitted( $result ) {
+		return is_array( $result ) && ! isset( $result['status'] ) ? array( 'status' => 'submitted' ) + $result : $result;
 	}
 
 	private function case_value( $value ) {
