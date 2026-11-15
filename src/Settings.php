@@ -159,7 +159,7 @@ final class Settings {
 		}
 		$merged = array_merge( self::all(), $values );
 		$merged['delete_data_on_uninstall'] = 0; // Never in the old key (see UNINSTALL_POLICY).
-		update_option( self::OPTION, $merged, false );
+		update_option( self::OPTION, $merged, true ); // Autoloaded (PERF-11): read on every request; secrets inside are encrypted.
 		self::$all = null;
 		Security\Redact::reset();
 	}
@@ -178,11 +178,21 @@ final class Settings {
 		if ( is_array( $settings ) && ! empty( $settings['delete_data_on_uninstall'] ) ) {
 			update_option( self::UNINSTALL_POLICY, 'delete', false );
 			$settings['delete_data_on_uninstall'] = 0;
-			update_option( self::OPTION, $settings, false );
+			update_option( self::OPTION, $settings, true );
 			self::$all = null;
 		} elseif ( false === get_option( self::UNINSTALL_POLICY, false ) ) {
 			update_option( self::UNINSTALL_POLICY, 'keep', false );
 		}
+	}
+
+	/**
+	 * Marks the settings option as autoloaded on existing installs (it was stored with autoload=no,
+	 * which cost an extra query on every request). Idempotent; runs with the schema upgrade.
+	 */
+	public static function ensure_autoload() {
+		if ( false === get_option( self::OPTION, false ) ) { return false; }
+		if ( function_exists( 'wp_set_option_autoload' ) ) { return (bool) wp_set_option_autoload( self::OPTION, true ); }
+		return false;
 	}
 
 	/** Name of the constant/environment variable (WPCAP_<KEY>) that overrides a key, or ''. */

@@ -498,17 +498,35 @@ final class Orders {
 		return true;
 	}
 
+	/** Tickets per bulk revoke statement (IN list size). */
+	const REVOKE_CHUNK = 500;
+
 	/**
 	 * Revokes the given tickets if still valid and returns the IDs actually changed.
 	 * Callers fire wpcap_ticket_revoked via fire_revoked() after their transaction commits.
+	 *
+	 * One UPDATE per chunk of REVOKE_CHUNK tickets (not one per ticket): the still valid IDs are read,
+	 * then revoked with the same condition. If the row count differs (a concurrent request changed
+	 * some of them in between), the changed set is re-read so no ID is reported that stayed valid.
 	 */
 	public static function revoke_ids( array $ticket_ids ) {
 		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_tickets';
 		$changed = array();
-		foreach ( array_unique( array_map( 'absint', $ticket_ids ) ) as $id ) {
-			if ( $id && $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='revoked' WHERE ticket_id=%d AND status='valid'", $wpdb->prefix . 'wpcap_tickets', $id ) ) ) {
-				$changed[] = $id;
+		foreach ( array_chunk( array_values( array_filter( array_unique( array_map( 'absint', $ticket_ids ) ) ) ), self::REVOKE_CHUNK ) as $chunk ) {
+			$in = implode( ',', array_fill( 0, count( $chunk ), '%d' ) );
+			// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			$valid = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM %i WHERE ticket_id IN ($in) AND status='valid' ORDER BY ticket_id", array_merge( array( $table ), $chunk ) ) ) );
+			if ( ! $valid ) { continue; }
+			$in = implode( ',', array_fill( 0, count( $valid ), '%d' ) );
+			$result = $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='revoked' WHERE ticket_id IN ($in) AND status='valid'", array_merge( array( $table ), $valid ) ) );
+			if ( false === $result || ! $result ) { continue; }
+			if ( (int) $result !== count( $valid ) ) {
+				// Race: keep only IDs that are revoked now (a few may have been revoked by the other request).
+				$valid = array_map( 'absint', $wpdb->get_col( $wpdb->prepare( "SELECT ticket_id FROM %i WHERE ticket_id IN ($in) AND status='revoked' ORDER BY ticket_id", array_merge( array( $table ), $valid ) ) ) );
 			}
+			// phpcs:enable
+			$changed = array_merge( $changed, $valid );
 		}
 		return $changed;
 	}
@@ -815,11 +833,11 @@ final class Orders {
 	public static function unit_price( $type, $occurrence = null, $quantity = 1, array $context = array() ) {
 		global $wpdb;
 		if ( ! is_object( $type ) ) {
-			$type = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', absint( $type ) ) );
+			$type = DisplayBatch::type( $type ) ?? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d', $wpdb->prefix . 'wpcap_ticket_types', absint( $type ) ) );
 			if ( ! $type ) { return 0; }
 		}
 		if ( ! $occurrence && isset( $type->occurrence_id ) ) {
-			$occurrence = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $type->occurrence_id ) );
+			$occurrence = self::occurrence_row( $type->occurrence_id );
 		}
 		$context = array_merge( array( 'phase' => 'display', 'source' => 'native' ), $context );
 		$context['occurrence'] = $occurrence;
@@ -843,9 +861,8 @@ final class Orders {
 	 * via the `wpcap_ticket_price_label` filter; '' when the stored price applies.
 	 */
 	public static function price_label( $type, $occurrence = null, array $context = array() ) {
-		global $wpdb;
 		if ( ! $occurrence && isset( $type->occurrence_id ) ) {
-			$occurrence = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $type->occurrence_id ) );
+			$occurrence = self::occurrence_row( $type->occurrence_id );
 		}
 		$context = array_merge( array( 'phase' => 'display', 'source' => 'native', 'quantity' => 1, 'now' => current_time( 'mysql', true ) ), $context, array( 'occurrence' => $occurrence ) );
 		return (string) apply_filters( 'wpcap_ticket_price_label', '', $type, $context );
@@ -889,6 +906,23 @@ final class Orders {
 	public static function availability( $ticket_type_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
+		$batched = DisplayBatch::type( $ticket_type_id );
+		if ( $batched ) {
+			// Display batch (event page, GET /events): same values from grouped queries.
+			$occurrence = DisplayBatch::occurrence( $batched->occurrence_id );
+			if ( ! $occurrence ) { return 0; }
+			$usage = DisplayBatch::usage();
+			$limits = array();
+			if ( (int) $batched->capacity > 0 ) {
+				$id = (int) $batched->ticket_type_id;
+				$limits[] = (int) $batched->capacity - ( ( $usage['type_sold'][ $id ] ?? 0 ) + ( $usage['type_held'][ $id ] ?? 0 ) );
+			}
+			if ( (int) $occurrence->capacity > 0 ) {
+				$id = (int) $occurrence->occurrence_id;
+				$limits[] = (int) $occurrence->capacity - ( ( $usage['occ_sold'][ $id ] ?? 0 ) + ( $usage['occ_held'][ $id ] ?? 0 ) );
+			}
+			return self::filtered_availability( $limits ? max( 0, min( $limits ) ) : null, $batched, $occurrence );
+		}
 		$type = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d', $p . 'wpcap_ticket_types', absint( $ticket_type_id ) ) );
 		if ( ! $type ) { return 0; }
 		$occurrence = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', $p . 'wpcap_occurrences', $type->occurrence_id ) );
@@ -905,7 +939,11 @@ final class Orders {
 				+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.quantity),0) FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s", $p . 'wpcap_reservations', $p . 'wpcap_ticket_types', $occurrence->occurrence_id, $now ) );
 			$limits[] = (int) $occurrence->capacity - $used;
 		}
-		$remaining = $limits ? max( 0, min( $limits ) ) : null;
+		return self::filtered_availability( $limits ? max( 0, min( $limits ) ) : null, $type, $occurrence );
+	}
+
+	/** Applies `wpcap_ticket_availability` to the core remaining units (never more than core). */
+	private static function filtered_availability( $remaining, $type, $occurrence ) {
 		/**
 		 * Remaining units after module limits (e.g. series quota pools). Return null for unlimited
 		 * or a smaller non-negative int; never more than the core value.
@@ -914,6 +952,12 @@ final class Orders {
 		if ( null === $filtered || ! is_numeric( $filtered ) ) { return $remaining; }
 		$filtered = max( 0, (int) $filtered );
 		return null === $remaining ? $filtered : min( $remaining, $filtered );
+	}
+
+	/** Occurrence row (SELECT *), from the display batch when preloaded. */
+	private static function occurrence_row( $occurrence_id ) {
+		global $wpdb;
+		return DisplayBatch::occurrence( $occurrence_id ) ?? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d', $wpdb->prefix . 'wpcap_occurrences', $occurrence_id ) );
 	}
 
 	/**

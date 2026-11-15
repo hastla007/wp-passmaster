@@ -253,7 +253,9 @@ $full = PolicyText::content();
 check( 'policy: enabled services, third-country transfers and consent (lit. a) appear', false !== strpos( $full, 'Stripe' ) && false !== strpos( $full, 'PayPal' ) && false !== strpos( $full, 'Mollie' ) && false !== strpos( $full, 'Twilio' ) && false !== strpos( $full, 'Apple' ) && false !== strpos( $full, 'Google' ) && false !== strpos( $full, 'Affiliate' ) && false !== strpos( $full, 'Drittländer' ) && false !== strpos( $full, 'lit. a' ) && false !== strpos( $full, '45 Tage' ) );
 $wpdb->query( "UPDATE {$p}wpcap_partners SET status='active' WHERE status='p1p_inactive'" );
 $wpdb->query( "UPDATE {$p}wpcap_webhook_subscriptions SET status='active' WHERE status='p1p_inactive'" );
+$GLOBALS['pagenow'] = 'options-privacy.php'; // Y5/PERF-9: only registered on the privacy screens.
 PolicyText::add();
+unset( $GLOBALS['pagenow'] );
 check( 'policy: registered through wp_add_privacy_policy_content', ! isset( $GLOBALS['p1p_policy'] ) || isset( $GLOBALS['p1p_policy']['Pass Captain'] ) );
 Settings::update( array( 'enabled_providers' => array( 'manual' ), 'wallet_apple_enabled' => 0, 'wallet_google_enabled' => 0, 'sms' => array_merge( (array) Settings::get( 'sms' ), array( 'provider' => '' ) ), 'attendee_retention_days' => 0 ) );
 

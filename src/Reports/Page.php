@@ -55,11 +55,24 @@ final class Page {
 		return $svg . '</svg>';
 	}
 
+	/**
+	 * Report of the admin page through Reports\Cache (PERF-10): cached per filters and event scope for
+	 * Cache::CACHE_SECONDS under the cross-event index, which every event invalidation also drops.
+	 */
+	public static function cached_report( array $filters, $scope ) {
+		$key_from = wp_json_encode( array( $filters, $scope ) );
+		$cached = \PassCaptain\Reports\Cache::get( 0, $key_from, 'page' );
+		if ( is_array( $cached ) ) { return $cached; }
+		$report = Data::build( $filters, $scope );
+		\PassCaptain\Reports\Cache::set( 0, $key_from, 'page', $report );
+		return $report;
+	}
+
 	public static function render() {
 		$scope = Data::scope();
 		if ( false === $scope ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		$filters = self::filters( wp_unslash( $_GET ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filters.
-		$report = Data::build( $filters, $scope );
+		$report = self::cached_report( $filters, $scope );
 		if ( ! \PassCaptain\Security\DataPolicy::can_view_payment() ) {
 			self::render_without_payment( $report, $filters, $scope );
 			return;
@@ -95,6 +108,10 @@ final class Page {
 			echo ' <a class="button" href="' . esc_url( Exports::url( $type_id, $filters ) ) . '">' . esc_html( $type['label'] ) . '</a>';
 		}
 		echo '</p></form>';
+		if ( ! empty( $report['range_clamped'] ) ) {
+			/* translators: %d: maximum number of days */
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( sprintf( __( 'Der Zeitraum wurde auf die letzten %d Tage bis zum Enddatum gekürzt. Für längere Zeiträume bitte mehrere Berichte erstellen.', 'pass-captain' ), Data::MAX_RANGE_DAYS ) ) . '</p></div>';
+		}
 		echo '<p class="description">' . esc_html( sprintf( /* translators: %s: time zone name */ __( 'Verkäufe nach Bestelldatum, Erstattungen nach Abschlussdatum (Zeitzone %s). Beträge brutto inkl. USt.', 'pass-captain' ), $report['timezone'] ) ) . '</p>';
 
 		$t = $report['total'];

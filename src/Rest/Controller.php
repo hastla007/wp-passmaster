@@ -209,31 +209,46 @@ final class Controller {
 		) );
 		$output = array();
 		$locale = sanitize_text_field( $request->get_param( 'locale' ) ?: determine_locale() );
-		foreach ( $rows as $row ) {
-			$translation = $wpdb->get_row( $wpdb->prepare( 'SELECT name,description,location FROM %i WHERE event_id=%d AND locale=%s', $wpdb->prefix . 'wpcap_event_translations', $row->event_id, $locale ) );
-			$types = $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,sales_start,sales_end FROM %i WHERE occurrence_id=%d AND status='active' ORDER BY ticket_type_id ASC", $wpdb->prefix . 'wpcap_ticket_types', $row->occurrence_id ), ARRAY_A );
-			$output[] = array(
-				'event_id' => (int) $row->event_id,
-				'name' => $translation ? $translation->name : $row->name,
-				'slug' => $row->slug,
-				'description' => wp_strip_all_tags( $translation ? $translation->description : $row->description ),
-				'occurrence_id' => (int) $row->occurrence_id,
-				'starts_at' => $row->starts_at,
-				'ends_at' => $row->ends_at,
-				'timezone' => $row->timezone,
-				'location' => $translation && $translation->location ? $translation->location : $row->location,
-				'tickets' => array_map( static function ( $type ) { return array(
-					'ticket_type_id' => (int) $type['ticket_type_id'],
-					'name' => $type['name'],
-					// Effective (tier) price; regular_price_minor is the stored list price.
-					'price_minor' => \PassCaptain\Orders::unit_price( (object) $type ),
-					'regular_price_minor' => (int) $type['price_minor'],
-					'price_label' => \PassCaptain\Orders::price_label( (object) $type ),
-					'currency' => $type['currency'],
-					'max_per_order' => (int) $type['max_per_order'],
-				); }, $types ),
-			);
+		// Translations and ticket types of all rows in one query each; prices via a display batch
+		// (PERF-1: no queries per occurrence or ticket type).
+		$translations = \PassCaptain\PublicEvents::translations( array_values( array_unique( array_map( static function ( $row ) { return (int) $row->event_id; }, $rows ) ) ), $locale );
+		$occ_ids = array_values( array_unique( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, $rows ) ) );
+		$types_by_occ = array();
+		$type_ids = array();
+		if ( $occ_ids ) {
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,sales_start,sales_end FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND status='active' ORDER BY ticket_type_id ASC", array_merge( array( $wpdb->prefix . 'wpcap_ticket_types' ), $occ_ids ) ), ARRAY_A ) as $type ) {
+				$types_by_occ[ (int) $type['occurrence_id'] ][] = $type;
+				$type_ids[] = (int) $type['ticket_type_id'];
+			}
 		}
+		\PassCaptain\DisplayBatch::run( $type_ids, static function () use ( $rows, $translations, $types_by_occ, &$output ) {
+			foreach ( $rows as $row ) {
+				$translation = $translations[ (int) $row->event_id ] ?? null;
+				$occurrence = \PassCaptain\DisplayBatch::occurrence( $row->occurrence_id );
+				$output[] = array(
+					'event_id' => (int) $row->event_id,
+					'name' => $translation ? $translation->name : $row->name,
+					'slug' => $row->slug,
+					'description' => wp_strip_all_tags( $translation ? $translation->description : $row->description ),
+					'occurrence_id' => (int) $row->occurrence_id,
+					'starts_at' => $row->starts_at,
+					'ends_at' => $row->ends_at,
+					'timezone' => $row->timezone,
+					'location' => $translation && $translation->location ? $translation->location : $row->location,
+					'tickets' => array_map( static function ( $type ) use ( $occurrence ) { return array(
+						'ticket_type_id' => (int) $type['ticket_type_id'],
+						'name' => $type['name'],
+						// Effective (tier) price; regular_price_minor is the stored list price.
+						'price_minor' => \PassCaptain\Orders::unit_price( (object) $type, $occurrence ),
+						'regular_price_minor' => (int) $type['price_minor'],
+						'price_label' => \PassCaptain\Orders::price_label( (object) $type, $occurrence ),
+						'currency' => $type['currency'],
+						'max_per_order' => (int) $type['max_per_order'],
+					); }, $types_by_occ[ (int) $row->occurrence_id ] ?? array() ),
+				);
+			}
+		} );
 		return rest_ensure_response( $output );
 	}
 

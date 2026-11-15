@@ -166,7 +166,8 @@ final class Installer {
 				status varchar(20) NOT NULL DEFAULT 'active',
 				PRIMARY KEY  (reservation_id),
 				KEY order_id (order_id),
-				KEY inventory (ticket_type_id,status,expires_at)
+				KEY inventory (ticket_type_id,status,expires_at),
+				KEY status_expires (status,expires_at)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $tickets (
 				ticket_id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -206,7 +207,8 @@ final class Installer {
 				KEY event_id (event_id),
 				KEY occurrence_day_id (occurrence_day_id),
 				KEY user_id (user_id),
-				KEY event_result_created (event_id,result,created_at)
+				KEY event_result_created (event_id,result,created_at),
+				KEY created_checkin (created_at,checkin_id)
 			) ENGINE=InnoDB $charset;",
 			"CREATE TABLE $staff (
 				event_id bigint(20) unsigned NOT NULL,
@@ -781,6 +783,8 @@ final class Installer {
 		Security\Vault::migrate();
 		// Uninstall opt-in out of reach of the old copy's uninstall.php (INT-1, idempotent).
 		Settings::migrate_uninstall_policy();
+		// wpcap_settings is read on every request: autoload it (PERF-11, idempotent).
+		Settings::ensure_autoload();
 		update_option( 'wpcap_db_version', self::version() );
 		update_option( 'wpcap_version', WPCAP_VERSION );
 		update_option( 'wpcap_schema_fingerprint', self::fingerprint() );

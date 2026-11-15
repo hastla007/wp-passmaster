@@ -35,6 +35,10 @@ final class Test_WPDB {
 	public $last_error = '';
 	public $insert_id = 0;
 	public $rows_affected = 0;
+	/** Executed statements (as in WordPress' wpdb), used by query-budget tests. */
+	public $num_queries = 0;
+	/** When an array, every executed statement is appended (query-budget diagnostics). */
+	public $wpcap_log = null;
 	private mysqli $db;
 
 	public function __construct() {
@@ -60,6 +64,8 @@ final class Test_WPDB {
 	}
 	public function query( $sql ) {
 		$this->last_error = '';
+		++$this->num_queries;
+		if ( is_array( $this->wpcap_log ) ) { $this->wpcap_log[] = $sql; }
 		$res = $this->db->query( $sql );
 		if ( false === $res ) { $this->last_error = $this->db->error; return false; }
 		$this->insert_id = (int) $this->db->insert_id;
@@ -143,7 +149,7 @@ function get_option( $k, $d = false ) { return $GLOBALS['wpcap_test_options'][ $
 function update_option( $k, $v ) { $GLOBALS['wpcap_test_options'][ $k ] = $v; return true; }
 if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { unset( $GLOBALS['wpcap_test_options'][ $k ] ); return true; } }
 function get_transient( $k ) { return $GLOBALS['wpcap_test_transients'][ $k ] ?? false; }
-function set_transient( $k, $v, $e = 0 ) { $GLOBALS['wpcap_test_transients'][ $k ] = $v; return true; }
+function set_transient( $k, $v, $e = 0 ) { $GLOBALS['wpcap_test_transients'][ $k ] = $v; $GLOBALS['wpcap_test_transient_ttl'][ $k ] = (int) $e; return true; }
 function add_query_arg( $args, $url, $u = null ) { if ( ! is_array( $args ) ) { $args = array( $args => $url ); $url = $u; } return $url . '?' . http_build_query( $args ); }
 function home_url( $p = '' ) { return 'https://example.test' . $p; }
 function mysql2date( $f, $d ) { return gmdate( $f, strtotime( $d ) ); }

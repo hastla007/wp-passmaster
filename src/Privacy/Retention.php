@@ -12,7 +12,10 @@
  * Further: attendee_data of unpaid orders is cleared, buyer e-mails of never-paid orders are
  * pseudonymised after 90 days, sent/failed queue messages lose recipient and content after 30 days
  * (rows deleted after a year), check-ins lose staff user/device after 365 days and audit log
- * entries are deleted after 730 days. All periods are filterable; 0 disables a step.
+ * entries are deleted after 730 days. Housekeeping (PERF-6): finished holds (converted, expired,
+ * released) of orders that no longer wait for payment are deleted 30 days after they expired, and
+ * completed/cancelled background jobs 30 days after their last update. All periods are filterable;
+ * 0 disables a step.
  *
  * Work runs in batches of 500 rows within a time budget (~20 s); the next run continues. Only
  * counts are written to the audit log.
@@ -45,6 +48,8 @@ final class Retention {
 			'message_rows' => 365,
 			'checkin_staff' => 365,
 			'audit_logs' => 730,
+			'reservations' => 30,
+			'jobs' => 30,
 		);
 		return max( 0, (int) apply_filters( 'wpcap_privacy_retention_days', $defaults[ $step ] ?? 0, $step ) );
 	}
@@ -70,7 +75,7 @@ final class Retention {
 		$budget = null === $budget ? (float) apply_filters( 'wpcap_privacy_retention_budget', 20.0 ) : (float) $budget;
 		$deadline = microtime( true ) + max( 0.0, $budget );
 		$counts = array();
-		foreach ( array( 'answers', 'attendees', 'unpaid_attendee_data', 'unpaid_customer_email', 'messages', 'checkin_staff', 'audit_logs' ) as $step ) {
+		foreach ( array( 'answers', 'attendees', 'unpaid_attendee_data', 'unpaid_customer_email', 'messages', 'checkin_staff', 'audit_logs', 'reservations', 'jobs' ) as $step ) {
 			$counts[ $step ] = microtime( true ) < $deadline ? (int) call_user_func( array( __CLASS__, 'step_' . $step ), $now, $deadline ) : 0;
 		}
 		$counts['complete'] = microtime( true ) < $deadline;
@@ -269,6 +274,42 @@ final class Retention {
 			},
 			static function ( $ids ) use ( $wpdb, $p ) {
 				return (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE audit_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_audit_logs' ), $ids ) ) );
+			}
+		);
+	}
+
+	/** Finished holds of orders that no longer wait for payment (index status_expires). */
+	private static function step_reservations( $now, $deadline ) {
+		$days = self::days( 'reservations' );
+		if ( ! $days ) { return 0; }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
+		return self::loop(
+			$deadline,
+			static function () use ( $wpdb, $p, $cutoff ) {
+				return $wpdb->get_col( $wpdb->prepare( "SELECT r.reservation_id FROM %i r LEFT JOIN %i ord ON ord.order_id=r.order_id WHERE r.status IN ('converted','expired','released') AND r.expires_at<%s AND (ord.order_id IS NULL OR ord.payment_status<>'pending') LIMIT %d", $p . 'wpcap_reservations', $p . 'wpcap_orders', $cutoff, self::BATCH ) );
+			},
+			static function ( $ids ) use ( $wpdb, $p ) {
+				return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('converted','expired','released') AND reservation_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_reservations' ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+			}
+		);
+	}
+
+	/** Completed or cancelled background jobs (index due_jobs: status first). */
+	private static function step_jobs( $now, $deadline ) {
+		$days = self::days( 'jobs' );
+		if ( ! $days ) { return 0; }
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$cutoff = self::utc( $now - $days * DAY_IN_SECONDS );
+		return self::loop(
+			$deadline,
+			static function () use ( $wpdb, $p, $cutoff ) {
+				return $wpdb->get_col( $wpdb->prepare( "SELECT job_id FROM %i WHERE status IN ('complete','cancelled') AND run_after<%s AND updated_at<%s LIMIT %d", $p . 'wpcap_jobs', $cutoff, $cutoff, self::BATCH ) );
+			},
+			static function ( $ids ) use ( $wpdb, $p ) {
+				return (int) $wpdb->query( $wpdb->prepare( "DELETE FROM %i WHERE status IN ('complete','cancelled') AND job_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $p . 'wpcap_jobs' ), $ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
 			}
 		);
 	}

@@ -157,25 +157,88 @@ final class MollieGateway implements GatewayInterface {
 		return $allowed ? $allowed : '';
 	}
 
+	/** Timeout (seconds) of the methods lookup: it runs while the event page renders. */
+	const METHODS_TIMEOUT = 3;
+
+	/** Seconds a failed methods lookup is remembered (no API call per page view while Mollie is down). */
+	const METHODS_ERROR_TTL = 300;
+
 	/**
-	 * Methods Mollie offers for amount/currency (and billing country), cached for one hour.
+	 * Methods Mollie offers for amount/currency (and billing country).
+	 *
+	 * The method list is fetched once per currency and billing country (cached for one hour) and
+	 * filtered locally by each method's minimumAmount/maximumAmount, so the event page does not call
+	 * the API per ticket price. Mollie returns those limits in EUR when no amount is sent; for other
+	 * currencies the limits cannot be compared locally, so the list is requested for the amount
+	 * (Mollie filters it) and cached per amount. Failures are cached for 5 minutes and the lookup
+	 * times out after 3 seconds.
 	 *
 	 * @return array|\WP_Error id => description
 	 */
 	public static function available_methods( $value, $currency ) {
-		$query = array( 'amount' => array( 'value' => (string) $value, 'currency' => strtoupper( $currency ) ), 'sequenceType' => 'oneoff' );
+		$currency = strtoupper( (string) $currency );
+		$minor = self::parse_amount( (string) $value, $currency );
+		if ( 'EUR' === $currency && $minor >= 0 ) {
+			$catalog = self::method_catalog( array(), 'EUR' );
+			if ( is_wp_error( $catalog ) ) { return $catalog; }
+			$methods = array();
+			foreach ( $catalog as $id => $method ) {
+				if ( self::within_limits( $method, $minor, $currency ) ) { $methods[ $id ] = $method['description']; }
+			}
+			return $methods;
+		}
+		$catalog = self::method_catalog( array( 'amount' => array( 'value' => (string) $value, 'currency' => $currency ) ), $currency );
+		return is_wp_error( $catalog ) ? $catalog : array_map( static function ( $method ) { return $method['description']; }, $catalog );
+	}
+
+	/** True when the amount is inside the method's limits (limits in another currency count as unknown = allowed). */
+	private static function within_limits( array $method, $minor, $currency ) {
+		foreach ( array( 'min' => 1, 'max' => -1 ) as $key => $sign ) {
+			$limit = $method[ $key ] ?? null;
+			if ( ! $limit || strtoupper( (string) $limit['currency'] ) !== $currency ) { continue; }
+			$limit_minor = self::parse_amount( (string) $limit['value'], $currency );
+			if ( $limit_minor < 0 ) { continue; }
+			if ( ( $minor - $limit_minor ) * $sign < 0 ) { return false; }
+		}
+		return true;
+	}
+
+	/**
+	 * Cached GET /v2/methods (one-off payments, billing country) with the method limits.
+	 *
+	 * @param array  $query    Extra query parameters (e.g. amount).
+	 * @param string $currency Currency of the cache bucket.
+	 * @return array|\WP_Error id => {description, min, max}
+	 */
+	private static function method_catalog( array $query, $currency ) {
+		$query = array_merge( $query, array( 'sequenceType' => 'oneoff' ) );
 		$country = self::config()['billing_country'];
 		if ( '' !== $country ) { $query['billingCountry'] = $country; }
-		$cache_key = 'wpcap_mollie_methods_' . substr( hash( 'sha256', wp_json_encode( $query ) . '|' . substr( Settings::secret( 'mollie_api_key' ), 0, 5 ) ), 0, 20 );
+		$cache_key = 'wpcap_mollie_catalog_' . substr( hash( 'sha256', $currency . '|' . wp_json_encode( $query ) . '|' . substr( Settings::secret( 'mollie_api_key' ), 0, 5 ) ), 0, 20 );
 		$cached = get_transient( $cache_key );
-		if ( is_array( $cached ) ) { return $cached; }
-		$result = self::api( 'GET', 'methods?' . http_build_query( $query, '', '&' ) );
-		if ( is_wp_error( $result ) ) { return $result; }
+		if ( is_array( $cached ) && isset( $cached['error'] ) ) {
+			return new \WP_Error( 'wpcap_mollie_methods_unavailable', (string) $cached['error'] );
+		}
+		if ( is_array( $cached ) && isset( $cached['methods'] ) ) { return (array) $cached['methods']; }
+		$result = self::api( 'GET', 'methods?' . http_build_query( $query, '', '&' ), null, '', self::METHODS_TIMEOUT );
+		if ( is_wp_error( $result ) ) {
+			// Negative cache: while Mollie is unreachable the event page does not wait for it on every view.
+			set_transient( $cache_key, array( 'error' => $result->get_error_message() ), self::METHODS_ERROR_TTL );
+			return $result;
+		}
+		$limit = static function ( $amount ) {
+			return is_array( $amount ) && isset( $amount['value'], $amount['currency'] ) ? array( 'value' => (string) $amount['value'], 'currency' => (string) $amount['currency'] ) : null;
+		};
 		$methods = array();
 		foreach ( (array) ( $result['_embedded']['methods'] ?? array() ) as $method ) {
-			if ( ! empty( $method['id'] ) ) { $methods[ sanitize_key( $method['id'] ) ] = sanitize_text_field( (string) ( $method['description'] ?? $method['id'] ) ); }
+			if ( empty( $method['id'] ) ) { continue; }
+			$methods[ sanitize_key( $method['id'] ) ] = array(
+				'description' => sanitize_text_field( (string) ( $method['description'] ?? $method['id'] ) ),
+				'min' => $limit( $method['minimumAmount'] ?? null ),
+				'max' => $limit( $method['maximumAmount'] ?? null ),
+			);
 		}
-		set_transient( $cache_key, $methods, HOUR_IN_SECONDS );
+		set_transient( $cache_key, array( 'methods' => $methods ), HOUR_IN_SECONDS );
 		return $methods;
 	}
 
@@ -306,12 +369,12 @@ final class MollieGateway implements GatewayInterface {
 	}
 
 	/** API call; returns decoded body or WP_Error (data.status = HTTP code). */
-	private static function api( $method, $path, $body = null, $idempotency_key = '' ) {
+	private static function api( $method, $path, $body = null, $idempotency_key = '', $timeout = 15 ) {
 		$key = Settings::secret( 'mollie_api_key' );
 		if ( '' === $key ) {
 			return new \WP_Error( 'wpcap_mollie_config', __( 'Mollie ist nicht konfiguriert.', 'pass-captain' ) );
 		}
-		$args = array( 'method' => $method, 'timeout' => 15, 'headers' => array( 'Authorization' => 'Bearer ' . $key, 'Accept' => 'application/json' ) );
+		$args = array( 'method' => $method, 'timeout' => (int) $timeout, 'headers' => array( 'Authorization' => 'Bearer ' . $key, 'Accept' => 'application/json' ) );
 		if ( 'POST' === $method ) {
 			$args['headers']['Content-Type'] = 'application/json';
 			$args['body'] = wp_json_encode( $body );

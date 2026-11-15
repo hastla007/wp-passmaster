@@ -191,6 +191,11 @@ final class Plugin {
 	 */
 	const CRON_HOOKS = array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_process_fiscal_order', Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK );
 
+	/** Every WP-Cron hook the plugin schedules (removed on deactivation; PERF-17/INT-7). */
+	public static function cron_hooks() {
+		return self::CRON_HOOKS;
+	}
+
 	public static function deactivate( $network_wide = false ) {
 		$site_ids = is_multisite() && $network_wide ? get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) : array( get_current_blog_id() );
 		foreach ( $site_ids as $site_id ) {

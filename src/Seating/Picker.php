@@ -39,6 +39,16 @@ final class Picker {
 
 	public static function render( $event, $types = array() ) {
 		$occurrence_id = absint( is_object( $event ) ? ( $event->occurrence_id ?? 0 ) : 0 );
+		if ( $occurrence_id && \PassCaptain\DisplayBatch::occurrence( $occurrence_id ) ) {
+			// Event page (display batch): which occurrences have a seat map, in one query for all cards.
+			$linked = \PassCaptain\DisplayBatch::memo( 'seating_links', static function () {
+				global $wpdb;
+				$ids = array_keys( \PassCaptain\DisplayBatch::occurrences() );
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+				return array_flip( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( Layouts::table( 'links' ) ), $ids ) ) ) ) );
+			} );
+			if ( ! isset( $linked[ $occurrence_id ] ) ) { return; }
+		}
 		if ( ! $occurrence_id || ! Layouts::link( $occurrence_id ) || ! Layouts::type_zones( $occurrence_id ) ) { return; }
 		if ( function_exists( 'wp_enqueue_script' ) ) {
 			wp_enqueue_script( 'wpcap-seating-picker', WPCAP_URL . 'assets/seating/picker.js', array(), WPCAP_VERSION, true );

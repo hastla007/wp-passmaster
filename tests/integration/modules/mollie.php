@@ -52,7 +52,8 @@ $methods = MollieGateway::selectable_methods( 2500, 'EUR' );
 $mq = http_requests( '/v2/methods' )[0] ?? array( 'url' => '' );
 parse_str( (string) parse_url( $mq['url'], PHP_URL_QUERY ), $q );
 check( 'only enabled methods Mollie offers for amount/currency', array( 'ideal' => 'iDEAL', 'creditcard' => 'Kreditkarte' ) === $methods );
-check( 'methods queried with amount, currency and billing country', '25.00' === ( $q['amount']['value'] ?? '' ) && 'EUR' === ( $q['amount']['currency'] ?? '' ) && 'NL' === ( $q['billingCountry'] ?? '' ) );
+// Y5/PERF-2: EUR methods are fetched once per currency/country (limits filtered locally), not per amount.
+check( 'methods queried per currency and billing country (not per amount), with a short timeout', ! isset( $q['amount'] ) && 'NL' === ( $q['billingCountry'] ?? '' ) && 'oneoff' === ( $q['sequenceType'] ?? '' ) && ( $mq['timeout'] ?? 99 ) <= 3 );
 http_reset();
 MollieGateway::selectable_methods( 2500, 'EUR' );
 check( 'methods are cached', ! http_requests( '/v2/methods' ) );

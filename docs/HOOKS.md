@@ -83,7 +83,7 @@ Webhook-Ereignissen).
 | `wpcap_woocommerce_fiscal_item_seller` | `array $assignment, WC_Order_Item $item, string $kind, ?WC_Product $product, WC_Order $order` | Rechtsträger (`seller_id`, `seller_mode`) einer Nicht-Ticket-Position (`product`, `fee`, `shipping`) für Fiskalbelege. |
 | `wpcap_wallet_google_token_uris` | `string[] $uris` | Erlaubte OAuth-Token-Endpunkte für das Google-Wallet-Servicekonto. |
 | `wpcap_error_log` | `bool $send, string $line` | `false` unterdrückt die (bereits redigierte) Error-Log-Zeile. |
-| `wpcap_pre_send_download` | `null $pre, string $body, string $filename, string $type` | Nicht-`null` übernimmt die Auslieferung eines Admin-Downloads (CSV/PDF). |
+| `wpcap_pre_send_download` | `null $pre, string\|resource $body, string $filename, string $type` | Nicht-`null` übernimmt die Auslieferung eines Admin-Downloads (CSV/PDF). Gestreamte Exporte (Audit-Log, Fiskal-Archiv) übergeben statt des Strings einen zurückgespulten Stream. |
 | `wp_pass_captain_delayed_payment_hold_minutes_v1` | `int $minutes` (10080 = 7 Tage), `object $order`, `string $provider` | Wie lange die Reservierung einer Bestellung gehalten wird, sobald eine verzögerte Zahlart gestartet wurde (Stripe-Session abgeschlossen mit `payment_status=unpaid`, z. B. SEPA-Lastschrift; Mollie-Überweisung). Eine bereits abgelaufene Reservierung wird nicht wiederbelebt; die spätere Zahlung läuft dann über die Nachprüfung verspäteter Zahlungen (Kontingent, Käuferlimit, Rabattcode). |
 | `wpcap_max_line_quantity` | `int $cap` (100) | Absolute Obergrenze je Bestellzeile vor jeder Sperre (die eigentliche Grenze ist „Max. pro Bestellung“ der Ticketart). |
 | `wpcap_checkout_error_field` | `string $field, WP_Error $error` | Feld, dem eine Checkout-Fehlermeldung zugeordnet wird (barrierefreie Fehler am Feld; leer = allgemeine Meldung). |
@@ -193,7 +193,7 @@ Webhook-Ereignissen).
 
 | Filter | Wert, Argumente | Zweck |
 |---|---|---|
-| `wpcap_privacy_retention_days` | `int $days, string $step` | Fristen des täglichen Löschlaufs (`0` = Schritt aus): `unpaid_attendee_data` (1), `unpaid_customer_email` (90), `message_content` (30), `message_rows` (365), `checkin_staff` (365), `audit_logs` (730). |
+| `wpcap_privacy_retention_days` | `int $days, string $step` | Fristen des täglichen Löschlaufs (`0` = Schritt aus): `unpaid_attendee_data` (1), `unpaid_customer_email` (90), `message_content` (30), `message_rows` (365), `checkin_staff` (365), `audit_logs` (730), `reservations` (30, abgeschlossene Reservierungen), `jobs` (30, erledigte Hintergrundjobs). |
 | `wpcap_attendee_default_retention_days` | `int $days` (365) | Frist für Teilnehmername/-E-Mail nach Terminende, wenn die Einstellung „Teilnehmerdaten löschen nach“ 0 ist (Antworten folgen dann der Frist des Felds). |
 | `wpcap_privacy_retention_budget` | `float $seconds` (20) | Zeitbudget eines Löschlaufs; der nächste Lauf setzt fort. |
 | `wpcap_privacy_policy_recipients` | `array $recipients` | Welche Empfänger der Datenschutztext-Vorschlag nennt (`stripe`, `paypal`, `mollie`, `twilio`, `sms_http`, `apple`, `google`, `partners`, `webhooks`, `affiliate`, `woocommerce` → bool). |

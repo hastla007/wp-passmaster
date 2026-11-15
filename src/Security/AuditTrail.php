@@ -51,13 +51,13 @@ final class AuditTrail {
 	 * changed (the filter value is passed through).
 	 *
 	 * @param mixed  $pre      Filter value (null = default delivery).
-	 * @param string $body     Download body.
+	 * @param string|resource $body Download body (a stream for Scope::send_stream()).
 	 * @param string $filename File name.
 	 * @param string $type     Content type.
 	 */
 	public static function on_download( $pre, $body = '', $filename = '', $type = '' ) {
 		if ( get_current_user_id() ) {
-			Audit::record( 'export_downloaded', 'download', 0, array( 'file' => preg_replace( '/[^A-Za-z0-9._-]/', '-', (string) $filename ), 'type' => sanitize_text_field( (string) $type ), 'bytes' => strlen( (string) $body ) ) );
+			Audit::record( 'export_downloaded', 'download', 0, array( 'file' => preg_replace( '/[^A-Za-z0-9._-]/', '-', (string) $filename ), 'type' => sanitize_text_field( (string) $type ), 'bytes' => is_resource( $body ) ? (int) ( fstat( $body )['size'] ?? 0 ) : strlen( (string) $body ) ) );
 		}
 		return $pre;
 	}

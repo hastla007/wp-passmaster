@@ -19,7 +19,8 @@ final class AuditLogPage {
 	const SLUG = 'wpcap-audit-log';
 	const CAP = 'wpcap_view_audit';
 	const EXPORT_ACTION = 'wpcap_audit_export';
-	const EXPORT_LIMIT = 50000;
+	/** Rows per database page while streaming the export (no overall limit). */
+	const EXPORT_PAGE = 1000;
 
 	/** Capability for the menu entry. */
 	public static function menu_cap() {
@@ -96,36 +97,57 @@ final class AuditLogPage {
 		return array_map( 'strval', (array) $wpdb->get_col( "SELECT DISTINCT $column FROM {$wpdb->prefix}wpcap_audit_logs ORDER BY $column LIMIT 300" ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- whitelisted column.
 	}
 
-	/** CSV rows (header first) for the filters. */
+	/** CSV rows (header first) for the filters, as an array (small exports, tests). */
 	public static function csv_rows( array $filters ) {
-		$data = self::query( $filters, 1, self::EXPORT_LIMIT );
-		$rows = array( array( 'audit_id', 'created_at_utc', 'user_id', 'action', 'object_type', 'object_id', 'details' ) );
-		foreach ( $data['rows'] as $row ) {
-			$rows[] = array( (int) $row->audit_id, (string) $row->created_at, (int) $row->user_id, (string) $row->action, (string) $row->object_type, (int) $row->object_id, (string) $row->details );
-		}
-		return $rows;
+		return iterator_to_array( self::csv_row_stream( $filters ), false );
+	}
+
+	/**
+	 * CSV rows (header first) for the filters, newest first, read in pages of EXPORT_PAGE rows by
+	 * audit_id (keyset): no row limit (QA-7), memory stays flat while streaming.
+	 *
+	 * @return \Generator
+	 */
+	public static function csv_row_stream( array $filters ) {
+		global $wpdb;
+		$table = $wpdb->prefix . 'wpcap_audit_logs';
+		list( $where, $args ) = self::where( $filters );
+		yield array( 'audit_id', 'created_at_utc', 'user_id', 'action', 'object_type', 'object_id', 'details' );
+		$last = PHP_INT_MAX;
+		do {
+			$sql = "SELECT * FROM $table WHERE $where AND audit_id < %d ORDER BY audit_id DESC LIMIT %d";
+			$rows = (array) $wpdb->get_results( $wpdb->prepare( $sql, array_merge( $args, array( $last, self::EXPORT_PAGE ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- built from placeholders.
+			foreach ( $rows as $row ) {
+				$last = (int) $row->audit_id;
+				yield array( (int) $row->audit_id, (string) $row->created_at, (int) $row->user_id, (string) $row->action, (string) $row->object_type, (int) $row->object_id, (string) $row->details );
+			}
+			$full_page = count( $rows ) === self::EXPORT_PAGE;
+		} while ( $full_page );
 	}
 
 	/**
 	 * Builds the export after permission and 2FA checks; records the export in the audit log.
 	 *
-	 * @return array{filename:string,csv:string}|\WP_Error
+	 * @param bool $stream True: rows as a generator (download), false: the CSV string.
+	 * @return array{filename:string,csv?:string,rows?:\Generator}|\WP_Error
 	 */
-	public static function export( array $filters ) {
+	public static function export( array $filters, $stream = false ) {
 		if ( ! self::can_view() ) { return Forms::forbidden(); }
 		$check = StepUp::check( array( 'exports' ), self::EXPORT_ACTION );
 		if ( is_wp_error( $check ) ) { return $check; }
-		$rows = self::csv_rows( $filters );
-		Audit::record( 'audit_log_exported', 'audit', 0, array_merge( array_filter( $filters ), array( 'rows' => count( $rows ) - 1 ) ) );
-		return array( 'filename' => 'wp-pass-captain-audit-' . gmdate( 'Ymd-His' ) . '.csv', 'csv' => Scope::csv( $rows ) );
+		$total = (int) self::query( $filters, 1, 1 )['total'];
+		Audit::record( 'audit_log_exported', 'audit', 0, array_merge( array_filter( $filters ), array( 'rows' => $total ) ) );
+		$filename = 'wp-pass-captain-audit-' . gmdate( 'Ymd-His' ) . '.csv';
+		// $stream: rows as a generator for Scope::send_csv() (the admin download); else the CSV string.
+		return $stream ? array( 'filename' => $filename, 'rows' => self::csv_row_stream( $filters ) ) : array( 'filename' => $filename, 'csv' => Scope::csv( self::csv_rows( $filters ) ) );
 	}
 
 	public static function handle_export() {
 		if ( ! self::can_view() ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ), 403 ); }
 		check_admin_referer( self::EXPORT_ACTION );
-		$result = self::export( self::filters( wp_unslash( $_GET ) ) );
+		$result = self::export( self::filters( wp_unslash( $_GET ) ), true );
 		if ( is_wp_error( $result ) ) { wp_die( esc_html( $result->get_error_message() ), 403 ); }
-		Scope::send_download( $result['csv'], $result['filename'], 'text/csv; charset=utf-8' );
+		Scope::send_csv( $result['rows'], $result['filename'] );
 	}
 
 	public static function render() {
