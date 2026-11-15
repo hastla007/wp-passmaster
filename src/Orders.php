@@ -243,6 +243,7 @@ final class Orders {
 				$rate = $line['tax_profile'] ? (int) $line['tax_profile']['rate_bp'] : (int) ( $line['type']->tax_rate_bp ?? 0 );
 				$type_id_for_tax = (int) $line['type']->ticket_type_id;
 				$selected[ $index ]['tax_rate_bp'] = $rate;
+				$selected[ $index ]['discount_minor'] = (int) $line_discount;
 				$selected[ $index ]['tax_minor'] = array_key_exists( $type_id_for_tax, $line_taxes ) ? (int) $line_taxes[ $type_id_for_tax ] : self::gross_tax( $line['line_total'] - $line_discount, $rate );
 				$tax_total += $selected[ $index ]['tax_minor'];
 			}
@@ -1057,7 +1058,7 @@ final class Orders {
 		self::capacity_released( $order_id, 'cancelled', array( 'reason' => (string) $reason ) );
 		Audit::record( 'order_cancelled', 'order', $order_id, array( 'reason' => sanitize_text_field( $reason ), 'revoked_tickets' => $revoked ) );
 		self::fire_revoked( $revoked_ids, 'order_cancelled' );
-		do_action( 'wpcap_order_cancelled', $order_id );
+		do_action( 'wpcap_order_cancelled', $order_id, (string) $reason, (string) $order->payment_status );
 		return true;
 	}
 
@@ -1319,6 +1320,7 @@ final class Orders {
 			'auto_refund' => (bool) Settings::get( 'auto_refund_cancelled' ),
 		) );
 		Audit::record( 'event_cancelled', 'event', $event_id, $result );
+		do_action( 'wpcap_event_cancelled', $event_id );
 		return $result;
 	}
 
@@ -1468,6 +1470,9 @@ final class Orders {
 	 *                        does not make this fail (the outbox retries it).
 	 */
 	public static function issue_and_email( $order_id ) {
+		// Fiscal modules submit every seller-specific receipt before tickets can be issued. A blocked order is
+		// not an issuance failure: the fiscal module retries and calls this again once its receipts are confirmed.
+		if ( ! apply_filters( 'wpcap_order_fiscal_ready', true, absint( $order_id ) ) ) { return true; }
 		global $wpdb;
 		$order_id = absint( $order_id );
 		$orders = $wpdb->prefix . 'wpcap_orders';

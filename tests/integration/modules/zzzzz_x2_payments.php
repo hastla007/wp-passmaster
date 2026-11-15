@@ -123,7 +123,7 @@ check( 'other job types pass through the affiliate handler unchanged', 'x' === A
 /* ------------------------------------------------------------------------------------------ */
 echo "X2: zero- and three-decimal currencies\n";
 check( 'money_decimal: EUR, JPY, KWD, negative and small amounts', '1234.50' === Localization::money_decimal( 123450, 'EUR' ) && '1500' === Localization::money_decimal( 1500, 'JPY' ) && '12.345' === Localization::money_decimal( 12345, 'KWD' ) && '0.005' === Localization::money_decimal( 5, 'BHD' ) && '-0.07' === Localization::money_decimal( -7, 'EUR' ) && '0.00' === Localization::money_decimal( 0, '' ) );
-check( 'fiscal HTTP client: amounts follow the document currency', '12.345' === PassCaptain\Fiscalization\Providers\HttpClient::minor_to_major( 12345, 'KWD' ) && '1500' === PassCaptain\Fiscalization\Providers\HttpClient::minor_to_major( 1500, 'JPY' ) && '12.50' === PassCaptain\Fiscalization\Providers\HttpClient::minor_to_major( 1250 ) );
+check( 'fiscal HTTP client: amounts follow the document currency', '12.345' === PassCaptain\Fiscalization\ProviderHttp::decimal( 12345, 'KWD' ) && '1500' === PassCaptain\Fiscalization\ProviderHttp::decimal( 1500, 'JPY' ) && '12.50' === PassCaptain\Fiscalization\ProviderHttp::decimal( 1250 ) );
 // Report and accounting CSV of a KWD event.
 $kwd = make_type( 20, 10, 12345 );
 $wpdb->query( "UPDATE {$p}wpcap_ticket_types SET currency='KWD' WHERE ticket_type_id=$kwd" );

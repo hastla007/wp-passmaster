@@ -70,9 +70,14 @@ Terms: https://developers.google.com/terms — Privacy policy: https://policies.
 = Webhooks to URLs you configure =
 Used only when an administrator adds a webhook subscription. Order, ticket, check-in and refund events (IDs, status, amounts, event and ticket type data) are sent as signed HTTP POST requests to the URL entered by the administrator. Email addresses of buyers or attendees are only included if the subscription is explicitly configured to include them. The receiving service is chosen by the administrator.
 
-= Fiscal services (fiskaltrust, efsta) =
-The plugin contains adapters for the fiscalisation services fiskaltrust (possystem-api-sandbox.fiskaltrust.eu or a configured endpoint) and efsta (a local EFR at 127.0.0.1 or a configured efsta cloud endpoint). They are not used unless a fiscal provider is configured. When used, receipt data (receipt number, line items with amounts and tax rates, payment method) and the seller's tax number are sent to the configured endpoint.
-fiskaltrust terms and privacy: https://www.fiskaltrust.eu/ — efsta terms and privacy: https://www.efsta.eu/
+= Fiscal services (fiskaly, efsta, fiskaltrust) =
+Used only when an administrator creates a legal seller under Pass Captain → Fiscalization, selects and enables a fiscal provider for it, saves a reviewed production profile and maps ticket types (or WooCommerce products) to that seller. Nothing is sent before that. When a mapped order is paid (online, WooCommerce or box office), the plugin sends one receipt per seller to the selected provider before tickets are issued: seller legal name, country, tax number/VAT ID, order reference and a derived idempotency key, line items (descriptions, quantities, gross amounts, tax rates and tax amounts), currency, payment method and, at the box office, the register ID. No buyer name, email address or ticket code is sent. Status lookups, connection checks ("Verbindung prüfen") and, for efsta, an operator-triggered one-time void send the same identifiers. Credentials are sent only to the respective provider. Endpoints:
+- fiskaly SIGN AT: rksv.fiskaly.com; fiskaly SIGN DE: kassensichv-middleware.fiskaly.com; fiskaly Unified API (FR, IT, PT, SE): test.api.fiskaly.com or live.api.fiskaly.com.
+- efsta EFR: the EFR endpoint entered by the administrator (a local EFR, e.g. on 127.0.0.1, only after "Lokalen Fiskaldienst erlauben" is enabled, or an efsta cloud endpoint).
+- fiskaltrust POS System API: possystem-api-sandbox.fiskaltrust.eu or possystem-api.fiskaltrust.eu (or an endpoint entered by the administrator).
+fiskaly terms: https://www.fiskaly.com/legal/terms — fiskaly privacy policy: https://www.fiskaly.com/legal/privacy (to be verified manually)
+efsta terms and privacy: https://www.efsta.eu/ (homepage; exact pages to be verified manually)
+fiskaltrust terms and privacy: https://www.fiskaltrust.eu/ (homepage; exact pages to be verified manually)
 
 The optional integrations with WooCommerce, WP Voucher Captain and WP Affiliate Captain run inside your WordPress installation through those plugins' PHP APIs and do not contact external services.
 

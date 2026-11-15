@@ -98,6 +98,7 @@ Klasse in `src/Modules/`; Module sind Bestandteil des Kerns, nicht des Add-ons.
 | Partner-API (nur lesend) mit API-Keys, Scopes, IP-Allowlist, Ablauf, Widerruf | `Partners/Api`, `Partners/Keys` | Kern, dauerhaft frei |
 | Eventgebundene Read-only-Entwickler-Schlüssel | `DeveloperKeys` | Kern, dauerhaft frei |
 | Länder-/Steuerprofile als Entwürfe | `Installer` (Datenmodell) | Kern, dauerhaft frei |
+| Fiskalisierung je Rechtsträger: Länder-/Kanalprofile mit Prüfvermerk, Verkäufer je Ticketart und WooCommerce-Position, unveränderliche Belegschnappschüsse je Bestellung und Verkäufer, Ticketausgabe erst nach bestätigtem Beleg (Ausfallregel „Verkauf stoppen“), Wiederholungen mit Statusabfrage, Korrekturaufgaben bei Erstattung/Storno, Kassenregister-Verzeichnis, CSV-Archivexport; Adapter fiskaly (SIGN AT, SIGN DE, Unified API), efsta EFR, fiskaltrust (keine Zertifizierung, Anbieterverträge und Abnahme beim Betreiber) | Modul `Fiscalization`, `Fiscalization/*`, `BoxOffice/TerminalRegistry` | Kern, dauerhaft frei |
 
 ### Integrationen
 

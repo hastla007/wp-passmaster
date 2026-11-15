@@ -29,6 +29,20 @@ final class Redact {
 		self::$known = null;
 	}
 
+	/**
+	 * Registers a secret that is only known at runtime (e.g. fiscal provider credentials decrypted for
+	 * one adapter call), so later log/audit/error output of this request redacts its exact value.
+	 */
+	public static function remember( $secret ) {
+		$secret = trim( (string) $secret );
+		if ( strlen( $secret ) < 6 ) { return; }
+		self::known_secrets();
+		if ( ! in_array( $secret, self::$known, true ) ) {
+			self::$known[] = $secret;
+			usort( self::$known, static function ( $a, $b ) { return strlen( $b ) - strlen( $a ); } );
+		}
+	}
+
 	/** Configured secrets (decrypted settings + constants), longest first, at least 6 characters. */
 	private static function known_secrets() {
 		if ( null !== self::$known ) { return self::$known; }
