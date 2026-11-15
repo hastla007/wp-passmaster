@@ -512,7 +512,7 @@ final class Layouts {
 				foreach ( $chunk as $row ) {
 					array_push( $values, $version_id, $row['seat_key'], $row['kind'], $row['group_key'], $row['row_label'], $row['seat_label'], $row['label'], $row['zone'], $row['category'], $row['accessible'], $row['pos_x'], $row['pos_y'], $row['sort_order'] );
 				}
-				$ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (version_id,seat_key,kind,group_key,row_label,seat_label,label,zone,category,is_accessible,pos_x,pos_y,sort_order) VALUES ' . implode( ',', array_fill( 0, count( $chunk ), '(%d,%s,%s,%s,%s,%s,%s,%s,%s,%d,%f,%f,%d)' ) ), $values ) );
+				$ok = $wpdb->query( $wpdb->prepare( 'INSERT INTO %i (version_id,seat_key,kind,group_key,row_label,seat_label,label,zone,category,is_accessible,pos_x,pos_y,sort_order) VALUES ' . implode( ',', array_fill( 0, count( $chunk ), '(%d,%s,%s,%s,%s,%s,%s,%s,%s,%d,%f,%f,%d)' ) ), $values ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- one value tuple per seat row, $values holds the table and 13 values per row.
 				if ( false === $ok ) { throw new SeatingException( new \WP_Error( 'wpcap_seating_save', __( 'Die Sitzplätze konnten nicht gespeichert werden.', 'pass-captain' ), array( 'status' => 500 ) ) ); }
 			}
 			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET published_version=%d,updated_at=%s WHERE layout_id=%d', self::table( 'layouts' ), $version, $now, (int) $layout->layout_id ) );

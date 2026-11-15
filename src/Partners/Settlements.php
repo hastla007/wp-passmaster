@@ -334,7 +334,7 @@ final class Settlements {
 		}
 		$args[] = max( 1, (int) $limit );
 		// $where: literal conditions with placeholders for every value ($args).
-		return $wpdb->get_results( $wpdb->prepare( "SELECT s.*,pa.name AS partner_name FROM %i s INNER JOIN %i pa ON pa.partner_id=s.partner_id WHERE $where ORDER BY s.period DESC, s.settlement_id DESC LIMIT %d", $args ) );
+		return $wpdb->get_results( $wpdb->prepare( "SELECT s.*,pa.name AS partner_name FROM %i s INNER JOIN %i pa ON pa.partner_id=s.partner_id WHERE $where ORDER BY s.period DESC, s.settlement_id DESC LIMIT %d", $args ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
 	}
 
 	/** Creates a draft for a partner and month. */

@@ -155,7 +155,7 @@ final class Queries {
 	public static function events_overview( $event_ids, $page = 1, $per_page = 50 ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		// Scope: " AND e.event_id IN (<absint ids>)" or nothing (scope_sql()).
+		// The scope condition from scope_sql() lists integer event ids only (or is empty for all events).
 		$where = '1=1' . self::scope_sql( $event_ids, 'e.event_id' );
 		$now = current_time( 'mysql', true );
 		$offset = ( max( 1, (int) $page ) - 1 ) * $per_page;
@@ -258,9 +258,9 @@ final class Queries {
 			$where .= $event_ids ? " AND EXISTS ($items_join" . self::scope_sql( $event_ids, 'fo.event_id' ) . ')' : ' AND 1=0';
 		}
 		// $where: literal conditions with placeholders for every value ($args), table names from $wpdb->prefix.
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i ord WHERE $where", array_merge( array( $p . 'wpcap_orders' ), $args ) ) );
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i ord WHERE $where", array_merge( array( $p . 'wpcap_orders' ), $args ) ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
 		$list_args = array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $p . 'wpcap_orders' ), $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) );
-		$rows = $wpdb->get_results( $wpdb->prepare(
+		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
 			"SELECT ord.*,(SELECT GROUP_CONCAT(DISTINCT e.name ORDER BY e.name SEPARATOR ', ') FROM %i ei INNER JOIN %i et ON et.ticket_type_id=ei.ticket_type_id INNER JOIN %i eo ON eo.occurrence_id=et.occurrence_id INNER JOIN %i e ON e.event_id=eo.event_id WHERE ei.order_id=ord.order_id) AS event_names FROM %i ord WHERE $where ORDER BY ord.created_at DESC, ord.order_id DESC LIMIT %d OFFSET %d",
 			$list_args
 		) );
@@ -330,8 +330,8 @@ final class Queries {
 		if ( ! empty( $filters['event_id'] ) ) { $where .= ' AND o.event_id=%d'; $args[] = absint( $filters['event_id'] ); }
 		if ( ! empty( $filters['status'] ) ) { $where .= ' AND t.status=%s'; $args[] = (string) $filters['status']; }
 		// $where: literal conditions with placeholders for every value ($args) and the integer scope.
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id INNER JOIN %i ord ON ord.order_id=t.order_id LEFT JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE $where", array_merge( $tables, $args ) ) );
-		$rows = $wpdb->get_results( $wpdb->prepare(
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id INNER JOIN %i ord ON ord.order_id=t.order_id LEFT JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE $where", array_merge( $tables, $args ) ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
+		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
 			"SELECT t.ticket_id,t.public_id,t.status,t.refunded,t.attendee_email,t.issued_at,t.order_id,ord.public_id AS order_public_id,ord.customer_email,ta.attendee_name,ta.attendee_email AS assigned_email,tt.name AS ticket_name,o.event_id,o.occurrence_id,o.starts_at,o.timezone,e.name AS event_name,(SELECT MAX(c.created_at) FROM %i c WHERE c.ticket_id=t.ticket_id AND c.result='checked_in') AS last_checkin_at FROM %i t INNER JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id INNER JOIN %i e ON e.event_id=o.event_id INNER JOIN %i ord ON ord.order_id=t.order_id LEFT JOIN %i ta ON ta.ticket_id=t.ticket_id WHERE $where ORDER BY t.ticket_id DESC LIMIT %d OFFSET %d",
 			array_merge( array( $p . 'wpcap_checkins' ), $tables, $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) )
 		) );
@@ -356,8 +356,8 @@ final class Queries {
 		if ( ! empty( $filters['date_from'] ) ) { $where .= ' AND c.created_at >= %s'; $args[] = (string) $filters['date_from']; }
 		if ( ! empty( $filters['date_to'] ) ) { $where .= ' AND c.created_at < %s'; $args[] = (string) $filters['date_to']; }
 		// $where: literal conditions with placeholders for every value ($args) and the integer scope.
-		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i c LEFT JOIN %i t ON t.ticket_id=c.ticket_id LEFT JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i e ON e.event_id=c.event_id WHERE $where", array_merge( $tables, $args ) ) );
-		$rows = $wpdb->get_results( $wpdb->prepare(
+		$total = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i c LEFT JOIN %i t ON t.ticket_id=c.ticket_id LEFT JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i e ON e.event_id=c.event_id WHERE $where", array_merge( $tables, $args ) ) ); // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
+		$rows = $wpdb->get_results( $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- replacements passed as one array, built together with $where.
 			"SELECT c.*,t.public_id AS ticket_public_id,t.order_id,tt.name AS ticket_name,o.timezone,e.name AS event_name FROM %i c LEFT JOIN %i t ON t.ticket_id=c.ticket_id LEFT JOIN %i tt ON tt.ticket_type_id=t.ticket_type_id LEFT JOIN %i o ON o.occurrence_id=tt.occurrence_id LEFT JOIN %i e ON e.event_id=c.event_id WHERE $where ORDER BY c.created_at DESC, c.checkin_id DESC LIMIT %d OFFSET %d",
 			array_merge( $tables, $args, array( (int) $per_page, ( max( 1, (int) $page ) - 1 ) * (int) $per_page ) )
 		) );

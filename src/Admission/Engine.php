@@ -279,7 +279,7 @@ final class Engine {
 	public static function presence( $occurrence_id ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.area_id, COUNT(*) AS n FROM %i s WHERE s.occurrence_id=%d AND s.inside=1 AND NOT EXISTS (SELECT 1 FROM %i c WHERE c.ticket_id=s.ticket_id AND c.result='undone' AND c.checkin_id>s.last_checkin_id) GROUP BY s.area_id", $p . 'wpcap_admission_state', (int) $occurrence_id , $p . 'wpcap_checkins') );
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT s.area_id, COUNT(*) AS n FROM %i s WHERE s.occurrence_id=%d AND s.inside=1 AND NOT EXISTS (SELECT 1 FROM %i c WHERE c.ticket_id=s.ticket_id AND c.result='undone' AND c.checkin_id>s.last_checkin_id) GROUP BY s.area_id", $p . 'wpcap_admission_state', (int) $occurrence_id, $p . 'wpcap_checkins' ) );
 		$by_area = array();
 		$total = 0;
 		foreach ( $rows as $row ) {
