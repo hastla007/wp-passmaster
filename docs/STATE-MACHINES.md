@@ -52,7 +52,7 @@ Allowed transitions:
 | P | E | expiry sweep (only while still `pending` and without an active hold – conditional UPDATE) |
 | P | X | `failed` webhook of the current payment attempt, `cancel_order()` (admin, WooCommerce), full `refunded` webhook (refund or chargeback) for the never-paid order – e.g. out of order **before** the `paid` webhook (`cancelled_unpaid`, audit `provider_refund_unpaid_cancelled`) |
 | P | R | only a direct `mark_refunded()` call (never a provider webhook: an unpaid order has no refund ledger entry) |
-| P, E | N | late payment whose capacity re-check or buyer-limit re-check (`Sales\BuyerLimits`) under locks fails |
+| P, E | N | late payment whose capacity re-check, buyer-limit re-check (`Sales\BuyerLimits`) or discount-code re-check (`Campaigns::retake_for_order()`: a code given back by the expired hold is only taken again below its usage limit) under locks fails |
 | E | C | late payment / manual confirmation with free capacity (late recovery under locks) |
 | E | X | `cancel_order()`; full `refunded` webhook for the never-paid order (`cancelled_unpaid`) |
 | E | R | only a direct `mark_refunded()` call |
@@ -85,7 +85,10 @@ Duplicate and out-of-order payment events (`Payments\Webhooks::process()`):
 | `paid` for an order already paid, same attempt | `already_paid` | missing tickets issued if an issuance failed, else nothing |
 | `paid` for an order already paid, other attempt | `double_payment` | admin alert |
 | `failed` for a non-pending order or an older attempt | `ignored` / `stale_attempt` | nothing |
-| `refunded` with amount < remaining total | `partial_refund_logged` | audit only (also for unpaid orders) |
+| `refunded` (dashboard refund, chargeback, PayPal reversal) for a paid order | `partial_refund_booked` / `refunded` / `refund_already_booked` | booked with `Refunds::record_external()` (refund row, `refunded_minor`, credit note, fiscal correction, settlement deduction via `wpcap_refund_completed`), idempotent per provider refund id (`single`), running total (`cumulative`, Mollie) or once per order (`full`); the order becomes R only when the whole total is booked |
+| `refunded` with amount < remaining total for an order that is not paid (P, E, N) | `partial_refund_logged` | audit only |
+| `dispute_opened` (Stripe `charge.dispute.created`, PayPal `CUSTOMER.DISPUTE.CREATED`) | `dispute_alerted` | admin alert, audit `payment_dispute_opened`; money is booked only with `charge.dispute.funds_withdrawn` / `closed` (lost) / `PAYMENT.CAPTURE.REVERSED` |
+| `payment_pending` (Stripe session completed with a delayed method, e.g. SEPA) | `hold_extended` / `hold_lapsed` | active hold extended (default 7 days, filter `wp_pass_captain_delayed_payment_hold_minutes_v1`) |
 | full `refunded` for an order that was never paid (P or E) | `cancelled_unpaid` | order cancelled (X) under the row lock, holds released, no refund record, `refunded_minor` unchanged, audit `provider_refund_unpaid_cancelled`; a payment booked in the meantime is treated as a paid order (→ R) |
 | Booked payment, ticket issuance failed | retryable 5xx | redelivery (`already_paid`) or the `ticket_issue` job issues the tickets |
 
@@ -105,6 +108,15 @@ tickets, never some.
 | `expired`, `released` | `converted` | late recovery of the payment |
 
 Only orders in state P have active holds. `converted` is final.
+
+Hold length and hosted payment pages: a hosted payment page must never outlive the hold. Stripe
+checkouts hold at least `StripeGateway::min_hold_minutes()` (36 minutes: Stripe's 30-minute session
+minimum plus margin and buffer, even if the setting is shorter); the Checkout Session expires 5 minutes
+before the hold ends, and a retried checkout stretches a shorter remaining hold first (a lapsed hold
+answers 409 `wpcap_checkout_closed`). Delayed methods extend the active hold once they are started
+(Stripe session completed with `payment_status=unpaid`, e.g. SEPA; Mollie bank transfer chosen):
+default 7 days, filter `wp_pass_captain_delayed_payment_hold_minutes_v1`. A payment that still arrives
+after the hold lapsed goes through the late recovery (capacity, buyer limits, discount-code limit).
 
 ## Ticket
 

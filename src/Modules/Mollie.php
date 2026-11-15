@@ -140,6 +140,12 @@ final class Mollie {
 			return 'pending';
 		}
 		if ( 'canceled' === $status ) { return 'cancel'; }
+		if ( 'pending' === $status || ( 'open' === $status && 'banktransfer' === ( $payment['method'] ?? '' ) ) ) {
+			// Bank transfer (or another delayed method) chosen at Mollie: the money arrives days later.
+			// Keep the tickets held for that time (QA-6); Mollie expires an unpaid bank transfer itself.
+			$full = \PassCaptain\Orders::get( (int) $order->order_id );
+			if ( $full && 'pending' === $full->payment_status ) { Webhooks::extend_for_delayed_payment( $full, 'mollie' ); }
+		}
 		return in_array( $status, array( 'failed', 'expired' ), true ) ? 'failed' : 'pending';
 	}
 

@@ -88,6 +88,12 @@ final class Invoices {
 		$wpdb->query( 'COMMIT' );
 		Audit::record( 'invoice_issued', 'invoice', $invoice_id, array( 'order_id' => $order_id, 'invoice_number' => $number, 'sales_model' => $seller_context['model'], 'partner_id' => $seller_context['partner_id'] ) );
 		Api\Invoices::created( $invoice_id, 'invoice', array( 'order_id' => $order_id, 'number' => $number ) );
+		// Refunds completed before the invoice existed got no credit note (credit_note_for_refund() needs
+		// the invoice): issue them now, so invoice minus credit notes matches what was kept (PAY-7).
+		$refund_ids = $wpdb->get_col( $wpdb->prepare( "SELECT refund_id FROM %i WHERE order_id=%d AND status='completed' ORDER BY refund_id", $p . 'wpcap_refunds', $order_id ) );
+		foreach ( array_map( 'absint', (array) $refund_ids ) as $refund_id ) {
+			self::credit_note_for_refund( $refund_id );
+		}
 		return array( 'invoice_id' => $invoice_id, 'invoice_number' => $number );
 	}
 

@@ -132,6 +132,48 @@ final class Campaigns {
 		return $wpdb->update( $wpdb->prefix . 'wpcap_campaign_uses', array( 'status' => 'committed' ), array( 'order_id' => absint( $order_id ), 'status' => 'reserved' ), array( '%s' ), array( '%d', '%s' ) );
 	}
 
+	/**
+	 * Late payment of an order whose hold (and with it the code reservation) had lapsed: takes the
+	 * released code uses back, but only while each campaign is still below its usage limit – else
+	 * a single-use code could be redeemed by any number of expired orders. Checks every campaign
+	 * (rows locked) before changing anything, so a refusal leaves no partial counts behind. Runs inside
+	 * the caller's transaction (Orders::confirm_payment_locked()).
+	 *
+	 * @return true|\WP_Error `wpcap_campaign_exhausted` (limit reached) or `wpcap_db_busy` (database error).
+	 */
+	public static function retake_for_order( $order_id ) {
+		global $wpdb;
+		$uses = $wpdb->prefix . 'wpcap_campaign_uses';
+		$campaigns = $wpdb->prefix . 'wpcap_campaigns';
+		$order_id = absint( $order_id );
+		$busy = new \WP_Error( 'wpcap_db_busy', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		$ids = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT campaign_id FROM %i WHERE order_id=%d AND status='released' ORDER BY campaign_id FOR UPDATE", $uses, $order_id ) ) );
+		if ( self::db_failed() ) { return $busy; }
+		if ( ! $ids ) { return true; }
+		foreach ( $ids as $campaign_id ) {
+			$row = $wpdb->get_row( $wpdb->prepare( 'SELECT used_count,usage_limit FROM %i WHERE campaign_id=%d FOR UPDATE', $campaigns, $campaign_id ) );
+			if ( self::db_failed() ) { return $busy; }
+			if ( $row && (int) $row->usage_limit > 0 && (int) $row->used_count >= (int) $row->usage_limit ) {
+				return new \WP_Error( 'wpcap_campaign_exhausted', __( 'Das Kampagnenlimit wurde während des Checkouts erreicht.', 'pass-captain' ), array( 'campaign_id' => $campaign_id ) );
+			}
+		}
+		foreach ( $ids as $campaign_id ) {
+			if ( false === $wpdb->query( $wpdb->prepare( 'UPDATE %i SET used_count=used_count+1 WHERE campaign_id=%d', $campaigns, $campaign_id ) ) ) { return $busy; }
+			if ( false === $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='reserved' WHERE order_id=%d AND campaign_id=%d AND status='released'", $uses, $order_id, $campaign_id ) ) ) { return $busy; }
+		}
+		return true;
+	}
+
+	/**
+	 * Whether the last query failed (re-read after every query).
+	 *
+	 * @phpstan-impure
+	 */
+	private static function db_failed() {
+		global $wpdb;
+		return '' !== (string) $wpdb->last_error;
+	}
+
 	public static function release_for_order( $order_id ) {
 		global $wpdb;
 		$uses = $wpdb->prefix . 'wpcap_campaign_uses';

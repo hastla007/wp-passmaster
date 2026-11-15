@@ -88,9 +88,15 @@ final class MollieGateway implements GatewayInterface {
 		$key_suffix = '';
 		if ( 0 === strpos( $existing, 'tr_' ) ) {
 			$payment = self::api( 'GET', 'payments/' . rawurlencode( $existing ) );
-			if ( ! is_wp_error( $payment ) && 'open' === ( $payment['status'] ?? '' ) && ! empty( $payment['_links']['checkout']['href'] ) ) {
+			$payment_currency = strtoupper( (string) ( $payment['amount']['currency'] ?? '' ) );
+			// Only for exactly the current order total (a payment for another amount would be a mismatch).
+			$same_amount = ! is_wp_error( $payment ) && $payment_currency === $currency && self::parse_amount( $payment['amount']['value'] ?? '', $currency ) === $total;
+			if ( $same_amount && 'open' === ( $payment['status'] ?? '' ) && ! empty( $payment['_links']['checkout']['href'] ) ) {
 				self::remember( $payment['id'] ?? '', $order );
 				return self::payment_result( $payment );
+			}
+			if ( ! $same_amount && ! is_wp_error( $payment ) && ! empty( $payment['isCancelable'] ) ) {
+				self::api( 'DELETE', 'payments/' . rawurlencode( $existing ) ); // Best effort: the stale payment must not be paid.
 			}
 			$key_suffix = '-' . substr( hash( 'sha256', $existing ), 0, 12 );
 		}
@@ -108,12 +114,16 @@ final class MollieGateway implements GatewayInterface {
 		$method = self::method_for_order( $order, $value, $currency );
 		if ( '' !== $method && array() !== $method ) { $body['method'] = $method; }
 		$body = apply_filters( 'wpcap_mollie_payment_body', $body, $order, $items );
-		$payment = self::api( 'POST', 'payments', $body, 'wpcap-mollie-' . $public_id . $key_suffix );
+		$payment = self::api( 'POST', 'payments', $body, 'wpcap-mollie-' . $public_id . $key_suffix . '-' . $total . strtolower( $currency ) );
 		if ( is_wp_error( $payment ) ) { return $payment; }
 		if ( empty( $payment['id'] ) || empty( $payment['_links']['checkout']['href'] ) ) {
 			return new \WP_Error( 'wpcap_mollie_response', __( 'Unerwartete Antwort von Mollie.', 'pass-captain' ) );
 		}
 		self::remember( $payment['id'], $order );
+		if ( 'banktransfer' === $method && ! empty( $order['order_id'] ) ) {
+			// The buyer chose bank transfer: the hold must last until the transfer can arrive (QA-6).
+			\PassCaptain\Payments\Webhooks::extend_for_delayed_payment( (object) $order, 'mollie' );
+		}
 		return self::payment_result( $payment );
 	}
 
@@ -227,6 +237,8 @@ final class MollieGateway implements GatewayInterface {
 				// Money pulled back by the bank/card issuer: same consequences as an external refund.
 				$event['event_id'] = 'mollie-' . $id . '-chargeback-' . $chargeback;
 				$event['type'] = 'refunded';
+				$event['refund_scope'] = 'cumulative'; // Running total of chargebacks + external refunds.
+				$event['refund_reason'] = 'chargeback';
 				$event['amount_minor'] = $chargeback + $external;
 				return $event;
 			}
@@ -234,6 +246,7 @@ final class MollieGateway implements GatewayInterface {
 				// Refund made outside the plugin (Mollie dashboard); cumulative external amount.
 				$event['event_id'] = 'mollie-' . $id . '-refunded-' . $external;
 				$event['type'] = 'refunded';
+				$event['refund_scope'] = 'cumulative';
 				$event['amount_minor'] = $external;
 				return $event;
 			}
@@ -304,6 +317,8 @@ final class MollieGateway implements GatewayInterface {
 			$args['body'] = wp_json_encode( $body );
 			if ( '' !== $idempotency_key ) { $args['headers']['Idempotency-Key'] = substr( $idempotency_key, 0, 255 ); }
 			$response = wp_remote_post( self::API . $path, $args );
+		} elseif ( 'DELETE' === $method ) {
+			$response = wp_remote_request( self::API . $path, $args );
 		} else {
 			$response = wp_remote_get( self::API . $path, $args );
 		}

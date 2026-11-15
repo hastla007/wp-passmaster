@@ -83,6 +83,7 @@ Webhook-Ereignissen).
 | `wpcap_wallet_google_token_uris` | `string[] $uris` | Erlaubte OAuth-Token-Endpunkte für das Google-Wallet-Servicekonto. |
 | `wpcap_error_log` | `bool $send, string $line` | `false` unterdrückt die (bereits redigierte) Error-Log-Zeile. |
 | `wpcap_pre_send_download` | `null $pre, string $body, string $filename, string $type` | Nicht-`null` übernimmt die Auslieferung eines Admin-Downloads (CSV/PDF). |
+| `wp_pass_captain_delayed_payment_hold_minutes_v1` | `int $minutes` (10080 = 7 Tage), `object $order`, `string $provider` | Wie lange die Reservierung einer Bestellung gehalten wird, sobald eine verzögerte Zahlart gestartet wurde (Stripe-Session abgeschlossen mit `payment_status=unpaid`, z. B. SEPA-Lastschrift; Mollie-Überweisung). Eine bereits abgelaufene Reservierung wird nicht wiederbelebt; die spätere Zahlung läuft dann über die Nachprüfung verspäteter Zahlungen (Kontingent, Käuferlimit, Rabattcode). |
 | `wpcap_max_line_quantity` | `int $cap` (100) | Absolute Obergrenze je Bestellzeile vor jeder Sperre (die eigentliche Grenze ist „Max. pro Bestellung“ der Ticketart). |
 | `wpcap_checkout_error_field` | `string $field, WP_Error $error` | Feld, dem eine Checkout-Fehlermeldung zugeordnet wird (barrierefreie Fehler am Feld; leer = allgemeine Meldung). |
 | `wpcap_checkout_billing_enabled` | `bool $enabled` (true), `object $event` | Ob die Eventkarte den Abschnitt „Rechnungsangaben“ zeigt (`templates/event-card.php`). |
