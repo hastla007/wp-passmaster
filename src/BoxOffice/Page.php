@@ -55,7 +55,7 @@ final class Page {
 		$last_sale = $last ? Service::sale( $last ) : null;
 		if ( $last_sale && Service::is_booked( $last_sale ) && self::can_view_sale( $last_sale ) ) {
 			$receipt = add_query_arg( array( 'action' => 'wpcap_pos_receipt', 'sale_id' => $last ), admin_url( 'admin-post.php' ) );
-			echo '<div class="notice notice-success inline"><p>' . esc_html( sprintf( __( 'Verkauf gebucht: Beleg %1$s über %2$s.', 'pass-captain' ), $last_sale->receipt_number, Scope::money( $last_sale->total_minor, $last_sale->currency ) ) ) . ' <a class="button" target="_blank" href="' . esc_url( $receipt ) . '">' . esc_html__( 'Beleg drucken', 'pass-captain' ) . '</a> ';
+			echo '<div class="notice notice-success inline"><p>' . esc_html( sprintf( /* translators: 1: receipt number, 2: amount */ __( 'Verkauf gebucht: Beleg %1$s über %2$s.', 'pass-captain' ), $last_sale->receipt_number, Scope::money( $last_sale->total_minor, $last_sale->currency ) ) ) . ' <a class="button" target="_blank" href="' . esc_url( $receipt ) . '">' . esc_html__( 'Beleg drucken', 'pass-captain' ) . '</a> ';
 			Forms::open_form( 'wpcap_pos_tickets', 'wpcap_pos_tickets_' . $last, 'target="_blank" style="display:inline"' );
 			Forms::hidden( 'sale_id', $last );
 			echo '<button class="button">' . esc_html__( 'Tickets drucken (PDF)', 'pass-captain' ) . '</button></form></p></div>';
@@ -150,14 +150,14 @@ final class Page {
 		global $wpdb;
 		$totals = Service::session_totals( $session->session_id );
 		$cur = $session->currency;
-		echo '<h2>' . esc_html( sprintf( __( 'Kassensitzung #%1$d (seit %2$s)', 'pass-captain' ), $session->session_id, Scope::local( $session->opened_at, Scope::site_timezone() ) ) ) . '</h2>';
+		echo '<h2>' . esc_html( sprintf( /* translators: 1: register session number, 2: opening time */ __( 'Kassensitzung #%1$d (seit %2$s)', 'pass-captain' ), $session->session_id, Scope::local( $session->opened_at, Scope::site_timezone() ) ) ) . '</h2>';
 		/* translators: 1: location ID, 2: register ID */
 		echo '<p>' . esc_html( sprintf( __( 'Standort %1$d · Kasse %2$s', 'pass-captain' ), (int) $session->location_id, '' !== (string) $session->register_id ? (string) $session->register_id : __( 'Standard', 'pass-captain' ) ) ) . '</p>';
 		echo '<table class="widefat" style="max-width:40rem"><thead><tr><th>' . esc_html__( 'Zahlart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufe', 'pass-captain' ) . '</th><th>' . esc_html__( 'Storniert', 'pass-captain' ) . '</th><th>' . esc_html__( 'Netto-Umsatz', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $totals['methods'] as $m => $t ) {
 			echo '<tr><td>' . esc_html( Service::method_label( $m ) ) . '</td><td>' . (int) $t['count'] . '</td><td>' . (int) $t['voided_count'] . '</td><td>' . esc_html( Scope::money( $t['net'], $cur ) ) . '</td></tr>';
 		}
-		echo '</tbody></table><p>' . esc_html( sprintf( __( 'Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s', 'pass-captain' ), Scope::money( $session->opening_float_minor, $cur ), Scope::money( $totals['expected_cash'], $cur ) ) ) . '</p>';
+		echo '</tbody></table><p>' . esc_html( sprintf( /* translators: 1: opening float, 2: expected cash balance */ __( 'Anfangsbestand %1$s · erwarteter Kassenbestand (bar) %2$s', 'pass-captain' ), Scope::money( $session->opening_float_minor, $cur ), Scope::money( $totals['expected_cash'], $cur ) ) ) . '</p>';
 
 		$sales = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}wpcap_boxoffice_sales WHERE session_id=%d AND status <> 'failed' ORDER BY sale_id DESC LIMIT 50", $session->session_id ) );
 		if ( $sales ) {
@@ -362,7 +362,7 @@ final class Page {
 		$in = Forms::post();
 		$counted = Forms::parse_money( $in['counted'] ?? '' );
 		$result = null === $counted ? Forms::error( 'wpcap_pos_amount', __( 'Ungültiger Betrag.', 'pass-captain' ) ) : Service::close_session( Forms::int( $in, 'session_id' ), $counted, Forms::text( $in, 'note' ) );
-		$message = is_wp_error( $result ) ? '' : sprintf( __( 'Kasse abgeschlossen. Erwartet %1$s, gezählt %2$s, Differenz %3$s.', 'pass-captain' ), Scope::money( $result->expected_cash_minor, $result->currency ), Scope::money( $result->closing_count_minor, $result->currency ), Scope::money( $result->difference_minor, $result->currency ) );
+		$message = is_wp_error( $result ) ? '' : sprintf( /* translators: 1: expected amount, 2: counted amount, 3: difference */ __( 'Kasse abgeschlossen. Erwartet %1$s, gezählt %2$s, Differenz %3$s.', 'pass-captain' ), Scope::money( $result->expected_cash_minor, $result->currency ), Scope::money( $result->closing_count_minor, $result->currency ), Scope::money( $result->difference_minor, $result->currency ) );
 		Forms::finish( $result, $message, self::back() );
 	}
 

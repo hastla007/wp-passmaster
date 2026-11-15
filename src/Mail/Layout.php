@@ -76,14 +76,14 @@ final class Layout {
 		$t = (string) preg_replace( '#<(script|style|head|title)\b[^>]*>.*?</\1>#is', '', (string) $html );
 		$t = (string) preg_replace_callback( '#<a\s[^>]*href=(["\'])(.*?)\1[^>]*>(.*?)</a>#is', static function ( $m ) {
 			$url = html_entity_decode( $m[2], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-			$label = trim( html_entity_decode( strip_tags( $m[3] ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+			$label = trim( html_entity_decode( wp_strip_all_tags( $m[3] ), ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
 			return ( '' === $label || $label === $url ) ? $url : $label . ' (' . $url . ')';
 		}, $t );
 		$t = (string) preg_replace( '#<br\s*/?>[ \t]*\r?\n?#i', "\n", $t );
 		$t = (string) preg_replace( '#<li\b[^>]*>#i', '- ', $t );
 		$t = (string) preg_replace( '#</li>#i', "\n", $t );
 		$t = (string) preg_replace( '#</(p|div|h[1-6]|ul|ol|table|tr|blockquote)>#i', "\n\n", $t );
-		$t = html_entity_decode( strip_tags( $t ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$t = html_entity_decode( wp_strip_all_tags( $t ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		$t = (string) preg_replace( "/[ \t]+\n/", "\n", $t );
 		$t = (string) preg_replace( "/\n{3,}/", "\n\n", $t );
 		return trim( $t );

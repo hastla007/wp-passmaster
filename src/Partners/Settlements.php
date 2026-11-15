@@ -319,17 +319,22 @@ final class Settlements {
 	public static function query( $partner_ids = null, $statuses = null, $limit = 200 ) {
 		global $wpdb;
 		$where = '1=1';
+		$args = array( $wpdb->prefix . 'wpcap_partner_settlements', $wpdb->prefix . 'wpcap_partners' );
 		if ( null !== $partner_ids ) {
-			$partner_ids = array_filter( array_map( 'absint', (array) $partner_ids ) );
+			$partner_ids = array_values( array_filter( array_map( 'absint', (array) $partner_ids ) ) );
 			if ( ! $partner_ids ) { return array(); }
-			$where .= ' AND s.partner_id IN (' . implode( ',', $partner_ids ) . ')';
+			$where .= ' AND s.partner_id IN (' . implode( ',', array_fill( 0, count( $partner_ids ), '%d' ) ) . ')';
+			$args = array_merge( $args, $partner_ids );
 		}
 		if ( null !== $statuses ) {
 			$statuses = array_values( array_intersect( self::STATUSES, (array) $statuses ) );
 			if ( ! $statuses ) { return array(); }
-			$where .= " AND s.status IN ('" . implode( "','", $statuses ) . "')";
+			$where .= ' AND s.status IN (' . implode( ',', array_fill( 0, count( $statuses ), '%s' ) ) . ')';
+			$args = array_merge( $args, $statuses );
 		}
-		return $wpdb->get_results( "SELECT s.*,pa.name AS partner_name FROM {$wpdb->prefix}wpcap_partner_settlements s INNER JOIN {$wpdb->prefix}wpcap_partners pa ON pa.partner_id=s.partner_id WHERE $where ORDER BY s.period DESC, s.settlement_id DESC LIMIT " . max( 1, (int) $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- whitelisted values.
+		$args[] = max( 1, (int) $limit );
+		// $where: literal conditions with placeholders for every value ($args).
+		return $wpdb->get_results( $wpdb->prepare( "SELECT s.*,pa.name AS partner_name FROM %i s INNER JOIN %i pa ON pa.partner_id=s.partner_id WHERE $where ORDER BY s.period DESC, s.settlement_id DESC LIMIT %d", $args ) );
 	}
 
 	/** Creates a draft for a partner and month. */

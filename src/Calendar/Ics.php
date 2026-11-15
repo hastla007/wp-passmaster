@@ -97,7 +97,7 @@ final class Ics {
 	public static function entry_from_row( $row ) {
 		$start = (int) strtotime( $row->starts_at . ' UTC' );
 		$end = ! empty( $row->ends_at ) ? (int) strtotime( $row->ends_at . ' UTC' ) : $start + (int) apply_filters( 'wpcap_calendar_default_duration', 2 * HOUR_IN_SECONDS, $row );
-		$description = trim( preg_replace( '/\s+/u', ' ', strip_tags( (string) ( $row->event_description ?? '' ) ) ) );
+		$description = trim( preg_replace( '/\s+/u', ' ', wp_strip_all_tags( (string) ( $row->event_description ?? '' ) ) ) );
 		if ( function_exists( 'mb_substr' ) && mb_strlen( $description ) > 500 ) { $description = mb_substr( $description, 0, 497 ) . '...'; }
 		$url = self::checkout_url( (int) $row->occurrence_id );
 		return array(

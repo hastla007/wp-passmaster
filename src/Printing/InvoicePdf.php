@@ -124,7 +124,7 @@ final class InvoicePdf {
 			foreach ( $lines as $line ) {
 				$desc = PdfWriter::wrap( $line->description, 9, 250 );
 				if ( $y - 12 * count( $desc ) < 90 ) {
-					$footer( $pdf, sprintf( __( 'Seite %d', 'pass-captain' ), $page++ ) );
+					$footer( $pdf, sprintf( /* translators: %d: page number */ __( 'Seite %d', 'pass-captain' ), $page++ ) );
 					$pdf->add_page( 595.28, 841.89 );
 					$y = $table_header( 790 );
 				}
@@ -138,7 +138,7 @@ final class InvoicePdf {
 			}
 			// Totals block: VAT breakdown (net/tax/gross per rate) plus the sums.
 			if ( $y < 130 + 28 * count( $rates ) ) {
-				$footer( $pdf, sprintf( __( 'Seite %d', 'pass-captain' ), $page++ ) );
+				$footer( $pdf, sprintf( /* translators: %d: page number */ __( 'Seite %d', 'pass-captain' ), $page++ ) );
 				$pdf->add_page( 595.28, 841.89 );
 				$y = 790;
 			}
@@ -161,7 +161,7 @@ final class InvoicePdf {
 			$pdf->text( 545, $y, 10, self::money( (int) $invoice->total_minor - (int) $invoice->tax_minor, $cur ), false, 'right' );
 			foreach ( $rates as $rate => $sum ) {
 				$y -= 14;
-				$pdf->text( 300, $y, 10, sprintf( __( 'Umsatzsteuer %s %%', 'pass-captain' ), number_format_i18n( (float) $rate, 2 ) ) );
+				$pdf->text( 300, $y, 10, sprintf( /* translators: %s: VAT rate in percent */ __( 'Umsatzsteuer %s %%', 'pass-captain' ), number_format_i18n( (float) $rate, 2 ) ) );
 				$pdf->text( 545, $y, 10, self::money( $sum['tax'], $cur ), false, 'right' );
 			}
 			$y -= 18;
@@ -169,12 +169,12 @@ final class InvoicePdf {
 			$pdf->text( 545, $y, 11, self::money( $invoice->total_minor, $cur ), true, 'right' );
 			$y = self::payments( $pdf, $y, $invoice, $snapshot, $page, $footer );
 			if ( Invoices::seller_notes( $snapshot ) && $y - 30 - 24 * count( Invoices::seller_notes( $snapshot ) ) < 60 ) {
-				$footer( $pdf, sprintf( __( 'Seite %d', 'pass-captain' ), $page++ ) );
+				$footer( $pdf, sprintf( /* translators: %d: page number */ __( 'Seite %d', 'pass-captain' ), $page++ ) );
 				$pdf->add_page( 595.28, 841.89 );
 				$y = 820;
 			}
 			$y = self::seller_notes( $pdf, $y - 30, $snapshot );
-			$footer( $pdf, sprintf( __( 'Seite %d', 'pass-captain' ), $page ) );
+			$footer( $pdf, sprintf( /* translators: %d: page number */ __( 'Seite %d', 'pass-captain' ), $page ) );
 		}
 
 		foreach ( $credits as $credit ) {
@@ -182,7 +182,7 @@ final class InvoicePdf {
 			$y = self::header( $pdf, $seller );
 			$pdf->text( 50, $y, 18, __( 'Rechnungskorrektur', 'pass-captain' ) . ' ' . $credit->credit_note_number, true );
 			$y -= 22;
-			$pdf->text( 50, $y, 10, sprintf( __( 'Korrektur zu Rechnung %1$s vom %2$s', 'pass-captain' ), $invoice->invoice_number, self::date( $invoice->issued_at ) ) );
+			$pdf->text( 50, $y, 10, sprintf( /* translators: 1: invoice number, 2: invoice date */ __( 'Korrektur zu Rechnung %1$s vom %2$s', 'pass-captain' ), $invoice->invoice_number, self::date( $invoice->issued_at ) ) );
 			$y -= 14;
 			$pdf->text( 50, $y, 10, __( 'Datum:', 'pass-captain' ) . ' ' . self::date( $credit->issued_at ) . ' · ' . __( 'Empfänger:', 'pass-captain' ) . ' ' . ( $snapshot['email'] ?? '' ) );
 			if ( Billing::address_lines( $snapshot ) ) { $y = self::recipient( $pdf, $y - 20, $snapshot, false ); }

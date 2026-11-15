@@ -436,8 +436,8 @@ final class Service {
 		$p = $wpdb->prefix;
 		$order = Orders::get( $order_id );
 		if ( ! $order || 'paid' !== $order->payment_status || 'complete' !== $order->status ) { return false; }
-		$expected = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM {$p}wpcap_order_items WHERE order_id=%d", $order_id ) );
-		$count = static function () use ( $wpdb, $p, $order_id ) { return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$p}wpcap_tickets WHERE order_id=%d", $order_id ) ); };
+		$expected = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COALESCE(SUM(quantity),0) FROM %i WHERE order_id=%d', $p . 'wpcap_order_items', $order_id ) );
+		$count = static function () use ( $wpdb, $p, $order_id ) { return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE order_id=%d', $p . 'wpcap_tickets', $order_id ) ); };
 		if ( $count() < $expected ) { Orders::issue_and_email( $order_id ); }
 		return $expected > 0 && $count() >= $expected;
 	}
@@ -692,7 +692,7 @@ final class Service {
 		if ( $r['discount_minor'] ) { $h .= '<tr><td>' . esc_html__( 'Rabatt', 'pass-captain' ) . '</td><td class="n">' . esc_html( ( $storno ? '' : '-' ) . $m( $r['discount_minor'] ) ) . '</td></tr>'; }
 		$h .= '</table><div class="sep"></div><table class="big"><tr><td>' . esc_html__( 'SUMME', 'pass-captain' ) . '</td><td class="n">' . esc_html( $sign . $m( $r['total_minor'] ) ) . '</td></tr></table><table class="small">';
 		foreach ( $r['vat'] as $rate => $v ) {
-			$h .= '<tr><td>' . esc_html( sprintf( __( 'USt %1$s %%: Netto %2$s', 'pass-captain' ), number_format_i18n( $rate / 100, 2 ), $sign . $m( $v['net'] ) ) ) . '</td><td class="n">' . esc_html( $sign . $m( $v['tax'] ) ) . '</td></tr>';
+			$h .= '<tr><td>' . esc_html( sprintf( /* translators: 1: VAT rate in percent, 2: net amount */ __( 'USt %1$s %%: Netto %2$s', 'pass-captain' ), number_format_i18n( $rate / 100, 2 ), $sign . $m( $v['net'] ) ) ) . '</td><td class="n">' . esc_html( $sign . $m( $v['tax'] ) ) . '</td></tr>';
 		}
 		$h .= '</table><div class="sep"></div><p>' . esc_html( __( 'Zahlart:', 'pass-captain' ) . ' ' . $r['method_label'] ) . '</p>';
 		if ( ! $storno && null !== $r['tendered_minor'] ) {
