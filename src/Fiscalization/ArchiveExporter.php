@@ -6,6 +6,8 @@
  */
 namespace PassCaptain\Fiscalization;
 
+use PassCaptain\Reports\Scope;
+
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class ArchiveExporter {
@@ -30,19 +32,13 @@ final class ArchiveExporter {
 			$from . ' 00:00:00',
 			$end_exclusive
 		) );
-		nocache_headers();
-		header( 'Content-Type: text/csv; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename=wp-pass-captain-fiscal-' . $from . '-to-' . $until . '.csv' );
-		$output = fopen( 'php://output', 'w' );
-		if ( ! $output ) { wp_die( esc_html__( 'Export konnte nicht gestartet werden.', 'pass-captain' ), '', array( 'response' => 500 ) ); }
-		fwrite( $output, "\xEF\xBB\xBF" );
-		fputcsv( $output, array( 'document_id', 'order_id', 'seller_id', 'seller_name', 'country', 'provider', 'status', 'document_key', 'currency', 'gross_minor', 'tax_minor', 'provider_reference', 'qr_payload_base64', 'receipt_fields_json', 'snapshot_json', 'last_error', 'attempts', 'created_at_utc', 'updated_at_utc' ) );
+		$csv = array( array( 'document_id', 'order_id', 'seller_id', 'seller_name', 'country', 'provider', 'status', 'document_key', 'currency', 'gross_minor', 'tax_minor', 'provider_reference', 'qr_payload_base64', 'receipt_fields_json', 'snapshot_json', 'last_error', 'attempts', 'created_at_utc', 'updated_at_utc' ) );
 		foreach ( (array) $rows as $row ) {
 			$snapshot = json_decode( $row->snapshot, true );
-			$result = json_decode( $row->provider_result, true );
+			$result = json_decode( (string) $row->provider_result, true );
 			$receipt = is_array( $result['receipt'] ?? null ) ? $result['receipt'] : array();
 			$fields = is_array( $receipt['fields'] ?? null ) ? array_slice( $receipt['fields'], 0, 32, true ) : array();
-			fputcsv( $output, array_map( array( __CLASS__, 'cell' ), array(
+			$csv[] = array(
 				(int) $row->document_id,
 				(int) $row->order_id,
 				(int) $row->seller_id,
@@ -55,29 +51,22 @@ final class ArchiveExporter {
 				(int) $row->gross_minor,
 				(int) $row->tax_minor,
 				is_scalar( $result['reference'] ?? null ) ? (string) $result['reference'] : '',
-				is_string( $receipt['qr_payload'] ?? null ) ? base64_encode( $receipt['qr_payload'] ) : '',
-				wp_json_encode( $fields ),
-				wp_json_encode( is_array( $snapshot ) ? $snapshot : array() ),
+				is_string( $receipt['qr_payload'] ?? null ) ? base64_encode( $receipt['qr_payload'] ) : '', // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- the provider QR payload may be binary; base64 keeps the CSV cell intact.
+				(string) wp_json_encode( $fields ),
+				(string) wp_json_encode( is_array( $snapshot ) ? $snapshot : array() ),
 				(string) $row->last_error,
 				(int) $row->attempts,
 				(string) $row->created_at,
 				(string) $row->updated_at,
-			) ) );
+			);
 		}
-		fclose( $output );
-		exit;
+		// Shared CSV writer (formula neutralisation, BOM) and download path (audit entry export_downloaded).
+		Scope::send_download( Scope::csv( $csv ), 'pass-captain-fiscal-' . $from . '-to-' . $until . '.csv', 'text/csv; charset=utf-8' );
 	}
 
 	private static function valid_date( $value ) {
 		if ( ! preg_match( '/^\\d{4}-\\d{2}-\\d{2}$/', $value ) ) { return false; }
 		$parts = array_map( 'intval', explode( '-', $value ) );
 		return 3 === count( $parts ) && checkdate( $parts[1], $parts[2], $parts[0] );
-	}
-
-	/** Neutralize spreadsheet formulas while preserving the original value as text. */
-	private static function cell( $value ) {
-		if ( ! is_scalar( $value ) ) { return ''; }
-		$value = (string) $value;
-		return preg_match( '/^[\\s]*[=+@\\-]/', $value ) ? "'" . $value : $value;
 	}
 }

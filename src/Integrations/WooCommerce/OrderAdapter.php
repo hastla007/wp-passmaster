@@ -164,7 +164,7 @@ final class OrderAdapter {
 		);
 		$sellers = $wpdb->get_results( "SELECT seller_id,legal_name,country_code FROM {$p}wpcap_legal_sellers WHERE status='active' ORDER BY legal_name" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		$seller_options = array( '' => __( '— Verkäufer für normales Produkt wählen —', 'pass-captain' ) );
-		foreach ( $sellers as $seller ) { $seller_options[(string) $seller->seller_id] = $seller->legal_name . ' (' . $seller->country_code . ')'; }
+		foreach ( $sellers as $seller ) { $seller_options[ (string) $seller->seller_id ] = $seller->legal_name . ' (' . $seller->country_code . ')'; }
 		woocommerce_wp_select( array( 'id' => self::FISCAL_SELLER_META, 'label' => __( 'Fiskalischer Verkäufer (normales WooCommerce-Produkt)', 'pass-captain' ), 'description' => __( 'Für gemischte Warenkörbe. Ticketprodukte verwenden weiterhin die Verkäuferzuordnung der Pass-Captain-Ticketart.', 'pass-captain' ), 'desc_tip' => true, 'options' => $seller_options, 'value' => $fiscal_seller ? (string) $fiscal_seller : '' ) );
 		woocommerce_wp_select( array( 'id' => self::FISCAL_MODE_META, 'label' => __( 'Verkäuferrolle', 'pass-captain' ), 'options' => array( 'platform_seller' => __( 'Betreibergesellschaft ist Verkäufer', 'pass-captain' ), 'organizer_seller' => __( 'Veranstalter ist Verkäufer', 'pass-captain' ) ), 'value' => in_array( $fiscal_mode, array( 'platform_seller', 'organizer_seller' ), true ) ? $fiscal_mode : 'platform_seller' ) );
 		echo '</div>';
@@ -756,7 +756,7 @@ final class OrderAdapter {
 		$factor = 10 ** self::currency_decimals( $wc_order->get_currency() );
 		foreach ( array( 'fee' => $wc_order->get_items( 'fee' ), 'shipping' => $wc_order->get_items( 'shipping' ) ) as $kind => $order_items ) {
 			foreach ( $order_items as $item_id => $item ) {
-				if ( 'fee' === $kind && (int) round( ( (float) $item->get_total() + (float) $item->get_total_tax() ) * $factor ) < 0 ) {
+				if ( 'fee' === $kind && self::item_gross_minor( $item, $factor ) < 0 ) {
 					$error = self::negative_fee_fiscal_error( $allocation, array_keys( $mapped ) );
 					if ( $error ) {
 						return $error;
@@ -779,6 +779,13 @@ final class OrderAdapter {
 			return self::mixed_fiscal_allocation_error( true, true, false, false );
 		}
 		return $items;
+	}
+
+	/** Gross amount (total + tax) of an order item in minor units. */
+	private static function item_gross_minor( $item, $factor ) {
+		$total = is_callable( array( $item, 'get_total' ) ) ? (float) $item->get_total() : 0.0;
+		$tax   = is_callable( array( $item, 'get_total_tax' ) ) ? (float) $item->get_total_tax() : 0.0;
+		return (int) round( ( $total + $tax ) * $factor );
 	}
 
 	/**

@@ -169,7 +169,7 @@ final class Fiscalization {
 		add_action( 'wpcap_order_creating', array( __CLASS__, 'snapshot_order' ), 20, 4 );
 		add_action( 'wpcap_process_fiscal_order', array( __CLASS__, 'process_scheduled_order' ) );
 		add_filter( 'wpcap_order_fiscal_ready', array( __CLASS__, 'fiscal_ready' ), 10, 2 );
-		add_action( 'wpcap_tickets_issued', array( __CLASS__, 'mark_fulfilled' ), 10, 2 );
+		add_action( 'wpcap_tickets_issued', array( __CLASS__, 'mark_fulfilled' ), 10, 1 );
 		add_action( 'wpcap_refund_completed', array( __CLASS__, 'record_refund_adjustment' ), 10, 2 );
 		add_action( 'wpcap_woocommerce_non_ticket_refund', array( __CLASS__, 'record_non_ticket_refund' ), 10, 4 );
 		add_action( 'wpcap_order_cancelled', array( __CLASS__, 'record_order_cancellation' ), 10, 3 );
@@ -396,8 +396,9 @@ final class Fiscalization {
 					'items' => array(), 'gross_minor' => 0, 'tax_minor' => 0,
 				);
 			}
-			$gross = max( 0, (int) $line['line_total'] );
-			$tax = max( 0, (int) $line['tax_minor'] );
+			// Gross after campaign discounts (the amount actually paid for the line).
+			$gross = max( 0, (int) $line['line_total'] - (int) ( $line['discount_minor'] ?? 0 ) );
+			$tax = min( $gross, max( 0, (int) $line['tax_minor'] ) );
 			$groups[ $seller_id ]['items'][] = array(
 				'ticket_type_id' => $type_id,
 				'description' => sanitize_text_field( (string) ( $line['type']->name ?? ( 'Ticket ' . $type_id ) ) ),
@@ -438,8 +439,8 @@ final class Fiscalization {
 				'ruleset_key' => $mapping->ruleset_key, 'ruleset_version' => $mapping->ruleset_version,
 				'legal_reference' => $mapping->legal_reference, 'location_id' => (int) $scope['location_id'], 'register_id' => $scope['register_id'],
 			);
-			if ( ! isset( $groups[$seller_id] ) ) {
-				$groups[$seller_id] = array(
+			if ( ! isset( $groups[ $seller_id ] ) ) {
+				$groups[ $seller_id ] = array(
 					'seller' => $seller_snapshot,
 					'profile' => array_merge( $profile_snapshot, array( 'data' => $profile_data ) ),
 					'provider_id' => sanitize_key( $mapping->provider_id ),
@@ -449,7 +450,7 @@ final class Fiscalization {
 			}
 			$gross = max( 0, (int) ( $extra['gross_minor'] ?? 0 ) );
 			$tax = min( $gross, max( 0, (int) ( $extra['tax_minor'] ?? 0 ) ) );
-			$groups[$seller_id]['items'][] = array(
+			$groups[ $seller_id ]['items'][] = array(
 				'line_key' => sanitize_key( $extra['line_key'] ?? '' ),
 				'product_id' => absint( $extra['product_id'] ?? 0 ),
 				'description' => sanitize_text_field( (string) ( $extra['description'] ?? __( 'WooCommerce-Position', 'pass-captain' ) ) ),
@@ -459,8 +460,8 @@ final class Fiscalization {
 				'tax_rate_bp' => absint( $extra['tax_rate_bp'] ?? 0 ),
 				'tax_minor' => $tax,
 			);
-			$groups[$seller_id]['gross_minor'] += $gross;
-			$groups[$seller_id]['tax_minor'] += $tax;
+			$groups[ $seller_id ]['gross_minor'] += $gross;
+			$groups[ $seller_id ]['tax_minor'] += $tax;
 		}
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT currency,payment_provider FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
 		$payment_method = self::payment_method( $internal, $order ? (string) $order->payment_provider : '' );
@@ -480,8 +481,11 @@ final class Fiscalization {
 			$document_id = (int) $wpdb->insert_id;
 			foreach ( $group['items'] as $item ) {
 				if ( empty( $item['ticket_type_id'] ) ) { continue; }
-				$wpdb->insert( "{$p}wpcap_fiscal_document_items", array_merge( array( 'document_id' => $document_id ), $item ) );
-				if ( '' !== $wpdb->last_error ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
+				$saved = $wpdb->insert( "{$p}wpcap_fiscal_document_items", array(
+					'document_id' => $document_id, 'ticket_type_id' => (int) $item['ticket_type_id'], 'seller_mode' => $item['seller_mode'],
+					'quantity' => (int) $item['quantity'], 'gross_minor' => (int) $item['gross_minor'], 'tax_rate_bp' => (int) $item['tax_rate_bp'], 'tax_minor' => (int) $item['tax_minor'],
+				) );
+				if ( false === $saved ) { throw new \RuntimeException( 'fiscal_snapshot_failed' ); }
 			}
 		}
 	}
@@ -613,7 +617,7 @@ final class Fiscalization {
 			foreach ( $wpdb->get_results( "SELECT ticket_type_id,status FROM {$p}wpcap_tickets WHERE order_id=" . absint( $order_id ) . " AND ticket_id IN ({$ids})" ) as $ticket ) { // phpcs:ignore WordPress.DB
 				$type_id = absint( $ticket->ticket_type_id );
 				$ticket_types[] = $type_id;
-				if ( 'checked_in' === $ticket->status ) { $used_by_type[$type_id] = ( $used_by_type[$type_id] ?? 0 ) + 1; }
+				if ( 'checked_in' === $ticket->status ) { $used_by_type[ $type_id ] = ( $used_by_type[ $type_id ] ?? 0 ) + 1; }
 			}
 		}
 		$order = $wpdb->get_row( $wpdb->prepare( "SELECT total_minor,refunded_minor FROM {$p}wpcap_orders WHERE order_id=%d", absint( $order_id ) ) );
@@ -878,7 +882,7 @@ final class Fiscalization {
 
 	/** Scheduled retry callback; adapters receive a stable idempotency key for every retry. */
 	/** Records ticket fulfillment separately from payment and fiscal submission status. */
-	public static function mark_fulfilled( $order_id, $count ) {
+	public static function mark_fulfilled( $order_id ) {
 		global $wpdb;
 		$wpdb->update( $wpdb->prefix . 'wpcap_fiscal_order_state', array(
 			'fulfillment_status' => 'tickets_issued', 'updated_at' => current_time( 'mysql', true ),
@@ -1059,14 +1063,15 @@ final class Fiscalization {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ) ); }
 		check_admin_referer( 'wpcap_fiscal_save_seller' );
 		$request = new \WP_REST_Request( 'POST' );
-		$request->set_json_params( array(
+		$request->set_header( 'content-type', 'application/json' );
+		$request->set_body( (string) wp_json_encode( array(
 			'legal_name' => sanitize_text_field( wp_unslash( $_POST['legal_name'] ?? '' ) ),
 			'country_code' => strtoupper( sanitize_text_field( wp_unslash( $_POST['country_code'] ?? '' ) ) ),
 			'tax_number' => sanitize_text_field( wp_unslash( $_POST['tax_number'] ?? '' ) ),
 			'vat_id' => sanitize_text_field( wp_unslash( $_POST['vat_id'] ?? '' ) ),
 			'contact_email' => sanitize_email( wp_unslash( $_POST['contact_email'] ?? '' ) ),
 			'business_address' => array( 'street' => sanitize_text_field( wp_unslash( $_POST['address_street'] ?? '' ) ), 'postal_code' => sanitize_text_field( wp_unslash( $_POST['address_postal_code'] ?? '' ) ), 'city' => sanitize_text_field( wp_unslash( $_POST['address_city'] ?? '' ) ), 'region' => sanitize_text_field( wp_unslash( $_POST['address_region'] ?? '' ) ), 'country' => sanitize_text_field( wp_unslash( $_POST['address_country'] ?? '' ) ) ),
-		) );
+		) ) );
 		$result = self::rest_save_seller( $request );
 		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'saved' );
 	}
@@ -1096,16 +1101,18 @@ final class Fiscalization {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( esc_html__( 'Keine Berechtigung.', 'pass-captain' ) ); }
 		$seller_id = absint( $_POST['seller_id'] ?? 0 );
 		check_admin_referer( 'wpcap_fiscal_save_provider_' . $seller_id );
-		$raw = wp_unslash( $_POST['configuration'] ?? '{}' );
+		$raw = is_string( $_POST['configuration'] ?? null ) ? wp_unslash( $_POST['configuration'] ) : '{}'; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- JSON document; decoded and sanitized per key/value by sanitize_configuration().
 		$config = json_decode( $raw, true );
+		$config = is_array( $config ) ? self::sanitize_configuration( $config ) : null;
 		if ( ! is_array( $config ) ) { self::admin_redirect( 'invalid_json' ); }
 		$request = new \WP_REST_Request( 'PUT' );
 		$request->set_param( 'seller_id', $seller_id );
-		$request->set_json_params( array(
+		$request->set_header( 'content-type', 'application/json' );
+		$request->set_body( (string) wp_json_encode( array(
 			'provider_id' => sanitize_key( wp_unslash( $_POST['provider_id'] ?? '' ) ),
 			'enabled' => ! empty( $_POST['enabled'] ),
 			'configuration' => $config,
-		) );
+		) ) );
 		$result = self::rest_save_provider( $request );
 		self::admin_redirect( is_wp_error( $result ) ? 'error' : 'saved' );
 	}
@@ -1118,10 +1125,11 @@ final class Fiscalization {
 		global $wpdb;
 		$config = $wpdb->get_row( $wpdb->prepare( "SELECT provider_id FROM {$wpdb->prefix}wpcap_fiscal_configs WHERE seller_id=%d", $seller_id ), ARRAY_A );
 		if ( ! $config || $provider_id !== $config['provider_id'] || ! Registry::get( $provider_id ) ) { self::admin_redirect( 'credentials_error' ); }
-		$names = is_array( $_POST['credential_name'] ?? null ) ? wp_unslash( $_POST['credential_name'] ) : array();
-		$values = is_array( $_POST['credential_value'] ?? null ) ? wp_unslash( $_POST['credential_value'] ) : array();
+		$names = is_array( $_POST['credential_name'] ?? null ) ? array_map( 'sanitize_key', wp_unslash( $_POST['credential_name'] ) ) : array();
+		$values = is_array( $_POST['credential_value'] ?? null ) ? wp_unslash( $_POST['credential_value'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- secret values must stay byte-exact; they are only encrypted, never output.
 		$credentials = array();
-		for ( $i = 0; $i < min( 4, max( count( $names ), count( $values ) ) ); $i++ ) {
+		$rows = min( 4, max( count( $names ), count( $values ) ) );
+		for ( $i = 0; $i < $rows; $i++ ) {
 			$name = sanitize_key( is_scalar( $names[ $i ] ?? null ) ? (string) $names[ $i ] : '' );
 			$value = is_scalar( $values[ $i ] ?? null ) ? (string) $values[ $i ] : '';
 			if ( '' === $name && '' === $value ) { continue; }
@@ -1193,7 +1201,7 @@ final class Fiscalization {
 		echo '<p>' . esc_html__( 'Fiskalbelege werden je Rechtsträger erstellt. Ein zugeordnetes Ticket wird erst ausgegeben, wenn der konfigurierte Adapter den Beleg bestätigt.', 'pass-captain' ) . '</p>';
 		echo '<h2>' . esc_html__( 'Rechtsträger anlegen', 'pass-captain' ) . '</h2><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		wp_nonce_field( 'wpcap_fiscal_save_seller' );
-		echo '<input type="hidden" name="action" value="wpcap_fiscal_save_seller"><table class="form-table"><tr><th><label for="fiscal-legal-name">' . esc_html__( 'Rechtlicher Name', 'pass-captain' ) . '</label></th><td><input required id="fiscal-legal-name" name="legal_name" class="regular-text"></td></tr><tr><th><label for="fiscal-country">' . esc_html__( 'Land', 'pass-captain' ) . '</label></th><td><select id="fiscal-country" name="country_code">' . self::country_options() . '</select></td></tr><tr><th><label for="fiscal-tax">' . esc_html__( 'Steuernummer / VAT-ID', 'pass-captain' ) . '</label></th><td><input id="fiscal-tax" name="tax_number" class="regular-text"></td></tr></table>';
+		echo '<input type="hidden" name="action" value="wpcap_fiscal_save_seller"><table class="form-table"><tr><th><label for="fiscal-legal-name">' . esc_html__( 'Rechtlicher Name', 'pass-captain' ) . '</label></th><td><input required id="fiscal-legal-name" name="legal_name" class="regular-text"></td></tr><tr><th><label for="fiscal-country">' . esc_html__( 'Land', 'pass-captain' ) . '</label></th><td><select id="fiscal-country" name="country_code">' . self::country_options() . '</select></td></tr><tr><th><label for="fiscal-tax">' . esc_html__( 'Steuernummer / VAT-ID', 'pass-captain' ) . '</label></th><td><input id="fiscal-tax" name="tax_number" class="regular-text"></td></tr></table>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- country_options() escapes every option.
 		echo '<p><label>' . esc_html__( 'VAT-ID', 'pass-captain' ) . ' <input name="vat_id" class="regular-text"></label> <label>' . esc_html__( 'Kontakt-E-Mail', 'pass-captain' ) . ' <input name="contact_email" type="email"></label></p>';
 		echo '<p><label>' . esc_html__( 'Geschäftsadresse', 'pass-captain' ) . ' <input name="address_street" class="regular-text" autocomplete="street-address"></label> <label>' . esc_html__( 'PLZ', 'pass-captain' ) . ' <input name="address_postal_code" size="8" autocomplete="postal-code"></label> <label>' . esc_html__( 'Ort', 'pass-captain' ) . ' <input name="address_city" autocomplete="address-level2"></label> <label>' . esc_html__( 'Region', 'pass-captain' ) . ' <input name="address_region" autocomplete="address-level1"></label> <label>' . esc_html__( 'Land der Anschrift', 'pass-captain' ) . ' <input name="address_country" size="4" autocomplete="country"></label></p>';
 		submit_button( __( 'Rechtsträger speichern', 'pass-captain' ) );
@@ -1241,7 +1249,9 @@ final class Fiscalization {
 			echo '</select></label>';
 			if ( $credential_names ) {
 				echo '<p>' . esc_html__( 'Gespeicherte Zugangsdaten (Werte werden nicht angezeigt):', 'pass-captain' ) . ' <code>' . esc_html( implode( ', ', $credential_names ) ) . '</code></p><p>';
-				foreach ( $credential_names as $credential_name ) { echo '<label><input type="checkbox" name="remove_credentials[]" value="' . esc_attr( $credential_name ) . '"> ' . esc_html( sprintf( __( '%s löschen', 'pass-captain' ), $credential_name ) ) . '</label> '; }
+				foreach ( $credential_names as $credential_name ) {
+					/* translators: %s: credential field name */
+					echo '<label><input type="checkbox" name="remove_credentials[]" value="' . esc_attr( $credential_name ) . '"> ' . esc_html( sprintf( __( '%s löschen', 'pass-captain' ), $credential_name ) ) . '</label> '; }
 				echo '</p>';
 			}
 			for ( $credential_row = 0; $credential_row < 4; $credential_row++ ) {
@@ -1322,19 +1332,20 @@ final class Fiscalization {
 				if ( isset( $resolved_events[ $event_id ] ) ) {
 					$resolution = $resolved_events[ $event_id ];
 					$label = 'submitted_by_adapter' === $resolution['action'] ? __( 'Über Anbieteradapter erledigt', 'pass-captain' ) : __( 'Extern erledigt', 'pass-captain' );
+					/* translators: 1: who completed the correction, 2: provider reference */
 					echo esc_html( sprintf( __( '%1$s · Referenz %2$s', 'pass-captain' ), $label, $resolution['reference'] ) );
 				} elseif ( 'manual_required' === $event->event_status && in_array( $event->event_type, array( 'refund_adjustment', 'order_cancellation', 'event_cancellation' ), true ) ) {
 					$event_metadata = is_array( $metadata ) ? $metadata : array();
 					$eligible_efsta_void = 'order_cancellation' === $event->event_type && 'efsta_efr' === $event->provider_id && in_array( strtoupper( (string) $event->country_code ), array( 'AT', 'DE' ), true ) && 'void' === sanitize_key( $event_metadata['adjustment_kind'] ?? '' );
 					if ( $eligible_efsta_void && empty( $void_attempted_events[ $event_id ] ) ) {
-						echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="wpcap_fiscal_submit_efsta_void"><input type="hidden" name="event_id" value="' . $event_id . '">';
+						echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="wpcap_fiscal_submit_efsta_void"><input type="hidden" name="event_id" value="' . (int) $event_id . '">';
 						wp_nonce_field( 'wpcap_fiscal_submit_efsta_void_' . $event_id );
 						submit_button( __( 'efsta-Vollstorno senden', 'pass-captain' ), 'delete', 'submit', false );
 						echo '</form><small>' . esc_html__( 'Einmaliger Sendeversuch. Bei unklarem Ergebnis Anbieterstatus prüfen; keine Wiederholung auslösen.', 'pass-captain' ) . '</small>';
 					} elseif ( $eligible_efsta_void ) {
 						echo '<small>' . esc_html__( 'Sendeversuch erfolgt. Anbieterstatus prüfen; nicht erneut senden.', 'pass-captain' ) . '</small><br>';
 					}
-					echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="wpcap_fiscal_manual_resolution"><input type="hidden" name="event_id" value="' . $event_id . '">';
+					echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '"><input type="hidden" name="action" value="wpcap_fiscal_manual_resolution"><input type="hidden" name="event_id" value="' . (int) $event_id . '">';
 					wp_nonce_field( 'wpcap_fiscal_manual_resolution_' . $event_id );
 					echo '<label>' . esc_html__( 'Korrekturart', 'pass-captain' ) . ' <select name="resolution"><option value="refund">' . esc_html__( 'Erstattung', 'pass-captain' ) . '</option><option value="credit_note">' . esc_html__( 'Gutschrift', 'pass-captain' ) . '</option><option value="void">' . esc_html__( 'Storno', 'pass-captain' ) . '</option><option value="correction">' . esc_html__( 'Korrektur', 'pass-captain' ) . '</option></select></label> <label>' . esc_html__( 'Beleg-/Anbieterreferenz', 'pass-captain' ) . ' <input name="provider_reference" type="text" maxlength="191" required></label>';
 					submit_button( __( 'Extern erledigt dokumentieren', 'pass-captain' ), 'secondary', 'submit', false );
@@ -1383,6 +1394,23 @@ final class Fiscalization {
 		$html = '';
 		foreach ( SalesModel::EU_COUNTRIES as $code ) { $html .= '<option value="' . esc_attr( $code ) . '"' . selected( 'AT', $code, false ) . '>' . esc_html( $code ) . '</option>'; }
 		return $html;
+	}
+
+	/** Non-secret adapter configuration from the admin form: keys sanitize_key(), scalars as text, nested maps kept. */
+	private static function sanitize_configuration( array $config, $depth = 0 ) {
+		$out = array();
+		foreach ( $config as $key => $value ) {
+			$key = is_int( $key ) ? $key : sanitize_key( (string) $key );
+			if ( '' === $key ) { continue; }
+			if ( is_array( $value ) ) {
+				if ( $depth < 4 ) { $out[ $key ] = self::sanitize_configuration( $value, $depth + 1 ); }
+			} elseif ( is_bool( $value ) || is_int( $value ) || is_float( $value ) ) {
+				$out[ $key ] = $value;
+			} elseif ( is_string( $value ) ) {
+				$out[ $key ] = preg_match( '/(^|_)url$/', (string) $key ) ? esc_url_raw( $value, array( 'http', 'https' ) ) : sanitize_text_field( $value );
+			}
+		}
+		return $out;
 	}
 
 	/** Prevent adapter credentials from being written to the general configuration table. */

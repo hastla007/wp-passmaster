@@ -70,6 +70,7 @@ final class Page {
 				echo '<p><label>' . esc_html__( 'Kassenregister', 'pass-captain' ) . ' ';
 				echo '<select name="terminal_key" required><option value="">— ' . esc_html__( 'Bitte wählen', 'pass-captain' ) . ' —</option>';
 				foreach ( $terminals as $key => $terminal ) {
+					/* translators: 1: register name, 2: location ID, 3: register ID */
 					$label = sprintf( __( '%1$s (Standort %2$d · %3$s)', 'pass-captain' ), $terminal['label'], $terminal['location_id'], $terminal['register_id'] );
 					echo '<option value="' . esc_attr( $key ) . '">' . esc_html( $label ) . '</option>';
 				}
@@ -150,6 +151,7 @@ final class Page {
 		$totals = Service::session_totals( $session->session_id );
 		$cur = $session->currency;
 		echo '<h2>' . esc_html( sprintf( __( 'Kassensitzung #%1$d (seit %2$s)', 'pass-captain' ), $session->session_id, Scope::local( $session->opened_at, Scope::site_timezone() ) ) ) . '</h2>';
+		/* translators: 1: location ID, 2: register ID */
 		echo '<p>' . esc_html( sprintf( __( 'Standort %1$d · Kasse %2$s', 'pass-captain' ), (int) $session->location_id, '' !== (string) $session->register_id ? (string) $session->register_id : __( 'Standard', 'pass-captain' ) ) ) . '</p>';
 		echo '<table class="widefat" style="max-width:40rem"><thead><tr><th>' . esc_html__( 'Zahlart', 'pass-captain' ) . '</th><th>' . esc_html__( 'Verkäufe', 'pass-captain' ) . '</th><th>' . esc_html__( 'Storniert', 'pass-captain' ) . '</th><th>' . esc_html__( 'Netto-Umsatz', 'pass-captain' ) . '</th></tr></thead><tbody>';
 		foreach ( $totals['methods'] as $m => $t ) {

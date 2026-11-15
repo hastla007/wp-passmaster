@@ -237,6 +237,7 @@ final class Orders {
 				$rate = $line['tax_profile'] ? (int) $line['tax_profile']['rate_bp'] : (int) ( $line['type']->tax_rate_bp ?? 0 );
 				$type_id_for_tax = (int) $line['type']->ticket_type_id;
 				$selected[ $index ]['tax_rate_bp'] = $rate;
+				$selected[ $index ]['discount_minor'] = (int) $line_discount;
 				$selected[ $index ]['tax_minor'] = array_key_exists( $type_id_for_tax, $line_taxes ) ? (int) $line_taxes[ $type_id_for_tax ] : self::gross_tax( $line['line_total'] - $line_discount, $rate );
 				$tax_total += $selected[ $index ]['tax_minor'];
 			}

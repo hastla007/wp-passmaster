@@ -74,7 +74,7 @@ final class FiskaltrustAdapter implements AdapterInterface {
 			$sum += $gross;
 		}
 		$method = sanitize_key( $document['payment_method'] ?? 'other' );
-		$pay_case = $this->case_value( $payment_cases[$method] ?? null );
+		$pay_case = $this->case_value( $payment_cases[ $method ] ?? null );
 		if ( null === $pay_case || ! $charges || $sum !== (int) ( $document['gross_minor'] ?? -1 ) ) {
 			return new \WP_Error( 'fiskaltrust_payment_mapping_missing', __( 'Die Zahlungscode-Zuordnung fehlt oder der Belegbetrag stimmt nicht.', 'pass-captain' ) );
 		}

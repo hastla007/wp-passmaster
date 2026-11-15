@@ -53,12 +53,12 @@ final class BoxOffice {
 		$wpdb->query( "UPDATE `{$table}` SET order_id=NULL WHERE order_id=0" );
 		$session_table = $wpdb->prefix . 'wpcap_boxoffice_sessions';
 		foreach ( array(
-			'location_id' => "bigint(20) unsigned NOT NULL DEFAULT 0 AFTER currency",
+			'location_id' => 'bigint(20) unsigned NOT NULL DEFAULT 0 AFTER currency',
 			'register_id' => "varchar(64) NOT NULL DEFAULT '' AFTER location_id",
 		) as $name => $definition ) {
-			if ( ! $wpdb->get_row( "SHOW COLUMNS FROM `{$session_table}` LIKE '{$name}'" ) && false === $wpdb->query( "ALTER TABLE `{$session_table}` ADD COLUMN {$name} {$definition}" ) ) { return false; }
+			if ( ! $wpdb->get_row( "SHOW COLUMNS FROM `{$session_table}` LIKE '{$name}'" ) && false === $wpdb->query( "ALTER TABLE `{$session_table}` ADD COLUMN {$name} {$definition}" ) ) { return false; } // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.SchemaChange -- own table, constant column names/definitions from the array above.
 		}
-		
+
 		$wpdb->query( $wpdb->prepare( "DELETE FROM `{$table}` WHERE status='pending' AND order_id IS NULL AND created_at < %s", gmdate( 'Y-m-d H:i:s', time() - 30 * 60 ) ) );
 		update_option( 'wpcap_boxoffice_migration', self::MIGRATION_VERSION );
 		return true;

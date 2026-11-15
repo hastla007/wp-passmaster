@@ -124,14 +124,14 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		$tax_total = 0;
 		foreach ( (array) ( $document['items'] ?? array() ) as $index => $item ) {
 			$rate = (int) ( $item['tax_rate_bp'] ?? 0 );
-			$group = sanitize_text_field( (string) ( $groups[(string) $rate] ?? $groups[$rate] ?? '' ) );
+			$group = sanitize_text_field( (string) ( $groups[ (string) $rate ] ?? $groups[ $rate ] ?? '' ) );
 			if ( '' === $group ) { return new \WP_Error( 'efsta_tax_mapping_missing', __( 'Für einen Steuersatz fehlt die efsta-Steuergruppen-Zuordnung.', 'pass-captain' ) ); }
 			$gross = max( 0, (int) ( $item['gross_minor'] ?? 0 ) );
 			$tax = min( $gross, max( 0, (int) ( $item['tax_minor'] ?? 0 ) ) );
 			$qty = max( 1, (int) ( $item['quantity'] ?? 1 ) );
 			$items[] = array( '_' => 'Pos', 'PN' => (string) ( $index + 1 ), 'IN' => (string) (int) ( $item['ticket_type_id'] ?? $item['product_id'] ?? 0 ), 'Dsc' => sanitize_text_field( (string) ( $item['description'] ?? ( 'Ticket ' . (int) ( $item['ticket_type_id'] ?? 0 ) ) ) ), 'Qty' => (string) $qty, 'TaxG' => $group, 'Amt' => ProviderHttp::decimal( $gross, $currency ) );
-			$taxes[$group] = ( $taxes[$group] ?? 0 ) + $gross;
-			$tax_rates[$group] = $rate;
+			$taxes[ $group ] = ( $taxes[ $group ] ?? 0 ) + $gross;
+			$tax_rates[ $group ] = $rate;
 			$tax_total += $tax;
 			$gross_total += $gross;
 		}
@@ -139,11 +139,11 @@ final class EfstaEfrAdapter implements AdapterInterface {
 		$tax_rows = array();
 		foreach ( $taxes as $group => $gross ) {
 			$tax = 0;
-			foreach ( (array) $document['items'] as $item ) { if ( (string) ( $groups[(string) (int) $item['tax_rate_bp']] ?? $groups[(int) $item['tax_rate_bp']] ?? '' ) === (string) $group ) { $tax += max( 0, (int) $item['tax_minor'] ); } }
-			$tax_rows[] = array( '_' => 'Tax', 'TaxG' => $group, 'Prc' => number_format( $tax_rates[$group] / 100, 2, '.', '' ), 'Net' => ProviderHttp::decimal( $gross - $tax, $currency ), 'TAmt' => ProviderHttp::decimal( $tax, $currency ), 'Amt' => ProviderHttp::decimal( $gross, $currency ) );
+			foreach ( (array) $document['items'] as $item ) { if ( (string) ( $groups[ (string) (int) $item['tax_rate_bp'] ] ?? $groups[ (int) $item['tax_rate_bp'] ] ?? '' ) === (string) $group ) { $tax += max( 0, (int) $item['tax_minor'] ); } }
+			$tax_rows[] = array( '_' => 'Tax', 'TaxG' => $group, 'Prc' => number_format( $tax_rates[ $group ] / 100, 2, '.', '' ), 'Net' => ProviderHttp::decimal( $gross - $tax, $currency ), 'TAmt' => ProviderHttp::decimal( $tax, $currency ), 'Amt' => ProviderHttp::decimal( $gross, $currency ) );
 		}
 		$payment_method = sanitize_key( $document['payment_method'] ?? 'other' );
-		$payment_group = sanitize_text_field( (string) ( $payments[$payment_method] ?? '' ) );
+		$payment_group = sanitize_text_field( (string) ( $payments[ $payment_method ] ?? '' ) );
 		if ( '' === $payment_group ) { return new \WP_Error( 'efsta_payment_mapping_missing', __( 'Für die Zahlungsart fehlt die efsta-Zahlungsgruppen-Zuordnung.', 'pass-captain' ) ); }
 		$now = sanitize_text_field( (string) ( $document['created_at'] ?? gmdate( 'c' ) ) );
 		$register = sanitize_text_field( (string) ( $configuration['terminal_id'] ?? '1' ) );

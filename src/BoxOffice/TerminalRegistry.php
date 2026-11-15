@@ -70,6 +70,7 @@ final class TerminalRegistry {
 	public static function validate( $raw ) {
 		$parsed = self::parse( $raw );
 		if ( $parsed['errors'] ) {
+			/* translators: %s: comma separated line numbers */
 			return new \WP_Error( 'wpcap_pos_terminals_invalid', sprintf( __( 'Ungültige Kassenliste in Zeile(n): %s. Erwartet wird Standort-ID|Kassen-ID|Anzeigename.', 'pass-captain' ), implode( ', ', $parsed['errors'] ) ) );
 		}
 		return $parsed;

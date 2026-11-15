@@ -57,7 +57,7 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 		$compliance = (array) ( $content['compliance'] ?? array() );
 		$code = (array) ( $compliance['code'] ?? array() );
 		foreach ( array( 'image', 'value', 'data' ) as $key ) {
-			if ( is_string( $code[$key] ?? null ) && '' !== $code[$key] && strlen( $code[$key] ) <= 4096 ) { $receipt['qr_payload'] = $code[$key]; break; }
+			if ( is_string( $code[ $key ] ?? null ) && '' !== $code[ $key ] && strlen( $code[ $key ] ) <= 4096 ) { $receipt['qr_payload'] = $code[ $key ]; break; }
 		}
 		if ( isset( $content['signature'] ) && is_scalar( $content['signature'] ) ) { $receipt['fields']['Signatur'] = (string) $content['signature']; }
 		return array( 'reference' => substr( sanitize_text_field( $reference ), 0, 191 ), 'receipt' => $receipt );
@@ -70,24 +70,24 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 		$breakdown = array(); $items = array(); $sums = array(); $taxes = array(); $total = 0;
 		foreach ( (array) ( $document['items'] ?? array() ) as $item ) {
 			$rate = (string) (int) ( $item['tax_rate_bp'] ?? 0 );
-			$code = sanitize_key( $vat_map[$rate] ?? '' );
+			$code = sanitize_key( $vat_map[ $rate ] ?? '' );
 			if ( '' === $code ) { return new \WP_Error( 'fiskaly_unified_vat_map_missing', __( 'Für einen Steuersatz fehlt die fiskaly Länder-Zuordnung.', 'pass-captain' ) ); }
 			$gross = max( 0, (int) ( $item['gross_minor'] ?? 0 ) );
 			$tax = min( $gross, max( 0, (int) ( $item['tax_minor'] ?? 0 ) ) );
 			$qty = max( 1, (int) ( $item['quantity'] ?? 1 ) );
 			$key = $code . ':' . $rate;
-			$sums[$key] = ( $sums[$key] ?? 0 ) + $gross;
-			$taxes[$key] = ( $taxes[$key] ?? 0 ) + $tax;
+			$sums[ $key ] = ( $sums[ $key ] ?? 0 ) + $gross;
+			$taxes[ $key ] = ( $taxes[ $key ] ?? 0 ) + $tax;
 			$items[] = array( 'text' => sanitize_text_field( (string) ( $item['description'] ?? ( 'Ticket ' . (int) ( $item['ticket_type_id'] ?? 0 ) ) ) ), 'quantity' => (string) $qty, 'unit_amount' => ProviderHttp::decimal( (int) round( $gross / $qty ), $currency ), 'full_amount' => ProviderHttp::decimal( $gross, $currency ) );
 			$total += $gross;
 		}
 		foreach ( $sums as $key => $gross ) {
 			list( $code, $rate ) = explode( ':', $key, 2 );
-			$tax = (int) $taxes[$key];
+			$tax = (int) $taxes[ $key ];
 			$breakdown[] = array( 'type' => 'VAT_RATE', 'code' => strtoupper( $code ), 'percentage' => number_format( (int) $rate / 100, 2, '.', '' ), 'exclusive' => ProviderHttp::decimal( $gross - $tax, $currency ), 'inclusive' => ProviderHttp::decimal( $gross, $currency ), 'amount' => ProviderHttp::decimal( $tax, $currency ) );
 		}
 		$method = sanitize_key( $document['payment_method'] ?? 'other' );
-		$payment = strtoupper( sanitize_key( $payment_map[$method] ?? '' ) );
+		$payment = strtoupper( sanitize_key( $payment_map[ $method ] ?? '' ) );
 		if ( '' === $payment || $total !== (int) ( $document['gross_minor'] ?? -1 ) ) { return new \WP_Error( 'fiskaly_unified_payment_map_missing', __( 'Zahlungsart fehlt in der fiskaly Länder-Zuordnung oder der Betrag stimmt nicht.', 'pass-captain' ) ); }
 		$operation = array(
 			'type' => 'RECEIPT',
@@ -128,7 +128,7 @@ final class FiskalyUnifiedAdapter implements AdapterInterface {
 	}
 
 	private function required( array $configuration, $key ) {
-		$value = sanitize_text_field( (string) ( $configuration[$key] ?? '' ) );
+		$value = sanitize_text_field( (string) ( $configuration[ $key ] ?? '' ) );
 		return '' !== $value ? $value : new \WP_Error( 'fiskaly_configuration_missing', __( 'Eine fiskaly SIGN Unified API Ressource fehlt in der Konfiguration.', 'pass-captain' ) );
 	}
 }

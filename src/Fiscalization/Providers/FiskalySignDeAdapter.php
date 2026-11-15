@@ -60,19 +60,19 @@ final class FiskalySignDeAdapter implements AdapterInterface {
 		$taxes = array(); $payments = array(); $total = 0; $tax_total = 0;
 		foreach ( (array) ( $document['items'] ?? array() ) as $item ) {
 			$rate = (string) (int) ( $item['tax_rate_bp'] ?? 0 );
-			$vat_type = sanitize_key( $vat_map[$rate] ?? '' );
+			$vat_type = sanitize_key( $vat_map[ $rate ] ?? '' );
 			if ( '' === $vat_type ) { return new \WP_Error( 'fiskaly_de_vat_map_missing', __( 'Für einen Steuersatz fehlt die fiskaly SIGN DE VAT-Zuordnung.', 'pass-captain' ) ); }
 			$gross = max( 0, (int) ( $item['gross_minor'] ?? 0 ) );
 			$tax = min( $gross, max( 0, (int) ( $item['tax_minor'] ?? 0 ) ) );
-			$taxes[$vat_type] = ( $taxes[$vat_type] ?? 0 ) + $gross;
+			$taxes[ $vat_type ] = ( $taxes[ $vat_type ] ?? 0 ) + $gross;
 			$tax_total += $tax; $total += $gross;
 		}
 		$method = sanitize_key( $document['payment_method'] ?? 'other' );
-		$payment = sanitize_key( $payment_map[$method] ?? '' );
+		$payment = sanitize_key( $payment_map[ $method ] ?? '' );
 		if ( '' === $payment || ! $taxes || $total !== (int) ( $document['gross_minor'] ?? -1 ) ) { return new \WP_Error( 'fiskaly_de_payment_map_missing', __( 'Die fiskaly SIGN DE Zahlungsart fehlt oder die Belegsummen stimmen nicht.', 'pass-captain' ) ); }
 		$vat = array();
 		foreach ( $taxes as $type => $gross ) { $vat[] = array( 'vat_rate' => strtoupper( $type ), 'amount' => ProviderHttp::decimal( $gross, $currency ) ); }
-		$payments[$payment] = $total;
+		$payments[ $payment ] = $total;
 		return array(
 			'receipt_type' => 'RECEIPT',
 			'amounts_per_vat_rate' => $vat,
@@ -89,7 +89,7 @@ final class FiskalySignDeAdapter implements AdapterInterface {
 		$reference = (string) ( $data['number'] ?? $data['tx_number'] ?? $fallback );
 		$receipt = array();
 		foreach ( array( 'tss_serial_number' => 'TSE-Seriennummer', 'client_serial_number' => 'Kassen-ID', 'time_end' => 'Signaturzeitpunkt' ) as $key => $label ) {
-			if ( isset( $data[$key] ) && is_scalar( $data[$key] ) ) { $receipt['fields'][$label] = (string) $data[$key]; }
+			if ( isset( $data[ $key ] ) && is_scalar( $data[ $key ] ) ) { $receipt['fields'][ $label ] = (string) $data[ $key ]; }
 		}
 		if ( is_string( $data['qr_code_data'] ?? null ) ) { $receipt['qr_payload'] = $data['qr_code_data']; }
 		if ( is_string( $data['signature'] ?? null ) ) { $receipt['fields']['Signatur'] = $data['signature']; }
@@ -105,7 +105,7 @@ final class FiskalySignDeAdapter implements AdapterInterface {
 		return $path;
 	}
 	private function resource_id( array $configuration, $key ) {
-		$id = sanitize_text_field( (string) ( $configuration[$key] ?? '' ) );
+		$id = sanitize_text_field( (string) ( $configuration[ $key ] ?? '' ) );
 		return preg_match( '/^[a-f0-9-]{36}$/i', $id ) ? $id : new \WP_Error( 'fiskaly_de_resource_missing', __( 'Die fiskaly SIGN DE Ressourcen-ID ist ungültig oder fehlt.', 'pass-captain' ) );
 	}
 	private function request( $method, $path, $body, array $seller, array $configuration ) {

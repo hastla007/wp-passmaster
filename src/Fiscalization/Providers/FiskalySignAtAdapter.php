@@ -50,7 +50,7 @@ final class FiskalySignAtAdapter implements AdapterInterface {
 		if ( is_string( $data['qr_code_data'] ?? null ) && '' !== $data['qr_code_data'] ) { $receipt['qr_payload'] = $data['qr_code_data']; }
 		$fields = array();
 		foreach ( array( 'receipt_number' => 'Belegnummer', 'cash_register_serial_number' => 'Kassen-ID', 'time_signature' => 'Signaturzeitpunkt' ) as $key => $label ) {
-			if ( isset( $data[$key] ) && is_scalar( $data[$key] ) ) { $fields[$label] = (string) $data[$key]; }
+			if ( isset( $data[ $key ] ) && is_scalar( $data[ $key ] ) ) { $fields[ $label ] = (string) $data[ $key ]; }
 		}
 		if ( $fields ) { $receipt['fields'] = $fields; }
 		return array( 'reference' => substr( sanitize_text_field( $reference ), 0, 191 ), 'receipt' => $receipt );
@@ -62,7 +62,7 @@ final class FiskalySignAtAdapter implements AdapterInterface {
 	}
 
 	private function replace_tokens( $value, array $document, array $seller ) {
-		if ( is_array( $value ) ) { foreach ( $value as $key => $part ) { $value[$key] = $this->replace_tokens( $part, $document, $seller ); } return $value; }
+		if ( is_array( $value ) ) { foreach ( $value as $key => $part ) { $value[ $key ] = $this->replace_tokens( $part, $document, $seller ); } return $value; }
 		if ( ! is_string( $value ) ) { return $value; }
 		$replacements = array(
 			'{ORDER_ID}' => (string) ( $document['order_id'] ?? '' ),
