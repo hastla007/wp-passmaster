@@ -12,9 +12,16 @@ use PassCaptain\Settings;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class PolicyText {
-	/** admin_init: registers the suggestion with WordPress. */
+	/** Admin screens that show the policy suggestions (guide, privacy settings, editing the policy page). */
+	const SCREENS = array( 'options-privacy.php', 'privacy-policy-guide.php', 'post.php' );
+
+	/**
+	 * admin_init: registers the suggestion with WordPress – only on the screens that use it, because
+	 * building the text reads settings and several tables (PERF-9: not on every admin request).
+	 */
 	public static function add() {
 		if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) { return; }
+		if ( ! in_array( (string) ( $GLOBALS['pagenow'] ?? '' ), self::SCREENS, true ) ) { return; }
 		wp_add_privacy_policy_content( \PassCaptain\Brand::name( 'admin' ), wp_kses_post( self::content() ) );
 	}
 

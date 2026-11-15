@@ -40,16 +40,14 @@ final class DisplayBatch {
 		try {
 			if ( $type_ids ) {
 				$p = $wpdb->prefix;
-				$in = implode( ',', array_fill( 0, count( $type_ids ), '%d' ) );
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE ticket_type_id IN ($in)", array_merge( array( $p . 'wpcap_ticket_types' ), $type_ids ) ) ) as $row ) {
+				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ")", array_merge( array( $p . 'wpcap_ticket_types' ), $type_ids ) ) ) as $row ) {
 					self::$batch['types'][ (int) $row->ticket_type_id ] = $row;
 				}
 				$occ_ids = array_values( array_unique( array_map( static function ( $row ) { return (int) $row->occurrence_id; }, self::$batch['types'] ) ) );
 				if ( $occ_ids ) {
-					$in = implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) );
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-					foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE occurrence_id IN ($in)", array_merge( array( $p . 'wpcap_occurrences' ), $occ_ids ) ) ) as $row ) {
+					foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ")", array_merge( array( $p . 'wpcap_occurrences' ), $occ_ids ) ) ) as $row ) {
 						self::$batch['occurrences'][ (int) $row->occurrence_id ] = $row;
 					}
 				}
@@ -105,11 +103,6 @@ final class DisplayBatch {
 		return self::$batch['memo'][ $bucket ];
 	}
 
-	/** Builds "%d,%d,…" for an IN() list. */
-	public static function placeholders( array $ids ) {
-		return implode( ',', array_fill( 0, max( 1, count( $ids ) ), '%d' ) );
-	}
-
 	/**
 	 * Capacity usage of the batch: paid units (minus refunded) and active unexpired holds, per ticket
 	 * type and per occurrence (all types of the occurrence). Same definitions as Orders::availability();
@@ -126,24 +119,22 @@ final class DisplayBatch {
 			$type_ids = array_keys( self::types() );
 			$occ_ids = array_keys( self::occurrences() );
 			if ( $type_ids ) {
-				$in = self::placeholders( $type_ids );
 				// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT oi.ticket_type_id AS id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS n FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY oi.ticket_type_id", array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_orders' ), $type_ids ) ) ) as $row ) {
+				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT oi.ticket_type_id AS id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS n FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY oi.ticket_type_id", array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_orders' ), $type_ids ) ) ) as $row ) {
 					$out['type_sold'][ (int) $row->id ] = (int) $row->n;
 				}
-				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id AS id, COALESCE(SUM(quantity),0) AS n, COALESCE(SUM(CASE WHEN order_id <> 0 THEN quantity ELSE 0 END),0) AS o FROM %i WHERE ticket_type_id IN ($in) AND status='active' AND expires_at > %s GROUP BY ticket_type_id", array_merge( array( $p . 'wpcap_reservations' ), $type_ids, array( $now ) ) ) ) as $row ) {
+				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id AS id, COALESCE(SUM(quantity),0) AS n, COALESCE(SUM(CASE WHEN order_id <> 0 THEN quantity ELSE 0 END),0) AS o FROM %i WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ") AND status='active' AND expires_at > %s GROUP BY ticket_type_id", array_merge( array( $p . 'wpcap_reservations' ), $type_ids, array( $now ) ) ) ) as $row ) {
 					$out['type_held'][ (int) $row->id ] = (int) $row->n;
 					$out['type_held_with_order'][ (int) $row->id ] = (int) $row->o;
 				}
 				// phpcs:enable
 			}
 			if ( $occ_ids ) {
-				$in = self::placeholders( $occ_ids );
 				// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id AS id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS n FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN ($in) AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY tt.occurrence_id", array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_orders' ), $occ_ids ) ) ) as $row ) {
+				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id AS id, COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) AS n FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND ord.payment_status='paid' AND ord.status <> 'refunded' GROUP BY tt.occurrence_id", array_merge( array( $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_orders' ), $occ_ids ) ) ) as $row ) {
 					$out['occ_sold'][ (int) $row->id ] = (int) $row->n;
 				}
-				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id AS id, COALESCE(SUM(r.quantity),0) AS n, COALESCE(SUM(CASE WHEN r.order_id <> 0 THEN r.quantity ELSE 0 END),0) AS o FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id IN ($in) AND r.status='active' AND r.expires_at > %s GROUP BY tt.occurrence_id", array_merge( array( $p . 'wpcap_reservations', $p . 'wpcap_ticket_types' ), $occ_ids, array( $now ) ) ) ) as $row ) {
+				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id AS id, COALESCE(SUM(r.quantity),0) AS n, COALESCE(SUM(CASE WHEN r.order_id <> 0 THEN r.quantity ELSE 0 END),0) AS o FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND r.status='active' AND r.expires_at > %s GROUP BY tt.occurrence_id", array_merge( array( $p . 'wpcap_reservations', $p . 'wpcap_ticket_types' ), $occ_ids, array( $now ) ) ) ) as $row ) {
 					$out['occ_held'][ (int) $row->id ] = (int) $row->n;
 					$out['occ_held_with_order'][ (int) $row->id ] = (int) $row->o;
 				}

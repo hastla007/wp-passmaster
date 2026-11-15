@@ -202,7 +202,7 @@ final class Vault {
 				++$done['settings'];
 			}
 			if ( $changed ) {
-				update_option( Settings::OPTION, $stored, false );
+				update_option( Settings::OPTION, $stored, true );
 				Settings::flush();
 			}
 		}

@@ -217,7 +217,7 @@ final class Controller {
 		$type_ids = array();
 		if ( $occ_ids ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,sales_start,sales_end FROM %i WHERE occurrence_id IN (" . \PassCaptain\DisplayBatch::placeholders( $occ_ids ) . ") AND status='active' ORDER BY ticket_type_id ASC", array_merge( array( $wpdb->prefix . 'wpcap_ticket_types' ), $occ_ids ) ), ARRAY_A ) as $type ) {
+			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,sales_start,sales_end FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND status='active' ORDER BY ticket_type_id ASC", array_merge( array( $wpdb->prefix . 'wpcap_ticket_types' ), $occ_ids ) ), ARRAY_A ) as $type ) {
 				$types_by_occ[ (int) $type['occurrence_id'] ][] = $type;
 				$type_ids[] = (int) $type['ticket_type_id'];
 			}

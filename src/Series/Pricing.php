@@ -301,7 +301,7 @@ final class Pricing {
 			$ids = array_keys( \PassCaptain\DisplayBatch::occurrences() );
 			foreach ( $ids as $id ) { $map[ $wpdb->prefix . '|' . $id ] = 0; }
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT series_id,occurrence_id FROM %i WHERE occurrence_id IN (' . \PassCaptain\DisplayBatch::placeholders( $ids ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_series_occurrences' ), $ids ) ) ) as $row ) {
+			foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT series_id,occurrence_id FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_series_occurrences' ), $ids ) ) ) as $row ) {
 				$map[ $wpdb->prefix . '|' . (int) $row->occurrence_id ] = (int) $row->series_id;
 			}
 		}

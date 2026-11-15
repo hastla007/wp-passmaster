@@ -84,6 +84,13 @@ Das Datenbank-Upgrade (`dbDelta` für alle Kern- und Modultabellen) läuft nicht
 
 E-Mail-Warteschlange (`wpcap_process_messages`, zusammen mit SMS), Jobs und Webhooks (`wpcap_process_jobs`, `wpcap_webhooks_dispatch`) laufen alle fünf Minuten. Jeder Lauf arbeitet mit einem gemeinsamen **Zeitbudget von 20 Sekunden** (höchstens `max_execution_time` − 15 s; Filter `wpcap_cron_time_budget`) und bis zu 500 E-Mails (Filter `wpcap_message_batch_size`). Das Budget wird vor jeder Entnahme geprüft, sodass kein Eintrag reserviert und dann liegen gelassen wird; bricht PHP während eines Eintrags ab, wird die Reservierung beim Beenden freigegeben. Bleibt ein Rückstand, plant der Lauf sofort einen Folgelauf ein – über Action Scheduler (`as_enqueue_async_action`, Gruppe `wp-pass-captain`), wenn vorhanden (z. B. mit WooCommerce), sonst als einzelnes WP-Cron-Ereignis.
 
+**Lange Vorgänge im Hintergrund:**
+
+- **Termin absagen:** Alle gültigen Tickets werden sofort mit gebündelten UPDATEs widerrufen – noch bevor Geld fließt. Danach laufen die Folgearbeiten als Job-Pakete (`occurrence_cancel_hooks` je 200 Tickets: Wallet, Webhooks, SMS, Sitzplätze; `occurrence_cancel_refunds` je 20 Bestellungen; `occurrence_cancel_notify` je 100 Empfänger). Die ersten Pakete laufen noch im Admin-Request (bis 20 s), der Rest über die Job-Queue; die Rückmeldung nennt die Zahl der offenen Pakete, den Fortschritt zeigt der Systemstatus. Ein Abbruch an beliebiger Stelle hinterlässt nie gültige Tickets mit erstattetem Geld.
+- **Erinnerungen:** Der Lauf besucht alle Termine im Erinnerungsfenster seitenweise (keine feste Grenze von 200 Terminen mehr), prüft vorhandene Erinnerungen je Termin mit einer Abfrage und hält das gemeinsame Zeitbudget ein; reicht es nicht, merkt er sich die Position (`wpcap_reminder_cursor`) und plant einen Folgelauf.
+- **Mollie-Zahlungsarten:** Die Liste wird je Währung und Rechnungsland eine Stunde gecacht und lokal nach den Mindest-/Höchstbeträgen gefiltert (für Nicht-EUR-Währungen je Betrag, weil Mollie die Grenzen in EUR liefert). Der Abruf hat 3 s Timeout; Fehler werden 5 Minuten gecacht, damit die Event-Seite bei einer Mollie-Störung nicht bei jedem Aufruf wartet.
+- **CSV-Exporte** (Audit-Log, Fiskal-Archiv) werden seitenweise gelesen und über einen temporären Stream ausgeliefert – ohne Zeilenlimit und ohne den ganzen Export im Speicher. Der Finanzbericht umfasst höchstens 366 Tage; längere Zeiträume werden mit Hinweis gekürzt.
+
 WP-Cron startet nur bei Seitenaufrufen. Für verlässliche Zustellung (Ticketmails, Erinnerungen, Webhooks) WP-Cron durch einen System-Cronjob ersetzen:
 
 ```php
@@ -199,6 +206,8 @@ Die Kasse des Plugins signiert selbst keine Belege und hat keine eigene TSE-/Sig
 | Versandte/fehlgeschlagene Nachrichten der Warteschlange | 30 Tage / 365 Tage | Empfänger und Inhalt geleert / Zeile gelöscht |
 | Einlassprotokoll: Mitarbeitende und Gerät | 365 Tage | `user_id`/`device_id` = 0 (Zeit, Ergebnis, Ticket bleiben) |
 | Audit-Log | 730 Tage | gelöscht |
+| Abgeschlossene Reservierungen (umgewandelt/abgelaufen/freigegeben) von Bestellungen, die nicht mehr auf Zahlung warten | 30 Tage nach Ablauf | gelöscht (Housekeeping) |
+| Erledigte/abgebrochene Hintergrundjobs (`complete`/`cancelled`; Dead Letters bleiben) | 30 Tage | gelöscht (Housekeeping) |
 
 Alle Fristen außer den Teilnehmerfristen lassen sich mit `wpcap_privacy_retention_days` ändern oder abschalten (siehe [HOOKS.md](HOOKS.md)). Das Audit-Log erhält je Lauf nur die Anzahlen (`privacy_retention`). Nicht erfasst: Bestellungen, Positionen, Rechnungen, Gutschriften und Erstattungen (gesetzliche Aufbewahrung), Bestellungen in WooCommerce (eigene Fristen des Shops), Daten bei Zahlungsanbietern, Partnern und Webhook-Empfängern. Webhook-Zustellungen haben eine eigene Frist (Modul Webhooks).
 

@@ -5,6 +5,13 @@ namespace PassCaptain;
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class PublicEvents {
+	/** Whether the scanner shortcode was rendered in this request (scanner-only localizations). */
+	private static $scanner_rendered = false;
+
+	public static function scanner_rendered() {
+		return self::$scanner_rendered;
+	}
+
 	public static function register_assets() {
 		wp_register_script( 'wpcap-checkout', WPCAP_URL . 'assets/checkout.js', array(), WPCAP_VERSION, true );
 		wp_localize_script( 'wpcap-checkout', 'WPCAP_CHECKOUT', array(
@@ -115,7 +122,7 @@ final class PublicEvents {
 		$types_by_occ = array();
 		if ( $occ_ids ) {
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp FROM %i WHERE occurrence_id IN (" . DisplayBatch::placeholders( $occ_ids ) . ") AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", array_merge( array( $p . 'wpcap_ticket_types' ), $occ_ids, array( $now, $now ) ) ) ) as $type ) {
+			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,occurrence_id,name,price_minor,currency,capacity,max_per_order,tax_rate_bp FROM %i WHERE occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND status='active' AND (sales_start IS NULL OR sales_start <= %s) AND (sales_end IS NULL OR sales_end >= %s) ORDER BY ticket_type_id", array_merge( array( $p . 'wpcap_ticket_types' ), $occ_ids, array( $now, $now ) ) ) ) as $type ) {
 				$types_by_occ[ (int) $type->occurrence_id ][] = $type;
 			}
 		}
@@ -127,7 +134,7 @@ final class PublicEvents {
 		if ( $type_ids ) {
 			// Only field definitions are exposed (no answers); used to render attendee inputs.
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,field_key AS `key`,label,field_type AS type,required,purpose,consent_text,consent_version FROM %i WHERE ticket_type_id IN (" . DisplayBatch::placeholders( $type_ids ) . ") AND status='active' ORDER BY position,field_id", array_merge( array( $p . 'wpcap_participant_fields' ), $type_ids ) ), ARRAY_A ) as $field ) {
+			foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id,field_key AS `key`,label,field_type AS type,required,purpose,consent_text,consent_version FROM %i WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ") AND status='active' ORDER BY position,field_id", array_merge( array( $p . 'wpcap_participant_fields' ), $type_ids ) ), ARRAY_A ) as $field ) {
 				$type_id = (int) $field['ticket_type_id'];
 				unset( $field['ticket_type_id'] );
 				$fields[ $type_id ][] = $field;
@@ -192,7 +199,7 @@ final class PublicEvents {
 		$out = array();
 		if ( ! $event_ids ) { return $out; }
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT event_id,name,description,location FROM %i WHERE event_id IN (' . DisplayBatch::placeholders( $event_ids ) . ') AND locale=%s', array_merge( array( $wpdb->prefix . 'wpcap_event_translations' ), array_map( 'absint', $event_ids ), array( (string) $locale ) ) ) ) as $row ) {
+		foreach ( $wpdb->get_results( $wpdb->prepare( 'SELECT event_id,name,description,location FROM %i WHERE event_id IN (' . implode( ',', array_fill( 0, count( $event_ids ), '%d' ) ) . ') AND locale=%s', array_merge( array( $wpdb->prefix . 'wpcap_event_translations' ), array_map( 'absint', $event_ids ), array( (string) $locale ) ) ) ) as $row ) {
 			$out[ (int) $row->event_id ] = $row;
 		}
 		return $out;
@@ -204,6 +211,7 @@ final class PublicEvents {
 		}
 		wp_enqueue_script( 'wpcap-scanner' );
 		wp_enqueue_style( 'wpcap-public' );
+		self::$scanner_rendered = true;
 		return '<section class="wpcap-scanner">' . Brand::logo_html( 'scanner', 48 ) . '<h2>' . esc_html__( 'Pass Captain Check-in', 'pass-captain' ) . '</h2><p>' . esc_html__( 'Scanne den Ticketcode oder gib ihn manuell ein.', 'pass-captain' ) . '</p><video class="wpcap-camera" playsinline hidden></video><button type="button" class="wpcap-camera-start">' . esc_html__( 'Kamera starten', 'pass-captain' ) . '</button><form class="wpcap-scan-form"><label>' . esc_html__( 'Ticket-Code', 'pass-captain' ) . ' <input name="token" type="text" inputmode="text" autocomplete="off" required></label><button type="submit">' . esc_html__( 'Ticket prüfen und einchecken', 'pass-captain' ) . '</button></form><p class="wpcap-scan-result" role="status" aria-live="polite"></p></section>';
 	}
 }

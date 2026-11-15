@@ -80,12 +80,13 @@ final class Menu {
 	 *
 	 * @return array<int,array{0:string,1:string,2:string,3:callable}>
 	 */
-	public static function extra_pages() {
+	public static function extra_pages( $module_pages = null ) {
 		$pages = apply_filters( 'wp_pass_captain_admin_menu_v1', array() );
-		if ( ! is_array( $pages ) ) { return array(); }
+		if ( ! is_array( $pages ) || ! $pages ) { return array(); }
 		$reserved = array( self::SLUG, OrdersPage::SLUG, TicketsPage::SLUG, CheckinsPage::SLUG, RefundsPage::SLUG, DevicesPage::SLUG, SettingsPage::SLUG );
 		$reserved[] = StatusPage::SLUG;
-		foreach ( array_merge( FeatureScreens::pages(), SecurityScreens::pages(), \PassCaptain\Modules::admin_pages() ) as $page ) { $reserved[] = (string) $page[0]; }
+		// Module pages (with their badge counts) are built once per request by register() and passed in.
+		foreach ( array_merge( FeatureScreens::pages(), SecurityScreens::pages(), null === $module_pages ? \PassCaptain\Modules::admin_pages() : (array) $module_pages ) as $page ) { $reserved[] = (string) $page[0]; }
 		$out = array();
 		foreach ( $pages as $page ) {
 			if ( ! is_array( $page ) || 4 !== count( $page ) ) { continue; }
@@ -115,11 +116,12 @@ final class Menu {
 		add_submenu_page( self::SLUG, __( 'Bestellungen', 'pass-captain' ), __( 'Bestellungen', 'pass-captain' ), OrdersPage::CAP, OrdersPage::SLUG, array( OrdersPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Tickets', 'pass-captain' ), __( 'Tickets', 'pass-captain' ), TicketsPage::menu_cap(), TicketsPage::SLUG, array( TicketsPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Check-ins', 'pass-captain' ), __( 'Check-ins', 'pass-captain' ), CheckinsPage::menu_cap(), CheckinsPage::SLUG, array( CheckinsPage::class, 'render' ) );
-		$pending = current_user_can( Refunds::APPROVE_CAP ) ? count( Queries::pending_refunds( Queries::event_ids_for( OrdersPage::CAP ) ) ) : 0;
+		$pending = current_user_can( Refunds::APPROVE_CAP ) ? Queries::pending_refunds_count( Queries::event_ids_for( OrdersPage::CAP ) ) : 0;
 		$refund_title = __( 'Erstattungen', 'pass-captain' ) . ( $pending ? ' <span class="awaiting-mod">' . (int) $pending . '</span>' : '' );
 		add_submenu_page( self::SLUG, __( 'Erstattungen', 'pass-captain' ), $refund_title, RefundsPage::menu_cap(), RefundsPage::SLUG, array( RefundsPage::class, 'render' ) );
 		add_submenu_page( self::SLUG, __( 'Scanner-Geräte', 'pass-captain' ), __( 'Scanner-Geräte', 'pass-captain' ), DevicesPage::CAP, DevicesPage::SLUG, array( DevicesPage::class, 'render' ) );
-		foreach ( array_merge( FeatureScreens::pages(), \PassCaptain\Modules::admin_pages(), self::extra_pages() ) as $page ) {
+		$module_pages = \PassCaptain\Modules::admin_pages();
+		foreach ( array_merge( FeatureScreens::pages(), $module_pages, self::extra_pages( $module_pages ) ) as $page ) {
 			list( $slug, $title, $cap, $callback ) = $page;
 			add_submenu_page( self::SLUG, $title, $title, $cap, $slug, $callback );
 		}

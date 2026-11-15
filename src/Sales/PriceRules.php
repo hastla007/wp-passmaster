@@ -74,7 +74,7 @@ final class PriceRules {
 				$ids = array_values( $ids );
 				$grouped = array_fill_keys( $ids, array() );
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE event_id IN (" . \PassCaptain\DisplayBatch::placeholders( $ids ) . ") AND status='active' ORDER BY rule_id", array_merge( array( $wpdb->prefix . 'wpcap_price_rules' ), $ids ) ) ) as $row ) {
+				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE event_id IN (" . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ") AND status='active' ORDER BY rule_id", array_merge( array( $wpdb->prefix . 'wpcap_price_rules' ), $ids ) ) ) as $row ) {
 					$row->source = 'event';
 					$grouped[ (int) $row->event_id ][] = $row;
 				}

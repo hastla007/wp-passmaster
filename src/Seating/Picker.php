@@ -45,7 +45,7 @@ final class Picker {
 				global $wpdb;
 				$ids = array_keys( \PassCaptain\DisplayBatch::occurrences() );
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-				return array_flip( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE occurrence_id IN (' . \PassCaptain\DisplayBatch::placeholders( $ids ) . ')', array_merge( array( Layouts::table( 'links' ) ), $ids ) ) ) ) );
+				return array_flip( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( 'SELECT occurrence_id FROM %i WHERE occurrence_id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')', array_merge( array( Layouts::table( 'links' ) ), $ids ) ) ) ) );
 			} );
 			if ( ! isset( $linked[ $occurrence_id ] ) ) { return; }
 		}

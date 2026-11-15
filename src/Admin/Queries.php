@@ -364,21 +364,49 @@ final class Queries {
 		return array( 'rows' => $rows, 'total' => $total );
 	}
 
-	/** Distinct check-in results present in the log. */
+	/** Check-in results written by the core (filter options of the check-in log). */
+	const CHECKIN_RESULTS = array( 'checked_in', 'checked_out', 'undone', 'already_checked_in', 'not_checked_in', 'revoked', 'unknown', 'wrong_event', 'wrong_occurrence', 'wrong_area', 'out_of_window', 'not_valid_today', 'daily_limit_reached', 'cancelled_event', 'invalid_signature', 'backdated_admission', 'offline_expired', 'forbidden' );
+
+	/**
+	 * Check-in results for the log filter: the known core results plus any other value present in the
+	 * log (add-on policies). The DISTINCT scan over the whole log runs at most once a day (transient),
+	 * not on every page view (PERF-8).
+	 */
 	public static function checkin_results() {
 		global $wpdb;
-		$results = $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT result FROM %i ORDER BY result', $wpdb->prefix . 'wpcap_checkins' ) );
-		return array_values( array_unique( array_merge( array( 'checked_in', 'undone' ), $results ) ) );
+		$extra = get_transient( 'wpcap_checkin_results' );
+		if ( ! is_array( $extra ) ) {
+			$extra = array_map( 'strval', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT DISTINCT result FROM %i', $wpdb->prefix . 'wpcap_checkins' ) ) );
+			set_transient( 'wpcap_checkin_results', $extra, DAY_IN_SECONDS );
+		}
+		$results = array_values( array_unique( array_merge( self::CHECKIN_RESULTS, $extra ) ) );
+		sort( $results );
+		return $results;
 	}
 
-	/** Refunds waiting for approval (scoped by the order's events). */
-	public static function pending_refunds( $event_ids ) {
+	/** WHERE condition of pending_refunds() (literal, table names from the prefix, integer scope). */
+	private static function pending_refunds_where( $event_ids ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$where = "r.status='pending_approval'";
 		if ( null !== $event_ids ) {
 			$where .= $event_ids ? " AND EXISTS (SELECT 1 FROM {$p}wpcap_order_items fi INNER JOIN {$p}wpcap_ticket_types ft ON ft.ticket_type_id=fi.ticket_type_id INNER JOIN {$p}wpcap_occurrences fo ON fo.occurrence_id=ft.occurrence_id WHERE fi.order_id=r.order_id" . self::scope_sql( $event_ids, 'fo.event_id' ) . ')' : ' AND 1=0';
 		}
+		return $where;
+	}
+
+	/** Number of refunds waiting for approval (menu badge; COUNT instead of loading the list). */
+	public static function pending_refunds_count( $event_ids ) {
+		global $wpdb;
+		$where = self::pending_refunds_where( $event_ids );
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i r WHERE {$where}", $wpdb->prefix . 'wpcap_refunds' ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- see pending_refunds_where().
+	}
+
+	/** Refunds waiting for approval (scoped by the order's events). */
+	public static function pending_refunds( $event_ids ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$where = self::pending_refunds_where( $event_ids );
 		// $where: literal conditions, table names from $wpdb->prefix and the integer scope.
 		return $wpdb->get_results( $wpdb->prepare( "SELECT r.*,ord.public_id AS order_public_id,ord.customer_email,ord.payment_provider,(SELECT GROUP_CONCAT(DISTINCT e.name SEPARATOR ', ') FROM %i ei INNER JOIN %i et ON et.ticket_type_id=ei.ticket_type_id INNER JOIN %i eo ON eo.occurrence_id=et.occurrence_id INNER JOIN %i e ON e.event_id=eo.event_id WHERE ei.order_id=r.order_id) AS event_names FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE {$where} ORDER BY r.created_at, r.refund_id LIMIT 200", $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', $p . 'wpcap_events', $p . 'wpcap_refunds', $p . 'wpcap_orders' ) );
 	}

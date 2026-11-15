@@ -67,13 +67,13 @@ final class Waitlists {
 			$occ_ids = array_keys( DisplayBatch::occurrences() );
 			if ( $type_ids ) {
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id AS id, COALESCE(SUM(hold_quantity),0) AS n FROM %i WHERE ticket_type_id IN (" . DisplayBatch::placeholders( $type_ids ) . ") AND status='offered' AND offer_expires_at>%s GROUP BY ticket_type_id", array_merge( array( $p . 'wpcap_waitlist' ), $type_ids, array( $now ) ) ) ) as $row ) {
+				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT ticket_type_id AS id, COALESCE(SUM(hold_quantity),0) AS n FROM %i WHERE ticket_type_id IN (" . implode( ',', array_fill( 0, count( $type_ids ), '%d' ) ) . ") AND status='offered' AND offer_expires_at>%s GROUP BY ticket_type_id", array_merge( array( $p . 'wpcap_waitlist' ), $type_ids, array( $now ) ) ) ) as $row ) {
 					$out['type'][ (int) $row->id ] = (int) $row->n;
 				}
 			}
 			if ( $occ_ids ) {
 				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
-				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id AS id, COALESCE(SUM(w.hold_quantity),0) AS n FROM %i w INNER JOIN %i tt ON tt.ticket_type_id=w.ticket_type_id WHERE tt.occurrence_id IN (" . DisplayBatch::placeholders( $occ_ids ) . ") AND w.status='offered' AND w.offer_expires_at>%s GROUP BY tt.occurrence_id", array_merge( array( $p . 'wpcap_waitlist', $p . 'wpcap_ticket_types' ), $occ_ids, array( $now ) ) ) ) as $row ) {
+				foreach ( $wpdb->get_results( $wpdb->prepare( "SELECT tt.occurrence_id AS id, COALESCE(SUM(w.hold_quantity),0) AS n FROM %i w INNER JOIN %i tt ON tt.ticket_type_id=w.ticket_type_id WHERE tt.occurrence_id IN (" . implode( ',', array_fill( 0, count( $occ_ids ), '%d' ) ) . ") AND w.status='offered' AND w.offer_expires_at>%s GROUP BY tt.occurrence_id", array_merge( array( $p . 'wpcap_waitlist', $p . 'wpcap_ticket_types' ), $occ_ids, array( $now ) ) ) ) as $row ) {
 					$out['occ'][ (int) $row->id ] = (int) $row->n;
 				}
 			}

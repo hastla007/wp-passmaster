@@ -121,13 +121,15 @@ final class AuditLogPage {
 				$last = (int) $row->audit_id;
 				yield array( (int) $row->audit_id, (string) $row->created_at, (int) $row->user_id, (string) $row->action, (string) $row->object_type, (int) $row->object_id, (string) $row->details );
 			}
-		} while ( count( $rows ) === self::EXPORT_PAGE );
+			$full_page = count( $rows ) === self::EXPORT_PAGE;
+		} while ( $full_page );
 	}
 
 	/**
 	 * Builds the export after permission and 2FA checks; records the export in the audit log.
 	 *
-	 * @return array{filename:string,csv:string}|\WP_Error
+	 * @param bool $stream True: rows as a generator (download), false: the CSV string.
+	 * @return array{filename:string,csv?:string,rows?:\Generator}|\WP_Error
 	 */
 	public static function export( array $filters, $stream = false ) {
 		if ( ! self::can_view() ) { return Forms::forbidden(); }

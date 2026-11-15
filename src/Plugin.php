@@ -152,12 +152,17 @@ final class Plugin {
 		Privacy\Retention::schedule();
 	}
 
+	/** Every WP-Cron hook the plugin schedules (removed on deactivation; PERF-17/INT-7). */
+	public static function cron_hooks() {
+		return array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', 'wpcap_webhooks_dispatch', 'wpcap_process_fiscal_order', Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK );
+	}
+
 	public static function deactivate( $network_wide = false ) {
 		$site_ids = is_multisite() && $network_wide ? get_sites( array( 'fields' => 'ids', 'number' => 0 ) ) : array( get_current_blog_id() );
 		foreach ( $site_ids as $site_id ) {
 			if ( is_multisite() && $network_wide ) { switch_to_blog( (int) $site_id ); }
 			// wp_unschedule_hook also removes continuation runs scheduled with arguments.
-			foreach ( array( 'wpcap_cleanup_reservations', 'wpcap_process_messages', 'wpcap_process_jobs', Installer::UPGRADE_HOOK, Privacy\Retention::HOOK, Privacy::WALLET_PURGE_HOOK ) as $hook ) {
+			foreach ( self::cron_hooks() as $hook ) {
 				wp_unschedule_hook( $hook );
 			}
 			if ( function_exists( 'as_unschedule_all_actions' ) ) { as_unschedule_all_actions( '', array(), 'wp-pass-captain' ); }

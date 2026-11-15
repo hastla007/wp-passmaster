@@ -144,9 +144,20 @@ final class Settings {
 				$values[ $key ] = Security\Vault::encrypt( $values[ $key ], $key );
 			}
 		}
-		update_option( self::OPTION, array_merge( self::all(), $values ), false );
+		// Autoloaded (PERF-11): the settings are read on every request; secrets inside are encrypted.
+		update_option( self::OPTION, array_merge( self::all(), $values ), true );
 		self::$all = null;
 		Security\Redact::reset();
+	}
+
+	/**
+	 * Marks the settings option as autoloaded on existing installs (it was stored with autoload=no,
+	 * which cost an extra query on every request). Idempotent; runs with the schema upgrade.
+	 */
+	public static function ensure_autoload() {
+		if ( false === get_option( self::OPTION, false ) ) { return false; }
+		if ( function_exists( 'wp_set_option_autoload' ) ) { return (bool) wp_set_option_autoload( self::OPTION, true ); }
+		return false;
 	}
 
 	/** Name of the constant/environment variable (WPCAP_<KEY>) that overrides a key, or ''. */

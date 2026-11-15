@@ -396,3 +396,88 @@ check( 'streaming keeps memory flat (< 8 MB growth for ~5 MB of CSV)', $y5a_grow
 $wpdb->query( "DELETE FROM {$p}wpcap_audit_logs WHERE action='y5_bulk'" );
 $y5f_rows = iterator_to_array( PassCaptain\Fiscalization\ArchiveExporter::rows( '2000-01-01 00:00:00', '2100-01-01 00:00:00' ), false );
 check( 'fiscal archive export rows come from a paged generator (header first)', 'document_id' === ( $y5f_rows[0][0] ?? '' ) );
+
+echo "Y5 PERF-5…17: assets, indexes, retention, admin queries, autoload, cron hooks\n";
+// PERF-5: the attendee stylesheet is only registered on init and enqueued with the checkout block.
+if ( ! interface_exists( 'Automattic\WooCommerce\Blocks\Integrations\IntegrationInterface' ) ) {
+	eval( 'namespace Automattic\WooCommerce\Blocks\Integrations; interface IntegrationInterface { public function get_name(); public function initialize(); public function get_script_handles(); public function get_editor_script_handles(); public function get_script_data(); }' );
+}
+if ( ! function_exists( 'wp_register_script' ) ) { function wp_register_script( ...$a ) { return true; } }
+if ( ! function_exists( 'wp_register_style' ) ) { function wp_register_style( ...$a ) { return true; } }
+$y5b_init = new ReflectionMethod( PassCaptain\Integrations\WooCommerce\BlocksIntegration::class, 'initialize' );
+$y5b_src = implode( '', array_slice( file( $y5b_init->getFileName() ), $y5b_init->getStartLine() - 1, $y5b_init->getEndLine() - $y5b_init->getStartLine() + 1 ) );
+( new PassCaptain\Integrations\WooCommerce\BlocksIntegration() )->initialize();
+check( 'PERF-5: initialize() only registers the CSS; it is enqueued with the checkout block assets', false === strpos( $y5b_src, 'wp_enqueue_style' ) && ! empty( $GLOBALS['wpcap_test_hooks']['woocommerce_blocks_enqueue_checkout_block_scripts_after'] ) );
+
+// PERF-6 / PERF-8: indexes.
+$y5_index = static function ( $table, $key ) use ( $wpdb, $p ) { return (bool) $wpdb->get_row( $wpdb->prepare( 'SHOW INDEX FROM %i WHERE Key_name=%s', $p . $table, $key ) ); };
+check( 'PERF-6/8: KEY status_expires on reservations, KEY created_checkin on check-ins, DB version 3.13.0', $y5_index( 'wpcap_reservations', 'status_expires' ) && $y5_index( 'wpcap_checkins', 'created_checkin' ) && '3.13.0' === PassCaptain\Installer::DB_VERSION );
+
+// PERF-6: retention of finished holds and jobs.
+$y5h_old = gmdate( 'Y-m-d H:i:s', time() - 40 * DAY_IN_SECONDS );
+$y5h_paid = y5_paid_ticket( make_type( 0, 10, 1000 ), 'y5h-paid@example.com' );
+$wpdb->insert( "{$p}wpcap_orders", array( 'public_id' => substr( md5( uniqid( '', true ) ), 0, 32 ), 'idempotency_key' => 'y5h-' . uniqid( '', true ), 'customer_email' => 'y5h-pending@example.com', 'price_snapshot' => '{}', 'status' => 'pending_payment', 'payment_status' => 'pending', 'currency' => 'EUR', 'created_at' => $y5h_old, 'updated_at' => $y5h_old ) );
+$y5h_pending = (int) $wpdb->insert_id;
+$y5h_ids = array();
+foreach ( array( array( $y5h_paid, 'converted', $y5h_old ), array( $y5h_paid, 'released', $y5h_old ), array( $y5h_pending, 'expired', $y5h_old ), array( $y5h_paid, 'converted', gmdate( 'Y-m-d H:i:s', time() - 2 * DAY_IN_SECONDS ) ) ) as $r ) {
+	$wpdb->insert( "{$p}wpcap_reservations", array( 'order_id' => $r[0], 'ticket_type_id' => 1, 'quantity' => 1, 'status' => $r[1], 'expires_at' => $r[2] ) );
+	$y5h_ids[] = (int) $wpdb->insert_id;
+}
+foreach ( array( array( 'complete', $y5h_old ), array( 'dead_letter', $y5h_old ), array( 'queued', $y5h_old ), array( 'complete', gmdate( 'Y-m-d H:i:s' ) ) ) as $i => $j ) {
+	$wpdb->insert( "{$p}wpcap_jobs", array( 'idempotency_key' => hash( 'sha256', 'y5h-job-' . $i . uniqid() ), 'job_type' => 'y5_none', 'payload' => '{}', 'run_after' => $j[1], 'status' => $j[0], 'created_at' => $j[1], 'updated_at' => $j[1] ) );
+}
+$y5h_counts = PassCaptain\Privacy\Retention::run();
+$y5h_left = array_map( 'intval', $wpdb->get_col( "SELECT reservation_id FROM {$p}wpcap_reservations WHERE reservation_id IN (" . implode( ',', $y5h_ids ) . ')' ) );
+$y5h_jobs = $wpdb->get_col( "SELECT status FROM {$p}wpcap_jobs WHERE job_type='y5_none' ORDER BY job_id" );
+check( 'PERF-6: old finished holds deleted; holds of a pending order and recent ones kept', array( $y5h_ids[2], $y5h_ids[3] ) === $y5h_left && $y5h_counts['reservations'] >= 2 );
+check( 'PERF-6: completed jobs deleted after 30 days; dead letters, queued and recent jobs kept', array( 'dead_letter', 'queued', 'complete' ) === $y5h_jobs && $y5h_counts['jobs'] >= 1 );
+$wpdb->query( "DELETE FROM {$p}wpcap_jobs WHERE job_type='y5_none'" );
+
+// PERF-8: check-in results without a DISTINCT scan per page view.
+$GLOBALS['wpcap_test_transients'] = array();
+PassCaptain\Admin\Queries::checkin_results();
+$y5_before = $wpdb->num_queries;
+$y5_results = PassCaptain\Admin\Queries::checkin_results();
+check( 'PERF-8: check-in result filter options without a query on repeat (cached), core results included', $y5_before === $wpdb->num_queries && in_array( 'checked_in', $y5_results, true ) && in_array( 'undone', $y5_results, true ) && in_array( 'wrong_event', $y5_results, true ) );
+
+// PERF-9: badge as COUNT, conflicts once per request, policy text only on privacy screens.
+check( 'PERF-9: refund badge uses COUNT and matches the list', count( PassCaptain\Admin\Queries::pending_refunds( null ) ) === PassCaptain\Admin\Queries::pending_refunds_count( null ) );
+if ( ! function_exists( 'add_menu_page' ) ) { function add_menu_page( ...$a ) { return 'x'; } }
+if ( ! function_exists( 'add_submenu_page' ) ) { function add_submenu_page( ...$a ) { return 'x'; } }
+$wpdb->wpcap_log = array();
+PassCaptain\Admin\Menu::add_menus();
+$y5_conflict_queries = count( array_filter( $wpdb->wpcap_log, static fn( $q ) => false !== strpos( $q, 'wpcap_admission_conflicts' ) ) );
+$wpdb->wpcap_log = null;
+check( "PERF-9: building the admin menu counts open conflicts at most once ($y5_conflict_queries)", $y5_conflict_queries <= 1 );
+if ( ! function_exists( 'wp_add_privacy_policy_content' ) ) { function wp_add_privacy_policy_content( $name, $html ) { $GLOBALS['p1p_policy'][ $name ] = $html; } }
+unset( $GLOBALS['p1p_policy'] );
+$GLOBALS['pagenow'] = 'index.php';
+$y5_before = $wpdb->num_queries;
+PassCaptain\Privacy\PolicyText::add();
+$y5_q = $wpdb->num_queries - $y5_before;
+$y5_skipped = empty( $GLOBALS['p1p_policy'] );
+$GLOBALS['pagenow'] = 'privacy-policy-guide.php';
+PassCaptain\Privacy\PolicyText::add();
+unset( $GLOBALS['pagenow'] );
+check( 'PERF-9: policy text is not built on other admin screens, only on the privacy guide', $y5_skipped && 0 === $y5_q && ! empty( $GLOBALS['p1p_policy'] ) );
+
+// PERF-11: autoloaded settings; no provider lookup in register_assets.
+if ( ! function_exists( 'wp_set_option_autoload' ) ) { function wp_set_option_autoload( $option, $autoload ) { $GLOBALS['y5_autoload'][ $option ] = $autoload; return true; } }
+$GLOBALS['y5_autoload'] = array();
+PassCaptain\Settings::ensure_autoload();
+$y5_assets = new ReflectionMethod( PassCaptain\PublicEvents::class, 'register_assets' );
+$y5_assets_src = implode( '', array_slice( file( $y5_assets->getFileName() ), $y5_assets->getStartLine() - 1, $y5_assets->getEndLine() - $y5_assets->getStartLine() + 1 ) );
+check( 'PERF-11: wpcap_settings is switched to autoload on upgrade', true === ( $GLOBALS['y5_autoload']['wpcap_settings'] ?? null ) );
+check( 'PERF-11: register_assets no longer queries the payment providers (dead code removed)', false === strpos( $y5_assets_src, 'Registry::enabled' ) );
+
+// PERF-13: scanner areas only on pages with the scanner shortcode.
+$y5_flag = new ReflectionProperty( PassCaptain\PublicEvents::class, 'scanner_rendered' );
+$y5_flag->setAccessible( true );
+$y5_flag->setValue( null, false );
+$y5_before = $wpdb->num_queries;
+PassCaptain\Admission\Rest::localize_scanner();
+check( 'PERF-13: no admission area query on pages without the scanner', $y5_before === $wpdb->num_queries );
+
+// PERF-17 / INT-7: deactivation removes every scheduled hook.
+$y5_hooks = PassCaptain\Plugin::cron_hooks();
+check( 'PERF-17: deactivate() also unschedules wpcap_webhooks_dispatch and wpcap_process_fiscal_order', in_array( 'wpcap_webhooks_dispatch', $y5_hooks, true ) && in_array( 'wpcap_process_fiscal_order', $y5_hooks, true ) && in_array( 'wpcap_process_jobs', $y5_hooks, true ) );

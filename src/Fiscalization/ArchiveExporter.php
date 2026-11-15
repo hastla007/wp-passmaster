@@ -57,7 +57,8 @@ final class ArchiveExporter {
 				$after = array( (string) $row->created_at, (int) $row->document_id );
 				yield self::row( $row );
 			}
-		} while ( count( $rows ) === self::PAGE );
+			$full_page = count( $rows ) === self::PAGE;
+		} while ( $full_page );
 	}
 
 	/** One CSV row of a fiscal document. */
