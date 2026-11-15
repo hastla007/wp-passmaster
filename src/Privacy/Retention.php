@@ -1,4 +1,12 @@
 <?php
+namespace PassCaptain\Privacy;
+
+use PassCaptain\Audit;
+use PassCaptain\Privacy;
+use PassCaptain\Settings;
+
+if ( ! defined( 'ABSPATH' ) ) { exit; }
+
 /**
  * Daily enforcement of the retention settings (storage limitation, Art. 5(1)(e) GDPR).
  *
@@ -44,14 +52,6 @@
  * Work runs in batches of 500 rows within a time budget (~20 s); the next run continues. Only
  * counts are written to the audit log.
  */
-namespace PassCaptain\Privacy;
-
-use PassCaptain\Audit;
-use PassCaptain\Privacy;
-use PassCaptain\Settings;
-
-if ( ! defined( 'ABSPATH' ) ) { exit; }
-
 final class Retention {
 	const HOOK = 'wpcap_privacy_retention';
 	const BATCH = 500;
