@@ -295,5 +295,32 @@ $z2s_legacy = Y3Settlements::allocate_refund( $z2s_amount_only, $z2s_lines );
 $z2s_zero = Y3Settlements::allocate_refund( $z2s_amount_only, $z2s_lines, array( 0, 0 ) );
 check( 'allocate_refund: amount-only refunds by discounted line value; legacy list-price split without values; fully discounted → list price', 2500 === $z2s_new[0]['amount'] && 2500 === $z2s_new[1]['amount'] && 3333 === $z2s_legacy[0]['amount'] && 1667 === $z2s_legacy[1]['amount'] && $z2s_legacy === $z2s_zero );
 
+echo "R7: automatic group discount (min_quantity, auto_apply) + code + per-buyer limit keep the money invariants\n";
+list( $r7m_ev, $r7m_a, $r7m_b ) = y3_event( 'EUR', 2000, 900 );
+$r7m_sfx = strtoupper( substr( md5( microtime() ), 0, 6 ) );
+$r7m_auto = Campaigns::create( array( 'code' => 'R7AUTO' . $r7m_sfx, 'kind' => 'percent', 'value' => 1500, 'currency' => 'EUR', 'priority' => 1, 'event_id' => $r7m_ev, 'auto_apply' => 1, 'min_quantity' => 4 ) );
+Campaigns::create( array( 'code' => 'R7FIX' . $r7m_sfx, 'kind' => 'fixed', 'value' => 777, 'currency' => 'EUR', 'priority' => 2, 'event_id' => $r7m_ev, 'per_buyer_limit' => 1 ) );
+$r7m_items = array( array( 'ticket_type_id' => $r7m_a, 'quantity' => 3 ), array( 'ticket_type_id' => $r7m_b, 'quantity' => 1 ) );
+$r7m_small = Orders::create( array( 'email' => 'r7m-small@example.com', 'items' => array( array( 'ticket_type_id' => $r7m_a, 'quantity' => 3 ) ), 'idempotency_key' => 'r7m-s-' . $r7m_sfx ), array( 'skip_rate_limit' => true ) );
+check( 'auto group discount does not apply below the minimum quantity (3 < 4)', ! is_wp_error( $r7m_small ) && 0 === (int) $r7m_small['discount_minor'] && 6000 === (int) $r7m_small['total_minor'] );
+$r7m = Orders::create( array( 'email' => 'r7m@example.com', 'items' => $r7m_items, 'campaign_codes' => array( 'R7FIX' . $r7m_sfx ), 'idempotency_key' => 'r7m-' . $r7m_sfx ), array( 'skip_rate_limit' => true ) );
+$r7m_o = is_wp_error( $r7m ) ? null : Orders::get( $r7m['order_id'] );
+$r7m_items_rows = $r7m_o ? Orders::items_for_order( $r7m_o->order_id ) : array();
+$r7m_expected = (int) floor( 6900 * 1500 / 10000 ) + 777;
+check( 'auto 15 % (4 tickets) + fixed code: discount ' . $r7m_expected . ', Σ line discounts = discount, Σ line VAT = order VAT, total = subtotal − discount',
+	$r7m_o && $r7m_expected === (int) $r7m_o->discount_minor && y3_line_discount_sum( $r7m_o ) === (int) $r7m_o->discount_minor
+	&& array_sum( array_map( static fn( $i ) => (int) $i->tax_minor, $r7m_items_rows ) ) === (int) $r7m_o->tax_minor
+	&& 6900 - $r7m_expected === (int) $r7m_o->total_minor && 2 === count( (array) json_decode( (string) $r7m_o->price_snapshot, true )['campaigns'] ) );
+check( 'per-buyer limit 1: the same buyer cannot use the code a second time', ! is_wp_error( $r7m ) && is_wp_error( Orders::create( array( 'email' => 'r7m@example.com', 'items' => $r7m_items, 'campaign_codes' => array( 'R7FIX' . $r7m_sfx ), 'idempotency_key' => 'r7m2-' . $r7m_sfx ), array( 'skip_rate_limit' => true ) ) ) );
+if ( $r7m_o ) {
+	Orders::confirm_manual_payment( $r7m_o->order_id );
+	$r7m_cash = (int) Orders::get( $r7m_o->order_id )->total_minor;
+	$r7m_t = array_values( array_filter( Orders::tickets_for_order( $r7m_o->order_id ), static fn( $t ) => (int) $t->ticket_type_id === $r7m_a ) );
+	$r7m_r1 = Refunds::request( $r7m_o->order_id, array( (int) $r7m_t[0]->ticket_id ), 'Teil', 'r7m-r1-' . $r7m_sfx );
+	$r7m_r2 = Refunds::request( $r7m_o->order_id, array(), 'Rest', 'r7m-r2-' . $r7m_sfx );
+	check( 'partial + full refund of the auto-discounted order give back exactly the cash paid', ! is_wp_error( $r7m_r1 ) && ! is_wp_error( $r7m_r2 ) && (int) $r7m_r1['amount_minor'] + (int) $r7m_r2['amount_minor'] === $r7m_cash );
+}
+$wpdb->query( $wpdb->prepare( "UPDATE {$p}wpcap_campaigns SET status='inactive' WHERE code IN (%s,%s)", 'R7AUTO' . $r7m_sfx, 'R7FIX' . $r7m_sfx ) );
+
 Settings::update( $y3_settings_before );
 $GLOBALS['wpcap_test_filters'][ Bridge::FILTER ] = $y3_provider_before;

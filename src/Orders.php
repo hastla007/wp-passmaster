@@ -143,6 +143,8 @@ final class Orders {
 				return new \WP_Error( 'wpcap_checkout_failed', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
 			}
 		}
+		$entered_codes = Sales\Visibility::input_codes( is_array( $payload['campaign_codes'] ?? null ) ? $payload['campaign_codes'] : array() );
+		$public_checkout = ! $external && '' === $namespace;
 		self::begin();
 		try {
 			ksort( $clean_lines, SORT_NUMERIC );
@@ -159,6 +161,17 @@ final class Orders {
 					throw new \RuntimeException( 'quantity_limit' );
 				}
 				$types[ $type_id ] = $type;
+			}
+			// Hidden / code-only ticket types (Sales\Visibility): the public checkout needs an unlock code; other
+			// channels are trusted. The type's own code list is checked here (no query in the lock phase); a
+			// type unlocked by a campaign code is checked after Campaigns::calculate() (locked campaign rows).
+			$locked_types = array();
+			if ( $public_checkout ) {
+				foreach ( $types as $type_id => $type ) {
+					$visibility = Sales\Visibility::of( $type );
+					if ( 'hidden' === $visibility ) { throw new \RuntimeException( 'ticket_type_unavailable' ); }
+					if ( 'code' === $visibility && ! array_intersect( $entered_codes, Sales\Visibility::codes( $type ) ) ) { $locked_types[ $type_id ] = true; }
+				}
 			}
 			$occurrence_ids = array_unique( array_map( static function ( $type ) { return (int) $type->occurrence_id; }, $types ) );
 			sort( $occurrence_ids, SORT_NUMERIC );
@@ -245,15 +258,25 @@ final class Orders {
 			$subtotal = $total;
 			$campaign_codes = $external ? array() : ( $payload['campaign_codes'] ?? array() );
 			if ( ! is_array( $campaign_codes ) ) { throw new \RuntimeException( 'campaign_invalid' ); }
-			$adjustments = Campaigns::calculate( $selected, $campaign_codes, $currency );
+			// Pure unlock codes (code list of a selected type) are no discount codes.
+			$unlock_only = $public_checkout ? Sales\Visibility::unlock_only_codes( array_keys( $occurrences ), $entered_codes ) : array();
+			if ( $unlock_only ) {
+				$campaign_codes = array_values( array_filter( $campaign_codes, static function ( $code ) use ( $unlock_only ) { return ! in_array( Campaigns::normalize_code( $code ), $unlock_only, true ); } ) );
+			}
+			// Automatic campaigns (no code) only for orders that pay the core price, never for adapters or comps.
+			$adjustments = Campaigns::calculate( $selected, $campaign_codes, $currency, array( 'auto' => ! $external && ! $comp, 'email' => $email ) );
 			if ( is_wp_error( $adjustments ) ) {
-				// Stacking rules (combinable, maximum discount) explain themselves; other errors stay generic.
-				if ( in_array( $adjustments->get_error_code(), array( 'wpcap_campaign_not_combinable', 'wpcap_campaign_max_discount' ), true ) ) {
+				// Stacking rules (combinable, maximum discount, minimum quantity, per-buyer limit) explain themselves; other errors stay generic.
+				if ( in_array( $adjustments->get_error_code(), array( 'wpcap_campaign_not_combinable', 'wpcap_campaign_max_discount', 'wpcap_campaign_min_quantity', 'wpcap_campaign_buyer_limit' ), true ) ) {
 					$custom_error = $adjustments;
 					throw new \RuntimeException( $adjustments->get_error_code() );
 				}
 				throw new \RuntimeException( 'campaign_invalid' );
 			}
+			foreach ( $adjustments as $adjustment ) {
+				if ( empty( $adjustment['auto'] ) ) { unset( $locked_types[ (int) $adjustment['campaign']->ticket_type_id ] ); }
+			}
+			if ( $locked_types ) { throw new \RuntimeException( 'ticket_type_unavailable' ); }
 			$discount = array_sum( array_map( static function ( $adjustment ) { return (int) $adjustment['amount_minor']; }, $adjustments ) );
 			$total = max( 0, $subtotal - $discount );
 			if ( ! $external && ! $billing && Billing::required_for( $total, $currency ) ) { throw new \RuntimeException( 'billing_required' ); }

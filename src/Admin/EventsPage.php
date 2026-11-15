@@ -302,6 +302,13 @@ final class EventsPage {
 			$data['tax_class'] = mb_substr( sanitize_key( (string) $in['tax_class'] ), 0, 64 );
 			$formats[] = '%s';
 		}
+		if ( array_key_exists( 'visibility', $in ) ) {
+			// Sales\Visibility: public | code (unlock code list or a campaign scoped to the type) | hidden.
+			$data['visibility'] = Forms::choice( $in, 'visibility', \PassCaptain\Sales\Visibility::VALUES, 'public' );
+			$data['access_codes'] = implode( "\n", \PassCaptain\Sales\Visibility::parse_codes( (string) ( $in['access_codes'] ?? '' ) ) );
+			$formats[] = '%s';
+			$formats[] = '%s';
+		}
 		global $wpdb;
 		$table = $wpdb->prefix . 'wpcap_ticket_types';
 		if ( $old ) {
@@ -874,6 +881,9 @@ final class EventsPage {
 			<tr><th><label for="wpcap-tt-ss"><?php esc_html_e( 'Verkaufsstart', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-ss" name="sales_start" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_start, $occ->timezone ) : '' ); ?>"> <span class="description"><?php echo esc_html( sprintf( /* translators: %s: timezone */ __( 'Ortszeit %s; leer = sofort', 'pass-captain' ), $occ->timezone ) ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-se"><?php esc_html_e( 'Verkaufsende', 'pass-captain' ); ?></label></th><td><input id="wpcap-tt-se" name="sales_end" type="datetime-local" value="<?php echo esc_attr( $type ? Forms::utc_to_local( $type->sales_end, $occ->timezone ) : '' ); ?>"> <span class="description"><?php esc_html_e( 'leer = bis Terminbeginn', 'pass-captain' ); ?></span></td></tr>
 			<tr><th><label for="wpcap-tt-status"><?php esc_html_e( 'Status', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'status', array( 'active' => __( 'Aktiv', 'pass-captain' ), 'paused' => __( 'Pausiert', 'pass-captain' ) ), $type ? $type->status : 'active', 'wpcap-tt-status' ); ?></td></tr>
+			<tr><th><label for="wpcap-tt-vis"><?php esc_html_e( 'Sichtbarkeit', 'pass-captain' ); ?></label></th><td><?php Forms::select( 'visibility', array( 'public' => __( 'Öffentlich', 'pass-captain' ), 'code' => __( 'Nur mit Freischaltcode', 'pass-captain' ), 'hidden' => __( 'Versteckt (nur Kasse, Freikarten)', 'pass-captain' ) ), \PassCaptain\Sales\Visibility::of( $type ), 'wpcap-tt-vis', 'aria-describedby="wpcap-tt-vis-desc"' ); ?>
+				<p><label for="wpcap-tt-codes"><?php esc_html_e( 'Freischaltcodes (einer pro Zeile)', 'pass-captain' ); ?></label><br><textarea id="wpcap-tt-codes" name="access_codes" rows="3" cols="30" class="code"><?php echo esc_textarea( $type ? implode( "\n", \PassCaptain\Sales\Visibility::codes( $type ) ) : '' ); ?></textarea></p>
+				<p class="description" id="wpcap-tt-vis-desc"><?php esc_html_e( 'Codes schalten die Ticketart im Rabattcode-Feld oder per Link ?wpcap_code=CODE frei (ohne Rabatt). Ein Kampagnencode, der nur für diese Ticketart gilt, schaltet sie ebenfalls frei (mit Rabatt). Der Server prüft die Freischaltung bei jeder Bestellung.', 'pass-captain' ); ?></p></td></tr>
 		</tbody></table>
 		<?php submit_button( $type ? __( 'Ticketart speichern', 'pass-captain' ) : __( 'Ticketart hinzufügen', 'pass-captain' ) ); ?>
 		</form>
