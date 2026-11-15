@@ -353,10 +353,11 @@ final class Campaigns {
 		$columns = array( 'event_id', 'ticket_type_id', 'code', 'name', 'kind', 'discount_value', 'currency', 'usage_limit', 'used_count', 'priority', 'starts_at', 'ends_at', 'status', 'combinable', 'with_price_rules', 'max_discount_minor', 'min_quantity', 'auto_apply', 'per_buyer_limit', 'batch_id', 'created_at' );
 		$codes = array();
 		$attempts = 0;
-		while ( count( $codes ) < $count && $attempts < 20 ) {
+		$have = 0;
+		while ( $have < $count && $attempts < 20 ) {
 			++$attempts;
 			$chunk = array();
-			for ( $i = 0, $want = min( 500, $count - count( $codes ) ); $i < $want; $i++ ) {
+			for ( $i = 0, $want = min( 500, $count - $have ); $i < $want; $i++ ) {
 				$random = '';
 				for ( $j = 0; $j < 10; $j++ ) { $random .= self::CODE_ALPHABET[ random_int( 0, strlen( self::CODE_ALPHABET ) - 1 ) ]; }
 				$chunk[ $prefix . $random ] = true;
@@ -375,8 +376,9 @@ final class Campaigns {
 			$sql = 'INSERT IGNORE INTO %i (' . implode( ',', $columns ) . ') VALUES ' . implode( ',', $values );
 			if ( false === $wpdb->query( $wpdb->prepare( $sql, $args ) ) ) { break; } // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- generated placeholders.
 			$in = implode( ',', array_fill( 0, count( $chunk ), '%s' ) );
-			$stored = $wpdb->get_col( $wpdb->prepare( "SELECT code FROM %i WHERE batch_id=%d AND code IN ($in)", array_merge( array( $table, (int) $template->campaign_id ), $chunk ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders.
+			$stored = $wpdb->get_col( $wpdb->prepare( "SELECT code FROM %i WHERE batch_id=%d AND code IN ($in)", array_merge( array( $table, (int) $template->campaign_id ), $chunk ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- generated placeholders, replacements as one array.
 			$codes = array_merge( $codes, array_diff( (array) $stored, $codes ) );
+			$have = count( $codes );
 		}
 		Audit::record( 'campaign_codes_generated', 'campaign', (int) $template->campaign_id, array( 'count' => count( $codes ) ) );
 		return array( 'created' => count( $codes ), 'codes' => $codes );

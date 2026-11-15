@@ -156,8 +156,8 @@ final class Dashboard {
 	}
 
 	/** Whether the admin pages of a module class are hidden from the menu. */
-	public static function module_hidden( $class ) {
-		$name = substr( strrchr( '\\' . ltrim( (string) $class, '\\' ), '\\' ), 1 );
+	public static function module_hidden( $module ) {
+		$name = substr( strrchr( '\\' . ltrim( (string) $module, '\\' ), '\\' ), 1 );
 		return in_array( $name, (array) Settings::get( 'hidden_modules' ), true );
 	}
 }

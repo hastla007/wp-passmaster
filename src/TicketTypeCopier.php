@@ -95,7 +95,7 @@ final class TicketTypeCopier {
 			foreach ( (array) $rows as $row ) {
 				$row['ticket_type_id'] = $map[ (int) $row['ticket_type_id'] ];
 				if ( isset( $row['updated_at'] ) ) { $row['updated_at'] = $now; }
-				if ( ! $wpdb->replace( $table, $row ) ) { throw new \RuntimeException( $kind . '_insert' ); }
+				if ( ! $wpdb->replace( $table, $row ) ) { throw new \RuntimeException( 'dependent_insert' ); }
 				++$counts[ $kind ];
 			}
 		}
@@ -106,7 +106,7 @@ final class TicketTypeCopier {
 		);
 		foreach ( $scoped as $kind => list( $table, $pk ) ) {
 			if ( ! self::table_exists( $table ) ) { continue; }
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE status<>'deleted' AND (ticket_type_id IN ($in) OR (ticket_type_id=0 AND occurrence_id=%d AND occurrence_id<>0))", array_merge( array( $table ), $ids, array( absint( $from_occurrence ) ) ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders.
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM %i WHERE status<>'deleted' AND (ticket_type_id IN ($in) OR (ticket_type_id=0 AND occurrence_id=%d AND occurrence_id<>0))", array_merge( array( $table ), $ids, array( absint( $from_occurrence ) ) ) ), ARRAY_A ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- generated placeholders, replacements as one array.
 			foreach ( (array) $rows as $row ) {
 				unset( $row[ $pk ] );
 				if ( (int) $row['ticket_type_id'] ) { $row['ticket_type_id'] = $map[ (int) $row['ticket_type_id'] ]; }
@@ -114,7 +114,7 @@ final class TicketTypeCopier {
 				if ( $to_event ) { $row['event_id'] = absint( $to_event ); }
 				$row['created_at'] = $now;
 				$row['updated_at'] = $now;
-				if ( ! $wpdb->insert( $table, $row ) ) { throw new \RuntimeException( $kind . '_insert' ); }
+				if ( ! $wpdb->insert( $table, $row ) ) { throw new \RuntimeException( 'rule_insert' ); }
 				++$counts[ $kind ];
 			}
 		}

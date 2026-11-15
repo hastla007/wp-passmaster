@@ -74,7 +74,7 @@ final class OrganizerTools {
 		}
 	}
 
-	public static function render_event_tools( $event, $editable ) {
+	public static function render_event_tools( $event, $editable ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- hook signature (wpcap_admin_event_sections); duplicating a cancelled event is allowed.
 		if ( ! Access::can_access_event( (int) $event->event_id, EventsPage::CAP ) ) { return; }
 		?>
 		<h2><?php esc_html_e( 'Event duplizieren', 'pass-captain' ); ?></h2>
@@ -104,7 +104,7 @@ final class OrganizerTools {
 		Forms::verify( 'wpcap_import_events' );
 		$back = Forms::page_url( EventsPage::SLUG );
 		if ( ! current_user_can( EventsPage::CAP ) ) { Forms::finish( Forms::forbidden(), '', $back ); }
-		$file = $_FILES['import_file'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- only tmp_name/size are used, the content is parsed and validated.
+		$file = $_FILES['import_file'] ?? null; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput, WordPress.Security.NonceVerification.Missing -- nonce verified above (Forms::verify); only tmp_name/size are used, the content is parsed and validated.
 		$path = is_array( $file ) && isset( $file['tmp_name'] ) && is_uploaded_file( (string) $file['tmp_name'] ) && (int) $file['size'] <= 2 * 1024 * 1024 ? (string) $file['tmp_name'] : '';
 		if ( '' === $path ) { Forms::finish( Forms::error( 'wpcap_import_file', __( 'Bitte eine CSV-Datei bis 2 MB hochladen.', 'pass-captain' ) ), '', $back ); }
 		$plan = Import::plan( (string) file_get_contents( $path ), wp_timezone_string() ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- uploaded temp file.

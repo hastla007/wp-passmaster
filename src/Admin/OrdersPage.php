@@ -225,7 +225,7 @@ final class OrdersPage {
 		if ( Forms::flag( $in, 'preview' ) ) {
 			// "Betrag berechnen": back to the order with the selection; the page shows the preview.
 			$args = array( 'refund_preview' => 1, 'refund_all' => Forms::flag( $in, 'refund_all' ) ? 1 : 0, 'tickets' => implode( ',', Forms::ids( $in, 'ticket_ids' ) ), 'deduct' => Forms::text( $in, 'deduct', 20 ), 'max_amount' => Forms::text( $in, 'max_amount', 20 ) );
-			Forms::redirect( add_query_arg( array_filter( $args, 'strlen' ), self::order_url( $order_id ) ) );
+			Forms::redirect( add_query_arg( array_filter( $args, static function ( $value ) { return '' !== (string) $value; } ), self::order_url( $order_id ) ) );
 		}
 		$result = self::refund( $in );
 		$message = '';

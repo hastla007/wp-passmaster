@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class SelfService {
 	public static function register() {
-		add_filter( 'wpcap_order_portal_sections', array( __CLASS__, 'portal_section' ), 20, 3 );
+		add_filter( 'wpcap_order_portal_sections', array( __CLASS__, 'portal_section' ), 20, 2 );
 	}
 
 	/**
@@ -130,7 +130,7 @@ final class SelfService {
 	}
 
 	/** Portal card (filter wpcap_order_portal_sections). */
-	public static function portal_section( $html, $order, $token = '' ) {
+	public static function portal_section( $html, $order ) {
 		$eligible = self::eligible( $order );
 		$state = isset( $_GET['wpcap_refund'] ) ? sanitize_key( wp_unslash( (string) $_GET['wpcap_refund'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display only.
 		if ( ! $eligible && '' === $state ) { return $html; }

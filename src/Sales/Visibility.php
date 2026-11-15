@@ -76,7 +76,7 @@ final class Visibility {
 		global $wpdb;
 		$now = current_time( 'mysql', true );
 		$in = implode( ',', array_fill( 0, count( $codes ), '%s' ) );
-		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE ticket_type_id=%d AND status='active' AND (starts_at IS NULL OR starts_at<=%s) AND (ends_at IS NULL OR ends_at>=%s) AND code IN ($in)", array_merge( array( $wpdb->prefix . 'wpcap_campaigns', $type_id, $now, $now ), $codes ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders.
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE ticket_type_id=%d AND status='active' AND (starts_at IS NULL OR starts_at<=%s) AND (ends_at IS NULL OR ends_at>=%s) AND code IN ($in)", array_merge( array( $wpdb->prefix . 'wpcap_campaigns', $type_id, $now, $now ), $codes ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- generated placeholders, replacements as one array.
 	}
 
 	/**
