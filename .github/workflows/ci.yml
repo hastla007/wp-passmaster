@@ -149,6 +149,13 @@ jobs:
         env:
           WPCAP_TEST_DB_HOST: 127.0.0.1
         run: php tests/load/run.php --profile=ci
+      - name: Load smoke under READ COMMITTED sessions (checkout + late payments + seats; no overselling)
+        # Sites tuned to READ COMMITTED must not oversell: the plugin forces REPEATABLE READ per transaction.
+        env:
+          WPCAP_TEST_DB_HOST: 127.0.0.1
+        run: |
+          php tests/load/run.php --profile=ci --scenario=mixed --isolation=READ-COMMITTED
+          php tests/load/run.php --profile=ci --scenario=seats --isolation=READ-COMMITTED
 
   browser:
     # Release gates in the browser (docs/RELEASE.md): Playwright E2E (checkout, order portal, web scanner, offline

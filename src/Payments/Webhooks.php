@@ -404,15 +404,23 @@ final class Webhooks {
 
 	/**
 	 * Extends the active hold of a pending order whose payment uses a delayed method (default 7 days,
-	 * filter `wp_pass_captain_delayed_payment_hold_minutes_v1`). A hold that already lapsed is not
-	 * revived; the later payment then goes through the late-payment re-check (Orders).
+	 * filter `wp_pass_captain_delayed_payment_hold_minutes_v1`), but never past the start of the
+	 * earliest occurrence of the order: tickets for a started occurrence must not stay blocked by a
+	 * transfer that may never arrive. A hold that already lapsed is not revived; the later payment then
+	 * goes through the late-payment re-check (Orders).
 	 *
 	 * @return bool Whether an active hold was extended.
 	 */
 	public static function extend_for_delayed_payment( $order, $provider ) {
+		global $wpdb;
 		$minutes = self::delayed_hold_minutes( $order, $provider );
-		$extended = (int) Orders::extend_hold( (int) $order->order_id, $minutes );
-		Audit::record( $extended ? 'delayed_payment_hold_extended' : 'delayed_payment_hold_lapsed', 'order', (int) $order->order_id, array( 'provider' => (string) $provider, 'minutes' => $minutes ) );
+		$p = $wpdb->prefix;
+		$starts = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT MIN(o.starts_at) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i o ON o.occurrence_id=tt.occurrence_id WHERE oi.order_id=%d', $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_occurrences', (int) $order->order_id ) );
+		if ( '' !== $starts ) {
+			$minutes = min( $minutes, (int) floor( ( strtotime( $starts . ' UTC' ) - time() ) / MINUTE_IN_SECONDS ) );
+		}
+		$extended = $minutes > 0 ? (int) Orders::extend_hold( (int) $order->order_id, $minutes ) : 0;
+		Audit::record( $extended ? 'delayed_payment_hold_extended' : 'delayed_payment_hold_lapsed', 'order', (int) $order->order_id, array( 'provider' => (string) $provider, 'minutes' => max( 0, $minutes ) ) );
 		return $extended > 0;
 	}
 

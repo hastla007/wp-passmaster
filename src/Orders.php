@@ -25,8 +25,31 @@ final class Orders {
 	 *                        attendees_deferred (external only: tickets without any attendee entry may be
 	 *                        issued although their type has required fields; the buyer completes them in
 	 *                        the order portal – WooCommerce orders created in the admin or over REST).
+	 *
+	 * Deadlocks and lock wait timeouts (busy database) are retried internally up to DB_RETRIES times
+	 * with a short random pause (the idempotency key makes a retry safe); after that the result is a
+	 * retryable 503 with `retry_after`. The whole call runs with a short innodb_lock_wait_timeout
+	 * (DbSession::with_short_lock_wait()).
 	 */
 	public static function create( $payload, array $internal = array() ) {
+		return DbSession::with_short_lock_wait( static function () use ( $payload, $internal ) {
+			for ( $attempt = 0; ; ++$attempt ) {
+				$result = self::create_attempt( $payload, $internal, $attempt );
+				$data = $result instanceof \WP_Error ? (array) $result->get_error_data() : array();
+				if ( empty( $data['db_busy'] ) || $attempt >= self::DB_RETRIES ) { return $result; }
+				usleep( random_int( 30, 150 ) * 1000 * ( $attempt + 1 ) ); // Jitter, so the competing transactions do not collide again.
+			}
+		} );
+	}
+
+	/** Internal retries of a checkout transaction that hit a deadlock or lock wait timeout. */
+	const DB_RETRIES = 2;
+
+	/** Seconds a client should wait before retrying a request that met a busy database (Retry-After). */
+	const RETRY_AFTER_SECONDS = 2;
+
+	/** One checkout attempt (see create()); $attempt > 0 is an internal retry after a busy database. */
+	private static function create_attempt( $payload, array $internal, $attempt ) {
 		global $wpdb;
 		$email = is_scalar( $payload['email'] ?? '' ) ? sanitize_email( (string) ( $payload['email'] ?? '' ) ) : '';
 		$lines = $payload['items'] ?? array();
@@ -57,7 +80,8 @@ final class Orders {
 		// Exact gross line totals from the external system (unit prices may not divide evenly).
 		$line_totals = ( $external && is_array( $internal['line_totals'] ?? null ) ) ? array_map( 'absint', $internal['line_totals'] ) : array();
 		$external_currency = $external ? strtoupper( preg_replace( '/[^A-Za-z]/', '', (string) ( $internal['currency'] ?? '' ) ) ) : '';
-		$skip_rate_limit = $external || ! empty( $internal['skip_rate_limit'] );
+		// An internal retry was already counted (and admitted by the checkout gate) as one request.
+		$skip_rate_limit = $external || ! empty( $internal['skip_rate_limit'] ) || $attempt > 0;
 		$orders_table = $wpdb->prefix . 'wpcap_orders';
 		$existing = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE idempotency_key = %s', $orders_table, $key_hash ) );
 		if ( $existing ) {
@@ -82,7 +106,7 @@ final class Orders {
 		}
 		// Add-on gate (e.g. virtual waiting room) for public checkouts only: not for channels with their own
 		// namespace (box office, waitlist offers) or trusted adapters (WooCommerce, vouchers). Sales\CheckoutGate.
-		if ( ! $external && '' === $namespace ) {
+		if ( ! $external && '' === $namespace && 0 === $attempt ) {
 			$gate = Sales\CheckoutGate::check( array( 'source' => $internal['source'] ?? 'native', 'phase' => 'checkout', 'items' => $clean_lines, 'email' => $email, 'idempotency_key' => $key, 'request' => $internal['request'] ?? null ) );
 			if ( is_wp_error( $gate ) ) { return $gate; }
 		}
@@ -121,7 +145,7 @@ final class Orders {
 			$buyer_locks = Sales\BuyerLimits::acquire( $email, $customer_user_id );
 			if ( false === $buyer_locks ) {
 				Sales\CheckoutThrottle::refund( $throttle );
-				return new \WP_Error( 'wpcap_checkout_failed', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+				return new \WP_Error( 'wpcap_checkout_failed', __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'retry_after' => self::RETRY_AFTER_SECONDS ) );
 			}
 		}
 		self::begin();
@@ -338,6 +362,8 @@ final class Orders {
 			if ( false === self::in_transaction() ) { throw new \RuntimeException( 'db_busy' ); }
 			if ( false === $wpdb->query( 'COMMIT' ) ) { throw new \RuntimeException( 'db_busy' ); }
 		} catch ( \Throwable $error ) {
+			// The server error is gone after ROLLBACK: classify it first (deadlock/lock wait timeout = busy).
+			$db_error = (string) $wpdb->last_error;
 			$wpdb->query( 'ROLLBACK' );
 			Sales\BuyerLimits::release( $buyer_locks );
 			Sales\CheckoutThrottle::refund( $throttle ); // No order: sold-out and other failed attempts do not use up the limit.
@@ -366,8 +392,12 @@ final class Orders {
 			}
 			$messages = apply_filters( 'wpcap_checkout_error_messages', $messages );
 			$fallback = $custom_error instanceof \WP_Error && '' !== $custom_error->get_error_message() ? $custom_error->get_error_message() : __( 'Die Bestellung konnte nicht angelegt werden.', 'pass-captain' );
+			if ( 'db_busy' === $code || DbSession::is_busy_error( $db_error ) ) {
+				// Deadlock victim or lock wait timeout: nothing was written; create() retries, then the client.
+				return new \WP_Error( 'wpcap_checkout_failed', $messages['db_busy'] ?? __( 'Gerade ist sehr viel los. Bitte versuche es in einem Moment erneut.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'retry_after' => self::RETRY_AFTER_SECONDS, 'db_busy' => true ) );
+			}
 			$message = $messages[ $code ] ?? $fallback;
-			return new \WP_Error( 'wpcap_checkout_failed', $message, array( 'status' => 'db_busy' === $code ? 503 : 409, 'retryable' => 'db_busy' === $code ) );
+			return new \WP_Error( 'wpcap_checkout_failed', $message, array( 'status' => 409, 'retryable' => false ) );
 		}
 		Sales\BuyerLimits::release( $buyer_locks );
 
@@ -687,7 +717,7 @@ final class Orders {
 	private static function payment_busy() {
 		global $wpdb;
 		$wpdb->query( 'ROLLBACK' );
-		return new \WP_Error( 'wpcap_db_busy', __( 'Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true ) );
+		return new \WP_Error( 'wpcap_db_busy', __( 'Die Zahlung konnte gerade nicht verbucht werden. Bitte erneut versuchen.', 'pass-captain' ), array( 'status' => 503, 'retryable' => true, 'retry_after' => self::RETRY_AFTER_SECONDS ) );
 	}
 
 	/**
@@ -711,6 +741,10 @@ final class Orders {
 	 * connection-local InnoDB temporary table inside the transaction: a server-side rollback (deadlock
 	 * victim) removes it, so in_transaction() can tell that the transaction is gone.
 	 *
+	 * Every transaction runs under REPEATABLE READ, whatever the session default is (DbSession): the
+	 * capacity checks rely on one consistent snapshot taken after the row locks. Under READ COMMITTED a
+	 * payment committing between two reads would be missing from both sums (overselling).
+	 *
 	 * @return int|bool Result of START TRANSACTION (false on error).
 	 */
 	private static function begin() {
@@ -723,6 +757,9 @@ final class Orders {
 			$cleared = $wpdb->query( "DELETE FROM {$marker}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name from $wpdb->prefix, no input.
 			if ( false === $cleared ) { self::$marker_ready = null; $marker = ''; }
 		}
+		// Right before START TRANSACTION: SET TRANSACTION applies to the next transaction only (an
+		// autocommit statement in between, like the marker DELETE above, would consume it).
+		DbSession::repeatable_read();
 		$started = $wpdb->query( 'START TRANSACTION' );
 		if ( false !== $started && '' !== $marker ) {
 			// Only this transaction depends on the marker: a failed write leaves in_transaction() undecided (null).
@@ -795,21 +832,27 @@ final class Orders {
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
 		$exclude_order_id = absint( $exclude_order_id );
+		// Sold and held units in ONE statement each: two statements could straddle a payment that moves
+		// units from held to sold (under READ COMMITTED they would be missing from both sums).
 		if ( (int) $type->capacity > 0 ) {
-			$sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d", $p . 'wpcap_order_items', $p . 'wpcap_orders', $type->ticket_type_id, $exclude_order_id ) );
-			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			$held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM %i WHERE ticket_type_id=%d AND status='active' AND expires_at > %s AND order_id <> %d", $p . 'wpcap_reservations', $type->ticket_type_id, $now, $exclude_order_id ) );
-			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			if ( $sold + $held + $quantity > (int) $type->capacity ) {
+			$used = $wpdb->get_var( $wpdb->prepare(
+				"SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d) + (SELECT COALESCE(SUM(quantity),0) FROM %i WHERE ticket_type_id=%d AND status='active' AND expires_at > %s AND order_id <> %d)",
+				$p . 'wpcap_order_items', $p . 'wpcap_orders', $type->ticket_type_id, $exclude_order_id,
+				$p . 'wpcap_reservations', $type->ticket_type_id, $now, $exclude_order_id
+			) );
+			if ( '' !== $wpdb->last_error || null === $used ) { return 'db_busy'; }
+			if ( (int) $used + $quantity > (int) $type->capacity ) {
 				return 'sold_out';
 			}
 		}
 		if ( (int) $occurrence->capacity > 0 ) {
-			$occ_sold = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d", $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_orders', $occurrence->occurrence_id, $exclude_order_id ) );
-			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			$occ_held = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.quantity),0) FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s AND r.order_id <> %d", $p . 'wpcap_reservations', $p . 'wpcap_ticket_types', $occurrence->occurrence_id, $now, $exclude_order_id ) );
-			if ( '' !== $wpdb->last_error ) { return 'db_busy'; }
-			if ( $occ_sold + $occ_held + $quantity > (int) $occurrence->capacity ) {
+			$occ_used = $wpdb->get_var( $wpdb->prepare(
+				"SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded' AND ord.order_id <> %d) + (SELECT COALESCE(SUM(r.quantity),0) FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s AND r.order_id <> %d)",
+				$p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_orders', $occurrence->occurrence_id, $exclude_order_id,
+				$p . 'wpcap_reservations', $p . 'wpcap_ticket_types', $occurrence->occurrence_id, $now, $exclude_order_id
+			) );
+			if ( '' !== $wpdb->last_error || null === $occ_used ) { return 'db_busy'; }
+			if ( (int) $occ_used + $quantity > (int) $occurrence->capacity ) {
 				return 'occurrence_sold_out';
 			}
 		}
@@ -929,13 +972,12 @@ final class Orders {
 		$limits = array();
 		$now = current_time( 'mysql', true );
 		if ( (int) $type->capacity > 0 ) {
-			$used = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", $p . 'wpcap_order_items', $p . 'wpcap_orders', $type->ticket_type_id ) )
-				+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(quantity),0) FROM %i WHERE ticket_type_id=%d AND status='active' AND expires_at > %s", $p . 'wpcap_reservations', $type->ticket_type_id, $now ) );
+			// One statement (one snapshot) for sold + held, like capacity_error().
+			$used = (int) $wpdb->get_var( $wpdb->prepare( "SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE oi.ticket_type_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded') + (SELECT COALESCE(SUM(quantity),0) FROM %i WHERE ticket_type_id=%d AND status='active' AND expires_at > %s)", $p . 'wpcap_order_items', $p . 'wpcap_orders', $type->ticket_type_id, $p . 'wpcap_reservations', $type->ticket_type_id, $now ) );
 			$limits[] = (int) $type->capacity - $used;
 		}
 		if ( (int) $occurrence->capacity > 0 ) {
-			$used = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded'", $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_orders', $occurrence->occurrence_id ) )
-				+ (int) $wpdb->get_var( $wpdb->prepare( "SELECT COALESCE(SUM(r.quantity),0) FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s", $p . 'wpcap_reservations', $p . 'wpcap_ticket_types', $occurrence->occurrence_id, $now ) );
+			$used = (int) $wpdb->get_var( $wpdb->prepare( "SELECT (SELECT COALESCE(SUM(oi.quantity - oi.refunded_quantity),0) FROM %i oi INNER JOIN %i tt ON tt.ticket_type_id=oi.ticket_type_id INNER JOIN %i ord ON ord.order_id=oi.order_id WHERE tt.occurrence_id=%d AND ord.payment_status='paid' AND ord.status <> 'refunded') + (SELECT COALESCE(SUM(r.quantity),0) FROM %i r INNER JOIN %i tt ON tt.ticket_type_id=r.ticket_type_id WHERE tt.occurrence_id=%d AND r.status='active' AND r.expires_at > %s)", $p . 'wpcap_order_items', $p . 'wpcap_ticket_types', $p . 'wpcap_orders', $occurrence->occurrence_id, $p . 'wpcap_reservations', $p . 'wpcap_ticket_types', $occurrence->occurrence_id, $now ) );
 			$limits[] = (int) $occurrence->capacity - $used;
 		}
 		return self::filtered_availability( $limits ? max( 0, min( $limits ) ) : null, $type, $occurrence );
@@ -975,19 +1017,20 @@ final class Orders {
 	 * @return true|\WP_Error
 	 */
 	public static function confirm_external_payment( $order_id, $reference = '' ) {
-		global $wpdb;
-		$order_id = absint( $order_id );
-		$buyer = self::late_payment_buyer( $order_id );
-		$locks = array();
-		if ( $buyer ) {
-			$locks = Sales\BuyerLimits::acquire( $buyer->customer_email, (int) $buyer->customer_user_id );
-			if ( false === $locks ) { return self::payment_busy(); }
-		}
-		try {
-			return self::confirm_payment_locked( $order_id, $reference, (bool) $buyer );
-		} finally {
-			if ( $locks ) { Sales\BuyerLimits::release( $locks ); }
-		}
+		return DbSession::with_short_lock_wait( static function () use ( $order_id, $reference ) {
+			$order_id = absint( $order_id );
+			$buyer = self::late_payment_buyer( $order_id );
+			$locks = array();
+			if ( $buyer ) {
+				$locks = Sales\BuyerLimits::acquire( $buyer->customer_email, (int) $buyer->customer_user_id );
+				if ( false === $locks ) { return self::payment_busy(); }
+			}
+			try {
+				return self::confirm_payment_locked( $order_id, $reference, (bool) $buyer );
+			} finally {
+				if ( $locks ) { Sales\BuyerLimits::release( $locks ); }
+			}
+		} );
 	}
 
 	/**
@@ -1004,8 +1047,79 @@ final class Orders {
 		return $types && Sales\BuyerLimits::relevant( $types ) ? $order : null;
 	}
 
-	/** confirm_external_payment() with the buyer locks held (when $check_limits). */
+	/**
+	 * confirm_external_payment() with the buyer locks held (when $check_limits).
+	 *
+	 * Lock order (as in Orders::create(), so payments, checkouts and the hold cleanup cannot deadlock
+	 * each other): the order lines and reservation ids are read before the transaction (they never
+	 * change after the order was created). Then the order row; a late payment then locks ticket types,
+	 * occurrences, module resources (`wpcap_reserve_capacity`: pools, seats) and finally the order's
+	 * reservations, an on-time payment only its reservations. Reservations are
+	 * locked by primary key FOR UPDATE (record locks only: no gap locks on the order_id index, no
+	 * shared lock that is upgraded later). If an on-time confirmation finds that the hold lapsed
+	 * meanwhile, it starts over as a late payment.
+	 */
 	private static function confirm_payment_locked( $order_id, $reference, $check_limits ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		// Autocommit reads (no snapshot yet): the late re-check must take its snapshot after its locks.
+		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id, SUM(quantity) AS quantity FROM %i WHERE order_id=%d GROUP BY ticket_type_id ORDER BY ticket_type_id', $p . 'wpcap_order_items', $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return self::payment_busy(); }
+		$hold_ids = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT reservation_id FROM %i WHERE order_id=%d ORDER BY reservation_id', $p . 'wpcap_reservations', $order_id ) ) );
+		if ( '' !== $wpdb->last_error ) { return self::payment_busy(); }
+		$late = ! self::has_active_hold( $order_id );
+		$result = self::confirm_payment_transaction( $order_id, $reference, $check_limits, (array) $lines, $hold_ids, $late );
+		if ( 'hold_lapsed' === $result ) {
+			// The hold expired between the pre-read and the lock: take the type/occurrence locks first.
+			$result = self::confirm_payment_transaction( $order_id, $reference, $check_limits, (array) $lines, $hold_ids, true );
+		}
+		return 'hold_lapsed' === $result ? self::payment_busy() : $result;
+	}
+
+	/** Whether the order still has an unexpired active hold (non-locking read). */
+	public static function has_active_hold( $order_id ) {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s", $wpdb->prefix . 'wpcap_reservations', absint( $order_id ), current_time( 'mysql', true ) ) ) > 0;
+	}
+
+	/**
+	 * Locks reservations by primary key (FOR UPDATE): record locks only.
+	 *
+	 * @return array|false Reservation rows (reservation_id, status, expires_at) or false on a database error.
+	 */
+	private static function lock_holds( array $hold_ids ) {
+		global $wpdb;
+		$hold_ids = array_values( array_filter( array_map( 'absint', $hold_ids ) ) );
+		if ( ! $hold_ids ) { return array(); }
+		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT reservation_id,status,expires_at FROM %i WHERE reservation_id IN (' . implode( ',', array_fill( 0, count( $hold_ids ), '%d' ) ) . ') ORDER BY reservation_id FOR UPDATE', array_merge( array( $wpdb->prefix . 'wpcap_reservations' ), $hold_ids ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer placeholders.
+		return '' !== $wpdb->last_error ? false : (array) $rows;
+	}
+
+	/** Sets the status of reservations (by primary key) that are in one of $from; false on a database error. */
+	private static function set_hold_status( array $hold_ids, $status, array $from ) {
+		global $wpdb;
+		$hold_ids = array_values( array_filter( array_map( 'absint', $hold_ids ) ) );
+		if ( ! $hold_ids ) { return 0; }
+		return $wpdb->query( $wpdb->prepare( 'UPDATE %i SET status=%s WHERE reservation_id IN (' . implode( ',', array_fill( 0, count( $hold_ids ), '%d' ) ) . ') AND status IN (' . implode( ',', array_fill( 0, count( $from ), '%s' ) ) . ')', array_merge( array( $wpdb->prefix . 'wpcap_reservations', (string) $status ), $hold_ids, array_values( $from ) ) ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- generated placeholders.
+	}
+
+	/**
+	 * Sales state a late payment needs (ticket type active, occurrence and event not cancelled, the
+	 * occurrence not over). Without it the paid order goes to needs_review instead of issuing tickets
+	 * for a cancelled or past occurrence or a deactivated ticket type.
+	 */
+	private static function sale_still_open( $type, $occurrence, $now ) {
+		if ( ! $type || ! $occurrence || 'active' !== $type->status || 'scheduled' !== $occurrence->status || 'cancelled' === (string) ( $occurrence->event_status ?? '' ) ) { return false; }
+		$ends = $occurrence->ends_at ? $occurrence->ends_at : gmdate( 'Y-m-d H:i:s', strtotime( $occurrence->starts_at . ' UTC' ) + 6 * HOUR_IN_SECONDS );
+		return $ends > $now;
+	}
+
+	/**
+	 * One confirmation transaction (see confirm_payment_locked()).
+	 *
+	 * @return true|\WP_Error|string 'hold_lapsed' when an on-time confirmation found no active hold any more.
+	 */
+	private static function confirm_payment_transaction( $order_id, $reference, $check_limits, array $lines, array $hold_ids, $late ) {
 		global $wpdb;
 		$p = $wpdb->prefix;
 		$now = current_time( 'mysql', true );
@@ -1027,34 +1141,43 @@ final class Orders {
 			$wpdb->query( 'ROLLBACK' );
 			return new \WP_Error( 'wpcap_order_state', __( 'Der Bestellstatus erlaubt diese Aktion nicht.', 'pass-captain' ) );
 		}
-		// Locking reads only until every capacity lock is held (fresh snapshot for the re-check below).
-		$active = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM %i WHERE order_id=%d AND status='active' AND expires_at > %s LOCK IN SHARE MODE", $p . 'wpcap_reservations', $order_id, $now ) );
-		$active_error = $wpdb->last_error;
-		$lines = $wpdb->get_results( $wpdb->prepare( 'SELECT ticket_type_id, SUM(quantity) AS quantity FROM %i WHERE order_id=%d GROUP BY ticket_type_id ORDER BY ticket_type_id LOCK IN SHARE MODE', $p . 'wpcap_order_items', $order_id ) );
-		if ( '' !== $active_error || '' !== $wpdb->last_error ) { return self::payment_busy(); }
 		$recovered = false;
-		if ( ! $active ) {
-			// Late payment: lock ticket types, then occurrences (same order as Orders::create()), then
-			// module resources (`wpcap_reserve_capacity`), and re-check capacity.
+		if ( $late ) {
+			// Late payment: lock ticket types, then occurrences, with the same statements and in the same
+			// order as Orders::create(), then module resources (`wpcap_reserve_capacity`: pools, seats), then
+			// the order's reservations. Locking reads only until every capacity lock is held (fresh snapshot
+			// for the re-check below). A checkout holding these locks never locks existing order rows (seat
+			// claims are released without shared locks, see Seating\Reservations::release_stale()).
 			$locked_types = array();
 			foreach ( $lines as $line ) {
 				$locked_types[ (int) $line->ticket_type_id ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE ticket_type_id=%d FOR UPDATE', $p . 'wpcap_ticket_types', $line->ticket_type_id ) );
+				if ( '' !== $wpdb->last_error ) { return self::payment_busy(); }
 			}
 			$occ_ids = array_unique( array_map( static function ( $type ) { return $type ? (int) $type->occurrence_id : 0; }, $locked_types ) );
 			sort( $occ_ids, SORT_NUMERIC );
 			$occurrences = array();
 			foreach ( $occ_ids as $occ_id ) {
-				if ( $occ_id ) { $occurrences[ $occ_id ] = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE occurrence_id=%d FOR UPDATE', $p . 'wpcap_occurrences', $occ_id ) ); }
+				if ( ! $occ_id ) { continue; }
+				$occurrences[ $occ_id ] = $wpdb->get_row( $wpdb->prepare( 'SELECT o.*,e.name AS event_name,e.status AS event_status FROM %i o INNER JOIN %i e ON e.event_id=o.event_id WHERE o.occurrence_id=%d FOR UPDATE', $p . 'wpcap_occurrences', $p . 'wpcap_events', $occ_id ) );
+				if ( '' !== $wpdb->last_error ) { return self::payment_busy(); }
 			}
 			$demand = array();
 			foreach ( $lines as $line ) { $demand[ (int) $line->ticket_type_id ] = (int) $line->quantity; }
-			$reserve_error = in_array( null, $locked_types, true ) ? null : self::reserve_capacity( $demand, array( 'phase' => 'recover', 'order_id' => $order_id, 'types' => $locked_types, 'occurrences' => array_filter( $occurrences ), 'now' => $now, 'source' => (string) $order->payment_provider ) );
 			$error = '';
-			$per_occurrence = array();
 			foreach ( $lines as $line ) {
 				$type = $locked_types[ (int) $line->ticket_type_id ] ?? null;
-				$occurrence = $type ? ( $occurrences[ (int) $type->occurrence_id ] ?? null ) : null;
-				if ( ! $type || ! $occurrence ) { $error = 'ticket_type_unavailable'; break; }
+				if ( ! $type || ! ( $occurrences[ (int) $type->occurrence_id ] ?? null ) ) { $error = 'ticket_type_unavailable'; break; }
+				if ( ! self::sale_still_open( $type, $occurrences[ (int) $type->occurrence_id ], $now ) ) { $error = 'sale_closed'; break; }
+			}
+			// Module resources may write (e.g. seats claimed again): undone if the re-check fails below.
+			if ( false === $wpdb->query( 'SAVEPOINT wpcap_recover' ) ) { return self::payment_busy(); }
+			$reserve_error = $error ? null : self::reserve_capacity( $demand, array( 'phase' => 'recover', 'order_id' => $order_id, 'types' => $locked_types, 'occurrences' => array_filter( $occurrences ), 'now' => $now, 'source' => (string) $order->payment_provider ) );
+			if ( $reserve_error && 'db_busy' === $reserve_error->get_error_code() ) { return self::payment_busy(); }
+			if ( false === self::lock_holds( $hold_ids ) ) { return self::payment_busy(); }
+			$per_occurrence = array();
+			foreach ( $error ? array() : $lines as $line ) {
+				$type = $locked_types[ (int) $line->ticket_type_id ];
+				$occurrence = $occurrences[ (int) $type->occurrence_id ];
 				$check_occurrence = clone $occurrence;
 				$check_occurrence->capacity = 0; // Occurrence capacity is checked below for the summed quantity.
 				$error = self::capacity_error( $type, $check_occurrence, (int) $line->quantity, $order_id );
@@ -1071,6 +1194,7 @@ final class Orders {
 					if ( $error ) { break; }
 				}
 			}
+			if ( 'db_busy' === $error ) { return self::payment_busy(); }
 			if ( ! $error && $check_limits ) {
 				// The lapsed hold no longer counted against the buyer: re-check the limits (buyer locks held).
 				$limit_error = Sales\BuyerLimits::check( $demand, $locked_types, array_filter( $occurrences ), (string) $order->customer_email, (int) $order->customer_user_id, $now, $order_id );
@@ -1085,36 +1209,66 @@ final class Orders {
 				}
 			}
 			if ( $error ) {
-				// needs_review is a final answer (webhooks acknowledge it): it must be persisted first.
-				if ( false === $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'needs_review', 'payment_status' => 'paid_unallocated', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) { return self::payment_busy(); }
-				if ( false === $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired' WHERE order_id=%d AND status='active'", $p . 'wpcap_reservations', $order_id ) ) ) { return self::payment_busy(); }
-				if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) { return self::payment_busy(); }
-				self::capacity_released( $order_id, 'payment_unallocated' );
-				Audit::record( 'payment_unallocated', 'order', $order_id, array( 'reason' => $error, 'reference' => sanitize_text_field( $reference ) ) );
-				if ( 'buyer_limit' === $error ) {
-					/* translators: 1: order number, 2: payment reference */
-					wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung über dem Käuferlimit', 'pass-captain' ), sprintf( /* translators: 1: order number, 2: payment reference */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Mit dieser Bestellung würde die Person ein Käuferlimit überschreiten. Es wurden keine Tickets ausgestellt. Bitte manuell klären (erstatten oder Limit anpassen und die Zahlung erneut bestätigen).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
-					return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und die Bestellung würde ein Käuferlimit überschreiten. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ), array( 'reason' => 'buyer_limit' ) );
-				}
-				if ( 'campaign_exhausted' === $error ) {
-					wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung mit ausgeschöpftem Rabattcode', 'pass-captain' ), sprintf( /* translators: 1: order number, 2: payment reference */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Der verwendete Rabattcode ist inzwischen ausgeschöpft (Nutzungslimit erreicht). Es wurden keine Tickets ausgestellt. Bitte manuell klären (erstatten, Differenz nachfordern oder das Limit anpassen und die Zahlung erneut bestätigen).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
-					return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und der Rabattcode ist inzwischen ausgeschöpft. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ), array( 'reason' => 'campaign_exhausted' ) );
-				}
-				wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne freies Kontingent', 'pass-captain' ), sprintf( /* translators: 1: order number, 2: payment reference */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten).', 'pass-captain' ), $order->public_id, sanitize_text_field( $reference ) ) );
-				return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ) );
+				return self::payment_unallocated( $order, $error, $reference, $hold_ids, $now );
 			}
 			$recovered = true;
+		} else {
+			$holds = self::lock_holds( $hold_ids );
+			if ( false === $holds ) { return self::payment_busy(); }
+			$active = array_filter( $holds, static function ( $hold ) use ( $now ) { return 'active' === $hold->status && $hold->expires_at > $now; } );
+			if ( ! $active ) {
+				$wpdb->query( 'ROLLBACK' );
+				return 'hold_lapsed';
+			}
 		}
 		// Checked like Orders::create(): after a server-side rollback the remaining statements would
 		// autocommit without the capacity re-check's locks.
 		if ( false === $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'complete', 'payment_status' => 'paid', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) { return self::payment_busy(); }
-		if ( false === $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='converted' WHERE order_id=%d AND status IN ('active','expired','released')", $p . 'wpcap_reservations', $order_id ) ) ) { return self::payment_busy(); }
+		if ( false === self::set_hold_status( $hold_ids, 'converted', array( 'active', 'expired', 'released' ) ) ) { return self::payment_busy(); }
 		Campaigns::commit_for_order( $order_id );
 		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) { return self::payment_busy(); }
 		Audit::record( 'external_payment_confirmed', 'order', $order_id, array( 'reference' => sanitize_text_field( $reference ), 'late_recovery' => $recovered ) );
 		do_action( 'wpcap_order_paid', $order_id );
 		self::issue_and_email( $order_id );
 		return true;
+	}
+
+	/**
+	 * Late payment that cannot be allocated: undoes module claims of the recovery (savepoint), flags
+	 * the order needs_review / paid_unallocated, commits and alerts the admin. needs_review is a final
+	 * answer (webhooks acknowledge it), so it is persisted before anything is reported.
+	 *
+	 * @return \WP_Error wpcap_needs_review (or wpcap_db_busy when it could not be stored).
+	 */
+	private static function payment_unallocated( $order, $error, $reference, array $hold_ids, $now ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$order_id = (int) $order->order_id;
+		if ( false === $wpdb->query( 'ROLLBACK TO SAVEPOINT wpcap_recover' ) ) { return self::payment_busy(); }
+		if ( false === $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'needs_review', 'payment_status' => 'paid_unallocated', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) { return self::payment_busy(); }
+		if ( false === self::set_hold_status( $hold_ids, 'expired', array( 'active' ) ) ) { return self::payment_busy(); }
+		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) { return self::payment_busy(); }
+		self::capacity_released( $order_id, 'payment_unallocated' );
+		Audit::record( 'payment_unallocated', 'order', $order_id, array( 'reason' => $error, 'reference' => sanitize_text_field( $reference ) ) );
+		$reference = sanitize_text_field( $reference );
+		if ( 'buyer_limit' === $error ) {
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung über dem Käuferlimit', 'pass-captain' ), sprintf( /* translators: 1: order number, 2: payment reference */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Mit dieser Bestellung würde die Person ein Käuferlimit überschreiten. Es wurden keine Tickets ausgestellt. Bitte manuell klären (erstatten oder Limit anpassen und die Zahlung erneut bestätigen).', 'pass-captain' ), $order->public_id, $reference ) );
+			return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und die Bestellung würde ein Käuferlimit überschreiten. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ), array( 'reason' => 'buyer_limit' ) );
+		}
+		if ( 'campaign_exhausted' === $error ) {
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung mit ausgeschöpftem Rabattcode', 'pass-captain' ), sprintf( /* translators: 1: order number, 2: payment reference */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Der verwendete Rabattcode ist inzwischen ausgeschöpft (Nutzungslimit erreicht). Es wurden keine Tickets ausgestellt. Bitte manuell klären (erstatten, Differenz nachfordern oder das Limit anpassen und die Zahlung erneut bestätigen).', 'pass-captain' ), $order->public_id, $reference ) );
+			return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und der Rabattcode ist inzwischen ausgeschöpft. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ), array( 'reason' => 'campaign_exhausted' ) );
+		}
+		if ( in_array( $error, array( 'sale_closed', 'ticket_type_unavailable' ), true ) ) {
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Zahlung für geschlossenen Verkauf', 'pass-captain' ), sprintf( /* translators: 1: order number, 2: payment reference */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen. Der Termin ist inzwischen abgesagt oder vorbei bzw. die Ticketart ist nicht mehr im Verkauf. Es wurden keine Tickets ausgestellt. Bitte die Zahlung erstatten oder die Bestellung manuell klären.', 'pass-captain' ), $order->public_id, $reference ) );
+			return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und der Termin bzw. die Ticketart ist nicht mehr im Verkauf. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ), array( 'reason' => 'sale_closed' ) );
+		}
+		if ( 'seat_sold_out' === $error ) {
+			wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne freien Sitzplatz', 'pass-captain' ), sprintf( /* translators: 1: order number, 2: payment reference */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen; die Sitzplätze sind inzwischen vergeben und es sind keine passenden Plätze mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten).', 'pass-captain' ), $order->public_id, $reference ) );
+			return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und es sind keine passenden Sitzplätze mehr frei. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ), array( 'reason' => 'seat_sold_out' ) );
+		}
+		wp_mail( get_option( 'admin_email' ), __( 'Pass Captain: Bezahlte Bestellung ohne freies Kontingent', 'pass-captain' ), sprintf( /* translators: 1: order number, 2: payment reference */ __( 'Die Zahlung für Bestellung %1$s (%2$s) ist nach Ablauf der Reservierung eingegangen und es ist kein Kontingent mehr frei. Es wurden keine Tickets ausgestellt. Bitte manuell klären (Platz freigeben oder erstatten).', 'pass-captain' ), $order->public_id, $reference ) );
+		return new \WP_Error( 'wpcap_needs_review', __( 'Die Reservierung war abgelaufen und es ist kein Kontingent mehr frei. Die Bestellung muss manuell geklärt werden.', 'pass-captain' ) );
 	}
 
 	/** Extends active holds of a pending order (e.g. WooCommerce "on-hold" bank transfers). */
@@ -1478,11 +1632,16 @@ final class Orders {
 	}
 
 	/**
-	 * Expires unpaid orders whose holds have lapsed (cron `wpcap_cleanup_reservations`).
+	 * Expires unpaid orders whose holds have lapsed (cron `wpcap_cleanup_reservations` hourly and the
+	 * 5-minute worker `wpcap_process_jobs`, see expire_holds_worker()).
 	 *
-	 * Each order is expired by its own conditional UPDATE (still pending, no active hold), and the
-	 * side effects (campaign release, capacity released, wpcap_order_cancelled) only run when that
-	 * UPDATE changed the row – an order paid between selection and update is left alone.
+	 * Each order is expired in its own short transaction with the same lock order as the payment
+	 * confirmation: order row FOR UPDATE, then its reservations by primary key FOR UPDATE (no bulk
+	 * UPDATE over the reservation indexes, whose gap locks deadlocked checkouts and late payments).
+	 * The side effects (campaign release, capacity released, wpcap_order_cancelled) only run for orders
+	 * this call expired – an order paid between selection and lock is left alone. Lapsed holds of
+	 * orders that are no longer pending are marked by id afterwards. Database errors are logged and the
+	 * order is retried by the next run.
 	 * At most $limit orders per run (filter `wpcap_expire_holds_batch`); the next run continues.
 	 *
 	 * @param int $limit Batch size (cron passes no argument).
@@ -1494,28 +1653,102 @@ final class Orders {
 		$reservations = $wpdb->prefix . 'wpcap_reservations';
 		$orders = $wpdb->prefix . 'wpcap_orders';
 		$limit = max( 1, (int) apply_filters( 'wpcap_expire_holds_batch', absint( $limit ) ?: 200 ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired' WHERE status='active' AND expires_at <= %s", $reservations, $now ) );
+		self::$last_expire_batch_full = false;
 		$candidates = $wpdb->get_col( $wpdb->prepare(
 			"SELECT ord.order_id FROM %i ord WHERE ord.payment_status='pending' AND NOT EXISTS (SELECT 1 FROM %i r WHERE r.order_id=ord.order_id AND r.status='active' AND r.expires_at>%s) ORDER BY ord.order_id LIMIT %d", $orders, $reservations,
 			$now,
 			$limit
 		) );
+		if ( '' !== $wpdb->last_error ) {
+			Log::warning( 'expire_holds_failed', 'Expired holds could not be selected; the next run retries.', array( 'step' => 'select' ) );
+			return 0;
+		}
+		self::$last_expire_batch_full = count( $candidates ) >= $limit;
 		$expired = 0;
+		$failed = array();
 		foreach ( array_map( 'absint', $candidates ) as $order_id ) {
-			$changed = $wpdb->query( $wpdb->prepare(
-				"UPDATE %i SET status='expired',payment_status='expired',updated_at=%s WHERE order_id=%d AND payment_status='pending' AND NOT EXISTS (SELECT 1 FROM %i r WHERE r.order_id=%d AND r.status='active' AND r.expires_at > %s)", $orders,
-				$now,
-				$order_id, $reservations,
-				$order_id,
-				$now
-			) );
-			if ( 1 !== (int) $changed ) { continue; }
+			$result = self::expire_order( $order_id, $now );
+			if ( is_string( $result ) ) {
+				$failed[ $order_id ] = $result;
+				continue;
+			}
+			if ( ! $result ) { continue; }
 			++$expired;
 			Campaigns::release_for_order( $order_id );
 			self::capacity_released( $order_id, 'expired' );
 			do_action( 'wpcap_order_cancelled', $order_id );
 		}
+		// Lapsed holds of orders that are not pending any more (they no longer count anyway): by id.
+		$stale = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( "SELECT r.reservation_id FROM %i r INNER JOIN %i ord ON ord.order_id=r.order_id WHERE r.status='active' AND r.expires_at<=%s AND ord.payment_status<>'pending' ORDER BY r.reservation_id LIMIT %d", $reservations, $orders, $now, $limit ) ) );
+		if ( $stale && false === $wpdb->query( $wpdb->prepare( "UPDATE %i SET status='expired' WHERE reservation_id IN (" . implode( ',', array_fill( 0, count( $stale ), '%d' ) ) . ") AND status='active' AND expires_at<=%s", array_merge( array( $reservations ), $stale, array( $now ) ) ) ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integer placeholders.
+			$failed[0] = 'stale_holds';
+		}
+		if ( $failed ) {
+			Log::warning( 'expire_holds_failed', 'Some lapsed holds could not be expired (database busy); the next run retries.', array( 'orders' => array_slice( array_keys( $failed ), 0, 20 ), 'steps' => array_values( array_unique( $failed ) ) ) );
+		}
 		return $expired;
+	}
+
+	/** @var bool Whether the last expire_holds() run selected a full batch (more may be waiting). */
+	private static $last_expire_batch_full = false;
+
+	/**
+	 * Expires one pending order whose holds lapsed (own transaction: order row, then its reservations).
+	 *
+	 * @return bool|string True when expired, false when there was nothing to do (paid, still held,
+	 *                     gone), or the failed step on a database error (nothing changed).
+	 */
+	private static function expire_order( $order_id, $now ) {
+		global $wpdb;
+		$p = $wpdb->prefix;
+		$hold_ids = array_map( 'absint', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT reservation_id FROM %i WHERE order_id=%d ORDER BY reservation_id', $p . 'wpcap_reservations', $order_id ) ) );
+		if ( '' !== $wpdb->last_error ) { return 'read'; }
+		if ( false === self::begin() ) { return 'start'; }
+		$fail = static function ( $step ) use ( $wpdb ) {
+			$wpdb->query( 'ROLLBACK' );
+			return $step;
+		};
+		$order = $wpdb->get_row( $wpdb->prepare( 'SELECT order_id,payment_status FROM %i WHERE order_id=%d FOR UPDATE', $p . 'wpcap_orders', $order_id ) );
+		if ( '' !== $wpdb->last_error ) { return $fail( 'lock_order' ); }
+		if ( ! $order || 'pending' !== $order->payment_status ) {
+			$wpdb->query( 'COMMIT' );
+			return false;
+		}
+		$holds = self::lock_holds( $hold_ids );
+		if ( false === $holds ) { return $fail( 'lock_holds' ); }
+		foreach ( $holds as $hold ) {
+			if ( 'active' === $hold->status && $hold->expires_at > $now ) {
+				$wpdb->query( 'COMMIT' ); // Extended meanwhile (e.g. delayed payment method).
+				return false;
+			}
+		}
+		if ( false === self::set_hold_status( $hold_ids, 'expired', array( 'active' ) ) ) { return $fail( 'expire_holds' ); }
+		if ( 1 !== (int) $wpdb->update( "{$p}wpcap_orders", array( 'status' => 'expired', 'payment_status' => 'expired', 'updated_at' => $now ), array( 'order_id' => $order_id ), array( '%s', '%s', '%s' ), array( '%d' ) ) ) { return $fail( 'expire_order' ); }
+		if ( false === self::in_transaction() || false === $wpdb->query( 'COMMIT' ) ) { return $fail( 'commit' ); }
+		return true;
+	}
+
+	/**
+	 * 5-minute worker (`wpcap_process_jobs`): expires lapsed holds in batches within half of the shared
+	 * cron time budget, so limited discount codes and capacity come back within minutes instead of
+	 * only with the hourly cleanup. A full last batch asks for an immediate follow-up run.
+	 *
+	 * @return int Number of expired orders.
+	 */
+	public static function expire_holds_worker() {
+		$deadline = min( Jobs\TimeBudget::deadline(), microtime( true ) + Jobs\TimeBudget::seconds() / 2 );
+		$total = 0;
+		do {
+			$total += self::expire_holds();
+			$more = self::$last_expire_batch_full;
+		} while ( $more && ! Jobs\TimeBudget::exhausted( $deadline ) );
+		if ( $more ) { Jobs\TimeBudget::continue_later( 'wpcap_process_jobs' ); }
+		return $total;
+	}
+
+	/** Action callback of `wpcap_process_jobs` (no return value): expire_holds_worker(). */
+	public static function process_expired_holds() {
+		self::expire_holds_worker();
 	}
 
 	/** Job type of the ticket delivery outbox (see issue_and_email()). */

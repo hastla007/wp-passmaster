@@ -590,6 +590,7 @@ final class Layouts {
 			}
 		}
 		$wpdb->query( 'COMMIT' );
+		Reservations::flush_link_cache();
 		Audit::record( 'seat_map_linked', 'occurrence', (int) $occurrence->occurrence_id, array( 'version_id' => (int) $version->version_id, 'version' => (int) $version->version ) );
 		return array( 'occurrence_id' => (int) $occurrence->occurrence_id, 'event_id' => (int) $occurrence->event_id, 'version_id' => (int) $version->version_id );
 	}
@@ -610,6 +611,7 @@ final class Layouts {
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE occurrence_id=%d', self::table( 'links' ), (int) $occurrence->occurrence_id ) );
 		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE occurrence_id=%d', self::table( 'type_zones' ), (int) $occurrence->occurrence_id ) );
 		$wpdb->query( 'COMMIT' );
+		Reservations::flush_link_cache();
 		Audit::record( 'seat_map_unlinked', 'occurrence', (int) $occurrence->occurrence_id );
 		return array( 'occurrence_id' => (int) $occurrence->occurrence_id, 'event_id' => (int) $occurrence->event_id );
 	}

@@ -108,7 +108,7 @@ final class PayPalGateway implements GatewayInterface {
 		// phpcs:enable
 		$result = ( '' !== $public_id && '' !== $token ) ? self::handle_return( $public_id, $token ) : new \WP_Error( 'wpcap_paypal_return', '' );
 		if ( is_wp_error( $result ) ) {
-			$status = 'failed';
+			$status = 'wpcap_paypal_hold_expired' === $result->get_error_code() ? 'expired' : 'failed';
 		} else {
 			$status = 'pending' === $result ? 'pending' : 'success';
 		}
@@ -137,6 +137,12 @@ final class PayPalGateway implements GatewayInterface {
 		}
 		if ( (string) $order->provider_reference !== $paypal_order_id ) {
 			return new \WP_Error( 'wpcap_paypal_return', __( 'Die PayPal-Zahlung gehört nicht zu dieser Bestellung.', 'pass-captain' ), array( 'status' => 400 ) );
+		}
+		if ( ! self::hold_for_capture( $order ) ) {
+			// The approval alone moves no money: without an active hold the tickets may be gone, so do not
+			// capture (a capture would end as paid_unallocated and need a manual refund).
+			Audit::record( 'paypal_capture_skipped_hold_expired', 'order', (int) $order->order_id, array( 'paypal_order' => $paypal_order_id ) );
+			return new \WP_Error( 'wpcap_paypal_hold_expired', __( 'Die Reservierung ist abgelaufen, es wurde keine Zahlung eingezogen. Bitte starte die Bestellung erneut.', 'pass-captain' ), array( 'status' => 409 ) );
 		}
 		$event = self::capture( $paypal_order_id );
 		if ( is_wp_error( $event ) ) { return $event; }
@@ -304,8 +310,13 @@ final class PayPalGateway implements GatewayInterface {
 				// Buyer approved but may never return to the site: capture here as well.
 				if ( empty( $resource['id'] ) ) { return $ignored; }
 				$approved_for = (string) ( $resource['purchase_units'][0]['custom_id'] ?? ( $resource['purchase_units'][0]['reference_id'] ?? '' ) );
-				if ( '' !== $approved_for && self::order_closed( self::order_state( $approved_for ) ) ) {
+				$approved_order = '' !== $approved_for ? self::order_state( $approved_for ) : null;
+				if ( self::order_closed( $approved_order ) ) {
 					return $ignored; // Cancelled/refunded meanwhile: do not capture (PAY-10).
+				}
+				if ( $approved_order && 'paid' !== (string) $approved_order->payment_status && ! self::hold_for_capture( $approved_order ) ) {
+					Audit::record( 'paypal_capture_skipped_hold_expired', 'order', (int) $approved_order->order_id, array( 'paypal_order' => (string) $resource['id'] ) );
+					return $ignored; // Hold lapsed: no capture, the approval expires at PayPal without moving money.
 				}
 				$captured = self::capture( (string) $resource['id'] );
 				if ( is_wp_error( $captured ) ) {
@@ -426,7 +437,18 @@ final class PayPalGateway implements GatewayInterface {
 	/** Status row of a PayPal order of this site (null when unknown). */
 	private static function order_state( $public_id ) {
 		global $wpdb;
-		return $wpdb->get_row( $wpdb->prepare( "SELECT status,payment_status FROM %i WHERE public_id=%s AND payment_provider='paypal'", $wpdb->prefix . 'wpcap_orders', sanitize_text_field( (string) $public_id ) ) );
+		return $wpdb->get_row( $wpdb->prepare( "SELECT order_id,status,payment_status FROM %i WHERE public_id=%s AND payment_provider='paypal'", $wpdb->prefix . 'wpcap_orders', sanitize_text_field( (string) $public_id ) ) );
+	}
+
+	/**
+	 * Whether the order still holds its tickets for a capture. The active hold is stretched by a few
+	 * minutes (filter `wpcap_paypal_capture_hold_minutes`, default 15) so the confirmation after the
+	 * capture still finds it. An expired order or a lapsed hold: no capture.
+	 */
+	private static function hold_for_capture( $order ) {
+		if ( ! $order || 'expired' === (string) $order->payment_status || ! \PassCaptain\Orders::has_active_hold( (int) $order->order_id ) ) { return false; }
+		\PassCaptain\Orders::extend_hold( (int) $order->order_id, max( 1, (int) apply_filters( 'wpcap_paypal_capture_hold_minutes', 15 ) ) );
+		return true;
 	}
 
 	/** Whether an order must not be captured any more (cancelled or refunded). */
