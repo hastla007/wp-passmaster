@@ -19,7 +19,10 @@ final class Orders {
 	 *                        currency, hold_minutes, source, payment_provider, key_namespace
 	 *                        (separates idempotency keys per channel), skip_rate_limit (bool),
 	 *                        billing (external only: billing data already validated by the adapter),
-	 *                        skip_buyer_limits (bool; door sales are never limited, see Sales\BuyerLimits).
+	 *                        skip_buyer_limits (bool; door sales are never limited, see Sales\BuyerLimits),
+	 *                        attendees_deferred (external only: tickets without any attendee entry may be
+	 *                        issued although their type has required fields; the buyer completes them in
+	 *                        the order portal – WooCommerce orders created in the admin or over REST).
 	 */
 	public static function create( $payload, array $internal = array() ) {
 		global $wpdb;
@@ -77,7 +80,7 @@ final class Orders {
 			$gate = Sales\CheckoutGate::check( array( 'source' => $internal['source'] ?? 'native', 'phase' => 'checkout', 'items' => $clean_lines, 'email' => $email, 'idempotency_key' => $key, 'request' => $internal['request'] ?? null ) );
 			if ( is_wp_error( $gate ) ) { return $gate; }
 		}
-		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array() );
+		$attendees = self::validate_attendees( $clean_lines, $payload['attendees'] ?? array(), $external && ! empty( $internal['attendees_deferred'] ) );
 		if ( is_wp_error( $attendees ) ) { return $attendees; }
 		// Buyer billing data (company/address/VAT ID). Trusted adapters (e.g. WooCommerce) pass data that
 		// their own checkout already validated as $internal['billing']; customer input is validated here.
@@ -556,9 +559,11 @@ final class Orders {
 	 * Validates attendee data against the participant fields configured per ticket type.
 	 * Only configured fields are kept (data minimisation); required fields must be filled for every ticket.
 	 *
+	 * @param bool $allow_missing Tickets without any attendee entry are accepted even with required fields
+	 *                            (trusted adapters only; entries that are given are still validated).
 	 * @return array|\WP_Error Normalised list [{ticket_type_id, name, email, answers{field_id:value}}].
 	 */
-	public static function validate_attendees( array $lines, $attendees ) {
+	public static function validate_attendees( array $lines, $attendees, $allow_missing = false ) {
 		global $wpdb;
 		$attendees = is_array( $attendees ) ? array_values( $attendees ) : array();
 		$out = array();
@@ -571,7 +576,7 @@ final class Orders {
 			$needs_all = (bool) array_filter( $fields, static function ( $f ) { return (int) $f->required; } );
 			for ( $i = 0; $i < $quantity; $i++ ) {
 				$entry = $given[ $i ] ?? null;
-				if ( ! $entry && ! $needs_all ) { continue; }
+				if ( ! $entry && ( ! $needs_all || $allow_missing ) ) { continue; }
 				$entry = is_array( $entry ) ? $entry : array();
 				$answers = is_array( $entry['answers'] ?? null ) ? $entry['answers'] : array();
 				$clean = array();
