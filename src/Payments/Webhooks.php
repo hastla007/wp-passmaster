@@ -193,7 +193,7 @@ final class Webhooks {
 			$gateway = Registry::get( $provider );
 			if ( $gateway && method_exists( $gateway, 'after_hold_extended' ) ) {
 				$aligned = $gateway->after_hold_extended( (array) $order, $event );
-				if ( is_wp_error( $aligned ) ) { Audit::record( 'delayed_payment_due_date_failed', 'order', $order_id, array( 'provider' => $provider, 'error' => $aligned->get_error_code() ) ); }
+				if ( is_wp_error( $aligned ) ) { \PassCaptain\Log::warning( 'delayed_payment_due_date_failed', 'Could not align the hold with the due date.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'provider' => $provider, 'error' => $aligned->get_error_code() ) ) ); }
 			}
 			return 'hold_extended';
 		}
@@ -210,7 +210,7 @@ final class Webhooks {
 			}
 			$captured = $gateway->capture_authorized( (array) $order, $event );
 			if ( is_wp_error( $captured ) ) {
-				Audit::record( 'payment_capture_failed', 'order', $order_id, array( 'provider' => $provider, 'error' => $captured->get_error_code() ) );
+				\PassCaptain\Log::error( 'payment_capture_failed', 'Payment capture failed.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'provider' => $provider, 'error' => $captured->get_error_code() ) ) );
 				return new \WP_Error( 'wpcap_capture_failed', 'Capture failed; retry later.', array( 'status' => 503, 'retryable' => true ) );
 			}
 			self::extend_for_delayed_payment( $order, $provider );

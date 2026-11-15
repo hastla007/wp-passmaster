@@ -411,7 +411,7 @@ final class Refunds {
 		}
 		foreach ( $rows as $row ) {
 			Invoices::void_credit_note_for_refund( (int) $row['refund_id'] );
-			Audit::record( 'refund_provider_failed', 'order', $order_id, array( 'refund_id' => (int) $row['refund_id'], 'amount_minor' => (int) $row['amount_minor'], 'reference' => (string) $row['provider_reference'], 'order_reopened' => $reopen ) );
+			Log::error( 'refund_provider_failed', 'Refund failed at the payment provider.', array( 'object_type' => 'order', 'object_id' => $order_id, 'details' => array( 'refund_id' => (int) $row['refund_id'], 'amount_minor' => (int) $row['amount_minor'], 'reference' => (string) $row['provider_reference'], 'order_reopened' => $reopen ) ) );
 			do_action( 'wp_pass_captain_refund_failed_v1', (int) $row['refund_id'], $order_id );
 		}
 		return $rows;
